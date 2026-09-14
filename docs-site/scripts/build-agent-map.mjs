@@ -295,7 +295,15 @@ function renderMap({ lead, sections }, packages, fullTextKilobytes) {
 
   lines.push('# Tracon');
   lines.push('');
-  lines.push(lead);
+  // The llms.txt format puts "a short summary of the project, containing key
+  // information necessary for understanding the rest of the file" in a blockquote
+  // directly under the H1, and this file is both that summary and the map a
+  // consumer reads from disk. The sentence was already here as a paragraph; the
+  // blockquote is what a parser of the format looks for, and it is also the one
+  // place that has to disambiguate the name — `Tracon` is an established term in
+  // air traffic control, and a reader that lands on the word alone has nothing
+  // else to go on.
+  lines.push(`> ${lead}`);
   lines.push('');
   lines.push('Read this list before you write agent, run, tool, or evaluation code by hand:');
   lines.push('the capability is very likely already here. Tracon uses Microsoft Agent');
@@ -346,6 +354,15 @@ function renderMap({ lead, sections }, packages, fullTextKilobytes) {
   );
   lines.push(`- HTTP API reference: ${siteUrl}http-api/`);
   lines.push(`- .NET API reference: ${siteUrl}api/`);
+  // The OpenAPI document answers in one fetch what the 130 reference pages answer
+  // in 130, and it is the artifact a caller generates a client from. Nothing named
+  // it before this line; it was reachable only by reading the guide that links it.
+  lines.push(`- Every HTTP operation as one machine-readable contract: ${siteUrl}openapi/tracon.json`);
+  // Every page address on this site also serves the page's markdown source at
+  // <address>index.md. It is the same text without the HTML: code fences keep
+  // their line breaks and tables keep their columns, neither of which survives
+  // flattening the rendered page.
+  lines.push(`- Any page above as plain markdown: append index.md to its address, e.g. ${siteUrl}capabilities/index.md`);
   lines.push('');
 
   return `${lines.join('\n')}\n`;
@@ -430,6 +447,11 @@ function renderIndex(pages) {
     'rather than the concatenated full text, which is far larger and answers the',
     'same question with everything else attached.',
     '',
+    'Each address below is the page a reader should cite. Append index.md to it for',
+    'the same page as plain markdown, which is the cheaper thing to fetch and the',
+    'only form in which code fences keep their line breaks and tables keep their',
+    'columns. Every generated reference page under /api/ and /http-api/ has one too.',
+    '',
   ];
 
   for (const page of pages) {
@@ -443,14 +465,27 @@ function renderFullText(pages) {
   const parts = [
     '# Tracon — full documentation',
     '',
-    'Every hand-written page of the Tracon documentation, concatenated. The',
+    // The same disambiguating sentence the map opens with. This file is read whole,
+    // and the name on its own is an established air-traffic-control term; a reader
+    // that starts here should not have to reach the first page to learn which
+    // Tracon it is holding.
+    '> Tracon is a .NET package family that adds a control plane on Microsoft Agent',
+    '> Framework, published as NuGet packages that run inside your own ASP.NET Core',
+    `> application. Documentation: ${siteUrl}`,
+    '',
+    'Every hand-written page of the Tracon documentation, concatenated. Each page',
+    'below carries the address it was published at; cite that, not this file. The',
     'generated API and HTTP references are not included; use the compiler, the XML',
     `documentation, and ${siteUrl}http-api/ for those.`,
     '',
   ];
 
   for (const page of pages) {
-    parts.push('---', '', `# ${page.title}`, '', page.body, '');
+    // The address is part of the section, not decoration. Concatenation strips a
+    // page of everything that identified it: a reader that answers out of this
+    // file from the "Sessions and conversations" section had no way to say where
+    // the answer came from, and a reader cannot cite what it cannot name.
+    parts.push('---', '', `# ${page.title}`, '', `Source: ${siteUrl}${page.slug}${page.slug ? '/' : ''}`, '', page.body, '');
   }
 
   return `${parts.join('\n')}\n`;

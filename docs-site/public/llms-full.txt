@@ -1,12 +1,19 @@
 # Tracon — full documentation
 
-Every hand-written page of the Tracon documentation, concatenated. The
+> Tracon is a .NET package family that adds a control plane on Microsoft Agent
+> Framework, published as NuGet packages that run inside your own ASP.NET Core
+> application. Documentation: https://tracon.dev/
+
+Every hand-written page of the Tracon documentation, concatenated. Each page
+below carries the address it was published at; cite that, not this file. The
 generated API and HTTP references are not included; use the compiler, the XML
 documentation, and https://tracon.dev/http-api/ for those.
 
 ---
 
 # Capability map
+
+Source: https://tracon.dev/capabilities/
 
 Tracon is a .NET package family that adds a control plane on Microsoft Agent Framework. You choose the pieces, keep control of
 the dependency graph, and run the control plane inside your own .NET application.
@@ -275,7 +282,7 @@ exists. Two channels tell it, and both are generated from this page.
 |---|---|---|
 | Agent map file | `TraconWriteAgentsFile` | Writes `AGENTS.md` at the repository root during build; an existing file is never overwritten |
 | Local reference file | `TraconWriteLocalReference`, on by default with the map | Writes `Tracon.LocalReference.md` beside each project, naming the API documentation and the HTTP API document of the exact version that project restored; regenerated every build, never committed |
-| Map for web agents | `llms.txt` and `llms-full.txt` | Published with this site; nothing to register. `llms.txt` carries the map and one line per documentation page; `llms-full.txt` carries every page in full |
+| Map for web agents | `llms.txt` and `llms-full.txt` | Published with this site; nothing to register. `llms.txt` carries the map and one line per documentation page; `llms-full.txt` carries every page in full. Any page also serves its markdown source at `<address>index.md` |
 | Usage diagnostics | Automatic with `Tracon.Core`; `TraconUsageDiagnostics` turns the family off | The `Tracon.Usage` category reports absent wiring, a literal secret, hand-written substitutes for shipped behaviour, instructions that leave the map unreachable, an ambient write that does not survive a streaming loop, and a discarded ambient scope |
 | Tool diagnostics | Automatic with `Tracon.Core` | The `Tracon.Tools` category reports a tool method the generator cannot use |
 
@@ -328,6 +335,8 @@ defaults.
 ---
 
 # Agents and definitions
+
+Source: https://tracon.dev/concepts/agents/
 
 An agent definition is **data**: a name, a model binding, instructions, and the names of the
 tools, skills, and other agents it may use. The compiler turns that data into a MAF
@@ -660,6 +669,8 @@ criterion was finally satisfied" apart from "we ran out of iterations".
 ---
 
 # Evaluation and experiments
+
+Source: https://tracon.dev/concepts/evaluation/
 
 Use evaluation suites, judges, experiments, and regression checks to compare agent behavior against explicit criteria. They answer different questions
 and are meant to be used together.
@@ -1013,6 +1024,8 @@ results on every read, so it never reports a stale verdict.
 ---
 
 # Governance
+
+Source: https://tracon.dev/concepts/governance/
 
 Governance is explicit and visible. Tenancy, quotas, rate limits, retention cleanup,
 and content guards need configuration. Audit decorators and their default store are
@@ -1571,6 +1584,8 @@ validated is the address connected to. See
 
 # Architecture
 
+Source: https://tracon.dev/concepts/
+
 Tracon sits between your application and the Microsoft Agent Framework. It adds a
 catalog, a compiler, a recording layer, an HTTP surface, and a console — and it adds
 nothing between you and MAF's own types.
@@ -1677,6 +1692,8 @@ See [choosing packages](/packages/) for which to install.
 ---
 
 # Runs and recording
+
+Source: https://tracon.dev/concepts/runs/
 
 A **run** is one execution of an agent. Recording is on by default for agents resolved
 through the Tracon catalog, whether the call came from HTTP, the console, a
@@ -2116,6 +2133,8 @@ for what gets replayed, what runs live, and which tools it refuses to continue.
 
 # Sessions and conversations
 
+Source: https://tracon.dev/concepts/sessions/
+
 A **session** is where a conversation's state lives between turns. A **run** is one
 turn. They are separate on purpose: a session has many runs, and a run can happen
 without one.
@@ -2419,6 +2438,8 @@ console's origin.
 ---
 
 # Tools, skills, and MCP
+
+Source: https://tracon.dev/concepts/tools/
 
 An agent gains capability in a few ways. They differ in where the code lives and who
 is allowed to add it.
@@ -2761,6 +2782,8 @@ right chunk does not come back there, the agent was never going to see it.
 
 # Workflows
 
+Source: https://tracon.dev/concepts/workflows/
+
 A workflow runs several agents together. Where a callable agent is one agent using
 another as a tool, a workflow is an orchestration you define and can watch.
 
@@ -2992,6 +3015,8 @@ and the response opens a new one.
 
 # Your first agent
 
+Source: https://tracon.dev/getting-started/first-agent/
+
 Build an ASP.NET Core host, register a model-backed agent, then inspect its run
 in the embedded console. MAF executes the agent; Tracon supplies the catalog,
 HTTP endpoints, and default-on recording around it.
@@ -3149,6 +3174,8 @@ store is in memory, so all of it ends when the process does.
 
 # What Tracon is
 
+Source: https://tracon.dev/getting-started/
+
 Tracon is a **.NET package family** that adds a **control plane** on Microsoft
 Agent Framework (MAF). MAF executes the agent and its model/tool loop. Tracon adds
 agent definitions, configurable execution controls, HTTP endpoints, default-on
@@ -3232,6 +3259,8 @@ require .NET 10, and the source generator that ships inside Core targets
 ---
 
 # Persistence
+
+Source: https://tracon.dev/getting-started/persistence/
 
 Without a database every store is in memory and everything ends with the process.
 That is deliberate — it makes the first agent work with no infrastructure — but it is
@@ -3514,6 +3543,8 @@ before this leaves your machine.
 
 # Securing the endpoints
 
+Source: https://tracon.dev/getting-started/security/
+
 Configure who can reach Tracon, what they can do, and which tenant they can access.
 Protected endpoints restrict non-loopback callers by default. This restriction does
 not replace host authorization or correct proxy configuration; the metadata endpoint
@@ -3790,6 +3821,8 @@ delete what you no longer need.
 
 # Adding a tool
 
+Source: https://tracon.dev/getting-started/tools/
+
 An agent without tools can only talk. A tool is a method in your codebase that the
 model may call.
 
@@ -3947,6 +3980,8 @@ its error if it had one.
 ---
 
 # Background work
+
+Source: https://tracon.dev/guides/background-work/
 
 Tracon can move a run out of the request path or create work from a recurring
 schedule. Both paths use the same durable job queue and worker. This gives an API
@@ -4386,6 +4421,8 @@ idempotent.
 
 # Typed client and CLI
 
+Source: https://tracon.dev/guides/cli/
+
 :::caution[Package availability]
 Tracon packages and templates are not published yet. Package-install examples on
 this page describe the release form and do not currently resolve from public
@@ -4607,6 +4644,8 @@ measured. `migrate`, `migrate status`, and `health` never return `3` or `4`;
 
 # Client-side tools and the embeddable widget
 
+Source: https://tracon.dev/guides/client-side-tools/
+
 A normal tool's body runs in your server process. Some data only exists somewhere
 else — the current page's DOM, a shopping cart in `localStorage`, a file the user
 just selected. A client-side tool lets the model call something that runs on the
@@ -4768,6 +4807,8 @@ credential meant for exactly this.
 
 # Coding agents
 
+Source: https://tracon.dev/guides/coding-agents/
+
 :::caution[Package availability]
 Tracon packages and templates are not published yet. The `dotnet new tracon-api`
 line below describes the release form and does not currently resolve from public
@@ -4902,6 +4943,23 @@ The generated .NET and HTTP API references are deliberately **not** in either fi
 That surface belongs to the compiler and the XML documentation; putting it in a text
 file would burn a context window and answer nothing the local reference cannot.
 
+### Any page as plain markdown
+
+Append `index.md` to the address of any page on this site and you get the markdown
+it was built from — `/capabilities/` becomes
+[`/capabilities/index.md`](/capabilities/index.md), and the generated reference
+pages have one too, so
+[`/api/tracon.agentdefinition/index.md`](/api/tracon.agentdefinition/index.md)
+returns the type's documentation as text. Each page declares the copy with
+`<link rel="alternate" type="text/markdown">`, and points at `llms.txt` with
+`<link rel="describedby">`.
+
+Fetch that rather than the HTML when you only want the text. It is smaller, and it
+is the only form in which a code block keeps its line breaks: the rendered page puts
+every code line in its own element with no newline between them, so flattening the
+HTML yields `var app = builder.Build();app.MapTracon("/tracon");app.Run();` on one
+line. Table columns collapse the same way. Cite the page address, not the `.md` one.
+
 ## Keeping the map current
 
 Upgrade the package and the map goes stale — it describes the capabilities of the
@@ -4980,6 +5038,8 @@ written for the human making it.
 ---
 
 # Context and memory
+
+Source: https://tracon.dev/guides/context-and-memory/
 
 “Memory” is not one store. Tracon separates conversation continuity, context
 budgeting, working state, fixed resources, and semantic knowledge. Choose each layer
@@ -5282,6 +5342,8 @@ PostgreSQL.
 
 # Two connection planes — EF Core and Tracon
 
+Source: https://tracon.dev/guides/ef-core/
+
 Tracon does not use Entity Framework Core internally, and does not ship an EF
 Core package. Its store layer talks to the database through raw ADO.NET
 (`DbDataSource`, `DbCommand`) on purpose — that keeps `Tracon.PostgreSql` AOT
@@ -5416,6 +5478,8 @@ See [Read contract views](/reference/read-views/) for the full column list, the
 ---
 
 # Embedding into a host application
+
+Source: https://tracon.dev/guides/embedding/
 
 `AddTracon()` plus `MapTracon()` is a complete, working setup on its own —
 that two-line promise is what [Your first agent](/getting-started/first-agent/)
@@ -5858,6 +5922,8 @@ wrong interface.
 
 # Connect and expose agents
 
+Source: https://tracon.dev/guides/external-agents/
+
 Tracon supports three different external-agent directions. Keep them separate:
 
 | Direction | Purpose | Registration | HTTP surface |
@@ -6082,6 +6148,8 @@ recording, tenancy, trace, cost, quota, and audit infrastructure.
 
 # Inbound triggers
 
+Source: https://tracon.dev/guides/inbound-triggers/
+
 An inbound trigger is the reverse of an [outbound webhook](/concepts/governance/#webhooks):
 instead of Tracon notifying another system, another system starts a run in
 Tracon. A Slack slash command, a support-desk ticket event, or a queue
@@ -6268,6 +6336,8 @@ system's webhook configuration.
 ---
 
 # Knowledge and RAG
+
+Source: https://tracon.dev/guides/knowledge/
 
 Tracon knowledge is retrieval, not hidden prompt injection. Operators ingest
 documents into a named collection. An agent gets a code-defined
@@ -6553,6 +6623,8 @@ fresh embeddings. Avoid unstable source ids that cause unnecessary full replacem
 ---
 
 # Model providers
+
+Source: https://tracon.dev/guides/model-providers/
 
 A provider registration opens a model route in the host. An agent definition selects
 that route by name. The definition never contains the credential.
@@ -7186,6 +7258,8 @@ counted value against the model's real `ContextWindowTokens` before deciding.
 
 # Multimodal input and generated images
 
+Source: https://tracon.dev/guides/multimodal/
+
 Tracon treats binary input as a stored attachment, not as JSON inside a message.
 The run carries an attachment id. The model receives the verified bytes only when the
 provider call is made.
@@ -7429,6 +7503,8 @@ deleted. Keep it for at least as long as any session or replay path that needs i
 ---
 
 # Observability
+
+Source: https://tracon.dev/guides/observability/
 
 Tracon exposes four complementary views of a running system:
 
@@ -7816,6 +7892,8 @@ operational information.
 
 # OpenAI-compatible API
 
+Source: https://tracon.dev/guides/openai-api/
+
 Tracon exposes the two OpenAI request styles most application clients already
 understand:
 
@@ -8105,6 +8183,8 @@ The behavior and compatibility limits above are Tracon's own contract.
 ---
 
 # Production deployment
+
+Source: https://tracon.dev/guides/production/
 
 A production Tracon deployment needs more than a provider key. It needs durable
 state, an explicit identity boundary, a migration strategy, readiness probes, bounded
@@ -8691,6 +8771,8 @@ irreversible action. Test the crash boundary, not only the successful path.
 
 # Reliable runs
 
+Source: https://tracon.dev/guides/reliability/
+
 Reliable agent execution is not one retry switch. Provider calls, HTTP submissions,
 background leases, live cancellation, and multi-agent trees fail at different
 boundaries. Tracon gives each boundary a separate control so recovery stays
@@ -9123,6 +9205,8 @@ age, orphaned runs, open circuits, and `409` cancellation responses.
 
 # Structured output
 
+Source: https://tracon.dev/guides/structured-output/
+
 Structured output changes the format requested from the model. It does not turn a
 model response into a trusted .NET object, and it does not add server-side schema
 validation after the response arrives — an opt-in seam can check well-formedness and
@@ -9478,6 +9562,8 @@ and still reject a fenced payload at the application boundary.
 
 # Test agents without model calls
 
+Source: https://tracon.dev/guides/testing/
+
 :::caution[Package availability]
 Tracon packages and templates are not published yet. Package-install examples on
 this page describe the release form and do not currently resolve from public
@@ -9745,6 +9831,8 @@ mistake instead of hiding it.
 
 # TypeScript client
 
+Source: https://tracon.dev/guides/typescript-client/
+
 :::caution[Package availability]
 Tracon packages and templates are not published yet. Package-install examples on
 this page describe the release form and do not currently resolve from public
@@ -9908,6 +9996,8 @@ sync.
 ---
 
 # Voice and live conversation
+
+Source: https://tracon.dev/guides/voice/
 
 :::caution[Package availability]
 Tracon packages and templates are not published yet. Package-install examples on
@@ -10377,6 +10467,8 @@ For the provider-hosted path:
 
 # Write your own agent decorator
 
+Source: https://tracon.dev/guides/write-your-own-agent-decorator/
+
 `IAgentDecorator` wraps every agent the catalog resolves, the same mechanism
 Tracon uses for run recording, telemetry, and the tool-approval gate. Use
 it for cross-cutting behavior that has to see every agent — an audit trail,
@@ -10477,6 +10569,8 @@ builder.Services.AddSingleton<IProviderRetryClassifier, AcmeRetryClassifier>();
 ---
 
 # Write your own agent source
+
+Source: https://tracon.dev/guides/write-your-own-agent-source/
 
 `IAgentSource` is the catalog extension point. Use it when agent definitions do not
 live in the management database, or when an agent is backed by another runtime.
@@ -10599,6 +10693,8 @@ isolated; resolution failures stop so a lower-priority agent cannot run by mista
 
 # Write your own error classifier
 
+Source: https://tracon.dev/guides/write-your-own-error-classifier/
+
 A provider failure raises two separate questions, answered by two separate
 extension points:
 
@@ -10700,6 +10796,8 @@ class comes from the built-in classifier instead, and the failure is logged.
 ---
 
 # Write your own job handler
+
+Source: https://tracon.dev/guides/write-your-own-job-handler/
 
 :::caution[Package availability]
 Tracon packages and templates are not published yet. Package-install examples on
@@ -10905,6 +11003,8 @@ handler actually receives a queued job.
 
 # Write your own judge
 
+Source: https://tracon.dev/guides/write-your-own-judge/
+
 :::caution[Package availability]
 Tracon packages and templates are not published yet. Package-install examples on
 this page describe the release form and do not currently resolve from public
@@ -11049,6 +11149,8 @@ timeouts, persistence, or HTTP responses.
 ---
 
 # Write your own store
+
+Source: https://tracon.dev/guides/write-your-own-store/
 
 :::caution[Package availability]
 Tracon packages and templates are not published yet. Package-install examples on
@@ -11229,6 +11331,8 @@ its own. Three rules the contract checks, and that a custom store has to honor:
 ---
 
 # Write your own tool
+
+Source: https://tracon.dev/guides/write-your-own-tool/
 
 Use `[TraconTool]` with `AddGeneratedTools()` for a custom tool. It is the AOT-safe
 path. Tool instances are singletons and can run concurrently for different tenants and
@@ -11543,6 +11647,8 @@ public void All_tool_contracts_are_covered()
 
 # HTTP API
 
+Source: https://tracon.dev/http-api/
+
 168 operations across 130 paths. This page is the shape they all share; the groups in
 the sidebar are the operations themselves, each with what it does and what it returns.
 
@@ -11770,6 +11876,8 @@ reachable; they just stop appearing in your Swagger UI or generated document.
 ---
 
 # Choosing packages
+
+Source: https://tracon.dev/packages/
 
 Twenty packages. Take the meta package for the common set, or pick individually
 when you care about what enters your dependency graph.
@@ -12014,6 +12122,8 @@ upgrades](/reference/versioning/).
 
 # Release notes
 
+Source: https://tracon.dev/reference/changelog/
+
 **Tracon has not been released yet.** No version has been published to
 NuGet or npm, and there is no release tag, so there is nothing here to install
 or pin. Development happens on `main`.
@@ -12031,6 +12141,8 @@ metadata will link straight to it.
 ---
 
 # Compatibility
+
+Source: https://tracon.dev/reference/compatibility/
 
 :::caution[Package availability]
 Tracon packages and templates are not published yet. Package-install examples on
@@ -12237,6 +12349,8 @@ hashed and the plaintext value is returned only at creation.
 ---
 
 # Configuration
+
+Source: https://tracon.dev/reference/configuration/
 
 This page lists values that the current option types define. It does not infer a
 default from provider behavior. `null`, empty, and off mean exactly that.
@@ -12937,6 +13051,8 @@ types. Their absence from this section table is deliberate.
 
 # Glossary
 
+Source: https://tracon.dev/reference/glossary/
+
 Agent systems reuse familiar words for different things. These definitions state what
 each term means inside Tracon.
 
@@ -13163,6 +13279,8 @@ each term means inside Tracon.
 
 # Licensing
 
+Source: https://tracon.dev/reference/licensing/
+
 Tracon ships under the **PolyForm Small Business License 1.0.0**. Three
 packages are MIT instead. Nothing in any package checks, enforces or reports your
 licence.
@@ -13263,6 +13381,8 @@ ones. Both are also at the root of the repository.
 ---
 
 # Read contract views
+
+Source: https://tracon.dev/reference/read-views/
 
 Use `runs_v1` to join run status and cost with your application's SQL data. It is
 an opt-in, versioned, read-only view. Use `GET /api/runs` for HTTP access; avoid
@@ -13414,6 +13534,8 @@ version afterward.
 ---
 
 # Versions and upgrades
+
+Source: https://tracon.dev/reference/versioning/
 
 :::caution[Package availability]
 Tracon packages and templates are not published yet. Package-install examples on
@@ -13691,6 +13813,8 @@ content.
 ---
 
 # Troubleshooting
+
+Source: https://tracon.dev/troubleshooting/
 
 :::caution[Package availability]
 Tracon packages and templates are not published yet. Package-install examples on
@@ -14617,6 +14741,8 @@ pointer file, set `TraconWriteLocalReference` to `false`.
 ---
 
 # The console
+
+Source: https://tracon.dev/ui/
 
 The console ships inside `Tracon.UI` as a pre-built, Brotli-compressed
 single-page application. There is no `node_modules` in your project and no JavaScript
