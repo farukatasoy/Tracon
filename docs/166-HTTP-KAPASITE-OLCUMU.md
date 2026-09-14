@@ -34,6 +34,23 @@
 5. `.agents/ortak/kapilar.md`, `.agents/ortak/test-seviyeleri.md`.
 6. Kaynakta yalnız §166.1 tablosundaki girişler; bütün endpoint dosyalarını okuma.
 
+### Faz 170'ten devralınanlar (2026-09-14)
+
+Bu faz Faz 170'ten **sonra** koşacak; iki nokta ölçümü ilgilendirir.
+
+- 🚨 **`guides/production.md` değişti.** Faz 170 o sayfaya iki paragraf, bir
+  tablo notu ve bir checklist satırı ekledi (`RequireProductionProfile()`).
+  §166.6'nın temsilî sayı tablosu oraya eklenirken sayfanın **bugünkü** hâline
+  bak; ağırlık kapısı (`npm run check:weight`, 58000 B tavan) o sayfada zaten
+  koşuyor ve tablo onu zorlayabilir.
+- **`AddTracon()` yedi kayıt daha yapıyor** (bir `IHostedService` +
+  altı `IProductionProfileCheck`), yani başlangıç kompozisyonu bir miktar
+  büyüdü. **İstek yolu değişmedi**: doğrulayıcı, uygulama
+  `RequireProductionProfile()` çağırmadıkça **hiçbir şey çözmez** ve kontroller
+  hiç kurulmaz. Ölçüm senaryolarında profili çağırma — çağırırsan ölçtüğün şey
+  bir başlangıç kapısının maliyeti olur, HTTP kapasitesi değil. Başlangıç
+  süresini ölçen bir senaryo eklersen bu yedi kaydı gerekçe olarak yaz.
+
 ## Amaç
 
 Belirli donanım, configuration ve veri hacminde gerçek paket tüketicisinin
