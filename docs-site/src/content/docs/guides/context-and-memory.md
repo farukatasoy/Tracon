@@ -31,7 +31,7 @@ flowchart LR
 ```
 
 A session preserves continuity. Compaction reduces what the model sees. It does not
-delete the durable run record. File memory and knowledge search add capabilities; they
+delete the persisted run record. File memory and knowledge search add capabilities; they
 do not replace session history.
 
 These five layers all shape what already made it into the conversation. A tool's

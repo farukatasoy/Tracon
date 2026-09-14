@@ -24,8 +24,10 @@ says what to do instead:
 > For production deployments, build your own custom interface using the Agent Framework
 > SDK with appropriate security measures.
 
-Tracon is that interface, delivered as packages instead of as an instruction. It does
-not replace DevUI: DevUI stays the fastest way to look at an agent while you write it.
+Tracon is one implementation of that production-facing layer, delivered as packages
+instead of as an instruction. It is not an official answer to that guidance, and it
+does not replace DevUI: DevUI stays the fastest way to look at an agent while you
+write it.
 
 ## Where the two are documented to differ
 

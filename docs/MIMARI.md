@@ -25,7 +25,7 @@ tekrarlanmaz. Mimari açıdan anlamı olan kalemler:
   (K-209), `Google` (K-205), `Azure` (K-210; ayar sunmaz K-211, Responses yok
   K-213), `Voice` (K-216; sözleşme `Abstractions`'ta K-215, gerçek zamanlı
   katman `Core`'da K-222), `Templates`, `Testing`.
-- `dotnet pack` **17 paket** üretir. Hangi fazın hangi pakete ne eklediği:
+- `dotnet pack` **20 paket** üretir. Hangi fazın hangi pakete ne eklediği:
   [`arsiv/PAKET-FAZ-GECMISI.md`](arsiv/PAKET-FAZ-GECMISI.md).
 
 Ne veritabanı ne de belirli bir model satıcısı **zorunludur**: `storage`

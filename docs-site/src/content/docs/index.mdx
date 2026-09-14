@@ -1,6 +1,6 @@
 ---
 title: .NET control plane for Microsoft Agent Framework
-description: A .NET package family that adds a production control plane to Microsoft Agent Framework, with run recording, tenant boundaries, tool policies, and an embedded console.
+description: A .NET package family that adds a production-oriented control plane to Microsoft Agent Framework, with run recording, tenant boundaries, tool policies, and an embedded console.
 template: splash
 hero:
   title: The .NET control plane for Microsoft Agent Framework.
@@ -12,7 +12,7 @@ import { Code } from '@astrojs/starlight/components';
 
 <div class="comparison-note">
   <h2>MAF ships DevUI for development. Tracon is for what comes next.</h2>
-  <p>DevUI's own documentation calls it a sample app for visualising and debugging agents during development. It states that DevUI is not intended for production use, and asks you to build your own interface for production instead. Tracon is that interface, delivered as packages: durable run records, an authorization policy, versioned definitions with rollback, an optional tenant boundary, and a verifiable audit trail.</p>
+  <p>DevUI's own documentation calls it a sample app for visualising and debugging agents during development. It states that DevUI is not intended for production use, and asks you to build your own interface for production instead. Tracon is one implementation of that production-facing layer, delivered as packages: persisted run records, an authorization policy, versioned definitions with rollback, an optional tenant boundary, and a verifiable audit trail.</p>
   <a href="/getting-started/devui/">Compare DevUI and Tracon <span aria-hidden="true">→</span></a>
 </div>
 
@@ -24,7 +24,7 @@ import { Code } from '@astrojs/starlight/components';
 <div class="operation-strips">
   <section class="operation-strip">
     <div><span class="strip-id">01 / Separate</span><h3>Tenant boundaries.</h3></div>
-    <p>One host can serve several tenants. Tenant-scoped stores keep their records apart; authentication and caller attribution determine which scope a request enters.</p>
+    <p>One host can serve several tenants. Tenant-scoped queries keep each tenant's records logically isolated; authentication and caller attribution determine which scope a request enters.</p>
     <a href="/getting-started/security/">Set the tenant boundary →</a>
   </section>
   <section class="operation-strip">
@@ -44,7 +44,7 @@ import { Code } from '@astrojs/starlight/components';
   </section>
 </div>
 
-<p class="inventory-line"><a href="/packages/"><strong>20</strong> NuGet packages</a> · <a href="/http-api/"><strong>168</strong> generated HTTP operations</a> · <a href="/ui/"><strong>30</strong> embedded console screens</a></p>
+<p class="inventory-line"><a href="/packages/"><strong>20</strong> modular packages</a> · <a href="/http-api/"><strong>168</strong> generated HTTP operations</a> · <a href="/ui/"><strong>30</strong> embedded console screens</a></p>
 
 <p class="inventory-note">The integration surfaces a host needs — MCP, A2A, voice, retrieval, scheduling, evaluation — sit under the same control plane, not beside it. <a href="/capabilities/">See the capability map</a>.</p>
 
@@ -74,24 +74,37 @@ internal class OrderTools
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.AddTracon()
-       .AddGeneratedTools()
-       .UsePostgreSql(builder.Configuration.GetConnectionString("Tracon")!)
-       .UseOpenAI(builder.Configuration["OpenAI:ApiKey"]!)
-       .UseUI();
+var tracon = builder.AddTracon()
+    .AddGeneratedTools()
+    .UsePostgreSql(builder.Configuration.GetConnectionString("Tracon")!)
+    .UseOpenAI(builder.Configuration["OpenAI:ApiKey"]!);
+
+tracon.AddAgent(new AgentDefinition
+{
+    Name = "support",
+    Instructions = "Answer order questions. Use a tool for anything about an order.",
+    Model = new ModelBinding
+    {
+        Provider = OpenAIProviderNames.ChatCompletions,
+        Model = builder.Configuration["OpenAI:Model"]!,
+    },
+    ToolNames = ["get_order_status"],
+});
 
 var app = builder.Build();
 app.MapTracon("/tracon");
 app.Run();`} />
 
-Every line after `AddTracon()` is optional. Storage starts in memory, and the host
-still starts without a provider key. Add persistence when the records must survive a
-restart. Tracon is not yet published: the [source-based guide](/getting-started/first-agent/)
-requires access to a checkout of the repository.
+An agent is data, so it can be versioned and rolled back without a deployment.
+Storage starts in memory and the host still starts without a provider key, so each
+call above is a choice rather than a requirement. Tracon is not yet published: the
+[source-based guide](/getting-started/first-agent/) requires access to a checkout of
+the repository.
 
 ## The console ships in the assembly.
 
-Add `Tracon.UI` and register `UseUI()` to embed the console in your host. It reads
+The control plane above runs without a user interface. Add `Tracon.UI` and one more
+call — `UseUI()` on the same builder — to embed the console in your host. It reads
 the same management API that your own clients can call. The consuming application
 does not need Node.js or a JavaScript build to serve it.
 
@@ -111,7 +124,7 @@ does not need Node.js or a JavaScript build to serve it.
   <li><a href="/getting-started/first-agent/"><strong>Build</strong><span>Configure a source checkout, run an agent, and inspect the result.</span><span aria-hidden="true">↗</span></a></li>
   <li><a href="/guides/openai-api/"><strong>Integrate</strong><span>Connect an OpenAI-compatible client to an existing agent.</span><span aria-hidden="true">↗</span></a></li>
   <li><a href="/guides/production/"><strong>Operate</strong><span>Plan persistence, authorization, workers, telemetry, and recovery.</span><span aria-hidden="true">↗</span></a></li>
-  <li><a href="/capabilities/"><strong>Evaluate</strong><span>Review capabilities, package choices, defaults, and operating limits.</span><span aria-hidden="true">↗</span></a></li>
+  <li><a href="/capabilities/"><strong>Assess</strong><span>Review capabilities, package choices, defaults, and operating limits.</span><span aria-hidden="true">↗</span></a></li>
 </ul>
 
 <div class="boundary-note">

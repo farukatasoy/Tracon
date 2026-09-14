@@ -170,8 +170,8 @@ Hero kicker  (metafor burada yasar)
   Tracon / Approach control for your agents.
 
 Düz konumlandırma (NuGet Description, GitHub About, meta description)
-  The production control plane for Microsoft Agent Framework — recorded runs,
-  tenant isolation, tamper-evident audit trail, embedded console.
+  The production-oriented control plane for Microsoft Agent Framework — recorded
+  runs, tenant isolation, tamper-evident audit trail, embedded console.
 
 Dörtlü
   Separate. Sequence. Clear. Record.
@@ -206,6 +206,32 @@ Paket Description kalıbı
 > anasayfa yalniz alintiyi ve uretim tavsiyesini tasir. Iddialar yalniz
 > Microsoft'un yayinlanmis dokumanindan alinir: DevUI'nin kaliciligi hakkinda
 > iddia **yazilmaz**, cunku belgelenmemistir.
+>
+> 🚨 **Paketler yayinlanana kadar `production-oriented`.** `production control
+> plane` / `production-grade` ifadeleri geri alindi: ayni ekranda "Not yet
+> published to NuGet" yazarken kesin bir uretim iddiasi savunulamiyor. Uc yuzey
+> birlikte tasinir — site meta description, kok `README.md` ve
+> `src/Tracon/Tracon.csproj` `<Description>` (bu sonuncusu nuget.org sayfasina
+> gider). 1.0 yayinlandiktan sonra `production control plane`'e donulebilir.
+>
+> 🚨 **Uc iddia kelimesi olculerek secildi; geri alma.**
+> - **`queries`, `stores` degil.** Kiraci yalitimi *uygulama katmanindadir*:
+>   her sorgu cozulmus tenant'i tasir, veritabani RLS'i **yoktur ve bilincli
+>   yoktur**. "Tenant-scoped stores" depolama seviyesinde ayrim ima ediyordu.
+>   Dogru: `Tenant-scoped queries keep each tenant's records logically isolated`.
+>   Kaynak: `concepts/governance.md` "Isolation lives in the application layer".
+> - **`persisted`, `durable` degil.** Kayit *best-effort*'tur: store hatasi
+>   loglanir ve agent devam eder. "Durable" dagitik sistem sozlugunde teslim
+>   garantisi cagristirir. Dogru: `persisted run records`.
+> - **`one implementation of that production-facing layer`, `that interface`
+>   degil.** Microsoft "kendi arayuzunu yaz" diyor; "Tracon o arayuzdur" demek
+>   tavsiyenin resmi cevabi Tracon'mus gibi okunuyordu.
+>
+> 🚨 **Anasayfa envanter satiri "20 modular packages" der, "20 NuGet packages"
+> DEMEZ** — ayni ekranda paketlerin henuz yayinlanmadigi yaziyor. Kapi bu
+> etiketi zorlar: `docs-site/scripts/check-content.mjs` metrik kontrolu.
+> `reference/versioning.md` ve `SECURITY.md` yayin surecini anlattigi icin
+> orada "NuGet packages" dogru ifadedir.
 
 ## 10. Terminoloji
 
