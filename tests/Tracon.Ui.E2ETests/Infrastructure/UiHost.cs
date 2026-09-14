@@ -33,6 +33,9 @@ internal static class ScriptedModels
 
     /// <summary>Model for the "custom-event-agent" code agent: calls a tool that writes a RunEventType.Custom event, then echoes its result (Phase 141).</summary>
     public const string CustomEvent = "scripted-custom-event";
+
+    /// <summary>Model for the "fulfilment" code agent: calls a tool that always throws, so a run really fails.</summary>
+    public const string Failing = "scripted-failing";
 }
 
 /// <summary>
@@ -120,6 +123,9 @@ internal sealed class UiHost : IAsyncDisposable
                 .EchoesLastToolResult("Title: "))
             .ForModel(ScriptedModels.CustomEvent, cfg => cfg
                 .CallsTool("mark_preview_ready", new { orderId = "ORD-7" })
+                .EchoesLastToolResult())
+            .ForModel(ScriptedModels.Failing, cfg => cfg
+                .CallsTool("reserve_stock", new { orderId = "ORD-9" })
                 .EchoesLastToolResult());
 
         // Voice endpoints need only these abstractions; there is NO reference
@@ -211,6 +217,20 @@ internal sealed class UiHost : IAsyncDisposable
                     Model = ScriptedModels.CustomEvent,
                 },
                 ToolNames = ["mark_preview_ready"],
+                Origin = AgentDefinitionOrigin.Code,
+            })
+            .AddAgent(new AgentDefinition
+            {
+                Name = "fulfilment",
+                DisplayName = "Fulfilment agent",
+                Description = "Code agent whose tool always throws, so the documentation capture has a failed run.",
+                Instructions = "Reserve the stock for the order.",
+                Model = new ModelBinding
+                {
+                    Provider = ScriptedModels.ProviderName,
+                    Model = ScriptedModels.Failing,
+                },
+                ToolNames = ["reserve_stock"],
                 Origin = AgentDefinitionOrigin.Code,
             })
 

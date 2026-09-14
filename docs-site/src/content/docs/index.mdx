@@ -1,6 +1,6 @@
 ---
 title: .NET control plane for Microsoft Agent Framework
-description: A .NET package family that adds a production-oriented control plane to Microsoft Agent Framework, with run recording, tenant boundaries, tool policies, and an embedded console.
+description: A .NET package family that adds a production-oriented control plane to Microsoft Agent Framework, with ownership boundaries, tool policy, durable execution, and recorded runs.
 template: splash
 hero:
   title: The .NET control plane for Microsoft Agent Framework.
@@ -18,30 +18,39 @@ import { Code } from '@astrojs/starlight/components';
 
 <div class="landing-intro">
   <h2>Four questions<br />a control plane answers.</h2>
-  <p>Your agent can answer a question. Operating it asks different ones: which tenant owns this session, who may call this tool, how work resumes after a restart, and what happened during a run. Tracon gives each one an answer in your own application.</p>
+  <p>Your agent can answer a question. Operating it asks different ones: who owns this session, who may call this tool, how work resumes after a restart, and what happened during a run. Tracon gives each one an answer in your own application.</p>
 </div>
 
 <div class="operation-strips">
   <section class="operation-strip">
-    <div><span class="strip-id">01 / Separate</span><h3>Tenant boundaries.</h3></div>
-    <p>One host can serve several tenants. Tenant-scoped queries keep each tenant's records logically isolated; authentication and caller attribution determine which scope a request enters.</p>
-    <a href="/getting-started/security/">Set the tenant boundary →</a>
+    <div><span class="strip-id">01 / Separate</span><h3>Ownership boundaries.</h3></div>
+    <p>One host can serve many callers and several tenants. Tenant-scoped queries keep each tenant's records logically isolated, and authentication decides which scope a request enters. Narrow it once more when a session should belong to the person who opened it.</p>
+    <a href="/getting-started/security/">Set the boundary →</a>
   </section>
   <section class="operation-strip">
-    <div><span class="strip-id">02 / Sequence</span><h3>Coordinated work.</h3></div>
-    <p>A task can involve several agents and a human decision. Coordinate workflows with checkpoints and resume; schedule recurring work or queue a run for a worker.</p>
-    <a href="/concepts/workflows/">Follow a workflow →</a>
-  </section>
-  <section class="operation-strip">
-    <div><span class="strip-id">03 / Clear</span><h3>Tool policy.</h3></div>
+    <div><span class="strip-id">02 / Clear</span><h3>Tool policy.</h3></div>
     <p>A model proposing a tool call does not set its policy. Define tools in code, apply authorization, and require approval for the calls you choose to review.</p>
     <a href="/concepts/tools/">Define the tool policy →</a>
+  </section>
+  <section class="operation-strip">
+    <div><span class="strip-id">03 / Recover</span><h3>Durable execution.</h3></div>
+    <p>Work does not have to disappear with the process. Queue a run for a worker, checkpoint a workflow, resume after a human decision, and reconcile the runs a crash left behind. Each boundary carries its own control rather than one retry switch.</p>
+    <a href="/guides/reliability/">Plan the recovery →</a>
   </section>
   <section class="operation-strip">
     <div><span class="strip-id">04 / Record</span><h3>Inspectable runs.</h3></div>
     <p>Inspect run events, tool calls, timing, and configured cost data. Catalog agents record by default. Recording is best-effort: a store failure is logged while the agent continues.</p>
     <a href="/concepts/runs/">Read a recorded run →</a>
   </section>
+</div>
+
+<div class="start-steps">
+  <p class="start-lead">Start with one package. Add the rest when you need it.</p>
+  <ol>
+    <li><span class="strip-id">01 / Start</span><p>One package, no database. <code>Tracon.UI</code> brings the runtime and the HTTP surface with it, and every store begins in memory.</p></li>
+    <li><span class="strip-id">02 / Persist</span><p>Add a database when the records must outlive the process: PostgreSQL, SQL Server, or SQLite, one call each.</p></li>
+    <li><span class="strip-id">03 / Extend</span><p>The rest waits. Voice, MCP, A2A, evaluation, and background workers are separate packages you add when the need arrives.</p></li>
+  </ol>
 </div>
 
 <p class="inventory-line"><a href="/packages/"><strong>20</strong> modular packages</a> · <a href="/http-api/"><strong>168</strong> generated HTTP operations</a> · <a href="/ui/"><strong>30</strong> embedded console screens</a></p>
@@ -95,7 +104,10 @@ var app = builder.Build();
 app.MapTracon("/tracon");
 app.Run();`} />
 
-An agent is data, so it can be versioned and rolled back without a deployment.
+An agent is data, so changing one is a write rather than a deployment. Every save
+appends a version, a rollback writes the old content forward as a new version, and
+the rollback is itself audited. See [versions and rollback](/concepts/agents/#versions).
+
 Storage starts in memory and the host still starts without a provider key, so each
 call above is a choice rather than a requirement. Tracon is not yet published: the
 [source-based guide](/getting-started/first-agent/) requires access to a checkout of
@@ -108,15 +120,52 @@ call — `UseUI()` on the same builder — to embed the console in your host. It
 the same management API that your own clients can call. The consuming application
 does not need Node.js or a JavaScript build to serve it.
 
-<figure class="product-shot console-shot">
-  <a class="shot-light" href="/screenshots/runs-light.png">
-    <img src="/screenshots/runs-light.png" alt="The Tracon console listing recorded runs with status, duration, tokens, and cost" width="2880" height="1800" loading="lazy" decoding="async" />
-  </a>
-  <a class="shot-dark" href="/screenshots/runs.png">
-    <img src="/screenshots/runs.png" alt="The Tracon console listing recorded runs with status, duration, tokens, and cost" width="2880" height="1800" loading="lazy" decoding="async" />
-  </a>
-  <figcaption>Recorded runs in the console, captured from a local sample with seeded data. This is sample data, not live telemetry.</figcaption>
-</figure>
+## A tool call failed. Now what?
+
+Which tenant was affected, which arguments were sent, and where did it break? These
+four screens are that answer, in the order you would open them.
+
+<div class="product-tour">
+  <figure class="tour-step console-shot">
+    <figcaption><span class="strip-id">01 / Run</span><strong>Try the agent.</strong> The playground runs a catalog agent against a real model and streams the turn back.</figcaption>
+    <a class="shot-light" href="/screenshots/playground-light.png">
+      <img src="/screenshots/playground-light.png" alt="The Tracon console playground, where an agent is run interactively" width="2880" height="1800" loading="lazy" decoding="async" />
+    </a>
+    <a class="shot-dark" href="/screenshots/playground.png">
+      <img src="/screenshots/playground.png" alt="The Tracon console playground, where an agent is run interactively" width="2880" height="1800" loading="lazy" decoding="async" />
+    </a>
+  </figure>
+  <figure class="tour-step console-shot">
+    <figcaption><span class="strip-id">02 / Approve</span><strong>Release the tool call.</strong> A tool marked for review waits here with the arguments the model proposed.</figcaption>
+    <a class="shot-light" href="/screenshots/approvals-light.png">
+      <img src="/screenshots/approvals-light.png" alt="The Tracon console approvals screen listing a tool call waiting for review" width="2880" height="1800" loading="lazy" decoding="async" />
+    </a>
+    <a class="shot-dark" href="/screenshots/approvals.png">
+      <img src="/screenshots/approvals.png" alt="The Tracon console approvals screen listing a tool call waiting for review" width="2880" height="1800" loading="lazy" decoding="async" />
+    </a>
+  </figure>
+  <figure class="tour-step console-shot">
+    <figcaption><span class="strip-id">03 / Locate</span><strong>Find the run.</strong> Every run is recorded by default, with status, duration, tokens, and cost.</figcaption>
+    <a class="shot-light" href="/screenshots/runs-light.png">
+      <img src="/screenshots/runs-light.png" alt="The Tracon console listing recorded runs with status, duration, tokens, and cost" width="2880" height="1800" loading="lazy" decoding="async" />
+    </a>
+    <a class="shot-dark" href="/screenshots/runs.png">
+      <img src="/screenshots/runs.png" alt="The Tracon console listing recorded runs with status, duration, tokens, and cost" width="2880" height="1800" loading="lazy" decoding="async" />
+    </a>
+  </figure>
+  <figure class="tour-step console-shot">
+    <figcaption><span class="strip-id">04 / Read</span><strong>Read the cause.</strong> The event stream, the failed call, and the arguments it was sent. The record names the exception type rather than repeating a third-party message.</figcaption>
+    <a class="shot-light" href="/screenshots/run-detail-light.png">
+      <img src="/screenshots/run-detail-light.png" alt="The Tracon console run detail screen showing a failed tool call and its arguments" width="2880" height="1800" loading="lazy" decoding="async" />
+    </a>
+    <a class="shot-dark" href="/screenshots/run-detail.png">
+      <img src="/screenshots/run-detail.png" alt="The Tracon console run detail screen showing a failed tool call and its arguments" width="2880" height="1800" loading="lazy" decoding="async" />
+    </a>
+  </figure>
+</div>
+
+Captured from a local sample with seeded data. This is sample data, not live
+telemetry.
 
 ## Choose your path
 

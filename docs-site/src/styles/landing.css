@@ -38,6 +38,36 @@
 .landing-intro { display: grid; grid-template-columns: 1fr 1.8fr; gap: 3rem; margin: 0 0 2.5rem; }
 .landing-intro h2 { margin: 0; font-size: 2rem; }
 .landing-intro p { margin: 0; }
+/* Scale before the counts: a reader who meets "20 packages" with no context reads
+   maintenance cost. This says what the first one is, so the numbers land as reach
+   rather than weight. Deliberately lighter than .operation-strip - that block
+   already carries four controls, and a second one at the same weight reads as more
+   of the same. */
+.start-steps { margin: 2.5rem 0 0; padding-block: 1.75rem 0; }
+.start-lead { color: var(--tracon-text-strong); font-size: 1.25rem; font-weight: 550; letter-spacing: -.02em; margin: 0 0 1.75rem; max-inline-size: var(--tracon-measure); }
+.start-steps ol { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 2rem; }
+/* 🚨 margin:0 is load-bearing. The prose rule that spaces one list item from the
+   next gives every li after the first a top margin, and in a grid that margin
+   offsets the item inside its own cell - the three columns started 4px apart. */
+.start-steps li { display: grid; gap: .35rem; align-content: start; margin: 0; }
+/* The divider separates columns rather than preceding the first, so the first
+   column's text keeps the page's left edge and the lead above it lines up with
+   it. Indenting all three left the lead hanging 17px to their left. */
+.start-steps li + li { padding-inline-start: 2rem; border-inline-start: 1px solid var(--tracon-border); }
+/* 🚨 Scoped to the list on purpose: as `.start-steps p` this also matched the
+   lead, and (0,1,1) beat the lead's own (0,1,0) - which silently removed the
+   space under it and pushed the heading onto the columns. */
+.start-steps li p { margin: 0; font-size: .9375rem; line-height: 1.6; }
+
+/* The tour: four captures in the order a reader would open them. Two columns keep
+   each screen large enough to read a row in, which a four-across strip does not. */
+.product-tour { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-block: 2rem; }
+.tour-step { margin: 0; display: grid; gap: .75rem; }
+.tour-step figcaption { font-size: .9375rem; color: var(--tracon-text-muted); line-height: 1.6; }
+.tour-step figcaption .strip-id { display: block; margin-bottom: .35rem; }
+.tour-step figcaption strong { color: var(--tracon-text-strong); font-weight: 550; }
+.tour-step img { inline-size: 100%; block-size: auto; border: 1px solid var(--tracon-border-strong); border-radius: 3px; }
+
 /* Scale, kept subordinate to the message above it: the counts are evidence that the
    control plane is finished, so they read as a measurement strip, not a feature row. */
 /* site.css holds prose to a 70ch measure; this strip is a measurement row, not
@@ -71,6 +101,7 @@
   .approach-hero { gap: 2.5rem; padding-block: 3rem; }
   .approach-hero h1 { font-size: 2.5rem; }
   .comparison-note { padding: 1.5rem; }
+  .start-steps ol { gap: 1.25rem; }
 }
 
 @media (max-width: 49.99rem) {
@@ -85,6 +116,12 @@
   .comparison-note { margin-bottom: 2rem; padding: 1.25rem; }
   .comparison-note h2 { font-size: 1.3125rem; }
   .operation-strip { grid-template-columns: 1fr; gap: .75rem; padding-block: 1.5rem; }
+  .start-steps ol { grid-template-columns: 1fr; gap: 1.25rem; }
+  /* One column: a divider on the left would indent the second and third items
+     away from the first. It becomes the rule between them instead. */
+  .start-steps li + li { padding-inline-start: 0; border-inline-start: 0; padding-block-start: 1.25rem; border-block-start: 1px solid var(--tracon-border); }
+  .start-lead { font-size: 1.125rem; }
+  .product-tour { grid-template-columns: 1fr; gap: 1.75rem; }
   .landing-intro { grid-template-columns: 1fr; gap: 1rem; }
   .route-list a { grid-template-columns: 1fr 1rem; gap: .5rem; }
   .route-list strong { grid-column: 1; }
