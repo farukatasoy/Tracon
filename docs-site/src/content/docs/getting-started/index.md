@@ -72,8 +72,9 @@ These conventions explain the default setup and the extension model.
 ## Is it for you?
 
 It fits when you are building agents in .NET and want the operational layer without
-building it: a record of what happened, a console for the people who did not write
-the code, and a way to change an agent without a deployment.
+building it: a record of what happened, a console for operators and teams that should
+not need to modify application code, and a way to change supported agent
+configuration without a deployment.
 
 It does not fit if you want a hosted agent product, or if you are not on .NET. Runtime
 packages target `net8.0`, `net9.0`, and `net10.0`; the testing and template packages
