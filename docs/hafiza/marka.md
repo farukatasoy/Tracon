@@ -159,13 +159,15 @@ Ayrıca gizlenemeyecek sınırlar:
 Tagline
   Tracon — approach control for your agents.
 
-Hero
-  Your agents fly. You own the airspace.
+Hero  (H1 tanimdir, metafor degil — bkz. asagidaki not)
+  The .NET control plane for Microsoft Agent Framework.
 
-  Tracon is a .NET package family that puts a production control plane over
-  Microsoft Agent Framework. MAF executes your agents. Tracon adds scoped
-  definitions, configurable execution controls, best-effort run recording,
-  and an embedded console.
+  A package family that runs inside your own ASP.NET Core host. MAF runs your
+  agents. Tracon records them, scopes them to a tenant, and governs what they
+  may call.
+
+Hero kicker  (metafor burada yasar)
+  Tracon / Approach control for your agents.
 
 Düz konumlandırma (NuGet Description, GitHub About, meta description)
   The production control plane for Microsoft Agent Framework — recorded runs,
@@ -193,6 +195,17 @@ Paket Description kalıbı
   Tracon.Testing       Fly the whole approach without calling a model.
   Tracon.Cli           Ground operations: migrate, migrate status, health.
 ```
+
+> 🚨 **H1 metafor degildir.** `Your agents fly. You own the airspace.` bir
+> anasayfa H1'i olarak sevk edildi ve tuketici elestirisi uzerine geri alindi:
+> okur ilk iki saniyede urunun ne oldugunu ogrenemiyordu. Metafor tagline'da,
+> hero kicker'inda, footer'da ve "Kisa vuruslar"da yasamaya devam eder — ama
+> **tanimin yerini almaz**. Bunu geri alma.
+>
+> DevUI karsilastirmasinin tam hali `/getting-started/devui/` sayfasindadir;
+> anasayfa yalniz alintiyi ve uretim tavsiyesini tasir. Iddialar yalniz
+> Microsoft'un yayinlanmis dokumanindan alinir: DevUI'nin kaliciligi hakkinda
+> iddia **yazilmaz**, cunku belgelenmemistir.
 
 ## 10. Terminoloji
 

@@ -9,7 +9,7 @@
 > ([`kesif/`](kesif/)) · plana dönüşmüş kalemlerin gövdelerini
 > ([`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md)).
 
-**Durum (2026-09-14):** 3 sıralanabilir aday · 9 bekleyen kalem.
+**Durum (2026-09-15):** 4 sıralanabilir aday · 9 bekleyen kalem.
 Son plana dönüşen: **F-227 · F-228 · F-229 → [Faz 167](arsiv/fazlar/167-AGENT-ZORLAMA-KATMANI.md) ·
 [168](arsiv/fazlar/168-KURTARMA-RAMPASI-KATALOGU.md) · [169](arsiv/fazlar/169-FAZ-PLANI-SOZLESMESI.md)**
 (📋 Planlandı). Yeni aday üretmek için `aday-kesfi` koşulur.
@@ -70,14 +70,17 @@ Hazırlık · Maliyet · Risk · Bağımlılık · Ekosistem · Karşı görüş
 
 ## Sıralanabilir Adaylar
 
-Üçünün de kanıtı ölçülmüştür ve üçü de bugün `faz-planlama`'ya girebilir.
-Sıra bir öneridir, zorunluluk değil.
+Dördünün de **boşluğu** ölçülmüştür ve dördü de bugün `faz-planlama`'ya
+girebilir. Sıra bir öneridir, zorunluluk değil. F-232 bir **ölçüm adımını**
+planının içinde taşır ([Faz 167](arsiv/fazlar/167-AGENT-ZORLAMA-KATMANI.md)
+§ 167.3 emsali): ölçüm negatifse kapsam o adımda daralır.
 
 | # | Aday | Ne açar | Maliyet | Kanıtın gücü |
 |---|---|---|---|---|
 | 1 | [F-224](#f-224--geri-alınamaz-kararlar-için-doğrulama-adımı) | Mis-click geri alınamaz bir kararı vermez | Küçük–orta | Primitif hazır; envanter ölçüldü |
 | 2 | [F-218](#f-218--skor-satırı-evaluator-paket-sürümünü-damgalamıyor) | "Yargıç mı değişti, model mi bozuldu" sorusunun cevabı olur | Orta (migration) | Boşluk ölçüldü; talep kanıtı tek risk satırı |
 | 3 | [F-213](#f-213--store-sözleşmelerinin-iptal-davranışı-yazılı-değil) | İptal davranışı uygulama detayı olmaktan çıkar | Küçük ama yaygın | Boşluk ölçüldü; talep kanıtı yok |
+| 4 | [F-232](#f-232--tüketici-reposuna-kurulan-tracon-kapı-skilli) | Agent Tracon kodunu yazmadan **önce** yönlendirilir | Orta | Boşluk ölçüldü; **yükleme/çağrılma kanıtı yok** — fazın ilk adımı ölçümdür |
 
 ---
 
@@ -210,6 +213,84 @@ altında **29 sözleşme sınıfı** var ve **hiçbiri** iptal case'i taşımıy
 **Karşı görüş:** Talep kanıtı **yok**. Sıralamada sonuncu olmasının sebebi
 budur; 1.0 öncesi bedava olması ise tersini söylüyor — yayından sonra bu
 genişletme kırıcıdır.
+
+---
+
+### F-232 · Tüketici reposuna kurulan Tracon kapı skill'i
+
+**Kaynak:** Kullanıcı fikri (2026-09-15). [Faz 73](arsiv/fazlar/73-TUKETICI-AGENT-DESTEGI.md)
+ve [Faz 167](arsiv/fazlar/167-AGENT-ZORLAMA-KATMANI.md) hattının devamı.
+
+**Sorun:** Tracon bugün bir coding agent'a iki kanal veriyor: **bilgi**
+(`Tracon.AgentMap.md` → `AGENTS.md`, `Tracon.LocalReference.md`, `llms.txt`)
+ve **zorlama** (dokuz `TRC0*` usage diagnostic). İkisi de geç konuşur. Map
+okunmayı bekler; diagnostic ise kod **yazıldıktan sonra** konuşur — agent
+retry loop'unu yazar, derler, uyarıyı görür, siler. Eksik olan üçüncü kanal
+**prosedürdür**: "Tracon yüzeyine dokunan kod yazmadan önce şunu şu sırayla
+yap." Skill formatı tam olarak bunu taşır; tetikleyicisi olan bir iş akışıdır.
+
+**Kapsam** (kullanıcı kararları, 2026-09-15):
+
+- **Yazıcı CLI'dır, build değil.** `tracon` global tool'una dosya yazan bir
+  komut girer. Build **yazmaz**, yalnız bayatlığı raporlar — `TRC0401`
+  emsalinde yeni bir usage diagnostic. Gerekçe: skill dizini çok dosyalıdır,
+  commit edilir ve tüketicinin sahibi olduğu içeriktir; `AGENTS.md`'nin
+  "yalnız yokken yaz" sözleşmesi oraya genişletilemez.
+- **Dört format:** `.claude/skills/<ad>/SKILL.md` · vendor-nötr
+  (`AGENTS.md` eki veya `.agents/`) · `.github/` (Copilot) ·
+  `.cursor/rules/*.mdc`. Tek kanonik metin, dört ince emitter.
+- **İçerik tek kapı skill'idir.** "Tracon yüzeyine dokunan kod yazmadan önce
+  yetenek haritasını ve **kurulu sürümün** XML dokümanını oku." Görev
+  prosedürü seti (agent ekle · tool ekle · run teşhisi · sürüm yükseltme)
+  kapsam **dışıdır**.
+- **Bayatlama mekanizması hazırdır.** Map bugün `revision:` damgası taşıyor
+  (`9039142d`); üretilen skill aynı damgayı taşır ve diagnostic karşılaştırır.
+
+**Değer:** Diagnostic yazılmış kodu yakalar, skill yazılmadan önce yönlendirir.
+Tracon'un "agent senin yerine yeniden icat etmesin" iddiası ancak önleyici
+kanalla tamamlanır.
+
+**Mercek:** 1 · 5.
+
+**Hazırlık — kısmen ölçüldü (2026-09-15):** Hazır olan: yetenek haritası
+üretiliyor, damgalı ve bütçeli (`docs-site/scripts/build-agent-map.mjs`,
+10.583 B); `AGENTS.md` ve `Tracon.LocalReference.md` yazma yolu
+(`src/Tracon.Core/buildTransitive/Tracon.Core.targets`); dokuz diagnostic
+(`src/Tracon.Generators/UsageDiagnostics.cs`); beş komutlu bir CLI.
+🚨 **Ölçülmemiş ve fazın ilk adımı olan:** üretilen skill dört harness'ın
+her birinde gerçekten **yükleniyor ve çağrılıyor mu**. Faz 167 § 167.3
+emsali aynen geçerlidir — izole geçici projede ölç ve **ayırt edici** bir
+kontrol koşumu taşı; tanınmayan bir anahtar sessizce yok sayıldığı için
+"hata vermedi" tek başına kanıt değildir. Bir format ölçümü geçemezse
+kapsamdan **düşer**. Ayrıca ölçülmemiş: tüketicinin vendor dizinine yazılmayı
+kabul edip etmediği (talep kanıtı yok).
+
+**Maliyet:** Orta. Bir CLI komutu · bir kanonik metin · N emitter · bir
+diagnostic · bir ölçüm turu. `src/` çekirdeğine dokunmaz; yeni paket yok,
+migration yok. Public API yalnız CLI yüzeyinde büyür.
+
+**Risk:**
+
+- Skill formatları vendor'a özgü ve hareketlidir. Dördü birden bugün bir
+  sözleşme, yarın dört bayat dosyadır.
+- Çağrılmayan skill ölü ağırlıktır ve tüketicinin agent bağlam bütçesini yer —
+  Tracon'un kendi `AGENTS.md` bütçe disiplininin aynısı.
+- 🚨 Dosya yazan bir komut, tüketicinin çalışma ağacını **ilk kez** değiştirir.
+  Bugünkü beş komuttan yalnız `migrate` bir şey değiştirir ve o da veritabanını.
+  Üzerine yazma, birleştirme ve elle düzenlenmiş dosya davranışı bir
+  **sözleşme kararıdır** (karar defteri adayı).
+- CLI ayrı kurulum ister (`dotnet tool install -g Tracon.Cli`); benimseme
+  sürtünmesi build hattından yüksektir.
+
+**Bağımlılık:** Yok. Faz 73 ve Faz 167'nin çıktısı üzerine oturur.
+
+**Ekosistem:** 2026-09-15 — `AGENTS.md` çok-vendor bir konvansiyondur ve
+Tracon onu zaten yazıyor. Skill dizini konvansiyonunun ortak standardı
+**yoktur**; her vendor kendi yolunu tanır.
+
+**Karşı görüş:** Diagnostic zaten yönlendiriyor ve yazılmış kodu **kesin**
+olarak yakalıyor; skill yalnız okunduğunda işe yarar. Ek değeri ölçülmeden
+dört format sevk etmek, kanıtsız bir bakım yüzeyi satın almaktır.
 
 ---
 
@@ -434,7 +515,10 @@ keşif kaydındadır; burada yalnız hangi kanala düştükleri yazar.
 ### F-ID tahsis kuralı
 
 Numara **geri dönüştürülmez** ve bir numara **tek kaleme** aittir. Sıradaki
-numara: **F-232**.
+numara: **F-233**.
+
+**F-232** 2026-09-15'te kullanıcının tüketici skill'i fikrine tahsis edildi ve
+§ *Sıralanabilir Adaylar* içine yazıldı.
 
 **F-231** 2026-09-14'te `nuget-danismani` turunun 4. bulgusuna (options
 düzeyinde production doğrulayıcısı yok) tahsis edildi ve **aynı gün plana

@@ -28,6 +28,7 @@ export const sidebar = [
     collapsed: false,
     items: [
       { label: 'What Tracon is', slug: 'getting-started' },
+      { label: 'Tracon and DevUI', slug: 'getting-started/devui' },
       { label: 'Your first agent', slug: 'getting-started/first-agent' },
       { label: 'Complete capability map', slug: 'capabilities' },
       { label: 'Architecture', slug: 'concepts' },

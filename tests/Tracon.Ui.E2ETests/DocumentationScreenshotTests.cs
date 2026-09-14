@@ -94,6 +94,41 @@ public sealed class DocumentationScreenshotTests(BrowserFixture browsers)
         await SeedCatalogAsync(host);
         await SeedPendingApprovalAsync(host);
 
+        var directory = ResolveOutputDirectory();
+        var write = string.Equals(
+            Environment.GetEnvironmentVariable(RefreshEnvVar),
+            "1",
+            StringComparison.Ordinal);
+
+        if (write)
+        {
+            Directory.CreateDirectory(directory);
+        }
+
+        // 🚨 BOTH themes are captured, and the site shows the OPPOSITE one: a dark
+        // page embeds the light capture and a light page embeds the dark one, so the
+        // screenshot reads as an object on the page instead of dissolving into it.
+        // The theme is pinned rather than left to the machine — an unpinned run would
+        // produce whatever the developer's OS prefers.
+        foreach (var (theme, suffix) in new[] { ("dark", string.Empty), ("light", "-light") })
+        {
+            await CaptureAsync(host, theme, suffix, directory, write);
+        }
+    }
+
+    /// <summary>Captures every documented screen in one colour scheme.</summary>
+    /// <remarks>
+    /// The dark pass writes <c>&lt;name&gt;.png</c> and the light pass
+    /// <c>&lt;name&gt;-light.png</c>, so the dark file name stays the one every
+    /// existing page already references.
+    /// </remarks>
+    private async Task CaptureAsync(
+        UiHost host,
+        string theme,
+        string suffix,
+        string directory,
+        bool write)
+    {
         var context = await browsers.Browser.NewContextAsync(new BrowserNewContextOptions
         {
             BaseURL = host.BaseAddress,
@@ -102,28 +137,22 @@ public sealed class DocumentationScreenshotTests(BrowserFixture browsers)
             // the E2E suite uses, so the screenshots match what the tests assert on.
             ViewportSize = new ViewportSize { Width = 1440, Height = 900 },
             Locale = "en-US",
-
-            // 🚨 The captures are dark-theme on purpose, and pinned rather than
-            // left to the machine: the console's own default is dark (phase 164),
-            // and the documentation site is dark by default too, so a light
-            // capture would be the odd one out on every page that embeds it.
-            ColorScheme = ColorScheme.Dark,
             DeviceScaleFactor = 2,
         });
 
         await using (context.ConfigureAwait(false))
         {
-            var page = await context.NewPageAsync();
-            var directory = ResolveOutputDirectory();
-            var write = string.Equals(
-                Environment.GetEnvironmentVariable(RefreshEnvVar),
-                "1",
-                StringComparison.Ordinal);
+            // 🚨 Playwright's ColorScheme does NOT move the console. The console
+            // defaults to dark outright and consults prefers-color-scheme only when
+            // the stored preference is "system", so the capture has to write that
+            // preference itself. Seeded before any page script runs, so the first
+            // paint is already the theme being captured.
+            await context.AddInitScriptAsync(
+                "try { window.localStorage.setItem('tracon.theme', '" +
+                theme +
+                "'); } catch { }");
 
-            if (write)
-            {
-                Directory.CreateDirectory(directory);
-            }
+            var page = await context.NewPageAsync();
 
             foreach (var (name, route, landmark) in Screens)
             {
@@ -136,14 +165,14 @@ public sealed class DocumentationScreenshotTests(BrowserFixture browsers)
 
                 var bytes = await page.ScreenshotAsync(new PageScreenshotOptions
                 {
-                    Path = write ? Path.Combine(directory, $"{name}.png") : null,
+                    Path = write ? Path.Combine(directory, $"{name}{suffix}.png") : null,
                     Type = ScreenshotType.Png,
                 });
 
                 bytes.Length.ShouldBeGreaterThan(
                     2_000,
-                    $"The '{name}' screen ({route}) produced an implausibly small image; " +
-                    "it probably rendered blank.");
+                    $"The '{name}' screen ({route}) produced an implausibly small image " +
+                    $"in the {theme} theme; it probably rendered blank.");
             }
         }
     }
