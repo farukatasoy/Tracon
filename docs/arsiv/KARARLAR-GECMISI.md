@@ -5206,3 +5206,169 @@ Karşılığında tüketicinin bağımlılık grafiği değişmedi. Bu tercih an
 
 Ölçüldü (2026-09-13): indeksteki **36 ailenin 6'sı** hiç denetlenmiyordu ve **ikisinde gerçek sapma birikmişti** — `31-DOKUMAN-DOGRULUGU.md` **+8**, `36-GELISTIRME-KAPILARI.md` **+6**. Kapı her koşumda ✅ yazıyordu. Bu, kapının kendi docstring'inin *"kapisiz bir sinif"* dediği şeyin tam olarak altısında sürmesidir ve Faz 80'in `kirik_baglantilar` kusuruyla **aynı sınıftır**. Düzeltme: başlık sayımı 0 ise tablo satırı (`\| n \| \`MT-KOD-nnn\` \|`) sayılır; yalnız **hiçbir biçimde** case taşımayan dosya kapsam dışı kalır. Sınıf taraması: 36 ailenin 36'sı artık sayılıyor, atlanan **0**, indekste olmayan aile dosyası **0**.
 
+## Faz 90 damıtmasında taşınan gerekçeler
+
+### K-029 — devam (Faz 90 damıtması)
+
+`SchemaName` yapılandırmadan gelir, bu yüzden `SqlIdentifier.RequireSchemaName` yalnız küçük harf, rakam ve alt çizgi kabul eder (en çok 63 karakter, `public` yasak).
+
+### K-033 — devam (Faz 90 damıtması)
+
+Açık işaretleme bunu kapatır.
+
+### K-035 — devam (Faz 90 damıtması)
+
+`OpenAIProviderOptions.ApiKey` bir sırdır; tek bir `logger.LogDebug("{Options}", options)` çağrısı anahtarı günlüğe ifşa ederdi.
+
+### K-047 — devam (Faz 90 damıtması)
+
+`sessionStorage` sekme kapandığında silinir, `localStorage` kalıcıdır ve bir XSS durumunda sır kalıcı olarak sızar.
+
+### K-048 — devam (Faz 90 damıtması)
+
+İstemci `br` kabul ediyorsa içerik olduğu gibi gönderilir ve çalışma anında **sıfır** sıkıştırma maliyeti oluşur; kabul etmiyorsa bir kez açılıp bellekte tutulur.
+
+### K-050 — devam (Faz 90 damıtması)
+
+Dış derlemeye almak tek başına YETMEDİ (damga yarışı kapatmaz); tekleme K-744 ile MSBuild motoruna devredildi.
+
+### K-063 — devam (Faz 90 damıtması)
+
+Partition'a geçmek birincil anahtara `created_at` eklemeyi ve tabloyu yeniden kurmayı gerektirir; ölçüm olmadan yapılan böyle bir değişiklik, çözdüğünden fazla risk taşır.
+
+### K-070 — devam (Faz 90 damıtması)
+
+Bir sağlayıcı sorununda çalıştırmalar hızlı başarısız olur (istek gitmeden `TraconProviderUnavailableException`) — bu üretimde genelde istenen davranıştır.
+
+### K-071 — devam (Faz 90 damıtması)
+
+Koşsaydı boşta duran bir kurulum bile sağlayıcıya düzenli istek atardı.
+
+### K-088 — devam (Faz 90 damıtması)
+
+Tüketici `Interpreters["py"] = "python3"` yazarak niyetini açıkça bildirir.
+
+### K-089 — devam (Faz 90 damıtması)
+
+Diğer yazmalarda denetim hatası yutulur ve loglanır; script çalıştırmada yutulursa sonuç, hiçbir kaydı olmayan bir uzaktan kod çalıştırma olurdu.
+
+### K-091 — devam (Faz 90 damıtması)
+
+Ayrıca süreç listesinde (`ps`) argüman içeriği görünmez.
+
+### K-095 — devam (Faz 90 damıtması)
+
+Faz 25'in toplu temizleme işi bundan zarar görürdü.
+
+### K-118 — devam (Faz 90 damıtması)
+
+Workflow kullanmayan tüketici bunu çekmemelidir.
+
+### K-121 — devam (Faz 90 damıtması)
+
+bayttan itibaren bulunuyor.
+
+### K-154 — devam (Faz 90 damıtması)
+
+K-155'in aksine bilinçli kapsam sınırı).
+
+### K-158 — devam (Faz 90 damıtması)
+
+Hız sınırı saniye/dakika ölçeğinde ani yükü düzleştirir ve bir istek kadar yaşar — bellekte tutmak doğrudur, kalıcılaştırmak her isteğe bir veritabanı gidişi eklerdi.
+
+### K-159 — devam (Faz 90 damıtması)
+
+Aynı anda başlayan çalıştırmalar kotayı bir miktar aşabilir.
+
+### K-165 — devam (Faz 90 damıtması)
+
+Açık gelen bir varsayılan, yükseltme yapan bir kurulumun canlı trafiğini sessizce `429` ile karşılardı — kütüphanenin yapabileceği en kötü şey.
+
+### K-168 — devam (Faz 90 damıtması)
+
+Kullanıcı önce yalnız Mod 0'ı seçti.
+
+### K-177 — devam (Faz 90 damıtması)
+
+OUTPUT inserted.*` ve ardından `IF @@ROWCOUNT = 0 INSERT ...
+
+### K-179 — devam (Faz 90 damıtması)
+
+Tracon yine de tek ve dar kuralı uygular: küçük harf veya alt çizgi ile başlar, küçük harf/rakam/alt çizgi içerir, en çok 63 karakterdir.
+
+### K-182 — devam (Faz 90 damıtması)
+
+PostgreSQL'in `text[]`/`uuid[]` parametreleri (webhook `events`, `job_items` toplu ekleme) SQL Server tarafında `nvarchar(max)` JSON dizisi olarak gönderilir ve SQL içinde `OPENJSON` ile açılır.
+
+### K-190 — devam (Faz 90 damıtması)
+
+K-013'ün ("tüketicinin şemasına dokunma") SQLite karşılığı yapılandırılabilir bir tablo önekidir (varsayılan `tracon_`), doğrudan tablo adının başına eklenir (`{Schema}runs`, nokta yok).
+
+### K-194 — devam (Faz 90 damıtması)
+
+Ölçüldü: SQLite 3.35+ (bağlı sürüm 3.49.1) `ON CONFLICT ... DO UPDATE ...
+
+### K-217 — devam (Faz 90 damıtması)
+
+`AgentRunScope` bu alanı taşımadığı için `speak` tool'u eki `session_id = NULL` ile yazardı.
+
+### K-233 — devam (Faz 90 damıtması)
+
+Aynı durum bir `<option>` etiketinde veya sütun başlığında büyük harf ister.
+
+### K-236 — devam (Faz 90 damıtması)
+
+İkisi de 11–12 px'te, yani WCAG için normal boy metinde kullanılıyor ve 4.5:1 eşiğinin altındaydı.
+
+### K-306 — devam (Faz 90 damıtması)
+
+Varsayılan olarak kuyruğa alınan bir çalıştırma yeniden denenmez; sessizce iki kez koşan yan etkili bir tool, hiç koşmayandan kötüdür.
+
+### K-312 — devam (Faz 90 damıtması)
+
+Ölçüldü: SQL Server kendine referans veren bir yabancı anahtarda `SET NULL` kabul etmez (hata 1785, "may cause cycles or multiple cascade paths").
+
+### K-516 — devam (Faz 90 damıtması)
+
+Zincir sessizce bozuyordu: `"Request to promote a run to a case,."`, `"… .
+
+### K-517 — devam (Faz 90 damıtması)
+
+ModelBinding.MaxOutputTokens` gibi metinler vardı.
+
+### K-518 — devam (Faz 90 damıtması)
+
+Kullanıcı kararı kapsamı genişletti: okuru tüketici olan her yüzey İngilizce'dir, ve GitHub'ın karşılama sayfası paket ailesinin ilk izlenimidir.
+
+### K-765
+
+Gövde kuralının sebebi biçimdir: katalog bir LİSTEDİR ve liste kopyalamaya davet eder — bir rampanın gövdesi hem katalogda hem bağlı protokolde yaşarsa ikisi zamanla SESSİZCE çelişir ve hangisinin doğru olduğu okunamaz. Söz yazıyla korunmadı, kapıya bağlandı: `tekrarlanan_kapi_tanimlari()` kataloğun var olduğunu, ham `kapi.py kapanis` komutunu kopyalamadığını ve `kapilar.md`'ye bağlandığını sayar (üç dal da mutation ile kırmızı görüldü).
+
+### K-766
+
+Bu sınır kabul edildi çünkü alternatifi yok: hiçbir kapı bir fazın gerçekten kaç düzeltme turu yaşadığını doğrulayamaz — `artifacts/kapi-olcum.jsonl` faz numarası taşımaz ve `.gitignore`'dadır. Kapı bir sayı değil bir KARAR arar; bu yüzden `ölçülmedi` geçerli bir değerdir, boş hücre değildir. Sessiz bir kapı olmaktan kaçınmanın yolu sınırı yazmaktır (K-764 deseni).
+
+### K-767
+
+167 seçildi çünkü Faz 167 ve 168 bölümü gönüllü doldurmuştu: kapı doğduğu anda elde ÜÇ veri noktası olur. Geriye dönük türetme ölçüm değil tahmin üretir.
+
+### K-768
+
+Kararı denetçiye vermek de mümkün değil: alt agent'ların araç kümesinde `AskUserQuestion` YOKTUR, denetçi kullanıcıya soramaz. Triyaj yalnız 🔴'ya uygulanır — denetim ucuz olmalıdır, pahalı olursa atlanır (K-762 ile aynı gerekçe ailesi).
+
+### K-769
+
+Kiracı kontrolünü yalnız `UseTenancy`'ye koymak, kapının yakalaması gereken tam durumu (hiç `UseTenancy` çağırmayan host) kör bırakırdı. Çözüm: Core "hangi `ITenantContext` bağlandı" sorusunu her kompozisyonda yanıtlar, `UseTenancy` yalnız kendi görebildiği `Enabled=false` durumunu ekler, doğrulayıcı `Permissive` > `Satisfied` > `NotApplicable` sıralamasıyla en katıyı alır. Planın §170.2 yapısal iddiası bu ölçümle düştü.
+
+### K-770
+
+Üçüncü değer yine de kalır çünkü `IProductionProfileCheck` public bir seam'dir: bir paketin kendi riskini katması hâlinde o paketi kurmayan host'un kalemi gizlenmemeli, raporda SAYILMALIDIR. Doğrulayıcı altı `TraconProductionRisk` değerinin hepsini dolaşır.
+
+### K-771
+
+Aynı sebeple her kabul `Information` seviyesinde ADIYLA loglanır — operasyon log'unda satır başına bir karar aranabilir.
+
+### K-773
+
+Bu bir kusur değil, metodun amacıdır — yeni bir güvenlik kararının sessizce atlanması tam olarak engellenmek istenen şeydir. Yükümlülük ÜÇ yerde birden yazılıdır: `CHANGELOG.md` (neden eklendiğiyle; "sıkılaştırıldı" yetmez), `reference/compatibility.md`'nin kendi bölümü ve `ITraconBuilder` XML `<remarks>`'ı.
+
