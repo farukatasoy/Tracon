@@ -7,7 +7,7 @@
 
 import { defineRouteMiddleware } from '@astrojs/starlight/route-data';
 import { imageByRoute, imageForRoute } from './sidebar.mjs';
-import { indexingEnabled, siteUrl } from '../site.config.mjs';
+import { base, indexingEnabled, siteUrl } from '../site.config.mjs';
 
 // Built once per process, not once per page: this runs for every route.
 const routes = imageByRoute();
@@ -40,6 +40,19 @@ export const onRequest = defineRouteMiddleware((context) => {
       '@context': 'https://schema.org', '@type': 'WebSite', name: 'Tracon', url: siteUrl,
     }) });
   }
+  // The two link relations llmstxt.org names: `alternate` points at the plain
+  // markdown copy of this page (src/pages/[...slug].md.ts), `describedby` at the
+  // llms.txt that covers it. They are how a reader that did not arrive through
+  // the footer link finds either one. The landing page and the error page have no
+  // markdown copy, so they get the describedby relation alone.
+  if (!['', 'index', '404'].includes(id)) {
+    starlightRoute.head.push({
+      tag: 'link',
+      attrs: { rel: 'alternate', type: 'text/markdown', href: `${base}${id}/index.md` },
+    });
+  }
+  starlightRoute.head.push({ tag: 'link', attrs: { rel: 'describedby', href: `${base}llms.txt` } });
+
   const kind = id === 'api' || id.startsWith('api/') ? '.NET API' : id.startsWith('http-api/') ? 'HTTP API' : 'Documentation';
   starlightRoute.head.push({ tag: 'meta', attrs: { 'data-pagefind-filter': 'Content[content]', content: kind } });
   const image = `${siteUrl}social/${imageForRoute(starlightRoute.id, routes)}.png`;

@@ -1426,7 +1426,14 @@ def kirik_baglantilar(kok: pathlib.Path = ROOT) -> list[str]:
                 if h.startswith("/"):
                     govde = h[1:].rstrip("/")
                     if not govde or govde.split("/", 1)[0] not in SITE_URETILEN_HEDEF:
-                        if re.search(r"\.\w+$", govde):
+                        if govde.endswith("/index.md"):
+                            # Her sayfa markdown kaynagini `<adres>index.md` olarak
+                            # da yayinlar (src/pages/[...slug].md.ts). `public/`
+                            # altinda bir dosya degildir; sayfanin kendi slug'i
+                            # varsa kopyasi da vardir.
+                            if govde[: -len("/index.md")] not in slug_harita:
+                                bulunan.append(f"{rel} -> {h}")
+                        elif re.search(r"\.\w+$", govde):
                             # `llms.txt`, `openapi/tracon.json` gibi dosya
                             # hedefleri sayfa degil `public/` varligidir.
                             if not (kok / "docs-site" / "public" / govde).exists():

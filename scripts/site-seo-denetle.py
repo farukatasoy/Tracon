@@ -39,6 +39,45 @@ class Page(HTMLParser):
         return [a.get(attr, '') for t, a in self.tags if t == tag and a.get(key) == value]
 
 
+def robots_gruplari(robots):
+    """robots.txt'yi (user-agent kümesi, kural listesi) gruplarına ayırır."""
+    gruplar, agents, kurallar = [], [], []
+    for line in robots.splitlines():
+        line = line.split('#')[0].strip()
+        if not line or ':' not in line:
+            continue
+        alan, deger = (parca.strip() for parca in line.split(':', 1))
+        alan = alan.lower()
+        if alan == 'user-agent':
+            if kurallar:
+                gruplar.append((agents, kurallar))
+                agents, kurallar = [], []
+            agents.append(deger)
+        elif alan in ('allow', 'disallow'):
+            kurallar.append((alan, deger))
+    if agents:
+        gruplar.append((agents, kurallar))
+    return gruplar
+
+
+def denetle_robots(robots, site, preview):
+    """Sitenin tümünü kapatan bir kural ve eksik sitemap bildirimi arar.
+
+    Alt yol kapatmak meşrudur — pagefind indeksi sayfa değildir — bu yüzden metinde
+    'Disallow: /' aramak yetmez: o test '/pagefind/index/' satırını da yakalardı ve
+    bir crawler politikası yazmayı imkânsız kılıyordu. Kural grup grup okunur; yalnız
+    tam '/' değeri siteyi kapatır.
+    """
+    errors = []
+    for agents, kurallar in robots_gruplari(robots):
+        for alan, deger in kurallar:
+            if alan == 'disallow' and deger == '/':
+                errors.append(f"robots.txt {', '.join(agents)} için tüm siteyi kapatıyor")
+    if not preview and f'Sitemap: {site}sitemap-index.xml' not in robots:
+        errors.append('robots.txt sitemap keşfini bildirmiyor')
+    return errors
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--dist', type=Path, default=ROOT / 'docs-site/dist')
@@ -71,6 +110,27 @@ def main():
         check(any('noindex' in v for v in robots) == (error_page or args.preview), 'noindex ortam/hata sayfasıyla uyumsuz')
         canonical = page.values('link', 'rel', 'canonical', 'href')
         check(canonical == ([] if error_page else [expected]), 'canonical uyumsuz')
+        # llmstxt.org iki bağlantı ilişkisi öneriyor: markdown kopyaya `alternate`,
+        # kapsayan llms.txt'ye `describedby`. Kopyanın VARLIĞI yetmez — kendi
+        # gövdesinde bildirdiği adres sayfanın canonical'ı olmalı. İlk koşumda
+        # açılış sayfası `/index/index.md` altına, var olmayan bir adresle yazıldı;
+        # site içinden bakan hiçbir kontrol bunu göremezdi.
+        # Adresler site içinde kök-göreli yazılır; canonical dışında mutlak adres yok.
+        check(page.values('link', 'rel', 'describedby', 'href') == [urllib.parse.urlparse(site).path + 'llms.txt'],
+              'llms.txt describedby bağlantısı yok')
+        alternate = [href for href in page.values('link', 'rel', 'alternate', 'href')
+                     if href.endswith('.md')]
+        if path == 'index.html' or error_page:
+            check(not alternate, 'bu sayfanın markdown kopyası olmamalı')
+        else:
+            markdown = args.dist / route.lstrip('/') / 'index.md'
+            check(alternate == [route + 'index.md'], 'markdown alternate bağlantısı uyumsuz')
+            if not markdown.is_file():
+                check(False, 'markdown kopyası üretilmemiş')
+            else:
+                declared = re.search(r'^> Page: (\S+)$', markdown.read_text(encoding='utf-8'), re.M)
+                check(declared is not None and declared.group(1) == expected,
+                      f'markdown kopyası yanlış adres bildiriyor: {declared.group(1) if declared else "yok"}')
         if error_page:
             continue
         urls.add(expected)
@@ -115,8 +175,7 @@ def main():
     if data != [{'@context': 'https://schema.org', '@type': 'WebSite', 'name': 'Tracon', 'url': site}]:
         errors.append('Ana sayfa WebSite structured data uyumsuz')
     robots = (args.dist / 'robots.txt').read_text(encoding='utf-8')
-    if 'Disallow: /' in robots or (not args.preview and f'Sitemap: {site}sitemap-index.xml' not in robots):
-        errors.append('robots.txt taramayı veya sitemap keşfini engelliyor')
+    errors.extend(denetle_robots(robots, site, args.preview))
     print(f'SEO: {len(files)} HTML, {len(sitemap_urls)} sitemap URL, {len(urls & reachable)} erişilebilir sayfa; {len(errors)} hata.')
     for error in errors[:30]:
         print(error)
