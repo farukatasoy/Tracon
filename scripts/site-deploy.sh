@@ -126,6 +126,54 @@ rsync -az --delete ${dry_run:+"$dry_run"} \
 if [[ -z "$dry_run" ]]; then
   step "Reconciling the container"
   "${ssh_command[@]}" "$SITE_HOST" "cd '$SITE_STACK' && docker compose up -d"
+
+  # 🚨 The template is bind-mounted as a SINGLE FILE, and rsync replaces a file by
+  # writing a temporary copy and renaming it. The rename produces a new inode, and a
+  # single-file bind mount is pinned to the inode it was created with - so the
+  # container goes on reading the OLD template forever while the host holds the new
+  # one. Measured 2026-09-14: host inode 2621449 (2931 B), container 2621457
+  # (1774 B, two hours stale).
+  #
+  # This failed SILENTLY, which is the part that matters. envsubst re-rendered the
+  # stale template, `nginx -t` passed on it because stale is still valid, the reload
+  # succeeded, and the script printed "Published." Every nginx change since the mount
+  # was created had been discarded, and only an end-to-end check of the served
+  # Content-Type revealed it.
+  #
+  # Compare what the container actually reads against what was just published, and
+  # recreate only when they differ: recreating re-establishes the mount at the
+  # current inode. The common case is unchanged and costs one checksum.
+  step "Checking the container reads the published template"
+  # Both sides read from stdin so md5sum prints the digest against `-` rather than
+  # against two different file names, and the container's redirect is quoted into
+  # the container's OWN shell: written bare, `<` is applied by the host shell, which
+  # has no /etc/nginx and fails with a path that never existed on it.
+  template_digest() {
+    "${ssh_command[@]}" "$SITE_HOST" "cd '$SITE_STACK' && $1"
+  }
+
+  published="$(template_digest "md5sum < nginx.conf")"
+  mounted="$(template_digest \
+    "docker compose exec -T site sh -c 'md5sum < /etc/nginx/templates/default.conf.template'")"
+
+  if [[ "$published" != "$mounted" ]]; then
+    echo "The mounted template is stale (rsync replaced the inode). Recreating."
+    "${ssh_command[@]}" "$SITE_HOST" "cd '$SITE_STACK' && docker compose up -d --force-recreate"
+
+    recreated="$(template_digest \
+      "docker compose exec -T site sh -c 'md5sum < /etc/nginx/templates/default.conf.template'")"
+
+    # Recreating is the fix for a stale inode and for nothing else. If the mount is
+    # still not the published file, the cause is something this script does not
+    # model, and shipping a green "Published." over it is how the defect above
+    # survived in the first place.
+    if [[ "$published" != "$recreated" ]]; then
+      echo "The container still does not read $SITE_STACK/nginx.conf after recreate." >&2
+      echo "nginx is serving a configuration this repository did not publish." >&2
+      exit 1
+    fi
+  fi
+
   # A bind-mounted template can change without changing Compose's service hash.
   # Re-render and reload it even when the existing container was reused.
   "${ssh_command[@]}" "$SITE_HOST" "cd '$SITE_STACK' && docker compose exec -T site sh -c '/docker-entrypoint.d/20-envsubst-on-templates.sh && nginx -t && nginx -s reload'"
@@ -133,8 +181,24 @@ fi
 
 if [[ -n "$dry_run" ]]; then
   printf '\nDry run: nothing was published.\n'
-else
-  printf '\nPublished. Verify:\n'
-  printf '  curl -sI https://tracon.dev/ | head -1\n'
-  printf '  curl -sI https://doayen.web.tr/ | head -1   # the app at the apex, untouched\n'
+  exit 0
 fi
+
+# The one assertion that the CONFIG the repository wrote is the config the public
+# receives. Everything above verifies a file, a container, or a local container;
+# this asks the published address. The markdown copies are the probe because their
+# Content-Type comes from nginx alone - it is not a property of the file, so a
+# wrong answer here means the served configuration is not the published one.
+step "Verifying the published site"
+probe="https://$(site_host)/capabilities/index.md"
+served="$(curl -sS --max-time 30 -o /dev/null -w '%{http_code} %{content_type}' "$probe" || echo 'unreachable')"
+
+if [[ "$served" != "200 text/markdown"* ]]; then
+  echo "$probe answered '$served'; expected '200 text/markdown; charset=utf-8'." >&2
+  echo "The site is published but nginx is not serving the configuration in this" >&2
+  echo "repository. Check that the container reads $SITE_STACK/nginx.conf." >&2
+  exit 1
+fi
+
+printf '\nPublished and verified (%s -> %s).\n' "$probe" "$served"
+printf '  curl -sI https://doayen.web.tr/ | head -1   # the app at the apex, untouched\n'
