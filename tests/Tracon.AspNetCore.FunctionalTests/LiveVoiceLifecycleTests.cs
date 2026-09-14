@@ -44,9 +44,19 @@ public sealed class LiveVoiceLifecycleTests
         // store once raced that write - measured twice in a full-solution run,
         // while the assembly on its own passed all 1046 times. Wait for the write
         // the way every other timing-dependent assertion in this file does.
+        //
+        // 🚨 Wait for BOTH strings the assertions below read. Waiting only for
+        // the output transcript let the wait return before the INPUT transcript
+        // had landed, and the first assertion then failed - measured again in the
+        // Phase 166 closing run. A wait narrower than the assertion it guards
+        // turns a passing test into a scheduled one.
         await WaitForAsync(async () =>
-            (await HistoryOfAsync(host, "session-history-on"))
-                .Any(text => text.Contains("Checking that now.", StringComparison.Ordinal)));
+        {
+            var history = await HistoryOfAsync(host, "session-history-on");
+
+            return history.Any(text => text.Contains("Checking that now.", StringComparison.Ordinal))
+                && history.Any(text => text.Contains("Where is order 442", StringComparison.Ordinal));
+        });
 
         var messages = await HistoryOfAsync(host, "session-history-on");
 
