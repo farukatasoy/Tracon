@@ -137,7 +137,7 @@ yani kesim bir commit gerektirir.
 isabettir ama çıkarımı yanlış hedeftedir: 205'i record, 59'u enum — üçüncü
 tarafın implement ettiği yüzey 84 arayüştür ve asıl boşluk bulgu 2'dir.
 "Scope freeze" zaten uygulanıyor: son 11 fazın **9'u** public API büyütmedi.
-"Performans kanıtı" haklıdır ve [Faz 166](166-HTTP-KAPASITE-OLCUMU.md) olarak
+"Performans kanıtı" haklıdır ve [Faz 166](arsiv/fazlar/166-HTTP-KAPASITE-OLCUMU.md) olarak
 planlıdır; inceleyicinin yedi metriğinden beşini kapsar, **PostgreSQL write
 amplification** ile **multi-node lease** kapsam dışıdır.
 

@@ -1,7 +1,7 @@
 # Faz 166 — HTTP Kapasite Ölçümü
 
 > **Durum:** ✅ Tamamlandı (2026-09-14) · plan 2026-09-13, revize 2026-09-14
-> **Kaynak:** Kullanıcının ürün değerlendirmesindeki 2. problem için faz planı isteği · **F-225** ([aday kaydı](ADAYLAR.md))
+> **Kaynak:** Kullanıcının ürün değerlendirmesindeki 2. problem için faz planı isteği · **F-225** ([aday kaydı](../../ADAYLAR.md))
 > **Revizyon (2026-09-14, `nuget-danismani` turu):** Dış inceleyici yedi kapasite
 > metriği istedi; ölçüm planın **beşini** kapsadığını gösterdi. Üç ekleme yapıldı
 > ve ikisi kullanıcı kararıdır: **write amplification** ve **storage growth** artık
@@ -9,7 +9,7 @@
 > boyutu** eklendi (§166.3, yeni `workers` profili) · ölçülen sayılar **tek ortamlı
 > temsilî tablo** olarak siteye yayımlanır (§166.6). 🚨 Worker boyutu **çok node
 > desteği vaat etmez** — K-739 aynen korunur; ölçmek destek ilan etmek değildir.
-> **Önkoşul:** [Faz 157](arsiv/fazlar/157-SINIRLI-YUK-VE-IKI-PROCESS-ARIZA-KANITI.md) — store yük raporu ve process altyapısı · [Faz 97](arsiv/fazlar/97-SURUM-POLITIKASI-VE-YAYIN-PROVASI.md) — exact paket tüketimi
+> **Önkoşul:** [Faz 157](157-SINIRLI-YUK-VE-IKI-PROCESS-ARIZA-KANITI.md) — store yük raporu ve process altyapısı · [Faz 97](97-SURUM-POLITIKASI-VE-YAYIN-PROVASI.md) — exact paket tüketimi
 > **Paketler:** Ölçülen: `Tracon.AspNetCore`, `Tracon.Core`, `Tracon.PostgreSql`; sevk edilen kodda değişiklik planlanmıyor.
 > **Yeni paket:** 0 Tracon paketi, 0 yeni harici paket kimliği · **Migration:** 0
 > **Public API:** Büyümüyor; ölçüm bileşenleri paketlenmez.
@@ -462,7 +462,7 @@ belirsizliktir. Ölçülemeyen alan için yalan sıfır veya tahminî isim kulla
 Ölçüm koşumları: `sweep` (72 hücre) · `arrival` (12) · `workers` (9) · `soak` (1)
 — **94 hücrenin 94'ü `complete`, 0 `incomplete`, 0 `invalid`**. Dördü de
 `0.0.0-capacity166.e44d89f` sürümünü, temiz ağaçtan paketlenmiş `e44d89f5`
-commit'ini ölçtü. Kayıtlar: [`bench/capacity/measurements/`](../bench/capacity/measurements/).
+commit'ini ölçtü. Kayıtlar: [`bench/capacity/measurements/`](../../../bench/capacity/measurements).
 
 - [x] `kapasite` komutu exact sürüm/izole cache ile repo dışında host/driver kurar; gerçek TCP ve SQL yolu kanıtlıdır. — `CapacityPackageIsolationTests` (5 test) `project.assets.json`'ı okur: her Tracon kütüphanesi `package` tipinde ve tam o sürümde, restore izole `NUGET_PACKAGES`'i kullanmış, hiçbiri `project` değil.
 - [x] `smoke` Linux CI'da açık adım olarak koşar; ağır profiller standart test/kapanış/release'e eklenmemiştir. — `.github/workflows/ci.yml` "Kapasite smoke"; `KapasiteKomutuTestleri` `closing_commands`/`inner_loop_commands` çıktısında "kapasite" geçmediğini kanıtlar (K-774).
@@ -611,7 +611,7 @@ bölüm desenleriyle, `root = true` ile ve onsuz: **hiçbiri tanıyı susturmad�
 csproj'daki `NoWarn` sustudu. Aynı `.editorconfig` çıplak bir test projesinde
 (aynı SDK, aynı `AnalysisMode`) çalışıyor, yani mekanizma bu ağaca özgü bir
 şeyle etkileşiyor ve **saptanamadı**. Tuzak kaydı:
-[`docs/hafiza/analyzer-tanilari.md`](hafiza/analyzer-tanilari.md).
+[`docs/hafiza/analyzer-tanilari.md`](../../hafiza/analyzer-tanilari.md).
 
 ### 6 · Kiracı yalıtımı her hücrede **aktif olarak** yoklanıyor
 
@@ -707,7 +707,7 @@ bekletilirdi.
 | 9 | 🟡 | §166.6'nın istediği `zaman–RSS` ve `zaman–backlog` grafikleri üretilmiyordu | **Gerekçelendi, sapma yazıldı.** Grafik üretilmedi; yerine ham `resources.jsonl` (soak'ta 1798 örnek × 2 process) ve rapordaki *Reconciliation and resources* tablosu duruyor. Sayfanın "bellek birikmedi" iddiası o ham seriden hesaplandı ve bölüm bölüm yazıldı. Eksik olan görselleştirmedir, ölçüm değil |
 | 10 | 🟡 | Ortam etiketi yanlıştı: `Darwin 25.6.0` sayfada "macOS 15" olarak yayımlanmıştı | **Düzeltildi.** Sayfa manifest'teki dizeyi aynen yazıyor |
 | 11 | 🟡 | Faz dokümanında "Gerçekleşen Public API" ve "Dosya Listesi" **ikişer kez** vardı; son tablo satırı bozuktu | **Düzeltildi** |
-| 12 | 🟢 | Yayımlanan tabloyu `measurements/` ile karşılaştıran bir **kapı** yok; K-775 sözleşme olarak duruyor | [`ADAYLAR.md`](ADAYLAR.md)'ye — bu denetimin 🔴 1–5'i tam olarak o kapının yakalayacağı sınıftır |
+| 12 | 🟢 | Yayımlanan tabloyu `measurements/` ile karşılaştıran bir **kapı** yok; K-775 sözleşme olarak duruyor | [`ADAYLAR.md`](../../ADAYLAR.md)'ye — bu denetimin 🔴 1–5'i tam olarak o kapının yakalayacağı sınıftır |
 | 13 | 🟢 | `ReportBuilder` percentile'ları indirgenmiş özetlerden hesaplıyordu | 🔴 2 ile birlikte kapandı; ayrı kalem gerekmedi |
 
 🔴'lar kapandıktan sonra dört kapı yeniden koşuldu.
