@@ -1,6 +1,6 @@
 # Tracon
 
-**A production-grade agent control plane for the Microsoft Agent Framework.**
+**A production-oriented agent control plane for the Microsoft Agent Framework.**
 
 Tracon is a .NET package family built on
 [Microsoft Agent Framework](https://learn.microsoft.com/en-us/agent-framework/overview/).
@@ -191,9 +191,9 @@ Tracon fills that gap. It does not replace DevUI — it continues where DevUI st
 | `Tracon.Templates` | MIT | The `dotnet new tracon-api` template — not in the meta package |
 | `Tracon.Testing` | PolyForm | `FakeModelProvider`, `TraconTestHost`, `RunAssertions`; test-framework neutral, not in the meta package |
 | `Tracon.Testing.Contracts.Xunit` | MIT | The behavior-contract suites the shipped implementations run — derive from them to verify your own `IRunStore`, `IModelProvider`, `IRunJudge`, `IAgentSource`, `IJobHandler`, or custom tool. Not in the meta package |
-| `Tracon.Client` | PolyForm | Typed management client generated from the OpenAPI document — 162 operations, zero Tracon dependency, zero NuGet dependency beyond DI abstractions. Not in the meta package |
-| `Tracon.Cli` | PolyForm | The `tracon` global tool (`dotnet tool install -g Tracon.Cli`) — `migrate`, `migrate status`, `health`. Not a library; not in the meta package |
-| [`@tracon/client`](https://www.npmjs.com/package/@tracon/client) | PolyForm | **npm, not NuGet** — the same 165 operations as `Tracon.Client`, generated from the same OpenAPI document with `openapi-typescript` + `openapi-fetch`. `npm install @tracon/client` |
+| `Tracon.Client` | PolyForm | Typed management client generated from the OpenAPI document — 168 operations, zero Tracon dependency, zero NuGet dependency beyond DI abstractions. Not in the meta package |
+| `Tracon.Cli` | PolyForm | The `tracon` global tool (`dotnet tool install -g Tracon.Cli`) — `migrate`, `migrate status`, `health`, `eval`, `state-check`. Not a library; not in the meta package |
+| `@tracon/client` | PolyForm | **npm, not NuGet** — the same 168 operations as `Tracon.Client`, generated from the same OpenAPI document with `openapi-typescript` + `openapi-fetch`. `npm install @tracon/client` |
 
 **Target frameworks:** `net8.0`, `net9.0`, `net10.0`
 
@@ -348,7 +348,7 @@ cd src/Tracon.UI/frontend && npm run dev
 
 **The user-facing product documentation is a separate site:**
 <https://tracon.dev> — installation, your first agent, concepts, a
-console tour, the HTTP API (165 operations), and an API reference for 671 public types.
+console tour, the HTTP API (168 operations), and an API reference for 671 public types.
 Its source is [`docs-site/`](docs-site/); [`scripts/site-deploy.sh`](scripts/site-deploy.sh)
 builds it, runs the four site gates, and publishes it. The serving stack is in
 [`docs-site/deploy/`](docs-site/deploy/) — an nginx container behind Traefik — so the

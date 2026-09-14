@@ -124,12 +124,28 @@ const tagCount = new Set(
 ).size - 1;
 
 for (const [value, label] of [
-  [packageCount, 'NuGet packages'],
+  [packageCount, 'modular packages'],
   [operationCount, 'generated HTTP operations'],
   [screenCount, 'embedded console screens'],
 ]) {
   if (!landingPage.includes(`<strong>${value}</strong> ${label}`)) {
     errors.push(`Landing-page metric drift: expected ${value} ${label}`);
+  }
+}
+
+// The same fact lives in four places and only one was gated: the landing page said
+// 168 while README said 162 in one row and 165 in two others. Any number written
+// directly before the word "operations" is the OpenAPI total, so the gate reads
+// them all rather than naming line numbers that move.
+//
+// 🚨 The rule's edge: a future sentence about a SUBSET ("12 streaming operations")
+// would read as drift here. Write such a sentence without a number, or teach this
+// pattern to skip it - do not widen the total.
+const readme = readFileSync(join(repositoryRoot, 'README.md'), 'utf8');
+
+for (const [, stated] of readme.matchAll(/\b(\d+) operations\b/g)) {
+  if (Number(stated) !== operationCount) {
+    errors.push(`README.md says ${stated} operations, expected ${operationCount}`);
   }
 }
 
