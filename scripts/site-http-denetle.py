@@ -44,6 +44,15 @@ for path, expected, content_type in checks:
             errors.append(f'{path}: hata HTML/noindex eksik')
         if content_type and not (response.getheader('Content-Type') or '').startswith(content_type):
             errors.append(f'{path}: Content-Type {response.getheader("Content-Type")} != {content_type}*')
+        # Markdown kopyaları sayfanın near-duplicate'idir ve sitemap'te yoktur; sahibi
+        # HTML sayfadır. Bunu söyleyen tek şey bu header'dır — kopyanın gövdesi
+        # söyleyemez. `add_header` kullanmak miras alınan X-Robots-Tag'i düşürdüğü
+        # için ikisi BİRLİKTE denetlenir: biri eklenip diğeri unutulursa preview
+        # host'u indekslenebilir markdown sunar.
+        if path.endswith('/index.md'):
+            beklenen = f'<{site.rstrip("/")}{path[:-len("index.md")]}>; rel="canonical", </llms.txt>; rel="describedby"'
+            if response.getheader('Link') != beklenen:
+                errors.append(f'{path}: Link {response.getheader("Link")} != {beklenen}')
         connection.close()
 print(f'HTTP: {len(checks) * 2} yanıt denetlendi; {len(errors)} hata.')
 for error in errors:
