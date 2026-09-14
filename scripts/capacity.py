@@ -220,11 +220,21 @@ def wait_for_line(process: subprocess.Popen[str], line: str, timeout: float,
     testini kırılgan yapar ve açılış süresini ölçüm penceresine sokar."""
     deadline = time.monotonic() + timeout
 
+    # 🚨 Tüketilen satırlar SAKLANIR. Bu döngü process'in çıktısını okuduğu için
+    # ölüm anında geriye bir şey kalmıyordu ve hata mesajı BOŞ çıkıyordu —
+    # ölçüldü: ikinci worker'ın port çakışması "kod -6:" diye, tek kelime
+    # açıklama olmadan raporlandı. Sebebi bulmak süreci baştan elle koşturmayı
+    # gerektirdi.
+    seen: list[str] = []
+
     while time.monotonic() < deadline:
         if process.poll() is not None:
-            remaining = process.stdout.read() if process.stdout else ""
+            if process.stdout:
+                seen.append(process.stdout.read())
+
+            detail = "".join(seen).strip() or "(process hiçbir şey yazmadı)"
             raise CapacityError(
-                f"{label} '{line}' yazmadan çıktı (kod {process.returncode}): {remaining[-2000:]}"
+                f"{label} '{line}' yazmadan çıktı (kod {process.returncode}): {detail[-2000:]}"
             )
 
         ready = process.stdout.readline() if process.stdout else ""
@@ -233,10 +243,15 @@ def wait_for_line(process: subprocess.Popen[str], line: str, timeout: float,
             time.sleep(0.02)
             continue
 
+        seen.append(ready)
+
         if line in ready:
             return
 
-    raise CapacityError(f"{label} {timeout:.0f} sn içinde '{line}' yazmadı")
+    raise CapacityError(
+        f"{label} {timeout:.0f} sn içinde '{line}' yazmadı; okunan: "
+        f"{''.join(seen).strip()[-2000:] or '(hiçbir şey)'}"
+    )
 
 
 def stop(process: subprocess.Popen[str] | None, label: str) -> None:

@@ -35,7 +35,16 @@ if (string.Equals(settings.Mode, CapacityContract.SeedMode, StringComparison.Ord
     return await SeedAsync(settings).ConfigureAwait(false);
 }
 
-var isWorker = string.Equals(settings.Mode, CapacityContract.WorkerMode, StringComparison.Ordinal);
+// 🚨 A worker node builds a GENERIC host, not a WebApplication. Measured:
+// WebApplication always starts Kestrel, and in worker mode nothing overrides
+// its URLs - so the first worker silently bound the default port and the
+// SECOND aborted with SIGABRT before it could print its ready line, taking the
+// whole 2- and 4-worker axis with it. A worker node has no HTTP surface, which
+// is also the shape docs-site/guides/production.md describes.
+if (string.Equals(settings.Mode, CapacityContract.WorkerMode, StringComparison.Ordinal))
+{
+    return await RunWorkerAsync(settings, executions: null).ConfigureAwait(false);
+}
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -47,12 +56,9 @@ builder.Logging.AddSimpleConsole(options => options.SingleLine = true);
 // under load, and the driver's redirected pipe would become the bottleneck.
 builder.Logging.SetMinimumLevel(LogLevel.Warning);
 
-if (!isWorker)
-{
-    builder.WebHost.UseUrls(string.Create(
-        CultureInfo.InvariantCulture,
-        $"http://127.0.0.1:{settings.Port}"));
-}
+builder.WebHost.UseUrls(string.Create(
+    CultureInfo.InvariantCulture,
+    $"http://127.0.0.1:{settings.Port}"));
 
 var counters = new CapacityCounters();
 using var executions = new CapacityExecutionLog(settings.ExecutionLogDirectory, settings.Name);
@@ -111,7 +117,7 @@ builder.Services.UseScheduling(options =>
     // "1 worker" cell is really two workers and the whole axis shifts. The
     // effective value is served from /capacity/settings so the driver can
     // check it at run time rather than trust this line.
-    options.RunWorker = isWorker || !CapacityEnvironment.WorkerAxisActive;
+    options.RunWorker = !CapacityEnvironment.WorkerAxisActive;
     options.PollInterval = TimeSpan.FromMilliseconds(100);
     options.LeaseDuration = TimeSpan.FromMinutes(2);
     options.MaxConcurrentJobs = CapacityEnvironment.MaxConcurrentJobs;
@@ -119,15 +125,12 @@ builder.Services.UseScheduling(options =>
 
 var app = builder.Build();
 
-if (!isWorker)
-{
-    app.MapTracon(CapacityContract.Prefix);
-    CapacityApparatus.Map(app, settings, counters);
-}
+app.MapTracon(CapacityContract.Prefix);
+CapacityApparatus.Map(app, settings, counters);
 
 await app.StartAsync().ConfigureAwait(false);
 
-Console.WriteLine(isWorker ? CapacityContract.WorkerReadyLine : CapacityContract.HostReadyLine);
+Console.WriteLine(CapacityContract.HostReadyLine);
 Console.Out.Flush();
 
 await app.WaitForShutdownAsync().ConfigureAwait(false);
@@ -146,9 +149,24 @@ static string ConnectionStringWithPool(CapacitySettings settings)
     return parsed.ConnectionString;
 }
 
+static async Task<int> RunWorkerAsync(CapacitySettings settings, CapacityExecutionLog? executions)
+{
+    using var log = executions ?? new CapacityExecutionLog(settings.ExecutionLogDirectory, settings.Name);
+    using var host = BuildBackgroundHost(settings, autoApplyMigrations: false, log: log, runWorker: true);
+
+    await host.StartAsync().ConfigureAwait(false);
+
+    Console.WriteLine(CapacityContract.WorkerReadyLine);
+    Console.Out.Flush();
+
+    await host.WaitForShutdownAsync().ConfigureAwait(false);
+    return 0;
+}
+
 static async Task<int> MigrateAsync(CapacitySettings settings)
 {
-    using var built = BuildBackgroundHost(settings, autoApplyMigrations: true);
+    using var log = new CapacityExecutionLog(directory: null, settings.Name);
+    using var built = BuildBackgroundHost(settings, autoApplyMigrations: true, log: log, runWorker: false);
     await built.StartAsync().ConfigureAwait(false);
 
     Console.WriteLine(CapacityContract.MigratedLine);
@@ -158,35 +176,64 @@ static async Task<int> MigrateAsync(CapacitySettings settings)
     return 0;
 }
 
-static IHost BuildBackgroundHost(CapacitySettings settings, bool autoApplyMigrations)
+static IHost BuildBackgroundHost(
+    CapacitySettings settings,
+    bool autoApplyMigrations,
+    CapacityExecutionLog log,
+    bool runWorker)
 {
     var host = Host.CreateApplicationBuilder();
     host.Logging.ClearProviders();
+    host.Logging.AddSimpleConsole(options => options.SingleLine = true);
+    host.Logging.SetMinimumLevel(LogLevel.Warning);
 
+    var counters = new CapacityCounters();
+    var probe = new CapacityProbeTool(settings.Workload, counters);
+
+    host.Services.AddSingleton(counters);
     host.Services.AddTracon()
-        .AddModelProvider(new CapacityModelProvider(
-            settings.Workload,
-            new CapacityCounters(),
-            new CapacityExecutionLog(directory: null, settings.Name),
-            settings.Name))
+        .AddModelProvider(new CapacityModelProvider(settings.Workload, counters, log, settings.Name))
+        .AddTool(probe.CreateFunction())
+        .AddAgent(new AgentDefinition
+        {
+            Name = CapacityContract.AgentName,
+            DisplayName = "Capacity fixture agent",
+            Description = "The agent under load. Its answer is deterministic and carries the request's correlation value.",
+            Instructions = "Call the probe tool with the correlation value from the message, then answer.",
+            Model = new ModelBinding
+            {
+                Provider = CapacityContract.ProviderName,
+                Model = CapacityContract.ModelName,
+            },
+            ToolNames = [CapacityPayload.ToolName],
+            Origin = AgentDefinitionOrigin.Code,
+        })
         .UsePostgreSql(options =>
         {
-            options.ConnectionString = settings.ConnectionString;
+            options.ConnectionString = ConnectionStringWithPool(settings);
             options.SchemaName = settings.Schema;
             options.AutoApplyMigrations = autoApplyMigrations;
         });
 
-    // Neither background mode leases: migrating and seeding must not compete
-    // with anything, and a worker started here would begin draining a queue
-    // the measurement has not opened yet.
-    host.Services.UseScheduling(options => options.RunWorker = false);
+    // Migrating and seeding must not lease: a worker started there would begin
+    // draining a queue the measurement has not opened yet. A worker NODE does
+    // exactly the opposite, which is the whole point of the axis.
+    host.Services.UseScheduling(options =>
+    {
+        options.Enabled = true;
+        options.RunWorker = runWorker;
+        options.PollInterval = TimeSpan.FromMilliseconds(100);
+        options.LeaseDuration = TimeSpan.FromMinutes(2);
+        options.MaxConcurrentJobs = CapacityEnvironment.MaxConcurrentJobs;
+    });
 
     return host.Build();
 }
 
 static async Task<int> SeedAsync(CapacitySettings settings)
 {
-    using var built = BuildBackgroundHost(settings, autoApplyMigrations: false);
+    using var log = new CapacityExecutionLog(directory: null, settings.Name);
+    using var built = BuildBackgroundHost(settings, autoApplyMigrations: false, log: log, runWorker: false);
     await built.StartAsync().ConfigureAwait(false);
 
     var runs = built.Services.GetRequiredService<IRunStore>();
