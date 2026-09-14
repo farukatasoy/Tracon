@@ -1,0 +1,17 @@
+<Project>
+
+  <!--
+    Phase 166. Present only to STOP the search: without it, MSBuild walks up and
+    finds the repository's own Directory.Packages.props, which turns central
+    package management back on and makes every version in these csproj files an
+    error (NU1008) - and would make the copy in the temporary directory resolve
+    versions from a file that is not there.
+
+    Versions live in the csproj files here, because a consumer's project is what
+    these projects imitate and because the copy must build with nothing above it.
+  -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+</Project>

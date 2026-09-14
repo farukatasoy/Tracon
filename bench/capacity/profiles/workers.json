@@ -1,0 +1,46 @@
+{
+  "name": "workers",
+  "description": "The worker-count axis, queued scenario only. The offered load is held CONSTANT; only the number of leasing processes changes. This measures contention on one machine, one database and one clock - it is not a statement that multiple nodes are supported.",
+  "scenarios": [
+    "queued"
+  ],
+  "scenarioGrouping": "separate",
+  "concurrency": [
+    8
+  ],
+  "fixedConcurrency": 8,
+  "workerCounts": [
+    1,
+    2,
+    4
+  ],
+  "seedShapes": [
+    "empty"
+  ],
+  "repeats": 3,
+  "warmupSeconds": 10,
+  "measureSeconds": 60,
+  "runsPerTenant": 0,
+  "workload": {
+    "requestBytes": 1024,
+    "modelDelayMilliseconds": 1000,
+    "outputChunks": 20,
+    "outputChunkCharacters": 256,
+    "toolResultBytes": 1024,
+    "toolCall": true
+  },
+  "limits": {
+    "maxInFlight": 128,
+    "hostRssBytes": 4294967296,
+    "driverRssBytes": 1073741824,
+    "databaseBytes": 5368709120,
+    "minimumFreeDiskBytes": 10737418240,
+    "maxRequestSamples": 200000
+  },
+  "requestTimeoutSeconds": 120,
+  "drainTimeoutSeconds": 300,
+  "maxConcurrentJobs": 8,
+  "maxPoolSize": 100,
+  "resourceSampleIntervalSeconds": 1,
+  "seedRuns": 10000
+}

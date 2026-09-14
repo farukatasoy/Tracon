@@ -196,6 +196,33 @@ jobs:
         if: matrix.os == 'windows-latest'
         run: dotnet test Tracon.no-docker.slnf -c Release --no-build -maxcpucount:1 -- --report-trx
 
+      # Faz 166. Kapasite APARATININ kisa dogruluk kosumu - bir yuk olcumu
+      # DEGIL. Uc HTTP yolu, iki kiraci, gercek TCP, gercek SQL ve packed
+      # tuketici provenance'i kontrol edilir; hicbir sure esige baglanmaz
+      # (K-738). Agir profiller (sweep/arrival/workers/soak) CI'a GIRMEZ.
+      #
+      # 🚨 Yalniz Linux: kendi PostgreSQL container'ini baslatir ve
+      # `windows-latest` runner'i Linux image calistiramaz - ayni sebep
+      # Tracon.no-docker.slnf'in var olma sebebi.
+      #
+      # 🚨 Eksik Docker veya hazirlanmamis paket SESSIZ SKIP degil BASARISIZ
+      # onkosuldur: atlanmis bir provenance kontrolu CI log'unda gecmis bir
+      # kontrolden ayirt edilemez.
+      - name: Kapasite smoke (packed tuketici)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          python3 scripts/kapi.py kapasite \
+            --profil smoke \
+            --surum "0.0.0-ci.${{ github.run_number }}"
+
+      - name: Kapasite smoke ciktisini yukle
+        if: always() && matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: capacity-smoke
+          path: artifacts/capacity/**
+          if-no-files-found: ignore
+
       - name: Test sonuclarini yukle
         if: always()
         uses: actions/upload-artifact@v4
