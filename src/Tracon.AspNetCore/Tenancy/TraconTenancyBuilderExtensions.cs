@@ -53,6 +53,15 @@ public static class TraconTenancyBuilderExtensions
         // already registered SingleTenantContext.
         services.Replace(ServiceDescriptor.Singleton<ITenantContext, HttpTenantContext>());
 
+        // Phase 170: the production profile gate's tenant question is answered
+        // in Core by WHICH ITenantContext is bound, which this call has just
+        // changed. That answer is wrong for Enabled=false, so the refinement is
+        // registered exactly here - the one composition where it has something
+        // to add. It is only ever resolved if the application also called
+        // RequireProductionProfile.
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IProductionProfileCheck, TenancyResolutionProfileCheck>());
+
         return builder;
     }
 }

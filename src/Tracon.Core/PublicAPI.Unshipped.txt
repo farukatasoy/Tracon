@@ -1455,3 +1455,8 @@ static readonly Tracon.TruncatingAIFunction.MinimumEnvelopeBytes -> int
 ~override Tracon.RunEventDraft.ToString() -> string
 ~override Tracon.WebhookUrlVerdict.Equals(object obj) -> bool
 ~override Tracon.WebhookUrlVerdict.ToString() -> string
+Tracon.ITraconBuilder.RequireProductionProfile(System.Action<Tracon.TraconProductionProfileOptions!>? configure = null) -> Tracon.ITraconBuilder!
+Tracon.TraconProductionProfileOptions
+Tracon.TraconProductionProfileOptions.TraconProductionProfileOptions() -> void
+Tracon.TraconProductionProfileOptions.AcceptedRisks.get -> System.Collections.Generic.IReadOnlyCollection<Tracon.TraconProductionRisk>!
+Tracon.TraconProductionProfileOptions.Accept(Tracon.TraconProductionRisk risk) -> Tracon.TraconProductionProfileOptions!

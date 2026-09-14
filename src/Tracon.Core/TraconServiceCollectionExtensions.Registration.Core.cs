@@ -49,6 +49,25 @@ public static partial class TraconServiceCollectionExtensions
         // through RequireCustomBinding.
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, RequiredBindingValidator>());
 
+        // Composition gate for the six production decisions (phase 170, F-231).
+        // Its sibling above covers the BINDING half of the same argument; this
+        // one covers the OPTIONS half. Registered here for the same reason and
+        // with the same guarantee: it resolves nothing at all unless the
+        // application declared a profile through RequireProductionProfile.
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, ProductionProfileValidator>());
+
+        // The checks the gate reads. Registered unconditionally and EXPLICITLY:
+        // Abstractions, Core and OpenAI stay AOT compatible, and scanning types
+        // for an interface would break that stance. A package that sees a
+        // decision the core cannot (Tracon.AspNetCore and tenant resolution)
+        // adds its own check for the same risk, and the strictest answer wins.
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IProductionProfileCheck, TenancyProfileCheck>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IProductionProfileCheck, SessionOwnershipProfileCheck>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IProductionProfileCheck, ContentProtectionProfileCheck>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IProductionProfileCheck, ContentGuardProfileCheck>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IProductionProfileCheck, RateLimitProfileCheck>());
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IProductionProfileCheck, RetentionProfileCheck>());
+
         // Tool argument validation (phase 127): valid by default. Registered as
         // the specific shared instance so ToolWrapperChain.Compose can recognize
         // it by reference and skip installing ValidatingAIFunction when a

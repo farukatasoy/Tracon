@@ -13,6 +13,27 @@ fixed to the artifacts it actually ships.
 
 ### Added
 
+- `RequireProductionProfile()` on the Tracon chain. `AddTracon()` brings every
+  security-sensitive switch up permissive, so a deployment can reach production
+  having never separated tenants, never decided who owns a session and never
+  registered a content guard — in silence. This call refuses to start such a
+  host. It **changes no setting and secures nothing by itself**: it sets no
+  value, chooses no policy and turns nothing on; the only thing it does is turn
+  a skipped decision into a startup failure. Six decisions are asked about —
+  tenant separation, session ownership, at-rest content protection, content
+  inspection, request rate limiting and retention — and each is either answered
+  by turning the feature on or accepted by name with
+  `profile.Accept(TraconProductionRisk.SingleTenant)`. There is no way to accept
+  all six at once, and every accepted risk is logged at information level, by
+  name, on each host start. It is off by default: a host that never calls it
+  behaves exactly as before and resolves nothing extra at startup.
+  **The set of decisions is a versioned contract**: a later release that adds
+  one stops a host that calls this method until the new decision is answered or
+  accepted, and such a release declares the addition as a behavioural breaking
+  change naming the new risk and why it was added. `IProductionProfileCheck` is
+  the seam behind it — more than one check may carry the same risk, and the
+  strictest answer wins, which is how `Tracon.AspNetCore` adds the
+  `UseTenancy(options => options.Enabled = false)` case the core cannot see.
 - `Tracon:SessionOwnership:RefuseUnownedSessions` (default `false`).
   Session ownership is not retroactive, so rows written before it was turned
   on belong to nobody; until now those stayed readable by id to anyone in the

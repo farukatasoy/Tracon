@@ -260,4 +260,18 @@ internal sealed class TraconBuilder : ITraconBuilder
         Services.AddSingleton(new RequiredBindingRegistration(typeof(T)));
         return this;
     }
+
+    public ITraconBuilder RequireProductionProfile(Action<TraconProductionProfileOptions>? configure = null)
+    {
+        var options = new TraconProductionProfileOptions();
+        configure?.Invoke(options);
+
+        // Add, not TryAdd: TryAddEnumerable deduplicates by implementation TYPE
+        // and every declaration shares one, so two composition modules that both
+        // declare the profile would collapse into whichever ran first. The
+        // validator takes the union of the accepts, so a second declaration is
+        // a no-op rather than a conflict.
+        Services.AddSingleton(new ProductionProfileRegistration(options));
+        return this;
+    }
 }

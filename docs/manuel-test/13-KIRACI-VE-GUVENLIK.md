@@ -3812,3 +3812,227 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST "$APU/../v1/chat/completions" \
   `Turning_the_surface_off_removes_all_four_routes`,
   `Turning_the_surface_off_removes_it_from_the_OpenAPI_document`,
   `Turning_the_surface_off_leaves_the_other_OpenAI_routes_alone`.
+
+---
+
+### MT-SEC-182 — Profil çağrılmayan kurulum aynı kalır
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 170 |
+| **İnsan gerekir** | Hayır |
+
+**Ön koşul**
+- `samples/Tracon.Api`, değiştirilmemiş (`RequireProductionProfile` **çağrılmamış**).
+
+**Adımlar**
+1. `ASPNETCORE_URLS=http://localhost:5199 ./artifacts/bin/Tracon.Api/release/Tracon.Api`
+2. Log'da `Application started` ve `Production profile` ara.
+
+**Beklenen sonuç**
+- Host normal başlar; `Application started` **1**.
+- `Production profile` geçen satır **0** — metot çağrılmayan kurulum tek bir log
+  satırı bile ödemez.
+- Otomatikleştirilmiş karşılığı:
+  `A_host_that_does_not_declare_the_profile_starts_unchanged`.
+
+---
+
+### MT-SEC-183 — Açık kalan kararların hepsi tek mesajda sayılır
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 170 |
+| **İnsan gerekir** | Hayır |
+
+**Ön koşul**
+- `samples/Tracon.Api`'ye geçici olarak `tracon.RequireProductionProfile();` eklenmiş
+  (`builder.Services.AddHealthChecks()` satırından hemen önce).
+
+**Adımlar**
+1. Host'u başlat.
+2. Çıkış kodunu ve hata mesajını incele.
+
+**Beklenen sonuç**
+- Host **başlamaz**; `exit=134`, `Application started` **0**.
+- Mesaj açık kalan **her** kararı ayrı ayrı sayar (örnek uygulamada **5**: içerik
+  denetimi zaten kayıtlıdır, o kalem listede **yoktur**).
+- Her kalem üç bilgiyi taşır: `Setting` · `Today` · `Fix`.
+- Mesajın sonu `Accept(...)` yolunu ve "bu kapı hiçbir ayarı değiştirmez"
+  cümlesini taşır.
+- Otomatikleştirilmiş karşılığı:
+  `One_permissive_decision_stops_the_host_and_is_named` (altı kalem için ayrı ayrı).
+
+---
+
+### MT-SEC-184 — Kabul edilen risk host'u durdurmaz ve adıyla loglanır
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 170 |
+| **İnsan gerekir** | Hayır |
+
+**Ön koşul**
+- MT-SEC-183'ün geçici satırı şuna çevrilmiş:
+  ```csharp
+  tracon.RequireProductionProfile(profile => profile
+      .Accept(TraconProductionRisk.SingleTenant)
+      .Accept(TraconProductionRisk.UnencryptedContentAtRest));
+  ```
+
+**Adımlar**
+1. ```bash
+   Logging__LogLevel__Tracon=Information \
+   Tracon__SessionOwnership__Enabled=true \
+   Tracon__RateLimit__Enabled=true \
+   Tracon__Retention__Enabled=true \
+   ./artifacts/bin/Tracon.Api/release/Tracon.Api
+   ```
+2. `curl -s "$APU/api/meta"`.
+3. Log'da `Production profile` ara.
+4. `POST /api/agents/cached-support/run` ile gerçek bir `run` yap.
+
+**Beklenen sonuç**
+- 1: host başlar, `Application started` **1**.
+- 2: `200`.
+- 3: **iki** satır, `Information` seviyesinde, riskleri **adıyla** sayar
+  (`SingleTenant is accepted`, `UnencryptedContentAtRest is accepted`).
+- 4: SSE akışı `run` → `update` → `done` turunu verir; `/api/stats` `totalRuns:1`.
+- Otomatikleştirilmiş karşılığı:
+  `An_accepted_risk_starts_the_host_and_is_logged_by_name`.
+
+---
+
+### MT-SEC-185 — Kabul komşu kalemi kapsamaz
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 170 |
+| **İnsan gerekir** | Hayır |
+
+**Ön koşul**
+- MT-SEC-184'ün kurulumu, ama `Tracon__SessionOwnership__Enabled` **verilmemiş**.
+
+**Adımlar**
+1. Host'u başlat.
+
+**Beklenen sonuç**
+- Host **başlamaz**; mesaj yalnız `UnownedSessions` kalemini sayar.
+- Kabul edilen `SingleTenant` mesajda **yoktur** — kabul yalnız adlandırılan riski
+  kapsar, komşusunu değil.
+- Otomatikleştirilmiş karşılığı: `An_accept_does_not_cover_the_decision_next_to_it`.
+
+---
+
+### MT-SEC-186 — İçerik denetimi kayıtla ölçülür, bayrakla değil
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 170 |
+| **İnsan gerekir** | Hayır |
+
+**Ön koşul**
+- MT-SEC-183'ün kurulumu, ama örnek uygulamanın `AddPatternContentGuard` /
+  `AddContentGuard` çağrısı geçici olarak yorumda.
+
+**Adımlar**
+1. Host'u başlat, mesajı incele.
+2. Yorumu geri al, tekrar başlat.
+
+**Beklenen sonuç**
+- 1: mesaj `UninspectedContent` kalemini sayar; `Setting` satırı `IContentGuard`
+  der ve `no content guard is registered` yazar — bir **seçenek bayrağı** değil.
+- 2: kalem listeden düşer.
+- Otomatikleştirilmiş karşılığı:
+  `Content_inspection_is_measured_by_the_registration_not_by_a_flag`.
+
+---
+
+### MT-SEC-187 — `UseTenancy(Enabled = false)` hâlâ tek kiracı sayılır
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 170 |
+| **İnsan gerekir** | Hayır |
+
+**Ön koşul**
+- MT-SEC-183'ün kurulumu; ayrıca `Tracon__Tenancy__Enabled=false` ile birlikte örnek
+  uygulamanın `UseTenancy` dalı geçici olarak koşulur hâle getirilmiş
+  (`options.Enabled = false`).
+
+**Adımlar**
+1. Host'u başlat.
+
+**Beklenen sonuç**
+- Host **başlamaz**; `SingleTenant` kalemi listede **durur**.
+- `Setting` satırı `UseTenancy(options => options.Enabled)` der — bir
+  `appsettings` anahtarı DEĞİL, çünkü Tracon `TraconTenancyOptions`'a hiçbir
+  yapılandırma bölümü bağlamaz. Core'un cevabı (`ITenantContext`
+  değiştirildi, dolayısıyla `Satisfied`) **değil**. İki kontrol aynı riski taşır ve
+  **en katı** cevap kazanır.
+- Otomatikleştirilmiş karşılığı:
+  `UseTenancy_with_resolution_off_is_still_reported_as_single_tenant`.
+
+---
+
+### MT-SEC-188 — Mesaj ve log hiçbir yapılandırma değeri taşımaz
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 170 |
+| **İnsan gerekir** | Hayır |
+
+**Ön koşul**
+- MT-SEC-183'ün kurulumu.
+- İçerik koruma **kapalı**, ama anahtar haritası canary değerlerle dolu:
+  ```bash
+  Tracon__ContentProtection__Keys__canary-4f2a-key-id=CanaryKeys:canary-4f2a
+  ```
+
+**Adımlar**
+1. Host'u başlat.
+2. Hata mesajını ve log'un tamamını canary dizeleri için tara.
+
+**Beklenen sonuç**
+- Mesaj `Tracon:ContentProtection:Enabled` **adını** taşır.
+- `canary-4f2a-key-id` ve `CanaryKeys:canary-4f2a` **hiçbir yerde** yoktur — ne
+  mesajda, ne log'da (K-059).
+- Otomatikleştirilmiş karşılığı:
+  `Neither_the_failure_nor_the_log_carries_a_configured_value`.
+
+---
+
+### MT-SEC-189 — Kapı HTTP yüzeyi olmayan host'ta da koşar
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 170 |
+| **İnsan gerekir** | Hayır |
+
+**Ön koşul**
+- `MapTracon` çağırmayan gömülü bir host; `RequireProductionProfile()` çağrılmış.
+
+**Adımlar**
+1. Host'u başlat.
+
+**Beklenen sonuç**
+- Host **başlamaz** — bunlar kompozisyon kararlarıdır, bir HTTP kaygısı değil.
+- `SingleTenant` kalemi `SingleTenantContext` adını taşır; kiracı sorusu gömülü
+  host'ta da **anlamlı** yanıtlanır, sessizce eksilmez.
+- Otomatikleştirilmiş karşılığı: `The_gate_runs_in_a_host_with_no_HTTP_surface`.

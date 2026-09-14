@@ -5665,3 +5665,25 @@ virtual Tracon.TraconException.ErrorType.get -> string!
 ~override Tracon.ConversationBranch.ToString() -> string
 ~override Tracon.McpRefreshOutcome.Equals(object obj) -> bool
 ~override Tracon.McpRefreshOutcome.ToString() -> string
+Tracon.IProductionProfileCheck
+Tracon.IProductionProfileCheck.Evaluate(System.IServiceProvider! services) -> Tracon.ProductionProfileResult!
+Tracon.IProductionProfileCheck.Risk.get -> Tracon.TraconProductionRisk
+Tracon.ProductionProfileResult
+Tracon.ProductionProfileResult.Observed.get -> string!
+Tracon.ProductionProfileResult.Remedy.get -> string!
+Tracon.ProductionProfileResult.Setting.get -> string!
+Tracon.ProductionProfileResult.State.get -> Tracon.ProductionProfileState
+Tracon.ProductionProfileState
+Tracon.ProductionProfileState.NotApplicable = 2 -> Tracon.ProductionProfileState
+Tracon.ProductionProfileState.Permissive = 1 -> Tracon.ProductionProfileState
+Tracon.ProductionProfileState.Satisfied = 0 -> Tracon.ProductionProfileState
+Tracon.TraconProductionRisk
+Tracon.TraconProductionRisk.SingleTenant = 0 -> Tracon.TraconProductionRisk
+Tracon.TraconProductionRisk.UnboundedRetention = 5 -> Tracon.TraconProductionRisk
+Tracon.TraconProductionRisk.UnencryptedContentAtRest = 2 -> Tracon.TraconProductionRisk
+Tracon.TraconProductionRisk.UninspectedContent = 3 -> Tracon.TraconProductionRisk
+Tracon.TraconProductionRisk.UnlimitedRequestRate = 4 -> Tracon.TraconProductionRisk
+Tracon.TraconProductionRisk.UnownedSessions = 1 -> Tracon.TraconProductionRisk
+static Tracon.ProductionProfileResult.NotApplicable(string! setting, string! reason) -> Tracon.ProductionProfileResult!
+static Tracon.ProductionProfileResult.Permissive(string! setting, string! observed, string! remedy) -> Tracon.ProductionProfileResult!
+static Tracon.ProductionProfileResult.Satisfied(string! setting) -> Tracon.ProductionProfileResult!

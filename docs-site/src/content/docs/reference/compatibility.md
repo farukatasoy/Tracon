@@ -147,6 +147,25 @@ form. This matrix shows where a change can originate.
 | Diagnostics endpoint | Use when present | Read when present | Enable in `MapTracon()` options | Off by default |
 | Theme and language | Change locally | N/A | N/A | Browser preference; server messages stay English |
 
+## The production profile is a versioned contract
+
+`RequireProductionProfile()` asks about a fixed set of production decisions. That
+set is part of the compatibility contract, and it is the one place where a minor
+release can deliberately stop a host that used to start.
+
+| Question | Answer |
+|---|---|
+| Can a release add a decision to the profile? | Yes. It is the only way a newly recognised risk reaches a deployment that asked to be told |
+| What happens to a host that calls the method? | It does not start until the new decision is answered or the risk is accepted by name |
+| How is that announced? | As a **behavioural breaking change** in `CHANGELOG.md`, naming the new risk and saying why it was added — "hardened" on its own is not enough |
+| What happens to a host that does not call the method? | Nothing. Every default stays exactly where it was; the profile changes no setting |
+| Does accepting a risk survive the upgrade? | Yes. An accept names one risk and keeps applying to that risk alone |
+
+Read that cost before adopting the method. A deployment that wants its production
+decisions pinned rather than re-asked should pin the package version, not avoid the
+gate: the alternative is a new decision arriving in silence, which is the thing the
+method exists to prevent.
+
 ## HTTP surface compatibility
 
 The generated HTTP reference contains 168 management and OpenAI-compatible

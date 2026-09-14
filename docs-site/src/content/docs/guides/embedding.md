@@ -391,6 +391,69 @@ Four properties are worth knowing before you rely on it:
 Any type that is not one of the seven contracts also stops the host, with a message
 listing the seven that are accepted.
 
+## Make a production decision required
+
+`RequireCustomBinding<T>()` covers the bindings. Its sibling covers the settings:
+`AddTracon()` also brings every security-sensitive switch up permissive, so a
+deployment can reach production having never separated tenants, never decided who
+owns a session and never registered a content guard — in silence.
+
+```csharp
+builder.AddTracon()
+    .RequireProductionProfile(profile => profile
+        .Accept(TraconProductionRisk.SingleTenant));
+```
+
+Six decisions are asked about, and each is either answered by turning the feature on
+or accepted by name:
+
+| Risk | What the permissive default means | Answer it with |
+|---|---|---|
+| `SingleTenant` | Every call resolves to the same default tenant | Bind your own `ITenantContext`, or `UseTenancy(options => options.Enabled = true)` |
+| `UnownedSessions` | No session records the user it belongs to | `Tracon:SessionOwnership:Enabled` |
+| `UnencryptedContentAtRest` | Prompts, responses and tool arguments are stored as clear text | `AddContentProtection(...)` |
+| `UninspectedContent` | No prompt or response is inspected | `AddPatternContentGuard(...)` or `AddContentGuard<TGuard>()` |
+| `UnlimitedRequestRate` | One caller can take the whole model budget | `Tracon:RateLimit:Enabled` |
+| `UnboundedRetention` | Nothing is ever deleted | `Tracon:Retention:Enabled`, or a policy per target |
+
+The startup failure names every open decision at once — the setting, what it is
+today, and how to answer it — so one restart clears all of them rather than one per
+round:
+
+```text
+RequireProductionProfile() was called, and 2 production decisions are still on the
+permissive default, so the host does not start.
+
+  SingleTenant
+    Setting: ITenantContext
+    Today:   resolves to Tracon's built-in SingleTenantContext, so every call runs as the default tenant
+    Fix:     register your own ITenantContext before the AddTracon() call, or on an ASP.NET Core host call UseTenancy(options => options.Enabled = true)
+```
+
+Five properties are worth knowing before you rely on it:
+
+- **It changes no setting.** It sets no value, chooses no policy and turns nothing
+  on. The only thing it does is turn a skipped decision into a startup failure.
+- **It is off by default.** An application that never calls it behaves exactly as it
+  did before, and the call resolves nothing extra at startup.
+- **Accepting is per item.** There is no way to accept all six at once, so each
+  accepted risk is one reviewable line — and every accepted risk is written to the
+  log at information level, by name, each time the host starts.
+- **The set of decisions is a versioned contract.** A later release that adds one
+  stops a host that calls this method until the new decision is answered or
+  accepted. See
+  [Compatibility](/reference/compatibility/#the-production-profile-is-a-versioned-contract).
+- **It is a composition gate, not a security proof.** It reports that a feature is
+  switched on. It cannot tell you the policy behind it is right.
+
+The tenant decision is answered by which `ITenantContext` is bound, so an embedded
+host that resolves its tenant from a message header answers it the same way an HTTP
+host does. `UseTenancy(options => options.Enabled = false)` is the one case where
+that is not enough, and the HTTP package adds its own check for it: two checks can
+carry the same risk, and the stricter answer wins. The same seam is open to you —
+register your own `IProductionProfileCheck` to add a decision of your own, or to
+narrow one of Tracon's.
+
 ## Extension points in diagnostics
 
 `GET /api/diagnostics` (off by default; turn it on with
@@ -428,6 +491,7 @@ wrong interface.
 
 - [ ] Every binding you need is registered **before** `AddTracon()`
 - [ ] Bindings your deployment must not run without are declared with `RequireCustomBinding<T>()`
+- [ ] Production decisions your deployment must not skip are declared with `RequireProductionProfile()`
 - [ ] `GET /api/diagnostics` shows `isBuiltInDefault: false` for each contract you bound
 - [ ] A background job opens `AmbientTenantScope.Begin(tenantId)` in the method that starts the run, and the scope covers every `await` on that path
 - [ ] `IRunEventSink.OnEventAsync` never performs blocking I/O inline — it queues and returns

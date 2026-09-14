@@ -271,6 +271,10 @@ delete what you no longer need.
       provider endpoints really are on the internal network
 - [ ] `IToolAuthorizationHandler` is implemented for any tool that should not be callable
       by every caller — see [Tools: authorization and timeout](/concepts/tools/#authorization-validation-and-timeout)
+- [ ] `RequireProductionProfile()` is called, so tenant separation, session ownership,
+      at-rest protection, content inspection, rate limiting and retention cannot be skipped
+      in silence — see
+      [Make a production decision required](/guides/embedding/#make-a-production-decision-required)
 
 ## Read next
 

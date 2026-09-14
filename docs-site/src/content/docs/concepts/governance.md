@@ -494,6 +494,43 @@ recorded input, and run events receive the masked value. Tracon does not retain 
 hidden raw copy for later inspection.
 :::
 
+## Requiring a production decision
+
+Nearly everything on this page is off by default, and that is deliberate: a first
+run should surprise nobody. It is the wrong default for a production deployment,
+which can reach production having never separated tenants, never decided who owns a
+session and never registered a content guard — in silence.
+
+`RequireProductionProfile()` refuses to start such a host:
+
+```csharp
+builder.AddTracon()
+    .RequireProductionProfile(profile => profile
+        .Accept(TraconProductionRisk.SingleTenant));
+```
+
+It **changes no setting**. It sets no value, chooses no policy and turns nothing on;
+the only thing it does is turn a skipped decision into a startup failure. Six
+decisions are asked about — tenant separation, session ownership, at-rest content
+protection, content inspection, request rate limiting and retention — and each is
+either answered by turning the feature on or accepted by name. Accepting is per
+item, so each accepted risk is one reviewable line, and every accept is written to
+the log at information level each time the host starts.
+
+Content inspection shows why the gate reads registrations rather than flags: there
+is no "inspection enabled" setting to read, so the question it asks is whether any
+`IContentGuard` is registered at all.
+
+`IProductionProfileCheck` is the seam behind it. More than one check may carry the
+same risk and **the strictest answer wins**, which is how the HTTP package adds the
+`UseTenancy(options => options.Enabled = false)` case the core cannot see — and how
+you add a decision of your own.
+
+Like `RequireCustomBinding<T>()`, this is a composition gate rather than a security
+proof: it reports that a feature is switched on, never that the policy behind it is
+right. The set of decisions is a versioned contract; see
+[Compatibility](/reference/compatibility/#the-production-profile-is-a-versioned-contract).
+
 ## The document channel
 
 `documents` on `POST /api/agents/{name}/run` attaches reference text to a run,
