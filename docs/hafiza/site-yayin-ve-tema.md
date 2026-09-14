@@ -101,3 +101,33 @@ Kural: işaret üç dosyayla sevk edilir — `favicon.svg`, `favicon.ico` (16/32
 tek kaynak `assets/tracon-mark.svg`. `.ico` konteyneri PNG kareleri doğrudan taşır;
 sharp `.ico` yazamadığı için kodlayıcı script'in içindedir. Starlight'ın `favicon`
 seçeneği yalnız SVG bağlantısını basar, diğer ikisi `head`'e elle eklenir.
+
+## Reverse proxy arkasında SEO (2026-09-14)
+
+- nginx dizin redirect'i varsayılan olarak kendi HTTP scheme/8080 portunu basar.
+  `absolute_redirect off` dış origin'i korur. `site-http-denetle.py` gerçek nginx
+  üzerinde query, 404 ve preview host davranışını ölçer; Astro preview bunu kanıtlamaz.
+- `nginx.conf` resmi image'ın template yoluna bağlanır; yalnız `SITE_HOST`
+  envsubst edilir. Diğer host'lar `X-Robots-Tag: noindex` alır. Ayrı preview
+  build'i için `TRACON_SITE_INDEXING=disabled`; robots taraması açık kalır ki
+  crawler HTML noindex'i okuyabilsin. Başka hosting bu header'ı ayrıca uygulamalıdır.
+- CLR tipi ile aynı adlı HTTP schema farklı sözleşmelerdir. Merkezi route
+  middleware title'a yüzeyi ekler; üreteç description'a tip adını ekler.
+  `site-seo-denetle.py`, `check:links` içinde tüm HTML ve sitemap kümesini denetler.
+- DocFX, kaldırılan `#`'in altına doğrudan `#### Inheritance` yazar; Starlight'ın
+  bastığı H1'e karşı bu `h1→h4` atlamasıdır. Tip sayfasındaki `####` dizisi metadata'dır
+  → `<dl class="api-relations">`; namespace sayfasındaki `###` bölümdür → `##`'a
+  yükseltilir. Altındaki `##`→`###`→`####` zaten doğrudur; toptan yükseltmek düzleştirirdi.
+  Kapı: `site-seo-denetle.py` başlık denetimi. Üç tuzak, üçü de ölçümle çıktı:
+  (1) `m` bayrağıyla `$` HER satır sonunda eşleşir — `(?![\s\S])` kullan, yoksa her
+  satır boş yakalanır; (2) HTML bloğu bir sonraki BOŞ satıra kadar sürer — `</dl>`
+  sonrası boş satır konmazsa ardından gelen `## Constructors` yutulur ve başlık olmaz;
+  (3) DocFX overload URL'sinde parantezi de escape eder (`…equals\(system-object\)`),
+  href deseni `\)` üzerinden geçebilmelidir. Ayrıca `dt`/`dd` marjını SIFIRLA: Starlight'ın
+  `* + *` kuralı ilk etiketten sonrakileri aşağı iter ve çiftler kayar.
+- 🚨 **`check-links.mjs` `/` ile başlamayan adresi "external" sayıp ATLIYORDU.**
+  Bu yüzden 640 kırık iç bağlantı kapı yeşilken yaşadı: DocFX `Extension Methods`
+  listesinde `#`'i `\#`, generic arity'yi `\-1` escape'ler ve üretecin yeniden yazma
+  deseni ikisini de kaçırıyordu; kalan `.md` yolu sayfaya göreli çözülüp 404 veriyordu.
+  Artık scheme'siz göreli adres sayfaya göre çözülüp denetleniyor. Ders: bir kapının
+  "sıfır hata" demesi, baktığı kümenin doğru olduğunu KANITLAMAZ — neyi atladığını sor.

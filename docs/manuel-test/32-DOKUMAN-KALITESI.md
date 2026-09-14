@@ -89,6 +89,9 @@ düğmesi sağ üsttedir; koyu ve açık temanın **ikisi de** denenir.
 | 35 | `MT-DKL-035` | — | Bir el yazısı sayfaya `an Tracon agent` yazılır, `npm run check:content` | Kızarır: `the product name takes "a", not "an"` — bağlamı da yazar |
 | 36 | `MT-DKL-036` | — | `guides/coding-agents.md`'deki `about 700 KB` değeri `about 400 KB` yapılır, `npm run check:content` | Kızarır ve **gerçek** boyutu yazar: `says llms-full.txt is about 400 KB, but it is 713.1 KB` |
 | 37 | `MT-DKL-037` | Konsol E2E koşuldu | `docs-site/public/screenshots/` altındaki 19 PNG'ye bak | Hepsi yeni Tracon işaretini ve `/tracon` yolunu gösterir; `check-console-screens` 18 gezinme girişinin tamamı için bir görüntü bulur, sıfır dönmez |
+| 38 | `MT-DKL-038` | Production site build hazır | Repo kökünde `python3 scripts/site-seo-denetle.py` çalıştır | Tekil title/description, doğru canonical ve WebSite JSON-LD, sitemap eşitliği, erişilebilir sayfalar, atlamayan başlık seviyeleri ve hata noindex denetimi sıfır hata verir |
+| 39 | `MT-DKL-039` | `deploy/nginx.conf` resmi nginx image içinde template olarak yüklenmiş; `SITE_HOST` production host | `python3 scripts/site-http-denetle.py http://127.0.0.1:4175` çalıştır | Slash redirect query'yi korur; iç port/scheme sızmaz; production indekslenebilir, preview host noindex; olmayan adres 404 verir |
+| 40 | `MT-DKL-040` | Ayrı çıktı dizininde `TRACON_SITE_INDEXING=disabled` ile Astro build alınmış | `python3 scripts/site-seo-denetle.py --preview --dist <çıktı>` çalıştır | Tüm HTML noindex taşır; robots taramayı engellemez; canonical production'a işaret eder; sıfır hata verir |
 
 ---
 
