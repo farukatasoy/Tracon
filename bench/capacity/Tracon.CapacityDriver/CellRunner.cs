@@ -625,7 +625,7 @@ public sealed class CellRunner
         }
 
         var telemetry = await probe.ReadTelemetryAsync(cancellationToken).ConfigureAwait(false);
-        result.Telemetry = BuildCoverage(result, telemetry, missingProcesses);
+        result.Telemetry = TelemetryCoverageBuilder.Build(result, telemetry, missingProcesses);
 
         if (result.Telemetry.MissingMandatory.Count > 0)
         {
@@ -708,66 +708,6 @@ public sealed class CellRunner
         }
 
         return refusals;
-    }
-
-    private static TelemetryCoverage BuildCoverage(
-        CellResult result,
-        HostTelemetry telemetry,
-        IReadOnlyList<string> missingProcesses)
-    {
-        var coverage = new TelemetryCoverage();
-
-        void Record(string name, bool available, string reason)
-        {
-            if (available)
-            {
-                coverage.Available.Add(name);
-            }
-            else
-            {
-                coverage.Unavailable[name] = reason;
-            }
-        }
-
-        Record("http.latency", result.LatencyByScenario.Values.Any(static s => s.Count > 0), "no successful request produced a latency sample");
-        Record("model.turns", telemetry.ModelTurns > 0, "the host reported no model turn");
-        Record("process.rss", result.Processes.Exists(static p => p.PeakRssBytes > 0), "no process reported a resident set size");
-        Record("process.cpu", result.Processes.Exists(static p => p.ProcessorSeconds > 0), "processor time is not readable for these processes on this platform");
-        Record("process.gc", result.Processes.Exists(static p => p.GcSeconds is not null), "garbage collection time is only readable for the driver's own process");
-        Record("sql.storage", result.Storage.Available, result.Storage.Unavailable ?? "the schema reported no measured table");
-        Record("queue.wait", result.QueueWait.Count > 0, "no queued job recorded a start time");
-
-        foreach (var reason in telemetry.Unavailable)
-        {
-            coverage.Unavailable["host." + reason] = "the host reported this instrument as unavailable";
-        }
-
-        foreach (var role in missingProcesses)
-        {
-            coverage.Unavailable["process." + role] = "the process could not be opened for sampling";
-        }
-
-        // Mandatory: without these the run is not a capacity measurement at
-        // all. Platform-dependent CPU/GC/SQL detail is optional and its absence
-        // only narrows the telemetry coverage.
-        string[] mandatory = ["http.latency", "model.turns", "process.rss", "queue.wait"];
-
-        foreach (var name in mandatory)
-        {
-            if (!coverage.Available.Contains(name, StringComparer.Ordinal))
-            {
-                // The queue wait is only mandatory where something was queued.
-                if (string.Equals(name, "queue.wait", StringComparison.Ordinal)
-                    && !result.Scenarios.Contains(CapacityScenario.Queued, StringComparer.Ordinal))
-                {
-                    continue;
-                }
-
-                coverage.MissingMandatory.Add(name);
-            }
-        }
-
-        return coverage;
     }
 
     private async Task WriteAsync(CellResult result, CancellationToken cancellationToken)
