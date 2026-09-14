@@ -1,0 +1,71 @@
+<Project>
+
+  <!--
+    Phase 166. The capacity apparatus is DELIBERATELY cut off from the
+    repository's own MSBuild inheritance: there is no
+    `GetPathOfFileAbove('Directory.Build.props')` import here, and
+    `ManagePackageVersionsCentrally` is off.
+
+    🚨 That is not tidiness, it is the measurement's whole premise. `scripts/capacity.py`
+    copies this directory into a temporary directory OUTSIDE the repository and
+    builds it there against an isolated local feed. If these projects inherited
+    the repository's `Directory.Build.props` / `Directory.Packages.props` /
+    `NuGet.config`, the copy would either fail to build or - worse - quietly
+    resolve Tracon from somewhere other than the packed feed, and the run would
+    measure something no consumer can reproduce.
+
+    Everything a consumer's own project would set is therefore written out here
+    in full. Nothing in this file may reference a path above this directory.
+  -->
+
+  <PropertyGroup Label="Language and compiler">
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Quality gates">
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <AnalysisMode>Recommended</AnalysisMode>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Apparatus, not product">
+    <IsPackable>false</IsPackable>
+    <WarnOnPackingNonPackableProject>false</WarnOnPackingNonPackableProject>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <!--
+      CA1002/CA2227/CA1819: the driver's spec and result types are JSON DTOs
+      round-tripped by System.Text.Json. A settable List<T> is what the
+      serializer populates; the "expose a read-only collection" advice applies
+      to a library's public surface, and this assembly is never packed, never
+      referenced by a consumer, and has no public surface contract to protect.
+      CA1812: types instantiated only by the serializer or by reflection.
+    -->
+    <NoWarn>$(NoWarn);CS1591;CA1002;CA2227;CA1819;CA1812</NoWarn>
+    <!--
+      Versions live in each csproj, not in a central file: a central file above
+      this directory would not survive the copy into the temporary directory.
+    -->
+    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
+    <!--
+      No UseArtifactsOutput. In the temporary directory there is no repository
+      root to hang `artifacts/` from, and the driver's output path must be the
+      same whether it was built in place or in the copy.
+    -->
+  </PropertyGroup>
+
+  <PropertyGroup Label="Measured Tracon version">
+    <!--
+      `scripts/capacity.py` overrides this with the exact version it packed.
+      The floating default only keeps `dotnet build` inside the repository
+      working for someone editing the host by hand; no measurement is valid
+      under it, and `capacity.py` refuses to run without an exact version.
+    -->
+    <TraconCapacityPackageVersion Condition="'$(TraconCapacityPackageVersion)' == ''">*-*</TraconCapacityPackageVersion>
+  </PropertyGroup>
+
+</Project>

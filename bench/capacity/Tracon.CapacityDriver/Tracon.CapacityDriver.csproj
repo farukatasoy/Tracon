@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Phase 166. The HTTP driver: a separate process that calls the capacity host
+    over real loopback TCP.
+
+    🚨 It has NO Tracon dependency, by design. The driver must be able to speak
+    only what a consumer's own client speaks - HTTP and SQL - so that nothing it
+    measures can come from sharing a process, an assembly, or a type with the
+    thing under measurement. Npgsql is here for read-only reconciliation and
+    storage accounting, not to touch a Tracon store type.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>Tracon.CapacityDriver</RootNamespace>
+    <AssemblyName>Tracon.CapacityDriver</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Npgsql" Version="10.0.3" />
+  </ItemGroup>
+
+  <!--
+    The names and the synthetic payload both sides of the measurement compute.
+    LINKED, never copied: a second copy would drift, and the two sides would
+    disagree about the expected answer while both still compiled (K-411).
+  -->
+  <ItemGroup>
+    <Compile Include="../Shared/CapacityContract.cs" Link="Shared/CapacityContract.cs" />
+    <Compile Include="../Shared/CapacityPayload.cs" Link="Shared/CapacityPayload.cs" />
+    <Compile Include="../Shared/CapacityExecutionLog.cs" Link="Shared/CapacityExecutionLog.cs" />
+  </ItemGroup>
+
+</Project>

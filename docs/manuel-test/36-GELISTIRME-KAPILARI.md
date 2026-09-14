@@ -1,6 +1,6 @@
 # 36 — Geliştirme Döngüsü Kapıları (`GDK`)
 
-> **Alan kodu:** `GDK` · **Faz:** 91, 92, 116, 167, 168, 169
+> **Alan kodu:** `GDK` · **Faz:** 91, 92, 116, 166, 167, 168, 169
 > **Kaynak:** `scripts/kapi.py` · `scripts/denetim-paketi.py`
 > · `scripts/dokuman-bakim.py` (Faz 169)
 > · `scripts/*_test.py` · `src/Tracon.UI/Tracon.UI.Frontend.targets`
@@ -10,6 +10,7 @@
 > · `.agents/ortak/` (Faz 92) · `bench/Tracon.Benchmarks/` (Faz 116)
 > · `.claude/agents/faz-denetcisi.md` · `.claude/settings.json` (Faz 167)
 > · `.agents/ortak/kurtarma.md` (Faz 168)
+> · `scripts/capacity.py` · `bench/capacity/` · `tests/Tracon.Capacity.Tests/` (Faz 166)
 
 Bu aile, geliştirme kapılarının komutları sessizce atlamadığını ve tarihsel
 kusur sınıflarını yeniden görebildiğini kanıtlar. Python testleri otomatik
@@ -57,6 +58,16 @@ kapıdır; aşağıdaki case'ler kabul davranışını tarif eder.
 | 36 | `MT-GDK-036` | Faz 167, 168 ve 169 arşivlenmiş; üçünün de `## Süreç Ölçümü` tablosu dolu | `python3 scripts/dokuman-bakim.py --denetle` | `Kapanmış fazın süreç ölçümü (eşik 167): ✅ temiz` satırı basılır. 🚨 Bu case **yalnız o satırı** iddia eder; çıkış kodu bileşiktir ve arşivlenmemiş bir faz kökte dururken başka bir kapı yüzünden `1` olabilir |
 | 37 | `MT-GDK-037` | Aynı | Faz 167 kaydında `\| Plan revizyonu sayısı \|` satırının değer hücresini elle boşalt → aynı komut → satırı geri al | Çıkış `1`; `docs/arsiv/fazlar/167-AGENT-ZORLAMA-KATMANI.md:333: \`Plan revizyonu sayısı\` değer hücresi boş` **raporlanır** (dosya adı **ve** satır). Kapı hiçbir şey yazmaz: koşumdan sonra `git diff` yalnız elle yapılan boşaltmayı gösterir, başka dosya değişmez |
 | 38 | `MT-GDK-038` | Temiz ağaç | Bir karar başlığına kod parçası **dışında** iç içe vurgu koy (ör. `\| **K-001 — Modüler **paket** ailesi** \|`) → `python3 scripts/dokuman-bakim.py --denetle` → satırı geri al | Çıkış `1`; `Karar defteri` kapısı `… başlığı İÇ İÇE \`**\` yüzünden KESİLİYOR` der. 🚨 Kod parçası **içindeki** `**` (`` \`docs/**.md\` ``) bulgu **değildir** — gösterilen metindir, vurgu değil |
+| 39 | `MT-GDK-039` | Docker çalışıyor; temiz ağaç | `python3 scripts/kapi.py kapasite --profil smoke --surum <exact>` | Üç HTTP yolu gerçek TCP'den geçer; hücre `complete`; iki kiracının store/yanıt mutabakatı tamdır (`missingRuns` · `contentMismatches` · `sequenceGaps` · `tenantBleed` hepsi `0`); ardından packed host'a karşı kabul koşumu yeşil biter |
+| 40 | `MT-GDK-040` | Aynı | `--surum '*-*'` ile tekrar dene | Çıkış `1`; "exact bir sürüm değil" der ve hiçbir paket üretmez. Kayan sürümle ölçüm yapılmaz |
+| 41 | `MT-GDK-041` | Çalışma ağacı **kirli** | `python3 scripts/kapi.py kapasite --profil smoke --surum 1.0.0-preview.9` | Çıkış `1`; "kirli bir pack'in provenance'ı yoktur" der. `--surum 0.0.0-dirty.local` ile koşum başlar ve `manifest.json` `dirty: true` + `diffHash` taşır |
+| 42 | `MT-GDK-042` | `sweep` koşumu bitti | `artifacts/capacity/<id>/report.md` içindeki yük tablosunu incele | Her satır n, p50/p95/p99 ve throughput taşır; düşük örnekli percentile `⚠` ile işaretli; yarım kalan hücreler "What this report does not say" altında gerekçesiyle yazılı ve tamamlanmış gibi gösterilmiyor |
+| 43 | `MT-GDK-043` | `arrival` koşumu bitti | Aynı raporun `arrival` satırlarını ve `cells/*/cell.json` içindeki `arrival` bloğunu incele | `planned = notSent + sent` ve `sent = accepted + rejected + failed + timedOut` **ikisi de kapanır**; dispatch gecikmesi ve backlog birlikte görünür; 429/timeout başarı dağılımından çıkarılmamıştır |
+| 44 | `MT-GDK-044` | `workers` koşumu bitti | Raporun "Worker contention" bölümünü ve `cell.json` `workers` bloğunu incele | 1/2/4 worker için throughput serisi, claim dağılımı ve worker başına PID görünür; `hostRunWorker: false` **çalışma anında** okunmuştur; `concurrentOverlaps = 0`; tek worker her işi aldıysa "contention could not be measured" yazar, ölçeklenme iddia edilmez |
+| 45 | `MT-GDK-045` | Aynı | Profil koşarken host'un `Scheduling:RunWorker` değerini elle `true` yap ve tekrar koş | Hücre **başlamadan** `invalid` olur ve sebebi "the worker axis would be shifted by one" diye yazılır. Eksen kaymış bir seri üretilmez |
+| 46 | `MT-GDK-046` | `sweep` koşumu bitti | Bir hücrenin `cell.json` `storage` bloğunu incele | Tablo kırılımı (`runs`/`run_events`/`jobs`/…), heap–index–TOAST ayrımı ve satır **ile** bayt birlikte; autovacuum penceresine girdiyse hücre `storage/vacuum-interference` uyarısı taşır ve baytları ortalamaya girmez, satır sayıları kalır |
+| 47 | `MT-GDK-047` | Herhangi bir koşum bitti | `grep -rniE 'password=|pwd=|sk-[a-z]+-' artifacts/capacity/<id>` | Hiçbir eşleşme yok. Kabul koşumundaki `CapacityArtifactTests` aynı iddiayı ekilmiş sentetik canary ile ayrıca doğrular — canary'yi yakalayamayan bir tarama her testi boşa çıkarırdı |
+| 48 | `MT-GDK-048` | `soak` koşumu bitti; `production.md` tablosu yazıldı | Yayımlanan tabloyu koşum çıktısıyla karşılaştır | Tablo ortamı, Tracon sürümünü ve commit'i yazar; "not an SLA" çerçevesi var; yarım hücre, tek tekrarın sayısı ve uyarısız düşük örnekli percentile yayımlanmamış; hiçbir yerde "çok node destekleniyor" cümlesi yok |
 
 ## Otomatik doğrulama
 

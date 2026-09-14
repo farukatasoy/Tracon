@@ -1,0 +1,42 @@
+{
+  "name": "smoke",
+  "description": "Correctness pass, not a capacity measurement. Three scenarios, both tenants, bounded by count. No latency threshold exists and none is checked.",
+  "scenarios": [
+    "buffered",
+    "streaming",
+    "queued"
+  ],
+  "scenarioGrouping": "mixed",
+  "concurrency": [
+    2
+  ],
+  "seedShapes": [
+    "empty"
+  ],
+  "repeats": 1,
+  "warmupSeconds": 0,
+  "measureSeconds": 0,
+  "runsPerTenant": 2,
+  "workload": {
+    "requestBytes": 1024,
+    "modelDelayMilliseconds": 1000,
+    "outputChunks": 20,
+    "outputChunkCharacters": 256,
+    "toolResultBytes": 1024,
+    "toolCall": true
+  },
+  "limits": {
+    "maxInFlight": 128,
+    "hostRssBytes": 4294967296,
+    "driverRssBytes": 1073741824,
+    "databaseBytes": 5368709120,
+    "minimumFreeDiskBytes": 10737418240,
+    "maxRequestSamples": 200000
+  },
+  "requestTimeoutSeconds": 120,
+  "drainTimeoutSeconds": 300,
+  "maxConcurrentJobs": 8,
+  "maxPoolSize": 100,
+  "resourceSampleIntervalSeconds": 1,
+  "seedRuns": 10000
+}

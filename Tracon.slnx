@@ -52,10 +52,17 @@
     <Project Path="tests/Tracon.Client.UnitTests/Tracon.Client.UnitTests.csproj" />
     <Project Path="tests/Tracon.Cli.FunctionalTests/Tracon.Cli.FunctionalTests.csproj" />
     <Project Path="tests/Tracon.WorkerHarness/Tracon.WorkerHarness.csproj" />
+    <Project Path="tests/Tracon.Capacity.Tests/Tracon.Capacity.Tests.csproj" />
   </Folder>
 
   <Folder Name="/bench/">
     <Project Path="bench/Tracon.Benchmarks/Tracon.Benchmarks.csproj" />
+    <!--
+      bench/capacity/* is DELIBERATELY absent: the capacity host needs a packed
+      feed no ordinary build has, and the acceptance suite needs a database.
+      Only tests/Tracon.Capacity.Tests is discovered by the normal suite
+      (Phase 166); it reaches the driver by ProjectReference.
+    -->
   </Folder>
 
   <Folder Name="/solution-items/">

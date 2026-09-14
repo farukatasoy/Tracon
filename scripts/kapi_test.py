@@ -67,10 +67,11 @@ class KapiTestleri(unittest.TestCase):
             (root / "sample.txt").write_text(
                 "Pass" + "word=not-a-real-secret-value\n", encoding="utf-8")
 
-            found = kapi.find_secrets(root)
+            found, skipped = kapi.find_secrets(root)
 
         self.assertEqual(len(found), 1)
         self.assertIn("sample.txt:1", found[0])
+        self.assertEqual(skipped, 0)
 
     def test_bayat_dokuman_referansi_bulunur(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -753,6 +754,84 @@ class YayinTestleri(unittest.TestCase):
 
         self.assertEqual(result, 1)
         run.assert_called_once()
+
+
+# Bu iki sabit PARÇALI yazılır: tam metin kaynakta görünseydi taramanın kendi
+# kapısını kırardı. Aynı teknik test_secret_taramasi_deger_satirini_bulur'da da
+# kullanılıyor.
+SECRET_LINE = 'var x = "Pass' + 'word=uydurma-bir-deger";'
+MARKER = "SYNTHETIC" + "-CREDENTIAL"
+
+
+class SentetikCredentialTestleri(unittest.TestCase):
+    """Faz 166. Bir secret tarayıcısını doğrulamanın tek yolu ona sahte bir
+    credential göstermektir; istisna GİZLENMEZ, İŞARETLENİR."""
+
+    def test_isaretsiz_credential_yakalanir(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            (root / "src").mkdir()
+            (root / "src" / "a.cs").write_text(SECRET_LINE, encoding="utf-8")
+
+            found, skipped = kapi.find_secrets(root)
+
+        self.assertEqual(len(found), 1)
+        self.assertEqual(skipped, 0)
+
+    def test_isaretli_satir_atlanir_ve_sayilir(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            (root / "src").mkdir()
+            (root / "src" / "a.cs").write_text(SECRET_LINE + "  // " + MARKER, encoding="utf-8")
+
+            found, skipped = kapi.find_secrets(root)
+
+        self.assertEqual(found, [])
+        self.assertEqual(skipped, 1)
+
+    def test_isaret_ayni_satirda_olmali(self):
+        # 🚨 Bir üst satırdaki yorum yetmez: istisna, istisnayı taşıyan
+        # SATIRDA görünmelidir, yoksa incelemede kaybolur.
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            (root / "src").mkdir()
+            (root / "src" / "a.cs").write_text("// " + MARKER + "\n" + SECRET_LINE, encoding="utf-8")
+
+            found, skipped = kapi.find_secrets(root)
+
+        self.assertEqual(len(found), 1)
+        self.assertEqual(skipped, 0)
+
+
+class KapasiteKomutuTestleri(unittest.TestCase):
+    """Faz 166. Kapasite ölçümü bir KAPI DEĞİLDİR (K-738)."""
+
+    def test_kapasite_komutu_kapanisa_eklenmez(self):
+        # 🚨 Ağır bir yük koşumu standart kapanışa sızarsa her faz saatler
+        # sürer ve kapılar koşulmaz hale gelir.
+        commands = [c.display for c in kapi.closing_commands("abc123", site=True, performance=True)]
+
+        self.assertFalse(any("kapasite" in command for command in commands))
+        self.assertFalse(any("capacity" in command for command in commands))
+
+    def test_kapasite_komutu_ic_donguye_de_eklenmez(self):
+        commands = [c.display for c in kapi.inner_loop_commands(["src/Tracon.Core/Foo.cs"])]
+
+        self.assertFalse(any("kapasite" in command for command in commands))
+
+    def test_kapasite_exact_surum_ister(self):
+        with contextlib.redirect_stdout(io.StringIO()) as output:
+            code = kapi.capacity_measurement("smoke", "*-*", pathlib.Path("/tmp/kapasite-test"))
+
+        self.assertEqual(code, 1)
+        self.assertIn("exact", output.getvalue())
+
+    def test_kapasite_bilinmeyen_profili_reddeder(self):
+        with contextlib.redirect_stdout(io.StringIO()) as output:
+            code = kapi.capacity_measurement("yok", "1.0.0", pathlib.Path("/tmp/kapasite-test"))
+
+        self.assertEqual(code, 1)
+        self.assertIn("profili yok", output.getvalue())
 
 
 if __name__ == "__main__":
