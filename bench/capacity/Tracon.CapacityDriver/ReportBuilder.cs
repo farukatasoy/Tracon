@@ -123,7 +123,7 @@ public static class ReportBuilder
 
         summary.IncompleteCells = summary.Cells - summary.CompleteCells - summary.InvalidCells;
         summary.Rows = BuildRows(cells);
-        summary.Bottleneck = DescribeBottleneck(cells);
+        summary.Bottleneck = DescribeBottleneck(cells, summary.Rows);
         summary.Caveats = BuildCaveats(cells, manifest);
 
         File.WriteAllText(
@@ -188,7 +188,15 @@ public static class ReportBuilder
             var firstContent = MergeSummaries(members.ConvertAll(m => m.Cell.FirstContentByScenario.GetValueOrDefault(m.Scenario) ?? new LatencySummary()));
 
             var throughputs = members.ConvertAll(static m => m.Cell.ThroughputPerSecond);
-            var storage = members.ConvertAll(static m => m.Cell.Storage).FindAll(static s => s.Available && !s.VacuumInterference);
+            var storage = members.ConvertAll(static m => m.Cell.Storage).FindAll(static s => s.Available);
+
+            // 🚨 Bytes and rows are filtered DIFFERENTLY, and that asymmetry is
+            // the point. `pg_total_relation_size` counts bloat, so a window
+            // autovacuum ran inside cannot contribute a byte number. A row
+            // count is immune to bloat, so excluding it too would throw away
+            // the one number that survives - and rows are half of what makes
+            // write amplification readable.
+            var cleanStorage = storage.FindAll(static s => !s.VacuumInterference);
 
             rows.Add(new SummaryRow
             {
@@ -203,9 +211,9 @@ public static class ReportBuilder
                 FirstContent = firstContent,
                 ThroughputPerSecond = throughputs.Count == 0 ? 0 : Math.Round(throughputs.Average(), 4),
                 ThroughputSpread = throughputs.Count == 0 ? 0 : Math.Round(throughputs.Max() - throughputs.Min(), 4),
-                BytesPerRun = Average(storage.ConvertAll(static s => s.BytesPerRun)),
+                BytesPerRun = Average(cleanStorage.ConvertAll(static s => s.BytesPerRun)),
                 RowsPerRun = Average(storage.ConvertAll(static s => s.RowsPerRun)),
-                BytesPerEvent = Average(storage.ConvertAll(static s => s.BytesPerEvent)),
+                BytesPerEvent = Average(cleanStorage.ConvertAll(static s => s.BytesPerEvent)),
                 VacuumInterference = members.Exists(static m => m.Cell.Storage.VacuumInterference),
                 LargestWorkerShare = Average(members.ConvertAll(static m => m.Cell.Workers?.LargestShare)),
                 AttemptRatio = Average(members.ConvertAll(static m => m.Cell.Workers?.AttemptRatio)),
@@ -292,7 +300,18 @@ public static class ReportBuilder
         return present.Count == 0 ? null : Math.Round(present.Sum(static v => v!.Value) / present.Count, 4);
     }
 
-    private static string DescribeBottleneck(List<CellResult> cells)
+    /// <summary>How much extra throughput a doubled load must buy to count as scaling.</summary>
+    /// <remarks>
+    /// 🚨 Below this, a higher offered load is buying queue depth, not work.
+    /// The value is deliberately generous: 15% of a step is far less than the
+    /// step itself, so a genuine (if sublinear) gain is never called a ceiling.
+    /// </remarks>
+    private const double ScalingFloor = 0.15;
+
+    /// <summary>How much latency must grow at flat throughput before the plateau is a ceiling.</summary>
+    private const double QueueingFloor = 0.5;
+
+    private static string DescribeBottleneck(List<CellResult> cells, List<SummaryRow> rows)
     {
         if (cells.Count == 0)
         {
@@ -303,7 +322,13 @@ public static class ReportBuilder
 
         if (saturated.Count == 0)
         {
-            return "no ceiling was found inside the measured range";
+            // 🚨 A refusal is not the only way a ceiling shows itself, and for a
+            // queue it is the LEAST likely way. A closed-loop client is never
+            // rejected - it simply waits longer, so the queue's limit appears as
+            // latency climbing while throughput stays flat. Counting only 429s
+            // and timeouts would report "no ceiling" over exactly the ceiling
+            // this apparatus exists to find.
+            return DescribePlateau(rows) ?? "no ceiling was found inside the measured range";
         }
 
         var first = saturated[0];
@@ -324,6 +349,56 @@ public static class ReportBuilder
         return hostCpu.ProcessorSeconds > driverCpu.ProcessorSeconds
             ? $"saturation appeared in {first.CellId}; the host consumed more processor time than the driver, so the limit is on the server side of this topology"
             : $"saturation appeared in {first.CellId}, but the driver consumed more processor time than the host — this is not reported as server capacity";
+    }
+
+    /// <summary>Finds the load point where more offered load stopped buying work.</summary>
+    /// <param name="rows">The merged load points.</param>
+    /// <returns>The description, or <see langword="null"/> when nothing plateaued.</returns>
+    private static string? DescribePlateau(List<SummaryRow> rows)
+    {
+        foreach (var group in rows
+            .FindAll(static r => r.WorkerCount is null && r.ArrivalRatePerSecond is null)
+            .GroupBy(static r => (r.Scenario, r.SeedShape)))
+        {
+            var steps = group.OrderBy(static r => r.Concurrency).ToList();
+
+            for (var index = 1; index < steps.Count; index++)
+            {
+                var previous = steps[index - 1];
+                var current = steps[index];
+
+                if (previous.ThroughputPerSecond <= 0 || previous.Latency.P50 is not { } beforeLatency
+                    || current.Latency.P50 is not { } afterLatency)
+                {
+                    continue;
+                }
+
+                var throughputGain = (current.ThroughputPerSecond - previous.ThroughputPerSecond) / previous.ThroughputPerSecond;
+                var latencyGrowth = (afterLatency - beforeLatency) / beforeLatency;
+
+                if (throughputGain < ScalingFloor && latencyGrowth > QueueingFloor)
+                {
+                    return string.Format(
+                        CultureInfo.InvariantCulture,
+                        "`{0}` ({1} database) stopped scaling between concurrency {2} and {3}: throughput moved "
+                        + "{4:0.##}/s → {5:0.##}/s ({6:P0}) while p50 latency grew {7} ms → {8} ms ({9:P0}). "
+                        + "The extra offered load bought queue depth, not work. No request was refused, "
+                        + "so this ceiling is invisible to a rejection count.",
+                        previous.Scenario,
+                        previous.SeedShape,
+                        previous.Concurrency,
+                        current.Concurrency,
+                        previous.ThroughputPerSecond,
+                        current.ThroughputPerSecond,
+                        throughputGain,
+                        LatencyStatistics.Format(beforeLatency),
+                        LatencyStatistics.Format(afterLatency),
+                        latencyGrowth);
+                }
+            }
+        }
+
+        return null;
     }
 
     private static List<string> BuildCaveats(List<CellResult> cells, RunManifest? manifest)

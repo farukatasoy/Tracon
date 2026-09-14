@@ -18,13 +18,20 @@ public sealed class CapacityReportTests : IDisposable
             JsonSerializer.Serialize(cell, CapacityJson.Default.CellResult));
     }
 
-    private static CellResult Cell(string id, int concurrency, int repeat, double throughput, string status = CellStatus.Complete)
+    private static CellResult Cell(
+        string id,
+        int concurrency,
+        int repeat,
+        double throughput,
+        string status = CellStatus.Complete,
+        double p50 = 100,
+        string scenario = CapacityScenario.Buffered)
         => new()
         {
             RunId = "run",
             CellId = id,
             Profile = "sweep",
-            Scenarios = [CapacityScenario.Buffered],
+            Scenarios = [scenario],
             SeedShape = "empty",
             Concurrency = concurrency,
             Repeat = repeat,
@@ -33,7 +40,7 @@ public sealed class CapacityReportTests : IDisposable
             ThroughputPerSecond = throughput,
             LatencyByScenario = new Dictionary<string, LatencySummary>(StringComparer.Ordinal)
             {
-                [CapacityScenario.Buffered] = new() { Count = 120, P50 = 100, P95 = 200, P99 = 300 },
+                [scenario] = new() { Count = 120, P50 = p50, P95 = p50 * 2, P99 = p50 * 3 },
             },
         };
 
@@ -135,6 +142,71 @@ public sealed class CapacityReportTests : IDisposable
         WriteCell(Cell("a", 8, 1, 10));
 
         ReportBuilder.Build(_directory).Bottleneck.ShouldBe("no ceiling was found inside the measured range");
+    }
+
+    [Fact]
+    public void A_queue_ceiling_is_found_even_though_nothing_was_ever_refused()
+    {
+        // 🚨 The failure this case exists for: a closed-loop client is never
+        // rejected by a saturated queue - it just waits longer. Counting only
+        // 429s and timeouts reported "no ceiling was found" over a queue whose
+        // throughput was flat while its latency grew fourfold (measured in the
+        // Phase 166 sweep, queued c8 -> c32).
+        WriteCell(Cell("a", concurrency: 8, repeat: 1, throughput: 5.9, p50: 1316, scenario: CapacityScenario.Queued));
+        WriteCell(Cell("b", concurrency: 32, repeat: 1, throughput: 6.7, p50: 4456, scenario: CapacityScenario.Queued));
+
+        var bottleneck = ReportBuilder.Build(_directory).Bottleneck;
+
+        bottleneck.ShouldContain("stopped scaling between concurrency 8 and 32");
+        bottleneck.ShouldContain("queue depth, not work");
+        bottleneck.ShouldContain("invisible to a rejection count");
+    }
+
+    [Fact]
+    public void Real_scaling_is_not_mistaken_for_a_plateau()
+    {
+        // Throughput nearly octuples; latency barely moves. That is scaling,
+        // and calling it a ceiling would be the opposite error.
+        WriteCell(Cell("a", concurrency: 1, repeat: 1, throughput: 0.94, p50: 1043));
+        WriteCell(Cell("b", concurrency: 8, repeat: 1, throughput: 7.47, p50: 1048));
+
+        ReportBuilder.Build(_directory).Bottleneck.ShouldBe("no ceiling was found inside the measured range");
+    }
+
+    [Fact]
+    public void Flat_throughput_with_flat_latency_is_not_called_a_ceiling_either()
+    {
+        // Without the latency growth there is no queueing, so there is no
+        // evidence the extra load was accepted and held.
+        WriteCell(Cell("a", concurrency: 8, repeat: 1, throughput: 6.0, p50: 1000));
+        WriteCell(Cell("b", concurrency: 32, repeat: 1, throughput: 6.1, p50: 1010));
+
+        ReportBuilder.Build(_directory).Bottleneck.ShouldBe("no ceiling was found inside the measured range");
+    }
+
+    [Fact]
+    public void Row_growth_survives_a_vacuum_window_even_though_byte_growth_does_not()
+    {
+        // 🚨 Rows are immune to bloat; bytes are not. Dropping both would throw
+        // away the one number that stays usable - and rows are half of what
+        // makes write amplification readable at all.
+        var vacuumed = Cell("a", concurrency: 8, repeat: 1, throughput: 7);
+        vacuumed.Storage = new StorageSummary
+        {
+            Available = true,
+            VacuumInterference = true,
+            BytesPerRun = 999_999,
+            RowsPerRun = 10.5,
+            BytesPerEvent = 4_242,
+        };
+        WriteCell(vacuumed);
+
+        var row = ReportBuilder.Build(_directory).Rows.Single();
+
+        row.RowsPerRun.ShouldBe(10.5);
+        row.BytesPerRun.ShouldBeNull();
+        row.BytesPerEvent.ShouldBeNull();
+        row.VacuumInterference.ShouldBeTrue();
     }
 
     [Fact]
