@@ -488,4 +488,58 @@ public interface ITraconBuilder
     /// </remarks>
     ITraconBuilder RequireCustomBinding<T>()
         where T : class;
+
+    /// <summary>
+    /// Refuses to start the host while a security-sensitive decision is still
+    /// on its permissive default and the deployment has not accepted the risk
+    /// by name.
+    /// </summary>
+    /// <param name="configure">
+    /// The risks this deployment has deliberately decided to carry. Omit it to
+    /// accept none, which is the strictest form.
+    /// </param>
+    /// <returns>The chain, for further configuration.</returns>
+    /// <remarks>
+    /// <para>
+    /// <strong>This does not make anything secure and changes no setting.</strong>
+    /// It sets no value, chooses no policy and turns nothing on. The only thing
+    /// it does is turn a skipped decision into a startup failure - which is the
+    /// one thing a permissive default cannot do for itself.
+    /// </para>
+    /// <para>
+    /// Off by default: an application that never calls this behaves exactly as
+    /// before. <c>AddTracon()</c> brings every security-sensitive switch up
+    /// permissive on purpose, so a first run surprises nobody. A production
+    /// deployment wants the opposite, and today it can reach production having
+    /// never separated tenants, never decided who owns a session and never
+    /// registered a content guard, in complete silence.
+    /// </para>
+    /// <para>
+    /// Six decisions are asked about: tenant separation, session ownership,
+    /// at-rest content protection, content inspection, request rate limiting
+    /// and retention. Each one is either answered by turning the feature on, or
+    /// accepted by name. Acceptance is per item and there is no way to accept
+    /// them all at once.
+    /// </para>
+    /// <para>
+    /// <strong>The set of decisions is a versioned contract.</strong> A later
+    /// release that adds one stops a host that calls this method until the new
+    /// decision is answered or accepted. Read that cost before adopting the
+    /// method: it is the method working, not failing.
+    /// </para>
+    /// <para>
+    /// This is a composition gate, not a security proof. It proves a feature is
+    /// switched on; it proves nothing about whether the policy behind it is
+    /// right.
+    /// </para>
+    /// <example>
+    /// <code>
+    /// builder.AddTracon()
+    ///        .RequireProductionProfile(profile => profile
+    ///            .Accept(TraconProductionRisk.SingleTenant)
+    ///            .Accept(TraconProductionRisk.UnboundedRetention));
+    /// </code>
+    /// </example>
+    /// </remarks>
+    ITraconBuilder RequireProductionProfile(Action<TraconProductionProfileOptions>? configure = null);
 }

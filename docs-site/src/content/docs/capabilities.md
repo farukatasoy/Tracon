@@ -198,6 +198,7 @@ experiment, and automatic rollback is off until you configure it.
 | Content inspection | Model input and output | No guard cost until a guard is registered |
 | External surface guard | MCP server and A2A | Requires the `ExternalInvoke` scope and refuses an unsafe remote-access combination |
 | Cross-origin access | `TraconEndpointOptions.AllowedOrigins` | Empty by default; no `Access-Control-Allow-Origin` header is ever sent until an exact origin is added — there is no wildcard option |
+| Production profile gate | `RequireProductionProfile()` | Off by default, and it changes no setting and secures nothing by itself. It refuses to start the host while tenant separation, session ownership, at-rest protection, content inspection, rate limiting, or retention is still on its permissive default and the risk has not been accepted by name |
 
 An API-key scope never grants a role. Effective authority is the intersection of the
 caller's role and key scopes. See the complete scope table in

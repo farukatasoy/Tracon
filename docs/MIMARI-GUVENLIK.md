@@ -298,6 +298,45 @@ tutulur, **veritabanına yazılmaz**; SDK yalnız Authorization Code destekler
 geçerli, yalnız bearer muaf — güvenlik tek kullanımlık `state`'e dayanır.
 Boyut sınırları ve akış: [`22-MCP-DERINLESMESI.md`](arsiv/fazlar/22-MCP-DERINLESMESI.md).
 
+## Başlangıç kompozisyon kapıları (Faz 150 · 170)
+
+`AddTracon()` her genişleme noktasını `TryAdd` ile kaydeder ve güvenlik duyarlı
+her anahtarı **izin verici** varsayılanla getirir. İkisi de K1'in ("sıfır
+sürpriz") doğru sonucudur ve ikisi de bir production dağıtımı için yanlış
+varsayılandır. İki kapı bunu **başlatma hatasına** çevirir; ikisi de **varsayılan
+kapalıdır** ve hiçbir değeri değiştirmez.
+
+| Kapı | Neyi sorar | Nerede |
+|---|---|---|
+| `RequireCustomBinding<T>()` | Yedi genişleme noktasından ilan edileni hâlâ yerleşik varsayılana mı çözülüyor | `RequiredBindingValidator` (`IHostedService`) |
+| `RequireProductionProfile()` | Altı güvenlik kararı hâlâ izin verici varsayılanda mı | `ProductionProfileValidator` (`IHostedService`) |
+
+Profil altı kalemi kapsar: **çok kiracılık · oturum sahipliği · at-rest içerik
+koruma · içerik denetimi · hız sınırı · saklama.** Her biri ya açılır ya
+`Accept(TraconProductionRisk.X)` ile **adıyla** kabul edilir; kabul
+`Information` seviyesinde loglanır. Toplu kabul yolu yoktur (K-771).
+
+Kararlar `IProductionProfileCheck` katkılarıyla yanıtlanır ve **bir karara
+birden çok kontrol katılabilir; en katı cevap kazanır** (K-769). Kiracı kalemi
+bunun sebebidir: `Tracon.Core` hangi `ITenantContext`'in bağlandığını okur
+(gömülü host'ta da anlamlıdır), `Tracon.AspNetCore` ise `UseTenancy` içinden
+`TraconTenancyOptions.Enabled`'ı ekler — çünkü `UseTenancy(Enabled=false)`
+bağlamayı değiştirir ama her isteği yine varsayılan kiracıya çözer. Bir riski
+taşıyan hiç kontrol kayıtlı değilse kalem `NotApplicable` olarak raporlanır,
+gizlenmez (K-770).
+
+İçerik denetimi kalemi bir bayrak değil, **kayıt + etki** okur: guard kayıtlı
+olmalı **ve** `InspectInput`/`InspectOutput` ikisi birden kapalı olmamalıdır —
+ikisi de kapalıyken sarmalayıcı her çağrıda koşar ve hiçbir şeye bakmaz.
+
+🚨 **İkisi de kompozisyon kapısıdır, güvenlik kanıtı değildir.** Bir anahtarın
+açık olduğunu söylerler; arkasındaki politikanın doğru olduğunu söylemezler.
+İkisi de `IHost` gerektirir — `AddTracon()` + `BuildServiceProvider()` ile duran
+bir giriş noktası kapıdan geçmez. Profil kümesi bir **sürüm sözleşmesidir**:
+kümeye anahtar eklemek davranışsal kırıcı değişikliktir (K-773).
+
+---
+
 ## İçerik denetimi (Faz 48)
 
 `IContentGuard` modele giden ve modelden gelen içeriği denetler; kararlar

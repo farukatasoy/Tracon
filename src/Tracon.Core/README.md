@@ -22,6 +22,12 @@ Everything is registered with `TryAdd`. Register your own implementation of a se
 registration. Add `.RequireCustomBinding<T>()` for a seam the deployment must not run
 without: the host does not start while Tracon's built-in default is what resolves.
 
+Security-sensitive settings come up permissive for the same "no surprises" reason.
+Add `.RequireProductionProfile()` when that is the wrong default: it changes no
+setting, and refuses to start while tenant separation, session ownership, at-rest
+protection, content inspection, rate limiting or retention is still on its permissive
+default and the risk has not been accepted by name.
+
 ## What it does
 
 An **agent definition** is data: a name, a model binding, a system prompt, and the

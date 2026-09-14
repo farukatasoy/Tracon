@@ -59,6 +59,35 @@ var tracon = builder.AddTracon()
 See [Make a binding required](/guides/embedding/#make-a-binding-required) for the
 seven contracts this accepts and what the check does and does not prove.
 
+That covers the bindings. The other half of the same argument is the settings:
+every row of [Production-sensitive defaults](#production-sensitive-defaults) can
+still be skipped in silence. `RequireProductionProfile()` refuses to start a host
+that skipped one:
+
+```csharp
+var tracon = builder.AddTracon()
+    .RequireProductionProfile(profile => profile
+        .Accept(TraconProductionRisk.SingleTenant));
+```
+
+It changes no setting and secures nothing by itself. It asks about six decisions —
+tenant separation, session ownership, at-rest content protection, content
+inspection, request rate limiting and retention — and refuses to start while one of
+them is still on its permissive default and you have not accepted the risk by name.
+The startup failure names every open decision at once, what it is today, and how to
+answer it.
+
+Accepting is per item on purpose: there is no way to accept all six at once, so each
+accepted risk is one line a reviewer can see. An accepted risk is written to the log
+at information level, by name, every time the host starts.
+
+Two things to know before you adopt it. First, the set of decisions is a versioned
+contract: a later release that adds one stops a host that calls this method until
+the new decision is answered or accepted — that is the method working, and such a
+release declares the addition as a behavioural breaking change. Second, like the
+binding gate, this is a composition gate and not a security proof: it reports that a
+feature is switched on, never that the policy behind it is right.
+
 Use your platform's secret manager for the provider API key and database connection
 string. The canonical OpenAI key path is `Tracon:Providers:OpenAI:ApiKey`; its
 environment form is `Tracon__Providers__OpenAI__ApiKey`. Do not put either value
@@ -298,6 +327,14 @@ one, the export and erasure endpoints return `409` rather than a silent no-op.
 | Private network egress | Refused | Allow only if MCP servers or provider endpoints really are on the internal network |
 | Agent-graph token budget | On, 200,000 tokens shared per call tree | Raise it for a tree with genuinely long tool loops, or set a `AgentGraph.MaxTotalCost` cap alongside it |
 | Agent-graph time budget | Off | Set `AgentGraph.MaxDuration` where a queued run's lease renewal is otherwise the only thing keeping it going |
+
+Six of these rows — multi-tenancy, session ownership, at-rest content encryption,
+content inspection, request rate limiting and retention defaults — can be enforced
+rather than remembered. `RequireProductionProfile()` turns a skipped one into a
+failed startup; see [Start from a production
+registration](#start-from-a-production-registration). The other rows stay a reading
+exercise: their defaults are already the strict ones, or the binding gate
+(`RequireCustomBinding<T>()`) already covers them.
 
 ## Upgrading: outbound targets and configuration keys
 
@@ -548,6 +585,8 @@ scaled without a matching quota.
 - [ ] Answer every row of [Production-sensitive defaults](#production-sensitive-defaults) on
       purpose. Multi-tenancy, session ownership, rate limiting, at-rest encryption, and content
       inspection are each off until you turn them on, and session ownership is not retroactive.
+- [ ] Call `RequireProductionProfile()` so those six decisions cannot be skipped in
+      silence, and accept by name the ones this deployment carries deliberately.
 - [ ] Configure trusted proxy headers and TLS without relying on loopback identity.
 - [ ] Choose combined or split workers and calculate cluster-wide concurrency.
 - [ ] Enable singleton execution and orphan reconciliation only with shared SQL state.

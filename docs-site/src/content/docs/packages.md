@@ -33,7 +33,7 @@ MCP, and the console — eight packages counting the two that come transitively.
 | Package | What it does |
 |---|---|
 | `Tracon.Abstractions` | Contracts. No provider, no web framework, no database |
-| `Tracon.Core` | Catalog, definition compiler, tool registry, run recording, and the build-time analyzer |
+| `Tracon.Core` | Catalog, definition compiler, tool registry, run recording, the startup composition gates, and the build-time analyzer |
 | `Tracon.PostgreSql` | Persistence, and the vector store behind knowledge search |
 | `Tracon.OpenAI` | OpenAI, plus any OpenAI-compatible endpoint — OpenRouter, Groq, or a self-hosted engine such as Ollama or vLLM |
 | `Tracon.AspNetCore` | The HTTP API and the access layers |
