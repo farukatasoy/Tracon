@@ -11,6 +11,21 @@
 - **`MA0004` `await using` ifadelerini de kapsar** (2026-08-02): kütüphane kodunda hata seviyesinde. Kalıp: `var x = ...;` sonra `await using (x.ConfigureAwait(false)) { ... }`. Doğrudan `await using var x = ....ConfigureAwait(false)` yazmak değişkenin tipini `ConfiguredAsyncDisposable` yapar ve kullanılamaz hale getirir.
 - **`MA0009` kaynak üretilmiş `[GeneratedRegex]`'i de yakalar** (2026-08-02, Faz 8): "regex DoS" analizi timeout kontrolü sağlanamayan her regex'i işaretler. **Düzeltme (2026-08-07, Faz 48): `GeneratedRegexAttribute`'ün timeout aşırı yüklemesi VARDIR** — `matchTimeoutMilliseconds: 1000` yazılır ve analyzer susar. Repoda on üç kullanım bu biçimdedir; yeni desen yazarken timeout **atlanmaz**. Basit sabit desenler (ör. `^[a-z0-9][a-z0-9-]{0,31}$`) için regex'ten tamamen vazgeçip elle karakter döngüsü yazmak yine daha az koddur.
 
+- **🚨 `.editorconfig` ile tanı susturmak HER AĞAÇTA ÇALIŞMAZ; `NoWarn` çalışır**
+  (2026-09-14, Faz 166). `bench/capacity/` ağacı (kendi `Directory.Build.props`'u
+  olan, repo mirasından kesilmiş bir alt ağaç) için `dotnet_diagnostic.CA1707.severity = none`
+  **hiçbir yerleşimde** etki etmedi: dosya `bench/capacity/`'de, projenin kendi
+  dizininde, `[*.cs]` ve `[**.cs]` bölüm desenleriyle, `root = true` ile ve
+  onsuz — altı kombinasyonun altısında da CA1707 hata olarak kaldı. Aynı
+  `.editorconfig` ÇIPLAK bir test projesinde (aynı SDK, aynı `AnalysisMode`)
+  çalışıyor, yani mekanizma bu ağaca özgü bir şeyle etkileşiyor ve
+  **saptanamadı**. csproj'daki `<NoWarn>` tek koşumda sustudu.
+  **Ölçüm tuzağı:** ikinci bir `dotnet build` aynı ağaçta **0 bulgu** gösterir —
+  derleme bayat değildir, yalnız yeniden derlenmez. `--no-incremental` de
+  yetmez; bu yüzden her deneme **taze bir kopyada** koşulmalıdır, yoksa
+  "düzeldi" sanılır. Kural: repo kökünden miras almayan bir alt ağaçta tanı
+  gevşetmesi `NoWarn`'a yazılır ve gerekçesi csproj'un yanında durur.
+
 ## PublicApiAnalyzers (RS00xx, Faz 60)
 
 - **🚨 `dotnet format analyzers --diagnostics RS0016` tek koşumda bitmez —
