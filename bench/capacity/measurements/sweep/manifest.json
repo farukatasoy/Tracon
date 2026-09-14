@@ -1,0 +1,91 @@
+{
+  "runId": "20260914-190639-sweep",
+  "profile": "sweep",
+  "startedUtc": "2026-09-14T16:09:27Z",
+  "commit": "e44d89f58f5e36442d8a5e819e067f076c147373",
+  "dirty": false,
+  "diffHash": null,
+  "packageVersion": "0.0.0-capacity166.e44d89f",
+  "packageHashes": {
+    "Tracon.0.0.0-capacity166.e44d89f.nupkg": "fc48a13ea2bb3790a9840404eaa760cdf48498761d1539386fb37e59cd538da4",
+    "Tracon.Abstractions.0.0.0-capacity166.e44d89f.nupkg": "c27c041f8505ddd5e7e9da040d7b88cb5bb1db405e661de00bc5cfd986998c5a",
+    "Tracon.Anthropic.0.0.0-capacity166.e44d89f.nupkg": "20056ca697833feb70de6e1c7554e05b6694789b68bb19e142e4a389465773eb",
+    "Tracon.AspNetCore.0.0.0-capacity166.e44d89f.nupkg": "b102dd848f2c6d0762ef5145233df47472d9a5b57379fe1fabe7e53844926db8",
+    "Tracon.Azure.0.0.0-capacity166.e44d89f.nupkg": "bb7ed23d92f782d0cb24f70633159a4c8eae80c00299cc6229753b390b0c5430",
+    "Tracon.Cli.0.0.0-capacity166.e44d89f.nupkg": "5484171188ac0b05aa254d5bf334fba2eb34059c6954753390f6ab1d70c48ebf",
+    "Tracon.Client.0.0.0-capacity166.e44d89f.nupkg": "9a2f57396b17b967737baf58e9efe1cf1be70ea634017e81127d3b0d6b9d7d2c",
+    "Tracon.Core.0.0.0-capacity166.e44d89f.nupkg": "450026d3ca663bf69d2dd289753d848955e035c671a53356929a5eab217a4793",
+    "Tracon.Google.0.0.0-capacity166.e44d89f.nupkg": "52453b3054162958e227250468f13829576c97e5ff32a815813920943e8f95dd",
+    "Tracon.Mcp.0.0.0-capacity166.e44d89f.nupkg": "4b2dece1d776894eaf0fd278bdde2050814864ba7cf758fb8a8d796ed0578fe0",
+    "Tracon.OpenAI.0.0.0-capacity166.e44d89f.nupkg": "18483b462ea7151382cfd1416fcb6e6c3090227801ce71d26fdc03c33049a041",
+    "Tracon.PostgreSql.0.0.0-capacity166.e44d89f.nupkg": "6e0316e9a97984484f6adde48a53bd55c59784564ad8e3be6bf92e216135e338",
+    "Tracon.SqlServer.0.0.0-capacity166.e44d89f.nupkg": "eb84b64c9d4fc8e72b654a3e97ab088851622c47ad53b7ac07ec9ed986c8543f",
+    "Tracon.Sqlite.0.0.0-capacity166.e44d89f.nupkg": "f6c4f2fb91e86af247e6c40a5b01ea119e3cbeea1e329a67ef5fef023144cc1a",
+    "Tracon.Templates.0.0.0-capacity166.e44d89f.nupkg": "2e117c70a22cb359f130fc52a54bc2e7523f2daef2734ee958b0145a9dd36fb3",
+    "Tracon.Testing.0.0.0-capacity166.e44d89f.nupkg": "21c1a96d5e2bf8125ce7e8c1f67ee236748b6b0772d479870bcb74c1e3af85b3",
+    "Tracon.Testing.Contracts.Xunit.0.0.0-capacity166.e44d89f.nupkg": "f2426963a5625c926c02a8569bc808cd9c745a06ed773fc17dd4f4c2b439ccd8",
+    "Tracon.UI.0.0.0-capacity166.e44d89f.nupkg": "0a5b7798dc4b02b40a4d3e56ddb00570b8d8165ba7a3db2feb8eaf4591ff0678",
+    "Tracon.Voice.0.0.0-capacity166.e44d89f.nupkg": "2d08833fb6500011956b8f6941d21636b8b0328b724b9d7f10af0b5cb97e34b9",
+    "Tracon.Workflows.0.0.0-capacity166.e44d89f.nupkg": "dc5e582423d00de8c687da1da3c8a465828d201f39f61048790bbae8bae63c85"
+  },
+  "operatingSystem": "Darwin 25.6.0",
+  "architecture": "arm64",
+  "processorCount": 10,
+  "physicalMemoryBytes": 17179869184,
+  "runtimeVersion": "10.0.100",
+  "postgreSqlVersion": "18.4 (Debian 18.4-1.pgdg12+1)",
+  "databaseImage": "pgvector/pgvector:pg18",
+  "effectiveSettings": {
+    "schema": "capacity",
+    "maxConcurrentJobs": "8",
+    "maxPoolSize": "100",
+    "pollIntervalSeconds": "0.1",
+    "leaseDurationSeconds": "120",
+    "responseCacheEnabled": "false",
+    "recordingEnabled": "true",
+    "retentionEnabled": "false",
+    "rateLimitEnabled": "false",
+    "quotaEnabled": "false",
+    "telemetryExporters": "none",
+    "warmupSeconds": "15",
+    "measureSeconds": "60",
+    "drainTimeoutSeconds": "300"
+  },
+  "seed": {
+    "empty": "runs=0 events=0 bytes=10540735",
+    "full": "runs=10000 events=200000 bytes=97031871"
+  },
+  "workload": {
+    "requestBytes": 1024,
+    "modelDelayMilliseconds": 1000,
+    "outputChunks": 20,
+    "outputChunkCharacters": 256,
+    "toolResultBytes": 1024,
+    "toolCall": true
+  },
+  "limits": {
+    "maxInFlight": 128,
+    "hostRssBytes": 4294967296,
+    "driverRssBytes": 1073741824,
+    "databaseBytes": 5368709120,
+    "minimumFreeDiskBytes": 10737418240,
+    "maxRequestSamples": 200000
+  },
+  "workloadSeed": null,
+  "telemetry": {
+    "available": [
+      "http.latency",
+      "model.turns",
+      "process.cpu",
+      "process.gc",
+      "process.rss",
+      "queue.wait",
+      "sql.storage"
+    ],
+    "unavailable": {
+      "queue.wait": "no queued job recorded a start time"
+    },
+    "missingMandatory": []
+  },
+  "disclaimer": "Measured on one machine, one database and one configuration. This is not an SLA and not a guaranteed capacity."
+}
