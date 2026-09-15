@@ -864,7 +864,8 @@ DEFAULT_TARGET_FRAMEWORKS = ("net8.0", "net9.0", "net10.0")
 
 def _target_frameworks(root: pathlib.Path, project_id: str) -> tuple[str, ...]:
     """Most packages inherit net8.0;net9.0;net10.0 from src/Directory.Build.props;
-    a project that pins a single framework (e.g. Tracon.Testing) overrides
+    a project that pins a single framework (e.g. Tracon.Cli, which is packed as
+    a tool and so cannot cross-target) overrides
     TargetFrameworks (plural) explicitly."""
     text = (root / "src" / project_id / f"{project_id}.csproj").read_text(encoding="utf-8")
     match = TARGET_FRAMEWORKS_PATTERN.search(text)

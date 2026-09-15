@@ -4,15 +4,13 @@
     <Description>Test helpers for Tracon: a non-networked model provider, an in-memory host fixture, and assertions on run records. Binds to no test framework (xunit, NUnit, MSTest).</Description>
     <PackageTags>$(CommonPackageTags);testing;fixtures;mocks</PackageTags>
     <!--
-      SINGLE TFM: the Microsoft.AspNetCore.TestHost package version maps
-      one-to-one to the hosting framework (10.0.10 supports only net10.0);
-      there is no classified package that collapses the same version for
-      net8.0/net9.0. The plural property is used ON PURPOSE (not singular):
-      `dotnet pack`'s cross-target orchestration keeps reading the plural
-      value inherited from Directory.Build.props, and the singular value is
-      NOT SEEN by it (Phase 37 trap, docs/hafiza/build-ve-analyzer.md).
+      The TFM set is inherited from src/Directory.Build.props and is NOT narrowed
+      here: the test package follows the same net8.0/net9.0/net10.0 matrix as the
+      runtime packages. A consumer whose production app runs on .NET 8 LTS must be
+      able to test it. See decision K-270.
+      The one hosting dependency that forced this package to net10.0 until then
+      (Microsoft.AspNetCore.TestHost) is resolved per TFM in the ItemGroup below.
     -->
-    <TargetFrameworks>net10.0</TargetFrameworks>
     <!--
       The test package does not run in production: FakeModelProvider.CallsTool
       reads anonymous-type properties through reflection, and
@@ -44,7 +42,18 @@
       model. TestHost, in contrast, is an official, stable Microsoft package
       that pulls in no other dependency.
     -->
-    <PackageReference Include="Microsoft.AspNetCore.TestHost" />
+    <!--
+      🚨 ONE version per TFM. The hosting package version maps one-to-one to the
+      framework version (10.0.x restores ONLY on net10.0 — NU1202 elsewhere), so a
+      single central version cannot cover the matrix. net10.0 takes the central
+      version from Directory.Packages.props; net8.0/net9.0 take VersionOverride,
+      which is the documented CPM escape for exactly this case.
+      The three values are the SAME servicing wave (published 2026-07-14) — keep
+      them in step when the central 10.0.x value moves.
+    -->
+    <PackageReference Include="Microsoft.AspNetCore.TestHost" Condition=" '$(TargetFramework)' == 'net8.0' " VersionOverride="8.0.29" />
+    <PackageReference Include="Microsoft.AspNetCore.TestHost" Condition=" '$(TargetFramework)' == 'net9.0' " VersionOverride="9.0.18" />
+    <PackageReference Include="Microsoft.AspNetCore.TestHost" Condition=" '$(TargetFramework)' == 'net10.0' " />
   </ItemGroup>
 
   <!--

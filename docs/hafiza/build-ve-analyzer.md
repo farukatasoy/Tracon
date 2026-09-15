@@ -111,3 +111,22 @@
 - **Sürüklenmeyi Dependabot bildirir**: NuGet ve iki npm dizini **haftalik**,
   GitHub Actions **aylik**. Gruplar surum hatti kisitini korur: MAF'in GA/preview/alpha katmanlari
   tek PR'da gelir (K-008), MCP `.Core` + `.AspNetCore` tek PR'da (K-334).
+
+## Cok-TFM tuzaklari (K-780)
+
+- **Framework'e bagli bir paket TFM'i daraltmaz.** `Microsoft.AspNetCore.TestHost`
+  gibi barindirma paketlerinin surumu framework surumuyle birebir eslenir
+  (`10.0.x` yalniz `net10.0`; digerinde **NU1202**). Dogru cozum paketi tek TFM'e
+  sabitlemek DEGIL, surumu **TFM basina** cozmektir: `net10.0` merkezi degeri
+  kullanir, `net8.0`/`net9.0` kosullu `VersionOverride` alir. `Tracon.Testing`
+  bu yuzden bir faz boyunca gereksiz yere net10-only kaldi.
+  **Secilen uc surum ayni servicing dalgasindan olmalidir** — merkezi `10.0.x`
+  degeri oynadiginda digerlerini de esle.
+- **`System.Threading.Lock` .NET 9+'dir ve net8.0'i kiran ilk satirdir.**
+  Ayri bir `object` kilit alani ise `net9.0`+ uzerinde **MA0158** tetikler, yani
+  ikisi arasinda `#if`siz bir orta yol yoktur. Repo'nun cozumu: **koleksiyonun
+  KENDISINE kilitlen** (`lock (_requests)`, `lock (_jobs)`). `src/` agacinda hic
+  `#if` yoktur, bu desen onu boyle tutar.
+- **Bir paketi net10-only birakmanin gizli bedeli**, o agacta net8'de derlenmeyen
+  kodun sessizce birikmesidir. Daraltmadan once "bu kisit gercekten kaldirilamaz
+  mi?" sorusunu olc; kaldirilamiyorsa gerekceyi csproj'a yaz.

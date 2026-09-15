@@ -1755,7 +1755,7 @@ Guard K-320 ile döngünün içine, devre kesici ise dışında kaldı; bir `Tra
 
 ### K-270
 
-**K-270 — `Tracon.Testing` yalniz `net10.0` hedefler (cogul `TargetFrameworks` ozelligiyle ezilerek)**
+**K-270 — `Tracon.Testing` yalniz `net10.0` hedefler (cogul `TargetFrameworks` ozelligiyle ezilerek)** **(yeniden acildi: 2026-09-15 — K-780 bu daralmayi kaldirdi)**
 
 `Microsoft.AspNetCore.TestHost` merkezi surumu (10.0.10) yalniz `net10.0` destekler (`NU1202`, net8.0/net9.0'da basarisiz) — barindirma paketi surumu framework surumuyle birebir eslenir, tek bir surum coklu TFM'i kapsayamaz. `src/Directory.Build.props`'tan miras kalan cogul `TargetFrameworks` ozelligi ayni cogul adla `net10.0`'a sabitlendi (tekil `TargetFramework` DEGIL) — K-263'un `dotnet pack` capraz-hedefleme tuzagiyla ayni gerekce: `dotnet pack` orkestrasyonu cogul degeri okumaya devam eder.
 
@@ -5386,3 +5386,21 @@ Kuyruk MAF'ın durability uzantısından **önce** vardı (F-22 → Faz 17) ve o
 ### K-779
 
 Tehdit modeli faz 172'de varlık×saldırgan matrisi kurulurken "veritabanı okuma erişimi olan kişi" saldırganı için denetim izi hücresi kontrol edildi: `ProtectedColumn` enum'u (`src/Tracon.Abstractions/Security/ProtectedColumn.cs`) on sütun listeler — `sessions.state`, `conversation_items.item`, `run_inputs.messages`, `run_events.text`/`.payload`, `tool_invocations.arguments`/`.result`, `attachments.content`, `agent_files.content`, `responses.payload` — `audit_log` hiçbirinde yok. Migration'da (`src/Tracon.PostgreSql/Migrations/0001_initial.sql:229`) `audit_log.before`/`.after` `jsonb` sütunlarıdır ve bir agent tanımının veya onay kuralının önceki/sonraki durumunu taşıyabilir. `secret` değeri zaten K-059 ile bu tabloya hiç girmez, ama `AddContentProtection(...)` açık olsa bile bu iki sütun şifrelenmez — `getting-started/security.md`'nin "At-rest content protection" bölümü "ten columns" der ve bu doğrudur, ama okuyucu audit_log'un o onun içinde olduğunu varsayabilirdi. Karar bunu düzeltmek (on birinci sütun eklemek) değil, **adlandırmaktır**: bu tur bir kod değişikliği kapsamında değildi ve at-rest korumanın audit_log'u kapsamaması kasıtlı bir tasarım sonucu değil, ölçülene kadar belgelenmemiş bir gerçekti. K-776'nın denetim izi garanti ayrımını yayımladığı gibi, bu karar denetim izinin gizlilik yüzeyini yayımlar.
+
+### K-780
+
+Ucuncu taraf geri bildirimi daralmayi bir tuketici sorunu olarak isaretledi: ".NET 8 production app'im Tracon kullanabiliyor ama Tracon.Testing kullanamiyorum." Kayit dogrulandi ve K-270 yeniden olculdu.
+
+K-270'in **onculu dogruydu**: `Microsoft.AspNetCore.TestHost` surumu barindirma framework surumuyle birebir eslenir — `10.0.10`, `net8.0`/`net9.0` icin `NU1202` verir ve tek bir merkezi surum matrisi kapsayamaz. K-270'in **sonucu** ise bir secenegi atliyordu: surumun tek olmasi gerekmez, TFM BASINA cozulebilir. Bu secenek kayitta hic degerlendirilmemis; K-270'in yazili yeniden acilma kosulu ("TestHost cok-TFM'li bir surum yayinlarsa") bu yuzden hic gerceklesmeden karar dustu.
+
+Olculdu (`dotnet build` + `dotnet pack`, Release):
+
+- `VersionOverride="8.0.29"` (net8.0) ve `VersionOverride="9.0.18"` (net9.0); `net10.0` merkezi `10.0.10` degerini kullanmaya devam eder. Uc surum de AYNI servicing dalgasindandir (yayin tarihi 2026-07-14), yani mevcut pin bu degisiklikle **oynatilmadi**.
+- Uc TFM de **sifir uyari** ile derlendi.
+- Uretilen paket `lib/net8.0`, `lib/net9.0`, `lib/net10.0` tasir; `.nuspec` her grupta dogru `TestHost` surumunu bildirir.
+
+Tek kod engeli `FakeModelProvider`'daki `System.Threading.Lock _gate` alanindaydi — o tip .NET 9+'dir. Alan kaldirildi ve kilit `_requests` listesinin KENDISINE alindi; bu, `InMemoryJobStore`'un cok-TFM paketlerde zaten kullandigi desendir (ayri bir `object` alani `net9.0`+ uzerinde MA0158 tetikler). `Lock`'in oraya sizabilmis olmasi daralmanin kendi bedelidir: paket net10-only oldugu icin `src/` agacinda net8'de derlenmeyen tek satir oydu.
+
+**Sinif taramasi:** `src/` altinda TFM'i daraltan diger iki paket gerekcelidir ve dokunulmadi — `Tracon.Cli` (`PackAsTool` tek TFM ister) ve `Tracon.Templates` (derlenmeyen icerik paketi); `Tracon.Generators` analyzer oldugu icin `netstandard2.0`. Gerekcesiz daralma yalniz `Tracon.Testing`'deydi.
+
+Kalan sinir: `tests/` agacinin tamami `net10.0` hedefler, yani net8.0 destegi **derleme ve paketleme** duzeyinde kanitlanmistir, net8.0 runtime'inda kosan bir tuketici testiyle degil. Ayni sinir zaten butun calisma paketleri icin gecerlidir (`Tracon.Package.Tests` tuketici projeleri de `net10.0`'dir), yani bu degisiklik kanit seviyesini dusurmez.
