@@ -42,6 +42,11 @@ written](/concepts/governance/#what-is-guaranteed-to-be-written) is the division
 report that a best-effort record was lost on a store failure is expected behaviour, not
 a vulnerability; a report that a fail-closed operation proceeded without its record is.
 
+The [threat model](/reference/threat-model/) is why this list draws the line where it
+does: it names the attackers this scope assumes, maps each one against the boundaries
+above, and states plainly which combinations are accepted risk rather than a covered
+boundary.
+
 ## Supported versions
 
 Tracon ships its packages from a single version line. Only the **most recent published
