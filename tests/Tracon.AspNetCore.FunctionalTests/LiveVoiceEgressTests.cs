@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
 using Microsoft.Extensions.DependencyInjection;
@@ -92,5 +93,36 @@ public sealed class LiveVoiceEgressTests
 
         provider.CreateCallCount.ShouldBe(1);
         provider.AttachAuthorizationHeaders.ShouldNotBeEmpty();
+    }
+
+    [Fact]
+    public async Task A_transport_failure_keeps_the_provider_address_out_of_the_answer()
+    {
+        // The two tests above take the branch where the refusal is OURS: the policy
+        // rejects the target and its verdict arrives as a TraconException inside the
+        // transport failure, so reporting that inner message is right. This test takes
+        // the OTHER branch — the policy allows the target and the transport itself
+        // fails, so the HttpRequestException carries no verdict of ours. .NET puts the
+        // target address into the message of a refused connection, and that address is
+        // the deployment's outbound endpoint, which a caller must not learn.
+        await using var provider = await FakeGptLiveServer.StartAsync();
+        var address = provider.BaseAddress;
+
+        await using var host = await LiveVoiceTests.StartAsync(provider, allowPrivateNetworkTargets: true);
+
+        // Close the provider so the next call is refused at the transport layer.
+        await provider.DisposeAsync();
+
+        using var response = await host.Client.PostAsJsonAsync(
+            "/tracon/api/voice/live/sessions",
+            new LiveVoiceSessionCreateRequest { SessionId = "session-1", Agent = Agent, Sdp = Sdp },
+            TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadGateway);
+
+        var body = await response.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
+
+        body.ShouldNotContain(address.Port.ToString(CultureInfo.InvariantCulture));
+        body.ShouldNotContain(address.Host, Case.Sensitive);
     }
 }
