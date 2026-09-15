@@ -12597,6 +12597,60 @@ PostgreSQL knowledge search also needs an
 the PostgreSQL column type. Changing the embedding dimension is a schema migration,
 not a live configuration change.
 
+## Agent Framework dependency versions
+
+Seven packages depend on Microsoft Agent Framework or `Microsoft.Extensions.AI`.
+These are the versions they declare.
+
+| Package | Declared dependencies |
+|---|---|
+| `Tracon.Abstractions` | `Microsoft.Agents.AI.Abstractions` 1.20.0 · `Microsoft.Extensions.AI.Abstractions` 10.9.0 |
+| `Tracon.Core` | `Microsoft.Agents.AI` 1.20.0 · `Microsoft.Agents.AI.Harness` 1.20.0 · `Microsoft.Extensions.AI` 10.9.0 · `Microsoft.Extensions.AI.Evaluation` 10.9.0 |
+| `Tracon.Workflows` | `Microsoft.Agents.AI.Workflows` 1.20.0 |
+| `Tracon.OpenAI` | `Microsoft.Agents.AI.OpenAI` 1.20.0 · `Microsoft.Extensions.AI.OpenAI` 10.9.0 |
+| `Tracon.Azure` | `Microsoft.Extensions.AI.OpenAI` 10.9.0 |
+| `Tracon.Testing.Contracts.Xunit` | `Microsoft.Agents.AI` 1.20.0 · `Microsoft.Extensions.AI` 10.9.0 |
+| `Tracon.AspNetCore` | `Microsoft.Agents.AI.Hosting`, `.Hosting.AspNetCore`, and `.Hosting.A2A` at a 1.20.0 pre-release · `.Hosting.OpenAI` at a 1.20.0 alpha |
+
+`Tracon.AspNetCore` is the only package that carries a pre-release Agent Framework
+dependency, and it is the only one permitted to.
+
+### A declared version is a floor, not a pin
+
+Each entry above is a minimum. NuGet reads `1.20.0` as `[1.20.0, )` and then resolves
+the **lowest** version that satisfies every constraint in the graph, so a project that
+asks for nothing else restores exactly the version listed. You get a different version
+only when something asks for one: a direct `PackageReference` to a higher version, or
+another package whose own floor is higher.
+
+Tracon declares **no upper bound**. A newer Agent Framework is allowed to resolve, and
+Tracon will not stop it.
+
+### What is tested, and what is promised
+
+Tracon is built and tested against exactly the versions in the table. That is the
+whole of the promise.
+
+The promise is about **behaviour**, not about compiling. Agent Framework types appear
+in only a few places on Tracon's own public surface — `AIAgent`, `AIFunction`, and
+`ChatMessage` are the ones you are most likely to meet — so a newer Agent Framework
+will often still compile. Underneath that surface Tracon calls into the framework
+throughout its runtime. Compiling against an untested version is not evidence that it
+behaves the same, and a resolution that silently moved is the case where you would
+find out last.
+
+To decide the version yourself instead of leaving it to the graph, reference the Agent
+Framework packages explicitly at the version you intend, or commit a lock file.
+
+### When Tracon moves the floor
+
+A raised floor ships in a Tracon minor version and is named in the changelog. It can
+oblige you to take a newer Agent Framework, so read it as you would any other
+dependency bump. Tracon does not ship an upper bound to prevent one.
+
+A version bump also reaches data you have already stored. The next section states
+which stored payloads survive it.
+
 ## Persisted payload compatibility
 
 | Payload | Owner | Compatible across a Microsoft Agent Framework version bump? |
