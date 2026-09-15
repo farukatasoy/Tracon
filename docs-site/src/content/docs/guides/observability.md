@@ -75,6 +75,7 @@ activity source and meter are both named `Tracon`. The root run span is
 | `tracon.job.executions` | Background jobs that reached a terminal status |
 | `tracon.job.duration` | Duration of a single background-job attempt, in seconds |
 | `tracon.job.queue.depth` | Outstanding jobs per lane and open status, when enabled |
+| `tracon.audit.write_failures` | Audit entries that could not be written, tagged by outcome |
 
 ### The attribute names
 
@@ -105,6 +106,8 @@ metric names above.
 | `tracon.job.lane` | Every job signal | The lane the job was queued in |
 | `tracon.job.handler_key` | `tracon.job.executions`, `tracon.job.duration` | The key of the handler that ran the job |
 | `tracon.job.status` | Every job signal | A terminal status on the counter and the histogram; an open one on the gauge |
+| `tracon.audit.action` | `tracon.audit.write_failures` | The action that could not be recorded, such as `approval.decision` |
+| `tracon.audit.outcome` | `tracon.audit.write_failures` | `swallowed` if the operation continued, `refused` if it was stopped |
 
 Three spans and one tool name are not metrics at all, and are named here because a
 trace search needs them: `execute_skill_script` (a skill script's own span, carrying
@@ -119,6 +122,29 @@ Four of these are **span attributes only** and are deliberately not metric tags:
 `tracon.run.depth`. Each is unbounded, and promoting one to a metric tag creates a
 new time series per run. Use them to find a trace, not to group a chart.
 :::
+
+### What a failed audit write looks like
+
+`tracon.audit.write_failures` counts audit entries that could not be written. Until it
+existed, a broken audit store was visible only to whoever went looking through logs —
+which is the wrong way to find out that your evidence has holes in it. **Any non-zero
+value deserves an alert**: unlike a failed model call, nothing retries this and nothing
+else reports it.
+
+The `tracon.audit.outcome` tag says what the failure cost you, and the two answers are
+very different:
+
+- `swallowed` — the operation went ahead without its record. You have a gap in the
+  audit trail and a working system.
+- `refused` — the operation did not happen. This is one of the six fail-closed
+  operations in [What is guaranteed to be
+  written](/concepts/governance/#what-is-guaranteed-to-be-written), and your callers
+  are seeing errors.
+
+`tracon.audit.action` names the action, such as `approval.decision` or `script.run`. The
+affected entity is deliberately **not** a tag: an entity name is your data, so tagging
+it would give every agent, trigger and session a time series of its own. Use
+`GET /api/audit` to find the specific records.
 
 ### What the job metrics count
 

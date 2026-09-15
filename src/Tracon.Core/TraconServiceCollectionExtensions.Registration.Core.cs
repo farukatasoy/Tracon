@@ -111,7 +111,8 @@ public static partial class TraconServiceCollectionExtensions
             provider.GetRequiredService<IAuditLog>(),
             provider.GetRequiredService<IAuditActorResolver>(),
             provider.GetRequiredService<ITenantContext>(),
-            provider.GetRequiredService<ILoggerFactory>()));
+            provider.GetRequiredService<ILoggerFactory>(),
+            provider.GetRequiredService<TraconMetrics>()));
 
         // Tenant provider bindings / BYOK (Phase 65). The stores are always
         // registered (K-018: first-class); nothing changes for a tenant with
@@ -343,7 +344,8 @@ public static partial class TraconServiceCollectionExtensions
             provider.GetRequiredService<IAuditLog>(),
             provider.GetRequiredService<ITenantContext>(),
             provider.GetRequiredService<IAuditActorResolver>(),
-            provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<AuditingExperimentStore>>()));
+            provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<AuditingExperimentStore>>(),
+            provider.GetRequiredService<TraconMetrics>()));
         services.TryAddSingleton<ExperimentAssignmentResolver>();
 
         services.TryAddSingleton<ITenantStore>(static provider => new AuditingTenantStore(
@@ -351,7 +353,8 @@ public static partial class TraconServiceCollectionExtensions
             provider.GetRequiredService<IAuditLog>(),
             provider.GetRequiredService<ITenantContext>(),
             provider.GetRequiredService<IAuditActorResolver>(),
-            provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<AuditingTenantStore>>()));
+            provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<AuditingTenantStore>>(),
+            provider.GetRequiredService<TraconMetrics>()));
 
         // Telemetry. Metrics are set up through IMeterFactory when it is
         // registered; otherwise it creates its own Meter - the consumer is not

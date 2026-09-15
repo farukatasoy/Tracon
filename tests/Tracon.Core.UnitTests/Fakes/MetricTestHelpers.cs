@@ -16,7 +16,7 @@ internal sealed class TestMeterFactory : IMeterFactory
 internal sealed class MetricCollector : IDisposable
 {
     private readonly MeterListener _listener = new();
-    private readonly List<(string Name, long Value)> _longs = [];
+    private readonly List<(string Name, long Value, Dictionary<string, object?> Tags)> _longs = [];
     private readonly Lock _gate = new();
 
     public MetricCollector(Meter meter)
@@ -29,11 +29,20 @@ internal sealed class MetricCollector : IDisposable
             }
         };
 
-        _listener.SetMeasurementEventCallback<long>((instrument, value, _, _) =>
+        _listener.SetMeasurementEventCallback<long>((instrument, value, tags, _) =>
         {
+            // The TagList is a ref struct over the caller's stack, so it is copied here
+            // rather than stored: reading it after the callback returns is undefined.
+            var copied = new Dictionary<string, object?>(tags.Length, StringComparer.Ordinal);
+
+            foreach (var tag in tags)
+            {
+                copied[tag.Key] = tag.Value;
+            }
+
             lock (_gate)
             {
-                _longs.Add((instrument.Name, value));
+                _longs.Add((instrument.Name, value, copied));
             }
         });
 
@@ -45,6 +54,20 @@ internal sealed class MetricCollector : IDisposable
         lock (_gate)
         {
             return [.. _longs.Where(m => string.Equals(m.Name, name, StringComparison.Ordinal)).Select(m => m.Value)];
+        }
+    }
+
+    /// <summary>Returns the tags of every measurement published on <paramref name="name"/>.</summary>
+    public List<IReadOnlyDictionary<string, object?>> LongTags(string name)
+    {
+        lock (_gate)
+        {
+            return
+            [
+                .. _longs
+                    .Where(m => string.Equals(m.Name, name, StringComparison.Ordinal))
+                    .Select(m => (IReadOnlyDictionary<string, object?>)m.Tags),
+            ];
         }
     }
 

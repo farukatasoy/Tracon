@@ -4036,3 +4036,118 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST "$APU/../v1/chat/completions" \
 - `SingleTenant` kalemi `SingleTenantContext` adını taşır; kiracı sorusu gömülü
   host'ta da **anlamlı** yanıtlanır, sessizce eksilmez.
 - Otomatikleştirilmiş karşılığı: `The_gate_runs_in_a_host_with_no_HTTP_surface`.
+
+---
+
+### MT-SEC-190 — Denetim izi yazılamazken onay kararı uygulanmaz
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 171 |
+| **İnsan gerekir** | Hayır |
+
+**Ön koşul**
+- `samples/Tracon.Api` koşuyor, PostgreSQL bağlı.
+- Bekleyen bir onay var (`GET /api/approvals/pending` bir kalem döner).
+
+**Adımlar**
+1. `audit_log` tablosuna yazmayı reddet — uygulamanın rolünden `INSERT` iznini al:
+   ```sql
+   REVOKE INSERT ON audit_log FROM tracon_app;
+   ```
+2. Bekleyen onayı onayla: `POST /api/approvals/{id}/decide` `{"approved": true}`.
+3. `GET /api/approvals/{id}` ile durumu oku.
+
+**Beklenen sonuç**
+- Adım 2 `500` döner.
+- Onay hâlâ `Pending`'dir — karar **uygulanmamıştır** (K-089, K-370).
+- Log'da bir `LogError` vardır ve `tracon.audit.write_failures` sayacı
+  `tracon.audit.outcome=refused` etiketiyle **1** artmıştır.
+- Otomatikleştirilmiş karşılığı:
+  `An_approval_decision_is_not_applied_when_its_audit_entry_cannot_be_written`.
+
+---
+
+### MT-SEC-191 — Denetim izi yazılamazken yönetim çağrısı devam eder
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 171 |
+| **İnsan gerekir** | Hayır |
+
+**Ön koşul**
+- MT-SEC-190'ın adım 1'i uygulanmış (`audit_log` yazılamıyor).
+
+**Adımlar**
+1. Yeni bir agent tanımı oluştur: `POST /api/agents`.
+2. `GET /api/agents/{name}` ile oku.
+
+**Beklenen sonuç**
+- Adım 1 `201` döner; agent **gerçekten** oluşmuştur — best-effort yol işlevselliği
+  bozmaz.
+- Log'da bir `LogWarning` vardır ve `tracon.audit.write_failures` sayacı
+  `tracon.audit.outcome=swallowed` etiketiyle **1** artmıştır.
+- 🚨 İki case'in farkı buradadır: aynı arıza bir işlemi durdurur, diğerini
+  durdurmaz. Sayacın `outcome` etiketi bu ikisini ayırır.
+- Otomatikleştirilmiş karşılığı:
+  `An_administration_call_still_succeeds_when_its_best_effort_audit_write_fails`.
+
+---
+
+### MT-SEC-192 — `audit_log` onarıldıktan sonra aynı karar uygulanır
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 171 |
+| **İnsan gerekir** | Hayır |
+
+**Ön koşul**
+- MT-SEC-190 koşulmuş; onay hâlâ `Pending`.
+
+**Adımlar**
+1. Yazma iznini geri ver:
+   ```sql
+   GRANT INSERT ON audit_log TO tracon_app;
+   ```
+2. Aynı onayı tekrar onayla.
+3. `GET /api/audit/verify` ile zinciri doğrula.
+
+**Beklenen sonuç**
+- Karar uygulanır (`Approved`), audit satırı yazılır.
+- Zincir `Valid` döner — reddedilen deneme zincirde **boşluk bırakmaz**, çünkü
+  hiç satır yazılmamıştır.
+- Ret bir zehirli hap değildir: başarısız deneme sonraki kararı engellemez.
+- Otomatikleştirilmiş karşılığı:
+  `The_same_approval_is_decided_once_the_audit_store_recovers`.
+
+---
+
+### MT-SEC-193 — Denetim izi yazılamazken veri konusu silinmez
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 171 |
+| **İnsan gerekir** | Hayır |
+
+**Ön koşul**
+- MT-SEC-190'ın adım 1'i uygulanmış.
+- Kayıtlı bir `IDataSubjectResolver` ve silinecek içeriği olan bir veri konusu var.
+
+**Adımlar**
+1. `DELETE /api/data-subjects/{id}?dryRun=true` ile satır sayımını al.
+2. `DELETE /api/data-subjects/{id}?dryRun=false` çağır.
+3. Adım 1'i tekrarla.
+
+**Beklenen sonuç**
+- Adım 2 `500` döner.
+- Adım 3'ün sayımı adım 1'inkiyle **aynıdır** — silme `COMMIT` edilmemiştir
+  (K-462: audit yazımı `beforeCommitAsync` içinden koşar, hata her `DELETE`'i geri alır).
+- Otomatikleştirilmiş karşılığı: `Erase_fails_loudly_when_the_audit_write_fails`.

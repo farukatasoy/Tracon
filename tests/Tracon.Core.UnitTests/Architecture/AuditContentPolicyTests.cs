@@ -11,9 +11,11 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// <para>
 /// This is a boundary test, not a content-sniffing one: proving that a given
 /// string does not "look like" conversation content is not reliable, so instead
-/// every call SITE that writes to the audit trail
-/// (<c>AuditRecorder.WriteAsync</c> or a direct <c>IAuditLog.WriteAsync</c>) must
-/// be a file already reviewed and named below. A new call site fails this test
+/// every call SITE that writes to the audit trail (either <c>AuditRecorder</c>
+/// path, or a direct <c>IAuditLog.WriteAsync</c>) must be a file already reviewed
+/// and named below. BOTH recorder paths are watched: the fail-closed one writes
+/// the same entry shape as the best-effort one, so an unreviewed file could put
+/// conversation content in <c>audit_log</c> through it just as easily. A new call site fails this test
 /// until a human adds it to the list — which is the point: the review happens
 /// once, deliberately, not by guessing from a diff later. See phase 64's
 /// evidence table (<c>docs/arsiv/fazlar/64-DENETIM-ZINCIRI-VE-VERI-KONUSU-HAKLARI.md</c>) for
@@ -30,8 +32,9 @@ namespace Tracon.Core.UnitTests.Architecture;
 public sealed class AuditContentPolicyTests
 {
     /// <summary>
-    /// Every file allowed to call <c>AuditRecorder.WriteAsync</c> or a direct
-    /// <c>IAuditLog.WriteAsync</c>, relative to the repository root.
+    /// Every file allowed to call <c>AuditRecorder.WriteAsync</c>,
+    /// <c>AuditRecorder.WriteOrThrowAsync</c> or a direct <c>IAuditLog.WriteAsync</c>,
+    /// relative to the repository root.
     /// </summary>
     private static readonly string[] AllowedCallSites =
     [
@@ -90,7 +93,7 @@ public sealed class AuditContentPolicyTests
     /// direction for a closed allowlist; a false negative is the actual risk.
     /// </remarks>
     private static readonly Regex CallSitePattern = new(
-        @"\bAuditRecorder\.WriteAsync\s*\(|[Aa]udit[Ll]og\.WriteAsync\s*\(",
+        @"\bAuditRecorder\.Write(?:OrThrow)?Async\s*\(|[Aa]udit[Ll]og\.WriteAsync\s*\(",
         RegexOptions.Compiled | RegexOptions.CultureInvariant,
         TimeSpan.FromSeconds(5));
 

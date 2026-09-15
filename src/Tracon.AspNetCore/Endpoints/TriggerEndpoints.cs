@@ -157,6 +157,7 @@ internal static class TriggerEndpoints
         [FromServices] IAuditLog auditLog,
         [FromServices] IAuditActorResolver actorResolver,
         [FromServices] ILoggerFactory loggerFactory,
+        [FromServices] TraconMetrics metrics,
         CancellationToken cancellationToken)
     {
         var (bound, bindError) = await RequestBodyBinding
@@ -217,14 +218,18 @@ internal static class TriggerEndpoints
 
         var logger = loggerFactory.CreateLogger("Tracon.TriggerEndpoints");
 
-        await WriteAuditOrThrowAsync(
+        await AuditRecorder.WriteOrThrowAsync(
             auditLog,
-            actorResolver,
+            actorResolver.Resolve(),
             logger,
+            metrics,
             tenants.TenantId,
             action: existing is null ? "trigger.create" : "trigger.update",
             entity: $"trigger:{name}",
-            detail: DescribeForAudit(trigger),
+            before: null,
+            after: DescribeForAudit(trigger),
+            refusal: $"'trigger:{name}' was not saved",
+            timeProvider: null,
             cancellationToken).ConfigureAwait(false);
 
         var saved = await store.UpsertAsync(trigger, cancellationToken).ConfigureAwait(false);
@@ -239,6 +244,7 @@ internal static class TriggerEndpoints
         [FromServices] IAuditLog auditLog,
         [FromServices] IAuditActorResolver actorResolver,
         [FromServices] ILoggerFactory loggerFactory,
+        [FromServices] TraconMetrics metrics,
         CancellationToken cancellationToken)
     {
         var existing = await store.GetAsync(tenants.TenantId, name, cancellationToken).ConfigureAwait(false);
@@ -248,14 +254,18 @@ internal static class TriggerEndpoints
             return TriggerNotFound(name);
         }
 
-        await WriteAuditOrThrowAsync(
+        await AuditRecorder.WriteOrThrowAsync(
             auditLog,
-            actorResolver,
+            actorResolver.Resolve(),
             loggerFactory.CreateLogger("Tracon.TriggerEndpoints"),
+            metrics,
             tenants.TenantId,
             action: "trigger.delete",
             entity: $"trigger:{name}",
-            detail: DescribeForAudit(existing),
+            before: null,
+            after: DescribeForAudit(existing),
+            refusal: $"'trigger:{name}' was not deleted",
+            timeProvider: null,
             cancellationToken).ConfigureAwait(false);
 
         await store.DeleteAsync(tenants.TenantId, name, cancellationToken).ConfigureAwait(false);
@@ -486,47 +496,6 @@ internal static class TriggerEndpoints
             writer.WriteString("configKeyName", trigger.SigningSecretConfigurationName);
             writer.WriteBoolean("enabled", trigger.Enabled);
         });
-
-    /// <remarks>
-    /// The SAME pattern as <c>ApprovalEndpoints.WriteAuditOrThrowAsync</c>:
-    /// writes directly through <see cref="IAuditLog"/> and
-    /// does NOT swallow a failure — the caller gets 500 and the mutation
-    /// below is NEVER reached.
-    /// </remarks>
-    private static async ValueTask WriteAuditOrThrowAsync(
-        IAuditLog auditLog,
-        IAuditActorResolver actorResolver,
-        ILogger logger,
-        string tenantId,
-        string action,
-        string entity,
-        string detail,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            await auditLog.WriteAsync(
-                new AuditEntry
-                {
-                    Id = TraconId.NewId(),
-                    TenantId = tenantId,
-                    Actor = actorResolver.Resolve(),
-                    Action = action,
-                    Entity = entity,
-                    Before = null,
-                    After = AuditSecretFilter.Redact(detail),
-                    CreatedAt = DateTimeOffset.UtcNow,
-                },
-                cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            logger.LogError(ex, "Failed to write '{Action}' on '{Entity}' to the audit trail; the change was not applied.", action, entity);
-
-            throw new TraconException(
-                $"'{entity}' was not saved because the change could not be written to the audit trail.", ex);
-        }
-    }
 
     private static ProblemHttpResult TriggerNotFound(string name)
         => TypedResults.Problem(

@@ -18,6 +18,7 @@ internal sealed class AuditingAgentDefinitionStore : IAgentDefinitionStore, IAud
     private readonly ITenantContext _tenantContext;
     private readonly IAuditActorResolver _actorResolver;
     private readonly ILogger<AuditingAgentDefinitionStore> _logger;
+    private readonly TraconMetrics? _metrics;
 
     /// <summary>Initializes a new audited definition store.</summary>
     public AuditingAgentDefinitionStore(
@@ -25,7 +26,8 @@ internal sealed class AuditingAgentDefinitionStore : IAgentDefinitionStore, IAud
         IAuditLog auditLog,
         ITenantContext tenantContext,
         IAuditActorResolver actorResolver,
-        ILogger<AuditingAgentDefinitionStore> logger)
+        ILogger<AuditingAgentDefinitionStore> logger,
+        TraconMetrics? metrics)
     {
         ArgumentNullException.ThrowIfNull(inner);
         ArgumentNullException.ThrowIfNull(auditLog);
@@ -38,6 +40,7 @@ internal sealed class AuditingAgentDefinitionStore : IAgentDefinitionStore, IAud
         _tenantContext = tenantContext;
         _actorResolver = actorResolver;
         _logger = logger;
+        _metrics = metrics;
     }
 
     /// <inheritdoc />
@@ -75,6 +78,7 @@ internal sealed class AuditingAgentDefinitionStore : IAgentDefinitionStore, IAud
             _auditLog,
             _actorResolver,
             _logger,
+            _metrics,
             _tenantContext.TenantId,
             action: existing is null ? "agent.create" : "agent.update",
             entity: $"agent:{definition.Name}",
@@ -99,6 +103,7 @@ internal sealed class AuditingAgentDefinitionStore : IAgentDefinitionStore, IAud
                 _auditLog,
                 _actorResolver,
                 _logger,
+                _metrics,
                 _tenantContext.TenantId,
                 action: "agent.delete",
                 entity: $"agent:{name}",
@@ -125,6 +130,7 @@ internal sealed class AuditingAgentDefinitionStore : IAgentDefinitionStore, IAud
             _auditLog,
             _actorResolver,
             _logger,
+            _metrics,
             _tenantContext.TenantId,
             action: "agent.rollback",
             entity: $"agent:{name}",

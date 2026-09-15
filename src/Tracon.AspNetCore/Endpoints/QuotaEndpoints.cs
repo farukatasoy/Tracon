@@ -91,6 +91,7 @@ internal static class QuotaEndpoints
         [FromServices] IAuditActorResolver actorResolver,
         [FromServices] ILoggerFactory loggerFactory,
         [FromServices] TimeProvider? timeProvider,
+        [FromServices] TraconMetrics metrics,
         CancellationToken cancellationToken)
     {
         var (bound, bindError) = await RequestBodyBinding
@@ -143,6 +144,7 @@ internal static class QuotaEndpoints
             auditLog,
             actorResolver,
             loggerFactory.CreateLogger("Tracon.QuotaEndpoints"),
+            metrics,
             tenants.TenantId,
             action: previous is null ? "quota.create" : "quota.update",
             entity: $"quota:{saved.Id}",
@@ -160,6 +162,7 @@ internal static class QuotaEndpoints
         [FromServices] IAuditLog auditLog,
         [FromServices] IAuditActorResolver actorResolver,
         [FromServices] ILoggerFactory loggerFactory,
+        [FromServices] TraconMetrics metrics,
         CancellationToken cancellationToken)
     {
         var existing = await store.GetAsync(tenants.TenantId, id, cancellationToken).ConfigureAwait(false);
@@ -178,6 +181,7 @@ internal static class QuotaEndpoints
             auditLog,
             actorResolver,
             loggerFactory.CreateLogger("Tracon.QuotaEndpoints"),
+            metrics,
             tenants.TenantId,
             action: "quota.delete",
             entity: $"quota:{id}",

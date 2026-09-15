@@ -32,6 +32,7 @@ internal static class ExternalCallAudit
             services.GetRequiredService<IAuditLog>(),
             services.GetRequiredService<IAuditActorResolver>(),
             services.GetRequiredService<ILoggerFactory>().CreateLogger($"Tracon.{protocol}.ExternalCall"),
+            services.GetRequiredService<TraconMetrics>(),
             services.GetRequiredService<ITenantContext>().TenantId,
             action: "external.call",
             entity: $"agent:{agentName}",

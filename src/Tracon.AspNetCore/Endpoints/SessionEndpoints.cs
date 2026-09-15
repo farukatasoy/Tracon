@@ -187,6 +187,7 @@ internal static class SessionEndpoints
         [FromServices] IRunAttributionContext? attributionContext,
         [FromServices] IOptionsMonitor<TraconSessionOwnershipOptions>? ownershipOptions,
         ILoggerFactory loggerFactory,
+        [FromServices] TraconMetrics metrics,
         CancellationToken cancellationToken)
     {
         var (bound, bindError) = await RequestBodyBinding
@@ -253,6 +254,7 @@ internal static class SessionEndpoints
             auditLog,
             actorResolver,
             loggerFactory.CreateLogger("Tracon.SessionEndpoints"),
+            metrics,
             tenants.TenantId,
             action: "session.branch",
             entity: $"session:{result.SessionId}",
