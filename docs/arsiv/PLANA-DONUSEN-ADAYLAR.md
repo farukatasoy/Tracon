@@ -1229,7 +1229,7 @@ diye yanlış yöne gönderir; sorun onun eklediği bir şey değildir.
 > gölgeleme guard'ı **hiç yoktu** (kayıt yalnız harf asimetrisini anıyordu) ve
 > aynı dosyada interpolasyonsuz bir hata mesajı bulundu, F-212'nin ters yönü
 > kayıtta yoktu (`WorkflowRequest`'in payload'ı **her zaman** yazılır ama
-> dokümanı bunu söylemiyordu). Karar: **K-703** (yalnız F-211).
+> dokümanı bunu söylemiyordu). Karar: **K-783** (yalnız F-211; 2026-09-15'te K-703 çakışmasından taşındı).
 >
 > Aynı turun **kendi kapanış kapısı** dördüncü bir kusur buldu (F-206 emsali):
 > **F-215** — SQL Server'ın `run_scores` upsert'ü yarışıyor ve `NULL`/`''`

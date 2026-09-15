@@ -1,6 +1,6 @@
 # Faz 24 — SQLite Desteği
 
-> **Durum:** ✅ Kod tamam · 205/205 sözleşme+diyalekt testi yeşil · AOT ölçülmedi (bkz. "Açık Kalan")
+> **Durum:** ✅ Tamamlandı — 205/205 sözleşme+diyalekt testi yeşil. Açık kalan tek ölçüm (yük altında `SQLITE_BUSY`) aday kuyruğundadır: **F-233**
 > **Kaynak:** [BEYIN-FIRTINASI.md](../BEYIN-FIRTINASI.md) · **F-07**
 > **Önkoşul:** [Faz 23](23-SQL-SERVER.md) — ortak SQL soyutlaması orada olgunlaşır
 > **Paketler:** **`Tracon.Sqlite` (YENİ)** · `Tracon.Abstractions`
@@ -55,13 +55,31 @@ Tek dosyalık kurulum. Değeri üç yerdedir: - **Demo ve deneme** — `dotnet r
 
 Faz 23'ün "Açık Kalan" bölümüyle aynı disiplinle: gizlenmez, açıkça yazılır.
 
-1. **AOT/publish ölçümü yapılmadı** (K-196). SQLitePCLRaw'ın kırpma/native
-   AOT altında davranışı bilinmiyor.
-2. **Yük altında eşzamanlılık testi yok.** Sözleşme testleri tek süreçli
-   çalışır; `SQLITE_BUSY`/`busy_timeout` gerçek çekişme altında ölçülmedi.
-3. **`/api/meta` `:memory:` ayrımı yapmıyor** (Açık Soru 1).
-4. **Gerçek `mssql/server` hâlâ doğrulanmadı** (Faz 23'ten miras, K-186)
-   — bu fazı engellemedi ama SQL Server tarafının nihai kanıtı hâlâ açık.
+> 🔁 **2026-09-15'te yeniden ölçüldü** (açık küçük kalem turu). Dördünden
+> **ikisi bayattı** ve koda göre düzeltildi; kalan ikisi aşağıdadır.
+
+1. **Yük altında eşzamanlılık testi yok** — **hâlâ açık; aday F-233.** `SqliteDialectTests`
+   yalnız WAL ve `busy_timeout`'un **kurulduğunu** doğrular
+   (`WAL_and_busy_timeout_are_set_when_the_connection_opens`), çekişme
+   altındaki **davranışı** değil; `BoundedSqlLoadTests` yalnız PostgreSQL
+   fixture'ıyla koşar. `SQLITE_BUSY` gerçek çekişme altında ölçülmedi.
+2. **AOT/publish ölçümü yapılmadı** (K-196) — ama bu bir **boşluk değil, açık
+   bir vaat yokluğudur.** `Tracon.Sqlite.csproj` `TraconAotCompatible=false`
+   yazar ve `README.md`'nin AOT vaadi veren sekiz paketlik listesi bu paketi
+   içermez. Ölçüm ancak vaat verilmek istenirse gerekir.
+
+**Kapanan iki kalem (2026-09-15):**
+
+- ~~`/api/memory` `:memory:` ayrımı yapmıyor~~ — **başka bir tasarımla
+  çözüldü.** Çıplak `:memory:` artık başlangıçta **reddedilir**
+  (`TraconSqliteOptionsValidator`); `/api/meta`'nın ayırması gereken,
+  hiç ayağa kalkamayan bir yapılandırmadır.
+- ~~Gerçek `mssql/server` doğrulanmadı (K-186)~~ — **K-386 kapattı.**
+  `SqlServerFixture` `mcr.microsoft.com/mssql/server:2022-latest` kullanır ve
+  fixture hiç değiştirilmeden **479/479** yeşil koştu
+  (`docs/hafiza/sql-server-yerel-test.md`). CI'ın `ubuntu-latest` işi
+  `Tracon.slnx`'in tamamını koşar, yani bu paket her itmede gerçek imajla
+  sınanır.
 
 ---
 

@@ -45,7 +45,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     private readonly IWorkflowCheckpointStore _checkpointStore;
     private readonly ITenantContext _tenantContext;
     private readonly IOptions<TraconWorkflowOptions> _options;
-    private readonly IOptions<TraconOptions> _prismOptions;
+    private readonly IOptions<TraconOptions> _traconOptions;
     private readonly ILogger<WorkflowRunner> _logger;
     private readonly TraconMetrics? _metrics;
     private readonly RunTraceCollector? _traceCollector;
@@ -62,7 +62,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     /// <param name="checkpointStore">The checkpoint store.</param>
     /// <param name="tenantContext">The tenant context.</param>
     /// <param name="options">The workflow settings.</param>
-    /// <param name="prismOptions">The general Tracon settings.</param>
+    /// <param name="traconOptions">The general Tracon settings.</param>
     /// <param name="logger">The logger.</param>
     /// <param name="metrics">The metric instruments.</param>
     /// <param name="traceCollector">The span collector.</param>
@@ -89,7 +89,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         IWorkflowCheckpointStore checkpointStore,
         ITenantContext tenantContext,
         IOptions<TraconWorkflowOptions> options,
-        IOptions<TraconOptions> prismOptions,
+        IOptions<TraconOptions> traconOptions,
         ILogger<WorkflowRunner> logger,
         TraconMetrics? metrics = null,
         RunTraceCollector? traceCollector = null,
@@ -104,7 +104,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         ArgumentNullException.ThrowIfNull(checkpointStore);
         ArgumentNullException.ThrowIfNull(tenantContext);
         ArgumentNullException.ThrowIfNull(options);
-        ArgumentNullException.ThrowIfNull(prismOptions);
+        ArgumentNullException.ThrowIfNull(traconOptions);
         ArgumentNullException.ThrowIfNull(logger);
 
         _catalog = catalog;
@@ -112,7 +112,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         _checkpointStore = checkpointStore;
         _tenantContext = tenantContext;
         _options = options;
-        _prismOptions = prismOptions;
+        _traconOptions = traconOptions;
         _logger = logger;
         _metrics = metrics;
         _traceCollector = traceCollector;
@@ -436,7 +436,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         CancellationTokenSource timeout,
         CancellationTokenSource linked)
     {
-        var recording = _prismOptions.Value.RunRecording;
+        var recording = _traconOptions.Value.RunRecording;
         var writer = new RunEventWriter(_runStore, recording, _logger, execution.RunId, _metrics, _sinks);
 
         // 🚨 The root span is started IN THE BODY OF THIS METHOD. Activity.Current
@@ -454,7 +454,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             AgentName = execution.WorkflowName,
             TenantId = _tenantContext.TenantId,
             SessionId = execution.SessionId,
-            Budget = _prismOptions.Value.AgentGraph.CreateBudget(_timeProvider),
+            Budget = _traconOptions.Value.AgentGraph.CreateBudget(_timeProvider),
             Writer = writer,
         };
 

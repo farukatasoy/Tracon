@@ -220,10 +220,12 @@ DIZIN_BUTCESI = {
                                                     # olculen/(1-BOSLUK_ORANI) olarak, kullanici
                                                     # karariyla yapilir.
     # YENIDEN KALIBRE 2026-09-15 (dokuman butcesi mudahale turu): 4_220_000 ->
-    # 4_376_000; olculen 3_718_894. Bu tur sayaci 17_897 B DUSURDU (sicak yol
+    # 4_377_000; olculen 3_720_365 (turun SONUNDA; dokuman butcesi turu sayaci
+    # 17_897 B dusurdu, ardindan acik kucuk kalemler turu F-233 kaydi ve Faz 24
+    # duzeltmesiyle 1_471 B geri ekledi). Bu tur sayaci net DUSURDU (sicak yol
     # dosyalarindan arsive tasima); kalan acigin kaynagi `docs/manuel-test` alt
     # agacidir ve o kendi satirinda ayrica kalibre edildi. olculen/0.85.
-    ("docs", True, True):             4_376_000,    # ONCEKI KALIBRASYON 2026-09-07; olculen 3_579_302
+    ("docs", True, True):             4_377_000,    # ONCEKI KALIBRASYON 2026-09-07; olculen 3_579_302
                                                     # (dokuman butcesi mudahale turu; olculen/0.85=4_210_944)
     # Faz 90 kapanisi: 3_020_000 kapanistan ONCE olculmustu ve fazin KENDI
     # kaydi + denetim duzeltmeleri eklenince %14 bosluga dustu. Sinir fazin
@@ -249,11 +251,14 @@ DIZIN_BUTCESI = {
     # tam tersini yapip kapanistan once olctugu icin sinir aninda %14 posluga
     # dusmustu. Kalibrasyondan once `faz-tamamlama` bitmis olmalidir.
     # YENIDEN KALIBRE 2026-09-15 (dokuman butcesi mudahale turu): 4_820_000 ->
-    # 5_492_000; olculen 4_668_023. 🚨 Arsiv TASIMANIN HEDEFIDIR: bu tur sicak yoldan
+    # 5_496_000; olculen 4_670_951 (turun SONUNDA -- ilk kalibrasyon 4_668_023 ile
+    # yapilmisti ve acik kucuk kalemler turu arsive 2_928 B daha ekledi; sinir
+    # "isin SONUNDA olculur" kurali geregi nihai degere gore duzeltildi).
+    # 🚨 Arsiv TASIMANIN HEDEFIDIR: bu tur sicak yoldan
     # ~18 KB vaka anlatisini buraya indirdi, yani sayacin artmasi disiplinin
     # CALISTIGININ isaretidir, kacisinin degil. Arsive tasinan icerigin baska bir
     # hedefi yoktur; tek alternatif silmekti ve AGENTS.md onu yasaklar. olculen/0.85.
-    ("docs/arsiv", True, False):      5_492_000,    # ONCEKI KALIBRASYON 2026-09-07; olculen 4_092_925
+    ("docs/arsiv", True, False):      5_496_000,    # ONCEKI KALIBRASYON 2026-09-07; olculen 4_092_925
     # (dokuman butcesi mudahale turu: MIMARI-GUVENLIK.md'nin Skill script
     # calistirma bolumu 11-SKILL-SCRIPT-CALISTIRMA.md'ye tasindi). Ayni formul:
     # olculen/(1-%15 bosluk) = 4_815_206, yukari yuvarlandi. Bu bir BUYUTME
@@ -427,6 +432,32 @@ def _kararlar_tablosu() -> tuple[int, list[tuple[int, str]]]:
     return ayirac + 1, govde
 
 
+def _bolum_disi_karar_satirlari(govde: list[tuple[int, str]]) -> list[str]:
+    """§2 DISINDA yasayan `| **K-NNN` satirlari.
+
+    🚨 Vaka (2026-09-15): K-662…K-782 arasi **101 karar**, §3'un SABLON kod
+    blogunun icine yazilmisti. Uc kapi birden kordu -- `kararlar_denetle`
+    yalnizca `_kararlar_tablosu()`'nun dondurdugu §2 govdesine bakar, yani
+    yinelenen numara, tabloyu kesen bos satir ve sira disi numara
+    kontrollerinin HICBIRI o 101 satiri gormedi. Indeks ureteci
+    (`_kararlar_kalemleri`) ise dosyanin TAMAMINI okur, dolayisiyla kalemler
+    indekste GORUNUYOR ve kayip fark edilmiyordu.
+
+    Bedeli olculdu: iki farkli karar ayni numarayi (K-703) tasiyordu -- K-539'un
+    kapi actigi sinifin ta kendisi -- ve iki uretilen indeks BIRBIRINDEN FARKLI
+    bir K-703 gosteriyordu. Kapi §2 ile sinirli kaldigi surece ayni kusur
+    dosyanin baska bir yerinde yeniden dogar; bu yuzden tarama dosyanin
+    tamamindadir."""
+    icerdeki = {no for no, _ in govde}
+    satirlar = (ROOT / "docs" / "KARARLAR.md").read_text(encoding="utf-8").split("\n")
+    disari = []
+    for i, s in enumerate(satirlar, start=1):
+        if re.match(r"\|\s*\*\*K-\d+", s) and i not in icerdeki:
+            num = re.match(r"\|\s*\*\*(K-\d+)", s).group(1)
+            disari.append(f"KARARLAR.md:{i} {num} §2 DIŞINDA — kapı bu satırı denetlemez")
+    return disari
+
+
 def _kesik_karar_basliklari(govde: list[tuple[int, str]]) -> list[str]:
     """Basligin ICINDE `**` varsa indeks satiri SESSIZCE kesilir.
 
@@ -470,6 +501,8 @@ def kararlar_denetle(kok: pathlib.Path = ROOT) -> tuple[int, list[str]]:
     okunmaz. İki vaka vardı (398 ve 584); Faz 77 denetimi yalnız birini gördü."""
     bulgular = []
     _bas, govde = _kararlar_tablosu()
+
+    bulgular.extend(_bolum_disi_karar_satirlari(govde))
 
     bos = [no for no, s in govde if not s.strip()]
     for no in bos:

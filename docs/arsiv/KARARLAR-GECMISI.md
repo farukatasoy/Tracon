@@ -4944,7 +4944,7 @@ Ham argümanlar (`PendingApproval.Arguments`) her durumda erişilebilir kalır. 
 
 Ayırt edici iki tarafta da `nullable` annotation'ıdır.
 
-### K-703
+### K-783
 
 Kusur tek dosyada değil, aynı asimetrinin iki kopyasındaydı ve iki farklı
 şekilde tezahür ediyordu.

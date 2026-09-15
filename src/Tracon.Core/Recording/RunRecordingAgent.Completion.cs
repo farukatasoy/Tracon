@@ -335,8 +335,8 @@ public sealed partial class RunRecordingAgent
     private static RunError ToRunError(Exception exception, string correlationId)
         => new()
         {
-            Type = exception is TraconException prismException
-                ? prismException.ErrorType
+            Type = exception is TraconException traconException
+                ? traconException.ErrorType
                 : exception.GetType().FullName ?? exception.GetType().Name,
             Message = SafeErrorText.ForPersistence(exception, correlationId),
         };
