@@ -8,7 +8,14 @@ sidebar:
 A workflow runs several agents together. Where a callable agent is one agent using
 another as a tool, a workflow is an orchestration you define and can watch.
 
-Workflows need `Tracon.Workflows`. Without the engine registered, definition
+**Tracon does not implement a workflow engine.** A definition compiles onto the
+Microsoft Agent Framework's own graph, and `Microsoft.Agents.AI.Workflows` executes
+it. What Tracon adds around that engine is the catalog a definition lives in, the
+checkpoint store it resumes from, the quota and cancellation it runs under, and the
+`runs` row that records what happened. Five public types are the whole of Tracon's
+workflow surface.
+
+Workflows need `Tracon.Workflows`. Without that package registered, definition
 management still works and only the execution endpoints answer `501` — the package
 stays optional on purpose.
 

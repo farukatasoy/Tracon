@@ -99,6 +99,47 @@ değerlendirilecektir.
 
 ## 4. Mevcut net yayın kararı
 
+### Güncel karar — 2026-09-15 (tüketici geri bildirimi turu)
+
+**Yayın kararı DEĞİŞMEDİ** — aşağıdaki 2026-09-14 girdisi yürürlüktedir. Bu tur bir
+yayın provası değil, dış bir tüketicinin **yalnız `tracon.dev` okuyarak** ürettiği
+değerlendirmenin ölçümüdür. Değeri iki yönlüdür: sitenin ürettiği yanlış sonuçlar
+sitenin kusurudur, ve kanıtla çürütülen iddialar bir daha açılmamalıdır.
+
+#### Bu turun bulguları
+
+| # | Bulgu | Seviye | Durum |
+|---|---|---|---|
+| 1 | `concepts/workflows.md` MAF'ın motorunu ismen anmıyordu; `Microsoft.Agents.AI.Workflows` adı api dışı 357 sayfanın **1'inde** geçiyordu. Tüketici bundan "Tracon kendi workflow engine'ini yazıyor" sonucunu çıkardı | 🟡 | ✅ **kapandı 2026-09-15** — atıf sayfanın ilk ekranına taşındı |
+| 2 | Denetim izi garanti ayrımı yayımlanmamıştı: `capabilities.md` "unit of evidence" diyor, uyarı ise `governance.md`'nin 263. satırındaki yan nottaydı | 🟡 | ✅ **kapandı 2026-09-15** — K-776; `What is guaranteed to be written` bölümü |
+| 3 | O notun kendisi **yanlıştı**: "Approvals and skill scripts are the only two places" diyordu, ölçülen sayı **altı** | 🟡 | ✅ **kapandı 2026-09-15** |
+| 4 | `SECURITY.md` kökte var ve iyi, ama site ona **hiç link vermiyordu** — tüketici için zafiyet bildirim yolu yok hükmündeydi | 🟡 | ✅ **kapandı 2026-09-15** — `reference/security-policy.md` + `check-content.mjs` senkron kapısı |
+| 5 | Güvenlik sınırı ifadesi 15 `api/` sayfasına dağılmış 22 geçişti; toplu bir liste yoktu | 🟢 | ✅ **kapandı 2026-09-15** — `getting-started/security.md` § *The boundaries Tracon enforces* |
+| 6 | `api/index.md` "16 packages" derken `packages.md` "Twenty packages" diyordu | 🟢 | ✅ **kapandı 2026-09-15** — üreteç "the N packages that ship a library API of their own" yazıyor |
+| 7 | Job queue'nun MAF durability uzantısına göre konumu **hiçbir yerde** yazılı değil (site: 0 eşleşme; karar defteri: 0 kayıt) | 🟡 | ✅ **kapandı 2026-09-15** — K-778; `guides/background-work.md` § *What this queue is, and what it is not* |
+| 8 | Dört `WriteAuditOrThrowAsync` kopyası tek politika değil; `ApprovalEndpoints.cs:345` kopyayı kendi yorumunda kabul ediyor | 🟡 | **Planlandı 2026-09-15** — [Faz 171](171-DENETIM-IZI-YAZMA-POLITIKASI.md); BL-047 aynı faza katıldı |
+| 9 | Tehdit modeli dokümanı yok (`threat model`/`STRIDE` → `docs/` genelinde 0) | 🟡 | **Planlandı 2026-09-15** — [Faz 172](172-TEHDIT-MODELI.md) |
+| 10 | SBOM üretimi ve paket imzalama yok | 🟢 | **GA hattı** — K-777, gerekçesiyle ertelendi |
+| 11 | `KARARLAR.md`'de K-662…K-777 arası kararlar tek bir kod bloğunun (satır 738–838) içinde kalıyor; tablo olarak render olmuyor | 🟢 | **Açık** — indeks üreteci etkilenmiyor, yalnız okunabilirlik |
+
+#### Kanıtla çürütülen beş iddia — yeniden açılmaz
+
+| İddia | Çürüten kanıt |
+|---|---|
+| "Kendi workflow engine'ini yazıyor" | `WorkflowRunner.cs:964` MAF `InProcessExecution.RunStreamingAsync`; derleyici `AgentWorkflowBuilder`'ın beş fabrikası; checkpoint MAF `CheckpointManager.CreateJson`. Tracon'un workflow public yüzeyi **5 tip** |
+| "Public API yüzeyi çok büyük, 1.0 öncesi diyet gerekir" | Sayı doğru (763 tip), çıkarım hedef dışı: Abstractions'ın 415 tipinin **205'i record, 61'i enum**. Bu tur bunu ÜÇÜNCÜ kez ölçtü — 2026-09-14 girdisi ve K-601 (Faz 96'da 96 yaprak tip `internal`) aynı sonucu vermişti |
+| "`RequireProductionProfile()` Production'da default olmalı" | **K-773**: profil kümesi bir sürüm sözleşmesidir; otomatik açılan kapı, kümeye eklenen her yeni anahtarda çalışan kurulumları durdururdu |
+| "Migration startup'tan ayrılmalı" | Zaten iki yol var ve belgeli: `AutoApplyMigrations:false` + `tracon migrate` (`guides/production.md:168,202`) |
+| "PolyForm lisansı adoption friction üretir" | **K-740/741**: iş kararı, friction tahsilat mekanizmasının kendisidir. `reference/licensing.md` eşiği, SPDX kimliğini ve 32 günü zaten yazıyor |
+
+⚠️ **Doküman bütçesi — bu turun en sert kısıtı.** K-776, K-777 ve K-778 sonrası
+`docs/KARARLAR.md` 419.690/420.000 bayt: **310 bayt boş (%0)**. Bir sonraki karar
+eklenmeden ÖNCE `karar-damit` koşulmalıdır; bugün bir `K-*` daha yazmak bütçeyi aşar.
+Aynı turda § *Bu turun bulguları* 11. satırdaki kod-bloğu kusuru da ele alınabilir —
+ikisi aynı dosyaya dokunur.
+
+---
+
 ### Güncel karar — 2026-09-14 (`nuget-danismani`, dış inceleyici turu)
 
 **⚠️ Bugün tag atılmaz — açık 🔴 olduğu için değil, HEAD'de yayın kanıtı
@@ -373,7 +414,7 @@ değil, doğrulama kapısıdır.
 | BL-044 | Açık | Kümede hiç `ActivitySource`/`Meter` yok (`Scheduling`, `Webhooks`, `Coordination`, `Idempotency`, `Triggers` içinde grep boş) — yalnız hata yollarında `ILogger` uyarısı var; job backlog, webhook teslim başarısızlık oranı, lease çekişmesi gibi operasyonel sinyaller `IRunStore`/`TraconMetrics` seviyesine kıyasla eksik | 🟡 1.0 blocker | Küme H raporu | `nuget-danismani` → faz zinciri | Operasyonel metric'ler eklenir |
 | BL-045 | Bilgi | Küme H cila bulguları (🟢, toplu): 6 store arayüzü için `Testing.Contracts` taban sınıflarını `PackageReference` ile koşan dış sample yok (contract'lar repo içinde gerçek ve koşuluyor, yalnız dış tüketici perspektifinden kanıtlanmamış); schedule/webhook/trigger adları için ad-şekli doğrulaması yok (yalnız non-empty, DB uniqueness var) | 🟢 Doküman/cila | Küme H raporu | `nuget-danismani` → doküman senkronu | Docs-site'a eklenir |
 | BL-046 | **KAPANDI (Faz 121) — dokümanın ÖTESİNDE, gerçek bir kusur olarak** | `IAuditLog`/`AuditQuery.TenantId=null` "çağıranın kiracısına düşer" davranışı yalnız DTO yorumunda anlatılıyordu, `IAuditLog` arayüzünün kendisinde bir sözleşme değildi — kayıt "bugün hiçbir shipped kod yolu bunu tetiklemiyor" diyerek riski küçümsüyordu, ama ölçüldüğünde `InMemoryAuditLog` (Tracon'in KENDİ referans implementasyonu) null/boş tenant'ta gerçekten TÜM kiracıların kaydını tarıyordu — dokümante edilen niyet hiçbir implementasyonda gerçek davranış değildi | ~~🟡~~ ✅ Kapandı (K-644) | `AuditQuery.cs:6`; `InMemoryAuditLog.cs` (eski `SnapshotAll`); `SqlAuditLog.cs` (`?? string.Empty`, sessizce boş sonuç) | **[Faz 121](arsiv/fazlar/121-SEAM-SOZLESME-DOKUMANI.md)** | `IAuditLog`/`AuditQuery`/`AuditChainQuery`'nin XML dokümanı sözleşmeyi açıkça yazdı VE `InMemoryAuditLog`/`SqlAuditLog` `SqlRunStore`'un zaten kullandığı `ITenantContext` fallback desenine hizalandı (kod düzeltmesi, yalnız doküman değil). `AuditLogContract`'a (public) 3 yeni test eklendi, `InMemory`/`PostgreSQL`/`SqlServer`/`Sqlite`'ın DÖRDÜNDE de ayrı ayrı yeşil koştu |
-| BL-047 | Açık | Audit-write başarısızlığı loglanıyor (`AuditRecorder.cs:53-60`) ama dedicated metric/counter yok — production'da audit-log bozulmasını yakalamak tamamen log taramasına bağlı | 🟡 1.0 blocker | `AuditRecorder.cs`; `TraconMetrics.cs` (audit counter yok) | `nuget-danismani` → faz zinciri | Audit-write-failure metric eklenir |
+| BL-047 | **Planlandı (Faz 171, 2026-09-15)** | Audit-write başarısızlığı loglanıyor (`AuditRecorder.cs:53-60`) ama dedicated metric/counter yok — production'da audit-log bozulmasını yakalamak tamamen log taramasına bağlı | 🟡 1.0 blocker | `AuditRecorder.cs`; `TraconMetrics.cs` (audit counter yok) | `nuget-danismani` → faz zinciri | Audit-write-failure metric eklenir |
 | BL-048 | **KISMEN KAPANDI (Faz 121)** | `ISpeechSynthesizer`/`ISpeechTranscriber`/`IVoicePricingReader`/`IVoiceHealthCheck` için contract test yok; custom `ISpeechSynthesizer`/`IAuditLog` için dış sample yok; ~~`IAuditActorResolver`'ın 2 satırlık XML dokümanı AsyncLocal/ambient-context bağımlılığını ve singleton lifetime etkisini hiç anlatmıyor~~ **doküman kısmı kapandı** | 🟡 1.0 blocker (kalan: contract test + dış sample — kulvar 1/4) | Küme J raporu | `nuget-danismani` → faz zinciri (kalan) · **[Faz 121](arsiv/fazlar/121-SEAM-SOZLESME-DOKUMANI.md)** (doküman ✅) | `IAuditActorResolver`'ın dokümanı `AuditActorContext`'in AsyncLocal mekanizmasını ve singleton-safe olma gerekçesini artık anlatıyor; 4 ses arayüzüne de DI lifetime (singleton) + tenant mode (TENANT-INDEPENDENT) eklendi. Contract sınıfları ve dış sample kulvar 1/4 kapsamında kalır |
 | BL-049 | Bilgi | Küme J cila bulguları (🟢, toplu): `ISpeechTranscriber.TranscribeAsync`'in `Stream audio` sahipliği (kim dispose eder) arayüzde belirtilmiyor; `IAuditLog.WriteAsync`'in retry'de idempotency'si (dedup anahtarı yok) dokümante değil; voice arayüzleri abstraction seviyesinde hiç `TenantId` taşımıyor (tenant başka yerde uygulanıyor, makul ama not gerekiyor) | 🟢 Doküman/cila | Küme J raporu | `nuget-danismani` → doküman senkronu | Docs-site'a eklenir |
 | BL-050 | **KISMEN KAPANDI (Faz 121)** | Küme I kayıt ergonomisi tutarsız — yalnız `IRunJudge` tam üçlü (`AddRunJudge<T>()`/instance/factory) alıyor; diğer arayüzler için hiç `AddX()` yok (kulvar 2, açık kalır); `IVectorSearchStore`/`IConversationBranchStore`/`IMigrationApplier`/`ISqlPersistenceDiagnostics` için contract test yok (kulvar 1, açık kalır); ~~singleton/thread-safety/no-per-run-state 10/11 arayüzde dokümante değil~~ **doküman kısmı kapandı**; ~~`IAttachmentStore.OpenReadAsync`/`IAttachmentStorage.ReadAsync` stream sahipliğini belirtmiyor~~ **kapandı** | 🟡 1.0 blocker (kalan: registration API + contract test — kulvar 1/2) | Küme I raporu | `nuget-danismani` → faz zinciri (kalan) · **[Faz 121](arsiv/fazlar/121-SEAM-SOZLESME-DOKUMANI.md)** (doküman ✅) | 12 üyenin (`ISessionStore`, `IConversationBranchStore`, `IAttachmentStore`, `IAttachmentStorage`, `IRetentionStore`, `IArchiveSink`, `IRetentionPolicyStore`, `IEvalStore`, `IExperimentStore`, `IMigrationApplier`, `ISqlPersistenceDiagnostics`, `IVectorSearchStore`) hepsine DI lifetime (singleton, ikisi optional) eklendi; `IAttachmentStore.OpenReadAsync`/`IAttachmentStorage.WriteAsync`/`ReadAsync` stream sahipliğini (çağıran sahiplenir ve dispose eder) açıkça yazıyor. Registration API ve contract test kulvar 1/2 kapsamında kalır |

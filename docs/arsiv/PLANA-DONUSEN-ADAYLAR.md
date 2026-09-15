@@ -1451,3 +1451,110 @@ her sürümü görür; bilerek eski olan tarihsel damgalar
 `SURUM_DAMGASI_TARIHSEL` ile **yazılı** olarak muaftır.
 
 **Kalan iş:** Yok. Tarama 20 damga (16 dosya) sayar ve sıfır bulgu verir.
+
+
+## 2026-09-15 — Tüketici geri bildirimi turu (F-234, F-235)
+
+İki kalem, bir tüketicinin yalnız `tracon.dev` okuyarak ürettiği değerlendirmenin
+ölçümünden doğdu ve aynı gün iki faza dönüştü. Turun tam kaydı:
+[`../YAYIN-HAZIRLIK.md`](../YAYIN-HAZIRLIK.md) § 4, 2026-09-15 girdisi.
+
+| Kalem | Faz |
+|---|---|
+| F-234 | [Faz 171 — Denetim İzi Yazma Politikası](../171-DENETIM-IZI-YAZMA-POLITIKASI.md) |
+| F-235 | [Faz 172 — Tehdit Modeli](../172-TEHDIT-MODELI.md) |
+
+### F-234 · Denetim izi yazma politikasının tekleştirilmesi
+
+**Kaynak:** Tüketici geri bildirimi turu (2026-09-15) — `YAYIN-HAZIRLIK.md` § 4,
+bulgu 8.
+
+**Sorun:** K-776 denetim izinin garanti ayrımını **yayımlanmış bir sözleşme**
+hâline getirdi: altı işlem fail-closed, kalan her audit yazımı best-effort. Kodda
+bu sözleşmeyi zorlayan tek bir yer yok. Best-effort yolu tektir
+([`AuditRecorder.WriteAsync`](../../src/Tracon.Core/Audit/AuditRecorder.cs), 47 çağrı
+sitesi), ama fail-closed yolu **dört ayrı elle yazılmış kopyadır**. Kopyanın
+kendisi kodda kabul edilmiştir: `ApprovalEndpoints.cs:345` kendi yorumunda "the
+SAME pattern as `SandboxedSkillScriptRunner.WriteAuditOrThrowAsync`" der.
+
+**Kapsam:** `AuditRecorder`'a `WriteOrThrowAsync` kardeş metodu eklenir; dört
+kopya ona indirilir; [`IAuditLog`](../../src/Tracon.Abstractions/Audit/IAuditLog.cs)'un
+"A write failure does not stop the operation" sözleşme metni istisnayı da söyler.
+**Davranış değişmez** — bu bir yeniden düzenlemedir, yeni bir yetenek değil.
+Kapsam dışı: tüketiciye açılan bir fail-closed anahtarı. K-771'in "hepsini kabul
+et anahtarı yok" deseni ve kalem başına karar geleneği (K-089, K-370, K-378)
+genel bir bayrağa karşıdır; böyle bir istek gelirse ayrı bir aday olur.
+
+**Değer:** Yayımlanan güvenlik garantisi tek bir kod yolundan zorlanır. Beşinci
+bir fail-closed işlem eklendiğinde kopyalanacak bir desen değil, çağrılacak bir
+metot bulunur.
+
+**Mercek:** 2 · 5.
+
+**Hazırlık — ölçüldü (2026-09-15):** Dört kopya: `AuditingSkillScriptGrantStore.cs:93`
+(2 çağrı) · `SandboxedSkillScriptRunner.cs:467` (1) · `TriggerEndpoints.cs:496` (2)
+· `ApprovalEndpoints.cs:347` (1). İkisi ayrıca `LogError` yazar, ikisi yazmaz —
+birleştirme bu farkı da kapatır. `CanaryEvaluationService.cs:180` ve
+`DataSubjectEndpoints.cs:118` aynı garantiyi **kopya olmadan**, `IAuditLog`'u
+doğrudan çağırarak sağlar; ikisinin de birleşmeye girip girmeyeceği fazın kararıdır.
+
+**Maliyet:** Küçük. Public API **+1 giriş** (`Tracon.Core`).
+
+**Risk:** Düşük–orta. Sınır: `AuditRecorder` `static`'tir ve `ApprovalEndpoints`
+`Tracon.AspNetCore`'dadır — paket sınırı geçilir ama referans zaten vardır
+(`Tracon.AspNetCore.csproj:15`). Asıl risk davranışın sessizce kaymasıdır: her
+kopyanın kendi hata metni ve log seviyesi vardır, testler bunları ayrı ayrı
+kanıtlamalıdır.
+
+**Bağımlılık:** K-776 (sözleşme sabitlendi).
+
+**Ekosistem:** 2026-09-15 — iç tutarlılık; dış ekosistem iddiası yok.
+
+**Karşı görüş:** Dört kopya bugün **çalışıyor** ve altı işlemin her biri farklı
+bir sınırda oturuyor. Birleştirme, farklı gerekçeleri tek imzaya sıkıştırıp
+gelecekte bir istisnayı zorlaştırabilir.
+
+---
+
+### F-235 · Tehdit modeli dokümanı
+
+**Kaynak:** Tüketici geri bildirimi turu (2026-09-15) — `YAYIN-HAZIRLIK.md` § 4,
+bulgu 9.
+
+**Sorun:** `threat model` ve `STRIDE` `docs/` genelinde **sıfır** eşleşme veriyor.
+`MIMARI-GUVENLIK.md` güvenlik **modelini** anlatır (kiracı, rol, denetim izi,
+sandbox) ama bir saldırgan modeli, varlık envanteri veya varlık↔tehdit eşlemesi
+taşımaz. Tüketici bunu bağımsız olarak fark etti ve kurumsal alım kapısı olarak
+işaretledi.
+
+**Kapsam:** `docs/` altına Türkçe geliştirme kaydı; `docs-site` tarafına
+tüketiciye dönük İngilizce özet. Sınır envanteri bu turda zaten üretildi —
+`getting-started/security.md` § *The boundaries Tracon enforces* 14 sınır sayıyor
+ve tehdit modelinin iskeleti odur. Kapsam dışı: penetrasyon testi, dış güvenlik
+denetimi.
+
+**Değer:** Kurumsal güvenlik incelemesinin ilk istediği belge var olur.
+`SECURITY.md`'nin kapsam bölümü de bugün bir listedir; tehdit modeli ona **neden**
+o liste olduğunu verir.
+
+**Mercek:** 3.
+
+**Hazırlık — ölçüldü (2026-09-15):** Girdi hazır: 14 sınır (yukarıdaki bölüm) ·
+15 `api/` sayfasına dağılmış 22 `security boundary` geçişi · `MIMARI-GUVENLIK.md` (22.000 B,
+bütçesi **DAR**, %5 boş — yeni içerik oraya değil ayrı bir dosyaya gider) ·
+`SECURITY.md` kapsam listesi.
+
+**Maliyet:** Orta. Kod yok; yazım ve doğrulama işi.
+
+**Risk:** Düşük. Asıl risk bayatlamadır — kapısı olmayan bir tehdit modeli, bir
+faz yeni bir sınır eklediğinde sessizce yanlışlanır. Fazın DoD'si bir tazelik
+kapısı içermelidir (K-775 deseni).
+
+**Bağımlılık:** Yok.
+
+**Ekosistem:** 2026-09-15 — kurumsal alım; STRIDE yaygın bir konvansiyondur.
+
+**Karşı görüş:** Yayınlanmış bir sürüm yokken tehdit modeli erken olabilir; yüzey
+GA'ya kadar değişmeye devam edecekse belge iki kez yazılır.
+
+---

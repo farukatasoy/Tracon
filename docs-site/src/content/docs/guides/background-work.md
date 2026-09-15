@@ -12,6 +12,28 @@ Use background work when the caller cannot keep an SSE connection open, when a b
 contains many independent inputs, or when work must start on a calendar. Keep the
 normal streaming run endpoint for interactive conversations and approval flows.
 
+## What this queue is, and what it is not
+
+It is not a general-purpose durable execution engine, and it does not try to be one.
+It dispatches Tracon's own work — an agent run, a batch, a workflow start, the
+continuation of an interrupted run — and it carries the things those items need: the
+tenant they belong to, the quota they spend against, and the `runs` row that records
+what happened. It lives in the same database as every other Tracon store, so an
+operator reads one schema rather than two.
+
+That leaves a boundary worth naming, because the Microsoft Agent Framework has a
+durability story of its own. Its durable extension makes a **workflow** survive the
+loss of the process running it. It does not schedule catalog agent runs, does not
+carry a tenant or a quota, and does not write a Tracon run record. The two are
+complementary rather than competing, and Tracon already uses both: durability inside
+a workflow is the Agent Framework's checkpointing, reached through Tracon's
+[checkpoint store](/concepts/workflows/#checkpoints), while dispatch and scheduling
+around it are this queue's.
+
+If all you need is for one workflow to resume after a crash, reach for the Agent
+Framework's own durability first. Reach for this queue when the work has to be
+queued, leased, retried, attributed to a tenant, and recorded.
+
 ```mermaid
 stateDiagram-v2
     accTitle: Life of a queued job

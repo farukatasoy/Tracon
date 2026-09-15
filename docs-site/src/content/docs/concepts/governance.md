@@ -172,6 +172,39 @@ curl 'http://localhost:5081/tracon/api/audit?action=agent.update'
 curl 'http://localhost:5081/tracon/api/audit/quota:{id}'
 ```
 
+### What is guaranteed to be written
+
+Two different guarantees live in this system, and the difference decides what an
+audit trail can be used to prove.
+
+**Fail-closed — the operation does not happen unless the record does.** The entry is
+written *before* the change is applied, and a write failure aborts the change:
+
+| Operation | What a failed audit write refuses |
+|---|---|
+| An approval decision | The decision is not applied |
+| Granting or revoking a skill script | The grant is not changed |
+| Running a skill script | The script does not run |
+| Saving an inbound trigger | The trigger is not saved |
+| An automatic canary rollback | The rollback is not applied |
+| A data subject erasure | The erasure does not commit |
+
+**Best-effort — the operation continues and the record can be missing.** Every other
+audit write takes this path: the failure is logged as a warning, and the call carries
+on. Run recording is best-effort in the same way, and goes one step further — after
+the first store failure, recording is switched off for the rest of that run. A single
+transient error can therefore cost the remainder of that run's events, not just one
+of them.
+
+The rule behind the split is that observability must not take down product
+functionality. The cost is the part to be honest about: an audit trail is evidence of
+what was recorded, not proof of everything that happened. Where a missing record would
+itself be the whole problem, the operation is fail-closed instead.
+
+See [Runs and recording](/concepts/runs/) for what a run stores, and
+[Observability and cost](/guides/observability/) for what a store failure looks like
+in the logs.
+
 ### Tamper detection
 
 Every entry carries a hash of its own content and the hash of the entry before it,
@@ -260,10 +293,10 @@ list, the single-request read, the `RunAwaitingInput` run event, and the console
 approval card.
 
 :::note[The audit entry is written before the decision is applied]
-Everywhere else an audit failure is swallowed. Not here: an approval decision that
-cannot be recorded is not applied at all. Approvals and skill scripts are the only two
-places with that inversion, and both are places where the missing record would be the
-whole problem.
+An approval decision that cannot be recorded is not applied at all. This is one of the
+six fail-closed operations listed in
+[What is guaranteed to be written](#what-is-guaranteed-to-be-written); every other
+audit write is best-effort and is swallowed on failure.
 :::
 
 Standing decisions are **approval rules** — a pre-approval for a tool. They do not

@@ -8,7 +8,10 @@ sidebar:
 A **run** is one execution of an agent. Recording is on by default for agents resolved
 through the Tracon catalog, whether the call came from HTTP, the console, a
 workflow, an eval, or your code. You can disable it. A failed store write also leaves
-the agent running, so recording is best-effort rather than an availability dependency.
+the agent running, so recording is best-effort rather than an availability dependency —
+and after the first store failure, recording stops for the rest of that run. Which
+records carry a stronger guarantee than this one is set out in
+[What is guaranteed to be written](/concepts/governance/#what-is-guaranteed-to-be-written).
 
 ## How recording happens
 
