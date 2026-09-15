@@ -554,18 +554,16 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
                             </Tooltip>
                           )}
                           {meta.roles.canAdminister && (
+                            /* No confirmation step: §175.3 fails on both
+                                counts. The row carries an endpoint, headers
+                                and a configuration KEY NAME (K-059) — every
+                                one of them typed back from this same form. */
                             <Tooltip text={t('mcp.removeServerTitle')}>
                               <Button
                                 tone="danger"
                                 ariaLabel={t('mcp.removeServerTitle')}
                                 busy={remove.isPending && remove.variables === server.name}
-                                onClick={() => {
-                                  if (
-                                    window.confirm(t('common.confirmDelete', { name: server.name }))
-                                  ) {
-                                    remove.mutate(server.name);
-                                  }
-                                }}
+                                onClick={() => remove.mutate(server.name)}
                               >
                                 <TrashIcon className="size-3.5" />
                               </Button>
@@ -795,7 +793,7 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
                     </Td>
                     <Td className="text-right">
                       {meta.roles.canAdminister && (
-                        <Tooltip text={t('mcp.removeRule')}>
+                        <Tooltip text={t('mcp.removeRuleEffect')}>
                           <Button
                             tone="danger"
                             ariaLabel={t('mcp.removeRule')}

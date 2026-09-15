@@ -135,6 +135,52 @@ function compress(files) {
   return { before, after };
 }
 
+/**
+ * Fails the build when a source comment was shipped as visible text.
+ *
+ * 🚨 Phase 175 shipped one. A JSX comment is `{/* … *\/}`; drop the braces in
+ * CHILD position and the same characters become a text node, so a 300-character
+ * note about why a button has no confirmation step rendered inside the button's
+ * own table cell. Nothing caught it: `tsc` accepts both forms, the screen had no
+ * component test, and no E2E case walked that screen — an independent audit
+ * found it by decompressing the bundle.
+ *
+ * The check runs on the BUILD OUTPUT rather than the source, because that is
+ * where the two forms finally differ: a real comment is gone by then, and a
+ * leaked one is a plain string literal. Source-level detection would need to
+ * know whether a given line sits in expression or child position, which is a
+ * parser's job, not a regex's.
+ */
+function rejectLeakedComments(files) {
+  const leaks = [];
+
+  for (const file of files) {
+    const extension = extensionOf(file);
+
+    if (extension !== '.js' && extension !== '.mjs') {
+      continue;
+    }
+
+    const text = readFileSync(file, 'utf8');
+
+    // A string literal that OPENS with a block-comment marker. A comment that
+    // survived minification into a literal always starts at the literal's
+    // first character, because the braces that were dropped were the only
+    // thing in front of it.
+    for (const [, quote, head] of text.matchAll(/(["'`])\/\*([^"'`\n]{0,80})/g)) {
+      leaks.push(`${relative(OUT_DIR, file)}: ${quote}/*${head.trimEnd()}…`);
+    }
+  }
+
+  if (leaks.length > 0) {
+    throw new Error(
+      'A source comment was shipped as visible text:\n  ' +
+        leaks.join('\n  ') +
+        "\nIn JSX child position a comment needs its braces: {/* … */}, not /* … */.",
+    );
+  }
+}
+
 function enforceBudget(files) {
   let gzipped = 0;
 
@@ -195,6 +241,9 @@ function main() {
 
   // The budget is measured before compression rewrites the files.
   const files = walk(OUT_DIR);
+
+  rejectLeakedComments(files);
+
   const budget = enforceBudget(files);
   const sizes = compress(walk(OUT_DIR));
 

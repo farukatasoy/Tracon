@@ -21,6 +21,7 @@ import {
 } from '../components/ui';
 import { Toolbar, ToolbarField } from '../components/toolbar';
 import { Tooltip } from '../components/tooltip';
+import { ConfirmDialog } from '../components/confirm-dialog';
 import { TrashIcon } from '../components/icons';
 import type { TraconMetaResponse as Meta, SessionRecord } from '@tracon/client';
 import type { AgentDescriptor } from '../lib/server-types';
@@ -57,8 +58,20 @@ export function SessionsScreen({ meta }: { meta: Meta }): ReactNode {
   const remove = useMutation({
     mutationFn: (id: string) =>
       unwrap(client.DELETE('/api/sessions/{sessionId}', { params: { path: { sessionId: id } } })),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['sessions'] }),
+    onSuccess: () => {
+      setConfirming(null);
+
+      return queryClient.invalidateQueries({ queryKey: ['sessions'] });
+    },
   });
+
+  /*
+    🚨 §175.3 criterion (a): `conversation_items` cascades off `conversations`,
+    so this destroys the whole message history and no form here can type it
+    back. Holds the session id being confirmed, not a boolean — the list
+    renders one dialog for whichever row asked.
+  */
+  const [confirming, setConfirming] = useState<string | null>(null);
 
   return (
     <>
@@ -95,13 +108,32 @@ export function SessionsScreen({ meta }: { meta: Meta }): ReactNode {
         </ToolbarField>
       </Toolbar>
 
+      <ConfirmDialog
+        open={confirming !== null}
+        onClose={() => setConfirming(null)}
+        onConfirm={() => {
+          if (confirming !== null) {
+            remove.mutate(confirming);
+          }
+        }}
+        title={t('sessions.deleteTitle')}
+        consequence={t('sessions.deleteEffect')}
+        confirmLabel={t('common.delete')}
+        busy={remove.isPending}
+        error={remove.error}
+        testId="confirm-delete-session"
+      />
+
       {/* A delete that failed has to be retryable where it was attempted; the
           row is gone from the mutation's point of view but not from the list. */}
       {remove.isError && (
         <div className="mb-4">
           <ErrorNote
             error={remove.error}
-            onRetry={remove.variables === undefined ? undefined : () => remove.mutate(remove.variables)}
+            /* The retry REOPENS the confirmation, it does not fire the delete:
+               a one-click "try again" beside a failed §175.3 action would be a
+               second door into the very thing the second step guards. */
+            onRetry={remove.variables === undefined ? undefined : () => setConfirming(remove.variables)}
           />
         </div>
       )}
@@ -174,16 +206,12 @@ export function SessionsScreen({ meta }: { meta: Meta }): ReactNode {
                     </Td>
                     <Td className="text-right">
                       {meta.roles.canOperate && (
-                        <Tooltip text={t('sessions.delete')}>
+                        <Tooltip text={t('sessions.deleteEffect')}>
                           <Button
                             tone="ghost"
                             ariaLabel={t('sessions.delete')}
                             busy={remove.isPending && remove.variables === session.id}
-                            onClick={() => {
-                              if (window.confirm(t('sessions.confirmDelete'))) {
-                                remove.mutate(session.id);
-                              }
-                            }}
+                            onClick={() => setConfirming(session.id)}
                           >
                             <TrashIcon className="size-3.5" />
                           </Button>

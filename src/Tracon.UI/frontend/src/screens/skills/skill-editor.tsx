@@ -14,6 +14,8 @@ import {
   TextArea,
   TextInput,
 } from '../../components/ui';
+import { Tooltip } from '../../components/tooltip';
+import { ConfirmDialog } from '../../components/confirm-dialog';
 import { emptyRequest, emptyResource, emptyScript, type SkillForm } from './model';
 import type { AgentSkillScriptDefinition } from '@tracon/client';
 import type { AgentSkillDefinition, AgentSkillResourceDefinition } from '../../lib/server-types';
@@ -71,10 +73,18 @@ export function SkillEditorScreen({ name }: { name?: string }): ReactNode {
     mutationFn: () =>
       unwrap(client.DELETE('/api/skills/{name}', { params: { path: { name: form.name } } })),
     onSuccess: async () => {
+      setConfirmingDelete(false);
       await queryClient.invalidateQueries({ queryKey: ['skills'] });
       navigate('skills');
     },
   });
+
+  /*
+    🚨 §175.3 criterion (a): `skill_scripts` and the agent bindings both cascade
+    off `agent_skills`. The script bodies live nowhere else in this console, so
+    re-creating the skill by name gives back an empty shell.
+  */
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const title = editing ? t('skills.editTitle', { name: name ?? '' }) : t('skills.newTitle');
 
@@ -117,17 +127,16 @@ export function SkillEditorScreen({ name }: { name?: string }): ReactNode {
           <>
             <Button onClick={() => navigate('skills')}>{t('common.cancel')}</Button>
             {editing && (
-              <Button
-                tone="danger"
-                busy={remove.isPending}
-                onClick={() => {
-                  if (window.confirm(t('common.confirmDelete', { name: form.name }))) {
-                    remove.mutate();
-                  }
-                }}
-              >
-                {t('common.delete')}
-              </Button>
+              <Tooltip text={t('skills.deleteEffect')}>
+                <Button
+                  tone="danger"
+                  busy={remove.isPending}
+                  testId="skill-delete"
+                  onClick={() => setConfirmingDelete(true)}
+                >
+                  {t('common.delete')}
+                </Button>
+              </Tooltip>
             )}
             <Button
               tone="primary"
@@ -141,6 +150,18 @@ export function SkillEditorScreen({ name }: { name?: string }): ReactNode {
         }
       />
 
+      <ConfirmDialog
+        open={confirmingDelete}
+        onClose={() => setConfirmingDelete(false)}
+        onConfirm={() => remove.mutate()}
+        title={t('skills.deleteTitle', { name: form.name })}
+        consequence={t('skills.deleteEffect')}
+        confirmLabel={t('common.delete')}
+        busy={remove.isPending}
+        error={remove.error}
+        testId="confirm-delete-skill"
+      />
+
       {save.isError && (
         <div className="mb-4">
           <ErrorNote error={save.error} onRetry={() => save.mutate()} />
@@ -148,7 +169,8 @@ export function SkillEditorScreen({ name }: { name?: string }): ReactNode {
       )}
       {remove.isError && (
         <div className="mb-4">
-          <ErrorNote error={remove.error} onRetry={() => remove.mutate()} />
+          {/* Reopens the confirmation rather than firing the delete — see sessions.tsx. */}
+          <ErrorNote error={remove.error} onRetry={() => setConfirmingDelete(true)} />
         </div>
       )}
 

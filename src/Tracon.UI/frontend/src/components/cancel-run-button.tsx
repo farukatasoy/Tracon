@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { client, unwrap, TraconError } from '../lib/api';
 import { useT } from '../lib/i18n';
 import { Button } from './ui';
+import { Tooltip } from './tooltip';
 import type { RunRecord } from '../lib/server-types';
 
 /**
@@ -31,18 +32,19 @@ export function CancelRunButton({ runId }: { runId: string }): ReactNode {
 
   return (
     <div className="flex flex-col items-end gap-1">
-      <Button
-        tone="danger"
-        busy={cancel.isPending}
-        testId="cancel-run"
-        onClick={() => {
-          if (window.confirm(t('runDetail.cancel.confirm'))) {
-            cancel.mutate();
-          }
-        }}
-      >
-        {t('runDetail.cancel.button')}
-      </Button>
+      {/* No confirmation step: §175.3 fails on both counts. Cancelling cannot
+          be undone, but it destroys nothing — the recorded work stays and the
+          agent runs again. Layer 1 states that at the moment of deciding. */}
+      <Tooltip text={t('runDetail.cancel.effect')}>
+        <Button
+          tone="danger"
+          busy={cancel.isPending}
+          testId="cancel-run"
+          onClick={() => cancel.mutate()}
+        >
+          {t('runDetail.cancel.button')}
+        </Button>
+      </Tooltip>
 
       {cancel.isError && (
         <span className="text-xs text-danger" role="alert">
