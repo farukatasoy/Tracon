@@ -185,6 +185,6 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [170](arsiv/fazlar/170-PRODUCTION-PROFIL-KAPISI.md) | Production Profil Kapısı | ✅ Tamamlandı |
 | [171](arsiv/fazlar/171-DENETIM-IZI-YAZMA-POLITIKASI.md) | Denetim İzi Yazma Politikası | ✅ Tamamlandı |
 | [172](arsiv/fazlar/172-TEHDIT-MODELI.md) | Tehdit Modeli | ✅ Tamamlandı |
-| [173](173-CALISTIRMA-KAYDI-GORUNURLUGU.md) | Çalıştırma Kaydının Kaybı Ölçülür | ✅ Tamamlandı |
+| [173](arsiv/fazlar/173-CALISTIRMA-KAYDI-GORUNURLUGU.md) | Çalıştırma Kaydının Kaybı Ölçülür | ✅ Tamamlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).

@@ -2,13 +2,13 @@
 
 > **Durum:** ✅ Tamamlandı (2026-09-15)
 > **Plan onayı:** kapsam seçimi kullanıcı tarafından onaylandı (2026-09-15) · uygulama kullanıcı talimatıyla başladı (2026-09-15)
-> **Kaynak:** Tüketici geri bildirimi turu (2026-09-15), *"Beşinci risk: recording semantics"*. `ADAYLAR.md`'de F-NN kalemi **yoktur**; kısmi öncül 2026-09-07 turunun **A10** kalemidir ([`arsiv/incelemeler/2026-09-07-tuketici-analizi-codebase-olcumu.md`](arsiv/incelemeler/2026-09-07-tuketici-analizi-codebase-olcumu.md)).
-> **Önkoşul:** [Faz 171](arsiv/fazlar/171-DENETIM-IZI-YAZMA-POLITIKASI.md) — sayacın deseni (`tracon.audit.write_failures`) ve `TraconMetrics`'i statik olmayan bir yazma yoluna taşıma tekniği oradan devralınır
+> **Kaynak:** Tüketici geri bildirimi turu (2026-09-15), *"Beşinci risk: recording semantics"*. `ADAYLAR.md`'de F-NN kalemi **yoktur**; kısmi öncül 2026-09-07 turunun **A10** kalemidir ([`arsiv/incelemeler/2026-09-07-tuketici-analizi-codebase-olcumu.md`](../incelemeler/2026-09-07-tuketici-analizi-codebase-olcumu.md)).
+> **Önkoşul:** [Faz 171](171-DENETIM-IZI-YAZMA-POLITIKASI.md) — sayacın deseni (`tracon.audit.write_failures`) ve `TraconMetrics`'i statik olmayan bir yazma yoluna taşıma tekniği oradan devralınır
 > **Paketler:** `Tracon.Core`, `Tracon.Workflows`
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyüyor — `TraconDiagnostics` iki sabit, `TraconMetrics` bir sayaç ve bir metot, `RunEventWriter` yapıcısı bir parametre alır. **Ölçüldü (2026-09-15):** her `src/*/PublicAPI.Shipped.txt` yalnız `#nullable enable` satırını taşır (17 dosya, 17 satır) — hiçbir yüzey donmadı, bugün eklemek bedava, Faz 7'den sonra yapıcı imzası değiştirmek kırıcı olur
-> **Tüketici yüzeyi:** site — [`guides/observability.md`](../docs-site/src/content/docs/guides/observability.md) (metrik tablosu · etiket tablosu · yeni bölüm), [`concepts/governance.md`](../docs-site/src/content/docs/concepts/governance.md) (§ *What is guaranteed to be written* içindeki `run` paragrafı), [`reference/threat-model.md`](../docs-site/src/content/docs/reference/threat-model.md) (best-effort `caution` bloğu) · sevk edilen — `RunEventWriter` ve `TraconMetrics` XML dokümanı; `api/` sayfaları bundan **üretilir**
-> **Manuel test alanı:** [`docs/manuel-test/12-GOZLEMLENEBILIRLIK-MALIYET.md`](manuel-test/12-GOZLEMLENEBILIRLIK-MALIYET.md)
+> **Tüketici yüzeyi:** site — [`guides/observability.md`](../../../docs-site/src/content/docs/guides/observability.md) (metrik tablosu · etiket tablosu · yeni bölüm), [`concepts/governance.md`](../../../docs-site/src/content/docs/concepts/governance.md) (§ *What is guaranteed to be written* içindeki `run` paragrafı), [`reference/threat-model.md`](../../../docs-site/src/content/docs/reference/threat-model.md) (best-effort `caution` bloğu) · sevk edilen — `RunEventWriter` ve `TraconMetrics` XML dokümanı; `api/` sayfaları bundan **üretilir**
+> **Manuel test alanı:** [`docs/manuel-test/12-GOZLEMLENEBILIRLIK-MALIYET.md`](../../manuel-test/12-GOZLEMLENEBILIRLIK-MALIYET.md)
 
 ---
 
@@ -26,17 +26,17 @@
    **K-355** (her alt yazımın kiracı damgasını taşıması — sayacın kiracı etiketi buradan gelir),
    **K-421** (`EnablePublicApiTracking` açık — yapıcı imzası değişince `PublicAPI.Unshipped.txt` güncellenir),
    **K-483** (elle tekrarlanan ifade bir kusur SINIFI üretir — bu fazda `Disable`'ın serbest metin gerekçesi bu sınıftadır)
-3. [`arsiv/fazlar/171-DENETIM-IZI-YAZMA-POLITIKASI.md`](arsiv/fazlar/171-DENETIM-IZI-YAZMA-POLITIKASI.md) — yalnız devir notu ve "Bu Fazda Verilen Kararlar":
+3. [`arsiv/fazlar/171-DENETIM-IZI-YAZMA-POLITIKASI.md`](171-DENETIM-IZI-YAZMA-POLITIKASI.md) — yalnız devir notu ve "Bu Fazda Verilen Kararlar":
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/171-DENETIM-IZI-YAZMA-POLITIKASI.md
    ```
    Sayaç oraya **zorunlu-nullable parametre** olarak taşınmıştı; gerekçesi (opsiyonel parametre yeni çağrı yerini sessizce atlar) bu fazda birebir geçerlidir.
 4. Alan hafızası (bu faz üç alana dokunuyor):
-   [`hafiza/cekirdek-calistirma.md`](hafiza/cekirdek-calistirma.md) (`RunRecording` zinciri),
-   [`hafiza/olcum-kota-ve-secenekler.md`](hafiza/olcum-kota-ve-secenekler.md) (metrik ve etiket tuzakları),
-   [`hafiza/genisleme-noktalari-ve-denetim.md`](hafiza/genisleme-noktalari-ve-denetim.md) (denetim izi kapsamı)
+   [`hafiza/cekirdek-calistirma.md`](../../hafiza/cekirdek-calistirma.md) (`RunRecording` zinciri),
+   [`hafiza/olcum-kota-ve-secenekler.md`](../../hafiza/olcum-kota-ve-secenekler.md) (metrik ve etiket tuzakları),
+   [`hafiza/genisleme-noktalari-ve-denetim.md`](../../hafiza/genisleme-noktalari-ve-denetim.md) (denetim izi kapsamı)
 5. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MIMARI-TEHDIT-MODELI.md`](MIMARI-TEHDIT-MODELI.md) § R6 — bu fazın kapattığı görünürlük boşluğu orada adlandırılmıştır
+   [`MIMARI-TEHDIT-MODELI.md`](../../MIMARI-TEHDIT-MODELI.md) § R6 — bu fazın kapattığı görünürlük boşluğu orada adlandırılmıştır
 
 ---
 
@@ -60,18 +60,18 @@ olur.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`RunEventWriter.cs:115`](../src/Tracon.Core/Recording/RunEventWriter.cs#L115) | `StartRunAsync` hatası yutulur, `Disable(...)` çağrılır, `run` sürer |
-| [`RunEventWriter.cs:198`](../src/Tracon.Core/Recording/RunEventWriter.cs#L198) | Olay yazımı hatası — aynı yol |
-| [`RunEventWriter.cs:232`](../src/Tracon.Core/Recording/RunEventWriter.cs#L232) | `sink` hatası: o `run` için **yalnız o sink** kapatılır, `LogWarning` |
-| [`RunEventWriter.cs:272`](../src/Tracon.Core/Recording/RunEventWriter.cs#L272) | Tool çağrı kaydı hatası — aynı yol |
-| [`RunEventWriter.cs:360`](../src/Tracon.Core/Recording/RunEventWriter.cs#L360) | `run` kapanış yazımı hatası — aynı yol |
-| [`RunEventWriter.cs:421`](../src/Tracon.Core/Recording/RunEventWriter.cs#L421) | `Disable` yalnız `LogWarning` yazar; **hiçbir sayaç artmaz** |
-| [`RunRecordingAgent.Persistence.cs:156`](../src/Tracon.Core/Recording/RunRecordingAgent.Persistence.cs#L156) | `run` girdisi yazılamazsa yutulur; `run` çalışır, **replay ölür** |
+| [`RunEventWriter.cs:115`](../../../src/Tracon.Core/Recording/RunEventWriter.cs#L115) | `StartRunAsync` hatası yutulur, `Disable(...)` çağrılır, `run` sürer |
+| [`RunEventWriter.cs:198`](../../../src/Tracon.Core/Recording/RunEventWriter.cs#L198) | Olay yazımı hatası — aynı yol |
+| [`RunEventWriter.cs:232`](../../../src/Tracon.Core/Recording/RunEventWriter.cs#L232) | `sink` hatası: o `run` için **yalnız o sink** kapatılır, `LogWarning` |
+| [`RunEventWriter.cs:272`](../../../src/Tracon.Core/Recording/RunEventWriter.cs#L272) | Tool çağrı kaydı hatası — aynı yol |
+| [`RunEventWriter.cs:360`](../../../src/Tracon.Core/Recording/RunEventWriter.cs#L360) | `run` kapanış yazımı hatası — aynı yol |
+| [`RunEventWriter.cs:421`](../../../src/Tracon.Core/Recording/RunEventWriter.cs#L421) | `Disable` yalnız `LogWarning` yazar; **hiçbir sayaç artmaz** |
+| [`RunRecordingAgent.Persistence.cs:156`](../../../src/Tracon.Core/Recording/RunRecordingAgent.Persistence.cs#L156) | `run` girdisi yazılamazsa yutulur; `run` çalışır, **replay ölür** |
 | `grep -rn "IsDisabled" src/` | Beş eşleşmenin hepsi `RunEventWriter`'ın kendi içinde (biri `ContentGuardPipeline` yorumu). Durum yazıcıdan **hiç çıkmaz**: ne `run` kaydına, ne yanıta, ne metriğe |
-| [`TraconMetrics.cs:128`](../src/Tracon.Core/Diagnostics/TraconMetrics.cs#L128) · [`:353`](../src/Tracon.Core/Diagnostics/TraconMetrics.cs#L353) | Denetim izi yolunda sayaç **var** (`tracon.audit.write_failures`, etiket `swallowed`/`refused`) — kardeş yolda yok |
-| [`observability.md:320`](../docs-site/src/content/docs/guides/observability.md#L320) | Site davranışı doğru anlatıyor ama ölçülebilir bir sinyal **vaat etmiyor** |
-| `grep -rn "new RunEventWriter(" src/ tests/ bench/ samples/` | **19** çağrı yeri: **2**'si üretimde ([`RunRecordingAgent.Lifecycle.cs:87`](../src/Tracon.Core/Recording/RunRecordingAgent.Lifecycle.cs#L87), [`WorkflowRunner.cs:440`](../src/Tracon.Workflows/Internal/WorkflowRunner.cs#L440)), **17**'si test ve bench |
-| [`RunRecordingAgent.cs:39`](../src/Tracon.Core/Recording/RunRecordingAgent.cs#L39) · [`WorkflowRunner.cs:50`](../src/Tracon.Workflows/Internal/WorkflowRunner.cs#L50) | **İki üretim çağrı yerinin ikisinde de** `TraconMetrics? _metrics` alanı zaten vardır — yeni bağımlılık zinciri kurulmaz |
+| [`TraconMetrics.cs:128`](../../../src/Tracon.Core/Diagnostics/TraconMetrics.cs#L128) · [`:353`](../../../src/Tracon.Core/Diagnostics/TraconMetrics.cs#L353) | Denetim izi yolunda sayaç **var** (`tracon.audit.write_failures`, etiket `swallowed`/`refused`) — kardeş yolda yok |
+| [`observability.md:320`](../../../docs-site/src/content/docs/guides/observability.md#L320) | Site davranışı doğru anlatıyor ama ölçülebilir bir sinyal **vaat etmiyor** |
+| `grep -rn "new RunEventWriter(" src/ tests/ bench/ samples/` | **19** çağrı yeri: **2**'si üretimde ([`RunRecordingAgent.Lifecycle.cs:87`](../../../src/Tracon.Core/Recording/RunRecordingAgent.Lifecycle.cs#L87), [`WorkflowRunner.cs:440`](../../../src/Tracon.Workflows/Internal/WorkflowRunner.cs#L440)), **17**'si test ve bench |
+| [`RunRecordingAgent.cs:39`](../../../src/Tracon.Core/Recording/RunRecordingAgent.cs#L39) · [`WorkflowRunner.cs:50`](../../../src/Tracon.Workflows/Internal/WorkflowRunner.cs#L50) | **İki üretim çağrı yerinin ikisinde de** `TraconMetrics? _metrics` alanı zaten vardır — yeni bağımlılık zinciri kurulmaz |
 
 > Kanıtlar 2026-09-15 tarihinde doğrulandı. 🚨 Satır numaraları **bu faz
 > uygulanmadan ÖNCEki** hâle aittir ve artık kaymıştır (`Disable` → `:452`);
@@ -82,7 +82,7 @@ olur.
 | Ne | Neden |
 |---|---|
 | `RecordingMode.Required` / genel fail-closed `run` kaydı | Geri bildirimin önerisiydi; **alınmadı**. Model çağrısı ve tool yan etkileri olduktan sonra `run`'ı düşürmek hiçbir şeyi geri almaz — elde yalnız erişilebilirlik kaybı kalır. 2026-09-07 turunda da aynı gerekçeyle reddedilmişti (A10) |
-| Etkiden önceki dar fail-closed `seam` (`run` açılışı · yan etkili tool çağrısı) | Savunulabilir bir tasarımdır ama bu fazın kapsamı değildir. **F-237** olarak [`ADAYLAR.md`](ADAYLAR.md) § *Bekleyen Kalemler* içine koşuluyla yazıldı (2026-09-15) |
+| Etkiden önceki dar fail-closed `seam` (`run` açılışı · yan etkili tool çağrısı) | Savunulabilir bir tasarımdır ama bu fazın kapsamı değildir. **F-237** olarak [`ADAYLAR.md`](../../ADAYLAR.md) § *Bekleyen Kalemler* içine koşuluyla yazıldı (2026-09-15) |
 | Kayıp kaydın `run` kaydına veya HTTP yanıtına yansıtılması | Yeni bir sözleşme alanıdır; sayaç önce ölçsün, talep ölçülsün |
 | `run` kaydı için dayanıklı `outbox` | A10'un ikinci yarısı. Talep kanıtı bugün de yok |
 
@@ -341,7 +341,7 @@ awk -F',' '$NF != 0' faz173.csv | grep -E "recording_failures|tracon.runs"
 
 Plan *"`check-content.mjs` bugün metrik adı senkronu **yapmıyor**"* diyordu ve
 seçenek B'yi (yeni bir kapı yazmak) öneriyordu. **Yanlıştı.**
-[`check-content.mjs:492-515`](../docs-site/scripts/check-content.mjs) `TraconDiagnostics.cs`
+[`check-content.mjs:492-515`](../../../docs-site/scripts/check-content.mjs) `TraconDiagnostics.cs`
 içindeki **her** `public const string` değerini toplar ve elle yazılmış bir
 sayfada tam ad eşleşmesiyle arar; bulamazsa kırmızı döner. Kapı ayrıca kendi
 körlüğüne karşı da korunmuş (sıfır ad topladıysa reddediyor).
@@ -664,7 +664,7 @@ MAF tipi sarmalanmamış · `ValueTask` yollarında `ConfigureAwait(false)` koru
   `Tracon.Api` satırındandır. `collect`'i `--duration` ile bitir; `pkill` ile
   durdurulan oturum dosyayı hiç yazmaz.
 - **`docs-site`'ın telemetri kapısı ZATEN VAR ve `TraconDiagnostics.cs`'i okur**
-  ([`check-content.mjs:492`](../docs-site/scripts/check-content.mjs)). Oraya yeni
+  ([`check-content.mjs:492`](../../../docs-site/scripts/check-content.mjs)). Oraya yeni
   bir `public const string` eklemek, o adı elle yazılmış bir sayfaya yazmayı
   **zorunlu** kılar. Yeni bir metrik veya etiket eklerken kapı yazmaya kalkma —
   koş, zaten kırmızı dönecektir.
@@ -694,6 +694,6 @@ MAF tipi sarmalanmamış · `ValueTask` yollarında `ConfigureAwait(false)` koru
   edilen bir cümleyi yalanlar.** `store` yolu `Interlocked` aldı, `sink` yolu
   almadı, ve aynı fazda siteye *"Counted once per sink per run"* yazıldı —
   yanlıştı (denetim 🔴 2). Aynı sayaca yazan her yolu birlikte düşün.
-- **F-237 açık duruyor** ([`ADAYLAR.md`](ADAYLAR.md)): etkiden önceki dar
+- **F-237 açık duruyor** ([`ADAYLAR.md`](../../ADAYLAR.md)): etkiden önceki dar
   fail-closed `seam`. Bu fazın sayacı o adayın **önkoşuludur** — kaybın gerçek
   sıklığı ölçülmeden inşa edilen bir `seam` yanlış şekli alır.
