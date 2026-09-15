@@ -452,23 +452,31 @@ curl -s "$APU/api/evals/destek-degerlendirme/cases" -H "$APB"
 
 ---
 
-### MT-EVAL-015 — Arayüz: takım "Sil" düğmesi HİÇBİR onay istemez
+### MT-EVAL-015 — Arayüz: set "Sil" düğmesi bir doğrulama adımı ister
 
-UX gözlemi — kusur değil, koşumda doğrulanacak asimetri.
+🚨 **Faz 175'te yeniden yazıldı.** Bu case bir eksiği kaydediyordu: vaka + koşum
+kaskadını yok eden bir silme onaysız gerçekleşiyordu. Faz 175 onu kapattı —
+`eval_cases` ve `eval_runs` ikisi de `eval_suites`'ten `ON DELETE CASCADE` ile
+düşer, yani ölçütün (a) dalı (K-791).
 
 | | |
 |---|---|
 | **İzlek** | B |
-| **Önem** | Düşük |
-| **İlgili faz** | Faz 18 |
-| **İlgili karar** | — |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 18, 175 |
+| **İlgili karar** | K-790, K-791 |
 
 **Adımlar**
-1. `/tracon/evals` listesinde bir takımın "Sil" düğmesine tıkla.
+1. `/tracon/evals` listesinde bir setin "Sil" düğmesine **odaklan** (basma).
+2. "Sil"e bas, `Esc`'e bas.
+3. "Sil"e tekrar bas ve `Sil`e (onay düğmesi) bas.
 
 **Beklenen sonuç**
-- Hiçbir `window.confirm` veya modal açılmaz; takım anında silinir. Geri
-  dönüşü zor bir işlem (vaka+koşu kaskadı) onaysız gerçekleşir.
+- Adım 1: tooltip setin, case'lerinin ve kaydettiği her koşumun gideceğini söyler.
+- Adım 2: konsolun kendi dialogu açılır — tarayıcının `window.confirm` kutusu
+  **değil**. Başlık set adını gömer, açılış odağı `İptal`dedir. `Esc` hiçbir
+  istek göndermeden kapatır ve set listede kalır.
+- Adım 3: set silinir ve liste yenilenir.
 
 ### MT-EVAL-020 — Mutlu yol: koşu tetiklenir, gerçek run üretir, `nonEmpty` + `containsExpected` geçer
 

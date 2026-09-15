@@ -50,6 +50,18 @@ export function useFocusTrap(
   open: boolean,
   container: React.RefObject<HTMLElement | null>,
   onClose: () => void,
+  /**
+   * Where focus lands when the layer opens, instead of the first Tab stop.
+   *
+   * 🚨 The default is the first focusable element in DOM order, which for
+   * `Dialog` is the header's close control. That is fine for a palette or a
+   * help sheet, and wrong for a confirmation: a confirmation has to open with
+   * focus on the answer that changes nothing, and that answer sits in the
+   * FOOTER. Without this the console would have to rely on effect ordering
+   * between a parent and its child to move focus afterwards, which is exactly
+   * the kind of thing that keeps working until somebody reorders a render.
+   */
+  initialFocus?: React.RefObject<HTMLElement | null>,
 ): (event: React.KeyboardEvent) => void {
   const trigger = useRef<HTMLElement | null>(null);
 
@@ -63,9 +75,10 @@ export function useFocusTrap(
     const element = container.current;
 
     if (element !== null) {
-      // The first real control, or the panel itself when there is none — never
-      // <body>, which would strand the next Tab back at the top of the page.
-      (focusableWithin(element)[0] ?? element).focus();
+      // The caller's choice, then the first real control, then the panel itself
+      // — never <body>, which would strand the next Tab back at the top of the
+      // page.
+      (initialFocus?.current ?? focusableWithin(element)[0] ?? element).focus();
     }
 
     // A modal that lets the page behind it scroll is a modal the user can lose.
@@ -77,7 +90,7 @@ export function useFocusTrap(
       trigger.current?.focus();
       trigger.current = null;
     };
-  }, [container, open]);
+  }, [container, initialFocus, open]);
 
   return useCallback(
     (event: React.KeyboardEvent) => {
@@ -133,6 +146,7 @@ export function Dialog({
   children,
   footer,
   width = 'max-w-lg',
+  initialFocus,
   testId,
 }: {
   open: boolean;
@@ -143,13 +157,15 @@ export function Dialog({
   footer?: ReactNode;
   /** Tailwind max-width class. Dialogs are content-sized, not screen-sized. */
   width?: string;
+  /** Where focus lands on open. See `useFocusTrap`. */
+  initialFocus?: React.RefObject<HTMLElement | null>;
   testId?: string;
 }): ReactNode {
   const t = useT();
   const panel = useRef<HTMLDivElement | null>(null);
   const titleId = useId();
   const descriptionId = useId();
-  const onKeyDown = useFocusTrap(open, panel, onClose);
+  const onKeyDown = useFocusTrap(open, panel, onClose, initialFocus);
 
   if (!open) {
     return null;

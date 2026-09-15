@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { client, unwrap } from '../lib/api';
 import { absoluteTime, relativeTime, shortId } from '../lib/format';
@@ -19,6 +19,7 @@ import {
   Unauthorized,
 } from '../components/ui';
 import { Tooltip } from '../components/tooltip';
+import { ConfirmDialog } from '../components/confirm-dialog';
 import { StatusDot } from '../components/status-dot';
 import { ThumbsDownIcon, ThumbsUpIcon } from '../components/icons';
 import type { TraconMetaResponse as Meta, PendingApproval } from '@tracon/client';
@@ -36,6 +37,14 @@ import type { TraconMetaResponse as Meta, PendingApproval } from '@tracon/client
  * tool was called with are on the row itself, and each button carries a real
  * tooltip — reachable by keyboard and on touch, unlike the `title` attribute it
  * replaced — naming what the answer sets in motion.
+ *
+ * 🚨 It is also the one action in the console that earns its confirmation under
+ * §175.3 criterion (b) rather than (a): nothing is destroyed, but the decision
+ * cannot be given a second time. The run that asked stays `AwaitingApproval`
+ * forever (K-368) and the answer opens a different run, so a mis-click is not
+ * something an operator can walk back — there is no second request to answer.
+ * Approve and reject get SEPARATE sentences: one sentence for both would hide
+ * exactly that asymmetry.
  */
 export function ApprovalsScreen({ meta }: { meta: Meta }): ReactNode {
   const t = useT();
@@ -52,8 +61,18 @@ export function ApprovalsScreen({ meta }: { meta: Meta }): ReactNode {
       unwrap(
         client.POST('/api/approvals/{id}/decide', { params: { path: { id } }, body: { approved } }),
       ) as Promise<PendingApproval>,
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['approvals-pending'] }),
+    onSuccess: () => {
+      setConfirming(null);
+      void queryClient.invalidateQueries({ queryKey: ['approvals-pending'] });
+    },
   });
+
+  /** The request being answered, and which answer — the dialog is one per screen. */
+  const [confirming, setConfirming] = useState<{
+    id: string;
+    toolName: string;
+    approved: boolean;
+  } | null>(null);
 
   const waiting = approvals.data?.length ?? 0;
 
@@ -70,6 +89,31 @@ export function ApprovalsScreen({ meta }: { meta: Meta }): ReactNode {
             </Badge>
           ) : undefined
         }
+      />
+
+      <ConfirmDialog
+        open={confirming !== null}
+        onClose={() => setConfirming(null)}
+        onConfirm={() => {
+          if (confirming !== null) {
+            decide.mutate({ id: confirming.id, approved: confirming.approved });
+          }
+        }}
+        title={t(
+          confirming?.approved === true
+            ? 'approvals.confirmApproveTitle'
+            : 'approvals.confirmRejectTitle',
+          { tool: confirming?.toolName ?? '' },
+        )}
+        /* The same key the trigger's own tooltip uses (§175.4 rule 2). */
+        consequence={t(
+          confirming?.approved === true ? 'approvals.approveTitle' : 'approvals.rejectTitle',
+        )}
+        confirmLabel={t(confirming?.approved === true ? 'approvals.approve' : 'approvals.reject')}
+        tone={confirming?.approved === true ? 'default' : 'danger'}
+        busy={decide.isPending}
+        error={decide.error}
+        testId="confirm-decide"
       />
 
       <Panel>
@@ -156,7 +200,13 @@ export function ApprovalsScreen({ meta }: { meta: Meta }): ReactNode {
                               busy={approving}
                               disabled={decide.isPending && !approving}
                               testId={`approve-${approval.id}`}
-                              onClick={() => decide.mutate({ id: approval.id, approved: true })}
+                              onClick={() =>
+                                setConfirming({
+                                  id: approval.id,
+                                  toolName: approval.toolName,
+                                  approved: true,
+                                })
+                              }
                             >
                               <ThumbsUpIcon className="size-3.5" />
                               {t('approvals.approve')}
@@ -168,7 +218,13 @@ export function ApprovalsScreen({ meta }: { meta: Meta }): ReactNode {
                               busy={rejecting}
                               disabled={decide.isPending && !rejecting}
                               testId={`reject-${approval.id}`}
-                              onClick={() => decide.mutate({ id: approval.id, approved: false })}
+                              onClick={() =>
+                                setConfirming({
+                                  id: approval.id,
+                                  toolName: approval.toolName,
+                                  approved: false,
+                                })
+                              }
                             >
                               <ThumbsDownIcon className="size-3.5" />
                               {t('approvals.reject')}

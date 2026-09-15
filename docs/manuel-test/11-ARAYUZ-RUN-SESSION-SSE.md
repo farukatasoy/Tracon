@@ -692,7 +692,7 @@ Hafif yük senaryosu ([`PROMPT.md`](../arsiv/manuel-test-kosum-2026-08/PROMPT.md
 - İki sekme de AYNI sırayla AYNI olayları görür ve aynı nihai transkriptte
   buluşur; ikisi de bağımsız olarak `done` olur.
 
-### MT-UIRUN-021 — İptal düğmesi yalnız `Running`/`Queued` iken görünür; onay penceresi iptali durdurur
+### MT-UIRUN-021 — İptal düğmesi yalnız `Running`/`Queued` iken görünür; etkisi odakta okunur
 
 | | |
 |---|---|
@@ -707,15 +707,19 @@ Hafif yük senaryosu ([`PROMPT.md`](../arsiv/manuel-test-kosum-2026-08/PROMPT.md
 **Adımlar**
 1. `playground/support` aç, `FIX-PROMPT-04` (uzun, süren) gönder; akış
    sürerken çalıştırma sayfasına geç.
-2. Sağ üstteki "İptal Et" düğmesine tıkla, açılan `window.confirm`'de
-   "İptal"e (tarayıcı penceresinin kendi İptal'i) bas.
+2. Sağ üstteki "İptal Et" düğmesine **klavyeyle odaklan** (basma) ve tooltip'i
+   oku. 🚨 **Faz 175'te değişti:** burada artık hiçbir onay penceresi açılmaz —
+   iptal §175.3 ölçütünü geçmez (geri alınamaz ama yok edici değildir; iş
+   yeniden tetiklenebilir), o yüzden yalnız katman 1 taşır (K-790, K-791).
 3. Çalıştırma bitince (veya `MT-UIRUN-022`'de iptal edilince) sayfayı
    tekrar aç, düğmenin durumuna bak.
 
 **Beklenen sonuç**
 - Adım 1: düğme yalnız durum `Running`/`Queued` iken render edilir
   (`(record.status === 'Running' || record.status === 'Queued') && <CancelRunButton />`).
-- Adım 2: hiçbir istek gitmez, düğme hâlâ tıklanabilir durumda kalır.
+- Adım 2: tooltip (`runDetail.cancel.effect`) agent'ın bir sonraki denetim
+  noktasında duracağını ve kaydedilmiş işin kalacağını söyler. Tarayıcının
+  kendi onay kutusu **açılmaz**; düğme hâlâ tıklanabilir durumdadır.
 - Adım 3: bitmiş bir çalıştırmada düğme sayfada HİÇ YOKTUR.
 
 ---
@@ -735,7 +739,8 @@ Hafif yük senaryosu ([`PROMPT.md`](../arsiv/manuel-test-kosum-2026-08/PROMPT.md
 **Adımlar**
 1. `playground/support` aç, `FIX-PROMPT-04` gönder; akış sürerken çalıştırma
    sayfasına geç.
-2. "İptal Et" düğmesine tıkla, tarayıcı onay penceresinde "Tamam"a bas.
+2. "İptal Et" düğmesine tıkla. (Faz 175'ten beri arada hiçbir onay penceresi
+   yoktur — istek tek tıkla gider.)
 3. Düğmenin ANINDA (istek dönmeden) durumuna bak.
 4. En fazla 3 saniye bekle, durum rozetine tekrar bak.
 
@@ -1199,14 +1204,21 @@ Negatif senaryo — sunucu "yok" ile "başka kiracıya ait"i AYNI 404'la örtüy
 - Bu dosyanın geri kalanında GEREKMEYEN, silinebilir bir oturum üret:
   `playground/manuel-bos` aç, `Merhaba` gönder.
 
+🚨 **Faz 175'te yeniden yazıldı:** tarayıcının `window.confirm` kutusu kalktı
+(K-790), yerine konsolun kendi `ConfirmDialog`'u geldi. Oturum silme ölçütün
+(a) dalını geçer — `conversation_items` `ON DELETE CASCADE` ile düşer (K-791).
+
 **Adımlar**
 1. "Oturumlar" ekranında o satırın çöp kutusu düğmesine tıkla.
-2. Tarayıcı onay penceresinde "İptal"e bas.
-3. Tekrar tıkla, "Tamam"a bas.
+2. `Esc`'e bas.
+3. Tekrar tıkla, `Sil`e (onay düğmesi) bas.
 
 **Beklenen sonuç**
 - Düğme yalnız `meta.roles.canOperate === true` iken render edilir (bu
   dosyanın tek bearer token'ı bu rolü her zaman taşır).
+- Adım 1: konsolun kendi dialogu açılır — tarayıcı kutusu **değil**. Etki
+  cümlesi konuşmanın ve içindeki her mesajın gideceğini söyler; açılış odağı
+  `İptal`dedir.
 - Adım 2: hiçbir istek gitmez, satır kalır.
 - Adım 3: `DELETE /api/sessions/{id}` `204` döner, liste sorgusu geçersiz
   kılınır (`invalidateQueries`), satır listeden kaybolur.

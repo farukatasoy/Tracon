@@ -20,6 +20,7 @@ import {
   Th,
 } from '../components/ui';
 import { Tooltip } from '../components/tooltip';
+import { ConfirmDialog } from '../components/confirm-dialog';
 import { HistoryIcon, TrashIcon } from '../components/icons';
 import { DiffView, FieldDiffTable, SetDiff } from '../components/diff-view';
 import { OriginBadge } from './agents';
@@ -31,6 +32,7 @@ export function AgentDetailScreen({ name, meta }: { name: string; meta: Meta }):
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [error, setError] = useState<unknown>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const agent = useQuery({
     queryKey: ['agent', name],
@@ -41,6 +43,7 @@ export function AgentDetailScreen({ name, meta }: { name: string; meta: Meta }):
   const remove = useMutation({
     mutationFn: () => unwrap(client.DELETE('/api/agents/{name}', { params: { path: { name } } })),
     onSuccess: async () => {
+      setConfirmingDelete(false);
       await queryClient.invalidateQueries({ queryKey: ['agents'] });
       navigate('agents');
     },
@@ -88,22 +91,40 @@ export function AgentDetailScreen({ name, meta }: { name: string; meta: Meta }):
                 <LinkButton to={`agents/${encodeURIComponent(name)}/edit`} tone="primary">
                   {t('common.edit')}
                 </LinkButton>
-                <Button
-                  tone="danger"
-                  busy={remove.isPending}
-                  onClick={() => {
-                    if (window.confirm(t('agentDetail.confirmDelete', { name }))) {
-                      remove.mutate();
-                    }
-                  }}
-                >
-                  <TrashIcon className="size-3.5" />
-                  {t('common.delete')}
-                </Button>
+                {/* 🚨 Deleting an agent passes §175.3 criterion (a): the
+                    definition rows and EVERY version row go with it
+                    (`agent_definition_versions` cascades), and no form in this
+                    console can put the history back. So it is the one delete
+                    on this screen that earns a second step — the rollback
+                    beside it does not, and deliberately still fires on one
+                    click behind its own consequence tooltip. */}
+                <Tooltip text={t('agentDetail.deleteEffect')}>
+                  <Button
+                    tone="danger"
+                    busy={remove.isPending}
+                    testId="agent-delete"
+                    onClick={() => setConfirmingDelete(true)}
+                  >
+                    <TrashIcon className="size-3.5" />
+                    {t('common.delete')}
+                  </Button>
+                </Tooltip>
               </>
             )}
           </>
         }
+      />
+
+      <ConfirmDialog
+        open={confirmingDelete}
+        onClose={() => setConfirmingDelete(false)}
+        onConfirm={() => remove.mutate()}
+        title={t('agentDetail.deleteTitle', { name })}
+        consequence={t('agentDetail.deleteEffect')}
+        confirmLabel={t('common.delete')}
+        busy={remove.isPending}
+        error={remove.error}
+        testId="confirm-delete-agent"
       />
 
       {/* The shared error slot for this screen's decisions — a delete or a

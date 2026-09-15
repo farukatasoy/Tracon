@@ -41,7 +41,6 @@ export const enCommon = {
   "common.type": 'Type',
   "common.result": 'Result',
   "common.actions": 'Actions',
-  "common.confirmDelete": 'Delete "{name}"? This cannot be undone.',
   "nav.agents": 'Agents',
   "nav.dashboard": 'Dashboard',
   "nav.playground": 'Playground',
