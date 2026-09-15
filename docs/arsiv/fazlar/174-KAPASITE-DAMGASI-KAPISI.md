@@ -2,8 +2,8 @@
 
 > **Durum:** ✅ Tamamlandı (2026-09-15)
 > **Plan onayı:** onaylandı (2026-09-15, kullanıcı) — üç açık soru + bir kapsam sorusu cevaplandı
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-239**
-> **Önkoşul:** [Faz 166](arsiv/fazlar/166-HTTP-KAPASITE-OLCUMU.md) — ölçüm aparatını, `summary.json`/`manifest.json` şemasını ve K-775'i o faz kurdu
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-239**
+> **Önkoşul:** [Faz 166](166-HTTP-KAPASITE-OLCUMU.md) — ölçüm aparatını, `summary.json`/`manifest.json` şemasını ve K-775'i o faz kurdu
 > **Paketler:** Yok — `docs-site/scripts/` ve sayfa içinde kalır (plan `scripts/` diyordu; sapma 2)
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyümüyor
@@ -26,7 +26,7 @@
    yenilenmeden sürüm satırı güncellenmez), **K-766** (süreç ölçümü kapısı
    bölümün VARLIĞINI denetler, DOĞRULUĞUNU denetlemez — bu fazın kapısı
    bilerek **tersini** yapar, farkı §174.4 anlatır)
-3. [Faz 166](arsiv/fazlar/166-HTTP-KAPASITE-OLCUMU.md) — yalnız devir notu ve
+3. [Faz 166](166-HTTP-KAPASITE-OLCUMU.md) — yalnız devir notu ve
    denetim bulguları:
    ```bash
    awk '/## Denetim Bulguları/,0' docs/arsiv/fazlar/166-HTTP-KAPASITE-OLCUMU.md
@@ -34,7 +34,7 @@
    Bu fazın var olma sebebi o beş 🔴 bulgudur. Hangi hata sınıfının
    tekrarlandığını görmeden kapı yanlış yere kurulur.
 4. Alan hafızası (bu faz bir alana dokunuyor):
-   [`hafiza/dokumantasyon.md`](hafiza/dokumantasyon.md) (doküman kapısı yazma
+   [`hafiza/dokumantasyon.md`](../../hafiza/dokumantasyon.md) (doküman kapısı yazma
    tuzakları; `docs/` ile `docs-site/` sınırı)
 5. Gerektiğinde, tamamı değil ilgili bölümü: `scripts/dokuman-bakim.py`
    `denetle()` (satır 2461) ve emsal kapı `manuel_test_sayim_kaymasi()`
@@ -57,13 +57,13 @@ kapıyı kurar.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`production.md:589-602`](../docs-site/src/content/docs/guides/production.md) | 12 satırlık tablo **48 sayı** yayımlıyor (`n`, `p50`, `p95`, `Completed/s`). Hiçbiri bir kapıyla ölçüm dosyasına bağlı değil |
-| [`production.md:575-579`](../docs-site/src/content/docs/guides/production.md) | Sayfa iki commit damgası anıyor: `e44d89f5` (sweep + arrival) ve `df45a7ba` (worker + soak). Damgalar **düz metin**; hiçbir kapı manifest'le karşılaştırmıyor |
-| [`production.md:570-573`](../docs-site/src/content/docs/guides/production.md) | Ortam iddiası düz metin: `Darwin 25.6.0`, 10 işlemci, 16 GiB, `.NET 10.0.100`, PostgreSQL `18.4`, `pgvector/pgvector:pg18` |
+| [`production.md:589-602`](../../../docs-site/src/content/docs/guides/production.md) | 12 satırlık tablo **48 sayı** yayımlıyor (`n`, `p50`, `p95`, `Completed/s`). Hiçbiri bir kapıyla ölçüm dosyasına bağlı değil |
+| [`production.md:575-579`](../../../docs-site/src/content/docs/guides/production.md) | Sayfa iki commit damgası anıyor: `e44d89f5` (sweep + arrival) ve `df45a7ba` (worker + soak). Damgalar **düz metin**; hiçbir kapı manifest'le karşılaştırmıyor |
+| [`production.md:570-573`](../../../docs-site/src/content/docs/guides/production.md) | Ortam iddiası düz metin: `Darwin 25.6.0`, 10 işlemci, 16 GiB, `.NET 10.0.100`, PostgreSQL `18.4`, `pgvector/pgvector:pg18` |
 | `bench/capacity/measurements/{arrival,soak,sweep,workers}/manifest.json` | Dördü de `commit`, `packageVersion`, `operatingSystem`, `architecture`, `processorCount`, `physicalMemoryBytes`, `runtimeVersion`, `postgreSqlVersion`, `databaseImage` taşıyor — sayfanın her ortam iddiasının makine okunur karşılığı **zaten var** |
 | `bench/capacity/measurements/*/summary.json` | `rows[]` her hücre için `latency.p50/p95/p99/count`, `lowSampleP95`, `lowSampleP99` taşıyor — tablonun her sayısının karşılığı **zaten var** |
-| [`dokuman-bakim.py:2614`](../scripts/dokuman-bakim.py) | Kapılar `denetle()` içinde `(ad, bulgular)` demetiyle kaydediliyor; yeni kapı bu listeye bir satırdır |
-| [`dokuman-bakim.py:1051`](../scripts/dokuman-bakim.py) | `manuel_test_sayim_kaymasi()` birebir emsal: yayımlanan bir sayıyı kaynağıyla karşılaştırır |
+| [`dokuman-bakim.py:2614`](../../../scripts/dokuman-bakim.py) | Kapılar `denetle()` içinde `(ad, bulgular)` demetiyle kaydediliyor; yeni kapı bu listeye bir satırdır |
+| [`dokuman-bakim.py:1051`](../../../scripts/dokuman-bakim.py) | `manuel_test_sayim_kaymasi()` birebir emsal: yayımlanan bir sayıyı kaynağıyla karşılaştırır |
 
 > Kanıtlar 2026-09-15 tarihinde doğrulandı.
 >
@@ -525,7 +525,7 @@ kapının var olma sebebi olan sınıfın ta kendisi, kapının göremediği bir
 | 7 | 🟡 | `Path` sütunu hiç karşılaştırılmıyordu; `Buffered` ↔ `Streaming` etiketlerini takas etmek kapıyı yeşil bırakıyordu | **Düzeltildi.** Etiket, işaretin `scenario`'sunu içermek zorunda (latency + storage, 15 satır) |
 | 8 | 🟡 | İki DoD satırının (`samples/Tracon.Api` ile gerçek `run`, `secret` taraması) ne kanıtı ne muafiyeti vardı | **Düzeltildi.** `secret` taraması koşuldu (`kapi.py tarama` ✅); `run` satırı **açıkça muaf** tutuldu ve gerekçesi yazıldı — faz `src/`·`tests/`·`samples/`'a hiç dokunmuyor |
 
-🟢 bulguların beşi de [`ADAYLAR.md`](ADAYLAR.md)'ye **F-240** olarak düştü:
+🟢 bulguların beşi de [`ADAYLAR.md`](../../ADAYLAR.md)'ye **F-240** olarak düştü:
 `SCHEMAS.storage`'daki sabit tekrar sayısı · `P95_SAMPLE_FLOOR`'un elle senkronu ·
 7 karakterlik commit damgasının sessizce denetlenmemesi · `checkArrivalRow`'un
 `status` bakmadan toplaması · işaretlerin `llms-full.txt`'e sızması.
@@ -542,7 +542,7 @@ kapının var olma sebebi olan sınıfın ta kendisi, kapının göremediği bir
 - **🚨 Markdown tablosunun satırları arasına yorum konmaz** — tablo o satırda
   biter, 13 satır 1'e düşer ve `npm run build` **yeşil kalır**. İşaret hücrenin
   **içine**, kapan `|`'dan önce girer. Ölçüm ve emsal:
-  [`hafiza/dokumantasyon.md`](hafiza/dokumantasyon.md).
+  [`hafiza/dokumantasyon.md`](../../hafiza/dokumantasyon.md).
 
 - **🚨 Bir kapının envanterini sayfanın kendisi belirleyemez.** İlk yazım
   "işaretli satır" arıyordu; işaretleri silmek kapıyı **sessizleştiriyordu**.
