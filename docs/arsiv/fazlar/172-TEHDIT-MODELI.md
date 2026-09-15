@@ -2,7 +2,7 @@
 
 > **Durum:** ✅ Tamamlandı (2026-09-15)
 > **Plan onayı:** onaylandı (2026-09-15) — açık sorular önerilen seçeneklerle kapatıldı
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-235**
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-235**
 > **Önkoşul:** Yok. Sınır envanteri tüketici geri bildirimi turunda (2026-09-15) üretildi
 > **Paketler:** Yok — bu faz kod yazmaz
 > **Yeni paket:** Yok · **Migration:** Yok
@@ -28,17 +28,17 @@
    **K-059** (`secret` veritabanına da yazılmaz),
    **K-771** (toplu kabul anahtarı yok),
    **K-773** (production profil kümesi bir sürüm sözleşmesidir)
-3. [`arsiv/fazlar/170-PRODUCTION-PROFIL-KAPISI.md`](arsiv/fazlar/170-PRODUCTION-PROFIL-KAPISI.md) — yalnız devir notu:
+3. [`arsiv/fazlar/170-PRODUCTION-PROFIL-KAPISI.md`](170-PRODUCTION-PROFIL-KAPISI.md) — yalnız devir notu:
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/170-PRODUCTION-PROFIL-KAPISI.md
    ```
    Altı üretim riskinin (`TraconProductionRisk`) tehdit modelindeki karşılığı
    oradan gelir.
 4. Alan hafızası (bu faz bir alana dokunuyor):
-   [`hafiza/dokumantasyon.md`](hafiza/dokumantasyon.md) (yayın hattı, `docs/` ile
+   [`hafiza/dokumantasyon.md`](../../hafiza/dokumantasyon.md) (yayın hattı, `docs/` ile
    `docs-site/` sınırı, üretilen sayfalar)
 5. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MIMARI-GUVENLIK.md`](MIMARI-GUVENLIK.md) — **tamamı okunmaz**; model oradaki
+   [`MIMARI-GUVENLIK.md`](../../MIMARI-GUVENLIK.md) — **tamamı okunmaz**; model oradaki
    güvenlik modelini tekrar etmez, ona **atıf yapar**
 
 ---
@@ -62,10 +62,10 @@ yanlışlanır; bu repo'da tam olarak bu kusur sınıfı defalarca tekrarladı.
 |---|---|
 | `grep -rli "tehdit model\|threat model\|STRIDE" docs/` | Yalnız üç dosya eşleşir ve **üçü de bu turun kendi kaydıdır** (`ADAYLAR.md`, `YAYIN-HAZIRLIK.md`, bir arşiv girdi raporu). Model dokümanı yok |
 | `grep -roi "security boundar" docs-site/src/content/docs/api/` | **22** geçiş, **15** ayrı `api/` sayfasına dağılmış. Tekil notlar; birleştirilmiş bir analiz değil |
-| [`getting-started/security.md`](../docs-site/src/content/docs/getting-started/security.md) § *The boundaries Tracon enforces* | **14** sınır listeler. Bu turda eklendi ve modelin iskeletidir — ama sınırın **neyi**, **kime karşı** koruduğunu yazmaz |
-| [`SECURITY.md`](../SECURITY.md) § *Scope* | Kapsam içi sekiz alan sayar. Liste var, gerekçe yok: bir raporcu neyin kapsam içi olduğunu görür, **neden** olduğunu görmez |
+| [`getting-started/security.md`](../../../docs-site/src/content/docs/getting-started/security.md) § *The boundaries Tracon enforces* | **14** sınır listeler. Bu turda eklendi ve modelin iskeletidir — ama sınırın **neyi**, **kime karşı** koruduğunu yazmaz |
+| [`SECURITY.md`](../../../SECURITY.md) § *Scope* | Kapsam içi sekiz alan sayar. Liste var, gerekçe yok: bir raporcu neyin kapsam içi olduğunu görür, **neden** olduğunu görmez |
 | `wc -c docs/MIMARI-GUVENLIK.md` | **22.000 / 23.200 bayt — DAR (%5 boş)**. Yeni içerik bu dosyaya sığmaz; ayrı dosya zorunludur |
-| [`TraconProductionRisk.cs`](../src/Tracon.Abstractions/Diagnostics/TraconProductionRisk.cs) | Altı üretim riski adıyla tanımlı. Tehdit modelinin risk ekseni burada zaten yarı yarıya yazılmış |
+| [`TraconProductionRisk.cs`](../../../src/Tracon.Abstractions/Diagnostics/TraconProductionRisk.cs) | Altı üretim riski adıyla tanımlı. Tehdit modelinin risk ekseni burada zaten yarı yarıya yazılmış |
 
 > Kanıtlar 2026-09-15 tarihinde doğrulandı.
 
