@@ -128,7 +128,9 @@ public sealed partial class RunRecordingAgent
     /// <para>
     /// The error is <strong>swallowed</strong>: observability does not break
     /// functionality (the same contract as <see cref="IRunStore"/>). A run whose input
-    /// could not be written still works; it only cannot be replayed.
+    /// could not be written still works; it only cannot be replayed. The loss is
+    /// counted on <see cref="TraconDiagnostics.RunRecordingFailureCounterName"/> with
+    /// the <c>input</c> stage, so that it is visible without reading logs.
     /// </para>
     /// </remarks>
     private async ValueTask SaveInputAsync(
@@ -155,6 +157,11 @@ public sealed partial class RunRecordingAgent
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
+            // Same signal as every other lost write, on the same counter: the run
+            // survived but its evidence did not. This one is outside RunEventWriter,
+            // so it is counted here rather than through Disable.
+            _metrics?.RecordRunRecordingFailure(start.Scope.TenantId, RunRecordingStages.Input);
+
             _logger.LogWarning(
                 ex,
                 "Failed to save the Tracon run input. Run {RunId} continues normally " +

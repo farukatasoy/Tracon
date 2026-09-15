@@ -89,6 +89,16 @@ public static class TraconDiagnostics
     /// </remarks>
     public const string AuditWriteFailureCounterName = "tracon.audit.write_failures";
 
+    /// <summary>Gets the counter name for run records that could not be written.</summary>
+    /// <remarks>
+    /// Run recording is best-effort by design: a store failure never interrupts the
+    /// run. This counter is how that loss becomes visible. One measurement is one
+    /// write attempt whose record was lost, separated by
+    /// <see cref="Tags.RecordingStage"/>. A non-zero value means a run happened whose
+    /// evidence is incomplete or missing.
+    /// </remarks>
+    public const string RunRecordingFailureCounterName = "tracon.run.recording_failures";
+
     /// <summary>Defines span and metric tag names. Changing them breaks dashboards.</summary>
     public static class Tags
     {
@@ -196,6 +206,15 @@ public static class TraconDiagnostics
 
         /// <summary>Gets the audit write-failure outcome tag name: <c>swallowed</c> or <c>refused</c>.</summary>
         public const string AuditOutcome = "tracon.audit.outcome";
+
+        /// <summary>Gets the tag name for the stage a run recording failed at.</summary>
+        /// <remarks>
+        /// A closed set: <c>start</c>, <c>event</c>, <c>tool_invocation</c>,
+        /// <c>completion</c>, <c>sink</c>, <c>input</c>. The run identity is NOT a tag —
+        /// it is unbounded — and neither is the sink type, which is consumer code; the
+        /// failing sink is named in the accompanying log entry instead.
+        /// </remarks>
+        public const string RecordingStage = "tracon.recording.stage";
 
         /// <summary>Gets the job-status tag name.</summary>
         /// <remarks>

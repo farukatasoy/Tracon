@@ -135,7 +135,7 @@ public sealed class RunEventDraftValidationTests
         // gets) -- suppressing it would leave the client an unlabeled frame.
         var store = new InMemoryRunStore();
         var options = new TraconRunRecordingOptions { RecordToolPayloads = false };
-        var writer = new RunEventWriter(store, options, NullLogger.Instance, TraconId.NewId());
+        var writer = new RunEventWriter(store, options, NullLogger.Instance, TraconId.NewId(), metrics: null);
 
         await writer.StartAsync(
             new RunStartInfo { RunId = writer.RunId, AgentName = "test-agent", StartedAt = DateTimeOffset.UtcNow },
@@ -197,7 +197,7 @@ public sealed class RunEventDraftValidationTests
     private static async Task<RunEventWriter> CreateStartedWriterAsync()
     {
         var store = new InMemoryRunStore();
-        var writer = new RunEventWriter(store, new TraconRunRecordingOptions(), NullLogger.Instance, TraconId.NewId());
+        var writer = new RunEventWriter(store, new TraconRunRecordingOptions(), NullLogger.Instance, TraconId.NewId(), metrics: null);
 
         await writer.StartAsync(
             new RunStartInfo { RunId = writer.RunId, AgentName = "test-agent", StartedAt = DateTimeOffset.UtcNow },
