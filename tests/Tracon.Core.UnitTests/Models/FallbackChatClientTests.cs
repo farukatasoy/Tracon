@@ -222,7 +222,7 @@ public sealed class FallbackChatClientTests
         var runStore = new InMemoryRunStore();
         var runId = Guid.NewGuid();
         var writer = new RunEventWriter(
-            runStore, new TraconRunRecordingOptions(), NullLogger.Instance, runId);
+            runStore, new TraconRunRecordingOptions(), NullLogger.Instance, runId, metrics: null);
         var attribution = new FallbackModelAttribution();
 
         TraconRunContext.SetCurrent(new AgentRunScope

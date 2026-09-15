@@ -18,6 +18,13 @@ namespace Tracon;
 /// swallowed; once the writer hits a failure, it moves into the
 /// <see cref="IsDisabled"/> state and attempts no further writes for that run.
 /// </para>
+/// <para>
+/// <strong>The loss is counted, not only logged.</strong> Every lost write
+/// increments <see cref="TraconDiagnostics.RunRecordingFailureCounterName"/>,
+/// tagged with the tenant and the stage it was lost at, so that a hole in a
+/// run's evidence is something a dashboard shows rather than something a
+/// reader of logs eventually notices.
+/// </para>
 /// </remarks>
 public sealed class RunEventWriter
 {
@@ -25,14 +32,30 @@ public sealed class RunEventWriter
     private readonly TraconRunRecordingOptions _options;
     private readonly ILogger _logger;
     private readonly IReadOnlyList<IRunEventSink> _sinks;
-    private readonly bool[] _sinkDisabled;
+    // Claimed with Interlocked, for the same reason _disabled is: two events can
+    // reach the same sink at once (concurrent tool calls, and a child run writing
+    // into the root run's writer), and both would otherwise see the sink as live,
+    // both fail, and both count. A plain bool[] write also carries no barrier, so a
+    // second thread could keep calling a sink that is already known to be broken.
+    private readonly int[] _sinkDisabled;
+    private readonly TraconMetrics? _metrics;
     private long _sequence;
+
+    // Backs IsDisabled. An int rather than a bool so that the transition can be
+    // claimed exactly once: two writes racing into the same failure must log
+    // twice (they are two different diagnostics) but count once, because the
+    // counter measures runs that lost their record, not exceptions observed.
+    private int _disabled;
 
     /// <summary>Creates a new writer.</summary>
     /// <param name="store">The store the events are written to.</param>
     /// <param name="options">The recording detail settings.</param>
     /// <param name="logger">The logger write failures are reported to.</param>
     /// <param name="runId">The run identity.</param>
+    /// <param name="metrics">
+    /// The metric set the lost writes are counted on.
+    /// <see langword="null"/> disables counting and changes nothing else.
+    /// </param>
     /// <param name="sinks">
     /// The observers to fan every event out to, in addition to <paramref name="store"/>.
     /// <see langword="null"/> or empty runs the identical hot path as before this
@@ -44,6 +67,7 @@ public sealed class RunEventWriter
         TraconRunRecordingOptions options,
         ILogger logger,
         Guid runId,
+        TraconMetrics? metrics,
         IReadOnlyList<IRunEventSink>? sinks = null)
     {
         ArgumentNullException.ThrowIfNull(store);
@@ -54,8 +78,9 @@ public sealed class RunEventWriter
         _options = options;
         _logger = logger;
         RunId = runId;
+        _metrics = metrics;
         _sinks = sinks is { Count: > 0 } ? sinks : [];
-        _sinkDisabled = new bool[_sinks.Count];
+        _sinkDisabled = new int[_sinks.Count];
     }
 
     /// <summary>Gets the identity of the run this writer writes to.</summary>
@@ -79,7 +104,7 @@ public sealed class RunEventWriter
     /// Gets whether the writer was disabled because it hit a store failure.
     /// A disabled writer silently does nothing.
     /// </summary>
-    public bool IsDisabled { get; private set; }
+    public bool IsDisabled => Volatile.Read(ref _disabled) != 0;
 
     /// <summary>Gets the number of events written.</summary>
     public long EventCount => Interlocked.Read(ref _sequence);
@@ -114,7 +139,7 @@ public sealed class RunEventWriter
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            Disable(ex, "failed to open run record");
+            Disable(ex, RunRecordingStages.Start);
             return;
         }
 
@@ -197,7 +222,7 @@ public sealed class RunEventWriter
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                Disable(ex, "failed to write run event");
+                Disable(ex, RunRecordingStages.Event);
             }
         }
 
@@ -220,7 +245,7 @@ public sealed class RunEventWriter
 
         for (var i = 0; i < _sinks.Count; i++)
         {
-            if (_sinkDisabled[i])
+            if (Volatile.Read(ref _sinkDisabled[i]) != 0)
             {
                 continue;
             }
@@ -234,7 +259,17 @@ public sealed class RunEventWriter
                 // Disabled for THIS run only — the sink instance is shared
                 // across every concurrent run, and the field lives on this
                 // (per-run) writer instance.
-                _sinkDisabled[i] = true;
+                //
+                // Counted separately from the store: a sink that drops events loses
+                // the same evidence. Only the caller that claims the transition
+                // counts and logs, which is what keeps it to one measurement per
+                // sink per run even when several events fail into it at once.
+                if (Interlocked.Exchange(ref _sinkDisabled[i], 1) != 0)
+                {
+                    continue;
+                }
+
+                _metrics?.RecordRunRecordingFailure(TenantId, RunRecordingStages.Sink);
 
                 _logger.LogWarning(
                     ex,
@@ -271,7 +306,7 @@ public sealed class RunEventWriter
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            Disable(ex, "failed to record tool invocation");
+            Disable(ex, RunRecordingStages.ToolInvocation);
         }
     }
 
@@ -359,7 +394,7 @@ public sealed class RunEventWriter
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
-            Disable(ex, "failed to close run record");
+            Disable(ex, RunRecordingStages.Completion);
         }
     }
 
@@ -416,14 +451,26 @@ public sealed class RunEventWriter
         return string.Concat(value.AsSpan(0, _options.MaxPayloadLength), "…[truncated]");
     }
 
-    private void Disable(Exception exception, string what)
+    /// <summary>Gives up on the store for this run and records that the evidence was lost.</summary>
+    /// <param name="exception">The failure that ended recording.</param>
+    /// <param name="stage">The <see cref="RunRecordingStages"/> value the write was lost at.</param>
+    /// <remarks>
+    /// Nothing in here may throw. This runs inside the catch block whose entire
+    /// purpose is that a recording failure does not interrupt the run, so counting
+    /// and logging are the only work done.
+    /// </remarks>
+    private void Disable(Exception exception, string stage)
     {
-        IsDisabled = true;
+        // Only the first caller counts; see the _disabled field.
+        if (Interlocked.Exchange(ref _disabled, 1) == 0)
+        {
+            _metrics?.RecordRunRecordingFailure(TenantId, stage);
+        }
 
         _logger.LogWarning(
             exception,
             "Tracon run recording was disabled ({Reason}). Run {RunId} continues normally.",
-            what,
+            RunRecordingStages.Describe(stage),
             RunId);
     }
 }

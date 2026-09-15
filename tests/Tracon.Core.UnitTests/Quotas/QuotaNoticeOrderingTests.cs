@@ -20,7 +20,7 @@ public sealed class QuotaNoticeOrderingTests
     public async Task A_notice_appended_before_CompleteAsync_gets_a_lower_sequence_than_the_terminal_event()
     {
         var store = new InMemoryRunStore();
-        var writer = new RunEventWriter(store, new TraconRunRecordingOptions(), NullLogger.Instance, TraconId.NewId());
+        var writer = new RunEventWriter(store, new TraconRunRecordingOptions(), NullLogger.Instance, TraconId.NewId(), metrics: null);
 
         await writer.StartAsync(
             new RunStartInfo { RunId = writer.RunId, AgentName = "test-agent", StartedAt = DateTimeOffset.UtcNow },
@@ -41,7 +41,7 @@ public sealed class QuotaNoticeOrderingTests
     public async Task A_reader_from_the_beginning_sees_the_notice_before_the_terminal_event()
     {
         var store = new InMemoryRunStore();
-        var writer = new RunEventWriter(store, new TraconRunRecordingOptions(), NullLogger.Instance, TraconId.NewId());
+        var writer = new RunEventWriter(store, new TraconRunRecordingOptions(), NullLogger.Instance, TraconId.NewId(), metrics: null);
 
         await writer.StartAsync(
             new RunStartInfo { RunId = writer.RunId, AgentName = "test-agent", StartedAt = DateTimeOffset.UtcNow },

@@ -30,7 +30,7 @@ public sealed class RunEventSinkTests
         // exception carved out of that promise.
         var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());
         var sink = new SpyRunEventSink();
-        var writer = new RunEventWriter(store, new TraconRunRecordingOptions(), NullLogger.Instance, TraconId.NewId(), [sink]);
+        var writer = new RunEventWriter(store, new TraconRunRecordingOptions(), NullLogger.Instance, TraconId.NewId(), metrics: null, [sink]);
 
         await writer.StartAsync(
             new RunStartInfo { RunId = writer.RunId, AgentName = "test-agent", StartedAt = DateTimeOffset.UtcNow },

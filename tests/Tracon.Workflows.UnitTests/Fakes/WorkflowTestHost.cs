@@ -126,6 +126,43 @@ internal sealed class WorkflowTestHost
             sinks: sinks);
     }
 
+    /// <summary>
+    /// Builds a runner over a caller-supplied run store and metric set, so a test can
+    /// observe what the runner does when recording fails.
+    /// </summary>
+    /// <remarks>
+    /// The other overloads pin <see cref="RunStore"/>, which never fails. This one
+    /// exists because the runner is one of only two places that construct a
+    /// <c>RunEventWriter</c> in production, and the compiler cannot check that it
+    /// hands that writer the metrics it holds.
+    /// </remarks>
+    /// <param name="runStore">The store the run is recorded into.</param>
+    /// <param name="metrics">The metric set the runner should pass on to its writer.</param>
+    /// <param name="codeWorkflows">Code workflow registrations.</param>
+    /// <returns>The runner.</returns>
+    public WorkflowRunner CreateRunner(
+        IRunStore runStore,
+        TraconMetrics metrics,
+        params CodeWorkflowRegistration[] codeWorkflows)
+    {
+        var catalog = new WorkflowCatalog(
+            codeWorkflows,
+            DefinitionStore,
+            Compiler,
+            TenantContext,
+            EmptyServices.Instance);
+
+        return new WorkflowRunner(
+            catalog,
+            runStore,
+            CheckpointStore,
+            TenantContext,
+            Options.Create(new TraconWorkflowOptions()),
+            Options.Create(new TraconOptions()),
+            NullLogger<WorkflowRunner>.Instance,
+            metrics: metrics);
+    }
+
     /// <summary>Saves a definition for the tenant.</summary>
     public ValueTask<WorkflowDefinition> SaveAsync(WorkflowDefinition definition)
         => DefinitionStore.SaveAsync(TenantContext.TenantId, definition);

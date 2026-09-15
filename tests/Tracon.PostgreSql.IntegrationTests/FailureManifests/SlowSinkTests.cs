@@ -60,6 +60,7 @@ public sealed class SlowSinkTests(PostgresFixture fixture)
             new TraconRunRecordingOptions(),
             NullLogger.Instance,
             runId,
+            metrics: null,
             [sink]);
 
         await writer.StartAsync(TestData.Run(runId), "the user's question");
@@ -100,6 +101,7 @@ public sealed class SlowSinkTests(PostgresFixture fixture)
             new TraconRunRecordingOptions(),
             NullLogger.Instance,
             runId,
+            metrics: null,
             [sink]);
 
         await writer.StartAsync(TestData.Run(runId), "the user's question");

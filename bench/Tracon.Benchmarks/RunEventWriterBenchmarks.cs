@@ -22,7 +22,8 @@ public class RunEventWriterBenchmarks
             new NoOpRunStore(),
             new TraconRunRecordingOptions(),
             NullLogger.Instance,
-            Guid.NewGuid());
+            Guid.NewGuid(),
+            metrics: null);
 
         _delta = new RunEventDraft(RunEventType.MessageDelta) { Text = "a reasonably sized streamed text delta" };
     }

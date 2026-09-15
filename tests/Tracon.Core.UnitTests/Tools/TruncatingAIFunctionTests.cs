@@ -218,7 +218,7 @@ public sealed class TruncatingAIFunctionTests
     public async Task Truncation_is_recorded_as_a_run_event_with_the_tool_name_and_omitted_bytes()
     {
         var store = new InMemoryRunStore();
-        var writer = new RunEventWriter(store, new TraconRunRecordingOptions(), NullLogger.Instance, TraconId.NewId());
+        var writer = new RunEventWriter(store, new TraconRunRecordingOptions(), NullLogger.Instance, TraconId.NewId(), metrics: null);
 
         await writer.StartAsync(
             new RunStartInfo { RunId = writer.RunId, AgentName = "test-agent", StartedAt = DateTimeOffset.UtcNow },
@@ -282,7 +282,8 @@ public sealed class TruncatingAIFunctionTests
             new ThrowingOnAppendRunStore(),
             new TraconRunRecordingOptions(),
             NullLogger.Instance,
-            TraconId.NewId());
+            TraconId.NewId(),
+            metrics: null);
 
         await writer.StartAsync(
             new RunStartInfo { RunId = writer.RunId, AgentName = "test-agent", StartedAt = DateTimeOffset.UtcNow },
@@ -317,7 +318,7 @@ public sealed class TruncatingAIFunctionTests
     public async Task An_untouched_result_writes_no_truncation_event()
     {
         var store = new InMemoryRunStore();
-        var writer = new RunEventWriter(store, new TraconRunRecordingOptions(), NullLogger.Instance, TraconId.NewId());
+        var writer = new RunEventWriter(store, new TraconRunRecordingOptions(), NullLogger.Instance, TraconId.NewId(), metrics: null);
 
         await writer.StartAsync(
             new RunStartInfo { RunId = writer.RunId, AgentName = "test-agent", StartedAt = DateTimeOffset.UtcNow },
