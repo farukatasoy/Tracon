@@ -20,7 +20,7 @@
 - **🚨 `AgentDefinitionCompiler.Compile` TAMAMEN senkron; kiraci kimlik bilgisi cozumlemesi async `store` gerektirir — ikisi celisince YENI paralel async yol acildi, mevcut sync yol DEGISTIRILMEDI** (Faz 65). Vaka: [`arsiv/HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 - **`AgentRunScope.SessionId` tool'un urettigi icerigin sahibidir** (Faz 28, K-217): oturumsuz yazilan ek, saklama politikasinca **sahipsiz** sayilip silinir (`session_id IS NULL`). Kimlik `runs.session_id`'den GENIS: alt calistirma MAF oturumu almaz, icerik yine kok oturuma aittir. Ayrinti: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 <!-- MEMORY.md'de kisa ozet var (Her Oturumda Gecerli); ayrinti buradaki tek konsolide maddededir. -->
-- **🚨 `AsyncLocal` (span/`run scope`) yazimi ASYNC METOTTAN cagirana geri akmaz — uc vaka** (2026-08-02, Faz 6/11/12): (1) `Activity.Current`: kok span `async BeginRunAsync` icinde acilinca ic span'ler (`invoke_agent`, `chat`) kok'un cocugu degil **kardesi** oldu; span cagiranin **kendi govdesinde** acilmali (`RunRecordingAgent.PrepareRun` bu yuzden essenkron). (2) `run scope`: `TraconRunContext.SetCurrent` ayni sebeple `RunRecordingAgent`'in kendi govdesinde cagrilir. (3) **`async IAsyncEnumerable` govdesinde `yield return` siniri da asilmaz**: `RunCoreStreamingAsync` icinde bir kez yazilan `scope` ic cagrida `null` goruluyordu (`"calistirma kaydi kapali"` reddi) — cagri driver'a donunce `ExecutionContext` geri alinir. Cozum: akisli yolda `scope` **her `MoveNextAsync`'ten hemen once** yeniden yazilir. Regresyon: `Ic_spanler_kok_spanin_cocugu_olur`.
+- **🚨 `AsyncLocal` (span/`run scope`) yazimi ASYNC METOTTAN cagirana geri akmaz — uc vaka** (2026-08-02, Faz 6/11/12): `span`/`scope` cagiranin **kendi govdesinde** acilir, ve akisli yolda **her `MoveNextAsync`'ten hemen once** yeniden yazilir. Kapi: `TRC0501` + `AmbientWriteSiteTests`. Regresyon: `Ic_spanler_kok_spanin_cocugu_olur`. Uc vakanin anlatisi: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 - **🚨 İmza+gövde iki ayrı adım vakası: `RunEventWriter.CompleteAsync`** (2026-08-03, Faz 20, K-157): `RunCost? cost` parametresi eklendi ama `new RunCompletion { ... }`'a `Cost = cost` yazılmadı — 1068 test yakalamadı (hiçbiri `RunRecordingAgent → RunEventWriter → Store` zincirinin ORTASINI uçtan uca sınamıyordu), yalnız örnek uygulamada gerçek bir çağrıyla (`cost: null`) ortaya çıktı. Genel kural AGENTS.md'de.
 - **🚨 Disaridan iptal, `RunRecordingAgent`'in KENDI `CancellationTokenSource`'una guvenir, gelen `cancellationToken`'a DEGIL** (Faz 32): gelen token'in KENDISI iptal edilemez — `CreateLinkedTokenSource(cancellationToken)` ile kendi kaynagi kurulur, deftere O yazilir. Aksi halde defterin `Cancel()`'i hicbir seyi etkilemezdi. `WorkflowRunner.ExecuteAsync` ayni deseni tekrarlar.
 - **Dogrulanamayan workflow iptal tuzagi** (2026-08-06, Faz 32, terk edildi) — `docs/arsiv/FAZ-GECMISI.md`, "Faz 32".
@@ -36,28 +36,8 @@
 - **🚨 `CompleteAsync` ustundeki `if (IsDisabled) return;` korumasi kapanis olayini (RunCompleted/RunFailed) HIC uretmiyordu** (Faz 70, K-493): depo ve sink BAGIMSIZ olmali; koruma kaldirildi, yalniz `_store.CompleteRunAsync` `IsDisabled`'a bagli. Yeni bir "erken don" eklerken sor: bu YALNIZ depo icin mi, depo-DISI tuketiciyi de susturuyor mu? Vaka: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 - **🚨 `IRunStore.ListToolInvocationsAsync(runId)` tenant'i `ITenantContext`'ten ORTUK okur** (Faz 85): `QueryRunsAsync`'in aksine `RunQuery.TenantId` almaz; HTTP disindan (test, konsol araci) ambient scope acik degilse SESSIZCE bos doner (`IsOwnedByCurrentTenant` `false`). Cozum: `AmbientTenantScope.Begin(tenantId)` ile sarmala.
 - **🚨 Ateşle-unut görev, sahiplenilen kaynağın ömrünü AŞAMAZ** (2026-08-25, Faz 99, F-150): `JobWorkerBackgroundService` bir işi başlatmadan önce completion görevini kaydeder; `ExecuteAsync`, slot `SemaphoreSlim`'ini dispose etmeden önce kaydedilen görevlerin tamamını bekler. Aksi sıra, host kapanışında gecikmiş `Release()` ile işlenmemiş `ObjectDisposedException` ve süreç çöküşü üretir. `JobWorkerBackgroundServiceTests` `StopAsync`'in çalışan job slotu bırakılmadan dönmediğini doğrudan ölçer. Yeni bir `_ = SomeAsync(...)` görürsen iki soruyu sor: görev kapanışta gözlemleniyor mu; yakaladığı kaynak onu bekleyen scope'tan uzun mu yaşıyor?
-- **🚨 `ConcurrentDictionary<TKey,TValue>.GetOrAdd(key, valueFactory)` tahsis eder
-  — HER cagrida, CACHE ISABETINDE bile** (2026-08-27, Faz 116, ölçüldü): C#
-  argümanları çağrılan metottan ÖNCE değerlendirir, yani `_ => factory()` gibi bir
-  kapanış her seferinde HEAP'e yeni bir delege olarak yazılır — sözlük anahtarı
-  zaten var olsa da, `valueFactory` hiç ÇAĞRILMASA da. `CompiledAgentCache.GetOrAdd`
-  bunu yapıyordu; `GetOrAddAsync` kardeşi zaten `TryGetValue`-önce desenini
-  kullanıyordu, sync taraf kullanmıyordu. Ölçüldü (BenchmarkDotNet,
-  `bench/Tracon.Benchmarks`): düzeltme öncesi isabet başına 88 B, sonrası
-  24 B — kalan 24 B `ConcurrentDictionary<CacheKey,AIAgent>.TryGetValue`'nun
-  kendi maliyeti (izole ölçüldü, kaynağı bulunamadı; her koşumda sabit ve
-  deterministik). Kural: `GetOrAdd(key, _ => ...)` yazarken önce
-  `TryGetValue(key, out var existing)` dene, yalnız KAÇIRINCA `GetOrAdd`'a düş.
-- **🚨 `RunRecordingAgent.ToRunError`'un `Message = exception.Message` satırı
-  yıllarca "zaten redakte ediyor" sanılan ama redakte ETMEYEN bir kod yoluydu**
-  (2026-08-27, Faz 119, K-640). `Type` alanı `TraconException.ErrorType`
-  ile zaten stabil bir kod taşıyordu — bu, okuyana "hata sınıflandırması
-  yapılıyor, güvenli" izlenimi veriyordu, ama `Message` alanı HER ZAMAN ham
-  `exception.Message`'ı yazıyordu, `Type` ayrımından bağımsız. Bir alanın
-  güvenli görünmesi (stabil kod, sınıflandırılmış tip) komşu alanın da güvenli
-  olduğunu KANITLAMAZ — ikisi ayrı ayrı denetlenir. Düzeltme:
-  `SafeErrorText.ForPersistence(exception, correlationId)`; `ToRunError` artık
-  `static` değil, `_logger.LogError` çağırabilmek için instance metot.
+- **🚨 `ConcurrentDictionary.GetOrAdd(key, valueFactory)` tahsis eder — HER cagrida, CACHE ISABETINDE bile** (2026-08-27, Faz 116, olculdu): C# argumani metottan ONCE degerlendirir, yani `_ => factory()` kapanisi anahtar zaten varken de HEAP'e yazilir. Cozum `TryGetValue`-once deseni; isabet basina 88 B → 24 B (BenchmarkDotNet). Olcum: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
+- **🚨 Bir alanin guvenli GORUNMESI komsu alanin da guvenli oldugunu KANITLAMAZ** (2026-08-27, Faz 119, K-640): `ToRunError`'un `Type`'i stabil bir kod tasirken `Message` ham `exception.Message`'i yaziyordu. Duzeltme `SafeErrorText.ForPersistence(exception, correlationId)`; `ToRunError` artik instance metot, `_logger.LogError` cagirabilsin diye. Anlati: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 - **🚨 İstisnayla biten `run`'ın TEK usage kaynağı `scope.ExtraUsage`'dır**
   (2026-09-02, Faz 134): `catch (Exception)` `usage`'ı DAİMA `null` geçirir.
   Faz 134'ün onarım döngüsü `scope.ExtraUsage?.Add(...)` ile bunu kullandı ve
@@ -70,3 +50,19 @@
 - **Bir bütçe, altındaki transport tavanı ölçülmeden bütçe değildir** (F-219 sınıf taraması, K-760) — `HttpClient.Timeout`'un 100 sn'lik varsayılanı üstteki her `CancelAfter` bütçesini sessizce kesiyordu. Tam kayıt: [`nswag-istemci-uretimi.md`](nswag-istemci-uretimi.md).
 - **🚨 `IRunEventSink` dağıtımı SICAK YOLDA `await` edilir — yavaş bir `sink` `run`'ı yavaşlatır** (2026-09-08, Faz 157, ölçüldü). "Gözlemlenebilirlik işlevselliği bozmaz" kuralı yalnız ARIZAYI kapsar: fırlatan bir `sink` ilk hatada o `run` için devre dışı kalır ve `run` sürer. GECİKME izole edilmez; olay başına ödenir. Ölçüm: `SlowSinkTests.A_slow_sink_delays_the_run_because_dispatch_is_inline` (alt sınır olarak yazılır ki hızlı makine testi tesadüfen yeşile çeviremesin). Ağ hedefi olan bir `sink` kendi içinde tamponlamalı ve hemen dönmelidir.
 - **Ölen worker'ın işi `lease_until` dolana kadar KİMSEYE geçmez; sonra `attempt` artarak devralınır** (2026-09-08, Faz 157, K-739). Ölçülen üç şey: devralma `lease_until`'dan sonra başlar · madde sayaçları idempotenttir (`doneItems` ikiye katlanmaz) · iki worker aynı işte ASLA aynı anda bulunmaz. Yürütme yine de **at-least-once**'tır: çöken denemenin dış yan etkileri geri alınmaz. Bu bir çok node DESTEK beyanı değildir; SQLite tek process tavsiyesi korunur.
+- **🚨 K-640'ın bedeli: normalizasyon classifier'ın ÜSTÜNE konunca kümelemeyi
+  yok eder** (2026-09-15, yayın denetimi). `ErrorFingerprint.Compute`
+  `RunError.Message`'ı kümeleme anahtarına çevirir, ama yabancı bir exception
+  için o alan artık `SafeErrorText.ForPersistence` metnidir ve içinde **her
+  oluşumda yeni** bir correlation id vardır. `GuidPattern` onu göremez
+  (`NewCorrelationId` `"N"` biçimidir, tire yok), `NumberPattern` yalnız rakam
+  öbeklerini siler: `a1b2c3d4` → `a{n}b{n}c{n}d{n}`. Ölçüldü: **aynı hatanın
+  2000 oluşumu 1368 ayrı kümeye** düştü; Tracon'un kendi exception'ı — mesajı
+  korunduğu için — tek kümeydi. Düzeltme `CorrelationRefPattern()`'i **diğer her
+  desenden ÖNCE** koşturur; sıra zorunludur ve uzunluk kasıtlı olarak sekize
+  sabitlenmedi. Ders: bir metin hem operatöre (izlenebilirlik) hem makineye
+  (kümeleme anahtarı) hizmet ediyorsa, oluşum başına değişen her token ikincisini
+  bozar — normalizasyonun boru hattındaki YERİ, varlığı kadar önemlidir. Sınıf
+  taraması: tek üretim çağıranı `DefaultRunErrorClassifier:62`; `InMemoryRunStore`
+  orphaned sabit fingerprint'i gerekçeli tasarımdır, vaka değil. Regresyon:
+  `ErrorFingerprintTests.The_same_foreign_failure_clusters_together_across_occurrences`.

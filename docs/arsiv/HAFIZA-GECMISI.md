@@ -652,3 +652,39 @@ alinarak testin kirmizi oldugu dogrulandi). Diger iki yer bir host ve bir surec
 sinirinin arkasindadir; onlari kapsayacak kultur kapsamli bir test yanindaki
 paralel testlere sizardi. Kapsanmadiklari testin kendi yorumunda ACIKCA
 yazilidir — hicbir sey kanitlamayan bir testle ortulmedi.
+
+## `docs/hafiza/cekirdek-calistirma.md`'den — 2026-09-15 butce rahatlatmasi
+
+Iki notun KURALI alan dosyasinda kaldi; asagisi kuralin nasil kesfedildigidir.
+
+### `AsyncLocal` yaziminin uc vakasi (Faz 6/11/12)
+
+- **🚨 `AsyncLocal` (span/`run scope`) yazimi ASYNC METOTTAN cagirana geri akmaz — uc vaka** (2026-08-02, Faz 6/11/12): (1) `Activity.Current`: kok span `async BeginRunAsync` icinde acilinca ic span'ler (`invoke_agent`, `chat`) kok'un cocugu degil **kardesi** oldu; span cagiranin **kendi govdesinde** acilmali (`RunRecordingAgent.PrepareRun` bu yuzden essenkron). (2) `run scope`: `TraconRunContext.SetCurrent` ayni sebeple `RunRecordingAgent`'in kendi govdesinde cagrilir. (3) **`async IAsyncEnumerable` govdesinde `yield return` siniri da asilmaz**: `RunCoreStreamingAsync` icinde bir kez yazilan `scope` ic cagrida `null` goruluyordu (`"calistirma kaydi kapali"` reddi) — cagri driver'a donunce `ExecutionContext` geri alinir. Cozum: akisli yolda `scope` **her `MoveNextAsync`'ten hemen once** yeniden yazilir. Regresyon: `Ic_spanler_kok_spanin_cocugu_olur`.
+
+### `ToRunError`'un redakte ETMEYEN `Message` satiri (Faz 119, K-640)
+
+- **🚨 `RunRecordingAgent.ToRunError`'un `Message = exception.Message` satırı
+  yıllarca "zaten redakte ediyor" sanılan ama redakte ETMEYEN bir kod yoluydu**
+  (2026-08-27, Faz 119, K-640). `Type` alanı `TraconException.ErrorType`
+  ile zaten stabil bir kod taşıyordu — bu, okuyana "hata sınıflandırması
+  yapılıyor, güvenli" izlenimi veriyordu, ama `Message` alanı HER ZAMAN ham
+  `exception.Message`'ı yazıyordu, `Type` ayrımından bağımsız. Bir alanın
+  güvenli görünmesi (stabil kod, sınıflandırılmış tip) komşu alanın da güvenli
+  olduğunu KANITLAMAZ — ikisi ayrı ayrı denetlenir. Düzeltme:
+  `SafeErrorText.ForPersistence(exception, correlationId)`; `ToRunError` artık
+  `static` değil, `_logger.LogError` çağırabilmek için instance metot.
+
+### `GetOrAdd` kapanis tahsisi (Faz 116)
+
+- **🚨 `ConcurrentDictionary<TKey,TValue>.GetOrAdd(key, valueFactory)` tahsis eder
+  — HER cagrida, CACHE ISABETINDE bile** (2026-08-27, Faz 116, ölçüldü): C#
+  argümanları çağrılan metottan ÖNCE değerlendirir, yani `_ => factory()` gibi bir
+  kapanış her seferinde HEAP'e yeni bir delege olarak yazılır — sözlük anahtarı
+  zaten var olsa da, `valueFactory` hiç ÇAĞRILMASA da. `CompiledAgentCache.GetOrAdd`
+  bunu yapıyordu; `GetOrAddAsync` kardeşi zaten `TryGetValue`-önce desenini
+  kullanıyordu, sync taraf kullanmıyordu. Ölçüldü (BenchmarkDotNet,
+  `bench/Tracon.Benchmarks`): düzeltme öncesi isabet başına 88 B, sonrası
+  24 B — kalan 24 B `ConcurrentDictionary<CacheKey,AIAgent>.TryGetValue`'nun
+  kendi maliyeti (izole ölçüldü, kaynağı bulunamadı; her koşumda sabit ve
+  deterministik). Kural: `GetOrAdd(key, _ => ...)` yazarken önce
+  `TryGetValue(key, out var existing)` dene, yalnız KAÇIRINCA `GetOrAdd`'a düş.

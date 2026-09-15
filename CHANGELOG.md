@@ -6,20 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-Nothing yet.
+Nothing here has been published yet. Tracon is in development: no version
+has been pushed to NuGet or npm, and there is no release tag. The entries below
+describe what is on `main`. The first real release will get its own section,
+fixed to the artifacts it actually ships, and carries the date it shipped on.
 
-## [1.0.0-preview.1]
-
-The first published version of Tracon. Nothing shipped before it: no package
-was pushed to NuGet or npm and no release tag existed, so no consumer carries
-over from an earlier version. The entries below describe the surface this
-release ships rather than a change from a predecessor. The **Changed** group
-records two decisions taken late in development that alter behaviour described
-in earlier documentation; they cost an existing consumer nothing, because there
-was no earlier release to be a consumer of.
-
-This is a preview. The public API is not frozen: `PublicAPI.Shipped.txt` is
-empty in every package, and the surface may still be reduced before 1.0.
+The public API is not frozen either: `PublicAPI.Shipped.txt` is empty in every
+package, and the surface may still be reduced before 1.0.
 
 ### Added
 
