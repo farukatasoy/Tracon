@@ -1,6 +1,6 @@
 # Tracon — Güvenlik Tarama Planı İndeksi
 
-> Kapsamlı bir güvenlik taraması için 10 konu başlığına bölünmüş, bağımsız
+> Kapsamlı bir güvenlik taraması için 12 konu başlığına bölünmüş, bağımsız
 > çalıştırılabilir prompt seti. Her `NN-<konu>.md` dosyası tek başına bir
 > agent oturumuna verilebilir. Bu dosya ortak çerçeveyi ve kullanım
 > talimatını taşır; konu dosyaları bunu tekrarlamaz, buraya referans verir.
@@ -13,11 +13,21 @@ Bu taramanın amacı sıfırdan zafiyet aramak değil, var olan korumalarda
 **regresyon** ve **boşluk** bulmaktır. Kapanmış bir K-kararını yeniden
 tartışmak bulgu değildir.
 
+Konu 11 ve 12'nin saldırı sınıfı listesi `cloudflare/security-audit-skill`
+(MIT) deposunun `AI-AND-LLM.md` ve `DATA-ISOLATION-AND-LIFECYCLE.md`
+dosyalarından uyarlandı, sonra Tracon'un kod yolları ve K-kararlarıyla
+eşleştirildi. Jenerik liste tek başına kullanılmaz — mimariye özel bağlam
+olmadan kapanmış kararları bulgu sanır.
+
 ## Koşum kaydı
 
 | Tarih | Taban | Sonuç |
 |---|---|---|
-| 2026-08-20 | `1cda224` | 10 konu koşuldu → [`BULGULAR.md`](BULGULAR.md) — 4 🔴, 14 🟡, 18 🟢 CONFIRMED |
+| 2026-08-20 | `1cda224` | Konu 01-10 koşuldu → [`BULGULAR.md`](BULGULAR.md) — 4 🔴, 14 🟡, 18 🟢 CONFIRMED |
+
+**Konu 11 ve 12 HİÇ koşulmadı.** Ayrıca `1cda224` tabanından bu yana 477
+commit geçti ve `src/` içinde 1430 dosya değişti; 01-10 sonuçları o taban
+içindir, bugünkü kod için değil.
 
 **Bulgu defteri [`BULGULAR.md`](BULGULAR.md)'dir.** Bir konuyu yeniden koşmadan
 önce oraya bak: doğrulanmış korumalar listelenmiştir ve tekrar taranmaları
@@ -37,18 +47,22 @@ gerekmez.
 
 ## Öncelik sırası
 
+**Öncelik numarası konu numarası DEĞİLDİR.** Sıra risk sırasıdır.
+
 | Öncelik | Konu | Gerekçe |
 |---|---|---|
 | 🔴 1 | [01-kimlik-dogrulama-ve-yetkilendirme.md](01-kimlik-dogrulama-ve-yetkilendirme.md) | Dış yüzeyin ilk kapısı |
 | 🔴 2 | [02-kiraci-izolasyonu.md](02-kiraci-izolasyonu.md) | İhlali kiracılar arası veri sızıntısı |
-| 🔴 3 | [03-denetim-izi-ve-secret-redaksiyonu.md](03-denetim-izi-ve-secret-redaksiyonu.md) | Sızıntı sınıfı geçmişte 5+ kez tekrarlandı |
-| 🔴 4 | [04-script-sandbox.md](04-script-sandbox.md) | İhlali kod çalıştırma sınıfı risk taşır |
-| 🟡 5 | [05-dis-ag-erisimi.md](05-dis-ag-erisimi.md) | SSRF/webhook, sunucu taraflı istismar |
-| 🟡 6 | [06-veri-katmani.md](06-veri-katmani.md) | SQL enjeksiyonu, at-rest koruma |
-| 🟢 7 | [07-bagimlilik-tedarik-zinciri.md](07-bagimlilik-tedarik-zinciri.md) | Bilinen CVE-pin'lerin geçerliliği |
-| 🟢 8 | [08-aot-reflection.md](08-aot-reflection.md) | Dinamik tip yükleme riski |
-| 🟢 9 | [09-frontend-guvenligi.md](09-frontend-guvenligi.md) | İstemci tarafı, düşük blast-radius |
-| 🟢 10 | [10-loglama-gizlilik.md](10-loglama-gizlilik.md) | Sızıntı riski, doğrudan istismar değil |
+| 🔴 3 | [11-model-ve-tool-delegasyonu.md](11-model-ve-tool-delegasyonu.md) | Tehdit modeli A4/A5; hiç taranmadı |
+| 🔴 4 | [03-denetim-izi-ve-secret-redaksiyonu.md](03-denetim-izi-ve-secret-redaksiyonu.md) | Sızıntı sınıfı geçmişte 5+ kez tekrarlandı |
+| 🔴 5 | [04-script-sandbox.md](04-script-sandbox.md) | İhlali kod çalıştırma sınıfı risk taşır |
+| 🟡 6 | [05-dis-ag-erisimi.md](05-dis-ag-erisimi.md) | SSRF/webhook, sunucu taraflı istismar |
+| 🟡 7 | [12-veri-yasam-dongusu.md](12-veri-yasam-dongusu.md) | Silme sözü ve türev kopya; hiç taranmadı |
+| 🟡 8 | [06-veri-katmani.md](06-veri-katmani.md) | SQL enjeksiyonu, at-rest koruma |
+| 🟢 9 | [07-bagimlilik-tedarik-zinciri.md](07-bagimlilik-tedarik-zinciri.md) | Bilinen CVE-pin'lerin geçerliliği |
+| 🟢 10 | [08-aot-reflection.md](08-aot-reflection.md) | Dinamik tip yükleme riski |
+| 🟢 11 | [09-frontend-guvenligi.md](09-frontend-guvenligi.md) | İstemci tarafı, düşük blast-radius |
+| 🟢 12 | [10-loglama-gizlilik.md](10-loglama-gizlilik.md) | Sızıntı riski, doğrudan istismar değil |
 
 ## Ortak çerçeve (her konu oturumu bunu uygular)
 
