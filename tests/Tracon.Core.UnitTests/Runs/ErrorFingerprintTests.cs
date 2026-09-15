@@ -1,3 +1,5 @@
+using System.Net.Http;
+
 namespace Tracon.Core.UnitTests.Runs;
 
 /// <summary>
@@ -76,5 +78,41 @@ public sealed class ErrorFingerprintTests
 
         fingerprint.Length.ShouldBe(64);
         fingerprint.ShouldBe(fingerprint.ToLowerInvariant());
+    }
+
+    /// <summary>
+    /// 🚨 A foreign exception is never persisted with its own message: it is stored
+    /// as <see cref="SafeErrorText.ForPersistence"/> writes it, tagged with a
+    /// correlation id that is NEW on every occurrence. That id is a variable part
+    /// like a number or a timestamp, and clustering is what this type exists for —
+    /// left in the key, the same outage lands in a new cluster every single time.
+    /// </summary>
+    [Fact]
+    public void The_same_foreign_failure_clusters_together_across_occurrences()
+    {
+        var exception = new HttpRequestException("Connection refused (api.example.com:443)");
+
+        var fingerprints = Enumerable
+            .Range(0, 200)
+            .Select(_ => ErrorFingerprint.Compute(
+                SafeErrorText.ForPersistence(exception, SafeErrorText.NewCorrelationId())))
+            .ToHashSet(StringComparer.Ordinal);
+
+        fingerprints.Count.ShouldBe(1);
+    }
+
+    /// <summary>
+    /// The mirror image: collapsing the correlation id must not collapse the
+    /// failures themselves into one bucket.
+    /// </summary>
+    [Fact]
+    public void Different_foreign_failures_still_cluster_separately()
+    {
+        var refused = ErrorFingerprint.Compute(
+            SafeErrorText.ForPersistence(new HttpRequestException("refused"), SafeErrorText.NewCorrelationId()));
+        var timedOut = ErrorFingerprint.Compute(
+            SafeErrorText.ForPersistence(new TimeoutException("timed out"), SafeErrorText.NewCorrelationId()));
+
+        string.Equals(refused, timedOut, StringComparison.Ordinal).ShouldBeFalse();
     }
 }
