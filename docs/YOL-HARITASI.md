@@ -183,7 +183,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [168](arsiv/fazlar/168-KURTARMA-RAMPASI-KATALOGU.md) | Kurtarma Rampası Kataloğu | ✅ Tamamlandı |
 | [169](arsiv/fazlar/169-FAZ-PLANI-SOZLESMESI.md) | Faz Planı Sözleşmesi: Süreç Ölçümü ve Triyaj | ✅ Tamamlandı |
 | [170](arsiv/fazlar/170-PRODUCTION-PROFIL-KAPISI.md) | Production Profil Kapısı | ✅ Tamamlandı |
-| [171](171-DENETIM-IZI-YAZMA-POLITIKASI.md) | Denetim İzi Yazma Politikası | ✅ Tamamlandı |
+| [171](arsiv/fazlar/171-DENETIM-IZI-YAZMA-POLITIKASI.md) | Denetim İzi Yazma Politikası | ✅ Tamamlandı |
 | [172](172-TEHDIT-MODELI.md) | Tehdit Modeli | 📋 Planlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).
