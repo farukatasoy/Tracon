@@ -127,6 +127,12 @@ cd docs-site && node scripts/check-content.mjs
 - **`architecture` ortam alanı denetlenmez.** Manifest `arm64` yazar, sayfa
   "Apple Silicon" der; ikisi aynı olgudur. Değişmezi harfiyen istemek sayfayı
   **kötüleştirirdi**.
+- **Worker ve soak bölümlerinin sayıları henüz işaretsizdir.** Faz 174 denetimi
+  hepsini elle doğruladı (worker dağılımı %33/31/19/17 · soak 12 515 `run` ·
+  0,2 s · 379 MiB · 6,94/s) ve **doğru** buldu; ama `workers`/`soak`
+  profillerinden hiçbir satır `kind=value` işareti taşımıyor. Sayfaya o
+  bölümlerde bir sayı ekleyen ya da düzelten oturum işareti de koysun —
+  maliyeti tek satırdır.
 - **Kapı sayının DOĞRU ÖLÇÜLDÜĞÜNÜ değil, doğru TAŞINDIĞINI kanıtlar.** Ölçümün
   kendisi yanlışsa kapı yeşil kalır. Yeniden ölçmenin yolu `kapasite`
   profillerini koşmaktır (K-775); sayıyı elle düzeltmek değil.
