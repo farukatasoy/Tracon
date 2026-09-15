@@ -1,3 +1,4 @@
+import { checkCapacityStamp } from './check-capacity-stamp.mjs';
 import { checkConsoleScreens } from './check-console-screens.mjs';
 // Product-documentation invariants that are cheap enough to run on every build.
 //
@@ -573,6 +574,10 @@ for (const url of indexed) {
 // ---------------------------------------------------------------------------
 
 errors.push(...checkConsoleScreens(sourceRoot, docsRoot, siteRoot));
+
+// A published capacity number is a shipped claim, and phase 166's audit found
+// five of them wrong in the step between the measurement file and the page.
+errors.push(...checkCapacityStamp(docsRoot, join(repositoryRoot, 'bench/capacity/measurements')));
 
 const manualProse = manualContent.map((file) => readFileSync(file, 'utf8')).join('\n');
 

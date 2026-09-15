@@ -9135,28 +9135,30 @@ percentile once, after a 15-second warm-up, against an empty database.
 
 | Path | Concurrency | n | p50 | p95 | Completed/s |
 |---|---|---|---|---|---|
-| Buffered (`Idempotency-Key`) | 1 | 174 | 1044 ms | 1057 ms | 0.94 |
-| Buffered | 8 | 1 384 | 1048 ms | 1084 ms | 7.47 |
-| Buffered | 32 | 5 472 | 1060 ms | 1108 ms | 29.5 |
-| Buffered | 64 | 10 944 | 1055 ms | 1120 ms | 59.1 |
-| Streaming (SSE) | 1 | 153 | 1185 ms | 1226 ms | 0.83 |
-| Streaming | 8 | 1 192 | 1215 ms | 1277 ms | 6.44 |
-| Streaming | 32 | 5 226 | 1104 ms | 1189 ms | 28.1 |
-| Streaming | 64 | 10 718 | 1074 ms | 1136 ms | 57.4 |
-| Queued (`Prefer: respond-async`) | 1 | 140 | 1309 ms | 1330 ms | 0.75 |
-| Queued | 8 | 1 104 | 1318 ms | 1336 ms | 5.93 |
-| Queued | 32 | 1 392 | 4457 ms | 4494 ms | 6.75 |
-| Queued | 64 | 1 488 | 8773 ms | 8946 ms | 6.31 |
+| Buffered (`Idempotency-Key`) | 1 | 174 | 1044 ms | 1057 ms | 0.94 <!-- capacity: kind=latency profile=sweep seed=empty scenario=buffered concurrency=1 indicative=p95 --> |
+| Buffered | 8 | 1 384 | 1048 ms | 1084 ms | 7.47 <!-- capacity: kind=latency profile=sweep seed=empty scenario=buffered concurrency=8 --> |
+| Buffered | 32 | 5 472 | 1060 ms | 1108 ms | 29.5 <!-- capacity: kind=latency profile=sweep seed=empty scenario=buffered concurrency=32 --> |
+| Buffered | 64 | 10 944 | 1055 ms | 1120 ms | 59.1 <!-- capacity: kind=latency profile=sweep seed=empty scenario=buffered concurrency=64 --> |
+| Streaming (SSE) | 1 | 153 | 1185 ms | 1226 ms | 0.83 <!-- capacity: kind=latency profile=sweep seed=empty scenario=streaming concurrency=1 indicative=p95 --> |
+| Streaming | 8 | 1 192 | 1215 ms | 1277 ms | 6.44 <!-- capacity: kind=latency profile=sweep seed=empty scenario=streaming concurrency=8 --> |
+| Streaming | 32 | 5 226 | 1104 ms | 1189 ms | 28.1 <!-- capacity: kind=latency profile=sweep seed=empty scenario=streaming concurrency=32 --> |
+| Streaming | 64 | 10 718 | 1074 ms | 1136 ms | 57.4 <!-- capacity: kind=latency profile=sweep seed=empty scenario=streaming concurrency=64 --> |
+| Queued (`Prefer: respond-async`) | 1 | 140 | 1309 ms | 1330 ms | 0.75 <!-- capacity: kind=latency profile=sweep seed=empty scenario=queued concurrency=1 indicative=p95 --> |
+| Queued | 8 | 1 104 | 1318 ms | 1336 ms | 5.93 <!-- capacity: kind=latency profile=sweep seed=empty scenario=queued concurrency=8 --> |
+| Queued | 32 | 1 392 | 4457 ms | 4494 ms | 6.75 <!-- capacity: kind=latency profile=sweep seed=empty scenario=queued concurrency=32 --> |
+| Queued | 64 | 1 488 | 8773 ms | 8946 ms | 6.31 <!-- capacity: kind=latency profile=sweep seed=empty scenario=queued concurrency=64 --> |
 
 At concurrency 1 each repeat contributed only about 50 samples, so those three
 p95 values rest on a merged count that no single window supported. Treat the
 concurrency-1 rows as indicative.
 
 Median latency against the 10,000-run database matched the empty one to within
-about 1% at every step, so those rows are not repeated here. **The tails did
-not match**: buffered at concurrency 1 reached a p99 of 1721 ms against the
-full database versus 1073 ms against the empty one, and queued at concurrency
-64 reached 9376 ms versus 8946 ms. Existing data moved the outliers, not the
+about 2%<!-- capacity: kind=value profile=sweep field=p50-spread --> at every step, so those rows are not repeated here. **The tails
+did not match**: buffered at concurrency 1 reached a p99 of
+1721 ms<!-- capacity: kind=value profile=sweep scenario=buffered seed=full concurrency=1 field=latency.p99 --> against the full database versus
+1073 ms<!-- capacity: kind=value profile=sweep scenario=buffered seed=empty concurrency=1 field=latency.p99 --> against the empty one, and queued at
+concurrency 64 reached 10429 ms<!-- capacity: kind=value profile=sweep scenario=queued seed=full concurrency=64 field=latency.p99 --> versus
+9003 ms<!-- capacity: kind=value profile=sweep scenario=queued seed=empty concurrency=64 field=latency.p99 -->. Existing data moved the outliers, not the
 median.
 
 **The queued path has a ceiling and the synchronous paths did not reach one.**
@@ -9174,10 +9176,10 @@ three repeats:
 
 | Planned/s | Sent | Never sent | Completed | Queue wait p95 |
 |---|---|---|---|---|
-| 1 | 180 of 180 | 0 | 180 | 0.05–0.11 s |
-| 4 | 720 of 720 | 0 | 720 | 0.08–0.10 s |
-| 8 | 1 440 of 1 440 | 0 | 1 440 | 5.7 s |
-| 16 | 1 672 of 2 880 | 1 208 | 1 668 | 16.5 s |
+| 1 | 180 of 180 | 0 | 180 | 0.05–0.11 s <!-- capacity: kind=arrival profile=arrival rate=1 --> |
+| 4 | 720 of 720 | 0 | 720 | 0.08–0.10 s <!-- capacity: kind=arrival profile=arrival rate=4 --> |
+| 8 | 1 440 of 1 440 | 0 | 1 440 | 5.69–5.70 s <!-- capacity: kind=arrival profile=arrival rate=8 --> |
+| 16 | 1 672 of 2 880 | 1 208 | 1 668 | 16.5–16.7 s <!-- capacity: kind=arrival profile=arrival rate=16 --> |
 
 At 16 requests per second the driver's own in-flight cap bound before the
 server's did, so the "never sent" column is a limit of the measurement, not of
@@ -9194,18 +9196,19 @@ row count is immune to it and stays.
 
 | Path | Rows per run (3 repeats) | Bytes per run | Largest contributor |
 |---|---|---|---|
-| Buffered | 10.5 | ~8.4 KiB (1 clean repeat) | `run_events` (6 rows) |
-| Queued | 10.6 | ~10.3 KiB (1 clean repeat) | `run_events` (6 rows), plus one `jobs` row |
-| Streaming | 27.6 | ~14.9 KiB (3 clean repeats) | `run_events` (24 rows) |
+| Buffered | 10.5 | ~8.6 KiB (1 clean repeat) | `run_events` (6 rows) <!-- capacity: kind=storage profile=sweep seed=empty concurrency=1 scenario=buffered --> |
+| Queued | 10.9 | ~10.3 KiB (1 clean repeat) | `run_events` (6 rows), plus one `jobs` row <!-- capacity: kind=storage profile=sweep seed=empty concurrency=1 scenario=queued --> |
+| Streaming | 27.8 | ~14.0 KiB (1 clean repeat) | `run_events` (24 rows) <!-- capacity: kind=storage profile=sweep seed=empty concurrency=1 scenario=streaming --> |
 
-Only the streaming figure rests on three clean windows; the other two come from
-a single window each and are marked as such rather than presented as averages.
-The row counts all come from three.
+All three rows describe the same cell — one concurrent request against an empty
+database — so they can be read against each other. Each byte figure comes from
+the single window that autovacuum stayed out of, and is marked as such rather
+than presented as an average; the row counts come from all three windows.
 
 **Streaming writes about 2.6 times the rows of a buffered run**, because every
 message delta is recorded. That is the single largest lever on storage growth
 here, and it is a recording choice rather than a transport cost. A linear
-projection of the streaming figure to a million runs is roughly 15 GB before
+projection of the streaming figure to a million runs is roughly 14 GB before
 retention — a projection, not a measurement, and only meaningful inside the
 range above. Retention was off; with it on these numbers answer a different
 question.

@@ -210,3 +210,29 @@ alır ama Python'un `urllib.robotparser`'ı ilkini alır. Politikanın kendisi
 `site.config.mjs`'deki `crawlerPolicy`'dedir; karar veri, endpoint yalnız render
 eder. Ölçülmüş kapsam gerçekleri:
 [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
+
+## 🚨 Markdown tablosunun SATIRLARI ARASINA yorum koymak tabloyu YOK EDER (Faz 174)
+
+Bir tablo satırını makine okunur bir işaretle bağlarken ilk akla gelen yazım
+**çalışmaz** — GFM'de tablo bitişik satırlardan oluşur ve bir HTML bloğu (yorum
+da bir HTML bloğudur) tabloyu **o satırda kapatır**:
+
+```markdown
+<!-- capacity: … -->
+| Buffered | 1 | 174 |      ← tablo BURADA biter
+```
+
+Repo'nun remark sürümüyle ölçüldü: 13 satırlık tablo **1 satıra** düştü.
+`npm run build` yeşil kalır — yalnız tablo kaybolur. Kapan `|`'dan **sonra**
+yazmak da bozar: başlıkta olmayan fazladan bir hücre üretir.
+
+**Doğru yer hücrenin içidir, kapan `|`'dan önce:**
+
+```markdown
+| Buffered | 1 | 174 | 1044 ms <!-- capacity: profile=sweep concurrency=1 --> |
+```
+
+Repo bunu Faz 158'den beri yapıyor (`<!-- claim:option … -->`,
+`reference/configuration.md`) — yeni işaret tasarlamadan önce o emsale bak.
+İşaret sevk edilen İngilizce sayfaya girdiği için anahtarı da İngilizcedir;
+`SourceLanguageTests` `docs-site/`'ı taramaz, kapı bu hatayı yakalamaz (K-228).

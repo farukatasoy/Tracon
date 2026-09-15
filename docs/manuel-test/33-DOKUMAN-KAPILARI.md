@@ -1,8 +1,8 @@
 # 33 — Doküman Kapılarının Doğruluğu (`DKP`)
 
-> **Alan kodu:** `DKP` · **Faz:** 80, 90, 167
+> **Alan kodu:** `DKP` · **Faz:** 80, 90, 167, 174
 > **Kaynak:** `scripts/dokuman-bakim.py` · `scripts/dokuman_bakim_test.py` ·
-> `.github/workflows/ci.yml`
+> `.github/workflows/ci.yml` · `docs-site/scripts/check-capacity-stamp.mjs`
 >
 > Ortam kurulumu ve reset yordamı [`00-INDEKS.md`](00-INDEKS.md)'dedir.
 > Bu alan [`31-DOKUMAN-DOGRULUGU.md`](31-DOKUMAN-DOGRULUGU.md)'nün üstüne
@@ -89,3 +89,44 @@ awk '/^  build:/{j="build"} /^  site:/{j="site"} /^  pages:/{j="pages"}
 | 14 | `MT-DKP-014` | Skill içinde `EnablePublicApiTracking=false` iddiası | `python3 scripts/dokuman-bakim.py --denetle` | `Directory.Build.props` gerçek değeriyle çakışma raporlanır |
 | 15 | `MT-DKP-015` | CI veya kapanış skill'inde eski sync/secret deseni | `python3 scripts/dokuman-bakim.py --denetle` | Kopyalanmış desen raporlanır; desen `kapi.py`'ye taşınınca kapı temizlenir |
 | 16 | `MT-DKP-016` | **Tablo biçimli** bir aile (`31`–`36`) dosyasına bir case satırı ekle, `00-INDEKS.md`'deki sayıyı **güncelleme** | `python3 scripts/dokuman-bakim.py --denetle` | Sapma `(+1)` olarak raporlanır. 🚨 Faz 167'ye kadar bu **sessizce geçiyordu**: `manuel_test_sayim_kaymasi` yalnız `### MT-` başlığı sayıyor, tablo biçimli altı aileyi hiç görmüyordu ve ikisinde gerçek sapma birikmişti (`31-*` +8, `36-*` +6) |
+
+## Faz 174 ek case'leri — kapasite damgası
+
+> **Kapı:** `docs-site/scripts/check-capacity-stamp.mjs`, `npm run check:content`
+> içinden koşar. Kendi testi `check-capacity-stamp.test.mjs`'tedir.
+>
+> Bu aile `dokuman-bakim.py` kapılarının yanına düşer ama **orada yaşamaz**:
+> denetlediği yüzey sevk edilen site sayfasıdır ve işaret sözdizimi Faz 158'in
+> `<!-- claim:… -->` emsalidir. Gerekçe faz dokümanının "Plandan Sapmalar"ındadır.
+
+Her case'te komut şudur ve çalışma ağacı sonunda
+`git checkout -- docs-site/src/content/docs/guides/production.md` ile temizlenir:
+
+```bash
+cd docs-site && node scripts/check-content.mjs
+```
+
+| # | Kod | Ön koşul | Adımlar | Beklenen sonuç |
+|---|---|---|---|---|
+| 17 | `MT-DKP-017` | Temiz ağaç | Komutu koş | ✅ **yeşil**. Kapı 90 birebir sayı karşılaştırması (12 latency satırı × 5, 4 open-loop satırı × 5, 3 storage satırı × 2, 5 düz metin sayısı) · 15 yol etiketi · 12 düşük-örnek bayrağı · 2 commit damgası (iki yönde) · 6 ortam değeri · 1 yayılım tavanı koşar. 🚨 Bu case DoD'dedir: kapı bugünkü sayfada temiz dönmeden faz bitemez, çünkü yanlış pozitif üreten bir kapının sonu susturulmaktır |
+| 18 | `MT-DKP-018` | Temiz ağaç | `sed -i '' 's/| 1048 ms | 1084 ms |/| 1048 ms | 9999 ms |/' docs-site/src/content/docs/guides/production.md` sonra komutu koş | ❌ **kırmızı** — `production.md:592: p95 publishes '9999 ms', measured '1084 ms'`. Bulgu `dosya:satır` ve **iki değeri birden** verir; elle kopyalarken bozulan sayı Faz 166'nın beş 🔴 bulgusunun sınıfıdır |
+| 19 | `MT-DKP-019` | Temiz ağaç | Kapasite tablosuna **işaretsiz** bir satır ekle (ör. `\| Queued \| 128 \| 2 000 \| 9000 ms \| 9500 ms \| 6.40 \|`), komutu koş | ❌ **kırmızı** — `capacity table row carries no source marker`. 🚨 Kural satırı değil **tabloyu** işaretler: bir tabloda tek bir işaretli satır varsa o tablonun **her** satırı işaret taşımak zorundadır. Sonradan eklenen satır sessizce kapının dışında kalamaz |
+| 20 | `MT-DKP-020` | Temiz ağaç | `sed -i '' 's/`e44d89f5`/`0bad1dea`/' docs-site/src/content/docs/guides/production.md` sonra komutu koş | ❌ **kırmızı** — `commit stamp '0bad1dea' matches no stored manifest`. Ters yön de denetlenir: sayfanın hiç anmadığı bir saklı koşum da bulgudur |
+| 21 | `MT-DKP-021` | Temiz ağaç | `mv bench/capacity/measurements/sweep /tmp/sweep` sonra komutu koş, ardından geri taşı | ❌ **kırmızı** — `cites profile 'sweep' but sweep/summary.json is not stored`. Kapı **çökmez**; kanıtın izlenmeyen dizinde kalması Faz 166'nın beşinci bulgusuydu |
+
+| 22 | `MT-DKP-022` | Temiz ağaç | Tablodaki `Buffered` etiketini `Streaming` yap (sayıları ve işareti ELLEME), komutu koş | ❌ **kırmızı** — `row is labelled 'Streaming' but cites scenario 'buffered'`. Etiket de veridir: sayıları doğru, adı yanlış bir satır yine yalan söyler |
+| 23 | `MT-DKP-023` | Temiz ağaç | `<!-- capacity: kind=latency … -->` işaretlerinin **hepsini** sil, komutu koş | ❌ **kırmızı** — iki bulgu: işaretsiz `latency` tablosu **ve** `0 'latency' row(s) carry a marker, expected 12`. 🚨 Denetlenecek şeyi silmek kapıyı **susturamaz**; envanter sayfada değil kapıdadır |
+| 24 | `MT-DKP-024` | Temiz ağaç | Düz metindeki `1721 ms` sayısını `9999 ms` yap (işareti bırak), komutu koş | ❌ **kırmızı** — `prose latency.p99 publishes '9999', measured '1721'`. Yayımlanan sayı yalnız tabloda olmaz |
+| 25 | `MT-DKP-025` | Temiz ağaç | `about 2%` → `about 1%` yap, komutu koş | ❌ **kırmızı** — `claims within 1%, but the widest measured p50 gap is 1.73% (streaming/32)`. Yayılım iddiası **tavandır**; küçültmek bulgudur |
+
+## Bilinen sınırlar — kapasite damgası
+
+- **"Largest contributor" sütunu denetlenmez.** Tablo başına kırılım
+  `summary.json`'da değil, `report.md`'dedir. Makine okunur kaynağı olmayan bir
+  hücre denetlenemez — §174.3'ün kuralı budur, eksiklik değil sınırdır.
+- **`architecture` ortam alanı denetlenmez.** Manifest `arm64` yazar, sayfa
+  "Apple Silicon" der; ikisi aynı olgudur. Değişmezi harfiyen istemek sayfayı
+  **kötüleştirirdi**.
+- **Kapı sayının DOĞRU ÖLÇÜLDÜĞÜNÜ değil, doğru TAŞINDIĞINI kanıtlar.** Ölçümün
+  kendisi yanlışsa kapı yeşil kalır. Yeniden ölçmenin yolu `kapasite`
+  profillerini koşmaktır (K-775); sayıyı elle düzeltmek değil.
