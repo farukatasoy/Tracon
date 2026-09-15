@@ -1,3 +1,4 @@
+using System.Reflection;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.AI.Evaluation;
 using Microsoft.Extensions.Logging;
@@ -41,6 +42,15 @@ namespace Tracon;
 /// nothing to grade and reports no measurement; the row is written with a
 /// <see langword="null"/> value rather than a zero.
 /// </para>
+/// <para>
+/// <strong>The evaluator's version is stamped onto every score.</strong> A
+/// bridged score is produced by that package's prompt, and a package upgrade
+/// therefore moves the scores while the model stays the same. The version is
+/// read from the evaluator's own assembly, so a third-party
+/// <see cref="IEvaluator"/> is stamped on exactly the same terms as the
+/// shipped catalog, and it is resolved <strong>once</strong>, here, rather
+/// than on each call.
+/// </para>
 /// </remarks>
 internal sealed class EvaluatorRunJudge(
     string name,
@@ -49,6 +59,9 @@ internal sealed class EvaluatorRunJudge(
     IOptionsMonitor<ModelRunJudgeOptions> optionsMonitor,
     ILogger<EvaluatorRunJudge>? logger = null) : IRunJudge
 {
+    /// <summary>The evaluator package's version, resolved once at construction.</summary>
+    private readonly string? _evaluatorVersion = ResolveVersion(evaluator, name, logger);
+
     /// <inheritdoc />
     public string Name => name;
 
@@ -98,7 +111,72 @@ internal sealed class EvaluatorRunJudge(
             }
         }
 
-        return new RunJudgment { Scores = scores };
+        return new RunJudgment { Scores = scores, EvaluatorVersion = _evaluatorVersion };
+    }
+
+    /// <summary>Reads the evaluator assembly's informational version, or <see langword="null"/>.</summary>
+    /// <remarks>
+    /// <para>
+    /// Called once, from the field initializer, so no call pays for the
+    /// reflection. The evaluator's <em>own</em> assembly is asked rather than a
+    /// known package name: the bridge opens no privileged path for the shipped
+    /// catalog, and a consumer's own evaluator is stamped the same way.
+    /// </para>
+    /// <para>
+    /// Every failure returns <see langword="null"/> and the judge still scores.
+    /// A version is observability, and observability does not break
+    /// functionality — an assembly with no attribute, or a host that refuses
+    /// the read, must not cost the tenant its score rows.
+    /// </para>
+    /// <para>
+    /// The value is truncated to <see cref="RunScoreRules.MaxEvaluatorVersionLength"/>
+    /// rather than left to fail validation, for the same reason: a long
+    /// informational version (they carry a source revision) would otherwise
+    /// turn into a contract failure that writes nothing at all.
+    /// </para>
+    /// </remarks>
+    private static string? ResolveVersion(IEvaluator evaluator, string name, ILogger? logger)
+    {
+        ArgumentNullException.ThrowIfNull(evaluator);
+
+        string? version;
+
+        try
+        {
+            version = evaluator
+                .GetType()
+                .Assembly
+                .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+                ?.InformationalVersion;
+        }
+        // 🚨 Swallowed on purpose. A version is observability; losing a tenant's
+        // score rows to an unreadable assembly attribute would be far worse than
+        // losing the version.
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            logger?.LogDebug(
+                exception,
+                "Judge '{Judge}' could not read the version of evaluator '{Evaluator}'; its scores are stored without one.",
+                name,
+                evaluator.GetType().FullName);
+            return null;
+        }
+
+        if (string.IsNullOrWhiteSpace(version))
+        {
+            // Debug, not Warning: a third-party evaluator with no informational
+            // version is ordinary, and a warning per judge would be noise. But
+            // staying entirely silent leaves a null column with no explanation.
+            logger?.LogDebug(
+                "Judge '{Judge}' bridges evaluator '{Evaluator}', whose assembly carries no informational version; its scores are stored without one.",
+                name,
+                evaluator.GetType().FullName);
+            return null;
+        }
+
+        return version.Length > RunScoreRules.MaxEvaluatorVersionLength
+            ? version[..RunScoreRules.MaxEvaluatorVersionLength]
+            : version;
     }
 
     /// <summary>Maps one evaluation metric onto a score, or <see langword="null"/> when its shape has no equivalent.</summary>

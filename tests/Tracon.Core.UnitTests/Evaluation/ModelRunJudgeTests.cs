@@ -33,6 +33,22 @@ public sealed class ModelRunJudgeTests
         score.Comment.ShouldBe("good answer");
     }
 
+    /// <remarks>
+    /// 🚨 Deliberately out of scope, not an oversight. The built-in judge's
+    /// verdict depends on the CONFIGURED MODEL, not on a versioned package's
+    /// prompt, and that binding is recorded elsewhere. Stamping this judge with
+    /// Tracon's own assembly version would answer a question nobody asked and
+    /// make the column mean two different things.
+    /// </remarks>
+    [Fact]
+    public async Task Does_not_stamp_an_evaluator_version()
+    {
+        var chatClient = new FakeChatClient(_ => Response("""{"score":73,"reason":"good answer"}"""));
+        var (judge, _) = Build(chatClient);
+
+        (await judge.JudgeAsync(Context())).EvaluatorVersion.ShouldBeNull();
+    }
+
     [Fact]
     public async Task Null_score_stays_null()
     {

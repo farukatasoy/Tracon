@@ -105,6 +105,33 @@ cagirir.
 - **"failed: 0" ama toplam sayi dusmusse kosum eksiktir.**
   `grep -cE "Test run summary:"` ile proje sayisini da say — beklenen **16**.
 
+## 🚨 macOS'ta AOT kosumu Xcode'un ESKI linker'iyla CLT'nin YENI SDK'sini birlestirir (Faz 176)
+
+`Tracon.Package.Tests`in NativeAOT case'leri makinede su hatayla duser ve hata
+**koda ait degildir**:
+
+```
+ld: multiple errors: tapi error: malformed file
+/Library/Developer/CommandLineTools/SDKs/MacOSX27.0.sdk/usr/lib/libobjc.A.tbd:4:54:
+error: unknown architecture ... arm64e.x1-macos ...
+```
+
+Olculdu (2026-09-16): `xcode-select -p` **Xcode.app**'i gosteriyordu ve onun
+linker'i `ld-1267` (Haz 2026) idi; `arm64e.x1` mimarisini tanimiyor. Publish ise
+SDK'yi `/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk` (-> 27.0) altindan
+aliyordu. CLT'nin **kendi** linker'i `ld-27037.1` (Agu 2026) o mimariyi tanir.
+Yani eski linker + yeni SDK.
+
+- **Kosum basina cozum (sistemi degistirmez):**
+  `DEVELOPER_DIR=/Library/Developer/CommandLineTools` ile kos. Olculdu: 53/53 yesil.
+- **Kalici cozum kullanicinindir:** `sudo xcode-select -s /Library/Developer/CommandLineTools`
+  veya Xcode'u 27.0 SDK tasiyan surume yukseltmek. Agent bunu **kendisi yapmaz**.
+- **CI etkilenmez** — `ci.yml` bu isleri `ubuntu-latest` uzerinde kosar. Bu yuzden
+  kusur yalnizca yerel kapanis kapisinda gorunur.
+
+🚨 Ayirt etme yolu: ayni testi `git worktree add <dizin> <faz oncesi sha>` ile
+temel surumde de kos. Ayni hatayi veriyorsa ortamdir, fazin regresyonu degildir.
+
 ## Kapanış kapısı taban ölçümleri
 
 Faz 91 taban/sonrası wall-clock ve proje-başına sonuç tabloları

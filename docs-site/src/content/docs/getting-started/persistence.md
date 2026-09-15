@@ -153,6 +153,12 @@ value column is rebuilt in place, so the table is rewritten — size that step a
 your own row count before upgrading a large database.
 :::
 
+Most upgrades are not like that one. The latest `run_scores` migration, which adds
+the `evaluator_version` column, is the ordinary shape: a single nullable column
+appended to the table, no backfill, and no index change. Existing rows are left
+exactly as they are and read back with a null version, so the step costs the same
+whether the table holds a thousand rows or a million.
+
 Set `AutoApplyMigrations = false` when schema changes are their own deployment step.
 Tracon then verifies but does not write. The diagnostics endpoint can report
 whether the schema is current, but it is deliberately not mapped by default because

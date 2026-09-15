@@ -61,12 +61,18 @@ public abstract class RunJudgeContract : IAsyncLifetime
     /// <remarks>
     /// An empty judgment passes: it says the judge reached no decision, and
     /// nothing is written. What must never happen is a judgment that Tracon
-    /// then refuses to store — a repeated name, an out-of-range value, or a
-    /// value shape that does not match its kind.
+    /// then refuses to store — a repeated name, an out-of-range value, a value
+    /// shape that does not match its kind, or an over-long version.
     /// </remarks>
     protected static void ShouldBeStorable(RunJudgment judgment)
     {
         ArgumentNullException.ThrowIfNull(judgment);
+
+        // The version is written onto EVERY score in the judgment, so an
+        // over-long one costs the judge all of its rows, not one field. It is
+        // checked before the scores for that reason.
+        (judgment.EvaluatorVersion?.Length ?? 0)
+            .ShouldBeLessThanOrEqualTo(RunScoreRules.MaxEvaluatorVersionLength);
 
         var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 

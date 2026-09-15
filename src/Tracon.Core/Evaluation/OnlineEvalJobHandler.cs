@@ -313,7 +313,7 @@ internal sealed class OnlineEvalJobHandler(
         // stored uniqueness key (K-710), so a judgment that repeats a name
         // would silently overwrite its own earlier row. Validating the whole
         // list first keeps a bad judgment from writing a partial set.
-        if (!TryValidate(judgment.Scores, judge, judgeContext, out var contractError))
+        if (!TryValidate(judgment, judge, judgeContext, out var contractError))
         {
             failures.Add(Failure(judge.Name, JudgeFailureTypes.Contract, retryable: false));
             logger?.LogWarning(
@@ -346,6 +346,7 @@ internal sealed class OnlineEvalJobHandler(
                         Source = $"{JudgeAuthorPrefix}{judge.Name}",
                         Author = $"{JudgeAuthorPrefix}{judge.Name}",
                         CreatedAt = now,
+                        EvaluatorVersion = judgment.EvaluatorVersion,
                     },
                     cancellationToken).ConfigureAwait(false));
             }
@@ -430,19 +431,25 @@ internal sealed class OnlineEvalJobHandler(
     /// <remarks>
     /// Two rules are checked here that <see cref="RunScoreRules.Validate"/>
     /// does not carry: the numeric range of each kind, and the uniqueness of
-    /// the names inside one judgment. The shared rules (the name pattern and
-    /// the categorical value shape) are asked of <see cref="RunScoreRules"/>
-    /// rather than spelled a second time.
+    /// the names inside one judgment. The shared rules (the name pattern, the
+    /// categorical value shape and the version bound) are asked of
+    /// <see cref="RunScoreRules"/> rather than spelled a second time.
+    /// <para>
+    /// The probe carries <see cref="RunJudgment.EvaluatorVersion"/> as well. It
+    /// is written onto every row, so a judge reporting an over-long version has
+    /// to fail here, before the first write -- leaving it out would let the
+    /// store throw partway through the set instead.
+    /// </para>
     /// </remarks>
     private static bool TryValidate(
-        IReadOnlyList<JudgeScore> judgeScores,
+        RunJudgment judgment,
         IRunJudge judge,
         RunJudgeContext judgeContext,
         out string error)
     {
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var judgeScore in judgeScores)
+        foreach (var judgeScore in judgment.Scores)
         {
             if (!seen.Add(judgeScore.Name))
             {
@@ -467,6 +474,10 @@ internal sealed class OnlineEvalJobHandler(
                     Value = judgeScore.Value,
                     TextValue = judgeScore.TextValue,
                     Source = $"{JudgeAuthorPrefix}{judge.Name}",
+                    // 🚨 The version is part of the probe, not only of the write
+                    // below: an over-long one has to fail the whole judgment
+                    // here rather than throw partway through the set.
+                    EvaluatorVersion = judgment.EvaluatorVersion,
                 });
             }
             catch (ArgumentException exception)

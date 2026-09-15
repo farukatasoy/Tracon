@@ -14546,6 +14546,13 @@
             "type": "string",
             "description": "The creation/last-updated time.",
             "format": "date-time"
+          },
+          "evaluatorVersion": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The version of the component that produced this score, when one is known."
           }
         },
         "description": "A human (or judge) score for a run or for a single message within a run."

@@ -76,4 +76,23 @@ public sealed record RunScore
 
     /// <summary>The creation/last-updated time.</summary>
     public DateTimeOffset CreatedAt { get; init; }
+
+    /// <summary>
+    /// The version of the component that produced this score, when one is known.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see langword="null"/> means <strong>no version was resolved</strong> —
+    /// a human or API score, or a judge that reports none. It never means
+    /// "version zero", the same rule <see cref="Value"/> already states.
+    /// </para>
+    /// <para>
+    /// A judge that bridges an evaluation package scores against that package's
+    /// prompt, so upgrading the package can move a regression baseline while
+    /// the model stays the same. This field is what separates the two. It is
+    /// written from <see cref="RunJudgment.EvaluatorVersion"/> and is at most
+    /// <see cref="RunScoreRules.MaxEvaluatorVersionLength"/> characters.
+    /// </para>
+    /// </remarks>
+    public string? EvaluatorVersion { get; init; }
 }

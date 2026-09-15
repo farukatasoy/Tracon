@@ -1631,7 +1631,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
         const string runScoreOutput =
             "inserted.id, inserted.tenant_id, inserted.run_id, inserted.message_id, inserted.kind, " +
             "inserted.value, inserted.comment, inserted.source, inserted.author, inserted.created_at, " +
-            "inserted.name, inserted.text_value";
+            "inserted.name, inserted.text_value, inserted.evaluator_version";
 
         // 🚨 MERGE IS NOT USED (K-177): first a locked UPDATE, then INSERT if
         // no row exists.
@@ -1653,12 +1653,13 @@ internal sealed class SqlServerQueries : SqlQueriesBase
         // predicate wraps only the PARAMETER, which does not affect sargability.
         UpsertRunScore = $"""
             UPDATE {Schema}.run_scores WITH (UPDLOCK, SERIALIZABLE)
-               SET kind       = @kind,
-                   value      = @value,
-                   text_value = @text_value,
-                   comment    = @comment,
-                   source     = @source,
-                   created_at = @created_at
+               SET kind              = @kind,
+                   value             = @value,
+                   text_value        = @text_value,
+                   comment           = @comment,
+                   source            = @source,
+                   created_at        = @created_at,
+                   evaluator_version = @evaluator_version
              OUTPUT {runScoreOutput}
              WHERE tenant_id = @tenant_id
                AND run_id = @run_id
@@ -1669,7 +1670,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             IF @@ROWCOUNT = 0
             INSERT INTO {Schema}.run_scores ({RunScoreColumns})
             OUTPUT {runScoreOutput}
-            VALUES (@id, @tenant_id, @run_id, @message_id, @kind, @value, @comment, @source, @author, @created_at, @name, @text_value);
+            VALUES (@id, @tenant_id, @run_id, @message_id, @kind, @value, @comment, @source, @author, @created_at, @name, @text_value, @evaluator_version);
             """;
 
         // -------------------------------------------------------------------

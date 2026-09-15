@@ -1424,14 +1424,15 @@ internal sealed class SqliteQueries : SqlQueriesBase
             INSERT INTO {Schema}run_scores
                 ({RunScoreColumns})
             VALUES
-                (@id, @tenant_id, @run_id, @message_id, @kind, @value, @comment, @source, @author, @created_at, @name, @text_value)
+                (@id, @tenant_id, @run_id, @message_id, @kind, @value, @comment, @source, @author, @created_at, @name, @text_value, @evaluator_version)
             ON CONFLICT (tenant_id, run_id, COALESCE(message_id, ''), author, name) DO UPDATE
-               SET kind       = excluded.kind,
-                   value      = excluded.value,
-                   text_value = excluded.text_value,
-                   comment    = excluded.comment,
-                   source     = excluded.source,
-                   created_at = excluded.created_at
+               SET kind              = excluded.kind,
+                   value             = excluded.value,
+                   text_value        = excluded.text_value,
+                   comment           = excluded.comment,
+                   source            = excluded.source,
+                   created_at        = excluded.created_at,
+                   evaluator_version = excluded.evaluator_version
             RETURNING {RunScoreColumns};
             """;
 

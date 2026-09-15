@@ -134,7 +134,9 @@ Yeni paket XML satırını **otomatik** kazanır (`@(ReferencePath)` süzgeci
 `capabilities.md`'nin `## Packages` satırını **elle** kazanır — ve harita yalnız
 o dosyadan üretilir.
 
-🚨 **Agent haritası bütçesi aşımda kırpmaz, kırılır.** Bütçe 10 240 B. Aşarsan
+🚨 **Agent haritası bütçesi aşımda kırpmaz, kırılır.** Bütçe
+`build-agent-map.mjs`'in `agentMapBudgetBytes` sabitindedir — sayıyı buradan
+değil **oradan** oku; bu satır bir kez 10 240'ta bayatladı. Aşarsan
 `capabilities.md`'yi kısalt; üretecin bütçesini yükseltmek bir karardır ve
 ölçümle gerekçelenir.
 

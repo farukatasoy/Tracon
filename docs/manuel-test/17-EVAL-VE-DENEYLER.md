@@ -2818,3 +2818,85 @@ Bkz. MT-EVAL-045 (aynı upsert davranışı). Buradaki ek iddia: yargıç
 - Kayıt kaldırılınca davranış **birebir** eskiye döner; sonuç aynıdır.
 
 **Alan kodu:** `EVAL`
+
+---
+
+### EVAL-143 — Köprülenmiş evaluator'ın skoru paket sürümünü taşır
+
+**Ön koşul**
+- `AddEvaluatorJudge("relevance", new RelevanceEvaluator())` ile bir katalog
+  evaluator'ı bağlı.
+- SQL sağlayıcılarından biri kurulu ve migration'lar uygulanmış.
+
+**Adımlar**
+1. Bir `run` koş, `POST /api/runs/{RUN_ID}/judge`
+2. `GET /api/runs/{RUN_ID}/feedback`
+
+**Beklenen sonuç**
+- `relevance.*` satırlarının her biri `evaluatorVersion` alanında
+  **evaluator'ın kendi paketinin** sürümünü taşır (Tracon'un sürümünü değil).
+- Aynı yargıcın **bütün** metrik satırları aynı sürümü taşır.
+
+**Alan kodu:** `EVAL`
+
+---
+
+### EVAL-144 — Sürümü olmayan kaynaklar alanı `null` bırakır
+
+**Ön koşul**
+- `AddModelRunJudge(...)` ile yerleşik yargıç açık.
+
+**Adımlar**
+1. Bir `run` koş, `POST /api/runs/{RUN_ID}/judge`
+2. Arayüzden (veya `POST /api/runs/{RUN_ID}/feedback` ile) bir insan puanı ver.
+3. `GET /api/runs/{RUN_ID}/feedback`
+
+**Beklenen sonuç**
+- `source` `judge:model` olan satırda `evaluatorVersion` **`null`**'dır —
+  yerleşik yargıcın puanı bir paketin prompt'una değil, yapılandırılan modele
+  bağlıdır.
+- `source` `human` olan satırda `evaluatorVersion` **`null`**'dır.
+- `null` "sürüm sıfır" DEĞİLDİR; "sürüm çözülmedi" demektir.
+
+**Alan kodu:** `EVAL`
+
+---
+
+### EVAL-145 — Migration öncesi yazılmış skorlar okunmaya devam eder
+
+**Ön koşul**
+- İçinde `run_scores` satırı bulunan, `evaluator_version` sütunu **eklenmemiş**
+  bir veritabanı (fazdan önceki bir yedek).
+
+**Adımlar**
+1. Uygulamayı başlat; migration'lar otomatik uygulansın.
+2. Eski `run_id` için `GET /api/runs/{RUN_ID}/feedback`
+3. `GET /api/evaluation/scores/summary`
+
+**Beklenen sonuç**
+- Eski satırlar hatasız okunur; `evaluatorVersion` **`null`** döner.
+- Liste ucu **tamamen** çalışır — tek bir satır yüzünden çökmez.
+- Özet sorgusu eski ve yeni satırları birlikte raporlar.
+
+**Alan kodu:** `EVAL`
+
+---
+
+### EVAL-146 — Evaluator yükseltmesi iki koşumu ayırt edilebilir kılar
+
+**Ön koşul**
+- EVAL-143 koşulmuş ve en az bir `relevance.*` satırı yazılmış.
+
+**Adımlar**
+1. `Microsoft.Extensions.AI.Evaluation.Quality` paketini **başka bir sürüme**
+   yükselt, uygulamayı yeniden başlat.
+2. **Yeni** bir `run` koş ve yargıla.
+3. İki `run`'ın skor satırlarını karşılaştır.
+
+**Beklenen sonuç**
+- İki satır **farklı** `evaluatorVersion` taşır.
+- Skorlar arasındaki fark artık "model bozuldu" ile "yargıç değişti" ayrımıyla
+  yorumlanabilir — [Faz 153](../arsiv/fazlar/153-EVAL-KOSUMLARI-ARASINDA-REGRESYON-FARKI.md)
+  regresyon taban çizgisinin sessizce kaymasının nedeni budur.
+
+**Alan kodu:** `EVAL`

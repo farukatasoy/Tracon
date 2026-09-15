@@ -1460,14 +1460,15 @@ internal sealed class PostgresQueries : SqlQueriesBase
             INSERT INTO {Schema}.run_scores
                 ({RunScoreColumns})
             VALUES
-                (@id, @tenant_id, @run_id, @message_id, @kind, @value, @comment, @source, @author, @created_at, @name, @text_value)
+                (@id, @tenant_id, @run_id, @message_id, @kind, @value, @comment, @source, @author, @created_at, @name, @text_value, @evaluator_version)
             ON CONFLICT (tenant_id, run_id, COALESCE(message_id, ''), author, name) DO UPDATE
-               SET kind       = EXCLUDED.kind,
-                   value      = EXCLUDED.value,
-                   text_value = EXCLUDED.text_value,
-                   comment    = EXCLUDED.comment,
-                   source     = EXCLUDED.source,
-                   created_at = EXCLUDED.created_at
+               SET kind              = EXCLUDED.kind,
+                   value             = EXCLUDED.value,
+                   text_value        = EXCLUDED.text_value,
+                   comment           = EXCLUDED.comment,
+                   source            = EXCLUDED.source,
+                   created_at        = EXCLUDED.created_at,
+                   evaluator_version = EXCLUDED.evaluator_version
             RETURNING {RunScoreColumns};
             """;
 
