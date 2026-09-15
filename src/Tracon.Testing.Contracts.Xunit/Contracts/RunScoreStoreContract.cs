@@ -183,6 +183,101 @@ public abstract class RunScoreStoreContract : TenantIsolationContract<IRunScoreS
         loaded.Value.ShouldBeNull();
     }
 
+    /// <remarks>
+    /// The real risk this case guards is an ordinal shift. A SQL store reads the
+    /// row by bare ordinal, so a column slotted into the middle of the select
+    /// list instead of appended to it moves every field after it. The shift is
+    /// silent wherever the neighbouring types agree, which is why this asserts
+    /// the other fields as well and not just the version.
+    /// </remarks>
+    [Fact]
+    public async Task An_evaluator_version_round_trips()
+    {
+        // 🚨 A version that reads back correctly while `name` and `text_value`
+        // have traded places would pass a version-only assertion.
+        var runId = TraconId.NewId();
+
+        await Store.UpsertAsync(Score(runId) with
+        {
+            Name = "quality.Relevance",
+            Source = "judge:quality",
+            Author = "judge:quality",
+            EvaluatorVersion = "9.7.0-preview.1.25356.2",
+        });
+
+        var loaded = (await Store.ListAsync(Tenant, runId)).ShouldHaveSingleItem();
+
+        loaded.EvaluatorVersion.ShouldBe("9.7.0-preview.1.25356.2");
+
+        // The neighbours of the appended column, in select-list order.
+        loaded.Name.ShouldBe("quality.Relevance");
+        loaded.TextValue.ShouldBeNull();
+        loaded.Comment.ShouldBe("correct answer");
+        loaded.Source.ShouldBe("judge:quality");
+        loaded.Author.ShouldBe("judge:quality");
+        loaded.Value.ShouldBe(1);
+        loaded.Kind.ShouldBe(RunScoreKind.Binary);
+        loaded.MessageId.ShouldBe("msg-1");
+    }
+
+    /// <remarks>
+    /// The shape every row written before the version column existed has, and
+    /// the shape every human and API score keeps. NULL means NO VERSION WAS
+    /// RESOLVED — it is not "version zero" and it must not make the read throw.
+    /// </remarks>
+    [Fact]
+    public async Task A_score_with_no_evaluator_version_reads_back_as_null()
+    {
+        var runId = TraconId.NewId();
+
+        await Store.UpsertAsync(Score(runId));
+
+        (await Store.ListAsync(Tenant, runId)).ShouldHaveSingleItem().EvaluatorVersion.ShouldBeNull();
+    }
+
+    /// <remarks>
+    /// An upgraded evaluator writes the same (author, name) pair again. The row
+    /// is updated, and the version has to move with it — a stale version on an
+    /// updated score is exactly the confusion the column exists to remove.
+    /// </remarks>
+    [Fact]
+    public async Task Rescoring_with_a_NEWER_evaluator_replaces_the_stored_version()
+    {
+        var runId = TraconId.NewId();
+
+        await Store.UpsertAsync(Score(runId) with { EvaluatorVersion = "9.7.0" });
+        await Store.UpsertAsync(Score(runId) with { EvaluatorVersion = "9.8.0" });
+
+        var loaded = (await Store.ListAsync(Tenant, runId)).ShouldHaveSingleItem();
+
+        loaded.EvaluatorVersion.ShouldBe("9.8.0");
+    }
+
+    /// <remarks>
+    /// The bound is a stored-column bound, so every store enforces it, not just
+    /// the SQL ones. A judge supplies this value; without the bound a
+    /// third-party judge would decide how much of a customer's table one score
+    /// row occupies.
+    /// </remarks>
+    [Fact]
+    public async Task An_over_long_evaluator_version_is_REJECTED()
+        => await Should.ThrowAsync<ArgumentException>(async () => await Store.UpsertAsync(Score(TraconId.NewId()) with
+        {
+            EvaluatorVersion = new string('9', RunScoreRules.MaxEvaluatorVersionLength + 1),
+        }));
+
+    /// <remarks>The bound itself stays writable — an off-by-one here would reject legal versions.</remarks>
+    [Fact]
+    public async Task An_evaluator_version_AT_the_bound_is_accepted()
+    {
+        var runId = TraconId.NewId();
+        var version = new string('9', RunScoreRules.MaxEvaluatorVersionLength);
+
+        await Store.UpsertAsync(Score(runId) with { EvaluatorVersion = version });
+
+        (await Store.ListAsync(Tenant, runId)).ShouldHaveSingleItem().EvaluatorVersion.ShouldBe(version);
+    }
+
     [Fact]
     public async Task A_categorical_score_carrying_a_numeric_value_is_REJECTED()
         => await Should.ThrowAsync<ArgumentException>(async () => await Store.UpsertAsync(Score(TraconId.NewId()) with
