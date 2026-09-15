@@ -120,6 +120,7 @@ export const sidebar = [
       { label: 'Versions and upgrades', slug: 'reference/versioning' },
       { label: 'Release notes', slug: 'reference/changelog' },
       { label: 'Licensing', slug: 'reference/licensing' },
+      { label: 'Security policy', slug: 'reference/security-policy' },
       { label: 'Choosing packages', slug: 'packages' },
       { label: 'Glossary', slug: 'reference/glossary' },
     ],

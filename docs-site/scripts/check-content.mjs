@@ -82,6 +82,28 @@ const requiredCapabilityEvidence = [
   'FakeModelProvider',
 ];
 
+// SECURITY.md and the site's security policy page are two audiences for one policy:
+// GitHub reads the root file for its Security tab, a consumer reads the site. Two
+// copies drift, and a reporting address or a response window that drifts is worse
+// than none - the reporter follows the stale one. Only the facts a reporter acts on
+// are pinned here; the prose is free to differ, because the two audiences differ.
+const securityPolicyFacts = [
+  ['reporting address', /hfarukatasoy@gmail\.com/],
+  ['acknowledgement window', /\b72\s+hours\b/],
+  ['assessment window', /\bseven\s+days\b/],
+];
+const rootSecurity = readFileSync(join(repositoryRoot, 'SECURITY.md'), 'utf8');
+const sitePolicy = readFileSync(join(docsRoot, 'reference/security-policy.md'), 'utf8');
+
+for (const [label, pattern] of securityPolicyFacts) {
+  if (!pattern.test(rootSecurity)) {
+    errors.push(`SECURITY.md no longer states its ${label}; reference/security-policy.md still does`);
+  }
+  if (!pattern.test(sitePolicy)) {
+    errors.push(`reference/security-policy.md no longer states its ${label}; SECURITY.md still does`);
+  }
+}
+
 for (const page of requiredManualPages) {
   if (!existsSync(join(docsRoot, page))) {
     errors.push(`Missing capability page: ${page}`);

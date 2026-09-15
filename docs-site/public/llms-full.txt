@@ -139,8 +139,12 @@ claim to provide an operating-system sandbox.
 | Live voice conversation | `UseVoiceConversation()` plus `MapTracon()` | A long-lived WebSocket joins transcription, an agent session, and synthesis; it is absent until registered |
 | Provider-hosted live voice | `UseLiveVoice()` plus a provider such as `UseOpenAILive()` | The provider hosts the conversation and carries the media directly to the browser; Tracon creates the session so the key never leaves the server, and turns the work the model delegates into ordinary runs |
 
-A run is the unit of evidence. Everything that happened is recorded against a run id,
-and a store failure never gets permission to stop the run itself.
+A run is the unit of evidence. What is recorded is recorded against a run id, and a
+store failure never gets permission to stop the run itself — which is also the limit
+of the guarantee: recording is best-effort, so a store failure costs the record, not
+the run. Six operations invert that and refuse to proceed without their audit entry;
+[What is guaranteed to be written](/concepts/governance/#what-is-guaranteed-to-be-written)
+is the list.
 
 ## Workflows and background work
 
@@ -200,7 +204,7 @@ experiment, and automatic rollback is off until you configure it.
 | Quotas | Run admission | Enabled with an empty rule set, so no run is rejected until a rule exists; a crossed threshold can also be written into the triggering run's own event stream, off by default |
 | Rate limiting | HTTP requests | Off by default; partition by tenant, key, or remote address |
 | Approvals | Tool execution and queued resume | Expiring requests, explicit decisions, and revocable standing rules |
-| Audit trail | Administrative writes | Actor, action, entity, before/after data, and secret masking |
+| Audit trail | Administrative writes | Actor, action, entity, before/after data, secret masking, and a per-tenant hash chain; best-effort except for [six fail-closed operations](/concepts/governance/#what-is-guaranteed-to-be-written) |
 | Webhooks | Signed outbound events | HTTPS, SSRF checks, response limits, reserved-header rejection, retry jobs, and failure disablement |
 | Outbound network guard | `Tracon:Egress` | One guard for webhook delivery, MCP connections, and provider endpoints; private network targets refused by default, checked inside the socket connect callback |
 | Configuration key prefixes | Stored secret references | A record stores a key **name**, never a value, and each name must sit under an allowed prefix |
@@ -1195,6 +1199,39 @@ curl 'http://localhost:5081/tracon/api/audit?action=agent.update'
 curl 'http://localhost:5081/tracon/api/audit/quota:{id}'
 ```
 
+### What is guaranteed to be written
+
+Two different guarantees live in this system, and the difference decides what an
+audit trail can be used to prove.
+
+**Fail-closed — the operation does not happen unless the record does.** The entry is
+written *before* the change is applied, and a write failure aborts the change:
+
+| Operation | What a failed audit write refuses |
+|---|---|
+| An approval decision | The decision is not applied |
+| Granting or revoking a skill script | The grant is not changed |
+| Running a skill script | The script does not run |
+| Saving an inbound trigger | The trigger is not saved |
+| An automatic canary rollback | The rollback is not applied |
+| A data subject erasure | The erasure does not commit |
+
+**Best-effort — the operation continues and the record can be missing.** Every other
+audit write takes this path: the failure is logged as a warning, and the call carries
+on. Run recording is best-effort in the same way, and goes one step further — after
+the first store failure, recording is switched off for the rest of that run. A single
+transient error can therefore cost the remainder of that run's events, not just one
+of them.
+
+The rule behind the split is that observability must not take down product
+functionality. The cost is the part to be honest about: an audit trail is evidence of
+what was recorded, not proof of everything that happened. Where a missing record would
+itself be the whole problem, the operation is fail-closed instead.
+
+See [Runs and recording](/concepts/runs/) for what a run stores, and
+[Observability and cost](/guides/observability/) for what a store failure looks like
+in the logs.
+
 ### Tamper detection
 
 Every entry carries a hash of its own content and the hash of the entry before it,
@@ -1283,10 +1320,10 @@ list, the single-request read, the `RunAwaitingInput` run event, and the console
 approval card.
 
 :::note[The audit entry is written before the decision is applied]
-Everywhere else an audit failure is swallowed. Not here: an approval decision that
-cannot be recorded is not applied at all. Approvals and skill scripts are the only two
-places with that inversion, and both are places where the missing record would be the
-whole problem.
+An approval decision that cannot be recorded is not applied at all. This is one of the
+six fail-closed operations listed in
+[What is guaranteed to be written](#what-is-guaranteed-to-be-written); every other
+audit write is best-effort and is swallowed on failure.
 :::
 
 Standing decisions are **approval rules** — a pre-approval for a tool. They do not
@@ -1736,7 +1773,10 @@ Source: https://tracon.dev/concepts/runs/
 A **run** is one execution of an agent. Recording is on by default for agents resolved
 through the Tracon catalog, whether the call came from HTTP, the console, a
 workflow, an eval, or your code. You can disable it. A failed store write also leaves
-the agent running, so recording is best-effort rather than an availability dependency.
+the agent running, so recording is best-effort rather than an availability dependency —
+and after the first store failure, recording stops for the rest of that run. Which
+records carry a stronger guarantee than this one is set out in
+[What is guaranteed to be written](/concepts/governance/#what-is-guaranteed-to-be-written).
 
 ## How recording happens
 
@@ -2825,7 +2865,14 @@ Source: https://tracon.dev/concepts/workflows/
 A workflow runs several agents together. Where a callable agent is one agent using
 another as a tool, a workflow is an orchestration you define and can watch.
 
-Workflows need `Tracon.Workflows`. Without the engine registered, definition
+**Tracon does not implement a workflow engine.** A definition compiles onto the
+Microsoft Agent Framework's own graph, and `Microsoft.Agents.AI.Workflows` executes
+it. What Tracon adds around that engine is the catalog a definition lives in, the
+checkpoint store it resumes from, the quota and cancellation it runs under, and the
+`runs` row that records what happened. Five public types are the whole of Tracon's
+workflow surface.
+
+Workflows need `Tracon.Workflows`. Without that package registered, definition
 management still works and only the execution endpoints answer `501` — the package
 stays optional on purpose.
 
@@ -3909,6 +3956,33 @@ Protect what this does not cover at the layer below: full-disk or tablespace
 encryption, a managed database with encryption at rest, and retention policies that
 delete what you no longer need.
 
+## The boundaries Tracon enforces
+
+The layers above are what you configure. This table is the other question — which
+boundaries exist at all, what each one refuses, and where the detail lives. A security
+report is assessed against this list; see the [security
+policy](/reference/security-policy/) for what is in and out of scope.
+
+| Boundary | What it refuses | Detail |
+|---|---|---|
+| Endpoint access | An unauthenticated or unauthorized caller | [The layers](#the-layers) |
+| Tenant isolation | Reading or writing another tenant's rows | [Multi-tenancy](/concepts/governance/#multi-tenancy) |
+| Session ownership | Continuing a conversation the caller does not own | [Session ownership](/concepts/governance/#below-the-tenant-session-ownership) |
+| Tool authorization | A tool call the caller is not entitled to make | [Tool authorization](/concepts/governance/#tool-authorization) |
+| Tool approval | An unapproved tool call, until a human decides | [Approvals](/concepts/governance/#approvals) |
+| Tool definition | A tool written from the console — tools exist only in code | [Tools](/concepts/tools/) |
+| Script sandboxing | A skill script escaping its sandbox, when scripts are on at all | [Production defaults](/guides/production/#production-sensitive-defaults) |
+| Outbound egress | A request to a private network target or a disallowed host | [Outbound requests](#outbound-requests-are-guarded-too) |
+| Content guards | Input or output a configured guard rejects | [Content guards](/concepts/governance/#content-guards) |
+| Secret handling | A secret value reaching storage, a log, or a response | [What is stored in the clear](#what-is-stored-in-the-clear) |
+| At-rest protection | Readable content in a database you do not fully trust | [At-rest content protection](#at-rest-content-protection) |
+| Audit trail | Six operations proceeding without their record | [What is guaranteed to be written](/concepts/governance/#what-is-guaranteed-to-be-written) |
+| Quotas and rate limits | Spend and request volume above the configured ceiling | [Quotas and rate limits](/concepts/governance/#quotas-and-rate-limits) |
+| Production profile | A host starting with a security decision never made | [Requiring a production decision](/concepts/governance/#requiring-a-production-decision) |
+
+Individual .NET types restate the boundary they sit on in their own API reference
+page, so the constraint is visible at the point of use as well as here.
+
 ## A short checklist
 
 - [ ] `AllowRemoteAccess` is on only together with a token, a key, or a policy
@@ -3929,6 +4003,7 @@ delete what you no longer need.
 
 ## Read next
 
+- [Security policy](/reference/security-policy/) — reporting a vulnerability, and scope
 - [Governance](/concepts/governance/) — audit trail, quotas, tenancy
 - [Architecture](/concepts/) — how the pieces fit
 
@@ -4106,6 +4181,28 @@ recovery.
 Use background work when the caller cannot keep an SSE connection open, when a batch
 contains many independent inputs, or when work must start on a calendar. Keep the
 normal streaming run endpoint for interactive conversations and approval flows.
+
+## What this queue is, and what it is not
+
+It is not a general-purpose durable execution engine, and it does not try to be one.
+It dispatches Tracon's own work — an agent run, a batch, a workflow start, the
+continuation of an interrupted run — and it carries the things those items need: the
+tenant they belong to, the quota they spend against, and the `runs` row that records
+what happened. It lives in the same database as every other Tracon store, so an
+operator reads one schema rather than two.
+
+That leaves a boundary worth naming, because the Microsoft Agent Framework has a
+durability story of its own. Its durable extension makes a **workflow** survive the
+loss of the process running it. It does not schedule catalog agent runs, does not
+carry a tenant or a quota, and does not write a Tracon run record. The two are
+complementary rather than competing, and Tracon already uses both: durability inside
+a workflow is the Agent Framework's checkpointing, reached through Tracon's
+[checkpoint store](/concepts/workflows/#checkpoints), while dispatch and scheduling
+around it are this queue's.
+
+If all you need is for one workflow to resume after a crash, reach for the Agent
+Framework's own durability first. Reach for this queue when the work has to be
+queued, leased, retried, attributed to a tenant, and recorded.
 
 ```mermaid
 stateDiagram-v2
@@ -13970,6 +14067,73 @@ version afterward.
 - [Two connection planes — EF Core and Tracon](/guides/ef-core/) — sharing a connection pool, and what an EF `DbContext` does not get
 - [Observability](/guides/observability/) — run statistics through the HTTP API, the same numbers this view reads
 - [Choose a migration strategy](/guides/production/#choose-a-migration-strategy) — `AutoApplyMigrations` and running `tracon migrate` as its own deploy step
+
+---
+
+# Security policy
+
+Source: https://tracon.dev/reference/security-policy/
+
+Report a suspected vulnerability privately to <hfarukatasoy@gmail.com>. Do not open a
+public issue, and do not run an exploit against a system you do not own.
+
+Expect an acknowledgement within **72 hours** and an assessment within **seven days**.
+
+## What to include
+
+A maintainer needs enough to reproduce the problem:
+
+- the exact package versions from `dotnet list package`;
+- the .NET target framework and the deployment runtime;
+- the storage engine, and whether multi-tenancy is enabled;
+- the affected surface — an HTTP endpoint, a .NET API, an MCP or A2A route, or a
+  background service;
+- a minimal reproduction, and the impact you observed.
+
+Redact first. Never attach credentials, connection strings, raw API keys, customer
+data, or unreviewed prompt and tool content.
+
+## Scope
+
+| In scope | Out of scope |
+|---|---|
+| Tenant isolation | Model output quality |
+| Credential handling, including per-tenant bring-your-own-key | Prompt injection that a configured guard is not enabled to stop |
+| The audit trail | Denial of service produced by quotas you configured |
+| Egress policy | |
+| Tool approval and authorization | |
+| Content guards | |
+| Script sandboxing | |
+| Any path that writes a secret to storage, a log, or a response | |
+
+The audit trail is in scope as a security boundary, and that boundary has a documented
+shape: six operations refuse to proceed without their audit entry, and every other
+audit write is best-effort. [What is guaranteed to be
+written](/concepts/governance/#what-is-guaranteed-to-be-written) is the division. A
+report that a best-effort record was lost on a store failure is expected behaviour, not
+a vulnerability; a report that a fail-closed operation proceeded without its record is.
+
+## Supported versions
+
+Tracon ships its packages from a single version line. Only the **most recent published
+version** receives security fixes; a superseded preview is not patched in place.
+
+| Version line | Supported |
+|---|---|
+| Latest `1.0.0-preview.*` | Yes |
+| Any earlier preview | No — upgrade to the latest preview |
+
+A confirmed vulnerability is fixed in a new version rather than by replacing a
+published one, because NuGet.org artifacts are permanent. When the defect affects data
+integrity or a security boundary, the affected versions are also deprecated on
+NuGet.org with a pointer to the fixed version. See [Versions and
+upgrades](/reference/versioning/) for the pinning and upgrade contract.
+
+## Read next
+
+- [Securing the endpoints](/getting-started/security/) — the layers you configure
+- [Governance](/concepts/governance/) — tenancy, audit, approvals, and guards
+- [Production deployment](/guides/production/) — the production-sensitive defaults
 
 ---
 
