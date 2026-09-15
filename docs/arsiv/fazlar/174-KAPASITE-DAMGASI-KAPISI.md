@@ -12,236 +12,24 @@
 
 ---
 
-## Bu Faza Başlarken
-
-> `faz-baslangic` skill'ini uygula. Aşağıdaki liste o skill'in 2. adımıdır —
-> **tamamını değil, yalnız işaret edilen bölümleri oku.**
-
-1. Bu doküman
-2. Kararlar — dosyanın tamamını **okuma**, yalnız bu kalemleri grep'le:
-   ```bash
-   grep -n "K-775\|K-766" docs/KARARLAR.md
-   ```
-   **K-775** (yayımlanan kapasite sayısı sürüm ve commit taşır; ölçüm
-   yenilenmeden sürüm satırı güncellenmez), **K-766** (süreç ölçümü kapısı
-   bölümün VARLIĞINI denetler, DOĞRULUĞUNU denetlemez — bu fazın kapısı
-   bilerek **tersini** yapar, farkı §174.4 anlatır)
-3. [Faz 166](166-HTTP-KAPASITE-OLCUMU.md) — yalnız devir notu ve
-   denetim bulguları:
-   ```bash
-   awk '/## Denetim Bulguları/,0' docs/arsiv/fazlar/166-HTTP-KAPASITE-OLCUMU.md
-   ```
-   Bu fazın var olma sebebi o beş 🔴 bulgudur. Hangi hata sınıfının
-   tekrarlandığını görmeden kapı yanlış yere kurulur.
-4. Alan hafızası (bu faz bir alana dokunuyor):
-   [`hafiza/dokumantasyon.md`](../../hafiza/dokumantasyon.md) (doküman kapısı yazma
-   tuzakları; `docs/` ile `docs-site/` sınırı)
-5. Gerektiğinde, tamamı değil ilgili bölümü: `scripts/dokuman-bakim.py`
-   `denetle()` (satır 2461) ve emsal kapı `manuel_test_sayim_kaymasi()`
-   (satır 1051)
+> ### ⚗️ Damıtılmış kayıt
+> Bu dosya fazın **planını** değil, fazın bıraktığı **kalıcı bilgiyi**
+> taşır. Plan gövdesi, planlanan/gerçekleşen API, dosya listesi, risk ve
+> açık soru bölümleri kapanışta düştü — **silinmedi, git geçmişindedir.**
+>
+> Tam metin — kopyala, çalıştır:
+>
+> ```bash
+> git show 8f2412f9:docs/arsiv/fazlar/174-KAPASITE-DAMGASI-KAPISI.md
+> ```
+>
+> Damıtıldı 2026-09-15 · `scripts/dokuman-bakim.py faz-damit`
 
 ---
 
 ## Amaç
 
-Faz 166 kapasite sayılarını ölçtü ve yayımladı. Denetimi **beş 🔴 bulgu**
-buldu ve beşi de aynı sınıftandı: ölçüm dosyasında duran bir sayı, sayfaya
-elle taşınırken bozuldu. K-775 bunu bir **sözleşme** olarak kurdu — yayımlanan
-her kapasite sayısı sürüm ve commit taşır. Sözleşmenin kapısı yok. Bu faz o
-kapıyı kurar.
-
-- **F-239** — Yayımlanan her kapasite sayısının ve ortam iddiasının ölçüm
-  yapıtında bir karşılığı olduğunu doğrulayan bir `dokuman-bakim.py` kapısı.
-
-### Bugün ne çalışmıyor — doğrulanmış kanıt
-
-| Kanıt | Gözlem |
-|---|---|
-| [`production.md:589-602`](../../../docs-site/src/content/docs/guides/production.md) | 12 satırlık tablo **48 sayı** yayımlıyor (`n`, `p50`, `p95`, `Completed/s`). Hiçbiri bir kapıyla ölçüm dosyasına bağlı değil |
-| [`production.md:575-579`](../../../docs-site/src/content/docs/guides/production.md) | Sayfa iki commit damgası anıyor: `e44d89f5` (sweep + arrival) ve `df45a7ba` (worker + soak). Damgalar **düz metin**; hiçbir kapı manifest'le karşılaştırmıyor |
-| [`production.md:570-573`](../../../docs-site/src/content/docs/guides/production.md) | Ortam iddiası düz metin: `Darwin 25.6.0`, 10 işlemci, 16 GiB, `.NET 10.0.100`, PostgreSQL `18.4`, `pgvector/pgvector:pg18` |
-| `bench/capacity/measurements/{arrival,soak,sweep,workers}/manifest.json` | Dördü de `commit`, `packageVersion`, `operatingSystem`, `architecture`, `processorCount`, `physicalMemoryBytes`, `runtimeVersion`, `postgreSqlVersion`, `databaseImage` taşıyor — sayfanın her ortam iddiasının makine okunur karşılığı **zaten var** |
-| `bench/capacity/measurements/*/summary.json` | `rows[]` her hücre için `latency.p50/p95/p99/count`, `lowSampleP95`, `lowSampleP99` taşıyor — tablonun her sayısının karşılığı **zaten var** |
-| [`dokuman-bakim.py:2614`](../../../scripts/dokuman-bakim.py) | Kapılar `denetle()` içinde `(ad, bulgular)` demetiyle kaydediliyor; yeni kapı bu listeye bir satırdır |
-| [`dokuman-bakim.py:1051`](../../../scripts/dokuman-bakim.py) | `manuel_test_sayim_kaymasi()` birebir emsal: yayımlanan bir sayıyı kaynağıyla karşılaştırır |
-
-> Kanıtlar 2026-09-15 tarihinde doğrulandı.
->
-> 🚨 **ADAYLAR.md yanlış yol yazıyordu.** Kayıt `docs-site/guides/production.md`
-> diyor; o dosya **yok**. Kaynak `docs-site/src/content/docs/guides/production.md`,
-> üretilen çıktı `docs-site/dist/guides/production/index.md`. Kapı **kaynağı**
-> okur.
-
----
-
-## 174.1 — Kapı neyi denetler
-
-Üç bağımsız denetim. Üçü de **yalnız okur**; `--denetle`nin "yazmaz" sözü korunur.
-
-```mermaid
-flowchart LR
-    P["production.md<br/>(yayımlanan sayfa)"] --> C1["1 · commit damgası"]
-    P --> C2["2 · ortam iddiası"]
-    P --> C3["3 · tablo sayıları"]
-    M["manifest.json × 4"] --> C1
-    M --> C2
-    S["summary.json × 4"] --> C3
-    C1 --> R{"bulgu listesi"}
-    C2 --> R
-    C3 --> R
-```
-
-| # | Denetim | Kural |
-|---|---|---|
-| 1 | **Commit damgası** | Sayfada anılan her kısa SHA, bir `manifest.json`'un `commit` alanının ön eki olmalıdır. Eşleşmeyen damga bulgudur |
-| 2 | **Ortam iddiası** | Sayfanın ortam cümlesindeki her değer (`operatingSystem`, `processorCount`, `runtimeVersion`, `postgreSqlVersion`, `databaseImage`, bellek) bir manifest'te birebir bulunmalıdır |
-| 3 | **Tablo sayıları** | Tablonun her hücresi, işaret ettiği `summary.json` satırından **yeniden hesaplanabilir** olmalıdır |
-
-Faz 166'nın beş 🔴 bulgusunun her biri bu üçünden birine düşer:
-
-| Faz 166 bulgusu | Bu kapının hangi denetimi yakalar |
-|---|---|
-| Yanlış commit damgası | 1 |
-| Yanlış birleştirilmiş percentile | 3 |
-| Tek tekrarın ortalama gibi sunulması | 3 (`repeats` ve `completeRepeats` karşılaştırması) |
-| Elle kopyalarken bozulan yüzde | 3 |
-| Kanıtın izlenmeyen dizinde kalması | 1 (manifest bulunamazsa bulgu) |
-
-## 174.2 — Tablo satırı ile ölçüm satırını ne bağlar
-
-Kapının çözmesi gereken tek gerçek problem budur. Tablo satırı insan için
-yazılmıştır (`Buffered (Idempotency-Key)`); ölçüm satırı makine için
-(`scenario: "buffered"`, `seedShape: "empty"`, `concurrency: 1`).
-
-Seçilen bağ: sayfaya **görünmez bir işaret** girer. Markdown yorumu Astro
-çıktısında render edilmez, `git diff`'te görünür ve sayfanın okunurluğunu
-bozmaz.
-
-```markdown
-<!-- kapasite: profile=sweep scenario=buffered seedShape=empty concurrency=1 -->
-| Buffered (`Idempotency-Key`) | 1 | 174 | 1044 ms | 1057 ms | 0.94 |
-```
-
-Kural: **işaretsiz bir kapasite tablosu satırı bulgudur.** Böylece sayfaya
-sonradan eklenen bir satır sessizce kapının dışında kalamaz — Faz 166'nın
-beşinci bulgusunun sınıfı tam olarak budur.
-
-Sayı karşılaştırması `summary.json`'daki ham değerden **yeniden yuvarlanarak**
-yapılır; sayfa `1044 ms` yazarken kaynak `1044.104` taşır. Yuvarlama kuralı
-kapının içinde tek bir yerde durur ve testi vardır.
-
-## 174.3 — Ortam iddiasının bağı
-
-Ortam cümlesi tablo değildir, bu yüzden satır işareti almaz. Kapı manifest'ten
-**beklenen cümleyi üretir** ve sayfanın o bölümünde her değerin geçtiğini
-doğrular. Değer arama yönü tek taraflıdır: manifest'teki değer sayfada
-**bulunmalıdır**. Sayfanın fazladan yazdığı bir şey bulgu değildir — sayfa
-anlatıdır, manifest'in kopyası değil.
-
-## 174.4 — Bu kapı K-766'nın istisnasıdır
-
-K-766 süreç ölçümü kapısı için "bölümün VARLIĞINI denetler, DOĞRULUĞUNU
-denetlemez" diyor ve gerekçesi "hiçbir kapı doğruluğu denetleyemez"dir.
-
-Bu kapı **doğruluğu denetler** ve bu bir çelişki değildir. Fark: süreç ölçümü
-bir **yargıdır** (kaç tur sürdü, kaç bulgu gerçekti) ve dış kaynağı yoktur.
-Kapasite sayısının **makine okunur bir kaynağı vardır**. Doğruluk ancak kaynak
-varken denetlenebilir; bu faz yeni bir kural koymuyor, aynı kuralın diğer
-tarafını kullanıyor. Kapanışta bu ayrımın karar defterine girip girmeyeceği
-§ *Açık Sorular* 2'dedir.
-
----
-
-## Planlanan Public API
-
-Yok. Bu faz `src/` altına hiç dokunmaz.
-
-### Script yüzeyi
-
-```python
-# scripts/dokuman-bakim.py
-def kapasite_damgasi_bulgulari(kok: pathlib.Path = ROOT) -> list[str]:
-    """Yayımlanan kapasite sayılarını ölçüm yapıtlarıyla karşılaştırır."""
-```
-
-`denetle()` içindeki kapı listesine bir satır olarak katılır:
-
-```python
-("Kapasite damgası", kapasite_damgasi_bulgulari()),
-```
-
-### HTTP `endpoint`'leri
-
-Yok.
-
-### Arayüz payı
-
-Yok — arayüze dokunulmuyor.
-
----
-
-## Planlanan Dosya Listesi
-
-```
-scripts/
-├── dokuman-bakim.py          (değişir — yeni kapı + denetle() kaydı)
-└── dokuman_bakim_test.py     (değişir — yeni kapının testleri)
-
-docs-site/src/content/docs/guides/
-└── production.md             (değişir — YALNIZ satır işaretleri eklenir)
-
-docs/manuel-test/
-└── 33-DOKUMAN-KAPILARI.md    (değişir — kabul case'leri)
-```
-
----
-
-## Hata Modları ve Testler
-
-> Mutlu yoldan değil, **ne bozulabilir**den türetilir. Seviyeyi plan seçer.
-
-| Ne bozulabilir | Seviye | Test |
-|---|---|---|
-| Sayfa bir sayıyı bozuk kopyalıyor, kapı sessiz kalıyor | Birim (Python) | `dokuman_bakim_test.py::test_bozuk_sayi_bulgu_uretir` |
-| Sayfaya işaretsiz yeni satır ekleniyor, kapının dışında kalıyor | Birim (Python) | `test_isaretsiz_satir_bulgu_uretir` |
-| Commit damgası hiçbir manifest'le eşleşmiyor | Birim (Python) | `test_eslesmeyen_commit_bulgu_uretir` |
-| Ortam iddiası manifest'ten sapıyor | Birim (Python) | `test_ortam_sapmasi_bulgu_uretir` |
-| Ölçüm dizini hiç yok (kanıt izlenmiyor) | Birim (Python) | `test_eksik_olcum_dizini_bulgu_uretir` |
-| Yuvarlama kuralı iki yerde ayrışıyor → sahte bulgu | Birim (Python) | `test_yuvarlama_tek_kaynaktan_gelir` |
-| Kapı bir şey **yazıyor** (`--denetle` sözünü bozuyor) | Birim (Python) | `test_kapi_hicbir_dosyayi_degistirmez` |
-| Kapı bugünkü sayfada bulgu üretiyor (yanlış pozitif) | Birim (Python) | `test_bugunku_sayfa_temiz` |
-
-Beş soru: **iptal** yok (senkron script) · **eşzamanlılık** yok · **boş/aşırı
-girdi** → boş ölçüm dizini ve işaretsiz tablo testlerle kapsandı · **başka
-kiracı** yok · **alt sistem hatası** → bozuk JSON ayrıca test edilir.
-
-🚨 Bu faz sınır geçmiyor (DI · HTTP · kiracı · akış · depo · paket yok), bu
-yüzden birim testi burada **yeterli** kanıttır. Bu, `test-seviyeleri.md`
-tablosundaki nadir durumdur ve bilerek seçilmiştir.
-
----
-
-## Manuel Kabul Case'leri
-
-| # | Ön koşul | Adımlar | Beklenen sonuç |
-|---|---|---|---|
-| 1 | Temiz ağaç | `python3 scripts/dokuman-bakim.py --denetle` | "Kapasite damgası: ✅ temiz" satırı görünür, çıkış kodu 0 |
-| 2 | `production.md`'de bir `p95` değeri elle bozulur | Aynı komut | Bulgu satırı bozulan hücreyi `dosya:satır` ile gösterir, çıkış kodu ≠ 0 |
-| 3 | Tabloya işaretsiz bir satır eklenir | Aynı komut | "işaretsiz kapasite satırı" bulgusu üretilir |
-| 4 | Sayfadaki bir commit damgası değiştirilir | Aynı komut | "eşleşmeyen commit damgası" bulgusu üretilir |
-| 5 | `bench/capacity/measurements/sweep/` geçici olarak taşınır | Aynı komut | "ölçüm yapıtı bulunamadı" bulgusu üretilir; kapı çökmez |
-
----
-
-## Açık Sorular
-
-| # | Soru | Seçenekler | Öneri |
-|---|---|---|---|
-| 1 | İşaret sözdizimi ne olsun? | A: `<!-- kapasite: profile=… -->` satır üstü yorum · B: tabloya görünür bir `Kaynak` sütunu · C: sayfanın yanında ayrı bir `production.capacity.json` eşleme dosyası | **A** — sayfa okunurluğunu bozmaz, `git diff`'te görünür ve eşleme veriyle **aynı dosyada** durur. C ikinci bir senkron problemi üretir; kapının çözmeye çalıştığı sınıfın ta kendisi |
-| 2 | §174.4'teki K-766 ayrımı karar defterine girsin mi? | A: girsin — "kapı doğruluğu ancak makine okunur kaynak varken denetler" · B: girmesin, faz dokümanında kalsın | **A** — bu bir kapı yazma kuralıdır ve sonraki fazlar da kapı yazacak. Numarayı kararı gerçekten veren kapanış alır |
-| 3 | `lowSampleP95`/`lowSampleP99` bayrağı taşıyan bir satır sayfada uyarı taşımak zorunda mı? | A: zorunlu — bayraklı satır uyarısız yayımlanamaz · B: serbest | **A** — Faz 166'nın "tek tekrarın ortalama gibi sunulması" bulgusu tam olarak budur. Sayfa bugün eşzamanlılık-1 satırları için bu uyarıyı **zaten** yazıyor (`production.md:604-606`), yani kural bugünü kırmaz |
-
----
+Faz 166 kapasite sayılarını ölçtü ve yayımladı. Denetimi **beş 🔴 bulgu** buldu ve beşi de aynı sınıftandı: ölçüm dosyasında duran bir sayı, sayfaya elle taşınırken bozuldu. K-775 bunu bir **sözleşme** olarak kurdu — yayımlanan her kapasite sayısı sürüm ve commit taşır. Sözleşmenin kapısı yok. Bu faz o kapıyı kurar.
 
 ## Bitiş Ölçütleri (DoD)
 
@@ -276,23 +64,6 @@ mv docs-site/src/content/docs/guides/production.md{.bak,}
 ```
 
 ---
-
-## Riskler
-
-| Risk | Önlem |
-|------|-------|
-| Kapı yanlış pozitif üretir ve ekip onu susturmayı öğrenir — kapının en kötü sonu | `test_bugunku_sayfa_temiz` DoD'dedir; kapı bugünkü sayfada **temiz** dönmeden faz bitmez |
-| Yuvarlama kuralı sayfa ile kapı arasında ayrışır | Yuvarlama kapının içinde **tek** bir fonksiyondur ve kendi testi vardır |
-| İşaretler zamanla bayatlar (satır taşınır, işaret kalır) | İşaret **satırın hemen üstündedir** ve işaretsiz satır bulgudur; ikisi birlikte kaymayı yakalar |
-| Ölçüm yenilenince 48 sayı + 4 damga elle güncellenir, kapı iş yükünü artırır | Kapsam dışı ama devir notuna yazılır: sayfayı ölçümden **üreten** bir adım F-NN adayıdır. Bu faz yalnız doğrular |
-| Kapı `docs/` ile `docs-site/` sınırını bulanıklaştırır | Kapı `docs-site/`'ı **okur**, yazmaz; `dokuman-bakim.py` bunu `site_denetle()` ile zaten yapıyor |
-
----
-
-<!-- ============================================================
-     AŞAĞISI KAPANIŞTA DOLDURULUR — `faz-tamamlama` skill'i.
-     Plan anında boş kalır. Başlıkları SİLME.
-     ============================================================ -->
 
 ## Plandan Sapmalar
 
@@ -439,50 +210,6 @@ durur. Ayrıntı ve ölçüm: *Denetim Bulguları* 4.
 Karar defterine **girmeyenler** (faz dokümanında kalır): işaret sözdizimi,
 kapının hangi dosyada yaşadığı, yuvarlama kuralı. Üçü de yerel tercihtir;
 `AGENTS.md`'nin karar defteri eşiğini geçmezler.
-
-## Gerçekleşen Public API
-
-**Büyümedi.** `src/` altına hiç dokunulmadı — `git diff --stat f4cfb9d0 -- src/`
-yalnız üretilen `Tracon.AgentMap.md`'yi gösterir ve o da bayt bayt aynıdır
-(içeriği `capabilities.md`'den türer, `production.md`'den değil).
-
-### Script yüzeyi (gerçekleşen)
-
-```js
-// docs-site/scripts/check-capacity-stamp.mjs
-export function checkCapacityStamp(docsRoot, measurementsRoot): string[]
-```
-
-Plan `kapasite_damgasi_bulgulari(kok) -> list[str]` diyordu; sapma 2 uyarınca
-JS'e taşındı. Sözleşme aynı: **salt-okunur**, bulgu listesi döndürür, atmaz.
-
-## Dosya Listesi (gerçekleşen)
-
-```
-docs-site/scripts/
-├── check-capacity-stamp.mjs        (YENİ — kapı, 3 denetim)
-├── check-capacity-stamp.test.mjs   (YENİ — 21 test)
-└── check-content.mjs               (değişti — import + kapı kaydı)
-
-docs-site/
-├── package.json                    (değişti — check:content'e test dosyası)
-└── public/llms-full.txt            (ÜRETİLDİ — sayfa değişti)
-
-docs-site/src/content/docs/guides/
-└── production.md                   (değişti — 19 işaret + storage tablosu düzeltmesi)
-
-docs/manuel-test/
-├── 33-DOKUMAN-KAPILARI.md          (değişti — MT-DKP-017…021)
-└── 00-INDEKS.md                    (ÜRETİLDİ — sayım 16 → 21)
-
-docs/
-├── KARARLAR.md · KARARLAR-INDEKS.md · arsiv/KARARLAR-GECMISI.md   (K-784)
-└── 174-KAPASITE-DAMGASI-KAPISI.md  (bu doküman)
-```
-
-Plana göre **eksik:** `scripts/dokuman-bakim.py` ve `scripts/dokuman_bakim_test.py`
-hiç değişmedi (sapma 2). **Fazla:** `package.json`, `llms-full.txt`,
-`00-INDEKS.md` — üçü de sapmanın veya sayfa değişikliğinin zorunlu sonucu.
 
 ## Süreç Ölçümü
 
