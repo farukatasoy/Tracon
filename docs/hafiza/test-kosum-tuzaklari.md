@@ -132,6 +132,30 @@ Yani eski linker + yeni SDK.
 🚨 Ayirt etme yolu: ayni testi `git worktree add <dizin> <faz oncesi sha>` ile
 temel surumde de kos. Ayni hatayi veriyorsa ortamdir, fazin regresyonu degildir.
 
+## 🚨 AOT publish'i deponun PAYLASILAN `.pdb`'sini acar — tam kosumda cakisir (Faz 176)
+
+Ayni AOT case'i (`ObjectToolAotPackageTests`) **ikinci** bir sekilde de duser ve
+bu sefer sebep linker degil **dosya cekismesidir**:
+
+```
+ILCompiler.CodeGenerationFailedException: Code generation failed for method
+  '[Consumer]Program+<<Main>$>d__0.MoveNext()'
+ ---> System.IO.IOException: The process cannot access the file
+      'artifacts/obj/Tracon.Abstractions/release_net10.0/Tracon.Abstractions.pdb'
+      because it is being used by another process
+```
+
+Sebep: paketlenen DLL'in debug dizini **deponun kendi** `artifacts/obj` yolunu
+gosterir, ILCompiler modulun sembol dosyasini oradan acmaya calisir. Tam paket
+kosumunda baska bir surec ayni `.pdb`'yi tutuyorsa publish **5-6 sn icinde**
+codegen hatasiyla duser — gercek bir AOT kusuru gibi gorunur, degildir.
+
+🚨 Ayirt etme: hata `IOException`/`being used by another process` iceriyorsa
+kod yolunu okuma. Case izole kosuldugunda gecer (olculdu 2026-09-16: tam
+kapanis kapisinda dustu, izole 53/53). Ayni kosumda `Tracon.Ui.E2ETests`'ten
+**baska** bir testin de dusmesi ayni cekismenin ikinci yuzudur
+([`test-yalitimi.md`](test-yalitimi.md) Faz 161 kaydi).
+
 ## Kapanış kapısı taban ölçümleri
 
 Faz 91 taban/sonrası wall-clock ve proje-başına sonuç tabloları
