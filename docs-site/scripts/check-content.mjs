@@ -230,6 +230,98 @@ if (packageRowCount !== packageCount) {
   errors.push(`compatibility.md package table has ${packageRowCount} row(s), expected ${packageCount}`);
 }
 
+// The framework claim is read BEFORE a consumer can compile anything: someone on
+// .NET 8 LTS decides from this table whether Tracon is usable at all. One default
+// matrix lives in src/Directory.Build.props and a few projects deviate from it, so
+// the page restates a fact it cannot see change. It drifted: getting-started said
+// "the testing and template packages require .NET 10" for weeks after
+// Tracon.Testing rejoined the runtime matrix, and an outside reviewer had to
+// reconcile two pages to work out which one was true. Bind the table to the
+// csproj files instead, in both directions - a narrowed package with a stale
+// `net8/9/10` cell is the direction that costs more, because it promises a
+// framework that no longer builds.
+const defaultFrameworks = readFileSync(join(sourceRoot, 'Directory.Build.props'), 'utf8')
+  .match(/<TargetFrameworks>([^<]+)<\/TargetFrameworks>/)?.[1];
+
+if (!defaultFrameworks) {
+  errors.push('src/Directory.Build.props: the default <TargetFrameworks> element was not found');
+} else {
+  // How the table writes a framework set: `net8.0;net9.0;net10.0` reads `net8/9/10`,
+  // and a single framework keeps its own spelling (`net10`, `netstandard2.0`).
+  const shorthand = (frameworks) => {
+    const parts = frameworks.split(';').map((value) => value.trim()).filter(Boolean);
+    if (parts.length === 1) return parts[0].replace(/^net(\d+)\.0$/, 'net$1');
+    return `net${parts.map((part) => part.replace(/^net/, '').replace(/\.0$/, '')).join('/')}`;
+  };
+
+  // A project deviates only by setting the SINGULAR element; every other project
+  // inherits the default. Tracon.Generators ships inside Tracon.Core and owns no
+  // row here - the "Target frameworks" table above covers it as the embedded
+  // source generator, which is why packageCount excludes it too.
+  const deviating = new Map();
+  for (const entry of readdirSync(sourceRoot, { withFileTypes: true })) {
+    if (!entry.isDirectory() || !entry.name.startsWith('Tracon')) continue;
+    const projectFile = join(sourceRoot, entry.name, `${entry.name}.csproj`);
+    if (!existsSync(projectFile)) continue;
+    const single = readFileSync(projectFile, 'utf8').match(/<TargetFramework>([^<]+)<\/TargetFramework>/)?.[1];
+    if (single) deviating.set(entry.name, single.trim());
+  }
+
+  const seen = new Set();
+  for (const row of packagesSection.matchAll(/^\| `(Tracon[^`]*)` \|[^|]*\|([^|]*)\|/gm)) {
+    const [, packageName, frameworksCell] = row;
+    seen.add(packageName);
+    if (!existsSync(join(sourceRoot, packageName, `${packageName}.csproj`))) continue;
+
+    const expected = shorthand(deviating.get(packageName) ?? defaultFrameworks);
+    // The cell may add a qualifier ("net10 output", "net8/9/10 dependency groups"),
+    // but it must OPEN with the set the project actually builds. The boundary stops
+    // `net10` from passing as the opening of `net10.0-windows`.
+    const opening = new RegExp(`^${expected.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\w.])`);
+    if (!opening.test(frameworksCell.trim())) {
+      errors.push(
+        `compatibility.md: \`${packageName}\` builds ${deviating.get(packageName) ?? defaultFrameworks}, ` +
+        `so its Frameworks cell should open with "${expected}", not "${frameworksCell.trim()}"`,
+      );
+    }
+  }
+
+  for (const packageName of deviating.keys()) {
+    if (packageName !== 'Tracon.Generators' && !seen.has(packageName)) {
+      errors.push(
+        `compatibility.md: \`${packageName}\` targets ${deviating.get(packageName)} instead of the default ` +
+        `matrix and has no row in the package table`,
+      );
+    }
+  }
+
+  // The summary table above the package table states the same fact for a reader who
+  // never scrolls. It carries full framework spellings, not the shorthand.
+  const frameworkSummary = compatibility.split(/^## /m).find((section) => section.startsWith('Target frameworks')) ?? '';
+  const testingRow = frameworkSummary.match(/^\| `Tracon\.Testing` \|([^|]*)\|/m)?.[1] ?? '';
+  const testingFrameworks = deviating.get('Tracon.Testing') ?? defaultFrameworks;
+
+  // Both directions: an omitted framework hides support, and a listed one the
+  // project no longer builds promises a package that will not restore.
+  const testingBuilt = new Set(testingFrameworks.split(';').map((value) => value.trim()).filter(Boolean));
+  const testingClaimed = new Set(testingRow.match(/net(?:standard)?\d+\.\d+/g) ?? []);
+
+  for (const framework of testingBuilt) {
+    if (!testingClaimed.has(framework)) {
+      errors.push(
+        `compatibility.md "Target frameworks": the \`Tracon.Testing\` row omits ${framework}, which the project builds`,
+      );
+    }
+  }
+  for (const framework of testingClaimed) {
+    if (!testingBuilt.has(framework)) {
+      errors.push(
+        `compatibility.md "Target frameworks": the \`Tracon.Testing\` row claims ${framework}, which the project does not build`,
+      );
+    }
+  }
+}
+
 for (const page of requiredManualPages) {
   const slug = page.replace(/\.(?:md|mdx)$/, '').replace(/\/index$/, '');
   if (!sidebarSlugs.has(slug)) {
@@ -1067,6 +1159,21 @@ for (const file of handWrittenContent) {
 
   if (hasInternalHistory(text)) {
     errors.push(`${relative(docsRoot, file)}: internal development history leaked into a public page`);
+  }
+
+  // A per-package framework REQUIREMENT is owned by the compatibility matrix, which
+  // is bound to the csproj files above. A page that restates it in prose is a copy
+  // nothing can check, and that copy is what went stale: "the testing and template
+  // packages require .NET 10" outlived the change that made it false. Name the
+  // framework a package builds, or link the matrix - do not write a requirement.
+  if (!file.endsWith(join('reference', 'compatibility.md'))) {
+    const restated = text.match(/[^.\n]*\brequires?\b[^.\n]*\.NET\s*\d+[^.\n]*/i);
+    if (restated) {
+      errors.push(
+        `${relative(docsRoot, file)}: restates a framework requirement the compatibility matrix owns ` +
+        `- "${restated[0].trim()}"`,
+      );
+    }
   }
 }
 
