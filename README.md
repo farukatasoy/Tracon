@@ -195,7 +195,11 @@ Tracon fills that gap. It does not replace DevUI — it continues where DevUI st
 | `Tracon.Cli` | PolyForm | The `tracon` global tool (`dotnet tool install -g Tracon.Cli`) — `migrate`, `migrate status`, `health`, `eval`, `state-check`. Not a library; not in the meta package |
 | `@tracon/client` | PolyForm | **npm, not NuGet** — the same 168 operations as `Tracon.Client`, generated from the same OpenAPI document with `openapi-typescript` + `openapi-fetch`. `npm install @tracon/client` |
 
-**Target frameworks:** `net8.0`, `net9.0`, `net10.0`
+**Target frameworks:** `net8.0`, `net9.0`, `net10.0` — including `Tracon.Testing`, so an
+app on .NET 8 LTS is tested on .NET 8. Three packages differ: `Tracon.Templates` generates
+a `net10.0` project, `Tracon.Cli` is a `net10.0` global tool, and the source generator inside
+`Tracon.Core` targets `netstandard2.0`. Per-package detail: [compatibility
+matrix](https://tracon.dev/reference/compatibility/)
 
 **Licence:** PolyForm Small Business 1.0.0 — free for an individual, an open source
 project, and any company with fewer than 100 people and under 1,000,000 USD (2019,
