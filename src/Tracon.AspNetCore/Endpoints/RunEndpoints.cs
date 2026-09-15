@@ -357,6 +357,7 @@ internal static class RunEndpoints
                 [FromServices] IAuthorizationService? authorization,
                 [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
                 [FromServices] IRunAttributionContext? attributionContext,
+                [FromServices] TraconMetrics metrics,
                 HttpContext httpContext,
                 CancellationToken cancellationToken) => await ReplayRunAsync(
                     runId,
@@ -371,6 +372,7 @@ internal static class RunEndpoints
                     attributionContext,
                     httpContext,
                     prefix,
+                    metrics,
                     cancellationToken).ConfigureAwait(false))
             .RequireRole(roles.Operator)
             .RequireApiKeyScope(ApiKeyScope.RunsWrite)
@@ -609,6 +611,7 @@ internal static class RunEndpoints
         [FromServices] IRunAttributionContext? attributionContext,
         HttpContext httpContext,
         string prefix,
+        [FromServices] TraconMetrics metrics,
         CancellationToken cancellationToken)
     {
         var (bound, bindError) = await RequestBodyBinding
@@ -717,6 +720,7 @@ internal static class RunEndpoints
                 auditLog,
                 actorResolver,
                 loggerFactory.CreateLogger("Tracon.RunEndpoints"),
+                metrics,
                 tenants.TenantId,
                 action: "run.replay",
                 entity: $"run:{newRunId}",
@@ -797,6 +801,7 @@ internal static class RunEndpoints
         [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
         [FromServices] IRunAttributionContext? attributionContext,
         [FromServices] TimeProvider? timeProvider,
+        [FromServices] TraconMetrics metrics,
         CancellationToken cancellationToken)
     {
         var (bound, bindError) = await RequestBodyBinding
@@ -903,6 +908,7 @@ internal static class RunEndpoints
             auditLog,
             actorResolver,
             loggerFactory.CreateLogger("Tracon.RunEndpoints"),
+            metrics,
             tenants.TenantId,
             action: "run.feedback.save",
             entity: $"run_score:{saved.Id}",
@@ -971,6 +977,7 @@ internal static class RunEndpoints
         [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
         [FromServices] IRunAttributionContext? attributionContext,
         [FromServices] TimeProvider? timeProvider,
+        [FromServices] TraconMetrics metrics,
         CancellationToken cancellationToken)
     {
         var run = await runs.GetRunAsync(runId, cancellationToken).ConfigureAwait(false);
@@ -1022,6 +1029,7 @@ internal static class RunEndpoints
                 auditLog,
                 actorResolver,
                 loggerFactory.CreateLogger("Tracon.RunEndpoints"),
+                metrics,
                 tenants.TenantId,
                 action: "run.cancel",
                 entity: $"run:{runId}",
@@ -1050,6 +1058,7 @@ internal static class RunEndpoints
             auditLog,
             actorResolver,
             loggerFactory.CreateLogger("Tracon.RunEndpoints"),
+            metrics,
             tenants.TenantId,
             action: "run.cancel",
             entity: $"run:{runId}",
@@ -1106,6 +1115,7 @@ internal static class RunEndpoints
         [FromServices] ILoggerFactory loggerFactory,
         [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
         [FromServices] IRunAttributionContext? attributionContext,
+        [FromServices] TraconMetrics metrics,
         CancellationToken cancellationToken)
     {
         var run = await runs.GetRunAsync(runId, cancellationToken).ConfigureAwait(false);
@@ -1146,6 +1156,7 @@ internal static class RunEndpoints
             auditLog,
             actorResolver,
             loggerFactory.CreateLogger("Tracon.RunEndpoints"),
+            metrics,
             tenants.TenantId,
             action: "run.feedback.delete",
             entity: $"run_score:{scoreId}",

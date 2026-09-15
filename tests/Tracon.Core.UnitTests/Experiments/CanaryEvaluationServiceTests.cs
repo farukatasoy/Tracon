@@ -225,6 +225,7 @@ public sealed class CanaryEvaluationServiceTests
             runs,
             auditLog,
             leaseStore,
+            metrics: null,
             Options(new CanaryOptions { AutoRollbackEnabled = autoRollbackEnabled, ScanInterval = scanInterval }),
             singletonOptions ?? Options(new SingletonExecutionOptions()),
             new SchemaReadyGate([]),

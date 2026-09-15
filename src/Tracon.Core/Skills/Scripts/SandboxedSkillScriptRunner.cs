@@ -297,11 +297,20 @@ public sealed class SandboxedSkillScriptRunner : IDisposable
         // 🚨 The audit trail entry is written BEFORE execution, and is mandatory.
         // If it cannot be written, the run is denied; a code execution with
         // no record is unacceptable.
-        await WriteAuditOrThrowAsync(
+        var auditEntity = $"{request.SkillName}/{request.ScriptName}";
+
+        await AuditRecorder.WriteOrThrowAsync(
+                _auditLog,
+                _actorResolver.Resolve(),
+                _logger,
+                _metrics,
                 tenantId,
                 "script.run",
-                $"{request.SkillName}/{request.ScriptName}",
-                argumentsJson,
+                auditEntity,
+                before: null,
+                after: argumentsJson,
+                refusal: $"Script '{auditEntity}' was not run",
+                _timeProvider,
                 cancellationToken)
             .ConfigureAwait(false);
 
@@ -449,6 +458,7 @@ public sealed class SandboxedSkillScriptRunner : IDisposable
                 _auditLog,
                 _actorResolver,
                 _logger,
+                _metrics,
                 _tenantContext.TenantId,
                 "script.denied",
                 $"{skillName}/{scriptName}",
@@ -462,38 +472,6 @@ public sealed class SandboxedSkillScriptRunner : IDisposable
             .ConfigureAwait(false);
 
         throw new TraconException($"Script '{skillName}/{scriptName}' was not run: {reason}");
-    }
-
-    private async ValueTask WriteAuditOrThrowAsync(
-        string tenantId,
-        string action,
-        string entity,
-        string? after,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            await _auditLog.WriteAsync(
-                new AuditEntry
-                {
-                    Id = TraconId.NewId(),
-                    TenantId = tenantId,
-                    Actor = _actorResolver.Resolve(),
-                    Action = action,
-                    Entity = entity,
-                    After = AuditSecretFilter.Redact(after),
-                    CreatedAt = _timeProvider.GetUtcNow(),
-                },
-                cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            _logger.LogError(ex, "Script '{Entity}' could not be written to the audit trail; execution was denied.", entity);
-
-            throw new TraconException(
-                $"Script '{entity}' was not run because it could not be written to the audit trail.",
-                ex);
-        }
     }
 
     private static void TryDelete(DirectoryInfo? directory)

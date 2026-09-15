@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Logging;
 
 namespace Tracon;
 
@@ -91,6 +92,8 @@ internal static class DataSubjectEndpoints
         [FromServices] IAuditLog auditLog,
         [FromServices] IAuditActorResolver actorResolver,
         [FromServices] TimeProvider? timeProvider,
+        [FromServices] TraconMetrics metrics,
+        [FromServices] ILoggerFactory loggerFactory,
         CancellationToken cancellationToken)
     {
         if (resolver is null)
@@ -110,30 +113,35 @@ internal static class DataSubjectEndpoints
         }
 
         var actor = actorResolver.Resolve();
-        var now = (timeProvider ?? TimeProvider.System).GetUtcNow();
+        var logger = loggerFactory.CreateLogger("Tracon.DataSubjectEndpoints");
 
         // 🚨 K-370: the audit entry is written BEFORE the erasure commits, from
         // inside IDataSubjectStore.EraseAsync's transaction. If the write fails,
         // every delete is rolled back and the exception propagates — an erasure
         // that cannot be written to the audit trail is not applied.
+        //
+        // The fail-closed write is therefore called from INSIDE the callback, not
+        // around it: the store, not this endpoint, decides when the row runs, and
+        // moving the call outside would commit the deletes first.
         var deleted = await store.EraseAsync(
             tenants.TenantId,
             scope,
-            (counts, ct) => auditLog.WriteAsync(
-                new AuditEntry
-                {
-                    Id = TraconId.NewId(),
-                    TenantId = tenants.TenantId,
-                    Actor = actor,
-                    Action = "data_subject.erase",
-                    Entity = $"data-subject:{id}",
-                    // Redaction applies here too. Today's payload carries no secret,
-                    // but this was the ONLY direct IAuditLog write that skipped the
-                    // filter; the next change to the payload's shape would have had
-                    // no protection at all.
-                    After = AuditSecretFilter.Redact(DescribeErasure(id, counts)),
-                    CreatedAt = now,
-                },
+            (counts, ct) => AuditRecorder.WriteOrThrowAsync(
+                auditLog,
+                actor,
+                logger,
+                metrics,
+                tenants.TenantId,
+                action: "data_subject.erase",
+                entity: $"data-subject:{id}",
+                before: null,
+                // Redaction applies here too. Today's payload carries no secret,
+                // but this was the ONLY direct IAuditLog write that skipped the
+                // filter; the next change to the payload's shape would have had
+                // no protection at all.
+                after: DescribeErasure(id, counts),
+                refusal: $"The erasure of data subject '{id}' was not applied",
+                timeProvider,
                 ct),
             cancellationToken).ConfigureAwait(false);
 

@@ -15,18 +15,21 @@ internal sealed class AuditingSkillScriptGrantStore : ISkillScriptGrantStore, IA
     private readonly IAuditLog _auditLog;
     private readonly IAuditActorResolver _actorResolver;
     private readonly ILogger<AuditingSkillScriptGrantStore> _logger;
+    private readonly TraconMetrics? _metrics;
 
     /// <summary>Initializes a new audited grant store.</summary>
     /// <param name="inner">The wrapped store.</param>
     /// <param name="auditLog">The audit log.</param>
     /// <param name="actorResolver">The actor resolver.</param>
     /// <param name="logger">The logger.</param>
+    /// <param name="metrics">The metric set that counts a failed audit write.</param>
     /// <exception cref="ArgumentNullException">A dependency is <see langword="null"/>.</exception>
     public AuditingSkillScriptGrantStore(
         ISkillScriptGrantStore inner,
         IAuditLog auditLog,
         IAuditActorResolver actorResolver,
-        ILogger<AuditingSkillScriptGrantStore> logger)
+        ILogger<AuditingSkillScriptGrantStore> logger,
+        TraconMetrics? metrics)
     {
         ArgumentNullException.ThrowIfNull(inner);
         ArgumentNullException.ThrowIfNull(auditLog);
@@ -37,6 +40,7 @@ internal sealed class AuditingSkillScriptGrantStore : ISkillScriptGrantStore, IA
         _auditLog = auditLog;
         _actorResolver = actorResolver;
         _logger = logger;
+        _metrics = metrics;
     }
 
     /// <inheritdoc />
@@ -65,61 +69,31 @@ internal sealed class AuditingSkillScriptGrantStore : ISkillScriptGrantStore, IA
         ArgumentNullException.ThrowIfNull(grant);
 
         // 🚨 The audit row is written BEFORE the grant is persisted, and a failed
-        // write throws. AuditRecorder swallows store failures and only logs a
-        // warning; used here it left a persisted permission to RUN CODE ON THE
+        // write throws. The best-effort path swallows store failures and only logs
+        // a warning; used here it left a persisted permission to RUN CODE ON THE
         // SERVER with no record of who granted it, while the caller still saw
-        // 201 Created. An irreversible action must call IAuditLog directly.
+        // 201 Created. An irreversible action takes the fail-closed path.
         //
         // Ordering follows the script runner: recording an attempt that then
         // fails to persist is harmless noise, a persisted grant with no record is
         // not.
-        await WriteAuditOrThrowAsync(
+        var grantEntity = Describe(grant.SkillName, grant.ScriptName);
+
+        await AuditRecorder.WriteOrThrowAsync(
+            _auditLog,
+            _actorResolver.Resolve(),
+            _logger,
+            _metrics,
             grant.TenantId,
             action: "script.grant",
-            entity: Describe(grant.SkillName, grant.ScriptName),
+            entity: grantEntity,
+            before: null,
             after: JsonSerializer.Serialize(grant, TraconCoreJsonContext.Default.SkillScriptGrant),
+            refusal: $"Script permission '{grantEntity}' was not changed",
+            timeProvider: null,
             cancellationToken).ConfigureAwait(false);
 
         return await _inner.GrantAsync(grant, cancellationToken).ConfigureAwait(false);
-    }
-
-    /// <summary>
-    /// Writes one audit row and throws when the store rejects it.
-    /// </summary>
-    /// <remarks>
-    /// Granting or revoking the right to run a script is irreversible from the
-    /// audit trail's point of view, so it may not use the swallow-and-log path.
-    /// </remarks>
-    private async ValueTask WriteAuditOrThrowAsync(
-        string tenantId,
-        string action,
-        string entity,
-        string? after,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            await _auditLog.WriteAsync(
-                new AuditEntry
-                {
-                    Id = TraconId.NewId(),
-                    TenantId = tenantId,
-                    Actor = _actorResolver.Resolve(),
-                    Action = action,
-                    Entity = entity,
-                    After = AuditSecretFilter.Redact(after),
-                    CreatedAt = DateTimeOffset.UtcNow,
-                },
-                cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            _logger.LogError(ex, "Script permission '{Entity}' could not be written to the audit trail; the change was refused.", entity);
-
-            throw new TraconException(
-                $"Script permission '{entity}' was not changed because it could not be written to the audit trail.",
-                ex);
-        }
     }
 
     /// <inheritdoc />
@@ -135,11 +109,20 @@ internal sealed class AuditingSkillScriptGrantStore : ISkillScriptGrantStore, IA
         // write throws. A revoke that turns out to be a no-op is recorded too;
         // that is deliberate, because the trail records the ATTEMPT to change a
         // script permission and noise is cheaper than a silent gap.
-        await WriteAuditOrThrowAsync(
+        var revokeEntity = Describe(skillName, scriptName);
+
+        await AuditRecorder.WriteOrThrowAsync(
+            _auditLog,
+            _actorResolver.Resolve(),
+            _logger,
+            _metrics,
             tenantId,
             action: "script.revoke",
-            entity: Describe(skillName, scriptName),
+            entity: revokeEntity,
+            before: null,
             after: null,
+            refusal: $"Script permission '{revokeEntity}' was not changed",
+            timeProvider: null,
             cancellationToken).ConfigureAwait(false);
 
         return await _inner.RevokeAsync(tenantId, skillName, scriptName, cancellationToken)

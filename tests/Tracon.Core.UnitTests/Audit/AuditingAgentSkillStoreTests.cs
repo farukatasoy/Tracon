@@ -127,7 +127,8 @@ public sealed class AuditingAgentSkillStoreTests
             new InMemoryAgentSkillStore(),
             auditLog,
             new NullAuditActorResolver(),
-            NullLogger<AuditingAgentSkillStore>.Instance);
+            NullLogger<AuditingAgentSkillStore>.Instance,
+            metrics: null);
 
     private sealed class NullAuditActorResolver : IAuditActorResolver
     {

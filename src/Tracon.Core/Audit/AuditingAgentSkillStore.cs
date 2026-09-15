@@ -38,18 +38,21 @@ internal sealed class AuditingAgentSkillStore : IAgentSkillStore, IAuditDecorate
     private readonly IAuditLog _auditLog;
     private readonly IAuditActorResolver _actorResolver;
     private readonly ILogger<AuditingAgentSkillStore> _logger;
+    private readonly TraconMetrics? _metrics;
 
     /// <summary>Initializes a new audited skill store.</summary>
     /// <param name="inner">The wrapped store.</param>
     /// <param name="auditLog">The audit log.</param>
     /// <param name="actorResolver">The actor resolver.</param>
     /// <param name="logger">The logger.</param>
+    /// <param name="metrics">The metric set that counts a failed audit write.</param>
     /// <exception cref="ArgumentNullException">A dependency is <see langword="null"/>.</exception>
     public AuditingAgentSkillStore(
         IAgentSkillStore inner,
         IAuditLog auditLog,
         IAuditActorResolver actorResolver,
-        ILogger<AuditingAgentSkillStore> logger)
+        ILogger<AuditingAgentSkillStore> logger,
+        TraconMetrics? metrics)
     {
         ArgumentNullException.ThrowIfNull(inner);
         ArgumentNullException.ThrowIfNull(auditLog);
@@ -60,6 +63,7 @@ internal sealed class AuditingAgentSkillStore : IAgentSkillStore, IAuditDecorate
         _auditLog = auditLog;
         _actorResolver = actorResolver;
         _logger = logger;
+        _metrics = metrics;
     }
 
     /// <inheritdoc />
@@ -97,6 +101,7 @@ internal sealed class AuditingAgentSkillStore : IAgentSkillStore, IAuditDecorate
             _auditLog,
             _actorResolver,
             _logger,
+            _metrics,
             skill.TenantId,
             action: existing is null ? "skill.create" : "skill.update",
             entity: $"skill:{skill.Name}",
@@ -125,6 +130,7 @@ internal sealed class AuditingAgentSkillStore : IAgentSkillStore, IAuditDecorate
                 _auditLog,
                 _actorResolver,
                 _logger,
+                _metrics,
                 tenantId,
                 action: "skill.delete",
                 entity: $"skill:{name}",

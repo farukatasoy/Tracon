@@ -151,20 +151,23 @@ public static class TraconSqliteBuilderExtensions
                 provider.GetRequiredService<IAuditLog>(),
                 provider.GetRequiredService<ITenantContext>(),
                 provider.GetRequiredService<IAuditActorResolver>(),
-                provider.GetRequiredService<ILogger<AuditingAgentDefinitionStore>>())));
+                provider.GetRequiredService<ILogger<AuditingAgentDefinitionStore>>(),
+                provider.GetRequiredService<TraconMetrics>())));
         services.Replace(ServiceDescriptor.Singleton<IAgentSkillStore, AuditingAgentSkillStore>(
             static provider => new AuditingAgentSkillStore(
                 ActivatorUtilities.CreateInstance<SqlAgentSkillStore>(provider),
                 provider.GetRequiredService<IAuditLog>(),
                 provider.GetRequiredService<IAuditActorResolver>(),
-                provider.GetRequiredService<ILogger<AuditingAgentSkillStore>>())));
+                provider.GetRequiredService<ILogger<AuditingAgentSkillStore>>(),
+                provider.GetRequiredService<TraconMetrics>())));
 
         services.Replace(ServiceDescriptor.Singleton<ISkillScriptGrantStore, AuditingSkillScriptGrantStore>(
             static provider => new AuditingSkillScriptGrantStore(
                 ActivatorUtilities.CreateInstance<SqlSkillScriptGrantStore>(provider),
                 provider.GetRequiredService<IAuditLog>(),
                 provider.GetRequiredService<IAuditActorResolver>(),
-                provider.GetRequiredService<ILogger<AuditingSkillScriptGrantStore>>())));
+                provider.GetRequiredService<ILogger<AuditingSkillScriptGrantStore>>(),
+                provider.GetRequiredService<TraconMetrics>())));
         services.Replace(ServiceDescriptor.Singleton<IRunStore, SqlRunStore>());
 
         services.Replace(ServiceDescriptor.Singleton<IWorkflowDefinitionStore, AuditingWorkflowDefinitionStore>(
@@ -172,7 +175,8 @@ public static class TraconSqliteBuilderExtensions
                 ActivatorUtilities.CreateInstance<SqlWorkflowDefinitionStore>(provider),
                 provider.GetRequiredService<IAuditLog>(),
                 provider.GetRequiredService<IAuditActorResolver>(),
-                provider.GetRequiredService<ILogger<AuditingWorkflowDefinitionStore>>())));
+                provider.GetRequiredService<ILogger<AuditingWorkflowDefinitionStore>>(),
+                provider.GetRequiredService<TraconMetrics>())));
         services.Replace(
             ServiceDescriptor.Singleton<IWorkflowCheckpointStore, SqlWorkflowCheckpointStore>());
 
@@ -245,7 +249,8 @@ public static class TraconSqliteBuilderExtensions
                 provider.GetRequiredService<IAuditLog>(),
                 provider.GetRequiredService<ITenantContext>(),
                 provider.GetRequiredService<IAuditActorResolver>(),
-                provider.GetRequiredService<ILogger<AuditingExperimentStore>>())));
+                provider.GetRequiredService<ILogger<AuditingExperimentStore>>(),
+                provider.GetRequiredService<TraconMetrics>())));
 
         services.Replace(ServiceDescriptor.Singleton<ISessionStore, AuditingSessionStore>(
             static provider => new AuditingSessionStore(
@@ -253,27 +258,31 @@ public static class TraconSqliteBuilderExtensions
                 provider.GetRequiredService<IAuditLog>(),
                 provider.GetRequiredService<ITenantContext>(),
                 provider.GetRequiredService<IAuditActorResolver>(),
-                provider.GetRequiredService<ILogger<AuditingSessionStore>>())));
+                provider.GetRequiredService<ILogger<AuditingSessionStore>>(),
+                provider.GetRequiredService<TraconMetrics>())));
         services.Replace(ServiceDescriptor.Singleton<ITraceStore, SqlTraceStore>());
         services.Replace(ServiceDescriptor.Singleton<IToolApprovalRuleStore, AuditingToolApprovalRuleStore>(
             static provider => new AuditingToolApprovalRuleStore(
                 ActivatorUtilities.CreateInstance<SqlToolApprovalRuleStore>(provider),
                 provider.GetRequiredService<IAuditLog>(),
                 provider.GetRequiredService<IAuditActorResolver>(),
-                provider.GetRequiredService<ILogger<AuditingToolApprovalRuleStore>>())));
+                provider.GetRequiredService<ILogger<AuditingToolApprovalRuleStore>>(),
+                provider.GetRequiredService<TraconMetrics>())));
         services.Replace(ServiceDescriptor.Singleton<IMcpServerStore, AuditingMcpServerStore>(
             static provider => new AuditingMcpServerStore(
                 ActivatorUtilities.CreateInstance<SqlMcpServerStore>(provider),
                 provider.GetRequiredService<IAuditLog>(),
                 provider.GetRequiredService<IAuditActorResolver>(),
-                provider.GetRequiredService<ILogger<AuditingMcpServerStore>>())));
+                provider.GetRequiredService<ILogger<AuditingMcpServerStore>>(),
+                provider.GetRequiredService<TraconMetrics>())));
         services.Replace(ServiceDescriptor.Singleton<ITenantStore, AuditingTenantStore>(
             static provider => new AuditingTenantStore(
                 ActivatorUtilities.CreateInstance<SqlTenantStore>(provider),
                 provider.GetRequiredService<IAuditLog>(),
                 provider.GetRequiredService<ITenantContext>(),
                 provider.GetRequiredService<IAuditActorResolver>(),
-                provider.GetRequiredService<ILogger<AuditingTenantStore>>())));
+                provider.GetRequiredService<ILogger<AuditingTenantStore>>(),
+                provider.GetRequiredService<TraconMetrics>())));
 
         services.Replace(ServiceDescriptor.Singleton<ChatHistoryProvider, SqlChatHistoryProvider>());
 

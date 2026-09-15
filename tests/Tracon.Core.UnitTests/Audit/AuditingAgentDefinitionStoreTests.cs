@@ -95,7 +95,8 @@ public sealed class AuditingAgentDefinitionStoreTests
             auditLog,
             new SingleTenantContext(Options.Create(new TraconOptions())),
             new NullAuditActorResolver(),
-            NullLogger<AuditingAgentDefinitionStore>.Instance);
+            NullLogger<AuditingAgentDefinitionStore>.Instance,
+            metrics: null);
 
     private sealed class NullAuditActorResolver : IAuditActorResolver
     {

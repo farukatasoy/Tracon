@@ -1522,6 +1522,7 @@ internal static class AgentEndpoints
                     services.GetRequiredService<IAuditLog>(),
                     services.GetRequiredService<IAuditActorResolver>(),
                     loggerFactory.CreateLogger(typeof(ToolApprovalResolver).FullName!),
+                    services.GetRequiredService<TraconMetrics>(),
                     cancellationToken).ConfigureAwait(false);
 
                 if (approvalMessage is not null)
@@ -1557,6 +1558,7 @@ internal static class AgentEndpoints
                         services.GetRequiredService<IAuditLog>(),
                         services.GetRequiredService<IAuditActorResolver>(),
                         loggerFactory.CreateLogger(typeof(ClientToolResultResolver).FullName!),
+                        services.GetRequiredService<TraconMetrics>(),
                         cancellationToken).ConfigureAwait(false);
 
                     if (toolResultsMessage is not null)

@@ -406,6 +406,7 @@ internal static class EvalEndpoints
         [FromServices] ILoggerFactory loggerFactory,
         [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
         [FromServices] IRunAttributionContext? attributionContext,
+        [FromServices] TraconMetrics metrics,
         CancellationToken cancellationToken)
     {
         var (request, bindError) = await RequestBodyBinding
@@ -480,6 +481,7 @@ internal static class EvalEndpoints
                     auditLog,
                     actorResolver,
                     loggerFactory.CreateLogger("Tracon.EvalEndpoints"),
+                    metrics,
                     tenants.TenantId,
                     action: "eval.case.promoted",
                     entity: $"eval_case:{outcome.Case!.Id}",
@@ -769,6 +771,7 @@ internal static class EvalEndpoints
         [FromServices] ILoggerFactory loggerFactory,
         [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
         [FromServices] IRunAttributionContext? attributionContext,
+        [FromServices] TraconMetrics metrics,
         CancellationToken cancellationToken)
     {
         var run = await runs.GetRunAsync(runId, cancellationToken).ConfigureAwait(false);
@@ -812,6 +815,7 @@ internal static class EvalEndpoints
             auditLog,
             actorResolver,
             loggerFactory.CreateLogger("Tracon.EvalEndpoints"),
+            metrics,
             tenants.TenantId,
             action: "run.judge.manual",
             entity: $"run:{runId}",

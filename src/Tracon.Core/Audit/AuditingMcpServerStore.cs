@@ -17,13 +17,15 @@ internal sealed class AuditingMcpServerStore : IMcpServerStore, IAuditDecorated
     private readonly IAuditLog _auditLog;
     private readonly IAuditActorResolver _actorResolver;
     private readonly ILogger<AuditingMcpServerStore> _logger;
+    private readonly TraconMetrics? _metrics;
 
     /// <summary>Initializes a new audited MCP server store.</summary>
     public AuditingMcpServerStore(
         IMcpServerStore inner,
         IAuditLog auditLog,
         IAuditActorResolver actorResolver,
-        ILogger<AuditingMcpServerStore> logger)
+        ILogger<AuditingMcpServerStore> logger,
+        TraconMetrics? metrics)
     {
         ArgumentNullException.ThrowIfNull(inner);
         ArgumentNullException.ThrowIfNull(auditLog);
@@ -34,6 +36,7 @@ internal sealed class AuditingMcpServerStore : IMcpServerStore, IAuditDecorated
         _auditLog = auditLog;
         _actorResolver = actorResolver;
         _logger = logger;
+        _metrics = metrics;
     }
 
     /// <inheritdoc />
@@ -66,6 +69,7 @@ internal sealed class AuditingMcpServerStore : IMcpServerStore, IAuditDecorated
             _auditLog,
             _actorResolver,
             _logger,
+            _metrics,
             server.TenantId,
             action: existing is null ? "mcp.create" : "mcp.update",
             entity: $"mcp:{server.Name}",
@@ -93,6 +97,7 @@ internal sealed class AuditingMcpServerStore : IMcpServerStore, IAuditDecorated
                 _auditLog,
                 _actorResolver,
                 _logger,
+                _metrics,
                 tenantId,
                 action: "mcp.delete",
                 entity: $"mcp:{name}",

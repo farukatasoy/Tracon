@@ -114,6 +114,7 @@ internal static class TenantProviderEndpoints
         [FromServices] IAuditActorResolver actorResolver,
         [FromServices] ILoggerFactory loggerFactory,
         [FromServices] IOptionsMonitor<TraconEgressOptions> egressOptions,
+        [FromServices] TraconMetrics metrics,
         CancellationToken cancellationToken)
     {
         if (!HttpTenantContext.IsValidTenantId(tenantId))
@@ -192,6 +193,7 @@ internal static class TenantProviderEndpoints
             auditLog,
             actorResolver,
             loggerFactory.CreateLogger("Tracon.TenantProviderEndpoints"),
+            metrics,
             tenantId,
             action: "tenant_provider.save",
             entity: $"tenant_provider:{tenantId}:{provider}",
@@ -209,6 +211,7 @@ internal static class TenantProviderEndpoints
         [FromServices] IAuditLog auditLog,
         [FromServices] IAuditActorResolver actorResolver,
         [FromServices] ILoggerFactory loggerFactory,
+        [FromServices] TraconMetrics metrics,
         CancellationToken cancellationToken)
     {
         var deleted = await store.DeleteAsync(tenantId, provider, cancellationToken).ConfigureAwait(false);
@@ -222,6 +225,7 @@ internal static class TenantProviderEndpoints
             auditLog,
             actorResolver,
             loggerFactory.CreateLogger("Tracon.TenantProviderEndpoints"),
+            metrics,
             tenantId,
             action: "tenant_provider.delete",
             entity: $"tenant_provider:{tenantId}:{provider}",
@@ -254,6 +258,7 @@ internal static class TenantProviderEndpoints
         [FromServices] IAuditLog auditLog,
         [FromServices] IAuditActorResolver actorResolver,
         [FromServices] ILoggerFactory loggerFactory,
+        [FromServices] TraconMetrics metrics,
         CancellationToken cancellationToken)
     {
         if (!HttpTenantContext.IsValidTenantId(tenantId))
@@ -278,6 +283,7 @@ internal static class TenantProviderEndpoints
             auditLog,
             actorResolver,
             loggerFactory.CreateLogger("Tracon.TenantProviderEndpoints"),
+            metrics,
             tenantId,
             action: "tenant_egress.save",
             entity: $"tenant_egress:{tenantId}",
@@ -299,6 +305,7 @@ internal static class TenantProviderEndpoints
         [FromServices] IAuditLog auditLog,
         [FromServices] IAuditActorResolver actorResolver,
         [FromServices] ILoggerFactory loggerFactory,
+        [FromServices] TraconMetrics metrics,
         CancellationToken cancellationToken)
     {
         var deleted = await store.DeleteAsync(tenantId, cancellationToken).ConfigureAwait(false);
@@ -315,6 +322,7 @@ internal static class TenantProviderEndpoints
             auditLog,
             actorResolver,
             loggerFactory.CreateLogger("Tracon.TenantProviderEndpoints"),
+            metrics,
             tenantId,
             action: "tenant_egress.delete",
             entity: $"tenant_egress:{tenantId}",
