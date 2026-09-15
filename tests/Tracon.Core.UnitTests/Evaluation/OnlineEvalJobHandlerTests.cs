@@ -102,6 +102,97 @@ public sealed class OnlineEvalJobHandlerTests
         saved.Author.ShouldBe("judge:model");
     }
 
+    /// <remarks>
+    /// The handler is the only place a <see cref="RunJudgment"/> becomes score
+    /// rows, so this is where "the judge reported a version" has to turn into
+    /// "every row carries it". A judge reporting several metrics stamps them
+    /// all: the version belongs to the component, not to one metric.
+    /// </remarks>
+    [Fact]
+    public async Task The_judgments_evaluator_version_reaches_EVERY_score_row()
+    {
+        var runs = new InMemoryRunStore(tenantContext: new FixedTenantContext(Tenant));
+        var inputs = new InMemoryRunInputStore();
+        var runId = await SeedRunAsync(runs, withOutput: true, inputs: inputs);
+
+        var scores = new InMemoryRunScoreStore();
+        var handler = BuildHandler(
+            runs,
+            inputs,
+            scores,
+            [new ScriptedJudge("quality", static _ => new RunJudgment
+            {
+                EvaluatorVersion = "9.7.0-preview.1.25356.2",
+                Scores =
+                [
+                    new JudgeScore { Name = "quality.Relevance", Kind = RunScoreKind.Numeric, Value = 80 },
+                    new JudgeScore { Name = "quality.Coherence", Kind = RunScoreKind.Numeric, Value = 90 },
+                ],
+            })]);
+
+        await handler.ExecuteAsync(ExecutionContext(runId, []));
+
+        var saved = await scores.ListAsync(Tenant, runId);
+
+        saved.Count.ShouldBe(2);
+        saved.ShouldAllBe(static score => score.EvaluatorVersion == "9.7.0-preview.1.25356.2");
+    }
+
+    /// <remarks>
+    /// A judge that reports no version leaves the column NULL, which is what
+    /// every human and API score carries too. It is not "version zero".
+    /// </remarks>
+    [Fact]
+    public async Task A_judge_reporting_no_version_leaves_the_column_null()
+    {
+        var runs = new InMemoryRunStore(tenantContext: new FixedTenantContext(Tenant));
+        var inputs = new InMemoryRunInputStore();
+        var runId = await SeedRunAsync(runs, withOutput: true, inputs: inputs);
+
+        var scores = new InMemoryRunScoreStore();
+        var handler = BuildHandler(
+            runs,
+            inputs,
+            scores,
+            [new ScriptedJudge("model", static _ => JudgeVerdict.Headline("model", 42, "reason"))]);
+
+        await handler.ExecuteAsync(ExecutionContext(runId, []));
+
+        (await scores.ListAsync(Tenant, runId)).Single().EvaluatorVersion.ShouldBeNull();
+    }
+
+    /// <remarks>
+    /// 🚨 The bound is checked BEFORE the first write, not on it. Validating
+    /// per row would let the first rows land and the set fail halfway, and the
+    /// retry checkpoint cannot tell a half-written set from a complete one.
+    /// </remarks>
+    [Fact]
+    public async Task An_over_long_evaluator_version_fails_the_judge_BEFORE_any_row_is_written()
+    {
+        var runs = new InMemoryRunStore(tenantContext: new FixedTenantContext(Tenant));
+        var inputs = new InMemoryRunInputStore();
+        var runId = await SeedRunAsync(runs, withOutput: true, inputs: inputs);
+
+        var scores = new InMemoryRunScoreStore();
+        var handler = BuildHandler(
+            runs,
+            inputs,
+            scores,
+            [new ScriptedJudge("quality", static _ => new RunJudgment
+            {
+                EvaluatorVersion = new string('9', RunScoreRules.MaxEvaluatorVersionLength + 1),
+                Scores =
+                [
+                    new JudgeScore { Name = "quality.Relevance", Kind = RunScoreKind.Numeric, Value = 80 },
+                    new JudgeScore { Name = "quality.Coherence", Kind = RunScoreKind.Numeric, Value = 90 },
+                ],
+            })]);
+
+        await handler.ExecuteAsync(ExecutionContext(runId, []));
+
+        (await scores.ListAsync(Tenant, runId)).ShouldBeEmpty();
+    }
+
     [Fact]
     public async Task Judge_that_cannot_decide_does_not_silently_write_zero()
     {

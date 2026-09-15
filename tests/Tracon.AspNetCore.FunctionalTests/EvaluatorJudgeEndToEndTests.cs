@@ -1,4 +1,5 @@
 using System.Net;
+using System.Reflection;
 using System.Text.Json;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.AI.Evaluation;
@@ -176,6 +177,97 @@ public sealed class EvaluatorJudgeEndToEndTests
                     "not a name",
                     new ScriptedEvaluator(),
                     JudgeModel)));
+    }
+
+    /// <remarks>
+    /// The version has to cross the store AND the HTTP boundary: it is resolved
+    /// in the judge, written by the handler, read back by the store and
+    /// serialised by the endpoint. A unit test sees none of those four steps.
+    /// </remarks>
+    [Fact]
+    public async Task The_evaluator_version_reaches_the_HTTP_response_on_every_row()
+    {
+        var expected = typeof(ScriptedEvaluator).Assembly
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+            ?.InformationalVersion;
+
+        expected.ShouldNotBeNullOrWhiteSpace();
+
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: static tracon => tracon.AddEvaluatorJudge(
+                "quality",
+                new ScriptedEvaluator(
+                    new NumericMetric("Relevance", 4, "on topic"),
+                    new NumericMetric("Coherence", 5, "reads well")),
+                JudgeModel));
+
+        var runId = await SeedScorableRunAsync(host);
+
+        await host.Client.PostAsync(JudgeUri(runId), content: null);
+
+        var scores = await ReadScoresAsync(host, runId);
+
+        scores.Count.ShouldBe(2);
+        scores.ShouldAllBe(score => score.GetProperty("evaluatorVersion").GetString() == expected);
+    }
+
+    [Fact]
+    public async Task A_calibrated_catalog_evaluator_is_stamped_with_the_CATALOG_packages_version()
+    {
+        // 🚨 The value must be the QUALITY PACKAGE's version, not Tracon's: the
+        // score depends on that package's prompt, which is the whole reason the
+        // column exists. Reading the evaluator's own assembly is what makes
+        // this true for a third-party evaluator as well.
+        var expected = typeof(RelevanceEvaluator).Assembly
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+            ?.InformationalVersion;
+
+        expected.ShouldNotBeNullOrWhiteSpace();
+
+        // Guards the assertion itself: if the two assemblies happened to carry
+        // the same version, this case could not tell WHICH one was stamped.
+        var ownVersion = typeof(TraconTestHost).Assembly
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+            ?.InformationalVersion;
+
+        string.Equals(expected, ownVersion, StringComparison.Ordinal).ShouldBeFalse();
+
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: static tracon => tracon.AddEvaluatorJudge(
+                "relevance",
+                new RelevanceEvaluator(),
+                JudgeModel));
+
+        var runId = await SeedScorableRunAsync(host);
+
+        await host.Client.PostAsync(JudgeUri(runId), content: null);
+
+        var scores = await ReadScoresAsync(host, runId);
+
+        scores.ShouldNotBeEmpty();
+        scores.ShouldAllBe(score => score.GetProperty("evaluatorVersion").GetString() == expected);
+    }
+
+    [Fact]
+    public async Task A_human_score_carries_no_evaluator_version()
+    {
+        await using var host = await TraconTestHost.StartAsync();
+        var runId = await SeedScorableRunAsync(host);
+
+        using var content = new StringContent(
+            """{"kind":1,"value":1,"comment":"good"}""",
+            System.Text.Encoding.UTF8,
+            "application/json");
+
+        using var response = await host.Client.PostAsync(
+            new Uri($"/tracon/api/runs/{runId}/feedback", UriKind.Relative),
+            content);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var score = (await ReadScoresAsync(host, runId)).ShouldHaveSingleItem();
+        score.GetProperty("source").GetString().ShouldBe("human");
+        score.GetProperty("evaluatorVersion").ValueKind.ShouldBe(JsonValueKind.Null);
     }
 
     private static void JudgeModel(ModelRunJudgeOptions options)

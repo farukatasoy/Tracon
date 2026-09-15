@@ -102,6 +102,32 @@ public sealed record RunJudgment
     /// nothing is written for that judge.
     /// </remarks>
     public IReadOnlyList<JudgeScore> Scores { get; init; } = [];
+
+    /// <summary>
+    /// The version of the component that produced this judgment, when the judge
+    /// knows one. Written onto every score row as
+    /// <see cref="RunScore.EvaluatorVersion"/>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <see langword="null"/> — the default — means <strong>no version is
+    /// reported</strong>, which is what a judge whose verdict depends on no
+    /// versioned component should return. It never means "version zero".
+    /// </para>
+    /// <para>
+    /// A judge that grades through a package scores against that package's
+    /// prompt, so upgrading the package moves the scores while the model stays
+    /// the same. Reporting the version here is what lets a reader tell a real
+    /// regression from a changed judge. Resolve it <strong>once</strong>, when
+    /// the judge is constructed, rather than on each call.
+    /// </para>
+    /// <para>
+    /// At most <see cref="RunScoreRules.MaxEvaluatorVersionLength"/>
+    /// characters; a longer value is a contract failure and the judge's scores
+    /// are not written.
+    /// </para>
+    /// </remarks>
+    public string? EvaluatorVersion { get; init; }
 }
 
 /// <summary>A normalized judge failure returned by manual scoring.</summary>

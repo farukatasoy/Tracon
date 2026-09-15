@@ -31,6 +31,16 @@ public static class RunScoreRules
     /// <summary>The greatest allowed <see cref="RunScore.TextValue"/> length.</summary>
     public const int MaxTextValueLength = 256;
 
+    /// <summary>The greatest allowed <see cref="RunScore.EvaluatorVersion"/> length.</summary>
+    /// <remarks>
+    /// A version is a short identifier: a release number, optionally with a
+    /// pre-release label and a source revision. The bound keeps the stored
+    /// column fixed-width, because the value is one a judge supplies — an
+    /// unbounded column would let a third-party judge decide how much of a
+    /// customer's table a single score row occupies.
+    /// </remarks>
+    public const int MaxEvaluatorVersionLength = 128;
+
     /// <summary>The human-readable name rule, used in error messages.</summary>
     public const string NameDescription = "A run score name must match [A-Za-z0-9._-]{1,64}.";
 
@@ -59,8 +69,10 @@ public static class RunScoreRules
     /// <param name="score">The score about to be written.</param>
     /// <exception cref="ArgumentNullException"><paramref name="score"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException">
-    /// The name breaks <see cref="NameDescription"/>, or the value shape does
-    /// not match <see cref="RunScore.Kind"/>.
+    /// The name breaks <see cref="NameDescription"/>, the value shape does not
+    /// match <see cref="RunScore.Kind"/>, or
+    /// <see cref="RunScore.EvaluatorVersion"/> is longer than
+    /// <see cref="MaxEvaluatorVersionLength"/>.
     /// </exception>
     /// <remarks>
     /// The value-shape invariant: a <see cref="RunScoreKind.Categorical"/>
@@ -77,6 +89,13 @@ public static class RunScoreRules
         if (!IsValidName(score.Name))
         {
             throw new ArgumentException(NameDescription, nameof(score));
+        }
+
+        if (score.EvaluatorVersion is { Length: > MaxEvaluatorVersionLength })
+        {
+            throw new ArgumentException(
+                $"A score's EvaluatorVersion can be at most {MaxEvaluatorVersionLength} characters.",
+                nameof(score));
         }
 
         if (score.Kind == RunScoreKind.Categorical)

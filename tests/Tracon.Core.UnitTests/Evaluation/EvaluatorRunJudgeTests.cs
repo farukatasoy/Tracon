@@ -1,5 +1,8 @@
+using System.Reflection;
+using System.Reflection.Emit;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.AI.Evaluation;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
@@ -211,6 +214,87 @@ public sealed class EvaluatorRunJudgeTests
         exception.Message.ShouldContain("quality");
     }
 
+    [Fact]
+    public async Task The_evaluators_OWN_assembly_version_is_stamped_on_the_judgment()
+    {
+        // ScriptedEvaluator lives in this test assembly, so the bridge must
+        // report THIS assembly's version -- it asks the evaluator's own
+        // assembly and opens no privileged path for the shipped catalog.
+        var expected = typeof(ScriptedEvaluator).Assembly
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+            ?.InformationalVersion;
+
+        expected.ShouldNotBeNullOrWhiteSpace();
+
+        var judge = Build("quality", new ScriptedEvaluator(new NumericMetric("Relevance", 4, "ok")));
+
+        (await judge.JudgeAsync(Context())).EvaluatorVersion.ShouldBe(expected);
+    }
+
+    /// <remarks>
+    /// 🚨 The failure this guards is the whole point of the stamp being
+    /// OBSERVABILITY: an evaluator whose assembly carries no informational
+    /// version must still be scored. Losing a tenant's score rows to a missing
+    /// attribute would be a far worse bug than a missing version.
+    /// </remarks>
+    [Fact]
+    public async Task An_evaluator_with_NO_assembly_version_is_still_scored()
+    {
+        var judge = Build("quality", EvaluatorInAssemblyWithVersion(null, new NumericMetric("Relevance", 4, "ok")));
+
+        var judgment = await judge.JudgeAsync(Context());
+
+        judgment.EvaluatorVersion.ShouldBeNull();
+        judgment.Scores.ShouldHaveSingleItem().Name.ShouldBe("quality.Relevance");
+    }
+
+    /// <remarks>
+    /// 🚨 Measures "resolved ONCE, at construction", not "resolved correctly".
+    /// The observable is the Debug line the versionless path writes: it is
+    /// already there before the first call (so the read happened at
+    /// construction), and three calls do not add a second one (so no call pays
+    /// for the reflection). A per-call read would make this three or four.
+    /// </remarks>
+    [Fact]
+    public async Task The_version_is_resolved_ONCE_at_construction_not_per_call()
+    {
+        var logger = new RecordingLogger();
+        var evaluator = EvaluatorInAssemblyWithVersion(null, new NumericMetric("Relevance", 4, "ok"));
+
+        var judge = new EvaluatorRunJudge(
+            "quality",
+            evaluator,
+            new FixedModelProviderRegistry(),
+            new StaticOptionsMonitor<ModelRunJudgeOptions>(new ModelRunJudgeOptions
+            {
+                Model = new ModelBinding { Provider = "test", Model = "cheap-model" },
+            }),
+            logger);
+
+        logger.VersionLines.ShouldBe(1, "the version is read when the judge is built, before any call");
+
+        await judge.JudgeAsync(Context());
+        await judge.JudgeAsync(Context());
+        await judge.JudgeAsync(Context());
+
+        logger.VersionLines.ShouldBe(1, "three calls must not repeat the read");
+    }
+
+    [Fact]
+    public async Task An_over_long_assembly_version_is_truncated_rather_than_failing_the_judgment()
+    {
+        // A contract failure would write NO rows at all. Truncating keeps the
+        // scores and loses only the tail of an unusually long version string.
+        var judge = Build("quality", EvaluatorInAssemblyWithVersion(
+            new string('9', RunScoreRules.MaxEvaluatorVersionLength + 40),
+            new NumericMetric("Relevance", 4, "ok")));
+
+        var judgment = await judge.JudgeAsync(Context());
+
+        judgment.EvaluatorVersion.ShouldNotBeNull().Length.ShouldBe(RunScoreRules.MaxEvaluatorVersionLength);
+        judgment.Scores.ShouldHaveSingleItem();
+    }
+
     private static double? Value(RunJudgment judgment, string name)
         => judgment.Scores.Single(score => string.Equals(score.Name, name, StringComparison.Ordinal)).Value;
 
@@ -260,6 +344,96 @@ public sealed class EvaluatorRunJudgeTests
             OnEvaluate?.Invoke();
             cancellationToken.ThrowIfCancellationRequested();
             return ValueTask.FromResult(new EvaluationResult(metrics));
+        }
+    }
+
+    /// <summary>
+    /// Builds an <see cref="IEvaluator"/> whose type lives in a DYNAMIC assembly
+    /// carrying exactly the informational version asked for -- or none at all.
+    /// </summary>
+    /// <remarks>
+    /// 🚨 A dynamic assembly is the only honest way to reach these two shapes.
+    /// Every assembly compiled in this repository has a short informational
+    /// version, so neither "no version" nor "an over-long version" can be
+    /// produced with an ordinary class, and pointing the bridge at a stand-in
+    /// would test the stand-in rather than the assembly read.
+    /// </remarks>
+    /// <param name="informationalVersion">
+    /// The version to stamp on the generated assembly, or <see langword="null"/>
+    /// to stamp none.
+    /// </param>
+    /// <param name="metrics">The metrics the evaluator reports.</param>
+    private static ProbeEvaluatorBase EvaluatorInAssemblyWithVersion(
+        string? informationalVersion,
+        params EvaluationMetric[] metrics)
+    {
+        var assembly = AssemblyBuilder.DefineDynamicAssembly(
+            new AssemblyName($"Tracon.VersionProbe.{Guid.NewGuid():N}"),
+            AssemblyBuilderAccess.Run);
+
+        if (informationalVersion is not null)
+        {
+            assembly.SetCustomAttribute(new CustomAttributeBuilder(
+                typeof(AssemblyInformationalVersionAttribute).GetConstructor([typeof(string)])!,
+                [informationalVersion]));
+        }
+
+        // No constructor is defined, so CreateType() emits the default one that
+        // chains to the base class's parameterless constructor.
+        var type = assembly
+            .DefineDynamicModule("main")
+            .DefineType("ProbeEvaluator", TypeAttributes.Public, typeof(ProbeEvaluatorBase))
+            .CreateType();
+
+        var evaluator = (ProbeEvaluatorBase)Activator.CreateInstance(type)!;
+        evaluator.Metrics = metrics;
+        return evaluator;
+    }
+
+    /// <summary>The base the generated probe type derives from.</summary>
+    /// <remarks>
+    /// Only the TYPE is generated; the behaviour lives here in ordinary C#, so
+    /// the probe needs no emitted method bodies. What matters to the test is
+    /// that <c>GetType().Assembly</c> is the generated one.
+    /// </remarks>
+    public class ProbeEvaluatorBase : IEvaluator
+    {
+        public EvaluationMetric[] Metrics { get; set; } = [];
+
+        public IReadOnlyCollection<string> EvaluationMetricNames
+            => [.. Metrics.Select(static metric => metric.Name)];
+
+        public ValueTask<EvaluationResult> EvaluateAsync(
+            IEnumerable<ChatMessage> messages,
+            ChatResponse modelResponse,
+            ChatConfiguration? chatConfiguration = null,
+            IEnumerable<EvaluationContext>? additionalContext = null,
+            CancellationToken cancellationToken = default)
+            => ValueTask.FromResult(new EvaluationResult(Metrics));
+    }
+
+    /// <summary>Counts the Debug lines the version resolution writes.</summary>
+    private sealed class RecordingLogger : ILogger<EvaluatorRunJudge>
+    {
+        public int VersionLines { get; private set; }
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(
+            LogLevel logLevel,
+            EventId eventId,
+            TState state,
+            Exception? exception,
+            Func<TState, Exception?, string> formatter)
+        {
+            ArgumentNullException.ThrowIfNull(formatter);
+
+            if (formatter(state, exception).Contains("informational version", StringComparison.Ordinal))
+            {
+                VersionLines++;
+            }
         }
     }
 

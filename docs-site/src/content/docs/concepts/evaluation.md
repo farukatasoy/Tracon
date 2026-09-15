@@ -229,6 +229,41 @@ A judge sees the run's input, its output text, and the **names** of the tools it
 called — not their arguments or results. An evaluator that grades tool calls has
 nothing to grade there and reports no measurement.
 
+#### Which version graded this run
+
+A bridged score is produced by that package's **prompt**, so upgrading the
+evaluator package can move your scores while the model under test has not changed
+at all. Read as a trend, that looks exactly like a regression.
+
+Every score a bridged judge writes therefore carries the version of the package
+that produced it:
+
+```json
+{
+  "name": "relevance.Relevance",
+  "source": "judge:relevance",
+  "value": 78,
+  "evaluatorVersion": "10.9.0+b10f9c0a081b5dbb7755b8f5592e1d3c3f550a3a"
+}
+```
+
+The version is read from the evaluator's own assembly, so an evaluator you wrote
+yourself is stamped on the same terms as a catalog one, and it is resolved once
+when the judge is built rather than on every run. It is the informational
+version, which usually carries a build revision after a `+`, so compare two
+stamps for equality rather than parsing them.
+
+`evaluatorVersion` is **null** when no version applies or none could be read — a
+human score, an API score, the built-in judge (whose verdict depends on the model
+you configured, not on a package), or an evaluator whose assembly carries no
+version. Null means *no version was resolved*; it never means version zero, and a
+judge whose version cannot be read is still scored normally. Comparing two runs
+whose `evaluatorVersion` differs tells you the judge changed, not the model.
+
+To report a version from a judge of your own, set `RunJudgment.EvaluatorVersion`;
+it is written onto every score in that judgment and is bounded by
+`RunScoreRules.MaxEvaluatorVersionLength`.
+
 ### Replacing what grades a suite
 
 Eval suites are graded by MAF's `LocalEvaluator`, built from the checks the suite
@@ -260,6 +295,10 @@ A score carries one of four shapes:
 | `Stars` | `value` 1 to 5 | a star rating |
 | `Numeric` | `value` 0 to 100 | a judge's score, or a similarity of `0.87` |
 | `Categorical` | `textValue` | `minor`, `major`, `blocking` |
+
+Alongside the value, a score carries `evaluatorVersion`: the version of the
+component that produced it, or **null** when none applies. See
+[which version graded this run](#which-version-graded-this-run).
 
 `value` is a decimal, so `0.87` is stored as `0.87`. A **null** `value` means no
 measurement was made — not zero. Zero is a measurement; the absence of one is not,

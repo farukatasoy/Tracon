@@ -72,6 +72,7 @@ internal sealed class SqlRunScoreStore : IRunScoreStore
             DbHelpers.Add(command, "source", score.Source);
             Dialect.AddText(command, "author", score.Author);
             Dialect.AddTimestamp(command, "created_at", score.CreatedAt);
+            Dialect.AddText(command, "evaluator_version", score.EvaluatorVersion);
 
             try
             {
@@ -118,6 +119,13 @@ internal sealed class SqlRunScoreStore : IRunScoreStore
         return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
     }
 
+    /// <summary>Reads one row, addressing the columns of <c>RunScoreColumns</c> by ordinal.</summary>
+    /// <remarks>
+    /// The ordinals follow <c>SqlQueriesBase.RunScoreColumns</c> exactly.
+    /// </remarks>
+    // 🚨 A column added to RunScoreColumns has to be APPENDED: inserting one in
+    // the middle shifts every field below, and the shift is SILENT whenever the
+    // neighbouring types happen to agree. Phase 152 and phase 176 both appended.
     private static RunScore Read(DbDataReader reader)
         => new()
         {
@@ -133,6 +141,7 @@ internal sealed class SqlRunScoreStore : IRunScoreStore
             CreatedAt = DbHelpers.GetTimestamp(reader, 9),
             Name = reader.GetString(10),
             TextValue = DbHelpers.GetNullableString(reader, 11),
+            EvaluatorVersion = DbHelpers.GetNullableString(reader, 12),
         };
 
     /// <inheritdoc />
