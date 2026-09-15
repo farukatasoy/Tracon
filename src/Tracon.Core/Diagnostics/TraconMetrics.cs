@@ -124,6 +124,11 @@ public sealed class TraconMetrics : IDisposable
             TraconDiagnostics.JobDurationName,
             unit: "s",
             description: "Duration of a single background-job ATTEMPT, not of the job across all of its attempts.");
+
+        AuditWriteFailures = _meter.CreateCounter<long>(
+            TraconDiagnostics.AuditWriteFailureCounterName,
+            unit: "{failure}",
+            description: "Audit entries that could not be written, tagged by tenant, action and outcome.");
     }
 
     /// <summary>Run counter. Tags: agent, status, tenant.</summary>
@@ -155,6 +160,9 @@ public sealed class TraconMetrics : IDisposable
 
     /// <summary>Agent-source failure counter. Tags: source, operation.</summary>
     public Counter<long> AgentSourceFailures { get; }
+
+    /// <summary>Audit write-failure counter. Tags: tenant, action, outcome (swallowed/refused).</summary>
+    public Counter<long> AuditWriteFailures { get; }
 
     /// <summary>Finished-job counter. Tags: lane, kind, status, tenant.</summary>
     /// <remarks>
@@ -333,6 +341,23 @@ public sealed class TraconMetrics : IDisposable
             {
                 { TraconDiagnostics.Tags.AgentSourceName, sourceName },
                 { TraconDiagnostics.Tags.AgentSourceOperation, operation },
+            });
+
+    /// <summary>Records an audit entry that could not be written.</summary>
+    /// <param name="tenantId">The tenant the entry belonged to.</param>
+    /// <param name="action">The action name, such as <c>approval.decision</c>.</param>
+    /// <param name="outcome">
+    /// <c>swallowed</c> when the operation continued anyway, <c>refused</c> when the failed
+    /// write stopped it.
+    /// </param>
+    public void RecordAuditWriteFailure(string tenantId, string action, string outcome)
+        => AuditWriteFailures.Add(
+            1,
+            new TagList
+            {
+                { TraconDiagnostics.Tags.TenantId, tenantId },
+                { TraconDiagnostics.Tags.AuditAction, action },
+                { TraconDiagnostics.Tags.AuditOutcome, outcome },
             });
 
     /// <summary>Records a background job that reached a terminal status.</summary>

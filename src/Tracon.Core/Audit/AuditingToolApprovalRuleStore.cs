@@ -10,13 +10,15 @@ internal sealed class AuditingToolApprovalRuleStore : IToolApprovalRuleStore, IA
     private readonly IAuditLog _auditLog;
     private readonly IAuditActorResolver _actorResolver;
     private readonly ILogger<AuditingToolApprovalRuleStore> _logger;
+    private readonly TraconMetrics? _metrics;
 
     /// <summary>Initializes a new audited approval rule store.</summary>
     public AuditingToolApprovalRuleStore(
         IToolApprovalRuleStore inner,
         IAuditLog auditLog,
         IAuditActorResolver actorResolver,
-        ILogger<AuditingToolApprovalRuleStore> logger)
+        ILogger<AuditingToolApprovalRuleStore> logger,
+        TraconMetrics? metrics)
     {
         ArgumentNullException.ThrowIfNull(inner);
         ArgumentNullException.ThrowIfNull(auditLog);
@@ -27,6 +29,7 @@ internal sealed class AuditingToolApprovalRuleStore : IToolApprovalRuleStore, IA
         _auditLog = auditLog;
         _actorResolver = actorResolver;
         _logger = logger;
+        _metrics = metrics;
     }
 
     /// <inheritdoc />
@@ -51,6 +54,7 @@ internal sealed class AuditingToolApprovalRuleStore : IToolApprovalRuleStore, IA
             _auditLog,
             _actorResolver,
             _logger,
+            _metrics,
             rule.TenantId,
             action: "approval.rule.create",
             entity: $"rule:{saved.Id}",
@@ -77,6 +81,7 @@ internal sealed class AuditingToolApprovalRuleStore : IToolApprovalRuleStore, IA
                 _auditLog,
                 _actorResolver,
                 _logger,
+                _metrics,
                 tenantId,
                 action: "approval.rule.delete",
                 entity: $"rule:{ruleId}",

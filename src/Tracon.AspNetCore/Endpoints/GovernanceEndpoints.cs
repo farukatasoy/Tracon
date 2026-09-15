@@ -306,6 +306,7 @@ internal static class GovernanceEndpoints
                 IAuditActorResolver actorResolver,
                 ITenantContext tenants,
                 ILoggerFactory loggerFactory,
+                [FromServices] TraconMetrics metrics,
                 CancellationToken cancellationToken) =>
             {
                 if (refresher is null)
@@ -324,6 +325,7 @@ internal static class GovernanceEndpoints
                     auditLog,
                     actorResolver,
                     loggerFactory.CreateLogger("Tracon.GovernanceEndpoints"),
+                    metrics,
                     tenants.TenantId,
                     action: "mcp.refresh",
                     entity: "mcp:*",

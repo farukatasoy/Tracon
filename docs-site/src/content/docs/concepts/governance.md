@@ -182,17 +182,22 @@ written *before* the change is applied, and a write failure aborts the change:
 
 | Operation | What a failed audit write refuses |
 |---|---|
-| An approval decision | The decision is not applied |
+| An approval decision, [in band or out of band](#approvals) | The decision is not applied and the tool does not run |
 | Granting or revoking a skill script | The grant is not changed |
 | Running a skill script | The script does not run |
-| Saving an inbound trigger | The trigger is not saved |
+| Saving or deleting an inbound trigger | The trigger is not changed |
 | An automatic canary rollback | The rollback is not applied |
 | A data subject erasure | The erasure does not commit |
 
 **Best-effort — the operation continues and the record can be missing.** Every other
 audit write takes this path: the failure is logged as a warning, and the call carries
-on. Run recording is best-effort in the same way, and goes one step further — after
-the first store failure, recording is switched off for the rest of that run. A single
+on. Either way the failure increments `tracon.audit.write_failures`, tagged `refused`
+or `swallowed` — see [what a failed audit write looks
+like](/guides/observability/#what-a-failed-audit-write-looks-like), because a hole in
+the audit trail is not something to find out about by reading logs.
+
+Run recording is best-effort in the same way, and goes one step further — after the
+first store failure, recording is switched off for the rest of that run. A single
 transient error can therefore cost the remainder of that run's events, not just one
 of them.
 
@@ -232,6 +237,10 @@ at the first entry written after upgrading, not retroactively.
 ## Approvals
 
 Two shapes, matching how the run was started.
+
+Both surfaces carry the **same** guarantee: a decision that cannot be written to the
+audit trail is not applied, and the tool it approved does not run. See [what is
+guaranteed to be written](#what-is-guaranteed-to-be-written).
 
 **In-band.** A streaming run that hits a tool needing approval carries the request in
 its stream and the decision in the next turn.

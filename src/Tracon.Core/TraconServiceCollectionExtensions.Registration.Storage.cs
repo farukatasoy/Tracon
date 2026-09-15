@@ -23,7 +23,8 @@ public static partial class TraconServiceCollectionExtensions
             provider.GetRequiredService<IAuditLog>(),
             provider.GetRequiredService<ITenantContext>(),
             provider.GetRequiredService<IAuditActorResolver>(),
-            provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<AuditingAgentDefinitionStore>>()));
+            provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<AuditingAgentDefinitionStore>>(),
+            provider.GetRequiredService<TraconMetrics>()));
         // A skill carries instructions AND server-side scripts, so saving or
         // deleting one enters the audit trail for the same reason an agent
         // definition does (F-170). Its script GRANT store was already audited
@@ -33,7 +34,8 @@ public static partial class TraconServiceCollectionExtensions
             new InMemoryAgentSkillStore(),
             provider.GetRequiredService<IAuditLog>(),
             provider.GetRequiredService<IAuditActorResolver>(),
-            provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<AuditingAgentSkillStore>>()));
+            provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<AuditingAgentSkillStore>>(),
+            provider.GetRequiredService<TraconMetrics>()));
         services.TryAddSingleton(static provider => new AgentSkillCatalog(
             provider.GetServices<CodeSkillRegistration>(),
             provider.GetRequiredService<IAgentSkillStore>(),
@@ -74,26 +76,30 @@ public static partial class TraconServiceCollectionExtensions
             new InMemorySkillScriptGrantStore(),
             provider.GetRequiredService<IAuditLog>(),
             provider.GetRequiredService<IAuditActorResolver>(),
-            provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<AuditingSkillScriptGrantStore>>()));
+            provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<AuditingSkillScriptGrantStore>>(),
+            provider.GetRequiredService<TraconMetrics>()));
 
         services.TryAddSingleton<ISessionStore>(static provider => new AuditingSessionStore(
             new InMemorySessionStore(provider.GetRequiredService<ITenantContext>()),
             provider.GetRequiredService<IAuditLog>(),
             provider.GetRequiredService<ITenantContext>(),
             provider.GetRequiredService<IAuditActorResolver>(),
-            provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<AuditingSessionStore>>()));
+            provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<AuditingSessionStore>>(),
+            provider.GetRequiredService<TraconMetrics>()));
         services.TryAddSingleton<ITraceStore>(static provider => new InMemoryTraceStore(
             provider.GetRequiredService<ITenantContext>()));
         services.TryAddSingleton<IToolApprovalRuleStore>(static provider => new AuditingToolApprovalRuleStore(
             new InMemoryToolApprovalRuleStore(),
             provider.GetRequiredService<IAuditLog>(),
             provider.GetRequiredService<IAuditActorResolver>(),
-            provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<AuditingToolApprovalRuleStore>>()));
+            provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<AuditingToolApprovalRuleStore>>(),
+            provider.GetRequiredService<TraconMetrics>()));
         services.TryAddSingleton<IMcpServerStore>(static provider => new AuditingMcpServerStore(
             new InMemoryMcpServerStore(),
             provider.GetRequiredService<IAuditLog>(),
             provider.GetRequiredService<IAuditActorResolver>(),
-            provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<AuditingMcpServerStore>>()));
+            provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<AuditingMcpServerStore>>(),
+            provider.GetRequiredService<TraconMetrics>()));
         // Attachment store and type guard. When IAttachmentStorage is not
         // registered, content lives directly in memory (in production: the database).
         services.TryAddSingleton<AttachmentTypeGuard>();
@@ -116,7 +122,8 @@ public static partial class TraconServiceCollectionExtensions
             new InMemoryWorkflowDefinitionStore(),
             provider.GetRequiredService<IAuditLog>(),
             provider.GetRequiredService<IAuditActorResolver>(),
-            provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<AuditingWorkflowDefinitionStore>>()));
+            provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<AuditingWorkflowDefinitionStore>>(),
+            provider.GetRequiredService<TraconMetrics>()));
         services.TryAddSingleton<IWorkflowCheckpointStore, InMemoryWorkflowCheckpointStore>();
 
         // Job queue and scheduling stores (Phase 17). Same split as the

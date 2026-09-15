@@ -11,6 +11,7 @@ internal sealed class AuditingTenantStore : ITenantStore, IAuditDecorated
     private readonly ITenantContext _tenantContext;
     private readonly IAuditActorResolver _actorResolver;
     private readonly ILogger<AuditingTenantStore> _logger;
+    private readonly TraconMetrics? _metrics;
 
     /// <summary>Initializes a new audited tenant store.</summary>
     public AuditingTenantStore(
@@ -18,7 +19,8 @@ internal sealed class AuditingTenantStore : ITenantStore, IAuditDecorated
         IAuditLog auditLog,
         ITenantContext tenantContext,
         IAuditActorResolver actorResolver,
-        ILogger<AuditingTenantStore> logger)
+        ILogger<AuditingTenantStore> logger,
+        TraconMetrics? metrics)
     {
         ArgumentNullException.ThrowIfNull(inner);
         ArgumentNullException.ThrowIfNull(auditLog);
@@ -31,6 +33,7 @@ internal sealed class AuditingTenantStore : ITenantStore, IAuditDecorated
         _tenantContext = tenantContext;
         _actorResolver = actorResolver;
         _logger = logger;
+        _metrics = metrics;
     }
 
     /// <inheritdoc />
@@ -53,6 +56,7 @@ internal sealed class AuditingTenantStore : ITenantStore, IAuditDecorated
             _auditLog,
             _actorResolver,
             _logger,
+            _metrics,
             // The tenant record itself might not be multi-tenant. Use the created slug
             // as the tenant instead of the context activated by that tenant.
             tenant.Slug,
@@ -78,6 +82,7 @@ internal sealed class AuditingTenantStore : ITenantStore, IAuditDecorated
                 _auditLog,
                 _actorResolver,
                 _logger,
+                _metrics,
                 slug,
                 action: "tenant.delete",
                 entity: $"tenant:{slug}",

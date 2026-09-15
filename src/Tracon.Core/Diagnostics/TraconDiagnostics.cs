@@ -81,6 +81,14 @@ public static class TraconDiagnostics
     /// <summary>Gets the observable gauge that shows outstanding jobs per lane and status.</summary>
     public const string JobQueueDepthGaugeName = "tracon.job.queue.depth";
 
+    /// <summary>Gets the counter name for audit-trail entries that could not be written.</summary>
+    /// <remarks>
+    /// Counted on BOTH audit write paths and separated by <see cref="Tags.AuditOutcome"/>:
+    /// a <c>swallowed</c> failure left the operation to continue, a <c>refused</c> one
+    /// stopped it. A non-zero value on either means the audit trail has a hole in it.
+    /// </remarks>
+    public const string AuditWriteFailureCounterName = "tracon.audit.write_failures";
+
     /// <summary>Defines span and metric tag names. Changing them breaks dashboards.</summary>
     public static class Tags
     {
@@ -176,6 +184,18 @@ public static class TraconDiagnostics
 
         /// <summary>Gets the job-kind tag name.</summary>
         public const string JobHandlerKey = "tracon.job.handler_key";
+
+        /// <summary>Gets the audit-action tag name, such as <c>approval.decision</c>.</summary>
+        /// <remarks>
+        /// The action is a fixed name chosen in Tracon's own code, never consumer input,
+        /// so its cardinality is bounded. The affected entity is NOT a tag: an entity name
+        /// is consumer data and would give every agent, trigger and session a series of
+        /// its own.
+        /// </remarks>
+        public const string AuditAction = "tracon.audit.action";
+
+        /// <summary>Gets the audit write-failure outcome tag name: <c>swallowed</c> or <c>refused</c>.</summary>
+        public const string AuditOutcome = "tracon.audit.outcome";
 
         /// <summary>Gets the job-status tag name.</summary>
         /// <remarks>

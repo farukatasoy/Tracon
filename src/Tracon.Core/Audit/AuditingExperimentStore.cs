@@ -18,6 +18,7 @@ internal sealed class AuditingExperimentStore : IExperimentStore, IAuditDecorate
     private readonly ITenantContext _tenantContext;
     private readonly IAuditActorResolver _actorResolver;
     private readonly ILogger<AuditingExperimentStore> _logger;
+    private readonly TraconMetrics? _metrics;
 
     /// <summary>Initializes a new audited experiment store.</summary>
     public AuditingExperimentStore(
@@ -25,7 +26,8 @@ internal sealed class AuditingExperimentStore : IExperimentStore, IAuditDecorate
         IAuditLog auditLog,
         ITenantContext tenantContext,
         IAuditActorResolver actorResolver,
-        ILogger<AuditingExperimentStore> logger)
+        ILogger<AuditingExperimentStore> logger,
+        TraconMetrics? metrics)
     {
         ArgumentNullException.ThrowIfNull(inner);
         ArgumentNullException.ThrowIfNull(auditLog);
@@ -38,6 +40,7 @@ internal sealed class AuditingExperimentStore : IExperimentStore, IAuditDecorate
         _tenantContext = tenantContext;
         _actorResolver = actorResolver;
         _logger = logger;
+        _metrics = metrics;
     }
 
     /// <inheritdoc />
@@ -67,6 +70,7 @@ internal sealed class AuditingExperimentStore : IExperimentStore, IAuditDecorate
             _auditLog,
             _actorResolver,
             _logger,
+            _metrics,
             _tenantContext.TenantId,
             action: existing is null ? "experiment.create" : "experiment.update",
             entity: $"experiment:{experiment.Name}",
@@ -92,6 +96,7 @@ internal sealed class AuditingExperimentStore : IExperimentStore, IAuditDecorate
                 _auditLog,
                 _actorResolver,
                 _logger,
+                _metrics,
                 _tenantContext.TenantId,
                 action: "experiment.delete",
                 entity: $"experiment:{name}",
@@ -115,6 +120,7 @@ internal sealed class AuditingExperimentStore : IExperimentStore, IAuditDecorate
             _auditLog,
             _actorResolver,
             _logger,
+            _metrics,
             _tenantContext.TenantId,
             action: "experiment.start",
             entity: $"experiment:{name}",
@@ -137,6 +143,7 @@ internal sealed class AuditingExperimentStore : IExperimentStore, IAuditDecorate
             _auditLog,
             _actorResolver,
             _logger,
+            _metrics,
             _tenantContext.TenantId,
             action: "experiment.stop",
             entity: $"experiment:{name}",
@@ -168,6 +175,7 @@ internal sealed class AuditingExperimentStore : IExperimentStore, IAuditDecorate
             _auditLog,
             _actorResolver,
             _logger,
+            _metrics,
             _tenantContext.TenantId,
             action: "experiment.canary_policy",
             entity: $"experiment:{name}",

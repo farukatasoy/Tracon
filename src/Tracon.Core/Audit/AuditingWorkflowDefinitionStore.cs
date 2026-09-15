@@ -15,18 +15,21 @@ internal sealed class AuditingWorkflowDefinitionStore : IWorkflowDefinitionStore
     private readonly IAuditLog _auditLog;
     private readonly IAuditActorResolver _actorResolver;
     private readonly ILogger<AuditingWorkflowDefinitionStore> _logger;
+    private readonly TraconMetrics? _metrics;
 
     /// <summary>Initializes a new audited workflow definition store.</summary>
     /// <param name="inner">The wrapped store.</param>
     /// <param name="auditLog">The audit log.</param>
     /// <param name="actorResolver">The actor resolver.</param>
     /// <param name="logger">The logger.</param>
+    /// <param name="metrics">The metric set that counts a failed audit write.</param>
     /// <exception cref="ArgumentNullException">A dependency is <see langword="null"/>.</exception>
     public AuditingWorkflowDefinitionStore(
         IWorkflowDefinitionStore inner,
         IAuditLog auditLog,
         IAuditActorResolver actorResolver,
-        ILogger<AuditingWorkflowDefinitionStore> logger)
+        ILogger<AuditingWorkflowDefinitionStore> logger,
+        TraconMetrics? metrics)
     {
         ArgumentNullException.ThrowIfNull(inner);
         ArgumentNullException.ThrowIfNull(auditLog);
@@ -37,6 +40,7 @@ internal sealed class AuditingWorkflowDefinitionStore : IWorkflowDefinitionStore
         _auditLog = auditLog;
         _actorResolver = actorResolver;
         _logger = logger;
+        _metrics = metrics;
     }
 
     /// <inheritdoc />
@@ -72,6 +76,7 @@ internal sealed class AuditingWorkflowDefinitionStore : IWorkflowDefinitionStore
             _auditLog,
             _actorResolver,
             _logger,
+            _metrics,
             tenantId,
             action: "workflow.save",
             entity: $"workflow:{saved.Name}",
@@ -97,6 +102,7 @@ internal sealed class AuditingWorkflowDefinitionStore : IWorkflowDefinitionStore
                 _auditLog,
                 _actorResolver,
                 _logger,
+                _metrics,
                 tenantId,
                 action: "workflow.delete",
                 entity: $"workflow:{name}",

@@ -68,6 +68,7 @@ internal static class ApiKeyEndpoints
         [FromServices] IAuditLog auditLog,
         [FromServices] IAuditActorResolver actorResolver,
         [FromServices] ILoggerFactory loggerFactory,
+        [FromServices] TraconMetrics metrics,
         CancellationToken cancellationToken)
     {
         var (bound, bindError) = await RequestBodyBinding
@@ -123,6 +124,7 @@ internal static class ApiKeyEndpoints
             auditLog,
             actorResolver,
             loggerFactory.CreateLogger("Tracon.ApiKeyEndpoints"),
+            metrics,
             tenants.TenantId,
             action: "apikey.create",
             entity: $"apikey:{created.Record.Id}",
@@ -140,6 +142,7 @@ internal static class ApiKeyEndpoints
         [FromServices] IAuditLog auditLog,
         [FromServices] IAuditActorResolver actorResolver,
         [FromServices] ILoggerFactory loggerFactory,
+        [FromServices] TraconMetrics metrics,
         CancellationToken cancellationToken)
     {
         var revoked = await store.RevokeAsync(tenants.TenantId, id, cancellationToken).ConfigureAwait(false);
@@ -153,6 +156,7 @@ internal static class ApiKeyEndpoints
             auditLog,
             actorResolver,
             loggerFactory.CreateLogger("Tracon.ApiKeyEndpoints"),
+            metrics,
             tenants.TenantId,
             action: "apikey.revoke",
             entity: $"apikey:{id}",

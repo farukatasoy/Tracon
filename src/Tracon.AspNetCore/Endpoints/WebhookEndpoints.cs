@@ -129,6 +129,7 @@ internal static class WebhookEndpoints
         [FromServices] IAuditActorResolver actorResolver,
         [FromServices] ILoggerFactory loggerFactory,
         [FromServices] TimeProvider? timeProvider,
+        [FromServices] TraconMetrics metrics,
         CancellationToken cancellationToken)
     {
         var (bound, bindError) = await RequestBodyBinding
@@ -219,6 +220,7 @@ internal static class WebhookEndpoints
             auditLog,
             actorResolver,
             loggerFactory.CreateLogger("Tracon.WebhookEndpoints"),
+            metrics,
             tenants.TenantId,
             action: previous is null ? "webhook.create" : "webhook.update",
             entity: $"webhook:{name}",
@@ -236,6 +238,7 @@ internal static class WebhookEndpoints
         [FromServices] IAuditLog auditLog,
         [FromServices] IAuditActorResolver actorResolver,
         [FromServices] ILoggerFactory loggerFactory,
+        [FromServices] TraconMetrics metrics,
         CancellationToken cancellationToken)
     {
         var existing = await store.GetSubscriptionAsync(tenants.TenantId, name, cancellationToken)
@@ -252,6 +255,7 @@ internal static class WebhookEndpoints
             auditLog,
             actorResolver,
             loggerFactory.CreateLogger("Tracon.WebhookEndpoints"),
+            metrics,
             tenants.TenantId,
             action: "webhook.delete",
             entity: $"webhook:{name}",

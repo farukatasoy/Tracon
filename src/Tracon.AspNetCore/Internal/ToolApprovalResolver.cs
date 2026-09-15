@@ -42,6 +42,7 @@ internal static class ToolApprovalResolver
     /// <param name="auditLog">The audit log.</param>
     /// <param name="actorResolver">The actor resolver.</param>
     /// <param name="logger">The logger.</param>
+    /// <param name="metrics">The metric set that counts a failed audit write.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>
     /// The message carrying the approval responses; <see langword="null"/> if no
@@ -58,6 +59,7 @@ internal static class ToolApprovalResolver
         IAuditLog auditLog,
         IAuditActorResolver actorResolver,
         ILogger logger,
+        TraconMetrics? metrics,
         CancellationToken cancellationToken)
     {
         var history = await ChatHistoryReader
@@ -84,20 +86,32 @@ internal static class ToolApprovalResolver
                 continue;
             }
 
-            contents.Add(request.CreateResponse(decision.Approved, decision.Reason ?? string.Empty));
-
             var toolName = request.ToolCall is FunctionCallContent functionCall ? functionCall.Name : "unknown";
 
-            await AuditRecorder.WriteAsync(
+            // 🚨 The audit row is written BEFORE the decision is turned into a response,
+            // and a failed write throws — the SAME guarantee the out-of-band
+            // POST /api/approvals/{id}/decide path gives. An approval decision is an
+            // approval decision: which surface carried it does not change whether it may
+            // be applied without a record (K-089, K-370).
+            //
+            // Throwing anywhere in this loop discards every decision, including ones
+            // already added to `contents`: the message is only returned at the end, so
+            // nothing has been applied yet. That is the intended all-or-nothing outcome.
+            await AuditRecorder.WriteOrThrowAsync(
                 auditLog,
-                actorResolver,
+                actorResolver.Resolve(),
                 logger,
+                metrics,
                 tenantContext.TenantId,
                 action: "approval.decision",
                 entity: $"tool:{toolName}",
                 before: null,
                 after: JsonSerializer.Serialize(new { approved = decision.Approved, reason = decision.Reason }),
+                refusal: $"The approval decision for tool '{toolName}' was not applied",
+                timeProvider: null,
                 cancellationToken).ConfigureAwait(false);
+
+            contents.Add(request.CreateResponse(decision.Approved, decision.Reason ?? string.Empty));
 
             if (decision is { Approved: true, Remember: true })
             {

@@ -148,6 +148,7 @@ internal static class RetentionEndpoints
         [FromServices] IAuditActorResolver actorResolver,
         [FromServices] ILoggerFactory loggerFactory,
         [FromServices] TimeProvider? timeProvider,
+        [FromServices] TraconMetrics metrics,
         CancellationToken cancellationToken)
     {
         var (bound, bindError) = await RequestBodyBinding
@@ -198,6 +199,7 @@ internal static class RetentionEndpoints
             auditLog,
             actorResolver,
             loggerFactory.CreateLogger("Tracon.RetentionEndpoints"),
+            metrics,
             tenants.TenantId,
             action: previous is null ? "retention.create" : "retention.update",
             entity: $"retention:{target}",
@@ -215,6 +217,7 @@ internal static class RetentionEndpoints
         [FromServices] IAuditLog auditLog,
         [FromServices] IAuditActorResolver actorResolver,
         [FromServices] ILoggerFactory loggerFactory,
+        [FromServices] TraconMetrics metrics,
         CancellationToken cancellationToken)
     {
         if (!RetentionTargets.IsKnown(target))
@@ -235,6 +238,7 @@ internal static class RetentionEndpoints
             auditLog,
             actorResolver,
             loggerFactory.CreateLogger("Tracon.RetentionEndpoints"),
+            metrics,
             tenants.TenantId,
             action: "retention.delete",
             entity: $"retention:{target}",

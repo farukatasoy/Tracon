@@ -13,12 +13,6 @@ IAgentDecorator:lifetime
 IAgentDecorator:tenant
 IAgentDefinitionStore:delivery
 IAgentDefinitionStore:lifetime
-ITraconBuilder:delivery
-ITraconBuilder:tenant
-ITraconDrainState:delivery
-ITraconUiProvider:delivery
-ITraconUiProvider:lifetime
-ITraconUiProvider:tenant
 IAgentSkillStore:delivery
 IAgentSkillStore:lifetime
 IAgentSource:delivery
@@ -36,7 +30,6 @@ IAuditActorResolver:delivery
 IAuditDecorated:delivery
 IAuditDecorated:lifetime
 IAuditDecorated:tenant
-IAuditLog:delivery
 IContentGuard:delivery
 IContentGuard:lifetime
 IContentGuard:tenant
@@ -147,6 +140,12 @@ IToolRegistry:lifetime
 IToolRegistry:tenant
 ITraceStore:delivery
 ITraceStore:lifetime
+ITraconBuilder:delivery
+ITraconBuilder:tenant
+ITraconDrainState:delivery
+ITraconUiProvider:delivery
+ITraconUiProvider:lifetime
+ITraconUiProvider:tenant
 IVectorSearchStore:delivery
 IVectorSearchStore:tenant
 IVersionedAgentSource:delivery

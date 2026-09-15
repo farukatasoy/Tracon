@@ -39,6 +39,7 @@ public sealed class ContentGuardPipeline
     private readonly IAuditActorResolver _actorResolver;
     private readonly ITenantContext _tenantContext;
     private readonly ILogger _logger;
+    private readonly TraconMetrics? _metrics;
 
     /// <summary>Creates a new pipeline.</summary>
     /// <param name="guards">The registered guards. May be empty.</param>
@@ -47,6 +48,7 @@ public sealed class ContentGuardPipeline
     /// <param name="actorResolver">The audit log actor resolver.</param>
     /// <param name="tenantContext">The tenant context to use when no run scope is available.</param>
     /// <param name="loggerFactory">The logger factory.</param>
+    /// <param name="metrics">The metric set that counts a failed audit write. Optional.</param>
     /// <exception cref="ArgumentNullException">One of the dependencies is <see langword="null"/>.</exception>
     public ContentGuardPipeline(
         IEnumerable<IContentGuard> guards,
@@ -54,7 +56,8 @@ public sealed class ContentGuardPipeline
         IAuditLog auditLog,
         IAuditActorResolver actorResolver,
         ITenantContext tenantContext,
-        ILoggerFactory loggerFactory)
+        ILoggerFactory loggerFactory,
+        TraconMetrics? metrics = null)
     {
         ArgumentNullException.ThrowIfNull(guards);
         ArgumentNullException.ThrowIfNull(options);
@@ -69,6 +72,7 @@ public sealed class ContentGuardPipeline
         _actorResolver = actorResolver;
         _tenantContext = tenantContext;
         _logger = loggerFactory.CreateLogger<ContentGuardPipeline>();
+        _metrics = metrics;
     }
 
     /// <summary>
@@ -331,6 +335,7 @@ public sealed class ContentGuardPipeline
             _auditLog,
             _actorResolver,
             _logger,
+            _metrics,
             scope?.TenantId ?? _tenantContext.TenantId,
             action: "content.blocked",
             entity: scope is { } run

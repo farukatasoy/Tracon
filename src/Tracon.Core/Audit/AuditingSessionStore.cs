@@ -17,6 +17,7 @@ internal sealed class AuditingSessionStore : ISessionStore, IAuditDecorated
     private readonly ITenantContext _tenantContext;
     private readonly IAuditActorResolver _actorResolver;
     private readonly ILogger<AuditingSessionStore> _logger;
+    private readonly TraconMetrics? _metrics;
 
     /// <summary>Initializes a new audited session store.</summary>
     public AuditingSessionStore(
@@ -24,7 +25,8 @@ internal sealed class AuditingSessionStore : ISessionStore, IAuditDecorated
         IAuditLog auditLog,
         ITenantContext tenantContext,
         IAuditActorResolver actorResolver,
-        ILogger<AuditingSessionStore> logger)
+        ILogger<AuditingSessionStore> logger,
+        TraconMetrics? metrics)
     {
         ArgumentNullException.ThrowIfNull(inner);
         ArgumentNullException.ThrowIfNull(auditLog);
@@ -37,6 +39,7 @@ internal sealed class AuditingSessionStore : ISessionStore, IAuditDecorated
         _tenantContext = tenantContext;
         _actorResolver = actorResolver;
         _logger = logger;
+        _metrics = metrics;
     }
 
     /// <inheritdoc />
@@ -105,6 +108,7 @@ internal sealed class AuditingSessionStore : ISessionStore, IAuditDecorated
                 _auditLog,
                 _actorResolver,
                 _logger,
+                _metrics,
                 _tenantContext.TenantId,
                 action: "session.delete",
                 entity: $"session:{sessionId}",

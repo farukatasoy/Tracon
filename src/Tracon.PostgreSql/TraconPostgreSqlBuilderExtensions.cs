@@ -190,13 +190,15 @@ public static class TraconPostgreSqlBuilderExtensions
                 provider.GetRequiredService<IAuditLog>(),
                 provider.GetRequiredService<ITenantContext>(),
                 provider.GetRequiredService<IAuditActorResolver>(),
-                provider.GetRequiredService<ILogger<AuditingAgentDefinitionStore>>())));
+                provider.GetRequiredService<ILogger<AuditingAgentDefinitionStore>>(),
+                provider.GetRequiredService<TraconMetrics>())));
         services.Replace(ServiceDescriptor.Singleton<IAgentSkillStore, AuditingAgentSkillStore>(
             static provider => new AuditingAgentSkillStore(
                 ActivatorUtilities.CreateInstance<SqlAgentSkillStore>(provider),
                 provider.GetRequiredService<IAuditLog>(),
                 provider.GetRequiredService<IAuditActorResolver>(),
-                provider.GetRequiredService<ILogger<AuditingAgentSkillStore>>())));
+                provider.GetRequiredService<ILogger<AuditingAgentSkillStore>>(),
+                provider.GetRequiredService<TraconMetrics>())));
 
         // Script run grants are also wrapped in the audit-trail decorator:
         // granting permission means granting the right to run code on the server.
@@ -205,7 +207,8 @@ public static class TraconPostgreSqlBuilderExtensions
                 ActivatorUtilities.CreateInstance<SqlSkillScriptGrantStore>(provider),
                 provider.GetRequiredService<IAuditLog>(),
                 provider.GetRequiredService<IAuditActorResolver>(),
-                provider.GetRequiredService<ILogger<AuditingSkillScriptGrantStore>>())));
+                provider.GetRequiredService<ILogger<AuditingSkillScriptGrantStore>>(),
+                provider.GetRequiredService<TraconMetrics>())));
         services.Replace(ServiceDescriptor.Singleton<IRunStore, SqlRunStore>());
 
         // Workflow definitions and checkpoints (Phase 15). The definition store
@@ -217,7 +220,8 @@ public static class TraconPostgreSqlBuilderExtensions
                 ActivatorUtilities.CreateInstance<SqlWorkflowDefinitionStore>(provider),
                 provider.GetRequiredService<IAuditLog>(),
                 provider.GetRequiredService<IAuditActorResolver>(),
-                provider.GetRequiredService<ILogger<AuditingWorkflowDefinitionStore>>())));
+                provider.GetRequiredService<ILogger<AuditingWorkflowDefinitionStore>>(),
+                provider.GetRequiredService<TraconMetrics>())));
         services.Replace(
             ServiceDescriptor.Singleton<IWorkflowCheckpointStore, SqlWorkflowCheckpointStore>());
 
@@ -317,7 +321,8 @@ public static class TraconPostgreSqlBuilderExtensions
                 provider.GetRequiredService<IAuditLog>(),
                 provider.GetRequiredService<ITenantContext>(),
                 provider.GetRequiredService<IAuditActorResolver>(),
-                provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<AuditingExperimentStore>>())));
+                provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<AuditingExperimentStore>>(),
+                provider.GetRequiredService<TraconMetrics>())));
 
         services.Replace(ServiceDescriptor.Singleton<ISessionStore, AuditingSessionStore>(
             static provider => new AuditingSessionStore(
@@ -325,27 +330,31 @@ public static class TraconPostgreSqlBuilderExtensions
                 provider.GetRequiredService<IAuditLog>(),
                 provider.GetRequiredService<ITenantContext>(),
                 provider.GetRequiredService<IAuditActorResolver>(),
-                provider.GetRequiredService<ILogger<AuditingSessionStore>>())));
+                provider.GetRequiredService<ILogger<AuditingSessionStore>>(),
+                provider.GetRequiredService<TraconMetrics>())));
         services.Replace(ServiceDescriptor.Singleton<ITraceStore, SqlTraceStore>());
         services.Replace(ServiceDescriptor.Singleton<IToolApprovalRuleStore, AuditingToolApprovalRuleStore>(
             static provider => new AuditingToolApprovalRuleStore(
                 ActivatorUtilities.CreateInstance<SqlToolApprovalRuleStore>(provider),
                 provider.GetRequiredService<IAuditLog>(),
                 provider.GetRequiredService<IAuditActorResolver>(),
-                provider.GetRequiredService<ILogger<AuditingToolApprovalRuleStore>>())));
+                provider.GetRequiredService<ILogger<AuditingToolApprovalRuleStore>>(),
+                provider.GetRequiredService<TraconMetrics>())));
         services.Replace(ServiceDescriptor.Singleton<IMcpServerStore, AuditingMcpServerStore>(
             static provider => new AuditingMcpServerStore(
                 ActivatorUtilities.CreateInstance<SqlMcpServerStore>(provider),
                 provider.GetRequiredService<IAuditLog>(),
                 provider.GetRequiredService<IAuditActorResolver>(),
-                provider.GetRequiredService<ILogger<AuditingMcpServerStore>>())));
+                provider.GetRequiredService<ILogger<AuditingMcpServerStore>>(),
+                provider.GetRequiredService<TraconMetrics>())));
         services.Replace(ServiceDescriptor.Singleton<ITenantStore, AuditingTenantStore>(
             static provider => new AuditingTenantStore(
                 ActivatorUtilities.CreateInstance<SqlTenantStore>(provider),
                 provider.GetRequiredService<IAuditLog>(),
                 provider.GetRequiredService<ITenantContext>(),
                 provider.GetRequiredService<IAuditActorResolver>(),
-                provider.GetRequiredService<ILogger<AuditingTenantStore>>())));
+                provider.GetRequiredService<ILogger<AuditingTenantStore>>(),
+                provider.GetRequiredService<TraconMetrics>())));
 
         // Chat history. AgentDefinitionCompiler wires this into every agent it
         // compiles; if not registered, MAF falls back to its in-memory default.

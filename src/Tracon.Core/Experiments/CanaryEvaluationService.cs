@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
 namespace Tracon;
@@ -23,9 +24,9 @@ namespace Tracon;
 /// experiment is scanned.
 /// </para>
 /// <para>
-/// The automatic rollback decision is written directly
-/// with <see cref="IAuditLog.WriteAsync"/> (NOT the best-effort-writing
-/// <see cref="AuditRecorder"/> decorator) BEFORE the mutation; if the write
+/// The automatic rollback decision takes the fail-closed audit path
+/// (<see cref="AuditRecorder.WriteOrThrowAsync"/>, NOT the best-effort
+/// <see cref="AuditRecorder.WriteAsync"/>) BEFORE the mutation; if the write
 /// fails, the rollback is never applied - the same pattern as
 /// <c>ApprovalEndpoints.DecideAsync</c>.
 /// </para>
@@ -35,6 +36,7 @@ internal sealed class CanaryEvaluationService(
     IRunStore runs,
     IAuditLog auditLog,
     ISingletonLeaseStore leaseStore,
+    TraconMetrics? metrics,
     IOptionsMonitor<CanaryOptions> optionsMonitor,
     IOptionsMonitor<SingletonExecutionOptions> singletonOptionsMonitor,
     SchemaReadyGate schemaReadyGate,
@@ -175,46 +177,44 @@ internal sealed class CanaryEvaluationService(
             controlVariant with { Weight = 100 },
         ];
 
-        var now = _clock.GetUtcNow();
-
         // 🚨 K-089: the audit entry is written BEFORE the mutation, not after.
         // If the write fails, the rollback is never applied ("a rollback that
         // cannot be written to the audit log is not applied").
+        //
+        // The refusal reaches nobody here — this is a background scan, not an
+        // HTTP call — so the throw is caught one frame up in TickAsync, which
+        // logs it and moves on to the next experiment. That is the point: the
+        // rollback below is not reached.
         try
         {
-            await auditLog.WriteAsync(
-                new AuditEntry
-                {
-                    Id = TraconId.NewId(),
-                    TenantId = experiment.TenantId,
-                    Actor = "system:canary-evaluator",
-                    Action = "experiment.auto_rollback",
-                    Entity = $"experiment:{experiment.Name}",
-                    Before = null,
-                    After = AuditSecretFilter.Redact(
-                        JsonSerializer.Serialize(
-                            new CanaryRollbackAuditPayload
-                            {
-                                Reason = evaluation.Reason,
-                                CanaryErrorRate = evaluation.Canary?.ErrorRate,
-                                ControlErrorRate = evaluation.Control?.ErrorRate,
-                                CanaryAverageScore = evaluation.Canary?.AverageScore,
-                            },
-                            TraconCoreJsonContext.Default.CanaryRollbackAuditPayload)),
-                    CreatedAt = now,
-                },
+            await AuditRecorder.WriteOrThrowAsync(
+                auditLog,
+                // No ambient actor: the scan runs on a background timer, with no
+                // request and no IAuditActorResolver to read. The system actor is
+                // named here instead.
+                "system:canary-evaluator",
+                logger ?? NullLogger<CanaryEvaluationService>.Instance,
+                metrics,
+                experiment.TenantId,
+                action: "experiment.auto_rollback",
+                entity: $"experiment:{experiment.Name}",
+                before: null,
+                after: JsonSerializer.Serialize(
+                    new CanaryRollbackAuditPayload
+                    {
+                        Reason = evaluation.Reason,
+                        CanaryErrorRate = evaluation.Canary?.ErrorRate,
+                        ControlErrorRate = evaluation.Control?.ErrorRate,
+                        CanaryAverageScore = evaluation.Canary?.AverageScore,
+                    },
+                    TraconCoreJsonContext.Default.CanaryRollbackAuditPayload),
+                refusal: $"The automatic rollback of experiment '{experiment.Name}' was not applied",
+                _clock,
                 cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception exception) when (exception is not OperationCanceledException)
+        catch (TraconException)
         {
-            if (logger is not null && logger.IsEnabled(LogLevel.Warning))
-            {
-                logger.LogWarning(
-                    exception,
-                    "Could not write the automatic rollback audit entry for experiment '{Name}'; the rollback was NOT applied.",
-                    experiment.Name);
-            }
-
+            // Already logged, already counted. The rollback is not applied.
             return;
         }
 

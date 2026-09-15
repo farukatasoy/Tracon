@@ -131,9 +131,23 @@ public sealed class DataSubjectEndpointTests
                 services.AddSingleton<IAuditLog>(new ThrowingAuditLog());
             });
 
-        await Should.ThrowAsync<InvalidOperationException>(async () =>
+        // The refusal is the shared fail-closed policy's, so it names the refused
+        // operation and keeps the store's own failure as the inner exception. Before
+        // phase 171 this one site leaked the store's raw exception instead — the five
+        // other fail-closed operations already wrapped it.
+        var refusal = await Should.ThrowAsync<TraconException>(async () =>
             await host.Client.DeleteAsync(
                 new Uri("/tracon/api/data-subjects/subject-1?dryRun=false", UriKind.Relative)));
+
+        refusal.Message.ShouldBe(
+            "The erasure of data subject 'subject-1' was not applied because it could not "
+            + "be written to the audit trail.");
+        refusal.InnerException.ShouldBeOfType<InvalidOperationException>();
+
+        // The callback ran from inside EraseAsync, so the deletes were rolled back
+        // rather than committed: the refusal reached the store, not just the caller.
+        store.EraseCalls.ShouldBe(1);
+        store.CommittedCalls.ShouldBe(0);
     }
 
     [Fact]
@@ -200,6 +214,9 @@ public sealed class DataSubjectEndpointTests
             CancellationToken cancellationToken = default)
             => new(new DataSubjectExport { Json = "{}" });
 
+        /// <summary>The number of erasures that got past beforeCommitAsync to their commit.</summary>
+        public int CommittedCalls { get; private set; }
+
         public async ValueTask<IReadOnlyDictionary<string, int>> EraseAsync(
             string tenantId,
             DataSubjectScope scope,
@@ -207,7 +224,12 @@ public sealed class DataSubjectEndpointTests
             CancellationToken cancellationToken = default)
         {
             EraseCalls++;
+
+            // Stands in for the real store's transaction: a throwing callback rolls
+            // the deletes back, so nothing past this line runs.
             await beforeCommitAsync(Empty, cancellationToken).ConfigureAwait(false);
+
+            CommittedCalls++;
 
             return Empty;
         }

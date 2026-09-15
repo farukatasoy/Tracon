@@ -99,6 +99,7 @@ internal static class ClientToolResultResolver
     /// <param name="auditLog">The audit log.</param>
     /// <param name="actorResolver">The actor resolver.</param>
     /// <param name="logger">The logger.</param>
+    /// <param name="metrics">The metric set that counts a failed audit write.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The message to send; <see langword="null"/> if <paramref name="matched"/> is empty.</returns>
     /// <remarks>
@@ -113,6 +114,7 @@ internal static class ClientToolResultResolver
         IAuditLog auditLog,
         IAuditActorResolver actorResolver,
         ILogger logger,
+        TraconMetrics? metrics,
         CancellationToken cancellationToken)
     {
         if (matched.Count == 0)
@@ -134,6 +136,7 @@ internal static class ClientToolResultResolver
                 auditLog,
                 actorResolver,
                 logger,
+                metrics,
                 tenantContext.TenantId,
                 action: "client_tool.result",
                 entity: $"tool:{call.Name}",

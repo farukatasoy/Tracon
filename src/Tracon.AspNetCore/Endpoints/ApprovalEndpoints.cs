@@ -157,6 +157,7 @@ internal static class ApprovalEndpoints
         [FromServices] ILoggerFactory loggerFactory,
         [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
         [FromServices] IRunAttributionContext? attributionContext,
+        [FromServices] TraconMetrics metrics,
         CancellationToken cancellationToken)
     {
         var (bound, bindError) = await RequestBodyBinding
@@ -223,13 +224,19 @@ internal static class ApprovalEndpoints
         // write fails, the exception causes the caller to get 500 and DecideAsync
         // is NEVER called — "an approval decision that cannot be written to the
         // audit trail is not applied".
-        await WriteAuditOrThrowAsync(
+        await AuditRecorder.WriteOrThrowAsync(
             auditLog,
-            actorResolver,
+            actorResolver.Resolve(),
             logger,
+            metrics,
             tenants.TenantId,
-            approval,
-            request.Approved,
+            action: "approval.decision",
+            entity: $"tool:{approval.ToolName}",
+            before: null,
+            after: JsonSerializer.Serialize(
+                new { approved = request.Approved, approvalId = approval.Id }),
+            refusal: $"The approval decision with id '{approval.Id}' was not applied",
+            timeProvider: null,
             cancellationToken).ConfigureAwait(false);
 
         var applied = await approvals
@@ -337,50 +344,6 @@ internal static class ApprovalEndpoints
         }
 
         return TypedResults.Ok(approval);
-    }
-
-    /// <summary>Throws if the decision cannot be written to the audit trail; returns on a successful write.</summary>
-    /// <remarks>
-    /// UNLIKE <c>AuditRecorder.WriteAsync</c>, it does NOT swallow the error — the same
-    /// exception (the SAME pattern as <c>SandboxedSkillScriptRunner.WriteAuditOrThrowAsync</c>).
-    /// </remarks>
-    private static async ValueTask WriteAuditOrThrowAsync(
-        IAuditLog auditLog,
-        IAuditActorResolver actorResolver,
-        ILogger logger,
-        string tenantId,
-        PendingApproval approval,
-        bool decisionApproved,
-        CancellationToken cancellationToken)
-    {
-        try
-        {
-            await auditLog.WriteAsync(
-                new AuditEntry
-                {
-                    Id = TraconId.NewId(),
-                    TenantId = tenantId,
-                    Actor = actorResolver.Resolve(),
-                    Action = "approval.decision",
-                    Entity = $"tool:{approval.ToolName}",
-                    Before = null,
-                    After = AuditSecretFilter.Redact(
-                        JsonSerializer.Serialize(new { approved = decisionApproved, approvalId = approval.Id })),
-                    CreatedAt = DateTimeOffset.UtcNow,
-                },
-                cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            logger.LogError(
-                ex,
-                "Failed to write the approval decision with id '{ApprovalId}' to the audit trail; the decision was not applied.",
-                approval.Id);
-
-            throw new TraconException(
-                $"The approval decision with id '{approval.Id}' was not applied because it could not be written to the audit trail.",
-                ex);
-        }
     }
 
     private static JsonElement BuildResumePayload(Guid runId, Guid approvalId, string agentName)

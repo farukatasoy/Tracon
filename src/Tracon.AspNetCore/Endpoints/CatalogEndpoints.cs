@@ -196,6 +196,7 @@ internal static class CatalogEndpoints
                 IAuditActorResolver actorResolver,
                 ITenantContext tenants,
                 ILoggerFactory loggerFactory,
+                [FromServices] TraconMetrics metrics,
                 CancellationToken cancellationToken) =>
             {
                 var result = await recalculation.RecalculateAsync(tenants.TenantId, cancellationToken)
@@ -205,6 +206,7 @@ internal static class CatalogEndpoints
                     auditLog,
                     actorResolver,
                     loggerFactory.CreateLogger("Tracon.CatalogEndpoints"),
+                    metrics,
                     tenants.TenantId,
                     action: "stats.recalculate-costs",
                     entity: "runs:*",
