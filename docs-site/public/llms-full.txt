@@ -916,13 +916,15 @@ that produced it:
   "name": "relevance.Relevance",
   "source": "judge:relevance",
   "value": 78,
-  "evaluatorVersion": "10.9.0"
+  "evaluatorVersion": "10.9.0+b10f9c0a081b5dbb7755b8f5592e1d3c3f550a3a"
 }
 ```
 
 The version is read from the evaluator's own assembly, so an evaluator you wrote
 yourself is stamped on the same terms as a catalog one, and it is resolved once
-when the judge is built rather than on every run.
+when the judge is built rather than on every run. It is the informational
+version, which usually carries a build revision after a `+`, so compare two
+stamps for equality rather than parsing them.
 
 `evaluatorVersion` is **null** when no version applies or none could be read — a
 human score, an API score, the built-in judge (whose verdict depends on the model
