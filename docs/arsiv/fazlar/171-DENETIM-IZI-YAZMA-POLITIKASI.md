@@ -2,7 +2,7 @@
 
 > **Durum:** ✅ Tamamlandı (2026-09-15)
 > **Plan onayı:** onaylandı — kullanıcı "sıradaki fazı geliştir" dedi
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-234** · [YAYIN-HAZIRLIK.md](YAYIN-HAZIRLIK.md) **BL-047**
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-234** · [YAYIN-HAZIRLIK.md](../../YAYIN-HAZIRLIK.md) **BL-047**
 > **Önkoşul:** Yok. K-776 sözleşmeyi zaten sabitledi
 > **Paketler:** `Tracon.Core`, `Tracon.AspNetCore`, `Tracon.Abstractions`
 > **Yeni paket:** Yok · **Migration:** Yok
@@ -29,7 +29,7 @@
    **K-378** (yalnız otomatik geri alma mutasyondan önce yazar),
    **K-771** (toplu kabul anahtarı yok — bu fazın kapsam sınırı),
    **K-421** (public API takibi açıktır)
-3. [`arsiv/fazlar/170-PRODUCTION-PROFIL-KAPISI.md`](arsiv/fazlar/170-PRODUCTION-PROFIL-KAPISI.md) — yalnız devir notu:
+3. [`arsiv/fazlar/170-PRODUCTION-PROFIL-KAPISI.md`](170-PRODUCTION-PROFIL-KAPISI.md) — yalnız devir notu:
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/170-PRODUCTION-PROFIL-KAPISI.md
    ```
@@ -37,10 +37,10 @@
    host'ta koşan bir servis kayıt noktası **yoktur**. Bu fazın ortak metodu
    bu yüzden `static`'tir ve DI kaydı gerektirmez.
 4. Alan hafızası (bu faz bir alana dokunuyor):
-   [`hafiza/genisleme-noktalari-ve-denetim.md`](hafiza/genisleme-noktalari-ve-denetim.md)
+   [`hafiza/genisleme-noktalari-ve-denetim.md`](../../hafiza/genisleme-noktalari-ve-denetim.md)
    (denetim izi kapsamı; hangi `store`'un dekoratörü var)
 5. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MIMARI-GUVENLIK.md`](MIMARI-GUVENLIK.md) — denetim izi bölümü
+   [`MIMARI-GUVENLIK.md`](../../MIMARI-GUVENLIK.md) — denetim izi bölümü
 
 ---
 
@@ -65,15 +65,15 @@ değişmez** — bu bir yeniden düzenlemedir, yeni bir yetenek değil.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`AuditRecorder.cs:53-60`](../src/Tracon.Core/Audit/AuditRecorder.cs) | Best-effort yolun tek `catch`'i. **47** çağrı sitesi, **26** dosya. Hata yalnız `LogWarning` — sayaç yok |
-| [`AuditingSkillScriptGrantStore.cs:93`](../src/Tracon.Core/Audit/AuditingSkillScriptGrantStore.cs) | Birinci kopya. Çağrıları: `:76`, `:138`. `LogError` **yazar** |
-| [`SandboxedSkillScriptRunner.cs:467`](../src/Tracon.Core/Skills/Scripts/SandboxedSkillScriptRunner.cs) | İkinci kopya. Çağrısı: `:300`. ⚠️ Planın *"`LogError` yazmaz"* iddiası **yanlıştı** — uygulama sırasında `git show 33abea50` ile ölçüldü, dördü de yazıyordu (denetim bulgusu 🟡#5) |
-| [`ApprovalEndpoints.cs:347`](../src/Tracon.AspNetCore/Endpoints/ApprovalEndpoints.cs) | Üçüncü kopya. Çağrısı: `:226`. `:345` kopyayı kendi yorumunda kabul eder: *"the SAME pattern as `SandboxedSkillScriptRunner.WriteAuditOrThrowAsync`"* |
-| [`TriggerEndpoints.cs:496`](../src/Tracon.AspNetCore/Endpoints/TriggerEndpoints.cs) | Dördüncü kopya. Çağrıları: `:220`, `:251`. `:491` de kopyayı kabul eder |
-| [`CanaryEvaluationService.cs:180`](../src/Tracon.Core/Experiments/CanaryEvaluationService.cs) | Kopyasız fail-closed. `IAuditLog`'u doğrudan çağırır ve `Actor` alanına **sabit dize** yazar (`"system:canary-evaluator"`), `IAuditActorResolver` kullanmaz |
-| [`DataSubjectEndpoints.cs:115`](../src/Tracon.AspNetCore/Endpoints/DataSubjectEndpoints.cs) | Kopyasız fail-closed. Yazma bir **geri çağrı** içinde, `store.EraseAsync`'in içinden koşar — sıralamayı `store` zorlar, çağıran değil |
-| [`IAuditLog.cs:11-13`](../src/Tracon.Abstractions/Audit/IAuditLog.cs) | Sözleşme yalnız best-effort'u yazıyor: *"A write failure does not stop the operation."* Altı istisnadan hiç söz etmiyor |
-| [`TraconDiagnostics.cs`](../src/Tracon.Core/Diagnostics/TraconDiagnostics.cs) | Sekiz sayaç adı sabiti var; audit için **hiçbiri yok** |
+| [`AuditRecorder.cs:53-60`](../../../src/Tracon.Core/Audit/AuditRecorder.cs) | Best-effort yolun tek `catch`'i. **47** çağrı sitesi, **26** dosya. Hata yalnız `LogWarning` — sayaç yok |
+| [`AuditingSkillScriptGrantStore.cs:93`](../../../src/Tracon.Core/Audit/AuditingSkillScriptGrantStore.cs) | Birinci kopya. Çağrıları: `:76`, `:138`. `LogError` **yazar** |
+| [`SandboxedSkillScriptRunner.cs:467`](../../../src/Tracon.Core/Skills/Scripts/SandboxedSkillScriptRunner.cs) | İkinci kopya. Çağrısı: `:300`. ⚠️ Planın *"`LogError` yazmaz"* iddiası **yanlıştı** — uygulama sırasında `git show 33abea50` ile ölçüldü, dördü de yazıyordu (denetim bulgusu 🟡#5) |
+| [`ApprovalEndpoints.cs:347`](../../../src/Tracon.AspNetCore/Endpoints/ApprovalEndpoints.cs) | Üçüncü kopya. Çağrısı: `:226`. `:345` kopyayı kendi yorumunda kabul eder: *"the SAME pattern as `SandboxedSkillScriptRunner.WriteAuditOrThrowAsync`"* |
+| [`TriggerEndpoints.cs:496`](../../../src/Tracon.AspNetCore/Endpoints/TriggerEndpoints.cs) | Dördüncü kopya. Çağrıları: `:220`, `:251`. `:491` de kopyayı kabul eder |
+| [`CanaryEvaluationService.cs:180`](../../../src/Tracon.Core/Experiments/CanaryEvaluationService.cs) | Kopyasız fail-closed. `IAuditLog`'u doğrudan çağırır ve `Actor` alanına **sabit dize** yazar (`"system:canary-evaluator"`), `IAuditActorResolver` kullanmaz |
+| [`DataSubjectEndpoints.cs:115`](../../../src/Tracon.AspNetCore/Endpoints/DataSubjectEndpoints.cs) | Kopyasız fail-closed. Yazma bir **geri çağrı** içinde, `store.EraseAsync`'in içinden koşar — sıralamayı `store` zorlar, çağıran değil |
+| [`IAuditLog.cs:11-13`](../../../src/Tracon.Abstractions/Audit/IAuditLog.cs) | Sözleşme yalnız best-effort'u yazıyor: *"A write failure does not stop the operation."* Altı istisnadan hiç söz etmiyor |
+| [`TraconDiagnostics.cs`](../../../src/Tracon.Core/Diagnostics/TraconDiagnostics.cs) | Sekiz sayaç adı sabiti var; audit için **hiçbiri yok** |
 | `cat src/*/PublicAPI.Shipped.txt` | **0 giriş** — yüzeyi büyütmek bugün ucuz |
 
 > Kanıtlar 2026-09-15 tarihinde doğrulandı.
@@ -129,7 +129,7 @@ zorunludur.
 
 ## 171.3 — Sözleşme metninin düzeltilmesi
 
-[`IAuditLog.cs:11-13`](../src/Tracon.Abstractions/Audit/IAuditLog.cs) bugün
+[`IAuditLog.cs:11-13`](../../../src/Tracon.Abstractions/Audit/IAuditLog.cs) bugün
 yalnız best-effort kuralını yazıyor. K-776 sonrası bu metin **eksiktir**:
 tüketici sözleşmeyi okuyup altı istisnayı göremez. Metin istisnayı adıyla
 söyler ve site tablosuna işaret eder.
@@ -158,7 +158,7 @@ durdu" sorusunu cevaplar. Öneri: **tek sayaç, `outcome` etiketiyle ayrılır**
 Bu fazın kendisi bir kopya kusurunu kapatıyor. Kapatan fazın kopyanın geri
 gelmesini engellememesi, aynı kusuru bir sonraki faza devretmek olur.
 
-Repo'da emsal var: [`AuditCoverageTests`](../tests/Tracon.Core.UnitTests/Architecture/AuditCoverageTests.cs)
+Repo'da emsal var: [`AuditCoverageTests`](../../../tests/Tracon.Core.UnitTests/Architecture/AuditCoverageTests.cs)
 her `governance` `store`'unun denetim dekoratörüne çözüldüğünü gerçek bir
 kaptan doğrular. Aynı desen burada da kurulur: kaynak taramasıyla
 `IAuditLog.WriteAsync`'in `Tracon.Core` ve `Tracon.AspNetCore` içinde
@@ -279,7 +279,7 @@ docs-site/src/content/docs/
 
 > Mutlu yoldan değil, **ne bozulabilir**den türetilir. Seviyeyi plan seçer.
 > Sınır geçen davranış (DI · HTTP · kiracı · akış · depo · paket) birim
-> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../.agents/ortak/test-seviyeleri.md).
+> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../../../.agents/ortak/test-seviyeleri.md).
 
 | Ne bozulabilir | Seviye | Test sınıfı |
 |---|---|---|
@@ -306,7 +306,7 @@ fazın tam konusu.
 
 ## Manuel Kabul Case'leri
 
-> Kapanışta [`docs/manuel-test/13-KIRACI-VE-GUVENLIK.md`](manuel-test/13-KIRACI-VE-GUVENLIK.md)
+> Kapanışta [`docs/manuel-test/13-KIRACI-VE-GUVENLIK.md`](../../manuel-test/13-KIRACI-VE-GUVENLIK.md)
 > içine eklenecek case'lerin taslağı.
 
 | # | Ön koşul | Adımlar | Beklenen sonuç |
@@ -647,10 +647,10 @@ muafiyet listeleri ve taban çizgileri **yalnız küçüldü** (`seam-contract-b
    host'ta koşan bir servis kayıt noktası **yoktur**. Bu fazın ortak metodu
    bu yüzden `static`'tir ve DI kaydı gerektirmez.
 4. Alan hafızası (bu faz bir alana dokunuyor):
-   [`hafiza/genisleme-noktalari-ve-denetim.md`](hafiza/genisleme-noktalari-ve-denetim.md)
+   [`hafiza/genisleme-noktalari-ve-denetim.md`](../../hafiza/genisleme-noktalari-ve-denetim.md)
    (denetim izi kapsamı; hangi `store`'un dekoratörü var)
 5. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MIMARI-GUVENLIK.md`](MIMARI-GUVENLIK.md) — denetim izi bölümü
+   [`MIMARI-GUVENLIK.md`](../../MIMARI-GUVENLIK.md) — denetim izi bölümü
 
 ---
 
@@ -675,15 +675,15 @@ değişmez** — bu bir yeniden düzenlemedir, yeni bir yetenek değil.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`AuditRecorder.cs:53-60`](../src/Tracon.Core/Audit/AuditRecorder.cs) | Best-effort yolun tek `catch`'i. **47** çağrı sitesi, **26** dosya. Hata yalnız `LogWarning` — sayaç yok |
-| [`AuditingSkillScriptGrantStore.cs:93`](../src/Tracon.Core/Audit/AuditingSkillScriptGrantStore.cs) | Birinci kopya. Çağrıları: `:76`, `:138`. `LogError` **yazar** |
-| [`SandboxedSkillScriptRunner.cs:467`](../src/Tracon.Core/Skills/Scripts/SandboxedSkillScriptRunner.cs) | İkinci kopya. Çağrısı: `:300`. ⚠️ Planın *"`LogError` yazmaz"* iddiası **yanlıştı** — uygulama sırasında `git show 33abea50` ile ölçüldü, dördü de yazıyordu (denetim bulgusu 🟡#5) |
-| [`ApprovalEndpoints.cs:347`](../src/Tracon.AspNetCore/Endpoints/ApprovalEndpoints.cs) | Üçüncü kopya. Çağrısı: `:226`. `:345` kopyayı kendi yorumunda kabul eder: *"the SAME pattern as `SandboxedSkillScriptRunner.WriteAuditOrThrowAsync`"* |
-| [`TriggerEndpoints.cs:496`](../src/Tracon.AspNetCore/Endpoints/TriggerEndpoints.cs) | Dördüncü kopya. Çağrıları: `:220`, `:251`. `:491` de kopyayı kabul eder |
-| [`CanaryEvaluationService.cs:180`](../src/Tracon.Core/Experiments/CanaryEvaluationService.cs) | Kopyasız fail-closed. `IAuditLog`'u doğrudan çağırır ve `Actor` alanına **sabit dize** yazar (`"system:canary-evaluator"`), `IAuditActorResolver` kullanmaz |
-| [`DataSubjectEndpoints.cs:115`](../src/Tracon.AspNetCore/Endpoints/DataSubjectEndpoints.cs) | Kopyasız fail-closed. Yazma bir **geri çağrı** içinde, `store.EraseAsync`'in içinden koşar — sıralamayı `store` zorlar, çağıran değil |
-| [`IAuditLog.cs:11-13`](../src/Tracon.Abstractions/Audit/IAuditLog.cs) | Sözleşme yalnız best-effort'u yazıyor: *"A write failure does not stop the operation."* Altı istisnadan hiç söz etmiyor |
-| [`TraconDiagnostics.cs`](../src/Tracon.Core/Diagnostics/TraconDiagnostics.cs) | Sekiz sayaç adı sabiti var; audit için **hiçbiri yok** |
+| [`AuditRecorder.cs:53-60`](../../../src/Tracon.Core/Audit/AuditRecorder.cs) | Best-effort yolun tek `catch`'i. **47** çağrı sitesi, **26** dosya. Hata yalnız `LogWarning` — sayaç yok |
+| [`AuditingSkillScriptGrantStore.cs:93`](../../../src/Tracon.Core/Audit/AuditingSkillScriptGrantStore.cs) | Birinci kopya. Çağrıları: `:76`, `:138`. `LogError` **yazar** |
+| [`SandboxedSkillScriptRunner.cs:467`](../../../src/Tracon.Core/Skills/Scripts/SandboxedSkillScriptRunner.cs) | İkinci kopya. Çağrısı: `:300`. ⚠️ Planın *"`LogError` yazmaz"* iddiası **yanlıştı** — uygulama sırasında `git show 33abea50` ile ölçüldü, dördü de yazıyordu (denetim bulgusu 🟡#5) |
+| [`ApprovalEndpoints.cs:347`](../../../src/Tracon.AspNetCore/Endpoints/ApprovalEndpoints.cs) | Üçüncü kopya. Çağrısı: `:226`. `:345` kopyayı kendi yorumunda kabul eder: *"the SAME pattern as `SandboxedSkillScriptRunner.WriteAuditOrThrowAsync`"* |
+| [`TriggerEndpoints.cs:496`](../../../src/Tracon.AspNetCore/Endpoints/TriggerEndpoints.cs) | Dördüncü kopya. Çağrıları: `:220`, `:251`. `:491` de kopyayı kabul eder |
+| [`CanaryEvaluationService.cs:180`](../../../src/Tracon.Core/Experiments/CanaryEvaluationService.cs) | Kopyasız fail-closed. `IAuditLog`'u doğrudan çağırır ve `Actor` alanına **sabit dize** yazar (`"system:canary-evaluator"`), `IAuditActorResolver` kullanmaz |
+| [`DataSubjectEndpoints.cs:115`](../../../src/Tracon.AspNetCore/Endpoints/DataSubjectEndpoints.cs) | Kopyasız fail-closed. Yazma bir **geri çağrı** içinde, `store.EraseAsync`'in içinden koşar — sıralamayı `store` zorlar, çağıran değil |
+| [`IAuditLog.cs:11-13`](../../../src/Tracon.Abstractions/Audit/IAuditLog.cs) | Sözleşme yalnız best-effort'u yazıyor: *"A write failure does not stop the operation."* Altı istisnadan hiç söz etmiyor |
+| [`TraconDiagnostics.cs`](../../../src/Tracon.Core/Diagnostics/TraconDiagnostics.cs) | Sekiz sayaç adı sabiti var; audit için **hiçbiri yok** |
 | `cat src/*/PublicAPI.Shipped.txt` | **0 giriş** — yüzeyi büyütmek bugün ucuz |
 
 > Kanıtlar 2026-09-15 tarihinde doğrulandı.
@@ -739,7 +739,7 @@ zorunludur.
 
 ## 171.3 — Sözleşme metninin düzeltilmesi
 
-[`IAuditLog.cs:11-13`](../src/Tracon.Abstractions/Audit/IAuditLog.cs) bugün
+[`IAuditLog.cs:11-13`](../../../src/Tracon.Abstractions/Audit/IAuditLog.cs) bugün
 yalnız best-effort kuralını yazıyor. K-776 sonrası bu metin **eksiktir**:
 tüketici sözleşmeyi okuyup altı istisnayı göremez. Metin istisnayı adıyla
 söyler ve site tablosuna işaret eder.
@@ -768,7 +768,7 @@ durdu" sorusunu cevaplar. Öneri: **tek sayaç, `outcome` etiketiyle ayrılır**
 Bu fazın kendisi bir kopya kusurunu kapatıyor. Kapatan fazın kopyanın geri
 gelmesini engellememesi, aynı kusuru bir sonraki faza devretmek olur.
 
-Repo'da emsal var: [`AuditCoverageTests`](../tests/Tracon.Core.UnitTests/Architecture/AuditCoverageTests.cs)
+Repo'da emsal var: [`AuditCoverageTests`](../../../tests/Tracon.Core.UnitTests/Architecture/AuditCoverageTests.cs)
 her `governance` `store`'unun denetim dekoratörüne çözüldüğünü gerçek bir
 kaptan doğrular. Aynı desen burada da kurulur: kaynak taramasıyla
 `IAuditLog.WriteAsync`'in `Tracon.Core` ve `Tracon.AspNetCore` içinde
@@ -889,7 +889,7 @@ docs-site/src/content/docs/
 
 > Mutlu yoldan değil, **ne bozulabilir**den türetilir. Seviyeyi plan seçer.
 > Sınır geçen davranış (DI · HTTP · kiracı · akış · depo · paket) birim
-> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../.agents/ortak/test-seviyeleri.md).
+> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../../../.agents/ortak/test-seviyeleri.md).
 
 | Ne bozulabilir | Seviye | Test sınıfı |
 |---|---|---|
@@ -916,7 +916,7 @@ fazın tam konusu.
 
 ## Manuel Kabul Case'leri
 
-> Kapanışta [`docs/manuel-test/13-KIRACI-VE-GUVENLIK.md`](manuel-test/13-KIRACI-VE-GUVENLIK.md)
+> Kapanışta [`docs/manuel-test/13-KIRACI-VE-GUVENLIK.md`](../../manuel-test/13-KIRACI-VE-GUVENLIK.md)
 > içine eklenecek case'lerin taslağı.
 
 | # | Ön koşul | Adımlar | Beklenen sonuç |

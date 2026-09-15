@@ -1461,7 +1461,7 @@ her sürümü görür; bilerek eski olan tarihsel damgalar
 
 | Kalem | Faz |
 |---|---|
-| F-234 | [Faz 171 — Denetim İzi Yazma Politikası](../171-DENETIM-IZI-YAZMA-POLITIKASI.md) |
+| F-234 | [Faz 171 — Denetim İzi Yazma Politikası](fazlar/171-DENETIM-IZI-YAZMA-POLITIKASI.md) |
 | F-235 | [Faz 172 — Tehdit Modeli](../172-TEHDIT-MODELI.md) |
 
 ### F-234 · Denetim izi yazma politikasının tekleştirilmesi
