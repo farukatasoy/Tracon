@@ -112,6 +112,11 @@ toplamıdır (`DocumentationScreenshotTests` bir olgu taşır). Bundle tabanı o
 `160 188 B` brotli yazılmış; temiz bir worktree'de (`git worktree add --detach
 HEAD`) ölçülen taban **162,6 KB brotli / 190,5 KB gzip**'tir.
 
+> İki sütunun **kapsamı farklıdır** ve `postbuild.mjs` ikisini böyle basar:
+> gzip sayısı bütçenin ölçtüğü şeydir ve yalnız `.js`'i sayar; brotli sayısı
+> assembly'ye gömülen **her** varlığı (js + css) sayar. Karşılaştırılacak sayı
+> bütçeninkidir.
+
 **4. `ConfirmDialog` planlanan imzaya iki alan ekledi: `error` ve `Dialog`'a
 `initialFocus`.** İkisinin de gerekçesi plandaki hata modu tablosundadır.
 
