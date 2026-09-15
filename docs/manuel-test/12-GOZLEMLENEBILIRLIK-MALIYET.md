@@ -1775,3 +1775,154 @@ kök/çocuk span hiyerarşisini bozmadığını kanıtlar.
 
 ---
 
+### MT-OBS-061 — Sağlıklı bir `run` hiçbir kayıt kaybı saymaz
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 173 |
+| **İlgili karar** | K-782 |
+
+**Ön koşul**
+- `samples/Tracon.Api` ayakta, PostgreSQL ayakta, migration'lar uygulanmış.
+- `dotnet-counters ps` çıktısındaki **`Tracon.Api`** PID'i alınmış.
+  🚨 `dotnet run`'ın kendi PID'i **değildir** — ona bağlanan oturum hiçbir
+  ölçüm görmez ve boş bir CSV bırakır.
+
+**Adımlar**
+1. `dotnet-counters collect --process-id <PID> --counters Tracon --refresh-interval 1 --duration 00:00:00:30 --format csv --output healthy.csv`
+2. Koşum sürerken: `curl -X POST http://localhost:5080/tracon/api/agents/support/run -H 'Content-Type: application/json' -d '{"message":"healthy run"}'`
+3. `awk -F',' '$NF != 0' healthy.csv | grep -E "recording_failures|tracon.runs"`
+
+**Beklenen sonuç**
+- `tracon.runs[...;tracon.run.status=Completed]` bir kez `1` olur.
+- `tracon.run.recording_failures` satırlarının hiçbiri sıfırdan farklı
+  **değildir** (seri hiç görünmeyebilir veya sürekli `0` okur; ikisi de geçer).
+
+---
+
+### MT-OBS-062 — 🚨 `runs` yazılamazken `run` TAMAMLANIR ve kayıp `stage=start` ile sayılır
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 173 |
+| **İlgili karar** | K-782 |
+
+**Ön koşul**
+- MT-OBS-061'in kurulumu.
+- 🚨 **Veritabanını tamamen durdurma.** `run` uca hiç ulaşmaz: akış
+  başlamadan önceki okumalar (ek dosya sahipliği · deney ataması · parametre
+  kapısı) **sesli** düşer ve uç `HTTP 500` döner — `RunEventWriter` kurulmaz
+  bile. Ölçülen şey yazma yolu olduğu için yalnız **yazma** engellenir.
+
+**Adımlar**
+1. ```sql
+   CREATE OR REPLACE FUNCTION tracon.block_runs() RETURNS trigger AS $$
+   BEGIN RAISE EXCEPTION 'runs is not writable'; END;
+   $$ LANGUAGE plpgsql;
+   CREATE TRIGGER block_run_insert BEFORE INSERT ON tracon.runs
+     FOR EACH ROW EXECUTE FUNCTION tracon.block_runs();
+   ```
+2. MT-OBS-061 Adım 1 gibi bir `collect` oturumu başlat.
+3. `curl -X POST .../agents/support/run -d '{"message":"blocked run"}'`
+4. `awk -F',' '$NF != 0' blocked.csv | grep recording_failures`
+5. `DROP TRIGGER block_run_insert ON tracon.runs;`
+
+**Beklenen sonuç**
+- Adım 3: `HTTP 200`; akış `event: done` ile **normal biter**; istemci
+  yanıtın tamamını alır. Kayıt kaybı ürünü kesmez.
+- Adım 4: `tracon.run.recording_failures[tracon.recording.stage=start;tracon.tenant.id=default]`
+  **bir kez** `1` olur.
+- Aynı koşumda `tracon.recording.stage=input` de bir kez `1` olur — `runs`
+  satırı hiç yazılmadığı için `run_inputs` yabancı anahtarı da düşer. **İki
+  ayrı aşama, iki ayrı seri**: tek sayaç ayrımı kaybetmez.
+- `tracon.runs[...;status=Completed]` yine `1` olur — `run` tamamlandı.
+- Log'da: `Tracon run recording was disabled (the run record could not be opened). Run <id> continues normally.`
+- Adım 5'ten sonra `SELECT count(*) FROM tracon.runs` yalnız **sağlıklı**
+  koşumları sayar; engelli koşumun satırı yoktur.
+
+---
+
+### MT-OBS-063 — Hata fırlatan bir `IRunEventSink` `stage=sink` ile sayılır ve `store` kaydı eksiksiz kalır
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 173 |
+| **İlgili karar** | K-782 |
+
+**Ön koşul**
+- `OnEventAsync`'inde koşulsuz `throw` eden bir `IRunEventSink` kayıtlı.
+- Veritabanı **sağlam**.
+
+**Adımlar**
+1. Bir `run` koş, `collect` oturumu açıkken.
+2. `awk -F',' '$NF != 0' sink.csv | grep recording_failures`
+3. `GET /tracon/api/runs/{id}/events`
+
+**Beklenen sonuç**
+- Sayaç `tracon.recording.stage=sink` ile **bir kez** artar — `run` kaç olay
+  yazarsa yazsın, sink ilk hatadan sonra o `run` için düşürülür.
+- `stage=start`/`event`/`completion` **artmaz**: `store` etkilenmedi.
+- Adım 3: olay akışı **eksiksizdir**.
+- Log'da düşen sink'in **tipi** adlandırılır (etikette değil, log satırında).
+
+---
+
+### MT-OBS-064 — `run_inputs` yazılamazken `run` tamamlanır, yalnız replay ölür
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 173 |
+| **İlgili karar** | K-782 |
+
+**Ön koşul**
+- `Tracon:RunRecording:RecordRunInput=true` (varsayılan).
+- `tracon.run_inputs` üzerine MT-OBS-062'deki gibi bir INSERT engeli.
+  `tracon.runs` **serbesttir**.
+
+**Adımlar**
+1. Bir `run` koş, `collect` oturumu açıkken.
+2. `awk -F',' '$NF != 0' input.csv | grep recording_failures`
+3. `POST /tracon/api/runs/{id}/replay`
+
+**Beklenen sonuç**
+- Sayaç yalnız `tracon.recording.stage=input` ile artar; `start` **artmaz**.
+- `run` tamamlanır ve `GET /tracon/api/runs/{id}` kaydı **eksiksiz** döner —
+  kayıp yalnız girdi tarafındadır.
+- Adım 3 replay başarısız olur (girdi yok).
+
+---
+
+### MT-OBS-065 — `stage` etiketi kapalı kümenin dışına çıkamaz
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 173 |
+| **İlgili karar** | K-782 |
+
+**Ön koşul**
+- Depo kökü.
+
+**Adımlar**
+1. `grep -n "Disable(" src/Tracon.Core/Recording/RunEventWriter.cs`
+2. `grep -rn "RecordRunRecordingFailure(" src/`
+
+**Beklenen sonuç**
+- Adım 1: her `Disable` çağrısının ikinci argümanı bir
+  `RunRecordingStages.*` sabitidir — **hiçbiri serbest metin değildir**.
+- Adım 2: her çağrı yerinde `stage` argümanı yine bir `RunRecordingStages.*`
+  sabitidir.
+- `RunRecordingStages.All` altı değer taşır ve
+  `RunRecordingFailureMetricTests.The_stage_set_is_closed_and_its_values_are_metric_safe`
+  bu kümeyi **rakamla** kilitler.
+
+---

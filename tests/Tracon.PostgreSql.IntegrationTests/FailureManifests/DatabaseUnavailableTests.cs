@@ -118,21 +118,43 @@ public sealed class DatabaseUnavailableTests : IAsyncLifetime
         await _container.StopAsync();
 
         var runId = Guid.NewGuid();
+        // An explicit tenant, so the tag assertion below proves the counter carries
+        // the RUN's own tenant rather than the ambient one (K-355).
+        var run = TestData.Run(runId) with { TenantId = "tenant-outage" };
+
+        using var probe = new MetricProbe();
 
         var writer = new RunEventWriter(
             context.Runs,
             new TraconRunRecordingOptions(),
             NullLogger.Instance,
-            runId);
+            runId,
+            probe.Metrics);
 
         // No throw: the run would continue past this point in production.
-        await writer.StartAsync(TestData.Run(runId), "the user's question");
+        await writer.StartAsync(run, "the user's question");
         var appended = await writer.AppendAsync(new RunEventDraft(RunEventType.MessageDelta) { Text = "delta" });
         await writer.CompleteAsync(RunStatus.Completed);
 
         // The event is still PRODUCED for the client; only persistence stopped.
         appended.ShouldNotBeNull();
         writer.IsDisabled.ShouldBeTrue("the writer must record that it gave up, not pretend it wrote.");
+
+        // 🚨 The half that makes the loss visible. Without it this test proves the
+        // run survived and nothing else: a silently dropped run record would pass
+        // every assertion above. Three writes were ATTEMPTED (start, event, close)
+        // and exactly ONE measurement is expected — the writer disables itself after
+        // the first failure, so the counter reports runs that lost their record
+        // rather than exceptions the writer saw.
+        var failures = probe.TagsFor(TraconDiagnostics.RunRecordingFailureCounterName);
+
+        failures.Count.ShouldBe(
+            1,
+            "an outage costs a run its record once; counting each swallowed exception " +
+            "would scale the alarm with the run's length instead of its loss.");
+
+        failures[0][TraconDiagnostics.Tags.RecordingStage].ShouldBe("start");
+        failures[0][TraconDiagnostics.Tags.TenantId].ShouldBe(run.TenantId);
     }
 
     [Fact]

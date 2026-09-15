@@ -76,6 +76,7 @@ activity source and meter are both named `Tracon`. The root run span is
 | `tracon.job.duration` | Duration of a single background-job attempt, in seconds |
 | `tracon.job.queue.depth` | Outstanding jobs per lane and open status, when enabled |
 | `tracon.audit.write_failures` | Audit entries that could not be written, tagged by outcome |
+| `tracon.run.recording_failures` | Run records that could not be written, tagged by the stage they were lost at |
 
 ### The attribute names
 
@@ -108,6 +109,7 @@ metric names above.
 | `tracon.job.status` | Every job signal | A terminal status on the counter and the histogram; an open one on the gauge |
 | `tracon.audit.action` | `tracon.audit.write_failures` | The action that could not be recorded, such as `approval.decision` |
 | `tracon.audit.outcome` | `tracon.audit.write_failures` | `swallowed` if the operation continued, `refused` if it was stopped |
+| `tracon.recording.stage` | `tracon.run.recording_failures` | Which write was lost: `start`, `event`, `tool_invocation`, `completion`, `sink`, or `input` |
 
 Three spans and one tool name are not metrics at all, and are named here because a
 trace search needs them: `execute_skill_script` (a skill script's own span, carrying
@@ -145,6 +147,46 @@ very different:
 affected entity is deliberately **not** a tag: an entity name is your data, so tagging
 it would give every agent, trigger and session a time series of its own. Use
 `GET /api/audit` to find the specific records.
+
+### What a lost run record looks like
+
+Run recording is best-effort and stays that way: if the store refuses a write, the run
+keeps going and answers your caller. That is a deliberate choice — by the time a write
+fails, the model has already been called and the tools have already had their effects,
+so failing the run would buy you nothing and cost you an answer you already paid for.
+
+What changed is that the loss is no longer silent. `tracon.run.recording_failures`
+counts **write attempts whose record was lost**. Any non-zero value means a run
+happened whose evidence is incomplete or missing, and nothing retries it.
+
+On the store side, that count is in practice the number of runs that lost their record.
+This is not a coincidence: the writer gives up after its first store failure and stops
+attempting, so one broken run contributes one measurement no matter how long it ran or
+how many events it would have written.
+
+`tracon.recording.stage` says what was lost, and the stages are not interchangeable:
+
+- `start` — the run record was never opened. Nothing about this run is queryable.
+- `event` — the run exists but its event stream stops partway. Replay and the run
+  timeline are incomplete.
+- `tool_invocation` — a tool's measurement was lost. The run and its events survive;
+  tool analytics under-report.
+- `completion` — the run never reached a terminal status in the store, so it looks
+  unfinished to anything that queries it.
+- `sink` — a registered [`IRunEventSink`](/concepts/runs/#observing-events-beyond-the-store)
+  threw and was dropped for that run. The store is unaffected; your own downstream
+  consumer missed events. Counted once per sink per run, and the failing sink's type
+  is named in the accompanying log entry.
+- `input` — the run's input messages were not saved. The run and its record are whole;
+  only [replay](/concepts/runs/#replay-and-comparison) is impossible for it.
+
+A `sink` failure and a `start` failure are the two ends of the range: the first costs
+you a downstream copy, the second costs you the run's entire record. Alert on both, but
+do not page the same person for them.
+
+The run identity is deliberately **not** a tag here, for the same reason it is not one
+anywhere else: it is unbounded. It is in the log entry that accompanies every one of
+these measurements.
 
 ### What the job metrics count
 

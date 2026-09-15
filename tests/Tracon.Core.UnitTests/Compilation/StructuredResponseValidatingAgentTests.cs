@@ -194,7 +194,7 @@ public sealed class StructuredResponseValidatingAgentTests
             StartedAt = DateTimeOffset.UtcNow,
         });
 
-        var writer = new RunEventWriter(runStore, new TraconRunRecordingOptions(), NullLogger.Instance, runId);
+        var writer = new RunEventWriter(runStore, new TraconRunRecordingOptions(), NullLogger.Instance, runId, metrics: null);
 
         TraconRunContext.SetCurrent(new AgentRunScope { RunId = runId, RootRunId = runId, Writer = writer });
 
@@ -230,7 +230,7 @@ public sealed class StructuredResponseValidatingAgentTests
 
         var runId = Guid.NewGuid();
         var writer = new RunEventWriter(
-            new ThrowingAppendStore(), new TraconRunRecordingOptions(), NullLogger.Instance, runId);
+            new ThrowingAppendStore(), new TraconRunRecordingOptions(), NullLogger.Instance, runId, metrics: null);
 
         TraconRunContext.SetCurrent(new AgentRunScope { RunId = runId, RootRunId = runId, Writer = writer });
 
@@ -336,7 +336,7 @@ public sealed class StructuredResponseValidatingAgentTests
             StartedAt = DateTimeOffset.UtcNow,
         });
 
-        var writer = new RunEventWriter(runStore, new TraconRunRecordingOptions(), NullLogger.Instance, runId);
+        var writer = new RunEventWriter(runStore, new TraconRunRecordingOptions(), NullLogger.Instance, runId, metrics: null);
 
         TraconRunContext.SetCurrent(new AgentRunScope { RunId = runId, RootRunId = runId, Writer = writer });
 

@@ -205,6 +205,15 @@ biri (örn. PostgreSQL'e karşı bir DoS) tarafından best-effort kategorideki
 denetim kayıtlarının **görünmeden** düşürülebilmesidir. `tracon.audit.write_failures`
 metriği (etiket `swallowed`) bunu izlenebilir kılar ama **önlemez**.
 
+**`run` kaydının yarısı da artık ölçülür (Faz 173).** Aynı riskin kardeşi
+`run` kaydıdır ve o tamamen best-effort'tur: depo yazımı düşerse `run`
+sürer, kanıt düşer. Faz 173'e kadar bu kaybı yalnız log okuyan biri fark
+ederdi. `tracon.run.recording_failures` (etiket `tracon.recording.stage`:
+`start` · `event` · `tool_invocation` · `completion` · `sink` · `input`)
+kaybı görünür kılar. Garanti **değişmedi** — ihlali görünür oldu; sayaç da
+denetim kardeşi gibi raporlar, **önlemez**. Etkiden önceki dar bir
+fail-closed `seam` ayrı bir aday olarak duruyor (`ADAYLAR.md` § F-237).
+
 ### R7 — Konsol kabuğu bearer katmanından muaftır
 
 `getting-started/security.md` § *Two deliberate exemptions*: konsolun

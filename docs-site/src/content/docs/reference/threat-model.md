@@ -110,6 +110,13 @@ deleting an inbound trigger, an automatic canary rollback, and a data subject er
 best-effort: the operation continues and the record can be missing. See [what is
 guaranteed to be written](/concepts/governance/#what-is-guaranteed-to-be-written) for
 the full split and how a failed write is surfaced in metrics.
+
+The run record has the same shape and is entirely best-effort: a storage outage costs
+a run its evidence while the run itself answers normally. Neither half is silent any
+more — the audit trail raises `tracon.audit.write_failures` and a run raises
+`tracon.run.recording_failures`, tagged with the stage the record was lost at. Both
+counters are reporting, not prevention: they tell you evidence is missing, they do not
+keep it.
 :::
 
 :::caution[An authorized identity can still exceed what it was meant to do]

@@ -453,7 +453,7 @@ Tracon.RunEventWriter.CompleteAsync(Tracon.RunStatus status, Tracon.RunUsage? us
 Tracon.RunEventWriter.EventCount.get -> long
 Tracon.RunEventWriter.IsDisabled.get -> bool
 Tracon.RunEventWriter.RecordToolInvocationAsync(Tracon.ToolInvocationRecord! invocation, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
-Tracon.RunEventWriter.RunEventWriter(Tracon.IRunStore! store, Tracon.TraconRunRecordingOptions! options, Microsoft.Extensions.Logging.ILogger! logger, System.Guid runId, System.Collections.Generic.IReadOnlyList<Tracon.IRunEventSink!>? sinks = null) -> void
+Tracon.RunEventWriter.RunEventWriter(Tracon.IRunStore! store, Tracon.TraconRunRecordingOptions! options, Microsoft.Extensions.Logging.ILogger! logger, System.Guid runId, Tracon.TraconMetrics? metrics, System.Collections.Generic.IReadOnlyList<Tracon.IRunEventSink!>? sinks = null) -> void
 Tracon.RunEventWriter.RunId.get -> System.Guid
 Tracon.RunEventWriter.StartAsync(Tracon.RunStartInfo! info, string? query, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
 Tracon.RunEventWriter.TenantId.get -> string?
@@ -795,9 +795,11 @@ Tracon.TraconMetrics.RecordJudgeCost(string! judgeName, string? modelId, string!
 Tracon.TraconMetrics.RecordJudgeScore(string! judgeName, string! agentName, string! tenantId, double score) -> void
 Tracon.TraconMetrics.RecordModelCacheLookup(string! provider, string! tenantId, bool hit) -> void
 Tracon.TraconMetrics.RecordRun(string! agentName, Tracon.RunStatus status, string! tenantId, string? modelId, System.TimeSpan duration, Tracon.RunUsage? usage, int? agentVersion = null) -> void
+Tracon.TraconMetrics.RecordRunRecordingFailure(string? tenantId, string! stage) -> void
 Tracon.TraconMetrics.RecordToolInvocation(string! toolName, bool succeeded, System.TimeSpan? duration) -> void
 Tracon.TraconMetrics.RunCost.get -> System.Diagnostics.Metrics.Counter<double>!
 Tracon.TraconMetrics.RunDuration.get -> System.Diagnostics.Metrics.Histogram<double>!
+Tracon.TraconMetrics.RunRecordingFailures.get -> System.Diagnostics.Metrics.Counter<long>!
 Tracon.TraconMetrics.Runs.get -> System.Diagnostics.Metrics.Counter<long>!
 Tracon.TraconMetrics.Tokens.get -> System.Diagnostics.Metrics.Counter<long>!
 Tracon.TraconMetrics.ToolDuration.get -> System.Diagnostics.Metrics.Histogram<double>!
@@ -1154,6 +1156,7 @@ const Tracon.TraconDiagnostics.RunActivityName = "tracon.run" -> string!
 const Tracon.TraconDiagnostics.RunCostCounterName = "tracon.run.cost" -> string!
 const Tracon.TraconDiagnostics.RunCounterName = "tracon.runs" -> string!
 const Tracon.TraconDiagnostics.RunDurationName = "tracon.run.duration" -> string!
+const Tracon.TraconDiagnostics.RunRecordingFailureCounterName = "tracon.run.recording_failures" -> string!
 const Tracon.TraconDiagnostics.SkillScriptActivityName = "execute_skill_script" -> string!
 const Tracon.TraconDiagnostics.SkillScriptToolName = "skill_script" -> string!
 const Tracon.TraconDiagnostics.Tags.AgentName = "tracon.agent.name" -> string!
@@ -1180,6 +1183,7 @@ const Tracon.TraconDiagnostics.Tags.Provider = "tracon.model.provider" -> string
 const Tracon.TraconDiagnostics.Tags.QuotaMetric = "tracon.quota.metric" -> string!
 const Tracon.TraconDiagnostics.Tags.QuotaPeriod = "tracon.quota.period" -> string!
 const Tracon.TraconDiagnostics.Tags.QuotaScope = "tracon.quota.scope" -> string!
+const Tracon.TraconDiagnostics.Tags.RecordingStage = "tracon.recording.stage" -> string!
 const Tracon.TraconDiagnostics.Tags.RunId = "tracon.run.id" -> string!
 const Tracon.TraconDiagnostics.Tags.ScriptName = "tracon.script.name" -> string!
 const Tracon.TraconDiagnostics.Tags.SessionId = "tracon.session.id" -> string!

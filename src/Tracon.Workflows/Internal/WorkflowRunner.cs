@@ -437,7 +437,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         CancellationTokenSource linked)
     {
         var recording = _prismOptions.Value.RunRecording;
-        var writer = new RunEventWriter(_runStore, recording, _logger, execution.RunId, _sinks);
+        var writer = new RunEventWriter(_runStore, recording, _logger, execution.RunId, _metrics, _sinks);
 
         // 🚨 The root span is started IN THE BODY OF THIS METHOD. Activity.Current
         // is an AsyncLocal, and an assignment made inside a helper method does not

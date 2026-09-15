@@ -5434,3 +5434,57 @@ Bu, Faz 153'un `scripts/dokuman-bakim.py` icine yazdigi tespiti **dogrular**: "Y
 Tavan bu yuzden yine bu dosyanin KENDİ kalibrasyon kurali ile konuldu -- "damitma SONRASI olculen degere ~%7 bosluk ekle": 419.874 x 1.07 ~= 450.000. K-721'in Faz 153'te yaptigi islemin aynisidir. Gerekce ayni: ledger "yalniz aramada" katmanindadir, oturum acilisinda HIC okunmaz, ve butcesi bir baglam kisiti degil bir buyume alarmidir.
 
 Yeni bosluk ~30 KB, yani faz basina ~2,5 KB'lik yapisal buyumeyle ~12 faz. `K-401`'in bicim kusuru kapatilmadi; bir sonraki damitma turunda elle onarilmalidir.
+
+### K-782
+
+Faz 171 denetim izi icin garanti ayrimini yayimladi (K-776) ve site gerekcesini
+yazdi: *"a hole in the audit trail is not something to find out about by reading
+logs"*. Ayni cumle `run` kaydi icin YAZILAMIYORDU. Olculdu (2026-09-15):
+`RunEventWriter`'in dort yutma yolu da yalnizca `LogWarning` yaziyordu ve
+`grep -rn "IsDisabled" src/` bes eslesmenin hepsini yazicinin KENDI icinde
+buluyordu — durum ne `run` kaydina, ne yanita, ne bir metrige cikiyordu.
+`RunRecordingAgent.SaveInputAsync` ayni sekilde sessizdi. Kardes yolda
+(`tracon.audit.write_failures`) sayac VARDI; bu yolda yoktu.
+
+**Garanti degismedi.** Best-effort kalir ve bu bilinclidir: bir yazim
+dustugunde model cagrisi yapilmis, tool'lar yan etkilerini birakmistir; `run`'i
+dusurmek hicbir seyi geri almaz, yalnizca odenmis bir yaniti da kaybettirir.
+Genel `RecordingMode.Required` bu gerekceyle IKI ayri turda reddedildi
+(2026-09-07 A10, 2026-09-15 tuketici geri bildirimi).
+
+Degisen sey ihlalin GORUNURLUGUDUR. `tracon.run.recording_failures`
+"kaydini kaybeden yazma girisimi" sayar. `store` tarafinda bu pratikte
+"kaydini kaybeden `run` sayisi"na esittir ve bu bir tesaduf degildir:
+`Disable` ilk hatadan sonra yeni girisimi engeller, yani uzun bir `run` kisa
+bir `run`'dan daha kotu bir ariza gibi gorunmez.
+
+Etiket kumesi KAPALIDIR — `start` · `event` · `tool_invocation` ·
+`completion` · `sink` · `input`. Iki sey bilerek etiket DEGILDIR: `run`
+kimligi (sinirsiz kardinalite; site bu kurali zaten yayimliyor) ve dusen
+`sink`'in TIPI (tuketici kodudur; log satirinda adlandirilir). Sabitler
+`internal`'dir: tuketici bu degeri OKUR, yazmaz, ve public bir `enum` Faz
+7'den sonra donar — yedinci bir asama eklemek kirici olurdu.
+
+🚨 Kapali kume tek basina yetmedi. `Disable`'in ikinci parametresi ONCE
+elle yazilmis dort ayri serbest metindi (K-483'un kusur SINIFI) ve bir metrik
+etiketi olarak dogrudan kardinalite riskiydi. Sabite cevrildi, ve log cumlesi
+o sabitten uretiliyor (`RunRecordingStages.Describe`) — ayni tipte, cunku
+ayri tutmak "etiketi olan ama cumlesi olmayan" bir asamaya izin verirdi. Bir
+test her `All` uyesinin kendine ait bir cumlesi oldugunu iddia eder.
+
+Sayacin yaziciya ulasmasi Faz 171'in deseniyle coazuldu: **zorunlu-nullable
+parametre**. Dekorator reddedildi (tuketicinin kendi `IRunStore` kaydi sayaci
+sessizce dusururdu; sayac Tracon'un YAZMA YOLUNU olcmeli, belirli bir kaydi
+degil), opsiyonel parametre reddedildi (yeni cagri yeri sessizce atlar).
+Derleyici 19 cagri yerinin hepsini ziyaret ettirdi.
+
+🚨 Uygulama sirasinda DoD'nin kendi senaryosu YANLIS cikti. "PostgreSQL
+kapaliyken bir `run` kos" ULASILAMAZ: `AgentEndpoints.RunAsync` akis
+baslamadan once uc okuma yapar (ek dosya sahipligi · deney atamasi ·
+parametre kapisi) ve bunlar KASITLI olarak sesli duser — kodun kendi yorumu
+*"checked BEFORE the run starts, so the response is a proper ProblemDetails"*
+der. Yani `run` henuz yokken korunacak bir `run` da yoktur ve uc `HTTP 500`
+doner. Gercek kanit Faz 171'in teknigiyle alindi: depoyu kapatmak yerine
+`tracon.runs` uzerine `RAISE EXCEPTION` yazan bir trigger konuldu. Okumalar
+calisti, on ucus gecti, `StartRunAsync` dustu, `run` TAMAMLANDI ve sayac
+`stage=start` ile bir kez artti.

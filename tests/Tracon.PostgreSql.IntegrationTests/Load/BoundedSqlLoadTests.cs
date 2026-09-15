@@ -82,7 +82,8 @@ public sealed class BoundedSqlLoadTests(PostgresFixture fixture)
                     context.Runs,
                     new TraconRunRecordingOptions(),
                     NullLogger.Instance,
-                    runId);
+                    runId,
+                    metrics: null);
 
                 controlPlane.Start();
                 await writer.StartAsync(TestData.Run(runId), "the user's question");

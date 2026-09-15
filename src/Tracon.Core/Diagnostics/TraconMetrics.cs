@@ -129,6 +129,11 @@ public sealed class TraconMetrics : IDisposable
             TraconDiagnostics.AuditWriteFailureCounterName,
             unit: "{failure}",
             description: "Audit entries that could not be written, tagged by tenant, action and outcome.");
+
+        RunRecordingFailures = _meter.CreateCounter<long>(
+            TraconDiagnostics.RunRecordingFailureCounterName,
+            unit: "{failure}",
+            description: "Run-record write attempts whose record was lost, tagged by tenant and stage.");
     }
 
     /// <summary>Run counter. Tags: agent, status, tenant.</summary>
@@ -163,6 +168,9 @@ public sealed class TraconMetrics : IDisposable
 
     /// <summary>Audit write-failure counter. Tags: tenant, action, outcome (swallowed/refused).</summary>
     public Counter<long> AuditWriteFailures { get; }
+
+    /// <summary>Run-recording failure counter. Tags: tenant, stage.</summary>
+    public Counter<long> RunRecordingFailures { get; }
 
     /// <summary>Finished-job counter. Tags: lane, kind, status, tenant.</summary>
     /// <remarks>
@@ -358,6 +366,28 @@ public sealed class TraconMetrics : IDisposable
                 { TraconDiagnostics.Tags.TenantId, tenantId },
                 { TraconDiagnostics.Tags.AuditAction, action },
                 { TraconDiagnostics.Tags.AuditOutcome, outcome },
+            });
+
+    /// <summary>Records a run-record write attempt whose record was lost.</summary>
+    /// <param name="tenantId">
+    /// The tenant of the run the evidence belonged to. <c>"unknown"</c> is written when
+    /// null, so that an alert rule never has to tell an empty series from a missing one.
+    /// </param>
+    /// <param name="stage">
+    /// Which write was lost: <c>start</c>, <c>event</c>, <c>tool_invocation</c>,
+    /// <c>completion</c>, <c>sink</c>, or <c>input</c>.
+    /// </param>
+    /// <remarks>
+    /// The run identity is deliberately absent: it is unbounded, and it is already
+    /// carried on the span and in the accompanying log entry.
+    /// </remarks>
+    public void RecordRunRecordingFailure(string? tenantId, string stage)
+        => RunRecordingFailures.Add(
+            1,
+            new TagList
+            {
+                { TraconDiagnostics.Tags.TenantId, tenantId ?? "unknown" },
+                { TraconDiagnostics.Tags.RecordingStage, stage },
             });
 
     /// <summary>Records a background job that reached a terminal status.</summary>
