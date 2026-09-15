@@ -12,7 +12,7 @@
 **Durum (2026-09-15):** **0 sıralanabilir aday** · 14 bekleyen kalem (10 tek satırlık + 4 gövdeli).
 Son plana dönüşen: **F-239 · F-224 · F-218 · F-213 · F-232 →
 [Faz 174](arsiv/fazlar/174-KAPASITE-DAMGASI-KAPISI.md) · [175](arsiv/fazlar/175-GERI-ALINAMAZ-KARAR-DOGRULAMASI.md) ·
-[176](176-EVALUATOR-SURUM-DAMGASI.md) · [177](177-STORE-IPTAL-SOZLESMESI.md) ·
+[176](arsiv/fazlar/176-EVALUATOR-SURUM-DAMGASI.md) · [177](177-STORE-IPTAL-SOZLESMESI.md) ·
 [178](178-TUKETICI-KAPI-SKILLI.md)** (📋 Planlandı). Sıralanabilir kuyruk **boştur**;
 yeni aday üretmek için `aday-kesfi` koşulur.
 
@@ -296,7 +296,7 @@ keşif kaydındadır; burada yalnız hangi kanala düştükleri yazar.
 
 | Kanal | ID'ler | Kural |
 |---|---|---|
-| **Plana dönüştü** | 40+ kalem · son turu (2026-09-15): **F-239** → [Faz 174](arsiv/fazlar/174-KAPASITE-DAMGASI-KAPISI.md) · **F-224** → [Faz 175](arsiv/fazlar/175-GERI-ALINAMAZ-KARAR-DOGRULAMASI.md) · **F-218** → [Faz 176](176-EVALUATOR-SURUM-DAMGASI.md) · **F-213** → [Faz 177](177-STORE-IPTAL-SOZLESMESI.md) · **F-232** → [Faz 178](178-TUKETICI-KAPI-SKILLI.md). Ondan öncesi: **F-234** → [Faz 171](arsiv/fazlar/171-DENETIM-IZI-YAZMA-POLITIKASI.md), **F-235** → [Faz 172](arsiv/fazlar/172-TEHDIT-MODELI.md) | Bölümleri bu dosyadan silindi; kanıt ve tasarım **fazın kendi dokümanındadır**. Aday listesine geri dönmezler. Eşleme tabloları ve aday gövdeleri: [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md) |
+| **Plana dönüştü** | 40+ kalem · son turu (2026-09-15): **F-239** → [Faz 174](arsiv/fazlar/174-KAPASITE-DAMGASI-KAPISI.md) · **F-224** → [Faz 175](arsiv/fazlar/175-GERI-ALINAMAZ-KARAR-DOGRULAMASI.md) · **F-218** → [Faz 176](arsiv/fazlar/176-EVALUATOR-SURUM-DAMGASI.md) · **F-213** → [Faz 177](177-STORE-IPTAL-SOZLESMESI.md) · **F-232** → [Faz 178](178-TUKETICI-KAPI-SKILLI.md). Ondan öncesi: **F-234** → [Faz 171](arsiv/fazlar/171-DENETIM-IZI-YAZMA-POLITIKASI.md), **F-235** → [Faz 172](arsiv/fazlar/172-TEHDIT-MODELI.md) | Bölümleri bu dosyadan silindi; kanıt ve tasarım **fazın kendi dokümanındadır**. Aday listesine geri dönmezler. Eşleme tabloları ve aday gövdeleri: [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md) |
 | **Kapatılan kusur kayıtları** | F-106 · F-130 · F-137 · F-138 · F-139 · F-170 · F-180 · F-181 · F-190 · F-197 · F-203 · F-204 · F-206 · F-211 · F-212 · F-214 · F-215 · F-219 · F-220 · F-222 | Gövdeleri [`arsiv/ERTELENEN-ADAYLAR.md`](arsiv/ERTELENEN-ADAYLAR.md)'dedir. Yeniden görülürse **yeni** kusur kaydı açılır. **F-180** özetiyle § *Bekleyen Kalemler*'de kalır: vakası kapandı, **sınıfı açık** |
 | **Karar / uyumluluk eşiği** | F-72 · F-90 · F-91 · F-92 · F-132 · F-169 | Mevcut karar veya dış bağımlılık değişmeden planlanmaz. **F-169** (MAF CodeAct / Hyperlight sandbox) F-72 ile **aynı eşiktedir**: paket GA ve taşınabilir olana kadar planlanmaz — ölçüm [`kesif/2026-08-26-yeni-feature-fikirleri.md`](kesif/2026-08-26-yeni-feature-fikirleri.md) § 9 |
 | **Ölçüm bekliyor — F-ID'leri** | F-51 · F-94 · F-96 · F-97 · F-99 · F-101 · F-123 · F-128 · F-154 · F-156 · F-157 · F-159 · F-160 · F-161 · F-162 | Her biri için gereken somut kanıt keşif kaydında yazılıdır. Kanıt üretmeden aday olmaz |

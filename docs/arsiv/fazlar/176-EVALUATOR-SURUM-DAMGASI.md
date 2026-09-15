@@ -2,8 +2,8 @@
 
 > **Durum:** ✅ Tamamlandı (2026-09-16)
 > **Plan onayı:** onaylandı (kullanıcı, 2026-09-16) — dört açık soru da öneriler yönünde kapandı
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-218**
-> **Önkoşul:** [Faz 155](arsiv/fazlar/155-KALIBRE-EDILMIS-EVALUATOR-KATALOGU.md) — `IEvaluator` → `IRunJudge` köprüsünü o faz kurdu; damga onun üstüne biner
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-218**
+> **Önkoşul:** [Faz 155](155-KALIBRE-EDILMIS-EVALUATOR-KATALOGU.md) — `IEvaluator` → `IRunJudge` köprüsünü o faz kurdu; damga onun üstüne biner
 > **Paketler:** `Tracon.Abstractions`, `Tracon.Core`, `Tracon.PostgreSql`, `Tracon.SqlServer`, `Tracon.Sqlite`
 > **Yeni paket:** Yok · **Migration:** gerekli — **üç set** (PostgreSQL + SqlServer + Sqlite); numara uygulama anında alınır
 > **Public API:** büyüyor — `RunScore`'a bir alan. Faz 7'den **önce** ucuz, sonra **kırıcı**
@@ -26,18 +26,18 @@
    migration emsali), **K-059** (`secret` veritabanına da yazılmaz; kayıtta
    yalnız **adı** durur — damga bir sürüm dizesidir, kimlik bilgisi değildir),
    **K-178** (migration numaraları sağlayıcı başına bağımsızdır)
-3. [Faz 155](arsiv/fazlar/155-KALIBRE-EDILMIS-EVALUATOR-KATALOGU.md) — yalnız
+3. [Faz 155](155-KALIBRE-EDILMIS-EVALUATOR-KATALOGU.md) — yalnız
    devir notu:
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/155-KALIBRE-EDILMIS-EVALUATOR-KATALOGU.md
    ```
    Köprünün sözleşmesini (metrik adı ön eki, `null` = ölçüm yok) oradan devralıyoruz.
 4. Alan hafızası (bu faz iki alana dokunuyor):
-   [`hafiza/sql-migration.md`](hafiza/sql-migration.md) (üç sağlayıcı
-   migration'ı) · [`hafiza/sql-paylasilan-sorgu-uretimi.md`](hafiza/sql-paylasilan-sorgu-uretimi.md)
-   (paylaşılan okuyucu ve ordinal tuzağı) · [`hafiza/00-INDEKS.md`](hafiza/00-INDEKS.md)
+   [`hafiza/sql-migration.md`](../../hafiza/sql-migration.md) (üç sağlayıcı
+   migration'ı) · [`hafiza/sql-paylasilan-sorgu-uretimi.md`](../../hafiza/sql-paylasilan-sorgu-uretimi.md)
+   (paylaşılan okuyucu ve ordinal tuzağı) · [`hafiza/00-INDEKS.md`](../../hafiza/00-INDEKS.md)
    üzerinden değerlendirme alanı
-5. Gerektiğinde: [`MIMARI.md`](MIMARI.md) veri modeli bölümü
+5. Gerektiğinde: [`MIMARI.md`](../../MIMARI.md) veri modeli bölümü
 
 ---
 
@@ -47,7 +47,7 @@
 `Microsoft.Extensions.AI.Evaluation.Quality`'nin **prompt'una** bağlıdır ve o
 prompt paket sürümüyle değişir. Skor satırı hangi sürümün ürettiğini
 kaydetmiyor. Bir paket yükseltmesi
-[Faz 153](arsiv/fazlar/153-EVAL-KOSUMLARI-ARASINDA-REGRESYON-FARKI.md)'ün
+[Faz 153](153-EVAL-KOSUMLARI-ARASINDA-REGRESYON-FARKI.md)'ün
 regresyon taban çizgisini **sessizce** kaydırabilir; fark "model bozuldu" gibi
 görünür, oysa yargıcın kendisi değişmiştir.
 
@@ -58,11 +58,11 @@ görünür, oysa yargıcın kendisi değişmiştir.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`RunScore.cs:72`](../src/Tracon.Abstractions/Runs/RunScore.cs#L72) | `Source` (`human` / `api` / `judge:{ad}`) **required**; yargıcın kim olduğunu söylüyor |
-| [`RunScore.cs:75`](../src/Tracon.Abstractions/Runs/RunScore.cs#L75) | `Author` bir **kimlik** alanı ("the actor who gave the score") |
+| [`RunScore.cs:72`](../../../src/Tracon.Abstractions/Runs/RunScore.cs#L72) | `Source` (`human` / `api` / `judge:{ad}`) **required**; yargıcın kim olduğunu söylüyor |
+| [`RunScore.cs:75`](../../../src/Tracon.Abstractions/Runs/RunScore.cs#L75) | `Author` bir **kimlik** alanı ("the actor who gave the score") |
 | `RunScore.cs` tamamı | Tip **12 alan** taşıyor; **sürüm alanı yok** |
-| [`EvaluatorRunJudge.cs:47`](../src/Tracon.Core/Evaluation/EvaluatorRunJudge.cs#L47) | Köprü `IEvaluator`'ı **sarmalamadan** kullanıyor (K3). Sürüm bu tipin `Assembly`'sinden okunabilir |
-| 🚨 [`SqlRunScoreStore.cs:124-134`](../src/Tracon.Sql.Shared/Stores/SqlRunScoreStore.cs#L124) | Store **çıplak ordinal** ile okuyor: `reader.GetGuid(0)` … `reader.GetString(10)`. Ortaya sütun eklemek her okuyucuyu **sessizce** kaydırır |
+| [`EvaluatorRunJudge.cs:47`](../../../src/Tracon.Core/Evaluation/EvaluatorRunJudge.cs#L47) | Köprü `IEvaluator`'ı **sarmalamadan** kullanıyor (K3). Sürüm bu tipin `Assembly`'sinden okunabilir |
+| 🚨 [`SqlRunScoreStore.cs:124-134`](../../../src/Tracon.Sql.Shared/Stores/SqlRunScoreStore.cs#L124) | Store **çıplak ordinal** ile okuyor: `reader.GetGuid(0)` … `reader.GetString(10)`. Ortaya sütun eklemek her okuyucuyu **sessizce** kaydırır |
 | `grep -rln SqlRunScoreStore src/` | 🚨 Okuyucu **`Tracon.Sql.Shared`'dadır**, sağlayıcı paketinde değil: üç sağlayıcı da onu kullanıyor (`TraconPostgreSqlBuilderExtensions` · `TraconSqlServerBuilderExtensions` · `TraconSqliteBuilderExtensions`). **Bir** okuyucu değişir, **üç** migration yazılır |
 | `src/Tracon.PostgreSql/Migrations/0050_voice_session_cost.sql` | Aynı tuzak Faz 161'de belgelenmiş: *"The columns are added at the END of the table on purpose"* |
 | Migration sayıları | PostgreSql **49** dosya (son `0050_*`), SqlServer **38** (son `0038_*`), Sqlite **37** (son `0037_*`) — numaralar bağımsız (K-178) |
