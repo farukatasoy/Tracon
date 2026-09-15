@@ -49,15 +49,51 @@ public sealed class ModelHealthSingletonTests
         await serviceA.StartAsync(CancellationToken.None);
         await serviceB.StartAsync(CancellationToken.None);
 
-        await Task.Delay(TimeSpan.FromMilliseconds(500));
+        // 🚨 Wait for the SIGNAL, not for the clock. A fixed delay asserts that a
+        // background tick fits inside a wall-clock window, which is a claim about
+        // the machine rather than about the code: under a loaded full-suite run
+        // neither service got its 60 ms tick within 500 ms and the test failed with
+        // providerA=0, providerB=0 — nothing had happened yet, so the XOR below was
+        // false for a reason the test was not asking about.
+        //
+        // The lease comment above records the first half of this same lesson. This
+        // is the second half: the timing dependency moved from the lease to the
+        // wait, and only removing the wall clock from BOTH closes it.
+        await WaitUntilAsync(() => providerA.CheckCount > 0 || providerB.CheckCount > 0);
 
         await serviceA.StopAsync(CancellationToken.None);
         await serviceB.StopAsync(CancellationToken.None);
 
         // 🚨 Only one must have run: the total counter > 0, but both CANNOT be
-        // > 0 at the same time.
+        // > 0 at the same time. The wait above guarantees the ">0" half, so a
+        // failure here is the real claim failing — both instances ran.
         (providerA.CheckCount > 0 ^ providerB.CheckCount > 0).ShouldBeTrue(
             $"providerA={providerA.CheckCount}, providerB={providerB.CheckCount}");
+    }
+
+    /// <summary>Polls until <paramref name="condition"/> holds, or fails the test.</summary>
+    /// <param name="condition">The signal to wait for.</param>
+    /// <remarks>
+    /// The timeout is generous on purpose. It is not a performance budget — it only
+    /// bounds the failure so a broken singleton reports instead of hanging. Waiting
+    /// longer than necessary costs nothing when the condition is already true.
+    /// </remarks>
+    private static async Task WaitUntilAsync(Func<bool> condition)
+    {
+        var deadline = DateTimeOffset.UtcNow + TimeSpan.FromSeconds(30);
+
+        while (DateTimeOffset.UtcNow < deadline)
+        {
+            if (condition())
+            {
+                return;
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(20));
+        }
+
+        throw new TimeoutException(
+            "No health check ran on either instance within 30 seconds; the background service never ticked.");
     }
 
     private static StaticOptionsMonitor<T> Options<T>(T value) => new(value);
