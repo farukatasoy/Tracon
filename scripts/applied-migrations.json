@@ -1,4 +1,8 @@
 {
   "baselineCommit": "630f3212496a581c3bd79aeb465c4c09dcc483bc",
-  "sourceCommits": {}
+  "sourceCommits": {
+    "src/Tracon.PostgreSql/Migrations/0051_run_score_evaluator_version.sql": "1dcb4f5f8d0126cb208147275fe450ed0bbf350f",
+    "src/Tracon.SqlServer/Migrations/0039_run_score_evaluator_version.sql": "1dcb4f5f8d0126cb208147275fe450ed0bbf350f",
+    "src/Tracon.Sqlite/Migrations/0038_run_score_evaluator_version.sql": "1dcb4f5f8d0126cb208147275fe450ed0bbf350f"
+  }
 }
