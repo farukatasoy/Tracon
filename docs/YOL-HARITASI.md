@@ -187,7 +187,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [172](arsiv/fazlar/172-TEHDIT-MODELI.md) | Tehdit Modeli | ✅ Tamamlandı |
 | [173](arsiv/fazlar/173-CALISTIRMA-KAYDI-GORUNURLUGU.md) | Çalıştırma Kaydının Kaybı Ölçülür | ✅ Tamamlandı |
 | [174](arsiv/fazlar/174-KAPASITE-DAMGASI-KAPISI.md) | Kapasite Damgası Kapısı | ✅ Tamamlandı |
-| [175](175-GERI-ALINAMAZ-KARAR-DOGRULAMASI.md) | Geri Alınamaz Karar Doğrulaması | ✅ Tamamlandı |
+| [175](arsiv/fazlar/175-GERI-ALINAMAZ-KARAR-DOGRULAMASI.md) | Geri Alınamaz Karar Doğrulaması | ✅ Tamamlandı |
 | [176](176-EVALUATOR-SURUM-DAMGASI.md) | Evaluator Sürüm Damgası | 📋 Planlandı |
 | [177](177-STORE-IPTAL-SOZLESMESI.md) | Store İptal Sözleşmesi | 📋 Planlandı |
 | [178](178-TUKETICI-KAPI-SKILLI.md) | Tüketici Kapı Skill'i | 📋 Planlandı |
