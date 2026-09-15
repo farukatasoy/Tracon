@@ -158,7 +158,11 @@ YONETIM_BUTCESI = {
     # Ledger "yalnız aramada" katmanindadir ve oturum acilisinda HIC okunmaz;
     # butcesi bir baglam kisiti degil, bir buyume alarmidir. Yeni sinir
     # damitma SONRASI olculen degere ~%7 bosluk ekler.
-    "docs/KARARLAR.md": 420_000,           # Faz 153: damitma sonrasi 391_150
+    # K-781: 420_000 -> 450_000. Faz 153'un tespiti dogrulandi -- `karar-damit`
+    # bu kez YALNIZ 4 satir bulup 977 B tasiyabildi (420_851 -> 419_874), yani
+    # tasima tukendi ve tavan 126 B bosluk birakiyordu. Sinir yine bu dosyanin
+    # kendi kurali ile konuldu: damitma SONRASI olculen degere ~%7 bosluk.
+    "docs/KARARLAR.md": 450_000,           # K-781: damitma sonrasi 419_874
     "docs/ADAYLAR.md": 80_000,  # olculen 67_195
 }
 

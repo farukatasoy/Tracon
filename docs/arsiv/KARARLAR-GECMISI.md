@@ -5404,3 +5404,33 @@ Tek kod engeli `FakeModelProvider`'daki `System.Threading.Lock _gate` alanindayd
 **Sinif taramasi:** `src/` altinda TFM'i daraltan diger iki paket gerekcelidir ve dokunulmadi — `Tracon.Cli` (`PackAsTool` tek TFM ister) ve `Tracon.Templates` (derlenmeyen icerik paketi); `Tracon.Generators` analyzer oldugu icin `netstandard2.0`. Gerekcesiz daralma yalniz `Tracon.Testing`'deydi.
 
 Kalan sinir: `tests/` agacinin tamami `net10.0` hedefler, yani net8.0 destegi **derleme ve paketleme** duzeyinde kanitlanmistir, net8.0 runtime'inda kosan bir tuketici testiyle degil. Ayni sinir zaten butun calisma paketleri icin gecerlidir (`Tracon.Package.Tests` tuketici projeleri de `net10.0`'dir), yani bu degisiklik kanit seviyesini dusurmez.
+
+## Faz 90 damıtmasında taşınan gerekçeler
+
+### K-774
+
+Ölçüldü: `sweep` profili 72 hücrede ~100 dakika, `soak` 32 dakika sürer — kapanışa girseydi her faz saatlerce uzar ve kapılar koşulmaz hâle gelirdi. CI'daki `smoke` profili hızı DEĞİL doğruluğu kontrol eder: üç HTTP yolu, iki kiracı, packed tüketici provenance'ı; hiçbir süre eşiğe bağlı değildir.
+
+### K-775
+
+Bir sonraki sürümde sessizce devralınırsa ölçülmemiş bir sayı yayınlanmış olur ve tüketici onu o sürümün ölçümü sanar. Aynı disiplinin kapısı davranış iddiaları için F-171'de (`bagimlilik_surum_damgasi`) kuruldu; burada kapı değil sözleşmedir, çünkü ölçümü yenilemek insan kararıdır.
+
+### K-777
+
+Karşı tarafta provenance zaten ÜÇ mekanizmayla taşınıyor: deterministic build (`Directory.Build.props:32`), kirli ağaçla pack yasağı (`Directory.Build.targets:129`) ve OIDC push kimliği (`ci.yml:359`). İmzalama sertifika temini ve anahtar yönetimi ister; preview'ın çözdüğü ölçülmüş bir tüketici sorunu yok.
+
+### K-780 — devam (Faz 90 damıtması)
+
+Ölçüldü — `VersionOverride` ile `8.0.29`/`9.0.18` (10.0.10 ile aynı servicing dalgası, 2026-07-14) kullanıldığında üç TFM de sıfır uyarıyla derlendi ve paket üç `lib/` klasörü ile TFM başına doğru bağımlılıkla çıktı.
+
+### K-781
+
+K-780 defteri 420.851 B'ye cikardi ve 420.000 B'lik tavani asti. Defter degisiklikten ONCE de 419.930 B'ydi: yalnizca **70 bayt** bosluk vardi, yani yeni HICBIR karar sigmiyordu. K-780 alarmi tetikledi ama sebebi degildi.
+
+AGENTS.md'nin kurali geregi once TASIMA denendi, tavan yukseltmek degil. Olculdu: `scripts/dokuman-bakim.py karar-damit` 781 satirin icinden yalniz **4 satir** damitabildi ve **977 B** tasidi (420.851 -> 419.874). Uc satir elle isaretlendi ve dokunulmadi: `K-401` (satir `|` ile bitmiyor -- defterde var olan bicim kusuru), bir baslik/tarih deseni taninmayan satir, ve `K-750` (kesilecek kuyruk 👤 kaynagi tasiyor).
+
+Bu, Faz 153'un `scripts/dokuman-bakim.py` icine yazdigi tespiti **dogrular**: "Yetmedi ve YETMEZ -- kalan buyume satirin ISKELETINDEDIR (baslik + tarih + yeniden acilma kosulu) ve o parcalar kural geregi ASLA kesilmez." Ilk tahmin (106 satirin ~250 B'ye inip ~62 KB acacagi) olcumle curutuldu; araç satir iskeletini korur ve baytlar oradadir.
+
+Tavan bu yuzden yine bu dosyanin KENDİ kalibrasyon kurali ile konuldu -- "damitma SONRASI olculen degere ~%7 bosluk ekle": 419.874 x 1.07 ~= 450.000. K-721'in Faz 153'te yaptigi islemin aynisidir. Gerekce ayni: ledger "yalniz aramada" katmanindadir, oturum acilisinda HIC okunmaz, ve butcesi bir baglam kisiti degil bir buyume alarmidir.
+
+Yeni bosluk ~30 KB, yani faz basina ~2,5 KB'lik yapisal buyumeyle ~12 faz. `K-401`'in bicim kusuru kapatilmadi; bir sonraki damitma turunda elle onarilmalidir.
