@@ -34,6 +34,30 @@ tabloyu kesen boş satırı ve sıra dışı numarayı **hata** olarak bildirir.
 çıkarsa tarih kuralı uygulanır — **önce tahsis edilen numarayı korur**; sonraki
 taşınır ve o fazın dokümanındaki referansları da taşınır.
 
+## 🚨 Karar satırı §2 DIŞINDA yaşarsa üç kapı birden körleşir (2026-09-15)
+
+K-539'un kapısı (`kararlar_denetle`) yalnız `_kararlar_tablosu()`'nun döndürdüğü
+**§2 gövdesine** bakar. İndeks üreteci (`_kararlar_kalemleri`) ise dosyanın
+TAMAMINI okur. Bu asimetri ölçüldü: **K-662…K-782 arası 101 karar**, §3'ün
+*şablon* kod bloğunun içine yazılmıştı.
+
+Sonuç, "yalnız okunabilirlik" diye 🟢 işaretlenmişti ama üç kapı birden kördü —
+yinelenen numara · tabloyu kesen boş satır · sıra dışı numara. Kalemler indekste
+göründüğü için kayıp fark edilmiyordu. Bedel gerçekti: **iki farklı karar aynı
+numarayı (K-703) taşıyordu** — K-539'un tam olarak kapattığını sandığı sınıf — ve
+iki üretilen indeks BİRBİRİNDEN FARKLI bir K-703 gösteriyordu
+(`KARARLAR-INDEKS.md` F-211'inkini, `KARARLAR-INDEKS-ARSIV.md` Faz 151'inkini).
+
+Çakışma tarih kuralıyla çözüldü: ilk tahsis (Faz 151, 03:25) K-703'ü korudu,
+ikincisi (F-211, 18:53) **K-783**'e taşındı ve beş referansı birlikte taşındı.
+
+Kapı: `_bolum_disi_karar_satirlari()` — tarama artık dosyanın tamamındadır ve
+§2 dışındaki her `| **K-NNN` satırını hata sayar. Mutasyonla doğrulandı.
+
+🚨 **Ders: bir kapı ile onu besleyen üreteç AYNI satır kümesine bakmalıdır.**
+Aynı asimetri Faz 169'da da görüldü (kesik başlık taraması §2 ile sınırlıydı) —
+bu ikinci vakadır.
+
 ## 🚨 `faz-arsivle` kendi bağlantı onarımını kaçırabilir — koştuktan SONRA denetle (Faz 104)
 
 Skill "tek bir yeni kırık bağlantı üretirse taşımayı geri alır" diyor. Faz

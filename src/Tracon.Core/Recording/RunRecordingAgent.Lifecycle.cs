@@ -26,8 +26,8 @@ public sealed partial class RunRecordingAgent
         // When the caller supplies the identifier, that one is used. A streaming endpoint
         // must know the identifier before it writes the first frame; by passing the
         // identifier that it produced itself, it can report the correct identifier to the client.
-        var prismOptions = options as TraconRunOptions;
-        var runId = prismOptions?.RunId ?? TraconId.NewId();
+        var runOptions = options as TraconRunOptions;
+        var runId = runOptions?.RunId ?? TraconId.NewId();
         var agentName = Name ?? InnerAgent.Id;
         var tenantId = _tenantContext.TenantId;
 
@@ -37,8 +37,8 @@ public sealed partial class RunRecordingAgent
         // read whatever the caller's execution context happened to restore.
         var attribution = ResolveAttribution(runId);
         var sessionId = session is null ? null : GetSessionId(session);
-        var depth = Math.Max(prismOptions?.Depth ?? 0, 0);
-        var agentVersion = prismOptions?.AgentVersion ?? _agentVersion;
+        var depth = Math.Max(runOptions?.Depth ?? 0, 0);
+        var agentVersion = runOptions?.AgentVersion ?? _agentVersion;
 
         var activity = ActivitySource.StartActivity(TraconDiagnostics.RunActivityName, ActivityKind.Internal);
 
@@ -64,7 +64,7 @@ public sealed partial class RunRecordingAgent
                 activity.SetTag(TraconDiagnostics.Tags.AgentVersion, version);
             }
 
-            if (prismOptions?.ParentRunId is { } parent)
+            if (runOptions?.ParentRunId is { } parent)
             {
                 activity.SetTag(TraconDiagnostics.Tags.ParentRunId, parent);
                 activity.SetTag(TraconDiagnostics.Tags.Depth, depth);
@@ -89,7 +89,7 @@ public sealed partial class RunRecordingAgent
         var scope = new AgentRunScope
         {
             RunId = runId,
-            RootRunId = prismOptions?.RootRunId ?? runId,
+            RootRunId = runOptions?.RootRunId ?? runId,
             Depth = depth,
             AgentName = agentName,
             TenantId = tenantId,
@@ -99,7 +99,7 @@ public sealed partial class RunRecordingAgent
             // that is produced there still belongs to the root session.
             // `RunStartInfo.SessionId` (that is, runs.session_id) DOES NOT USE this fallback
             // and keeps its meaning.
-            SessionId = sessionId ?? prismOptions?.SessionId,
+            SessionId = sessionId ?? runOptions?.SessionId,
 
             // Same attribution the run record gets - see the remark below on
             // 'attribution'. Read here, in the SAME synchronous body, so it is
@@ -107,15 +107,15 @@ public sealed partial class RunRecordingAgent
             // runs.
             UserId = attribution.UserId,
             Labels = attribution.Labels,
-            Budget = prismOptions?.Budget ?? (depth == 0 ? _graphOptions.CreateBudget(_timeProvider) : null),
+            Budget = runOptions?.Budget ?? (depth == 0 ? _graphOptions.CreateBudget(_timeProvider) : null),
             Writer = writer,
             ExtraUsage = new SideChannelUsageAccumulator(),
             ToolUsage = new ToolUsageAccumulator(),
             ToolAuthorization = new ToolAuthorizationAccumulator(),
             FallbackAttribution = new FallbackModelAttribution(),
             AgentVersion = agentVersion,
-            ExperimentId = prismOptions?.ExperimentId,
-            Variant = prismOptions?.Variant,
+            ExperimentId = runOptions?.ExperimentId,
+            Variant = runOptions?.Variant,
         };
 
         return new RunStart(
@@ -124,18 +124,18 @@ public sealed partial class RunRecordingAgent
             sessionId,
             isStreaming,
             activity,
-            prismOptions?.ParentRunId,
-            prismOptions?.Kind ?? RunKind.Agent,
+            runOptions?.ParentRunId,
+            runOptions?.Kind ?? RunKind.Agent,
             agentVersion,
-            prismOptions?.ExperimentId,
-            prismOptions?.Variant,
+            runOptions?.ExperimentId,
+            runOptions?.Variant,
 
             // The lineage link is meaningful only on a ROOT run: the child calls of a replay
             // do not correspond to the child calls of the source tree.
-            depth == 0 ? prismOptions?.ReplayOfRunId : null,
+            depth == 0 ? runOptions?.ReplayOfRunId : null,
 
             // Same rationale as ReplayOfRunId immediately above.
-            depth == 0 ? prismOptions?.ContinuedFromRunId : null,
+            depth == 0 ? runOptions?.ContinuedFromRunId : null,
 
             // Attribution IS written on child runs too, unlike the lineage link: a
             // per-user cost report that stopped at the root would under-report every

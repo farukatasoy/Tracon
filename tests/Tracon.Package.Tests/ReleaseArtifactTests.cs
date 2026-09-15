@@ -159,15 +159,17 @@ public sealed class ReleaseArtifactTests(ReleaseArtifactFixture fixture) : IClas
 
             var snupkgExists = File.Exists(SnupkgPath(id));
 
-            // Templates ship no compiled output at all (IncludeBuildOutput=false) and
-            // set IncludeSymbols=false itself - an empty symbol package fails NU5017.
-            // Every other profile has either an assembly or dependencies, so its
-            // symbol package is non-empty and gets produced.
-            if (profile == PackageProfile.Content)
+            // Neither the template package nor the meta package compiles anything
+            // (IncludeBuildOutput=false), so neither has a .pdb to ship; both set
+            // IncludeSymbols=false. For Content an empty symbol package also fails
+            // NU5017; for Meta it did NOT fail - the nuspec still lists dependencies -
+            // so a 0-PDB symbol package shipped silently until BL-005 measured it.
+            // Library and Tool carry an assembly, so their symbol package is real.
+            if (profile is PackageProfile.Content or PackageProfile.Meta)
             {
                 if (snupkgExists)
                 {
-                    failures.Add($"{id}: unexpected .snupkg for a content package");
+                    failures.Add($"{id}: unexpected .snupkg for a package with no compiled output");
                 }
             }
             else if (!snupkgExists)
