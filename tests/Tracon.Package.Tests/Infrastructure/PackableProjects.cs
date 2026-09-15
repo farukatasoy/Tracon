@@ -106,7 +106,17 @@ internal enum PackageProfile
     /// <summary><c>PackAsTool</c>: assembly under <c>tools/&lt;tfm&gt;/any/</c>, one XML doc, a <c>.snupkg</c>.</summary>
     Tool,
 
-    /// <summary><c>IncludeBuildOutput=false</c> with dependencies only (the meta package): no <c>lib/</c>, no XML doc, still a <c>.snupkg</c> (dependencies make it non-empty).</summary>
+    /// <summary>
+    /// <c>IncludeBuildOutput=false</c> with dependencies only (the meta package):
+    /// no <c>lib/</c>, no XML doc, and no <c>.snupkg</c>.
+    /// <para>
+    /// 🚨 Measured 2026-09-15 (BL-005): a symbol package WAS produced and it carried
+    /// 4 metadata entries and 0 PDB - there is no assembly to have symbols for. It
+    /// did not fail like <see cref="Content"/> does (the nuspec still lists
+    /// dependencies, so NU5017 never fired), so an empty symbol package shipped
+    /// silently. The project now sets <c>IncludeSymbols=false</c>.
+    /// </para>
+    /// </summary>
     Meta,
 
     /// <summary><c>dotnet new</c> content package: no <c>lib/</c>, no XML doc, no <c>.snupkg</c> (an empty symbol package fails <c>NU5017</c>).</summary>

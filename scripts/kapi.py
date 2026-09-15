@@ -1163,10 +1163,15 @@ def _finish_release_rehearsal(
         elif resolved_version not in release_notes_match.group("url"):
             errors.append(f"{project_id}: releaseNotes çözümlenen sürümü ('{resolved_version}') taşımıyor")
 
+        # `content` ve `meta` hicbir sey derlemez (IncludeBuildOutput=false), yani
+        # sembolu olacak bir .pdb yoktur; ikisi de IncludeSymbols=false yazar.
+        # `content`'te bos sembol paketi NU5017 ile build'i kirar; `meta`'da KIRMADI
+        # (nuspec bagimliliklari listeler) ve 0 PDB'li bir .snupkg sessizce
+        # sevk ediliyordu - BL-005, olculdu 2026-09-15.
         snupkg_exists = nupkg.with_suffix(".snupkg").exists()
-        if profile == "content":
+        if profile in ("content", "meta"):
             if snupkg_exists:
-                errors.append(f"{project_id}: içerik paketi .snupkg TAŞIMAMALI")
+                errors.append(f"{project_id}: derlenen çıktısı olmayan paket .snupkg TAŞIMAMALI")
         elif not snupkg_exists:
             errors.append(f"{project_id}: .snupkg eksik")
 

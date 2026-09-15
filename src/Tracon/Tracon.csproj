@@ -6,6 +6,18 @@
     <!-- The meta package carries no code; the build output is not packed, to avoid an empty assembly. -->
     <TraconAotCompatible>false</TraconAotCompatible>
     <IncludeBuildOutput>false</IncludeBuildOutput>
+    <!--
+      🚨 IncludeSymbols=false, for the same reason as Tracon.Templates.
+      src/Directory.Build.props assigns IncludeSymbols=true + snupkg, so every
+      package gets a symbol package. This one has no compiled .dll/.pdb
+      (IncludeBuildOutput=false above), so the .snupkg carries ONLY metadata.
+      Measured 2026-09-15 (BL-005): 4 entries, 0 PDB - _rels/.rels, the nuspec,
+      [Content_Types].xml and the psmdcp. Unlike Tracon.Templates this does not
+      fail the build with NU5017 (the nuspec still lists dependencies), so it
+      shipped silently. A symbol package with no symbols is noise on the
+      NuGet.org symbol server; the main .nupkg is unaffected.
+    -->
+    <IncludeSymbols>false</IncludeSymbols>
     <SuppressDependenciesWhenPacking>false</SuppressDependenciesWhenPacking>
     <NoWarn>$(NoWarn);NU5128</NoWarn>
   </PropertyGroup>

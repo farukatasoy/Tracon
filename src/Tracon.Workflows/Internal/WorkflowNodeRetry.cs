@@ -72,8 +72,8 @@ internal static class WorkflowNodeRetry
     private static RunError ToRunError(Exception exception)
         => new()
         {
-            Type = exception is TraconException prismException
-                ? prismException.ErrorType
+            Type = exception is TraconException traconException
+                ? traconException.ErrorType
                 : exception.GetType().FullName ?? exception.GetType().Name,
             Message = exception.Message,
         };
