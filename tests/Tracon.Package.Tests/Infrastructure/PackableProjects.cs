@@ -43,8 +43,9 @@ internal static class PackableProjects
     /// <summary>
     /// The target frameworks this project compiles for. Most packages inherit
     /// <c>net8.0;net9.0;net10.0</c> from <c>src/Directory.Build.props</c>; a
-    /// project that pins a single framework (e.g. <c>Tracon.Testing</c>)
-    /// overrides <c>TargetFrameworks</c> (plural) explicitly.
+    /// project that pins a single framework (e.g. <c>Tracon.Cli</c>, which is
+    /// packed as a tool and so cannot cross-target) overrides
+    /// <c>TargetFrameworks</c> (plural) explicitly.
     /// </summary>
     public static IReadOnlyList<string> TargetFrameworksOf(string projectId)
     {
