@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace Tracon;
 
@@ -232,7 +233,7 @@ internal static class LiveVoiceEndpoints
                 context,
                 StatusCodes.Status502BadGateway,
                 "Live voice session could not be created",
-                Describe(exception)).ConfigureAwait(false);
+                Describe(exception, services)).ConfigureAwait(false);
 
             return;
         }
@@ -272,17 +273,41 @@ internal static class LiveVoiceEndpoints
 
     /// <summary>Unwraps a transport failure down to the reason worth reporting.</summary>
     /// <param name="exception">The failure.</param>
+    /// <param name="services">The request's services, for the log the safe text refers to.</param>
     /// <returns>The message.</returns>
     /// <remarks>
+    /// <para>
     /// The outbound address policy's verdict is the inner exception of the transport
     /// failure that carries it, and that verdict names the setting an operator has to
     /// change. Reporting only the outer message would leave them with "an error
     /// occurred" and nothing to act on.
+    /// </para>
+    /// <para>
+    /// A failure that carries no verdict of ours is a different case and does not
+    /// take the same route. .NET writes the target address into the message of a
+    /// refused connection, so returning that message would hand the caller the
+    /// deployment's own outbound endpoint. Such a failure is answered with
+    /// <see cref="SafeErrorText.ForPersistence"/> text and a correlation id
+    /// instead, and the full exception is logged under that same id.
+    /// </para>
     /// </remarks>
-    private static string Describe(Exception exception)
-        => exception.InnerException is TraconException inner
-            ? inner.Message
-            : exception.Message;
+    private static string Describe(Exception exception, IServiceProvider services)
+    {
+        var verdict = exception as TraconException ?? exception.InnerException as TraconException;
+
+        if (verdict is not null)
+        {
+            return verdict.Message;
+        }
+
+        var correlationId = SafeErrorText.NewCorrelationId();
+
+        services.GetRequiredService<ILoggerFactory>()
+            .CreateLogger("Tracon.LiveVoiceEndpoints")
+            .LogError(exception, "Live voice session could not be created. (ref: {CorrelationId})", correlationId);
+
+        return SafeErrorText.ForPersistence(exception, correlationId);
+    }
 
     private static async Task CloseAsync(HttpContext context, Guid voiceSessionId)
     {
