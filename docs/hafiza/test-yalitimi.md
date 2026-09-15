@@ -70,6 +70,12 @@ daha once gorup gormedigini oradan arar, bastan sona okumazsin:
   `-maxcpucount:1` altinda bile Docker/Playwright ile ayni butceyi paylasir.
   Ayirt etme yukaridakiyle ayni.
   Aday: **F-130**. Iki vaka ayni sinif -- `Ui.E2ETests` tam kosumda kaynak cekismesine acik.
+  **Dorduncu vaka (2026-09-15, Faz 174 kapanisi): `Playground_voice_mode_opens_microphone_and_shows_transcript`** —
+  faz `src/`'e HIC dokunmadi (yalniz `docs-site/scripts/` ve markdown), yani urun kusuru olmasi
+  mumkun degildi. Uc adim kosuldu: tam kosumda dustu (715 sn), izole 1/1, ikinci tam kosum
+  cikis kodu 0 ve `Ui.E2ETests` yesil. 🚨 **Tuzak:** ikinci kosumu `| tail -25` ile borulamak
+  cikis kodunu `tail`'inkiyle degistirir ve her zaman 0 verir — dusen bir kosum yesil gorunur.
+  Cikis kodunu dogrulayacaksan boruyu KALDIR (`> log 2>&1; echo $?`).
   **Ucuncu vaka (2026-08-23, Faz 90 kapanisi): AYNI test** (`Eval_suite_is_created_case_added_and_run_passes`). Uc adim yine kosuldu: tam kosumda 4956/4957 (bu tek test dustu), izolasyonda 1/1 (7,7 sn), ikinci tam kosum cikis kodu 0. **Kapanış (2026-08-26):** kök yarış bulundu: ilk `GET /cases` pending iken kullanıcı `Add case`e basabiliyor, sonra gelen boş yanıt yeni satırı siliyordu. UI ilk yükleme bitene kadar `Add case` ve `Save cases`i kapatır; frontend regression testi önce kırmızı, düzeltmeden sonra yeşildir. F-130 açık kayıt değildir.
 - **🚨 "Yük altında kırılgan" hükmü, testin GEÇME sebebi bir zamanlama eşiğinin ALTINDA kalmaksa YANLIŞTIR** (2026-09-09, K-743). `ModelHealthSingletonTests.Health_check_runs_on_only_one_instance` bu dosyada Faz 103'ten beri kırılgan
   listesindeydi. Değildi: `LeaseDuration=1 sn` ile `SingletonGuard`'ın yenileme aralığı kiranın süresine EŞİTTİ, kira t≈1 sn'de
