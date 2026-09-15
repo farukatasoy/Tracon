@@ -4,9 +4,12 @@
 > düzlemidir. Faz planı, sohbet özeti veya genel karar defteri değildir. Yalnız
 > ölçülen kanıtı, yayın kararlarını, risk kabulünü ve doğrulama durumunu taşır.
 >
-> **Son güncelleme:** 2026-09-14  
+> **Son güncelleme:** 2026-09-16  
 > **Çalışma modu:** `nuget-danismani` — Yayın kararı  
-> **🚨 Güncel karar §4'ün başındaki 2026-09-14 bloğudur.** 2026-09-03 kararı
+> **🚨 Güncel karar §4'ün başındaki 2026-09-16 bloğudur** — kalan yolu ve dört
+> ürün kararını (KG-026…029) o blok taşır. 2026-09-14 kararı **devralınamaz**:
+> o günden beri 49 commit geçti (Faz 166–175).
+> **Eski not — 2026-09-14 bloğu için geçerliydi:** 2026-09-03 kararı
 > ("✅ Yayınlanabilir") **devralınamaz**: o günden beri 184 commit, ~30 faz, bir
 > ürün yeniden adlandırması ve bir lisans değişikliği geçti. Aşağıdaki
 > 2026-09-02 ve 2026-08-28 anlatıları tarihsel bağlamdır.  
@@ -34,13 +37,15 @@
 > kapı) ve **OP-006** (`github-release` CI işi, aynı ayrıştırıcıyı OP-007 ile
 > paylaşır). **Doküman drift taraması
 > [KG-022](#11-karar-günlüğü) ile kapandı** — 12 bayat iddia düzeltildi, dört
-> kapının dördü de yeşil. `preview.1` tag'inden önce kalan **yalnız hesap
-> kararları**: OP-008/009, ilk 72 saat sorumluluğu ve private repo + GitHub Free
-> için CI secret/protection modeli — tamamı repo-dışı kullanıcı işidir. GitHub Free yayını engellemez;
-> ancak private repo'da environment secret, required reviewer ve deployment
-> tag restriction sağlamaz (KN-020). Yayın
-> türü `preview` (UR-001), paket kapsamı tam entegrasyon seti (UR-002/BL-002)
-> ve owner modeli kişisel hesap (OP-001) sabit — bkz. §4 ve §13.
+> kapının dördü de yeşil. Hesap ve operasyon kararları (OP-008/009, ilk 72 saat,
+> CI secret/protection modeli) 2026-09-03 turuyla kapandı. GitHub Free yayını
+> engellemez; ancak private repo'da environment secret, required reviewer ve
+> deployment tag restriction sağlamaz (KN-020) — repo KG-028 ile public
+> yapılacağı için bu sınır da kalkar. **`preview.1` tag'inden önce kalan iş
+> 2026-09-16 bloğundaki on adımdır**; sıradaki iş manuel kabul setinin tam
+> turudur (KG-027). Yayın türü `preview` (UR-001), sürüm `1.0.0-preview.1`
+> (KG-029), paket kapsamı tam entegrasyon seti (UR-002/BL-002) ve owner modeli
+> kişisel hesap (OP-001) sabit — bkz. §4 ve §13.
 
 ## 1. Yayın hedefi ve kapsamı
 
@@ -98,6 +103,58 @@ sayının ürün politikası mı yoksa bayat ölçüm mü olduğu artifact sonra
 değerlendirilecektir.
 
 ## 4. Mevcut net yayın kararı
+
+### Güncel karar — 2026-09-16 (yayın sırası ve dört ürün kararı)
+
+**❌ Bugün tag atılmaz — açık 🔴 olduğu için değil, sıra kullanıcı kararıyla
+yeniden dizildiği için.** Bu tur bir yayın provası değildir; kalan yolu
+sabitler. Açık 🔴 yoktur. 2026-09-14 kararı da **devralınamaz**: o günden beri
+49 commit geçti (Faz 166–175, aralarında kapasite ölçümü, tehdit modeli ve
+denetim izi yazma politikası var).
+
+#### Bu turun ölçümleri
+
+| Ölçüm | Komut | Sonuç |
+|---|---|---|
+| Çalışma ağacı | `git status --short` | Temiz; HEAD `340d4aef` |
+| Uzak durum | `git branch -vv` | `main` **`origin`'in 7 commit önünde** — GitHub'da olmayan bir commit'e tag atılamaz |
+| CHANGELOG | `grep -n "^## \[" CHANGELOG.md` | Yalnız `## [Unreleased]`. `3d992233` sürüm bölümünü açmış, `6cfbc2d3` **bilerek geri almıştır**: sürüm bölümü paketler basıldığı gün yazılır. Kapı burada durur ve bu tasarlanmış davranıştır |
+| Faz durumu | `docs/YOL-HARITASI.md` | Faz 176 · 177 · 178 📋 Planlandı; üçünün de plan onayı yok |
+| Manuel kabul seti | `ls docs/manuel-test/*.md` · `kosumlar/` | 36 aile; son tam tur **2026-08-13** ve yalnız 25 aile. **11 aile (26–36) hiç koşulmadı** |
+| Doküman kapısı | `dokuman-bakim.py --denetle` | ✅ temiz; `docs/**.md` %14 boş |
+| Secret kapısının kapsamı | [`kapi.py:183-209`](../scripts/kapi.py) | 🚨 `find_secrets` **yalnız çalışma ağacını** yürür; `git log` hiç taranmaz. 806 commit'lik geçmiş bugüne kadar denetlenmedi — repo public yapılmadan önce bu bir kapıdır (RK-014) |
+
+#### Alınan dört ürün kararı 👤
+
+KG-026 (faz sırası) · KG-027 (manuel tur kapsamı) · KG-028 (repo görünürlüğü) ·
+KG-029 (sürüm numarası) — gerekçeleri §11'dedir.
+
+#### Sabitlenen sıra
+
+| # | İş | Yürüten | Bitti ölçütü |
+|---|---|---|---|
+| 1 | **Tam manuel kabul turu — 36 aile** | `manuel-test-kosumu` | `kosumlar/<tarih>/` altında 36 aile kaydı; tur boyunca kod donar |
+| 2 | Turun bulduğu kusurlar | `kusur-giderme` | Tek vaka değil **sınıf** kapanır |
+| 3 | **Public öncesi geçmiş denetimi** | Kullanıcı + `nuget-danismani` | Tam `git` geçmişinde secret taraması; `docs/guvenlik-tarama/` ve `.agents/` için yayımla/çıkar kararı (RK-014) |
+| 4 | **Yayın turu** | `nuget-danismani` Adım 1→8 | Bu dosyaya yeni karar bloğu; ❌ → ✅ |
+| 5 | **Sürüm kesimi** | Elle | `CHANGELOG.md` → `## [1.0.0-preview.1]` + sevk tarihi, commit |
+| 6 | **Kapılar** | `kapi.py kapanis --taban <commit>` · `kapi.py yayin --kuru --surum 1.0.0-preview.1` | İkisi de sıfır uyarı |
+| 7 | **Repo public + push** | Kullanıcı | `git push origin main`; public tag'den **önce** olmalı — Source Link tag commit'ine bakar |
+| 8 | **Tag** | Kullanıcı | `git tag v1.0.0-preview.1 && git push origin v1.0.0-preview.1`; CI: build → pack + release-dryrun → npm-publish → publish (OIDC) → github-release |
+| 9 | Site + ilk 72 saat | `site-deploy.sh` · §14 | |
+| 10 | Faz 176 → 177 → 178 | Faz zinciri | `preview.2` hattı |
+
+🚨 **Tag `origin`'e gider.** Repo'nun ikinci bir remote'u vardır
+(`intelera` → `StudyZoneInt/Tracon`). Trusted publishing policy'si
+`farukatasoy/Tracon` + `ci.yml` + `environment: nuget` üçlüsüne bağlıdır;
+başka bir remote'a atılan tag yayın üretmez.
+
+🚨 **Adım 5 atlanamaz.** `github-release` işi sürüm notlarını
+`## [1.0.0-preview.1]` bölümünden okur ve bölüm yoksa **hata verir** — o noktada
+NuGet ve npm çoktan basmış olur. Yarım yayın, yayın provasının yakalayamadığı
+tek sıra kusurudur.
+
+---
 
 ### Güncel karar — 2026-09-15 (tüketici geri bildirimi turu)
 
@@ -366,7 +423,9 @@ sistemik hattın arkasına alındı (§13).
 - XML, package README, root README, `docs-site`, sample ve release note drift'i.
 - NuGet.org hesap, sahiplik, 2FA, Package ID uygunluğu ve publishing credential durumu.
 - Güncel resmi NuGet operasyon seçenekleri ve trusted publishing uygunluğu.
-- Tam manuel kabul setinin güncel koşumu.
+- Tam manuel kabul setinin güncel koşumu. **Ölçüldü 2026-09-16:** son tur
+  2026-08-13, 36 ailenin yalnız 25'i; 26–36 arası 11 aile hiç koşulmadı.
+  KG-027 tam turu tag'den önceye koydu.
 
 ## 6. Açık blocker'lar
 
@@ -465,8 +524,9 @@ değil, doğrulama kapısıdır.
 | RK-009 | **Kapandı (Faz 119/K-640)** | Ham exception mesajı sızıntısı kalıcı ve dışa açık yüzeylerde bir kusur sınıfıydı | ~~Yüksek~~ | 26 vaka kapatıldı | `SafeErrorText` tüm 26 siteye uygulandı; `RawExceptionTextSiteTests` yeni sızıntıları fail-closed yakalar | `kusur-giderme` |
 | RK-010 | **Kapandı (Faz 120)** | `IJobHandler`'ın sözleşmesi at-least-once'ı söylemiyordu (BL-041) — dokümante edilen örneği izleyen bir tüketici crash/retry'de side effect'i iki kez çalıştırabilirdi | ~~Yüksek~~ | Orta (lease kaybı/retry production'da olağan) / yüksek (dokümante edilen doğrudan örnek yanlış) | `IJobHandler.cs`'nin XML dokümanına at-least-once uyarısı ve süzülmemiş `Items` notu eklendi; `JobHandlerContract` kuralı kilitliyor, `JobLeaseExpiryTests` davranışı ölçüyor. `IIdempotencyStore`'u job loop'una bağlamak değerlendirilmedi — BL-041'in kapanış notunun gerekçesiyle gereksiz ikinci bir mekanizma olurdu | `nuget-danismani` → `kusur-giderme` → [Faz 120](arsiv/fazlar/120-JOB-SOZLESMESI-AT-LEAST-ONCE.md) |
 | RK-011 | **Kapandı (KG-021/KN-021)** | NuGet ve npm kanallarının paralel basılması kalıcı asimetrik yayın üretebilirdi | ~~Yüksek~~ | Yapısal risk kapandı; npm credential yetkisi ilk publish işinde ölçülecek | `publish` npm işine bağlandı; kullanıcı npm scope ve `NPM_TOKEN` hazırlığını doğruladı | Yayın operasyonu |
-| RK-013 | **Kabul edildi (2026-09-03, K-659)** | `RepositoryUrl` private bir repo'yu gösterir: üçüncü taraf için Source Link kaynak çözemez ve `.snupkg` sembolleri kaynak adımlamasına açılmaz | Orta | Kesin / düşük-orta | Tüketiciye dönük iki URL siteye çevrildi, yani okura sunulan hiçbir bağlantı ölü değil. Sembol paketleri yine yayımlanır (yığın izi satır numarası taşır). Repo public yapılırsa kendiliğinden çözülür | `nuget-danismani` |
+| RK-013 | **KG-028 ile kapanma yolunda** (2026-09-03'te kabul edilmişti, K-659) | `RepositoryUrl` private bir repo'yu gösterir: üçüncü taraf için Source Link kaynak çözemez ve `.snupkg` sembolleri kaynak adımlamasına açılmaz | Orta | Kesin / düşük-orta | Tüketiciye dönük iki URL siteye çevrildi, yani okura sunulan hiçbir bağlantı ölü değil. Sembol paketleri yine yayımlanır (yığın izi satır numarası taşır). Repo public yapılırsa kendiliğinden çözülür | `nuget-danismani` |
 | RK-012 | **Kabul edildi** | Kişisel owner modeli (OP-001): 20 paketin sahipliği tek hesaba bağlıdır; devir paket başına elle yapılır ve hesap kaybı 20 kimliği birden etkiler | Orta | Düşük / yüksek | Kullanıcı bilinçli olarak kabul etti (2026-08-27). Azaltım: 2FA (OP-002) ve gerekirse sonradan organization'a devir | Yayın operasyonu |
+| RK-014 | **Açık — KG-028'in ön koşulu** | Repo public yapıldığında **806 commit'lik geçmiş** de public olur. Mevcut secret kapısı ([`kapi.py:183-209`](../scripts/kapi.py)) yalnız çalışma ağacını yürür ve `git log`'a hiç bakmaz; bugün temiz olan bir dosya geçmişte bir credential ile commit edilmiş olabilir | 🔴 Public öncesi | Bilinmiyor / **geri dönüşsüz** — public olduktan sonra geçmişi temizlemek pratikte imkânsızdır (fork, cache ve GitHub nesneleri kalır) | Public yapmadan önce tam geçmişte secret taraması (`gitleaks detect` veya `trufflehog git file://.`); bulgu çıkarsa ilgili credential **rotate edilir**, geçmiş temizliği ikinci adımdır | Kullanıcı + `nuget-danismani` |
 
 ## 10. Yayın checklist'i
 
@@ -477,7 +537,8 @@ operasyon kritik yolunu yeniden açmaz.
 ### Ürün ve artifact
 
 - [x] Hedef yayın türü kullanıcı tarafından onaylandı: `preview` (UR-001).
-- [ ] Çalışma sürümü `1.0.0-preview.1`; gerçek tag öncesi kullanıcıdan son sürüm onayı alınmadı.
+- [x] Sürüm `1.0.0-preview.1` kullanıcı tarafından onaylandı (KG-029); tag adı `v1.0.0-preview.1`.
+- [ ] Tam manuel kabul turu (36 aile) koşuldu ve bulduğu kusurlar kapandı (KG-027).
 - [x] `CHANGELOG.md` sevk edilen davranışı doğru anlatıyor (K-658 eklendi) ve tarihi güncel (2026-09-03 — **tag gününde yeniden doğrulanır**).
 - [x] En küçük güvenli paket kümesi onaylandı: tam 20 paket (UR-002).
 - [x] Exact sürümlü temiz pack başarılı.
@@ -533,6 +594,8 @@ operasyon kritik yolunu yeniden açmaz.
 - [x] Dependency ve vulnerability izleme sorumluluğu onaylandı (OP-009).
 - [x] İlk 72 saat gözlem ve destek sorumluluğu onaylandı (§14; `SECURITY.md` + issue şablonları eklendi).
 - [x] Düzeltme sonrası dört kapı yeşil koştu (kapanış 10/10 · E2E 57/57 · yayın provası 20 paket + AOT).
+- [ ] Public öncesi `git` geçmişi secret taraması koşuldu (RK-014).
+- [ ] Repo public yapıldı ve `git push origin main` tamamlandı (KG-028); tag `origin`'e atılır, `intelera`'ya değil.
 - [ ] Gerçek yayın için kullanıcıdan açık onay alındı.
 
 ## 11. Karar günlüğü
@@ -565,6 +628,10 @@ operasyon kritik yolunu yeniden açmaz.
 | KG-023 | 2026-08-28 | Tamamlandı | **NuGet.org authentication modeli trusted publishing olarak sabitlendi.** Kullanıcı kişisel-owner policy'yi `Tracon*`, push-only, `farukatasoy/Tracon`, `ci.yml`, `nuget` sınırlarıyla oluşturdu; CI kalıcı `NUGET_API_KEY` yerine OIDC kullanır 👤 | Uzun ömürlü secret ve rotation riski kalkar; NuGet.org her koşumda bir saatlik key üretir. GitHub Free/private repo OIDC'yi engellemez. Policy ilk başarılı publish'e kadar yedi günlük geçici aktivasyondadır | `.github/workflows/ci.yml`: publish job `contents: read` + `id-token: write`; `NuGet/login@v1`; step output key; `secrets.NUGET_API_KEY` referansı sıfır |
 | KG-024 | 2026-09-02 | Tamamlandı | **Yayın kararı Faz 129–135 sonrası yenilendi: ❌ Yayınlanmamalı.** İki yeni 🔴 (BL-053, BL-054). Sample'lar çözüme ALINMADI; onun yerine `faz-tamamlama` Adım 1'e koşullu yayın provası eklendi (K-657, kullanıcı kararı) | Kapanış kapısı 10/10 yeşilken `kapi.py yayin --kuru` `EXIT=1` döndü — iki kapı farklı şeyler ölçüyor ve fazlar zayıf olanla kapanıyordu | Prova ilk düşen sample'da durdu; beş sample ve AOT smoke ÖLÇÜLMEDİ. BL-053/054 kapandıktan sonra prova sonuna kadar koşulur ve karar yeniden verilir |
 | KG-025 | 2026-09-02 | Tamamlandı | **BL-053 ve BL-054 kapatıldı; prova sonuna kadar yeşil koştu (`EXIT=0`). Karar ❌ → ✅ teknik olarak yayınlanabilir.** Sınıf taraması `JobStoreContract`'ın dış sample'ı olmadığını buldu → BL-055 | Altı sample 169 test + Native AOT smoke publish ve çalıştırma, exact sürüm ve izole `NUGET_PACKAGES` ile | 🚨 **Yerel sürüm kimliği tuzağı ölçüldü:** global NuGet cache'te 28 Ağustos'tan kalma bir `1.0.0-preview.1` vardı ve izolasyonsuz `dotnet test` ona derledi — aynı sürüm dizesi iki farklı içeriği adlandırıyor. Rehber sayfasına `NUGET_PACKAGES=$(mktemp -d)` uyarısı eklendi |
+| KG-026 | 2026-09-16 | Tamamlandı | **Faz 176, 177 ve 178 `preview.1`'den SONRA uygulanır** 👤 — üçü de `preview.2` hattına gider | Üçü de public yüzeyi büyütür, ama `PublicAPI.Shipped.txt` her pakette **boştur** ve freeze Faz 7'dedir (K-603, UR-003/KG-016): yüzey büyütmek Faz 7'ye kadar ucuzdur, `preview.1`'e kadar değil. Preview'ın varlık sebebi gerçek tüketici geri bildirimidir; onu üç faz geciktirmenin bedeli, üç fazı bir sürüm sonra sevk etmenin bedelinden büyüktür | Faz 176'nın üç migration seti ve `RunScore` alanı `preview.2` sürüm notunda **davranışsal ek** olarak anlatılır |
+| KG-027 | 2026-09-16 | Tamamlandı | **Manuel kabul setinin TAM turu (36 aile) tag'den önce koşar** 👤 | Ölçüldü: son tam tur **2026-08-13**'tür ve yalnız 25 aile almıştır; 26–36 arası **11 aile hiç koşulmamıştır** ve o günden beri ~50 faz geçmiştir. §5'in "henüz ölçülmeyen alanlar" listesindeki *Tam manuel kabul setinin güncel koşumu* kalemi bugün yayın kararının en zayıf kanıtıdır. Kullanıcı kısmi turu değil tam turu seçti | `kosumlar/<tarih>/` altında 36 aile kaydı kapanır; bulunan her kusur `kusur-giderme` ile sınıfıyla kapanır ve son kod değişikliğinden sonra dört kapı yeniden koşar |
+| KG-028 | 2026-09-16 | Tamamlandı | **Repo `preview.1` gününde public yapılır** 👤 — public, tag'den **önce** | Üç şeyi birden açar: Source Link üçüncü tarafta çözer (RK-013 kapanır), `SECURITY.md` zafiyet kanalı görünür olur ve issue şablonları kusur kanalı olur — §14'ün ilk 72 saat planı bugün private repo'da **boştur**. PolyForm lisansı değişmez; kaynağın görünür olması kullanım hakkı vermez | 🚨 İki ön koşul: (1) tam `git` geçmişinde secret taraması — mevcut kapı yalnız çalışma ağacını yürür (RK-014); (2) `docs/guvenlik-tarama/` (12 dosyalık iç tarama kaydı) ve `.agents/` için yayımla/çıkar kararı. Tehdit modelini yayımlamak ile iç zafiyet tarama kaydını yayımlamak **ayrı** kararlardır |
+| KG-029 | 2026-09-16 | Tamamlandı | **Sürüm `1.0.0-preview.1` olarak sabitlendi** 👤; tag adı `v1.0.0-preview.1` | UR-001 ile seçilen `preview` türünün ilk numarasıdır ve tüm prova kanıtı (20 paket, altı sample, AOT smoke) bu numarayla ölçülmüştür. Düşük major (`0.1.0-preview.1`) seçeneği reddedildi: sevk edilen `versioning.md` ve `compatibility.md` tek sürüm hattı ve 1.0 anlatısı üzerine kuruludur | §10'daki sürüm onayı kalemi kapandı; CHANGELOG başlığı `## [1.0.0-preview.1]` olarak kesilir |
 
 ## 12. Ertelenen işler ve gerekçeleri
 
@@ -576,10 +643,15 @@ operasyon kritik yolunu yeniden açmaz.
 
 ## 13. Sonraki adım
 
-**Güncel sıradaki iş yayın hesapları ve operasyon hazırlığıdır.** Repo içi yayın
-kritik yolu Faz 123 ve KG-022 ile kapandı. Açık iş yeni bir faz değildir. §10'daki
-NuGet.org/npm hesap, authentication, GitHub secret/protection ve ilk 72 saat
-kararları kapanır; sonra taze dry-run ve açık tag onayı alınır.
+**Güncel sıradaki iş manuel kabul setinin tam turudur (KG-027).** Repo içi yayın
+kritik yolu Faz 123 ve KG-022 ile, hesap ve operasyon kararları 2026-09-03 turuyla
+kapandı. Kalan on adımın tam sırası §4'ün 2026-09-16 bloğundadır; açık iş yeni bir
+faz **değildir**.
+
+Turun iki kuralı: tur boyunca **kod donar** — tur ortasında `main`'e giren bir
+düzeltme, önceki ailelerin kanıt değerini düşürür — ve bulunan kusurlar tur
+sonunda aile aile, `kusur-giderme` ile **sınıfıyla** kapanır. Tur bittikten
+sonra sıra §4'ün adım 3'üdür (public öncesi geçmiş denetimi).
 
 ### Önceki sistemik hat — tarihsel kapsam
 
