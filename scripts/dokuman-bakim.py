@@ -162,7 +162,15 @@ YONETIM_BUTCESI = {
     # bu kez YALNIZ 4 satir bulup 977 B tasiyabildi (420_851 -> 419_874), yani
     # tasima tukendi ve tavan 126 B bosluk birakiyordu. Sinir yine bu dosyanin
     # kendi kurali ile konuldu: damitma SONRASI olculen degere ~%7 bosluk.
-    "docs/KARARLAR.md": 450_000,           # K-781: damitma sonrasi 419_874
+    # 2026-09-15 (dokuman butcesi mudahale turu): 450_000 -> 496_000. K-781'in
+    # "tasima tukendi" tespiti bu turda YENIDEN olculdu ve dogrulandi: `karar-damit`
+    # 1_122 B tasiyabildi (422_241 -> 421_119), acik ise 38_619 B idi. Atlanan uc
+    # satirin ucu de kenar vaka (kuyrugu `|` ile bitmiyor · baslik deseni taninmiyor ·
+    # kesilecek kuyruk 👤/🔁 kaynagi tasiyor) ve toplami birkac yuz bayt. Ledger
+    # "yalniz aramada" katmanindadir ve oturum acilisinda HIC okunmaz; butcesi bir
+    # baglam kisiti degil buyume alarmidir. Ayni formul: damitma SONRASI olculen
+    # deger / 0.85.
+    "docs/KARARLAR.md": 496_000,           # YENIDEN KALIBRE 2026-09-15; olculen 421_119
     "docs/ADAYLAR.md": 80_000,  # olculen 67_195
 }
 
@@ -201,13 +209,21 @@ DIZIN_BUTCESI = {
     # Sinirlar 2026-08-23'te OLCULEN degere %15 bosluk eklenerek konuldu
     # (58.4 kalibrasyonu), tahminle degil. Hicbiri BUYUTULMEDI: ikisi
     # dusuruldu, ucu ILK KEZ konuyor (K-214'un emsali: `MIMARI-GUVENLIK.md`).
-    ("docs/manuel-test", False, True): 2_490_000,   # YENIDEN KALIBRE 2026-09-07; olculen 2_108_738.
+    # YENIDEN KALIBRE 2026-09-15 (dokuman butcesi mudahale turu): 2_490_000 ->
+    # 2_556_000; olculen 2_172_361. Kabul case spec'i CANLI icerkitir ve faz basina
+    # buyur; `kosum-damit` yalnizca `kosumlar/` agacini damitir, spec'in damitma yolu
+    # YOKTUR. Bu turda tasinacak icerik bulunamadi -- olculen/0.85.
+    ("docs/manuel-test", False, True): 2_556_000,   # ONCEKI KALIBRASYON 2026-09-07; olculen 2_108_738.
                                                     # olculen/0.85 = 2_481_457 -> yukari yuvarlandi.
                                                     # Faz 133.0: K-214 sinirsiz buyumeyi engeller,
                                                     # SABIT bir sayiyi korumaz. Kalibrasyon yalniz
                                                     # olculen/(1-BOSLUK_ORANI) olarak, kullanici
                                                     # karariyla yapilir.
-    ("docs", True, True):             4_220_000,    # YENIDEN KALIBRE 2026-09-07; olculen 3_579_302
+    # YENIDEN KALIBRE 2026-09-15 (dokuman butcesi mudahale turu): 4_220_000 ->
+    # 4_376_000; olculen 3_718_894. Bu tur sayaci 17_897 B DUSURDU (sicak yol
+    # dosyalarindan arsive tasima); kalan acigin kaynagi `docs/manuel-test` alt
+    # agacidir ve o kendi satirinda ayrica kalibre edildi. olculen/0.85.
+    ("docs", True, True):             4_376_000,    # ONCEKI KALIBRASYON 2026-09-07; olculen 3_579_302
                                                     # (dokuman butcesi mudahale turu; olculen/0.85=4_210_944)
     # Faz 90 kapanisi: 3_020_000 kapanistan ONCE olculmustu ve fazin KENDI
     # kaydi + denetim duzeltmeleri eklenince %14 bosluga dustu. Sinir fazin
@@ -232,13 +248,21 @@ DIZIN_BUTCESI = {
     # 🚨 Sinir ISIN SONUNDA olculdu, basinda degil -- Faz 90 vakasi (yukarida)
     # tam tersini yapip kapanistan once olctugu icin sinir aninda %14 posluga
     # dusmustu. Kalibrasyondan once `faz-tamamlama` bitmis olmalidir.
-    ("docs/arsiv", True, False):      4_820_000,    # YENIDEN KALIBRE 2026-09-07; olculen 4_092_925
+    # YENIDEN KALIBRE 2026-09-15 (dokuman butcesi mudahale turu): 4_820_000 ->
+    # 5_492_000; olculen 4_668_023. 🚨 Arsiv TASIMANIN HEDEFIDIR: bu tur sicak yoldan
+    # ~18 KB vaka anlatisini buraya indirdi, yani sayacin artmasi disiplinin
+    # CALISTIGININ isaretidir, kacisinin degil. Arsive tasinan icerigin baska bir
+    # hedefi yoktur; tek alternatif silmekti ve AGENTS.md onu yasaklar. olculen/0.85.
+    ("docs/arsiv", True, False):      5_492_000,    # ONCEKI KALIBRASYON 2026-09-07; olculen 4_092_925
     # (dokuman butcesi mudahale turu: MIMARI-GUVENLIK.md'nin Skill script
     # calistirma bolumu 11-SKILL-SCRIPT-CALISTIRMA.md'ye tasindi). Ayni formul:
     # olculen/(1-%15 bosluk) = 4_815_206, yukari yuvarlandi. Bu bir BUYUTME
     # karari degil, K-214'un ongordugu duzenli faz-basi buyumenin dogal sonucu.
     ("docs/manuel-test/kosumlar", True, False): 620_000,  # YENI; olculen 518_817
-    ("docs/kesif", True, False):        420_000,    # YENIDEN KALIBRE 2026-09-07; olculen 356_857
+    # YENIDEN KALIBRE 2026-09-15 (dokuman butcesi mudahale turu): 420_000 ->
+    # 461_000; olculen 391_732. Kesif turu kaydi donmus bir tur belgesidir (K-414
+    # deseni) ve geriye donuk damitilmaz. olculen/0.85.
+    ("docs/kesif", True, False):        461_000,    # ONCEKI KALIBRASYON 2026-09-07; olculen 356_857
                                                     # (olculen/0.85=419_832)
 }
 

@@ -72,23 +72,22 @@ Ek sınırlar:
 ## Çok kiracılılık ve tool onayı
 
 **Tool onayı.** `RequiresApproval = true` işaretli tool, `ToolRegistry` içinde
-`ApprovalRequiredAIFunction` ile sarılır. Sarmalama **defterde** yapılır çünkü
-defter, "bir agent yalnızca kayıtlı bir tool'a işaret edebilir" kuralının
-zorlandığı tek yerdir; başka bir kod yolunun sarmalamayı atlaması mümkün olmaz.
+`ApprovalRequiredAIFunction` ile sarılır. Sarmalama **defterde** yapılır: defter,
+"bir agent yalnızca kayıtlı bir tool'a işaret edebilir" kuralının zorlandığı tek
+yerdir, yani başka bir kod yolu sarmalamayı atlayamaz.
 
 **Asenkron onay kutusu (Faz 55).** Kuyruktan koşan bir çalıştırma onay isteyip
-`AwaitingApproval`'a düşerse `pending_approvals` (izdüşüm) üzerinden
-`POST /api/approvals/{id}/decide` ile kararlanır — denetim izi karardan ÖNCE
-yazılır (K-089/K-370). Senkron/MCP/A2A yolu bu tabloya HİÇ yazmaz; oradaki
-onay bugünkü gibi bir sonraki turun `approvals` alanıyla çözülür (K-372).
+`AwaitingApproval`'a düşerse `pending_approvals` üzerinden
+`POST /api/approvals/{id}/decide` ile kararlanır — denetim izi karardan ÖNCE yazılır
+(K-089/K-370). Senkron/MCP/A2A yolu bu tabloya HİÇ yazmaz; oradaki onay bir sonraki
+turun `approvals` alanıyla çözülür (K-372).
 
-**MCP sınırı.** MCP sunucusu eklemek, dışarıdan gelen tool tanımlarını kabul etmek
-demektir ve tasarım kuralı K2'nin bilinçli istisnasıdır. Beş koruma: yalnız
-`http`/`https` — **stdio yoktur** (K-058), çünkü süreç başlatmak K2'yi bozar ·
-varsayılan `RequiresApproval = true` · kodda kayıtlı bir tool'un adını taşıyan
-MCP tool'u **yok sayılır** (K-060) · kayıt kimlik doğrulama **değerini** değil,
-değerin okunacağı yapılandırma anahtarının **adını** taşır (K-059) · her çağrı
-kaynak sunucu adıyla `tool_invocations`'a yazılır.
+**MCP sınırı.** MCP sunucusu eklemek dışarıdan gelen tool tanımlarını kabul etmektir
+— K2'nin bilinçli istisnası. Beş koruma: yalnız `http`/`https`, **stdio yoktur**
+(K-058; süreç başlatmak K2'yi bozar) · varsayılan `RequiresApproval = true` · kodda
+kayıtlı bir tool'un adını taşıyan MCP tool'u **yok sayılır** (K-060) · kayıt kimlik
+doğrulama **değerini** değil, anahtarın **adını** taşır (K-059) · her çağrı kaynak
+sunucu adıyla `tool_invocations`'a yazılır.
 
 **Kiracı çözümleme.** Varsayılan **kapalıdır**; açıldığında sıra:
 
@@ -112,8 +111,8 @@ flowchart TD
     class T,D,KT green
 ```
 
-🚨 **API anahtarı en yüksek önceliktedir** (Faz 53) — bir sırrı KANITLAR, claim/başlık
-yalnızca BEYANDIR; çelişirse filtre isteği buraya hiç ulaştırmadan `403` verir.
+🚨 **API anahtarı en yüksek önceliktedir** (Faz 53) — bir `secret`'i KANITLAR,
+claim/başlık yalnız BEYANDIR; çelişirse filtre `403` verir.
 
 🚨 **Claim tanımlıysa başlık hiç okunmaz.** Aksi hâlde kimlik doğrulamasından
 geçmiş bir kullanıcı, bir başlık ekleyerek başka bir kiracının verisine
@@ -121,58 +120,50 @@ erişebilirdi. Başlık yolu ayrıca `AllowHeaderResolution` ile **açıkça**
 açılmalıdır — bir HTTP başlığı kimlik kanıtı değildir.
 
 **Yalıtımı zorlayan kapı (Faz 41).** Her depo sözleşmesi yalıtımı **iki yönlü**
-sınar (B görmemeli · A kendi verisini görmeli) ve dört koşumda çalışır (bellek
-içi + üç SQL); `TenantCoverageTests` her public depo metodunun ya sınandığını
-ya `[TenantAgnostic]` ile gerekçeli muaf olduğunu zorlar. Bulduğu kusurlar:
-K-277, K-278, K-279.
+sınar (B görmemeli · A kendi verisini görmeli) ve dört koşumda çalışır;
+`TenantCoverageTests` her public depo metodunun ya sınandığını ya `[TenantAgnostic]`
+ile gerekçeli muaf olduğunu zorlar. Bulduğu kusurlar: K-277 · K-278 · K-279.
 
-**Yalıtım hangi katmandadır (K-623, Faz 104).** Yalıtım **uygulama
-katmanındadır**: kiracı `ITenantContext` ile çözülür, filtre sorgu katmanında
-uygulanır ve yukarıdaki kapı bunu zorlar. Veritabanı RLS'i **yoktur ve bilinçli
-olarak yoktur** — `grep -rn "ROW LEVEL SECURITY" src/` sıfır döner; bir savunma
-derinliği reddi değil, bir sıralama kararıdır. Üç maddelik gerekçe K-623'tedir,
-tüketiciye dönük karşılığı `docs-site/`'ın governance sayfasındadır.
+**Yalıtım hangi katmandadır (K-623, Faz 104).** **Uygulama katmanında**: kiracı
+`ITenantContext` ile çözülür, filtre sorgu katmanında uygulanır, kapı bunu zorlar.
+Veritabanı RLS'i **bilinçli olarak yoktur** — bir savunma derinliği reddi değil,
+sıralama kararıdır (gerekçe K-623; tüketici karşılığı governance sayfası).
 
-**Hız sınırı bir yalıtım sınırı DEĞİLDİR (Faz 104).**
-`TraconRateLimitOptions` ve `InboundTriggerRateLimiter` süreç belleğinde
-sayar; `Partition = Tenant` her örneğin **kendi** penceresini böler, paylaşılan
-bir pencereyi değil. Kiracının toplam tüketimini bağlayan şey kotadır — o
+**Hız sınırı bir yalıtım sınırı DEĞİLDİR (Faz 104).** `TraconRateLimitOptions` ve
+`InboundTriggerRateLimiter` süreç belleğinde sayar; `Partition = Tenant` her örneğin
+**kendi** penceresini böler. Kiracının toplam tüketimini bağlayan şey kotadır — o
 veritabanında sayılır ve örnek sayısından etkilenmez.
 
 **Kiracı sağlayıcı anahtarları / BYOK ve egress (Faz 65).** Varsayılan
-**kapalıdır**. Açıldığında her model çağrısından önce iki kontrol TEK yerde
-sırayla çalışır: **egress** (kiracının `tenant_egress_policies` kaydı
-sağlayıcıya izin veriyor mu; politika yoksa kısıtsız) ve **kimlik bilgisi**
-(`tenant_provider_bindings`; kayıtta yalnız yapılandırma anahtarının **adı**
-durur, değeri asla — K-059). Kayıt var ama değer yoksa çağrı global anahtara
-**düşmez**, anlaşılır bir hata verir. Aynı tek nokta hem gerçek `run`
-derlemesini hem ön-uçuş doğrulamasını besler; izinsiz sağlayıcıya işaret eden
-tanım **derleme anında**, ağ çağrısı olmadan reddedilir. Gerekçe: K-065 · K-059.
+**kapalıdır**. Açıldığında her model çağrısından önce iki kontrol TEK yerde sırayla çalışır:
+**egress** (`tenant_egress_policies`; politika yoksa kısıtsız) ve **kimlik bilgisi**
+(`tenant_provider_bindings`; kayıtta yalnız anahtarın **adı** durur — K-059). Kayıt
+var ama değer yoksa çağrı global anahtara **düşmez**. Aynı nokta hem `run`
+derlemesini hem ön-uçuşu besler; izinsiz sağlayıcıya işaret eden tanım **derleme
+anında** reddedilir. Gerekçe: K-065 · K-059.
 
 **Kiracının ALTINDA ikinci bir sınır: oturum sahipliği (Faz 148).**
 Varsayılan **kapalıdır**; kapalıyken `sessions.owner_id` `NULL` kalır ve hiçbir
 liste daralmaz. Açıldığında oturum, onu AÇAN kullanıcıyı kaydeder — kaynak
-`IRunAttributionContext`'tir, gövde **asla** okunmaz. Kiracı sınırı değişmez ve
-sahiplik onu hiç kesmez.
+`IRunAttributionContext`'tir, gövde **asla** okunmaz. Kiracı sınırı değişmez.
 
-Süzgeç SQL `WHERE`'dedir, `Skip`/`Take`'ten **önce** (K-688) · sahiplik **bir
-kez** atanır ve dört depo da `COALESCE` eder (K-689) · kapı `run` başlatan
-yüzeyleri ve `/v1/conversations`'ı da kapsar, HTTP sınırında yaşar (K-691) ·
-sahiplik **geriye dönük değildir** (K-693). Mod açıkken
-`IRunAttributionContext` bir muhasebe değil bir **yetkilendirme** girdisidir:
-çözülemeyen kimlik `403` üretir (K-690).
+Süzgeç SQL `WHERE`'dedir, `Skip`/`Take`'ten **önce** (K-688) · sahiplik **bir kez**
+atanır, dört depo da `COALESCE` eder (K-689) · kapı `run` başlatan yüzeyleri ve
+`/v1/conversations`'ı kapsar, HTTP sınırında yaşar (K-691) · sahiplik **geriye dönük
+değildir** (K-693). Mod açıkken `IRunAttributionContext` muhasebe değil
+**yetkilendirme** girdisidir: çözülemeyen kimlik `403` üretir (K-690).
 
-Kapının hangi yüzeyleri kapsadığı ve neden `AgentSessionManager`'da
-olmadığı: [`hafiza/maf-oturum.md`](hafiza/maf-oturum.md).
+Kapsam ve neden `AgentSessionManager`'da olmadığı:
+[`hafiza/maf-oturum.md`](hafiza/maf-oturum.md).
 
 ## Roller ve denetim izi
 
-**Rol modeli.** Üç policy adı — `TraconPolicies.Reader` / `.Operator` / `.Admin`
-— tanımlanır. Tracon rol veya kullanıcı **saklamaz**; tüketici bu adları kendi
-`AddAuthorization(...)` çağrısında kendi claim'lerine bağlar. Bir policy tüketicide
-**kayıtlı değilse** ilgili uç grubu yalnızca yukarıdaki üç katmanlı korumadan geçer
-— sürüm yükseltmesi mevcut kurulumları kırmaz. `TraconEndpointOptions.RequireRolePolicies`
-açılırsa eksik bir policy `MapTracon()` çağrısını **açılışta** hataya çevirir.
+**Rol modeli.** Üç policy adı — `TraconPolicies.Reader` / `.Operator` / `.Admin`.
+Tracon rol veya kullanıcı **saklamaz**; tüketici bu adları kendi
+`AddAuthorization(...)` çağrısında claim'lerine bağlar. Bir policy **kayıtlı
+değilse** ilgili uç grubu yalnız üç katmanlı korumadan geçer — sürüm yükseltmesi
+mevcut kurulumları kırmaz. `TraconEndpointOptions.RequireRolePolicies` açılırsa
+eksik policy `MapTracon()`'u **açılışta** hataya çevirir.
 
 | Rol | Kapsam |
 |-----|--------|
@@ -180,68 +171,53 @@ açılırsa eksik bir policy `MapTracon()` çağrısını **açılışta** hatay
 | Operator | Reader + çalıştırma başlatma, onay verme, oturum silme |
 | Admin | Hepsi: agent tanımı yazma, MCP sunucusu ekleme, kiracı ve onay kuralı yönetimi, denetim izi okuma |
 
-`GET {prefix}/api/meta` yanıtı artık `roles: { canRead, canOperate, canAdminister }`
-alanı taşır — arayüz yetkisi olmayan düğmeleri bu alana göre gizler. Bir policy
-kayıtlı değilse karşılık gelen alan her zaman `true` döner (rol kısıtı yok).
+`GET {prefix}/api/meta` yanıtı `roles: { canRead, canOperate, canAdminister }` taşır —
+arayüz yetkisiz düğmeleri buna göre gizler. Policy kayıtlı değilse alan `true` döner.
 
-**Denetim izi.** `audit_log` tablosuna agent, MCP sunucusu, kiracı ve onay kuralı
-yazmaları ile tool onay kararları düşer — **çalıştırmalar düşmez** (`runs` tablosu
-zaten tam kaydı tutar). Yazma **iki yerde** olur: `store` decorator'ları (`Auditing*Store` —
-`Tracon.Core`) ve **`endpoint` katmanı**. Endpoint yazması istisna değildir,
-kuraldır: bir `store` yazmasına karşılık gelmeyen her eylem (`mcp.refresh`,
-`tenant_egress.save`, `stats.recalculate-costs`, onay kararı, eval koşumu,
-veri konusu silme…) uçta yazılır. On iki uç dosyası `AuditRecorder.WriteAsync`
-çağırır; `DataSubjectEndpoints` ve `TriggerEndpoints` ayrıca doğrudan
-`IAuditLog`'a yazar.
+**Denetim izi.** `audit_log`'a agent, MCP sunucusu, kiracı ve onay kuralı yazmaları
+ile tool onay kararları düşer — **çalıştırmalar düşmez** (`runs` zaten tam kaydı
+tutar). Yazma **iki yerde** olur: `store` decorator'ları (`Auditing*Store`) ve
+**`endpoint` katmanı**. Endpoint yazması kuraldır: bir `store` yazmasına karşılık
+gelmeyen her eylem (`mcp.refresh`, `tenant_egress.save`, onay kararı, eval koşumu,
+veri konusu silme…) uçta yazılır.
 
 **Geri alınamaz eylem `AuditRecorder` kullanamaz.** `AuditRecorder` `store`
 hatasını yutar ve yalnız uyarı loglar; kod çalıştırma yetkisi veren
 `script.grant`/`script.revoke` ve script çalıştırmanın kendisi bu yüzden
 `IAuditLog`'u **doğrudan** çağırır ve yazamazsa **eylemi keser**.
 
-**Denetim yükü elle kurulmaz.** `AuditPayload.Write`/`WriteArray` kullanılır:
-elle kurulan JSON, içinde tırnak taşıyan bir değerde bozulur, `AuditSecretFilter`
-`JsonException`'ı yakalayıp metni **redakte etmeden** döndürür ve PostgreSQL'de
-`jsonb` cast'i düşer — mutasyon uygulanmış, kayıt yazılmamış olur.
+Aktör `AuditActorContext` adlı bir `AsyncLocal` köprüsünden okunur —
+`Tracon.Core`'a ASP.NET Core bağımlılığı eklemeden "kim yaptı" sorusunu yanıtlamanın
+yolu budur (`ClaimsPrincipal` temel kütüphanededir). Kimlik doğrulaması yoksa aktör
+`null`'dur ve bu gizlenmez. Dosya haritası:
+[`hafiza/kod-haritasi.md`](hafiza/kod-haritasi.md).
 
-Aktör `AuditActorContext` adlı bir `AsyncLocal` köprüsünden okunur:
-`TraconEndpointFilter`, her korumalı istekte `HttpContext.User`'ı oraya yazar;
-`Tracon.Core`'daki `AmbientAuditActorResolver` onu okur. Bu, `Tracon.Core`'a
-ASP.NET Core bağımlılığı eklemeden "kim yaptı" sorusunu yanıtlamanın yoludur —
-`ClaimsPrincipal` temel .NET kütüphanesindedir. Kimlik doğrulaması yoksa aktör
-`null`'dur ve bu gizlenmez.
-
-`before`/`after` yazılmadan önce `AuditSecretFilter` içinden geçer: anahtar adında
-`apiKey`, `authorization`, `password`, `secret` veya **tekil** `token` geçen her
-alanın değeri `"***"` olur (çoğul `tokens` — `maxOutputTokens` gibi sayım
-alanları — hariç). Denetim izi yazma hatası **çalıştırmayı kesmez**;
+`before`/`after` yazılmadan önce `AuditSecretFilter` içinden geçer — alan ADINA
+bakar, değere değil ([`hafiza/olcum-kota-ve-secenekler.md`](hafiza/olcum-kota-ve-secenekler.md)).
+Denetim izi yazma hatası **çalıştırmayı kesmez**;
 "gözlemlenebilirlik işlevi bozmaz" kuralı burada da geçerlidir.
 
 ## Denetim zinciri ve veri konusu hakları (Faz 64)
 
 **Değiştirilemezlik.** Her `audit_log` satırı kendi içeriğinin SHA-256 özetini
-(`hash`) ve bir önceki satırın özetini (`prev_hash`) taşır, kiracı başına
-zincirlenir. `IAuditLog.VerifyChainAsync` (`GET /api/audit/verify`) zinciri baştan
-sona yürür ve üç durumdan birini döner: `Valid`, `Broken` (bir satır değiştirildi)
-veya `Gap` (bir satır silindi ya da hiç yazılmadı). Kanonik biçim ve doğrulama
-mantığı tek bir yerdedir (`Tracon.Core.AuditChainHasher`/`AuditChainWalker`) —
-`InMemoryAuditLog` ve üç SQL sağlayıcısı aynı kodu çağırır. Eşzamanlı yazım,
-`(tenant_id, prev_hash)` üzerindeki benzersiz bir dizinin doğal olarak
-serileştirmesiyle çözülür; kaybeden yazıcı yeniden dener (oturum/advisory kilit
-**kullanılmaz** — K-284'ün "bağlantı havuzuna bağımlı kilitten kaçının" ilkesi).
-Bu özellikten ÖNCE yazılmış satırlar `hash` taşımaz ve zincire dahil edilmez;
-geriye dönük uyumluluk bu şekilde sağlanır.
+(`hash`) ve bir öncekinin özetini (`prev_hash`) taşır, kiracı başına zincirlenir.
+`IAuditLog.VerifyChainAsync` (`GET /api/audit/verify`) zinciri yürür ve `Valid`,
+`Broken` (satır değiştirildi) veya `Gap` (satır silindi ya da hiç yazılmadı)
+döner. Kanonik biçim ve doğrulama tek yerdedir
+(`AuditChainHasher`/`AuditChainWalker`) — `InMemoryAuditLog` ve üç SQL sağlayıcısı
+aynı kodu çağırır. Eşzamanlı yazım `(tenant_id, prev_hash)` benzersiz dizininin
+doğal serileştirmesiyle çözülür; kaybeden yazıcı yeniden dener (advisory kilit
+**kullanılmaz** — K-284). Bu özellikten ÖNCE yazılmış satırlar `hash` taşımaz ve
+zincire dahil edilmez.
 
-**Veri konusu hakları.** Tracon kişisel kimlik saklamaz. Bir tüketici
-`IDataSubjectResolver` kaydederse (`subjectId → sessions/runs/conversations`),
-`GET /api/data-subjects/{id}/export` ve `DELETE /api/data-subjects/{id}` uçları
-açılır; kayıtlı bir çözümleyici yoksa ikisi de `409` döner. Silme
-`IDataSubjectStore` (`SqlDataSubjectStore`) üzerinden çalışır: aynı `DELETE` sorgu
-kümesi hem önizleme (`dryRun=true`, varsayılan — her zaman `ROLLBACK`) hem gerçek
-silme (yalnız çağıranın denetim yazımı başarılı olursa `COMMIT`) için kullanılır.
-Silme **içerik** verisinde uygulanır (oturum, çalıştırma, konuşma, ek, puan, ses);
-`audit_log`'a hiç dokunmaz — "kim ne yaptı" bilgisi kişinin kendi verisi değildir,
-silme eylemi ise yeni bir denetim kaydı olarak eklenir.
+**Veri konusu hakları.** Tracon kişisel kimlik saklamaz. Tüketici
+`IDataSubjectResolver` kaydederse `GET /api/data-subjects/{id}/export` ve
+`DELETE /api/data-subjects/{id}` açılır; çözümleyici yoksa ikisi de `409` döner.
+Silme `IDataSubjectStore` üzerinden çalışır: aynı `DELETE` kümesi hem önizleme
+(`dryRun=true`, varsayılan — her zaman `ROLLBACK`) hem gerçek silme (yalnız denetim
+yazımı başarılıysa `COMMIT`) için kullanılır. Silme **içerik** verisinde uygulanır
+(oturum, çalıştırma, konuşma, ek, puan, ses); `audit_log`'a hiç dokunmaz — "kim ne
+yaptı" kişinin kendi verisi değildir, silme eylemi yeni bir denetim kaydıdır.
 
 ## Skill script çalıştırma
 
@@ -250,11 +226,10 @@ birincisi MCP (uzakta çalışır), bu **Tracon'in kendi makinesinde** çalış�
 Varsayılan **kapalıdır**; yalnız kodda açılır ve yürütülebilir yüzeyi genişleten
 alanlar (`Interpreters`, `SkillRoots`, `AllowStoredScripts`) yapılandırmadan
 OKUNMAZ. Her çalıştırma beş sıralı kapıdan geçer (Enabled · kiracı izni ·
-yorumlayıcı beyaz listesi · argüman doğrulama · denetim izi yazımı) ve denetim
-izi kapısı Faz 9 kuralının tek istisnasıdır: yazılamazsa çalıştırma da durur
-(K-089). `PlatformIsolationAcknowledged` dosya/ağ/kota/hak düşürme sınırlarının
-barındırma ortamında (container+cgroup) kurulduğunu KABUL ETTİRİR — Tracon
-bunları sağlamaz (K-086).
+yorumlayıcı beyaz listesi · argüman doğrulama · denetim izi yazımı); denetim izi
+kapısı Faz 9 kuralının tek istisnasıdır — yazılamazsa çalıştırma durur (K-089).
+`PlatformIsolationAcknowledged` dosya/ağ/kota/hak düşürme sınırlarının barındırma
+ortamında kurulduğunu KABUL ETTİRİR; Tracon bunları sağlamaz (K-086).
 
 K2 istisnasının tam gerekçesi, beş kapının akış şeması, koruma tablosu (ortam
 temizliği, zaman aşımı, çıktı sınırı, eşzamanlılık, `SkillScriptGrant`, denetim
@@ -263,18 +238,17 @@ olayları) ve barındırma kurulumu:
 
 ## Kota ve webhook imzası
 
-**🚨 SSRF — giden istek sınırı.** Webhook adresini *kullanıcı* verir ve sunucu o
-adrese istek atar; kontrolsüz bırakılırsa iç ağa erişim aracı olur — bulut
-metadata uçları (`169.254.169.254`) dâhil. Varsayılan
-`AllowPrivateNetworkTargets = false`; yalnız `https`; `AllowAutoRedirect = false`.
+**🚨 SSRF — giden istek sınırı.** Webhook adresini *kullanıcı* verir; kontrolsüz
+bırakılırsa iç ağa erişim aracı olur — bulut metadata uçları (`169.254.169.254`)
+dâhil. Varsayılan `AllowPrivateNetworkTargets = false`; yalnız `https`;
+`AllowAutoRedirect = false`.
 
-🚨 **Adres denetimi `SocketsHttpHandler.ConnectCallback`'in içindedir**:
-doğrulanan adres, soketin bağlandığı adresin ta kendisidir. Önce doğrulayıp
-sonra `SendAsync(url)` çağırmak TOCTOU açığı bırakırdı (K-164). Koruma
-`WebhookHttpClient`'ın **içine gömülüdür**; tüketici değiştiremez
-(`IHttpClientFactory` bilinçli kullanılmadı). Tek doğruluk noktası
-`WebhookUrlValidator.IsAllowedTarget`'tır; reddedilen aralıkların tam listesi
-ve diğer sınırlar [`21-KOTA-VE-OLAY-YAYINI.md`](arsiv/fazlar/21-KOTA-VE-OLAY-YAYINI.md)'dedir.
+🚨 **Adres denetimi `SocketsHttpHandler.ConnectCallback`'in içindedir**: doğrulanan
+adres, soketin bağlandığı adresin ta kendisidir — önce doğrulayıp sonra
+`SendAsync(url)` çağırmak TOCTOU açığı bırakırdı (K-164). Koruma
+`WebhookHttpClient`'a **gömülüdür**; tüketici değiştiremez. Tek doğruluk noktası
+`WebhookUrlValidator.IsAllowedTarget`; reddedilen aralıklar
+[`21-KOTA-VE-OLAY-YAYINI.md`](arsiv/fazlar/21-KOTA-VE-OLAY-YAYINI.md)'dedir.
 
 **Webhook `secret`'i veritabanında durmaz** — kayıt yalnız yapılandırma
 anahtarının **adını** taşır; sözleşmede `secret` alanı hiç yoktur (K-059).
@@ -282,10 +256,9 @@ anahtarının **adını** taşır; sözleşmede `secret` alanı hiç yoktur (K-0
 **İmza yeniden oynatmaya kapalıdır:** `HMAC-SHA256(timestamp + "." + body, secret)`
 — zaman damgası imzaya dâhildir (K-163). Tolerans penceresini alıcı denetler.
 
-**Kota ve hız sınırı ayrı mekanizmalardır** (K-158). Hız sınırı saniye/dakika
-ölçeğinde, bellekte; kota gün/ay ölçeğinde, veritabanında. İkisi de **varsayılan
-olarak hiçbir isteği reddetmez**: hız sınırı `Enabled = false`, kota ise kural
-tanımlanmadıkça boştur (K-165). Kota **yaklaşıktır** — denetim çalıştırma
+**Kota ve hız sınırı ayrı mekanizmalardır** (K-158): hız sınırı saniye/dakika
+ölçeğinde bellekte, kota gün/ay ölçeğinde veritabanında. İkisi de **varsayılan
+olarak hiçbir isteği reddetmez** (K-165). Kota **yaklaşıktır** — denetim çalıştırma
 öncesinde, tüketim sonrasında yazılır (K-159).
 
 ## MCP OAuth ve kaynak erişimi
@@ -300,11 +273,10 @@ Boyut sınırları ve akış: [`22-MCP-DERINLESMESI.md`](arsiv/fazlar/22-MCP-DER
 
 ## Başlangıç kompozisyon kapıları (Faz 150 · 170)
 
-`AddTracon()` her genişleme noktasını `TryAdd` ile kaydeder ve güvenlik duyarlı
-her anahtarı **izin verici** varsayılanla getirir. İkisi de K1'in ("sıfır
-sürpriz") doğru sonucudur ve ikisi de bir production dağıtımı için yanlış
-varsayılandır. İki kapı bunu **başlatma hatasına** çevirir; ikisi de **varsayılan
-kapalıdır** ve hiçbir değeri değiştirmez.
+`AddTracon()` her genişleme noktasını `TryAdd` ile kaydeder ve güvenlik duyarlı her
+anahtarı **izin verici** varsayılanla getirir — K1'in ("sıfır sürpriz") doğru sonucu,
+ve bir production dağıtımı için yanlış varsayılan. İki kapı bunu **başlatma
+hatasına** çevirir; ikisi de **varsayılan kapalıdır** ve hiçbir değeri değiştirmez.
 
 | Kapı | Neyi sorar | Nerede |
 |---|---|---|
@@ -313,27 +285,26 @@ kapalıdır** ve hiçbir değeri değiştirmez.
 
 Profil altı kalemi kapsar: **çok kiracılık · oturum sahipliği · at-rest içerik
 koruma · içerik denetimi · hız sınırı · saklama.** Her biri ya açılır ya
-`Accept(TraconProductionRisk.X)` ile **adıyla** kabul edilir; kabul
-`Information` seviyesinde loglanır. Toplu kabul yolu yoktur (K-771).
+`Accept(TraconProductionRisk.X)` ile **adıyla** kabul edilir; kabul `Information`
+seviyesinde loglanır. Toplu kabul yolu yoktur (K-771).
 
-Kararlar `IProductionProfileCheck` katkılarıyla yanıtlanır ve **bir karara
-birden çok kontrol katılabilir; en katı cevap kazanır** (K-769). Kiracı kalemi
-bunun sebebidir: `Tracon.Core` hangi `ITenantContext`'in bağlandığını okur
-(gömülü host'ta da anlamlıdır), `Tracon.AspNetCore` ise `UseTenancy` içinden
-`TraconTenancyOptions.Enabled`'ı ekler — çünkü `UseTenancy(Enabled=false)`
-bağlamayı değiştirir ama her isteği yine varsayılan kiracıya çözer. Bir riski
-taşıyan hiç kontrol kayıtlı değilse kalem `NotApplicable` olarak raporlanır,
+Kararlar `IProductionProfileCheck` katkılarıyla yanıtlanır ve **bir karara birden
+çok kontrol katılabilir; en katı cevap kazanır** (K-769). Kiracı kalemi bunun
+sebebidir: `Tracon.Core` hangi `ITenantContext`'in bağlandığını okur,
+`Tracon.AspNetCore` ise `UseTenancy` içinden `TraconTenancyOptions.Enabled`'ı ekler
+— `UseTenancy(Enabled=false)` bağlamayı değiştirir ama her isteği yine varsayılan
+kiracıya çözer. Hiç kontrol kayıtlı değilse kalem `NotApplicable` raporlanır,
 gizlenmez (K-770).
 
-İçerik denetimi kalemi bir bayrak değil, **kayıt + etki** okur: guard kayıtlı
-olmalı **ve** `InspectInput`/`InspectOutput` ikisi birden kapalı olmamalıdır —
-ikisi de kapalıyken sarmalayıcı her çağrıda koşar ve hiçbir şeye bakmaz.
+İçerik denetimi kalemi bayrak değil **kayıt + etki** okur: guard kayıtlı olmalı
+**ve** `InspectInput`/`InspectOutput` ikisi birden kapalı olmamalıdır — ikisi de
+kapalıyken sarmalayıcı her çağrıda koşar ve hiçbir şeye bakmaz.
 
-🚨 **İkisi de kompozisyon kapısıdır, güvenlik kanıtı değildir.** Bir anahtarın
-açık olduğunu söylerler; arkasındaki politikanın doğru olduğunu söylemezler.
-İkisi de `IHost` gerektirir — `AddTracon()` + `BuildServiceProvider()` ile duran
-bir giriş noktası kapıdan geçmez. Profil kümesi bir **sürüm sözleşmesidir**:
-kümeye anahtar eklemek davranışsal kırıcı değişikliktir (K-773).
+🚨 **İkisi de kompozisyon kapısıdır, güvenlik kanıtı değildir** — bir anahtarın
+açık olduğunu söylerler, arkasındaki politikanın doğru olduğunu değil. İkisi de
+`IHost` gerektirir; `AddTracon()` + `BuildServiceProvider()` ile duran bir giriş
+noktası kapıdan geçmez. Profil kümesi bir **sürüm sözleşmesidir**: kümeye anahtar
+eklemek davranışsal kırıcı değişikliktir (K-773).
 
 ---
 
@@ -351,12 +322,10 @@ Engellenen içerik ağa **hiç çıkmaz**, devre kesiciyi **tetiklemez** (K-322)
 model sınırındadır — `run_events`/`run_inputs` ham metni saklar.
 Ayrıntı: [`48-GUARDRAILS.md`](arsiv/fazlar/48-GUARDRAILS.md).
 
-`ContentGuardContext.Source` (Faz 140) denetlenen metnin kullanıcı mesajı mı,
-tool sonucu mu (+ `ToolName`) yoksa model çıktısı mı olduğunu taşır — üçü de
-eskiden aynı `Direction=Input` torbasına giriyordu. Sınıflama içerik tipine
-ve mesajın rolüne bakar, **`Direction`'a değil** (K-672); `Unknown` hiçbir
-zaman gevşek bir karara çevrilmez. Yerleşik `PatternContentGuard` bunu
-kasıtlı okumaz — kaynağa göre farklı davranmak isteyen bir guard kendi
-implementasyonunda `context.Source`'u okur.
+`ContentGuardContext.Source` (Faz 140) denetlenen metnin kullanıcı mesajı mı, tool
+sonucu mu (+ `ToolName`) yoksa model çıktısı mı olduğunu taşır — üçü eskiden aynı
+`Direction=Input` torbasındaydı. Sınıflama içerik tipine ve mesajın rolüne bakar,
+**`Direction`'a değil** (K-672); `Unknown` gevşek bir karara çevrilmez. Yerleşik
+`PatternContentGuard` bunu kasıtlı okumaz.
 
 ---

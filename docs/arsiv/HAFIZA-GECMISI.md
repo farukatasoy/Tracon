@@ -697,3 +697,334 @@ dosyasinda kaldi. Tam anlati ayrica fazlarin kendi dokumanlarindadir.
 - **🚨 `OperationCanceledException` bir IPTAL DEĞİL, bir SORUDUR: "gerçekten iptal edildi mi?"** (2026-09-08, Faz 157, K-737). `HttpClient` kendi istek zaman aşımını `TaskCanceledException` (inner `TimeoutException`) olarak bildirir ve her resmî sağlayıcı SDK'si `HttpClient` üzerindedir. Çıplak `catch (OperationCanceledException)` bu yüzden bir sağlayıcı kesintisini kullanıcı iptali sanıyordu: `run` `Canceled` + `error: null`, uç `200` + **boş gövde**, panolarda hiçbir arıza. Kural: iptal kararı istisnanın tipinden değil, o kapsamın KENDİ token'ından okunur — `RunRecordingAgent` `cancellationSource` (kayıt defterinin de tetiklediği kaynak), HTTP uçları `HttpContext.RequestAborted`, `WorkflowRunner` `linked`. Token'ın olmadığı sınıflandırma yolunda ayrım **zaman aşımı sinyali** ile kurulur (graf içinde `TimeoutException` ya da zaman aşımı deseniyle eşleşen mesaj); `DefaultRunErrorClassifier`'da zaman aşımı kontrolü `CanceledTypePattern`'den ÖNCE gelir, aksi hâlde tip kontrolü her zaman kazanır. Regresyon: `RunCancellationStatusTests.An_uncancelled_OperationCanceledException_writes_Failed_not_Canceled`.
 - **🚨 K-737'nin İKİNCİ yarısı: "iptal değil" demek yetmez, HANGİ limitin dolduğu ayrı bir iddiadır** (2026-09-12, F-219, K-759). `!cancellationToken.IsCancellationRequested` filtresi yalnız çağıranın iptalini dışlar; sağlayıcının kendi istek zaman aşımı da o filtreden **geçer** ve o dalda ne söylenirse söylensin yanlış olur. `ChildAgentInvoker` bunu yapıyordu: 30 sn'lik `ChildDeadline` için **17 ms**'de *"did not respond in time (limit: 00:00:30)"* döndürdü ve bir sağlayıcı kesintisini `ChildRunTimedOut` metriğine yazdı — operatör alt-agent kadranını büyütür, oysa sorun sağlayıcıdadır. Kural: kendi `CancellationTokenSource`'unu tutan her `catch`, filtresine o kaynağı koyar (`deadline.IsCancellationRequested && !cancellationToken.IsCancellationRequested`); ayıramadığı dalda sebebi söylemez, **arıza** der. Sınıf taraması `src/` içindeki 13 negatif filtreyi taradı: üç yer düzeltildi (`ChildAgentInvoker` ×2 · `ToolApprovalPresenterRunner` · CLI), altı sağlık kontrolü ile `AgentDefinitionValidator` vaka DEĞİLDİR (iki dalda sonuç ve sebep aynı), `VoiceConversationDriver` vaka değildir (`socket.ReceiveAsync` OCE'yi yalnız verilen token'dan atar). Regresyon: `ChildAgentInvokerTests.A_provider_timeout_is_not_reported_as_the_sub_agents_own_wait_limit` · `SubAgentTimeoutTests.A_provider_timeout_does_not_count_on_the_sub_agent_wait_limit_metric` (metrik iddiası **yalnız** fonksiyonel seviyede kırmızı olur — birim testinde `scope.Writer` yoktur ve olay hiç yazılmaz, yani iddia tiyatrodur).
 
+## `docs/hafiza/test-altyapisi.md`'den — 2026-09-15 dokuman butcesi turu
+
+### `ContractCoverage` kapsam parametresi olmadan dogdu (Faz 98 → 99, K-610)
+
+Faz 98'in `ContractTypes()`'i derlemedeki adi `Contract` ile biten her public
+abstract tipi donduruyordu. Faz 99 saglayici ailesini ekleyince dort depolama
+kapsam testi (bellek ici + uc SQL) birden kirmiziya dondu — kendilerine ait
+olmayan sozlesmeleri turetmedikleri icin. Kapsamsiz asiri yuklemeyi birakmak,
+tuzagi birakmaktir.
+
+### DI anlik goruntu testi closure adina baglanamaz (2026-08-26, Faz 105)
+
+`TryAddSingleton(static provider => ...)` kayitlarini ayirt etmek icin lambda'nin
+`Method.Name`'ini (`<RegisterCoreInfrastructure>b__48_0`) kullanmak cazip gorunur.
+Olculdu: sinifa TAMAMEN ilgisiz bir private metot (`BindCoreFields`) eklemek bile
+sonraki HER closure'in numarasini kaydirdi (`b__48_0` → `b__49_0`) — gercek bir DI
+davranis degisikligi olmadan test kirildi. `ServiceRegistrationSnapshotTests` bu
+kullanimdan vazgecti: kirilgan bir ayrim, kapattigi bosluktan pahalidir. Alternatif,
+farki kabul edip testin XML dokumanina yazmaktir.
+
+### Tek yonlu test edilen dedektor kor kaldi (2026-09-06, F-206)
+
+`denetim-paketi.py`'nin test tiyatrosu tarayicisi `\bShould\b` ariyordu. Bu depo
+Shouldly kullanir ve her iddia `ShouldBe`/`ShouldContain`/`ShouldNotBeNull`
+seklindedir — `Should`'dan sonra kelime karakteri geldigi icin `\b` sinir
+OLUSTURMAZ ve desen hicbirini eslestirmez. Olculdu: `tests/` agacinda **7488**
+Shouldly cagrisi, **6** `Assert.` cagrisi; tarayici pratikte HER yeni testi
+"iddiasiz aday" sayiyordu. Var olan tek testi (`test_iddiasiz_test_adayini_bulur`)
+yalniz "iddiasiz test YAKALANIR"i kanitliyordu; "iddiali test YAKALANMAZ" hic
+denenmemisti ve kusur tam orada yasadi.
+
+### Satir-bazli circi taramasi cok satirli `catch`'i yanlis kapsadi (2026-08-27, Faz 119)
+
+`RawExceptionTextSiteTests`'in blok-sonu bulucusu "`catch` satirindan sonraki ilk
+satir `{` mi" varsayiyordu. `WorkflowNodeRetry.cs`'deki cok satirli
+`catch (Exception exception) when (...)` seklinde acilis `{` uc satir sonra
+geliyordu; bulucu onu bulamayinca "fallback: dosya sonuna kadar" moduna dusuyor ve
+kategorik olarak ilgisiz bir metodun `.Message` satirini da ayni "catch blogu"
+saniyordu — sahte pozitif, ama SESSIZ: test hala calisiyor, yalniz yanlis siteyi
+raporluyor.
+
+### `Testcontainers` teardown yarisi (Faz 81 kapanisi)
+
+`PostgresFixture.DisposeAsync()`'in konteyner silme cagrisi
+`TaskCanceledException` alir, cunku bir onceki paketin (`SqlServer`) KENDI
+teardown'i Docker daemon'ini hala mesgul ediyordur. Izole kosumda
+(`dotnet test tests/<Paket>`) her zaman temiz.
+
+## `docs/hafiza/site-uretim-kapilari.md`'den — 2026-09-15 dokuman butcesi turu
+
+### DocFX `references` girdisi 360 `CS1704` uretti (Faz 98 · onarim 2026-08-26)
+
+`docfx metadata --logLevel verbose` kok nedeni gosterdi. `src`, API uretilecek 18
+assembly'yi acikca seciyordu; `references` ise `artifacts/bin` altindaki test,
+ornek ve paket ciktilarinin tum DLL'lerini yukluyordu. Bu dizinler ayni Tracon
+assembly'sinin cok sayida kopyasini tasir ve Roslyn onlari birlikte gorunce
+**360 `CS1704`** uretti. Hatanin calisma agaci tabaninda da gorulmesinin nedeni
+birikmis cikti agaciydi. `references.exclude` denendi: hata sayisi degismedi,
+yalniz cakisma mesajinda adi gecen assembly degisti. Girdi kaldirildiktan sonra
+ayni birikmis agacta metadata uretimi 0 warning / 0 error ile bitti ve 678 API
+Markdown dosyasi uretildi. Mutation kosumunda yalniz bos bir `references` dizisi
+eklemek bile `DocfxConfigurationTests`'i dusurdu.
+
+### Sayilabilir iddianin tek ornegini denetleyen kapi (2026-09-07, B02)
+
+`check-content.mjs` operasyon sayisini yalniz landing page ile `http-api.md`'de
+olcuyordu. Uc elle yazilan sayfa 143/143/162 operasyon, biri de 19 tag iddia
+ederken (gercek: 165 ve 23) kapi YESIL kaldi.
+
+Ikinci olcum, "kapi sayfanin iddia ettigi seyi olcmelidir" dersinin kaynagi:
+ekran sayisi `from './screens/…'` import MODULLERINI sayiyordu (28); sayfalar ise
+kullanicinin gordugu Screen COMPONENT'ini soyluyordu (30) — `skills` ve `triggers`
+ikiser component export eder.
+
+### `build-agent-map.mjs` yanlis cumleyi kural secti (Faz 85)
+
+"Embedding points" bolumune tablo oncesi bir aciklama eklenince map bunu "Rule:"
+olarak basti, gercek kural cumlesi (tablo sonrasi) hic gorunmedi. Hicbir kapi
+bunu yakalamadi cunku uretec GECERLI bir metin uretti, yalniz yanlis cumleyi
+secti.
+
+### Agent map ilk duzenlemeden sonra kosuldu, sonuncudan degil (2026-09-04, Faz 141)
+
+`tuketici-dokuman-senkronu` Adim 5'in 2. kapisi (`--check`) yesil olduktan SONRA
+`dokuman-bakim.py --site-denetle`'nin "arayuz"/"kalicilik" gibi bir kurali yeni bir
+sayfa duzenlemesi (`ui.md`) daha istedi. O duzenleme agent map'i YENIDEN bayatlatti
+ve `--check` bunu bir SONRAKI kosuma kadar yakalamadi; `kapi.py kapanis` kendi
+`node build-agent-map.mjs --check` adimini kosana kadar fark edilmedi.
+
+### `llms.txt` butce kaynagi: `renderRow` yalniz 2. sutunu okur (Faz 122)
+
+`renderRow` bir capability tablosundan yalniz 2. sutunun (basligi
+`registration|enable|surface|definition|choice|where|output` desenine uyan) ilk iki
+backtick-kod parcasini alir. 3. sutunu ("Boundary"/"Important behavior") kisaltmak
+`llms.txt`'in 20480 B butcesini DEGISTIRMEZ. Butce asiminda gercek kaynak ya 2.
+sutun kod parcalari ya da `guides/*.md`'nin `description`'idir (`renderIndex`,
+sayfa basina bir satir).
+
+## `docs/hafiza/nswag-istemci-uretimi.md`'den — 2026-09-15 dokuman butcesi turu
+
+### `JsonElement` golge sinifini hicbir test yakalamadi (2026-08-26, Faz 115)
+
+16 `JsonElement`-tipli alanin TUMU (`EvalCaseResult.Scores`, `EvalSuite.Checks`,
+`JobTriggerRequest.Payload`, ...) bos-`[JsonExtensionData]` sinifina karsi
+deserialize ediliyordu. Tel uzerindeki deger bir JSON NESNESI degilse (or. `Scores`
+bir dizi) her cagri `JsonException` firlatiyordu. Hicbir test yakalamadi cunku
+`TraconTestHost`'un in-memory `TestServer`'i `TraconApiClient` degil dogrudan
+`HttpClient` kullanir — yani uretilen istemci hic devreye girmiyordu. Kusur, eval
+CLI komutu ilk kez `EvalCaseResult.Scores`'u gercek veriyle deserialize edince
+gorundu.
+
+### Bos sema cakismasini tespit eden komut
+
+```bash
+python3 -c "import json; s=json.load(open('docs/openapi/tracon.json'))['components']['schemas']; print([k for k,v in s.items() if v=={}])"
+```
+Cikan her ad `scripts/nswag-postprocess-client.py`'daki `COLLIDING_ANY_TYPES`
+tablosuna eklenir.
+
+Regresyon: `scripts/nswag_postprocess_client_test.py`.
+
+## `docs/hafiza/olcum-kota-ve-secenekler.md`'den — 2026-09-15 dokuman butcesi turu
+
+### Surec API'si makineyi anlatmaz (2026-09-12, F-220)
+
+Sinirli yuk raporu (`BoundedSqlLoadTests`) "Available memory" olarak
+`GC.GetGCMemoryInfo().TotalAvailableMemoryBytes`, "Logical processors" olarak
+`Environment.ProcessorCount` yaziyordu. Ikisi de **surecin gordugu** degerdir:
+birincisi GC/container tavani, ikincisi surece verilen CPU sayisi. Makinenin
+gercek bellegi ve islemci modeli raporda hic yoktu, dolayisiyla iki kosumu
+karsilastiran biri farki donanima baglayamiyordu — ustelik alan adlari bunu
+yapabilecegini **ima ediyordu**.
+
+### `SingletonGuard` yenileme araligi kirayi asti (2026-09-09, K-743)
+
+`SingletonExecutionOptions.LeaseDuration` 3 sn'nin altina ayarlandiginda
+`SingletonGuard`'in yenileme araligi (`max(lease/3, 1 sn)`) kiranin suresine ESIT
+veya ondan UZUN olur; kira sahibi hala calisirken duser, ikinci ornek devralir ve
+tek ornekte kosmasi gereken is iki ornek arasinda sirayla kosar. Sinir Faz 42'de
+biliniyordu ve yalniz faz dokumanina yazilmisti — reponun KENDI testi yine de o
+aralikta kostu ve CI'da dustu. Iki sabit tek yerde durur
+(`SingletonGuard.MinimumRenewInterval` · `MinimumLeaseDuration`) ve bir test onlari
+birbirine kilitler.
+
+### Sirali test es zamanlilik korumasini kanitlamadi (2026-09-15, Faz 173, K-782)
+
+`RunEventWriter.Disable`'a `Interlocked.Exchange` korumasi kondu (iki es zamanli
+yazim tek `run`'i iki kez saymasin diye) ve ilk test sirayla uc yazim deniyordu.
+**Koruma kaldirildi, 12 testin hicbiri dusmedi** — cunku `IsDisabled` ilk hatadan
+sonra diger ikisini zaten engelliyor, yani test "bir kez"i korumadan DEGIL
+`IsDisabled`'dan goruyordu; koruma testten ayirt edilemeyen olu koddu.
+`GatedFailingRunStore` sekiz cagirani depo icinde tutar, hepsi `IsDisabled`
+kontrolunu gectikten SONRA birlikte duser. Yaris varsayimsal degildi: alt `run` kok
+yaziciya yazar.
+
+### Etiket sabiti ile log cumlesi ayni tipte yasar (2026-09-15, Faz 173)
+
+`Disable`'in gerekce parametresi dort ayri serbest metindi (K-483 sinifi) ve metrik
+etiketi olarak dogrudan kardinalite riskiydi. Sabiti ve cumleyi ayri tutmak
+"etiketi olan ama cumlesi olmayan" bir asamaya izin verirdi — operator
+filtreleyebildigi bir etiketin yaninda hicbir sey anlatmayan bir log satiri
+gorurdu.
+
+### `dotnet-counters` yanlis PID'de bos CSV birakir (2026-09-15, Faz 173)
+
+Oturum acilir, "Status: Running" yazar ve **basligi disinda bos bir CSV** birakir —
+hicbir hata yok. `collect` icin `--duration 00:00:00:30` kullanilir. Bir metrigi
+gercek surecte dogrulayan her faz bu tuzaga girer.
+
+### `RunKind.Eval` isaretsiz kaldi (2026-08-03, Faz 18, K-141)
+
+Birim testleri yakalamadi; ornek uygulamada gercek bir OpenAI cagrisiyla olculdu
+(`totalRuns:1` → duzeltmeden sonra `0`).
+
+### Kota esigi bildirimini iki akista gorunur kilan desen (2026-09-05, Faz 146)
+
+`AgentEndpoints.WriteQuotaThresholdNoticesAsync` akis bittikten (butun `update`
+cerceveleri yollandiktan) SONRA, `done` yazilmadan ONCE,
+`IRunStore.ReadEventsAsync(runId, 0, ct)` ile KISA bir tarama yapar — ayri bir kopya
+INSA ETMEZ, ayni kalici kaydi IKINCI KEZ okur. Gerekce: K-680/681/682'nin Plandan
+Sapmalar #1'i, `docs/arsiv/fazlar/146-*.md`.
+
+### Kota neden yalniz kok calistirmada isler (2026-08-03, Faz 21)
+
+Alt calistirma ayni kullanici isteginin parcasidir; ayrica sayilsaydi bir agent
+agaci kotayi derinligi kadar hizli tuketir ve her dugum icin ayri bir
+`run.completed` olayi yayilirdi. `RunScope`'a bu yuzden
+`RunId`/`RootRunId`/`Depth`/`SessionId` alanlari eklendi.
+
+## `docs/hafiza/cekirdek-calistirma.md`'den — 2026-09-15 dokuman butcesi turu
+
+### Ciplak `catch (OperationCanceledException)` saglayici kesintisini gizler (2026-09-08, Faz 157, K-737)
+
+`HttpClient` kendi istek zaman asimini da `TaskCanceledException` olarak bildirir ve
+her resmi saglayici SDK'si `HttpClient` uzerindedir. Ciplak bir
+`catch (OperationCanceledException)` bu yuzden saglayici kesintisini kullanici
+iptali sanar: `run` `Canceled` + `error: null`, uc `200` + bos govde, panolarda
+hicbir ariza gorunmez.
+
+### Negatif iptal filtresi saglayici zaman asimini `ChildRunTimedOut` sandi (2026-09-12, F-219, K-759)
+
+`!cancellationToken.IsCancellationRequested` filtresi yalniz cagiranin iptalini
+disar; saglayicinin KENDI istek zaman asimi o filtreden **gecer**.
+`ChildAgentInvoker` 30 sn'lik `ChildDeadline` icin **17 ms**'de *"did not respond in
+time (limit: 00:00:30)"* dondu ve bir saglayici kesintisini `ChildRunTimedOut`
+metrigine yazdi — operator yanlis kadrani buyutur.
+
+### Depo kapaliyken `run` ucu kayit yoluna hic ulasmaz (2026-09-15, Faz 173)
+
+`AgentEndpoints.RunAsync` akis baslamadan once uc okuma yapar — ek dosya sahipligi
+(`IAttachmentStore.GetAsync`), deney atamasi (`ExperimentAssignmentResolver` →
+`SqlExperimentStore.GetRunningAsync`) ve parametre kapisi (`AgentParameterGate`) —
+ve ucu de KASITLI olarak sesli duser: kodun yorumu *"checked BEFORE the run starts,
+so the response is a proper ProblemDetails - this is not possible once the stream
+has started"* der. Sonuc `HTTP 500`'dur ve bu bir kusur DEGILDIR.
+`DatabaseUnavailableTests`'in manifestosu zaten "okuma sesli duser, yazma sessiz"
+der. Faz 173'un DoD'si bu ayrimi bilmeden yazilmisti ve kosumda yalanlandi.
+
+### Atesle-unut gorev slot semaphore'unu asti (2026-08-25, Faz 99, F-150)
+
+Yanlis sira, host kapanisinda gecikmis `Release()` ile islenmemis
+`ObjectDisposedException` ve surec cokusu uretir.
+`JobWorkerBackgroundServiceTests` `StopAsync`'in calisan job slotu birakilmadan
+donmedigini dogrudan olcer.
+
+### Yavas `sink` `run`'i yavaslatir — olcum (2026-09-08, Faz 157)
+
+Firlatan bir `sink` ilk hatada o `run` icin devre disi kalir ve `run` surer; gecikme
+ise izole edilmez. Regresyon:
+`SlowSinkTests.A_slow_sink_delays_the_run_because_dispatch_is_inline` — alt sinir
+olarak yazilir ki hizli makine testi tesaduferen yesile ceviremesin.
+
+### Handoff yazmadan once uygulanan karar asili kaldi (2026-09-07, B03/K-726)
+
+`DecideAsync` → `StartRunAsync` → `EnqueueAsync` uclusunu saran transaction yok;
+ikinci adimdan sonraki hata "karar verildi, is baslamadi" uretir ve tekrar
+`409 AlreadyDecided` alirdi. `RunReconciliationService` kurtarmaz: yalniz `Running`
+claim eder ve default kapalidir.
+
+### `Activity.Parent` tepesi HTTP server span'idir (2026-08-26, F-164)
+
+Tepedeki local parent'i kullanmak `BeginRun` anahtariyla eslesmedi ve gercek HTTP
+yolunda tum span'leri sessizce dusurdu. HTTP parent'i olmayan birim testi kusuru
+gizledi.
+
+## `docs/hafiza/build-ve-analyzer.md`'den — 2026-09-15 dokuman butcesi turu
+
+### Dort ornek ayni `npm ci`'ye girdi (2026-09-09, K-744)
+
+Soguk damgayla `dotnet build Tracon.slnx` sirasinda **dort** ornek (`[]` + uc TFM)
+ayni `npm ci`'ye iki saniye icinde girdi. Windows
+`ENOTEMPTY ... rmdir node_modules\react-refresh` ile build'i dusurdu, Linux cogu
+zaman hayatta kaldi. Ilk belirti (2026-08-02) Vite'in `emptyOutDir`'inde
+`ENOENT ... unlink` idi.
+
+### MSBuild `Condition` sirasi: Node algilama hedefi hic kosmadi (2026-08-02)
+
+Node algilama hedefi hic kosmadi ve arayuz sessizce derlenmedi.
+
+## `docs/hafiza/dokumantasyon.md`'den — 2026-09-15 dokuman butcesi turu
+
+### `RunEventType` payload sarti uye uye anlatildi (2026-09-07, F-212)
+
+`RunEventWriter`, `TraconRunRecordingOptions.RecordToolPayloads` kapaliyken her
+olayin `Payload` alanini `null` birakir. `RunEventType`'in **32 uyesinin ~18'i**
+payload iddiasi tasiyordu ve bu sarti yalniz **3'u** aniyordu; tuketici kurali
+uyeden uyeye ogreniyor, anmayan uyede kuralin gecerli olmadigini saniyordu.
+
+Ters yonu daha tehlikeliydi: `WorkflowRequest`'in payload'i yazicida **bilerek her
+zaman** yazilir (bekleyen insan istegi yalniz oradan okunur) ama uye dokumani bu
+muafiyeti hic soylemiyordu.
+
+Kapinin olcumu: yaziciya `RunCompleted` muafiyeti eklenerek kirmizi oldugu
+dogrulandi. Ucuncu test tekrari yasaklar ve yazildigi gun uc ihlal buldu
+(`ToolOutputTruncated`, `StructuredResponseRejected`, `Custom`).
+
+### Siralama cumlesi belirsizdi, davranis testi gormedi (K-642)
+
+`Priority`'nin davranisi `CompositeAgentCatalogTests` ile zaten test ediliyordu;
+public cumlesi yine de belirsizdi. `IAgentCatalog.ListAsync` "the source with the
+higher priority wins" diyordu; `AgentSourcePriority.Database = 100` yaninda bu
+**yuksek sayi** gibi okunur, oysa dusuk sayi kazanir.
+
+Arayuz kendi kendisiyle celisiyordu: yanlis kuraldan hemen sonraki ornek cumle
+("Run recording uses 0, which makes it the outermost") dogruydu ve el yazisi
+`docs-site/concepts/runs.md` diyagrami da dogruydu. Tek bir cumle yanlisti ve
+cevresindeki her sey dogru oldugu icin kimse suphelenmedi.
+
+### Crawler politikasinin olculmus kapsami (2026-09-14)
+
+Google-Extended ve Applebot-Extended kapatmak Search/AI Overviews ve Siri kapsamini
+**etkilemez** (ikisinin de kendi dokumani); CCBot kapatmanin etkisi en genistir.
+`Allow: /` basta iken Python'un `urllib.robotparser`'i pagefind indeksini
+taranabilir raporladi.
+
+## `docs/hafiza/marka.md`'den — 2026-09-15 dokuman butcesi turu
+
+### `an Tracon` taramasinin deseni (Faz 163)
+
+Dorduncu varyant en sinsisidir: artikel satir sonunda kalir, ad sonraki satirin
+`/// ` yorum onekinden **sonra** baslar — `\s+` deseni orayi gecemez. Onu kapinin
+kendisi buldu, elle tarama degil.
+
+```python
+import pathlib, re
+sep = r"(?:\s|///|//|\*|>)+"                    # yorum oneki de ayiricidir
+pat = re.compile(rf"\b[Aa]n{sep}(?=(?:<c>|<see|`|\[)?Tracon)")   # \b YOK
+for f in pathlib.Path(".").rglob("*"):
+    if f.is_file() and f.suffix in (".cs", ".md", ".mdx", ".ts", ".tsx"):
+        if pat.search(f.read_text(encoding="utf8", errors="ignore")):
+            print(f)
+```
+
+Sondaki `\b` **olmamalidir**: `an TraconException` onunla eslesmez ve dort
+temizlik turunu boyle atlatti. `samples/` ve `tests/` agaclari ilk turda unutuldu.
+`check-content.mjs` kapisinin uretilen sayfalarda buldugu 60 vakayi kimse
+yazmamisti — uretec uretmisti.
+
+### Geri alinan iki marka karari (Faz 163 sonrasi)
+
+**H1 metafor olarak sevk edildi ve geri alindi.** `Your agents fly. You own the
+airspace.` bir anasayfa H1'i olarak yayina girdi; tuketici elestirisi uzerine geri
+alindi, cunku okur ilk iki saniyede urunun ne oldugunu ogrenemiyordu.
+
+**`production control plane` geri alindi.** Ayni ekranda "Not yet published to
+NuGet" yazarken kesin bir uretim iddiasi savunulamiyordu; `production-oriented`'a
+donuldu. `src/Tracon/Tracon.csproj` `<Description>` nuget.org sayfasina gider.
+
+**DevUI iddialarinin siniri:** DevUI'nin kaliciligi hakkinda iddia **yazilmaz**,
+cunku Microsoft'un yayinlanmis dokumaninda belgelenmemistir. Anasayfa yalniz
+alintiyi ve uretim tavsiyesini tasir.

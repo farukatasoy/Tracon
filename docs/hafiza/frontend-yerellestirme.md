@@ -58,6 +58,9 @@
   ilk render'dan **once** cagrilir (`applyTheme` ile ayni gerekce).
 - `src/locales/en.ts` — anahtar kumesinin **kaynagi**; `Messages` tipi buradan cikar.
 - `src/locales/tr.ts` — `tr: Messages`; eksik anahtar derleme hatasi.
+- **Sunucu yanitlari CEVRILMEZ** (K-232): `ProblemDetails`, dogrulama mesaji ve
+  hata metni sunucunun dilindedir; sozluk yalnizca ARAYUZ metnini kapsar. Kural
+  `AGENTS.md`'den 2026-09-15 dokuman butcesi turunda buraya tasindi.
 - `src/lib/shortcuts.ts` — saf kisayol eslemesi (`chordOf`, `isTextEntry`,
   `createShortcutMatcher`). DOM'a dokunan tek yer `components/layout.tsx`'teki
   `useConsoleShortcuts`; pencere dinleyicisi bir ref uzerinden **tek** tutulur.

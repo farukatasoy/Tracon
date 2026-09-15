@@ -35,15 +35,12 @@
   grep error` ile hatayi gorup yine de test binary'sini kosmak **onceki**
   surumu olcer ve yesil gorunur. Faz 78'de bu iki kez oldu (mutasyon denetimi ve
   `MA0002`). Kosumdan once derlemenin gercekten yesil oldugunu dogrula.
-- **🚨 Tam cozum `dotnet test`i art arda Docker tabanli paket (`SqlServer`,
-  `PostgreSql`) kosarsa `Testcontainers` teardown'i yarisa girer** (Faz 81
-  kapanisi). Belirti: her test `Passed` VE `Test Assembly Cleanup Failure` ile
-  ikiletir (`Passed: N, Failed: N, Total: 2N`) — gercek assertion asla
-  KIRMIZI degildir; `PostgresFixture.DisposeAsync()`'in konteyner silme
-  cagrisi `TaskCanceledException` alir, cunku bir onceki paketin (`SqlServer`)
-  KENDI teardown'i Docker daemon'ini hala mesgul ediyordur. Izole kosumda
-  (`dotnet test tests/<Paket>`) her zaman temiz. Ayirt etme aynidir: izole
-  kostur, gecerse kaynak cekismesi.
+- **🚨 Art arda kosan Docker tabanli paketlerde `Testcontainers` teardown'i
+  yarisa girer** (Faz 81): her test `Passed` VE `Test Assembly Cleanup Failure`
+  ile ikiletir (`Passed: N, Failed: N, Total: 2N`); gercek assertion asla
+  KIRMIZI degildir. Ayirt etme: izole kostur (`dotnet test tests/<Paket>`),
+  gecerse kaynak cekismesi. Vaka:
+  [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 
 ## Sevk edilen xunit.v3 test taban sınıfları: `xunit.v3` DEĞİL `xunit.v3.extensibility.core` (Faz 98)
 
@@ -81,16 +78,11 @@ tekrarlanmalı — ve `.editorconfig`'in `[tests/**/*.cs]` bölümü (CA1707 alt
 ## Sevk edilen sozlesme paketi (Faz 98 · 99)
 
 
-- **🚨 `ContractCoverage` gibi bir "hepsini bul" reflection kapisi, YENI bir
-  sozlesme ailesi eklenince TUM mevcut tuketicileri kirar.** Faz 98'in
-  `ContractTypes()`'i derlemedeki adi `Contract` ile biten her public abstract
-  tipi donduruyordu; Faz 99 sagalayici ailesini ekleyince dort depolama kapsam
-  testi (bellek ici + uc SQL) birden kirmiziya dondu — kendilerine ait olmayan
-  sozlesmeleri turetmedikleri icin. Ders: boyle bir kapi **ilk gunden** bir
-  aile/kapsam parametresi almalidir, ve kapsamsiz asiri yukleme BIRAKILMAMALIDIR
-  (birakmak tuzagi birakmaktir). Eslesme uretmeyen bir kapsam `ArgumentException`
-  atmalidir — aksi halde yazim hatasi "hicbir sozlesme yok, demek ki hepsi
-  kapsanmis" diyen yesil bir kapi uretir (K-610).
+- **🚨 "Hepsini bul" reflection kapisi **ilk gunden** aile/kapsam parametresi
+  almalidir; kapsamsiz asiri yukleme BIRAKILMAZ ve eslesmeyen kapsam
+  `ArgumentException` atmalidir** (K-610) — aksi halde yazim hatasi "hicbir
+  sozlesme yok, demek ki hepsi kapsanmis" diyen yesil bir kapi uretir. Faz 98/99
+  vakasi: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 - **🚨 `xunit.v3.extensibility.core` `Assert` TASIMAZ.** `Assert.Skip` /
   `Assert.SkipWhen` `xunit.v3.assert` paketindedir ve o paket sevk edilen
   sozlesme paketinin cozulmus grafiginde YOKTUR (olculdu, `project.assets.json`).
@@ -111,33 +103,19 @@ tekrarlanmalı — ve `.editorconfig`'in `[tests/**/*.cs]` bölümü (CA1707 alt
   `[samples/*.Tests/**/*.cs]` glob'u **eslesmedi** (denendi); bastirmayi projenin
   kendi `<NoWarn>`'una gerekcesiyle yazmak hem calisiyor hem de yanindaki ornek
   UYGULAMALARI gevsetmiyor.
-- **🚨 `ImplementationFactory.Method.Name`/`DeclaringType` derleyici-üretimi
-  closure adı, PARTIAL CLASS genelinde numaralanır — dosya değil, hatta metot
-  bile değil** (2026-08-26, Faz 105): `TryAddSingleton(static provider => ...)`
-  kayıtlarını bir DI kayıt anlık görüntü testinde ayırt etmek için lambda'nın
-  `Method.Name`'ini (`<RegisterCoreInfrastructure>b__48_0` gibi) kullanmak
-  cazip görünür. Ölçüldü: sınıfa TAMAMEN ilgisiz bir private metot
-  (`BindCoreFields`) eklemek bile sonraki HER closure'ın numarasını kaydırdı
-  (`b__48_0` → `b__49_0`) — gerçek bir DI davranış değişikliği olmadan test
-  kırıldı. Aynı `ServiceType`+`Lifetime` çiftini paylaşan birden fazla factory'yi
-  ayırt etmek gerekiyorsa (`ServiceRegistrationSnapshotTests`'in vazgeçtiği
-  kullanım), bunun yerine ya `ServiceProvider` kurup gerçek `.GetType()`'ı
-  resolve et ya da farkı basitçe kabul edip testin XML dokümanına yaz — kırılgan
-  bir ayrım, kapattığı boşluktan daha pahalıdır.
-- **🚨 Satır-bazlı bir mimari cırcır taraması, ÇOK SATIRLI bir yapıyı sessizce
-  yanlış kapsar — çökmez, olduğundan FAZLA eşleşir** (2026-08-27, Faz 119):
-  `RawExceptionTextSiteTests`'in blok-sonu bulucusu "`catch` satırından sonraki
-  ilk satır `{` mi" varsayıyordu. `WorkflowNodeRetry.cs`'deki çok satırlı
-  `catch (Exception exception) when (...)` şeklinde açılış `{` üç satır sonra
-  geliyordu; bulucu onu bulamayınca "fallback: dosya sonuna kadar" moduna
-  düşüyor ve kategorik olarak ilgisiz bir metodun `.Message` satırını da aynı
-  "catch bloğu" sanıyordu — sahte pozitif, ama SESSİZ (test hâlâ çalışıyor,
-  yalnız yanlış siteyi raporluyor). Bir line-based tarayıcı yazarken "imzanın
-  tamamı tek satırda" varsayımını asla yapma; gerçek repo kod stilinde çok
-  koşullu `when`/`if` neredeyse her zaman çok satırlıdır. Tarayıcının kendi
-  regresyon testleri de tek-satır örnek kullandığı için bunu yakalamadı —
-  gerçek `src/` ağacında REFRESH koşup çıkan siteleri tek tek okumak asıl
-  yakalayan adımdı.
+- **🚨 Derleyici-üretimi closure adina (`Method.Name`) DAYANMA** (2026-08-26,
+  Faz 105): numaralama PARTIAL CLASS genelindedir — ilgisiz bir private metot
+  eklemek sonraki her closure'in numarasini kaydirir ve DI anlik goruntu testi
+  davranis degismeden kirilir. Ayirt etmek gerekiyorsa `ServiceProvider` kurup
+  gercek `.GetType()`'i resolve et. Olcum:
+  [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
+- **🚨 Satir-bazli bir tarayicida "imzanin tamami tek satirda" varsayimini ASLA
+  yapma** (2026-08-27, Faz 119): cok satirli bir yapiyi sessizce yanlis kapsar —
+  cokmez, olmasi gerekenden FAZLA eslesir. Gercek repo stilinde cok kosullu
+  `when`/`if` neredeyse her zaman cok satirlidir. Tarayicinin kendi regresyon
+  testi tek-satir ornek kullanirsa bunu yakalamaz; yakalayan adim gercek `src/`
+  agacinda kosup cikan siteleri tek tek okumaktir. Vaka:
+  [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 - **🚨 Yeni bir XML `<example>`'a illüstratif bir tip adı eklemek `Tracon.
   Generators.UnitTests`'i kırar, hedef paketin kendi test projesini DEĞİL**
   (Faz 122): `tests/Tracon.Generators.UnitTests/Examples/ExampleCompilationTests`
@@ -193,19 +171,11 @@ Tek basina gecip tam kosumda dusen test AYRI dosyadadir:
   **Ders: bir "hâlâ cagriliyor mu" kapisi yazarken once o cagrinin dosyada
   KAC KEZ gectigini olc; bir'den buyukse `IsMatch` yanlis aractir.**
 
-- **🚨 Bir DEDEKTORU yalniz POZITIF yonde test etmek, onu kor birakir**
-  (2026-09-06, F-206). `denetim-paketi.py`'nin test tiyatrosu tarayicisi
-  `\bShould\b` ariyordu. Bu depo Shouldly kullanir ve her iddia
-  `ShouldBe`/`ShouldContain`/`ShouldNotBeNull` seklindedir — `Should`'dan sonra
-  kelime karakteri geldigi icin `\b` sinir OLUSTURMAZ ve desen hicbirini
-  eslestirmez. Olculdu: `tests/` agacinda **7488** Shouldly cagrisi, **6**
-  `Assert.` cagrisi; yani tarayici pratikte HER yeni testi "iddiasiz aday"
-  sayiyordu. Var olan tek testi (`test_iddiasiz_test_adayini_bulur`) yalniz
-  "iddiasiz test YAKALANIR"i kanitliyordu; "iddiali test YAKALANMAZ" hic
-  denenmemisti ve kusur tam orada yasadi. **Ders: bir tarayici/kapi testi HER
-  ZAMAN iki yonlu yazilir** — eslesmesi gerekeni eslestirdigi KADAR,
-  eslesmemesi gerekeni eslestirmedigi de kanitlanir. Cikis kodunu kirmayan bir
-  dedektorde bu daha da onemlidir: gurultu sessizce normallesir.
+- **🚨 Bir tarayici/kapi testi HER ZAMAN iki yonlu yazilir** (2026-09-06, F-206):
+  eslesmesi gerekeni eslestirdigi KADAR, eslesmemesi gerekeni eslestirmedigi de
+  kanitlanir. Cikis kodunu kirmayan bir dedektorde bu daha da onemlidir —
+  gurultu sessizce normallesir. `\bShould\b` vakasi:
+  [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 - **Sozlesme testleri `tests/Shared/` altindadir** ve saglayici basina bir entegrasyon test projesine derlenir (`Tracon.StoreContracts` ad alani). Yeni bir saglayici eklerken sozlesme testi YAZILMAZ; yalnizca kosucu sinif turetilir. SQLite bu iddianin DORDUNCU kanitidir (K-194).  
   *(2026-09-07'de `sql-saglayicilari.md`'den butce icin tasindi.)*
 - **Ayrı process başlatan altyapı `tests/Shared/Infrastructure/` altındadır ve LINK'lenir, kopyalanmaz** (Faz 157): `ProcessRunner` (`RunAsync` = bitmesini bekle, `StartAsync` = uzun ömürlü + `ManagedProcess` ile `SIGKILL`), `RepoRoot`, `WorkerProcessHost`, `HarnessExecutionLog`. Tüketen proje `<Compile Include="../Shared/Infrastructure/..." Link="..."/>` ile bağlar; ikinci kopya K-411 sınıfıdır. MSBuild `nodeReuse` deadlock düzeltmesi tek bir `CreateStartInfo` gövdesindedir; iki giriş noktası onu paylaşır.
