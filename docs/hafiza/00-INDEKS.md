@@ -43,6 +43,7 @@
 | Kapasite ölçümü aparatı (`bench/capacity/`) | [kapasite-olcumu](kapasite-olcumu.md) |
 | Arayüz (Vite, SPA rota, TS, ekran) | [frontend](frontend.md) |
 | Arayüz tasarım katmanı (token, tema, primitif) | [frontend-tasarim-katmani](frontend-tasarim-katmani.md) |
+| Arayüz modal katmanı (`Dialog`, doğrulama adımı, `window.confirm` yasağı) | [frontend-modal-katmani](frontend-modal-katmani.md) |
 | Arayüz yerelleştirme (`useT`, `Messages`) | [frontend-yerellestirme](frontend-yerellestirme.md) |
 | Arayüz test altyapısı (Vitest, `openapi-fetch` stub) | [frontend-test-altyapisi](frontend-test-altyapisi.md) |
 | Model sağlayıcısı (OpenAI/Anthropic/Google) | [openai-saglayici](openai-saglayici.md) |

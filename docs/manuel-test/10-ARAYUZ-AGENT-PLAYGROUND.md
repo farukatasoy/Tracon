@@ -633,10 +633,10 @@ Sınır durumu — `isEditable = false`.
 | **İzlek** | B |
 | **Önem** | Yüksek |
 | **İlgili faz** | Faz 5, 175 |
-| **İlgili karar** | K-790, K-791 |
+| **İlgili karar** | K-785, K-786 |
 
 🚨 **Faz 175'te yeniden yazıldı.** Bu case tarayıcının kendi `window.confirm`
-kutusunu bekliyordu; K-790 onu konsoldan tamamen kaldırdı. Adım silinmedi,
+kutusunu bekliyordu; K-785 onu konsoldan tamamen kaldırdı. Adım silinmedi,
 konsolun kendi `ConfirmDialog`'una taşındı — agent silmek §175.3 ölçütünün (a)
 dalını geçer (sürüm geçmişi `ON DELETE CASCADE` ile gider).
 
@@ -801,7 +801,7 @@ Edge davranış.
 ### MT-UIAG-024 — "Geri Al" tek tık kalır; Sil doğrulama ister — asimetri BİLİNÇLİDİR
 
 🚨 **Faz 175'te yeniden yazıldı.** Bu case 2026-08-09'da açıklanamayan bir
-asimetriyi kaydediyordu. Faz 175 ikisini de §175.3 ölçütüne bağladı (K-791) ve
+asimetriyi kaydediyordu. Faz 175 ikisini de §175.3 ölçütüne bağladı (K-786) ve
 asimetri artık bir karardır, bir kaza değil:
 
 - **Sil** ölçütün (a) dalını geçer — tanımla birlikte `agent_definition_versions`
@@ -832,7 +832,7 @@ doğrulatmamakla aynı yere çıkar. Bu case o kararın koşumda teyididir.
 
 **Beklenen sonuç**
 - Adım 2: HİÇBİR doğrulama dialogu çıkmaz — düğme `busy` durumuna geçer ve
-  istek hemen gider. Bu bilinçlidir (Faz 175, K-791): geri alma §175.3
+  istek hemen gider. Bu bilinçlidir (Faz 175, K-786): geri alma §175.3
   ölçütünü geçmez. Ama tek tık **sessiz** değildir — odakta
   `agentDetail.rollbackEffect` tooltip'i hangi sürümün canlı olacağını söyler.
 - Adım 3: yeni bir `v4` satırı belirir, içeriği `v1`'in içeriğiyle AYNIDIR

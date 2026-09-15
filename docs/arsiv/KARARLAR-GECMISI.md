@@ -5537,3 +5537,75 @@ Bu ayrımın maliyeti ölçüldü: Faz 166'nın beş 🔴 bulgusunun beşi de "k
 olan ama denetlenmeyen sayı" sınıfındaydı ve dördüncüsü (storage tablosunun
 seed şekli) kapatıldığı ilan edilmesine rağmen Faz 174'te **hâlâ açıktı** —
 kapı olmadan bir düzeltmenin tuttuğunu kimse ölçmüyordu.
+
+### K-785
+
+Faz 175 konsolda **dokuz** `window.confirm` çağrı yeri buldu — planın kanıt
+tablosu "hiçbir aksiyonda doğrulama yok" diyordu. Native dialog üç şeyi birden
+bozuyordu:
+
+1. **Biçimlenemez ve çevrilemez.** Tarayıcının kendi kabuğunda, işletim
+   sisteminin dilinde gelir. K-232 sunucunun dilini konu alır; bu, işletim
+   sisteminin diliydi ve konsolun `locale`'iyle hiç ilgisi yoktu.
+2. **Varsayılan düğmesi KABUL edendir.** Her büyük tarayıcıda `Enter` "Tamam"a
+   basar — yani doğrulama adımının önlemek için var olduğu mis-click'in ta
+   kendisi. Erişilebilir bir doğrulamada açılış odağı İPTAL'dedir.
+3. **Olay döngüsünü bloke eder ve Playwright onu otomatik dismiss eder.** Bu
+   sonuncusu sessiz bir kapsama boşluğu üretmişti: bugüne dek hiçbir E2E olgusu
+   bir silme düğmesine tıklayamıyordu, ve fazın planı "silme düğmesine tıklayan
+   her olgu taşınır" derken taşınacak olgu **yoktu**.
+
+Kapı `frontend/scripts/check-modal-layer.mjs`'dir ve iki kural zorlar: native
+modal yok, ve kendi `fixed inset-0` katmanını çizen her dosya `useFocusTrap`
+**çağırır**. İkincisi bilerek allowlist değildir: `command-palette.tsx` meşru
+olarak kendi backdrop'ını çizer ve doğru olmasının sebebi tam olarak hook'u
+koşmasıdır — kural dosya adını değil, dört özelliği konu alır.
+
+### K-786
+
+Ölçüt şudur: bir aksiyon doğrulama adımı alır ancak **(a)** arayüzden aynı
+girdilerle geri getirilemeyen bir durumu yok ediyorsa veya **(b)** tekrarlanamayan
+bir kararı kesinleştiriyorsa (K-368: onay kararından sonra soran `run` sonsuza
+dek `AwaitingApproval` kalır).
+
+Kararın değeri "hangi düğme dialog alır" değil, **ölçülebilir olmasıdır**:
+
+```bash
+grep -rn "ON DELETE" src/Tracon.PostgreSql/Migrations/*.sql
+```
+
+`CASCADE` varsa (a) vardır — `agent_definition_versions`, `conversation_items`,
+`eval_cases` + `eval_runs`, `skill_scripts`. `SET NULL` varsa yoktur:
+`jobs.schedule_id` öyledir, dolayısıyla bir zamanlamayı silmek job geçmişini
+yok etmez. Bağımlı tablosu hiç olmayan `inbound_triggers` ve `mcp_servers`
+K-059 gereği yalnız yapılandırma **anahtar adını** tutar, `secret`'i değil —
+ikisi de aynı formdan yeniden kurulur.
+
+En ince vaka `experiments`'tir ve ölçütün neden şemaya bakması gerektiğini
+gösterir: `runs.experiment_id` bir foreign key **taşımaz**, yani satırlar
+hayatta kalır. Ama varyant eşlemesini yalnız deney satırı taşır ve aynı adla
+yeniden oluşturmak YENİ bir `uuid` verir — eski `run`'lar ona bir daha
+bağlanmaz. Sonuçlar veritabanındadır ve artık okunamaz. Bu (a)'dır.
+
+Karşı maliyet gerçektir ve kararın diğer yarısıdır: her şeyi doğrulatmak
+hiçbirini doğrulatmamakla aynı yere çıkar. Ölçütü geçmeyen yedi aksiyon tek
+tık kalır ve bunun bir E2E olgusu vardır
+(`An_action_that_fails_the_criterion_stays_one_click_and_still_says_what_it_does`),
+çünkü bir kapı "fazla dialog" durumunu göremez.
+
+### K-787
+
+Dialog aksiyon uçarken açık kalır. Reddedilince kapanan bir dialog operatöre
+başarıyla **birebir aynı görünen** bir ekran bırakır. Dialog modal olduğu için
+ekranın kendi `ErrorNote`'u arkada kalır ve aynı cümle iki kez görünmez.
+
+Bunun bir bedeli vardır ve Faz 175'in denetimi onu bir 🔴 olarak buldu: çift tık
+koruması "uçuşta olan tek aksiyon"u korur, dolayısıyla aksiyon **sonuçlandığında**
+bırakılmalıdır. Yalnız dialog kapandığında bırakmak, 409'dan sonra etkin görünen
+ama hiçbir şey yapmayan bir onay düğmesi üretiyordu. Doğru ömür `busy`'nin düşen
+kenarıdır.
+
+İkinci yarısı metin kaymasıdır: `consequence` katman 1'in tooltip'iyle **aynı**
+i18n anahtarından gelir. İki yerde iki cümle yazmak, aceleci bir operatörün
+hangisine baktığına bağlı bir kayma üretir; `agentDetail.rollbackEffect`
+emsali bu kuralın kendisidir.

@@ -719,12 +719,12 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
   `10-ARAYUZ-AGENT-PLAYGROUND.md` `MT-UIAG-043` bunu koşumda kaydeder.
 - ✅ **"Geri Al onay istemez, Sil ister" asimetrisi KAPANDI (2026-09-16, Faz 175).**
   Eski not (2026-08-09) bunu açıklanamayan bir asimetri sayıyordu. Faz 175 ikisini
-  de bir **ölçüte** bağladı (K-791) ve asimetri artık bilinçlidir: Sil, tanımla
+  de bir **ölçüte** bağladı (K-786) ve asimetri artık bilinçlidir: Sil, tanımla
   birlikte sürüm geçmişini de yok eder (`agent_definition_versions ON DELETE
   CASCADE`) ve ölçütün (a) dalını geçer → `ConfirmDialog`. Geri Al hiçbir şeyi
   yok etmez — eski sürüm geçmişte kalır ve yeniden geri alınabilir → yalnız
   katman 1 (`agentDetail.rollbackEffect` tooltip'i, Faz 164). `window.confirm`
-  artık konsolda hiç yoktur (K-790) ve bir kapı bunu zorlar
+  artık konsolda hiç yoktur (K-785) ve bir kapı bunu zorlar
   (`frontend/scripts/check-modal-layer.mjs`).
 - ✅ **Faz 31 (Geri Bildirim ve Puanlama) boşluğu KAPATILDI (2026-08-10,
   `17-EVAL-VE-DENEYLER.md` üretilirken).** Aşağıdaki not (2026-08-09,

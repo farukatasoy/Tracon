@@ -710,7 +710,7 @@ Hafif yük senaryosu ([`PROMPT.md`](../arsiv/manuel-test-kosum-2026-08/PROMPT.md
 2. Sağ üstteki "İptal Et" düğmesine **klavyeyle odaklan** (basma) ve tooltip'i
    oku. 🚨 **Faz 175'te değişti:** burada artık hiçbir onay penceresi açılmaz —
    iptal §175.3 ölçütünü geçmez (geri alınamaz ama yok edici değildir; iş
-   yeniden tetiklenebilir), o yüzden yalnız katman 1 taşır (K-790, K-791).
+   yeniden tetiklenebilir), o yüzden yalnız katman 1 taşır (K-785, K-786).
 3. Çalıştırma bitince (veya `MT-UIRUN-022`'de iptal edilince) sayfayı
    tekrar aç, düğmenin durumuna bak.
 
@@ -1205,8 +1205,8 @@ Negatif senaryo — sunucu "yok" ile "başka kiracıya ait"i AYNI 404'la örtüy
   `playground/manuel-bos` aç, `Merhaba` gönder.
 
 🚨 **Faz 175'te yeniden yazıldı:** tarayıcının `window.confirm` kutusu kalktı
-(K-790), yerine konsolun kendi `ConfirmDialog`'u geldi. Oturum silme ölçütün
-(a) dalını geçer — `conversation_items` `ON DELETE CASCADE` ile düşer (K-791).
+(K-785), yerine konsolun kendi `ConfirmDialog`'u geldi. Oturum silme ölçütün
+(a) dalını geçer — `conversation_items` `ON DELETE CASCADE` ile düşer (K-786).
 
 **Adımlar**
 1. "Oturumlar" ekranında o satırın çöp kutusu düğmesine tıkla.
