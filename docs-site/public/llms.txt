@@ -309,6 +309,7 @@ columns. Every generated reference page under /api/ and /http-api/ has one too.
 - [Licensing](https://tracon.dev/reference/licensing/) — Free for individuals, open source projects and small companies; larger companies buy a commercial licence. Which package carries which terms, and why.
 - [Read contract views](https://tracon.dev/reference/read-views/) — Query Tracon's run data directly with your own SQL or an EF Core keyless entity, through a versioned, read-only view instead of the internal tables.
 - [Security policy](https://tracon.dev/reference/security-policy/) — How to report a vulnerability in Tracon privately, what is in scope, which versions get security fixes, and what response to expect.
+- [Threat model](https://tracon.dev/reference/threat-model/) — Who attacks a Tracon deployment, from where, and which boundary stops them — with the gaps named instead of hidden.
 - [Versions and upgrades](https://tracon.dev/reference/versioning/) — Understand which Tracon release these docs describe, pin preview packages safely, and upgrade the full package family without drift.
 - [Troubleshooting](https://tracon.dev/troubleshooting/) — Symptom-first fixes for installation, providers, tools, storage, security, streaming, background work, MCP, voice, and the console.
 - [The console](https://tracon.dev/ui/) — Tour the embedded Tracon console by task, understand its security model, and know which features remain code or HTTP only.

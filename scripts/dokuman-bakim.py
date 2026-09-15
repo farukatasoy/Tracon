@@ -127,6 +127,9 @@ SORGU_BUTCESI = {
     # olarak secildi (58.4 kalibrasyonu) -- dosya DAR dogmasin diye.
     "CONTRIBUTING.md": 7_800,   # olculen 6_624 (denetim bulgusu 4 ve 8 sonrasi)
     "ARCHITECTURE.md": 8_900,   # olculen 7_484 (denetim bulgusu 1 ve 2 sonrasi)
+    # Faz 172 (F-235): tehdit modeli. `MIMARI-GUVENLIK.md`e atif yapar, onu
+    # TEKRAR ETMEZ -- ayri sinir (58.4 kalibrasyonu: olculen 14_069, %15 bosluk).
+    "docs/MIMARI-TEHDIT-MODELI.md": 16_600,
 }
 
 YONETIM_BUTCESI = {

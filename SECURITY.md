@@ -46,3 +46,7 @@ secret to storage, a log, or a response.
 
 Out of scope: model output quality, prompt injection that a configured guard is
 not enabled to stop, and denial of service produced by quotas you configured.
+
+See the [threat model](https://tracon.dev/reference/threat-model/) for who
+this scope assumes as an attacker, which boundary each one hits, and which
+combinations are accepted risk rather than a covered boundary.

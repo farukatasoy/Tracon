@@ -104,6 +104,47 @@ for (const [label, pattern] of securityPolicyFacts) {
   }
 }
 
+// The threat model's boundary table restates the set of boundaries from the
+// authorization guide, for a reader who never opens that page. A phase that adds or
+// removes a boundary there and forgets the model leaves a stale promise standing -
+// the direction that matters more, because it claims a protection that no longer
+// exists. Same pattern as securityPolicyFacts above, applied to a table's first
+// column instead of a fixed set of facts.
+function boundaryNames(markdown, heading) {
+  const headingIndex = markdown.indexOf(heading);
+  if (headingIndex === -1) return null;
+  const afterHeading = markdown.slice(headingIndex + heading.length);
+  const nextHeading = afterHeading.search(/\n#{1,6} /);
+  const section = nextHeading === -1 ? afterHeading : afterHeading.slice(0, nextHeading);
+  const rows = section.split('\n').filter((line) => line.trim().startsWith('|'));
+  // rows[0] is the header row, rows[1] the `---` separator; data starts at rows[2].
+  return rows.slice(2).map((row) => row.split('|')[1].trim());
+}
+
+const authGuide = readFileSync(join(docsRoot, 'getting-started/security.md'), 'utf8');
+const threatModel = readFileSync(join(docsRoot, 'reference/threat-model.md'), 'utf8');
+const authGuideBoundaries = boundaryNames(authGuide, '## The boundaries Tracon enforces');
+const threatModelBoundaries = boundaryNames(threatModel, '## Boundary mapping');
+
+if (!authGuideBoundaries) {
+  errors.push('getting-started/security.md: "The boundaries Tracon enforces" table not found');
+} else if (!threatModelBoundaries) {
+  errors.push('reference/threat-model.md: "Boundary mapping" table not found');
+} else {
+  const authSet = new Set(authGuideBoundaries);
+  const modelSet = new Set(threatModelBoundaries);
+  for (const boundary of authGuideBoundaries) {
+    if (!modelSet.has(boundary)) {
+      errors.push(`reference/threat-model.md is missing the "${boundary}" boundary that getting-started/security.md lists`);
+    }
+  }
+  for (const boundary of threatModelBoundaries) {
+    if (!authSet.has(boundary)) {
+      errors.push(`reference/threat-model.md lists a "${boundary}" boundary that getting-started/security.md no longer does`);
+    }
+  }
+}
+
 for (const page of requiredManualPages) {
   if (!existsSync(join(docsRoot, page))) {
     errors.push(`Missing capability page: ${page}`);
