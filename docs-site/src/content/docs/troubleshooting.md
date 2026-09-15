@@ -84,8 +84,10 @@ The persistence choices are `memory`, `postgres`, `sqlite`, and `sqlserver`.
 
 ### A package will not target my test project
 
-Runtime packages target .NET 8, 9, and 10. `Tracon.Testing` targets .NET 10 only,
-and the template generates a .NET 10 application. See
+Every package you reference from application or test code targets .NET 8, 9, and
+10 — `Tracon.Testing` included, so a .NET 8 LTS application can be tested with the
+same helpers it runs with. Two packages are single-framework on purpose: the
+`tracon` CLI is a .NET tool, and the template generates a .NET 10 application. See
 [Compatibility](/reference/compatibility/).
 
 ### Startup reports an option-validation failure

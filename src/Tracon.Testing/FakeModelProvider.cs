@@ -33,8 +33,10 @@ public sealed class FakeModelProvider : ITenantCredentialModelProvider, IDisposa
 {
     private readonly Dictionary<string, FakeModelScript> _scripts = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<ModelDescriptor> _models = [];
+    // The recorded-request list is locked ON ITSELF. Since net8.0 is also targeted,
+    // System.Threading.Lock is unavailable, and a separate object field would trigger
+    // MA0158 on net9.0+ — the same pattern as InMemoryJobStore.
     private readonly List<FakeModelRequest> _requests = [];
-    private readonly Lock _gate = new();
     private readonly FakeModelScript _default = new();
 
     private FakeModelScript _current;
@@ -60,7 +62,7 @@ public sealed class FakeModelProvider : ITenantCredentialModelProvider, IDisposa
     {
         get
         {
-            lock (_gate)
+            lock (_requests)
             {
                 return [.. _requests];
             }
@@ -264,7 +266,7 @@ public sealed class FakeModelProvider : ITenantCredentialModelProvider, IDisposa
 
     private void Record(FakeModelRequest request)
     {
-        lock (_gate)
+        lock (_requests)
         {
             _requests.Add(request);
         }
