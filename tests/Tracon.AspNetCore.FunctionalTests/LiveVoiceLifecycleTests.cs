@@ -20,7 +20,17 @@ public sealed class LiveVoiceLifecycleTests
     private const string Agent = "code-agent";
     private const string Sdp = "v=0\r\no=- 1 1 IN IP4 0.0.0.0\r\ns=-\r\nt=0 0\r\n";
 
-    private static readonly TimeSpan Patience = TimeSpan.FromSeconds(10);
+    /// <summary>How long a wait may take before it is reported as a hang.</summary>
+    /// <remarks>
+    /// 🚨 This is NOT a performance budget. It bounds a failure so a broken live
+    /// session reports instead of hanging the suite; when the condition is already
+    /// true, a larger value costs nothing. Ten seconds was a claim about the
+    /// machine, and a loaded full-solution run broke it twice — the fixes before
+    /// this one both corrected WHAT the test waits for and left the bound alone.
+    /// The live-voice path is the slowest thing in this assembly (a real WebSocket
+    /// handshake, a fake device, and a server round trip), so it gets the room.
+    /// </remarks>
+    private static readonly TimeSpan Patience = TimeSpan.FromSeconds(60);
 
     [Fact]
     public async Task The_transcript_is_written_to_the_session_history_when_persistence_is_on()

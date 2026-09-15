@@ -87,6 +87,64 @@ daha once gorup gormedigini oradan arar, bastan sona okumazsin:
   koşum → `git stash pop` uygula. Worktree kullanma; extension sample'ları yerel
   NuGet feed'ini ister ve `artifacts/package/release` worktree'de yoktur.
 
+## 🚨 Sabit `Task.Delay` ile arka plan tikini BEKLEMEK, makine hakkinda bir iddiadir (Faz 173)
+
+`ModelHealthSingletonTests.Health_check_runs_on_only_one_instance` tam kosumda
+dustu, izole UC kez gecti. Belirti aldaticiydi: `providerA=0, providerB=0` —
+yani iddia edilen sey (yalniz BIRI kossun) yanlis degildi, **hicbiri henuz
+kosmamisti**. Test 60 ms'lik arka plan araligi icin `Task.Delay(500)`
+bekliyordu; yuklu bir tam kosumda o pencereye tek bir tik bile sigmadi.
+
+Ayirt eden kural: **sabit gecikme + POZITIF iddia** = kirilgan. Yuk arttikca
+kosul daha az saglanir.
+
+Ayni dosyadaki sabit gecikmelerin cogu bu sinifta DEGILDIR ve taramada
+elenmelidir:
+
+- **Bir sureyi gercekten bekleyen** gecikme (`SingletonLeaseTakeoverTests`:
+  kiranin dolmasini bekler) — yuk altinda kosul daha DA saglanir.
+- **Negatif iddia** oncesi gecikme (`JobWorkerBackgroundServiceTests`:
+  *"stop henuz tamamlanmadi"*, *"scope disi is lease EDILMEDI"*) — yuk
+  altinda yine saglanir. Bunlarin zayifligi baska bir sinitir (az beklenmis
+  negatif iddia sahte YESIL verebilir), kirilganlik degil.
+- **Sahte icinde is simule eden** gecikme — testin bekleyisi degildir.
+
+Cozum saati kaldirmaktir, buyutmek degil: sinyali yokla
+(`WaitUntilAsync(() => …)`) ve zaman asimini yalnizca **arizayi sinirlamak**
+icin comert tut — o bir performans butcesi degildir. Kosul zaten dogruysa
+uzun timeout hicbir sey maliyet etmez.
+
+🚨 Ayni dosyanin kendi yorumu bu dersin **ilk yarisini** zaten tasiyordu
+(kira suresi yuk altinda dolup devir oluyordu, Faz 42). Zamana bagimlilik
+kiradan BEKLEYISE tasindi ve ikinci kez ayni testi dusurdu. Bir testten
+duvar saatini kaldirirken **her** saat bagimliligini birlikte kaldir.
+
+### Ayni sinifin ikinci bicimi: BEKLEYIS var ama SINIRI bir makine varsayimi (Faz 173)
+
+Ayni kapanis kosumunda iki `voice` testi de dustu ve ikisi de **dogru sekilde**
+sinyali bekliyordu — sorun bekleyisin kendisi degil, **siniriydi**:
+
+| Test | Sinir | Belirti |
+|---|---|---|
+| `LiveVoiceLifecycleTests.The_transcript_is_written_…` | `Patience = 10 sn` | `TimeoutException: The condition never became true` (11,2 sn'de) |
+| `UiTests.Playground_voice_mode_…` | Playwright `Timeout = 30_000` | `waiting for GetByTestId("voice-transcript") to be visible` |
+
+Ucu de ayni kural: **bir zaman asimi bir PERFORMANS BUTCESI DEGILDIR.** Isi
+yalnizca bir arizayi sinirlamaktir — kosul zaten saglaniyorsa buyuk bir sinir
+hicbir sey maliyet etmez, kucuk bir sinir ise "bu makine su kadar hizli"
+iddiasidir ve yuklu bir tam kosumda yalan olur.
+
+🚨 Bu iki testin yorumlari **iki onceki duzeltmeyi** zaten anlatiyordu
+(*"measured twice in a full-solution run"*, *"measured again in the Phase 166
+closing run"*) ve ikisi de NE beklenecegini duzeltmisti; SINIRA hic
+dokunulmamisti. `voice` yolu bu pakette en yavas zincirdir (gercek WebSocket
+handshake + sahte ses cihazi + sunucu turu) ve en dar siniri tasiyordu.
+
+Kural: bir bekleyisi duzeltirken **iki soruyu birden** sor — *neyi* bekliyor,
+ve *ne kadar* bekleyebiliyor. Yalnizca birincisini duzeltmek ayni testi bir
+kosum sonra geri getirir. F-180'in kaydi (kapanis "✅ KAPANDI" isaretlendi,
+test ertesi gun ayni imzayla dustu) tam olarak budur.
+
 ## 🚨 `HttpListener`'ı iki kez kapatmak BAŞKA testin portunu çalar
 
 `Stop()` ve `Close()` ikisi de uç nokta yöneticisinin prefix-kaldırma yolundan
