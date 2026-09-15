@@ -285,6 +285,11 @@ policy](/reference/security-policy/) for what is in and out of scope.
 Individual .NET types restate the boundary they sit on in their own API reference
 page, so the constraint is visible at the point of use as well as here.
 
+This table says what each boundary refuses. For who it refuses — the attacker
+profiles behind "unauthenticated", "another tenant", "a malicious MCP server" — and
+which combinations are accepted risk rather than a covered boundary, see the [threat
+model](/reference/threat-model/).
+
 ## A short checklist
 
 - [ ] `AllowRemoteAccess` is on only together with a token, a key, or a policy

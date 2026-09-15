@@ -121,6 +121,7 @@ export const sidebar = [
       { label: 'Release notes', slug: 'reference/changelog' },
       { label: 'Licensing', slug: 'reference/licensing' },
       { label: 'Security policy', slug: 'reference/security-policy' },
+      { label: 'Threat model', slug: 'reference/threat-model' },
       { label: 'Choosing packages', slug: 'packages' },
       { label: 'Glossary', slug: 'reference/glossary' },
     ],
