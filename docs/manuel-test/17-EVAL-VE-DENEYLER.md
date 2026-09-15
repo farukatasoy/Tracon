@@ -457,14 +457,14 @@ curl -s "$APU/api/evals/destek-degerlendirme/cases" -H "$APB"
 🚨 **Faz 175'te yeniden yazıldı.** Bu case bir eksiği kaydediyordu: vaka + koşum
 kaskadını yok eden bir silme onaysız gerçekleşiyordu. Faz 175 onu kapattı —
 `eval_cases` ve `eval_runs` ikisi de `eval_suites`'ten `ON DELETE CASCADE` ile
-düşer, yani ölçütün (a) dalı (K-791).
+düşer, yani ölçütün (a) dalı (K-786).
 
 | | |
 |---|---|
 | **İzlek** | B |
 | **Önem** | Orta |
 | **İlgili faz** | Faz 18, 175 |
-| **İlgili karar** | K-790, K-791 |
+| **İlgili karar** | K-785, K-786 |
 
 **Adımlar**
 1. `/tracon/evals` listesinde bir setin "Sil" düğmesine **odaklan** (basma).
