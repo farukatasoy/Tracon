@@ -77,9 +77,11 @@ not need to modify application code, and a way to change supported agent
 configuration without a deployment.
 
 It does not fit if you want a hosted agent product, or if you are not on .NET. Runtime
-packages target `net8.0`, `net9.0`, and `net10.0`; the testing and template packages
-require .NET 10, and the source generator that ships inside Core targets
-`netstandard2.0`.
+packages target `net8.0`, `net9.0`, and `net10.0`, and the testing packages follow the
+same matrix, so an app on .NET 8 LTS can be tested on .NET 8. The project template
+generates a `net10.0` project, the `tracon` global tool targets `net10.0`, and the
+source generator that ships inside Core targets `netstandard2.0`. The
+[compatibility matrix](/reference/compatibility/) carries the per-package detail.
 
 ## Read next
 

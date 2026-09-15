@@ -241,6 +241,13 @@ gördüğü Screen COMPONENT'ini söylüyordu (30) — `skills` ve `triggers` ik
 component export eder. Kapı, hiçbir sayfanın iddia etmediği bir sayıyı ölçtüğü
 sürece var olma sebebiyle kırmızı olamaz.
 
+Üçüncü ders, aynı sınıfın düzyazı hâli (2026-09-15): `Tracon.Testing` matrise
+dönünce `compatibility.md` güncellendi, `getting-started`'in "*require .NET 10*"
+cümlesi kaldı; TFM iddiasının **hiçbir** kapısı yoktu. Kapı artık paket tablosunu
+`csproj`'lara iki yönde bağlar (varsayılan `src/Directory.Build.props`; sapan
+proje TEKİL `<TargetFramework>` yazar) ve `compatibility.md` dışında "requires
+.NET N" yazılmasını yasaklar — düzyazıya kopyalanan tabloyu hiçbir şey denetleyemez.
+
 ## 🚨 `cref` duz metne donerken TIP kisa adiyla yazilir (Faz 163)
 
 `build-api-reference.mjs` iki yoldan `xref` cozer. **Baglanti** yolu
