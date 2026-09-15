@@ -258,6 +258,33 @@ Protect what this does not cover at the layer below: full-disk or tablespace
 encryption, a managed database with encryption at rest, and retention policies that
 delete what you no longer need.
 
+## The boundaries Tracon enforces
+
+The layers above are what you configure. This table is the other question — which
+boundaries exist at all, what each one refuses, and where the detail lives. A security
+report is assessed against this list; see the [security
+policy](/reference/security-policy/) for what is in and out of scope.
+
+| Boundary | What it refuses | Detail |
+|---|---|---|
+| Endpoint access | An unauthenticated or unauthorized caller | [The layers](#the-layers) |
+| Tenant isolation | Reading or writing another tenant's rows | [Multi-tenancy](/concepts/governance/#multi-tenancy) |
+| Session ownership | Continuing a conversation the caller does not own | [Session ownership](/concepts/governance/#below-the-tenant-session-ownership) |
+| Tool authorization | A tool call the caller is not entitled to make | [Tool authorization](/concepts/governance/#tool-authorization) |
+| Tool approval | An unapproved tool call, until a human decides | [Approvals](/concepts/governance/#approvals) |
+| Tool definition | A tool written from the console — tools exist only in code | [Tools](/concepts/tools/) |
+| Script sandboxing | A skill script escaping its sandbox, when scripts are on at all | [Production defaults](/guides/production/#production-sensitive-defaults) |
+| Outbound egress | A request to a private network target or a disallowed host | [Outbound requests](#outbound-requests-are-guarded-too) |
+| Content guards | Input or output a configured guard rejects | [Content guards](/concepts/governance/#content-guards) |
+| Secret handling | A secret value reaching storage, a log, or a response | [What is stored in the clear](#what-is-stored-in-the-clear) |
+| At-rest protection | Readable content in a database you do not fully trust | [At-rest content protection](#at-rest-content-protection) |
+| Audit trail | Six operations proceeding without their record | [What is guaranteed to be written](/concepts/governance/#what-is-guaranteed-to-be-written) |
+| Quotas and rate limits | Spend and request volume above the configured ceiling | [Quotas and rate limits](/concepts/governance/#quotas-and-rate-limits) |
+| Production profile | A host starting with a security decision never made | [Requiring a production decision](/concepts/governance/#requiring-a-production-decision) |
+
+Individual .NET types restate the boundary they sit on in their own API reference
+page, so the constraint is visible at the point of use as well as here.
+
 ## A short checklist
 
 - [ ] `AllowRemoteAccess` is on only together with a token, a key, or a policy
@@ -278,5 +305,6 @@ delete what you no longer need.
 
 ## Read next
 
+- [Security policy](/reference/security-policy/) — reporting a vulnerability, and scope
 - [Governance](/concepts/governance/) — audit trail, quotas, tenancy
 - [Architecture](/concepts/) — how the pieces fit

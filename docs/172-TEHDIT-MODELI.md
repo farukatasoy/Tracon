@@ -1,0 +1,290 @@
+# Faz 172 — Tehdit Modeli
+
+> **Durum:** 📋 Planlandı (2026-09-15)
+> **Plan onayı:** onaylanmadı — uygulama başlamaz
+> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-235**
+> **Önkoşul:** Yok. Sınır envanteri tüketici geri bildirimi turunda (2026-09-15) üretildi
+> **Paketler:** Yok — bu faz kod yazmaz
+> **Yeni paket:** Yok · **Migration:** Yok
+> **Public API:** Büyümüyor
+> **Tüketici yüzeyi:** site: yeni `reference/threat-model.md`, `getting-started/security.md` (çapraz link), `reference/security-policy.md` (kapsam gerekçesi)
+> · sevk edilen: Yok
+> **Manuel test alanı:** Yok — doğrulama `dokuman-bakim.py` kapısıdır
+
+---
+
+## Bu Faza Başlarken
+
+> `faz-baslangic` skill'ini uygula. Aşağıdaki liste o skill'in 2. adımıdır —
+> **tamamını değil, yalnız işaret edilen bölümleri oku.**
+
+1. Bu doküman
+2. Kararlar — dosyanın tamamını **okuma**, yalnız bu kalemleri grep'le:
+   ```bash
+   grep -n "K-776\|K-775\|K-059\|K-771\|K-773" docs/KARARLAR.md
+   ```
+   **K-776** (denetim izi garanti ayrımı — modelin bir sınırı),
+   **K-775** (yayımlanan sayı ölçülmeden güncellenmez — bu fazın kapı deseni),
+   **K-059** (`secret` veritabanına da yazılmaz),
+   **K-771** (toplu kabul anahtarı yok),
+   **K-773** (production profil kümesi bir sürüm sözleşmesidir)
+3. [`arsiv/fazlar/170-PRODUCTION-PROFIL-KAPISI.md`](arsiv/fazlar/170-PRODUCTION-PROFIL-KAPISI.md) — yalnız devir notu:
+   ```bash
+   awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/170-PRODUCTION-PROFIL-KAPISI.md
+   ```
+   Altı üretim riskinin (`TraconProductionRisk`) tehdit modelindeki karşılığı
+   oradan gelir.
+4. Alan hafızası (bu faz bir alana dokunuyor):
+   [`hafiza/dokumantasyon.md`](hafiza/dokumantasyon.md) (yayın hattı, `docs/` ile
+   `docs-site/` sınırı, üretilen sayfalar)
+5. Gerektiğinde, tamamı değil ilgili bölümü:
+   [`MIMARI-GUVENLIK.md`](MIMARI-GUVENLIK.md) — **tamamı okunmaz**; model oradaki
+   güvenlik modelini tekrar etmez, ona **atıf yapar**
+
+---
+
+## Amaç
+
+Tracon bir kontrol düzlemidir ve kendisi bir güvenlik sınırıdır. `SECURITY.md`
+kapsam içi sekiz alan sayar, site 14 sınır listeler — ama hiçbir yerde
+**saldırgan modeli** yoktur: kim, nereden, neyi hedefler ve hangi sınır onu
+durdurur. Kurumsal güvenlik incelemesinin ilk istediği belge budur.
+
+Bu faz o belgeyi yazar ve **bayatlamasını engelleyen bir kapı** kurar. Kapısı
+olmayan bir tehdit modeli, bir sonraki faz yeni bir sınır eklediğinde sessizce
+yanlışlanır; bu repo'da tam olarak bu kusur sınıfı defalarca tekrarladı.
+
+- **F-235** — tehdit modeli dokümanı, tüketiciye dönük özeti ve tazelik kapısı.
+
+### Bugün ne çalışmıyor — doğrulanmış kanıt
+
+| Kanıt | Gözlem |
+|---|---|
+| `grep -rli "tehdit model\|threat model\|STRIDE" docs/` | Yalnız üç dosya eşleşir ve **üçü de bu turun kendi kaydıdır** (`ADAYLAR.md`, `YAYIN-HAZIRLIK.md`, bir arşiv girdi raporu). Model dokümanı yok |
+| `grep -roi "security boundar" docs-site/src/content/docs/api/` | **22** geçiş, **15** ayrı `api/` sayfasına dağılmış. Tekil notlar; birleştirilmiş bir analiz değil |
+| [`getting-started/security.md`](../docs-site/src/content/docs/getting-started/security.md) § *The boundaries Tracon enforces* | **14** sınır listeler. Bu turda eklendi ve modelin iskeletidir — ama sınırın **neyi**, **kime karşı** koruduğunu yazmaz |
+| [`SECURITY.md`](../SECURITY.md) § *Scope* | Kapsam içi sekiz alan sayar. Liste var, gerekçe yok: bir raporcu neyin kapsam içi olduğunu görür, **neden** olduğunu görmez |
+| `wc -c docs/MIMARI-GUVENLIK.md` | **22.000 / 23.200 bayt — DAR (%5 boş)**. Yeni içerik bu dosyaya sığmaz; ayrı dosya zorunludur |
+| [`TraconProductionRisk.cs`](../src/Tracon.Abstractions/Diagnostics/TraconProductionRisk.cs) | Altı üretim riski adıyla tanımlı. Tehdit modelinin risk ekseni burada zaten yarı yarıya yazılmış |
+
+> Kanıtlar 2026-09-15 tarihinde doğrulandı.
+
+---
+
+## 172.1 — İki doküman, iki okuyucu
+
+Dil sınırı bu fazda özellikle kritiktir: `docs/` Türkçe geliştirme kaydıdır,
+`docs-site/` İngilizce ürün dokümantasyonudur. Aynı içerik iki yere yazılmaz.
+
+| Doküman | Dil | Okuyucu | Ne taşır |
+|---|---|---|---|
+| `docs/MIMARI-TEHDIT-MODELI.md` | Türkçe | Sonraki geliştirme oturumu | Tam analiz: varlık envanteri, saldırgan profilleri, varlık×tehdit matrisi, her hücrenin hangi sınırla kapandığı, **kapanmayan hücreler** |
+| `docs-site/.../reference/threat-model.md` | İngilizce | Kurumsal güvenlik inceleyicisi | Saldırgan profilleri, sınır eşlemesi, kabul edilen riskler. Kod kanıtı ve iç gerekçe **taşımaz** |
+
+🚨 **Kapanmayan hücre gizlenmez.** Bir tehdit modelinin değeri kapattığı
+hücrelerde değil, kapatmadığını **söylediği** hücrelerdedir. "Kabul edilen
+risk" bölümü her iki dokümanda da bulunur.
+
+## 172.2 — Modelin ekseni
+
+Analiz üç eksenden kurulur. Eksenlerin ikisi repo'da zaten ölçülmüştür;
+üçüncüsü bu fazın işidir.
+
+```mermaid
+flowchart LR
+    accTitle: Tehdit modelinin üç ekseni
+    accDescr: Saldırgan profilleri ve varlıklar bir matris kurar; matrisin her hücresi ya mevcut bir sınırla kapanır ya da kabul edilmiş bir risk olarak yazılır.
+    A["Saldırgan profilleri<br/>(bu fazda yazılır)"] --> M["Varlık x tehdit matrisi"]
+    B["Varlıklar<br/>(SECURITY.md kapsamı)"] --> M
+    M --> C{"Hangi sınır kapatır?"}
+    C -->|"kapanır"| D["14 sınırdan biri"]
+    C -->|"kapanmaz"| E["Kabul edilen risk<br/>ADIYLA yazılır"]
+```
+
+**Saldırgan profilleri** en az şunları ayırır: kimliği doğrulanmamış ağ
+çağrısı · yetkisi düşük kiracı kullanıcısı · başka kiracının kullanıcısı ·
+`tool` çıktısı üzerinden gelen içerik (prompt injection) · kötü niyetli MCP
+sunucusu · konsol erişimi olan operatör · veritabanı okuma erişimi olan kişi.
+Son ikisi önemlidir: Tracon'un tehditlerinin bir kısmı **dışarıdan gelmez**.
+
+**Varlıklar** `SECURITY.md` kapsam listesinden gelir ve genişletilir:
+`secret`'lar · kiracı verisi · oturum içeriği · denetim izi · `tool` çağrı
+yetkisi · model bütçesi · `script` çalıştırma hakkı.
+
+## 172.3 — Tazelik kapısı
+
+`dokuman-bakim.py`'ye yeni bir kontrol. K-775 deseni: yayımlanan bir iddia
+ölçümle bağlanır.
+
+Kapı, `getting-started/security.md`'deki sınır tablosunun satır kümesi ile
+tehdit modelindeki sınır kümesini karşılaştırır. Bir faz yeni bir sınır ekler
+ve modele yazmazsa kapı **kırmızı** döner.
+
+🚨 Kapı iki yönlü olmalıdır. Yalnız "modelde eksik sınır var mı" diye bakan bir
+kapı, silinen bir sınırı yakalamaz ve model gerçekte olmayan bir korumayı ilan
+etmeye devam eder — yanlış güven, eksik belgeden kötüdür.
+
+**Doğrulanmadı — uygulama anında ölçülmeli:** `dokuman-bakim.py`'nin bugünkü
+kontrolleri `docs/` ile `src/` arasında çalışıyor. Bu kapı `docs/` ile
+`docs-site/` arasında çalışacak; böyle bir kontrol emsali var mı, uygulayan
+oturum önce onu ölçer (`site-seo-denetle.py` ve `check-content.mjs` hangisinin
+sahibi olduğuna bakar).
+
+---
+
+## Planlanan Public API
+
+Yok. Bu faz kod yazmaz.
+
+### HTTP `endpoint`'leri
+
+Yok.
+
+### Arayüz payı
+
+Yok.
+
+---
+
+## Planlanan Dosya Listesi
+
+```
+docs/
+└── MIMARI-TEHDIT-MODELI.md                   (YENİ — Türkçe tam analiz)
+
+docs-site/src/content/docs/reference/
+└── threat-model.md                           (YENİ — İngilizce özet)
+
+docs-site/src/
+└── sidebar.mjs                               (Reference bölümüne kalem)
+
+docs-site/scripts/
+└── check-content.mjs                         (VEYA scripts/dokuman-bakim.py — 172.3'te ölçülür)
+
+SECURITY.md                                   (kapsam listesi modele link verir)
+```
+
+---
+
+## Hata Modları ve Testler
+
+> Bu faz kod yazmaz; "test" burada doküman kapılarıdır. Seviye yine de seçilir.
+
+| Ne bozulabilir | Seviye | Test |
+|---|---|---|
+| Yeni bir sınır eklenir, modele yazılmaz | Kapı | 172.3 tazelik kapısı |
+| Bir sınır kaldırılır, model onu ilan etmeye devam eder | Kapı | 172.3 — iki yönlü karşılaştırma |
+| Site sayfası ile Türkçe doküman çelişir | Kapı | `dokuman-bakim.py` — `SECURITY.md` senkron kapısının (2026-09-15) aynı deseni |
+| Türkçe metin İngilizce site sayfasına sızar | Kapı | `SourceLanguageTests` — taban çizgisi yalnız küçülür |
+| Model `secret` veya iç altyapı adresi sızdırır | Kapı | `secret` taraması; ayrıca `docs-site` yalnız kavram taşır, kod kanıtı taşımaz (172.1) |
+| Yeni sayfa sidebar'dan erişilemez | Kapı | `npm run check:content` — mevcut kontrol |
+| Bağlantılar kırılır | Kapı | `npm run check:links` |
+
+---
+
+## Manuel Kabul Case'leri
+
+> Bu faz tüketiciye dönük **metin** sevk eder, davranış değil. Kabul, metnin
+> kendi kapılarıyla ölçülür; `docs/manuel-test/` altına case eklenmez.
+
+| # | Ön koşul | Adımlar | Beklenen sonuç |
+|---|---|---|---|
+| 1 | Site derlenmiş | `getting-started/security.md`'ye yeni bir sınır satırı ekle, modele ekleme, kapıyı koş | Kapı **kırmızı** döner ve eksik sınırın adını yazar |
+| 2 | Site derlenmiş | Modelden bir sınırı sil, kapıyı koş | Kapı **kırmızı** döner (iki yönlü kontrol) |
+| 3 | Site derlenmiş | `npm run check` | Dört site kapısı da temiz |
+
+---
+
+## Açık Sorular
+
+| # | Soru | Seçenekler | Öneri |
+|---|---|---|---|
+| 1 | Kapı `dokuman-bakim.py`'de mi `check-content.mjs`'de mi yaşasın? | A: `check-content.mjs` (site tarafı, `docs/` okuyabilir) · B: `dokuman-bakim.py` (doküman tarafı) | Uygulama anında ölçülür (172.3). `SECURITY.md` senkron kapısı 2026-09-15'te **A**'ya kondu; emsal orada |
+| 2 | STRIDE mi kullanılsın, serbest kategori mi? | A: STRIDE · B: varlık×saldırgan matrisi, kategori adı yok | **B** — STRIDE'ın altı kategorisi Tracon'un asıl risklerini (kiracı sızıntısı, prompt injection, `tool` yetkisi) doğal olarak bölmüyor. STRIDE adı yalnız kurumsal okuyucuya **atıf** olarak geçer |
+| 3 | Model sürüm taşısın mı? | A: sürüm + ölçüm tarihi (K-775 deseni) · B: tarihsiz | **A** — kurumsal inceleyici belgenin ne zaman ölçüldüğünü sorar |
+
+---
+
+## Bitiş Ölçütleri (DoD)
+
+- [ ] `docs/MIMARI-TEHDIT-MODELI.md` var; 14 sınırın **hepsi** matriste bir hücreye bağlı
+- [ ] Kapanmayan her hücre "kabul edilen risk" olarak **adıyla** yazılmış
+- [ ] `docs-site/.../reference/threat-model.md` var ve sidebar'dan erişiliyor
+- [ ] `SECURITY.md` kapsam listesi modele link veriyor
+- [ ] Tazelik kapısı **iki yönlü** çalışıyor: eksik sınır ve fazla sınır ayrı ayrı kırmızı döndürüyor
+- [ ] Kapı bilerek bozulup kırmızı döndüğü **gösterildi** (manuel case 1 ve 2)
+- [ ] Dört doğrulama kapısı sıfır uyarı verir
+- [ ] `secret` taraması boş döndü
+- [ ] `docs-site/` için `npm run check` temiz
+- [ ] `SourceLanguageTests` taban çizgisi büyümedi
+- [ ] `python3 scripts/dokuman-bakim.py --denetle` çıkış kodu 0; yeni dosya bütçeye kaydedildi
+- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
+
+### Doğrulama komutları
+
+```bash
+# Kapı gerçekten kırmızı dönüyor mu
+cd docs-site && npm run check:content   # sınır eklenip modele yazılmadan koşulur
+
+# Site kapıları
+cd docs-site && npm run check
+
+# Doküman bütçesi
+python3 scripts/dokuman-bakim.py --denetle
+```
+
+---
+
+## Riskler
+
+| Risk | Önlem |
+|------|-------|
+| Model yazılır, kapı yazılmaz; altı ay sonra sessizce yanlıştır | Kapı DoD'nin **zorunlu** kalemidir ve bilerek bozularak gösterilir |
+| `MIMARI-GUVENLIK.md` ile içerik çakışır, iki doküman aynı şeyi ayrı anlatır | Model o dosyayı **tekrar etmez**, atıf yapar. `MIMARI-GUVENLIK.md` DAR olduğu için zaten büyüyemez |
+| Tüketiciye dönük sayfa iç mimari ayrıntısı sızdırır | 172.1 sınırı: site sayfası kod kanıtı ve iç gerekçe taşımaz |
+| Yayınlanmış sürüm yokken model erken yazılır ve yüzey GA'ya kadar değişir | Kabul edilen maliyet: kapı, değişimi **yakalayacak** mekanizmadır. Kapısız yazmak erken yazmaktan daha pahalıdır |
+| Doküman bütçesi aşılır | Yeni dosya kendi bütçesiyle kaydedilir; içerik **silinmez, taşınır** |
+
+---
+
+<!-- ============================================================
+     AŞAĞISI KAPANIŞTA DOLDURULUR — `faz-tamamlama` skill'i.
+     Plan anında boş kalır. Başlıkları SİLME.
+     ============================================================ -->
+
+## Plandan Sapmalar
+
+> Kapanışta doldurulur. Plan ile gerçek arasındaki fark **gizlenmez** — sonraki
+> oturumun en değerli bilgisidir.
+
+## Bu Fazda Verilen Kararlar
+
+> Kapanışta doldurulur. K-NNN numaraları burada alınır; plan numara rezerve etmez.
+
+## Gerçekleşen Public API
+
+> Kapanışta doldurulur. Bu fazda büyüme beklenmiyor.
+
+## Dosya Listesi (gerçekleşen)
+
+> Kapanışta doldurulur.
+
+## Süreç Ölçümü
+
+> Kapanışta doldurulur. **Tablo olarak** — onay kutusu DEĞİL.
+
+| Metrik | Değer |
+|---|---|
+| Plan revizyonu sayısı | |
+| Düzeltme turu sayısı | |
+| 🔴 bulgu: gerçek / gürültü / araştırılacak | |
+| Fazın ürettiği regresyon | |
+| Faz kapandıktan sonra bulunan kusur | |
+
+## Denetim Bulguları
+
+> Kapanışta doldurulur — `faz-denetim` çıktısı.
+
+## Sonraki Faza Devir Notu
+
+> Kapanışta doldurulur.

@@ -405,8 +405,9 @@ editUrl: false
 lastUpdated: false
 ---
 
-${types} public types across ${byAssembly.size} packages. These pages are generated
-from the compiled assemblies and the XML documentation that ships inside each
+${types} public types across the ${byAssembly.size} packages that ship a library API of
+their own. These pages are generated from the compiled assemblies and the XML
+documentation that ships inside each
 \`.nupkg\`. The generator removes compiler-only members and repository history,
 then verifies every internal link for a reference that reads cleanly on the web.
 
