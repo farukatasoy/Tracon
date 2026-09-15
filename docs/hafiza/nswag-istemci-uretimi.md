@@ -83,9 +83,9 @@
   Sonuc: 16 `JsonElement`-tipli alanin TUMU (`EvalCaseResult.Scores`,
   `EvalSuite.Checks`, `JobTriggerRequest.Payload`, ...) bos-`[JsonExtensionData]`
   sinifina karsi deserialize ediliyordu — tel uzerindeki deger bir JSON NESNESI
-  DEGILSE (ör. `Scores` bir dizi) her cagri `JsonException` firlatiyordu, HICBIR
-  test bunu yakalamamisti (`TraconTestHost`'un in-memory `TestServer`'i
-  `TraconApiClient` degil dogrudan `HttpClient` kullaniyor). Ayrica
+  DEGILSE her cagri `JsonException` firlatiyordu ve HICBIR test bunu
+  yakalamamisti; ayrintisi [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
+  Ayrica
   `System.Text.Json.JsonElement` bir STRUCT oldugu icin gercek tipe gecince
   NJsonSchema'nin ROOT response null-check'i (`if (objectResponse_.Object ==
   null)`) `CS0019` verir — bu da ayrica silinmeli. Cozum
@@ -94,9 +94,9 @@
   ya da — `Tracon.Client`'in bilerek referans ETMEDIGI bir paketin tipiyse
   (`Microsoft.Extensions.AI.ChatRole`) — o tipin GERCEK tel bicimine (`string`,
   kendi converter'i zaten oyle serialize ediyor) nitelendirir. Yeni bir
-  cakisma tespiti: `python3 -c "import json; s=json.load(open('docs/openapi/tracon.json'))['components']['schemas']; print([k for k,v in s.items() if v=={}])"`
-  — cikan her ad `COLLIDING_ANY_TYPES`'a eklenir. `scripts/nswag_postprocess_client_test.py`
-  regresyonu kapatir.
+  cakisma tespiti: `tracon.json`'da `components.schemas` icinde degeri `{}`
+  olan her ad `COLLIDING_ANY_TYPES`'a eklenir; komut ve regresyon testi
+  [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 
 - **🚨 `$(Version)` iceren bir MSBuild ozelligi duz bir `<PropertyGroup>`'ta
   HER ZAMAN bos okunur** (2026-08-28, olculdu: `PackageReleaseNotes` ureten

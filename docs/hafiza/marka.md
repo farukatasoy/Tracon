@@ -25,10 +25,9 @@ Approach Control*. Kulenin bir üst katmanıdır. Yoğun hava sahasındaki trafi
 **sıraya sokar**, uçakları **ayırır**, **clearance** verir, radar üzerinden
 sürekli **izler** ve kuleye **handoff** eder.
 
-**TRACON uçağı uçurmaz.** Pilot uçurur. TRACON uçmasına izin verir, nereye
-gideceğini söyler, başkasıyla çakışmasını engeller, her teması kaydeder. Ürünün
-MAF karşısındaki konumu tam olarak budur. İsim bir benzetme değil, mimarinin
-tarifidir.
+**TRACON uçağı uçurmaz.** Pilot uçurur. TRACON izin verir, nereye gideceğini
+söyler, çakışmayı engeller, her teması kaydeder. Ürünün MAF karşısındaki konumu
+budur: isim benzetme değil, mimarinin tarifidir.
 
 **İkinci okuma.** Havacılığı bilmeyen bir geliştirici `Tracon` gördüğünde
 **TRAC(e) + CON(trol)** okur. Ürün OpenTelemetry `span`'leri üzerine kurulu bir
@@ -59,10 +58,9 @@ Sitenin omurgası. Her satırın kodda karşılığı vardır; hiçbiri uydurma 
 | **Say intentions** | Agent definition, versiyon, rollback |
 | **Go around** | Retry, replay, checkpoint'ten devam |
 
-**"The strip" neden birebir:** havacılıkta *flight progress strip*, bir uçağın
-her temasının yazıldığı, üzerinde oynanamayan fiziksel kayıttır. Hash zincirli
-`audit_log`'un karşılığı odur. Zorlanmış benzetme değildir; sitede bu
-gerekçesiyle anlatılabilir.
+**"The strip" neden birebir:** havacılıkta *flight progress strip*, bir uçağın her
+temasının yazıldığı, oynanamayan fiziksel kayıttır — hash zincirli `audit_log`'un
+karşılığı odur. Zorlanmış benzetme değildir.
 
 ## 4. Metaforun sınırı
 
@@ -74,25 +72,20 @@ gerekçesiyle anlatılabilir.
 | Paket `Description` alanları | `http-api/`, hata mesajı ve kodu |
 | | `troubleshooting/` adımları |
 
-**Gerekçe:** `clearance` kelimesi `authorization`'ın yerine geçerse tüketici
-yanlış tip arar. **Metafor pazarlar, doküman tarif eder.** Tüketici bir sayfada
-bir şeyi *yapmaya* çalışıyorsa orada metafor yoktur.
+**Gerekçe:** `clearance` kelimesi `authorization`'ın yerine geçerse tüketici yanlış
+tip arar. **Metafor pazarlar, doküman tarif eder.**
 
 ## 5. Ses ve ton
 
-**Karakter: kontrolör.** Satıcı değil, amigo değil.
-
-Bir hava trafik kontrolörü sakin, kısa ve kesindir — acil durumda bile.
-Otoritesi ses tonundan değil yetkinliğinden gelir. Telsiz frazeolojisi
-minimaldir çünkü **belirsizlik öldürür**. Markanın sesi budur.
+**Karakter: kontrolör.** Satıcı değil, amigo değil. Sakin, kısa ve kesin — acil
+durumda bile. Otorite ses tonundan değil yetkinlikten gelir; telsiz frazeolojisi
+minimaldir çünkü **belirsizlik öldürür**.
 
 1. **Sakin otorite.** Ünlem yok, bağırma yok, "devrim" yok. Bildirir.
-2. **Ekonomi.** Her kelime yük taşır. Atılabiliyorsa atılır. Uzun cümle
-   güvensizliğin işaretidir.
+2. **Ekonomi.** Her kelime yük taşır; uzun cümle güvensizliğin işaretidir.
 3. **Kanıt.** Her iddianın yanında bir sayı, bir `endpoint` veya bir komut var.
 
-**Ses testi:** *"Bir kontrolör bunu telsizde söyler miydi?"* Reklam panosu gibi
-duruyorsa yanlıştır.
+**Ses testi:** *"Bir kontrolör bunu telsizde söyler miydi?"*
 
 Bizim sesimiz:
 
@@ -196,23 +189,17 @@ Paket Description kalıbı
   Tracon.Cli           Ground operations: migrate, migrate status, health.
 ```
 
-> 🚨 **H1 metafor degildir.** `Your agents fly. You own the airspace.` bir
-> anasayfa H1'i olarak sevk edildi ve tuketici elestirisi uzerine geri alindi:
-> okur ilk iki saniyede urunun ne oldugunu ogrenemiyordu. Metafor tagline'da,
-> hero kicker'inda, footer'da ve "Kisa vuruslar"da yasamaya devam eder — ama
-> **tanimin yerini almaz**. Bunu geri alma.
+> 🚨 **H1 metafor DEGILDIR** — H1 tanimdir. Metafor tagline'da, hero kicker'inda,
+> footer'da ve "Kisa vuruslar"da yasar ama **tanimin yerini almaz**. Bunu geri alma.
+>
+> 🚨 **Paketler yayinlanana kadar `production-oriented`** — `production control
+> plane` / `production-grade` degil. Uc yuzey birlikte tasinir: site meta
+> description, kok `README.md` ve `src/Tracon/Tracon.csproj` `<Description>`.
+> 1.0 yayinlandiktan sonra donulebilir.
 >
 > DevUI karsilastirmasinin tam hali `/getting-started/devui/` sayfasindadir;
-> anasayfa yalniz alintiyi ve uretim tavsiyesini tasir. Iddialar yalniz
-> Microsoft'un yayinlanmis dokumanindan alinir: DevUI'nin kaliciligi hakkinda
-> iddia **yazilmaz**, cunku belgelenmemistir.
->
-> 🚨 **Paketler yayinlanana kadar `production-oriented`.** `production control
-> plane` / `production-grade` ifadeleri geri alindi: ayni ekranda "Not yet
-> published to NuGet" yazarken kesin bir uretim iddiasi savunulamiyor. Uc yuzey
-> birlikte tasinir — site meta description, kok `README.md` ve
-> `src/Tracon/Tracon.csproj` `<Description>` (bu sonuncusu nuget.org sayfasina
-> gider). 1.0 yayinlandiktan sonra `production control plane`'e donulebilir.
+> iddialar yalniz Microsoft'un yayinlanmis dokumanindan alinir.
+> Geri alma gerekceleri: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 >
 > 🚨 **Uc iddia kelimesi olculerek secildi; geri alma.**
 > - **`queries`, `stores` degil.** Kiraci yalitimi *uygulama katmanindadir*:
@@ -273,33 +260,15 @@ görmelidir.
 
 ## 13. Yeniden adlandırmanın bıraktığı iz (Faz 163)
 
-🚨 **Bul-değiştir artikeli göremez.** Ürün `AgentPrism`'den `Tracon`'a döndü;
-artikel eski ada göre seçilmişti ve yeniden adlandırma ona dokunmadı. Geriye
-51 yerde `an Tracon` kaldı — biri her tüketicinin build çıktısında görünen
-derleyici tanısıydı. **Yanlış olan kelime, değiştirilmeyen kelimedir.**
-
-**Dört varyant vardır** ve her tarama yalnız bir sonrakini açığa çıkardı.
-Dördüncüsü en sinsisidir: artikel satır sonunda kalır, ad sonraki satırın
-`/// ` yorum önekinden **sonra** başlar — `\s+` deseni orayı geçemez. Onu
-kapının kendisi buldu, elle tarama değil. Ayırıcıyı böyle yaz:
-
-```python
-import pathlib, re
-sep = r"(?:\s|///|//|\*|>)+"                    # yorum öneki de ayırıcıdır
-pat = re.compile(rf"\b[Aa]n{sep}(?=(?:<c>|<see|`|\[)?Tracon)")   # \b YOK
-for f in pathlib.Path(".").rglob("*"):
-    if f.is_file() and f.suffix in (".cs", ".md", ".mdx", ".ts", ".tsx"):
-        if pat.search(f.read_text(encoding="utf8", errors="ignore")):
-            print(f)
-```
-
-Sondaki `\b` **olmamalıdır**: `an TraconException` onunla eşleşmez ve dört
-temizlik turunu böyle atlattı. `samples/` ve `tests/` ağaçlarını da tara; ilk
-turda ikisi de unutuldu.
-
-Kapı: `check-content.mjs` bunu **üretilen sayfalarda da** zorlar — 60 vakayı
-kimse yazmamıştı, üreteç üretmişti. Kaynak tarafı tek
-seferlik temizlendi; bir sonraki yeniden adlandırmada **üç varyantı da** tara.
+🚨 **Bul-değiştir artikeli göremez.** Ürün `AgentPrism`'den `Tracon`'a döndü ve
+artikel eski ada göre seçilmişti: geriye **51** yerde `an Tracon` kaldı, biri her
+tüketicinin build çıktısında görünen derleyici tanısıydı. **Yanlış olan kelime,
+değiştirilmeyen kelimedir.** Dört varyant vardır ve her tarama yalnız bir
+sonrakini açığa çıkarır; dördüncüsünde artikel satır sonunda kalır ve ad sonraki
+satırın `/// ` önekinden **sonra** başlar. Bir sonraki yeniden adlandırmada
+`samples/` ve `tests/` dahil **dört varyantı da** tara. Tarama deseni ve `\b`
+tuzağı: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md). Kapı:
+`check-content.mjs` bunu **üretilen sayfalarda da** zorlar.
 
 🚨 **Alarm emojisi el yazısı sayfaya sızar.** `build-api-reference.mjs` üretilen
 sayfalarda `🚨|⚠️` → `**Important:**` dönüşümü yapar ve paket XML'i

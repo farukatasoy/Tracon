@@ -65,12 +65,11 @@
   `IChatClient` üzerinde çıplak bir `ChatClientAgent` kurar. Stub'ın **fırlatması**
   bilerekdir: MAF bir gün çözme yolunda istemciyi çağırmaya başlarsa sessiz bir
   stub bunu yanlış bir "okunabilir" hükmüne çevirir.
-- **🚨 Çıplak probun SADAKATI bir teste bağlıdır.** Üretimdeki agent tool taşır ve
-  bir `ChatHistoryProvider` kuruludur; prob ikisini de taşımaz. Şekiller ayrışırsa
-  **her temiz veritabanı yanlış 🔴 raporlar**. Kilit:
-  `StatePreflightTests.A_session_written_by_a_fully_wired_agent_decodes_through_the_bare_probe`
-  — tam donanımlı bir agent iki gerçek tur koşar, `SaveSessionAsync` yazar, prob
-  okur. Kırmızıya dönerse çözüm fixture yenilemek değil, çözme yüzeyini daraltmaktır.
+- **🚨 Çıplak probun SADAKATI bir teste bağlıdır.** Üretimdeki agent tool ve
+  `ChatHistoryProvider` taşır, prob taşımaz; şekiller ayrışırsa **her temiz
+  veritabanı yanlış 🔴 raporlar**. Kilit: `StatePreflightTests`'in tam donanımlı
+  agent → `SaveSessionAsync` → prob turu. Kırmızıya dönerse çözüm fixture
+  yenilemek değil, çözme yüzeyini daraltmaktır.
 - **Kuşak sabitleri artık TEK yerdedir**: `StateSchemaGenerations` (`Tracon.Abstractions`,
   `internal`, Core ve Workflows'a görünür). `AgentSessionManager.CurrentStateSchemaVersion`
   ve `TraconCheckpointStore.CurrentStateSchemaVersion` oradan okur. Envelope'u

@@ -137,25 +137,21 @@ Notlar:
 
 ## 6. Kabul edilen riskler (kapanmayan hücreler)
 
-🚨 Bu bölüm gizlenmez — bir tehdit modelinin değeri kapattığı hücrelerde
-değil, kapatmadığını **söylediği** hücrelerdedir.
+🚨 Bu bölüm gizlenmez — bir tehdit modelinin değeri kapattığı değil,
+kapatmadığını **söylediği** hücrelerdedir.
 
 ### R1 — Operatörün kendi `secret` deposuna erişimi Tracon'un sınırı dışındadır
 
 K-059: kayıt yalnız yapılandırma anahtarının **adını** taşır, değeri
-`IConfiguration` çözer. Bu, değerin Tracon'un veritabanına veya API
-yanıtına **hiç girmediğini** garanti eder — ama değerin nerede saklandığı
-(`dotnet user-secrets`, ortam değişkeni, bir bulut `secret` deposu) host'un
-kararıdır ve Tracon onu göremez, koruyamaz.
+`IConfiguration` çözer. Değer Tracon'un veritabanına veya API yanıtına **hiç
+girmez** — ama nerede saklandığı host'un kararıdır ve Tracon onu göremez.
 
 ### R2 — `Admin` rolünün kötüye kullanımı host'un IAM sınırıdır
 
-Roller (`Reader`/`Operator`/`Admin`) host'un kendi kimlik doğrulama
-altyapısına **bağlanır** (`RequireAuthorization("TraconAdmin")`); Tracon
-kullanıcı ya da rol saklamaz. B1 rolün doğru **uygulandığını** kanıtlar,
-rolün doğru **kişiye verildiğini** kanıtlamaz — bu ayrım `getting-started/security.md`
-§ *Roles*'te de örtük olarak vardır (`RequireRolePolicies` yalnız eksik
-politikayı yakalar, yanlış atanmış politikayı yakalamaz).
+Roller (`Reader`/`Operator`/`Admin`) host'un kimlik doğrulama altyapısına
+**bağlanır**; Tracon kullanıcı ya da rol saklamaz. B1 rolün doğru
+**uygulandığını** kanıtlar, doğru **kişiye verildiğini** kanıtlamaz —
+`RequireRolePolicies` yalnız eksik politikayı yakalar, yanlış atanmışı değil.
 
 ### R3 — Ham veritabanı erişimi uygulama katmanındaki sınırların (B1–B9) hepsini atlar
 
@@ -172,9 +168,8 @@ boru hattını hiç görmez. Kalan iki sınır:
 
 ### R4 — Prompt injection yalnız `guard` yapılandırılmışsa kapanır
 
-`tool` çıktısından veya bir MCP kaynağından gelen, talimat gibi davranan
-içerik (A4) ve kötü niyetli bir MCP sunucusunun kendi yanıtı (A5) B9'a
-düşer — ama B9 **opt-in**'dir. `SECURITY.md` § *Scope* bunu açıkça kapsam
+`tool` çıktısından veya bir MCP kaynağından gelen, talimat gibi davranan içerik
+(A4) ve kötü niyetli bir MCP sunucusunun yanıtı (A5) B9'a düşer — B9 **opt-in**'dir. `SECURITY.md` § *Scope* bunu açıkça kapsam
 dışı sayar: *"prompt injection that a configured guard is not enabled to
 stop"*. Yapılandırılmamış bir dağıtımda bu hücre **hiçbir sınırla
 kapanmaz**; `TraconProductionRisk.UninspectedContent` adı bunu üretim
@@ -228,14 +223,10 @@ kararıdır, bir kusur değildir.
 ## 7. Sürüm ve tazelik notu
 
 Bu tablo (§ 4, 14 sınır) ve `getting-started/security.md`'nin sınır tablosu
-**aynı kümeyi** taşımalıdır — K-775 deseni: yayımlanan bir iddia ölçümle
-bağlanır ve ölçüm yenilenmeden sürüm satırı güncellenmez. Kapı
-`docs-site/scripts/check-content.mjs` içindedir (bkz. `securityPolicyFacts`
-emsali, aynı dosyada `SECURITY.md` ↔ `reference/security-policy.md`
-senkronu için zaten var — bu fazın kapısı aynı deseni sınır kümesi için
-tekrarlar) ve **iki yönlü** çalışır: § 4'te olup site tablosunda olmayan
-bir satır da, site tablosunda olup burada olmayan bir satır da kırmızı
-döndürür.
+**aynı kümeyi** taşımalıdır (K-775 deseni). Kapı
+`docs-site/scripts/check-content.mjs` içindedir — `securityPolicyFacts`
+emsalinin aynısı — ve **iki yönlü** çalışır: § 4'te olup site tablosunda
+olmayan bir satır da, tersi de kırmızı döndürür.
 
 Bir faz `getting-started/security.md`'ye 15. bir sınır eklediğinde:
 
@@ -249,10 +240,10 @@ Bir faz `getting-started/security.md`'ye 15. bir sınır eklediğinde:
 
 ## 8. Atıflar
 
-- Uygulama detayı, akış, sıra: [`MIMARI-GUVENLIK.md`](MIMARI-GUVENLIK.md)
+- Uygulama detayı ve akış: [`MIMARI-GUVENLIK.md`](MIMARI-GUVENLIK.md)
 - Sınır listesinin kaynağı: `docs-site/.../getting-started/security.md`
 - Kapsam gerekçesi: [`SECURITY.md`](../SECURITY.md), `docs-site/.../reference/security-policy.md`
 - Denetim izi garanti ayrımı: K-776, `docs-site/.../concepts/governance.md` § *What is guaranteed to be written*
 - Üretim riskleri: `src/Tracon.Abstractions/Diagnostics/TraconProductionRisk.cs`, K-773
 - `secret` ilkesi: K-059
-- Toplu kabul yolunun neden olmadığı: K-771
+- Toplu kabul yolu neden yok: K-771

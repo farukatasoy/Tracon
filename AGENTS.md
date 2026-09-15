@@ -75,29 +75,28 @@ Kalite eşiğini bu belirler:
 
 **Geliştirme fazlar hâlinde, çoğu zaman ayrı sohbetlerde yapılır.** Sonraki
 oturum repo'yu sıfırdan okur ve yalnız dokümanlara güvenir; bu yüzden her
-geliştirme sonrası dokümanlar gözden geçirilir.
+fazdan sonra dokümanlar gözden geçirilir.
 
 - Doküman ile kod çelişirse **doküman yanlıştır** — koda göre düzeltilir
 - Plandan sapma **gizlenmez**, gerekçesiyle yazılır — en değerli bilgi odur
 - Sonraki fazın dokümanı **devir teslim kalitesine** çıkarılır; ayrı bir sohbet
   onunla tek başına çalışabilmeli
-- Karar defterine yalnız public API/compatibility contract, güvenlik veya kiracı
-  sınırı, kalıcı veri/migration ya da geri dönüşü pahalı sistem kararı girer.
-  Yerel implementation tercihi faz dokümanında veya kod yorumunda kalır; yeni
-  `K-*` kaydı açılmaz.
+- Karar defterine yalnız public API/compatibility, güvenlik veya kiracı sınırı,
+  kalıcı veri/migration ya da geri dönüşü pahalı sistem kararı girer. Yerel
+  tercih faz dokümanında veya kod yorumunda kalır; `K-*` açılmaz.
 - Keşfedilen tuzak **alan dosyasına** (`docs/hafiza/`) yazılır, `MEMORY.md`'ye değil
 - Birikimli anlatı `docs/arsiv/`'e gider — sıcak yol büyümezse her oturum ucuz başlar
 
 ### Doküman bütçesi (zorunlu)
 
 Başlangıç bağlamı yalnız bu dosya, `MEMORY.md` ve aktif fazdır. Sorgu bağlamı
-(indeksler, mimari, alan hafızası) gerektiğinde okunur; karar/aday kayıtları
-ledger'dır, açılışta okunmaz. `scripts/dokuman-bakim.py` bu üç katmanı ayrı
+(indeks, mimari, alan hafızası) gerektiğinde okunur; karar/aday kayıtları
+ledger'dır ve açılışta okunmaz. `scripts/dokuman-bakim.py` üç katmanı ayrı
 raporlar. Bütçe aşılırsa **içerik silinmez** — taşınır.
 
 **Arşivlemek taşımak değil, damıtmaktır.** Faz kapanışında `faz-arsivle` +
-`faz-damit` koşar: plan düşer, kalıcı bilgi kalır, tam metin git'te durur ve
-her denetimde çözülebilirliği kanıtlanır. Muaf ağaçlar dahil **her ağacın kendi
+`faz-damit` koşar: plan düşer, kalıcı bilgi kalır, tam metin git'tedir ve her
+denetimde çözülebilirliği kanıtlanır. Muaf ağaçlar dahil **her ağacın kendi
 bütçesi vardır**. Kural: [`docs/arsiv/fazlar/INDEKS.md`](docs/arsiv/fazlar/INDEKS.md).
 
 ### Faz durumu
@@ -108,7 +107,7 @@ içindedir. Bu listeyi başka dosyada tekrarlama — iki yerde tutmak kayma üre
 
 Faz bittiğinde **`faz-denetim` ve `faz-tamamlama` uygulanır.** Atlanmaz; kapanış
 kodu, `docs/manuel-test/` kabul case'lerini ve `docs-site/`'ı birlikte kapsar.
-`✅ Tamamlandı` durumundaki faz dokümanı kökte kalamaz; denetim bunu hata sayar.
+`✅ Tamamlandı` faz dokümanı kökte kalamaz; denetim bunu hata sayar.
 
 ---
 
@@ -149,14 +148,11 @@ burada tekrarlanmaz, skill okunup uygulanır. Zincir sırayla: `aday-kesfi`
 dönüşürken) → `faz-baslangic` (okuma protokolü) →
 `faz-uygulama` (**ilk kod satırından önce**) → `faz-denetim` (bağımsız
 denetçi; 🔴 bulgu kapanmadan faz bitmez) → `faz-tamamlama` (kapanış; kod
-donduktan sonra **kulvarlı** koşar — denetim ve örnek uygulama koşumu paralel,
-sonra doküman senkronu ve site senkronu paralel; sıra `faz-tamamlama`'nın
-kendi kulvar şemasındadır, Faz 92). Zincir dışı: `maf-api-kesfi` (MAF tipini
-ilk kez kullanmadan önce) · `kusur-giderme` (kusur bulunduğunda) ·
-`manuel-test-kosumu` (kabul setinin tamamında) · `nuget-danismani`
-(yayın kararı ve yayın sonrası olay — zincirin **üstünde**, tek fazı değil
-yayınlanacak ürünü yargılar).
-Ortak sözleşme (kapı koşumu, test seviyeleri): `.agents/ortak/`. Konvansiyon:
+donduktan sonra **kulvarlı** koşar — şema skill'in kendisindedir). Zincir dışı:
+`maf-api-kesfi` (MAF tipini ilk kez kullanmadan) · `kusur-giderme` ·
+`manuel-test-kosumu` (kabul setinin tamamında) · `nuget-danismani` (yayın
+kararı; zincirin **üstünde**, tek fazı değil yayınlanacak ürünü yargılar).
+Ortak sözleşme (kapı, test seviyeleri): `.agents/ortak/`. Konvansiyon:
 [`.agents/skills/README.md`](.agents/skills/README.md).
 
 ---
@@ -164,58 +160,42 @@ Ortak sözleşme (kapı koşumu, test seviyeleri): `.agents/ortak/`. Konvansiyon
 ## Kodlama Kuralları (Bu Repo'ya Özgü)
 
 Genel .NET kuralları `.editorconfig`'dedir. Aşağıdakiler analyzer'ın
-yakalayamadığı, projeye özgü kurallardır.
+yakalayamadığı kurallardır; gerekçe ve vaka okun gösterdiği alan dosyasındadır.
+Tek alana özgü olanlar (AOT muafiyeti, arayüz sözlüğü) orada yaşar.
 
-**🚨 `docs/` ile `docs-site/` iki ayrı şeydir.** `docs/` Türkçe geliştirme
-günlüğü, `docs-site/` İngilizce **ürün dokümantasyonudur**. Aynı içeriği iki yere
-yazma: kullanıcıya dönük anlatı siteye, geliştirme kaydı `docs/`'a. **Site fazın
-kapanışına dahildir** (`faz-tamamlama` Adım 7). Yayın hattı, üretilen sayfalar ve
-ekran görüntüleri: [`docs/hafiza/dokumantasyon.md`](docs/hafiza/dokumantasyon.md).
-
-**🚨 Dil sınırı — pakete giren veya çalışma anında çalışan her şey İngilizce'dir.**
-Geliştirme aparatı (`docs/`, `.agents/skills/`, `scripts/`) Türkçe kalır;
-`locales/tr.ts` meşru sözlüktür (K-228). Kapı: `SourceLanguageTests` — taban
-çizgisi **yalnız küçülür**. Kapsam listesi:
-[`docs/hafiza/dokumantasyon.md`](docs/hafiza/dokumantasyon.md).
+**🚨 `docs/` ile `docs-site/` iki ayrı şeydir** — geliştirme kaydı `docs/`'a,
+kullanıcıya dönük anlatı siteye. **Site fazın kapanışına dahildir**
+(`faz-tamamlama` Adım 7). **🚨 Dil sınırı:** pakete giren ve çalışma anında
+çalışan her şey İngilizce'dir; geliştirme aparatı (`docs/`, `.agents/`,
+`scripts/`) Türkçe kalır ve `locales/tr.ts` meşru sözlüktür (K-228). Kapı:
+`SourceLanguageTests`, tabanı **yalnız küçülür**.
+→ [`hafiza/dokumantasyon.md`](docs/hafiza/dokumantasyon.md)
 
 **MAF tiplerini sarmalama.** `AIAgent`, `AgentSession`, `ChatMessage`,
-`AIFunction` doğrudan kullanılır. Tracon bir kontrol düzlemidir, bir
-soyutlama katmanı değil.
+`AIFunction` doğrudan kullanılır — Tracon kontrol düzlemidir, soyutlama değil.
 
-**`Activity.Current` ve `AsyncLocal` async yardımcı metotta açılmaz.** Yazım
-çağırana geri akmaz; `span`/`scope` çağıran metodun **kendi gövdesinde** başlatılır
-ve akışlı yolda her `MoveNextAsync` öncesi tekrarlanır. Vaka kaydı:
-`docs/hafiza/cekirdek-calistirma.md`.
+**`Activity.Current` ve `AsyncLocal` async yardımcı metotta açılmaz** — yazım
+çağırana geri akmaz. `span`/`scope` çağıranın **kendi gövdesinde** açılır.
+→ [`hafiza/cekirdek-calistirma.md`](docs/hafiza/cekirdek-calistirma.md)
 
 **Tool'lar yalnızca kodda tanımlanır.** Arayüzden agent oluşturulabilir; tool
 **kodu** yazılamaz. Bu bir güvenlik sınırıdır ve gevşetilmez.
 
-**AOT uyumluluğu.** Listeyi `grep -l "AotCompatible>false" src/*/*.csproj` ile
-doğrula. `reflection` kullanma; kaçış merdiveni:
-[`docs/hafiza/build-ve-analyzer.md`](docs/hafiza/build-ve-analyzer.md).
+**Ön sürüm MAF paketi yalnızca `Tracon.AspNetCore` içinde** (K-008).
 
-**Ön sürüm MAF paketleri yalnızca `Tracon.AspNetCore` içinde** (K-008).
-
-**`secret` veritabanına da yazılmaz** (K-059). Kayıtta yalnızca değerin
-okunacağı **yapılandırma anahtarının adı** durur; değer çalışma anında
-`IConfiguration` üzerinden çözülür.
+**`secret` veritabanına da yazılmaz** (K-059) — kayıtta yalnızca **anahtarın
+adı** durur. → [`MIMARI-GUVENLIK.md`](docs/MIMARI-GUVENLIK.md)
 
 **Gözlemlenebilirlik işlevselliği bozmaz.** `run` kaydı `store`'u hata verirse
 `run` devam eder, hata loglanır.
 
 **`ValueTask` dönen arayüzlerde `ConfigureAwait(false)`.** Kütüphane kodudur.
 
-**Arayüz metni sözlükten gelir — iki dilde.** `locales/en.ts` anahtar kümesinin
-kaynağıdır, `tr.ts` onu `Messages` tipiyle karşılar: eksik anahtar **derleme
-hatasıdır** (K-228). Sunucu yanıtları çevrilmez (K-232). `docs/hafiza/frontend.md`.
-
-**İmza değiştirmek ile gövdeyi kullanmak iki ayrı adımdır.** Yeni bir
-alan/parametre eklerken çağrı zincirindeki her katmanın **gövdesini** elle izle.
-Faz 20'de 1068 test bunu kaçırdı. Kontrol listesi: `faz-uygulama` Adım 4.
+**İmza değiştirmek ile gövdeyi kullanmak iki ayrı adımdır** — yeni alan/parametre
+eklerken her katmanın **gövdesini** elle izle. Liste: `faz-uygulama` Adım 4.
 
 **Bir davranış sınır geçiyorsa birim testi onu kanıtlamaz.** Sınır: DI · HTTP ·
-kiracı · akış · depo · paket. Seviye tablosu:
-[`.agents/ortak/test-seviyeleri.md`](.agents/ortak/test-seviyeleri.md).
+kiracı · akış · depo · paket. → [`ortak/test-seviyeleri.md`](.agents/ortak/test-seviyeleri.md)
 
 ---
 

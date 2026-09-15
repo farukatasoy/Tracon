@@ -5488,3 +5488,14 @@ doner. Gercek kanit Faz 171'in teknigiyle alindi: depoyu kapatmak yerine
 `tracon.runs` uzerine `RAISE EXCEPTION` yazan bir trigger konuldu. Okumalar
 calisti, on ucus gecti, `StartRunAsync` dustu, `run` TAMAMLANDI ve sayac
 `stage=start` ile bir kez artti.
+
+## Faz 90 damıtmasında taşınan gerekçeler
+
+### K-781 — devam (Faz 90 damıtması)
+
+Faz 153'ün tespiti böylece doğrulandı — kalan büyüme satırın İSKELETİNDEDİR (başlık + tarih + yeniden açılma koşulu) ve o parçalar kesilmez. Eski tavan 126 B boşluk bırakıyordu, yani bir sonraki karar yine taşırırdı. Ledger "yalnız aramada" katmanındadır ve oturum açılışında hiç okunmaz; bütçesi bir bağlam kısıtı değil bir büyüme alarmıdır.
+
+### K-782 — devam (Faz 90 damıtması)
+
+Aynı cümle `run` kaydı için yazılamıyordu: `run` yolunda sayaç YOKTU, kayıp yalnız `LogWarning` ile görünüyordu. Garanti DEĞİŞMEDİ (best-effort kalır; model çağrısı ve tool yan etkileri olduktan sonra `run`'ı düşürmek hiçbir şeyi geri almaz) — görünürlüğü değişti. `tracon.run.recording_failures` kaydını kaybeden yazma girişimini sayar; `store` tarafında bu "kaydını kaybeden `run` sayısı"na eşittir, çünkü `Disable` ilk hatadan sonra yeni girişimi engeller. `tracon.recording.stage` altı değer taşır (`start` · `event` · `tool_invocation` · `completion` · `sink` · `input`) ve kapalıdır: `run` kimliği (sınırsız) ve `sink` tipi (tüketici kodu) ETİKET DEĞİLDİR.
+

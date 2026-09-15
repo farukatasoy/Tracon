@@ -102,17 +102,11 @@ cumle `<summary>` icinde degildir.
 söyledi ("a lower value wraps *inside*", oysa düşük değer **dışta** sarar).
 Üç şey bunu görünmez yaptı:
 
-- **Davranış testi bir cümleyi göremez.** `Priority`'nin davranışı
-  `CompositeAgentCatalogTests` ile zaten test ediliyordu; public cümlesi yine
-  de belirsizdi. Bu sınıfın kapısı kaynak **metnini** okumak zorundadır.
-- **Arayüz kendi kendisiyle çelişiyordu.** Yanlış kuraldan hemen sonraki örnek
-  cümle ("Run recording uses 0, which makes it the outermost") doğruydu; el
-  yazısı `docs-site/concepts/runs.md` diyagramı da doğruydu. Tek bir cümle
-  yanlıştı ve çevresindeki her şey doğru olduğu için kimse şüphelenmedi.
-- **"Higher priority" İKİ anlama gelir.** `IAgentCatalog.ListAsync` "the source
-  with the higher priority wins" diyordu; `AgentSourcePriority.Database = 100`
-  yanında bu **yüksek sayı** gibi okunur, oysa düşük sayı kazanır. Sıralama
-  dokümanında "higher/lower priority" yazma — **"lower value"** yaz.
+- **Davranış testi bir cümleyi göremez** — bu sınıfın kapısı kaynak **metnini**
+  okumak zorundadır.
+- **"Higher priority" İKİ anlama gelir.** Sıralama dokümanında "higher/lower
+  priority" yazma — **"lower value"** yaz. Vakalar:
+  [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 
 Kapı: `OrderingContractDocumentationTests` (`tests/Tracon.Core.UnitTests/
 Architecture/`). Yeni bir sayısal sıralama/öncelik yüzeyi eklersen `Contracts()`
@@ -159,31 +153,18 @@ Tracon'in kanali yoktur. Sorumlulugu anlatan cumle oznesini yazsin.
 
 ## 🚨 Bir çalışma anı şartını ÜYE ÜYE anlatmak, şartı üyeye özgü gösterir (2026-09-07, F-212)
 
-`RunEventWriter`, `TraconRunRecordingOptions.RecordToolPayloads` kapalıyken
-her olayın `Payload` alanını `null` bırakır. `RunEventType`'ın **32 üyesinin
-~18'i** payload iddiası taşıyordu ve bu şartı yalnız **3'ü** anıyordu. Tüketici
-kuralı üyeden üyeye öğreniyor, anmayan üyede kuralın geçerli olmadığını
-sanıyordu.
-
-Ters yönü daha tehlikeliydi: `WorkflowRequest`'in payload'ı yazıcıda **bilerek
-her zaman** yazılır (bekleyen insan isteği yalnız oradan okunur) ama üye
-dokümanı bu muafiyeti hiç söylemiyordu — genel kuralı uygulayan okuyucu yanlış
-sonuca varırdı.
-
 **Kural: bir çalışma anı şartı bir kez, TİP düzeyinde yazılır; üye yalnız KENDİ
 muafiyetini anlatmak için o şarttan söz edebilir.** Tekrar, kuralı üyeye özgü
-gösterir.
+gösterir — ve muafiyeti yazmayan üye, genel kuralı uygulayan okuyucuyu yanlış
+sonuca götürür.
 
 **Kapı:** `RunEventPayloadSuppressionTests` (üç test). Değerli olan ikincisidir:
-yazıcının koşulundaki `RunEventType.X` kümesi ile tip düzeyi `<remarks>`'ta
-adı geçen küme **eşit** olmalıdır — dördüncü bir muafiyet eklemek, doküman onu
-adlandırana kadar kapıyı kırar. Yazıcıya `RunCompleted` muafiyeti eklenerek
-kırmızı olduğu ölçüldü. Üçüncü test tekrarı yasaklar; yazıldığı gün üç ihlal
-buldu (`ToolOutputTruncated`, `StructuredResponseRejected`, `Custom`).
-
-Bu, `RunEventPayloadContractTests`'in kendi belgelenmiş sınırının
-(*"İngilizceyi JSON'a karşı makineyle denetleyemeyiz"*) **denetlenebilir**
-yarısıdır: kümeyi karşılaştırmak İngilizceyi okumak değildir.
+yazıcının koşulundaki `RunEventType.X` kümesi ile tip düzeyi `<remarks>`'ta adı
+geçen küme **eşit** olmalıdır — dördüncü bir muafiyet eklemek, doküman onu
+adlandırana kadar kapıyı kırar. Kümeyi karşılaştırmak İngilizceyi okumak
+değildir; bu, `RunEventPayloadContractTests`'in belgelenmiş sınırının
+denetlenebilir yarısıdır. Ölçüm:
+[`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 - **🚨 Kapı sapmayı YAKALAR; sapmayı ÜRETEN protokol düzeltilmezse sınıf kapanmaz** (2026-09-08): `00-INDEKS.md` 1488 case yazıyordu, gerçek 1597'ydi — 36 ailenin **17'si** bayat. Sebep tek bir cümleydi: `faz-tamamlama` Adım 3 indeksi yalnız "alan dosyası yoksa" güncelletiyordu, yani mevcut bir aileye case eklemek sayacı hiç güncellemiyordu. Faz 157 bir aile dosyasına 170 satır ekledi ve indekse dokunmadı. **İki düzeltme birlikte gerekir:** kapı (`manuel_test_sayim_kaymasi`) unutulanı yakalar, protokol adımı unutulmayı önler. Yalnız kapı eklemek her fazda bir kırmızı üretir ve insanları onu susturmaya eğitir.
 - **🚨 Bir kapı İLK koşumunda kırmızı yanarsa, önce KAPIYI doğrula** (2026-09-08, `bagimlilik_surum_damgasi` yazılırken): kapı `IVectorSearchStore.cs:16`'daki `10.8.0` damgasını `Microsoft.Extensions.AI` pini `10.9.0` ile karşılaştırıp sapma bildirdi. Sapma **yoktu** — damga `Microsoft.Extensions.VectorData` hakkındaydı ve repo o paketi hiç almıyor; hatalı olan kapının eşleme kaydıydı. Kod "düzeltilseydi" doğru bir cümle yanlışla değiştirilecekti. Kural: yeni kapının ilk bulgusu bir kanıttır, bir emir değil. Pinlenmeyen paket için kayıt `None` taşır — bu bir atlama değil, yazılı karardır.
 - **🚨 Üretilen dosyayı `Edit`'ten korumak ÜRETECİ kilitlemez — ama `ask` bir kilit de değildir** (Faz 167, `claude 2.1.269`): `Edit(<yol>)` deny'ı `Edit` + `Write` **ve** `rm <yol>` Bash komutunu kapsar; `dokuman-bakim.py` **Python ile** yazdığı için üretim modu kuralı hiç tetiklemez (`MT-GDK-029`). Ama `ask` (`docs/arsiv/fazlar/*.md`) oturumun izin moduna tabidir: auto mode'da sınıflandırıcı **sessizce onaylar**, aynı oturumda `deny` sertçe durur. Her iddia kontrol koşumuyla ayırt edildi — kural yokken aynı `rm` dosyayı sildi. Ölçümler ve sınırlar: K-761 · K-763. Doküman kuralını araca taşırken sorulacak soru "kural kondu mu" değil, **"hangi yazma yolunu gerçekten kapatıyor"**.
@@ -213,8 +194,7 @@ düşürmemesi. Site içinden bakan hiçbir kontrol bunu göremezdi.
 İki yan koşul, ikisi de `deploy/nginx.conf`'ta:
 
 - Stok `mime.types`'ta `.md` **yoktur**. `location ~ \.md$ { default_type text/markdown; }`
-  kullan — server seviyesinde `types { }` bloğu **miras alınan tüm haritayı siler**
-  ve `text/css` ile `image/png`'yi de götürür.
+  kullan — server seviyesinde `types { }` **miras haritanın tamamını siler**.
 - `charset_types`'a `text/markdown` ekle, ama `text/html` **yazma**: o zaten örtük ve
   listelemek `nginx -t`'de uyarı verir.
 
@@ -225,12 +205,8 @@ RFC 9309: bir crawler yalnız **en özgül** eşleşen grubu okur, kalanını yo
 grubu eklendiği anda GPTBot için **etkisiz** olur. Yol kısıtları her gruba tekrar
 yazılır (`src/pages/robots.txt.ts`).
 
-İkinci tuzak: kısıtı `Allow: /`'dan **önce** yaz. Uyumlu parser en uzun eşleşmeyi
-alır ve sıra önemsizdir, ama Python'un kendi `urllib.robotparser`'ı ilk eşleşmeyi
-alır — `Allow: /` başta iken pagefind indeksini taranabilir raporladı. Sıralama
-bedava; kuralı iki okumada da doğru kılar.
-
-Politikanın kendisi `site.config.mjs`'deki `crawlerPolicy`'dedir — karar veri,
-endpoint yalnız render eder. Ölçülmüş iki gerçek orada kayıtlı: Google-Extended ve
-Applebot-Extended kapatmak Search/AI Overviews ve Siri kapsamını **etkilemez**
-(ikisinin de kendi dokümanı); CCBot kapatmanın etkisi en geniştir.
+İkinci tuzak: kısıtı `Allow: /`'dan **önce** yaz — uyumlu parser en uzun eşleşmeyi
+alır ama Python'un `urllib.robotparser`'ı ilkini alır. Politikanın kendisi
+`site.config.mjs`'deki `crawlerPolicy`'dedir; karar veri, endpoint yalnız render
+eder. Ölçülmüş kapsam gerçekleri:
+[`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).

@@ -14,18 +14,12 @@
 
 ## Uretilen sayfa ve onbellek tuzaklari
 
-- **`build-agent-map.mjs`'i EN SON içerik düzenlemesinden SONRA çalıştır, ilk
-  düzenlemeden sonra değil** (2026-09-04, Faz 141): `tuketici-dokuman-senkronu`
-  Adım 5'in 2. kapısı (`--check`) yeşil olduktan SONRA `dokuman-bakim.py
-  --site-denetle`'nin "arayuz"/"kalicilik" gibi bir kuralı yeni bir sayfa
-  düzenlemesi (`ui.md`) daha ister — o düzenleme agent map'i YENİDEN bayatlatır
-  ve `--check` bunu bir SONRAKİ koşuma kadar yakalamaz. `kapi.py kapanis`
-  kendi `node build-agent-map.mjs --check` adımını koşana kadar fark edilmedi.
-  Kural: site sayfalarına dokunan HER düzenleme turundan sonra (yalnız ilk
-  turdan sonra değil) `node docs-site/scripts/build-agent-map.mjs --check`
-  tekrar koş; `capabilities.md`'ye dokunmasan bile — üretici `docs-site/src/
-  content/docs/**/*.md`'nin TAMAMINI (yalnız `capabilities.md`'yi değil)
-  `llms-full.txt`'e gömer.
+- **Site sayfalarına dokunan HER düzenleme turundan sonra (yalnız ilkinden değil)
+  `node docs-site/scripts/build-agent-map.mjs --check` tekrar koş** (2026-09-04,
+  Faz 141) — `capabilities.md`'ye dokunmasan bile: üretici
+  `docs-site/src/content/docs/**/*.md`'nin TAMAMINI `llms-full.txt`'e gömer, yani
+  sonraki her düzenleme map'i yeniden bayatlatır. Vaka:
+  [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 - **`docs-site/src/content/docs/{api,http-api}/` ve `public/openapi/` GITIGNORE'dur.**
   Commit edilmezler; her yayinda uretilirler. `git status` temiz gorunurken
   uretilen icerik bayat olabilir.
@@ -37,24 +31,17 @@
 
 ## 🚨 `build-agent-map.mjs`'in "Rule:" satırı tablo ÖNCESİ paragrafı da toplar (Faz 85)
 
-`section.prose` bir bölümün tablo dışındaki TÜM satırlarını sırayla biriktirir
-— tablo öncesi bir lead-in cümle de, tablo sonrası kural cümlesi de. `Rule:`
-satırı bu birikmiş metnin `firstSentence()`'ıdır, yani tablo öncesine bir
-paragraf eklersen üreteç SESSİZCE o cümleyi kural sanır ve doğru kural asla
-görünmez. Ölçüldü: "Embedding points" bölümüne tablo öncesi bir açıklama
-eklenince map bunu "Rule:" olarak bastı, gerçek kural cümlesi (tablo sonrası)
-hiç görünmedi — hiçbir kapı bunu yakalamadı çünkü üreteç GEÇERLİ bir metin
-üretti, yalnız yanlış cümleyi seçti. Var olan HER bölüm heading→table→(yalnız)
-kural paragrafı sırasını izler; yeni bölüm de bunu izlemeli.
+`section.prose` tablo dışındaki TÜM satırları biriktirir ve `Rule:` onun
+`firstSentence()`'ıdır — tablo ÖNCESİNE paragraf eklersen üreteç sessizce o
+cümleyi kural sanır. Her bölüm heading→table→(yalnız) kural paragrafı sırasını
+izler; yeni bölüm de izlemeli. Ölçüm:
+[`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 
-**İlgili (Faz 122):** aynı üreteçte `renderRow` bir capability tablosundan
-yalnız 2. sütunun (başlığı `registration|enable|surface|definition|choice|
-where|output` desenine uyan) ilk iki backtick-kod parçasını alır — 3. sütunu
-("Boundary"/"Important behavior") kısaltmak `llms.txt`'in 20480 B bütçesini
-DEĞİŞTİRMEZ. Bütçe aşımında gerçek kaynak ya 2. sütun kod parçaları ya da
-`guides/*.md`'nin `description`'ı (`renderIndex`, sayfa başına bir satır);
-`node docs-site/scripts/build-agent-map.mjs --check`'in verdiği GERÇEK sayıyla
-iterasyon yap, sütun metnini gözle kısaltıp tahmin etme.
+**İlgili (Faz 122):** `llms.txt` bütçe aşımında 3. sütunu kısaltmak HİÇBİR ŞEY
+değiştirmez — `renderRow` yalnız 2. sütunun ilk iki kod parçasını alır. Gerçek
+kaynak ya o kod parçaları ya da `guides/*.md`'nin `description`'ıdır.
+`--check`'in verdiği GERÇEK sayıyla iterasyon yap, gözle tahmin etme.
+Ayrıntı: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 
 ## 🚨 Agent map package adı path separator'a bağlanamaz
 
@@ -71,27 +58,15 @@ olacak her relative path önce `/` biçimine çevrilmelidir. `path-utils.mjs` bu
 kuralı merkezileştirir; `path-utils.test.mjs` Windows girdisini her platformda
 doğrular.
 
-## 🚨 DocFX assembly metadata girdisine `artifacts/bin` referansı ekleme (Faz 98 · onarım 2026-08-26)
+## 🚨 DocFX assembly metadata girdisine `artifacts/bin` referansı ekleme (Faz 98)
 
-`docfx metadata --logLevel verbose` kök nedeni gösterdi. `src`, API üretilecek
-18 assembly'yi açıkça seçiyordu. `references` ise `artifacts/bin` altındaki test,
-örnek ve paket çıktılarının tüm DLL'lerini yüklüyordu. Bu dizinler aynı
-Tracon assembly'sinin çok sayıda kopyasını taşır. Roslyn aynı basit adlı
-assembly'leri birlikte görünce **360 `CS1704`** üretti. Hatanın çalışma ağacı
-tabanında da görülmesinin nedeni birikmiş çıktı ağacıydı.
-
-`references.exclude` kök çözüm değildir. Denemelerde hata sayısı değişmedi;
-yalnız çakışma mesajında adı geçen assembly değişti. Explicit `src` assembly'leri
-bağımlılıklarını kendi `.deps.json` dosyalarından ve NuGet cache'inden çözer.
-Bu nedenle `docfx.json` içindeki `references` girdisi tamamen kaldırıldı. Aynı
-birikmiş `artifacts/bin` ağacında metadata üretimi 0 warning ve 0 error ile
-bitti; 678 API Markdown dosyası üretildi.
-
-`DocfxConfigurationTests`, assembly metadata girdisine yeniden `references`
-eklenmesini yasaklar. Mutation koşumunda yalnız boş bir `references` dizisi
-eklemek bile testi düşürdü. Yeni bir proje için bağımlılık çözümleme sorunu
-çıkarsa önce explicit `src` girdisini ve assembly'nin `.deps.json` dosyasını
-incele; geniş bir artifacts globu ekleme.
+Explicit `src` assembly'leri bağımlılıklarını kendi `.deps.json`'larından çözer;
+geniş bir `artifacts` globu aynı basit adlı assembly'nin kopyalarını yükler ve
+Roslyn **`CS1704`** üretir. `references.exclude` kök çözüm DEĞİLDİR. `docfx.json`
+içindeki `references` girdisi bu yüzden tamamen kaldırıldı ve
+`DocfxConfigurationTests` geri eklenmesini yasaklar. Bağımlılık çözümleme sorunu
+çıkarsa explicit `src` girdisini ve `.deps.json`'ı incele. Ölçüm:
+[`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 
 ## 🚨 `dotnet format --verify-no-changes` ve `docfx metadata`, DEBUG yapılandırmasının `obj/` çıktısını okur — yalnız Release derlemesi yeterli DEĞİL (Faz 98)
 
@@ -225,21 +200,14 @@ calismaz.
 
 ## 🚨 Sayılabilir iddiayı TEK sayfada denetleyen kapı, kopyalarını kaçırır
 
-2026-09-07 (B02). `check-content.mjs` operasyon sayısını yalnız landing page ile
-`http-api.md`'de ölçüyordu. Üç elle yazılan sayfa 143/143/162 operasyon, biri de
-19 tag iddia ederken (gerçek: 165 ve 23) kapı YEŞİL kaldı. Bir kapı bir iddianın
-TEK ÖRNEĞİNİ değil, SINIFINI denetlemelidir: tarama artık her elle yazılan
-sayfayı gezer ve "sayı + en çok beş kelime + isim" kalıbını arar (satır sarması
-iddiayı bölmesin diye boşluk normalize edilir).
+Bir kapı bir iddianın TEK ÖRNEĞİNİ değil, **SINIFINI** denetlemelidir: tarama
+her elle yazılan sayfayı gezer ve "sayı + en çok beş kelime + isim" kalıbını arar
+(satır sarması iddiayı bölmesin diye boşluk normalize edilir). Tarihli
+`release`/`changelog` sayfaları KAPSAM DIŞIDIR — oradaki sayı bir snapshot'tır.
 
-Tarihli `release`/`changelog` sayfaları KAPSAM DIŞIDIR — oradaki sayı bir
-snapshot'tır; bugünkü değerle güncellemek kaydı düzeltmez, BOZAR.
-
-İkinci ders: **kapı, sayfanın İDDİA ETTİĞİ şeyi ölçmelidir.** Ekran sayısı
-`from './screens/…'` import MODÜLLERİNİ sayıyordu (28); sayfalar ise kullanıcının
-gördüğü Screen COMPONENT'ini söylüyordu (30) — `skills` ve `triggers` ikişer
-component export eder. Kapı, hiçbir sayfanın iddia etmediği bir sayıyı ölçtüğü
-sürece var olma sebebiyle kırmızı olamaz.
+İkinci ders: **kapı, sayfanın İDDİA ETTİĞİ şeyi ölçmelidir.** Hiçbir sayfanın
+iddia etmediği bir sayıyı ölçen kapı, var olma sebebiyle kırmızı olamaz. İki
+ölçüm vakası (2026-09-07 B02): [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 
 Üçüncü ders, aynı sınıfın düzyazı hâli (2026-09-15): `Tracon.Testing` matrise
 dönünce `compatibility.md` güncellendi, `getting-started`'in "*require .NET 10*"
