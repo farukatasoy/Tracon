@@ -118,7 +118,7 @@ sitenin kusurudur, ve kanıtla çürütülen iddialar bir daha açılmamalıdır
 | 6 | `api/index.md` "16 packages" derken `packages.md` "Twenty packages" diyordu | 🟢 | ✅ **kapandı 2026-09-15** — üreteç "the N packages that ship a library API of their own" yazıyor |
 | 7 | Job queue'nun MAF durability uzantısına göre konumu **hiçbir yerde** yazılı değil (site: 0 eşleşme; karar defteri: 0 kayıt) | 🟡 | ✅ **kapandı 2026-09-15** — K-778; `guides/background-work.md` § *What this queue is, and what it is not* |
 | 8 | Dört `WriteAuditOrThrowAsync` kopyası tek politika değil; `ApprovalEndpoints.cs:345` kopyayı kendi yorumunda kabul ediyor | 🟡 | ✅ **kapandı 2026-09-15** — [Faz 171](arsiv/fazlar/171-DENETIM-IZI-YAZMA-POLITIKASI.md); BL-047 aynı fazda kapandı |
-| 9 | Tehdit modeli dokümanı yok (`threat model`/`STRIDE` → `docs/` genelinde 0) | 🟡 | **Planlandı 2026-09-15** — [Faz 172](172-TEHDIT-MODELI.md) |
+| 9 | Tehdit modeli dokümanı yok (`threat model`/`STRIDE` → `docs/` genelinde 0) | 🟡 | **Planlandı 2026-09-15** — [Faz 172](arsiv/fazlar/172-TEHDIT-MODELI.md) |
 | 10 | SBOM üretimi ve paket imzalama yok | 🟢 | **GA hattı** — K-777, gerekçesiyle ertelendi |
 | 11 | `KARARLAR.md`'de K-662…K-777 arası kararlar tek bir kod bloğunun (satır 738–838) içinde kalıyor; tablo olarak render olmuyor | 🟢 | **Açık** — indeks üreteci etkilenmiyor, yalnız okunabilirlik |
 
