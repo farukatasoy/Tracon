@@ -3,8 +3,8 @@
 > **Durum:** ✅ Tamamlandı (2026-09-16)
 > **Plan onayı:** onaylandı (2026-09-16, kullanıcı) — dört açık sorunun dördü de
 > önerilen seçenekle kapandı
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-224**
-> **Önkoşul:** [Faz 164](arsiv/fazlar/164-CONSOLE-ENSTRUMAN-KATMANI.md) — `Dialog` primitifini ve `Tooltip` sonuç-bildirim desenini o faz kurdu
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-224**
+> **Önkoşul:** [Faz 164](164-CONSOLE-ENSTRUMAN-KATMANI.md) — `Dialog` primitifini ve `Tooltip` sonuç-bildirim desenini o faz kurdu
 > **Paketler:** `Tracon.UI`
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyümüyor — değişiklik `Tracon.UI` frontend'inde, sevk edilen .NET yüzeyinde değil
@@ -27,7 +27,7 @@
    ETMEZ, yeni bir çalıştırma açılır — bu fazın en güçlü gerekçesi),
    **K-228** (i18n elle yazıldı; eksik anahtar **derleme hatasıdır**),
    **K-232** (sunucu yanıtı çevrilmez)
-3. [Faz 164](arsiv/fazlar/164-CONSOLE-ENSTRUMAN-KATMANI.md) — yalnız "Plandan
+3. [Faz 164](164-CONSOLE-ENSTRUMAN-KATMANI.md) — yalnız "Plandan
    Sapmalar" §3 ve devir notu:
    ```bash
    awk '/## Plandan Sapmalar/,/## Bu Fazda Verilen Kararlar/' docs/arsiv/fazlar/164-CONSOLE-ENSTRUMAN-KATMANI.md
@@ -35,11 +35,11 @@
    `Dialog` o fazda yazıldı, ölçüldü ve DoD gereği **geri alındı**. Neden geri
    alındığını bilmeden bu faz aynı duvara çarpar.
 4. Alan hafızası (bu faz bir alana dokunuyor):
-   [`hafiza/frontend.md`](hafiza/frontend.md) (ekran ve bileşen tuzakları) ·
-   [`hafiza/frontend-tasarim-katmani.md`](hafiza/frontend-tasarim-katmani.md)
+   [`hafiza/frontend.md`](../../hafiza/frontend.md) (ekran ve bileşen tuzakları) ·
+   [`hafiza/frontend-tasarim-katmani.md`](../../hafiza/frontend-tasarim-katmani.md)
    (`Dialog` ve `Tooltip` primitiflerinin yaşadığı katman) ·
-   [`hafiza/frontend-yerellestirme.md`](hafiza/frontend-yerellestirme.md) (K-228)
-5. Gerektiğinde: [`components/dialog.tsx`](../src/Tracon.UI/frontend/src/components/dialog.tsx)
+   [`hafiza/frontend-yerellestirme.md`](../../hafiza/frontend-yerellestirme.md) (K-228)
+5. Gerektiğinde: [`components/dialog.tsx`](../../../src/Tracon.UI/frontend/src/components/dialog.tsx)
    tamamı (177 satır) — primitifin sözleşmesi
 
 ---
@@ -64,10 +64,10 @@ kısıtı taşımaz.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`approvals.tsx:50`](../src/Tracon.UI/frontend/src/screens/approvals.tsx#L50) | `decide` mutation'ı `approved: boolean` gövdesiyle doğrudan `POST` atıyor; arada hiçbir adım yok |
-| [`dialog.tsx:128`](../src/Tracon.UI/frontend/src/components/dialog.tsx#L128) | `Dialog` hazır: `open`/`onClose`/`title`/`description`/`children`/`footer`/`width`/`testId`. Odak tuzağı `useFocusTrap` (satır 49), `Esc` ve odak dönüşü kanıtlı |
+| [`approvals.tsx:50`](../../../src/Tracon.UI/frontend/src/screens/approvals.tsx#L50) | `decide` mutation'ı `approved: boolean` gövdesiyle doğrudan `POST` atıyor; arada hiçbir adım yok |
+| [`dialog.tsx:128`](../../../src/Tracon.UI/frontend/src/components/dialog.tsx#L128) | `Dialog` hazır: `open`/`onClose`/`title`/`description`/`children`/`footer`/`width`/`testId`. Odak tuzağı `useFocusTrap` (satır 49), `Esc` ve odak dönüşü kanıtlı |
 | `grep -rln 'Dialog' src/Tracon.UI/frontend/src/` | Primitifi **üç bileşen** kullanıyor (`dialog.tsx` · `command-palette.tsx` · `menu.tsx`) — **hiçbir ekran kullanmıyor** |
-| [`agent-detail.tsx:327`](../src/Tracon.UI/frontend/src/screens/agent-detail.tsx#L327) | Faz 164 bir **sonuç-bildirim** katmanı kurmuş: `Tooltip` + `agentDetail.rollbackEffect`. Yorum açıkça "the CONSEQUENCE is readable at the moment of deciding" diyor |
+| [`agent-detail.tsx:327`](../../../src/Tracon.UI/frontend/src/screens/agent-detail.tsx#L327) | Faz 164 bir **sonuç-bildirim** katmanı kurmuş: `Tooltip` + `agentDetail.rollbackEffect`. Yorum açıkça "the CONSEQUENCE is readable at the moment of deciding" diyor |
 | `tests/Tracon.Ui.E2ETests/UiTests.cs` | E2E olgu sayısı **71** — ⚠️ yanlış: o dosyada **70** vardır, 71 PROJE toplamıdır (bkz. Plandan Sapmalar §3) |
 | `src/Tracon.UI/wwwroot/assets/index-4SrOSlGr.js.br` | Bugünkü bundle **160 188 B** (brotli) — ⚠️ bayat: temiz worktree'de ölçülen taban **162,6 KB brotli / 190,5 KB gzip**'tir |
 
@@ -88,18 +88,18 @@ listeye girdi. Kaydetme ve tetikleme aksiyonları (tekrarlanabilir) dışarıda.
 
 | # | Çağrı yeri | Aksiyon | HTTP |
 |---|---|---|---|
-| 1 | [`approvals.tsx:50`](../src/Tracon.UI/frontend/src/screens/approvals.tsx#L50) | `decide` (onayla **ve** reddet) | `POST /api/approvals/{id}/decide` |
-| 2 | [`agent-detail.tsx:41`](../src/Tracon.UI/frontend/src/screens/agent-detail.tsx#L41) | `remove` — agent sil | `DELETE /api/agents/{name}` |
-| 3 | [`agent-detail.tsx:228`](../src/Tracon.UI/frontend/src/screens/agent-detail.tsx#L228) | `rollback` — sürüm geri al | `POST /api/agents/{name}/rollback` |
-| 4 | [`sessions.tsx:57`](../src/Tracon.UI/frontend/src/screens/sessions.tsx#L57) | `remove` — oturum sil | `DELETE /api/sessions/{sessionId}` |
-| 5 | [`evals.tsx:117`](../src/Tracon.UI/frontend/src/screens/evals.tsx#L117) | `remove` — eval seti sil | `DELETE /api/evals/{name}` |
-| 6 | [`experiments.tsx:134`](../src/Tracon.UI/frontend/src/screens/experiments.tsx#L134) | `remove` — deney sil | `DELETE /api/experiments/{name}` |
-| 7 | [`jobs.tsx:181`](../src/Tracon.UI/frontend/src/screens/jobs.tsx#L181) | `remove` — zamanlama sil | `DELETE /api/schedules/{name}` |
-| 8 | [`triggers.tsx:225`](../src/Tracon.UI/frontend/src/screens/triggers.tsx#L225) | `remove` — tetikleyici sil | `DELETE /api/triggers/{name}` |
-| 9 | [`mcp.tsx:171`](../src/Tracon.UI/frontend/src/screens/mcp.tsx#L171) | `remove` — MCP sunucusu sil | `DELETE /api/mcp-servers/{name}` |
-| 10 | [`mcp.tsx:192`](../src/Tracon.UI/frontend/src/screens/mcp.tsx#L192) | `removeRule` — onay kuralı sil | `DELETE /api/approvals/rules/{ruleId}` |
-| 11 | [`skills/skill-editor.tsx:70`](../src/Tracon.UI/frontend/src/screens/skills/skill-editor.tsx#L70) | `remove` — skill sil | `DELETE /api/skills/{name}` |
-| 12 | [`skills/script-grants.tsx:55`](../src/Tracon.UI/frontend/src/screens/skills/script-grants.tsx#L55) | `revoke` — script izni iptal | `DELETE /api/skill-script-grants/{skillName}` |
+| 1 | [`approvals.tsx:50`](../../../src/Tracon.UI/frontend/src/screens/approvals.tsx#L50) | `decide` (onayla **ve** reddet) | `POST /api/approvals/{id}/decide` |
+| 2 | [`agent-detail.tsx:41`](../../../src/Tracon.UI/frontend/src/screens/agent-detail.tsx#L41) | `remove` — agent sil | `DELETE /api/agents/{name}` |
+| 3 | [`agent-detail.tsx:228`](../../../src/Tracon.UI/frontend/src/screens/agent-detail.tsx#L228) | `rollback` — sürüm geri al | `POST /api/agents/{name}/rollback` |
+| 4 | [`sessions.tsx:57`](../../../src/Tracon.UI/frontend/src/screens/sessions.tsx#L57) | `remove` — oturum sil | `DELETE /api/sessions/{sessionId}` |
+| 5 | [`evals.tsx:117`](../../../src/Tracon.UI/frontend/src/screens/evals.tsx#L117) | `remove` — eval seti sil | `DELETE /api/evals/{name}` |
+| 6 | [`experiments.tsx:134`](../../../src/Tracon.UI/frontend/src/screens/experiments.tsx#L134) | `remove` — deney sil | `DELETE /api/experiments/{name}` |
+| 7 | [`jobs.tsx:181`](../../../src/Tracon.UI/frontend/src/screens/jobs.tsx#L181) | `remove` — zamanlama sil | `DELETE /api/schedules/{name}` |
+| 8 | [`triggers.tsx:225`](../../../src/Tracon.UI/frontend/src/screens/triggers.tsx#L225) | `remove` — tetikleyici sil | `DELETE /api/triggers/{name}` |
+| 9 | [`mcp.tsx:171`](../../../src/Tracon.UI/frontend/src/screens/mcp.tsx#L171) | `remove` — MCP sunucusu sil | `DELETE /api/mcp-servers/{name}` |
+| 10 | [`mcp.tsx:192`](../../../src/Tracon.UI/frontend/src/screens/mcp.tsx#L192) | `removeRule` — onay kuralı sil | `DELETE /api/approvals/rules/{ruleId}` |
+| 11 | [`skills/skill-editor.tsx:70`](../../../src/Tracon.UI/frontend/src/screens/skills/skill-editor.tsx#L70) | `remove` — skill sil | `DELETE /api/skills/{name}` |
+| 12 | [`skills/script-grants.tsx:55`](../../../src/Tracon.UI/frontend/src/screens/skills/script-grants.tsx#L55) | `revoke` — script izni iptal | `DELETE /api/skill-script-grants/{skillName}` |
 
 Sınırda kalan üç kalem bilerek **dışarıda**: `job-detail.tsx:50 cancel`,
 `jobs.tsx:195 cancel`, `experiment-detail.tsx:143 stop`. İptal geri alınamaz
@@ -626,7 +626,7 @@ kanıtlandı.
 | 3 | Belgedeki olgu sayısı yanlıştı (77/78 yazılmıştı) | Ölçüldü: `UiTests.cs` **70 → 78**, proje **71 → 79**, **8** yeni olgu |
 | 4 | Kaldırılan `window.confirm` akışının manuel kabul setinde çağıranı kalmıştı | **Sınıf tarandı** (denetimin bulduğu bir case değil, **yedi** yer): `MT-UIAG-019` · `MT-UIAG-024` · `MT-UIRUN-021` · `MT-UIRUN-022` · `MT-UIRUN-037` · `MT-EVAL-015` · `00-INDEKS` asimetri notu · `21-DAYANIKLILIK` kapsam tablosu. Hepsi yeni akışa taşındı |
 | 5 | DoD satırlarının hiçbiri işaretlenmemişti | Kapanışta kanıtlarıyla işaretlendi |
-| 6 | `check-modal-layer.mjs`'in backdrop kuralı `useFocusTrap` **adını** arıyordu — hook'tan bahseden bir yorum kapıyı yeşile çeviriyordu; ayrıca `globalThis.confirm(…)` ve `window['confirm'](…)` biçimleri görünmüyordu | Kural artık **çağrıyı** arıyor (`useFocusTrap(`); regex `globalThis`/`self` öneklerini ve köşeli parantez biçimini de kapsıyor. `window["confirm"](…)` ile kırmızıya düşürüldüğü ölçüldü |
+| 6 | `check-modal-layer.mjs`'in backdrop kuralı `useFocusTrap` **adını** arıyordu — hook'tan bahseden bir yorum kapıyı yeşile çeviriyordu; ayrıca `globalThis.confirm(…)` ve `window['confirm'](../../…)` biçimleri görünmüyordu | Kural artık **çağrıyı** arıyor (`useFocusTrap(`); regex `globalThis`/`self` öneklerini ve köşeli parantez biçimini de kapsıyor. `window["confirm"](../../…)` ile kırmızıya düşürüldüğü ölçüldü |
 
 ### 🟢 — aday listesine
 

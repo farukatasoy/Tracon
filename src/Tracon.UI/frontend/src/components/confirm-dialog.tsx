@@ -6,7 +6,7 @@ import { Button, ErrorNote } from './ui';
 /**
  * The second step in front of an action that cannot be taken back.
  *
- * 🚨 Read `docs/175-GERI-ALINAMAZ-KARAR-DOGRULAMASI.md` §175.3 before reaching
+ * 🚨 Read `docs/arsiv/fazlar/175-GERI-ALINAMAZ-KARAR-DOGRULAMASI.md` §175.3 before reaching
  * for this. It does NOT belong on every destructive-looking button: an action
  * earns a confirmation only when it cannot be recreated from the same form, or
  * when the decision itself cannot be given again (K-368). Everything else gets
