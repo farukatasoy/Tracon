@@ -9,10 +9,12 @@
 > ([`kesif/`](kesif/)) · plana dönüşmüş kalemlerin gövdelerini
 > ([`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md)).
 
-**Durum (2026-09-15):** 4 sıralanabilir aday · 14 bekleyen kalem (10 tek satırlık + 4 gövdeli).
-Son plana dönüşen: **F-227 · F-228 · F-229 → [Faz 167](arsiv/fazlar/167-AGENT-ZORLAMA-KATMANI.md) ·
-[168](arsiv/fazlar/168-KURTARMA-RAMPASI-KATALOGU.md) · [169](arsiv/fazlar/169-FAZ-PLANI-SOZLESMESI.md)**
-(📋 Planlandı). Yeni aday üretmek için `aday-kesfi` koşulur.
+**Durum (2026-09-15):** **0 sıralanabilir aday** · 14 bekleyen kalem (10 tek satırlık + 4 gövdeli).
+Son plana dönüşen: **F-239 · F-224 · F-218 · F-213 · F-232 →
+[Faz 174](174-KAPASITE-DAMGASI-KAPISI.md) · [175](175-GERI-ALINAMAZ-KARAR-DOGRULAMASI.md) ·
+[176](176-EVALUATOR-SURUM-DAMGASI.md) · [177](177-STORE-IPTAL-SOZLESMESI.md) ·
+[178](178-TUKETICI-KAPI-SKILLI.md)** (📋 Planlandı). Sıralanabilir kuyruk **boştur**;
+yeni aday üretmek için `aday-kesfi` koşulur.
 
 ---
 
@@ -60,27 +62,11 @@ Hazırlık · Maliyet · Risk · Bağımlılık · Ekosistem · Karşı görüş
 
 ---
 
-## Faz 166'dan Devreden
-
-| Aday | Ne açar | Kanıt |
-|---|---|---|
-| **F-230 — Kapasite sürüm damgası kapısı** | `docs-site/guides/production.md`'de yayımlanan her kapasite sayısının `bench/capacity/measurements/*/summary.json` içinde bir karşılığı olduğunu ve sayfanın yazdığı commit'in manifest'le eşleştiğini doğrulayan bir `dokuman-bakim.py` kontrolü | Faz 166'nın denetimi **beş 🔴** buldu ve beşi de tam olarak bu sınıftı: yanlış commit damgası, yanlış birleştirilmiş percentile, tek tekrarın ortalama gibi sunulması, elle kopyalarken bozulan yüzde, kanıtın izlenmeyen dizinde kalması. K-775 bunu bir **sözleşme** olarak kurdu; kapısı yok |
-
----
-
 ## Sıralanabilir Adaylar
 
-Dördünün de **boşluğu** ölçülmüştür ve dördü de bugün `faz-planlama`'ya
-girebilir. Sıra bir öneridir, zorunluluk değil. F-232 bir **ölçüm adımını**
-planının içinde taşır ([Faz 167](arsiv/fazlar/167-AGENT-ZORLAMA-KATMANI.md)
-§ 167.3 emsali): ölçüm negatifse kapsam o adımda daralır.
-
-| # | Aday | Ne açar | Maliyet | Kanıtın gücü |
-|---|---|---|---|---|
-| 1 | [F-224](#f-224--geri-alınamaz-kararlar-için-doğrulama-adımı) | Mis-click geri alınamaz bir kararı vermez | Küçük–orta | Primitif hazır; envanter ölçüldü |
-| 2 | [F-218](#f-218--skor-satırı-evaluator-paket-sürümünü-damgalamıyor) | "Yargıç mı değişti, model mi bozuldu" sorusunun cevabı olur | Orta (migration) | Boşluk ölçüldü; talep kanıtı tek risk satırı |
-| 3 | [F-213](#f-213--store-sözleşmelerinin-iptal-davranışı-yazılı-değil) | İptal davranışı uygulama detayı olmaktan çıkar | Küçük ama yaygın | Boşluk ölçüldü; talep kanıtı yok |
-| 4 | [F-232](#f-232--tüketici-reposuna-kurulan-tracon-kapı-skilli) | Agent Tracon kodunu yazmadan **önce** yönlendirilir | Orta | Boşluk ölçüldü; **yükleme/çağrılma kanıtı yok** — fazın ilk adımı ölçümdür |
+**Kuyruk boş (2026-09-15).** Beş kalem de aynı gün plana dönüştü; eşleme
+§ *Aday Olmayan Açık Kayıtlar* tablosundadır. Yeni aday üretmek için
+`aday-kesfi` koşulur.
 
 ---
 
@@ -89,208 +75,6 @@ planının içinde taşır ([Faz 167](arsiv/fazlar/167-AGENT-ZORLAMA-KATMANI.md)
 Üç yarısı da kapandı (sayı · davranış · sürüm damgası). Kaydın kendi
 ölçümünün neden yanlış olduğu ve kapının 2026-09-14 genişletmesi:
 [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md).
-
----
-
-### F-224 · Geri alınamaz kararlar için doğrulama adımı
-
-**Kaynak:** [Faz 164](arsiv/fazlar/164-CONSOLE-ENSTRUMAN-KATMANI.md) — `Dialog`
-yazıldı, ölçüldü ve DoD gereği geri alındı (o fazın "Plandan Sapmalar" §3).
-
-**Sorun:** Onaylar ekranında bir tool çağrısını onaylamak veya reddetmek tek
-tıktır ve geri alınamaz (K-014: karar yeni bir run açar, soran run sonsuza dek
-`AwaitingApproval` kalır). İki düğme yan yanadır. Aynı desen başka yerlerde de
-yaşıyor: session silme, agent sürümü geri alma, kiracı anahtarı iptali.
-
-**Kapsam:** `Dialog` primitifi hazırdır — odak tuzağı, `Esc`, odak dönüşü,
-kaydırma kilidi, `UiTests` ile kanıtlı
-([`components/dialog.tsx`](../src/Tracon.UI/frontend/src/components/dialog.tsx)).
-İş üç adımdır: geri alınamaz aksiyonların **envanterini** çıkarmak,
-hangilerinin doğrulama hak ettiğine karar vermek, etkilenen E2E olgularını
-**birlikte** güncellemek. Faz 164 bunu yapamazdı: DoD'si mevcut olguların
-hiçbirinin değişmemesini şart koşuyordu.
-
-**Değer:** Bir mis-click geri alınamaz bir kararı vermez.
-
-**Mercek:** 4.
-
-**Hazırlık — ölçüldü (2026-09-13):** Primitif hazır ve bugün üç bileşen
-kullanıyor (`dialog.tsx` · `command-palette.tsx` · `menu.tsx`) — **hiçbir ekran
-kullanmıyor**. Ekranlarda geri alınamaz aksiyon çağrı yeri **10**
-(`onApprove`/`onReject`/`handleDelete`/`handleRevoke`/`rollback` taraması).
-E2E olgu sayısı bugün **70**'tir (Faz 164'ün DoD'si 58 diyordu — o sayı bayat).
-Hangi 10'unun doğrulama hak ettiği **ölçülmedi**; fazın ilk adımı odur.
-
-**Maliyet:** Küçük–orta. Envanterin kaçının seçildiğine bağlı.
-
-**Risk:** Orta — her doğrulama adımı bir etkileşim sözleşmesini değiştirir ve
-ilgili E2E olgusunu birlikte taşımayı gerektirir. Onay yorgunluğu da gerçek bir
-maliyettir: her şeyi doğrulatmak hiçbirini doğrulatmamakla aynı yere çıkar.
-
-**Bağımlılık:** Yok.
-
-**Ekosistem:** 2026-09-13 — iç arayüz kalitesi; dış ekosistem iddiası yok.
-
-**Karşı görüş:** 10 çağrı yerinin hepsi doğrulama hak etmez. Kapsam seçici
-olmazsa aday kendi riskini üretir.
-
----
-
-### F-218 · Skor satırı evaluator paket sürümünü damgalamıyor
-
-**Kaynak:** [Faz 155](arsiv/fazlar/155-KALIBRE-EDILMIS-EVALUATOR-KATALOGU.md) — plan
-risk tablosundaydı, kapsam dışı bırakıldı.
-
-**Sorun:** `AddEvaluatorJudge` ile bağlanan bir `IEvaluator`'ın puanı
-`Microsoft.Extensions.AI.Evaluation.Quality`'nin **prompt'una** bağlıdır ve o
-prompt paket sürümüyle değişir. Skor satırı hangi sürümün ürettiğini
-kaydetmiyor; bir yükseltme
-[Faz 153](arsiv/fazlar/153-EVAL-KOSUMLARI-ARASINDA-REGRESYON-FARKI.md)'ün regresyon
-taban çizgisini **sessizce** kaydırabilir — fark "model bozuldu" gibi görünür,
-oysa yargıcın kendisi değişmiştir.
-
-**Kapsam:** `RunScore`'a bir kaynak/sürüm damgası eklemek — `Comment`'e
-sıkıştırmadan, ayrı bir alan olarak.
-
-**Değer:** Skor trendini yorumlanabilir kılar; "yargıç değişti mi" sorusunun
-koşulan bir cevabı olur.
-
-**Mercek:** 3, 6.
-
-**Hazırlık — ölçüldü (2026-09-13):** Faz 155 köprüyü kurdu; damga onun üstüne
-biner. [`RunScore`](../src/Tracon.Abstractions/Runs/RunScore.cs) bugün on iki alan
-taşıyor ve ikisi kaynağa bakıyor (`Source`, `Author`) — **sürüm alanı yok**.
-
-**Maliyet:** Orta — `RunScore` kalıcı bir tiptir, üç SQL sağlayıcısında
-migration ister (K-711'in emsali).
-
-**Risk:** Kalıcı şemaya alan eklemek geri dönüşü pahalıdır.
-
-**Bağımlılık:** Faz 155 (kapandı).
-
-**Ekosistem:** 2026-09-07 — `Microsoft.Extensions.AI.Evaluation` 10.9.0.
-
-**Karşı görüş:** Talep kanıtı şimdilik tek bir risk satırıdır, ölçülmüş bir
-tüketici şikâyeti değil. `Author` alanı `judge:{ad}` taşıyor; sürümü oraya
-sıkıştırmak migration'sız bir ara çözüm olurdu — ama K-059 sınıfı bir hata
-olur, ad alanı sürüm alanı değildir.
-
----
-
-### F-213 · Store sözleşmelerinin iptal davranışı yazılı değil
-
-**Kaynak:** [Faz 152](arsiv/fazlar/152-SKORUN-ADI-VE-SEKLI.md) — case bilerek
-dışarıda bırakıldı, gerekçe o fazın "Plandan Sapmalar" tablosundadır (sapma 3).
-
-**Sorun:** Hiçbir `*StoreContract` iptal case'i taşımıyor ve uygulamalar farklı
-davranıyor: SQL store'lar token'ı ADO.NET üzerinden doğal olarak gözlüyor,
-bellek içi store'lar token'ı çoğunlukla hiç okumuyor. Bir tüketici
-`UpsertAsync(score, alreadyCancelledToken)` çağırdığında ne olacağını
-sözleşmeden öğrenemiyor.
-
-**Kapsam:** Tek bir store değil, **store ailesi** için bir karar: sevk edilen
-sözleşmelere iptal case'i girsin mi, girecekse bellek içi uygulamalar da
-`ThrowIfCancellationRequested` ile hizalansın mı.
-
-**Değer:** İptal davranışı bugün uygulama detayı; sözleşmeye girerse
-tüketicinin varsayımı ölçülebilir hâle gelir.
-
-**Mercek:** 3, 7.
-
-**Hazırlık — ölçüldü (2026-09-13):** `Tracon.Testing.Contracts.Xunit/Contracts/`
-altında **29 sözleşme sınıfı** var ve **hiçbiri** iptal case'i taşımıyor.
-
-**Maliyet:** Küçük ama YAYGIN — 29 sözleşme ve bellek içi karşılıkları.
-
-**Risk:** Sözleşmeyi genişletmek sevk edilen bir söz vermektir; üçüncü taraf
-`IRunScoreStore`/`IRunStore` uygulamalarına yeni bir zorunluluk yükler ve
-ölçülmüş bir tüketici talebi olmadan yapılırsa geri alması pahalıdır.
-
-**Bağımlılık:** Yok.
-
-**Ekosistem:** 2026-09-13 — iç sözleşme kalitesi; dış ekosistem iddiası yok.
-
-**Karşı görüş:** Talep kanıtı **yok**. Sıralamada sonuncu olmasının sebebi
-budur; 1.0 öncesi bedava olması ise tersini söylüyor — yayından sonra bu
-genişletme kırıcıdır.
-
----
-
-### F-232 · Tüketici reposuna kurulan Tracon kapı skill'i
-
-**Kaynak:** Kullanıcı fikri (2026-09-15). [Faz 73](arsiv/fazlar/73-TUKETICI-AGENT-DESTEGI.md)
-ve [Faz 167](arsiv/fazlar/167-AGENT-ZORLAMA-KATMANI.md) hattının devamı.
-
-**Sorun:** Tracon bugün bir coding agent'a iki kanal veriyor: **bilgi**
-(`Tracon.AgentMap.md` → `AGENTS.md`, `Tracon.LocalReference.md`, `llms.txt`)
-ve **zorlama** (dokuz `TRC0*` usage diagnostic). İkisi de geç konuşur. Map
-okunmayı bekler; diagnostic ise kod **yazıldıktan sonra** konuşur — agent
-retry loop'unu yazar, derler, uyarıyı görür, siler. Eksik olan üçüncü kanal
-**prosedürdür**: "Tracon yüzeyine dokunan kod yazmadan önce şunu şu sırayla
-yap." Skill formatı tam olarak bunu taşır; tetikleyicisi olan bir iş akışıdır.
-
-**Kapsam** (kullanıcı kararları, 2026-09-15):
-
-- **Yazıcı CLI'dır, build değil.** `tracon` global tool'una dosya yazan bir
-  komut girer. Build **yazmaz**, yalnız bayatlığı raporlar — `TRC0401`
-  emsalinde yeni bir usage diagnostic. Gerekçe: skill dizini çok dosyalıdır,
-  commit edilir ve tüketicinin sahibi olduğu içeriktir; `AGENTS.md`'nin
-  "yalnız yokken yaz" sözleşmesi oraya genişletilemez.
-- **Dört format:** `.claude/skills/<ad>/SKILL.md` · vendor-nötr
-  (`AGENTS.md` eki veya `.agents/`) · `.github/` (Copilot) ·
-  `.cursor/rules/*.mdc`. Tek kanonik metin, dört ince emitter.
-- **İçerik tek kapı skill'idir.** "Tracon yüzeyine dokunan kod yazmadan önce
-  yetenek haritasını ve **kurulu sürümün** XML dokümanını oku." Görev
-  prosedürü seti (agent ekle · tool ekle · run teşhisi · sürüm yükseltme)
-  kapsam **dışıdır**.
-- **Bayatlama mekanizması hazırdır.** Map bugün `revision:` damgası taşıyor
-  (`9039142d`); üretilen skill aynı damgayı taşır ve diagnostic karşılaştırır.
-
-**Değer:** Diagnostic yazılmış kodu yakalar, skill yazılmadan önce yönlendirir.
-Tracon'un "agent senin yerine yeniden icat etmesin" iddiası ancak önleyici
-kanalla tamamlanır.
-
-**Mercek:** 1 · 5.
-
-**Hazırlık — kısmen ölçüldü (2026-09-15):** Hazır olan: yetenek haritası
-üretiliyor, damgalı ve bütçeli (`docs-site/scripts/build-agent-map.mjs`,
-10.583 B); `AGENTS.md` ve `Tracon.LocalReference.md` yazma yolu
-(`src/Tracon.Core/buildTransitive/Tracon.Core.targets`); dokuz diagnostic
-(`src/Tracon.Generators/UsageDiagnostics.cs`); beş komutlu bir CLI.
-🚨 **Ölçülmemiş ve fazın ilk adımı olan:** üretilen skill dört harness'ın
-her birinde gerçekten **yükleniyor ve çağrılıyor mu**. Faz 167 § 167.3
-emsali aynen geçerlidir — izole geçici projede ölç ve **ayırt edici** bir
-kontrol koşumu taşı; tanınmayan bir anahtar sessizce yok sayıldığı için
-"hata vermedi" tek başına kanıt değildir. Bir format ölçümü geçemezse
-kapsamdan **düşer**. Ayrıca ölçülmemiş: tüketicinin vendor dizinine yazılmayı
-kabul edip etmediği (talep kanıtı yok).
-
-**Maliyet:** Orta. Bir CLI komutu · bir kanonik metin · N emitter · bir
-diagnostic · bir ölçüm turu. `src/` çekirdeğine dokunmaz; yeni paket yok,
-migration yok. Public API yalnız CLI yüzeyinde büyür.
-
-**Risk:**
-
-- Skill formatları vendor'a özgü ve hareketlidir. Dördü birden bugün bir
-  sözleşme, yarın dört bayat dosyadır.
-- Çağrılmayan skill ölü ağırlıktır ve tüketicinin agent bağlam bütçesini yer —
-  Tracon'un kendi `AGENTS.md` bütçe disiplininin aynısı.
-- 🚨 Dosya yazan bir komut, tüketicinin çalışma ağacını **ilk kez** değiştirir.
-  Bugünkü beş komuttan yalnız `migrate` bir şey değiştirir ve o da veritabanını.
-  Üzerine yazma, birleştirme ve elle düzenlenmiş dosya davranışı bir
-  **sözleşme kararıdır** (karar defteri adayı).
-- CLI ayrı kurulum ister (`dotnet tool install -g Tracon.Cli`); benimseme
-  sürtünmesi build hattından yüksektir.
-
-**Bağımlılık:** Yok. Faz 73 ve Faz 167'nin çıktısı üzerine oturur.
-
-**Ekosistem:** 2026-09-15 — `AGENTS.md` çok-vendor bir konvansiyondur ve
-Tracon onu zaten yazıyor. Skill dizini konvansiyonunun ortak standardı
-**yoktur**; her vendor kendi yolunu tanır.
-
-**Karşı görüş:** Diagnostic zaten yönlendiriyor ve yazılmış kodu **kesin**
-olarak yakalıyor; skill yalnız okunduğunda işe yarar. Ek değeri ölçülmeden
-dört format sevk etmek, kanıtsız bir bakım yüzeyi satın almaktır.
 
 ---
 
@@ -314,6 +98,7 @@ dönüşebilmeleri için duruyor. Bir kalemi buradan çıkarmanın tek yolu
 | **F-236** · Audit yazma politikası ratchet'i değişken adına bağlı | `AuditWritePolicyTests`'in deseni `[Aa]udit[Ll]og\.WriteAsync\s*\(`'dir; `IAuditLog log = …; log.WriteAsync(entry, ct);` şeklini **görmez**. Açık Soru §3'te kaynak taraması "ucuz ama kırılgan" diye bilerek seçildi (emsal `AuditCoverageTests` de kaptan doğrular, analyzer değildir); Roslyn analyzer'a geçmek bir analyzer paketi maliyetidir. Ölçüldü: `src/` altında bu şekli kullanan tek yer `Tracon.Testing.Contracts.Xunit/Contracts/AuditLogContract.cs:25` ve orada **meşru** | Politikayı atlayan bir çağrı yeri gerçekten kaçarsa, ya da başka bir ratchet de analyzer isterse ([Faz 171](arsiv/fazlar/171-DENETIM-IZI-YAZMA-POLITIKASI.md) denetim bulgusu 🟢 7) |
 | **F-237** · Etkiden önceki dar fail-closed `run` kaydı | Genel `RecordingMode.Required` **reddedildi** (2026-09-07 A10; 2026-09-15 turu yeniden ölçtü): model çağrısı ve tool yan etkileri olduktan sonra `run`'ı düşürmek hiçbir şeyi geri almaz. Savunulabilir kalan tek biçim dar bir `seam`'dir — `run` açılışı yazılamazsa `run` başlamaz, yan etkili tool çağrısının kaydı yazılamazsa tool koşmaz. Bugün böyle bir `seam` **yok**: `RunEventWriter` her hatayı yutar ([`RunEventWriter.cs:452`](../src/Tracon.Core/Recording/RunEventWriter.cs#L452) — `Disable`) ve tüketicinin kendi `IRunStore`'u da bunu değiştiremez. Faz 173 kaybı **görünür** kıldı (K-782), fail-closed **yapmadı** | Düzenlemeye tabi bir kurulum kanıtla talep ederse. Faz 173'ün `tracon.run.recording_failures` sayacı önce kaybın gerçek sıklığını ölçer — kanıtsız inşa edilen altyapı yanlış şekli alır |
 | **F-238** · Metrik dinleyici test yardımcısının ÜÇ kopyası | Bir metriği ölçmek isteyen her test projesi kendi `MeterListener` sarmalayıcısını yazıyor: `MetricCollector` ([`tests/Tracon.Core.UnitTests/Fakes/MetricTestHelpers.cs`](../tests/Tracon.Core.UnitTests/Fakes/MetricTestHelpers.cs)), `MetricProbe` ([`tests/Tracon.PostgreSql.IntegrationTests/Infrastructure/MetricProbe.cs`](../tests/Tracon.PostgreSql.IntegrationTests/Infrastructure/MetricProbe.cs)) ve `WorkflowMetricProbe` ([`tests/Tracon.Workflows.UnitTests/WorkflowRecordingFailureTests.cs`](../tests/Tracon.Workflows.UnitTests/WorkflowRecordingFailureTests.cs)). Üçü de meter'ı **referansla** eşleyip `TagList`'i kopyalıyor; üçü de `internal`, dolayısıyla paylaşılamıyor. İlk ikisi Faz 173 denetiminde 🟢 7 olarak görüldü, üçüncüsü aynı fazda eklendi — kopya sayısı K-483'ün "elle tekrarlanan ifade bir kusur SINIFI üretir" eşiğindedir | Dördüncü kopya gerektiğinde, ya da `Tracon.Testing` yüzeyine bir metrik doğrulama yardımcısı eklemek ayrıca istendiğinde. Not: bu bir **test altyapısı** kararıdır ve sevk edilen yüzeyi büyütmek (public bir `MeterProbe`) ayrı bir tartışmadır ([Faz 173](arsiv/fazlar/173-CALISTIRMA-KAYDI-GORUNURLUGU.md) denetim bulgusu 🟢 7) |
+| **F-240** · Kapasite kapısının beş dar açığı | [Faz 174](174-KAPASITE-DAMGASI-KAPISI.md) denetiminin 🟢 bulguları, beşi de bugün doğru ama sessizce ayrışabilir: (1) `SCHEMAS.storage` ölçülmüş bir tekrar sayısını başlık dizesinde sabitliyor (`'Rows per run (3 repeats)'`); (2) `P95_SAMPLE_FLOOR = 100` ile `LatencyStatistics.P95SampleFloor` elle senkron, uyumu hiçbir şey ölçmüyor; (3) commit damgası regex'i 8+ hex istiyor — `packageVersion`'ın 7 karakterlik biçimi (`e44d89f`) sayfaya girerse **sessizce** denetlenmez; (4) `checkArrivalRow` bir rate'in her `evidence` penceresini `status`'a bakmadan topluyor, `invalid` bir tekrar toplama karışır; (5) 19 işaret `docs-site/public/llms-full.txt`'e düz metin olarak sızıyor (emsal `claim:` zaten 11 tane sızdırıyor) | Kapasite ölçümü yenilendiğinde — o koşum (1) ve (2)'yi zaten elden geçirtir. (3) ve (4) tek satırlık savunma; bir sonraki kapı dokunuşunda birlikte kapanır |
 
 ### F-95 · Agent düzeyinde kesinti/devam kancası
 
@@ -509,7 +294,7 @@ keşif kaydındadır; burada yalnız hangi kanala düştükleri yazar.
 
 | Kanal | ID'ler | Kural |
 |---|---|---|
-| **Plana dönüştü** | 40+ kalem · son: **F-234** → [Faz 171](arsiv/fazlar/171-DENETIM-IZI-YAZMA-POLITIKASI.md), **F-235** → [Faz 172](arsiv/fazlar/172-TEHDIT-MODELI.md) (2026-09-15) | Bölümleri bu dosyadan silindi; kanıt ve tasarım **fazın kendi dokümanındadır**. Aday listesine geri dönmezler. Eşleme tabloları ve aday gövdeleri: [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md) |
+| **Plana dönüştü** | 40+ kalem · son turu (2026-09-15): **F-239** → [Faz 174](174-KAPASITE-DAMGASI-KAPISI.md) · **F-224** → [Faz 175](175-GERI-ALINAMAZ-KARAR-DOGRULAMASI.md) · **F-218** → [Faz 176](176-EVALUATOR-SURUM-DAMGASI.md) · **F-213** → [Faz 177](177-STORE-IPTAL-SOZLESMESI.md) · **F-232** → [Faz 178](178-TUKETICI-KAPI-SKILLI.md). Ondan öncesi: **F-234** → [Faz 171](arsiv/fazlar/171-DENETIM-IZI-YAZMA-POLITIKASI.md), **F-235** → [Faz 172](arsiv/fazlar/172-TEHDIT-MODELI.md) | Bölümleri bu dosyadan silindi; kanıt ve tasarım **fazın kendi dokümanındadır**. Aday listesine geri dönmezler. Eşleme tabloları ve aday gövdeleri: [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md) |
 | **Kapatılan kusur kayıtları** | F-106 · F-130 · F-137 · F-138 · F-139 · F-170 · F-180 · F-181 · F-190 · F-197 · F-203 · F-204 · F-206 · F-211 · F-212 · F-214 · F-215 · F-219 · F-220 · F-222 | Gövdeleri [`arsiv/ERTELENEN-ADAYLAR.md`](arsiv/ERTELENEN-ADAYLAR.md)'dedir. Yeniden görülürse **yeni** kusur kaydı açılır. **F-180** özetiyle § *Bekleyen Kalemler*'de kalır: vakası kapandı, **sınıfı açık** |
 | **Karar / uyumluluk eşiği** | F-72 · F-90 · F-91 · F-92 · F-132 · F-169 | Mevcut karar veya dış bağımlılık değişmeden planlanmaz. **F-169** (MAF CodeAct / Hyperlight sandbox) F-72 ile **aynı eşiktedir**: paket GA ve taşınabilir olana kadar planlanmaz — ölçüm [`kesif/2026-08-26-yeni-feature-fikirleri.md`](kesif/2026-08-26-yeni-feature-fikirleri.md) § 9 |
 | **Ölçüm bekliyor — F-ID'leri** | F-51 · F-94 · F-96 · F-97 · F-99 · F-101 · F-123 · F-128 · F-154 · F-156 · F-157 · F-159 · F-160 · F-161 · F-162 | Her biri için gereken somut kanıt keşif kaydında yazılıdır. Kanıt üretmeden aday olmaz |
@@ -519,13 +304,28 @@ keşif kaydındadır; burada yalnız hangi kanala düştükleri yazar.
 ### F-ID tahsis kuralı
 
 Numara **geri dönüştürülmez** ve bir numara **tek kaleme** aittir. Sıradaki
-numara: **F-239**.
+numara: **F-241**.
+
+**F-240** 2026-09-15'te [Faz 174](174-KAPASITE-DAMGASI-KAPISI.md) denetiminin
+beş 🟢 bulgusuna tahsis edildi (kapasite kapısının dar açıkları) ve
+§ *Bekleyen Kalemler* içine yazıldı.
 
 **F-233** 2026-09-15'te Faz 24'ün SQLite yük/eşzamanlılık ölçümüne tahsis edildi
 (açık küçük kalemler turu) ve § *Bekleyen Kalemler* içine yazıldı.
 
+**F-239** 2026-09-15'te Faz 166'dan devreden kapasite sürüm damgası kalemine
+tahsis edildi ve **aynı gün plana dönüştü** — [Faz 174](174-KAPASITE-DAMGASI-KAPISI.md).
+
+🚨 **F-230 iki kez tahsis edilmişti; 2026-09-15'te çözüldü.** Kapasite damgası
+kalemi `wip(166)` commit'inde (2026-09-**14**) F-230 numarasını aldı, ama o
+numara iki gün önce (2026-09-**13**) Faz 168 denetiminin 🟢 6 bulgusuna
+tahsis edilmiş ve bu deftere yazılmıştı. İkinci tahsis deftere hiç girmedi.
+F-221/F-222 emsali uygulandı: numara **ilk sahibinde** kalır, yanlış tahsis
+yeni numara alır. Kapasite kalemi **F-239** oldu; senkron kapısı **F-230**
+kaldı (§ *Bekleyen Kalemler*).
+
 **F-232** 2026-09-15'te kullanıcının tüketici skill'i fikrine tahsis edildi ve
-§ *Sıralanabilir Adaylar* içine yazıldı.
+**aynı gün plana dönüştü** — [Faz 178](178-TUKETICI-KAPI-SKILLI.md).
 
 **F-231** 2026-09-14'te `nuget-danismani` turunun 4. bulgusuna (options
 düzeyinde production doğrulayıcısı yok) tahsis edildi ve **aynı gün plana

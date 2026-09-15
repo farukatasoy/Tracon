@@ -5499,3 +5499,41 @@ Faz 153'ün tespiti böylece doğrulandı — kalan büyüme satırın İSKELET�
 
 Aynı cümle `run` kaydı için yazılamıyordu: `run` yolunda sayaç YOKTU, kayıp yalnız `LogWarning` ile görünüyordu. Garanti DEĞİŞMEDİ (best-effort kalır; model çağrısı ve tool yan etkileri olduktan sonra `run`'ı düşürmek hiçbir şeyi geri almaz) — görünürlüğü değişti. `tracon.run.recording_failures` kaydını kaybeden yazma girişimini sayar; `store` tarafında bu "kaydını kaybeden `run` sayısı"na eşittir, çünkü `Disable` ilk hatadan sonra yeni girişimi engeller. `tracon.recording.stage` altı değer taşır (`start` · `event` · `tool_invocation` · `completion` · `sink` · `input`) ve kapalıdır: `run` kimliği (sınırsız) ve `sink` tipi (tüketici kodu) ETİKET DEĞİLDİR.
 
+
+## Faz 174 gerekçesi
+
+### K-784
+
+K-766 (Faz 169) süreç ölçümü kapısı için "bölümün VARLIĞINI denetler,
+DOĞRULUĞUNU denetlemez" dedi ve gerekçesini "hiçbir kapı doğruluğu
+denetleyemez" diye yazdı. Faz 174 bir kapı kurdu ve o kapı **doğruluğu
+denetliyor**. Çelişki değildir; K-766'nın gerekçesi fazla geniş yazılmıştı.
+
+**Ayrım kaynaktadır, kapının hırsında değil.** Süreç ölçümü bir **yargıdır**
+(kaç tur sürdü, kaç bulgu gerçekti) ve repo dışında bir karşılığı yoktur; onu
+denetlemeye kalkan kapı yazarın kendi cümlesini kendi cümlesiyle karşılaştırır.
+Kapasite sayısının ise **makine okunur bir kaynağı** vardır: `summary.json`
+her hücre için `latency.p50/p95/count`, `throughputPerSecond`, `rowsPerRun`,
+`bytesPerRun` taşır ve `manifest.json` `commit` ile ortamı taşır. Yayımlanan
+sayı o kaynaktan **yeniden hesaplanabilir**.
+
+**Ölçüldü (2026-09-15).** Kapı sayfaya karşı **90 birebir karşılaştırma**
+yapıyor (12 latency satırı × 5 sütun, 4 open-loop satırı × 5, 3 storage satırı
+× 2, düz metindeki 5 sayı) ve bugünkü sayfada **sıfır bulgu** veriyor. Yani
+doğruluk baştan denetlenebilirdi ve denetlenmiyordu.
+
+**Kural şu hâle gelir:** bir kapı, denetlediği iddianın makine okunur bir
+kaynağı **varsa** DOĞRULUĞU denetler; kaynak **yoksa** yalnız VARLIĞI
+denetleyebilir. K-766 ikinci hâlin örneğidir, bu faz birincinin. İkisi aynı
+kuralın iki yüzüdür ve yeni bir kapı yazarken sorulacak soru "doğruluk
+denetlenebilir mi?" değil, **"bu iddianın dışarıda bir kaynağı var mı?"**dır.
+
+**Sınır — kapı neyi kanıtlamaz.** Sayının doğru ÖLÇÜLDÜĞÜNÜ değil, doğru
+TAŞINDIĞINI kanıtlar. Ölçümün kendisi yanlışsa kapı yeşil kalır; K-775 bu
+yüzden yürürlükte kalır ve tabloyu güncellemenin yolu `kapasite` profillerini
+yeniden koşmaktır.
+
+Bu ayrımın maliyeti ölçüldü: Faz 166'nın beş 🔴 bulgusunun beşi de "kaynağı
+olan ama denetlenmeyen sayı" sınıfındaydı ve dördüncüsü (storage tablosunun
+seed şekli) kapatıldığı ilan edilmesine rağmen Faz 174'te **hâlâ açıktı** —
+kapı olmadan bir düzeltmenin tuttuğunu kimse ölçmüyordu.
