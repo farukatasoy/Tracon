@@ -255,22 +255,29 @@ public sealed class UiTests(BrowserFixture browsers)
         await session.Page.GetByTestId("voice-mode").ClickAsync();
         await session.Page.GetByTestId("voice-toggle").ClickAsync();
 
+        // 🚨 The bounds on this flow are deliberately generous and are NOT a
+        // performance budget: they exist so a broken voice path reports instead of
+        // hanging. This is the slowest chain in the suite — handshake, fake audio
+        // device, commit, server round trip — and under a loaded full-solution run
+        // the 30 s transcript wait ran out while the browser was still waiting for
+        // CPU. A bound that only holds on an idle machine is a machine assumption.
+        //
         // Once the handshake completes the server sends `ready` and the panel starts listening.
-        await session.Page.GetByTestId("voice-meter").WaitForAsync(new() { Timeout = 20_000 });
+        await session.Page.GetByTestId("voice-meter").WaitForAsync(new() { Timeout = 60_000 });
 
         // 🚨 Silence detection CANNOT be used here: Chromium's fake device
         // produces a continuous tone and never goes quiet. The manual commit
         // button is already a real need (noisy environment, push-to-talk) and
         // the test uses it.
         var commit = session.Page.GetByTestId("voice-commit");
-        await commit.WaitForAsync(new() { Timeout = 20_000 });
+        await commit.WaitForAsync(new() { Timeout = 60_000 });
         await commit.ClickAsync();
 
         var transcript = session.Page.GetByTestId("voice-transcript");
-        await transcript.WaitForAsync(new() { Timeout = 30_000 });
+        await transcript.WaitForAsync(new() { Timeout = 60_000 });
 
         // The resolved text comes from the server; the fake provider returns a fixed response.
-        await transcript.GetByText("where is my order").First.WaitForAsync(new() { Timeout = 30_000 });
+        await transcript.GetByText("where is my order").First.WaitForAsync(new() { Timeout = 60_000 });
 
         // Audio is NOT stored by default; the recording notice must not appear.
         (await session.Page.GetByTestId("voice-recording-notice").CountAsync()).ShouldBe(0);
