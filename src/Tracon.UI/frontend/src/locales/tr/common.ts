@@ -46,7 +46,6 @@ export const trCommon: Pick<Messages, keyof typeof enCommon> = {
   "common.type": 'Tür',
   "common.result": 'Sonuç',
   "common.actions": 'Eylemler',
-  "common.confirmDelete": '"{name}" silinsin mi? Bu işlem geri alınamaz.',
   "nav.agents": "Agent'lar",
   "nav.dashboard": 'Gösterge Paneli',
   "nav.playground": 'Playground',

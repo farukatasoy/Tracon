@@ -17,6 +17,7 @@ import {
   Th,
   Unauthorized,
 } from '../../components/ui';
+import { Tooltip } from '../../components/tooltip';
 import type { TraconMetaResponse as Meta, SkillScriptGrant } from '@tracon/client';
 
 /**
@@ -137,15 +138,21 @@ export function ScriptGrantsPanel({ meta }: { meta: Meta }): ReactNode {
                 </Td>
                 <Td className="text-right">
                   {meta.roles.canAdminister && (
-                    <Button
-                      tone="danger"
-                      busy={revoke.isPending && revoke.variables?.skillName === item.skillName}
-                      onClick={() =>
-                        revoke.mutate({ skillName: item.skillName, scriptName: item.scriptName })
-                      }
-                    >
-                      {t('skills.grants.revoke')}
-                    </Button>
+                    /* No confirmation step: §175.3 fails on both counts — an
+                        administrator grants the script again. It had no
+                        consequence sentence at all before, which is the gap
+                        this phase closes here. */
+                    <Tooltip text={t('skills.grants.revokeEffect')}>
+                      <Button
+                        tone="danger"
+                        busy={revoke.isPending && revoke.variables?.skillName === item.skillName}
+                        onClick={() =>
+                          revoke.mutate({ skillName: item.skillName, scriptName: item.scriptName })
+                        }
+                      >
+                        {t('skills.grants.revoke')}
+                      </Button>
+                    </Tooltip>
                   )}
                 </Td>
               </tr>

@@ -21,6 +21,7 @@ import {
 } from '../components/ui';
 import { Toolbar } from '../components/toolbar';
 import { Tooltip } from '../components/tooltip';
+import { ConfirmDialog } from '../components/confirm-dialog';
 import { PlusIcon, TrashIcon } from '../components/icons';
 import type { TraconMetaResponse as Meta } from '@tracon/client';
 import type { EvalSuite } from '../lib/server-types';
@@ -117,8 +118,18 @@ export function EvalsScreen({ meta }: { meta: Meta }): ReactNode {
   const remove = useMutation({
     mutationFn: (name: string) =>
       unwrap(client.DELETE('/api/evals/{name}', { params: { path: { name } } })),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      setConfirming(null);
+      invalidate();
+    },
   });
+
+  /*
+    🚨 §175.3 criterion (a): `eval_cases` and `eval_runs` both cascade off
+    `eval_suites`, so a delete here takes the cases AND every score ever
+    recorded against them. Nothing in this console can type those back.
+  */
+  const [confirming, setConfirming] = useState<string | null>(null);
 
   const [newName, setNewName] = useState('');
 
@@ -253,14 +264,31 @@ export function EvalsScreen({ meta }: { meta: Meta }): ReactNode {
         onReset={query.trim().length > 0 ? () => setQuery('') : undefined}
       />
 
+      <ConfirmDialog
+        open={confirming !== null}
+        onClose={() => setConfirming(null)}
+        onConfirm={() => {
+          if (confirming !== null) {
+            remove.mutate(confirming);
+          }
+        }}
+        title={t('evals.deleteTitle', { name: confirming ?? '' })}
+        consequence={t('evals.deleteEffect')}
+        confirmLabel={t('common.delete')}
+        busy={remove.isPending}
+        error={remove.error}
+        testId="confirm-delete-eval"
+      />
+
       {/* A delete that failed is invisible unless it is said out loud: the row
           is still in the list and the operator has no way to know why. */}
       {remove.isError && (
         <div className="mb-4">
           <ErrorNote
             error={remove.error}
+            /* Reopens the confirmation rather than firing the delete — see sessions.tsx. */
             onRetry={
-              remove.variables === undefined ? undefined : () => remove.mutate(remove.variables)
+              remove.variables === undefined ? undefined : () => setConfirming(remove.variables)
             }
           />
         </div>
@@ -339,16 +367,12 @@ export function EvalsScreen({ meta }: { meta: Meta }): ReactNode {
                           >
                             {t('common.edit')}
                           </Button>
-                          <Tooltip text={t('evals.deleteSuite')}>
+                          <Tooltip text={t('evals.deleteEffect')}>
                             <Button
                               tone="danger"
                               ariaLabel={t('evals.deleteSuite')}
                               busy={remove.isPending && remove.variables === suite.name}
-                              onClick={() => {
-                                if (window.confirm(t('common.confirmDelete', { name: suite.name }))) {
-                                  remove.mutate(suite.name);
-                                }
-                              }}
+                              onClick={() => setConfirming(suite.name)}
                             >
                               <TrashIcon className="size-3.5" />
                             </Button>

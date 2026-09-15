@@ -21,6 +21,7 @@ import {
 } from '../components/ui';
 import { Toolbar, ToolbarField } from '../components/toolbar';
 import { Tooltip } from '../components/tooltip';
+import { ConfirmDialog } from '../components/confirm-dialog';
 import { PlusIcon, TrashIcon } from '../components/icons';
 import type { TraconMetaResponse as Meta, ExperimentStatus } from '@tracon/client';
 import type { AgentDefinition, Experiment, ExperimentVariant } from '../lib/server-types';
@@ -134,8 +135,20 @@ export function ExperimentsScreen({ meta }: { meta: Meta }): ReactNode {
   const remove = useMutation({
     mutationFn: (name: string) =>
       unwrap(client.DELETE('/api/experiments/{name}', { params: { path: { name } } })),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      setConfirming(null);
+      invalidate();
+    },
   });
+
+  /*
+    🚨 §175.3 criterion (a). `runs.experiment_id` carries no foreign key, so
+    the run rows survive — and that is exactly the problem: the experiment row
+    is the only thing that says which variant name each recorded id meant.
+    Creating the experiment again gives it a NEW id, so the old runs never
+    rejoin it. The results are still in the database and no longer readable.
+  */
+  const [confirming, setConfirming] = useState<string | null>(null);
 
   const totalWeight = form.variants.reduce((sum, variant) => sum + (Number.isFinite(variant.weight) ? variant.weight : 0), 0);
 
@@ -323,12 +336,29 @@ export function ExperimentsScreen({ meta }: { meta: Meta }): ReactNode {
         </ToolbarField>
       </Toolbar>
 
+      <ConfirmDialog
+        open={confirming !== null}
+        onClose={() => setConfirming(null)}
+        onConfirm={() => {
+          if (confirming !== null) {
+            remove.mutate(confirming);
+          }
+        }}
+        title={t('experiments.deleteTitle', { name: confirming ?? '' })}
+        consequence={t('experiments.deleteEffect')}
+        confirmLabel={t('common.delete')}
+        busy={remove.isPending}
+        error={remove.error}
+        testId="confirm-delete-experiment"
+      />
+
       {remove.isError && (
         <div className="mb-4">
           <ErrorNote
             error={remove.error}
+            /* Reopens the confirmation rather than firing the delete — see sessions.tsx. */
             onRetry={
-              remove.variables === undefined ? undefined : () => remove.mutate(remove.variables)
+              remove.variables === undefined ? undefined : () => setConfirming(remove.variables)
             }
           />
         </div>
@@ -414,20 +444,12 @@ export function ExperimentsScreen({ meta }: { meta: Meta }): ReactNode {
                           >
                             {t('common.edit')}
                           </Button>
-                          <Tooltip text={t('experiments.deleteExperiment')}>
+                          <Tooltip text={t('experiments.deleteEffect')}>
                             <Button
                               tone="danger"
                               ariaLabel={t('experiments.deleteExperiment')}
                               busy={remove.isPending && remove.variables === experiment.name}
-                              onClick={() => {
-                                if (
-                                  window.confirm(
-                                    t('common.confirmDelete', { name: experiment.name }),
-                                  )
-                                ) {
-                                  remove.mutate(experiment.name);
-                                }
-                              }}
+                              onClick={() => setConfirming(experiment.name)}
                             >
                               <TrashIcon className="size-3.5" />
                             </Button>

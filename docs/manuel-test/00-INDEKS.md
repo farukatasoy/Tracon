@@ -293,7 +293,7 @@ Bu eşleme bir başlangıçtır; üretim oturumu grep ile doğrular ve gerekirse
 | 06 | [`06-SAGLAYICI-DIGER.md`](06-SAGLAYICI-DIGER.md) | `PROV` | 8, 26, 27 | `src/Tracon.Anthropic` · `src/Tracon.Google` · `src/Tracon.Azure` | **39** | ✅ | ✅ 30/39 · 9 ⏭ |
 | 07 | [`07-HTTP-YONETIM-API.md`](07-HTTP-YONETIM-API.md) | `API` | 4, 34, 43, 44 | `src/Tracon.AspNetCore/Endpoints` (kısmi — bkz. dosyanın kaynak başlığı) | **43** | ✅ | ✅ 43/43 |
 | 08 | [`08-OPENAI-UYUMLU-UCLAR.md`](08-OPENAI-UYUMLU-UCLAR.md) | `COMPAT` | 50 | `src/Tracon.AspNetCore/OpenAICompat/` (gerçek klasör adı — bkz. not) | **50** | ✅ | ✅ 49/49 |
-| 09 | [`09-ARAYUZ-GENEL.md`](09-ARAYUZ-GENEL.md) | `UI` | 5, 30, 164 | `src/Tracon.UI/frontend/src` (kabuk, `access-gate`, `layout`, `navigation`, `command-palette`, `router`, `i18n`, `theme`, `auth`, `shortcuts`, `ui`, `dialog`, `menu`, `tooltip`, `toolbar`, `status-dot`, `styles.css`; `settings`/`models`/`tools` ekranları yalnız genel kısım) | **54** | ✅ | ✅ 35/43 · 1 ☒ · 7 ⏭ · 11 🆕 (Faz 164: MT-UI-044..054; 044/046/050/053 otomatik karşılıklarıyla `UiTests`'te koştu, kalanı 👤 elle gerekir) |
+| 09 | [`09-ARAYUZ-GENEL.md`](09-ARAYUZ-GENEL.md) | `UI` | 5, 30, 164, 175 | `src/Tracon.UI/frontend/src` (kabuk, `access-gate`, `layout`, `navigation`, `command-palette`, `router`, `i18n`, `theme`, `auth`, `shortcuts`, `ui`, `dialog`, `menu`, `tooltip`, `toolbar`, `status-dot`, `styles.css`; `settings`/`models`/`tools` ekranları yalnız genel kısım; `confirm-dialog`) | **57** | ✅ | ✅ 35/43 · 1 ☒ · 7 ⏭ · 14 🆕 (Faz 164: MT-UI-044..054; 044/046/050/053 otomatik karşılıklarıyla `UiTests`'te koştu, kalanı 👤 elle gerekir. Faz 175: MT-UI-055..057, üçünün de otomatik karşılığı `UiTests`'te koştu) |
 | 10 | [`10-ARAYUZ-AGENT-PLAYGROUND.md`](10-ARAYUZ-AGENT-PLAYGROUND.md) | `UIAG` | 5, 19 | `screens/agent*.tsx` · `playground.tsx` | **58** | ✅ | ✅ 49/51 · 2 ⏭ · 2 🆕 (B01, koşulmadı) · 3 🆕 (Faz 165, koşulmadı) |
 | 11 | [`11-ARAYUZ-RUN-SESSION-SSE.md`](11-ARAYUZ-RUN-SESSION-SSE.md) | `UIRUN` | 5, 32, 47 | `screens/run*.tsx` · `session*.tsx` · `components/cancel-run-button.tsx` · `replay-panel.tsx` · `run-comparison.tsx` · `branch-button.tsx` | **66** | ✅ | ✅ 44/46 · 1 ⏭ · 1 ☐ · 5 🆕 (Faz 165, koşulmadı) |
 | 12 | [`12-GOZLEMLENEBILIRLIK-MALIYET.md`](12-GOZLEMLENEBILIRLIK-MALIYET.md) | `OBS` | 6, 20, 35, 68, 89, 119, 132, 154, 173 | `src/Tracon.Core` · `screens/dashboard.tsx` · `screens/run-detail.tsx` | **65** | ✅ | ✅ 35/37 · 2 ⏭ · 9 🆕 (Faz 68, koşulmadı) · 2 🆕 (Faz 89, koşulmadı) · 4 🆕 (Faz 119: MT-OBS-054..057, gerçek `samples/Tracon.Api` + sağlayıcı anahtarı gerekir, koşulmadı) — MT-OBS-058 koşuldu (2026-08-27) · 1 🆕 (Faz 132: MT-OBS-059, `samples/Tracon.Api` gerekir, koşulmadı) · 1 🆕 (Faz 154: MT-OBS-060, otomatik karşılığı `Score_summary_created_at_index_is_created` üç sağlayıcıda da koştu; psql `EXPLAIN` ile elle koşulmadı) · 5 🆕 (Faz 173: MT-OBS-061..065 — 061 ve 062 gerçek `samples/Tracon.Api` + PostgreSQL ile **koşuldu** (2026-09-15); 063, 064 koşulmadı; 065 kaynak taramasıdır) |
@@ -717,15 +717,15 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
   gerçek durumun `Failed`/`ProviderError` olduğunu yalnız Run bağlantısına
   tıklayıp `GET /api/runs/{runId}` okuyarak anlayabilir. Kod değiştirilmedi;
   `10-ARAYUZ-AGENT-PLAYGROUND.md` `MT-UIAG-043` bunu koşumda kaydeder.
-- **`VersionHistory`'de "Geri Al" hiçbir onay istemez — "Sil" ister (2026-08-09,
-  `10-ARAYUZ-AGENT-PLAYGROUND.md` üretilirken ölçüldü).**
-  `agent-detail.tsx`'teki `AgentDetailScreen`'in Sil düğmesi `window.confirm`
-  ile sarılıyken (`agentDetail.confirmDelete`), aynı ekrandaki `VersionHistory`
-  bileşeninin Geri Al düğmesi (`onClick={() => rollback.mutate(version.version)}`)
-  hiçbir onay katmanı taşımıyor — tıklanır tıklanmaz güncel tanımın üzerine
-  yeni bir sürüm yazılıyor. İkisi de geri dönüşü zor bir yazma işlemi olduğu
-  için bu bir asimetri; kusur olarak değil, koşumda doğrulanacak bir UX
-  gözlemi olarak `MT-UIAG-024`'e eklendi. Kod değiştirilmedi.
+- ✅ **"Geri Al onay istemez, Sil ister" asimetrisi KAPANDI (2026-09-16, Faz 175).**
+  Eski not (2026-08-09) bunu açıklanamayan bir asimetri sayıyordu. Faz 175 ikisini
+  de bir **ölçüte** bağladı (K-791) ve asimetri artık bilinçlidir: Sil, tanımla
+  birlikte sürüm geçmişini de yok eder (`agent_definition_versions ON DELETE
+  CASCADE`) ve ölçütün (a) dalını geçer → `ConfirmDialog`. Geri Al hiçbir şeyi
+  yok etmez — eski sürüm geçmişte kalır ve yeniden geri alınabilir → yalnız
+  katman 1 (`agentDetail.rollbackEffect` tooltip'i, Faz 164). `window.confirm`
+  artık konsolda hiç yoktur (K-790) ve bir kapı bunu zorlar
+  (`frontend/scripts/check-modal-layer.mjs`).
 - ✅ **Faz 31 (Geri Bildirim ve Puanlama) boşluğu KAPATILDI (2026-08-10,
   `17-EVAL-VE-DENEYLER.md` üretilirken).** Aşağıdaki not (2026-08-09,
   `11-ARAYUZ-RUN-SESSION-SSE.md` üretilirken) Faz 31'in hiçbir dosyanın

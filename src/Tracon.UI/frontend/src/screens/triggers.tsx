@@ -41,6 +41,7 @@ import {
   TextInput,
   Th,
 } from '../components/ui';
+import { Tooltip } from '../components/tooltip';
 import { Toolbar } from '../components/toolbar';
 import { PlusIcon } from '../components/icons';
 
@@ -284,17 +285,15 @@ export function TriggerEditorScreen({ name, meta }: { name?: string; meta: Meta 
           <>
             <Button onClick={() => navigate('triggers')}>{t('common.cancel')}</Button>
             {editing && (
-              <Button
-                tone="danger"
-                busy={remove.isPending}
-                onClick={() => {
-                  if (window.confirm(t('common.confirmDelete', { name: triggerName }))) {
-                    remove.mutate();
-                  }
-                }}
-              >
-                {t('common.delete')}
-              </Button>
+              /* No confirmation step: §175.3 fails on both counts. The row
+                  holds only the signing secret's configuration KEY NAME
+                  (K-059), never the secret, so re-creating the trigger from
+                  this same form restores it exactly. */
+              <Tooltip text={t('triggers.deleteEffect')}>
+                <Button tone="danger" busy={remove.isPending} onClick={() => remove.mutate()}>
+                  {t('common.delete')}
+                </Button>
+              </Tooltip>
             )}
             <Button tone="primary" busy={save.isPending} disabled={!valid} onClick={() => save.mutate()}>
               {t('common.save')}

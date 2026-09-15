@@ -46,7 +46,7 @@
 >
 > | Yüzey | Zaten üretildiği dosya |
 > |---|---|
-> | İptal düğmesi, onay penceresi, durum rozeti (arayüz) | `11-ARAYUZ-RUN-SESSION-SSE.md` `MT-UIRUN-021`–`025` |
+> | İptal düğmesi, etki tooltip’i, durum rozeti (arayüz) | `11-ARAYUZ-RUN-SESSION-SSE.md` `MT-UIRUN-021`–`025` |
 > | İş kuyruğu seviyesinde `Pending`/`Running`/`Queued` iptali | `16-IS-KUYRUGU-VE-ZAMANLAMA.md` `MT-JOB-040`–`044`, `080`–`082` |
 > | `Idempotency-Key` sözleşmesi (dört durum, `400`/`422`, saklama) | `07-HTTP-YONETIM-API.md` `MT-API-030`–`033`, `16` `MT-JOB-083/084` |
 > | `/api/stats/errors` panosu, `ProviderError`/`ToolError` gerçek örnekleri | `07` `MT-API-040/041`, `12-GOZLEMLENEBILIRLIK-MALIYET.md` `MT-OBS-010` |
@@ -100,7 +100,7 @@ flowchart TD
 
 | Konu | Nerede |
 |---|---|
-| İptal düğmesi, `window.confirm`, durum rozeti geçişleri (arayüz) | `11-ARAYUZ-RUN-SESSION-SSE.md` `MT-UIRUN-021`–`025` (zaten üretildi) — **burada TEKRARLANMAZ** |
+| İptal düğmesi, etki tooltip’i (Faz 175: `window.confirm` kalktı), durum rozeti geçişleri (arayüz) | `11-ARAYUZ-RUN-SESSION-SSE.md` `MT-UIRUN-021`–`025` (zaten üretildi) — **burada TEKRARLANMAZ** |
 | İş kuyruğu seviyesinde `Pending`/`Running`/`Queued` iptali, `Prefer: respond-async` sözleşmesi | `16-IS-KUYRUGU-VE-ZAMANLAMA.md` `MT-JOB-040`–`044`, `070`–`084` (zaten üretildi) |
 | `Idempotency-Key` sözleşmesi (dört durum, `400`/`422`, saklama) | `07-HTTP-YONETIM-API.md` `MT-API-030`–`033` (zaten üretildi) |
 | `/api/stats/errors` panosu, `ProviderError`/`ToolError` gerçek örnekleri, kırılım toplamı | `07` `MT-API-040/041`, `12-GOZLEMLENEBILIRLIK-MALIYET.md` `MT-OBS-010` (zaten üretildi) — bu dosya yalnız `Canceled`/`Infrastructure` sınıflarını EKLER |

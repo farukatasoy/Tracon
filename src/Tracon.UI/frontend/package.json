@@ -7,7 +7,7 @@
   "license": "MIT",
   "scripts": {
     "dev": "vite",
-    "build": "node scripts/check-tokens.mjs && tsc --noEmit && vitest run && vite build && node scripts/postbuild.mjs && vite build --config vite.embed.config.ts && node scripts/postbuild-embed.mjs",
+    "build": "node scripts/check-tokens.mjs && node scripts/check-modal-layer.mjs && tsc --noEmit && vitest run && vite build && node scripts/postbuild.mjs && vite build --config vite.embed.config.ts && node scripts/postbuild-embed.mjs",
     "preview": "vite preview",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"

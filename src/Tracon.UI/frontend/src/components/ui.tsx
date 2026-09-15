@@ -2,6 +2,7 @@ import {
   useId,
   useState,
   type InputHTMLAttributes,
+  type Ref,
   type ReactNode,
   type TextareaHTMLAttributes,
 } from 'react';
@@ -116,6 +117,7 @@ export function Button({
   ariaLabel,
   className,
   testId,
+  ref,
   'aria-describedby': describedBy,
   'aria-expanded': expanded,
   'aria-controls': controls,
@@ -157,9 +159,20 @@ export function Button({
    */
   'aria-expanded'?: boolean;
   'aria-controls'?: string;
+  /**
+   * The underlying element, for a caller that has to move focus onto it.
+   *
+   * 🚨 It exists so that `ConfirmDialog` does not have to hand-roll its Cancel
+   * button to get a ref. `CONTROL_BASE` and `CONTROL_TONES` are the single
+   * source of a control's shape; a call site that copies them out to gain one
+   * attribute is how two buttons end up 1px apart. React 19 passes `ref` as an
+   * ordinary prop, so no `forwardRef` is needed.
+   */
+  ref?: Ref<HTMLButtonElement>;
 }): ReactNode {
   return (
     <button
+      ref={ref}
       type={type}
       aria-label={ariaLabel}
       aria-describedby={describedBy}

@@ -15823,6 +15823,12 @@ arguments; a call the presenter could not resolve still shows the arguments, sin
 the presenter fails open. Approving or rejecting both resume the run — the model has
 to see a result or a refusal and carry on.
 
+Both answers ask once more before they are sent, and the second step spells out what
+that answer sets in motion. It is here for a reason particular to approvals: the run
+that asked the question never continues under its own id. It stays `AwaitingApproval`
+for good and the decision opens a new run, so there is no second request to answer if
+the first was answered by accident.
+
 Standing "don't ask again" rules live under Governance, where they can be reviewed,
 revoked, or written by hand with an argument condition (for example `amount <= 100`)
 instead of an exact-argument fingerprint. The condition editor is a closed set of
@@ -15966,11 +15972,20 @@ for the full walkthrough, including how the widget runs a client-side tool.
   something abbreviated — a relative time, a shortened identifier
 - The token is kept in `sessionStorage` and is gone when the tab closes; theme and
   language live in `localStorage`
+- An action that destroys something you cannot type back — an agent and its version
+  history, a session's messages, an eval suite and its scores, an experiment's
+  variant map, a skill and its scripts — asks once more before it runs. An action
+  that is merely irreversible does not: deleting a schedule, a trigger, an MCP
+  server or an approval rule stays one click, because the form beside it puts the
+  same thing back. Both kinds say what they will do before you press them.
+  Confirming everything is the same as confirming nothing
 - The JavaScript budget is 250 KB gzip and is enforced by the build. Current size:
-  190.3 KB
+  192.4 KB
 - Four run-time JavaScript dependencies, and the build fails on a fifth. Dialogs,
   menus, tooltips and the command palette are written against the platform rather
-  than pulled from a component library
+  than pulled from a component library. The browser's own `confirm()` is not used
+  anywhere: it arrives in the browser's language rather than yours, and its default
+  button is the one that says yes
 
 ### Editor boundaries
 

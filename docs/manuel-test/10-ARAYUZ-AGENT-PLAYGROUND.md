@@ -626,29 +626,38 @@ Sınır durumu — `isEditable = false`.
 
 ---
 
-### MT-UIAG-019 — Sil `window.confirm` ister; onaylanınca listeye döner, iptal edilirse hiçbir şey olmaz
+### MT-UIAG-019 — Sil bir doğrulama adımı ister; iptal edilirse hiçbir şey olmaz
 
 | | |
 |---|---|
 | **İzlek** | B |
 | **Önem** | Yüksek |
-| **İlgili faz** | Faz 5 |
-| **İlgili karar** | — |
+| **İlgili faz** | Faz 5, 175 |
+| **İlgili karar** | K-790, K-791 |
+
+🚨 **Faz 175'te yeniden yazıldı.** Bu case tarayıcının kendi `window.confirm`
+kutusunu bekliyordu; K-790 onu konsoldan tamamen kaldırdı. Adım silinmedi,
+konsolun kendi `ConfirmDialog`'una taşındı — agent silmek §175.3 ölçütünün (a)
+dalını geçer (sürüm geçmişi `ON DELETE CASCADE` ile gider).
 
 **Ön koşul**
 - `manuel-bos` (`MT-UIAG-004`) var — bu agent bundan sonra artık gerekmiyor,
   bu case'te silinecek.
 
 **Adımlar**
-1. `agents/manuel-bos` aç, "Sil"e tıkla.
-2. Tarayıcının onay penceresinde "İptal"e bas.
-3. "Sil"e tekrar tıkla, bu kez "Tamam"a bas.
+1. `agents/manuel-bos` aç, "Sil" düğmesine **klavyeyle odaklan** (basma).
+2. "Sil"e bas, sonra `Esc`'e bas.
+3. "Sil"e tekrar bas, `Tab` ile gez, `İptal`e bas.
+4. "Sil"e tekrar bas ve `Onayla`ya bas.
 
 **Beklenen sonuç**
-- Adım 1: `window.confirm` metni `agentDetail.confirmDelete` içinde agent
-  adını gömer.
-- Adım 2: hiçbir istek gitmez, sayfa aynı kalır, agent hâlâ var.
-- Adım 3: `agents` listesine yönlenilir; `manuel-bos` artık listede yok.
+- Adım 1: tooltip görünür ve tanımın **ve sürüm geçmişinin** gideceğini söyler.
+- Adım 2: konsolun kendi dialogu açılır (tarayıcı kutusu **değil**); başlık agent
+  adını gömer, gövde aynı etki cümlesini taşır, açılış odağı `İptal`dedir.
+  `Esc` hiçbir istek göndermeden kapatır; agent hâlâ vardır.
+- Adım 3: `Tab` dialog içinde döner, dışarı çıkmaz. `İptal` sonrası odak "Sil"
+  düğmesine geri döner.
+- Adım 4: `agents` listesine yönlenilir; `manuel-bos` artık listede yok.
 
 **Doküman düzeltmesi**
 Bu case'in "Ön koşul"u dosyanın kendi önsözüyle (satır 87-89: "Bu dosyada
@@ -789,16 +798,21 @@ Edge davranış.
 
 ---
 
-### MT-UIAG-024 — 🚨 "Geri Al" hiçbir onay istemeden ANINDA çalışır — Sil'in aksine
+### MT-UIAG-024 — "Geri Al" tek tık kalır; Sil doğrulama ister — asimetri BİLİNÇLİDİR
 
-Negatif/UX bulgusu — kodda doğrulandı, koşumda gözlemsel olarak teyit edilir.
-Delete (`MT-UIAG-019`) bir `window.confirm` ister; Rollback (aynı ekranda,
-aynı derecede geri dönüşü zor bir yazma işlemi — güncel tanımın üzerine yeni
-bir sürüm yazar) **hiçbir onay istemez**
-(`onClick={() => rollback.mutate(version.version)}`, `VersionHistory`
-bileşeninde `window.confirm` çağrısı YOK). Bu, kod okumasıyla doğrulanmış bir
-asimetridir; bir kusur olarak DEĞİL, koşum sırasında doğrulanacak bir gözlem
-olarak işaretlenmiştir.
+🚨 **Faz 175'te yeniden yazıldı.** Bu case 2026-08-09'da açıklanamayan bir
+asimetriyi kaydediyordu. Faz 175 ikisini de §175.3 ölçütüne bağladı (K-791) ve
+asimetri artık bir karardır, bir kaza değil:
+
+- **Sil** ölçütün (a) dalını geçer — tanımla birlikte `agent_definition_versions`
+  satırlarının tamamı `ON DELETE CASCADE` ile gider ve arayüzden geri getirilemez
+  → `ConfirmDialog` (`MT-UIAG-019`).
+- **Geri Al** ikisini de geçmez — eski sürüm geçmişte kalır, işlem tekrar geri
+  alınabilir → yalnız katman 1: `agentDetail.rollbackEffect` tooltip'i hangi
+  sürümün canlı olacağını karar anında söyler (Faz 164).
+
+Onay yorgunluğu gerçek bir maliyettir: her şeyi doğrulatmak hiçbirini
+doğrulatmamakla aynı yere çıkar. Bu case o kararın koşumda teyididir.
 
 | | |
 |---|---|
@@ -812,13 +826,15 @@ olarak işaretlenmiştir.
 
 **Adımlar**
 1. `v1` satırındaki "Geri Al" düğmesine tıkla.
-2. Tıklamadan HEMEN sonra ekranı gözlemle: bir onay penceresi (native
-   `confirm` veya özel bir modal) çıkıyor mu?
+2. Tıklamadan HEMEN sonra ekranı gözlemle: bir doğrulama dialogu çıkıyor mu?
+   (Tıklamadan önce düğmeye odaklanıp tooltip'i de oku.)
 3. İşlem bitince "Sürümler" tablosuna bak.
 
 **Beklenen sonuç**
-- Adım 2: HİÇBİR onay penceresi çıkmaz — düğme `busy` durumuna geçer ve istek
-  hemen gider.
+- Adım 2: HİÇBİR doğrulama dialogu çıkmaz — düğme `busy` durumuna geçer ve
+  istek hemen gider. Bu bilinçlidir (Faz 175, K-791): geri alma §175.3
+  ölçütünü geçmez. Ama tek tık **sessiz** değildir — odakta
+  `agentDetail.rollbackEffect` tooltip'i hangi sürümün canlı olacağını söyler.
 - Adım 3: yeni bir `v4` satırı belirir, içeriği `v1`'in içeriğiyle AYNIDIR
   (yeni sürüm olarak yazılır, `v1`'e geri SARILMAZ — sürüm sayacı artmaya
   devam eder).

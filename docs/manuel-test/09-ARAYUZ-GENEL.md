@@ -1437,3 +1437,88 @@ ekranı. Otomatikleştirilmiş: `UiTests.Proof_slice_screens_do_not_overflow_hor
 - `run`, `session`, `tenant`, `tool` gibi terimler **çevrilmez**.
 - Sunucunun `ProblemDetails` metni İngilizce ve birebir görünür.
 
+
+### MT-UI-055 — Yıkıcı bir aksiyon bir kez daha sorar
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 175 |
+| **İlgili karar** | K-368 |
+
+Otomatikleştirilmiş: `UiTests.Confirm_does_not_default_focus_the_destructive_button`,
+`UiTests.Escape_and_cancel_close_the_confirmation_without_any_request`,
+`UiTests.Cancelling_the_confirmation_returns_focus_to_the_trigger`.
+
+**Ön koşul**
+- En az bir agent ve bir bekleyen onay kayıtlı.
+
+**Adımlar**
+1. Onaylar ekranında `Reddet`e bas.
+2. `Esc`'e bas.
+3. `Reddet`e tekrar bas ve `Tab` ile dialog içinde gez.
+4. `İptal`e bas.
+5. Agent detayında `Sil` → `Onayla`.
+
+**Beklenen sonuç**
+- 1. adımda doğrulama açılır ve etki cümlesi run'ın `AwaitingApproval` kalacağını
+  söyler; onayla ile reddet **ayrı** cümleler taşır.
+- 1. adımda açılış odağı `İptal`dedir — `Enter` hiçbir şey göndermez.
+- 2. ve 4. adımda dialog kapanır, **hiçbir istek gitmez**, onay hâlâ bekliyordur.
+- 3. adımda odak dialog içinde döner ve dışarı çıkmaz.
+- 4. adımdan sonra odak `Reddet` düğmesine geri döner.
+- 5. adımda agent silinir ve `agents` ekranına dönülür.
+
+### MT-UI-056 — Ölçütü geçmeyen aksiyon tek tık kalır
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 175 |
+| **İlgili karar** | K-059 |
+
+Onay yorgunluğunun kapısıdır: her şeyi doğrulatmak hiçbirini doğrulatmamakla aynı
+yere çıkar. Otomatikleştirilmiş:
+`UiTests.An_action_that_fails_the_criterion_stays_one_click_and_still_says_what_it_does`.
+
+**Ön koşul**
+- Bir MCP sunucusu, bir zamanlama, bir tetikleyici ve bir agent sürümü kayıtlı.
+
+**Adımlar**
+1. MCP ekranında sunucu silme düğmesine **klavyeyle** odaklan, sonra bas.
+2. Jobs ekranında bir zamanlamayı sil.
+3. Agent detayında `Rollback` düğmesine odaklan.
+4. Run detayında `Çalıştırmayı iptal et` düğmesine odaklan.
+
+**Beklenen sonuç**
+- 1–4'ün hepsinde odakta bir tooltip görünür ve **ne olacağını** söyler.
+- 1. ve 2. adımda doğrulama **açılmaz**; aksiyon tek tıkla olur.
+- 3. ve 4. adımda da doğrulama açılmaz.
+- Hiçbir adımda tarayıcının kendi `confirm()` kutusu görünmez.
+
+### MT-UI-057 — Doğrulama dar ekranda taşmaz
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Düşük |
+| **İlgili faz** | Faz 175 |
+| **İlgili karar** | — |
+
+Otomatikleştirilmiş: `UiTests.A_confirmation_fits_a_narrow_screen_in_the_longer_language`
+(375px + `tr`). Elle koşum yalnız görsel yargı içindir — taşma ölçümünü test yapar.
+
+**Ön koşul**
+- En az bir eval seti kayıtlı (adı uzun olsun).
+
+**Adımlar**
+1. Genişliği 400px yap.
+2. Evals ekranında silme düğmesine bas.
+3. Dili `tr` yapıp tekrarla.
+
+**Beklenen sonuç**
+- Dialog ekrandan taşmaz; başlık uzun adla birlikte sarar.
+- `İptal` ve `Sil` düğmelerinin ikisi de görünür ve basılabilir.
+- Türkçe metin İngilizcesinden uzun olduğu hâlde düğmeleri ekran dışına itmez.

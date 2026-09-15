@@ -485,20 +485,18 @@ export function JobsScreen({ meta }: { meta: Meta }): ReactNode {
                             >
                               {t('common.edit')}
                             </Button>
-                            <Tooltip text={t('jobs.deleteSchedule')}>
+                            {/* No confirmation step: §175.3 fails on both
+                                counts. `jobs.schedule_id` is ON DELETE SET
+                                NULL, so the jobs it already started stay in
+                                the list, and the schedule itself is typed back
+                                from the form beside it. Layer 1 carries the
+                                consequence; the click stays one click. */}
+                            <Tooltip text={t('jobs.deleteScheduleEffect')}>
                               <Button
                                 tone="danger"
                                 ariaLabel={t('jobs.deleteSchedule')}
                                 busy={remove.isPending && remove.variables === schedule.name}
-                                onClick={() => {
-                                  if (
-                                    window.confirm(
-                                      t('common.confirmDelete', { name: schedule.name }),
-                                    )
-                                  ) {
-                                    remove.mutate(schedule.name);
-                                  }
-                                }}
+                                onClick={() => remove.mutate(schedule.name)}
                               >
                                 <TrashIcon className="size-3.5" />
                               </Button>
