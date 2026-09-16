@@ -2060,3 +2060,11 @@ Kapanışın ilk sorusu bu olmalı — cevabı "patlardı" ise kusur yalnız ör
 **Öneri: 1.** Adım 1 ve 3 zaten yeşil koşuldu ve fazın asıl iddiasını
 (üretilen SQL değişmedi) kanıtlıyor. Adım 2 yalnız kapının kendisini sınar ve
 kapanış modunda sıfır ek maliyetle koşulabilir.
+
+✅ **KULLANICI KARARI (2026-09-16): Seçenek 1 — Aşama 2'ye ertelendi.**
+Case `☐ Beklemede` kalır ve **Aşama 2'nin ilk işlerinden biri** olarak
+koşulur: kapanış modunda `src/` zaten değişebilir durumdadır, o yüzden
+`SqlQueriesBase.CostAddends`'e sahte dördüncü terim eklenir,
+`dotnet test tests/Tracon.Sql.Shared.UnitTests` koşulur
+(`CostAddendsCrossCheckTests` **düşmelidir**), terim geri alınır ve set
+yeniden yeşil doğrulanır. Ancak ondan sonra `☑ Geçti` işaretlenir.
