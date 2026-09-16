@@ -243,16 +243,20 @@ bitmez.** Kullanıcı kararı: spec'e dokunulmaz.
 
 Dosya 01'in oturum sınırları: `001..049` (33) · `050..099` (25) · `100..122` (23).
 
-### Faz B — dört şerit paralel
+### Faz B — dört şerit paralel — 🟡 AÇILDI (oturum 13)
 
-Zincir bitince açılır. Dağılım `00-KOSUM-PLANI.md` §3.1'dedir:
+Dağılım `00-KOSUM-PLANI.md` §3.1'dedir:
 
-| Şerit | Port | Şema | Oturum | Aileler |
-|---|---|---|---|---|
-| `ap-s1` | 5081 | `mt_s1` | 19 | 13 · 19 · 04 · 18 · 10 · 08 |
-| `ap-s2` | 5082 | `mt_s2` | 17 | 36 · 33 · 12 · 24 · 35 · 23 · 15 · 14 |
-| `ap-s3` | 5083 | `mt_s3` | 18 | 32 · 29 · 34 · 21 · 11 · 25 · 17 · 20 |
-| `ap-s4` | 5084 | `mt_s4` | 18 | 31 · 16 · 30 · 22 · 09 · 27 · 26 · 28 · 06 |
+| Şerit | Port | Şema | Oturum | Aileler | Durum (oturum 13) |
+|---|---|---|---|---|---|
+| `ap-s1` | 5081 | `mt_s1` | 19 | 13 · 19 · 04 · 18 · 10 · 08 | 🟡 sürüyor — aile 13: 74/144 case (MT-SEC-001..119), uygulama durdurulmuş halde devredildi. **Tamamlanmadı** — bu oturum tarafından dokunulmadı, ilerleyen bir oturum devam eder |
+| `ap-s2` | 5082 | `mt_s2` | 17 | 36 · 33 · 12 · 24 · 35 · 23 · 15 · 14 | 🚀 oturum 13'te arka plan agent'ı olarak başlatıldı (aile 36'dan) |
+| `ap-s3` | 5083 | `mt_s3` | 18 | 32 · 29 · 34 · 21 · 11 · 25 · 17 · 20 | 🚀 oturum 13'te arka plan agent'ı olarak başlatıldı (aile 32'den) |
+| `ap-s4` | 5084 | `mt_s4` | 18 | 31 · 16 · 30 · 22 · 09 · 27 · 26 · 28 · 06 | 🚀 oturum 13'te arka plan agent'ı olarak başlatıldı (aile 31'den) |
+
+`ap-s2`/`ap-s3`/`ap-s4` oturum 13'te `main`'e fast-forward edildi (Faz A
+kapanış commit'lerini almaları için) — kendi commit'leri yoktu, çakışma
+olmadı. `ap-s1` dokunulmadı (kendi commit'leri var, ayrı ilerliyor).
 
 ---
 
@@ -321,7 +325,7 @@ Tazeleme turu üç Faz 162 kalıntısı kapattı. Bunları tekrar aramana gerek 
 | `MT-PG-067` adım 2 | ✅ **Karar verildi (2026-09-16): Aşama 2'ye ertelendi.** Case `src/` altında kod değişikliği ister; kural 1 yasaklar. Adım 1 ve 3 yeşil koşuldu. Kapanış modunda koşulacak — yordam dosya 03'ün sonundaki tabloda. Case o zamana dek `☐ Beklemede` kalır |
 | `HATA-S1-020` kapanış yönü | `upstream_error` sınıflandırıcıda tanınmıyor → her sağlayıcı hatası `Unknown` **ve tek fingerprint**. En küçük düzeltme `StableIdentities`'e giriş eklemek; ama fingerprint sabit mesajdan üretildiği için **ayrı bir girdiye** dayanması gerekebilir. Kapanış oturumu karar verir; sınıf taraması dosya 05'in kaydındadır |
 | `HATA-S1-019` ilk kapanış sorusu | `RequireCustomBinding<ITenantStore>()` çağrılsaydı başlangıçta patlar mıydı, yoksa sessiz mi kalırdı? Cevap kusurun örnekte mi koruma mekanizmasında mı olduğunu belirler |
-| `31`–`36` kayıt biçimi | 🚨 **Faz B açılmadan çözülmeli.** Bu altı aile (205 case) tablo biçimindedir: satır başına bir case, `### MT-` başlığı ve `Durum:` satırı **yok**. Skill §4.1 case kaydı ve §7 sayım betiği (`^## (MT-...)` arar) bunlara uymaz. Kullanıcı kararı (2026-09-16): Faz B'ye ertelendi, zinciri bekletmez |
+| `31`–`36` kayıt biçimi | ✅ **Çözüldü (oturum 13, Faz B açılışı).** Spesifikasyon tablo biçiminde **kalır** — dokunulmadı. Bu altı ailenin **kayıt** dosyaları (`kosumlar/2026-09-16/{31,32,33,34,35,36}-*.md`) diğer tüm ailelerle aynı kalıbı kullanır: her case için `## MT-<KOD>-<NNN> — <kısa başlık>` başlığı (başlık spec'in `Adımlar`/`Beklenen sonuç` sütunundan kısaltılır), ardından `**Gerçek sonuç**` ve `**Durum:**` satırı. Böylece skill §4.1 ve §7 sayım betiği (`^## (MT-...)` arar) değişmeden çalışır. Alan kodları: `31→DDG` · `32→DKL` · `33→DKP` · `34→CLI` · `35→TSC` · `36→GDK`. |
 
 ---
 
