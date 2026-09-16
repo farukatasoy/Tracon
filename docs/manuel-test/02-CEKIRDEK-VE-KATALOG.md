@@ -801,7 +801,10 @@ curl -s "$APU/api/agents" -H "$APB" | python3 -m json.tool | grep -A3 '"name": "
 
 **Doğrulama sorgusu**
 ```sql
-SELECT name, version, display_name FROM tracon.agent_definitions WHERE name = 'support';
+-- display_name diye bir sutun YOK: gorunen ad `definition` jsonb'sinin icindedir.
+SELECT name, version, definition->>'displayName' AS display_name
+FROM tracon.agent_definitions WHERE name = 'support';
+-- Kod kaynakli agent DB'ye hic yazilmaz: beklenen sonuc 0 satirdir.
 ```
 
 ---
@@ -956,9 +959,14 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/agents/manuel-surum/versions" -H "
 ```
 
 **Beklenen sonuç**
-- `support` için yanıt bir hata veya boş liste döner **ve** gerekçe kod
-  kaynaklı olmasıdır. Yanıt gövdesi "kod kaynagi" ifadesini taşır veya HTTP
-  kodu 4xx'tir. Hangi biçim seçildiği koşumda kaydedilir.
+- `support` için yanıt ya **200 + boş liste** (sürüm geçmişi yok) ya da
+  **4xx** döner. Her iki durumda da gövde agent'ın **kod kaynaklı** olduğunu
+  söylemelidir. Hangi biçim seçildiği koşumda kaydedilir.
+- 🚨 Gövde **"böyle bir agent yok" DEMEMELİDİR**: `support` vardır
+  (`GET /api/agents/support` → 200). 2026-09-16'da ölçülen davranış budur ve
+  `HATA-S1-009` olarak açıktır — düzelene kadar bu case `Kaldı`dır.
+  Karşılaştırma noktası `MT-CORE-030`: aynı durumda `POST /api/agents` doğru
+  ve açıklayıcı bir 409 döndürür.
 - `manuel-surum` için **iki** sürüm listelenir (MT-CORE-033'ten).
 - Hiçbir istekte 500 dönmez.
 
