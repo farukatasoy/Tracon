@@ -690,6 +690,31 @@ boşluğu kapatır ve desen eşleştirmeye hiç gerek kalmaz.
 sabiti `StableIdentities`'e karşı taranmalı — `upstream_error` tek eksik
 olmayabilir.
 
+**🚨 İkinci ölçüm bulguyu ağırlaştırdı (MT-OAI-057).** Bambaşka bir sağlayıcıda,
+bambaşka bir hatada — OpenRouter, `HTTP 402`, yetersiz kredi — kayıt şu çıktı:
+
+```json
+{"type": "upstream_error", "message": "The model provider request failed.",
+ "class": "Unknown",
+ "fingerprint": "4eca6e3521f8fa3792501989d426fb7e19cf48022733537d847be43ac1cc7424"}
+```
+
+**Fingerprint MT-OAI-043'ünkiyle karakter karakter aynı.** İki farklı sağlayıcı
+(OpenAI · OpenRouter), iki farklı HTTP kodu (404 · 402), iki farklı kök neden
+(model yok · kredi yok) → **tek bir parmak izi**.
+
+Nedeni yapısal: `Classify` parmak izini `ErrorFingerprint.Compute(runError.Message)`
+ile üretir (`DefaultRunErrorClassifier.cs:63`) ve normalleştirme sonrası mesaj
+**sabittir**. Parmak izinin işi benzer hataları gruplamak, farklı olanları
+ayırmaktır; bu hâliyle yabancı sağlayıcıdan gelen her hata tek bir kovaya
+çöküyor. `class: Unknown` ile birleşince kayıt operatöre iki soruyu da
+yanıtlayamıyor: *ne tür bir hata* ve *daha önce gördüğüm hata mı*.
+
+Bu, düzeltmenin yalnız `StableIdentities`'e iki satır eklemekle bitmeyebileceğini
+gösterir: parmak izinin ayırt edici bir girdiye (örneğin iç istisnanın tip adına
+ya da sağlayıcı adı + durum koduna) dayanması gerekir. Karar kapanış
+oturumunundur.
+
 **Sınıf taraması — koşum sırasında yapıldı, boşluk tek değil.** Kaynakta **17**
 kararlı hata kimliği tanımlı (`const string *ErrorType`), `StableIdentities`
 sözlüğü bunların yalnız **7**'sini tanıyor. Tanınmayan 10:
@@ -714,3 +739,413 @@ sınıfa gideceği kapanış oturumunun kararıdır; bazıları bilinçli olarak
 `Unknown` bırakılmış olabilir. Kesin olan: `upstream_error` için `Unknown`
 bilinçli **değildir**, çünkü K-296 tam da o vakayı sınıflandırmak için
 yazılmıştı.
+
+---
+
+## MT-OAI-050 — `openrouter` adlandırılmış sağlayıcı olarak görünür
+
+**Gerçek sonuç**
+Her iki beklenti de doğrulandı.
+
+```
+saglayicilar: ['anthropic', 'google', 'openai', 'openai-responses', 'openrouter']
+openrouter-responses var mi: False
+openrouter modelleri: ['openai/gpt-5.4-mini']
+```
+
+`appsettings.json`'ın `OpenAICompatible:openrouter` bloğuyla karşılaştırıldı:
+tek `Models` girdisi var (`openai/gpt-5.4-mini`, `DisplayName` "GPT-5.4 mini
+(OpenRouter)") ve katalog birebir onu taşıyor. Responses yüzeyi varsayılan
+kapalı — MT-OAI-054/055 bunu ayrıca kanıtlayacak.
+
+Yapılandırmanın kendi yorum satırı OpenRouter'ın model kimliği kuralını da
+belgeliyor: *"OpenRouter model ids carry a provider prefix: not `gpt-5.4-mini`
+but `openai/gpt-5.4-mini`."*
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OAI-051 — Sağlayıcı adı doğrulaması: rezerve ad, geçersiz desen, 33. karakter
+
+**Gerçek sonuç**
+🚨 **Sapma — spec üç kez `Program.cs` düzenlemesi ister; kural 1 yasaklıyor.**
+Üç deneme repo dışı tüketici host'uyla koşuldu
+(`~/tracon-manuel/oai-ad-dogrulama`, ad tek ortam değişkeninden gelir). Bu
+spec'in istediğinden temizdir: doğrulama kütüphane davranışıdır, örnek
+uygulamaya bağlı değildir.
+
+Üçü de `System.ArgumentException` ile, `EXIT=134`, `ValidateName`'de patladı;
+hiçbiri `/health`'e ulaşmadı.
+
+**Deneme 1 — rezerve ad `openai`:**
+
+```
+System.ArgumentException: The provider name 'openai' is reserved. 'openai' and
+'openai-responses' are used by UseOpenAI() only; the ModelBinding.Provider
+values of agent definitions rely on those names. (Parameter 'name')
+   at Tracon.OpenAICompatibleProviderExtensions.ValidateName(String name)
+```
+
+**Deneme 2 — büyük harf `OpenRouter2`** ve **Deneme 3 — 33 karakter** aynı
+mesajı verdi:
+
+```
+'<ad>' is not a valid provider name. The name must contain lower case letters,
+digits and hyphens, must start with a lower case letter or a digit, and must be
+at most 32 characters long (for example 'openrouter', 'local-vllm').
+```
+
+**Ek ölçüm — sınırın 32 olduğu pozitif yönden de kanıtlandı.** Spec 2026-08'de
+tam bu noktada bir kez yanılmıştı (33 sandığı dizgi 32 çıkmıştı), o yüzden
+sınırın **kabul eden** tarafı da ölçüldü: 32 karakterlik
+`a000000000000000000000000000000x` sorunsuz kaydedildi ve `/api/models`'te
+göründü. Yani 32 geçerli, 33 geçersiz — sınır tam yerinde.
+
+Sapma yalnız **dil** (K-228); üç `Beklenen sonuç` da düzeltildi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OAI-052 — Endpoint verilmeyen adlandırılmış sağlayıcı doğrulama hatası verir
+
+**Gerçek sonuç**
+🚨 **Sapma — spec `Program.cs` düzenlemesi ister; kural 1 yasaklıyor.** Aynı
+tüketici host'u `ENDPOINT_VER=0` ile koşuldu (`o.ApiKey` verilir, `o.Endpoint`
+verilmez).
+
+Uygulama başlamayı reddetti, `EXIT=134`:
+
+```
+OptionsValidationException: OpenAIProviderOptions.Endpoint is required for
+compatible providers. If it were left empty, the request would silently go to
+the official OpenAI address. Set it with `UseOpenAICompatible(name,
+o => o.Endpoint = new Uri("https://..."))`.
+```
+
+Mesajın **neden**i de taşıması iyi bir ayrıntı: boş bırakılsa istek sessizce
+resmî OpenAI adresine giderdi. Bu, adlandırılmış bir sağlayıcı için gerçek bir
+veri sızıntısı yolu olurdu — anahtar ve istem yanlış tarafa giderdi. Sıkı
+davranış doğrudur.
+
+Sapma yalnız **dil** (K-228); `Beklenen sonuç` düzeltildi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OAI-053 — Anahtarsız yerel sağlayıcı (Ollama) — koşullu
+
+**Gerçek sonuç**
+Ollama bu makinede **yok**, case'in kendi koşulu gereği atlandı.
+
+```
+curl -m 3 http://localhost:11434/api/tags  -> baglanti yok
+which ollama                                -> ollama not found
+```
+
+Sunucu da, CLI de kurulu değil. Case'in `Beklenen sonuç`'u bu durumu zaten
+öngörüyor. Mekanizma Faz 8 DoD'unda birim/fonksiyonel olarak kapsanmış durumda
+(`OpenAICompatibleProviderExtensionsTests` / `FakeOpenAiCompatibleServer`,
+sapma S5), yani kapsama boşluğu bırakmıyor.
+
+⚠️ Bu **ortam eksikliğidir, kusur değildir** — dosyanın Azure case'leriyle aynı
+kategori.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☑ Atlandı
+
+## MT-OAI-054 — Responses yüzeyi varsayılan olarak KAYDEDİLMEZ
+
+**Gerçek sonuç**
+Şeridin uygulamasında spec'in komutu `False` döndü — `openrouter-responses`
+katalogda yok. Sağlayıcı listesi: `anthropic, google, openai, openai-responses,
+openrouter`.
+
+Varsayılanın gerçekten **varsayılan** olduğu ayrıca doğrulandı: MT-OAI-055'in
+tüketici host'u `EnableResponsesSurface` bayrağına hiç dokunmadan da
+`['openrouter']` verdi. Yani yokluk `appsettings.json`'ın bir ayarından değil,
+`UseOpenAICompatible`'ın kendi varsayılanından geliyor.
+
+Karşıtlığı da anlamlı: `UseOpenAI` iki yüzeyi **birden** kaydeder (MT-OAI-001),
+`UseOpenAICompatible` yalnız birini. Uyumlu sağlayıcıların çoğu Responses API'yi
+konuşmaz; varsayılanın kapalı olması doğru yöndür.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OAI-055 — `EnableResponsesSurface = true` ikinci bir sağlayıcı kaydeder
+
+**Gerçek sonuç**
+🚨 **Sapma — spec `Program.cs` düzenlemesi ister; kural 1 yasaklıyor.** Bayrak
+tüketici host'unda tek değişkene bağlandı ve **iki yönlü** ölçüldü — spec yalnız
+açık hâli istiyordu, kapalı hâl kontrol grubu olarak eklendi:
+
+```
+EnableResponsesSurface = false -> ['openrouter']
+EnableResponsesSurface = true  -> ['openrouter', 'openrouter-responses']
+```
+
+Çıktı `True`. Aynı host'ta, aynı ikilide, tek farkla — yani ikinci sağlayıcıyı
+ekleyen şeyin gerçekten bu bayrak olduğu kanıtlanmış olur.
+
+Spec'in adım 1'indeki `OpenAIProviderExtensions.Bind` uyarısına gerek kalmadı:
+host zaten seçenekleri doğrudan kuruyor, `internal` bir API'ye hiç
+dokunulmuyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OAI-056 — Gerçek OpenRouter çağrısı: tool kullanımı
+
+**Gerçek sonuç**
+🚨 **Kritik case — geçti.** Üç beklentinin üçü de doğrulandı, gerçek OpenRouter
+hesabı üzerinden.
+
+```
+cerceve sayimi: {'run': 1, 'update': 39, 'done': 1}
+BIRLESIK METIN: ORD-1002 siparişiniz kargoya verilmiş. Tahmini teslimat: 2 gün.
+```
+
+Yanıt `ORD-1002` dizgisini taşıyor. Olay listesi:
+
+```
+{'RunStarted': 1, 'ToolInvoking': 1, 'ToolInvoked': 1,
+ 'MessageDelta': 22, 'RunCompleted': 1}
+tool olaylari: [('ToolInvoking', 'get_order_status'),
+                ('ToolInvoked',  'get_order_status')]
+```
+
+`get_order_status` **tam bir kez**. `HTTP 402` görülmedi, hiç `error` çerçevesi
+yok — `openrouter-support` tanımının `MaxOutputTokens: 512` taşıması S6
+sapmasını kapatmaya yetiyor.
+
+⚠️ Olay profili MT-OAI-040'ın (doğrudan OpenAI) profiliyle **birebir aynı**:
+aynı çerçeve sayıları, aynı tek tool çağrısı, aynı cümle. Aynı boru hattının
+iki farklı adrese bağlandığını, davranış farkı üretmeden, gösteriyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OAI-057 — `MaxOutputTokens` verilmezse gerçek OpenRouter hesabı `HTTP 402` üretebilir
+
+**Gerçek sonuç**
+S6 sapması **birebir yeniden üretildi** — case'in iki dalından ikincisi
+gözlemlendi. Akış `run` + `error` ile bitti:
+
+```
+cerceve sayimi: {'run': 1, 'error': 1}
+[error] {"type":"ProviderInvocationException","message":"The model provider request failed."}
+```
+
+Gerçek neden günlükte, ve sapmanın tarifiyle **sayı sayı** örtüşüyor:
+
+```
+System.ClientModel.ClientResultException: HTTP 402
+This request requires more credits, or fewer max_tokens. You requested up to
+65536 tokens, but can only afford 7795.
+```
+
+`65536` tam olarak spec'in "MAF/OpenAI istemcisi `MaxOutputTokens` verilmezse
+varsayılan olarak `max_tokens=65536` gönderir" cümlesindeki sayıdır. Hesabın o
+anki gücü ~**7795** token. Bu Tracon'un hatası değildir; MT-OAI-056'nın
+`MaxOutputTokens: 512` taşıyan tanımı aynı hesapta sorunsuz çalıştı.
+
+⚠️ **Spec'in ölçüm noktası bayat.** "SSE `error` çerçevesinde `402` veya
+`insufficient credits` dizgisi görünür" diyor; normalleştirme yüzünden çerçeve
+sabit metni taşıyor ve o dizgiler **günlüktedir**. Kök neden MT-OAI-043'ünkiyle
+aynıdır. `Beklenen sonuç` düzeltildi.
+
+🚨 **Yan bulgu — normalleştirmenin neden var olduğunun canlı kanıtı.**
+OpenRouter'ın hata mesajı, Tracon'un denetimi dışında, içine bir **anahtar
+yönetim URL'si** koymuş:
+`https://openrouter.ai/workspaces/default/keys/<64-hex — bu kayda YAZILMADI>`.
+`SafeErrorText`'in XML dokümanı tam bu riski tarif ediyor (*"a foreign message
+can carry a request detail, an internal URL, a `host:port`, or a partial
+credential"*). Normalleştirme olmasaydı bu URL kalıcı `run` kaydına ve HTTP
+yanıtına girecekti. Yani `HATA-S1-020` normalleştirmenin **varlığına** değil,
+yalnız sınıflandırıcının kararlı kimliği tanımamasına itiraz eder.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OAI-058 — İki adlandırılmış sağlayıcı farklı adreslere bağlanır
+
+**Gerçek sonuç**
+Her iki beklenti de doğrulandı; iki liste birbirinden tamamen farklı.
+
+```
+openai      -> Healthy, 7 model:
+               gpt-5.4-mini, gpt-5.6-luna, gpt-5.6-terra, gpt-image-1,
+               gpt-live-1, text-embedding-3-large, text-embedding-3-small
+openrouter  -> Healthy, 200 model:
+               aion-labs/aion-3.0, aion-labs/aion-3.0-mini,
+               anthropic/claude-fable-5, anthropic/claude-fable-5.1, ...
+```
+
+**Ağ-seviyesi kanıt sağlam.** İki liste yalnız farklı değil, **yapısal olarak**
+farklı: OpenRouter'ın kimlikleri sağlayıcı önekli (`anthropic/...`,
+`aion-labs/...`) ve tam 200'de kırpılmış; OpenAI'ınkiler öneksiz ve yedi tane.
+Bu listeler aynı adresten gelemez.
+
+`openai`'ın listesi **katalogla sınırlı değil** — `appsettings.json` üç model
+tanımlıyor, sağlık denetimi **yedi** döndürdü. Fazladan dördü
+(`gpt-image-1`, `gpt-live-1`, iki `text-embedding-*`) katalogda hiç yok. Yani
+sağlık denetimi katalogdan değil, doğrudan `GET {endpoint}/models`'ten okuyor —
+spec'in ikinci iddiası tam da bu.
+
+⚠️ Bu aynı zamanda MT-OAI-021'in ortam notunu açıklıyor: hesap `gpt-4o-mini`'ye
+erişemiyor çünkü listede yok; erişebildiği yedi modelin hepsi burada.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OAI-070 — Tüm sağlayıcılar `Healthy` döner
+
+**Gerçek sonuç**
+Beş sağlayıcının beşi de `Healthy`, `latency` dolu, `models` dolu.
+
+```
+providerName      status   latency           models
+anthropic         Healthy  00:00:00.8258595   11
+google            Healthy  00:00:00.4919904   50
+openai            Healthy  00:00:01.3151189    7
+openai-responses  Healthy  00:00:00.7549783    7
+openrouter        Healthy  00:00:00.5322524  200
+```
+
+`latency` biçimi spec'in beklediği `00:00:0X.XXXXXXX` kalıbında. `detail` alanı
+sağlıklı sağlayıcılarda `null` — hata yolu boş, beklendiği gibi.
+
+⚠️ **Alan adı `providerName`**, `provider` ya da `name` değil; ilk sondam bu
+yüzden beş satırı da `None` yazdı. Yanıt nesnesinin alanları:
+`providerName`, `status`, `detail`, `latency`, `checkedAt`, `models`.
+`Beklenen sonuç`'a not düşüldü.
+
+`openai` ve `openai-responses` aynı 7 modeli döndürüyor — aynı hesaba, aynı
+adrese bağlandıkları için beklenen budur (MT-OAI-058 farkı **farklı** sağlayıcılar
+arasında gösterdi).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OAI-071 — Bilinmeyen sağlayıcı adıyla sağlık sorgusu `404` döner
+
+**Gerçek sonuç**
+```
+HTTP: 404
+{"type":"https://tools.ietf.org/html/rfc9110#section-15.5.5",
+ "title":"Provider not found","status":404,
+ "detail":"There is no registered model provider named 'hic-boyle-bir-saglayici'."}
+```
+
+Gövde geçerli bir `ProblemDetails`; `type` RFC 9110 §15.5.5 (Not Found)
+bağlantısı, yani durum koduyla tutarlı.
+
+Sapma yalnız **dil** (K-228): spec `Saglayici bulunamadi` / `'...' adinda
+kayitli bir model saglayicisi yok.` bekliyordu. `Beklenen sonuç` düzeltildi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OAI-072 — Önbellek TTL'si (60 sn) çalışır; `refresh=true` onu atlar
+
+**Gerçek sonuç**
+Spec'in iki beklentisi de doğrulandı, üstelik `latency`'den daha güçlü bir
+tanıkla: `checkedAt`.
+
+```
+1. cagri  latency 00:00:01.3151189  checkedAt 2026-09-16T18:43:56.736671+00:00
+2. cagri  latency 00:00:01.3151189  checkedAt 2026-09-16T18:43:56.736671+00:00   <- AYNI nesne
+3. cagri  latency 00:00:00.7017441  checkedAt 2026-09-16T18:44:46.487907+00:00   <- refresh=true, YENIDEN olculdu
+```
+
+İkinci çağrının `latency`'si birinciyle **aynı**; `checkedAt` de aynı, yani
+dönen şey gerçekten önbellekteki aynı `ModelProviderHealth` nesnesi — yeniden
+ölçüm yok. `refresh=true` ikisini birden değiştirdi.
+
+⚠️ **Yalnız `latency` karşılaştırmak zayıf bir tanıktır** — iki ayrı ölçüm
+tesadüfen aynı değeri verebilir. `checkedAt` tam zaman damgası taşıdığı için
+ayrımı kesin yapar. `Beklenen sonuç`'a eklendi.
+
+**Ek ölçüm — TTL'nin kendisi de kanıtlandı.** Case'in başlığı "60 sn" der ama
+adımları süre dolmasını hiç sınamıyor; 60 saniye beklemek yerine TTL kısaltıldı
+(`Tracon__Health__CacheTtl=00:00:03`, ayrı örnek 5092'de):
+
+```
+A  checkedAt 18:45:16.634050     ilk olcum
+B  checkedAt 18:45:16.634050     hemen ardindan — TTL icinde, AYNI
+C  checkedAt 18:45:22.542222     4 sn sonra — TTL doldu, refresh OLMADAN yeniden olculdu
+```
+
+Yani süre dolunca önbellek kendiliğinden yenileniyor. Varsayılanın 60 saniye
+olduğu kaynaktan doğrulandı: `src/Tracon.Core/TraconOptions.cs:461`
+`public TimeSpan CacheTtl { get; set; } = TimeSpan.FromSeconds(60);` — ve
+yapılandırılabilir olduğu bu ölçümün kendisiyle kanıtlandı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OAI-073 — Erişilemeyen sağlayıcının hata detayında adres veya anahtar sızmaz
+
+**Gerçek sonuç**
+🚨 **Kritik case — geçti.** Spec `Program.cs` düzenlemesi ister; kural 1
+yasakladığı için tüketici host'una kapalı bir porta bakan sağlayıcı kuruldu
+(`http://127.0.0.1:59999/v1`, anahtar `sk-cok-gizli-test-anahtari-12345`).
+
+```json
+{
+  "providerName": "kapali-port-testi",
+  "status": "Unhealthy",
+  "detail": "Connection error (ConnectionError).",
+  "latency": "00:00:00.0190378",
+  "models": []
+}
+```
+
+**Sızıntı taraması — dördü de temiz.** Her dizgi HTTP yanıtının ham gövdesinde
+`grep -F` ile arandı:
+
+```
+127.0.0.1                         -> yok
+59999                             -> yok
+sk-cok-gizli-test-anahtari-12345  -> yok
+localhost                         -> yok
+```
+
+`detail` yalnız kategoriyi taşıyor: `Connection error (ConnectionError).`
+K-073'ün sınırı yerinde.
+
+Sapmalar (ikisi de doküman tarafında):
+- **Dil:** spec `Baglanti hatasi (` bekliyordu; sevk edilen metin İngilizce
+  (K-228).
+- **Kategori örneği yanlıştı.** Spec "örnek: `ConnectionRefused`" diyor, ama
+  `ConnectionRefused` bir `HttpRequestError` üyesi **değildir** (o bir
+  `SocketError` adıdır). Gerçek üye `ConnectionError`'dır. Spec'in asıl şartı —
+  "bir `HttpRequestError` kategori adı içerir" — karşılanıyor; yanlış olan
+  parantez içindeki örnekti. Düzeltildi.
+
+⚠️ **Ek gözlem:** üç dizgi **günlükte de** yok. `SafeErrorText` sözleşmesi tam
+ayrıntının `ILogger`'a gitmesini öngörür (MT-OAI-043/057'de öyle oldu); burada
+sağlık denetimi yolu istisnayı hiç loglamıyor. Bu case için bir sorun değil —
+gizlilik açısından daha sıkı. Ama teşhis açısından, kapalı bir portun **hangi**
+adres olduğu operatöre hiçbir yerden görünmüyor. Kayıt amaçlı not; bu case bunu
+sınamıyor ve kusur olarak açılmadı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OAI-074 — `/api/models`'in `status` alanı önbellekten gelir, ağ çağrısı yapmaz
+
+**Gerçek sonuç**
+Üç beklentinin üçü de doğrulandı. Taze bir örnek (5092) açıldı; hazır olma
+yoklaması `/health` ile yapıldı, model sağlık ucuna **hiç** gidilmedi.
+
+```
+1. /api/models  -> anthropic:Unknown  google:Unknown  openai:Unknown
+                   openai-responses:Unknown  openrouter:Unknown        (0.02 sn)
+2. /api/models/health/openai  (bir kez)
+3. /api/models  -> anthropic:Unknown  google:Unknown  openai:Healthy
+                   openai-responses:Unknown  openrouter:Unknown        (0.01 sn)
+```
+
+**Ayrım tek sağlayıcıda ve tam olarak beklenen yerde.** Yalnız `openai`
+`Healthy`'ye döndü; diğer dördü `Unknown` kaldı. Bu, `/api/models`'in
+gerçekten `TryPeek` ile önbelleğe **baktığını**, kendi başına denetim
+**tetiklemediğini** kanıtlar — tetikleseydi beşi birden dolardı.
+
+İki çağrı da 0.02 ve 0.01 saniye, yani spec'in "< 1 sn" eşiğinin çok altında.
+Kıyas için: gerçek bir sağlık denetimi MT-OAI-070'te 0.5–1.3 saniye sürüyordu.
+Aradaki iki büyüklük mertebesi ağ çağrısı olmadığının kendi başına kanıtıdır.
+
+⚠️ Bu ölçüm dosya 03'ün `HATA-S1-016` bulgusunu da açıklıyor: `/health`
+sağlayıcı önbelleğini doldurmuyor, bu yüzden `/api/models/health` çağrılmadıkça
+toplu sağlık sonsuza dek `Degraded` kalıyor. Buradaki ilk ölçüm (`/health` ile
+açıldı, beşi de `Unknown`) tam olarak o mekanizmanın görüntüsüdür.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı

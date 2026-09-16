@@ -887,15 +887,21 @@ git checkout -- samples/Tracon.Api/Program.cs
 ```
 
 **Beklenen sonuç**
-- Deneme 1: `ArgumentException` — mesaj `'openai' saglayici adi rezervedir.`
-  ile başlar.
-- Deneme 2: `ArgumentException` — mesaj `'OpenRouter2' gecerli bir saglayici
-  adi degil.` ile başlar (büyük harf `IsLowerAlphaNumeric` tarafından
-  reddedilir).
-- Deneme 3: `ArgumentException` — mesaj `'...' gecerli bir saglayici adi
-  degil.` ile başlar (33 karakter, sınır 32).
-- Üçünde de süreç sıfırdan farklı bir çıkış koduyla sonlanır; `/health` hiçbir
-  zaman yanıt vermez.
+Üç mesaj da İngilizce'dir (K-228) ve `OpenAICompatibleProviderExtensions.ValidateName`
+içinden gelir.
+
+- Deneme 1: `ArgumentException` — `The provider name 'openai' is reserved.
+  'openai' and 'openai-responses' are used by UseOpenAI() only; ...`
+- Deneme 2 ve 3: `ArgumentException` — `'<ad>' is not a valid provider name.
+  The name must contain lower case letters, digits and hyphens, must start with
+  a lower case letter or a digit, and must be at most 32 characters long (for
+  example 'openrouter', 'local-vllm').`
+- Üçünde de süreç sıfırdan farklı bir çıkış koduyla sonlanır (`EXIT=134`);
+  `/health` hiçbir zaman yanıt vermez.
+- **Sınırın kabul eden tarafını da ölç.** 32 karakterlik bir ad (örnek:
+  `a000000000000000000000000000000x`) **geçerlidir** ve `/api/models`'te
+  görünür. Yalnız reddedilen tarafı ölçmek yetmez — 2026-08 turunda 33 sanılan
+  dizgi fiilen 32 çıkmıştı.
 
 ---
 
@@ -931,8 +937,11 @@ git checkout -- samples/Tracon.Api/Program.cs
 
 **Beklenen sonuç**
 - Uygulama başlamayı reddeder; `OptionsValidationException`.
-- Mesaj `OpenAIProviderOptions.Endpoint uyumlu saglayicilar icin zorunludur.`
-  ile başlar.
+- Mesaj `OpenAIProviderOptions.Endpoint is required for compatible providers.
+  If it were left empty, the request would silently go to the official OpenAI
+  address. Set it with \`UseOpenAICompatible(name, o => o.Endpoint = new
+  Uri("https://..."))\`.` metnini taşır (K-228 — sevk edilen metin
+  İngilizce'dir).
 
 ---
 
@@ -1121,10 +1130,13 @@ curl -s -X POST "$APU/api/agents/manuel-openrouter-token-siniri-yok/run" -H "$AP
 **Beklenen sonuç**
 - **Hesap bakiyesine bağlıdır** — bu yüzden değişmez bir metin değil, bir
   DAVRANIŞ beklenir: **ya** çalıştırma normal tamamlanır (bakiye yeterli),
-  **ya da** SSE `error` çerçevesinde `402` veya `insufficient credits`
-  dizgisi görünür. İkinci durum bir kusur değildir; koşum kaydına
+  **ya da** başarısız olur. İkinci durum bir kusur değildir; koşum kaydına
   hangisinin gözlemlendiği ve hesap bakiyesinin (yaklaşık) durumu not
   düşülür.
+- 🚨 **`402` dizgisini SSE çerçevesinde arama.** Çerçeve normalleştirilmiş
+  sabit metni taşır (`upstream_error` / `The model provider request failed.`);
+  `HTTP 402` ve `requires more credits` **günlüktedir**. Aynı sınır MT-OAI-043
+  için de geçerlidir.
 
 ---
 
@@ -1185,6 +1197,9 @@ curl -s "$APU/api/models/health" -H "$APB" | python3 -m json.tool
 - `openai` ve `openai-responses` `status: Healthy` döner, `latency` alanı
   doludur (`00:00:0X.XXXXXXX` biçiminde) ve `models` dizisi doludur.
 - Kayıtlıysa `openrouter` de `Healthy`'dir.
+- 🚨 Sağlayıcı adının alanı **`providerName`**'dir (`provider` ya da `name`
+  değil). Yanıt nesnesinin alanları: `providerName`, `status`, `detail`,
+  `latency`, `checkedAt`, `models`. Sağlıklı bir sağlayıcıda `detail` `null`'dur.
 
 ---
 
@@ -1212,9 +1227,10 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/models/health/hic-boyle-bir-saglay
 
 **Beklenen sonuç**
 - `HTTP: 404`.
-- Gövde bir `ProblemDetails`'tir, `title` `Saglayici bulunamadi`, `detail`
-  `'hic-boyle-bir-saglayici' adinda kayitli bir model saglayicisi yok.`
-  metnini taşır.
+- Gövde bir `ProblemDetails`'tir, `title` `Provider not found`, `detail`
+  `There is no registered model provider named 'hic-boyle-bir-saglayici'.`
+  metnini taşır (K-228 — sevk edilen metin İngilizce'dir). `type` alanı
+  RFC 9110 `#section-15.5.5` bağlantısıdır.
 
 ---
 
@@ -1248,6 +1264,13 @@ curl -s "$APU/api/models/health/openai?refresh=true" -H "$APB" | python3 -c "imp
   aynı `ModelProviderHealth` nesnesi, `latency` yeniden ölçülmez).
 - Üçüncü çağrının `latency` değeri **farklıdır** (yeniden ölçüldü —
   `refresh=true` önbelleği atladı).
+- 🚨 **`latency` yerine `checkedAt`'e bak** ya da ikisine birden: iki ayrı
+  ölçüm tesadüfen aynı `latency`'yi verebilir, ama `checkedAt` tam zaman
+  damgasıdır ve önbellek isabetini kesin ayırır.
+- **TTL'nin süresi dolduğunda kendiliğinden yenilendiğini ölçmek için 60 saniye
+  bekleme**; TTL'yi kısalt: `Tracon__Health__CacheTtl=00:00:03` ile açılan bir
+  örnekte üç saniye sonraki `refresh`'siz çağrı yeni bir `checkedAt` döndürür.
+  Varsayılan `TraconOptions.cs`'de `TimeSpan.FromSeconds(60)`'tır.
 
 ---
 
@@ -1283,8 +1306,11 @@ git checkout -- samples/Tracon.Api/Program.cs
 
 **Beklenen sonuç**
 - `status: Unhealthy`.
-- `detail` alanı `Baglanti hatasi (` ile başlar ve bir `HttpRequestError`
-  kategori adı içerir (örnek: `ConnectionRefused`).
+- `detail` alanı `Connection error (` ile başlar ve bir `HttpRequestError`
+  kategori adı içerir — kapalı bir port için `ConnectionError`
+  (K-228 — sevk edilen metin İngilizce'dir).
+  ⚠️ `ConnectionRefused` bir `HttpRequestError` üyesi **değildir**
+  (o bir `SocketError` adıdır); onu arama.
 - `detail` alanı `127.0.0.1`, `59999` VEYA `sk-cok-gizli-test-anahtari-12345`
   dizgilerinin **hiçbirini** içermez.
 
