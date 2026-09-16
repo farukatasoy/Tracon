@@ -3,8 +3,8 @@
 > **Bu turu devralan oturum ÖNCE burayı okur.** Turun durumu, değişmez
 > kuralları, ortamı ve sıradaki işi taşır.
 >
-> **Durum:** Aşama 1 sürüyor · **dosya 01 KAPANDI** (81/81) · kod `7e3a4de7`'de donuk
-> **Son güncelleme:** 2026-09-16 (oturum 3)
+> **Durum:** Aşama 1 sürüyor · **dosya 01 ve 02 KAPANDI** (178 case) · kod `7e3a4de7`'de donuk
+> **Son güncelleme:** 2026-09-16 (oturum 7)
 
 ---
 
@@ -24,22 +24,33 @@
 
 ## 2. Nerede duruyoruz
 
-Aşama 0 (tazeleme) bitti. Tur açıldı ve zincirin **1. ailesi kapandı**:
-`01-KURULUM-VE-PAKETLEME.md` üç oturumda koşuldu (81/81 case).
+Aşama 0 (tazeleme) bitti. Tur açıldı ve zincirin **ilk iki ailesi kapandı**:
+`01-KURULUM-VE-PAKETLEME.md` (81 case) ve `02-CEKIRDEK-VE-KATALOG.md`
+(97 case) — toplam **178 case**.
 
 ```mermaid
 flowchart LR
-    A["Asama 0 - Tazeleme<br/>BITTI"] --> B["Asama 1 - Tur<br/>SURUYOR - 1/36 aile"]
+    A["Asama 0 - Tazeleme<br/>BITTI"] --> B["Asama 1 - Tur<br/>SURUYOR - 2/36 aile"]
     B --> C["Asama 2 - Kapanis<br/>beklemede"]
     C --> D["YAYIN-HAZIRLIK<br/>Adim 2 -> 10"]
 ```
 
-**Dosya 01 sonucu:** 72 ☑ Geçti · 4 ☑ Kaldı · 5 ☐ Beklemede (bloklu).
-Kayıt: [`01-KURULUM-VE-PAKETLEME.md`](01-KURULUM-VE-PAKETLEME.md) — devir notu
-dosyanın başındadır ve **oturum oturum** birikir.
+| Dosya | Geçti | Kaldı | Beklemede |
+|---|---|---|---|
+| `01-KURULUM-VE-PAKETLEME.md` | 72 | 4 | 5 |
+| `02-CEKIRDEK-VE-KATALOG.md` | 92 | 4 | 1 |
+| **toplam** | **164** | **8** | **6** |
+
+Kayıt dosyaları `kosumlar/2026-09-16/` altındadır; her birinin **devir notu
+başındadır** ve oturum oturum birikir.
 
 🚨 **Açık bulgular:** `HATA-S1-001..005` · `HATA-S1-007` (yayın hattını
-bloklar — aşağıda). `HATA-S1-006` yanlış pozitif çıktı ve kapandı.
+bloklar — aşağıda) · `HATA-S1-008..014` (dosya 02, kayıt dosyasında).
+`HATA-S1-006` yanlış pozitif çıktı ve kapandı.
+
+⚠️ **`00-INDEKS.md` iki yerde bayat** (dosya 02'de ölçüldü, düzeltilmedi):
+§4 "33 migration" der → bugün **51**; §3.2 tool tablosu 4 tool listeler →
+bugün **10**.
 
 🚨 **`HATA-S1-007` — yayın provası hiçbir sürümle yeşil olamaz.**
 `scripts/kapi.py` hedef sürüm için `CHANGELOG.md`'de `## [<sürüm>]` bölümü
@@ -133,13 +144,22 @@ hiçbir ailenin sonucu okunmaz. Paralel şeritler ancak beşi yeşil bitince aç
 | 4 | `05-SAGLAYICI-OPENAI.md` | 40 | 2 |
 | 5 | `07-HTTP-YONETIM-API.md` | 43 | 2 |
 
-**Sıradaki oturumun işi:** `ap-s1`'de `02-CEKIRDEK-VE-KATALOG.md`,
-`MT-CORE-001`'den başla. Dosya 01 kapandı — ona dönme.
+**Sıradaki oturumun işi:** `ap-s1`'de `03-KALICILIK-POSTGRESQL.md`,
+ilk case'inden başla. Dosya 01 ve 02 kapandı — onlara dönme.
 
 | Aile | Durum |
 |---|---|
-| `01-KURULUM-VE-PAKETLEME.md` | ✅ 81/81 (3 oturum) |
-| `02-CEKIRDEK-VE-KATALOG.md` | ⬜ sıradaki · 97 case · 4 oturum |
+| `01-KURULUM-VE-PAKETLEME.md` | ✅ 81/81 |
+| `02-CEKIRDEK-VE-KATALOG.md` | ✅ 97/97 |
+| `03-KALICILIK-POSTGRESQL.md` | ⬜ sıradaki · 50 case · 2 oturum |
+| `05-SAGLAYICI-OPENAI.md` | ⬜ 40 case · 2 oturum |
+| `07-HTTP-YONETIM-API.md` | ⬜ 43 case · 2 oturum |
+
+🚨 **Dosya 02'den taşınan üç ortam kuralı** (ayrıntı o dosyanın devir notunda):
+`echo` sağlayıcısı yalnız OpenAI anahtarı **yokken** kayıtlanır · `/run` yanıtı
+SSE'dir ve ham `grep` kelimeleri böler (`<scratch>/sse.py`) · donmuş `samples/`
+gerektiren case'ler repo **dışında** tüketici host'uyla koşulur
+(`~/tracon-manuel/ohost`, tur sonunda silinecek).
 
 🚨 **Bölme noktası onluk case bloğudur, `#` bölüm başlığı DEĞİL.** Ölçüldü
 (2026-09-16): spec dosyalarında bölüm başlığı yok — `946a37fb` ("faz 58",
