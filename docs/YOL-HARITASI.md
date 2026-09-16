@@ -189,7 +189,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [174](arsiv/fazlar/174-KAPASITE-DAMGASI-KAPISI.md) | Kapasite Damgası Kapısı | ✅ Tamamlandı |
 | [175](arsiv/fazlar/175-GERI-ALINAMAZ-KARAR-DOGRULAMASI.md) | Geri Alınamaz Karar Doğrulaması | ✅ Tamamlandı |
 | [176](arsiv/fazlar/176-EVALUATOR-SURUM-DAMGASI.md) | Evaluator Sürüm Damgası | ✅ Tamamlandı |
-| [177](177-STORE-IPTAL-SOZLESMESI.md) | Store İptal Sözleşmesi | 📋 Planlandı |
+| [177](arsiv/fazlar/177-STORE-IPTAL-SOZLESMESI.md) | Store İptal Sözleşmesi | ✅ Tamamlandı |
 | [178](178-TUKETICI-KAPI-SKILLI.md) | Tüketici Kapı Skill'i | 📋 Planlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).
