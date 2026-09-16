@@ -129,6 +129,34 @@ Yani eski linker + yeni SDK.
 - **CI etkilenmez** — `ci.yml` bu isleri `ubuntu-latest` uzerinde kosar. Bu yuzden
   kusur yalnizca yerel kapanis kapisinda gorunur.
 
+**✅ COZULDU (2026-09-16, Faz 178).** Xcode 27.0 (build 27A266a) kuruldu ve
+`xcode-select -p` onu gosteriyor; linker'i artik 27.0 SDK'yi taniyor. Ama
+yukseltme **yeni bir kapi** getirdi ve belirtisi yukaridakinden TAMAMEN
+FARKLIDIR:
+
+```
+You have not agreed to the Xcode license agreements.
+Please run 'sudo xcodebuild -license' ...
+```
+
+🚨 **Bu satir bir LINKER hatasi gibi gorunmez ve `dotnet publish` ciktisinda
+`MSB3073` altinda kaybolur.** Ayirt etme yolu tek satirliktir ve repo'dan
+bagimsizdir:
+
+```bash
+printf 'int main(void){return 0;}\n' > /tmp/t.c && cc /tmp/t.c -o /tmp/t
+```
+
+Iki satirlik bir C programi linklenmiyorsa hata **koda ait degildir**. Lisans
+kapisi `/usr/bin/cc`, `/usr/bin/clang` ve `ld` shim'lerinin **hepsini** reddeder;
+`isysroot` degistirmek ise YARAMAZ (uc SDK ile de ayni hata olculdu). Shim'i
+atlayip gercek derleyiciyi cagirmak calisir ve teshisi kesinlestirir:
+`/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang`.
+
+**Cozum kullanicinindir** (agent `sudo` kosmaz): `sudo xcodebuild -license accept`.
+Sonrasi olculdu: `ObjectToolAotPackageTests` 1/1, yayin provasi Native AOT smoke
+dahil tam yesil. `DEVELOPER_DIR` gecici cozumune artik gerek yok.
+
 🚨 Ayirt etme yolu: ayni testi `git worktree add <dizin> <faz oncesi sha>` ile
 temel surumde de kos. Ayni hatayi veriyorsa ortamdir, fazin regresyonu degildir.
 
