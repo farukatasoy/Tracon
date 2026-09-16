@@ -392,7 +392,9 @@ dotnet build src/Tracon.UI -c Release
 
 **Beklenen sonuç**
 - `pack` **başarısız** olur ve `TRACON0003` kodlu hata verir.
-- Hata metni "arayuz varligi uretilmemis" ve "Node.js 20.19+ kurun" ifadelerini taşır.
+- Hata metni eksik varlığı ve çözümü adıyla taşır: `UI assets were not produced`
+  (`wwwroot/index.html does not exist`) ve `Install Node.js 20.19+ and rebuild`.
+  *(2026-09-16 turunda düzeltildi: metin İngilizce'dir; eski Türkçe alıntı bayattı.)*
 - Son adımdan sonra `src/Tracon.UI/wwwroot/index.html` yeniden vardır.
 
 > ⚠️ Bu case dosya taşır. Adım 3 **atlanmaz**; atlanırsa sonraki tüm arayüz
@@ -445,9 +447,14 @@ mv /tmp/ap-voice-readme.md src/Tracon.Voice/README.md
 | **İlgili faz** | Faz 0, 37 |
 | **İlgili karar** | — |
 
-`src/` altında 18 proje vardır. Biri (`Tracon.Generators`) `IsPackable=false`
-taşır ve yayımlanmaz. `Tracon.Templates` sembol paketi üretmez
-(`IncludeSymbols=false`) — içinde derlenen bir derleme yoktur.
+`src/` altında 22 proje vardır. Biri (`Tracon.Generators`) `IsPackable=false`
+taşır ve yayımlanmaz; `Tracon.Sql.Shared` de paket üretmez. `Tracon` (meta) ve
+`Tracon.Templates` sembol paketi üretmez (`IncludeSymbols=false`,
+`src/Tracon/Tracon.csproj:20` · `src/Tracon.Templates/Tracon.Templates.csproj:35`)
+— içlerinde derlenen bir derleme yoktur.
+
+*(2026-09-16 turunda güncellendi: 18 proje → 22; `Tracon.Cli`, `Tracon.Client`
+ve `Tracon.Testing.Contracts.Xunit` sonradan eklendi.)*
 
 **Ön koşul**
 - Repo temiz.
@@ -471,13 +478,15 @@ ls /tmp/ap-pack/*.nupkg | grep -i generators || echo "Generators yayimlanmadi - 
 ```
 
 **Beklenen sonuç**
-- **17** `.nupkg` üretilir.
-- **16** `.snupkg` üretilir; eksik olan `Tracon.Templates`'tir.
+- **20** `.nupkg` üretilir.
+- **18** `.snupkg` üretilir; eksik olan **ikisi** `Tracon` (meta) ve
+  `Tracon.Templates`'tir — ikisi de `IncludeSymbols=false` taşır.
 - `Tracon.Generators` hiçbir çıktı üretmez ve son satır
   `Generators yayimlanmadi - beklenen` yazar.
 - Paket adları: `Tracon`, `.Abstractions`, `.Anthropic`, `.AspNetCore`,
-  `.Azure`, `.Core`, `.Google`, `.Mcp`, `.OpenAI`, `.PostgreSql`, `.SqlServer`,
-  `.Sqlite`, `.Templates`, `.Testing`, `.UI`, `.Voice`, `.Workflows`.
+  `.Azure`, `.Cli`, `.Client`, `.Core`, `.Google`, `.Mcp`, `.OpenAI`,
+  `.PostgreSql`, `.SqlServer`, `.Sqlite`, `.Templates`, `.Testing`,
+  `.Testing.Contracts.Xunit`, `.UI`, `.Voice`, `.Workflows`.
 - `Tracon.Sql.Shared` bir paket **değildir** ve listede görünmez.
 
 ---
@@ -571,7 +580,10 @@ unzip -l /tmp/ap-pack/Tracon.*.nupkg         2>/dev/null | head -1
 - `Tracon.Core` şunları içerir: `lib/net8.0/`, `lib/net9.0/`, `lib/net10.0/` —
   her birinde `Tracon.Core.dll` **ve** `Tracon.Core.xml`.
 - Paket kökünde `README.md` vardır.
-- `Tracon.Testing` yalnız `lib/net10.0/` içerir (tek TFM, bilinçli).
+- `Tracon.Testing` de üç TFM'in üçünü birden içerir — K-780 ile K-270'in
+  tek-TFM daralması **kaldırıldı**; test paketi çalışma paketleriyle aynı
+  matrisi hedefler. *(2026-09-16 turunda düzeltildi: eski beklenti
+  "yalnız `lib/net10.0/`, tek TFM, bilinçli" idi.)*
 - `Tracon` (meta) hiçbir `lib/` klasörü içermez.
 
 ---
@@ -956,6 +968,43 @@ done
 - `Microsoft.Data.SqlClient` yalnız `Tracon.SqlServer`'da görünür.
 - Hiçbiri meta pakette (`Tracon`) görünmez.
 
+## Üreteç bölümünün ön koşulu (`MT-PKG-040`..`050`, `060`, `061`)
+
+> **2026-09-16 turunda GERİ GETİRİLDİ.** Bu blok `946a37fb` ("faz 58",
+> spec/kayıt ayrımı) ile bölüm başlıklarıyla birlikte spec'ten düşmüştü;
+> ardındaki sekiz case "Bölüm ön koşulu uygulandı" diyor ama ön koşul
+> dosyada yoktu — yani koşulamaz durumdaydılar. Tam metin:
+> `git show 946a37fb~1:docs/manuel-test/01-KURULUM-VE-PAKETLEME.md | sed -n '1337,1365p'`
+> (eski ürün adıyla). Aşağısı bugünkü adlara çevrilmiş hâlidir.
+
+Bu case'ler repo **dışında**, izole bir tüketici projesinde koşar. Böylece
+repo'nun `ProjectReference` zinciri sonucu bulandırmaz.
+
+> **Bölüm ön koşulu (bir kez uygulanır):**
+> ```bash
+> cd /Users/farukatasoy/Desktop/projects/Tracon
+> rm -rf /tmp/ap-pack && mkdir -p /tmp/ap-pack
+> MSBUILDDISABLENODEREUSE=1 dotnet pack Tracon.slnx -c Release -o /tmp/ap-pack
+>
+> rm -rf ~/tracon-manuel/uretec && mkdir -p ~/tracon-manuel/uretec
+> cd ~/tracon-manuel/uretec
+> dotnet new console -o . --force
+> cat > nuget.config <<'EOF'
+> <?xml version="1.0" encoding="utf-8"?>
+> <configuration>
+>   <packageSources>
+>     <clear />
+>     <add key="nuget.org" value="https://api.nuget.org/v3/index.json" protocolVersion="3" />
+>     <add key="ap-yerel" value="/tmp/ap-pack" />
+>   </packageSources>
+> </configuration>
+> EOF
+> SURUM=$(ls /tmp/ap-pack/Tracon.Core.*.nupkg | sed 's#.*Tracon.Core\.##;s#\.nupkg##')
+> dotnet add package Tracon.Core --version "$SURUM"
+> ```
+> 🚨 `Tracon.Core` **doğrudan** `PackageReference` ile alınır. MT-PKG-021
+> bunun neden önemli olduğunu ölçer.
+
 ### MT-PKG-040 — Üreteç işaretli statik metodu kaydeder
 
 | | |
@@ -995,14 +1044,21 @@ cat $(find obj/generated -name "TraconGeneratedTools.g.cs" | head -1)
 ```
 
 **Beklenen sonuç**
-- Derleme sıfır uyarıyla biter.
-- `TraconGeneratedTools.g.cs` üretilir.
-- Dosyanın ilk satırı `// <auto-generated/>`'dır.
-- Dosya `AddGeneratedTools` adlı bir uzantı metodu tanımlar
+- Derleme sıfır **hata** ile biter. Tek uyarı `TRC0009`'dur ve beklenir:
+  bu case'in fixture kodu `orderId` parametresine `[Description]` koymaz.
+  *(2026-09-16 turunda düzeltildi: eski beklenti "sıfır uyarı" idi; `TRC0009`
+  Faz 125'te eklendi ve spec ondan eskidir.)*
+- **İki** dosya üretilir: `TraconGeneratedTools.g.cs` (kayıt listesi) ve tool
+  başına bir tip dosyası — `<Metot>_<hash>Tool.g.cs`.
+  *(2026-09-16: üreteç eskiden tek dosya üretiyordu.)*
+- `TraconGeneratedTools.g.cs`'in ilk satırı `// <auto-generated/>`'dır.
+- O dosya `AddGeneratedTools` adlı bir uzantı metodu tanımlar
   (`namespace Tracon`).
-- Dosyada `get_order_status` dizgisi geçer.
-- Dosyada `System.Reflection`, `Activator.`, `GetMethod(` ve
-  `AIFunctionFactory` dizgilerinin **hiçbiri** geçmez.
+- `get_order_status` dizgisi **tool tipi dosyasında** geçer
+  (`public override string Name => "get_order_status";`) — kayıt listesinde
+  değil, orada yalnız üretilen tipin adı vardır.
+- Üretilen dosyaların **hiçbirinde** `System.Reflection`, `Activator.`,
+  `GetMethod(` ve `AIFunctionFactory` dizgileri geçmez.
 
 ---
 
@@ -1030,14 +1086,18 @@ kullanılamaz hâle gelir.
 cd ~/tracon-manuel/uretec
 dotnet format --verify-no-changes --no-restore ; echo "format cikis kodu: $?"
 
-G=$(find obj/generated -name "TraconGeneratedTools.g.cs" | head -1)
-grep -Pn '\t'      "$G" && echo "🚨 TAB var" || echo "TAB yok"
-grep -Pn '[ \t]+$' "$G" && echo "🚨 satir sonu boslugu var" || echo "satir sonu temiz"
+# 🚨 grep -P macOS'un BSD grep'inde YOKTUR (2026-09-16'da olculdu: "invalid
+# option -- P"). Once sessizce "temiz" gibi gorunuyordu -- grep hata verince
+# || dali calisiyordu. Tasinabilir bicim, uretilen TUM dosyalar icin:
+for G in $(find obj/generated -name "*.g.cs"); do
+  printf '%s -> TAB:%s satir-sonu:%s\n' "$(basename $G)" \
+    "$(grep -c "$(printf '\t')" "$G")" "$(grep -cE '[[:space:]]+$' "$G")"
+done
 ```
 
 **Beklenen sonuç**
 - `dotnet format` çıkış kodu **0**'dır.
-- Çıktı `TAB yok` ve `satir sonu temiz` yazar.
+- Üretilen her dosya için `TAB:0` ve `satir-sonu:0` yazar.
 
 ---
 
@@ -1451,10 +1511,13 @@ grep -c "GetOrderStatus" "$G"
 ```
 
 **Beklenen sonuç**
-- Derleme sıfır uyarıyla biter.
-- `GizliYardimci` sayısı **0**'dır.
+- Derleme sıfır **hata** ile biter. Tek uyarı `TRC0009`'dur ve işaretsiz
+  metotla ilgisi yoktur: `get_order_status`'un `orderId` parametresi
+  `[Description]` taşımaz (bkz. MT-PKG-040).
+  *(2026-09-16 turunda düzeltildi: eski beklenti "sıfır uyarı" idi.)*
+- `GizliYardimci` sayısı **0**'dır — üretilen **hiçbir** dosyada geçmez.
 - `GetOrderStatus` sayısı **0'dan büyüktür**.
-- Hiçbir tanı üretilmez — işaretsiz metot bir hata değildir.
+- İşaretsiz metot için **hiçbir tanı** üretilmez — bir hata değildir.
 
 ---
 

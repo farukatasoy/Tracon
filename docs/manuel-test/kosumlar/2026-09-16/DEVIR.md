@@ -69,6 +69,11 @@ Bunlar pazarlığa açık değildir. Ayrıntı ve gerekçe skill §1'dedir.
 5. **Bir şey belirsizse sor.** Kimlik çalışmıyorsa, case fiziksel eylem
    istiyorsa, beklenen sonuç iki türlü okunuyorsa, ya da kritik bir kusur
    sonraki 5+ case'i bloklayacaksa **dur ve kullanıcıya sor**.
+6. **Her oturum kendi sonucunu commit eder — bu tur için izin VERİLMİŞTİR.**
+   `AGENTS.md` "commit'i kullanıcı istemedikçe atma" der; kullanıcı
+   2026-09-16'da bu turun **tamamı** için açık izin verdi. Sormadan commit et.
+   Kapsam dardır: yalnız `docs/manuel-test/` altı. `src/` · `samples/` ·
+   `tests/` yine **donuktur** ve commit'lenmez (kural 1).
 
 ---
 
@@ -114,9 +119,16 @@ hiçbir ailenin sonucu okunmaz. Paralel şeritler ancak beşi yeşil bitince aç
 | 4 | `05-SAGLAYICI-OPENAI.md` | 40 | 2 |
 | 5 | `07-HTTP-YONETIM-API.md` | 43 | 2 |
 
-**İlk oturumun işi:** `ap-s1`'de `01-KURULUM-VE-PAKETLEME.md`'nin ilk bölümü.
-Bölme noktası dosyanın kendi `#` bölüm başlığıdır — **bir bölümün ortasında
-oturum bitmez**.
+**İlk oturumun işi:** `ap-s1`'de `01-KURULUM-VE-PAKETLEME.md`, `MT-PKG-001..049`.
+
+🚨 **Bölme noktası onluk case bloğudur, `#` bölüm başlığı DEĞİL.** Ölçüldü
+(2026-09-16): spec dosyalarında bölüm başlığı yok — `946a37fb` ("faz 58",
+spec/kayıt ayrımı) onları spec'ten düşürdü, yalnız koşum kaydında kaldılar.
+Case numaraları zaten blok hâlindedir (`001-003` · `010-016` · `020-027` …) ve
+Faz 58 öncesi bölümlerle birebir örtüşür. **Bir bloğun ortasında oturum
+bitmez.** Kullanıcı kararı: spec'e dokunulmaz.
+
+Dosya 01'in oturum sınırları: `001..049` (33) · `050..099` (25) · `100..122` (23).
 
 ### Faz B — dört şerit paralel
 
@@ -191,6 +203,7 @@ Tazeleme turu üç Faz 162 kalıntısı kapattı. Bunları tekrar aramana gerek 
 | Azure case'leri | Kimlik yok; `⏭ Atlandı` |
 | `Faz` listesi çelişkisi (36 ailenin 21'i) | Ölçüldü, **düzeltilmedi**; gerekçe ve kalıcı çözüm `00-INDEKS.md` §8'de. Turu engellemez |
 | Sağlayıcı anahtarları | 🚨 2026-09-16'da düz metne çıktı — **tur bitince beşi de döndürülmeli** |
+| `31`–`36` kayıt biçimi | 🚨 **Faz B açılmadan çözülmeli.** Bu altı aile (205 case) tablo biçimindedir: satır başına bir case, `### MT-` başlığı ve `Durum:` satırı **yok**. Skill §4.1 case kaydı ve §7 sayım betiği (`^## (MT-...)` arar) bunlara uymaz. Kullanıcı kararı (2026-09-16): Faz B'ye ertelendi, zinciri bekletmez |
 
 ---
 
