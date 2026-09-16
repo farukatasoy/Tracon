@@ -3,7 +3,7 @@
 > **Üretilir, elle yazılmaz.** Kaynak:
 > `python3 scripts/manuel-test-tazelik.py --taban <commit>`.
 >
-> **Taban:** `12fb6477` · **Ölçülen:** `fdaab87c` · **Araya giren commit:** 630
+> **Taban:** `12fb6477` · **Ölçülen:** `e6d91cf4` · **Araya giren commit:** 631
 
 ## 1. Kovalar
 
@@ -57,7 +57,7 @@ bilinemez. `kod kayması` sütunu o riski ölçer.
 | 33 | `33-DOKUMAN-KAPILARI.md` 🆕 | 25 | 25 | 0 | 0 | 75 | 65 |
 | 34 | `34-ISTEMCI-VE-CLI.md` 🆕 | 46 | 46 | 0 | 0 | 11 | 57 |
 | 35 | `35-TYPESCRIPT-ISTEMCISI.md` 🆕 | 11 | 11 | 0 | 0 | 23 | 34 |
-| 36 | `36-GELISTIRME-KAPILARI.md` 🆕 | 48 | 48 | 0 | 0 | 86 | 88 |
+| 36 | `36-GELISTIRME-KAPILARI.md` 🆕 | 48 | 48 | 0 | 0 | 87 | 88 |
 
 🆕 = taban turda bu dosya yoktu.
 
@@ -67,44 +67,59 @@ bilinemez. `kod kayması` sütunu o riski ölçer.
 aile anlamlı sonuç vermez; bu beşi risk sırası **ezemez**. Kalan
 aileler risk sırasındadır (`yeni + değişti + min(kod kayması, 40)`).
 
-| Sıra | Aile | risk | Not |
-|---|---|---|---|
-| 1 | `01-KURULUM-VE-PAKETLEME.md` | 89 | 🔗 zincir |
-| 2 | `02-CEKIRDEK-VE-KATALOG.md` | 77 | 🔗 zincir |
-| 3 | `03-KALICILIK-POSTGRESQL.md` | 38 | 🔗 zincir |
-| 4 | `05-SAGLAYICI-OPENAI.md` | 15 | 🔗 zincir |
-| 5 | `07-HTTP-YONETIM-API.md` | 12 | 🔗 zincir |
-| 6 | `13-KIRACI-VE-GUVENLIK.md` | 104 |  |
-| 7 | `36-GELISTIRME-KAPILARI.md` | 88 |  |
-| 8 | `32-DOKUMAN-KALITESI.md` | 80 |  |
-| 9 | `31-DOKUMAN-DOGRULUGU.md` | 75 |  |
-| 10 | `33-DOKUMAN-KAPILARI.md` | 65 |  |
-| 11 | `29-AGENT-DESTEGI.md` | 64 |  |
-| 12 | `16-IS-KUYRUGU-VE-ZAMANLAMA.md` | 61 |  |
-| 13 | `12-GOZLEMLENEBILIRLIK-MALIYET.md` | 57 |  |
-| 14 | `34-ISTEMCI-VE-CLI.md` | 57 |  |
-| 15 | `19-COK-MODLULUK-VE-SES.md` | 50 |  |
-| 16 | `21-DAYANIKLILIK-VE-IPTAL.md` | 41 |  |
-| 17 | `24-TEST-PAKETI-VE-SABLON.md` | 40 |  |
-| 18 | `30-YEREL-REFERANS.md` | 40 |  |
-| 19 | `11-ARAYUZ-RUN-SESSION-SSE.md` | 37 |  |
-| 20 | `22-GUARDRAIL-VE-YAPISAL-CIKTI.md` | 36 |  |
-| 21 | `04-KALICILIK-DIGER.md` | 34 |  |
-| 22 | `35-TYPESCRIPT-ISTEMCISI.md` | 34 |  |
-| 23 | `09-ARAYUZ-GENEL.md` | 32 |  |
-| 24 | `23-SAKLAMA-ARSIV-KOTA.md` | 29 |  |
-| 25 | `18-MCP-VE-A2A.md` | 28 |  |
-| 26 | `25-SAGLIK-TESHIS-OPENAPI.md` | 26 |  |
-| 27 | `15-WORKFLOWS.md` | 25 |  |
-| 28 | `10-ARAYUZ-AGENT-PLAYGROUND.md` | 21 |  |
-| 29 | `17-EVAL-VE-DENEYLER.md` | 20 |  |
-| 30 | `27-MODEL-YEDEK-VE-ON-UCUS.md` | 20 |  |
-| 31 | `26-ISTEMCI-TOOLLARI-VE-GOMULEBILIR.md` | 18 |  |
-| 32 | `14-SKILL-VE-SCRIPT.md` | 16 |  |
-| 33 | `28-DENETIM-ZINCIRI-VE-VERI-HAKLARI.md` | 13 |  |
-| 34 | `20-BELLEK-RAG-BAGLAM.md` | 11 |  |
-| 35 | `06-SAGLAYICI-DIGER.md` | 10 |  |
-| 36 | `08-OPENAI-UYUMLU-UCLAR.md` | 8 |  |
+| Sıra | Aile | risk | oturum | Not |
+|---|---|---|---|---|
+| 1 | `01-KURULUM-VE-PAKETLEME.md` | 89 | 3 | 🔗 zincir |
+| 2 | `02-CEKIRDEK-VE-KATALOG.md` | 77 | 4 | 🔗 zincir |
+| 3 | `03-KALICILIK-POSTGRESQL.md` | 38 | 2 | 🔗 zincir |
+| 4 | `05-SAGLAYICI-OPENAI.md` | 15 | 2 | 🔗 zincir |
+| 5 | `07-HTTP-YONETIM-API.md` | 12 | 2 | 🔗 zincir |
+| 6 | `13-KIRACI-VE-GUVENLIK.md` | 104 | 5 |  |
+| 7 | `36-GELISTIRME-KAPILARI.md` | 88 | 2 |  |
+| 8 | `32-DOKUMAN-KALITESI.md` | 80 | 2 |  |
+| 9 | `31-DOKUMAN-DOGRULUGU.md` | 75 | 2 |  |
+| 10 | `33-DOKUMAN-KAPILARI.md` | 65 | 1 |  |
+| 11 | `29-AGENT-DESTEGI.md` | 64 | 1 |  |
+| 12 | `16-IS-KUYRUGU-VE-ZAMANLAMA.md` | 61 | 4 |  |
+| 13 | `12-GOZLEMLENEBILIRLIK-MALIYET.md` | 57 | 3 |  |
+| 14 | `34-ISTEMCI-VE-CLI.md` | 57 | 2 |  |
+| 15 | `19-COK-MODLULUK-VE-SES.md` | 50 | 4 |  |
+| 16 | `21-DAYANIKLILIK-VE-IPTAL.md` | 41 | 2 |  |
+| 17 | `24-TEST-PAKETI-VE-SABLON.md` | 40 | 3 |  |
+| 18 | `30-YEREL-REFERANS.md` | 40 | 1 |  |
+| 19 | `11-ARAYUZ-RUN-SESSION-SSE.md` | 37 | 4 |  |
+| 20 | `22-GUARDRAIL-VE-YAPISAL-CIKTI.md` | 36 | 2 |  |
+| 21 | `04-KALICILIK-DIGER.md` | 34 | 2 |  |
+| 22 | `35-TYPESCRIPT-ISTEMCISI.md` | 34 | 1 |  |
+| 23 | `09-ARAYUZ-GENEL.md` | 32 | 4 |  |
+| 24 | `23-SAKLAMA-ARSIV-KOTA.md` | 29 | 2 |  |
+| 25 | `18-MCP-VE-A2A.md` | 28 | 2 |  |
+| 26 | `25-SAGLIK-TESHIS-OPENAPI.md` | 26 | 2 |  |
+| 27 | `15-WORKFLOWS.md` | 25 | 3 |  |
+| 28 | `10-ARAYUZ-AGENT-PLAYGROUND.md` | 21 | 4 |  |
+| 29 | `17-EVAL-VE-DENEYLER.md` | 20 | 3 |  |
+| 30 | `27-MODEL-YEDEK-VE-ON-UCUS.md` | 20 | 1 |  |
+| 31 | `26-ISTEMCI-TOOLLARI-VE-GOMULEBILIR.md` | 18 | 1 |  |
+| 32 | `14-SKILL-VE-SCRIPT.md` | 16 | 2 |  |
+| 33 | `28-DENETIM-ZINCIRI-VE-VERI-HAKLARI.md` | 13 | 1 |  |
+| 34 | `20-BELLEK-RAG-BAGLAM.md` | 11 | 2 |  |
+| 35 | `06-SAGLAYICI-DIGER.md` | 10 | 2 |  |
+| 36 | `08-OPENAI-UYUMLU-UCLAR.md` | 8 | 2 |  |
+
+**Toplam 85 oturum.** Tahmin `manuel-test-kosumu` §3 bütçesindendir: arayüz ailesi (09 · 10 · 11) oturum başına 18, diğerleri 30 case.
+
+## 3.1 Şerit dağılımı
+
+**Faz A — zincir, TEK şerit, sırayla.** 01 → 02 → 03 → 05 → 07 (13 oturum). Paralel şeritler ancak bu beşi yeşil bitince açılır; kapı kırıksa sonraki hiçbir ailenin sonucu okunmaz.
+
+**Faz B — kalan 31 aile, 4 şerit.** Açgözlü paketleme; aile bölünmez (SKILL.md §1.3: bir dosya TEK şeride aittir).
+
+| Şerit | Port | Şema | Oturum | Aileler |
+|---|---|---|---|---|
+| `ap-s1` | 5081 | `mt_s1` | 19 | 13 · 19 · 04 · 18 · 10 · 08 |
+| `ap-s2` | 5082 | `mt_s2` | 17 | 36 · 33 · 12 · 24 · 35 · 23 · 15 · 14 |
+| `ap-s3` | 5083 | `mt_s3` | 18 | 32 · 29 · 34 · 21 · 11 · 25 · 17 · 20 |
+| `ap-s4` | 5084 | `mt_s4` | 18 | 31 · 16 · 30 · 22 · 09 · 27 · 26 · 28 · 06 |
 
 ## 4. Kapsama boşluğu
 

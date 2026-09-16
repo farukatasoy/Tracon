@@ -49,6 +49,17 @@ ZINCIR = ("01", "02", "03", "05", "07")
 # "baştan oku" demektir.
 KAYMA_TAVANI = 40
 
+# Oturum bütçesi (`manuel-test-kosumu` SKILL.md §3). Arayüz aileleri Playwright
+# ile koşar ve her case bir anlık görüntü + konsol kontrolü ister; bu yüzden
+# oturum başına case sayısı yarıya iner.
+ARAYUZ_AILELERI = ("09", "10", "11")
+CASE_PER_OTURUM_ARAYUZ = 18
+CASE_PER_OTURUM_DIGER = 30
+
+# Aynı anda koşan şerit sayısı. Zincir bunun DIŞINDADIR: kapı ailelerini tek
+# şerit sırayla koşar, paralel şeritler ancak zincir yeşilken açılır.
+SERIT_SAYISI = 4
+
 # Arayüz ailelerinin `Kaynak` sütunu frontend yollarını GÖRELİ yazar
 # (`screens/run*.tsx`). Kökü budur.
 FRONTEND = "src/Tracon.UI/frontend/src"
@@ -355,6 +366,13 @@ class Aile:
     def risk(self) -> int:
         return len(self.yeni) + len(self.degisti) + min(self.kod_kaymasi, KAYMA_TAVANI)
 
+    @property
+    def oturum(self) -> int:
+        """Bu ailenin kaç koşum oturumu tuttuğu (yukarı yuvarlanır)."""
+        bolen = (CASE_PER_OTURUM_ARAYUZ if self.no in ARAYUZ_AILELERI
+                 else CASE_PER_OTURUM_DIGER)
+        return max(1, -(-self.toplam // bolen))
+
 
 def aileleri_olc(taban: str) -> list[Aile]:
     aileler: list[Aile] = []
@@ -393,6 +411,21 @@ def aileleri_olc(taban: str) -> list[Aile]:
         ))
 
     return aileler
+
+
+def serit_dagilimi(aileler: list[Aile]) -> list[list[Aile]]:
+    """Zincir dışındaki aileleri şeritlere böler — en dolu şeride en az yük.
+
+    Açgözlü paketleme: aileler risk sırasında gezilir ve her biri o an en az
+    oturum taşıyan şeride düşer. Aile bölünmez; şerit izolasyonu dosya
+    düzeyindedir (SKILL.md §1.3: "Bir dosya TEK şeride aittir").
+    """
+    seritler: list[list[Aile]] = [[] for _ in range(SERIT_SAYISI)]
+    for aile in sorted((a for a in aileler if a.no not in ZINCIR),
+                       key=lambda a: (-a.risk, a.no)):
+        en_bos = min(seritler, key=lambda s: sum(x.oturum for x in s))
+        en_bos.append(aile)
+    return seritler
 
 
 def kosum_sirasi(aileler: list[Aile]) -> list[Aile]:
@@ -489,11 +522,36 @@ def rapor(taban: str, baslik: str, aileler: list[Aile]) -> str:
     s.append("aile anlamlı sonuç vermez; bu beşi risk sırası **ezemez**. Kalan")
     s.append(f"aileler risk sırasındadır (`yeni + değişti + min(kod kayması, {KAYMA_TAVANI})`).")
     s.append("")
-    s.append("| Sıra | Aile | risk | Not |")
-    s.append("|---|---|---|---|")
+    s.append("| Sıra | Aile | risk | oturum | Not |")
+    s.append("|---|---|---|---|---|")
     for i, a in enumerate(sira, 1):
         not_ = "🔗 zincir" if a.no in ZINCIR else ""
-        s.append(f"| {i} | `{a.dosya}` | {a.risk} | {not_} |")
+        s.append(f"| {i} | `{a.dosya}` | {a.risk} | {a.oturum} | {not_} |")
+    s.append("")
+    s.append(f"**Toplam {sum(a.oturum for a in sira)} oturum.** Tahmin "
+             f"`manuel-test-kosumu` §3 bütçesindendir: arayüz ailesi "
+             f"({' · '.join(ARAYUZ_AILELERI)}) oturum başına "
+             f"{CASE_PER_OTURUM_ARAYUZ}, diğerleri {CASE_PER_OTURUM_DIGER} case.")
+    s.append("")
+    s.append("## 3.1 Şerit dağılımı")
+    s.append("")
+    zincir = [a for a in sira if a.no in ZINCIR]
+    s.append(f"**Faz A — zincir, TEK şerit, sırayla.** "
+             f"{' → '.join(a.no for a in zincir)} "
+             f"({sum(a.oturum for a in zincir)} oturum). Paralel şeritler ancak "
+             "bu beşi yeşil bitince açılır; kapı kırıksa sonraki hiçbir ailenin "
+             "sonucu okunmaz.")
+    s.append("")
+    s.append(f"**Faz B — kalan {len(sira) - len(zincir)} aile, "
+             f"{SERIT_SAYISI} şerit.** Açgözlü paketleme; aile bölünmez "
+             "(SKILL.md §1.3: bir dosya TEK şeride aittir).")
+    s.append("")
+    s.append("| Şerit | Port | Şema | Oturum | Aileler |")
+    s.append("|---|---|---|---|---|")
+    for n, serit in enumerate(serit_dagilimi(aileler), 1):
+        adlar = " · ".join(a.no for a in serit)
+        s.append(f"| `ap-s{n}` | {5080 + n} | `mt_s{n}` | "
+                 f"{sum(a.oturum for a in serit)} | {adlar} |")
     s.append("")
     s.append("## 4. Kapsama boşluğu")
     s.append("")
