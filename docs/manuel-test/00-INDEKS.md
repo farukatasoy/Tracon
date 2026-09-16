@@ -21,6 +21,12 @@
 Üçü karışmaz. Spec dosyalarında `Durum:` satırı **yoktur**; ikinci bir tur
 spec'in üzerine yazmaz, `kosumlar/` altında yeni bir tarih dizini açar.
 
+> 🔄 **Açık tur: 2026-09-16.** Bir koşum oturumuna başlıyorsan bu dosyayı değil,
+> önce turun devir notunu oku:
+> [`kosumlar/2026-09-16/DEVIR.md`](kosumlar/2026-09-16/DEVIR.md) — durum,
+> değişmez kurallar, ortam doğrulaması ve sıradaki iş oradadır. Bu dosya turdan
+> **bağımsız** ortamı tarif eder, turun kendisini değil.
+
 > **Şeride özgü ortam kurulumu ve reset yordamı** skill'in
 > [`resources/serit-kurulumu.md`](../../.agents/skills/manuel-test-kosumu/resources/serit-kurulumu.md)
 > dosyasındadır. Bu dosyanın §2 bölümü tura bağımsız ön koşulları ve fixture
