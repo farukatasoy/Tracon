@@ -160,20 +160,22 @@ curl -s -X POST "$APU/api/agents/manuel-yok-boyle-saglayici/run" -H "$APB" \
      -H "content-type: application/json" -d '{"message":"merhaba"}'
 ```
 
-**Beklenen sonuç (düzeltildi — koşum kanıtı, doc kusuru)**
-- Kayıt (`POST /api/agents`) başarılıdır — sağlayıcı varlığı kayıt anında
-  denetlenmez, yalnız çalıştırma anında.
-- Bilinmeyen sağlayıcı **derleme (compile) zamanında** yakalanır, bu yüzden
-  akış hiç başlamaz: `POST .../run` senkron `HTTP 400`,
-  `Content-Type: application/problem+json` döner (SSE `error` çerçevesi değil
-  — MT-CORE-024'teki "derleme hatası" ile aynı mekanizma).
-- `detail` alanı `'yok-boyle-bir-saglayici' adinda bir model saglayicisi
-  kayitli degil. Kayitli saglayicilar: ` dizgisini içerir, ardından virgülle
-  ayrılmış gerçek liste gelir (`openai, openai-responses, openrouter,
-  anthropic, google`).
+**Beklenen sonuç (düzeltildi 2026-09-16 — K-404 sonrası davranış)**
+- Kayıt (`POST /api/agents`) **reddedilir**: `HTTP 400`,
+  `Content-Type: application/problem+json`, `title: "Definition invalid"`.
+  Agent hiç yazılmaz. Sağlayıcı varlığı **yazma anında** denetlenir —
+  `AgentEndpoints.ValidateEntitiesAsync` her kaydetmede tam doğrulayıcıyı
+  çağırır (K-404; öncesinde yalnız ayrı `POST /api/agents/validate` ucu
+  denetlerdi).
+- `detail` alanı şu İngilizce dizgiyi taşır (K-228 — sevk edilen metin
+  İngilizce'dir): `No model provider named 'yok-boyle-bir-saglayici' is
+  registered. Registered providers: ` — ardından virgülle ayrılmış gerçek
+  liste gelir. **Sıraya güvenme**, ada bak.
 - `type` alanı standart ProblemDetails RFC 9110 bağlantısıdır
-  (`.../section-15.5.1`), `TraconException` DEĞİLDİR — orijinal beklenti
-  SSE akışı varsayıyordu, kodda böyle değil.
+  (`.../section-15.5.1`), `TraconException` DEĞİLDİR.
+- İkinci adım (`POST .../run`) bu yüzden `HTTP 404 "Agent not found"` döner.
+  Çalıştırma-anı mesajı (`ModelProviderRegistry.cs`) hâlâ vardır ve aynı metni
+  taşır, ama bu HTTP yolundan **erişilemez** — MT-OAI-003 ile aynı desen.
 
 ---
 
@@ -209,7 +211,8 @@ curl -s -X POST "$APU/api/agents/manuel-model-adi-yok/run" -H "$APB" \
 
 **Beklenen sonuç (düzeltildi — koşum kanıtı, doc kusuru)**
 - `POST /api/agents` kaydı kendisi `HTTP 400` ile reddedilir:
-  `detail: "'model.provider' ve 'model.model' alanlari zorunludur."` — agent
+  `detail: "'model.provider' and 'model.model' are required."` (K-228 — sevk
+  edilen metin İngilizce'dir), `title: "Model binding missing"` — agent
   hiç kaydedilmez, `/run` adımına ulaşılmaz.
 - `OpenAIChatClientFactory`'nin çalıştırma-anı mesajı (`Model adi bos ve
   varsayilan model tanimli degil.`) bu API yolundan **erişilemez** — kayıt
@@ -284,8 +287,9 @@ dotnet user-secrets remove "Tracon:Providers:OpenAI:Endpoint"
 
 **Beklenen sonuç**
 - Uygulama başlamayı **reddeder**; konsolda `OptionsValidationException` görünür.
-- Mesaj `OpenAIProviderOptions.Endpoint mutlak bir adres olmalidir. Gelen
-  deger: 'sadece-bir-yol'.` metnini taşır.
+- Mesaj `OpenAIProviderOptions.Endpoint must be an absolute address. Received
+  value: 'sadece-bir-yol'.` metnini taşır (K-228 — sevk edilen metin
+  İngilizce'dir). Yığın izi `OpenAIProviderExtensions.CreateProvider`'ı gösterir.
 
 ---
 
@@ -320,8 +324,10 @@ dotnet user-secrets remove "Tracon:Providers:OpenAI:Timeout"
 
 **Beklenen sonuç**
 - Uygulama başlamayı reddeder.
-- Mesaj `OpenAIProviderOptions.Timeout sifirdan buyuk olmalidir. Gelen deger:
-  00:00:00.` metnini taşır.
+- Mesaj `OpenAIProviderOptions.Timeout must be greater than zero. Received
+  value: 00:00:00.` metnini taşır (K-228 — sevk edilen metin İngilizce'dir).
+- Negatif bir değer (`-00:00:05`) de aynı mesajla reddedilir: yapılandırma
+  ayrıştırması başarılıdır, reddeden şey **doğrulayıcıdır**.
 
 ---
 
@@ -351,10 +357,19 @@ eklemek gerektiği için **geçici dosya değişikliği** ister.
 cd samples/Tracon.Api && dotnet run
 ```
 
+> **Kod donuk koşumda (önerilen).** Dosyaya hiç dokunma; dördüncü ögeyi
+> yapılandırma katmanından ekle. Sonuç dizin numarası dâhil aynıdır ve
+> doğrulayıcı gerçek tüketici yapılandırmasıyla sınanmış olur:
+>
+> ```bash
+> Tracon__Providers__OpenAI__Models__3__Name="" dotnet run --project samples/Tracon.Api
+> ```
+
 **Beklenen sonuç**
 - Uygulama başlamayı reddeder.
-- Mesaj `OpenAIProviderOptions.Models[3] icin model adi bos olamaz.` metnini
-  taşır (dizin `3` — mevcut üç modelden sonraki dördüncü öge, sıfır tabanlı).
+- Mesaj `The model name for OpenAIProviderOptions.Models[3] cannot be empty.`
+  metnini taşır (K-228 — sevk edilen metin İngilizce'dir; dizin `3` = mevcut üç
+  modelden sonraki dördüncü öge, sıfır tabanlı).
 
 ---
 
@@ -409,8 +424,10 @@ dotnet run
 
 **Beklenen sonuç**
 - Süreç `OptionsValidationException` ile sonlanır.
-- Mesaj `OpenAIProviderOptions.ApiKey bos olamaz. Anahtari` ile başlar ve
-  `dotnet user-secrets` ibaresini içerir.
+- Mesaj `OpenAIProviderOptions.ApiKey cannot be empty. Pass the key to the
+  \`UseOpenAI(apiKey)\` call, or define 'Tracon:Providers:OpenAI:ApiKey' in
+  \`dotnet user-secrets\`.` metnini taşır (K-228 — sevk edilen metin
+  İngilizce'dir). İki çıkış yolunu da gösterir: aşırı yükleme ve `secret` adı.
 
 ### MT-OAI-020 — Katalog yalnız yapılandırmadan gelir ve `/api/models`'te görünür
 
@@ -476,10 +493,21 @@ curl -s -X POST "$APU/api/agents/manuel-katalog-disi-model/run" -H "$APB" \
 ```
 
 **Beklenen sonuç**
+- Kayıt (`POST /api/agents`) `HTTP 201` ile **kabul edilir** — katalog dışı
+  olmak yazmayı engellemez.
 - Çalıştırma **başarıyla tamamlanır** — gerçek bir OpenAI yanıtı üretir; katalog
   dışı olmak isteği reddettirmez.
-- Uygulama konsolunda (Information seviyesinde) `'gpt-4o-mini' modeli 'openai'
-  katalogunda yok; istek yine de gonderiliyor.` günlük satırı görünür.
+- Uygulama konsolunda (Information seviyesinde, kaynak `Tracon.OpenAIModelProvider`)
+  `Model 'gpt-4o-mini' is not in the 'openai' catalog; the request is sent anyway.
+  Use the Tracon:Providers:OpenAI:Models option to add the model to the catalog.`
+  günlük satırı görünür (K-228 — sevk edilen metin İngilizce'dir).
+
+> 🚨 **Model seçimi hesaba bağlıdır.** `gpt-4o-mini` bu hesapta `HTTP 403
+> model_not_found` verir; o zaman günlük satırı yine çıkar ama akış `error`
+> çerçevesiyle biter ve "gerçek yanıt" parçası kanıtlanamaz. İkisini birden
+> kanıtlamak için modeli değil **katalogu** daralt: erişilebilir bir modeli
+> `Tracon__Providers__OpenAI__Models__0__Name=<olmayan-ad>` ile katalog dışına
+> çıkar, sonra o modelle çalıştır.
 
 ---
 
@@ -517,6 +545,15 @@ print(len(oa['models']), [m['displayName'] for m in oa['models'] if m['name']=='
 # Temizlik:
 git checkout -- samples/Tracon.Api/appsettings.json
 ```
+
+> **Kod donuk koşumda (önerilen).** Dosyaya dokunma; ikinci tanımı yapılandırma
+> katmanından ver — sonuç aynıdır:
+>
+> ```bash
+> Tracon__Providers__OpenAI__Models__3__Name="gpt-5.4-mini" \
+> Tracon__Providers__OpenAI__Models__3__DisplayName="IKINCI TANIM" \
+>   dotnet run --project samples/Tracon.Api
+> ```
 
 **Beklenen sonuç**
 - `gpt-5.4-mini` **tam olarak bir kez** görünür (dört değil, üç toplam model).
