@@ -56,18 +56,18 @@ düğmesi sağ üsttedir; koyu ve açık temanın **ikisi de** denenir.
 | 2 | `MT-DKL-002` | Aynı | Temayı koyuya çevir, on sayfa gez | Hiçbir yüzey okunmaz hâle gelmiyor; spektrum yalnız başlık altında, bölüm ayracında ve aktif gezinme öğesinde | 👤 |
 | 3 | `MT-DKL-003` | Aynı | Tarayıcıyı 360 px genişliğe daralt, dokuz sayfayı gez | Tablo, kod bloğu ve diyagram kendi içinde kayıyor; sayfa gövdesi yatay **kaymıyor** (`scrollWidth - clientWidth == 0`) | 👤 |
 | 4 | `MT-DKL-004` | Aynı | Dokuz kılavuzu tek tek aç | Dokuzunda da diyagram var, sözdizimi hatası yok ve iki temada da okunuyor | 👤 |
-| 5 | `MT-DKL-005` | — | `grep -L '^## Read next' <53 sayfa>` | Yalnız `index.mdx` çıkar; o sayfa kapıda **gerekçeli** muaftır |
+| 5 | `MT-DKL-005` | — | `grep -L '^## Read next' <53 sayfa>` | Yalnız `index.mdx` ve `404.md` çıkar; ikisi de kapıda **gerekçeli** muaftır (`check-content.mjs:347-350` — `404.md` sistem rotasıdır, sidebar/llms index'te hiç yer almaz) |
 | 6 | `MT-DKL-006` | Yayınlanan site | `troubleshooting` sayfasını aç | Başta 14 girişli belirti dizini var; bir belirtiye tıklamak doğru bölüme gidiyor; `Ctrl+F` hâlâ 62 alt başlığın tamamını buluyor | 👤 |
 | 7 | `MT-DKL-007` | — | Dört bölümden birer sayfanın `og:image` etiketi okunur | Dört farklı dosya adı çıkar (`overview` · `console` · `operate` · `reference`) ve dördü de `200` döner |
 | 8 | `MT-DKL-008` | — | Bir sayfadan `## Read next` bölümü silinir, `npm run check:content` | Kızarır ve sayfayı **adıyla** söyler |
-| 9 | `MT-DKL-009` | — | `site.css`'te `--tracon-text-muted` açık temada `#a8b0bb` yapılır | Kızarır ve **oranı** yazar: `2.19:1 in the light theme; 4.5:1 required` |
+| 9 | `MT-DKL-009` | — | `site.css`'te `--tracon-text-muted` açık temada `#a8b0bb` yapılır | Kızarır ve token'ın **iki** yüzey eşleşmesi için oranı yazar: `--tracon-text-muted on --tracon-surface is 2.07:1 in the light theme; 4.5:1 required` ve `... on --tracon-surface-raised is 1.93:1 in the light theme; 4.5:1 required` (kapı token'ı hem `surface` hem `surface-raised`'a karşı ölçüyor, tek satır değil) |
 | 10 | `MT-DKL-010` | — | `src/sidebar.mjs`'e görselsiz bir bölüm eklenir | Kızarır: `Sidebar section '…' has no link-preview image` |
 | 11 | `MT-DKL-011` | — | `guides/reliability.md`'den diyagram silinir | Kızarır ve muafiyet listesini gösterir |
 | 12 | `MT-DKL-012` | Yayınlanan site | `Tab` ile başlıktan içeriğe gezilir | İlk durak "Skip to content"; hedefi (`#_top`) var; odak halkası her yerde görünür | 👤 |
 | 13 | `MT-DKL-013` | — | `site.css`'e çifti olmayan bir renk token'ı eklenir | Kızarır: `is a colour with no contrast pair` |
 | 14 | `MT-DKL-014` | — | `site.css`'te bir token'ın açık tema tanımı silinir | Kızarır: `has no value in the light theme` — hesap **atlanmaz** |
 | 15 | `MT-DKL-015` | — | `site.css`'te bir token'ın son kullanımı kaldırılır | Kızarır: `is declared but nothing reads it` |
-| 16 | `MT-DKL-016` | `npm run build` koşuldu | `npm run check:weight` | 1138 sayfa tavanın (58 000 B) altında; en ağır sayfa adıyla ve bayt olarak yazılır (`troubleshooting`, 57 367 B) |
+| 16 | `MT-DKL-016` | `npm run build` koşuldu | `npm run check:weight` | 1147 sayfa tavanın (59 000 B) altında; en ağır sayfa adıyla ve bayt olarak yazılır (`troubleshooting`, ~58 394 B — bkz. `check-weight.mjs:24-47`'nin kendi ölçüm tarihçesi, tavan içerik büyüdükçe periyodik olarak yükseltiliyor) |
 | 17 | `MT-DKL-017` | — | `check-weight.mjs` tavanı 40 000'e indirilir | Kızarır ve **kaç sayfanın** aştığını söyler |
 | 18 | `MT-DKL-018` | — | Bir sayfaya `K-382` yazılır, `npm run check:content` | Kızarır: `internal development history leaked into a public page` |
 | 19 | `MT-DKL-019` | — | Muafiyet listesindeki bir sayfaya diyagram eklenir | Kızarır: `listed as a table page but now shows a figure; drop the exemption` |
@@ -87,7 +87,7 @@ düğmesi sağ üsttedir; koyu ve açık temanın **ikisi de** denenir.
 | 33 | `MT-DKL-033` | `npm run build` koşuldu | `dist/404.html` açılır | Özel 404 sayfası gelir: "Page not found", dokümana ve ana sayfaya bağlantı, aramaya yönlendirme. `astro preview` bilinmeyen bir yolda **kendi** 404'ünü gösterir; bu dosya gerçek host tarafından sunulur |
 | 34 | `MT-DKL-034` | — | Bir el yazısı sayfaya `🚨` yazılır, `npm run check:content` | Kızarır: `alarm emoji in shipped prose` — sayfa ve satır numarası yazılır |
 | 35 | `MT-DKL-035` | — | Bir el yazısı sayfaya `an Tracon agent` yazılır, `npm run check:content` | Kızarır: `the product name takes "a", not "an"` — bağlamı da yazar |
-| 36 | `MT-DKL-036` | — | `guides/coding-agents.md`'deki `about 700 KB` değeri `about 400 KB` yapılır, `npm run check:content` | Kızarır ve **gerçek** boyutu yazar: `says llms-full.txt is about 400 KB, but it is 713.1 KB` |
+| 36 | `MT-DKL-036` | — | `guides/coding-agents.md`'deki `about 700 KB` değeri `about 400 KB` yapılır, `npm run check:content` | Kızarır ve **gerçek** boyutu yazar: `says llms-full.txt is about 400 KB, but it is <ölçülen değer> KB` (rakam site büyüdükçe kayar; 2026-09-16 koşumunda `784.4 KB` ölçüldü — sabit sayıya değil kızarma davranışına bak) |
 | 37 | `MT-DKL-037` | Konsol E2E koşuldu | `docs-site/public/screenshots/` altındaki 19 PNG'ye bak | Hepsi yeni Tracon işaretini ve `/tracon` yolunu gösterir; `check-console-screens` 18 gezinme girişinin tamamı için bir görüntü bulur, sıfır dönmez |
 | 38 | `MT-DKL-038` | Production site build hazır | Repo kökünde `python3 scripts/site-seo-denetle.py` çalıştır | Tekil title/description, doğru canonical ve WebSite JSON-LD, sitemap eşitliği, erişilebilir sayfalar, atlamayan başlık seviyeleri ve hata noindex denetimi sıfır hata verir |
 | 39 | `MT-DKL-039` | `deploy/nginx.conf` resmi nginx image içinde template olarak yüklenmiş; `SITE_HOST` production host | `python3 scripts/site-http-denetle.py http://127.0.0.1:4175` çalıştır | Slash redirect query'yi korur; iç port/scheme sızmaz; production indekslenebilir, preview host noindex; olmayan adres 404 verir |
