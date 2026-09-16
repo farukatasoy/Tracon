@@ -1634,20 +1634,36 @@ curl -s -w "\nHTTP: %{http_code}\n" "http://localhost:5080/health"
 ```
 
 **Beklenen sonuç**
-> **Düzeltildi (2026-08-15, KAPANIS-PLANI §8):** `echo` sağlayıcısı
-> `TraconHealthCheck.cs:70-77`'nin izlediği `ModelProviders` listesinde
-> hiç yer almaz (yalnız openai/openai-responses/openrouter/anthropic/google
-> izlenir) — bu yüzden `echo`-only bir kurulumda `/health` YAPISAL OLARAK
-> asla düz `Healthy` dönemez, en iyi ihtimalle `Degraded` durur. Bu, model
-> sağlayıcı devre kesici durumu için ayrı sınır tutan `25-SAGLIK-TESHIS-OPENAPI.md`
-> kapsamına giren bir davranıştır, bu dosyanın kapsamı dışıdır.
+- Veritabanı erişilemezken `/health` **503** döner ve gövde `Unhealthy` yazar.
+  `canConnect` ilk kontroldür ve model sağlayıcı mantığından **önce** kısa devre
+  yapar (`TraconHealthCheck.cs:46-49`), bu yüzden bu yarı sağlayıcı kurulumundan
+  bağımsızdır.
+- `/tracon/api/diagnostics` aynı anda `canConnect: false` taşır. Mesajın
+  (`The persistence database is unreachable.`) kendisi `/health` gövdesine
+  **girmez**: örnek uygulama `MapHealthChecks`'i ResponseWriter'sız çağırır
+  (`Program.cs:913`) ve varsayılan yazıcı yalnız durum metnini yazar.
+- Veritabanı geri geldikten sonra, **uygulama yeniden başlatılmadan**,
+  `canConnect` yeniden `true` olur — Npgsql havuzu kendiliğinden toparlanır.
+- Toparlanma sonrası **genel** durum sağlayıcı sağlık önbelleğine bağlıdır:
+  önbellek ısıtılmamışsa `Degraded`, ısıtılmışsa `Healthy` (bkz. MT-PG-053).
+  Bu case'in ölçtüğü şey genel etiket değil, **`canConnect`'in `true`'ya
+  dönmesidir**; kalıcılık kapsamı budur.
 
-~~Eski beklenti (yanlış öncül — `echo` sağlayıcısının health check
-listesinde yer almadığını gözden kaçırıyordu): Container durdurulmuşken
-`/health` 503 döner; gövde `Unhealthy` durumunu ve `Kalicilik veritabanina
-erisilemiyor` benzeri bir mesajı taşır. Container yeniden başladıktan sonra
-(uygulama YENİDEN BAŞLATILMADAN) `/health` tekrar 200 (`Healthy`) döner —
-Npgsql havuzu kendiliğinden toparlanır.~~
+> **🚨 Şerit kuralı — container durdurulmaz.** "Girilecek veri" bloğundaki
+> `docker stop/start ap-pg` adımları paylaşılan kaynağa dokunur ve koşulmaz
+> (`manuel-test-kosumu` §1.3). Erişilemezlik **şerit-yerel bir TCP
+> yönlendiriciyle** taklit edilir: uygulama `Port=554<şerit+80>` ile açılır,
+> yönlendirici o portu `55432`'ye aktarır, yönlendirici öldürülünce veritabanı
+> uygulamanın gözünde tam olarak `docker stop` kadar erişilemez olur. Dört
+> şerit paralel koşarken de güvenlidir.
+
+> **Düzeltildi (2026-09-16):** 2026-08-15 düzeltmesi beklentinin **tamamını**
+> üstü çizili bırakmış ve case'i bu dosyanın kapsamı dışına atmıştı. Ölçüm
+> bunun fazla kapsadığını gösterdi — `echo` gerekçesi yalnız **kurtarma
+> yarısını** etkiler; case'in başlığı olan "erişilemezken Unhealthy" iddiası
+> `CanConnect` kısa devresi sayesinde sağlayıcıdan bağımsızdır ve doğrulandı.
+> Ayrıca 2026-09-16 şeridi `echo`-only **değildi** (üç gerçek anahtar kayıtlı)
+> ve yine `Healthy` gelmedi; gerçek neden sağlayıcıların `Unknown` durmasıdır.
 
 ---
 
@@ -1679,8 +1695,13 @@ curl -s "$APU/api/diagnostics" -H "$APB" | python3 -m json.tool
 
 **Beklenen sonuç**
 - `migrationsUpToDate: false`.
-- `pendingMigrations` **28** öğe taşır (`0001_initial`'dan
-  `0028_experiment_canary`'e).
+- `pendingMigrations` şemanın **tamamını** listeler: ilk öğe `0001_initial`,
+  son öğe `knowledge:0001_vector`. 2026-09-16'da **51** öğedir (50 çekirdek +
+  1 knowledge).
+  > **🚨 Sabit sayıya güvenme.** Bu sayı her migration eklendiğinde artar
+  > (2026-08'de 28, 2026-09'da 51). Doğrulama **yapıya** bakar: liste boş
+  > değil, `__migrations` içindeki uygulanmış sayı + bekleyen sayı =
+  > kod tarafındaki toplam migration sayısı.
 - Gövdenin hiçbir yerinde bağlantı dizesi, parola veya `Password=` alt dizgisi
   geçmez.
 
@@ -1698,7 +1719,7 @@ curl -s "$APU/api/diagnostics" -H "$APB" | python3 -m json.tool
 Sınır senaryosu.
 
 **Ön koşul**
-- MT-PG-051 durumunda (28 bekleyen migration, `AutoApplyMigrations=false`).
+- MT-PG-051 durumunda (şemanın tamamı bekliyor, `AutoApplyMigrations=false`).
 
 **Adımlar**
 1. Teşhis ucunu ÜÇ kez art arda çağır.
@@ -1716,9 +1737,11 @@ SELECT to_regclass('tracon.__migrations');
 ```
 
 **Beklenen sonuç**
-- Üç çağrının üçü de **28** yazdırır (değişmez).
+- Üç çağrının üçü de **aynı** sayıyı yazdırır (değişmez). Sayının kendisi
+  MT-PG-051'inkiyle aynıdır; sabit bir değere değil **değişmezliğine** bakılır.
 - `to_regclass` **NULL** döner — `__migrations` tablosu hâlâ oluşturulmamıştır;
-  teşhis ucu şemaya hiçbir şey YAZMAZ.
+  teşhis ucu şemaya hiçbir şey YAZMAZ. Şemanın kendisi de açılmamış olmalıdır
+  (`information_schema.schemata` → 0 satır).
 
 ---
 
@@ -1733,8 +1756,14 @@ SELECT to_regclass('tracon.__migrations');
 
 **Ön koşul**
 - Reset yordamı uygulanmış, `AutoApplyMigrations` kaldırılmış (varsayılan
-  `true`), uygulama normal başlatılmış (28 migration otomatik uygulanır), en az
-  bir model sağlayıcı (`echo` yeterli) kayıtlı.
+  `true`), uygulama normal başlatılmış (şemanın tamamı otomatik uygulanır).
+- 🚨 **İzlenen** bir model sağlayıcı kayıtlı: `openai` · `openai-responses` ·
+  `openrouter` · `anthropic` · `google`. **`echo` YETMEZ** — izlenen
+  `ModelProviders` listesinde yer almaz.
+- 🚨 **Sağlayıcı sağlık önbelleği ısıtılmış olmalıdır**: en az bir kez
+  `GET /tracon/api/models/health` çağrılmış olmalı. Teşhis koleksiyonu önbelleği
+  yalnız **okur**, prob tetiklemez (`TraconDiagnosticsCollector.cs:144`) ve
+  sohbet çağrısı bu önbelleğe yazmaz.
 
 **Adımlar**
 1. `/health`'i çağır.
@@ -1745,16 +1774,18 @@ curl -s -w "\nHTTP: %{http_code}\n" "http://localhost:5080/health"
 ```
 
 **Beklenen sonuç**
-> **Düzeltildi (2026-08-15, KAPANIS-PLANI §8) — aynı kök neden `MT-PG-050`:**
-> **200**, gövde `Degraded` durumunu gösterir. "`echo` yeterli" ön koşul
-> varsayımı yanlıştır — `echo` sağlayıcısı `TraconHealthCheck.cs:70-77`'nin
-> izlediği `ModelProviders` listesinde hiç yer almaz, bu yüzden "en az bir
-> model sağlayıcısı sağlıklı" koşulu `echo`-only bir kurulumda YAPISAL OLARAK
-> hiçbir zaman sağlanamaz; `Healthy` etiketi yalnız openai/anthropic/google/
-> openrouter gibi izlenen bir sağlayıcıyla mümkündür.
+- Ön koşullar sağlandığında `/health` → **200**, gövde **`Healthy`**.
+- Önbellek ısıtılmadan önce aynı kurulum **200 `Degraded`** döner
+  ("No model provider has been confirmed healthy yet") ve sağlayıcılar
+  `status:"Unknown"` görünür. Bu bir kusur değil, ön koşulun sağlanmamış
+  hâlidir — ama kalıcı yüzü `HATA-S1-016`'dır.
 
-~~Eski beklenti (yanlış öncül — "echo yeterli"): 200, gövde `Healthy`
-durumunu gösterir.~~
+> **Düzeltildi (2026-09-16):** 2026-08-15 düzeltmesi "`/health` YAPISAL OLARAK
+> asla düz `Healthy` dönemez" diyordu. Ölçüm bunu **çürüttü** — `Healthy`
+> alındı (HTTP 200). O düzeltmenin doğru olan tek kısmı `echo` öncülüdür;
+> yanlış olan, bunu tüm kurulumlara genellemesidir. Sorun yapısal değil, ön
+> koşuldadır: izlenen bir sağlayıcı **ve** ısıtılmış sağlık önbelleği gerekir.
+> Ön koşul buna göre düzeltildi.
 
 ### MT-PG-060 — 20 eşzamanlı yazma isteği veri bozulmadan tamamlanır
 

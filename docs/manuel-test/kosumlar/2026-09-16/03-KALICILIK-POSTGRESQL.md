@@ -903,3 +903,260 @@ sonuç doğru; kullanıcıya gösterilen metin bir tık ham. Kusur sayılmadı.
 edilen metin İngilizce'dir (K-228).
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-PG-050 — `/health` PostgreSQL erişilemezken Unhealthy döner
+
+**Gerçek sonuç**
+
+**Sapma — container durdurulmadı** (şerit kuralı 3 · kullanıcı kararı
+2026-09-16). Erişilemezlik, şerit-yerel bir TCP yönlendiriciyle taklit edildi:
+uygulama `Host=localhost;Port=55481` ile açıldı, yönlendirici `55481 → 55432`
+(`ap-pg`) aktarıyor. Yönlendiriciyi öldürmek uygulamanın gözünde veritabanını
+**tam olarak** `docker stop` kadar erişilemez yapar; `ap-pg` ise hiç dokunulmadan
+`Up 4 hours` kaldı. Yöntem şerit-yereldir, Faz B'de dört şerit paralel koşarken
+de güvenlidir. Aparat: `<scratch>/pgproxy.py`.
+
+Taban çizgisi (yönlendirici ayakta): `canConnect:true`, `migrationsUpToDate:true`,
+`/health` → **200 `Degraded`**.
+
+Adım 1–2 — ağ kesik:
+
+```
+=== yonlendirici olduruldu — ap-pg container'ina DOKUNULMADI ===
+ap-pg	Up 4 hours
+/health -> Unhealthy      HTTP: 503
+diagnostics -> {'persistenceProvider': 'PostgreSQL',
+                'canConnect': False, 'migrationsUpToDate': False}
+```
+
+Adım 3–4 — ağ geri, **uygulama yeniden başlatılmadı**:
+
+```
+/health -> Degraded       HTTP: 200
+diagnostics -> {'persistenceProvider': 'PostgreSQL',
+                'canConnect': True, 'migrationsUpToDate': True}
+```
+
+Npgsql havuzu kendiliğinden toparlandı; süreç yeniden başlatılmadı.
+
+📝 **Spec düzeltmesi — 2026-08-15 düzeltmesi fazla kapsıyordu.**
+O düzeltme case'in beklentisinin **tamamını** üstü çizili bıraktı ve case'i bu
+dosyanın kapsamı dışına attı. Ölçüm bunun yarısının yanlış olduğunu gösteriyor:
+
+`TraconHealthCheck.cs:46-49`'da `CanConnect` **ilk** kontroldür ve model
+sağlayıcı mantığından **önce** kısa devre yapar:
+
+```csharp
+if (!report.CanConnect)
+{
+    return HealthCheckResult.Unhealthy("The persistence database is unreachable.", data: data);
+}
+```
+
+∴ "PostgreSQL erişilemezken `/health` Unhealthy döner" iddiası — case'in
+**başlığı** ve kalıcılık kapsamının tam merkezi — `echo` öncülünden tamamen
+bağımsızdır ve **doğrulandı** (503). Yalnız **kurtarma yarısı** (adım 3–4'ün
+düz `Healthy` beklentisi) `echo` gerekçesinden etkilenir.
+
+Üstelik bu şeritte kurulum `echo`-only **değildir**: gerçek OpenAI · Anthropic ·
+Google anahtarları kayıtlı (`configuration[].resolved: true`). Buna rağmen
+`Healthy` gelmiyor, ama 2026-08-15'in yazdığı nedenden değil — beş sağlayıcının
+beşi de `status:"Unknown"` duruyor, çünkü sağlayıcı sağlığı **ancak gerçek bir
+çağrıdan sonra** onaylanır. `TraconHealthCheck.cs:73-80` son dalı buna düşürür:
+
+```csharp
+: HealthCheckResult.Degraded("No model provider has been confirmed healthy yet.", data: data);
+```
+
+Yani `Degraded` sonucu doğru, gerekçesi yanlış kaydedilmişti.
+
+⚠️ Eski beklentinin ikinci yarısı da koda göre yanlıştı: "gövde ... bir mesaj
+taşır" diyordu. `samples/Tracon.Api/Program.cs:913` `app.MapHealthChecks("/health")`
+çağrısını **ResponseWriter'sız** yapar; ASP.NET'in varsayılan yazıcısı yalnız
+durum metnini (`Unhealthy`) yazar, `description` alanını hiç yazmaz. Mesajın
+makine-okunur karşılığı `/tracon/api/diagnostics` içindeki `canConnect:false`
+alanıdır. Ayrıca metin İngilizce'dir (K-228), spec Türkçe yazmıştı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-PG-051 — `/tracon/api/diagnostics` bekleyen migration'ları listeler, hiçbir `secret` taşımaz
+
+**Gerçek sonuç**
+`mt_s1` düşürüldü (49 nesne), `Tracon__PostgreSql__AutoApplyMigrations=false`
+ile açıldı (ortam değişkeni — `user-secrets` yazılmadı, skill §1.2).
+
+```
+/health -> HTTP 503
+migrationsUpToDate: False
+canConnect: True
+pendingMigrations sayisi: 51
+ilk: 0001_initial
+son: knowledge:0001_vector
+```
+
+`canConnect:true` ama `migrationsUpToDate:false` — `TraconHealthCheck.cs:51-56`
+ikinci dalı, 503'ün nedeni bekleyen migration, erişim değil.
+
+**`secret` taraması temiz** (K-059). Gövde 2857 bayt; yasaklı alt dizgilerin
+hepsi **0**:
+
+```
+Password= -> 0    password -> 0    Host= -> 0     Username= -> 0
+tracon;   -> 0    55432    -> 0    sk-   -> 0     manuel-test-token -> 0
+ApiKey    -> 3
+```
+
+`ApiKey`'in üç geçişi de yalnız **anahtarın adıdır**, değeri değil — K-059'un
+öngördüğü biçim:
+
+```json
+{"key": "Tracon:Providers:OpenAI:ApiKey", "resolved": true, "hint": null}
+```
+
+Ortamdaki gerçek OpenAI anahtarı gövdede birebir arandı — **geçmiyor**.
+
+📝 **Spec düzeltmesi.** Beklenen sayı **28** (`0001_initial` → `0028_experiment_canary`)
+yazıyordu; bugün **51**'dir (50 çekirdek + 1 knowledge) ve son öğe
+`knowledge:0001_vector`'dür. Aynı bayatlık `020-026` blokunda oturum 8'de
+düzeltilmişti; `051` ile `052` atlanmış. Sabit sayıya değil **yapıya** bakan
+doğrulama notu eklendi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-PG-052 — Teşhis ucu migration UYGULAMAZ (salt okunur)
+
+**Gerçek sonuç**
+Üç çağrının üçü de aynı sayıyı verdi — değişmedi:
+
+```
+51
+51
+51
+```
+
+Şemaya hiçbir şey yazılmadı:
+
+```
+to_regclass('mt_s1.__migrations') -> NULL (bos)
+information_schema.schemata  mt_s1 -> 0
+information_schema.tables    mt_s1 -> 0
+```
+
+Spec yalnız `__migrations` tablosunun yokluğunu istiyordu; ölçüm bundan
+**daha güçlü** çıktı — `mt_s1` şemasının kendisi hiç açılmadı. Teşhis ucu
+`DROP SCHEMA`'dan sonraki durumu okuyor ve hiçbir DDL çalıştırmıyor.
+
+📝 **Spec düzeltmesi.** MT-PG-051 ile aynı bayatlık: beklenen sayı **28**
+yazıyordu → **51**. Ön koşul satırı da ("28 bekleyen migration") güncellendi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-PG-053 — Migration tamamsa ve bir model sağlayıcı sağlıklıysa `/health` Healthy döner
+
+**Gerçek sonuç**
+Reset uygulandı, `AutoApplyMigrations` varsayılana (`true`) döndü, uygulama
+normal başlatıldı. **51 migration otomatik uygulandı**, `migrationsUpToDate:true`,
+`canConnect:true`.
+
+İlk ölçüm — `/health` → **200 `Degraded`**, beş sağlayıcının beşi `Unknown`:
+
+```
+[('openai','Unknown'), ('openai-responses','Unknown'), ('openrouter','Unknown'),
+ ('anthropic','Unknown'), ('google','Unknown')]
+```
+
+**Gerçek bir OpenAI çağrısı bunu değiştirmedi.** `POST /api/agents/support/run`
+(`gpt-5.4-mini`) başarıyla tamamlandı — gerçek `chatcmpl-EOoIjX95...` kimliği,
+token sayımı, `"finishReason": "stop"` — ama sağlayıcı durumu `Unknown` kaldı ve
+`/health` `Degraded` kaldı.
+
+`/api/models/health` çağrıldıktan **sonra** ise:
+
+```
+/api/models/health -> [('anthropic','Healthy'), ('google','Healthy'),
+                       ('openai','Healthy'), ('openai-responses','Healthy'),
+                       ('openrouter','Healthy')]
+diagnostics        -> hepsi Healthy
+/health            -> Healthy        HTTP: 200
+```
+
+∴ Case'in iddiası **doğrulandı**: migration tam + bir sağlayıcı sağlıklı ⇒
+`/health` `Healthy`.
+
+**Mekanizma** (kaynak okundu): `TraconDiagnosticsCollector.cs:144` sağlayıcı
+durumunu yalnız `_healthCache.TryPeek` ile **okur**, hiçbir prob tetiklemez —
+sınıf dokümanı bunu açıkça yazıyor (`TraconDiagnosticsCollector.cs:8-14`,
+"Has no side effects"). Önbelleği dolduran tek yol
+`ModelProviderHealthCache.GetAllAsync/GetAsync`'tir, yani `/api/models/health`
+ucudur. Sohbet çağrısı bu önbelleğe **yazmaz**; yalnız devre kesici katmanı
+canlı okunur (`ModelProviderHealthCache.cs:158-171`).
+
+📝 **Spec düzeltmesi — 2026-08-15 düzeltmesi merkez iddiasında yanlış.**
+O düzeltme "`/health` YAPISAL OLARAK asla düz `Healthy` dönemez" diyordu.
+Ölçüm bunu **çürüttü**: `Healthy` alındı. Doğru olan kısım yalnız `echo`
+öncülüdür — `echo` izlenen `ModelProviders` listesinde yer almadığı için
+`echo`-only bir kurulum gerçekten `Healthy` olamaz. Ama bu "yapısal
+imkânsızlık" değil, **ön koşul hatasıdır**: case'in "(`echo` yeterli)" ön
+koşulu yanlıştı, sonucu değil. Ön koşul izlenen bir sağlayıcı isteyecek
+biçimde düzeltildi ve önbellek ısıtma adımı eklendi.
+
+🚨 **`HATA-S1-016` — `/health` kendi başına hiçbir zaman `Healthy`'ye ulaşmaz.**
+Ayrıntı aşağıdaki hata kaydında.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+### HATA-S1-016 — `/health` kendi başına hiçbir zaman `Healthy`'ye ulaşmaz
+
+| | |
+|---|---|
+| **Case** | MT-PG-053 (case **geçti**; bulgu case'in kenarından çıktı) |
+| **Önem** | Düşük–Orta |
+| **Sınıf** | teşhis edilebilirlik — sağlıklı kurulum kendini `Degraded` raporluyor |
+
+**Belirti.** Her şeyi doğru kurulmuş bir uygulama — PostgreSQL erişilebilir, 51
+migration uygulanmış, üç gerçek sağlayıcı anahtarı çözülmüş — `/health` ucunda
+süresiz **`Degraded`** raporlar:
+
+```
+/health -> Degraded   HTTP 200
+"No model provider has been confirmed healthy yet."
+```
+
+Gerçek bir sohbet çağrısı bunu **değiştirmez**. `POST /api/agents/support/run`
+başarıyla tamamlandıktan sonra bile beş sağlayıcının beşi `Unknown` kalır.
+Durum yalnız `/api/models/health` çağrıldıktan sonra `Healthy`'ye döner.
+
+**Kök neden.** İki tasarım kararının kesişimi:
+
+1. `TraconDiagnosticsCollector.cs:144` sağlayıcı durumunu yalnız `TryPeek` ile
+   okur ve prob tetiklemez. Bu **bilinçlidir** ve dokümante edilmiştir
+   (`TraconDiagnosticsCollector.cs:8-14`, "Has no side effects") — sağlık ucunun
+   her çağrıda sağlayıcıya ağ isteği atmaması doğru bir karardır.
+2. `ModelProviderHealthCache` yalnız `GetAllAsync`/`GetAsync` ile dolar
+   (`ModelProviderHealthCache.cs:133-152`), yani yalnız `/api/models/health`
+   ucuyla. Sohbet yolu bu önbelleğe yazmaz.
+
+∴ Hiç kimse `/api/models/health`'i çağırmazsa önbellek sonsuza dek boş kalır ve
+`TraconHealthCheck.cs:73-80` son dalı hep `Degraded` döndürür.
+
+**Tüketici etkisi.** Bir orchestrator (Kubernetes, ECS) `/health`'i yoklar.
+`Degraded` HTTP **200** döndüğü için readiness kapısı düşmez — bu yüzden önem
+`Kritik` değildir. Ama gösterge kalıcı olarak yanlıştır: sağlıklı bir kurulum
+hiçbir zaman yeşil görünmez ve operatör gerçek bir bozulmayı gürültüden ayıramaz.
+
+**Kapsam dışı olan.** Sohbet çağrısının önbelleğe yazması **istenmeyebilir** —
+devre kesici katmanı zaten canlı okunuyor ve başarılı bir çağrı tek bir modeli
+kanıtlar, sağlayıcının tamamını değil.
+
+**Öneri (kapanışta değerlendirilecek).** Üç seçenek var ve seçim bir yetenek
+kararıdır, kusur düzeltmesi değil:
+
+- Başlangıçta bir kez arka planda sağlayıcı probu koş (soğuk başlangıç maliyeti).
+- `TraconHealthCheck` önbellek boşken `Degraded` yerine ayrı bir durum/mesaj
+  taşısın — "not yet probed" ile "probed and unhealthy" bugün ayırt edilemiyor.
+- Davranışı olduğu gibi bırak ve `docs-site/`'ta belgele: `/health`'in
+  `Healthy` raporlaması için `/api/models/health`'in periyodik çağrılması gerekir.
+
+🚨 Üçünün de yeni davranış istediğine dikkat: bu bulgu muhtemelen `ADAYLAR.md`'ye
+F-NN olarak girer, Aşama 2'de kodlanacak bir kusur olarak değil. Karar Aşama
+2'de verilir (skill §6).
