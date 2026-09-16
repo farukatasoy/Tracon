@@ -196,8 +196,11 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APULAN/api/agents" -H "$APB"
 
 **Beklenen sonuç**
 - `HTTP: 403`.
-- `title: "Uzak erisim kapali"`, `detail` `AllowRemoteAccess ayarini acin...`
-  ile devam eder.
+- `title: "Remote access disabled"`, `detail: "Tracon endpoints are reachable
+  only from the same machine by default. For remote access, enable the
+  AllowRemoteAccess setting and configure an authentication method (AuthToken
+  or RequireAuthorization)."` (İngilizce — koşumda düzeltildi, K-228; ürün her
+  zaman İngilizce metin döner).
 - Token doğru olmasına rağmen reddedilir — loopback katmanı önce çalışır.
 
 ---
@@ -227,8 +230,9 @@ curl -s -D - -o /dev/null "$APU/api/agents"
 **Beklenen sonuç**
 - `HTTP: 401`.
 - Yanıt başlıklarında `WWW-Authenticate: Bearer` vardır.
-- Gövde `title: "Kimlik dogrulanamadi"`, `detail`
-  `Gecerli bir 'Authorization: Bearer <token>' basligi gerekiyor.`
+- Gövde `title: "Authentication failed"`, `detail: "A valid 'Authorization:
+  Bearer <token>' header is required."` (İngilizce — koşumda düzeltildi,
+  K-228).
 
 ---
 
@@ -391,13 +395,20 @@ curl -s -o /dev/null -w "loopback: %{http_code}\n" "$APU/"
 curl -s -o /dev/null -w "lan:      %{http_code}\n" "$APULAN/"
 ```
 
-**Beklenen sonuç**
-- `loopback: 200` — `MapUi`'nin grubu `requireBearerToken: false` ile kurulur
-  (`TraconEndpointRouteBuilderExtensions.cs:294`); tarayıcı bir
-  `<script src>` isteğine `Authorization` ekleyemeyeceği için bu katman
-  bilerek atlanır.
-- `lan: 403` — loopback kısıtı bu grup için de geçerlidir, yalnız bearer
-  katmanı atlanır.
+**Beklenen sonuç — koşumda düzeltildi (doküman koda göre yanlıştı, kod
+değil).** Spec `lan: 403` bekliyordu; gerçek kod her ikisi için de `200`
+döner:
+- `loopback: 200` VE `lan: 200` — `MapUi`'nin grubu
+  `requireLoopback: false` ile kurulur
+  (`TraconEndpointRouteBuilderExtensions.cs:344`, `MapUi`), yalnız
+  `requireBearerToken: false` DEĞİL. XML doc'un kendi gerekçesi
+  (`TraconEndpointRouteBuilderExtensions.cs:316-325`): kabuk hiçbir veri
+  taşımaz, gerçek koruma veri uçlarındaki filtre örnekleridir; kabuk LAN'dan
+  da yüklenebilmelidir ki istemci tarafı `AccessGate` bileşeni "uzak erişim
+  kapalı" mesajını gösterebilsin — kabuğun kendisi engellenirse kullanıcı
+  boş bir bağlantı hatası görür, açıklayıcı ekranı hiç göremez. Bu kasıtlı
+  bir tasarım kararıdır, kusur değildir; gerçek koruma MT-SEC-002'nin
+  doğruladığı veri uçlarındadır (`lan` + `/api/agents` → `403`).
 
 ### MT-SEC-020 — `UseTenancy` hiç çağrılmamışken her istek varsayılan kiracıya düşer
 
@@ -841,9 +852,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/tenants/kiraci%20alfa" -H "
 ```
 
 **Beklenen sonuç**
-- `HTTP: 400`. `title: "Kiraci anahtari gecersiz"`, `detail`
-  `Anahtar en fazla 64 karakter olmali ve yalnizca harf, rakam, nokta, alt
-  cizgi ve tire icermelidir.`
+- `HTTP: 400`. `title: "Tenant key invalid"`, `detail: "The key must be at
+  most 64 characters and contain only letters, digits, dots, underscores,
+  and hyphens."` (İngilizce — koşumda düzeltildi, K-228).
 
 ---
 
@@ -923,7 +934,8 @@ curl -s -w "\nHTTP: %{http_code}\n" -X DELETE "$APU/api/tenants/hic-yok" -H "$AP
 ```
 
 **Beklenen sonuç**
-- `HTTP: 404`. `title: "Kiraci bulunamadi"`.
+- `HTTP: 404`. `title: "Tenant not found"` (İngilizce — koşumda düzeltildi,
+  K-228).
 
 ### MT-SEC-050 — `POST /api/api-keys` yeni anahtar üretir, ham değer `ap_` ile başlar
 
@@ -1003,7 +1015,8 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/api-keys" -H "$APB" \
 ```
 
 **Beklenen sonuç**
-- `HTTP: 400`. `detail: "'name' bos olamaz."`
+- `HTTP: 400`. `detail: "'name' cannot be empty."` (İngilizce — koşumda
+  düzeltildi, K-228).
 
 ---
 
@@ -1028,7 +1041,8 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/api-keys" -H "$APB" \
 ```
 
 **Beklenen sonuç**
-- `HTTP: 400`. `detail: "En az bir kapsam ('scopes') secilmelidir."`
+- `HTTP: 400`. `detail: "At least one scope ('scopes') must be selected."`
+  (İngilizce — koşumda düzeltildi, K-228).
 
 ---
 
@@ -1111,8 +1125,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents" \
 ```
 
 **Beklenen sonuç**
-- `HTTP: 403`. `title: "Kapsam yetersiz"`, `detail`
-  `Bu uc 'AgentsAdmin' kapsamini gerektiriyor; anahtar bu kapsami tasimiyor.`
+- `HTTP: 403`. `title: "Insufficient scope"`, `detail: "This endpoint
+  requires the 'AgentsAdmin' scope; the key does not carry it."` (İngilizce —
+  koşumda düzeltildi, K-228).
 
 ---
 
@@ -1247,8 +1262,10 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/agents" \
 ```
 
 **Beklenen sonuç**
-- `HTTP: 403`. `title: "Kiraci uyusmuyor"`, `detail`
-  `'X-Tracon-Tenant' basligi API anahtarinin baglandigi kiraciyi EZEMEZ...`
+- `HTTP: 403`. `title: "Tenant mismatch"`, `detail: "The 'X-Tracon-Tenant'
+  header CANNOT override the tenant the API key is bound to. Remove the
+  header or give a value matching the key's tenant."` (İngilizce — koşumda
+  düzeltildi, K-228).
 
 ---
 
