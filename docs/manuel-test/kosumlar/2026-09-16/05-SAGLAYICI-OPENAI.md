@@ -32,18 +32,47 @@ information_schema.schemata -> agentprism, mt_s1_k, mt_s1_v, public (mt_s1 YOK)
 
 ## Devir notu
 
-**Oturum 10 bitti — 17/40 case.** `001-004` · `010-013` · `020-022` · `030-031`
-· `040-043` blokları koşuldu. Sonuç: **16 ☑ Geçti · 1 ☑ Kaldı (MT-OAI-043)**.
+**🎉 DOSYA 05 KAPANDI — 40/40 case koşuldu** (oturum 10: 17 · oturum 11: 23).
+Dosya sonucu: **38 ☑ Geçti · 1 ☑ Kaldı (MT-OAI-043) · 1 ⏭ Atlandı (MT-OAI-053,
+Ollama yok)**. Sayım skill §7 betiğiyle alındı, elle yazılmadı.
 
-- **Sonraki oturumun işi:** `050-058` (9) · `070-074` (5) · `080-084` (5) ·
-  `090-093` (4) = **23 case**. Saf CLI, bütçe içinde.
+- **Sonraki oturumun işi:** zincirin beşinci ve son ailesi —
+  [`07-HTTP-YONETIM-API.md`](../../07-HTTP-YONETIM-API.md), 43 case, 2 oturum.
+  Bu dosyaya dönme.
 - **Bozuk ön koşul:** yok.
+- **Zincirin durumu:** `01 → 02 → 03 → 05` yeşil; `07` bitince Faz B (dört
+  paralel şerit) açılabilir.
 
-### Oturum 10'un bulgusu
+### Bu dosyanın bulgusu
 
 | Bulgu | Önem | Kısaca |
 |---|---|---|
-| `HATA-S1-020` | Orta | Normalleştirilen her sağlayıcı hatası `RunError.Class = Unknown`'a düşüyor; K-296'nın eklediği desenler bu yolda ölü kod. Tarama: 17 kararlı kimliğin 10'u sınıflandırıcıda tanınmıyor |
+| `HATA-S1-020` | Orta | Normalleştirilen her sağlayıcı hatası `RunError.Class = Unknown`'a **ve tek bir fingerprint'e** düşüyor; K-296'nın eklediği desenler bu yolda ölü kod. İki bağımsız ölçüm (OpenAI 404 · OpenRouter 402) aynı parmak izini verdi. Tarama: 17 kararlı kimliğin 10'u sınıflandırıcıda tanınmıyor |
+
+Bu dosyada **tek** ürün kusuru çıktı. Geri kalan her sapma dokümandaydı:
+**14 case'in `Beklenen sonuç`'u düzeltildi** — ikisi davranış değişikliği
+(K-404 doğrulamayı yazma yoluna taşımış; sağlayıcı hatası normalleştirmesi
+detayı günlüğe taşımış), biri bayat fixture terimi (MT-OAI-084), üçü yanlış
+alan yolu (`usage.*`, `response.messages[0]...`, `providerName`), kalanı dil
+(K-228 — sevk edilen metin İngilizce).
+
+### Oturum 11'in ortam notları
+
+🚨 **Devre kesici durumu süreç-içidir ve şeridi kirletir.** MT-OAI-080..083
+ayrı bir örnekte (5092) koşuldu; 5081'de koşulsaydı `openai` devresi açık
+kalır ve sonraki case'ler sebepsiz `TraconProviderUnavailableException` alırdı.
+Eşik ve mola ortam değişkeniyle verilir:
+`Tracon__CircuitBreaker__FailureThreshold` · `__BreakDuration` · `__Enabled`.
+
+🚨 **Süre ölçümü bu blokta kanıtın kendisidir.** Kapalı devre ~57 ms, gerçek
+ağ çağrısı 300–1400 ms. Yalnız hata tipine bakmak devrenin mi yoksa
+sağlayıcının mı reddettiğini ayırt etmez; her denemenin süresini yaz.
+
+🚨 **Sağlık ucunda `checkedAt`'e bak, `latency`'ye değil** (MT-OAI-072).
+İki ayrı ölçüm tesadüfen aynı `latency`'yi verebilir; `checkedAt` vermez.
+
+⚠️ **Guard terimi `confidential-project`** (`Program.cs:217`), spec'in yazdığı
+`gizli-proje` değil. Aşama 0'ın fixture süpürmesi bu terimi atlamış.
 
 ### Oturum 10'un ortam notları — sonraki oturumun bilmesi gerekenler
 
@@ -1147,5 +1176,287 @@ Aradaki iki büyüklük mertebesi ağ çağrısı olmadığının kendi başına
 sağlayıcı önbelleğini doldurmuyor, bu yüzden `/api/models/health` çağrılmadıkça
 toplu sağlık sonsuza dek `Degraded` kalıyor. Buradaki ilk ölçüm (`/health` ile
 açıldı, beşi de `Unknown`) tam olarak o mekanizmanın görüntüsüdür.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OAI-080 — Ardışık gerçek hatalar devreyi açar
+
+**Gerçek sonuç**
+🚨 **Kritik case — geçti.** Eşik `2`, mola `20 sn` ortam değişkeniyle verildi
+(`user-secrets` yazılmadı, skill §1.2); ayrı örnek 5092'de koşuldu ki devre
+kesici durumu şeridin 5081'deki uygulamasını kirletmesin (durum süreç-içidir).
+
+```
+--- deneme 1 ---  1.340 sn  error: ProviderInvocationException
+--- deneme 2 ---  0.275 sn  error: ProviderInvocationException
+--- deneme 3 ---  0.057 sn  error: TraconProviderUnavailableException
+```
+
+**Süre ayrımı spec'in istediği kanıtı tek başına veriyor.** İlk iki deneme ağa
+çıktı (1340 ms ve 275 ms); üçüncüsü **57 ms** — spec'in "< 100ms" eşiğinin
+altında, yani hiç ağa çıkmadı.
+
+Üçüncü denemenin çerçevesi:
+
+```json
+{"type":"TraconProviderUnavailableException",
+ "message":"The 'openai' provider was temporarily stopped by the circuit
+            breaker (2 consecutive failures). Will retry in 20s."}
+```
+
+Mesaj eşiği (`2 consecutive failures`) **ve** kalan süreyi (`Will retry in 20s`)
+birlikte taşıyor. `AgentRunStream`'in `catch` bloğunun her istisnayı `error`
+çerçevesine çevirdiği doğrulandı: MT-OAI-043'ün normalleştirilmiş istisnası da,
+buradaki `TraconProviderUnavailableException` da aynı şekilde çerçeveye döndü.
+
+⚠️ `TraconProviderUnavailableException` bir `TraconException` olduğu için
+mesajı **normalleştirilmiyor** — `ProviderFailureNormalizer.IsKnownSafe` onu
+listede tutuyor. Yani devre kesici mesajı okunabilir kalırken yabancı sağlayıcı
+mesajı gizleniyor; sınır tam olarak doğru yerde.
+
+Sapma yalnız **dil** (K-228); `Beklenen sonuç` düzeltildi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OAI-081 — Açık devre `/api/models/health`'te `Unhealthy` olarak yansır
+
+**Gerçek sonuç**
+Her iki beklenti de doğrulandı — ve spec'in "ham denetim başarılı olsa bile"
+koşulu **fiilen gerçekleşti**, yani case en güçlü hâliyle koşuldu:
+
+```json
+{ "providerName": "openai",
+  "status": "Unhealthy",
+  "detail": "Circuit breaker is open. Will retry in 13s.",
+  "latency": "00:00:00.9922843",
+  "models": ["gpt-5.4-mini", "gpt-5.6-luna", "gpt-5.6-terra", "gpt-image-1",
+             "gpt-live-1", "text-embedding-3-large", "text-embedding-3-small"] }
+```
+
+`models` dizisi **dolu** ve `latency` 0.99 saniye — yani `refresh=true` gerçek
+ağ çağrısını yaptı ve `GET {endpoint}/models` **başarılı** oldu. Buna rağmen
+`status` `Unhealthy`. Durumu ezen şey ham denetim değil,
+`ModelProviderHealthCache.ApplyCircuitBreakerOverlay`.
+
+`detail` kalan süreyi taşıyor (`13s`) — MT-OAI-080'in 20 saniyesinden geriye
+sayıyor.
+
+Sapma yalnız **dil** (K-228): spec `Devre kesici acik.` bekliyordu.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OAI-082 — Mola süresi dolunca yarı-açık tek deneme; başarılıysa devre kapanır
+
+**Gerçek sonuç**
+Her iki beklenti de doğrulandı. MT-OAI-080/081'in devresi 20 saniye sonra
+yeniden denemeye izin verdi.
+
+```
+calistirma: {'run': 1, 'update': 5, 'done': 1}  -> "tamam"   (1.38 sn)
+sonrasinda /api/models/health/openai -> Healthy, detail: null
+```
+
+Çalıştırma gerçek OpenAI çağrısıyla başarıyla tamamlandı — 1.38 saniye, yani ağa
+çıktı (MT-OAI-080'in kapalı-devre denemesi 57 ms idi). `EnsureRequestAllowed`
+devreyi `HalfOpen`'a çevirip tek denemeye izin vermiş, `RecordSuccess` de
+`Closed`'a sıfırlamış.
+
+⚠️ **Ek gözlem — sıralamada bir incelik.** Sağlık ucu, çalıştırmadan **önce**
+de `Healthy` döndü (`detail: null`). Yani overlay mola süresi dolar dolmaz
+kalkıyor; devrenin gerçekten sağlıklı olduğunu kanıtlayan bir başarı henüz
+kaydedilmemişken `Healthy` görünüyor. Bu `HalfOpen` durumunun doğasıdır ve
+kusur olarak açılmadı — ama sağlık ucuna bakan bir otomasyon, mola bitiminde
+sağlayıcının **denenmemiş** olduğunu bilmez. Kayıt amaçlı not.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OAI-083 — Devre kesici kapatılırsa (`Enabled=false`) hatalar sayılmaz
+
+**Gerçek sonuç**
+Her iki beklenti de doğrulandı. `Enabled=false` **ve** `FailureThreshold=1` ile
+açıldı — yani eşik en agresif değerinde, devre yine de hiç açılmadı.
+
+```
+deneme 1 | 1.184 sn | ProviderInvocationException
+deneme 2 | 0.356 sn | ProviderInvocationException
+deneme 3 | 0.430 sn | ProviderInvocationException
+```
+
+**Süreler kanıtın kendisi.** Üçü de yüz milisaniyelerin üstünde, yani üçü de
+gerçek OpenAI'a çıktı. `TraconProviderUnavailableException` hiç görünmedi.
+Kıyas: MT-OAI-080'de devre açıkken üçüncü deneme 57 ms sürüyordu. Eşik `1`
+olduğu için, devre kesici etkin olsaydı ikinci deneme zaten kesilmiş olurdu.
+
+Sağlık ucu ham denetim sonucunu gösterdi: `Healthy`, `detail: null`, 7 model —
+üç ardışık başarısızlığa rağmen devre kesici katmanı hiç eklenmedi. MT-OAI-081
+ile karşıtlığı tam: orada ham denetim başarılıyken `Unhealthy` görünüyordu.
+
+`IsEnabled` kontrolünün `EnsureRequestAllowed`/`RecordFailure`'ı baştan devre
+dışı bıraktığı, iki uçtan (çalıştırma ve sağlık) birden doğrulandı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OAI-084 — İçerik guard engellemesi devre kesici tarafından hata SAYILMAZ
+
+**Gerçek sonuç**
+🚨 **Spec'in guard terimi bayat — `gizli-proje` DEĞİL, `confidential-project`.**
+Örnek uygulama `Program.cs:217`'de `options.DeniedTerms.Add("confidential-project")`
+diyor. Aşama 0'ın fixture adı süpürmesi (294 geçiş, 17 aile) bu terimi
+**atlamış**; DEVIR §7.1 tam olarak bu sınıfı "görürsen kusurdur, kaydet" diye
+işaretliyor. `Beklenen sonuç` ve `Girilecek veri` düzeltildi.
+
+⚠️ **Bu bayatlık sessiz bir yanlış-geçiş üretirdi.** `gizli-proje` ile koşulsa
+guard hiç devreye girmez, beş çağrı gerçek OpenAI'a çıkar ve **başarılı** olur;
+altıncı çağrı da başarılı olacağı için case "Geçti" görünür — ama kanıtladığı
+şey guard'ın engellemediğidir, devre kesicinin saymadığı değil. Case'in tüm
+değeri kaybolurdu.
+
+Doğru terimle, varsayılan ayarlarda (`Enabled=true`, `FailureThreshold=5`),
+önce başarılı bir çalıştırmayla devre sıfırlandı:
+
+```
+engelleme 1 | 0.055 sn | TraconContentBlockedException
+engelleme 2 | 0.046 sn | TraconContentBlockedException
+engelleme 3 | 0.046 sn | TraconContentBlockedException
+engelleme 4 | 0.045 sn | TraconContentBlockedException
+engelleme 5 | 0.046 sn | TraconContentBlockedException
+```
+
+**Beşi de ~46 ms** — hiçbiri ağa çıkmadı. `ContentGuard`'ın boru hattında
+`CircuitBreaker.Wrap`'ten önce durduğu doğrulandı. Mesaj:
+`Content was blocked by the 'pattern' guard...`
+
+Altıncı, geçerli çağrı:
+
+```
+{'run': 1, 'update': 5, 'done': 1} -> "tamam"   (0.72 sn)
+/api/models/health/openai?refresh=true -> Healthy, detail: null
+```
+
+**Eşik tam olarak 5 ve engelleme tam olarak 5 kez oldu** — sayılsalardı devre
+kesin açılırdı. Açılmadı: altıncı çağrı gerçek OpenAI'a çıktı (0.72 sn; kapalı
+devre 57 ms'ti) ve sağlık `Healthy`, `detail: null` döndü. Yani ne çalıştırma
+yolunda ne sağlık overlay'inde devrenin açıldığına dair bir iz var.
+
+`TraconContentBlockedException`'ın `CircuitBreakingChatClient`'ın özel `catch`
+bloğunda hata sayılmadan yeniden fırlatıldığı (K-322) iki uçtan doğrulandı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OAI-090 — API anahtarı hiçbir HTTP çıktısında görünmez
+
+**Gerçek sonuç**
+🚨 **Kritik case — geçti.** Spec dört uç tarar; **altı** uç tarandı ve **iki**
+anahtar birden arandı (OpenAI + OpenRouter), spec yalnız OpenAI'ı istiyordu.
+Arama `grep -cF` ile ham gövde üzerinde yapıldı.
+
+```
+/api/models                  bayt=4538    OpenAI=0  OpenRouter=0
+/api/models/health           bayt=8035    OpenAI=0  OpenRouter=0
+/api/models/health/openai    bayt=268     OpenAI=0  OpenRouter=0
+/api/tools                   bayt=5110    OpenAI=0  OpenRouter=0
+/api/diagnostics             bayt=1637    OpenAI=0  OpenRouter=0
+/api/agents                  bayt=10530   OpenAI=0  OpenRouter=0
+```
+
+Altı ucun altısında sıfır. Bayt sayıları da yazıldı: gövdeler **boş değil**
+(4.5–10.5 KB), yani "sıfır eşleşme" boş yanıttan gelmiyor — gerçekten dolu
+yanıtlar tarandı.
+
+Sapma (skill §1.2): anahtarlar `user-secrets`'tan **okundu** (yazma yok) ve
+şeridin ortam değişkeninden alındı; hiçbir dosyaya, hiçbir çıktıya yazılmadı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OAI-092 — `ConfigurationDiagnostic` yalnız çözülüp çözülmediğini taşır, DEĞER taşımaz
+
+**Gerçek sonuç**
+`GET /api/diagnostics` → `HTTP 200` (`401`/`403` değil, yani case atlanmadı).
+`configuration` dizisinin **tamamı**:
+
+```json
+{"key": "Tracon:Providers:OpenAI:ApiKey",    "resolved": true, "hint": null}
+{"key": "Tracon:Providers:Anthropic:ApiKey", "resolved": true, "hint": null}
+{"key": "Tracon:Providers:Google:ApiKey",    "resolved": true, "hint": null}
+```
+
+Üç beklentinin üçü de doğrulandı:
+
+1. **`Tracon:Providers:OpenAI:ApiKey` tam olarak bir kez.** `openai` ve
+   `openai-responses` iki ayrı sağlayıcı olarak kayıtlı olmasına rağmen tek
+   girdi var — `TraconDiagnosticsCollector`'ın `seenConfigurationKeys`
+   tekilleştirmesi çalışıyor. `resolved: true`, `hint: null`.
+2. **`key` yalnız ayar yolunu taşıyor**, değeri değil. MT-OAI-090'ın taraması
+   bu ucu da kapsadı ve sıfır eşleşme verdi.
+3. **`openrouter` için hiçbir girdi yok.** Listedeki üçü de `UseOpenAI` /
+   `UseAnthropic` / `UseGoogle` ile kaydedilmiş sağlayıcılar;
+   `UseOpenAICompatible` `configurationSectionKey: null` geçtiği için (K-249)
+   hiç bildirmiyor.
+
+⚠️ Bu aynı zamanda K-249'un **istenen** yan etkisini gösteriyor: adlandırılmış
+sağlayıcının ayar yolu tüketicinin kendi seçimidir, Tracon onu tahmin edip
+teşhise yazmaz.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OAI-093 — Konsol günlüğünde API anahtarı görünmez
+
+**Gerçek sonuç**
+🚨 **Kritik case — geçti.** Spec beş saniyelik taze bir koşum ister; bunun
+yerine **oturum boyunca biriken altı günlüğün tamamı** tarandı — 13.310 satır,
+onlarca gerçek sağlayıcı çağrısı, iki kritik hata yolu (404 ve 402) ve tam
+yığın izleri dâhil. Bu, spec'in istediğinden çok daha geniş bir örnektir.
+
+```
+app.log      satir=10034   OpenAI=0  OpenRouter=0
+cb.log       satir= 1504   OpenAI=0  OpenRouter=0
+cb083.log    satir= 1253   OpenAI=0  OpenRouter=0
+oai074.log   satir=   82   OpenAI=0  OpenRouter=0
+ttl.log      satir=   82   OpenAI=0  OpenRouter=0
+oai021b.log  satir=  355   OpenAI=0  OpenRouter=0
+```
+
+**Kısmi sızıntı da arandı** — tam anahtar yerine yalnız **ilk 12 karakteri**:
+`app.log` içinde OpenAI için `0`, OpenRouter için `0`. Yani anahtar kırpılmış
+ya da maskelenmiş bir biçimde de görünmüyor. Tam eşleşme aramak tek başına
+yetmezdi: `sk-proj-abc…` gibi bir önek loglansa tam arama onu kaçırırdı.
+
+`Logging:LogLevel:Default` = `Information` (varsayılan, değiştirilmedi) —
+yani case'in ön koşulu sağlandı ve bu ayrıntı düzeyinde bile sızıntı yok.
+
+⚠️ Bu ölçümün ağırlığı MT-OAI-057'den geliyor: OpenRouter'ın hata mesajı
+günlüğe bir **anahtar yönetim URL'si** yazdı. Yani günlüğe yabancı içerik
+gerçekten akıyor; buna rağmen anahtarın kendisi hiçbir yerde yok.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OAI-091 — API anahtarı doğrulama/hata mesajlarında görünmez
+
+**Gerçek sonuç**
+Bu case ayrı çağrı yapmaz; bu turun önceki kayıtlarını bu açıdan yeniden okur.
+Ön koşulun saydığı dört case (MT-OAI-010 · 011 · 052 · 073) ve ayrıca 012 · 013
+· 043 · 057 koşuldu. Ürettikleri her hata metni gözden geçirildi:
+
+| Case | Üretilen mesaj | Anahtar değeri var mı |
+|---|---|---|
+| MT-OAI-010 | `...Endpoint must be an absolute address. Received value: 'sadece-bir-yol'.` | hayır |
+| MT-OAI-011 | `...Timeout must be greater than zero. Received value: 00:00:00.` | hayır |
+| MT-OAI-012 | `The model name for ...Models[3] cannot be empty.` | hayır |
+| MT-OAI-013 | `...ApiKey cannot be empty. Pass the key to the \`UseOpenAI(apiKey)\` call, or define 'Tracon:Providers:OpenAI:ApiKey' in \`dotnet user-secrets\`.` | hayır — yalnız **ayar yolunun adı** |
+| MT-OAI-043 | `The model provider request failed.` (`upstream_error`) | hayır |
+| MT-OAI-052 | `...Endpoint is required for compatible providers...` | hayır |
+| MT-OAI-057 | `The model provider request failed.` | hayır |
+| MT-OAI-073 | `Connection error (ConnectionError).` | hayır — sahte anahtar `sk-cok-gizli-test-anahtari-12345` de **yok** |
+
+Hiçbirinde `sk-` ile başlayan gerçek bir OpenAI anahtarı, `sk-or-` ile başlayan
+bir OpenRouter anahtarı geçmiyor. MT-OAI-013'ün mesajı beklendiği gibi yalnız
+**ayar anahtarının adını** taşıyor, değerini değil — K-059'un sözleşmesi tam
+budur.
+
+**MT-OAI-073 bu case'in en güçlü tanığıdır:** orada anahtar *bilinen bir
+dizgiydi* (`sk-cok-gizli-test-anahtari-12345`) ve hata yolu doğrudan o
+sağlayıcıya aitti; `grep -F` ile arandı, bulunamadı. Gerçek anahtarlarla yapılan
+arama ise MT-OAI-090 (altı HTTP ucu) ve MT-OAI-093 (13.310 satır günlük)
+kayıtlarındadır — ikisi de sıfır.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
