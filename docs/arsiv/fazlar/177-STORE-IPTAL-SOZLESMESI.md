@@ -40,12 +40,31 @@ Bir tüketici `UpsertAsync(score, alreadyCancelledToken)` çağırdığında ne 
 - [x] Eşleme ölçüldü: 32 sözleşme = 28 `TenantIsolationContract` türevi + 4 doğrudan türev. Karşılıksız sözleşme **çıkmadı**; iki bellek içi muafiyet zaten `StoreContractCoverageTests.Exemptions` içinde belgeliydi (sapma 6)
 - [x] `PublicAPI.Shipped.txt` ölçüldü: on yedi pakette de **17 bayt** (`#nullable enable`) — boş. "Bugün ucuz" iddiası doğrulandı (K-603)
 - [x] `python3 scripts/kapi.py kapanis --taban 9816bc46` yeşil
+
+  🚨 İlk koşum `ObjectToolAotPackageTests`'te düştü ve bu **koda ait değildi**:
+  hata `System.IO.IOException: ... Tracon.Abstractions.pdb ... being used by
+  another process` taşıyordu — Faz 176'nın kaydettiği AOT publish `.pdb`
+  çekişmesinin aynısı ([`hafiza/test-kosum-tuzaklari.md`](../../hafiza/test-kosum-tuzaklari.md)).
+  Kapının kendi triyajı da bunu söyledi (*"Hepsi izole geçti: tam koşum kaynak
+  çekişmesi sınıfı"*). Belgeli ayırt etme uygulandı: `Tracon.Package.Tests`
+  izole koşuldu → **53/53 yeşil**, ardından kapı tekrar koşuldu
 - [x] `samples/Tracon.Api` koşuldu; gerçek çıktı **Örnek Uygulama Koşumu** bölümünde
 - [x] `secret` taraması: `Tarama: ✅ temiz (6 işaretli sentetik credential atlandı)`
 - [x] `MT-RES-091`, `MT-RES-092` eklendi; `00-INDEKS.md` sayımı 53 → 55. 091'in otomatik karşılığı dört koşumda da koştu; 092'nin otomatik karşılığı `StoreCancellationContractSelfProofTests` (elle bozma denemesi 👤)
 - [x] `faz-denetim` koşuldu; **2 🔴 · 3 🟡 · 2 🟢** bulgunun tamamı kapatıldı veya adaya çevrildi — 🔴 kalmadı. Ayrıntı **Denetim Bulguları** bölümünde
 - [x] `docs-site/guides/write-your-own-store.md` genişletildi; `llms-full.txt` yeniden üretildi
-- [x] 🚨 **Yayın provası** (`kapi.py yayin --kuru`) — sevk edilen sözleşme büyüdüğü için zorunlu. `samples/Tracon.Samples.FileRunStore` bu yüzden düzeltildi (sapma 8)
+- [x] 🚨 **Yayın provası** (`kapi.py yayin --kuru`) — sevk edilen sözleşme büyüdüğü için zorunlu. Yeşil: *"6 exact-version packed sample ve Native AOT smoke: 0.0.0-preview.0.778"*. `JsonFileRunStoreContractTests` **99/99** geçti; `samples/Tracon.Samples.FileRunStore` bu prova sayesinde düzeltildi (sapma 8)
+
+  Provanın üç ön koşulu ölçüldü ve üçü de **koda ait değildi**:
+  1. **Temiz çalışma ağacı** — `TRACON0004` kirli ağaçta paketlemeyi reddeder. Prova commit'ten **sonra** koşar.
+  2. **Sürümsüz koşum** — `--surum 1.0.0-preview.N` gerçek yayın yolunu açar ve `CHANGELOG.md`'de o sürümün bölümünü ister. Faz provası `--surum` **vermez**; MinVer'in etiketlenmemiş değeri (`0.0.0-preview.0.778`) kapıyı atlar, bu bilinçli tasarımdır (Faz 123.3).
+  3. **Temiz yerel feed** — `artifacts/package/release` eski koşumlardan 477 dosya taşıyordu ve prova "stale Tracon packages" ile durdu. Yalnız güncel sürüm bırakıldı (`artifacts/` `.gitignore`'dadır).
+
+  Ayrıca AOT adımı **ortam** hatasıyla düştü ve düzeltmesi koşum başınadır:
+  `DEVELOPER_DIR=/Library/Developer/CommandLineTools`. Bu, Faz 176'da kayda geçen
+  Xcode-eski-linker + CLT-yeni-SDK tuzağının aynısıdır
+  ([`hafiza/test-kosum-tuzaklari.md`](../../hafiza/test-kosum-tuzaklari.md)); CI
+  Ubuntu'da koştuğu için etkilenmez
 
 ### Doğrulama komutları
 
