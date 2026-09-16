@@ -164,7 +164,8 @@ cd samples/Tracon.Api && dotnet run
 
 **Beklenen sonuç**
 - Uygulama başlamayı reddeder.
-- Hata mesajı `'public' olamaz` ve `K-013` ifadelerini taşır.
+- Hata mesajı `cannot be 'public'` ve `decision K-013` ifadelerini taşır.
+  (Metin İngilizce'dir — K-228 dil sınırı: pakete giren her şey İngilizce.)
 - Tüketicinin `public` şeması **hiçbir şekilde** değiştirilmez.
 
 **Doğrulama sorgusu**
@@ -216,7 +217,8 @@ dotnet run
 
 **Beklenen sonuç**
 - Üçü de uygulamanın başlamasını reddeder; hata mesajı aynı biçimdedir
-  (`gecerli bir tirnaksiz PostgreSQL tanimlayicisi degil`).
+  (`is not a valid unquoted PostgreSQL identifier`) ve reddedilen değeri
+  `Actual value: '...'` olarak yazar. (Metin İngilizce'dir — K-228.)
 - 3. denemede `DROP SCHEMA` **hiçbir zaman çalıştırılmaz** — doğrulama, adın SQL
   metnine yerleştirilmesinden ÖNCE gerçekleşir.
 
@@ -264,8 +266,8 @@ dotnet run   # baslar, Ctrl+C
 ```
 
 **Beklenen sonuç**
-- 1. ve 2. denemede hata mesajı `0 ile 3600 arasinda olmalidir` ifadesini ve
-  gönderilen değeri taşır.
+- 1. ve 2. denemede hata mesajı `must be between 0 and 3600` ifadesini ve
+  gönderilen değeri (`Actual value: ...`) taşır. (Metin İngilizce'dir — K-228.)
 - 3. ve 4. deneme başarıyla başlar.
 
 ---
@@ -301,6 +303,9 @@ dotnet new console -o . --force
 cp ~/tracon-manuel/uretec/nuget.config .
 SURUM=$(ls ~/tracon-local-feed/Tracon.PostgreSql.*.nupkg | sed 's#.*Tracon.PostgreSql\.##;s#\.nupkg##')
 dotnet add package Tracon.PostgreSql --version "$SURUM"
+# ConfigurationBuilder icin GEREKLI: Tracon yalnizca IConfiguration
+# abstraction'ini getirir, implementation paketini KASITLI olarak getirmez.
+dotnet add package Microsoft.Extensions.Configuration
 
 cat > Program.cs <<'EOF'
 using Tracon;
@@ -371,7 +376,11 @@ kaydeder.
 
 **Adımlar**
 1. Bağlantı dizesi verilmeden `UsePostgreSql` çağır.
-2. `NpgsqlDataSource`'u çözümlemeyi dene.
+2. `IOptions<TraconPostgreSqlOptions>.Value`'yu ve bir depoyu çözümlemeyi dene.
+
+> 🚨 `NpgsqlDataSource`'u çözümleme — Faz 110'dan beri public bir DI servisi
+> **değildir** ve `InvalidOperationException: No service for type` verir; bu
+> case'in sorusunu hiç sormadan düşersin.
 
 **Girilecek veri**
 ```bash
@@ -385,23 +394,22 @@ dotnet add package Tracon.PostgreSql --version "$SURUM"
 cat > Program.cs <<'EOF'
 using Tracon;
 using Microsoft.Extensions.DependencyInjection;
-using Npgsql;
+using Microsoft.Extensions.Options;
 
 var services = new ServiceCollection();
 services.AddTracon().UsePostgreSql(_ => { });
-
 var provider = services.BuildServiceProvider();
 
-try
+void Dene(string etiket, Action f)
 {
-    provider.GetRequiredService<NpgsqlDataSource>();
-    Console.WriteLine("🚨 istisna ATILMADI");
+    try { f(); Console.WriteLine($"{etiket}: 🚨 istisna ATILMADI"); }
+    catch (Exception ex) { Console.WriteLine($"{etiket}: {ex.GetType().FullName}\n  mesaj: {ex.Message}"); }
 }
-catch (Exception ex)
-{
-    Console.WriteLine($"istisna tipi: {ex.GetType().FullName}");
-    Console.WriteLine($"mesaj: {ex.Message}");
-}
+
+Dene("IOptions<TraconPostgreSqlOptions>.Value",
+    () => _ = provider.GetRequiredService<IOptions<TraconPostgreSqlOptions>>().Value);
+Dene("IAgentDefinitionStore (depo, gercek tuketici yolu)",
+    () => _ = provider.GetRequiredService<IAgentDefinitionStore>());
 EOF
 
 dotnet run -c Release
@@ -517,13 +525,18 @@ SELECT set_name, id, name FROM tracon.__migrations ORDER BY set_name, id;
 ```
 
 **Beklenen sonuç**
-- Açılış logu `Tracon 33 migration uyguladi. Sema: tracon.` satırını taşır
+- Açılış logu `Tracon applied 51 migration(s). Schema: tracon.` satırını taşır
   (örnek uygulama `EnableKnowledge: true` taşır, Faz 67 — bkz. MT-PG-062 knowledge
-  KAPALIYKEN davranışı ayrıca sınar).
-- `count(*)` **33** döner; `set_name` grubu **32** (`core`) ve **1** (`knowledge`) döner.
-- `core` seti `id 1`'den `id 33`'e sıralıdır ama **id 24 boştur** (0024_vector
+  KAPALIYKEN davranışı ayrıca sınar). Metin İngilizce'dir — K-228.
+- `count(*)` **51** döner; `set_name` grubu **50** (`core`) ve **1** (`knowledge`) döner.
+- `core` seti `id 1`'den `id 51`'e sıralıdır ama **id 24 boştur** (0024_vector
   çekirdekten `knowledge` setine taşındı, Faz 67, K-475 — sayı geri
-  dönüştürülmez); son satır `0033_inbound_triggers`'dır, toplam 32 satır.
+  dönüştürülmez); son satır `0051_run_score_evaluator_version`'dır, toplam 50 satır.
+
+> 🚨 **Bu sayılar migration eklendikçe artar.** Sabit sayıyı değil, yapıyı
+> doğrula: `core` = `Migrations/*.sql` dosya sayısı, `knowledge` =
+> `MigrationsKnowledge/*.sql` dosya sayısı, id 24 boş, birincil anahtar
+> `(set_name, id)`. Sayılar 2026-09-16'da ölçülmüştür.
   `knowledge` seti tek başına `id 1`, `0001_vector`'dir — `core`'un `id 1`'i
   (`0001_initial`) ile **çakışmaz**: birincil anahtar `(set_name, id)`'dir.
 
@@ -554,7 +567,7 @@ cd samples/Tracon.Api && dotnet run
 **Beklenen sonuç**
 - `"... migration uyguladi."` satırı **görünmez** (uygulanan migration sayısı
   0'dır; kod bu durumda log basmaz).
-- `__migrations` hâlâ **33** satır taşır (32 `core` + 1 `knowledge`).
+- `__migrations` hâlâ MT-PG-020'nin ölçtüğü satır sayısını taşır (2026-09-16: **51** = 50 `core` + 1 `knowledge`).
 - Uygulama normal başlar, hiçbir hata görünmez.
 
 ---
@@ -623,10 +636,10 @@ SELECT set_name, id, name, applied_at FROM tracon.__migrations ORDER BY set_name
 ```
 
 **Beklenen sonuç**
-- Açılış logu `Tracon 28 migration uyguladi.` yazar (32 çekirdek − 5 elle
-  uygulanmış + 1 knowledge).
+- Açılış logu `Tracon applied 46 migration(s).` yazar (50 çekirdek − 5 elle
+  uygulanmış + 1 knowledge). Sayı migration eklendikçe artar; formülü doğrula.
 - Hiçbir checksum uyuşmazlığı hatası oluşmaz.
-- `__migrations`'ta **33** satır vardır (32 `core` + 1 `knowledge`); id 1–5'in
+- `__migrations`'ta **51** satır vardır (50 `core` + 1 `knowledge`); id 1–5'in
   `set_name` değeri `core`'a **geriye dönük dolmuştur** ve `applied_at` elle
   yazılan zamandır, kalan çekirdek satırların `applied_at`'i uygulamanın az
   önceki açılış zamanıdır.
@@ -669,8 +682,9 @@ print(hashlib.sha256(data).hexdigest().upper())
 
 **Beklenen sonuç**
 - Uygulama başlamayı reddeder.
-- Konsolda `TraconException` görünür; mesaj `'0001_initial' migration'i
-  veritabaninda uygulanmis ancak dosyanin icerigi degismis` ifadesini taşır.
+- Konsolda `TraconException` görünür; mesaj `Migration '0001_initial' has been
+  applied to the database but the file's content has changed` ifadesini taşır.
+  (Metin İngilizce'dir — K-228.)
 - Mesaj hem veritabanındaki (bozuk) hem dosyadaki (doğru) checksum'ı gösterir.
 
 ---
@@ -708,11 +722,11 @@ SELECT count(*) FROM tracon.__migrations;
 ```
 
 **Beklenen sonuç**
-- Yalnız BİR terminalin logu `Tracon 33 migration uyguladi.` yazar; diğeri
+- Yalnız BİR terminalin logu `Tracon applied 51 migration(s).` yazar; diğeri
   0 migration uygular (log satırı görünmez) çünkü kilidi aldığında migration'lar
-  zaten bitmiştir.
+  zaten bitmiştir. Hangisinin kazandığı belirsizdir — ikisi de olabilir.
 - Hiçbir terminalde checksum hatası veya çökme olmaz.
-- `count(*)` tam olarak **33** döner (66 değil — birincil anahtar çakışması yoktur).
+- `count(*)` tam olarak **51** döner (102 değil — birincil anahtar çakışması yoktur).
 
 ---
 
@@ -744,14 +758,16 @@ cd samples/Tracon.Api && dotnet run
 ```bash
 curl -s -w "\nHTTP: %{http_code}\n" "http://localhost:5080/health"
 
+# 🚨 `echo` KULLANMA: gercek bir saglayici anahtari kayitliyken EchoModelProvider
+# kaydedilmez ve istek 400'de durur, veritabani yoluna hic ulasmaz.
 curl -s -X POST "$APU/api/agents" -H "$APB" -H "content-type: application/json" \
-  -d '{"name":"manuel-migrationsiz","model":{"provider":"echo","model":"echo-1"}}' \
+  -d '{"name":"manuel-migrationsiz","model":{"provider":"openai","model":"gpt-4o-mini"}}' \
   -w "\nHTTP: %{http_code}\n"
 ```
 
 **Beklenen sonuç**
-- Uygulama başlar (çökmez); log `migration'lari otomatik uygulanmiyor` satırını
-  taşır.
+- Uygulama başlar (çökmez); log `migrations are not applied automatically`
+  satırını taşır. (Metin İngilizce'dir — K-228.)
 - `/health` **Unhealthy** döner (bekleyen migration var).
 - Agent kaydı isteği veritabanı hatasıyla (tablo yok) başarısız olur; HTTP kodu
   5xx'tir ama uygulama çökmez, sonraki istekler de aynı şekilde anlaşılır hata
@@ -769,7 +785,7 @@ curl -s -X POST "$APU/api/agents" -H "$APB" -H "content-type: application/json" 
 | **İlgili karar** | K-013 |
 
 **Ön koşul**
-- MT-PG-020 geçti (`tracon` şeması 28 migration'lı).
+- MT-PG-020 geçti (`tracon` şeması tam migration setiyle kurulu).
 
 **Adımlar**
 1. Şema adını `tracon_ikinci` olarak ayarla.
@@ -788,10 +804,10 @@ SELECT count(*) FROM tracon_ikinci.__migrations;
 ```
 
 **Beklenen sonuç**
-- Açılış logu yeni şema için `Tracon 28 migration uyguladi. Sema:
-  tracon_ikinci.` yazar.
-- Her iki şema da mevcuttur; her ikisinin de `__migrations`'ı **28** satır
-  taşır — birbirinden BAĞIMSIZDIR.
+- Açılış logu yeni şema için `Tracon applied 51 migration(s). Schema:
+  tracon_ikinci.` yazar. (Metin İngilizce'dir — K-228; sayı MT-PG-020'ninkiyle aynıdır.)
+- Her iki şema da mevcuttur; her ikisinin de `__migrations`'ı **aynı** satır
+  sayısını taşır — birbirinden BAĞIMSIZDIR.
 - Orijinal `tracon` şemasındaki veriler (varsa) dokunulmadan kalır.
 
 ---
@@ -848,14 +864,19 @@ WHERE attrelid = 'tracon.document_embeddings'::regclass AND attname = 'embedding
 
 **Adımlar**
 1. Agent tanımı kaydet.
-2. Agent'ı çalıştır (tool çağırmayan bir istekle — `echo` yeterli).
+2. Agent'ı çalıştır (tool çağırmayan bir istekle).
+
+> 🚨 Gerçek bir sağlayıcı anahtarı kayıtlıyken `echo` sağlayıcısı kayıtlı
+> **değildir** ve istek 400'de durur. Model adını örnek uygulamanın
+> varsayılanından al (`Tracon:Providers:OpenAI:DefaultModel`, bugün
+> `gpt-5.4-mini`) — rastgele bir OpenAI modeli projenin erişimi dışında olabilir.
 3. `audit_log` tablosunu tara.
 
 **Girilecek veri**
 ```bash
 curl -s -X POST "$APU/api/agents" -H "$APB" -H "content-type: application/json" -d '{
   "name": "manuel-denetim", "instructions": "Kisa yanit ver.",
-  "model": { "provider": "echo", "model": "echo-1" }
+  "model": { "provider": "openai", "model": "gpt-5.4-mini" }
 }'
 
 curl -s -X POST "$APU/api/agents/manuel-denetim/run" -H "$APB" \
@@ -909,19 +930,20 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
 var services = new ServiceCollection();
-services.AddTracon();
+// 🚨 UsePostgreSql ITraconBuilder uzerindedir, IServiceCollection uzerinde DEGIL.
+var tracon = services.AddTracon();
 
 // Tuketici KENDI uygulamasini UsePostgreSql()'DEN ONCE kaydeder.
 services.TryAddSingleton<IConversationBranchStore, SahteDalStore>();
 
-services.UsePostgreSql("Host=localhost;Port=55432;Database=tracon;Username=postgres;Password=tracon");
+tracon.UsePostgreSql("Host=localhost;Port=55432;Database=tracon;Username=postgres;Password=tracon");
 
 var resolved = services.BuildServiceProvider().GetRequiredService<IConversationBranchStore>();
 Console.WriteLine("Cozumlenen tip: " + resolved.GetType().FullName);
 
 internal sealed class SahteDalStore : IConversationBranchStore
 {
-    public ValueTask<ConversationBranchInfo> CreateBranchAsync(string tenantId, Guid parentConversationId, long? upToSequence, CancellationToken cancellationToken = default)
+    public ValueTask<ConversationBranch?> BranchAsync(string tenantId, Guid parentConversationId, long? upToSequence, CancellationToken cancellationToken = default)
         => throw new NotImplementedException("sahte uygulama - sadece kayit onceligi test eder");
 }
 EOF
@@ -962,9 +984,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
 var services = new ServiceCollection();
-services.AddTracon();
+var tracon = services.AddTracon();
 services.TryAddSingleton<IVectorSearchStore, SahteVektorStore>();
-services.UsePostgreSql("Host=localhost;Port=55432;Database=tracon;Username=postgres;Password=tracon");
+tracon.UsePostgreSql("Host=localhost;Port=55432;Database=tracon;Username=postgres;Password=tracon");
 
 var resolved = services.BuildServiceProvider().GetRequiredService<IVectorSearchStore>();
 Console.WriteLine("Cozumlenen tip: " + resolved.GetType().FullName);
@@ -1021,15 +1043,23 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
 var services = new ServiceCollection();
-services.AddTracon();
+var tracon = services.AddTracon();
 
-// Tuketici IRunStore'u ONCE, TryAdd ile kaydeder.
-services.TryAddSingleton<IRunStore, SahteRunStore>();
+// Tuketici IRunStore'u ONCE, TryAdd ile kaydeder. FABRIKA kaydi kullaniliyor:
+// IRunStore'un 14 uyesini elle yazmak bu case'in olctugu onceligi degistirmez.
+services.TryAddSingleton<IRunStore>(_ => throw new NotImplementedException("TUKETICININ kaydi cozuldu"));
 
-services.UsePostgreSql("Host=localhost;Port=55432;Database=tracon;Username=postgres;Password=tracon");
+tracon.UsePostgreSql("Host=localhost;Port=55432;Database=tracon;Username=postgres;Password=tracon");
 
-var resolved = services.BuildServiceProvider().GetRequiredService<IRunStore>();
-Console.WriteLine("Cozumlenen tip: " + resolved.GetType().FullName);
+try
+{
+    var resolved = services.BuildServiceProvider().GetRequiredService<IRunStore>();
+    Console.WriteLine("Cozumlenen tip: " + resolved.GetType().FullName);
+}
+catch (NotImplementedException ex)
+{
+    Console.WriteLine("🚨 TUKETICININ kaydi kazandi: " + ex.Message);
+}
 EOF
 
 dotnet run -c Release
@@ -1194,7 +1224,13 @@ using Tracon;
 using Microsoft.Extensions.DependencyInjection;
 
 var services = new ServiceCollection();
-services.AddTracon().UsePostgreSql("Host=localhost;Port=55432;Database=tracon;Username=postgres;Password=tracon");
+// 🚨 EnableKnowledge KAPALIYKEN IVectorSearchStore fabrikasi null doner ve
+// GetRequiredService "No service for type ... has been registered" atar.
+services.AddTracon().UsePostgreSql(o =>
+{
+    o.ConnectionString = "Host=localhost;Port=55432;Database=tracon;Username=postgres;Password=tracon";
+    o.EnableKnowledge = true;
+});
 
 var provider = services.BuildServiceProvider();
 var store = provider.GetRequiredService<IVectorSearchStore>();
@@ -1252,7 +1288,11 @@ using Microsoft.Extensions.DependencyInjection;
 float[] Axis(int index) { var v = new float[1536]; v[index] = 1f; return v; }
 
 var services = new ServiceCollection();
-services.AddTracon().UsePostgreSql("Host=localhost;Port=55432;Database=tracon;Username=postgres;Password=tracon");
+services.AddTracon().UsePostgreSql(o =>
+{
+    o.ConnectionString = "Host=localhost;Port=55432;Database=tracon;Username=postgres;Password=tracon";
+    o.EnableKnowledge = true;   // 🚨 bkz. MT-PG-041
+});
 var store = services.BuildServiceProvider().GetRequiredService<IVectorSearchStore>();
 
 await store.UpsertAsync("kiraci-alfa", "manuel-koleksiyon", "manuel-kaynak", new[]
@@ -1321,7 +1361,11 @@ using Microsoft.Extensions.DependencyInjection;
 float[] Axis(int index) { var v = new float[1536]; v[index] = 1f; return v; }
 
 var services = new ServiceCollection();
-services.AddTracon().UsePostgreSql("Host=localhost;Port=55432;Database=tracon;Username=postgres;Password=tracon");
+services.AddTracon().UsePostgreSql(o =>
+{
+    o.ConnectionString = "Host=localhost;Port=55432;Database=tracon;Username=postgres;Password=tracon";
+    o.EnableKnowledge = true;   // 🚨 bkz. MT-PG-041
+});
 var store = services.BuildServiceProvider().GetRequiredService<IVectorSearchStore>();
 
 await store.UpsertAsync("kiraci-alfa", "siralama-testi", "eksen-0", new[] { new VectorChunk { Index = 0, Content = "eksen 0", Embedding = Axis(0) } });
@@ -1381,7 +1425,11 @@ using Microsoft.Extensions.DependencyInjection;
 float[] Axis(int index) { var v = new float[1536]; v[index] = 1f; return v; }
 
 var services = new ServiceCollection();
-services.AddTracon().UsePostgreSql("Host=localhost;Port=55432;Database=tracon;Username=postgres;Password=tracon");
+services.AddTracon().UsePostgreSql(o =>
+{
+    o.ConnectionString = "Host=localhost;Port=55432;Database=tracon;Username=postgres;Password=tracon";
+    o.EnableKnowledge = true;   // 🚨 bkz. MT-PG-041
+});
 var store = services.BuildServiceProvider().GetRequiredService<IVectorSearchStore>();
 
 await store.UpsertAsync("kiraci-alfa", "paylasimli-koleksiyon", "ortak-kaynak", new[] { new VectorChunk { Index = 0, Content = "ALFA'nin gizli belgesi", Embedding = Axis(0) } });
@@ -1431,7 +1479,11 @@ using Microsoft.Extensions.DependencyInjection;
 float[] Axis(int index) { var v = new float[1536]; v[index] = 1f; return v; }
 
 var services = new ServiceCollection();
-services.AddTracon().UsePostgreSql("Host=localhost;Port=55432;Database=tracon;Username=postgres;Password=tracon");
+services.AddTracon().UsePostgreSql(o =>
+{
+    o.ConnectionString = "Host=localhost;Port=55432;Database=tracon;Username=postgres;Password=tracon";
+    o.EnableKnowledge = true;   // 🚨 bkz. MT-PG-041
+});
 var store = services.BuildServiceProvider().GetRequiredService<IVectorSearchStore>();
 
 await store.UpsertAsync("kiraci-alfa", "silme-testi", "silinecek-kaynak", new[]
@@ -1483,7 +1535,11 @@ using Microsoft.Extensions.DependencyInjection;
 float[] Axis(int index) { var v = new float[1536]; v[index] = 1f; return v; }
 
 var services = new ServiceCollection();
-services.AddTracon().UsePostgreSql("Host=localhost;Port=55432;Database=tracon;Username=postgres;Password=tracon");
+services.AddTracon().UsePostgreSql(o =>
+{
+    o.ConnectionString = "Host=localhost;Port=55432;Database=tracon;Username=postgres;Password=tracon";
+    o.EnableKnowledge = true;   // 🚨 bkz. MT-PG-041
+});
 var store = services.BuildServiceProvider().GetRequiredService<IVectorSearchStore>();
 
 await store.UpsertAsync("kiraci-alfa", "mesafe-testi", "yakin", new[] { new VectorChunk { Index = 0, Content = "yakin", Embedding = Axis(0) } });
@@ -1545,9 +1601,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/knowledge/gecerli-koleksiy
 
 **Beklenen sonuç**
 - 1. istek **400** döner; hata mesajı geçersiz koleksiyon adını taşır.
-- 2. istek de **400** döner ama FARKLI bir mesajla (`gomu uzunlugu` ifadesini
-  taşır — embedding uzunluğu 1, depo boyutu 1536) — bu, iki doğrulamanın
-  BAĞIMSIZ çalıştığını kanıtlar.
+- 2. istek de **400** döner ama FARKLI bir mesajla (`embedding length`
+  ifadesini taşır — embedding uzunluğu 1, depo boyutu 1536) — bu, iki
+  doğrulamanın BAĞIMSIZ çalıştığını kanıtlar. (Metin İngilizce'dir — K-228.)
 
 ### MT-PG-050 — `/health` PostgreSQL erişilemezken Unhealthy döner
 

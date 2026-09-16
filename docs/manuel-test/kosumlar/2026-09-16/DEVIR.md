@@ -3,8 +3,8 @@
 > **Bu turu devralan oturum ÖNCE burayı okur.** Turun durumu, değişmez
 > kuralları, ortamı ve sıradaki işi taşır.
 >
-> **Durum:** Aşama 1 sürüyor · **dosya 01 ve 02 KAPANDI** (178 case) · kod `7e3a4de7`'de donuk
-> **Son güncelleme:** 2026-09-16 (oturum 7)
+> **Durum:** Aşama 1 sürüyor · **dosya 01 ve 02 KAPANDI**, dosya 03 yarıda (208 case) · kod `7e3a4de7`'de donuk
+> **Son güncelleme:** 2026-09-16 (oturum 8)
 
 ---
 
@@ -24,13 +24,13 @@
 
 ## 2. Nerede duruyoruz
 
-Aşama 0 (tazeleme) bitti. Tur açıldı ve zincirin **ilk iki ailesi kapandı**:
-`01-KURULUM-VE-PAKETLEME.md` (81 case) ve `02-CEKIRDEK-VE-KATALOG.md`
-(97 case) — toplam **178 case**.
+Aşama 0 (tazeleme) bitti. Tur açıldı, zincirin **ilk iki ailesi kapandı**
+(`01-KURULUM-VE-PAKETLEME.md` 81 case · `02-CEKIRDEK-VE-KATALOG.md` 97 case) ve
+üçüncüsü **yarılandı** (`03-KALICILIK-POSTGRESQL.md` 30/50) — toplam **208 case**.
 
 ```mermaid
 flowchart LR
-    A["Asama 0 - Tazeleme<br/>BITTI"] --> B["Asama 1 - Tur<br/>SURUYOR - 2/36 aile"]
+    A["Asama 0 - Tazeleme<br/>BITTI"] --> B["Asama 1 - Tur<br/>SURUYOR - 2.5/36 aile"]
     B --> C["Asama 2 - Kapanis<br/>beklemede"]
     C --> D["YAYIN-HAZIRLIK<br/>Adim 2 -> 10"]
 ```
@@ -39,18 +39,19 @@ flowchart LR
 |---|---|---|---|
 | `01-KURULUM-VE-PAKETLEME.md` | 72 | 4 | 5 |
 | `02-CEKIRDEK-VE-KATALOG.md` | 92 | 4 | 1 |
-| **toplam** | **164** | **8** | **6** |
+| `03-KALICILIK-POSTGRESQL.md` (30/50) | 29 | 1 | 0 |
+| **toplam** | **193** | **9** | **6** |
 
 Kayıt dosyaları `kosumlar/2026-09-16/` altındadır; her birinin **devir notu
 başındadır** ve oturum oturum birikir.
 
 🚨 **Açık bulgular:** `HATA-S1-001..005` · `HATA-S1-007` (yayın hattını
-bloklar — aşağıda) · `HATA-S1-008..014` (dosya 02, kayıt dosyasında).
-`HATA-S1-006` yanlış pozitif çıktı ve kapandı.
+bloklar — aşağıda) · `HATA-S1-008..014` (dosya 02) · `HATA-S1-015` (dosya 03).
+Hepsi ilgili kayıt dosyasındadır. `HATA-S1-006` yanlış pozitif çıktı ve kapandı.
 
-⚠️ **`00-INDEKS.md` iki yerde bayat** (dosya 02'de ölçüldü, düzeltilmedi):
-§4 "33 migration" der → bugün **51**; §3.2 tool tablosu 4 tool listeler →
-bugün **10**.
+⚠️ **`00-INDEKS.md` §3.2 bayat:** tool tablosu 4 tool listeler → bugün **10**.
+(§4'ün "33 migration" bayatlığı **oturum 8'de kapandı** — 50 çekirdek + 1
+knowledge = 51 olarak düzeltildi ve sabit sayıya güvenmeme uyarısı eklendi.)
 
 🚨 **`HATA-S1-007` — yayın provası hiçbir sürümle yeşil olamaz.**
 `scripts/kapi.py` hedef sürüm için `CHANGELOG.md`'de `## [<sürüm>]` bölümü
@@ -145,15 +146,22 @@ hiçbir ailenin sonucu okunmaz. Paralel şeritler ancak beşi yeşil bitince aç
 | 5 | `07-HTTP-YONETIM-API.md` | 43 | 2 |
 
 **Sıradaki oturumun işi:** `ap-s1`'de `03-KALICILIK-POSTGRESQL.md`,
-ilk case'inden başla. Dosya 01 ve 02 kapandı — onlara dönme.
+**`MT-PG-050`'den** devam et (`050-053` bloğu, sonra `060-075`). `001..047`
+koşuldu — onlara dönme. Ortam notları ve MT-PG-050'nin kullanıcı kararı o
+dosyanın **devir notundadır**; önce onu oku.
 
 | Aile | Durum |
 |---|---|
 | `01-KURULUM-VE-PAKETLEME.md` | ✅ 81/81 |
 | `02-CEKIRDEK-VE-KATALOG.md` | ✅ 97/97 |
-| `03-KALICILIK-POSTGRESQL.md` | ⬜ sıradaki · 50 case · 2 oturum |
+| `03-KALICILIK-POSTGRESQL.md` | 🔶 yarıda · **30/50** · `050`'den devam |
 | `05-SAGLAYICI-OPENAI.md` | ⬜ 40 case · 2 oturum |
 | `07-HTTP-YONETIM-API.md` | ⬜ 43 case · 2 oturum |
+
+🚨 **Dosya 03'ten taşınan kural:** bu dosyanın neredeyse her case'i
+`dotnet user-secrets set` yazar — hepsi ortam değişkenine çevrilir (skill §1.2).
+Model adı **`gpt-5.4-mini`**'dir; rastgele bir OpenAI modeli `403 model_not_found`
+verir. Ayrıntı o dosyanın devir notunda.
 
 🚨 **Dosya 02'den taşınan üç ortam kuralı** (ayrıntı o dosyanın devir notunda):
 `echo` sağlayıcısı yalnız OpenAI anahtarı **yokken** kayıtlanır · `/run` yanıtı
