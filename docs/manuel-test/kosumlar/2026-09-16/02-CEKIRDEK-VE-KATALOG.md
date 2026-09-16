@@ -1570,3 +1570,339 @@ hiçbir yönde sızma yok. Anahtar kültürsüz olsaydı 2. çağrı Türkçe, 3
 
 ---
 
+## MT-CORE-081 — 👤 Agent editöründe dil sekmesi; sürüm diff'i iki dili de gösterir
+
+**Gerçek sonuç** (Playwright · `http://localhost:5081/tracon`)
+
+**1) Panel** — `/agents/manuel-kultur/edit`, "Instructions" altında
+"Instructions by culture":
+```
+[textbox placeholder="tr" değer="tr"]  [Remove culture]
+[textbox: "Kisa cevap ver ve TAMAMEN TURKCE yaz."]
+[Add culture]
+yardim metni: "A culture tag such as \"en\" or \"tr\". A run whose requested
+               culture matches none of these uses the instructions above."
+```
+Her kültür satırı için **bir dil kodu alanı ve bir metin alanı** var ✅
+
+**2) Satır eklendi ve kaydedildi:** `de` / `Kurz antworten.` →
+"Save new version" → agent detayına dönüldü, rozet **`db · v2`**.
+Tanım JSON'u: `"instructionsByCulture": { "de": "Kurz antworten.",
+"tr": "Kisa cevap ver ve TAMAMEN TURKCE yaz." }` ✅ yeni sürüm oluştu
+
+**3) Sürüm karşılaştırma** — v1 ve v2 seçildi:
+```
+Instructions        1 | 1 | Answer briefly and ENTIRELY IN ENGLISH.   (degismedi)
+Instructions (de)   1 | + | Kurz antworten.                           ← EKLENEN
+Instructions (tr)   1 | 1 | ...                                       (degismedi)
+```
+`de` için **ayrı bir "Instructions (de)" bölümü** belirdi ve eklenen metin
+`+` ile vurgulandı ✅
+
+**4) Dil değişimi (EN → TR)** — başlıktaki `en` düğmesi:
+
+| İngilizce | Türkçe |
+|---|---|
+| Summary | Özet |
+| Instructions | Talimatlar |
+| **Instructions (de)** | **Talimatlar (de)** |
+| Version history | Sürüm geçmişi |
+| Definition / Copy | Tanım / Kopyala |
+| Edit / Delete / Roll back | Düzenle / Sil / Geri al |
+| "Comparing v1 → v2" | "v1 → v2 karşılaştırılıyor." |
+| tooltip: "Stored definition, version 2." | "Saklanan tanım, sürüm 2." |
+
+Panel etiketleri, tablo başlıkları **ve tooltip'ler** çevrildi ✅
+
+🚨 **Doğru olan ayrım:** agent'ın **içeriği** çevrilmedi —
+`"Answer briefly and ENTIRELY IN ENGLISH."` her iki dilde de aynen duruyor.
+K-228'in çizgisi tam burada: çeviri konsol yüzeyine ait, kullanıcının verisine
+değil.
+
+**Konsol:** her sayfada `browser_console_messages` kontrol edildi. Tek tekrar
+eden hata `HATA-S1-004`'ün CSP ihlali (oturum 2'de kaydedilmişti) —
+**bağımsız olarak doğrulandı**:
+```
+Executing inline script violates the following Content Security Policy
+directive 'script-src 'self''. ... The action has been blocked.
+@ http://localhost:5081/tracon:41
+```
+📋 **Yeni bilgi:** bu hata **ölümcül değil** — konsol tümüyle çalışıyor
+(token girişi, gezinme, düzenleme, kaydetme, diff, dil değişimi hepsi çalıştı).
+`HATA-S1-004`'ün etkisi bu turda ilk kez sınırlandırılmış oldu.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## Parametre bloğu (082–086) — ortak kurulum
+
+`PARAM_AGENT` = `manuel-param` (201):
+```json
+{ "name": "manuel-param",
+  "instructions": "Musteri: {{musteri}}. Kisa cevap ver.",
+  "model": { "provider": "openai", "model": "gpt-5.4-mini" },
+  "parameters": [ { "name": "musteri", "kind": "Text", "required": true } ] }
+```
+
+⚠️ **Spec'te eksik alan:** `parameters` öğesi `kind` **zorunlu** alanını
+taşımalıdır (`AgentParameter.cs:28`, `AgentParameterKind`: `Text · Number ·
+Boolean`). `kind` olmadan istek `400 "missing required properties including:
+'kind'"` döner. Ön koşul düzeltildi.
+
+---
+
+## MT-CORE-082 — Zorunlu parametre eksikken `run` başlamaz; ad hatada geçer
+
+**Gerçek sonuç**
+```
+POST .../manuel-param/run       -> HTTP 400
+POST .../manuel-param/estimate  -> HTTP 400
+
+Iki govde de BIREBIR ayni bicimde:
+{ "title": "Invalid run parameters",
+  "detail": "Missing required parameter 'musteri'.",
+  "missingParameters": ["musteri"],
+  "unknownParameters": [],
+  "tooLongParameters": [] }
+```
+Beklentilerin hepsi tuttu: iki uç da 400 · `missingParameters` `"musteri"`
+içeriyor · gövde biçimi **aynı**, yani tek bir doğrulayıcı
+(`AgentParameterValidator`) ikisini de besliyor. Üç dizi alanı da her yanıtta
+mevcut — tüketici hepsini tek şekilde okuyabiliyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-083 — Fazladan parametre sessizce yutulmaz
+
+**Gerçek sonuç**
+```
+parameters: {"musteri":"Acme","musteriii":"oops"} -> HTTP 400
+  "detail": "Unknown parameter 'musteriii'.",
+  "unknownParameters": ["musteriii"]
+```
+Koşu başlamadı, model çağrılmadı. Yazım hatası taşıyan bir parametre adı
+üretimde sessizce kaybolmuyor — `musteri` doğru olsa bile istek tümden
+reddediliyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-084 — Değer JSON yapısını bozmaz
+
+**Gerçek sonuç**
+```
+agent: manuel-json · instructions: "Ornek: {\"customer\": \"{{musteri}}\"}. ..."
+run parameters: {"musteri": "a\"b\\c"}   (tirnak + ters bolu)
+  -> HTTP 200 · yanit "Selam!"  · saglayici ayristirma hatasi YOK
+(iki kez kosuldu, ikisi de basarili)
+```
+
+**Case'in asıl iddiası TUTTU:** tırnak ve ters bölü taşıyan bir değer, JSON
+örneği içeren bir talimata gömüldüğünde sağlayıcı isteği bozulmadı. Kaçış
+çalışmasaydı istek hatalı JSON olur ve koşu düşerdi.
+
+📋 **İkinci adım bu ortamda doğrulanamadı.** "Kayıtlı girdi metninde `a"b\c`
+kaçırılmış biçimde görünür" için talimat metninin bir yerde okunabilir olması
+gerekiyor; bugün **hiçbir yerde yok**:
+
+| Kaynak | Sonuç |
+|---|---|
+| `GET /api/runs/{id}` | talimat alanı taşımıyor |
+| `mt_s1.run_events.payload` | 5 olayın **beşinde de** `NULL` |
+| aynısı `Tracon__Observability__RecordSensitiveData=true` ile | yine `NULL` |
+| trace | OTLP collector yapılandırılmamış |
+
+`MT-CORE-063` zaten istem/yanıt metinlerinin **span'lere** yazıldığını söylüyor;
+`run_events` onları hiç taşımıyor. Yani bu adım bir trace collector ister.
+`Beklenen sonuç`'a bu ön koşul eklendi (skill §1.1).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-085 — Paylaşılan talimat bloğu prepend edilir; bloğa referans veren blok reddedilir
+
+**Gerçek sonuç**
+```
+1) house-rules olusturuldu (201)
+2) shared-e2e olusturuldu (201) · sharedInstructionsName: "house-rules"
+   run -> HTTP 200, agent fatura sorusunu yanitladi
+   => derleme BASARILI (cozumleme derlemeyi tetikler)
+3) house-rules'a sharedInstructionsName:"shared-e2e" yazilmaya calisildi
+   -> HTTP 400 "Definition invalid"
+   "Agent 'house-rules' references shared instructions 'shared-e2e', which
+    itself references 'house-rules'. A shared instructions block cannot
+    reference another block."
+```
+
+Adım 3 birebir tuttu ve mesaj **zincirin tamamını** gösteriyor — tek atlama
+kuralı adıyla anlatılıyor.
+
+📋 **Adım 2'nin metin iddiası doğrulanamadı** (`MT-CORE-084` ile aynı sebep):
+birleşik talimatın `"Her zaman kaynağını belirt.\n\nFatura sorularını
+yanıtla."` biçiminde olduğu ancak trace'ten görülebilir. API `definition`'da
+iki alan **ayrı** duruyor (`instructions` + `sharedInstructionsName`),
+`factoryInstructions` `null`. Derlemenin başarılı olduğu koşumla kanıtlandı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-086 — Aşırı uzun parametre değeri koşuyu düşürür
+
+**Gerçek sonuç**
+```
+musteri = 5000 karakter -> HTTP 400
+  "detail": "Parameter 'musteri' exceeds the maximum value length.",
+  "tooLongParameters": ["musteri"]
+```
+Beklenen `detail` metni ve `tooLongParameters` dizisi **birebir** tuttu.
+Koşu başlamadı, model çağrılmadı. 2026-08-22'nin canlı doğrulaması bugün de
+geçerli.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## Özel agent kaynağı bloğu (087–089) — ortak kurulum
+
+🚨 **Spec'in ön koşulu kod donmasını çiğniyor:** `samples/Tracon.Api/Program.cs`'e
+geçici kayıt eklemeyi istiyor. Bu turda `samples/` **donuktur** (kural 1).
+
+**Çözüm — repo'ya dokunmadan kendi tüketici host'um kuruldu**
+(`~/tracon-manuel/ohost`, port **5085**). İzlek A'nın yaptığı şeyin aynısı:
+
+- `Tracon.AspNetCore` · `Tracon.UI` · `Tracon.Testing` (yerel feed,
+  `0.0.0-preview.0.789`)
+- `samples/Tracon.Samples.CustomAgentSource`'un **üç `.cs` dosyası kopyalandı**
+  (paketlenmiş bir sürümü yok; örnek kod zaten kopyalanmak için var)
+- `agents/greeter.json` = spec'in verdiği içerik
+- `.AddModelProvider(new FakeModelProvider("echo").EchoesUserMessage())` —
+  `echo` yalın bir host'ta yok, sağlayıcı kaydı şart
+- `app.MapTracon("/tracon", o => o.AuthToken = "...")` — 🚨 `AuthToken`
+  yapılandırmadan **otomatik okunmaz**, host'un kendisi verir
+  (`TraconEndpointOptions.cs:65`); örnek uygulama bunu `Program.cs:944`'te
+  elle yapıyor
+
+`git status` repo'da boş kaldı; donma bozulmadı.
+
+---
+
+## MT-CORE-087 — Özel `IAgentSource` ajanı `Custom` origin ile listelenir
+
+**Gerçek sonuç**
+
+**Adım 1 — API:**
+```
+GET /api/agents        -> greeter | origin: Custom | sourceName: json-file
+GET /api/agents/greeter -> isEditable: false
+                           descriptor.origin: Custom
+                           descriptor.sourceName: json-file
+```
+Üç beklenti de tuttu.
+
+⚠️ **Spec'e düzeltme:** `isEditable` **liste** ucunda yoktur, **detay** ucunda
+vardır. Liste öğesinin alanları: `name · origin · sourceName · model ·
+version · displayName · description · toolNames · skillNames ·
+callableAgentNames · usesHarness · updatedAt`. Case'in `grep -A3 '"name":
+"greeter"'` komutu `isEditable`'ı hiçbir zaman göremez.
+
+**Adım 2 — konsol** (`http://localhost:5085/tracon/agents/greeter`):
+```
+rozet     : "json-file"  · tooltip: "Provided by source \"json-file\"."   ✅
+Edit baglantisi: YOK (manuel-kultur'da vardi)                              ✅
+salt-okunur gorunum                                                        ✅
+```
+İki beklenti de tuttu.
+
+🚨 **Ama açıklama metni yanlış → `HATA-S1-013`:** sayfadaki bilgi kutusu
+*"This agent is declared in code..."* diyor. `greeter` **kodda tanımlı
+değildir**; bir JSON dosyasından gelir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### HATA-S1-013 — `Custom` kaynaklı agent'a "bu agent kodda tanımlı" deniyor
+
+| | |
+|---|---|
+| **Önem** | Düşük |
+| **Bulunduğu case** | MT-CORE-087 (adım 2) |
+| **Sınıf** | Arayüz metni · kod/Custom kaynak ayrımı |
+
+**Gözlenen:** `greeter` (origin `Custom`, source `json-file`) detay sayfasında:
+
+> *"This agent is declared in code. A code definition is validated at compile
+> time and cannot be changed from the console — **edit the application source
+> instead**."*
+
+**Kök neden** — `src/Tracon.UI/frontend/src/screens/agent-detail.tsx:139`:
+```tsx
+{!isEditable && (
+  <div ...>{t('agentDetail.codeNotice')}</div>
+)}
+```
+Koşul yalnız `!isEditable`'a bakıyor; `origin` **hiç okunmuyor**. Sözlükte de
+tek metin var (`locales/en/agents.ts:51`) — `Custom` kaynak için karşılığı yok.
+
+**Neden önemli:** yönlendirme de yanlış. Kullanıcı "uygulama kaynağını düzenle"
+diyor; doğru eylem `agents/greeter.json` dosyasını düzenlemektir. Sayfa
+gerekli bilgiyi **zaten gösteriyor** (rozet `json-file`, tooltip "Provided by
+source"), yalnız bilgi kutusu onu kullanmıyor.
+
+**`HATA-S1-009` ile aynı sınıf:** "veritabanında yok" → "kodda" varsayımı.
+Kapanışta ikisi birlikte değerlendirilmeli.
+
+---
+
+## MT-CORE-088 — `Custom` kaynağa ait ada `PUT`/`POST` çakışması `409` döner
+
+**Gerçek sonuç**
+```
+PUT  /api/agents/greeter -> HTTP 409 · title "Custom-source agent cannot be modified"
+POST /api/agents         -> HTTP 409 · title "Agent name in use"
+
+ikisinin de detail'i AYNI:
+ "'greeter' belongs to the 'json-file' agent source and cannot be changed
+  from the management API."
+```
+İki beklenti de tuttu: ikisi de 409 · `detail` **kaynağın adını** taşıyor ·
+404 değil, doğru çakışma anlatılıyor. Başlıklar iki uç için ayrı ayrı
+anlamlandırılmış, gerekçe ortak.
+
+📋 **Karşıtlık:** `MT-CORE-034`'te (`HATA-S1-009`) aynı proje, var olan bir
+agent için "böyle bir agent yok" diyordu. Burada doğrusu yapılıyor — yani
+desen biliniyor, `versions` ucunda uygulanmamış.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-089 — `Custom` kaynaktaki agent gerçek bir `run` tamamlar
+
+**Gerçek sonuç**
+```
+POST /api/agents/greeter/run {"message":"selam"} -> yanit "Echo: selam"
+
+run kaydi:
+  status       : Completed
+  modelId      : "echo-1"     ✅ bos degil
+  modelProvider: "echo"       ✅ bos degil
+  agentVersion : 0
+```
+Koşu tamamlandı ve kayıt **doğru atıf** taşıyor: kaynağın kendi `ListAsync`'inden
+gelen dondurulmuş descriptor kullanılmış. Uydurma `Origin=Code` / `Model=null`
+**yok**.
+
+⚠️ **Spec'e düzeltme:** alan adları `modelId` ve `modelProvider`'dır
+(`model`/`provider` değil).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
