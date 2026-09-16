@@ -22,6 +22,55 @@ serbesttir.
 
 ## Devir notu
 
+**Oturum 3 · BİTTİ. DOSYA 01 KAPANDI.** `MT-PKG-100..122` — **23 case:
+18 ☑ Geçti · 5 ☐ Beklemede (bloklu).** Blok 100-109 · 110-119 · 120-122
+kapandı.
+
+- **Nerede kalındı:** dosya 01'in sonunda. Dosya 01 toplamı: **81/81 case ·
+  72 Geçti · 4 Kaldı · 5 Beklemede** (sayım betiği, skill §7).
+- **Sonraki oturum:** zincirin 2. ailesi `02-CEKIRDEK-VE-KATALOG.md`
+  (97 case, 4 oturum). `ap-s1` şeridinde devam.
+- **Bozuk ön koşul:** yok — 02 için dosya 01'den taşınan bağımlılık yok.
+
+🚨 **`HATA-S1-007` — yayın hattını bloklayan yeni bulgu.** `scripts/kapi.py`
+hedef sürüm için `CHANGELOG.md`'de `## [<sürüm>]` bölümü arıyor; changelog ise
+bilinçli olarak yalnız `## [Unreleased]` taşıyor ("ilk gerçek yayın kendi
+bölümünü alır"). İki kural birbirini kilitliyor → **prova hiçbir sürümle yeşil
+olamaz**. `MT-PKG-097` ve `101` bu yüzden `Kaldı`; `104 · 105 · 115 · 116 ·
+117` terfi etmiş paket istediği için `Beklemede`. Kullanıcı kararı
+(2026-09-16): `CHANGELOG.md` tur boyunca **donuk kalır**, düğüm Aşama 2'de
+karar olarak çözülür.
+
+✅ **`HATA-S1-006` KAPANDI — yanlış pozitifti.** Üç bulgunun üçü de tek kök
+nedenden geliyordu: `check-content.mjs` üreteçler koşmadan çalıştırılmıştı.
+`reference/changelog.md` commit'li değil, `prebuild` onu kök `CHANGELOG.md`'den
+üretiyor. Kontrollü deneyle kanıtlandı (sayfayı kaldır → aynı 3 bulgu; geri koy
+→ kapı yeşil). Aşama 2'de kod işi yok; yalnız tuzak notu gerekiyor.
+
+**Oturum 3'ün spec düzeltmeleri** (skill §1.1 istisnası, üçü de doküman kusuru):
+
+| Case | Ne düzeltildi |
+|---|---|
+| MT-PKG-102 | Ön koşul artık var olmayan bir changelog başlığını tarif ediyordu |
+| MT-PKG-107 | Beklenen hedef GitHub blob URL'i → site içi `/reference/changelog/` (repo private; üreteç yorumu gerekçeli) |
+| MT-PKG-122 | Doğrulama komutu yalnız satır içi biçimi arıyordu; başlık biçimini "iddia yok" sanıyordu → iki biçimi de tarayan betikle değiştirildi |
+
+**Kapanışa aday, düşük önem (kod donuk, düzeltilmedi):** `Tracon.Workflows`
+README'si lisans iddiasında diğer 19'dan farklı biçim kullanıyor · sevk edilen
+README'lerde `Licence` (13) ve `License` (7) karışık.
+
+**Oturum 3'te ortam:** `docs-site` derlendi (`npm run build`, çıkış 0, 1147
+sayfa); üretilen `reference/changelog.md` ve `dist/` ağaçta kaldı — ikisi de
+`.gitignore` kapsamında, `git status` boş. Preview sunucusu durduruldu.
+`<scratch>/ap-pack` (20 paket) hâlâ duruyor, dosya 02 kullanmıyor.
+
+**Kod donuk kaldı:** `git diff 7e3a4de7..HEAD -- src samples tests` boş.
+`MT-PKG-109..114` ağacı geçici kirletti, altısı da aynı case içinde
+`git checkout --` ile geri alındı; her birinin sonunda `git status --porcelain`
+boş doğrulandı. `MT-PKG-113`'ün ürettiği iki `dirty.deneme` paketi silindi.
+
+---
+
 **Oturum 2 · BİTTİ.** `MT-PKG-050..099` — **25 case: 23 ☑ Geçti · 2 ☑ Kaldı.**
 Bloklar 050-059 · 060-069 · 070-079 · 080-089 · 090-099 kapandı.
 
@@ -2347,4 +2396,356 @@ diyor, olmayan bir sürümü adlandırmıyor.
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
+
+## MT-PKG-108 — Temiz ağaçta pack normal çalışır
+
+**Gerçek sonuç**
+```
+git status --porcelain -> bos
+dotnet pack src/Tracon.Abstractions -c Release -> cikis 0
+  Successfully created package '.../release/Tracon.Abstractions.0.0.0-preview.0.789.nupkg'
+  Successfully created package '.../release/Tracon.Abstractions.0.0.0-preview.0.789.snupkg'
+```
+
+Kapı temiz ağaçta **hiçbir şey yapmıyor** — `-p:` bayrağı verilmedi, ek
+yapılandırma gerekmedi, uyarı çıkmadı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-PKG-109 — Commit'siz bir değişiklik `TRACON0004` ile pack'i durdurur
+
+**Gerçek sonuç**
+```
+printf '\n' >> src/Directory.Build.props
+git status --porcelain -> " M src/Directory.Build.props"
+dotnet pack ... -> cikis 1
+
+Directory.Build.targets(127,5): error TRACON0004: Working tree is not clean
+('git status --porcelain' reported changes) for package 'Tracon.Abstractions'.
+A packed artifact whose content cannot be traced back to a commit has no
+provenance; commit or stash first. Reported entries:  M src/Directory.Build.props.
+For local experimentation only, set TraconAllowDirtyPack=true together with an
+explicit MinVerVersionOverride carrying 'dirty' (e.g. 0.0.0-dirty.<name>) -
+never in CI.
+```
+
+**Yeni `.nupkg` ÜRETİLMEDİ — SHA-256 ile kanıtlandı:**
+```
+pack oncesi:  571ecb0c5166b17f2adada9c728b043926c35430c9a92e04d7df0c7187301bbd
+pack sonrasi: 571ecb0c5166b17f2adada9c728b043926c35430c9a92e04d7df0c7187301bbd
+```
+Mevcut paket **yerinde ve dokunulmamış** kaldı. AP-REQ-002 (aynı `<id, sürüm>`
+çiftinin farklı içerikli iki artifact adlandırması) bu kapıyla kapalı.
+
+Tanı kalitesi yüksek: kirleten dosyayı **adıyla** veriyor, sebebini
+(provenance) açıklıyor ve çıkış yolunu tarif ediyor. Dil İngilizce — pakete
+giren kod için doğru (K-228).
+
+`git checkout --` sonrası ağaç temiz.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-PKG-110 — Kirli ağaçta `dotnet build` etkilenmez
+
+**Gerçek sonuç**
+```
+printf '\n' >> src/Directory.Build.props
+dotnet build src/Tracon.Abstractions -c Release -> cikis 0
+  Build succeeded.
+grep -c TRACON0004 -> 0
+```
+
+Kapı `build` yolunu **hiç görmüyor**; yalnız `GenerateNuspec`'ten önce koşuyor.
+İç geliştirme döngüsü (derle/test) kirli ağaçta bedelsiz.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-PKG-111 — Yalnız untracked bir dosya da kapıyı tetikler
+
+**Gerçek sonuç**
+```
+touch src/Tracon.Abstractions/.mt-pkg-111-marker
+git status --porcelain -> "?? src/Tracon.Abstractions/.mt-pkg-111-marker"
+dotnet pack ... -> cikis 1 · error TRACON0004
+```
+
+136.1'in bilinçli kararı doğrulandı: `git status --porcelain` `-uno` **almıyor**.
+Takip edilmeyen bir `.cs` dosyası SDK'nın varsayılan glob'uyla pakete girebilir;
+`-uno` olsaydı bu sessizce geçerdi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-PKG-112 — Override sürümsüz verilirse `TRACON0006` ister
+
+**Gerçek sonuç**
+```
+dotnet pack ... -p:TraconAllowDirtyPack=true   (MinVerVersionOverride YOK)
+  -> cikis 1
+
+error TRACON0006: TraconAllowDirtyPack=true requires an explicit
+MinVerVersionOverride that carries 'dirty' (e.g. 0.0.0-dirty.<name>).
+A dirty artifact must sort BELOW every clean release version, and it must
+never b[e ...]
+```
+
+Override **sürüm üretmiyor, insandan istiyor**. MinVer'in kirli bir artifact'i
+kendiliğinden bir sürüme bağlaması tamamen engellenmiş. Mesaj sıralama
+gerekçesini de veriyor (kirli sürüm her temiz sürümün ALTINDA sıralanmalı).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-PKG-113 — Açık `dirty` sürümüyle override başarıyla paketler
+
+**Gerçek sonuç**
+```
+dotnet pack ... -p:TraconAllowDirtyPack=true -p:MinVerVersionOverride=0.0.0-dirty.deneme
+  -> cikis 0
+  Successfully created package '.../Tracon.Abstractions.0.0.0-dirty.deneme.nupkg'
+  Successfully created package '.../Tracon.Abstractions.0.0.0-dirty.deneme.snupkg'
+```
+
+Kaçış yolu **çalışıyor** — kapı yerel deneyi imkânsız kılmıyor, yalnız
+bilinçli ve adlandırılmış olmasını şart koşuyor. Üretilen iki dosya case'in
+temizlik adımıyla silindi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-PKG-114 — CI'da override tamamen reddedilir
+
+**Gerçek sonuç**
+```
+CI=true dotnet pack ... -p:TraconAllowDirtyPack=true -p:MinVerVersionOverride=0.0.0-dirty.deneme
+  -> cikis 1   (MT-PKG-113'un AYNI komutu, yalnız CI=true eklendi)
+
+error TRACON0005: TraconAllowDirtyPack=true was set in a CI build
+(ContinuousIntegrationBuild=true or CI=true). A dirty pack has no provenance
+and must never leave a developer's machine.
+
+ls artifacts/package/release/Tracon.Abstractions.0.0.0-dirty.deneme.*
+  -> eslesme yok (hicbir dirty paket uretilmedi)
+```
+
+🚨 **Kaçış yolunun kendisi de kapalı.** 113'te geçen komut, yalnız ortam
+değişkeni değiştiği için reddedildi. Kirli bir pack hiçbir CI koşumundan
+çıkamaz — `dirty` taşıyan açık bir sürümle bile.
+
+`git status --porcelain` her case'in sonunda boş doğrulandı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-PKG-118 — Lisans matrisi: her paket tam olarak bir lisans dosyası taşır
+
+**Gerçek sonuç**
+
+**Sapma:** `/tmp/ap-pack` yerine oturum 1'in bıraktığı
+`<scratch>/ap-pack` kullanıldı (aynı 20 paket, `0.0.0-preview.0.789`).
+
+```
+20 satir dondu. Dagilim:
+
+LICENSE-MIT.md (3):  Tracon.Abstractions · Tracon.Templates ·
+                     Tracon.Testing.Contracts.Xunit
+LICENSE.md    (17):  Tracon · .Anthropic · .AspNetCore · .Azure · .Cli ·
+                     .Client · .Core · .Google · .Mcp · .OpenAI · .PostgreSql ·
+                     .SqlServer · .Sqlite · .Testing · .UI · .Voice · .Workflows
+
+Iki lisans dosyasini birden tasiyan paket: YOK
+```
+
+Spec'in saydığı üç MIT paketi **birebir** tuttu; 3 + 17 = 20. Tüketicinin
+eline hangi şartların geçtiği her pakette tek anlamlı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-PKG-119 — Beyan edilen lisans ile paketlenen dosya aynı
+
+**Gerçek sonuç**
+```
+== Tracon.Abstractions
+   <license type="file">LICENSE-MIT.md</license>
+   requireLicenseAcceptance elementi: YOK           ✅ (NuGet false'u yazmaz)
+   paket icindeki dosya: LICENSE-MIT.md             ✅ ayni
+
+== Tracon.Core
+   <license type="file">LICENSE.md</license>
+   <requireLicenseAcceptance>true</requireLicenseAcceptance>   ✅
+   paket icindeki dosya: LICENSE.md                 ✅ ayni
+```
+
+Üç beklentinin üçü de tuttu. Ticari şart taşıyan paket kabul istiyor,
+permissive olan istemiyor — ayrım doğru yerde.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-PKG-120 — PolyForm gövdesi kanonik metinden sapmamış
+
+**Gerçek sonuç**
+```
+curl SPDX PolyForm-Small-Business-1.0.0.txt -> 121 satir
+awk ile LICENSE.md govdesi              -> 121 satir
+diff                                    -> BOS · "BIREBIR"
+```
+
+Lisans **tanınır** hâlde: tüketicinin lisans tarayıcısı adı eşleştirebilir.
+Bu modelin tahsilat mekanizması tam olarak o eşleşme olduğu için sapma
+olmaması kritik.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-PKG-121 — 👤 npm istemcisi NuGet ikiziyle aynı şartları taşır
+
+**Gerçek sonuç**
+```
+package.json: "license": "PolyForm-Small-Business-1.0.0"   ✅
+npm pack --dry-run: "npm notice 6.3kB LICENSE.md"          ✅ pakete giriyor
+diff packages/tracon-client/LICENSE.md ../../LICENSE.md
+  -> BOS · "KOPYA BIREBIR"                                 ✅
+```
+
+npm tarafı NuGet ikiziyle aynı şartları taşıyor ve kopya kök dosyadan
+sapmamış.
+
+⏳ **İnsan doğrulaması bekliyor:** npmjs.com lisans rozetinin
+`PolyForm-Small-Business-1.0.0` gösterdiği ancak paket **yayınlandıktan
+sonra** görülebilir. Paket henüz yayınlanmadı (`CHANGELOG.md`: "no version has
+been pushed to NuGet or npm"). Fiziksel eylem listesine alındı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-PKG-122 — Sevk edilen README'nin lisans iddiası nuspec ile aynı
+
+**Gerçek sonuç**
+
+**20/20 paket uyumlu — çelişki YOK.** Faz 160'ın 🔴'sının sınıfı bugün temiz:
+
+```
+nuspec=LICENSE-MIT.md (3) -> README "MIT" der        : Abstractions ·
+                                                       Templates ·
+                                                       Testing.Contracts.Xunit
+nuspec=LICENSE.md    (17) -> README "PolyForm" der   : kalan 17
+uyumsuz: 0
+```
+
+⚠️ **Spec'in doğrulama komutu yanıltıcı — `Tracon.Workflows` için BOŞ döndü.**
+Komut `grep -iE "^Licen[sc]e: "` ile **satır içi** biçimi arıyor; 19 paket o
+biçimde ama `Tracon.Workflows` iddiasını **başlık** biçiminde yazıyor:
+
+```
+README.md:91   ## Licence
+README.md:93   PolyForm Small Business 1.0.0 - free below 100 people and ...
+```
+
+Yani paket doğru, **ölçüm** yanlış. Bu önemli bir kör nokta: lisans iddiasını
+hiç taşımayan bir paket ile başlık biçimini kullanan bir paket komutun
+çıktısında **birbirinden ayırt edilemez** (`readme=` ikisinde de boş). Case'in
+🚨'sı tam da bu sınıfı korumak için var.
+
+Biçimden bağımsız yeniden ölçüldü (satır içi **veya** `## Licen[sc]e` başlığı,
+sonra iddianın ilk kelimesi nuspec ile karşılaştırıldı) → **20/20 OK**.
+`Beklenen sonuç` bu yöntemle güncellendi (skill §1.1 istisnası).
+
+📋 **Kapanışa aday, düşük önem (kod donuk olduğu için düzeltilmedi):**
+1. `Tracon.Workflows` README'si diğer 19'dan farklı biçim kullanıyor.
+2. Yazım tutarsızlığı: sevk edilen README'lerde `Licence` 13, `License` 7 kez
+   geçiyor. İkisi de doğru İngilizce ama tek üründe karışık kullanılıyor;
+   nuget.org bunları yan yana render ediyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-PKG-104 — `PackageReleaseNotes` çözümlenmiş sürümü taşır, ham `$(Version)` değil
+
+**Gerçek sonuç**
+Koşulmadı. Ön koşul (`MT-PKG-101` koşuldu, paketler
+`artifacts/package/release/` içinde) **bugün sağlanamıyor**: prova
+`HATA-S1-007` yüzünden terfi adımına gelmeden duruyor, `release/` altında
+`1.0.0-preview.1` paketi yok.
+
+⚠️ **Bu case'in beklentisi ayrıca bayat olabilir.** Beklenen değer bir GitHub
+blob URL'i (`.../blob/v1.0.0-preview.1/CHANGELOG.md`). `MT-PKG-107`'de ölçüldü
+ki repo private olduğu için site bilinçli olarak GitHub'a bağlanmayı bıraktı ve
+`PackageReleaseNotes`'un artık site sayfasına (`tracon.dev/reference/changelog/`)
+işaret etmesi bekleniyor (`docs-site/scripts/build-changelog.mjs:4-14`).
+Koşulduğunda **önce bu doğrulanmalı**, yoksa doğru davranış kusur sanılır.
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-PKG-105 — 20/20 paket `releaseNotes` alanını taşır
+
+**Gerçek sonuç**
+Koşulmadı — ön koşul `MT-PKG-101`, `HATA-S1-007` ile bloklu.
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-PKG-115 — Aynı sürümle iki ardışık yayın koşumu ikincisinde no-op'tur
+
+**Gerçek sonuç**
+Koşulmadı. İki koşum da `HATA-S1-007` ile **aynı** noktada (changelog kapısı)
+durur; terfi hiç gerçekleşmediği için "ikinci koşum no-op mu" sorusu
+ölçülemez. Kısmî gözlem (`MT-PKG-101`): birinci koşum `release/`'i
+değiştirmedi ve `staging/` `finally` bloğunda temizlendi.
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-PKG-116 — Aynı kimlikte farklı içerik yayın koşumunu durdurur, mevcut artifact yerinde kalır
+
+**Gerçek sonuç**
+Koşulmadı — ön koşul `MT-PKG-115`, o da `HATA-S1-007` ile bloklu.
+
+🚨 **Koşulacağı oturum için uyarı:** bu case `git add -A && git commit` ile
+`src/` altına commit atıp `git reset --hard HEAD~1` ile geri alıyor. `-A`
+o anda ağaçtaki **koşum kayıtlarını da** commit'ler. Koşarken yalnız hedef
+dosyayı stage'le (`git add <dosya>`) ve reset'ten önce kayıtların commit'li
+olduğunu doğrula — aksi hâlde `--hard` yazılmamış sonuçları siler.
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-PKG-117 — Manifest 20 paketin kimliğini SHA-256 ile taşır
+
+**Gerçek sonuç**
+Koşulmadı — ön koşul `MT-PKG-115`, `HATA-S1-007` ile bloklu.
+`artifacts/package/release/package-manifest.json` üretilmedi (manifest
+`kapi.py:1237`'de, changelog kapısından **sonra** yazılıyor).
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## Fiziksel eylem / ortam bekleyen case'ler — oturum 3
+
+| Case | Neden | Kullanıcıdan istenen |
+|---|---|---|
+| MT-PKG-121 | Paket npmjs.com'da yayınlanmadı | Yayın sonrası npmjs.com'da lisans rozetinin `PolyForm-Small-Business-1.0.0` gösterdiği gözle doğrulanır |
+| MT-PKG-104 · 105 · 115 · 116 · 117 | `HATA-S1-007` — yayın provası terfi adımına gelemiyor | `CHANGELOG.md` / kapı düğümü Aşama 2'de çözülünce beşi birden koşulur |
 

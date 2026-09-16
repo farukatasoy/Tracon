@@ -3,8 +3,8 @@
 > **Bu turu devralan oturum ÖNCE burayı okur.** Turun durumu, değişmez
 > kuralları, ortamı ve sıradaki işi taşır.
 >
-> **Durum:** Aşama 0 kapandı · **tur HENÜZ BAŞLAMADI** · kod `7e3a4de7`'de donuk
-> **Son güncelleme:** 2026-09-16
+> **Durum:** Aşama 1 sürüyor · **dosya 01 KAPANDI** (81/81) · kod `7e3a4de7`'de donuk
+> **Son güncelleme:** 2026-09-16 (oturum 3)
 
 ---
 
@@ -24,15 +24,29 @@
 
 ## 2. Nerede duruyoruz
 
-Aşama 0 (tazeleme) bitti ve iki commit'te donduruldu. Tur açılmadı: hiçbir aile
-koşulmadı, `kosumlar/2026-09-16/` içinde yalnız plan ve bu dosya var.
+Aşama 0 (tazeleme) bitti. Tur açıldı ve zincirin **1. ailesi kapandı**:
+`01-KURULUM-VE-PAKETLEME.md` üç oturumda koşuldu (81/81 case).
 
 ```mermaid
 flowchart LR
-    A["Asama 0 - Tazeleme<br/>BITTI"] --> B["Asama 1 - Tur<br/>BASLAMADI"]
+    A["Asama 0 - Tazeleme<br/>BITTI"] --> B["Asama 1 - Tur<br/>SURUYOR - 1/36 aile"]
     B --> C["Asama 2 - Kapanis<br/>beklemede"]
     C --> D["YAYIN-HAZIRLIK<br/>Adim 2 -> 10"]
 ```
+
+**Dosya 01 sonucu:** 72 ☑ Geçti · 4 ☑ Kaldı · 5 ☐ Beklemede (bloklu).
+Kayıt: [`01-KURULUM-VE-PAKETLEME.md`](01-KURULUM-VE-PAKETLEME.md) — devir notu
+dosyanın başındadır ve **oturum oturum** birikir.
+
+🚨 **Açık bulgular:** `HATA-S1-001..005` · `HATA-S1-007` (yayın hattını
+bloklar — aşağıda). `HATA-S1-006` yanlış pozitif çıktı ve kapandı.
+
+🚨 **`HATA-S1-007` — yayın provası hiçbir sürümle yeşil olamaz.**
+`scripts/kapi.py` hedef sürüm için `CHANGELOG.md`'de `## [<sürüm>]` bölümü
+arıyor; changelog ise bilinçli olarak yalnız `## [Unreleased]` taşıyor. İki
+kural birbirini kilitliyor. **Kullanıcı kararı (2026-09-16):** `CHANGELOG.md`
+tur boyunca **donuk kalır**; düğüm Aşama 2'de karar (`K-*`) olarak çözülür.
+Bloklananlar `Beklemede` bırakıldı: `MT-PKG-104 · 105 · 115 · 116 · 117`.
 
 | Alan | Değer |
 |---|---|
@@ -119,7 +133,13 @@ hiçbir ailenin sonucu okunmaz. Paralel şeritler ancak beşi yeşil bitince aç
 | 4 | `05-SAGLAYICI-OPENAI.md` | 40 | 2 |
 | 5 | `07-HTTP-YONETIM-API.md` | 43 | 2 |
 
-**İlk oturumun işi:** `ap-s1`'de `01-KURULUM-VE-PAKETLEME.md`, `MT-PKG-001..049`.
+**Sıradaki oturumun işi:** `ap-s1`'de `02-CEKIRDEK-VE-KATALOG.md`,
+`MT-CORE-001`'den başla. Dosya 01 kapandı — ona dönme.
+
+| Aile | Durum |
+|---|---|
+| `01-KURULUM-VE-PAKETLEME.md` | ✅ 81/81 (3 oturum) |
+| `02-CEKIRDEK-VE-KATALOG.md` | ⬜ sıradaki · 97 case · 4 oturum |
 
 🚨 **Bölme noktası onluk case bloğudur, `#` bölüm başlığı DEĞİL.** Ölçüldü
 (2026-09-16): spec dosyalarında bölüm başlığı yok — `946a37fb` ("faz 58",

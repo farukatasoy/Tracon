@@ -3383,13 +3383,27 @@ diff LICENSE.md ../../LICENSE.md && echo "KOPYA BIREBIR"
 2. README'nin lisans cümlesini aynı paketin `.nuspec` beyanıyla karşılaştır.
 
 **Girilecek veri**
-```bash
-for f in /tmp/ap-pack/*.nupkg; do
-  id=$(basename "$f" | sed 's/\.[0-9].*//')
-  ns=$(unzip -p "$f" "$id.nuspec" | grep -oE 'LICENSE(-MIT)?\.md' | head -1)
-  rd=$(unzip -p "$f" README.md | grep -iE "^Licen[sc]e: " | head -1)
-  echo "$id | nuspec=$ns | readme=$rd"
-done
+🚨 **İddia iki biçimde yazılıyor** — satır içi (`Licence: PolyForm ...`, 19
+paket) **veya** başlık (`## Licence` + sonraki satır, `Tracon.Workflows`).
+Yalnız satır içini arayan bir `grep` başlık biçimini "iddia yok" gibi gösterir
+ve gerçekten iddiasız bir paketten ayırt edilemez. İkisini de tara
+(`scripts/mt-pkg-122-lisans.py` olarak kaydet, sonra `AP=/tmp/ap-pack python3 ...`):
+
+```python
+import os, re, zipfile, pathlib
+ap = pathlib.Path(os.environ["AP"])
+for f in sorted(ap.glob("*.nupkg")):
+    pid = re.sub(r"\.[0-9].*", "", f.name)
+    with zipfile.ZipFile(f) as z:
+        nus = z.read(f"{pid}.nuspec").decode("utf-8", "replace")
+        decl = (re.search(r'<license type="file">([^<]+)</license>', nus) or [None, "(YOK)"])[1]
+        rd = z.read("README.md").decode("utf-8", "replace")
+    m = (re.search(r"^Licen[sc]e:[ \t]*(.+)$", rd, re.M)
+         or re.search(r"^##+[ \t]*Licen[sc]e[ \t]*$\n+(.+)$", rd, re.M))
+    iddia = m.group(1).strip() if m else "(IDDIA YOK)"
+    ilk = "MIT" if iddia.startswith("MIT") else ("PolyForm" if iddia.startswith("PolyForm") else "?")
+    beklenen = "MIT" if decl == "LICENSE-MIT.md" else "PolyForm"
+    print(f"{pid:32} {decl:17} {ilk:9} {'OK' if ilk == beklenen else 'CELISKI'}")
 ```
 
 **Beklenen sonuç**
