@@ -832,11 +832,13 @@ a number."` — birebir eşleşti.
 **KOŞULAMADI.** Playwright tarayıcısı bu oturumda meşguldü:
 `Error: Browser is already in use for /Users/farukatasoy/Library/Caches/
 ms-playwright-mcp/mcp-chrome-3eca5a9, use --isolated to run multiple
-instances of the same browser` — muhtemelen eşzamanlı çalışan başka bir
-şerit (ap-s2/3/4) aynı paylaşılan tarayıcı profiline erişiyor. Zorla
-denenmedi (paylaşılan kaynağı bozma riski). Açık soru tablosuna eklendi.
+instances of the same browser` — bu makinedeki **ilgisiz, eşzamanlı çalışan
+başka bir Claude Code oturumu** aynı paylaşılan tarayıcı profiline erişiyordu
+(doğrulandı: bu turun ap-s2/3/4 şeritleri bu koşum sırasında henüz hiç
+başlatılmamıştı). Zorla denenmedi (paylaşılan kaynağı bozma riski). Açık
+soru tablosuna eklendi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ## MT-SEC-109 — Bağlama önek dışındaki bir yapılandırma anahtarı adıyla reddedilir
 
@@ -954,10 +956,10 @@ agent derleme yolu aynı kısıtı uyguluyor.
 
 **Gerçek sonuç**
 **KOŞULAMADI** — MT-SEC-108 ile aynı Playwright çakışması (paylaşılan
-tarayıcı profili başka bir şerit tarafından kilitli). Açık soru tablosuna
-eklendi.
+tarayıcı profili bu makinedeki ilgisiz başka bir Claude Code oturumu
+tarafından kilitli). Açık soru tablosuna eklendi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ## MT-SEC-119 — Egress politikası silinince kiracı tekrar kısıtsız olur
 
