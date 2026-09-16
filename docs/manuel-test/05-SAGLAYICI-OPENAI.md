@@ -666,10 +666,14 @@ curl -s "$APU/api/runs/<runId>" -H "$APB" | python3 -m json.tool
 
 **Beklenen sonuç**
 - Yanıt metni `ORD-1001` dizgisini içerir.
-- `GET /api/runs/{runId}` çıktısında `status` = `Completed`, `totalTokens`
-  `null` değil ve pozitiftir.
-- Aynı run'ın olay listesinde (`GET /api/runs/{runId}/events` veya arayüz)
-  `get_order_status` tool'unun **tam bir kez** çağrıldığı görülür.
+- `GET /api/runs/{runId}` çıktısında `status` = `Completed` ve
+  **`usage.totalTokens`** `null` değil, pozitiftir. 🚨 Alan **kökte değildir**,
+  `usage` nesnesinin içindedir (`usage.inputTokens`, `usage.outputTokens`,
+  `usage.totalTokens`); kökten okuyan bir doğrulama yanlışlıkla `null` görür.
+- Aynı run'ın olay listesinde `get_order_status` tool'unun **tam bir kez**
+  çağrıldığı görülür: bir `ToolInvoking` + bir `ToolInvoked`, ikisi de aynı
+  `toolCallId` ile. 🚨 `GET /api/runs/{runId}/events` **SSE döner, JSON değil** —
+  `python3 -m json.tool` bu uçta çalışmaz, çerçeveleri ayrıştır.
 
 ---
 
@@ -730,8 +734,11 @@ curl -s -w "\nHTTP: %{http_code}\nCT: %{content_type}\n" \
 ```
 
 **Beklenen sonuç**
-- `HTTP: 200`, `CT: application/json` (SSE **değil**).
-- Gövde tek bir JSON nesnesidir, `text` alanı doludur.
+- `HTTP: 200`, `CT: application/json; charset=utf-8` (SSE **değil**).
+- Gövde tek bir JSON nesnesidir: kökte `runId` ve `sessionId`, altında `response`.
+  🚨 Metin **kökte değildir**; tam yolu
+  `response.messages[0].contents[0].text`. `response.finishReason` `"stop"`,
+  `response.usage.totalTokenCount` pozitiftir.
 
 ---
 
@@ -789,9 +796,21 @@ curl -s "$APU/api/runs?agentName=manuel-bozuk-model" -H "$APB" | python3 -m json
   `status: Failed` ile görünür — `RunRecordingAgent.CompleteAsync` akış
   istisnasını `AgentRunStream`'in yakalamasından ÖNCE, kendi `try/catch`'inde
   yakalayıp kaydeder ve sonra yeniden fırlatır (K-294).
-- Bu kaydın `error.type` alanı `System.ClientModel.ClientResultException`
-  (veya OpenAI SDK'sının o anki tam tip adı) içerir, `error.message` alanı
-  `model_not_found` ya da `404` dizgisini içerir.
+- Bu kaydın `error.type` alanı **`upstream_error`**, `error.message` alanı
+  sabit `The model provider request failed.` metnidir. 🚨 Sağlayıcının kendi
+  tip adı ve mesajı kalıcı kayda **bilerek yazılmaz**:
+  `ProviderFailureNormalizer` yabancı istisnayı model çağrısı sınırında
+  `ProviderInvocationException`'a çevirir, çünkü yabancı bir mesaj adres,
+  `host:port` ya da kısmi bir kimlik taşıyabilir (`SafeErrorText` XML
+  dokümanı). Bu düzeltildi 2026-09-16: önceki beklenti normalleştirme
+  katmanından önceki davranışı tarif ediyordu.
+- Tam ayrıntı **günlükte** aranır, kayıtta değil — orada
+  `System.ClientModel.ClientResultException: HTTP 404 (invalid_request_error:
+  model_not_found)` satırı bulunur.
+- ⚠️ `error.class` bugün `Unknown` gelir. Bu **beklenen değildir**, açık bir
+  kusurdur (2026-09-16 turu, `HATA-S1-020`): normalleştirme sınıflandırıcıdan
+  önce çalıştığı için K-296'nın eklediği desenler bu yolda hiç eşleşmiyor.
+  Kusur kapandığında burada `ProviderError` beklenmelidir.
 
 ### MT-OAI-050 — `openrouter` adlandırılmış sağlayıcı olarak görünür
 
