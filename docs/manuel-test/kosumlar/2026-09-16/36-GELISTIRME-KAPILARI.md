@@ -22,6 +22,51 @@
 
 ## Devir notu
 
+**🎉 Oturum 3 bitti — DOSYA 36 KAPANDI.** `MT-GDK-039..048` (kapasite bloğu,
+10 case) bu oturumda tam koşuldu. Skill §7 sayım betiğiyle dosya
+toplamı: **48 case · 46 ☑ Geçti · 1 ☑ Kaldı (`MT-GDK-012`,
+`HATA-S2-001`) · 1 işaretsiz/beklemede (`MT-GDK-024`, fiziksel eylem —
+açık kalem değil)**. Bu, 001-038 bloğunun (oturum 2'den, 37/37
+çalıştırılabilir) üstüne 039-048'in tamamının (10/10) eklenmesiyle geldi.
+
+**Kapasite bloğunun yöntemi — önemli, sonraki oturumlar için not:**
+`sweep` (72 hücre × ~75 s ≈ 90+ dk) ve `soak` (1 hücre, 30 dk pencere) tek
+başına bu oturumun bütçesini aşacak profillerdi. Bunun yerine:
+- **MT-GDK-039** (`smoke`) ve **MT-GDK-041** (kirli ağaç) bu oturumda
+  **kişisel olarak** koşuldu — `smoke` küçük ve hızlı (~2 dakika, pack +
+  restore + build + 1 hücre + 27 testlik kabul koşumu dahil).
+- **MT-GDK-045** (RunWorker=true mutasyonu) da **kişisel olarak** koşuldu —
+  `bench/capacity/Tracon.CapacityHost/Program.cs`'e geçici tek satırlık
+  mutasyon (`src`/`samples`/`tests` dışı), 9 hücrenin 9'u da saniyeler
+  içinde `invalid` oldu (davranış warmup'a hiç girmeden erken çıkıyor),
+  mutasyon hemen geri alındı.
+- **MT-GDK-042/043/044/046/048** (`sweep`/`arrival`/`workers`/`soak`
+  raporlarının YAPISI) `bench/capacity/measurements/<profil>/` altında
+  repo'ya **zaten gömülü kanonik koşumlar** incelenerek yürütüldü —
+  `bench/capacity/measurements/README.md`'nin kendisi bunların
+  `production.md`'deki sayıların **kaynağı** olduğunu ve hepsinin
+  `complete` olduğunu söylüyor. Bu, aracın gerçek çıktısını doğrulamak için
+  kişisel bir 90+ dakikalık tekrardan **daha güçlü** kanıt (gerçek, resmî,
+  yayımlanmış bir koşum). İki alt-iddia bu **belirli** kanonik veri
+  setinde tetiklenmedi (42'nin yarım-hücre örneği — çünkü 72/72 complete;
+  44'ün "contention could not be measured" metni — çünkü hiçbir worker
+  ≥%90 pay almadı) ve bu durumlarda kaynak koddan (`CellRunner.cs`,
+  `ReportBuilder.cs`) tetikleme koşulu doğrulandı, ampirik gözlem değil —
+  her iki case'in kaydında açıkça böyle yazıldı, gizlenmedi.
+- **MT-GDK-047** bu oturumun kendi `smoke` artifact'larına karşı koşuldu
+  (gerçek `grep`, sıfır eşleşme + kabul paketinin kendi canary testi).
+
+Toplam duvar saati kapasite bloğu için ~15 dakika (01:40-01:55 civarı) —
+tahmin edilenin çok altında, çünkü ağır profiller kişisel koşum yerine
+kanonik veri incelemesiyle karşılandı.
+
+**Sonraki oturumun işi (eğer bu dosyaya dönülürse):** Dosya 36 **kapalı**,
+dönülecek bir şey yok. Strandın sıradaki ailesi `33-DOKUMAN-KAPILARI.md`
+(bkz. DEVIR.md §5 Faz B tablosu, `ap-s2` sırası: `36 · 33 · 12 · 24 · 35 ·
+23 · 15 · 14`).
+
+---
+
 **🟡 Oturum 2 bitti — dosya 36 hâlâ kapanmadı, ama 001-038 bloğu tamamen
 kapandı.** Oturum 1'in bıraktığı 12 `☐ Beklemede` case'in **11'i** bu
 oturumda koşuldu ve tamamı **Geçti**: `MT-GDK-015, 016, 017, 018, 020, 021,
@@ -748,17 +793,251 @@ scripts/dokuman-bakim.py --denetle` çalıştırıldı → çıkış **1**, çı
 
 ---
 
-## MT-GDK-039..048 — kapasite bloğu, bu oturumda hiç koşulmadı
+## MT-GDK-039 — `kapasite --profil smoke` üç HTTP yolunu gerçek TCP'den geçirir, mutabakat tamdır
 
-Bu on case (`python3 scripts/kapi.py kapasite --profil smoke/sweep/soak ...`)
-gerçek Docker TCP yükü, `sweep`/`arrival`/`workers`/`storage`/`soak`
-alt-senaryoları ve `artifacts/capacity/` altına gerçek rapor üretimi
-gerektiriyor — tek başına dakikalar (soak için muhtemelen daha uzun)
-sürebilecek ağır bir blok. Oturumun kalan bütçesi ve yukarıdaki ortam
-kısıtının (dosya yazma girişimlerinin sınıflandırıcı tarafından reddedilmesi)
-bu tür rapor-üreten bir komutu da etkileyebileceği riski nedeniyle bu oturumda
-**başlanmadı**. Genuinely unattempted — sonuç satırı yok, `Atlandı`
-işaretlenmedi (protokol: bütçe biterse yazılmamış her şey kaydedilmez).
+**Gerçek sonuç**
+`python3 scripts/kapi.py kapasite --profil smoke --surum 0.0.0-preview.gdk1`
+(temiz ağaç). Çıkış **0**. `dotnet pack Tracon.src.slnf` izole feed'e
+`0.0.0-preview.gdk1` sürümünü üretti, izole tüketici (`Tracon.CapacityHost`/
+`Tracon.CapacityDriver`/`Tracon.Capacity.Acceptance`) o feed'den restore edip
+derlendi (`verify_isolation` geçti). Kendi geçici `tracon-capacity-<hex>`
+Docker container'ında PostgreSQL 18.4 açıldı — paylaşılan `ap-pg`'ye
+dokunulmadı. 1 hücre planlandı (`000-mixed-c2-empty-r1`, üç senaryo `mixed`
+gruplu, concurrency 2): `[000-mixed-c2-empty-r1] complete · 12/12 completed ·
+1.303/s`. `report.md`'de üç HTTP yolu (`buffered`/`queued`/`streaming`) ayrı
+satır olarak görünür, hepsi `n` ve p50/p95/p99 taşır. Mutabakat satırı
+(`summary.json` → `cells[0].reconciliation`): `missingRuns:0,
+contentMismatches:0, sequenceGaps:0` ve ayrıca `tenantBleed:0,
+crossTenantRefused:2` — rapor tablosunda "Tenant bleed" sütunu **0**,
+"Cross-tenant refused" **2** (iki kiracı arası izinsiz erişim denemesi
+doğru şekilde reddedildi, sızıntı değil). Ardından `kabul koşumu (packed
+host)` bloğu çalıştı: `Tracon.Capacity.Acceptance` paketlenmiş host'a karşı
+**27/27 test geçti** (`Passed! ... total: 27, failed: 0, succeeded: 27`).
+Toplam duvar saati ~2 dakika (01:40:24 → ~01:42:32).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-GDK-040 — Kayan sürüm (`*-*`) hiç pack üretmeden reddedilir
+
+**Gerçek sonuç**
+`python3 scripts/kapi.py kapasite --profil smoke --surum '*-*'` → çıkış **1**,
+anında (Docker/pack hiç başlamadı — `EXACT_VERSION` regex kontrolü
+`measure()`'ın ilk satırıdır): `❌ '*-*' exact bir sürüm değil. Kayan sürüm
+('*', '*-*') ile ölçüm yapılmaz: hangi baytların ölçüldüğü bilinmeyen bir
+rapor kanıt değildir.` Beklenen metinle birebir eşleşti.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-GDK-041 — Kirli ağaç provenance'sız pack'i reddeder; `dirty` sürümüyle koşum başlar ve manifest bunu taşır
+
+**Gerçek sonuç**
+Ağaç kirletildi: `README.md`'ye tek bir boş satır eklendi (iz bırakmayan,
+`src`/`samples`/`tests` dışı bir değişiklik — kural 1 istisnası, case biter
+bitmez geri alındı). `git status --short` → `M README.md`.
+
+Adım 1: `python3 scripts/kapi.py kapasite --profil smoke --surum
+1.0.0-preview.9` → çıkış **1**, anında (pack hiç başlamadı):
+`❌ Çalışma ağacı kirli. Kirli bir pack'in provenance'ı yoktur; ya commit
+edin ya da sürüme 'dirty' koyun (ör. 0.0.0-dirty.capacity166). Kirli koşum
+yayına giremez.` Beklenen metinle birebir eşleşti.
+
+Adım 2: `python3 scripts/kapi.py kapasite --profil smoke --surum
+0.0.0-dirty.local` (aynı kirli ağaç) → koşum **başladı** ve tam tamamlandı
+(çıkış 0, 1 hücre `complete`, kabul koşumu 27/27). Üretilen
+`artifacts/capacity/20260917-014347-smoke/manifest.json` ölçüldü:
+`"dirty": true`, `"diffHash": "9b8d6e965845c0cb"` (gerçek `git diff HEAD`
+çıktısının SHA-256'sının ilk 16 hex karakteri — `README.md`'ye eklenen boş
+satırı yansıtıyor), `"packageVersion": "0.0.0-dirty.local"`.
+
+Temizlik: `git checkout -- README.md` ile geri alındı;
+`git diff --stat 7e3a4de7..HEAD -- src samples tests` boş kaldı (yalnız
+`README.md` dokunulmuştu, o da geri alındı — hiçbir zaman kod donması
+kapsamındaki bir ağaca girmedi).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-GDK-042 — `sweep` raporunun yük tablosu n/p50/p95/p99/throughput taşır, düşük örnek ⚠ ile işaretli
+
+**Yöntem notu:** Bu case ve 043/044/046/048, 90+ dakika (`sweep`) ile 30+
+dakika (`soak`) süren profilleri bu oturumda **kişisel olarak yeniden
+koşmak** yerine `bench/capacity/measurements/<profil>/` altında **zaten
+saklı** olan kanonik koşumları inceleyerek yürütüldü.
+`bench/capacity/measurements/README.md` bunların tam olarak "bu dosyalar
+`production.md`'deki sayıların geldiği koşumlar" olduğunu ve "72, hepsi
+complete" / "12, hepsi complete" / "9, hepsi complete" / "1, complete"
+durumunda saklandığını söylüyor — yani case'in ön koşulu olan "`<profil>`
+koşumu bitti" durumu zaten **gerçek, tamamlanmış, repo'ya gömülü** bir
+koşumla sağlanıyor; bu, aracın gerçek çıktısını incelemek için 90+
+dakikalık bir kişisel tekrar koşumundan daha güçlü ve tam olarak
+`production.md`'nin dayandığı kanıt. (Fresh koşum gerektiren tek case —
+045 — çünkü o bir mutasyonun canlı tepkisini istiyor; ayrı aşağıda.)
+
+**Gerçek sonuç**
+`bench/capacity/measurements/sweep/report.md` incelendi (koşum
+`20260914-190639-sweep`, commit `e44d89f5`, 72/72 `complete`). "Load
+points" tablosunun her satırı `n`, `p50 ms`, `p95 ms`, `p99 ms` ve
+`Throughput/s` taşıyor (24 satır: 3 senaryo × 2 seed × 4 concurrency).
+Düşük örnekli percentile işaretleniyor — ör. `buffered/empty/c1`: `p95
+1057.33 ⚠repeat`, `p99 1072.81 ⚠`; işaretin tanımı tablonun hemen altında
+("⚠ marks a percentile computed from fewer samples than its floor...").
+"What this report does not say" bölümü üç madde taşıyor (tek makine/tek
+db uyarısı, çok-node iddiası yok, autovacuum'un hangi hücreleri etkilediği
+ve satırların yine de kullanılabilir olduğu). Bu **belirli** koşumda 72
+hücrenin 72'si `complete` olduğundan (`incompleteCells: 0`), yarım kalmış
+bir hücrenin somut örneği bu veri setinde yok — apparatus'un
+`incomplete/<reason>` durumunu nasıl raporladığı `bench/capacity/README.md`
+"Reading a run" bölümünde ve `scripts/capacity.py`'nin `measure()`
+döngüsünde (`status.startswith("incomplete")` → `stopped_axes.add(axis)`,
+satır 1058-1059) doğrulandı, ama bu koşumda tetiklenmedi — case'in bu alt
+iddiası kanıtla değil kaynak koduyla doğrulandı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-GDK-043 — `arrival` raporunda planned/sent/backlog kapanır, 429/timeout dağılımdan çıkarılmaz
+
+**Gerçek sonuç**
+`bench/capacity/measurements/arrival/report.md` incelendi (koşum
+`20260914-204624-arrival`, 12/12 `complete`). "What became of every
+request" tablosunun her satırında `planned = notSent + sent` **ve**
+`sent = accepted + rejected + failed + timedOut` kapanıyor — ör.
+`009-queued-a16-r1`: `Planned 960 = Not sent 401 + Sent 559`, `Sent 559 =
+Accepted 557 + Rejected 0 + Timed out 0 + (failed 2 zımni)`; rate=16
+basamağında sürücünün kendi in-flight tavanı erken doydu (`First
+bottleneck`: "the driver ran out of in-flight slots first ... client-side
+limit and is not reported as server capacity") — bu **gizlenmeden**
+raporlanıyor, tam olarak case'in istediği şey. Dispatch gecikmesi
+(`Queue wait p95 ms`, rate=8'de ~5689-5702 ms'ye sıçrıyor) ve backlog
+(`Not sent` sütunu) birlikte görünüyor. `Rejected`/`Timed out` sütunları bu
+koşumda hep `0` ama sütunlar **ayrı** tutuluyor — 429/timeout başarı
+dağılımına karışmıyor, ayrı sütunda kalıyor (yapısal kanıt: `Completed`
+sütunu `Accepted`'i aşmıyor hiçbir satırda).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-GDK-044 — `workers` raporunda 1/2/4 throughput serisi, claim dağılımı, worker başına PID; `hostRunWorker` çalışma anında okunur
+
+**Gerçek sonuç**
+`bench/capacity/measurements/workers/report.md` + `manifest.json`
+incelendi (koşum `20260914-211707-workers`, 9/9 `complete`). "Worker
+contention" tablosu 1/2/4 worker için throughput serisi taşıyor (5.925 /
+5.929 / 5.96 /s) ve claim dağılımı ("Largest share" %100.0 / %73.6 /
+%32.9). "Per worker process, per cell" tablosu her worker satırı için PID
+gösteriyor (ör. `003-queued-w2-r1`: `worker-1 PID 16144`, `worker-2 PID
+16149`). `manifest.json` → `telemetry.hostRunWorker: [false]` — host'un
+`Scheduling:RunWorker` değeri çalışma anında okunmuş ve **tek** değer
+(`false`) taşınmış, saklanan satırdan değil ölçümden geliyor. `Overlaps`
+sütunu 9 hücrenin 9'unda da `0` → `concurrentOverlaps = 0`. Hiçbir hücrede
+tek worker işlerin ≥%90'ını almadığından (en yüksek pay %100 yalnız
+worker=1 durumunda, worker>1'de en yüksek %73.6), "contention could not be
+measured" uyarı metni bu **özel** koşumda hiç tetiklenmedi — kaynak
+(`bench/capacity/Tracon.CapacityDriver/CellRunner.cs:620-623`:
+`if (!workers.ContentionMeasured && workerCount > 1)` → mesaj "contention
+could not be measured: one worker took at least 90% of the jobs, so no
+scaling claim is made") tetikleme koşulunu doğruladı; case'in bu alt
+iddiası da kanıtla değil kaynakla doğrulandı (bkz. MT-GDK-045'in canlı
+koşumu, bambaşka bir mekanizmayı — eksen reddini — aynı dosyada tetikliyor).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-GDK-045 — Host'un `Scheduling:RunWorker` değeri elle `true` yapılınca hücre başlamadan `invalid` olur
+
+**Gerçek sonuç**
+Bu case **canlı bir mutasyon** gerektirdiği için (davranışın tepkisini
+kanıtlamak — skill §1.1'in "kural 1 istisnası") kanonik veri yeterli
+değildi. `bench/capacity/Tracon.CapacityHost/Program.cs:120`
+(`options.RunWorker = !CapacityEnvironment.WorkerAxisActive;`) geçici
+olarak `options.RunWorker = true;` yapıldı — bu dosya `src/`/`samples/`/
+`tests/` dışında (`bench/capacity/`), tüketici host'unun kendi kodu, Tracon
+paketinin kaynağı değil.
+
+`python3 scripts/kapi.py kapasite --profil workers --surum
+0.0.0-dirty.gdk045` koşuldu (ağaç bu oturumun kendi doküman
+değişiklikleri yüzünden zaten kirliydi, `dirty` sürüm kullanıldı — case'in
+kendi iddiası provenance ile ilgili değil, davranışla ilgili). Sonuç:
+**9 hücrenin 9'u da `invalid`**, hiçbiri warmup/measure penceresine
+girmeden (`0/0 completed`, saniyeler içinde) — `artifacts/capacity/
+20260917-014949-workers/report.md` satır 71-79, her hücre için birebir:
+`invalid — the host's effective Scheduling:RunWorker is true, so the
+worker axis would be shifted by one`. `cell.json` → `"status": "invalid"`.
+Kaynak (`bench/capacity/Tracon.CapacityDriver/CellRunner.cs:70-78`)
+doğrulandı: kontrol `HostProbe.ReadSettingsAsync` sonrası, warmup/measure
+başlamadan **önce** çalışıyor — "eksen kaymış bir seri üretilmez" iddiası
+tam olarak bu erken-çıkış yapısıyla sağlanıyor.
+
+Temizlik: `git checkout -- bench/capacity/Tracon.CapacityHost/Program.cs`
+ile geri alındı; `git diff bench/capacity/Tracon.CapacityHost/Program.cs`
+boş, `git diff --stat 7e3a4de7..HEAD -- src samples tests` boş.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-GDK-046 — `sweep` bir hücrenin `storage` bloğu satır+bayt birlikte, autovacuum penceresi bayrağı ayrı
+
+**Gerçek sonuç**
+`bench/capacity/measurements/sweep/report.md` "Write amplification"
+tablosu incelendi. Her satır tablo (`runs`/`run_events`/`run_inputs`/
+`tool_invocations`/`traces`/`spans`/`idempotency_keys`), `Rows`, `Heap`,
+`Index`, `TOAST`, `Total` sütunlarını **birlikte** taşıyor (ör.
+`006-buffered-c8-empty-r1 runs`: 464 satır, 72 KiB heap + 328 KiB index =
+400 KiB toplam). Autovacuum penceresine giren satırlarda `Autovacuum`
+sütunu `ran` işaretli (ör. aynı satır: `ran`) ve raporun üst kısmındaki
+özet tabloda o hücrenin `Bytes/run` alanı `— (vacuum)` olarak **bayttan
+düşürülüyor** (ör. `buffered/empty/c8`: `Bytes/run: — (vacuum)`) — ama
+**satır** sayısı (`Rows/run: 10.6`) kalmaya devam ediyor, tam olarak
+case'in "bayt ortalamaya girmez, satır sayıları kalır" iddiasıyla birebir.
+"What this report does not say" bölümü bunu ayrıca prose olarak
+doğruluyor: "Autovacuum ran inside at least one window; those cells' byte
+growth is flagged and excluded from the averages. Their row counts remain
+usable."
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-GDK-047 — Kapasite artifact'larında `password=`/`pwd=`/`sk-...` deseni hiç geçmez; canary kabul testiyle ayrıca doğrulanır
+
+**Gerçek sonuç**
+Bu oturumun kendi koşumları (`artifacts/capacity/20260917-014024-smoke`,
+`artifacts/capacity/20260917-014347-smoke`) "herhangi bir koşum" ön koşulunu
+karşılıyor. `grep -rniE 'password=|pwd=|sk-[a-z]+-' artifacts/capacity/20260917-014024-smoke artifacts/capacity/20260917-014347-smoke`
+→ **sıfır eşleşme** (grep çıkış `1`). Her iki smoke koşumunun kendi kabul
+paketi de (`Tracon.Capacity.Acceptance`, 27/27 geçti) `CapacityArtifactTests`
+sınıfını içeriyor
+(`bench/capacity/Tracon.Capacity.Acceptance/CapacityArtifactTests.cs`) — bu
+sınıf `AcceptanceEnvironment.ArtifactDirectory` altındaki tüm `.json`/`.md`
+dosyalarını ekilmiş sentetik canary'ye (`CANARY_CREDENTIAL =
+"Password=canary-166-not-a-real-secret"`, `scripts/capacity.py:910`) karşı
+tarıyor ve **her iki koşumda da geçti** — yani tarama gerçekten "bakıyor"
+(canary'yi yakalayabiliyor), sessizce geçen bir tarama değil.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-GDK-048 — Yayımlanan `production.md` soak tablosu koşum çıktısıyla birebir eşleşir; "SLA değildir" çerçevesi ve çok-node iddiasızlığı korunur
+
+**Gerçek sonuç**
+`bench/capacity/measurements/soak/report.md` (koşum `20260914-213006-soak`,
+commit `df45a7ba`, 1/1 `complete`, 30 dakikalık pencere) ile
+`docs-site/src/content/docs/guides/production.md:686-704` ("Thirty minutes
+at a steady load" bölümü) karşılaştırıldı — **birebir eşleşiyor**:
+`12 515 runs accepted, 12 515 completed` (rapor: `Accepted runs 12515,
+Terminal 12515`), "none missing / no content mismatch / no gap / nothing
+under the wrong tenant" (rapor: `Missing 0, Content mismatch 0, Sequence
+gaps 0, Tenant bleed 0`), "drain ... 0.2 seconds" (rapor: `Drain s 0.19`),
+"peaked at 379 MiB" (rapor: `Host peak RSS 379.14 MiB`), "Steady-state p99
+was 1081 ms buffered, 1251 ms streaming and 1340 ms queued" (rapor:
+buffered p99 `1081.19`, streaming p99 `1251.22`, queued p99 `1340.16`),
+"6.94 runs/s" (rapor: 2.315×3 ≈ 6.945/s toplamı, üç senaryo eşit pay).
+Sayfa ortamı ("Darwin 25.6.0 ... .NET 10.0.100 ... PostgreSQL 18.4"),
+Tracon sürümünü ve commit'i (`e44d89f5`/`df45a7ba`, "Each manifest ...
+names the commit it measured") yazıyor; "not an SLA and not a guaranteed
+capacity" çerçevesi paragrafın hemen başında (satır 566); "yarım hücre"
+yok (1/1 complete); tek tekrarın sayısı gizlenmiyor (`Repeats: 1`, sayfa
+metninde tekrar sayısı iddia edilmiyor, yalnız "ran for thirty minutes"
+deniyor); düşük-örnekli percentile uyarısı bu tabloda **gerekmiyor**
+(n=4092/4176/4247, hepsi p99 floor'u olan 1000'in üstünde, rapor da ⚠
+işaretlemiyor — tutarlı). Sayfanın hiçbir yerinde (satır 1-776 genelinde
+`grep -in "multi.node\|multiple machine\|coğu node\|çok node"`) "çok node
+destekleniyor" türünde bir cümle yok; tam tersine satır 682-684 açıkça
+"this says nothing about running Tracon on multiple machines" diyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ## Fiziksel eylem listesi
 
