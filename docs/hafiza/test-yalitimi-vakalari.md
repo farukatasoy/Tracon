@@ -108,6 +108,25 @@
   **Ders:** bir kaydı açan repro ne ise, kapanış onunla kanıtlanır. Hedefli bir
   testin yeşili, yük altında görülen bir semptomu kapatmaz.
   Ölçüm: [`../kesif/2026-09-04-surec-denetimi.md`](../kesif/2026-09-04-surec-denetimi.md) § A7.
+- **SEKIZINCI vaka (2026-09-16, Faz 177 kapanisi) — ayni test, ama bu sefer
+  UC tam kosumda UC FARKLI test dustu.** Kapanis kapisi iki kez kirmizi dondu:
+  (1) `ObjectToolAotPackageTests` (`IOException ... Tracon.Abstractions.pdb ...
+  being used by another process`), (2) `SqlServer.ConversationBranchTests` +
+  `SqlServer.RunScoreStatisticsTests` + `UiTests.Schedule_is_created_...`,
+  (3) ayri kosulan `Ui.E2ETests` projesinde
+  `Playground_voice_mode_opens_microphone_and_shows_transcript` (60 sn timeout).
+  Ikinci `Ui.E2ETests` kosumu **79/79 yesil** (ses testi dahil);
+  `Tracon.Package.Tests` izole **53/53**; `SqlServer.IntegrationTests` tam
+  **806/806**.
+  🚨 **Uc kanittan BIRI tutmadi ve kod yolu okundu** (kural: `test-yalitimi.md`
+  Faz 161). Faz `InMemoryVoiceSessionStore`'a iki iptal kontrolu eklemisti, yani
+  "degisiklik o yuzeye dokunmuyor" kaniti YOKTU. Okuma sonucu temiz cikti:
+  `LiveVoiceSessionHost` yazmayi `catch (Exception)` ile sarar ve loglar;
+  `VoiceConversationDriver.WriteRecordAsync` store'a `CancellationToken.None`
+  gecer — guard tetiklenemez. Test ayrica `voice-transcript`'i **akistan**
+  bekler, store'dan degil. Ders: dokunulmus bir yuzeyde "izole gecti" savunma
+  degildir; cagri yolundaki token'in **gercek degeri** okunur.
+
 - **`ObjectToolAotPackageTests` — ayni desenin Native AOT `publish` hali**
   (2026-09-12, F-219/F-220 kusur turu kapanisi).
   `…publishes_under_Native_AOT_without_a_trim_warning_and_runs` ayni degisiklik

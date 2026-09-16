@@ -47,7 +47,26 @@ Bir tüketici `UpsertAsync(score, alreadyCancelledToken)` çağırdığında ne 
   çekişmesinin aynısı ([`hafiza/test-kosum-tuzaklari.md`](../../hafiza/test-kosum-tuzaklari.md)).
   Kapının kendi triyajı da bunu söyledi (*"Hepsi izole geçti: tam koşum kaynak
   çekişmesi sınıfı"*). Belgeli ayırt etme uygulandı: `Tracon.Package.Tests`
-  izole koşuldu → **53/53 yeşil**, ardından kapı tekrar koşuldu
+  izole koşuldu → **53/53 yeşil**, ardından kapı tekrar koşuldu.
+
+  🚨 İkinci kapı koşumunda AOT testi GEÇTİ ama **başka üç test** düştü
+  (`SqlServer.ConversationBranchTests`, `SqlServer.RunScoreStatisticsTests`,
+  `UiTests.Schedule_is_created_...`), üçüncü koşumda ise
+  `UiTests.Playground_voice_mode_...`. **Her koşumda farklı test** düşmesi
+  çekişmenin imzasıdır (kod kusuru aynı testi düşürür —
+  [`hafiza/test-yalitimi.md`](../../hafiza/test-yalitimi.md) Faz 161).
+  Doğrulama: `SqlServer.IntegrationTests` tam **806/806** · `Ui.E2ETests`
+  ikinci koşum **79/79** (ses testi dahil).
+
+  🚨 **Üç kanıttan biri tutmadı, bu yüzden kod yolu okundu.** Kural "izole
+  geçti"yi tek başına kabul etmez; üçüncü kanıt *"değişiklik o yüzeye
+  dokunmuyor"*tur ve bu faz `InMemoryVoiceSessionStore`'a **iki iptal kontrolü
+  eklemişti**. Okuma temiz çıktı: `LiveVoiceSessionHost` yazmayı
+  `catch (Exception)` ile sarıp loglar (gözlemlenebilirlik işlevselliği bozmaz),
+  `VoiceConversationDriver.WriteRecordAsync` store'a `CancellationToken.None`
+  geçer — guard tetiklenemez. Test ayrıca `voice-transcript`'i **akıştan**
+  bekler, store'dan değil. Vaka `hafiza/test-yalitimi-vakalari.md`'ye sekizinci
+  kayıt olarak yazıldı (F-180 sınıfı açık)
 - [x] `samples/Tracon.Api` koşuldu; gerçek çıktı **Örnek Uygulama Koşumu** bölümünde
 - [x] `secret` taraması: `Tarama: ✅ temiz (6 işaretli sentetik credential atlandı)`
 - [x] `MT-RES-091`, `MT-RES-092` eklendi; `00-INDEKS.md` sayımı 53 → 55. 091'in otomatik karşılığı dört koşumda da koştu; 092'nin otomatik karşılığı `StoreCancellationContractSelfProofTests` (elle bozma denemesi 👤)
