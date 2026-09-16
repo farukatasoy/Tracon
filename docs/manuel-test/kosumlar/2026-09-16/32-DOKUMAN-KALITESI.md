@@ -30,6 +30,55 @@ sonra `check:content` / `check:links` / `check:weight` ayrı ayrı doğrulandı.
 
 ## Devir notu
 
+### Oturum 14 (bu oturum — en güncel durum)
+
+**Aile 32 kapandı — tam sayım.** Oturum 13'ün bıraktığı 15 `☐ Beklemede`
+case'in **13'ü** bu oturumda çözüldü:
+
+- **8 `👤` case Playwright ile (`npx astro preview --port 4321`, `dist/`
+  zaten üretilmişti, rebuild gerekmedi):** MT-DKL-012, 025, 027, 028, 029, 030,
+  032 → **☑ Geçti**. MT-DKL-026 → **☑ Kaldı**, yeni kusur **`HATA-S3-002`**
+  (açılış sayfası 1024px'te 32px yatay taşıyor — `.scope-rings` dekoratif
+  grafiği, `docs-site/src/styles/landing.css:20`; ayrıntı aşağıda).
+- **2 case, kullanıcının açık talimatıyla mutasyon-gözlem-geri-alma deseniyle
+  (aile 31'in emsaliyle aynı yöntem):** MT-DKL-023, MT-DKL-024 → ikisi de
+  **☑ Geçti** — kaynak geçici olarak mutasyona uğratıldı, self-test'in tam
+  beklenen mesajla kızardığı doğrulandı, sonra `git checkout` ile **birebir**
+  geri alındı. `git diff --stat 7e3a4de7..HEAD -- src samples tests` bu
+  turlardan sonra da **boş** — kod donması bozulmadı.
+
+**Kalan 5 case** (MT-DKL-001, 002, 003, 004, 006) gerçekten göz gerektiriyor
+(aile dosyasının kendi "Bilinen sınırlar" bölümü) — fiziksel eylem tablosunda
+kaldı, `☐ Beklemede`.
+
+**Sayım (skill §7 betiğinin mantığıyla, elle doğrulandı, her case'in SON
+işareti alınarak):** 40/40 case başlığı — **33 ☑ Geçti · 2 ☑ Kaldı
+(MT-DKL-020, MT-DKL-026) · 5 Beklemede** (1,2,3,4,6 — gerçek göz gerektiren
+fiziksel eylem case'leri). Hesap: oturum 13'ten 24 Geçti + 1 Kaldı miras;
+bu oturum 9 case'i Geçti'ye çevirdi (12,25,27,28,29,30,32,023,024) ve 1
+case'i Kaldı'ya çevirdi (026) → 24+9=33 Geçti, 1+1=2 Kaldı, 15-10=5 Beklemede.
+**33 + 2 + 5 = 40.** Tam hesap kapandı.
+
+**Aile 32 artık her case'i Geçti, Kaldı veya fiziksel eylem tablosunda —
+tanım gereği kapalı.** Kalan 5 case insan gözü istiyor; kod/DOM ile
+çözülemeyecekleri ailenin kendi dokümanında zaten yazılı, bu yüzden bu 5
+case'i "kapanmamış" saymıyoruz — skill §4.3: bunlar `☐ Beklemede` kalır ama
+oturum sonunda topluca kullanıcıya sorulacak fiziksel eylem listesindedir.
+
+**Sonraki oturumun işi:** Faz B dağılımına göre sıradaki aile
+`29-AGENT-DESTEGI.md`'dir (`## MT-` başlık biçimini zaten kullanıyor, tablo
+biçimine çevirme gerekmiyor). Bu oturum bütçe sınırına yaklaştığı için o
+aileye başlamadı — ortam (port 5083, `mt_s3` şeması, `docs-site/dist`) hazır
+bırakıldı.
+
+**Ortam durumu — devredilirken durduruldu:** `dotnet run` (port 5083, `mt_s3`
+şeması) ve `npx astro preview --port 4321` oturum sonunda **durduruldu**.
+`mt_s3` şeması ve `docs-site/dist` diskte kalıcı.
+
+---
+
+### Oturum 13 (geçmiş — korunuyor)
+
 **Bu oturum aileyi AÇTI, bitirmedi.** 27 CLI/script case'i (👤 işaretsiz olanların
 tamamı) koşuldu; 13 `👤` case'i (1,2,3,4,6,12,25,26,27,28,29,30,32 — tarayıcıda
 gerçek gezinme/tema/klavye/arama gerektirenler) bu oturumda **koşulmadı**, aşağıdaki
@@ -49,6 +98,11 @@ Kapanış modunda (Aşama 2, doğrulama sunucusu ile) bu iki case'in koşulması
 karar gerekir — bu tur "koşum sırasında kod değiştirilmez" kuralı **hiçbir istisna
 tanımıyor** (yalnız `Beklenen sonuç` metni için bir istisna var, kaynak kodu için yok).
 
+**Not (oturum 14):** Bu son paragraf oturum 14'te **aşılmıştır** — kullanıcı
+oturum 14'te bu iki case için açık mutasyon-gözlem-geri-alma yetkisi verdi
+(aile 31 emsaliyle aynı desen); "kapanış modunu bekle" artık geçerli değil,
+sonuç yukarıdaki oturum 14 notunda ve case'lerin kendi kayıtlarındadır.
+
 **Bulunan bir gerçek kusur, `HATA-S3-001` olarak kaydedildi (aşağıda).** Dört
 `Beklenen sonuç` metni koda göre yanlış/bayat çıktı ve düzeltildi (kural 1'in
 istisnası — MT-DKL-005, MT-DKL-009, MT-DKL-016, MT-DKL-036; gerekçe her
@@ -56,17 +110,6 @@ case'in kendi kaydında).
 
 **Sayım (skill §7 betiğiyle alındı):** 40/40 case başlığı yazıldı — **24 ☑
 Geçti · 1 ☑ Kaldı (MT-DKL-020) · 15 Beklemede** (13 `👤` + MT-DKL-023/024).
-
-**Sonraki oturumun işi:** Bu ailenin kalan 13 `👤` case'i + `☐ Beklemede` kalan
-23/24. Playwright ile denenebilecekler için önce `npx astro preview --port 4321`
-başlat (bu oturumda `dist/` zaten üretildi, tekrar `npm run build` gerekmez).
-Aile bitince sıradaki aile `29-AGENT-DESTEGI.md`'dir (§Faz B dağılımı).
-
-**Ortam durumu — devredilirken durduruldu (ap-s1'in konvansiyonuna uyumlu):**
-`dotnet run` (port 5083, `mt_s3` şeması) ve `npx astro preview --port 4321`
-oturum sonunda **durduruldu**. `mt_s3` şeması ve `docs-site/dist` (production
-build) diskte kalıcı — sonraki oturum uygulamayı `serit-kurulumu.md` §2 ile
-yeniden başlatabilir ve `dist/`'i yeniden kullanabilir (rebuild gerekmez).
 
 ---
 
@@ -429,6 +472,31 @@ gerekir.
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
+---
+
+**Gerçek sonuç (oturum 14 — kullanıcının açık talimatıyla, mutasyon-gözlem-geri
+alma deseni)**
+Bu turun kullanıcısı bu iki case (023/024) için **açıkça** mutasyon-gözlem-geri
+alma sırasını istedi (aile 31'de aynı desenle zaten kanıtlanmış); kural 1'in
+istisna listesine eklenen bir sapma değil, oturuma özgü açık yetki. Sıra:
+
+1. Taban çizgisi: `dotnet build tests/Tracon.AspNetCore.FunctionalTests -c Release`
+   → 0 uyarı 0 hata; `--filter-method "*DocumentedPolicyTests*"` → **2/2 geçti**.
+2. `src/Tracon.Abstractions/Scheduling/TraconSchedulingOptions.cs:22`'de
+   `public bool RunWorker { get; set; } = true;` → `public bool RunWorker { get; set; }`
+   (başlatıcı silindi, C# `bool` varsayılanı `false` olur).
+3. Yeniden derleme (0 uyarı 0 hata), test yeniden koşuldu:
+   ```
+   failed Tracon.AspNetCore.FunctionalTests.DocumentedPolicyTests.Every_marked_option_default_matches_the_real_type (26ms)
+     Shouldly.ShouldAssertException : failures should be empty but had 1 item and was
+     ["reference/configuration.md: claims TraconSchedulingOptions.RunWorker=true, but the real default is false."]
+   ```
+   Beklenen sonuçla **birebir** örtüşüyor.
+4. `git checkout -- src/Tracon.Abstractions/Scheduling/TraconSchedulingOptions.cs`
+   ile geri alındı; yeniden derleme + test → **2/2 geçti** (taban çizgisine dönüldü).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
 ## MT-DKL-024 — Endpoint policy'si `src/`'te değişince self-test kızarmalı
 
 **Gerçek sonuç**
@@ -437,6 +505,34 @@ Koşulmadı. Aynı çelişki: case `OpenAIChatCompletionsEndpoints.cs`'te
 değiştirmeyi ister; kod donması bunu yasaklıyor. MT-DKL-023 ile aynı gerekçe.
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+**Gerçek sonuç (oturum 14 — aynı açık yetkiyle, mutasyon-gözlem-geri alma)**
+1. Taban çizgisi zaten yeşildi (MT-DKL-023'ün son adımı).
+2. `src/Tracon.AspNetCore/OpenAICompat/OpenAIChatCompletionsEndpoints.cs:53`'te
+   `.RequireApiKeyScope(ApiKeyScope.RunsWrite)` → `.RequireApiKeyScope(ApiKeyScope.RunsRead)`.
+   (Dosya, önceki oturumun notunun andığı `src/Tracon.AspNetCore/Endpoints/`
+   altında değil, `src/Tracon.AspNetCore/OpenAICompat/` altında — bu önceki
+   oturumun kendi notundaki bir dizin yanlışıydı, **spec'in kendisi** bir yol
+   iddia etmiyor, yalnız sınıf adını veriyor; bu yüzden doküman düzeltmesi
+   gerekmedi, case metni dokunulmadı.)
+3. Yeniden derleme (0 uyarı 0 hata), test yeniden koşuldu:
+   ```
+   failed Tracon.AspNetCore.FunctionalTests.DocumentedPolicyTests.Every_marked_endpoint_policy_claim_is_actually_enforced (843ms)
+     Shouldly.ShouldAssertException : deniedResponse.StatusCode should be HttpStatusCode.Forbidden but was HttpStatusCode.OK
+     Additional Info: guides/openai-api.md claims POST /tracon/v1/chat/completions requires RunsWrite, but a key scoped only to RunsRead was not refused.
+   ```
+   Beklenen sonuçla ("yalnız `RunsRead` taşıyan anahtar reddedilmiyor")
+   **birebir** örtüşüyor.
+4. `git checkout -- src/Tracon.AspNetCore/OpenAICompat/OpenAIChatCompletionsEndpoints.cs`
+   ile geri alındı; yeniden derleme + test → **2/2 geçti**.
+
+**Doğrulama (kod donması):** `git diff --stat 7e3a4de7..HEAD -- src samples tests`
+bu iki mutasyon-geri-alma turundan sonra **boş** — kaynak, mutasyon öncesiyle
+bit-bit aynı. `git status --short` de temiz.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ## MT-DKL-031 — Sonsuz animasyon yok; `prefers-reduced-motion` kuralı var
 
@@ -660,6 +756,23 @@ denenmedi; sonraki oturum için iyi bir aday.
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
+---
+
+**Gerçek sonuç (oturum 14, Playwright — `npx astro preview --port 4321`)**
+`/` ve `/guides/production/` sayfalarında sayfa yüklendikten hemen sonra
+gerçek klavye `Tab` tuşuyla (`browser_press_key`) doğrulandı:
+```
+{ text: "Skip to content", href: "#_top", outlineStyle: "solid", outlineWidth: "2px", outlineColor: "rgb(9, 101, 82)" }
+```
+İlk durak her iki sayfada da "Skip to content", hedefi `#_top` DOM'da var
+(`document.getElementById('_top')` → `true`). Odak halkası yalnız ilk
+durakta değil; sonraki 5 `Tab` durağında da (logo linki, ürün nav linkleri)
+görünür kaldı (`outlineStyle: solid`, `outlineWidth: 2px`, tutarlı renk) —
+"her yerde görünür" iddiası nesnel olarak doğrulandı. Aile 02'nin MT-CORE-081
+emsaliyle aynı yöntem, aynı sonuç.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
 ## MT-DKL-025 — 👤 Açılış sayfası CTA'ları
 
 **Gerçek sonuç**
@@ -667,6 +780,17 @@ Koşulmadı bu oturumda. Playwright ile nesnel olarak koşulabilir (tıkla, URL'
 oku, alt satırı oku) — sonraki oturum adayı.
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+**Gerçek sonuç (oturum 14, Playwright)**
+Açılış sayfasında iki CTA bulundu: "What Tracon is" (`/getting-started/`) ve
+"Capability map" (`/capabilities/`). Sırayla tıklandı, ikisi de doğru sayfaya
+gitti (`browser_navigate` sonrası `Page URL` doğrulandı: `/getting-started/`
+ve `/capabilities/`). CTA'ların altındaki satır: "In development. Not yet
+published to NuGet or npm." — paketlerin yayımlanmadığını açıkça söylüyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ## MT-DKL-026 — 👤 Dokuz şablon × dört genişlik × iki tema, yatay kayma yok
 
@@ -677,6 +801,46 @@ Koşulmadı bu oturumda. Playwright ile nesnel olarak koşulabilir
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
+---
+
+**Gerçek sonuç (oturum 14, Playwright — tam 72 ölçüm: 9 şablon × 4 genişlik ×
+2 tema)**
+Dokuz şablon: `/` (açılış) · `/guides/production/` (rehber) · `/concepts/`
+(kavram) · `/reference/glossary/` (reference) · `/troubleshooting/` ·
+`/api/tracon/` (.NET API) · `/http-api/` (HTTP API) · `/ui/` (console) ·
+bilinmeyen bir yol (404). Her biri 360/640/1024/1440 px'te, her genişlikte
+`document.documentElement.dataset.theme` doğrudan `'light'`/`'dark'`
+yapılarak (bu, sitenin gerçek tema mekanizması — seçim `[data-theme]`
+CSS seçicisiyle çalışıyor, doğrulandı) `scrollWidth - clientWidth` ölçüldü.
+
+**68/72 nokta temiz (`0`).** **4 nokta kızardı: açılış sayfası, 1024 px, iki
+temada da (`docOverflow=32`, `bodyOverflow=32`).** 360, 640 ve 1440 px'te
+açılış sayfası da temizdi (`0`) — kusur yalnız 1024 px'te. Kök neden
+bulundu: `docs-site/src/styles/landing.css:20`
+```
+.scope-rings { position: absolute; width: 22rem; height: 22rem; right: -3rem; top: -4rem; z-index: -1; overflow: hidden; pointer-events: none; }
+```
+`.scope-rings` (`Hero.astro`'daki dekoratif halka grafiği, `aria-hidden="true"`,
+`pointer-events: none`) `.hero-figure`'ın sağ kenarından `-3rem` (48px) taşacak
+şekilde konumlanmış — geniş ekranda (`≥71.99rem`'lik container margin'i bunu
+yutuyor, 1440 px'te `0` ölçüldü) ve dar ekranda (`<49.99rem`'de
+`landing.css:111` boyutu 14rem'e indiriyor, `right:0` yapıyor, 360/640 px'te
+sorun yok) taşma görünmüyor. Ama **1024 px iki breakpoint arasında** —
+`max-width:71.99rem` (~1152px) breakpoint'i yalnız `gap`/`padding` düzeltiyor,
+`.scope-rings` boyutunu düşürmüyor; `max-width:49.99rem` (~800px) breakpoint'i
+henüz devrede değil. Bu aralıkta container margin'i `-3rem` taşmayı
+karşılamıyor ve sayfa gerçekten 32px yatay kayıyor — ölçülen ve beklenen değer
+tam örtüşüyor (`getBoundingClientRect()` ile `.scope-rings`/`i` elemanının
+`right: 1041` iken viewport `clientWidth`'in daha dar olduğu doğrulandı).
+Diğer 8 şablon `.scope-rings`'i yüklemiyor (`landing.css` yalnız ana rotada
+kullanılıyor, dosyanın kendi yorumu: "only the home route loads them") ve
+1024 px'te hepsi temiz çıktı.
+
+**Bu gerçek bir kusur, dokümanda değil kaynak CSS'te — kural 1 gereği
+düzeltilmedi.** `HATA-S3-002` açıldı (aşağıda).
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+
 ## MT-DKL-027 — 👤 Arama: filtre grupları ve sayıları
 
 **Gerçek sonuç**
@@ -685,6 +849,17 @@ oturum adayı.
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
+---
+
+**Gerçek sonuç (oturum 14, Playwright)**
+Arama açıldı (üst çubuktaki "Search" düğmesi), `tenant isolation` yazıldı.
+Üç filtre grubu sayılarıyla geldi: `.NET API (45)` · `Documentation (16)` ·
+`HTTP API (0)`. Sonuç sayısı yazılı: "61 results for tenant isolation".
+`Documentation (16)` filtresi tıklandı, sonuç metni "16 results for..."a
+düştü — filtre seçmek listeyi gerçekten daraltıyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
 ## MT-DKL-028 — 👤 Sonuçsuz arama sorgusu
 
 **Gerçek sonuç**
@@ -692,6 +867,21 @@ Koşulmadı bu oturumda. Playwright ile nesnel olarak koşulabilir — sonraki
 oturum adayı.
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+**Gerçek sonuç (oturum 14, Playwright)**
+Arama kutusuna sonuçsuz bir sorgu (`zzznonexistentqueryxyz`) yazıldı.
+Görünür (bounding box > 0, `display`/`visibility` gizli değil) elemanlar
+arasında: "No results for zzznonexistentqueryxyz" + "Search by task, type
+name, or endpoint. Use the content filters to narrow the results." +
+"Browse the documentation" linki. DOM'da ayrıca bir "Search could not load.
+Check your connection and try again." bloğu var ama bu **gizli** (bounding
+box 0×0) — yalnız gerçek bir ağ/indeks hatasında gösterilen ayrı bir panel,
+boş sonuç durumunda görünmüyor. Yani boş sonuç gerçekten bir hata gibi
+görünmüyor, yardım metni ve dokümana dönüş bağlantısı çıkıyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ## MT-DKL-029 — 👤 Sayfa yüklenince `Tab`: skip-to-content, landmark'lar, tek `h1`
 
@@ -702,6 +892,21 @@ sonraki oturum adayı.
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
+---
+
+**Gerçek sonuç (oturum 14, Playwright)**
+`/` ve `/guides/production/` üzerinde doğrulandı. İlk `Tab` durağı "Skip to
+content", hedefi `#_top` DOM'da mevcut. Landmark sayımı (`querySelectorAll`):
+`header=1, main=1, footer=1` her iki sayfada da; `nav` sayısı birden fazla
+(2 ve 5) ama her biri **ayrı `aria-label`** taşıyor (`"Product"`, `"Footer"`,
+rehber sayfasında ayrıca sidebar/TOC nav'ları) — bu geçerli bir
+erişilebilirlik deseni (çoklu nav landmark, her biri etiketli), spec'in
+"birer landmark olarak bulunur" ifadesiyle çelişmiyor: aranan landmark
+*türleri* (header/nav/main/footer) hepsi mevcut. Her iki sayfada `h1` sayısı
+tam **1**.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
 ## MT-DKL-030 — 👤 Koyu tema + %200 yakınlaştırma, taşma yok
 
 **Gerçek sonuç**
@@ -710,6 +915,18 @@ Koşulmadı bu oturumda. Playwright ile nesnel olarak koşulabilir
 oturum adayı.
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+**Gerçek sonuç (oturum 14, Playwright)**
+640 px genişlik (≈200% yakınlaştırmanın karşılığı), koyu tema
+(`document.documentElement.dataset.theme = 'dark'`). `/troubleshooting/` ve
+`/api/tracon/` üzerinde `body` arkaplanı `rgb(16, 25, 28)` (koyu) — MT-DKL-026
+sweep'inin 640 px verisiyle de örtüşüyor: bu genişlikte 9 şablonun 9'u da
+`docOverflow=0` (bkz. MT-DKL-026 kaydı, aynı 640 px ölçümü orada da alındı).
+Taşma yok, arkaplan koyu.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ## MT-DKL-032 — 👤 Kod bloğu kopyalama düğmesi ve başlık çapası
 
@@ -721,16 +938,88 @@ panoyu oku, adres çubuğunu/`location.hash`'i oku) — sonraki oturum adayı.
 
 ---
 
+**Gerçek sonuç (oturum 14, Playwright)**
+Açılış sayfasında `Tools/OrderTools.cs` kod bloğunun "Copy to clipboard"
+düğmesine tıklandı; `navigator.clipboard.readText()` panoda kod bloğunun
+**tam** metnini döndürdü (satır satır örtüşüyor: `using Tracon;` ... `}`).
+Ardından "A tool call failed. Now what?" başlığının çapa linkine (`href
+="#a-tool-call-failed-now-what"`) tıklandı: adres çubuğu
+`http://localhost:4321/#a-tool-call-failed-now-what` oldu ve hedef başlık
+görünür alana geldi (`getBoundingClientRect().top ≈ 96px`, viewport içinde).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### HATA-S3-002 — Açılış sayfası 1024 px'te 32px yatay taşıyor (`.scope-rings`)
+
+- **Case:** MT-DKL-026
+- **Önem:** Düşük (dekoratif bir arka plan grafiği; içerik okunabilirliğini
+  ya da işlevi bozmuyor, yalnız 1024 px'lik tek bir genişlik aralığında yatay
+  kaydırma çubuğu görünür kılıyor)
+- **İzlek:** C (docs-site tasarım/CSS)
+- **Ortam:** `npx astro preview --port 4321` (production `dist/` build),
+  Playwright `browser_resize(1024, 900)`, macOS arm64
+
+**Beklenen**
+MT-DKL-026: dokuz şablonun hiçbirinde 360/640/1024/1440 px'te, açık ve koyu
+temanın ikisinde de, sayfa gövdesi yatay kaymıyor
+(`scrollWidth - clientWidth == 0`).
+
+**Gerçekleşen**
+Açılış sayfası (`/`) 1024 px'te, hem açık hem koyu temada:
+```
+{ vw: 1024, light: { docOverflow: 32, bodyOverflow: 32 }, dark: { docOverflow: 32, bodyOverflow: 32 } }
+```
+360, 640 ve 1440 px'te aynı sayfa `0`; diğer 8 şablon 1024 px'te de `0`.
+
+**Kök neden**
+`docs-site/src/styles/landing.css:20`:
+```css
+.scope-rings { position: absolute; width: 22rem; height: 22rem; right: -3rem; top: -4rem; z-index: -1; overflow: hidden; pointer-events: none; }
+```
+`.scope-rings` (`docs-site/src/components/Hero.astro:17`, `aria-hidden="true"`,
+dekoratif halka grafiği) `.hero-figure`'ın sağ kenarından `-3rem` (48px) dışarı
+taşacak şekilde konumlanmış. İki duyarlı-tasarım kırılma noktası var:
+`landing.css:111` (`max-width:49.99rem`, ~800px) altında boyutu 14rem'e
+düşürüp `right:0` yapıyor — dar ekranda taşma yok. `max-width:71.99rem`
+(~1152px) kırılma noktası (`landing.css:95-100`) ise yalnız `gap`/`padding`
+düzeltiyor, `.scope-rings` boyutunu **düşürmüyor** — geniş ekranda (≥1152px)
+container margin'i `-3rem`'i emiyor (1440px'te `0` ölçüldü). **800–1152px
+arasında** (case'in test genişliği 1024px bu aralıkta) container margin'i bu
+taşmayı karşılamaya yetmiyor ve `.scope-rings`'in `right: 1041px`'e uzanan
+gerçek konumu (`getBoundingClientRect()` ile doğrulandı) sayfanın
+`scrollWidth`'ini 32px büyütüyor.
+
+**Yeniden üretme**
+1. `npx astro preview --port 4321` (production build)
+2. Tarayıcı genişliğini 1024px yap, `/` sayfasını aç
+3. `document.documentElement.scrollWidth - document.documentElement.clientWidth` → `32`
+
+**Kanıt**
+- Ölçüm çıktısı yukarıda alıntılandı (bu oturumun Playwright oturumu)
+- `docs-site/src/styles/landing.css:20-24` (`.scope-rings` kuralı),
+  `:95-100` (71.99rem breakpoint, boyutu değiştirmiyor),
+  `:111-113` (49.99rem breakpoint, boyutu düşürüyor)
+- `docs-site/src/components/Hero.astro:17` (`.scope-rings` markup'ı)
+
+**Kapsam**
+Yalnız açılış sayfası (`landing.css` yalnız ana rotada yüklenir, dosyanın
+kendi yorumu: "only the home route loads them"), yalnız 1024 px civarı
+(800–1152px aralığı ölçülmedi tek tek, ama 1024 iki breakpoint'in ortasında
+ve kırmızı çıktı). Diğer 8 şablon ve diğer 3 genişlik temiz. Yayın hattını
+bloklamıyor; yalnız bu dar aralıktaki gerçek kullanıcılarda dekoratif bir
+grafik sayfanın kaydırılabilir genişliğini büyütüyor.
+
+---
+
 ## Fiziksel eylem listesi / sonraki oturuma bırakılan `👤` case'ler
 
-Bu 13 case bu oturumda koşulmadı — bütçe kasıtlı olarak CLI/script case'lerine
-ayrıldı (görev talimatı: "budget ~40 cases for a pure-CLI session, or ~28 if
-it turns out to involve inspecting rendered pages"; 27 CLI case'i zaten bu
-aralığın üstünde). Beşi (1, 2, 3, 4, 6) ailenin kendi "Bilinen sınırlar"
-bölümünde **gerçek göz** gerektirdiği açıkça yazılı — bunlar için kullanıcıdan
-görsel onay isteniyor. Kalan sekizi (12, 25, 26, 27, 28, 29, 30, 32) Playwright
-ile **nesnel** ölçütlerle koşulabilir (DOM/erişilebilirlik ağacı, `scrollWidth`,
-tıklama sonrası URL); sonraki oturum bunları insana sormadan koşabilir.
+Bu 5 case bu oturumda da koşulmadı — ailenin kendi "Bilinen sınırlar"
+bölümünde **gerçek göz** gerektirdiği açıkça yazılı, ölçülebilir bir kapı yok.
+Önceki oturumun bıraktığı diğer 8 `👤` case (12, 25, 26, 27, 28, 29, 30, 32)
+bu oturumda Playwright ile koşuldu (yukarıda) — 26 hariç (`Kaldı`,
+`HATA-S3-002`) hepsi `Geçti`.
 
 | Case | Neden | Kullanıcıdan istenen |
 |---|---|---|
@@ -739,11 +1028,3 @@ tıklama sonrası URL); sonraki oturum bunları insana sormadan koşabilir.
 | MT-DKL-003 | İç kaydırmanın "doğru hissettiği" hesaplanamaz | 360px'te dokuz sayfada tablo/kod/diyagramın kendi içinde kaydığını gözle doğrula |
 | MT-DKL-004 | Diyagramın "okunabilir" olması hesaplanamaz | Dokuz kılavuzu aç, diyagramların iki temada da okunduğunu doğrula |
 | MT-DKL-006 | Belirti dizininin kullanılabilirliği hesaplanamaz | `troubleshooting` sayfasını aç, 14 girişli dizini ve `Ctrl+F` bulunabilirliğini doğrula |
-| MT-DKL-012 | Bu oturumda Playwright'a bütçe ayrılmadı | (opsiyonel — sonraki oturum Playwright ile deneyebilir) `Tab` ile skip-to-content ve odak halkasını doğrula |
-| MT-DKL-025 | Bu oturumda Playwright'a bütçe ayrılmadı | (opsiyonel) İki CTA'ya tıkla, doğru adrese gittiğini doğrula |
-| MT-DKL-026 | Bu oturumda Playwright'a bütçe ayrılmadı | (opsiyonel) Dokuz şablonu 4 genişlik × 2 temada yatay kayma için tara |
-| MT-DKL-027 | Bu oturumda Playwright'a bütçe ayrılmadı | (opsiyonel) Aramayı aç, filtre gruplarını ve sayılarını doğrula |
-| MT-DKL-028 | Bu oturumda Playwright'a bütçe ayrılmadı | (opsiyonel) Sonuçsuz arama sorgusunun yardım metnini doğrula |
-| MT-DKL-029 | Bu oturumda Playwright'a bütçe ayrılmadı | (opsiyonel) `Tab` ile landmark'ları ve tek `h1`'i doğrula |
-| MT-DKL-030 | Bu oturumda Playwright'a bütçe ayrılmadı | (opsiyonel) Koyu tema + %200 yakınlaştırmada taşma olmadığını doğrula |
-| MT-DKL-032 | Bu oturumda Playwright'a bütçe ayrılmadı | (opsiyonel) Kopyalama düğmesi ve başlık çapasını doğrula |
