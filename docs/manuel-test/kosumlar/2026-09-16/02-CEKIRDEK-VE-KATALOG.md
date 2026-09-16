@@ -2170,3 +2170,152 @@ false`, `timedOut: false` taşıyor — başarısızlığın **türü** de kayı
 
 ---
 
+## MT-CORE-100 — BYOK desteklemeyen provider'da tenant credential fail-closed'tır
+
+**Gerçek sonuç** (`ohost` · yalnız `IModelProvider` uygulayan `ByokSuzProvider`)
+
+Sağlayıcının `CreateChatClient`'ı bir sayaç artırıp **istisna atıyor**
+("Bu noktaya GELINMEMELIYDI") — böylece çağrılıp çağrılmadığı kesin ölçülüyor.
+
+```
+PUT /api/tenants/default/providers/byoksuz
+  {"apiKeyConfigurationName":"Tracon:ProviderKeys:byoksuz"} -> 200
+  {"providerName":"byoksuz","resolved":true,...}     <- kimlik GERCEKTEN cozuldu
+Tracon__ProviderKeys__byoksuz = "SAHTE-KIRACI-ANAHTARI-9999"
+
+POST /api/agents/byoksuz-agent/run -> HTTP 400
+  "detail": "Agent 'byoksuz-agent' could not be compiled:
+             The model provider does not support tenant credentials.
+             Provider: 'byoksuz'."
+```
+
+**Üç beklentinin üçü de tuttu:**
+
+| Beklenti | Ölçüm |
+|---|---|
+| Provider/setup client çağrısı **0** | `"GELINMEMELIYDI"` SSE'de 0, logda 0 ✅ |
+| Stable hata, sessiz fallback yok | `provider_credential_unsupported` mesajı döndü; global anahtara **düşmedi** ✅ |
+| Credential değeri hiçbir yerde yok | `SAHTE-KIRACI-ANAHTARI-9999`: SSE'de 0, logda 0 ✅ |
+
+**Kök mekanizma** (`src/Tracon.Core/Models/ModelProviderRegistry.cs:396-401`):
+```csharp
+chatClient = credential switch
+{
+    null => provider.CreateChatClient(binding),
+    _ when provider is ITenantCredentialModelProvider p => p.CreateChatClient(binding, credential),
+    _ => throw ProviderInvocationException.CredentialUnsupported(binding.Provider),
+};
+```
+Üçüncü dal sağlayıcıya **hiç dokunmadan** atıyor — "0 çağrı" iddiasının
+yapısal karşılığı budur.
+
+📋 `provider_credential_unsupported` dizgisi iç `ErrorType`'tır
+(`ProviderFailureNormalizer.cs:11`); HTTP gövdesi onun **mesajını** taşır.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-101 — `AddRunJudge` üç overload'ı AgentSource deseniyle aynı idempotency'i taşır
+
+**Gerçek sonuç**
+```
+1) AddRunJudge<SabitJudge>() iki kez  -> kayit sayisi: 1          ✅ tek singleton
+2) AddRunJudge(instance "birinci")
+   + AddRunJudge(factory  "ikinci")   -> kayit sayisi: 2
+                                          adlar: birinci, ikinci  ✅ ikisi de korundu
+3) AddRunJudge(instance "ayniad")
+   + AddRunJudge(factory  "AYNIAD")   -> TraconException:
+   "More than one run judge named 'ayniad' has been registered."  ✅ case-insensitive
+```
+Üç beklentinin üçü de tuttu. Desen `AddAgentSource` ile birebir aynı
+(`MT-CORE-093`: generic aşırı yükleme `TryAddEnumerable` ile tipi
+tekilleştirir; instance/factory ayrı örnekleri korur; ad çakışması hata verir).
+
+**Sapma:** `RunJudgeSet` `internal` olduğu için çakışma denetimi reflection ile
+tetiklendi (`Activator.CreateInstance`). Üretim yolunda aynı kurucu host
+açılışında koşar.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-102 — `JudgeTimeout` token'ı yok sayan judge için gerçek wait cutoff'tur
+
+**Gerçek sonuç**
+
+`TembelJudge` `Task.Delay(8 sn)` yapıyor ve cancellation token'ı **bilinçli
+olarak** iletmiyor. `Tracon__OnlineEvaluation__JudgeTimeout = 00:00:02`.
+
+```
+POST /api/runs/{id}/judge -> HTTP 502 · 2,06 sn
+  { "title": "Manual scoring failed", "detail": "tembel (judge_timeout)" }
+```
+
+🚨 **Kanıt süredir:** judge gövdesi 8 sn sürüyor ve token'ı dinlemiyor; çağrı
+yine de **2,06 sn**'de döndü. Yani `JudgeTimeout` judge'ın işbirliğine bağlı
+değil, çağıran tarafta **gerçek bir bekleme kesintisi**. Hata metni judge'ı
+adıyla ve `judge_timeout` koduyla veriyor.
+
+**Gövde bittikten sonra (12 sn beklendi):**
+```
+run kaydinda scores/judgments  -> None       ✅ skor YAZILMADI
+UnobservedTaskException/Unhandled -> 0        ✅ uretilmedi
+```
+İki beklentinin ikisi de tuttu: geç biten gövde skoru geri yazmıyor ve arkada
+kalan Task sessizce yutulmuyor da, patlamıyor da.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-103 — `AgentDefinitionCompiler` ayrıştırmasından sonra `support` agent aynı şekilde çalışır
+
+**Gerçek sonuç** (gerçek OpenAI · PostgreSQL `ap-pg` · şema `mt_s1`)
+```
+SSE olaylari: 1 run · 7 update · 1 done          ✅ update (metin+usage) + done
+yanit: "Merhaba! 👋"
+
+GET /api/runs?agentName=support&limit=1:
+  id     : 01a0ab24-0170-7d24-a153-cbb764e97a7b
+  status : Completed                              ✅
+  usage  : inputTokens 351 · outputTokens 8 · totalTokens 359   ✅ gercek usage
+```
+İki beklentinin ikisi de tuttu. 2026-08-26 koşumunun sonucu (234/40 token)
+bugün 351/8 ile tekrarlandı — sayılar farklı, **yapı** aynı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-104 — Culture taşıyan tanım en yakın culture talimatını çözer
+
+## MT-CORE-105 — Shared instructions sync yolda açık hata verir, async yolda çözülür
+
+**Gerçek sonuç** (ikisi de otomatik teste atıfta bulunuyor; testler koşuldu)
+```
+dotnet build tests/Tracon.Core.UnitTests -c Release -> 0
+Tracon.Core.UnitTests --filter-class "*AgentDefinitionCompilerPathTests" "*SharedInstructionsTests"
+  -> cikis 0 · total: 14 · succeeded: 14 · failed: 0 · skipped: 0
+```
+
+Atıfta bulunulan dört testin dördü de kaynakta **var**:
+
+| Test | Dosya |
+|---|---|
+| `Sync_full_overload_resolves_the_requested_culture` | `Compilation/AgentDefinitionCompilerPathTests.cs` |
+| `Async_CompileAsync_resolves_the_requested_culture` | aynı |
+| `Synchronous_Compile_refuses_a_definition_that_references_a_block` | `Compilation/SharedInstructionsTests.cs` |
+| `Blocks_text_is_prepended_to_the_agents_own_instructions` | aynı |
+
+`MT-CORE-104`'ün davranışsal karşılığı bu turda **canlı** olarak da ölçüldü
+(`MT-CORE-076`/`077`: `tr` ve `tr-TR` Türkçe talimatı seçti).
+`MT-CORE-105`'in async yolu `MT-CORE-085`'te canlı koştu (`shared-e2e`
+derlendi ve çalıştı).
+
+**Durum (104):** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+**Durum (105):** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
