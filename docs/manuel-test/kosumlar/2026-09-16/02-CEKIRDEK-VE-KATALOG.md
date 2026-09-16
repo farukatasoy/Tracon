@@ -993,3 +993,182 @@ bedeli, maliyet raporlamasının kutudan çıkmamasıdır.
 
 ---
 
+## MT-CORE-050 — Oturum yoksa oluşturulur, varsa yüklenir
+
+**Gerçek sonuç**
+```
+1) run "Benim adim Faruk." (sessionId manuel-oturum-01) -> tamam
+2) GET /api/sessions -> manuel-oturum-01 VAR
+3) run "Adim neydi?" (ayni sessionId) -> "Adınız Faruk."     ✅ gecmis yuklendi
+4) GET /api/sessions/manuel-oturum-01 -> 4 mesaj, kronolojik:
+     user      | Benim adim Faruk.
+     assistant | Merhaba Faruk! Size nasıl yardımcı olabilirim?
+     user      | Adim neydi?
+     assistant | Adınız Faruk.
+```
+
+Dört beklentinin dördü de tuttu.
+
+🚨 **Ölçüm tuzağı — sonraki oturumlar için:** `/run` yanıtı **SSE akışıdır** ve
+metin token token gelir. Ham `grep "Faruk"` **boş döner**, çünkü kelime
+`" Far"` + `"uk"` diye bölünür. Bu bir kusur değil, akışın doğasıdır. Parçaları
+birleştiren yardımcı `<scratch>/sse.py` olarak yazıldı ve bu dosyanın kalan
+tüm akış case'lerinde kullanıldı.
+
+⚠️ **Doğrulama sorgusu çalışmıyor, düzeltildi (skill §1.1):** spec
+`conversation_items ci JOIN sessions s ON s.id = ci.session_id` ve
+`s.external_id` kullanıyor; **üçü de yok**. Gerçek şema:
+
+| Tablo | Gerçek |
+|---|---|
+| `sessions` | `id` (text, dış kimliğin **kendisi**), `external_id` sütunu yok |
+| `conversation_items` | `conversation_id`'ye bağlı, `session_id` sütunu yok |
+| `conversations` | `session_id` sütunu **yok** |
+
+🚨 **Daha önemlisi: oturum geçmişi SQL'den okunamaz — şifreli.**
+`sessions.state` bir zarf taşıyor: `{"$apEnc":…, "kid":…, "n":…, "c":…}`.
+Örnek uygulama `AddContentProtection()` çağırıyor
+(`samples/Tracon.Api/Program.cs:227`) ve AES-256 anahtarı `user-secrets`'tan
+geliyor (`appsettings.json:31-36`). Yani at-rest koruması **çalışıyor** ve bu
+case'in doğrulaması API üzerinden yapılmalıdır.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-051 — Oturum silinir ve geçmiş gider
+
+**Gerçek sonuç**
+```
+DELETE /api/sessions/manuel-oturum-01 -> 204  ✅ 2xx
+GET    /api/sessions/manuel-oturum-01 -> 404  ✅
+run "Adim neydi?" (ayni kimlik) ->
+  "Adınızı bilmiyorum. Eğer isterseniz bana söyleyebilirsiniz; sonra size
+   adınızla hitap ederim."                    ✅ "Faruk" YOK — gecmis gercekten gitti
+GET /api/sessions/manuel-oturum-01 -> 200, 2 mesaj  ✅ yeni oturum olustu
+```
+Dört beklentinin dördü de tuttu. Silme gerçek: model artık adı bilmiyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-052 — Var olmayan oturumun silinmesi hata vermez
+
+**Gerçek sonuç**
+```
+1. deneme: 404
+2. deneme: 404
+```
+**Seçilen kod kaydedildi: 404** (204 değil). İki deneme **aynı** kodu döndürdü,
+ikinci deneme farklı davranmadı, 500 yok. Silme idempotent.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-053 — İki oturum birbirini görmez
+
+**Gerçek sonuç**
+```
+musteri-42'ye: "Gizli kodum MAVI-42."
+musteri-99'a : "Gizli kodum neydi?"
+  -> "Bunu göremem. Gizli kodunuzu öğrenmek için hesabınızın güvenlik/şifre
+      sıfırlama adımlarını kullanın. ..."
+
+MAVI-42 sizdi mi: HAYIR ✅
+mesaj sayilari: musteri-42 -> 6 · musteri-99 -> 4   (ayri kumeler ✅)
+```
+İki beklenti de tuttu. `FIX-SESSION-01` ve `FIX-SESSION-02` ayrı kişiler olarak
+davranıyor; sızma yok.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-054 — Aynı oturuma eşzamanlı iki çalıştırma
+
+**Gerçek sonuç**
+
+🚨 **İlk bakışta kayıp güncelleme gibi görünüyor, DEĞİL.** Oturumda 4 yerine 2
+mesaj kalıyor ve oturum `version` 1'de duruyor — ama kaybeden istek **sessizce**
+düşmüyor, SSE akışında açık bir hata olayı alıyor:
+
+```
+event: error
+data: {"type":"TraconSessionConflictException",
+       "message":"Another request also opened session 'manuel-yaris' at the
+                  same time and saved it before us. Retry again shortly."}
+```
+
+**Dört tekrarda dördü de aynı** (tekrarlanabilirlik ölçüldü):
+
+| Oturum | mesaj | version | çakışma hatası alan |
+|---|---|---|---|
+| `manuel-yaris` | 2 | 1 | 1. istek |
+| `manuel-yaris-2` | 2 | 1 | 2. istek |
+| `manuel-yaris-3` | 2 | 1 | 2. istek |
+| `manuel-yaris-4` | 2 | 1 | 1. istek |
+
+Her seferinde **tam bir** istek kazanıyor, **tam bir** istek açık çakışma
+hatası alıyor. Hangisinin kazandığı yarışa bağlı, ki beklenen budur.
+
+∴ Spec'in üçüncü maddesi gerçekleşti: *"Bir çakışma denetimi varsa isteklerden
+biri açık bir çakışma hatası döner; bu da **kabul edilebilir**. Sessiz kayıp
+kabul edilemez."* Sessiz kayıp **yok**; optimistic concurrency çalışıyor ve
+mesaj çağırana ne yapacağını (`Retry again shortly`) söylüyor. Hiçbir istek
+500 dönmedi.
+
+🚨 **Yan bulgu — `HATA-S1-011`:** çakışmayla biten `run` veritabanında
+**`Completed`** olarak kaydediliyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### HATA-S1-011 — Çakışmayla düşen `run`, kayıtta `Completed` görünüyor
+
+| | |
+|---|---|
+| **Önem** | Orta |
+| **Bulunduğu case** | MT-CORE-054 |
+| **Sınıf** | Gözlemlenebilirlik · `run` durum doğruluğu |
+
+**Repro** — aynı `sessionId` ile iki eşzamanlı `run`, sonra:
+```sql
+SELECT session_id, status, error_type, error_message
+FROM runs WHERE session_id LIKE 'manuel-yaris%';
+```
+
+**Gözlenen** (8 satır, 4 çakışmalı koşumun tamamı):
+```
+ session_id     | status | error_type | error_message
+----------------+--------+------------+---------------
+ manuel-yaris   |      1 |            |
+ manuel-yaris   |      1 |            |      <- bu run CAKISMAYLA dustu
+ ...
+```
+
+İkisi de `status = 1` (`RunStatus.Completed`), `error_type` ve `error_message`
+**boş**. Oysa isteklerden biri çağırana `TraconSessionConflictException`
+döndürdü ve oturumuna hiçbir şey yazamadı.
+
+**Neden önemli:** `runs` tablosu kontrol düzleminin kendi kaydıdır. Operatör
+tabloya baktığında iki başarılı koşum görüyor; çakışmanın izi **yalnız**
+o an akışı dinleyen istemcide kalıyor. `RunStatus.Failed` (2) tam da bunun
+için var. Oturum sahibi "mesajım kayboldu" dediğinde kayıtta hiçbir kanıt yok.
+
+`AGENTS.md`: *"Gözlemlenebilirlik işlevselliği bozmaz"* — burada tersi
+geçerli: işlev doğru, **gözlemlenebilirlik** eksik.
+
+**Sınıf taraması gerekir (kapanışta):** akış başladıktan **sonra** atılan her
+istisna. Akış açıldıktan sonra `run` kaydı erkenden `Completed`'a çekiliyorsa
+aynı sınıfın başka örnekleri olabilir (sağlayıcı kesintisi, guard engellemesi,
+iptal). Ölçüm noktası: `run` kaydının `status` yazıldığı an ile SSE `error`
+olayının üretildiği an.
+
+**Etki:** orta — veri kaybı yok (kaybeden taraf zaten yazamadı, çağıran
+bilgilendirildi); bedeli olay sonrası teşhisin imkânsızlaşması.
+
+---
+
