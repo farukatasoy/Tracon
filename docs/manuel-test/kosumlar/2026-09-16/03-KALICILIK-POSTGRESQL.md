@@ -32,21 +32,81 @@ public tablo sayisi: 0   (MT-PG-002 / 003 taban cizgisi)
 
 ## Devir notu
 
-**Oturum 8 bitti. `MT-PG-001..047` koşuldu — 30 case: 29 ☑ Geçti · 1 ☑ Kaldı.**
-Dört blok kapandı: `001-008` · `020-027` · `030-035` · `040-047`.
+**🎉 DOSYA 03 KAPANDI — 50/50 case koşuldu.** Oturum 9'da kalan 20 case bitti:
+`050-053` (4) ve `060-075` (16). Dosya sonucu: **48 ☑ Geçti · 1 ☑ Kaldı
+(MT-PG-068) · 1 ☐ Beklemede (MT-PG-067)**.
 
-- **Sonraki oturumun işi:** `050-053` bloğu (4 case), sonra `060-075` (16 case).
-  Toplam **20 case** kaldı.
-- **Bozuk ön koşul:** yok. `mt_s1` tam şemayla ayakta (51 migration, 2 agent,
-  2 run, birkaç `document_embeddings` satırı).
+- **Sonraki oturumun işi:** zincirin dördüncü ailesi —
+  [`05-SAGLAYICI-OPENAI.md`](05-SAGLAYICI-OPENAI.md), 40 case, 2 oturum.
+  Bu dosyaya dönme.
+- **Bozuk ön koşul:** yok.
 
-🚨 **MT-PG-050 için kullanıcı kararı hazır (2026-09-16).** Case `ap-pg`
-container'ını durdurmayı istiyor; şerit kuralı 3 bunu yasaklıyor. **Karar:
-container'a DOKUNMA** — erişilemezlik bağlantı dizesini geçersiz bir porta
-çevirerek ya da `docker network disconnect` ile taklit edilecek. Aynı davranış
-ölçülür, paylaşılan kaynak bozulmaz, Faz B açıldığında da güvenli kalır.
+🚨 **MT-PG-050 kullanıcı kararı UYGULANDI ve yöntem işe yaradı.** Container'a
+hiç dokunulmadı; erişilemezlik **şerit-yerel bir TCP yönlendiriciyle** taklit
+edildi (`<scratch>/pgproxy.py`, `55481 → 55432`). Yöntem `docker network
+disconnect`'ten üstün çıktı çünkü tamamen şerit-yereldir: `ap-pg` boyunca
+`Up` kaldı ve Faz B'de dört şerit paralel koşarken de güvenlidir. **MT-PG-061
+aynı yöntemle koşuldu** ve kurtarmayı PID ile kanıtladı — aynı süreç hem düşen
+hem toparlanan isteği karşıladı. Sonraki oturumlar container durdurmak isteyen
+her case için bu tarifi kullanmalıdır.
 
-### Bu oturumun bulgusu
+### Oturum 9'un bulguları
+
+| Bulgu | Önem | Kısaca |
+|---|---|---|
+| `HATA-S1-019` | **Yüksek** | `UsePostgreSql` tüketicinin store kaydını `Replace` ile sessizce eziyor — `AGENTS.md`'nin "`TryAdd*` ile kaydet" kuralının ihlali. 117 çağrı, 34 arayüz. `Tracon.Embedded`'in belgelenmiş akışını kırıyor (MT-PG-068 bu yüzden **Kaldı**) |
+| `HATA-S1-018` | Orta | Sevk edilen iki hata mesajı karışık dilde (`ne 'Input' ne 'Output'`); dil kapısı iki harfli kelimeleri bilinçli dışladığı için **yapısal olarak** göremiyor |
+| `HATA-S1-017` | Düşük | Taze şemaya karşı her açılış `Error` seviyesinde yığın izi basıyor; yutma bir katman geç yapılıyor |
+| `HATA-S1-016` | Düşük–Orta | `/health` kendi başına hiçbir zaman `Healthy`'ye ulaşmaz — `/api/models/health` çağrılmadıkça sonsuza dek `Degraded` |
+| `HATA-S1-015` | Orta | (oturum 8) Bekleyen migration varken yazma ucu opak `500` dönüyor. **Oturum 9'da ikinci ampirik örnek eklendi** (MT-PG-061): erişilemez veritabanı da aynı opak `500`'e düşüyor |
+
+### Oturum 9'un bıraktığı kalemler
+
+🚨 **MT-PG-067 adım 2 kullanıcı kararı bekliyor.** Case
+`SqlQueriesBase.CostAddends`'e sahte bir terim eklemeyi istiyor — `src/`
+altında kod değişikliği, kural 1 yasaklıyor. Adım 1 ve 3 yeşil koşuldu.
+Seçenekler bekleyen kalem tablosundadır.
+
+🚨 **`HATA-S1-019`'un ilk kapanış sorusu ölçülmeli:**
+`RequireCustomBinding<ITenantStore>()` çağrılsaydı başlangıçta patlar mıydı,
+yoksa o da mı sessiz kalırdı? Cevap kusurun örnekte mi yoksa koruma
+mekanizmasında mı olduğunu belirler.
+
+### Oturum 9'un ortam notları
+
+🚨 **Fiyat yapılandırma yolu:** `Tracon:Pricing:{saglayici}:{model}:Input` /
+`:Output`. **`Providers` segmenti YOKTUR** ve yaprak anahtar C# özellik adı
+(`InputCostPerMillionTokens`) **değildir**. Yanlış anahtar başlangıçta
+`OptionsValidationException` ile reddedilir.
+
+🚨 **Kiracı başlığı iki bayrak ister:** `X-Tracon-Tenant` yalnız
+`Tracon:Tenancy:Enabled=true` **ve** `AllowHeaderResolution=true` iken okunur;
+ikisi de varsayılan kapalı. Kapalıyken başlık **sessizce** yok sayılır ve her
+istek `DefaultTenantId`'ye düşer.
+
+🚨 **Nokta/tire taşıyan yapılandırma anahtarı ortam değişkeni olamaz** —
+zsh `export Tracon__Pricing__...gpt-5.4-mini...` adını reddeder. Komut satırı
+yapılandırması kullan: `dotnet run ... -- "--Tracon:Pricing:openai:gpt-5.4-mini:Input=0.25"`.
+
+🚨 **`timeout` macOS'ta yoktur** (çıkış 127). Fail-fast bekleyen case'lerde
+süreci arka planda koşup çıkış kodunu dosyaya yaz.
+
+⚠️ **Sağlık yoklama döngüsüne gecikme koy.** Gecikmesiz bir `for` döngüsü 60
+denemeyi bir saniyede tüketir ve uygulama açılmadan "kapalı" der.
+
+### Oturum 9'un bıraktığı şerit-yerel kaynaklar (tur sonunda silinecek)
+
+| Kaynak | Ne | Durum |
+|---|---|---|
+| `ap-pg-plain-s1` | `pgvector`'süz `postgres:18-alpine`, port 55433 (MT-PG-062/063) | **silindi** |
+| `mt_s1_k` şeması | MT-PG-065 iki aşamalı knowledge seti | duruyor |
+| `mt_s1_v` şeması | MT-PG-072/073/074 okuma görünümleri + 6 `run` | duruyor |
+| `tracon_embedded_s1` veritabanı | MT-PG-068 `Tracon.Embedded` | duruyor |
+| `<scratch>/pgproxy.py` | TCP yönlendirici tarifi | **tarif devir notunda korundu** |
+
+Çalışan süreç bırakılmadı; `ap-pg` ve `ap-mssql` boyunca dokunulmadan `Up` kaldı.
+
+### Oturum 8'in bulgusu
 
 | Bulgu | Önem | Kısaca |
 |---|---|---|
@@ -1534,9 +1594,16 @@ Tracon.Sqlite.IntegrationTests     -> Passed!  825/825, failed 0, skipped 0  (40
 
 Hiçbir maliyet/token/kimlik alanı değişmedi; davranış aynı.
 
-⚠️ `Tracon.PostgreSql.IntegrationTests` içinde **1 atlanan** test var. Atlama
-nedeni bu case'in kapsamı dışında; kapanışta atlamanın gerekçesi doğrulanmalı
-(atlanan bir test sessizce kalıcı hâle gelebilir).
+📝 `Tracon.PostgreSql.IntegrationTests` içindeki **1 atlanan** test
+araştırıldı ve **temiz çıktı** — sessiz bir atlama değil, opt-in bir kapı:
+
+```
+skipped ...Load.BoundedSqlLoadTests.Bounded_run_recording_load_produces_a_report
+        Set TRACON_LOAD=1 to run the bounded load report.
+```
+
+Yük raporu bilinçli olarak varsayılan koşumun dışında tutulmuş ve atlama
+gerekçesini kendi mesajında söylüyor. Kusur değil.
 
 📝 **Spec düzeltmesi.** Adım 1 beklentisi "sekiz test de yeşil" diyor → bugün
 **22**. Sabit sayı yerine "hepsi yeşil, sıfır başarısızlık" ifadesine çevrildi.
@@ -1545,3 +1612,451 @@ nedeni bu case'in kapsamı dışında; kapanışta atlamanın gerekçesi doğrul
 
 > Adım 1 ve 3 yeşil; case yalnız adım 2 nedeniyle **Beklemede**. Adım 2'nin
 > kararı verilince yeniden koşulacak tek adım odur.
+
+## MT-PG-072 — `runs_v1` görünümü 111.2 sütun tablosunu birebir karşılar; korunan sütun taşımaz
+
+**Gerçek sonuç**
+Ayrı bir şema (`mt_s1_v`) `EnableReadViews=true` ile kuruldu. Üç set de
+uygulandı ve görünüm gerçekten oluştu:
+
+```
+ set_name  | count            to_regclass('mt_s1_v.runs_v1')
+ core      |    50            -> mt_s1_v.runs_v1
+ knowledge |     1
+ views     |     1
+```
+
+Sütun kümesi `information_schema.columns`'tan ölçüldü — **24 sütun**:
+
+```
+111.2'den EKSIK: yok
+111.2'ye EK   : ['model_provider', 'input_price_per_mtok',
+                 'output_price_per_mtok', 'cached_input_price_per_mtok']
+korunan/icerik sutunu: YOK
+```
+
+**İki iddianın ikisi de tutuyor:**
+
+1. 111.2'nin istediği **20 sütunun 20'si de** var, hiçbiri eksik değil.
+2. Yasaklı içerik sütunlarının (`state` · `item` · `messages` · `text` ·
+   `payload` · `arguments` · `result` · `content`) **hiçbiri** yok.
+
+📝 **Spec düzeltmesi — "birebir" kelimesi sözleşmeye aykırı.** Görünüm 111.2
+listesinden **dört fazla** sütun taşıyor. Bu bir sapma değil; migration
+dosyasının kendi başlığı (`0001_read_views.sql:4-6`) kuralı açıkça yazıyor:
+
+```sql
+-- * A published view never loses a column, renames a column, or narrows a
+--   column's type. Adding a column is free. A breaking change ships as a
+--   NEW view (runs_v2), the old one keeps working for at least one major
+--   version.
+```
+
+∴ Sütun **eklemek serbesttir** ve sürüm yükseltmesi gerektirmez. Dört ek
+sütunun dördü de fiyatlandırma metadata'sıdır (`model_provider` + üç
+`*_price_per_mtok`), içerik değil — korunan sütun kuralı bozulmuyor. Beklenen
+sonuç "birebir eşleşir" yerine **"111.2'nin tamamını kapsar, hiçbir korunan
+sütun taşımaz"** biçimine çevrildi; doğru değişmez budur.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-PG-075 — `EnableReadViews` varsayılan kapalı; açık değilken görünüm hiç kurulmaz
+
+**Gerçek sonuç**
+`EnableReadViews` hiç verilmeyen iki şemada da görünüm yok:
+
+```
+ mt_s1_gorunum | mt_s1_k_gorunum
+               |                  <- ikisi de NULL
+
+ set_name  | count            views_satiri
+ core      |    50            -> 0
+ knowledge |     1
+```
+
+`to_regclass` iki şemada da `NULL`, `__migrations`'ta `set_name='views'`
+satırı **yok**. Karşıt kanıt aynı oturumda ölçüldü: `EnableReadViews=true`
+verilen `mt_s1_v` şemasında hem görünüm hem `views` satırı oluştu (MT-PG-072).
+Varsayılan gerçekten kapalı ve açık istek olmadan set devreye girmiyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-PG-073 — `total_cost` store'un raporladığı toplamla birebir eşleşir; tanımsız fiyat `NULL` kalır
+
+**Gerçek sonuç**
+`mt_s1_v` şemasında üç gerçek `run` üretildi: ikisi fiyat **tanımsızken**,
+biri `gpt-5.4-mini` için fiyat tanımlandıktan sonra.
+
+```
+ input_tokens | output_tokens |  input_cost  | output_cost  |  total_cost  | cost_currency
+          343 |             4 |              |              |              |
+          343 |             4 |              |              |              |
+          343 |             4 | 0.0000857500 | 0.0000080000 | 0.0000937500 | USD
+```
+
+**Adım 2 — `NULL`, `0` değil.** Fiyatı tanımsız iki koşunun `total_cost`'u
+boş (`NULL`) döndü; `psql` bunu boş hücre olarak yazar ve `sum()` onları
+yok sayar. `0` yazılsaydı toplam bozulurdu.
+
+**Adım 1 — iki değer birebir aynı.**
+
+```
+GET /tracon/api/stats  ->  "totalCost": 9.375e-05
+                           "currency": "USD"
+                           "runsWithUnknownPricing": 2
+SELECT sum(total_cost)
+  FROM mt_s1_v.runs_v1  ->  0.0000937500
+```
+
+`9.375e-05 == 0.00009375` — görünüm ile store'un kendi istatistiği birebir
+eşleşiyor. `runsWithUnknownPricing: 2` de görünümdeki iki `NULL` satırla
+tutuyor, yani iki taraf aynı koşuları aynı biçimde sınıflandırıyor.
+
+Aritmetik de bağımsız doğrulandı: `343/1e6 × 0.25 = 0.00008575` (`input_cost`),
+`4/1e6 × 2.00 = 0.000008` (`output_cost`), toplam `0.00009375`.
+
+📝 **Ortam notu — fiyat yapılandırma yolu.** Fiyat anahtarı
+`Tracon:Pricing:{saglayici}:{model}:Input` / `:Output`'tur. **`Providers`
+segmenti YOKTUR** — `BindPricing` sağlayıcıyı `Tracon:Pricing`'in doğrudan
+çocuğu olarak okur (`TraconServiceCollectionExtensions.Binding.Models.cs:28`),
+`Currency`/`Voice`/`Images`'i atlar. Yaprak anahtar C# özellik adı
+(`InputCostPerMillionTokens`) **değil**, kısa `Input`/`Output`'tur. Yanlış
+anahtar sessizce düşmez; başlangıçta `OptionsValidationException` ile reddedilir
+(K-034, MT-CORE-065) — bu oturumda ampirik olarak tetiklendi ve doğru çalıştı.
+
+🚨 **`HATA-S1-018`** — o reddin mesajı karışık dilde. Aşağıdaki kayda bak.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-PG-074 — Görünüm kiracı filtrelemez; iki kiracının satırı da görünür
+
+**Gerçek sonuç**
+`Tracon:Tenancy:Enabled=true` ve `AllowHeaderResolution=true` ile iki ayrı
+kiracıdan birer `run` üretildi (`X-Tracon-Tenant`). Görünüm **filtresiz**
+sorgulandı:
+
+```
+  tenant_id  | run_sayisi
+ default     |          3
+ kiraci-alfa |          1
+ kiraci-beta |          1
+```
+
+Üç kiracının da satırı döndü. Beklendiği gibi (111.1): görünüm bir güvenlik
+sınırı **değildir**, `tenant_id` filtrelenmeden taşınır ve filtreleme
+tüketicinin kendi sorgusunun işidir.
+
+📝 **Ortam notu — kiracı başlığı iki bayrak ister.** `X-Tracon-Tenant` yalnız
+`Tracon:Tenancy:Enabled=true` **ve** `AllowHeaderResolution=true` iken okunur;
+ikisi de varsayılan **kapalıdır** (`TraconTenancyOptions.cs:42,57` — "a header
+can be spoofed"). Bayraklar kapalıyken başlık sessizce yok sayılır ve her istek
+`DefaultTenantId`'ye düşer. Bu oturumda ilk denemede tam olarak bu oldu: iki
+istek de `default` kiracısına yazıldı. Sonraki oturumlar için tuzak.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+### HATA-S1-018 — Sevk edilen iki hata mesajı karışık dilde; dil kapısı yapısal olarak göremiyor
+
+| | |
+|---|---|
+| **Case** | MT-PG-073 (ortam kurarken tetiklendi) |
+| **Önem** | Orta |
+| **Sınıf** | dil sınırı (K-228) — kapının kör noktası |
+
+**Belirti.** Yanlış bir fiyat anahtarıyla açılan uygulama şu mesajla düşüyor:
+
+```
+Unhandled exception. Microsoft.Extensions.Options.OptionsValidationException:
+TraconPricingOptions: 'Providers:openai' ne 'Input' ne 'Output' contains neither value. Check the key name.
+```
+
+`ne 'Input' ne 'Output'` Türkçe "ne … ne …" bağlacıdır ve İngilizce bir cümlenin
+ortasına girmiş. Cümle İngilizce okunduğunda anlamsızdır; üstelik "ne … ne …"
+ile "contains neither value" **aynı olumsuzlamayı iki kez** söylüyor.
+
+**Kaynak.** `src/Tracon.Core/TraconOptionsValidator.cs` — iki ayrı yer:
+
+```
+292:  $"{nameof(TraconPricingOptions)}: '{providerName}:{modelName}' ne 'Input' ne 'Output' " +
+293:  "contains neither value. Check the key name.");
+
+313:  $"'{nameof(VoicePriceOverride.PerMillionCharacters)}' ne '{nameof(VoicePriceOverride.PerMinute)}' " +
+314:  "contains neither value. Check the key name.");
+```
+
+İkisi de **sevk edilen çalışma anı metnidir** (`src/`, `Tracon.Core` paketi) ve
+tüketicinin konsoluna çıkar. `AGENTS.md`: "pakete giren ve çalışma anında
+çalışan her şey İngilizce'dir" (K-228).
+
+**Niçin kapı kaçırdı.** `SourceLanguageTests` iki şey tarar: Türkçe'ye özgü
+harfler (`[çğıöşüÇĞİÖŞÜ]`) ve bir Türkçe kelime listesi. `ne` **ikisine de**
+takılmaz:
+
+- Türkçe'ye özgü harf taşımıyor — `n` ve `e` ASCII.
+- Kelime listesinde yok, çünkü listenin kendi notu iki harfli kelimeleri
+  **bilinçli olarak** dışlıyor (`SourceLanguageTests.cs:136-142`):
+  > "Words that are also English words, or that appear inside identifiers, are
+  > deliberately absent: … and **every two-letter word**."
+
+Dışlama gerekçesi sağlamdır (yanlış pozitif seli), ama sonucu şudur: **iki
+harfli bir Türkçe bağlaç kapıdan yapısal olarak geçer.** Bu tek bir kaçak
+değil, kapının tanımlı bir kör noktasıdır.
+
+**Önerilen düzeltme (kapanışta).** İki katman:
+
+1. İki mesajı düzelt. Doğru İngilizce: `'{provider}:{model}' contains neither
+   an 'Input' nor an 'Output' value. Check the key name.` — hem bağlaç
+   İngilizce olur hem çifte olumsuzlama kalkar.
+2. Kapının kör noktasını kapat. Tüm iki harfli kelimeleri listeye almak
+   yanlış pozitif üretir; **hedefli** bir kural daha ucuz: `ne 'X' ne` ya da
+   `\bne\b` deseni **yalnız tırnaklı bir terimin iki yanında** aranırsa
+   `ne` bağlacı yakalanır, İngilizce `ne` geçişleri (pratikte yok) etkilenmez.
+
+**Sınıf taraması — KOŞULDU (2026-09-16).** `src/` altındaki tüm `.cs`
+dosyalarında string literal taşıyan satırlar dört iki-harfli Türkçe bağlaç için
+tarandı. Sonuç:
+
+```
+ne ... ne : 3 satir  (TraconOptionsValidator.cs:292 · 312 · 313)
+ya ... ya : 0
+ki        : 0
+mi/mu     : 0
+```
+
+**Sınıf dardır ve tamamen ölçülmüştür:** sızıntı tek dosyada, iki mesajda
+(üç satırda) toplanıyor; başka hiçbir iki-harfli bağlaç sevk edilen metne
+geçmemiş. 312. satır 292'nin `Voice` karşılığıdır ve aynı cümleyi tekrarlar.
+∴ kapanışta üç satır düzeltilince sınıf kapanır; ayrıca kapıya hedefli kural
+eklenirse yeniden açılması engellenir.
+
+## MT-PG-069 — `DataSource` ve `ConnectionString` birlikte verilirse başlangıç hatası
+
+**Gerçek sonuç**
+İzlek C. Case bir `ServiceProvider`'ı kod içinde kurmayı ister; koşum turunda
+kod yazılamaz (kural 1), bu yüzden spec'in kendi işaret ettiği otomatik
+karşılığı **bu oturumda** donuk `7e3a4de7` ikilisiyle ve gerçek `ap-pg`
+konteynerine karşı koşuldu:
+
+```
+Tracon.PostgreSql.IntegrationTests.ExternalDataSourceTests
+  .DataSource_and_ConnectionString_together_is_rejected     -> mevcut, GEÇTİ
+
+Paket sonucu: Passed!  888/889, failed 0, skipped 1  (49s)
+```
+
+Testin adı `--list-tests` ile doğrulandı (varlığı teyit edildi) ve paket
+**sıfır başarısızlıkla** bitti, yani bu test geçenler arasındadır. Tek atlanan
+test bu değil (aşağıya bak).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-PG-070 — Dış data source host kapanışında dispose edilmez
+
+**Gerçek sonuç**
+İzlek C, MT-PG-069 ile aynı yöntem. Sahipliğin **iki yönü** de ayrı testlerle
+kapsanıyor ve ikisi de bu oturumda geçti:
+
+```
+ExternalDataSourceTests.External_data_source_is_not_disposed_when_the_host_stops -> GEÇTİ
+ExternalDataSourceTests.Own_data_source_is_disposed_when_the_host_stops          -> GEÇTİ
+```
+
+Beklenen sonucun iki maddesi bunlara birebir karşılık geliyor: dış data source
+kapanıştan sağ çıkıyor, Tracon'in **kendi** kurduğu data source ise dispose
+ediliyor. Sahiplik doğru yönde çalışıyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-PG-071 — Havuz paylaşımı ölçümü: aynı connection string, iki `NpgsqlDataSource`, tek havuz DEĞİL
+
+**Gerçek sonuç**
+İzlek C. 👤 işaretli `psql` adımını otomatik test `pg_stat_activity`'yi
+doğrudan sorgulayarak yürütüyor:
+
+```
+ConnectionPoolSharingTests
+  .Two_data_sources_built_from_the_same_connection_string_do_not_share_a_pool -> GEÇTİ
+```
+
+Test gerçek `ap-pg` konteynerine karşı koştu ve geçti; ∴ ölçülen backend sayısı
+beklenen `2 × concurrentConnectionsPerSource` değerindedir, `embedding.md`'nin
+çürütülmüş eski iddiası olan tek havuz değil. Npgsql havuzu connection
+string'e değil `NpgsqlDataSource` **örneğine** aittir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-PG-068 — Dış `NpgsqlDataSource`: tek havuz, iki tüketici
+
+**Gerçek sonuç**
+`samples/Tracon.Embedded` şerit-yerel bir veritabanına (`tracon_embedded_s1`,
+`ap-pg` üzerinde) ve port **5091**'e karşı koşuldu. Örnek kendi
+`NpgsqlDataSource`'unu kurup `tracon.UsePostgreSql(o => o.DataSource = ds)`
+ile veriyor (`Program.cs:104`) — case'in tarif ettiği yol.
+
+**Üç beklentinin ikisi karşılandı, biri DÜŞTÜ.**
+
+**1. ✅ Tek satırlık migration logu:**
+
+```
+Tracon applied 50 migration(s). Schema: tracon.
+```
+
+**2. ✅ `Tickets.RunId` == `tracon.runs.id`** — tek havuz, iki tüketici, aynı
+veritabanı:
+
+```
+POST /tickets -> HTTP 201
+{"id":"e0cb6c40-...","tenantId":"acme","runId":"01a0ab77-39a1-7532-9394-20abbc68d363"}
+
+public."Tickets"    Id=e0cb6c40-...  TenantId=acme  RunId=01a0ab77-39a1-7532-9394-20abbc68d363
+tracon.runs         id=01a0ab77-39a1-7532-9394-20abbc68d363  tenant_id=acme  status=1
+
+information_schema.schemata -> public, tracon   (ayni veritabaninda iki sema)
+```
+
+Host'un EF Core şeması ile Tracon'in store şeması aynı veritabanında, aynı
+data source üzerinden yaşıyor. Fazın asıl iddiası bu ve **tutuyor**.
+
+**3. ☑ KALDI — `GET /tracon/api/runs/{id}` kaydı döndürmedi:**
+
+```
+GET /tracon/api/runs/01a0ab77-...  -H "X-Host-Tenant: acme"
+-> HTTP 404  {"title":"Run not found","detail":"There is no run with id '01a0ab77-...'."}
+
+GET /tracon/api/runs               -H "X-Host-Tenant: acme"
+-> HTTP 403  {"title":"Run not authorized",
+              "detail":"The registered IRunAuthorizationHandler denied this request."}
+```
+
+Kayıt veritabanında **duruyor** ve `tenant_id`'si `acme`. Liste ucunun 403'ü
+nedeni açık ediyor: örneğin kendi `EmbeddedRunAuthorizationHandler`'ı `acme`'yi
+tanımıyor. Tekil uçta 404 dönmesi kasıtlıdır ve doğrudur — reddedilen bir
+kaynak, var olmayan bir kaynakla **aynı** yanıtı verir, aksi hâlde ret kaynağın
+varlığını doğrulardı (`EmbeddedRunAuthorizationHandler.cs:50-53`).
+
+**Kök neden — kiracı dizini boş:**
+
+```
+GET /tracon/api/tenants -> [{"slug":"default", ...}]     <- YALNIZ default
+```
+
+`EmbeddedTenantStore` yapıcısında `acme` ve `globex`'i **seed eder**
+(`EmbeddedTenantStore.cs:20-23`) ve örnek onu `AddTracon()`'dan **önce**
+kaydeder (`Program.cs:51`). Buna rağmen çalışan `ITenantStore` örneğin
+kendisininki değil, Tracon'in SQL store'udur. Yetkilendirici de o boş dizini
+okuduğu için `acme`'yi tanımıyor.
+
+🚨 **`HATA-S1-019`** — kök neden bir sözleşme ihlalidir, aşağıdaki kayda bak.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+
+### HATA-S1-019 — `UsePostgreSql` tüketicinin store kaydını `Replace` ile eziyor
+
+| | |
+|---|---|
+| **Case** | MT-PG-068 |
+| **Önem** | **Yüksek** |
+| **Sınıf** | paket sözleşmesi — `TryAdd` kuralının ihlali |
+
+**İhlal edilen kural.** `AGENTS.md`, bu repo'nun paket ailesi için dört temel
+kalite eşiğinden birini şöyle yazıyor:
+
+> **`TryAdd*` ile kaydet; tüketicinin kaydı her zaman kazanmalı.**
+
+**Belirti.** Tüketici `ITenantStore`'unu `AddTracon()`'dan **önce**
+`AddSingleton` ile kaydetse bile, `UsePostgreSql()` onu sessizce eziyor. Hiçbir
+uyarı, hiçbir log, hiçbir başlangıç hatası yok — kayıt sessizce kayboluyor.
+
+**Kök neden.** `TraconPostgreSqlBuilderExtensions.cs:350`:
+
+```csharp
+services.Replace(ServiceDescriptor.Singleton<ITenantStore, AuditingTenantStore>(
+    static provider => new AuditingTenantStore(
+        ActivatorUtilities.CreateInstance<SqlTenantStore>(provider), ...)));
+```
+
+`Replace`, `TryAdd` **değil**. `Replace` var olan kaydı koşulsuz ezer ve
+Tracon'in kendi bellek-içi varsayılanı ile tüketicinin bilinçli özel kaydını
+**ayırt edemez**.
+
+**Sınıf taraması — KOŞULDU (2026-09-16).** Tek bir arayüz değil, sistematik:
+
+```
+TraconPostgreSqlBuilderExtensions.cs : 39 Replace
+TraconSqlServerBuilderExtensions.cs  : 39 Replace
+TraconSqliteBuilderExtensions.cs     : 39 Replace
+                                       --- toplam 117
+```
+
+PostgreSQL'de ezilen **34 store arayüzü**:
+
+```
+IAgentDefinitionStore IAgentSkillStore IApiKeyStore IAttachmentStore IAuditLog
+IDataSubjectStore IEvalStore IExperimentStore IIdempotencyStore
+IInboundTriggerStore IJobScheduleStore IJobStore IMcpServerStore
+IMigrationApplier IPendingApprovalStore IQuotaStore IRetentionPolicyStore
+IRetentionStore IRunInputStore IRunScoreStore IRunStore ISessionStore
+ISingletonLeaseStore ISkillScriptGrantStore ISqlPersistenceDiagnostics
+IStatePreflightReader ITenantEgressPolicyStore ITenantProviderBindingStore
+ITenantStore IToolApprovalRuleStore ITraceStore IVoiceSessionStore
+IWebhookStore IWorkflowDefinitionStore
+```
+
+**`Replace` niçin var — meşru ihtiyaç.** `TryAdd` burada **çalışmaz**:
+`AddTracon()` bellek-içi varsayılanları zaten kaydetmiştir, `UsePostgreSql()`
+onları geçersiz kılmak **zorundadır**. Yani kusur `Replace` kullanmak değil,
+`Replace`'in üç durumu tek sayması:
+
+| Var olan kayıt | Doğru davranış | Bugünkü davranış |
+|---|---|---|
+| Tracon'in bellek-içi varsayılanı | ez | ezer ✅ |
+| Tüketicinin `AddTracon()` **öncesi** özel kaydı | **koru** | ezer ❌ |
+| Kayıt yok | ekle | ekler ✅ |
+
+**Niçin bu case'te görünür oldu.** `Tracon.Embedded` bu sözleşmeye açıkça
+güveniyor. `Program.cs:12` şunu yazıyor: "*BEFORE AddTracon() so the host's own
+registration wins*". `ITenantContext` için bu **çalışıyor** (Tracon onu `TryAdd`
+ile kaydeder ve örnek ayrıca `RequireCustomBinding<ITenantContext>()` ile
+koruyor, `Program.cs:70`). `ITenantStore` için **çalışmıyor** ve koruma da yok
+— bu yüzden kayıp sessiz.
+
+∴ Örneğin README'sindeki belgelenmiş akış bugün kırık: `POST /tickets` 201
+dönüyor ama devamındaki `GET /tracon/api/runs/{id}` 200 yerine 404 veriyor.
+
+**Öneri (kapanışta değerlendirilecek).**
+
+- En doğrusu: bellek-içi varsayılanlar bir işaretleyici (`ImplementationType`
+  kontrolü ya da bir `TraconDefaultRegistrationMarker`) taşısın; `Replace`
+  yalnız **işaretli** kaydı ezsin, işaretsiz olanı bıraksın.
+- En azından: ezilen bir tüketici kaydı **sessiz kalmasın** — başlangıçta
+  uyarı loglansın ya da `RequireCustomBinding<T>()` bu yolu da kapsasın.
+
+🚨 `RequireCustomBinding<T>()`'in bu durumu yakalayıp yakalamadığı ayrıca
+ölçülmeli: örnek onu yalnız `ITenantContext` için çağırıyor. `ITenantStore`
+için de çağrılsaydı başlangıçta patlar mıydı, yoksa o da mı sessiz kalırdı?
+Kapanışın ilk sorusu bu olmalı — cevabı "patlardı" ise kusur yalnız örnekte,
+"sessiz kalırdı" ise koruma mekanizmasının kendisinde.
+
+---
+
+## Koşulamayan case — kullanıcı kararı bekliyor
+
+| Case | Neden | Kullanıcıdan istenen |
+|---|---|---|
+| `MT-PG-067` adım 2 | `SqlQueriesBase.CostAddends`'e sahte bir terim eklemeyi ister. Bu `src/` altında kod değişikliğidir; turun değişmez kuralı 1 yasaklar ve bütünlük kapısı donuk ağaçların `git diff`'inin boş kalmasına dayanır | Üç seçenekten biri (aşağıda) |
+
+**Seçenekler:**
+
+1. **Aşama 2'ye ertele.** Kapanış modunda kod zaten değişiyor; adım 2 orada
+   doğal olarak koşulur. En ucuz ve tura en az müdahale eden yol.
+2. **Repo dışı atılabilir bir kopyada koş.** `MT-PKG-034/035` emsali
+   (`~/tracon-manuel/ohost`). Burada tüketici host'u değil Tracon'in **kendi
+   kaynağı** değiştirileceği için tam bir kaynak kopyası ve ek bir derleme
+   gerekir — birkaç dakikalık maliyet, donuk ağaçlara dokunmaz.
+3. **Kalıcı olarak kapsam dışı bırak.** Adım 2 bir **kapıyı** sınıyor
+   (`CostAddendsCrossCheckTests` düşmeli); bunu doğrulamanın yeri belki de
+   manuel kabul seti değil, kapının kendi birim testidir.
+
+**Öneri: 1.** Adım 1 ve 3 zaten yeşil koşuldu ve fazın asıl iddiasını
+(üretilen SQL değişmedi) kanıtlıyor. Adım 2 yalnız kapının kendisini sınar ve
+kapanış modunda sıfır ek maliyetle koşulabilir.

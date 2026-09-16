@@ -2305,10 +2305,17 @@ PostgreSQL konteynerine karşı otomatik koştu (kanıt aşağıda).
 2. `\d+ tracon.runs_v1` ile sütun listesini kontrol et.
 
 **Beklenen sonuç**
-- Sütunlar 111.2 tablosuyla birebir: `run_id`, `tenant_id`, `agent_name`,
-  `session_id`, `status`, `status_name`, `started_at`, `completed_at`,
-  `is_streaming`, beş token sütunu, üç ham maliyet sütunu, `total_cost`,
-  `cost_currency`, `error_type`.
+- Görünüm 111.2 tablosunun **tamamını kapsar**: `run_id`, `tenant_id`,
+  `agent_name`, `session_id`, `status`, `status_name`, `started_at`,
+  `completed_at`, `is_streaming`, beş token sütunu, üç ham maliyet sütunu,
+  `total_cost`, `cost_currency`, `error_type`. Hiçbiri eksik olamaz.
+  > **🚨 "Birebir" ARAMA — ek sütun kusur değildir.** `0001_read_views.sql:4-6`
+  > sözleşmeyi yazıyor: yayımlanmış bir görünüm sütun **kaybetmez**, yeniden
+  > adlandırmaz, tip daraltmaz; ama **sütun eklemek serbesttir** ve sürüm
+  > yükseltmesi gerektirmez (kırıcı değişiklik `runs_v2` olarak çıkar).
+  > 2026-09-16'da görünüm 24 sütun taşıyordu — 111.2'nin 20'si artı dört
+  > fiyatlandırma sütunu (`model_provider`, üç `*_price_per_mtok`).
+  > Doğrulama **kapsamaya** ve korunan sütun yokluğuna bakar, sayıya değil.
 - Hiçbir içerik sütunu (`state`, `item`, `messages`, `text`, `payload`,
   `arguments`, `result`, `content`) yoktur.
 
