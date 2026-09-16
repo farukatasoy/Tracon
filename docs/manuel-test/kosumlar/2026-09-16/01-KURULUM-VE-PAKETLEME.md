@@ -2058,3 +2058,293 @@ Düzeltme ucuz görünüyor (üreteci koş + muafiyet satırını kaldır) ama *
 boyunca kod donuk** olduğu için yapılmadı — Aşama 2'ye aittir.
 
 ---
+
+**⚠️ OTURUM 3 YENİDEN ÖLÇÜMÜ (MT-PKG-107) — BU BULGU YANLIŞ POZİTİFTİR.**
+
+Üç bulgunun **üçü de tek** kök nedenden geliyor ve o kök neden bir ürün kusuru
+değil, **kapının yanlış sırada koşulması**: `check-content.mjs` üreteçler
+koşmadan çalıştırılmıştı.
+
+`docs-site/src/content/docs/reference/changelog.md` repoda **commit'li
+değildir**; `scripts/build-changelog.mjs` onu kök `CHANGELOG.md`'den üretir ve
+bu üreteç `prebuild` (`npm run generate`) adımında koşar. Sayfa yokken:
+
+1. `build-agent-map` haritası changelog girdisini bulamıyor → hesaplanan
+   `llms.txt`/`llms-full.txt` commit'li hâlleriyle uyuşmuyor (ikisi de
+   `/reference/changelog/` satırı taşıyor — `public/llms.txt:307`).
+2. Muafiyet listesi var olmayan sayfayı adlandırıyor.
+
+**Kontrollü deney (oturum 3, aynı donuk kodda):**
+
+```
+npm run build                    -> cikis 0 (prebuild changelog.md'yi uretti)
+node scripts/check-content.mjs   -> cikis 0 ✅ TEMIZ
+  "Content: 56 manual pages and 1147 total pages passed."
+
+mv src/content/docs/reference/changelog.md /tmp/   (sayfayi kaldir)
+node scripts/check-content.mjs   -> cikis 1 · AYNI 3 bulgu, birebir
+
+mv /tmp/changelog.md geri
+node scripts/check-content.mjs   -> cikis 0 ✅ tekrar temiz
+```
+
+∴ Kapı temiz ağaçta **kırmızı değildir**; `npm run generate` (ya da
+`npm run build`) önce koşulduğunda yeşildir. `package.json`'daki resmî sıra
+zaten budur: `check` → `check:content && build && check:links && check:weight`.
+Oturum 2 `check:content`'i tek başına, üretilmemiş bir ağaçta koşmuştu.
+
+Hiçbir tracked dosya değişmedi (`git status --short` boş) — üretilen sayfa
+`.gitignore` kapsamında.
+
+**Aşama 2 için iş kalmadı.** Kalan tek gerçek risk: kapıyı üreteçsiz koşmak
+yanıltıcı bir kırmızı veriyor. Bunu `docs/hafiza/dokumantasyon.md`'ye tuzak
+olarak yazmak yeterli (tur sonu kontrol listesi).
+
+---
+## MT-PKG-100 — Prova kapısı gerçekten yayının önündedir
+
+**Gerçek sonuç**
+```
+ci.yml:288  release-dryrun:  needs: build
+ci.yml:337  publish:         needs: [pack, release-dryrun, npm-publish]
+ci.yml:344                   if: startsWith(github.ref, 'refs/tags/v')
+ci.yml:387  npm-publish:     needs: [build, release-dryrun]
+ci.yml:391                   if: startsWith(github.ref, 'refs/tags/v')
+ci.yml:234  pack:            needs: build
+```
+
+`release-dryrun` **ikisinde de** listeli. Prova yolun üzerindedir.
+
+**Adım 3 (yalnız gözle, dosya değiştirilmedi):** `release-dryrun` iki `needs:`
+satırından da çıkarılırsa graf `build → {pack, npm-publish} → publish` olur;
+`publish` provayı hiç beklemeden `pack` biter bitmez koşar. Tek bir `needs:`
+satırından çıkarmak yetmez — `publish` `npm-publish`'e, o da provaya bağlı
+olduğu için kapı dolaylı olarak ayakta kalır. Yani koruma **iki** satıra
+birden dayanıyor; ikisi de korunmalı.
+
+Her iki iş `refs/tags/v` ile sınırlı, yani case'in "CI'da simüle edilemez"
+gerekçesi doğrulandı — graf elle okundu.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-PKG-101 — Yayın provası altı sample'ı da sayar
+
+**Gerçek sonuç**
+```
+MSBUILDDISABLENODEREUSE=1 python3 scripts/kapi.py yayin --kuru --surum 1.0.0-preview.1
+  -> cikis 1
+
+20 paket staging'e SORUNSUZ uretildi:
+  artifacts/package/staging/run-kau8duuw/Tracon.{Core,Cli,UI,OpenAI,Azure,
+  Anthropic,Mcp,Workflows,Testing,...}.1.0.0-preview.1.{nupkg,snupkg}
+sonra:
+❌ CHANGELOG.md içinde '## [1.0.0-preview.1]' bölümü yok veya boş
+```
+
+**Sample sayım satırına SIRA GELMEDİ.** Case'in ölçmek istediği
+`✅ 6 exact-version packed sample ve Native AOT smoke: 1.0.0-preview.1`
+satırı hiç basılmadı — changelog kapısı ondan **önce** durdurdu.
+
+Kapı sırası koddan okundu (`scripts/kapi.py`):
+
+| Satır | Adım |
+|---|---|
+| 1100-1105 | `CHANGELOG.md` bölüm kapısı ← **burada durdu** |
+| 1213 | `_promote_staged_packages` (staging → release) |
+| 1255 | `release_extension_samples.verify` ← sample sayımı burada |
+
+Yani bu case `MT-PKG-097` ile **aynı kök nedene** takıldı (`HATA-S1-007`).
+Kendi iddiası (altı sample sayılıyor mu) bugün **ölçülemez**, yanlış olduğu
+gösterilmedi.
+
+**Yan gözlemler (tutan):** `git status --short` prova sonrası boş — çalışma
+ağacına hiçbir şey yazılmadı. `staging/` `finally` bloğunda temizlendi.
+`artifacts/package/release/` **değişmedi**: içinde hâlâ yalnız MT-PKG-020'nin
+`0.0.0-preview.0.789` paketleri var, `1.0.0-preview.1` **terfi etmedi**.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+
+---
+
+### HATA-S1-007 — Yayın provası `CHANGELOG.md`'de sürüm bölümü olmadığı için hiçbir sürümde yeşil olamaz
+
+| | |
+|---|---|
+| **Önem** | Kritik (yayın hattını bloklar) |
+| **Bulunduğu case** | MT-PKG-097 · MT-PKG-101 |
+| **Sınıf** | Yayın kapısı · doküman-kod sözleşmesi |
+| **Blokladığı case** | MT-PKG-104 · 105 · 115 · 116 · 117 |
+
+`scripts/kapi.py:1100-1105` hedef sürüm için `## [<sürüm>]` bölümü arar ve
+yoksa fail-closed durur. `CHANGELOG.md` ise **yalnız** `## [Unreleased]`
+taşıyor (`grep -n "^## " CHANGELOG.md` → tek satır, 7).
+
+Bu bir ihmal değil, bilinçli bir metin: `CHANGELOG.md:10-12` şöyle diyor —
+*"The first real release will get its own section, fixed to the artifacts it
+actually ships, and carries the date it shipped on."*
+
+🚨 **İki kural birbirini kilitliyor:**
+
+1. Kapı: sürüm bölümü yoksa prova geçemez.
+2. Changelog politikası: bölüm ancak gerçekten sevk edilince yazılır.
+
+∴ Prova **hiçbir** sürüm numarasıyla yeşil olamaz. Yayın hattı (`YAYIN-HAZIRLIK`
+Adım 2→10) bu düğüm çözülmeden ilerleyemez.
+
+Ayrıca `MT-PKG-102`'nin ön koşulu `CHANGELOG.md`'de
+`## [1.0.0-preview.1] - 2026-08-28` satırının **var olduğunu** varsayıyor;
+o satır bugün repoda yok. Spec bu noktada bayat.
+
+**Aşama 2 için karar gerektiren:** bölüm yayından önce mi yazılır (kapı haklı,
+changelog politikası gevşetilir), yoksa kapı yalnız gerçek `v*` etiketinde mi
+bölüm arar (politika haklı, kapı gevşetilir)? İkisi de public bir söz verdiği
+için `K-*` gerektirir.
+
+---
+
+## MT-PKG-102 — `CHANGELOG.md` bölümü eksikken kapı fail-closed döner
+
+**Gerçek sonuç**
+```
+1) Ön kosul adimi NO-OP cikti:
+   grep -n "1\.0\.0-preview\.1" CHANGELOG.md  -> eslesme YOK
+   Spec'in "## [1.0.0-preview.1] - 2026-08-28 satirini gecici degistir"
+   adimi bugun degistirecek bir satir bulamiyor.
+
+2) Kapi zaten hedeflenen durumda kosuldu (MT-PKG-101 ile ayni komut):
+   python3 scripts/kapi.py yayin --kuru --surum 1.0.0-preview.1  -> cikis 1
+   ❌ CHANGELOG.md içinde '## [1.0.0-preview.1]' bölümü yok veya boş
+```
+
+**Case'in ASIL iddiası TUTTU:** bölüm eksikken kapı sıfır olmayan çıkış verdi
+ve beklenen mesajı **birebir** bastı. Notsuz bir `v*` etiketi NuGet.org'a
+gidemez — Önem=Kritik'in koruduğu davranış ayakta.
+
+⚠️ **Üçüncü beklenti bugün doğrulanamadı:** "başlık geri alındıktan sonra aynı
+komut tekrar `0` döner". Geri alınacak başlık yok; taban çizgisinin kendisi
+bölümsüz. Bunun gerekçesi `HATA-S1-007`'dir, kapının kusuru değildir.
+Kullanıcı kararı (2026-09-16): `CHANGELOG.md` bu tur boyunca **donuk kalır**,
+bölüm yazılmaz. Pozitif yol Aşama 2'de düğüm çözülünce ölçülür.
+
+⚠️ **Spec'e dokunuldu** (skill §1.1 istisnası, doküman kusuru): ön koşul artık
+var olmayan bir satırı tarif ediyordu; bugünkü duruma göre düzeltildi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-PKG-103 — Envanterden sarkan yeni bir sample kapıyı kırar
+
+**Gerçek sonuç**
+```
+1) samples/Tracon.Samples.Deneme.Tests/ + tek .csproj olusturuldu:
+   validate_sample_inventory(.) ->
+   ['samples/Tracon.Samples.Deneme.Tests is not in SAMPLE_TEST_PROJECTS
+     and has no SAMPLE_TEST_EXCLUSIONS entry
+     (scripts/release_extension_samples.py)']
+
+2) dizin silindi:
+   validate_sample_inventory(.) -> []
+```
+
+Tek satır, sahte projeyi **adıyla** gösteriyor ve hangi iki listeye girmesi
+gerektiğini söylüyor — üstelik düzeltmenin yapılacağı dosyayı da veriyor.
+Faz 120'nin sessizce dışarıda kalan sample'ı bu kapıyla imkânsız. Dizin
+silinince liste tekrar boş; kapı yapışkan değil.
+
+`git status --short` case sonrası boş.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-PKG-106 — Dört adaptörün model-sağlayıcı sözleşmesi `secret` ve ağ olmadan geçer
+
+**Gerçek sonuç**
+```
+Adaptor     build  test  total  succeeded  failed  skipped
+Anthropic     0     0      79      79        0        0
+Azure         0     0      76      76        0        0
+Google        0     0      84      84        0        0
+OpenAI        0     0     126     126        0        0
+                        ----
+                         365 test · 0 basarisiz · 0 atlanan
+```
+
+Dördü de `Test run summary: Passed!` (net10.0|arm64). **`skipped: 0`** — hiçbir
+sözleşme case'i ortam yokluğundan sessizce düşmedi. `secret` export edilmedi,
+ağ çağrısı yapılmadı.
+
+**Sözleşme türetmeleri koddan doğrulandı:**
+
+| Adaptör | `ModelProviderContract` | `...CredentialContract` | `...SettingsContract` |
+|---|---|---|---|
+| Anthropic | ✅ `:21` | ✅ `:34` | ✅ `:68` |
+| Google | ✅ `:21` | ✅ `:34` | ✅ `:68` |
+| Azure | ✅ `:20` | ✅ `:33` | **muaf** `:68` |
+| OpenAI | ✅ `:19` | ✅ `:33` | **muaf** `:69` |
+
+Spec'in "Anthropic ve Google ayrıca `ModelProviderSettingsContract`'ı" ifadesi
+**birebir** doğru. Üstelik muafiyet sessiz değil: Azure ve OpenAI muafiyeti
+`except: [nameof(ModelProviderSettingsContract)]` ile **adıyla beyan ediyor**
+ve aynı dosyadaki meta-test başka bir sözleşmenin uygulanmadan kalmasını
+yakalıyor (`:81`). Yani "sözleşmeyi türetmeyi unutma" kusuru da kapatılmış.
+
+`Concurrent_resolution_of_one_credential_stays_stable` gerçek bir test:
+`src/Tracon.Testing.Contracts.Xunit/Contracts/Providers/ModelProviderCredentialContract.cs:110`
+ve public yüzeyde beyan edilmiş (`PublicAPI.Unshipped.txt:57`). Dört
+`CredentialContract` türevinin dördünde de koştu (`failed: 0`).
+
+K-646'nın BYOK önbellek kusurunu bulan sözleşme bugün yeşil.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-PKG-107 — Site sürüm sayfası `CHANGELOG.md`'ye bağlanır
+
+**Gerçek sonuç**
+```
+node scripts/build-changelog.mjs  -> cikis 0
+npm run build                     -> cikis 0 · 1147 sayfa · 16.15 sn
+                                     /reference/changelog/index.html uretildi
+npm run preview                   -> http://localhost:4321
+
+/reference/versioning/ :
+  heading "Release notes" [level=2]            ✅ var
+  link "Release notes" -> /reference/changelog/ ✅ var (govdede + sidebar +
+                                                  footer + Next baglantisi)
+  tiklandi -> /reference/changelog/ · 200 · baslik "Release notes | Tracon"
+  browser_console_messages(warning) -> 0 hata, 0 uyari
+```
+
+⚠️ **Beklenen sonuç bayattı — bağlantı GitHub'a GİTMİYOR, gitmemesi de
+bilinçli.** Hedef site içi `/reference/changelog/` sayfasıdır. Sayfa elle
+yazılmaz; `docs-site/scripts/build-changelog.mjs` onu kök `CHANGELOG.md`'den
+**üretir** ve `prebuild` adımında koşar (bu yüzden repoda commit'li bir
+`reference/changelog.md` yoktur).
+
+Gerekçe üretecin kendi başlığında yazılı (`build-changelog.mjs:4-10`):
+
+> *"The repository is private, so a GitHub blob URL 404s for everyone outside
+> it, and this site is the only public surface that can carry the notes.
+> Keeping a second, hand-maintained copy of the changelog here would drift
+> from the root file the release gate actually reads — so the root file stays
+> the single source and this script publishes it."*
+
+∴ Case'in ölçmek istediği şey (sürüm sayfasından yayın notlarına gidilebiliyor
+mu, ve notlar kök `CHANGELOG.md` ile tek kaynaktan mı besleniyor) **tutuyor**;
+yalnız hedefin URL'i spec'te bayat kalmış. `Beklenen sonuç` düzeltildi
+(skill §1.1 istisnası).
+
+**Üretilen sayfanın içeriği dürüst:** "Tracon has not been released yet."
+diyor, olmayan bir sürümü adlandırmıyor.
+
+🚨 **`HATA-S1-006`'nın üçüncü bulgusu bu case'te ÇÖZÜLDÜ** — aşağıya bak.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
