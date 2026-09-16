@@ -2042,3 +2042,131 @@ başlangıç). Gecikme **ilk listeleme isteğinde**, yani talep anında ödendi.
 
 ---
 
+## MT-CORE-095 — Kiracıya duyarlı özel kaynak
+
+**Gerçek sonuç**
+Koşulmadı. Spec'in kendisi bunu **👤 insan gerekir** olarak işaretliyor: bu
+depoda kiracıya duyarlı bir örnek `IAgentSource` **yok**, dolayısıyla kiracı
+A/B listelerinin ayrıştığını gösterecek bir kurulum kurulamıyor.
+
+Bu bir kusur değil, **kapsam boşluğu**dur. Otomatik karşılığı mevcut ve
+kapsıyor: `TenantAwareAgentSourceContract`
+(`tests/Tracon.Core.UnitTests/Catalog/BuiltInAgentSourceContractTests.cs`,
+`DefinitionStoreTenantAwareAgentSourceContractTests`).
+
+Bu turda yazılan `ohost` kurulumuna kiracıya duyarlı bir kaynak **eklenebilirdi**,
+ama o zaman case kendi yazdığım bir kaynağı ölçerdi, ürünü değil — sözleşme
+testinin zaten yaptığı şeyi tekrarlardı.
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-096 — `AddAgentSource` kayıt yüzeyi: generic ve factory aşırı yüklemeleri tek instance üretir
+
+**Gerçek sonuç**
+```
+dotnet build samples/Tracon.Samples.CustomAgentSource.Tests -c Release -> 0
+dotnet test  ... --no-build -> cikis 0
+
+  total: 15 · succeeded: 15 · failed: 0 · skipped: 0     ✅ 15/15
+
+TryAddEnumerable sayimi (sample kodunun 6 dosyasi):  hepsinde 0   ✅
+```
+İki beklenti de tuttu. `--no-build` **öncesinde derleme koşuldu** (skill §6'nın
+uyarısı: kırık build'de `--no-build` eski ikiliyi koşar ve yanlış yeşil verir).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-097 — Complex tool sonucu canonical JSON ve output limiti taşır
+
+**Gerçek sonuç**
+```
+dotnet test samples/Tracon.Samples.CustomTool.Tests -c Release --no-build -> 0
+  total: 18 · succeeded: 18 · failed: 0 · skipped: 0
+```
+`MaxOutputBytes = 768` kaynakta doğrulandı
+(`samples/Tracon.Samples.CustomTool/OrderPreviewTools.cs:13`), `preview_order`
+tool'u `OrderPreviewJsonContext` ile kayıtlı (`:11-14`).
+
+Alan değerlerinin modele gerçekten JSON olarak geçtiğini gösteren test:
+`A_generated_complex_results_field_value_is_seen_by_the_content_guard` —
+guard **alan değerini** görebiliyorsa modele giden metin CLR tip adı değil,
+serileştirilmiş içeriktir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-098 — Doğrulanmamış tool registry startup'ta reddedilir
+
+**Gerçek sonuç** (`ohost`'a kendi `IToolRegistry` uygulamam kaydedildi)
+```
+1) Varsayilan kurulum -> host ACILMADI (curl HTTP 000)
+   Unhandled exception. Tracon.TraconException: IToolRegistry was replaced.
+   This removes the Authorizing, Timeout, ApprovalRequired, and Truncating
+   wrappers. Use AddTool APIs, or explicitly set
+   Tools.AllowUnverifiedToolRegistry to true.
+
+2) Tracon__Tools__AllowUnverifiedToolRegistry=true -> host ACILDI
+   GET /api/agents -> 200
+   warn: Tracon.ToolRegistrationValidationService[0]
+         An unverified IToolRegistry is active. Authorizing, Timeout,
+         ApprovalRequired, and Truncating wrappers are not guaranteed.
+```
+
+İki beklenti de tuttu. Mesaj **hangi dört sarmalayıcının kaybolduğunu**
+adıyla sayıyor ve çıkış yolunu veriyor; opt-in yolu sessiz değil, her açılışta
+uyarı yazıyor. Fail-closed varsayılan + adlandırılmış opt-in deseni
+(`MT-CORE-061` ile aynı sınıf).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-099 — Tool hatası foreign exception ayrıntısını sızdırmaz
+
+**Gerçek sonuç**
+
+`ohost`'a bağlantı dizesi taşıyan yabancı bir istisna atan tool eklendi:
+```csharp
+throw new SahteVeritabaniException(
+  "Host=gizli-sunucu.local;Port=5432;Database=musteri;Username=admin;Password=COK-GIZLI-PAROLA");
+```
+Model sağlayıcısı `CallsTool("Patla", ...)` ile tool'u gerçekten çağırttı.
+
+**🚨 Sızıntı taraması — iki yüzeyde de temiz:**
+```
+SSE akisi        : "COK-GIZLI|gizli-sunucu|Password=" -> 0 eslesme ✅
+run olaylari     : gizli dizge var mi -> False                      ✅
+```
+
+**İki yüzeydeki metinler farklı, ikisi de güvenli:**
+
+| Yüzey | Metin |
+|---|---|
+| `GET /api/runs/{id}/tools` → `error` | **`Tool failed with SahteVeritabaniException.`** |
+| SSE `functionResult.result` | `Error: Function failed.` |
+
+Kayıt yüzeyi spec'in beklediği metni **birebir** veriyor
+(`src/Tracon.Core/Tools/ToolFailureText.cs:10`:
+`$"Tool failed with {exception.GetType().Name}."`, çağıranı
+`ToolInvocationTracker.cs:130`).
+
+⚠️ **Spec'e düzeltme:** "İki yüzeyde de **yalnız** `Tool failed with
+<ExceptionType>.` görünür" ifadesi akış yüzeyi için doğru değil. SSE'deki
+`functionResult` metni Microsoft.Extensions.AI'ın kendi genel metnidir
+(`Error: Function failed.`) ve Tracon'un `ToolFailureText`'inden geçmez.
+**Güvenlik iddiası ikisinde de tutuyor** — ne bağlantı dizesi ne özgün mesaj
+görünüyor; yalnız metin ikisinde farklı. `Beklenen sonuç` buna göre
+netleştirildi.
+
+`tool_invocations` satırı ayrıca `succeeded: false`, `authorizationDenied:
+false`, `timedOut: false` taşıyor — başarısızlığın **türü** de kayıtta ayrık.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+

@@ -2846,8 +2846,15 @@ dotnet test samples/Tracon.Samples.CustomTool.Tests -c Release --no-build
 2. Run kaydını ve SSE hata olayını incele.
 
 **Beklenen sonuç**
-- İki yüzeyde de yalnız `Tool failed with <ExceptionType>.` görünür.
-- Bağlantı dizesi veya özgün exception mesajı görünmez.
+- 🚨 **Asıl iddia:** iki yüzeyde de bağlantı dizesi ve özgün exception mesajı
+  **görünmez**.
+- `GET /api/runs/{id}/tools` → `error` alanı tam olarak
+  `Tool failed with <ExceptionType>.` taşır
+  (`src/Tracon.Core/Tools/ToolFailureText.cs:10`).
+- SSE `functionResult.result` **farklı** bir metin taşır
+  (`Error: Function failed.`) — bu Microsoft.Extensions.AI'ın kendi genel
+  metnidir, Tracon'un `ToolFailureText`'inden geçmez. Aynı metni bekleme;
+  aranacak şey sızıntının **olmaması**dır.
 
 ### MT-CORE-100 — BYOK desteklemeyen provider'da tenant credential fail-closed'tır (Faz 103)
 
