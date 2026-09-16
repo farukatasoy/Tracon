@@ -33,6 +33,8 @@ internal static class Program
                     await HealthCommand.RunAsync(args[1..], cancellation.Token).ConfigureAwait(false),
                 "eval" =>
                     await EvalCommand.RunAsync(args[1..], cancellation.Token).ConfigureAwait(false),
+                "agent-skill" =>
+                    await AgentSkillCommand.RunAsync(args[1..], cancellation.Token).ConfigureAwait(false),
                 _ => PrintUnknownCommand(args[0]),
             };
         }
@@ -61,6 +63,8 @@ internal static class Program
               tracon state-check --provider <postgres|sqlserver|sqlite> --connection <connection-string>
                                      [--sample <n>] [--json]
               tracon health --url <base-url> [--token <token>] [--json]
+              tracon agent-skill [--format claude] [--output <directory>]
+                              [--force] [--json]
               tracon eval --url <base-url> --suite <name>
                               [--token <token>] [--agent-version <n>]
                               [--min-pass-rate <0..1>] [--max-failures <n>]
@@ -88,6 +92,22 @@ internal static class Program
             that all of them would. Exit codes: 0 = nothing found that blocks
             reading, 1 = argument error, 2 = could not run, 3 = ran and found
             state this build cannot read.
+
+            agent-skill writes the Tracon gate skill into a repository, so the
+            coding agent working there reads the capability map of the
+            installed version before it writes code Tracon already ships. It
+            writes ONE file, .claude/skills/tracon/SKILL.md, under --output
+            (default: the root of the repository you run it in, which is where
+            the build looks for it). It prints the path it wrote.
+
+            An existing file is never touched without --force, because it may
+            carry your own edits; the command says what it did and exits 0
+            either way. The file carries the capability map revision it was
+            written from, and the build warns with TRC0403 once the installed
+            packages ship a newer one.
+
+            Exit codes: 0 = written, or left alone, 1 = argument error,
+            2 = could not write.
 
             eval triggers a suite, polls it to completion (default timeout 30
             minutes, poll interval 5 seconds), and applies an optional quality

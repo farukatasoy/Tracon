@@ -190,6 +190,6 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [175](arsiv/fazlar/175-GERI-ALINAMAZ-KARAR-DOGRULAMASI.md) | Geri Alınamaz Karar Doğrulaması | ✅ Tamamlandı |
 | [176](arsiv/fazlar/176-EVALUATOR-SURUM-DAMGASI.md) | Evaluator Sürüm Damgası | ✅ Tamamlandı |
 | [177](arsiv/fazlar/177-STORE-IPTAL-SOZLESMESI.md) | Store İptal Sözleşmesi | ✅ Tamamlandı |
-| [178](178-TUKETICI-KAPI-SKILLI.md) | Tüketici Kapı Skill'i | 📋 Planlandı |
+| [178](178-TUKETICI-KAPI-SKILLI.md) | Tüketici Kapı Skill'i | 🚧 Uygulanıyor (2026-09-16) |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).
