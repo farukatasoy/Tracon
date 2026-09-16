@@ -1906,3 +1906,139 @@ gelen dondurulmuş descriptor kullanılmış. Uydurma `Origin=Code` / `Model=nul
 
 ---
 
+## MT-CORE-090 — Bozuk bir kaynak varken `GET /api/agents` sağlıklı kalır
+
+**Gerçek sonuç**
+
+🚨 **Spec'in "bozuk kaynak" tarifi bu örnek için YANLIŞ.** Case var olmayan bir
+dizin öneriyor ("`ListAsync`'i her çağrıda istisna fırlatsın diye"), ama
+`JsonFileAgentSource.ReadAllAsync` (`:142-145`) bunu **açıkça** ele alıyor:
+
+```csharp
+if (!Directory.Exists(_directory)) { yield break; }
+```
+
+Var olmayan dizin **boş** kaynak üretir, bozuk kaynak değil. Ölçüldü: log
+tertemiz, hiçbir hata yok.
+
+**Gerçekten bozmak için** dizine ayrıştırılamayan bir JSON kondu
+(`agents/aaa-broken.json` = `{ bu gecerli JSON degil`); ad sıralamada
+`greeter.json`'dan **önce** gelsin diye `aaa-` öneki verildi.
+
+Sonra, host'a bir de kod agent'ı eklenerek (yerleşik kaynağın görünürlüğünü
+kanıtlamak için) ölçüldü:
+
+```
+GET /api/agents -> HTTP 200                                  ✅ fail-open
+agent sayisi: 1 | [('kod-agent', 'Code')]                    ✅ yerlesik kaynak GORUNUYOR
+greeter (bozuk kaynak) listede YOK                           ✅
+
+sunucu logu:
+  fail: Tracon.CompositeAgentCatalog[0]
+        Agent source 'json-file' failed during list.          ✅ kaynak ADIYLA
+```
+
+Üç beklentinin üçü de tuttu. Bozuk bir uzantı bütün katalogu düşürmüyor;
+hata yutulmuyor da — loga kaynağın adıyla yazılıyor.
+
+`Ön koşul` gerçek bozma yöntemine göre düzeltildi (skill §1.1).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-091 — Bozuk kaynağa ait adla `run` denemesi ham hata metnini sızdırmaz
+
+**Gerçek sonuç**
+```
+POST /api/agents/greeter/run -> HTTP 400
+{ "title": "Agent compilation failed",
+  "detail": "Agent source 'json-file' failed during resolve (agent_source_failed)." }
+```
+
+Beklenen `detail` metni **birebir** tuttu. Gövdede **yok**: dosya sistemi hata
+metni · dizin yolu · JSON ayrıştırma ayrıntısı · .NET exception stack'i ·
+dosya adı. Kaynak adı ve makine okunur bir kod (`agent_source_failed`)
+dışında hiçbir iç ayrıntı sızmıyor.
+
+**`MT-CORE-090` ile birlikte okunduğunda:** liste **fail-open** (bozuk kaynak
+atlanır, katalog ayakta), çözümleme **fail-closed** (isim bilinen bir kaynağa
+aitse hata döner, sessizce "yok" denmez). İkisi doğru yönde.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-092 — `GET /api/diagnostics` kayıtlı kaynakları önceliğe göre listeler
+
+**Gerçek sonuç**
+```json
+"agentSources": [
+  { "name": "code",      "priority": 0,   "implementation": "Tracon.CodeAgentSource" },
+  { "name": "database",  "priority": 100, "implementation": "Tracon.DefinitionStoreAgentSource" },
+  { "name": "json-file", "priority": 101, "implementation": "Tracon.Samples.CustomAgentSource.JsonFileAgentSource" }
+]
+```
+Üç girdi, **doğru öncelik sırasıyla** — case'in asıl iddiası bu ve tuttu.
+`implementation` alanı da dolu, yani hangi tipin hangi adı sağladığı görünüyor.
+
+⚠️ **Spec'te sayı yanlış:** `json-file` önceliği **101**'dir, 200 değil.
+Örnek kaynağın kendi beyanı: `Priority => AgentSourcePriority.Database + 1`
+(`JsonFileAgentSource.cs:91`). Düzeltildi.
+
+**Sapma:** `EnableDiagnosticsEndpoint = true` host'un `MapTracon` seçeneğinden
+verildi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-093 — Aynı `Name`'e sahip iki kaynak host'u başlatmaz
+
+**Gerçek sonuç**
+
+📋 **İlk deneme yanlış kurulumdu:** `AddAgentSource<JsonFileAgentSource>()` **iki
+kez** çağrıldı ve host sorunsuz açıldı (HTTP 200). Bu bir kusur değil —
+`TraconBuilder.cs:142` `TryAddEnumerable` kullanıyor ve aynı **tipi**
+tekilleştiriyor. Yani iki kayıt tek kaynağa iniyor, ad çakışması hiç oluşmuyor.
+
+Gerçek koşul için aynı adı döndüren **ikinci bir tip** yazıldı
+(`IkinciJsonFileSource`, `Name => "json-file"`):
+
+```
+host acilmadi: curl -> HTTP 000 (baglanti reddedildi)          ✅
+
+Unhandled exception. Tracon.TraconAgentSourceException:
+  Agent sources 'Tracon.Samples.CustomAgentSource.JsonFileAgentSource' and
+  'IkinciJsonFileSource' share the name 'json-file'.            ✅
+```
+
+İki beklenti de tuttu: uygulama **başlamadı** · mesaj **iki kaynağın da
+tipini** ve paylaşılan adı taşıyor. Hata açılışta, ilk istekte değil.
+
+`Ön koşul`a "iki farklı TİP gerekir" notu eklendi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-094 — Yavaş bir kaynak başlangıcı geciktirmez
+
+**Gerçek sonuç**
+
+`ListAsync`'inde `Task.Delay(3 sn)` olan bir `YavasSource` kaydedildi.
+
+```
+host baslangici -> ilk saglikli yanit :  1,51 sn     ✅ GECIKMEDI
+ilk GET /api/agents cagrisi           :  3,15 sn     <- 3 sn'lik gecikme BURADA
+```
+
+🚨 **Kanıt tam olarak bu iki sayının farkıdır.** Startup doğrulaması
+`ListAsync`'i çağırsaydı açılış ≥3 sn sürerdi; 1,51 sn sürdü (tipik soğuk
+başlangıç). Gecikme **ilk listeleme isteğinde**, yani talep anında ödendi.
+∴ Açılışta yalnız `Name`/`Priority` okunuyor, I/O yapılmıyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
