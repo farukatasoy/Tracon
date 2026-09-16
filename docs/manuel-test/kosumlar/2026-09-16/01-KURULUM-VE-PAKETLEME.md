@@ -22,6 +22,31 @@ serbesttir.
 
 ## Devir notu
 
+**Oturum 2 · BİTTİ.** `MT-PKG-050..099` — **25 case: 23 ☑ Geçti · 2 ☑ Kaldı.**
+Bloklar 050-059 · 060-069 · 070-079 · 080-089 · 090-099 kapandı.
+
+- **Nerede kalındı:** blok 090-099'un sonunda. Sıradaki case `MT-PKG-100`.
+- **Sonraki oturum:** oturum 3 = `MT-PKG-100..122` (23 case) — dosya 01'in son
+  bloğu. Sonra zincirin 2. ailesi `02-CEKIRDEK-VE-KATALOG.md`.
+- **Dosya 01 toplamı şu ana kadar:** 58/81 case · 55 Geçti · 3 Kaldı · açık yok.
+
+**Oturum 2'nin yeni bulguları:** `HATA-S1-004` (arayüz CSP'si inline script'i
+engelliyor) · `HATA-S1-005` (şablon yer tutucusu teşhis edilemeyen hata veriyor)
+· `HATA-S1-006` (`docs-site` içerik kapısı temiz ağaçta kırmızı) · `NOT-02`
+(`MT-PKG-027` sonraki case'lerin feed'ini kirletiyor).
+
+**Oturum 2'de hazır bırakılanlar** — oturum 3 bunları yeniden kurmasın:
+`<scratch>/ap-pack` (20 paket, temiz tek sürüm) · `~/tracon-local-feed` +
+`tracon-local` NuGet kaynağı + `Tracon.Templates` şablonu (🚨 **tur sonunda
+kaldırılacak**) · `~/tracon-manuel/` altında `uretec` · `varsayilan` · `meta` ·
+`uisiz` · `surum` · `surum2` · `tryadd` · `postgres` · `sqlite` · `sqlserver` ·
+`prov-{openai,anthropic,google,azure}` · `tuketici-probe` · `surface-probe`.
+
+🚨 **Yayın hattı için:** `MT-PKG-097` bugün geçmiyor — `CHANGELOG.md` hedef
+sürüm bölümü yazılmadan `1.0.0-preview.1` provası yeşil olamaz.
+
+---
+
 **Oturum 1 · BİTTİ.** `MT-PKG-001..049` — **33 case: 32 ☑ Geçti · 1 ☑ Kaldı.**
 Açık ya da işaretsiz case yok. Bloklar 000-009 · 010-019 · 020-029 · 030-039 ·
 040-049 kapandı; blok ortasında durulmadı.
@@ -1091,5 +1116,920 @@ ilgilidir. Ayrıca "`GizliYardimci` sayısı 0" iddiası tek dosya yerine
 **üretilen tüm dosyalar** için ölçülecek biçimde netleştirildi.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+---
+
+> ## 🔁 Oturum 2 — `MT-PKG-050..099`
+> Şerit `ap-s1`, kod `7e3a4de7` donuk. Ön koşullar oturum 1'den **hazır**
+> devralındı: `<scratch>/ap-pack` (20 nupkg) ve `~/tracon-manuel/uretec`.
+
+## MT-PKG-050 — Üreteç meta paket üzerinden de akıyor
+
+**Gerçek sonuç**
+```
+dotnet new web + dotnet add package Tracon --version 0.0.0-preview.0.789
+  -> ikisi de cikis 0   (YALNIZ meta paket referansi)
+
+dotnet build -c Release -> cikis 0 · Build succeeded · 0 Error(s)
+CS1061 sayisi: 0
+```
+
+Analyzer varlıkları meta paket üzerinden **geçişli olarak aktı**:
+`builder.AddTracon().AddGeneratedTools();` derlendi ve `[TraconTool]`
+işaretli `MetaTools.Getir` tanındı. `CS1061` çıkmadı — meta paketi alan
+tüketici yansımasız yolu kullanabiliyor. MT-PKG-021 ile birlikte okunduğunda
+üreteç zinciri uçtan uca sağlam.
+
+📌 Tek uyarı yine `TRC0009` (`meta_tool`'un `id` parametresinde
+`[Description]` yok) — case sıfır uyarı iddia etmiyor, kusur değil.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-PKG-060 — AOT uyumlu paketler sıfır trim uyarısı verir
+
+**Gerçek sonuç**
+```
+dotnet publish -c Release -r osx-arm64 -p:PublishAot=true -> cikis 0
+  Generating native code
+  uretec -> .../bin/Release/net10.0/osx-arm64/publish/
+
+IL2xxx / IL3xxx sayisi: 0
+
+./bin/Release/net10.0/osx-arm64/publish/uretec
+  -> "kayit tamam"   (calisma cikis 0)
+```
+
+Üç iddia da tuttu: sıfır trim/AOT uyarısı, yayınlama başarılı, üretilen
+**yerel ikili çalıştı** ve beklenen çıktıyı verdi. Üretilen tool kaydı AOT
+altında ayakta kalıyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-PKG-061 — `AddToolsFrom` AOT bedelini çağırana iletiyor
+
+**Gerçek sonuç**
+```
+dotnet publish -c Release -r osx-arm64 -p:PublishAot=true -> cikis 0
+
+Program.cs(5): AOT analysis warning IL3050: Using member
+  'Tracon.ITraconBuilder.AddToolsFrom(Type)' which has
+  'RequiresDynamicCodeAttribute' can break functionality when AOT compiling.
+  Tool scanning may require code generation at runtime.
+
+Program.cs(5): Trim analysis warning IL2026: Using member
+  'Tracon.ITraconBuilder.AddToolsFrom(Type)' which has
+  'RequiresUnreferencedCodeAttribute' can break functionality when trimming
+  application code. Tool scanning uses reflection; method information may be
+  lost in trimmed applications.
+
+toplam IL2026/IL3050 satiri: 4  (iki essiz tani, her biri iki kez)
+```
+
+İki iddia da tuttu: uyarı **çıktı** (bastırılmamış) ve hem
+`RequiresUnreferencedCode` hem `RequiresDynamicCode` gerekçesini **adıyla**
+taşıyor. Yansıma yolu meşru bir kaçış kapısı olarak duruyor ama bedeli
+çağırana iletiliyor — MT-PKG-060'ın sıfır uyarısıyla karşıtlığı tam.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-PKG-062 — AOT bayrağı paket bazında doğru
+
+**Gerçek sonuç**
+```
+grep -l "TraconAotCompatible>false" src/*/*.csproj  -> 12 proje
+  Tracon · Tracon.AspNetCore · Tracon.Cli · Tracon.Client · Tracon.Generators
+  Tracon.Mcp · Tracon.SqlServer · Tracon.Sqlite · Tracon.Templates
+  Tracon.Testing · Tracon.UI · Tracon.Workflows
+
+src/ altinda 22 proje -> bayragi devralan (AOT uyumlu) 10 proje
+  bunlardan Tracon.Sql.Shared paket degil -> AOT uyumlu PAKET: 9
+```
+
+⚠️ **Beklenen sonuç DÜZELTİLDİ** (skill §1.1 istisnası). Spec 10 muafiyet ve
+8 uyumlu paket bekliyordu. Üçü de ölçüldü:
+
+1. **`Tracon.Cli`** muafiyeti **gerekçeli**: *"Global tools ship as IL, not
+   native code; nothing here promises AOT."*
+2. **`Tracon.Client`** muafiyeti **gerekçeli**: 42 satır × 3 TFM için
+   146 `IL2026`/`IL3050`/`IL2075` tanısı ölçülmüş; K-006'nın katman temelli
+   olduğuna ve `Tracon.AspNetCore` ile `Tracon.UI`'nin de kendi gerekçeleriyle
+   muaf olduğuna atıf yapıyor.
+3. **`Tracon.Testing.Contracts.Xunit`** bayrak **yazmıyor**; `TraconAotCompatible`
+   `src/Directory.Build.props:33`'te boşsa `true`'ya düşüyor, yani bu paket AOT
+   vaadi veriyor. Sessiz bir kırılma **değil**: tek başına derlemesi
+   `0 Warning(s) · 0 Error(s)` veriyor, çünkü `Directory.Build.targets:16`
+   bayrak `true` iken `IsAotCompatible=true` atıyor ve trim/AOT analyzer'ları
+   açıyor. Vaat analyzer ile destekleniyor. Kardeşi `Tracon.Testing`'in muafiyet
+   gerekçesi (yansımayla anonim tip okuma) bu pakete uymuyor.
+
+📌 **Dangling atıf.** Spec "`AGENTS.md` **Sekiz paket uyumludur** der" diyor;
+bugünkü `AGENTS.md`'de o cümle **yok** (tek AOT geçişi satır 164, "AOT
+muafiyeti"nin alan dosyasında yaşadığını söylüyor). Sayı artık koddan
+türetiliyor, dokümandan değil.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-PKG-070 — Yerel feed kurulur ve şablon yüklenir
+
+**Gerçek sonuç**
+```
+~/tracon-local-feed'e kopyalanan nupkg: 20
+dotnet nuget add source ~/tracon-local-feed -n tracon-local
+  -> "Package source with Name: tracon-local added successfully."
+  2. tracon-local [Enabled]  /Users/farukatasoy/tracon-local-feed
+
+dotnet new install "Tracon.Templates::*-*" --add-source ~/tracon-local-feed
+  -> Success: Tracon.Templates::0.0.0-preview.0.789 installed
+
+dotnet new list tracon --columns-all
+Template Name                        Short Name  Language  Type     Author  Tags
+Tracon control plane (ASP.NET Core)  tracon-api  [C#]      project  Tracon  Web/Tracon/AI/Agents
+```
+
+Dört iddia da tuttu: kısa ad `tracon-api`, şablon adı
+`Tracon control plane (ASP.NET Core)`, dil `C#`, tip `project`.
+
+📌 **Tip sütunu varsayılan görünmüyor.** `dotnet new list tracon` çıktısı
+Type sütununu basmaz; `--columns-all` gerekir. Spec'in komutu tipi
+doğrulayamaz. Ölçüm `--columns-all` ile yapıldı.
+
+📌 **`::` ayırıcısı kullanımdan kaldırılıyor.** SDK uyarısı:
+*"The colon separator '::' has been deprecated in favor of the at symbol '@'
+… this means `Tracon.Templates@*-*`"*. Spec ve `00-INDEKS.md` §2.3 hâlâ `::`
+kullanıyor. Bugün çalışıyor; kapanış oturumu `@`'e çevirmeli.
+
+🔧 **Ortam değişikliği — kullanıcı onayı alındı (2026-09-16).** Bu case üç
+kalıcı kayıt oluşturur (`~/tracon-local-feed/`, `tracon-local` NuGet kaynağı,
+`Tracon.Templates` şablonu). Üçü de **tur bitince geri alınacak**; adımlar
+spec'e `## Koşum sonrası temizlik` olarak yazıldı ve `DEVIR.md` §9'a borç
+olarak kaydedildi.
+
+🔧 **Kalıntı temizlendi.** Koşum öncesi küresel listede Ağustos turundan kalma
+`AgentPrism.Templates 0.0.0-preview.0.248` duruyordu — Faz 162 öncesi ürün
+adıyla. Kullanıcı onayıyla kaldırıldı:
+`Success: AgentPrism.Templates::0.0.0-preview.0.248 was uninstalled.`
+Kalıntının sebebi spec'te koşum sonrası temizlik bölümünün **olmamasıydı**;
+bu turda o boşluk kapatıldı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-PKG-071 — Varsayılan şablon derlenir ve çalışır
+
+**Gerçek sonuç**
+```
+dotnet new tracon-api -o . --TraconVersion 0.0.0-preview.0.789  -> cikis 0
+uretilen: Program.cs · Tools/OrderTools.cs · appsettings.json · README.md
+          .gitignore · appsettings.Development.json
+          Properties/launchSettings.json · varsayilan.csproj
+
+dotnet build -c Release -> cikis 0 · 0 Warning(s) · 0 Error(s)
+
+curl /tracon/api/meta -> HTTP 200
+{"version":"0.0.0-preview.0.789","prefix":"/tracon",
+ "authentication":{"allowRemoteAccess":false,"requiresBearerToken":false,...},
+ "storage":{"persistent":false,"agentDefinitionStore":"InMemoryAgentDefinitionStore",
+            "runStore":"InMemoryRunStore","sessionStore":"InMemorySessionStore",...},
+ "roles":{"canRead":true,"canOperate":true,"canAdminister":true}}
+
+curl /tracon/api/agents -> support / "Support Assistant" / origin:"Code"
+```
+
+**Arayüz (Playwright ile doğrulandı).** `/tracon` açıldı, başlık `Tracon`,
+dashboard çizildi, kenar çubuğunda `In-memory storage — Data is lost when the
+process exits.` rozeti ve `v0.0.0-preview.0.789` görünüyor. `/tracon/agents`
+ekranında **boş liste değil**, `support` satırı var: ad `Support Assistant`,
+kaynak `code` ("Declared in code by source 'code'. Read only."), model
+`WRITE_MODEL_NAME_HERE` · `openai`, tool sayısı `1`.
+
+Tasarım kuralı #1 kanıtlandı: **hiçbir bağlantı dizesi ve API anahtarı
+tanımlı değilken** uygulama ayağa kalktı, `persistent:false` ile çalıştı.
+
+📌 **İki küçük sapma, ikisi de iddiayı bozmuyor:**
+
+1. Spec "`/tracon` arayüzü açılır ve … `support` agent'ını gösterir" diyor;
+   `/tracon` kökü **Dashboard**'a düşüyor ve orada agent listesi yok. Agent
+   `/tracon/agents` ekranında görünüyor. İddia karşılanıyor, rota adı gevşek.
+2. Spec üretilen `appsettings.json`'ın `ConnectionString` **ve** `ApiKey`
+   alanlarını boş dize taşımasını bekliyor. Ölçülen dosyada `ApiKey: ""` var,
+   `ConnectionString` **hiç yok** — varsayılan `--persistence memory` olduğu
+   için kalıcılık bölümü üretilmiyor. Hiçbir gerçek `secret` yok; iddianın özü
+   (sızıntı yok) karşılanıyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### HATA-S1-004 — Arayüzün kendi CSP'si, sevk edilen inline script'i engelliyor
+
+| | |
+|---|---|
+| **Önem** | Orta |
+| **Bulunduğu case** | MT-PKG-071 (arayüz adımı) |
+| **Sınıf** | Sevk edilen ölü kod + her sayfa yüklemesinde konsol hatası |
+
+**Belirti.** Arayüzün açıldığı **her** sayfada bir konsol hatası:
+
+```
+[ERROR] Executing inline script violates the following Content Security Policy
+directive 'script-src 'self''. Either the 'unsafe-inline' keyword, a hash
+('sha256-qXVpEEsBZN0tkb/4NNCKKYCX/3nqPrSN9lCJAU0JadE='), or a nonce
+('nonce-...') is required to enable inline execution. The action has been
+blocked. @ http://localhost:5081/tracon:41
+```
+
+`/tracon` ve `/tracon/agents` ikisinde de tekrarlandı.
+
+**Kök neden.** İki taraf birbiriyle çelişiyor:
+
+- `src/Tracon.UI/wwwroot/index.html:42` bir **inline `<script>`** taşıyor.
+  Kendi yorumu amacını söylüyor: *"Runs BEFORE the stylesheet, so a stored
+  preference paints its own ground rather than the default one."* Depodan
+  `tracon.theme` okuyup `document.documentElement.dataset.theme`'i yazıyor.
+- `src/Tracon.UI/Internal/EmbeddedUiProvider.cs:50` gönderilen başlığa
+  `script-src 'self'` yazıyor. `style-src` **`'unsafe-inline'` taşıyor**,
+  `script-src` taşımıyor; nonce ya da hash mekanizması da yok
+  (`grep -rniE "nonce|sha256-" src/Tracon.UI` → yalnız tarayıcının önerdiği
+  hash, kodda karşılığı yok).
+
+Sonuç: script **hiç çalışmıyor**. Var oluş sebebi — stil sayfasından önce
+depolanmış temayı boyamak — tamamen boşa çıkıyor. `theme.ts` aynı yazımı modül
+yüklenirken **daha geç** yapıyor, yani uygulama bozulmuyor ama varsayılan
+olmayan tema seçmiş her tüketici her sayfa yüklemesinde tema sıçraması
+görüyor, artı konsolunda kalıcı bir hata.
+
+**Neden otomatik test yakalamadı.** `tests/Tracon.Ui.E2ETests/` içinde
+konsol hatası ya da sayfa hatası denetleyen **hiçbir** iddia yok
+(`grep -rn "PageError\|OnConsole" tests/Tracon.Ui.E2ETests/` → boş). 79 E2E
+testi yeşil geçiyor çünkü hiçbiri konsola bakmıyor. Bu, skill §5'in
+"sessiz bir JS hatası 'Geçti' gibi görünür" uyarısının canlı örneğidir.
+
+**Kapanışta karar gerektirir:** ya inline script'in hash'i CSP'ye eklenir
+(`'sha256-qXVpEEsBZN0tkb/4NNCKKYCX/3nqPrSN9lCJAU0JadE='`), ya bir nonce
+üretilir, ya da script kaldırılıp tema sıçraması kabul edilir. Ek olarak
+E2E setine konsol-hatası kapısı eklenmesi bu sınıfı kapatır.
+
+---
+
+## MT-PKG-072 — Şablon gerçek bir model çağrısı yapar
+
+**Gerçek sonuç**
+
+**Adım 4 (gerçek çağrı) tam geçti:**
+```
+sed WRITE_MODEL_NAME_HERE -> gpt-5.4-mini · build cikis 0
+POST /tracon/api/agents/support/run  {"message":"ORD-1001 siparisim nerede?"}
+  -> SSE akisi · runId 01a0aab7-d797-7a5f-8838-9d13cc7eca3a
+  ORD-1001 gecis sayisi      : 2
+  get_order_status cagri sayisi: 1   (tam bir kez)
+
+GET /tracon/api/runs
+  status      : "Completed"
+  modelId     : "gpt-5.4-mini"   modelProvider: "openai"
+  usage       : in 216 / out 25 / total 241
+  eventCount  : 26   error: null
+```
+
+🚨 **Adım 1 KALDI: hata metni model adını taşımıyor.**
+
+Case'in var oluş sebebi "yer tutucunun gerçekten fark edildiğini kanıtlamak".
+İki sıralamada da fark edilmiyor:
+
+```
+(a) anahtar YOKKEN (case'in kendi sirasi):
+HTTP 400 {"title":"Agent compilation failed",
+ "detail":"Agent 'support' could not be compiled: No model provider named
+  'openai' is registered. ... For OpenAI, call
+  `builder.AddTracon().UseOpenAI(apiKey)`."}
+-> Saglayici kaydindan sikayet ediyor; model adi GECMIYOR.
+
+(b) anahtar VARKEN (ayirt edici olcum, bu turda ek olarak kosuldu):
+HTTP 200, SSE acildi, sonra
+event: error
+data: {"type":"ProviderInvocationException",
+       "message":"The model provider request failed."}
+-> Yine model adi GECMIYOR.
+```
+
+İki durumda da uygulama **çökmedi** (`/tracon/api/meta` → 200) ✅ — iddianın
+o yarısı tutuyor. Model adını taşıma iddiası tutmuyor → `HATA-S1-005`.
+
+⚠️ **Spec iki noktada düzeltildi** (skill §1.1 istisnası):
+1. Yer tutucu adı `MODEL_ADINI_BURAYA_YAZIN` → **`WRITE_MODEL_NAME_HERE`**
+   (Faz 162 dil göçü; ölçüldü: `~/tracon-manuel/varsayilan/Program.cs:45`).
+2. Adım 3 `dotnet user-secrets set` diyordu → **ortam değişkeni**
+   (`export Tracon__Providers__OpenAI__ApiKey=...`). Skill §1.2 `user-secrets`
+   yazımını yasaklar; depo makine genelinde tektir. Bu koşumda anahtar
+   `user-secrets list` ile **okundu** (164 karakter), hiçbir dosyaya yazılmadı.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+
+---
+
+### HATA-S1-005 — Şablonun kendi yer tutucusu teşhis edilemeyen bir ilk koşum hatası üretiyor
+
+| | |
+|---|---|
+| **Önem** | Orta |
+| **Bulunduğu case** | MT-PKG-072 |
+| **Sınıf** | İlk beş dakika · hata teşhisi |
+
+**Belirti.** Şablon `Model = "WRITE_MODEL_NAME_HERE"` ile geliyor — bu
+**bilinçli** bir yer tutucudur. Tüketici anahtarını verip değiştirmeyi
+unutursa aldığı tek şey:
+
+```
+{"type":"ProviderInvocationException","message":"The model provider request failed."}
+```
+
+Model adı yok, sebep yok, korelasyon kimliği yok.
+
+**Sunucu tarafında ayrıntı TAM olarak duruyor** (aynı koşumun logu):
+```
+Tracon.ForeignProviderInvocationException: HTTP 404 (invalid_request_error: model_not_found)
+  The model `WRITE_MODEL_NAME_HERE` does not exist or you do not have access to it.
+fail: Tracon.ModelProvider[0]
+  Model provider openai failed during streaming invocation for model WRITE_MODEL_NAME_HERE.
+fail: Tracon.RunRecordingAgent[0]
+  Run 01a0aab8-471a-722d-a7e0-474e0efc17ff failed. (ref: 3fca8b40)
+fail: Tracon.AgentEndpoints[0]
+  Streaming agent run ... failed. (ref: ebdcd712)
+```
+
+**Kök neden — bilinçli bir redaksiyon.**
+`src/Tracon.Core/Models/ProviderFailureNormalizer.cs:12`
+`UpstreamMessage = "The model provider request failed."` sabitini tanımlar ve
+`IsKnownSafe(...)` bir **izin listesi** tutar (`TraconContentFilteredException`,
+`TraconCompilationException`, `TraconProviderUnavailableException`, …).
+OpenAI SDK'sının `ClientResultException`'ı (`model_not_found`) bu listede
+olmadığı için normalize ediliyor. Tasarım savunulabilir — yabancı sağlayıcı
+ayrıntısı istemciye sızmamalı. Bedeli, şablonun **kendi sevk ettiği**
+yer tutucusunun teşhis edilemez hâle gelmesi.
+
+**İki şey güvenle geçirilebilirdi ve geçmiyor:**
+1. **Model adı** — tüketicinin kendi yazdığı yapılandırma değeri, sağlayıcı
+   `secret`'i değil.
+2. **`ref:` korelasyon kimliği** — zaten üretiliyor ve loglanıyor
+   (`AgentEndpoints.cs:1297`), ama SSE hata olayına konmuyor; tüketici kendi
+   hatasını kendi logundaki satırla eşleştiremiyor.
+
+**Kapanışta seçenekler:** `model_not_found` için ayrı bir güvenli tip açmak ·
+`ref:` kimliğini hata gövdesine koymak · ya da en ucuzu, şablonun açılışta
+yer tutucu hâlâ duruyorsa **hızlı düşmesi** (`WRITE_MODEL_NAME_HERE` görürse
+anlaşılır bir başlangıç hatası).
+
+---
+
+## MT-PKG-073 — Kalıcılık seçenekleri doğru paket ve kod üretiyor
+
+**Gerçek sonuç**
+
+| Varyant | csproj paketleri | `Program.cs` | `appsettings.json` | `#if` | build |
+|---|---|---|---|---|---|
+| `postgres` | yalnız `Tracon` | `tracon.UsePostgreSql(postgreSql);` | yalnız `"PostgreSql"` | yok | ☑ |
+| `sqlite` | `Tracon` + `Tracon.Sqlite` | `tracon.UseSqlite(sqlite);` | yalnız `"Sqlite"` | yok | ☑ |
+| `sqlserver` | `Tracon` + `Tracon.SqlServer` | `tracon.UseSqlServer(sqlServer);` | yalnız `"SqlServer"` | yok | ☑ |
+
+Altı iddia da tuttu: `postgres` ek paket **almıyor** (PostgreSQL meta pakete
+dâhil, MT-PKG-030 ile tutarlı), diğer ikisi kendi paketini ekliyor, her
+varyantın `appsettings.json`'ı yalnız **kendi** sağlayıcısının bölümünü taşıyor,
+hiçbirinde `#if` / `//#if` kalıntısı yok ve üçü de derleniyor. Üçünde de
+`ConnectionString` değeri boş dize.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-PKG-074 — Sağlayıcı seçenekleri doğru paket ve kod üretiyor
+
+**Gerçek sonuç**
+
+| Varyant | Ek paket | `Program.cs` | build |
+|---|---|---|---|
+| `openai` | **yok** (meta paketten) | `tracon.UseOpenAI(openAi);` | ☑ |
+| `anthropic` | `Tracon.Anthropic` | `tracon.UseAnthropic(anthropic);` | ☑ |
+| `google` | `Tracon.Google` | `tracon.UseGoogle(google);` | ☑ |
+| `azure` | `Tracon.Azure` | `tracon.UseAzureOpenAI(azureOpenAI);` | ☑ |
+
+Dört iddia da tuttu. Her varyant **tek bir** `Use*` çağrısı taşıyor ve dördü de
+derleniyor. Azure varyantının derlenmesi **kimlik bilgisi istemedi** — case'in
+kapsamı üretim ve derleme; gerçek Azure `run`'ı `06-SAGLAYICI-DIGER.md`'de
+atlanır (Azure kimliği yok).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-PKG-075 — `--ui false` arayüzü hiç bağlamaz
+
+**Gerçek sonuç**
+```
+dotnet new tracon-api --ui false   -> cikis 0
+grep -c "UseUI" Program.cs         -> 0
+csproj                             -> yalniz <PackageReference Include="Tracon" />
+dotnet build -c Release            -> cikis 0
+
+meta   : 200
+arayuz : 404
+logda arayuzle ilgili hata: yok
+```
+
+Dört iddia da tuttu: `UseUI` çağrısı üretilmedi, HTTP API **çalışmaya devam
+etti** (200), arayüz kökü 404 döndü ve uygulama çökmedi. Arayüz istemeyen
+tüketici için kontrol düzlemi ayakta kalıyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-PKG-076 — Şablon sürüm sabitlemesi çalışıyor
+
+**Gerçek sonuç**
+```
+1) dotnet new tracon-api --skip-restore  -> cikis 0
+   csproj: <PackageReference Include="Tracon" Version="*-*" />
+   TRACON_TEMPLATE_PACKAGE_VERSION yer tutucusu: 0 kez (kalmamis)
+   ciktida "Restor" gecen satir: 0  (--skip-restore gercekten atladi)
+
+2) dotnet new tracon-api --TraconVersion 99.99.99 --skip-restore
+   dotnet restore -> cikis 1
+   NU1102: Unable to find package Tracon with version (>= 99.99.99)
+   NU1102:   - Found 0 version(s) in nuget.org
+   NU1102:   - Found 1 version(s) in ap-yerel [ Nearest version: 0.0.0-preview.0.789 ]
+```
+
+Üç iddia da tuttu. Hata mesajı hem paket adını (`Tracon`) hem istenen sürümü
+(`99.99.99`) açıkça yazıyor **ve** en yakın mevcut sürümü gösteriyor —
+beklenenden iyi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-PKG-077 — Şablon `secret` sızdırmıyor
+
+**Gerçek sonuç**
+```
+anahtar deseni taramasi (*.json · *.cs · *.csproj, bin/obj haric)
+  -> hicbir satir donmedi
+--- tarama bitti ---
+
+appsettings.json:  "OpenAI": { "ApiKey": "" }        (bos dize)
+csproj:            <UserSecretsId>tracon-starter-8CF6C53D-0EAD-4C8F-AD96-B4E1BBAA4144</UserSecretsId>
+.gitignore:        bin/ · obj/ · *.user · appsettings.*.local.json
+                   Tracon.LocalReference.md
+```
+
+Dört iddia da tuttu: tarama temiz, `ApiKey` boş dize, `.csproj` bir
+`UserSecretsId` taşıyor ve `.gitignore` `secret` deseni içeriyor
+(`appsettings.*.local.json` ve `*.user`).
+
+📌 **Ön koşul sapması sorun çıkarmadı.** Case "MT-PKG-072 koşuldu
+(`user-secrets` tanımlandı)" diyor; bu turda §1.2 gereği `user-secrets`
+yazılmadı, ortam değişkeni kullanıldı. Fark etmedi: `UserSecretsId`'yi
+**şablonun kendisi** üretiyor, `dotnet user-secrets init` gerekmiyor.
+
+⚠️ **Spec komutu DÜZELTİLDİ** (skill §1.1 istisnası). `.gitignore` grep'i
+`appsettings\.\*\.json` arıyordu; dosyadaki satır `appsettings.*.local.json`
+olduğu için **eşleşmiyordu** ve komut sıfır satır dönüyordu. Case geçtiği
+hâlde komutu "desen yok" diyordu — MT-PKG-041'in `grep -P` sorunuyla aynı
+sınıf: ölçen komut iddiayı ölçmüyor. Desen `*.user` de kapsayacak şekilde
+genişletildi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-PKG-080 — Tüketicinin kaydı her zaman kazanır
+
+**Gerçek sonuç**
+```
+BenimRunStore.cs -> IRunStore'un 15 uyesi de NotSupportedException ile uygulandi
+  (imzalar src/Tracon.Abstractions/Runs/IRunStore.cs'ten birebir cikarildi)
+
+dotnet run -c Release -> cikis 0
+once:  BenimRunStore
+sonra: BenimRunStore
+```
+
+İki iddia da tuttu. Tüketicinin kaydı **Tracon'den önce** yapıldığında Tracon
+onu ezmedi (`TryAdd*` sözleşmesi), **sonra** yapıldığında son kayıt kazandı.
+Hiçbir adımda istisna atılmadı. Kütüphane tüketicinin kararını her iki sırada
+da koruyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-PKG-081 — Hiçbir `Use*` çağrılmadan kurulum ayakta kalır
+
+**Gerçek sonuç**
+```
+dotnet run -c Release -> cikis 0
+IRunStore     : InMemoryRunStore
+ISessionStore : AuditingSessionStore
+IToolRegistry : ToolRegistry
+kurulum tamam
+
+uyari / baglanti denemesi izi: yok
+```
+
+Beş iddia da tuttu ve 2026-08-15'te düzeltilen tip adlarının üçü de birebir
+çıktı: `ISessionStore` denetim izi dekoratörüyle sarılı (`AuditingSessionStore`),
+`IToolRegistry` `InMemory` öneki taşımıyor. Tasarım kuralı #1'in tek doğrudan
+testi: hiçbir `Use*` çağrılmadan çekirdek servisler çözümlendi, hiçbir bağlantı
+denenmedi, hiçbir uyarı loglanmadı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-PKG-082 — İki kalıcılık sağlayıcısı aynı anda verilirse
+
+**Gerçek sonuç**
+```
+Program.cs:22  tracon.UseSqlite(sqlite);
+Program.cs:29  tracon.UsePostgreSql(postgreSql);      <- SON cagri
+build cikis: 0
+
+GET /tracon/api/meta
+  "storage": { "persistent": true,
+               "agentDefinitionStore": "SqlAgentDefinitionStore",
+               "runStore":  "SqlRunStore",
+               "sessionStore": "SqlSessionStore",
+               "jobStore": "SqlJobStore" }
+
+acilis logu:
+warn: Tracon.MigrationHostedService[0]
+      Tracon has more than one persistence provider registered: SQLite,
+      PostgreSQL. The last registration wins and PostgreSQL is currently in
+      use. Call only one.
+
+ardindan: CREATE SCHEMA IF NOT EXISTS mt_s1_cift ... (PostgreSQL migration'lari)
+```
+
+Dört iddia da tuttu:
+- Uygulama **çökmedi**, ayağa kalktı ✅
+- `meta` **tek** aktif kalıcılık bildirdi (tek `Sql*` depo kümesi) ✅
+- Aktif olan **son** çağrılan sağlayıcı: `UsePostgreSql` (satır 29) ✅ —
+  uyarı bunu açıkça söylüyor ("PostgreSQL is currently in use")
+- Log'da uyarı **var** ve iki sağlayıcıyı da adıyla sayıyor ✅
+
+`README.md:252` ve `src/Tracon.Sqlite/README.md:103` iddiası
+("last registration wins and a warning is logged at startup") **kodla
+doğrulandı**: uyarı `src/Tracon.Sql.Shared/Migrations/MigrationHostedService.cs:129`
+içinde yaşıyor.
+
+📌 **Uyarı iki kez basılıyor.** Aynı satır açılışta iki defa görünüyor. Zararsız
+ama gürültülü; kapanış oturumu tek basıma indirebilir.
+
+**Sapma:** Case `dotnet user-secrets set` diyor; skill §1.2 gereği iki bağlantı
+dizesi de **ortam değişkeni** ile verildi. Şema `mt_s1_cift` şerit kapsamında
+açıldı ve case bitince düşürüldü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-PKG-090 — Public API kapısı temiz ağaçta sıfır uyarı verir
+
+**Gerçek sonuç**
+```
+git status --short -> bos
+dotnet build Tracon.slnx -c Release --no-incremental -> cikis 0 · 61 sn
+grep -c "warning RS0" -> 0
+Build succeeded. 0 Warning(s) · 0 Error(s)
+```
+
+Kayıtlı bir yüzeyde kapı sessiz. 2026-08-16 ölçümüyle birebir aynı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-PKG-091 — Kayıtsız yeni bir public üye derlemeyi kırar
+
+**Gerçek sonuç**
+```
+ITraconBuilder.cs  += void ProbeUnregisteredMember();
+TraconBuilder.cs   += public void ProbeUnregisteredMember() { }
+
+dotnet build src/Tracon.Core/Tracon.Core.csproj -c Release -> cikis 1
+error RS0016: Symbol 'Tracon.ITraconBuilder.ProbeUnregisteredMember() -> void'
+  is not part of the declared public API
+  [::TargetFramework=net8.0]  [::TargetFramework=net9.0]  [::TargetFramework=net10.0]
+RS0016 satir sayisi: 6  (3 TFM × 2)
+```
+
+Kapı **gerçekten** çalışıyor: derleme kırıldı ve tanı eklenen üyenin **tam
+imzasını** adıyla söyledi. 2026-08-16 ölçümüyle birebir aynı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-PKG-092 — `PublicAPI.Unshipped.txt`'e eklenince kapı tekrar yeşil
+
+**Gerçek sonuç**
+```
+src/Tracon.Core/PublicAPI.Unshipped.txt +=
+  Tracon.ITraconBuilder.ProbeUnregisteredMember() -> void
+
+dotnet build src/Tracon.Core/Tracon.Core.csproj -c Release -> cikis 0
+Build succeeded. 0 Warning(s) · 0 Error(s)
+RS00xx tanisi: 0
+```
+
+Kapı kayıtlı üyeyi engellemiyor. Üç dosya `git checkout --` ile geri alındı;
+`git status --short` **boş**.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-PKG-093 — Sadeleşen aşırı yüklemeler paketlenmiş tüketicide görünür ve çalışır
+
+**Gerçek sonuç**
+```
+ConsumerProbe: Tracon.Anthropic + Tracon.Mcp 0.0.0-preview.0.789 (yerel feed)
+Program.cs yalniz PUBLIC yuzeyi kullanir:
+  AnthropicChatClientFactory.CreateClient(new AnthropicProviderOptions { ApiKey = "k" })
+  AnthropicChatClientFactory.FromClient(client, defaultModel: "claude-sonnet", loggerFactory: null)
+  services.AddTracon().UseAnthropic("k").UseMcp();      <- bare asiri yukleme
+
+dotnet build -c Release -> cikis 0 · 0 Warning(s) · 0 Error(s)
+dotnet run  -c Release --no-build ->
+  Consumer probe OK: Tracon.AnthropicChatClientFactory
+```
+
+Üç iddia da tuttu ve 2026-08-16 ölçümüyle birebir aynı çıktı üretildi.
+RS0026 sadeleştirmeleri `ProjectReference` ile değil **gerçek `.nupkg`** ile
+tüketildiğinde de çalışıyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-PKG-094 — `internal`'a çekilmiş bir tip paketlenmiş tüketicide görünmez, arayüzü görünür
+
+**Gerçek sonuç**
+```
+SurfaceProbe: Tracon 0.0.0-preview.0.789 (yerel feed)
+~/.nuget/packages/tracon* silindi (case on kosulu) - 15 dizin
+
+adim 2: var store = new Tracon.InMemoryRunStore();
+  -> cikis 1
+  error CS0122: 'InMemoryRunStore' is inaccessible due to its protection level
+
+adim 3: Tracon.IRunStore? store = null;  (kullanilarak)
+  -> cikis 0 · 0 Warning(s) · 0 Error(s)
+```
+
+İki iddia da tuttu. Faz 96'nın 96 tipi `internal`'a çekmesi **gerçek
+tüketicide** de tutuyor: uygulama tipi görünmüyor, arayüz görünür kalıyor.
+
+📌 **Adım 3'ün komutu uyarı üretir.** Spec `Tracon.IRunStore? store = null;`
+yazıyor ve sıfır uyarı bekliyor; bu satır tek başına `CS0219` (atanmış ama
+kullanılmamış değişken) verir. Ölçüm, değişkeni gerçekten okuyan bir satırla
+yapıldı. Spec'e dokunulmadı — iddia (arayüz görünür) her iki biçimde de
+karşılanıyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### 🚨 NOT-02 — `MT-PKG-027` sonraki case'lerin feed'ini kirletiyor
+
+Bu bir **ürün kusuru değil, set tasarımı kusurudur** ve `MT-PKG-093`/`094`'ün
+ilk koşumunu geçersiz kıldı.
+
+`MT-PKG-027` geçici bir `v1.0.0-preview.1` etiketi atıp paketliyor. `-o` ile
+başka bir dizin verilse bile çıktı **`artifacts/package/release/` içine de**
+düşüyor (ölçüldü: `MT-PKG-020`'nin `-o` ile koşan pack'i de oraya yazdı).
+`MT-PKG-093` ve `094` tam olarak o dizini yerel feed olarak kullanıyor ve
+numara sırasında `027`'den **sonra** geliyor.
+
+🔍 **Ölçümün sınırı:** 20 paketin tamamı 17:24:28–17:24:50 arasında tek bir
+kümede oluştu; etiket penceresi içindeydi ama çözüm genelinde pack'i hangi
+adımın tetiklediği **izole edilemedi**. Kanıtlanan şey: dizin birikimlidir,
+`027` penceresinde iki sürüm ailesi oluşur ve bu `093`/`094`'ü kırar.
+
+Ölçülen sonuç (ilk koşum, kirli feed):
+```
+feed'de 39 nupkg · IKI surum ailesi: 0.0.0-preview.0.789 ve 1.0.0-preview.1
+Tracon.Abstractions YALNIZ 1.0.0-preview.1 olarak duruyordu
+
+warning NU1603: Tracon.Core 0.0.0-preview.0.789 depends on
+  Tracon.Abstractions (>= 0.0.0-preview.0.789) but ... 0.0.0-preview.0.789 was
+  not found. Tracon.Abstractions 1.0.0-preview.1 was resolved instead.
+```
+
+Yani iki case, test edilmesi gereken sürümden **farklı** bir `Abstractions`
+ikilisine karşı ölçülüyordu. Temiz bir feed (yalnız `0.0.0-preview.0.789`,
+20 paket) ile yeniden koşuldu ve ikisi de **0 uyarı** ile geçti; yukarıdaki
+kayıtlar temiz koşumdur.
+
+**Spec düzeltildi:** `MT-PKG-027`'ye atlanmaz bir temizlik adımı eklendi —
+`rm -f artifacts/package/release/*1.0.0-preview.1.*`.
+
+---
+
+## MT-PKG-095 — Public yüzey taban çizgisi paket başına tip sayısını yakalar
+
+**Gerçek sonuç**
+```
+1) degismemis baseline ile   -> cikis 0 · total 1 · failed 0
+2) Tracon.Anthropic=5 -> =4  -> cikis 2 · total 1 · failed 1
+
+failed PublicSurfaceBaselineTests.Public_type_count_matches_the_checked_in_baseline_per_package (87ms)
+  The public surface baseline is stale.
+  + Tracon.Anthropic: 5 public types, baseline allows 4
+  A count that only shrank is fixed by refreshing:
+    TRACON_PUBLIC_SURFACE_REFRESH=1 dotnet test tests/Tracon.Core.UnitTests -c Release
+  at PublicSurfaceBaselineTests.cs:87
+
+3) git checkout -- ... -> Tracon.Anthropic=5 geri geldi
+```
+
+Kapı gerçekten kırılıyor ve mesaj **hangi paket** (`Tracon.Anthropic`),
+**gerçek sayı** (5) ve **taban çizgi** (4) üçünü birden veriyor; üstüne
+düzeltme komutunu da yazıyor. Sessizce büyüyen bir yüzey buradan geçemez.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-PKG-096 — Takipsiz packable paket beyan kapısında yakalanır
+
+**Gerçek sonuç**
+```
+PublicAPI.Shipped.txt ve PublicAPI.Unshipped.txt gecici olarak tasindi
+
+failed PublicApiTrackingDeclarationTests.Every_src_project_declares_its_public_API_tracking_status (30ms)
+  Tracon.Core: neither carries both PublicAPI.Shipped.txt and
+  PublicAPI.Unshipped.txt, nor sets TraconPublicApiTrackingEnabled=false in its
+  own .csproj. Add the tracking files, or opt out explicitly.
+  at PublicApiTrackingDeclarationTests.cs:77
+
+cikis: 2 · total 1 · failed 1
+dosyalar geri tasindi -> git status --short bos
+```
+
+Kapı kırıldı ve mesaj **iki seçeneği de** adıyla gösterdi: izleme dosyalarını
+ekle **veya** açıkça `TraconPublicApiTrackingEnabled=false` yaz. Takip
+dosyası unutulan bir paket sessizce izlenmez kalamıyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-PKG-097 — Yayın provası bir tag'e hiçbir şey yazmadan yeşil olur
+
+**Gerçek sonuç**
+```
+python3 scripts/kapi.py yayin --kuru --surum 1.0.0-preview.1
+  -> cikis 1 · 59 sn
+
+Paketleme calisti (artifacts/package/staging/run-abw_27lw/ altina 1.0.0-preview.1
+olarak uretildi: Tracon, .Cli, .UI, .OpenAI, .Azure, .Sqlite, .Testing, ...)
+sonra:
+❌ CHANGELOG.md içinde '## [1.0.0-preview.1]' bölümü yok veya boş
+```
+
+🚨 **Prova YEŞİL DEĞİL — ama doğru sebeple kırmızı.** `CHANGELOG.md` yalnız
+`## [Unreleased]` başlığı taşıyor (`grep -n "^## " CHANGELOG.md` → tek satır);
+hedef sürüm için bölüm yok. Kapı **fail-closed** davrandı; bu tam olarak
+`MT-PKG-102`'nin ayrıca ölçtüğü davranıştır ve doğrudur.
+
+**Case'in diğer iki iddiası TUTTU:**
+- `git tag` çıktısı prova öncesi ve sonrası **birebir aynı** — prova depoya
+  hiçbir etiket bırakmadı ✅
+- `git status --short` prova sonrası **boş** — çalışma ağacına hiçbir şey
+  yazılmadı ✅
+- Paketler `artifacts/package/staging/run-<id>/` altında kaldı,
+  `release/`'e **terfi etmedi** ✅ (kapı kırıldığı için)
+
+`npm publish --dry-run` adımına **sıra gelmedi** — changelog kapısı ondan önce
+durdurdu.
+
+⚠️ **Spec'e eksik ön koşul eklendi** (skill §1.1 istisnası): "`CHANGELOG.md`
+hedef sürüm için bir `## [<sürüm>]` bölümü taşımalıdır". Ayrıca "`git tag`
+yalnız `docs/damitma-oncesi-2026-08` taşıyor" ifadesi düzeltildi — repoda
+**iki** arşiv etiketi var (MT-PKG-027'de de ölçüldü).
+
+Yayın hattı için anlamı: **1.0.0-preview.1 provası bugün geçmez**; changelog
+bölümü yazılmadan yayın adımına geçilemez.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+
+---
+
+## MT-PKG-098 — icon.png paketlerin hepsinde tam olarak var
+
+**Gerçek sonuç**
+```
+denetlenen paket: 20 · ikonu eksik: 0
+(temiz feed <scratch>/ap-pack, surum 0.0.0-preview.0.789)
+```
+
+Hiçbir "IKON YOK" satırı basılmadı; 20 paketin 20'si de **tam bir** `icon.png`
+girdisi taşıyor. `<None Include=...>` kullanımı çapraz hedefli projelerde
+tutuyor.
+
+**Sapma — case'in kendi feed'i kullanılamadı.** Case `artifacts/package/release/*.1.0.0-preview.1.nupkg`
+üzerinde çalışmasını istiyor ve ön koşulu "MT-PKG-097 bir kez koşmuş" diyor.
+MT-PKG-097 changelog kapısında kırıldığı için paketler `staging/`'de kaldı,
+`release/`'e terfi etmedi — o glob **hiç eşleşmedi**. Ölçüm, aynı iddiayı
+mevcut sürüm ailesi üzerinde yaptı.
+
+Ek olarak `artifacts/package/release/` içinde `Tracon.Abstractions` **yoktu**
+(19/20) — NOT-02'deki kirlenmenin kalıntısı. Bu yüzden ölçüm birikimli dizin
+yerine temiz `ap-pack` üzerinden yapıldı ve 20/20 doğrulandı.
+
+⚠️ **Beklenen sonuç 19 → 20 güncellendi** (skill §1.1). Bağımsız kanıt:
+MT-PKG-099'un kapısı da 20 bekliyor ("expected 20").
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-PKG-099 — Paket tablosu repo'dan sapınca kapı kırılır
+
+**Gerçek sonuç**
+```
+1) temiz agacta:            node scripts/check-content.mjs -> cikis 1
+   Content check failed with 3 issue(s):
+     docs-site/public/llms.txt does not match capabilities.md
+     docs-site/public/llms-full.txt does not match capabilities.md
+     Exemption list names a page that no longer exists: reference/changelog.md
+
+2) compatibility.md'den `Tracon.Cli` satiri silindi -> cikis 1
+   compatibility.md package table has 19 row(s), expected 20
+   compatibility.md: `Tracon.Cli` targets net10.0 instead of the default matrix
+     and has no row in the package table
+
+3) git checkout -- ... -> cikis 1, yine ayni 3 taban sorunu
+```
+
+**Case'in kendi iddiası TUTTU:** tablo repo'dan sapınca kapı yeni ve **adıyla
+anlaşılır** bir bulgu üretti (`has 19 row(s), expected 20`) ve satır geri
+konunca o bulgu kayboldu. Faz 96'da üç hafta sessiz duran 17/19 sapması
+sınıfı artık yakalanıyor. Üstelik kapı ikinci bir bulgu daha ekledi:
+`Tracon.Cli`'nin farklı TFM matrisi olduğu hâlde tabloda satırı olmadığını
+söyledi.
+
+🚨 **Ama kapı temiz ağaçta ZATEN KIRMIZI** → `HATA-S1-006`.
+
+**Sapma:** `docs-site/node_modules` yoktu; `npm ci` koşuldu (çıkış 0).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### HATA-S1-006 — `docs-site` içerik kapısı temiz ağaçta kırmızı
+
+| | |
+|---|---|
+| **Önem** | Orta |
+| **Bulunduğu case** | MT-PKG-099 |
+| **Sınıf** | Doğrulama kapısı · üretilen dosya senkronizasyonu |
+
+Hiçbir değişiklik yapılmadan, `7e3a4de7` donuk kodunda:
+
+```
+cd docs-site && node scripts/check-content.mjs   -> cikis 1
+Content check failed with 3 issue(s):
+  docs-site/public/llms.txt does not match capabilities.md;
+    run: node docs-site/scripts/build-agent-map.mjs
+  docs-site/public/llms-full.txt does not match capabilities.md;
+    run: node docs-site/scripts/build-agent-map.mjs
+  Exemption list names a page that no longer exists: reference/changelog.md
+```
+
+Üçü de **üretilen/bildirilen dosyanın kaynağından sapması** sınıfında:
+
+1. `llms.txt` ve `llms-full.txt` üreteçten geçirilmemiş — `capabilities.md`
+   değişmiş ama türetilmiş iki dosya tazelenmemiş. Kapı düzeltme komutunu
+   yazıyor (`node docs-site/scripts/build-agent-map.mjs`).
+2. Muafiyet listesi artık var olmayan bir sayfayı (`reference/changelog.md`)
+   adlandırıyor — sayfa taşınmış ya da silinmiş, liste güncellenmemiş.
+
+`AGENTS.md` dört doğrulama kapısının dördünün de sıfır uyarı vermesini şart
+koşuyor ve `faz-tamamlama` Adım 7 siteyi fazın kapanışına dâhil ediyor. Bu
+kapı bugün kırmızı; yani kapanış tanımı şu an sağlanmıyor.
+
+Düzeltme ucuz görünüyor (üreteci koş + muafiyet satırını kaldır) ama **bu tur
+boyunca kod donuk** olduğu için yapılmadı — Aşama 2'ye aittir.
 
 ---
