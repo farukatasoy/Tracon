@@ -133,7 +133,7 @@ KG-029 (sürüm numarası) — gerekçeleri §11'dedir.
 
 | # | İş | Yürüten | Bitti ölçütü |
 |---|---|---|---|
-| 1 | **Tam manuel kabul turu — 36 aile** | `manuel-test-kosumu` | `kosumlar/<tarih>/` altında 36 aile kaydı; tur boyunca kod donar |
+| 1 | **Tam manuel kabul turu — 36 aile** · 🔄 Aşama 0 bitti, tur başlamadı → **[DEVİR](manuel-test/kosumlar/2026-09-16/DEVIR.md)** | `manuel-test-kosumu` | `kosumlar/2026-09-16/` altında 36 aile kaydı; tur boyunca kod **`6ed103c2`'de donar** |
 | 2 | Turun bulduğu kusurlar | `kusur-giderme` | Tek vaka değil **sınıf** kapanır |
 | 3 | **Public öncesi geçmiş denetimi** | Kullanıcı + `nuget-danismani` | Tam `git` geçmişinde secret taraması; `docs/guvenlik-tarama/` ve `.agents/` için yayımla/çıkar kararı (RK-014) |
 | 4 | **Yayın turu** | `nuget-danismani` Adım 1→8 | Bu dosyaya yeni karar bloğu; ❌ → ✅ |
