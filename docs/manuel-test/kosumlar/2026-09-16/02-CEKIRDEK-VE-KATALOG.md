@@ -514,3 +514,232 @@ projesinde de çalışıyor.
 
 ---
 
+## MT-CORE-030 — Kod kaynaklı agent veritabanı tanımını yener
+
+**Gerçek sonuç**
+```
+1) GET /api/agents -> support: origin="Code" (AD olarak, sayi degil)
+                      displayName="Support Assistant"
+
+2) POST /api/agents {"name":"support",...} -> HTTP 409
+   "title": "Agent name in use"
+   "detail": "'support' is an agent defined in code and cannot be changed from
+              the management API. Code wins name conflicts, so a definition
+              written with the same name would never resolve."
+
+3) GET /api/agents -> support TEK kayit · origin="Code"
+                      displayName hala "Support Assistant" (SAHTE Destek DEGIL)
+```
+
+**Doğrulama sorgusu** (`mt_s1`): `SELECT name, version FROM agent_definitions
+WHERE name='support'` → **0 satır**.
+
+Spec iki sonucu da kabul ediyordu ("ya reddedilir ya kaydedilir ama katalogda
+görünmez"); gerçekleşen **daha güçlü** olanı: kayıt hiç oluşmadı, yani veritabanında
+asla çözülmeyecek ölü bir satır birikmiyor. Güvenlik özelliği ayakta — arayüzden
+gelen tanım kod tanımını ezemiyor ve 409 gerekçesini kullanıcıya açıklıyor.
+
+⚠️ **Spec'e düzeltme** (skill §1.1): doğrulama sorgusu `display_name` sütununu
+okuyordu, öyle bir sütun **yok**. Şema:
+`id · tenant_id · name · version · definition (jsonb) · created_at · updated_at`
+— görünen ad `definition` içindedir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-031 — Katalog ada göre sıralı döner
+
+**Gerçek sonuç**
+```
+['cached-support', 'claude-support', 'claude-thinking', 'gemini-strict-filter',
+ 'gemini-support', 'manuel-a', 'manuel-b', 'openrouter-support', 'order-summary',
+ 'researcher', 'router', 'summarizer', 'support', 'translator']
+SIRALI
+```
+(`manuel-a`/`manuel-b` `MT-CORE-007`'den kalan kayıtlardır.)
+
+📋 **İkinci beklenti bu veriyle ölçülemez:** "sıralama ordinal'dir: büyük
+harfler küçük harflerden önce gelir". Katalogdaki 14 adın **hepsi küçük harf**;
+ordinal ile harf-duyarsız sıralama aynı sonucu veriyor. Ayrımı görmek büyük
+harfle başlayan bir agent adı ister. Bu bir kusur değil, kapsam sınırı —
+`MT-CORE-033`+ veri yazan case'lerden sonra tekrar bakılabilir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-032 — Bulunmayan agent `null` döner, istisna atmaz
+
+**Gerçek sonuç**
+```
+GET  /api/agents/hic-boyle-bir-agent-yok      -> 404
+RUN  /api/agents/hic-boyle-bir-agent-yok/run  -> 404
+sunucu logu "Unhandled exception" eslesmesi   -> 0
+SELECT count(*) FROM mt_s1.runs
+  WHERE agent_name='hic-boyle-bir-agent-yok'  -> 0
+```
+
+Dört beklentinin dördü de tuttu. Bulunmayan bir agent'ı **çalıştırmayı**
+denemek bile `run` kaydı üretmiyor — yani 404 yolu kayıt katmanına hiç
+dokunmuyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-033 — Sürüm artışı derlenmiş agent önbelleğini geçersiz kılar
+
+**Gerçek sonuç**
+```
+POST manuel-surum ("BIRINCI SURUM TALIMATI.")  -> 201
+run #1                                          -> 200 (SSE, echo yanit verdi)
+PUT  manuel-surum ("IKINCI SURUM TALIMATI.")    -> 200
+GET  manuel-surum -> descriptor.version = 2
+                     definition.instructions = "IKINCI SURUM TALIMATI."
+run #2 (uygulama YENIDEN BASLATILMADI)          -> 200
+```
+
+**Doğrulama sorgusu** — kanıt burada:
+```
+  agent_name  | agent_version | status |          started_at
+--------------+---------------+--------+-------------------------------
+ manuel-surum |             1 |      1 | 2026-09-16 15:48:24.403532+00
+ manuel-surum |             2 |      1 | 2026-09-16 15:48:24.700167+00
+```
+
+Üç beklentinin üçü de tuttu. İkinci `run` **sürüm 2**'ye yazıldı, yani derlenmiş
+agent önbelleği sürüm artışında geçersiz kılındı — kullanıcı eski talimatla
+çalışan bir agent görmedi.
+
+📋 **Sonraki oturumlar için yanıt şekli:** `GET /api/agents/{ad}` iki kat
+taşıyor — `descriptor` (özet + `version` + `origin`) ve `definition` (tam tanım
++ `instructions`). Spec'in `grep -E "version|instructions"` komutu çalışır ama
+alanlar **üst seviyede değildir**; JSON'dan okurken yol
+`descriptor.version` / `definition.instructions`'tır.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-034 — Kod kaynaklı agent'ta sürümlü çözümleme reddedilir
+
+**Gerçek sonuç**
+```
+GET /api/agents/support/versions      -> HTTP 404
+  { "title": "Agent not found",
+    "detail": "There is no agent named 'support'." }        🚨 YANLIS IFADE
+
+GET /api/agents/manuel-surum/versions -> HTTP 200 · IKI surum
+  version 2 | IKINCI SURUM TALIMATI.
+  version 1 | BIRINCI SURUM TALIMATI.
+
+GET /api/agents/support               -> HTTP 200   (yani agent VAR)
+```
+
+**Tutan:** `manuel-surum` için iki sürüm listelendi · hiçbir istekte 500 yok ·
+`support` için sürümlü çözümleme reddedildi (4xx).
+
+🚨 **Tutmayan — `HATA-S1-009`.** Case'in gerekçesi "bu **açıkça** söylenmelidir"
+diyor; 404 gövdesi gerekçeyi söylemiyor, üstelik **yanlış** bir şey söylüyor:
+`support` vardır (`GET /api/agents/support` → 200 ve katalogda görünür), yalnız
+sürüm geçmişi yoktur. Kullanıcı agent'ı ekranda görürken "böyle bir agent yok"
+cevabı alıyor.
+
+Spec'in operasyonel testi ("gövde `kod kaynagi` taşır **veya** HTTP 4xx") lafzen
+sağlanıyor; ama case'in adı ve gerekçesi açık bir sebep istiyor. Bu ikiliği
+kaldırmak için `Beklenen sonuç` netleştirildi (skill §1.1) ve case `Kaldı`
+işaretlendi.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+
+---
+
+### HATA-S1-009 — Kod kaynaklı agent'ın sürüm listesi "böyle bir agent yok" diyor
+
+| | |
+|---|---|
+| **Önem** | Orta |
+| **Bulunduğu case** | MT-CORE-034 |
+| **Sınıf** | Tanı kalitesi · kod/DB kaynak ayrımı |
+
+**Repro**
+```bash
+curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/agents/support/versions" -H "$APB"
+# -> 404 "There is no agent named 'support'."
+curl -s -o /dev/null -w "%{http_code}\n" "$APU/api/agents/support" -H "$APB"
+# -> 200        (ayni agent, ayni an)
+```
+
+**Kök neden** — `src/Tracon.AspNetCore/Endpoints/AgentEndpoints.cs:664-672`:
+
+```csharp
+if (await definitions.GetAsync(name, cancellationToken).ConfigureAwait(false) is null)
+{
+    return NotFound(name);
+}
+```
+
+Denetim `IAgentDefinitionStore`'a, yani **veritabanı** deposuna bakıyor. Kod
+kaynaklı agent orada yoktur; dolayısıyla "yok" sonucuna varılıyor. Oysa
+"veritabanı deposunda yok" ile "böyle bir agent yok" aynı şey değildir.
+
+**Aynı durumda doğru davranan uç var** — `MT-CORE-030`, `POST /api/agents`:
+
+```
+409 "Agent name in use"
+"'support' is an agent defined in code and cannot be changed from the
+ management API. Code wins name conflicts, ..."
+```
+
+Yani proje bu ayrımı nasıl anlatacağını **biliyor**; `versions` ucu o bilgiyi
+kullanmıyor.
+
+**Önerilen davranış (kapanışta karar):** `support/versions` ya 200 + boş liste
+(sürüm geçmişi yok) ya da 409/404 + kod kaynaklı olduğunu söyleyen bir gövde
+dönmeli. Hangisi seçilirse seçilsin, mesaj var olan bir agent için "yok"
+dememeli.
+
+**Sınıf taraması gerekir (kapanışta):** `IAgentDefinitionStore.GetAsync ... is
+null → NotFound` deseni. `AgentEndpoints.cs`'te `rollback` ve
+`versions/{a}/diff/{b}` uçları aynı şekilde kuruluyor gibi görünüyor; kod
+kaynaklı agent'la çağrıldıklarında aynı yanıltıcı metni üretme ihtimalleri
+**kapanışta ölçülmeli**.
+
+**Etki:** orta — veri kaybı yok, güvenlik sorunu yok; bedeli tüketicinin
+teşhis süresi ve dokümana duyduğu güven.
+
+---
+
+## MT-CORE-035 — Tanım hiçbir zaman kimlik bilgisi taşımaz
+
+**Gerçek sonuç**
+```
+POST manuel-secret (metadata.not = "sk-MANUEL-TEST-SAHTE-ANAHTAR-0000") -> 201
+
+ModelBinding alanlari (GET ile okundu):
+  allowConcurrentToolCalls · fallbacks · maxOutputTokens · model · provider ·
+  providerSettings · reasoningEffort · responseCache · responseFormat ·
+  temperature · topP
+  -> API anahtari alani YOK ✅ sozlesme buna izin vermiyor
+
+metadata geri okundu: {"not": "sk-MANUEL-TEST-SAHTE-ANAHTAR-0000"} ✅ beklenen
+```
+
+**Doğrulama sorgusu** (`mt_s1`, 4 tanım):
+```
+definition::text ILIKE '%apikey%' OR '%secret%' OR '%"key"%'
+  OR '%connectionstring%'                       -> 0 satir ✅
+definition::text LIKE '%sk-%'                   -> 1 satir: manuel-secret
+                                                   (tuketicinin KENDI metadata'si)
+```
+
+Üç beklentinin üçü de tuttu. K-059 ayakta: kayıtta Tracon'in **kendi** yazdığı
+hiçbir sağlayıcı anahtarı yok. Tüketicinin serbest `metadata` alanına kendi
+koyduğu metin aynen duruyor — Tracon serbest metadata'yı denetlemiyor, ki
+beklenen de bu.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
