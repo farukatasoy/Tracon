@@ -34,7 +34,17 @@ const dist = resolve(here, '../dist');
 // live, `pagefind-ui` at run time), and dropping the warning would have landed at
 // 56 991 B, nine bytes under, which is not a margin. Raised to 58 000 B, which
 // keeps about 1% of headroom over the measured page.
-const CEILING = 58_000;
+//
+// Re-measured 2026-09-16: the same page reached 58 391 B, and the 58 000 ceiling
+// had 15 B of headroom left before this change - anything added to this page
+// would have crossed it. The addition is one more diagnostic section, TRC0403,
+// which the page cannot omit: it is the only page that explains all of them, and
+// a gate test enforces that. Costs were measured rather than estimated: the
+// section is 450 B gzip and its row in the summary table 36 B, and shortening the
+// prose recovered 80 B of the 450. Raised to 59 000 B, which restores about 1% of
+// headroom. This page is the site's largest by a wide margin and grows with every
+// diagnostic; the next raise should split it instead.
+const CEILING = 59_000;
 
 if (!existsSync(dist)) {
   console.error('dist/ is missing; run `npm run build` before checking page weight.');

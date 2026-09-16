@@ -282,14 +282,17 @@ since it cannot reach `AgentSession` directly.
 ## Coding-agent support
 
 A coding agent working in your repository cannot use a capability it does not know
-exists. Two channels tell it, and both are generated from this page.
+exists. Three channels tell it. The first two are generated from this page and
+wait to be read; the third is a procedure the agent's harness loads before the
+agent writes code, which is the only one that speaks first.
 
 | Capability | Enable it | Boundary |
 |---|---|---|
 | Agent map file | `TraconWriteAgentsFile` | Writes `AGENTS.md` at the repository root during build; an existing file is never overwritten |
 | Local reference file | `TraconWriteLocalReference`, on by default with the map | Writes `Tracon.LocalReference.md` beside each project, naming the API documentation and the HTTP API document of the exact version that project restored; regenerated every build, never committed |
 | Map for web agents | `llms.txt` and `llms-full.txt` | Published with this site; nothing to register. `llms.txt` carries the map and one line per documentation page; `llms-full.txt` carries every page in full. Any page also serves its markdown source at `<address>index.md` |
-| Usage diagnostics | Automatic with `Tracon.Core`; `TraconUsageDiagnostics` turns the family off | The `Tracon.Usage` category reports absent wiring, a literal secret, hand-written substitutes for shipped behaviour, instructions that leave the map unreachable, an ambient write that does not survive a streaming loop, and a discarded ambient scope |
+| Gate skill | `tracon agent-skill` | Writes `.claude/skills/tracon/SKILL.md` once, so the agent's harness loads the procedure before it writes Tracon code; an existing file is never overwritten without `--force`, and the build reports a stale stamp as `TRC0403` |
+| Usage diagnostics | Automatic with `Tracon.Core`; `TraconUsageDiagnostics` turns the family off | The `Tracon.Usage` category reports absent wiring, a literal secret, hand-written substitutes for shipped behaviour, instructions or a gate skill that leave the map unreachable or out of date, an ambient write that does not survive a streaming loop, and a discarded ambient scope |
 | Tool diagnostics | Automatic with `Tracon.Core` | The `Tracon.Tools` category reports a tool method the generator cannot use |
 
 The map is refreshed by deleting `AGENTS.md` and building again; the file is never
@@ -4724,11 +4727,12 @@ a direct database connection before the host starts.
 ```mermaid
 flowchart LR
     accTitle: Two ways to reach a running Tracon instance
-    accDescr: A separate application references Tracon.Client directly over HTTP. The tracon CLI wraps that same client for its health command, and talks to the database directly for migrate, because the application has not started yet at that point.
+    accDescr: A separate application references Tracon.Client directly over HTTP. The tracon CLI wraps that same client for its health command, talks to the database directly for migrate, because the application has not started yet at that point, and writes one file into your repository for agent-skill.
     APP["Your application"] -->|"references"| CLIENT["Tracon.Client<br/>typed HTTP client"]
     CLIENT -->|"HTTP: /api/*"| SERVER["Running Tracon instance"]
     CLI["tracon CLI<br/>health / eval"] -->|"uses"| CLIENT
     CLI2["tracon CLI<br/>migrate / migrate status"] -.->|"direct connection<br/>no HTTP"| DB[("Database")]
+    CLI3["tracon CLI<br/>agent-skill"] -.->|"writes one file"| FS["Your repository"]
 ```
 
 ## The typed client
@@ -4805,11 +4809,22 @@ tracon --help
 | `tracon state-check --provider <postgres\|sqlserver\|sqlite> --connection <connection-string> [--sample <n>] [--json]` | Database, directly | Reports whether this build can read the session and workflow checkpoint state already in the database. Writes nothing |
 | `tracon health --url <base-url> [--token <token>] [--json]` | HTTP, through the typed client | Reads model provider health |
 | `tracon eval --url <base-url> --suite <name> [--token <token>] [--agent-version <n>] [--min-pass-rate <0..1>] [--max-failures <n>] [--baseline <runId\|previous>] [--max-regressions <n>] [--timeout <seconds>] [--poll-interval <seconds>] [--json]` | HTTP, through the typed client | Triggers a suite, polls it to completion, applies an optional quality gate — absolute, relative to an earlier run, or both |
+| `tracon agent-skill [--format claude] [--output <directory>] [--force] [--json]` | The local file system | Writes the gate skill a coding agent's harness loads before it writes Tracon code. The only command that changes your working tree, and the only one that reaches neither the database nor HTTP |
 
 `--connection` and `--token` also accept the `TRACON_CONNECTION` and
 `TRACON_TOKEN` environment variables — useful in a CI/CD step where a literal
 secret on the command line would show up in shell history and process listings.
 Neither is ever read from a configuration file, and neither is ever printed back.
+
+`agent-skill` is the odd one out: it neither connects nor listens. It writes one
+file, `.claude/skills/tracon/SKILL.md`, under `--output` (default: the root of
+the repository you are in, which is where the build looks for it), and leaves an
+existing file untouched unless `--force` is given —
+you may have edited it. Exit `0` covers both writing it and deliberately leaving
+it alone, and the command says which it did. The file carries the capability map
+revision the tool was built from, and your project's build reports a mismatch as
+`TRC0403`. The [coding agents guide](/guides/coding-agents/#the-gate-skill-speaks-first)
+explains what the file is for and which harnesses were measured to load it.
 
 `migrate` talks to the database directly instead of over HTTP because the moment
 it matters most is before the application has ever started — there is no endpoint
@@ -4920,12 +4935,14 @@ the wrong move. `4` is a third thing again — the baseline's per-case results
 have aged out of retention, it never completed, or it measures another suite.
 Folding it into `3` would send someone hunting for a regression that was never
 measured. `migrate`, `migrate status`, and `health` never return `3` or `4`;
-`state-check` never returns `4`.
+`state-check` never returns `4`. `agent-skill` returns only `0`, `1`, or `2`,
+where `2` means the file could not be written.
 
 ## Read next
 
 - [Persistence](/getting-started/persistence/) — what a migration actually does to the schema
 - [Every public type](/api/) — the full generated client surface
+- [Coding agents](/guides/coding-agents/) — what `agent-skill` writes, and why
 
 ---
 
@@ -5109,8 +5126,13 @@ carefully, and for no reason, because Tracon ships all three.
 
 Tracon closes that gap from inside the build, without a service to run or an
 index to keep in sync. Three files land in your repository or beside your project, and
-seven compiler diagnostics speak up when an agent writes something the package already
+eight compiler diagnostics speak up when an agent writes something the package already
 covers.
+
+Those files wait to be read, and a diagnostic arrives after the code is written.
+A fourth file speaks first: the **gate skill**, a short procedure the agent's
+harness loads before the agent starts. It is written by the `tracon` tool rather
+than the build, and [one step below](#the-gate-skill-speaks-first) turns it on.
 
 ## Turn it on
 
@@ -5141,7 +5163,10 @@ The project template sets the first property, so a project created with
 ```mermaid
 flowchart LR
     accTitle: What a coding agent reads, and which question each file answers
-    accDescr: The build writes the capability map and the local reference. The local reference names the map on disk, so a repository that keeps its own instructions reaches it through one pointer line. The site copies serve an agent with no checkout.
+    accDescr: The tool writes the gate skill, which sends the agent to the map before it writes code. The build writes the capability map and the local reference. The local reference names the map on disk, so a repository that keeps its own instructions reaches it through one pointer line. The site copies serve an agent with no checkout.
+    TOOL["tracon agent-skill"] --> SKILL[".claude/skills/tracon/SKILL.md<br/>written only when absent"]
+    SKILL --> Q0["Read the map<br/>BEFORE writing code"]
+    Q0 --> Q1
     BUILD["dotnet build"] --> MAP["AGENTS.md<br/>repository root<br/>written only when absent"]
     BUILD --> LOCAL["Tracon.LocalReference.md<br/>beside each project"]
     OWN["Your own AGENTS.md<br/>one line naming that file"] --> LOCAL
@@ -5247,6 +5272,64 @@ every code line in its own element with no newline between them, so flattening t
 HTML yields `var app = builder.Build();app.MapTracon("/tracon");app.Run();` on one
 line. Table columns collapse the same way. Cite the page address, not the `.md` one.
 
+## The gate skill speaks first
+
+The map and the local reference wait to be read. A diagnostic arrives once the
+code is already written, compiled, and about to be deleted again. The gate skill
+is the channel that runs **before** any of that: it is a short procedure the
+harness loads when a task mentions Tracon, and all it says is *read the map of
+the installed version first*.
+
+It is written by the `tracon` tool, once, into the repository you point it at:
+
+```bash
+dotnet tool install -g Tracon.Cli
+tracon agent-skill
+```
+
+The command belongs to the same tool as `migrate` and `eval`; the
+[CLI guide](/guides/cli/) covers its options and exit codes.
+
+That writes one file, `.claude/skills/tracon/SKILL.md`, **at the root of the
+repository** — the same place the build looks for it and the harness loads it
+from — and commits nothing. Run it from anywhere inside the repository; the
+command prints the path it wrote. An existing file is never touched — it may
+carry your own notes — so re-running the command is safe and says what it did.
+`--force` overwrites, `--output` names a different root, and `--json` reports
+the same answer for a script.
+
+The file is small on purpose: every byte of it is spent out of the context budget
+of the agent that loads it, on every task that touches Tracon. It therefore
+points at the map rather than repeating it, and it says plainly that it is a
+guardrail rather than a complete list — a procedure that overstates its coverage
+would replace one wrong assumption with another.
+
+It carries the capability map revision it was written from, and `TRC0403` reports
+the difference once your installed packages ship a newer one. Because the tool
+carries the revision it stamps, refresh the tool first:
+
+```bash
+dotnet tool update -g Tracon.Cli
+rm .claude/skills/tracon/SKILL.md
+tracon agent-skill
+```
+
+### Which harnesses load it
+
+One, measured rather than assumed. The layout a skill file has to use is defined
+by the harness that loads it, and a file written to a layout nothing reads is
+dead weight that still costs the agent its context budget. Only the layout below
+was measured to load, so only it is written:
+
+| Harness | Path | Loads it |
+|---|---|---|
+| Claude Code | `.claude/skills/tracon/SKILL.md` | Yes — measured |
+
+Other harnesses read other layouts, and `--format` rejects a name this version
+does not write rather than quietly writing the file above under another name. If
+you keep your own instructions for one of them, the single line `TRC0402` asks
+for works there too: name `Tracon.LocalReference.md`, and the map is reachable.
+
 ## Keeping the map current
 
 Upgrade the package and the map goes stale — it describes the capabilities of the
@@ -5261,7 +5344,7 @@ dotnet build
 
 ## The diagnostics
 
-Seven diagnostics in the `Tracon.Usage` category. They are **warnings**, not
+Eight diagnostics in the `Tracon.Usage` category. They are **warnings**, not
 suggestions, for one measured reason: an `Info` diagnostic never appears in
 `dotnet build` output at any verbosity, and build output is the only channel a coding
 agent reliably reads.
@@ -5275,6 +5358,7 @@ agent reliably reads.
 | `TRC0302` | An agent is wrapped without any `IAgentDecorator` in the compilation | A hand-applied wrapper misses database-defined agents; a decorator does not |
 | `TRC0401` | `AGENTS.md` was generated from an older capability map | Delete it and build again |
 | `TRC0402` | The local reference file is written, and your own `AGENTS.md` never names it | An agent reading it cannot reach the capability map on this machine; add one line |
+| `TRC0403` | The gate skill carries an older capability map revision than the installed packages | Update the tool, delete the file, and write it again |
 
 A separate family, `TRC0001`–`TRC0008`, validates tool registration itself and comes
 from the source generator. Both families carry a help link into the
@@ -5308,9 +5392,13 @@ rather than switching off the family.
 
 ## What this is not
 
-It is not a service, an index, or a plugin. Nothing runs outside `dotnet build`, no
-process listens, and no content is uploaded anywhere. Delete the files and unset the
-property and the only thing you lose is the map.
+It is not a service, an index, or a plugin. Nothing runs outside `dotnet build` and
+one command you run yourself, no process listens, and no content is uploaded
+anywhere. Delete the files and unset the property and the only thing you lose is
+the map.
+
+The gate skill in particular is a guardrail, not a boundary. It cannot stop an
+agent from writing anything; it only changes what the agent reads first.
 
 It also does not make an agent's output correct. The map says what exists; whether a
 capability suits your case is still a judgement call, and the guides on this site are
@@ -12596,7 +12684,7 @@ Tracon instance, from a separate application or from a terminal.
 | Package | What it does |
 |---|---|
 | `Tracon.Client` | A typed HTTP client for the management API, generated from the OpenAPI document. Every endpoint that answers with Server-Sent Events also gets a `...StreamAsync` method yielding one frame at a time. Takes no Tracon package and no NuGet package beyond `Microsoft.Extensions.DependencyInjection.Abstractions` |
-| `Tracon.Cli` | The `tracon` global tool (`dotnet tool install -g Tracon.Cli`): `migrate` and `migrate status` apply pending migrations without starting the application; `state-check` reports read-only whether this build can still read the session and checkpoint state already stored; `health` reads model provider health over HTTP through `Tracon.Client`; `eval` triggers an eval suite, polls it to completion, and gates a build on the result |
+| `Tracon.Cli` | The `tracon` global tool (`dotnet tool install -g Tracon.Cli`): `migrate` and `migrate status` apply pending migrations without starting the application; `state-check` reports read-only whether this build can still read the session and checkpoint state already stored; `health` reads model provider health over HTTP through `Tracon.Client`; `eval` triggers an eval suite, polls it to completion, and gates a build on the result; `agent-skill` writes the gate skill a coding agent's harness loads before it writes Tracon code |
 
 See the [CLI guide](/guides/cli/) for setup and every command.
 
@@ -15312,6 +15400,7 @@ source-generated path, or accept and document that the application is not AOT-sa
 | `TRC0301`, `TRC0302` | `Tracon.Usage` | Code written by hand for behaviour the package already ships. |
 | `TRC0401` | `Tracon.Usage` | `AGENTS.md` was generated from an older capability map. |
 | `TRC0402` | `Tracon.Usage` | The local reference file is written, and your own `AGENTS.md` never names it, so the map is unreachable. |
+| `TRC0403` | `Tracon.Usage` | The gate skill `tracon agent-skill` wrote was stamped with an older capability map. |
 | `TRC0501` | `Tracon.Usage` | An async iterator writes ambient state once but a loop advances the enumeration without repeating it. |
 | `TRC0502` | `Tracon.Usage` | An ambient scope's `Begin(...)` result is discarded, so it is never restored. |
 
@@ -15589,6 +15678,25 @@ map and the API documentation of the installed version.
 there. It stays silent in two other cases as well: while the property above is off,
 because then there is no file to name, and on a file this package generated, because
 a generated map already names it.
+
+### The gate skill is out of date (TRC0403)
+
+`tracon agent-skill` stamps the file it writes with the capability map revision
+the tool was built from, and the build compares that against the map your
+installed packages ship.
+
+The tool carries the revision it stamps, so update the tool first — re-running an
+older one writes the same stale value back:
+
+```bash
+dotnet tool update -g Tracon.Cli
+rm .claude/skills/tracon/SKILL.md
+tracon agent-skill
+```
+
+Deleting is the refresh step because the file is never overwritten in place: you
+may have added notes to it. A `SKILL.md` without that stamp is treated as yours
+and is never reported.
 
 ### An ambient write does not survive a streaming loop (TRC0501)
 

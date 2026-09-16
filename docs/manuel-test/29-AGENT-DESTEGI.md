@@ -476,3 +476,81 @@ farkı ~1 sn'nin altındadır — köprünün dolması modelin/koşunun hızın�
 Gerçek koşum (2026-08-24, `Tracon 0.0.0-preview.0.340` yerel besleme,
 `analyzers/dotnet/cs/` üzerinden): beş adım da beklenen sonucu verdi —
 adım 2 `TRC0501`, adım 3 sessiz, adım 4 `TRC0502`, adım 5 sessiz.
+
+---
+
+### MT-AGD-022 — `tracon agent-skill` yazar, ikinci koşum DOKUNMAZ — Faz 178
+
+**Ön koşul:** Temiz bir tüketici reposu; `tracon` global tool kurulu.
+
+**Adımlar:**
+1. `cd <tüketici-repo> && tracon agent-skill`
+2. `shasum -a 256 .claude/skills/tracon/SKILL.md > /tmp/before.sha`
+3. Dosyanın sonuna elle bir not ekle, hash'i tazele.
+4. `tracon agent-skill` (ikinci kez)
+5. `shasum -a 256 -c /tmp/before.sha`
+6. `tracon agent-skill --force`
+
+**Beklenen sonuç:**
+- Adım 1: `.claude/skills/tracon/SKILL.md` yazılır, çıkış kodu `0`, çıktı
+  yazılan yolu ve revizyonu söyler.
+- Adım 4: dosyaya **dokunulmaz**, çıkış kodu `0`, çıktı `--force`'u adlandırır.
+- Adım 5: hash **eşleşir** — elle eklenen not hayatta.
+- Adım 6: dosya üzerine yazılır, elle eklenen not gider.
+
+Gerçek koşum (2026-09-16, repo içi `artifacts/bin/Tracon.Cli/release/`):
+dört adım da beklenen sonucu verdi; ikinci koşum
+`already exists and was left untouched. Pass --force to overwrite it.` yazdı.
+
+---
+
+### MT-AGD-023 — Bayat kapı skill'i `TRC0403` ötürür — Faz 178
+
+**Ön koşul:** `MT-AGD-022` koşulmuş; tüketici projesi `Tracon.Core` paketini
+`PackageReference` ile alıyor (ProjectReference DEĞİL — analyzer yayılımı).
+
+**Adımlar:**
+1. `dotnet build` — temiz.
+2. `.claude/skills/tracon/SKILL.md` içindeki `revision: <8 hane>` değerini
+   `deadbeef` yap.
+3. `dotnet build`
+4. Damgayı geri al; `dotnet build`.
+5. `Consumer.csproj`'a `<TraconUsageDiagnostics>false</TraconUsageDiagnostics>`
+   ekle; adım 2'yi tekrarla ve build et.
+
+**Beklenen sonuç:**
+- Adım 1: `TRC0403` **yok**.
+- Adım 3: `warning TRC0403` çıkar; mesaj her iki revizyonu da adlandırır ve
+  önce **tool'u güncellemeyi** söyler.
+- Adım 4: uyarı **kaybolur**.
+- Adım 5: uyarı **çıkmaz**.
+
+⬜ Henüz gerçek pakette koşulmadı — birim seviyesi `UsageAnalyzerTests`
+(`TRC0403_*`, altı olgu) kapsıyor.
+
+---
+
+### MT-AGD-024 — 👤 Üretilen skill Claude Code'da GERÇEKTEN yükleniyor — Faz 178
+
+**Ön koşul:** İzole, geçici bir proje; içinde yalnız `tracon agent-skill` ile
+yazılmış skill ve bir `Tracon.LocalReference.md`.
+
+**Adımlar:**
+1. Projede Claude Code'u Tracon yüzeyine dokunan bir görevle çalıştır
+   (ör. *"Add a second Tracon agent to src/Program.cs"*).
+2. Koşumun tool kayıtlarında `Skill` çağrısı ara.
+3. Kontrol koşumu: aynı dosyayı `.agents/skills/tracon/SKILL.md` altına koy
+   (`.claude/` YOK), aynı görevle tekrar çalıştır.
+
+**Beklenen sonuç:**
+- Adım 2: `Skill(tracon)` çağrısı **var** ve koşumun ilk eylemidir; agent
+  ardından yerel referansı ve haritayı okur.
+- Adım 3: `Skill` çağrısı **YOK** — dosya yalnız dosya sistemi taramasıyla
+  bulunabilir.
+
+🚨 Kontrol koşumu ŞART: "hata vermedi" tek başına kanıt değildir. Ayırt edici
+olan, aynı baytların iki yoldaki farklı davranışıdır.
+
+Gerçek koşum (2026-09-16, `claude 2.1.269`, `--output-format stream-json`):
+`.claude/` yolunda `Skill(tracon)` ilk tool çağrısıydı; `.agents/` yolunda
+**sıfır** `Skill` çağrısı ölçüldü.

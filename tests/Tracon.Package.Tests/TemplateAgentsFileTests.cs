@@ -169,6 +169,9 @@ public sealed class TemplateAgentsFileTests(TemplateFixture fixture)
             StaleMap,
             TestContext.Current.CancellationToken);
 
+        // TRC0403 needs its own stale file: it reads the gate skill, not AGENTS.md.
+        await WriteGateSkillAsync(directory.Path, StaleGateSkill);
+
         var projectDirectory = await CreateConsumerAsync(
             directory.Path,
             writeAgentsFile: true,
@@ -369,6 +372,7 @@ public sealed class TemplateAgentsFileTests(TemplateFixture fixture)
         var agentsFile = Path.Combine(directory.Path, "AGENTS.md");
 
         await File.WriteAllTextAsync(agentsFile, StaleMap, TestContext.Current.CancellationToken);
+        await WriteGateSkillAsync(directory.Path, StaleGateSkill);
 
         var projectDirectory = await CreateConsumerAsync(
             directory.Path,
@@ -404,7 +408,7 @@ public sealed class TemplateAgentsFileTests(TemplateFixture fixture)
     }
 
     private static readonly string[] DiagnosticIds =
-        ["TRC0101", "TRC0102", "TRC0201", "TRC0301", "TRC0302", "TRC0401", "TRC0402"];
+        ["TRC0101", "TRC0102", "TRC0201", "TRC0301", "TRC0302", "TRC0401", "TRC0402", "TRC0403"];
 
     /// <summary>A file this package generated, from a revision it no longer ships.</summary>
     private const string StaleMap =
@@ -415,6 +419,114 @@ public sealed class TemplateAgentsFileTests(TemplateFixture fixture)
     /// names the generated reference file - the shape TRC0402 exists for.
     /// </summary>
     private const string HouseRules = "# House rules\n\nRun the tests before you commit.\n";
+
+    /// <summary>Where <c>tracon agent-skill</c> writes, relative to the repository root.</summary>
+    private static readonly string GateSkillRelativePath =
+        Path.Combine(".claude", "skills", "tracon", "SKILL.md");
+
+    private const string GateSkillMarkerOpening = "<!-- Tracon gate skill \u00b7 revision: ";
+
+    /// <summary>A gate skill the tool wrote, from a revision this package no longer ships.</summary>
+    private static string StaleGateSkill { get; } = GateSkill("00000000");
+
+    /// <summary>A skill of the same file name that the tool did not write.</summary>
+    private const string HandWrittenSkill =
+        "---\nname: deploy\ndescription: How this team deploys.\n---\n\n# Deploy\n\nRun the script.\n";
+
+    private static string GateSkill(string revision) =>
+        "---\nname: tracon\ndescription: Read before writing Tracon code.\n---\n\n"
+        + $"{GateSkillMarkerOpening}{revision} \u00b7 written by `tracon agent-skill` -->\n\n"
+        + "# Tracon gate\n\nRead the capability map first.\n";
+
+    /// <summary>The revision the packed capability map actually carries.</summary>
+    private static string CurrentRevision()
+    {
+        var map = Path.Combine(RepoPaths.Root, "src", "Tracon.Core", "buildTransitive", "Tracon.AgentMap.md");
+        var first = File.ReadLines(map).First();
+        var start = first.IndexOf(MarkerOpening, StringComparison.Ordinal);
+
+        start.ShouldBeGreaterThanOrEqualTo(0, $"'{map}' carries no revision marker.");
+        start += MarkerOpening.Length;
+
+        return first[start..first.IndexOf(' ', start)];
+    }
+
+    private static async Task WriteGateSkillAsync(string root, string content)
+    {
+        var path = Path.Combine(root, GateSkillRelativePath);
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        await File.WriteAllTextAsync(path, content, TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>
+    /// The gate skill half of TRC0403, across the package boundary.
+    /// </summary>
+    /// <remarks>
+    /// A unit test hands the analyzer its additional files directly and so
+    /// proves nothing about the wiring: whether the build target finds the file
+    /// at the repository root, and whether it reaches the analyzer at all, is
+    /// decided inside the <c>.nupkg</c>. Measured while writing this - the path
+    /// is built by an MSBuild function over four segments, and an empty result
+    /// would have left the whole diagnostic silently dead with every unit test
+    /// still green.
+    /// </remarks>
+    [Fact]
+    public async Task A_gate_skill_from_an_older_map_is_reported_as_stale()
+    {
+        using var directory = new TempDirectory();
+        await InitialiseRepositoryAsync(directory.Path);
+        var projectDirectory = await CreateConsumerAsync(
+            directory.Path, writeAgentsFile: false, CleanProgram, subdirectory: "src/Consumer");
+
+        await WriteGateSkillAsync(directory.Path, StaleGateSkill);
+
+        var build = await BuildAsync(projectDirectory);
+
+        build.ExitCode.ShouldBe(0, build.Combined);
+        build.Combined.ShouldContain("TRC0403", customMessage: build.Combined);
+    }
+
+    /// <summary>
+    /// The same file, stamped with the revision this package ships, says
+    /// nothing. Without this the test above would also pass on a diagnostic
+    /// that fires unconditionally.
+    /// </summary>
+    [Fact]
+    public async Task A_gate_skill_from_the_installed_map_is_silent()
+    {
+        using var directory = new TempDirectory();
+        await InitialiseRepositoryAsync(directory.Path);
+        var projectDirectory = await CreateConsumerAsync(
+            directory.Path, writeAgentsFile: false, CleanProgram, subdirectory: "src/Consumer");
+
+        await WriteGateSkillAsync(directory.Path, GateSkill(CurrentRevision()));
+
+        var build = await BuildAsync(projectDirectory);
+
+        build.ExitCode.ShouldBe(0, build.Combined);
+        build.Combined.ShouldNotContain("TRC0403", customMessage: build.Combined);
+    }
+
+    /// <summary>
+    /// <c>SKILL.md</c> is a name the harness owns, not Tracon. A skill the
+    /// consumer wrote lands among the same additional files, and reporting it
+    /// would be telling them their own file is out of date.
+    /// </summary>
+    [Fact]
+    public async Task A_skill_this_package_did_not_write_is_never_reported()
+    {
+        using var directory = new TempDirectory();
+        await InitialiseRepositoryAsync(directory.Path);
+        var projectDirectory = await CreateConsumerAsync(
+            directory.Path, writeAgentsFile: false, CleanProgram, subdirectory: "src/Consumer");
+
+        await WriteGateSkillAsync(directory.Path, HandWrittenSkill);
+
+        var build = await BuildAsync(projectDirectory);
+
+        build.ExitCode.ShouldBe(0, build.Combined);
+        build.Combined.ShouldNotContain("TRC0403", customMessage: build.Combined);
+    }
 
     [Fact]
     public async Task A_generated_project_gets_the_map_without_being_asked()

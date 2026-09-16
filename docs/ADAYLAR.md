@@ -331,6 +331,14 @@ F-221/F-222 emsali uygulandı: numara **ilk sahibinde** kalır, yanlış tahsis
 yeni numara alır. Kapasite kalemi **F-239** oldu; senkron kapısı **F-230**
 kaldı (§ *Bekleyen Kalemler*).
 
+**F-244** — `guides/coding-agents.md` diagnostic tablosu eksik sayıyor. Sayfa
+"Eight diagnostics in the `Tracon.Usage` category" diyor; kategoride **on** var —
+`TRC0501` ve `TRC0502` tabloda hiç yok ve sayfa onları hiç anlatmıyor. Kusur Faz
+93'ten beri duruyor ("Seven" yazarken de dokuz vardı); Faz 178 denetimi buldu
+(🟢) ve kapsam dışı bıraktı. İş: iki satır tablo + kısa anlatı, ve sayının
+koddan üretilip üretilemeyeceğinin ölçülmesi — elle tutulan bir sayı üçüncü kez
+kaymış olur.
+
 **F-232** 2026-09-15'te kullanıcının tüketici skill'i fikrine tahsis edildi ve
 **aynı gün plana dönüştü** — [Faz 178](178-TUKETICI-KAPI-SKILLI.md).
 

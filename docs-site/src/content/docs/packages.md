@@ -70,7 +70,7 @@ Tracon instance, from a separate application or from a terminal.
 | Package | What it does |
 |---|---|
 | `Tracon.Client` | A typed HTTP client for the management API, generated from the OpenAPI document. Every endpoint that answers with Server-Sent Events also gets a `...StreamAsync` method yielding one frame at a time. Takes no Tracon package and no NuGet package beyond `Microsoft.Extensions.DependencyInjection.Abstractions` |
-| `Tracon.Cli` | The `tracon` global tool (`dotnet tool install -g Tracon.Cli`): `migrate` and `migrate status` apply pending migrations without starting the application; `state-check` reports read-only whether this build can still read the session and checkpoint state already stored; `health` reads model provider health over HTTP through `Tracon.Client`; `eval` triggers an eval suite, polls it to completion, and gates a build on the result |
+| `Tracon.Cli` | The `tracon` global tool (`dotnet tool install -g Tracon.Cli`): `migrate` and `migrate status` apply pending migrations without starting the application; `state-check` reports read-only whether this build can still read the session and checkpoint state already stored; `health` reads model provider health over HTTP through `Tracon.Client`; `eval` triggers an eval suite, polls it to completion, and gates a build on the result; `agent-skill` writes the gate skill a coding agent's harness loads before it writes Tracon code |
 
 See the [CLI guide](/guides/cli/) for setup and every command.
 

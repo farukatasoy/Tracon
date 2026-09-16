@@ -2,8 +2,9 @@
 
 The `tracon` global tool. Applies migrations as a separate deployment
 step, checks whether this build can still read the state already in the
-database, reads model provider health over HTTP, and runs an eval suite as a
-CI quality gate.
+database, reads model provider health over HTTP, runs an eval suite as a
+CI quality gate, and writes the gate skill a coding agent's harness loads
+before it writes Tracon code.
 
 ```bash
 dotnet tool install -g Tracon.Cli
@@ -19,6 +20,7 @@ tracon --help
 | `tracon state-check --provider <postgres\|sqlserver\|sqlite> --connection <connection-string> [--sample <n>] [--json]` | Database, directly | Reports whether this build can read the stored session and workflow checkpoint state. Writes nothing |
 | `tracon health --url <base-url> [--token <token>] [--json]` | HTTP, through `Tracon.Client` | Reads model provider health |
 | `tracon eval --url <base-url> --suite <name> [--token <token>] [--agent-version <n>] [--min-pass-rate <0..1>] [--max-failures <n>] [--baseline <runId\|previous>] [--max-regressions <n>] [--timeout <seconds>] [--poll-interval <seconds>] [--json]` | HTTP, through `Tracon.Client` | Triggers a suite, polls it to completion, applies an optional quality gate — absolute, relative to a baseline run, or both |
+| `tracon agent-skill [--format claude] [--output <directory>] [--force] [--json]` | The local file system | Writes `.claude/skills/tracon/SKILL.md`, so a coding agent reads the capability map of the installed version before it writes code Tracon already ships. An existing file is never touched without `--force` |
 
 `--connection` and `--token` can come from the `TRACON_CONNECTION` and
 `TRACON_TOKEN` environment variables instead — useful in a CI/CD step
@@ -30,6 +32,40 @@ is ever printed back.
 example `http://localhost:5080/tracon` for the default prefix, or
 `http://localhost:5080/control` for an app that called
 `MapTracon("/control")`.
+
+## `agent-skill`: the procedure an agent reads first
+
+The capability map and `Tracon.LocalReference.md` wait to be read, and a build
+diagnostic arrives once the code is already written. This command writes the one
+channel that speaks first: a short procedure the agent's harness loads when a
+task mentions Tracon, saying to read the map of the installed version before
+writing anything.
+
+```bash
+tracon agent-skill
+```
+
+One file, `.claude/skills/tracon/SKILL.md`, under `--output` (default: the root
+of the repository you run it in, which is where the build looks for it and where
+the harness loads it from). It is the only command here that changes your tree,
+and it does so under the same rule the build uses for `AGENTS.md`: an existing
+file is left alone, because you may have edited it, and the command says so and
+exits `0`. `--force` overwrites it.
+
+The file carries the capability map revision this tool was built from. Your
+project's build compares that against the revision its installed packages ship
+and reports a difference as `TRC0403`. Because the tool carries the revision it
+stamps, update the tool before rewriting the file:
+
+```bash
+dotnet tool update -g Tracon.Cli
+rm .claude/skills/tracon/SKILL.md
+tracon agent-skill
+```
+
+Only the layout above was measured to load, so only it is written; `--format`
+rejects a name this version does not write rather than writing that file under
+another name.
 
 ## `state-check`: asking the upgrade question before the upgrade
 

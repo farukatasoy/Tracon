@@ -4,7 +4,7 @@ namespace Tracon.Generators;
 
 /// <summary>
 /// Definitions for the diagnostics produced by <see cref="TraconUsageAnalyzer"/>
-/// (TRC0101-TRC0402).
+/// (TRC0101-TRC0502).
 /// </summary>
 /// <remarks>
 /// <para>
@@ -108,6 +108,17 @@ internal static class UsageDiagnostics
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true,
         description: "Reported only while the build writes that file, and only for a file this package did not generate - a generated map already names it. The pointer cannot go stale, because the file it names is rewritten on every build.",
+        helpLinkUri: $"{HelpBase}coding-agent-support",
+        WellKnownDiagnosticTags.CompilationEnd);
+
+    public static readonly DiagnosticDescriptor StaleGateSkill = new(
+        "TRC0403",
+        "The Tracon gate skill is stale",
+        "The gate skill was written from capability map revision '{0}', but the installed Tracon ships revision '{1}'. The coding agent that loads it is sent to a capability list this package no longer matches. Update the tracon tool, delete the file this warning points at, and run 'tracon agent-skill' again; the command writes it back at the root of the repository.",
+        Category,
+        DiagnosticSeverity.Warning,
+        isEnabledByDefault: true,
+        description: "The file is refreshed by deleting it and running the command again; it is never overwritten in place, because it may carry hand-written notes. The tool is named first because it carries the revision it stamps, so re-running an old tool would rewrite the same stale value.",
         helpLinkUri: $"{HelpBase}coding-agent-support",
         WellKnownDiagnosticTags.CompilationEnd);
 

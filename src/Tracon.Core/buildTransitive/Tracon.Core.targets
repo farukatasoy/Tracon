@@ -43,6 +43,16 @@
     <_TraconLocalReferenceFile>$([MSBuild]::NormalizePath('$(MSBuildProjectDirectory)', 'Tracon.LocalReference.md'))</_TraconLocalReferenceFile>
 
     <!--
+      The gate skill `tracon agent-skill` writes. The build never writes this
+      one - a directory tree cannot honour "never overwrite" the way a single
+      file can, and the content is the consumer's to edit. The build only reads
+      it back, so TRC0403 can say when the revision it was stamped with is no
+      longer the installed one. At the repository root, like AGENTS.md, because
+      that is where the harness looks for it.
+    -->
+    <_TraconGateSkillFile>$([MSBuild]::NormalizePath('$(_TraconAgentsFileRoot)', '.claude', 'skills', 'tracon', 'SKILL.md'))</_TraconGateSkillFile>
+
+    <!--
       The map names every entry point; it explains none of them. The next
       question a coding agent asks - "how is this called?" - is already
       answered on this machine: every Tracon package carries its XML
@@ -65,20 +75,34 @@
     instead of writing one .editorconfig entry per diagnostic.
   -->
   <PropertyGroup Condition="'$(TraconUsageDiagnostics)' == 'false'">
-    <NoWarn>$(NoWarn);TRC0101;TRC0102;TRC0201;TRC0301;TRC0302;TRC0401;TRC0402;TRC0501;TRC0502</NoWarn>
+    <NoWarn>$(NoWarn);TRC0101;TRC0102;TRC0201;TRC0301;TRC0302;TRC0401;TRC0402;TRC0403;TRC0501;TRC0502</NoWarn>
   </PropertyGroup>
 
   <!--
     TRC0401 compares the revision marker of the two files, and TRC0402 asks a
     hand-written AGENTS.md to name the local reference. An analyzer must not read
-    from disk (RS1035), so both arrive as additional files. This happens whether
+    from disk (RS1035), so they arrive as additional files. This happens whether
     or not the property is set: a consumer who turned the property on once and
     off again still has a file that can go stale, and a consumer who never turned
     it on still has instructions that can leave the map unfindable.
   -->
+  <ItemGroup Condition="Exists('$(TraconAgentMapFile)') And (Exists('$(_TraconAgentsFile)') Or Exists('$(_TraconGateSkillFile)'))">
+    <AdditionalFiles Include="$(TraconAgentMapFile)" />
+  </ItemGroup>
+
   <ItemGroup Condition="Exists('$(_TraconAgentsFile)') And Exists('$(TraconAgentMapFile)')">
     <AdditionalFiles Include="$(_TraconAgentsFile)" />
-    <AdditionalFiles Include="$(TraconAgentMapFile)" />
+  </ItemGroup>
+
+  <!--
+    TRC0403 compares the gate skill's stamp with the installed map. Included
+    on the same terms as AGENTS.md above and for the same reason: a consumer
+    who ran the tool once has a file that can go stale whether or not any
+    property is set today. The map is added by the group above rather than
+    here, so a project that has both files does not list it twice.
+  -->
+  <ItemGroup Condition="Exists('$(_TraconGateSkillFile)') And Exists('$(TraconAgentMapFile)')">
+    <AdditionalFiles Include="$(_TraconGateSkillFile)" />
   </ItemGroup>
 
   <!--

@@ -1,6 +1,6 @@
 ---
 title: Coding agents
-description: Teach a coding agent what Tracon already does, via the capability map, a local reference file, and build-time diagnostics.
+description: Teach a coding agent what Tracon already does, via a gate skill, the capability map, a local reference file, and build-time diagnostics.
 slug: guides/coding-agents
 ---
 
@@ -17,8 +17,13 @@ carefully, and for no reason, because Tracon ships all three.
 
 Tracon closes that gap from inside the build, without a service to run or an
 index to keep in sync. Three files land in your repository or beside your project, and
-seven compiler diagnostics speak up when an agent writes something the package already
+eight compiler diagnostics speak up when an agent writes something the package already
 covers.
+
+Those files wait to be read, and a diagnostic arrives after the code is written.
+A fourth file speaks first: the **gate skill**, a short procedure the agent's
+harness loads before the agent starts. It is written by the `tracon` tool rather
+than the build, and [one step below](#the-gate-skill-speaks-first) turns it on.
 
 ## Turn it on
 
@@ -49,7 +54,10 @@ The project template sets the first property, so a project created with
 ```mermaid
 flowchart LR
     accTitle: What a coding agent reads, and which question each file answers
-    accDescr: The build writes the capability map and the local reference. The local reference names the map on disk, so a repository that keeps its own instructions reaches it through one pointer line. The site copies serve an agent with no checkout.
+    accDescr: The tool writes the gate skill, which sends the agent to the map before it writes code. The build writes the capability map and the local reference. The local reference names the map on disk, so a repository that keeps its own instructions reaches it through one pointer line. The site copies serve an agent with no checkout.
+    TOOL["tracon agent-skill"] --> SKILL[".claude/skills/tracon/SKILL.md<br/>written only when absent"]
+    SKILL --> Q0["Read the map<br/>BEFORE writing code"]
+    Q0 --> Q1
     BUILD["dotnet build"] --> MAP["AGENTS.md<br/>repository root<br/>written only when absent"]
     BUILD --> LOCAL["Tracon.LocalReference.md<br/>beside each project"]
     OWN["Your own AGENTS.md<br/>one line naming that file"] --> LOCAL
@@ -155,6 +163,64 @@ every code line in its own element with no newline between them, so flattening t
 HTML yields `var app = builder.Build();app.MapTracon("/tracon");app.Run();` on one
 line. Table columns collapse the same way. Cite the page address, not the `.md` one.
 
+## The gate skill speaks first
+
+The map and the local reference wait to be read. A diagnostic arrives once the
+code is already written, compiled, and about to be deleted again. The gate skill
+is the channel that runs **before** any of that: it is a short procedure the
+harness loads when a task mentions Tracon, and all it says is *read the map of
+the installed version first*.
+
+It is written by the `tracon` tool, once, into the repository you point it at:
+
+```bash
+dotnet tool install -g Tracon.Cli
+tracon agent-skill
+```
+
+The command belongs to the same tool as `migrate` and `eval`; the
+[CLI guide](/guides/cli/) covers its options and exit codes.
+
+That writes one file, `.claude/skills/tracon/SKILL.md`, **at the root of the
+repository** — the same place the build looks for it and the harness loads it
+from — and commits nothing. Run it from anywhere inside the repository; the
+command prints the path it wrote. An existing file is never touched — it may
+carry your own notes — so re-running the command is safe and says what it did.
+`--force` overwrites, `--output` names a different root, and `--json` reports
+the same answer for a script.
+
+The file is small on purpose: every byte of it is spent out of the context budget
+of the agent that loads it, on every task that touches Tracon. It therefore
+points at the map rather than repeating it, and it says plainly that it is a
+guardrail rather than a complete list — a procedure that overstates its coverage
+would replace one wrong assumption with another.
+
+It carries the capability map revision it was written from, and `TRC0403` reports
+the difference once your installed packages ship a newer one. Because the tool
+carries the revision it stamps, refresh the tool first:
+
+```bash
+dotnet tool update -g Tracon.Cli
+rm .claude/skills/tracon/SKILL.md
+tracon agent-skill
+```
+
+### Which harnesses load it
+
+One, measured rather than assumed. The layout a skill file has to use is defined
+by the harness that loads it, and a file written to a layout nothing reads is
+dead weight that still costs the agent its context budget. Only the layout below
+was measured to load, so only it is written:
+
+| Harness | Path | Loads it |
+|---|---|---|
+| Claude Code | `.claude/skills/tracon/SKILL.md` | Yes — measured |
+
+Other harnesses read other layouts, and `--format` rejects a name this version
+does not write rather than quietly writing the file above under another name. If
+you keep your own instructions for one of them, the single line `TRC0402` asks
+for works there too: name `Tracon.LocalReference.md`, and the map is reachable.
+
 ## Keeping the map current
 
 Upgrade the package and the map goes stale — it describes the capabilities of the
@@ -169,7 +235,7 @@ dotnet build
 
 ## The diagnostics
 
-Seven diagnostics in the `Tracon.Usage` category. They are **warnings**, not
+Eight diagnostics in the `Tracon.Usage` category. They are **warnings**, not
 suggestions, for one measured reason: an `Info` diagnostic never appears in
 `dotnet build` output at any verbosity, and build output is the only channel a coding
 agent reliably reads.
@@ -183,6 +249,7 @@ agent reliably reads.
 | `TRC0302` | An agent is wrapped without any `IAgentDecorator` in the compilation | A hand-applied wrapper misses database-defined agents; a decorator does not |
 | `TRC0401` | `AGENTS.md` was generated from an older capability map | Delete it and build again |
 | `TRC0402` | The local reference file is written, and your own `AGENTS.md` never names it | An agent reading it cannot reach the capability map on this machine; add one line |
+| `TRC0403` | The gate skill carries an older capability map revision than the installed packages | Update the tool, delete the file, and write it again |
 
 A separate family, `TRC0001`–`TRC0008`, validates tool registration itself and comes
 from the source generator. Both families carry a help link into the
@@ -216,9 +283,13 @@ rather than switching off the family.
 
 ## What this is not
 
-It is not a service, an index, or a plugin. Nothing runs outside `dotnet build`, no
-process listens, and no content is uploaded anywhere. Delete the files and unset the
-property and the only thing you lose is the map.
+It is not a service, an index, or a plugin. Nothing runs outside `dotnet build` and
+one command you run yourself, no process listens, and no content is uploaded
+anywhere. Delete the files and unset the property and the only thing you lose is
+the map.
+
+The gate skill in particular is a guardrail, not a boundary. It cannot stop an
+agent from writing anything; it only changes what the agent reads first.
 
 It also does not make an agent's output correct. The map says what exists; whether a
 capability suits your case is still a judgement call, and the guides on this site are

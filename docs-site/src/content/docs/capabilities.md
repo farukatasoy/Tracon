@@ -271,14 +271,17 @@ since it cannot reach `AgentSession` directly.
 ## Coding-agent support
 
 A coding agent working in your repository cannot use a capability it does not know
-exists. Two channels tell it, and both are generated from this page.
+exists. Three channels tell it. The first two are generated from this page and
+wait to be read; the third is a procedure the agent's harness loads before the
+agent writes code, which is the only one that speaks first.
 
 | Capability | Enable it | Boundary |
 |---|---|---|
 | Agent map file | `TraconWriteAgentsFile` | Writes `AGENTS.md` at the repository root during build; an existing file is never overwritten |
 | Local reference file | `TraconWriteLocalReference`, on by default with the map | Writes `Tracon.LocalReference.md` beside each project, naming the API documentation and the HTTP API document of the exact version that project restored; regenerated every build, never committed |
 | Map for web agents | `llms.txt` and `llms-full.txt` | Published with this site; nothing to register. `llms.txt` carries the map and one line per documentation page; `llms-full.txt` carries every page in full. Any page also serves its markdown source at `<address>index.md` |
-| Usage diagnostics | Automatic with `Tracon.Core`; `TraconUsageDiagnostics` turns the family off | The `Tracon.Usage` category reports absent wiring, a literal secret, hand-written substitutes for shipped behaviour, instructions that leave the map unreachable, an ambient write that does not survive a streaming loop, and a discarded ambient scope |
+| Gate skill | `tracon agent-skill` | Writes `.claude/skills/tracon/SKILL.md` once, so the agent's harness loads the procedure before it writes Tracon code; an existing file is never overwritten without `--force`, and the build reports a stale stamp as `TRC0403` |
+| Usage diagnostics | Automatic with `Tracon.Core`; `TraconUsageDiagnostics` turns the family off | The `Tracon.Usage` category reports absent wiring, a literal secret, hand-written substitutes for shipped behaviour, instructions or a gate skill that leave the map unreachable or out of date, an ambient write that does not survive a streaming loop, and a discarded ambient scope |
 | Tool diagnostics | Automatic with `Tracon.Core` | The `Tracon.Tools` category reports a tool method the generator cannot use |
 
 The map is refreshed by deleting `AGENTS.md` and building again; the file is never

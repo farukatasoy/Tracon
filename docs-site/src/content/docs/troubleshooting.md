@@ -556,6 +556,7 @@ source-generated path, or accept and document that the application is not AOT-sa
 | `TRC0301`, `TRC0302` | `Tracon.Usage` | Code written by hand for behaviour the package already ships. |
 | `TRC0401` | `Tracon.Usage` | `AGENTS.md` was generated from an older capability map. |
 | `TRC0402` | `Tracon.Usage` | The local reference file is written, and your own `AGENTS.md` never names it, so the map is unreachable. |
+| `TRC0403` | `Tracon.Usage` | The gate skill `tracon agent-skill` wrote was stamped with an older capability map. |
 | `TRC0501` | `Tracon.Usage` | An async iterator writes ambient state once but a loop advances the enumeration without repeating it. |
 | `TRC0502` | `Tracon.Usage` | An ambient scope's `Begin(...)` result is discarded, so it is never restored. |
 
@@ -833,6 +834,25 @@ map and the API documentation of the installed version.
 there. It stays silent in two other cases as well: while the property above is off,
 because then there is no file to name, and on a file this package generated, because
 a generated map already names it.
+
+### The gate skill is out of date (TRC0403)
+
+`tracon agent-skill` stamps the file it writes with the capability map revision
+the tool was built from, and the build compares that against the map your
+installed packages ship.
+
+The tool carries the revision it stamps, so update the tool first — re-running an
+older one writes the same stale value back:
+
+```bash
+dotnet tool update -g Tracon.Cli
+rm .claude/skills/tracon/SKILL.md
+tracon agent-skill
+```
+
+Deleting is the refresh step because the file is never overwritten in place: you
+may have added notes to it. A `SKILL.md` without that stamp is treated as yours
+and is never reported.
 
 ### An ambient write does not survive a streaming loop (TRC0501)
 

@@ -24,5 +24,6 @@ TRC0301 | Tracon.Usage | Warning | A retry loop is written by hand around a chat
 TRC0302 | Tracon.Usage | Warning | An agent is wrapped by hand. See docs/arsiv/fazlar/73-TUKETICI-AGENT-DESTEGI.md
 TRC0401 | Tracon.Usage | Warning | The agent map file is stale. See docs/arsiv/fazlar/73-TUKETICI-AGENT-DESTEGI.md
 TRC0402 | Tracon.Usage | Warning | The agent instructions never point at the local reference file. See docs/arsiv/fazlar/78-YETENEK-HARITASI-ERISIMI.md
+TRC0403 | Tracon.Usage | Warning | The Tracon gate skill is stale. See docs/178-TUKETICI-KAPI-SKILLI.md
 TRC0501 | Tracon.Usage | Warning | An ambient write is not repeated inside an async iterator's loop. See docs/arsiv/fazlar/93-KUSUR-SINIFI-KAPILARI.md
 TRC0502 | Tracon.Usage | Warning | An ambient scope is opened and never restored. See docs/arsiv/fazlar/93-KUSUR-SINIFI-KAPILARI.md

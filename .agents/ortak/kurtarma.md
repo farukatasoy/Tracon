@@ -115,6 +115,25 @@ kalıcı veriye dokundu mu, dokunduysa geri alma veriyi ne hâle getirir.
 Tek kural: **"bilinmiyor" bir cevaptır ve geri almayı durdurur.** 👤 Kullanıcı
 onayı gerekir.
 
+### 🚨 `git stash` bir geri alma aracı DEĞİLDİR — taban ölçümü için kullanma
+
+Ölçüldü (Faz 178): bir sayfayı taban sürümüyle karşılaştırmak için
+`git stash push -- <tek yol>` koşuldu. O komut **hiçbir şey stash'lemedi**
+(çıktı: `No local changes to save`), ama ardından gelen `git stash pop`
+**senin kaydını değil, listedeki İLK kaydı** açtı — oturumdan önce duran,
+ilgisiz bir stash. Sonuç: üç dosyada çatışma işaretleri, 21 yabancı dosya
+ağaçta, ve iş yarıda.
+
+İki kural:
+
+- `git stash pop`'u **yalnız** kendi `push`'unun "Saved working directory"
+  yazdığını gördükten sonra koş. Yazmadıysa `pop` da koşma.
+- Bir dosyayı taban sürümde ölçmek istiyorsan stash'e hiç girme:
+  `git show HEAD:<yol> > <geçici>` ya da `git worktree add <dizin> HEAD`.
+
+`git stash list` kaydı `pop` çatışmayla düşerse **korur** — kurtarma oradadır;
+izlenmeyen dosyalar `stash@{0}^3` ağacındadır.
+
 ---
 
 ## Bilinen sınır — fragment çapası
