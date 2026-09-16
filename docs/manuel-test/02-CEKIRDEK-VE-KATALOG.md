@@ -2013,7 +2013,7 @@ dotnet run -c Release
 **Beklenen sonuç**
 - `sirali: True`.
 - Damga farkı **1 saniyeden küçüktür**.
-- `Guid.NewGuid()` (sürüm 4) reddedilir ve mesaj "surum 7 degeri degil" ifadesini taşır.
+- `Guid.NewGuid()` (sürüm 4) reddedilir ve mesaj `The identifier is not a UUID version 7 value.` ifadesini taşır. 🚨 Sevk edilen metin K-228'den beri **İngilizce**dir.
 - `🚨 v4 KABUL EDILDI` satırı görünmez.
 
 ---

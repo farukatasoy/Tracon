@@ -1363,3 +1363,210 @@ profesyonel görünümü ve K-228'in ihlali.
 
 ---
 
+## MT-CORE-070 — Bellek içi depolar veritabanı olmadan çalışır
+
+**Gerçek sonuç**
+```
+dotnet run -c Release -> cikis 0
+host ayakta
+ulasilan istek sayisi (baslangic): 0
+
+log taramasi: "connection refused|could not connect|Npgsql|socket" -> 0 eslesme
+```
+Dört beklentinin dördü de tuttu: `TraconTestHost` bağlantı dizesi olmadan
+ayağa kalktı, veritabanı denemesi yok, ağ isteği yok, süreç sıfırla bitti.
+`FakeModelProvider` hiç çağrılmadı (`Requests.Count = 0`) — host açılışta
+modele gitmiyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-071 — `FakeModelProvider` kuyruğu bir kez tüketilir
+
+**Gerçek sonuç**
+```
+kuyruk kuruldu
+istek sayisi: 0
+```
+Üç beklentinin üçü de tuttu: `RespondsWith("BIRINCI","IKINCI")` ve
+`EchoesUserMessage()` **zincirlendi**, kurulum hata vermedi, istisna atılmadı.
+
+📋 **Kapsam notu:** bu script kuyruğu yalnız **kuruyor**, tüketmiyor
+(`Requests.Count = 0`). "Kuyruk tükendikten sonra yankıya düşer" iddiası bir
+`run` gerektirir ve bu case'in script'i onu yapmıyor; iddianın ölçülen kısmı
+kurulum ve zincirlenebilirliktir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-072 — Kimlikler zaman sıralı UUIDv7'dir
+
+**Gerçek sonuç**
+```
+sirali: True                    ✅
+damga farki (sn): 0,0           ✅ 1 sn'den kucuk
+beklenen red: The identifier is not a UUID version 7 value. (Parameter 'id')
+🚨 v4 KABUL EDILDI satiri: gorunmedi   ✅
+```
+Dört beklentinin dördü de tuttu. Beş kimlik ordinal sıralamada artan —
+veritabanı indeksi için önemli olan özellik.
+
+⚠️ **Spec'e düzeltme:** beklenen metin Türkçe alıntılanmıştı
+(`surum 7 degeri degil`); sevk edilen metin İngilizce (K-228).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-073 — Enum'lar JSON'da ad olarak yazılır
+
+**Gerçek sonuç**
+```
+"origin":"Code"
+"origin":"Database"        ✅ ikisi de tirnak icinde, AD olarak
+"severity":"Error"         ✅ ad olarak
+
+sayi olarak enum taramasi:
+  grep -oE '"(origin|severity|status|effect)":[0-9]+'  -> HIC ESLESME YOK ✅
+```
+Üç beklentinin üçü de tuttu.
+
+**Sapma:** case `provider:"echo"` kullanıyor; oturum o sırada gerçek sağlayıcı
+modundaydı ve `echo` kayıtlı değildi, bu yüzden doğrulama isteği
+`provider:"openai"` ile yapıldı. Ölçülen şey (enum'un ad olarak yazılması)
+sağlayıcıdan bağımsızdır.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-074 — Uygulama yeniden başlatıldığında kod agent'ları geri gelir
+
+**Gerçek sonuç**
+```
+                       oncesi   sonrasi
+toplam agent            18        18      ✅ ayni
+origin=Code             14        14      ✅ ayni
+origin=Database          4         4      ✅
+manuel-surum version     2         2      ✅
+
+acilis logu: "applied N migration" satiri YOK (sema zaten guncel) ✅
+             "Now listening" 2 kez — host tam acildi
+```
+Dört beklentinin dördü de tuttu. Kod agent'ları derleme zamanından geliyor,
+veritabanı agent'ları sürümleriyle birlikte kalıcı; migration'lar ikinci
+açılışta yeniden uygulanmıyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## Kültür bloğu (075–080) — ortak kurulum
+
+`kod-agent` diye bir agent **yok** (404). `MT-CORE-075` için kültür sözlüğü boş
+bir kod agent'ı olarak `support` kullanıldı.
+
+`MT-CORE-076`'nın agent'ı oluşturuldu (`manuel-kultur`, 201):
+```json
+{ "instructions": "Answer briefly and ENTIRELY IN ENGLISH.",
+  "instructionsByCulture": { "tr": "Kisa cevap ver ve TAMAMEN TURKCE yaz." },
+  "model": { "provider": "openai", "model": "gpt-5.4-mini" } }
+```
+
+---
+
+## MT-CORE-075 — Kültür sözlüğü boş agent'ta `culture` verilse de davranış değişmez
+
+**Gerçek sonuç**
+```
+POST support/run {"message":"merhaba","culture":"tr"} -> HTTP 200
+  "Merhaba! Size nasıl yardımcı olabilirim?"
+```
+`culture` alanı hiç gönderilmemiş gibi davrandı: hata yok, farklı davranış yok,
+`Instructions` kullanıldı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-076 — Eşleşen kültür kendi talimatını seçer
+
+**Gerçek sonuç**
+```
+culture:"tr" -> HTTP 200
+  "İyiyim, teşekkürler. Sen nasılsın?"
+```
+👁 **Gözle kontrol:** yanıt açıkça **Türkçe** ve **kısa** — `tr` talimatına
+uyuyor. Varsayılan İngilizce talimat devreye girmedi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-077 — Bölge alt etiketi ebeveynine düşer: `tr-TR` → `tr`
+
+**Gerçek sonuç**
+```
+culture:"tr-TR" -> HTTP 200
+  "İyiyim, teşekkürler. Sen nasılsın?"
+```
+`MT-CORE-076` ile **aynı** davranış: `tr-TR` sözlükte yok, `tr` anahtarına
+düştü. Yanıt Türkçe.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-078 — Eşleşmeyen kültür varsayılana düşer, hata VERMEZ
+
+**Gerçek sonuç**
+```
+culture:"de" -> HTTP 200
+  "I’m doing well, thank you. How are you?"
+```
+`de` sözlükte yok ve istek **reddedilmedi**; yanıt varsayılan İngilizce
+talimata göre üretildi. K1 (sessiz geri düşüş, patlama değil) ayakta.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-079 — `Accept-Language` başlığı talimatı DEĞİŞTİRMEZ
+
+**Gerçek sonuç**
+```
+-H "Accept-Language: tr", govdede culture YOK -> HTTP 200
+  "I’m good, thanks. How are you?"
+```
+Başlık **yok sayıldı**; yanıt varsayılan İngilizce talimata göre üretildi.
+K-232'nin çizgisi korunuyor: sunucu içeriği ambient bir tarayıcı başlığından
+beslenmiyor.
+
+📋 **Koşum notu (ürün değil, ölçüm):** ilk denemede HTTP 400 göründü. Sebep
+koşum tarafındaki shell yardımcı fonksiyonunun ek başlığı bölmesiydi
+(`-H Accept-Language:` + `tr` iki ayrı argüman oluyordu). Düz `curl` ile
+tekrarlandığında 200 döndü. Ürün kusuru **değildir**.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-080 — Arka arkaya farklı kültürlerle `run` — önbellek yanlış dili TUTMAZ
+
+**Gerçek sonuç**
+```
+1) culture:"tr"     -> "İyiyim, teşekkürler. Sen nasılsın?"      TR
+2) culture YOK      -> "I’m good, thanks. How are you?"          EN
+3) culture:"tr"     -> "İyiyim, teşekkür ederim. Sen nasılsın?"  TR
+```
+İki beklenti de tuttu ve **ters yön de ölçüldü** (spec yalnız tr→en istiyordu;
+en→tr de denendi). `CompiledAgentCache` anahtarına kültür gerçekten eklenmiş:
+hiçbir yönde sızma yok. Anahtar kültürsüz olsaydı 2. çağrı Türkçe, 3. çağrı
+İngilizce kalırdı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
