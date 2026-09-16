@@ -2303,7 +2303,7 @@ gövdede görünmeli.
 | **İlgili karar** | — |
 
 **Ön koşul**
-- `"musteri"` adlı zorunlu (`required: true`), varsayılansız bir parametre
+- `"musteri"` adlı zorunlu (`required: true`, **`kind: "Text"`** — `kind` zorunludur, `AgentParameterKind`: `Text·Number·Boolean`), varsayılansız bir parametre
   taşıyan ve talimatında `{{musteri}}` geçen bir agent (`PARAM_AGENT`)
   oluşturulmuş olmalı.
 
@@ -2390,8 +2390,13 @@ curl -s -X POST "$APU/api/agents/$PARAM_AGENT/run" -H "$APB" -H "content-type: a
 
 **Beklenen sonuç**
 - Koşu başarıyla tamamlanır (sağlayıcı JSON'u ayrıştırma hatası vermez).
-  Kayıtlı girdi metninde `a"b\c` **kaçırılmış** biçimde görünür
-  (`a\"b\\c`), talimatın çevresindeki JSON yapısı bozulmamıştır.
+  **Ölçülebilir kısım budur** ve ön koşul gerektirmez: kaçış bozuk olsaydı
+  sağlayıcı isteği hatalı JSON olur ve koşu düşerdi.
+- 🚨 Kaçırılmış metni **görmek** bir OTLP trace collector ister. İstem ve yanıt
+  metinleri **span'lere** yazılır (`MT-CORE-063`); `GET /api/runs/{id}` onları
+  taşımaz ve `run_events.payload` `Tracon__Observability__RecordSensitiveData=true`
+  ile bile `NULL` gelir (2026-09-16'da ölçüldü). Collector yoksa bu adım
+  atlanır ve gerekçesi yazılır.
 
 ---
 
@@ -2472,6 +2477,14 @@ curl -s -X POST "$APU/api/agents/$PARAM_AGENT/run" -H "$APB" -H "content-type: a
 | **İlgili karar** | — |
 
 **Ön koşul**
+> 🚨 **Kod donmuş bir turda `samples/` değiştirilemez.** Bunun yerine repo
+> DIŞINDA bir tüketici host'u kurulur: `Tracon.AspNetCore` + `Tracon.UI` +
+> `Tracon.Testing` paketleri, `Tracon.Samples.CustomAgentSource`'un üç `.cs`
+> dosyası kopyalanır (paketlenmiş sürümü yoktur), bir model sağlayıcısı
+> kaydedilir (`FakeModelProvider("echo")` — yalın host'ta `echo` yoktur) ve
+> `app.MapTracon("/tracon", o => o.AuthToken = "...")` çağrılır
+> (🚨 `AuthToken` yapılandırmadan otomatik okunmaz). 2026-09-16'da bu yolla
+> koşuldu.
 - `samples/Tracon.Api/Program.cs`'e geçici olarak
   `builder.AddTracon().Services.AddSingleton(new JsonFileAgentSourceOptions { Directory = "<dizin>" })`
   ve `.AddAgentSource<JsonFileAgentSource>()` eklenmiş, `<dizin>` altında
@@ -2490,7 +2503,10 @@ curl -s "$APU/api/agents" -H "$APB" | python3 -m json.tool | grep -A 3 '"name": 
 ```
 
 **Beklenen sonuç**
-- Adım 1: `origin: "Custom"`, `sourceName: "json-file"`, `isEditable: false`.
+- Adım 1: `origin: "Custom"`, `sourceName: "json-file"`.
+  🚨 `isEditable` **liste ucunda yoktur**; `GET /api/agents/{ad}` detay
+  yanıtının üst seviyesindedir. Listeyi `grep`'leyen bir komut onu hiç
+  göremez.
 - Adım 2: rozet kaynağın adını gösterir; agent açılınca düzenleme formu **yok**
   (kod agent'ıyla aynı salt-okunur görünüm).
 
@@ -2550,8 +2566,8 @@ curl -s -X POST "$APU/api/agents/greeter/run" -H "$APB" -H "content-type: applic
 ```
 
 **Beklenen sonuç**
-- Koşu tamamlanır. `run` kaydında `model` ve `provider` alanları **boş
-  değildir** — kaynağın kendi `ListAsync`'inden gelen dondurulmuş descriptor
+- Koşu tamamlanır. `run` kaydında `modelId` ve `modelProvider` alanları
+  (bu adlarla; `model`/`provider` değil) **boş değildir** — kaynağın kendi `ListAsync`'inden gelen dondurulmuş descriptor
   doğru atıf taşır (uydurma `Origin=Code`/`Model=null` yok).
 
 ---
