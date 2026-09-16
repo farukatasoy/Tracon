@@ -262,11 +262,13 @@ cd samples/Tracon.Api && dotnet run
 ```
 
 Şema düşürüldükten sonra migration'lar açılışta yeniden uygulanır
-(`AutoApplyMigrations: true`). PostgreSQL'de **32 çekirdek** migration dosyası
-vardır; örnek uygulamanın `appsettings.json`'ı `EnableKnowledge: true` taşır
-(bir `EnableVectorSearch` agent'ı demoluyor, Faz 67), bu yüzden isteğe bağlı
+(`AutoApplyMigrations: true`). PostgreSQL'de **50 çekirdek** migration dosyası
+vardır (2026-09-16 ölçümü: `src/Tracon.PostgreSql/Migrations/*.sql`); örnek
+uygulamanın `appsettings.json`'ı `EnableKnowledge: true` taşır (bir
+`EnableVectorSearch` agent'ı demoluyor, Faz 67), bu yüzden isteğe bağlı
 "knowledge" setinin **1** migration'ı da uygulanır — açılış logunda toplam
-**33** doğrulanır. Ayrıntı: [`03-KALICILIK-POSTGRESQL.md`](03-KALICILIK-POSTGRESQL.md).
+**51** doğrulanır. 🚨 **Bu sayı her yeni migration'la artar; sabit sayıya değil
+dosya sayımına bak.** Ayrıntı: [`03-KALICILIK-POSTGRESQL.md`](03-KALICILIK-POSTGRESQL.md).
 
 ---
 
