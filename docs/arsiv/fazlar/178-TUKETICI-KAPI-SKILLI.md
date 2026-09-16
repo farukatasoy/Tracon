@@ -2,8 +2,8 @@
 
 > **Durum:** ✅ Tamamlandı (2026-09-16)
 > **Plan onayı:** onaylandı (kullanıcı, 2026-09-16) — Açık Soru 1 → A, 3 → B (4 KB)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-232**
-> **Önkoşul:** [Faz 73](arsiv/fazlar/73-TUKETICI-AGENT-DESTEGI.md) (bilgi kanalı: harita, `AGENTS.md`, yerel referans) · [Faz 167](arsiv/fazlar/167-AGENT-ZORLAMA-KATMANI.md) (zorlama kanalı: `TRC0*` diagnostic'leri **ve** § 167.3 ölçüm emsali)
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-232**
+> **Önkoşul:** [Faz 73](73-TUKETICI-AGENT-DESTEGI.md) (bilgi kanalı: harita, `AGENTS.md`, yerel referans) · [Faz 167](167-AGENT-ZORLAMA-KATMANI.md) (zorlama kanalı: `TRC0*` diagnostic'leri **ve** § 167.3 ölçüm emsali)
 > **Paketler:** `Tracon.Cli`, `Tracon.Generators`
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** büyüyor — yalnız **CLI yüzeyinde**; `src/` çekirdeğine dokunulmaz
@@ -25,7 +25,7 @@
    **K-761** (`.claude/settings.json` `deny` bloğu bir **korkuluktur**, güvenlik
    sınırı değildir — üretilen skill de aynı sınıftadır ve metni bunu söylemeli),
    **K-008** (ön sürüm MAF paketi yalnız `Tracon.AspNetCore` içinde)
-3. [Faz 167](arsiv/fazlar/167-AGENT-ZORLAMA-KATMANI.md) — yalnız **§ 167.3**
+3. [Faz 167](167-AGENT-ZORLAMA-KATMANI.md) — yalnız **§ 167.3**
    ve devir notu:
    ```bash
    awk '/167\.3/,/^## /' docs/arsiv/fazlar/167-AGENT-ZORLAMA-KATMANI.md
@@ -34,9 +34,9 @@
    🚨 § 167.3 bu fazın **1. adımının şablonudur**: izole geçici projede ölç ve
    **ayırt edici** bir kontrol koşumu taşı.
 4. Alan hafızası (bu faz iki alana dokunuyor):
-   [`hafiza/dokumantasyon.md`](hafiza/dokumantasyon.md) (üretilen metin ve
-   bütçe) · [`hafiza/00-INDEKS.md`](hafiza/00-INDEKS.md) üzerinden üreteç alanı
-5. Gerektiğinde: [`Tracon.Core.targets`](../src/Tracon.Core/buildTransitive/Tracon.Core.targets)
+   [`hafiza/dokumantasyon.md`](../../hafiza/dokumantasyon.md) (üretilen metin ve
+   bütçe) · [`hafiza/00-INDEKS.md`](../../hafiza/00-INDEKS.md) üzerinden üreteç alanı
+5. Gerektiğinde: [`Tracon.Core.targets`](../../../src/Tracon.Core/buildTransitive/Tracon.Core.targets)
    satır 79-135 (bugünkü yazma yolu ve "asla üzerine yazma" sözleşmesi)
 
 ---
@@ -63,9 +63,9 @@ yap."* Skill formatı tam olarak bunu taşır — tetikleyicisi olan bir iş ak�
 | Kanıt | Gözlem |
 |---|---|
 | `src/Tracon.Core/buildTransitive/Tracon.AgentMap.md` | Harita üretiliyor, **10 583 B** ve damgalı: `revision: 46aeb54b` |
-| [`UsageDiagnostics.cs`](../src/Tracon.Generators/UsageDiagnostics.cs) | Dokuz diagnostic: `TRC0101` · `0102` · `0201` · `0301` · `0302` · `0401` · `0402` · `0501` · `0502` |
-| [`UsageDiagnostics.cs:93`](../src/Tracon.Generators/UsageDiagnostics.cs#L93) | `TRC0401` **birebir emsal**: harita revizyonunu karşılaştırır, bayatsa uyarır. Açıklaması bu fazın yazma sözleşmesini de söylüyor: *"It is never overwritten in place, because it may carry hand-written notes"* |
-| [`Tracon.Core.targets:97`](../src/Tracon.Core/buildTransitive/Tracon.Core.targets#L97) | `AGENTS.md` yalnız **yokken** yazılıyor |
+| [`UsageDiagnostics.cs`](../../../src/Tracon.Generators/UsageDiagnostics.cs) | Dokuz diagnostic: `TRC0101` · `0102` · `0201` · `0301` · `0302` · `0401` · `0402` · `0501` · `0502` |
+| [`UsageDiagnostics.cs:93`](../../../src/Tracon.Generators/UsageDiagnostics.cs#L93) | `TRC0401` **birebir emsal**: harita revizyonunu karşılaştırır, bayatsa uyarır. Açıklaması bu fazın yazma sözleşmesini de söylüyor: *"It is never overwritten in place, because it may carry hand-written notes"* |
+| [`Tracon.Core.targets:97`](../../../src/Tracon.Core/buildTransitive/Tracon.Core.targets#L97) | `AGENTS.md` yalnız **yokken** yazılıyor |
 | `src/Tracon.Cli/Program.cs:27-35` | CLI **beş** komut dağıtıyor: `migrate` · `migrate status` · `state-check` · `health` · `eval` |
 | `src/Tracon.Cli/Commands/HealthCommand.cs` | Komut deseni: `internal static class` + `RunAsync(IReadOnlyList<string>, CancellationToken)` |
 | `MigrateCommand` | Bugünkü beş komuttan **yalnız** `migrate` bir şey değiştiriyor — o da veritabanını, çalışma ağacını değil |
