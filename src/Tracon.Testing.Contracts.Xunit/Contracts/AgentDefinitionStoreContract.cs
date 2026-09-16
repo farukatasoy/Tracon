@@ -18,10 +18,10 @@ public abstract class AgentDefinitionStoreContract : TenantIsolationContract<IAg
     /// <see cref="ITenantContext"/>. Each hook therefore sets the active
     /// tenant first.
     /// </remarks>
-    protected override async ValueTask<object> SeedAsync(string tenantId, string name)
+    protected override async ValueTask<object> SeedAsync(string tenantId, string name, CancellationToken cancellationToken)
     {
         AmbientTenant.TenantId = tenantId;
-        await Store.SaveAsync(TestData.Definition(name));
+        await Store.SaveAsync(TestData.Definition(name), cancellationToken);
         return name;
     }
 
@@ -45,10 +45,10 @@ public abstract class AgentDefinitionStoreContract : TenantIsolationContract<IAg
     }
 
     /// <inheritdoc />
-    protected override async ValueTask<int> CountAsync(string tenantId)
+    protected override async ValueTask<int> CountAsync(string tenantId, CancellationToken cancellationToken)
     {
         AmbientTenant.TenantId = tenantId;
-        return (await Store.ListAsync()).Count;
+        return (await Store.ListAsync(cancellationToken)).Count;
     }
 
     /// <inheritdoc />

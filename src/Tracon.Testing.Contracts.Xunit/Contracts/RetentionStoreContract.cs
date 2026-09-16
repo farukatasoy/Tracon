@@ -14,23 +14,17 @@ namespace Tracon.Testing.Contracts.Storage;
 /// The contract does not derive from <see cref="TenantIsolationContract{TStore}"/>:
 /// the data plane has no concept of a "record" (there is no write side),
 /// seeding goes through the target table's own store. Isolation is tested
-/// directly here.
+/// directly here, on top of
+/// <see cref="StoreCancellationContract{TStore}"/>.
 /// </para>
 /// </remarks>
-public abstract class RetentionStoreContract : IAsyncLifetime
+public abstract class RetentionStoreContract : StoreCancellationContract<IRetentionStore>
 {
     /// <summary>The tenant that writes the data.</summary>
     protected const string TenantA = "tenant-a";
 
     /// <summary>The tenant whose data must be preserved.</summary>
     protected const string TenantB = "tenant-b";
-
-    /// <summary>The data plane under test.</summary>
-    protected IRetentionStore Store { get; private set; } = null!;
-
-    /// <summary>Produces an empty data plane for testing.</summary>
-    /// <returns>A store ready for use.</returns>
-    protected abstract ValueTask<IRetentionStore> CreateStoreAsync();
 
     /// <summary>
     /// Writes a row for the given tenant, older than the cutoff date, that
@@ -40,22 +34,34 @@ public abstract class RetentionStoreContract : IAsyncLifetime
     /// <returns>The completion task.</returns>
     protected abstract ValueTask SeedOldRowAsync(string tenantId);
 
-    /// <inheritdoc />
-    public async ValueTask InitializeAsync() => Store = await CreateStoreAsync();
-
-    /// <inheritdoc />
-    public async ValueTask DisposeAsync()
-    {
-        await OnDisposeAsync();
-        GC.SuppressFinalize(this);
-    }
-
-    /// <summary>Hook for the derived class to release its own resources.</summary>
-    /// <returns>The completion task.</returns>
-    protected virtual ValueTask OnDisposeAsync() => default;
-
     /// <summary>A cutoff date newer than all seeded rows.</summary>
     private static DateTimeOffset Cutoff { get; } = new(2030, 1, 1, 0, 0, 0, TimeSpan.Zero);
+
+    /// <inheritdoc />
+    protected override async ValueTask CancellableReadAsync(CancellationToken cancellationToken)
+        => await Store.CountOlderThanAsync(RetentionTargets.VoiceSessions, TenantA, Cutoff, cancellationToken);
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// The write of a retention data plane is a <em>delete</em>: the sweep is
+    /// the only thing it changes.
+    /// </remarks>
+    protected override async ValueTask CancellableWriteAsync(CancellationToken cancellationToken)
+    {
+        await SeedOldRowAsync(TenantA);
+
+        await Store.DeleteBatchAsync(
+            RetentionTargets.VoiceSessions, TenantA, Cutoff, batchSize: 100, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// The seeded row must still be there. A sweep that threw but deleted
+    /// anyway is exactly the defect this case exists for.
+    /// </remarks>
+    protected override async ValueTask<bool> WroteAnythingAsync()
+        => await Store.CountOlderThanAsync(
+            RetentionTargets.VoiceSessions, TenantA, Cutoff, CancellationToken.None) == 0;
 
     [Fact]
     public async Task Count_covers_only_the_given_tenant()

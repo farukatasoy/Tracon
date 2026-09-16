@@ -40,6 +40,8 @@ internal sealed class InMemoryRunScoreStore(
     public ValueTask<RunScore> UpsertAsync(RunScore score, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(score);
+        cancellationToken.ThrowIfCancellationRequested();
+
         RunScoreRules.Validate(score);
 
         // When the same author writes the same NAME onto the same target, run or
@@ -73,6 +75,7 @@ internal sealed class InMemoryRunScoreStore(
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
+        cancellationToken.ThrowIfCancellationRequested();
 
         IReadOnlyList<RunScore> result =
         [
@@ -90,6 +93,7 @@ internal sealed class InMemoryRunScoreStore(
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
+        cancellationToken.ThrowIfCancellationRequested();
 
         if (_scores.TryGetValue(scoreId, out var existing)
             && string.Equals(existing.TenantId, tenantId, StringComparison.Ordinal))

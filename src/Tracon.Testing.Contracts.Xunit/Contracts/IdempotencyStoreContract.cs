@@ -11,35 +11,44 @@ namespace Tracon.Testing.Contracts.Storage;
 /// <para>
 /// The tenant id is passed <em>explicitly</em> to every call (not through
 /// the ambient <see cref="ITenantContext"/>) — the contract therefore does
-/// not rely on the generic CRUD shape of <c>TenantIsolationContract&lt;TStore&gt;</c>,
-/// but directly on <see cref="IAsyncLifetime"/>; the same pattern as
-/// <c>SingletonLeaseStoreContract</c>.
+/// not rely on the generic CRUD shape of
+/// <see cref="TenantIsolationContract{TStore}"/> and derives from
+/// <see cref="StoreCancellationContract{TStore}"/> directly; the same pattern
+/// as <c>SingletonLeaseStoreContract</c>.
 /// </para>
 /// </remarks>
-public abstract class IdempotencyStoreContract : IAsyncLifetime
+public abstract class IdempotencyStoreContract : StoreCancellationContract<IIdempotencyStore>
 {
-    /// <summary>The idempotency store under test.</summary>
-    protected IIdempotencyStore Store { get; private set; } = null!;
+    private const string Tenant = "test";
 
-    /// <summary>Produces an empty idempotency store for testing.</summary>
-    /// <returns>A store ready for use.</returns>
-    protected abstract ValueTask<IIdempotencyStore> CreateStoreAsync();
+    /// <summary>The key the cancellation contract reserves against.</summary>
+    private readonly string _cancellationKey = Key();
 
     /// <inheritdoc />
-    public async ValueTask InitializeAsync() => Store = await CreateStoreAsync();
-
-    /// <inheritdoc />
-    public async ValueTask DisposeAsync()
+    /// <remarks>
+    /// A reservation for a key that already exists is the read path: it
+    /// reports the stored state instead of opening a new slot.
+    /// </remarks>
+    protected override async ValueTask CancellableReadAsync(CancellationToken cancellationToken)
     {
-        await OnDisposeAsync();
-        GC.SuppressFinalize(this);
+        var key = Key();
+        await Store.ReserveAsync(Request(Tenant, key), CancellationToken.None);
+
+        await Store.ReserveAsync(Request(Tenant, key), cancellationToken);
     }
 
-    /// <summary>Hook for the derived class to release its own resources.</summary>
-    /// <returns>The completion task.</returns>
-    protected virtual ValueTask OnDisposeAsync() => default;
+    /// <inheritdoc />
+    protected override async ValueTask CancellableWriteAsync(CancellationToken cancellationToken)
+        => await Store.ReserveAsync(Request(Tenant, _cancellationKey), cancellationToken);
 
-    private const string Tenant = "test";
+    /// <inheritdoc />
+    /// <remarks>
+    /// A key nothing ever reserved comes back <see cref="IdempotencyState.Reserved"/>
+    /// -- a fresh slot. Any other state means the cancelled call wrote a row.
+    /// </remarks>
+    protected override async ValueTask<bool> WroteAnythingAsync()
+        => (await Store.ReserveAsync(Request(Tenant, _cancellationKey), CancellationToken.None)).State
+            is not IdempotencyState.Reserved;
 
     private static string Key() => $"key-{Guid.NewGuid():N}";
 

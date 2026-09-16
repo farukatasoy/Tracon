@@ -11,9 +11,9 @@ namespace Tracon.Testing.Contracts.Storage;
 public abstract class SkillScriptGrantContract : TenantIsolationContract<ISkillScriptGrantStore>
 {
     /// <inheritdoc />
-    protected override async ValueTask<object> SeedAsync(string tenantId, string name)
+    protected override async ValueTask<object> SeedAsync(string tenantId, string name, CancellationToken cancellationToken)
     {
-        await Store.GrantAsync(Grant(tenantId, name));
+        await Store.GrantAsync(Grant(tenantId, name), cancellationToken);
         return name;
     }
 
@@ -22,8 +22,8 @@ public abstract class SkillScriptGrantContract : TenantIsolationContract<ISkillS
         => await Store.FindActiveAsync(tenantId, (string)key, "any", DateTimeOffset.UtcNow) is not null;
 
     /// <inheritdoc />
-    protected override async ValueTask<int> CountAsync(string tenantId)
-        => (await Store.ListAsync(tenantId)).Count;
+    protected override async ValueTask<int> CountAsync(string tenantId, CancellationToken cancellationToken)
+        => (await Store.ListAsync(tenantId, cancellationToken)).Count;
 
     /// <inheritdoc />
     /// <remarks>A grant is not deleted, it is revoked.</remarks>

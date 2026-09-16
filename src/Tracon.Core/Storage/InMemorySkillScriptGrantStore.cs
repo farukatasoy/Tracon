@@ -18,6 +18,7 @@ internal sealed class InMemorySkillScriptGrantStore : ISkillScriptGrantStore
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(tenantId);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var grants = _grants
             .Where(pair => string.Equals(pair.Key.TenantId, tenantId, StringComparison.Ordinal))
@@ -40,6 +41,9 @@ internal sealed class InMemorySkillScriptGrantStore : ISkillScriptGrantStore
         ArgumentNullException.ThrowIfNull(tenantId);
         ArgumentNullException.ThrowIfNull(skillName);
         ArgumentNullException.ThrowIfNull(scriptName);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        cancellationToken.ThrowIfCancellationRequested();
 
         // First look for a script-specific grant. If it does not exist, look for a
         // grant that covers the full skill. A narrow grant always wins over a broad grant.
@@ -64,6 +68,7 @@ internal sealed class InMemorySkillScriptGrantStore : ISkillScriptGrantStore
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(grant);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var stored = grant with
         {
@@ -86,6 +91,7 @@ internal sealed class InMemorySkillScriptGrantStore : ISkillScriptGrantStore
     {
         ArgumentNullException.ThrowIfNull(tenantId);
         ArgumentNullException.ThrowIfNull(skillName);
+        cancellationToken.ThrowIfCancellationRequested();
 
         return new ValueTask<bool>(_grants.TryRemove(new GrantKey(tenantId, skillName, scriptName), out _));
     }

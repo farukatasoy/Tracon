@@ -12,9 +12,9 @@ public abstract class TenantEgressPolicyStoreContract : TenantIsolationContract<
     private const string Tenant = "test";
 
     /// <inheritdoc />
-    protected override async ValueTask<object> SeedAsync(string tenantId, string name)
+    protected override async ValueTask<object> SeedAsync(string tenantId, string name, CancellationToken cancellationToken)
     {
-        await Store.UpsertAsync(tenantId, ["openai"]);
+        await Store.UpsertAsync(tenantId, ["openai"], cancellationToken);
 
         return tenantId;
     }
@@ -24,8 +24,8 @@ public abstract class TenantEgressPolicyStoreContract : TenantIsolationContract<
         => await Store.GetAsync(tenantId) is not null;
 
     /// <inheritdoc />
-    protected override async ValueTask<int> CountAsync(string tenantId)
-        => await Store.GetAsync(tenantId) is null ? 0 : 1;
+    protected override async ValueTask<int> CountAsync(string tenantId, CancellationToken cancellationToken)
+        => await Store.GetAsync(tenantId, cancellationToken) is null ? 0 : 1;
 
     /// <inheritdoc />
     protected override async ValueTask<bool?> TryDeleteAsync(string tenantId, object key)

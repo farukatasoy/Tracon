@@ -19,6 +19,7 @@ internal sealed class InMemoryTenantEgressPolicyStore : ITenantEgressPolicyStore
     public ValueTask<TenantEgressPolicy?> GetAsync(string tenantId, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
+        cancellationToken.ThrowIfCancellationRequested();
 
         _policies.TryGetValue(tenantId, out var policy);
         return ValueTask.FromResult(policy);
@@ -29,6 +30,7 @@ internal sealed class InMemoryTenantEgressPolicyStore : ITenantEgressPolicyStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentNullException.ThrowIfNull(allowedProviders);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var policy = new TenantEgressPolicy
         {
@@ -45,6 +47,7 @@ internal sealed class InMemoryTenantEgressPolicyStore : ITenantEgressPolicyStore
     public ValueTask<bool> DeleteAsync(string tenantId, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
+        cancellationToken.ThrowIfCancellationRequested();
 
         return ValueTask.FromResult(_policies.TryRemove(tenantId, out _));
     }

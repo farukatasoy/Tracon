@@ -10,6 +10,8 @@ internal sealed partial class InMemoryRunStore
     /// <inheritdoc />
     public ValueTask<RunRecord?> GetRunAsync(Guid runId, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         TryGetOwnedRun(runId, out var record);
 
         return new ValueTask<RunRecord?>(record is null ? null : WithTreeTotals(record));
@@ -46,6 +48,7 @@ internal sealed partial class InMemoryRunStore
     public ValueTask<IReadOnlyList<RunRecord>> QueryRunsAsync(RunQuery query, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(query);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var effectiveTenantId = query.TenantId ?? _tenantContext.TenantId;
 

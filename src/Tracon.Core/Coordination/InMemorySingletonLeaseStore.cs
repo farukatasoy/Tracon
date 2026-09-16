@@ -32,6 +32,7 @@ internal sealed class InMemorySingletonLeaseStore : ISingletonLeaseStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentException.ThrowIfNullOrWhiteSpace(ownerId);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var now = _clock.GetUtcNow();
         var expiresAt = now + duration;
@@ -59,6 +60,7 @@ internal sealed class InMemorySingletonLeaseStore : ISingletonLeaseStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentException.ThrowIfNullOrWhiteSpace(ownerId);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var expiresAt = _clock.GetUtcNow() + duration;
 
@@ -80,6 +82,7 @@ internal sealed class InMemorySingletonLeaseStore : ISingletonLeaseStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentException.ThrowIfNullOrWhiteSpace(ownerId);
+        cancellationToken.ThrowIfCancellationRequested();
 
         lock (_leases)
         {

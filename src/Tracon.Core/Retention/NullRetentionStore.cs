@@ -19,7 +19,11 @@ internal sealed class NullRetentionStore : IRetentionStore
         string? tenantId,
         DateTimeOffset cutoff,
         CancellationToken cancellationToken = default)
-        => new(0L);
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return new(0L);
+    }
 
     /// <inheritdoc />
     public ValueTask<IReadOnlyList<ArchiveRow>> ReadForArchiveAsync(
@@ -28,7 +32,11 @@ internal sealed class NullRetentionStore : IRetentionStore
         DateTimeOffset cutoff,
         int batchSize,
         CancellationToken cancellationToken = default)
-        => new((IReadOnlyList<ArchiveRow>)[]);
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return new((IReadOnlyList<ArchiveRow>)[]);
+    }
 
     /// <inheritdoc />
     public ValueTask<int> DeleteBatchAsync(
@@ -37,7 +45,11 @@ internal sealed class NullRetentionStore : IRetentionStore
         DateTimeOffset cutoff,
         int batchSize,
         CancellationToken cancellationToken = default)
-        => new(0);
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return new(0);
+    }
 
     /// <inheritdoc />
     public ValueTask<DateTimeOffset?> FindRowLimitCutoffAsync(
@@ -45,5 +57,9 @@ internal sealed class NullRetentionStore : IRetentionStore
         string? tenantId,
         long maxRows,
         CancellationToken cancellationToken = default)
-        => new((DateTimeOffset?)null);
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return new((DateTimeOffset?)null);
+    }
 }

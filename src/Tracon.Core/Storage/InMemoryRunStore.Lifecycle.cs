@@ -10,6 +10,7 @@ internal sealed partial class InMemoryRunStore
     public ValueTask<RunRecord> StartRunAsync(RunStartInfo info, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(info);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var record = new RunRecord
         {
@@ -74,6 +75,7 @@ internal sealed partial class InMemoryRunStore
     public ValueTask CompleteRunAsync(RunCompletion completion, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(completion);
+        cancellationToken.ThrowIfCancellationRequested();
 
         if (!_runs.TryGetValue(completion.RunId, out var existing))
         {
@@ -105,6 +107,8 @@ internal sealed partial class InMemoryRunStore
         string? tenantId = null,
         CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         // If the run was dropped (MaxRuns), the call is silently discarded:
         // this is a maintenance cost and must not interrupt the run.
         if (_runs.TryGetValue(runId, out var existing))
@@ -131,6 +135,7 @@ internal sealed partial class InMemoryRunStore
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(runIds);
+        cancellationToken.ThrowIfCancellationRequested();
 
         foreach (var runId in runIds)
         {
@@ -157,6 +162,8 @@ internal sealed partial class InMemoryRunStore
         int max,
         CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var now = DateTimeOffset.UtcNow;
 
         var candidates = _runs.Values

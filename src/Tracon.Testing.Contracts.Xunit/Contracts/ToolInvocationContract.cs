@@ -16,13 +16,13 @@ public abstract class ToolInvocationContract : TenantIsolationContract<IRunStore
     /// A tool invocation is attached to a run; isolation is established
     /// through the run's tenant.
     /// </remarks>
-    protected override async ValueTask<object> SeedAsync(string tenantId, string name)
+    protected override async ValueTask<object> SeedAsync(string tenantId, string name, CancellationToken cancellationToken)
     {
         AmbientTenant.TenantId = tenantId;
 
         var runId = TraconId.NewId();
-        await Store.StartRunAsync(TestData.Run(runId));
-        await Store.RecordToolInvocationAsync(Invocation(runId, name, TimeSpan.FromMilliseconds(12)));
+        await Store.StartRunAsync(TestData.Run(runId), cancellationToken);
+        await Store.RecordToolInvocationAsync(Invocation(runId, name, TimeSpan.FromMilliseconds(12)), cancellationToken);
 
         return runId;
     }
@@ -35,11 +35,29 @@ public abstract class ToolInvocationContract : TenantIsolationContract<IRunStore
     }
 
     /// <inheritdoc />
-    protected override async ValueTask<int> CountAsync(string tenantId)
+    protected override async ValueTask<int> CountAsync(string tenantId, CancellationToken cancellationToken)
     {
         AmbientTenant.TenantId = tenantId;
-        return (await Store.GetToolUsageAsync(new ToolUsageQuery())).Count;
+        return (await Store.GetToolUsageAsync(new ToolUsageQuery(), cancellationToken)).Count;
     }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// The run this contract's subject hangs off is opened first, with a live
+    /// token: the surface under test is the invocation record, not the run.
+    /// </remarks>
+    protected override async ValueTask CancellableWriteAsync(CancellationToken cancellationToken)
+    {
+        AmbientTenant.TenantId = TenantA;
+        await Store.StartRunAsync(TestData.Run(_cancellationRunId), CancellationToken.None);
+
+        await Store.RecordToolInvocationAsync(
+            Invocation(_cancellationRunId, "cancelled", TimeSpan.FromMilliseconds(12)),
+            cancellationToken);
+    }
+
+    // The run the cancellation write records its invocation against.
+    private readonly Guid _cancellationRunId = TraconId.NewId();
 
     [Fact]
     public async Task Invocation_fields_round_trip()

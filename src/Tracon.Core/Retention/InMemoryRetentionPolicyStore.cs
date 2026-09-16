@@ -21,6 +21,7 @@ internal sealed class InMemoryRetentionPolicyStore : IRetentionPolicyStore
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
+        cancellationToken.ThrowIfCancellationRequested();
 
         IReadOnlyList<RetentionPolicy> result = _policies.Values
             .Where(policy => Matches(policy.TenantId, tenantId))
@@ -38,6 +39,7 @@ internal sealed class InMemoryRetentionPolicyStore : IRetentionPolicyStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(target);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var tenantSpecific = Find(tenantId, target);
 
@@ -50,6 +52,7 @@ internal sealed class InMemoryRetentionPolicyStore : IRetentionPolicyStore
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(policy);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var existing = Find(policy.TenantId, policy.Target);
 
@@ -72,6 +75,7 @@ internal sealed class InMemoryRetentionPolicyStore : IRetentionPolicyStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(target);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var existing = Find(tenantId, target);
 
@@ -82,6 +86,7 @@ internal sealed class InMemoryRetentionPolicyStore : IRetentionPolicyStore
     public ValueTask<RetentionRun> CreateRunAsync(RetentionRun run, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(run);
+        cancellationToken.ThrowIfCancellationRequested();
 
         _runs[run.Id] = run;
 
@@ -95,6 +100,8 @@ internal sealed class InMemoryRetentionPolicyStore : IRetentionPolicyStore
         long archivedDelta,
         CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         if (_runs.TryGetValue(runId, out var run))
         {
             _runs[runId] = run with
@@ -114,6 +121,8 @@ internal sealed class InMemoryRetentionPolicyStore : IRetentionPolicyStore
         string? errorMessage,
         CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         if (_runs.TryGetValue(runId, out var run))
         {
             _runs[runId] = run with { CompletedAt = completedAt, Error = errorMessage };
@@ -131,6 +140,7 @@ internal sealed class InMemoryRetentionPolicyStore : IRetentionPolicyStore
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var matches = _runs.Values.Where(run => Matches(run.TenantId, tenantId));
 

@@ -14,16 +14,16 @@ namespace Tracon.Testing.Contracts.Storage;
 public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
 {
     /// <inheritdoc />
-    protected override async ValueTask<object> SeedAsync(string tenantId, string name)
-        => (await Store.EnqueueAsync(TestData.Job(tenantId), [name])).Id;
+    protected override async ValueTask<object> SeedAsync(string tenantId, string name, CancellationToken cancellationToken)
+        => (await Store.EnqueueAsync(TestData.Job(tenantId), [name], cancellationToken)).Id;
 
     /// <inheritdoc />
     protected override async ValueTask<bool> ExistsAsync(string tenantId, object key)
         => await Store.GetAsync(tenantId, (Guid)key) is not null;
 
     /// <inheritdoc />
-    protected override async ValueTask<int> CountAsync(string tenantId)
-        => (await Store.QueryAsync(new JobQuery { TenantId = tenantId })).Count;
+    protected override async ValueTask<int> CountAsync(string tenantId, CancellationToken cancellationToken)
+        => (await Store.QueryAsync(new JobQuery { TenantId = tenantId }, cancellationToken)).Count;
 
     /// <inheritdoc />
     /// <remarks>

@@ -13,10 +13,10 @@ namespace Tracon.Testing.Contracts.Storage;
 public abstract class VoiceSessionStoreContract : TenantIsolationContract<IVoiceSessionStore>
 {
     /// <inheritdoc />
-    protected override async ValueTask<object> SeedAsync(string tenantId, string name)
+    protected override async ValueTask<object> SeedAsync(string tenantId, string name, CancellationToken cancellationToken)
     {
         var record = Record() with { Id = TraconId.NewId(), TenantId = tenantId, SessionId = name };
-        await Store.SaveAsync(record);
+        await Store.SaveAsync(record, cancellationToken);
         return record.Id;
     }
 
@@ -25,8 +25,8 @@ public abstract class VoiceSessionStoreContract : TenantIsolationContract<IVoice
         => (await Store.QueryAsync(tenantId, new VoiceSessionQuery())).Any(record => record.Id == (Guid)key);
 
     /// <inheritdoc />
-    protected override async ValueTask<int> CountAsync(string tenantId)
-        => (await Store.QueryAsync(tenantId, new VoiceSessionQuery())).Count;
+    protected override async ValueTask<int> CountAsync(string tenantId, CancellationToken cancellationToken)
+        => (await Store.QueryAsync(tenantId, new VoiceSessionQuery(), cancellationToken)).Count;
 
     private const string Tenant = "test";
 

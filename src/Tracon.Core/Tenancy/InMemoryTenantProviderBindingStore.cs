@@ -20,6 +20,7 @@ internal sealed class InMemoryTenantProviderBindingStore : ITenantProviderBindin
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(providerName);
+        cancellationToken.ThrowIfCancellationRequested();
 
         _bindings.TryGetValue((tenantId, TenantProviderBinding.NormalizeProviderName(providerName)), out var binding);
         return ValueTask.FromResult(binding);
@@ -29,6 +30,7 @@ internal sealed class InMemoryTenantProviderBindingStore : ITenantProviderBindin
     public ValueTask<IReadOnlyList<TenantProviderBinding>> ListAsync(string tenantId, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
+        cancellationToken.ThrowIfCancellationRequested();
 
         IReadOnlyList<TenantProviderBinding> result = _bindings.Values
             .Where(binding => string.Equals(binding.TenantId, tenantId, StringComparison.Ordinal))
@@ -42,6 +44,7 @@ internal sealed class InMemoryTenantProviderBindingStore : ITenantProviderBindin
     public ValueTask UpsertAsync(TenantProviderBinding binding, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(binding);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var providerName = TenantProviderBinding.NormalizeProviderName(binding.ProviderName);
 
@@ -59,6 +62,7 @@ internal sealed class InMemoryTenantProviderBindingStore : ITenantProviderBindin
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(providerName);
+        cancellationToken.ThrowIfCancellationRequested();
 
         return ValueTask.FromResult(
             _bindings.TryRemove((tenantId, TenantProviderBinding.NormalizeProviderName(providerName)), out _));

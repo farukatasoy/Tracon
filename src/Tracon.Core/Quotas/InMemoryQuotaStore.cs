@@ -36,6 +36,7 @@ internal sealed class InMemoryQuotaStore : IQuotaStore
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
+        cancellationToken.ThrowIfCancellationRequested();
 
         IReadOnlyList<QuotaDefinition> result = _definitions.Values
             .Where(definition => string.Equals(definition.TenantId, tenantId, StringComparison.Ordinal))
@@ -53,6 +54,7 @@ internal sealed class InMemoryQuotaStore : IQuotaStore
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var found = _definitions.TryGetValue(id, out var definition)
                     && string.Equals(definition.TenantId, tenantId, StringComparison.Ordinal)
@@ -68,6 +70,7 @@ internal sealed class InMemoryQuotaStore : IQuotaStore
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(definition);
+        cancellationToken.ThrowIfCancellationRequested();
 
         // Scope uniqueness: if a rule exists for the same tenant, agent, and period,
         // preserve its identifier and overwrite it. PostgreSQL enforces the same rule
@@ -95,6 +98,7 @@ internal sealed class InMemoryQuotaStore : IQuotaStore
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
+        cancellationToken.ThrowIfCancellationRequested();
 
         if (!_definitions.TryGetValue(id, out var definition)
             || !string.Equals(definition.TenantId, tenantId, StringComparison.Ordinal))
@@ -111,6 +115,7 @@ internal sealed class InMemoryQuotaStore : IQuotaStore
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(query);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var matches = _usage.Values
             .Where(record => string.Equals(record.TenantId, query.TenantId, StringComparison.Ordinal));
@@ -143,6 +148,7 @@ internal sealed class InMemoryQuotaStore : IQuotaStore
     {
         ArgumentNullException.ThrowIfNull(consumption);
         ArgumentNullException.ThrowIfNull(periodStarts);
+        cancellationToken.ThrowIfCancellationRequested();
 
         foreach (var (period, periodStart) in periodStarts)
         {
@@ -199,6 +205,7 @@ internal sealed class InMemoryQuotaStore : IQuotaStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentNullException.ThrowIfNull(agentName);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var usageKey = new UsageKey(tenantId, agentName, period, periodStart);
 

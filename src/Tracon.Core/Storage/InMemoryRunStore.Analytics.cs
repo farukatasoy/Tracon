@@ -13,6 +13,7 @@ internal sealed partial class InMemoryRunStore
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(query);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var tenantId = query.TenantId ?? _tenantContext.TenantId;
         var perVariant = new Dictionary<string, VariantTally>(StringComparer.Ordinal);
@@ -70,6 +71,7 @@ internal sealed partial class InMemoryRunStore
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(query);
+        cancellationToken.ThrowIfCancellationRequested();
 
         RunTimeSeriesBucketing.Validate(query.From, query.To, query.Bucket);
 
@@ -133,6 +135,7 @@ internal sealed partial class InMemoryRunStore
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(query);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var perTool = new Dictionary<string, ToolTally>(StringComparer.Ordinal);
 

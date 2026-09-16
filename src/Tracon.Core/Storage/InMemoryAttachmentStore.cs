@@ -27,6 +27,7 @@ internal sealed class InMemoryAttachmentStore : IAttachmentStore
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(content);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var id = TraconId.NewId();
         var sha256 = Convert.ToHexString(SHA256.HashData(content.Data.Span));
@@ -71,6 +72,7 @@ internal sealed class InMemoryAttachmentStore : IAttachmentStore
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(tenantId);
+        cancellationToken.ThrowIfCancellationRequested();
 
         return new ValueTask<AttachmentDescriptor?>(
             _entries.TryGetValue(id, out var entry) && IsOwnedBy(entry, tenantId)
@@ -85,6 +87,7 @@ internal sealed class InMemoryAttachmentStore : IAttachmentStore
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(tenantId);
+        cancellationToken.ThrowIfCancellationRequested();
 
         if (!_entries.TryGetValue(id, out var entry) || !IsOwnedBy(entry, tenantId))
         {
@@ -105,6 +108,7 @@ internal sealed class InMemoryAttachmentStore : IAttachmentStore
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(query);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var results = _entries.Values
             .Select(static entry => entry.Descriptor)
@@ -126,6 +130,7 @@ internal sealed class InMemoryAttachmentStore : IAttachmentStore
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(tenantId);
+        cancellationToken.ThrowIfCancellationRequested();
 
         if (!_entries.TryGetValue(id, out var entry) || !IsOwnedBy(entry, tenantId))
         {
@@ -153,6 +158,7 @@ internal sealed class InMemoryAttachmentStore : IAttachmentStore
     {
         ArgumentNullException.ThrowIfNull(tenantId);
         ArgumentNullException.ThrowIfNull(sessionId);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var matches = _entries.Values
             .Select(static entry => entry.Descriptor)

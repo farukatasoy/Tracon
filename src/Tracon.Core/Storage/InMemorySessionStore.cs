@@ -36,6 +36,7 @@ internal sealed class InMemorySessionStore : ISessionStore
     public ValueTask SaveAsync(SessionRecord record, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(record);
+        cancellationToken.ThrowIfCancellationRequested();
 
         // SAME rule as the SQL implementation: if a record carries its own
         // tenant, that one wins (scheduled jobs may write on behalf of
@@ -78,6 +79,7 @@ internal sealed class InMemorySessionStore : ISessionStore
     public ValueTask<bool> TryCreateAsync(SessionRecord record, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(record);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var tenantId = record.TenantId ?? _tenantContext.TenantId;
 
@@ -98,6 +100,7 @@ internal sealed class InMemorySessionStore : ISessionStore
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(record);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var tenantId = record.TenantId ?? _tenantContext.TenantId;
         var key = (tenantId, record.Id);
@@ -124,6 +127,7 @@ internal sealed class InMemorySessionStore : ISessionStore
     public ValueTask<SessionRecord?> GetAsync(string sessionId, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(sessionId);
+        cancellationToken.ThrowIfCancellationRequested();
 
         _sessions.TryGetValue((_tenantContext.TenantId, sessionId), out var record);
         return new ValueTask<SessionRecord?>(record);
@@ -138,6 +142,7 @@ internal sealed class InMemorySessionStore : ISessionStore
     public ValueTask<string?> GetOwnerTenantIdAsync(string sessionId, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(sessionId);
+        cancellationToken.ThrowIfCancellationRequested();
 
         foreach (var key in _sessions.Keys)
         {
@@ -154,6 +159,8 @@ internal sealed class InMemorySessionStore : ISessionStore
     public ValueTask<bool> DeleteAsync(string sessionId, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(sessionId);
+        cancellationToken.ThrowIfCancellationRequested();
+
         return new ValueTask<bool>(_sessions.TryRemove((_tenantContext.TenantId, sessionId), out _));
     }
 
@@ -161,6 +168,7 @@ internal sealed class InMemorySessionStore : ISessionStore
     public ValueTask<IReadOnlyList<SessionRecord>> QueryAsync(SessionQuery query, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(query);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var matches = new List<SessionRecord>();
         var tenantId = query.TenantId ?? _tenantContext.TenantId;

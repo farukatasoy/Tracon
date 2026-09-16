@@ -27,12 +27,12 @@ namespace Tracon.Testing.Contracts.Storage;
 public abstract class AgentFileStoreContract : TenantIsolationContract<AgentFileStore>
 {
     /// <inheritdoc />
-    protected override async ValueTask<object> SeedAsync(string tenantId, string name)
+    protected override async ValueTask<object> SeedAsync(string tenantId, string name, CancellationToken cancellationToken)
     {
         Enter(tenantId);
 
         var path = $"/{name}.md";
-        await Store.WriteAsync(path, $"{tenantId} content");
+        await Store.WriteAsync(path, $"{tenantId} content", cancellationToken);
 
         return path;
     }
@@ -52,10 +52,10 @@ public abstract class AgentFileStoreContract : TenantIsolationContract<AgentFile
     }
 
     /// <inheritdoc />
-    protected override async ValueTask<int> CountAsync(string tenantId)
+    protected override async ValueTask<int> CountAsync(string tenantId, CancellationToken cancellationToken)
     {
         Enter(tenantId);
-        return (await Store.ListChildrenAsync("/")).Count;
+        return (await Store.ListChildrenAsync("/", cancellationToken)).Count;
     }
 
     /// <inheritdoc />

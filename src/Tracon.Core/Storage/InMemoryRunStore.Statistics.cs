@@ -14,6 +14,7 @@ internal sealed partial class InMemoryRunStore
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(query);
+        cancellationToken.ThrowIfCancellationRequested();
 
         long total = 0, completed = 0, failed = 0, canceled = 0, running = 0, awaitingInput = 0;
         long inputTokens = 0, outputTokens = 0, totalTokens = 0;

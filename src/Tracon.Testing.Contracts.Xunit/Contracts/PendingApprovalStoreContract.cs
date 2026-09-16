@@ -28,11 +28,11 @@ public abstract class PendingApprovalStoreContract : TenantIsolationContract<IPe
     protected virtual ValueTask PrepareRunAsync(Guid runId, string tenantId) => default;
 
     /// <inheritdoc />
-    protected override async ValueTask<object> SeedAsync(string tenantId, string name)
+    protected override async ValueTask<object> SeedAsync(string tenantId, string name, CancellationToken cancellationToken)
     {
         var approval = await ApprovalAsync(tenantId, name);
 
-        await Store.CreateAsync(approval);
+        await Store.CreateAsync(approval, cancellationToken);
 
         return approval.Id;
     }
@@ -46,11 +46,11 @@ public abstract class PendingApprovalStoreContract : TenantIsolationContract<IPe
     }
 
     /// <inheritdoc />
-    protected override async ValueTask<int> CountAsync(string tenantId)
+    protected override async ValueTask<int> CountAsync(string tenantId, CancellationToken cancellationToken)
     {
         AmbientTenant.TenantId = tenantId;
 
-        return (await Store.ListPendingAsync()).Count;
+        return (await Store.ListPendingAsync(cancellationToken)).Count;
     }
 
     /// <inheritdoc />

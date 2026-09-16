@@ -23,6 +23,7 @@ internal sealed class InMemoryApiKeyStore : IApiKeyStore
     public ValueTask<ApiKeyCreationResult> CreateAsync(ApiKeyDraft draft, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(draft);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var generated = ApiKeyGenerator.Generate(draft.TenantId);
         var record = new ApiKeyRecord
@@ -49,6 +50,7 @@ internal sealed class InMemoryApiKeyStore : IApiKeyStore
     public ValueTask<IReadOnlyList<ApiKeyRecord>> ListAsync(string tenantId, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
+        cancellationToken.ThrowIfCancellationRequested();
 
         IReadOnlyList<ApiKeyRecord> result = _keys.Values
             .Where(stored => string.Equals(stored.Record.TenantId, tenantId, StringComparison.Ordinal))
@@ -62,6 +64,8 @@ internal sealed class InMemoryApiKeyStore : IApiKeyStore
     /// <inheritdoc />
     public ValueTask<ApiKeyRecord?> FindByHashAsync(ReadOnlyMemory<byte> keyHash, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         foreach (var stored in _keys.Values)
         {
             if (stored.KeyHash.AsSpan().SequenceEqual(keyHash.Span))
@@ -77,6 +81,7 @@ internal sealed class InMemoryApiKeyStore : IApiKeyStore
     public ValueTask<bool> RevokeAsync(string tenantId, Guid id, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
+        cancellationToken.ThrowIfCancellationRequested();
 
         if (!_keys.TryGetValue(id, out var stored)
             || !string.Equals(stored.Record.TenantId, tenantId, StringComparison.Ordinal)
@@ -93,6 +98,8 @@ internal sealed class InMemoryApiKeyStore : IApiKeyStore
     /// <inheritdoc />
     public ValueTask TouchLastUsedAsync(Guid id, DateTimeOffset usedAt, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         if (_keys.TryGetValue(id, out var stored))
         {
             _keys[id] = stored with { Record = stored.Record with { LastUsedAt = usedAt } };
@@ -104,6 +111,8 @@ internal sealed class InMemoryApiKeyStore : IApiKeyStore
     /// <inheritdoc />
     public ValueTask<bool> HasActiveScopeAsync(ApiKeyScope scope, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var now = _timeProvider.GetUtcNow();
 
         var found = _keys.Values.Any(stored =>

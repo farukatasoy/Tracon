@@ -15,10 +15,10 @@ public abstract class SessionStoreContract : TenantIsolationContract<ISessionSto
     /// <see cref="ITenantContext"/>. That is why every hook sets the current
     /// tenant first.
     /// </remarks>
-    protected override async ValueTask<object> SeedAsync(string tenantId, string name)
+    protected override async ValueTask<object> SeedAsync(string tenantId, string name, CancellationToken cancellationToken)
     {
         AmbientTenant.TenantId = tenantId;
-        await Store.SaveAsync(TestData.Session(name));
+        await Store.SaveAsync(TestData.Session(name), cancellationToken);
         return name;
     }
 
@@ -30,10 +30,10 @@ public abstract class SessionStoreContract : TenantIsolationContract<ISessionSto
     }
 
     /// <inheritdoc />
-    protected override async ValueTask<int> CountAsync(string tenantId)
+    protected override async ValueTask<int> CountAsync(string tenantId, CancellationToken cancellationToken)
     {
         AmbientTenant.TenantId = tenantId;
-        return (await Store.QueryAsync(new SessionQuery())).Count;
+        return (await Store.QueryAsync(new SessionQuery(), cancellationToken)).Count;
     }
 
     /// <inheritdoc />

@@ -20,6 +20,7 @@ internal sealed class InMemoryWorkflowDefinitionStore : IWorkflowDefinitionStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        cancellationToken.ThrowIfCancellationRequested();
 
         _workflows.TryGetValue(new WorkflowKey(tenantId, name), out var definition);
 
@@ -32,6 +33,7 @@ internal sealed class InMemoryWorkflowDefinitionStore : IWorkflowDefinitionStore
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var definitions = _workflows
             .Where(pair => string.Equals(pair.Key.TenantId, tenantId, StringComparison.Ordinal))
@@ -50,6 +52,7 @@ internal sealed class InMemoryWorkflowDefinitionStore : IWorkflowDefinitionStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentNullException.ThrowIfNull(definition);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var saved = _workflows.AddOrUpdate(
             new WorkflowKey(tenantId, definition.Name),
@@ -68,6 +71,7 @@ internal sealed class InMemoryWorkflowDefinitionStore : IWorkflowDefinitionStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        cancellationToken.ThrowIfCancellationRequested();
 
         return new ValueTask<bool>(_workflows.TryRemove(new WorkflowKey(tenantId, name), out _));
     }
@@ -109,6 +113,7 @@ public sealed class InMemoryWorkflowCheckpointStore : IWorkflowCheckpointStore
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(record);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var list = _checkpoints.GetOrAdd(new SessionKey(record.TenantId, record.SessionId), static _ => []);
 
@@ -135,6 +140,9 @@ public sealed class InMemoryWorkflowCheckpointStore : IWorkflowCheckpointStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
         ArgumentException.ThrowIfNullOrWhiteSpace(checkpointId);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        cancellationToken.ThrowIfCancellationRequested();
 
         if (!_checkpoints.TryGetValue(new SessionKey(tenantId, sessionId), out var list))
         {
@@ -163,6 +171,7 @@ public sealed class InMemoryWorkflowCheckpointStore : IWorkflowCheckpointStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+        cancellationToken.ThrowIfCancellationRequested();
 
         if (!_checkpoints.TryGetValue(new SessionKey(tenantId, sessionId), out var list))
         {
@@ -182,6 +191,7 @@ public sealed class InMemoryWorkflowCheckpointStore : IWorkflowCheckpointStore
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var matches = new List<WorkflowCheckpointRecord>();
 
@@ -211,6 +221,7 @@ public sealed class InMemoryWorkflowCheckpointStore : IWorkflowCheckpointStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
+        cancellationToken.ThrowIfCancellationRequested();
 
         return new ValueTask<int>(
             _checkpoints.TryRemove(new SessionKey(tenantId, sessionId), out var removed) ? removed.Count : 0);

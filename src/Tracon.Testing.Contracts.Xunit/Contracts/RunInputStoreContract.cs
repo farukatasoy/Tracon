@@ -18,16 +18,12 @@ namespace Tracon.Testing.Contracts.Storage;
 /// <c>JsonException</c>. Neither the build nor the other tests catch this.
 /// </para>
 /// </remarks>
-public abstract class RunInputStoreContract : IAsyncLifetime
+public abstract class RunInputStoreContract : StoreCancellationContract<IRunInputStore>
 {
     private const string Tenant = "test";
 
-    /// <summary>The input store under test.</summary>
-    protected IRunInputStore Store { get; private set; } = null!;
-
-    /// <summary>Produces an empty input store for testing.</summary>
-    /// <returns>A store ready for use.</returns>
-    protected abstract ValueTask<IRunInputStore> CreateStoreAsync();
+    /// <summary>The run the cancellation contract writes an input for.</summary>
+    private readonly Guid _cancellationRunId = TraconId.NewId();
 
     /// <summary>
     /// Opens a run row at the given id before an input is written.
@@ -43,18 +39,22 @@ public abstract class RunInputStoreContract : IAsyncLifetime
     protected virtual ValueTask PrepareRunAsync(Guid runId, string tenantId) => default;
 
     /// <inheritdoc />
-    public async ValueTask InitializeAsync() => Store = await CreateStoreAsync();
+    protected override async ValueTask CancellableReadAsync(CancellationToken cancellationToken)
+        => await Store.GetAsync(Tenant, _cancellationRunId, cancellationToken);
 
     /// <inheritdoc />
-    public async ValueTask DisposeAsync()
+    protected override async ValueTask CancellableWriteAsync(CancellationToken cancellationToken)
     {
-        await OnDisposeAsync();
-        GC.SuppressFinalize(this);
+        await PrepareRunAsync(_cancellationRunId, Tenant);
+
+        await Store.SaveAsync(
+            Record(_cancellationRunId, [new ChatMessage(ChatRole.User, "cancelled")]),
+            cancellationToken);
     }
 
-    /// <summary>Hook for the derived class to release its own resources.</summary>
-    /// <returns>The completion task.</returns>
-    protected virtual ValueTask OnDisposeAsync() => default;
+    /// <inheritdoc />
+    protected override async ValueTask<bool> WroteAnythingAsync()
+        => await Store.GetAsync(Tenant, _cancellationRunId, CancellationToken.None) is not null;
 
     [Fact]
     public async Task Written_input_round_trips_exactly()

@@ -37,6 +37,7 @@ internal sealed class InMemoryAgentDefinitionStore : IAgentDefinitionStore
     public ValueTask<AgentDefinition?> GetAsync(string name, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(name);
+        cancellationToken.ThrowIfCancellationRequested();
 
         if (!_versions.TryGetValue(Key(name), out var history))
         {
@@ -53,6 +54,7 @@ internal sealed class InMemoryAgentDefinitionStore : IAgentDefinitionStore
     public ValueTask<AgentDefinition?> GetVersionAsync(string name, int version, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(name);
+        cancellationToken.ThrowIfCancellationRequested();
 
         if (!_versions.TryGetValue(Key(name), out var history))
         {
@@ -76,6 +78,8 @@ internal sealed class InMemoryAgentDefinitionStore : IAgentDefinitionStore
     /// <inheritdoc />
     public ValueTask<IReadOnlyList<AgentDefinition>> ListAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var tenantId = _tenantContext.TenantId;
         var current = new List<AgentDefinition>(_versions.Count);
 
@@ -103,6 +107,7 @@ internal sealed class InMemoryAgentDefinitionStore : IAgentDefinitionStore
     public ValueTask<AgentDefinition> SaveAsync(AgentDefinition definition, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(definition);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var tenantId = _tenantContext.TenantId;
         var history = _versions.GetOrAdd((tenantId, definition.Name), static _ => []);
@@ -126,6 +131,8 @@ internal sealed class InMemoryAgentDefinitionStore : IAgentDefinitionStore
     public ValueTask<bool> DeleteAsync(string name, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(name);
+        cancellationToken.ThrowIfCancellationRequested();
+
         return new ValueTask<bool>(_versions.TryRemove(Key(name), out _));
     }
 
@@ -133,6 +140,7 @@ internal sealed class InMemoryAgentDefinitionStore : IAgentDefinitionStore
     public ValueTask<IReadOnlyList<AgentDefinition>> ListVersionsAsync(string name, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(name);
+        cancellationToken.ThrowIfCancellationRequested();
 
         if (!_versions.TryGetValue(Key(name), out var history))
         {
@@ -151,6 +159,7 @@ internal sealed class InMemoryAgentDefinitionStore : IAgentDefinitionStore
     public ValueTask<AgentDefinition> RollbackAsync(string name, int version, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(name);
+        cancellationToken.ThrowIfCancellationRequested();
 
         if (!_versions.TryGetValue(Key(name), out var history))
         {

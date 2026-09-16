@@ -11,6 +11,7 @@ internal sealed partial class InMemoryRunStore
     public ValueTask AppendEventAsync(RunEvent runEvent, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(runEvent);
+        cancellationToken.ThrowIfCancellationRequested();
 
         if (!_events.TryGetValue(runEvent.RunId, out var log))
         {
@@ -52,6 +53,7 @@ internal sealed partial class InMemoryRunStore
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(invocation);
+        cancellationToken.ThrowIfCancellationRequested();
 
         // EXPECTED tenant check (K-355).
         EnsureExpectedTenant(invocation.RunId, invocation.TenantId, "The tool invocation was not written.");
@@ -74,6 +76,8 @@ internal sealed partial class InMemoryRunStore
         Guid runId,
         CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         if (!IsOwnedByCurrentTenant(runId) || !_toolInvocations.TryGetValue(runId, out var log))
         {
             return new ValueTask<IReadOnlyList<ToolInvocationRecord>>([]);
@@ -97,6 +101,8 @@ internal sealed partial class InMemoryRunStore
         long fromSequence = 0,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         if (!IsOwnedByCurrentTenant(runId) || !_events.TryGetValue(runId, out var log))
         {
             yield break;

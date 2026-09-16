@@ -11,16 +11,16 @@ namespace Tracon.Testing.Contracts.Storage;
 public abstract class ToolApprovalRuleStoreContract : TenantIsolationContract<IToolApprovalRuleStore>
 {
     /// <inheritdoc />
-    protected override async ValueTask<object> SeedAsync(string tenantId, string name)
-        => (await Store.AddAsync(Rule(tenantId, name))).Id;
+    protected override async ValueTask<object> SeedAsync(string tenantId, string name, CancellationToken cancellationToken)
+        => (await Store.AddAsync(Rule(tenantId, name), cancellationToken)).Id;
 
     /// <inheritdoc />
     protected override async ValueTask<bool> ExistsAsync(string tenantId, object key)
         => (await Store.ListAsync(tenantId)).Any(rule => rule.Id == (Guid)key);
 
     /// <inheritdoc />
-    protected override async ValueTask<int> CountAsync(string tenantId)
-        => (await Store.ListAsync(tenantId)).Count;
+    protected override async ValueTask<int> CountAsync(string tenantId, CancellationToken cancellationToken)
+        => (await Store.ListAsync(tenantId, cancellationToken)).Count;
 
     /// <inheritdoc />
     protected override async ValueTask<bool?> TryDeleteAsync(string tenantId, object key)
@@ -162,9 +162,9 @@ public abstract class ToolApprovalRuleStoreContract : TenantIsolationContract<IT
 public abstract class McpServerStoreContract : TenantIsolationContract<IMcpServerStore>
 {
     /// <inheritdoc />
-    protected override async ValueTask<object> SeedAsync(string tenantId, string name)
+    protected override async ValueTask<object> SeedAsync(string tenantId, string name, CancellationToken cancellationToken)
     {
-        await Store.SaveAsync(Server(tenantId, name));
+        await Store.SaveAsync(Server(tenantId, name), cancellationToken);
         return name;
     }
 
@@ -173,8 +173,8 @@ public abstract class McpServerStoreContract : TenantIsolationContract<IMcpServe
         => await Store.GetAsync(tenantId, (string)key) is not null;
 
     /// <inheritdoc />
-    protected override async ValueTask<int> CountAsync(string tenantId)
-        => (await Store.ListAsync(tenantId)).Count;
+    protected override async ValueTask<int> CountAsync(string tenantId, CancellationToken cancellationToken)
+        => (await Store.ListAsync(tenantId, cancellationToken)).Count;
 
     /// <inheritdoc />
     protected override async ValueTask<bool?> TryDeleteAsync(string tenantId, object key)

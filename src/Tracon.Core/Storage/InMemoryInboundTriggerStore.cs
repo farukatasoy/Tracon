@@ -17,6 +17,7 @@ internal sealed class InMemoryInboundTriggerStore : IInboundTriggerStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        cancellationToken.ThrowIfCancellationRequested();
 
         return new ValueTask<InboundTrigger?>(Find(tenantId, name));
     }
@@ -25,6 +26,7 @@ internal sealed class InMemoryInboundTriggerStore : IInboundTriggerStore
     public ValueTask<IReadOnlyList<InboundTrigger>> ListAsync(string tenantId, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var matches = _triggers.Values
             .Where(trigger => string.Equals(trigger.TenantId, tenantId, StringComparison.Ordinal))
@@ -38,6 +40,7 @@ internal sealed class InMemoryInboundTriggerStore : IInboundTriggerStore
     public ValueTask<InboundTrigger> UpsertAsync(InboundTrigger trigger, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(trigger);
+        cancellationToken.ThrowIfCancellationRequested();
 
         lock (_triggers)
         {
@@ -60,6 +63,7 @@ internal sealed class InMemoryInboundTriggerStore : IInboundTriggerStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        cancellationToken.ThrowIfCancellationRequested();
 
         lock (_triggers)
         {

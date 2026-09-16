@@ -20,6 +20,7 @@ internal sealed class InMemoryToolApprovalRuleStore : IToolApprovalRuleStore
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var matches = _rules.Values
             .Where(rule => string.Equals(rule.TenantId, tenantId, StringComparison.Ordinal))
@@ -35,6 +36,7 @@ internal sealed class InMemoryToolApprovalRuleStore : IToolApprovalRuleStore
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(rule);
+        cancellationToken.ThrowIfCancellationRequested();
 
         foreach (var existing in _rules.Values)
         {
@@ -56,6 +58,7 @@ internal sealed class InMemoryToolApprovalRuleStore : IToolApprovalRuleStore
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
+        cancellationToken.ThrowIfCancellationRequested();
 
         // Apply tenant validation to deletion too. An identifier guess must not let
         // a tenant delete another tenant's rule.
@@ -128,6 +131,7 @@ internal sealed class InMemoryMcpServerStore : IMcpServerStore
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var matches = _servers.Values
             .Where(server => string.Equals(server.TenantId, tenantId, StringComparison.Ordinal))
@@ -145,6 +149,7 @@ internal sealed class InMemoryMcpServerStore : IMcpServerStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        cancellationToken.ThrowIfCancellationRequested();
 
         _servers.TryGetValue(Key(tenantId, name), out var server);
 
@@ -157,6 +162,7 @@ internal sealed class InMemoryMcpServerStore : IMcpServerStore
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(server);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var key = Key(server.TenantId, server.Name);
         var now = DateTimeOffset.UtcNow;
@@ -183,6 +189,7 @@ internal sealed class InMemoryMcpServerStore : IMcpServerStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        cancellationToken.ThrowIfCancellationRequested();
 
         return new ValueTask<bool>(_servers.TryRemove(Key(tenantId, name), out _));
     }
@@ -200,9 +207,13 @@ internal sealed class InMemoryTenantStore : ITenantStore
 
     /// <inheritdoc />
     public ValueTask<IReadOnlyList<TenantDescriptor>> ListAsync(CancellationToken cancellationToken = default)
-        => new(_tenants.Values
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return new(_tenants.Values
             .OrderBy(static tenant => tenant.Slug, StringComparer.Ordinal)
             .ToList());
+    }
 
     /// <inheritdoc />
     public ValueTask<TenantDescriptor> SaveAsync(
@@ -210,6 +221,7 @@ internal sealed class InMemoryTenantStore : ITenantStore
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(tenant);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var saved = _tenants.TryGetValue(tenant.Slug, out var existing)
             ? tenant with { Id = existing.Id, CreatedAt = existing.CreatedAt }
@@ -228,6 +240,7 @@ internal sealed class InMemoryTenantStore : ITenantStore
     public ValueTask<bool> DeleteAsync(string slug, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(slug);
+        cancellationToken.ThrowIfCancellationRequested();
 
         return new ValueTask<bool>(_tenants.TryRemove(slug, out _));
     }

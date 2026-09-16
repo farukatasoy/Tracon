@@ -17,6 +17,7 @@ internal sealed class InMemoryExperimentStore : IExperimentStore
     public ValueTask<IReadOnlyList<Experiment>> ListAsync(string tenantId, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(tenantId);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var result = _experiments.Values
             .Where(experiment => string.Equals(experiment.TenantId, tenantId, StringComparison.Ordinal))
@@ -31,6 +32,7 @@ internal sealed class InMemoryExperimentStore : IExperimentStore
     {
         ArgumentNullException.ThrowIfNull(tenantId);
         ArgumentNullException.ThrowIfNull(name);
+        cancellationToken.ThrowIfCancellationRequested();
 
         _experiments.TryGetValue((tenantId, name), out var experiment);
         return new ValueTask<Experiment?>(experiment);
@@ -41,6 +43,7 @@ internal sealed class InMemoryExperimentStore : IExperimentStore
     {
         ArgumentNullException.ThrowIfNull(tenantId);
         ArgumentNullException.ThrowIfNull(agentName);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var running = _experiments.Values.FirstOrDefault(experiment =>
             experiment.Status == ExperimentStatus.Running
@@ -54,6 +57,7 @@ internal sealed class InMemoryExperimentStore : IExperimentStore
     public ValueTask<Experiment> SaveAsync(Experiment experiment, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(experiment);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var key = (experiment.TenantId, experiment.Name);
 
@@ -80,6 +84,7 @@ internal sealed class InMemoryExperimentStore : IExperimentStore
     {
         ArgumentNullException.ThrowIfNull(tenantId);
         ArgumentNullException.ThrowIfNull(name);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var key = (tenantId, name);
 
@@ -96,6 +101,7 @@ internal sealed class InMemoryExperimentStore : IExperimentStore
     {
         ArgumentNullException.ThrowIfNull(tenantId);
         ArgumentNullException.ThrowIfNull(name);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var key = (tenantId, name);
 
@@ -138,6 +144,7 @@ internal sealed class InMemoryExperimentStore : IExperimentStore
     {
         ArgumentNullException.ThrowIfNull(tenantId);
         ArgumentNullException.ThrowIfNull(name);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var key = (tenantId, name);
 
@@ -167,6 +174,8 @@ internal sealed class InMemoryExperimentStore : IExperimentStore
     /// <inheritdoc />
     public ValueTask<IReadOnlyList<Experiment>> ListRunningWithCanaryAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var result = _experiments.Values
             .Where(static experiment => experiment.Status == ExperimentStatus.Running && experiment.Canary is not null)
             .ToList();
@@ -183,6 +192,7 @@ internal sealed class InMemoryExperimentStore : IExperimentStore
     {
         ArgumentNullException.ThrowIfNull(tenantId);
         ArgumentNullException.ThrowIfNull(name);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var key = (tenantId, name);
 
@@ -207,7 +217,11 @@ internal sealed class InMemoryExperimentStore : IExperimentStore
         string name,
         IReadOnlyList<ExperimentVariant> variants,
         CancellationToken cancellationToken = default)
-        => ApplyCanaryVariantsAsync(tenantId, name, variants, stop: false, reason: null);
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return ApplyCanaryVariantsAsync(tenantId, name, variants, stop: false, reason: null);
+    }
 
     /// <inheritdoc />
     public ValueTask<Experiment> RollbackCanaryAsync(
@@ -218,6 +232,7 @@ internal sealed class InMemoryExperimentStore : IExperimentStore
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(reason);
+        cancellationToken.ThrowIfCancellationRequested();
 
         return ApplyCanaryVariantsAsync(tenantId, name, variants, stop: true, reason: reason);
     }

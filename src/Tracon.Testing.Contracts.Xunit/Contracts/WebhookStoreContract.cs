@@ -11,12 +11,12 @@ namespace Tracon.Testing.Contracts.Storage;
 public abstract class WebhookStoreContract : TenantIsolationContract<IWebhookStore>
 {
     /// <inheritdoc />
-    protected override async ValueTask<object> SeedAsync(string tenantId, string name)
+    protected override async ValueTask<object> SeedAsync(string tenantId, string name, CancellationToken cancellationToken)
     {
         var subscription = await Store.SaveSubscriptionAsync(
-            Subscription(name) with { Id = Guid.NewGuid(), TenantId = tenantId });
+            Subscription(name) with { Id = Guid.NewGuid(), TenantId = tenantId }, cancellationToken);
 
-        await Store.CreateDeliveryAsync(Delivery(subscription.Id) with { TenantId = tenantId });
+        await Store.CreateDeliveryAsync(Delivery(subscription.Id) with { TenantId = tenantId }, cancellationToken);
 
         return name;
     }
@@ -35,10 +35,10 @@ public abstract class WebhookStoreContract : TenantIsolationContract<IWebhookSto
     }
 
     /// <inheritdoc />
-    protected override async ValueTask<int> CountAsync(string tenantId)
+    protected override async ValueTask<int> CountAsync(string tenantId, CancellationToken cancellationToken)
     {
-        var deliveries = await Store.QueryDeliveriesAsync(new WebhookDeliveryQuery { TenantId = tenantId });
-        var subscriptions = await Store.ListSubscriptionsAsync(tenantId);
+        var deliveries = await Store.QueryDeliveriesAsync(new WebhookDeliveryQuery { TenantId = tenantId }, cancellationToken);
+        var subscriptions = await Store.ListSubscriptionsAsync(tenantId, cancellationToken);
 
         // Delivery history must also respect the same tenant boundary as the subscription.
         deliveries.Count.ShouldBe(subscriptions.Count);

@@ -97,6 +97,30 @@ tekrarlanmalı — ve `.editorconfig`'in `[tests/**/*.cs]` bölümü (CA1707 alt
   erisemez — o tip `Microsoft.Extensions.AI`'dedir). Bu kendi basina bir
   bulgudur: en olasi hatayi yapmak yapisal olarak zordur. Paket bilerek
   eklendiginde senaryo uc turetilmis sinifta birden dustu.
+- **🚨 Ortak gövdeyi tek yere indirmek deseni tekduze yapar ama HOOK'UN DOGRU
+  BAGLANDIGINI kanitlamaz** (2026-09-16, Faz 177 — bagimsiz denetim iki `🔴`
+  buldu, ikisi de tautolojiydi). Uc vaka, hepsi yesildi ve hicbir sey
+  kanitlamiyordu: (1) `TraceStoreContract.CountAsync` seed'lenen run'lar
+  uzerinde donuyordu — sozlesme **dokunulmamis** store'da kostugu icin token
+  store'a hic ulasmadi; (2) ayni hook listeye yazmadan SONRA ekliyordu, yani
+  geri okuma iptal edilen yazmayi hicbir kosulda goremezdi;
+  (3) `WorkflowCheckpointStoreContract.CountAsync` iki sabit `sessionId`'e
+  sabitlenmisti, yazma ucuncusune gidiyordu. Kural: her geri okuma iddiasinin
+  yanina **kapisini** koy — canli token'la ayni hook ciftini kosturup okumanin
+  yazilani gercekten gordugunu iste
+  (`StoreCancellationContract.The_write_this_contract_checks_can_be_read_back`).
+  Taban bu yuzden hook'lari `sealed` DEGIL `override` birakir.
+- **Sozlesme ailesinin sayisi DOSYA ADINDAN okunmaz** (Faz 177):
+  `*StoreContract.cs` saymak 28 verdi, gercek aile **32**'dir (adinda `Store`
+  gecmeyen sozlesmeler, baska dosyanin icinde yasayan bir sinif, generic
+  tabanin sayima karismasi). Tek kaynak `ContractCoverage.ContractTypes`.
+- **🚨 Sevk edilen bir sozlesmeyi buyutmenin bedeli `samples/` altinda olculur.**
+  `samples/Tracon.Samples.*` **hicbir cozum dosyasinda degildir**; `dotnet test
+  Tracon.slnx` onlari kosturamaz ve kapanis kapisi yesil gorunur. Faz 177'de
+  `Tracon.Samples.FileRunStore` yeni iptal case'lerinde dustu (`QueryRunsAsync`
+  token'i okumuyordu) — ayni sinif Faz 132'de de yasandi (BL-053). Sozlesmeye
+  case ekleyen faz `python3 scripts/kapi.py yayin --kuru` kosar; **prova temiz
+  bir calisma agaci ister**, yani commit'ten SONRA.
 - **Yeni bir `samples/*.Tests` projesi `tests/**` gevsemelerini ALMAZ.**
   `.editorconfig`'in `[tests/**/*.cs]` bolumu path'e bakar; `samples/` altindaki
   bir test projesi CA1707 (snake_case test adi) ve xUnit1051'e takilir.

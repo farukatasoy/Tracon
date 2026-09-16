@@ -44,6 +44,7 @@ internal sealed class InMemoryJobStore : IJobStore
     {
         ArgumentNullException.ThrowIfNull(job);
         ArgumentNullException.ThrowIfNull(items);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var lane = JobLanes.Resolve(job.Lane, job.HandlerKey, _schedulingOptions?.CurrentValue.LaneByHandlerKey);
 
@@ -90,6 +91,7 @@ internal sealed class InMemoryJobStore : IJobStore
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(owner);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var now = _clock.GetUtcNow();
 
@@ -153,6 +155,7 @@ internal sealed class InMemoryJobStore : IJobStore
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(owner);
+        cancellationToken.ThrowIfCancellationRequested();
 
         lock (_jobs)
         {
@@ -169,6 +172,7 @@ internal sealed class InMemoryJobStore : IJobStore
     public ValueTask<bool> MarkRunningAsync(Guid jobId, string owner, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(owner);
+        cancellationToken.ThrowIfCancellationRequested();
 
         lock (_jobs)
         {
@@ -188,6 +192,7 @@ internal sealed class InMemoryJobStore : IJobStore
     public ValueTask CompleteAsync(JobCompletion completion, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(completion);
+        cancellationToken.ThrowIfCancellationRequested();
 
         lock (_jobs)
         {
@@ -214,6 +219,8 @@ internal sealed class InMemoryJobStore : IJobStore
         TimeSpan? retryAfter = null,
         CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         lock (_jobs)
         {
             if (_jobs.TryGetValue(jobId, out var job))
@@ -242,6 +249,7 @@ internal sealed class InMemoryJobStore : IJobStore
     public ValueTask<bool> CancelAsync(string tenantId, Guid jobId, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
+        cancellationToken.ThrowIfCancellationRequested();
 
         lock (_jobs)
         {
@@ -272,6 +280,7 @@ internal sealed class InMemoryJobStore : IJobStore
     public ValueTask<JobRecord?> GetAsync(string tenantId, Guid jobId, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
+        cancellationToken.ThrowIfCancellationRequested();
 
         if (_jobs.TryGetValue(jobId, out var job) && string.Equals(job.TenantId, tenantId, StringComparison.Ordinal))
         {
@@ -285,6 +294,7 @@ internal sealed class InMemoryJobStore : IJobStore
     public ValueTask<IReadOnlyList<JobRecord>> QueryAsync(JobQuery query, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(query);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var matches = new List<JobRecord>();
 
@@ -329,6 +339,8 @@ internal sealed class InMemoryJobStore : IJobStore
     /// <inheritdoc />
     public ValueTask<IReadOnlyList<JobItemRecord>> ListItemsAsync(Guid jobId, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         if (!_items.TryGetValue(jobId, out var log))
         {
             return new ValueTask<IReadOnlyList<JobItemRecord>>([]);
@@ -350,6 +362,7 @@ internal sealed class InMemoryJobStore : IJobStore
     public ValueTask ReportItemAsync(JobItemResult item, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(item);
+        cancellationToken.ThrowIfCancellationRequested();
 
         if (!_items.TryGetValue(item.JobId, out var log))
         {
@@ -405,6 +418,8 @@ internal sealed class InMemoryJobStore : IJobStore
     /// </remarks>
     public ValueTask<IReadOnlyList<JobQueueDepth>> GetQueueDepthAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var counts = new Dictionary<(string Lane, JobStatus Status), long>();
 
         foreach (var job in _jobs.Values)

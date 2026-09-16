@@ -90,6 +90,15 @@ the process that owns the run. A model call that simply never came back is
 timeout as a `TaskCanceledException`. The distinction matters when you alert on
 these: cancellations are user behaviour, timeouts are an outage.
 
+A cancelled run is still a **recorded** run: the record and the events written
+before the stop stay readable, and the ending is `Canceled` rather than a gap.
+What cancellation does prevent is a half-written row after it. Every store
+Tracon ships — and every store a contract suite passes — throws
+`OperationCanceledException` from a call whose token was already cancelled and
+writes nothing at all, so a cancelled run never leaves a partial record behind.
+[Write your own store](/guides/write-your-own-store/#cancellation-the-one-promise-every-store-makes)
+has the rule in full for a custom implementation.
+
 ```bash
 curl -N http://localhost:5081/tracon/api/runs/{runId}/events
 ```

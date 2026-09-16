@@ -14,13 +14,13 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     /// The tenant is not a parameter on the interface; it is read from
     /// <see cref="ITenantContext"/>. Each hook therefore sets the current tenant first.
     /// </remarks>
-    protected override async ValueTask<object> SeedAsync(string tenantId, string name)
+    protected override async ValueTask<object> SeedAsync(string tenantId, string name, CancellationToken cancellationToken)
     {
         AmbientTenant.TenantId = tenantId;
 
         var runId = TraconId.NewId();
-        await Store.StartRunAsync(TestData.Run(runId, name));
-        await Store.AppendEventAsync(TestData.Event(runId, 0));
+        await Store.StartRunAsync(TestData.Run(runId, name), cancellationToken);
+        await Store.AppendEventAsync(TestData.Event(runId, 0), cancellationToken);
 
         return runId;
     }
@@ -49,10 +49,10 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
     }
 
     /// <inheritdoc />
-    protected override async ValueTask<int> CountAsync(string tenantId)
+    protected override async ValueTask<int> CountAsync(string tenantId, CancellationToken cancellationToken)
     {
         AmbientTenant.TenantId = tenantId;
-        return (await Store.QueryRunsAsync(new RunQuery())).Count;
+        return (await Store.QueryRunsAsync(new RunQuery(), cancellationToken)).Count;
     }
 
     /// <summary>
@@ -147,6 +147,25 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         }
 
         sequences.ShouldBe([0]);
+    }
+
+    [Fact]
+    public async Task Canceled_token_throws_on_the_first_step_of_the_event_stream()
+    {
+        using var source = new CancellationTokenSource();
+        await source.CancelAsync();
+
+        // 🚨 A stream is lazy: the body of the iterator does not run until the
+        // first step. The promise is that this FIRST step throws -- on a run
+        // with no events as much as on a full one, which is the case an
+        // implementation that only checks the token between yields misses.
+        await Should.ThrowAsync<OperationCanceledException>(async () =>
+        {
+            await foreach (var runEvent in Store.ReadEventsAsync(TraconId.NewId(), cancellationToken: source.Token))
+            {
+                _ = runEvent;
+            }
+        });
     }
 
     [Fact]

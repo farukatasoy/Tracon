@@ -10,9 +10,9 @@ namespace Tracon.Testing.Contracts.Storage;
 public abstract class ExperimentStoreContract : TenantIsolationContract<IExperimentStore>
 {
     /// <inheritdoc />
-    protected override async ValueTask<object> SeedAsync(string tenantId, string name)
+    protected override async ValueTask<object> SeedAsync(string tenantId, string name, CancellationToken cancellationToken)
     {
-        await Store.SaveAsync(Experiment(name, tenantId));
+        await Store.SaveAsync(Experiment(name, tenantId), cancellationToken);
         return name;
     }
 
@@ -21,8 +21,8 @@ public abstract class ExperimentStoreContract : TenantIsolationContract<IExperim
         => await Store.GetAsync(tenantId, (string)key) is not null;
 
     /// <inheritdoc />
-    protected override async ValueTask<int> CountAsync(string tenantId)
-        => (await Store.ListAsync(tenantId)).Count;
+    protected override async ValueTask<int> CountAsync(string tenantId, CancellationToken cancellationToken)
+        => (await Store.ListAsync(tenantId, cancellationToken)).Count;
 
     /// <inheritdoc />
     protected override async ValueTask<bool?> TryDeleteAsync(string tenantId, object key)
