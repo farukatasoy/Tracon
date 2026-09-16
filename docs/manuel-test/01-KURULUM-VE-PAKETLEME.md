@@ -1747,8 +1747,13 @@ mkdir -p ~/tracon-local-feed
 rm -f ~/tracon-local-feed/*.nupkg
 cp /tmp/ap-pack/*.nupkg ~/tracon-local-feed/
 
-dotnet nuget list source | grep tracon-local \
-  || dotnet nuget add source ~/tracon-local-feed -n tracon-local
+# 🚨 REPO KOKUNDEN KOSMA. `dotnet nuget add source` en yakin NuGet.config'e
+# yazar; repo icinden kosulursa repo'nun NuGet.config'ini DEGISTIRIR (ve BOM
+# ekler) - 00-INDEKS.md 2.3 bunu yasaklar. Olculdu: 2026-09-16.
+# Repo'nun <clear /> kurali kullanici kaynaklarini zaten bastirir, yani bu
+# kaynak yalniz repo DISINDAKI tuketici projeleri icin gorunur olmalidir.
+(cd ~ && dotnet nuget list source | grep tracon-local \
+  || dotnet nuget add source ~/tracon-local-feed -n tracon-local)
 
 dotnet new install Tracon.Templates::*-* --add-source ~/tracon-local-feed
 dotnet new list tracon
