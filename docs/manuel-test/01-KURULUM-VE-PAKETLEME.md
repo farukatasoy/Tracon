@@ -2720,8 +2720,11 @@ Zorlanan sürüm için `CHANGELOG.md`'de `## [<sürüm>]` başlığı yoksa kap�
 sıfır olmayan çıkış verir — notsuz bir `v*` etiketi NuGet.org'a gidemez.
 
 **Ön koşul**
-- `CHANGELOG.md`'deki `## [1.0.0-preview.1] - 2026-08-28` satırı geçici olarak
-  başka bir sürüm numarasına değiştirilir (ör. `1.0.0-preview.9999`).
+- Hedef sürüm için `CHANGELOG.md`'de `## [<sürüm>]` başlığı **bulunmamalıdır**.
+  Bugün taban çizgisi zaten böyledir: dosya yalnız `## [Unreleased]` taşır ve
+  "ilk gerçek yayın kendi bölümünü alır" der. Dosyada bir sürüm bölümü varsa
+  geçici olarak başka bir numaraya çevrilir (ör. `1.0.0-preview.9999`),
+  yoksa adım no-op'tur.
 
 **Adımlar**
 1. Başlığı geçici değiştir.
@@ -2899,8 +2902,16 @@ cd docs-site && npm run build && npm run preview
 ```
 
 **Beklenen sonuç**
-- Sayfada "Release notes" başlığı ve kök `CHANGELOG.md`'ye giden bir bağlantı görünür.
-- Bağlantı GitHub'da `CHANGELOG.md`'yi açar (repo public olduğunda; private iken 404 kabul edilir — kapı URL'in şeklini doğrular, erişilebilirliğini değil).
+- Sayfada "Release notes" başlığı ve site içi `/reference/changelog/` sayfasına
+  giden bir bağlantı görünür.
+- Bağlantı o sayfayı açar (200, başlık "Release notes | Tracon"). Sayfa elle
+  yazılmaz: `docs-site/scripts/build-changelog.mjs` onu kök `CHANGELOG.md`'den
+  `prebuild` adımında üretir, yani tek kaynak yine kök dosyadır.
+- 🚨 Hedef **GitHub değildir** ve olmamalıdır: repo private olduğu için blob
+  URL'i repo dışındaki herkese 404 döner; site notları taşıyabilen tek public
+  yüzeydir (`build-changelog.mjs` başlık yorumu).
+- Hiç yayınlanmış sürüm yokken sayfa bunu açıkça söyler ve olmayan bir sürümü
+  adlandırmaz.
 
 ---
 
