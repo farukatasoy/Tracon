@@ -2,8 +2,8 @@
 
 > **Durum:** ✅ Tamamlandı (2026-09-16)
 > **Plan onayı:** onaylandı (kullanıcı, 2026-09-16) — açık soruların dördü de öneri yönünde kapatıldı
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-213**
-> **Önkoşul:** [Faz 152](arsiv/fazlar/152-SKORUN-ADI-VE-SEKLI.md) — case'i bilerek dışarıda bıraktı; gerekçesi o fazın "Plandan Sapmalar" sapma 3'tedir
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-213**
+> **Önkoşul:** [Faz 152](152-SKORUN-ADI-VE-SEKLI.md) — case'i bilerek dışarıda bıraktı; gerekçesi o fazın "Plandan Sapmalar" sapma 3'tedir
 > **Paketler:** `Tracon.Testing.Contracts.Xunit`, `Tracon.Core`, (üç SQL sağlayıcısı doğrulanır, değişmesi beklenmez)
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** büyüyor — sevk edilen **sözleşme** büyür. Faz 7'den **önce** ucuz, sonra **kırıcı**
@@ -26,19 +26,19 @@
    yüzey büyüten kalem Faz 7'den önce ucuzdur), **K-483** (elle tekrarlanan
    ifade bir kusur **sınıfı** üretir — 56 case elle yazılırsa bu kural devreye
    girer, §177.3)
-3. [Faz 152](arsiv/fazlar/152-SKORUN-ADI-VE-SEKLI.md) — yalnız "Plandan
+3. [Faz 152](152-SKORUN-ADI-VE-SEKLI.md) — yalnız "Plandan
    Sapmalar" sapma 3:
    ```bash
    awk '/## Plandan Sapmalar/,/## Bu Fazda/' docs/arsiv/fazlar/152-SKORUN-ADI-VE-SEKLI.md
    ```
    Case'in **neden** dışarıda bırakıldığını bilmeden aynı gerekçe tekrar üretilir.
 4. Alan hafızası (bu faz iki alana dokunuyor):
-   [`hafiza/sql-saglayicilari.md`](hafiza/sql-saglayicilari.md) (sağlayıcı
-   davranış farkları) · [`hafiza/test-altyapisi.md`](hafiza/test-altyapisi.md)
+   [`hafiza/sql-saglayicilari.md`](../../hafiza/sql-saglayicilari.md) (sağlayıcı
+   davranış farkları) · [`hafiza/test-altyapisi.md`](../../hafiza/test-altyapisi.md)
    (sözleşme paketinin koşum yolu) ·
-   [`ortak/test-seviyeleri.md`](../.agents/ortak/test-seviyeleri.md) (sözleşme
+   [`ortak/test-seviyeleri.md`](../../../.agents/ortak/test-seviyeleri.md) (sözleşme
    seviyesi tanımı)
-5. Gerektiğinde: [`RunScoreStoreContract.cs:682-691`](../src/Tracon.Testing.Contracts.Xunit/Contracts/RunScoreStoreContract.cs#L682)
+5. Gerektiğinde: [`RunScoreStoreContract.cs:682-691`](../../../src/Tracon.Testing.Contracts.Xunit/Contracts/RunScoreStoreContract.cs#L682)
    — emsalin tamamı **on satırdır**
 
 ---
@@ -61,8 +61,8 @@ tüketici keyfî bir bölünme görüyor ve hangi tarafın kural olduğunu bilem
 | Kanıt | Gözlem |
 |---|---|
 | `src/Tracon.Testing.Contracts.Xunit/Contracts/*StoreContract.cs` | **28** store sözleşmesi var (toplam sözleşme sınıfı 32) |
-| [`RunScoreStoreContract.cs:682`](../src/Tracon.Testing.Contracts.Xunit/Contracts/RunScoreStoreContract.cs#L682) | `Canceled_token_throws()` — `SummarizeAsync` üzerinde, on satır |
-| [`EvalStoreContract.cs:583`](../src/Tracon.Testing.Contracts.Xunit/Contracts/EvalStoreContract.cs#L583) | Aynı desen, `DiffRunsAsync` üzerinde |
+| [`RunScoreStoreContract.cs:682`](../../../src/Tracon.Testing.Contracts.Xunit/Contracts/RunScoreStoreContract.cs#L682) | `Canceled_token_throws()` — `SummarizeAsync` üzerinde, on satır |
+| [`EvalStoreContract.cs:583`](../../../src/Tracon.Testing.Contracts.Xunit/Contracts/EvalStoreContract.cs#L583) | Aynı desen, `DiffRunsAsync` üzerinde |
 | Kalan 26 store sözleşmesi | `OperationCanceledException` **hiç geçmiyor** |
 | `find src/Tracon.Core -name 'InMemory*Store.cs'` | **24** bellek içi store; yalnız `InMemoryRunScoreStore` ve `InMemoryEvalStore` token'ı okuyor — **tam olarak sözleşmesi case taşıyan ikisi** |
 

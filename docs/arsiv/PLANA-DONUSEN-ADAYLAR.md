@@ -1570,7 +1570,7 @@ buldu.
 | F-239 | [Faz 174](fazlar/174-KAPASITE-DAMGASI-KAPISI.md) | 🚨 Kayıttaki yol **yoktu** — `docs-site/guides/production.md` değil, `docs-site/src/content/docs/guides/production.md` |
 | F-224 | [Faz 175](fazlar/175-GERI-ALINAMAZ-KARAR-DOGRULAMASI.md) | 🚨 "10 çağrı yeri" bir **grep eşleşme sayısıydı**; gerçek envanter **12**. E2E olgu sayısı 70 değil **71**. Gerekçe K-014 değil **K-368** |
 | F-218 | [Faz 176](fazlar/176-EVALUATOR-SURUM-DAMGASI.md) | Kanıt tuttu. Planlamada **yeni** bir tuzak ölçüldü: `SqlRunScoreStore` çıplak ordinal okuyor, sütun tablonun sonuna gitmeli |
-| F-213 | [Faz 177](../177-STORE-IPTAL-SOZLESMESI.md) | 🚨 Merkezî iddia **düştü** — "29 sözleşme, hiçbiri iptal case'i taşımıyor" yanlıştı: 28 store sözleşmesi ve **2'si taşıyor**. Kalemin gerekçesi "boşluk" değil **"bölünme"** oldu |
+| F-213 | [Faz 177](fazlar/177-STORE-IPTAL-SOZLESMESI.md) | 🚨 Merkezî iddia **düştü** — "29 sözleşme, hiçbiri iptal case'i taşımıyor" yanlıştı: 28 store sözleşmesi ve **2'si taşıyor**. Kalemin gerekçesi "boşluk" değil **"bölünme"** oldu |
 | F-232 | [Faz 178](../178-TUKETICI-KAPI-SKILLI.md) | Damga bayattı: kayıt `9039142d`, bugünkü harita `46aeb54b` |
 
 🚨 **F-230 çifte tahsisi bu turda çözüldü.** Kapasite damgası kalemi
