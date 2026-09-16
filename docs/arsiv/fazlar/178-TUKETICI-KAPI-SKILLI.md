@@ -42,7 +42,7 @@ Tracon bugün bir coding agent'a iki kanal veriyor: | Kanal | Nasıl | Ne zaman 
 - [x] Komut hedef dizinin dışına yazamıyor (`Output_stays_within_the_target_directory`, tüm ağaç taranıyor)
 - [x] İptal yarım dosya **ve boş dizin** bırakmıyor; mekanizmayı ısıran test `A_failed_write_leaves_no_temporary_file_behind` (Sapma 8)
 - [x] Üretilen metin bayt bütçesinin altında (**1 540 B** / 4 096 B)
-- [x] Doğrulama kapıları — 🚨 **bir istisna dışında** yeşil: `ObjectToolAotPackageTests` bu makinenin bozuk Command Line Tools kurulumu yüzünden kırmızı (iki satırlık bir C programı da linklenmiyor; repo'dan bağımsız, Devir Notu'nda)
+- [x] Doğrulama kapıları yeşil. (Kapanış sırasında `ObjectToolAotPackageTests` kırmızıydı ve sebebi repo değildi: Xcode 27 kurulmuş ama **lisansı kabul edilmemişti**, `/usr/bin/cc` her derlemeyi reddediyordu. Kullanıcı `sudo xcodebuild -license accept` koştu; test 1/1 geçti, yayın provası Native AOT smoke dahil tam yeşil oldu.)
 - [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı (`status = Completed`)
 - [x] `secret` taraması boş döndü (`kapi.py tarama` ✅)
 - [x] Manuel kabul case'leri `docs/manuel-test/29-AGENT-DESTEGI.md` içine eklendi (`MT-AGD-022…024`); 022 ve 024 koşuldu, 023 üreteç+paket testleriyle kapsanıyor
@@ -297,8 +297,12 @@ ağaca yazmadı. **🔴 3 · 🟡 4 · 🟢 3.** Triyaj kullanıcıya soruldu (A
 - 🟢 `coding-agents.md` diagnostic tablosu `TRC0501`/`TRC0502`'yi hiç
   saymıyor ve sayfa "Eight diagnostics" diyor; gerçek sayı **on**.
   `ADAYLAR.md`'ye girdi.
-- 🚨 **Bu makinede AOT kapısı kırmızı ve sebebi repo DEĞİL:** Command Line
-  Tools 27.0 kurulumu bozuk, `ld` SDK `.tbd` dosyalarında *unknown
-  architecture* veriyor. İki satırlık bir C programı bile linklenmiyor —
-  ölçüldü, repo'dan bağımsız. `ObjectToolAotPackageTests` bu düzelene kadar
-  kırmızı kalır.
+- ✅ **AOT kapısı çözüldü — ama teşhis ilk seferde YANLIŞ kondu.** Belirti
+  `ld: tapi error … unknown architecture` idi ve bu oturum bunu "CLT kurulumu
+  bozuk" diye yazdı. Gerçek sebep Xcode 27'nin **kabul edilmemiş lisansıydı**:
+  `/usr/bin/cc` hiçbir derlemeyi başlatmıyordu. Ayırt eden ölçüm, shim'i atlayıp
+  `XcodeDefault.xctoolchain/usr/bin/clang`'i doğrudan çağırmaktı — o üç SDK ile
+  de sorunsuz linkledi, yani toolchain sağlamdı. Ders: iki satırlık bir C
+  programı linklenmiyorsa sebep repo değildir, ama "hangi" sistem sorunu
+  olduğunu belirtinin kendisi söylemez. Ayrıntı ve tek satırlık ayırt etme
+  komutu: [`hafiza/test-kosum-tuzaklari.md`](../../hafiza/test-kosum-tuzaklari.md).
