@@ -58,6 +58,12 @@ export APB="Authorization: Bearer manuel-test-token-2026"
 export APU="http://localhost:5080/tracon"
 ```
 
+> 🚨 **`/run` yanıtı SSE akışıdır ve metin token token gelir.** Ham
+> `grep "Kelime"` **boş dönebilir**: kelime `" Kel"` + `"ime"` diye bölünür.
+> Akış case'lerinde parçaları birleştirmeden arama yapma. Ayrıca akış
+> içinde `event: error` olayı gelebilir — çıkış kodu yine 0'dır, bu yüzden
+> hata **gövdede** aranır.
+>
 > **Ağ çağrısı yapmayan izlek.** Örnek uygulama, OpenAI anahtarı tanımlı değilken
 > `echo` adlı yerel bir sağlayıcı kaydeder (`echo-1` modeli). Bu dosyadaki
 > derleme ve katalog case'lerinin çoğu **modeli hiç çağırmaz**; sağlayıcı adı
@@ -1320,9 +1326,16 @@ curl -s "$APU/api/sessions/manuel-oturum-01" -H "$APB" | python3 -m json.tool | 
 
 **Doğrulama sorgusu**
 ```sql
-SELECT count(*) FROM tracon.conversation_items ci
-JOIN tracon.sessions s ON s.id = ci.session_id
-WHERE s.external_id = 'manuel-oturum-01';
+-- 🚨 Oturum gecmisi SQL'den DOGRULANAMAZ. Iki sebep:
+--   1) Sema farkli: sessions.id dis kimligin KENDISIDIR (external_id sutunu
+--      yoktur) ve conversation_items session'a degil conversations'a baglidir.
+--   2) sessions.state SIFRELIDIR: AddContentProtection() bir {"$apEnc",...}
+--      zarfi yazar (samples/Tracon.Api/Program.cs:227).
+-- Dogrulama API uzerinden yapilir:
+--   curl -s "$APU/api/sessions/<id>" -H "$APB" | python3 -c \
+--     "import sys,json;print(len(json.load(sys.stdin)['messages']))"
+-- Oturumun kac kez yazildigini gormek icin (lost update denetimi):
+SELECT id, version, updated_at FROM tracon.sessions WHERE id = '<id>';
 ```
 
 ---
@@ -1361,10 +1374,16 @@ curl -s -X POST "$APU/api/agents/support/run" -H "$APB" -H "content-type: applic
 
 **Doğrulama sorgusu**
 ```sql
-SELECT count(*) FROM tracon.conversation_items ci
-JOIN tracon.sessions s ON s.id = ci.session_id
-WHERE s.external_id = 'manuel-oturum-01';
--- Silme sonrasi 0, yeniden calistirma sonrasi 2 beklenir.
+-- 🚨 Oturum gecmisi SQL'den DOGRULANAMAZ. Iki sebep:
+--   1) Sema farkli: sessions.id dis kimligin KENDISIDIR (external_id sutunu
+--      yoktur) ve conversation_items session'a degil conversations'a baglidir.
+--   2) sessions.state SIFRELIDIR: AddContentProtection() bir {"$apEnc",...}
+--      zarfi yazar (samples/Tracon.Api/Program.cs:227).
+-- Dogrulama API uzerinden yapilir:
+--   curl -s "$APU/api/sessions/<id>" -H "$APB" | python3 -c \
+--     "import sys,json;print(len(json.load(sys.stdin)['messages']))"
+-- Oturumun kac kez yazildigini gormek icin (lost update denetimi):
+SELECT id, version, updated_at FROM tracon.sessions WHERE id = '<id>';
 ```
 
 ---
@@ -1433,11 +1452,16 @@ curl -s -X POST "$APU/api/agents/support/run" -H "$APB" -H "content-type: applic
 
 **Doğrulama sorgusu**
 ```sql
-SELECT s.external_id, count(ci.*) AS mesaj
-FROM tracon.sessions s
-LEFT JOIN tracon.conversation_items ci ON ci.session_id = s.id
-WHERE s.external_id IN ('musteri-42','musteri-99')
-GROUP BY s.external_id;
+-- 🚨 Oturum gecmisi SQL'den DOGRULANAMAZ. Iki sebep:
+--   1) Sema farkli: sessions.id dis kimligin KENDISIDIR (external_id sutunu
+--      yoktur) ve conversation_items session'a degil conversations'a baglidir.
+--   2) sessions.state SIFRELIDIR: AddContentProtection() bir {"$apEnc",...}
+--      zarfi yazar (samples/Tracon.Api/Program.cs:227).
+-- Dogrulama API uzerinden yapilir:
+--   curl -s "$APU/api/sessions/<id>" -H "$APB" | python3 -c \
+--     "import sys,json;print(len(json.load(sys.stdin)['messages']))"
+-- Oturumun kac kez yazildigini gormek icin (lost update denetimi):
+SELECT id, version, updated_at FROM tracon.sessions WHERE id = '<id>';
 ```
 
 ---
@@ -1481,9 +1505,16 @@ echo "--- 2 ---"; tail -c 200 /tmp/ap-y2.txt
 
 **Doğrulama sorgusu**
 ```sql
-SELECT count(*) FROM tracon.conversation_items ci
-JOIN tracon.sessions s ON s.id = ci.session_id
-WHERE s.external_id = 'manuel-yaris';
+-- 🚨 Oturum gecmisi SQL'den DOGRULANAMAZ. Iki sebep:
+--   1) Sema farkli: sessions.id dis kimligin KENDISIDIR (external_id sutunu
+--      yoktur) ve conversation_items session'a degil conversations'a baglidir.
+--   2) sessions.state SIFRELIDIR: AddContentProtection() bir {"$apEnc",...}
+--      zarfi yazar (samples/Tracon.Api/Program.cs:227).
+-- Dogrulama API uzerinden yapilir:
+--   curl -s "$APU/api/sessions/<id>" -H "$APB" | python3 -c \
+--     "import sys,json;print(len(json.load(sys.stdin)['messages']))"
+-- Oturumun kac kez yazildigini gormek icin (lost update denetimi):
+SELECT id, version, updated_at FROM tracon.sessions WHERE id = '<id>';
 ```
 
 ### MT-CORE-060 — Geçersiz `MaxPayloadLength` açılışı durdurur
