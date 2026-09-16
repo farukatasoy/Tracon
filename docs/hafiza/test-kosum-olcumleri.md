@@ -147,3 +147,46 @@ Sonuç: kod suçsuzdu, taban çizgisi bayatlamıştı. `--guncelle` çalıştır
 önce **taban commit'i ayrı bir `git worktree`'de tek başına ölçmek** kodun mu
 ortamın mı sorumlu olduğunu ayırt eder — doğrudan `--guncelle` çalıştırmak bu
 ayrımı **atlar** ve gerçek bir regresyonu maskeleyebilirdi.
+
+## Faz 178 — 🚨 `Barrier(N)` + `Task.Run`, N çekirdek sayısını aşınca kapıya ~70 sn ekler
+
+**Ölçüldü (2026-09-16, 10 çekirdekli Apple Silicon).** Dört sağlayıcı birim test
+projesi tam koşumda 16–43 sn sürüyordu; aynı büyüklükteki `Voice.UnitTests`
+0,19 sn'de bitiyordu. TRX döküm tek sebebi gösterdi: **üç test 69,7 sn'nin
+69,4'ünü** yiyordu, üçü de `Concurrent_*` adlı sözleşme testleriydi ve üçü de
+aynı deseni taşıyordu:
+
+```csharp
+using var start = new Barrier(32);
+await Task.WhenAll(Enumerable.Range(0, 32).Select(_ => Task.Run(() => { start.SignalAndWait(); … })));
+```
+
+**Kök sebep bir kilitlenme değil, thread pool'un ENJEKSİYON HIZI.** Barrier her
+katılımcıyı sonuncusu gelene kadar bekletir, yani havuz 32'sini **aynı anda**
+tutmak zorundadır. Talep havuzun minimumunu (≈ çekirdek sayısı) aşınca .NET yeni
+thread'i **saniyede ~bir** ekler; test o rampayı uyuyarak geçirir. 32 − 10 = 22
+thread ≈ 22 sn — ölçülen süre tam buydu.
+
+| Proje | Önce | Sonra |
+|---|---:|---:|
+| `Anthropic.UnitTests` (79 test) | 21,50 s | **1,12 s** |
+| `Google.UnitTests` (84 test) | 17,47 s | **0,99 s** |
+| `Azure.UnitTests` (76 test) | 17,69 s | **0,94 s** |
+| `OpenAI.UnitTests` (126 test) | 16,12 s | **1,63 s** |
+
+Çözüm havuz değil **gerçek thread**: `SimultaneousCalls.Run`
+(`src/Tracon.Testing.Contracts.Xunit/Internal/`). Barrier artık hepsini
+gerçekten birlikte bırakır — yani sonda daha HIZLI değil, daha DOĞRU bir
+eşzamanlılık probu var; eskiden ilk gelenler sonuncuyu yirmi saniye bekliyordu.
+
+🚨 **İki yan kural:**
+
+- **Sevk edilen bir sözleşmede imzayı koruyun.** `async Task` → `void` yapmak
+  `RS0016`/`RS0017` ile public API kapısını kırar. Hız düzeltmesi public yüzeyi
+  oynatmaz: gövde senkronlaştı, dönüş tipi `Task` kaldı (`Task.CompletedTask`).
+- **Sınıf taraması yapıldı** (`grep -rn "new Barrier(" src/ tests/`): kalan
+  katılımcı sayıları 8 · 8 · 3 · 2 · 2 ve `ConcurrentCallCount = 8`. Bu makinede
+  (10 çekirdek) hiçbiri stall etmiyor — ama **8, dört çekirdekli bir CI'da aynı
+  kusurdur**. Yeni bir barrier boyutlandırırken sayıyı çekirdek sayısına göre
+  seç, ya da doğrudan `SimultaneousCalls` kullan.
+
