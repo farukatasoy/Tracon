@@ -37,7 +37,7 @@ public tablo sayisi: 0   (MT-PG-002 / 003 taban cizgisi)
 (MT-PG-068) · 1 ☐ Beklemede (MT-PG-067)**.
 
 - **Sonraki oturumun işi:** zincirin dördüncü ailesi —
-  [`05-SAGLAYICI-OPENAI.md`](05-SAGLAYICI-OPENAI.md), 40 case, 2 oturum.
+  [`05-SAGLAYICI-OPENAI.md`](../../05-SAGLAYICI-OPENAI.md), 40 case, 2 oturum.
   Bu dosyaya dönme.
 - **Bozuk ön koşul:** yok.
 
