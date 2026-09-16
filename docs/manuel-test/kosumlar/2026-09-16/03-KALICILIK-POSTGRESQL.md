@@ -516,6 +516,21 @@ opaklığın savunulabilir tarafı budur.
 **Sınıf taraması notu.** Aynı desen tüm SQL depo yazmalarını etkiler, yalnız
 `agent_definitions`'ı değil; düzeltme tek uca değil ortak yola konmalıdır.
 
+**İkinci ampirik örnek (2026-09-16, MT-PG-061).** Sınıf taraması notu
+doğrulandı. Veritabanı **erişilemez** olduğunda (bekleyen migration değil)
+`POST /api/agents/manuel-esz-1/run` de aynı opak gövdeyi döndü:
+
+```
+run HTTP: 500
+{"title":"An error occurred while processing your request.","status":500,"traceId":"..."}
+```
+
+Yani iki ayrı tetikleyici (`42P01 relation does not exist` · bağlantı
+kurulamıyor) ve iki ayrı yol (yazma · çalıştırma) **tek** opak yanıta
+düşüyor. Düzeltme ortak yola konmalıdır; ayrıca bu iki durum istemci için
+farklıdır — biri kalıcı (şema eksik), diğeri **geçici** (yeniden denenebilir).
+Bugünkü yanıt ikisini ayırt etmiyor.
+
 ## MT-PG-026 — Şema adı değiştirildiğinde bağımsız bir migration seti oluşur
 
 **Gerçek sonuç**
@@ -1160,3 +1175,373 @@ kararıdır, kusur düzeltmesi değil:
 🚨 Üçünün de yeni davranış istediğine dikkat: bu bulgu muhtemelen `ADAYLAR.md`'ye
 F-NN olarak girer, Aşama 2'de kodlanacak bir kusur olarak değil. Karar Aşama
 2'de verilir (skill §6).
+
+## MT-PG-060 — 20 eşzamanlı yazma isteği veri bozulmadan tamamlanır
+
+**Gerçek sonuç**
+20 isteğin 20'si de **201** döndü, veritabanında **20** satır var:
+
+```
+=== HTTP kodlari (sayim) ===
+  20 201
+=== veritabani ===
+ kayitli
+      20
+=== benzersizlik ===
+ tekil_ad | satir
+       20 |    20
+```
+
+Kayıp yok, çift kayıt yok — 20 ad da tekil. Uygulama istekler boyunca ayakta
+kaldı (`/health` → 200).
+
+**Havuz tükenmesi izi yok.** `TimeoutException|exhaust|connection pool` taraması
+5 satır getirdi, hepsi **migration SQL'inin yorum satırları** (`-- not depend on
+the connection pool...`), çalışma anı hatası değil. Gerçek bir
+`Npgsql...TimeoutException` kaydı yok.
+
+📝 **Sapma — `provider:"echo"` kullanılamadı.** Spec `echo` yazıyor; gerçek
+sağlayıcı anahtarları kayıtlıyken `echo` kayıtlanmaz ve `400 Tanım geçersiz`
+verir (dosya 02'den taşınan ortam kuralı). `openai`/`gpt-5.4-mini` kullanıldı.
+Case yazma yolunu ölçüyor, model çağrısı yapılmıyor — ölçülen davranış değişmez.
+
+📝 **Sapma — şema `mt_s1`.** Spec `tracon.agent_definitions` yazar; şerit
+izolasyonu gereği `mt_s1.agent_definitions` sorgulandı (skill §1.3).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-PG-061 — PostgreSQL koşum sırasında durursa çalışan bir istek anlaşılır hatayla başarısız olur, uygulama çökmez
+
+**Gerçek sonuç**
+
+**Sapma — container durdurulmadı** (MT-PG-050 ile aynı yöntem): uygulama
+`Port=55481` üzerinden şerit-yerel yönlendiriciyle bağlandı, yönlendirici
+öldürülüp geri getirildi. `ap-pg` boyunca `Up 4 hours` kaldı.
+
+Taban çizgisi — ağ açıkken aynı istek **200**.
+
+Adım 1–2 — ağ kesik:
+
+```
+ap-pg	Up 4 hours          <- container'a DOKUNULMADI
+run HTTP: 500
+{"title":"An error occurred while processing your request.","status":500,...}
+surec ayakta: EVET
+/health HTTP: 503
+```
+
+Adım 3–4 — ağ geri, **uygulama yeniden başlatılmadı**:
+
+```
+run HTTP: 200
+/health HTTP: 200
+pgrep -f "Tracon.Api --urls" -> 71876   (kesintiden ÖNCEKİ ile aynı PID)
+```
+
+PID değişmedi — süreç hiç yeniden başlatılmadı, Npgsql havuzu kendiliğinden
+yeniden bağlandı. Beklenen sonucun iki maddesi de doğrulandı.
+
+⚠️ **Case başlığının "anlaşılır hata" iddiası karşılanmıyor.** Yanıt
+`traceId` dışında hiçbir şey söylemeyen opak bir `500`; ne veritabanı
+erişilemezliğinden ne de geçici olduğundan söz ediyor. İstemci bunu kalıcı bir
+uygulama hatasından ayıramaz ve yeniden denenebilir olduğunu anlayamaz.
+
+Bu **yeni bir bulgu değildir** — `HATA-S1-015` ile aynı kök neden ve aynı sınıf:
+`src/Tracon.AspNetCore/` altında `DbException`/`PostgresException` için özel
+eşleme yok, istisna genel ASP.NET Core işleyicisine kadar çıkıyor. O kaydın
+"sınıf taraması notu" bu vakayı zaten öngörüyordu ("aynı desen tüm SQL depo
+yazmalarını etkiler"). Bu case onun **ikinci ampirik örneğidir**: 025 yazma
+yolunu, 061 okuma/çalıştırma yolunu gösteriyor. `HATA-S1-015` kaydına eklendi.
+
+Beklenen sonucun yazılı iki maddesi karşılandığı için durum **Geçti**;
+opaklık ayrı bir kayıtta izleniyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-PG-062 — `pgvector` kurulu olmayan PostgreSQL'de knowledge kapalıyken uygulama sorunsuz açılır
+
+**Gerçek sonuç**
+Şerit-yerel düz konteyner açıldı: `ap-pg-plain-s1` (`postgres:18-alpine`, port
+**55433**). Paylaşılan `ap-pg`'ye dokunulmadı. Ön koşul doğrulandı — `vector`
+uzantısı yalnız kurulu değil, **hiç kullanılabilir değil**:
+
+```
+pg_available_extensions WHERE name='vector' -> 0
+```
+
+Uygulama `EnableKnowledge=false` ve `SchemaName=tracon_case1_s1` ile açıldı.
+
+```
+=== uygulanan migration ===
+ set_name | count
+ core     |    50        <- knowledge seti YOK
+
+=== diagnostics ===
+{'canConnect': True, 'migrationsUpToDate': True, 'pendingMigrations': []}
+
+=== \dx ===
+ plpgsql | 1.0 | pg_catalog | PL/pgSQL procedural language
+(1 row)                       <- vector YOK
+
+=== /api/tools ===
+tool sayisi: 10
+['cancel_order', 'estimate_shipping_cost', 'get_order_status', 'get_slow_report',
+ 'list_recent_orders', 'list_voices', 'mark_preview_ready', 'read_shopping_cart',
+ 'speak', 'transcribe']
+search_knowledge var mi: False
+```
+
+Dört beklentinin dördü de karşılandı — K1 tutuyor: knowledge kapalıyken tool
+**hiç kayıtlanmıyor**, gizlenmiyor.
+
+📝 **Spec düzeltmesi — iki bayat sayı.** Beklenen "`Tracon 32 migration uyguladi.`"
+yazıyordu → bugün **50** çekirdek migration. 2026-08-19 kanıt bloğundaki "32
+satır" da aynı şekilde bayat; kanıt bloğu **tarihiyle birlikte** korundu (o
+tarihte doğruydu), beklenen sonuç yapıya bakacak biçimde düzeltildi.
+Ayrıca 2026-08-19 tool listesi 7 tool sayıyordu → bugün **10**
+(`estimate_shipping_cost` · `get_slow_report` · `mark_preview_ready` eklenmiş).
+Bu, `00-INDEKS.md` §3.2'nin bilinen bayatlığının aynı kökü.
+
+🚨 **`HATA-S1-017` — taze şemada açılış logu `Error` seviyesinde yığın izi
+basıyor.** Beklenen sonucun "hiçbir hata yoktur" maddesi **harfiyen**
+karşılanmıyor. Ayrıntı aşağıdaki hata kaydında. Case'in ölçtüğü dört yapısal
+iddia karşılandığı için durum **Geçti**; log gürültüsü ayrı izleniyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+### HATA-S1-017 — Taze şemada her açılış `Error` seviyesinde yığın izi basar
+
+| | |
+|---|---|
+| **Case** | MT-PG-062 (ayrıca MT-PG-053 · 051 — her taze açılışta) |
+| **Önem** | Düşük |
+| **Sınıf** | teşhis edilebilirlik — beklenen bir yol hata gibi loglanıyor |
+
+**Belirti.** Boş bir şemaya karşı açılan her uygulamada, **ilk** veritabanı
+sorgusu başarısız olur ve tam yığın iziyle `fail:` seviyesinde loglanır:
+
+```
+fail: Tracon.CompositeAgentCatalog[0]
+      Agent source 'database' failed during list.
+      Npgsql.PostgresException (0x80004005): 42P01:
+        relation "tracon_case1_s1.agent_definitions" does not exist
+         at Tracon.SqlAgentDefinitionStore.ListAsync(...) SqlAgentDefinitionStore.cs:line 99
+         at Tracon.DefinitionStoreAgentSource.ListAsync(...) DefinitionStoreAgentSource.cs:line 52
+         at Tracon.CompositeAgentCatalog.ListAsync(...) CompositeAgentCatalog.cs:line 56
+```
+
+Sıra ölçüldü: bu kayıt logun **7. satırıdır**; migration çalıştırıcısının
+`pg_advisory_lock` → `CREATE SCHEMA` adımları **daha sonra** gelir (satır 39+).
+`mt_s1` şemasının taze açılışında da birebir aynı (aynı satır numarası).
+
+**Kök neden.** `TraconA2AExtensions.cs:94` uç noktaları kurarken kataloğu
+**senkron** listeler:
+
+```csharp
+var descriptors = catalog.ListAsync().AsTask().GetAwaiter().GetResult();
+```
+
+Bu, uygulama **kurulum** anındadır; `IHostedService` sırası — dolayısıyla
+`MigrationHostedService` — henüz koşmamıştır.
+
+**Bu bilinçlidir ve işlevsel olarak doğrudur.** Hemen üstündeki yorum
+(`TraconA2AExtensions.cs:85-90`) durumu birebir öngörüyor ("no such table
+against an empty database"), geniş `catch` **kasıtlıdır** ve geri düşüş
+güvenlidir — agent kartı yalnız `Description`/`Version` ile süslenir, güvenlik
+kontrolü yoktur.
+
+**Kusur olan kısım: yutma bir katman geç yapılıyor.** İstisnayı A2A yakalayıp
+yutuyor, ama `CompositeAgentCatalog.cs:56-65` onu **daha önce**
+`RecordSourceFailure(..., LogLevel.Error)` ile loglamış oluyor. Yani "beklenen"
+olduğu bilinen bir yol, operatörün konsoluna bozuk kurulum görüntüsü veriyor.
+Tracon bir kütüphanedir; tüketicinin ilk çalıştırma deneyimi budur.
+
+**Öneri (kapanışta değerlendirilecek).** `CompositeAgentCatalog.ListAsync`
+çağıranın beklenen-hata toleransını bilmiyor; seçenekler:
+
+- A2A kurulum yolu `SchemaReadyGate.IsReady` **`false`** iken kataloğu hiç
+  listelemesin — süslemeyi atlayıp `agentName`'e düşsün. En küçük değişiklik.
+- `CompositeAgentCatalog.ListAsync` bir "sessiz dene" aşırı yüklemesi alsın;
+  kurulum yolu onu çağırsın.
+
+**Sınıf taraması notu.** Aynı desen kurulum anında depoya giden **her** yolu
+etkiler. `McpDiscoveryService.cs:72` ve `A2AApprovalGuardFilter` bunu doğru
+yapıyor — `SchemaReadyGate.WaitAsync` bekliyorlar. Kurulum anındaki senkron
+liste bu korumanın **dışında** kalan tek yol olabilir; kapanışta
+`GetAwaiter().GetResult()` çağrıları taranmalı.
+
+## MT-PG-063 — Aynı ortamda `EnableKnowledge = true` açık ve okunur bir başlangıç hatası verir
+
+**Gerçek sonuç**
+Aynı konteyner (`ap-pg-plain-s1`, `pgvector` yok), `SchemaName=tracon_case2_s1`,
+`EnableKnowledge=true`.
+
+**1. Uygulama başlamayı reddetti.** Çıkış kodu **134** (SIGABRT — işlenmemiş
+istisna). `Now listening` sayısı **0**: süreç HTTP dinlemeye hiç başlamadı,
+∴ hiçbir kullanıcı isteği işlenmedi.
+
+**2. Mesaj spec'te yazdığı gibi, birebir.** İşlenmemiş istisna bloğunun **ilk**
+satırı:
+
+```
+Unhandled exception. Tracon.TraconException: Migration '0001_vector' could not be applied: extension "vector" is not available (SQLSTATE 0A000).
+ ---> Npgsql.PostgresException (0x80004005): 0A000: extension "vector" is not available
+```
+
+Ayrıntılı .NET yığın izi yalnız konsolda; hiçbir HTTP istemcisine ulaşmadı
+(K-354 "hata yutulmaz" ilkesiyle tutarlı).
+
+**3. Çekirdek migration'lar geri ALINMADI:**
+
+```
+ set_name | count
+ core     |    50        <- hepsi uygulanmis ve KALICI
+to_regclass('tracon_case2_s1.document_embeddings') -> NULL
+```
+
+`knowledge` seti **hiç satır yazmadı** ve `document_embeddings` tablosu
+oluşmadı; yalnız `0001_vector` düştü. Set izolasyonu tutuyor (K-475/K-476).
+
+📝 **Spec düzeltmesi.** Beklenen ve 2026-08-19 kanıt bloğu "çekirdek 32'si"
+diyor → bugün **50**. Beklenen sonuç yapıya bakacak biçimde düzeltildi; kanıt
+bloğu tarihiyle korundu.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-PG-064 — `pgvector` kurulu PostgreSQL'de `EnableKnowledge = true` gerçek bir belge yükleme + arama turu tamamlar
+
+**Gerçek sonuç**
+Paylaşılan `ap-pg` (`pgvector/pgvector:pg18`), şema `mt_s1`,
+`EnableKnowledge=true`. Gerçek OpenAI gömü çağrısı yapıldı.
+
+```
+to_regclass('mt_s1.document_embeddings') -> mt_s1.document_embeddings
+
+1) POST /api/knowledge/faz67-test/documents   -> HTTP 200
+   {"sourceId":"doc-1","chunkCount":1}
+
+2) POST /api/knowledge/faz67-test/search      -> HTTP 200
+   [{"sourceId":"doc-1","chunkIndex":0,
+     "content":"Tracon Faz 67 makes the PostgreSQL migration sets optional.",
+     "distance":0.6148895159019339,"metadata":null}]
+```
+
+Arama yüklenen içeriği **birebir** döndürdü ve `distance` alanı taşıyor.
+Veritabanı doğrulaması gömünün gerçek olduğunu gösteriyor:
+
+```
+ source_id | chunk_index | icerik                                   | boyut
+ doc-1     |           0 | Tracon Faz 67 makes the PostgreSQL migr.. |  1536
+```
+
+`vector_dims = 1536` — sahte/sıfır vektör değil, gerçek OpenAI gömüsü.
+Üç beklentinin üçü de karşılandı.
+
+📝 **Sapma — belge metni İngilizce yazıldı.** Spec Türkçe bir cümle taşıyor.
+Sevk edilen yüzey ve gömü modeli için dil farkı ölçülen davranışı değiştirmez;
+İngilizce metin K-228 ile de tutarlıdır. Sorgu da İngilizce sorularak anlamsal
+eşleşme korundu.
+
+📝 **Sapma — koleksiyon `ap-pg`/`mt_s1` üzerinde.** Spec `ap-pg` diyor, şerit
+şeması `mt_s1` (skill §1.3).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-PG-065 — Case 062'nin veritabanı sonradan `EnableKnowledge = true` ile yeniden başlatılınca yalnız knowledge seti uygulanır
+
+**Gerçek sonuç**
+Spec'in izin verdiği ikinci yol seçildi: senaryo doğrudan `ap-pg` üzerinde,
+ayrı bir şemada (`mt_s1_k`) tekrarlandı. `tracon_case1_s1` düz konteynerde
+duruyor ve orada `pgvector` yok; şema taşımak yerine aynı ön koşul `ap-pg`'de
+sıfırdan kuruldu.
+
+**1. aşama** — `EnableKnowledge=false`, taze şema:
+
+```
+ set_name | count
+ core     |    50
+to_regclass('mt_s1_k.document_embeddings') -> NULL
+```
+
+**2. aşama** — aynı şema, `EnableKnowledge=true` ile yeniden başlatıldı:
+
+```
+ set_name  | count
+ core      |    50        <- DEGISMEDI
+ knowledge |     1        <- yalnizca bu eklendi
+ toplam    |    51
+
+CREATE EXTENSION IF NOT EXISTS vector           -> bu acilista 1 kez
+CREATE TABLE IF NOT EXISTS mt_s1_k.tenants      -> bu acilista 0 kez
+to_regclass('mt_s1_k.document_embeddings') -> mt_s1_k.document_embeddings
+```
+
+İkinci açılış logunda **hiçbir çekirdek DDL'i yok** — 50 çekirdek migration
+yeniden uygulanmadı, yalnız `0001_vector` koşuldu. Beklentinin iki maddesi de
+doğrulandı (K-475/K-477: setler bağımsız ilerliyor).
+
+📝 **Spec düzeltmesi.** Ön koşul ve beklenen sonuç "32 çekirdek" / "`__migrations`
+toplam **33**" yazıyordu → bugün **50** ve **51**. Sabit sayı yerine yapıya
+bakan ifadeye çevrildi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-PG-066 — SQL Server ve SQLite bu fazdan etkilenmez
+
+**Gerçek sonuç**
+İki sözleşme seti de gerçek hedeflere karşı koşuldu (`ap-mssql` container'ı ·
+yerel SQLite dosyası), donuk `7e3a4de7` ikilisiyle:
+
+```
+Tracon.Sqlite.IntegrationTests     -> Passed!  825/825, failed 0, skipped 0  (40s)
+Tracon.SqlServer.IntegrationTests  -> Passed!  806/806, failed 0, skipped 0  (1m 33s)
+```
+
+İki sağlayıcıda da davranış aynı; vektör migration'ı hiçbirine sızmadı.
+
+📝 **Not — kanıt bloğundaki sayılar büyümüş, bayat değil.** 2026-08-19 kaydı
+554 (SQLite) ve 540 (SQL Server) diyor; bugün 825 ve 806. Bu bir bayatlık
+değil, aradaki fazlarda eklenen testlerdir. Case'in iddiası sayıya değil
+**farksızlığa** bakar: iki set de sıfır başarısızlıkla yeşil.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-PG-067 — SQL tek kaynak: 117 sorgunun taşınması üretilen SQL'i değiştirmez
+
+**Gerçek sonuç**
+
+**Adım 1 — yeşil.**
+
+```
+Tracon.Sql.Shared.UnitTests -> Passed!  22/22, failed 0, skipped 0  (203ms)
+```
+
+**Adım 2 — KOŞULAMADI.** Case `SqlQueriesBase.CostAddends`'e sahte bir dördüncü
+terim eklemeyi istiyor. Bu `src/` altında bir kod değişikliğidir ve turun
+**değişmez kuralı 1**'i ihlal eder (skill §1.1): `src/` · `samples/` · `tests/`
+tur boyunca donuktur ve bütünlük kapısı `git diff 7e3a4de7..HEAD -- src samples
+tests`'in **boş** dönmesidir. Geri alınan bir değişiklik bile o kapıyı bu
+oturum boyunca kirletir. Karar kullanıcıya bırakıldı — aşağıdaki bekleyen
+kalem tablosuna yazıldı.
+
+**Adım 3 — üçü de yeşil**, gerçek sunuculara karşı:
+
+```
+Tracon.PostgreSql.IntegrationTests -> Passed!  888/889, failed 0, skipped 1  (49s)
+Tracon.SqlServer.IntegrationTests  -> Passed!  806/806, failed 0, skipped 0  (1m 33s)
+Tracon.Sqlite.IntegrationTests     -> Passed!  825/825, failed 0, skipped 0  (40s)
+```
+
+Hiçbir maliyet/token/kimlik alanı değişmedi; davranış aynı.
+
+⚠️ `Tracon.PostgreSql.IntegrationTests` içinde **1 atlanan** test var. Atlama
+nedeni bu case'in kapsamı dışında; kapanışta atlamanın gerekçesi doğrulanmalı
+(atlanan bir test sessizce kalıcı hâle gelebilir).
+
+📝 **Spec düzeltmesi.** Adım 1 beklentisi "sekiz test de yeşil" diyor → bugün
+**22**. Sabit sayı yerine "hepsi yeşil, sıfır başarısızlık" ifadesine çevrildi.
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+> Adım 1 ve 3 yeşil; case yalnız adım 2 nedeniyle **Beklemede**. Adım 2'nin
+> kararı verilince yeniden koşulacak tek adım odur.

@@ -1911,11 +1911,26 @@ docker exec ap-pg-plain psql -U postgres -d tracon -c "\dx"
 ```
 
 **Beklenen sonuç**
-- Açılış logu `Tracon 32 migration uyguladi.` yazar; hiçbir hata yoktur.
+- Açılış logu çekirdek setin **tamamını** uygular (2026-09-16'da **50**
+  migration); hiçbiri düşmez.
+  > **🚨 Sabit sayıya güvenme** — `__migrations` içindeki `set_name='core'`
+  > satır sayısı kod tarafındaki çekirdek migration sayısına eşit olmalıdır.
+  > `set_name='knowledge'` satırı **hiç** olmamalıdır.
 - `/api/diagnostics`: `"canConnect": true`, `"migrationsUpToDate": true`,
   `"pendingMigrations": []`.
 - `\dx` yalnız `plpgsql` listeler — `vector` **yoktur**.
-- `/api/tools` çıktısında knowledge arama tool'u YOKTUR (K1: kayıt hiç olmaz).
+- `/api/tools` çıktısında `search_knowledge` YOKTUR (K1: kayıt hiç olmaz).
+  Listedeki diğer tool'ların sayısı örnek uygulamayla birlikte değişir
+  (2026-08'de 7, 2026-09-16'da 10); doğrulama `search_knowledge`'ın
+  **yokluğuna** bakar, toplam sayıya değil.
+
+> **⚠️ Bilinen log gürültüsü (2026-09-16, `HATA-S1-017`).** "Hiçbir hata
+> yoktur" maddesi bugün **harfiyen** karşılanmıyor: taze bir şemada açılış
+> logunun 7. satırı `fail: Tracon.CompositeAgentCatalog` + tam yığın izi
+> taşır (`42P01 ... agent_definitions does not exist`). Bu **beklenen** bir
+> yoldur — `TraconA2AExtensions.cs:94` uç nokta kurulumu sırasında kataloğu
+> listeler, migration'lar henüz koşmamıştır ve istisna kasıtlı olarak yutulur.
+> İşlevsel bir kusur değildir; kayıt kapanışta değerlendirilecektir.
 
 **Gerçek koşum kanıtı (2026-08-19, kapanış)**: yukarıdaki adımlar `postgres:18-alpine`
 konteynerine karşı BİREBİR çalıştırıldı. Sonuç: `__migrations` 32 satır (hepsi
@@ -1962,9 +1977,10 @@ cd samples/Tracon.Api && dotnet run -- \
   "`DbException` yığın izi kullanıcıya gitmez" burada "hiçbir kullanıcı isteği
   hiç işlenmez" anlamına gelir; ayrıntılı .NET yığın izi yalnızca operatörün
   KONSOLUNDA görünür (K-354'ün "hata yutulmaz" ilkesiyle tutarlı).
-- Çekirdek migration'ların hiçbiri GERİ ALINMAZ: konteyneri düz `postgres` imajıyla
-  değiştirmeden `tracon_case2` şeması silinip yeniden denenirse çekirdek
-  32'si yine sorunsuz uygulanır (yalnız `0001_vector` başarısız olur).
+- Çekirdek migration'ların hiçbiri GERİ ALINMAZ: `__migrations` içinde
+  `set_name='core'` setinin **tamamı** uygulanmış ve kalıcı kalır, yalnız
+  `0001_vector` düşer. `set_name='knowledge'` hiç satır yazmaz ve
+  `document_embeddings` tablosu oluşmaz.
 
 **Gerçek koşum kanıtı (2026-08-19, kapanış)**: aynı konteynere karşı çalıştırıldı.
 Gerçek hata: `ERROR: 0A000: extension "vector" is not available` /
@@ -2026,17 +2042,20 @@ ile yüklenen içeriği BİREBİR döndürdü.
 | **İlgili karar** | K-475, K-477 |
 
 **Ön koşul**
-- MT-PG-062'nin şeması (32 çekirdek migration uygulanmış, `pgvector` bu kez KURULU
-  bir sunucuya taşınmış — veya doğrudan `ap-pg` üzerinde tekrarlanabilir).
+- MT-PG-062'nin şeması (çekirdek setin tamamı uygulanmış, `knowledge` seti
+  **hiç** uygulanmamış), `pgvector` bu kez KURULU bir sunucuya taşınmış —
+  veya aynı ön koşul doğrudan `ap-pg` üzerinde ayrı bir şemada kurulabilir.
 
 **Adımlar**
 1. `EnableKnowledge = true` ile yeniden başlat.
 2. Açılış logunu oku.
 
 **Beklenen sonuç**
-- Açılış logu `Tracon 1 migration uyguladi.` yazar (yalnız `0001_vector`;
-  çekirdek 32'si zaten uygulanmıştı, YENİDEN uygulanmaz).
-- `__migrations` toplam **33** satıra çıkar.
+- Yalnız `0001_vector` uygulanır; çekirdek set zaten uygulanmıştı ve YENİDEN
+  uygulanmaz. İkinci açılış logunda hiçbir çekirdek DDL'i görünmez.
+- `__migrations` içinde `set_name='core'` sayısı **değişmez**,
+  `set_name='knowledge'` **1** olur; toplam çekirdek + 1'e çıkar
+  (2026-09-16'da 50 + 1 = 51).
 
 Otomatik eşdeğeri (gerçek `ap-pg` konteynerine karşı, kapanışta koşuldu, yeşil):
 `OptionalMigrationSetTests.Enabling_knowledge_later_applies_only_the_new_set`.
@@ -2097,8 +2116,16 @@ ifadeleri `CostTotal`/`TreeSum` ile üretilir. Kapı: `SqlTextSnapshotTests`
    sunuculara karşı çalıştır.
 
 **Beklenen sonuç**
-- Adım 1: sekiz test de yeşil (üç dialektin metin/boşluk-kapısı + `RunOrdinals`
-  ve `CostAddends` çapraz doğrulamaları).
+- Adım 1: setin **tamamı** yeşil, sıfır başarısızlık (üç dialektin
+  metin/boşluk-kapısı + `RunOrdinals` ve `CostAddends` çapraz doğrulamaları).
+  Test sayısı fazlarla birlikte artar — 2026-08'de 8, 2026-09-16'da 22;
+  doğrulama sabit sayıya değil sıfır başarısızlığa bakar.
+
+> **🚨 Adım 2 bir koşum turunda KOŞULAMAZ.** `SqlQueriesBase.CostAddends`'i
+> değiştirmek `src/` altında bir kod değişikliğidir; `manuel-test-kosumu`
+> §1.1 bunu yasaklar ve turun bütünlük kapısı donuk ağaçların `git diff`'inin
+> boş kalmasına dayanır. Bu adım ya kapanış modunda (Aşama 2) ya da repo
+> dışında atılabilir bir kopyada koşulur.
 - Adım 2: `CostAddendsCrossCheckTests` düşer (`RunCost.Total()`'ın karşılığı
   yok) — geri alınca yeniden yeşil.
 - Adım 3: davranış AYNI kalır; hiçbir maliyet/token/kimlik alanı değişmez.
