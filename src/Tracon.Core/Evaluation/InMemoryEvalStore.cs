@@ -20,6 +20,7 @@ internal sealed class InMemoryEvalStore : IEvalStore
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(tenantId);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var suites = _suites
             .Where(pair => string.Equals(pair.Key.TenantId, tenantId, StringComparison.Ordinal))
@@ -38,6 +39,7 @@ internal sealed class InMemoryEvalStore : IEvalStore
     {
         ArgumentNullException.ThrowIfNull(tenantId);
         ArgumentNullException.ThrowIfNull(name);
+        cancellationToken.ThrowIfCancellationRequested();
 
         _suites.TryGetValue(new SuiteKey(tenantId, name), out var suite);
         return new ValueTask<EvalSuite?>(suite);
@@ -47,6 +49,7 @@ internal sealed class InMemoryEvalStore : IEvalStore
     public ValueTask<EvalSuite> SaveSuiteAsync(EvalSuite suite, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(suite);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var key = new SuiteKey(suite.TenantId, suite.Name);
         var saved = _suites.AddOrUpdate(
@@ -66,6 +69,7 @@ internal sealed class InMemoryEvalStore : IEvalStore
     {
         ArgumentNullException.ThrowIfNull(tenantId);
         ArgumentNullException.ThrowIfNull(name);
+        cancellationToken.ThrowIfCancellationRequested();
 
         if (!_suites.TryRemove(new SuiteKey(tenantId, name), out var suite))
         {
@@ -86,6 +90,8 @@ internal sealed class InMemoryEvalStore : IEvalStore
     /// <inheritdoc />
     public ValueTask<IReadOnlyList<EvalCase>> ListCasesAsync(Guid suiteId, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         if (!_cases.TryGetValue(suiteId, out var cases))
         {
             return new ValueTask<IReadOnlyList<EvalCase>>([]);
@@ -110,6 +116,7 @@ internal sealed class InMemoryEvalStore : IEvalStore
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(cases);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var assigned = new List<EvalCase>(cases.Count);
 
@@ -137,6 +144,7 @@ internal sealed class InMemoryEvalStore : IEvalStore
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(draft);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var cases = _cases.GetOrAdd(suiteId, static _ => []);
 
@@ -179,6 +187,7 @@ internal sealed class InMemoryEvalStore : IEvalStore
     public ValueTask<EvalRun> CreateRunAsync(EvalRun run, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(run);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var record = run with { Id = run.Id == Guid.Empty ? TraconId.NewId() : run.Id };
         _runs[record.Id] = record;
@@ -193,6 +202,8 @@ internal sealed class InMemoryEvalStore : IEvalStore
         string? modelId,
         CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         if (_runs.TryGetValue(evalRunId, out var run))
         {
             _runs[evalRunId] = run with
@@ -210,6 +221,7 @@ internal sealed class InMemoryEvalStore : IEvalStore
     public ValueTask CompleteRunAsync(EvalRunCompletion completion, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(completion);
+        cancellationToken.ThrowIfCancellationRequested();
 
         if (_runs.TryGetValue(completion.EvalRunId, out var run))
         {
@@ -235,6 +247,7 @@ internal sealed class InMemoryEvalStore : IEvalStore
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
+        cancellationToken.ThrowIfCancellationRequested();
 
         if (_runs.TryGetValue(evalRunId, out var run) && string.Equals(run.TenantId, tenantId, StringComparison.Ordinal))
         {
@@ -251,6 +264,7 @@ internal sealed class InMemoryEvalStore : IEvalStore
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var run = _runs.Values.FirstOrDefault(candidate =>
             candidate.JobId == jobId && string.Equals(candidate.TenantId, tenantId, StringComparison.Ordinal));
@@ -264,6 +278,7 @@ internal sealed class InMemoryEvalStore : IEvalStore
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(query);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var matches = new List<EvalRun>();
 
@@ -295,6 +310,7 @@ internal sealed class InMemoryEvalStore : IEvalStore
     public ValueTask RecordCaseResultAsync(EvalCaseResult result, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(result);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var record = result.Id == Guid.Empty ? result with { Id = TraconId.NewId() } : result;
         var log = _caseResults.GetOrAdd(record.EvalRunId, static _ => []);
@@ -314,6 +330,7 @@ internal sealed class InMemoryEvalStore : IEvalStore
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
+        cancellationToken.ThrowIfCancellationRequested();
 
         if (!_runs.TryGetValue(evalRunId, out var run) || !string.Equals(run.TenantId, tenantId, StringComparison.Ordinal))
         {

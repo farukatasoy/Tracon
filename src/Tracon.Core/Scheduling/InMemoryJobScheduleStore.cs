@@ -16,6 +16,7 @@ internal sealed class InMemoryJobScheduleStore : IJobScheduleStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var match = Find(tenantId, name);
 
@@ -26,6 +27,7 @@ internal sealed class InMemoryJobScheduleStore : IJobScheduleStore
     public ValueTask<IReadOnlyList<JobSchedule>> ListAsync(string tenantId, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var matches = _schedules.Values
             .Where(schedule => string.Equals(schedule.TenantId, tenantId, StringComparison.Ordinal))
@@ -39,6 +41,7 @@ internal sealed class InMemoryJobScheduleStore : IJobScheduleStore
     public ValueTask<JobSchedule> SaveAsync(JobSchedule schedule, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(schedule);
+        cancellationToken.ThrowIfCancellationRequested();
 
         if (!JobLanes.IsValidName(schedule.Lane))
         {
@@ -68,6 +71,7 @@ internal sealed class InMemoryJobScheduleStore : IJobScheduleStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        cancellationToken.ThrowIfCancellationRequested();
 
         lock (_schedules)
         {
@@ -82,6 +86,8 @@ internal sealed class InMemoryJobScheduleStore : IJobScheduleStore
         DateTimeOffset asOfUtc,
         CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var matches = _schedules.Values
             .Where(schedule => schedule.Enabled
                 && schedule.Cron is { Length: > 0 }
@@ -100,6 +106,8 @@ internal sealed class InMemoryJobScheduleStore : IJobScheduleStore
         DateTimeOffset ranAt,
         CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         lock (_schedules)
         {
             if (!_schedules.TryGetValue(scheduleId, out var schedule) || schedule.NextRunAt != expectedNextRunAt)

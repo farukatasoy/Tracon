@@ -5,10 +5,10 @@ namespace Tracon.Testing.Contracts.Storage;
 public abstract class EvalStoreContract : TenantIsolationContract<IEvalStore>
 {
     /// <inheritdoc />
-    protected override async ValueTask<object> SeedAsync(string tenantId, string name)
+    protected override async ValueTask<object> SeedAsync(string tenantId, string name, CancellationToken cancellationToken)
     {
-        var suite = await Store.SaveSuiteAsync(TestData.EvalSuite(tenantId, name));
-        await Store.CreateRunAsync(TestData.EvalRun(tenantId, suite.Id));
+        var suite = await Store.SaveSuiteAsync(TestData.EvalSuite(tenantId, name), cancellationToken);
+        await Store.CreateRunAsync(TestData.EvalRun(tenantId, suite.Id), cancellationToken);
         return name;
     }
 
@@ -17,8 +17,8 @@ public abstract class EvalStoreContract : TenantIsolationContract<IEvalStore>
         => await Store.GetSuiteAsync(tenantId, (string)key) is not null;
 
     /// <inheritdoc />
-    protected override async ValueTask<int> CountAsync(string tenantId)
-        => (await Store.ListSuitesAsync(tenantId)).Count;
+    protected override async ValueTask<int> CountAsync(string tenantId, CancellationToken cancellationToken)
+        => (await Store.ListSuitesAsync(tenantId, cancellationToken)).Count;
 
     /// <inheritdoc />
     protected override async ValueTask<bool?> TryDeleteAsync(string tenantId, object key)
@@ -567,28 +567,6 @@ public abstract class EvalStoreContract : TenantIsolationContract<IEvalStore>
             }));
 
         error.Reason.ShouldBe(EvalRunDiffUnavailableReason.DifferentSuites);
-    }
-
-    [Fact]
-    public async Task DiffRunsAsync_observes_cancellation()
-    {
-        var suite = await Store.SaveSuiteAsync(TestData.EvalSuite());
-        var caseId = TraconId.NewId();
-        var baseline = await CompletedRunAsync(suite.Id, (caseId, true));
-        var candidate = await CompletedRunAsync(suite.Id, (caseId, false));
-
-        using var source = new CancellationTokenSource();
-        await source.CancelAsync();
-
-        await Should.ThrowAsync<OperationCanceledException>(async () =>
-            await Store.DiffRunsAsync(
-                new EvalRunDiffQuery
-                {
-                    TenantId = "default",
-                    BaselineRunId = baseline,
-                    CandidateRunId = candidate,
-                },
-                source.Token));
     }
 
     private ValueTask<Guid> CompletedRunAsync(Guid suiteId, params (Guid CaseId, bool Passed)[] results)

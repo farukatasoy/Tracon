@@ -6,13 +6,13 @@ namespace Tracon.Testing.Contracts.Storage;
 public abstract class RetentionPolicyStoreContract : TenantIsolationContract<IRetentionPolicyStore>
 {
     /// <inheritdoc />
-    protected override async ValueTask<object> SeedAsync(string tenantId, string name)
+    protected override async ValueTask<object> SeedAsync(string tenantId, string name, CancellationToken cancellationToken)
     {
-        var policy = await Store.SavePolicyAsync(Policy(tenantId));
+        var policy = await Store.SavePolicyAsync(Policy(tenantId), cancellationToken);
 
-        var run = await Store.CreateRunAsync(Run() with { TenantId = tenantId });
-        await Store.AppendRunProgressAsync(run.Id, deletedDelta: 1, archivedDelta: 0);
-        await Store.CompleteRunAsync(run.Id, DateTimeOffset.UtcNow, errorMessage: null);
+        var run = await Store.CreateRunAsync(Run() with { TenantId = tenantId }, cancellationToken);
+        await Store.AppendRunProgressAsync(run.Id, deletedDelta: 1, archivedDelta: 0, cancellationToken);
+        await Store.CompleteRunAsync(run.Id, DateTimeOffset.UtcNow, errorMessage: null, cancellationToken);
 
         return policy.Target;
     }
@@ -30,8 +30,8 @@ public abstract class RetentionPolicyStoreContract : TenantIsolationContract<IRe
     }
 
     /// <inheritdoc />
-    protected override async ValueTask<int> CountAsync(string tenantId)
-        => (await Store.ListPoliciesAsync(tenantId)).Count;
+    protected override async ValueTask<int> CountAsync(string tenantId, CancellationToken cancellationToken)
+        => (await Store.ListPoliciesAsync(tenantId, cancellationToken)).Count;
 
     /// <inheritdoc />
     protected override async ValueTask<bool?> TryDeleteAsync(string tenantId, object key)
@@ -45,7 +45,7 @@ public abstract class RetentionPolicyStoreContract : TenantIsolationContract<IRe
     /// </remarks>
     protected override async ValueTask<bool> TryOverwriteAsync(string tenantId, string name)
     {
-        await SeedAsync(tenantId, name);
+        await SeedAsync(tenantId, name, CancellationToken.None);
         return true;
     }
 

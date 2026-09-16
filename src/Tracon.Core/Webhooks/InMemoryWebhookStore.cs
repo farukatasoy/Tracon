@@ -21,6 +21,7 @@ internal sealed class InMemoryWebhookStore : IWebhookStore
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
+        cancellationToken.ThrowIfCancellationRequested();
 
         IReadOnlyList<WebhookSubscription> result = _subscriptions.Values
             .Where(subscription => string.Equals(subscription.TenantId, tenantId, StringComparison.Ordinal))
@@ -38,6 +39,7 @@ internal sealed class InMemoryWebhookStore : IWebhookStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var found = _subscriptions.Values.FirstOrDefault(subscription =>
             string.Equals(subscription.TenantId, tenantId, StringComparison.Ordinal)
@@ -54,6 +56,7 @@ internal sealed class InMemoryWebhookStore : IWebhookStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(eventType);
+        cancellationToken.ThrowIfCancellationRequested();
 
         IReadOnlyList<WebhookSubscription> result = _subscriptions.Values
             .Where(subscription =>
@@ -72,6 +75,7 @@ internal sealed class InMemoryWebhookStore : IWebhookStore
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(subscription);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var existing = _subscriptions.Values.FirstOrDefault(candidate =>
             string.Equals(candidate.TenantId, subscription.TenantId, StringComparison.Ordinal)
@@ -96,6 +100,7 @@ internal sealed class InMemoryWebhookStore : IWebhookStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var existing = _subscriptions.Values.FirstOrDefault(candidate =>
             string.Equals(candidate.TenantId, tenantId, StringComparison.Ordinal)
@@ -123,6 +128,8 @@ internal sealed class InMemoryWebhookStore : IWebhookStore
         DateTimeOffset updatedAt,
         CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         if (!_subscriptions.TryGetValue(subscriptionId, out var subscription))
         {
             return new ValueTask<bool>(false);
@@ -147,6 +154,7 @@ internal sealed class InMemoryWebhookStore : IWebhookStore
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(delivery);
+        cancellationToken.ThrowIfCancellationRequested();
 
         _deliveries[delivery.Id] = delivery;
 
@@ -157,7 +165,11 @@ internal sealed class InMemoryWebhookStore : IWebhookStore
     public ValueTask<WebhookDelivery?> GetDeliveryAsync(
         Guid deliveryId,
         CancellationToken cancellationToken = default)
-        => new(_deliveries.TryGetValue(deliveryId, out var delivery) ? delivery : null);
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return new(_deliveries.TryGetValue(deliveryId, out var delivery) ? delivery : null);
+    }
 
     /// <inheritdoc />
     public ValueTask RecordDeliveryResultAsync(
@@ -165,6 +177,7 @@ internal sealed class InMemoryWebhookStore : IWebhookStore
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(result);
+        cancellationToken.ThrowIfCancellationRequested();
 
         if (_deliveries.TryGetValue(result.DeliveryId, out var delivery))
         {
@@ -189,6 +202,7 @@ internal sealed class InMemoryWebhookStore : IWebhookStore
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(query);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var matches = _deliveries.Values
             .Where(delivery => string.Equals(delivery.TenantId, query.TenantId, StringComparison.Ordinal));

@@ -25,6 +25,7 @@ internal sealed class InMemoryPendingApprovalStore : IPendingApprovalStore
     public ValueTask CreateAsync(PendingApproval approval, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(approval);
+        cancellationToken.ThrowIfCancellationRequested();
 
         _approvals[approval.Id] = approval;
 
@@ -34,6 +35,8 @@ internal sealed class InMemoryPendingApprovalStore : IPendingApprovalStore
     /// <inheritdoc />
     public ValueTask<IReadOnlyList<PendingApproval>> ListPendingAsync(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var tenantId = _tenantContext.TenantId;
 
         IReadOnlyList<PendingApproval> result = _approvals.Values
@@ -48,6 +51,8 @@ internal sealed class InMemoryPendingApprovalStore : IPendingApprovalStore
     /// <inheritdoc />
     public ValueTask<PendingApproval?> GetAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var tenantId = _tenantContext.TenantId;
 
         var approval = _approvals.TryGetValue(id, out var found) &&
@@ -67,6 +72,7 @@ internal sealed class InMemoryPendingApprovalStore : IPendingApprovalStore
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(decidedBy);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var tenantId = _tenantContext.TenantId;
 
@@ -95,6 +101,8 @@ internal sealed class InMemoryPendingApprovalStore : IPendingApprovalStore
         int max,
         CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var expired = new List<PendingApproval>();
 
         foreach (var approval in _approvals.Values.OrderBy(static a => a.ExpiresAt))

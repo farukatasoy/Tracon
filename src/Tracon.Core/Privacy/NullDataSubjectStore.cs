@@ -15,14 +15,22 @@ internal sealed class NullDataSubjectStore : IDataSubjectStore
         string tenantId,
         DataSubjectScope scope,
         CancellationToken cancellationToken = default)
-        => new(Empty);
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return new(Empty);
+    }
 
     /// <inheritdoc />
     public ValueTask<DataSubjectExport> ExportAsync(
         string tenantId,
         DataSubjectScope scope,
         CancellationToken cancellationToken = default)
-        => new(new DataSubjectExport { Json = "{}" });
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return new(new DataSubjectExport { Json = "{}" });
+    }
 
     /// <inheritdoc />
     public async ValueTask<IReadOnlyDictionary<string, int>> EraseAsync(
@@ -32,6 +40,7 @@ internal sealed class NullDataSubjectStore : IDataSubjectStore
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(beforeCommitAsync);
+        cancellationToken.ThrowIfCancellationRequested();
 
         // There is nothing to delete, but the caller's audit write still needs to
         // run — it accurately records "an erasure was requested; there was no SQL

@@ -112,6 +112,47 @@ flowchart TD
     RUN --> TREE["Tree totals across parent/child runs"]
 ```
 
+## Cancellation: the one promise every store makes
+
+Every store contract in the package — not just `RunStoreContract` — asks the same
+two questions about a `CancellationToken` that was **already cancelled** when the
+call started:
+
+| Scenario | What your store must do |
+|---|---|
+| `Canceled_token_throws_on_read` | Throw `OperationCanceledException` from a read |
+| `Canceled_token_throws_on_write_and_leaves_no_trace` | Throw from a write **and** leave no record behind |
+
+The second one is the one to design for. Throwing is not enough on its own: a check
+placed after the work throws too, and the row is already written. The contract reads
+the store back and requires it to be untouched, so the check belongs **before** the
+work:
+
+```csharp
+public ValueTask<MyRecord> SaveAsync(MyRecord record, CancellationToken cancellationToken = default)
+{
+    ArgumentNullException.ThrowIfNull(record);
+    cancellationToken.ThrowIfCancellationRequested();   // before the write, not after
+
+    // ... write
+}
+```
+
+A store built on ADO.NET usually satisfies this for free: `ExecuteReaderAsync(token)`
+and `OpenAsync(token)` observe an already-cancelled token themselves. A store built on
+in-process state, a file, or an HTTP client that does not take the token has to say so
+in one line per method.
+
+Two limits are deliberate. Cancellation **during** a call is not covered — it races,
+so no deterministic scenario can assert where the work stopped. And the contract
+exercises one read and one write per store rather than every method; that is enough
+to prove the rule is implemented, not a substitute for applying it everywhere.
+
+A method returning `IAsyncEnumerable<T>` is lazy: its body does not run until the
+first step. `RunStoreContract` therefore asks that the **first** `MoveNextAsync`
+throws, including on a run with no events at all — the case a store that only checks
+the token between yields misses.
+
 ## What the suite does not check
 
 The same three things every store contract leaves to you, regardless of interface:

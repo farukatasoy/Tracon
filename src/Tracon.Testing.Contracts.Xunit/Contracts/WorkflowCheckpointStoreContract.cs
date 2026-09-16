@@ -16,9 +16,9 @@ namespace Tracon.Testing.Contracts.Storage;
 public abstract class WorkflowCheckpointStoreContract : TenantIsolationContract<IWorkflowCheckpointStore>
 {
     /// <inheritdoc />
-    protected override async ValueTask<object> SeedAsync(string tenantId, string name)
+    protected override async ValueTask<object> SeedAsync(string tenantId, string name, CancellationToken cancellationToken)
     {
-        await Store.CreateAsync(Record(tenantId, name, "c-1") with { RunId = IsolationRunId });
+        await Store.CreateAsync(Record(tenantId, name, "c-1") with { RunId = IsolationRunId }, cancellationToken);
         return name;
     }
 
@@ -35,8 +35,15 @@ public abstract class WorkflowCheckpointStoreContract : TenantIsolationContract<
     }
 
     /// <inheritdoc />
-    protected override async ValueTask<int> CountAsync(string tenantId)
-        => (await Store.ListAsync(tenantId, "secret")).Count + (await Store.ListAsync(tenantId, "shared-name")).Count;
+    protected override async ValueTask<int> CountAsync(string tenantId, CancellationToken cancellationToken)
+        => (await Store.ListAsync(tenantId, "secret", cancellationToken)).Count + (await Store.ListAsync(tenantId, "shared-name", cancellationToken)).Count;
+
+    /// <inheritdoc />
+    // 🚨 NOT the inherited CountAsync. That one is pinned to the two session
+    // ids the isolation scenarios seed, and the cancellation write targets a
+    // third -- so it could never see the row it is asked about.
+    protected override async ValueTask<bool> WroteAnythingAsync()
+        => (await Store.ListAsync(TenantA, "cancelled")).Count > 0;
 
     /// <inheritdoc />
     protected override async ValueTask<bool?> TryDeleteAsync(string tenantId, object key)

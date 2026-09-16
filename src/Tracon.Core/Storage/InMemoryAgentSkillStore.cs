@@ -13,6 +13,7 @@ internal sealed class InMemoryAgentSkillStore : IAgentSkillStore
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(tenantId);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var skills = _skills
             .Where(pair => string.Equals(pair.Key.TenantId, tenantId, StringComparison.Ordinal))
@@ -31,6 +32,7 @@ internal sealed class InMemoryAgentSkillStore : IAgentSkillStore
     {
         ArgumentNullException.ThrowIfNull(tenantId);
         ArgumentNullException.ThrowIfNull(name);
+        cancellationToken.ThrowIfCancellationRequested();
 
         _skills.TryGetValue(new SkillKey(tenantId, name), out var skill);
         return new ValueTask<AgentSkillDefinition?>(skill);
@@ -42,6 +44,7 @@ internal sealed class InMemoryAgentSkillStore : IAgentSkillStore
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(skill);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var key = new SkillKey(skill.TenantId, skill.Name);
         var saved = _skills.AddOrUpdate(
@@ -61,6 +64,7 @@ internal sealed class InMemoryAgentSkillStore : IAgentSkillStore
     {
         ArgumentNullException.ThrowIfNull(tenantId);
         ArgumentNullException.ThrowIfNull(name);
+        cancellationToken.ThrowIfCancellationRequested();
 
         return new ValueTask<bool>(_skills.TryRemove(new SkillKey(tenantId, name), out _));
     }

@@ -16,7 +16,7 @@ public abstract class TraceStoreContract : TenantIsolationContract<ITraceStore>
     /// <see cref="ITenantContext"/>; if the two diverge, the trace can never
     /// be found.
     /// </remarks>
-    protected override async ValueTask<object> SeedAsync(string tenantId, string name)
+    protected override async ValueTask<object> SeedAsync(string tenantId, string name, CancellationToken cancellationToken)
     {
         AmbientTenant.TenantId = tenantId;
 
@@ -29,7 +29,7 @@ public abstract class TraceStoreContract : TenantIsolationContract<ITraceStore>
             TenantId = tenantId,
             RunId = runId,
             Spans = [Span(name, parent: null)],
-        });
+        }, cancellationToken);
 
         _seededRuns.Add(runId);
         return runId;
@@ -44,10 +44,54 @@ public abstract class TraceStoreContract : TenantIsolationContract<ITraceStore>
 
     /// <inheritdoc />
     /// <remarks>
+    /// The span store has no listing endpoint, so the read hook is its own
+    /// lookup rather than <see cref="CountAsync"/>.
+    /// </remarks>
+    // 🚨 CountAsync reduces to a loop over the runs seeded so far. On the
+    // untouched store the cancellation contract uses, that loop makes no
+    // store call at all and the token would never reach the store.
+    protected override async ValueTask CancellableReadAsync(CancellationToken cancellationToken)
+        => await Store.GetTraceByRunAsync(TraconId.NewId(), cancellationToken);
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// The write goes to a run of its own so the read-back below can name it.
+    /// </remarks>
+    protected override async ValueTask CancellableWriteAsync(CancellationToken cancellationToken)
+    {
+        AmbientTenant.TenantId = TenantA;
+        await SeedRunAsync(_cancellationRunId);
+
+        await Store.WriteSpansAsync(new TraceSpanBatch
+        {
+            TraceId = NewTraceId(),
+            TenantId = TenantA,
+            RunId = _cancellationRunId,
+            Spans = [Span("cancelled", parent: null)],
+        }, cancellationToken);
+    }
+
+    /// <inheritdoc />
+    // 🚨 NOT the inherited CountAsync. That one walks _seededRuns, and the
+    // seed appends to that list only AFTER its write succeeds -- so after a
+    // cancelled write the list is empty, the count is 0, and "left no trace"
+    // would be true however the store behaved.
+    protected override async ValueTask<bool> WroteAnythingAsync()
+    {
+        AmbientTenant.TenantId = TenantA;
+
+        return await Store.GetTraceByRunAsync(_cancellationRunId) is not null;
+    }
+
+    // The run the cancellation write attaches its spans to.
+    private readonly Guid _cancellationRunId = TraconId.NewId();
+
+    /// <inheritdoc />
+    /// <remarks>
     /// The span store has no listing endpoint; the count is reduced to how
     /// many of the runs seeded for that tenant are visible.
     /// </remarks>
-    protected override async ValueTask<int> CountAsync(string tenantId)
+    protected override async ValueTask<int> CountAsync(string tenantId, CancellationToken cancellationToken)
     {
         var seen = 0;
 

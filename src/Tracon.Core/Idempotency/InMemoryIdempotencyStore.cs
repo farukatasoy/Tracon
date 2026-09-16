@@ -19,6 +19,7 @@ internal sealed class InMemoryIdempotencyStore : IIdempotencyStore
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var dictionaryKey = (request.TenantId, request.Key);
         var entry = new Entry(request.Fingerprint);
@@ -52,6 +53,7 @@ internal sealed class InMemoryIdempotencyStore : IIdempotencyStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
         ArgumentNullException.ThrowIfNull(response);
+        cancellationToken.ThrowIfCancellationRequested();
 
         if (_entries.TryGetValue((tenantId, key), out var entry))
         {
@@ -67,6 +69,7 @@ internal sealed class InMemoryIdempotencyStore : IIdempotencyStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
+        cancellationToken.ThrowIfCancellationRequested();
 
         _entries.TryRemove((tenantId, key), out _);
 

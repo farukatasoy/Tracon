@@ -11,8 +11,8 @@ namespace Tracon.Testing.Contracts.Storage;
 public abstract class AttachmentStoreContract : TenantIsolationContract<IAttachmentStore>
 {
     /// <inheritdoc />
-    protected override async ValueTask<object> SeedAsync(string tenantId, string name)
-        => (await Store.SaveAsync(Content(tenantId, fileName: $"{name}.png"))).Id;
+    protected override async ValueTask<object> SeedAsync(string tenantId, string name, CancellationToken cancellationToken)
+        => (await Store.SaveAsync(Content(tenantId, fileName: $"{name}.png"), cancellationToken)).Id;
 
     /// <inheritdoc />
     protected override async ValueTask<bool> ExistsAsync(string tenantId, object key)
@@ -33,8 +33,8 @@ public abstract class AttachmentStoreContract : TenantIsolationContract<IAttachm
     }
 
     /// <inheritdoc />
-    protected override async ValueTask<int> CountAsync(string tenantId)
-        => (await Store.ListAsync(new AttachmentQuery { TenantId = tenantId })).Count;
+    protected override async ValueTask<int> CountAsync(string tenantId, CancellationToken cancellationToken)
+        => (await Store.ListAsync(new AttachmentQuery { TenantId = tenantId }, cancellationToken)).Count;
 
     /// <inheritdoc />
     protected override async ValueTask<bool?> TryDeleteAsync(string tenantId, object key)

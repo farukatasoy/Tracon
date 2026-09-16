@@ -26,9 +26,9 @@ public sealed class MutableTenantContext(string tenantId) : ITenantContext
 /// <typeparam name="TStore">The store type under test.</typeparam>
 /// <remarks>
 /// <para>
-/// This base also carries the lifecycle plumbing shared
-/// by every store contract; derived contracts write only their own scenarios
-/// and the four isolation hooks.
+/// Derived contracts write only their own scenarios and the four isolation
+/// hooks; the lifecycle plumbing and the cancellation promise come from
+/// <see cref="StoreCancellationContract{TStore}"/>.
 /// </para>
 /// <para>
 /// <strong>The two-way check cannot be skipped.</strong> If only "B must
@@ -37,7 +37,7 @@ public sealed class MutableTenantContext(string tenantId) : ITenantContext
 /// own data", proving the filter is both sufficient and not too narrow.
 /// </para>
 /// </remarks>
-public abstract class TenantIsolationContract<TStore> : IAsyncLifetime
+public abstract class TenantIsolationContract<TStore> : StoreCancellationContract<TStore>
 {
     /// <summary>The tenant that writes the data.</summary>
     protected const string TenantA = "tenant-a";
@@ -52,13 +52,6 @@ public abstract class TenantIsolationContract<TStore> : IAsyncLifetime
     /// </summary>
     protected MutableTenantContext AmbientTenant { get; private set; } = new(TenantA);
 
-    /// <summary>The store under test.</summary>
-    protected TStore Store { get; private set; } = default!;
-
-    /// <summary>Produces an empty store for the test.</summary>
-    /// <returns>A store ready for use.</returns>
-    protected abstract ValueTask<TStore> CreateStoreAsync();
-
     /// <summary>
     /// Attaches to a tenant context shared per class (used by multiple
     /// tests) and resets the tenant back to <see cref="TenantA"/>.
@@ -68,8 +61,9 @@ public abstract class TenantIsolationContract<TStore> : IAsyncLifetime
     /// When store instances are set up once per class (see the schema
     /// fixtures), they all capture the SAME <see cref="ITenantContext"/>
     /// object; each test must therefore call this method inside
-    /// <see cref="CreateStoreAsync"/> to attach to that object and reset any
-    /// state a previous test may have left on <see cref="TenantB"/>.
+    /// <see cref="StoreCancellationContract{TStore}.CreateStoreAsync"/> to
+    /// attach to that object and reset any state a previous test may have
+    /// left on <see cref="TenantB"/>.
     /// </remarks>
     protected void UseAmbientTenant(MutableTenantContext tenant)
     {
@@ -79,27 +73,19 @@ public abstract class TenantIsolationContract<TStore> : IAsyncLifetime
         AmbientTenant.TenantId = TenantA;
     }
 
-    /// <inheritdoc />
-    public async ValueTask InitializeAsync() => Store = await CreateStoreAsync();
-
-    /// <inheritdoc />
-    public async ValueTask DisposeAsync()
-    {
-        await OnDisposeAsync();
-        GC.SuppressFinalize(this);
-    }
-
-    /// <summary>Hook for a derived class to release its own resources.</summary>
-    /// <returns>A completed task.</returns>
-    protected virtual ValueTask OnDisposeAsync() => default;
-
     // --- Tenant isolation hooks (phase 41) ---
 
     /// <summary>Writes a sample record for the given tenant.</summary>
     /// <param name="tenantId">The tenant that owns the record.</param>
     /// <param name="name">The name distinguishing the record. The same name may be used by two tenants.</param>
+    /// <param name="cancellationToken">
+    /// The token every store call inside the hook must be handed. The
+    /// cancellation contract calls this hook with a token that is already
+    /// cancelled, so a hook that drops the token reports a store as sound
+    /// when it is not.
+    /// </param>
     /// <returns>The key to use for reading the record back.</returns>
-    protected abstract ValueTask<object> SeedAsync(string tenantId, string name);
+    protected abstract ValueTask<object> SeedAsync(string tenantId, string name, CancellationToken cancellationToken);
 
     /// <summary>Reports whether the record is visible from the given tenant's viewpoint.</summary>
     /// <param name="tenantId">The reading tenant.</param>
@@ -109,8 +95,12 @@ public abstract class TenantIsolationContract<TStore> : IAsyncLifetime
 
     /// <summary>Reports how many records the given tenant sees through the listing endpoint.</summary>
     /// <param name="tenantId">The reading tenant.</param>
+    /// <param name="cancellationToken">
+    /// The token every store call inside the hook must be handed; see
+    /// <see cref="SeedAsync"/>.
+    /// </param>
     /// <returns>The number of records seen.</returns>
-    protected abstract ValueTask<int> CountAsync(string tenantId);
+    protected abstract ValueTask<int> CountAsync(string tenantId, CancellationToken cancellationToken);
 
     /// <summary>
     /// Attempts to delete the record on behalf of the given tenant.
@@ -142,16 +132,42 @@ public abstract class TenantIsolationContract<TStore> : IAsyncLifetime
     /// </remarks>
     protected virtual async ValueTask<bool> TryOverwriteAsync(string tenantId, string name)
     {
-        await SeedAsync(tenantId, name);
+        await SeedAsync(tenantId, name, CancellationToken.None);
         return true;
     }
+
+    // --- Cancellation hooks (phase 177) ---
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// The listing hook is the read: it needs no key, so it can be called on
+    /// an untouched store. A contract whose store has no listing endpoint --
+    /// and whose <see cref="CountAsync"/> therefore makes no store call at
+    /// all on an empty store -- overrides this with its own read.
+    /// </remarks>
+    protected override async ValueTask CancellableReadAsync(CancellationToken cancellationToken)
+        => await CountAsync(TenantA, cancellationToken);
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// The seed hook is the write, which makes the read-back below exact:
+    /// <see cref="Tenant_does_not_see_another_tenants_record_in_the_list"/>
+    /// already proves that what <see cref="SeedAsync"/> writes is what
+    /// <see cref="CountAsync"/> counts.
+    /// </remarks>
+    protected override async ValueTask CancellableWriteAsync(CancellationToken cancellationToken)
+        => await SeedAsync(TenantA, "cancelled", cancellationToken);
+
+    /// <inheritdoc />
+    protected override async ValueTask<bool> WroteAnythingAsync()
+        => await CountAsync(TenantA, CancellationToken.None) > 0;
 
     // --- Isolation tests ---
 
     [Fact]
     public async Task Tenant_cannot_read_another_tenants_record()
     {
-        var key = await SeedAsync(TenantA, "secret");
+        var key = await SeedAsync(TenantA, "secret", TestContext.Current.CancellationToken);
 
         (await ExistsAsync(TenantB, key)).ShouldBeFalse(
             "Tenant B can read tenant A's record.");
@@ -162,7 +178,7 @@ public abstract class TenantIsolationContract<TStore> : IAsyncLifetime
     {
         // 🚨 The second direction. Without this check, a broken query that
         // returns nothing at all would also pass the isolation test.
-        var key = await SeedAsync(TenantA, "secret");
+        var key = await SeedAsync(TenantA, "secret", TestContext.Current.CancellationToken);
 
         (await ExistsAsync(TenantA, key)).ShouldBeTrue(
             "Tenant A cannot read its own record; the filter is too narrow.");
@@ -171,16 +187,17 @@ public abstract class TenantIsolationContract<TStore> : IAsyncLifetime
     [Fact]
     public async Task Tenant_does_not_see_another_tenants_record_in_the_list()
     {
-        await SeedAsync(TenantA, "secret");
+        var token = TestContext.Current.CancellationToken;
+        await SeedAsync(TenantA, "secret", token);
 
-        (await CountAsync(TenantB)).ShouldBe(0, "The listing endpoint leaks across tenants.");
-        (await CountAsync(TenantA)).ShouldBeGreaterThan(0, "The tenant cannot list its own record.");
+        (await CountAsync(TenantB, token)).ShouldBe(0, "The listing endpoint leaks across tenants.");
+        (await CountAsync(TenantA, token)).ShouldBeGreaterThan(0, "The tenant cannot list its own record.");
     }
 
     [Fact]
     public async Task Tenant_cannot_delete_another_tenants_record()
     {
-        var key = await SeedAsync(TenantA, "secret");
+        var key = await SeedAsync(TenantA, "secret", TestContext.Current.CancellationToken);
 
         var deleted = await TryDeleteAsync(TenantB, key);
 
@@ -201,7 +218,8 @@ public abstract class TenantIsolationContract<TStore> : IAsyncLifetime
     [Fact]
     public async Task Same_name_lives_independently_across_two_tenants()
     {
-        var keyA = await SeedAsync(TenantA, "shared-name");
+        var token = TestContext.Current.CancellationToken;
+        var keyA = await SeedAsync(TenantA, "shared-name", token);
 
         if (!await TryOverwriteAsync(TenantB, "shared-name"))
         {
@@ -210,7 +228,7 @@ public abstract class TenantIsolationContract<TStore> : IAsyncLifetime
 
         (await ExistsAsync(TenantA, keyA)).ShouldBeTrue(
             "Tenant B writing under the same name overwrote tenant A's record.");
-        (await CountAsync(TenantA)).ShouldBe(1);
-        (await CountAsync(TenantB)).ShouldBe(1);
+        (await CountAsync(TenantA, token)).ShouldBe(1);
+        (await CountAsync(TenantB, token)).ShouldBe(1);
     }
 }

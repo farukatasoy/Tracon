@@ -37,6 +37,7 @@ internal sealed class InMemoryAuditLog : IAuditLog
     public ValueTask WriteAsync(AuditEntry entry, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(entry);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var chain = _byTenant.GetOrAdd(entry.TenantId, static _ => []);
 
@@ -66,6 +67,7 @@ internal sealed class InMemoryAuditLog : IAuditLog
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(query);
+        cancellationToken.ThrowIfCancellationRequested();
 
         IEnumerable<AuditEntry> matches = SnapshotOne(ResolveTenantId(query.TenantId));
 
@@ -93,6 +95,7 @@ internal sealed class InMemoryAuditLog : IAuditLog
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(query);
+        cancellationToken.ThrowIfCancellationRequested();
 
         IEnumerable<AuditEntry> matches = SnapshotOne(ResolveTenantId(query.TenantId));
 

@@ -27,6 +27,7 @@ internal sealed class InMemoryVoiceSessionStore : IVoiceSessionStore
     public ValueTask SaveAsync(VoiceSessionRecord record, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(record);
+        cancellationToken.ThrowIfCancellationRequested();
 
         _records[record.Id] = record;
 
@@ -46,6 +47,7 @@ internal sealed class InMemoryVoiceSessionStore : IVoiceSessionStore
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         ArgumentNullException.ThrowIfNull(query);
+        cancellationToken.ThrowIfCancellationRequested();
 
         IReadOnlyList<VoiceSessionRecord> result = _records.Values
             .Where(record => string.Equals(record.TenantId, tenantId, StringComparison.Ordinal))

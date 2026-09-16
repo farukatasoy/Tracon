@@ -12,11 +12,11 @@ namespace Tracon.Testing.Contracts.Storage;
 public abstract class QuotaStoreContract : TenantIsolationContract<IQuotaStore>
 {
     /// <inheritdoc />
-    protected override async ValueTask<object> SeedAsync(string tenantId, string name)
+    protected override async ValueTask<object> SeedAsync(string tenantId, string name, CancellationToken cancellationToken)
     {
-        var saved = await Store.SaveAsync(Quota(agentName: name) with { TenantId = tenantId });
+        var saved = await Store.SaveAsync(Quota(agentName: name) with { TenantId = tenantId }, cancellationToken);
 
-        await Store.AddUsageAsync(Consumption() with { TenantId = tenantId, AgentName = name }, Periods);
+        await Store.AddUsageAsync(Consumption() with { TenantId = tenantId, AgentName = name }, Periods, cancellationToken);
 
         return saved.Id;
     }
@@ -36,8 +36,8 @@ public abstract class QuotaStoreContract : TenantIsolationContract<IQuotaStore>
     }
 
     /// <inheritdoc />
-    protected override async ValueTask<int> CountAsync(string tenantId)
-        => (await Store.ListAsync(tenantId)).Count;
+    protected override async ValueTask<int> CountAsync(string tenantId, CancellationToken cancellationToken)
+        => (await Store.ListAsync(tenantId, cancellationToken)).Count;
 
     /// <inheritdoc />
     protected override async ValueTask<bool?> TryDeleteAsync(string tenantId, object key)
