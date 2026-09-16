@@ -1568,7 +1568,8 @@ dotnet run -c Release
 
 **Beklenen sonuç**
 - `1048576: KABUL` — sınırın tam üstü geçerlidir.
-- `1048577: RED` ve mesaj `0 ile 1048576 arasinda olmalidir` ifadesini taşır.
+- `1048577: RED` ve mesaj `must be between 0 and 1048576` ifadesini taşır.
+  🚨 Sevk edilen metin K-228'den beri **İngilizce**dir.
 - `-1: RED`.
 - Red mesajı **gelen değeri** yazar.
 
@@ -1671,7 +1672,7 @@ Console.WriteLine($"MaxTotalTokens: {o.AgentGraph.MaxTotalTokens}");
 Console.WriteLine($"MaxTotalRuns  : {o.AgentGraph.MaxTotalRuns}");
 
 o.AgentGraph.MaxTotalTokens = 0;
-var b = o.AgentGraph.CreateBudget();
+var b = o.AgentGraph.CreateBudget(TimeProvider.System);
 Console.WriteLine($"sifirla butce token siniri: {(b.MaxTotalTokens is null ? "SINIRSIZ" : b.MaxTotalTokens.ToString())}");
 EOF
 
@@ -1814,12 +1815,17 @@ adı** sayılır; `Currency` ve `Voice` bu yüzden rezervedir.
 **Girilecek veri**
 ```bash
 cd ~/tracon-manuel/skillsiz
+# appsettings.json cikti dizinine KOPYALANMALIDIR, yoksa ConfigurationBuilder
+# dosyayi bulamaz. csproj'a ekle:
+#   <ItemGroup><Content Include="appsettings.json"
+#     CopyToOutputDirectory="PreserveNewest" /></ItemGroup>
 cat > appsettings.json <<'EOF'
 {
   "Tracon": {
     "Pricing": {
       "Currency": "USD",
-      "echo": { "echo-1": { "InputCostPerMillionTokens": 0.25, "OutputCostPerMillionTokens": 1.0 } },
+      "//": "ANAHTAR ADLARI: Input / Output / CachedInput. C# ozellik adi (InputCostPerMillionTokens) DEGIL.",
+      "echo": { "echo-1": { "Input": 0.25, "Output": 1.0 } },
       "Voice": { "elevenlabs": { "tts-1": { "PerMillionCharacters": 30.0 } } }
     }
   }
@@ -1834,9 +1840,10 @@ using Microsoft.Extensions.Options;
 
 var config = new ConfigurationBuilder().AddJsonFile("appsettings.json").Build();
 var services = new ServiceCollection();
-services.AddSingleton<IConfiguration>(config);
-services.AddTracon();
-services.Configure<TraconOptions>(config.GetSection(TraconOptions.SectionName));
+// 🚨 Bolum AddTracon'A VERILMELIDIR: elle (AOT) baglayici oradan kosar.
+// AddTracon() + Configure<TraconOptions>(...) yansima binder'ini kullanir ve
+// Providers sozlugunu DOLDURAMAZ (saglayici sayisi 0 gelir).
+services.AddTracon(config.GetSection(TraconOptions.SectionName));
 
 var o = services.BuildServiceProvider().GetRequiredService<IOptions<TraconOptions>>().Value;
 Console.WriteLine("Currency          : " + o.Pricing.Currency);
