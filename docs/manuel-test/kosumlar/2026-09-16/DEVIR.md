@@ -3,7 +3,7 @@
 > **Bu turu devralan oturum ÖNCE burayı okur.** Turun durumu, değişmez
 > kuralları, ortamı ve sıradaki işi taşır.
 >
-> **Durum:** Aşama 0 kapandı · **tur HENÜZ BAŞLAMADI** · taban commit `6ed103c2`
+> **Durum:** Aşama 0 kapandı · **tur HENÜZ BAŞLAMADI** · kod `7e3a4de7`'de donuk
 > **Son güncelleme:** 2026-09-16
 
 ---
@@ -36,7 +36,8 @@ flowchart LR
 
 | Alan | Değer |
 |---|---|
-| Taban commit | `6ed103c2` — **tur boyunca kod bu commit'te donuk** |
+| **Kod donması** | `src/` · `samples/` · `tests/` — son dokunan `7e3a4de7`; tur boyunca **değişmez** |
+| Doküman hattı | Her oturum kendi sonucunu commit eder, yani `HEAD` **ilerler**. Bu normaldir; kodu çözmez |
 | Set | 1866 case · 36 aile |
 | Tahmin | 85 oturum (zincir 13 + dört şerit 19/17/18/18) |
 | Şeritler | `../../../../../ap-s1..4` · dallar `test/kosum-s1..4` · dördü de derli (0 uyarı) |
@@ -78,10 +79,15 @@ Her oturum bununla açılır. Biri kırmızıysa **koşma**, önce onu düzelt.
 ```bash
 cd /Users/farukatasoy/Desktop/projects/Tracon
 
-git log -1 --format='%h %s'                 # 6ed103c2 bekleniyor
-docker ps --format '{{.Names}}\t{{.Status}}'  # ap-pg + ap-mssql Up
+git status --short                          # temiz olmali
+git diff --stat 7e3a4de7..HEAD -- src samples tests   # BOS olmali: kod donuk
+docker ps --format '{{.Names}}\t{{.Status}}'          # ap-pg + ap-mssql Up
 (cd samples/Tracon.Api && dotnet user-secrets list | wc -l)   # 17
 ```
+
+> 🚨 İkinci satır **boş dönmezse tur kirlenmiştir.** Birisi koşum sırasında
+> kodu değiştirmiş demektir ve o noktadan sonraki sonuçlar bir öncekilerle
+> karşılaştırılamaz. Dur ve kullanıcıya sor.
 
 Şerit ortam bloğu ve reset yordamı
 [`resources/serit-kurulumu.md`](../../../../.agents/skills/manuel-test-kosumu/resources/serit-kurulumu.md)
