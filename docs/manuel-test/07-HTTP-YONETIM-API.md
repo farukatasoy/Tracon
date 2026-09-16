@@ -149,8 +149,8 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents" -H "$APB" \
 
 **Beklenen sonuç**
 - `HTTP: 409`.
-- `title: "Agent adi kullanimda"`, `detail` `Guncellemek icin PUT kullanin.`
-  ile biter.
+- `title: "Agent name in use"`, `detail` `Use PUT to update it.` ile biter
+  (ürün metni İngilizce'dir, K-228 — bu düzeltme koşumda yapıldı).
 
 ---
 
@@ -183,9 +183,12 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents" -H "$APB" \
 
 **Beklenen sonuç**
 - `HTTP: 409`.
-- `detail` metni `kodda tanimli bir agent'tir ve yonetim API'sinden
-  degistirilemez. Ad cakismasinda kod kazandigi icin ayni adla yazilan bir
-  tanim hicbir zaman cozulmezdi.` ile biter.
+- `title: "Agent name in use"` — MT-API-002 ile **aynı** `title`, farklı olan
+  `detail` metnidir: `is defined in code and cannot be changed from the
+  management API. Code wins name conflicts, so a definition written with the
+  same name would never resolve.` (İngilizce, K-228; ürün `title`'ı bu iki
+  case için de aynı çıktı — spec'in "farklı gerekçe metni" beklentisi yalnız
+  `detail` için doğrudur, `title` için değil; koşumda düzeltildi).
 
 ---
 
@@ -216,7 +219,8 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents" -H "$APB" \
 ```
 
 **Beklenen sonuç**
-- `HTTP: 400`, `title: "Agent adi bos"`, `detail: "'name' alani zorunludur."`.
+- `HTTP: 400`, `title: "Agent name empty"`, `detail: "'name' is required."`
+  (İngilizce, K-228 — koşumda düzeltildi).
 
 ---
 
@@ -247,8 +251,8 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents" -H "$APB" \
 ```
 
 **Beklenen sonuç**
-- `HTTP: 400`, `title: "Model baglantisi eksik"`, `detail: "'model.provider' ve
-  'model.model' alanlari zorunludur."`.
+- `HTTP: 400`, `title: "Model binding missing"`, `detail: "'model.provider'
+  and 'model.model' are required."` (İngilizce, K-228 — koşumda düzeltildi).
 
 ---
 
@@ -275,8 +279,8 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/agents/hic-boyle-bir-agent" -H "$A
 ```
 
 **Beklenen sonuç**
-- `HTTP: 404`, `title: "Agent bulunamadi"`, `detail: "'hic-boyle-bir-agent'
-  adinda bir agent yok."`.
+- `HTTP: 404`, `title: "Agent not found"`, `detail: "There is no agent named
+  'hic-boyle-bir-agent'."` (İngilizce, K-228 — koşumda düzeltildi).
 
 ---
 
@@ -307,8 +311,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/agents/manuel-crud-01" \
 ```
 
 **Beklenen sonuç**
-- `HTTP: 400`, `title: "Ad uyusmuyor"`, `detail` `Agent adi degistirilemez;
-  yeni bir ad icin yeni bir tanim olusturun.` ile biter.
+- `HTTP: 400`, `title: "Name mismatch"`, `detail` `An agent's name cannot be
+  changed; create a new definition for a new name.` ile biter (İngilizce,
+  K-228 — koşumda düzeltildi).
 
 ---
 
@@ -339,7 +344,8 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/agents/support" -H "$APB" \
 ```
 
 **Beklenen sonuç**
-- `HTTP: 409`, `title: "Kodda tanimli agent degistirilemez"`.
+- `HTTP: 409`, `title: "Code-defined agent cannot be modified"` (İngilizce,
+  K-228 — koşumda düzeltildi).
 
 ---
 
@@ -370,7 +376,8 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/agents/hic-olusturulmamis" 
 ```
 
 **Beklenen sonuç**
-- `HTTP: 404`, `title: "Agent bulunamadi"`.
+- `HTTP: 404`, `title: "Agent not found"` (İngilizce, K-228 — koşumda
+  düzeltildi).
 
 ---
 
@@ -437,7 +444,8 @@ curl -s -w "\nHTTP: %{http_code}\n" -X DELETE "$APU/api/agents/support" -H "$APB
 ```
 
 **Beklenen sonuç**
-- `HTTP: 409`, `title: "Kodda tanimli agent degistirilemez"`.
+- `HTTP: 409`, `title: "Code-defined agent cannot be modified"` (İngilizce,
+  K-228 — koşumda düzeltildi).
 - `GET /api/agents/support` hâlâ `200` döner (silinmedi).
 
 ---
@@ -527,7 +535,8 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/agents/manuel-versiyon-testi/versi
 ```
 
 **Beklenen sonuç**
-- `HTTP: 404`, `title: "Surum bulunamadi"`, `detail` içinde `99` sayısı geçer.
+- `HTTP: 404`, `title: "Version not found"`, `detail` içinde `99` sayısı geçer
+  (İngilizce, K-228 — koşumda düzeltildi).
 
 ---
 
@@ -555,7 +564,8 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/manuel-versiyon-tes
 ```
 
 **Beklenen sonuç**
-- `HTTP: 404`, `title: "Geri alinamadi"` — `AgentDefinitionStore.RollbackAsync`
+- `HTTP: 404`, `title: "Rollback failed"` (İngilizce, K-228 — koşumda
+  düzeltildi) — `AgentDefinitionStore.RollbackAsync`
   bir `TraconException` fırlatır, uç bunu `404`'e çevirir
   (`AgentEndpoints.cs:387-398`).
 
