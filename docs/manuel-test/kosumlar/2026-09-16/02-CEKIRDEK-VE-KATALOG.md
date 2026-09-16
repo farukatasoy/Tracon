@@ -1172,3 +1172,194 @@ bilgilendirildi); bedeli olay sonrası teşhisin imkânsızlaşması.
 
 ---
 
+## MT-CORE-060 — Geçersiz `MaxPayloadLength` açılışı durdurur
+
+**Gerçek sonuç**
+```
+1048576: KABUL
+1048577: RED - TraconRunRecordingOptions.MaxPayloadLength must be between
+                0 and 1048576. Actual value: 1048577.
+     -1: RED - ... Actual value: -1.
+```
+Dört beklentinin dördü de tuttu: sınırın **tam üstü** geçerli, bir üstü ve
+negatif reddedildi, red mesajı **gelen değeri** yazıyor (`Actual value`).
+
+⚠️ **Spec'e düzeltme:** beklenen metin Türkçe alıntılanmıştı
+(`0 ile 1048576 arasinda olmalidir`); sevk edilen metin İngilizce (K-228).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-061 — Script çalıştırma onaysız açılamaz
+
+**Gerçek sonuç**
+```
+onay=False: RED - TraconSkillScriptOptions.Enabled requires
+  PlatformIsolationAcknowledged to be true. Tracon does not provide
+  operating-system isolation. Network access, file-system isolation, CPU and
+  memory quotas, and privilege dropping are the host environment's
+  responsibility. Enable script execution only in a container, under an
+  unprivileged user, and with restricted network access.
+onay=True : KABUL
+varsayilan: KABUL      (Enabled'a hic dokunulmadan — dogrulama hatasi yok)
+```
+Üç beklentinin üçü de tuttu. Mesaj yalnız alan adını vermiyor, **sınırın ne
+olduğunu** ve hangi koşullarda açılabileceğini de anlatıyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-062 — Agent grafiği sınırlarının varsayılanı vardır
+
+**Gerçek sonuç**
+```
+MaxDepth      : 3          ✅
+MaxTotalTokens: 200000     ✅
+MaxTotalRuns  : 25         ✅
+sifirla butce token siniri: SINIRSIZ   ✅
+```
+Dört beklentinin dördü de birebir tuttu. Sınırsız bırakılan bir kurulumun ilk
+yanlış tanımı faturayla öğrenmesi engellenmiş.
+
+⚠️ **Spec'e düzeltme:** `CreateBudget()` artık parametresiz değil —
+`CreateBudget(TimeProvider)`. Script `error CS7036` ile derlenmiyordu;
+`TimeProvider.System` verildi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-063 — Hassas veri varsayılan olarak kaydedilmez
+
+**Gerçek sonuç**
+```
+RecordSensitiveData      : False   ✅
+EnableQuotaUsageGauge    : False   ✅
+SuccessSampleRatio       : 0,1     ✅ (tr-TR ondalik ayraci — deger 0.1)
+AlwaysPersistFailures    : True    ✅
+Health.BackgroundInterval: YOK     ✅
+```
+Beş beklentinin beşi de tuttu. İstem ve yanıt metinleri span'lere varsayılan
+olarak yazılmıyor; boşta duran bir kurulum sağlayıcıya düzenli istek atmıyor.
+Başarısızlıklar her zaman kalıcılaştırılıyor — örnekleme yalnız başarıya
+uygulanıyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-064 — Yapılandırmadan gelen negatif fiyat reddedilir
+
+**Gerçek sonuç**
+```
+beklenen red: TraconPricingOptions: price for 'echo:echo-1' cannot be negative.
+```
+Üç beklentinin üçü de tuttu: çıktı `beklenen red:` ile başladı · mesaj
+sağlayıcı **ve** modeli (`echo:echo-1`) adlandırıyor ·
+`🚨 negatif fiyat KABUL EDILDI` görünmedi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-065 — `Pricing` altındaki rezerve anahtarlar sağlayıcı sayılmaz
+
+**Gerçek sonuç**
+
+⚠️ **Spec'in script'i iki yerde yanlıştı; ikisi de düzeltildi.**
+
+**1) Bölüm `AddTracon`'a verilmiyordu.** Elle (AOT) bağlayıcı
+`AddTracon(services, IConfiguration section)` içinden koşuyor
+(`TraconServiceCollectionExtensions.cs:64 → Bind → BindPricing:198`).
+Spec `AddTracon()`'u **argümansız** çağırıp ayrıca
+`services.Configure<TraconOptions>(section)` yapıyordu; o yol yansıma tabanlı
+binder'ı kullanır ve `Providers` sözlüğünü **dolduramaz**:
+
+```
+A) spec'teki hali : Currency=USD · Saglayici sayisi=0 · Ses=elevenlabs
+B) AddTracon(section): Saglayici sayisi=1 · Saglayicilar=echo
+```
+
+**2) Fiyat anahtarları C# özellik adıyla yazılmıştı.** Yapılandırmada geçerli
+adlar `Input` · `Output` · `CachedInput`'tur
+(`TraconServiceCollectionExtensions.Binding.Models.cs:51-53`), C# özellik adı
+`InputCostPerMillionTokens` **değil**.
+
+Doğru script ile üç beklentinin üçü de tuttu:
+```
+Currency          : USD          ✅
+Saglayici sayisi  : 1            ✅
+Saglayicilar      : echo         ✅ Currency ve Voice listede YOK
+Ses saglayicilari : elevenlabs   ✅ Voice kendi sozlugune bagli
+echo/echo-1 Input : 0,25         ✅ deger gercekten baglandi
+```
+
+💡 **Kodun kendisi bu case'i adıyla anıyor** (`Binding.Models.cs:62-68`):
+yanlış anahtar adıyla yazılan bir fiyat kaydı **sessizce düşürülmüyor**, boş
+bir `ModelPriceOverride` olarak sözlüğe giriyor ve doğrulayıcı açılışta
+reddediyor. Yanlış anahtarla denendiğinde tam olarak bu gözlendi (aşağıda) —
+K-034'ün "sessizce yok sayma" yasağı çalışıyor.
+
+🚨 **O red mesajı bir kusur ortaya çıkardı → `HATA-S1-012`.**
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### HATA-S1-012 — Sevk edilen üç hata mesajında yarım kalmış Türkçe çeviri var
+
+| | |
+|---|---|
+| **Önem** | Orta (K-228 dil sınırı ihlali · tüketiciye görünür) |
+| **Bulunduğu case** | MT-CORE-065 |
+| **Sınıf** | Dil sınırı · `SourceLanguageTests` kör noktası |
+
+**Repro** — `Tracon:Pricing` altına anahtar adı yanlış bir fiyat yaz:
+```json
+{ "Tracon": { "Pricing": { "echo": { "echo-1": { "InputCostPerMillionTokens": 0.25 } } } } }
+```
+Açılışta:
+```
+OptionsValidationException: TraconPricingOptions: 'echo:echo-1'
+  ne 'Input' ne 'Output' contains neither value. Check the key name.
+                  ^^^^^^^^^^^^^^^^^^^^ Turkce "ne ... ne ..." yapisi
+```
+
+Cümle iki dilin ortasında kalmış: Türkçe *"ne X ne Y"* kalıbı İngilizce
+*"contains neither value"* ile birleştirilmiş. Tüketici bozuk İngilizce
+okuyor.
+
+**Kaynak — `src/Tracon.Core/TraconOptionsValidator.cs`, iki satır:**
+
+| Satır | Metin |
+|---|---|
+| 292 | `'{providerName}:{modelName}' ne 'Input' ne 'Output' ` |
+| 312 | `'Voice:{providerName}:{modelName}' ne '{PerMillionCharacters}' ne '{PerMinute}' ` |
+
+(`:342` aynı bloktaki üçüncü mesajdır ve **doğru** İngilizce yazılmış — düzeltme
+sırasında atlanan iki satır bunlar.)
+
+🚨 **Kapı bunu neden yakalamadı:** `SourceLanguageTests` iki kaynakla tarıyor —
+Türkçe harfler (`çğıöşü`) ve Türkçe kelime listesi. `ne` ikisine de girmiyor:
+Türkçe harf taşımıyor ve kelime listesi **"every two-letter word"**'ü
+*bilinçli olarak* dışlıyor (`SourceLanguageTests.cs:138-141`), çünkü iki
+harfli Türkçe kelimeler İngilizce kelimelerle ve tanımlayıcılarla çakışıyor.
+`TraconOptionsValidator.cs` taban çizgisinde (`source-language-baseline.txt`)
+**yok** — yani bu borç kayıtlı değil, kapıdan **kaçmış**.
+
+**Kapanışta yapılacak:** iki satır düzeltilir (ör. `neither 'Input' nor
+'Output' is set`). Kapının kör noktası **ayrı** bir karardır: iki harfli
+kelimeleri listeye almak yanlış pozitif üretir; alternatif, `ne X ne Y` gibi
+Türkçe **kalıpları** (tek kelimeleri değil) arayan bir desen eklemektir.
+
+**Sınıf taraması gerekir:** aynı kalıbın başka örnekleri. `grep -rn " ne '" src/`
+bugün **2** satır buluyor, ikisi de bu dosyada. Diğer iki-harfli Türkçe
+kelimeler (`ve`, `bu`, `da`, `de`, `o`, `mi`) ayrıca taranmalı.
+
+**Etki:** orta — işlev doğru, doğrulama doğru reddediyor; bedeli paketin
+profesyonel görünümü ve K-228'in ihlali.
+
+---
+
