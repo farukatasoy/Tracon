@@ -1274,6 +1274,31 @@ kalıcı kayıt oluşturur (`~/tracon-local-feed/`, `tracon-local` NuGet kaynağ
 spec'e `## Koşum sonrası temizlik` olarak yazıldı ve `DEVIR.md` §9'a borç
 olarak kaydedildi.
 
+🚨 **Case'in komutu repo'nun `NuGet.config`'ini BOZDU — düzeltildi.**
+`dotnet nuget add source` en yakın `NuGet.config`'e yazar. Komut repo kökünden
+koşulduğu için repo'nun kendi dosyasına yazdı:
+
+```diff
+-<?xml version="1.0" encoding="utf-8"?>
++﻿<?xml version="1.0" encoding="utf-8"?>
+     <add key="nuget.org" value="https://api.nuget.org/v3/index.json" protocolVersion="3" />
++    <add key="tracon-local" value="/Users/farukatasoy/tracon-local-feed" />
+```
+
+Bir kaynak satırı **ve bir BOM** eklendi. `00-INDEKS.md` §2.3 ("repo'nun
+`NuGet.config` dosyası değiştirilmez") ve skill §1.4 madde 3 bunu yasaklar.
+
+`git checkout -- NuGet.config` ile geri alındı; kaynak repo **dışından**
+(`cd ~`) yeniden eklenerek kullanıcı düzeyine (`~/.nuget/NuGet/NuGet.Config`)
+taşındı. Doğrulandı: repo `git status` temiz, kaynak kullanıcı config'inde,
+ve repo kökünden `dotnet nuget list source | grep tracon-local` **boş** —
+repo'nun `<clear />` kuralı kullanıcı kaynaklarını bastırıyor, yani istenen
+yalıtım korunuyor. Şerit worktree'sinin `NuGet.config`'i hiç etkilenmedi.
+
+Spec'teki komut repo dışında koşacak biçimde düzeltildi (§1.1 istisnası).
+Bu, `MT-PKG-041` ve `MT-PKG-077` ile aynı sınıftır: **ölçen komutun kendisi
+hatalı**. Farkı, bunun yan etkisinin repo'ya yazması.
+
 🔧 **Kalıntı temizlendi.** Koşum öncesi küresel listede Ağustos turundan kalma
 `AgentPrism.Templates 0.0.0-preview.0.248` duruyordu — Faz 162 öncesi ürün
 adıyla. Kullanıcı onayıyla kaldırıldı:
