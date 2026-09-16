@@ -112,13 +112,13 @@ flowchart TD
 **Adımlar**
 1. Sol menüden "Agents" ekranını aç.
 2. `support` satırını incele.
-3. `arastirmaci` satırını incele (harness rozeti için).
+3. `researcher` satırını incele (harness rozeti için).
 4. Tool sayısı hücresinin üzerine gel (`title` tooltip).
 
 **Beklenen sonuç**
 - `support` satırında `code` rozeti görünür (`OriginBadge`, `agent.origin === 'Code'`);
   üzerine gelince `agents.origin.code` metni kaynak adını (`sourceName`) taşır.
-- `arastirmaci` satırında ayrıca sarı `harness` rozeti görünür
+- `researcher` satırında ayrıca sarı `harness` rozeti görünür
   (`agent.usesHarness === true`).
 - Tool sütununda sayı (`toolNames.length`) görünür; üzerine gelince tam tool
   adları virgülle ayrılmış tooltip'te belirir.
@@ -1187,11 +1187,11 @@ Negatif/sınır.
   ortasında değiştirme davranışı ayrıca kontrol edilir).
 
 **Adımlar**
-1. Üstteki agent seçiciden `arastirmaci`'yi seç.
+1. Üstteki agent seçiciden `researcher`'yi seç.
 2. Tarayıcı adres çubuğunu kontrol et.
 
 **Beklenen sonuç**
-- Adres `playground/arastirmaci`'ye değişir (`navigate` çağrısı).
+- Adres `playground/researcher`'ye değişir (`navigate` çağrısı).
 - Sohbet paneli sıfırlanır (`reset()` seçim değişmeden ÖNCE çağrılır — eski
   agent'ın turları yeni agent'ın ekranında sızmaz).
 - Devam eden bir akış varken agent değiştirilirse `reset()` içindeki

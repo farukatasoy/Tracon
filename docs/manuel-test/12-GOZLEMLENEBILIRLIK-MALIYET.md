@@ -302,7 +302,7 @@ Sınır durumu — sıfıra bölme kaçınması.
 | **İlgili karar** | — |
 
 **Ön koşul**
-- `support` (openai/gpt-5.4-mini) ile birden çok, `claude-destek` (Anthropic
+- `support` (openai/gpt-5.4-mini) ile birden çok, `claude-support` (Anthropic
   anahtarı varsa) ile bir çalıştırma var. Fiyat tanımlı DEĞİL (bu case için
   `MT-OBS-003`'ün fiyat ayarları GERİ ALINIR: `dotnet user-secrets remove
   "Tracon:Pricing:openai:gpt-5.4-mini:Input"` ve `:Output`, yeniden başlat).
@@ -425,7 +425,7 @@ zaten üretildi; burada yalnız bu ekranın GÖSTERİMİ ölçülür.
 
 **Ön koşul**
 - [`11-ARAYUZ-RUN-SESSION-SSE.md`](11-ARAYUZ-RUN-SESSION-SSE.md) `MT-UIRUN-012`'nin
-  `ozetle-ve-onayla` çalıştırması hâlâ `AwaitingInput` durumunda.
+  `summarize-and-approve` çalıştırması hâlâ `AwaitingInput` durumunda.
 
 **Adımlar**
 1. Dashboard'ı aç, "Uyarılar" panelini incele, mavi rozete tıkla.
@@ -532,14 +532,14 @@ uygulama yeniden başlatılmış.
 - `MT-OBS-016`'nın `SuccessSampleRatio=1` ayarı hâlâ etkin.
 
 **Adımlar**
-1. `playground/yonlendirici` aç, `FIX-PROMPT-01` gönder, tamamlansın.
-2. `yonlendirici`'nin KÖK çalıştırmasının "İz" panelini aç (alt çalıştırmanın
+1. `playground/router` aç, `FIX-PROMPT-01` gönder, tamamlansın.
+2. `router`'nin KÖK çalıştırmasının "İz" panelini aç (alt çalıştırmanın
    DEĞİL — bkz. `MT-OBS-021`).
 3. Bir span satırına tıkla, açılan ayrıntı bölümünü incele.
 
 **Beklenen sonuç**
 - Adım 2: en az iki span görünür; `support` agent'ına ait çağrı span'i
-  `yonlendirici`'ninkine göre girintili (`depth * 10px`) satırda, aynı zaman
+  `router`'ninkine göre girintili (`depth * 10px`) satırda, aynı zaman
   eksenine göre konumlanmış bir çubukla görünür.
 - Adım 3: açılan bölümde `kind`/`status` rozetleri, `spanId` (mono) ve
   öznitelik tablosu (veya `waterfall.noAttributes` metni) görünür.
@@ -749,7 +749,7 @@ uygulama yeniden başlatılmış — AYNI model adı (`gpt-5.4-mini`) iki
 sağlayıcıda ÇOK FARKLI fiyatlarla tanımlı.
 
 **Adımlar**
-1. `openrouter-destek` agent'ı (OpenRouter üzerinden `gpt-5.4-mini` kullanır)
+1. `openrouter-support` agent'ı (OpenRouter üzerinden `gpt-5.4-mini` kullanır)
    ile `playground`'da bir çalıştırma yap, tamamlansın, `runId`'yi not al.
 2. `curl -s -X POST ".../api/stats/recalculate-costs" -H "Authorization: Bearer manuel-test-token-2026"`.
 3. Çalıştırmanın güncellenmiş `cost.inputCost` değerine bak.
@@ -1676,7 +1676,7 @@ kök/çocuk span hiyerarşisini bozmadığını kanıtlar.
   agent'ı dışa açık.
 
 **Adımlar**
-1. MCP istemcisinden (`ozetleyici` veya eşdeğeri) `tools/call` gönder.
+1. MCP istemcisinden (`summarizer` veya eşdeğeri) `tools/call` gönder.
 2. Dönen `CallToolResult`'ın metnini oku.
 
 **Beklenen sonuç**

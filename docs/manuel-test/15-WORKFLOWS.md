@@ -17,7 +17,7 @@
 > `src/Tracon.UI/frontend/src/components/workflow-graph.tsx` ·
 > `src/Tracon.UI/frontend/src/lib/workflow-graph.ts` ·
 > `samples/Tracon.Api/Program.cs` (yalnız `AddWorkflow(...)` blokları:
-> `ozetle-ve-cevir`, `ozetle-ve-onayla`; ve Faz 71'in `AddWorkflowFunction(...)`
+> `summarize-and-translate`, `summarize-and-approve`; ve Faz 71'in `AddWorkflowFunction(...)`
 > bloğu: `word-count`).
 >
 > Ortam kurulumu, fixture verisi ve reset yordamı [`00-INDEKS.md`](00-INDEKS.md)'dedir.
@@ -93,8 +93,8 @@ flowchart TD
    `04-KALICILIK-DIGER.md`'nin işidir.
 3. Örnek uygulama çalışır: `cd samples/Tracon.Api && dotnet run` →
    `http://localhost:5080/tracon`.
-4. Örnek uygulama İKİ kodda tanımlı workflow taşır: `ozetle-ve-cevir`
-   (Sequential, insan girdisi istemez) ve `ozetle-ve-onayla` (insan onayı
+4. Örnek uygulama İKİ kodda tanımlı workflow taşır: `summarize-and-translate`
+   (Sequential, insan girdisi istemez) ve `summarize-and-approve` (insan onayı
    ister, `RequestPort.Create<string, bool>`). Üçüncüsü yok; arayüzden
    tanımlanan workflow'lar bu dosyanın case'lerinde kurulur ve
    `FIX-WF-*` kimlikleriyle anılır.
@@ -119,14 +119,14 @@ export PG="docker exec -i ap-pg psql -U postgres -d tracon"
 ## Bu dosyanın yerel fixture'ları
 
 Bu veriler yalnız bu dosyaya özgüdür, `00-INDEKS.md`'ye girmez (`PROMPT.md` §4.2).
-Katalogdaki agent'lar için bkz. `00-INDEKS.md` §3.1 (`ozetleyici`, `cevirmen`
+Katalogdaki agent'lar için bkz. `00-INDEKS.md` §3.1 (`summarizer`, `translator`
 kullanılır — her ikisi de anahtar gerektirmez, OpenAI kullanır).
 
 | Kimlik | Değer |
 |---|---|
-| `FIX-WF-01` | Ad `inceleme-zinciri` · `Sequential` · `agentNames: ["ozetleyici","cevirmen"]` |
-| `FIX-WF-02` | Ad `plan-onayli` · `Magentic` · `agentNames: ["cevirmen"]` · `managerAgentName: "ozetleyici"` · `maxIterations: 2` · `requirePlanApproval: true` |
-| `FIX-WF-03` | Ad `cift-gorus` · `Concurrent` · `agentNames: ["ozetleyici","cevirmen"]` |
+| `FIX-WF-01` | Ad `inceleme-zinciri` · `Sequential` · `agentNames: ["summarizer","translator"]` |
+| `FIX-WF-02` | Ad `plan-onayli` · `Magentic` · `agentNames: ["translator"]` · `managerAgentName: "summarizer"` · `maxIterations: 2` · `requirePlanApproval: true` |
+| `FIX-WF-03` | Ad `cift-gorus` · `Concurrent` · `agentNames: ["summarizer","translator"]` |
 | `FIX-WF-MSG-01` | `"Tracon, Microsoft Agent Framework uzerine kurulu bir NuGet paket ailesidir."` — özetleme/çeviri girdisi |
 
 ---
@@ -158,7 +158,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/workflows/inceleme-zinciri"
   "displayName": "Inceleme Zinciri",
   "description": "Ozetler, sonra cevirir.",
   "kind": "Sequential",
-  "agentNames": ["ozetleyici", "cevirmen"]
+  "agentNames": ["summarizer", "translator"]
 }'
 ```
 
@@ -166,7 +166,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/workflows/inceleme-zinciri"
 - `HTTP: 200` — `SaveAsync` **her zaman** `TypedResults.Ok` döner, `Created`
   değil (`WorkflowEndpoints.cs:217-219`). Bu, Skill uçlarının `201`/`200`
   ayrımından **farklıdır**; workflow uçları böyle bir ayrım yapmaz.
-- Gövdede `version: 1`, `tenantId: "default"`, `agentNames: ["ozetleyici","cevirmen"]`.
+- Gövdede `version: 1`, `tenantId: "default"`, `agentNames: ["summarizer","translator"]`.
 
 ---
 
@@ -192,7 +192,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/workflows/inceleme-zinciri"
   "displayName": "Inceleme Zinciri",
   "description": "Ozetler, sonra cevirir (guncellendi).",
   "kind": "Sequential",
-  "agentNames": ["ozetleyici", "cevirmen"]
+  "agentNames": ["summarizer", "translator"]
 }'
 ```
 
@@ -252,17 +252,17 @@ tanımlı") döner, generic "Workflow bulunamadi" değil.
 - Örnek uygulama varsayılan hâlde (hiçbir DB tanımı gerekmez).
 
 **Adımlar**
-1. Kodda tanımlı `ozetle-ve-cevir` için listeyi çağır, varlığını doğrula.
+1. Kodda tanımlı `summarize-and-translate` için listeyi çağır, varlığını doğrula.
 2. Aynı ad için tekil `GET` çağır.
 
 **Girilecek veri**
 ```bash
 curl -s "$APU/api/workflows" -H "$APB" | python3 -c "import json,sys; d=json.load(sys.stdin); print([w['name'] for w in d])"
-curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/workflows/ozetle-ve-cevir" -H "$APB"
+curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/workflows/summarize-and-translate" -H "$APB"
 ```
 
 **Beklenen sonuç**
-- Adım 1: `ozetle-ve-cevir` listede, `origin: "Code"`.
+- Adım 1: `summarize-and-translate` listede, `origin: "Code"`.
 - Adım 2: `HTTP: 404`, ama `title: "Duzenlenebilir tanim yok"` — generic
   `"Workflow bulunamadi"` DEĞİL. `detail` alanı workflow'un kodda tanımlı
   olduğunu ve düzenlenebilir bir `WorkflowDefinition` taşımadığını açıklar.
@@ -283,24 +283,24 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/workflows/ozetle-ve-cevir" -H "$AP
 - MT-WF-001 geçti (`inceleme-zinciri` DB'de var).
 
 **Adımlar**
-1. Kod-tanımlı adla (`ozetle-ve-cevir`) çakışan bir DB tanımı `PUT` et.
+1. Kod-tanımlı adla (`summarize-and-translate`) çakışan bir DB tanımı `PUT` et.
 2. Listeyi çağır.
 
 **Girilecek veri**
 ```bash
-curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/workflows/ozetle-ve-cevir" -H "$APB" \
+curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/workflows/summarize-and-translate" -H "$APB" \
      -H "content-type: application/json" -d '{
   "displayName": "Sahte DB Kaydi",
   "kind": "Concurrent",
-  "agentNames": ["ozetleyici", "cevirmen"]
+  "agentNames": ["summarizer", "translator"]
 }'
-curl -s "$APU/api/workflows" -H "$APB" | python3 -c "import json,sys; d=json.load(sys.stdin); e=[w for w in d if w['name']=='ozetle-ve-cevir'][0]; print(e)"
+curl -s "$APU/api/workflows" -H "$APB" | python3 -c "import json,sys; d=json.load(sys.stdin); e=[w for w in d if w['name']=='summarize-and-translate'][0]; print(e)"
 ```
 
 **Beklenen sonuç**
 - `PUT`: `HTTP: 200` — kayıt **kabul edilir**, doğrulama yalnız yapısaldır ve
   `Concurrent` + 2 agent geçerlidir.
-- Liste: `ozetle-ve-cevir` girdisi `origin: "Code"`, `kind: null`,
+- Liste: `summarize-and-translate` girdisi `origin: "Code"`, `kind: null`,
   `agentNames: []` gösterir — **DB kaydı GÖRÜNMEZ olur**
   (`WorkflowCatalog.ListAsync`, kod kayıtları `descriptors[name] = ...` ile
   DB'nin üzerine SONRADAN yazılır, `WorkflowCatalog.cs:66-67`). `POST
@@ -376,18 +376,18 @@ olmaz.
 
 **Ön koşul**
 - MT-WF-005'in DB kaydı MT-WF-006/007'de temizlenmediyse önce temizlenir
-  (`DELETE .../ozetle-ve-cevir`, gövde farketmez zaten `store`'da kayıt yoktu).
+  (`DELETE .../summarize-and-translate`, gövde farketmez zaten `store`'da kayıt yoktu).
 
 **Adımlar**
-1. `ozetle-ve-cevir`'i sil (hiç DB kaydı olmadığı hâlde).
+1. `summarize-and-translate`'i sil (hiç DB kaydı olmadığı hâlde).
 2. Listeyi tekrar çağır.
 3. Çalıştır.
 
 **Girilecek veri**
 ```bash
-curl -s -w "\nHTTP: %{http_code}\n" -X DELETE "$APU/api/workflows/ozetle-ve-cevir" -H "$APB"
-curl -s "$APU/api/workflows" -H "$APB" | python3 -c "import json,sys; d=json.load(sys.stdin); print('ozetle-ve-cevir' in [w['name'] for w in d])"
-curl -N -s -X POST "$APU/api/workflows/ozetle-ve-cevir/run" -H "$APB" -H "content-type: application/json" \
+curl -s -w "\nHTTP: %{http_code}\n" -X DELETE "$APU/api/workflows/summarize-and-translate" -H "$APB"
+curl -s "$APU/api/workflows" -H "$APB" | python3 -c "import json,sys; d=json.load(sys.stdin); print('summarize-and-translate' in [w['name'] for w in d])"
+curl -N -s -X POST "$APU/api/workflows/summarize-and-translate/run" -H "$APB" -H "content-type: application/json" \
      -d '{"message":"FIX-WF-MSG-01"}'
 ```
 
@@ -422,7 +422,7 @@ URL-encode edilerek geçebilir.
 curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/workflows/%20%20" -H "$APB" \
      -H "content-type: application/json" -d '{
   "kind": "Sequential",
-  "agentNames": ["ozetleyici"]
+  "agentNames": ["summarizer"]
 }'
 ```
 
@@ -453,7 +453,7 @@ varsayılan değeri `WorkflowKind.Sequential` (enum `0`) — JSON gövdesinde
 ```bash
 curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/workflows/kind-eksik" -H "$APB" \
      -H "content-type: application/json" -d '{
-  "agentNames": ["ozetleyici"]
+  "agentNames": ["summarizer"]
 }'
 ```
 
@@ -501,11 +501,11 @@ Negatif senaryo.
 **Girilecek veri**
 ```bash
 curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/workflows/tekrar-eden" -H "$APB" \
-     -H "content-type: application/json" -d '{"kind": "Sequential", "agentNames": ["ozetleyici", "ozetleyici"]}'
+     -H "content-type: application/json" -d '{"kind": "Sequential", "agentNames": ["summarizer", "summarizer"]}'
 ```
 
 **Beklenen sonuç**
-- `HTTP: 400`, `detail` "... 'ozetleyici' agent'i birden fazla kez geciyor ..."
+- `HTTP: 400`, `detail` "... 'summarizer' agent'i birden fazla kez geciyor ..."
   metnini içerir (`WorkflowDefinitionValidator.cs:61-66`).
 
 ---
@@ -524,7 +524,7 @@ Negatif senaryo.
 **Girilecek veri**
 ```bash
 curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/workflows/tek-concurrent" -H "$APB" \
-     -H "content-type: application/json" -d '{"kind": "Concurrent", "agentNames": ["ozetleyici"]}'
+     -H "content-type: application/json" -d '{"kind": "Concurrent", "agentNames": ["summarizer"]}'
 ```
 
 **Beklenen sonuç**
@@ -549,7 +549,7 @@ Negatif senaryo.
 **Girilecek veri**
 ```bash
 curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/workflows/yoneticisiz" -H "$APB" \
-     -H "content-type: application/json" -d '{"kind": "Magentic", "agentNames": ["cevirmen"]}'
+     -H "content-type: application/json" -d '{"kind": "Magentic", "agentNames": ["translator"]}'
 ```
 
 **Beklenen sonuç**
@@ -575,8 +575,8 @@ Negatif senaryo — yönetici kendini yönlendiremez.
 curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/workflows/kendini-yoneten" -H "$APB" \
      -H "content-type: application/json" -d '{
   "kind": "Magentic",
-  "agentNames": ["ozetleyici", "cevirmen"],
-  "managerAgentName": "ozetleyici"
+  "agentNames": ["summarizer", "translator"],
+  "managerAgentName": "summarizer"
 }'
 ```
 
@@ -603,8 +603,8 @@ round-robin yöneticisidir (bkz. Faz 15 §15.2 "Plandan sapma").
 curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/workflows/groupchat-yanlis" -H "$APB" \
      -H "content-type: application/json" -d '{
   "kind": "GroupChat",
-  "agentNames": ["ozetleyici", "cevirmen"],
-  "managerAgentName": "ozetleyici"
+  "agentNames": ["summarizer", "translator"],
+  "managerAgentName": "summarizer"
 }'
 ```
 
@@ -631,7 +631,7 @@ Negatif senaryo.
 curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/workflows/yersiz-devir" -H "$APB" \
      -H "content-type: application/json" -d '{
   "kind": "Sequential",
-  "agentNames": ["ozetleyici", "cevirmen"],
+  "agentNames": ["summarizer", "translator"],
   "handoffInstructions": "Gerekince devret."
 }'
 ```
@@ -659,7 +659,7 @@ Negatif senaryo.
 curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/workflows/yersiz-plan-onayi" -H "$APB" \
      -H "content-type: application/json" -d '{
   "kind": "Sequential",
-  "agentNames": ["ozetleyici", "cevirmen"],
+  "agentNames": ["summarizer", "translator"],
   "requirePlanApproval": true
 }'
 ```
@@ -687,7 +687,7 @@ Negatif senaryo, sınır değer.
 curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/workflows/sifir-tur" -H "$APB" \
      -H "content-type: application/json" -d '{
   "kind": "GroupChat",
-  "agentNames": ["ozetleyici", "cevirmen"],
+  "agentNames": ["summarizer", "translator"],
   "maxIterations": 0
 }'
 ```
@@ -759,12 +759,12 @@ düzeltilmiş hâli:
 1. Kabukta **Workflows** ekranını aç.
 
 **Beklenen sonuç**
-- `ozetle-ve-cevir`, `ozetle-ve-onayla` satırlarında **Kaynak** sütunu
+- `summarize-and-translate`, `summarize-and-approve` satırlarında **Kaynak** sütunu
   `workflows.originCode` ("code") rozeti taşır, **Desen** sütunu
   `workflows.codeGraph` ("code graph") rozeti gösterir (`kind == null`).
 - `inceleme-zinciri` satırında **Desen** `Sequential` (accent tonlu rozet),
   **Kaynak** `workflows.originDatabase` ("database") rozeti taşır.
-- **Agent'lar** sütunu `ozetleyici → cevirmen` biçiminde ok ile ayrılmış
+- **Agent'lar** sütunu `summarizer → translator` biçiminde ok ile ayrılmış
   zincir gösterir (`workflows.tsx:100`, `agentNames.join(' → ')`).
 
 ---
@@ -831,7 +831,7 @@ Sınır durumu.
 
 **Adımlar**
 1. **New workflow**, desen `Concurrent` seç.
-2. Yalnızca `ozetleyici`'yi katılımcı olarak ekle.
+2. Yalnızca `summarizer`'yi katılımcı olarak ekle.
 
 **Beklenen sonuç**
 - `workflowEditor.needsTwo` metni ("{kind} needs at least two participants.")
@@ -850,7 +850,7 @@ Sınır durumu.
 | **İlgili karar** | — |
 
 **Adımlar**
-1. Workflows listesinden `ozetle-ve-cevir`'e tıkla.
+1. Workflows listesinden `summarize-and-translate`'e tıkla.
 
 **Beklenen sonuç**
 - Başlık yanında `Edit` düğmesi **görünmez** — `editable = descriptor.origin
@@ -875,7 +875,7 @@ DEĞİŞMEDİ.
 | **İlgili karar** | — |
 
 **Adımlar**
-1. Tarayıcıda doğrudan `.../tracon/workflows/ozetle-ve-cevir/edit` adresine git.
+1. Tarayıcıda doğrudan `.../tracon/workflows/summarize-and-translate/edit` adresine git.
 
 **Beklenen sonuç**
 - Sayfa bir form GÖSTERMEZ; `existing` sorgusu (`api.workflow(name)`, tekil
@@ -883,7 +883,7 @@ DEĞİŞMEDİ.
   eder (`workflow-editor.tsx:129-131`). `ErrorNote`'un metni artık
   MT-WF-004'ün ayırt edici mesajını taşır ("Duzenlenebilir tanim yok").
 
-### MT-WF-040 — `ozetle-ve-cevir` çalıştırma: olay tipleri ve `runs` ağacı
+### MT-WF-040 — `summarize-and-translate` çalıştırma: olay tipleri ve `runs` ağacı
 
 | | |
 |---|---|
@@ -901,7 +901,7 @@ DEĞİŞMEDİ.
 
 **Girilecek veri**
 ```bash
-curl -N -s -X POST "$APU/api/workflows/ozetle-ve-cevir/run" -H "$APB" -H "content-type: application/json" \
+curl -N -s -X POST "$APU/api/workflows/summarize-and-translate/run" -H "$APB" -H "content-type: application/json" \
      -d '{"message":"Tracon, Microsoft Agent Framework uzerine kurulu bir NuGet paket ailesidir."}'
 ```
 ```bash
@@ -916,9 +916,9 @@ curl -s "$APU/api/runs/<runId>/tree" -H "$APB" | python3 -m json.tool
   (`AgentResponseEvent`, `WorkflowOutputEvent`'ten türer — Faz 15 §"Ölçülen MAF
   Davranışları" madde 2 — dal sırası testle korunur, koşumda yalnız sonucun
   doğruluğu gözlemlenir).
-- `/tree`: **3** satır — `depth=0 kind=Workflow name=ozetle-ve-cevir`,
-  altında `depth=1 kind=Agent name=ozetleyici`, `depth=1 kind=Agent
-  name=cevirmen` (Faz 12'nin `parent_run_id` mekanizması).
+- `/tree`: **3** satır — `depth=0 kind=Workflow name=summarize-and-translate`,
+  altında `depth=1 kind=Agent name=summarizer`, `depth=1 kind=Agent
+  name=translator` (Faz 12'nin `parent_run_id` mekanizması).
 
 ---
 
@@ -938,17 +938,17 @@ curl -s "$APU/api/runs/<runId>/tree" -H "$APB" | python3 -m json.tool
 ```sql
 SELECT kind, workflow_name, agent_name, count(*)
 FROM tracon.runs
-WHERE workflow_name = 'ozetle-ve-cevir' OR agent_name IN ('ozetleyici','cevirmen')
+WHERE workflow_name = 'summarize-and-translate' OR agent_name IN ('summarizer','translator')
 GROUP BY kind, workflow_name, agent_name
 ORDER BY kind;
 ```
 
 **Beklenen sonuç**
-- `kind=1` (Workflow) satırında `workflow_name='ozetle-ve-cevir'`,
-  `agent_name='ozetle-ve-cevir'` (Faz 15 §15.3: "`AgentName` workflow
+- `kind=1` (Workflow) satırında `workflow_name='summarize-and-translate'`,
+  `agent_name='summarize-and-translate'` (Faz 15 §15.3: "`AgentName` workflow
   satırlarında workflow'un adıdır").
 - `kind=0` (Agent) satırlarında `workflow_name` **NULL**, `agent_name`
-  sırasıyla `ozetleyici`/`cevirmen`.
+  sırasıyla `summarizer`/`translator`.
 
 ---
 
@@ -1010,7 +1010,7 @@ ORDER BY created_at;
 | **İlgili karar** | — |
 
 **Ön koşul**
-- `ozetle-ve-cevir`'i FARKLI bir `sessionId` ile İKİNCİ kez çalıştır
+- `summarize-and-translate`'i FARKLI bir `sessionId` ile İKİNCİ kez çalıştır
   (`{"message":"...", "sessionId":"ikinci-oturum"}`), iki ayrı `runId` elde et.
 
 **Doğrulama sorgusu**
@@ -1039,15 +1039,15 @@ GROUP BY run_id, session_id;
 | **İlgili karar** | K-127 |
 
 **Adımlar**
-1. `ozetle-ve-cevir`'i iki kez, iki farklı `sessionId` ile çalıştır.
+1. `summarize-and-translate`'i iki kez, iki farklı `sessionId` ile çalıştır.
 2. Her iki çalıştırmada `ExecutorInvoked` olaylarının `text` alanındaki
    `ozetleyici_<32-hex>` kimliğini karşılaştır.
 
 **Girilecek veri**
 ```bash
-curl -N -s -X POST "$APU/api/workflows/ozetle-ve-cevir/run" -H "$APB" -H "content-type: application/json" \
+curl -N -s -X POST "$APU/api/workflows/summarize-and-translate/run" -H "$APB" -H "content-type: application/json" \
      -d '{"message":"Test A","sessionId":"kimlik-testi-1"}' | grep -o '"text":"ozetleyici_[a-f0-9]*"' | head -1
-curl -N -s -X POST "$APU/api/workflows/ozetle-ve-cevir/run" -H "$APB" -H "content-type: application/json" \
+curl -N -s -X POST "$APU/api/workflows/summarize-and-translate/run" -H "$APB" -H "content-type: application/json" \
      -d '{"message":"Test B","sessionId":"kimlik-testi-2"}' | grep -o '"text":"ozetleyici_[a-f0-9]*"' | head -1
 ```
 
@@ -1139,7 +1139,7 @@ curl -N -s -X POST "$APU/api/workflows/runs/<runId>/resume" -H "$APB" -H "conten
 
 **Beklenen sonuç**
 - `HTTP` akışı başarıyla başlar; ilk kontrol noktası genelde ilk super-step
-  öncesine denk geldiği için `ozetleyici`'nin YENİDEN çalıştığı gözlenebilir
+  öncesine denk geldiği için `summarizer`'nin YENİDEN çalıştığı gözlenebilir
   (`MessageDelta` olayları tekrar görülür) — bu Tracon'in değil, grafın
   o noktada kuyrukta bekleyen işin doğal sonucudur (Faz 16 §"Ölçülen MAF
   Davranışları" madde 7'nin aynısı, farklı bir bağlamda).
@@ -1162,13 +1162,13 @@ Negatif senaryo — grafın yapısı değişti.
 
 **Adımlar**
 1. `inceleme-zinciri`'nin katılımcı listesini değiştir (üçüncü bir agent ekle,
-   ör. `yonlendirici`).
+   ör. `router`).
 2. Eski `checkpointId` ile eski `runId`'yi sürdürmeyi dene.
 
 **Girilecek veri**
 ```bash
 curl -s -X PUT "$APU/api/workflows/inceleme-zinciri" -H "$APB" -H "content-type: application/json" \
-     -d '{"kind":"Sequential","agentNames":["ozetleyici","cevirmen","yonlendirici"]}'
+     -d '{"kind":"Sequential","agentNames":["summarizer","translator","router"]}'
 curl -N -s -X POST "$APU/api/workflows/runs/<eski-runId>/resume" -H "$APB" -H "content-type: application/json" \
      -d '{"checkpointId":"<eski-checkpoint-id>"}'
 ```
@@ -1198,7 +1198,7 @@ içeriği doğru:
 
 **Girilecek veri**
 ```bash
-curl -N -s -X POST "$APU/api/workflows/ozetle-ve-onayla/run" -H "$APB" -H "content-type: application/json" \
+curl -N -s -X POST "$APU/api/workflows/summarize-and-approve/run" -H "$APB" -H "content-type: application/json" \
      -d '{"message":"Tracon yayin oncesi manuel kabul testi yaziyoruz."}'
 ```
 
@@ -1226,7 +1226,7 @@ arayüz bilerek beklemeyi tercih eder.
 | **İlgili karar** | — |
 
 **Adımlar**
-1. Workflow Detay ekranından `ozetle-ve-onayla`'yı çalıştır (arayüzden,
+1. Workflow Detay ekranından `summarize-and-approve`'yı çalıştır (arayüzden,
    mesaj kutusuna `FIX-WF-MSG-01` yaz).
 2. Akış sürerken (SpinnerIcon dönerken) "Waiting on you" panelinin
    görünmediğini doğrula.
@@ -1277,7 +1277,7 @@ curl -N -s -X POST "$APU/api/workflows/runs/<runId>/respond" -H "$APB" -H "conte
 | **İlgili karar** | — |
 
 **Ön koşul**
-- `ozetle-ve-onayla`'yı yeniden çalıştır, yeni `runId`/`requestId` al
+- `summarize-and-approve`'yı yeniden çalıştır, yeni `runId`/`requestId` al
   (MT-WF-062'nin `requestId`'si zaten tüketilmiştir).
 
 **Girilecek veri**
@@ -1304,7 +1304,7 @@ Negatif senaryo.
 | **İlgili karar** | — |
 
 **Ön koşul**
-- Yeni bir `ozetle-ve-onayla` çalıştırması, gerçek `runId` elde.
+- Yeni bir `summarize-and-approve` çalıştırması, gerçek `runId` elde.
 
 **Girilecek veri**
 ```bash
@@ -1322,7 +1322,7 @@ curl -N -s -X POST "$APU/api/workflows/runs/<runId>/respond" -H "$APB" -H "conte
 
 ### MT-WF-065 — `AwaitingInput` OLMAYAN bir çalıştırmaya `respond` → SSE `error`
 
-Negatif senaryo — tamamlanmış (`ozetle-ve-cevir`) bir çalıştırmayı yanıtlamayı
+Negatif senaryo — tamamlanmış (`summarize-and-translate`) bir çalıştırmayı yanıtlamayı
 dene.
 
 | | |
@@ -1360,13 +1360,13 @@ Negatif senaryo — kiracı yalıtımı.
 | **İlgili karar** | — |
 
 **Ön koşul**
-- `X-Tracon-Tenant: kiraci-alfa` başlığıyla `ozetle-ve-onayla`'yı çalıştır,
+- `X-Tracon-Tenant: kiraci-alfa` başlığıyla `summarize-and-approve`'yı çalıştır,
   `runId`'yi not al (bkz. `13-KIRACI-VE-GUVENLIK.md` MT-SEC-021 için header
   çözümlemesinin nasıl açıldığı).
 
 **Girilecek veri**
 ```bash
-curl -N -s -X POST "$APU/api/workflows/ozetle-ve-onayla/run" -H "$APB" \
+curl -N -s -X POST "$APU/api/workflows/summarize-and-approve/run" -H "$APB" \
      -H "X-Tracon-Tenant: kiraci-alfa" -H "content-type: application/json" \
      -d '{"message":"Kiraci alfa testi."}'
 curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/workflows/runs/<runId>/requests" -H "$APB" \
@@ -1395,8 +1395,8 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/workflows/runs/<runId>/requests" -
 ```bash
 curl -s -X PUT "$APU/api/workflows/plan-onayli" -H "$APB" -H "content-type: application/json" -d '{
   "kind": "Magentic",
-  "agentNames": ["cevirmen"],
-  "managerAgentName": "ozetleyici",
+  "agentNames": ["translator"],
+  "managerAgentName": "summarizer",
   "maxIterations": 2,
   "requirePlanApproval": true
 }'
@@ -1433,7 +1433,7 @@ curl -N -s -X POST "$APU/api/workflows/runs/<runId>/respond" -H "$APB" -H "conte
 ```
 
 **Beklenen sonuç**
-- Yeni bir `runId` açılır; akışta en az bir `ExecutorInvoked`(`cevirmen`) ve
+- Yeni bir `runId` açılır; akışta en az bir `ExecutorInvoked`(`translator`) ve
   bir `WorkflowOutput` görülür. `WorkflowOutput.text` **boş değildir** (model
   üretimi — metnine eşleşme aranmaz).
 
@@ -1510,14 +1510,14 @@ curl -N -s -X POST "$APU/api/workflows/runs/<runId>/respond" -H "$APB" -H "conte
 
 **Girilecek veri**
 ```bash
-curl -s "$APU/api/workflows/ozetle-ve-cevir/graph" -H "$APB" | python3 -m json.tool
+curl -s "$APU/api/workflows/summarize-and-translate/graph" -H "$APB" | python3 -m json.tool
 ```
 
 **Beklenen sonuç**
 - `HTTP: 200` (model çağrısı OLMADAN).
 - `nodes` listesinde `id` alanı MT-WF-040'ta not edilen `ExecutorInvoked.text`
   ile **birebir** eşleşen bir düğüm var; o düğümün `kind: "Agent"`,
-  `agentName: "ozetleyici"`.
+  `agentName: "summarizer"`.
 - `startExecutorId` graftaki bir düğüme karşılık gelir.
 - `mermaid` alanı `flowchart` ile başlayan bir metin taşır.
 
@@ -1541,7 +1541,7 @@ Sınır durumu — bir tanımın grafiğini görmek için önce çalıştırmak 
 **Girilecek veri**
 ```bash
 curl -s -X PUT "$APU/api/workflows/hic-calismadi" -H "$APB" -H "content-type: application/json" \
-     -d '{"kind":"Sequential","agentNames":["ozetleyici"]}'
+     -d '{"kind":"Sequential","agentNames":["summarizer"]}'
 curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/workflows/hic-calismadi/graph" -H "$APB"
 ```
 
@@ -1562,15 +1562,15 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/workflows/hic-calismadi/graph" -H 
 | **İlgili karar** | — |
 
 **Adımlar**
-1. `ozetle-ve-cevir` Detay ekranını aç, mesaj kutusuna `FIX-WF-MSG-01` yaz,
+1. `summarize-and-translate` Detay ekranını aç, mesaj kutusuna `FIX-WF-MSG-01` yaz,
    `Run`'a bas.
 2. Çalıştırma sürerken grafı izle (DevTools → Elements, `[data-testid="workflow-node"]`).
 3. Çalıştırma bitince tekrar bak.
 
 **Beklenen sonuç**
-- Adım 2: sırayla önce `ozetleyici` düğümünün `data-state="running"` olduğu
+- Adım 2: sırayla önce `summarizer` düğümünün `data-state="running"` olduğu
   ve etrafında nabız animasyonu (`animate-pulse`) göründüğü, sonra
-  `data-state="done"` olduğu, ardından `cevirmen`'in aynı döngüden geçtiği
+  `data-state="done"` olduğu, ardından `translator`'in aynı döngüden geçtiği
   gözlenir.
 - Adım 3: HER İKİ agent düğümü de `data-state="done"`, kenar rengi yeşil
   (`--ap-emerald`). Hiçbir düğüm `failed` (kırmızı) değildir.
@@ -1595,13 +1595,13 @@ Sınır durumu — Faz 16'da düzeltilen regresyon (bileşik kimlik ayrıştırm
 **Girilecek veri**
 ```bash
 curl -s -X PUT "$APU/api/workflows/cift-gorus" -H "$APB" -H "content-type: application/json" \
-     -d '{"kind":"Concurrent","agentNames":["ozetleyici","cevirmen"]}'
+     -d '{"kind":"Concurrent","agentNames":["summarizer","translator"]}'
 curl -s "$APU/api/workflows/cift-gorus/graph" -H "$APB" | \
   python3 -c "import json,sys; g=json.load(sys.stdin); agents=[n for n in g['nodes'] if n['kind']=='Agent']; print(len(agents), [n['agentName'] for n in agents])"
 ```
 
 **Beklenen sonuç**
-- Çıktı `2 ['ozetleyici', 'cevirmen']` — TAM 2 `Agent` kind düğüm, `Batcher/*`
+- Çıktı `2 ['summarizer', 'translator']` — TAM 2 `Agent` kind düğüm, `Batcher/*`
   ve `ConcurrentEnd`/`Start` düğümleri `Orchestration`/`Output` olarak
   sınıflanır, agent SAYILMAZ (`WorkflowGraphReader.AgentNameOf`, `/` içeren
   kimlikler `null` döner — `WorkflowGraphReader.cs:98-105`).
@@ -1647,14 +1647,14 @@ Negatif senaryo. `MT-SEC-070` deseniyle aynı: geçici kod değişikliği gerekt
 **Girilecek veri**
 ```bash
 curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/workflows" -H "$APB"
-curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/workflows/ozetle-ve-cevir/run" -H "$APB" -H "content-type: application/json" -d '{}'
-curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/workflows/ozetle-ve-cevir/graph" -H "$APB"
+curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/workflows/summarize-and-translate/run" -H "$APB" -H "content-type: application/json" -d '{}'
+curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/workflows/summarize-and-translate/graph" -H "$APB"
 ```
 
 **Beklenen sonuç**
 - Katalog (`GET /api/workflows`): `HTTP: 200` — hâlâ çalışır, `runner is null`
   dalı `store.ListAsync` ile devam eder (`WorkflowEndpoints.cs:126-134`). Kod
-  tanımlı `ozetle-ve-cevir` listede **artık görünmez** (kayıt hiç yapılmadı).
+  tanımlı `summarize-and-translate` listede **artık görünmez** (kayıt hiç yapılmadı).
 - `run`: `HTTP: 501`, `title: "Workflow motoru kayitli degil"`, `detail`
   "... Tracon.Workflows paketini ekleyin ve UseWorkflows() cagirin."
   metnini içerir.
@@ -1682,7 +1682,7 @@ Negatif senaryo — yalnız çalıştırma kapanır, katalog etkilenmez.
 
 **Girilecek veri**
 ```bash
-curl -N -s -X POST "$APU/api/workflows/ozetle-ve-cevir/run" -H "$APB" -H "content-type: application/json" -d '{}'
+curl -N -s -X POST "$APU/api/workflows/summarize-and-translate/run" -H "$APB" -H "content-type: application/json" -d '{}'
 ```
 
 **Beklenen sonuç**
@@ -1708,13 +1708,13 @@ Negatif senaryo — sonsuz döngü korumasının ucuz ve deterministik tetikleme
 **Adımlar**
 1. `dotnet user-secrets set "Tracon:Workflows:MaxSuperSteps" "2"`,
    yeniden başlat.
-2. `ozetle-ve-cevir`'i çalıştır (gerçek kanıtta bu workflow 3 super-step
+2. `summarize-and-translate`'i çalıştır (gerçek kanıtta bu workflow 3 super-step
    üretir — Faz 15 "Gerçek Kanıt": `SuperStepStarted 3`).
 3. Ayarı kaldır, yeniden başlat.
 
 **Girilecek veri**
 ```bash
-curl -N -s -X POST "$APU/api/workflows/ozetle-ve-cevir/run" -H "$APB" -H "content-type: application/json" -d '{}'
+curl -N -s -X POST "$APU/api/workflows/summarize-and-translate/run" -H "$APB" -H "content-type: application/json" -d '{}'
 ```
 
 **Beklenen sonuç**
@@ -1742,7 +1742,7 @@ Negatif senaryo.
 **Adımlar**
 1. `dotnet user-secrets set "Tracon:Workflows:EnableCheckpointing" "false"`,
    yeniden başlat.
-2. `ozetle-ve-cevir`'i çalıştır (checkpoint YAZILMAZ), `runId`'yi not al.
+2. `summarize-and-translate`'i çalıştır (checkpoint YAZILMAZ), `runId`'yi not al.
 3. Aynı `runId`'yi sürdürmeyi dene.
 4. Ayarı kaldır, yeniden başlat.
 
@@ -1810,7 +1810,7 @@ Negatif senaryo, sınır değer.
 
 **Girilecek veri**
 ```bash
-curl -N -s -X POST "$APU/api/workflows/ozetle-ve-cevir/run" -H "$APB" -H "content-type: application/json" \
+curl -N -s -X POST "$APU/api/workflows/summarize-and-translate/run" -H "$APB" -H "content-type: application/json" \
      -d "{\"sessionId\":\"$(python3 -c 'print("a"*129)')\"}"
 ```
 
@@ -1833,7 +1833,7 @@ Negatif senaryo.
 
 **Girilecek veri**
 ```bash
-curl -N -s -X POST "$APU/api/workflows/ozetle-ve-cevir/run" -H "$APB" -H "content-type: application/json" \
+curl -N -s -X POST "$APU/api/workflows/summarize-and-translate/run" -H "$APB" -H "content-type: application/json" \
      -d '{"sessionId":"gecersiz oturum!"}'
 ```
 
@@ -1914,7 +1914,7 @@ echo "$KEY_JSON" | python3 -c "import json,sys; print(json.load(sys.stdin)['rawK
 export WFKEY="Authorization: Bearer <yukaridaki-rawKey>"
 
 curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/workflows/kapsam-testi" -H "$WFKEY" \
-     -H "content-type: application/json" -d '{"kind":"Sequential","agentNames":["ozetleyici"]}'
+     -H "content-type: application/json" -d '{"kind":"Sequential","agentNames":["summarizer"]}'
 
 curl -N -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/workflows/kapsam-testi/run" -H "$WFKEY" \
      -H "content-type: application/json" -d '{}'
@@ -1958,7 +1958,7 @@ Regresyon kapısı — `Nodes` boşken hiçbir kod yolu değişmemeli.
 **Adımlar**
 1. `AddWorkflowFunction` hiç çağrılmamış bir kurulumda, sıradan bir
    `AgentNames`-tabanlı `Sequential` tanımı kaydet ve çalıştır (ör.
-   `ozetle-ve-cevir`, mevcut `MT-WF-040`).
+   `summarize-and-translate`, mevcut `MT-WF-040`).
 
 **Beklenen sonuç**
 - Davranış `Faz 15/16`'daki ile birebir aynı: `GET /api/workflows/functions`

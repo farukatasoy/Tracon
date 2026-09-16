@@ -107,8 +107,40 @@ dotnet user-secrets set "Tracon:Voice:ApiKey"               "<ELEVENLABS_ANAHTAR
 dotnet user-secrets set "Tracon:Ui:AuthToken"               "manuel-test-token-2026"
 ```
 
+> ### 🔧 Ortamın durumu — 2026-09-16 tazeleme turunda kuruldu ve doğrulandı
+>
+> `UserSecretsId` **`tracon-sample-api`**'dir. Faz 162'ye kadar
+> `agentprism-sample-api` idi ve anahtarlar eski ürün adının önekini taşıyordu;
+> göç bu turda yapıldı. Eski depo **silinmedi**, geri dönüş açıktır.
+>
+> **Tanımlı 17 anahtar** (yalnız AD — K-059 gereği hiçbir değer hiçbir dosyada
+> yazılı değildir; okumak için `dotnet user-secrets list`):
+> `Tracon:Providers:{OpenAI,Anthropic,Google}:ApiKey` ·
+> `Tracon:Providers:OpenAICompatible:openrouter:ApiKey` · `Tracon:Voice:ApiKey` ·
+> `Tracon:Voice:{DefaultVoiceId,Conversation:PersistAudio,Live:Instructions}` ·
+> `Tracon:Ui:AuthToken` · `Tracon:PostgreSql:{ConnectionString,SchemaName}` ·
+> `Tracon:Sqlite:ConnectionString` · `Tracon:ContentProtection:RawKeys:{sample,sample2}` ·
+> `Tracon:Pricing:Currency` · `Tracon:Pricing:Voice:openai:gpt-live-1:PerMinute` ·
+> `Tracon:TriggerSecrets:Slack`.
+>
+> **Azure kimliği YOKTUR.** `azure-support` katalogda görünmez (ölçüldü: 15
+> tanımdan 14'ü çözüldü) ve `MT-MM-122` ⏭ kalır.
+>
+> **Container'lar §2.2'ye hizalandı.** İkisi de Faz 162 öncesinden kalmıştı ve
+> eski ürün adını taşıyordu: `ap-pg`'nin veritabanı ile parolası, `ap-mssql`'in
+> SA parolası. `ap-pg`'ye `tracon` veritabanı eklendi, `postgres` parolası
+> §2.2'deki değere çekildi ve `vector` uzantısı kuruldu; `ap-mssql`'in SA
+> parolası da §2.2'deki değere çekildi. İki container da **silinmedi**; eski
+> veritabanları yerinde duruyor.
+>
+> 🚨 **Sağlayıcı anahtarları 2026-09-16'da düz metne çıktı ve DÖNDÜRÜLMELİDİR.**
+> Tur bitince beşini de yenileyin; yenileme yalnız `user-secrets`'ı etkiler,
+> hiçbir dokümanı değiştirmez.
+
 Diğer kalıcılık sağlayıcıları **aynı anda verilmez** — biri denenirken diğerinin
-kaydı silinir:
+kaydı silinir. Örnek uygulamanın seçim önceliği
+`SqlServer > PostgreSql > Sqlite`'tır (`Program.cs:860-870`), yani ikisi birden
+tanımlıysa üstteki kazanır:
 
 ```bash
 dotnet user-secrets remove "Tracon:PostgreSql:ConnectionString"
@@ -138,19 +170,26 @@ Bir senaryonun kendi verisi gerekiyorsa case içinde tanımlanır ve buraya girm
 
 ### 3.1 Örnek uygulamada hazır gelen agent'lar (İzlek B)
 
+> 🚨 **Adlar Faz 162'de İngilizce'ye çevrildi.** Bu tablo ve case gövdeleri
+> 2026-09-16 tazeleme turunda düzeltildi (294 geçiş, 17 aile). `Ad` ve
+> `Görünen ad` sütunları `samples/Tracon.Api/Program.cs`'in `Name` /
+> `DisplayName` satırlarından **ölçülmüştür**; elle yazılmaz.
+
 | Ad | Görünen ad | Not |
 |---|---|---|
-| `support` | Destek Asistani | Sipariş tool'ları bağlı |
-| `arastirmaci` | Arastirmaci | |
-| `yonlendirici` | Yonlendirici | |
-| `ozetleyici` | Ozetleyici | MCP ve A2A ile dışa açık |
-| `cevirmen` | Cevirmen | |
-| `openrouter-destek` | OpenRouter Destek | OpenRouter anahtarı ister |
-| `claude-destek` · `claude-dusunen` | Claude | Anthropic anahtarı ister |
-| `gemini-destek` · `gemini-kati-filtre` | Gemini | Google anahtarı ister |
-| `azure-destek` | Azure Destek | ⏭ Azure kimliği yok |
-| `sesli-asistan` | Sesli Asistani | ElevenLabs anahtarı ister |
-| `bilgi-asistani` | Bilgi Asistani | `pgvector` + embedding ister |
+| `support` | Support Assistant | Sipariş tool'ları bağlı |
+| `researcher` | Researcher | |
+| `router` | Router | |
+| `summarizer` | Summarizer | MCP ve A2A ile dışa açık |
+| `translator` | Translator | |
+| `order-summary` | Order Summary (structured output demo) | Yapısal çıktı demosu |
+| `cached-support` | Cached Support (demo) | Yanıt cache'i demosu |
+| `openrouter-support` | OpenRouter Support | OpenRouter anahtarı ister |
+| `claude-support` · `claude-thinking` | Claude Support · Claude Thinking | Anthropic anahtarı ister |
+| `gemini-support` · `gemini-strict-filter` | Gemini Support · Gemini Strict Filter | Google anahtarı ister |
+| `azure-support` | Azure Support | ⏭ Azure kimliği yok |
+| `voice-assistant` | Voice Assistant | ElevenLabs anahtarı ister |
+| `knowledge-assistant` | Knowledge Assistant | `pgvector` + embedding ister |
 
 ### 3.2 Örnek uygulamada hazır gelen tool'lar
 
@@ -165,8 +204,8 @@ Bir senaryonun kendi verisi gerekiyorsa case içinde tanımlanır ve buraya girm
 
 | Ad | Not |
 |---|---|
-| `ozetle-ve-cevir` | Sıralı desen |
-| `ozetle-ve-onayla` | Human-in-the-loop |
+| `summarize-and-translate` | Sıralı desen |
+| `summarize-and-approve` | Human-in-the-loop |
 
 ### 3.4 Manuel testin kendi verisi
 
@@ -286,7 +325,7 @@ Bu eşleme bir başlangıçtır; üretim oturumu grep ile doğrular ve gerekirse
 | # | Dosya | Alan kodu | Faz | Kaynak | Hedef case | Üretim | Koşum |
 |---|---|---|---|---|---|---|---|
 | 01 | [`01-KURULUM-VE-PAKETLEME.md`](01-KURULUM-VE-PAKETLEME.md) | `PKG` | 0, 52, 97, 160 | `Directory.Build.props` · `Directory.Build.targets` · `src/Directory.Build.props` · `*.csproj` · `src/Tracon.Generators` · `scripts/kapi.py` (`yayin`) | **81** | ✅ | ✅ 48/48 · 4 🆕 (Faz 97: MT-PKG-097..099 koşuldu, MT-PKG-100 👤 gerekir) |
-| 02 | [`02-CEKIRDEK-VE-KATALOG.md`](02-CEKIRDEK-VE-KATALOG.md) | `CORE` | 1, 3, 72, 86, 101, 127, 130, 135 | `src/Tracon.Core` (`Compilation/` · `Catalog/` · `Tools/` · `Sessions/`) · `src/Tracon.Abstractions` | **96** | ✅ | ✅ 42/42 (2026-08-13) · MT-CORE-075..080 Faz 72 kapanışında koşuldu, 081 👤 gerekir · MT-CORE-082/086 Faz 86 kapanışında `samples/Tracon.Api`'ye karşı koşuldu (2026-08-22, gerçek OpenAI çağrısı) · MT-CORE-083/084/085 henüz koşulmadı · MT-CORE-087..096 Faz 101'de eklendi: 096 otomatik koşuldu (15/15), 087-094 `samples/Tracon.Api`'nin PostgreSQL bağımlılığı bu ortamda kurulmadığı için koşulmadı, 095 👤 gerekir (kiracıya duyarlı örnek kaynak yok) · MT-CORE-107..108 Faz 127'de eklendi, otomatik karşılıkları (`ScopedToolLifetimeTests`, `ToolMethodScanner` testleri) koştu, 👤 elle koşulmadı · MT-CORE-109..114 Faz 130'da eklendi (satır bu kapanışa kadar güncellenmemişti — düzeltildi) · MT-CORE-115..122 Faz 135'te eklendi: otomatik karşılıkları koştu, 121/122 gerçek koşumla da doğrulandı (2026-09-02, gerçek OpenAI çağrısı ve `PublishAot` yayını) |
+| 02 | [`02-CEKIRDEK-VE-KATALOG.md`](02-CEKIRDEK-VE-KATALOG.md) | `CORE` | 1, 3, 72, 86, 101, 127, 130, 135 | `src/Tracon.Core` (`Compilation/` · `Catalog/` · `Tools/` · `Sessions/`) · `src/Tracon.Abstractions` | **97** | ✅ | ✅ 42/42 (2026-08-13) · MT-CORE-075..080 Faz 72 kapanışında koşuldu, 081 👤 gerekir · MT-CORE-082/086 Faz 86 kapanışında `samples/Tracon.Api`'ye karşı koşuldu (2026-08-22, gerçek OpenAI çağrısı) · MT-CORE-083/084/085 henüz koşulmadı · MT-CORE-087..096 Faz 101'de eklendi: 096 otomatik koşuldu (15/15), 087-094 `samples/Tracon.Api`'nin PostgreSQL bağımlılığı bu ortamda kurulmadığı için koşulmadı, 095 👤 gerekir (kiracıya duyarlı örnek kaynak yok) · MT-CORE-107..108 Faz 127'de eklendi, otomatik karşılıkları (`ScopedToolLifetimeTests`, `ToolMethodScanner` testleri) koştu, 👤 elle koşulmadı · MT-CORE-109..114 Faz 130'da eklendi (satır bu kapanışa kadar güncellenmemişti — düzeltildi) · MT-CORE-115..122 Faz 135'te eklendi: otomatik karşılıkları koştu, 121/122 gerçek koşumla da doğrulandı (2026-09-02, gerçek OpenAI çağrısı ve `PublishAot` yayını) |
 | 03 | [`03-KALICILIK-POSTGRESQL.md`](03-KALICILIK-POSTGRESQL.md) | `PG` | 2, 51, 110 | `src/Tracon.PostgreSql` | **50** | ✅ | ✅ 40/40 (Faz 110: MT-PG-068..071 kapanışta koşuldu) |
 | 04 | [`04-KALICILIK-DIGER.md`](04-KALICILIK-DIGER.md) | `SQL` | 23, 24, 110 | `src/Tracon.Sqlite` · `src/Tracon.SqlServer` · `src/Tracon.Sql.Shared` | **45** | ✅ | ✅ 38/41 · 3 ⏭ (Faz 110: MT-SQL-076 kapanışta koşuldu) |
 | 05 | [`05-SAGLAYICI-OPENAI.md`](05-SAGLAYICI-OPENAI.md) | `OAI` | 3, 8 | `src/Tracon.OpenAI` (tümü) · devre kesici/sağlık için `src/Tracon.Core/Models/ModelProviderCircuitBreaker.cs` · `CircuitBreakingChatClient.cs` · `ModelProviderHealthCache.cs` · `ModelProviderRegistry.cs` | **40** | ✅ | ✅ 39/40 · 1 ⏭ |
@@ -301,9 +340,9 @@ Bu eşleme bir başlangıçtır; üretim oturumu grep ile doğrular ve gerekirse
 | 14 | [`14-SKILL-VE-SCRIPT.md`](14-SKILL-VE-SCRIPT.md) | `SKILL` | 10, 11 | `src/Tracon.Abstractions/Skills` · `src/Tracon.Core/Skills` (tümü) · `src/Tracon.Core/Storage/InMemoryAgentSkillStore.cs`/`InMemorySkillScriptGrantStore.cs` · `src/Tracon.AspNetCore/Endpoints/SkillEndpoints.cs`/`SkillScriptGrantEndpoints.cs` · `src/Tracon.UI/frontend/src/screens/skills.tsx` | **47** | ✅ | ✅ 45/46 · 1 ⬜ |
 | 15 | [`15-WORKFLOWS.md`](15-WORKFLOWS.md) | `WF` | 15, 16, 71, 87, 122 | `src/Tracon.Workflows` · `screens/workflow*.tsx` | **70** | ✅ | ✅ 58/60 · 2 ☒ (Faz 87'nin 2 case'i koşum bekliyor) · 1 🆕 (Faz 122: MT-WF-119, `WorkflowCatalogTests` ile otomatik ölçüldü) |
 | 16 | [`16-IS-KUYRUGU-VE-ZAMANLAMA.md`](16-IS-KUYRUGU-VE-ZAMANLAMA.md) | `JOB` | 17, 42, 46, 120 | `src/Tracon.Core` (job) · `screens/job*.tsx` | **98** | ✅ | ✅ 61/61 · 2 🆕 (Faz 120, koşulmadı) · 1 🆕 (B03, koşulmadı) |
-| 17 | [`17-EVAL-VE-DENEYLER.md`](17-EVAL-VE-DENEYLER.md) | `EVAL` | 18, 19, 31, 45, 49, 56, 154 | `src/Tracon.Abstractions/Evaluation`, `Experiments` · `src/Tracon.Core/Evaluation`, `Experiments`, `Audit/AuditingExperimentStore.cs` · `src/Tracon.AspNetCore/Endpoints/EvalEndpoints.cs`, `ExperimentEndpoints.cs`, `RunEndpoints.cs` (yalnız feedback/compare/input/replay) · `screens/eval*.tsx` · `experiment*.tsx` · `promote-to-eval-case.tsx` · `feedback-control.tsx` | **69** | ✅ | ✅ 69/69 · 8 🆕 (Faz 154: EVAL-128..134 otomatik karşılıkları — `RunScoreStoreContract`, `RunScoreSummaryEndpointTests` — koştu; EVAL-129/EVAL-135 `samples/Tracon.Api` + gerçek tarayıcıya karşı elle de koşuldu 2026-09-07, gerçek OpenAI çağrısı) |
+| 17 | [`17-EVAL-VE-DENEYLER.md`](17-EVAL-VE-DENEYLER.md) | `EVAL` | 18, 19, 31, 45, 49, 56, 154, 176 | `src/Tracon.Abstractions/Evaluation`, `Experiments` · `src/Tracon.Core/Evaluation`, `Experiments`, `Audit/AuditingExperimentStore.cs` · `src/Tracon.AspNetCore/Endpoints/EvalEndpoints.cs`, `ExperimentEndpoints.cs`, `RunEndpoints.cs` (yalnız feedback/compare/input/replay) · `screens/eval*.tsx` · `experiment*.tsx` · `promote-to-eval-case.tsx` · `feedback-control.tsx` | **69** | ✅ | ✅ 69/69 · 8 🆕 (Faz 154: EVAL-128..134 otomatik karşılıkları — `RunScoreStoreContract`, `RunScoreSummaryEndpointTests` — koştu; EVAL-129/EVAL-135 `samples/Tracon.Api` + gerçek tarayıcıya karşı elle de koşuldu 2026-09-07, gerçek OpenAI çağrısı) |
 | 18 | [`18-MCP-VE-A2A.md`](18-MCP-VE-A2A.md) | `MCP` | 6, 22, 50, 89, 127 | `src/Tracon.Mcp` · `src/Tracon.AspNetCore/McpServer` · `A2A` · `Endpoints/GovernanceEndpoints.cs` (yalnız `/api/mcp-servers/*`) | **58** | ✅ | ✅ 42/43 · 1 ☒ · 1 🆕 (Faz 89, koşulmadı) · 1 🆕 (Faz 127: MT-MCP-068, otomatik karşılığı koştu, 👤 elle koşulmadı) |
-| 19 | [`19-COK-MODLULUK-VE-SES.md`](19-COK-MODLULUK-VE-SES.md) | `MM` | 14, 28, 29, 72, 138, 161 | `src/Tracon.Abstractions/Attachments`, `Voice` · `src/Tracon.Core/Attachments`, `Voice` · `src/Tracon.Voice` (tümü) · `src/Tracon.AspNetCore/Endpoints/AttachmentEndpoints.cs`, `VoiceEndpoints.cs` · `src/Tracon.AspNetCore/Voice/VoiceConversationEndpoint.cs`, `LiveVoiceEndpoints.cs`, `VoiceEndpointGates.cs` · `src/Tracon.OpenAI/Live` · `src/Tracon.AspNetCore/OpenAICompat/AttachmentIngestion.cs` | **90** | ✅ | ✅ 59/61 · 2 ⏭ (2026-08-13) · MT-MM-091..094 Faz 72 kapanışında gerçek ElevenLabs'a karşı koşuldu · 8 🆕 (Faz 138: MT-MM-100..107, MT-MM-100/101/102 gerçek ElevenLabs anahtarı gerekir, koşulmadı) · 12 🆕 (Faz 161: MT-MM-108..119; MT-MM-108/109/117/118 otomatikleştirildi, MT-MM-110/111/112/114 gerçek anahtarla koşuldu) |
+| 19 | [`19-COK-MODLULUK-VE-SES.md`](19-COK-MODLULUK-VE-SES.md) | `MM` | 14, 28, 29, 72, 88, 138, 161 | `src/Tracon.Abstractions/Attachments`, `Voice` · `src/Tracon.Core/Attachments`, `Voice` · `src/Tracon.Voice` (tümü) · `src/Tracon.AspNetCore/Endpoints/AttachmentEndpoints.cs`, `VoiceEndpoints.cs` · `src/Tracon.AspNetCore/Voice/VoiceConversationEndpoint.cs`, `LiveVoiceEndpoints.cs`, `VoiceEndpointGates.cs` · `src/Tracon.OpenAI/Live` · `src/Tracon.AspNetCore/OpenAICompat/AttachmentIngestion.cs` | **93** | ✅ | ✅ 59/61 · 2 ⏭ (2026-08-13) · MT-MM-091..094 Faz 72 kapanışında gerçek ElevenLabs'a karşı koşuldu · 8 🆕 (Faz 138: MT-MM-100..107, MT-MM-100/101/102 gerçek ElevenLabs anahtarı gerekir, koşulmadı) · 12 🆕 (Faz 161: MT-MM-108..119; MT-MM-108/109/117/118 otomatikleştirildi, MT-MM-110/111/112/114 gerçek anahtarla koşuldu) |
 | 20 | [`20-BELLEK-RAG-BAGLAM.md`](20-BELLEK-RAG-BAGLAM.md) | `MEM` | 13, 51 | `src/Tracon.Abstractions/Agents/{Compaction,Memory}Settings.cs` · `Knowledge/*.cs` · `src/Tracon.Core/Compilation/AgentDefinitionCompiler.cs` (bellek/sıkıştırma/vektör bağlama kısmı), `ObservedCompactionStrategy.cs` · `src/Tracon.Core/Knowledge/*.cs` · `src/Tracon.PostgreSql/MigrationsKnowledge/0001_vector.sql`, `Stores/PgVectorSearchStore.cs` · `src/Tracon.AspNetCore/Endpoints/KnowledgeEndpoints.cs`, `Contracts/KnowledgeContracts.cs` | **31** | ✅ | ✅ 31/31 |
 | 21 | [`21-DAYANIKLILIK-VE-IPTAL.md`](21-DAYANIKLILIK-VE-IPTAL.md) | `RES` | 32, 54, 55, 87, 126, 144, 177 (44/46/47 yalnız kesişim) | `src/Tracon.Abstractions/Runs/IRunCancellationRegistry.cs`, `RunReconciliationOptions.cs` · `src/Tracon.Abstractions/Approvals/` · `src/Tracon.Core/Recording/{RunCancellationRegistry,RunHeartbeatWriter,RunReconciliationService}.cs` · `src/Tracon.Core/Approvals/` · `src/Tracon.Core/Hosting/TraconDrainService.cs` · `src/Tracon.Core/Scheduling/RunContinuationJobHandler.cs` · `src/Tracon.AspNetCore/Endpoints/{RunEndpoints.cs (yalnız CancelRunAsync),ApprovalEndpoints.cs}` · `src/Tracon.Core/Sessions/AgentSessionManager.cs` (Faz 126: `StateSchemaVersion`/`StateMafVersion`) · `src/Tracon.Core/Graph/ChildAgentInvoker.cs`, `Compilation/AgentDefinitionCompiler.Agents.cs`, `TraconOptions.cs` (`AgentGraph.ChildDeadline`/`WaitTimeout`, Faz 144) · `screens/approvals.tsx`, `run-detail.tsx` · `src/Tracon.Testing.Contracts.Xunit/Contracts/StoreCancellationContract.cs` (Faz 177) | **55** | ✅ | ✅ 26/28 · 2 ⏭ (Faz 87'nin 9 case'i koşum bekliyor) · MT-RES-069..071 Faz 126 kapanışında `samples/Tracon.Api` + gerçek SQLite'a karşı koşuldu (2026-09-01); 072 👤 gerekir (gerçek MAF sürüm yükseltmesi elde varken) · 5 🆕 (Faz 144: MT-RES-080..084, otomatik karşılıkları `SubAgentTimeoutTests`/`SubAgentSettingsResolutionTests` ile gerçek `background_agents_*` tool akışına karşı koştu; 👤 elle koşulmadı) · 2 🆕 (Faz 177: MT-RES-091..092; 091 dört koşumun tamamında otomatik karşılığıyla koştu, 092'nin otomatik karşılığı `StoreCancellationContractSelfProofTests`, elle bozma denemesi 👤 koşulmadı) |
 | 22 | [`22-GUARDRAIL-VE-YAPISAL-CIKTI.md`](22-GUARDRAIL-VE-YAPISAL-CIKTI.md) | `GUARD` | 38, 48, 86, 127, 131, 134 | `src/Tracon.Abstractions/Guards`, `Agents/ResponseFormat.cs`, `Agents/IStructuredResponseValidator.cs` · `src/Tracon.Core/Guards` (tümü), `Compilation/AgentDefinitionCompiler.cs`, `Compilation/StructuredResponseValidatingAgent*.cs`, `Models/ModelProviderRegistry.cs` · `src/Tracon.Core/Runs/DocumentChannelMessageBuilder.cs` · `src/Tracon.AspNetCore/Endpoints/AgentEndpoints.cs` · `src/Tracon.UI/frontend/src/screens/{agent-editor,agent-detail,models,run-detail}.tsx` | **56** | ✅ | ✅ 35/35 · MT-GUARD-075/076 Faz 86 kapanışında `samples/Tracon.Api`'ye karşı koşuldu (2026-08-22, gerçek OpenAI çağrısı — belge içeriği hiçbir olayda görünmedi, sahte sınırlayıcı `(escaped)` etiketiyle değiştirildi) · 2 🆕 (Faz 127: MT-GUARD-080/081, otomatik karşılıkları koştu, 👤 elle koşulmadı — gerçek sağlayıcı anahtarı bu ortamda yoktu) · 7 🆕 (Faz 131: MT-GUARD-090..096, geçerli-yanıt kolu `order-summary` demo agent'ıyla gerçek OpenAI çağrısına karşı koşuldu 2026-09-01; geçersiz-yanıt kolu OpenAI'nin `response_format` sözdizimsel garantisi yüzünden gerçek sağlayıcıyla üretilemez — otomatik karşılıkları koştu, 095 👤 gerekir) · 7 🆕 (Faz 134: MT-GUARD-100..106, onarımı TETİKLEYEN her case aynı sözdizimsel garanti yüzünden gerçek sağlayıcıyla üretilemez — otomatik karşılıkları koştu, 106 👤 gerekir) |
@@ -315,7 +354,7 @@ Bu eşleme bir başlangıçtır; üretim oturumu grep ile doğrular ve gerekirse
 | 28 | [`28-DENETIM-ZINCIRI-VE-VERI-HAKLARI.md`](28-DENETIM-ZINCIRI-VE-VERI-HAKLARI.md) | `DVR` | 64 | `src/Tracon.Abstractions/Audit`, `Privacy` · `src/Tracon.Core/Audit/{AuditChainHasher,AuditChainWalker}.cs`, `Privacy/NullDataSubjectStore.cs` · `src/Tracon.Sql.Shared/Stores/{SqlAuditLog,SqlDataSubjectStore}.cs`, `Internal/DataSubjectTargetRegistry.cs` · `src/Tracon.AspNetCore/Endpoints/{AuditEndpoints,DataSubjectEndpoints}.cs` | **10** | ✅ | ⬜ henüz koşulmadı |
 | 29 | [`29-AGENT-DESTEGI.md`](29-AGENT-DESTEGI.md) | `AGD` | 73 | `src/Tracon.Cli/Commands/{AgentSkillCommand,GateSkillText}.cs` · `src/Tracon.Generators/{TraconUsageAnalyzer,UsageDiagnostics}.cs` · `src/Tracon.Core/buildTransitive/` · `src/Tracon.Templates/content/Tracon.Starter/Tracon.Starter.csproj` · `docs-site/scripts/build-agent-map.mjs` · `docs-site/src/content/docs/capabilities.md` · `tests/Tracon.Core.UnitTests/Architecture/CapabilityCoverageTests.cs` | **24** | ✅ | ⬜ henüz koşulmadı |
 | 30 | [`30-YEREL-REFERANS.md`](30-YEREL-REFERANS.md) | `YRF` | 74 · 78 | `src/Tracon.Core/buildTransitive/Tracon.Core.targets` · `src/Tracon.AspNetCore/buildTransitive/Tracon.AspNetCore.targets` · `src/Tracon.AspNetCore/Tracon.AspNetCore.csproj` (OpenAPI paketlemesi) · `src/Tracon.Templates/content/Tracon.Starter/.gitignore` · `docs-site/scripts/build-agent-map.mjs` · `tests/Tracon.Core.UnitTests/Architecture/{CapabilityEntryPoints,CapabilityExampleTests}.cs` · `src/Tracon.Generators/UsageDiagnostics.cs` (`TRC0402`) | **27** | ✅ | ⬜ henüz koşulmadı |
-| 31 | [`31-DOKUMAN-DOGRULUGU.md`](31-DOKUMAN-DOGRULUGU.md) | `DDG` | 75, 79, 104 | `tests/Tracon.Core.UnitTests/Architecture/ShippedDocumentationSelfContainmentTests.cs` · `docs-site/scripts/check-content.mjs` · `docs-site/scripts/build-agent-map.mjs` · `docs-site/scripts/{build-api-reference,build-http-api}.mjs` · `tests/Tracon.Ui.E2ETests/DocumentationScreenshotTests.cs` · `README.md` · `src/*/README.md` · `docs-site/site.config.mjs` | **32** | ✅ | ⬜ henüz koşulmadı |
+| 31 | [`31-DOKUMAN-DOGRULUGU.md`](31-DOKUMAN-DOGRULUGU.md) | `DDG` | 75, 79, 104, 172 | `tests/Tracon.Core.UnitTests/Architecture/ShippedDocumentationSelfContainmentTests.cs` · `docs-site/scripts/check-content.mjs` · `docs-site/scripts/build-agent-map.mjs` · `docs-site/scripts/{build-api-reference,build-http-api}.mjs` · `tests/Tracon.Ui.E2ETests/DocumentationScreenshotTests.cs` · `README.md` · `src/*/README.md` · `docs-site/site.config.mjs` | **35** | ✅ | ⬜ henüz koşulmadı |
 | 32 | [`32-DOKUMAN-KALITESI.md`](32-DOKUMAN-KALITESI.md) | `DKL` | 76, 158, 163 | `docs-site/src/styles/site.css` · `docs-site/astro.config.mjs` · `docs-site/src/sidebar.mjs` · `docs-site/src/starlightRouteData.mjs` · `docs-site/scripts/check-content.mjs` · `docs-site/scripts/check-weight.mjs` · `docs-site/scripts/build-social-images.mjs` · `docs-site/scripts/check-console-screens.mjs` · `docs-site/src/components/` · `docs-site/src/styles/landing.css` · `assets/tracon-mark.svg` · `tests/Tracon.AspNetCore.FunctionalTests/DocumentedPolicyTests.cs` | **40** | ✅ | ⬜ henüz koşulmadı |
 | 33 | [`33-DOKUMAN-KAPILARI.md`](33-DOKUMAN-KAPILARI.md) | `DKP` | 80, 90, 167, 174 | `scripts/dokuman-bakim.py` · `scripts/dokuman_bakim_test.py` · `.github/workflows/ci.yml` · `docs-site/scripts/check-capacity-stamp.mjs` | **25** | ✅ | ⬜ henüz koşulmadı |
 | 34 | [`34-ISTEMCI-VE-CLI.md`](34-ISTEMCI-VE-CLI.md) | `CLI` | 83, 115, 153, 156, 159 | `src/Tracon.Client` · `src/Tracon.Cli` · `nswag.json` · `scripts/nswag-*.py` | **46** | ✅ | ✅ 10/11 otomasyonla + 11 elle koşuldu (Faz 83 kapanışı); 13-21 `EvalCommandTests.cs` ile otomasyonla koşuldu (Faz 115 kapanışı); 23-31 `EvalBaselineGateTests.cs` (Faz 153); 32-36 `StateCheckCommandTests.cs` (Faz 156); 38-45 `GeneratedClientSseTests.cs` + `TraconApiClientSseTests.cs`, 46 `sse.test.ts` (Faz 159); 12, 22, 37 ve 46'nın tarayıcı koşumu 👤 koşulmadı |
@@ -373,6 +412,50 @@ vermez. Bu beş dosya **kapı**dır.
 
 Üretim oturumları koddaki şüpheli bulguları buraya yazar. Burası bir kusur listesi
 değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
+
+> ## 🔧 2026-09-16 — Tur öncesi tazeleme (`manuel-test-tazelik.py`)
+>
+> Tam tur açılmadan önce set, taban tura (`12fb6477`, 2026-08-15) karşı ölçüldü.
+> Ölçüm ve koşum sırası: [`kosumlar/2026-09-16/00-KOSUM-PLANI.md`](kosumlar/2026-09-16/00-KOSUM-PLANI.md).
+>
+> **Kapatıldı:**
+>
+> 1. 🚨 **Fixture adları bayattı — 294 geçiş, 17 aile.** Faz 162 örnek
+>    uygulamanın agent ve workflow adlarını İngilizce'ye çevirdi; set hiç takip
+>    etmedi (`ozetleyici`→`summarizer`, `yonlendirici`→`router`,
+>    `cevirmen`→`translator`, `arastirmaci`→`researcher`,
+>    `ozetle-ve-cevir`→`summarize-and-translate` ve dokuz ad daha). Bu case'ler
+>    turun ilk gününde "agent bulunamadı" ile **sahte** düşecekti. Her hedef ad
+>    `samples/Tracon.Api/Program.cs`'in `Name` satırından doğrulandı; eski
+>    adların hiçbiri `src/` veya `samples/` içinde yaşamıyordu. §3.1 tablosu
+>    `DisplayName` sütunuyla birlikte yenilendi ve eksik iki agent
+>    (`order-summary` · `cached-support`) eklendi.
+> 2. **Kapsama boşluğu kapandı.** `CapabilityEntryPoints` kuralıyla (K-509)
+>    ölçülen 54 kayıt giriş noktasının 7'si sette hiç anılmıyordu. Dördü
+>    **adlandırma** boşluğuydu — davranış zaten koşuluyordu, case metni üyenin
+>    adını yazmıyordu (`AddClientTool` → 26, `MapTraconMcpServer`/`MapTraconA2A`
+>    → 18, `UseOpenAIImages` → 19). Üçü gerçek boşluktu ve case aldı:
+>    `AddAgentDecorator` → MT-CORE-129, `UseGoogleImages`/`UseAzureOpenAIImages`
+>    → MT-MM-120..122. Ölçüm şimdi 54/54.
+> 3. **Faz 172 hiç case almamıştı.** Faz iki yönlü bir tazelik kapısı sevk etti
+>    (`check-content.mjs`: güvenlik kılavuzunun sınır tablosu ↔ tehdit modelinin
+>    `Boundary mapping` tablosu). MT-DDG-033..035 eklendi; 035 **ters yönü**
+>    sınar, yani artık var olmayan bir korumayı vaat eden bayat sözü.
+>
+> **Açık kalem — 🟡 `Faz` listeleri çelişiyor (36 ailenin 21'inde).** Aile
+> dosyasının `**Faz:**` başlığı ile bu dosyanın §7 `Faz` sütunu birbirini
+> tutmuyor ve sapma **iki yönlü**: ör. 17-EVAL başlıkta `100, 103, 118, 152,
+> 153, 155` yazıyor, indekste yok; 16-JOB başlıkta `66, 129, 137` yazıyor,
+> indekste yok; 02-CORE'da indekste `86`, başlıkta `106` var. Sebep tek: iki
+> liste elle tutuluyor ve hiçbir kapı ikisini karşılaştırmıyor.
+> `manuel_test_sayim_kaymasi` yalnız **sayıyı** ölçer.
+>
+> Bu turda yalnız **kanıtlanan** üç ekleme yapıldı (176→17, 172→31, 88→19);
+> kalan 21 aile **uzlaştırılmadı**. Gerekçe: iki tarafta da açıklama metni var
+> (`87 (yalnız düğüm başına retry)`, `44/46/47 yalnız kesişim`) ve sayıları
+> prose'dan ayrıştıran bir kapı güvenilir olmaz — yanlış kapı, kapısızlıktan
+> beterdir (Faz 80'in "kapı sessizce geçer" sınıfı). Kalıcı çözüm §7'nin `Faz`
+> sütununu aile başlıklarından **üretmektir**; bir faz adayı olarak açılmalıdır.
 
 > ## 🔧 2026-08-10 — Koşum başlamadan önce inceleme turu (bu bölümün tamamı okundu)
 >
@@ -916,7 +999,7 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
   `[FromServices] IWorkflowDefinitionStore store` alır ve doğrudan
   `store.GetAsync(...)` çağırır (`WorkflowEndpoints.cs:140-149`); `IWorkflowRunner`
   parametresi YOKTUR. Kodda tanımlı bir workflow (`AddWorkflow(...)`, örnek
-  uygulamada `ozetle-ve-cevir`/`ozetle-ve-onayla`) hiçbir zaman `store`'a
+  uygulamada `summarize-and-translate`/`summarize-and-approve`) hiçbir zaman `store`'a
   yazılmaz — yalnız `GET /api/workflows` (liste, `WorkflowCatalog.ListAsync`
   üzerinden) ve `runner.GetAsync` (çalıştırma öncesi varlık kontrolü) bunu
   görür. Sonuç: bir workflow listede görünüp başarıyla çalışırken tekil `GET`

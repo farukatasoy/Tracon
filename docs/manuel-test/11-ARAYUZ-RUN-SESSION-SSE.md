@@ -82,7 +82,7 @@ flowchart TD
    `http://localhost:5080/tracon/` açık, `manuel-test-token-2026` ile
    giriş yapılmıştır.
 3. `Tracon:Providers:OpenAI:ApiKey` tanımlıdır — bu dosyanın çoğu case'i
-   gerçek bir OpenAI çağrısı yapar (`support`/`yonlendirici`/`ozetleyici`,
+   gerçek bir OpenAI çağrısı yapar (`support`/`router`/`summarizer`,
    model `gpt-5.4-mini`). Gerçek para harcanır.
 4. `Tracon:PostgreSql:ConnectionString` tanımlıdır — oturum geçmişi ve
    dallandırma yalnız kalıcı bir SQL sağlayıcısıyla anlamlı çalışır (bkz. § 8,
@@ -185,9 +185,9 @@ Sınır durumu — hiç çalıştırma yokken.
 
 ---
 
-### MT-UIRUN-004 — `yonlendirici` → `support` devri: kök/tümü ayrımı, alt çalıştırma ve derinlik rozetleri
+### MT-UIRUN-004 — `router` → `support` devri: kök/tümü ayrımı, alt çalıştırma ve derinlik rozetleri
 
-Kod tanımlı `yonlendirici` agent'ı (Faz 12) siparişle ilgili istekleri
+Kod tanımlı `router` agent'ı (Faz 12) siparişle ilgili istekleri
 `support`'a devreder; devir her zaman AYRI bir `runs` satırı açar
 (`CallableAgentNames`, `samples/Tracon.Api/Program.cs`).
 
@@ -202,17 +202,17 @@ Kod tanımlı `yonlendirici` agent'ı (Faz 12) siparişle ilgili istekleri
 - Kabuk açık.
 
 **Adımlar**
-1. `playground/yonlendirici` aç, `FIX-PROMPT-01` (`ORD-1001 siparisim nerede?`)
+1. `playground/router` aç, `FIX-PROMPT-01` (`ORD-1001 siparisim nerede?`)
    gönder, tur tamamlanana kadar bekle.
 2. "Çalıştırmalar" ekranını varsayılan (kök) görünümde aç.
 3. Kapsam seçicisini "Tümünü göster"e çevir.
 
 **Beklenen sonuç**
-- Adım 2: yalnız `yonlendirici`'nin KÖK satırı görünür; yanında
+- Adım 2: yalnız `router`'nin KÖK satırı görünür; yanında
   `1 alt çalıştırma` rozeti (`childRunCount = 1`) — `support`'un satırı
   listede YOKTUR (`OnlyRootRuns` varsayılan `true`).
 - Adım 3: `support`'un satırı da eklenir; bu satırda sarı `derinlik: 1`
-  rozeti görünür (`run.depth > 0`), `yonlendirici`'ninkinde YOK
+  rozeti görünür (`run.depth > 0`), `router`'ninkinde YOK
   (`depth = 0` iken rozet hiç render edilmez).
 
 ---
@@ -426,7 +426,7 @@ Negatif senaryo.
 
 ### MT-UIRUN-012 — Workflow: `AwaitingInput` durumunda bilgilendirme paneli + çalıştırmalar listesindeki sayaç dalı
 
-`ozetle-ve-onayla` (Faz 16) her girdide özetten sonra sabit bir soruyla
+`summarize-and-approve` (Faz 16) her girdide özetten sonra sabit bir soruyla
 (`"Bu ozet yayinlansin mi?"`) insan girdisi bekleyen bir dış istek portuna
 ulaşır ve çalıştırma deterministik biçimde `AwaitingInput` ile kapanır.
 
@@ -445,7 +445,7 @@ ulaşır ve çalıştırma deterministik biçimde `AwaitingInput` ile kapanır.
    alanını not al:
 
 ```bash
-curl -N -s -X POST "http://localhost:5080/tracon/api/workflows/ozetle-ve-onayla/run" \
+curl -N -s -X POST "http://localhost:5080/tracon/api/workflows/summarize-and-approve/run" \
   -H "Authorization: Bearer manuel-test-token-2026" \
   -H "Content-Type: application/json" \
   -d '{"message":"Tracon yayin oncesi manuel kabul testi yaziyoruz."}'
@@ -457,7 +457,7 @@ curl -N -s -X POST "http://localhost:5080/tracon/api/workflows/ozetle-ve-onayla/
 **Beklenen sonuç**
 - Adım 2: durum rozeti `AwaitingInput` (sarı); başlık altında
   `runDetail.awaiting.title` panelinde ilgili workflow ekranına giden bir
-  bağlantı görünür. Başlık açıklaması `workflowName`'i (`ozetle-ve-onayla`)
+  bağlantı görünür. Başlık açıklaması `workflowName`'i (`summarize-and-approve`)
   agent adı YERİNE gösterir (`record.kind === 'Workflow'`).
 - Adım 3: `stats.data.awaitingInputRuns > 0` olduğu için ÜÇÜNCÜ kutu artık
   `errorRate` DEĞİL, `awaitingInputRuns` sayacını ve `stat.awaitingHint`
@@ -481,7 +481,7 @@ Sınır durumu — `record.kind === 'Agent'` şartı.
 - Kabuk açık.
 
 **Adımlar**
-1. `curl -N -s -X POST "http://localhost:5080/tracon/api/workflows/ozetle-ve-cevir/run" -H "Authorization: Bearer manuel-test-token-2026" -H "Content-Type: application/json" -d '{"message":"Tracon, Microsoft Agent Framework uzerine kurulu bir NuGet paket ailesidir."}'` ile bitmiş bir workflow çalıştırması üret, `runId`'yi not al.
+1. `curl -N -s -X POST "http://localhost:5080/tracon/api/workflows/summarize-and-translate/run" -H "Authorization: Bearer manuel-test-token-2026" -H "Content-Type: application/json" -d '{"message":"Tracon, Microsoft Agent Framework uzerine kurulu bir NuGet paket ailesidir."}'` ile bitmiş bir workflow çalıştırması üret, `runId`'yi not al.
 2. `runs/{runId}` sayfasını aç, sayfayı sonuna kadar tara.
 
 **Beklenen sonuç**
@@ -489,7 +489,7 @@ Sınır durumu — `record.kind === 'Agent'` şartı.
 - "Yeniden Oynatma" paneli sayfada HİÇBİR YERDE görünmez — kod
   `finished && record.kind === 'Agent'` koşuluyla bu paneli workflow
   satırları için hiç render etmez.
-- Çağrı ağacı paneli GÖRÜNÜR (`ozetleyici`/`cevirmen` alt çalıştırmaları
+- Çağrı ağacı paneli GÖRÜNÜR (`summarizer`/`translator` alt çalıştırmaları
   vardır) — bu, `MT-UIRUN-014`'ün konusudur.
 
 ---
@@ -504,19 +504,19 @@ Sınır durumu — `record.kind === 'Agent'` şartı.
 | **İlgili karar** | — |
 
 **Ön koşul**
-- `MT-UIRUN-004`'ün `yonlendirici` çalıştırması var.
+- `MT-UIRUN-004`'ün `router` çalıştırması var.
 
 **Adımlar**
-1. `yonlendirici`'nin KÖK çalıştırmasının sayfasını aç, "Çağrı Ağacı" panelini
+1. `router`'nin KÖK çalıştırmasının sayfasını aç, "Çağrı Ağacı" panelini
    incele.
 2. Ağaçtaki `support` satırına tıkla, o sayfada AYNI panele tekrar bak.
 
 **Beklenen sonuç**
-- Adım 1: iki satır var — `yonlendirici` (indent 0, `Bu Çalıştırma` rozeti
+- Adım 1: iki satır var — `router` (indent 0, `Bu Çalıştırma` rozeti
   vurgulu arka planla) ve altında `└` işaretli, girintili `support` satırı
   (indent 1, tıklanabilir bağlantı).
 - Adım 2: AYNI iki satır görünür ama şimdi `support` satırı vurgulu ve
-  `Bu Çalıştırma` rozetini taşır, `yonlendirici` sıradan bir bağlantıya
+  `Bu Çalıştırma` rozetini taşır, `router` sıradan bir bağlantıya
   döner — ağaç her zaman KÖKTEN çizilir, hangi satırdan girildiği fark
   etmez.
 
@@ -542,7 +542,7 @@ konusudur; burada yalnız BU panelin görünürlük kuralı ölçülür.
 
 **Beklenen sonuç**
 - Panel `runDetail.spansOnRoot` boş-durumunu gösterir; içindeki bağlantı
-  köke (`yonlendirici`'nin çalıştırmasına) gider — `trace` sorgusu
+  köke (`router`'nin çalıştırmasına) gider — `trace` sorgusu
   `enabled: finished && run.data?.parentRunId == null` şartı yüzünden hiç
   ATILMAZ (ağ sekmesinde `.../trace` isteği YOK).
 
@@ -1010,7 +1010,7 @@ otomatik onaylanamaz.
 — bu, `support` üzerinde YENİ bir `FIX-PROMPT-03` denemesinin onay kartı
 ÜRETMEDEN doğrudan gerçek iptali çalıştırdığını gösterdi (canlı doğrulandı).
 Bu yüzden onay kartı fixture'ı AYNI kod yolunu (kod kökenli agent) paylaşan
-`claude-destek` (Anthropic, `claude-haiku-4-5-20251001` — §2.5 en ucuz
+`claude-support` (Anthropic, `claude-haiku-4-5-20251001` — §2.5 en ucuz
 Anthropic modeli) ile üretildi; hiçbir onay kuralı yoktu, kart normal
 şekilde belirdi.
 
@@ -1850,7 +1850,7 @@ olarak gidiyordu.
 | **İlgili karar** | — |
 
 **Ön koşul**
-- `ozetle-ve-cevir` (veya başka Sıralı bir workflow) ile bitmiş bir
+- `summarize-and-translate` (veya başka Sıralı bir workflow) ile bitmiş bir
   çalıştırma var; `runId`'si elde (bkz. MT-UIRUN-013'ün üretim adımı).
 
 **Adımlar**

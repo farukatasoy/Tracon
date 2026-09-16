@@ -167,11 +167,11 @@ açıkça yorumluyor: *"kök o dalı Failed görür, kendisi durmaz"*.
 | **İlgili karar** | K-243 |
 
 **Ön koşul**
-- Örnek uygulama çalışıyor, `yonlendirici` agent'ı `support`'u alt agent
+- Örnek uygulama çalışıyor, `router` agent'ı `support`'u alt agent
   olarak çağırabiliyor (sabit kurulum).
 
 **Adımlar**
-1. `yonlendirici`'ye, `support`'a yönlendirilecek uzun bir metin gönder
+1. `router`'ye, `support`'a yönlendirilecek uzun bir metin gönder
    (arka planda, akış sürerken devam et).
 2. Akış başladıktan ~1 sn sonra kök `runId`'yi ilk SSE çerçevesinden al,
    `GET /api/runs/{rootRunId}/tree` ile ağacı sorgula; `support`'un alt
@@ -182,7 +182,7 @@ açıkça yorumluyor: *"kök o dalı Failed görür, kendisi durmaz"*.
 
 **Girilecek veri**
 ```bash
-RESP=$(curl -s -D - -o /tmp/mt-res-001.json -X POST "$APU/api/agents/yonlendirici/run" \
+RESP=$(curl -s -D - -o /tmp/mt-res-001.json -X POST "$APU/api/agents/router/run" \
   -H "$APB" -H "content-type: application/json" \
   -d "{\"message\":\"Destek ekibine yonlendir ve asagidaki metni ozetlemesini iste: $(python3 -c "print('lorem ipsum dolor sit amet ' * 2000)")\"}" &)
 sleep 1
@@ -335,7 +335,7 @@ birebir aynı desendedir ve derleniyor, ama **gerçek bir workflow
 `AgentWorkflowBuilder.BuildSequential` grafiğinin özel bir `AIAgent` alt
 sınıfını nasıl tükettiğiyle ilgili bir nedenle `Canceled` yerine
 `Completed` yazdı ve test silindi. Bu case AYNI denemeyi gerçek bir kayıtlı
-workflow'la (`ozetle-ve-cevir`) tekrarlar.
+workflow'la (`summarize-and-translate`) tekrarlar.
 
 | | |
 |---|---|
@@ -345,17 +345,17 @@ workflow'la (`ozetle-ve-cevir`) tekrarlar.
 | **İlgili karar** | K-245 |
 
 **Ön koşul**
-- Örnek uygulama çalışıyor; `ozetle-ve-cevir` workflow'u kayıtlı (sabit).
+- Örnek uygulama çalışıyor; `summarize-and-translate` workflow'u kayıtlı (sabit).
 
 **Adımlar**
-1. `ozetle-ve-cevir`'i `FIX-PROMPT-04` ile başlat (arka planda, SSE akışı
+1. `summarize-and-translate`'i `FIX-PROMPT-04` ile başlat (arka planda, SSE akışı
    sürerken kimliği yakala).
 2. Akış sürerken kimliği `POST /api/runs/{runId}/cancel` ile iptal et.
 3. 3 saniye bekle, `GET /api/runs/{runId}` ile durumu oku.
 
 **Girilecek veri**
 ```bash
-curl -s -N -X POST "$APU/api/workflows/ozetle-ve-cevir/run" \
+curl -s -N -X POST "$APU/api/workflows/summarize-and-translate/run" \
   -H "$APB" -H "content-type: application/json" \
   -d "{\"message\":\"$(python3 -c "print('lorem ipsum dolor sit amet ' * 2000)")\"}" > /tmp/mt-res-005-stream.txt &
 sleep 1
@@ -1821,12 +1821,12 @@ bu case'ler örnek uygulamada elle gözlem içindir.
 
 **Ön koşul**
 - `samples/Tracon.Api` ayakta.
-- `yonlendirici` adlı bir agent, `CallableAgentNames = ["arastirmaci"]` ve
+- `router` adlı bir agent, `CallableAgentNames = ["researcher"]` ve
   `SubAgents.ChildDeadline = 00:00:01` ile tanımlı (gerçek bir model çağrısı
   genelde bir saniyeden uzun sürer, bu yüzden kesme gerçek koşulda tetiklenir).
 
 **Adımlar**
-1. `yonlendirici`'yi çalıştır, `arastirmaci`'yi çağıracak bir istek gönder.
+1. `router`'yi çalıştır, `researcher`'yi çağıracak bir istek gönder.
 2. `GET /tracon/api/runs/{runId}/events` ile kök `run`'ın olay akışını oku.
 
 **Beklenen sonuç**
@@ -1849,7 +1849,7 @@ bu case'ler örnek uygulamada elle gözlem içindir.
 | **İlgili karar** | — |
 
 **Ön koşul**
-- MT-RES-080 ile aynı kurulum, tek fark: `yonlendirici`'nin `Harness` alanı
+- MT-RES-080 ile aynı kurulum, tek fark: `router`'nin `Harness` alanı
   dolu (harness yolu).
 
 **Adımlar**
@@ -1874,7 +1874,7 @@ bu case'ler örnek uygulamada elle gözlem içindir.
 **Ön koşul**
 - Kurulumun `Tracon:AgentGraph:ChildDeadline`'ı büyük bir değerde
   (ör. `00:02:00`, varsayılan).
-- `yonlendirici`'nin kendi `SubAgents.ChildDeadline`'ı çok kısa (`00:00:01`).
+- `router`'nin kendi `SubAgents.ChildDeadline`'ı çok kısa (`00:00:01`).
 
 **Adımlar**
 - MT-RES-080 ile aynı çağrı.
@@ -1897,15 +1897,15 @@ bu case'ler örnek uygulamada elle gözlem içindir.
 | **İlgili karar** | — |
 
 **Ön koşul**
-- `yonlendirici` tanımında `SubAgents = { ChildDeadline: 00:00:30, WaitTimeout:
+- `router` tanımında `SubAgents = { ChildDeadline: 00:00:30, WaitTimeout:
   00:00:30 }` (eşit — geçersiz kombinasyon).
 
 **Adımlar**
-1. Uygulamayı başlat veya `yonlendirici`'yi katalogdan çöz (`GET
-   /tracon/api/agents/yonlendirici` ya da ilk çalıştırma denemesi).
+1. Uygulamayı başlat veya `router`'yi katalogdan çöz (`GET
+   /tracon/api/agents/router` ya da ilk çalıştırma denemesi).
 
 **Beklenen sonuç**
-- `TraconCompilationException` fırlar; mesaj `yonlendirici` agent adını ve
+- `TraconCompilationException` fırlar; mesaj `router` agent adını ve
   `ChildDeadline`/`WaitTimeout` alan adlarını taşır. Kombinasyon sessizce kabul
   EDİLMEZ.
 

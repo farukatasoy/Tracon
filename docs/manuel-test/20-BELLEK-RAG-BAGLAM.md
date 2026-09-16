@@ -18,7 +18,7 @@
 > `src/Tracon.AspNetCore/Endpoints/KnowledgeEndpoints.cs` ·
 > `src/Tracon.AspNetCore/Contracts/KnowledgeContracts.cs` ·
 > `samples/Tracon.Api/Program.cs` (yalnız embedding kaydı ve
-> `bilgi-asistani` bloğu).
+> `knowledge-assistant` bloğu).
 >
 > 🚨 **Kaynak eşlemesi düzeltmesi.** `00-INDEKS.md`'nin §7 tablosu bu dosya
 > için yalnız `src/Tracon.Core` (memory) ve migration dosyasını
@@ -113,7 +113,7 @@ export PG="docker exec -i ap-pg psql -U postgres -d tracon"
 ## Bu dosyanın yerel fixture'ları
 
 Bu veriler yalnız bu dosyaya özgüdür, `00-INDEKS.md`'ye girmez (`PROMPT.md`
-§4.2). `bilgi-asistani` (hazır, PostgreSQL + embedding ister) için bkz.
+§4.2). `knowledge-assistant` (hazır, PostgreSQL + embedding ister) için bkz.
 `00-INDEKS.md` §3.1.
 
 | Kimlik | Değer |
@@ -1160,9 +1160,9 @@ dotnet user-secrets set "Tracon:PostgreSql:ConnectionString" \
   "Host=localhost;Port=55432;Database=tracon;Username=postgres;Password=tracon"
 ```
 
-### MT-MEM-026 — `bilgi-asistani` uçtan uca: belge yükle → soru sor → `search_knowledge` tam bir kez çağrılır
+### MT-MEM-026 — `knowledge-assistant` uçtan uca: belge yükle → soru sor → `search_knowledge` tam bir kez çağrılır
 
-Faz 51'in kendi gerçek kanıtıyla aynı akış; hazır fixture (`bilgi-asistani`,
+Faz 51'in kendi gerçek kanıtıyla aynı akış; hazır fixture (`knowledge-assistant`,
 `00-INDEKS.md` §3.1) `kurumsal` koleksiyonuna bağlıdır.
 
 | | |
@@ -1173,12 +1173,12 @@ Faz 51'in kendi gerçek kanıtıyla aynı akış; hazır fixture (`bilgi-asistan
 | **İlgili karar** | K-341 |
 
 **Ön koşul**
-- `bilgi-asistani` katalogda görünüyor (`GET /api/agents`), PostgreSQL +
+- `knowledge-assistant` katalogda görünüyor (`GET /api/agents`), PostgreSQL +
   OpenAI anahtarı aktif.
 
 **Adımlar**
 1. `kurumsal` koleksiyonuna bir belge yükle.
-2. `bilgi-asistani`'na kelime eşleşmesi olmayan bir soru sor.
+2. `knowledge-assistant`'na kelime eşleşmesi olmayan bir soru sor.
 3. Run'ın tool çağrılarını oku.
 
 **Girilecek veri**
@@ -1186,7 +1186,7 @@ Faz 51'in kendi gerçek kanıtıyla aynı akış; hazır fixture (`bilgi-asistan
 curl -s -X POST "$APU/api/knowledge/kurumsal/documents" -H "$APB" -H "content-type: application/json" \
      -d '{"sourceId":"izin-politikasi","text":"Yillik izin 14 gundur. Bes yildan sonra 20 gune cikar."}'
 
-curl -s -X POST "$APU/api/agents/bilgi-asistani/run" -H "$APB" \
+curl -s -X POST "$APU/api/agents/knowledge-assistant/run" -H "$APB" \
      -H "Idempotency-Key: manuel-mem-026-$(date +%s%N)" -H "content-type: application/json" \
      -d '{"message":"Kac gun tatilim var?","sessionId":"mem-rag-01"}' \
      | python3 -c "import json,sys; d=json.load(sys.stdin); print('runId=',d.get('runId')); print(d.get('text'))"

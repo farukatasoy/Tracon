@@ -900,7 +900,7 @@ birim/fonksiyonel test edilmiştir (Faz 8 DoD, sapma S5).
 **Adımlar**
 1. Ollama'nın çalışıp çalışmadığını denetle.
 2. Çalışıyorsa: `Program.cs`'deki (satır ~239-246) yorumlanmış iki satırı aç,
-   uygulamayı başlat, `openrouter-destek` benzeri bir agent'la çağır.
+   uygulamayı başlat, `openrouter-support` benzeri bir agent'la çağır.
 3. Değişikliği geri al.
 
 **Girilecek veri**
@@ -1011,11 +1011,11 @@ git checkout -- samples/Tracon.Api/Program.cs
 - Gerçek OpenRouter API anahtarı tanımlı.
 
 **Adımlar**
-1. `openrouter-destek` agent'ını (fixture) çalıştır.
+1. `openrouter-support` agent'ını (fixture) çalıştır.
 
 **Girilecek veri**
 ```bash
-curl -s -X POST "$APU/api/agents/openrouter-destek/run" -H "$APB" \
+curl -s -X POST "$APU/api/agents/openrouter-support/run" -H "$APB" \
      -H "content-type: application/json" \
      -d '{"message":"ORD-1002 siparisim nerede?","sessionId":"oai-openrouter-01"}'
 ```
@@ -1023,7 +1023,7 @@ curl -s -X POST "$APU/api/agents/openrouter-destek/run" -H "$APB" \
 **Beklenen sonuç**
 - Yanıt `ORD-1002` dizgisini içerir.
 - Çalıştırma kaydında `get_order_status` tool'u tam bir kez çağrılır.
-- `HTTP 402` (yetersiz kredi) **görülmez** — `openrouter-destek` tanımı zaten
+- `HTTP 402` (yetersiz kredi) **görülmez** — `openrouter-support` tanımı zaten
   `MaxOutputTokens: 512` taşır (S6 sapmasının düzeltmesi, bkz. MT-OAI-057).
 
 ---

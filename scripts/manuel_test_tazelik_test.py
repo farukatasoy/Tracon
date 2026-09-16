@@ -1,0 +1,187 @@
+#!/usr/bin/env python3
+"""Manuel kabul turu tazelik ölçümünün testleri."""
+from __future__ import annotations
+
+import importlib.util
+import pathlib
+import sys
+import unittest
+
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+spec = importlib.util.spec_from_file_location(
+    "manuel_test_tazelik", ROOT / "scripts" / "manuel-test-tazelik.py")
+tazelik = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = tazelik
+spec.loader.exec_module(tazelik)
+
+
+CASE_TABAN = """### MT-CORE-001 — Geçerli tanım hatasız doğrulanır
+
+**Ön koşul:** Örnek uygulama çalışır.
+
+**Adımlar:** `POST /api/agents/validate`
+
+**Beklenen sonuç:** `valid:true`, `messages:[]`
+
+**Gerçek sonuç**
+`valid:true`, `messages:[]`. Kayıt yok — beklendiği gibi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+"""
+
+CASE_BUGUN = """### MT-CORE-001 — Geçerli tanım hatasız doğrulanır
+
+**Ön koşul:** Örnek uygulama çalışır.
+
+**Adımlar:** `POST /api/agents/validate`
+
+**Beklenen sonuç:** `valid:true`, `messages:[]`
+"""
+
+
+class ImzaTestleri(unittest.TestCase):
+    def test_kosum_kaydinin_silinmesi_case_i_DEGISMIS_saymaz(self):
+        # K-414 spec ile koşum kaydını ayırdı ve `Gerçek sonuç`/`Durum`
+        # bloklarını spec'ten sildi. Bu tek değişiklik normalize edilmezse
+        # taban turdaki HER case "değişti" görünür: ölçüldü 1096 sahte, gerçek
+        # 267.
+        self.assertEqual(tazelik.case_imzalari(CASE_TABAN),
+                         tazelik.case_imzalari(CASE_BUGUN))
+
+    def test_yeniden_adlandirma_case_i_DEGISMIS_saymaz(self):
+        # Faz 162 ürünü AgentPrism'den Tracon'a çevirdi ve her case gövdesine
+        # dokundu.
+        eski = CASE_BUGUN.replace("api/agents", "api/agentprism-agents")
+        yeni = CASE_BUGUN.replace("api/agents", "api/tracon-agents")
+        self.assertEqual(tazelik.case_imzalari(eski),
+                         tazelik.case_imzalari(yeni))
+
+    def test_fixture_adinin_yeniden_adlandirilmasi_DEGISMIS_saymaz(self):
+        # Faz 162 ornek uygulamanin agent/workflow adlarini da cevirdi
+        # (`ozetleyici`->`summarizer`). 2026-09-16 tazeleme turu sette 294
+        # gecisi duzeltti; normalize edilmezse o duzeltme tek basina 98 case'i
+        # "degisti" kovasina atardi.
+        eski = CASE_BUGUN.replace("`valid:true`", "`ozetleyici` ve `cevirmen`")
+        yeni = CASE_BUGUN.replace("`valid:true`", "`summarizer` ve `translator`")
+        self.assertEqual(tazelik.case_imzalari(eski),
+                         tazelik.case_imzalari(yeni))
+
+    def test_GERCEK_metin_degisikligi_DEGISTI_sayilir(self):
+        # 🚨 Negatif yön. Yukarıdaki iki test yalnız "sahte değişikliği ele"
+        # yönünü kanıtlar; normalize her şeyi eleyecek kadar geniş olsaydı
+        # ikisi de yeşil kalır ve ölçüm sessizce her case'i "sessiz" sayardı.
+        degismis = CASE_BUGUN.replace("`valid:true`, `messages:[]`",
+                                      "`valid:false` ve `unknown_tool` hatası")
+        self.assertNotEqual(tazelik.case_imzalari(CASE_BUGUN),
+                            tazelik.case_imzalari(degismis))
+
+    def test_baslik_bicimli_case_bulunur(self):
+        self.assertEqual(list(tazelik.case_imzalari(CASE_BUGUN)), ["MT-CORE-001"])
+
+    def test_tablo_bicimli_case_bulunur(self):
+        # Aile 31–36 case'i başlık değil TABLO SATIRI yazar. Bu biçim
+        # `manuel_test_sayim_kaymasi` kapısına Faz 167'ye kadar görünmezdi.
+        metin = ("| # | Kod | Ön koşul |\n"
+                 "|---|---|---|\n"
+                 "| 1 | `MT-GDK-001` | Temiz ağaç |\n"
+                 "| 2 | `MT-GDK-002` | Temiz ağaç |\n")
+        self.assertEqual(list(tazelik.case_imzalari(metin)),
+                         ["MT-GDK-001", "MT-GDK-002"])
+
+
+class YolCozumuTestleri(unittest.TestCase):
+    def test_brace_acilir(self):
+        self.assertEqual(
+            tazelik._brace_ac("src/A/{Bir,Iki}.cs"),
+            ["src/A/Bir.cs", "src/A/Iki.cs"])
+
+    def test_paket_kisaltmasi_cozulur(self):
+        # Sütun `Core/Audit/AuditRecorder.cs` yazar, `src/Tracon.Core/...` değil.
+        self.assertEqual(
+            tazelik._tek_yol_coz("Core/Audit/AuditRecorder.cs", None, None),
+            "src/Tracon.Core/Audit/AuditRecorder.cs")
+
+    def test_frontend_goreli_yolu_cozulur(self):
+        self.assertEqual(
+            tazelik._tek_yol_coz("screens/dashboard.tsx", None, None),
+            "src/Tracon.UI/frontend/src/screens/dashboard.tsx")
+
+    def test_kardes_dosya_son_dizine_baglanir(self):
+        yol = tazelik._tek_yol_coz(
+            "AuditEndpoints.cs", "src/Tracon.AspNetCore",
+            "src/Tracon.AspNetCore/Endpoints")
+        self.assertEqual(yol, "src/Tracon.AspNetCore/Endpoints/AuditEndpoints.cs")
+
+    def test_cokli_eslesen_ciplak_ad_TAHMIN_EDILMEZ(self):
+        # 🚨 Yanlış dosyayı seçmek kod kaymasını sessizce yanlış ölçer.
+        # Çözülememek en azından raporun §5 bölümünde görünür.
+        self.assertIsNone(tazelik._tekil_temel_ad("README.md"))
+
+    def test_tekil_eslesen_ciplak_ad_cozulur(self):
+        self.assertEqual(tazelik._tekil_temel_ad("AuditRecorder.cs"),
+                         "src/Tracon.Core/Audit/AuditRecorder.cs")
+
+    def test_ayar_anahtari_yol_sayilmaz(self):
+        # `AgentGraph.MaxDuration` bir yapılandırma anahtarıdır. Nokta taşıdığı
+        # için yol sanılıyordu ve her ailede sahte bir "çözülemedi" üretiyordu.
+        cozulen, cozulemeyen = tazelik.kaynak_yollari("`AgentGraph.MaxDuration`")
+        self.assertEqual((cozulen, cozulemeyen), ([], []))
+
+    def test_http_rotasi_sessizce_elenir(self):
+        cozulen, cozulemeyen = tazelik.kaynak_yollari("`/api/mcp-servers/*`")
+        self.assertEqual((cozulen, cozulemeyen), ([], []))
+
+    def test_parantez_ici_aciklama_yoldan_ayiklanir(self):
+        cozulen, _ = tazelik.kaynak_yollari(
+            "`src/Tracon.Core/Audit/AuditRecorder.cs (yalnız yazma yolu)`")
+        self.assertEqual(cozulen, ["src/Tracon.Core/Audit/AuditRecorder.cs"])
+
+    def test_cozulemeyen_yol_RAPORLANIR(self):
+        # Sessiz geçmek ölçümü sessizce yanlış yapar: aile kod kayması
+        # olduğundan küçük görünür ve risk sırasında hak ettiği yerin altına
+        # düşer.
+        _, cozulemeyen = tazelik.kaynak_yollari("`src/Yok.Boyle.Bir/Paket.cs`")
+        self.assertEqual(cozulemeyen, ["src/Yok.Boyle.Bir/Paket.cs"])
+
+
+class SiralamaTestleri(unittest.TestCase):
+    @staticmethod
+    def _aile(no: str, yeni: int, kayma: int) -> tazelik.Aile:
+        return tazelik.Aile(
+            no=no, dosya=f"{no}-AILE.md", kod="X", fazlar="",
+            yeni=[f"MT-X-{i}" for i in range(yeni)], degisti=[], sessiz=[],
+            kod_kaymasi=kayma, yol_sayisi=1, cozulemeyen=[], yeni_dosya=False)
+
+    def test_zincir_risk_sirasini_EZER(self):
+        # `01 → 02 → 03 → 05 → 07` kırılırsa sonraki hiçbir aile anlamlı sonuç
+        # vermez; riski düşük olsa da önce koşulur.
+        aileler = [self._aile("13", 90, 5), self._aile("07", 0, 1)]
+        self.assertEqual([a.no for a in tazelik.kosum_sirasi(aileler)],
+                         ["07", "13"])
+
+    def test_zincir_disi_aileler_risk_sirasinda(self):
+        aileler = [self._aile("20", 1, 0), self._aile("13", 90, 5),
+                   self._aile("36", 48, 85)]
+        self.assertEqual([a.no for a in tazelik.kosum_sirasi(aileler)],
+                         ["13", "36", "20"])
+
+    def test_kod_kaymasi_tavanla_sinirlanir(self):
+        # 85 commit ile 200 commit aynı şeyi söyler: "baştan oku". Tavan
+        # olmazsa tek bir gürültülü aile sıralamanın tamamını ezer.
+        aile = self._aile("36", 0, 500)
+        self.assertEqual(aile.risk, tazelik.KAYMA_TAVANI)
+
+
+class CommitSayisiTestleri(unittest.TestCase):
+    def test_bos_yol_listesi_SIFIR_doner(self):
+        # 🚨 Tüm commit'leri döndürseydi, yolu çözülemeyen bir aile turun
+        # tamamını kendi kaymasıymış gibi gösterir ve sıralamanın başına
+        # yerleşirdi.
+        self.assertEqual(tazelik.commit_sayisi("HEAD~1", []), 0)
+
+    def test_gercek_yol_icin_commit_sayar(self):
+        self.assertGreater(tazelik.toplam_commit("HEAD~3"), 0)
+
+
+if __name__ == "__main__":
+    unittest.main()

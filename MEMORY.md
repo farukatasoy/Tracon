@@ -72,6 +72,15 @@ Alana bağlı değildir; her fazda tekrar bedel ödettiler.
 - **MAF ve OpenAI tip adlarını tahmin etme.** Yeni tip kullanmadan önce
   `maf-api-kesfi` skill'ini çalıştır (`AgentResponse` ≠ `AgentRunResponse`,
   `ResponsesClient` ≠ `OpenAIResponseClient`).
+- **🚨 Ürünü yeniden adlandırmak YEREL ORTAMI geride bırakır.** Faz 162
+  (`AgentPrism` → `Tracon`) dört yerde sessiz kaldı ve hepsi 2026-09-16'da
+  bulundu: `UserSecretsId` değişti ama 16 anahtar eski depoda eski önekle
+  kaldı (uygulama hiçbirini okuyamıyordu); iki Docker container'ı eski ad ve
+  parolayla ayaktaydı; manuel-test seti örnek uygulamanın agent/workflow
+  adlarını 294 yerde eski hâliyle yazıyordu. Derleme de testler de yeşildi —
+  **hiçbir kapı yerel ortamı görmez.** Bir yeniden adlandırmadan sonra
+  `~/.microsoft/usersecrets/`, `docker inspect` ve fixture adlarını **elle**
+  tara. Ayrıntı: `docs/manuel-test/00-INDEKS.md` §2.4.
 
 ---
 

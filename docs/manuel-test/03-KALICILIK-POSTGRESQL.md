@@ -1525,7 +1525,7 @@ Negatif senaryo. `KnowledgeIngestionService.RequireValidCollectionName` yalnız
 harf, rakam, alt çizgi, tire kabul eder.
 
 **Ön koşul**
-- Örnek uygulama OpenAI anahtarıyla çalışıyor (`bilgi-asistani` agent'ı ve
+- Örnek uygulama OpenAI anahtarıyla çalışıyor (`knowledge-assistant` agent'ı ve
   embedding üretici kayıtlı).
 
 **Adımlar**

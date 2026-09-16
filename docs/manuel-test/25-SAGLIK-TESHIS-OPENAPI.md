@@ -414,7 +414,7 @@ devre kesici mekaniğinin kendisi orada zaten sınanmıştır; burada yalnız
 **Girilecek veri**
 ```bash
 for i in 1 2; do
-  curl -s -X POST "$APU/api/agents/openrouter-destek/run" -H "$APB" \
+  curl -s -X POST "$APU/api/agents/openrouter-support/run" -H "$APB" \
        -H "content-type: application/json" \
        -d '{"message":"merhaba","sessionId":"diag-circuit-'"$i"'"}' \
        2>&1 | grep -E "^event:|^data:"
@@ -425,12 +425,12 @@ curl -s -i http://localhost:5080/health | tail -1
 
 **Beklenen sonuç**
 - İki başarısız çağrıdan sonra devre açılır (05'in kendi doğrulaması).
-- `/health` gövdesi **`Degraded`**dir — `openrouter-destek` sağlayıcısının
+- `/health` gövdesi **`Degraded`**dir — `openrouter-support` sağlayıcısının
   devresi açık olsa bile diğer sağlayıcılar (varsa) sağlıklıysa uygulama
   `Unhealthy` **olmaz** (`TraconHealthCheck.cs:63-68`).
 
 > 🚨 **Düzeltildi (koşum, 2026-08-13, doküman kusuru):** "Girilecek veri"
-> `openrouter-destek` fixture'ını **geçerli** modeliyle çağırıyor
+> `openrouter-support` fixture'ını **geçerli** modeliyle çağırıyor
 > (`openai/gpt-5.4-mini` üzerinden OpenRouter, `Program.cs:457`) — gerçek bir
 > anahtarla bu her zaman **başarılı** olur, devreyi asla açmaz. "Adımlar"
 > bölümünün kendisi ise "geçersiz bir model adı" gerektiğini söylüyor
@@ -782,7 +782,7 @@ sabit bir yapılandırma bölüm yolu **yoktur** (kod içinde serbestçe yapıla
 yanlış bir anahtar adı raporlamak yerine bilinçli olarak **hiç raporlanmaz**.
 
 **Ön koşul**
-- Örnek uygulama OpenRouter anahtarıyla çalışıyor (`openrouter-destek` fixture'ı).
+- Örnek uygulama OpenRouter anahtarıyla çalışıyor (`openrouter-support` fixture'ı).
 
 **Adımlar**
 1. `/api/diagnostics`taki `modelProviders` listesinde `openrouter`ın var

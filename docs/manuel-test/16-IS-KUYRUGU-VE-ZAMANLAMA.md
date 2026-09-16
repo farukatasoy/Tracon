@@ -136,9 +136,9 @@ export PG="docker exec -i ap-pg psql -U postgres -d tracon"
 
 | Kimlik | Değer |
 |---|---|
-| `FIX-JOB-01` | Zamanlama adı `ozet-toplu` · `kind: AgentBatch` · `targetName: "ozetleyici"` · cron yok (yalnız elle tetiklenir) · `payload: ["Tracon bir NuGet paket ailesidir.", "Workflow yurutmesi Faz 15te geldi."]` |
-| `FIX-JOB-02` | Zamanlama adı `wf-toplu` · `kind: Workflow` · `targetName: "ozetle-ve-cevir"` · cron yok · `payload: ["Tracon, Microsoft Agent Framework uzerine kurulu bir NuGet paket ailesidir."]` |
-| `FIX-JOB-03` | Zamanlama adı `dakikalik-ozet` · `kind: AgentBatch` · `targetName: "ozetleyici"` · `cron: "*/1 * * * *"` · `payload: ["Otomatik tetiklenen test girdisi."]` |
+| `FIX-JOB-01` | Zamanlama adı `ozet-toplu` · `kind: AgentBatch` · `targetName: "summarizer"` · cron yok (yalnız elle tetiklenir) · `payload: ["Tracon bir NuGet paket ailesidir.", "Workflow yurutmesi Faz 15te geldi."]` |
+| `FIX-JOB-02` | Zamanlama adı `wf-toplu` · `kind: Workflow` · `targetName: "summarize-and-translate"` · cron yok · `payload: ["Tracon, Microsoft Agent Framework uzerine kurulu bir NuGet paket ailesidir."]` |
+| `FIX-JOB-03` | Zamanlama adı `dakikalik-ozet` · `kind: AgentBatch` · `targetName: "summarizer"` · `cron: "*/1 * * * *"` · `payload: ["Otomatik tetiklenen test girdisi."]` |
 
 ---
 
@@ -161,7 +161,7 @@ export PG="docker exec -i ap-pg psql -U postgres -d tracon"
 curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/schedules/ozet-toplu" -H "$APB" \
      -H "content-type: application/json" -d '{
   "kind": "AgentBatch",
-  "targetName": "ozetleyici",
+  "targetName": "summarizer",
   "timeZone": "UTC",
   "payload": ["Tracon bir NuGet paket ailesidir.", "Workflow yurutmesi Faz 15te geldi."],
   "enabled": true
@@ -191,7 +191,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/schedules/ozet-toplu" -H "$
 **Girilecek veri**
 ```bash
 curl -s -X PUT "$APU/api/schedules/ozet-toplu" -H "$APB" -H "content-type: application/json" -d '{
-  "kind": "AgentBatch", "targetName": "ozetleyici", "timeZone": "UTC",
+  "kind": "AgentBatch", "targetName": "summarizer", "timeZone": "UTC",
   "payload": ["Guncellenmis tek girdi."], "enabled": true
 }'
 ```
@@ -321,7 +321,7 @@ Negatif senaryo.
 ```bash
 curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/schedules/yanlis-tz" -H "$APB" \
      -H "content-type: application/json" -d '{
-  "kind":"AgentBatch","targetName":"ozetleyici","timeZone":"Dunya/Hicbiryer",
+  "kind":"AgentBatch","targetName":"summarizer","timeZone":"Dunya/Hicbiryer",
   "cron":"0 3 * * *","payload":[]
 }'
 ```
@@ -347,7 +347,7 @@ Negatif senaryo — saniye alanı desteklenmez.
 ```bash
 curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/schedules/6-alanli" -H "$APB" \
      -H "content-type: application/json" -d '{
-  "kind":"AgentBatch","targetName":"ozetleyici","timeZone":"UTC",
+  "kind":"AgentBatch","targetName":"summarizer","timeZone":"UTC",
   "cron":"0 0 3 * * *","payload":[]
 }'
 ```
@@ -375,7 +375,7 @@ Negatif senaryo.
 ```bash
 curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/schedules/vixie-uzantisi" -H "$APB" \
      -H "content-type: application/json" -d '{
-  "kind":"AgentBatch","targetName":"ozetleyici","timeZone":"UTC",
+  "kind":"AgentBatch","targetName":"summarizer","timeZone":"UTC",
   "cron":"0 0 L * *","payload":[]
 }'
 ```
@@ -405,7 +405,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/schedules/vixie-uzantisi" -
 ```bash
 date -u +"%H:%M"
 curl -s -X PUT "$APU/api/schedules/hesapli-cron" -H "$APB" -H "content-type: application/json" -d '{
-  "kind":"AgentBatch","targetName":"ozetleyici","timeZone":"UTC",
+  "kind":"AgentBatch","targetName":"summarizer","timeZone":"UTC",
   "cron":"<dakika> <saat> * * *","payload":["test"]
 }' | python3 -c "import json,sys; print(json.load(sys.stdin)['nextRunAt'])"
 ```
@@ -440,7 +440,7 @@ Negatif senaryo, sınır değer. Geçici olarak sınır düşürülür (varsayı
 ```bash
 curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/schedules/cok-oge" -H "$APB" \
      -H "content-type: application/json" -d '{
-  "kind":"AgentBatch","targetName":"ozetleyici","timeZone":"UTC",
+  "kind":"AgentBatch","targetName":"summarizer","timeZone":"UTC",
   "payload":["bir","iki","uc"]
 }'
 ```
@@ -489,7 +489,7 @@ Sınır durumu.
 **Girilecek veri**
 ```bash
 curl -s -X PUT "$APU/api/schedules/dakikalik-ozet" -H "$APB" -H "content-type: application/json" -d '{
-  "kind":"AgentBatch","targetName":"ozetleyici","timeZone":"UTC",
+  "kind":"AgentBatch","targetName":"summarizer","timeZone":"UTC",
   "cron":"*/1 * * * *","payload":["Otomatik tetiklenen test girdisi."]
 }'
 sleep 75
@@ -618,7 +618,7 @@ curl -s "$APU/api/runs/<items[0].runId>" -H "$APB" | python3 -c "import json,sys
 ```
 
 **Beklenen sonuç**
-- `agentName: "ozetleyici"`, `status: "Completed"`. Run'ın kendisi
+- `agentName: "summarizer"`, `status: "Completed"`. Run'ın kendisi
   `RunKind.Agent` (`kind: "Agent"`) taşır — toplu iş için ayrı bir `RunKind`
   yoktur, her öge normal bir agent çalıştırmasıdır.
 
@@ -761,14 +761,14 @@ curl -s "$APU/api/jobs/<job-id>" -H "$APB" | python3 -m json.tool
 | **İlgili karar** | — |
 
 **Adımlar**
-1. `FIX-JOB-02`'yi (`wf-toplu`, `kind: Workflow`, hedef `ozetle-ve-cevir`)
+1. `FIX-JOB-02`'yi (`wf-toplu`, `kind: Workflow`, hedef `summarize-and-translate`)
    kaydet.
 2. Tetikle, sonucu oku.
 
 **Girilecek veri**
 ```bash
 curl -s -X PUT "$APU/api/schedules/wf-toplu" -H "$APB" -H "content-type: application/json" -d '{
-  "kind": "Workflow", "targetName": "ozetle-ve-cevir", "timeZone": "UTC",
+  "kind": "Workflow", "targetName": "summarize-and-translate", "timeZone": "UTC",
   "payload": ["Tracon, Microsoft Agent Framework uzerine kurulu bir NuGet paket ailesidir."]
 }'
 curl -s -X POST "$APU/api/schedules/wf-toplu/trigger" -H "$APB" -d '{}'
@@ -801,7 +801,7 @@ curl -s "$APU/api/runs/<items[0].runId>/tree" -H "$APB" | python3 -c "import jso
 ```
 
 **Beklenen sonuç**
-- `kind: "Workflow"`, `workflowName: "ozetle-ve-cevir"`.
+- `kind: "Workflow"`, `workflowName: "summarize-and-translate"`.
 - `/tree` **3** satır döner (1 workflow + 2 agent — `15-WORKFLOWS.md`
   `MT-WF-040`'ın aynı yapısı, bu kez iş kuyruğu üzerinden tetiklenmiş).
 
@@ -1797,7 +1797,7 @@ echo "$KEY_JSON" | python3 -c "import json,sys; print(json.load(sys.stdin)['rawK
 export JOBKEY="Authorization: Bearer <yukaridaki-rawKey>"
 
 curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/schedules/kapsam-testi" -H "$JOBKEY" \
-     -H "content-type: application/json" -d '{"kind":"AgentBatch","targetName":"ozetleyici","timeZone":"UTC","payload":[]}'
+     -H "content-type: application/json" -d '{"kind":"AgentBatch","targetName":"summarizer","timeZone":"UTC","payload":[]}'
 
 curl -s -w "\nHTTP: %{http_code}\n" -X DELETE "$APU/api/schedules/kapsam-testi" -H "$JOBKEY"
 
@@ -2299,7 +2299,7 @@ Sınır durumu — head-of-line blocking'in çözüldüğünün kanıtı.
 **Ön koşul**
 - İki zamanlama: biri `lane: "media"` taşıyan ve UZUN süren bir agent'a
   hedefli (ör. çok adımlı bir workflow), biri `lane` alanı boş (`default`)
-  ve KISA süren `ozetleyici`'ye hedefli.
+  ve KISA süren `summarizer`'ye hedefli.
 
 **Adımlar**
 1. `dotnet user-secrets set "Tracon:Scheduling:MaxConcurrentJobsPerLane:media" "1"`,
@@ -2333,7 +2333,7 @@ Negatif senaryo. `Prefer: respond-async` yolu — plandaki (var olmayan)
 
 **Girilecek veri**
 ```bash
-curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/ozetleyici/run" -H "$APB" \
+curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/summarizer/run" -H "$APB" \
      -H 'Prefer: respond-async' -H "content-type: application/json" \
      -d '{"message":"test","lane":"Media"}'
 ```
@@ -2355,7 +2355,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/ozetleyici/run" -H 
 
 **Girilecek veri**
 ```bash
-curl -s -X POST "$APU/api/agents/ozetleyici/run" -H "$APB" \
+curl -s -X POST "$APU/api/agents/summarizer/run" -H "$APB" \
      -H 'Prefer: respond-async' -H "content-type: application/json" \
      -d '{"message":"test","lane":"media"}' | python3 -c "import json,sys; print(json.load(sys.stdin)['runId'])"
 curl -s "$APU/api/jobs/<run-id>" -H "$APB" | python3 -c "import json,sys; print(json.load(sys.stdin)['job']['lane'])"
@@ -2386,7 +2386,7 @@ curl -s "$APU/api/jobs/<run-id>" -H "$APB" | python3 -c "import json,sys; print(
 ```bash
 curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/schedules/buyuk-harf-lane" -H "$APB" \
      -H "content-type: application/json" -d '{
-  "kind":"AgentBatch","targetName":"ozetleyici","timeZone":"UTC","lane":"Media","payload":[]
+  "kind":"AgentBatch","targetName":"summarizer","timeZone":"UTC","lane":"Media","payload":[]
 }'
 ```
 

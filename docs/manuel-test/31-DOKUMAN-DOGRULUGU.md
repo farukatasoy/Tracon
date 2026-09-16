@@ -1,6 +1,6 @@
 # 31 — Tüketici Dokümanının Doğruluğu (`DDG`)
 
-> **Alan kodu:** `DDG` · **Faz:** 75, 79, 104
+> **Alan kodu:** `DDG` · **Faz:** 75, 79, 104, 172
 > **Kaynak:** `tests/Tracon.Core.UnitTests/Architecture/ShippedDocumentationSelfContainmentTests.cs` ·
 > `docs-site/scripts/check-content.mjs` · `docs-site/scripts/build-agent-map.mjs` ·
 > `docs-site/scripts/{build-api-reference,build-http-api}.mjs` ·
@@ -79,6 +79,9 @@ Site kapıları için Node 22.12+ gerekir; `cd docs-site && npm ci` bir kez koş
 | 30 | `MT-DDG-030` | Temiz ağaç (Faz 104) | `CONTRIBUTING.md`'ye Türkçe bir cümle eklenir, `dotnet test tests/Tracon.Core.UnitTests -c Release --filter-method "*Source_tree_carries_no_Turkish*"` | `SourceLanguageTests` **düşer** ve satırı `+ CONTRIBUTING.md: 1 offending lines` diye adlandırır. Aynısı `ARCHITECTURE.md` ve kök `README.md` için de geçerlidir — kapı Faz 104'te bu üç kök dosyayı kapsayacak şekilde genişledi |
 | 31 | `MT-DDG-031` | Aynı (Faz 104) | Hız sınırının kapsam beyanı üç yüzeyde birden aranır: `TraconRateLimitOptions` XML'i, `guides/production.md` ve `concepts/governance.md` | Üçü de sınırın **örnek başına** olduğunu söyler ve toplam tüketim sınırı olarak kotayı gösterir. Kardeş tip `InboundTriggerRateLimiter` ile çelişki yoktur |
 | 32 | `MT-DDG-032` | Aynı (Faz 104) | Kiracı yalıtımının hangi katmanda durduğu `concepts/governance.md` ve `MIMARI-GUVENLIK.md` §Çok kiracılılık'ta okunur; `KARARLAR.md`'de K-623 aranır | Üçü de aynı şeyi söyler: yalıtım uygulama katmanındadır, veritabanı RLS'i **bilinçli olarak** yoktur, ve karar yeniden açılma koşuluyla birlikte kayıtlıdır |
+| 33 | `MT-DDG-033` | Yayınlanan site (Faz 172) | `reference/threat-model.md` kenar çubuğundan açılır; `getting-started/security.md` § *The boundaries Tracon enforces* ve modelin § *Boundary mapping* tabloları yan yana okunur | İki tablonun ilk sütunu **aynı** sınır kümesini yazar. Tehdit modeli `SECURITY.md`'ye ve zafiyet bildirim yoluna bağlantı verir |
+| 34 | `MT-DDG-034` | Aynı | `getting-started/security.md`'nin sınır tablosuna yeni bir satır eklenir (modele **eklenmeden**), `cd docs-site && npm run check:content` | Kızarır ve sınırı **adıyla** yazar: `reference/threat-model.md is missing the "<ad>" boundary that getting-started/security.md lists`. Değişiklik geri alınır |
+| 35 | `MT-DDG-035` | Aynı | Ters yön: `getting-started/security.md`'den bir sınır satırı **silinir**, model dokunulmadan bırakılır, `npm run check:content` | Kızarır: `reference/threat-model.md lists a "<ad>" boundary that getting-started/security.md no longer does`. 🚨 **Asıl önemli yön budur** — artık var olmayan bir korumayı vaat eden bayat bir söz, eksik bir satırdan daha tehlikelidir. Tek yönü sınayan bir kapı bunu kaçırır |
 
 ---
 
