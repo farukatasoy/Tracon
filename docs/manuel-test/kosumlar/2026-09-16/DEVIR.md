@@ -3,8 +3,8 @@
 > **Bu turu devralan oturum ÖNCE burayı okur.** Turun durumu, değişmez
 > kuralları, ortamı ve sıradaki işi taşır.
 >
-> **Durum:** Aşama 1 sürüyor · **dosya 01 ve 02 KAPANDI**, dosya 03 yarıda (208 case) · kod `7e3a4de7`'de donuk
-> **Son güncelleme:** 2026-09-16 (oturum 8)
+> **Durum:** Aşama 1 sürüyor · **dosya 01, 02 ve 03 KAPANDI** (228 case) · kod `7e3a4de7`'de donuk
+> **Son güncelleme:** 2026-09-16 (oturum 9)
 
 ---
 
@@ -24,13 +24,13 @@
 
 ## 2. Nerede duruyoruz
 
-Aşama 0 (tazeleme) bitti. Tur açıldı, zincirin **ilk iki ailesi kapandı**
-(`01-KURULUM-VE-PAKETLEME.md` 81 case · `02-CEKIRDEK-VE-KATALOG.md` 97 case) ve
-üçüncüsü **yarılandı** (`03-KALICILIK-POSTGRESQL.md` 30/50) — toplam **208 case**.
+Aşama 0 (tazeleme) bitti. Tur açıldı ve zincirin **ilk üç ailesi kapandı**
+(`01-KURULUM-VE-PAKETLEME.md` 81 case · `02-CEKIRDEK-VE-KATALOG.md` 97 case ·
+`03-KALICILIK-POSTGRESQL.md` 50 case) — toplam **228 case**.
 
 ```mermaid
 flowchart LR
-    A["Asama 0 - Tazeleme<br/>BITTI"] --> B["Asama 1 - Tur<br/>SURUYOR - 2.5/36 aile"]
+    A["Asama 0 - Tazeleme<br/>BITTI"] --> B["Asama 1 - Tur<br/>SURUYOR - 3/36 aile"]
     B --> C["Asama 2 - Kapanis<br/>beklemede"]
     C --> D["YAYIN-HAZIRLIK<br/>Adim 2 -> 10"]
 ```
@@ -39,17 +39,29 @@ flowchart LR
 |---|---|---|---|
 | `01-KURULUM-VE-PAKETLEME.md` | 72 | 4 | 5 |
 | `02-CEKIRDEK-VE-KATALOG.md` | 92 | 4 | 1 |
-| `03-KALICILIK-POSTGRESQL.md` (30/50) | 29 | 1 | 0 |
-| **toplam** | **193** | **9** | **6** |
+| `03-KALICILIK-POSTGRESQL.md` | 48 | 1 | 1 |
+| **toplam** | **211** | **10** | **7** |
 
 Kayıt dosyaları `kosumlar/2026-09-16/` altındadır; her birinin **devir notu
 başındadır** ve oturum oturum birikir.
 
 🚨 **Açık bulgular:** `HATA-S1-001..005` · `HATA-S1-007` (yayın hattını
-bloklar — aşağıda) · `HATA-S1-008..014` (dosya 02) · `HATA-S1-015` (dosya 03).
-Hepsi ilgili kayıt dosyasındadır. `HATA-S1-006` yanlış pozitif çıktı ve kapandı.
+bloklar — aşağıda) · `HATA-S1-008..014` (dosya 02) · `HATA-S1-015..019`
+(dosya 03). Hepsi ilgili kayıt dosyasındadır. `HATA-S1-006` yanlış pozitif
+çıktı ve kapandı.
 
-⚠️ **`00-INDEKS.md` §3.2 bayat:** tool tablosu 4 tool listeler → bugün **10**.
+🚨 **`HATA-S1-019` bu turun en ağır bulgusudur (Yüksek).** `UsePostgreSql`
+tüketicinin store kaydını `Replace` ile **sessizce** eziyor —
+`AGENTS.md`'nin "`TryAdd*` ile kaydet; tüketicinin kaydı her zaman kazanmalı"
+kuralının ihlali. Üç sağlayıcıda 117 çağrı, 34 store arayüzü.
+`samples/Tracon.Embedded`'in README'sinde belgelenmiş akışı kırıyor. Bir
+paket ailesi için bu bir sözleşme kusurudur; kapanışta önceliklendirilmeli.
+
+⚠️ **`00-INDEKS.md` §3.2 bayat:** tool tablosu 4 tool listeler → bugün **10**
+(oturum 9'da `/api/tools` ile yeniden ölçüldü: `cancel_order` ·
+`estimate_shipping_cost` · `get_order_status` · `get_slow_report` ·
+`list_recent_orders` · `list_voices` · `mark_preview_ready` ·
+`read_shopping_cart` · `speak` · `transcribe`).
 (§4'ün "33 migration" bayatlığı **oturum 8'de kapandı** — 50 çekirdek + 1
 knowledge = 51 olarak düzeltildi ve sabit sayıya güvenmeme uyarısı eklendi.)
 
@@ -145,23 +157,42 @@ hiçbir ailenin sonucu okunmaz. Paralel şeritler ancak beşi yeşil bitince aç
 | 4 | `05-SAGLAYICI-OPENAI.md` | 40 | 2 |
 | 5 | `07-HTTP-YONETIM-API.md` | 43 | 2 |
 
-**Sıradaki oturumun işi:** `ap-s1`'de `03-KALICILIK-POSTGRESQL.md`,
-**`MT-PG-050`'den** devam et (`050-053` bloğu, sonra `060-075`). `001..047`
-koşuldu — onlara dönme. Ortam notları ve MT-PG-050'nin kullanıcı kararı o
-dosyanın **devir notundadır**; önce onu oku.
+**Sıradaki oturumun işi:** `ap-s1`'de **`05-SAGLAYICI-OPENAI.md`** (40 case,
+2 oturum). Dosya 03 kapandı — ona dönme. Ortam notları o dosyanın **devir
+notundadır**; önce onu oku.
 
 | Aile | Durum |
 |---|---|
 | `01-KURULUM-VE-PAKETLEME.md` | ✅ 81/81 |
 | `02-CEKIRDEK-VE-KATALOG.md` | ✅ 97/97 |
-| `03-KALICILIK-POSTGRESQL.md` | 🔶 yarıda · **30/50** · `050`'den devam |
-| `05-SAGLAYICI-OPENAI.md` | ⬜ 40 case · 2 oturum |
+| `03-KALICILIK-POSTGRESQL.md` | ✅ 50/50 |
+| `05-SAGLAYICI-OPENAI.md` | ⬜ 40 case · 2 oturum · **SIRADAKİ** |
 | `07-HTTP-YONETIM-API.md` | ⬜ 43 case · 2 oturum |
 
-🚨 **Dosya 03'ten taşınan kural:** bu dosyanın neredeyse her case'i
+🚨 **Container durdurmak isteyen her case için tarif hazır (oturum 9'da
+kanıtlandı).** Paylaşılan container'a dokunma; erişilemezliği **şerit-yerel bir
+TCP yönlendiriciyle** taklit et: uygulamayı `Port=554<80+şerit>` ile aç,
+yönlendirici o portu `55432`'ye aktarsın, sonra yönlendiriciyi öldür. Uygulamanın
+gözünde tam olarak `docker stop` kadar erişilemez olur; `ap-pg` hiç etkilenmez
+ve Faz B'de dört şerit paralel koşarken de güvenlidir. MT-PG-050 ve MT-PG-061
+bu yöntemle koşuldu; 061 kurtarmayı **PID ile** kanıtladı. Tarif dosya 03'ün
+devir notundadır.
+
+🚨 **Dosya 03'ten taşınan kurallar:** bu dosyanın neredeyse her case'i
 `dotnet user-secrets set` yazar — hepsi ortam değişkenine çevrilir (skill §1.2).
 Model adı **`gpt-5.4-mini`**'dir; rastgele bir OpenAI modeli `403 model_not_found`
-verir. Ayrıntı o dosyanın devir notunda.
+verir. Ek olarak (oturum 9):
+
+- **Nokta/tire taşıyan yapılandırma anahtarı ortam değişkeni olamaz** — zsh
+  adı reddeder. Komut satırını kullan:
+  `dotnet run ... -- "--Tracon:Pricing:openai:gpt-5.4-mini:Input=0.25"`.
+- **`timeout` macOS'ta yoktur** (çıkış 127). Fail-fast bekleyen case'lerde
+  süreci arka planda koş ve çıkış kodunu dosyaya yaz.
+- **Sağlık yoklama döngüsüne gecikme koy** — gecikmesiz `for` döngüsü 60
+  denemeyi bir saniyede tüketir ve açılmamış uygulamaya "kapalı" der.
+- **Kiracı başlığı iki bayrak ister:** `Tracon:Tenancy:Enabled=true` **ve**
+  `AllowHeaderResolution=true`; ikisi de varsayılan kapalı ve kapalıyken başlık
+  **sessizce** yok sayılır.
 
 🚨 **Dosya 02'den taşınan üç ortam kuralı** (ayrıntı o dosyanın devir notunda):
 `echo` sağlayıcısı yalnız OpenAI anahtarı **yokken** kayıtlanır · `/run` yanıtı
@@ -251,6 +282,8 @@ Tazeleme turu üç Faz 162 kalıntısı kapattı. Bunları tekrar aramana gerek 
 | Azure case'leri | Kimlik yok; `⏭ Atlandı` |
 | `Faz` listesi çelişkisi (36 ailenin 21'i) | Ölçüldü, **düzeltilmedi**; gerekçe ve kalıcı çözüm `00-INDEKS.md` §8'de. Turu engellemez |
 | Sağlayıcı anahtarları | 🚨 2026-09-16'da düz metne çıktı — **tur bitince beşi de döndürülmeli** |
+| `MT-PG-067` adım 2 | 🚨 **Kullanıcı kararı bekliyor.** Case `src/` altında kod değişikliği ister; kural 1 yasaklar. Adım 1 ve 3 yeşil koşuldu. Üç seçenek ve öneri dosya 03'ün sonundaki tabloda. **Öneri: Aşama 2'ye ertele** |
+| `HATA-S1-019` ilk kapanış sorusu | `RequireCustomBinding<ITenantStore>()` çağrılsaydı başlangıçta patlar mıydı, yoksa sessiz mi kalırdı? Cevap kusurun örnekte mi koruma mekanizmasında mı olduğunu belirler |
 | `31`–`36` kayıt biçimi | 🚨 **Faz B açılmadan çözülmeli.** Bu altı aile (205 case) tablo biçimindedir: satır başına bir case, `### MT-` başlığı ve `Durum:` satırı **yok**. Skill §4.1 case kaydı ve §7 sayım betiği (`^## (MT-...)` arar) bunlara uymaz. Kullanıcı kararı (2026-09-16): Faz B'ye ertelendi, zinciri bekletmez |
 
 ---
