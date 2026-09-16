@@ -36,7 +36,76 @@ konusu. Oraya geçen oturum doğrulamalı.
 
 ## Devir notu
 
-*(oturum kapanışında yazılır)*
+**DOSYA 02 KAPANDI.** `MT-CORE-001..129` — **97 case: 92 ☑ Geçti · 4 ☑ Kaldı ·
+1 ☐ Beklemede.** Dört oturumluk iş tek turda koşuldu.
+
+- **Sonraki aile:** zincirin 3.'sü `03-KALICILIK-POSTGRESQL.md` (50 case).
+- **Bozuk ön koşul:** yok.
+
+### Bu dosyanın bulguları
+
+| Bulgu | Önem | Kısaca |
+|---|---|---|
+| `HATA-S1-008` | Düşük | Bilinmeyen `compaction.strategy` reddediliyor ama mesaj reddedilen değeri de geçerli listeyi de söylemiyor (güçlü tiplenmiş enum, JSON okuyucusunda düşüyor) |
+| `HATA-S1-009` | Orta | Kod kaynaklı agent'ın `versions` ucu "böyle bir agent yok" diyor; agent var. `IAgentDefinitionStore`'da yokluk, her yerde yokluk sanılıyor |
+| `HATA-S1-010` | Orta | Katalogdaki **13 modelin hiçbirinde fiyat yok** → her `run` maliyetsiz kaydediliyor. Mekanizma dürüst (`pricing_source=NotDefined`), eksik olan veri |
+| `HATA-S1-011` | Orta | Çakışmayla düşen `run` kayıtta `Completed` görünüyor; çakışmanın izi yalnız akışta kalıyor |
+| `HATA-S1-012` | Orta | Sevk edilen iki hata mesajında yarım kalmış Türkçe (`ne 'Input' ne 'Output' contains neither value`). `SourceLanguageTests` iki harfli kelimeleri bilinçli dışladığı için kaçmış |
+| `HATA-S1-013` | Düşük | `Custom` kaynaklı agent'a "bu agent kodda tanımlı" deniyor; yönlendirme de yanlış |
+| `HATA-S1-014` | Düşük | Analyzer'ın `TRC0007` metni `AddScopedTool`'u anmıyor; runtime metni anıyor. Pratikte görülen analyzer'ınki |
+
+`HATA-S1-009` ve `HATA-S1-013` **aynı sınıftır** ("veritabanında yok" →
+"kodda"); kapanışta birlikte değerlendirilmeli.
+
+### Ortam — sonraki oturumun bilmesi gerekenler
+
+🚨 **`echo` sağlayıcısı ile gerçek sağlayıcı aynı anda olamaz.**
+`samples/Tracon.Api/Program.cs:277-280` `EchoModelProvider`'ı **yalnız** OpenAI
+anahtarı yokken kaydeder. Bu dosyanın 4 case'i `echo`, 73'ü gerçek model
+istedi; ortam ikisi arasında bilinçli olarak değiştirildi (kullanıcı kararı,
+2026-09-16: gerçek çağrılarla koşulur).
+
+🚨 **`/run` yanıtı SSE'dir ve metin token token gelir.** Ham `grep "Kelime"`
+boş dönebilir (`" Far"` + `"uk"`). Birleştirici: `<scratch>/sse.py`.
+
+🚨 **Kod donmuş turda `samples/` değiştirilemez.** Sekiz case bunu istiyordu
+(`087 · 088 · 089 · 090 · 091 · 092 · 093 · 094` ve `129`). Hepsi repo
+**dışında** kurulan bir tüketici host'uyla koşuldu: `~/tracon-manuel/ohost`
+(port 5085), yayınlanmış paketler + örnek kaynak dosyalarının kopyası.
+`git status` repo'da boş kaldı.
+
+**Bırakılan aparat** (tur sonunda silinecek): `~/tracon-manuel/ohost` ·
+`~/tracon-manuel/skillsiz` · `<scratch>/sse.py`. Çalışan süreç
+bırakılmadı.
+
+⚠️ **`00-INDEKS.md` §4 bayat:** "33 migration" diyor, bugün **51**. §3.2 tool
+tablosu **4** tool listeliyor, bugün **10**. İkisi de bu dosyanın kapsamı
+değil; açık kaleme yazıldı.
+
+### Spec düzeltmeleri (skill §1.1, hepsi doküman kusuru)
+
+| Case | Ne düzeltildi |
+|---|---|
+| 006 | SSRF kapısı: `Tracon__Egress__AllowPrivateNetworkTargets=true` ön koşulu + kayıt temizliği uyarısı |
+| 022 | `Summarize` → `Summarization`; `ContextWindow` değeri katalogdan **türetilir** |
+| 023 · 024 | `ResolveAsync` üç parametre alır; Türkçe mesaj alıntısı → İngilizce; 024'e sağlayıcı kaydı ön koşulu |
+| 030 | `display_name` sütunu yok — görünen ad `definition` jsonb'sinde |
+| 040 · 041 | Tool sayısı sabit değil; `source` kodda tanımlı tool'da `null`'dır (`"generated"` diye bir değer yok) |
+| 044 · 045 | `cost_usd` sütunu yok (`input_cost`/`output_cost`); fiyat verisi olmadan maliyet `null` |
+| 050 · 051 · 053 · 054 | Oturum geçmişi SQL'den doğrulanamaz — şema farklı **ve** `state` şifreli; doğrulama API'den |
+| 060 · 072 · 041 | Türkçe mesaj alıntıları → bugünkü İngilizce metinler (K-228) |
+| 062 | `CreateBudget()` artık `TimeProvider` alıyor |
+| 065 | Bölüm `AddTracon`'a verilmeli; fiyat anahtarları `Input`/`Output` |
+| 082 | `parameters` öğesi `kind` zorunlu alanını taşır |
+| 084 · 085 | Talimat metni yalnız trace'ten görülebilir (span'e yazılır, `run_events`'e değil) |
+| 087 · 089 | `isEditable` detay ucunda; alan adları `modelId`/`modelProvider` |
+| 090 | Var olmayan dizin kaynağı **bozmaz** (`yield break`); bozmak için hatalı JSON gerekir |
+| 092 · 093 | `json-file` önceliği 101; aynı tipi iki kez kaydetmek çakışma üretmez (`TryAddEnumerable`) |
+| 099 | İki yüzey **farklı** metin taşır; aranacak şey sızıntının olmamasıdır |
+| 087-094 · 129 | Donmuş `samples/` yerine repo dışı tüketici host'u tarifi |
+
+---
+
 
 ---
 
@@ -2290,6 +2359,15 @@ bugün 351/8 ile tekrarlandı — sayılar farklı, **yapı** aynı.
 
 ## MT-CORE-104 — Culture taşıyan tanım en yakın culture talimatını çözer
 
+**Gerçek sonuç:** aşağıdaki ortak koşumun kapsamındadır
+(`AgentDefinitionCompilerPathTests`, 14/14). Davranışsal karşılığı bu turda
+**canlı** olarak da ölçüldü: `MT-CORE-076` (`tr`) ve `MT-CORE-077` (`tr-TR`)
+Türkçe talimatı seçti.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ## MT-CORE-105 — Shared instructions sync yolda açık hata verir, async yolda çözülür
 
 **Gerçek sonuç** (ikisi de otomatik teste atıfta bulunuyor; testler koşuldu)
@@ -2313,9 +2391,450 @@ Atıfta bulunulan dört testin dördü de kaynakta **var**:
 `MT-CORE-105`'in async yolu `MT-CORE-085`'te canlı koştu (`shared-e2e`
 derlendi ve çalıştı).
 
-**Durum (104):** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
-**Durum (105):** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+---
+
+## Otomatik karşılık koşumları (106–129 bloğunun tabanı)
+
+Bu bloğun case'lerinin çoğu spec'te **adı verilmiş** otomatik testlere atıfta
+bulunuyor. Dört suite koşuldu; hepsi `--no-build`'den **önce** derlendi
+(skill §6 tuzağı):
+
+| Suite | Sonuç | Kapsadığı case'ler |
+|---|---|---|
+| `Tracon.Generators.UnitTests` | **291/291** · 0 atlanan | 109 · 110 · 111 · 113 · 114 · 115 · 116 · 117 · 118 · 119 · 120 |
+| `Tracon.AspNetCore.FunctionalTests` (`*HarnessLoopTests` · `*ScopedToolLifetimeTests`) | **13/13** · 0 atlanan | 107 · 123 · 124 · 125 · 127 · 128 |
+| `Tracon.Core.UnitTests` (`*LoopEvaluatorRegistryTests` · `*InMemoryRunStore*` · `*ScopedToolTests`) | **142/142** · 0 atlanan | 106 · 107 · 126 |
+| `Tracon.Package.Tests` | **2/2** (ayrı ayrı) | 112 · 122 |
+
+Spec'in adıyla andığı test metotlarının kaynakta varlığı tek tek doğrulandı
+(beşi `Tracon.Generators.UnitTests` içinde, dördü `Tracon.Core.UnitTests`
+içinde) — "geçti" demek için testin **var olduğunu** da görmek gerekir.
+
+---
+
+## MT-CORE-106 — `InMemoryRunStore` ayrıştırması sonrası ağaç toplamları ve kiracı yalıtımı doğru kalır
+
+**Gerçek sonuç** (`samples/Tracon.Embedded`, port **5086** — şerit sapması;
+spec 5082 der, o port şerit `ap-s2`'nindir)
+```
+GET /tracon/api/diagnostics -> "persistenceProvider": "InMemory"   ✅ on kosul
+
+POST /jobs acme  · POST /jobs globex
+
+acme:   run sayisi 1 | status Completed
+        usage     : in 16 · out 16 · total 32
+        treeUsage : in 16 · out 16 · total 32        ✅ ikisi de dolu
+globex: run sayisi 1 | status Completed
+        -> acme'nin listesinde globex YOK, tersi de                 ✅ kiraci suzgeci
+
+GET /tracon/api/stats (X-Host-Tenant: acme):
+  totalRuns: 1 · completedRuns: 1 · failedRuns: 0
+  byAgent : [{ agentName: "assistant", totalRuns: 1, totalTokens: 32 }]
+  byModel : [{ modelId: "echo-1", ... }]                            ✅ kirilimlar dogru
+```
+Üç beklentinin üçü de tuttu. Beş dosyaya bölünme davranışı bozmamış.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-107 — `AddScopedTool` ile kaydedilmiş bir tool her çağrıda taze DI kapsamı alır
+
+**Gerçek sonuç**
+Spec iki yol sunuyor: örnek uygulamaya tool eklemek (**`samples/` donuk**,
+yapılamaz) **ya da** `ScopedToolLifetimeTests`'i elle izlemek. İkincisi
+koşuldu:
+```
+Tracon.AspNetCore.FunctionalTests --filter-class "*ScopedToolLifetimeTests"
+  (HarnessLoopTests ile birlikte) -> 13/13 · 0 atlanan
+Tracon.Core.UnitTests --filter-class "*ScopedToolTests" -> 142/142 icinde
+```
+Fonksiyonel test gerçek bir host üzerinden **art arda ve eşzamanlı** çağrıların
+ayrı kapsam aldığını ve kapsamın çağrı bitince kapandığını kanıtlıyor; birim
+testi sarmalayıcının kendi mekaniğini ayrıca kapsıyor. K-218 kısıtı kapalı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-108 — Örnek metot tool taraması, `AddScopedTool`'u adıyla önerir
+
+**Gerçek sonuç**
+
+**Case'in kendi iddiası TUTTU** — runtime tarayıcı yolunda:
+```
+beklenen red: Method 'OrnekMetotTool.Calistir' is an instance method and
+cannot be a tool. MAF supplies an empty provider as
+AIFunctionArguments.Services (K-218). Make the method `static`, create the
+target during registration and use `AddTool(AIFunctionFactory.Create(...))`,
+or use `AddScopedTool(...)` if the dependency must be resolved per call.
+
+AddScopedTool aniliyor mu: True   ✅
+```
+Başlangıç `TraconException` ile durdu ve metin `AddScopedTool`'u **adıyla ve
+ne zaman kullanılacağıyla** anıyor (`ToolMethodScanner.cs:101-105`).
+
+🚨 **Ama ikinci bir ret yolu var ve o güncellenmemiş → `HATA-S1-014`.**
+
+📋 **Koşum notu — skill §6'nın tuzağına düşülüp çıkıldı:** ilk denemede
+derleme `error TRC0007` ile kırıldı, ama `dotnet run --no-build` **eski
+ikiliyi** koşup bir önceki case'in çıktısını bastı. Çıktı bir an doğru
+görünüyordu. Derleme logu okunarak yakalandı; `--no-build` öncesi derleme
+sonucunun okunması bu yüzden zorunlu.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### HATA-S1-014 — Analyzer'ın `TRC0007` metni `AddScopedTool`'u anmıyor; runtime metni anıyor
+
+| | |
+|---|---|
+| **Önem** | Düşük |
+| **Bulunduğu case** | MT-CORE-108 |
+| **Sınıf** | Tanı kalitesi · iki yüzeyin ayrışması |
+
+Aynı kusur için **iki** ret metni var ve Faz 127 yalnız birini güncellemiş:
+
+| Yüzey | Kaynak | `AddScopedTool` anılıyor mu |
+|---|---|---|
+| Runtime tarayıcı (`TraconException`) | `src/Tracon.Core/Tools/ToolMethodScanner.cs:101-105` | ✅ evet |
+| Analyzer (`error TRC0007`) | `src/Tracon.Generators/ToolDiagnostics.cs:74` | ❌ **hayır** |
+
+Analyzer metni yalnız iki yol öneriyor: *"Make the method 'static', or
+instantiate the tool at setup time and register it with
+'AddTool(AIFunctionFactory.Create(...))'."*
+
+🚨 **Pratikte görülen metin analyzer'ınkidir.** Analyzer **derleme zamanında**
+hata verir, yani runtime tarayıcıya sıra **hiç gelmez** — bu turda runtime
+yolunu ölçmek için `TRC0007`'yi `NoWarn` ile bastırmak gerekti. Yani
+geliştiricinin gördüğü tek metin, güncellenmemiş olanıdır.
+
+`grep -rc "AddScopedTool" src/Tracon.Generators/ToolDiagnostics.cs` → **0**.
+
+**Kapanışta:** `ToolDiagnostics.cs:74`'e üçüncü seçenek eklenir. Ölçüt basit —
+iki metin aynı seçenek kümesini saymalı.
+
+**Etki:** düşük — kusur her iki yolda da yakalanıyor; bedeli, kalıcı bir
+bağımlılığı olan tüketicinin doğru API'yi (kendisi için var olan `AddScopedTool`)
+bulamaması.
+
+---
+
+## MT-CORE-109 — `[Range]` üretilen şemaya `minimum`/`maximum` yazar
+
+> Aşağıdaki ölçüm **109 · 110 · 111 · 113 · 114** için ortaktır.
+
+**Gerçek sonuç**
+```
+Tracon.Generators.UnitTests -> 291/291 · failed 0 · skipped 0
+```
+Spec'in adıyla andığı test kaynakta doğrulandı:
+`ToolSchemaConstraintTests.A_Range_attribute_on_an_integer_parameter_produces_minimum_and_maximum`
+(`tests/Tracon.Generators.UnitTests/ToolSchemaConstraintTests.cs`).
+
+Bu beş case (`[Range]` → `minimum`/`maximum` · `[MinLength]` → `minLength`
+vs `minItems` · uyumsuz kısıt → `TRC0010` derlemeyi kırmadan · `tr-TR`
+yerelinde ondalık ayırıcı `.` kalır · iki derlemede bit düzeyinde aynı şema)
+üreteç suite'inin kapsamındadır ve suite tamamen yeşildir.
+
+📋 `tr-TR` ondalık ayracı konusu bu turda **bağımsız olarak da** görüldü:
+`MT-CORE-063`'te `SuccessSampleRatio` konsola `0,1` olarak yazıldı (konsol
+çıktısı, kültüre duyarlı `ToString`), ama üretilen **şemada** ayracın `.`
+kalması ayrı bir yoldur ve `ToolSchemaConstraintTests` onu kapsar.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-110 — `[MinLength]` `string`'de `minLength`, dizide `minItems` yazar
+
+**Gerçek sonuç:** aşağıdaki **Üreteç şema kısıtları** ortak koşumunun kapsamındadır —
+`Tracon.Generators.UnitTests` **291/291**, 0 atlanan.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-111 — Uyumsuz kısıt `TRC0010` üretir, derleme başarılı kalır
+
+**Gerçek sonuç:** aşağıdaki **Üreteç şema kısıtları** ortak koşumunun kapsamındadır —
+`Tracon.Generators.UnitTests` **291/291**, 0 atlanan.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-113 — `tr-TR` yerelinde ondalık ayırıcı `.` kalır
+
+**Gerçek sonuç:** aşağıdaki **Üreteç şema kısıtları** ortak koşumunun kapsamındadır —
+`Tracon.Generators.UnitTests` **291/291**, 0 atlanan.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-114 — Aynı girdi iki derlemede bit düzeyinde aynı şema üretir
+
+**Gerçek sonuç:** aşağıdaki **Üreteç şema kısıtları** ortak koşumunun kapsamındadır —
+`Tracon.Generators.UnitTests` **291/291**, 0 atlanan.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+
+---
+
+## MT-CORE-112 — Kısıtlı bir tool ile gerçek `run` başarıyla biter
+
+**Gerçek sonuç**
+```
+Tracon.Package.Tests --filter-method "*Constrained*"
+  -> cikis 0 · total 1 · succeeded 1 · failed 0 · skipped 0 · 57,7 sn
+```
+57 saniye, testin gerçekten **paketleyip** yerel feed'e koyup dış bir tüketici
+projesi kurduğunun işareti — `samples/Tracon.Api`'nin `ProjectReference` ile
+kanıtlayamayacağı şey budur (K-166 emsali). `analyzers/dotnet/cs/` içindeki
+DLL paket sınırını geçiyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-115 — Nesne parametresi nested JSON Schema düğümü üretir
+
+> Aşağıdaki ölçüm **115 · 116 · 117 · 118 · 119 · 120** için ortaktır.
+
+**Gerçek sonuç** — `Tracon.Generators.UnitTests` 291/291 içinde. Adı verilen
+test metotları kaynakta doğrulandı:
+
+| Case | Test |
+|---|---|
+| 115 | `ToolSchemaObjectTests.An_object_parameter_produces_a_nested_object_schema_node` |
+| 116 | `ToolSchemaObjectTests.An_object_array_parameter_produces_an_array_of_object_schema_nodes` |
+| 117 | `ToolSchemaObjectTests.A_Range_attribute_on_an_object_member_produces_minimum_and_maximum_on_the_member_node` |
+| 119 | `ToolObjectGraphTests.A_graph_four_levels_deep_produces_TRC0012_and_blocks_generation` |
+
+118 (`TRC0011`) ve 120 (cycle → `TRC0012`, generator asılmaz) aynı iki
+sınıfın kapsamındadır. Suite 291 testin tamamını **asılmadan** bitirdi, ki
+120'nin "generator asılmaz" iddiasının pratik karşılığı da budur.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-116 — Nesne dizisi parametresi `items` düğümünde nesne üretir
+
+**Gerçek sonuç:** aşağıdaki **Nesne şeması ve grafik sınırları** ortak koşumunun
+kapsamındadır — `Tracon.Generators.UnitTests` **291/291**, 0 atlanan.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-117 — Nesne üyesindeki `[Range]` üye düğümüne `minimum`/`maximum` yazar
+
+**Gerçek sonuç:** aşağıdaki **Nesne şeması ve grafik sınırları** ortak koşumunun
+kapsamındadır — `Tracon.Generators.UnitTests` **291/291**, 0 atlanan.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-118 — Context'te bildirilmeyen nesne tipi `TRC0011` ile derlemeyi durdurur
+
+**Gerçek sonuç:** aşağıdaki **Nesne şeması ve grafik sınırları** ortak koşumunun
+kapsamındadır — `Tracon.Generators.UnitTests` **291/291**, 0 atlanan.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-119 — 3'ü aşan nesne derinliği `TRC0012` ile derlemeyi durdurur
+
+**Gerçek sonuç:** aşağıdaki **Nesne şeması ve grafik sınırları** ortak koşumunun
+kapsamındadır — `Tracon.Generators.UnitTests` **291/291**, 0 atlanan.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-120 — Bir cycle `TRC0012` üretir, generator asılmaz
+
+**Gerçek sonuç:** aşağıdaki **Nesne şeması ve grafik sınırları** ortak koşumunun
+kapsamındadır — `Tracon.Generators.UnitTests` **291/291**, 0 atlanan.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+
+---
+
+## MT-CORE-121 — Nesne parametreli bir tool gerçek `run`'da modelden nesne argümanı alır
+
+**Gerçek sonuç** (gerçek OpenAI · `support` · `gpt-5.4-mini`)
+
+`support`'un tool listesi ön koşulu **zaten** sağlıyor:
+`['get_order_status', 'list_recent_orders', 'cancel_order',
+'read_shopping_cart', 'estimate_shipping_cost', 'mark_preview_ready']`
+
+```
+istek: "I need a shipping estimate for an order going to 42 Rose Ave,
+        Springfield, postal code 62704."
+
+functionCall   | {"name": "estimate_shipping_cost",
+                  "arguments": {"address": {"Street": "42 Rose Ave",
+                                            "City": "Springfield",
+                                            "PostalCode": "62704"}}}
+functionResult | {"result": "Estimated shipping to Springfield, 62704:
+                             $12.50 (3-5 business days)."}
+```
+
+🚨 **Model düz `string` değil, gerçek bir NESNE argümanı gönderdi** — üç alanı
+da ayrı ayrı doldurdu. 2026-09-02 koşumunun sonucu bugün **birebir**
+tekrarlandı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-122 — Nesne parametreli tool paketlenmiş dış tüketicide `PublishAot` altında çalışır
+
+**Gerçek sonuç**
+```
+Tracon.Package.Tests --filter-method "*An_object_parameter_tool_publishes_under_Native_AOT*"
+  -> cikis 0 · total 1 · succeeded 1 · failed 0 · skipped 0 · 17,7 sn
+```
+Test dış tüketici projesini `PackageReference` + `PublishAot=true` ile
+yayımlıyor ve trim uyarısı (`IL2026`/`IL3050`) olsaydı düşerdi. 2026-09-02'nin
+`osx-arm64` / 31 sn koşumu bugün 17,7 sn'de tekrarlandı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-123 — `harness.loop` verilmeyen agent bugünkü davranışını korur
+
+> Aşağıdaki ölçüm **123 · 124 · 125 · 126 · 127 · 128** için ortaktır.
+
+**Gerçek sonuç**
+```
+Tracon.AspNetCore.FunctionalTests --filter-class "*HarnessLoopTests" ...
+  -> 13/13 · failed 0 · skipped 0
+Tracon.Core.UnitTests --filter-class "*LoopEvaluatorRegistryTests" ...
+  -> 142/142 · failed 0 · skipped 0
+```
+Spec'in adıyla andığı testler:
+
+| Case | Test |
+|---|---|
+| 123 | `HarnessLoopTests.A_harness_without_loop_settings_writes_no_iteration_event` |
+| 124 | `HarnessLoopTests.A_marker_criterion_loops_until_the_marker_and_records_every_iteration` |
+| 125 | `HarnessLoopTests.An_unreachable_criterion_stops_at_the_Tracon_ceiling_instead_of_running_on` |
+| 126 | `LoopEvaluatorRegistryTests` (yedi ret vakası) |
+| 128 | `HarnessLoopTests.An_exhausted_tree_budget_stops_the_loop_rather_than_letting_it_open_another_iteration` |
+
+Bu case'ler `harness.loop` yapılandırması taşıyan agent'lar gerektiriyor;
+örnek uygulamada öyle bir agent **yok** ve `samples/` bu turda **donuk**.
+Fonksiyonel suite gerçek bir host üzerinden aynı yolları koşuyor ve yeşil.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-124 — `completionMarker` ölçütü marker gelene kadar döner
+
+**Gerçek sonuç:** aşağıdaki **Harness döngüsü** ortak koşumunun kapsamındadır —
+fonksiyonel suite **13/13**, çekirdek suite **142/142**, 0 atlanan.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-125 — Ulaşılamayan bir ölçüt Tracon'in kendi tavanında durur
+
+**Gerçek sonuç:** aşağıdaki **Harness döngüsü** ortak koşumunun kapsamındadır —
+fonksiyonel suite **13/13**, çekirdek suite **142/142**, 0 atlanan.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-126 — Bilinmeyen bir ölçüt `kind`'i kayıtta `400` ile reddedilir
+
+**Gerçek sonuç:** aşağıdaki **Harness döngüsü** ortak koşumunun kapsamındadır —
+fonksiyonel suite **13/13**, çekirdek suite **142/142**, 0 atlanan.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-127 — Döngü iterasyonları kayda geçer
+
+**Gerçek sonuç:** aşağıdaki **Harness döngüsü** ortak koşumunun kapsamındadır —
+fonksiyonel suite **13/13**, çekirdek suite **142/142**, 0 atlanan.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-128 — Bütçe tavanı dolunca döngü yeni iterasyon açmaz
+
+**Gerçek sonuç:** aşağıdaki **Harness döngüsü** ortak koşumunun kapsamındadır —
+fonksiyonel suite **13/13**, çekirdek suite **142/142**, 0 atlanan.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+
+---
+
+## MT-CORE-129 — `AddAgentDecorator()` tüketicinin kendi decorator'ını sıraya sokar
+
+**Gerçek sonuç**
+
+🚨 **Spec'in ön koşulu `samples/Tracon.Api/Program.cs`'i değiştirmeyi istiyor —
+donuk.** Bunun yerine `ohost` tüketici host'una `Order => 5` taşıyan bir
+`TuketiciDecorator` kaydedildi (`AddAgentDecorator<T>()`). Decorator sardığı
+agent'ın **tipini** kaydediyor; sıralamanın kanıtı o tip.
+
+```
+GET /decorator-kayit ->
+[ "kod-agent <- OpenTelemetryAgent",
+  "greeter  <- OpenTelemetryAgent" ]
+```
+
+**1) Her agent'a uygulanıyor** ✅ — `kod-agent` (kod kaynağı) **ve** `greeter`
+(özel `json-file` kaynağı) ikisi de sarıldı. Özel kaynaktan gelen bir agent
+bile atlanmadı.
+
+**2) Sıralama kanıtlandı** ✅ — `Order 5` decorator'ına gelen agent zaten
+`OpenTelemetryAgent`. Yani `Order 10` (telemetri) **daha önce** sarmış; benim
+`Order 5` çıktım da sonra `Order 0` (kayıt) tarafından sarılacak. Belgelenen
+kural birebir: *"düşük `Order` DIŞTA sarar"* —
+
+```
+RunRecording (0)  →  TUKETICI (5)  →  OpenTelemetry (10)  →  ToolApproval (20)  →  StructuredResponse (30)
+   en distaki                                                                          en icteki
+```
+Yani tüketicinin logladığı iş `run` kaydının **içinde**, telemetri span'inin
+**dışında** görünür — spec'in tarif ettiği yer.
+
+**3) Yerleşik decorator'lar kaybolmadı** ✅ — telemetri sarmalayıcısı gözle
+görünür durumda; `run`'lar tamamlandı ve kaydedildi.
+
+📋 **Ölçülmeyen:** "aynı davranış üç kayıt biçiminin üçünde de aynıdır" —
+yalnız `AddAgentDecorator<T>()` biçimi koşuldu. Örnek alan ve `IServiceProvider`
+alan aşırı yüklemeler ölçülmedi; `MT-CORE-101`/`MT-CORE-093` aynı desenin
+(TryAddEnumerable + instance/factory) tutarlı olduğunu gösteriyor ama bu case
+için doğrudan kanıt değildir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
