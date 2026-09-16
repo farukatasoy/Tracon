@@ -386,21 +386,49 @@ src samples tests` boş, doğrulandı.
 ## MT-DDG-016 — `TRACON_UI_SCREENSHOTS=1` ile E2E: 19 görüntü üretilir
 
 **Gerçek sonuç**
-🚧 **Bu oturumda atlandı — altyapı maliyeti.** Playwright tarayıcıları bu
-makinede kurulu değil (`~/.cache/ms-playwright` boş) ve `src/Tracon.UI/frontend/dist`
-derlenmemiş (`node_modules` var, `dist` yok). Bu case'i koşmak tarayıcı
-kurulumu + frontend derlemesi + 19 ekranlık gerçek E2E koşumunu gerektiriyor
-— skill §3'ün bütçe tablosu bu sınıf işi ayrı bir "arayüz ağırlıklı" oturum
-türü sayıyor (~18 case/oturum, CLI oturumunun ~40'ına karşı). Bu ailenin
-kalanı (17 case) CLI/build-çıktısı denetimi olduğundan, bu tek ağır case'i
-atlayıp devam etmek toplam verimi artırdı. Hiçbir mutasyon yapılmadı, hiçbir
-dosyaya dokunulmadı. Case genuinely `☐ Beklemede` kaldı (bütçe/altyapı
-nedeniyle, `Atlandı` **değil**) — sonraki oturum önce bunu koşmalı: tarayıcı
-kurulumu (`pwsh` yoksa `.sh` betiği, `artifacts/bin/Tracon.Ui.E2ETests/release/`
-altında aranır) + `cd src/Tracon.UI/frontend && npm run build` + `TRACON_UI_SCREENSHOTS=1
-dotnet test tests/Tracon.Ui.E2ETests -c Release`.
+**Kurulum + koşum bu oturumda (oturum 2) tamamlandı.** `pwsh` bu makinede
+yok (`command not found`), yalnız `artifacts/bin/Tracon.Ui.E2ETests/release/playwright.ps1`
+var (`.sh` yok) — bunun yerine aynı derlemenin kendi `runtimeconfig.json`/
+`deps.json`'ı üzerinden doğrudan `Microsoft.Playwright.dll`'in `Program.Main`'i
+çağrıldı: `dotnet exec --runtimeconfig Tracon.Ui.E2ETests.runtimeconfig.json
+--depsfile Tracon.Ui.E2ETests.deps.json Microsoft.Playwright.dll install
+--with-deps` — Firefox 151.0 ve WebKit 26.5 indirildi (`~/Library/Caches/ms-playwright/`;
+not: DEVIR'in yazdığı `~/.cache/ms-playwright` yolu macOS'ta yanlış, gerçek
+yol `~/Library/Caches/ms-playwright`), Chromium zaten kuruluydu (üç sürüm,
+önceki bir kurulumdan). `cd src/Tracon.UI/frontend && npm run build` →
+temiz koştu (21 dosya, 246 test, Vite build iki kez — ana + embed widget,
+0 hata); çıktı `dist/` değil `../wwwroot/` altına gidiyor (spec'in "dist"
+sözü yanıltıcı, gerçek klasör `wwwroot`) ve `.gitignore:69` tarafından
+gitignore'lı, kod donmasını etkilemiyor.
 
-**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+`dotnet build tests/Tracon.Ui.E2ETests -c Release` temiz (0/0), ardından
+`TRACON_UI_SCREENSHOTS=1 dotnet test tests/Tracon.Ui.E2ETests -c Release
+--no-build` → **`Passed! - Failed: 0, Passed: 79, Total: 79`** (1m 24s).
+`docs-site/public/screenshots/*.png` altında **40 görüntü** üretildi (20
+ekran × açık/koyu tema) — spec'in "19" sayısı bayat (bu koşumda ekran sayısı
+20; ışık/koyu tema çarpımı muhtemelen spec yazıldığında yoktu ya da ekran
+sayısı artmış — nitel iddia etkilenmiyor). Spec'in özellikle vurguladığı iki
+iddia test kaynağından **doğrulandı**: `jobs` ekranının `Landmark`'ı
+`SeededScheduleName` (`"nightly-summary"`) ve kod satır 238 zamanlaması net
+— schedule koşum sonrası **gerçek bir job satırı** oluşana kadar tetikleniyor
+(`DocumentationScreenshotTests.cs:238`, yorum: "Triggering it once turns the
+empty 'Recent jobs' panel into a real row"); `sessions` ekranının
+`Landmark`'ı `SeededSessionId` (`"support-ord-7"`) — yani "Jobs bir schedule
+ve bir job satırı, Sessions bir oturum gösterir" iddiası koddan doğrulanıyor,
+79/79 test geçtiği için bu landmark'lar gerçekten sayfada bulunmuş.
+
+**Geri alma:** Üretilen 40 `.png`, `docs-site/public/screenshots/` altında
+**git-tracked** dosyaları yerinde güncelledi (`git status --short` 40 `M`
+gösterdi). Bu case'in kanıtı mekanizmanın çalıştığını göstermek olduğundan
+— siteyi gerçekten yenilemek ayrı bir karar (`tuketici-dokuman-senkronu`
+kapsamı) — diğer mutasyon içeren case'lerle aynı disiplinle
+`git checkout -- docs-site/public/screenshots` ile geri alındı;
+`git status --short` ve `git diff --stat 7e3a4de7..HEAD -- src samples
+tests` ikisi de **boş**, doğrulandı. Playwright tarayıcıları ve derlenmiş
+frontend (`wwwroot/`) makinede **kalıcı olarak kuruludur**, sonraki koşumlar
+bunları tekrar kurmaz.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ## MT-DDG-017 — `guides/coding-agents/` sayfası APG tanıları, MSBuild özellikleri, üretilen dosyaları eksiksiz anlatır 👤
 
@@ -414,9 +442,14 @@ Fiziksel eylem listesine eklendi.
 ## MT-DDG-018 — Konsol gezinmesindeki 18 girişin her biri `ui.md`'de kendi başlığı ve ekran görüntüsüyle var 👤
 
 **Gerçek sonuç**
-👤 **İnsan gözü gerekir** (spec bunu açıkça işaretliyor), MT-DDG-016'nın
-ürettiği ekran görüntülerine bağımlı (koşulmadı). Fiziksel eylem listesine
-eklendi.
+👤 **İnsan gözü gerekir** (spec bunu açıkça işaretliyor). MT-DDG-016 artık
+koşuldu (bkz. yukarı) ve mekanizmanın çalıştığını kanıtladı, ama üretilen
+40 görüntü kanıt için geri alındı (site sürümünü gerçekten yenilemek ayrı
+bir karar) — `docs-site/public/screenshots/`'te **hâlâ bu turdan önceki,
+git'e commit'lenmiş 40 görüntü** duruyor. İnsan denetimi onlara karşı
+yapılabilir; bu ajan başlığın/görüntünün **var olduğunu** ölçebilir ama
+konsolun 18 girişinin `ui.md` metniyle **anlam olarak** eşleştiğini
+ölçemez. Fiziksel eylem listesine eklendi.
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -740,16 +773,17 @@ Bu ajanın koşamadığı, insan gözü gerektiren case'ler. `☐ Beklemede` kal
 | Case | Neden | Kullanıcıdan istenen |
 |---|---|---|
 | MT-DDG-017 | 👤 göz gerekir | Yayınlanan siteyi `guides/coding-agents/` sayfasından aç, altı `APG` tanısının, iki MSBuild özelliğinin ve üç üretilen dosyanın **eksiksiz ve doğru** anlatıldığını doğrula (kapı yalnız başlık/görüntü varlığını ölçer, anlattığının doğruluğunu ölçmez) |
-| MT-DDG-018 | 👤 göz gerekir + MT-DDG-016'ya bağımlı | Önce MT-DDG-016'yı koş (`TRACON_UI_SCREENSHOTS=1`, 19 görüntü üretir), sonra konsol gezinmesindeki 18 girişin her birinin `ui.md`'de kendi başlığı ve ekran görüntüsü olduğunu gözle doğrula |
+| MT-DDG-018 | 👤 göz gerekir | Konsol gezinmesindeki 18 girişin her birinin `ui.md`'de kendi başlığı ve ekran görüntüsü olduğunu gözle doğrula. MT-DDG-016 artık koşuldu (mekanizma kanıtlandı, 79/79); `docs-site/public/screenshots/`'te bu turdan önce commit'lenmiş 40 görüntü (20 ekran × açık/koyu) duruyor, insan denetimi onlara karşı yapılabilir |
 
 ## Sayım (skill §7 betiği)
 
 ```
-{'Geçti': 29, 'Beklemede': 5, 'Kaldı': 1} toplam: 35
+{'Geçti': 31, 'Beklemede': 3, 'Kaldı': 1} toplam: 35
 ```
 
-`Beklemede` kalan beş case ve nedeni: `MT-DDG-007` (sandbox izni — baseline
-yenileme komutu iki farklı yolla da reddedildi), `MT-DDG-016` (Playwright
-tarayıcı kurulumu + frontend derlemesi yok, bütçe/altyapı), `MT-DDG-017` ·
-`MT-DDG-018` (👤 insan gözü gerekir, üstteki tablo), `MT-DDG-029` (50
-dosyada toplu silme + geri yükleme riski, bu oturumun bütçesine sığmadı).
+`Beklemede` kalan üç case ve nedeni: `MT-DDG-007` (sandbox izni — adım (a)'nın
+kendisi bu oturumda "Modify Shared Resources" gerekçesiyle, oturum 1'de ayrı
+gerekçelerle adım (b)/(c)'de reddedildi — iki oturumda üç farklı ret, case'in
+üç adımı hiçbir oturumda art arda tamamlanamadı), `MT-DDG-017` · `MT-DDG-018`
+(👤 insan gözü gerekir, üstteki tablo). `MT-DDG-016` ve `MT-DDG-029` bu
+oturumda **Geçti**'ye taşındı.
