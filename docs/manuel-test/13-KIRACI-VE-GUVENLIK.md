@@ -1343,11 +1343,13 @@ Negatif senaryo.
 **Ön koşul**
 - Reset sonrası temiz durum — sistemde HİÇ `ExternalInvoke` kapsamlı anahtar
   yok.
-- `samples/Tracon.Api/Program.cs`'te `app.MapTracon("/tracon", options => { ... })`
-  bloğuna (satır ~701-712, `options.AuthToken = ...` bloğunun hemen altına)
-  GEÇİCİ olarak şu satır eklenir:
-  ```csharp
-  options.AllowRemoteAccess = true;
+- **Koşumda düzeltildi (kural 1 istisnası):** GEÇİCİ kod değişikliği artık
+  gerekmiyor — dosyanın başındaki not (§"Koşmadan önce") zaten
+  `Tracon:Ui:AllowRemoteAccess`'in `Program.cs:953-956`'ya bağlandığını
+  söylüyor, bu case'in kendi ön koşulu güncellenmemişti. Ortam değişkeni
+  yeterli:
+  ```bash
+  export Tracon__Ui__AllowRemoteAccess=true
   ```
 
 **Adımlar**
@@ -1360,8 +1362,9 @@ cd samples/Tracon.Api && dotnet run
 
 **Beklenen sonuç**
 - Süreç açılışta `InvalidOperationException` ile ÇÖKER. Konsol çıktısı
-  `AllowRemoteAccess acikken mcp disa acilamaz: sistemde 'external:invoke'
-  kapsamli...` dizgisini içerir (`ExternalSurfaceGuard.cs:72-76`).
+  `MCP cannot be exposed while AllowRemoteAccess is on: the system holds no
+  API key with the 'external:invoke' scope...` dizgisini içerir (İngilizce —
+  koşumda düzeltildi, K-228; kod: `ExternalSurfaceGuard.cs:142-147`).
 - Bu, `EnsureRemoteAccessNotCombined`'in senkron ve açılışta çalıştığının
   kanıtıdır — hiçbir istek bu denetimin önüne geçemez.
 
@@ -1377,15 +1380,20 @@ cd samples/Tracon.Api && dotnet run
 | **İlgili karar** | — |
 
 **Ön koşul**
-- MT-SEC-070'in geçici satırı GERİ ALINIR (`AllowRemoteAccess = true` kaldırılır,
-  varsayılana dönülür).
+- `Tracon__Ui__AllowRemoteAccess` ortam değişkeni KALDIRILIR (varsayılana
+  dönülür — koşumda düzeltildi, bkz. MT-SEC-070).
 - Uygulama `AllowRemoteAccess` OLMADAN normal başlatılır.
+- **Ekleme (koşumda öğrenildi):** varsayılan bellek içi depoda `ExternalInvoke`
+  anahtarı restart'ta KAYBOLUR — bu case'in "önce anahtar üret, SONRA
+  yeniden başlat" akışı gerçek anlamda ancak KALICI bir depoyla (SQLite/
+  PostgreSQL/SQL Server) test edilebilir. Bellek içiyle koşulursa MT-SEC-070
+  ile birebir aynı çöküş tekrar gözlenir (yanlış negatif değil, doğru ama
+  farklı bir senaryo test edilmiş olur).
 
 **Adımlar**
 1. `ExternalInvoke` kapsamlı bir anahtar oluştur.
-2. Uygulamayı durdur, `options.AllowRemoteAccess = true;` satırını TEKRAR
-   ekle (MT-SEC-070'teki gibi), `dotnet run --urls "http://0.0.0.0:5080"`
-   ile yeniden başlat.
+2. Uygulamayı durdur, `Tracon__Ui__AllowRemoteAccess=true` İLE (kalıcı depo
+   AÇIK kalarak, aynı veritabanı dosyası/şeması) yeniden başlat.
 3. `$LANIP` üzerinden, doğru bearer token ile bir uca istek at.
 
 **Girilecek veri**
