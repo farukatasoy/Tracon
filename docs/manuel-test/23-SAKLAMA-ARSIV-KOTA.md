@@ -884,19 +884,19 @@ kendi yorumu: *"Kota ve olay yayını yalnızca kök çalıştırmada işler. Al
 üretildiği koşumdan önce **bilinmiyor**, koşumda kaydedilir.
 
 **Ön koşul**
-- `ozetle-ve-cevir` (`FIX` — sıralı, iki agent adımlı) workflow fixture'ı hazır.
+- `summarize-and-translate` (`FIX` — sıralı, iki agent adımlı) workflow fixture'ı hazır.
 
 **Adımlar**
 1. Kullanım sayaçlarını sıfırdan itibaren gözlemlemek için `support` agent'ının
    günlük `runs` sayacını oku.
-2. `ozetle-ve-cevir` workflow'unu çalıştır (iki agent adımı içerir).
+2. `summarize-and-translate` workflow'unu çalıştır (iki agent adımı içerir).
 3. Sayacı tekrar oku, artışı hesapla.
 
 **Girilecek veri**
 ```bash
 ONCE=$(curl -s "$APU/api/quotas/usage" -H "$APB" | jq '[.[] | select(.agentName==null and .period=="Daily")][0].runs // 0')
 
-curl -s -X POST "$APU/api/workflows/ozetle-ve-cevir/run" \
+curl -s -X POST "$APU/api/workflows/summarize-and-translate/run" \
   -H "$APB" -H "content-type: application/json" -H "Idempotency-Key: $(uuidgen)" \
   -d '{"message":"Bu metni ozetle ve Ingilizceye cevir: Tracon bir NuGet paket ailesidir."}' | jq -r '.runId // .id'
 
@@ -1014,7 +1014,7 @@ wait
 > plana atılan ayrı bir komut) çalışmalı ki `$(uuidgen)` her seferinde yeniden
 > değerlendirilsin. Ayrıca `support` bu dosyanın önceki case'lerinde zaten
 > kullanıldığından (kirli sayaç), koşum **temiz** bir agent kapsamıyla
-> (`yonlendirici`) yapıldı — gerçek koşumda dosyanın kendi sırasını izleyen
+> (`router`) yapıldı — gerçek koşumda dosyanın kendi sırasını izleyen
 > bir oturum `support` ile de temiz başlayabilir.
 
 **Beklenen sonuç**

@@ -61,7 +61,7 @@ flowchart TD
 
 1. [`00-INDEKS.md`](00-INDEKS.md) §4 reset yordamı uygulanır.
 2. Örnek uygulama gerçek OpenAI **ve** Anthropic anahtarlarıyla çalışır
-   (`support` OpenAI, `claude-destek` Anthropic ister; §1 ve §2'nin
+   (`support` OpenAI, `claude-support` Anthropic ister; §1 ve §2'nin
    "sağlayıcı bağımsızlığı" case'leri ikisini de kullanır).
 3. `Tracon:Ui:AuthToken` `manuel-test-token-2026`'dır ([`00-INDEKS.md`](00-INDEKS.md) §2.4).
 4. Python'da stok `openai` paketi kurulu olmalıdır: `python3 -c "import openai; print(openai.__version__)"`.
@@ -87,7 +87,7 @@ export TENANT_B="X-Tracon-Tenant: kiraci-beta"
 ```
 
 > **Gerçek para uyarısı.** Bu dosyadaki neredeyse her case gerçek bir sağlayıcı
-> çağrısı yapar (`support` = OpenAI, `claude-destek` = Anthropic) — yönetim
+> çağrısı yapar (`support` = OpenAI, `claude-support` = Anthropic) — yönetim
 > API'sinin aksine burada model çağırmayan case sayısı azdır (yalnızca
 > `/v1/conversations` grubunun bir kısmı ve saf doğrulama hataları). `İzlek B`
 > her yerde kullanılır.
@@ -658,7 +658,7 @@ sağlayıcının arkada çalıştığı tel biçimini değiştirmemelidir.
 ```bash
 curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/v1/chat/completions" -H "$APB" \
      -H "content-type: application/json" -d '{
-  "model": "claude-destek",
+  "model": "claude-support",
   "messages": [{"role": "user", "content": "Kisaca merhaba de."}]
 }'
 ```
@@ -1057,7 +1057,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/v1/responses" -H "$APB" \
 | **İlgili karar** | — |
 
 **Ön koşul**
-- `azure-destek` agent'ı (Azure kimliği **yok** — bilinçli olarak kırık bir
+- `azure-support` agent'ı (Azure kimliği **yok** — bilinçli olarak kırık bir
   sağlayıcı hedefler).
 
 **Adımlar**
@@ -1067,7 +1067,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/v1/responses" -H "$APB" \
 ```bash
 curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/v1/responses" -H "$APB" \
      -H "content-type: application/json" -d '{
-  "model": "azure-destek",
+  "model": "azure-support",
   "input": "Merhaba."
 }'
 ```
@@ -1105,7 +1105,7 @@ ucundan da (`ResponsesStream` ve `ChatCompletionsStream`) kaldırıldı — art�
 çerçevesine dönüşür.
 
 **Ön koşul**
-- `azure-destek` agent'ı.
+- `azure-support` agent'ı.
 
 **Adımlar**
 1. Azure destekli agent'a akışlı bir istek gönder, bağlantının nasıl kapandığını gözlemle.
@@ -1114,7 +1114,7 @@ ucundan da (`ResponsesStream` ve `ChatCompletionsStream`) kaldırıldı — art�
 ```bash
 curl -N -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/v1/responses" -H "$APB" \
      -H "content-type: application/json" -d '{
-  "model": "azure-destek",
+  "model": "azure-support",
   "input": "Merhaba.",
   "stream": true
 }'
@@ -1124,7 +1124,7 @@ curl -N -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/v1/responses" -H "$APB" \
 - Başlıklar `200 OK` / `text/event-stream` olarak gönderilir; bağlantı
   çerçevesiz aniden KAPANMAZ — bir `event: response.failed`/`event: error`
   çerçevesi gelir.
-- Çapraz doğrulama: `GET $APU/api/runs?agentName=azure-destek&take=1` bu
+- Çapraz doğrulama: `GET $APU/api/runs?agentName=azure-support&take=1` bu
   çalıştırmayı `Failed` durumunda gösterir.
 - `event: error`/`response.failed` GELMEZse (fix'in regresyonu): hemen
   `OpenAIResponsesEndpoints.cs`'in `ResponsesStream.ExecuteAsync`'indeki

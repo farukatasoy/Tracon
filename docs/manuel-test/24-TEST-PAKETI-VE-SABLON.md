@@ -384,8 +384,8 @@ curl -s http://localhost:5081/tracon/api/agents | jq
 - Uygulama **hiçbir bağlantı hatası vermeden** başlar (varsayılan `memory`
   hiçbir veritabanı gerektirmez).
 - `GET /tracon/api/agents` `200 OK` döner.
-- Yanıt, `support` adlı tek bir agent içerir (`Program.cs:84-107`'deki kodda
-  bildirimsel tanım) — `displayName: "Destek Asistani"`.
+- Yanıt, `support` adlı tek bir agent içerir (şablonun `Program.cs`'inde
+  bildirimsel tanım) — `displayName: "Support Assistant"`.
 
 ---
 

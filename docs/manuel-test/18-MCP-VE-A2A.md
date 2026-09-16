@@ -83,10 +83,12 @@ flowchart TD
 1. [`00-INDEKS.md`](00-INDEKS.md) §4 reset yordamı uygulanır.
 2. Örnek uygulama çalışır: `cd samples/Tracon.Api && dotnet run` →
    `http://localhost:5080/tracon`.
-3. Örnek uygulama `ozetleyici` agent'ını **hem** MCP **hem** A2A ile dışa
-   açar (`Program.cs:98-99`, `.UseMcpServer(o =>
-   o.ExposedAgents.Add("ozetleyici"))` / `.UseA2A(o =>
-   o.ExposedAgents.Add("ozetleyici"))`) — bu agent **kasıtlı olarak**
+3. Örnek uygulama `summarizer` agent'ını **hem** MCP **hem** A2A ile dışa
+   açar: kayıt tarafında `.UseMcpServer(o =>
+   o.ExposedAgents.Add("summarizer"))` / `.UseA2A(o =>
+   o.ExposedAgents.Add("summarizer"))`, uç tarafında ise **`MapTraconMcpServer()`**
+   ve **`MapTraconA2A()`** (`MapTracon()`'dan ayrı, isteğe bağlı uçlardır ve
+   aynı erişim korumasını kullanırlar) — bu agent **kasıtlı olarak**
    hiçbir tool taşımaz, bu yüzden §6/§7'nin onay-sınırı guard'ını hiç
    tetiklemez. Guard'ı tetiklemek isteyen case'ler (§6 MT-MCP-034, §7
    MT-MCP-045) GEÇİCİ bir `Program.cs` değişikliği ister — bu değişiklik
@@ -107,7 +109,7 @@ export PG="docker exec -i ap-pg psql -U postgres -d tracon"
 
 > **Gerçek para uyarısı.** §4 MT-MCP-023, §6 MT-MCP-032/036, §7 MT-MCP-041
 > gerçek bir agent çalıştırması içerir (`echo` sağlayıcısı yeterlidir,
-> OpenAI şart değildir — `ozetleyici`/`support` `echo` ile de çalışır).
+> OpenAI şart değildir — `summarizer`/`support` `echo` ile de çalışır).
 > Kalan tüm case'ler model çağırmaz.
 
 ---
@@ -117,7 +119,7 @@ export PG="docker exec -i ap-pg psql -U postgres -d tracon"
 | Kimlik | Değer |
 |---|---|
 | `FIX-MCP-01` | Sunucu adı `test-sunucu` · `endpoint: "http://localhost:6060/mcp"` · `transport: "StreamableHttp"` · `requiresApproval: false` · **tester-tedarikli** — bkz. §5, repo'da dokümante edilmiş bir yerel MCP sunucusu YOKTUR |
-| `FIX-MCP-02` | `ozetleyici` — örnek uygulamanın kendi MCP+A2A ile dışa açtığı, tool'suz agent (`00-INDEKS.md` §3.1) |
+| `FIX-MCP-02` | `summarizer` — örnek uygulamanın kendi MCP+A2A ile dışa açtığı, tool'suz agent (`00-INDEKS.md` §3.1) |
 
 ---
 
@@ -766,12 +768,12 @@ Negatif/sınır senaryosu.
   (`tests/Tracon.AspNetCore.FunctionalTests/McpServerEndpointTests.cs:14`)
   bu davranışı zaten otomatik doğruluyor — bu case, üretim benzeri örnek
   uygulama üzerinde AYNI GARANTİYİ elle tekrar doğrular: örnek
-  uygulamada yalnız `ozetleyici` beyaz listededir, başka HİÇBİR agent
+  uygulamada yalnız `summarizer` beyaz listededir, başka HİÇBİR agent
   `tools/list`'te görünmez (bkz. MT-MCP-031).
 
 ---
 
-### MT-MCP-031 — `ozetleyici` fixture: `tools/list` gerçek çıktısı
+### MT-MCP-031 — `summarizer` fixture: `tools/list` gerçek çıktısı
 
 | | |
 |---|---|
@@ -811,8 +813,8 @@ curl -s -X POST "$APU/mcp" -H "$APB" -H "content-type: application/json" -H "acc
 ```
 
 **Beklenen sonuç**
-- `HTTP: 200`. Yanıt `result.content[0].text` alanında `ozetleyici`
-  agent'ının ürettiği bir özet metni içerir. `GET /api/runs?agentName=ozetleyici`
+- `HTTP: 200`. Yanıt `result.content[0].text` alanında `summarizer`
+  agent'ının ürettiği bir özet metni içerir. `GET /api/runs?agentName=summarizer`
   bu çağrıya karşılık gelen YENİ bir kök run (Depth=0) gösterir.
 
 ---
@@ -855,7 +857,7 @@ gerektirir, case sonunda geri alınır.**
 
 **Adımlar**
 1. `samples/Tracon.Api/Program.cs`'te GEÇİCİ olarak
-   `.UseMcpServer(o => o.ExposedAgents.Add("ozetleyici"))` satırını
+   `.UseMcpServer(o => o.ExposedAgents.Add("summarizer"))` satırını
    `.UseMcpServer(o => o.ExposedAgents.Add("support"))` ile DEĞİŞTİR
    (`support`, `cancel_order` — `RequiresApproval=true` — tool'unu
    taşır).
@@ -884,8 +886,8 @@ Sınır senaryosu — MCP'nin A2A'dan (§7 MT-MCP-044) FARKLI davrandığı nokt
 | **İlgili karar** | — |
 
 **Ön koşul (koşumda düzeltildi)**
-- Orijinal yaklaşım (`ozetleyici`'yi `PUT` ile güncellemek) ÇALIŞMAZ:
-  `ozetleyici` **kodda tanımlı** bir agent'tır (`origin: "Code"`,
+- Orijinal yaklaşım (`summarizer`'yi `PUT` ile güncellemek) ÇALIŞMAZ:
+  `summarizer` **kodda tanımlı** bir agent'tır (`origin: "Code"`,
   `isEditable: false`) — `07-HTTP-YONETIM-API.md`'nin MT-API-008 ile zaten
   kanıtladığı gibi, kodda tanımlı agent'lar yönetim API'sinden asla
   değiştirilemez (`409`). Üstelik case'in kendi `Girilecek veri`'si `name`/
@@ -902,7 +904,7 @@ Sınır senaryosu — MCP'nin A2A'dan (§7 MT-MCP-044) FARKLI davrandığı nokt
 ```bash
 curl -s -X POST "$APU/mcp" -H "$APB" -H "content-type: application/json" -H "accept: application/json, text/event-stream" \
      -d '{ "jsonrpc": "2.0", "id": 1, "method": "tools/list" }'
-# -> yalniz ozetleyici gorunur
+# -> yalniz summarizer gorunur
 
 curl -s -X POST "$APU/api/agents" -H "$APB" -H "content-type: application/json" -d '{
   "name": "manuel-canli-katalog",
@@ -971,11 +973,11 @@ claude mcp get tracon-manuel-test
 
 **Girilecek veri**
 ```bash
-curl -s "$APU/a2a/ozetleyici/.well-known/agent-card.json" -H "$APB"
+curl -s "$APU/a2a/summarizer/.well-known/agent-card.json" -H "$APB"
 ```
 
 **Beklenen sonuç**
-- Gövde `name: "ozetleyici"`, `capabilities: {streaming: false,
+- Gövde `name: "summarizer"`, `capabilities: {streaming: false,
   pushNotifications: false}`, `defaultInputModes: ["text/plain"]`,
   `defaultOutputModes: ["text/plain"]`, `supportedInterfaces[0].url`
   agent'ın alt yoluna işaret eder, `protocolBinding: "JSONRPC"`.
@@ -995,7 +997,7 @@ Sınır senaryosu — bilinen bir uyumsuzluk, kusur değil (SDK davranışı).
 
 **Girilecek veri (düzeltilmiş — `messageId` zorunlu, eksikti)**
 ```bash
-curl -s -X POST "$APU/a2a/ozetleyici/" -H "$APB" -H "content-type: application/json" -d '{
+curl -s -X POST "$APU/a2a/summarizer/" -H "$APB" -H "content-type: application/json" -d '{
   "jsonrpc": "2.0", "id": 1, "method": "SendMessage",
   "params": { "message": { "role": "ROLE_USER", "messageId": "manuel-a2a-041", "parts": [{ "text": "Bugun hava cok guzeldi. Is yerinde her sey yolunda gitti. Toplantilar verimliydi." }] } }
 }'
@@ -1025,12 +1027,12 @@ Sınır senaryosu/gözlem.
 
 **Girilecek veri**
 ```bash
-curl -s "$APU/a2a/ozetleyici/.well-known/agent-card.json" -H "$APB" \
+curl -s "$APU/a2a/summarizer/.well-known/agent-card.json" -H "$APB" \
   | python3 -c "import json,sys; print(json.load(sys.stdin)['supportedInterfaces'][0]['url'])"
 ```
 
 **Beklenen sonuç**
-- Çıktı `/tracon/a2a/ozetleyici` gibi GÖRECELİ bir yoldur, `http://...`
+- Çıktı `/tracon/a2a/summarizer` gibi GÖRECELİ bir yoldur, `http://...`
   ile başlayan MUTLAK bir URL DEĞİLDİR. Bir ters vekil (reverse proxy)
   arkasındaki gerçek bir A2A istemcisi bu URL'yi kendisi tamamlamak
   zorunda kalabilir — bu bilinen bir sınırlamadır, kusur değildir.
@@ -1051,7 +1053,7 @@ Negatif/sınır senaryosu — API yüzeyi karşılaştırması.
 **Adımlar**
 1. `TraconA2AOptions` tipinin genel API yüzeyini incele (kod
    okuması, `src/Tracon.AspNetCore/A2A/TraconA2AOptions.cs`) veya
-   dolaylı olarak: `ozetleyici` dışında herhangi bir agent'a A2A yoluyla
+   dolaylı olarak: `summarizer` dışında herhangi bir agent'a A2A yoluyla
    erişmeyi dene.
 
 **Girilecek veri**
@@ -1118,7 +1120,7 @@ Kritik negatif senaryo. **Geçici kod değişikliği gerektirir.**
 
 **Adımlar**
 1. `Program.cs`'te GEÇİCİ olarak `.UseA2A(o =>
-   o.ExposedAgents.Add("ozetleyici"))` satırını `.UseA2A(o =>
+   o.ExposedAgents.Add("summarizer"))` satırını `.UseA2A(o =>
    o.ExposedAgents.Add("support"))` ile DEĞİŞTİR.
 2. `dotnet run` ile başlatmayı dene.
 

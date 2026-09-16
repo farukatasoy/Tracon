@@ -95,7 +95,7 @@ flowchart TD
    birlikte açar (`Program.cs:212-226`) — ikisi ayrı ayrı açılıp kapatılamaz;
    §5'in ilk case'i (MT-MM-031) bunu bilerek bu çiftin geçici olarak
    KAPATILMASIYLA test eder.
-4. `sesli-asistan` agent'ı fixture'dır (`00-INDEKS.md` §3.1): tool'ları
+4. `voice-assistant` agent'ı fixture'dır (`00-INDEKS.md` §3.1): tool'ları
    `speak`, `transcribe`, `list_voices`, `get_order_status`; modeli gerçek
    OpenAI (`gpt-5.4-mini`).
 
@@ -966,7 +966,7 @@ Gerçek entegrasyon — kritik, `docs/28` G1'in canlı doğrulaması.
 
 **Girilecek veri**
 ```bash
-curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/sesli-asistan/run" -H "$APB" \
+curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/voice-assistant/run" -H "$APB" \
      -H "content-type: application/json" -d '{
   "sessionId": "manuel-mm-speak-1",
   "message": "Merhaba dedigimi sesli soyle."
@@ -1011,7 +1011,7 @@ yalnız hatanın ŞEKLİ farklıdır (burada tool sonucu içinde metin, orada
 ```bash
 python3 -c "print('Lutfen şunu oldugu gibi tekrarla ve speak toolunu 6000 karakterlik bu metinle cagir: ' + 'a'*6000)" \
   > /tmp/fix-mm-tool-uzun.txt
-curl -s -X POST "$APU/api/agents/sesli-asistan/run" -H "$APB" \
+curl -s -X POST "$APU/api/agents/voice-assistant/run" -H "$APB" \
      -H "content-type: application/json" \
      -d "{ \"sessionId\": \"manuel-mm-speak-2\", \"message\": $(python3 -c "import json; print(json.dumps(open('/tmp/fix-mm-tool-uzun.txt').read()))") }"
 ```
@@ -1041,7 +1041,7 @@ Gerçek entegrasyon.
 
 **Girilecek veri**
 ```bash
-curl -s -X POST "$APU/api/agents/sesli-asistan/run" -H "$APB" \
+curl -s -X POST "$APU/api/agents/voice-assistant/run" -H "$APB" \
      -H "content-type: application/json" -d "{
   \"sessionId\": \"manuel-mm-transcribe-1\",
   \"message\": \"attachmentId=$SPEECH_ATT_ID olan ses ekini transcribe tool'uyla metne cevir ve sonucu aynen yaz.\"
@@ -1072,7 +1072,7 @@ Negatif senaryo.
 
 **Girilecek veri**
 ```bash
-curl -s -X POST "$APU/api/agents/sesli-asistan/run" -H "$APB" \
+curl -s -X POST "$APU/api/agents/voice-assistant/run" -H "$APB" \
      -H "content-type: application/json" -d "{
   \"sessionId\": \"manuel-mm-transcribe-2\",
   \"message\": \"attachmentId=$ATT_ID olan eki transcribe tool'uyla metne cevirmeyi dene.\"
@@ -1096,7 +1096,7 @@ curl -s -X POST "$APU/api/agents/sesli-asistan/run" -H "$APB" \
 
 **Girilecek veri**
 ```bash
-curl -s -X POST "$APU/api/agents/sesli-asistan/run" -H "$APB" \
+curl -s -X POST "$APU/api/agents/voice-assistant/run" -H "$APB" \
      -H "content-type: application/json" -d '{
   "sessionId": "manuel-mm-listvoices-1",
   "message": "Hangi sesler var? list_voices toolunu kullan."
@@ -1228,7 +1228,7 @@ async def main() -> None:
     p.add_argument("--host", default="localhost:5080")
     p.add_argument("--prefix", default="/tracon")
     p.add_argument("--session", default="manuel-ws-1")
-    p.add_argument("--agent", default="sesli-asistan")
+    p.add_argument("--agent", default="voice-assistant")
     p.add_argument("--token", default="manuel-test-token-2026")
     p.add_argument("--format", default="pcm16")
     p.add_argument("--voice-id", default=None)
@@ -1330,7 +1330,7 @@ python3 ~/tracon-manuel-test/voice_client.py --help
 
 ### MT-MM-062 — `UseVoiceConversation()` açıksa ama sağlayıcı yoksa `501`; hiç çağrılmadıysa `404`
 
-Bu ayrım MT-MM-031'de `sesli-asistan` çiftinin (Voice+VoiceConversation
+Bu ayrım MT-MM-031'de `voice-assistant` çiftinin (Voice+VoiceConversation
 birlikte açılıp kapanan) ikisini de kapsayacak şekilde zaten koşuldu; burada
 yalnız izlek C referansı tekrar edilir.
 
@@ -1391,7 +1391,7 @@ python3 ~/tracon-manuel-test/voice_client.py --session manuel-ws-token-ok --toke
 
 **Beklenen sonuç**
 - `BAGLANDI, kabul edilen alt protokol: tracon.voice.v1` yazdırılır.
-  İlk `<<` çerçevesi `{"type": "ready", "agent": "sesli-asistan", ...,
+  İlk `<<` çerçevesi `{"type": "ready", "agent": "voice-assistant", ...,
   "persistAudio": false}` olur.
 
 ---
@@ -1528,7 +1528,7 @@ FROM tracon.runs WHERE id = '<RUN_ID>';
 ```
 
 **Beklenen sonuç**
-- Bir satır: `status='Completed'`, `agent_name='sesli-asistan'`,
+- Bir satır: `status='Completed'`, `agent_name='voice-assistant'`,
   `input_tokens`/`output_tokens` pozitif — ses tur yolu OpenAI'a normal
   bir çalıştırma gibi gider; token sayımı, span'ler ve maliyet MEVCUT
   yoldan gelir, TEKRAR EDİLMEZ.
@@ -1819,7 +1819,7 @@ Sınır senaryosu — teknik doğrulama.
 | **İlgili karar** | — |
 
 **Ön koşul**
-- Chrome'da `http://localhost:5080/tracon/playground/sesli-asistan`
+- Chrome'da `http://localhost:5080/tracon/playground/voice-assistant`
   açık; tarayıcı mikrofon iznini kabul etmiş.
 
 **Adımlar**
@@ -1899,7 +1899,7 @@ GERÇEK bir güvensiz-bağlam denemesi bu ortamda pratik değildir.
 
 **Adımlar**
 1. Mac'in yerel ağ IP adresini bul (`ipconfig getifaddr en0`).
-2. Chrome'da `http://<yerel-ip>:5080/tracon/playground/sesli-asistan`
+2. Chrome'da `http://<yerel-ip>:5080/tracon/playground/voice-assistant`
    adresini aç (`localhost` DEĞİL, IP adresiyle — HTTP üzerinden).
 3. Mikrofon düğmesine tıkla.
 
@@ -2152,7 +2152,8 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST "$APU/api/images/generate" \
 | **İlgili karar** | K-032 |
 
 **Ön koşul**
-- Google görsel adapter'ı etkin ve geçerli bir görsel modeli yapılandırılmış.
+- Google görsel adapter'ı `UseGoogleImages()` ile kayıtlı (MT-MM-121'in
+  kurulumu) ve geçerli bir görsel modeli yapılandırılmış.
 
 **Adımlar**
 1. `generate_image` tool'una `size: "1024x1024"` ile istek gönder.
@@ -2595,3 +2596,85 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST "$APU/api/images/generate" \
 **Beklenen sonuç**
 - Faz 29 davranışı **değişmemiştir**: `ready` → ses → `transcript` → `done`.
 - İki katman birbirini gerektirmez; ayrı ayrı da açılabilirler.
+
+### MT-MM-120 — Görsel üretimi açıkken sağlayıcı kayıtlı değilse uygulama BAŞLAMAZ
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 88 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `Tracon:Images:Enabled=true`.
+- `samples/Tracon.Api/Program.cs`'teki `tracon.UseOpenAIImages();` satırı
+  GEÇİCİ olarak yorum satırı yapılır; başka hiçbir görsel sağlayıcısı
+  (`UseAzureOpenAIImages()` · `UseGoogleImages()`) kayıtlı değildir. Değişiklik
+  case sonunda GERİ ALINIR.
+
+**Adımlar**
+1. `cd samples/Tracon.Api && dotnet run`
+
+**Beklenen sonuç**
+- Uygulama **başlamaz**. `app.MapTracon(...)` çağrısı bir `TraconException` ile
+  düşer; hata metni eksik sağlayıcı adını ve üç kayıt çağrısını birden yazar:
+  `UseOpenAIImages()`, `UseAzureOpenAIImages()` veya `UseGoogleImages()`.
+- Arıza **HTTP yüzeyi kurulurken** çıkar, ilk ücretli çağrıda değil. Açık ama
+  sağlayıcısız bir görsel yapılandırması çalışan bir uca dönüşemez.
+
+> **Otomatik karşılığı yoktur** — bu bir kompozisyon anı kapısıdır ve yalnız
+> gerçek bir host başlatmasıyla ölçülür.
+
+### MT-MM-121 — `UseGoogleImages()` Google üreticisini kaydeder ve `Provider` onu seçer
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 88 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `Tracon:Providers:Google:ApiKey` tanımlı.
+- `Program.cs`'te `tracon.UseOpenAIImages();` yerine GEÇİCİ olarak
+  `tracon.UseGoogleImages();` yazılır ve `Tracon:Images:Provider` `google`
+  yapılır. Değişiklik case sonunda GERİ ALINIR.
+
+**Adımlar**
+1. Uygulamayı başlat; `MapTracon` hatasız geçmelidir.
+2. ```bash
+   curl -s -X POST "$APU/api/images/generate" \
+     -H "$APB" -H 'content-type: application/json' \
+     -d '{"prompt":"a red bicycle"}' | jq
+   ```
+
+**Beklenen sonuç**
+- Uygulama başlar — MT-MM-120'nin kapısı bu sağlayıcıyla de tatmin olur.
+- Çağrı bir ek kimliği döndürür ve ek oturuma bağlanır (MT-MM-095 ile aynı
+  sözleşme); üretici Google'dır.
+- Sağlayıcı seçimi `Tracon:Images:Provider` anahtarıyla yapılır; kayıt çağrısı
+  ile seçim anahtarı **ayrı** iki karardır.
+
+### MT-MM-122 — `UseAzureOpenAIImages()` Azure üreticisini kaydeder
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 88 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- ⏭ **Azure kimliği bu ortamda yoktur** (`00-INDEKS.md` §3.1). Kimlik
+  sağlanana kadar bu case atlanır.
+- Kimlik varsa: `Program.cs`'te `tracon.UseAzureOpenAIImages();` ve
+  `Tracon:Images:Provider` `azure` yapılır.
+
+**Adımlar**
+1. MT-MM-121'in iki adımını Azure sağlayıcısıyla tekrarla.
+
+**Beklenen sonuç**
+- MT-MM-121 ile **aynı** sözleşme: uygulama başlar, çağrı ek kimliği döndürür.
+- Üç görsel sağlayıcısının kayıt yüzeyi tek biçimlidir; yalnız kayıt çağrısının
+  adı ve `Provider` değeri değişir.

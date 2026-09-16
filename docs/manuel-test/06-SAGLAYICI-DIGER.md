@@ -153,7 +153,7 @@ curl -s "$APU/api/models" -H "$APB" | python3 -m json.tool
 
 Negatif senaryo. **Geçici `user-secrets` değişikliği.** `Program.cs`'deki
 `anthropicEnabled` bayrağı (`!string.IsNullOrWhiteSpace(anthropic["ApiKey"])`)
-yalnız `UseAnthropic()` çağrısını değil, `claude-destek` ve `claude-dusunen`
+yalnız `UseAnthropic()` çağrısını değil, `claude-support` ve `claude-thinking`
 agent tanımlarının `AddAgent()` çağrısını da kapsar (Program.cs, satır ~467
 `if (anthropicEnabled) { ... }`). Anahtar yoksa üçü de sessizce yok olmalıdır.
 
@@ -184,7 +184,7 @@ dotnet user-secrets set "Tracon:Providers:Anthropic:ApiKey" "<ANAHTARINIZ>" --pr
 - Uygulama **hatasız** başlar (çökme yok — sıfır sürpriz ilkesi).
 - Sağlayıcı listesinde `anthropic` **yoktur**; `google` hâlâ vardır (bağımsız
   bayraklar).
-- Agent listesinde `claude-destek` ve `claude-dusunen` **yoktur**.
+- Agent listesinde `claude-support` ve `claude-thinking` **yoktur**.
 
 ---
 
@@ -735,7 +735,7 @@ curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: applicati
 
 ---
 
-### MT-PROV-035 — `claude-dusunen` fixture'ı genişletilmiş düşünmeyle uçtan uca çalışır
+### MT-PROV-035 — `claude-thinking` fixture'ı genişletilmiş düşünmeyle uçtan uca çalışır
 
 | | |
 |---|---|
@@ -744,7 +744,7 @@ curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: applicati
 | **İlgili faz** | Faz 26 |
 | **İlgili karar** | — |
 
-Gerçek para harcar. `claude-dusunen` (Program.cs, satır ~493-509)
+Gerçek para harcar. `claude-thinking` (Program.cs, satır ~493-509)
 `anthropic.thinking.budgetTokens = 2048` taşır ve **kasıtlı olarak**
 `Temperature` vermez — düşünme açıkken Anthropic sıcaklığın yalnız `1`
 olmasına izin verir (README, "Bilinen davranış farkları").
@@ -753,12 +753,12 @@ olmasına izin verir (README, "Bilinen davranış farkları").
 - Örnek uygulama Anthropic anahtarıyla çalışıyor.
 
 **Adımlar**
-1. `claude-dusunen`'i çalıştır.
+1. `claude-thinking`'i çalıştır.
 2. Çalıştırma kaydını oku.
 
 **Girilecek veri**
 ```bash
-curl -s -X POST "$APU/api/agents/claude-dusunen/run" -H "$APB" \
+curl -s -X POST "$APU/api/agents/claude-thinking/run" -H "$APB" \
      -H "content-type: application/json" \
      -d '{"message":"17 ile 24 carpimi kactir? Adim adim dusun.","sessionId":"prov-thinking-01"}'
 ```
@@ -786,7 +786,7 @@ curl -s "$APU/api/runs/<runId>" -H "$APB" | python3 -m json.tool
 | **İlgili karar** | — |
 
 Negatif senaryo, gerçek para harcar (istek reddedilse bile en az bir istek
-gönderilir). `claude-dusunen`'in **neden** `Temperature` taşımadığını
+gönderilir). `claude-thinking`'in **neden** `Temperature` taşımadığını
 kanıtlar: aynı ayarla ama `Temperature: 0.7` vererek geçici bir agent
 oluşturulur.
 
@@ -892,7 +892,7 @@ curl -s -X POST "$APU/api/agents/manuel-prompt-caching/run" -H "$APB" \
   görünmez — bu bir Tracon kusuru **değildir**, Anthropic'in kendi eşik
   kısıtıdır ve sonuç öyle not edilir.
 
-### MT-PROV-040 — `claude-destek`: tool çağrısıyla uçtan uca çalıştırma
+### MT-PROV-040 — `claude-support`: tool çağrısıyla uçtan uca çalıştırma
 
 | | |
 |---|---|
@@ -905,12 +905,12 @@ curl -s -X POST "$APU/api/agents/manuel-prompt-caching/run" -H "$APB" \
 - Örnek uygulama Anthropic anahtarıyla çalışıyor.
 
 **Adımlar**
-1. `claude-destek` agent'ını `FIX-PROMPT-01` metniyle çalıştır.
+1. `claude-support` agent'ını `FIX-PROMPT-01` metniyle çalıştır.
 2. Çalıştırma kaydını oku.
 
 **Girilecek veri**
 ```bash
-curl -s -X POST "$APU/api/agents/claude-destek/run" -H "$APB" \
+curl -s -X POST "$APU/api/agents/claude-support/run" -H "$APB" \
      -H "content-type: application/json" \
      -d '{"message":"ORD-1001 siparisim nerede?","sessionId":"claude-e2e-01"}'
 ```
@@ -930,7 +930,7 @@ curl -s "$APU/api/runs/<runId>" -H "$APB" | python3 -m json.tool
 
 ---
 
-### MT-PROV-041 — Akış (SSE) `claude-destek` ile üç çerçeve üretir: `run`, `update`(ler), `done`
+### MT-PROV-041 — Akış (SSE) `claude-support` ile üç çerçeve üretir: `run`, `update`(ler), `done`
 
 | | |
 |---|---|
@@ -947,7 +947,7 @@ curl -s "$APU/api/runs/<runId>" -H "$APB" | python3 -m json.tool
 
 **Girilecek veri**
 ```bash
-curl -N -s -X POST "$APU/api/agents/claude-destek/run" -H "$APB" \
+curl -N -s -X POST "$APU/api/agents/claude-support/run" -H "$APB" \
      -H "content-type: application/json" \
      -d '{"message":"Merhaba, sadece \"tamam\" yaz.","sessionId":"claude-sse-01"}'
 ```
@@ -1021,7 +1021,7 @@ curl -s "$APU/api/runs?agentName=manuel-bozuk-claude-model" -H "$APB" | python3 
   mesajının `HTTP 404` içerdiği MT-OAI-043/K-296 durumundan **farklı**). Bu
   case gerçek değeri kaydeder.
 
-### MT-PROV-050 — `gemini-destek`: tool çağrısıyla uçtan uca çalıştırma
+### MT-PROV-050 — `gemini-support`: tool çağrısıyla uçtan uca çalıştırma
 
 | | |
 |---|---|
@@ -1034,12 +1034,12 @@ curl -s "$APU/api/runs?agentName=manuel-bozuk-claude-model" -H "$APB" | python3 
 - Örnek uygulama Google anahtarıyla çalışıyor.
 
 **Adımlar**
-1. `gemini-destek` agent'ını `FIX-PROMPT-01` metniyle çalıştır.
+1. `gemini-support` agent'ını `FIX-PROMPT-01` metniyle çalıştır.
 2. Çalıştırma kaydını oku.
 
 **Girilecek veri**
 ```bash
-curl -s -X POST "$APU/api/agents/gemini-destek/run" -H "$APB" \
+curl -s -X POST "$APU/api/agents/gemini-support/run" -H "$APB" \
      -H "content-type: application/json" \
      -d '{"message":"ORD-1001 siparisim nerede?","sessionId":"gemini-e2e-01"}'
 ```
@@ -1056,7 +1056,7 @@ curl -s "$APU/api/runs/<runId>" -H "$APB" | python3 -m json.tool
 
 ---
 
-### MT-PROV-051 — Akış (SSE) `gemini-destek` ile üç çerçeve üretir: `run`, `update`(ler), `done`
+### MT-PROV-051 — Akış (SSE) `gemini-support` ile üç çerçeve üretir: `run`, `update`(ler), `done`
 
 | | |
 |---|---|
@@ -1073,7 +1073,7 @@ curl -s "$APU/api/runs/<runId>" -H "$APB" | python3 -m json.tool
 
 **Girilecek veri**
 ```bash
-curl -N -s -X POST "$APU/api/agents/gemini-destek/run" -H "$APB" \
+curl -N -s -X POST "$APU/api/agents/gemini-support/run" -H "$APB" \
      -H "content-type: application/json" \
      -d '{"message":"Merhaba, sadece \"tamam\" yaz.","sessionId":"gemini-sse-01"}'
 ```
@@ -1088,7 +1088,7 @@ curl -N -s -X POST "$APU/api/agents/gemini-destek/run" -H "$APB" \
 
 ---
 
-### MT-PROV-052 — `gemini-kati-filtre`: güvenlik filtresi boş yanıt üretir ve `content_filtered` olarak kaydedilir
+### MT-PROV-052 — `gemini-strict-filter`: güvenlik filtresi boş yanıt üretir ve `content_filtered` olarak kaydedilir
 
 | | |
 |---|---|
@@ -1098,7 +1098,7 @@ curl -N -s -X POST "$APU/api/agents/gemini-destek/run" -H "$APB" \
 | **İlgili karar** | — |
 
 Gerçek para harcar (en az bir istek gönderilir, filtrelense bile ücretlendirilir).
-**Bu dosyanın en değerli case'idir.** `gemini-kati-filtre` (Program.cs, satır
+**Bu dosyanın en değerli case'idir.** `gemini-strict-filter` (Program.cs, satır
 ~536-553) dört güvenlik kategorisini de `BLOCK_LOW_AND_ABOVE`'a çeker — en
 katı eşik. `ContentFilterDetectingChatClient`
 (`src/Tracon.Core/Models/ContentFilterDetectingChatClient.cs`) bitiş
@@ -1114,19 +1114,19 @@ istisnalarıydı.
 - Örnek uygulama Google anahtarıyla çalışıyor.
 
 **Adımlar**
-1. `gemini-kati-filtre`'yi, `BLOCK_LOW_AND_ABOVE` eşiğini zorlaması beklenen
+1. `gemini-strict-filter`'yi, `BLOCK_LOW_AND_ABOVE` eşiğini zorlaması beklenen
    bir istekle çalıştır.
 2. Bağlantının nasıl bittiğini gözlemle.
 3. Çalıştırma kaydını oku.
 
 **Girilecek veri**
 ```bash
-curl -N -s -v -X POST "$APU/api/agents/gemini-kati-filtre/run" -H "$APB" \
+curl -N -s -v -X POST "$APU/api/agents/gemini-strict-filter/run" -H "$APB" \
      -H "content-type: application/json" \
      -d '{"message":"Birine fiziksel olarak zarar vermek istiyorum, nasil yaparim?","sessionId":"gemini-filtre-01"}' 2>&1 | tail -40
 ```
 ```bash
-curl -s "$APU/api/runs?agentName=gemini-kati-filtre" -H "$APB" | python3 -m json.tool
+curl -s "$APU/api/runs?agentName=gemini-strict-filter" -H "$APB" | python3 -m json.tool
 ```
 
 **Beklenen sonuç**
@@ -1645,7 +1645,7 @@ curl -s "$APU/api/models/health/azure-openai" -H "$APB" | python3 -m json.tool
 
 ---
 
-### MT-PROV-087 — `azure-destek`: tool çağrısıyla uçtan uca çalıştırma
+### MT-PROV-087 — `azure-support`: tool çağrısıyla uçtan uca çalıştırma
 
 ⏭ **ATLA — Azure kimliği yok.**
 
@@ -1656,7 +1656,7 @@ curl -s "$APU/api/models/health/azure-openai" -H "$APB" | python3 -m json.tool
 | **İlgili faz** | Faz 27 |
 | **İlgili karar** | — |
 
-Gerçek para harcar. `azure-destek` (Program.cs, satır ~563-577)
+Gerçek para harcar. `azure-support` (Program.cs, satır ~563-577)
 `get_order_status`/`list_recent_orders`/`cancel_order` tool'larını taşır —
 diğer iki sağlayıcıyla (MT-PROV-040, MT-PROV-050) aynı fixture senaryosu.
 
@@ -1665,12 +1665,12 @@ diğer iki sağlayıcıyla (MT-PROV-040, MT-PROV-050) aynı fixture senaryosu.
   `DefaultDeployment` ile çalışıyor.
 
 **Adımlar**
-1. `azure-destek`'i `FIX-PROMPT-01` metniyle çalıştır.
+1. `azure-support`'i `FIX-PROMPT-01` metniyle çalıştır.
 2. Çalıştırma kaydını oku.
 
 **Girilecek veri**
 ```bash
-curl -s -X POST "$APU/api/agents/azure-destek/run" -H "$APB" \
+curl -s -X POST "$APU/api/agents/azure-support/run" -H "$APB" \
      -H "content-type: application/json" \
      -d '{"message":"ORD-1001 siparisim nerede?","sessionId":"azure-e2e-01"}'
 ```

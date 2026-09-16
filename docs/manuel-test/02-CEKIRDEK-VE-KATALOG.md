@@ -3501,3 +3501,39 @@ sağlayıcıya karşı koşarken ucuz bir model seç.
   sonra yeni iterasyon açmaz.
 
 > **Otomatik karşılığı:** `HarnessLoopTests.An_exhausted_tree_budget_stops_the_loop_rather_than_letting_it_open_another_iteration`.
+
+### MT-CORE-129 — `AddAgentDecorator()` tüketicinin kendi decorator'ını sıraya sokar
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 1 |
+| **İlgili karar** | — |
+
+**Ön koşul:** `samples/Tracon.Api/Program.cs`'e GEÇİCİ olarak bir tüketici
+decorator'ı eklenir ve `Order => 5` verilir; `Decorate` sarmaladığı agent'ı
+çağırmadan önce ve sonra bir satır loglar. Kayıt `tracon.AddAgentDecorator<T>()`
+ile yapılır. Değişiklik case sonunda GERİ ALINIR.
+
+**Adımlar**
+1. Uygulamayı başlat, `support` agent'ına bir `run` at.
+2. Logları ve üretilen `run` kaydını oku.
+
+**Beklenen sonuç**
+- Decorator **her** agent'a uygulanır; katalogdan çözülen tek bir agent bile
+  atlanmaz.
+- Sıralama belgelenmiş kuralı izler: **düşük `Order` DIŞTA sarar.** `Order 5`
+  ile tüketici decorator'ı `RunRecordingAgentDecorator`'ın (`Order 0`, en
+  dıştaki) **içinde**, `OpenTelemetryAgentDecorator`'ın (`Order 10`) **dışında**
+  kalır. Yani logladığı iş `run` kaydının içinde görünür, telemetri span'inin
+  dışında.
+- Yerleşik decorator'lar (`0` kayıt · `10` telemetri · `20` tool onayı ·
+  `30` yapısal yanıt) kaybolmaz; tüketicininki aralarına girer.
+- Aynı davranış üç kayıt biçiminin üçünde de aynıdır: `AddAgentDecorator<T>()`,
+  bir örnek alan aşırı yükleme ve `IServiceProvider` alan fabrika.
+
+> Bu bir **genişleme noktasıdır** (`CapabilityEntryPoints`, K-509). Yerleşik
+> decorator'ların davranışı `08-OPENAI-UYUMLU-UCLAR.md` ve
+> `22-GUARDRAIL-VE-YAPISAL-CIKTI.md` içindedir; burada kanıtlanan, **üçüncü
+> tarafın kendi decorator'ını kaydedebilmesidir.**

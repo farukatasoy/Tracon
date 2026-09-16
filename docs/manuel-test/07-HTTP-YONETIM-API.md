@@ -62,7 +62,7 @@ flowchart TD
 ## Koşmadan önce
 
 1. [`00-INDEKS.md`](00-INDEKS.md) §4 reset yordamı uygulanır.
-2. Örnek uygulama gerçek bir OpenAI anahtarıyla çalışır (`support`, `yonlendirici`
+2. Örnek uygulama gerçek bir OpenAI anahtarıyla çalışır (`support`, `router`
    fixture agent'ları buna ihtiyaç duyar; `echo` sağlayıcısı yalnız anahtar
    YOKKEN devreye girer — bu dosyada anahtar açıktır, dolayısıyla `echo`
    **kullanılmaz**).
@@ -1144,20 +1144,20 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/sessions/hic-boyle-bir-otu
 | **İlgili faz** | Faz 4 |
 | **İlgili karar** | — |
 
-`yonlendirici` agent'ı `support`'u çağırır (Faz 12 deseni) — bu, gerçek bir
+`router` agent'ı `support`'u çağırır (Faz 12 deseni) — bu, gerçek bir
 ebeveyn-çocuk `runs` çifti üretir.
 
 **Ön koşul**
 - Örnek uygulama çalışıyor.
 
 **Adımlar**
-1. `yonlendirici`'yi bir sipariş sorusuyla çalıştır (alt çalıştırma açar).
+1. `router`'yi bir sipariş sorusuyla çalıştır (alt çalıştırma açar).
 2. Aynı oturum için `includeChildren` olmadan listele.
 3. `includeChildren=true` ile tekrar listele.
 
 **Girilecek veri**
 ```bash
-curl -s -X POST "$APU/api/agents/yonlendirici/run" -H "$APB" -H "content-type: application/json" \
+curl -s -X POST "$APU/api/agents/router/run" -H "$APB" -H "content-type: application/json" \
      -d '{"message":"ORD-1001 siparisim nerede?","sessionId":"api-agac-01"}'
 
 curl -s "$APU/api/runs?sessionId=api-agac-01" -H "$APB" | python3 -c "import json,sys; print(len(json.load(sys.stdin)))"
@@ -1165,7 +1165,7 @@ curl -s "$APU/api/runs?sessionId=api-agac-01&includeChildren=true" -H "$APB" | p
 ```
 
 **Beklenen sonuç**
-- `includeChildren` olmadan **`1`** satır (yalnız kök — `yonlendirici`).
+- `includeChildren` olmadan **`1`** satır (yalnız kök — `router`).
 - `includeChildren=true` ile **`2`** satır (kök + `support` alt çalıştırması).
 
 ---

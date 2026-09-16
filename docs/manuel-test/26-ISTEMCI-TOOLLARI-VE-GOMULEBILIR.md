@@ -54,7 +54,9 @@ sequenceDiagram
    export APU="http://localhost:5080/tracon"
    ```
 3. `support` agent'ı örnek uygulamada `read_shopping_cart` istemci tool'unu
-   zaten taşır (Faz 61 kapanışında eklendi) — ayrı bir kayıt gerekmez.
+   zaten taşır (Faz 61 kapanışında eklendi) — ayrı bir kayıt gerekmez. Kayıt
+   **`AddClientTool("read_shopping_cart", ...)`** ile yapılır; bu dosyanın
+   §1 ve §2 case'leri o giriş noktasının davranışını kanıtlar.
 
 > **Gerçek para uyarısı.** §1 ve §2'deki her case gerçek bir OpenAI çağrısı
 > yapar (küçük ölçekte, `gpt-5.4-mini`). §3 (CORS) hiçbir model çağırmaz.
