@@ -10,7 +10,7 @@ using Microsoft.CodeAnalysis.Text;
 namespace Tracon.Generators;
 
 /// <summary>
-/// Reports the Tracon usage diagnostics (TRC0101-TRC0402): wiring that fails
+/// Reports the Tracon usage diagnostics (TRC0101-TRC0502): wiring that fails
 /// at run time, a boundary that must not be crossed, and work written by hand
 /// that the package already ships.
 /// </summary>
@@ -19,7 +19,7 @@ namespace Tracon.Generators;
 /// The analyzer ships in the same assembly as
 /// <see cref="ToolRegistrationGenerator"/> and reaches a consumer through
 /// <c>analyzers/dotnet/cs/</c> in <c>Tracon.Core</c>'s package. It reads no
-/// files: TRC0401 and TRC0402 inspect two <c>AdditionalFiles</c> that the
+/// files: TRC0401, TRC0402 and TRC0403 inspect <c>AdditionalFiles</c> that the
 /// package's <c>buildTransitive</c> target supplies, because file access from an
 /// analyzer is both banned (RS1035) and non-deterministic.
 /// </para>
@@ -41,6 +41,32 @@ public sealed class TraconUsageAnalyzer : DiagnosticAnalyzer
     private const string AgentsFileName = "AGENTS.md";
 
     private const string AgentMapFileName = "Tracon.AgentMap.md";
+
+    /// <summary>
+    /// The file `tracon agent-skill` writes. The name is generic, so a file is
+    /// only treated as the gate skill when it also carries
+    /// <see cref="GateSkillMarkerOpening"/>: a consumer's own skill of the same
+    /// name is theirs, and is never reported.
+    /// </summary>
+    private const string GateSkillFileName = "SKILL.md";
+
+    /// <summary>
+    /// Opening of the marker the command writes into the gate skill.
+    /// </summary>
+    /// <remarks>
+    /// Not on the first line, unlike the map's: a skill file opens with front
+    /// matter, and a harness that cannot parse the front matter does not load
+    /// the skill at all. The marker follows it, so the search covers the
+    /// opening lines instead of only the first.
+    /// </remarks>
+    private const string GateSkillMarkerOpening = "<!-- Tracon gate skill \u00b7 revision: ";
+
+    /// <summary>
+    /// How far into the file the marker is looked for. Front matter plus a
+    /// blank line is four lines today; the bound keeps the read cheap while
+    /// leaving room for a consumer who adds a key to the front matter.
+    /// </summary>
+    private const int GateSkillMarkerSearchLines = 16;
 
     /// <summary>
     /// The file the build writes beside each project. TRC0402 looks for this
@@ -107,6 +133,7 @@ public sealed class TraconUsageAnalyzer : DiagnosticAnalyzer
             UsageDiagnostics.HandWrittenAgentWrapper,
             UsageDiagnostics.StaleAgentMap,
             UsageDiagnostics.MissingLocalReferencePointer,
+            UsageDiagnostics.StaleGateSkill,
             UsageDiagnostics.AmbientWriteMissingFromLoop,
             UsageDiagnostics.AmbientScopeNotDisposed);
 
@@ -314,6 +341,7 @@ public sealed class TraconUsageAnalyzer : DiagnosticAnalyzer
     {
         AdditionalText? agentsFile = null;
         AdditionalText? mapFile = null;
+        List<AdditionalText>? skillFiles = null;
 
         foreach (var file in context.Options.AdditionalFiles)
         {
@@ -327,11 +355,27 @@ public sealed class TraconUsageAnalyzer : DiagnosticAnalyzer
             {
                 mapFile = file;
             }
+            else if (string.Equals(name, GateSkillFileName, StringComparison.OrdinalIgnoreCase))
+            {
+                (skillFiles ??= []).Add(file);
+            }
         }
 
         // No map among the additional files means Tracon is not referenced
-        // through its package, and neither diagnostic has anything to compare.
-        if (agentsFile is null || mapFile is null)
+        // through its package, and no diagnostic here has anything to compare.
+        if (mapFile is null || (agentsFile is null && skillFiles is null))
+        {
+            return;
+        }
+
+        var installed = ReadRevision(mapFile.GetText(context.CancellationToken), out _);
+
+        if (skillFiles is not null)
+        {
+            ReportStaleGateSkills(context, skillFiles, installed);
+        }
+
+        if (agentsFile is null)
         {
             return;
         }
@@ -352,8 +396,6 @@ public sealed class TraconUsageAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        var installed = ReadRevision(mapFile.GetText(context.CancellationToken), out _);
-
         if (installed is null || string.Equals(installed, written, StringComparison.Ordinal))
         {
             return;
@@ -364,6 +406,48 @@ public sealed class TraconUsageAnalyzer : DiagnosticAnalyzer
             location,
             written,
             installed));
+    }
+
+    /// <summary>
+    /// Reports every gate skill among the additional files whose stamped
+    /// revision is not the installed one.
+    /// </summary>
+    /// <remarks>
+    /// A file without the marker is silently skipped rather than reported: the
+    /// name <c>SKILL.md</c> belongs to the harness, not to Tracon, so a
+    /// consumer's own skill of that name lands here too and saying anything
+    /// about it would be wrong. This is the same split TRC0401 and TRC0402 make
+    /// over <c>AGENTS.md</c> - a generated file can be stale, a hand-written
+    /// one cannot.
+    /// </remarks>
+    private static void ReportStaleGateSkills(
+        CompilationAnalysisContext context,
+        List<AdditionalText> skillFiles,
+        string? installed)
+    {
+        if (installed is null)
+        {
+            return;
+        }
+
+        foreach (var file in skillFiles)
+        {
+            var written = ReadGateSkillRevision(
+                file.GetText(context.CancellationToken),
+                out var lineIndex,
+                out var lineLength);
+
+            if (written is null || string.Equals(written, installed, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            context.ReportDiagnostic(Diagnostic.Create(
+                UsageDiagnostics.StaleGateSkill,
+                LineOf(file, lineIndex, lineLength),
+                written,
+                installed));
+        }
     }
 
     /// <summary>
@@ -414,11 +498,59 @@ public sealed class TraconUsageAnalyzer : DiagnosticAnalyzer
            && string.Equals(value, "true", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>The first line of an additional file, as a reportable location.</summary>
-    private static Location FirstLineOf(AdditionalText file, int length)
+    private static Location FirstLineOf(AdditionalText file, int length) => LineOf(file, lineIndex: 0, length);
+
+    /// <summary>
+    /// Reads the revision out of the gate skill's marker, which sits after the
+    /// file's front matter rather than on its first line.
+    /// </summary>
+    /// <remarks>
+    /// Reports the marker line's index and length whether or not one was found,
+    /// so the caller can point at it; with no marker the location falls back to
+    /// the first line, which is where a reader starts looking anyway.
+    /// </remarks>
+    private static string? ReadGateSkillRevision(SourceText? text, out int lineIndex, out int lineLength)
+    {
+        lineIndex = 0;
+        lineLength = 0;
+
+        if (text is null || text.Lines.Count == 0)
+        {
+            return null;
+        }
+
+        var bound = Math.Min(text.Lines.Count, GateSkillMarkerSearchLines);
+
+        for (var candidate = 0; candidate < bound; candidate++)
+        {
+            var line = text.Lines[candidate].ToString();
+            var start = line.IndexOf(GateSkillMarkerOpening, StringComparison.Ordinal);
+
+            if (start < 0)
+            {
+                continue;
+            }
+
+            lineIndex = candidate;
+            lineLength = line.Length;
+
+            start += GateSkillMarkerOpening.Length;
+            var end = line.IndexOf(' ', start);
+
+            return end > start ? line.Substring(start, end - start) : null;
+        }
+
+        lineLength = text.Lines[0].ToString().Length;
+
+        return null;
+    }
+
+    /// <summary>One line of an additional file, as a reportable location.</summary>
+    private static Location LineOf(AdditionalText file, int lineIndex, int length)
         => Location.Create(
             file.Path,
             new TextSpan(0, length),
-            new LinePositionSpan(new LinePosition(0, 0), new LinePosition(0, length)));
+            new LinePositionSpan(new LinePosition(lineIndex, 0), new LinePosition(lineIndex, length)));
 
     /// <summary>
     /// Reads the revision out of the generated marker on the first line, and

@@ -1,6 +1,6 @@
 ---
 title: Typed client and CLI
-description: Call the management API from a typed client, and apply migrations or check health without starting the application, using the tracon CLI.
+description: Call the management API from a typed client, and apply migrations, check health, or write the coding-agent gate skill without starting the application, using the tracon CLI.
 ---
 
 :::caution[Package availability]
@@ -17,11 +17,12 @@ a direct database connection before the host starts.
 ```mermaid
 flowchart LR
     accTitle: Two ways to reach a running Tracon instance
-    accDescr: A separate application references Tracon.Client directly over HTTP. The tracon CLI wraps that same client for its health command, and talks to the database directly for migrate, because the application has not started yet at that point.
+    accDescr: A separate application references Tracon.Client directly over HTTP. The tracon CLI wraps that same client for its health command, talks to the database directly for migrate, because the application has not started yet at that point, and writes one file into your repository for agent-skill.
     APP["Your application"] -->|"references"| CLIENT["Tracon.Client<br/>typed HTTP client"]
     CLIENT -->|"HTTP: /api/*"| SERVER["Running Tracon instance"]
     CLI["tracon CLI<br/>health / eval"] -->|"uses"| CLIENT
     CLI2["tracon CLI<br/>migrate / migrate status"] -.->|"direct connection<br/>no HTTP"| DB[("Database")]
+    CLI3["tracon CLI<br/>agent-skill"] -.->|"writes one file"| FS["Your repository"]
 ```
 
 ## The typed client
@@ -98,11 +99,22 @@ tracon --help
 | `tracon state-check --provider <postgres\|sqlserver\|sqlite> --connection <connection-string> [--sample <n>] [--json]` | Database, directly | Reports whether this build can read the session and workflow checkpoint state already in the database. Writes nothing |
 | `tracon health --url <base-url> [--token <token>] [--json]` | HTTP, through the typed client | Reads model provider health |
 | `tracon eval --url <base-url> --suite <name> [--token <token>] [--agent-version <n>] [--min-pass-rate <0..1>] [--max-failures <n>] [--baseline <runId\|previous>] [--max-regressions <n>] [--timeout <seconds>] [--poll-interval <seconds>] [--json]` | HTTP, through the typed client | Triggers a suite, polls it to completion, applies an optional quality gate — absolute, relative to an earlier run, or both |
+| `tracon agent-skill [--format claude] [--output <directory>] [--force] [--json]` | The local file system | Writes the gate skill a coding agent's harness loads before it writes Tracon code. The only command that changes your working tree, and the only one that reaches neither the database nor HTTP |
 
 `--connection` and `--token` also accept the `TRACON_CONNECTION` and
 `TRACON_TOKEN` environment variables — useful in a CI/CD step where a literal
 secret on the command line would show up in shell history and process listings.
 Neither is ever read from a configuration file, and neither is ever printed back.
+
+`agent-skill` is the odd one out: it neither connects nor listens. It writes one
+file, `.claude/skills/tracon/SKILL.md`, under `--output` (default: the root of
+the repository you are in, which is where the build looks for it), and leaves an
+existing file untouched unless `--force` is given —
+you may have edited it. Exit `0` covers both writing it and deliberately leaving
+it alone, and the command says which it did. The file carries the capability map
+revision the tool was built from, and your project's build reports a mismatch as
+`TRC0403`. The [coding agents guide](/guides/coding-agents/#the-gate-skill-speaks-first)
+explains what the file is for and which harnesses were measured to load it.
 
 `migrate` talks to the database directly instead of over HTTP because the moment
 it matters most is before the application has ever started — there is no endpoint
@@ -213,9 +225,11 @@ the wrong move. `4` is a third thing again — the baseline's per-case results
 have aged out of retention, it never completed, or it measures another suite.
 Folding it into `3` would send someone hunting for a regression that was never
 measured. `migrate`, `migrate status`, and `health` never return `3` or `4`;
-`state-check` never returns `4`.
+`state-check` never returns `4`. `agent-skill` returns only `0`, `1`, or `2`,
+where `2` means the file could not be written.
 
 ## Read next
 
 - [Persistence](/getting-started/persistence/) — what a migration actually does to the schema
 - [Every public type](/api/) — the full generated client surface
+- [Coding agents](/guides/coding-agents/) — what `agent-skill` writes, and why

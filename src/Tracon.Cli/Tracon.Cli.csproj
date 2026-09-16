@@ -10,8 +10,8 @@
     <TargetFramework>net10.0</TargetFramework>
     <TargetFrameworks></TargetFrameworks>
     <OutputType>Exe</OutputType>
-    <Description>The `tracon` global tool: applies pending migrations as a separate deployment step (`migrate`, `migrate status`), reports read-only whether this build can still read the stored state before an upgrade (`state-check`), reads the health endpoint through Tracon.Client (`health`), and runs an eval suite as a CI quality gate (`eval`).</Description>
-    <PackageTags>$(CommonPackageTags);cli;tool;migrate;eval;upgrade</PackageTags>
+    <Description>The `tracon` global tool: applies pending migrations as a separate deployment step (`migrate`, `migrate status`), reports read-only whether this build can still read the stored state before an upgrade (`state-check`), reads the health endpoint through Tracon.Client (`health`), runs an eval suite as a CI quality gate (`eval`), and writes the gate skill a coding agent loads before it touches a Tracon surface (`agent-skill`).</Description>
+    <PackageTags>$(CommonPackageTags);cli;tool;migrate;eval;upgrade;agents</PackageTags>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>tracon</ToolCommandName>
     <!-- A dotnet tool ships an executable, not a library API - no public surface to track. -->
@@ -20,6 +20,17 @@
     <TraconAotCompatible>false</TraconAotCompatible>
     <RootNamespace>Tracon.Cli</RootNamespace>
   </PropertyGroup>
+
+  <!--
+    The capability map, embedded so `agent-skill` can stamp what it writes with
+    the revision it was built from. The tool is installed on its own, with no
+    package beside it to read the map from, and a stamp is the only thing that
+    lets the consumer's build report the file as out of date.
+  -->
+  <ItemGroup>
+    <EmbeddedResource Include="../Tracon.Core/buildTransitive/Tracon.AgentMap.md"
+                      LogicalName="Tracon.Cli.Tracon.AgentMap.md" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="../Tracon.Client/Tracon.Client.csproj" />
