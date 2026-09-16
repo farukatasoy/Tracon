@@ -1043,7 +1043,8 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/sessions/hic-boyle-bir-oturum" -H 
 ```
 
 **Beklenen sonuç**
-- `HTTP: 404`, `title: "Oturum bulunamadi"`.
+- `HTTP: 404`, `title: "Session not found"` (İngilizce, K-228 — koşumda
+  düzeltildi).
 
 ---
 
@@ -1111,7 +1112,8 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/sessions/api-branch-01/bra
 ```
 
 **Beklenen sonuç**
-- `HTTP: 501`, `title: "Dallandirma desteklenmiyor"`.
+- `HTTP: 501`, `title: "Branching not supported"` (İngilizce, K-228 —
+  koşumda düzeltildi).
 
 ---
 
@@ -1143,7 +1145,8 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/sessions/hic-boyle-bir-otu
 - `HTTP: 501` (bellek içi depoda dallandırma zaten desteklenmediği için) VEYA
   `HTTP: 404` (oturum yoksa önce bu kontrol edilir) — koşum hangisinin
   gerçekleştiğini kaydeder; `ConversationBranchService.BranchAsync`'in dahili
-  sırası bu dosyanın kaynak kapsamı dışındadır.
+  sırası bu dosyanın kaynak kapsamı dışındadır. **Koşum sonucu: `501`** —
+  depo türü kontrolü oturum varlığından önce yapılıyor.
 
 ### MT-API-060 — `GET /api/runs` varsayılan olarak yalnız kök çalıştırmaları döner
 
@@ -1457,8 +1460,8 @@ curl -s -D - -o /dev/null -w "\nHTTP: %{http_code}\n" "$APU/api/agents" -H "Auth
 
 **Beklenen sonuç**
 - İki istek de `HTTP: 401` döner, `WWW-Authenticate: Bearer` başlığı taşır.
-- `title: "Kimlik dogrulanamadi"`, `detail` beklenen token hakkında **hiçbir
-  bilgi vermez**.
+- `title: "Authentication failed"` (İngilizce, K-228 — koşumda düzeltildi),
+  `detail` beklenen token hakkında **hiçbir bilgi vermez**.
 
 ---
 

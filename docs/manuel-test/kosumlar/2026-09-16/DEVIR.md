@@ -3,8 +3,9 @@
 > **Bu turu devralan oturum ÖNCE burayı okur.** Turun durumu, değişmez
 > kuralları, ortamı ve sıradaki işi taşır.
 >
-> **Durum:** Aşama 1 sürüyor · **dosya 01, 02, 03 ve 05 KAPANDI** (268 case) · kod `7e3a4de7`'de donuk
-> **Son güncelleme:** 2026-09-16 (oturum 11)
+> **Durum:** 🎉 **Aşama 1 (Faz A zinciri) BİTTİ** — dosya 01, 02, 03, 05 ve 07
+> KAPANDI (311 case) · kod `7e3a4de7`'de donuk · sıradaki iş **Faz B**
+> **Son güncelleme:** 2026-09-16 (oturum 12)
 
 ---
 
@@ -24,16 +25,18 @@
 
 ## 2. Nerede duruyoruz
 
-Aşama 0 (tazeleme) bitti. Tur açıldı ve zincirin **ilk dört ailesi kapandı**
-(`01-KURULUM-VE-PAKETLEME.md` 81 case · `02-CEKIRDEK-VE-KATALOG.md` 97 case ·
-`03-KALICILIK-POSTGRESQL.md` 50 case · `05-SAGLAYICI-OPENAI.md` 40 case) —
-toplam **268 case**. Zincirde tek aile kaldı: `07`.
+Aşama 0 (tazeleme) bitti. **Faz A zinciri tamamlandı** — `01 → 02 → 03 → 05 →
+07` beşi de yeşil (`01-KURULUM-VE-PAKETLEME.md` 81 case ·
+`02-CEKIRDEK-VE-KATALOG.md` 97 case · `03-KALICILIK-POSTGRESQL.md` 50 case ·
+`05-SAGLAYICI-OPENAI.md` 40 case · `07-HTTP-YONETIM-API.md` 43 case) —
+toplam **311 case**. Sıradaki iş **Faz B**: kalan 31 aile, 4 şerit paralel.
 
 ```mermaid
 flowchart LR
-    A["Asama 0 - Tazeleme<br/>BITTI"] --> B["Asama 1 - Tur<br/>SURUYOR - 4/36 aile"]
-    B --> C["Asama 2 - Kapanis<br/>beklemede"]
-    C --> D["YAYIN-HAZIRLIK<br/>Adim 2 -> 10"]
+    A["Asama 0 - Tazeleme<br/>BITTI"] --> B["Faz A - Zincir<br/>BITTI - 5/5 aile"]
+    B --> C["Faz B - 4 serit paralel<br/>SIRADAKI"]
+    C --> D["Asama 2 - Kapanis<br/>beklemede"]
+    D --> E["YAYIN-HAZIRLIK<br/>Adim 2 -> 10"]
 ```
 
 | Dosya | Geçti | Kaldı | Beklemede | Atlandı |
@@ -42,7 +45,8 @@ flowchart LR
 | `02-CEKIRDEK-VE-KATALOG.md` | 92 | 4 | 1 | — |
 | `03-KALICILIK-POSTGRESQL.md` | 47 | 2 | 1 | — |
 | `05-SAGLAYICI-OPENAI.md` | 38 | 1 | — | 1 |
-| **toplam** | **249** | **11** | **7** | **1** |
+| `07-HTTP-YONETIM-API.md` | 43 | — | — | — |
+| **toplam** | **292** | **11** | **7** | **1** |
 
 > ⚠️ **Dosya 03'ün satırı düzeltildi (oturum 10).** Tablo "48 · 1" diyordu ve
 > `MT-PG-025`'i atlıyordu — o case oturum 8'de `Kaldı` işaretlenmiş,
@@ -54,8 +58,11 @@ başındadır** ve oturum oturum birikir.
 
 🚨 **Açık bulgular:** `HATA-S1-001..005` · `HATA-S1-007` (yayın hattını
 bloklar — aşağıda) · `HATA-S1-008..014` (dosya 02) · `HATA-S1-015..019`
-(dosya 03) · `HATA-S1-020` (dosya 05). Hepsi ilgili kayıt dosyasındadır.
-`HATA-S1-006` yanlış pozitif çıktı ve kapandı.
+(dosya 03) · `HATA-S1-020` (dosya 05, dosya 07'de MT-API-040/041/042
+tarafından aynı kök nedenle bir kez daha doğrulandı — yeni kayıt açılmadı).
+Hepsi ilgili kayıt dosyasındadır. `HATA-S1-006` yanlış pozitif çıktı ve kapandı.
+Dosya 07 **hiç yeni kusur bulmadı** — 43/43 case geçti, yalnız stale spec
+metni düzeltmeleri yapıldı.
 
 🚨 **`HATA-S1-019` bu turun en ağır bulgusudur (Yüksek).** `UsePostgreSql`
 tüketicinin store kaydını `Replace` ile **sessizce** eziyor —
@@ -151,30 +158,24 @@ docker ps --format '{{.Names}}\t{{.Status}}'          # ap-pg + ap-mssql Up
 
 ## 5. Sıradaki iş
 
-### Faz A — zincir, TEK şerit, sırayla
+### Faz A — zincir, TEK şerit, sırayla — 🎉 BİTTİ
 
-`01 → 02 → 03 → 05 → 07` bir **kapıdır**, iş yükü değil. Kırılırsa sonraki
-hiçbir ailenin sonucu okunmaz. Paralel şeritler ancak beşi yeşil bitince açılır.
+`01 → 02 → 03 → 05 → 07` bir **kapıydı**, iş yükü değil. Beşi de yeşil
+bitti; Faz B artık açık.
 
-| Sıra | Aile | case | oturum |
-|---|---|---|---|
-| 1 | `01-KURULUM-VE-PAKETLEME.md` | 81 | 3 |
-| 2 | `02-CEKIRDEK-VE-KATALOG.md` | 97 | 4 |
-| 3 | `03-KALICILIK-POSTGRESQL.md` | 50 | 2 |
-| 4 | `05-SAGLAYICI-OPENAI.md` | 40 | 2 |
-| 5 | `07-HTTP-YONETIM-API.md` | 43 | 2 |
+| Sıra | Aile | case | oturum | Durum |
+|---|---|---|---|---|
+| 1 | `01-KURULUM-VE-PAKETLEME.md` | 81 | 3 | ✅ 81/81 |
+| 2 | `02-CEKIRDEK-VE-KATALOG.md` | 97 | 4 | ✅ 97/97 |
+| 3 | `03-KALICILIK-POSTGRESQL.md` | 50 | 2 | ✅ 50/50 |
+| 4 | `05-SAGLAYICI-OPENAI.md` | 40 | 2 | ✅ 40/40 |
+| 5 | `07-HTTP-YONETIM-API.md` | 43 | 2 (koşuldu: 1) | ✅ 43/43 |
 
-**Sıradaki oturumun işi:** `ap-s1`'de **`07-HTTP-YONETIM-API.md`** (43 case,
-2 oturum) — zincirin **son** ailesi. Dosya 05 kapandı; ona dönme. Ortam notları
-o dosyanın **devir notundadır**; önce onu oku.
-
-| Aile | Durum |
-|---|---|
-| `01-KURULUM-VE-PAKETLEME.md` | ✅ 81/81 |
-| `02-CEKIRDEK-VE-KATALOG.md` | ✅ 97/97 |
-| `03-KALICILIK-POSTGRESQL.md` | ✅ 50/50 |
-| `05-SAGLAYICI-OPENAI.md` | ✅ 40/40 |
-| `07-HTTP-YONETIM-API.md` | ⬜ 43 case · 2 oturum · **SIRADAKİ — zincirin sonu** |
+**Sıradaki oturumun işi:** **Faz B'yi aç.** Dört worktree zaten hazır
+(`ap-s1..4`, dallar `test/kosum-s1..4`, Release derlemesi tamam). Şerit
+dağılımı aşağıdaki §Faz B tablosundadır. Her şerit kendi ilk ailesiyle
+(`ap-s1`→13, `ap-s2`→36, `ap-s3`→32, `ap-s4`→31) bağımsız başlayabilir —
+artık aralarında sıra bağımlılığı yok.
 
 🚨 **Container durdurmak isteyen her case için tarif hazır (oturum 9'da
 kanıtlandı).** Paylaşılan container'a dokunma; erişilemezliği **şerit-yerel bir

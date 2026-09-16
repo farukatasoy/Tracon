@@ -30,15 +30,39 @@ GET /api/meta -> version 0.0.0-preview.0.789, storage.persistent=false,
 
 ## Devir notu
 
-**Oturum 12 tamamlandı — CRUD bloğu (001-015) bitti.** Aşağıda kayıtlı.
-Sıradaki oturum MT-API-020'den (validate bloğu) devam eder.
+**🎉 DOSYA 07 KAPANDI — 43/43 case koşuldu** (oturum 12: tamamı tek
+oturumda — CLI bütçesi ~40, dosya 07 43 case ama tamamı basit `curl`
+olduğundan tek oturumda bitti). Dosya sonucu: **43 ☑ Geçti · 0 ☑ Kaldı ·
+0 ⏭ Atlandı**. Sayım skill §7 betiğiyle alındı, elle yazılmadı.
 
-🚨 **Dosya 07'nin `Beklenen sonuç` metinleri sistematik olarak bayat** —
-dosya 05'teki aynı desen (K-228). Tüm case'lerde ürünün ürettiği `title`/`detail`
-İngilizce, spec Türkçe yazıyordu. Fark tespit edildiğinde spec bu koşumda
-düzeltildi (kural 1 istisnası), gerekçe her case'in `Gerçek sonuç`'una
-yazıldı. **Sıradaki case'lerde de aynı beklentiyle git** — Türkçe bekleyen her
-satır şüphelidir.
+**🎉 ZİNCİR TAMAMLANDI (Faz A bitti).** `01 → 02 → 03 → 05 → 07` beşi de
+yeşil. Toplam **311 case** koşuldu (268 + 43). Sıradaki iş **Faz B'nin
+açılması** — dört şerit paralel, `00-KOSUM-PLANI.md` §3.1 dağılımı.
+
+🚨 **Dosya 07'nin `Beklenen sonuç` metinleri sistematik olarak bayat çıktı** —
+dosya 05'teki aynı desen (K-228). Neredeyse her case'te ürünün ürettiği
+`title`/`detail` İngilizce, spec Türkçe yazıyordu. Fark tespit edildiğinde
+spec bu koşumda düzeltildi (kural 1 istisnası), gerekçe her case'in
+`Gerçek sonuç`'una yazıldı. **20+ satır düzeltildi** — tam liste aşağıdaki
+case kayıtlarında.
+
+**Yeni bulgular / çözülen belirsizlikler:**
+- **MT-API-040/041/042** dosya 05'te açılmış `HATA-S1-020`'nin (sağlayıcı
+  hata sınıflandırıcısı `upstream_error`'ı tanımıyor, her hata `Unknown`'a
+  düşüyor) aynı kök nedenini bir kez daha doğruladı — yeni kayıt açılmadı,
+  mevcut bulguya çapraz referans verildi.
+- **MT-API-054 açık soruyu çözdü:** bellek içi depoda dallandırma kontrolü
+  (`501`) oturum varlığı kontrolünden (`404`) **önce** çalışıyor — var olmayan
+  bir oturum için de `501` görülüyor.
+- **MT-API-064** `Tracon:RunRecording:RecordRunInput` ayarı için uygulama iki
+  kez yeniden başlatıldı (kapalı → test → varsayılana dönüş); ortam değişkeni
+  kullanıldı, `user-secrets`'a yazılmadı.
+- **/run varsayılan olarak (Idempotency-Key yokken) SSE akışı döner** —
+  dosya 02'nin notuyla tutarlı; `<scratch>/sse.py` ile ayrıştırıldı.
+
+**Sonraki oturumun işi:** Aşama 1 bitti. `docs/manuel-test/kosumlar/2026-09-16/DEVIR.md`'yi
+güncelle ve Faz B'yi aç (dört worktree zaten hazır: `ap-s1..4`, dallar
+`test/kosum-s1..4`). Şerit dağılımı `00-KOSUM-PLANI.md` §3.1'dedir.
 
 ---
 
@@ -278,6 +302,164 @@ Pencereleme mekanizmasının kendisi (`hours` parametresinin okunduğu) ayrıca
 Beş sayacın toplamı (`0+2+0+0+0=2`) `totalRuns`'a **eşit** — kod-doğrulanmamış
 şüphe bu koşumda ampirik olarak doğrulandı. `byAgent` içinde
 `manuel-hata-sinifi-testi` girdisi var, `byErrorClass` MT-API-040 ile tutarlı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-API-050 — `GET /api/sessions` sayfalama parametreleri `[1, 200]` aralığına kırpılır
+
+**Gerçek sonuç**
+`take=0` → `1` kayıt (kırpıldı). `take=99999` → `HTTP: 200` (çökmedi).
+`skip=-5` → `HTTP: 200` (çökmedi). Üç istekte de `500` görülmedi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-API-051 — Var olmayan oturum `404` döner
+
+**Gerçek sonuç**
+`HTTP: 404`, `title: "Session not found"` (İngilizce, K-228 — spec
+düzeltildi).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-API-052 — Oturum silinir, tekrar okunduğunda `404` döner
+
+**Gerçek sonuç**
+Birinci silme: `HTTP: 204`. Okuma: `HTTP: 404`. İkinci silme: `HTTP: 404`
+(zaten silinmiş, idempotent "başarı" değil).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-API-053 — Bellek içi depoda `POST /api/sessions/{id}/branch` `501` döner
+
+**Gerçek sonuç**
+`HTTP: 501`, `title: "Branching not supported"` (İngilizce, K-228 — spec
+düzeltildi). `detail` bellek içi kısıtı açıkça anlatıyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-API-054 — Var olmayan bir oturumu dallandırmak `404` döner
+
+**Gerçek sonuç**
+`HTTP: 501` (aynı `title: "Branching not supported"`) — spec'in açık bıraktığı
+sıra sorusu çözüldü: **depo türü kontrolü oturum varlığından önce** yapılıyor,
+oturum hiç var olmayan bir id ile de olsa önce `501` görülüyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-API-060 — `GET /api/runs` varsayılan olarak yalnız kök çalıştırmaları döner
+
+**Gerçek sonuç**
+`router` çalıştırması gerçekten `support`'u çağırdı (birleşik SSE metni: "ORD-1001
+siparişiniz kargoya verilmiş..."). `includeChildren` olmadan `1` satır (yalnız
+kök, `agentName: router`). `includeChildren=true` ile `2` satır (`router`
+kök + `support` alt çalıştırması, `parentRunId` kökü gösteriyor).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-API-061 — Var olmayan `runId` her uçta `404` döner
+
+**Gerçek sonuç**
+Üçü de (`get`, `tree`, `events`) `HTTP: 404`, `title: "Run not found"`
+(İngilizce — spec zaten yalnız durum kodunu iddia ediyordu).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-API-062 — `GET /api/runs/{id}/tree` kökten tam ağacı döner (alt çalıştırmadan sorulsa bile)
+
+**Gerçek sonuç**
+`support` alt çalıştırmasının `runId`'siyle sorgulanan `/tree` de `2` satır
+döndü (kök + kendisi) — ağaç her zaman kökünden çekiliyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-API-063 — `Last-Event-ID` ile akış kaldığı sıradan devam eder, tekrar göndermez
+
+**Gerçek sonuç**
+`Last-Event-ID: 1` ile istendiğinde ilk gönderilen olayın `id:` alanı **`2`**
+(`message.delta`) — `0` ve `1` tekrar gönderilmedi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-API-064 — Girdi kaydı kapalıyken `GET /api/runs/{id}/input` `404` döner
+
+**Gerçek sonuç**
+`Tracon__RunRecording__RecordRunInput=false` ortam değişkeniyle uygulama
+yeniden başlatıldı (skill §1.2 — `user-secrets` yerine ortam değişkeni).
+Çalıştırma sonrası `GET /api/runs/{id}` `HTTP: 200` (çalıştırmanın kendisi
+var), `GET /api/runs/{id}/input` `HTTP: 404`, `title: "No recorded input"`
+(İngilizce, K-228). Test sonrası uygulama varsayılan ayarla (girdi kaydı
+açık) yeniden başlatıldı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-API-065 — `GET /api/runs` sayfalama parametreleri `[1, 200]` aralığına kırpılır
+
+**Gerçek sonuç**
+`take=0` → `1` kayıt. `take=99999` → `HTTP: 200`, çökmedi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-API-070 — `GET /api/tools` kayıtlı tool'ları JSON şemalarıyla listeler
+
+**Gerçek sonuç**
+10 tool listelendi: `cancel_order`, `estimate_shipping_cost`,
+`get_order_status`, `get_slow_report`, `list_recent_orders`, `list_voices`,
+`mark_preview_ready`, `read_shopping_cart`, `speak`, `transcribe`. İstenen
+üçü (`get_order_status`, `list_recent_orders`, `cancel_order`) var. Her
+girdi `jsonSchema` alanı taşıyor (spec'in "`parameters` veya eşdeğer alan"
+beklentisi — gerçek alan adı `jsonSchema`).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-API-071 — `GET /api/models`'in `status` alanı önbellekten gelir, ağ çağrısı yapmaz
+
+**Gerçek sonuç**
+Yanıt süresi `0.007s` (7 ms) — gerçek ağ çağrısından belirgin şekilde kısa.
+5 sağlayıcı (`anthropic`, `google`, `openai`, `openai-responses`,
+`openrouter`), hepsinin `status` alanı `Unknown` (sağlık denetimi hiç
+çalıştırılmamıştı — temiz durum).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-API-080 — `/api/meta` kimlik doğrulamasız erişilebilir, sır içermez
+
+**Gerçek sonuç**
+`Authorization` başlığı olmadan `HTTP: 200`. Gövde `version`, `prefix`,
+`authentication` (`allowRemoteAccess`, `requiresBearerToken`,
+`requiresAuthorizationPolicy`), `storage` (`persistent`,
+`agentDefinitionStore`, `runStore`, `sessionStore`, `jobStore`,
+`jobWorkerEnabled`), `roles` (`canRead`, `canOperate`, `canAdminister`)
+alanlarını taşıyor. Hiçbir alanda `ApiKey`, bağlantı dizesi veya agent adı
+geçmiyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-API-090 — Token yokken korunan bir uç `401` döner, `WWW-Authenticate: Bearer` taşır
+
+**Gerçek sonuç**
+İki istek de (`Authorization` yok / yanlış token) `HTTP: 401`,
+`WWW-Authenticate: Bearer` başlığı var. `title: "Authentication failed"`
+(İngilizce, K-228 — spec düzeltildi), `detail: "A valid 'Authorization:
+Bearer <token>' header is required."` — beklenen token hakkında hiçbir bilgi
+vermiyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-API-091 — Doğru token ile korunan uç normal çalışır
+
+**Gerçek sonuç**
+`HTTP: 200` — MT-API-090'ın olumsuz sonucunun yalnız token eksikliğinden
+geldiği doğrulandı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-API-100 — Farklı hatalar aynı `ProblemDetails` zarfını taşır
+
+**Gerçek sonuç**
+`content-type: application/problem+json` (RFC 7807). Gövde `type`, `title`,
+`status`, `detail` alanlarını taşıyor; `status: 404` HTTP koduyla aynı.
+`title: "Agent not found"` — kısa, sabit; değişken veri (agent adı) yalnız
+`detail`'de, `title`'a sızmıyor.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
