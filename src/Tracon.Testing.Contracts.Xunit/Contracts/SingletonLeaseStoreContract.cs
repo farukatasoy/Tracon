@@ -13,38 +13,43 @@ namespace Tracon.Testing.Contracts.Storage;
 /// </para>
 /// <para>
 /// There is no tenant concept here: single-executor election is a
-/// deployment-wide concern. This is why the contract derives directly from
-/// <see cref="IAsyncLifetime"/> rather than from
+/// deployment-wide concern. This is why the contract derives from
+/// <see cref="StoreCancellationContract{TStore}"/> rather than from
 /// <see cref="TenantIsolationContract{TStore}"/> -- the same pattern as
 /// <c>RetentionStoreContract</c>.
 /// </para>
 /// </remarks>
-public abstract class SingletonLeaseStoreContract : IAsyncLifetime
+public abstract class SingletonLeaseStoreContract : StoreCancellationContract<ISingletonLeaseStore>
 {
-    /// <summary>The lease store under test.</summary>
-    protected ISingletonLeaseStore Store { get; private set; } = null!;
+    private static readonly TimeSpan LeaseDuration = TimeSpan.FromMinutes(5);
 
-    /// <summary>Produces an empty lease store for the test.</summary>
-    /// <returns>A store ready for use.</returns>
-    protected abstract ValueTask<ISingletonLeaseStore> CreateStoreAsync();
-
-    /// <inheritdoc />
-    public async ValueTask InitializeAsync() => Store = await CreateStoreAsync();
-
-    /// <inheritdoc />
-    public async ValueTask DisposeAsync()
-    {
-        await OnDisposeAsync();
-        GC.SuppressFinalize(this);
-    }
-
-    /// <summary>Hook for a derived class to release its own resources.</summary>
-    /// <returns>A completed task.</returns>
-    protected virtual ValueTask OnDisposeAsync() => default;
+    /// <summary>The lease the cancellation contract tries to acquire.</summary>
+    private readonly string _cancellationLease = Lease();
 
     private static string Lease() => $"lease-{Guid.NewGuid():N}";
 
     private static string Owner() => $"owner-{Guid.NewGuid():N}";
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// A lease store has no pure query. Renewing a lease nobody holds is the
+    /// closest thing to one: it reports <see langword="false"/> and writes
+    /// nothing.
+    /// </remarks>
+    protected override async ValueTask CancellableReadAsync(CancellationToken cancellationToken)
+        => await Store.RenewAsync(Lease(), Owner(), LeaseDuration, cancellationToken);
+
+    /// <inheritdoc />
+    protected override async ValueTask CancellableWriteAsync(CancellationToken cancellationToken)
+        => await Store.TryAcquireAsync(_cancellationLease, Owner(), LeaseDuration, cancellationToken);
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// A <em>different</em> owner asks for the same lease. It can only take
+    /// it if the cancelled call left no row behind.
+    /// </remarks>
+    protected override async ValueTask<bool> WroteAnythingAsync()
+        => !await Store.TryAcquireAsync(_cancellationLease, Owner(), LeaseDuration, CancellationToken.None);
 
     [Fact]
     public async Task Empty_lease_can_be_acquired()

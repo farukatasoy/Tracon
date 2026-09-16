@@ -19,11 +19,11 @@ public abstract class RunScoreStoreContract : TenantIsolationContract<IRunScoreS
     /// Two tenants use the same run id: if isolation leaked, tenant B would
     /// see tenant A's score.
     /// </remarks>
-    protected override async ValueTask<object> SeedAsync(string tenantId, string name)
+    protected override async ValueTask<object> SeedAsync(string tenantId, string name, CancellationToken cancellationToken)
     {
         // `name` is the actor name here, not the score name: the isolation
         // contract varies the author so two tenants' rows stay distinct.
-        var saved = await Store.UpsertAsync(Score(IsolationRunId) with { TenantId = tenantId, Author = name });
+        var saved = await Store.UpsertAsync(Score(IsolationRunId) with { TenantId = tenantId, Author = name }, cancellationToken);
         return saved.Id;
     }
 
@@ -32,8 +32,8 @@ public abstract class RunScoreStoreContract : TenantIsolationContract<IRunScoreS
         => (await Store.ListAsync(tenantId, IsolationRunId)).Any(score => score.Id == (Guid)key);
 
     /// <inheritdoc />
-    protected override async ValueTask<int> CountAsync(string tenantId)
-        => (await Store.ListAsync(tenantId, IsolationRunId)).Count;
+    protected override async ValueTask<int> CountAsync(string tenantId, CancellationToken cancellationToken)
+        => (await Store.ListAsync(tenantId, IsolationRunId, cancellationToken)).Count;
 
     /// <inheritdoc />
     protected override async ValueTask<bool?> TryDeleteAsync(string tenantId, object key)
@@ -772,16 +772,6 @@ public abstract class RunScoreStoreContract : TenantIsolationContract<IRunScoreS
         var expectedSecondBucket = RunScoreBucketing.Truncate(weekThreeMonday, RunScoreBucket.Week);
         summary.Series.Single(bucket => bucket.BucketStart == expectedSecondBucket)
             .Groups.ShouldHaveSingleItem().Count.ShouldBe(1);
-    }
-
-    [Fact]
-    public async Task Canceled_token_throws()
-    {
-        using var source = new CancellationTokenSource();
-        await source.CancelAsync();
-
-        await Should.ThrowAsync<OperationCanceledException>(async () =>
-            await Store.SummarizeAsync(new RunScoreQuery { TenantId = UniqueTenant() }, source.Token));
     }
 
     [Fact]

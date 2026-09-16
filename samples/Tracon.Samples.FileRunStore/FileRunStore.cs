@@ -89,6 +89,7 @@ public sealed class JsonFileRunStore : IRunStore
     public ValueTask<RunRecord> StartRunAsync(RunStartInfo info, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(info);
+        cancellationToken.ThrowIfCancellationRequested();
 
         lock (_gate)
         {
@@ -149,6 +150,7 @@ public sealed class JsonFileRunStore : IRunStore
     public ValueTask AppendEventAsync(RunEvent runEvent, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(runEvent);
+        cancellationToken.ThrowIfCancellationRequested();
 
         lock (_gate)
         {
@@ -182,6 +184,7 @@ public sealed class JsonFileRunStore : IRunStore
     public ValueTask CompleteRunAsync(RunCompletion completion, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(completion);
+        cancellationToken.ThrowIfCancellationRequested();
 
         lock (_gate)
         {
@@ -221,6 +224,8 @@ public sealed class JsonFileRunStore : IRunStore
         string? tenantId = null,
         CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         lock (_gate)
         {
             if (_runs.TryGetValue(runId, out var existing))
@@ -245,6 +250,7 @@ public sealed class JsonFileRunStore : IRunStore
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(runIds);
+        cancellationToken.ThrowIfCancellationRequested();
 
         lock (_gate)
         {
@@ -270,6 +276,8 @@ public sealed class JsonFileRunStore : IRunStore
         int max,
         CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         lock (_gate)
         {
             var now = DateTimeOffset.UtcNow;
@@ -332,6 +340,8 @@ public sealed class JsonFileRunStore : IRunStore
     /// <inheritdoc />
     public ValueTask<RunRecord?> GetRunAsync(Guid runId, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         lock (_gate)
         {
             var record = TryGetOwnedRun(runId);
@@ -343,6 +353,7 @@ public sealed class JsonFileRunStore : IRunStore
     public ValueTask<IReadOnlyList<RunRecord>> QueryRunsAsync(RunQuery query, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(query);
+        cancellationToken.ThrowIfCancellationRequested();
 
         lock (_gate)
         {
@@ -443,6 +454,8 @@ public sealed class JsonFileRunStore : IRunStore
         long fromSequence = 0,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         RunEvent[] snapshot;
 
         lock (_gate)
@@ -475,6 +488,7 @@ public sealed class JsonFileRunStore : IRunStore
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(invocation);
+        cancellationToken.ThrowIfCancellationRequested();
 
         lock (_gate)
         {
@@ -495,6 +509,8 @@ public sealed class JsonFileRunStore : IRunStore
         Guid runId,
         CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         lock (_gate)
         {
             if (TryGetOwnedRun(runId) is null || !_toolInvocations.TryGetValue(runId, out var log))
@@ -513,6 +529,7 @@ public sealed class JsonFileRunStore : IRunStore
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(query);
+        cancellationToken.ThrowIfCancellationRequested();
 
         lock (_gate)
         {
@@ -553,6 +570,7 @@ public sealed class JsonFileRunStore : IRunStore
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(query);
+        cancellationToken.ThrowIfCancellationRequested();
 
         List<RunRecord> runs;
 
@@ -851,6 +869,7 @@ public sealed class JsonFileRunStore : IRunStore
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(query);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var tenantId = query.TenantId ?? _tenantContext.TenantId;
         List<RunRecord> runs;
@@ -902,6 +921,7 @@ public sealed class JsonFileRunStore : IRunStore
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(query);
+        cancellationToken.ThrowIfCancellationRequested();
 
         RunTimeSeriesBucketing.Validate(query.From, query.To, query.Bucket);
 

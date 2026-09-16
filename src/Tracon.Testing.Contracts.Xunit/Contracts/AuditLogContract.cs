@@ -19,10 +19,10 @@ public abstract class AuditLogContract : TenantIsolationContract<IAuditLog>
     /// query filters by <see cref="AuditQuery.TenantId"/>; it is not read
     /// from the tenant context.
     /// </remarks>
-    protected override async ValueTask<object> SeedAsync(string tenantId, string name)
+    protected override async ValueTask<object> SeedAsync(string tenantId, string name, CancellationToken cancellationToken)
     {
         var entry = Entry(tenantId, action: "agent.update", entity: name);
-        await Log.WriteAsync(entry);
+        await Log.WriteAsync(entry, cancellationToken);
         return entry.Id;
     }
 
@@ -34,8 +34,8 @@ public abstract class AuditLogContract : TenantIsolationContract<IAuditLog>
     }
 
     /// <inheritdoc />
-    protected override async ValueTask<int> CountAsync(string tenantId)
-        => (await Log.QueryAsync(new AuditQuery { TenantId = tenantId })).Count;
+    protected override async ValueTask<int> CountAsync(string tenantId, CancellationToken cancellationToken)
+        => (await Log.QueryAsync(new AuditQuery { TenantId = tenantId }, cancellationToken)).Count;
 
     [Fact]
     public async Task Written_entry_round_trips()

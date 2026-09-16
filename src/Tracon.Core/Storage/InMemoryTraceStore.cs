@@ -38,6 +38,7 @@ internal sealed class InMemoryTraceStore : ITraceStore
     public ValueTask WriteSpansAsync(TraceSpanBatch batch, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(batch);
+        cancellationToken.ThrowIfCancellationRequested();
 
         if (batch.Spans.Count == 0)
         {
@@ -64,6 +65,8 @@ internal sealed class InMemoryTraceStore : ITraceStore
     /// <inheritdoc />
     public ValueTask<RunTrace?> GetTraceByRunAsync(Guid runId, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         if (_traceIdByRun.TryGetValue(runId, out var traceId)
             && _byTraceId.TryGetValue(traceId, out var trace)
             && string.Equals(trace.TenantId, _tenantContext.TenantId, StringComparison.Ordinal))

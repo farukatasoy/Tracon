@@ -2104,3 +2104,76 @@ bu case'ler örnek uygulamada elle gözlem içindir.
   kez daha çağrılmaz; `run` normal tamamlanır ve olaylar depoya yazılır.
 
 **Otomatik karşılığı:** `FailureManifests.SlowSinkTests`
+
+---
+
+### MT-RES-091 — İptal edilmiş token store sözleşmesinin DÖRT koşumunda da fırlatır (Faz 177)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 177 |
+| **İlgili karar** | — |
+| **Regresyon** | Hayır |
+
+**Ön koşul**
+- Dört koşumun hepsi ayakta: bellek içi kurulum + PostgreSQL + SQL Server +
+  SQLite container'ları (§2.2).
+
+**Adımlar**
+1. Dört test projesini sırayla koş:
+   `tests/Tracon.Core.UnitTests`, `tests/Tracon.PostgreSql.IntegrationTests`,
+   `tests/Tracon.SqlServer.IntegrationTests`, `tests/Tracon.Sqlite.IntegrationTests`.
+2. Her koşumda `Canceled_token` ile başlayan case sayısını say:
+   `<koşum ikilisi> --list-tests | grep -c Canceled_token`.
+
+**Beklenen sonuç**
+- Üç SQL koşumunun her birinde **65** iptal case'i listelenir ve geçer.
+- Bellek içi koşumda **61** listelenir ve geçer — aradaki 4 fark
+  `AgentFileStoreContract` ile `RetentionStoreContract`'ın bellek içi
+  muafiyetidir (`StoreContractCoverageTests.Exemptions`), sessiz bir boşluk
+  değildir.
+- Hiçbir koşumda `OperationCanceledException` yerine sağlayıcıya özgü bir
+  istisna görülmez.
+
+**Otomatik karşılığı:** `StoreCancellationContract.Canceled_token_throws_on_read`
+· `Canceled_token_throws_on_write_and_leaves_no_trace` (32 store sözleşmesinin
+tamamında) · `RunStoreContract.Canceled_token_throws_on_the_first_step_of_the_event_stream`
+
+---
+
+### MT-RES-092 — Token'ı okumayan ÜÇÜNCÜ TARAF store sözleşmeden DÜŞER (Faz 177)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 177 |
+| **İlgili karar** | — |
+| **Regresyon** | Hayır |
+
+**Ön koşul**
+- `samples/Tracon.Samples.FileRunStore` — repo'nun kendi üçüncü taraf store
+  örneği. Paketlenmiş sürüme karşı koşar (`python3 scripts/kapi.py yayin`).
+
+**Adımlar**
+1. `samples/Tracon.Samples.FileRunStore/FileRunStore.cs` içindeki
+   `QueryRunsAsync`'in ilk satırındaki `cancellationToken.ThrowIfCancellationRequested();`
+   satırını **geçici olarak sil**.
+2. `JsonFileRunStoreContractTests` koşumunu tekrarla.
+3. Satırı **geri koy** ve koşumu yeniden yeşile getir.
+4. Aynı denemeyi `StartRunAsync` içindeki çağrıyı gövdenin **sonuna** taşıyarak
+   tekrarla (yazma iş yapıldıktan SONRA fırlatır).
+
+**Beklenen sonuç**
+- 2. adımda `Canceled_token_throws_on_read` **düşer** — sevk edilen sözleşmenin
+  değeri budur; derleme yeşil kalır, davranış kırmızıya döner.
+- 4. adımda `Canceled_token_throws_on_read` GEÇER ama
+  `Canceled_token_throws_on_write_and_leaves_no_trace` **düşer**: fırlatmak tek
+  başına yan etkisizliği kanıtlamaz.
+- 3. adımdan sonra koşum tekrar tamamen yeşildir.
+
+**Otomatik karşılığı:** `StoreCancellationContractSelfProofTests` — aynı iki
+kırık uygulamayı (`TokenBlindSkillStore`, `LateCheckSkillStore`) kalıcı olarak
+tutar ve dört case'in hangisinin kırmızıya döndüğünü doğrular.

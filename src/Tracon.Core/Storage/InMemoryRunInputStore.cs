@@ -31,6 +31,7 @@ internal sealed class InMemoryRunInputStore : IRunInputStore
     public ValueTask SaveAsync(RunInputRecord record, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(record);
+        cancellationToken.ThrowIfCancellationRequested();
 
         // Ignore a second write. A queued run can start twice with the same identifier
         // in Phase 46, and the input must not change.
@@ -50,6 +51,7 @@ internal sealed class InMemoryRunInputStore : IRunInputStore
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
+        cancellationToken.ThrowIfCancellationRequested();
 
         if (!_inputs.TryGetValue(runId, out var record))
         {

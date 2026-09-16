@@ -32,6 +32,8 @@ internal sealed class InMemoryRunScoreStore(
     public ValueTask<RunScore> UpsertAsync(RunScore score, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(score);
+        cancellationToken.ThrowIfCancellationRequested();
+
         RunScoreRules.Validate(score);
 
         lock (_gate)
@@ -68,6 +70,8 @@ internal sealed class InMemoryRunScoreStore(
     /// <inheritdoc />
     public ValueTask<IReadOnlyList<RunScore>> ListAsync(string tenantId, Guid runId, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         lock (_gate)
         {
             IReadOnlyList<RunScore> matches =
@@ -84,6 +88,8 @@ internal sealed class InMemoryRunScoreStore(
     /// <inheritdoc />
     public ValueTask<bool> DeleteAsync(string tenantId, Guid scoreId, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         lock (_gate)
         {
             var index = _scores.FindIndex(score =>
