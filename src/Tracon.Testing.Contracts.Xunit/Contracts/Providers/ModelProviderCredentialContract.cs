@@ -1,4 +1,5 @@
 using Microsoft.Extensions.AI;
+using Tracon.Testing.Contracts.Internal;
 
 namespace Tracon.Testing.Contracts.Providers;
 
@@ -106,21 +107,18 @@ public abstract class ModelProviderCredentialContract : ModelProviderContract
     /// concurrency.
     /// </remarks>
     [Fact]
-    public async Task Concurrent_resolution_of_one_credential_stays_stable()
+    public Task Concurrent_resolution_of_one_credential_stays_stable()
     {
         var binding = Binding();
-        using var start = new Barrier(32);
 
-        var clients = await Task.WhenAll(
-            Enumerable.Range(0, 32).Select(_ => Task.Run(() =>
-            {
-                start.SignalAndWait();
-                return CredentialProvider.CreateChatClient(binding, Credential);
-            })));
+        var clients = SimultaneousCalls.Run(32, _ => CredentialProvider.CreateChatClient(binding, Credential));
 
         clients.ShouldAllBe(static client => client != null);
         var resolvedAgain = CredentialProvider.CreateChatClient(binding, Credential);
         clients.ShouldAllBe(client => ReferenceEquals(client, resolvedAgain));
+
+        // Declared return type unchanged: shipped public API.
+        return Task.CompletedTask;
     }
 
     /// <remarks>

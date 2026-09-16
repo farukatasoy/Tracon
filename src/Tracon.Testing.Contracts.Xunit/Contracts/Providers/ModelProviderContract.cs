@@ -1,4 +1,5 @@
 using Microsoft.Extensions.AI;
+using Tracon.Testing.Contracts.Internal;
 
 namespace Tracon.Testing.Contracts.Providers;
 
@@ -165,19 +166,17 @@ public abstract class ModelProviderContract : IAsyncLifetime
     /// instance, so this method is called concurrently from the compile path.
     /// </remarks>
     [Fact]
-    public async Task Concurrent_create_chat_client_calls_all_return_a_client()
+    public Task Concurrent_create_chat_client_calls_all_return_a_client()
     {
         var binding = Binding();
-        using var start = new Barrier(32);
 
-        var clients = await Task.WhenAll(
-            Enumerable.Range(0, 32).Select(_ => Task.Run(() =>
-            {
-                start.SignalAndWait();
-                return Provider.CreateChatClient(binding);
-            })));
+        var clients = SimultaneousCalls.Run(32, _ => Provider.CreateChatClient(binding));
 
         clients.ShouldAllBe(static client => client != null);
+
+        // The probe is synchronous now, but the declared return type stays Task:
+        // this is a shipped public API and a speed fix must not move it.
+        return Task.CompletedTask;
     }
 
     /// <remarks>
