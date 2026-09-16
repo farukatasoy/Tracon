@@ -780,6 +780,11 @@ MSBUILDDISABLENODEREUSE=1 dotnet pack src/Tracon.Abstractions -c Release -o /tmp
 ls /tmp/ap-v2/*.nupkg | sed 's#.*/##'
 
 git tag -d v1.0.0-preview.1
+
+# 🚨 TEMIZLIK - ATLANMAZ. Etiketli pack, surumu artifacts/package/release'e de
+# birakir ve orayi feed olarak kullanan MT-PKG-093/094'u KIRAR (2026-09-16'da
+# olculdu: NU1603, Abstractions 1.0.0-preview.1 cozuldu).
+rm -f artifacts/package/release/*1.0.0-preview.1.*   # repo kokunden, serit worktree'sinde de dogru
 ```
 
 **Beklenen sonuç**
@@ -1699,13 +1704,21 @@ grep -l "TraconAotCompatible>false" src/*/*.csproj | sed 's#src/##;s#/.*##' | so
 > yitirmişti; `AGENTS.md` zaten "Sekiz paket uyumludur" diyor ve bu koddan
 > türetilen kümeyle birebir örtüşüyor. Düzeltilecek taraf bu test dosyasıydı,
 > `AGENTS.md`/kod değil.
-- Bayrağı `false` yapan projeler tam olarak şunlardır: `Tracon` (meta),
-  `Tracon.AspNetCore`, `Tracon.Generators`, `Tracon.Mcp`,
-  `Tracon.SqlServer`, `Tracon.Sqlite`, `Tracon.Templates`,
+- Bayrağı `false` yapan **12** proje şunlardır: `Tracon` (meta),
+  `Tracon.AspNetCore`, `Tracon.Cli`, `Tracon.Client`, `Tracon.Generators`,
+  `Tracon.Mcp`, `Tracon.SqlServer`, `Tracon.Sqlite`, `Tracon.Templates`,
   `Tracon.Testing`, `Tracon.UI`, `Tracon.Workflows`.
-- Geriye kalan (AOT uyumlu, **8 paket**) — `AGENTS.md` "Sekiz paket
-  uyumludur" der: `Abstractions`, `Anthropic`, `Azure`, `Core`, `Google`,
-  `OpenAI`, `PostgreSql`, `Voice`.
+  *(2026-09-16 turunda güncellendi: `Tracon.Cli` ve `Tracon.Client` sonradan
+  eklendi, ikisi de gerekçeli muafiyet taşıyor — Cli "global tools ship as IL",
+  Client K-006'ya atıfla 146 IL tanısı.)*
+- Geriye kalan **9 paket** AOT uyumludur: `Abstractions`, `Anthropic`, `Azure`,
+  `Core`, `Google`, `OpenAI`, `PostgreSql`, `Testing.Contracts.Xunit`, `Voice`.
+  (`Tracon.Sql.Shared` de bayrağı devralır ama paket değildir.)
+  *(2026-09-16: eski beklenti 8 diyor ve `AGENTS.md`'nin "Sekiz paket
+  uyumludur" cümlesine dayanıyordu; o cümle `AGENTS.md`'de **artık yok**.
+  `Tracon.Testing.Contracts.Xunit` bayrağı `src/Directory.Build.props:33`'ten
+  varsayılan `true` olarak devralır ve tek başına derlemede 0 uyarı verir —
+  vaat analyzer ile destekleniyor.)*
 
 ~~Eski beklenti (güncelliğini yitirmiş): Geriye kalan (AOT uyumlu) paketler
 yalnız dört tanedir — `Abstractions`, `Core`, `PostgreSql`, `OpenAI`.~~
@@ -1811,7 +1824,7 @@ open http://localhost:5081/tracon
 | **İlgili karar** | K-032 |
 
 Sınır senaryosu. Şablon model adını bilerek **sabitlemez**; yer tutucu
-`MODEL_ADINI_BURAYA_YAZIN`'dır. Bu case yer tutucunun gerçekten fark edildiğini
+`WRITE_MODEL_NAME_HERE`'dır. Bu case yer tutucunun gerçekten fark edildiğini
 ve düzeltildikten sonra yolun çalıştığını kanıtlar.
 
 **Ön koşul**
@@ -1835,11 +1848,10 @@ curl -s -X POST http://localhost:5081/tracon/api/agents/support/run \
 kill %1
 
 # 2) Model adini duzelt
-sed -i '' 's/MODEL_ADINI_BURAYA_YAZIN/gpt-5.4-mini/' Program.cs
+sed -i '' 's/WRITE_MODEL_NAME_HERE/gpt-5.4-mini/' Program.cs
 
-# 3) Anahtari ver
-dotnet user-secrets init
-dotnet user-secrets set "Tracon:Providers:OpenAI:ApiKey" "<OPENAI_ANAHTARINIZ>"
+# 3) Anahtari ver — SKILL.md 1.2: user-secrets YAZILMAZ, ortam degiskeni kullanilir
+export Tracon__Providers__OpenAI__ApiKey="<OPENAI_ANAHTARINIZ>"
 
 # 4) Tekrar dene
 dotnet build -c Release
@@ -1851,7 +1863,7 @@ curl -s -X POST http://localhost:5081/tracon/api/agents/support/run \
 
 **Beklenen sonuç**
 - 1. adımda `run` **başarısız** olur. Yanıt bir hata taşır ve hata metni model
-  adını (`MODEL_ADINI_BURAYA_YAZIN`) içerir. Uygulama **çökmez**.
+  adını (`WRITE_MODEL_NAME_HERE`) içerir. Uygulama **çökmez**.
 - 4. adımda `run` başarılı biter.
 - Yanıt `ORD-1001` dizgisini içerir **ve** `get_order_status` tool'u tam bir kez
   çağrılır. (Model metni sabit değildir; metne bağlı iddia yapılmaz.)
@@ -2066,7 +2078,7 @@ grep -rn "sk-\|api[_-]\?key.*[:=].*[A-Za-z0-9]\{20,\}" \
 echo "--- tarama bitti ---"
 
 grep "UserSecretsId" *.csproj
-grep -E "appsettings\.\*\.json|\.env|secrets" .gitignore
+grep -E "appsettings\..*\.json|\.env|secrets|\*\.user" .gitignore
 ```
 
 **Beklenen sonuç**
@@ -2074,7 +2086,10 @@ grep -E "appsettings\.\*\.json|\.env|secrets" .gitignore
 - `appsettings.json` içindeki `ApiKey` ve `ConnectionString` değerleri **boş
   dizedir**.
 - `.csproj` bir `UserSecretsId` taşır.
-- `.gitignore` en az bir `secret` deseni içerir.
+- `.gitignore` en az bir `secret` deseni içerir: `appsettings.*.local.json`
+  ve `*.user`. *(2026-09-16 turunda grep düzeltildi: eski desen
+  `appsettings.*.json` arıyordu ve dosyadaki `appsettings.*.local.json`
+  satırına takılmıyordu — case geçtiği hâlde komut sıfır satır dönüyordu.)*
 
 ### MT-PKG-080 — Tüketicinin kaydı her zaman kazanır
 
@@ -2521,7 +2536,14 @@ Gerçek `v1.0.0-preview.1` etiketi atılmadan önce yayının neye üreteceğini
 provasıdır — depoya hiçbir şey yazmaz, ağa hiçbir şey göndermez.
 
 **Ön koşul**
-- `main` temiz, `git tag` yalnız `docs/damitma-oncesi-2026-08` taşıyor.
+- `main` temiz.
+- 🚨 **`CHANGELOG.md` hedef sürüm için bir `## [<sürüm>]` bölümü taşımalıdır.**
+  Taşımazsa prova **fail-closed** olur ve kırmızı biter — bu doğru davranıştır
+  (MT-PKG-102 onu ayrıca ölçer), ama bu case'in yeşil beklentisi hazırlanmış
+  bir changelog varsayar. *(2026-09-16 turunda eklendi: ön koşul yazılmamıştı
+  ve case bu yüzden kaldı.)*
+- `git tag` **iki** arşiv etiketi taşır (`arsiv/ilk-gun-stash-2026-08-01`,
+  `docs/damitma-oncesi-2026-08`); ikisi de sürüm etiketi değildir.
 
 **Adımlar**
 1. Provayı koş.
@@ -2573,7 +2595,9 @@ echo "toplam paket: $(ls artifacts/package/release/*.1.0.0-preview.1.nupkg | wc 
 
 **Beklenen sonuç**
 - Hiçbir "IKON YOK" satırı basılmaz.
-- Toplam paket sayısı **19**.
+- Toplam paket sayısı **20**. *(2026-09-16 turunda 19'dan güncellendi;
+  `docs-site` içerik kapısı da 20 bekliyor — MT-PKG-099 çıktısı:
+  "package table has 19 row(s), expected 20".)*
 
 ---
 
