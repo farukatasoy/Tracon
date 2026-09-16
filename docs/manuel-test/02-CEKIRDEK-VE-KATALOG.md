@@ -1039,10 +1039,15 @@ curl -s "$APU/api/tools" -H "$APB" | python3 -m json.tool
 ```
 
 **Beklenen sonuç**
-- Üç tool görünür: `cancel_order`, `get_order_status`, `list_recent_orders`.
+- En az şu üçü görünür: `cancel_order`, `get_order_status`,
+  `list_recent_orders`. 🚨 Sayı **sabit değildir** — örnek uygulama büyüdükçe
+  artar (2026-09-16'da 10 tool). Sayıyı sabitleme, varlığı denetle.
 - Liste **ada göre sıralıdır**.
 - `cancel_order` için `requiresApproval` alanı `true`'dur; diğer ikisi `false`.
-- Üçünün de `source` alanı `"generated"`'dır (Faz 52 sonrası).
+- 🚨 Kodda tanımlı her tool'un `source` alanı **`null`**'dır. Alan kod/uzak-MCP
+  ayrımı içindir: `null` = kodda tanımlı, dolu = uzak MCP sunucusunun adı
+  (`src/Tracon.Abstractions/Tools/ToolDescriptor.cs:30-38`). `"generated"`
+  diye bir değer yoktur.
 - Her tool'un `jsonSchema` alanı doludur ve parametrelerini tanımlar.
 
 ---
@@ -1097,7 +1102,9 @@ dotnet run -c Release
 
 **Beklenen sonuç**
 - Çıktı `beklenen istisna:` ile başlar.
-- Mesaj `'ayni_ad' adinda birden cok tool kaydedilmis` ifadesini taşır.
+- Mesaj `More than one tool is registered with name 'ayni_ad'. Tool names
+  must be unique.` ifadesini taşır. 🚨 Sevk edilen metin K-228'den beri
+  **İngilizce**dir.
 - `🚨 istisna ATILMADI` satırı görünmez.
 
 ---
@@ -1214,12 +1221,17 @@ echo "$RUN" | tail -c 500
 - Yanıt `ORD-1001` dizgisini içerir.
 - `get_order_status` tool'u **tam bir kez** çağrılır.
 - `runs.status` tamamlanmış durumu gösterir.
-- `runs.cost_usd` `NULL` **değildir** ve pozitiftir.
+- 🚨 `cost_usd` diye bir sütun **yoktur**. Maliyet alanları
+  `input_cost · output_cost · cost_currency · pricing_source`'tur.
+- Maliyet ancak modelin fiyatı tanımlıysa dolar. 2026-09-16'da katalogdaki
+  13 modelin **hiçbirinde** fiyat yok; `pricing_source = 2` (`NotDefined`) ve
+  maliyet alanları `null` gelir — bu bilinçli bir davranıştır (sıfır yazmak
+  yalan olurdu), eksik olan veridir (`HATA-S1-010`).
 - `tool_invocations` tablosunda `get_order_status` için tam bir satır vardır.
 
 **Doğrulama sorgusu**
 ```sql
-SELECT r.id, r.agent_name, r.status, r.cost_usd,
+SELECT r.id, r.agent_name, r.status, r.input_cost, r.output_cost, r.pricing_source,
        (SELECT count(*) FROM tracon.tool_invocations t
          WHERE t.run_id = r.id AND t.tool_name = 'get_order_status') AS tool_cagrisi
 FROM tracon.runs r
@@ -1258,7 +1270,7 @@ curl -s -X POST "$APU/api/agents/support/run" -H "$APB" \
 **Beklenen sonuç**
 - `run` tamamlanır.
 - Bu `run` için `tool_invocations` satır sayısı **0**'dır.
-- `runs.cost_usd` yine doludur.
+- Maliyet alanları için `MT-CORE-044`'ün notu geçerlidir (`HATA-S1-010`).
 
 **Doğrulama sorgusu**
 ```sql

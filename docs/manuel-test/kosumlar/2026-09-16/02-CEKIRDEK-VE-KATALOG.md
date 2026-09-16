@@ -743,3 +743,253 @@ beklenen de bu.
 
 ---
 
+## MT-CORE-040 — Tool listesi ad, açıklama, şema ve kaynak taşır
+
+**Gerçek sonuç**
+```
+GET /api/tools -> 10 tool (spec UC bekliyordu)
+
+cancel_order            onay=True   effect=Destructive  izin=orders.cancel
+estimate_shipping_cost  onay=False
+get_order_status        onay=False
+get_slow_report         onay=False
+list_recent_orders      onay=False
+list_voices             onay=False
+mark_preview_ready      onay=False
+read_shopping_cart      onay=False
+speak                   onay=False
+transcribe              onay=False
+
+SIRALI ✅ · her tool'un description'i dolu ✅ · her tool'un jsonSchema'si dolu
+ve parametrelerini tanimliyor ✅
+```
+
+**Tutan:** sıralama · `cancel_order` tek onay isteyen · açıklamalar ve şemalar
+dolu.
+
+⚠️ **İki beklenti bayat, ikisi de doküman kusuru (skill §1.1, düzeltildi):**
+
+1. **"Üç tool görünür" → 10.** Örnek uygulama Faz 52'den beri büyümüş.
+   `00-INDEKS.md` §3.2 de yalnız **4** tool listeliyor; o tablo da bayat
+   (bu turda düzeltilmedi, dosya 02'nin kapsamı değil — açık kaleme yazıldı).
+2. **"`source` alanı `generated`'dır" → `null`, ve bu DOĞRU.**
+   `src/Tracon.Abstractions/Tools/ToolDescriptor.cs:30-38`:
+
+   > *"The tool's source. **null** for tools defined in code; the server name
+   > for tools coming from a remote MCP server."*
+
+   `"generated"` değeri kod tabanında **hiç geçmiyor**. Alan kod/uzak-MCP
+   ayrımı için var ve arayüzde ayrı bir rozet olarak gösteriliyor. Kodda
+   tanımlı 10 tool'un onunda da `null` olması beklenen davranıştır.
+
+**Yan gözlem — case'in yazıldığı zamandan beri eklenen alanlar:**
+`effect` · `requiredPermission` · `runsOnClient` · `safeToRepeat` ·
+`timeout` · `maxOutputBytes`. `cancel_order` için `effect=Destructive` ve
+`requiredPermission=orders.cancel` dolu; bunlar bu dosyanın değil ilgili
+ailelerin konusu.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-041 — Aynı adda iki tool açılışta hata verir
+
+**Gerçek sonuç**
+```
+beklenen istisna: More than one tool is registered with name 'ayni_ad'.
+                  Tool names must be unique.
+```
+`🚨 istisna ATILMADI` satırı **görünmedi**. "Son kayıt kazanır" davranışı yok;
+belirsizlik açılışta patlıyor.
+
+⚠️ **Spec'e düzeltme:** beklenen metin Türkçe yazılmıştı
+(`'ayni_ad' adinda birden cok tool kaydedilmis`). Sevk edilen metin K-228'den
+beri İngilizce; bugünkü metne göre güncellendi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-042 — Onay gerektiren tool sarmalanır ama şeması değişmez
+
+**Gerçek sonuç**
+```
+cancel_order     | onay: True  | aciklama: "Cancels an order."
+   sema: {"type":"object","properties":{"orderId":{"description":"The order
+          number.","type":"string"}},"required":["orderId"],
+          "additionalProperties":false}
+
+get_order_status | onay: False | aciklama: "Returns the shipping status of an order."
+   sema: {"type":"object","properties":{"orderId":{"description":"The order
+          number.","type":"string"}},"required":["orderId"],
+          "additionalProperties":false}
+```
+
+Dört beklentinin dördü de tuttu:
+
+| Beklenti | Gözlenen |
+|---|---|
+| `cancel_order` onay=true, `get_order_status` onay=false | ✅ |
+| ikisinin de `description`'ı boş değil | ✅ |
+| ikisinin de `jsonSchema`'sı `orderId` içeriyor | ✅ |
+| `cancel_order` adı `ApprovalRequired` gibi önek/sonek taşımıyor | ✅ ad tam olarak `cancel_order` |
+
+İki şema **birebir aynı yapıda** — sarmalayıcı ad, açıklama ve şemanın hiçbirine
+dokunmamış. Model tool'u tanıyabilir; onay sarmalaması yalnız çalıştırma
+tarafında.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-043 — Tanım yalnız kayıtlı tool'a işaret edebilir
+
+**Gerçek sonuç**
+```
+POST /api/agents  -> HTTP 400 · "Definition invalid"
+  "Agent 'manuel-hayali-tool-kayit' refers to tool 'hayali_tool',
+   but it is not registered in this code."
+
+POST /api/agents/manuel-hayali-tool-kayit/run -> HTTP 404
+  "There is no agent named 'manuel-hayali-tool-kayit'."   (hic olusmadi)
+```
+
+**Seçilen davranış kaydedildi:** iki seçenekten **birincisi** — kayıt 4xx ile
+reddediliyor. Agent hiç oluşmadığı için çalıştırma da 404.
+
+Üç beklentinin üçü de tuttu: `hayali_tool` hiç çağrılmadı · hiçbir adımda 500
+yok · hata metni eksik tool adını taşıyor. Güvenlik sınırı (K2) hem doğrulama
+(`MT-CORE-002`) hem **kayıt** yolunda ayrı ayrı kapalı — bu case'in varlık
+sebebi bu ikinci yolun ayrı kod olması.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## Ortam değişimi — gerçek sağlayıcıya geçiş (MT-CORE-044'ten itibaren)
+
+`MT-CORE-044`'ün ön koşulu `Tracon:Providers:OpenAI:ApiKey`'in **tanımlı**
+olmasını şart koşuyor: `cost_usd`, `tool_invocations` ve gerçek tool çağrısı
+ancak gerçek bir model çağrısıyla ölçülebilir.
+
+Ölçüm (kalan 76 case): **23'ü** açıkça gerçek `run` istiyor, **48'i** karışık
+ya da dolaylı olarak agent çalıştırıyor, yalnız **3'ü** (`073 · 087 · 088`)
+yalnız `echo` istiyor. `MT-CORE-043` ikisini de kullanıyordu ve `echo` modunda
+kapandı.
+
+**Kullanıcı kararı (2026-09-16):** gerçek çağrılarla koşulur, en ucuz modelle
+(örnek uygulamanın varsayılanı). `echo` isteyen üç case sırası geldiğinde ortam
+geçici olarak geri alınır.
+
+∴ `Tracon__Providers__OpenAI__ApiKey` yeniden export edildi; `echo` sağlayıcısı
+bu andan itibaren **kayıtlı değildir** (`Program.cs:277-280`).
+
+---
+
+## MT-CORE-044 — Tool gerçekten çağrılır ve sonucu kayda geçer
+
+**Gerçek sonuç** (gerçek OpenAI çağrısı · model `gpt-5.4-mini`)
+```
+POST /api/agents/support/run  {"message":"ORD-1001 siparisim nerede?",
+                               "sessionId":"musteri-42"}
+-> SSE akisi, finishReason "stop", "ORD-1001" yanitta 2 kez gecti ✅
+
+ agent_name | status | model_id     | input_tokens | output_tokens | tool_cagrisi
+------------+--------+--------------+--------------+---------------+--------------
+ support    |      1 | gpt-5.4-mini |          402 |            25 |            1
+```
+
+`status = 1` = `RunStatus.Completed` (`src/Tracon.Abstractions/Runs/RunStatus.cs:22`).
+
+**Tutan (dört beklentinin üçü):** yanıt `ORD-1001` taşıyor · `get_order_status`
+**tam bir kez** çağrıldı · `runs.status` tamamlandı · `tool_invocations`'ta o
+tool için tam bir satır var.
+
+🚨 **Tutmayan: maliyet.** Spec `runs.cost_usd`'nin dolu ve pozitif olmasını
+bekliyor; alan **boş**. İki ayrı sebep var ve ikisi de kayda geçti:
+
+1. ⚠️ **`cost_usd` diye bir sütun yok** (doküman kusuru, düzeltildi). Gerçek
+   şema: `input_cost · output_cost · cost_currency · pricing_source`.
+2. 🚨 **Fiyat verisi hiçbir modelde yok** → `HATA-S1-010`. `pricing_source = 2`
+   dönüyor; enum'a göre bu "fiyat hiçbir kaynakta tanımlı değil, bu yüzden
+   maliyet alanları `null` — **sıfır değil**, sıfır yalan olurdu"
+   (`PricingSource.cs:19-21`). Yani **mekanizma doğru davranıyor**; eksik olan
+   veridir.
+
+`Doğrulama sorgusu` gerçek sütun adlarına göre düzeltildi.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+
+---
+
+## MT-CORE-045 — Tool gerekmeyen istek tool çağırmaz
+
+**Gerçek sonuç**
+```
+POST /api/agents/support/run {"message":"Merhaba","sessionId":"musteri-99"}
+-> finishReason "stop", run tamamlandi
+
+ status | input_tokens | output_tokens | input_cost | pricing_source | tool_sayisi
+--------+--------------+---------------+------------+----------------+-------------
+      1 |          343 |            13 |            |              2 |           0   <- "Merhaba"
+      1 |          402 |            25 |            |              2 |           1   <- "ORD-1001..."
+```
+
+**Case'in asıl iddiası TUTTU:** selam isteği için `tool_invocations` satır
+sayısı **0**; bir önceki sipariş isteği için **1**. Her istekte tool çağıran
+bir kurulum değil — gereksiz maliyet üretilmiyor. `run` tamamlandı.
+
+🚨 **`runs.cost_usd` yine boş** — aynı kök neden, `HATA-S1-010`. Bu case'in
+kendi davranışsal iddiası doğru olduğu için bulgu 044'e bağlandı; case maliyet
+beklentisi yüzünden `Kaldı`.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+
+---
+
+### HATA-S1-010 — Hiçbir modelde fiyat verisi yok; her `run` maliyetsiz kaydediliyor
+
+| | |
+|---|---|
+| **Önem** | Orta (yayın öncesi karar gerektirir) |
+| **Bulunduğu case** | MT-CORE-044 · MT-CORE-045 |
+| **Sınıf** | Katalog verisi · maliyet takibi |
+
+**Repro**
+```bash
+curl -s "$APU/api/models" -H "$APB"   # her modelde:
+#   "inputCostPerMillionTokens": null
+#   "outputCostPerMillionTokens": null
+#   "cachedInputCostPerMillionTokens": null
+```
+
+**Ölçüm — sistemik, tek bir modele özgü değil:**
+
+| Sağlayıcı | Model sayısı | Fiyat taşıyan |
+|---|---|---|
+| anthropic | 3 | 0 |
+| google | 3 | 0 |
+| openai | 3 | 0 |
+| openai-responses | 3 | 0 |
+| openrouter | 1 | 0 |
+| **toplam** | **13** | **0** |
+
+∴ Örnek uygulamada **her** `run` `input_cost`/`output_cost` `null` ve
+`pricing_source = NotDefined` ile kaydediliyor.
+
+**Mekanizma doğru, veri eksik.** `PricingSource.cs:19-21` sıfır yazmayı açıkça
+reddediyor ("zero would be a lie") ve `NotDefined` ile durumu dürüstçe
+bildiriyor. Yani bu bir hesaplama kusuru değil; fiyat kaynağının boş olması.
+
+**Karar gerektiren (kapanış / `nuget-danismani`):** maliyet takibi tüketiciye
+dönük bir yetenek olarak duyuruluyor mu? Duyuruluyorsa ya katalog fiyatlarla
+gelmeli ya da `Tracon:Pricing` yapılandırmasının **zorunlu** olduğu
+dokümantasyonda ve örnek uygulamada açıkça görünmeli. Bugün sessizce boş
+geçiyor: tüketici `cost` sütunlarını görüyor, doldurmuyor ve sebebini ancak
+`pricing_source` enum'unu okuyarak anlıyor.
+
+**Etki:** orta — veri kaybı yok, yanlış sayı **üretilmiyor** (en önemlisi bu);
+bedeli, maliyet raporlamasının kutudan çıkmamasıdır.
+
+---
+
