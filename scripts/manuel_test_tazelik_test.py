@@ -172,6 +172,46 @@ class SiralamaTestleri(unittest.TestCase):
         self.assertEqual(aile.risk, tazelik.KAYMA_TAVANI)
 
 
+class SeritDagilimiTestleri(unittest.TestCase):
+    @staticmethod
+    def _aile(no: str, case: int) -> tazelik.Aile:
+        return tazelik.Aile(
+            no=no, dosya=f"{no}-AILE.md", kod="X", fazlar="",
+            yeni=[f"MT-X-{i}" for i in range(case)], degisti=[], sessiz=[],
+            kod_kaymasi=0, yol_sayisi=1, cozulemeyen=[], yeni_dosya=False)
+
+    def test_arayuz_ailesi_yarim_oturum_butcesi_kullanir(self):
+        # Playwright case'i anlik goruntu + konsol kontrolu ister; ayni case
+        # sayisi arayuzde daha cok oturum tutar (SKILL.md §3).
+        self.assertEqual(self._aile("09", 36).oturum, 2)   # 36 / 18
+        self.assertEqual(self._aile("13", 36).oturum, 2)   # 36 / 30 -> 2
+        self.assertEqual(self._aile("09", 54).oturum, 3)
+        self.assertEqual(self._aile("13", 54).oturum, 2)
+
+    def test_tek_case_lik_aile_bir_oturum_tutar(self):
+        self.assertEqual(self._aile("20", 1).oturum, 1)
+
+    def test_zincir_aileleri_seritlere_DAGITILMAZ(self):
+        # Zincir tek serit ve sirayla kosar; paralel dagitima girerse kapi
+        # anlamini kaybeder.
+        aileler = [self._aile(no, 30) for no in ("01", "02", "13", "20")]
+        dagitilan = {a.no for s in tazelik.serit_dagilimi(aileler) for a in s}
+        self.assertEqual(dagitilan, {"13", "20"})
+
+    def test_aile_BOLUNMEZ_ve_tam_bir_seride_dusher(self):
+        aileler = [self._aile(no, 30) for no in ("13", "20", "22", "23", "24")]
+        seritler = tazelik.serit_dagilimi(aileler)
+        dusen = [a.no for s in seritler for a in s]
+        self.assertEqual(sorted(dusen), ["13", "20", "22", "23", "24"])
+        self.assertEqual(len(dusen), len(set(dusen)))   # hicbiri iki seritte degil
+
+    def test_yuk_seritler_arasinda_dengelenir(self):
+        aileler = [self._aile(no, 30) for no in
+                   ("13", "20", "22", "23", "24", "25", "26", "27")]
+        yukler = [sum(a.oturum for a in s) for s in tazelik.serit_dagilimi(aileler)]
+        self.assertLessEqual(max(yukler) - min(yukler), 1)
+
+
 class CommitSayisiTestleri(unittest.TestCase):
     def test_bos_yol_listesi_SIFIR_doner(self):
         # 🚨 Tüm commit'leri döndürseydi, yolu çözülemeyen bir aile turun
