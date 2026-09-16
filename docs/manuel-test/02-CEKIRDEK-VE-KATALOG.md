@@ -2582,9 +2582,15 @@ curl -s -X POST "$APU/api/agents/greeter/run" -H "$APB" -H "content-type: applic
 | **İlgili karar** | — |
 
 **Ön koşul**
-- Ön koşul MT-CORE-087'deki gibi, ama `JsonFileAgentSourceOptions.Directory`
-  var olmayan/okunamaz bir yola işaret ediyor (kaynağın `ListAsync`'i her
-  çağrıda istisna fırlatsın diye).
+- Ön koşul MT-CORE-087'deki gibi, ama kaynağın `ListAsync`'i **gerçekten
+  istisna fırlatmalıdır**.
+  🚨 **Var olmayan bir dizin YETMEZ:** `JsonFileAgentSource.ReadAllAsync`
+  (`:142-145`) `if (!Directory.Exists(...)) { yield break; }` ile bunu ele
+  alır ve kaynak sessizce **boş** döner. Bozmanın çalışan yolu: dizine
+  ayrıştırılamayan bir `.json` bırakmak (ad sıralamada geçerli dosyalardan
+  önce gelmeli, ör. `aaa-broken.json`).
+- Yerleşik kaynağın hâlâ göründüğünü kanıtlamak için host'ta en az bir kod
+  agent'ı kayıtlı olmalıdır.
 
 **Adımlar**
 1. `GET /tracon/api/agents` çağır.
@@ -2652,7 +2658,10 @@ curl -s "$APU/api/diagnostics" -H "$APB" | python3 -m json.tool | grep -A 15 age
 **Beklenen sonuç**
 - `agentSources` dizisi `[{"name":"code","priority":0,...},
   {"name":"database","priority":100,...},
-  {"name":"json-file","priority":200,...}]` sırasıyla üç girdi taşır.
+  {"name":"json-file","priority":101,...}]` sırasıyla üç girdi taşır.
+  🚨 Önemli olan **sıra**dır, sayının kendisi değil: örnek kaynak önceliğini
+  `AgentSourcePriority.Database + 1` olarak beyan eder
+  (`JsonFileAgentSource.cs:91`), yani 101.
 
 ---
 
@@ -2666,9 +2675,11 @@ curl -s "$APU/api/diagnostics" -H "$APB" | python3 -m json.tool | grep -A 15 age
 | **İlgili karar** | — |
 
 **Ön koşul**
-- `samples/Tracon.Api/Program.cs`'e aynı `Name`'i döndüren iki
-  `IAgentSource` (örn. `AddAgentSource<JsonFileAgentSource>()` iki farklı
-  dizinle, ikisi de `json-file` adını taşıyacak şekilde) geçici eklenmiş.
+- Aynı `Name`'i döndüren **iki farklı TİP** kayıtlı olmalıdır.
+  🚨 Aynı tipi iki kez kaydetmek **işe yaramaz**: `AddAgentSource<T>()`
+  `TryAddEnumerable` kullanır (`TraconBuilder.cs:142`) ve tipi tekilleştirir;
+  host sorunsuz açılır. İkinci bir sınıf yazıp `Name`'ini birincininkiyle
+  aynı döndür.
 
 **Adımlar**
 1. Uygulamayı başlat.
