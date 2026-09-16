@@ -33,8 +33,14 @@ public tablo sayisi: 0   (MT-PG-002 / 003 taban cizgisi)
 ## Devir notu
 
 **🎉 DOSYA 03 KAPANDI — 50/50 case koşuldu.** Oturum 9'da kalan 20 case bitti:
-`050-053` (4) ve `060-075` (16). Dosya sonucu: **48 ☑ Geçti · 1 ☑ Kaldı
-(MT-PG-068) · 1 ☐ Beklemede (MT-PG-067)**.
+`050-053` (4) ve `060-075` (16). Dosya sonucu: **47 ☑ Geçti · 2 ☑ Kaldı
+(MT-PG-025 · MT-PG-068) · 1 ☐ Beklemede (MT-PG-067)**.
+
+> ⚠️ **Sayı düzeltildi (oturum 10, 2026-09-16).** Bu satır "48 Geçti · 1 Kaldı"
+> diyordu ve **MT-PG-025'i atlıyordu** — o case oturum 8'de `Kaldı`
+> işaretlenmiş ve `HATA-S1-015` onun üzerine açılmıştı. Case kayıtları
+> doğruydu, yanlış olan özetti; skill §7'nin sayım betiği farkı gösterdi.
+> Ders: özet satırını elle yazma, betikten al.
 
 - **Sonraki oturumun işi:** zincirin dördüncü ailesi —
   [`05-SAGLAYICI-OPENAI.md`](../../05-SAGLAYICI-OPENAI.md), 40 case, 2 oturum.

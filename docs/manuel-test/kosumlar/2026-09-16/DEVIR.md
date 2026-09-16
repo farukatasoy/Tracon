@@ -3,8 +3,8 @@
 > **Bu turu devralan oturum ÖNCE burayı okur.** Turun durumu, değişmez
 > kuralları, ortamı ve sıradaki işi taşır.
 >
-> **Durum:** Aşama 1 sürüyor · **dosya 01, 02 ve 03 KAPANDI** (228 case) · kod `7e3a4de7`'de donuk
-> **Son güncelleme:** 2026-09-16 (oturum 9)
+> **Durum:** Aşama 1 sürüyor · **dosya 01, 02, 03 ve 05 KAPANDI** (268 case) · kod `7e3a4de7`'de donuk
+> **Son güncelleme:** 2026-09-16 (oturum 11)
 
 ---
 
@@ -24,31 +24,38 @@
 
 ## 2. Nerede duruyoruz
 
-Aşama 0 (tazeleme) bitti. Tur açıldı ve zincirin **ilk üç ailesi kapandı**
+Aşama 0 (tazeleme) bitti. Tur açıldı ve zincirin **ilk dört ailesi kapandı**
 (`01-KURULUM-VE-PAKETLEME.md` 81 case · `02-CEKIRDEK-VE-KATALOG.md` 97 case ·
-`03-KALICILIK-POSTGRESQL.md` 50 case) — toplam **228 case**.
+`03-KALICILIK-POSTGRESQL.md` 50 case · `05-SAGLAYICI-OPENAI.md` 40 case) —
+toplam **268 case**. Zincirde tek aile kaldı: `07`.
 
 ```mermaid
 flowchart LR
-    A["Asama 0 - Tazeleme<br/>BITTI"] --> B["Asama 1 - Tur<br/>SURUYOR - 3/36 aile"]
+    A["Asama 0 - Tazeleme<br/>BITTI"] --> B["Asama 1 - Tur<br/>SURUYOR - 4/36 aile"]
     B --> C["Asama 2 - Kapanis<br/>beklemede"]
     C --> D["YAYIN-HAZIRLIK<br/>Adim 2 -> 10"]
 ```
 
-| Dosya | Geçti | Kaldı | Beklemede |
-|---|---|---|---|
-| `01-KURULUM-VE-PAKETLEME.md` | 72 | 4 | 5 |
-| `02-CEKIRDEK-VE-KATALOG.md` | 92 | 4 | 1 |
-| `03-KALICILIK-POSTGRESQL.md` | 48 | 1 | 1 |
-| **toplam** | **211** | **10** | **7** |
+| Dosya | Geçti | Kaldı | Beklemede | Atlandı |
+|---|---|---|---|---|
+| `01-KURULUM-VE-PAKETLEME.md` | 72 | 4 | 5 | — |
+| `02-CEKIRDEK-VE-KATALOG.md` | 92 | 4 | 1 | — |
+| `03-KALICILIK-POSTGRESQL.md` | 47 | 2 | 1 | — |
+| `05-SAGLAYICI-OPENAI.md` | 38 | 1 | — | 1 |
+| **toplam** | **249** | **11** | **7** | **1** |
+
+> ⚠️ **Dosya 03'ün satırı düzeltildi (oturum 10).** Tablo "48 · 1" diyordu ve
+> `MT-PG-025`'i atlıyordu — o case oturum 8'de `Kaldı` işaretlenmiş,
+> `HATA-S1-015` onun üzerine açılmıştı. Kayıtlar doğruydu, özet yanlıştı.
+> 🚨 **Bu tabloyu elle yazma**, §6'daki sayım betiğinden al.
 
 Kayıt dosyaları `kosumlar/2026-09-16/` altındadır; her birinin **devir notu
 başındadır** ve oturum oturum birikir.
 
 🚨 **Açık bulgular:** `HATA-S1-001..005` · `HATA-S1-007` (yayın hattını
 bloklar — aşağıda) · `HATA-S1-008..014` (dosya 02) · `HATA-S1-015..019`
-(dosya 03). Hepsi ilgili kayıt dosyasındadır. `HATA-S1-006` yanlış pozitif
-çıktı ve kapandı.
+(dosya 03) · `HATA-S1-020` (dosya 05). Hepsi ilgili kayıt dosyasındadır.
+`HATA-S1-006` yanlış pozitif çıktı ve kapandı.
 
 🚨 **`HATA-S1-019` bu turun en ağır bulgusudur (Yüksek).** `UsePostgreSql`
 tüketicinin store kaydını `Replace` ile **sessizce** eziyor —
@@ -157,17 +164,17 @@ hiçbir ailenin sonucu okunmaz. Paralel şeritler ancak beşi yeşil bitince aç
 | 4 | `05-SAGLAYICI-OPENAI.md` | 40 | 2 |
 | 5 | `07-HTTP-YONETIM-API.md` | 43 | 2 |
 
-**Sıradaki oturumun işi:** `ap-s1`'de **`05-SAGLAYICI-OPENAI.md`** (40 case,
-2 oturum). Dosya 03 kapandı — ona dönme. Ortam notları o dosyanın **devir
-notundadır**; önce onu oku.
+**Sıradaki oturumun işi:** `ap-s1`'de **`07-HTTP-YONETIM-API.md`** (43 case,
+2 oturum) — zincirin **son** ailesi. Dosya 05 kapandı; ona dönme. Ortam notları
+o dosyanın **devir notundadır**; önce onu oku.
 
 | Aile | Durum |
 |---|---|
 | `01-KURULUM-VE-PAKETLEME.md` | ✅ 81/81 |
 | `02-CEKIRDEK-VE-KATALOG.md` | ✅ 97/97 |
 | `03-KALICILIK-POSTGRESQL.md` | ✅ 50/50 |
-| `05-SAGLAYICI-OPENAI.md` | ⬜ 40 case · 2 oturum · **SIRADAKİ** |
-| `07-HTTP-YONETIM-API.md` | ⬜ 43 case · 2 oturum |
+| `05-SAGLAYICI-OPENAI.md` | ✅ 40/40 |
+| `07-HTTP-YONETIM-API.md` | ⬜ 43 case · 2 oturum · **SIRADAKİ — zincirin sonu** |
 
 🚨 **Container durdurmak isteyen her case için tarif hazır (oturum 9'da
 kanıtlandı).** Paylaşılan container'a dokunma; erişilemezliği **şerit-yerel bir
@@ -178,10 +185,36 @@ ve Faz B'de dört şerit paralel koşarken de güvenlidir. MT-PG-050 ve MT-PG-06
 bu yöntemle koşuldu; 061 kurtarmayı **PID ile** kanıtladı. Tarif dosya 03'ün
 devir notundadır.
 
-🚨 **Dosya 03'ten taşınan kurallar:** bu dosyanın neredeyse her case'i
+🚨 **Dosya 05'ten taşınan kurallar (oturum 10 · 11).**
+
+- **Donuk `samples/` isteyen case'ler repo'ya dokunmadan koşulur.** İki tarif
+  kanıtlandı, altı case'de kullanıldı: **yapılandırma katmanı** (dizi ögesi bile
+  eklenebilir — `Tracon__Providers__OpenAI__Models__3__Name=...`) ve
+  **paketlenmiş tüketici host'u** (`~/tracon-manuel/*`, yerel feed
+  `0.0.0-preview.0.789`). İkincisi kurulum-zamanı davranışı için daha güçlü
+  kanıttır: çağrı gerçek bir tüketiciden ve paketlenmiş ikiliden gelir.
+- **Yanıt alanları kökte değil.** `usage.totalTokens` ·
+  `response.messages[0].contents[0].text` · sağlıkta `providerName`. Kökten
+  okuyan bir sonda `None` görür ve geçen case'i `Kaldı` sanar.
+- **`GET /api/runs/{id}/events` SSE döner, JSON değil.** Ayrıştırıcı:
+  `<scratch>/sse.py`. Ham `grep` çok satırlı `data:` gövdesinde kelimeleri böler.
+- **Sağlayıcı hatasının ayrıntısı yanıtta değil GÜNLÜKTE.** `error` çerçevesi ve
+  `run` kaydı sabit `upstream_error` / `The model provider request failed.`
+  taşır (kasıtlı — `SafeErrorText`). `404`, `402`, `model_not_found` aramak
+  için günlüğe bak.
+- **Devre kesici durumu süreç-içidir.** Onu sınayan case'leri ayrı bir örnekte
+  (5092) koş, yoksa şeridin uygulamasında devre açık kalır.
+- **Süre ölçümü kanıttır.** Kapalı devre ~57 ms, gerçek ağ çağrısı 300–1400 ms.
+- **Spec'in `Beklenen sonuç` metinleri bu turda sistematik olarak bayat.**
+  Dosya 05'te 14 case düzeltildi. Türkçe hata mesajı bekleyen her satır
+  şüphelidir (K-228); bayat fixture terimleri de çıkabiliyor
+  (MT-OAI-084: `gizli-proje` → `confidential-project`).
+
+🚨 **Dosya 03'ten taşınan kurallar:** neredeyse her case
 `dotnet user-secrets set` yazar — hepsi ortam değişkenine çevrilir (skill §1.2).
 Model adı **`gpt-5.4-mini`**'dir; rastgele bir OpenAI modeli `403 model_not_found`
-verir. Ek olarak (oturum 9):
+verir (hesabın erişebildiği yedi model MT-OAI-058'de listelendi). Ek olarak
+(oturum 9):
 
 - **Nokta/tire taşıyan yapılandırma anahtarı ortam değişkeni olamaz** — zsh
   adı reddeder. Komut satırını kullan:
@@ -281,9 +314,11 @@ Tazeleme turu üç Faz 162 kalıntısı kapattı. Bunları tekrar aramana gerek 
 | Ağustos turundan devreden altı case | `00-INDEKS.md` §7.1 — bu turda yeniden koşulur. 🚨 **Düzeltmeden önce kusuru ampirik olarak yeniden üret**; 2026-08 turunda üç kusur zaten kapanmış çıktı |
 | Azure case'leri | Kimlik yok; `⏭ Atlandı` |
 | `Faz` listesi çelişkisi (36 ailenin 21'i) | Ölçüldü, **düzeltilmedi**; gerekçe ve kalıcı çözüm `00-INDEKS.md` §8'de. Turu engellemez |
-| Sağlayıcı anahtarları | 🚨 2026-09-16'da düz metne çıktı — **tur bitince beşi de döndürülmeli** |
-| `dokuman-bakim.py` **kırmızı** | ⚠️ **Beklenen, panik yok.** `docs/manuel-test/kosumlar/**.md` bütçesi aşıldı — bu tur ilerledikçe kayıt büyüyor. Ölçüm: tur başında **806 KB**, oturum 9 sonunda **860 KB**, bütçe **620 KB**. Yani aşım oturum 9'un eseri değil, turun doğasıdır. 🚨 **İÇERİK SİLME.** Çözüm Aşama 2'nin damıtma adımıdır (`dokuman-bakim.py kosum-damit`, §9 adım 3); o koşana kadar denetim kırmızı kalır ve bu **kabul edilmiştir**. Betiğin diğer tüm kontrolleri (kırık bağlantı, karar defteri, manuel kabul sayımı, üretilen dosya tazeliği) **yeşildir** — oturum sonunda yalnız onlara bak |
+| Sağlayıcı anahtarları | 🚨 2026-09-16'da düz metne çıktı — **tur bitince beşi de döndürülmeli**. Dosya 05 ayrıca kanıtladı ki **ürün** onları sızdırmıyor: altı HTTP ucu ve 13.310 satır günlük tarandı, tam ve kısmi eşleşme sıfır (MT-OAI-090 · 091 · 093) |
+| Tur aparatı (`~/tracon-manuel/`) | 22 dizin birikti; dosya 05 üçünü ekledi (`oai-ikili` · `oai-ad-dogrulama` · `oai-apikey`). **Tur bitince topluca silinecek** |
+| `dokuman-bakim.py` **kırmızı** | ⚠️ **Beklenen, panik yok.** `docs/manuel-test/kosumlar/**.md` bütçesi aşıldı — bu tur ilerledikçe kayıt büyüyor. Ölçüm: tur başında **806 KB**, oturum 9 sonunda **860 KB**, oturum 11 sonunda **932 KB**, bütçe **620 KB**. Yani aşım tek bir oturumun eseri değil, turun doğasıdır — her aile kayda ~70 KB ekliyor. 🚨 **İÇERİK SİLME.** Çözüm Aşama 2'nin damıtma adımıdır (`dokuman-bakim.py kosum-damit`, §9 adım 3); o koşana kadar denetim kırmızı kalır ve bu **kabul edilmiştir**. Betiğin diğer tüm kontrolleri (kırık bağlantı, karar defteri, manuel kabul sayımı, üretilen dosya tazeliği) **yeşildir** — oturum sonunda yalnız onlara bak. Oturum 11'de yeniden koşuldu: **tek kırmızı** bu bütçe, diğer 12 kontrolün hepsi yeşil |
 | `MT-PG-067` adım 2 | ✅ **Karar verildi (2026-09-16): Aşama 2'ye ertelendi.** Case `src/` altında kod değişikliği ister; kural 1 yasaklar. Adım 1 ve 3 yeşil koşuldu. Kapanış modunda koşulacak — yordam dosya 03'ün sonundaki tabloda. Case o zamana dek `☐ Beklemede` kalır |
+| `HATA-S1-020` kapanış yönü | `upstream_error` sınıflandırıcıda tanınmıyor → her sağlayıcı hatası `Unknown` **ve tek fingerprint**. En küçük düzeltme `StableIdentities`'e giriş eklemek; ama fingerprint sabit mesajdan üretildiği için **ayrı bir girdiye** dayanması gerekebilir. Kapanış oturumu karar verir; sınıf taraması dosya 05'in kaydındadır |
 | `HATA-S1-019` ilk kapanış sorusu | `RequireCustomBinding<ITenantStore>()` çağrılsaydı başlangıçta patlar mıydı, yoksa sessiz mi kalırdı? Cevap kusurun örnekte mi koruma mekanizmasında mı olduğunu belirler |
 | `31`–`36` kayıt biçimi | 🚨 **Faz B açılmadan çözülmeli.** Bu altı aile (205 case) tablo biçimindedir: satır başına bir case, `### MT-` başlığı ve `Durum:` satırı **yok**. Skill §4.1 case kaydı ve §7 sayım betiği (`^## (MT-...)` arar) bunlara uymaz. Kullanıcı kararı (2026-09-16): Faz B'ye ertelendi, zinciri bekletmez |
 

@@ -1402,8 +1402,12 @@ dotnet user-secrets remove "Tracon:CircuitBreaker:BreakDuration"
   başarısız olur (bkz. MT-OAI-043'ün gözlemi).
 - Deneme 3: **anında** başarısız olur (network gecikmesi olmadan, < 100ms) —
   `event: error` çerçevesinde `type: TraconProviderUnavailableException`,
-  `message` alanı `saglayicisi devre kesici tarafindan gecici olarak
-  durduruldu (2 ardisik hata)` dizgisini içerir. `AgentRunStream`'in `catch`
+  `message` alanı `The 'openai' provider was temporarily stopped by the circuit
+  breaker (2 consecutive failures). Will retry in 20s.` metnini taşır
+  (K-228 — sevk edilen metin İngilizce'dir). ⚠️ Bu mesaj
+  **normalleştirilmez**: `TraconProviderUnavailableException` bir
+  `TraconException`'dır ve `ProviderFailureNormalizer.IsKnownSafe` listesindedir
+  — yabancı sağlayıcı mesajının aksine okunabilir kalır. `AgentRunStream`'in `catch`
   bloğu artık (2026-08-10'dan beri) HER istisnayı yakalar — bu istisna da
   MT-OAI-043'teki `ClientResultException` de aynı şekilde `error` çerçevesine
   dönüşür.
@@ -1436,7 +1440,13 @@ curl -s "$APU/api/models/health/openai?refresh=true" -H "$APB" | python3 -m json
 - `status: Unhealthy` — ham `GET {endpoint}/models` denetimi (hâlâ) başarılı
   olsa bile, `ModelProviderHealthCache.ApplyCircuitBreakerOverlay` devrenin
   açık olduğunu görüp durumu ezer.
-- `detail` alanı `Devre kesici acik.` ile başlar ve kalan saniyeyi içerir.
+- `detail` alanı `Circuit breaker is open. Will retry in <N>s.` metnini taşır
+  (K-228 — sevk edilen metin İngilizce'dir).
+- 🚨 **Case'in gücü burada:** `refresh=true` gerçek ağ çağrısını yapar, `models`
+  dizisi **dolu** döner ve `latency` bir saniye civarıdır — yani ham denetim
+  BAŞARILIDIR. `Unhealthy` yine de görünür. Bu iki alanı da kontrol et; yalnız
+  `status`'e bakmak overlay'in mi yoksa gerçek bir kesintinin mi ölçüldüğünü
+  ayırt etmez.
 
 ---
 
@@ -1528,8 +1538,13 @@ dotnet user-secrets remove "Tracon:CircuitBreaker:FailureThreshold"
 | **İlgili karar** | K-322 |
 
 Sınır senaryosu — hiç ağ çağrısı yapılmadan devre sayacının **artmadığını**
-kanıtlar. Örnek uygulama `AddPatternContentGuard` ile `gizli-proje` kelimesini
-zaten engeller (`Program.cs`, `DeniedTerms`).
+kanıtlar. Örnek uygulama `AddPatternContentGuard` ile **`confidential-project`**
+kelimesini zaten engeller (`Program.cs`, `options.DeniedTerms.Add`).
+
+> 🚨 **Terimi doğrula, ezberden yazma.** Engellenen terim yanlışsa guard hiç
+> devreye girmez, beş çağrı gerçek sağlayıcıya çıkıp **başarılı** olur ve case
+> sessizce "Geçti" görünür — ama kanıtladığı şey bambaşkadır. Terimi
+> `Program.cs`'den oku.
 
 **Ön koşul**
 - Devre kesici varsayılan ayarlarda (Enabled=true, FailureThreshold=5).
@@ -1546,7 +1561,7 @@ zaten engeller (`Program.cs`, `DeniedTerms`).
 for i in 1 2 3 4 5; do
   curl -s -X POST "$APU/api/agents/support/run" -H "$APB" \
        -H "content-type: application/json" \
-       -d '{"message":"gizli-proje hakkinda bilgi ver","sessionId":"guard-circuit-'"$i"'"}' \
+       -d '{"message":"confidential-project hakkinda bilgi ver","sessionId":"guard-circuit-'"$i"'"}' \
        -w "\nHTTP: %{http_code}\n"
 done
 
