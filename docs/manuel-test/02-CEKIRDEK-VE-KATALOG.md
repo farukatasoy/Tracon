@@ -282,9 +282,15 @@ Sınır senaryosu. Yavaş veya ölü bir MCP sunucusu doğrulama ucunu **asmamal
 Zaman aşımı varsayılanı 5 saniyedir; sonuç `Inconclusive` olur, `Valid` düşmez.
 
 **Ön koşul**
-- Örnek uygulama çalışıyor.
-- Arayüzden veya API'den erişilemeyen bir MCP sunucusu kaydedilmiştir
+- Örnek uygulama **`Tracon__Egress__AllowPrivateNetworkTargets=true`** ile
+  çalışıyor. 🚨 Bu ayar olmadan kayıt adımı `400 Address not allowed` döner:
+  SSRF kapısı özel ağ adreslerini varsayılanda engeller. Kapı burada test
+  edilenin önüne geçer, konusu `18-MCP-VE-A2A.md`'dir.
+- Erişilemeyen bir MCP sunucusu kaydedilmiştir
   (adres: `http://127.0.0.1:59999/mcp` — hiçbir şey dinlemiyor).
+- 🚨 Case bitince kayıt **silinir** (`DELETE $APU/api/mcp-servers/olu-mcp`).
+  Kalırsa sonraki her doğrulama `inconclusive` döner ve sonraki case'ler
+  yanlış sonuç verir.
 
 **Adımlar**
 1. Erişilemeyen MCP sunucusunu kaydet.
@@ -562,16 +568,29 @@ Negatif senaryo.
 ```bash
 D() { curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: application/json" -d "$1"; echo; }
 
-D '{"name":"c1","model":{"provider":"echo","model":"echo-1"},"compaction":{"strategy":"Summarize"}}'
+D '{"name":"c1","model":{"provider":"echo","model":"echo-1"},"compaction":{"strategy":"Summarization"}}'
 D '{"name":"c2","model":{"provider":"echo","model":"echo-1"},"compaction":{"strategy":"BoyleBirSeyYok","triggerTokens":1000}}'
-D '{"name":"c3","model":{"provider":"echo","model":"echo-1"},"compaction":{"strategy":"ContextWindow","triggerTokens":1000}}'
+# c3: modelin katalogda context window degeri OLMAMALI, yoksa deger TURETILIR
+D '{"name":"c3","model":{"provider":"echo","model":"katalogda-yok"},"compaction":{"strategy":"ContextWindow","triggerTokens":1000}}'
 ```
 
 **Beklenen sonuç**
 - `c1`: mesaj `TriggerTokens/TriggerMessages/TriggerTurns`'ten en az birinin
   gerektiğini söyler.
-- `c2`: mesaj bilinmeyen strateji adını **aynen** taşır.
-- `c3`: mesaj `MaxContextWindowTokens` alanının eksik olduğunu söyler.
+  🚨 Strateji adı **`Summarization`**'dır, `Summarize` değil. Geçerli adlar:
+  `None · SlidingWindow · Truncation · ToolResult · Summarization · ContextWindow`
+  (`src/Tracon.Abstractions/Agents/CompactionStrategyKind.cs`). Yanlış ad
+  doğrulama katmanına hiç ulaşmaz, JSON okuyucusunda 400 olur.
+- `c2`: HTTP 400. Mesaj bilinmeyen strateji adını **aynen taşımaz** ve geçerli
+  değerleri listelemez — alan güçlü tiplenmiş olduğu için istek Tracon'un
+  doğrulayıcısından önce düşer. Bu bilinen bir tanı zayıflığıdır (`HATA-S1-008`,
+  2026-09-16); düzelene kadar beklenen budur.
+- `c3`: mesaj `MaxContextWindowTokens` alanının eksik olduğunu söyler **ve**
+  modelin katalogda context window değeri olmadığını ekler.
+  🚨 Bu ancak model katalogda **yoksa** olur: değer verilmediğinde
+  `ModelDescriptor.ContextWindowTokens`'tan **türetilir** ve derleme geçer
+  (`AgentDefinitionCompiler.Compaction.cs:145-168`, bilinçli karar). `echo-1`
+  gibi katalogda olan bir modelle bu case `valid=true` döner.
 - Üçü de `valid=false`'tur.
 
 ---
@@ -623,7 +642,7 @@ var catalog = provider.GetRequiredService<IAgentCatalog>();
 
 try
 {
-    await catalog.ResolveAsync("skill-isteyen");
+    await catalog.ResolveAsync("skill-isteyen", null, CancellationToken.None);
     Console.WriteLine("🚨 istisna ATILMADI");
 }
 catch (TraconCompilationException ex)
@@ -648,8 +667,9 @@ dotnet run -c Release
 > katalogu kayitli degil" hata dalı bugün de erişilemez durumda (ölü kod,
 > yalnız bir tüketici `AgentSkillCatalog` kaydını elle kaldırırsa tetiklenir).
 - Çıktı `beklenen istisna:` ile başlar.
-- Mesaj "'skill-isteyen' agent'i 'olmayan-skill' skill'ine isaret ediyor
-  ancak skill bulunamadi." ifadesini taşır.
+- Mesaj `Agent 'skill-isteyen' refers to skill 'olmayan-skill', but the skill
+  was not found.` ifadesini taşır. 🚨 Sevk edilen metin K-228'den beri
+  **İngilizce**dir; Türkçe bir alıntı görürsen spec bayattır.
 - `AgentName` alanı `skill-isteyen`'dir.
 - `🚨 istisna ATILMADI` satırı **görünmez**.
 
@@ -680,12 +700,17 @@ işe yaramaz; hangi agent olduğu yazılmalıdır.
 **Girilecek veri**
 ```bash
 cd ~/tracon-manuel/skillsiz
+dotnet add package Tracon.Testing --version "$SURUM"
 cat > Program.cs <<'EOF'
 using Tracon;
+using Tracon.Testing;
 using Microsoft.Extensions.DependencyInjection;
 
 var services = new ServiceCollection();
 services.AddTracon()
+    // Saglayici kaydi SART: derleme tool denetiminden ONCE saglayicida duser.
+    // `echo` yalniz ornek uygulamanin kendi provider'idir, yalin projede yoktur.
+    .AddModelProvider(new FakeModelProvider("echo"))
     .AddTool(TraconManuelTools.Var)
     .AddAgent(new AgentDefinition
     {
@@ -697,7 +722,7 @@ services.AddTracon()
 var provider = services.BuildServiceProvider();
 var catalog = provider.GetRequiredService<IAgentCatalog>();
 
-try { await catalog.ResolveAsync("tool-eksik"); Console.WriteLine("🚨 istisna ATILMADI"); }
+try { await catalog.ResolveAsync("tool-eksik", null, CancellationToken.None); Console.WriteLine("🚨 istisna ATILMADI"); }
 catch (TraconCompilationException ex) { Console.WriteLine(ex.Message); }
 
 internal static class TraconManuelTools
