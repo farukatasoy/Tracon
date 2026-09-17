@@ -953,3 +953,75 @@ güvenildi — kural 1 gereği src'ye dokunulmadı) · ☐ Kaldı · ☐ Atland�
 
 ---
 
+## MT-OBS-054 — 🚨 Geçersiz sağlayıcı kimlik bilgisiyle çalışan bir `run`, ham sağlayıcı metnini `error.message`'a yazmaz
+
+**Gerçek sonuç**
+`Tracon:Providers:OpenAI:ApiKey` geçersiz bir değere (`sk-invalid-test-...`)
+ayarlanıp yeniden başlatıldı. `support` run'ı → `error:{"type":"upstream_error",
+"message":"The model provider request failed."}` — `401`/`invalid_api_key`
+gibi hiçbir ham sağlayıcı metni YOK. Aynı zaman aralığında sunucu logunda
+`fail: Tracon.ModelProvider[0]` kategorisiyle TAM istisna görünüyor:
+`Tracon.ForeignProviderInvocationException: HTTP 401 (invalid_request_error:
+invalid_api_key)`. Anahtar sonra geçerli değerine geri alındı (yeniden
+başlatma + sağlık kontrolü ile doğrulandı). Beklenen sonuçla birebir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-055 — 🚨 Kuyruklu (`respond-async`) bir `run`'ın oturum açma hatası, `jobs.error_message`'a ham metin sızdırmaz
+
+**Gerçek sonuç**
+Bu şerit **PostgreSQL** ile çalışıyor ve `mt_s2.sessions.id` sütunu `text`
+(sınırsız) — `\d mt_s2.sessions` ile doğrulandı. 300 karakterlik bir
+`sessionId` ile `Prefer: respond-async` isteği gönderildi; kaynak taramasında
+(`grep -rn "sessionId.*Length"`) uygulama katmanında da bir uzunluk sınırı
+YOK. Sonuç: iş `Completed` bitti, `errorMessage: null` — case'in aradığı
+"oturum deposunun reddettiği aşırı uzun değer" ön koşulu bu veritabanı
+motorunda HİÇ oluşmuyor (spec muhtemelen SQL Server/SQLite'ın sabit-uzunluk
+sütun sınırlarını varsayıyor). Daha uzun bir dize denemek de sonucu
+değiştirmez (Postgres `text` ~1GB'a kadar serbesttir) — bu ortamda case'in
+kod yolu (`AgentRunJobHandler.FailQueuedRunAsync`'in ham metin sızdırmaması)
+tetiklenemiyor.
+
+**Durum:** ☑ Beklemede (ortam bekliyor — PostgreSQL'de `sessionId` sınırsız,
+bu strand'de yeniden üretilemiyor; SQL Server/SQLite arka uçlu bir strand'de
+denenmeli) · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-056 — Hata döndüren bir webhook hedefi, gövdesini `webhook_deliveries.error`'a yazdırmaz
+
+**Gerçek sonuç**
+`Tracon:Webhooks:Enabled=true`/`AllowInsecureHttp=true` ile yeniden
+başlatıldı; yerel bir Python `http.server` (127.0.0.1:8999) her isteğe
+`500` + gövdede kasıtlı "hassas" metin (`"db password is hunter2"`) döndürecek
+şekilde kuruldu; `PUT /api/webhooks/test-hook` ile `run.completed`'e abone
+edildi. Bir `support` run'ı tamamlanınca `GET .../deliveries` →
+`"responseCode":500, "error":"HTTP 500"` — hedefin döndürdüğü gövdenin
+HİÇBİR baytı görünmüyor. Beklenen sonuçla birebir. (Yerel dinleyici ve
+abonelik oturum sonunda temizlenecek.)
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-057 — MCP `tools/call` üzerinden çalıştırılan bozuk bir agent, ham hata metnini `CallToolResult`'a yazmaz
+
+**Gerçek sonuç**
+Örnek uygulama MCP'de yalnız `summarizer`'ı dışa açıyor
+(`Program.cs:189 o.ExposedAgents.Add("summarizer")`, kod donuk — başka agent
+eklenemedi); bu yüzden MT-OBS-054'ün geçersiz-anahtar kurulumu TEKRARLANDI
+(summarizer de `openai:gpt-5.4-mini` kullanıyor, aynı anahtarı paylaşıyor).
+`POST $APU/mcp` `tools/call` → `tracon_summarizer` (araç adı bu turda
+İngilizce, tazeleme turunun düzeltmesiyle tutarlı) →
+`{"result":{"content":[{"type":"text","text":"'summarizer' could not be run:
+The model provider request failed."},"isError":true}}`. Format `'{agent}'
+could not be run: {güvenli metin}` birebir eşleşiyor; `isError:true`. Not:
+güvenli metin `{TypeName} failed. (ref: ...)` değil, MT-OBS-054'ün sabit
+`ProviderFailureNormalizer` metni — bu, hata sınıfının (sağlayıcı hatası vs.
+genel istisna) `SafeErrorText` çıktısını değiştirdiğini gösteriyor, ikisi de
+"ham metin sızdırmaz" iddiasını doğruluyor, yalnız spec'in "tip adı + ref"
+tarifi bu spesifik hata sınıfı için tam uymuyor. Anahtar sonra tekrar geri
+alındı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti (düzeltilmiş beklenen sonuçla — güvenli
+metin `ProviderFailureNormalizer`'ın sabit metni, "tip adı + ref" değil,
+bkz. not) · ☐ Kaldı · ☐ Atlandı
+
+---
+
