@@ -251,12 +251,33 @@ Dağılım `00-KOSUM-PLANI.md` §3.1'dedir:
 |---|---|---|---|---|---|
 | `ap-s1` | 5081 | `mt_s1` | 19 | 13 · 19 · 04 · 18 · 10 · 08 | 🟡 sürüyor — aile 13: 74/144 case (MT-SEC-001..119), uygulama durdurulmuş halde devredildi. **Tamamlanmadı** — bu oturum tarafından dokunulmadı, ilerleyen bir oturum devam eder |
 | `ap-s2` | 5082 | `mt_s2` | 17 | 36 · 33 · 12 · 24 · 35 · 23 · 15 · 14 | 🚀 oturum 13'te arka plan agent'ı olarak başlatıldı (aile 36'dan) |
-| `ap-s3` | 5083 | `mt_s3` | 18 | 32 · 29 · 34 · 21 · 11 · 25 · 17 · 20 | 🚀 oturum 13'te arka plan agent'ı olarak başlatıldı (aile 32'den) |
+| `ap-s3` | 5083 | `mt_s3` | 18 | 32 · 29 · 34 · 21 · 11 · 25 · 17 · 20 | ✅ **TAMAMLANDI** — 8/8 aile kapandı, 372/372 case işlendi (348 Geçti · 10 Kaldı — `HATA-S3-001..008`, ikisi `HATA-S1-020`'yle aynı kök nedeni paylaşıyor — · 10 Beklemede (fiziksel/ortam kısıtı, altta) · 4 Atlandı). Uygulama normal duruma (PostgreSQL+OpenAI açık, tenancy kapalı) döndürülüp devredildi |
 | `ap-s4` | 5084 | `mt_s4` | 18 | 31 · 16 · 30 · 22 · 09 · 27 · 26 · 28 · 06 | 🚀 oturum 13'te arka plan agent'ı olarak başlatıldı (aile 31'den) |
 
 `ap-s2`/`ap-s3`/`ap-s4` oturum 13'te `main`'e fast-forward edildi (Faz A
 kapanış commit'lerini almaları için) — kendi commit'leri yoktu, çakışma
 olmadı. `ap-s1` dokunulmadı (kendi commit'leri var, ayrı ilerliyor).
+
+#### `ap-s3` kapandı — devredilen 10 Beklemede case
+
+Koşum tamamlandı ama on case bu şeritte/ortamda koşulamadı — hepsi
+gerekçeli, `☐ Beklemede` (Atlandı **değil**, skill §1.4/§4.3). Aşama 2
+kapanışında `00-INDEKS.md`'nin açık kalem tablosuna taşınmalıdır:
+
+| Case | Dosya | Neden |
+|---|---|---|
+| `MT-DKL-001..004, 006` | 32 | 👤 gerçek göz gerektirir (hero/kontrol şeridi, koyu tema, 360px kaydırma, diyagram, troubleshooting dizini) |
+| `MT-AGD-018` | 29 | İzole, taze-bağlamlı bir kod agent oturumu gerektirir — bu oturumun kendi araç setinin dışında |
+| `MT-AGD-024` | 29 | Nested gerçek `claude` CLI çağrısı gerektirir — bu oturumun kapsamı dışında |
+| `MT-RES-090` | 21 | Ön koşul özel bir `IRunEventSink` kaydı ister; eklemek kod değişikliği olurdu (kural 1 donuk kodu yasaklıyor) |
+| `MT-UIRUN-001` | 11 | `mt_s3` şemasını `DROP SCHEMA ... CASCADE` ile sıfırlamak gerekiyor — paylaşılan şerit kaynağını geri dönüşsüz siler, kullanıcı onayı istenmedi |
+| `MT-UIRUN-063` | 11 | Ortamda "reader" rolünü temsil eden ayrı bir kimlik yok — tek statik bearer token her zaman tam rol taşıyor |
+
+**Kusurlar (10 `Kaldı`):** `HATA-S3-001..008` (dosya 32: 001-002 ·
+dosya 34: 003 · dosya 21: 004 · dosya 11: 005-006 · dosya 17: 007-008).
+Dosya 21'de ayrıca bir case `HATA-S1-020` ile aynı kök nedeni paylaştığı
+için yeni kayıt açmadan ona referans verdi (S1'in bulgusunun S3'te bir
+kez daha doğrulanması).
 
 ---
 
