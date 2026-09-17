@@ -1115,3 +1115,58 @@ birebir.
 
 ---
 
+## MT-OBS-042 — Prompt cache isabetinde maliyet cache oranıyla hesaplanır
+
+**Gerçek sonuç**
+`Tracon:Pricing:openai:gpt-5.4-mini:{Input=0.25,Output=2,CachedInput=0.025}`
+ile yeniden başlatılıp 1700 kelimelik (~11.400 karakter) tekrar eden bir
+önek `summarizer`'a arka arkaya iki kez gönderildi. Birinci çağrı:
+`input=3229, cached=0, inputCost=0.00080725` (=3229×0.25/1e6). İkinci çağrı:
+`input=3229, cached=2816, inputCost=0.00010325` (=(3229-2816)×0.25/1e6),
+`cachedCost=0.0000704` (=2816×0.025/1e6). İkincinin toplamı (~0.000174)
+birincinin toplamından (~0.000807) belirgin biçimde düşük. Hesap
+ÇIKARMA yapıyor — `cached` `input`'un içinde sayılıyor. Beklenen sonuçla
+birebir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-043 — Cache fiyatı TANIMSIZKEN maliyet eskisiyle aynı kalır, `Unknown`'a DÜŞMEZ
+
+**Gerçek sonuç**
+Aynı kurulum ama `CachedInput` OLMADAN (`Input=0.25`, `Output=2`) yeniden
+başlatılıp aynı iki çağrı tekrarlandı. `cachedInputTokens=2816` (>0, sağlayıcı
+hâlâ bildiriyor); `inputCost=0.00080725` — girdinin TAMAMI tam fiyattan
+(çıkarma YOK, önceki turla birebir aynı); `cachedInputCost=null`;
+`source:"Configuration"` (`Unknown` DEĞİL). Beklenen sonuçla birebir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-044 — Sağlayıcının bildirmediği sayaç `null` kalır, `0` OLMAZ
+
+**Gerçek sonuç**
+Herhangi bir OpenAI run'ının `usage`'ı: `cachedInputTokens:0`,
+`reasoningTokens:0` (sayısal, sağlayıcı bildiriyor) vs.
+`audioInputTokens:null`, `audioOutputTokens:null` (sağlayıcı hiç
+bildirmiyor). Beklenen sonuçla birebir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-045 — 👤 Gösterge panelinde token kırılım çubuğu ve listede kullanıcı süzgeci
+
+**Gerçek sonuç**
+Dashboard "Token breakdown": "Cache hit 8,448 · Input 10,667 · Output 673"
+(dört dilimden üçü sıfırdan farklı olduğu için görünüyor; not metni
+"Cache hits and reasoning are re-cut out of the input and output totals, not
+extra tokens beside them." birebir). "Runs" ekranında "User" kutusuna `ada`
+yazılınca liste 26 satırdan tam **2**'ye düştü (yalnız `ada`'nın iki
+`summarizer` run'ı). Bir run'ın ayrıntısında "run by ada" + "purpose:
+cache-test" etiket rozeti görünüyor. Dil `tr`'ye çevrilince başlık
+"Çalıştırma", "run by"→"çalıştıran", durum "completed"→"tamamlandı" oldu —
+tüm arayüz metni Türkçeye döndü (kullanıcı verisi olan `ada`/`purpose:
+cache-test` haklı olarak çevrilmedi). Sonra `en`'e geri alındı. Beklenen
+sonuçla birebir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
