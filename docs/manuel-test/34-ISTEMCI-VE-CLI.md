@@ -60,7 +60,7 @@ dotnet run -c Release --urls http://localhost:5081
 | 8 | `MT-CLI-008` | Sunucu **kapalı** | `tracon health --url http://localhost:1/tracon` | Bağlantı hatası okunur hataya çevrilir; komut **asılı kalmaz** (birkaç saniye içinde döner) |
 | 9 | `MT-CLI-009` | `samples/Tracon.Api`, `app.MapTracon("control")` ile başlatılmış | `tracon health --url http://localhost:5081/control` | Sağlık durumu yazılır — önek soyma tasarımı (§83.3) kanıtlanır |
 | 10 | `MT-CLI-010` | Herhangi bir komut, uydurma bir bağlantı dizesi/token ile | Çıktı ve varsa log dosyası okunur | Bağlantı dizesi ve token çıktıda **hiç geçmez** |
-| 11 | `MT-CLI-011` | Temiz makine | `dotnet tool install -g Tracon.Cli` sonra `tracon --help` | Beş komut listelenir (`migrate`, `migrate status`, `state-check`, `health`, `eval`); kurulum ek adım istemez |
+| 11 | `MT-CLI-011` | Temiz makine | `dotnet tool install -g Tracon.Cli` sonra `tracon --help` | Altı komut listelenir (`migrate`, `migrate status`, `state-check`, `health`, `agent-skill`, `eval`); kurulum ek adım istemez |
 | 12 | `MT-CLI-012` | 👤 insan gerekir | Yeni bir konsol uygulamasında `Tracon.Client` referanslanır, `AddTraconClient` ile bir `TraconApiClient` çözülür ve bir metot çağrılır | IntelliSense metot ve parametre adlarını gösterir; çağrı gerçek sunucudan yanıt döner |
 | 13 | `MT-CLI-013` | Çalışan sunucu, hepsi geçen bir takım | `tracon eval --url … --suite ok --min-pass-rate 1.0` | Çıkış `0`; çıktı `Passed/Total` yazar |
 | 14 | `MT-CLI-014` | Bir vaka'sı düşen takım | Aynı komut | Çıkış **`3`**; çıktı **düşen vaka'nın kimliğini** yazar |
