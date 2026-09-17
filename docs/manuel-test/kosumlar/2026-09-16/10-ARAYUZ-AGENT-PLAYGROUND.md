@@ -1017,3 +1017,20 @@ chip eklenmedi.
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
+
+# 6 — Playground: ses (mikrofon paneli, Seslendir), erişilebilirlik, editör ayrıntıları
+
+## MT-UIAG-049 — Mikrofon düğmesi konuşma panelini açar/kapar
+
+**Gerçek sonuç — beklendiği gibi.**
+`Konuşma modu` düğmesine tıklanınca sınıfı `bg-accent text-accent-fg ...
+font-semibold` (primary tona) döndü ve panelin ALTINDA yeni bir `"Konuş"`
+düğmesi belirdi (VoicePanel render edildi). Tekrar tıklanınca `"Konuş"`
+düğmesi DOM'dan tamamen kayboldu (koşullu render — gizlenmiyor, hiç
+yok), `Konuşma modu` sınıfı normale (`bg-raised text-fg border-line-strong`)
+döndü. Panelin içindeki gerçek zamanlı konuşma akışı (mikrofon izni,
+WebSocket) bu case'in kapsamı dışında tutuldu, sınanmadı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
