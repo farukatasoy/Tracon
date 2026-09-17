@@ -29,7 +29,7 @@ sıfırdan düşürülüp yeniden oluşturuldu (aile 08'in verisi temiz atıldı
 
 ## Devir notu
 
-**Oturum 1-13 bitti: MT-UIAG-001..053 koşuldu (49 Geçti · 2 Kaldı · 2 Atlandı).**
+**Oturum 1-14 bitti: MT-UIAG-001..054 koşuldu (50 Geçti · 2 Kaldı · 2 Atlandı).**
 Uygulama AÇIK bırakıldı (port 5081, arka planda `launch_s1.py` ile başlatıldı,
 PID script'i `/private/tmp/.../scratchpad/s1-app.pid`de) — sonraki oturum
 sıfırdan başlatmak yerine devam edebilir, yalnız `curl .../api/diagnostics`
@@ -1108,6 +1108,29 @@ açılınca `orderId: "ORD-1001"` gösteriyordu. `samples/Tracon.Api`'nin
 `OrderApprovalPresenter`'ı bu ortamda HER ZAMAN kayıtlı olduğu için
 (`Program.cs:146`) bu, MT-UIAG-028'in ZATEN kanıtladığı davranışın
 aynısı — iki case birbirini doğruluyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-UIAG-054 — Konsolda açıklamayı düzenlemek, editörün kontrolü OLMAYAN alanları düşürmez (B01)
+
+**Gerçek sonuç — beklendiği gibi (B01 düzeltmesi hâlâ tutuyor, regresyon
+YOK).**
+HTTP ile `manuel-b01-test` yazıldı: `parameters` (bir kalem, `musteriAdi`),
+`model.allowConcurrentToolCalls: true`, `model.providerSettings:
+{"reasoning_effort":"low"}`, `model.responseCache:
+{"enabled":true,"lifetime":"00:05:00"}`. (`sharedInstructionsName` bu
+ortamda sınanamadı — örnek uygulamada kayıtlı hiçbir paylaşılan talimat
+tanımı yok ve runtime'da bir tane oluşturmanın HTTP ucu yok; mekanizmanın
+diğer dört alanı koruduğu güçlü kanıt, ama bu beşinci alan ampirik
+olarak doğrulanamadı.) Konsolda agent açıldı: JSON önizlemesi DAHA
+DÜZENLEMEDEN ÖNCE bile bu dört alanı zaten taşıyordu (`PreservedFields`
+form state'ine önceden yükleniyor). Yalnız `Açıklama` değiştirilip "Yeni
+sürüm kaydet"e tıklandı. `GET api/agents/manuel-b01-test`: `description`
+güncellendi, `version: 2`, dört alanın DÖRDÜ DE birebir korunmuş
+(`parameters`, `providerSettings`, `responseCache`, `allowConcurrentToolCalls`)
+— hiçbiri `null`/boş olmadı. Test agent'ı silindi.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
