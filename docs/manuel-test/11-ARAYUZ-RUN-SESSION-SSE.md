@@ -1185,11 +1185,21 @@ Negatif senaryo — sunucu "yok" ile "başka kiracıya ait"i AYNI 404'la örtüy
 2. Agent seçicisini var olmayan bir isimle FİLTRELEMEK yerine, hiç oturumu
    olmayan `manuel-bos` agent'ını seç.
 
+> 🚨 **Doküman düzeltmesi (2026-09-17 koşumu, ap-s3).** `sessions.tsx:150-
+> 170` boş-durumu `agentName.length > 0` şartına göre dallandırıyor —
+> belirli bir agent seçiliyken (o agent'ın GERÇEKTEN sıfır oturumu olsa
+> bile) her zaman `common.noResults` + "Clear filters" gösteriliyor;
+> `sessions.empty.title` + Playground bağlantısı YALNIZ filtre hiç
+> uygulanmamışken (tüm sistemde sıfır oturum) görünür. Adım 2 aşağıda
+> düzeltildi.
+
 **Beklenen sonuç**
 - Adım 1: yalnız `support`'un oturumları listelenir; her satırda oturum
   kimliği (kısaltılmış), agent bağlantısı, göreli oluşturma/güncelleme
   zamanı görünür.
-- Adım 2: liste boşalır, `sessions.empty.title` + playground bağlantısı
+- Adım 2: liste boşalır, `common.noResults` başlığı + "Clear filters"
+  düğmesi görünür (Playground bağlantısı DEĞİL — bu yalnız filtresiz,
+  sistemde hiç oturum yokken görünür)
   görünür.
 
 ---

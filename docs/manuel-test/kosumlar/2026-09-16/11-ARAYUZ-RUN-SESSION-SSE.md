@@ -613,3 +613,44 @@ davranışsal kısmı birebir örtüştü; dil beklentisi geçersiz.
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
+
+### MT-UIRUN-036
+
+**Yöntem notu — doküman düzeltmesi.** `manuel-bos` bu şeritte hiç
+üretilmedi; onun yerine hiç oturumu olmayan `Translator` seçildi. Kaynak
+incelemesi (`sessions.tsx:150-170`) case'in kendi varsayımını ÇÜRÜTTÜ:
+boş-durum başlığı `agentName.length > 0` şartına göre dallanıyor —
+belirli bir agent SEÇİLİ olduğu sürece (o agent'ın GERÇEKTEN sıfır oturumu
+olsa bile) her zaman `common.noResults` + "Clear filters" gösteriliyor;
+`sessions.empty.title` + Playground bağlantısı YALNIZ filtre HİÇ
+uygulanmamışken (`All agents`, tüm sistemde sıfır oturum) görünüyor. Yani
+case'in "boşsa oynatma alanına git bağlantısı görünür" beklentisi, ozel
+BİR agent seçildiğinde asla tetiklenmiyor — bu koşum kaydı düzeltildi.
+
+**Gerçek sonuç**
+Adım 1: Agent "Support Assistant" seçilince **29** satır listelendi, her
+satırda oturum kimliği (kısaltılmış), agent bağlantısı, göreli oluşturma/
+güncelleme zamanı. Adım 2: "Translator" (sıfır oturumlu) seçilince liste
+boşaldı ("No session for this agent yet. Clear the filter to see every
+session." + "Clear filters" düğmesi) — Playground bağlantısı YOKTU
+(yukarıdaki düzeltmeyle tutarlı). Adım 1 birebir örtüştü; adım 2 kod
+okumasıyla düzeltilmiş beklentiyle örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-UIRUN-037
+
+**Gerçek sonuç**
+Bir oturumun çöp kutusu düğmesine tıklanınca konsolun KENDİ dialogu açıldı
+(`role="dialog"`, tarayıcının native `confirm()`'ü DEĞİL): "Delete this
+session? Deletes the conversation and every message in it..." — açılış
+odağı "Cancel" düğmesindeydi. `Esc`'e basılınca dialog kapandı, oturum
+HÂLÂ vardı (`GET /api/sessions/{id}` → `200`). Tekrar tıklanıp "Delete"e
+basılınca: `DELETE /api/sessions/{id}` → `204`, satır elle yenileme
+olmadan listeden KALKTI. Beklenen sonucun tamamı birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
