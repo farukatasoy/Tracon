@@ -970,9 +970,15 @@ Oturum kimliği sunucudan rezerve edilir (K-043) — arayüz kendi biçimini uyd
 2. Akış bitene kadar bekle.
 
 **Beklenen sonuç**
-- `data-testid="approval-card"` görünür: tool adı `cancel_order` başlıkta
-  (mono yazı tipi — hiçbir `IToolApprovalPresenter` kayıtlı değilse
-  gösterilecek varlık adı yoktur), `tools.approvalRequired` rozeti.
+- `data-testid="approval-card"` görünür: `cancel_order` mono yazı tipiyle
+  görünür. Spec'in "hiçbir `IToolApprovalPresenter` kayıtlı değilse
+  gösterilecek varlık adı yoktur" varsayımı bu ortam için BAYAT (2026-09-16
+  turunda düzeltildi): `samples/Tracon.Api/Program.cs:146`
+  `OrderApprovalPresenter`'ı HER ZAMAN kayıtlı tutuyor (kod donuk, kaldırılamaz)
+  — bu yüzden başlıkta `"Order ORD-1001"` varlık adı da görünür. "Presenter
+  kayıtlı değil" dalı bu ortamda ampirik olarak hiç sınanamıyor; o dal zaten
+  `MT-UIAG-053`'ün konusu (Faz 142, "presenter varken varlık adı gösterir").
+  `tools.approvalRequired` rozeti (`"onay gerekli"`) doğru görünür.
 - "Argümanlar" satırı KATLI durur (Faz 142): `data-testid=
   "approval-toggle-arguments"` düğmesine tıklamadan argüman içeriği
   görünmez. Tıklandığında `orderId: "ORD-1001"` içeren bölüm açılır.

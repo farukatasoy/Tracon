@@ -29,7 +29,7 @@ sıfırdan düşürülüp yeniden oluşturuldu (aile 08'in verisi temiz atıldı
 
 ## Devir notu
 
-**Oturum 1-3 bitti: MT-UIAG-001..027 koşuldu (23 Geçti · 2 Kaldı · 2 Atlandı).**
+**Oturum 1-4 bitti: MT-UIAG-001..030 koşuldu (26 Geçti · 2 Kaldı · 2 Atlandı).**
 Uygulama AÇIK bırakıldı (port 5081, arka planda `launch_s1.py` ile başlatıldı,
 PID script'i `/private/tmp/.../scratchpad/s1-app.pid`de) — sonraki oturum
 sıfırdan başlatmak yerine devam edebilir, yalnız `curl .../api/diagnostics`
@@ -68,10 +68,19 @@ olarak yazıldı, MT-UIAG-024]), `manuel-cevrim-a` (çağrılabilir agent:
 konuşması (Playground) üretildi — bunlar kalıcı `run`/`session` kayıtları
 olarak kalır, temizlenmesi gerekmez (spec'in kendi deseni budur).
 
-**Sıradaki oturumun işi:** `MT-UIAG-028`'den devam — onay kartı akışı
-(`FIX-PROMPT-03`, `cancel_order`). Gerçek OpenAI çağrıları devam ediyor.
+**MT-UIAG-028/030'da bir spec düzeltmesi daha:** MT-UIAG-028'in "hiçbir
+`IToolApprovalPresenter` kayıtlı değilse" varsayımı bayattı —
+`samples/Tracon.Api/Program.cs:146` `OrderApprovalPresenter`'ı HER ZAMAN
+kayıtlı tutuyor (kod donuk), bu yüzden onay kartında her zaman "Order
+ORD-1001" varlık adı görünür. MT-UIAG-030 zaten önceki bir turda
+düzeltilmiş bir "Doküman düzeltmesi" taşıyordu (Reddet'in de ikinci bir
+tool kartı ürettiği) — bu tur bunu birebir doğruladı.
+
+**Sıradaki oturumun işi:** `MT-UIAG-031`'den devam — "Hatırla" ile kalıcı
+onay kuralı (bu, `ToolApprovalRuleEvaluator`'ı gerçekten test eder,
+yalnızca UI state'ini değil). Gerçek OpenAI çağrıları devam ediyor.
 Oturum bütçesi (arayüz-ağırlıklı ~18 case) bu noktada zaten aşıldı
-(27 case tek "oturumda" koşuldu) — sıradaki oturum daha küçük bloklarla
+(30 case tek "oturumda" koşuldu) — sıradaki oturum daha küçük bloklarla
 ilerlemeli.
 
 ---
@@ -654,6 +663,60 @@ metni bayattı — `transcript.done` anahtarı), `Argümanlar` (`{"orderId":
 delivery: 2 days."`) dolu görünüyordu. Başlığa tıklanınca kart kapandı
 (`Argümanlar` bölümü kayboldu), tekrar tıklanınca yeniden açıldı — elle
 aç/kapa serbest.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-UIAG-028 — `FIX-PROMPT-03` → onay kartı üretir; tur ONAYSIZ `done` olur, final metin gelmez
+
+**Gerçek sonuç — beklendiği gibi (spec'in "presenter yok" varsayımı bu
+ortam için bayattı, düzeltildi).**
+`ORD-1001 siparisimi iptal et` gönderildi. `approval-card` göründü, başlıkta
+`"Order ORD-1001"` (varlık adı — `OrderApprovalPresenter` HER ZAMAN kayıtlı,
+`Program.cs:146`) + `cancel_order` (mono) + `"onay gerekli"` rozeti.
+`Argümanlar` KATLI başladı (`orderId` görünmüyordu), `approval-toggle-
+arguments`'a tıklanınca `{"orderId": "ORD-1001"}` açıldı. Onay kartından
+SONRA hiçbir metin bloğu gelmedi. `GET /api/runs/{id}` ile run kaydı
+ölçüldü: `status: AwaitingApproval` — bu, dosya 08'in `MT-COMPAT-029`
+bulgusuyla (SSE `done` çerçevesi ile kalıcı `run.status` farklı katmanlar
+olduğu, kasıtlı) aynı desen; frontend'in kendi `turn.status` kavramı
+`done` olduğu için Onayla/Reddet düğmeleri tıklanabilir durumdaydı — bu
+tutarlı ve beklenen.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-UIAG-029 — Onayla → yeni bir tur başlar, kart 'approved' rozetine döner, tekrar tıklanamaz
+
+**Gerçek sonuç — beklendiği gibi.**
+"Onayla"ya tıklandı ("Hatırla" işaretsiz). Orijinal kart rozeti AKIŞ
+BAŞLAMADAN HEMEN `"onaylandı"`ya döndü (yerel state, sunucu yanıtı
+beklenmedi) ve `Onayla`/`Reddet` düğmeleri kayboldu (`find("Onayla")`
+yalnız kenar çubuğundaki "Onaylar" nav linkiyle eşleşti, karttaki düğme
+yok). Yeni bir tur eklendi: balon metni `"onay kararı gönderildi"` (spec'in
+`"Onay gönderildi" benzeri` beklentisiyle uyumlu). Yeni turda `cancel_order`
+tool kartı `"bitti"` durumunda, `Sonuç: "Order ORD-1001 has been
+canceled."`, ardından final metin `"ORD-1001 siparişiniz iptal edildi."`
+aktı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-UIAG-030 — Reddet → kart 'rejected' rozetine döner, tool hiç çalışmaz
+
+**Gerçek sonuç — beklendiği gibi (spec'in kendi önceki "Doküman
+düzeltmesi" birebir doğrulandı).**
+Yeni sohbette `FIX-PROMPT-03` tekrar gönderildi. "Reddet"e tıklanınca kart
+`"reddedildi"` rozetine döndü. Yeni turda `cancel_order` İKİNCİ bir kartla
+belirdi — rozet `"bitti"` (`failed` DEĞİL), ama `Sonuç: "Tool call
+invocation rejected."` — gerçek `CancelOrder` tool gövdesinin ürettiği bir
+metin DEĞİL, MAF'ın sabit red-stub'u. Final metin siparişin iptal
+EDİLMEDİĞİNİ açıkça söylüyor: `"Üzgünüm, şu anda siparişi iptal edemedim.
+İsterseniz tekrar deneyebilirim..."`. Asıl tool kodu hiç çalışmadı
+(spec'in düzeltilmiş iddiasıyla birebir).
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
