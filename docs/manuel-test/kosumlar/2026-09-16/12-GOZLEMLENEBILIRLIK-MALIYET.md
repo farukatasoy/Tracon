@@ -781,3 +781,29 @@ beklenen sonuçla birebir (mesaj yine İngilizce, K-228; spec'in aradığı
 
 ---
 
+## MT-OBS-019 — 🚨 Hassas öznitelikler varsayılanda ayıklanır; `RecordSensitiveData=true` ile aynı tür çağrıda görünür
+
+**Gerçek sonuç**
+Adım 2 (`RecordSensitiveData` ayarlanmamış = varsayılan `false`): `support`
+run'ının trace'inde `message`/`prompt`/`completion` alt dizgisi taşıyan
+öznitelik **YOK** (`[]`). Adım 3 (yeniden başlatma, `RecordSensitiveData=true`):
+AYNI türde yeni bir run'da liste artık DOLU —
+`['gen_ai.input.messages', 'gen_ai.output.messages']`. Bayrak sonra `false`'a
+(varsayılana) geri alındı ve uygulama üçüncü kez yeniden başlatıldı. Beklenen
+sonuçla birebir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-013 — Bekleyen girdi run'ı varken mavi uyarı rozeti "Çalıştırmalar"a bağlanır
+
+**Gerçek sonuç**
+`POST /api/workflows/summarize-and-approve/run` ile run başlatıldı, insan
+girdisi beklerken durdu. Dashboard Alerts paneli "1 run awaits input"
+bağlantısını gösterdi; bağlantının `href`'i `/tracon/runs` (filtre parametresi
+YOK — genel listeye yönlendiriyor, `AwaitingInput` filtresi otomatik
+seçilmiyor). Beklenen sonuçla birebir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
