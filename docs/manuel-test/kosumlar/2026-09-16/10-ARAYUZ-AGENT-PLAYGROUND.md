@@ -29,7 +29,7 @@ sıfırdan düşürülüp yeniden oluşturuldu (aile 08'in verisi temiz atıldı
 
 ## Devir notu
 
-**Oturum 1-14 bitti: MT-UIAG-001..054 koşuldu (50 Geçti · 2 Kaldı · 2 Atlandı).**
+**Oturum 1-15 bitti: MT-UIAG-001..055 koşuldu (51 Geçti · 2 Kaldı · 2 Atlandı).**
 Uygulama AÇIK bırakıldı (port 5081, arka planda `launch_s1.py` ile başlatıldı,
 PID script'i `/private/tmp/.../scratchpad/s1-app.pid`de) — sonraki oturum
 sıfırdan başlatmak yerine devam edebilir, yalnız `curl .../api/diagnostics`
@@ -1131,6 +1131,23 @@ sürüm kaydet"e tıklandı. `GET api/agents/manuel-b01-test`: `description`
 güncellendi, `version: 2`, dört alanın DÖRDÜ DE birebir korunmuş
 (`parameters`, `providerSettings`, `responseCache`, `allowConcurrentToolCalls`)
 — hiçbiri `null`/boş olmadı. Test agent'ı silindi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-UIAG-055 — Yalnız vector search açık olan `memory` bloğu kaydetmede kaybolmaz (B01)
+
+**Gerçek sonuç — beklendiği gibi (B01'in ikinci yarısı da hâlâ tutuyor).**
+HTTP ile `manuel-b01-memory-test` yazıldı: `memory: {enableVectorSearch:
+true, vectorCollection: "test-koleksiyon"}`, diğer üç memory bayrağı
+(`enableFileMemory`/`enableTodo`/`enableTextSearch`) kapalı. Konsolda
+agent açıldı: JSON önizlemesi kaydetmeden ÖNCE bile `memory` bloğunu
+doğru taşıyordu. Ad/açıklamaya dokunmadan "Yeni sürüm kaydet"e tıklandı.
+`GET api/agents/manuel-b01-memory-test`: `memory` **null DEĞİL**,
+`enableVectorSearch: true` ve `vectorCollection: "test-koleksiyon"` birebir
+korunmuş, `version: 2`. `memoryHasAnything`'in artık `enableVectorSearch`'ü
+de kapsadığı doğrulandı. Test agent'ı silindi.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
