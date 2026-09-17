@@ -1665,7 +1665,8 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/runs/<RUN_ID>/feedback" -H
 ```
 
 **Beklenen sonuç**
-- `HTTP: 400`, `detail: "Ikili puan ('binary') yalniz 0 veya 1 olabilir."`
+- `HTTP: 400`, `detail: "A binary score ('binary') can only be 0 or 1."`
+  (🚨 doküman düzeltildi, koşum 2026-09-17 ap-s3 — kaynak İngilizce'dir, K-228).
 
 ---
 

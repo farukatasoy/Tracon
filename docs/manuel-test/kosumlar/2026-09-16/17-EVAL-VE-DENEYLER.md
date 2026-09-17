@@ -829,3 +829,214 @@ manuel `Stop`'ta yok. Beklenen sonucun tamamı birebir örtüştü.
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
+
+## Devir notu (oturum 19 devam) — §8 geri bildirim/yeniden oynatma
+
+---
+
+### MT-EVAL-080
+
+**Gerçek sonuç**
+Gerçek bir run gönderildi. `POST .../feedback`
+(`{kind:"Binary",value:1,comment:"Dogru cevap."}`) → `200`, satır
+`source:"human", name:"overall"`. Sonraki `GET .../feedback` aynı satırı
+gösterdi. Beklenen sonuç birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-EVAL-081
+
+**Gerçek sonuç**
+`{kind:"Binary",value:2}` → `400`: `"A binary score ('binary') can only
+be 0 or 1."` (İngilizce, spec düzeltildi yukarıda — K-228). Beklenen
+sonuç birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-EVAL-082
+
+**Gerçek sonuç**
+`{kind:"Stars",value:4}` → `200`. `SELECT kind, value FROM
+mt_s3.run_scores WHERE id='<scoreId>'` → `kind:2, value:4` — birebir
+eşleşiyor. Beklenen sonuç birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-EVAL-083
+
+**Gerçek sonuç**
+`{kind:"Stars",value:0}` → `400`. `{kind:"Stars",value:6}` → `400`.
+İkisi de aynı mesaj: `"A star score ('stars') must be between 1 and 5."`.
+Beklenen sonuç birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-EVAL-084
+
+**Gerçek sonuç**
+Spec'in kendisinde zaten düzeltilmiş ön koşula göre koşuldu — statik
+bearer token akışında `author` `NULL`'dur. Aynı `RUN_ID`'ye ikinci bir
+Binary puan (`value:0, comment:"Fikrim degisti."`) gönderildi.
+`SELECT count(*), value, comment, author FROM mt_s3.run_scores WHERE
+run_id='<RUN_ID>' AND kind=1 GROUP BY value, comment, author` → **iki**
+satır: `(1, "Dogru cevap.", NULL)` ve `(0, "Fikrim degisti.", NULL)` —
+ikinci puan birinciyi EZMEDİ, upsert gerçekleşmedi (`author IS NULL`
+olduğu için tekillik indeksi devreye girmiyor). Beklenen (düzeltilmiş)
+sonuç birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-EVAL-085
+
+**Gerçek sonuç**
+İzlek C: `TraconTestHost` üzerinden `IRunScoreStore.UpsertAsync`
+doğrudan `Author: null` ile aynı `runId`/`name`/`kind`e iki kez çağrıldı.
+`store.ListAsync(...)` → **`2`** satır (`1` DEĞİL) — arayüzün kendi XML
+dokümanı zaten bunu doğruluyor (`"If Author is empty, the rule does not
+apply; every call writes a new row."`). Kod okuması ve ampirik koşum
+birbirini doğruladı; MT-EVAL-084'ün gerçek HTTP yolundan gözlemiyle de
+tutarlı. Beklenen sonuç birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-EVAL-086
+
+**Gerçek sonuç**
+`GET .../feedback`'ten ilk satırın `id`'si alınıp `DELETE
+.../feedback/{scoreId}` çağrıldı → `204`. `SELECT action FROM
+mt_s3.audit_log WHERE action = 'run.feedback.delete' ORDER BY
+created_at DESC LIMIT 1` → satır var. Beklenen sonuç birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-EVAL-087
+
+**Gerçek sonuç**
+MT-EVAL-041'in `RunSampler`/`OnlineEvalJobHandler` yolundan (HTTP ucu
+HİÇ devrede değil) otomatik ürettiği yargı puanının `runId`'si için:
+`SELECT count(*) FROM mt_s3.audit_log WHERE action LIKE 'run.feedback%'
+AND entity LIKE '%<runId>%'` → `0`. Aynı sorgu `run.judge%` için de `0`.
+Kontrol grubu: MT-EVAL-043'ün manuel `/judge` çağrısı (HTTP ucu üzerinden)
+`run.judge.manual` kaydı bırakmıştı (o case'in kendi kaydında zaten
+görüldü) — fark, `IRunScoreStore.UpsertAsync`'in kendisinin denetim izine
+sarılı OLMAMASI, yalnız HTTP uç işleyicisinin ayrıca audit yazması.
+Beklenen sonucun tamamı birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## HATA-S3-007 — `FeedbackControl`, bir run'da bir `Stars` puanı da varsa "tekrar tıkla = sil" yerine yinelenen satır oluşturuyor
+
+- **Case:** MT-EVAL-088
+- **Önem:** Orta
+- **İzlek:** B (gerçek tarayıcı + gerçek API, iki koşumla ayrıştırıldı)
+
+**Beklenen**
+Case'in kendi beklentisi: başparmak-yukarıya ikinci tıklama puanı SİLER
+(`remove.mutate(mine.id)`), üçüncü tıklama yeniden oluşturur.
+
+**Gerçekleşen**
+Bu davranış TEMİZ bir run'da (hiç önceden puanlanmamış) birebir doğru
+çalışıyor — üç tıklama sırasıyla `POST`/`DELETE`/`POST` üretti (kanıt
+aşağıda). AMA aynı run'da MT-EVAL-082'nin bıraktığı bir `Stars` puanı
+(`kind:"Stars", name:"overall"`, yalnız API'den yazılabilir) VARKEN,
+ikinci tıklama DELETE göndermek yerine yine `POST` gönderdi — mevcut
+Binary puanının üzerine yazmak/silmek yerine **ikinci, yinelenen** bir
+Binary satırı oluşturdu. `mt_s3.run_scores`'ta doğrulandı: aynı run,
+aynı `value:1`, iki AYRI `id` (`...5eba` ve `...2edf`), ikisi de
+`created_at` farklı.
+
+**Kök neden**
+`src/Tracon.UI/frontend/src/components/feedback-control.tsx:50-51`:
+```ts
+const mine = feedback.data?.find((score) =>
+    score.messageId == null && score.source === 'human' && score.name === OVERALL);
+```
+Bu eşleşme `score.kind`'ı HİÇ kontrol etmiyor — yalnız `messageId`,
+`source`, `name`. `Stars` ve `Binary` puanlarının ikisi de aynı
+`name:"overall"` taşıyabildiği için (API bunu engellemiyor, MT-EVAL-082
+zaten bunu kanıtlıyor), `.find()` listenin BAŞINDAKİ eşleşen satırı
+alıyor — sunucunun döndürdüğü sıra `IRunScoreStore.ListAsync`'in kendi
+XML dokümanına göre GARANTİ DEĞİL. `mine` bazen `Stars` satırına
+bağlanıyor; o zaman `mine.value` (`4`) hiçbir zaman düğmenin beklediği
+`0`/`1`'e eşit olmuyor, `toggle()` her tıklamada `rate.mutate()`
+(oluştur) çağırıyor, `remove.mutate()` (sil) asla tetiklenmiyor —
+düğme "silinmiş" gibi GÖRÜNSE bile arka planda yeni bir satır birikiyor.
+
+**Yeniden üretme**
+1. Bir run'a `POST /api/runs/{id}/feedback` ile `{kind:"Stars",
+   value:4}` yaz (yalnız API, arayüz bunu üretemez — MT-EVAL-082).
+2. Aynı run'ın detay ekranını aç, başparmak-yukarıya tıkla (`POST`
+   Binary oluşur).
+3. AYNI düğmeye tekrar tıkla.
+4. Ağ trafiğinde (`browser_network_requests`) ikinci isteğin `DELETE`
+   DEĞİL yine `POST` olduğunu, `mt_s3.run_scores`'ta iki ayrı `Binary,
+   value:1` satırı oluştuğunu gözle.
+
+**Kontrol (aynı ortamda, `Stars` puanı OLMADAN)**
+Tamamen temiz bir run'da (`01a0b183-...`, hiç puan yok) aynı üç tıklama
+sırasıyla `POST`(`200`, id `...b792`) → `DELETE`(`204`, aynı id) →
+`POST`(`200`, yeni id) üretti — spec'in beklediği TAM davranış. Bu,
+hatanın `Stars`/`Binary` `kind` karışıklığına özgü olduğunu, genel
+toggle mantığının kendisinin sağlam olduğunu kanıtlıyor.
+
+**Kapsam**
+Yalnız `feedback-control.tsx`'in kendi `mine` bulma mantığı etkileniyor.
+`author IS NULL` üretmenin (K-059 statik token tasarımı, MT-EVAL-084/085)
+KENDİSİ kusur değil — ama bu tasarım, aynı isimde birden çok `kind`
+satırının bir arada var olabileceği her ortamda bu UI bileşenini kırılgan
+kılıyor. Düzeltme adayı: `mine` eşleşmesine `score.kind === 'Binary'`
+koşulu eklemek.
+
+---
+
+### MT-EVAL-088
+
+**Gerçek sonuç**
+Temiz (hiç puanlanmamış) bir run'da üç ardışık tıklama tam beklendiği
+gibi çalıştı: `POST`(oluştur) → `DELETE`(sil) → `POST`(yeniden oluştur).
+AYNI davranış, MT-EVAL-082'nin `Stars` puanını taşıyan bir run'da
+BOZULDU — ikinci tıklama `DELETE` yerine yeni bir `POST` gönderdi,
+yinelenen bir satır oluşturdu. Kök neden bulundu ve kaydedildi:
+**`HATA-S3-007`** (yukarıda) — `feedback-control.tsx:50-51`'deki `mine`
+eşleşmesi `score.kind`'ı kontrol etmiyor. Beklenen sonuç TEMİZ run'da
+birebir örtüştü; kirli run'da (Stars puanı bulunan) ☑ Kaldı.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı — `HATA-S3-007`
+(temiz rundaki alt senaryo Geçti, Stars-puanlı rundaki alt senaryo Kaldı;
+case Kaldı olarak işaretlendi çünkü "herhangi bir run" ön koşulu ikisini
+de kapsıyor ve biri gerçekten bozuluyor)
+
+---
+
+### MT-EVAL-089
+
+**Gerçek sonuç**
+Hiç puanlanmamış temiz bir run'da yorum kutusuna metin yazılıp blur
+edildi — ağ trafiğinde (`browser_network_requests`, `/feedback` filtresi)
+sayfa yüklemesinin GET'i dışında **hiçbir istek** gitmedi (`saveComment`
+gerçekten `mine != null` şartına bağlı). Geri bildirim panelinin
+konteynerinde yalnız **2** SVG (başparmak yukarı/aşağı ikonları) ve
+yalnız `"Yararlı"`/`"Yararsız"` düğmeleri var — yıldız kontrolüne ait
+hiçbir eleman yok (sayfa metnindeki tek "star" eşleşmesi `run.started`
+olay adının içindeydi, yanlış pozitifti). Beklenen sonucun tamamı
+birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
