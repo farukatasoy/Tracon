@@ -713,3 +713,72 @@ oturuma ait run). Beklenen sonucun tamamı birebir örtüştü.
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
+
+### MT-UIRUN-042
+
+**Gerçek sonuç**
+Üç turluk bir oturumda (8 mesaj: tool çağrılı 1. tur, "Tesekkurler"/"Rica
+ederim!" 2. tur, "Baska bir sorum daha var"/... 3. tur) ikinci kullanıcı
+mesajının ("Tesekkurler", 0-tabanlı `seq=4`) "Branch from here" düğmesine
+tıklandı: `POST .../branch` gövdesi `{"upToSequence":4}`, `201 Created`,
+tarayıcı YENİ oturuma OTOMATİK yönlendi. Yeni oturumda **5** mesaj (0-4,
+"Tesekkurler" DAHİL) — "Rica ederim!" (5) ve üçüncü tur (6-7) YOKTU.
+Beklenen sonucun tamamı birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-UIRUN-043
+
+**Gerçek sonuç**
+`MT-UIRUN-042`'nin yeni (dallanmış) oturumuna yeni bir tur gönderildi
+("Yeni bir mesaj daha"). Eski oturumun (`mt-uirun-042`) mesaj sayısı
+öncesi/sonrası BİREBİR AYNI kaldı (`8`) — dal üzerindeki yeni mesaj yalnız
+yeni oturuma yazıldı. Beklenen sonucun tamamı birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-UIRUN-044
+
+**Gerçek sonuç**
+Dosyanın kendi düzeltilmiş beklentisi doğrulandı: `session-detail.tsx`'te
+HER "Branch from here" düğmesi bir mesaja bağlı (parametresiz yok) — AMA
+`playground/support?sessionId=mt-uirun-042` sayfasında oturum başlığının
+yanında `data-testid="branch-session"` taşıyan AYRI bir düğme var. Ona
+tıklanınca: `POST .../branch` gövdesi `{"upToSequence":null}`, `201`,
+yanıt `copiedItemCount:8` — TÜM konuşma (orijinal `mt-uirun-042`'nin 8
+mesajının hepsi) kopyalandı. Beklenen sonucun düzeltilmiş hâliyle birebir
+örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-UIRUN-045
+
+**Gerçek sonuç**
+`POST .../branch {"newSessionId":"manuel-dal-cakisma-01"}` → `201`,
+`sessionId:"manuel-dal-cakisma-01"`. AYNI istek İKİNCİ kez → `409`,
+`title:"Session id in use"` (Türkçe "Oturum kimligi kullanimda" DEĞİL —
+`en` varsayılan locale), `detail` üzerine yazmadığını açıkça anlatıyor.
+Beklenen sonucun davranışsal kısmı birebir örtüştü; dil beklentisi
+geçersiz.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-UIRUN-046
+
+**Gerçek sonuç**
+`POST /api/sessions/yok-boyle-bir-oturum/branch` → `404`, `title:"Session
+not found"`, `detail:"There is no session with id 'yok-boyle-bir-
+oturum'."` (Türkçe DEĞİL — `en` varsayılan locale). Beklenen sonucun
+davranışsal kısmı birebir örtüştü; dil beklentisi geçersiz.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
