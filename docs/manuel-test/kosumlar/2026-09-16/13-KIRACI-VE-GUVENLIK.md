@@ -13,7 +13,7 @@
 | **Kod** | `7e3a4de7` donuk |
 | **Case sayısı** | 144 (MT-SEC-001..193) |
 | **Port** | 5081 |
-| **Depo** | Çoğunlukla **bellek içi** (`storage.persistent: false`); MT-SEC-071/110-119 blokları geçici olarak SQLite kullandı (`samples/Tracon.Api/tracon-manuel.db`, oturum sonunda silindi) çünkü o case'ler restart sonrası kalıcılık VEYA doğrudan SQL sorgusu gerektiriyordu. `mt_s1` PostgreSQL şemasına bu ailede hiç dokunulmadı. |
+| **Depo** | Oturum 2'ye kadar çoğunlukla **bellek içi**; MT-SEC-071/110-119 blokları geçici SQLite kullandı. **Oturum 3'ten itibaren `mt_s1` PostgreSQL şeması** (içerik koruması, oturum sahipliği, webhook testleri SQL kalıcılık istiyordu) — önceki oturumun "hiç dokunulmadı" notu artık GEÇERSİZ, `mt_s1` bu ailenin test verisiyle dolu (temizlenmedi, §"Sıradaki oturumun işi"ne bakın). |
 | **LAN adresi** | `192.168.1.103` ("loopback dışı" case'ler için, Kestrel `0.0.0.0:5081`'e bağlı) |
 
 **Sapma — `user-secrets` yazılmaz** (skill §1.2): gerçek OpenAI anahtarı tek
@@ -30,6 +30,67 @@ GET /api/meta -> version 0.0.0-preview.0.789, storage.persistent=false,
 ---
 
 ## Devir notu
+
+**Oturum 3 — MT-SEC-120..193 koşuldu (74 case, aile 13 BİTTİ). 🎉**
+
+**Sayım (skill §7 betiği, `13-KIRACI-VE-GUVENLIK.md` üzerinde):**
+**97 ☑ Geçti · 0 ☑ Kaldı · 45 ☑ Beklemede** (toplam 142 kayıtlı case).
+Bu oturum 120-135, 140-193'ü (74 case) kapattı: **35 Geçti, 39 Beklemede**
+(1 fiziksel eylem/insan gerekir — MT-SEC-174).
+
+**Bir yeni kusur açıldı: `HATA-S1-023`** (aşağıda) — `AesGcmContentProtector`
+`Unprotect`/`UnprotectBytes` yanlış-ama-var bir anahtar karşısında ham,
+isimsiz bir `AuthenticationTagMismatchException` sızdırıyor; sınıfın DİĞER
+dört hata dalı (`kid` yok/boş/base64-değil/yanlış-uzunluk) hepsi `kid`'i
+adıyla söyleyen düzgün bir `TraconException` üretirken bu beşincisi sessiz
+kalıyor. Ayrıntı ve yeniden üretme adımları HATA kaydında.
+
+**🚨 Aile 13 (144/142 case) TAMAMLANDI.** Kalan 45 `Beklemede` case'in HEPSİ
+gerekçeli — ya (a) `samples/Tracon.Api`'ye GEÇİCİ kod eklenmesini isteyen ve
+kod donmasıyla çakışan case'ler (MT-SEC-121/122, 141-150, 152-163, 183-189 —
+toplam 33 case, üç ayrı konsolide not içinde ayrıntılı), (b) bu ortamın
+`postgres` süperkullanıcı bağlantısıyla üretilemeyen `REVOKE`/rol senaryoları
+(MT-SEC-190-193, 4 case), (c) daha önceki oturumdan devreden aynı sınıf
+(MT-SEC-024, 084, 102-105, 108, 118 — 8 case, ayrıntı önceki oturumun notunda),
+ya da (d) 👤 insan/üretim-ölçekli veri gerektiren MT-SEC-174 (1 case) ya da
+paylaşılan tarayıcı kilidi nedeniyle koşulamayan MT-SEC-126 (1 case, YENİ).
+Hiçbiri "unutuldu" değildir — her biri kendi `## MT-SEC-NNN` bloğunda
+gerekçesiyle durur.
+
+**Kalıcı çözüm adayları (kapanış/`docs/ADAYLAR.md` kararı):**
+1. Repo dışında (`~/tracon-manuel/` deseni), yerel NuGet feed'den referans
+   alan, KONFİGÜRE EDİLEBİLİR bir `IRunAuthorizationHandler`/
+   `IToolAuthorizationHandler`/`IRunAttributionContext` taşıyan küçük bir
+   tüketici host'u — 33 case'i (121/122, 141-150, 152-163) TEK SEFERDE açar.
+2. Aynı desenle `RequireProductionProfile()` çağıran, `MapTracon` çağırmayan
+   minimal bir host — 7 case'i (183-189) açar.
+3. Kapanış modunda izole bir doğrulama sunucusunda kısıtlı bir PostgreSQL rolü
+   (`tracon_app`) oluşturup uygulamayı ONUNLA bağlatmak — 4 case'i (190-193)
+   açar.
+4. Örnek uygulamaya sayısal argümanlı, onay gerektiren bir demo tool —
+   MT-SEC-102-104'ü açar (önceki oturumdan devreden öneri, hâlâ geçerli).
+
+**Sıradaki oturumun işi:** Bu şeridin dağılımına göre (`13 · 19 · 04 · 18 · 10 · 08`)
+**aile 19'a (`19-COK-MODLULUK-VE-SES.md`) geç** — yeni bir kardeş kayıt dosyası
+aç. Uygulama şu an **durduruldu** (bu oturumun sonunda). `Tracon:SessionOwnership`,
+`Tracon:Demo:Roles`, `Tracon:Webhooks:AllowInsecureHttp`,
+`Tracon:ContentProtection:Keys:sample2` ortam değişkenleri sıradaki oturuma
+MİRAS KALMAZ (süreç kapandı) — aile 19 muhtemelen bunların hiçbirini
+gerektirmiyor, ama gerekirse skill §serit-kurulumu §2'den sıfırdan kurulmalı.
+`mt_s1` şemasında bu oturumun ürettiği test verisi (mtsec1xx-*, cp-demo*,
+filemem-*, oai-*, guard-circuit-*, resp-yuzeyi-test vb.) TEMİZLENMEDİ —
+aile 19 bunlara dokunmuyor, sorun değil; kapanış/damıtma oturumu isterse
+`DROP SCHEMA mt_s1 CASCADE` ile sıfırlayabilir.
+
+🚨 **Bu oturumda ölçülen bir ortam tuzağı (gelecek oturumlara not):**
+`Tracon:Demo:Roles:Enabled=true` açıldığında `RequireRolePolicies=true` olur
+ve **HER** uç (yalnız rol-özel uçlar değil) `X-Tracon-Demo-Role` başlığı
+YOKSA `401` döner. `operator` rolü AYNI ZAMANDA `Tracon.Operator` yönetim
+politikasını sağlar (`SessionOwnership`'in `ManagementPolicy`'si) — sıradan
+kullanıcı testlerinde YANLIŞLIKLA `operator` kullanmak filtrelenmemiş/yönetim
+davranışını taklit eder (bu oturumda MT-SEC-165'te bir kez düşüldü, düzeltildi).
+Sıradan kullanıcı testleri için `reader` kullan, yönetim/operator testleri
+için `operator`.
 
 **Oturum 2 — MT-SEC-070..119 koşuldu (34 case, blok sınırında durdu).**
 **28 ☑ Geçti · 0 ☑ Kaldı · 6 ☐ Beklemede** (MT-SEC-084, 105, 108, 118 —
@@ -204,6 +265,101 @@ MT-SEC-091).
 `*ConfigurationKey` sonekli veya `authorization`/`secret`/`token`/`password`/
 `apikey` alt dizgisini adında TAŞIYAN ama gerçek bir kimlik bilgisi OLMAYAN
 her alan aynı şekilde etkilenir (yalnız MCP sunucu tanımıyla sınırlı değil).
+
+---
+
+### HATA-S1-023 — Yanlış (ama var olan) bir `ContentProtection` anahtarı, kimliği belirsiz ham bir kripto istisnasıyla çöker
+
+- **Case:** MT-SEC-133 (keşif — case'in KENDİ iddiası, "değeri boş `kid`"
+  senaryosu, doğru ve geçti; bulgu KOMŞU bir senaryoda — "değeri VAR ama
+  YANLIŞ `kid`" — çıktı)
+- **Önem:** Düşük-Orta
+- **İzlek:** A
+- **Ortam:** macOS arm64 · net10 · PostgreSQL (`mt_s1`) · gerçek `ContentProtection` anahtarı
+
+**Beklenen**
+`AesGcmContentProtector.LoadKey` (`src/Tracon.Core/Security/AesGcmContentProtector.cs:164-193`)
+bir `kid` için anahtar çözümlenemediğinde DÖRT farklı durumu (haritada yok ·
+değeri boş · base64 değil · yanlış uzunlukta) ayrı ayrı, `kid`'i VE
+yapılandırma anahtarının adını açıkça söyleyen bir `TraconException` ile
+karşılar (sınıfın kendi XML doc'u ve dört ayrı mesaj bunu doğruluyor).
+
+**Gerçekleşen**
+Bir kid (`sample`) için `Keys` haritasında GEÇERLİ bir girdi var VE raw değer
+de base64/32-bayt olarak GEÇERLİ ama YANLIŞ (başka bir restart'ta o `kid` ile
+yazılmış veriyi şifrelemeyen bir anahtar) olduğunda, `Unprotect`/`UnprotectBytes`
+(satır 83-101, 128-146) `AesGcm.Decrypt`'i DOĞRUDAN çağırıyor ve fırlayan
+`System.Security.Cryptography.AuthenticationTagMismatchException`'ı YAKALAMIYOR.
+İstisna işlenmemiş şekilde `ExceptionHandlerMiddleware`'e kadar çıkıyor: HTTP
+yanıtı jenerik `ProblemDetails` (`detail` YOK), sunucu logundaki mesaj da
+yalnız `"The computed authentication tag did not match the input
+authentication tag."` — ne `kid` adı, ne hangi `session`/`run` etkilendiği
+mesajın kendisinde YOK (yalnız stack trace'in çağrı zincirinden dolaylı
+çıkarılabilir). Sınıfın DİĞER dört hata dalı hepsi `kid`'i adıyla söylerken
+bu beşinci dal (kriptografik doğrulama hatası) sessiz kalıyor.
+
+**Yeniden üretme**
+1. `Tracon:ContentProtection:Keys:sample` → `Tracon:ContentProtection:RawKeys:sample`
+   eşlemesi dururken, `RawKeys:sample`'ın GERÇEK değerini bir restart'ta
+   anahtar A, bir SONRAKİ restart'ta FARKLI bir anahtar B olacak şekilde
+   değiştir (iki restart arası aynı `kid` için farklı ham değer).
+2. Anahtar A ile yazılmış bir satırı, anahtar B etkinken oku
+   (`GET /api/sessions/{id}` veya `/api/runs/{id}/input`).
+3. `HTTP 500` + jenerik gövde; logda `AuthenticationTagMismatchException`,
+   `kid` adı yok.
+
+**Kanıt**
+- Log: `/tmp/mt-s1-app5.log:76-97` (bu oturumun geçici dosyası, kalıcı değil) —
+  `fail: Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddleware[1]` →
+  `System.Security.Cryptography.AuthenticationTagMismatchException` →
+  `Tracon.AesGcmContentProtector.Unprotect(String stored) ...AesGcmContentProtector.cs:line 97`.
+- Karşılaştırma: AYNI sınıfın "değeri boş" dalı (`LoadKey:178`) MT-SEC-133'te
+  `kid`'i adıyla söyleyen düzgün bir `TraconException` üretti — asimetri
+  ölçüldü.
+
+**Kapsam**
+`Unprotect` ve `UnprotectBytes`'ın ikisi de etkilenir — `ProtectedValue.Read`
+üzerinden PostgreSQL/SQLite/SQL Server'ın ÜÇÜ de aynı kod yolunu paylaşır
+(`Tracon.Sql.Shared/Internal/ProtectedValue.cs`). Yalnız anahtar ROTASYONU
+sırasında (yeni `ActiveKeyId`'ye geçilirken eski bir satırın `kid`'i için
+YANLIŞ bir ham değer yapılandırılırsa) veya ham kripto bozulmasında (bit
+hatası) tetiklenir — sıradan "anahtar hiç yok/boş" operasyonel hatasından
+DAHA NADİR ama aynı ailenin bir parçası.
+
+---
+
+### Konsolide not — MT-SEC-141..150, 152..163 (`IRunAuthorizationHandler` davranış testleri) KOŞULAMADI
+
+Bu 22 case'in HEPSİ aynı ön koşula dayanıyor: `samples/Tracon.Api`'ye GEÇİCİ
+olarak ÖZEL davranışlı bir `IRunAuthorizationHandler` (kullanıcıya göre
+reddeden, her zaman reddeden, `throw` eden, yalnız `Session`/`Voice` erişimini
+reddeden vb.) kaydı — `Program.cs`'e `services.Replace(...)` veya benzeri bir
+satır eklenmesi. Kod donması (kural 1) bunu yasaklıyor; MT-SEC-024/084/105 ile
+AYNI sınıf.
+
+**Araştırılan alternatif — `samples/Tracon.Embedded` (donuk, ayrı bir sample):**
+Bu proje GERÇEKTEN özel bir `IRunAuthorizationHandler` (`EmbeddedRunAuthorizationHandler`)
+taşıyor ve ÇALIŞTIRILABİLİR (kod değişikliği gerekmez) — ama davranışı bu
+case'lerin çoğuyla ÖRTÜŞMÜYOR:
+- Reddi **KİRACI** temelli üretiyor (tanınmayan `X-Host-Tenant` → deny), case'lerin
+  çoğu **KULLANICI** temelli reddi test ediyor (`"a"` izinli, `"b"` reddedilir).
+  Spec'in KENDİ notu (MT-SEC-152, 157) bu ikame yı zaten 2026-09-05 üretim
+  oturumunda KULLANMIŞ ve "bilinmeyen kiracı → 403" ile doğrulamış — kısmen
+  geçerli bir ikame, ama MT-SEC-141/142/144/145/147/149/150 gibi kullanıcı
+  KİMLİĞİNE özgü senaryolar için YETERSİZ (bu örnekte kullanıcı ayrımı yok).
+- `AuthorizeSessionAsync`'i HER ZAMAN `Allow()` döner (kaynak okundu,
+  `Authorization/EmbeddedRunAuthorizationHandler.cs:61-68`) — session
+  reddi/`throw` senaryoları (146, 153-156, 158-163) bu örnekle HİÇ ÜRETİLEMEZ.
+- `current_account` tool'u `UserId` taşımıyor (149 için yetersiz).
+
+**Sonuç:** 141-150 ve 152-163 (toplam 22 case) bu oturumda `☑ Beklemede`
+bırakıldı. **Kalıcı çözüm** (kapanış kararı): repo DIŞINDA (`~/tracon-manuel/`
+gibi), yerel NuGet feed'den referans alan, KONFİGÜRE EDİLEBİLİR (env değişkeniyle
+davranışı seçilebilen) bir `IRunAuthorizationHandler`/`IRunAttributionContext`
+taşıyan küçük bir tüketici host'u yazılması — bu TEK host, 22 case'in TAMAMINI
+tek seferde açabilir (dosya 05 oturum 10/11'in "paketlenmiş tüketici host'u"
+tarifiyle aynı sınıf, ama bu sefer YENİ kod yazımı gerektiriyor, yalnız
+YAPILANDIRMA değil). `docs/ADAYLAR.md` adayı olabilir.
 
 ---
 
@@ -960,6 +1116,823 @@ tarayıcı profili bu makinedeki ilgisiz başka bir Claude Code oturumu
 tarafından kilitli). Açık soru tablosuna eklendi.
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-120 — Yetkilendirme kancası kayıtlı değilken davranış değişmez
+
+**Gerçek sonuç**
+`/api/diagnostics` → `IRunAuthorizationHandler` → `AllowAllRunAuthorizationHandler`,
+`isBuiltInDefault: true`. `get_order_status`'u çağırabilecek `support`
+agent'ına gerçek bir OpenAI çağrısı (`gpt-5.4-mini`) yapıldı: `HTTP: 200`,
+akış normal tamamlandı (`update` → `done`), `finishReason: stop`. Davranış
+değişikliği yok.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-121 — Reddeden bir kanca `run`'ı düşürmez, model devam eder
+
+**Gerçek sonuç — KOŞULAMADI, kaynak donması.** Case her çağrıyı reddeden bir
+`IToolAuthorizationHandler`'ın `samples/Tracon.Api`'ye GEÇİCİ kaydını istiyor;
+kod donması bunu yasaklıyor. Alternatif donuk örnek `samples/Tracon.Embedded`
+incelendi (`Authorization/EmbeddedToolAuthorizationHandler.cs`): `delete_account`
+tool'u `RequiredPermission="admin"` taşıyor ve hiçbir tohumlanmış kiracı
+(`acme`/`globex`) bu izne sahip değil — GERÇEK bir "her zaman reddedilir" tool
+var. Ama örneğin `EchoModelProvider.cs:15` model taklidi SABİT KODLANMIŞ
+şekilde yalnız `current_account`'ı prob'luyor (`ProbeToolName = "current_account"`),
+`delete_account`'ı hiçbir zaman çağırmıyor — bu yüzden bu donuk örnekle de
+reddi tetiklemenin bir yolu yok. Aynı sınıf: MT-SEC-024/084/105.
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-122 — Yetki reddi olay akışında `ToolFailed`'den ayırt edilebilir
+
+**Gerçek sonuç — KOŞULAMADI, MT-SEC-121 ile aynı kök neden.** Reddedilen
+tool çağrısı üretilemeden bu case'in `run`'ı da elde edilemiyor.
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-123 — Timeout'lu bir tool ~1 saniyede kesilir, `run` devam eder
+
+**Not:** `get_slow_report` (`TimeoutSeconds=1`) örnek uygulamada TANIMLI ama
+hiçbir `AgentDefinition.ToolNames`'de bağlı değil (`grep` doğrulandı,
+`samples/Tracon.Api/OrderTools.cs:60` tanım, hiçbir `Program.cs` agent'ı
+kullanmıyor — yalnız global katalogda, `MT-API-070`'in 10 tool listesinde).
+Kod donması ihlal edilmeden bu bağlamayı sağlamanın yolu: `POST /api/agents`
+ile YENİ bir agent TANIMI (veritabanı kaydı, kaynak değil — MT-SEC-128/129'un
+`PUT /api/tenants/.../providers` ile aynı sınıf) — `mt-sec-slow`,
+`toolNames: ["get_slow_report"]`, model `gpt-5.4-mini`.
+
+**Gerçek sonuç**
+`mt-sec-slow` agent'ına `"Fetch report R-1 with get_slow_report."` mesajı
+gönderildi. Toplam istek süresi **2.96s** (model akıl yürütme + tool çağrısı
+dahil). `GET /api/runs/{id}/tools`: `toolName: "get_slow_report"`,
+`duration: 00:00:01.049`, `error: "Tool 'get_slow_report' did not complete
+within 1s."`, `timedOut: true`, `succeeded: false`. Gerçek gövde (5 saniyelik
+uyku) BEKLENMEDİ — kesme ~1.05s'de gerçekleşti. `run` `finishReason: stop`
+ile normal tamamlandı, `Failed` değil.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-124 — Aynı tool arka arkaya 6 kez zaman aşımına uğrarsa devre kesici AÇILMAZ
+
+**Gerçek sonuç**
+`mt-sec-slow` agent'ına art arda 7 `run` (6 + doğrulama için 1 fazla) at,
+her biri `get_slow_report` çağırdı ve zaman aşımına uğradı: süreler
+2.48s–3.29s arası (model akıl yürütme dahil, tümü benzer büyüklükte — geç
+kalan/hızlanan yok). `GET /api/models/health`: `openai` sağlayıcısı
+`status: "Healthy"`, `detail: null` — devre kesici hiç tetiklenmedi. 7.
+`run` da aynı hızda (2.60s) tamamlandı; devre kesici gecikmesi (kapalı devre
+~57ms'lik hızlı-red) gözlenmedi. Tool zaman aşımı `ModelProviderCircuitBreaker`'a
+ulaşmıyor, doğrulandı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-125 — Onay bekleme süresi timeout'a düşmez
+
+**Not:** İlk deneme senkron (`Prefer: respond-async` yok) çalıştı ama sonuç
+`GET /api/approvals/pending`'de görünmedi — kaynak `AgentEndpoints.cs:1214-1221`
+yorumu açıkça belirtiyor: "bu mailbox yalnız `Prefer: respond-async` ile
+başlayan `run`'lar için var". Kuyruklu tekrar `sessionId` OLMADAN `403`/`Failed`
+verdi (`TraconException: ... approval is the input to the next turn and cannot
+be resolved without a session`) — case metni bu ön koşulu yazmıyor ama koddan
+gerekli olduğu görüldü, `sessionId: "mt-sec-125"` eklenip düzeltildi (kural 1
+istisnası değil, yalnız eksik bir adım tamamlandı).
+
+**Gerçek sonuç**
+Kuyruklu `run` (`Prefer: respond-async`, `sessionId: "mt-sec-125"`) `cancel_order`
+için `AwaitingApproval`'a düştü, `GET /api/approvals/pending` onayı doğru
+gösterdi (`id: 01a0ac8d-7a61-74df-83a3-45eafdab1926`). **130 saniye** beklendi
+— bu süre boyunca onay durumu `Pending`/run durumu `AwaitingApproval` kaldı,
+hiçbir `ToolTimeout`/hata üretilmedi. `POST /api/approvals/{id}/decide`
+`{"approved":true}` → `200`, `status: "Approved"`, karar **49ms**'de işlendi.
+Kararın hemen ardından (23:31:47, kararın 7s sonrası — worker döngüsü) **YENİ**
+bir `run` (`01a0ac8d-7a61-7a38-b9a4-92ad32c969bb`) açıldı ve **~1.04s**'de
+`Completed` oldu — normal hız, `TimeoutAIFunction`'ın içinden hiç geçmedi
+(K-368 doğrulandı: onay kararı orijinal `run`'ı DEĞİL, yeni bir `run`'ı ileri
+götürür; orijinal `run` `AwaitingApproval` durumunda kalıcı olarak durur).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-126 — Tool kataloğunda etki rozeti ve izin adı görünür
+
+**Gerçek sonuç — arayüz KOŞULAMADI (Playwright tarayıcısı kilitli, MT-SEC-108/118
+ile AYNI kök neden), API verisi doğrulandı.** `browser_navigate` denendi:
+`Error: Browser is already in use for .../mcp-chrome-3eca5a9` — paralel çalışan
+diğer şerit(ler) aynı paylaşılan tarayıcı profiline erişiyor. `GET /api/tools`
+ile temel veri doğrulandı: `cancel_order` → `"effect":"Destructive"`,
+`"requiredPermission":"orders.cancel"`; `get_order_status` ve
+`list_recent_orders` → `"effect":"Read"`, `"requiredPermission":null`. Arayüz
+rozetlerinin bu alanlardan üretildiği varsayımı case'in kendi metniyle uyumlu
+ama GÖRSEL render doğrulanamadı.
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-127 — Token okumayan tool: `run` 1 saniyede devam eder, gövde arkada biter
+
+**Gerçek sonuç**
+MT-SEC-123/124'ün 7 çağrısının tümü için (~4s sonra) uygulama logunda
+`info: Tracon.TimeoutAIFunction[0]` → `Tool 'get_slow_report' finished after
+its 1s timeout had already been reported to the model.` satırı görüldü (log
+`/tmp/mt-s1-app.log:1772` ve 6 benzeri). `run` MT-SEC-123'te doğrulandığı gibi
+~1s'de devam etmişti; gövdenin arka planda GERÇEKTEN bittiği yalnız bu log
+satırıyla görünür — `GET /api/runs/{id}/tools` kaydı (MT-SEC-123'te alındı)
+bu ikinci tamamlanmayı bir olay olarak TAŞIMIYOR (belgelenmiş sınır, doğrulandı).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-128 — Kiracı sağlayıcı `Endpoint`'i özel ağa işaret ediyor: reddedilir
+
+**Gerçek sonuç**
+`PUT /api/tenants/acme/providers/anthropic`, `endpoint: "http://10.0.0.5/"`
+ile → `HTTP: 400`, `detail: "The target resolves to a private network address
+(10.0.0.5); set 'Tracon:Egress:AllowPrivateNetworkTargets' to true to allow
+it."` — mesaj ayarın adını taşıyor. Aynı istek `endpoint` alanı hiç verilmeden
+→ `HTTP: 200`, `endpoint: null` — kısıt yalnız override'a uygulanıyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-129 — Webhook `secretConfigurationKey` önek dışında: reddedilir
+
+**Gerçek sonuç**
+`PUT /api/webhooks/orders`, `secretConfigurationKey: "ConnectionStrings:Default"`
+ile → `HTTP: 400`, `detail: "'ConnectionStrings:Default' is outside the allowed
+prefix. 'secretConfigurationKey' may only reference a configuration key under
+'Tracon:WebhookSecrets:'."`. Aynı istek `"Tracon:WebhookSecrets:orders"` ile →
+`HTTP: 200`. `secretConfigurationKey` hiç verilmeden (`orders2`) → `HTTP: 200`,
+`secretConfigurationKey: null` — alan opsiyonel.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-130 — Webhook ek başlığı imza başlığının adını taşıyor: gönderilmez
+
+**Not:** Alıcı olarak yerel bir Python `http.server` (127.0.0.1:8099, header
+loglayan) kullanıldı — kod donmasını ihlal etmez. Uygulama restart edildi
+(`Tracon__Webhooks__AllowInsecureHttp=true` — varsayılan yalnız `https`
+kabul ediyor). İki abonelik denendi: `secretConfigurationKey` YOK (`sig-test`)
+ve VAR (`sigtest`, `Tracon:WebhookSecrets:sigtest` ortam değişkeniyle).
+
+**Gerçek sonuç**
+İkisinde de `headers: {"X-Tracon-Signature":"sahte","X-Tenant":"acme"}`
+abonelikte tanımlıydı. Bir `run` tetiklendi, alıcı isteği yakaladı:
+- `sig-test` (`secretConfigurationKey` yok): alınan başlıklarda `X-Tracon-Signature`
+  HİÇ YOK (imzalanacak `secret` yok, sahtesi de gönderilmedi) — `X-Tenant: acme`
+  normal iletildi.
+- `sigtest` (`secretConfigurationKey` var): alınan başlıklarda **tek bir**
+  `X-Tracon-Signature: sha256=dda645becaaabdcef01ada058303ba8a5db83ff75f1eb93d38334c764ccc1ea9`
+  var — GERÇEK hesaplanmış imza, `sahte` DEĞİL. `X-Tenant: acme` yine iletildi.
+- Sunucu logunda HER İKİ abonelik için de: `Webhook subscription '<ad>' carries
+  the reserved header 'X-Tracon-Signature'; it was not sent.`
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-134 — Koruma kapalıyken davranış Faz 82 öncesiyle birebir aynıdır
+
+**Not — spec `Ön koşul`u koddan sapmış (K-228 DEĞİL, factual sapma, bu koşumda
+düzeltildi).** `samples/Tracon.Api/appsettings.json:31-38` içinde
+`ContentProtection.Enabled` **varsayılan `true`**'dur (case'in "varsayılan
+`false`" iddiasının aksine) — `ActiveKeyId: "sample"`,
+`Keys: {"sample": "Tracon:ContentProtection:RawKeys:sample"}` zaten hazır
+gelir; yalnız `RawKeys:sample`'ın GERÇEK değeri (bir `secret`) tanımsızdır.
+Bu yüzden koruma "kapalı" durumu bu koşumda `Tracon__ContentProtection__Enabled=false`
+ortam değişkeniyle AÇIKÇA kuruldu. Case'in ikinci adımı ("bölümü appsettings.json'dan
+tamamen kaldır") ile bu env-var override'ı DAVRANIŞSAL olarak eşdeğerdir —
+tam da case'in kendi iddiasının konusu ("kapıyı açan `Enabled` bayrağıdır,
+çağrının/bildirimin varlığı değil") — ayrı bir appsettings.json düzenlemesi
+kod donmasını ihlal ederdi, gerek de yok.
+
+**Gerçek sonuç**
+`Tracon__ContentProtection__Enabled=false` ile `run_inputs.messages` VE
+`sessions.state` sütunları **düz metin** (`$apEnc` yok) — MT-SEC-132'nin
+`legacy-demo` yazımıyla aynı ölçüm, üstte doğrulandı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-131 — Koruma açıkken oturum durumu ve `run` girdisi veritabanında şifreli durur
+
+**Not:** `Tracon:ContentProtection` zaten `appsettings.json`'da
+`Enabled:true, ActiveKeyId:"sample", Keys:{"sample":"Tracon:ContentProtection:RawKeys:sample"}`
+ile varsayılı geliyordu (bkz. MT-SEC-134 notu); yalnız `RawKeys:sample`'ın
+GERÇEK 32 baytlık değeri eksikti — `openssl rand -base64 32` ile üretilip
+`Tracon__ContentProtection__RawKeys__sample` ortam değişkenine (user-secrets
+DEĞİL) atandı, uygulama yeniden başlatıldı.
+
+**Gerçek sonuç**
+`sessionId: "cp-demo2"`, mesaj `"secret marker XYZZY-CP-DEMO-2"` ile `run`
+yapıldı (RUN_ID `01a0ac97-09f3-7b9f-a451-7a955086329e`). Postgres'e doğrudan
+`psql` ile bakıldı: hem `run_inputs.messages` hem `sessions.state` sütunu
+`{"$apEnc":1,"kid":"sample","n":"...","c":"..."}` zarfı — `XYZZY-CP-DEMO-2`
+metni sütunda HİÇ görünmüyor. `GET /api/runs/{id}/input` ve
+`GET /api/sessions/cp-demo2` ise metni **düz** döndürdü — çözme şeffaf, API
+zarfı hiçbir zaman göstermiyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-132 — Koruma açılmadan önce yazılmış satır, açıldıktan sonra da okunabilir
+
+**Gerçek sonuç**
+Adım 1 (MT-SEC-134'te koşuldu): `Enabled:false` iken `sessionId: "legacy-demo"`
+yazıldı, sütun düz metin doğrulandı. Adım 2: uygulama `Enabled:true` (+ gerçek
+`RawKeys:sample`) ile yeniden başlatıldı (MT-SEC-131 restart'ı). Adım 3:
+`legacy-demo` satırı Postgres'te HÂLÂ düz metin (`$apEnc` yok, koruma
+YALNIZCA yeni yazmaları etkiliyor) VE `GET /api/sessions/legacy-demo` isteği
+`"secret marker XYZZY-LEGACY-DEMO"` metnini **birebir** döndürdü — okuma
+başarılı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-133 — Bilinmeyen `kid` sessiz değil, adını söyleyen net bir hata verir
+
+**Not — literal ön koşul (appsettings.json'dan `Keys:sample` girdisini kaldırma)
+kod donması yüzünden koşulamadı; eşdeğer bir alt senaryo kullanıldı.** Proje
+zaten iki gerçek `secret` taşıyor (`dotnet user-secrets list` doğrulandı):
+`Tracon:ContentProtection:RawKeys:{sample,sample2}` — `sample2`'nin `Keys`
+haritasında karşılığı appsettings.json'da YOK (env ile eklendi:
+`Tracon__ContentProtection__Keys__sample2=Tracon:ContentProtection:RawKeys:sample2`,
+`ActiveKeyId=sample2`). `Keys:sample` GİRDİSİNİN KENDİSİ appsettings.json'da
+sabit kalıyor; onu SİLMENİN appsettings.json dışında bir yolu yok. Bunun yerine
+`sample`'ın işaret ettiği RAW DEĞER boşaltıldı (`Tracon__ContentProtection__RawKeys__sample=""`)
+— `AesGcmContentProtector.LoadKey` (satır 164-183) içindeki İKİ ayrı kontrolden
+("Keys'te yok" / "değeri boş") ikincisini tetikliyor, mesaj yine `'sample'`
+adını taşıyor; case'in kendi iddiasına eşdeğer kanıt.
+
+**Ara bulgu (yol boyunca, düzeltilip asıl teste geçildi):** ilk denemede
+`RawKeys__sample` env değişkenini hiç EXPORT ETMEDEN restart edildiğinde
+uygulama BEKLENMEDİK şekilde `AuthenticationTagMismatchException` (500, mesajsız)
+verdi — çünkü proje deposunda ZATEN gerçek bir `sample` secret'ı var
+(`dotnet user-secrets`, yukarıda) ve env var'ın YOKLUĞU o secret'ın devreye
+girmesine izin veriyor; benim MT-SEC-131'de kullandığım FARKLI anahtar bu
+secret DEĞİLDİ, dolayısıyla "yanlış-ama-var" bir anahtarla decrypt denendi.
+Bu, aşağıdaki HATA-S1-023'ün kaynağıdır.
+
+**Gerçek sonuç**
+1. Uygulama **açıldı** (`Application started`) — `ActiveKeyId=sample2`'nin
+   `Keys`'te karşılığı var, `sample`'ın YOK OLMASI değil yalnız DEĞERİNİN boş
+   olması başlangıcı engellemedi (validator yalnız yapıyı kontrol ediyor,
+   ayrıntı doğrulaması tembel).
+2. `GET /api/sessions/cp-demo2` (kid=`sample`) → `HTTP 500`. **HTTP gövdesi**
+   yalnız jenerik `ProblemDetails` (`title: "An error occurred..."`, `detail`
+   YOK) — ama **sunucu logu** net: `Tracon.TraconException: Content
+   protection key 'sample' points at configuration key
+   'Tracon:ContentProtection:RawKeys:sample', which has no value. Set it with
+   \`dotnet user-secrets\` or an environment variable.`
+   (`AesGcmContentProtector.cs:178`). Bu, dosyanın geri kalanında zaten
+   yerleşik `SafeErrorText` deseniyle (ayrıntı yanıtta değil günlükte —
+   `DEVIR.md`'nin sağlayıcı hatası notu) TUTARLI; case'in "sessiz null/boş
+   DEĞİL, fark edilir" iddiası günlük kanalıyla karşılanıyor.
+3. `sample2` ile YENİ bir satır (`cp-demo4`) yazıldı ve `GET` ile düz metin
+   okundu — aynı anda ÇALIŞAN bir anahtarla etkilenmiyor, doğrulandı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-135 — Koruma açıkken agent dosya araması hâlâ doğru sonuç verir
+
+**Not:** `samples/Tracon.Api`'nin hiçbir hazır agent'ı `EnableFileMemory`
+açmıyor (yalnız `knowledge-assistant` `EnableVectorSearch` kullanıyor —
+FARKLI bir bellek türü). Kod donmasını ihlal etmeden: `POST /api/agents` ile
+YENİ bir agent (`mt-sec-filemem`, veritabanı kaydı) `memory: {"enableFileMemory":
+true}` ile oluşturuldu.
+
+**Gerçek sonuç**
+Agent'a `animals.txt` dosyasına `"The favorite animal is
+needle-XYZZY-PANDA."` yazdırıldı. Postgres'te doğrudan bakıldı:
+`mt_s1.agent_files.content` → `{"$apEnc":1,"kid":"sample2","n":"...","c":"..."}`
+zarfı, `needle-XYZZY-PANDA` metni sütunda YOK. Ayrı bir turda agent'a
+`"favori hayvan"`ı dosyalarından arattırıldı → doğru cevap **"PANDA"**
+döndü — sunucu tarafı ön süzgeç (yalnız PostgreSQL'de var, `FileMemoryProvider`
+şifreli sütunu doğrudan filtreleyemez) devre dışı kalsa da nihai eşleşme
+istemci tarafında (deşifre edilmiş içerik üzerinde) çalışıyor ve doğru
+sonucu buluyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-140 — Handler kayıtlı değilken hiçbir şey değişmez
+
+**Gerçek sonuç**
+`GET /api/diagnostics` → `IRunAuthorizationHandler`: `AllowAllRunAuthorizationHandler`,
+`isBuiltInDefault: true`. `support` agent'ına gerçek bir OpenAI `run`'ı
+`HTTP: 200`, akış normal tamamlandı (`finishReason: stop`) — hiçbir davranış
+değişikliği yok.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-141 — Handler yalnız beklenen kullanıcıya izin verir
+
+**Gerçek sonuç — KOŞULAMADI, kaynak donması.** Case `samples/Tracon.Api`'ye
+GEÇİCİ olarak `UserId == "a"` dışını reddeden bir `IRunAuthorizationHandler`
+kaydı (`Program.cs`, `services.Replace(...)`) istiyor — kod donması bunu
+yasaklıyor. Ayrıntı: aşağıdaki konsolide not (MT-SEC-141..150, 152..163).
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-142 — Reddedilen bir run başkasının session'ını da kapsar
+
+**Gerçek sonuç — KOŞULAMADI, MT-SEC-141 ile aynı kök neden.**
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-143 — `throw` eden handler reddeder (fail-closed)
+
+**Gerçek sonuç — KOŞULAMADI, MT-SEC-141 ile aynı kök neden.**
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-144 — Reddedilen run kotayı tüketmez (sıra: atıf → yetki → kota)
+
+**Gerçek sonuç — KOŞULAMADI, MT-SEC-141 ile aynı kök neden.**
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-145 — Kuyruğa alınan (`Prefer: respond-async`) run da kapsanır
+
+**Gerçek sonuç — KOŞULAMADI, MT-SEC-141 ile aynı kök neden.**
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-146 — Session erişimi: `List` → `403`, `Read`/`Delete`/`Branch` → `404`
+
+**Gerçek sonuç — KOŞULAMADI, MT-SEC-141 ile aynı kök neden.** Ayrıca
+`samples/Tracon.Embedded`'in kendi `EmbeddedRunAuthorizationHandler.AuthorizeSessionAsync`'i
+HER ZAMAN `Allow()` döndürüyor (kaynak okundu) — bu donuk alternatif de session
+reddi ÜRETEMEZ.
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-147 — Dört run başlatan yüzeyin dördü de kapsanır (bypass yok)
+
+**Gerçek sonuç — KOŞULAMADI, MT-SEC-141 ile aynı kök neden.**
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-148 — Handler'a giden `TenantId` ambient kiracıdır
+
+**Gerçek sonuç — KOŞULAMADI, MT-SEC-141 ile aynı kök neden** (handler'ın
+gördüğü değeri loglamak için YİNE bir handler kaydı gerekir).
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-149 — İzin verilen çağıranın kimliği tool gövdesine ulaşır
+
+**Gerçek sonuç — KOŞULAMADI, MT-SEC-141 ile aynı kök neden** (ayrıca
+`samples/Tracon.Embedded`'in `current_account` tool'u yalnız
+`tenant/run/session` döndürüyor, `UserId` taşımıyor — donuk alternatif de
+uymuyor).
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-150 — Eşzamanlı çağrılar aynı handler örneğinde birbirini bozmaz
+
+**Gerçek sonuç — KOŞULAMADI, MT-SEC-141 ile aynı kök neden.**
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-151 — Handler kayıtlı değilken 21 kaynak ucunun hiçbiri değişmez
+
+**Gerçek sonuç**
+Yeni bir temel `run` (`support`, "Hello, MT-SEC-151 baseline.") ile: tekil
+okuma `200`, `/tree` `200`, `/events` `200`, `/input` `200`, `/tools` `200`,
+`/feedback` `200`. `/trace` → `404` (bu ortamda OTel dışa aktarımı
+yapılandırılmamış görünüyor — yetkilendirmeyle İLGİSİZ, karşılaştırma
+tabanı olmadığından yalnız not düşülüyor). Liste uçları: `/api/runs` `200`,
+`/api/attachments` `200`, `/api/approvals/pending` `200`. Tamamlanmış bir
+`run`'ın `cancel`'ı → `409` (beklenen — zaten bitmiş).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-152 — Reddedilen tekil `run` okuması, var olmayan `run` ile BİREBİR aynıdır
+
+**Gerçek sonuç — KOŞULAMADI, kaynak donması.** Aynı kök neden: reddeden bir
+`IRunAuthorizationHandler` gerekir. Ayrıntı: aşağıdaki konsolide not.
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-153 — Reddedilen olay akışı hiç açılmaz
+
+**Gerçek sonuç — KOŞULAMADI, MT-SEC-152 ile aynı kök neden.**
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-154 — Reddedilen `trace`, `input` ve `tools` üçü de `404`
+
+**Gerçek sonuç — KOŞULAMADI, MT-SEC-152 ile aynı kök neden.**
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-155 — Reddedilen `cancel` `404` döner, `409` DEĞİL
+
+**Gerçek sonuç — KOŞULAMADI, MT-SEC-152 ile aynı kök neden.**
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-156 — Reddedilen `replay` `403` döner, satır açılmaz, kota tüketilmez
+
+**Gerçek sonuç — KOŞULAMADI, MT-SEC-152 ile aynı kök neden.**
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-157 — `/v1/chat/completions` akışlı ve akışsız dalda ayrı ayrı kapsanır
+
+**Gerçek sonuç — KOŞULAMADI, MT-SEC-152 ile aynı kök neden.** Spesifikasyonun
+kendi notu `samples/Tracon.Embedded`'de "bilinmeyen kiracı" ile bunu daha önce
+(2026-09-05, üretim/yazım oturumu) doğruladığını söylüyor — bu koşumda o
+donuk örnek TEKRAR kurulup çalıştırılmadı (zaman bütçesi); sonraki bir
+oturum `samples/Tracon.Embedded`'i `X-Host-Tenant` başlığı OLMADAN (→ ambient
+`"default"` kiracısı, `EmbeddedTenantStore`'da YOK → `AuthorizeRunAsync` reddeder)
+çağırarak bunu ucuzca yeniden koşabilir.
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-158 — Ek uçları: yükleme ve liste `403`, indirme ve silme `404`
+
+**Gerçek sonuç — KOŞULAMADI, MT-SEC-152 ile aynı kök neden.**
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-159 — Onay uçları: liste `403`, okuma ve karar `404`, kayıt `Pending` kalır
+
+**Gerçek sonuç — KOŞULAMADI, MT-SEC-152 ile aynı kök neden.**
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-160 — `throw` eden handler her kaynağı reddeder (fail-closed)
+
+**Gerçek sonuç — KOŞULAMADI, MT-SEC-152 ile aynı kök neden.**
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-161 — Handler'a başka kiracının kimliği HİÇ gitmez
+
+**Gerçek sonuç — KOŞULAMADI, MT-SEC-152 ile aynı kök neden.**
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-162 — Ses: başka kullanıcının oturumuna bağlanma reddedilir
+
+**Gerçek sonuç — KOŞULAMADI, MT-SEC-152 ile aynı kök neden** (ayrıca
+`UseVoiceConversation()` + transcriber/synthesizer da bu ortamda kurulu değil).
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-163 — Ses: var olmayan oturumun ilk turu HÂLÂ açılır (K-283 korunur)
+
+**Gerçek sonuç — KOŞULAMADI, MT-SEC-152 ile aynı kök neden.**
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-164 — Sahiplik kapalıyken (varsayılan) hiçbir davranış değişmez
+
+**Not:** Kimlik `X-Demo-User` başlığıyla (`DemoRunAttributionContext`, ortam
+değişkeni/kod değişikliği gerekmez) çözüldü.
+
+**Gerçek sonuç**
+`Tracon:SessionOwnership` bölümü hiç yokken (varsayılan) `sessionId: mtsec164`
+ile bir `run` açıldı, listelendi (`200`), okundu (`200`), silindi (`204`).
+`owner_id` sütunu `NULL` — yeni indeks boştur. (`branch`'ın ayrı denemesi
+bu koşumda içerik-koruması kirliliğinden 500 aldı, MT-SEC-133/HATA-S1-023 ile
+AYNI ortam kirliliği — sahiplikle ilgisi yok, temiz ortamda MT-SEC-173'te
+`branch` zaten doğrulandı.)
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-165 — Sahipli liste yalnız çağıranın oturumlarını döner
+
+**Not:** `Tracon__SessionOwnership__Enabled=true` ile restart edildi. 🚨
+**Tuzak:** `X-Tracon-Demo-Role: operator` rolü AYNI ZAMANDA `ManagementPolicy`
+(`Tracon.Operator`, MT-SEC-170'in konusu) sağlıyor ve TÜM kiracı listesini
+FİLTRESİZ döndürüyor — ilk denemede A ve B'nin listeleri YANLIŞLIKLA özdeş
+çıktı. `X-Tracon-Demo-Role: reader` (yönetim politikası SAĞLAMAYAN bir rol)
+ile düzeltilip yeniden koşuldu.
+
+**Gerçek sonuç**
+A (`X-Demo-User: a`) `sessionId: mtsec165-a`, B `sessionId: mtsec165-b` açtı.
+`reader` rolüyle: A'nın `GET /api/sessions`'ı yalnız `[('mtsec165-a','a')]`
+döndü; B'ninki yalnız `[('mtsec165-b','b')]`. `ownerId` alanı doğru dolu.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-166 — Başka sahibin oturumu okuma/silme/dallandırmada `404`
+
+**Gerçek sonuç**
+`X-Demo-User: b` ile A'nın (`mtsec165-a`) oturumuna: `GET` → `404`,
+`detail: "There is no session with id 'mtsec165-a'."` — var olmayan
+`does-not-exist-xyz` ile YAPILAN çağrının gövdesiyle **birebir aynı** (yalnız
+id metni farklı). `DELETE` → `404`, aynı gövde; A kendi oturumunu SONRASINDA
+`200` ile hâlâ okuyabildi (silme yan etki bırakmadı). `POST .../branch` → `404`,
+aynı gövde (ilk deneme `content-type` başlıksız gönderildiği için 500 aldı —
+kendi test hatam, düzeltilip doğrulandı).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-167 — Başka sahibin oturumuna `run` atmak reddedilir
+
+**Not:** Adım 2 (`/v1/responses` üzerinden `conversation` alanı) koşulmadı —
+zaman bütçesi; adım 1 kapının kendisini zaten kanıtlıyor, aynı `SessionOwnershipGate`
+kodu ikisi için de paylaşılıyor (kaynak başlığı doğrulandı).
+
+**Gerçek sonuç**
+`X-Demo-User: b` ile `sessionId: "mtsec165-a"` (A'nın oturumu) taşıyan bir
+`run` isteği → `HTTP: 403`, `errorType: "session_owner_required"`,
+`detail: "The session named in this request belongs to another user."`.
+A'nın oturumunun `version` alanı istek ÖNCESİ ve SONRASI **1** — reddedilen
+tur hiç yazmadı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-168 — Süzgeç sayfalamadan ÖNCE uygulanır
+
+**Not:** "5 sahipsiz oturum daha yeni" ön koşulu için ELDEKİ eski (bu turun
+önceki ailelerinden kalma) 5 sahipsiz satırın (`oai-e2e-01`, `oai-sse-01`,
+`oai-idem-01`, `oai-openrouter-01`, `circuit-halfopen-01`) `updated_at`'ı
+doğrudan `psql` ile `now()`'a çekildi — kod/kaynak değişikliği değil, yalnız
+kendi şemamda veri hazırlığı.
+
+**Gerçek sonuç**
+A'nın 5 oturumu (`mtsec168-a1..5`) açıldıktan SONRA 5 sahipsiz satır en
+güncel yapıldı. `GET /api/sessions?take=3` (A olarak) → tam **3** satır,
+üçü de A'nın (`mtsec168-a5/a4/a3`, `ownerId: "a"`). Sahipsiz satırlardan hiçbiri
+listede görünmedi — süzgeç sayfalamadan ÖNCE uygulanıyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-169 — Kimlik çözülemezse oturum açılmaz
+
+**Gerçek sonuç**
+`X-Demo-User` başlıksız (kimlik çözülemez), `sessionId: "mtsec169-noident"`
+ile `run` → `HTTP: 403`, `title: "Session owner required"`,
+`detail: "Session 'mtsec169-noident' cannot be opened: session ownership is
+on and no authenticated identity could be resolved to own it."`. Aynı
+istek `sessionId` OLMADAN → `HTTP: 200` (oturumsuz turun sahibi olmaz,
+reddedilmez). `SELECT ... WHERE id='mtsec169-noident'` → **0 satır** —
+sahipsiz satır hiç açılmadı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-170 — Yönetim rolü filtresiz kiracı listesini görür
+
+**Not:** `Tracon:Demo:Roles:Enabled=true` ile `X-Tracon-Demo-Role: operator`
+`Tracon.Operator` politikasını sağlıyor (K-431 deseni). 🚨 Bu rolü MT-SEC-165'te
+YANLIŞLIKLA sıradan kullanıcı testinde kullanmıştım — o case düzeltilip
+`reader` ile yeniden koşuldu (bkz. 165'in kendi notu); bu case (170) TAM OLARAK
+operator/yönetim davranışını sınıyor, doğru rol budur.
+
+**Gerçek sonuç**
+`X-Tracon-Demo-Role: operator` ile `GET /api/sessions` → **19** satır: **7**
+sahipli (A'nın MT-SEC-165/168 oturumları) + **12** sahipsiz (bu ailenin
+önceki case'lerinden kalma eski satırlar) — hepsi görünür. Aynı çağrı
+`X-Tracon-Demo-Role: reader` (politika sağlamayan) ile → **6** satır, hepsi
+`ownerId: "a"` — liste daralıyor, sahipsiz satırlar KAYBOLUYOR. Yön
+doğrulandı: kayıtlı olmayan/sağlanmayan politika filtresiz liste VERMİYOR.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-171 — Sahip gövdeden değiştirilemez, ikinci yazımda düşmez
+
+**Gerçek sonuç**
+A (`X-Demo-User: a`) gövdeye `ownerId`/`userId`/`owner`: `"kurban"` koyarak
+`sessionId: "mtsec171"` ile `run` attı — `owner_id` sütunu **`a`** (gövde
+alanları etkisiz). İkinci turdan sonra `owner_id` HÂLÂ `a` (`NULL`'a
+düşmedi), `version` **1 → 2** ilerledi — gerçek bir güncelleme yolu.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-172 — Kuyruğa alınmış `run` sahibi iş zarfından alır
+
+**Not:** Adım 2 (işçi işi almadan önce kimliği BAŞKA bir kullanıcıya çevirme)
+koşulmadı — bu ortamda worker'ın hangi ANDA işi aldığını kesin kontrol etmek
+(ayrı bir işlemin ortasına yetişmek) zaman bütçesi içinde güvenilir
+yapılamadı; adım 1+3 zaten iddianın özünü (kimliğin işçi ANINDA değil, ZARFTA
+donduğunu) kanıtlıyor — worker HttpContext'siz çalışıyor, tek kaynağı zarf.
+
+**Gerçek sonuç**
+A (`X-Demo-User: a`) `Prefer: respond-async` + `sessionId: "mtsec172"` ile
+`run` attı (`202`). `GET /api/runs/{id}` anlık `userId: "a"` taşıdığını
+gösterdi (iş zarfı ANINDA yakalanmış). Worker işi ~10s içinde aldı, `run`
+`Completed` oldu. `sessions.owner_id` → **`a`**. `GET /api/sessions`
+(reader): A'nın listesinde VAR, B'ninkinde YOK.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-173 — Dallandırma sahibi KAYNAKTAN korur
+
+**Gerçek sonuç**
+A'nın `mtsec171` oturumu (`owner_id: a`) `POST .../branch` ile dallandırıldı
+→ `HTTP: 201`, yeni oturum id `01a0acaf-0f92-7451-b88b-cbf0419add00`.
+`sessions.owner_id` (yeni satır) → **`a`** — dallandırma bir kopya, devir
+değil.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-174 — 👤 Dolu bir `sessions` tablosunda migration kilidi ÖLÇÜLÜR
+
+**Gerçek sonuç — 👤 insan gerekir, KOŞULAMADI.** Case üretim-benzeri
+boyutta (en az birkaç milyon satır) dolu bir tablo ister ve gerçek bir
+kilit-süresi ÖLÇÜMÜ ister; bu bir CI/otomasyon case'i değildir (spec'in
+kendi notu: "otomatik karşılığı yoktur ve olamaz"). Fiziksel eylem tablosuna
+eklendi.
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-175 — `RefuseUnownedSessions` tek başına hiçbir şey yapmaz
+
+**Gerçek sonuç**
+`Tracon:SessionOwnership:Enabled=false` + `RefuseUnownedSessions=true` ile
+sahipsiz `legacy-demo` oturumu → `GET /api/sessions/legacy-demo` → `HTTP: 200`
+(içerik döndü). Sahiplik kapalıyken bayrak **inert** — bir sınır açmıyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-176 — Katı mod sahipsiz satırı var olmayanla AYNI gövdeyle reddeder
+
+**Not:** İlk denemede `X-Tracon-Demo-Role: operator` ile DELETE **204** ile
+BAŞARILI oldu (satır silindi) — bu case'in beklediği `404` DEĞİL. Araştırma:
+bu, `Tracon.Operator` yönetim politikasının satırın kendisine ayrı bir
+erişim tanıdığı bir DAVRANIŞ (bkz. `TraconSessionOwnershipOptions.ManagementPolicy`
+XML doc'u: "bu istisna bir oturumu OKUMAYI kapsar" — DELETE de `SessionEndpoints`
+kodunda AYNI istisna yoluna giriyor), case 176'nın ise SIRADAN (yönetim
+politikası OLMAYAN) bir çağrıyı sınaması gerekiyordu. Demo rol şeması
+(reader/operator/admin) sıradan-ama-yetkili bir kullanıcıyı temsil etmiyor,
+`reader` da genel DELETE izni taşımadığı için ayrı bir `403` üretti (rol
+politikası, sahiplikle ilgisiz bir katman). Doğru koşum: DEMO ROLLERİ
+KAPALIYKEN (yalnız `X-Demo-User`, rol dayatması yok) tekrarlandı.
+
+**Gerçek sonuç**
+`Tracon:Demo:Roles:Enabled` KAPALI, `SessionOwnership:{Enabled,RefuseUnownedSessions}=true`
+ile: sahipsiz `guard-circuit-son` oturumuna `GET` → `404`,
+`detail: "There is no session with id 'guard-circuit-son'."` — var olmayan
+`does-not-exist-176` ile BİREBİR aynı gövde (yalnız id metni farklı). `DELETE`
+→ AYNI `404` gövdesi; satır Postgres'te HÂLÂ duruyor — kapı silmeden ÖNCE
+çalışıyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-177 — Katı modda sahipsiz oturuma `run` başlatılamaz
+
+**Not:** Adım 3 (ses WebSocket'i) koşulmadı — bu ortamda `UseVoiceConversation()`/
+transcriber/synthesizer kurulu değil (önceki ailelerin de not düştüğü ortam
+sınırı).
+
+**Gerçek sonuç**
+Sahipsiz `guard-circuit-sifirla` oturumuna: akışlı `run` → GERÇEK `HTTP: 403`
+(SSE `error` çerçevesine düşmedi — kapı akış başlamadan önce çalıştı),
+`errorType: "session_owner_required"`, `detail: "The session named in this
+request belongs to another user."`. `Idempotency-Key` ile akışsız dal →
+AYNI `403` + AYNI gövde — sahipsiz reddi başkasının oturumu reddiyle
+BİREBİR aynı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-178 — 🚨 Katı modda VAR OLMAYAN oturum yine açılır
+
+**Not:** Adım 2 (ses WebSocket) koşulmadı — ortamda ses kurulu değil
+(MT-SEC-177 ile aynı sınır).
+
+**Gerçek sonuç**
+Daha önce HİÇ yazılmamış `sessionId: "mtsec178-brand-new"` ile `run` →
+`HTTP: 200`; `sessions.owner_id` → **`a`** — oturum açıldı ve sahibi
+çağırandır. "Henüz yok" (bu case) ile "sahipsiz yazılmış" (MT-SEC-176/177)
+gerçekten AYRI davranıyor — K-283 korunuyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-179 — Katı modda yönetim payı okur ama `run` başlatamaz
+
+**Gerçek sonuç**
+`X-Tracon-Demo-Role: operator` (`Tracon.Operator` politikasını sağlar) ile
+sahipsiz `oai-e2e-01` oturumuna: `GET` → `HTTP: 200` (destek zaten listede
+gördüğü satırı açabiliyor). Aynı rolle `run` başlatmak → `HTTP: 403`,
+`errorType: "session_owner_required"` — muafiyet OKUMAYI kapsıyor,
+KONUŞMAYA YAZMAYI değil. `X-Tracon-Demo-Role: reader` (politika sağlamayan)
+ile aynı `GET` → `HTTP: 404` — politika yokken de `404` (fail-closed).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-182 — Profil çağrılmayan kurulum aynı kalır
+
+**Not:** `dotnet run` üzerinden koşuldu (bu şeridin standart tarifi);
+`RequireProductionProfile()` `samples/Tracon.Api`'de HİÇ çağrılmıyor
+(`grep` doğrulandı) — case'in tam istediği ön koşul zaten varsayılan.
+
+**Gerçek sonuç**
+Bu oturumun ŞU AN çalışan (değiştirilmemiş) örneğinin tüm logu tarandı:
+`"Application started"` → **1**, `"Production profile"` → **0**. Host normal
+başladı, metot çağrılmayan kurulum tek bir log satırı bile ödemedi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-183 — Açık kalan kararların hepsi tek mesajda sayılır
+
+**Gerçek sonuç — KOŞULAMADI, kaynak donması.** Case `samples/Tracon.Api`'ye
+GEÇİCİ `tracon.RequireProductionProfile();` satırı eklenmesini istiyor — kod
+donması yasaklıyor. MT-SEC-024/084/105/141 ile aynı sınıf. 184-189'un HEPSİ
+aynı temel kuruluma (`RequireProductionProfile()`  çağrısı, bazılarında
+`.Accept(...)` zinciriyle) dayanıyor; ayrıntı aşağıdaki konsolide nota
+taşındı.
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-184 — Kabul edilen risk host'u durdurmaz ve adıyla loglanır
+
+**Gerçek sonuç — KOŞULAMADI, MT-SEC-183 ile aynı kök neden.**
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-185 — Kabul komşu kalemi kapsamaz
+
+**Gerçek sonuç — KOŞULAMADI, MT-SEC-183 ile aynı kök neden.**
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-186 — İçerik denetimi kayıtla ölçülür, bayrakla değil
+
+**Gerçek sonuç — KOŞULAMADI, MT-SEC-183 ile aynı kök neden** (ayrıca
+`AddPatternContentGuard` çağrısını GEÇİCİ yorum satırına almayı istiyor —
+ikinci bir kaynak değişikliği).
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-187 — `UseTenancy(Enabled = false)` hâlâ tek kiracı sayılır
+
+**Gerçek sonuç — KOŞULAMADI, MT-SEC-183 ile aynı kök neden** (ayrıca
+`UseTenancy` dalını GEÇİCİ olarak koşulur hâle getirmeyi istiyor).
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-188 — Mesaj ve log hiçbir yapılandırma değeri taşımaz
+
+**Gerçek sonuç — KOŞULAMADI, MT-SEC-183 ile aynı kök neden** (ön koşulu
+"MT-SEC-183'ün kurulumu").
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-189 — Kapı HTTP yüzeyi olmayan host'ta da koşar
+
+**Gerçek sonuç — KOŞULAMADI, MT-SEC-183 ile aynı kök neden** (`MapTracon`
+çağırmayan ayrı bir gömülü host + `RequireProductionProfile()` çağrısı ister
+— `samples/Tracon.Embedded` `MapTracon`'u ZATEN çağırıyor, bu case'e uymuyor;
+yeni kod gerekir).
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+### Konsolide not — MT-SEC-183..189 (`RequireProductionProfile`) KOŞULAMADI
+
+Yedi case'in hepsi `samples/Tracon.Api/Program.cs`'e GEÇİCİ
+`tracon.RequireProductionProfile(...)` çağrısı (bazılarında `.Accept(...)`
+zinciriyle, 186'da ayrıca `AddPatternContentGuard`'ı yorumlama, 187'de
+`UseTenancy` dalını değiştirme) eklenmesini istiyor — MT-SEC-024/084/105/141
+ile AYNI kod donması sınıfı. `samples/Tracon.Embedded` de `MapTracon`
+çağırdığı için MT-SEC-189'un "HTTP yüzeyi olmayan host" senaryosuna
+uymuyor. **Kalıcı çözüm:** kapanış modunda (kod donması kalkınca) veya repo
+dışı YENİ bir minimal host (`RequireProductionProfile()` çağıran, `MapTracon`
+çağırmayan) ile koşulmalı — `docs/ADAYLAR.md` adayı olabilir.
+
+## MT-SEC-190 — Denetim izi yazılamazken onay kararı uygulanmaz
+
+**Gerçek sonuç — KOŞULAMADI, ortam sınırı (kod donması DEĞİL).** Case
+`REVOKE INSERT ON audit_log FROM tracon_app;` istiyor — bu şeridin bağlantı
+dizesi (`00-INDEKS.md` §2.2/skill §2) `postgres` SÜPERKULLANICISINI kullanıyor
+ve PostgreSQL süperkullanıcılar ACL kontrollerini BAYPAS EDER (`REVOKE` onu
+etkilemez). `tracon_app` adlı ayrı, kısıtlı bir rol bu paylaşılan `ap-pg`
+container'ında YOK; birini oluşturmak paylaşılan container'ı (kural 3, diğer
+şeritlerle paylaşılıyor) etkileyebilir ve bu oturumun yetkisi dışında.
+Ayrıntı: aşağıdaki konsolide not.
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-191 — Denetim izi yazılamazken yönetim çağrısı devam eder
+
+**Gerçek sonuç — KOŞULAMADI, MT-SEC-190 ile aynı kök neden.**
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-192 — `audit_log` onarıldıktan sonra aynı karar uygulanır
+
+**Gerçek sonuç — KOŞULAMADI, MT-SEC-190 ile aynı kök neden** (bu case
+MT-SEC-190'ın DEVAMI, onun kurulumuna bağımlı).
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-193 — Denetim izi yazılamazken veri konusu silinmez
+
+**Gerçek sonuç — KOŞULAMADI, iki ayrı ortam sınırı.** MT-SEC-190'ın
+`REVOKE` engeli (üstte) VE ayrıca `samples/Tracon.Api`'de kayıtlı bir
+`IDataSubjectResolver` YOK (`grep -rn IDataSubjectResolver samples/`
+sıfır sonuç) — case'in "silinecek içeriği olan bir veri konusu" ön koşulu
+bu haliyle üretilemez.
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+### Konsolide not — MT-SEC-190..193 (`audit_log` yazma arızası) KOŞULAMADI
+
+Dördü de uygulamanın veritabanı rolünden `audit_log`'a `INSERT` iznini
+GERÇEKTEN almayı gerektiriyor. Bu şeridin (ve tüm turun) bağlantı dizesi
+`postgres` süperkullanıcısını kullanıyor — PostgreSQL süperkullanıcılar
+`REVOKE`'tan ETKİLENMEZ (RLS/ACL bypass, PostgreSQL'in kendi davranışı).
+Kısıtlı bir `tracon_app` rolü oluşturup UYGULAMANIN bağlantı dizesini o role
+çevirmek gerekirdi — bu, PAYLAŞILAN `ap-pg` container'ında YENİ bir rol
+oluşturmak demektir (kural 3 bunu yasaklamaz ama diğer üç paralel şeridi
+etkileme riski taşır ve bu oturumun bütçesi dışında kaldı). MT-SEC-193 ayrıca
+`IDataSubjectResolver`'ın `samples/Tracon.Api`'de hiç kayıtlı olmamasıyla
+ikinci bir engelle karşılaşıyor. **Kalıcı çözüm:** kapanış modunda, izole bir
+doğrulama sunucusunda (skill §serit-kurulumu §4) kısıtlı bir rol oluşturup
+tek seferlik koşulmalı.
 
 ## MT-SEC-119 — Egress politikası silinince kiracı tekrar kısıtsız olur
 
