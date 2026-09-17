@@ -788,3 +788,28 @@ bir `Sample`/`ActivityStarted` kancasında span'i zaten "bitmiş" sayıp
 kaydediyor.
 
 **Durum:** Kayıt, düzeltilmedi (kural 1) — kapanışta değerlendirilmeli.
+
+---
+
+## Devir notu — Dosya 14 (Skill/Script) TAMAMLANDI: ap-s2'nin SON ailesi
+
+Tüm 5 bölüm (§1 CRUD/frontmatter, §2 derleme/limit, §UI onay akışı,
+§3 script config, §4 script çalıştırma+telemetri) bitti. Sayım: 47 case —
+**45 Geçti, 1 Kaldı (MT-SKILL-070), 1 Kısmen/Atlandı (MT-SKILL-063,
+mekanizma kaynaktan doğrulandı ama canlı zamanlama ölçülemedi)**. Bir
+yeni ürün kusuru: **HATA-S2-003** (`execute_skill_script` span'i
+exit_code/duration_ms taşımıyor, ebeveuen span yanlış "Error" gösteriyor
+— yalnız gözlemlenebilirlik, işlevsel etki yok). İki spec önermesi
+düzeltildi: MT-SKILL-041 (Interpreters artık yalnız kodda ayarlanabilir
+— güvenlik sıkılaştırması), MT-SKILL-054 (CSS sınıfı tema token'larına
+geçirilmiş). Birkaç doğrulama sorgusu/zarf düzeltmesi: MT-SKILL-020
+(düz ProblemDetails, yapılandırılmış rapor değil), MT-SKILL-059
+(audit_log.after, tool_invocations.error değil).
+
+**ap-s2 şeridinin TÜM ataması bitti: 36 · 33 · 12 · 24 · 35 · 23 · 15 · 14
+— sekiz aile de kapandı.** Kod tamamen dondurulmuş hâlde bırakıldı
+(`git status --short -- src samples tests` temiz), uygulama varsayılan
+konfigürasyonla ayakta, `Tracon.Core.UnitTests` tam takım yeşil
+(2805/2805). Sıradaki adım: ana `DEVIR.md`'yi güncelle, ardından bu
+şeridin koşum özetini tamamla — kapanış (§6-§9) ayrı, çok-şeritli bir
+faz, bu oturumun kapsamı DIŞINDA.
