@@ -1233,11 +1233,18 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/skill-script-grants" -H "$
 2. `http://localhost:5080/tracon/skills` sayfasını aç, en alttaki
    "Script Çalıştırma İzinleri" panelini incele.
 
-**Beklenen sonuç**
+**Beklenen sonuç — CSS sınıfı DÜZELTİLDİ (2026-09-17 koşumunda ölçüldü)**
 - Adım 1: liste `scriptli-skill`/`merhaba` çiftini içerir.
-- Adım 2: panelin üstünde kırmızı bir uyarı kutusu görünür
-  (`data-testid` yok ama CSS sınıfı `border-red-500`,
-  `skills.tsx:154-156`) ve grant tablosu aynı kaydı gösterir.
+- Adım 2: panelin üstünde belirgin bir "danger" tonlu uyarı kutusu görünür
+  ve grant tablosu aynı kaydı gösterir. `data-testid` hâlâ yok; CSS sınıfı
+  artık `border-red-500` DEĞİL — bileşen `src/Tracon.UI/frontend/src/screens/skills/script-grants.tsx`'e
+  taşınmış ve tema token'larına geçirilmiş: `border-danger bg-danger-soft
+  text-danger` (`.bg-danger-soft` seçicisiyle DOM'da doğrulandı). Kodun
+  kendi yorumu bunu açıklıyor: eski `border-red-500 bg-red-500/10
+  text-red-500` ham Tailwind paleti temaya uymuyordu, "ürünün en yüksek
+  sesli uyarısı hiçbir yerde kullanılmayan tek renkti" — bilinçli bir
+  tasarım-sistemi düzeltmesi, kusur değil. Görsel/davranışsal iddia
+  (belirgin tehlike kutusu var) hâlâ doğru.
 
 ---
 

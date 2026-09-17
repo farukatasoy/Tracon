@@ -424,3 +424,104 @@ oldu, MT-SKILL-041'in aksine). `GET /api/skills/scriptli-skill` →
 merhaba-tracon"`) döndü — kayıt asla gizlenmedi. Tam beklenen.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+🚨 **Ortam notu (§4 başlangıcı):** `UseSkillScripts()`'in kendi `Configure`
+delegate'i `options.Skills.Scripts.Enabled = true`'yu KOŞULSUZ atıyor ve
+`AddTracon()`'ın config-bağlama delegate'inden SONRA (Program.cs'te daha
+geç) kaydolduğu için, kod hâlâ mevcutken hiçbir env değişkeni `Enabled`'ı
+`false`'a DARALTAMIYOR — MT-SKILL-050'nin "sıfır kurulum" öncülü bu yüzden
+kod TAMAMEN geri alınarak sağlandı (aşağıda). MT-SKILL-041'deki geçici
+`tracon.UseSkillScripts(...)` satırı bu adımdan önce TAMAMEN geri alındı
+(`git status --short` temiz, `dotnet build` 0/0).
+
+## MT-SKILL-050 — Script çalıştırma KAPALIYKEN izin vermeye çalışmak → `409`
+
+**Gerçek sonuç**
+Kod TAMAMEN varsayılana döndürülmüş hâlde (hiçbir `UseSkillScripts`
+çağrısı yok, hiçbir script env ayarı yok) yeniden başlatıldı. `POST
+/api/skill-script-grants` → `HTTP: 409`, `title: "Script running
+disabled"` (İngilizce — K-228), `detail: "Enable script running with
+UseSkillScripts(...) before granting access."`. Tam beklenen.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-SKILL-051 — `scripts.Enabled=true` (yalnız config) → AYNI istek `201`
+
+**Gerçek sonuç**
+`Tracon__Skills__Scripts__Enabled=true` + `...PlatformIsolationAcknowledged=true`
+İKİSİ DE env değişkeniyle (kod değişikliği YOK) ayarlanıp yeniden
+başlatıldı. Aynı istek → `HTTP: 201`, `grantedBy: null`, `expiresAt:
+null`. Tam beklenen — bu, `UseSkillScripts()` HİÇ çağrılmadığında config
+tek başına `Enabled`'ı gerçekten değiştirebildiğini kanıtlıyor (§4'ün
+başındaki ortam notundaki asimetriyle tutarlı: kod `UseSkillScripts` ile
+`true` dayattığında env `false`'a daraltamıyor, ama kod HİÇ dayatmadığında
+env `false`'dan `true`'ya taşıyabiliyor).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-SKILL-052 — Geçmiş bir `expiresAt` → `400`
+
+**Gerçek sonuç**
+`HTTP: 400`, `title: "Expiration in the past"` (İngilizce — K-228),
+`detail: "expiresAt must be a moment in the future."`. Tam beklenen.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-SKILL-053 — Boş `skillName` → `400`
+
+**Gerçek sonuç**
+`HTTP: 400`, `title: "Skill name required"` (İngilizce — K-228),
+`detail: "skillName cannot be empty."`. Tam beklenen.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-SKILL-054 — `GET /api/skill-script-grants` listesi, arayüzde uyarıyla görünür
+
+**Gerçek sonuç**
+`GET /api/skill-script-grants` → `scriptli-skill`/`merhaba` çifti listede.
+`/tracon/skills` sayfasında "Script execution grants" panelinin üstünde
+belirgin bir "danger" tonlu kutu göründü (`.bg-danger-soft` ile DOM'da
+doğrulandı, tam metin: "A grant gives permission to RUN CODE on the
+server on behalf of this tenant."), grant tablosu aynı kaydı gösterdi.
+
+🚨 **Doküman düzeltmesi:** Spec'in beklediği CSS sınıfı (`border-red-500`)
+artık YOK — bileşen `skills/script-grants.tsx`'e taşınmış ve tema
+token'larına geçirilmiş (`border-danger bg-danger-soft text-danger`).
+Kod yorumu bunu bilinçli bir tasarım-sistemi düzeltmesi olarak açıklıyor
+(ham Tailwind kırmızısı temaya uymuyordu). Görsel/davranışsal iddia
+(belirgin uyarı kutusu var) doğru kaldı; yalnız sınıf adı güncellendi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-SKILL-055 — İzni arayüzden iptal et → liste hemen güncellenir
+
+**Gerçek sonuç**
+"Revoke" tıklandı: satır listeden ANINDA kayboldu (skills tablosu
+kaldı, grant tablosu boşaldı). SQL doğrulaması: `SELECT skill_name,
+script_name, revoked_at FROM mt_s2.skill_script_grants WHERE skill_name =
+'scriptli-skill'` → satır SİLİNMEDİ, `revoked_at` dolu
+(`2026-09-17 16:01:57...`). Tam beklenen.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-SKILL-056 — Var olmayan bir izni iptal etmek → `404`
+
+**Gerçek sonuç**
+`HTTP: 404`, `title: "Grant not found"` (İngilizce — K-228), `detail:
+"There is no active run grant for 'hic-yok-skill'."`. Tam beklenen.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
