@@ -316,3 +316,189 @@ hiçbir model çağrısı üretilmedi. Beklenen sonuç birebir örtüştü.
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
+
+## Devir notu (oturum 18 devam) — §3 OpenAPI başladı
+
+§1 (001-008) ve §2 (020-030) kapandı, sıfır kusur. §3'e (OpenAPI, 040-065)
+geçiliyor — ana örneğin (port 5083) gerçek `/openapi/v1.json`'ı kullanılıyor.
+
+---
+
+### MT-DIAG-040
+
+**Gerçek sonuç**
+`src/Tracon.AspNetCore/Tracon.AspNetCore.csproj`'da
+`Microsoft.AspNetCore.OpenApi`/`Microsoft.OpenApi` araması: **temiz**.
+Paketlenmiş `.nuspec`de (`~/tracon-local-feed/Tracon.AspNetCore.0.0.0-preview.0.789.nupkg`)
+aynı arama: **temiz**. Beklenen sonucun tamamı birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-DIAG-041
+
+**Gerçek sonuç**
+`GET /openapi/v1.json` → `200` (ana örnek, port 5083 — hem `Tracon.SqlServer`
+hem `Tracon.Sqlite` `ProjectReference` taşıyor, `TraconRemoveDuplicateSqlXmlDocs`
+hedefi çakışmayı gerçekten ayıklamış). Beklenen sonuç birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-DIAG-042
+
+**Gerçek sonuç**
+İki etiketten az taşıyan uç sorgusu **boş** döndü. İlk etiketlerin
+benzersiz kümesi **tam olarak** `["Tracon"]`. Beklenen sonucun tamamı
+birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-DIAG-043
+
+**Gerçek sonuç**
+Tekrar eden `operationId` sorgusu **boş** döndü. Toplam/benzersiz sayısı
+ikisi de **169** — birebir eşit. Beklenen sonucun tamamı birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-DIAG-044
+
+**Gerçek sonuç**
+`POST /tracon/api/agents/{name}/run`'ın `200` yanıtının `content`'i
+**yalnız** `text/event-stream` (`schema.type:"string"`) — `application/json`
+YOK. `400`/`404`/`429` (ve ek olarak `403`/`422`/`501`/`503`) hepsi
+`application/problem+json` + `ProblemDetails` şemasıyla belgelenmiş. (Ayrıca
+belgede spec'te anılmayan bir `202 Accepted` → `application/json`
+`AcceptedRunResponse` yanıtı var — bu FARKLI bir durum kodu, `200`'ün
+"yalnız SSE" iddiasıyla çelişmiyor.) Beklenen sonucun tamamı birebir
+örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-DIAG-045
+
+**Gerçek sonuç**
+`POST /tracon/v1/chat/completions`'ın `200` yanıtının içerik tipi
+anahtarları: `["application/json", "text/event-stream"]` — İKİSİ BİRDEN,
+K-274'ün tek `.Produces` çağrısı çözümü hâlâ kalıcı. Beklenen sonuç
+birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-DIAG-046
+
+**Yöntem notu.** Adım 2 (izlek C, `EnableDiagnosticsEndpoint` ayarlanmadan
+`404` teyidi) MT-DIAG-020'nin **birebir aynısı** — o case bu turda zaten
+koşuldu, tekrar koşulmadı.
+
+**Gerçek sonuç**
+Ana örneğin belgesinde (`EnableDiagnosticsEndpoint=true`) benzersiz etiket
+kümesinde `Diagnostics` **VAR**. Beklenen sonucun tamamı birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-DIAG-047
+
+**Gerçek sonuç**
+`diff <(jq -S . /tmp/apidoc.json) <(jq -S . docs/openapi/tracon.json)` →
+**FARKLI** (205 satır). Spec'in kendi öngördüğü iki sonuçtan biri — kusur
+DEĞİL, doğal bakım boşluğu. Fark iki türden: (1) gürültü — bu şeridin
+kendi portu (`http://localhost:5083/`) vs şablonun kanonik
+`http://localhost:5081`; (2) gerçek — işlenmiş dosyada `Images` etiketi ve
+görsel-üretim şemaları (`ImageGenerationOperatorRequest/Response`,
+`IMcpToolRefresher`) hiç YOK, koddaki (çalışan host'un ürettiği) belgede
+VAR. `docs/openapi/tracon.json` yenilenmemiş — yenileme komutu
+(`TRACON_OPENAPI_REFRESH=1 dotnet test ... OpenApiSnapshotTests`) spec'te
+yazılı, koşum modunda çalıştırılmadı (kural 1 — `docs/openapi/tracon.json`
+`src/`/`samples/`/`tests/` dışında olsa da bu bir bakım adımıdır, kapanışa
+bırakıldı). Beklenen sonucun "FARKLI çıkabilir, bu kusur değildir" dalı
+gerçekleşti.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-DIAG-048
+
+**Gerçek sonuç**
+`npx openapi-typescript docs/openapi/tracon.json` → temiz üretim (194ms,
+hata yok). Üretilen `.ts` dosyası `tsc --strict --noEmit` ile **çıkış kodu
+0** verdi — hiç tip hatası yok. Beklenen sonucun tamamı birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-DIAG-049
+
+**Yöntem notu — spec bayat çıktı.** `GET /tracon/api/diagnostics`
+(port 5083) `extensionPoints`'te **7** eleman döndürdü, spec'in beklediği
+5 değil. Kaynağı (`TraconExtensionPoints.cs`) okundu: dosyanın kendi XML
+dokümanı zaten "the **seven** embedding points" diyor — spec Faz 85'ten
+kalma, sonraki bir faz `IRunAuthorizationHandler` ve
+`IToolApprovalPresenter`'ı eklemiş. Spec yukarıda düzeltildi.
+
+**Gerçek sonuç**
+7 elemanlı dizi: `IToolAuthorizationHandler` (`AllowAllToolAuthorizationHandler`,
+`true`), `IRunAuthorizationHandler` (`AllowAllRunAuthorizationHandler`,
+`true`), `IRunEventSink` (`(none)`, `true`), `IAttachmentStorage`
+(`(database)`, `true`), `IRunAttributionContext`
+(`DemoRunAttributionContext`, `false`), `IToolApprovalPresenter`
+(`OrderApprovalPresenter`, `false` — `Program.cs:146`'daki
+`AddSingleton` kaydı), `ITenantContext` (`HttpTenantContext`, **`false`**
+— Core'un çıplak varsayılanı `SingleTenantContext`, `Tracon.AspNetCore`
+kendi HTTP-farkında varsayılanını bağlıyor, bu tüketici özelleştirmesi
+değil). Düzeltilmiş beklenen sonucun tamamı birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-DIAG-050
+
+**Yöntem notu.** Spec'in `localhost:5082`'si bu turun şerit port
+tahsisiyle çakışıyor (`ap-s2`'nin ana portu) — `samples/Tracon.Embedded`
+bunun yerine boş bir portta (`5098`) açıldı. Bu örnek uygulamada bearer
+token yapılandırılı DEĞİL (auth'suz `200` döndü) — bu, örneğin kendi
+bilinen minimal kurulumudur, ürün kusuru değil.
+
+**Gerçek sonuç**
+7 elemanlı dizi (MT-DIAG-049'daki AYNI 5→7 bayatlığı — spec düzeltildi
+yukarıda). Altısı `isBuiltInDefault:false`: `ITenantContext→
+EmbeddedTenantContext`, `IRunAttributionContext→
+EmbeddedRunAttributionContext`, `IToolAuthorizationHandler→
+EmbeddedToolAuthorizationHandler`, `IRunAuthorizationHandler→
+EmbeddedRunAuthorizationHandler` (yeni nokta, bu örnek de özelleştirmiş),
+`IRunEventSink→BoundedChannelRunEventSink`, `IAttachmentStorage→
+InMemoryBufferAttachmentStorage`. Tek istisna: `IToolApprovalPresenter→
+NullToolApprovalPresenter`, `isBuiltInDefault:true` — Embedded örneği bunu
+özelleştirmiyor. Düzeltilmiş beklenen sonucun tamamı birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-DIAG-051
+
+**Gerçek sonuç**
+`extensionPoints[].{contract,implementation}` metninin tamamında
+`sk-|apikey|connectionstring|password|://` deseni arandı: **`TEMIZ`** —
+hiçbir eşleşme yok (tip adlarının tamamı düz sınıf adı, host/bağlantı
+bilgisi taşımıyor). Beklenen sonuç birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
