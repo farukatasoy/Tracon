@@ -371,3 +371,92 @@ kopması (TCP RST/zaman aşımı) farklı davranabilir; bu ayrım koşulamadı.
 **Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı — `HATA-S3-005`.
 
 ---
+
+### MT-UIRUN-020
+
+**Yöntem notu.** Kabuğun bearer token'ı `localStorage`'da DEĞİL, sekmeye
+özel tutuluyor ("The token stays in this browser tab and is never written
+to disk.") — ikinci sekme kendi token girişini istedi, ayrıca girildi.
+
+**Gerçek sonuç**
+Uzun bir run iki AYRI sekmede açıldı. Her iki sekme de kendi bağımsız
+`GET .../events` isteğini açtı (ikisi de ayrı `request #6`, aynı URL).
+Run tamamlanınca iki sekmenin de Transkript paneli BİREBİR AYNI metni
+gösterdi ("## Chapter I: The Departure..."). Beklenen sonucun tamamı
+birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-UIRUN-021
+
+**Gerçek sonuç**
+Akan bir run'ın sayfasında (`running`) "Cancel run" düğmesi vardı, tooltip'i
+"Stops the agent at its next checkpoint. Work already recorded stays, and
+the agent can be run again." — hiçbir tarayıcı onay kutusu açılmadı, düğme
+tıklanabilir kaldı. Run `Completed` olunca sayfa yeniden açıldığında düğme
+TAMAMEN YOKTU. Beklenen sonucun tamamı birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-UIRUN-022
+
+**Yöntem notu.** İstek-yanıt döngüsü bu ortamda birkaç yüz ms sürdüğü için
+düğmenin `busy` ara durumunu (adım 3) round-trip gecikmesiyle yakalamak
+güvenilir olmadı (`MT-RES-003`'ün aynı sınırı) — istek her zaman benim bir
+sonraki kontrolümden ÖNCE tamamlandı.
+
+**Gerçek sonuç**
+"Cancel run" düğmesine tıklandı: ağ isteği `POST .../cancel` → `202
+Accepted`. Elle hiçbir yenileme yapılmadan (yalnız bekleyerek) durum rozeti
+"canceled" oldu. `GET /api/runs/{id}` doğruladı: `status:"Canceled"`,
+`completedAt` dolu. Beklenen sonucun ölçülebilir kısmı (202, kendiliğinden
+Canceled'e dönüş) birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-UIRUN-023
+
+**Gerçek sonuç**
+`MT-UIRUN-002`'nin bitmiş (`Completed`) run'ına doğrudan `POST .../cancel`
+→ `409`, `title:"Run already ended"` (Türkçe `"Calistirma zaten
+sonlanmis"` DEĞİL — `en` varsayılan locale, bu turun sistematik bulgusu),
+`detail:"Run '...' is already in status 'Completed'."` — mevcut durum
+gövdede birebir taşınıyor. Beklenen sonucun davranışsal kısmı (409 +
+mevcut durumun taşınması) birebir örtüştü; yalnız dil beklentisi geçersiz.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-UIRUN-024
+
+**Gerçek sonuç**
+`Prefer: respond-async` ile bir run kuyruğa gönderilip AYNI saniyede
+`POST .../cancel` çağrıldı. İşçi işi HENÜZ ALMAMIŞTI: `202`, dönen gövdede
+`status:"Canceled"` DOĞRUDAN (bekleme yok), `completedAt` `startedAt`'ten
+~50ms sonra. Arayüzde `runs/{id}` sayfası "canceled" rozetini gösterdi,
+İptal düğmesi hiç YOKTU. Beklenen sonucun "işçi almadı" dalı birebir
+gözlemlendi ve örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-UIRUN-025
+
+**Gerçek sonuç**
+Var olmayan bir run kimliğine `POST .../cancel` → `404`, `title:"Run not
+found"`, `detail:"There is no run with id '00000000-...'."` (Türkçe
+`"kimlikli bir calistirma yok"` DEĞİL — `en` varsayılan locale, sistematik
+bulgu). Beklenen sonucun davranışsal kısmı (404) birebir örtüştü; dil
+beklentisi geçersiz.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
