@@ -525,3 +525,91 @@ script_name, revoked_at FROM mt_s2.skill_script_grants WHERE skill_name =
 "There is no active run grant for 'hic-yok-skill'."`. Tam beklenen.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+🚨 **Ortam notu (§6 başlangıcı, gerçek çalıştırma):** İlk denemede
+`tracon.UseSkillScripts(o => { PlatformIsolationAcknowledged=true;
+Interpreters["sh"]=... })` ile kuruldu ama model ısrarla "merhaba script'i
+bulunamadı" dedi — MT-SKILL-057'nin config-only sonucuyla AYNI. Kök neden
+bulundu: `SkillScriptSupport.StoredScriptsEnabled => Options.Enabled &&
+Options.AllowStoredScripts` (`SkillScriptSupport.cs:61`) — `AllowStoredScripts`
+`UseSkillScripts()`'in XML örnek kodunda YOK ve varsayılanı `false`; yalnız
+`Interpreters`/`PlatformIsolationAcknowledged` ayarlamak YETMEZ. Kod
+`o.AllowStoredScripts = true;` eklenerek düzeltildi, yeniden `dotnet build`
++ restart — bu, kendi kurulum hatamdı, ürün kusuru DEĞİL (kendi ortam
+hatam olarak kayda geçiyorum, MT-WF-090 §7'nin $APU hatasıyla aynı
+kategoride).
+
+`manuel-script-test` agent'ı oluşturuldu (`skillNames:["fatura-kontrolu",
+"scriptli-skill"]`).
+
+## MT-SKILL-057 — Config-only kurulum script'i modele HİÇ ÇALIŞTIRAMAZ
+
+**Gerçek sonuç**
+(Bu case İLK — düzeltilmemiş — kurulumla, yalnız config: `Enabled=true`,
+`PlatformIsolationAcknowledged=true`, kod değişikliği YOK, koşuldu —
+doğru ortam buydu.) Playground'da prompt gönderildi: `load_skill
+(fatura-kontrolu)` onaylandı → `FATURA_SKILL_ACTIVE`. Ardından model
+DOĞRUDAN `run_skill_script({"skillName":"scriptli-skill","scriptName":"merhaba"})`
+çağırmayı DENEDİ (onay kartı çıktı — MT-SKILL-058'in "generic dispatcher
+her zaman şema olarak sunulur" düzeltmesiyle tutarlı), onaylandı, ama
+çalıştırma SONUCU: "'merhaba' script'i 'scriptli-skill' içinde
+bulunamadı" — script GERÇEKTEN çalışmadı. SQL doğrulaması: `SELECT
+count(*) FROM mt_s2.tool_invocations WHERE source = 'skill:scriptli-skill'`
+→ `0` — hiçbir çalıştırma satırı oluşmadı. Tam beklenen (spec'in "model ya
+hiç denemez ya da böyle bir arac yok der" ifadesinin ikinci dalı
+doğrulandı; mekanizma MT-SKILL-058'in düzeltmesiyle tutarlı: generic
+`run_skill_script` HER ZAMAN şema olarak sunulur, ama gerçek çalıştırma
+`StoredScriptsEnabled=false` olduğunda script'i "yok" sayar).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-SKILL-058 — Gerçek çalıştırma kanıtı: `echo` script'i çalışır
+
+**Gerçek sonuç**
+(Düzeltilmiş kurulumla — `AllowStoredScripts=true` dahil — yeniden
+koşuldu.) `load_skill(fatura-kontrolu)` → `FATURA_SKILL_ACTIVE`.
+`load_skill(scriptli-skill)` sonucu bu kez `<available_scripts><script
+name="merhaba" description=" This script does not take arguments.">
+<parameters_schema>{"type":"object","properties":{"arguments":{"type":
+"string","default":""}}}</parameters_schema></script></available_scripts>`
+içeriyor — script artık GERÇEKTEN görünür. İkinci onay kartı
+`run_skill_script`, argümanlar `{"skillName":"scriptli-skill","scriptName":
+"merhaba"}` (spec'in beklediği ek `"arguments":""` alanı YOK — model onu
+göndermedi, opsiyonel/varsayılan olduğu için). Onaylandı: sonuç `exit_code:
+0 stdout: merhaba-tracon`, modelin nihai yanıtı `merhaba-tracon` içeriyor.
+SQL doğrulaması BİREBİR eşleşti: `tool_invocations` → `tool_name:
+'skill_script'`, `source: 'skill:scriptli-skill'`, `error: NULL`;
+`audit_log` (spec'in dediği `audit_entries` DEĞİL — tablo adı
+`mt_s2.audit_log`, doküman düzeltmesi) → `action: 'script.run'`, `entity:
+'scriptli-skill/merhaba'`, `tenant_id: 'default'`. Tam beklenen — 2026-08-15
+düzeltmesi (generic `run_skill_script` tool adı) bugün de doğrulandı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-SKILL-059 — İzin iptal edildikten sonra AYNI script reddedilir
+
+**Gerçek sonuç**
+`scriptli-skill/merhaba` izni iptal edildi. YENİ sohbette "merhaba
+script'ini calistir" gönderildi, `load_skill` ve `run_skill_script` onay
+kartları onaylandı (MAF hâlâ onay istiyor — izin AYRI bir kapı). Sonuç:
+modele dönen tool sonucu tam olarak `"Error: Function failed."` — spec'in
+dediği gibi. `mt_s2.audit_log`'da `action: 'script.denied'`, `entity:
+'scriptli-skill/merhaba'` satırı VAR.
+
+🚨 **Doğrulama sorgusu düzeltmesi:** Spec'in `tool_invocations.error`
+sütununda ret mesajını beklediği yer YANLIŞ — bu deneme `tool_invocations`
+tablosuna HİÇ satır YAZMADI (yalnız BAŞARILI bir çalıştırma satır açıyor,
+MT-SKILL-058'in tek satırı hâlâ orada, tarih değişmedi). Asıl mesaj
+`audit_log.after` JSON sütununda: `"There is no valid execution grant for
+this script."` (İngilizce — K-228; spec'in Türkçe "'scriptli-skill/merhaba'
+script'i calistirilmadi: ..." öneki de YOK, mesaj daha kısa). Davranışsal
+iddia (spesifik ret nedeni bir yerde kalıcı olarak tutulur, modele
+sızmaz) doğru; yalnız TABLO/SÜTUN ve tam metin yanlıştı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
