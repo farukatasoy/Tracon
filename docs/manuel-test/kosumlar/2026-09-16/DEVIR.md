@@ -5,10 +5,10 @@
 >
 > **Durum:** 🎉 **Aşama 1 (Faz A zinciri) BİTTİ** — dosya 01, 02, 03, 05 ve 07
 > KAPANDI (311 case) · kod `7e3a4de7`'de donuk · **Faz B** dört şeritte
-> sürüyor (`ap-s1` şeridin tüm işini bitirdi; `ap-s2` dört aile kapattı —
-> 36, 33, 12, 24; `ap-s3`/`ap-s4` devam ediyor — bkz. §5 tablosu, `ap-s4`
+> sürüyor (`ap-s1` şeridin tüm işini bitirdi; `ap-s2` beş aile kapattı —
+> 36, 33, 12, 24, 35; `ap-s3`/`ap-s4` devam ediyor — bkz. §5 tablosu, `ap-s4`
 > satırı doğrulama bekliyor)
-> **Son güncelleme:** 2026-09-17 (`ap-s2` dosya 24'ü KAPATTI — 64/66 Geçti, 2 fiziksel eylem)
+> **Son güncelleme:** 2026-09-17 (`ap-s2` dosya 35'i KAPATTI — 9/11 Geçti, 2 fiziksel eylem, 1 yeni bulgu `HATA-S2-002`)
 
 ---
 
@@ -76,7 +76,13 @@ gizlenir, boş grafik durumu) koda göre düzeltildi.
 `HATA-S1-021..023` (dosya 13 — 023 en yeni: `AesGcmContentProtector`
 `Unprotect`/`UnprotectBytes` yanlış anahtarla gelen ham
 `AuthenticationTagMismatchException`'ı yakalamıyor, jenerik mesajsız 500 ve
-loglanmayan `kid`) · `HATA-S2-001` (dosya 36) · `HATA-S3-001..002` (dosya 32)
+loglanmayan `kid`) · `HATA-S2-001` (dosya 36) · **`HATA-S2-002` (dosya 35,
+Düşük-Orta)** — gömülü konsolun `index.html`'i nonce/hash'siz bir inline
+`<script>` taşıyor (erken tema boyama), ama aynı yanıtın kendi CSP başlığı
+`script-src 'self'` (unsafe-inline yok) gönderiyor — script **her sayfa
+yüklemesinde** tarayıcı tarafından engelleniyor. `theme.ts` sonradan doğru
+temayı yazdığı için işlevsel kırılma yok, yalnız erken-boyama optimizasyonu
+hiç çalışmıyor (olası FOUC). Kayıt dosya 35'in başında · `HATA-S3-001..002` (dosya 32)
 · **`HATA-S3-003` (dosya 34, Yüksek)** — `PUT /api/evals/{name}/cases`
 suite'teki **her** case'in id'sini sıfırlıyor (`EvalCaseInput` DTO'sunda
 `Id` yok → `SaveCasesAsync` hep `Guid.Empty`), bu yüzden aynı pencerede
@@ -298,7 +304,7 @@ Dağılım `00-KOSUM-PLANI.md` §3.1'dedir:
 | Şerit | Port | Şema | Aileler | Durum (oturum 14 sonu) |
 |---|---|---|---|---|
 | `ap-s1` | 5081 | `mt_s1` | 13 · 19 · 04 · 18 · 10 · 08 | 🎉 **ALTI AİLENİN ALTISI DA KAPANDI** (aynı oturum zincirinde arka arkaya): 13 (142/142), 19 (66 Geçti·3 Kaldı·23 Beklemede·1 Atlandı), 04 (44 Geçti·1 Beklemede, 45/45), 18 (48 Geçti·9 Beklemede·1 Kaldı, 58/58), 10 (54 Geçti·2 Kaldı·2 Atlandı, 58/58, `HATA-S1-027/028`), 08 (50/50). **Bu şeridin Faz B işi bitti** — sıradaki aile yok. Uygulama durduruldu, commit `e22b84ee` |
-| `ap-s2` | 5082 | `mt_s2` | 36 · 33 · 12 · 24 · 35 · 23 · 15 · 14 | 🎉 **aile 36, 33, 12 VE 24 KAPANDI** (48/48, 25/25, 65/65, 64/66 — dosya 24'te 2 case fiziksel/tarayıcı eylemi olarak `00-INDEKS.md`'ye taşınacak, **0 Kaldı**, hiç ürün kusuru bulunmadı, dosya 07'nin emsaliyle aynı desen). Dosya 24'te 18 stale beklenen sonuç koda göre düzeltildi (spec dosyasının kendisinde), en dikkat çekeni `MT-TEST-062` (K-780'in K-270'i kaldırması — `Tracon.Testing` artık net8.0'dan kullanılabiliyor) ve `MT-TEST-089` (generator'a sonradan eklenen nested-object desteği, TRC0003 önermesi tersine döndü). Sıradaki: `35-TYPESCRIPT-ISTEMCISI.md` (11 case), henüz açılmadı. Uygulama ayakta bırakıldı (port 5082), `~/tracon-manuel/{test-paketi,net8-deneme,aot-deneme,depo-disi-tuketici}` ayakta bırakıldı, commit `bf76bc8e` (`test/kosum-s2` dalında) |
+| `ap-s2` | 5082 | `mt_s2` | 36 · 33 · 12 · 24 · 35 · 23 · 15 · 14 | 🎉 **beş aile KAPANDI** — 36, 33, 12, 24, 35 (48/48, 25/25, 65/65, 64/66, 9/11 — dosya 24 ve 35'te toplam 4 case fiziksel/tarayıcı eylemi, `00-INDEKS.md`'ye kapanışta taşınacak, **0 Kaldı**, iki yeni bulgu: `HATA-S2-002` dosya 35'te (Düşük-Orta, CSP kendi inline script'ini engelliyor), gerisi hiç ürün kusuru değil). Dosya 35 tamamen tarayıcı üzerinden (Playwright) koşuldu: streaming, workflow resume/respond, yanlış token 401 yolu (E2E'de otomatikleştirilmemiş tek senaryo, F-145), özel önek (`/control`, geçici repo-dışı tüketiciyle), OpenAPI sürüklenme kapısı. Sıradaki: `23-SAKLAMA-ARSIV-KOTA.md` (45 case), henüz açılmadı. Uygulama ayakta bırakıldı (port 5082), commit `596f24c3` (`test/kosum-s2` dalında) |
 | `ap-s3` | 5083 | `mt_s3` | 32 · 29 · 34 · 21 · 11 · 25 · 17 · 20 | ✅ **aile 32, 29 ve 34 KAPANDI** (40/40, 24/24, 46/46). Sıradaki: `21-DAYANIKLILIK-VE-IPTAL.md`, henüz açılmadı. Uygulama durduruldu, commit `00ca6328` |
 | `ap-s4` | 5084 | `mt_s4` | 31 · 16 · 30 · 22 · 09 · 27 · 26 · 28 · 06 | ✅ **aile 31 KAPANDI** (35/35). Aile 16 **kısmi**: 61/61 kayıtlı case Geçti (MT-JOB-001..085 + 090), MT-JOB-091'den devam (~37 case kaldı: Bölüm 8'in kalanı + 9-10). Uygulama AÇIK bırakıldı (port 5084, DLL doğrudan çalıştırılıyor — bkz. ortam kararsızlığı notu), commit `a6fc40ac`. 🚨 **Bu satır bayat olabilir** — dal üzerinde `a6fc40ac`'ten sonra üç commit daha var (`d8e9c308`, `8f4f8c68`, `240d74a7` en son: "MT-JOB-111, 112, 116..120"), yani MT-JOB-091'den 120'ye kadar zaten işlenmiş görünüyor; gerçek sayım ve aile 16'nın kapanıp kapanmadığı doğrulanmadı, sıradaki ap-s4 oturumu `00-KOSUM-PLANI.md`'nin sayım betiğiyle kontrol etmeli |
 
