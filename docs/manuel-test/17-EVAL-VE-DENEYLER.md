@@ -875,8 +875,14 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST \
    `RunRecordingAgent` içinde tetiklenir).
 
 **Doğrulama sorgusu**
+
+🚨 **Doküman düzeltildi (koşum, 2026-09-17, ap-s3).** `jobs` tablosunda
+`kind` diye bir sütun yok (`handler_key` metin sütunu var,
+`JobHandlerKeys.OnlineEval = "tracon.online-eval"`); ayrıca sorgu kendi
+şeridin şeması yerine kullanılmalı (`mt_s3`, `tracon` DEĞİL — skill kural
+3). Doğru sorgu:
 ```sql
-SELECT count(*) FROM tracon.jobs WHERE kind = 6;  -- JobKind.OnlineEval
+SELECT count(*) FROM mt_s3.jobs WHERE handler_key = 'tracon.online-eval';
 ```
 
 **Beklenen sonuç**
@@ -913,13 +919,16 @@ dotnet user-secrets set "Tracon:OnlineEvaluation:SampleRate" "1.0"
 3. 15 saniye bekle.
 
 **Doğrulama sorgusu**
+
+🚨 **Doküman düzeltildi (koşum, 2026-09-17, ap-s3) — MT-EVAL-040'daki AYNI
+şema düzeltmesi (`handler_key`, kendi şerit şeması):**
 ```sql
-SELECT j.kind, j.status FROM tracon.jobs j WHERE j.kind = 6 ORDER BY j.created_at DESC LIMIT 1;
-SELECT kind, value, source, author FROM tracon.run_scores WHERE run_id = '<RUN_ID>';
+SELECT handler_key, status FROM mt_s3.jobs WHERE handler_key = 'tracon.online-eval' ORDER BY created_at DESC LIMIT 1;
+SELECT kind, value, source, author FROM mt_s3.run_scores WHERE run_id = '<RUN_ID>';
 ```
 
 **Beklenen sonuç**
-- `jobs` tablosunda bir `OnlineEval` (`kind=6`) satırı, `status=Completed`.
+- `jobs` tablosunda bir `OnlineEval` (`handler_key='tracon.online-eval'`) satırı, `status` tamamlanmış anlamına gelen sayısal değeri taşır (`status` `smallint`).
 - `run_scores`'ta `kind=3` (`Numeric`), `source='judge:model'`,
   `author='judge:model'` satırı.
 - Case sonrası `dotnet user-secrets remove` ile her iki anahtarı kaldır.
