@@ -1717,14 +1717,18 @@ Negatif senaryo — sonsuz döngü korumasının ucuz ve deterministik tetikleme
 curl -N -s -X POST "$APU/api/workflows/summarize-and-translate/run" -H "$APB" -H "content-type: application/json" -d '{}'
 ```
 
-**Beklenen sonuç**
-- SSE `event: error`; `message` "Workflow 2 super-step sinirini asti ve
-  durduruldu. Devretme veya grup sohbeti dongusu sonlanmiyor olabilir;
-  'maxIterations' degerini dusurun veya agent talimatlarina bir bitirme
-  kosulu ekleyin." metnini içerir (`WorkflowRunner.cs:629-636`). Çalıştırma
-  bu noktada `CancelAsync` ile İPTAL edilir; `GET /api/runs/{runId}`
-  `status: "Canceled"` veya `"Failed"` gösterir (koşumda hangisi olduğu
-  kaydedilir).
+**Beklenen sonuç — DÜZELTİLDİ (koşum sırasında, ölçülerek).** Orijinal metin
+`event: error` bekliyordu; bu yanlıştı — MT-WF-020'nin aynı deseni (domain
+event, HTTP/SSE hatası değil):
+- SSE akışı `event: run` ile başlar, süper-step'ler normal ilerler, sonra
+  normal bir `event: event` çerçevesi gelir — `"type":"RunFailed"`,
+  `"text"`: "Workflow exceeded the 2 super-step limit and was stopped. The
+  handoff or group chat loop may not be terminating; lower the
+  'maxIterations' value or add a termination condition to the agent
+  instructions." (İngilizce — K-228, kusur değil). Akış `event: done` ile
+  normal biter, HTTP/SSE düzeyinde hata YOKTUR.
+- `GET /api/runs/{runId}`: `status: "Failed"` — kesin, `"Canceled"` değil
+  (ölçüldü).
 
 ---
 
@@ -1751,15 +1755,14 @@ Negatif senaryo.
 curl -N -s -X POST "$APU/api/workflows/runs/<runId>/resume" -H "$APB" -H "content-type: application/json" -d '{}'
 ```
 
-**Beklenen sonuç**
-- SSE `event: error`; `message: "Kontrol noktasindan sürdürme icin
-  'Tracon:Workflows:EnableCheckpointing' acik olmalidir."`
-  (`WorkflowRunner.cs:794-795` — bu dal `checkpointManager is null` VE
-  `execution.ResumeFrom` dolu olduğunda tetiklenir; ama önce
-  `RequireCheckpointAsync` çalışır — checkpoint hiç yazılmadığı için asıl
-  görülecek hata muhtemelen MT-WF-094'ün "kontrol noktasi yok" mesajıdır.
-  Koşum HANGİ mesajın geldiğini kaydeder; bu, kodun iki ayrı savunma
-  katmanının hangisinin önce tetiklendiğini netleştirir).
+**Beklenen sonuç — NETLEŞTİRİLDİ (koşumda ölçüldü).** İki adaydan hiçbiri
+birebir değil — üçüncü, İKİSİNİ birleştiren tek bir mesaj geliyor:
+- SSE `event: run` (yeni bir `runId` üretilir), ardından `event: error`;
+  `message: "Run '<orijinal-runId>' has no checkpoint. A run started while
+  checkpoint writing was disabled cannot be resumed."` (İngilizce — K-228).
+  Bu, hem "checkpoint hiç yazılmadı" hem "EnableCheckpointing kapalıydı"
+  bilgisini TEK cümlede veriyor; kodun iki ayrı savunma katmanı yerine
+  `RequireCheckpointAsync`'in kendisi bu birleşik mesajı üretiyor.
 
 ---
 
@@ -1870,12 +1873,26 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/workflows/runs/<runId>/checkpoints
   `tenant_id` filtresiyle çalışır, "yetkisiz" bile denmez (`IWorkflowCheckpointStore`
   XML dokümanı: "Baska bir kiracinin noktasi bulunamadi doner").
 
-### MT-WF-100 — 🚨 `RunsRead`-kapsamlı bir API anahtarı workflow `PUT`/`run`'a erişebiliyor mu?
+### MT-WF-100 — 🚨 `RunsRead`-kapsamlı bir API anahtarı workflow `PUT`/`run`'a erişebiliyor mu? (ÖNCÜL GÜNCEL DEĞİL — koşumda çürütüldü)
 
-Şüpheli davranış — koddan ölçüldü, koşumda doğrulanacak/çürütülecek.
-`WorkflowEndpoints.Map` (`src/Tracon.AspNetCore/Endpoints/WorkflowEndpoints.cs`)
-**hiçbir ucunda** `.RequireApiKeyScope(...)` çağırmaz — karşılaştırma:
-`AgentEndpoints.cs` ve `RunEndpoints.cs` her CRUD/çalıştırma ucuna
+**2026-09-17 koşum notu:** Bu case'in önerme metni 2026-08-10'da yazılmış ve
+o tarihte kaynak okumasıyla ölçülmüştü. Bugünkü koşumda
+`WorkflowEndpoints.cs`'in GÜNCEL hâli yeniden okundu:
+`grep -n "RequireApiKeyScope" src/Tracon.AspNetCore/Endpoints/WorkflowEndpoints.cs`
+**her tek ucun** kendi kapsamını taşıdığını gösteriyor — `ListAsync`/`GetAsync`/
+`GetGraphAsync`/`ListFunctionsAsync` → `WorkflowsRead`; `SaveAsync`/`DeleteAsync`
+→ `WorkflowsAdmin`; `RunAsync`/`ResumeAsync`/`RespondAsync` → `RunsWrite`;
+`ListCheckpointsAsync`/`ListRequestsAsync` → `RunsRead`. Aradaki oturumlarda
+(tarih bilinmiyor, muhtemelen MT-RET-040'ın kapandığı dalgayla birlikte) bu
+boşluk **kapatılmış**. Aşağıdaki özgün metin ve adımlar TARİHÎ kayıt olarak
+bırakılıyor; **Beklenen sonuç** bölümü bugünkü gerçek davranışla
+değiştirildi.
+
+---
+**Özgün önerme (2026-08-10, artık geçersiz):** `WorkflowEndpoints.Map`
+(`src/Tracon.AspNetCore/Endpoints/WorkflowEndpoints.cs`) **hiçbir ucunda**
+`.RequireApiKeyScope(...)` çağırmaz — karşılaştırma: `AgentEndpoints.cs` ve
+`RunEndpoints.cs` her CRUD/çalıştırma ucuna
 `RequireApiKeyScope(ApiKeyScope.AgentsAdmin)`/`RunsWrite` ekler
 (`AgentEndpoints.cs:43-99`, `RunEndpoints.cs:79-233`). `TraconEndpointFilter.CheckScope`
 şu satırı taşır: `if (requirement is null || record.Scopes.Contains(requirement.Scope))
@@ -1923,16 +1940,23 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/agents/kapsam-kontrol" -H "
      -H "content-type: application/json" -d '{"name":"kapsam-kontrol","instructions":"test"}'
 ```
 
-**Beklenen sonuç (şüphe)**
-- Adım 2 ve 3: `HTTP: 200` — kapsam kısıtı UYGULANMAZ (kodun okuduğu hâliyle
-  beklenen).
-- Adım 4: `HTTP: 403`, `title: "Kapsam yetersiz"` — kontrol grubu kapsam
-  sisteminin AgentEndpoints'te çalıştığını, ama WorkflowEndpoints'te HİÇ
-  devrede olmadığını gösterir.
-- Doğrularsa: **Kusur, Önem: Yüksek** — bir okuma-amaçlı otomasyon anahtarı
-  gerçek para harcayabilir ve workflow tanımlarını değiştirebilir/silebilir.
-  Çürürse (ör. çalışma zamanında farklı bir mekanizma devredeyse) not
-  güncellenir.
+**Beklenen sonuç — GÜNCEL (2026-09-17, ölçüldü, önerme ÇÜRÜDÜ)**
+- Adım 2 (`PUT /api/workflows/kapsam-testi`, yalnız `RunsRead`): `HTTP: 403`,
+  `title: "Insufficient scope"`, `detail: "This endpoint requires the
+  'WorkflowsAdmin' scope; the key does not carry it."`
+- Adım 3 (`POST .../run`, yalnız `RunsRead`): `HTTP: 403`,
+  `detail: "... requires the 'RunsWrite' scope ..."`
+- Adım 4 (kontrol grubu, `PUT /api/agents/...`): `HTTP: 403`,
+  `detail: "... requires the 'AgentsAdmin' scope ..."` — kapsam sistemi
+  hem workflow hem agent uçlarında AYNI şekilde çalışıyor.
+- **Kusur YOK.** Şüphenin kaynağı olan boşluk artık kapalı; her workflow
+  ucu kendi `ApiKeyScope`'unu taşıyor (bkz. yukarıdaki koşum notu).
+  Yalnız-okuma niyetli bir anahtar ne workflow tanımı yazabiliyor ne de
+  çalıştırma başlatabiliyor.
+- Ek gözlem: `POST /api/api-keys` yanıtındaki alan adı `rawKey` değil
+  `plaintextKey` — spec'in "Girilecek veri" bloğundaki `python3 -c "...
+  ['rawKey']"` satırı bu yüzden `KeyError` verir; düzeltmesi
+  `['plaintextKey']`.
 
 ---
 

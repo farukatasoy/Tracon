@@ -614,3 +614,157 @@ JS ile yakalandı (monkey-patch). Yakalanan metin `"flowchart TD\n
 summarizer_771ef71..."` ile başlıyor — tam beklenen.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+🚨 **Ortam notu (§7 başlangıcı):** Bu oturumda `$APU` yanlışlıkla
+`http://localhost:5082` olarak ayarlanmış (önceki oturumların `/tracon`
+önekini taşıdığı fark edilmemiş) — bu yüzden ilk birkaç istek genel
+ASP.NET Core routing-miss 404'ü ("Request reached the end of the
+middleware pipeline without being handled by application code",
+uygulama loguyla doğrulandı) döndürdü ve önce ürün kusuru gibi göründü.
+Kök neden `$APU`'nun `/tracon` önekini eksik taşıması — **kendi ortam
+hatam**, ürün kusuru DEĞİL. `$APU="http://localhost:5082/tracon"` olarak
+düzeltildikten sonra tüm istekler beklendiği gibi çalıştı. Doğru öneki
+doğrulayan kanıt: `/private/tmp/ap-s2-main.log`'daki başarılı
+`GET .../tracon/api/workflows` kayıtları (MT-WF-080-084'ün kendisi de
+bu önekle çalışmıştı).
+
+## MT-WF-090 — `UseWorkflows()` KALDIRILIRSA çalıştırma uçları `501` döner
+
+**Gerçek sonuç**
+`samples/Tracon.Api/Program.cs:197`'deki `.UseWorkflows()` satırı geçici
+olarak yorum satırına alındı, `dotnet build -c release` (0 uyarı, 0 hata),
+uygulama yeniden başlatıldı. Katalog (`GET /api/workflows`): `HTTP: 200`,
+yalnız 6 VERİTABANI kaydı listelendi (`cift-gorus`, `hayali-agent`,
+`hic-calismadi`, `inceleme-zinciri`, `kind-eksik`, `plan-onayli`) — kod
+tanımlı `summarize-and-translate`/`summarize-and-approve` listede YOK.
+`run` ve `graph`: ikisi de `HTTP: 501`, `title: "Workflow engine not
+registered"`, `detail: "Add the Tracon.Workflows package and call
+UseWorkflows() to run workflows."` (İngilizce — K-228). Tam beklenen.
+Değişiklik GERİ ALINDI (`git status --short` temiz doğrulandı), yeniden
+`dotnet build` (0/0), uygulama yeniden başlatıldı; `GET /api/workflows`
+tüm 8 tanımı (6 DB + 2 kod) tekrar listeledi — veri kaybı yok.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-WF-091 — `Tracon:Workflows:Enabled=false` → SSE hata, çalıştırma kapalı
+
+**Gerçek sonuç**
+Ortam değişkeni `Tracon__Workflows__Enabled=false` ile yeniden başlatıldı.
+`event: run` (runId üretildi), ardından `event: error`;
+`message: "Workflow execution is disabled. Enable the
+'Tracon:Workflows:Enabled' setting."` (İngilizce — K-228). Ayar kaldırıldı,
+yeniden başlatıldı. Tam beklenen (mekanizma: gerçek `event: error`, bir
+`TraconException`'dan geliyor — K-296 boşluğuna girmiyor).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-WF-092 — `MaxSuperSteps` sınırı aşılınca çalıştırma durur — DÜZELTİLDİ
+
+**Gerçek sonuç**
+🚨 Spec'in mekanizma önermesi yanlıştı (MT-WF-020 ile aynı desen) —
+`Beklenen sonuç` düzeltildi. `Tracon__Workflows__MaxSuperSteps=2` ile
+yeniden başlatıldı, `summarize-and-translate` çalıştırıldı: super-step 0-1
+normal ilerledi, sonra NORMAL bir `event: event` çerçevesi geldi —
+`"type":"RunFailed"`, `"text"`: "Workflow exceeded the 2 super-step limit
+and was stopped. ..." (İngilizce — K-228) — `event: error` DEĞİL.
+`GET /api/runs/{runId}`: `status: "Failed"` (kesin, `"Canceled"` değil).
+Ayar kaldırıldı, yeniden başlatıldı. Mekanizma düzeltmesiyle birlikte tam
+beklenen.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-WF-093 — `EnableCheckpointing=false` iken `resume` — mesaj NETLEŞTİRİLDİ
+
+**Gerçek sonuç**
+🚨 Spec iki aday mesajdan hangisinin geleceğini bilmiyordu — koşumda
+ÜÇÜNCÜ, ikisini birleştiren tek mesaj ölçüldü, `Beklenen sonuç` bu şekilde
+güncellendi. `Tracon__Workflows__EnableCheckpointing=false` ile yeniden
+başlatıldı, `summarize-and-translate` çalıştırıldı (checkpoint yazılmadı),
+`runId` alındı; aynı `runId` `resume` edilmeye çalışıldı: `event: run`
+(yeni runId), ardından `event: error`; `message: "Run '<orijinal-runId>'
+has no checkpoint. A run started while checkpoint writing was disabled
+cannot be resumed."` (İngilizce — K-228). Ayar kaldırıldı, yeniden
+başlatıldı. Mekanizma netleştirmesiyle tam beklenen.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-WF-094 — Hiç checkpoint yazılmamış bir `runId`'yi sürdürmek
+
+**Gerçek sonuç**
+Sıfır-GUID ile `resume`: `event: run` (yeni runId), ardından `event: error`;
+`message: "There is no run with id '00000000-0000-0000-0000-000000000000'."`
+(İngilizce — K-228). Run-varlığı denetimi checkpoint denetiminden ÖNCE
+çalıştığı doğrulandı (spec'in ima ettiği sıra doğru). Tam beklenen.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-WF-095 — `sessionId` 128 karakter sınırı
+
+**Gerçek sonuç**
+129 karakterli `sessionId` ile çalıştırma: `event: run`, ardından
+`event: error`; `message: "Execution session id may be at most 128
+characters."` (İngilizce — K-228). Tam beklenen.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-WF-096 — `sessionId` izin verilmeyen karakter
+
+**Gerçek sonuç**
+`"gecersiz oturum!"` (boşluk + `!`) ile çalıştırma: `event: run`, ardından
+`event: error`; `message: "Execution session id may only contain letters,
+digits, '-', and '_'."` (İngilizce — K-228). Tam beklenen.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-WF-097 — Başka kiracının kontrol noktası listesi → `404`
+
+**Gerçek sonuç**
+`kiraci-alfa` başlığıyla bir çalıştırma üretildi (`summarize-and-translate`,
+tamamlandı, `RunCompleted`). Aynı `runId`'nin checkpoint'leri
+`kiraci-beta` başlığıyla istendi: `HTTP: 404`, `title: "Run not found"`,
+`detail: "There is no run with id '<runId>'."` (İngilizce — K-228) —
+"yetkisiz" denmiyor, varlık bile onaylanmıyor. Tam beklenen — kiracı
+yalıtımı bu uçta da tutuyor (MT-WF-066'nın tenancy-flags düzeltmesinden
+sonra kalıcı).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-WF-100 — API anahtarı kapsamı workflow uçlarında — ÖNERME ÇÜRÜDÜ, kusur YOK
+
+**Gerçek sonuç**
+🚨 Bu case'in 2026-08-10 tarihli önermesi ("WorkflowEndpoints hiçbir ucunda
+RequireApiKeyScope çağırmaz") güncel koddaki gerçekle ÇELİŞTİĞİ için önce
+kaynak yeniden okundu: `grep -n "RequireApiKeyScope"
+src/Tracon.AspNetCore/Endpoints/WorkflowEndpoints.cs` — her tek ucun kendi
+kapsamı var (`WorkflowsRead`/`WorkflowsAdmin`/`RunsWrite`/`RunsRead`).
+Ampirik doğrulama: yalnız `RunsRead` kapsamlı bir API anahtarı üretildi
+(`POST /api/api-keys` — yanıt alanı `rawKey` değil `plaintextKey`, spec'in
+örnek python satırı bu yüzden `KeyError` verdi, not edildi). Bu anahtarla:
+`PUT /api/workflows/kapsam-testi` → `HTTP: 403`, `detail: "... requires
+the 'WorkflowsAdmin' scope ..."`; `POST .../run` → `HTTP: 403`, `detail:
+"... requires the 'RunsWrite' scope ..."`; kontrol grubu
+`PUT /api/agents/kapsam-kontrol` → `HTTP: 403`, `detail: "... requires the
+'AgentsAdmin' scope ..."`. Üçü de tutarlı şekilde REDDEDİLDİ — şüphenin
+kaynağı boşluk KAPALI. `Beklenen sonuç` ve önerme metni bu bulguyla
+güncellendi; **Kusur açılmadı** (MT-RET-040 ile aynı desen — daha önce
+gerçek olan bir boşluk aradaki bir dalgada kapatılmış).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
