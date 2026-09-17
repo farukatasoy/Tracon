@@ -488,3 +488,56 @@ run'ına erişim → **`404`**, `title: "Run not found"` (K-228) — "yetkisiz"
 bile demiyor, varlığı sızdırmıyor. Tam beklenen.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-WF-070 — `plan-onayli` tanımla ve çalıştır → `AwaitingInput`, form `PlanReview`
+
+**Gerçek sonuç**
+`PUT` → `200`, `requirePlanApproval: true`. `run` → `RunAwaitingInput` olayı
+göründü. `GET .../requests`: `form:"PlanReview"`,
+`requestType:"Microsoft.Agents.AI.Workflows.MagenticPlanReviewRequest"`,
+`prompt` planın kendisiyle dolu (boş değil). Tam beklenen.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-WF-071 — Planı onayla → yönetici bitirir, katılımcı agent çalışır
+
+**Gerçek sonuç**
+Yeni bir `runId` açıldı, `ExecutorInvoked(translator_8217e31...)` ve
+`WorkflowOutput` (boş olmayan, gerçek çeviri metni: "Tracon is a family
+of NuGet packages built on the Microsoft Agent Framework.") göründü. Tam
+beklenen.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-WF-072 — Metinsiz ret (`text` boş) → hata
+
+**Gerçek sonuç**
+🚨 **İlk kez ölçüldü (case'in kendi notu, kural 1.1 istisnası, kusur
+değil):** Case "SSE `event: error`" bekliyordu (spekülasyon, önceden
+ölçülmemişti). Gerçek mekanizma MT-WF-020/053 ile aynı desen: **RunFailed
+domain event**, ham `event: error` DEĞİL. Mesaj: "The plan was rejected
+but no revision text was given. The 'text' field is required so the
+manager agent knows what to rebuild the plan against." — net ve
+bilgilendirici. Davranışsal iddia (düzeltme metni olmadan reddin hata
+vermesi) doğrulandı, yalnız mekanizma netleştirildi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-WF-073 — Düzeltme metniyle ret → yönetici YENİDEN planlar, ikinci bir `AwaitingInput`
+
+**Gerçek sonuç**
+Düzeltme metniyle ret sonrası: yeni `runId`, akış yine `RunAwaitingInput`
+ile kapandı. `GET .../requests`: YENİ bir `requestId` (eskisinden farklı),
+yeni `prompt` (yöneticinin gözden geçirilmiş planı, "Root cause: I
+overcomplicated the task..." ile başlıyor). Tam beklenen — yönetici ikinci
+kez çalıştı (maliyet notu doğrulandı).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
