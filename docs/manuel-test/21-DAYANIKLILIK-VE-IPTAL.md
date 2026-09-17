@@ -1705,11 +1705,23 @@ curl -s -o /dev/null -w "%{http_code}\n" -X POST "$APU/api/agents/support/run" \
 ```
 
 **Beklenen sonuç**
-- Adım 3: `503` (`title: "Service is shutting down"`) — sürecin kendisi hâlâ
-  ayaktadır (drain penceresi içinde) ama yeni koşu KABUL EDİLMEZ.
-- Adım 4: süreç, adım 1'in akışı TAMAMLANANA kadar (veya en fazla 10 saniye
-  — `Drain:Timeout`) ayakta kalır, sonra çıkar. Süreç `SIGTERM`'den HEMEN
-  sonra ölmez.
+> 🚨 **Doküman düzeltmesi (2026-09-17 koşumu, ap-s3).** Kaynakta belgelenmiş
+> ve `docs/YAYIN-HAZIRLIK.md`'de zaten `BL-026` olarak 🟡'ye indirilmiş,
+> bilinen bir sınır var: `TraconDrainService`'in kendisi `DrainGate.Check`'in
+> ürettiği `503`'ü GARANTİ ETMEZ — Kestrel kendi bağlantı kabulünü SIGTERM'de
+> ÇOK ERKEN durdurur, bu yüzden yeni bir istek genelde `DrainGate`
+> middleware'ine hiç ULAŞAMADAN ham bağlantı reddiyle karşılaşır (ölçülmüş,
+> tekrarlanabilir). İş kaybı yoktur (bkz. adım 4), yalnız "temiz 503" vaadi
+> Kestrel'in kendi davranışına bel bağlar.
+- Adım 3: pratikte `503` DEĞİL, HAM bağlantı reddi (`curl` exit 7, TCP
+  düzeyinde) beklenir — Kestrel `ApplicationStopping` anında yeni bağlantı
+  kabulünü durdurur, `DrainGate` middleware'i bu isteğe hiç çalışmaz.
+- Adım 4: süreç adım 1'in akışı TAMAMLANANA kadar ayakta kalır — ama bunu
+  sağlayan `Drain:Timeout` (10 sn) DEĞİL, Kestrel'in KENDİ bağlantı
+  tahliyesidir (ASP.NET Core'un varsayılan `HostOptions.ShutdownTimeout`,
+  30 sn, üst sınırına kadar). `Drain:Timeout` yalnız `IRunCancellationRegistry
+  .ActiveCount`'u beklerken uygulanır; Kestrel'in kendi tahliyesi BAĞIMSIZ
+  ikinci bir mekanizmadır ve bu senaryoda asıl belirleyici odur.
 
 ---
 
