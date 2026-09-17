@@ -389,6 +389,76 @@ dropped_runs_events_and_tool_invocations_too`) bu oturumda yeniden koşuldu:
 
 ---
 
+## MT-RET-050 — Düşük token tavanı, uzun tool döngülü bir `run`'ı KESER
+
+**Gerçek sonuç**
+`Tracon:AgentGraph:MaxTotalTokens=150` ile başlatıldı (önce MT-RET-035'ten
+kalan bloklayıcı kota politikası fark edildi ve silindi). `POST
+/api/agents/support/run` → `502`, `"Agent run failed"`, detay: `"The run
+tree's token budget is exhausted (367/150)..."` (rakam 2026-08-26'nın
+254/150'sinden farklı — gerçek token kullanımı çağrı başına değişir, kusur
+değil). `GET /api/runs/{id}`: `status: Failed`, `error.type:
+"run_budget_exceeded"`, `error.class: "QuotaExceeded"` — tam beklenen.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-RET-051 — Kesilen `run` istemciye YARIM bir tool sonucu veya model mesajı SIZDIRMAZ
+
+**Gerçek sonuç**
+Aynı run'ın olay akışı: yalnız `run.started` → `run.failed`, arada
+`tool_invoking`/`tool_invoked`/`message_delta` YOK. Spec'in kendi
+"ölçüldü" notuyla birebir — hiçbir ara ilerleme sızmıyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-RET-052 — Hiçbir tavan tanımlı değilken davranış AYNIDIR (gerileme yok)
+
+**Gerçek sonuç**
+Tavan olmadan yeniden başlatıldı. Aynı sipariş sorusu tam bir yanıt
+üretti (tool çağrısı + sonuç + son mesaj), `status: "Completed"`.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-RET-053 — Maliyet tavanı tanımlıyken, fiyatı BİLİNMEYEN modelde tavan UYGULANMAZ
+
+**Gerçek sonuç**
+`MaxTotalCost=0.000001` + `MaxTotalTokens=200000` ile yeniden başlatıldı.
+`status: "Completed"` — maliyet tavanı hiç uygulanmadı (fiyatsız model),
+yüksek token tavanı da bu kısa run'ı kesmedi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-RET-054 — Ağaçtaki TÜM dallar aynı bütçeyi görür (alt-agent çağrısı)
+
+**Gerçek sonuç**
+`MaxTotalTokens=150` ile yeniden başlatıldı. `router` agent'ı (`support`'u
+alt-agent olarak çağırıyor) → `502`. Kök run: `status: Failed,
+errorClass: QuotaExceeded, agentName: router` — alt çalıştırmanın (support)
+harcaması kökü de kesti, aynı bütçe nesnesi paylaşıldığı doğrulandı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-RET-055 — `202 Accepted` ile arka planda koşan `run` da aynı şekilde kesilir
+
+**Gerçek sonuç**
+`Prefer: respond-async` ile aynı sorgu → kabul yanıtı (`runId`/`jobId`).
+3 saniye sonra poll: `status: "Failed", errorClass: "QuotaExceeded"` —
+arka plan yolu senkron yolla aynı kesme davranışını üretti.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ## MT-RET-012 — Arşiv sink'i yokken `archive=true` HİÇBİR satır silmez
 
 **Gerçek sonuç**
