@@ -543,7 +543,7 @@ Beklenen sonuç birebir örtüştü.
 
 ---
 
-### MT-DIAG-055 / MT-DIAG-056
+### MT-DIAG-055
 
 **Sapma — `samples/Tracon.Api/Program.cs` değiştirilmedi** (kural 1,
 mutlak). Case'in kendi adımı `.AddPatternContentGuard(...)`'ı geçici olarak
@@ -572,13 +572,22 @@ düştü — `[Warning] Tracon.SilentGapWarningService: ... Register one with
 AddPatternContentGuard() or AddContentGuard<T>() ...`. Beklenen sonucun
 tamamı birebir örtüştü.
 
-**Gerçek sonuç (056, Development)**
-AYNI harness, `ASPNETCORE_ENVIRONMENT=Development` (DI'de doğrulandı).
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-DIAG-056
+
+**Yöntem notu.** MT-DIAG-055'in AYNI atılabilir `AddTracon()` host'u
+(yukarıdaki sapma ve yöntem-tuzağı notu geçerli) — yalnız
+`ASPNETCORE_ENVIRONMENT=Development`.
+
+**Gerçek sonuç**
+DI'nin `IHostEnvironment.EnvironmentName`'i doğrulandı: `Development`.
 `"no IContentGuard registered"` **0** kez — tamamen sessiz. Beklenen sonuç
 birebir örtüştü.
 
-**Durum (055):** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-**Durum (056):** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -597,5 +606,140 @@ HİÇ görünmüyor (iki uyarı birbirinden bağımsız tetikleniyor, spec'in
 öngördüğü gibi). Beklenen sonucun tamamı birebir örtüştü.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-DIAG-058
+
+**Gerçek sonuç**
+Değiştirilmemiş `samples/Tracon.Api` (hiçbir `RequireCustomBinding`
+çağrısı yok) normal açıldı: `"Application started"` **1** kez,
+`"required custom binding"` **0** kez. Beklenen sonuç birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-DIAG-060
+
+**Gerçek sonuç**
+Değiştirilmemiş `samples/Tracon.Embedded` (dört sözleşmeyi de `AddTracon()`'den
+ÖNCE kaydediyor) normal açıldı: `"Application started"` **1** kez,
+`"required custom binding"` **0** kez — dördü de kabul edildi. Beklenen
+sonuç birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-DIAG-063
+
+**Gerçek sonuç**
+Aynı değiştirilmemiş gömme örneğinde `/api/diagnostics`'in
+`extensionPoints[]`'inde `IAttachmentStorage` → `implementation:
+"InMemoryBufferAttachmentStorage"` — kendi adaptör tipiyle görünüyor,
+yokluk dalı tetiklenmedi. Beklenen sonuç birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-DIAG-065
+
+**Gerçek sonuç**
+`extensionPoints | length` → **7** (MT-DIAG-050'nin ölçtüğü güncel sayı —
+bu case Faz 150'den, zaten doğru sayıyı bekliyordu). İlk girdinin alan
+kümesi tam olarak `contract,implementation,isBuiltInDefault` — zorunluluğu
+bildiren yeni bir alan yok. Beklenen sonucun tamamı birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-DIAG-059
+
+**Sapma — `samples/Tracon.Api`/`samples/Tracon.Embedded` değiştirilmedi**
+(kural 1, mutlak — bu not 061/062/064'te de geçerlidir, tekrar
+yazılmayacak). Case'in kendi adımı geçici `Program.cs` düzenlemesi
+istiyor (`RequireCustomBinding` ekleme, bir kaydı sonraya taşıma, bir
+satırı yorumlama, `MapTracon`'u yorumlama — dördü de aynı sorunu paylaşır).
+Onun yerine `~/tracon-manuel/test-paketi`de her case için minimal,
+bağımsız bir `AddTracon()` host'u kuruldu — aynı `RequiredBindingValidator`'ı
+gerçek DI kompozisyonuyla sınıyor, yalnız `samples/`'a dokunmadan.
+
+**Gerçek sonuç — zorunlu sözleşme yerleşik varsayılanla çözülüyor**
+`RequireCustomBinding<IRunAuthorizationHandler>()`, özel kayıt YOK.
+`builder.Build()` + `StartAsync()` gerçek bir `InvalidOperationException`
+ile durdu: *"IRunAuthorizationHandler was declared as a required custom
+binding, but Tracon's built-in default AllowAllRunAuthorizationHandler is
+what resolved. Register your own IRunAuthorizationHandler on
+IServiceCollection BEFORE the AddTracon() call. ..."* — üçü de (sözleşme,
+çözülen tip, düzeltme) mesajda. `"Application started"` hiç yazılmadı.
+Beklenen sonuç birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-DIAG-061
+
+**Gerçek sonuç — geç `TryAdd` düşüyor, geç `AddSingleton` düşmüyor**
+MT-DIAG-059'un AYNI kurulumu + `builder.Services.TryAddSingleton<
+IRunAuthorizationHandler, StubHandler>()` **`AddTracon()`'den SONRA** →
+AYNI istisna (yerleşik varsayılan zaten slotu tutuyor, geç `TryAdd`
+sessizce düşüyor). Kontrast: `TryAddSingleton` yerine düz `AddSingleton`
+ile AYNI geç kayıt → host **AÇILDI** (`"Application started"` gerçekten
+yazıldı) — kap gerçekten SON kaydı çözüyor. Spec'in "olguyu bildirir,
+sırayı değil" iddiası ampirik olarak doğrulandı. Beklenen sonuç birebir
+örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-DIAG-062
+
+**Gerçek sonuç — gerçek yokluk farklı mesaj üretiyor**
+`RequireCustomBinding<IAttachmentStorage>()`, hiçbir kayıt yok (yerleşik
+bir varsayılan tipi de yok — bu sözleşme için Tracon hiçbir şey
+kaydetmiyor). İstisna: *"IAttachmentStorage was declared as a required
+custom binding, but **nothing is registered for it**. ..."* — bir tip adı
+DEĞİL, `MT-DIAG-059`'un "AllowAll..." biçiminden yapısal olarak farklı.
+Beklenen sonuç birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-DIAG-064
+
+**Gerçek sonuç — kontrol HTTP'siz de çalışıyor**
+`RequireCustomBinding<IToolAuthorizationHandler>()`, özel kayıt yok,
+`app.MapTracon(...)` **HİÇ ÇAĞRILMADI** (hiçbir HTTP ucu haritalanmadı).
+Yine de `StartAsync()` AYNI türde bir `InvalidOperationException` ile
+durdu (`AllowAllToolAuthorizationHandler` adlandırıldı) — kontrol gerçekten
+`MapTracon`'a bağlı değil, kompozisyon anında (`IHostedService.StartAsync`)
+çalışıyor. Beklenen sonuç birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## Aile 25 (`DIAG`) TAMAMLANDI (oturum 18 sonu)
+
+45/45 case işlendi, **0 Kaldı**. Dört case (055, 056, 059, 061, 062, 064 —
+altısı, `RequireCustomBinding`/guard-yokluğu serisi) spec'in kendi adımı
+`samples/` altında geçici kod değişikliği istediği için **atılabilir bir
+`AddTracon()` host'uyla** (`~/tracon-manuel/test-paketi`) koşuldu — kural 1
+hiç ihlal edilmedi, ama koşum yöntemi spec'in "Girilecek veri"sinden
+sapıyor (her birinde not edilmiştir). Birkaç case'in `Beklenen sonuç`ü
+Türkçe/bayat metin taşıyordu (K-228 dil sınırı deseni × 4: 002, 004, 005,
+049/050'nin 5→7 genişleme-noktası bayatlığı) — hepsi yerinde düzeltildi,
+gerekçesiyle. `MT-DIAG-047` işlenmiş `docs/openapi/tracon.json`
+anlık görüntüsünün canlı host'tan sapmış olduğunu buldu (yeni `Images`
+şemaları) — beklenen bir bakım boşluğu, kapanışta yenilenecek.
+
+Kod tamamen donuk bırakıldı (tüm geçici örnekler durduruldu, atılabilir
+şemalar düşürüldü). Sıradaki aile: `17-EVAL-VE-DENEYLER.md`.
 
 ---
