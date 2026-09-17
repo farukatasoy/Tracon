@@ -1016,3 +1016,71 @@ hatasız ayrıştırıldı. Beklenen sonucun tamamı birebir örtüştü.
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
+
+### MT-UIRUN-057
+
+**Gerçek sonuç**
+`MT-UIRUN-052`'nin run'ının ham SSE'sinde çerçeve adı `event: custom`
+(tüketicinin `contoso.preview-ready` dizgesi DEĞİL). Aynı çerçevenin
+`data:` satırı `customType:"contoso.preview-ready"` alanını dolu taşıyor.
+Beklenen sonucun tamamı birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-UIRUN-058
+
+**Gerçek sonuç**
+`MT-UIRUN-013`'ün `summarize-and-translate` run'ının benzersiz `event:`
+adları: `child.completed`, `child.started`, `executor.completed`,
+`executor.invoked`, `message.delta`, `run.completed`, `run.started`,
+`superstep.completed`, `superstep.started`, `workflow.output`,
+`workflow.started` — üçü de (`workflow.started`, `superstep.started`,
+`workflow.output`) VAR, `unknown` HİÇ YOK. Beklenen sonucun tamamı birebir
+örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-UIRUN-059
+
+**Gerçek sonuç**
+`MT-UIRUN-052`'nin run'ında tam akış: `id:0/event:run.started`,
+`id:1/event:tool.invoking`, `id:2/event:custom`... `Last-Event-ID: 1`
+başlığıyla yeniden bağlanınca ilk çerçeve `id:2`, `event:custom` — sıra
+1'in BİR SONRASINDAN devam etti, aynı olay adıyla. Beklenen sonucun tamamı
+birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-UIRUN-060
+
+**Yöntem notu.** Belge `/tracon/openapi.json`'da DEĞİL, `/openapi/v1.json`'da
+(kimlik doğrulama gerektirmiyor, `/tracon` önekinin dışında).
+
+**Gerçek sonuç**
+`GET /openapi/v1.json`'da `/tracon/api/runs/{runId}/events`'in `200` yanıtı:
+`content: {"text/event-stream": {"schema": {"type": "string"}}}` — dolu
+(boş `{}` DEĞİL). `404` yanıtı `content` anahtarı yalnız
+`application/problem+json` taşıyor. Beklenen sonucun tamamı birebir
+örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-UIRUN-061
+
+**Gerçek sonuç**
+`MT-RES-080`'in (aile 21) alt-agent zaman aşımına uğramış run'ının olay
+adları arasında `event: child.timed-out` VAR (`child.completed`,
+`child.started`, `child.timed-out`, ... — `unknown` YOK). Beklenen sonucun
+tamamı birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
