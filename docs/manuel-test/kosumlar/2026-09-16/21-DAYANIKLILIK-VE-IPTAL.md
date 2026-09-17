@@ -471,4 +471,183 @@ hâliyle birebir örtüştü.
 
 ---
 
+### MT-RES-050
+
+**Gerçek sonuç**
+Spesifikasyonun kendi "şüphe"si (girdi kaydı yok, `404`) bu ortamda
+DOĞRULANMADI: gerçek bir `support` çalıştırması üretilip (`sessionId:
+mt-res-050`, gerçek `agent.RunAsync` çağrısı — SQL'le doğrudan DEĞİL) sonra
+SQL ile öksüz hâline getirildi. `GET .../input` → `200` — girdi GERÇEKTEN
+var, çünkü bu ortam PostgreSQL kalıcılığı kullanıyor (`SqlRunInputStore`,
+`InMemoryRunInputStore` DEĞİL — kaynakta doğrulandı, spesifikasyon
+düzeltildi). `status`/`error` alanları `MT-RES-011`'in aynı deseniyle
+doğrulandı: `Failed`/`Infrastructure`/`orphaned`.
+
+`POST .../replay {"toolMode":"ReplayTools"}` → `400`, `title:"Replay not
+supported"`, gerekçe: `support` kodda tanımlı bir agent (persistent
+definition yok), `ReplayTools`/`NoTools` tanımın YENİDEN DERLENMESİNİ
+gerektiriyor. `LiveTools` denendi → `409`, gerekçe: agent'ın taşıdığı
+`cancel_order` onay gerektiriyor ve `LiveTools` modunda canlı onay
+istemcisi yok. Sonuç: bu case'in asıl sorduğu soru (`Status`'un kendisi
+oynatmayı engelliyor mu) bu ajanla İZOLE ÖLÇÜLEMEDİ — iki bağımsız,
+`Status`'tan tamamen bağımsız engel devreye giriyor. Kusur değil, ortam/
+agent seçimi sınırı (spesifikasyona not düşüldü).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## § 6 — Kesilen İşin Devamı ve Zarif Kapanış (Faz 87)
+
+**Ortam notu (bu bölüme özel, oturum 16).** İki ek kurulum kararı:
+1. Bölüm başındaki `RunReconciliation`/`RunContinuation` ayarlarıyla
+   uygulama yeniden başlatıldı (§2'nin ayarları + `RunContinuation:Enabled=
+   true`, `MaxAttempts=1`).
+2. **Kalıcı bir agent gerekti.** İlk deneme `support`'la yapıldı ve
+   `TraconException: "Agent 'support' has no persistent definition version
+   1; a code-defined or deleted agent cannot be continued."` ile düştü —
+   `GET /api/agents` kataloğundaki **12 agent'ın 12'si de** `origin:"Code"`
+   taşıyor (kalıcı/veritabanı kökenli TEK bir örnek yok). Bu, `MT-RES-050`'nin
+   `replay` engeliyle AYNI kök neden. Çözüm: `POST /api/agents` ile
+   `durability-support` adında kalıcı (`origin:"Database"`) bir klon
+   üretildi (`get_order_status`, `list_recent_orders`, `cancel_order`
+   tool'larıyla, `support`'un aynısı) — §6'nın tamamı bu agent'la koşuldu.
+   Bu bir kusur DEĞİL, örnek uygulamanın bilinçli tasarımı (K-008: ön sürüm
+   MAF paketi yalnız `Tracon.AspNetCore` içinde, örnek agent'lar hep kodda
+   tanımlı) — ama §6'nın "mutlu yol" case'lerinin (`061`, `062`, `067`) test
+   EDİLEBİLMESİ için kalıcı bir agent ZORUNLUYDU, bu ayrım spesifikasyonda
+   hiç anılmıyor.
+
+### MT-RES-060
+
+**Gerçek sonuç**
+İlk deneme (`mt-res-060`, `support` ile, `sleep 3` sonrası hemen SQL ile
+öksüzleştirme) YANLIŞ pozitif verdi: bu ortamda `RunContinuation` o SIRADA
+zaten AÇIKTI (bölümün ortam hazırlığı `060`'tan ÖNCE yapılmıştı) — iki
+ayrı devam denemesi tetiklendi, ikisi de yapısal nedenlerle düştü ("girdi
+kaydı yok" — run tamamlanmadan öksüzleştirildiği için — sonra "kalıcı tanım
+yok"). Bu, case'in kendi ölçtüğü şeyi (kapalıyken devam AÇILMAZ) ölçmüyordu.
+
+Düzeltilmiş koşum (`mt-res-060b`): uygulama `RunContinuation` VERİLMEDEN
+(yalnız `RunReconciliation` açık) yeniden başlatıldı, `durability-support`
+ile GERÇEKTEN tamamlanan bir run üretilip SQL ile öksüzleştirildi. 8 sn
+sonra: `sessionId=mt-res-060b` altında **tek** satır, `status:"Failed"`,
+`error.type:"orphaned"`/`class:"Infrastructure"` — beklenen sonuçla birebir
+örtüştü, hiçbir devam açılmadı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-RES-061
+
+**Gerçek sonuç**
+`durability-support`'a gerçek bir soru gönderildi, `Completed` olması
+beklendi (4 sn). Sonra SQL ile öksüzleştirildi. 6 sn sonra
+`sessionId=mt-res-061` altında İKİ satır: kaynak `Failed`/`error.type:
+"orphaned"`/`class:"Infrastructure"` (değişmedi), YENİ satır
+`continuedFromRunId` kaynağı gösteriyor, `status:"Completed"`, aynı
+`sessionId`. Beklenen sonucun tamamı birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-RES-062
+
+**Gerçek sonuç**
+`durability-support`'a `get_order_status`'u tetikleyen bir soru gönderildi;
+GERÇEK sonuç not edildi ("Order ORD-1001 has shipped..."). SQL ile
+`tool_invocations.result` `"RECORDED-DEGERI"`ye çevrildi, sonra satır
+öksüzleştirildi. Devam koşusu `Completed` oldu (`422`/`Failed` DEĞİL);
+devam koşusunun `get_order_status` sonucu tam olarak `"RECORDED-DEGERI"` —
+tool'un gerçek gövdesi ÇALIŞMADI, kayıtlı (yapay) sonuç OYNATILDI. Beklenen
+sonucun ölçülebilir iki maddesi birebir doğrulandı (üçüncü madde — kaynakta
+olmayan yeni bir çağrının canlı çalışması — modelin aynı soruya tek bir tool
+çağrısıyla yanıt vermesi nedeniyle bu koşumda tetiklenmedi, ayrı gözlem
+gerektirmedi).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-RES-063
+
+**Gerçek sonuç**
+`durability-support`'a `cancel_order`'ı tetikleyen bir soru gönderildi;
+`cancel_order` onay gerektirdiği için (`Faz 55`) run önce `AwaitingApproval`
+oldu — onaylandı, ikinci (yeni) run `cancel_order`'ı GERÇEKTEN çalıştırıp
+`Completed` oldu (`GET .../tools` ile doğrulandı: `result:"Order ORD-1001
+has been canceled."`). Bu GERÇEK `cancel_order` kaydını taşıyan run SQL ile
+öksüzleştirildi. 6 sn sonra: bu run için YENİ bir devam AÇILMADI (aynı
+oturumdaki satır sayısı sabit kaldı). `GET .../events` (SSE, `grep` ile
+ayrıştırıldı) `run.continuation-blocked` olayını taşıyor: `text:"Automatic
+continuation was refused: tool 'cancel_order' may not be safely repeated
+(destructive or external effect, not declared SafeToRepeat)."` — `cancel_
+order` adını içeriyor. Beklenen sonucun tamamı birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-RES-064
+
+**Gerçek sonuç**
+Örnek uygulamanın tool kataloğu (`GET /api/tools`) taranmış: yedi tool'un
+`safeToRepeat` alanı hepsinde `false`. `SafeToRepeat=true` bildiren bir tool
+YOK — case'in kendi öngördüğü atlama koşulu gerçekleşti. DoD'un birim testi
+(`A_tool_declaring_SafeToRepeat_allows_continuation_despite_a_destructive_
+effect`) bu davranışı zaten kilitliyor.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☑ Atlandı — gerekçe: örnek
+uygulamada `SafeToRepeat=true` bildiren bir tool yok (case'in kendi
+öngördüğü atlama koşulu); not `docs/hafiza/`'ya taşınacak.
+
+---
+
+### MT-RES-065
+
+**Gerçek sonuç**
+`MT-RES-061`'in ÜRETTİĞİ devam koşusu (`...da82...`) da SQL ile
+öksüzleştirildi. 6 sn sonra `sessionId=mt-res-061` altında sayı **2**'de
+kaldı (kaynak + ilk devam) — üçüncü bir devam AÇILMADI, `MaxAttempts=1`
+sınırı doğrulandı. `$CONT` da `Failed`/`orphaned` kapandı ve öyle kaldı.
+Beklenen sonuçla birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-RES-066
+
+**Gerçek sonuç**
+`durability-support`'a `sessionId` VERİLMEDEN senkron bir istek gönderildi
+(`Completed`, `sessionId:null`). SQL ile öksüzleştirildi. 6 sn sonra:
+`status:"Failed"` — her zamanki gibi. `SELECT count(*) FROM mt_s3.runs
+WHERE started_at > now() - interval '15 seconds'` → **0** — hiçbir yeni
+satır açılmadı. Beklenen sonuçla birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-RES-067 (👤 insan gerekir — arayüz oturumunda tamamlandı)
+
+**Gerçek sonuç**
+Taze bir kaynak+devam çifti üretildi (`mt-res-067`). Devam koşusunun
+sayfasında (`/tracon/runs/{devamId}`) başlık altındaki özet paragrafında
+HİÇBİR "continued from" ibaresi YOK — `document.body.innerText` taraması
+doğruladı. Kaynak API'de `continuedFromRunId` DOLU olduğu (`GET
+/api/runs/{id}` ile doğrulandı) hâlde arayüz bunu satır metni olarak
+göstermiyor; kaynak taraması (`run-detail.tsx:250-255`) ilişkinin "Related"
+açılır menüsünün bir ögesi olduğunu gösterdi. "Related" düğmesine
+tıklanınca menüde `"continued from 01a0b089-eff…9050f"` ögesi göründü;
+tıklanınca kaynak çalıştırmanın sayfasına gidildi (`01a0b089-...9050f` —
+birebir `$SRC`). Beklenen sonuç spesifikasyonda düzeltildi; düzeltilmiş
+hâliyle birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 
