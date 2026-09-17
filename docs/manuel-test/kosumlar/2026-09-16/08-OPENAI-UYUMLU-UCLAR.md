@@ -308,3 +308,116 @@ tasarımdır — HATA açılmadı.
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
+
+# 3 — `/v1/conversations*`
+
+## MT-COMPAT-031 — Boş gövdeyle oluşturma: `conv_` önekli kimlik döner
+
+**Gerçek sonuç**
+`id:"conv_01a0addcd68671afb7bcbbbff7aa569c"` — `conv_` + 32 hex,
+`object:"conversation"`. `metadata` alanı yanıtta hiç yok (null olduğu
+için .NET serileştirmede atlanmış — MT-COMPAT-011 ile aynı zararsız fark).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-COMPAT-032 — Metadata ile oluşturma: yalnız metin alanları geri döner
+
+**Gerçek sonuç**
+`metadata:{"kaynak":"manuel-test"}` — `sayi_alani`/`bool_alani` sessizce
+düştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-COMPAT-033 — Bozuk gövde sessizce yutulmaz, `400` döner
+
+**Gerçek sonuç**
+`HTTP 400`, `"Body could not be parsed:"` ile başlıyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-COMPAT-034 — Kullanılmamış konuşma `GET`'i `200` boş döner, `404` DEĞİL
+
+**Gerçek sonuç**
+`HTTP 200`, `object:"conversation"`, `created_at` şimdiki zamana yakın.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-COMPAT-035 — Kullanılmış konuşmanın `created_at`'i oturum oluşturma zamanını yansıtır
+
+**Gerçek sonuç**
+`created_at` oturumun gerçek oluşturulma anına yakın bir Unix damgası.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-COMPAT-036 — Konuşma `GET`'ine çapraz kiracı erişimi `404` döner
+
+**Gerçek sonuç**
+`kiraci-beta` ile `HTTP 404`, `error.type:"not_found_error"`.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-COMPAT-037 — Silme, altındaki oturumu da siler
+
+**Gerçek sonuç**
+`DELETE` → `{"id":"manuel-conv-037","object":"conversation.deleted","deleted":true}`.
+Ardından `GET /api/sessions/manuel-conv-037` → `404`.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-COMPAT-038 — Kullanılmamış bir konuşmayı silmek hata değil, `deleted: false` döner
+
+**Gerçek sonuç**
+`HTTP 200`, `deleted: false`.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-COMPAT-039 — Çapraz kiracı silme `404` döner, başka kiracının oturumunu silmez
+
+**Gerçek sonuç**
+`kiraci-beta` silme denemesi → `404`. `kiraci-alfa`'nın oturumu hâlâ var
+(`GET` → `200`, mesajlar bozulmamış) — başarısız silme girişimi hiçbir
+etki bırakmadı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-COMPAT-040 — Öge listesi mesaj/tool çağrısı/tool sonucu sırasını korur
+
+**Gerçek sonuç**
+Sıra tam: `message` → `function_call` (`get_order_status`) →
+`function_call_output` (aynı `call_id`) → `message`. Toplam 4 öge.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-COMPAT-041 — `limit` parametresi kırpar, `has_more` doğru döner (düzeltildi)
+
+**Gerçek sonuç**
+`limit=2` → tam 2 öge, `has_more:true` (gerçek toplam 4, fix'in
+regresyonu YOK).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-COMPAT-042 — Kullanılmamış konuşmada öge listesi boş dizi döner
+
+**Gerçek sonuç**
+`HTTP 200`, `{"object":"list","data":[],"has_more":false}`
+(`first_id`/`last_id` null olduğu için yanıtta hiç yok — zararsız fark).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-COMPAT-043 — Öge listesine çapraz kiracı erişimi `404` döner
+
+**Gerçek sonuç**
+`kiraci-beta` → `HTTP 404`, `error.type:"not_found_error"`.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-COMPAT-044 — `POST /v1/conversations/{id}/items` desteklenmez (koşumda düzeltildi)
+
+**Gerçek sonuç**
+`HTTP 405` (404 değil), `Allow: GET, HEAD` başlığı, gövde
+`application/problem+json` bir `ProblemDetails` — spec'in kendi
+düzeltilmiş beklentisiyle birebir eşleşti.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
