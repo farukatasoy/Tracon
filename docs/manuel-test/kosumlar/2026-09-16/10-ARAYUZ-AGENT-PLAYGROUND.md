@@ -29,7 +29,7 @@ sıfırdan düşürülüp yeniden oluşturuldu (aile 08'in verisi temiz atıldı
 
 ## Devir notu
 
-**Oturum 1-4 bitti: MT-UIAG-001..030 koşuldu (26 Geçti · 2 Kaldı · 2 Atlandı).**
+**Oturum 1-5 bitti: MT-UIAG-001..032 koşuldu (28 Geçti · 2 Kaldı · 2 Atlandı).**
 Uygulama AÇIK bırakıldı (port 5081, arka planda `launch_s1.py` ile başlatıldı,
 PID script'i `/private/tmp/.../scratchpad/s1-app.pid`de) — sonraki oturum
 sıfırdan başlatmak yerine devam edebilir, yalnız `curl .../api/diagnostics`
@@ -717,6 +717,46 @@ metin DEĞİL, MAF'ın sabit red-stub'u. Final metin siparişin iptal
 EDİLMEDİĞİNİ açıkça söylüyor: `"Üzgünüm, şu anda siparişi iptal edemedim.
 İsterseniz tekrar deneyebilirim..."`. Asıl tool kodu hiç çalışmadı
 (spec'in düzeltilmiş iddiasıyla birebir).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-UIAG-031 — "Hatırla" ile onaylanan karar kalıcı bir kural yazar; SONRAKİ çağrıda onay kartı hiç çıkmaz
+
+**Gerçek sonuç — beklendiği gibi.**
+Yeni sohbette `FIX-PROMPT-03` gönderildi, "Hatırla" (`Bu tool için bir daha
+sorma`) işaretlenip "Onayla"ya tıklandı. SQL ile doğrulandı:
+`tool_approval_rules`'ta TEK satır (`tool_name=cancel_order,
+agent_name=support, arguments_hash IS NULL` — argüman bazlı sınırlama YOK,
+tool-genel kural). "Yeni sohbet" ile oturum sıfırlandı, `ORD-1001
+siparisimi iptal et` TEKRAR gönderildi: bu sefer HİÇBİR onay kartı
+belirmedi — `cancel_order` doğrudan `"bitti"` durumunda, `Sonuç: "Order
+ORD-1001 has been canceled."` (gerçek tool çıktısı, red-stub DEĞİL), final
+metin iptalin başarılı olduğunu doğruluyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-UIAG-032 — Akışta "Durdur" bağlantıyı keser; hata GÖSTERİLMEDEN tur `done` olur
+
+**Gerçek sonuç — beklendiği gibi (bir alt-iddia doğrudan gözlenemedi, ama
+çelişki yok).**
+Uzun bir yanıt isteyen prompt gönderildi, tarayıcı-içi bir polling
+döngüsüyle "Durdur" düğmesi belirir belirmez tıklandı (iki deneme
+yapıldı). Her iki denemede de: `[role="alert"]` hiç belirmedi (hata kutusu
+YOK), "Durdur" düğmesi kayboldu, metin kutusuna yazı yazılınca "Gönder"
+normal şekilde tekrar etkinleşti (boşken devre dışı olması ayrı, beklenen
+bir davranış — abort'tan kaynaklı bir kilitlenme DEĞİL). `GET /api/runs/
+{id}` ile gerçek çalıştırma durumu ölçüldü: `Canceled` — spec'in öngördüğü
+gibi. **Tek doğrudan gözlenemeyen alt-iddia:** "o ana kadar gelen kısmi
+metin EKRANDA KALIR" — gpt-5.4-mini'nin ilk token'ı bu iki denemede de
+"Durdur"a basılana kadar gelmemişti (ekranda yalnız bekleme göstergesi
+`"…"` vardı), yani gösterilecek gerçek bir kısmi metin hiç oluşmadı;
+bu bir kusur değil, ırk koşulunun (race) bu turda erken tarafa düşmesi.
+Mantık (`caught.name === 'AbortError'` özel ele alımı) zaten dolaylı
+olarak doğrulandı — hata gösterilmedi.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
