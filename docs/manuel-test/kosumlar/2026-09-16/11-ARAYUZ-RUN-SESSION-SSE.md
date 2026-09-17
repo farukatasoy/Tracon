@@ -63,6 +63,77 @@ kurulur — veri kaybı yok, yalnız GÖZLEMLENEBİLİRLİK boşluğu).
 
 ---
 
+## HATA-S3-006 — `RecordReasoningDeltas=true` iken model GERÇEKTEN düşünme içeriği üretse bile `ReasoningDelta` olayı HİÇ kaydedilmiyor
+
+- **Case:** MT-UIRUN-047/048
+- **Önem:** Yüksek
+- **İzlek:** A (gerçek Anthropic çağrısı, `claude-haiku-4-5-20251001`, extended thinking)
+- **Ortam:** macOS arm64 · net10 · PostgreSQL `mt_s3` · Anthropic (gerçek API)
+
+**Beklenen**
+`Tracon:RunRecording:RecordReasoningDeltas=true` (örnek uygulamanın kendi
+varsayılanı) iken, model gerçekten düşünme içeriği ürettiğinde, kayıtlı
+olay akışında (`GET /api/runs/{id}/events`) ayrı `ReasoningDelta` olayları
+görünmeli (K-493, Faz 70) — `MT-UIRUN-048`'in kendi spesifikasyonu bunu
+2026-08-19'da GERÇEKTEN ölçmüş (7 `ReasoningDelta` olayı kaydedilmiş).
+
+**Gerçekleşen**
+`RecordReasoningDeltas=true` ile DÖRT ayrı gerçek Anthropic çağrısı
+denendi (`claude-thinking` agent'ı, `anthropic.thinking.budgetTokens:
+2048`) — biri akışsız (`Idempotency-Key`), üçü akışlı. DÖRDÜNDE DE ham
+yanıt/akış GERÇEKTEN `$type:"reasoning"` içerikli bir öge taşıyordu
+(akışlı denemelerde 48-76 arası `reasoning` parçası SSE'de doğrudan
+gözlendi; akışsız denemede `response.messages[0].contents` içinde açıkça
+bir `reasoning` tipli öge vardı). DÖRDÜNDE DE kayıtlı `GET .../events`
+**SIFIR** `ReasoningDelta` olayı döndü — yalnız `MessageDelta`/
+`RunStarted`/`RunCompleted`. Aynı options nesnesinin KARDEŞ alanı
+(`RecordMessageDeltas`) AYNI çalıştırmalarda doğru çalışıyor
+(`MessageDelta` olayları GERÇEKTEN kaydediliyor) — bu, genel bir options-
+bağlama sorununu EKARTE EDİYOR.
+
+**Kök neden — kısmen izole edildi**
+`src/Tracon.Core/Recording/RunRecordingAgent.Persistence.cs:189-193`'teki
+`case TextReasoningContent reasoning when _options.RecordReasoningDeltas
+...` ifadesinin KENDİSİ doğru: bağımsız bir reflection probu (bu turda
+koşuldu) `Microsoft.Extensions.AI.Abstractions` 10.9.0'da `Text
+ReasoningContent`'in JSON ayırt edicisinin tam olarak `"reasoning"`
+olduğunu doğruladı — gözlenen ham JSON'la birebir eşleşiyor, tip
+uyuşmazlığı YOK. `tests/Tracon.Core.UnitTests/Recording/
+ReasoningRecordingTests.cs` bu switch dalını zaten sentetik
+`TextReasoningContent` örnekleriyle kilitliyor (birim testi muhtemelen
+YEŞİL — bu turda ayrıca koşulmadı ama kod donuk, testin kendisi
+değişmedi). Akışlı/akışsız iki çağrı yolu da (`RunRecordingAgent.cs:238`
+`message.Contents` VE `RunRecordingAgent.cs:458` `update.Contents`) AYNI
+sonucu (sıfır kayıt) verdi — bu, sorunun akışlı/akışsız ayrımına ÖZGÜ
+OLMADIĞINI gösteriyor. Sorunun tam kesişim noktası (gerçek bir MAF/
+Anthropic yanıtının `response.Messages[].Contents`'e ulaşana kadar geçtiği
+ara katmanlardan hangisinin `reasoning` ögesini süzdüğü ya da neden
+`WriteContentsAsync`'e hiç ulaşmadığı) bu turda TAM izole EDİLEMEDİ —
+birim testinin sentetik girdisiyle gerçek uçtan-uca yol arasındaki fark
+araştırılmalı.
+
+**Etki**
+`RecordReasoningDeltas` özelliği reklam ettiği hiçbir şeyi YAPMIYOR —
+açık olsa da kapalı olsa da SONUÇ AYNI (sıfır kayıt); yalnız `false`
+durumunda bu doğru (kasıtlı), `true` durumunda YANLIŞ (sessiz veri kaybı).
+K-493'ün gözlemlenebilirlik vaadi bu ortamda tutmuyor — bir kullanıcı
+`RecordReasoningDeltas=true` yapıp modelin düşünme sürecini denetlemeyi
+beklerse hiçbir kayıt bulamaz.
+
+**Yeniden üretme**
+1. `Tracon:RunRecording:RecordReasoningDeltas=true` (varsayılan).
+2. Extended-thinking destekleyen bir agent'a (`claude-thinking`,
+   `anthropic.thinking.budgetTokens` ayarlı) gerçek bir Anthropic
+   çağrısı yap — akışlı VEYA akışsız, fark etmiyor.
+3. Ham yanıtta/akışta `$type:"reasoning"` ögesi olduğunu doğrula.
+4. `GET /api/runs/{id}/events` → `ReasoningDelta` sayısı `0`.
+
+**Kayıt:** MT-UIRUN-047/048 (bkz. koşum kaydı aşağıda) — 048'in kendi
+Beklenen sonucu 2026-08-19'da GERÇEKTEN kaydedilmiş 7 olay ölçmüştü; bu
+turda AYNI davranış ASLA gözlemlenemedi, muhtemel bir gerileme (regresyon).
+
+---
+
 ## Ortam notu (oturum başı)
 
 - **`MT-UIRUN-001`'in "reset sonrası boş liste" ön koşulu bu oturumda
@@ -780,5 +851,100 @@ oturum'."` (Türkçe DEĞİL — `en` varsayılan locale). Beklenen sonucun
 davranışsal kısmı birebir örtüştü; dil beklentisi geçersiz.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-UIRUN-048
+
+**Yöntem notu.** İlk üç deneme modelden HİÇ düşünme içeriği alamadı
+(Claude'un kendi kararı — bir "bütçe" üst sınırdır, düşünmeyi ZORUNLU
+kılmaz). Sonraki denemelerde (bkz. `MT-UIRUN-047`'nin ortamında ve bu
+case'e dönüşte) model GERÇEKTEN düşünme içeriği üretti — bu, asıl
+bulguyu (aşağıda) ortaya çıkardı.
+
+**Gerçek sonuç**
+`claude-thinking` ile DÖRT AYRI çağrıda (üçü akışlı, biri akışsız —
+`Idempotency-Key` ile) model GERÇEKTEN düşünme içeriği üretti: akışlı
+denemelerde ham SSE'de 48-76 arası `"$type": "reasoning"` parçası
+doğrudan gözlendi; akışsız denemede `response.messages[0].contents`
+içinde açık bir `reasoning` tipli öge vardı. DÖRDÜNDE DE kayıtlı `GET
+.../events` **SIFIR** `ReasoningDelta` döndürdü — yalnız `MessageDelta`/
+`RunStarted`/`RunCompleted`(/`RunFailed` bir denemede, ilgisiz bir iptal).
+Bu, `HATA-S3-006` olarak kaydedildi (bu dosyanın başında) — kaynak
+incelemesiyle kısmen izole edildi: tip ayırt edicisi doğru (bağımsız
+reflection probuyla doğrulandı), kardeş alan (`RecordMessageDeltas`) AYNI
+çalıştırmalarda doğru çalışıyor (options bağlama sorunu EKARTE edildi),
+akışlı VE akışsız yol İKİSİ DE aynı sıfır sonucu veriyor. Tam kesişim
+noktası izole edilemedi ama semptom ve etki dört bağımsız denemeyle
+kesin olarak kanıtlandı. `MT-UIRUN-048`'in kendi "gerçek koşumda ölçülen"
+notu (2026-08-19, 7 `ReasoningDelta` kaydedilmiş) bu turda ASLA tekrar
+üretilemedi — olası bir gerileme.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı — `HATA-S3-006`.
+
+---
+
+### MT-UIRUN-047
+
+**Yöntem notu.** İlk denemelerde (§`MT-UIRUN-048`) model düşünme içeriği
+ÜRETMEMİŞTİ (model-düzeyi değişkenlik) — bu case'in kendi koşumunda model
+GERÇEKTEN düşünme içeriği üretti, iki case de böylece tam ölçülebildi.
+
+**Gerçek sonuç**
+`Tracon:RunRecording:RecordReasoningDeltas=false` ile yeniden başlatılıp
+`claude-thinking`'e aynı soru gönderildi. HAM canlı akışta `$type:
+"reasoning"` içerikli çerçeveler **48 kez** göründü (MAF'ın ham akışı,
+kayıt ayarından ETKİLENMEDİ). Aynı run'ın KAYITLI `/events`'inde
+`ReasoningDelta` sayısı **0** — kayıt katmanı düşünme olaylarını hiç
+yazmadı. Beklenen sonucun tamamı birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-UIRUN-050
+
+**Yöntem notu.** Bu şerit `echo` sağlayıcısı yerine GERÇEK OpenAI kullanıyor
+(bkz. dosya 02/05'in ortam notları) — case'in kendi "Sapma" notu bu farkı
+zaten açıklıyor ("gerçek bir sağlayıcıda ikisi de usage döner").
+
+**Gerçek sonuç**
+Akışsız (`Idempotency-Key` ile) ve akışlı (başlıksız) aynı prompt iki kez
+`support`'a gönderildi: ikisi de `status:"Completed"`. `usage` alanı
+İKİSİNDE de DOLU (akışsız: 370 total token, akışlı: 368 total token) —
+case'in kendi notunun öngördüğü gibi, gerçek sağlayıcıda (`echo` DEĞİL)
+sapma gözlenmedi. Beklenen sonucun tamamı (gerçek sağlayıcı dalı) birebir
+örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-UIRUN-051
+
+**Gerçek sonuç**
+Uzun bir hikâye isteğiyle akışlı bir run başlatıldı (arka planda), `Running`
+olduğu doğrulandıktan sonra `POST .../cancel` → `202 Accepted`. 2 sn sonra
+`GET .../runs/{id}` → `status:"Canceled"`. Arka plandaki `curl` süreci
+KENDİLİĞİNDEN çıktı (exit 0) — SSE bağlantısı sunucu tarafından kapatıldı,
+alınan gövde yalnız ilk `run` çerçevesinden ibaretti (207 bayt). Beklenen
+sonucun tamamı birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-UIRUN-049
+
+**Gerçek sonuç**
+`HATA-S3-006` yüzünden bu ortamda `ReasoningDelta` olayı taşıyan HİÇBİR
+run YOK — arayüzdeki "Reasoning" bloğunu (`components/transcript.tsx`'in
+`ReasoningBlock`'u) gerçek veriyle görsel olarak doğrulamak bu turda
+MÜMKÜN olmadı (kayıt katmanı veriyi hiç üretmiyor). Bileşenin KENDİSİ
+kaynakta var ve `kind: 'reasoning'` öğesini render ediyor (kod okundu) ama
+canlı bir örnekle kanıtlanamadı.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı — `HATA-S3-006`
+(bağımlı case, kök nedeni paylaşıyor).
 
 ---
