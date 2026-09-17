@@ -29,12 +29,12 @@ sıfırdan düşürülüp yeniden oluşturuldu (aile 08'in verisi temiz atıldı
 
 ## Devir notu
 
-**Oturum 1-15 bitti: MT-UIAG-001..055 koşuldu (51 Geçti · 2 Kaldı · 2 Atlandı).**
-Uygulama AÇIK bırakıldı (port 5081, arka planda `launch_s1.py` ile başlatıldı,
-PID script'i `/private/tmp/.../scratchpad/s1-app.pid`de) — sonraki oturum
-sıfırdan başlatmak yerine devam edebilir, yalnız `curl .../api/diagnostics`
-ile sağlığı doğrulasın. Playground bölümü GERÇEK OpenAI çağrıları yapıyor
-(`gpt-5.4-mini`) — MT-UIAG-025'ten itibaren.
+**🎉 AİLE KAPANDI — MT-UIAG-001..058 koşuldu (54 Geçti · 2 Kaldı · 2 Atlandı,
+58/58).** Sayım betiği (skill §7) ile doğrulandı: `{'Kaldı': 2, 'Atlandı': 2,
+'Geçti': 54} toplam: 58`, açık kalem YOK. **Bununla `ap-s1`'in Faz B'de
+üstlendiği ALTI ailenin ALTISI DA kapandı** (`13 · 19 · 04 · 18 · 10 · 08`
+— sırayla SEC/MM/SQL/MCP/UIAG/COMPAT). **Bu şeridin bu tur için işi bitti.**
+Uygulama DURDURULDU (port 5081 serbest bırakıldı).
 
 **İki yeni kusur:** `HATA-S1-027` (Düşük, MT-UIAG-001) — agent kataloğunda
 tool sayısı hücresinin tam tool adı listesi hiçbir yerde sunulmuyor.
@@ -43,45 +43,43 @@ sınıf adı uyuşmazlığı yüzünden hiç görsel olarak render edilmiyor
 (`ap-stream-caret` bileşende, `tracon-stream-caret` CSS'te — hiç
 eşleşmiyor). İkisi de kozmetik/düşük önem, ayrıntı case bloklarında.
 
-**Yedi spec düzeltmesi yapıldı** (doküman kusuru, kod donuk kaldı):
-MT-UIAG-006/007/013/016 aynı kök neden (K-228, Türkçe hata metni bayat).
-MT-UIAG-018 ayrı kök neden (fabrika-stili kod agent fixture'ı yok, açık
-kalem `00-INDEKS.md`'ye yazılmalı). MT-UIAG-026/027 üçüncü bir kök nedenle
-düzeltildi: Playground'daki durum rozeti metinleri güncel i18n anahtarlarıyla
-uyuşmuyordu (`"Konuştur"`→`"Seslendir"`, `"Çalışıyor"`→`"sürüyor"`,
-`"Tamamlandı"`→`"bitti"`) — kapanışta bu ailenin TÜM rozet/düğme metinleri
-tek geçişte `locales/tr/runs.ts` ile karşılaştırılıp toplu doğrulanmalı,
-tek tek düşmek yerine.
+**On spec düzeltmesi yapıldı** (doküman kusuru, kod donuk kaldı — hiçbiri
+kod değişikliği gerektirmedi): MT-UIAG-006/007/013/016/041/047/048 aynı kök
+neden (K-228, Türkçe hata metni bayat — bu ailede YEDİ tekrar, kapanışta
+sınıf taraması şart). MT-UIAG-018 ayrı kök neden (fabrika-stili kod agent
+fixture'ı yok — açık kalem, aşağıda). MT-UIAG-026/027 üçüncü kök neden
+(Playground rozet metinleri i18n'le uyuşmuyordu: `"Konuştur"`→`"Seslendir"`,
+`"Çalışıyor"`→`"sürüyor"`, `"Tamamlandı"`→`"bitti"`). MT-UIAG-028 dördüncü
+kök neden (`IToolApprovalPresenter` bu ortamda HER ZAMAN kayıtlı,
+"kayıtlı değilse" dalı hiç sınanamaz). MT-UIAG-043 beşinci kök neden
+(`support` düzenlenemediği için spec'in "geçici düzenle" ön koşulu
+imkânsızdı, atılabilir agent'a çevrildi). **Kapanışta önerilen tek geçiş:**
+bu ailenin TÜM rozet/düğme/hata metinleri `locales/tr/runs.ts` ile toplu
+karşılaştırılmalı — tek tek düşmek yerine.
+
+**Açık kalem (00-INDEKS.md'ye taşınmalı, kapanışta):** MT-UIAG-018'in
+"fabrika-stili kod agent'ı" dalı (`definition: null`, `noDefinitionForCode`
+notu) bu örnek uygulamada hiç sınanamıyor — 15 agent'ın 15'i de deklaratif
+(`AddAgent(new AgentDefinition{...})`), fabrika stili (`AddAgent(name,
+factory)`) örneği yok.
 
 **İki case ⏭ Atlandı, ikisi de gerekçeli ortam kısıtı (kusur değil):**
-MT-UIAG-002 (örnek uygulamada `TraconRolePolicies` yapılandırılmamış,
-`canAdminister` her kimlikte `true` — MT-SEC-089 ile çapraz doğrulandı) ve
-MT-UIAG-012 (ortamda 0 kayıtlı skill, 10'luk sınırı tetikleyecek 11 skill yok).
+MT-UIAG-002 (`TraconRolePolicies` yapılandırılmamış, `canAdminister` her
+kimlikte `true`) ve MT-UIAG-012 (ortamda 0 kayıtlı skill).
 
-**Kalıcı fixture'lar bu turda üretildi (silinmeyecek):** `manuel-bos`
-(`FIX-AGENT-02`, v1), `manuel-destek` (`FIX-AGENT-01`, **v4** — sürüm zinciri
-v1→v2 [Nazik ol.]→v3 [Emoji kullanma.]→v4 [Geri Al ile v1 içeriği yeni sürüm
-olarak yazıldı, MT-UIAG-024]), `manuel-cevrim-a` (çağrılabilir agent:
-`manuel-destek`; MT-UIAG-013 kanıtı için). `manuel-silme-test` ve
-`manuel-dogrula-test` bu turda oluşturulup silindi/hiç kaydedilmedi
-(MT-UIAG-008, 019) — kalıcı değiller. `support` agent'ıyla birkaç deneme
-konuşması (Playground) üretildi — bunlar kalıcı `run`/`session` kayıtları
-olarak kalır, temizlenmesi gerekmez (spec'in kendi deseni budur).
+**Kalıcı fixture'lar bu turda üretildi (silinmeyecek, sonraki dosyalar
+kullanabilir):** `manuel-bos` (`FIX-AGENT-02`, v1), `manuel-destek`
+(`FIX-AGENT-01`, **v4** — sürüm zinciri v1→v2→v3→v4), `manuel-cevrim-a`
+(çağrılabilir agent: `manuel-destek`). `support` agent'ıyla çok sayıda
+deneme konuşması (gerçek OpenAI çağrısı) — kalıcı `run`/`session`
+kayıtları, temizlenmesi gerekmez. `tool_approval_rules`'ta KALICI bir
+kural var: `support` + `cancel_order` artık her zaman ONAYSIZ çalışır
+(MT-UIAG-031'in kalıcı yan etkisi — sonraki bir dosya `cancel_order`'ın
+onay davranışını test etmek isterse bu kuralı hesaba katmalı ya da
+`DELETE`lemeli).
 
-**MT-UIAG-028/030'da bir spec düzeltmesi daha:** MT-UIAG-028'in "hiçbir
-`IToolApprovalPresenter` kayıtlı değilse" varsayımı bayattı —
-`samples/Tracon.Api/Program.cs:146` `OrderApprovalPresenter`'ı HER ZAMAN
-kayıtlı tutuyor (kod donuk), bu yüzden onay kartında her zaman "Order
-ORD-1001" varlık adı görünür. MT-UIAG-030 zaten önceki bir turda
-düzeltilmiş bir "Doküman düzeltmesi" taşıyordu (Reddet'in de ikinci bir
-tool kartı ürettiği) — bu tur bunu birebir doğruladı.
-
-**Sıradaki oturumun işi:** `MT-UIAG-031`'den devam — "Hatırla" ile kalıcı
-onay kuralı (bu, `ToolApprovalRuleEvaluator`'ı gerçekten test eder,
-yalnızca UI state'ini değil). Gerçek OpenAI çağrıları devam ediyor.
-Oturum bütçesi (arayüz-ağırlıklı ~18 case) bu noktada zaten aşıldı
-(30 case tek "oturumda" koşuldu) — sıradaki oturum daha küçük bloklarla
-ilerlemeli.
+**Kapanış oturumunun işi:** `docs/manuel-test/kosumlar/2026-09-16/DEVIR.md`
+(ana depoda) `ap-s1` satırını "6/6 aile kapandı" olarak güncellemeli.
 
 ---
 
@@ -194,8 +192,9 @@ Tracon kusuru değil, kasıtlı bir demo sınırı (K1: rol politikası
 opsiyonel bir tüketici seçimidir). Spec'in kendi 5. maddesindeki fallback
 uygulanır.
 
-**Durum:** ⏭ Atlandı — gerekçe: örnek uygulamada `TraconRolePolicies`
-yapılandırılmamış, `canAdminister` her kimlikte `true` (MT-SEC-089 ile
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☑ Atlandı — gerekçe: örnek
+uygulamada `TraconRolePolicies` yapılandırılmamış, `canAdminister` her
+kimlikte `true` (MT-SEC-089 ile
 çapraz doğrulandı); ekranın `false` dalını tetikleyecek bir kimlik bu
 ortamda üretilemiyor.
 
@@ -362,8 +361,9 @@ oluşturulmadı."` — bu ortamda sıfır kayıtlı skill var, 10'luk sınırı
 tetikleyecek 11 skill yok. Spec'in kendi ön koşulu bu durumda case'in
 ATLA işaretlenmesini öngörüyor.
 
-**Durum:** ⏭ Atlandı — gerekçe: ortamda kayıtlı skill sayısı 0, sınırı
-tetiklemek için gereken 11 skill yok (spec'in kendi ön koşulu).
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☑ Atlandı — gerekçe: ortamda
+kayıtlı skill sayısı 0, sınırı tetiklemek için gereken 11 skill yok
+(spec'in kendi ön koşulu).
 
 ---
 
@@ -1148,6 +1148,94 @@ doğru taşıyordu. Ad/açıklamaya dokunmadan "Yeni sürüm kaydet"e tıklandı
 `enableVectorSearch: true` ve `vectorCollection: "test-koleksiyon"` birebir
 korunmuş, `version: 2`. `memoryHasAnything`'in artık `enableVectorSearch`'ü
 de kapsadığı doğrulandı. Test agent'ı silindi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-UIAG-056 — Boş bir kiracıda her liste ekranı ilkini nasıl oluşturacağını söyler (Faz 165)
+
+**Gerçek sonuç — mekanik olarak GEÇTİ, wording'in nihai öznel kalite
+denetimi 👤'ye kalır (case'in kendi işareti).**
+`mt_s1` şeması tamamen "temiz" değil (bu tur boyunca `agents`/`workflows`
+kullanıldı) ama YEDİ ekranın BEŞİ hâlâ gerçekten boş: `skills` (0),
+`triggers` (0), `experiments` (0), `evals` (0), `mcp` (0) — bunlar
+gerçek boş durumlarıyla ölçüldü:
+- **Skills:** `"Henüz skill yok"` + açıklama + `"İlk skill'i oluştur"`.
+- **Triggers:** `"Henüz trigger yok"` + açıklama + `"İlk tetikleyiciyi oluştur"`.
+- **Experiments:** `"Henüz deney yok"` + açıklama + `"İlk deneyi oluştur"`.
+- **Evals:** `"Henüz değerlendirme kümesi yok"` + açıklama + `"İlk seti oluştur"`.
+- **MCP:** `"MCP sunucusu yok"` — "Tracon bunlar olmadan çalışır" notuyla
+  + `"İlk server'ı ekle"` (spec'in kendi örneğiyle birebir eşleşti).
+
+Beşinde de CTA metni başlıktaki düğmeyi ("Yeni skill" vb.) TEKRARLAMIYOR.
+
+**İkinci grup** (sahte aksiyon YOK, yalnız durumu söylüyor) da doğrulandı:
+`Onaylar`: `"Bekleyen bir şey yok"` + açıklama. `Ayarlar` → Kotalar:
+`"Tanımlı kota yok"` + `"Kural olmadan hiçbir şey reddedilmez; Tracon
+varsayılan kota getirmez."`. `Skills` sayfasındaki "Script çalıştırma
+izinleri" paneli: `"Script izni yok"` + `"Etkin izin yok."`.
+
+**Ölçülemeyen ekranlar (ortam kısıtı, kusur değil):** `agents` (15 kod
+agent'ı HER ZAMAN var), `workflows` (2 kod workflow'u HER ZAMAN var),
+`audit` (bu turun kendi CRUD aktivitesi 22+ kayıt üretti) — üçü de bu
+örnek uygulamada asla gerçekten boş olamaz.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-UIAG-057 — Bir düğmenin açıklaması hem işaretçiyle hem klavyeyle görünür (Faz 165)
+
+**Gerçek sonuç — beklendiği gibi (kaynak + gerçek klavye-odaklama
+ölçümüyle doğrulandı; öznel "açıklama metni yeterince açık mı" yargısı
+👤'ye kalır, case'in kendi işareti).**
+Ortak `Tooltip` bileşeni (`components/tooltip.tsx`) kaynağı okundu:
+`onMouseEnter`/`onFocus` İKİSİ DE `setVisible(true)` çağırıyor,
+metin `aria-describedby` ile bağlanıyor, `Esc` `setVisible(false)`
+yapıyor ve `stopPropagation()` ÇAĞIRMIYOR (üstteki katmanı etkilemiyor).
+`Badge` ve `Th` bileşenleri de AYNI `Tooltip`'i sarmalıyor — `Th` ek
+olarak `tabIndex={0}` ile klavye erişimi sağlıyor (`runs` ekranının
+"Ağaç token" başlığı böyle).
+
+`agents/manuel-destek`'te `v3` satırının "Geri al" düğmesi tarayıcı-içi
+ölçüldü: `.focus()` sonrası (bir tık gecikmeyle, React state güncellemesi
+beklenerek) `aria-describedby` hedefi `sr-only`'den ÇIKTI (`visible:
+true`) — açıklama İŞARETÇİ OLMADAN, yalnız klavye odağıyla göründü.
+`Escape` dispatch edilince tekrar `sr-only`'ye döndü. `document
+.activeElement === button` doğrulandı (gerçekten odaklanmıştı).
+
+Model sağlık rozeti (`models` ekranı) ve `runs`'ın "Ağaç token" başlığı
+AYNI bileşenleri kullandığı için (kaynak kanıtı) tekrar ayrı ayrı
+ölçülmedi — bu, kapanışta "aynı bileşen, ayrı case" tekrarından kaçınma
+kararıdır.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-UIAG-058 — Yükleme hatası boş bir form göstermez (Faz 165)
+
+**Gerçek sonuç — beklendiği gibi, üç ekranın ÜÇÜNDE de (gerçek `page.route`
+ağ kesmesiyle, DevTools yerine Playwright'ın kendi mekanizmasıyla).**
+Bu ortamda saklanan bir skill, trigger, workflow yoktu — HTTP ile üçü de
+üretildi (`manuel-058-skill`, `manuel-058-trigger` → `support` hedefli,
+`manuel-058-workflow` → `Sequential`). Her biri için ilgili `GET` ucu
+`page.route()` ile `500`e kesildi, düzenleme ekranı açıldı, React
+Query'nin varsayılan yeniden deneme/geri çekilme döngüsü tükenene kadar
+(~8 sn) beklendi:
+
+| Ekran | Kesme sırasında | Form var mı | Sunucu metni çevrilmemiş mi |
+|---|---|---|---|
+| `skills/manuel-058-skill/edit` | `"Internal Server Error: Simulated failure for MT-UIAG-058"` + `"Yeniden dene"` | HAYIR (`input,textarea` sıfır) | Evet, birebir |
+| `triggers/manuel-058-trigger/edit` | aynı desen (`(trigger)` etiketiyle) | HAYIR | Evet |
+| `workflows/manuel-058-workflow/edit` | aynı desen (`(workflow)` etiketiyle) | HAYIR | Evet |
+
+Üçünde de kesme kaldırılıp "Yeniden dene"ye tıklanınca form GERÇEK
+değerlerle doldu: skill'in `textarea.value` tam markdown içeriğini
+taşıdı, trigger'ın hedef adı alanı `"support"`, workflow'un açıklama
+alanı `"Test workflow 058"` — hiçbiri boş kalmadı. Üç test fixture'ı
+temizlendi (silindi).
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
