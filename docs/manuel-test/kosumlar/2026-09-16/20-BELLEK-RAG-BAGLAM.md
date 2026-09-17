@@ -233,3 +233,28 @@ birebir örtüştü.
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
+
+### MT-MEM-014
+
+**Yöntem notu.** Ana örnek `Tracon__Tenancy__Enabled=true`,
+`Tracon__Tenancy__AllowHeaderResolution=true` ile yeniden başlatıldı.
+Her iki fixture agent'ı KENDİ kiracısı altında yeniden kaydedilmek
+zorunda kaldı (`manuel-dosya-bellek`→`kiraci-alfa`,
+`manuel-dosya-arama`→`kiraci-beta`) — agent tanımları da kiracıya göre
+izole, `default` kiracısındaki önceki kopyalar diğer kiracılardan
+görünmüyor (beklenen, ayrı bir doğrulama).
+
+**Gerçek sonuç**
+`kiraci-alfa` altında `manuel-dosya-bellek` gerçek bir `SIZINTI-9902`
+notu dosyaya yazdı (`file_memory_write`, `200`). `kiraci-beta` altında
+FARKLI bir agent (`manuel-dosya-arama`) aynı terimi aramaya çalıştı —
+yanıt: `"Dosya belleğine erişimim yok..."`, `SIZINTI-9902` yalnız
+KULLANICININ SORDUĞU TERİM olarak yankılandı (`"...içinde SIZINTI-9902'yi
+arayıp özetleyeyim"` — modelin "bulamadım, sen yapıştır" önerisi), gerçek
+kayıt İÇERİĞİ (`gizli-anahtar SIZINTI-9902` notunun kendisi) hiç
+sızmadı. `kiraci-alfa`'nın dosyasına `kiraci-beta` erişemedi. Beklenen
+sonucun tamamı (sızıntı yok) birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
