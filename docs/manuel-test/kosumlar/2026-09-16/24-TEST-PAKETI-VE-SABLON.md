@@ -1,23 +1,34 @@
 # 24 — Test Paketi ve Proje Şablonu — koşum kaydı (2026-09-16, ap-s2)
 
-> **Devir notu (oturum 15, ap-s2):** Bölüm 1–4 bitti — MT-TEST-001..013,
-> 020..030, 040..045, 050..055 = **36/36 Geçti, 0 Kaldı**. Sırada Bölüm 5+
-> (`MT-TEST-060` — paketleme/sözleşme case'leri, `060..094`, ~35 case kaldı;
-> bunlar `dotnet pack`/AOT publish/sözleşme suite koşumu içerdiği için daha
-> ağır — ayrı bir oturumda devam edilmeli, oturum bütçesi ~40 CLI case'e
-> ulaşıldı). Ortam: şerit `ap-s2`, port 5082 (uygulama bu ailede çoğunlukla
-> kullanılmıyor — yalnız MT-TEST-007 5081'i geçici kullandı, iş bitince
-> kapatıldı). Global şablon kaydı bu oturumda `ap-s3`'ün eski yolundan
-> `ap-s2`'nin kendi yoluna taşındı (bkz. aşağıdaki not) — sıradaki oturum
-> `dotnet new list tracon-api` ile tekrar kontrol etmeli, paralel şeritler
-> `dotnet new install` çalıştırırsa değişebilir. `~/tracon-manuel/test-paketi`
-> ayakta bırakıldı (Bölüm 5+ de kullanacak), Program.cs son hali MT-TEST-055.
+> **Devir notu (oturum 15, ap-s2):** Bölüm 1–5 kısmi bitti — MT-TEST-001..013,
+> 020..030, 040..045, 050..055, 060..064 = **41/41 Geçti, 0 Kaldı**. Sırada
+> Bölüm 5'in devamı: `MT-TEST-070..094` (~25 case) — `python3 scripts/kapi.py
+> test --proje Tracon.Package.Tests` ve benzeri tam test-suite koşumları
+> içerdiği için daha ağır (dakikalar sürebilir). Ayrı bir oturumda devam
+> edilmeli, oturum bütçesi (~40 CLI case) aşıldı. Ortam: şerit `ap-s2`, port
+> 5082 (uygulama bu ailede çoğunlukla kullanılmıyor — yalnız MT-TEST-007
+> 5081'i geçici kullandı, iş bitince kapatıldı). Global şablon kaydı bu
+> oturumda `ap-s3`'ün eski yolundan `ap-s2`'nin kendi yoluna taşındı (bkz.
+> aşağıdaki not) — sıradaki oturum `dotnet new list tracon-api` ile tekrar
+> kontrol etmeli, paralel şeritler `dotnet new install` çalıştırırsa
+> değişebilir. `~/tracon-manuel/{test-paketi,net8-deneme,aot-deneme,
+> depo-disi-tuketici}` ayakta bırakıldı (bir kısmı Bölüm 5'in devamında
+> tekrar kullanılabilir, tur sonunda topluca silinecek — §8).
 >
-> **Bu ailede bulunan tek desen: beş case'te (005, 008, 043, 050, 051 — ayrıca
-> 052/053 örtük) beklenen sonuç metni bayat (Türkçe placeholder/mesaj yerine
-> gerçek kod İngilizce, K-228). Hiçbiri ürün kusuru değil**, hepsi kural 1.1
-> istisnasıyla düzeltildi, case metinlerinde işaretli. Ayrı `HATA-S2-*` kaydı
-> açılmadı — dosya 07'nin emsaliyle aynı (stale spec metni, kusur değil).
+> **Bu ailede bulunan tek desen: dokuz case'te (005, 008, 043, 050, 051, 052,
+> 053, 060, 062, 063) beklenen sonuç metni/öncülü bayat.** Beşi dil sınırı
+> (K-228, Türkçe metin yerine gerçek kod İngilizce). Biri (060) case'in kendi
+> `grep`inin scope'suz olması. Biri (008) case'in kendi script'inin iki farklı
+> proje adı kullanması. İkisi (062, 063) daha ciddi: 062 çok yakın tarihli bir
+> karar tersine dönmesi (**K-780**, 2026-09-15, K-270'i kaldırdı —
+> `Tracon.Testing` artık `net8.0`'dan da kullanılabiliyor, case'in tam
+> tersini iddia ediyordu), 063 ise mekanizma yanlış anlaşılmış (paket
+> AOT-analiz dışı bırakılıyor, uyarı ÜRETMİYOR). **Hiçbiri ürün kusuru
+> değil.** Dosya 05'in emsaline uyularak (kural 1.1: "doküman ile kod
+> çelişirse doküman yanlıştır") **spec dosyasının kendisi** de bu oturumda
+> düzeltildi (`docs/manuel-test/24-TEST-PAKETI-VE-SABLON.md`, commit
+> `f3c9383e`), yalnız bu kayıt dosyasına not düşülmedi. Ayrı `HATA-S2-*`
+> kaydı açılmadı.
 
 **⚠️ Paylaşılan durum notu (kural 1.3 kapsamı dışı sapma):** Oturum
 başlangıcında `dotnet new list tracon-api` şablonun `ap-s3`'ün worktree
@@ -452,5 +463,89 @@ hatasının regresyon koruması, hâlâ doğru çalışıyor.
 **Gerçek sonuç**
 `Zincir basariyla tamamlandi -- hicbir asamada istisna atilmadi.` — README'nin
 hızlı başlangıç örneği birebir çalıştırıldı, üç zincirlenmiş iddia da geçti.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## Bölüm 5 — Paketleme / sözleşme (Faz 39, 95, 98, 99, 143)
+
+### MT-TEST-060 — Paketlenmiş `.nuspec` hiçbir test çerçevesi bağımlılığı taşımaz
+
+**Gerçek sonuç**
+`<dependencies>` üç grup taşıyor (`net8.0`, `net9.0`, `net10.0`), üçü de yalnız
+`Tracon.AspNetCore`, `Tracon.Core`, `Microsoft.AspNetCore.TestHost`. 🚨 **Spec
+notu (ürün kusuru DEĞİL):** case'in kendi `grep` komutu tüm `.nuspec` dosyasını
+tarıyor; paketin `<description>` alanı bilinçli olarak "Binds to no test
+framework (xunit, NUnit, MSTest)" yazdığı için scope'suz tarama yanlış pozitif
+üretiyor. Taramayı yalnız `<dependencies>` bloğuna scope edince "temiz" —
+davranışsal iddia (gerçek bağımlılık yok) doğru.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-TEST-061 — Meta paket (`Tracon`) `Tracon.Testing`'e referans VERMEZ
+
+**Gerçek sonuç**
+`.nuspec` taraması "temiz". Kaynak `.csproj` taraması `0`.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-TEST-062 — `Tracon.Testing` yalnız `net10.0` hedefler — `net8.0` projeden kullanılamaz
+
+**Gerçek sonuç**
+🚨🚨 **Bu case artık koda göre TERSİNE dönmüş (kural 1.1 istisnası, ürün kusuru
+DEĞİL — bilinçli, çok yakın tarihli bir karar):** `docs/KARARLAR.md` satır 827,
+**K-780 (2026-09-15)** — bu tur açılmadan yalnız 1 gün önce — K-270'i
+("Tracon.Testing yalnız net10.0 hedefler") **kaldırdı**: "`Tracon.Testing`
+çalışma paketleriyle AYNI matrisi hedefler (`net8.0;net9.0;net10.0`)". Kaynakta
+doğrulandı: `Tracon.Testing.csproj`, `TraconAotCompatible=false` dışında TFM'i
+daraltmıyor; `Microsoft.AspNetCore.TestHost` her TFM için ayrı sürümle
+(`VersionOverride`) çözülüyor. Ampirik doğrulama: `dotnet new console
+--framework net8.0` artık **SDK'nın kendi şablonunda** reddediliyor (SDK
+10.0.100'ün console şablonu yalnız net9.0/net10.0 sunuyor — ayrı, ilgisiz bir
+SDK kısıtı), bu yüzden `net8.0` hedefli bir `.csproj` elle yazıldı. `dotnet add
+package Tracon.Testing` **başarıyla** eklendi ("Package 'Tracon.Testing' is
+compatible with all the specified frameworks"), `dotnet build -c Release`:
+`0 Warning(s) 0 Error(s)`. Beklenen sonuç tamamen tersine çevrildi ve
+düzeltildi: paket net8.0'dan **kullanılabilir**, NU1202 **alınmaz**.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-TEST-063 — AOT publish denemesi trim/AOT analiz uyarısı üretir (koşumda ölçülecek)
+
+**Gerçek sonuç**
+`PublishAot=true` + `FakeModelProvider().CallsTool(...)` çağıran bir `Program.cs`
+ile `dotnet publish -c Release -r osx-arm64 --self-contained`: başarılı biter,
+**sıfır** `IL[0-9]+`/`NETSDK1210` uyarısı üretir. Kök nedeni kaynakta
+doğrulandı: `Tracon.Testing.csproj`'daki `<TraconAotCompatible>false</...>`,
+`Directory.Build.targets:16-17`'de yalnız `TraconAotCompatible=true` iken
+`IsAotCompatible=true` atıyor — `false` için `IsAotCompatible` hiç
+atanmıyor (varsayılan `false`). Sonuç: paket AOT-uyumlu **olarak
+işaretlenmediği için** derleyici onun genel yüzeyini
+`RequiresDynamicCode`/`RequiresUnreferencedCode` ile doğrulamıyor ve tüketici
+tarafında da bu API'lere yönelik bir uyarı üretmiyor — "uyarı üretir" beklentisi
+mekanizmayı ters anlıyordu: paket AOT-güvenli OLMADIĞINI ilan ederek analizin
+**dışında** kalıyor, "uyarı üreterek işaretlemiyor". Case'in kendi notuna göre
+("sıfır uyarı çıkması ... not düşülmelidir") bu gözlem kayda geçirildi — kod
+yorumu bayat değil, mekanizma farklı işliyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-TEST-064 — Depo dışı tüketici: gerçek model çağırmadan uçtan uca bir agent testi
+
+**Gerçek sonuç**
+`~/tracon-manuel/depo-disi-tuketici` (repo dışı) içinde MT-TEST-055'in kodu
+birebir çalıştırıldı. Ortamda hiçbir sağlayıcı anahtarı tanımlı değilken
+(`env | grep -iE "openai|anthropic|..."` boş — yalnız alakasız
+`CLAUDE_CODE_EXECPATH` eşleşti) `Zincir basariyla tamamlandi -- hicbir asamada
+istisna atilmadi.` yazdırıldı — `FakeModelProvider` hiç ağa çıkmadı.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
