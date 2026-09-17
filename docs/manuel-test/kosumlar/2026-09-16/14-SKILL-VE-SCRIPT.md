@@ -267,3 +267,54 @@ arayüz/sunucu senkron eksikliği — MT-SKILL-021'in doğal sonucu).
 uygulama yeniden başlatıldı.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-SKILL-030 — `FIX-SKILL-PROMPT` → `load_skill` onay kartı üretir
+
+**Gerçek sonuç**
+`fatura-kontrolu` orijinal `FATURA_SKILL_ACTIVE` işaretçisine geri
+alındı. Playground'da `manuel-skill-test`'e `FIX-SKILL-PROMPT` gönderildi:
+onay kartı belirdi, `load_skill` · "approval required"; argümanlar
+`{"skillName":"fatura-kontrolu"}`. Tam beklenen.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-SKILL-031 — Onayla → skill talimatı bağlama girer
+
+**Gerçek sonuç**
+"Approve" tıklandı: YENİ tur eklendi, `load_skill` sonucu skill'in tam
+talimat metnini taşıyor (`<instructions>...FATURA_SKILL_ACTIVE...`).
+Modelin nihai yanıtı tam olarak `FATURA_SKILL_ACTIVE` dizgisi. Tam
+beklenen.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-SKILL-032 — Reddet → skill hiç yüklenmez
+
+**Gerçek sonuç**
+Yeni sohbette aynı prompt gönderildi, "Reject" tıklandı: kart `rejected`
+rozetine döndü, sonuç `"Tool call invocation rejected."`. Modelin nihai
+yanıtı fatura bilgisi isteyen genel bir mesaj — `FATURA_SKILL_ACTIVE`
+dizgisi YOK. Tam beklenen.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-SKILL-033 — "Do not ask again" ile onay → sonraki çağrıda kart çıkmaz
+
+**Gerçek sonuç**
+Yeni sohbette prompt gönderildi, "Do not ask again for this tool"
+işaretlendi, "Approve" tıklandı — bu turda `FATURA_SKILL_ACTIVE` üretildi
+(kural kaydedildi). Sonra TAMAMEN yeni bir sohbet açılıp (`New chat`
+yerine sayfa yeniden yüklenerek, aynı etki) aynı prompt tekrar gönderildi:
+HİÇBİR onay kartı belirmedi, `load_skill` doğrudan çalıştı, sonuç yine
+`FATURA_SKILL_ACTIVE`. Tam beklenen — `tool_approval_rules` kalıcı kuralı
+`load_skill` için de `cancel_order` ile aynı mekanizmayla çalışıyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
