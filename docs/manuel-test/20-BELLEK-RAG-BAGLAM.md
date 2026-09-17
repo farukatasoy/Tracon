@@ -186,9 +186,11 @@ curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: applicati
 **Beklenen sonuç**
 - `valid: false`.
 - `messages[0].code` = `"compilation_error"`.
-- `messages[0].message` tam olarak şu metni içerir: `'manuel-tetiksiz' agent'i
-  'SlidingWindow' sikistirma stratejisini secti ancak hicbir tetikleyici
-  vermedi (TriggerTokens/TriggerMessages/TriggerTurns'ten en az biri gerekir).`
+- `messages[0].message` tam olarak şu metni içerir (🚨 doküman düzeltildi,
+  koşum 2026-09-17 ap-s3 — kaynak İngilizce'dir, K-228): `"Agent
+  'manuel-tetiksiz' selected the 'SlidingWindow' compaction strategy but
+  gave no trigger (at least one of TriggerTokens/TriggerMessages
+  /TriggerTurns is required)."`
 - Hiçbir kayıt oluşmaz: `GET $APU/api/agents` çıktısında `manuel-tetiksiz`
   **yoktur**.
 
@@ -224,9 +226,14 @@ curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: applicati
 
 **Beklenen sonuç**
 - `valid: false`.
-- `messages[0].message` tam olarak: `'manuel-pencere-eksik' agent'i
-  ContextWindow sikistirma stratejisini secti ancak MaxContextWindowTokens
-  vermedi.`
+- `messages[0].message` şunu İÇERİR (🚨 doküman düzeltildi, koşum
+  2026-09-17 ap-s3 — kaynak İngilizce'dir, K-228; mesaj ayrıca modelin
+  kendi katalog bağlam penceresine de baktığını söyleyen bir cümle
+  KAZANMIŞ, spec'in yazıldığı andan sonra — ürün kusuru değil, daha
+  bilgilendirici hâle gelmiş): `"selected the ContextWindow compaction
+  strategy but did not supply MaxContextWindowTokens, and its model
+  ('openai/gpt-5.4-mini') has no context window size in the catalog
+  either. Set MaxContextWindowTokens explicitly."`
 
 ---
 
@@ -345,13 +352,17 @@ curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: applicati
 }'
 ```
 
-**Beklenen sonuç**
-- Adım 1: `valid: false`, mesaj tam olarak: `'manuel-cakisma-1' agent'i
-  sikistirma istiyor ancak HarnessSettings.DisableCompaction kapatilmis.`
-- Adım 2: `valid: false`, mesaj tam olarak: `'manuel-cakisma-2' agent'i dosya
-  bellegi istiyor ancak HarnessSettings.DisableFileMemory kapatilmis.`
-- Adım 3: `valid: false`, mesaj tam olarak: `'manuel-cakisma-3' agent'i todo
-  takibi istiyor ancak HarnessSettings.DisableTodoProvider kapatilmis.`
+**Beklenen sonuç** (🚨 doküman düzeltildi, koşum 2026-09-17 ap-s3 — kaynak
+İngilizce'dir, K-228)
+- Adım 1: `valid: false`, mesaj tam olarak: `"Agent 'manuel-cakisma-1'
+  wants compaction, but HarnessSettings.DisableCompaction is turned
+  off."`
+- Adım 2: `valid: false`, mesaj tam olarak: `"Agent 'manuel-cakisma-2'
+  wants file memory, but HarnessSettings.DisableFileMemory is turned
+  off."`
+- Adım 3: `valid: false`, mesaj tam olarak: `"Agent 'manuel-cakisma-3'
+  wants todo tracking, but HarnessSettings.DisableTodoProvider is turned
+  off."`
 
 ### MT-MEM-006 — `SlidingWindow` gerçek konuşmada tetiklenir; `HistoryCompacted` olayı üretilir
 
