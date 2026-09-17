@@ -188,3 +188,129 @@ empty. No authentication header will be sent."` Anahtar sonra geri alındı.
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
+
+# 4 — Keşif, İzolasyon ve Sağlamlık (Faz 22) + § 5 kurulum
+
+## MT-MCP-015 — Var olmayan bir MCP sunucusu kaydetmek AGENT KAYDINI ETKİLEMEZ
+
+**Gerçek sonuç**
+`ulasilamayan` (`localhost:59999`) kaydı `200`. Ardından `support`
+agent'ının normal çalıştırması `HTTP 200`, SSE akışı `done` ile bitti —
+ulaşılamayan sunucu hiç engellemedi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MCP-017 — Bir sunucunun zaman aşımına uğraması DİĞER sunucuları ETKİLEMEZ
+
+**Gerçek sonuç**
+`ulasilamayan` ve `test-sunucu` ikisi kayıtlıyken `/refresh` → `200
+{"toolCount":14}` — `test-sunucu`'nun 14 tool'u tam kaldı,
+`ulasilamayan`'ın 0 tool'u onu etkilemedi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MCP-018 — Arka plan keşif döngüsü İSTİSNA sonrası ASLA çökmez
+
+**Gerçek sonuç**
+`ulasilamayan` kayıtlıyken birden fazla keşif turu (10s aralıkla) boyunca
+her turda bağlanamama uyarısı loglandı, uygulama `/api/diagnostics`'e
+yanıt vermeye devam etti — çökme yok.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MCP-020 — Keşfedilen tool adı `{sunucu}_{tool}` biçiminde — NOKTA YOK
+
+**Gerçek sonuç**
+14 tool'un tamamı `test-sunucu_<ad>` biçiminde (`test-sunucu_echo`,
+`test-sunucu_get-sum`, vb.) — hiçbirinde nokta yok.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MCP-021 — Kod-tanımlı bir tool ile AYNI ADA sahip MCP tool'u ÇAKIŞIRSA kod tool KAZANIR (izlek C)
+
+**Gerçek sonuç — kaynakla doğrulandı, canlı çakışma üretilmedi (spec'in
+kendi notu: pratik değil).** `McpToolRegistry.cs:43-58`: `merged.AddRange(code)`
+ÖNCE eklenir, `codeNames` kümesi oluşturulur, MCP tool'ları yalnız
+`!codeNames.Contains(descriptor.Name)` iken eklenir — kod tool'uyla aynı
+adlı bir MCP tool'u SESSİZCE atlanır. Sınıfın kendi XML dokümanı da
+"Code always wins" diye belgeliyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MCP-022 — `MaxToolsPerServer` aşımı → fazla tool'lar UYARIYLA düşürülür
+
+**Gerçek sonuç**
+`MaxToolsPerServer=1` ile: `toolCount:2` (`test-sunucu_echo` +
+sentetik `test-sunucu_read_resource` — 🚨 gözlem, kusur DEĞİL: sınır
+yalnız SUNUCUNUN bildirdiği normal tool'lara uygulanıyor, `read_resource`
+ayrı bir mekanizmayla EKLENDİĞİ için sayıma girmiyor). Log: `"MCP server
+'test-sunucu' exceeded the 1 tool limit; the excess is being dropped."`
+— keşif BAŞARISIZ olmadı, yalnız uyarıyla kırpıldı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MCP-023 — `requiresApproval=true` bir MCP tool'u çağrılınca ONAY KARTI üretir
+
+**Gerçek sonuç**
+`test-sunucu`'yu `requiresApproval:true` yapıp `test-sunucu_echo` tool'unu
+taşıyan bir agent oluşturuldu ve çalıştırıldı: yanıt
+`"requiresConfirmation":true`, bir `approvals` olayı (`toolName:
+"test-sunucu_echo"`), run durumu `AwaitingApproval` — kod-tanımlı
+`cancel_order`'ın ürettiği akışla BİREBİR aynı mekanizma.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MCP-024 — `resources` yeteneği bildiren sunucuda sentetik `{sunucu}_read_resource` tool'u OTOMATİK belirir
+
+**Gerçek sonuç**
+`test-sunucu_read_resource` tool listede — hiçbir kod veya `PUT` ile açıkça
+tanımlanmamış, `resources` yeteneği keşfedilince otomatik üretildi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MCP-026 — Yerel bir MCP sunucusu kur
+
+**Gerçek sonuç**
+`npx -y @modelcontextprotocol/server-everything streamableHttp` —
+`http://localhost:3001/mcp` üzerinde ayakta, `tools`+`prompts`+`resources`+
+`tasks` yeteneklerinin hepsini bildiriyor (bkz. dosya başı ortam notu).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MCP-027 — Yerel sunucuyu Tracon'e kaydet, tool keşfi gerçekleşir
+
+**Gerçek sonuç**
+`/refresh` sonrası `GET /api/tools` → 14 `test-sunucu_*` tool'u listede
+(MT-MCP-020/022/024'te ayrıntılı).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MCP-028 — Keşfedilen tool'u GERÇEK bir agent çalıştırmasında kullan
+
+**Gerçek sonuç**
+`test-sunucu_echo` tool'unu taşıyan bir agent, "Please echo back exactly:
+brand new agent test" istemiyle çalıştırıldı: `functionResult.result.text
+= "Echo: brand new agent test"` — gerçek MCP sunucusundan dönen gerçek
+sonuç.
+
+🚨 **Gözlem (kusur adayı, kapsam DIŞI araştırıldı — MT-MCP-023/028'in kendi
+iddiası dışında bir bulgu).** `test-sunucu` `requiresApproval:true`
+İKEN oluşturulan bir agent (`mt-mcp-023-agent`), sunucu SONRADAN
+`requiresApproval:false`'a çevrilip `/refresh` ile katalog `GET
+/api/tools`'ta doğru şekilde `false` göstermeye başladıktan SONRA bile,
+AYNI agent'ın YENİ bir çalıştırması hâlâ onay istedi
+(`requiresConfirmation:true`). AYNI andaki YENİ bir agent
+(`mt-mcp-028-fresh`) ise doğru şekilde onaysız tamamlandı. Bu, onay
+sarmalayıcısının agent İLK ÇÖZÜMLENDİĞİNDE (muhtemelen `AIAgent`
+örneğiyle birlikte) BAĞLANDIĞINI ve sonraki MCP sunucu ayarı
+değişikliklerini o agent için YANSITMADIĞINI düşündürüyor —
+`McpConnection.ComputeFingerprint` sunucu YENİDEN BAĞLANTISINI doğru
+tetikliyor (parmak izine `RequiresApproval` dahil), ama zaten
+MATERYALİZE EDİLMİŞ bir agent örneğinin tool sarmalaması bunu görmüyor
+olabilir. Kök neden tam izlenmedi (bu iki case'in kapsamı dışında); ayrı
+bir oturumda/case'te (MT-MCP-035'in "canlı katalog" ailesiyle
+karşılaştırmalı) araştırılması önerilir — `ADAYLAR.md`'ye not düşülecek.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
