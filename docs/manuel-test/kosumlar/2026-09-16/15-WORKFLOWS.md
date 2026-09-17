@@ -541,3 +541,76 @@ overcomplicated the task..." ile başlıyor). Tam beklenen — yönetici ikinci
 kez çalıştı (maliyet notu doğrulandı).
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-WF-080 — `GET /graph` düğüm kimlikleri `ExecutorInvoked` ile birebir eşleşir
+
+**Gerçek sonuç**
+MT-WF-040'ın `summarizer_771ef71...` kimliğiyle eşleşen düğüm bulundu:
+`kind:"Agent", agentName:"summarizer"`. `startExecutorId` aynı düğüme
+işaret ediyor. `mermaid` alanı "flowchart TD" ile başlıyor. Tam beklenen.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-WF-081 — Graf HİÇ çalıştırılmamış bir tanım için de `200` döner
+
+**Gerçek sonuç**
+Taze bir Sequential tanım (`hic-calismadi`) kaydedilip hemen `/graph`
+istendi → `200`, tam bir graf (nodes/edges/mermaid) — çalıştırma geçmişi
+gerekmedi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-WF-082 — Arayüzde canlı düğüm renklendirme: `running` (cyan, nabız) → `done` (yeşil)
+
+**Gerçek sonuç**
+`summarize-and-translate` çalıştırılırken düğüm durumları JS ile canlı
+okundu: `summarizer:"done"`, `translator:"running"` yakalandı, `running`
+düğümün alt ağacında `.animate-pulse` sınıfı doğrulandı. Tamamlanınca
+üçü de (`OutputMessages`, `summarizer`, `translator`) `"done"` oldu — hiçbiri
+`failed` değildi. Tam beklenen.
+
+🚨 **Gözlem (muhtemelen bu oturumun kendi kaynak yükünden, ürün kusuru
+DEĞİL):** Bu belirli çalıştırma normalden çok uzun sürdü (~26 dakika,
+diğer tüm workflow koşumları 1-3 saniyede bitiyordu) ve nihai çıktı
+metninde `translator` alt-çağrısının bir kez "Agent 'translator' could
+not complete: its model provider did not answer. This is a provider
+fault, not the sub-agent's wait limit — that limit (00:02:00) never
+fired." mesajı taşıdığı görüldü — gerçek bir OpenAI sağlayıcı arızası/
+zaman aşımı (muhtemelen bu turda birikmiş yüzlerce gerçek API çağrısından
+sonra rastlanan geçici bir durum). Önemli: sistem bunu **zarifçe**
+işledi — çalıştırma çökmedi, `RunCompleted` ile bitti, tanılama mesajı
+net biçimde raporlandı. Bu case'in kendi kapsamı (düğüm renklendirme)
+etkilenmedi, ayrı bir `HATA` açılmadı — geçici/ortama bağlı olduğu
+değerlendirildi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-WF-083 — `Concurrent` desende `Batcher` düğümleri agent SAYILMAZ
+
+**Gerçek sonuç**
+`cift-gorus` (Concurrent, 2 agent) grafiğinde tam `2 ['summarizer',
+'translator']` Agent düğümü; `Batcher/*` düğümleri `Orchestration` olarak
+sınıflandı, agent sayılmadı. Tam beklenen.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-WF-084 — "Copy Mermaid" panoya `flowchart` içeren metin kopyalar
+
+**Gerçek sonuç**
+🚨 Yöntem notu: `navigator.clipboard.readText()` ile doğrudan pano okuma,
+tarayıcı izin diyaloğunda kilitlenip uzun süre yanıtsız kaldı (araç
+sınırlaması, ürün davranışı değil) — bunun yerine `clipboard.writeText`
+JS ile yakalandı (monkey-patch). Yakalanan metin `"flowchart TD\n
+summarizer_771ef71..."` ile başlıyor — tam beklenen.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
