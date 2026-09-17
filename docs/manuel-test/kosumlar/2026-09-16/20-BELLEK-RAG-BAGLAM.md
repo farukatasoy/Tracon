@@ -394,3 +394,74 @@ yazma yok, tek transaction doğrulandı.
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
+
+## 5. `knowledge-assistant` uçtan uca (§5)
+
+### MT-MEM-026
+
+**Doküman düzeltmesi — spec'in koleksiyon adı yanlıştı.** Spec
+`knowledge-assistant` fixture'ının `kurumsal` koleksiyonuna bağlı olduğunu
+iddia ediyordu. İlk deneme literal adımlarla koşuldu (`kurumsal`
+koleksiyonuna yükleme) → agent `search_knowledge`'ı İKİ KEZ çağırdı, ikisi
+de `[]` döndü, model kullanıcıya "bilgi tabanında kayıt bulamadım" dedi.
+Kaynak okundu (`samples/Tracon.Api/Program.cs:843`):
+`Memory = new MemorySettings { EnableVectorSearch = true, VectorCollection
+= "knowledge-base" }` — gerçek koleksiyon adı `knowledge-base`'dir, `kurumsal`
+değil. Spec yukarıda (`FIX-MEM-COLLECTION-01` satırı ve case gövdesi)
+düzeltildi.
+
+**Gerçek sonuç**
+`knowledge-base` koleksiyonuna `izin-politikasi` yüklendi (`200`).
+`knowledge-assistant`'a `"Kac gun tatilim var?"` soruldu → yanıt `"Yıllık
+izin **14 gün**..."` — `14` dizgisini içeriyor. SQL doğrulama:
+`mt_s3.tool_invocations`'ta bu `runId` için `search_knowledge` → `count=1`
+— tam bir kez çağrıldı (düzeltilmiş koleksiyonla, ilk denemedeki çift
+çağrı ortadan kalktı). Düzeltilmiş beklenen sonucun tamamı birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-MEM-027
+
+**Gerçek sonuç**
+`VectorCollection` verilmeden `EnableVectorSearch:true` ile
+`manuel-varsayilan-koleksiyon` agent'ı kaydedildi (yanıt gövdesinde
+`"vectorCollection":null"` doğrulandı). Agent'ın KENDİ ADIYLA aynı
+koleksiyona (`manuel-varsayilan-koleksiyon`) bir belge (`"Ofis WiFi
+sifresi: bulut-42."`) yüklendi. Agent'a `"WiFi sifresi nedir?"` soruldu →
+`search_knowledge` tek çağrıda `n1` kaydını buldu (`distance: 0.413`),
+yanıt: `"WiFi şifresi: **bulut-42**"` — `bulut-42` dizgisini içeriyor.
+`VectorSearchToolFactory`'ye geçirilen koleksiyonun `definition.Name`
+olduğu doğrulandı. Beklenen sonuç birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## 8. Kapsam güvenliği (§8, sıra dışı koşuldu)
+
+### MT-MEM-031
+
+**Doküman düzeltmesi — spec'in şüphesi bu koşumda çürütüldü.** Spec'in
+`grep -n "RequireApiKeyScope" .../KnowledgeEndpoints.cs` kanıtı (boş döner,
+"beşinci bilinen tekrar" iddiası) bayat çıktı; aynı komut güncel kaynakta
+(satır 25/38/52/66) `KnowledgeAdmin`/`KnowledgeRead` kapsamlarını gösteriyor.
+Spec başlığı ve gövdesi yukarıda düzeltildi — bu artık `MT-WF-100` /
+`MT-JOB-090` / `MT-EVAL-100`/`101` / `MT-MCP-051`/`052` ile aynı sınıftan
+AÇIK bir tekrar değil, ayrı ve kapanmış bir örnek.
+
+**Gerçek sonuç**
+Yalnız `RunsRead` kapsamlı anahtar (`mem-kapsam-testi`) üretildi.
+1. Belge yazma (`POST .../documents`) → `HTTP: 403`, `detail`: `"This
+   endpoint requires the 'KnowledgeAdmin' scope; the key does not carry
+   it."`
+2. Belge silme (`DELETE .../documents/x`) → `HTTP: 403`, aynı `detail`.
+3. Kontrol grubu — agent yazma (`PUT /api/agents/kapsam-kontrol`) →
+   `HTTP: 403`, `detail`: `"...requires the 'AgentsAdmin' scope..."`.
+Üçü de tutarlı biçimde reddetti — `KnowledgeEndpoints` kapsam denetimini
+doğru uyguluyor, kusur yok. Düzeltilmiş beklenen sonuç birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
