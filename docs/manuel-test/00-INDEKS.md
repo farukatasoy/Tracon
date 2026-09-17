@@ -227,7 +227,7 @@ Bir senaryonun kendi verisi gerekiyorsa case içinde tanımlanır ve buraya girm
 | `FIX-PROMPT-02` | `Merhaba` → tool çağrısı **beklemez** |
 | `FIX-PROMPT-03` | `ORD-1001 siparisimi iptal et` → onay kartı bekler |
 | `FIX-PROMPT-04` | 50.000 karakterlik metin → sınır senaryosu |
-| `FIX-PROMPT-05` | `gizli-proje hakkinda bilgi ver` → guard engellemesi bekler |
+| `FIX-PROMPT-05` | `confidential-project hakkinda bilgi ver` → guard engellemesi bekler (2026-09-17 ap-s3 koşumu: engellenen terim `samples/Tracon.Api/Program.cs:217`'de `"confidential-project"`dir, eski `gizli-proje` DEĞİL — aynı düzeltme `05-SAGLAYICI-OPENAI.md` `MT-OAI-084`'te de yapılmıştı) |
 | `FIX-TOKEN-01` | `manuel-test-token-2026` (geçerli) |
 | `FIX-TOKEN-02` | `yanlis-token` (geçersiz — 401 bekler) |
 
