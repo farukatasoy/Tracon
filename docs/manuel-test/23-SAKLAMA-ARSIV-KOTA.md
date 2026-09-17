@@ -528,11 +528,14 @@ hassasiyet sınıfı) bu listede **yoktur** — config tabanlı bir `MaxAgeDays`
 varsayılanı `run_inputs` için normal şekilde çalışır.
 
 **Ön koşul**
-- `dotnet user-secrets set "Tracon:Retention:RunInputs:MaxAgeDays" "60"`.
+- `Tracon:Retention:Enabled` `true` olmalı (ayrı bir üst düzey bayrak,
+  bkz. MT-RET-011) **ve**
+  `dotnet user-secrets set "Tracon:Retention:RunInputs:MaxAgeDays" "60"`.
 
 **Adımlar**
 1. Uygulamayı yeniden başlat.
-2. `run_inputs` için `preview` çağır (politika hiç kaydedilmeden).
+2. `run_inputs` için `preview` çağır (`sessions`'a hiç dokunmadan, kendi
+   config'i verilmeden).
 
 **Girilecek veri**
 ```bash
@@ -542,19 +545,26 @@ curl -s "$APU/api/retention/preview?target=sessions" -H "$APB" | jq
 
 **Beklenen sonuç**
 
-> ⚠️ **Bu beklenti koşumda yanlış bulundu ve koda göre düzeltildi
-> (KOSUM-PLANI §2.1 istisnası).** Özgün metin, `run_inputs`'ın config
-> varsayılanını kullandığını, `sessions`'ın ise kullanmadığını iddia
-> ediyordu. Gerçek davranış **tam tersidir**. Gerekçe `Gerçek sonuç`
-> alanındadır.
+> ⚠️⚠️ **Bu beklenti İKİ KEZ yanlış çıktı — özgün metin doğruydu, 2026-08-13
+> turunun "düzeltmesi" tam tersini iddia ederek YANLIŞ bir düzeltme yapmıştı,
+> 2026-09-17'de (ap-s2) tekrar düzeltildi.** `TraconRetentionOptions.
+> ForTarget` switch'inde `RunInputs` İÇİN BİR CASE **VARDIR**
+> (`RetentionTargets.RunInputs => RunInputs`) — önceki "düzeltme" bunun
+> tersini iddia ediyordu, kaynakla doğrudan çelişiyordu. Gerekçe ve iki
+> ayrı deney `Gerçek sonuç` alanındadır.
 
-- `run_inputs` için `preview` config'teki varsayılanı **KULLANMAZ** —
-  `TraconRetentionOptions.ForTarget` içinde `run_inputs` için bir case
-  **yoktur**, `_ => null` dalına düşer. Yanıt `enabled: false`,
-  `maxAgeDays: null` olur.
-- `sessions` için config varsayılanı **KULLANILIR**. `UserDataTargets`
-  listesinin anlamı "config yok sayılır" değil, "yerleşik varsayılanı
-  `null`'dur, yani açıkça açılmadıkça kapalıdır"tır.
+- Hiçbir hedefe **kendi** `MaxAgeDays`'i verilmeden, yalnız `Enabled=true` +
+  `RunInputs:MaxAgeDays=60` ile: `run_inputs` → `enabled:true,
+  maxAgeDays:60` (kendi gömülü varsayılanı zaten `30`dur, config bunu
+  ezer). `sessions` → `enabled:false, maxAgeDays:null` — **hiç config
+  verilmediği için**, kendi gömülü varsayılanı `null`dur.
+- Asıl mekanizma: `UserDataTargets` listesi "config yok sayılır" anlamına
+  gelmez — her iki hedef de config'ten okunabilir (ikisine de açıkça
+  `MaxAgeDays` verilirse ikisi de eşit şekilde etkinleşir). Fark yalnız
+  her hedefin KENDİ gömülü varsayılanıdır: `RunInputs.MaxAgeDays = 30`
+  (kod içinde), `Sessions.MaxAgeDays`/`Conversations.MaxAgeDays = null`
+  ("desteklenir ama kapalı" — tüketici açıkça açmadıkça hiçbir şey
+  silinmez).
 
 ### MT-RET-020 — Yalnız `MaxRows`, 150 satırlık hedefte fazlayı siler
 

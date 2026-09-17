@@ -131,6 +131,61 @@ talimatı bayattı/eksikti.
 
 ---
 
+## MT-RET-013 — `run_events` silinirken `runs` özeti KORUNUR
+
+**Gerçek sonuç**
+`GET /api/runs/{id}` → `200`, `status: "Completed"` — özet satırı hâlâ orada.
+`PUT /api/retention/runs` → `400 Bad Request` — `runs` beyaz listede yok.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-RET-014 — `MaxRows` için config anahtarı YOKTUR, yalnız açık DB politikası
+
+**Gerçek sonuç**
+`Tracon:Retention:RunEvents:MaxRows=100` ayarlanıp DB politikası silindikten
+sonra `preview` → `{"enabled":false,"maxAgeDays":null}` — hiçbir etki yok.
+Kaynakta da doğrulandı: `RetentionTargetOptions` sınıfı yalnız `MaxAgeDays`
+ve `Archive` özelliklerine sahip, `MaxRows` diye bir alan **hiç yok** —
+yapısal olarak imkansız, çalışma zamanı testi gereksiz ama yine de koşuldu.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-RET-015 — `run_inputs`, `Sessions`/`Conversations`'ın aksine varsayılan KAPALI DEĞİLDİR
+
+**Gerçek sonuç**
+🚨🚨🚨 **Bu case'in spec'teki metni İKİ KEZ yanlış — özgün metin doğruydu,
+2026-08-13 turunun "düzeltmesi" YANLIŞTI, şimdi tekrar düzeltiliyor
+(2026-09-17, ap-s2).** Üç ayrı deneyle netleştirildi:
+
+1. Yalnız `Enabled=true` + `RunInputs:MaxAgeDays=60` (sessions'a hiç
+   dokunulmadan): `run_inputs` → `{"enabled":true,"maxAgeDays":60}`,
+   `sessions` → `{"enabled":false,"maxAgeDays":null}`.
+2. `Enabled=true` + **her ikisine de** `MaxAgeDays=60` açıkça verilince:
+   `run_inputs` → `{"enabled":true,"maxAgeDays":60}`, `sessions` →
+   `{"enabled":true,"maxAgeDays":60}` — **ikisi de** config'i kullandı.
+
+**Doğru mekanizma:** İkisi de config'ten okunabilir (`ForTarget` switch'inde
+`RunInputs` İÇİN BİR CASE VAR — önceki "düzeltme" bunun tersini iddia
+ediyordu, o iddia yanlıştı). Asıl fark her hedefin KENDİ gömülü
+varsayılanıdır: `RunInputs.MaxAgeDays` C# tarafında `= 30` ile başlatılır
+(`Enabled=true` yeterli, hedefe özel config gerekmez); `Sessions`/
+`Conversations.MaxAgeDays` `null` ile başlatılır ("desteklenir ama
+kapalı" — tüketici KENDİ `MaxAgeDays` değerini açıkça vermedikçe hiçbir
+şey silinmez). Yani "run_inputs config kullanır, sessions kullanmaz"
+özgün ifadesi **hiçbir hedefe config verilmediği senaryoda** doğrudur
+(deney 1); "ikisi de config'i kullanabilir" ifadesi genel mekanizma
+olarak doğrudur (deney 2). Önceki turun düzeltmesi ("run_inputs
+KULLANMAZ, sessions KULLANIR") kaynaktaki `ForTarget` switch'iyle
+doğrudan çelişiyordu.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ## MT-RET-012 — Arşiv sink'i yokken `archive=true` HİÇBİR satır silmez
 
 **Gerçek sonuç**
