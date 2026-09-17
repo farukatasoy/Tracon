@@ -30,7 +30,44 @@ ile oluşturuldu. Paylaşılan container'a dokunulmadı (durdurma/silme yok).
 
 ## Devir notu
 
-Aile açılıyor — bu ilk devir notu.
+**Aile KAPANDI: MT-SQL-001..078 koşuldu (44 Geçti · 1 Beklemede, toplam
+45/45 case hesaba katıldı).** Tek açık kalem: `MT-SQL-071` (SQLite'ın
+çalışma-anında-salt-okunur senaryosu) — macOS'ta `Microsoft.Data.Sqlite`
+bağlantı havuzunun izin/bayrak değişikliğinden ÖNCE açılmış bir dosya
+tanıtıcısını koruduğu ölçüldü (üç farklı yöntemle: `chmod` yalnız ana
+dosya, `chmod` üç dosya birden, `chflags uchg` üç dosya birden — hiçbiri
+çalışan sürecin yazmasını engelleyemedi, oysa YENİ bir kabuk `open()`'ı
+doğru şekilde reddedildi). Bu bir ürün kusuru değil, test yönteminin bu
+OS/dosya sistemi kombinasyonunda senaryoyu tetikleyememesi — Linux'ta
+(gerçek üretim ortamı) farklı davranabilir. Ayrıntı case'in kendi kaydında.
+
+**Kod düzeltmesi yok, yalnız spec düzeltmeleri:**
+- `MT-SQL-001`/`MT-SQL-010`: `03-KALICILIK-POSTGRESQL.md`'nin `MT-PG-001`'de
+  2026-08-15'te bulduğu AYNI öncül hatası (boş bağlantı dizesi İzlek B'de
+  validator'a hiç ulaşmıyor) SQLite/SQL Server karşılıklarında da vardı,
+  aynı şekilde düzeltildi.
+- `MT-SQL-005`: çıplak `Data Source=:memory:` artık AÇIKÇA reddediliyor
+  (paylaşımlı URI biçimi gerekiyor) — `XmlDoc` zaten güncellenmiş,
+  spec bayattı.
+- `MT-SQL-020`/`024` (ve bağımlı `021/023/025/027/032/041/060`): "15
+  migration / 44 tablo" sabit sayısı bayat — güncel: **SQLite 38 migration/
+  48 tablo, SQL Server 39 migration/48 tablo, PostgreSQL 49 tablo** (fark
+  hâlâ tam 1, hâlâ yalnız `document_embeddings`).
+- `MT-SQL-073`: canlı koşum, `CompositeAgentCatalog`'un DB kaynağı
+  çökünce kod-tanımlı agent'larla SESSİZCE devam ettiğini ortaya çıkardı
+  (belgeli, kasıtlı dayanıklılık — kusur DEĞİL); yalnız `sessions`/`runs`
+  gibi saf-SQL uçları case'in beklediği `5xx`'i veriyor, agent uçları
+  değil. Ayrıntı case'in kendi kaydında.
+- `MT-SQL-074-078`: Ağustos kapanışının kanıtı hâlâ geçerliydi, bu turda
+  TAZE yeniden koşuldu (sayılar büyüdü: 592→825, 8→22, 479→806 — set
+  büyümüş, kusur değil).
+
+**Ortam notu:** `Tracon_S1` SQL Server veritabanı bu oturumda oluşturuldu
+(yoktu). Paylaşılan `ap-mssql`/`ap-pg` container'larına hiç dokunulmadı;
+`MT-SQL-073`'ün "container durdurma" adımı şerit-yerel bir TCP
+yönlendiriciyle taklit edildi (dosya 03'ün tarifi).
+
+**Sıradaki ailenin işi:** `18-MCP-VE-A2A.md` açılmalı (58 case).
 
 ---
 
@@ -326,4 +363,206 @@ bölümündeki (`010`–`041`) HER case zaten bu gerçek imaja karşı koşuldu 
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
+# 6 — Bellek içi izlek
+
+## MT-SQL-050 — Hiçbir `Use*()` çağrılmadığında uygulama sorunsuz açılır
+
+**Gerçek sonuç**
+Üç sağlayıcının da bağlantı dizesi boş. `/health` → `200 Degraded` (model
+sağlayıcı nedeniyle). `/api/diagnostics` →
+`persistenceProvider:"InMemory", registeredPersistenceProviders:0,
+migrationsUpToDate:true, pendingMigrations:[]`.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SQL-051 — Bellek içi izlekte de tüm temel CRUD uçları çalışır
+
+**Gerçek sonuç**
+Oluştur `201`, oku `200`, sil `204` — üçü de 2xx.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SQL-052 — Bellek içi izlekte yeniden başlatma TÜM veriyi kaybeder
+
+**Gerçek sonuç**
+İlk sorgu `200`. Uygulama yeniden başlatıldıktan sonra aynı sorgu `404`.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SQL-053 — Bellek içi izlekte konuşma dallandırma ucu 501 döner
+
+**Gerçek sonuç**
+Var olmayan bir oturum kimliğiyle bile `501 "Branching not supported...
+only works when a persistent SQL provider is enabled..."` — oturumun var
+olup olmadığı hiç kontrol edilmedi (İngilizce metin, K-228).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+# 7 — Üç sağlayıcı arası tutarlılık
+
+## MT-SQL-060 — Üç sağlayıcının migration/tablo sayısı ölçümü tutarlıdır — sayı düzeltildi
+
+**Gerçek sonuç**
+Güncel sayılarla (bkz. MT-SQL-020/024): SQLite **48**, SQL Server **48**,
+PostgreSQL (`mt_s1`) **49**. Fark tam **1**. Tablo adı KÜMELERİ karşılaştırıldı
+(`comm`): SQLite ile SQL Server BİREBİR aynı 48 ad; PostgreSQL'in tek fazlası
+`document_embeddings` (pgvector'a özgü) — spec'in iddiası (granülerlik farkı
+değil, tek pgvector eklentisi) sayılar değişmiş olsa da AYNEN doğrulandı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SQL-061 — Şema/önek adı doğrulama kuralı üç sağlayıcıda da birebir aynıdır (izlek C)
+
+**Gerçek sonuç**
+Üç validator dosyası da `SqlIdentifier.IsValidUnquoted` çağırıyor
+(`TraconSqlServerOptionsValidator.cs:37`, `TraconSqliteOptionsValidator.cs:51`,
+`TraconPostgreSqlOptionsValidator.cs:39`) — aynı statik metot, tek kaynak.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SQL-062 — `/api/diagnostics` her sağlayıcıda doğru `persistenceProvider` adını bildirir
+
+**Gerçek sonuç**
+SQLite aktifken → `"SQLite"`. SQL Server aktifken → `"SQL Server"`. Her
+ikisinde de `registeredPersistenceProviders: 1`.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SQL-063 — `secret` hiçbir zaman veritabanına veya dosyaya yazılmaz
+
+**Gerçek sonuç**
+`appsettings*.json`'da `Password=` alt dizgisi **sıfır** eşleşme.
+SQLite `tracon_audit_log` ve SQL Server `tracon.audit_log`'da
+`before`/`after` alanlarında `Password=` araması ikisinde de **0**.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+# 8 — Yük ve dayanıklılık
+
+## MT-SQL-070 — SQLite: 20 eşzamanlı agent kaydı veri bozulmadan tamamlanır
+
+**Gerçek sonuç**
+Spec'in kendi notu gereği MT-SQL-030 ile aynı ölçüm — sonuç oradan
+kopyalandı: 20/20 `2xx`, `count(*)=20`, `SQLITE_BUSY` yok.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SQL-071 — SQLite: çalışma anında salt-okunur yapılırsa yazma istekleri anlaşılır hatayla başarısız olur
+
+**Gerçek sonuç — SONUÇSUZ, ortam sınırı (kod kusuru DEĞİL).** Üç deneme
+yapıldı: (1) yalnız ana `.db` dosyası `chmod 444`, (2) `.db`+`.db-wal`+
+`.db-shm` üçü birden `chmod 444`, (3) üçü birden `chflags uchg`
+(değiştirilemez bayrak — açık dosya tanıtıcılarında bile POSIX'te
+zorlanması beklenir). ÜÇÜNDE DE yazma isteği `201` ile BAŞARILI oldu —
+uygulama izin/bayrak değişikliğini hiç fark etmedi. Doğrudan bir kabuk
+`echo >> .db-wal` denemesi AYNI `chflags uchg` altında doğru şekilde
+`operation not permitted` verdi — bayrak gerçekten uygulanmıştı. Bu, macOS
+üzerinde `Microsoft.Data.Sqlite`'ın bağlantı havuzunun izin DEĞİŞİKLİĞİNDEN
+ÖNCE açılmış bir dosya tanıtıcısını yeniden kullandığını gösteriyor —
+POSIX izin/bayrak denetimi yalnız YENİ `open()` çağrılarında uygulanır,
+zaten açık bir tanıtıcının sonraki `write()` çağrılarını etkilemez. Bu
+case'in senaryosunu (çalışma ANINDA izin kaybı) bu OS/dosya sistemi
+kombinasyonunda, süreci yeniden başlatmadan tetiklemenin bir yolu
+bulunamadı — case'in kendisi MT-SQL-006'dan (başlangıçta reddetme, farklı
+ve zaten doğrulanmış bir yol) kasıtlı olarak ayrılıyor. Linux'ta (gerçek
+üretim/CI ortamı) farklı davranabilir; bu yalnız macOS'a özgü bir test
+yöntemi sınırlamasıdır.
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SQL-072 — SQL Server: 20 eşzamanlı agent kaydı veri bozulmadan tamamlanır
+
+**Gerçek sonuç**
+20/20 `201`. `COUNT(*)` → **20**. Loglarda bağlantı havuzu tükenmesi hatası
+**sıfır**.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SQL-073 — SQL Server: container koşum sırasında durursa çalışan bir istek anlaşılır hatayla başarısız olur
+
+**Gerçek sonuç — paylaşılan container'a DOKUNULMADI, şerit-yerel TCP
+yönlendirici kullanıldı** (dosya 03'ün MT-PG-050/061 tarifi): uygulama
+`localhost:51533`'e bağlandı, küçük bir Python yönlendirici bunu gerçek
+`ap-mssql:51433`'e aktardı. Yönlendirici öldürülünce:
+- `GET /api/diagnostics` → `canConnect:false`.
+- `GET /api/sessions` → **`500`** — case'in beklediği tam senaryo bu.
+- `/health` aynı anda **`503 Unhealthy`** ama YANIT VERDİ — süreç ÇÖKMEDİ.
+- 🚨 **Ek gözlem (kusur DEĞİL, kaynakla doğrulandı):** `GET
+  /api/agents/{ad}` ve `GET /api/agents` DB kapalıyken `500` yerine
+  `404`/`200` döndü (kod-tanımlı agent'lar hâlâ görünür kaldı, DB'li
+  agent'lar sessizce KAYBOLDU). Kök neden: `CompositeAgentCatalog.cs:54-65`
+  her `IAgentSource`'u ayrı `try/catch` içinde çağırıyor, biri (`DB
+  kaynağı`) patlarsa `RecordSourceFailure` ile loglayıp DİĞER kaynaklarla
+  (kod-tanımlı agent'lar) devam ediyor — bilinçli, belgeli bir dayanıklılık
+  tasarımı ("sources are tried... the losing source is omitted"). Bu
+  yalnız agent kataloğuna özgü (kod-tanımlı bir yedek kaynağı OLAN tek
+  şey); `sessions`/`runs` gibi salt-SQL uçları böyle bir yedeğe sahip
+  DEĞİL ve doğru şekilde `500` veriyor.
+
+Yönlendirici geri getirilince (uygulama YENİDEN BAŞLATILMADAN): `GET
+/api/sessions` → `200`, `/health` → `200`. `SqlServerDataSource` yeni bir
+bağlantı kurdu, süreç yeniden başlatmaya gerek duymadı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+# 9 — Kaynak-doğrulanan sözleşmeler (izlek C, bu turda taze koşuldu)
+
+## MT-SQL-076 — SQL Server ve SQLite'ta dış `DataSource`: simetri, sahiplik ve çakışma
+
+**Gerçek sonuç — bu turda taze koşuldu.** `dotnet test
+tests/Tracon.SqlServer.IntegrationTests -c Release --no-build` (kendi
+izole testcontainer'ına karşı, `ap-mssql`'e hiç dokunmadı): **806/806
+geçti** (Ağustos'ta 479'du). `ExternalDataSourceTests.cs` hem
+`Tracon.SqlServer.IntegrationTests` hem `Tracon.Sqlite.IntegrationTests`
+(MT-SQL-074/078'in 825/825'i, aynı koşum) içinde mevcut — dört senaryo da
+(dış kaynakla doğrulama geçer + `OwnsDataSource=false`, iki alan birden
+verilince `OptionsValidationException`, dispose sonrası `ObjectDisposedException`
+YOK, kendi kurduğu kaynakta `OwnsDataSource=true`) kapsanıyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SQL-077 — SQL Server: `runs_v1` içindeki toplam maliyet store'un raporladığıyla eşleşir
+
+**Gerçek sonuç — bu turda taze koşuldu.** `ReadViewContractTests.cs`
+`tests/Tracon.SqlServer.IntegrationTests/`'te mevcut, aynı 806/806 geçen
+koşumun parçası (kendi izole testcontainer'ına karşı, gerçek `CREATE OR
+ALTER VIEW` + `EXEC(N'...')` sarmalaması dahil).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SQL-074 — SQLite: SQL tek kaynak sonrası tablo nitelendirmesi noktasız kalır
+
+**Gerçek sonuç — bu turda taze koşuldu (spec'in 2026-08-24 kanıtı hâlâ
+geçerli, sayı büyüdü).** `dotnet test tests/Tracon.Sqlite.IntegrationTests
+-c Release --no-build` (gerçek dosya veritabanına karşı): **825/825 geçti**
+(Ağustos'ta 592'ydi — set büyümüş, bayat sayı değil kusur). `Table("...")`
+kullanan sorgular noktasız ad üretiyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SQL-075 — Boşluk kapısı: bir sorgu `string.Empty`'ye ezilirse `SqlQueryCompletenessTests` düşer
+
+**Gerçek sonuç — bu turda taze koşuldu.** `dotnet test
+tests/Tracon.Sql.Shared.UnitTests -c Release --no-build`: **22/22 geçti**
+(Ağustos'ta 8'di). Kod donuk olduğu için "bir sorguyu elle boz" adımı bu
+turda TEKRARLANMADI (Ağustos'ta zaten ampirik olarak kanıtlanmıştı: `["UpsertMcpServer"]`
+ile düştü, geri alınca yeşil) — yalnız GEÇERLİ hâlin hâlâ yeşil olduğu
+doğrulandı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SQL-078 — SQLite: `{prefix}runs_v1` nokta olmadan kurulur
+
+**Gerçek sonuç — bu turda taze koşuldu.** `ReadViewContractTests.cs`
+`tests/Tracon.Sqlite.IntegrationTests/` içinde mevcut ve MT-SQL-074 ile
+AYNI 825/825 geçen koşumun parçası (gerçek dosya veritabanına karşı).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
 ---
+
+## Fiziksel eylem / ortam sınırı nedeniyle sonuçsuz kalan case
+
+| Case | Neden | Kullanıcıdan istenen / kapanışta yapılacak |
+|---|---|---|
+| MT-SQL-071 | macOS'ta bağlantı havuzu, izin değişikliğinden önce açılmış bir dosya tanıtıcısını koruyor — üç farklı yöntem (chmod tek dosya, chmod üç dosya, chflags uchg) çalışan sürecin yazmasını engelleyemedi | Linux'ta (gerçek üretim/CI) tekrar denenmeli; macOS'ta yalnız süreç YENİDEN BAŞLATILDIKTAN sonra izin testi anlamlı olur ama bu MT-SQL-006 ile örtüşür |
