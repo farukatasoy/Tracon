@@ -794,7 +794,11 @@ curl -s -X POST "$APU/mcp" -H "$APB" -H "content-type: application/json" -H "acc
 ```
 
 **Beklenen sonuç**
-- Yanıt TAM OLARAK tek bir tool içerir: `tracon_ozetleyici`,
+> **Düzeltildi (2026-09-17):** spec `tracon_ozetleyici` yazıyordu (Aşama
+> 0'da zaten kapatılan bayat Türkçe agent adı örüntüsü — örnek uygulama
+> İngilizceye çevrildi). Gerçek tool adı `tracon_summarizer`'dır, bu dosyada
+> her geçtiği yerde düzeltildi (MT-MCP-032/033 dahil).
+- Yanıt TAM OLARAK tek bir tool içerir: `tracon_summarizer`,
   `inputSchema` yalnız `message` (string, required) alanı taşır. Başka
   hiçbir agent (ör. `support`) listede YOKTUR — beyaz listeye
   eklenmemiştir.
@@ -814,7 +818,7 @@ curl -s -X POST "$APU/mcp" -H "$APB" -H "content-type: application/json" -H "acc
 ```bash
 curl -s -X POST "$APU/mcp" -H "$APB" -H "content-type: application/json" -H "accept: application/json, text/event-stream" \
      -d '{ "jsonrpc": "2.0", "id": 2, "method": "tools/call",
-          "params": { "name": "tracon_ozetleyici", "arguments": { "message": "Bugun hava cok guzeldi. Is yerinde her sey yolunda gitti. Toplantilar verimliydi." } } }'
+          "params": { "name": "tracon_summarizer", "arguments": { "message": "Bugun hava cok guzeldi. Is yerinde her sey yolunda gitti. Toplantilar verimliydi." } } }'
 ```
 
 **Beklenen sonuç**
@@ -839,7 +843,7 @@ Negatif senaryo.
 ```bash
 curl -s -X POST "$APU/mcp" -H "$APB" -H "content-type: application/json" -H "accept: application/json, text/event-stream" \
      -d '{ "jsonrpc": "2.0", "id": 3, "method": "tools/call",
-          "params": { "name": "tracon_ozetleyici", "arguments": { "message": "" } } }'
+          "params": { "name": "tracon_summarizer", "arguments": { "message": "" } } }'
 ```
 
 **Beklenen sonuç**
