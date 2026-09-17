@@ -519,3 +519,150 @@ istek hiçbir satır açmadı. Beklenen sonuçla birebir.
 
 ---
 
+## Oturum 3 (2026-09-17) — Playwright kilidi serbest kaldı, 001-020 blokuna dönüldü
+
+Kullanıcı Playwright'ın artık serbest olduğunu bildirdi; doğrulandı
+(`SingletonLock` sahibi PID `65851` artık yaşamıyor). `mt_s2` şeması tamamen
+**sıfırlandı** (`DROP SCHEMA mt_s2 CASCADE`) ve uygulama fiyatsız/varsayılan
+ayarlarla yeniden başlatıldı (bu, 001/005'in "hiç run yokken" ön koşulunu
+gerçek biçimde kurmanın tek yolu — Oturum 1/2'nin run'ları artık yok, ama
+zaten hepsi kayıtlarına işlenmişti). `manuel-destek`/`manuel-bos` yeniden
+oluşturuldu (reset onları da sildi); ayrıca `MT-UIRUN-011`'in tarif ettiği
+`manuel-model-hata` (model `var-olmayan-model-xyz`) ilk kez bu oturumda
+oluşturuldu. Giriş ekranında token `fill()` ile basıldığında Continue
+butonu etkinleşmiyordu (React kontrollü input, sentetik `input` event'i
+yeterli değildi) — `pressSequentially` (gerçek tuş vuruşu) ile çözüldü.
+
+## MT-OBS-001 — Reset sonrası tüm Dashboard boş-durumları aynı anda görünür
+
+**Beklenen sonuç düzeltmesi (kod okuması + gözlemle çelişki):** Case'in
+"Hiçbirinde delta rozeti YOK" iddiası MT-OBS-005'in AYNI dosyadaki kendi
+açıklamasıyla çelişiyor (005: "`previous===0` ise `current===0` olduğunda
+`0` döner, rozet `+0.0%` olarak GÖRÜNÜR, gizlenmez"). Gözlem 005'i doğruluyor,
+001'in özet cümlesi yanlış. Ayrıca "zaman serisi/durum dağılımı grafiği
+`charts.noRuns` boş-durumunu gösterir (`points.length===0`)" iddiası da
+kaynakla çelişiyor: `/api/stats/timeseries` HER ZAMAN dolu (sıfırlarla
+doldurulmuş) kova listesi döner (bkz. MT-OBS-028), `points.length` asla `0`
+olmuyor — bu yüzden `EmptyChart`/`charts.noRuns` yolu Dashboard'ın normal akışında
+HİÇ tetiklenmiyor (`src/Tracon.UI/frontend/src/components/charts.tsx:90-91,
+410`).
+
+**Gerçek sonuç**
+Reset sonrası (0 run): "Runs today" `0` + rozet "+0.0% vs. yesterday"
+(GÖRÜNÜR), "Error rate" `—` (rozet yok), "Tokens today" `0` + rozet
+"+0.0% vs. yesterday" (GÖRÜNÜR), "Cost today" `—` (rozet yok). Zaman serisi
+SVG'si düz bir `y=130` çizgisi çiziyor (boş metin DEĞİL, sıfır değerli gerçek
+bir path); durum dağılımı SVG'si de `height=0` gerçek `rect`'ler çiziyor.
+Model Kırılımı: "No run in this window" ✓. Top agents: "No agent has run in
+this window yet." ✓. Error breakdown: "No failed run in this window." ✓.
+Alerts: "Nothing needs attention." ✓. Feedback/Online eval: "No run has been
+scored/judged yet." ✓ (ikisi de). Konsol: yalnız bilinen CSP inline-script
+hatası (her sayfa yüklemesinde sabit, davranışı etkilemiyor).
+
+**Durum:** ☐ Beklemede · ☑ Geçti (düzeltilmiş beklenen sonuçla — delta rozeti
+ve grafik boş-durumu iddiaları yanlıştı, bkz. not) · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-002 — Fiyat tanımsızken "Bugünkü Maliyet" karosu `—` gösterir
+
+**Gerçek sonuç**
+`support` ile `Merhaba` (playground üzerinden) sonrası: "Cost today" karosu
+`—` gösterdi (`0` değil). `/api/stats` → `runsWithUnknownPricing: 1` (>0).
+Beklenen sonuçla birebir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-005 — `delta()` sıfıra bölme kaçınması
+
+**Gerçek sonuç**
+Adım 1 (0 run): "Runs today" `0`, rozet GÖRÜNÜR ("+0.0% vs. yesterday") —
+`previous===0 && current===0` dalı `0` döndürüyor, gizlemiyor (MT-OBS-001'in
+notuyla aynı gözlem). Adım 2 (`support`/Merhaba sonrası, 1 run): "Runs today"
+`1`, rozet **HİÇ görünmüyor** — `previous===0 && current!==0` dalı `null`
+döndürüyor. İki adım da beklenen sonucun (kodun kendi açıklamasıyla) birebir
+eşleşiyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-006 — Aralık düğmeleri farklı kova boyutuyla istek atar
+
+**Gerçek sonuç**
+Ağ sekmesi: `1h`→`bucket=Hour` (1 saatlik pencere), `24h`→`bucket=Hour` (24
+saatlik pencere), `7d`→`bucket=Hour` (7 günlük pencere), `30d`→`bucket=Day`
+(30 günlük pencere). Her tıklamada `to` değeri yeniden hesaplanıyor (dört
+istekte dört farklı `to` zaman damgası, hepsi tıklama anına yakın). Beklenen
+sonuçla birebir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-007 — Zaman serisi grafiğinde çalışma/başarısızlık çizgileri ve durum dağılım çubuğu doğru veriyi çizer
+
+**Gerçek sonuç**
+`support` (başarılı) + `manuel-model-hata` (başarısız, `var-olmayan-model-xyz`)
+sonrası `24h` görünümde: `timeseries-chart` SVG'sinde iki `path` — biri düz
+çizgi (`stroke="var(--tracon-series-1)"`, `stroke-dasharray` yok), diğeri
+kesikli (`stroke="var(--tracon-danger)"`, `stroke-dasharray="4 3"`).
+`status-distribution-chart`'ta yalnız iki `fill` rengi var
+(`var(--tracon-series-1)`, `var(--tracon-danger)`) — yeşilimsi/kırmızı
+yığılmış segment tasviri doğrulandı. Beklenen sonuçla birebir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-008 — Model kırılımı run sayısına göre azalan sırada çubuklar çizer; fiyat tanımsızken tutar `—`
+
+**Gerçek sonuç**
+Fiyat tanımsız durumda (bu reset döngüsünde hiç fiyat ayarlanmadı): Model
+Kırılımı sırası `gpt-5.4-mini` (2 run) → `var-olmayan-model-xyz` (2 run) →
+`claude-haiku-4-5-20251001` (1 run) — azalan sırada (`2,2,1`, eşitlik
+korunmuş). Üç satırda da maliyet sütunu `—`. Beklenen sonuçla birebir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-009 — En aktif agent'lar listesinde başarısız run varsa kırmızı ek metin görünür
+
+**Gerçek sonuç**
+`manuel-model-hata` satırında (2 başarısız run) `"2 failed"` metni
+`rgb(245,165,155)` (danger/kırmızı tonu) renginde görünüyor; `claude-support`,
+`manuel-destek`, `support` satırlarında bu ek metin YOK. Beklenen sonuçla
+birebir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-010 — Hata sınıfı kırılımı, sınıf başına en sık kümenin örnek mesajını ve son görülme zamanını gösterir
+
+**Gerçek sonuç**
+İki `manuel-model-hata` başarısız run'ı AYNI sınıfa (`Unknown`) ve AYNI
+`fingerprint`'e düştü (bilinen HATA-S1-020 kök nedeni — `upstream_error`
+sınıflandırıcıda tanınmıyor). Panelde `Unknown: 2 failed` satırı, altında
+`2× · The model provider request failed. · 43 sec. ago` görünüyor — toplam
+sayı + en sık kümenin örnek mesajı + göreli zaman hepsi mevcut. Sınıf adı
+çevrilmeden ham anahtar (`Unknown`) olarak göründü — `dashboard.errorClass.
+Unknown` çevirisi yok, bu da spec'in öngördüğü "yoksa ham anahtar görünür"
+dalını doğruluyor. Beklenen sonuçla birebir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-012 — Fiyatı tanımsız run varken sarı uyarı rozeti görünür; "Fiyatı yapılandır" bağlantısı yalnız Admin'e görünür
+
+**Gerçek sonuç**
+Alerts panelinde "3 runs with unpriced models" (tooltip: "These runs used a
+known model that has no configured price.") + "Configure pricing →" bağlantısı
+(`/tracon/settings`'e gidiyor, ayrı bir fiyat ekranı yok). Bu dosyanın tek
+bearer token'ı zaten her zaman Admin olduğu için bağlantının görünürlüğü ayrı
+test edilmedi (spec'in kendi notu: rol ayrımı `13-KIRACI-VE-GUVENLIK.md`'nin
+konusu). Beklenen sonuçla birebir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-014 — Hiç puanlanmış run yokken "henüz yok" metni; çevrimiçi değerlendirme paneli 30 saniyede bir kendiliğinden yenilenir
+
+**Gerçek sonuç**
+Adım 1: "Feedback" → "No run has been scored yet.", "Online evaluation" →
+"No run has been judged yet." (iki paragrafta da). Adım 2: sayfa açıkken 35
+saniye ağ sekmesi izlendi, `GET api/evaluation/online` **4 kez** gitti
+(`refetchInterval: 30_000` ile tutarlı, "en az iki" beklentisini aşıyor).
+Beklenen sonuçla birebir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
