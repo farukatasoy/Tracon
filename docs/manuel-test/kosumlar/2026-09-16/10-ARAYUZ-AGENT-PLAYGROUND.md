@@ -29,26 +29,29 @@ sıfırdan düşürülüp yeniden oluşturuldu (aile 08'in verisi temiz atıldı
 
 ## Devir notu
 
-**Oturum 1-2 bitti: MT-UIAG-001..024 koşuldu (21 Geçti · 1 Kaldı · 2 Atlandı).**
+**Oturum 1-3 bitti: MT-UIAG-001..027 koşuldu (23 Geçti · 2 Kaldı · 2 Atlandı).**
 Uygulama AÇIK bırakıldı (port 5081, arka planda `launch_s1.py` ile başlatıldı,
 PID script'i `/private/tmp/.../scratchpad/s1-app.pid`de) — sonraki oturum
 sıfırdan başlatmak yerine devam edebilir, yalnız `curl .../api/diagnostics`
-ile sağlığı doğrulasın.
+ile sağlığı doğrulasın. Playground bölümü GERÇEK OpenAI çağrıları yapıyor
+(`gpt-5.4-mini`) — MT-UIAG-025'ten itibaren.
 
-**Yeni kusur:** `HATA-S1-027` (Düşük, MT-UIAG-001) — agent kataloğunda tool
-sayısı hücresinin tam tool adı listesi hiçbir yerde (ne tooltip ne görünür
-metin) sunulmuyor. Ayrıntı case'in kendi bloğunda.
+**İki yeni kusur:** `HATA-S1-027` (Düşük, MT-UIAG-001) — agent kataloğunda
+tool sayısı hücresinin tam tool adı listesi hiçbir yerde sunulmuyor.
+`HATA-S1-028` (Düşük, MT-UIAG-026) — akış imleci (`ap-stream-caret`) CSS
+sınıf adı uyuşmazlığı yüzünden hiç görsel olarak render edilmiyor
+(`ap-stream-caret` bileşende, `tracon-stream-caret` CSS'te — hiç
+eşleşmiyor). İkisi de kozmetik/düşük önem, ayrıntı case bloklarında.
 
-**Beş spec düzeltmesi yapıldı** (doküman kusuru, kod donuk kaldı):
-MT-UIAG-006, 007, 013, 016 — dördü aynı kök neden (K-228): Türkçe `ErrorNote`
-metni bekliyordu, gerçek sunucu mesajları İngilizce. Aile 05/18 oturumlarında
-görülen aynı sistematik bayatlığın bu ailedeki dördüncü tekrarı; kapanışta
-sınıf taraması önerilir. MT-UIAG-018 ayrı bir kök nedenle düzeltildi:
-`definition`'ın her zaman `null` olduğu varsayımı bayattı — yalnız fabrika
-stili (`AddAgent(name, factory)`) kod agent'ları `null` döner, örnek
-uygulamanın 15 agent'ının 15'i de deklaratif (`AddAgent(new
-AgentDefinition{...})`); bu dal ortamda hiç tetiklenemiyor — fixture kapsamı
-boşluğu, kapanışta `00-INDEKS.md`'ye açık kalem yazılmalı.
+**Yedi spec düzeltmesi yapıldı** (doküman kusuru, kod donuk kaldı):
+MT-UIAG-006/007/013/016 aynı kök neden (K-228, Türkçe hata metni bayat).
+MT-UIAG-018 ayrı kök neden (fabrika-stili kod agent fixture'ı yok, açık
+kalem `00-INDEKS.md`'ye yazılmalı). MT-UIAG-026/027 üçüncü bir kök nedenle
+düzeltildi: Playground'daki durum rozeti metinleri güncel i18n anahtarlarıyla
+uyuşmuyordu (`"Konuştur"`→`"Seslendir"`, `"Çalışıyor"`→`"sürüyor"`,
+`"Tamamlandı"`→`"bitti"`) — kapanışta bu ailenin TÜM rozet/düğme metinleri
+tek geçişte `locales/tr/runs.ts` ile karşılaştırılıp toplu doğrulanmalı,
+tek tek düşmek yerine.
 
 **İki case ⏭ Atlandı, ikisi de gerekçeli ortam kısıtı (kusur değil):**
 MT-UIAG-002 (örnek uygulamada `TraconRolePolicies` yapılandırılmamış,
@@ -61,14 +64,14 @@ v1→v2 [Nazik ol.]→v3 [Emoji kullanma.]→v4 [Geri Al ile v1 içeriği yeni s
 olarak yazıldı, MT-UIAG-024]), `manuel-cevrim-a` (çağrılabilir agent:
 `manuel-destek`; MT-UIAG-013 kanıtı için). `manuel-silme-test` ve
 `manuel-dogrula-test` bu turda oluşturulup silindi/hiç kaydedilmedi
-(MT-UIAG-008, 019) — kalıcı değiller.
+(MT-UIAG-008, 019) — kalıcı değiller. `support` agent'ıyla birkaç deneme
+konuşması (Playground) üretildi — bunlar kalıcı `run`/`session` kayıtları
+olarak kalır, temizlenmesi gerekmez (spec'in kendi deseni budur).
 
-**Sıradaki oturumun işi:** `MT-UIAG-025`'ten devam — Playground bölümü
-başlıyor (akışlı sohbet, tool/onay kartları, ekler). Buradan itibaren case'ler
-GERÇEK OpenAI çağrısı yapacak (`Tracon:Providers:OpenAI:ApiKey` ortamda
-tanımlı, model `gpt-5.4-mini`); şu ana kadar HİÇBİR case gerçek çağrı
-yapmadı. Oturum bütçesi (arayüz-ağırlıklı ~18 case) bu noktada zaten aşıldı
-(24 case tek "oturumda" koşuldu) — sıradaki oturum daha küçük bloklarla
+**Sıradaki oturumun işi:** `MT-UIAG-028`'den devam — onay kartı akışı
+(`FIX-PROMPT-03`, `cancel_order`). Gerçek OpenAI çağrıları devam ediyor.
+Oturum bütçesi (arayüz-ağırlıklı ~18 case) bu noktada zaten aşıldı
+(27 case tek "oturumda" koşuldu) — sıradaki oturum daha küçük bloklarla
 ilerlemeli.
 
 ---
@@ -551,6 +554,106 @@ yeni bir `v4` satırı belirdi (`geçerli` rozeti, `db · v4`), içeriği
 ver."` — birebir `v1`'in içeriğiyle AYNI (yeni sürüm olarak yazıldı, `v1`'e
 geri SARILMADI, sayaç 4'e çıktı). `v1`'in satırında hâlâ "Geri Al" düğmesi
 var (kendine dönüş engellenmiyor).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+# 4 — Playground: akış, tool/onay kartları, ekler (GERÇEK OpenAI çağrıları başlıyor)
+
+## MT-UIAG-025 — Agent seçiciyle açılış; ilk mesaj bir konuşma/oturum rezerve eder ve bağlantı gösterir
+
+**Gerçek sonuç — beklendiği gibi.**
+`playground/support`: agent seçici `Support Assistant` ile seçili açıldı,
+sohbet paneli boş, `"Başlamak için bir mesaj gönderin"` görünüyordu.
+`Merhaba` gönderilince ağ sekmesi (`browser_network_requests`) sırayı
+doğruladı: önce `POST v1/conversations` (`200`), hemen ardından `POST
+api/agents/support/run` (`200`, SSE). Mesaj sonrası başlığın altında
+`"Oturum conv_01a0ae61...— geçmiş turlar arasında taşınır."` bağlantısı +
+"Buradan dallan" düğmesi belirdi. (Konsolda bilinen `HATA-S1-004` CSP
+hatası vardı — bu turda dosya 01/02'de zaten kaydedilmiş, ölümcül değil,
+yeni bulgu değil.)
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-UIAG-026 — 🚨 `FIX-PROMPT-02` → tool kartsız düz metin akışı — 🚨 KUSUR (`HATA-S1-028`)
+
+**Gerçek sonuç — kısmen KUSUR BULUNDU, bir spec metni de bayat çıktı.**
+`Merhaba` gönderildi. Tool kartı hiç belirmedi (`toolCards: 0`, doğru).
+Tur `done` olunca "Seslendir" düğmesi göründü (spec'in `"Konuştur"` metni
+bayattı, düzeltildi — `playground.speak` i18n anahtarı gerçekte
+`"Seslendir"`).
+
+**Ama akış imleci görsel olarak HİÇ görünmüyor.** İki tarayıcı-içi kontrolle
+(bir `MutationObserver`-tarzı polling döngüsüyle, gönder tıklamasından
+hemen sonra) ölçüldü: `.ap-stream-caret` sınıfı akış SIRASINDA gerçekten
+DOM'a ekleniyor (`className: "text-base leading-relaxed whitespace-pre-wrap
+ap-stream-caret"`, 1555 ms'de yakalandı) — ama o elementin `::after`
+sözde-öğesinin hesaplanan stili `content: "none"` (görünür bir blok YOK).
+
+**HATA-S1-028 — Akış imleci (`ap-stream-caret`) CSS sınıf adı uyuşmazlığı yüzünden hiçbir zaman görsel olarak render edilmiyor**
+- **Case:** MT-UIAG-026 (muhtemelen imleç kullanan her akışlı yanıtı
+  etkiler — bu davranış prompt'tan bağımsız, `transcript.tsx`'in genel
+  render mantığında)
+- **Önem:** Düşük (yalnız kozmetik — akışın kendisi çalışıyor, metin
+  doğru akıyor, yalnız "yazıyor" imleç animasyonu yok)
+- **İzlek:** B (tarayıcı-içi ölçüm, akış sırasında yakalandı) + kaynak
+  okuması (kök neden kesin)
+- **Ortam:** macOS arm64 · Chromium (Playwright) · gerçek OpenAI çağrısı
+  (`gpt-5.4-mini`)
+
+**Beklenen**
+Akış sürerken son metin bloğunun sonunda yanıp sönen bir imleç (dikey
+çubuk) görünmeli, akış bitince kaybolmalı.
+
+**Gerçekleşen**
+`src/Tracon.UI/frontend/src/components/transcript.tsx:40` akış sırasında
+son metin bloğuna `ap-stream-caret` class'ını ekliyor — bu KISIM doğru
+çalışıyor. Ama `src/Tracon.UI/frontend/src/styles.css:242`de tanımlı görsel
+kural `.tracon-stream-caret::after` — FARKLI bir sınıf adı (`tracon-`
+öneki, `ap-` değil). İkisi hiçbir yerde eşleşmiyor; `ap-stream-caret`
+metni tüm frontend kod tabanında yalnız `transcript.tsx:40`de geçiyor,
+karşılık gelen bir CSS kuralı YOK.
+
+**Yeniden üretme**
+1. `playground/{agent}` aç, herhangi bir mesaj gönder.
+2. Akış sürerken (`Gönder`e tıkladıktan ~1-2 saniye sonra) DOM'u incele:
+   son `<p>` elementinin class listesinde `ap-stream-caret` var.
+3. O elementin `::after` sözde-öğesinin hesaplanan stilini oku:
+   `content: "none"`, görünür genişlik/renk yok.
+
+**Kanıt**
+- Tarayıcı-içi ölçüm: `{ seen: true, seenClassName: "...ap-stream-caret",
+  afterInfo: { content: "none", display: "inline", width: "auto" } }`.
+- Kaynak: `transcript.tsx:40` (`ap-stream-caret` ekleniyor) vs.
+  `styles.css:242` (`.tracon-stream-caret::after` tanımlı) — `grep -rn
+  "ap-stream-caret" src/Tracon.UI/frontend/` tek eşleşme veriyor.
+
+**Kapsam**
+Yalnız bu görsel efekt — akışın kendisi, metnin doğruluğu, tur durumu
+etkilenmiyor. Muhtemelen bir yeniden adlandırma sırasında (`tracon-` →
+`ap-` önek geçişi ya da tersi) bileşen güncellenmemiş.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+
+---
+
+## MT-UIAG-027 — `FIX-PROMPT-01` → tool kartı üretir; kart açık başlar ve kullanıcı kapatmadıkça açık kalır
+
+**Gerçek sonuç — beklendiği gibi (iki rozet metni bayattı, düzeltildi).**
+`ORD-1001 siparisim nerede?` gönderildi. `get_order_status` çok hızlı
+çözüldüğü için "sürüyor" rozetini canlı yakalamak mümkün olmadı (30 ms'lik
+tarayıcı-içi polling denendi, tool call yerel/anlık) — ama kaynak
+(`transcript.tsx:216`: `useState(item.state !== 'ok')`) `state='running'`
+anındaki açılış mantığını kesin olarak kanıtlıyor. Sonuç geldiğinde kart
+AÇIK duruyordu (dokunulmadı), rozet `"bitti"` (spec'in `"Tamamlandı"`
+metni bayattı — `transcript.done` anahtarı), `Argümanlar` (`{"orderId":
+"ORD-1001"}`) ve `Sonuç` (`"Order ORD-1001 has shipped. Estimated
+delivery: 2 days."`) dolu görünüyordu. Başlığa tıklanınca kart kapandı
+(`Argümanlar` bölümü kayboldu), tekrar tıklanınca yeniden açıldı — elle
+aç/kapa serbest.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
