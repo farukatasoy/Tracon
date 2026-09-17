@@ -24,6 +24,85 @@
   ilerlendi; `HATA-S3` numarası açılmadı (yeniden üretilemedi, kapsam dışı).
   Not `docs/manuel-test/00-INDEKS.md`'ye taşınmadı — yalnız bu oturumun kaydı.
 
+## HATA-S3-004 — Bir job'ın ikinci denemesi (lease devralma sonrası) her zaman sessizce başarısız kalıyor: gerçek iş biter, `run` sonsuza dek `Running` kalır
+
+- **Case:** MT-RES-086
+- **Önem:** Yüksek
+- **İzlek:** B (yönetim API'si, iki gerçek worker süreci, gerçek PostgreSQL, gerçek OpenAI çağrısı)
+- **Ortam:** macOS arm64 · net10 · PostgreSQL `mt_s3` · OpenAI (gpt-5.4-mini) · `Tracon:Scheduling:LeaseDuration=00:00:20`
+
+**Beklenen**
+`MT-RES-086`'nın kendi beklentisi: worker B ölünce (`kill -9`) ve lease
+dolunca worker A işi devralır (`attempt=2`), `job` `Completed` olur VE
+altındaki `run` kaydı da normal şekilde `Completed`e kapanır — spesifikasyon
+yalnız `doneItems`in çift sayılmadığını doğrulamayı ister, ama zımni
+varsayım budur: devralınan bir iş GÖZLENEBİLİR şekilde tamamlanır.
+
+**Gerçekleşen**
+İki worker süreci (A: 5083, B: 5093) aynı `mt_s3` şemasına bağlandı. B,
+~110 saniye süren gerçek bir `durability-support` çalıştırmasını (`Prefer:
+respond-async`, uzun bir hikâye isteği) lease'ledi. B ortasında `kill -9`
+ile öldürüldü; 20 sn sonra A işi devraldı (`attempt=2`, yeni `leaseOwner`).
+A gerçekten çalıştırdı — oturum (`sessions.state`) gerçekten güncellendi,
+`job` kaydı `status:"Completed"` oldu (`completedAt` dolu, gerçek ~110 sn
+sürede). AMA aynı `runId`'ye ait `runs` satırı **sonsuza dek `status:0`
+(Running)** kaldı — `completed_at`, `heartbeat_at` hep `NULL`; `run_events`
+tablosunda bu `run_id` için **TEK BİR** satır var (`seq=0`, `created_at`
+B'nin ilk denemesinden — A'nın kendi `run.started`'ı bile YAZILAMADI).
+`GET /api/runs/{id}` istemciye run'ın hâlâ `Running` olduğunu söylerken,
+`GET /api/jobs/{id}` AYNI iş için `Completed` diyor — iki uç nokta
+ÇELİŞİYOR. Gerçek para/token maliyeti oluştu ama hiçbir yerde
+gözlemlenmiyor (`usage`/`cost` alanları hep boş kaldı).
+
+**Kök neden**
+`src/Tracon.Core/Recording/RunEventWriter.cs:42`
+(`private long _sequence;`) her `RunEventWriter` ÖRNEĞİNDE (yani her deneme/
+`attempt`'te) sıfırdan başlar — önceki (ölü) denemenin kaç olay yazdığını
+BİLMEZ. `AppendCoreAsync` (satır 188)
+`Sequence = Interlocked.Increment(ref _sequence) - 1` ile A'nın kendi İLK
+olayına da `seq=0` atar. `mt_s3.run_events`'in birincil anahtarı
+`PRIMARY KEY (run_id, seq)`dir — A'nın `seq=0` INSERT'i B'nin ZATEN
+yazdığı `(run_id, 0)` satırıyla ÇAKIŞIR, PostgreSQL benzersizlik ihlali
+fırlatır. `StartAsync` (satır 134-144) bu istisnayı yakalayıp
+`Disable(ex, RunRecordingStages.Event)` çağırıyor (satır 225) — writer
+KALICI OLARAK devre dışı kalıyor. `CompleteAsync` (satır 338-397) `if
+(IsDisabled) { return; }` denetimiyle (satır 368-371) TÜM sonraki store
+yazımını (tool çağrıları, mesaj olayları, ve en kritik olarak
+`_store.CompleteRunAsync`, satır 375) sessizce ATLIYOR. `AgentRunJobHandler.
+cs`'nin kendi XML dokümanı (satır 21-27) bu senaryoyu zaten "SAME identity,
+UPSERT, no new runs row is OPENED" diye tarif ediyor ama `run_events`'in
+AYNI upsert güvencesine sahip OLMADIĞINI hesaba katmıyor — `runs` satırı
+UPSERT'lenirken `run_events` INSERT-only ve `(run_id, seq)` çakışmasına
+karşı hiç korunmasız.
+
+**Etki**
+Bu, lease devralmanın (Faz 157'nin bütün amacı: ölü bir worker'ın işini
+kurtarmak) HER ZAMAN bu sessiz bozulmayla sonuçlanacağı anlamına gelir —
+`RunEventWriter`'ın "önceki denemeden devam et" mekanizması hiç yok, yani
+gözlemlenen bu, uç bir durum değil, **devralınan HER işin** deterministik
+sonucu. `RunReconciliation` açıksa (bu case'in kendisi RunReconciliation'ı
+KAPALI tuttu), bu `run` bir süre sonra heartbeat eşiğini aşıp YANLIŞLIKLA
+`Infrastructure`/`orphaned` olarak sınıflandırılabilir — GERÇEK bir başarıyı
+sahte bir altyapı hatası gibi gösterir.
+
+**Yeniden üretme**
+1. İki worker süreci aynı PostgreSQL şemasına, kısa `LeaseDuration` ile
+   başlat (bu koşumda 20 sn; işin doğal süresinden kısa olması yeterli).
+2. `Prefer: respond-async` ile en az `LeaseDuration` kadar sürecek bir
+   çalıştırma kuyruğa gönder (örn. çok uzun bir metin üretimi).
+3. İşi lease'leyen worker'ı `kill -9` ile öldür.
+4. Lease süresi dolana kadar bekle; diğer worker'ın devraldığını doğrula
+   (`GET /api/jobs/{id}`, `attempt=2`).
+5. İş `Completed` olana kadar bekle.
+6. `GET /api/runs/{id}` — `status` hâlâ `"Running"`. `GET .../events` —
+   yalnız `seq=0` (ilk denemeden). `SELECT * FROM run_events WHERE run_id=
+   '<id>'` — tek satır.
+
+**Kayıt:** MT-RES-086 (bkz. koşum kaydı aşağıda), koşan agent: `durability-
+support` (bu ailenin kendi kalıcı klonu, bkz. §6 ortam notu).
+
+---
+
 ## Devir notu (oturum 16 · devam ediyor — MT-RES-028'den itibaren)
 
 ---
@@ -843,6 +922,50 @@ okumadakiyle BİREBİR AYNI — alt-agent'ın gecikmiş sonucu hiçbir yeni olay
 metrik veya sunucu hatası üretmedi. Beklenen sonuçla birebir örtüştü.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## § 8 — Zamanlama ve Dağıtık Çalıştırma (Faz 157)
+
+**Ortam notu.** İki worker süreci aynı `mt_s3` şemasına, farklı portlarda
+(A: 5083, B: 5093) başlatıldı: `Tracon:Scheduling:LeaseDuration=00:00:20`,
+`PollInterval=00:00:00.250`. İlk deneme 6 sn'lik lease ile yapıldı ve
+tepki süresi yetmediği için (lease benim curl round-trip'imden önce doldu)
+tekrarlandı — 20 sn'ye çıkarıldı.
+
+### MT-RES-085
+
+**Gerçek sonuç**
+Uzun bir hikâye isteği (`durability-support`, ~110 sn sürecek) kuyruğa
+gönderildi; worker B (`pid 65284`) lease'ledi (`attempt:1`,
+`leaseUntil:18:19:01`). B `kill -9` ile öldürüldü (`18:18:46`, lease
+dolmadan ~15 sn önce). Hemen ardından `GET /api/jobs/{id}`: `leaseOwner`
+HÂLÂ B, `attempt` HÂLÂ `1` — worker A işi ERKEN almadı. Beklenen sonuçla
+birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-RES-086
+
+**Gerçek sonuç**
+Lease süresi (`18:19:01`) dolduktan sonra worker A (`pid 65243`) işi
+devraldı: `leaseOwner` A'ya döndü, `attempt:2`, `startedAt` yenilendi.
+~90 sn sonra `job` `status:"Completed"` oldu (gerçek çalışma — oturum
+durumu güncellendi). **Ama** `GET /api/runs/{id}` aynı run için hâlâ
+`status:"Running"` gösteriyor (`completedAt:null`) — iki uç nokta birbiriyle
+ÇELİŞİYOR. `run_events` tablosunda bu run_id için yalnız **1** satır var
+(B'nin ilk `run.started`'ı); A'nın kendi olayları hiç yazılamadı. Kök neden
+kaynak okumasıyla kesinleştirildi ve `HATA-S3-004` olarak kaydedildi (bu
+dosyanın başında): `RunEventWriter`'ın sıra sayacı her denemede sıfırdan
+başlıyor, `(run_id, seq)` birincil anahtarında ikinci denemenin `seq=0`
+yazımı ÇAKIŞIYOR, bu istisna writer'ı KALICI OLARAK devre dışı bırakıyor
+(`CompleteAsync` dahil hiçbir sonraki store yazımı gerçekleşmiyor). Bu
+uç bir durum değil — lease devralmanın HER örneğinde deterministik olarak
+tekrarlanır (kod okumasıyla doğrulandı, ikinci bir koşuma gerek kalmadı).
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı — `HATA-S3-004`.
 
 ---
 
