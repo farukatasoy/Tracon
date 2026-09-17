@@ -263,6 +263,112 @@ tracon-manuel-test -s local` ile temizlendi.
 
 ---
 
+# 7 — A2A Dış Yüzeyi (Faz 50)
+
+## MT-MCP-040 — Agent kartı gerçek çıktısı
+
+**Gerçek sonuç**
+`name:"summarizer"`, `capabilities:{streaming:false,
+pushNotifications:false}`, `defaultInputModes/OutputModes:["text/plain"]`,
+`supportedInterfaces[0].url:"/tracon/a2a/summarizer"`,
+`protocolBinding:"JSONRPC"` — tam beklendiği gibi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MCP-041 — `SendMessage` JSON-RPC çağrısı — PascalCase, `ROLE_AGENT`/`ROLE_USER`
+
+**Gerçek sonuç**
+`HTTP 200`. Yanıt `role:"ROLE_AGENT"`, gerçek bir 3-madde özet metni
+taşıyor. Metot adı `"SendMessage"` (PascalCase, A2A spesifikasyonunun
+`message/send`'i DEĞİL) — SDK'nın bilinen davranışı, kusur değil.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MCP-042 — Agent kartındaki `url` alanı GÖRECELİDİR
+
+**Gerçek sonuç**
+`supportedInterfaces[0].url = "/tracon/a2a/summarizer"` — MT-MCP-040'ın
+kendi çıktısından doğrulandı, mutlak URL değil.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MCP-043 — A2A'da `ExposeAllAgents` seçeneği HİÇ YOKTUR
+
+**Gerçek sonuç**
+`support` için agent kartı isteği `404`.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MCP-044 — Çalışma anında eklenen agent A2A'da GÖRÜNMEZ
+
+**Gerçek sonuç**
+`yeni-a2a-adayi` `POST` ile oluşturuldu (`201`), A2A agent kartı isteği
+`404` — `AddA2AServer` kayıt-zamanlı, çalışan uygulamaya sonradan eklenen
+agent'ı hiç göremiyor. MCP'nin tam tersi (MT-MCP-035 ile karşılaştır —
+MCP tarafı zaten ExposedAgents listesindeki bir agent'ın ÖZELLİKLERİNİ
+canlı okuyor, ama YENİ bir agent'ı listeye sonradan ekleyemiyor; A2A'da
+liste hiç yok, yalnız kayıt-zamanlı sabit isimler var).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MCP-045 — Onay gerektiren tool taşıyan agent'ı A2A'ya açmak → AYNI GUARD
+
+**Gerçek sonuç**
+MT-MCP-034 ile aynı gerekçeyle (`Program.cs` geçici değişikliği, kod
+donması) kapanışa ertelendi.
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+# 9 — Rol/API Anahtarı Kapsamı (sıra öne alındı — egress bayrağıyla birlikte)
+
+## MT-MCP-050 — `/tracon/mcp` ve `/tracon/a2a` GRUP SEVİYESİNDE `ExternalInvoke` kapsamını doğru uygular
+
+**Gerçek sonuç**
+`RunsRead`-yalnız anahtarla `tools/list` → `403 "This endpoint requires
+the 'ExternalInvoke' scope; the key does not carry it."` Kontrol:
+`ExternalInvoke`-kapsamlı ikinci bir anahtarla AYNI çağrı → `200`, gerçek
+tool listesi döndü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MCP-051 — `GovernanceEndpoints` kapsam denetimi — şüphe ÇÜRÜTÜLDÜ (spec düzeltildi)
+
+**Gerçek sonuç — bulgu spec'in kendi şüphesinin TERSİ çıktı.**
+`RunsRead`-yalnız anahtarla `PUT /api/mcp-servers/kapsam-testi` → `403
+"This endpoint requires the 'AgentsAdmin' scope; the key does not carry
+it."` — spec'in beklediği `200` DEĞİL. Kaynak okundu:
+`GovernanceEndpoints.cs`'teki TÜM `mcp-servers` uçları (9 `Map*` çağrısı:
+liste, `PUT`, `DELETE`, `refresh`, `prompts` x2, `resources` x2,
+`oauth/start`) artık `.RequireRole(...)` VE `.RequireApiKeyScope(...)`
+taşıyor. Bu, `00-INDEKS.md` §8'in 2026-08-10 tarihli "BEŞİNCİ bağımsız
+tekrar" notunun anlattığı boşluğun bu iki tarih arasında KAPATILDIĞI
+anlamına geliyor — hem spec hem `00-INDEKS.md` düzeltildi (gerekçe her
+ikisinde de). MT-MCP-052 ile karıştırılmamalı: o AYRI bir boşluğu (statik
+token'ın kapsam denetiminin tamamen DIŞINDA olması) test ediyor ve o
+boşluk HÂLÂ açık.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MCP-052 — Statik bearer token sahibi HERKES dış MCP sunucusu kaydedebilir — HÂLÂ AÇIK
+
+**Gerçek sonuç**
+Paylaşılan statik token (`manuel-test-token-2026`, salt-okunur run
+incelemesi için de kullanılan AYNI token) ile `PUT
+/api/mcp-servers/token-kaniti` → `HTTP 200` — kayıt BAŞARILI oldu.
+`RequireApiKeyScope(AgentsAdmin)` MT-MCP-051'de doğrulandığı gibi ucun
+üzerinde VAR ama statik token bir DB-destekli API anahtarı olmadığı için
+bu denetime hiç girmiyor; `RequireRole(Admin)` de örnek uygulama hiçbir
+rol politikası kaydetmediği için no-op. Sonuç: MT-MCP-051'in düzeltmesine
+RAĞMEN, bu ortamda salt-okunur bir token'la KEYFİ bir dış MCP sunucusu
+(potansiyel olarak kötü niyetli tool'lar sunan) hâlâ eklenebiliyor. Kayıt
+sonrası temizlendi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 # 4 — Keşif, İzolasyon ve Sağlamlık (Faz 22) + § 5 kurulum
 
 ## MT-MCP-015 — Var olmayan bir MCP sunucusu kaydetmek AGENT KAYDINI ETKİLEMEZ
