@@ -64,6 +64,40 @@ Hepsi ilgili kayıt dosyasındadır. `HATA-S1-006` yanlış pozitif çıktı ve 
 Dosya 07 **hiç yeni kusur bulmadı** — 43/43 case geçti, yalnız stale spec
 metni düzeltmeleri yapıldı.
 
+🚨 **Faz B'de açılan yeni bulgular (oturum 14, dört şerit paralel):**
+`HATA-S1-021..023` (dosya 13 — 023 en yeni: `AesGcmContentProtector`
+`Unprotect`/`UnprotectBytes` yanlış anahtarla gelen ham
+`AuthenticationTagMismatchException`'ı yakalamıyor, jenerik mesajsız 500 ve
+loglanmayan `kid`) · `HATA-S2-001` (dosya 36) · `HATA-S3-001..002` (dosya 32)
+· **`HATA-S3-003` (dosya 34, Yüksek)** — `PUT /api/evals/{name}/cases`
+suite'teki **her** case'in id'sini sıfırlıyor (`EvalCaseInput` DTO'sunda
+`Id` yok → `SaveCasesAsync` hep `Guid.Empty`), bu yüzden aynı pencerede
+gerçek bir regresyon "Removed" sayılıp `--max-regressions 0` kapısını
+sessizce atlatabiliyor — kök neden `EvaluationContracts.cs`/`EvalEndpoints`
+satır düzeyinde tespit edildi, kayıt dosya 34'ün başında · `HATA-S4-001`
+(dosya 31). Hepsi ilgili kayıt dosyasındadır, hiçbiri düzeltilmedi (kural 1).
+
+⚠️ **Ortam kararsızlığı (ürün kusuru DEĞİL, oturum 14'te iki şeritte
+bağımsız gözlendi):** `ap-s3` ve `ap-s4`'te `samples/Tracon.Api` süreci
+`nohup`/`disown`/`setsid`'den bağımsız olarak sebepsiz "Application is
+shutting down..." ile öldü (istisna yok). `ap-s4` bir düzeltme buldu:
+`dotnet run` sarmalayıcısı yerine derlenmiş DLL'i doğrudan çalıştırmak
+(`dotnet artifacts/bin/Tracon.Api/release/Tracon.Api.dll --urls ...`)
+kararlı çalıştı. Sonraki oturumlar bunu bekleyip sık sağlık kontrolü
+yapmalı; kapanışta `docs/hafiza/`'ya taşınacak.
+
+🚨 **`SKILL.md` §7'nin sayım betiği kusurlu** — `K.glob("[0-2]*.md")` yalnız
+0/1/2 ile başlayan dosyaları görüyor, 30-39 aralığındaki aileleri (33, 34,
+36 dahil) hiç saymıyor. Doğru glob (`[0-9][0-9]*.md`, `DEVIR.md`/
+`00-KOSUM-PLANI.md` hariç) kullanılmalı. Kapanışta düzeltilmeli; o zamana
+kadar her ölçüm bu dosyayı elle veya düzeltilmiş glob'la koşmalı.
+
+🚨 **Yeni bir anahtar sızıntı örneği (oturum 14, `ap-s3`).** Bir ortam
+değişkeni hata ayıklamasında `ps eww <pid>` çalıştırıldı ve gerçek OpenAI
+anahtarı bu oturumun araç çıktısına düz metin yazıldı (dosya/log değil,
+yalnız transkript). §8'deki "beş sağlayıcı anahtarı tur boyunca düz metne
+çıktı, tur bitince döndürülmeli" kararını değiştirmiyor, ek bir somut örnek.
+
 🚨 **`HATA-S1-019` bu turun en ağır bulgusudur (Yüksek).** `UsePostgreSql`
 tüketicinin store kaydını `Replace` ile **sessizce** eziyor —
 `AGENTS.md`'nin "`TryAdd*` ile kaydet; tüketicinin kaydı her zaman kazanmalı"
@@ -247,12 +281,12 @@ Dosya 01'in oturum sınırları: `001..049` (33) · `050..099` (25) · `100..122
 
 Dağılım `00-KOSUM-PLANI.md` §3.1'dedir:
 
-| Şerit | Port | Şema | Oturum | Aileler | Durum (oturum 13) |
-|---|---|---|---|---|---|
-| `ap-s1` | 5081 | `mt_s1` | 19 | 13 · 19 · 04 · 18 · 10 · 08 | 🟡 sürüyor — aile 13: 74/144 case (MT-SEC-001..119), uygulama durdurulmuş halde devredildi. **Tamamlanmadı** — bu oturum tarafından dokunulmadı, ilerleyen bir oturum devam eder |
-| `ap-s2` | 5082 | `mt_s2` | 17 | 36 · 33 · 12 · 24 · 35 · 23 · 15 · 14 | 🚀 oturum 13'te arka plan agent'ı olarak başlatıldı (aile 36'dan) |
-| `ap-s3` | 5083 | `mt_s3` | 18 | 32 · 29 · 34 · 21 · 11 · 25 · 17 · 20 | 🚀 oturum 13'te arka plan agent'ı olarak başlatıldı (aile 32'den) |
-| `ap-s4` | 5084 | `mt_s4` | 18 | 31 · 16 · 30 · 22 · 09 · 27 · 26 · 28 · 06 | 🚀 oturum 13'te arka plan agent'ı olarak başlatıldı (aile 31'den) |
+| Şerit | Port | Şema | Aileler | Durum (oturum 14 sonu) |
+|---|---|---|---|---|
+| `ap-s1` | 5081 | `mt_s1` | 13 · 19 · 04 · 18 · 10 · 08 | ✅ **aile 13 KAPANDI** (142/142: 97 Geçti, 45 gerekçeli Beklemede — çoğu kural-1 kod donması çakışması, ayrıntı dosya 13 devir notunda). Sıradaki: `19-COK-MODLULUK-VE-SES.md`, henüz açılmadı. Uygulama durduruldu, commit `f721b229` |
+| `ap-s2` | 5082 | `mt_s2` | 36 · 33 · 12 · 24 · 35 · 23 · 15 · 14 | ✅ **aile 36 ve 33 KAPANDI** (48/48, 25/25). Sıradaki: `12-GOZLEMLENEBILIRLIK-MALIYET.md` (65 case, Playwright + canlı uygulama + gerçek OpenAI — yeni ortam kurulumu gerektirir), henüz açılmadı. Commit `93cb1a43` |
+| `ap-s3` | 5083 | `mt_s3` | 32 · 29 · 34 · 21 · 11 · 25 · 17 · 20 | ✅ **aile 32, 29 ve 34 KAPANDI** (40/40, 24/24, 46/46). Sıradaki: `21-DAYANIKLILIK-VE-IPTAL.md`, henüz açılmadı. Uygulama durduruldu, commit `00ca6328` |
+| `ap-s4` | 5084 | `mt_s4` | 31 · 16 · 30 · 22 · 09 · 27 · 26 · 28 · 06 | ✅ **aile 31 KAPANDI** (35/35). Aile 16 **kısmi**: 61/61 kayıtlı case Geçti (MT-JOB-001..085 + 090), MT-JOB-091'den devam (~37 case kaldı: Bölüm 8'in kalanı + 9-10). Uygulama AÇIK bırakıldı (port 5084, DLL doğrudan çalıştırılıyor — bkz. ortam kararsızlığı notu), commit `a6fc40ac` |
 
 `ap-s2`/`ap-s3`/`ap-s4` oturum 13'te `main`'e fast-forward edildi (Faz A
 kapanış commit'lerini almaları için) — kendi commit'leri yoktu, çakışma
