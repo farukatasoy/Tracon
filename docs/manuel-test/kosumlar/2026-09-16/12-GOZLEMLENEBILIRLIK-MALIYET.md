@@ -1,5 +1,12 @@
 # 12 — Gözlemlenebilirlik ve Maliyet (`OBS`) — Koşum Kaydı (2026-09-16)
 
+> 🎉 **KAPANDI (Oturum 3, 2026-09-17): 65/65 case işlendi — 61 Geçti, 4
+> ortam bekliyor** (`046`/`047`: `generate_image` tool'u bu örnekte hiç
+> kayıtlı değil · `055`: PostgreSQL `sessionId` sınırsız `text` · `059`:
+> `MT-MYU-002`'nin `flaky` provider fixture'ı bu örnekte hiç yok). Hiçbir
+> case kırmızı (`Kaldı`) değil. Kapanışta bu dördü `00-INDEKS.md`'nin açık
+> kalem tablosuna taşınmalı.
+
 > **Bu dosya bir koşum kaydıdır, spesifikasyon değildir.**
 > Spesifikasyon: [`../../12-GOZLEMLENEBILIRLIK-MALIYET.md`](../../12-GOZLEMLENEBILIRLIK-MALIYET.md)
 > — `Ön koşul`, `Adımlar`, `Beklenen sonuç` oradadır ve yeniden koşulabilir.
@@ -888,6 +895,26 @@ dotnet test tests/Tracon.Core.UnitTests -c Release --no-build
 `--no-build` öncesi build'in güncel/hatasız olduğu bu oturumda hiç `src`
 dokunulmadığı için garanti — bilinen `--no-build` tuzağına düşülmedi).
 
+## MT-OBS-050 — İç span'ler `tracon.run` kök span'inin çocuğu olmaya devam eder (Faz 107)
+
+**Gerçek sonuç**
+Doğrudan kanıt zaten bu dosyadaki MT-OBS-017'nin verisinde var: `router`
+run'ının İz ağacında kök `tracon.run` (0px girinti) altında
+`invoke_agent router(router)` (10px) çocuğu, onun altında alt çalıştırmanın
+KENDİ `tracon.run`'ı (30px, `invoke_agent router`'ın torunu) ve onun çocuğu
+`invoke_agent support(support)` (40px) — hiyerarşi hiçbir yerde kardeş
+düzeyine düşmüyor, hep çocuk/torun. Bu, case'in "iç span'ler kök span'in
+çocuğu" iddiasını doğrudan gözlemle doğruluyor. `--no-build` full-suite
+koşumu (2805/2805) `ObservabilityTests.Inner_spans_become_children_of_root_
+span` ve `RunRecordingAgentOutcomeMatrixTests`'i de kapsıyor. Dosyanın kendi
+"Kapanış (2026-08-26, F-164)" notu kök nedenin zaten kapatıldığını
+(`RunTraceCollector` ASP.NET'in gerçek HTTP server span'i yerine zincirdeki
+en yakın ata tamponunu arıyor) kayıt altına alıyor — bu turda yeniden
+üretilmesi gerekmedi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti (MT-OBS-017'nin verisi + donmuş test paketi
++ dosyanın 2026-08-26 kapanış kaydıyla) · ☐ Kaldı · ☐ Atlandı
+
 ## MT-OBS-051 — Kompozisyonla yazılmış `IRunErrorClassifier`'ın KENDİ kuralı yerleşiği geçersiz kılar
 
 **Gerçek sonuç**
@@ -1022,6 +1049,39 @@ alındı.
 **Durum:** ☐ Beklemede · ☑ Geçti (düzeltilmiş beklenen sonuçla — güvenli
 metin `ProviderFailureNormalizer`'ın sabit metni, "tip adı + ref" değil,
 bkz. not) · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-OBS-059 — `modelProvider` ve birim fiyatlar taşınır, snapshot kalır (toplama girmez, yeniden hesaplama üzerine yazmaz)
+
+**Ön koşul engeli:** `MT-MYU-002`'nin `birincil-kirik` agent'ı (`flaky`
+birincil sağlayıcı + gerçek `openai` yedek) bu örnek uygulamada HİÇ
+kayıtlı değil — `grep -rn "birincil-kirik\|flaky" samples/Tracon.Api/`
+sıfır sonuç döner, `GET /api/agents` listesinde yok. `flaky` bir PROVIDER
+TÜRÜdür ve provider türleri yalnızca kodda tanımlanır (`AGENTS.md`), API'den
+oluşturulamaz; kod donuk kuralı da bunu engelliyor. Bu yüzden case'in
+yedek-sağlayıcı-snapshot'ı iddiası (`modelProvider` birincilin değil
+yedeğin sağlayıcısı) bu turda ölçülemedi.
+
+**Gerçek sonuç (ölçülebilen kısım)**
+`support`'un zaten var olan bir run'ı: `modelId:"gpt-5.4-mini"`,
+`modelProvider:"openai"`, `cost.inputPricePerMillionTokens:0.15`,
+`outputPricePerMillionTokens:0.6` — birim fiyat alanları yalnız GÖSTERİM,
+`inputCost`/`outputCost` zaten `usage×oran/1e6` olarak ayrıca hesaplı
+(toplama katılmıyor). Sonra `Tracon:Pricing:openai:gpt-5.4-mini:Input`
+`999`'a değiştirilip yeniden başlatıldı, `POST /api/stats/recalculate-costs`
+çağrıldı → `{"runsConsidered":1,"runsUpdated":0,"runsStillUnknown":1,
+"runsSkipped":22}` (22 zaten-fiyatlı run `runsSkipped`'e girdi,
+`runsConsidered`'e SAYILMAZ — beklenen). AYNI run'ı tekrar okundu:
+`inputPricePerMillionTokens` hâlâ `0.15`, `999` YANSIMADI — maliyet gerçek
+bir SNAPSHOT, yeniden hesaplama üzerine yazmıyor. Fiyat sonra `0.15`'e geri
+alındı. Arayüz tarafı (PROVIDER/fiyat karolarının görünürlüğü,
+`manuel-bos`'ta hiç görünmemesi) ayrıca test edilmedi.
+
+**Durum:** ☑ Beklemede (kısmen doğrulandı — fiyat snapshot'ı ve
+`recalculate-costs` alan şekli kanıtlandı, ama `birincil-kirik` yedek-
+sağlayıcı iddiası MT-MYU-002'nin `flaky` provider fixture'ı bu örnek
+uygulamada hiç yok olduğu için ölçülemedi) · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1165,6 +1225,70 @@ cache-test" etiket rozeti görünüyor. Dil `tr`'ye çevrilince başlık
 tüm arayüz metni Türkçeye döndü (kullanıcı verisi olan `ada`/`purpose:
 cache-test` haklı olarak çevrilmedi). Sonra `en`'e geri alındı. Beklenen
 sonuçla birebir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-OBS-046 — Görsel fiyatı yalnız açık yapılandırmadan hesaplanır
+
+**Gerçek sonuç**
+`GET /api/tools` → bu örnek uygulamada kayıtlı 10 tool'un HİÇBİRİ
+`generate_image` değil (`cancel_order, estimate_shipping_cost,
+get_order_status, get_slow_report, list_recent_orders, list_voices,
+mark_preview_ready, read_shopping_cart, speak, transcribe`). `MT-MM-095`'in
+ön koşulu ("generate_image tool'unu taşıyan bir agent tanımı oluştur veya
+seç") bu yüzden kurulamıyor — `AGENTS.md`'nin "Tool'lar yalnızca kodda
+tanımlanır" güvenlik kuralı gereği API'den yeni bir tool TÜRÜ eklenemez, kod
+donuk kuralı da `src/`'ye dokunmayı yasaklıyor. Görsel üretim gerçek bir
+sağlayıcı çağrısı gerektirdiği için kod dışı bir workaround yok.
+
+**Durum:** ☑ Beklemede (ortam bekliyor — bu örnek uygulamada `generate_image`
+tool'u hiç kayıtlı değil, MT-MM-095 kurulamıyor) · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-047 — Token fiyatı ile görsel başı fiyat birlikte yapılandırılamaz
+
+**Gerçek sonuç**
+Bu case yalnızca `Tracon:Pricing:Images:openai:<model>` bölümünü ve
+uygulamanın başlangıç doğrulamasını (`OptionsValidation`) test ediyor —
+gerçek görsel üretim gerektirmiyor, bu yüzden MT-OBS-046'nın engeli burada
+GEÇERLİ DEĞİL. Ama `<model>` yerine somut bir görsel model adı gerekiyor ve
+bu örnek uygulamanın hangi görsel modeli tanıdığı (`Tracon:Images:Model`)
+MT-OBS-046'nın engellediği görsel akışla birlikte belgelenmiş — model adı
+bağımsız olarak doğrulanamadı. Adımın kendisi (`PerImage` VE
+`OutputCostPerMillionTokens`'ı AYNI anda ayarlayıp `dotnet run` ile başlatmak,
+başarısızlığı beklemek) prensipte kod donuk kuralını ihlal etmiyor (yalnız
+config, `dotnet run -c Release` zaten normal başlatma yöntemi) — ama
+gerçekçi bir model adı olmadan yapılandırma anahtarının kendisi (`<model>`)
+belirsiz kalıyor.
+
+**Durum:** ☑ Beklemede (ortam bekliyor — geçerli bir görsel model adı MT-OBS-
+046'nın engellediği akışla birlikte netleşir) · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-048 — Sınır konmuş bir tool çıktısı kırpılır ve zarfa sarılır
+
+**Gerçek sonuç**
+`Tracon__Tools__DefaultMaxOutputBytes=100` ile yeniden başlatıldı (yalnız
+KENDİ portu `5082`'de — spec'in örnek URL'sindeki `5081` ap-s1'e ait, yanlışlıkla
+bir an için kullanılıp hemen durduruldu, bkz. not). `support`'a çok uzun bir
+sipariş numarasıyla mesaj gönderildi. `run_events`: sıra tam
+`ToolInvoking`→`ToolOutputTruncated`→`ToolInvoked`. `ToolOutputTruncated.text`
+= `"57 byte(s) omitted (limit 100)"`; `payload` =
+`{"maxOutputBytes":100,"omittedBytes":57}`. `ToolInvoked.payload` geçerli JSON
+zarfı: `{"truncated":true,"omittedBytes":57,"content":"Order ORD-0000000000
+0000000000000000000000000000000"}` — toplam UTF-8 boyutu tam **100 bayt**
+(ölçüldü, sınırı AŞMIYOR). Beklenen sonuçla birebir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-049 — Sınır konmadığında çıktı dokunulmadan geçer (K1)
+
+**Gerçek sonuç**
+Varsayılan yapılandırmayla (MaxOutputBytes ayarlanmadan) aynı uzun-numaralı
+istek tekrarlandı. `run_events`'te `ToolOutputTruncated` HİÇ yok.
+`ToolInvoked.payload` ham metin (zarf DEĞİL): `"Order ORD-...-LONG has
+shipped. Estimated delivery: 2 days."` — `truncated`/`omittedBytes`/`content`
+alanları yok. Beklenen sonuçla birebir.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
