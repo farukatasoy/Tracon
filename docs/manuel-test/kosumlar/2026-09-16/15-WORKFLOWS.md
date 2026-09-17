@@ -340,3 +340,51 @@ f2f494c` — tam beklenen, `WorkflowAgentIdentity.Compute` çalıştırmadan
 bağımsız.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-WF-050 — `inceleme-zinciri` tanımla ve çalıştır, ağaç 3 satır
+
+**Gerçek sonuç**
+`FIX-WF-01` (yeniden `PUT` edildi, MT-WF-006'da silinmişti). `/tree`: 3
+satır — Workflow satırının `agentName` alanı `"inceleme-zinciri"` (workflow
+adı), 2 Agent alt satırı. Tam beklenen.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-WF-051 — Varsayılan `resume`: `checkpointId` verilmezse SON kontrol noktası kullanılır
+
+**Gerçek sonuç**
+TAMAMLANMIŞ bir çalıştırma boş gövdeyle sürdürüldü: `event: run` **YENİ**
+bir `runId` bildirdi, akış `WorkflowOutput` üretti. Tam beklenen —
+`resume` tamamlanmış bir çalıştırmayı bile kabul ediyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-WF-052 — Belirli bir `checkpointId` ile erken bir noktadan `resume`
+
+**Gerçek sonuç**
+İLK kontrol noktasından (`parentCheckpointId: null`) sürdürüldü: akış
+başarıyla başladı, tamamlandı (`event: done`), 56 `MessageDelta` + 13
+`ExecutorInvoked` olayı gözlendi — `summarizer`'nin yeniden çalıştığı
+doğrulandı. Tam beklenen.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-WF-053 — Tanım güncellendikten sonra ESKİ bir kontrol noktasından `resume` → uyumsuzluk hatası
+
+**Gerçek sonuç**
+Spec'in kendi kod-okuma düzeltmesi yeniden doğrulandı: `agentNames`'e
+`router` eklenip `PUT` edildikten sonra eski `runId`/`checkpointId` ile
+`resume` denendi. `event: run` → `event: event (RunFailed, "Workflow
+'inceleme-zinciri' cannot be resumed from this checkpoint: the graph's
+structure differs from when the checkpoint was written...")` →
+`event: done`. Birebir beklenen (K-228: İngilizce).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
