@@ -1476,18 +1476,24 @@ Kritik negatif senaryo — K-277 davranışı.
 
 **Ön koşul**
 - `kiraci-alfa` altında `paylasilan-oturum-id` adlı bir oturum zaten var
-  (`X-Tenant-Id: kiraci-alfa` ile `POST {APU}/api/agents/support/run -d
+  (`X-Tracon-Tenant: kiraci-alfa` ile `POST {APU}/api/agents/support/run -d
   '{"sessionId":"paylasilan-oturum-id","message":"merhaba"}'`).
+  🚨 **Düzeltildi (2026-09-17):** spec `X-Tenant-Id` yazıyordu —
+  `TraconTenancyOptions.HeaderName` varsayılanı `X-Tracon-Tenant`'tır
+  (dosya 13'ün 21 case'i zaten bunu kullanıyor). Ayrıca bu case'in
+  çalışması için sunucunun `Tracon:Tenancy:Enabled=true` VE
+  `Tracon:Tenancy:AllowHeaderResolution=true` ile başlatılması gerekir
+  (ikisi de varsayılan kapalı — skill'in bilinen tuzağı).
 
 **Adımlar**
-1. VARSAYILAN kiracı (`X-Tenant-Id` başlığı YOK) ile aynı oturum kimliğine
-   bağlan.
+1. VARSAYILAN kiracı (`X-Tracon-Tenant` başlığı YOK) ile aynı oturum
+   kimliğine bağlan.
 
 **Girilecek veri**
 ```bash
 python3 ~/tracon-manuel-test/voice_client.py --session paylasilan-oturum-id --token manuel-test-token-2026
-curl -s "$APU/api/sessions/paylasilan-oturum-id" -H "$APB" -H "X-Tenant-Id: kiraci-alfa" \
-     | python3 -c "import json,sys; print(len(json.load(sys.stdin).get('items', [])))"
+curl -s "$APU/api/sessions/paylasilan-oturum-id" -H "$APB" -H "X-Tracon-Tenant: kiraci-alfa" \
+     | python3 -c "import json,sys; print(len(json.load(sys.stdin).get('messages') or []))"
 ```
 
 **Beklenen sonuç**
@@ -1591,10 +1597,14 @@ kopmamalıdır.
 **Girilecek veri**
 ```bash
 python3 ~/tracon-manuel-test/voice_client.py --session manuel-ws-bos-commit \
-  --send-audio-before-start --audio-seconds 0.0 --no-commit
-# Not: bu komut once "commit"i ELLE gondermeden BOS bir ses gonderir; ardindan
-# aracin kendisi commit gonderir. Boş parca (0 saniye) VoiceUtteranceBuffer'in
-# HasAudio=false durumunu tetikler.
+  --send-audio-before-start --audio-seconds 0.0
+# Not: bu komut BOS bir ses gonderir, ardindan aracin kendisi commit gonderir.
+# Boş parca (0 saniye) VoiceUtteranceBuffer'in HasAudio=false durumunu tetikler.
+# 🚨 Düzeltildi (2026-09-17): spec ayrıca `--no-commit` taşıyordu — bu bayrak
+# istemcinin commit'i HİÇ göndermemesine yol açar (kod: `if not
+# args.no_commit`), notun "araç commit gönderir" iddiasıyla ÇELİŞİYORDU.
+# `--no-commit` olmadan koşulunca gerçekten commit gidiyor ve senaryo (boş
+# parça + commit → tur üretilmez) doğru gözlenebiliyor.
 ```
 
 **Beklenen sonuç**

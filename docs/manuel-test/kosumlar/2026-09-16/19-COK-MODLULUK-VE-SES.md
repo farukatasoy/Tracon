@@ -511,4 +511,231 @@ MT-MM-047 denemesi) birebir eşleşiyor. MT-MM-040'ın operatör çağrısı (ay
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
+## MT-MM-059 — Python WebSocket istemcisini kur
+
+**Gerçek sonuç**
+`pip3 install websockets` zaten kuruluydu (17.0.1). `voice_client.py`
+`~/tracon-manuel-test/` altına yazıldı, `--help` hatasız argüman listesini
+gösterdi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-062 — `UseVoiceConversation()` açıksa ama sağlayıcı yoksa `501`; hiç çağrılmadıysa `404`
+
+**Gerçek sonuç**
+Yalnız kaynak/otomatik test referansı — MT-MM-031'de zaten kapsandı, ayrı
+doğrulama gerekmiyor (spec'in kendi notu).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-063 — WebSocket olmayan bir isteğe `400` döner
+
+**Gerçek sonuç**
+`HTTP: 400`, başlık "WebSocket upgrade required" — detay "This endpoint can
+only be used over WebSocket...".
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-064 — Token doğruysa alt protokolde KABUL edilir, `ready` çerçevesi gelir
+
+**Gerçek sonuç**
+`BAGLANDI, kabul edilen alt protokol: tracon.voice.v1`. İlk `<<` çerçevesi
+`{"type": "ready", "agent": "voice-assistant", "sessionId":
+"manuel-ws-token-ok", "persistAudio": false}` — beklenen alanlarla birebir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-065 — Token YANLIŞSA el sıkışma REDDEDİLİR
+
+**Gerçek sonuç**
+`BAGLANTI REDDEDILDI: server rejected WebSocket connection: HTTP 401` —
+sunucu yanlış token hakkında hiçbir ipucu vermedi (yalnız `HTTP 401`).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-066 — 🚨 Token SORGU DİZESİNDE gönderilirse KABUL EDİLMEZ
+
+**Gerçek sonuç**
+`--send-token-in-query --no-token` ile token yalnız `?token=...` sorgu
+dizesindeyken alt protokol listesi yalnız `tracon.voice.v1` kaldı. Bağlantı
+`HTTP 401` ile REDDEDİLDİ — sunucu sorgu dizesini okumuyor, güvenlik sınırı
+doğru.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-067 — Başka kiracının oturumuna bağlanmak o kaydı GÖRMEZ; kendi kiracısında taze bir oturum açılır
+
+**Gerçek sonuç — spec'te iki bayat ayrıntı düzeltildi (gerekçe spec dosyasında).**
+İlk deneme `X-Tenant-Id` başlığıyla (spec'in yazdığı gibi) çalıştırıldı ve
+kiracı ayrımı gözlenmedi — `POST .../support/run` bile `X-Tenant-Id:
+kiraci-alfa` ile çağrılınca satır `tenant_id='default'` olarak yazıldı.
+Kaynağa bakıldı: `TraconTenancyOptions.HeaderName` varsayılanı
+`X-Tracon-Tenant`'tır (`src/Tracon.AspNetCore/.../HttpTenantContext.cs`),
+`X-Tenant-Id` DEĞİL — dosya 13'ün 21 case'i zaten doğru başlığı kullanıyor,
+yalnız bu case'in metni bayat kalmış. Ayrıca çalışan `ap-s1` süreci
+`Tracon:Tenancy:Enabled`/`AllowHeaderResolution` OLMADAN başlatılmıştı
+(varsayılan kapalı); uygulama bu iki bayrakla yeniden başlatıldı (env
+değişkeni, `user-secrets`'a yazılmadı — skill §1.2). Düzeltilen başlıkla
+YENİDEN koşuldu:
+- Ön koşul: `X-Tracon-Tenant: kiraci-alfa` ile `POST .../support/run` →
+  DB'de `tenant_id='kiraci-alfa', agent_name='support'` (doğrulandı,
+  `psql`).
+- WS bağlantısı (varsayılan kiracı, başlık YOK) → `ready` çerçevesi hemen
+  geldi, tam beklendiği gibi.
+- `GET /api/sessions/paylasilan-oturum-id` `X-Tracon-Tenant: kiraci-alfa`
+  ile → `tenantId=kiraci-alfa, agentName=support, msgCount=2` (yalnız
+  "merhaba" turu — WS bağlantısı bu kayda HİÇ dokunmadı).
+- DB'de iki AYRI satır doğrulandı: `(id, tenant='kiraci-alfa',
+  agent='support')` ve `(id, tenant='default', agent='voice-assistant')` —
+  WS bağlantısı kendi kiracısında TAZE bir oturum açtı, spec'in vaat ettiği
+  tam olarak bu.
+- 🚨 Bu case'in kendi ölçümü sırasında ayrıca `~1 saat 20 dakika önceden
+  kalma bir DB satırı` bulundu (`tenant_id='kiraci-alfa'`, `created_at`
+  bu oturumdan çok önce) — önceki bir oturumun bu case'in ön koşulunu
+  koşup yarıda kaldığının kanıtı; iş kaybı yok (yalnız DB state, dosyaya
+  hiçbir şey yazılmamıştı), temizlenip yeniden koşuldu.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-070 — Uçtan uca bir tur
+
+**Gerçek sonuç**
+Sıra: `ready` → `transcript` (`final:true`) → `runStarted` → `text` deltaları
+→ `audioStart` → ikili çerçeveler → `audioEnd` → (ikinci tur `text` +
+`audioStart`/`audioEnd` — model yanıtı iki cümleye bölündüğü için `speak`
+iki kez tetiklendi, sıra bozulmadı) → `done` (`cancelled:false, turn:1`).
+`transcript.text` beklendiği gibi anlamsız (`"[tone]"`) — kusur değil.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-071 — Her tur normal bir `runs` satırı üretir
+
+**Gerçek sonuç**
+`SELECT ... FROM runs WHERE id='01a0ad5c-...'` → `status=1` (Completed),
+`agent_name='voice-assistant'`, `model_id='gpt-5.4-mini'`,
+`input_tokens=442`, `output_tokens=25`, `session_id='manuel-ws-tur-1'` —
+hepsi pozitif ve beklenen.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-072 — İkinci `start` REDDEDİLİR
+
+**Gerçek sonuç**
+Gözlenen davranış: **`error` çerçevesi** — `"The conversation is already
+started; the agent does not change during the connection."` Bağlantı
+KAPANMADI: istemci `stop` çerçevesini sorunsuz gönderebildi (sunucu
+kapatmış olsaydı `ws.send` bir `ConnectionClosed` fırlatırdı — fırlatmadı).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-073 — Ses göndermeden `commit`
+
+**Gerçek sonuç — spec'in örnek komutu düzeltildi (gerekçe spec dosyasında).**
+Spec'in verdiği `--no-commit` bayrağıyla istemci commit'i HİÇ göndermiyordu
+(notla çelişiyordu); bayraksız yeniden koşuldu. `ready` sonrası `{"type":
+"idle"}` geldi (Listening durumu), ardından hiçbir `transcript`/
+`runStarted`/`done` gelmeden 8 saniyede zaman aşımına uğradı — beklenen
+davranış tam olarak bu.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-074 — Bilinmeyen `inputFormat`
+
+**Gerçek sonuç**
+İlk çerçeve `{"type": "error", "message": "Unknown audio format: 'mp3'."}`.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-075 — Olmayan bir agent adıyla `start`
+
+**Gerçek sonuç**
+`{"type": "error", "message": "There is no agent named
+'yok-boyle-bir-agent'."}` — agent adını içeriyor. Bağlantı hemen kapanmadı,
+`stop` ile düzgün kapatıldı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-078 — Kesinti (`cancel`) çalıştırmayı `Canceled` yapar
+
+**Gerçek sonuç**
+İki deneme yapıldı çünkü sonuç yanıt UZUNLUĞUNA bağlı: `--cancel-on-audio-start`
+cancel'ı İLK `audioStart`ta gönderiyor, ve kısa bir tek-cümlelik yanıtta metin
+akışı `audioStart`tan ÖNCE zaten bitiyor — bu durumda çalıştırma zaten
+`Completed` olarak bitmiş oluyor (cancel'ın iptal edecek bir şeyi kalmıyor).
+- **1. deneme** (`manuel-ws-kesinti-1`, kısa yanıt "How can I help?"): metin
+  akışı `audioStart`tan önce tamamlanmış, `runs.status=1` (Completed) kaldı —
+  bu bir KUSUR DEĞİL, `RespondAsync`'in `RunStreamingAsync` döngüsü zaten
+  bitmiş demek (kaynak: `VoiceConversationDriver.cs:645-671`). Geçmişe yine
+  de kesinti notu eklendi (WS katmanı doğru davrandı), yalnız SQL beklentisi
+  bu senaryoda karşılanamaz.
+- **2. deneme** (`manuel-ws-kesinti-2`, metin akışı `audioStart` sırasında
+  HÂLÂ sürüyordu — son delta "Please" idi, cümle yarım kaldı): `runs.status=3`
+  (Canceled) — TAM beklenen. `done` çerçevesi `cancelled:true`. Geçmişteki
+  son mesaj: `"I couldn't transcribe that audio. Please\n\n[The response was
+  interrupted by the user.]"` — spec'in beklediği dizgi TÜRKÇE
+  (`[Yanit kullanici tarafindan kesildi.]`), gerçek İNGİLİZCE; bu K-228'in
+  bilinen bayat-Türkçe-beklenti örüntüsü, yeni bir kusur değil.
+- **Sonuç:** ürün davranışı doğru; case'in `--cancel-on-audio-start`
+  tetikleyicisi kısa yanıtlarda flaky olabilir, spec'e bir not eklenebilir
+  (kapanışta değerlendirilebilir, kod donuk olduğu için burada düzeltilmedi).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-079 — `MaxConcurrentConnectionsPerTenant` sınırı
+
+**Gerçek sonuç**
+5 arka plan bağlantısının (`manuel-ws-sinir-1..5`) hepsi `ready` aldı ve açık
+kaldı. 6.'sı (`manuel-ws-sinir-6`, ön planda) `BAGLANTI REDDEDILDI: server
+rejected WebSocket connection: HTTP 429` — el sıkışma tam 5'te reddedildi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-080 — Ses VARSAYILAN olarak SAKLANMAZ
+
+**Gerçek sonuç**
+`ready` çerçevesinde `"persistAudio": false`. `done` çerçevesinde
+`attachmentId` alanı hiç yok (iki ayrı koşumda da). `GET
+/api/attachments?sessionId=manuel-ws-nopersist` → `0`.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-081 — `PersistAudio` açıkken YALNIZ agent'ın sesi eke yazılır
+
+**Gerçek sonuç**
+Uygulama `Tracon:Voice:Conversation:PersistAudio=true` ile yeniden başlatıldı
+(env değişkeni, `user-secrets`'a yazılmadı). `ready` çerçevesi
+`"persistAudio": true`. `done` çerçevesi `attachmentId` DOLU. `GET
+/api/attachments?sessionId=manuel-ws-persist` TAM OLARAK 1 ek listeledi,
+`mediaType: "audio/mpeg"` — kullanıcının sinüs tonu hiçbir ek olarak
+görünmedi. Geri alındı: uygulama bayraksız yeniden başlatıldı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-082 — `voice_sessions` kaydı yazılır
+
+**Gerçek sonuç**
+Hem HTTP (`GET /api/voice/sessions?sessionId=manuel-ws-tur-1`) hem SQL:
+`turns=1`, `endReason`/`end_reason='Client'/0`, `input_seconds=1.5`,
+`output_chars=106` (benim MT-MM-070 turum) — ham ses baytı ne HTTP gövdesinde
+ne SQL sütunlarında var. (Aynı session id için 01:02 UTC'den kalma İKİNCİ bir
+satır daha bulundu — önceki yarıda kalmış oturumun aynı senaryoyu daha önce
+koştuğunun ek kanıtı; iki satır da kendi içinde tutarlı, karışıklık yok.)
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-083 — Ham PCM çözüme WAV başlığıyla gider
+
+**Gerçek sonuç (izlek C)**
+`VoiceUtteranceBufferTests` sınıfı `tests/Tracon.Core.UnitTests/Voice/`
+altında mevcut. `dotnet test ... --filter "FullyQualifiedName~..."` çalıştı
+ama 🚨 **filtre bu ortamda YOK SAYILDI** (`Microsoft.Testing.Platform`
+uyarısı: "VSTest-specific properties are set but will be ignored" —
+`VSTestTestCaseFilter` artık desteklenmiyor) — bu yüzden TÜM
+`Tracon.Core.UnitTests` paketi koştu: **2805/2805 geçti, 0 başarısız**
+(5.6s). Hedef sınıf bu kümenin içinde ve set genelinde hiçbir başarısızlık
+yok, dolayısıyla case'in bar'ı karşılanıyor; filtre sözdiziminin bu test
+runner'ında değiştiği ayrı bir tooling notu (kapanışta spec'e eklenebilir).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
 ---
