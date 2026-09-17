@@ -2029,18 +2029,27 @@ tool'un **paketten** akan analyzer ile derlendiğini ve gerçekten
 - Yerel NuGet feed hazır (`dotnet pack Tracon.src.slnf -c Release`).
 
 **Adımlar**
-1. `python3 scripts/kapi.py test --proje Tracon.Package.Tests --sinif ConsumerRunTests` çalıştır.
+1. `python3 scripts/kapi.py test --proje Tracon.Package.Tests --sinif '*ConsumerRunTests*'` çalıştır.
 
 **Girilecek veri**
 ```bash
 cd /Users/farukatasoy/Desktop/projects/Tracon
-python3 scripts/kapi.py test --proje Tracon.Package.Tests --sinif ConsumerRunTests
+python3 scripts/kapi.py test --proje Tracon.Package.Tests --sinif '*ConsumerRunTests*'
 ```
+
+🚨 **`--sinif` joker karakter GEREKTİRİR** (`docs/hafiza/test-kosum-tuzaklari.md`):
+çıplak sınıf adı (`ConsumerRunTests`) tam nitelikli ada
+(`Tracon.Package.Tests.ConsumerRunTests`) eşleşmez, `Zero tests ran` sessizce
+döner. Düzeltildi 2026-09-17, ap-s2.
 
 **Beklenen sonuç**
 - Test **yeşil** biter.
 - Alt sürecin `stdout`'u `OK run=<guid> events=<n> tools=1` satırını taşır,
   `n > 0`.
+- İlk koşumda `TemplateFixture`'ın kendi `dotnet pack Tracon.src.slnf`'i
+  soğuk önbellekle **birkaç dakika** sürebilir (20 dakikalık zaman aşımı bu
+  yüzden geniş tutulmuş) — bu süre boyunca ilerleme çubuğu `[+0/x0/?0]`
+  gösterir, DONMUŞ değildir; erken kesmeyin.
 
 ---
 
@@ -2074,7 +2083,7 @@ cp src/Tracon.Core/Tracon.Core.csproj /tmp/Core.csproj.orig
 sed -i '' "s/Condition=\"'\$(TargetFramework)' == 'net10.0'\"/Condition=\"'\$(TargetFramework)' == 'net99.0'\"/" \
   src/Tracon.Core/Tracon.Core.csproj
 
-python3 scripts/kapi.py test --proje Tracon.Package.Tests --sinif ConsumerRunTests
+python3 scripts/kapi.py test --proje Tracon.Package.Tests --sinif '*ConsumerRunTests*'
 
 # geri al -- touch SART, aksi halde mtime yuzunden bir onceki (sahte kusurlu)
 # derleme sessizce yeniden kullanilir (docs/hafiza/test-kosum-tuzaklari.md)
@@ -2128,7 +2137,7 @@ open(p, 'w').write(s)
 sed -i '' 's#<PackageReference Include="Google.GenAI" />#<PackageReference Include="Google.GenAI" />\n    <PackageReference Include="Humanizer.Core" />#' \
   src/Tracon.Google/Tracon.Google.csproj
 
-python3 scripts/kapi.py test --proje Tracon.Package.Tests --sinif TransitiveDependencyTests
+python3 scripts/kapi.py test --proje Tracon.Package.Tests --sinif '*TransitiveDependencyTests*'
 
 cp /tmp/Directory.Packages.props.orig Directory.Packages.props
 cp /tmp/Google.csproj.orig src/Tracon.Google/Tracon.Google.csproj
@@ -2249,11 +2258,28 @@ Test run summary: Failed!
   succeeded: 0
 ```
 
+**Gerçek sonuç (2026-09-17, ap-s2)**
+```
+Build succeeded. 0 Error(s)
+Test run summary: Failed!
+  total: 99
+  failed: 97
+  succeeded: 0
+  skipped: 2
+```
+🚨 `RunStoreContract` 2026-08-24'ten bu yana büyümüş (88 → 99). 2 atlanan
+case opsiyonel `IRunScoreStore`'a bağlı (`CreateScoreStoreAsync()` override
+edilmezse skorla ilgili iki case atlanır) — `IRunStore`'un 15 zorunlu
+metoduna dahil değil, kusur değil.
+
 **Beklenen sonuç**
 - `dotnet build` **sıfır hata** ile biter — sözleşme normal bir NuGet
   tüketicisinden derlenebilir.
-- Suite koşar ve **kırmızıdır** (88/88 başarısız), her biri
-  `System.NotSupportedException` ile — derleme zamanı değil çalışma zamanı hatası.
+- Suite koşar ve **kırmızıdır** (opsiyonel skor senaryoları hariç tüm
+  case'ler başarısız), her biri `System.NotSupportedException` ile —
+  derleme zamanı değil çalışma zamanı hatası. 🚨 Tam sayı sabitlenmez, suite
+  büyüdükçe değişir (ölçülen: 2026-08-24'te 88/88, 2026-09-17'de 97/99 + 2
+  opsiyonel atlama).
 
 ---
 
@@ -2295,6 +2321,17 @@ Test run summary: Passed!
   failed: 0
   succeeded: 88
 ```
+
+**Gerçek sonuç (2026-09-17, ap-s2)**
+```
+Build succeeded. 0 Warning(s), 0 Error(s)
+Test run summary: Passed!
+  total: 99
+  failed: 0
+  succeeded: 99
+```
+🚨 Sayı 88 → 99 büyümüş (aynı `RunStoreContract` tabanı, bkz. MT-TEST-074) —
+kusur değil, kabul kriteri (tamamı yeşil) hâlâ geçerli.
 
 **Beklenen sonuç**
 - Derleme sıfır uyarı/hata ile biter.
@@ -2488,7 +2525,10 @@ dotnet test samples/Tracon.Samples.CustomModelProvider.Tests -c Release
 ```
 
 **Beklenen sonuç**
-- İkisi de geçer (PostgreSQL ve SQL Server aynı kod yolunu koşar, container ister).
+- 🚨 İkisi de geçer (önceki metin "PostgreSQL ve SQL Server" diyordu, ama
+  komut `Tracon.Core.UnitTests` (bellek içi) ve `Tracon.Sqlite.
+  IntegrationTests`'i çağırıyor — düzeltildi 2026-09-17, ap-s2, kopyala-
+  yapıştır kalıntısıydı).
 - `ContractCoverage.MissingDerivedTypes` her çağrıda bir **aile adı** alır;
   aile adı almayan aşırı yükleme yoktur. Bir depolama tüketicisi, Tracon
   sağlayıcı sözleşmesi yayınladı diye kırılamaz.
@@ -2582,7 +2622,12 @@ python3 scripts/kapi.py test --proje Tracon.Core.UnitTests --sinif '*JobWorkerBa
 ```
 
 **Beklenen sonuç**
-- Bir test geçer.
+- 🚨 Dört test geçer (önceki beklenti "bir test" diyordu; sınıf büyümüş —
+  düzeltildi 2026-09-17, ap-s2:
+  `StopAsync_waits_for_a_leased_job_to_release_its_concurrency_slot` ·
+  `A_full_lane_does_not_block_the_default_lanes_job` ·
+  `A_worker_scoped_to_one_lane_never_leases_another_lane` ·
+  `A_throwing_handlers_own_message_never_reaches_jobs_error_message`).
 - `StopAsync`, çalışan handler serbest bırakılana kadar tamamlanmaz.
 - Handler tamamlanınca worker slotu serbest bırakır; dispose edilmiş
   `SemaphoreSlim` için `ObjectDisposedException` veya süreç çöküşü oluşmaz.
@@ -2704,7 +2749,7 @@ dotnet build "$TMP/apg" -c Release
   görünür.
 - `dotnet build` **`0 Error(s)`** ile biter — uyarı derlemeyi kırmaz.
 
-### MT-TEST-089 — Nesne parametreli bir tool metodu TRC0003 hatası üretir; mesaj iç içe nesnenin ifade edilemediğini ve kaçış yolunu adıyla söyler (Faz 125)
+### MT-TEST-089 — Desteklenmeyen bir parametre tipi TRC0003 hatası üretir; mesaj desteklenen tipleri ve kaçış yolunu adıyla söyler (Faz 125)
 
 | | |
 |---|---|
@@ -2712,12 +2757,25 @@ dotnet build "$TMP/apg" -c Release
 | **Önem** | Orta |
 | **İlgili faz** | Faz 125 |
 
+🚨 **Başlık ve senaryo 2026-09-17'de (ap-s2) düzeltildi (kural 1.1 istisnası,
+ürün kusuru DEĞİL — generator'a sonradan bir yetenek eklenmiş).** Eski
+önerme ("nesne parametresi TRC0003 verir, nested object hiç ifade
+edilemez") artık **yanlış**: `ToolDiagnostics.cs`'teki TRC0003 mesajının
+kendisi bugün "a supported object - a public record or class with a single
+public constructor, up to 3 nested object levels deep (see TRC0011,
+TRC0012)" diyor — basit bir `record` parametresi (`OrderFilter(string,
+int)`) artık **desteklidir** ve TRC0003 yerine `TRC0011` verir (tip
+`JsonSerializerContext`'e kayıtlı değilse). Gerçek `TRC0003`'ü tetiklemek
+için GENUINE desteklenmeyen bir tip gerekir (örn. `Dictionary<string,
+string>`).
+
 **Ön koşul**
 - Şablon kurulu (MT-TEST-001).
 
 **Adımlar**
 1. En yalın birleşimle bir proje üret (MT-TEST-002).
-2. `Tools/OrderTools.cs`'e nesne parametreli, `[TraconTool]` işaretli yeni bir metot ekle.
+2. `Tools/OrderTools.cs`'e desteklenmeyen tipte (örn. `Dictionary<string,
+   string>`) parametreli, `[TraconTool]` işaretli yeni bir metot ekle.
 3. Projeyi derle.
 
 **Girilecek veri**
@@ -2727,21 +2785,27 @@ dotnet new tracon-api -n ApgDeneme2 -o "$TMP/apg2" \
   --persistence memory --provider openai --ui false --TraconVersion "$SURUM"
 
 # Tools/OrderTools.cs içine ekle:
-#   public sealed record OrderFilter(string Status, int MinAmount);
-#
 #   [TraconTool("search_orders", "Searches orders.")]
-#   public static string SearchOrders(OrderFilter filter) => filter.Status;
+#   public static string SearchOrders(Dictionary<string, string> filter) => filter.Count.ToString();
 
 dotnet build "$TMP/apg2" -c Release
 ```
 
 **Beklenen sonuç**
-- Çıktıda `error TRC0003: ... is not supported by the generator. Supported
-  types: ... The generator also never expresses a nested object, or a
-  minimum, maximum, length, or pattern constraint, on any parameter. For
-  another type, or a constrained schema, register manually with
+- Çıktıda `error TRC0003: Parameter 'filter' (type
+  'System.Collections.Generic.Dictionary<string, string>') ... is not
+  supported by the generator. Supported types: primitive types, string,
+  Guid, DateTime(Offset), enum, arrays/IReadOnlyList<T> of these,
+  CancellationToken, and a supported object - a public record or class with
+  a single public constructor, up to 3 nested object levels deep (see
+  TRC0011, TRC0012). For another type, register manually with
   'AddTool(AIFunctionFactory.Create(...))'.` görünür.
 - `dotnet build` hata ile biter (`0` çıkış kodu **değil**).
+- **Ayrıca not:** basit bir `record` (`OrderFilter(string Status, int
+  MinAmount)`) parametresi artık TRC0003 vermez — bunun yerine
+  `TRC0011: ... is not declared with [JsonSerializable(typeof(...))] on the
+  JsonSerializerContext...` verir (yine derleme hatası, ama farklı
+  kod/mesaj) — nested object desteği (3 seviyeye kadar) sonradan eklendi.
 
 ---
 
