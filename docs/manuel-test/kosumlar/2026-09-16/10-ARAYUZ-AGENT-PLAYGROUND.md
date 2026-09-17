@@ -29,7 +29,7 @@ sıfırdan düşürülüp yeniden oluşturuldu (aile 08'in verisi temiz atıldı
 
 ## Devir notu
 
-**Oturum 1-8 bitti: MT-UIAG-001..042 koşuldu (38 Geçti · 2 Kaldı · 2 Atlandı).**
+**Oturum 1-9 bitti: MT-UIAG-001..043 koşuldu (39 Geçti · 2 Kaldı · 2 Atlandı).**
 Uygulama AÇIK bırakıldı (port 5081, arka planda `launch_s1.py` ile başlatıldı,
 PID script'i `/private/tmp/.../scratchpad/s1-app.pid`de) — sonraki oturum
 sıfırdan başlatmak yerine devam edebilir, yalnız `curl .../api/diagnostics`
@@ -914,6 +914,26 @@ text is deliberately not recorded."` — engellenen metnin kendisi mesajda
 YOK. `GET /api/runs/{id}` ile doğrulandı: `error.type: "content_blocked"`
 (spec'in "runs.error_type" kısaltması bu alana karşılık geliyor),
 `error.class: "ContentBlocked"`.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-UIAG-043 — Sağlayıcı hatası artık SSE `error` çerçevesi üretir; tur SESSİZCE "tamamlandı" görünmez (K-296, düzeltildi)
+
+**Gerçek sonuç — beklendiği gibi, fix hâlâ tutuyor (regresyon YOK). Ön
+koşul düzeltildi (`support` düzenlenemez, bkz. not).**
+Spec'in önerdiği "support'u geçici düzenle" yolu `MT-UIAG-016`'nın kanıtladığı
+409 nedeniyle imkânsız; bunun yerine atılabilir `manuel-provider-hata-test`
+(openai / `gecersiz-model-adi-xyz`) oluşturuldu, test edildi, sonra silindi
+(spec düzeltildi). `Merhaba` gönderilince tur KISA SÜREDE `failed` göründü —
+turun İÇİNDE kırmızı hata kutusu: `"ProviderInvocationException: The model
+provider request failed."` (mesaj metni `SafeErrorText` ile sabitlenmiş,
+dosya 05'in belgelediği kasıtlı davranış — istisna TİPİ spec'in örneğinden
+[`ClientResultException`] farklı ama aynı ailede). Panelin ÜSTÜNDE alert
+YOK (`0` ölçüldü). `GET /api/runs/{id}`: `status: Failed`, `error.type:
+"upstream_error"` — arayüzle TUTARLI, sessiz "tamamlandı" YOK. K-296'nın
+düzeltmesi hâlâ geçerli.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
