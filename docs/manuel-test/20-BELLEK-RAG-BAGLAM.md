@@ -1053,8 +1053,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/knowledge/manuel-bilgi/doc
 
 **Beklenen sonuç**
 - `HTTP: 400`.
-- `detail` tam olarak: `Ya text ya da chunks verilmelidir; ikisi birden ya da
-  hicbiri olamaz.`
+- `detail` tam olarak: `Either text or chunks must be given; not both, and
+  not neither.` (K-228 — çalışma anı mesajları İngilizce; bu case'in
+  Türkçe metni 2026-09-18'de koşum sırasında düzeltildi.)
 
 ---
 
@@ -1079,7 +1080,8 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/knowledge/manuel-bilgi/doc
 ```
 
 **Beklenen sonuç**
-- `HTTP: 400`, aynı `detail` metni (`MT-MEM-021` ile aynı kural, ters uç).
+- `HTTP: 400`, aynı `detail` metni (`MT-MEM-021` ile aynı kural, ters uç,
+  İngilizce — K-228).
 
 ---
 
@@ -1107,8 +1109,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/knowledge/kurumsal%20bilgi
 
 **Beklenen sonuç**
 - `HTTP: 400`.
-- `detail` tam olarak: `'kurumsal bilgi' gecerli bir koleksiyon adi degil.
-  Yalniz harf, rakam, alt cizgi ve tire icerebilir.`
+- `detail` tam olarak: `'kurumsal bilgi' is not a valid collection name. It
+  may only contain letters, digits, underscores, and hyphens.` (K-228 —
+  bu case'in Türkçe metni 2026-09-18'de koşum sırasında düzeltildi.)
 
 ---
 
@@ -1137,8 +1140,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/knowledge/manuel-bilgi/doc
 
 **Beklenen sonuç**
 - `HTTP: 400`.
-- `detail` tam olarak: `Parca 0 gomu uzunlugu (2) depo boyutuyla (1536)
-  eslesmiyor.`
+- `detail` tam olarak: `Chunk 0 embedding length (2) does not match the
+  store dimension (1536).` (K-228 — bu case'in Türkçe metni 2026-09-18'de
+  koşum sırasında düzeltildi.)
 - `document_embeddings`'te `yanlis-boyut` için hiçbir satır yazılmaz (kısmi
   yazma yok — `UpsertAsync` tek transaction).
 
