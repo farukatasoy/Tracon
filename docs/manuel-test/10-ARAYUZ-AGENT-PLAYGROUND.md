@@ -1442,12 +1442,15 @@ DEĞİŞMEDİ — yalnız backend artık işleyicinin beklediği çerçeveyi gö
 | **İlgili karar** | K-296 |
 
 **Ön koşul**
-- `playground/support` açık, yeni sohbet.
 - Katalogda geçersiz bir model adı taşıyan bir agent (K-296'nın orijinal
   ölçümünde kullanılan türden — örn. sağlayıcının `404 model_not_found`
-  döneceği bilinen bir ad) — yoksa geçici olarak `agents/support/edit`'ten
-  `Model` alanını `gecersiz-model-adi-xyz` yap, kaydet, case bitince
-  `gpt-5.4-mini`'ye GERİ AL.
+  döneceği bilinen bir ad). **Doküman düzeltmesi (2026-09-16):** spec'in
+  önerdiği "geçici olarak `agents/support/edit`'ten Model'i değiştir"
+  yolu ARTIK GEÇERSİZ — `support` kod kökenli (`MT-UIAG-016`'da kanıtlandı:
+  düzenleme isteği `409 Code-defined agent cannot be modified` ile
+  reddedilir). Bunun yerine geçici, atılabilir bir DB-kökenli agent
+  oluşturulur (`Ad: manuel-provider-hata-test`, `Sağlayıcı: openai`,
+  `Model: gecersiz-model-adi-xyz`), test edilir, sonra silinir.
 
 **Adımlar**
 1. `Merhaba` gönder.
