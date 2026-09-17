@@ -244,6 +244,81 @@ kod ilerledi) birebir tutarlı — yeniden doğrulandı, yeni bir bulgu değil.
 
 ---
 
+## MT-RET-030 — Günlük kota aşıldığında `429` ve anlaşılır `ProblemDetails`
+
+**Gerçek sonuç**
+`maxRuns:1` kotası kaydedildi. İlk çağrı `200`. İkinci çağrı `429 Too Many
+Requests`: `{"quotaMetric":"Runs","quotaPeriod":"Daily","quotaLimit":1,
+"quotaUsed":1,"quotaResetsAt":"2026-09-18T00:00:00...Z"}` (gece yarısı UTC),
+`Retry-After: 37214` (saniye, sayısal) — tam beklenen.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-RET-031 — Kullanım sayaçları çalıştırma bittiğinde DÖRT satır üretir
+
+**Gerçek sonuç**
+Spec'in kendi düzeltmesi (`.usage[]`, kiracı-geneli `agentName:""`) doğru —
+dört kombinasyon da mevcut: `("", Daily)`, `("", Monthly)`,
+`("support", Daily)`, `("support", Monthly)`, hepsinin `runs≥1`.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-RET-032 — Kota aşımında DEVAM EDEN çalıştırma KESİLMEZ
+
+**Gerçek sonuç**
+Kota zaten doluyken yeni bir istek → `429` (MT-RET-030'un tekrarı, beklenen).
+Case'in kendi notu gereği "devam eden çalıştırma kesilmiyor" iddiası
+zamanlama güvenilir tetiklenemediği için ayrıca kanıtlanmadı, belgelenen
+davranışa (K-162, kod yorumu) güveniliyor — spec'in kendi kabul ettiği sınır.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-RET-033 — Kota sayacı yalnız KÖK çalıştırmada işler (`Depth == 0`)
+
+**Gerçek sonuç**
+`summarize-and-translate` (iki agent adımlı workflow) **iki kez** ayrı ayrı
+çalıştırıldı. Her ikisinde de günlük kiracı-geneli sayaç tam **`1`** arttı
+(FARK=1, FARK2=1) — workflow'un iki adımı da TEK bir kök çalıştırma olarak
+sayıldı, kod yorumundaki "yalnız kök işler" beklentisiyle birebir, tutarlı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-RET-034 — Fiyatsız modelde `MaxCost` kuralı ETKİSİZDİR (ölü kod)
+
+**Gerçek sonuç**
+Ön koşul doğrulandı (`InputCostPerMillionTokens` `samples/Tracon.Api/
+Program.cs`'te hiç yok). `maxCost:0.000001` kotasıyla 3 çağrı, üçü de
+`200` — hiçbiri reddedilmedi. Kullanım kaydı: `runs:7, tokens:2064,
+cost:0.0` — maliyet hiç birikmedi, şüphe (ölü kod) tam doğrulandı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-RET-035 — Kota "yaklaşıktır": eşzamanlı istekler aşabilir (kabul edilmiş sınır)
+
+**Gerçek sonuç**
+Temiz bir dönem elde etmek için `tracon_quota_usage`/`tracon_quotas`
+tabloları SQL ile sıfırlandı (yalnız kendi izole test DB'm, kod değil).
+`maxRuns:1` kotasıyla **5 eşzamanlı** istek gönderildi (spec'in kendi
+düzeltmesindeki `for`+arka plan deseniyle, her istek kendi `uuidgen`'i ile).
+**Beşi de `200` döndü** — hiçbiri `429` almadı; kabul edilmiş sınırın
+beklenenden bile daha çarpıcı bir gösterimi (case yalnız "bazıları aşabilir"
+diyordu, burada TAMAMI aştı). Kullanım kaydı `runs:5` (limit 1'e karşı) —
+denetim-öncesi/artış-sonrası yarış durumu (K-159) doğrulandı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ## MT-RET-012 — Arşiv sink'i yokken `archive=true` HİÇBİR satır silmez
 
 **Gerçek sonuç**
