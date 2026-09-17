@@ -169,3 +169,67 @@ birebir örtüştü.
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
+
+## Devir notu (oturum 20 devam) — §3 bellek sağlayıcıları
+
+---
+
+### MT-MEM-011
+
+**Gerçek sonuç**
+`manuel-dosya-bellek` (`enableFileMemory`) oluşturuldu. 1. turda gerçekten
+`file_memory_write` çağrıldı (`fileName:"user_note.txt", content:"kayit-kodu
+FILE-7841"`). 2. turda (aynı oturum) gerçekten `file_memory_read`
+çağrıldı, sonucu `"kayit-kodu FILE-7841"` döndü, nihai yanıt metni:
+`"Kayıt kodu: **FILE-7841**."` — `FILE-7841` dizgisini içeriyor. Beklenen
+sonuç birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-MEM-012
+
+**Gerçek sonuç**
+`manuel-todo` (`enableTodo`) oluşturuldu. 1. turda iki görev
+("raporu yaz", "sunumu hazirla") eklenmesi istendi. 2. turda (aynı
+oturum) "Todo listemde neler var?" sorusunun yanıtı: `"Todo listenizde
+şunlar var:\n\n1. Raporu yaz\n2. Sunumu hazırla"` — iki görev de gerçekten
+anıldı. Beklenen sonuç (gevşek kontrol — iki konunun da geçmesi) birebir
+örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-MEM-013
+
+**Yöntem notu — büyük keşif: spec'in kendi "2026-08-10 durumu" notu
+bayat çıktı.** İlk deneme spec'in literal adımlarıyla koşuldu
+(`manuel-dosya-arama`, FARKLI bir agent, `FILE-7841` aramaya çalıştı) →
+model `file_memory`/arama aracı ÇAĞIRMADI, düz metin yanıtı: `"Dosya
+belleğinde FILE-7841 için bir kayıt bulamadım."` / (ikinci denemede)
+`"...şu anda bu oturumda araç erişimi görünmüyor."`. İlk bakışta bir
+`EnableTextSearch` kusuru sanıldı. Kaynak okundu
+(`TenantPrefixingAgentFileStore.cs:6-38`): önek `/{tenantId}/{agentName}/...`
+— **ajan adı da önekte**, yalnız kiracı değil. `docs/arsiv/
+PLANA-DONUSEN-ADAYLAR.md:363` bunu doğruladı: `"F-105 · Dosya belleği
+kiracı-içi sınırı — ✅ KAPATILDI (2026-08-18)"` — spec'in "2026-08-10
+durumu" notu bu kapanıştan SEKİZ GÜN ÖNCEYE ait, bayat. Hipotez ampirik
+olarak doğrulandı: `enableFileMemory` VE `enableTextSearch` İKİSİNİ birden
+taşıyan TEK bir agent (`manuel-dosya-hem`) kuruldu; bir oturumda not yazdı
+(`file_memory_write`), FARKLI bir oturumda AYNI agent `file_memory_grep`
+ile notu buldu ve doğru yanıtladı (`FILE-9999` metniyle) — mekanizmanın
+kendisi (ajan-içi, oturumlar-arası) sağlam. Spec yukarıda düzeltildi.
+
+**Gerçek sonuç**
+`manuel-dosya-arama` (FARKLI agent) → `manuel-dosya-bellek`'in dosyasını
+BULAMADI, `FILE-7841` yanıtta YOK — ajan-düzeyi izolasyon çalışıyor
+(F-105 kapalı kalıyor, regresyon yok). Kontrol: `manuel-dosya-hem` (AYNI
+agent, iki farklı oturum) kendi notunu (`FILE-9999`) başarıyla buldu.
+Düzeltilmiş beklenen sonucun tamamı (izolasyon + mekanizmanın kendisi)
+birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
