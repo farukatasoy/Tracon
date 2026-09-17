@@ -338,3 +338,196 @@ Beklenen sonuç birebir örtüştü.
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
+
+### MT-EVAL-035
+
+**Gerçek sonuç**
+`support`'a gerçek bir run gönderildi (`ORD-1001 siparisim nerede?`).
+`POST .../cases/from-run/{runId}` → `201`, yeni vaka `sourceRunId`
+gönderilen run'ın id'si, `sourceKind:"ReferenceRun"`, `promotedAt` dolu.
+Beklenen sonuç birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-EVAL-036
+
+**Gerçek sonuç**
+AYNI `runId` ikinci kez terfi ettirildi → `200` (`201` DEĞİL), aynı vaka
+kaydı geri döndü. `SELECT count(*) FROM mt_s3.eval_cases WHERE
+source_run_id = '<runId>'` → `1` — ikinci vaka oluşmadı. Beklenen sonuç
+birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-EVAL-037
+
+**Gerçek sonuç**
+Sıfır GUID'li var olmayan bir `runId` terfi ettirilmeye çalışıldı → `404`
+(`"There is no run with id '00000000-0000-0000-0000-000000000000'."`).
+Beklenen sonuç birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-EVAL-038
+
+**Gerçek sonuç**
+Tüm eval takımları (`destek-degerlendirme`, `tool-cagri-testi`,
+`anahtar-kelime-testi`, `gorsel-testi`, `surum-pin-testi`,
+`denetimsiz-takim`) geçici olarak silindi (`GET /api/evals` → `[]`).
+Bir run detay ekranı (`/tracon/runs/{id}`) açıldı — sayfa metninde
+"terfi et"/"promote" dizgesi hiç geçmedi, ilgili düğme listesinde yoktu
+(`İlişkili`, `Şimdi puanla`, `Yeniden oynat`, tool düğmesi — terfi düğmesi
+YOK). Bileşen gerçekten `null` render ediyor. Case sonrası
+`destek-degerlendirme` (tek vaka, `ORD-1001`) ve `tool-cagri-testi`
+(`FIX-EVAL-02`) geri kuruldu, `GET /api/evals` bunu doğruladı. Beklenen
+sonucun tamamı birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## Devir notu (oturum 19 devam) — §5 çevrimiçi değerlendirme
+
+🚨 **Şema düzeltmesi (bu turda §5'in tamamına uygulanır):** `mt_s3.jobs`da
+`kind` sütunu yok, `handler_key` metin sütunu var
+(`JobHandlerKeys.OnlineEval = "tracon.online-eval"`); sorgular kendi
+şerit şeması (`mt_s3`) ile, literal `tracon` DEĞİL. Spec'in düzeltmeleri
+yukarıda MT-EVAL-040/041'in kendi bölümlerinde yazılı.
+
+---
+
+### MT-EVAL-040
+
+**Gerçek sonuç**
+`support`'a gerçek bir run gönderildi (`OnlineEvaluation` hiç
+yapılandırılmamış — varsayılan durum). 12 saniye sonra
+`SELECT count(*) FROM mt_s3.jobs WHERE handler_key = 'tracon.online-eval'`
+→ `0` — hiçbir OnlineEval işi kuyruğa girmedi. Beklenen sonuç birebir
+örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-EVAL-041
+
+**Yöntem notu.** Ana örnek (port 5083) `Tracon__OnlineEvaluation__Enabled=true`,
+`Tracon__OnlineEvaluation__SampleRate=1.0` env değişkenleriyle (skill
+§1.2 — `dotnet user-secrets set` DEĞİL) yeniden başlatıldı.
+
+**Gerçek sonuç**
+`support`'a gerçek bir run gönderildi. 15 saniye sonra `mt_s3.jobs`da
+`handler_key='tracon.online-eval'` satırı `status=3` (Completed).
+`mt_s3.run_scores`'ta beklenen satır VAR: `kind=3` (Numeric),
+`source='judge:model', author='judge:model', value=97`. Ek olarak spec'te
+anılmayan İKİNCİ bir satır da var: `source='judge:relevance'` (`value=3`)
+— kaynağı okundu: `samples/Tracon.Api/Program.cs:423`
+`tracon.AddEvaluatorJudge("relevance", new RelevanceEvaluator())` — Faz
+155/176'da eklenmiş ikinci bir yargıç kaydı, spec'in yazıldığı Faz 49'da
+yoktu. Spec'in asıl iddiası (bir `judge:model` satırının varlığı) tam
+doğrulandı, ek satır eksiklik değil zenginleşme. Beklenen sonucun tamamı
+birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-EVAL-042
+
+**Yöntem notu.** Spec'in kendi izin verdiği "hesaplama doğrulaması"
+yoluyla koşuldu (gerçek HTTP çağrısı gerektirmez). `RunSampler.cs`
+kaynağından `IsSampled`in tam FNV-1a algoritması okundu ve Python'da
+birebir yeniden üretildi (offset basis `14695981039346656037`, prime
+`1099511628211`, üst 53 bit → `[0,1)` kesri, `fraction < sampleRate`).
+
+**Gerçek sonuç**
+Rastgele bir `runId` için kesir BAĞIMSIZ iki hesaplamada birebir aynı
+çıktı (`0.12136241616357957` — iki kez). Aynı `runId`nin kesri **sabit**
+kalırken yalnız eşik (`sampleRate`) değiştirildiğinde karar değişti
+(`rate=0.1→false`, `rate=0.3→true`, ... `rate=1.0→true`) — algoritmanın
+KENDİSİ rastgele bir tuz taşımıyor, yalnız `runId`nin baytlarına bağlı
+(`.NET HashCode`nin süreç-başı tuzlamasının aksine). Bu, kod yorumunun
+iddia ettiği garantiyi (aynı `runId` → aynı karar, süreç yeniden başlasa
+bile) yapısal olarak doğruluyor. Beklenen sonuç (garantinin gözlemlenmesi)
+birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-EVAL-043
+
+**Gerçek sonuç**
+MT-EVAL-040'ın (o an OnlineEvaluation kapalıyken üretilmiş, hiç
+örneklenmemiş) run'ı `POST /api/runs/{id}/judge` ile elle yargılandı →
+`200`, gövde en az bir `{judge:"model", score, reason}` eşdeğeri içeriyor
+(`source:"judge:model", value:85, comment:"..."` + ek olarak
+`judge:relevance` satırı — MT-EVAL-041'deki aynı ikinci yargıç).
+`SELECT action, entity FROM mt_s3.audit_log WHERE action =
+'run.judge.manual'` → satır var, `entity: "run:<RUN_ID>"`. Beklenen
+sonucun tamamı birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-EVAL-044
+
+**Yöntem tuzağı (bu koşumda bulundu, ürün kusuru DEĞİL).** İlk yeniden
+başlatma denemesi başarısız oldu — `pkill` deseni derlenmiş ikilinin
+GERÇEK komut satırıyla eşleşmedi (`.../Tracon.Api --urls ...`, `dotnet
+... .dll` DEĞİL, `dotnet run` apphost'u doğrudan çalıştırıyor). Eski
+süreç (`PID 20043`, MT-EVAL-041'in OnlineEvaluation-açık kurulumu) `5083`
+portunu bırakmadı, yeni `dotnet run` `Address already in use` ile sessizce
+öldü (arka planda), ve sonraki birkaç istek FARKINDA OLMADAN eski sürece
+gitti. PID'ler doğrudan `kill`lenip port boşaltıldıktan sonra doğru
+yeniden başlatma yapıldı: `Tracon__Providers__OpenAI__ApiKey=""` ile.
+`GET /api/models/health` bunu doğruladı — `openai`/`openai-responses`
+listede YOK, `echo` (durum `Unknown`) VAR; `support` agent'ının kendi
+model bağlaması bu durumda otomatik olarak `echo`'ya döndü.
+
+**Gerçek sonuç**
+`support`'a (echo sağlayıcı) bir run gönderildi. `POST
+/api/runs/{id}/judge` → `200`, gövde `{"scores":[],"failures":[]}` —
+hata değil, boş dizi. Beklenen sonucun tamamı birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-EVAL-045
+
+**Yöntem notu.** MT-EVAL-043'ün AYNI `RUN_ID`'si (o zamanki OpenAI-açık
+örnekte) ikinci kez yargılandı.
+
+**Gerçek sonuç**
+`POST /judge` ikinci kez çağrıldı (aynı run). `SELECT count(*) FROM
+mt_s3.run_scores WHERE run_id = '<RUN_ID>' AND author = 'judge:model'`
+→ **`1`** — ikinci yargılama var olan satırı `UPSERT` ile güncelledi,
+yeni satır eklemedi. Beklenen sonuç birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-EVAL-046
+
+**Gerçek sonuç**
+`GET /api/evaluation/online` → `200`. Gövde beklenen yedi alanı taşıyor:
+`windowStart, windowEnd, sampleCount:0, averageScore:null,
+lowScoreThreshold:60, minSampleSize:20, belowThreshold:false` —
+`sampleCount(0) < minSampleSize(20)` olduğu için `belowThreshold:false`,
+tam beklendiği gibi. İki ekstra alan da var (`judgeCost`,
+`judgeCostCurrency`, ikisi de `null`) — spec'te anılmıyor, muhtemelen
+sonraki bir fazın eklediği maliyet takibi, eksiklik değil. Beklenen
+sonucun tamamı birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
