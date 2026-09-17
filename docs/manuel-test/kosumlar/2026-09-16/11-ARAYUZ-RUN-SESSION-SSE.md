@@ -539,3 +539,77 @@ beklentisi geçersiz.
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
+
+### MT-UIRUN-031
+
+**Gerçek sonuç**
+`manuel-destek` UI'dan düzenlendi: `get_order_status` kaldırıldı,
+`list_recent_orders` eklendi (`v2` açıldı). `MT-UIRUN-026`'nın eski
+(`v1`, `get_order_status` çağrılı) run'ında Sürüm seçicisinden `v2`
+seçilip Araç Modu `ReplayTools` bırakılarak "Replay" tıklandı: `200`
+(422 DEĞİL) — model YENİ koşulda (v2, `list_recent_orders` mevcut,
+`get_order_status` yok) HİÇBİR tool çağırmadı, yalnız metinle yanıtladı
+(olay akışı: yalnız `run.started`/`message.delta`/`message.completed`/
+`run.completed`, tool olayı YOK). Bu, case'in kendi belgelediği İKİNCİ
+dal ("model hiçbir tool çağırmazsa: 200 döner... kusur SAYILMAZ") —
+gerçek gözlem bu dalda gerçekleşti, `422` dalı (ilk dal) TETİKLENMEDİ.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı — gerçekleşen dal:
+model hiç tool çağırmadı (case'in kendi ikinci beklenen sonucu).
+
+---
+
+### MT-UIRUN-032
+
+**Gerçek sonuç**
+`Tracon:RunRecording:RecordRunInput=false` ile yeniden başlatılıp bir run
+üretildi. `GET .../input` → `404`. Sayfada "Replay this run" başlığı HİÇ
+YOKTU (bileşen kendini hiç render etmedi). Ayar geri alındı, uygulama
+normal (`RecordRunInput` varsayılan `true`) ayarla yeniden başlatıldı —
+sonraki case'ler bu adımdan etkilenmedi. Beklenen sonucun tamamı birebir
+örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-UIRUN-033
+
+**Gerçek sonuç**
+`POST /api/runs/00000000-.../replay` → `404`, `title:"Run not found"`,
+`detail:"There is no run with id '00000000-...'."` (Türkçe `"Calistirma
+bulunamadi"` DEĞİL — `en` varsayılan locale). Beklenen sonucun davranışsal
+kısmı birebir örtüştü; dil beklentisi geçersiz.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-UIRUN-034
+
+**Gerçek sonuç**
+`MT-UIRUN-027`'nin yeni run'ında "Comparison" paneli HİÇBİR tıklama
+olmadan otomatik render edildi. Alan tablosu (LEFT=kaynak, RIGHT=yeni):
+Status (Completed/Completed), Version (1/1), Model (gpt-5.4-mini/
+gpt-5.4-mini), Duration (3019ms/1633ms — farklı), Tokens (241/414 —
+farklı), Cost (—/—), Tool calls (1/1 — aynı), Error class (—/—), Scores
+(0/0). "OUTPUT" bölümünde `DiffView`: modelin ürettiği metin küçük bir
+farkla döndü ("ORD-1001 siparişiniz..." → "Siparişiniz...") ve `-`/`+`
+işaretli satırlarla RENKLİ gösterildi (nötr DEĞİL — gerçek bir fark vardı).
+Beklenen sonucun tamamı birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-UIRUN-035
+
+**Gerçek sonuç**
+`GET .../compare/00000000-...` → `404`, `detail:"There is no run with id
+'00000000-...'."` — eksik tarafın kimliği (`b`) mesajda anılıyor (Türkçe
+"Calistirma bulunamadi" DEĞİL — `en` varsayılan locale). Beklenen sonucun
+davranışsal kısmı birebir örtüştü; dil beklentisi geçersiz.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
