@@ -29,7 +29,8 @@ sıfırdan düşürülüp yeniden oluşturuldu (aile 08'in verisi temiz atıldı
 
 ## Devir notu
 
-**Oturum 1-11 bitti: MT-UIAG-001..048 koşuldu (44 Geçti · 2 Kaldı · 2 Atlandı).**
+**Oturum 1-12 bitti: MT-UIAG-001..051, 053 koşuldu (48 Geçti · 2 Kaldı · 2 Atlandı).**
+`052` atlandı (sırayla koşulacak, viewport değişikliği bekliyor).
 Uygulama AÇIK bırakıldı (port 5081, arka planda `launch_s1.py` ile başlatıldı,
 PID script'i `/private/tmp/.../scratchpad/s1-app.pid`de) — sonraki oturum
 sıfırdan başlatmak yerine devam edebilir, yalnız `curl .../api/diagnostics`
@@ -1030,6 +1031,60 @@ düğmesi DOM'dan tamamen kayboldu (koşullu render — gizlenmiyor, hiç
 yok), `Konuşma modu` sınıfı normale (`bg-raised text-fg border-line-strong`)
 döndü. Panelin içindeki gerçek zamanlı konuşma akışı (mikrofon izni,
 WebSocket) bu case'in kapsamı dışında tutuldu, sınanmadı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-UIAG-050 — Tamamlanan turda "Seslendir" ses oynatıcı + maliyet notu ekler
+
+**Gerçek sonuç — beklendiği gibi (düğme adı spec'in "Konuştur" metninden
+farklı — bkz. MT-UIAG-026'daki `"Seslendir"` düzeltmesi, burada yeniden
+tekrar etmiyorum).**
+`"Merhaba! Size nasıl yardımcı olabilirim?"` turunda "Seslendir"e
+tıklandı. Ağ sekmesi: `POST api/voice/speak` → `200`. Başarı sonrası
+`data-testid="playground-audio"` bir `<audio controls>` öğesi belirdi
+(`hasControls: true`), yanında `"11 karakter · 0.0012 USD"` maliyet
+notu (karakter sayısı + tutar/para birimi — `result.cost != null` dalı).
+Bu eylem için Run listesinde YENİ bir satır oluşmadı — orijinal turun
+tek run bağlantısı değişmeden kaldı, `api/voice/speak` bir operatör
+eylemi olarak ayrı kaldı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-UIAG-051 — Seslendirme sağlayıcısı yapılandırılmamışsa düğme yanında hata notu görünür
+
+**Gerçek sonuç — beklendiği gibi.**
+Uygulama `Tracon__Voice__ApiKey=""` ile yeniden başlatıldı (ortam
+değişkeni ile, `user-secrets` dokunulmadı — skill §1.2). "Seslendir"e
+tıklanınca ağ sekmesi `POST api/voice/speak` → `501`. Düğmenin yanında
+kırmızı not: `"Voice provider not configured: Add the 'Tracon.Voice'
+package and call 'UseVoice(...)' to enable voice."` — sunucudan gelen
+gerçek mesaj (spec'in öngördüğü iki olası kaynaktan biri). Ses oynatıcı
+HİÇ belirmedi, düğme `disabled: false` (idle, tekrar denenebilir). Case
+sonrası uygulama `Tracon:Voice:ApiKey` GERİ YÜKLENEREK yeniden başlatıldı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-UIAG-053 — Kayıtlı bir `IToolApprovalPresenter` varken onay kartı başlıkta varlık adını gösterir (Faz 142)
+
+**Gerçek sonuç — beklendiği gibi (MT-UIAG-028'in canlı koşumuyla çapraz
+doğrulandı — gereksiz ikinci bir gerçek OpenAI çağrısı yapılmadı; aynı
+senaryo, aynı kod yolu).**
+`MT-UIAG-028`'de (`ORD-1001 siparisimi iptal et`, `support`) ölçülen
+onay kartı ZATEN bu case'in tarif ettiği tam biçimdeydi: başlıkta
+`"Order ORD-1001"` (`text-sm font-medium`) + altında/yanında ince mono
+`cancel_order` (`font-mono text-2xs text-subtle` — kaynak:
+`transcript.tsx:133-138`, `entityName !== null` dalı), altında `"Cancel
+order ORD-1001 for Priya Shah."` mesajı, `Argümanlar` KATLI başlayıp
+açılınca `orderId: "ORD-1001"` gösteriyordu. `samples/Tracon.Api`'nin
+`OrderApprovalPresenter`'ı bu ortamda HER ZAMAN kayıtlı olduğu için
+(`Program.cs:146`) bu, MT-UIAG-028'in ZATEN kanıtladığı davranışın
+aynısı — iki case birbirini doğruluyor.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
