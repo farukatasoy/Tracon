@@ -276,8 +276,10 @@ Negatif senaryo.
 
 **Beklenen sonuç**
 - Form kapanmaz; sayfanın üstünde kırmızı bir `ErrorNote` görünür.
-- Mesaj sunucunun `ProblemDetails.detail`'ini **birebir** taşır: `"'manuel-bos'
-  adinda bir tanim zaten var. Guncellemek icin PUT kullanin."`
+- Mesaj sunucunun `ProblemDetails.detail`'ini **birebir** taşır: `"A
+  definition named 'manuel-bos' already exists. Use PUT to update it."`
+  (2026-09-16 turunda düzeltildi: metin İngilizce — `AgentEndpoints.cs:543`
+  — K-228 gereği runtime metni İngilizce'dir; spec'in Türkçe metni bayattı.)
 - Formdaki veri kaybolmaz — kullanıcı adı değiştirip yeniden deneyebilir.
 
 ---
@@ -302,9 +304,11 @@ kullanıcıya sunucudan geldiği gibi gösterir.
 
 **Beklenen sonuç**
 - `ErrorNote`, `MT-UIAG-006`'dan **farklı** bir gerekçe metni taşır:
-  `"'support' kodda tanimli bir agent'tir ve yonetim API'sinden
-  degistirilemez. Ad cakismasinda kod kazandigi icin ayni adla yazilan bir
-  tanim hicbir zaman cozulmezdi."`
+  `"'support' is an agent defined in code and cannot be changed from the
+  management API. Code wins name conflicts, so a definition written with
+  the same name would never resolve."` (2026-09-16 turunda düzeltildi: metin
+  İngilizce — `AgentEndpoints.cs:538-540` — K-228, aynı bayatlık MT-UIAG-006'da
+  da bulundu.)
 - Katalogda ikinci bir `support` satırı **oluşmaz**.
 
 ---
@@ -489,9 +493,10 @@ Negatif senaryo.
 **Beklenen sonuç**
 - Adım 1: kendisi seçenek listesinde hiç görünmez (kendi kendini çağıramaz —
   bu kısıt istemci tarafında filtrelenir).
-- Adım 3: kayıt `400` ile reddedilir; `ErrorNote` başlığı `"Cagri grafigi
-  gecersiz"` metnini taşır, ayrıntı `AgentCallGraph.Validate`'in ürettiği
-  çevrim açıklamasıdır. Form kapanmaz, veri kaybolmaz.
+- Adım 3: kayıt `400` ile reddedilir; `ErrorNote` başlığı `"Call graph
+  invalid"` metnini taşır (2026-09-16 turunda düzeltildi: metin İngilizce,
+  K-228 — spec'in Türkçe başlığı bayattı), ayrıntı `AgentCallGraph.Validate`'in
+  ürettiği çevrim açıklamasıdır. Form kapanmaz, veri kaybolmaz.
 
 ### MT-UIAG-014 — Var olan DB agent'ı açılınca form dolar, `name` alanı salt okunurdur
 
@@ -570,9 +575,13 @@ Sınır durumu — `isEditable = false`.
 - Sayfanın altında `agentDetail.codeNotice` metniyle bilgilendirme satırı
   görünür.
 - Adım 3: editör ekranı AÇILIR (yönlendirici bunu engellemez) ama "Sürüm
-  Kaydet"e basıldığında `409 Kodda tanimli agent degistirilemez` hatası
-  görünür — arayüz bu güvenliği yalnızca DÜĞMEYİ GİZLEYEREK sağlar, URL
-  seviyesinde bir engel yoktur; gerçek sınır sunucudadır.
+  Kaydet"e basıldığında `409` hatası görünür: `"Code-defined agent cannot
+  be modified: 'support' is defined in code. Code definitions are
+  validated at compile time and cannot be changed from the management
+  API; update the application code to change it."` (2026-09-16 turunda
+  düzeltildi: metin İngilizce, K-228 — spec'in Türkçe metni bayattı) —
+  arayüz bu güvenliği yalnızca DÜĞMEYİ GİZLEYEREK sağlar, URL seviyesinde
+  bir engel yoktur; gerçek sınır sunucudadır.
 
 ### MT-UIAG-017 — DB kökenli agent özet + talimat + tam tanım JSON'u gösterir
 
