@@ -714,11 +714,25 @@ uygulama yeniden başlatılmış.
 1. `playground/support` aç, `Merhaba` gönder, tamamlansın.
 2. Çalıştırmanın `cost.source` alanına bak.
 
-**Beklenen sonuç**
-- `cost.source = "Unknown"` — `Pricing:Voice:openai:gpt-5.4-mini:Input`
-  anahtarı sohbet modeli fiyatı olarak HİÇ okunmaz (`Voice` ayrı, sabit
-  kodlu bir bölümdür; `999` gibi anormal bir tutar bile sohbet maliyetine
-  yansımaz).
+**Beklenen sonuç (2026-09-16 turunda düzeltildi — bkz. koşum kaydı)**
+- 🚨 Ön koşulun tam metniyle (`...:Input` `999`) uygulama **HİÇ AÇILMAZ**:
+  `TraconOptionsValidator` her `Pricing:Voice:{provider}:{model}` girdisini
+  bir `VoicePriceOverride` olarak bağlar ve `PerMillionCharacters`/`PerMinute`
+  alanlarından biri dolu değilse `OptionsValidationException` ile başlangıçta
+  durur (`TraconOptionsValidator.cs:302-313`) — `Input` bu ikisinden biri
+  DEĞİLDİR. Orijinal beklenen sonuç ("run tamamlanır, `cost.source =
+  Unknown`") bu validasyonla çelişiyordu; AGENTS.md kuralı gereği ("doküman
+  ile kod çelişirse doküman yanlıştır") burada düzeltildi.
+- Rezervasyonun KENDİSİ (Voice bölümünün sohbet fiyatına hiç karışmaması)
+  YİNE DE doğrudur — yalnız GEÇERLİ bir Voice şekliyle (`PerMinute`/
+  `PerMillionCharacters`) gösterilebilir: `Tracon:Pricing:Voice:openai:
+  gpt-5.4-mini:PerMinute=999` ile uygulama normal açılır ve `support` ile
+  yapılan bir çalıştırmanın `cost.source` alanı **`"Unknown"`** kalır —
+  reserve bölüm sohbet fiyatlandırmasına hiç sızmaz.
+- Sonuç: rezervasyon kuralı DOĞRU çalışıyor, yalnız spec'in seçtiği örnek
+  anahtar (`Input`) bu kuralı sınamadan önce başka bir (daha katı) doğrulamaya
+  takılıyor. Bu bir ürün kusuru değildir — "sessizce görmezden gel" yerine
+  "yüksek sesle başlangıçta reddet" daha güvenli bir tasarımdır.
 
 ---
 
