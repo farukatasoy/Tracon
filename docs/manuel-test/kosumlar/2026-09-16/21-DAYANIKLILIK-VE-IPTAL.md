@@ -650,4 +650,115 @@ hâliyle birebir örtüştü.
 
 ---
 
+### MT-RES-068
+
+**Gerçek sonuç**
+`Tracon:Drain:Enabled=true`, `Timeout=00:00:10` ile yeniden başlatıldı.
+İlk deneme (2000× "lorem ipsum...") modelin ~1.8 sn'de tamamlanmasına yol
+açtı — gerçek bir "akış sürerken" penceresi yakalanamadı, `SIGTERM`
+gönderildiğinde istek zaten bitmişti (yöntemsel ders: model kısa yanıt
+verirse mesajın UZUNLUĞU akışı UZATMAZ). Uzun bir hikâye isteğiyle
+(`"Write a very long... story... 4000+ words"`) tekrarlandı — bu kez
+gerçek akış ~32 sn sürdü.
+
+`SIGTERM` akış BAŞLADIKTAN 2 sn sonra gönderildi. Adım 3 (yeni koşu
+denemesi): `curl` bağlantıyı KURAMADI (`exit 7`, HTTP kodu `000`) — `503`
+DEĞİL, HAM TCP reddi. Kaynak incelemesi bunun `BL-026` olarak zaten
+bilinen ve `docs/YAYIN-HAZIRLIK.md`'de 🟡'ye indirilmiş bir sınır olduğunu
+doğruladı: Kestrel `ApplicationStopping`'de yeni bağlantı kabulünü
+`DrainGate` middleware'i hiç çalışmadan durduruyor.
+
+Adım 4: süreç `SIGTERM`'den ~32 sn SONRA çıktı (günlükte "Request finished
+... 200 ... 31848.8226ms") — akış TAMAMEN başarıyla tamamlandı (istemci
+tam hikâyeyi aldı, 1.7 MB). Bu süre `Drain:Timeout=10 sn`'yi AŞIYOR;
+kaynak incelemesi (`TraconDrainService.cs`, `TraconDrainOptions.cs`)
+gerekçeyi doğruladı: gözlenen süreyi asıl belirleyen `Drain:Timeout` DEĞİL,
+Kestrel'in KENDİ bağımsız istek tahliyesi (ASP.NET Core varsayılan
+`HostOptions.ShutdownTimeout=30 sn`) — `Tracon:Drain` bu örnekte hiç
+ayarlanmamış bu üst sınırı DEĞİŞTİRMEZ. Sonuç: kod, dokümantasyon (K-tipi
+karar `BL-026`) ve gözlem BİRBİRİYLE tutarlı — yeni kusur DEĞİL, zaten
+bilinen ve önceliği düşürülmüş bir sınırın bu turda bağımsız doğrulanması.
+İş kaybı yok (akış kesilmeden bitti).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-RES-069
+
+**Gerçek sonuç**
+İki tamamlayıcı yöntem kullanıldı. (1) Migration'ın kendisi izole edildi:
+geçici bir scratch şema (`mt_s3_migtest`) açılıp Faz 126 ÖNCESİ tabloya
+birebir uyan bir `sessions` satırı (`schema_version=1`) yazıldı,
+`0040_persisted_payload_version.sql` bu şemaya karşı BİREBİR koşuldu:
+sonuç `state_schema_version=1` (DEĞİŞMEDİ), `state_maf_version=NULL` — her
+ikisi de beklenen sonuçla birebir örtüştü. Şema iş bitince silindi. (2) Adım
+4 (canlı oturum): `mt_s3`'teki GERÇEK bir oturum (`mt-res-020`) SQL ile
+`state_maf_version=NULL`'a çekilip "Faz 126'dan önce yazılmış ama migration
+sonrası hiç dokunulmamış" hâli taklit edildi, sonra aynı oturuma yeni bir
+tur gönderildi: run `Completed` oldu, oturum satırı normal şekilde
+güncellendi (`state_maf_version` yeniden `1.20.0`'a döndü — bkz.
+`MT-RES-070`). Migration verideki hiçbir baytı bozmadı, yalnız zarfı
+damgaladı; oturum kesintisiz çalışmaya devam etti.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-RES-070
+
+**Gerçek sonuç**
+`mt_s3.sessions`'taki mevcut gerçek oturumlar zaten doğrulandı:
+`state_schema_version:1`, `state_maf_version:"1.20.0"` — `Directory.
+Packages.props`'taki `MicrosoftAgentsAIVersion` ile BİREBİR eşleşiyor
+(`NULL` DEĞİL). Beklenen sonuçla birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-RES-071
+
+**Gerçek sonuç**
+`mt-res-020`'nin `state_schema_version`'ı SQL ile `999999`'a çekildi, aynı
+oturuma yeni bir tur gönderildi: run `Failed`,
+`error.message:"Session 'mt-res-020' was written with Tracon schema
+generation 999999; this Tracon version can read up to generation 1. Update
+the Tracon packages."` — HER İKİ sayı da (`999999` ve `1`) adıyla anılıyor,
+"may have become unreadable" gibi tahmine dayalı bir ifade YOK. Oturum
+satırı SİLİNMEDİ, sessizce sıfırlanmadı — `state_schema_version=999999`
+ile hâlâ orada (SQL ile doğrulandı). Beklenen sonucun tamamı birebir
+örtüştü. Satır test sonunda normal nesle (`1`) geri döndürüldü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-RES-072
+
+**Gerçek sonuç**
+Case'in kendi ön koşulu bu case'in yalnız GERÇEK bir MAF sürüm yükseltmesi
+elde varken anlamlı olduğunu, günlük geliştirmede atlandığını söylüyor. Bu
+tur `src/`'yi donuk tutuyor (kural 1) ve `Directory.Packages.props`'taki
+`MicrosoftAgentsAIVersion` değiştirilmedi — koşullar sağlanmadı.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☑ Atlandı — gerekçe: case'in
+kendi ön koşulu (gerçek bir MAF sürüm yükseltmesi gerektirir, bu turda yok).
+
+---
+
+### MT-RES-073
+
+**Gerçek sonuç**
+`support`'a "ORD-9999 siparisimi iptal et" gönderildi (bilinmeyen sipariş).
+Run `AwaitingApproval` oldu, kayıt yayımlandı: `status:"Pending"`,
+`presentation: null` (`OrderApprovalPresenter` ORD-9999'u tanımıyor, fail-
+open), `arguments:"orderId=ORD-9999"` DOLU kaldı — çözümleyicinin
+"bilmiyorum" demesi ham argümanı gizlemedi. Beklenen sonuçla birebir
+örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 
