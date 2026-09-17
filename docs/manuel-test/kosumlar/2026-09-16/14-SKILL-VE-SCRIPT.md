@@ -164,3 +164,106 @@ panelinde `arayuz-skilli` checkbox'ı `[disabled]` özniteliğiyle ve
 "Disabled" etiketiyle göründü — tıklanamıyor. Tam beklenen.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-SKILL-020 — Bilinmeyen skill adına işaret eden agent → SAVE zamanında `400`
+
+**Gerçek sonuç**
+`HTTP: 400`, `title: "Definition invalid"` (İngilizce — K-228), `detail:
+"Agent 'hayalet-skilli-agent' refers to skill 'hic-var-olmayan-skill', but
+the skill was not found."` — davranış (400, doğru ad, save-time) tam
+beklenen.
+
+🚨 **Zarf düzeltmesi:** Spec ayrı `code`/`message`/`path` alanları taşıyan
+yapılandırılmış bir doğrulama raporu bekliyordu (`code: "unknown_skill"`,
+`path: "skillNames[0]"`). Gerçek yanıt DÜZ bir `ProblemDetails` — tüm bilgi
+`detail` metninde tek dizge olarak. Kaynakta `Code`/`Message` alanları
+GERÇEKTEN var (`AgentDefinitionValidator.cs:289-290`, iç
+`ValidationIssue` tipinde) ama `AgentEndpoints` bunu HTTP'ye taşırken
+düzleştiriyor. Davranışsal iddia (400 + doğru mesaj) doğru; JSON şekli
+zarfı yanlış — spec'in "Beklenen sonuç" zarf varsayımı düzeltilmeli.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-SKILL-021 — `MaxSkillsPerAgent` aşımı SAVE'de geçer, yalnız RUN'da `400`
+
+**Gerçek sonuç**
+`Tracon__Skills__MaxSkillsPerAgent=1` ile yeniden başlatıldı. İki skill
+oluşturuldu (201/201). Adım 1 (`iki-skilli-agent`, 2 skill): `HTTP: 201`
+— kayıt BAŞARILI, limit denetlenmedi. Adım 2 (çalıştır): `HTTP: 400`,
+`title: "Agent compilation failed"` (İngilizce — K-228), `detail: "Agent
+'iki-skilli-agent' can have at most 1 skills."`. Tam beklenen — asimetri
+doğrulandı. Ayar kaldırıldı, yeniden başlatıldı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-SKILL-022 — Devre dışı skill derlemeye girmez, model `load_skill` görmez
+
+**Gerçek sonuç**
+`fatura-kontrolu` devre dışı bırakıldı (`enabled:false`), `manuel-skill-test`
+agent'ı oluşturuldu (`skillNames:["fatura-kontrolu"]`). Playground'da
+`FIX-SKILL-PROMPT` gönderildi: HİÇBİR `load_skill` onay kartı belirmedi —
+model doğrudan genel bir yardım yanıtı üretti (fatura kontrolüyle ilgili
+genel bir soru-cevap, `FATURA_SKILL_ACTIVE` işaretçisi YOK). Tam beklenen.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-SKILL-023 — Kod tanımlı skill, aynı adlı DB kaydını geçersiz kılar
+
+**Gerçek sonuç**
+`samples/Tracon.Api/Program.cs`'e geçici `tracon.AddSkill(new
+AgentSkillDefinition { Name = "fatura-kontrolu", ... "KOD_SKILL_ACTIVE" yaz
+..., Enabled = true })` eklendi, `dotnet build -c release` (0/0), yeniden
+başlatıldı. Playground'da `FIX-SKILL-PROMPT` gönderildi, onaylandı:
+`load_skill` sonucu `<description>KOD TANIMLI surum - DB kaydini gecersiz
+kilar.</description>` ve `KOD_SKILL_ACTIVE` talimatını taşıdı (DB'deki
+`Fatura kontrol kurallarini aciklar.`/`FATURA_SKILL_ACTIVE` DEĞİL). Modelin
+nihai yanıtı tam olarak `KOD_SKILL_ACTIVE`. Tam beklenen. Kod değişikliği
+GERİ ALINDI (`git status --short` temiz), yeniden `dotnet build` (0/0),
+yeniden başlatıldı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-SKILL-024 — Skill düzenlemesi, önbellek parmak izini değiştirir
+
+**Gerçek sonuç**
+`fatura-kontrolu` yeniden ETKİN yapıldı (`FATURA_SKILL_ACTIVE` işaretçili,
+kod skill'i geri alınmış hâldeyken). Playground'da (yeni sohbet)
+`FIX-SKILL-PROMPT` gönderildi, onaylandı: yanıt `FATURA_SKILL_ACTIVE`.
+Skill'in `instructions`'ı `FATURA_SKILL_V2` işaretçisine güncellendi
+(`PUT`, `version: 5`). YENİ bir sohbette (fresh `/playground/manuel-skill-test`)
+aynı prompt tekrar gönderildi, onaylandı: `load_skill` sonucu ve modelin
+nihai yanıtı `FATURA_SKILL_V2` — eski (önbelleğe alınmış) `ACTIVE` metni
+HİÇ sızmadı. Tam beklenen; `CompiledAgentCache` parmak izi düzenlemede
+doğru şekilde geçersiz kılınıyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-SKILL-025 — Sunucu `MaxSkillsPerAgent`'ı değiştirir, arayüz HABERSİZ kalır
+
+**Gerçek sonuç**
+`Tracon__Skills__MaxSkillsPerAgent=2` ile yeniden başlatıldı. `manuel-bos`
+agent'ının düzenleme ekranında 3 etkin skill (`fatura-kontrolu`,
+`skill-birinci`, `skill-ikinci`) tek tek işaretlendi — DOM denetimi: üçü de
+`checked:true, disabled:false` — 3. seçimde checkbox'lar KİLİTLENMEDİ
+(arayüzün kendi sabit sınırı `10`, sunucunun gerçeği `2`). "Save new
+version" → başarılı (arayüz `PUT` engellemedi). `POST
+/api/agents/manuel-bos/run` → `HTTP: 400`, `detail: "Agent 'manuel-bos'
+can have at most 2 skills."` — kullanıcı arayüzde "izin verildi" görürken
+çalıştırmada engelleniyor, tam beklenen (kusur DEĞİL, önceden bilinen
+arayüz/sunucu senkron eksikliği — MT-SKILL-021'in doğal sonucu).
+`manuel-bos` fixture'ı `skillNames: []`'e geri PUT edildi, ayar kaldırıldı,
+uygulama yeniden başlatıldı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
