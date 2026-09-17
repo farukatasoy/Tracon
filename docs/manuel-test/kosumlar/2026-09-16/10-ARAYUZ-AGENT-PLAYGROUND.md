@@ -29,7 +29,7 @@ sıfırdan düşürülüp yeniden oluşturuldu (aile 08'in verisi temiz atıldı
 
 ## Devir notu
 
-**Oturum 1-9 bitti: MT-UIAG-001..043 koşuldu (39 Geçti · 2 Kaldı · 2 Atlandı).**
+**Oturum 1-10 bitti: MT-UIAG-001..046 koşuldu (42 Geçti · 2 Kaldı · 2 Atlandı).**
 Uygulama AÇIK bırakıldı (port 5081, arka planda `launch_s1.py` ile başlatıldı,
 PID script'i `/private/tmp/.../scratchpad/s1-app.pid`de) — sonraki oturum
 sıfırdan başlatmak yerine devam edebilir, yalnız `curl .../api/diagnostics`
@@ -934,6 +934,54 @@ dosya 05'in belgelediği kasıtlı davranış — istisna TİPİ spec'in örneğ
 YOK (`0` ölçüldü). `GET /api/runs/{id}`: `status: Failed`, `error.type:
 "upstream_error"` — arayüzle TUTARLI, sessiz "tamamlandı" YOK. K-296'nın
 düzeltmesi hâlâ geçerli.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+# 5 — Playground: ekler (dosya yükleme, sürükle-bırak, sınırlar)
+
+## MT-UIAG-044 — PNG yükleme → chip + küçük resim önizleme, mesajla birlikte gider
+
+**Gerçek sonuç — beklendiği gibi.**
+4×4 piksellik gerçek bir PNG (`browser_file_upload`) yüklendi. Form
+alanının üstünde `data-testid="attachment-chip"` belirdi, dosya adı
+(`test.png`) + resim önizlemesi vardı — `img.src` ölçüldü:
+`"blob:http://localhost:5081/..."` (nesne URL'i, doğrudan `api/
+attachments/{id}` DEĞİL — token taşıyamayacağı için `fetch`+object URL
+yolu doğru çalışıyor). Mesaj gönderilince istek gövdesi ölçüldü:
+`attachmentIds: ["01a0ae89-65a9-7fdf-bf6a-c549f2b8a597"]`. Gönderim
+sonrası bekleyen chip alanı boşaldı, ek turun üstünde (kullanıcı
+balonunun üstünde) tekrar göründü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-UIAG-045 — Bekleyen eki kaldırma: chip kaybolur + sunucudaki kayıt best-effort silinir
+
+**Gerçek sonuç — beklendiği gibi.**
+Yeni bir PNG yüklendi (`POST api/attachments` → `201`), "kaldır"
+düğmesine tıklanınca chip ANINDA kayboldu. Ağ sekmesi doğrulandı:
+`DELETE api/attachments/{id}` → `204 No Content` gitti, hiçbir hata
+arayüzde görünmedi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-UIAG-046 — Sürükle-bırak aynı yükleme yolunu kullanır
+
+**Gerçek sonuç — beklendiği gibi (kaynak okuması + gerçek sentetik `drop`
+olayıyla ampirik doğrulama).**
+Kaynak: `playground.tsx:208` (`onDrop`) ve `playground.tsx:271` (dosya
+seçici `onChange`) İKİSİ DE birebir aynı fonksiyonu çağırıyor:
+`attachments.upload(...)`. Finder'dan gerçek bir OS-seviyeli sürükleme
+Playwright'ta simüle edilemediği için, gerçek bir `File` nesnesi taşıyan
+sentetik bir `DragEvent('drop', {dataTransfer})` formun üzerine
+dispatch edildi: chip GERÇEKTEN belirdi (`test-drop.pdf`, kaldır düğmesiyle
+birlikte), ağ sekmesi `POST api/attachments?sessionId=...` → `201
+Created` gösterdi — dosya seçici ile birebir aynı uç nokta ve davranış.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
