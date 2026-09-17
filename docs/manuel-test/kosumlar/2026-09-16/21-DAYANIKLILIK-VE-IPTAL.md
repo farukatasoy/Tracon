@@ -761,4 +761,89 @@ open), `arguments:"orderId=ORD-9999"` DOLU kaldı — çözümleyicinin
 
 ---
 
+## § 7 — Alt-Agent Zaman Aşımı (Faz 144)
+
+**Ortam notu.** `router` kodda `callableAgentNames:["support"]` taşıyor,
+`subAgents` da `null` — `researcher`'ı çağıran, `ChildDeadline` ayarlı bir
+`router` YOK. `POST /api/agents` ile kalıcı bir klon
+(`router-childdeadline-test`: `callableAgentNames:["researcher"]`,
+`subAgents:{childDeadline:"00:00:01", waitTimeout:"00:00:02"}`) üretildi.
+
+### MT-RES-080
+
+**Gerçek sonuç**
+`router-childdeadline-test`'e `researcher`'ı çağıracak bir istek gönderildi.
+Olay akışı: `ChildRunStarted` (18:14:53.08) → `ChildRunTimedOut`
+(18:14:54.13 — aradan geçen süre **~1.05 sn**, `ChildDeadline=1sn` ile
+örtüşüyor) `payload:{"hardCutoff":false}` → `ChildRunCompleted` (aynı an) —
+alt-agent'ın çalıştırması gerçekten iptal edilerek bitti, arka planda asılı
+kalmadı. `background_agents_get_task_results` tool sonucu: `"Agent
+'researcher' did not respond in time (limit: 00:00:01). The tree
+continues; the sub-call's eventual result, if any, is discarded."` Kök
+`run` `Completed` oldu (toplam ~5.2 sn — bu süre `router`'ın KENDİ model
+çağrılarını da içeriyor, yalnız alt-agent'ın süresini DEĞİL; alt-agent'ın
+kendisi tam olarak `ChildDeadline`'da kesildi). Beklenen sonucun tamamı
+birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-RES-081
+
+**Gerçek sonuç**
+`MT-RES-080`'in aynısı, tek fark `Harness` alanı dolu bir kalıcı klon
+(`router-harness-childdeadline-test`). Aynı olay dizisi: `ChildRunTimedOut`
+(`hardCutoff:false`) hemen ardından `ChildRunCompleted`. Harness yolu düz
+agent yolundan farklı davranmadı. Beklenen sonuçla birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-RES-082
+
+**Gerçek sonuç**
+Bu şerit oturumu boyunca `Tracon:AgentGraph:ChildDeadline` HİÇ ayarlanmadı
+(kurulumun kendi varsayılanı — MAF'ın büyük varsayılan değeri geçerli).
+`MT-RES-080`'in kendisi zaten bu case'i kanıtlıyor: agent'ın kendi
+`SubAgents.ChildDeadline=1sn`'i, kurulumdan/MAF'tan gelen çok daha büyük
+varsayılanı EZEREK devreye girdi (alt-agent tam ~1 sn'de kesildi, kurulumun
+büyük varsayılanını beklemedi). Ayrı bir koşum gerekmedi — çözümleme sırası
+(agent → kurulum → MAF varsayılanı) MT-RES-080'in kanıtıyla doğrulandı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-RES-083
+
+**Gerçek sonuç**
+`ChildDeadline=WaitTimeout=00:00:30` (eşit — geçersiz) ile `POST
+/api/agents` denendi. Sessizce kabul EDİLMEDİ — `400`, `title:"Definition
+invalid"`, `detail:"Agent 'router-invalid-deadline-test' has an invalid
+sub-agent wait limit: WaitTimeout (00:00:30) must be greater than
+ChildDeadline (00:00:30); otherwise the hard cutoff would fire before the
+cooperative one ever gets a chance to take effect."` — agent adı VE her iki
+alan adı/değeri mesajda. Doğrulama beklenenden bile ERKEN yakalandı
+(tanım OLUŞTURULURKEN, ilk çalıştırma denemesini beklemeden). Beklenen
+sonuçla örtüştü (kod yorumu HTTP katmanında `TraconCompilationException`'ı
+bu `400`'e çeviriyor).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-RES-084
+
+**Gerçek sonuç**
+`MT-RES-080`'in zaman aşımına uğramış çalıştırması ~4 dakika sonra tekrar
+okundu (`GET .../events`): olay sayısı hâlâ **13** (sequence 0-12), ilk
+okumadakiyle BİREBİR AYNI — alt-agent'ın gecikmiş sonucu hiçbir yeni olay,
+metrik veya sunucu hatası üretmedi. Beklenen sonuçla birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 
