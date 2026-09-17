@@ -666,3 +666,118 @@ Beklenen sonuçla birebir.
 
 ---
 
+## Oturum 3 (devam) — temiz fiyatlı run için ikinci reset
+
+003/004/011'in "hiç fiyatsız/başarısız run olmadan, fiyat BAŞTAN tanımlı"
+ön koşulu, `mt_s2` bir kez daha sıfırlanıp uygulama `--Tracon:Pricing:openai:
+gpt-5.4-mini:Input=0.15`/`:Output=0.60`/`Tracon__Pricing__Currency=USD` ile
+(fiyat anahtarları nokta/tire içerdiği için env değişkeni DEĞİL, komut satırı
+argümanı olarak — zsh adı reddediyor, `00-INDEKS.md`/dosya 03'ün bilinen
+tuzağı) yeniden başlatılıp TEK bir `support`/`Merhaba` run'ı yapılarak kuruldu.
+
+## MT-OBS-003 — Fiyat tanımlandıktan sonra yeni bir çalıştırma "Bugünkü Maliyet" karosunda gerçek bir tutar üretir
+
+**Gerçek sonuç**
+Temiz run sonrası "Cost today" karosu `0.000059` gösterdi (`—` değil,
+sıfırdan büyük). Beklenen sonuçla birebir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-004 — 🚨 "Bugünkü Maliyet" karosu para birimini HİÇBİR ZAMAN göstermez; Model Kırılımı aynı veri için gösterir
+
+**Gerçek sonuç**
+Aynı ekranda AYNI sayısal değer iki farklı gösterimde: "Cost today" karosu
+`0.000059` (para birimi soneki YOK); "Model Kırılımı" satırı `0.000059 USD`
+(para birimi soneki VAR). Kod okuması (`TopStrip` → `money(today.cost, null)`
+vs `ModelBreakdownChart` → `money(model.totalCost, currency)`) gözlemle
+birebir doğrulandı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-011 — Hiçbir koşul tetiklenmediğinde "Her şey yolunda" metni görünür
+
+**Gerçek sonuç**
+Tek, fiyatlı, başarılı `support` run'ı dışında hiçbir run yokken Alerts
+paneli yalnız "Nothing needs attention." gösterdi — sarı/mavi rozet YOK.
+Beklenen sonuçla birebir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## Oturum 3 (devam) — Observability ayarları (aynı schema, yalnız restart)
+
+`SuccessSampleRatio=0` sonra `=1` ile art arda yeniden başlatıldı (schema
+resetlenmedi — 015/016/019/020 kendi run'larını kirlenmeden değerlendirebiliyor
+çünkü hepsi ya trace/span düzeyinde ya `runId`'ye özel kontrol). Bu blokta
+küçük bir yan bulgu: run detay sayfası konsolda ara sıra
+`GET /api/agents/{name}/versions` için `404` üretiyor — kaynak okumasıyla
+doğrulandı, bu KASITLI (`AgentEndpoints.cs:138-147`: "Code agents have no
+version history at all... a code-defined or deleted name returns 404"),
+`support`/`router` ikisi de `Code` kökenli. İşlevsel bir kusur değil (Replay
+paneli zaten doğru şekilde "Today's version" gösteriyor), yalnız önlenebilir
+konsol gürültüsü — HATA kaydı açılmadı.
+
+## MT-OBS-015 — `SuccessSampleRatio = 0` iken: başarılı run'da trace KESİN YOK, başarısız run'da YİNE DE VAR
+
+**Gerçek sonuç**
+`SuccessSampleRatio=0` ile: başarılı `support` run'ı → `GET .../trace` `404`,
+`detail` `Tracon:Observability:SuccessSampleRatio` adını anıyor ("Span writing
+is sampled..."). Aynı ayar altında `manuel-model-hata` (başarısız) run'ı →
+`GET .../trace` `200`. Beklenen sonuçla birebir (yalnız hata metni Türkçe
+değil İngilizce — K-228, aynı bilinen bayatlık sınıfı).
+
+**Durum:** ☐ Beklemede · ☑ Geçti (düzeltilmiş beklenen sonuçla — mesaj
+İngilizce, K-228) · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-016 — `SuccessSampleRatio = 1` iken başarılı bir run'da trace KESİN VAR
+
+**Gerçek sonuç**
+`SuccessSampleRatio=1` ile `support`/Merhaba sonrası `GET .../trace` → `200`,
+`spans: 3`, gerçek `traceId`. Arayüzde "Trace" paneli "3 spans", W3C trace id
+ve toplam süre ("1.61s") ile Waterfall'ı render etti. Beklenen sonuçla birebir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-017 — Waterfall ebeveyn-çocuk yuvalamayı girintiyle gösterir; kök span en üstte
+
+**Gerçek sonuç**
+`router` ile `FIX-PROMPT-01` sonrası kök run'ın İz paneli: `tracon.run`
+(0px girinti) → `invoke_agent router(router)` (10px, `depth*10px` ile
+birebir) → `chat`/`execute_tool` çocukları (20px) → alt çalıştırmanın kendi
+`tracon.run`'ı (30px) → `invoke_agent support(support)` (40px) → onun
+çocukları (50px). 16 span'in TAMAMI bu tek ağaçta, kök en üstte, derinlik
+arttıkça girinti artıyor. Bir span'a (`chat gpt-5.4-mini 1.72s`) tıklanınca
+açılan ayrıntı: `kind="Client"`, `status="Unset"`, `W3C span id`
+(`ab2fd879db1b9db9`, mono), ardından tam öznitelik tablosu
+(`server.port`, `gen_ai.*` — 12+ satır). Beklenen sonuçla birebir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-018 — Sıfıra yakın süreli bir span bile en az %0,6 genişlikte GÖRÜNÜR kalır
+
+**Gerçek sonuç**
+MT-OBS-017'nin izinde en kısa span (`execute_tool
+background_agents_clear_completed_task`, etiket `<1ms`) için çubuğun inline
+stili `width: 0.6%` — tam olarak `Math.max(clampPercent(...), 0.6)`'ın taban
+değeri. Beklenen sonuçla birebir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-020 — Alt çalıştırmanın trace ucu, "span yok" ile "hiç çalıştırma yok"u AYNI mesajla döner
+
+**Gerçek sonuç**
+MT-OBS-017'nin alt çalıştırması (`01a0aecf-5be7-...-a9e3`, gerçekten var ama
+bu ayar altında span'i sample'lanmamış) ve rastgele, var olmayan bir GUID —
+ikisi de `GET .../trace` → `404`, `title:"Trace not found"`, `detail` ŞABLONU
+BİREBİR aynı ("There are no recorded spans for run '<id>'. Span writing is
+sampled...— yalnız `<id>` kısmı doğal olarak farklı, geri kalan metin
+birebir). Sunucu "run yok" ile "run var ama span'i yok"u ayırt etmiyor —
+beklenen sonuçla birebir (mesaj yine İngilizce, K-228; spec'in aradığı
+"Trace bulunamadi" değil).
+
+**Durum:** ☐ Beklemede · ☑ Geçti (düzeltilmiş beklenen sonuçla — mesaj
+İngilizce, K-228) · ☐ Kaldı · ☐ Atlandı
+
+---
+
