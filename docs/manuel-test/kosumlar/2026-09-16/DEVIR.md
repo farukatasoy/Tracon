@@ -283,7 +283,7 @@ Dağılım `00-KOSUM-PLANI.md` §3.1'dedir:
 
 | Şerit | Port | Şema | Aileler | Durum (oturum 14 sonu) |
 |---|---|---|---|---|
-| `ap-s1` | 5081 | `mt_s1` | 13 · 19 · 04 · 18 · 10 · 08 | ✅ **aile 13 KAPANDI** (142/142: 97 Geçti, 45 gerekçeli Beklemede — çoğu kural-1 kod donması çakışması, ayrıntı dosya 13 devir notunda). Sıradaki: `19-COK-MODLULUK-VE-SES.md`, henüz açılmadı. Uygulama durduruldu, commit `f721b229` |
+| `ap-s1` | 5081 | `mt_s1` | 13 · 19 · 04 · 18 · 10 · 08 | 🎉 **ALTI AİLENİN ALTISI DA KAPANDI** (aynı oturum zincirinde arka arkaya): 13 (142/142), 19 (66 Geçti·3 Kaldı·23 Beklemede·1 Atlandı), 04 (44 Geçti·1 Beklemede, 45/45), 18 (48 Geçti·9 Beklemede·1 Kaldı, 58/58), 10 (54 Geçti·2 Kaldı·2 Atlandı, 58/58, `HATA-S1-027/028`), 08 (50/50). **Bu şeridin Faz B işi bitti** — sıradaki aile yok. Uygulama durduruldu, commit `e22b84ee` |
 | `ap-s2` | 5082 | `mt_s2` | 36 · 33 · 12 · 24 · 35 · 23 · 15 · 14 | ✅ **aile 36 ve 33 KAPANDI** (48/48, 25/25). Sıradaki: `12-GOZLEMLENEBILIRLIK-MALIYET.md` (65 case, Playwright + canlı uygulama + gerçek OpenAI — yeni ortam kurulumu gerektirir), henüz açılmadı. Commit `93cb1a43` |
 | `ap-s3` | 5083 | `mt_s3` | 32 · 29 · 34 · 21 · 11 · 25 · 17 · 20 | ✅ **aile 32, 29 ve 34 KAPANDI** (40/40, 24/24, 46/46). Sıradaki: `21-DAYANIKLILIK-VE-IPTAL.md`, henüz açılmadı. Uygulama durduruldu, commit `00ca6328` |
 | `ap-s4` | 5084 | `mt_s4` | 31 · 16 · 30 · 22 · 09 · 27 · 26 · 28 · 06 | ✅ **aile 31 KAPANDI** (35/35). Aile 16 **kısmi**: 61/61 kayıtlı case Geçti (MT-JOB-001..085 + 090), MT-JOB-091'den devam (~37 case kaldı: Bölüm 8'in kalanı + 9-10). Uygulama AÇIK bırakıldı (port 5084, DLL doğrudan çalıştırılıyor — bkz. ortam kararsızlığı notu), commit `a6fc40ac` |
