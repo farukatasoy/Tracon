@@ -738,4 +738,291 @@ runner'ında değiştiği ayrı bir tooling notu (kapanışta spec'e eklenebilir
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
+## MT-MM-086 — Canlı transkript/altyazı arayüzde akar
+
+**Gerçek sonuç**
+Gerçek mikrofon/konuşma gerektiriyor — bkz. §4.3 fiziksel eylem tablosu.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-087 — "Interrupt" düğmesi
+
+**Gerçek sonuç**
+Gerçek mikrofon/konuşma gerektiriyor — bkz. §4.3 fiziksel eylem tablosu.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-088 — `persistAudio` açıkken görünür bir rozet belirir
+
+**Gerçek sonuç**
+Playwright tarayıcısı bu oturum sırasında BAŞKA BİR ŞERİDİN kullanımındaydı
+(`Browser is already in use for .../mcp-chrome-3eca5a9`) — paylaşılan
+kaynağa dokunulmadı, case ertelendi. Not: koşulacaksa önce uygulama
+`Tracon:Voice:Conversation:PersistAudio=true` ile başlatılmalı.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-089 — Güvenli bağlam yoksa panel açılmaz
+
+**Gerçek sonuç**
+`curl --max-time 5 http://192.168.1.103:5081/tracon/api/diagnostics` →
+bağlantı tamamen REDDEDİLDİ (exit 7, `http_code=000`) — HTTP 403 bile
+gelmedi, çünkü şerit Kestrel'i yalnız `http://localhost:5081`'e bağlanacak
+şekilde başlatıldı (LAN arayüzünde HİÇ dinlemiyor). Bu, case'in kendi
+kaçış kapısını tetikliyor: "AllowRemoteAccess kapalıysa..." — burada
+"kapalı"nın ötesinde, arayüz hiç bağlı değil. Gerçek bir tarayıcı denemesi
+zaten aynı sonuca (ulaşılamama) varır.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☑ Atlandı — LAN arayüzünde dinlenmiyor, backend hiç ulaşılamıyor (aynı sonuç: erişim yok)
+
+## MT-MM-090 — i18n/tema hızlı geçiş kontrolü
+
+**Gerçek sonuç**
+Playwright tarayıcısı bu oturum sırasında başka bir şeridin kullanımındaydı,
+ertelendi (bkz. MT-MM-088).
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-091 — `includeTimestamps` verilmeden bugünkü yanıtla birebir aynıdır
+
+**Gerçek sonuç**
+`HTTP: 200`. `alignment: null` (dolu liste değil). `attachment.mediaType:
+"audio/mpeg"`, `characters:6`, `isEstimated:false`, `cost:0.00066` — MT-MM-040
+ile aynı şekilde davranıyor. 🚨 Gözlem (kusur DEĞİL, kaynakla doğrulandı):
+`characters` alanı metnin GERÇEK uzunluğuyla eşleşmiyor ("Zaman damgasiz
+sentez." = 22 karakter → `characters:6`; MT-MM-040'ta da aynı örüntü, 34
+karakterlik metin → `characters:9`). Kaynak: `ElevenLabsSpeechClient.cs:110`
+`ReadBilledCharacters(response)` — değer ElevenLabs'in kendi
+`character-cost`/`x-character-cost` yanıt başlığından okunuyor (yalnız
+başlık YOKSA `request.Text.Length`'e düşüyor); Tracon burada sağlayıcının
+GERÇEK faturaladığı değeri aynen yansıtıyor (K-032'nin "hesap uydurulmaz"
+ilkesiyle tutarlı) — düşük görünen sayı ElevenLabs'in kendi ücretlendirme
+biriminden kaynaklanıyor, Tracon kusuru değil.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-092 — `includeTimestamps: true` karakter hizalaması döner
+
+**Gerçek sonuç**
+`HTTP: 200`. `alignment` TAM 7 öge taşıyor — "Merhaba" metninin karakter
+sayısıyla birebir (kelime değil, karakter). Her öge `character`/`start`/`end`
+taşıyor; `start`/`end` artan sırada (`00:00:00` → `00:00:00.929`), son
+`end` (0.929s) sesin gerçek süresine yakın.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-093 — Akışlı sentezde `includeTimestamps: true` açıkça reddedilir
+
+**Gerçek sonuç (izlek C)**
+`dotnet test tests/Tracon.Voice.UnitTests --filter "..."` — filtre yine
+`Microsoft.Testing.Platform` tarafından yok sayıldı (aynı MT-MM-083 tuzağı),
+TÜM `Tracon.Voice.UnitTests` koştu: **68/68 geçti, 0 başarısız** (223ms).
+`Streaming_synthesis_rejects_IncludeTimestamps_explicitly` testi
+`ElevenLabsSpeechClientTests.cs`'te mevcut ve set genelinde başarısızlık
+yok — case'in bar'ı karşılanıyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-094 — Hizalama istemek ayrı bir fatura birimi DEĞİLDİR
+
+**Gerçek sonuç — spec'in ön koşulu düzeltilerek koşuldu.** MT-MM-091'in kendi
+örnek metni ("Zaman damgasiz sentez.") MT-MM-092'nin metniyle ("Merhaba")
+AYNI DEĞİLDİ — bu case'in ön koşulu "aynı metinle koşuldu" diyor ama iki
+case'in kendi örnek komutları farklı metin taşıyor (spec'in kendi içindeki
+tutarsızlığı). MT-MM-091 "Merhaba" ile TEKRAR koşuldu
+(`manuel-mm-timestamps-off-2`): `characters:2, cost:0.00022` —
+MT-MM-092'nin (`characters:2, cost:0.00022`) ile BİREBİR AYNI. Hizalama
+istemek maliyeti/karakter sayısını değiştirmiyor, tam beklendiği gibi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-095 — `generate_image` yalnız ek kimliği döndürür — 🚨 KUSUR (`HATA-S1-025`)
+
+**Gerçek sonuç — spec'in kendi bar'ı karşılandı AMA yeni bir kusur bulundu.**
+Uygulama `Tracon:Images:Enabled=true`, `:Provider=openai`,
+`:Model=gpt-image-1` ile yeniden başlatıldı. `generate_image` taşıyan bir
+agent oluşturuldu, istem gönderildi. Model tool'u İKİ KEZ çağırdı, ikisi de
+modele `"Error: Function failed."` olarak döndü — AMA `GET
+/api/attachments?sessionId=...` TAM 2 görsel ek listeledi (`image/png`,
+1024x1024, indirilip `file` ile doğrulandı — gerçek, açılabilir görsel).
+Kök neden günlükte: `Tracon.TraconToolTimeoutException: Tool
+'generate_image' did not complete within 30s.` — `gpt-image-1` üretimi
+30 saniyeden uzun sürüyor (gerçek süre ~30-35s), sabit tool timeout'u
+aşılıyor. `TimeoutAIFunction.cs`'in kendi yorumu bunu BİLİNÇLİ bir sınır
+olarak tanımlıyor ("the call keeps running in the background... This is a
+documented limit, not a bug") — arka plan çağrısı gerçekten TAMAMLANDI ve
+ek DOĞRU şekilde `SessionId`/`RunId` ile kaydedildi. Ancak `GET
+/api/runs/.../tools` sorgulandığında HER İKİ `generate_image` satırı da
+`succeeded:false, timedOut:true, usage:null, result:null` — arka plan
+görevi başarıyla bitmesine rağmen `tool_invocations` satırı GÜNCELLENMİYOR.
+**Sonuç: gerçek sağlayıcı harcaması (görsel üretildi, muhtemelen faturalı)
+kalıcı olarak GÖZLEMLENEBİLİRLİKTEN düşüyor** — K-032'nin "hesap asla
+uydurulmaz" ilkesi burada tersten ihlal ediliyor: hesap uydurulmuyor ama
+GERÇEK bir hesap sessizce kayboluyor. Bu, `HATA-S1-024` ile aynı ailede
+(`TraconException` yutulması) ama SONUCU farklı ve daha ağır (mesaj
+netliği değil, maliyet muhasebesi kaybı) — ayrı bir kayıt açıldı.
+
+**HATA-S1-025 — Zaman aşımından SONRA başarıyla biten tool çağrısının kullanım/maliyeti kalıcı olarak kayboluyor**
+- **Case:** MT-MM-095 (muhtemelen 30s+ süren HER tool — yalnız
+  `generate_image`'e özgü değil, `TimeoutAIFunction` her tool'a sarılıyor)
+- **Önem:** Yüksek (finansal gözlemlenebilirlik — gerçek harcama izlenemez
+  hâle geliyor)
+- **İzlek:** B (gerçek OpenAI `gpt-image-1` çağrısıyla ampirik olarak
+  gözlendi, 2/2 çağrıda tekrarlandı)
+- **Ortam:** macOS arm64 · net10 · PostgreSQL · OpenAI (`gpt-image-1`,
+  `Tracon:Images:Enabled=true`)
+
+**Beklenen**
+Tool zaman aşımından sonra arka planda başarıyla biterse (ek kaydedilir),
+bu başarı `tool_invocations` kaydına da yansımalı — en azından `usage`/
+`result` alanları arka plandaki gerçek sonuçla GÜNCELLENMELİ, ya da en
+azından "geç tamamlandı" durumu ayrı bir alanla işaretlenmeli. Sessiz kayıp
+kabul edilemez.
+
+**Gerçekleşen**
+`ToolInvocationTracker.cs:143` satırı `TimedOut = result.Exception is
+TraconToolTimeoutException` yazıyor — kayıt YALNIZ ilk (zaman aşımı) sonucu
+temel alıyor, `TimeoutAIFunction.cs`'in arka planda gözlemlediği geç
+tamamlanma (`logger.LogInformation("...finished after its timeout had
+already been reported...")`) hiçbir yerde `tool_invocations`'a geri
+yazılmıyor.
+
+**Yeniden üretme**
+1. `Tracon:Images:Enabled=true`, `Provider=openai`, `Model=gpt-image-1` ile
+   başlat (gpt-image-1 üretimi rutin olarak 30s'yi geçiyor).
+2. `generate_image` tool'u taşıyan bir agent'a görsel isteği gönder.
+3. `GET /api/runs/{runId}/tools` → `succeeded:false, usage:null` görülür.
+4. `GET /api/attachments?sessionId=...` → gerçek bir görsel ekin VAR
+   olduğu görülür — çelişki budur.
+
+**Kanıt**
+- `docker exec ap-pg psql ...`: 2 ek satırı (`image/png`, 1024x1024,
+  `runId` dolu) + 2 `tool_invocations` satırı (`usage=NULL,
+  succeeded=false`) AYNI `run_id` altında.
+- Kaynak: `src/Tracon.Core/Tools/TimeoutAIFunction.cs:79-99` (arka plan
+  gözlemi, geri yazma yok), `src/Tracon.Core/Recording/
+  ToolInvocationTracker.cs:143`.
+
+**Kapsam**
+Yalnız görsel üretimi değil — 30s+ süren HER tool (uzun `speak` metni,
+yavaş MCP çağrısı vb.) aynı sessiz maliyet kaybına maruz. Kapanışta sınıf
+taraması önerilir (`TimeoutAIFunction` kullanan her tool + gerçek harcama
+yapan tool'ların timeout süresi).
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+
+## MT-MM-096 — Kapalı ayar tool'u ve operator ucunu açmaz
+
+**Gerçek sonuç**
+İki ayrı gözlem: (1) `Tracon:Images:Enabled=false` (bu turun varsayılanı,
+095'ten önceki hâl) iken `POST /api/images/generate` → `HTTP 405` (spec
+`404` bekliyordu), `Allow: GET, HEAD` başlığı taşıyor. Aynı path'e `GET` →
+`HTTP 404` ("There is no endpoint or console asset at path..."). Kök neden:
+bu path'e GET/HEAD için eşleşen bir GENEL fallback/console-asset rotası
+var (Tracon'a özgü değil — herhangi bir eşleşmeyen API path'i için aynı
+davranış beklenir), POST bu rotanın metod kümesinde olmadığı için ASP.NET
+Core standart 405 üretiyor. Uç işlevsel olarak BAĞLI DEĞİL (spec'in asıl
+iddiası), yalnız literal durum kodu POST için 404 değil 405 — küçük bir
+spec netliği notu, ürün kusuru değil. (2) `POST /api/agents` ile
+`toolNames:["generate_image"]` taşıyan bir tanım → `HTTP 400 "Definition
+invalid"`, `"Agent 'mt-mm-096-probe2' refers to tool 'generate_image', but
+it is not registered in this code."` — TAM beklendiği gibi reddedildi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-097 — URI görsel çıktısı giden ağ muhafızını atlayamaz
+
+**Gerçek sonuç — canlı senaryo koşulamadı, otomatik test kanıtına dayanıldı.**
+Bu case özel bir `UriContent` dönen test adaptörü gerektiriyor; donuk
+`samples/` bunu taşımıyor ve kod donukken eklenemez. `Tracon.Core.UnitTests`
+(MT-MM-083'te TAM koştu: 2805/2805 geçti) bu paketin içinde
+`ImageAttachmentWriterTests` sınıfını taşıyor. Canlı akış doğrulanmadı —
+bu bir sınırlama olarak not düşülüyor, geçti sayılmıyor.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-098 — Google adapter'ı boyut tahmin etmez
+
+**Gerçek sonuç — ilk yarı kaynakla doğrulandı, ikinci yarı canlı koşulmadı.**
+`src/Tracon.Google/Internal/GoogleImageGenerator.cs:40-47`: `options.ImageSize
+is not null` iken KOŞULSUZ `"Google image generation does not accept
+WIDTHxHEIGHT. Omit 'size' and use the provider default."` fırlatıyor —
+sağlayıcıya hiç istek gitmeden, girdi doğrulama aşamasında. Bu ilk iddiayı
+(açık hata, boyut tahmini yok) kaynak düzeyinde KANITLIYOR.
+`Tracon.Google.UnitTests` TAM koştu: 84/84 geçti (bu davranışa özel bir
+test bulunamadı, ama kayıt testleri geçti). İkinci iddia (boyutsuz çağrının
+sağlayıcı varsayılanıyla ÇALIŞTIĞI) canlı bir Google görsel modeli
+gerektiriyor; geçerli bir model adı bu turda doğrulanamadı — koşulmadı.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-099 — Tur üretmeyen bir `commit` paneli asmaz
+
+**Gerçek sonuç**
+Playground UI (Playwright) gerektiriyor, tarayıcı başka şeritçe kullanımda —
+ertelendi (bkz. MT-MM-088). Not: bu case'in SUNUCU tarafı zaten MT-MM-073
+ile dolaylı doğrulandı (`idle` çerçevesi, `done` YOK); yalnız panelin görsel
+"asılı kalmama" davranışı gözlenemedi.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-100 — `list_voices` ve `GET /api/voice/voices` attribute taşır
+
+**Gerçek sonuç**
+21 sesin 21'i de `attributes` nesnesi taşıyor (hiçbiri eksik değil), 21'inde
+de `gender` anahtarı var, boş `attributes` nesnesi yok (hepsi dolu — bu
+hesapta `labels`'ı boş bir ses yok, o dal gözlenemedi ama alan sözleşmesi
+doğru).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-101 — Sağlayıcı üstverisi `preview_url`/anahtar sızdırmaz
+
+**Gerçek sonuç**
+Tam yanıt gövdesi tarandı: `preview_url` alanı yok. Gerçek `Tracon:Voice:ApiKey`
+değeri (51 karakter) yanıtın hiçbir yerinde geçmiyor (Python'da string
+`in` testiyle doğrulandı, anahtar hiçbir yere yazdırılmadı).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-102 — Model `list_voices` çıktısında gender bilgisini görür
+
+**Gerçek sonuç**
+"Hangi kadın sesler var?" istemine model YALNIZ `female` etiketli 7 sesi
+listeledi (Alice, Bella, Jessica, Laura, Lily, Matilda, Sarah) — gender
+bilgisini doğru kullandı. Spec'in örnek biçimi (`— female` son eki) yerine
+model kendi doğal dil özetini üretti, ama ALTTA YATAN veriyi doğru filtreledi
+— bu case'in asıl iddiası (gender bilgisinin modele ULAŞTIĞI ve
+KULLANILDIĞI) karşılandı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-103 — Ses sağlayıcısı yokken `list_voices` İngilizce mesaj döner
+
+**Gerçek sonuç — canlı yol koşulamadı, otomatik test kanıtı kullanıldı.**
+Uygulama `Tracon:Voice:ApiKey=""` (açık boş override — Development modunda
+paylaşılan `user-secrets`'ı sessizce okuma tuzağına düşülmeden, skill §1.2)
+ile yeniden başlatıldı; `GET /api/voice/voices` doğru şekilde `501` verdi ve
+`GET /api/tools` listesinde `list_voices` HİÇ YOKTU (Voice kayıtlı değilken
+tool da kayıtlı değil). Kod tabanının kendi `voice-assistant` agent'ı da bu
+durumda `404 Agent not found` verdi (tool'ları çözülemiyor). Sonuç: bu
+case'in "tool'u çağır" adımı canlı olarak imkânsız — `list_voices` hiç
+YOKKEN çağrılamaz, yalnız "sıfır ses döndüren SAHTE `ISpeechSynthesizer`"
+alternatif ön koşulu bu case'i test edilebilir kılar ve o kod donukken
+enjekte edilemez. Otomatik kanıt kullanıldı: `ListVoicesToolTests.cs`
+`"No voices available."` iddiasını taşıyor ve MT-MM-093'te TAM koşulan
+`Tracon.Voice.UnitTests` paketinin içinde (68/68 geçti).
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-104 — 50'den fazla ses varken kalan sayı satırı İngilizce'dir
+
+**Gerçek sonuç — canlı koşulamadı (ortam sınırı, MT-MM-050'de zaten not
+düşüldü).** Bu hesapta yalnız 21 gerçek ElevenLabs sesi var,
+`MaxListedVoices=50` altında — kısaltma satırı gerçek sağlayıcıyla asla
+tetiklenmez. `ListVoicesToolTests.cs` aynı dosyada "... and N more voices."
+iddiasını taşıyor ve MT-MM-093'ün tam koştuğu pakette (68/68 geçti).
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
 ---

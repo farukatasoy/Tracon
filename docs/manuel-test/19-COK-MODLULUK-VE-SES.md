@@ -2077,7 +2077,10 @@ Negatif/maliyet senaryosu. MT-MM-091 ve MT-MM-092'nin karşılaştırması.
 | **İlgili karar** | — |
 
 **Ön koşul**
-- MT-MM-091 ve MT-MM-092 aynı metinle (`"Merhaba"`) koşuldu.
+- MT-MM-091 ve MT-MM-092 aynı metinle (`"Merhaba"`) koşuldu. 🚨 Düzeltildi
+  (2026-09-17): MT-MM-091'in kendi örnek komutu farklı bir metin
+  ("Zaman damgasiz sentez.") taşıyor — bu case için MT-MM-091,
+  MT-MM-092'nin metniyle (`"Merhaba"`) AYRICA koşulmalı.
 
 **Beklenen sonuç**
 - İki yanıttaki `characters` ve `cost` (yapılandırılmışsa) değerleri
