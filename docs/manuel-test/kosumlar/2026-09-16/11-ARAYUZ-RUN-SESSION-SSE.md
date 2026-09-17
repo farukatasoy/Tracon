@@ -460,3 +460,82 @@ beklentisi geçersiz.
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
+
+### MT-UIRUN-026
+
+**Yöntem notu.** `support` kod kökenli olduğu için `ReplayTools`/`NoTools`
+istekleri `400` ile reddediliyor (bkz. `MT-RES-050`, aile 21) — mekanizma
+`manuel-destek` (veritabanı kökenli, `FIX-AGENT-01`) ile ölçüldü, dosyanın
+kendi "doküman düzeltmesi" notu da aynı değişimi öneriyor.
+
+**Gerçek sonuç**
+`manuel-destek`'in tool çağrılı bir run'ında "Replay this run" paneli: Araç
+Modu varsayılanı "Play back recorded results" (ReplayTools); Sürüm seçicisi
+"Today's version" VE "v1" (veritabanı kökenli olduğu için gerçek sürüm
+listeleniyor, `404` dalı tetiklenmedi); Model alanı boş. Beklenen sonucun
+tamamı birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-UIRUN-027
+
+**Gerçek sonuç**
+`manuel-destek`'in tool çağrılı run'ında Araç Modu varsayılanı (ReplayTools)
+ile "Replay" tıklandı: `200`, yeni `runId` bağlantısı belirdi. Yeni run'da
+`GET .../tools`: `get_order_status`, `result:"Order ORD-1001 has
+shipped..."` — kayıtlı sonucun AYNISI (gerçek çağrı olmadan oynatıldı).
+`replayOfRunId` kaynağı gösteriyor. Beklenen sonucun tamamı birebir
+örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-UIRUN-028
+
+**Gerçek sonuç**
+Araç Modu "Do not attach tools" (NoTools) seçilince ipucu metni değişti:
+"The model answers without tools. Measures the effect of an instruction
+change alone." — "Replay"e tıklanınca `200`, yeni run açıldı. Yeni run'ın
+`GET .../tools` çağrısı **0** kayıt döndü — tool hiç çağrılmadı. Beklenen
+sonucun tamamı birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-UIRUN-029
+
+**Gerçek sonuç**
+Araç Modu "Run tools for real" (LiveTools) seçilip "Replay"e tıklandı:
+`200`, yeni run açıldı. Yeni run'ın `GET .../tools` çağrısı TAZE bir
+`toolCallId` ve `createdAt` (tam tıklama anına ait) taşıyan bir
+`get_order_status` kaydı döndü — kayıttan kopya DEĞİL, gerçek bir MAF
+tool-invoke turu. Beklenen sonucun tamamı birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-UIRUN-030
+
+**Yöntem notu.** Bu şeridin `mt_s3` şemasında `tool_approval_rules` tablosu
+BOŞ — dosyanın andığı "Hatırla" kalıntısı (S4-5, `MT-UIAG-031`) burada yok.
+`support`/`FIX-PROMPT-03` doğrudan kullanıldı.
+
+**Gerçek sonuç**
+`support`'ta `AwaitingApproval` durumunda bir run'da Araç Modu "Run tools
+for real" (LiveTools) seçilip "Replay" tıklandı: ağ isteği `409 Conflict`.
+`ErrorNote`: "A tool requiring approval cannot run live: Agent 'support'
+carries the tool 'cancel_order', which requires approval..." (Türkçe
+"Onay gerektiren tool canli calistirilamaz" DEĞİL — `en` varsayılan
+locale, sistematik bulgu) — `cancel_order` adı gerekçede geçiyor. `GET
+/api/runs?sessionId=mt-uirun-030` hâlâ **1** kayıt — yeni bir `runs` satırı
+OLUŞMADI. Beklenen sonucun davranışsal kısmı birebir örtüştü; dil
+beklentisi geçersiz.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
