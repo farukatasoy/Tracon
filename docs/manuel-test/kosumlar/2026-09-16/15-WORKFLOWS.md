@@ -388,3 +388,103 @@ structure differs from when the checkpoint was written...")` →
 `event: done`. Birebir beklenen (K-228: İngilizce).
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-WF-060 — Çalıştırma `AwaitingInput` ile kapanır, `Boolean` form kartı
+
+**Gerçek sonuç**
+🚨 İki küçük doküman notu (kusur değil): (1) K-228 — `portId:
+"publish-approval"` (Türkçe "yayin-onayi" değil), `prompt` "Should this
+summary be published?" ile başlıyor (Türkçe değil). (2) Sıralama iddiası
+hafif yanıltıcı: `WorkflowRequest`'ten SONRA `RunAwaitingInput`'tan ÖNCE
+iki ara altyapı olayı var (`ExecutorCompleted`, `SuperStepCompleted`) —
+"hemen öncesinde" tam bitişik değil ama akışta yalnız BİR
+`WorkflowRequest` var ve son olay `RunAwaitingInput`, ardından `done` —
+asıl iddia doğru. `form:"Boolean"`, `requestType:"System.String"`,
+`responseType:"System.Boolean"` — tam beklenen.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-WF-061 — `GET /requests` yalnız akış kapandıktan sonra çağrılır (arayüz kuralı)
+
+**Gerçek sonuç**
+Arayüzden çalıştırıldı. "Streaming sırasında panel gizli" anı (adım 2),
+gerçek API çağrısının çok hızlı tamamlanması yüzünden **güvenilir
+yakalanamadı** (dürüstçe not düşülüyor — bir test aracı sınırlaması, ürün
+davranışı hakkında değil). Adım 3 (akış bitince panel görünür, "Yes"/"No"
+düğmeleri) **doğrulandı** — panel "Waiting on you" başlığıyla, doğru
+prompt metniyle ve iki düğmeyle göründü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-WF-062 — `respond` onayla → yeni `runId`, çıktı BİREBİR sabit metin
+
+**Gerçek sonuç**
+Arayüzden "Yes" tıklandı (aynı zamanda MT-WF-061'in devamı). Yeni bir
+`runId` (`01a0afb2-da7f-...`) üretildi, `WorkflowOutput.text` **birebir**
+`"Summary published."` (K-228: "Ozet yayinlandi."nin İngilizcesi, sabit
+kod metni). `GET /api/runs/{yeni-runId}` → `status: "Completed"`.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-WF-063 — `respond` reddet → çıktı BİREBİR sabit metin
+
+**Gerçek sonuç**
+Yeni bir çalıştırma + `approved:false` ile `respond`: `WorkflowOutput.text`
+**birebir** `"Publication canceled; summary kept in the archive."` (K-228:
+"Yayin iptal edildi; ozet arsivde birakildi."nin İngilizcesi).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-WF-064 — Yanlış `requestId` ile `respond` → SSE `error`
+
+**Gerçek sonuç**
+🚨 Bu case MT-WF-020/053'ten farklı olarak GERÇEKTEN `event: error`
+üretti (RunFailed domain event değil): `{"type":"TraconException",
+"message":"There is no pending request with id 'uydurma-istek-kimligi'
+on run '...'. Refresh the request list with GET /api/workflows/runs/
+{runId}/requests."}` — K-228 (İngilizce), anlamca tam beklenen.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-WF-065 — `AwaitingInput` OLMAYAN bir çalıştırmaya `respond` → SSE `error`
+
+**Gerçek sonuç**
+Tamamlanmış bir çalıştırmaya (MT-WF-040'ın run'ı) `respond` denendi:
+`event: error`, `message: "Run '...' is not awaiting human input (status:
+Completed). Only a run in 'AwaitingInput' status can be responded to."`
+(K-228). Tam beklenen.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-WF-066 — Başka kiracının `AwaitingInput` çalıştırmasına `/requests` → `404`
+
+**Gerçek sonuç**
+🚨🚨 **Önemli yöntem notu (ürün kusuru DEĞİL, dosya 02/03'ün zaten belgelediği
+tuzağın bu ailede tekrarı):** İlk denemede ap-s2'nin ANA uygulaması (port
+5082) çok kiracılık bayraklarıyla (`Tracon:Tenancy:Enabled` VE
+`AllowHeaderResolution`) başlatılmamıştı — `X-Tracon-Tenant` başlığı
+**sessizce yok sayıldı** ve `kiraci-beta` başlığıyla yapılan istek
+`kiraci-alfa`'nın isteğini **`200` ile sızdırdı** (kiracı izolasyonu YOK
+gibi göründü). Bu bir ürün kusuru DEĞİL — yalnızca test ortamının bu iki
+bayrağı hiç açmamış olmasıydı. Ana uygulama iki bayrakla yeniden
+başlatıldı (PostgreSQL `mt_s2` şeması, mevcut veriler korunarak — restart
+sonrası tüm önceki workflow tanımları doğrulandı: hâlâ erişilebilir).
+Doğru kurulumla tekrar denendi: `kiraci-beta` başlığıyla `kiraci-alfa`'nın
+run'ına erişim → **`404`**, `title: "Run not found"` (K-228) — "yetkisiz"
+bile demiyor, varlığı sızdırmıyor. Tam beklenen.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
