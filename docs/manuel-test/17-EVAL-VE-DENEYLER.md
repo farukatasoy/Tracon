@@ -702,9 +702,11 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/evals/denetimsiz-takim/run
 - Tetikleme isteği `HTTP: 200` döner (senkron doğrulama denetim
   **sayısını** kontrol etmez, yalnız `kind` geçerliliğini kontrol eder).
 - Birkaç saniye sonra `GET /api/evals/runs/{id}` → `status: "Failed"`,
-  `passed=0, failed=total`. `EvalJobHandler`'ın attığı
-  `TraconException` ("'{ad}' takiminin hic denetimi yok; en az bir
-  denetim gereklidir.") koşuyu senkron değil, ASENKRON olarak düşürür.
+  `passed=0, failed=total`. `EvalJobHandler`'ın attığı istisnanın mesajı
+  (🚨 doküman düzeltildi, koşum 2026-09-17 ap-s3 — kaynak İngilizce'dir,
+  K-228): `"Suite '{suite.Name}' has no checks; at least one check is
+  required."` (`EvalJobHandler.cs:137`) — koşuyu senkron değil, ASENKRON
+  olarak düşürür.
 
 ---
 

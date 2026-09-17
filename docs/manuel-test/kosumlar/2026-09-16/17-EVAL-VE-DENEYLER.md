@@ -184,3 +184,157 @@ var olmayan bir suite'e işaret eden) kalmadı — kaskat gerçekten çalışıy
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
+
+## Devir notu (oturum 19 devam) — §3 gerçek eval koşuları başladı (GERÇEK PARA)
+
+---
+
+### MT-EVAL-020
+
+**Yöntem notu.** Ön koşul metni "MT-EVAL-010'daki tek vakayla" diyor ama
+MT-EVAL-012'nin kendi düzeltme adımı "MT-EVAL-010'un ilk `PUT`'unu tekrar
+uygula" diyordu — o ilk `PUT` İKİ vaka taşıyor (ORD-1001 + "Merhaba").
+Koşu bu haliyle (2 vaka) tetiklendi, sonucu aşağıda; ardından takım
+spec'in beklediği TEK vakaya (`ORD-1001`) geri kırpıldı.
+
+**Gerçek sonuç**
+`POST .../run` → `RUN_ID`. Birkaç saniye sonra `status:"Completed"`,
+`total:2, passed:1, failed:1`. `ORD-1001` vakası: `passed:true`,
+`output` gerçekten `"ORD-1001 siparişiniz kargoya verilmiş..."` —
+`contains_expected` denetimi `"Response contains expected output:
+\"ORD-1001\""` diyerek geçti (spec'in tam istediği kanıt). İkinci vaka
+("Merhaba", `expectedOutput:null`) `passed:false` —
+`"ExpectedOutput is not set; check cannot be applied."`: bu vakanın
+KENDİ eksik `expectedOutput`'unun sonucu, ürün kusuru değil (bir
+`containsExpected` denetimi karşılaştıracak bir değer yoksa BAŞARISIZ
+sayıyor, sessizce geçmiyor — savunmacı ve tutarlı bir tasarım). SQL
+doğrulaması (`mt_s3.eval_runs`) satırla birebir eşleşti
+(`status=2` [Completed], `total=2, passed=1, failed=1, agent_version=1`).
+Spec'in asıl iddiası (ORD-1001 vakasının geçmesi ve çıktının alt dizgeyi
+taşıması) birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-EVAL-021
+
+**Gerçek sonuç**
+`tool-cagri-testi` (`toolCalled`, `mode:"all"`, `tools:["get_order_status"]`),
+vaka `"ORD-1001 nerede?"` → run `Completed`, `passed:true`, skor:
+`"All tools called: get_order_status"`. Karşıt kanıt: aynı takıma
+`query:"Merhaba"` (tool gerektirmeyen) eklenip yeniden koşulunca ilk vaka
+yine geçti, ikinci vaka `passed:false`, `"Missing tool calls:
+get_order_status"`. Beklenen sonucun tamamı (mutlu yol + karşıt kanıt)
+birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-EVAL-022
+
+**Gerçek sonuç**
+`anahtar-kelime-testi` (`keywords`, `values:["ORD-1001"]`,
+`caseSensitive:true`), vaka `"ORD-1001 siparisim nerede?"` → run
+`Completed`, `passed:true`, `"All keywords found: ORD-1001"`. Model
+yanıtı gerçekten `ORD-1001`'i birebir büyük harfle taşıdığı için geçti —
+`caseSensitive` bayrağının etkili olduğunun dolaylı kanıtı. Beklenen
+sonuç birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-EVAL-023
+
+**Gerçek sonuç**
+`gorsel-testi` (`hasImageContent`), vaka `"Merhaba"` → run `Completed`,
+`passed:false`, `failureReason: "has_image_content: No image content
+found in conversation"`. `support` görsel üretmediği için denetim doğru
+şekilde reddetti — negatif kanıt, kusur değil. Beklenen sonuç birebir
+örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-EVAL-024
+
+**Gerçek sonuç**
+Aynı `gorsel-testi` `numRepetitions:3` ile koşuldu → `total:1, passed:0,
+failed:1` (vaka tek, üç tekrar). Üç tekrarın **hepsi** `has_image_content`
+başarısızlığı gösterdi, vaka tümüyle başarısız sayıldı
+(`allRepetitionsPassed` mantığı — tek bir başarısız tekrar bile vakayı
+düşürüyor). Beklenen sonuç birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-EVAL-025
+
+**Yöntem notu — iki deneme.** Yeni bir takım (`surum-pin-testi`,
+`agentName:"manuel-destek"`) kuruldu. İlk denemede 6 vaka yeterince
+yavaşlatmadı (koşu ~9 saniyede bitti, güncelleme isteği kendi JSON gövde
+hatasıyla ["name" eksik] zaten başarısız olmuştu — gerçek bir sınama
+olmadı, atıldı). İkinci denemede takım 20 vakaya çıkarıldı; ayrıca ilk
+düzeltilmiş `PUT /api/agents/manuel-destek` isteği koşu henüz `Pending`
+durumundayken gitti — bu da `MarkRunRunningAsync`'in henüz sabitlemediği
+bir ana denk geldi (sabitlenen sürüm bu yüzden 2 değil, güncelleme
+SONRASI sürüm olan 3 çıktı — bu da yöntemsel bir zamanlama hatası, ürün
+davranışı değil). Asıl kanıtı üreten ÜÇÜNCÜ adım: koşu `Running`
+durumuna geçip aktif olarak işlenirken (agent_version zaten 3 olarak
+sabitlenmişken) agent talimatı BİR KEZ DAHA değiştirildi (`version:4`).
+
+**Gerçek sonuç**
+Koşu bittiğinde (`status:Completed, total:20, passed:20, failed:0`)
+`agentVersion:3` — koşu SIRASINDA yapılan `version:4` güncellemesi
+sonucu HİÇ ETKİLEMEDİ. SQL doğrulaması aynı sonucu verdi
+(`SELECT agent_version FROM mt_s3.eval_runs WHERE id=...` → `3`). Bu,
+spec'in asıl iddiasını (sürüm pinleme, koşu ortasındaki güncellemeden
+etkilenmez) birebir kanıtlıyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-EVAL-026
+
+**Gerçek sonuç**
+`denetimsiz-takim` (MT-EVAL-005/007'de silinmişti) yeniden oluşturuldu
+(`checks:[]`, 1 vaka). `POST .../run` → senkron `200`. Birkaç saniye
+sonra `GET /api/evals/runs/{id}` → `status:"Failed", passed:0, failed:1`.
+Gerçek istisna mesajı (kaynaktan doğrulandı, `EvalJobHandler.cs:137`):
+`"Suite 'denetimsiz-takim' has no checks; at least one check is
+required."` — İngilizce (spec düzeltildi yukarıda, K-228). Hata
+gerçekten ASENKRON düştü (senkron `POST` `200` kabul etti). Beklenen
+sonucun tamamı birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-EVAL-027
+
+**Gerçek sonuç**
+`destek-degerlendirme/cases` boşaltıldı, `POST .../run` → **senkron
+`400`**: `"Suite 'destek-degerlendirme' has no cases."` — MT-EVAL-026'nın
+tam tersi (0-vaka senkron, 0-denetim asenkron). Case sonrası tek vaka
+(`ORD-1001`) geri eklendi. Beklenen sonucun tamamı birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-EVAL-028
+
+**Gerçek sonuç**
+`GET /api/evals/destek-degerlendirme/runs?skip=0&take=50` →
+`length: 1` — MT-EVAL-020'de tetiklenen koşu listede (MT-EVAL-027'nin
+senkron `400`'ü hiç kuyruğa girmediği için listede değil, beklenen).
+Beklenen sonuç birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
