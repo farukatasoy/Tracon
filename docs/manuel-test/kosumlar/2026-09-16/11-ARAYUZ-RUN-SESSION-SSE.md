@@ -199,3 +199,70 @@ dönüldüğünde istatistik şeridinin üçüncü kutusu artık "Error rate" DE
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
+
+### MT-UIRUN-013
+
+**Gerçek sonuç**
+`summarize-and-translate` workflow'u çalıştırıldı, `completed` oldu.
+Sayfadaki `h2` başlıklarının TAMAMI tarandı: Feedback, Transcript, Event
+timeline, Call tree, Trace, Tool calls — "Replay this run" YOKTU
+(`hasReplay:false`). Çağrı ağacı ("Call tree") paneli GÖRÜNÜYORDU. Beklenen
+sonucun tamamı birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-UIRUN-014
+
+**Gerçek sonuç**
+`router` kök sayfasında "Call tree": `router` satırı "this run" rozetiyle
+vurgulu, altında `└`-önekli, girintili `support` satırı (bağlantı). `support`
+satırına tıklanıp AYNI çalıştırmanın sayfasına gidilince: AYNI iki satır,
+ama şimdi `support` "this run" rozetini taşıyor, `router` sıradan bağlantı.
+Beklenen sonucun tamamı birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-UIRUN-015
+
+**Gerçek sonuç**
+`support` alt çalıştırmasının sayfasında "Trace" paneli boş-durum metnini
+gösterdi ("Spans live on the root run..."), içindeki bağlantı `router`'ın
+KÖK run kimliğine gidiyordu. Ağ sekmesinde `.../trace` isteği hiç YOKTU.
+Beklenen sonucun tamamı birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-UIRUN-016
+
+**Gerçek sonuç**
+Akış sürerken (`status:running`) sayfada yalnız "Transcript" ve "Event
+timeline" başlıkları vardı — "Trace", "Tool calls", "Replay this run",
+"Feedback" YOKTU. Run `Completed` olduktan sonra sayfa hiç elle
+yenilenmeden (yalnız bekleyerek) yeniden kontrol edildi: dördü de
+KENDİLİĞİNDEN belirdi (`refetchInterval`). Beklenen sonucun tamamı birebir
+örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-UIRUN-017
+
+**Gerçek sonuç**
+`runs/00000000-...` adresine gidildi. `ErrorNote`: "Run not found: There is
+no run with id '00000000-0000-0000-0000-000000000000'." — sunucunun
+varsayılan `en` locale mesajı (Türkçe "kimlikli bir calistirma yok" DEĞİL —
+bu turun sistematik `en`-varsayılan bulgusuyla tutarlı, K-228). Hiçbir panel
+(`h2` sayısı `0`) render edilmedi. Beklenen sonucun davranışsal kısmı
+(404 dalı, panelsiz) birebir örtüştü; yalnız dil beklentisi bu ortamda
+geçersiz.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
