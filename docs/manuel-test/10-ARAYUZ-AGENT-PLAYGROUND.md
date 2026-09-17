@@ -1577,8 +1577,10 @@ Negatif senaryo.
 
 **Beklenen sonuç**
 - Yükleme `400` ile reddedilir; form alanının üstünde `ErrorNote`
-  `"Ek turu reddedildi: Dosya turu taninmadi. Desteklenen turler: ..."`
-  metnini gösterir (beyaz listedeki yedi tür alfabetik sırayla listelenir).
+  `"Attachment type rejected: File type not recognized. Supported types:
+  application/pdf, audio/*, image/gif, image/jpeg, image/png, image/webp,
+  text/plain."` metnini gösterir (2026-09-16 turunda düzeltildi: spec'in
+  Türkçe metni bayattı, K-228 — yedi tür yine de alfabetik sırayla listeleniyor).
 - Hiçbir chip eklenmez.
 
 ---
