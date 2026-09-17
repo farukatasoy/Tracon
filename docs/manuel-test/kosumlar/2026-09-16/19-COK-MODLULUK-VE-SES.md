@@ -31,7 +31,18 @@ GET /api/meta -> version 0.0.0-preview.0.789, storage.persistent=true,
 
 ## Devir notu
 
-**Oturum 1 — MT-MM-001..028 koşuldu (28 case).** Ayrıntı case bloklarında.
+**🚨 Kaza — bir komut ElevenLabs anahtarını düz metin gösterdi.** Fiyatlandırma
+anahtarının nereden geldiğini araştırırken `dotnet user-secrets list` (JSON
+DEĞİL, düz biçim) çalıştırıldı ve çıktı bu ajanın kendi araç transkriptine
+gerçek `Tracon:Voice:ApiKey` değerini yazdı (hiçbir dosyaya/proje logına
+YAZILMADI, yalnız bu oturumun kendi tool-call kaydında göründü). 00-INDEKS
+§2.4 zaten "sağlayıcı anahtarları düz metne çıktı, tur bitince DÖNDÜRÜLMELİ"
+notu taşıyor — bu kaza aynı öneriyi bir kez daha doğruluyor, ek bir aksiyon
+GEREKTİRMİYOR (anahtar zaten rotasyon listesinde) ama şeffaflık için
+kaydediliyor. Bundan sonra bu oturumda yalnız `--json` + Python filtreleme
+kullanıldı (değerler asla doğrudan `echo`/`print` edilmedi).
+
+**Oturum 1 — MT-MM-001..042 koşuldu (37 case).** Ayrıntı case bloklarında.
 
 **🚨 Ölçülen ortam tuzağı — DLL doğrudan koşumu `appsettings.json`'ı bulamıyor.**
 `dotnet artifacts/bin/Tracon.Api/release/Tracon.Api.dll` çalışma dizini
@@ -223,6 +234,117 @@ bilinçli kapsam kararı doğrulandı.
 **Gerçek sonuç**
 `HTTP: 400`, `AttachmentIngestion.ReplaceEmbeddedDataAsync` guard hatasını
 doğrudan istemciye taşıdı ("File type not recognized...").
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-031 — `Tracon:Voice:ApiKey` yoksa `/api/voice/*` `501`, konuşma ucu `404` döner
+
+**Gerçek sonuç**
+`Tracon__Voice__ApiKey=""` ile yeniden başlatıldı. `GET /api/voice/health`
+`HTTP: 501`. `GET /api/voice/sessions/deneme/stream` `HTTP: 404`. Gerçek
+anahtar geri yüklenip yeniden başlatıldı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-032 — `pcm_*`/`ulaw_*`/`alaw_*` çıktı biçimleri açılışta reddedilir
+
+**Doküman düzeltmesi:** Bkz. spesifikasyondaki not — beklenen mesaj metni
+Türkçe yazılmıştı, gerçek metin İngilizce'dir (K-228); spesifikasyon
+düzeltildi.
+
+**Gerçek sonuç**
+`Tracon__Voice__OutputFormat=pcm_16000` ile başlatma denemesi
+`OptionsValidationException` ile çöktü: `"VoiceOptions: format 'pcm_16000'
+cannot be stored as an attachment. ..."` — beklenen davranış doğrulandı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-033 — Tanınmayan sağlayıcı adı açılışta reddedilir
+
+**Doküman düzeltmesi:** Bkz. spesifikasyondaki not — mesaj metni İngilizce
+olarak düzeltildi (K-228).
+
+**Gerçek sonuç**
+`Tracon__Voice__Provider=azure-cognitive-speech` ile başlatma denemesi çöktü:
+`"VoiceOptions: provider 'azure-cognitive-speech' is not recognized.
+Built-in provider: 'elevenlabs'. ..."`.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-034 — `MaxConcurrentRequests` sıfır veya negatif açılışta reddedilir
+
+**Doküman düzeltmesi:** Bkz. spesifikasyondaki not — mesaj metni İngilizce
+olarak düzeltildi (K-228).
+
+**Gerçek sonuç**
+`Tracon__Voice__MaxConcurrentRequests=0` ile başlatma denemesi çöktü:
+`"VoiceOptions: concurrent request limit must be greater than zero."`.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-035 — Hatalı bir API anahtarıyla hata mesajı anahtarı sızdırmaz
+
+**Doküman düzeltmesi:** Bkz. spesifikasyondaki not — ipucu metni İngilizce
+olarak düzeltildi (K-228).
+
+**Gerçek sonuç**
+`Tracon__Voice__ApiKey="SAHTE-GECERSIZ-ANAHTAR-xyz789"` ile açılış BAŞARILI
+oldu (yalnız boşluk denetleniyor). `GET /api/voice/health`:
+`isHealthy:false`, `detail:"Voice list could not be retrieved: HTTP 401. The
+API key is invalid."`. Sahte anahtar metni (`SAHTE-GECERSIZ-ANAHTAR-xyz789`)
+ne yanıtta ne uygulama log dosyasında (`grep -c` → `0`) göründü. Gerçek
+anahtar geri yüklenip yeniden başlatıldı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-038 — `GET /api/voice/voices` gerçek ses listesini döner
+
+**Gerçek sonuç**
+`HTTP: 200`, 21 ses döndü; her öğede `voiceId`/`name`. İlk ses
+`pNInz6obpgDQGcFmaJgB` (`Adam - Dominant, Firm`). `$VOICE_ID` bu değere
+ayarlandı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-039 — `GET /api/voice/health` ücret üretmeden sağlığı ölçer
+
+**Gerçek sonuç**
+`isHealthy:true`, `voiceCount:21` (MT-MM-038 ile eşleşti), `latency` dolu.
+`GET /v2/voices`'e gitti, hiçbir ses üretmedi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-040 — `POST /api/voice/speak` metni seslendirir, ek üretir, maliyet döner
+
+**Gerçek sonuç**
+`HTTP: 200`. `attachment.mediaType:"audio/mpeg"`, `byteSize:38078`,
+`characters:9`, `isEstimated:false`, `cost:0.00099`, `currency:"USD"`.
+Örnek uygulamanın `appsettings.json`'ı `Pricing:Voice:elevenlabs:
+eleven_multilingual_v2:PerMillionCharacters=110.0` taşıyor — bu yüzden
+`cost` burada DOLU (spec'in "yapılandırılmamışsa null" dalı bu örnekte hiç
+tetiklenmiyor, çünkü fiyat HER ZAMAN yapılandırılı geliyor; K-032'nin asıl
+iddiası — hesap ASLA UYDURULMAZ, sıfır YAZILMAZ — burada "doğru fiyatla
+doğru hesap" olarak doğrulandı). Attachment indirilip gerçekten çalan bir
+MP3 olduğu `file` komutuyla doğrulandı (aşağıya bakın).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-041 — `POST /api/voice/speak` boş metinle `400` döner
+
+**Gerçek sonuç**
+`HTTP: 400`, başlık "Text empty" — ElevenLabs'e hiç istek gitmedi (kredi
+harcanmadı, MT-MM-039'daki `voiceCount` ile karşılaştırıldığında ek çağrı
+görünmüyor).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-042 — `POST /api/voice/speak` `MaxCharactersPerRequest` sınırını yerel olarak denetler
+
+**Gerçek sonuç**
+6000 karakterlik metin `HTTP: 400`, başlık "Text too long", detay
+`"The text is 6000 characters; the limit is 5000. ..."` — istek ElevenLabs'e
+GİTMEDEN reddedildi (400, 502 değil). Düzeltilen kusur hâlâ düzeltilmiş
+durumda, regresyon yok.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
