@@ -276,3 +276,67 @@ workflow defined in code (AddWorkflow)...", buton: "Try again") — K-228
 dil deseni (İngilizce, Türkçe değil), anlamca tam beklenen.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-WF-040 — `summarize-and-translate` çalıştırma: olay tipleri ve `runs` ağacı
+
+**Gerçek sonuç**
+SSE akışında beklenen tüm tipler göründü: `WorkflowStarted`,
+`SuperStepStarted`, `ExecutorInvoked`, `ExecutorCompleted`,
+`SuperStepCompleted`, `WorkflowOutput`, `RunCompleted`. `/tree`: tam 3
+satır — `depth=0 kind=Workflow` (summarize-and-translate, childRunCount:2)
++ `depth=1 kind=Agent` (summarizer, translator). Tam beklenen.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-WF-041 — `runs.kind` / `workflow_name` veritabanı doğrulaması
+
+**Gerçek sonuç**
+`kind=1` satırında `workflow_name` VE `agent_name` ikisi de
+`summarize-and-translate`. `kind=0` satırlarında `workflow_name` boş,
+`agent_name` sırasıyla `summarizer`/`translator`. Tam beklenen (sayılar
+turun kümülatif kullanımını yansıtıyor, kusur değil).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-WF-042 — Kontrol noktası listesi ve ilk özelliğin `stepNumber` olduğu kanıtı
+
+**Gerçek sonuç**
+Spec'in kendi kod-okuma düzeltmesi yeniden doğrulandı: HTTP listesi 3
+kayıt, `parentCheckpointId` zincirlenmiş. SQL: `sutun_tipi = json` (K-027,
+`jsonb` DEĞİL). İlk 60 bayt `{"stepNumber":0,"workflow":{"executors":
+{"summarizer_771ef71...` ile başlıyor — `$type` İLK özellik DEĞİL,
+`stepNumber`. `$type` işaretçisi payload'ın DERİNİNDE gerçekten var
+(`LIKE '%$type%'` → `true`). Spec'in düzeltmesiyle birebir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-WF-043 — Kontrol noktalarının `run_id` ve `session_id` ile filtrelenebilirliği
+
+**Gerçek sonuç**
+İkinci bir çalıştırma farklı `sessionId` (`ikinci-oturum`) ile yapıldı. SQL:
+iki ayrı `session_id`, her biri kendi `run_id`'sine bağlı 3'er kontrol
+noktası — sızıntı yok. `GET .../checkpoints` yalnız ilgili run'ın 3
+noktasını döndü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-WF-044 — Aynı workflow iki kez çalıştırılınca executor kimlikleri SABİT kalır (K-127 kanıtı)
+
+**Gerçek sonuç**
+🚨 K-228 (kusur değil): case'in grep deseni Türkçe `ozetleyici_` bekliyordu,
+gerçek kimlik İngilizce `summarizer_<hash>`. İki ayrı çalıştırmada (farklı
+`sessionId`) birebir aynı kimlik: `summarizer_771ef71a7f6739f38d3e79585
+f2f494c` — tam beklenen, `WorkflowAgentIdentity.Compute` çalıştırmadan
+bağımsız.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
