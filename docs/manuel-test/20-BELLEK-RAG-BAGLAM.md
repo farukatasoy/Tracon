@@ -123,7 +123,7 @@ Bu veriler yalnız bu dosyaya özgüdür, `00-INDEKS.md`'ye girmez (`PROMPT.md`
 | `FIX-MEM-COMPACT-03` | `FIX-MEM-COMPACT-01` ile aynı, yalnız `Compaction.Strategy: Pipeline`, ad `manuel-pipeline` |
 | `FIX-MEM-FILE-01` | Ad `manuel-dosya-bellek` · Model `{provider: openai, model: gpt-5.4-mini}` · Talimat `"Kullanici bir bilgiyi hatirlamani isterse dosya bellegine kisa bir not olarak yaz. Sorulduğunda dosyadan okuyup cevapla."` · `Memory: {EnableFileMemory: true}` |
 | `FIX-MEM-FILE-02` | Ad `manuel-dosya-arama` · aynı model · Talimat `"Kullanicinin sordugu konuyu dosya belleginde ara ve bulduğun iceriği ozetle."` · `Memory: {EnableTextSearch: true}` |
-| `FIX-MEM-COLLECTION-01` | Koleksiyon adı `manuel-bilgi` (sample'ın `kurumsal` koleksiyonuyla çakışmaz) |
+| `FIX-MEM-COLLECTION-01` | Koleksiyon adı `manuel-bilgi` (sample'ın `knowledge-base` koleksiyonuyla çakışmaz — 2026-09-18 düzeltmesi, bkz. `MT-MEM-026`) |
 | `FIX-MEM-DOC-01` | `sourceId: "izin-notu"` · metin `"Yillik izin 14 gundur. Bes yildan sonra 20 gune cikar."` (Faz 51'in kendi gerçek kanıtıyla aynı örnek — kelime eşleşmesi olmayan sorguyla arandığında bulunması ÖLÇÜLMÜŞ) |
 | `FIX-MEM-QUERY-01` | `"tatil hakkim ne kadar"` — `FIX-MEM-DOC-01` içinde "tatil" kelimesi HİÇ geçmez |
 
@@ -1199,8 +1199,11 @@ dotnet user-secrets set "Tracon:PostgreSql:ConnectionString" \
 
 ### MT-MEM-026 — `knowledge-assistant` uçtan uca: belge yükle → soru sor → `search_knowledge` tam bir kez çağrılır
 
-Faz 51'in kendi gerçek kanıtıyla aynı akış; hazır fixture (`knowledge-assistant`,
-`00-INDEKS.md` §3.1) `kurumsal` koleksiyonuna bağlıdır.
+Faz 51'in kendi gerçek kanıtıyla aynı akış; hazır fixture (`knowledge-assistant`)
+`knowledge-base` koleksiyonuna bağlıdır (`samples/Tracon.Api/Program.cs:843` —
+`VectorCollection = "knowledge-base"`; spec'in önceki `kurumsal` adı yanlıştı,
+2026-09-18'de koşum sırasında düzeltildi, ampirik olarak `[]` sonuç dönerek
+bulundu).
 
 | | |
 |---|---|
@@ -1214,13 +1217,13 @@ Faz 51'in kendi gerçek kanıtıyla aynı akış; hazır fixture (`knowledge-ass
   OpenAI anahtarı aktif.
 
 **Adımlar**
-1. `kurumsal` koleksiyonuna bir belge yükle.
+1. `knowledge-base` koleksiyonuna bir belge yükle.
 2. `knowledge-assistant`'na kelime eşleşmesi olmayan bir soru sor.
 3. Run'ın tool çağrılarını oku.
 
 **Girilecek veri**
 ```bash
-curl -s -X POST "$APU/api/knowledge/kurumsal/documents" -H "$APB" -H "content-type: application/json" \
+curl -s -X POST "$APU/api/knowledge/knowledge-base/documents" -H "$APB" -H "content-type: application/json" \
      -d '{"sourceId":"izin-politikasi","text":"Yillik izin 14 gundur. Bes yildan sonra 20 gune cikar."}'
 
 curl -s -X POST "$APU/api/agents/knowledge-assistant/run" -H "$APB" \
@@ -1418,21 +1421,18 @@ WHERE collection = 'manuel-bilgi' AND source_id = 'alfa-belge';
 -- beklenen: tek satir, tenant_id = 'kiraci-alfa'
 ```
 
-### MT-MEM-031 — 🚨 `KnowledgeEndpoints` hiçbir ucunda `RequireApiKeyScope` çağırmıyor — yalnız-okuma anahtarı belge yazabiliyor/silebiliyor mu?
+### MT-MEM-031 — `KnowledgeEndpoints`'te `RequireApiKeyScope` — yalnız-okuma anahtarı belge yazabiliyor/silebiliyor mu?
 
-Şüpheli davranış — koddan ölçüldü, koşumda doğrulanacak/çürütülecek.
-`grep -n "RequireApiKeyScope" src/Tracon.AspNetCore/Endpoints/KnowledgeEndpoints.cs`
-**boş** döner — karşılaştırma: `AgentEndpoints.cs`/`RunEndpoints.cs` her
-uca `RequireApiKeyScope(ApiKeyScope.AgentsAdmin/RunsWrite/...)` ekler.
-Bu, `WorkflowEndpoints` (`15-WORKFLOWS.md` `MT-WF-100`), `SchedulingEndpoints`
-(`16-IS-KUYRUGU-VE-ZAMANLAMA.md` `MT-JOB-090`), Eval/Experiment yüzeyinin
-(`17-EVAL-VE-DENEYLER.md` `MT-EVAL-100`/`101`, farklı kök nedenle: kapsam
-değeri hiç tanımlı değil) ve `GovernanceEndpoints`'in (`18-MCP-VE-A2A.md`
-`MT-MCP-051`/`052`) ardından **beşinci bilinen** tekrardır (önceki
-notlardaki sayaç `00-INDEKS.md` içinde tutarsız ilerliyor — bu doküman kesin
-bir sıra numarası iddia etmez, yalnız listelenen dört önceki örneğe ek
-BİR tekrar daha olduğunu kaydeder) — sistematik bir denetim boşluğuna
-işaret eder.
+**Doküman düzeltmesi (2026-09-18) — spec'in kod kanıtı bayat çıktı.**
+Spec'in dayandığı `grep -n "RequireApiKeyScope"
+src/Tracon.AspNetCore/Endpoints/KnowledgeEndpoints.cs` iddiası (boş döner)
+BU KOŞUMDA çürütüldü: aynı komut güncel kaynakta 4 satır döndürüyor —
+`KnowledgeAdmin` (satır 25, 52) yazma/silme uçlarında, `KnowledgeRead`
+(satır 38, 66) okuma uçlarında zorunlu. Kapsam denetimi ampirik olarak da
+çalışıyor (aşağıda). Spec başlığındaki 🚨 ve "beşinci bilinen tekrar"
+iddiası kaldırıldı — bu artık dördüncü örneklerle (`MT-WF-100`, `MT-JOB-090`,
+`MT-EVAL-100`/`101`, `MT-MCP-051`/`052`) AYNI SINIFTAN bir tekrar değil,
+kapanmış bir örnek.
 
 | | |
 |---|---|
@@ -1456,7 +1456,7 @@ işaret eder.
 ```bash
 KEY_JSON=$(curl -s -X POST "$APU/api/api-keys" -H "$APB" -H "content-type: application/json" \
   -d '{ "name": "mem-kapsam-testi", "scopes": ["RunsRead"] }')
-echo "$KEY_JSON" | python3 -c "import json,sys; print(json.load(sys.stdin)['rawKey'])"
+echo "$KEY_JSON" | python3 -c "import json,sys; print(json.load(sys.stdin)['plaintextKey'])"
 export MEMKEY="Authorization: Bearer <yukaridaki-rawKey>"
 
 curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/knowledge/kapsam-testi/documents" -H "$MEMKEY" \
@@ -1468,11 +1468,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/agents/kapsam-kontrol" -H "
      -H "content-type: application/json" -d '{"name":"kapsam-kontrol","instructions":"test"}'
 ```
 
-**Beklenen sonuç (şüphe)**
-- Adım 2 ve 3: `HTTP: 200`/`204` — kapsam kısıtı UYGULANMAZ (kodun okuduğu
-  hâliyle beklenen).
-- Adım 4: `HTTP: 403` — kontrol grubu, kapsam sisteminin `AgentEndpoints`'te
-  çalıştığını ama `KnowledgeEndpoints`'te HİÇ devrede olmadığını gösterir.
-- Doğrularsa: **Kusur, Önem: Yüksek** — bir okuma-amaçlı otomasyon anahtarı
-  bilgi tabanı içeriğini yazabilir/silebilir (embedding maliyeti de dahil).
-  Çürürse not güncellenir.
+**Beklenen sonuç (düzeltildi — koşumda ampirik olarak doğrulandı)**
+- Adım 2 ve 3: `HTTP: 403`, `detail`: `"This endpoint requires the
+  'KnowledgeAdmin' scope; the key does not carry it."` — kapsam kısıtı
+  UYGULANIYOR.
+- Adım 4: `HTTP: 403`, `detail`: `"...requires the 'AgentsAdmin' scope..."`
+  — kontrol grubu da aynı şekilde reddediyor, tutarlı.
