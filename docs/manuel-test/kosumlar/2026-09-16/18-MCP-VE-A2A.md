@@ -369,6 +369,192 @@ sonrası temizlendi.
 
 ---
 
+# 10 — Sonradan eklenen bölümler (Faz 89, 103, 117, 127)
+
+## MT-MCP-057 — Faz öncesi öneksiz kayıt: okunur ama yeniden kaydedilemez
+
+**Gerçek sonuç**
+DB'ye elle (SQL) `authorization_configuration_key='Tracon:Mcp:LegacyToken'`
+(önek dışı) taşıyan bir kayıt (`legacy-oneksiz`) eklendi. `GET
+/api/mcp-servers` → `200`, kayıt LİSTEDE (okuma etkilenmedi, anahtar
+olduğu gibi görünüyor). Aynı kaydı DEĞİŞTİRMEDEN `PUT` ile tekrar
+kaydetmeyi denemek → `400 "'Tracon:Mcp:LegacyToken' is outside the
+allowed prefix. 'authorizationConfigurationKey' may only reference a
+configuration key under 'Tracon:McpSecrets:'."` — hem alan adını hem
+izinli öneki taşıyor. Test satırı temizlendi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MCP-059 — 🚨 MCP tool'undan gelen büyük çıktı KIRPILMIYOR — 🚨 KUSUR (`HATA-S1-026`)
+
+**Gerçek sonuç — case'in kendi uyarısı doğrulandı: KUSUR BULUNDU.**
+`Tracon:Tools:DefaultMaxOutputBytes=200` ile başlatıldı.
+`test-sunucu_get-env` (büyük metin döndüren gerçek bir MCP tool'u) bir
+agent üzerinden çağrıldı: modele giden `functionResult` **8095 bayt**
+olarak geldi — 200 bayt sınırının **40 katı**, hiçbir `{"truncated":true,
+...}` zarfı yok, `run_events`'te `ToolOutputTruncated` kaydı YOK. Kontrol
+grubu: aynı ortamda kod-tanımlı tool'lar (`list_recent_orders`) küçük
+çıktılarla (55 bayt) sınırın altında kaldığı için doğrudan
+karşılaştırılamadı, ama kaynak okuması kök nedeni doğrudan gösteriyor.
+
+**HATA-S1-026 — `TruncatingAIFunction` MCP tool sonuçlarını (`AIContent`) atlıyor, hiçbir yerde kırpılmıyor**
+- **Case:** MT-MCP-059 (muhtemelen 060'ı da etkiler — kırpma hiç
+  çalışmadığı için "provider hatası sızdırmaz" iddiasının kırpma ayağı da
+  aynı boşluğa maruz kalabilir, ayrı doğrulanmadı)
+- **Önem:** Yüksek (MT-MCP-059'un kendi notu: "sessizce fark edilmez" —
+  kaynak/maliyet sınırı MCP tool'ları için fiilen YOK)
+- **İzlek:** B (gerçek local MCP sunucusuyla ampirik ölçüldü) + kaynak
+  okuması (kök neden kesin)
+- **Ortam:** macOS arm64 · net10 · PostgreSQL · `npx
+  @modelcontextprotocol/server-everything` (yerel, gerçek MCP protokolü)
+
+**Beklenen**
+`Tracon:Tools:DefaultMaxOutputBytes` MCP tool'ları için de kod-tanımlı
+tool'larla AYNI şekilde uygulanmalı — sınırı aşan bir sonuç
+`{"truncated":true,"omittedBytes":N,"content":"..."}` zarfına girmeli ve
+toplam 200 baytı aşmamalı (case'in kendi iddiası, `McpTenantTools.Create`
+"ikinci, ayrı sarmalama zinciri" olarak tasarlandığı için).
+
+**Gerçekleşen**
+`src/Tracon.Core/Tools/TruncatingAIFunction.cs:69-72`:
+```csharp
+if (result is AIContent)
+{
+    return result;
+}
+```
+Yorum: "AIContent is a protocol-level result... handled by the provider
+adapter rather than the inline canonical text contract." MCP
+tool çağrılarının ham sonucu (`McpClientTool : AIFunction`,
+`ModelContextProtocol`/`Microsoft.Extensions.AI` kütüphanesinden) bir
+`AIContent` türevi olarak geliyor — bu `if` bloğuna hemen giriyor ve
+KIRPMA HİÇ ÇALIŞMADAN sonucu OLDUĞU GİBİ döndürüyor. "Provider adapter"ın
+kendisi böyle bir sınır UYGULAMIYOR (8095 bayt modele aynen ulaştı).
+
+**Yeniden üretme**
+1. `Tracon:Tools:DefaultMaxOutputBytes=200` ile başlat.
+2. Büyük metin döndüren bir MCP tool'unu (`test-sunucu_get-env` gibi)
+   taşıyan bir agent oluştur, çağrıt.
+3. `functionResult`'ın gerçek boyutunu ölç — 200 baytı fersah fersah aşar,
+   `truncated` alanı yoktur.
+
+**Kanıt**
+- Canlı ölçüm: `functionResult` uzunluğu 8095 bayt (200 bayt sınırına
+  karşı).
+- Kaynak: `src/Tracon.Core/Tools/TruncatingAIFunction.cs:69-72` (erken
+  `return`), `src/Tracon.Mcp/Internal/McpTenantTools.cs:104-114`
+  (`ToolWrapperChain.Compose`'a doğru `defaultMaxOutputBytes` geçtiği
+  doğrulandı — çağrı yolu doğru, kırpma mantığının KENDİSİ MCP sonuç
+  türünü atlıyor).
+
+**Kapsam**
+`AIContent` türünde sonuç döndüren HER tool bu atlamaya maruz — yalnız MCP
+değil, ileride başka bir `AIContent`-tabanlı tool ailesi eklenirse (ör.
+görsel/ikili içerik döndüren kod tool'ları) aynı boşluğa düşebilir.
+Kapanışta sınıf taraması önerilir (`grep -rn "is AIContent" src/`).
+
+🚨 **Bu bir güvenlik/kaynak-tüketimi bulgusudur (secret sızıntısı değil).**
+Test sırasında yerel MCP sunucusunun `get-env` tool'u KENDİ sürecinin
+ortam değişkenlerini (bu oturumun kabuğundan miras alınmış,
+`CLAUDE_CODE_MESSAGING_TOKEN` dahil) döndürdü — bu Tracon'in bir kusuru
+DEĞİL (üçüncü taraf referans sunucusunun demo amaçlı `get-env` tool'u
+kendi sürecinin ortamını okuyor), ama bu kayıt üretilirken geçici dosyalar
+temizlendi ve token bu dosyada saklı BIRAKILMADI.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+
+## MT-MCP-060 — MCP agent-tool sonucu provider hatasının ham metnini sızdırmaz (Faz 103)
+
+**Gerçek sonuç — otomatik test kanıtı.**
+`ProviderOutageErrorHandlingTests.Mcp_tool_call_never_exposes_a_secret_like_provider_message`
+`tests/Tracon.AspNetCore.FunctionalTests/`'te mevcut ve dosya 19'un
+MT-MM-108'inde bu paketin TAMAMI (1077/1077) bu turda zaten koşuldu ve
+geçti — canlı bir secret-like provider senaryosu bu oturumda AYRICA
+kurulmadı (MT-MCP-059'un `HATA-S1-026`'sı farklı bir kırpma katmanını
+ilgilendiriyor, doğrudan çakışmıyor).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MCP-061 — `EnableTasks=false`: davranış senkron kalır (Faz 117)
+
+**Gerçek sonuç — otomatik test kanıtı.**
+`McpTasksEndpointTests.EnableTasks_false_still_answers_synchronously`
+mevcut, dosya 19'un MT-MM-108'inde TAM koşulan `Tracon.AspNetCore
+.FunctionalTests` (1077/1077) paketinin parçası.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MCP-062 — `EnableTasks=true`: task id run kimliğine eşit (Faz 117)
+
+**Gerçek sonuç — otomatik test kanıtı.**
+`McpTasksEndpointTests.EnableTasks_true_creates_a_task_whose_id_is_the_run_id`
+ve `Tasks_get_transitions_from_working_to_completed_with_the_run_output`
+ikisi de mevcut, aynı 1077/1077 geçen pakette.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MCP-063 — `tasks/cancel`: koşan/kuyruklu task'ı gerçekten iptal eder (Faz 117)
+
+**Gerçek sonuç — otomatik test kanıtı.**
+`McpTasksEndpointTests.Tasks_cancel_of_a_running_task_actually_cancels_the_in_flight_tool_call`
+ve `Tasks_cancel_of_a_queued_task_closes_the_row_directly` ikisi de
+mevcut, aynı 1077/1077 geçen pakette.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MCP-064 — 🚨 Onay isteyen sonradan eklenmiş tool: task modunda `InputRequired` DEĞİL `Completed`(hata) (Faz 117, K-103)
+
+**Gerçek sonuç — otomatik test kanıtı.**
+`McpTasksEndpointTests.Approval_requiring_tool_added_after_exposure_rejects_the_task_with_todays_inline_message`
+(aynı örnek) ve `McpTaskCrossInstanceTests
+.Second_instance_reconstructs_an_approval_rejection_generically_not_with_todays_exact_wording`
+(çapraz örnek) ikisi de mevcut, aynı 1077/1077 geçen pakette.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MCP-065 — Başka kiracının task id'si okunamaz (Faz 117)
+
+**Gerçek sonuç — otomatik test kanıtı.**
+`McpTaskTenantIsolationTests` tam 2 test taşıyor
+(`Another_tenants_task_id_is_not_found`,
+`Another_tenant_can_interfere_with_cancellation_but_never_reads_the_result`)
+— spec'in kendi notuyla birebir eşleşiyor, aynı 1077/1077 geçen pakette.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MCP-066 — İki Tracon örneği, tek veritabanı: task ikinci örnekten okunur (Faz 117)
+
+**Gerçek sonuç — otomatik test kanıtı.**
+`McpTaskCrossInstanceTests.Second_instance_reconstructs_a_completed_task_from_the_shared_database`
+mevcut, aynı 1077/1077 geçen pakette — spec'in kendi notu bunun
+ELLE koşulacak bir case olarak planlandığını ama iki gerçek
+`TraconTestHost` + tek SQLite dosyasıyla OTOMATİKLEŞTİRİLDİĞİNİ söylüyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MCP-067 — 👤 `TaskTimeToLive` dolunca `tasks/get` hâlâ okunur (Faz 117, Açık Soru 2)
+
+**Gerçek sonuç**
+👤 Gerçek zaman aralığı (TTL sonrası bekleme) gerektiriyor, otomatik
+karşılığı yok (spec'in kendisi de belirtmiyor) — §4.3 fiziksel eylem
+tablosuna eklendi.
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MCP-068 — Kayıtlı `IToolArgumentsValidator` MCP tool'unu da görür (Faz 127)
+
+**Gerçek sonuç — otomatik test kanıtı, canlı yol koşulmadı (spec'in kendi
+notu).** `ToolWrapperChainTests
+.A_code_defined_registration_and_an_mcp_style_registration_produce_the_same_wrapper_layers`
+ve `A_real_validator_installs_the_validating_layer_between_timeout_and_authorizing`
+ikisi de mevcut, dosya 19'da TAM koşulan `Tracon.Core.UnitTests`
+(2805/2805) paketinin parçası. Gerçek bir MCP sunucusuna karşı elle
+koşulmadı (spec bunu zaten "⬜" işaretliyor).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 # 4 — Keşif, İzolasyon ve Sağlamlık (Faz 22) + § 5 kurulum
 
 ## MT-MCP-015 — Var olmayan bir MCP sunucusu kaydetmek AGENT KAYDINI ETKİLEMEZ
