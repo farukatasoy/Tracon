@@ -908,10 +908,13 @@ Oturum kimliği sunucudan rezerve edilir (K-043) — arayüz kendi biçimini uyd
 1. `Merhaba` (`FIX-PROMPT-02`) gönder.
 
 **Beklenen sonuç**
-- Yanıt metin metin akar (`ap-stream-caret` imleç sınıfı son metin bloğunda
-  görünür, akış bitince kaybolur).
+- Yanıt metin metin akar; `ap-stream-caret` sınıfı son metin bloğunda
+  DOM'a eklenir ama görsel karşılığı YOKTUR — bkz. `HATA-S1-028` (2026-09-16
+  turunda bulundu): CSS yalnız `.tracon-stream-caret::after` tanımlıyor,
+  bileşen `ap-stream-caret` uyguluyor, ikisi hiç eşleşmiyor.
 - **Hiçbir** `data-testid="tool-card"` öğesi belirmez.
-- Tur `done` olunca "Konuştur" (`playground.speak`) düğmesi görünür
+- Tur `done` olunca "Seslendir" (`playground.speak`, spec'in eski "Konuştur"
+  metni bayattı — 2026-09-16 turunda düzeltildi) düğmesi görünür
   (`spokenText.length > 0`).
 
 ---
@@ -937,10 +940,13 @@ Oturum kimliği sunucudan rezerve edilir (K-043) — arayüz kendi biçimini uyd
 
 **Beklenen sonuç**
 - Adım 2: kart `data-testid="tool-card"`, İÇİ AÇIK belirir (`state='running'`
-  anında `useState(item.state !== 'ok')` → `true`), `Çalışıyor` rozeti.
+  anında `useState(item.state !== 'ok')` → `true`), `"sürüyor"` rozeti
+  (2026-09-16 turunda düzeltildi: spec'in `"Çalışıyor"` metni bayattı —
+  gerçek i18n anahtarı `runs.status.running` küçük harfle `"sürüyor"`).
 - Adım 3: kart HÂLÂ açık — bileşen aynı `key={item.id}` ile yeniden render
   edildiği için `useState`'in başlangıç değeri BİR DAHA hesaplanmaz; rozet
-  `Tamamlandı`'ya döner, "Argümanlar" ve "Sonuç" bölümleri dolu görünür
+  `"bitti"`'ye döner (spec'in `"Tamamlandı"` metni de bayat —
+  `transcript.done` i18n anahtarı), "Argümanlar" ve "Sonuç" bölümleri dolu görünür
   (`get_order_status` çağrısının argümanı `ORD-1001` içerir).
 - Adım 4: kullanıcı elle açıp kapatabilir — bu davranış yalnız İLK render'da
   otomatiktir.
