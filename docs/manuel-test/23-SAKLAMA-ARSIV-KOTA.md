@@ -592,8 +592,10 @@ Faz kapanışında gerçek koşumla (SQLite, port 5080) doğrulanmış senaryonu
 **Girilecek veri**
 ```bash
 sqlite3 samples/Tracon.Api/tracon-manuel.db <<'SQL'
-INSERT INTO tracon_runs (id, tenant_id, agent_name, status, created_at, updated_at)
-VALUES ('22222222-2222-2222-2222-222222222222','default','support',1,datetime('now'),datetime('now'));
+-- 🚨 runs kolonlari created_at/updated_at DEGIL, started_at/is_streaming'dir
+-- (MT-RET-001'de de duzeltildi) -- duzeltildi 2026-09-17, ap-s2:
+INSERT INTO tracon_runs (id, tenant_id, agent_name, status, started_at, is_streaming)
+VALUES ('22222222-2222-2222-2222-222222222222','default','support',1,datetime('now'),0);
 WITH RECURSIVE seq(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM seq WHERE x < 150)
 INSERT INTO tracon_run_events (run_id, seq, type, created_at)
 SELECT '22222222-2222-2222-2222-222222222222', x, 0,
@@ -744,10 +746,12 @@ curl -s -X PUT "$APU/api/retention/run_events" \
 
 curl -s -X POST "$APU/api/retention/run?target=run_events" \
   -H "$APB" -H "X-Tracon-Tenant: kiraci-alfa" | jq -r '.jobId'
-sleep 2
+sleep 4
 
+# 🚨 tracon_run_events'te tenant_id sütunu YOK (kiracı runs'tan JOIN ile
+# çözülür) — düzeltildi 2026-09-17, ap-s2:
 sqlite3 samples/Tracon.Api/tracon-manuel.db \
-  "SELECT tenant_id, count(*) FROM tracon_run_events GROUP BY tenant_id;"
+  "SELECT r.tenant_id, count(*) FROM tracon_run_events e JOIN tracon_runs r ON e.run_id=r.id GROUP BY r.tenant_id;"
 ```
 
 **Beklenen sonuç (K-279'un doğrulanması, K-260'ın çürütülmesi)**
