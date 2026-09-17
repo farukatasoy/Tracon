@@ -5,9 +5,10 @@
 >
 > **Durum:** 🎉 **Aşama 1 (Faz A zinciri) BİTTİ** — dosya 01, 02, 03, 05 ve 07
 > KAPANDI (311 case) · kod `7e3a4de7`'de donuk · **Faz B** dört şeritte
-> sürüyor (`ap-s1` şeridin tüm işini bitirdi; `ap-s2` üç aile kapattı; `ap-s3`/
-> `ap-s4` devam ediyor — bkz. §5 tablosu, `ap-s4` satırı doğrulama bekliyor)
-> **Son güncelleme:** 2026-09-17 (`ap-s2` dosya 12'yi kapattı)
+> sürüyor (`ap-s1` şeridin tüm işini bitirdi; `ap-s2` üç aile kapattı, dosya
+> 24'ün ilk dört bölümünü koştu; `ap-s3`/`ap-s4` devam ediyor — bkz. §5
+> tablosu, `ap-s4` satırı doğrulama bekliyor)
+> **Son güncelleme:** 2026-09-17 (`ap-s2` dosya 24'ün Bölüm 1-4'ünü koştu, 36/36 Geçti)
 
 ---
 
@@ -297,7 +298,7 @@ Dağılım `00-KOSUM-PLANI.md` §3.1'dedir:
 | Şerit | Port | Şema | Aileler | Durum (oturum 14 sonu) |
 |---|---|---|---|---|
 | `ap-s1` | 5081 | `mt_s1` | 13 · 19 · 04 · 18 · 10 · 08 | 🎉 **ALTI AİLENİN ALTISI DA KAPANDI** (aynı oturum zincirinde arka arkaya): 13 (142/142), 19 (66 Geçti·3 Kaldı·23 Beklemede·1 Atlandı), 04 (44 Geçti·1 Beklemede, 45/45), 18 (48 Geçti·9 Beklemede·1 Kaldı, 58/58), 10 (54 Geçti·2 Kaldı·2 Atlandı, 58/58, `HATA-S1-027/028`), 08 (50/50). **Bu şeridin Faz B işi bitti** — sıradaki aile yok. Uygulama durduruldu, commit `e22b84ee` |
-| `ap-s2` | 5082 | `mt_s2` | 36 · 33 · 12 · 24 · 35 · 23 · 15 · 14 | 🎉 **aile 36, 33 ve 12 KAPANDI** (48/48, 25/25, 65/65 — dosya 12'de 61 Geçti · 4 ortam bekliyor · **0 Kaldı**, hiç yeni kusur bulunmadı, dosya 07'nin emsaliyle aynı). Sıradaki: `24-TEST-PAKETI-VE-SABLON.md`, henüz açılmadı. Uygulama ayakta (port 5082, DLL doğrudan çalıştırılıyor), commit `2cb91e56` |
+| `ap-s2` | 5082 | `mt_s2` | 36 · 33 · 12 · 24 · 35 · 23 · 15 · 14 | 🎉 **aile 36, 33 ve 12 KAPANDI** (48/48, 25/25, 65/65 — dosya 12'de 61 Geçti · 4 ortam bekliyor · **0 Kaldı**, hiç yeni kusur bulunmadı, dosya 07'nin emsaliyle aynı). Aile 24 **kısmi**: Bölüm 1-4 (`MT-TEST-001..055`, 36 case) Geçti, 0 Kaldı — beş case'te bayat Türkçe beklenen metin İngilizce koda göre düzeltildi (K-228, kusur değil). Sıradaki: aynı dosyanın Bölüm 5+ (`MT-TEST-060..094`, ~35 case, paketleme/AOT/sözleşme suite — daha ağır). Uygulama ayakta bırakıldı (port 5082, bu ailenin çoğu case'i onu kullanmıyor), `~/tracon-manuel/test-paketi` ayakta bırakıldı, commit `80a29df6` (`test/kosum-s2` dalında) |
 | `ap-s3` | 5083 | `mt_s3` | 32 · 29 · 34 · 21 · 11 · 25 · 17 · 20 | ✅ **aile 32, 29 ve 34 KAPANDI** (40/40, 24/24, 46/46). Sıradaki: `21-DAYANIKLILIK-VE-IPTAL.md`, henüz açılmadı. Uygulama durduruldu, commit `00ca6328` |
 | `ap-s4` | 5084 | `mt_s4` | 31 · 16 · 30 · 22 · 09 · 27 · 26 · 28 · 06 | ✅ **aile 31 KAPANDI** (35/35). Aile 16 **kısmi**: 61/61 kayıtlı case Geçti (MT-JOB-001..085 + 090), MT-JOB-091'den devam (~37 case kaldı: Bölüm 8'in kalanı + 9-10). Uygulama AÇIK bırakıldı (port 5084, DLL doğrudan çalıştırılıyor — bkz. ortam kararsızlığı notu), commit `a6fc40ac`. 🚨 **Bu satır bayat olabilir** — dal üzerinde `a6fc40ac`'ten sonra üç commit daha var (`d8e9c308`, `8f4f8c68`, `240d74a7` en son: "MT-JOB-111, 112, 116..120"), yani MT-JOB-091'den 120'ye kadar zaten işlenmiş görünüyor; gerçek sayım ve aile 16'nın kapanıp kapanmadığı doğrulanmadı, sıradaki ap-s4 oturumu `00-KOSUM-PLANI.md`'nin sayım betiğiyle kontrol etmeli |
 
