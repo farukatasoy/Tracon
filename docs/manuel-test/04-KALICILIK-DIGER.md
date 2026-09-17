@@ -676,10 +676,21 @@ sqlite3 "$SQLITEDB" "SELECT name FROM tracon___migrations ORDER BY id;"
 ```
 
 **Beklenen sonuç**
-- Konsol `Tracon 15 migration uyguladi.` yazar.
-- `count(*)` **15** döner.
-- Ad listesi `0001_initial`'dan `0015_experiment_canary`'e sırayla gider.
-- `sqlite_master`'daki tablo sayısı **44**'tür.
+> **Düzeltildi (2026-09-17) — bu dosyadaki HER "15 migration"/"44 tablo"
+> referansı bayat (`MT-SQL-020/021/023/024/025/027/032/041/060`):** bu
+> koşumda ölçülen değer **38 migration, 48 tablo**'dur
+> (`0001_initial` … `0038_run_score_evaluator_version`, İngilizce konsol
+> mesajı: `"Tracon applied 38 migration(s)."` — mesaj metni de İngilizce'ye
+> dönmüş, K-228). Faz 111'in `runs_v1` görünümü (MT-SQL-077/078) DAHİL
+> DEĞİLDİR (`EnableReadViews` ayrı bayrak). Aşağıdaki case'ler için sabit
+> sayı yerine bu KOŞUMUN kendi ölçümüne güvenilir; her case'in kaydı gerçek
+> sayıyı taşır.
+- Konsol migration sayısını yazar (İngilizce: `"Tracon applied N
+  migration(s)."`).
+- `count(*)` uygulanan migration sayısını döner.
+- Ad listesi `0001_initial`'dan başlar, sırayla artar.
+- `sqlite_master`'daki tablo sayısı migration sayısıyla TUTARLI bir sayıdır
+  (bu koşumda 38 migration → 48 tablo).
 
 **Doğrulama sorgusu**
 ```bash

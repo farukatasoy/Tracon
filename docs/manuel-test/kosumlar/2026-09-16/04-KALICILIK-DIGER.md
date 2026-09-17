@@ -115,4 +115,146 @@ file'` ile süreç sonlandı, "Now listening on" satırı hiç yazılmadı
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
+# 2 — SQL Server
+
+## MT-SQL-010 — Boş bağlantı dizesiyle başlatma reddedilir — spec düzeltildi
+
+**Gerçek sonuç**
+`MT-SQL-001` ile aynı düzeltme (spec dosyasında gerekçeli). Boş
+`Tracon__SqlServer__ConnectionString` ile uygulama BAŞLADI, `/api/diagnostics`
+→ `persistenceProvider: "InMemory", registeredPersistenceProviders: 0`.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SQL-011 — Şema adı `dbo` olamaz
+
+**Gerçek sonuç**
+`OptionsValidationException`: "TraconSqlServerOptions.SchemaName cannot be
+'dbo'. Tracon never touches the consumer's default schema. Rationale:
+docs/KARARLAR.md, decision K-013." `dbo` şemasındaki tablo sayısı denemeden
+önce/sonra **0** — hiçbir tablo yazılmadı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SQL-012 — Geçersiz şema adı biçimleri ve enjeksiyon denemesi reddedilir
+
+**Gerçek sonuç**
+Üçü de `OptionsValidationException` ile reddedildi (büyük harf, boşluk,
+enjeksiyon denemesi) — mesaj İngilizce (K-228), hiçbir DDL çalışmadı (süreç
+migration adımına hiç ulaşmadan düştü).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SQL-013 — `CommandTimeoutSeconds` sınırları
+
+**Gerçek sonuç**
+`-1` ve `3601` ikisi de `OptionsValidationException`
+("must be between 0 and 3600") ile reddedildi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SQL-014 — `AutoApplyMigrations=false` migration uygulamaz
+
+**Gerçek sonuç**
+`Tracon_S1` veritabanı sıfırlandı (`DROP`+`CREATE`). Uygulama açıldı,
+konsolda "Tracon migrations are not applied automatically..." bilgi
+satırı. `tracon` şemasındaki tablo sayısı **0** (şema bile oluşmadı).
+`/health` → `503 Unhealthy`.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SQL-015 — Yanlış host ile başlatma migration adımında çöker (fail-fast)
+
+**Gerçek sonuç**
+Port `1`'e karşı: `Microsoft.Data.SqlClient.SqlException (0x80131904): A
+network-related or instance-specific error...` zinciri, `Unhandled
+exception` ile süreç sonlandı. `/health` isteği hiçbir zaman yanıt vermedi
+(`HTTP: 000`, bağlantı reddi).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SQL-016 — Üç `UseSqlServer` aşırı yüklemesi aynı sonucu üretir (izlek C)
+
+**Gerçek sonuç**
+`UseSqlServer(string)` ve `UseSqlServer(IConfiguration)` ikisi de
+`UseSqlServer(Action<TraconSqlServerOptions>)`'a delege ediyor
+(`TraconSqlServerBuilderExtensions.cs:29-93`).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+# 3 — Migration'lar
+
+## MT-SQL-020 — SQLite: boş DB'de migration'lar sırayla uygulanır — sayı düzeltildi
+
+**Gerçek sonuç — bu dosyanın HER "15 migration/44 tablo" referansı bayat
+(gerekçe spec dosyasında, MT-SQL-020'de).** Konsol: `"Tracon applied 38
+migration(s). Schema: tracon_."` `count(*)` → **38**. Ad listesi
+`0001_initial`'dan `0038_run_score_evaluator_version`'a sırayla gider
+(tam liste devir notunda/kanıt dosyalarında). `sqlite_master` tablo
+sayısı **48**.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SQL-021 — SQLite: yeniden başlatma migration'ları tekrar uygulamaz
+
+**Gerçek sonuç**
+Yeniden başlatmada konsolda migration uygulama satırı GÖRÜNMEDİ.
+`count(*)` hâlâ **38** (38'in gerçek sayı olduğu MT-SQL-020'de kurulmuştur).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SQL-022 — SQLite: uygulanmış migration'ın checksum'ı bozulursa başlama reddedilir
+
+**Gerçek sonuç**
+`Tracon.TraconException: Migration '0001_initial' has been applied to the
+database but the file's content has changed. Checksum in the database:
+bozuk, checksum of the file: E56F3238...` ile başlamayı reddetti.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SQL-023 — SQLite: iki eşzamanlı örnek dosya kilidiyle çakışmadan migration uygular
+
+**Gerçek sonuç**
+İki örnek (port 5081 ve 5091) eş zamanlı başlatıldı, AYNI dosyaya karşı.
+Yalnız 5081 "Tracon applied 38 migration(s)" yazdı; 5091'in logunda migration
+satırı HİÇ yok (kilidi ikinci sırada aldı, 0 uyguladı). Checksum hatası ya
+da çökme yok. `count(*)` tam **38** (76 değil).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SQL-024 — SQL Server: boş DB'de migration'lar sırayla uygulanır — sayı düzeltildi
+
+**Gerçek sonuç**
+`Tracon_S1` sıfırlandı. Konsol: `"Tracon applied 39 migration(s). Schema:
+tracon."` — SQLite'tan (38) **1 fazla** (bu turda ölçüldü, MT-SQL-060'ta
+karşılaştırılacak). `tracon.__migrations` → **39**. `sys.tables`
+(`tracon` şeması) → **48** — SQLite ile AYNI tablo sayısı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SQL-025 — SQL Server: yeniden başlatma migration'ları tekrar uygulamaz
+
+**Gerçek sonuç**
+Yeniden başlatmada migration satırı yok, `COUNT(*)` hâlâ **39**.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SQL-026 — SQL Server: uygulanmış migration'ın checksum'ı bozulursa başlama reddedilir
+
+**Gerçek sonuç**
+`Tracon.TraconException: Migration '0001_initial' has been applied to the
+database but the file's content has changed...` ile reddedildi — SQLite ile
+aynı mesaj kalıbı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SQL-027 — SQL Server: iki eşzamanlı örnek `sp_getapplock` ile çakışmadan migration uygular
+
+**Gerçek sonuç**
+İki örnek (5081, 5091) eş zamanlı başlatıldı. Yalnız 5081 "Tracon applied
+39 migration(s)" yazdı; 5091 sessizce bekledi ve 0 uyguladı. Kilit zaman
+aşımı hatası yok. `COUNT(*)` tam **39** (78 değil).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
 ---
