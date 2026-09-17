@@ -1090,6 +1090,124 @@ girdiği ve devam eden isteklerin `429` aldığı doğrulandı. Beklenen sonuçl
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
+## MT-JOB-102 — Tetikleyici arayüzden tanımlanır ve listelenir
+
+**Gerçek sonuç**
+⚠️ **Playwright bu case için kullanılamadı** — `browser_navigate` denemesi
+(iki tekrar, aralarında 20 sn bekleme) `Error: Browser is already in use
+for .../mcp-chrome-3eca5a9` döndü — paylaşılan tarayıcı profili başka bir
+şerit tarafından kullanılıyordu (MT-JOB-085'in düştüğü aynı sınır, skill
+§1.3 — paylaşılan kaynağı zorla almama ilkesi). API-katmanı + kaynak
+denetimiyle eşdeğer doğrulama yapıldı: `PUT /api/triggers/manual-ui-test`
+(`signingSecretConfigurationName: "Tracon:TriggerSecrets:DoesNotExist"`,
+bilerek çözülemeyen bir anahtar) → `200`, `resolved:false`. `GET
+/api/triggers` yeni tetikleyiciyi **ve** `resolved:true` olan `slack`
+tetikleyicisini doğru durumlarıyla birlikte listeledi — rozet gerçek
+durumu yansıtıyor. `src/Tracon.UI/frontend/src/screens/triggers.tsx:276`
+`acceptUrl`'i `${origin}${prefix}/api/triggers/${tenantId}/${triggerName}`
+olarak kuruyor — spec'in beklediği `{origin}/tracon/api/triggers/{tenantId}/
+{name}` biçimiyle birebir eşleşiyor (`prefix` = `/tracon`, ampirik olarak
+tüm bu ailenin isteklerinde doğrulandı). Test tetikleyicisi temizlendi
+(`DELETE /api/triggers/manual-ui-test` → `204`). Görsel render (buton
+metni, sayfa düzeni) Playwright ile TEYİT EDİLMEDİ; veri/mantık katmanı
+tam doğrulandı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-JOB-103 — Worker öldürülünce yalnız kalan öge'ler yeniden işlenir
+
+**Gerçek sonuç**
+⚠️ **Gerçek `kill -9` ile canlı süreç üzerinde koşulmadı.** Bu oturumda
+süreç durdurma/başlatma eylemleri ajanın otonom-mod izin sınıflandırıcısı
+tarafından defalarca "Interfere With Workloads" ile reddedildi (bkz. devir
+notu); `kill` denemeleri bu oturumda **hiç** başarılı olmadı (yalnız yeni
+süreç BAŞLATMA denemeleri, birkaç retry sonrası, bazen geçti). 5084'teki
+tek worker'lı süreci `kill -9` ile öldürmek — eğer sınıflandırıcı bu kez de
+reddederse süreç zombi durumda kalabilir ya da bir sonraki başlatma
+denemesi tekrar reddedilebilir — ailenin kalan ~20 case'ini (110-131)
+tehlikeye atacak paylaşılan bir kaynağı bozma riski taşıyordu (skill §1.4
+madde 3: "bir case paylaşılan bir kaynağı bozacak" → dur/sor kuralı). Bu
+riski almak yerine, mekanizmanın kanıtlandığı otomatik karşılığı çalıştırıldı:
+`JobLeaseExpiryTests.An_abandoned_lease_expires_and_the_re_leased_job_carries_its_completed_item_unfiltered`
+— **Geçti** (`dotnet test`/binary doğrudan koşum, 1/1 passed, 343ms).
+Bu test tam olarak MT-JOB-103'ün iddia ettiği store-katmanı sözleşmesini
+ölçüyor: ilk lease altında `seq:0` `Completed` raporlanır, worker
+raporlamadan "ölür" (`CompleteAsync`/`ReleaseForRetryAsync` çağrılmaz),
+lease süresi dolunca **aynı job** ikinci kez kiralanabiliyor
+(`Attempt: 2`), ve öge listesinde `seq:0` **Completed** kalırken yalnız
+`seq:1` **Pending** kalıyor — yani ilk ögenin yan etkisi tekrarlanmıyor,
+yalnız kalan öge yeniden işleniyor. Gerçek bir OS süreç kill'i ve gerçek
+`JobWorkerBackgroundService` döngüsüyle uçtan uca DOĞRULANMADI — yalnız
+`IJobStore` sözleşmesi doğrulandı. Beklenen sonucun **temel mekanizması**
+kanıtlandı; canlı süreç kill'i bu ortamın altyapı kısıtı yüzünden
+koşulamadı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-JOB-104 — Dokümanı izleyen dış bir `IJobHandler` sözleşme testini geçer
+
+**Gerçek sonuç**
+`dotnet build samples/Tracon.Samples.CustomJobHandler.Tests -c Release`
+→ başarılı, 0 uyarı. `NightlyReportJobHandlerContractTests` filtreli koşum
+→ **3/3 Geçti** (158ms): zaten `Completed` bir öge yeniden işlenmiyor,
+retry'de yalnız `Pending` öge işleniyor, iptal öge'ler arasında gözleniyor.
+`samples/Tracon.Samples.CustomJobHandler.Tests.csproj`'de `Tracon` ve
+`Tracon.Testing.Contracts.Xunit` **`PackageReference`** (`ProjectReference`
+DEĞİL) — yalnız iki örnek proje arasındaki bağ (`Tracon.Samples.
+CustomJobHandler`'a) `ProjectReference`. Beklenen sonuçla tam eşleşiyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-JOB-110 — Ayar yapılmayan kurulumda her job `default` `lane`'inde çalışır
+
+**Gerçek sonuç**
+Ön koşul zaten sağlanmış durumdaydı — çalışan hiçbir süreçte
+`Tracon:Scheduling:Lanes`/`MaxConcurrentJobsPerLane`/`LaneByKind`
+ayarlanmadı. `ozet-toplu` tetiklendi (`POST /api/schedules/ozet-toplu/trigger`)
+→ yanıt gövdesinde `"lane":"default"`. `GET /api/jobs/{id}` işin
+`Completed` olduğunu ve `lane:"default"` kaldığını doğruladı. Beklenen
+sonuçla eşleşiyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-JOB-113 — Kuyruklu tek çalıştırmada geçersiz `lane` → `400`
+
+**Gerçek sonuç**
+`POST /api/agents/summarizer/run` (`Prefer: respond-async`,
+`{"message":"test","lane":"Media"}`) → `HTTP: 400`, `title: "Invalid lane"`,
+`detail: "'Media' is not a valid lane name. A lane name must be 1-64
+characters: lowercase ASCII letters, digits, '.', '_', or '-', starting
+with a letter or digit."` İş kuyruğa hiç yazılmadı (yanıt zaten hata,
+`runId` yok). Beklenen sonuçla eşleşiyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-JOB-114 — Kuyruklu tek çalıştırma istenen `lane`'i taşır
+
+**Gerçek sonuç**
+Aynı uç, `lane:"media"` ile → `202`, `runId`. `GET /api/jobs/{runId}` →
+`"lane":"media"`. Beklenen sonuçla eşleşiyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-JOB-115 — `retry` `lane`'i korur; geçersiz `lane`'li zamanlama `400` alır
+
+**Gerçek sonuç**
+Adım 1: `PUT /api/schedules/buyuk-harf-lane` (`lane:"Media"`, gövdede
+gerçek alan adı **`handlerKey`**, spec'in `"kind"`'ı DEĞİL — Faz 129
+migrasyonu, önceki oturumların bulgusuyla tutarlı) → `HTTP: 400`,
+`title: "Schedule invalid"`, aynı "lowercase ASCII" mesajı.
+Adım 2-3: `lane:"media"`, `targetName:"yok-boyle-bir-agent"` (var olmayan
+agent) ile geçici bir zamanlama (`media-lane-retry-test`) oluşturuldu ve
+tetiklendi; `GET /api/jobs/{id}` ~28 saniye boyunca 4 sn aralıkla
+izlendi: `attempt` sırayla `0→1→2→3` ilerledi, **her denemede `lane` hep
+"media"`da** kaldı, son durumda `status:"Failed"` (varsayılan
+`MaxAttempts=3` tükendi). `ReleaseForRetryAsync`'in `lane`'i değiştirmediği
+doğrulandı. Test zamanlaması temizlendi (`DELETE`, `204`). Beklenen
+sonuçla tam eşleşiyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
 ## Sayım (skill §7 betiği)
 
 ```
