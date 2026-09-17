@@ -1170,3 +1170,134 @@ sonucun tamamı birebir örtüştü.
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
+
+### MT-EVAL-092
+
+**Gerçek sonuç**
+Ana örnek `Tracon__RunRecording__RecordRunInput=false` ile yeniden
+başlatıldı. Yeni bir run gönderilip `GET .../input` çağrıldı → `404`:
+`"No recorded input"` (İngilizce, spec düzeltildi yukarıda — K-228),
+detay: `"Run '<id>' has no recorded input. It may have started while
+input recording was disabled, or been deleted by a retention policy."`.
+Beklenen sonucun tamamı birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-EVAL-094
+
+**Yöntem notu.** Spec'in kendi varsaydığı "bu ortamda koşulamaz" kabulü
+aşıldı — ana örnek K-431'in demo rol bayrağıyla
+(`Tracon__Demo__Roles__Enabled=true`) yeniden başlatıldı, gerçek bir
+`get_order_status` çağıran run (`admin` rolüyle) üretildi.
+
+**Gerçek sonuç**
+`X-Tracon-Demo-Role: operator` ile `POST .../replay`
+(`toolMode:"LiveTools"`) → **`403`**: `"'LiveTools' mode ACTUALLY runs
+tools and produces side effects; the Admin role is required. Use
+'ReplayTools' or 'NoTools' for a side-effect-free replay."` — rota
+seviyesindeki `RequireRole(Operator)`i GEÇTİ (`Operator` yeterli
+olduğundan), işleyicinin KENDİ iç kontrolü reddetti — spec'in iddia
+ettiği iki katmanlı yetkilendirme tam olarak gözlemlendi. Kontrol grubu:
+`X-Tracon-Demo-Role: reader` → `403` (rota seviyesinde zaten reddedildi,
+daha erken). `X-Tracon-Demo-Role: admin` → **`200`**,
+`get_order_status` GERÇEKTEN yeniden çağrıldı (yanıt
+`toolMode:"LiveTools"` ile döndü). Üç rolün üçü de beklenen sonucu verdi.
+Beklenen sonucun tamamı (spec'in düzeltilmiş, gerçekten koşulan hâliyle)
+birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## Devir notu (oturum 19 devam) — §11 kapsam boşluğu (K-407 regresyon denetimi)
+
+Bu iki case (100, 101) başlıklarında zaten "✅ DÜZELTİLDİ (2026-08-14,
+K-407)" taşıyor — orijinal kusur önceki bir turda kapatılmış; bu koşum
+**regresyon denetimidir**, fix'in hâlâ yerinde olduğunu doğrular.
+`ApiKeyScope` enum'ı artık 17 üye taşıyor (`EvalsRead=9, EvalsAdmin=10,
+ExperimentsRead=11, ExperimentsAdmin=12` dahil — spec'in bildiği "yalnız
+5 üye" bayat). Yöntem notu: demo rol bayrağı açıkken API anahtarı
+kimlik doğrulamasında da `X-Tracon-Demo-Role` başlığı gerekiyor (401
+aksi halde) — bu bir ortam sınırı, kusur değil.
+
+---
+
+### MT-EVAL-100
+
+**Gerçek sonuç (regresyon denetimi — kusur HÂLÂ KAPALI)**
+Yalnız `RunsRead` kapsamlı bir API anahtarı üretildi. `PUT
+/api/evals/kapsam-testi` → **`403`**: `"This endpoint requires the
+'EvalsAdmin' scope; the key does not carry it."`. `PUT
+/api/experiments/kapsam-testi` → **`403`**: `"...'ExperimentsAdmin'
+scope..."`. Kontrol grubu (`PUT /api/agents/kapsam-kontrol`, `AgentsAdmin`
+gerektirir) → `403`: `"...'AgentsAdmin' scope..."` — üçü de tutarlı
+şekilde reddediyor. Eski (kusurlu) davranış (`200`/`200`/`403`
+karışık) BİR DAHA gözlenmedi. K-407'nin fix'i sağlam. Test anahtarları
+case sonunda iptal edildi (`DELETE /api/api-keys/{id}` × 4, `204`).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-EVAL-101
+
+**Gerçek sonuç (regresyon denetimi — kusur HÂLÂ KAPALI)**
+Kaynak taraması (`RunEndpoints.cs:289-331`) `feedback` (POST, `RunsWrite`),
+`feedback` (GET, `RunsRead`), `feedback` (DELETE, `RunsWrite`), `input`
+(GET, `RunsRead`) uçlarının HEPSİNDE artık `RequireApiKeyScope` çağrısı
+olduğunu gösterdi — eskiden eksikti. Ampirik doğrulama: aynı
+`RunsRead`-yalnız anahtarla `POST .../feedback` → **`403`**
+(`"...'RunsWrite' scope..."`), `POST .../replay` (kontrol) → **`403`**
+(aynı mesaj) — ikisi artık TUTARLI, eski "biri kapalı biri açık" karışık
+deseni bir daha gözlenmedi. K-407'nin fix'i sağlam.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## Aile 17 (`EVAL`) TAMAMLANDI (oturum 19 sonu)
+
+69/69 `MT-EVAL-*` case işlendi, **2 Kaldı** (`HATA-S3-007`, `HATA-S3-008`),
+67 Geçti. İki case (100, 101) bu turda **regresyon denetimiydi** —
+başlıklarında zaten "✅ DÜZELTİLDİ" taşıyorlardı, K-407'nin fix'i hâlâ
+sağlam bulundu.
+
+**Bulunan iki kusur:**
+- `HATA-S3-007` (Orta) — `FeedbackControl`'ün "tekrar tıkla = sil"
+  davranışı, aynı run'da bir `Stars` puanı da varsa (`mine` eşleşmesi
+  `kind`'ı kontrol etmiyor) kırılıyor; yinelenen satır oluşuyor.
+- `HATA-S3-008` (Düşük) — "Şimdi puanla" düğmesinin boş-sonuç mesajı
+  (`onlineEval.judgeNoJudges`) bir tip uyuşmazlığı yüzünden HİÇ
+  görünmüyor (`judgeNow.data.length` her zaman `undefined`).
+
+**Doküman düzeltmeleri (skill §1.1 istisnası):** K-228 dil sınırı deseni
+× 5 (002/004/005/026/081/092 mesajları), şema/alan adı bayatlığı × 3
+(`jobs.kind`→`handler_key`, `rampIntervalHours`→`rampInterval`,
+`rawKey`→`plaintextKey`), ve MT-EVAL-012'nin `200`→`204` düzeltmesi.
+
+**Yöntemsel notlar (kusur DEĞİL, sonraki oturuma faydalı):**
+- MT-EVAL-025/093/094: `WebApplicationBuilder.Environment` mutasyonunun
+  DI'deki `IHostEnvironment`i etkilemediği (gerçek `ASPNETCORE_ENVIRONMENT`
+  gerekir) ve unutulmuş bir `Running` deneyin (`kanarya-saglikli`) sonraki
+  testleri sessizce kirletebildiği — ikisi de bu turda keşfedildi ve
+  düzeltildi, `docs/hafiza/`'ya taşınmalı.
+- MT-EVAL-094/100/101: K-431'in demo rol bayrağı (`Tracon__Demo__Roles
+  __Enabled=true`), spec'in "bu ortamda koşulamaz" varsaydığı üç case'i
+  GERÇEKTEN koşturdu — API anahtarı kimlik doğrulamasında bile
+  `X-Tracon-Demo-Role` başlığı gerektiği bir yan not olarak keşfedildi.
+
+🚨 **Kapsam dışı gözlem:** Dosyanın sonunda (satır ~2117+) `EVAL-102`,
+`EVAL-103`, `EVAL-104` başlıklı üç case daha var — farklı bir ID
+biçiminde (`MT-EVAL-NNN` değil, `EVAL-NNN`) ve dosyanın kendi beyan
+ettiği "toplam case: 69" sayısının (yalnız `MT-EVAL-*`) DIŞINDA. Bu turda
+koşulmadı — kapsamın parçası değil, henüz `MT-` biçimine taşınmamış
+görünüyor. Kapanışta `docs/ADAYLAR.md`'ye ya da doküman bakımına not
+düşülmeli.
+
+Kod tamamen donuk bırakıldı. Tüm test deneyleri/API anahtarları
+temizlendi (deneyler `Stopped`, anahtarlar iptal edildi). Sıradaki aile:
+`20-BELLEK-RAG-BAGLAM.md`.
+
+---
