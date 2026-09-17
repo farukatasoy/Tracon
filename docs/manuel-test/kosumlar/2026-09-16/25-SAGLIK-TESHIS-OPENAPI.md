@@ -502,3 +502,100 @@ bilgisi taşımıyor). Beklenen sonuç birebir örtüştü.
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
+
+### MT-DIAG-052
+
+**Gerçek sonuç**
+`ASPNETCORE_ENVIRONMENT=Production`, üç kalıcılık env değişkeni de boş,
+`localhost:5099`'da açıldı. Log'da `"storage that is not persistent"`
+**tam 1** kez geçti — `warn: Tracon.NonPersistentStorageWarningService[0]`
+seviyesinde. Mesaj üçünü de adlandırıyor: `"agent definitions, runs,
+sessions"`, süreç ömrü sınırı ("a restart loses it"), ve kalıcılığa geçiş
+çağrısı örneği (`UsePostgreSql(connectionString)`). `/api/meta` →
+`"persistent":false` — log ile aynı yargı. Uygulama normal ayağa kalktı.
+Beklenen sonucun tamamı birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-DIAG-053
+
+**Gerçek sonuç**
+AYNI kurulum (üç env değişkeni boş), yalnız `ASPNETCORE_ENVIRONMENT=Development`.
+`"Application started"` **1** kez, `"storage that is not persistent"`
+**0** kez — tamamen sessiz. Kontrol gerçekten `IHostEnvironment.IsProduction()`
+üzerinden çalışıyor. Beklenen sonuç birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-DIAG-054
+
+**Gerçek sonuç**
+`Production` + `Tracon__Sqlite__ConnectionString="Data Source=/tmp/faz104.db"`
+ile açıldı. Uyarı **0** kez düştü. `/api/meta` → `"persistent":true`,
+`"runStore":"SqlRunStore"`. Kalıcı bir kurulum yanlış pozitif üretmiyor.
+Beklenen sonuç birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-DIAG-055 / MT-DIAG-056
+
+**Sapma — `samples/Tracon.Api/Program.cs` değiştirilmedi** (kural 1,
+mutlak). Case'in kendi adımı `.AddPatternContentGuard(...)`'ı geçici olarak
+yorum satırına almayı istiyor — bu, koşum sırasında `samples/` altında
+dosya değişikliği demektir ve skill'in "Kod DONUK" kuralı istisnasızdır.
+Onun yerine `~/tracon-manuel/test-paketi`de **hiçbir content guard
+kaydetmeyen**, minimal bir `AddTracon()` host'u (`WebApplication.CreateBuilder()`
++ `FakeModelProvider`) kuruldu; aynı `SilentGapWarningService`'i sınıyor,
+yalnız `samples/`'a dokunmadan.
+
+**Yöntem tuzağı (bu koşumda bulundu, ürün kusuru DEĞİL).**
+`builder.Environment.EnvironmentName = Environments.Development` gibi
+`WebApplicationBuilder.Build()`'DAN ÖNCE elle mutasyon, DI konteynerine
+kaydolan `IHostEnvironment`i ETKİLEMİYOR — çıplak ASP.NET Core'da (Tracon
+hiç yokken) bile ölçüldü: `app.Environment.EnvironmentName` "Development"
+gösterirken `app.Services.GetRequiredService<IHostEnvironment>()`
+"Production" döndü, **iki ayrı nesne** (`ReferenceEquals: false`). Doğru
+yöntem spec'in zaten kullandığı gerçek süreç ortam değişkenidir
+(`ASPNETCORE_ENVIRONMENT=...  dotnet run`) — ona geçilince beklenen
+davranış tam olarak gözlemlendi.
+
+**Gerçek sonuç (055, Production)**
+`ASPNETCORE_ENVIRONMENT=Production` ile DI'nin `IHostEnvironment.EnvironmentName`si
+doğrulandı: `Production`. `"no IContentGuard registered"` **tam 1** kez
+düştü — `[Warning] Tracon.SilentGapWarningService: ... Register one with
+AddPatternContentGuard() or AddContentGuard<T>() ...`. Beklenen sonucun
+tamamı birebir örtüştü.
+
+**Gerçek sonuç (056, Development)**
+AYNI harness, `ASPNETCORE_ENVIRONMENT=Development` (DI'de doğrulandı).
+`"no IContentGuard registered"` **0** kez — tamamen sessiz. Beklenen sonuç
+birebir örtüştü.
+
+**Durum (055):** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum (056):** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-DIAG-057
+
+**Yöntem notu.** Bu case kod değişikliği istemiyor (spec'in kendi notu) —
+DEĞİŞTİRİLMEMİŞ `samples/Tracon.Api` doğrudan `Production`da açıldı.
+
+**Gerçek sonuç**
+`"data retention disabled"` **tam 1** kez düştü — `warn:
+Tracon.SilentGapWarningService[0]: ... Tracon:Retention:Enabled is false
+... register a policy through IRetentionPolicyStore ...`. Kontrol grubu:
+aynı log'da `"no IContentGuard registered"` **0** kez — örnek uygulama
+varsayılan olarak bir guard kaydettiği için MT-DIAG-055'in uyarısı burada
+HİÇ görünmüyor (iki uyarı birbirinden bağımsız tetikleniyor, spec'in
+öngördüğü gibi). Beklenen sonucun tamamı birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
