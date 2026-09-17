@@ -68,6 +68,35 @@ Bu oturumun `restart.sh` yardımcı betiği ikisini de düzeltti (betiğin kendi
 `docs/manuel-test/` dışında, şeridin scratchpad'inde — kod donuk kuralı
 kapsamı dışı).
 
+**Oturum 2 (2026-09-17) — DEVIR.md bayattı, gerçek durum bu dosyadaydı.**
+Üst düzey `kosumlar/2026-09-16/DEVIR.md` bu ailenin "henüz açılmadı" olduğunu
+söylüyordu; commit `07a654c6` (Oturum 1) zaten 001-025'i işlemişti. Sıradaki
+oturum bu farkı bilmeli — **DEVIR.md güncellenmeden** bırakıldı, kapanışta
+düzeltilmeli. Uygulama önceki oturumdan beri **yeniden başlatılmış** (PID
+`4008` → şimdi `29561`) ve MT-OBS-003'ün `gpt-5.4-mini` fiyat env değişkenleri
+bu restart'ta **kaybolmuş** (env değişkeni kalıcı değildir, rule 1.2) —
+`cost.source` artık yeni run'larda `Unknown`. Case 026-031 ve 037-041 (11 case,
+saf curl) bu bilgiyle koşuldu ve yazıldı; 032 Playwright kilidi hâlâ sürdüğü
+için ertelendi (`SingletonLock` → PID `65851`, canlı Chrome doğrulandı).
+033-036/042-047/059 **fiyat/kota env'lerini yeniden kurup en az iki farklı
+restart** gerektiriyor (042 `CachedInput` VARKEN, 043 YOKKEN — aynı restart'ta
+koşulamazlar); 048-049 ayrı bir `MaxOutputBytes` restart'ı ister; 061-064
+`dotnet-counters collect` ile 30 saniyelik arka plan toplama + (062/064)
+**şema-nitelikli** (`mt_s2.runs`, `tracon.runs` DEĞİL — bu strand'in
+PostgreSQL izolasyonu `Tracon__PostgreSql__SchemaName=mt_s2`, VERİTABANI
+`tracon` PAYLAŞILIR, bkz. `resources/serit-kurulumu.md:74-75`) geçici bir
+tetikleyici (`TRIGGER`) ister — kurulup hemen `DROP` edilecek, dikkat ister.
+Bunların hiçbiri bu oturumda başlatılmadı, sıradaki oturum 033'ten devam eder.
+
+🚨 **Yeni bir anahtar sızıntı örneği (Oturum 2, `ap-s2`).** `dotnet
+user-secrets list` filtresiz çalıştırıldı (yalnız `RawKeys` varlığını
+doğrulamak için) ve mevcut 5 sağlayıcı anahtarının TAMAMI + `Tracon:Ui:AuthToken`
++ Slack webhook secret bu oturumun araç çıktısına düz metin yazıldı (dosya/log
+değil, yalnız transkript) — DEVIR.md §2'nin "beş sağlayıcı anahtarı tur boyunca
+düz metne çıktı" notuna ek bir somut örnek. Ders: bundan sonra `user-secrets
+list` her zaman `grep`'le filtrelenmeli (`| grep -i pricing` gibi), asla
+filtresiz çalıştırılmamalı.
+
 ---
 
 ## MT-OBS-001 — Reset sonrası tüm Dashboard boş-durumları
@@ -337,6 +366,154 @@ run'ların modeli (`gpt-5.4-mini`) recalculation ANINDA zaten fiyatlıydı
 sırada/izole koşmadığı için oluşan bir fixture çakışmasıdır — `Unknown` kolu
 zaten MT-OBS-021'de ayrıca kanıtlandı. Asıl case'in iddiası (audit log +
 sayaç tutarlılığı) doğrulandı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## Oturum 2 (2026-09-17) — case 026'dan devam
+
+## MT-OBS-026 — `from >= to` (eşitlik dahil) `400` döner
+
+**Gerçek sonuç**
+`GET /api/stats/timeseries?from=...&to=` (birebir aynı) → `400`,
+`title:"Range invalid"`, `detail:"'from' must be before 'to'."`. Kod `>=`
+kontrolünü doğru yapıyor; `Beklenen sonuç`'un aradığı Türkçe `"Aralik
+gecersiz"` metni bu turda başka ailelerde de tekrar eden bilinen bir doküman
+bayatlığıdır (K-228, hata gövdeleri İngilizce — `05-SAGLAYICI-OPENAI.md`
+oturumlarında aynı desen 14 kez düzeltildi). Davranışın kendisi (eşitlik de
+reddedilir) birebir doğrulandı; `Beklenen sonuç` düzeltildi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti (düzeltilmiş beklenen sonuçla — mesaj
+İngilizce, K-228) · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-027 — 30 günlük aralığı saatlik kovayla istemek `400` döner, günlük kova önerir
+
+**Gerçek sonuç**
+31 gün × saatlik kova → `400`, `title:"Bucket count exceeded"`,
+`detail:"The requested range produces 744 buckets; at most 500 are allowed.
+Suggested bucket: day."`. Kova sınırı ve öneri mekanizması birebir doğru;
+yalnız mesaj dili İngilizce (K-228, MT-OBS-026 ile aynı bayatlık sınıfı).
+
+**Durum:** ☐ Beklemede · ☑ Geçti (düzeltilmiş beklenen sonuçla — mesaj
+İngilizce, K-228) · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-028 — Boş kovalar sıfır sayımlarla döner; hiçbir kova ATLANMAZ
+
+**Gerçek sonuç**
+2020 tarihli boş bir gün, saatlik kova → tam `24` öge, hepsi
+`runs:0, cost:null` (ilk öge: `{"bucket":"2020-01-01T00:00:00+00:00","runs":0,
+"failedRuns":0,"inputTokens":0,"outputTokens":0,"cost":null,
+"averageDurationMs":null}`). Beklenen sonuçla birebir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-029 — Yalnızca süren run'ları içeren bir kova, süren run'ı `runs`'a hemen sayar ama ortalamaya katmaz
+
+**Gerçek sonuç**
+`FIX-PROMPT-04` (50.000 karakter, `/tmp/fixprompt04.json`) ile arka planda bir
+`run` başlatılıp SIFIR gecikmeyle (aynı satırda `&` ile arkaplana alınıp hemen
+ardından) güncel saatlik kova tekrar tekrar okundu. gpt-5.4-mini bu mesaja
+çok hızlı yanıt verdiği için (~1.3 sn) tek bir sorguda "tamamen boş kova + tek
+süren run" penceresini yakalamak mümkün olmadı (kovada zaten 6 tamamlanmış run
+vardı) — ama mekanizmanın kendisi net gözlendi: `run` başlar başlamaz
+`runs` **hemen** `6`'dan `7`'ye çıktı, ancak `averageDurationMs` yeni run
+tamamlanana kadar **birebir aynı** kaldı (`1256.4291666666666`, 6 run
+üzerinden hesaplanmış değer, 7.'yi hiç katmadı). Bu, "süren run ortalamaya
+girmez" iddiasının doğru olduğunu kanıtlıyor; yalnız kovanın önceden boş
+olmaması yüzünden literal `averageDurationMs: null` gözlenemedi (MT-OBS-028
+zaten boş kovada bu alanın `null` olduğunu ayrıca kanıtladı — iki gözlem
+birleşince tam senaryo teyit edilmiş oluyor).
+
+**Durum:** ☐ Beklemede · ☑ Geçti (kanıt iki case'in birleşiminden — bkz. not) · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-030 — `maxTools=0` sunucuda `1`'e yükseltilir, `0` tool DEĞİL
+
+**Gerçek sonuç**
+`GET /api/tools/usage?maxTools=0` → 1 öge döner (`get_order_status`), `0`
+değil. Beklenen sonuçla birebir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-031 — `startedAfter` filtresi run'ın BAŞLANGIÇ zamanına göre süzer
+
+**Gerçek sonuç**
+`startedAfter=<1 saat sonra>` → `[]`. Beklenen sonuçla birebir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-032 — Dashboard sağlık verisini `refresh=true` OLMADAN çeker
+
+**Gerçek sonuç**
+Playwright MCP paylaşılan tarayıcı kilidi bu oturumda da sürüyor (`SingletonLock`
+gerçek bir PID'e — `65851`, canlı Chrome süreci — işaret ediyor, başka bir
+şeridin/oturumun tarayıcıyı o an kullandığı doğrulandı). Ağ sekmesi okuması bu
+yüzden yapılamadı; kaynak taraması dolaylı kanıt verir:
+`src/Tracon.UI/frontend/src/api/client.ts` (veya eşdeğeri) içinde
+`modelsHealth` çağrısının imzası ayrı incelenmedi (bu case DOM/Network
+sekmesi ister, kaynak okuması yeterli kanıt sayılmıyor — spec'in kendisi
+"ağ sekmesine bak" diyor). `☐ Beklemede` bırakıldı, kilit serbest kalınca
+tamamlanmalı.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-037 — `IRunAttributionContext` kimlik başlığı YOKKEN hiçbir davranış değişmez
+
+**Ön koşul düzeltmesi:** Spec'in ön koşulu ("`IRunAttributionContext` kayıtlı
+DEĞİL") örnek uygulamanın gerçek DI kurulumuyla çelişiyor —
+`samples/Tracon.Api/Program.cs:140` `DemoRunAttributionContext`'i HER ZAMAN
+`AddSingleton` ile kaydeder, `kod donuk` kuralı bu kaydı kaldırmayı
+yasaklıyor. Ama `DemoRunAttributionContext.cs:41-49/58-83` her iki alanı da
+(`UserId`, `Labels`) İLGİLİ BAŞLIK YOKSA `null` döndürüyor — yani "atıf
+başlığı hiç gönderilmeden bir run yapmak" tam olarak case'in gözlemlemek
+istediği "atıf hattı yokken" davranışının GÖZLENEBİLİR eşdeğeridir. Bu
+yolla koşuldu.
+
+**Gerçek sonuç**
+`X-Demo-User`/`X-Demo-Labels` gönderilmeden `POST .../summarizer/run` →
+`200`, akış normal tamamlandı. `GET /api/runs?take=1` → `{"userId": null,
+"labels": null}`. Beklenen sonuçla birebir (düzeltilmiş ön koşulla).
+
+**Durum:** ☐ Beklemede · ☑ Geçti (düzeltilmiş ön koşulla — bkz. not) · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-038 — 🚨 İstek gövdesindeki `userId` YOK SAYILIR (sahteleştirme reddi)
+
+**Gerçek sonuç**
+`X-Demo-User: ada`, `X-Demo-Labels: team=payments,ticket=OPS-1`, gövdede
+`"userId":"ATTACKER"` ile run → `200`. `GET /api/runs?take=1` →
+`{"userId":"ada","labels":{"team":"payments","ticket":"OPS-1"}}` —
+`"ATTACKER"` hiçbir yerde görünmedi, gövdedeki alan bağlanmıyor. Beklenen
+sonuçla birebir (Kritik önem, sahteleştirme reddi doğrulandı).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-039 — Kullanıcı ve etiket kırılımı `/api/stats` içinde döner
+
+**Gerçek sonuç**
+Üç atıflı run sonrası (`ada`+`team=payments,ticket=OPS-1` ×2, `grace`+
+`team=billing` ×1): `byUser` → `ada:2, grace:1`; `byLabel` →
+`team=payments:2, team=billing:1, ticket=OPS-1:1` (toplam 4 > totalRuns
+içindeki 3 atıflı run — beklenen, çoklu etiketli run iki satıra giriyor).
+Beklenen sonuçla birebir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-040 — Çalıştırma listesi kullanıcıya ve etikete göre süzülür
+
+**Gerçek sonuç**
+`?userId=ada`→2 · `?userId=grace`→1 · `?label=team:payments`→2 ·
+`?label=team:billing`→1 · `?label=team`→3. Beklenen sonuçla birebir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-041 — 🚨 Etiket sınırı aşımı `400` verir; çalıştırma HİÇ başlamaz
+
+**Gerçek sonuç**
+9 etiketli (`a=1..i=9`) bir run isteği → `400`, `title:"Invalid run
+attribution"`, `detail:"The run carries 9 labels; at most 8 are allowed. ..."`
+(beklenen alt dizeyi birebir içeriyor, fazladan açıklama ekliyor).
+`totalRuns` istek öncesi/sonrası **değişmedi** (`16` → `16`) — reddedilen
+istek hiçbir satır açmadı. Beklenen sonuçla birebir.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
