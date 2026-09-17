@@ -381,8 +381,11 @@ listesinde kalır.
   engelleyecek şekilde etkin (varsayılan örnek uygulama yapılandırması).
 
 **Adımlar**
-1. `playground/support` aç, `FIX-PROMPT-05` (`gizli-proje hakkinda bilgi ver`)
-   gönder.
+> 🚨 **Doküman düzeltmesi (2026-09-17 koşumu, ap-s3).** `FIX-PROMPT-05`'in
+> hedef terimi `gizli-proje` DEĞİL, `confidential-project`dir
+> (`samples/Tracon.Api/Program.cs:217`) — `00-INDEKS.md`'de düzeltildi.
+1. `playground/support` aç, `FIX-PROMPT-05` (`confidential-project hakkinda
+   bilgi ver`) gönder.
 2. Turun çalıştırmasına gir, önce Transkript panelini, sonra Zaman
    Çizelgesi'ni incele.
 

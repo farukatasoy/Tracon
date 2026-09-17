@@ -133,3 +133,69 @@ tamamı birebir örtüştü.
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
+
+### MT-UIRUN-009
+
+**Gerçek sonuç**
+`MT-UIRUN-002`'nin run'ında Zaman Çizelgesi: `run.started`, `tool.invoking`
+(`get_order_status`), `tool.invoked`, art arda `message.delta` satırları,
+sırayla mevcut. Her olay tipi kendi `className`'inde renklendirilmiş
+(`text-info` — run.started/tool.invoking). `message.delta` gövdesi düz bir
+`<span class="font-mono ...">` (kod bloğu DEĞİL, akan metin). `tool.
+invoking` gövdesi bir `<pre class="...font-mono...">` (`CodeBlock` biçemi)
+içinde, tool adı satırın kendisinde de rozet olarak tekrarlanıyor. Beklenen
+sonucun tamamı birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-UIRUN-010
+
+**Yöntem notu — doküman düzeltmesi.** `FIX-PROMPT-05` bu koşumda
+`"gizli-proje hakkinda bilgi ver"` diyor; kaynakta (`samples/Tracon.Api/
+Program.cs:217`) engellenen terim artık `"confidential-project"`dir (aynı
+bayatlık `05-SAGLAYICI-OPENAI.md` `MT-OAI-084`'te de düzeltilmişti).
+`"confidential-project hakkinda bilgi ver"` kullanıldı.
+
+**Gerçek sonuç**
+Run `failed`, Zaman Çizelgesi: `run.started` → `content.blocked`
+(`guard:"pattern"`, `rule:"denied-term"`, `direction:"Input"`,
+`action:"Block"`) → `run.failed`. Transkript paneli TOPTAN BOŞ DEĞİL:
+`ContentBlocked` olayının kendisine karşılık gelen bir kart YOK, ama
+`RunFailed`in ürettiği kırmızı hata kartı (`bg-danger-soft text-danger`)
+var: "Content was blocked by the 'pattern' guard...". Beklenen sonucun
+tamamı birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-UIRUN-011
+
+**Gerçek sonuç**
+Var olmayan bir modelle (`manuel-model-hata`, `var-olmayan-model-xyz`) bir
+run üretildi (`failed`). "Failure" paneli: kırmızı rozet (`bg-danger-soft
+text-danger`) `error.type` metnini ("upstream_error") taşıyor, altında
+`error.message` kırmızı metinle ("The model provider request failed.").
+Durum rozeti `failed`. Beklenen sonucun tamamı birebir örtüştü. Test
+agent'ı iş bitince silindi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-UIRUN-012
+
+**Gerçek sonuç**
+`summarize-and-approve` workflow'u çalıştırıldı. Run sayfasında: durum
+rozeti "awaiting input"; başlık `"workflow · summarize-and-approve"`
+gösteriyor (agent adı YERİNE); "workflow screen" bağlantısı `/tracon/
+workflows/summarize-and-approve`'a gidiyor. "Çalıştırmalar" listesine
+dönüldüğünde istatistik şeridinin üçüncü kutusu artık "Error rate" DEĞİL,
+"AWAITING INPUT: 1" (+ ipucu metni). Beklenen sonucun tamamı birebir
+örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
