@@ -708,9 +708,15 @@ dotnet run
 
 **Beklenen sonuç**
 - Uygulama açılışta `OptionsValidationException` ile ÇÖKER; mesaj
-  `'pcm_16000' bicimi ek olarak saklanamaz` metnini içerir (`VoiceOptionsValidator.IsStorableFormat`).
+  `format 'pcm_16000' cannot be stored as an attachment` metnini içerir
+  (`VoiceOptionsValidator.IsStorableFormat`).
 - **Geri al:** `dotnet user-secrets remove "Tracon:Voice:OutputFormat"`,
   yeniden başlat.
+
+> **Doküman düzeltmesi (2026-09-16 koşumu):** Beklenen mesaj metni Türkçe
+> yazılmıştı; `VoiceOptionsValidator.cs`'in gerçek metni İngilizce'dir
+> (K-228 — paket koduna giren her şey İngilizce, yalnız `docs/`/`.agents/`
+> Türkçe kalır). Yukarıda düzeltildi.
 
 ---
 
@@ -733,10 +739,13 @@ dotnet run
 ```
 
 **Beklenen sonuç**
-- Açılış çöker; mesaj `'azure-cognitive-speech' saglayicisi taninmiyor.
-  Yerlesik saglayici: 'elevenlabs'` metnini içerir.
+- Açılış çöker; mesaj `provider 'azure-cognitive-speech' is not recognized.
+  Built-in provider: 'elevenlabs'` metnini içerir.
 - **Geri al:** `dotnet user-secrets remove "Tracon:Voice:Provider"`,
   yeniden başlat.
+
+> **Doküman düzeltmesi (2026-09-16 koşumu):** Beklenen mesaj metni Türkçe
+> yazılmıştı; gerçek metin İngilizce'dir (K-228). Yukarıda düzeltildi.
 
 ---
 
@@ -759,10 +768,13 @@ dotnet run
 ```
 
 **Beklenen sonuç**
-- Açılış çöker; mesaj `eszamanli istek siniri sifirdan buyuk olmalidir`
+- Açılış çöker; mesaj `concurrent request limit must be greater than zero`
   içerir.
 - **Geri al:** `dotnet user-secrets remove "Tracon:Voice:MaxConcurrentRequests"`,
   yeniden başlat.
+
+> **Doküman düzeltmesi (2026-09-16 koşumu):** Beklenen mesaj metni Türkçe
+> yazılmıştı; gerçek metin İngilizce'dir (K-228). Yukarıda düzeltildi.
 
 ---
 
@@ -791,10 +803,14 @@ curl -s "$APU/api/voice/health" -H "$APB" | python3 -m json.tool
 
 **Beklenen sonuç**
 - `isHealthy: false`. `detail` alanı yalnız HTTP durum kodunu ve genel bir
-  ipucu içerir (`" API anahtari gecersiz."`) — `SAHTE-GECERSIZ-ANAHTAR-xyz789`
+  ipucu içerir (`" The API key is invalid."`) — `SAHTE-GECERSIZ-ANAHTAR-xyz789`
   metni yanıtın HİÇBİR YERİNDE görünmez. Uygulama loglarını da tara: anahtar
   orada da görünmemelidir.
 - **Geri al:** gerçek anahtarı tekrar ayarla, yeniden başlat.
+
+> **Doküman düzeltmesi (2026-09-16 koşumu):** İpucu metni Türkçe yazılmıştı;
+> `ElevenLabsSpeechClient.cs`'in gerçek metni İngilizce'dir (K-228).
+> Yukarıda düzeltildi.
 
 ### MT-MM-038 — `GET /api/voice/voices` gerçek ses listesini döner
 
