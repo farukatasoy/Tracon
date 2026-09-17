@@ -626,10 +626,21 @@ Sınır durumu — `isEditable = false`.
 **Beklenen sonuç**
 - `descriptor.model`/`toolNames` yine de doğru görünür (katalog özeti kod
   tanımından üretilir).
-- `definition` (kalıcı tanım) `null`'dır — kod agent'ının hiçbir zaman bir
-  `AgentDefinition` satırı YOKTUR; bu durumda "Tanım" paneli hiç render
-  edilmez (`{definition !== null && (...)}`), talimat panelinde
-  `agentDetail.noDefinitionForCode` ek notu görünür.
+- `definition`'ın null olup olmadığı kod agent'ının NASIL kaydedildiğine
+  bağlıdır (2026-09-16 turunda düzeltildi — `AgentEndpoints.cs`'in kendi
+  `WithDescription`'ı bunu açıkça ayırıyor, spec'in eski "her kod agent'ının
+  definition'ı null'dır" varsayımı BAYAT): `AddAgent(new AgentDefinition
+  {...})` ile (deklaratif) kayıtlı bir agent'ın `definition`'ı DOLU gelir
+  (`instructions` dahil tam nesne) — bu yüzden "Tanım" paneli RENDER EDİLİR
+  ve `noDefinitionForCode` notu GÖRÜNMEZ. Yalnız `AddAgent(name, factory)`
+  ile (fabrika) kayıtlı bir agent'ın `definition`'ı `null` gelir — o zaman
+  panel gizlenir ve not görünür. `samples/Tracon.Api/Program.cs`'teki
+  **her** agent (`support` dahil, 15 kayıt) deklaratif — bu ortamda fabrika
+  stili tek bir örnek YOK, yani `null`-definition/`noDefinitionForCode`
+  dalı bu ortamda ampirik olarak hiç tetiklenemiyor (ölçüldü: `GET
+  /api/agents/support` `definition` alanı dolu, `factoryInstructions: null`
+  döndü). Bu bir Tracon kusuru değil, fixture kapsamı boşluğu — açık kalem
+  olarak `00-INDEKS.md`'ye yazılmalı.
 - Sayfanın altında "Sürümler" bölümü hiç YOKTUR (`isEditable` koşulu
   `VersionHistory`'yi de kapsar) — kod agent'ının versiyon geçmişi olmaz.
 

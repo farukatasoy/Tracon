@@ -29,7 +29,7 @@ sıfırdan düşürülüp yeniden oluşturuldu (aile 08'in verisi temiz atıldı
 
 ## Devir notu
 
-**Oturum 1 bitti: MT-UIAG-001..016 koşuldu (13 Geçti · 1 Kaldı · 2 Atlandı).**
+**Oturum 1-2 bitti: MT-UIAG-001..024 koşuldu (21 Geçti · 1 Kaldı · 2 Atlandı).**
 Uygulama AÇIK bırakıldı (port 5081, arka planda `launch_s1.py` ile başlatıldı,
 PID script'i `/private/tmp/.../scratchpad/s1-app.pid`de) — sonraki oturum
 sıfırdan başlatmak yerine devam edebilir, yalnız `curl .../api/diagnostics`
@@ -39,26 +39,37 @@ ile sağlığı doğrulasın.
 sayısı hücresinin tam tool adı listesi hiçbir yerde (ne tooltip ne görünür
 metin) sunulmuyor. Ayrıntı case'in kendi bloğunda.
 
-**Dört spec düzeltmesi yapıldı** (doküman kusuru, kod donuk kaldı — hepsi
-aynı kök neden, K-228): MT-UIAG-006, 007, 013, 016 — dördü de Türkçe
-`ErrorNote` metni bekliyordu, gerçek sunucu mesajları İngilizce. Aile 05/18
-oturumlarında görülen aynı sistematik bayatlığın bu ailedeki dördüncü
-tekrarı; kapanışta sınıf taraması önerilir (`grep -rn '"Cagri\|adinda\|gecersiz'
-docs/manuel-test/*.md` gibi Türkçe hata metni bekleyen kalan case var mı diye).
+**Beş spec düzeltmesi yapıldı** (doküman kusuru, kod donuk kaldı):
+MT-UIAG-006, 007, 013, 016 — dördü aynı kök neden (K-228): Türkçe `ErrorNote`
+metni bekliyordu, gerçek sunucu mesajları İngilizce. Aile 05/18 oturumlarında
+görülen aynı sistematik bayatlığın bu ailedeki dördüncü tekrarı; kapanışta
+sınıf taraması önerilir. MT-UIAG-018 ayrı bir kök nedenle düzeltildi:
+`definition`'ın her zaman `null` olduğu varsayımı bayattı — yalnız fabrika
+stili (`AddAgent(name, factory)`) kod agent'ları `null` döner, örnek
+uygulamanın 15 agent'ının 15'i de deklaratif (`AddAgent(new
+AgentDefinition{...})`); bu dal ortamda hiç tetiklenemiyor — fixture kapsamı
+boşluğu, kapanışta `00-INDEKS.md`'ye açık kalem yazılmalı.
 
 **İki case ⏭ Atlandı, ikisi de gerekçeli ortam kısıtı (kusur değil):**
 MT-UIAG-002 (örnek uygulamada `TraconRolePolicies` yapılandırılmamış,
 `canAdminister` her kimlikte `true` — MT-SEC-089 ile çapraz doğrulandı) ve
 MT-UIAG-012 (ortamda 0 kayıtlı skill, 10'luk sınırı tetikleyecek 11 skill yok).
 
-**Kalıcı fixture'lar bu oturumda üretildi (silinmeyecek):** `manuel-bos`
-(`FIX-AGENT-02`, v1), `manuel-destek` (`FIX-AGENT-01`, v2 — `Nazik ol.` eklendi,
-v1 geçmişte), `manuel-cevrim-a` (çağrılabilir agent: `manuel-destek`; MT-UIAG-013
-kanıtı için — MT-UIAG-024'ün "Geri Al" case'i v1/v2 geçmişini zaten kullanacak).
+**Kalıcı fixture'lar bu turda üretildi (silinmeyecek):** `manuel-bos`
+(`FIX-AGENT-02`, v1), `manuel-destek` (`FIX-AGENT-01`, **v4** — sürüm zinciri
+v1→v2 [Nazik ol.]→v3 [Emoji kullanma.]→v4 [Geri Al ile v1 içeriği yeni sürüm
+olarak yazıldı, MT-UIAG-024]), `manuel-cevrim-a` (çağrılabilir agent:
+`manuel-destek`; MT-UIAG-013 kanıtı için). `manuel-silme-test` ve
+`manuel-dogrula-test` bu turda oluşturulup silindi/hiç kaydedilmedi
+(MT-UIAG-008, 019) — kalıcı değiller.
 
-**Sıradaki oturumun işi:** `MT-UIAG-017`'den devam. Şu ana kadar HİÇBİR case
-gerçek bir OpenAI çağrısı yapmadı (017'den itibaren playground/akış case'leri
-gerçek çağrı yapacak — `Tracon:Providers:OpenAI:ApiKey` ortamda tanımlı).
+**Sıradaki oturumun işi:** `MT-UIAG-025`'ten devam — Playground bölümü
+başlıyor (akışlı sohbet, tool/onay kartları, ekler). Buradan itibaren case'ler
+GERÇEK OpenAI çağrısı yapacak (`Tracon:Providers:OpenAI:ApiKey` ortamda
+tanımlı, model `gpt-5.4-mini`); şu ana kadar HİÇBİR case gerçek çağrı
+yapmadı. Oturum bütçesi (arayüz-ağırlıklı ~18 case) bu noktada zaten aşıldı
+(24 case tek "oturumda" koşuldu) — sıradaki oturum daha küçük bloklarla
+ilerlemeli.
 
 ---
 
@@ -411,6 +422,135 @@ time and cannot be changed from the management API; update the
 application code to change it."` — spec'in Türkçe metni bayattı, düzeltildi.
 Güvenlik yalnız düğmeyi gizleyerek sağlanıyor, URL seviyesinde engel yok;
 gerçek sınır sunucuda.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+# 3 — Agent detay: özet, versiyon, karşılaştırma, silme
+
+## MT-UIAG-017 — DB kökenli agent özet + talimat + tam tanım JSON'u gösterir
+
+**Gerçek sonuç — beklendiği gibi.**
+`agents/manuel-destek` (v2): özet panelinde `gpt-5.4-mini`, `Harness:
+Kapalı`, `Tool'lar: get_order_status`, `Güncellendi: 3 dk. önce` doğru
+göründü, köken rozeti `db · v2`. Talimat metni ayrı panelde tam
+görünüyor (`"...Nazik ol."` dahil). "Tanım" panelinde `AgentDefinition`'ın
+tüm alanlarını taşıyan ham JSON var (`origin`, `version`, `tenantId`,
+`updatedAt` dahil).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-UIAG-018 — Kod kökenli agent'ta "kod bildirimi" notu görünür, `definition` paneli farklı davranır
+
+**Gerçek sonuç — spec'in temel varsayımı bayat çıktı, doküman düzeltildi
+(kusur değil, fixture kapsamı boşluğu).**
+`GET /api/agents/support` ölçüldü: `definition` alanı **DOLU** geliyor
+(`instructions` dahil tam nesne), `factoryInstructions: null`. Kaynak
+(`AgentEndpoints.cs:64-74`, endpoint'in kendi `WithDescription`'ı) bunu
+açıkça belgeliyor: yalnız `AddAgent(name, factory)` (fabrika) ile kayıtlı
+bir kod agent'ının `definition`'ı `null`'dır; `AddAgent(new
+AgentDefinition{...})` (deklaratif) ile kayıtlı olan DOLU döner.
+`samples/Tracon.Api/Program.cs`'i tarandı: **15 agent'ın 15'i de**
+deklaratif — ortamda fabrika stili tek bir kod agent'ı yok. Sonuç: "Tanım"
+paneli `support`'ta da RENDER EDİLDİ (spec'in "hiç render edilmez"
+iddiasının tersi), `noDefinitionForCode` notu hiç görünmedi (`definition
+!== null` olduğu için o dal hiç tetiklenmiyor). Spec düzeltildi, açık
+kalem `00-INDEKS.md`'ye yazılmalı (fabrika-stili kod agent'ı fixture'ı
+yok). "Sürümler" bölümü doğrulandığı gibi YOK (`isEditable: false`).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-UIAG-019 — Sil bir doğrulama adımı ister; iptal edilirse hiçbir şey olmaz
+
+**Gerçek sonuç — beklendiği gibi (spec'in kendi düzeltmesi izlendi:
+`manuel-bos` YERİNE atılabilir `manuel-silme-test` kullanıldı).**
+`manuel-silme-test` UI'dan oluşturuldu. Adım 1: `Sil` düğmesinin tooltip'i
+`"Tanımı ve geçmişteki her sürümü siler. Kayıtlı run satırları kalır ama bu
+agent ile bir daha hiçbir şey başlatılamaz ve tanım bu konsoldan geri
+getirilemez."` — tanım VE sürüm geçmişi ikisi de anılıyor. Adım 2: `Sil`e
+tıklanınca konsolun kendi `dialog`u açıldı (tarayıcı `window.confirm`
+DEĞİL), başlık `"manuel-silme-test" agent'ı silinsin mi?"`, açılış odağı
+`Vazgeç`de (İptal karşılığı). `Esc` dialogu kapattı, istek gitmedi, agent
+hâlâ vardı, odak `Sil` düğmesine döndü. Adım 3: `Sil`e tekrar basıp `Tab`
+ile gezildi — döngü `Vazgeç → Sil → Kapat → Vazgeç` (dialog dışına
+ÇIKMIYOR). `Vazgeç`e tıklanınca dialog kapandı, odak `Sil` düğmesine
+döndü. Adım 4: `Sil` → dialog içindeki `Sil`e (Onayla karşılığı) tıklanınca
+`agents` listesine yönlendi; `manuel-silme-test` listede artık yok.
+`manuel-bos`'a hiç dokunulmadı (dosya 11'in fixture ihtiyacı korundu).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-UIAG-020 — Versiyon tablosu yeni-eski sıralı, güncel sürüm rozetiyle işaretli
+
+**Gerçek sonuç — beklendiği gibi.**
+`agents/manuel-destek` "Sürümler" tablosu `v2, v1` sırasında (yeniden
+eskiye). Yalnız `v2` satırında `geçerli` rozeti, tooltip `"Şu anda çözülen
+tanım"`. Her satırda model adı (`gpt-5.4-mini`), tool sayısı (`1`), göreli
+kayıt zamanı (`13 dk. önce` / `26 dk. önce`) var.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-UIAG-021 — Tek versiyon seçiliyken "bir tane daha seç" ipucu görünür
+
+**Gerçek sonuç — beklendiği gibi.**
+Yalnız `v1` checkbox'ı işaretlenince tablonun altında `"Karşılaştırmak için
+bir sürüm daha seçin."` göründü. Karşılaştırma paneli AÇILMADI.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-UIAG-022 — İki versiyon seçilince otomatik karşılaştırma paneli açılır (`DiffView`/`FieldDiffTable`/`SetDiff`)
+
+**Gerçek sonuç — beklendiği gibi (spec'in kendi "Doküman düzeltmesi"
+notuyla uyumlu: satır-bazlı diff, kelime-bazlı DEĞİL).**
+`v2` de işaretlenince `"v1 → v2 karşılaştırması"` paneli otomatik açıldı.
+`Talimatlar` bölümü tam SATIR bazlı diff gösterdi: `-` ile eski satır
+(`"...Kisa yanit ver."`), `+` ile yeni satır (`"...Kisa yanit ver. Nazik
+ol."`) — satır içi kelime vurgusu YOK (spec'in kendi notunun dediği gibi,
+`diffLines()` bütün satırı işaretliyor). `Model` alanı için `Alan/Sol/Sağ`
+tablosu (değişmeyen alanlar iki tarafta da aynı gösterildi). `Tool'lar`
+için set diff (`get_order_status` değişmedi). `Harness`/`Sıkıştırma`/
+`Bellek` tabloları da var, hepsi `—` (iki versiyonda da boş).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-UIAG-023 — Üçüncü versiyon seçilince en eski seçim düşer (kayan seçim)
+
+**Gerçek sonuç — beklendiği gibi.**
+`manuel-destek`'e `v3` üretildi (`Talimatlar` sonuna `" Emoji kullanma."`
+eklendi, "Yeni sürüm kaydet"). `v1`+`v2` seçiliyken `v3`'ün checkbox'ı da
+işaretlenince başlık `"v1 → v2"`'den `"v2 → v3 karşılaştırması"`'na değişti
+— en eski seçim (`v1`) düştü, `v2`+`v3` karşılaştırılıyor. `v1`'in
+checkbox'ı DOM'da ölçüldü: `checked: false`.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-UIAG-024 — "Geri Al" tek tık kalır; Sil doğrulama ister — asimetri BİLİNÇLİDİR
+
+**Gerçek sonuç — beklendiği gibi.**
+`v1` satırının "Geri Al" düğmesine tıklanınca HİÇBİR doğrulama dialogu
+çıkmadı — istek hemen gitti (tıklamadan önce tooltip zaten hangi sürümün
+canlı olacağını söylüyordu: `"v1'ı canlı tanım yapar. Şu anki v3 geçmişte
+kalır ve bundan sonra başlayan her run v1'ı kullanır."`). İşlem bitince
+yeni bir `v4` satırı belirdi (`geçerli` rozeti, `db · v4`), içeriği
+ölçüldü: `instructions: "Sen bir siparis destek asistanisin. Kisa yanit
+ver."` — birebir `v1`'in içeriğiyle AYNI (yeni sürüm olarak yazıldı, `v1`'e
+geri SARILMADI, sayaç 4'e çıktı). `v1`'in satırında hâlâ "Geri Al" düğmesi
+var (kendine dönüş engellenmiyor).
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
