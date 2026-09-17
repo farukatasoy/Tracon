@@ -327,7 +327,12 @@ SELECT count(*) FROM tracon.mcp_servers WHERE name IN ('ftp-sunucu', 'stdio-dene
 ```
 
 **Beklenen sonuç**
-- `HTTP: 204`. SQL sorgusu `0` döner (bu üç sunucu hiç başarıyla
+> **Düzeltildi (2026-09-17):** `ftp-sunucu` MT-MCP-004'te ZATEN `400` ile
+> reddedilmiş, hiç oluşmamıştı — `DELETE` bu yüzden `204` değil `404 "MCP
+> server not found"` döner (uç var-olmayan bir kaydı silmeyi idempotent
+> `204` değil, açık `404` ile işaretliyor). Asıl iddia (üç negatif case'in
+> kalıcı iz BIRAKMADIĞI) SQL sorgusuyla doğrulanır, HTTP durum kodu değil.
+- `HTTP: 404`. SQL sorgusu `0` döner (bu üç sunucu hiç başarıyla
   oluşturulmamıştı — negatif case'lerin kalıcı iz bırakmadığının kanıtı).
 
 ### MT-MCP-010 — Örnek uygulama config-bağlı `UseMcp` overload'ını kullanır — `Tracon:Mcp:RefreshInterval` GERÇEKTEN etkilidir
