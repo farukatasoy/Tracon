@@ -1047,7 +1047,7 @@ wait
   `200` görülebilir — makine yüküne bağlıdır). **Sıfır** `200` görülmesi
   ise gerçek bir kusurdur (kotanın hiç izin vermediği anlamına gelir).
 
-### MT-RET-040 — 🚨 `RetentionEndpoints` VE `QuotaEndpoints` `RequireApiKeyScope` çağırmaz
+### MT-RET-040 — `RetentionEndpoints` VE `QuotaEndpoints` `RequireApiKeyScope` ÇAĞIRIR (düzeltilmiş)
 
 | | |
 |---|---|
@@ -1056,45 +1056,46 @@ wait
 | **İlgili faz** | Faz 21, 25 |
 | **İlgili karar** | — |
 
-Negatif senaryo — bilinen ailenin **sekizinci** (`Retention`) ve
-**dokuzuncu** (`Quota`) bağımsız tekrarı (önceki yediyi bkz.
-`15/16/17/18/20/21`). `grep -n "RequireApiKeyScope" src/Tracon.AspNetCore/
-Endpoints/RetentionEndpoints.cs src/Tracon.AspNetCore/Endpoints/
-QuotaEndpoints.cs` **sıfır** sonuç döner — ikisi de yalnız
-`RequireRole(roles.Admin)` taşır, ve rol politikaları örnek uygulamada hiç
-kayıtlı değildir (`14-SKILL-VE-SCRIPT.md`'nin bulgusu). Sonuç: statik bearer
-token'a sahip **herhangi bir** otomasyon anahtarı — kapsamı `RunsRead` bile
-olsa — saklama politikası yazabilir, gerçek bir silme çalıştırması tetikleyebilir
-ve kota kurallarını değiştirebilir.
+🚨🚨 **Başlık ve önerme 2026-09-17'de (ap-s2) tersine çevrildi — güvenlik
+açığı KAPANMIŞ.** Case yazıldığında `grep -n "RequireApiKeyScope"
+src/Tracon.AspNetCore/Endpoints/RetentionEndpoints.cs
+src/Tracon.AspNetCore/Endpoints/QuotaEndpoints.cs` sıfır sonuç veriyordu.
+**Artık böyle değil**: her iki dosyanın HER ucu `.RequireApiKeyScope(
+ApiKeyScope.PlatformRead)` veya `PlatformAdmin` taşıyor. Statik bearer
+token'a sahip anahtarların kapsamı artık doğru uygulanıyor — bu bir kapanış
+kanıtıdır, açık kanıtı değil.
 
 **Ön koşul**
-- Bir API anahtarı sistemi kurulu (`13-KIRACI-VE-GUVENLIK.md`'nin ortam kurulumu) —
-  yalnız `ApiKeyScope.RunsRead` taşıyan bir anahtar tanımlı.
+- Bir API anahtarı sistemi kurulu (`POST /api/api-keys` ile) — yalnız
+  `ApiKeyScope.RunsRead` taşıyan bir anahtar oluşturulur.
 
 **Adımlar**
-1. Bu salt-okunur anahtarla `PUT /api/retention/{target}` dene (beklenen: kabul edilir).
-2. Kontrol grubu: aynı anahtarla `AgentsAdmin` gerektiren bir uca yaz (beklenen: `403`).
+1. Bu salt-okunur anahtarla `PUT /api/retention/{target}` dene (beklenen: `403`).
+2. Pozitif kontrol: `PlatformAdmin` kapsamlı bir anahtarla aynı istek (beklenen: `200`).
 
 **Girilecek veri**
 ```bash
-export RO="Authorization: Bearer <RunsRead-KAPSAMLI-ANAHTAR>"
+RO_KEY=$(curl -s -X POST "$APU/api/api-keys" -H "$APB" -H "content-type: application/json" \
+  -d '{"name":"ret-ro-test","scopes":["RunsRead"]}' | jq -r '.plaintextKey')
+export RO="Authorization: Bearer $RO_KEY"
 
 curl -s -i -X PUT "$APU/api/retention/jobs" -H "$RO" -H "content-type: application/json" \
   -d '{"maxAgeDays":30,"archive":false,"enabled":true}'
 
-# Kontrol grubu — bunun 403 vermesi gerekir:
-curl -s -i -X POST "$APU/api/agents" -H "$RO" -H "content-type: application/json" \
-  -d '{"name":"kontrol-grubu","instructions":"x","model":{"provider":"openai","model":"gpt-5.4-mini"}}'
+ADMIN_KEY=$(curl -s -X POST "$APU/api/api-keys" -H "$APB" -H "content-type: application/json" \
+  -d '{"name":"ret-admin-test","scopes":["PlatformAdmin"]}' | jq -r '.plaintextKey')
+curl -s -i -X PUT "$APU/api/retention/jobs" -H "Authorization: Bearer $ADMIN_KEY" \
+  -H "content-type: application/json" -d '{"maxAgeDays":30,"archive":false,"enabled":true}'
 ```
 
-**Beklenen sonuç (şüphenin doğrulanması)**
-- İlk istek `200`/`201` ile **başarılı olur** — salt-okunur bir anahtar
-  gerçek bir saklama politikası yazabilir.
-- Kontrol grubu `403` döner — `AgentEndpoints`'in kendisi kapsamı doğru
-  uyguluyor, yalnız `Retention`/`Quota` yüzeyi bu denetimden **muaf**.
-- Doğrularsa: `13-KIRACI-VE-GUVENLIK.md`'nin kapsam matrisine bu iki uç
-  ailesi eklenmelidir; önem derecesi **Yüksek** — veri SİLME yetkisi salt
-  okunur bir anahtara sızıyor olabilir.
+**Beklenen sonuç**
+- `RunsRead` kapsamlı anahtar → **`403 Forbidden`** — yetersiz kapsam
+  reddedilir.
+- `PlatformAdmin` kapsamlı anahtar → **`200 OK`** — doğru kapsam kabul
+  edilir.
+- `QuotaEndpoints` için de aynı doğrulama geçerlidir (kaynakta
+  `.RequireApiKeyScope(ApiKeyScope.PlatformRead/PlatformAdmin)` her ucunda
+  mevcut).
 
 ---
 
@@ -1129,10 +1130,11 @@ curl -s -X PUT "$APU/api/retention/run_events" \
 
 curl -s -X POST "$APU/api/retention/run?target=run_events" \
   -H "$APB" -H "X-Tracon-Tenant: kiraci-alfa" | jq -r '.jobId'
-sleep 2
+sleep 4
 
+# 🚨 tenant_id sütunu run_events'te yok, runs'tan JOIN gerekir (bkz. MT-RET-023)
 sqlite3 samples/Tracon.Api/tracon-manuel.db \
-  "SELECT tenant_id, count(*) FROM tracon_run_events GROUP BY tenant_id;"
+  "SELECT r.tenant_id, count(*) FROM tracon_run_events e JOIN tracon_runs r ON e.run_id=r.id GROUP BY r.tenant_id;"
 ```
 
 **Beklenen sonuç**

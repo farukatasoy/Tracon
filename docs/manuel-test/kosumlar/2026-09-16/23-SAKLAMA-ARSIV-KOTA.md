@@ -319,6 +319,76 @@ denetim-öncesi/artış-sonrası yarış durumu (K-159) doğrulandı.
 
 ---
 
+## MT-RET-040 — 🚨 `RetentionEndpoints` VE `QuotaEndpoints` `RequireApiKeyScope` çağırmaz
+
+**Gerçek sonuç**
+🚨🚨 **Bu case'in önermesi TAMAMEN tersine dönmüş — bir GÜVENLİK AÇIĞI
+KAPANMIŞ (kural 1.1 istisnası, ürün kusuru DEĞİL, aksine bir düzeltme
+doğrulaması):** Kaynakta doğrulandı — `RetentionEndpoints.cs` VE
+`QuotaEndpoints.cs`'in HER ucu artık `.RequireApiKeyScope(ApiKeyScope.
+PlatformRead)` veya `PlatformAdmin` çağırıyor. Ampirik doğrulama: `RunsRead`
+kapsamlı bir API anahtarıyla (`POST /api/api-keys` ile oluşturuldu)
+`PUT /api/retention/jobs` → **`403 Forbidden`** (case'in beklediği `200`
+DEĞİL). Pozitif kontrol: `PlatformAdmin` kapsamlı bir anahtarla aynı istek
+→ `200 OK`. Kapsam denetimi artık doğru uygulanıyor — case'in tespit ettiği
+sızıntı, bu case yazıldıktan SONRA düzeltilmiş.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-RET-041 — `'*'` politikası TÜM kiracıları değil, kurulum genelini siler
+
+**Gerçek sonuç**
+🚨 **Doküman düzeltmesi (aynı `tenant_id` sütun eksikliği, MT-RET-023 ile
+aynı kök neden — kusur değil):** Doğrulama sorgusu JOIN'siz `tenant_id`
+sütununu arıyordu, düzeltildi. Çok kiracılık açık, `kiraci-alfa`'ya 5,
+`kiraci-beta`'ya 5 eski (40 gün önce) satır eklendi (toplam alfa=105,
+beta=10). Yalnız `kiraci-alfa` başlığıyla politika + `run`: **alfa 105 →
+100** (5 eski satır silindi), **beta 10'da değişmeden kaldı** — tam
+beklenen.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-RET-042 — `quota_usage` hiçbir saklama hedefinde YOKTUR
+
+**Gerçek sonuç**
+`PUT /api/retention/quota_usage` → `400`, "Unknown target" (K-228, aynı
+dil deseni), 16 hedef listesinde `quota_usage` yok — şüphe doğrulandı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-RET-043 — Bellek içi kurulumda saklama uçları hata vermez, hiçbir şey yapmaz
+
+**Gerçek sonuç**
+Repo dışı bir tüketici projesinde (`UsePostgreSql`/`UseSqlite`/`UseSqlServer`
+hiç çağrılmadan) `TraconTestHost` kuruldu. `IRetentionStore`
+çözümlendiğinde: `Store tipi: NullRetentionStore`,
+`CountOlderThanAsync: 0`, `FindRowLimitCutoffAsync: null` — istisna
+atılmadı, hiçbir veritabanı denenmedi. Birebir beklenen.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-RET-044 — `InMemoryRunStore.MaxRuns` aşılınca en eski `run` ile birlikte event/tool/heartbeat kaydı da düşer (Faz 108)
+
+**Gerçek sonuç**
+👤 case'in kendi notu gereği doğrudan `curl` ile koşulamaz (`MaxRuns` yalnız
+kod düzeyinde kurucu parametresi). Spec'in kendi kaydettiği iki otomatik
+karşılığı (`InMemoryRunStoreTests.When_the_upper_limit_is_exceeded_the_
+oldest_run_is_dropped`, `InMemoryRunStoreStructureTests.Trim_drops_the_
+dropped_runs_events_and_tool_invocations_too`) bu oturumda yeniden koşuldu:
+**2/2 Geçti**.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ## MT-RET-012 — Arşiv sink'i yokken `archive=true` HİÇBİR satır silmez
 
 **Gerçek sonuç**
