@@ -549,3 +549,352 @@ birebir çalıştırıldı. Ortamda hiçbir sağlayıcı anahtarı tanımlı de�
 istisna atilmadi.` yazdırıldı — `FakeModelProvider` hiç ağa çıkmadı.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## Bölüm 5 (devamı) — Paketleme/sözleşme
+
+> **Devir notu (oturum 15, ap-s2 devam — dosya 24 ŞİMDİ TAM BİTTİ):**
+> `MT-TEST-070..094` koştu, 24/24 çalıştırılabilir case Geçti, 0 Kaldı.
+> İki case (`077`, `083`) 👤 fiziksel/tarayıcı eylemi — §"Fiziksel eylem
+> listesi"ne düştü. **Dosya 24: 66 case'in 64'ü koşuldu (hepsi Geçti), 2'si
+> fiziksel eylem bekliyor.** Sıradaki aile: `35-TYPESCRIPT-ISTEMCISI.md`
+> (11 case). Paketleme durumu: ilk `dotnet pack Tracon.src.slnf` bu oturumda
+> yanlışlıkla `kill -9` ile kesildi (aslında donmamış, yalnız tüm çözümü
+> paketlemek ~4 dakika sürüyor) — orphan süreç kendi başına tamamlandı,
+> `artifacts/package/release/` şimdi sürüm `0.0.0-preview.0.839` (20 paket)
+> taşıyor. Eski `0.819` sürümü (önceki bir oturumdan kalıntı) silindi —
+> `kapi.py yayin --kuru` bunu "stale packages" olarak doğru şekilde
+> yakaladı (ürün kusuru değil, tur aparatı kalıntısı).
+
+### MT-TEST-070 — Meta paket tüketicisi gerçek bir `run` koşturur; üretilmiş tool çalışır (Faz 95, madde 10)
+
+**Gerçek sonuç**
+🚨 **Doküman düzeltmesi (kural 1.1 istisnası, tooling — ürün kusuru DEĞİL):**
+Case'in kendi komutu (`--sinif ConsumerRunTests`, joker karaktersiz) **hiçbir
+test eşleştirmedi** (`Zero tests ran`) — `docs/hafiza/test-kosum-tuzaklari.md`
+zaten belgeliyor: `--filter-class` joker karakter gerektirir (`"*Ad*"`), çıplak
+sınıf adı FQN'e (`Tracon.Package.Tests.ConsumerRunTests`) eşleşmez. Düzeltilmiş
+komut: `python3 scripts/kapi.py test --proje Tracon.Package.Tests --sinif
+'*ConsumerRunTests*'`. Bununla 1/1 Geçti (15.7s — ilk koşumda `dotnet pack`
+soğuk önbellekle ~4 dakika sürdüğü için oturumda bu süreç yanlışlıkla donmuş
+sanılıp `kill -9` ile kesildi; orphan süreç kendi başına tamamlandı, ürün
+kusuru değil, bkz. yukarıdaki devir notu).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-TEST-071 — Analyzer paketleme hedefi devre dışı bırakılırsa kapı KIRILIR (Faz 95, sahte kusur enjeksiyonu)
+
+**Gerçek sonuç**
+Üç adım da birebir beklenen gibi: (1) `Condition="'$(TargetFramework)' ==
+'net10.0'"` → `'net99.0'` enjeksiyonu sonrası `ConsumerRunTests` **kırıldı**:
+`error CS1061: 'ITraconBuilder' does not contain a definition for
+'AddGeneratedTools'`. (2) Geri alma + `touch` sonrası `git diff` temiz. (3)
+Test tekrar **Geçti** (1/1, 41.7s).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-TEST-072 — Grafiğe yeni bir geçişli paket girerse `TransitiveDependencyTests` KIRILIR (Faz 95, madde 22)
+
+**Gerçek sonuç**
+Üç adım da birebir beklenen gibi: (1) `Humanizer.Core` enjeksiyonu sonrası
+yalnız `Tracon.Google` şekli kırıldı (`Tracon` ve `Tracon.Core` yeşil kaldı, 2
+succeeded/1 failed), hata mesajı `Added: [Humanizer.Core]`. (2) Geri alma +
+`touch` sonrası `git diff` temiz. (3) Üç şekil de tekrar **Geçti** (3/3, 2 dk).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-TEST-073 — `Tracon.Testing.Contracts.Xunit` yalnız `Tracon.Abstractions`'ı geçişli olarak indirir
+
+**Gerçek sonuç**
+`dotnet list package --include-transitive` çıktısında yalnız iki `Tracon.*`
+satırı: `Tracon.Testing.Contracts.Xunit 0.0.0-preview.0.839` ve
+`Tracon.Abstractions 0.0.0-preview.0.839`. `Tracon.Core` hiç yok. (Sürüm
+`0.839`, spec'in bayat kaydettiği `0.360` değil — beklenen; bu turun kendi
+`dotnet pack` çıktısı.)
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-TEST-074 — 15 metodu `NotSupportedException` fırlatan bir `IRunStore`, `RunStoreContract`'ı türetir; derlenir, suite koşar ve KIRMIZI olur
+
+**Gerçek sonuç**
+🚨 **Doküman düzeltmesi (kural 1.1 istisnası, ürün kusuru DEĞİL — suite
+zamanla büyümüş):** MT-TEST-073'ün probe projesine `xunit.v3` +
+`UseMicrosoftTestingPlatformRunner`/`TestingPlatformDotnetTestSupport`
+eklenmesi gerekti (case metni bunu atlıyor, `tests/Directory.Build.props`'un
+MTP kurulumunu tekrarlamak gerekti — repo kuralı, kusur değil).
+`IRunStore`'un tüm 15 metodunu `NotSupportedException` ile uygulayan bir sınıf
+`dotnet build -c Release`: **`0 Error(s)`**. Suite koştu: **99 case** (spec'in
+kaydettiği `88` değil — `RunStoreContract` zamanla büyümüş, aynı büyüme deseni
+MT-TEST-075/084'te de görüldü), **97 Kırmızı** (hepsi
+`System.NotSupportedException` ile), **0 Yeşil**, **2 Atlandı**
+(`Experiment_results_average_a_run_level_score_written_with_an_empty_message_id`
+ve `..._leave_a_message_level_score_out_of_the_average` — ikisi de opsiyonel
+`IRunScoreStore`'a bağlı, `CreateScoreStoreAsync()` override edilmediği için
+atlanıyor, `IRunStore`'un 15 zorunlu metoduna dahil değil, kusur değil).
+Davranışsal iddia ("derleme hatası değil çalışma zamanı hatası") tam
+doğrulandı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-TEST-075 — Örnek store (`Tracon.Samples.FileRunStore`) yalnız NuGet paketleriyle restore edilir ve sözleşme suite'i yeşildir
+
+**Gerçek sonuç**
+🚨 **Doküman düzeltmesi (kural 1.1 istisnası, kusur değil):** `dotnet build
+samples/Tracon.Samples.FileRunStore.Tests -c Release`: `0 Warning(s), 0
+Error(s)`. Suite: **99/99 Geçti** (spec'in kaydettiği `88` değil — aynı büyüme
+MT-TEST-074'te açıklandı, aynı `RunStoreContract` tabanı). (Bu case MT-TEST-086
+sırasında da aynı komutla koşuldu, sonuç aynı.)
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-TEST-076 — Yayın provası **20** paket görür; `Tracon.Testing.Contracts.Xunit` kimlik kümesindedir
+
+**Gerçek sonuç**
+🚨 **Paylaşılan durum notu (ürün kusuru DEĞİL):** İlk koşum, önceki bir
+oturumdan kalma izlenmeyen bir dosya (`bench/baseline 2.json`) yüzünden
+"Çalışma ağacı temiz değil" ile reddetti — dosya `/tmp`'e geçici taşınıp
+koşum sonrası **aynı yere geri kondu**. İkinci koşum da `artifacts/package/
+release/` içindeki **eski** `0.819` sürüm paketlerini (bu turun daha önceki
+bir `dotnet pack`'inden kalıntı, gitignore'lu bir build çıktısı) "stale
+packages" diye **doğru şekilde reddetti** — bu paketler silindi (yalnız
+`artifacts/`, kod değil), üçüncü koşum: **✅ 20 paket, sürüm
+'0.0.0-preview.0.839'**, `Tracon.Testing.Contracts.Xunit` listede, aynı sürüm
+hattında. `icon.png` paketin içinde doğrulandı (`unzip -l`). npm paketi de
+`--dry-run` ile başarıyla yayınlandı, 6 örnek + Native AOT smoke testi geçti.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-TEST-078 — Örnek sağlayıcı yalnız NuGet paketleriyle derlenir
+
+**Gerçek sonuç**
+`grep -c ProjectReference` → `0`. `dotnet build -c Release`: `0 Warning(s), 0
+Error(s)`.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-TEST-079 — `ModelProviderContract` örnek sağlayıcıya karşı yeşil geçer, hiçbir senaryo atlanmaz
+
+**Gerçek sonuç**
+`dotnet test -c Release`: **38/38 Geçti, skipped: 0**.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-TEST-080 — Ham istemci kuralı ihlal edilince suite KIRMIZI olur ve nedenini söyler
+
+**Gerçek sonuç**
+Üç adım da birebir beklenen gibi. (1) `CreateChatClient(ModelBinding)`'in
+dönüş satırı `.AsBuilder().UseFunctionInvocation().Build()` ile sarmalandı —
+`Microsoft.Extensions.AI` paket referansı **olmadan** `error CS1061:
+'ContosoChatClient' does not contain a definition for 'AsBuilder'` ile
+derlenmedi (tam beklenen: ihlali yapmak için bilerek referans eklemek
+gerekiyor). (2) Referans + `using` eklenince derlendi (`0 Error(s)`); test
+suite koşulunca **her üç** türetilmiş sınıfta (`ContosoModelProviderCredential
+Tests`, `..SettingsTests`, `..ContractTests`) `Create_chat_client_returns_a_
+raw_client_that_builds_no_tool_call_loop` **düştü** (3 failed/35 passed),
+mesaj: `"IModelProvider.CreateChatClient must return a RAW client. ... Building
+the loop here nests two FunctionInvokingChatClient instances and hides the
+tool-result turn from the content guard."` — beklenen içeriğin (ortak boru
+hattı + content guard'dan gizleme) birebir aynısı. (3) `.cs` ve `.csproj` geri
+alındı + `touch`, `git diff` temiz, suite tekrar **38/38 Geçti**.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-TEST-081 — Yeni sözleşme ailesi depolama kapsam kapılarını kırmaz
+
+**Gerçek sonuç**
+🚨 **Doküman düzeltmesi (küçük, kusur değil):** Metin "PostgreSQL ve SQL
+Server aynı kod yolunu koşar" diyor ama komut `Tracon.Sqlite.
+IntegrationTests`'i çağırıyor — tutarsızlık, muhtemelen kopyala-yapıştır
+kalıntısı. Çalıştırılan iki komut da geçti:
+`Tracon.Core.UnitTests --filter-method "*ContractCoverage*"` → 5/5,
+`Tracon.Sqlite.IntegrationTests --filter-method "*ContractCoverage*"` → 1/1.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-TEST-082 — Boru hattı sahipliği regresyonu davranış üzerinden ölçer, tip adı saymaz
+
+**Gerçek sonuç**
+`--filter-method "*PipelineOwnership*"` → **3/3 Geçti**.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-TEST-084 — Worker kapanışı uçuştaki job slotunu bırakmadan dönmez
+
+**Gerçek sonuç**
+🚨 **Doküman düzeltmesi (kural 1.1 istisnası, kusur değil — sınıf büyümüş):**
+Beklenen sonuç "Bir test geçer" diyor; kaynakta (`JobWorkerBackgroundService
+Tests.cs`) şu an **4** `[Fact]` var
+(`StopAsync_waits_for_a_leased_job_to_release_its_concurrency_slot`,
+`A_full_lane_does_not_block_the_default_lanes_job`,
+`A_worker_scoped_to_one_lane_never_leases_another_lane`,
+`A_throwing_handlers_own_message_never_reaches_jobs_error_message`).
+`kapi.py test --sinif '*JobWorkerBackgroundServiceTests*'` → **4/4 Geçti**.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-TEST-085 — Uygulanmış PostgreSQL migration Git tabanındaki baytla aynıdır
+
+**Gerçek sonuç**
+`python3 scripts/kapi.py tarama` → `Tarama: ✅ temiz (6 işaretli sentetik
+credential atlandı)` (bu komutun docstring'i migration-integrity taramasını
+kapsadığını doğruluyor — `0032_tenant_provider_bindings.sql`/`0037_run_
+continuation.sql` dahil). `python3 -m unittest scripts.kapi_test -v` →
+**64/64 OK** (çıktıdaki `❌`/`⚠️` satırları test fixture'larının KENDİ
+simüle ettiği hata senaryoları, gerçek arıza değil).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-TEST-086 — Beş sözleşme ailesi (Storage/Providers/Judges/AgentSources/Tools) gerçek çıkarımı zorunlu kılar (Faz 103)
+
+**Gerçek sonuç**
+`dotnet list src/Tracon.Testing.Contracts.Xunit package --include-transitive`
+→ hiçbir `Tracon.*` paketi listelenmiyor (proje referansı, paket değil) —
+"Tracon.Core görünmez" doğrulandı. `Tracon.Core.UnitTests` tam suite: **2805/
+2805 Geçti, 0 Atlandı**. Beş `samples/Tracon.Samples.*.Tests` projesi
+(FileRunStore, CustomModelProvider, CustomRunJudge, CustomAgentSource,
+CustomTool — `CustomJobHandler` hariç, o beş sözleşme ailesine ait değil)
+derlendi ve koşuldu: 99+38+11+15+18 = **181/181 Geçti, 0 Atlandı**. Judges
+ailesi iki tarafta da doğrulandı: `Tracon.Core.UnitTests.Evaluation.
+ModelRunJudgeTests` (built-in) ve `Tracon.Samples.CustomRunJudge.Tests.
+ResponseQualityJudgeContractTests` (sample).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-TEST-087 — `[Description]` taşıyan bir tool parametresi üretilen şemada `description` alanı taşır (Faz 125)
+
+**Gerçek sonuç**
+🚨 **Doküman notu:** Case portu `5080` (varsayılan) veriyor; ap-s2 şeridinin
+kendi portu (`5082`) kullanıldı, uygulama zaten ayaktaydı. `GET /tracon/api/
+tools`: `get_order_status.jsonSchema` → `"orderId":{"description":"The order
+number.","type":"string"}`. `cancel_order`, `estimate_shipping_cost`,
+`get_slow_report`, `list_recent_orders` — hepsinin kendi parametre(ler)inde
+`description` var.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-TEST-088 — Açıklaması olmayan bir tool parametresi TRC0009 uyarısı üretir; derleme başarılı biter (Faz 125)
+
+**Gerçek sonuç**
+`[Description]` silindikten sonra `dotnet build -c Release`: birebir beklenen
+`warning TRC0009: Parameter 'orderId' of tool 'get_order_status' has no
+description...`, `0 Error(s)`.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-TEST-089 — Nesne parametreli bir tool metodu TRC0003 hatası üretir; mesaj iç içe nesnenin ifade edilemediğini ve kaçış yolunu adıyla söyler (Faz 125)
+
+**Gerçek sonuç**
+🚨🚨 **Bu case'in önermesi artık koda göre YANLIŞ (kural 1.1 istisnası, ürün
+kusuru DEĞİL — generator'a sonradan eklenmiş bir yetenek):**
+`ToolDiagnostics.cs`'teki `TRC0003` mesajının KENDİSİ artık şunu söylüyor:
+"...and a supported object - a public record or class with a single public
+constructor, up to 3 nested object levels deep (see TRC0011, TRC0012)."
+Yani nested object parametreleri **artık desteklidir** (3 seviyeye kadar).
+Case'in kendi repro'su (`OrderFilter(string Status, int MinAmount)` — tam da
+"public record, tek public constructor") bu yüzden TRC0003 **VERMEDİ**;
+bunun yerine `error TRC0011: ... which is not declared with
+[JsonSerializable(typeof(...))] on the JsonSerializerContext...` verdi —
+build yine `Build FAILED` ile bitti (`0` çıkış kodu değil), ama farklı bir
+kod/mesajla. Gerçek `TRC0003`'ü ampirik olarak doğrulamak için genuine
+desteklenmeyen bir tip (`Dictionary<string,string>`) denendi ve birebir
+case'in ORİJİNAL mesaj biçimiyle eşleşti (`"is not supported by the
+generator. Supported types: ..."`) — ama "nested object'i hiç ifade edemez"
+kısmı artık mesajda YOK, tam tersi anlatılıyor. Davranışsal iddia ("nesne
+parametresi derleme hatası verir") kısmen doğru (TRC0011 de bir hata), ama
+case'in kod örneği ve beklenen hata kodu/mesajı artık yanlış.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-TEST-090 — `ToolArgumentValidationContract` doğru bir validator'da yeşil geçer (Faz 143)
+
+**Gerçek sonuç**
+`--filter-method "*ToolArgumentValidationContractTests*"` → **7/7 Geçti**
+(spec'in 2026-09-04 kaydıyla birebir aynı).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-TEST-091 — 🚨 Aynı suite, her şeyi kabul eden bir validator'da KIRMIZI olur — test tiyatrosu yok (Faz 143)
+
+**Gerçek sonuç**
+`--filter-method "*ToolContractSelfProofTests*"` → **11/11 Geçti** (spec'in
+2026-09-04 kaydıyla birebir aynı).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-TEST-092 — Aynı tohum aynı argümanları üretir; tohumlu üreteç kırılgan değildir (Faz 143)
+
+**Gerçek sonuç**
+İki ardışık koşum, ikisi de **13/13 Geçti** (spec'in 2026-09-04 kaydıyla
+birebir aynı).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-TEST-093 — Nested object parametreli bir tool, sözleşmeyi açıkça atlar — sessizce değil (Faz 143)
+
+**Gerçek sonuç**
+`--filter-method "*Required_nested_object*"` → **1/1 Geçti** (spec'in
+2026-09-04 kaydıyla birebir aynı).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-TEST-094 — `Tracon.Testing.Contracts.Xunit` üretime sızmaz; iki yeni sözleşme yalnız `Tracon.Abstractions`'a bağımlıdır (Faz 143)
+
+**Gerçek sonuç**
+`--filter-method "*DependencyDirectionTests*"` → **5/5 Geçti** (spec'in
+2026-09-04 kaydıyla birebir aynı).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## Fiziksel eylem listesi
+
+| Case | Neden | Kullanıcıdan istenen |
+|---|---|---|
+| MT-TEST-077 | Yayınlanan siteyi tarayıcıda gözle inceleme (👤) | `https://tracon.dev/guides/write-your-own-store/` sayfasını aç; `Tracon.Testing.Contracts.Xunit` kurulumunu, `RunStoreContract` türetme örneğini ve altı davranış eksenini (idempotency, üç kiracı modu, thread safety, null/bulunamadı, olay sırası, yinelenen `Sequence`) anlattığını, kod örneğinin derlenebilir gerçek imzalar kullandığını doğrula. |
+| MT-TEST-083 | Yayınlanan siteyi tarayıcıda gözle inceleme (👤) | `https://tracon.dev/api/tracon.imodelprovider/` ve `https://tracon.dev/guides/model-providers/` sayfalarını aç; sağlayıcı sözleşmesinin sekiz maddesinin (singleton ömrü, eşzamanlılık/thread safety, ham istemci, registry'ye ait ortak halkalar, dispose sahipliği, credential fabrikası yan etkisiz, `OrdinalIgnoreCase` ad karşılaştırması, kataloğun izin listesi olmaması) ve yetenek bayrağı notunun (yalnız `SupportsStructuredOutput` zorlanır) açıkça yazılı olduğunu doğrula. |
