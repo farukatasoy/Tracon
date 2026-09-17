@@ -1040,3 +1040,133 @@ birebir örtüştü.
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
+
+## HATA-S3-008 — "Şimdi puanla" düğmesi yargıç yokken HİÇBİR mesaj göstermiyor (tip uyuşmazlığı)
+
+- **Case:** MT-EVAL-090
+- **Önem:** Düşük
+- **İzlek:** B (gerçek tarayıcı + kaynak okuması)
+
+**Beklenen**
+Case'in kendi beklentisi: `onlineEval.judgeNoJudges` metni satır içinde
+görünür — hata banner'ı değil, beklenen bir boş-sonuç mesajı.
+
+**Gerçekleşen**
+Ana örnek OpenAI'siz (`Tracon__Providers__OpenAI__ApiKey=""`) yeniden
+başlatıldı (hiçbir `IRunJudge` kayıtlı değil). Echo sağlayıcılı bir run'ın
+detay ekranında "Şimdi puanla" tıklandı. Ağ isteği gerçekten gitti ve
+`200` döndü (`{"scores":[],"failures":[]}` — spec'in beklediği boş dizi,
+sunucu tarafı doğru). AMA arayüzde **hiçbir** mesaj belirmedi — ne hata
+banner'ı ne "yargıç yok" notu. Düğmenin etrafındaki DOM'da yeni bir metin
+düğümü yok.
+
+**Kök neden**
+`src/Tracon.UI/frontend/src/components/feedback-control.tsx:137-141`:
+```ts
+const judgeNow = useMutation({
+  mutationFn: () =>
+    unwrap(apiClient.POST('/api/runs/{runId}/judge', ...)) as Promise<RunScore[]>,
+  ...
+});
+```
+`unwrap()` (`lib/api.ts:26`) hiçbir dönüştürme yapmadan `response.data`'yı
+olduğu gibi döndürüyor — çalışma anındaki gerçek gövde `{scores:[...],
+failures:[...]}` (bir **nesne**), `RunScore[]` (bir **dizi**) DEĞİL. Uç
+kaynağı bunu doğruluyor: `EvalEndpoints.cs:764`, `JudgeRunAsync`
+`Ok<JudgeRunResponse>` döndürüyor, çıplak bir liste değil. `as Promise
+<RunScore[]>` yalnız TypeScript'i kandırıyor, çalışma anında
+`judgeNow.data` hâlâ `{scores,failures}` nesnesi. Satır 242'deki koşul
+(`judgeNow.data.length === 0`) bu yüzden HİÇBİR ZAMAN doğru olamaz —
+nesnenin `.length`'i `undefined`, `undefined === 0` her zaman `false`.
+
+**Etki**
+Yargıç puanlaması BAŞARIYLA çalıştığında (MT-EVAL-041/043) sorun
+görünmüyor çünkü ekrandaki puan listesi AYRI bir sorgudan
+(`feedback.data`, gerçek bir dizi) geliyor — yalnız "sıfır sonuç"
+durumundaki KULLANICI GERİ BİLDİRİMİ eksik. Kullanıcı düğmeye basıyor,
+istek başarıyla dönüyor, ama ekranda HİÇBİR ŞEY değişmiyor — ne başarı
+ne hata sinyali.
+
+**Yeniden üretme**
+1. `Tracon:Providers:OpenAI:ApiKey` boş (hiçbir `IRunJudge` kayıtlı
+   değil) bir örnek başlat.
+2. Herhangi bir run'ın detay ekranını aç, "Şimdi puanla"ya tıkla.
+3. Ağ isteğinin `200`/`{"scores":[],"failures":[]}` döndüğünü ama
+   ekranda hiçbir metnin belirmediğini gözle.
+
+**Kapsam**
+Yalnız bu düğmenin boş-sonuç dalı. Düzeltme adayı:
+`judgeNow.data.scores.length === 0` (ve tip imzasını `JudgeRunResponse`
+olarak düzeltmek).
+
+---
+
+### MT-EVAL-090
+
+**Gerçek sonuç**
+Yargıçsız bir örnekte "Şimdi puanla" tıklandı — istek `200` döndü
+(`{"scores":[],"failures":[]}`, sunucu doğru) ama arayüzde **hiçbir**
+mesaj (ne `onlineEval.judgeNoJudges` ne hata) belirmedi. Kök neden
+bulundu ve kaydedildi: **`HATA-S3-008`** (yukarıda) —
+`judgeNow.data.length === 0` kontrolü, `judgeNow.data`nın gerçek
+şeklinin (`{scores,failures}` nesnesi, çıplak dizi değil) `.length`
+taşımaması yüzünden asla doğru olamıyor.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı — `HATA-S3-008`
+
+---
+
+### MT-EVAL-091
+
+**Gerçek sonuç**
+İki gerçek run `GET .../compare/...` ile karşılaştırıldı → `200`.
+`left`/`right` her biri beklenen 11 alanı da taşıyor: `runId,
+agentName, agentVersion, modelId, status, durationMs, usage, cost,
+toolCallCount, output, scores` (tam liste, `errorClass`/`errorMessage`/
+`replayOfRunId` de ek olarak var). Sunucu hiçbir fark hesaplaması
+yapmıyor — yalnız iki ham taraf. Beklenen sonucun tamamı birebir
+örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-EVAL-093
+
+**Yöntem tuzağı (bu koşumda bulundu, KENDİ hatam, ürün kusuru DEĞİL).**
+`support` (kod-kökenli) ile denendiğinde `400`: *"Agent 'support' has no
+persistent definition... 'toolMode: LiveTools' and no override"* —
+spec'in ön koşulu (`support` ile) `ReplayTools` moduyla YAPISAL olarak
+uyumsuz, `manuel-destek` (DB-kökenli) kullanıldı. Ardından birkaç deneme
+`get_order_status` yerine `list_recent_orders`'ın çağrıldığını ve
+replay'in `422` ile durduğunu gösterdi — önce bir güvenlik/`toolNames`
+uygulaması hatası SANILDI, kaynak (`AgentDefinitionCompiler.ChatOptions
+.cs:51-82`, `ResolveTools`) okunup DOĞRU olduğu görüldü. Gerçek kök neden
+bulundu: `kanarya-saglikli` deneyi (MT-EVAL-075'ten, unutulmuş) HÂLÂ
+`Running`'di — `manuel-destek`'e giden her istek deneyin `version 4`
+varyantına (o zamanki eski `toolNames:["list_recent_orders"]`) sabitleniyordu,
+GÜNCEL sürüme (8, `toolNames:["get_order_status"]`) değil. SQL ile
+doğrulandı (`agent_version:4`, deney durdurulmadan önce). Deney
+durdurulunca (`kanarya-saglikli` → `Stopped`) yeni bir run doğru şekilde
+`agent_version:8` aldı ve GERÇEKTEN `get_order_status`'u çağırdı — bu
+turun BAŞKA hiçbir case'i `manuel-destek`'e bu deney AÇIKKEN gerçek bir
+run göndermediği için kirlenme yalnız bu case'in kendi ara denemelerini
+etkiledi.
+
+**Gerçek sonuç**
+Temizlenmiş ortamda: `get_order_status` çağıran gerçek bir run
+`ReplayTools` ile replay edildi → `200`, `compareLocation` alanı dolu
+(`/api/runs/{orijinal}/compare/{replay}`). Replay run'ının kendi olay
+akışında `ToolInvoking`→`ToolInvoked` arası **~2.7ms** (gerçek bir dış
+çağrı için gerçekçi değil, enjekte edilmiş bir sonucun işareti) ve
+`payload` orijinal run'ınkiyle **birebir aynı** metni taşıyor: `"Order
+ORD-1001 has shipped. Estimated delivery: 2 days."`. Dolaylı ama tutarlı
+kanıt: `get_order_status` DIŞINDA bir tool çağrıldığında (yukarıdaki
+kirlenme sırasında rastlantısal olarak gözlendi) replay `422` ile
+DURUYOR ("no recorded result for this call") — mekanizmanın gerçekten
+kayıtlı çağrı defterini kontrol ettiğinin bağımsız kanıtı. Beklenen
+sonucun tamamı birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
