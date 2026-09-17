@@ -5,10 +5,10 @@
 >
 > **Durum:** 🎉 **Aşama 1 (Faz A zinciri) BİTTİ** — dosya 01, 02, 03, 05 ve 07
 > KAPANDI (311 case) · kod `7e3a4de7`'de donuk · **Faz B** dört şeritte
-> sürüyor (`ap-s1` şeridin tüm işini bitirdi; `ap-s2` üç aile kapattı, dosya
-> 24'ün ilk dört bölümünü koştu; `ap-s3`/`ap-s4` devam ediyor — bkz. §5
-> tablosu, `ap-s4` satırı doğrulama bekliyor)
-> **Son güncelleme:** 2026-09-17 (`ap-s2` dosya 24'ün Bölüm 1-4'ünü koştu, 36/36 Geçti)
+> sürüyor (`ap-s1` şeridin tüm işini bitirdi; `ap-s2` dört aile kapattı —
+> 36, 33, 12, 24; `ap-s3`/`ap-s4` devam ediyor — bkz. §5 tablosu, `ap-s4`
+> satırı doğrulama bekliyor)
+> **Son güncelleme:** 2026-09-17 (`ap-s2` dosya 24'ü KAPATTI — 64/66 Geçti, 2 fiziksel eylem)
 
 ---
 
@@ -298,7 +298,7 @@ Dağılım `00-KOSUM-PLANI.md` §3.1'dedir:
 | Şerit | Port | Şema | Aileler | Durum (oturum 14 sonu) |
 |---|---|---|---|---|
 | `ap-s1` | 5081 | `mt_s1` | 13 · 19 · 04 · 18 · 10 · 08 | 🎉 **ALTI AİLENİN ALTISI DA KAPANDI** (aynı oturum zincirinde arka arkaya): 13 (142/142), 19 (66 Geçti·3 Kaldı·23 Beklemede·1 Atlandı), 04 (44 Geçti·1 Beklemede, 45/45), 18 (48 Geçti·9 Beklemede·1 Kaldı, 58/58), 10 (54 Geçti·2 Kaldı·2 Atlandı, 58/58, `HATA-S1-027/028`), 08 (50/50). **Bu şeridin Faz B işi bitti** — sıradaki aile yok. Uygulama durduruldu, commit `e22b84ee` |
-| `ap-s2` | 5082 | `mt_s2` | 36 · 33 · 12 · 24 · 35 · 23 · 15 · 14 | 🎉 **aile 36, 33 ve 12 KAPANDI** (48/48, 25/25, 65/65 — dosya 12'de 61 Geçti · 4 ortam bekliyor · **0 Kaldı**, hiç yeni kusur bulunmadı, dosya 07'nin emsaliyle aynı). Aile 24 **kısmi**: Bölüm 1-5'in başı (`MT-TEST-001..064`, 41 case) Geçti, 0 Kaldı — dokuz case'te bayat beklenen metin/öncül koda göre düzeltildi (beşi K-228 dil sınırı, ikisi spec'in kendi script hatası, ikisi ciddi: `MT-TEST-062`'nin tüm önermesi K-780'in K-270'i kaldırmasıyla tersine döndü, `MT-TEST-063`'ün AOT-uyarı beklentisi mekanizmayı ters anlıyordu — hiçbiri ürün kusuru değil, spec dosyasının kendisi de düzeltildi, dosya 05 emsaliyle aynı). Sıradaki: aynı dosyanın Bölüm 5'in devamı (`MT-TEST-070..094`, ~25 case, `kapi.py test` ile ağır suite koşumları). Uygulama ayakta bırakıldı (port 5082, bu ailenin çoğu case'i onu kullanmıyor), `~/tracon-manuel/{test-paketi,net8-deneme,aot-deneme,depo-disi-tuketici}` ayakta bırakıldı, commit `bba7b061` (`test/kosum-s2` dalında) |
+| `ap-s2` | 5082 | `mt_s2` | 36 · 33 · 12 · 24 · 35 · 23 · 15 · 14 | 🎉 **aile 36, 33, 12 VE 24 KAPANDI** (48/48, 25/25, 65/65, 64/66 — dosya 24'te 2 case fiziksel/tarayıcı eylemi olarak `00-INDEKS.md`'ye taşınacak, **0 Kaldı**, hiç ürün kusuru bulunmadı, dosya 07'nin emsaliyle aynı desen). Dosya 24'te 18 stale beklenen sonuç koda göre düzeltildi (spec dosyasının kendisinde), en dikkat çekeni `MT-TEST-062` (K-780'in K-270'i kaldırması — `Tracon.Testing` artık net8.0'dan kullanılabiliyor) ve `MT-TEST-089` (generator'a sonradan eklenen nested-object desteği, TRC0003 önermesi tersine döndü). Sıradaki: `35-TYPESCRIPT-ISTEMCISI.md` (11 case), henüz açılmadı. Uygulama ayakta bırakıldı (port 5082), `~/tracon-manuel/{test-paketi,net8-deneme,aot-deneme,depo-disi-tuketici}` ayakta bırakıldı, commit `bf76bc8e` (`test/kosum-s2` dalında) |
 | `ap-s3` | 5083 | `mt_s3` | 32 · 29 · 34 · 21 · 11 · 25 · 17 · 20 | ✅ **aile 32, 29 ve 34 KAPANDI** (40/40, 24/24, 46/46). Sıradaki: `21-DAYANIKLILIK-VE-IPTAL.md`, henüz açılmadı. Uygulama durduruldu, commit `00ca6328` |
 | `ap-s4` | 5084 | `mt_s4` | 31 · 16 · 30 · 22 · 09 · 27 · 26 · 28 · 06 | ✅ **aile 31 KAPANDI** (35/35). Aile 16 **kısmi**: 61/61 kayıtlı case Geçti (MT-JOB-001..085 + 090), MT-JOB-091'den devam (~37 case kaldı: Bölüm 8'in kalanı + 9-10). Uygulama AÇIK bırakıldı (port 5084, DLL doğrudan çalıştırılıyor — bkz. ortam kararsızlığı notu), commit `a6fc40ac`. 🚨 **Bu satır bayat olabilir** — dal üzerinde `a6fc40ac`'ten sonra üç commit daha var (`d8e9c308`, `8f4f8c68`, `240d74a7` en son: "MT-JOB-111, 112, 116..120"), yani MT-JOB-091'den 120'ye kadar zaten işlenmiş görünüyor; gerçek sayım ve aile 16'nın kapanıp kapanmadığı doğrulanmadı, sıradaki ap-s4 oturumu `00-KOSUM-PLANI.md`'nin sayım betiğiyle kontrol etmeli |
 
