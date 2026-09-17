@@ -492,6 +492,32 @@ biliniyorsa uygulanabilir.
 **Durum:** ☐ Beklemede · ☑ Geçti (dosyanın kendi 2026-08-13 düzeltmesiyle
 birebir) · ☐ Kaldı · ☐ Atlandı
 
+## MT-OBS-035 — 🚨 `tracon.quota.usage`/`.limit` VARSAYILANDA (kapalı bayrak) hiçbir ölçüm yaymaz
+
+**Gerçek sonuç**
+`PUT /api/quotas` ile kiracı geneli kural (`Daily`, `maxRuns:1000`) kuruldu;
+`EnableQuotaUsageGauge` ayarlanmadı (varsayılan `false`). İki run yapılıp
+`dotnet-counters collect --counters Tracon --format csv` ile 12 saniye
+izlendi: `tracon.quota.*` için CSV'de **TEK SATIR BİLE** yok. Not: `collect`
+(CSV) modu yalnız GERÇEKTEN yayılan ölçümleri kaydeder — enstrümanın "isim
+olarak listede görünmesi" iddiası `monitor` (canlı TUI) moduna özgü olabilir,
+bu oturumda `collect` kullanıldı; asıl iddia (`Snapshot()` boş liste döner,
+veritabanına gidilmez, hiçbir ölçüm yayılmaz) tam olarak doğrulandı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti (küçük bir araç-modu nüansıyla, bkz. not) · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-036 — Bayrak açılınca aynı ölçerler kota kuralına karşılık gelen etiketli değerleri yayar
+
+**Gerçek sonuç**
+`EnableQuotaUsageGauge=true`, `QuotaUsageRefreshInterval=00:00:05` ile
+yeniden başlatılıp 14 saniye toplandı: `tracon.quota.limit` = `1000`,
+`tracon.quota.usage` = `13` (o ana kadarki run sayısı), etiketler tam
+beklenen gibi: `tracon.quota.metric=Runs`, `tracon.quota.period=Daily`,
+`tracon.quota.scope=` (boş = kiracı geneli), `tracon.tenant.id=default`.
+Beklenen sonuçla birebir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
 ## MT-OBS-037 — `IRunAttributionContext` kimlik başlığı YOKKEN hiçbir davranış değişmez
 
 **Ön koşul düzeltmesi:** Spec'in ön koşulu ("`IRunAttributionContext` kayıtlı
