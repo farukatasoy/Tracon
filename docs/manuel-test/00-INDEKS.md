@@ -1064,9 +1064,19 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
   `feedback`/`compare`/`input` uçları (Faz 31) çağırmaz. Kod
   değiştirilmedi; `17-EVAL-VE-DENEYLER.md` `MT-EVAL-100`/`101` bunu
   koşumda doğrulayan case'ler olarak ekledi.
-- 🚨 **`GovernanceEndpoints.cs` (`/api/mcp-servers/*`, 15 uç eşlemesi)
-  hiçbir yerinde `RequireApiKeyScope` çağırmaz — BEŞİNCİ bağımsız tekrar
-  (2026-08-10, ölçüldü, `18-MCP-VE-A2A.md` üretilirken).** Aynı kalıp
+- 🚨 **~~`GovernanceEndpoints.cs` (`/api/mcp-servers/*`, 15 uç eşlemesi)
+  hiçbir yerinde `RequireApiKeyScope` çağırmaz — BEŞİNCİ bağımsız tekrar~~
+  (2026-08-10, ölçüldü, `18-MCP-VE-A2A.md` üretilirken).**
+  **Düzeltildi (2026-09-17):** artık DOĞRU DEĞİL — kod bu iki tarih
+  arasında düzeltilmiş. `GovernanceEndpoints.cs`'teki `mcp-servers`
+  uçlarının HEPSİ (`PUT`/`DELETE`/`refresh`/`prompts`/`resources`/
+  `oauth/start`, 9 ayrı `Map*` çağrısı) artık hem `RequireRole` hem
+  `RequireApiKeyScope` (`AgentsAdmin`/`AgentsRead`/`SecurityAdmin`
+  karışımı) taşıyor — `18-MCP-VE-A2A.md` `MT-MCP-051` koşumda doğruladı:
+  yalnız `RunsRead` kapsamlı bir anahtarla `PUT /api/mcp-servers/{name}`
+  artık `403 "requires the 'AgentsAdmin' scope"` veriyor. **Aşağıdaki
+  boşluk hâlâ AÇIK** — bu düzeltme onu KAPATMADI, çünkü farklı bir
+  katmanda yaşıyor: Aynı kalıp
   `WorkflowEndpoints`/`SchedulingEndpoints`'te (ve şimdi Eval/Experiment
   yüzeyinde, farklı kök nedenle) zaten görülmüştü. Bu örnek özellikle
   belirgin: kodun kendisi `GovernanceEndpoints.cs:230`'da bu MCP sunucu
@@ -1074,7 +1084,10 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
   koruyan tek şey (örnek uygulamada, rol politikaları da kayıtlı
   olmadığından) TEK bir statik paylaşılan bearer token'dır — salt-okunur
   run incelemesi için verilen AYNI token, keyfi bir dış MCP sunucusu
-  kaydedebilir. `docs/arsiv/fazlar/53-KIRACI-API-ANAHTARLARI.md:442-451`'in kendi
+  kaydedebilir (`RequireApiKeyScope` yalnız DB-destekli API anahtarlarına
+  uygulanır, statik token bu denetimin tamamen DIŞINDADIR). Bu boşluğun
+  KENDİSİ hâlâ gerçek ve 2026-09-17'de `MT-MCP-052` ile yeniden doğrulandı.
+  `docs/arsiv/fazlar/53-KIRACI-API-ANAHTARLARI.md:442-451`'in kendi
   kapsam-denetim tablosu da `GovernanceEndpoints`'i "uygulanan uçlar"
   listesine almıyor — bu, kasıtlı bir "kapsamsız uç" kararı değil,
   gözden kaçmış bir boşluk gibi görünüyor. Kod değiştirilmedi;
