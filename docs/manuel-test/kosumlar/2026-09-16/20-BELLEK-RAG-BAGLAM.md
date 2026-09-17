@@ -258,3 +258,139 @@ sonucun tamamı (sızıntı yok) birebir örtüştü.
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
+
+## 4. Bilgi/belge uçları (§4)
+
+**Yöntem notu.** Uygulama tekrar `default` kiracı/tenancy kapalı normal
+duruma döndürülerek yeniden başlatıldı (eski PID `38962` sonlandırıldı,
+yeni PID `39545`, port 5083, `mt_s3` şeması) — `/health` → `Healthy`
+doğrulandı.
+
+### MT-MEM-015
+
+**Gerçek sonuç**
+`POST .../documents` → `{"sourceId":"izin-notu","chunkCount":1}`, `HTTP: 200`
+— birebir örtüştü. SQL doğrulama: `mt_s3.document_embeddings`'te
+`izin-notu`/`chunk_index=0`, `length=54`, `created_at` dolu — tek satır.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-MEM-016
+
+**Gerçek sonuç**
+`GET .../documents` → `["izin-notu"]` — birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-MEM-017
+
+**Gerçek sonuç**
+`"tatil hakkim ne kadar"` sorgusu ("tatil" kelimesi belgede hiç geçmiyor) →
+sonuç boş değil, `sourceId:"izin-notu"`, `distance: 0.5480` (`< 2.0`).
+Beklenen sonuç örtüştü; ölçülen mesafe Faz 51'in kendi kanıtındaki
+`0.241` değerinden farklı ama aynı kosinüs-mesafe ölçeğinde ve eşiğin
+(2.0) çok altında — anlamsal eşleşme doğrulandı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-MEM-018
+
+**Gerçek sonuç**
+1. `DELETE .../documents/izin-notu` → `HTTP: 204`.
+2. Aynı sorguyla arama → `[]`.
+3. Liste → `[]`.
+4. SQL: `mt_s3.document_embeddings`'te `izin-notu` için `count = 0`.
+Dördü de birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-MEM-019
+
+**Gerçek sonuç**
+1536 uzunluklu elle üretilmiş sabit embedding (`[0.001]*1536`) ile
+`chunks` gönderildi → `{"sourceId":"hazir-parca","chunkCount":1}`,
+`HTTP: 200`. Gövdede embedding zaten doluydu; hiçbir gömme API çağrısı
+tetiklenmedi (İzlek C — model çağrısı yok, tutarlı).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-MEM-020
+
+**Gerçek sonuç**
+1. İlk yükleme (`"Ilk surum metni."`) → `200`.
+2. Aynı `sourceId` (`tekrar-notu`) ile ikinci yükleme (`"Ikinci surum
+   metni, tamamen farkli icerik."`) → `200`.
+3. SQL: `mt_s3.document_embeddings`'te `tekrar-notu` için TEK satır,
+   `content = "Ikinci surum metni, tamamen farkli icerik."` — "Ilk surum"
+   yok. Upsert eski parçaları gerçekten değiştiriyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-MEM-021
+
+**Doküman düzeltmesi.** Spec'in beklediği `detail` metni Türkçeydi (`Ya text
+ya da chunks verilmelidir; ikisi birden ya da hicbiri olamaz.`); gerçek API
+İngilizce döner (K-228 — çalışma anı mesajları İngilizce kalır). `Beklenen
+sonuç` bu koşumda düzeltildi.
+
+**Gerçek sonuç**
+`text` ve `chunks` birlikte gönderildi → `HTTP: 400`, `detail`: `"Either
+text or chunks must be given; not both, and not neither."` — düzeltilmiş
+beklentiyle birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-MEM-022
+
+**Gerçek sonuç**
+Ne `text` ne `chunks` gönderildi → `HTTP: 400`, aynı `detail` metni
+(`MT-MEM-021` ile birebir aynı) — örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-MEM-023
+
+**Doküman düzeltmesi.** Aynı K-228 gerekçesiyle spec'in Türkçe `detail`
+beklentisi İngilizce metinle değiştirildi.
+
+**Gerçek sonuç**
+`kurumsal%20bilgi` koleksiyon adına yükleme denendi → `HTTP: 400`,
+`detail`: `"'kurumsal bilgi' is not a valid collection name. It may only
+contain letters, digits, underscores, and hyphens."` — düzeltilmiş
+beklentiyle birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-MEM-024
+
+**Doküman düzeltmesi.** Aynı K-228 gerekçesiyle spec'in Türkçe `detail`
+beklentisi İngilizce metinle değiştirildi.
+
+**Gerçek sonuç**
+2 elemanlı embedding (`[0.1,0.2]`, depo boyutu 1536) gönderildi →
+`HTTP: 400`, `detail`: `"Chunk 0 embedding length (2) does not match the
+store dimension (1536)."` — düzeltilmiş beklentiyle birebir örtüştü. SQL:
+`mt_s3.document_embeddings`'te `yanlis-boyut` için `count = 0` — kısmi
+yazma yok, tek transaction doğrulandı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
