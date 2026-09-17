@@ -29,7 +29,7 @@ sıfırdan düşürülüp yeniden oluşturuldu (aile 08'in verisi temiz atıldı
 
 ## Devir notu
 
-**Oturum 1-10 bitti: MT-UIAG-001..046 koşuldu (42 Geçti · 2 Kaldı · 2 Atlandı).**
+**Oturum 1-11 bitti: MT-UIAG-001..048 koşuldu (44 Geçti · 2 Kaldı · 2 Atlandı).**
 Uygulama AÇIK bırakıldı (port 5081, arka planda `launch_s1.py` ile başlatıldı,
 PID script'i `/private/tmp/.../scratchpad/s1-app.pid`de) — sonraki oturum
 sıfırdan başlatmak yerine devam edebilir, yalnız `curl .../api/diagnostics`
@@ -982,6 +982,37 @@ sentetik bir `DragEvent('drop', {dataTransfer})` formun üzerine
 dispatch edildi: chip GERÇEKTEN belirdi (`test-drop.pdf`, kaldır düğmesiyle
 birlikte), ağ sekmesi `POST api/attachments?sessionId=...` → `201
 Created` gösterdi — dosya seçici ile birebir aynı uç nokta ve davranış.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-UIAG-047 — Desteklenmeyen dosya türü reddedilir (sihirli bayt beyaz listede yok)
+
+**Gerçek sonuç — beklendiği gibi (spec metni bayattı, düzeltildi —
+K-228, yedinci tekrar).**
+64 baytlık rastgele ikili içerik (`head -c 64 /dev/urandom`) yüklendi. Ağ
+sekmesi `POST api/attachments` → `400`. Form alanının üstünde `alert`:
+`"Attachment type rejected: File type not recognized. Supported types:
+application/pdf, audio/*, image/gif, image/jpeg, image/png, image/webp,
+text/plain."` — yedi tür alfabetik sırada (spec'in Türkçe metni bayattı,
+düzeltildi). Hiçbir chip eklenmedi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-UIAG-048 — 20 MB sınırını aşan dosya "Ek çok büyük" hatası verir
+
+**Gerçek sonuç — beklendiği gibi (metin İngilizce, aynı bayat spec deseni
+— ayrı bir HATA açılmadı, tekrar eden aynı kök neden).**
+Gerçek bir PNG imzasıyla başlayan `22.020.104` baytlık (~21 MB) dosya
+yüklendi. Ağ sekmesi `POST api/attachments` → `400`. `alert`: `"Attachment
+too large: 'buyuk.png' is 22020104 bytes; the limit is 20971520 bytes."`
+— `20971520 = 20×1024×1024` sınırı birebir doğru. Dosyanın TAMAMI
+yüklenmeye çalışıldı (istek birkaç saniye sürdü, sunucu tam boyutu doğru
+raporladı) — istemci tarafında ön denetim YOK, ret sunucudan geldi. Hiçbir
+chip eklenmedi.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
