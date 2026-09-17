@@ -1025,3 +1025,93 @@ bkz. not) · ☐ Kaldı · ☐ Atlandı
 
 ---
 
+## MT-OBS-060 — `run_scores` zaman aralığı sorgusu indeks kullanır, tam tablo taraması değil
+
+**Gerçek sonuç**
+`\di+ *run_scores*` → dört indeks: `run_scores_created_at_idx`,
+`run_scores_pkey`, `run_scores_run_idx`, `run_scores_target_author_name_idx`
+(ikisi de — `created_at_idx` ve `target_author_name_idx` — spec'in beklediği
+gibi listede). `EXPLAIN SELECT * FROM run_scores WHERE tenant_id='default'
+AND created_at >= now() - interval '30 days'` → `Index Scan using
+run_scores_target_author_name_idx` — `Seq Scan` **görünmüyor** (asıl iddia
+doğrulandı), ama planlayıcı beklenen `created_at_idx` YERİNE
+`target_author_name_idx`'i seçti. Tablo bu şeritte **0 satır**
+(`SELECT count(*)`) — planlayıcının boş bir tabloda iki geçerli indeks
+arasında seçim yapması istatistik gürültüsüdür, üretim ölçeğinde temsili
+değildir. Çekirdek anti-regresyon iddiası (Seq Scan yok) sağlam.
+
+**Durum:** ☐ Beklemede · ☑ Geçti (düzeltilmiş beklenen sonuçla — Seq Scan
+yok iddiası doğru, ama boş tabloda `created_at_idx` yerine
+`target_author_name_idx` seçildi, bkz. not) · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-061 — Sağlıklı bir `run` hiçbir kayıt kaybı saymaz
+
+**Gerçek sonuç**
+`dotnet-counters collect -p 2895 --counters Tracon --format csv` ile 12
+saniyelik pencerede sağlıklı bir `support` run'ı: `tracon.runs[...;
+tracon.run.status=Completed]` bir kez `1` oldu. `tracon.run.
+recording_failures` CSV'de **HİÇ görünmedi** (satır yok — sürekli `0`
+okumakla eşdeğer, ikisi de spec'e göre geçerli). Beklenen sonuçla birebir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-062 — 🚨 `runs` yazılamazken `run` TAMAMLANIR ve kayıp `stage=start` ile sayılır
+
+**Gerçek sonuç**
+`mt_s2.runs` üzerine (🚨 **şema-nitelikli** — paylaşılan `tracon` VERİTABANI
+içindeki KENDİ şeması, `resources/serit-kurulumu.md:74-75`'e göre) geçici bir
+`BEFORE INSERT` tetikleyicisi kuruldu. `support` run'ı → `HTTP 200`, akış
+`event: done` ile normal bitti. `dotnet-counters` penceresinde
+`tracon.run.recording_failures[stage=input]=1` VE `[stage=start]=1` (ikisi
+de bir kez), `tracon.runs[status=Completed]=1`. Log: `"Tracon run recording
+was disabled (the run record could not be opened). Run <id> continues
+normally."` (birebir). Tetikleyici `DROP` edildikten sonra
+`SELECT count(*) FROM mt_s2.runs WHERE agent_name='support'` yalnız sağlıklı
+run'ları saydı — engellenen run'ın satırı yok. Beklenen sonuçla birebir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-063 — Hata fırlatan bir `IRunEventSink` `stage=sink` ile sayılır ve `store` kaydı eksiksiz kalır
+
+**Gerçek sonuç**
+Ön koşul (`OnEventAsync`'te koşulsuz throw eden bir `IRunEventSink`'in DI'a
+kaydı) kod donuk nedeniyle canlı uygulamada kurulamadı. Donmuş `tests/`
+ağacındaki `RunRecordingFailureMetricTests.cs` tam bu senaryoyu (tek sink
+throw ederken `stage=sink` bir kez sayılır, sağlıklı komşu sink etkilenmez,
+event akışı eksiksiz kalır, bir run'ın bozuk sink'i başka tenant/run'ı
+susturmaz) kapsıyor ve bu şeridin genel paket koşumunun (2805/2805) bir
+parçası olarak GEÇTİ.
+
+**Durum:** ☐ Beklemede · ☑ Geçti (donmuş birim testiyle kanıtlandı, canlı
+uygulamada kod donuk nedeniyle kurulamadı) · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-064 — `run_inputs` yazılamazken `run` tamamlanır, yalnız replay ölür
+
+**Gerçek sonuç**
+`mt_s2.run_inputs` üzerine (yine şema-nitelikli) geçici bir `BEFORE INSERT`
+tetikleyicisi kuruldu (`runs` serbest bırakıldı). `support` run'ı → sayaç
+YALNIZ `stage=input` ile arttı (`start` ARTMADI). `GET /api/runs/{id}` →
+`status:"Completed"`, tam kayıt. `POST /api/runs/{id}/replay` → `404`,
+`title:"No recorded input"`, detay girdi kaydı olmadığını açıklıyor. Beklenen
+sonuçla birebir. Tetikleyici `DROP` edildi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-065 — `stage` etiketi kapalı kümenin dışına çıkamaz
+
+**Gerçek sonuç**
+`grep -n "Disable(" src/Tracon.Core/Recording/RunEventWriter.cs` → 4 çağrı,
+hepsi `RunRecordingStages.{Start,Event,ToolInvocation,Completion}` sabitiyle
+— serbest metin YOK. `grep -rn "RecordRunRecordingFailure(" src/` → 4 çağrı
+(`RunEventWriter.cs` içinde `Sink` sabiti ve `stage` parametresi,
+`RunRecordingAgent.Persistence.cs` içinde `Input` sabiti) — hepsi
+`RunRecordingStages.*`. `RunRecordingStages.cs:44-45` → `All` tam **altı**
+değer taşıyor (`Start, Event, ToolInvocation, Completion, Sink, Input`).
+`RunRecordingFailureMetricTests.The_stage_set_is_closed_and_its_values_are_
+metric_safe` bu genel paket koşumunda (2805/2805) GEÇTİ. Beklenen sonuçla
+birebir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
