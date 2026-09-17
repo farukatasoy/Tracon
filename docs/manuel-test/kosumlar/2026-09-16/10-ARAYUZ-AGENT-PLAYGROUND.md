@@ -29,7 +29,7 @@ sıfırdan düşürülüp yeniden oluşturuldu (aile 08'in verisi temiz atıldı
 
 ## Devir notu
 
-**Oturum 1-5 bitti: MT-UIAG-001..032 koşuldu (28 Geçti · 2 Kaldı · 2 Atlandı).**
+**Oturum 1-6 bitti: MT-UIAG-001..037 koşuldu (33 Geçti · 2 Kaldı · 2 Atlandı).**
 Uygulama AÇIK bırakıldı (port 5081, arka planda `launch_s1.py` ile başlatıldı,
 PID script'i `/private/tmp/.../scratchpad/s1-app.pid`de) — sonraki oturum
 sıfırdan başlatmak yerine devam edebilir, yalnız `curl .../api/diagnostics`
@@ -757,6 +757,77 @@ metin EKRANDA KALIR" — gpt-5.4-mini'nin ilk token'ı bu iki denemede de
 bu bir kusur değil, ırk koşulunun (race) bu turda erken tarafa düşmesi.
 Mantık (`caught.name === 'AbortError'` özel ele alımı) zaten dolaylı
 olarak doğrulandı — hata gösterilmedi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-UIAG-033 — Klavye: Enter gönderir, Shift+Enter satır ekler, Ctrl/Cmd+Enter de gönderir
+
+**Gerçek sonuç — beklendiği gibi.**
+`Birinci satir` yazılıp `Shift+Enter` ile ikinci satıra geçildi, `Ikinci
+satir` eklendi — kutunun DOM değeri ölçüldü: `"Birinci satir\nIkinci
+satir"` (iki satır, `\n` korunuyor), hiçbir istek gitmedi (boş durum
+görünmeye devam etti). Düz `Enter`e basılınca mesaj gönderildi, kutu
+boşaldı; agent'ın yanıtı iki satırı da aldığını doğruladı ("İki satır
+aldım: Birinci satir Ikinci satir"). Yeni bir metin yazılıp `Control+Enter`
+basılınca kutu yine boşaldı (gönderim tetiklendi) — `event.ctrlKey ||
+event.metaKey` yolu doğrulandı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-UIAG-034 — Boş mesaj + ek yokken Gönder devre dışıdır, form no-op'tur
+
+**Gerçek sonuç — beklendiği gibi.**
+Boş kutuda `Gönder` `disabled: true`. Yalnız üç boşluk karakteri (`"   "`)
+yazılınca da `disabled: true` kaldı (`trim().length === 0`). Kutu
+tamamen boşaltılıp `Enter`e basılınca hiçbir istek gitmedi, hiçbir tur
+eklenmedi — ekran hâlâ `"Başlamak için bir mesaj gönderin"` boş durumunda,
+"Yeni sohbet" hâlâ devre dışı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-UIAG-035 — "Yeni Sohbet" turları/ekleri/oturumu sıfırlar
+
+**Gerçek sonuç — beklendiği gibi.**
+Bir tur tamamlandıktan sonra "Yeni sohbet" `enabled` oldu; tıklanınca
+panel `"Başlamak için bir mesaj gönderin"` boş durumuna döndü, "Oturum"
+bağlantısı kayboldu ve düğmenin KENDİSİ (`turns.length === 0 &&
+sessionId === null` artık sağlandığı için) tekrar `disabled` oldu.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-UIAG-036 — Agent değişince route değişir, ekran sıfırlanır
+
+**Gerçek sonuç — beklendiği gibi (adım 3 kaynak okumasıyla doğrulandı,
+akış ortasında yakalamak yerine).**
+`support` ile bir tur tamamlandıktan sonra agent seçiciden `Researcher`
+seçildi: adres HEMEN `playground/researcher`'a değişti, panel
+`"Başlamak için bir mesaj gönderin"` boş durumuna döndü — `support`'un
+turu sızmadı. Adım 3 (akış sürerken agent değiştirme) ayrıca kaynaktan
+doğrulandı: `use-playground-run.ts:144-145`'te `reset()`'in İLK satırı
+`abort.current?.abort()` — bağlantı kesme sıfırlamadan ÖNCE çağrılıyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-UIAG-037 — Run bağlantısı ilk `run` çerçevesinde belirir, tur bitmeden tıklanabilir
+
+**Gerçek sonuç — beklendiği gibi.**
+`FIX-PROMPT-01` gönderilip tarayıcı-içi bir polling döngüsüyle ölçüldü:
+`runs/{runId}` bağlantısı gönderim tıklamasından yalnızca **32 ms** sonra
+DOM'da belirdi (`gpt-5.4-mini`'nin gerçek bir yanıtı bu kadar hızlı
+üretemeyeceği açık — bağlantı `run` çerçevesiyle, içerikten ÖNCE geliyor).
+Bağlantı yeni bir sekmede açıldı: o sekme YENİDEN token istedi (sessionStorage
+sekmeye özgüdür, K-047 — beklenen, kusur değil), token girilince aynı
+`runId` (`01a0ae7b-e972-7f2a-afec-82cd800af269`) run detayında görüldü.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
