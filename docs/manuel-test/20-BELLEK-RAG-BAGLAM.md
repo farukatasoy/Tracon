@@ -727,13 +727,27 @@ curl -s -X POST "$APU/api/agents/manuel-dosya-arama/run" -H "$APB" \
 ```
 
 **Beklenen sonuç**
-- Yanıt `FILE-7841` dizgisini içerir — `manuel-dosya-arama`,
-  `manuel-dosya-bellek`'in YAZDIĞI dosyayı bulabildi. 🚨 **2026-08-10 durumu:**
-  `MT-MEM-014`'ün (kiracılar arası) kısmı düzeltildi (`TenantPrefixingAgentFileStore`),
-  ama bu case'in ölçtüğü **aynı kiracı içindeki** ajan/oturum sınırı hâlâ
-  YOKTUR — bu, beklenen (henüz düzeltilmemiş) bir davranıştır, bkz.
-  `docs/ADAYLAR.md` F-105. Bu case bu yüzden **"Geçti"** değil,
-  **"Kaldı (bilinen, F-105'e bağlı)"** olarak kaydedilmelidir.
+
+🚨 **Doküman düzeltildi (koşum, 2026-09-17, ap-s3) — spec'in "2026-08-10
+durumu" notu artık BAYAT.** `docs/arsiv/PLANA-DONUSEN-ADAYLAR.md:363`:
+`F-105 · Dosya belleği kiracı-içi sınırı — ✅ KAPATILDI (2026-08-18)`.
+Yani spec'in kendi notunun yazıldığı 2026-08-10'dan SEKİZ gün sonra,
+aynı kiracı İÇİNDEKİ ajan sınırı da kapatılmış:
+`TenantPrefixingAgentFileStore`'un öneki artık `/{tenantId}/{agentName}/...`
+(yalnız `/{tenantId}/...` değil — kaynağın kendi belgesi,
+`TenantPrefixingAgentFileStore.cs:20-23`, bunu doğruluyor). Sonuç: ADIM 1'in
+ORİJİNAL iddiası (`manuel-dosya-arama`, `manuel-dosya-bellek`'in dosyasını
+BULUR) artık **yanlış**; spec'in 2026-08-10 düzeltmesi de (`"Kaldı, F-105'e
+bağlı"` beklentisi) artık **bayat** — F-105 kapandığı için bu case ARTIK
+GERÇEKTEN GEÇMELİDİR (izolasyon çalışır, sızıntı YOKTUR).
+
+- Yanıt `FILE-7841` dizgisini İÇERMEMELİDİR — `manuel-dosya-arama`,
+  `manuel-dosya-bellek`'in dosyasına erişememelidir (ajan-düzeyi izolasyon).
+- Bu davranışın gerçekten çalıştığını GÖSTERMEK için AYNI agent'ın hem
+  yazıp hem araması gerekir (`manuel-dosya-hem` gibi, `enableFileMemory`
+  VE `enableTextSearch` ikisi birden) — farklı bir oturumda yazdığı notu
+  kendi text search'üyle bulabilmesi, mekanizmanın kendisinin ÇALIŞTIĞININ
+  kanıtıdır (yalnız cross-agent izolasyonun kör bırakmadığının kanıtı).
 
 ---
 
@@ -746,12 +760,13 @@ yazılmıştı: `AgentDefinitionCompiler.SearchFileStoreAsync`
 paylaşılan `AgentFileStore` tek bir süreç-çapında singleton olduğu için hiçbir
 `tenant_id` filtresi taşımıyordu. Kod okumasıyla doğrulandı ve düzeltildi:
 `RequireFileStore` artık paylaşılan depoyu her kiracı için
-`TenantPrefixingAgentFileStore` ile sarmalıyor (`/{tenantId}/...` öneki) —
-hem yazma (`FileMemoryProvider`) hem okuma (`TextSearchProvider`) tarafı artık
-kendi kiracısının izole alt ağacında çalışıyor. Bu case artık düzeltilmiş
-davranışı doğrular; **aynı kiracı içindeki** ajan/oturum sınırı ise hâlâ
-YOKTUR (bkz. `MT-MEM-013`'ün güncellenmiş notu ve `docs/ADAYLAR.md`
-F-105) — bu case'in kapsamı yalnız kiracı sınırıdır.
+`TenantPrefixingAgentFileStore` ile sarmalıyor (öneki artık
+`/{tenantId}/{agentName}/...` — 🚨 doküman düzeltildi, koşum 2026-09-17
+ap-s3: F-105 de `✅ KAPATILDI (2026-08-18)`, ajan adı da öneke eklendi,
+yalnız `/{tenantId}/...` değil) — hem yazma (`FileMemoryProvider`) hem
+okuma (`TextSearchProvider`) tarafı artık hem kendi kiracısının hem kendi
+agent'ının izole alt ağacında çalışıyor. Bu case düzeltilmiş kiracı
+davranışını doğrular; ajan-içi sınır `MT-MEM-013`'te ayrıca doğrulanır.
 
 | | |
 |---|---|
