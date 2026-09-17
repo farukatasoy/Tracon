@@ -530,3 +530,76 @@ sessizce geçmiyor.
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
+
+## 7. Vektör arama kiracı yalıtımı (§7)
+
+**Yöntem notu.** Uygulama `Tracon__Tenancy__Enabled=true`,
+`Tracon__Tenancy__AllowHeaderResolution=true`, PostgreSQL AÇIK, OpenAI
+anahtarı `user-secrets`'tan (env override KALDIRILDI) ile yeniden
+başlatıldı (eski PID `42950`→`43344`→son PID `43513`, port 5083,
+`mt_s3` şeması).
+
+### MT-MEM-030
+
+**Gerçek sonuç**
+1. `kiraci-alfa` başlığıyla `alfa-belge` yüklendi → `HTTP: 200`,
+   `chunkCount:1`.
+2. `kiraci-beta` başlığıyla aynı koleksiyonda (`manuel-bilgi`) arama →
+   `[]` — belge GÖRÜNMEDİ.
+3. Kontrol grubu: `kiraci-alfa` başlığıyla arama → `alfa-belge` sonuç
+   kümesinde göründü (`distance: 0.484`).
+4. SQL: `mt_s3.document_embeddings`'te `alfa-belge` için tek satır,
+   `tenant_id = 'kiraci-alfa'`.
+Dördü de birebir örtüştü — vektör arama kiracı yalıtımı sağlam
+(K-343, Faz 41 sözleşme testiyle tutarlı).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## Aile 20 (`MEM`) TAMAMLANDI
+
+**31/31 case Geçti, 0 kusur.** Bağlam sıkıştırma (SlidingWindow/
+Summarization/Pipeline/ContextWindow), dosya belleği + metin arama
+(ajan-içi ve kiracı-içi/kiracılar-arası izolasyon dahil), todo sağlayıcısı,
+bilgi tabanı belge uçları (yükle/listele/anlamsal ara/sil/upsert/hazır-
+embedding), negatif doğrulamalar (`text`+`chunks` çakışması, geçersiz
+koleksiyon adı, yanlış embedding boyutu, depo yokken `501`/derleme hatası),
+`knowledge-assistant` uçtan uca akışı, varsayılan koleksiyon adı kuralı,
+vektör arama kiracı yalıtımı ve `KnowledgeEndpoints` kapsam güvenliği —
+hepsi beklenen davranışı gösterdi.
+
+**Bulunan kusur:** yok.
+
+**Doküman düzeltmeleri (spec bayat çıktı, koda göre düzeltildi):**
+1. `MT-MEM-013` — F-105 (dosya belleği kiracı-içi sınırı) spec'in "2026-08-10
+   durumu" notunda AÇIK gösteriliyordu; kaynak (`TenantPrefixingAgentFileStore.cs`)
+   2026-08-18'de kapandığını gösterdi — beklenen sonuç ve senaryo tamamen
+   yeniden yazıldı, aynı-agent kontrol testi eklendi.
+2. `MT-MEM-021/022/023/024/025/028/029` — yedi case'in `detail`/`title`/
+   `message` beklentisi Türkçeydi; çalışma anı mesajları K-228 gereği
+   İngilizce — hepsi gerçek metinle değiştirildi.
+3. `MT-MEM-026` (ve `FIX-MEM-COLLECTION-01` fixture notu) — spec
+   `knowledge-assistant`'ın `kurumsal` koleksiyonuna bağlı olduğunu
+   iddia ediyordu; kaynak (`samples/Tracon.Api/Program.cs:843`) gerçek
+   adın `knowledge-base` olduğunu gösterdi — ilk deneme boş sonuç
+   dönerek bunu ampirik olarak da doğruladı.
+4. `MT-MEM-031` — spec 🚨 işaretli bir şüpheyle açılmıştı
+   (`KnowledgeEndpoints`'te `RequireApiKeyScope` hiç yok, beşinci bilinen
+   kapsam boşluğu). Güncel kaynak (satır 25/38/52/66) `KnowledgeAdmin`/
+   `KnowledgeRead` kapsamlarını taşıyor; ampirik test de (yalnız-`RunsRead`
+   anahtarıyla yazma/silme → `403`) bunu doğruladı. Şüphe çürütüldü, başlık
+   ve gövde güncellendi.
+
+**Ortam notları:** Bu ailenin koşumu üç farklı yeniden başlatma
+konfigürasyonu gerektirdi — (a) normal (PostgreSQL+OpenAI, tenancy kapalı,
+§1-§5 ve §8), (b) PostgreSQL/SQLite/SQL Server tamamen boş/bellek içi
+(§6'nın `MT-MEM-025`/`028`'i), (c) PostgreSQL açık + OpenAI anahtarı boş
+(§6'nın `MT-MEM-029`'u), (d) tenancy açık, PostgreSQL+OpenAI açık (§7).
+Her geçişte `dotnet user-secrets` DEĞİL, şeridin kendi ortam değişkenleri
+kullanıldı (kural §1.2).
+
+**Temizlik:** Uygulama normal duruma (PostgreSQL+OpenAI açık, tenancy
+kapalı) geri döndürüldü — bkz. aşağıdaki devir notu güncellemesi.
+
+---
