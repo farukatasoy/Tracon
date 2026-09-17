@@ -531,3 +531,137 @@ sonucun tamamı birebir örtüştü.
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
+
+## Devir notu (oturum 19 devam) — §6 deneyler (A/B). Ana örnek normal
+duruma geri yeniden başlatıldı (OpenAI açık, OnlineEvaluation varsayılan).
+
+---
+
+### MT-EVAL-050
+
+**Gerçek sonuç**
+Kod-kökenli `support` agent'ı hedefleyen bir deney `PUT` edilmeye
+çalışıldı → `400`: `"'support' is defined in code and has no version
+history. Experiments cannot be set up on code-sourced agents."`.
+Beklenen sonuç birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-EVAL-051
+
+**Yöntem notu.** `manuel-destek` bu şeritte zaten `version 4`'teydi
+(önceki ailelerden/MT-EVAL-025'ten kalma) — spec'in literal `1`/`2`
+sürümleri yerine mevcut sürüm + yeni sürüm (`4`/`5`) kullanıldı.
+
+**Gerçek sonuç**
+`manuel-destek` yeni talimatla `PUT` edildi → `version:5`. İki varyantlı
+deney (`kisa-talimat@4` ağırlık 50, `detayli-talimat@5` ağırlık 50)
+`PUT /api/experiments/destek-talimat-testi` ile oluşturuldu → `200`,
+`status:"Draft"`. Beklenen sonucun tamamı birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-EVAL-052
+
+**Gerçek sonuç**
+Ağırlıkları `40+40=80` olan bir deney `PUT` edilmeye çalışıldı → `400`:
+`"Variant weights must sum to 100; currently 80."`. Beklenen sonuç
+birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-EVAL-053
+
+**Gerçek sonuç**
+Var olmayan `version:99` içeren bir deney `PUT` edilmeye çalışıldı →
+`400`: `"Agent 'manuel-destek' has no version 99."`. Beklenen sonuç
+birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-EVAL-054
+
+**Gerçek sonuç**
+`destek-talimat-testi` başlatıldı → `200`, `status:"Running"`. Aynı
+`manuel-destek` agent'ı için ikinci bir deney (`ikinci-deney`) oluşturulup
+başlatılmaya çalışıldı → **`409`**: `"Another experiment is already
+running for agent 'manuel-destek'. Only one experiment can run at a
+time for the same agent."`. `SELECT name, status FROM mt_s3.experiments
+WHERE agent_name = 'manuel-destek' AND status = 1` → tam **1** satır
+(`destek-talimat-testi`). Beklenen sonucun tamamı birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-EVAL-055
+
+**Gerçek sonuç**
+`Running` durumundaki `destek-talimat-testi` `DELETE` edilmeye çalışıldı
+→ `409`: `"Experiment 'destek-talimat-testi' cannot be deleted while
+running; stop it first."`. Beklenen sonuç birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-EVAL-056
+
+**Gerçek sonuç**
+`Running` durumundaki deney `PUT` ile düzenlenmeye çalışıldı → **`409`**:
+`"Experiment 'destek-talimat-testi' is in status 'Running'; only
+experiments in Draft status can be edited."`. Beklenen sonuç (başarısızlık
+gerçekleşti, gerçek kod kaydedildi) birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-EVAL-057
+
+**Gerçek sonuç**
+`POST .../stop` → `200`. Sonraki `GET` → `status:"Stopped"`,
+`endedAt` dolu, `startedAt` korunmuş. Deneyi `Draft`'a döndüren bir uç
+denenmedi/yok (spec'in kendi iddiası, koddan doğrulanmadı ama uç
+listesinde böyle bir işlem hiç yok — yalnız `start`/`stop`). Beklenen
+sonucun tamamı birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-EVAL-058
+
+**Gerçek sonuç**
+`/tracon/experiments` → "Yeni deney", iki varyant ağırlığı `30`+`30`
+yapıldı. Toplam metni `"Ağırlık toplamı 60% (100% olmalı)"` kırmızımsı
+renkte (`rgb(245, 165, 155)`); "Kaydet" düğmesi `disabled:true` —
+gerçekten devre dışı. Beklenen sonuç birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-EVAL-059
+
+**Gerçek sonuç**
+Liste ekranında `Stopped` (`durduruldu`) durumundaki
+`destek-talimat-testi` satırının düğme hücresi **boş** (`buttons: []`)
+— Düzenle/Sil YOK. Kontrol için `ikinci-deney` başlatılıp (`Running`,
+`sürüyor`) aynı ölçüm tekrarlandı: o satırda da düğme hücresi boş.
+`Draft` durumundaki bir deneyin (aynı ekranın önceki koşumdaki
+görüntüsü, MT-EVAL-058 öncesi) Düzenle/Sil'i taşıdığı zaten görülmüştü.
+Beklenen sonucun tamamı (Running VE Stopped ikisinde de gizli) birebir
+örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
