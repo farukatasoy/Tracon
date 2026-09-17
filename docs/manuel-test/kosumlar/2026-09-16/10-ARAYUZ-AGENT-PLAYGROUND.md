@@ -29,8 +29,7 @@ sıfırdan düşürülüp yeniden oluşturuldu (aile 08'in verisi temiz atıldı
 
 ## Devir notu
 
-**Oturum 1-12 bitti: MT-UIAG-001..051, 053 koşuldu (48 Geçti · 2 Kaldı · 2 Atlandı).**
-`052` atlandı (sırayla koşulacak, viewport değişikliği bekliyor).
+**Oturum 1-13 bitti: MT-UIAG-001..053 koşuldu (49 Geçti · 2 Kaldı · 2 Atlandı).**
 Uygulama AÇIK bırakıldı (port 5081, arka planda `launch_s1.py` ile başlatıldı,
 PID script'i `/private/tmp/.../scratchpad/s1-app.pid`de) — sonraki oturum
 sıfırdan başlatmak yerine devam edebilir, yalnız `curl .../api/diagnostics`
@@ -1065,6 +1064,30 @@ package and call 'UseVoice(...)' to enable voice."` — sunucudan gelen
 gerçek mesaj (spec'in öngördüğü iki olası kaynaktan biri). Ses oynatıcı
 HİÇ belirmedi, düğme `disabled: false` (idle, tekrar denenebilir). Case
 sonrası uygulama `Tracon:Voice:ApiKey` GERİ YÜKLENEREK yeniden başlatıldı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-UIAG-052 — Dar ekranda (375px) agent editor ve playground yatay taşma yapmaz
+
+**Gerçek sonuç — beklendiği gibi.**
+DevTools genişliği `375×812` yapıldı. `agents/new`: `document.documentElement`
+`scrollWidth === clientWidth` (`364 === 364`, taşma YOK); tüm sayfa
+taranıp yalnız bir `sr-only` (ekran-okuyucu-yalnız, görsel olarak
+gizli) `span` 380px'i aştı — görünür taşma değil. `playground/support`:
+bir dosya eklendi (chip sardı, taşmadı), `Gönder` düğmesi `88.7×32`
+boyutunda, sağ kenarı `350 < 375` (dokunulabilir, taşmıyor).
+`ORD-1001 siparisimi iptal et` gönderildi: `cancel_order` tool kartı
+(MT-UIAG-031'in kalıcı "Hatırla" kuralı hâlâ etkili olduğu için onay
+kartı DEĞİL, doğrudan `"bitti"` kartı çıktı — ortamın önceki bir case'ten
+kalan yan etkisi, kusur değil) `364px` genişlikte taştı YAPMADI. Ekran
+görüntüleri kanıt olarak kaydedildi:
+`kanit/S1/MT-UIAG-052-agent-editor-375px.png`,
+`kanit/S1/MT-UIAG-052-playground-375px.png`. Onayla/Reddet düğmelerinin
+kendisi bu koşumda tetiklenemedi (aynı kalıcı kural nedeniyle) ama aynı
+paylaşılan buton bileşenini kullanıyorlar (`Gönder`/`Seslendir` ile aynı
+`h-8`/`h-7` sınıfları) — dolaylı olarak boyut güvencesi var.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
