@@ -459,6 +459,62 @@ arka plan yolu senkron yolla aynı kesme davranışını üretti.
 
 ---
 
+## MT-RET-060 — Düşük süre tavanı, bir tool döngülü `run`'ı KESER
+
+**Gerçek sonuç**
+`Tracon:AgentGraph:MaxDuration=00:00:00.001` ile başlatıldı. `502`,
+`detail`: `"The run tree's time budget is exhausted
+(00:00:00.0693770/00:00:00.0010000)..."` — kaydedilen metin biçimiyle
+birebir. `status: Failed`, `error.type: "run_budget_exceeded"`,
+`error.class: "QuotaExceeded"`. Geçen süre (0.069s) tavandan (0.001s)
+büyük ama sıfıra yakın — kesme ikinci model turunda oldu.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-RET-061 — Kesilen `run` istemciye YARIM bir tool sonucu veya model mesajı SIZDIRMAZ
+
+**Gerçek sonuç**
+Olay akışı tam 2 olay: `run.started` → `run.failed`, arada hiçbir tool/mesaj
+olayı yok.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-RET-062 — Hiçbir tavan tanımlı değilken davranış AYNIDIR (gerileme yok)
+
+**Gerçek sonuç**
+Tavansız yeniden başlatıldı. `status: "Completed"`, `error: null`.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-RET-063 — `202 Accepted` ile arka planda koşan (kuyruklu/dayanıklı) `run` da aynı şekilde kesilir
+
+**Gerçek sonuç**
+`Prefer: respond-async` ile aynı süre tavanı altında: ilk poll `Queued`,
+birkaç saniye sonra `status: "Failed"`, `error.type: "run_budget_exceeded"`,
+`error.class: "QuotaExceeded"` — senkron yolla aynı davranış.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-RET-064 — İptal, süre tavanından ÖNCE gelirse hata sınıfı `Canceled` KALIR
+
+**Gerçek sonuç**
+Spec'in kendi notu gereği elle güvenilir tetiklenemez (zamanlama şansı
+gerektirir). Otomatik karşılığı yeniden koşuldu:
+`RunDeadlineTests.Cancelling_a_run_while_the_deadline_has_already_passed_
+still_classifies_as_Canceled` → **1/1 Geçti**.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ## MT-RET-012 — Arşiv sink'i yokken `archive=true` HİÇBİR satır silmez
 
 **Gerçek sonuç**
