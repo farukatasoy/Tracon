@@ -227,7 +227,7 @@ Bir senaryonun kendi verisi gerekiyorsa case içinde tanımlanır ve buraya girm
 | `FIX-PROMPT-02` | `Merhaba` → tool çağrısı **beklemez** |
 | `FIX-PROMPT-03` | `ORD-1001 siparisimi iptal et` → onay kartı bekler |
 | `FIX-PROMPT-04` | 50.000 karakterlik metin → sınır senaryosu |
-| `FIX-PROMPT-05` | `gizli-proje hakkinda bilgi ver` → guard engellemesi bekler |
+| `FIX-PROMPT-05` | `confidential-project hakkinda bilgi ver` → guard engellemesi bekler (2026-09-16 turunda düzeltildi: eski metin `gizli-proje` idi, `Program.cs:217`'nin `DeniedTerms`'i İngilizce `"confidential-project"` taşıyor — K-228 aynı bayatlık, MT-OAI-084'te de bulunmuştu) |
 | `FIX-TOKEN-01` | `manuel-test-token-2026` (geçerli) |
 | `FIX-TOKEN-02` | `yanlis-token` (geçersiz — 401 bekler) |
 
