@@ -241,9 +241,12 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/evals/kirik-takim" -H "$APB
 ```
 
 **Beklenen sonuç**
-- `HTTP: 400`. Mesaj `"Bilinmeyen denetim turu: 'regexMatch'. Ozel bir
-  denetimse 'ITraconBuilder.AddEvalCheck(\"regexMatch\", ...)' ile
-  kaydedilmelidir."` metnini içerir.
+- `HTTP: 400`. Mesaj `"Unknown check kind: 'regexMatch'. Built-in kinds:
+  nonEmpty, containsExpected, keywords, toolCalled, toolCallsPresent,
+  hasImageContent. If this is a custom check, it must be registered with
+  'ITraconBuilder.AddEvalCheck(\"regexMatch\", ...)'."` metnini içerir
+  (🚨 doküman düzeltildi, koşum 2026-09-17 ap-s3 — spec Türkçe mesaj
+  bekliyordu, kaynak İngilizce'dir, K-228).
 - `GET /api/evals/kirik-takim` → `404` (kayıt hiç oluşmadı).
 
 ---
@@ -406,7 +409,10 @@ curl -s "$APU/api/evals/destek-degerlendirme/cases" -H "$APB"
 ```
 
 **Beklenen sonuç**
-- `HTTP: 200`, ikinci çağrı `[]` döner.
+- `HTTP: 204` (🚨 doküman düzeltildi, koşum 2026-09-17 ap-s3 — spec `200`
+  bekliyordu, gerçek uç gövdesiz `204 No Content` döndürüyor, `DELETE
+  /api/evals/{name}`'in kendisiyle [MT-EVAL-007] tutarlı; ürün kusuru
+  değil), ikinci çağrı (`GET`) `[]` döner.
 - Bu case'den sonra MT-EVAL-010'un ilk `PUT`'unu tekrar uygula — §3 gerçek
   vakaya ihtiyaç duyar.
 
