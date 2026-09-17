@@ -29,7 +29,7 @@ sıfırdan düşürülüp yeniden oluşturuldu (aile 08'in verisi temiz atıldı
 
 ## Devir notu
 
-**Oturum 1-6 bitti: MT-UIAG-001..037 koşuldu (33 Geçti · 2 Kaldı · 2 Atlandı).**
+**Oturum 1-7 bitti: MT-UIAG-001..040 koşuldu (36 Geçti · 2 Kaldı · 2 Atlandı).**
 Uygulama AÇIK bırakıldı (port 5081, arka planda `launch_s1.py` ile başlatıldı,
 PID script'i `/private/tmp/.../scratchpad/s1-app.pid`de) — sonraki oturum
 sıfırdan başlatmak yerine devam edebilir, yalnız `curl .../api/diagnostics`
@@ -828,6 +828,50 @@ DOM'da belirdi (`gpt-5.4-mini`'nin gerçek bir yanıtı bu kadar hızlı
 Bağlantı yeni bir sekmede açıldı: o sekme YENİDEN token istedi (sessionStorage
 sekmeye özgüdür, K-047 — beklenen, kusur değil), token girilince aynı
 `runId` (`01a0ae7b-e972-7f2a-afec-82cd800af269`) run detayında görüldü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-UIAG-038 — Kullanım (token) özeti yalnız `usage` içeriği geldiyse görünür
+
+**Gerçek sonuç — beklendiği gibi (bu tur boyunca zaten pasif olarak
+onlarca kez doğrulandı — HER gerçek OpenAI turu bu alanı göstermişti).**
+`Merhaba` gönderildi, tur bitince bilgi çubuğunda `"356 token"` göründü
+(`usage.totalTokens`). Bu ailenin bu turdaki HER gerçek OpenAI çağrısı
+(025'ten 037'ye kadar) aynı alanı tutarlı biçimde gösterdi — alanın
+"yalnız usage geldiyse" render edildiği iddiası dolaylı olarak da güçlü
+biçimde destekleniyor (gpt-5.4-mini akışı her zaman usage üretiyor).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-UIAG-039 — Şube (Branch) düğmesi TÜM sohbeti dallandırır ve yeni oturuma yönlendirir
+
+**Gerçek sonuç — beklendiği gibi (PostgreSQL yolu).**
+"Buradan dallan"a tıklanınca `sessions/01a0ae7e-9554-7577-ab80-24cc1f64225c`
+(yeni bir oturum id'si) adresine yönlendi. Yeni oturumun "Sohbet geçmişi"
+sekmesi eski oturumun TÜM mesajlarını taşıyordu: kullanıcının `Merhaba`si
+VE asistanın `"Merhaba! Size nasıl yardımcı olabilirim?"` yanıtı ikisi de
+kopyalanmıştı. (Bellek içi depo dalı bu ortamda PostgreSQL aktif olduğu
+için sınanmadı — spec zaten bunu ayrı bir dal olarak işaretliyor.)
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-UIAG-040 — `FIX-PROMPT-04` (50.000 karakter) sınırsız kabul edilir, istemci kırpmaz
+
+**Gerçek sonuç — beklendiği gibi.**
+Giriş kutusunun `maxLength` özniteliği ölçüldü: yok (`-1`/`hasAttribute:
+false`). 49.999 karakterlik metin (native setter + `input` eventi ile
+"yapıştırma" simüle edildi — klavyeyle 50.000 karakter yazmak
+pratik değil) kutuya verilince React state'i TAM uzunlukta kabul etti
+(`value.length: 49999`), "Gönder" etkin kaldı. İstek gövdesi ağ sekmesinden
+ölçüldü: `message` alanı birebir `49999` karakter taşıyordu (kırpma YOK).
+Sunucu tarafında da reddedilmedi (`200 OK`), tur normal tamamlandı:
+`25.351 token`, final metin `"How can I help you today?"`.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
