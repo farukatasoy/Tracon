@@ -5,10 +5,10 @@
 >
 > **Durum:** 🎉 **Aşama 1 (Faz A zinciri) BİTTİ** — dosya 01, 02, 03, 05 ve 07
 > KAPANDI (311 case) · kod `7e3a4de7`'de donuk · **Faz B** dört şeritte
-> sürüyor (`ap-s1` şeridin tüm işini bitirdi; `ap-s2` altı aile kapattı —
-> 36, 33, 12, 24, 35, 23; `ap-s3`/`ap-s4` devam ediyor — bkz. §5 tablosu,
+> sürüyor (`ap-s1` şeridin tüm işini bitirdi; `ap-s2` yedi aile kapattı —
+> 36, 33, 12, 24, 35, 23, 15; `ap-s3`/`ap-s4` devam ediyor — bkz. §5 tablosu,
 > `ap-s4` satırı doğrulama bekliyor)
-> **Son güncelleme:** 2026-09-17 (`ap-s2` dosya 23'ü KAPATTI — 45/45 Geçti, 0 kusur)
+> **Son güncelleme:** 2026-09-17 (`ap-s2` dosya 15'i (WF) KAPATTI — 70/70 Geçti, 0 kusur; sıradaki `14-*.md`, ap-s2'nin son ailesi)
 
 ---
 
@@ -304,7 +304,7 @@ Dağılım `00-KOSUM-PLANI.md` §3.1'dedir:
 | Şerit | Port | Şema | Aileler | Durum (oturum 14 sonu) |
 |---|---|---|---|---|
 | `ap-s1` | 5081 | `mt_s1` | 13 · 19 · 04 · 18 · 10 · 08 | 🎉 **ALTI AİLENİN ALTISI DA KAPANDI** (aynı oturum zincirinde arka arkaya): 13 (142/142), 19 (66 Geçti·3 Kaldı·23 Beklemede·1 Atlandı), 04 (44 Geçti·1 Beklemede, 45/45), 18 (48 Geçti·9 Beklemede·1 Kaldı, 58/58), 10 (54 Geçti·2 Kaldı·2 Atlandı, 58/58, `HATA-S1-027/028`), 08 (50/50). **Bu şeridin Faz B işi bitti** — sıradaki aile yok. Uygulama durduruldu, commit `e22b84ee` |
-| `ap-s2` | 5082 | `mt_s2` | 36 · 33 · 12 · 24 · 35 · 23 · 15 · 14 | 🎉 **altı aile KAPANDI** — 36, 33, 12, 24, 35, 23 (48/48, 25/25, 65/65, 64/66, 9/11, **45/45**). Dosya 23 (RET) sıfır kusurla bitti — tek dikkat çeken bulgu (`MT-RET-040`) bir güvenlik açığının ZATEN kapanmış olduğunu doğruladı (`RetentionEndpoints`/`QuotaEndpoints` artık `RequireApiKeyScope` çağırıyor). Önemli bir yöntem dersi bulundu ve kaydedildi: `QuotaEnforcer`'ın `_firedThresholds` süreç-içi önbelleği SQL ile `quota_usage` sıfırlamayla temizlenmiyor — "temiz dönem" gerektiren kota eşiği testlerinde uygulamanın TAMAMEN yeniden başlatılması şart (kapanışta `docs/hafiza/`'ya taşınmalı). Sıradaki: `15-WORKFLOWS.md` (70 case), henüz açılmadı. Geçici SQLite örneği (port 5087) durduruldu; ap-s2'nin asıl PostgreSQL uygulaması (port 5082) ayakta, commit `e06f6577` (`test/kosum-s2` dalında) |
+| `ap-s2` | 5082 | `mt_s2` | 36 · 33 · 12 · 24 · 35 · 23 · 15 · 14 | 🎉 **yedi aile KAPANDI** — 36, 33, 12, 24, 35, 23, 15 (48/48, 25/25, 65/65, 64/66, 9/11, 45/45, **70/70**). Dosya 23 (RET) sıfır kusurla bitti — tek dikkat çeken bulgu (`MT-RET-040`) bir güvenlik açığının ZATEN kapanmış olduğunu doğruladı (`RetentionEndpoints`/`QuotaEndpoints` artık `RequireApiKeyScope` çağırıyor). Önemli bir yöntem dersi bulundu ve kaydedildi: `QuotaEnforcer`'ın `_firedThresholds` süreç-içi önbelleği SQL ile `quota_usage` sıfırlamayla temizlenmiyor — "temiz dönem" gerektiren kota eşiği testlerinde uygulamanın TAMAMEN yeniden başlatılması şart (kapanışta `docs/hafiza/`'ya taşınmalı). Dosya 15 (WF) da sıfır kusurla bitti (70/70) — `MT-WF-100` aynı "boşluk zaten kapanmış" desenini `WorkflowEndpoints`'te doğruladı (tüm uçlar artık kendi `ApiKeyScope`'unu taşıyor); tek gerçek ürün bulgusu `HATA-S2-002` (CSP inline script engeli, kozmetik) dosya 35'te zaten kayıtlıydı. Beş spec önermesi/mesajı düzeltildi (MT-WF-020, 066, 092, 093, 100). Sıradaki: `14-*.md` (47 case), ap-s2'nin SON ailesi — henüz açılmadı. ap-s2'nin asıl PostgreSQL uygulaması (port 5082) ayakta, commit `bbc8abc6` (`test/kosum-s2` dalında) |
 | `ap-s3` | 5083 | `mt_s3` | 32 · 29 · 34 · 21 · 11 · 25 · 17 · 20 | ✅ **aile 32, 29 ve 34 KAPANDI** (40/40, 24/24, 46/46). Sıradaki: `21-DAYANIKLILIK-VE-IPTAL.md`, henüz açılmadı. Uygulama durduruldu, commit `00ca6328` |
 | `ap-s4` | 5084 | `mt_s4` | 31 · 16 · 30 · 22 · 09 · 27 · 26 · 28 · 06 | ✅ **aile 31 KAPANDI** (35/35). Aile 16 **kısmi**: 61/61 kayıtlı case Geçti (MT-JOB-001..085 + 090), MT-JOB-091'den devam (~37 case kaldı: Bölüm 8'in kalanı + 9-10). Uygulama AÇIK bırakıldı (port 5084, DLL doğrudan çalıştırılıyor — bkz. ortam kararsızlığı notu), commit `a6fc40ac`. 🚨 **Bu satır bayat olabilir** — dal üzerinde `a6fc40ac`'ten sonra üç commit daha var (`d8e9c308`, `8f4f8c68`, `240d74a7` en son: "MT-JOB-111, 112, 116..120"), yani MT-JOB-091'den 120'ye kadar zaten işlenmiş görünüyor; gerçek sayım ve aile 16'nın kapanıp kapanmadığı doğrulanmadı, sıradaki ap-s4 oturumu `00-KOSUM-PLANI.md`'nin sayım betiğiyle kontrol etmeli |
 
