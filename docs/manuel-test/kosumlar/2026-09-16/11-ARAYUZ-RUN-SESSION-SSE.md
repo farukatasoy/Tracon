@@ -1,0 +1,135 @@
+# 11 — Arayüz: Çalıştırma, Oturum ve SSE (`UIRUN`) — Koşum Kaydı (2026-09-16)
+
+> **Bu dosya bir koşum kaydıdır, spesifikasyon değildir.**
+> Spesifikasyon: [`../../11-ARAYUZ-RUN-SESSION-SSE.md`](../../11-ARAYUZ-RUN-SESSION-SSE.md)
+> — `Ön koşul`, `Adımlar`, `Beklenen sonuç` oradadır ve yeniden koşulabilir.
+>
+> Aşağısı yalnız **2026-09-16** koşumunun (şerit ap-s3, aile 21'in hemen
+> ardından) `Gerçek sonuç` ve `Durum` kayıtlarıdır.
+
+## Ortam notu (oturum başı)
+
+- **`MT-UIRUN-001`'in "reset sonrası boş liste" ön koşulu bu oturumda
+  SAĞLANAMADI.** `mt_s3` şemasını sıfırlamak (`DROP SCHEMA ... CASCADE`)
+  gerekiyordu; bu komut Claude Code'un auto-mode sınıflandırıcısı
+  tarafından "Cloud Storage Mass Delete" gerekçesiyle REDDEDİLDİ (kullanıcı
+  onayı gerektiriyor, bu oturumda istenmedi). Şema önceki ailenin (21)
+  çalıştırma geçmişini taşıyor. `MT-UIRUN-001` bu yüzden `☐ Beklemede`
+  bırakıldı — gerçek "hiç çalıştırma yok" durumu doğrulanamadı. Diğer
+  case'ler bundan etkilenmiyor (kendi fixture'larını kurup ölçüyorlar).
+- `FIX-AGENT-01` (`manuel-destek`) — dosya 10'un ürettiği agent — bu
+  şeritte üretilmemiş olabilir; ilk kullanan case'te kontrol edilip
+  gerekirse `MT-UIAG-005` uygulanacak.
+
+## Devir notu (oturum 17 · devam ediyor)
+
+---
+
+### MT-UIRUN-002
+
+**Gerçek sonuç**
+`support`'a `FIX-PROMPT-01` gönderildi (`sessionId:mt-uirun-002`), sonra
+"Çalıştırmalar" ekranı açıldı. İstatistik şeridi dört kutu: Runs, Failed,
+Error rate (görünür — `awaitingInputRuns=0`), Tokens. Satırda: `completed`
+rozeti, `3.19s` (>0), `428` token (`Tokens`=`Tree tokens`, tek run olduğu
+için eşit), `27` olay (>0), göreli zaman "9 sec. ago" — üzerindeki `title`
+özniteliği mutlak zaman taşıyor ("Sep 17, 2026, 9:37:39 PM"). Hiçbir "N
+child run" rozeti yok (`childRunCount=0`). Beklenen sonucun tamamı birebir
+örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-UIRUN-003
+
+**Gerçek sonuç**
+İki agent'tan (`support`, `manuel-destek`) birer run zaten vardı. Agent
+seçicisi "Support Assistant", Durum "Completed" yapıldı: ağ isteği
+`GET /api/runs?agentName=support&status=Completed&skip=0&take=50` —
+`includeChildren` YOK, `skip=0` (sayfa sıfırlandı). Agent seçicisi "All
+agents"a döndürülünce istek `GET /api/runs?status=Completed&skip=0&take=50`
+— `agentName` düştü, `status` kaldı. Beklenen sonucun tamamı birebir
+örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-UIRUN-004
+
+**Gerçek sonuç**
+`router`'a `FIX-PROMPT-01` gönderildi. Varsayılan (kök) görünümde yalnız
+`router`'ın satırı vardı: `"1 child run"` rozeti, `878` token ama `1,744`
+tree token (fark tam olarak `support` alt çalıştırmasının token'ları
+kadar — toplama tutarlı). `support`'un kendi satırı listede YOKTU. Kapsam
+"Include child runs" yapılınca `support`'un satırı EKLENDİ: `"depth 1"`
+rozeti taşıyor; `router`'ın satırında bu rozet YOK. Beklenen sonucun
+tamamı birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-UIRUN-005
+
+**Yöntem notu.** `manuel-bos` (`FIX-AGENT-02`) bu şeritte üretilmemiş
+(`404`). 51 kez çağırmaya gerek kalmadı — önceki case'lerden zaten **77+**
+run vardı, ön koşulun (`≥51 satır`) kendisi zaten sağlanmıştı.
+
+**Gerçek sonuç**
+"Çalıştırmalar" ekranı açıldığında `Pager` görünürdü: "Previous" devre
+dışı, "Next" etkin, "Page 1" metni. "Next"e tıklanınca ağ isteği
+`GET /api/runs?skip=50&take=50` — "Page 2" metni göründü. Beklenen
+sonucun tamamı birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-UIRUN-006
+
+**Gerçek sonuç**
+Sayfa 2'de (tüm satırlar bitmiş), 15 saniye işlem yapılmadan beklendi. Ağ
+sekmesinde `GET /api/runs?skip=50&take=50` isteği bu pencerede **6 kez**
+tekrarlandı (~5 sn aralıklı) — hiçbir satır çalışmıyorken bile liste
+kendini yeniliyor. Beklenen sonuçla birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-UIRUN-007
+
+**Yöntem notu.** Kısa yanıtlar (`FIX-PROMPT-02`) saniyenin altında bitiyor,
+akış penceresini yakalamaya izin vermiyordu (ilk deneme: sayfa açıldığında
+run zaten `Completed`). Uzun bir hikâye isteğiyle (`Prefer: respond-async`,
+~40 sn'lik gerçek üretim) tekrarlandı.
+
+**Gerçek sonuç**
+Run `queued`/`running` iken sayfaya girildi: "Transcript" başlığının
+yanında `animate-ping` sınıflı, `aria-label="Waiting for events…"` taşıyan
+bir nabız noktası (spinner) görüldü — model ilk token'ı üretene kadar
+(~20 sn, gerçek gecikme) sürekli göründü. Run `Completed` olunca: bu
+spinner `<span>`'i DOM'dan kalktı (`hasPingSpinner:false`), `aria-busy`
+taşıyan panel `"false"` oldu, transkript gerçek metni gösterdi ("Chapter
+I: The Harbor of Salt and Lanterns..."). Beklenen sonucun tamamı birebir
+örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-UIRUN-008
+
+**Gerçek sonuç**
+`MT-UIRUN-007`'nin bitmiş run'ına (F5 ile) tam sayfa yenilemesi yapıldı.
+Giden `GET .../events` isteğinin istek başlıkları incelendi: `Last-Event-
+ID` YOK (yalnız `accept: text/event-stream`, `authorization`, `referer`
+vb.). Transkript metni ("## Chapter I: The Harbor of Salt and Lanterns...")
+yenilemeden ÖNCEKİ ve SONRAKİ okumada bayt bayt aynı. Beklenen sonucun
+tamamı birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
