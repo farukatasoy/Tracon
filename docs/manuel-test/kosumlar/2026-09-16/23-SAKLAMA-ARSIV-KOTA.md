@@ -186,6 +186,64 @@ doğrudan çelişiyordu.
 
 ---
 
+## MT-RET-020 — Yalnız `MaxRows`, 150 satırlık hedefte fazlayı siler
+
+**Gerçek sonuç**
+Spec'in kendi bloğu zaten önceki bir turda düzeltilmişti (`datetime()` biçim
+tuzağı) — düzeltilmiş SQL ile 150 güncel satır eklendi. 🚨 **Ek gözlem (ürün
+kusuru DEĞİL, bu oturumun kendi test sıralamasından kaynaklanan
+kirlenme):** `preview` beklenen `50` değil **`52`** döndü — tabloda §1'den
+kalan 2 satır daha vardı (run `11111111...`, toplam 152 satır, 152−100=52,
+matematik birebir tutarlı). `run` sonrası `deletedRows: 52`
+(`preview`'la birebir eşleşti), nihai SQL sayımı **tam `100`** — tüm
+sonraki case'lerin varsaydığı "tabloda 100 satır" durumu doğru şekilde
+sağlandı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-RET-021 — Tablo sınırın ALTINDAYKEN hiçbir satır silinmez
+
+**Gerçek sonuç**
+`MaxRows=500` (tablo 100 satır) → `matchingRows: 0`, `cutoff: null`.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-RET-022 — `MaxAgeDays` VE `MaxRows` birlikte: daha YENİ eşik kazanır
+
+**Gerçek sonuç**
+`maxAgeDays:1, maxRows:10` (100 satır, hepsi güncel) → `matchingRows: 90`
+(100−10) — hacim eşiği kazandı, tam beklenen.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-RET-023 — `MaxRows` kiracı yalıtımı — Faz 36'nın kendi notu ARTIK YANLIŞ
+
+**Gerçek sonuç**
+🚨 **Doküman düzeltmesi (kural 1.1 istisnası, kusur değil — şema
+netliği):** Case'in kendi doğrulama sorgusu (`SELECT tenant_id, count(*)
+FROM tracon_run_events GROUP BY tenant_id`) çalışmaz —
+`tracon_run_events` tablosunda `tenant_id` sütunu **hiç yok** (kiracı
+`runs` tablosundan JOIN ile çözülür). Düzeltilmiş sorgu:
+`... e JOIN tracon_runs r ON e.run_id=r.id ... GROUP BY r.tenant_id`.
+
+Uygulama `Tracon:Tenancy:Enabled=true` + `AllowHeaderResolution=true` ile
+yeniden başlatıldı. `kiraci-alfa` 150 satır, `kiraci-beta` 5 satır (ayrı
+`run` kayıtlarına bağlı). `kiraci-alfa` kapsamında (`X-Tracon-Tenant`
+başlığıyla) `MaxRows=100` politikası çalıştırıldı: **`kiraci-alfa` 150 →
+tam 100'e indi, `kiraci-beta` 5'te değişmeden kaldı.** Spec'in kendi notuyla
+(bu bir "düzeltici bulgu", Faz 36'nın K-260 notu artık yanlış, K-279 sonrası
+kod ilerledi) birebir tutarlı — yeniden doğrulandı, yeni bir bulgu değil.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ## MT-RET-012 — Arşiv sink'i yokken `archive=true` HİÇBİR satır silmez
 
 **Gerçek sonuç**
