@@ -167,3 +167,152 @@ Beklenen sonucun tamamı birebir örtüştü.
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
+
+### MT-DIAG-020
+
+**Gerçek sonuç**
+`ConfigureEndpoints` hiç verilmeden başlatılan `TraconTestHost`ta
+`GET /tracon/api/diagnostics` → `404`. Beklenen sonuç birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-DIAG-021
+
+**Gerçek sonuç**
+Ana örnekte (port 5083, rol kurulumu yok) `GET /api/diagnostics` → `200`.
+Gövde on alanı da taşıyor: `persistenceProvider`,
+`registeredPersistenceProviders`, `canConnect`, `migrationsUpToDate`,
+`pendingMigrations`, `modelProviders[].{name,status,circuitOpen}`,
+`configuration[].{key,resolved,hint}`, `uiEmbedded`, `toolCount`,
+`agentCount` — hepsi dolu (4 model sağlayıcı, 3 config anahtarı,
+`toolCount:7`, `agentCount:13`). Ek olarak spec'te anılmayan bir
+`agentSources` alanı da var (fazladan bilgi, eksiklik değil). Beklenen
+sonucun tamamı birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-DIAG-022
+
+**Yöntem notu.** `13-KIRACI-VE-GUVENLIK.md`'nin K-431 notuna göre §8 artık
+elle kod yazmıyor — `Tracon__Demo__Roles__Enabled=true` ortam değişkeniyle
+gösterim rol şeması açılıyor, rol `X-Tracon-Demo-Role: reader|operator|admin`
+başlığıyla geliyor. Atılabilir bir örnek (`localhost:5097`, `mt_s3` şeması
+paylaşılan ama yalnız okundu) bu bayrakla açıldı.
+
+**Gerçek sonuç**
+`X-Tracon-Demo-Role: reader` ile `GET /api/diagnostics` → `403 Forbidden`.
+`X-Tracon-Demo-Role: admin` ile aynı uç → `200 OK`. Beklenen sonucun tamamı
+birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-DIAG-023
+
+**Gerçek sonuç**
+Gerçek OpenAI anahtarı `user-secrets`ten okundu (transkripte hiç
+yazdırılmadan — değişken bir `grep`e verildi, sonucu `unset` edildi) ve
+`/api/diagnostics`ın TAM gövdesinde arandı: **`temiz`** — hiçbir eşleşme
+yok. `configuration[]`'da yalnız `resolved: true` bayrağı var (MT-DIAG-021
+kaydında zaten görülmüştü). Beklenen sonucun tamamı birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-DIAG-024
+
+**Gerçek sonuç**
+`ConfigurationDiagnostic { Key, Resolved, Hint }` üç alanı da beklendiği
+gibi yazdı. `.Value` üyesine erişim denendiğinde derleme **GERÇEKTEN**
+`CS1061` ile reddedildi (`'ConfigurationDiagnostic' does not contain a
+definition for 'Value'`) — tipin `secret` taşıyamayacağı yapısal olarak
+kanıtlandı. Beklenen sonucun tamamı birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-DIAG-025
+
+**Gerçek sonuç**
+`GET /api/diagnostics`'in `configuration[]` dizisinde
+`Tracon:Providers:OpenAI:ApiKey` anahtarı **tam 1** kez geçiyor
+(`resolved:true`) — `openai` ve `openai-responses` iki ayrı model sağlayıcı
+kaydı aynı anahtarı paylaştığı hâlde tek satıra düşürülmüş. Beklenen sonuç
+birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-DIAG-026
+
+**Gerçek sonuç**
+`modelProviders[]`'da `openrouter` bir kayıt olarak VAR (`name:
+"openrouter"`, `status`, `circuitOpen` alanlarıyla). `configuration[]`'da
+`key` alanı "openrouter" içeren **hiçbir** satır YOK (boş dizi) — anahtarı
+gerçekten tanımlı olmasına rağmen. Beklenen sonucun tamamı birebir
+örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-DIAG-027
+
+**Yöntem notu.** Spec'in kendi kod örneği (`Data Source=:memory:`) bilinen
+`HATA-S1-003`'ü tetikler (`04-KALICılık-DIGER.md`/`MT-SQL-005`,
+`MT-DIAG-005`'te bu şeritte de zaten görülmüştü) — case'in KENDİ konusu
+K-183/K-247 sayacı olduğu için `Data Source=file::memory:?cache=shared`
+(bilinen çalışan biçim) kullanıldı; kusur burada yeniden tetiklenmedi,
+zaten kayıtlı.
+
+**Gerçek sonuç**
+Bellek içi: `persistenceProvider: InMemory, registered: 0`. SQLite (tek
+`UseSqlite`): `persistenceProvider: SQLite, registered: 1`. Beklenen
+sonucun tamamı birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-DIAG-028
+
+**Gerçek sonuç**
+Ana örnekte (port 5083) `GET /api/agents` uzunluğu **13**,
+`/api/diagnostics`'in `agentCount`'u da **13** — birebir eşleşiyor.
+`toolCount: 7` (>0). Beklenen sonucun tamamı birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-DIAG-029
+
+**Gerçek sonuç**
+`TraconDiagnosticsCollector.CollectAsync()` doğrudan (HTTP'siz) çağrıldığında
+`UiEmbedded: False` — konsol projesi `Tracon.UI` referans vermiyor. Karşıt
+kanıt zaten MT-DIAG-021'in kaydında var: aynı ana örnekte HTTP ucu
+(`/api/diagnostics`, `Tracon.UI` kayıtlı) `uiEmbedded: true` döndürmüştü —
+fark `DiagnosticsEndpoints.cs:42`'deki `with` ifadesinden geliyor, tam
+spec'in iddia ettiği gibi. Beklenen sonucun tamamı birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-DIAG-030
+
+**Gerçek sonuç**
+`CollectAsync()` üç kez art arda çağrıldı, `provider.Requests.Count: 0` —
+hiçbir model çağrısı üretilmedi. Beklenen sonuç birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
