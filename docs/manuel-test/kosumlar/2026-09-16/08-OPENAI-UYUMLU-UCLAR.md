@@ -29,7 +29,33 @@ tarayıcı boşalınca koşulacak.
 
 ## Devir notu
 
-Aile açılıyor — bu ilk devir notu.
+**Aile KAPANDI: MT-COMPAT-001..050 koşuldu, 50/50 Geçti — sıfır açık
+kalem, sıfır yeni kusur.** Bu turun en temiz ailesi: hiçbir spec
+düzeltmesi gerekmedi, `azure-support`'un bu ortamda kayıtlı olmaması
+(bilinen kısıt) dışında hiçbir ortam engeli çıkmadı.
+
+**Tek ortam ikamesi:** `azure-support` agent'ı bu ortamda hiç kayıtlı
+değil (Azure kimliği yok). MT-COMPAT-027/028 (sağlayıcı hatası akışsız/
+akışlı) `manuel-bozuk-model` (önceki bir aileden kalma, salt-okunan
+gerçek bir "kırık sağlayıcı" fixture'ı) ile aynı sözleşmeyi doğruladı.
+
+**En değerli tek bulgu bir kusur DEĞİL:** MT-COMPAT-029, HTTP yanıtının
+`status:"completed"` gösterdiği ama run kaydının `AwaitingApproval`
+olduğu gerçek bir tutarsızlığı ölçtü — ama kaynak (`OpenAIResponsesEndpoints
+.cs:339-383`) bu TAM senaryoyu önceden, MAF'ın gerçek OpenAI Responses
+API davranışıyla karşılaştırarak belgelemiş: kasıtlı ve doğru. Onay
+bekleyen bir çağrı yalnız yönetim onay API'siyle (`POST
+/api/approvals/{id}/decide`) yanıtlanabilir, compat uçlarından DEĞİL.
+
+**Python SDK (§4, MT-COMPAT-045-047):** resmi `openai` paketi
+(v3.0.0) `responses`/`conversations`/`chat.completions` istemcilerinin
+hiçbirinde istisna fırlatmadı — Tracon'in compat yüzeyi gerçek bir SDK'ya
+karşı tam uyumlu.
+
+**Sıradaki ailenin işi:** `10-ARAYUZ-AGENT-PLAYGROUND.md` — Playwright'ın
+boşaldığını kontrol et; hâlâ meşgulse `13`/`19`/`04`/`18`'in ertelenen
+UI/kod-donması case'lerini (bkz. o dosyaların fiziksel eylem tabloları)
+toplu olarak değerlendirmeyi düşün.
 
 ---
 
@@ -417,6 +443,66 @@ regresyonu YOK).
 `HTTP 405` (404 değil), `Allow: GET, HEAD` başlığı, gövde
 `application/problem+json` bir `ProblemDetails` — spec'in kendi
 düzeltilmiş beklentisiyle birebir eşleşti.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+# 4 — Resmi `openai` Python SDK ile uçtan uca
+
+## MT-COMPAT-045 — `responses.create` + `responses.stream` + `previous_response_id` zinciri
+
+**Gerçek sonuç**
+İlk yanıt `ORD-1001` içeriyor. Akış `response.created`'dan
+`response.completed`'a kesintisiz 12 olay yazdırdı, istisna yok.
+Zincirlenmiş yanıt `"Az önce **ORD-1001** sipariş numarasını sordunuz."`
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-COMPAT-046 — `conversations.create/retrieve/items.list/delete` zinciri
+
+**Gerçek sonuç**
+`conv.id` `conv_` ile başlıyor. `items.data` 2 `message` içeriyor (en az
+1 şartı fazlasıyla karşılandı). `deleted.deleted = True`. Hiçbir adımda
+SDK istisnası yok.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-COMPAT-047 — `chat.completions.create` (akışlı/akışsız) + `NotFoundError` yakalama
+
+**Gerçek sonuç**
+İlk yanıt `ORD-1001` içeriyor. Akış kesintisiz metin yazdı. Bilinmeyen
+agent'ta `NotFoundError` yakalandı, `status_code == 404`.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+# 5 — Kimlik doğrulama ve hata güvenliği
+
+## MT-COMPAT-048 — `Authorization` başlığı eksikse `401`
+
+**Gerçek sonuç**
+`HTTP 401`, `"Authentication failed"`.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-COMPAT-049 — Yanlış bearer token `401`
+
+**Gerçek sonuç**
+`HTTP 401` — `TraconEndpointFilter` compat uçlarına da uygulanıyor, ayrı
+bir kimlik doğrulama yolu yok.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-COMPAT-050 — Provider hatası Responses/Chat Completions'ta ham metin sızdırmaz (Faz 103)
+
+**Gerçek sonuç — otomatik test kanıtı.**
+`ProviderOutageErrorHandlingTests`'in `*_never_exposes_a_secret_like_provider_message`
+ailesinden 4 test spec'in kendi notunda "Otomatikleştirildi" diye
+işaretli; dosya 19'un MT-MM-108'inde bu paketin TAMAMI
+(`Tracon.AspNetCore.FunctionalTests`, 1077/1077) bu turda zaten koşuldu
+ve geçti.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
