@@ -7,6 +7,62 @@
 > Aşağısı yalnız **2026-09-16** koşumunun (şerit ap-s3, aile 21'in hemen
 > ardından) `Gerçek sonuç` ve `Durum` kayıtlarıdır.
 
+## HATA-S3-005 — Bağlantı sessizce koparsa çalıştırma ekranı sonsuza dek "Waiting for events…" yazısında donuk kalır; kullanıcıya hiçbir hata gösterilmez
+
+- **Case:** MT-UIRUN-019
+- **Önem:** Yüksek
+- **İzlek:** B (gerçek tarayıcı, CDP `Network.emulateNetworkConditions`)
+- **Ortam:** macOS arm64 · Chromium 152 (Playwright) · `mt_s3`
+
+**Beklenen**
+Case'in kendi beklentisi: bağlantı ortasında koparsa istemci bir `ErrorNote`
+gösterir (`fetch` hatası yakalanır), döner simge donuk kalır — kullanıcı
+bağlantının koptuğunu ANLAR.
+
+**Gerçekleşen**
+Akan bir çalıştırmanın sayfasında (`runs/{id}`) tarayıcı çevrimdışına
+alındı (`page.context().setOffline(true)` — DevTools'un "Offline" onay
+kutusuyla AYNI CDP çağrısı). **23 saniye** boyunca Transkript paneli
+"Waiting for events…" yazısında hareketsiz kaldı; hiçbir `ErrorNote`,
+hiçbir görsel değişiklik belirmedi. Ağ sekmesindeki `.../events` isteği
+hâlâ `200 OK` işaretliydi (asla `failed` olmadı). Kontrol: aynı sayfada
+YENİ bir istek (`fetch('/api/diagnostics')`) `"Failed to fetch"` ile
+GERÇEKTEN reddedildi — yani CDP "offline" doğru çalışıyordu, yalnız
+ZATEN AÇIK olan `chunked` SSE gövdesini kesmiyordu.
+
+**Kök neden**
+`src/Tracon.UI/frontend/src/screens/run-detail.tsx:184-210`'daki
+`useEffect`: `for await (const frame of readSse(response)) { ... }` —
+bu döngü sıradaki `chunk`'ı BEKLERKEN hiçbir zaman aşımı/`heartbeat`
+denetimi TAŞIMIYOR. Yalnız alttaki `fetch` stream'i GERÇEKTEN bir hata
+fırlatırsa (`catch (caught) { setError(caught) }`, satır 202-205) devreye
+giriyor. Tarayıcı "offline" olduğunda YENİ bağlantılar reddedilir ama
+ZATEN açık bir HTTP/1.1 `chunked` gövdenin okuyucusu (`reader.read()`)
+yalnız SESSİZCE askıda kalır — hiçbir istisna fırlamaz, `for await` sonsuza
+dek beklemeye devam eder. Sunucu tarafında `RunEventPollInterval` aralığında
+gönderilen `: waiting\n\n` keep-alive yorumları da istemciye HİÇ ULAŞMIYOR
+(bağlantı fiilen tek yönlü kopmuş), bu yüzden istemcinin kendi zaman aşımı
+YOKSA hiçbir sinyal kalmıyor.
+
+**Etki**
+Kullanıcı "hâlâ çalışıyor" ile "bağlantı sessizce öldü" durumlarını AYIRT
+EDEMEZ — ekranda ikisi de birebir aynı görünür (dönen nokta + "Waiting for
+events…"). Tek çıkış yolu elle F5 yapmaktır (`MT-UIRUN-019`'un kendi
+adım 3-4'ünün doğruladığı gibi, F5 sonrası akış TAM ve kayıpsız yeniden
+kurulur — veri kaybı yok, yalnız GÖZLEMLENEBİLİRLİK boşluğu).
+
+**Yeniden üretme**
+1. `Prefer: respond-async` ile uzun süren (~30+ sn) bir run başlat.
+2. `runs/{id}` sayfasını aç, akış sürerken bekle.
+3. `page.context().setOffline(true)` (ya da DevTools → Network →
+   Throttling → Offline).
+4. 20+ saniye bekle: Transkript paneli "Waiting for events…"de donuk kalır,
+   `ErrorNote` HİÇ belirmez.
+
+**Kayıt:** MT-UIRUN-019 (bkz. koşum kaydı aşağıda).
+
+---
+
 ## Ortam notu (oturum başı)
 
 - **`MT-UIRUN-001`'in "reset sonrası boş liste" ön koşulu bu oturumda
@@ -264,5 +320,54 @@ bu turun sistematik `en`-varsayılan bulgusuyla tutarlı, K-228). Hiçbir panel
 geçersiz.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-UIRUN-018
+
+**Gerçek sonuç**
+Uzun bir akış üretilip `curl -D -` ile yanıt başlıkları yakalandı:
+`Content-Type: text/event-stream`, `Cache-Control: no-cache,no-store`,
+`Pragma: no-cache`, `X-Accel-Buffering: no`, `Content-Encoding: identity`
+— beşi de var. Ham gövdede model ilk token'ı üretmeden geçen sürede **22**
+kez `: waiting` yorum satırı görüldü (Türkçe `: bekleniyor` DEĞİL — `en`
+varsayılan locale, bu turun sistematik bulgusuyla tutarlı). Bağlantı
+kopmadı. Beklenen sonucun başlık kısmı birebir, keep-alive davranışı
+davranışsal olarak (dil hariç) örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-UIRUN-019
+
+**Gerçek sonuç**
+`page.context().setOffline(true)` (Playwright'ın DevTools "Offline"
+kısıtlamasıyla AYNI CDP mekanizmasını kullanır: `Network.
+emulateNetworkConditions`) uygulanıp akan bir run'ın sayfasında **23
+saniye** beklendi. Ağ sekmesi isteği hâlâ `200 OK` (hiç `failed`
+işaretlenmedi) — CDP "offline" YENİ bağlantıları engelliyor (`fetch('/api/
+diagnostics')` → `Failed to fetch`, doğrulandı) ama ZATEN AÇIK bir
+`chunked` SSE gövdesini KESMİYOR; okuyucu (`reader.read()`) sessizce
+askıda kalıyor. Sonuç: Transkript paneli 23 sn boyunca "Waiting for
+events…" yazısında SESSİZCE takılı kaldı — beklenen `ErrorNote` HİÇ
+belirmedi. Bu, case'in "istemci hata gösterir" beklentisiyle ÇELİŞİYOR;
+gerçek davranış daha sessiz (ve kullanıcı için daha az bilgilendirici):
+bağlantı koptuğunda ekranda HİÇBİR görsel değişiklik yok, "hâlâ
+çalışıyor" ile "bağlantı öldü" ayırt edilemiyor.
+
+Çevrimiçiye dönüp tam sayfa yenilemesi (F5) yapıldı: giden `.../events`
+isteği yine `Last-Event-ID` TAŞIMADI (doğrulandı). Run bu sırada sunucu
+tarafında zaten `Completed` olmuştu (istemci bağlantısı sunucunun kendi
+üretimini durdurmuyor); yenilenen sayfada olay akışı sıfırdan yeniden
+kuruldu, `Event timeline (4)` — TAM ve kayıpsız. Bu kısım beklenen
+sonuçla örtüştü.
+
+**Not:** Bu davranışın Playwright'ın `setOffline`'ı ile gerçek DevTools
+"Offline" onay kutusu arasında (ikisi de aynı CDP çağrısını kullanır)
+farklılık göstermesi olası DEĞİL — ama bir kablosuz bağlantının fiziksel
+kopması (TCP RST/zaman aşımı) farklı davranabilir; bu ayrım koşulamadı.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı — `HATA-S3-005`.
 
 ---
