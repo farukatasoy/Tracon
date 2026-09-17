@@ -103,7 +103,17 @@ support` (bu ailenin kendi kalıcı klonu, bkz. §6 ortam notu).
 
 ---
 
-## Devir notu (oturum 16 · devam ediyor — MT-RES-028'den itibaren)
+## Devir notu (oturum 16 · TAMAMLANDI)
+
+Aile 21 (RES) bitti: 55/55 case işlendi — 48 Geçti, 4 Atlandı (014, 029,
+064, 072 — hepsi kendi ön koşulunun bu ortamda sağlanmadığını kendi metninde
+söylüyor), 2 Kaldı (`HATA-S3-004` yeni — MT-RES-086, `HATA-S1-020`'nin ek
+doğrulanması — MT-RES-089), 1 Beklemede (090 — ortam engeli, kod değişikliği
+ister).
+Sayım betiği (`python3` ile `^### (MT-RES-\d+)` + son `Durum:`) 55/55
+doğruladı, açık yalnız 090. Bu ailenin koşum sorumluluğu bitti — sıradaki
+oturum `ap-s3`'ün bir sonraki ailesiyle (`00-KOSUM-PLANI.md`'ye bkz.)
+başlamalı.
 
 ---
 
@@ -966,6 +976,133 @@ uç bir durum değil — lease devralmanın HER örneğinde deterministik olarak
 tekrarlanır (kod okumasıyla doğrulandı, ikinci bir koşuma gerek kalmadı).
 
 **Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı — `HATA-S3-004`.
+
+---
+
+### MT-RES-087
+
+**Gerçek sonuç**
+Tek bir süreç, `Tracon:Scheduling:RunWorker=false` ile yeniden başlatıldı.
+Bir iş kuyruğa gönderildi; birkaç `PollInterval` sonra `GET /api/jobs/{id}`:
+`status:"Pending"`, `leaseOwner:null`, `attempt:0` — kuyruk hiç
+ilerlemedi. Beklenen sonuçla birebir örtüştü (kusur değil, tanımlı
+davranış).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-RES-088
+
+**Yöntem notu.** Paylaşılan `ap-pg` container'ına dokunulmadı (kural 3).
+Bunun yerine `00-KOSUM-PLANI.md`'nin de kullandığı şerit-yerel TCP
+yönlendirici tarifi uygulandı: uygulama `localhost:55483`'e bağlandı,
+`55483 → 55432` bir Python yönlendiricisi üzerinden akıyordu; yönlendirici
+öldürülünce uygulamanın gözünde veritabanı tam olarak erişilemez oldu,
+`ap-pg`'nin kendisi hiç etkilenmedi. Adım sırası da uyarlandı: DB önce
+KAPATILDI (kuyrukta iş yokken), okuma/süreç-hayatta-kalma iddiaları
+doğrulandı, SONRA DB geri getirilip taze bir işin uçtan uca çalıştığı
+gösterildi — "kesinti sırasında zaten kuyrukta olan bir işin dokunulmadan
+kaldığı" iddiası (adım 4'ün "job bulunduğu yerdedir" kısmı) bu sıralamayla
+AYRICA ölçülmedi.
+
+**Gerçek sonuç**
+Yönlendirici öldürüldü. `GET /api/jobs` → `500`, `title:"An error occurred
+while processing your request."` — BOŞ LİSTE DEĞİL, istisna. Süreç `ps`'te
+HÂLÂ görünüyordu (çıkmadı); günlükte `JobWorkerBackgroundService.
+LeaseLoopAsync` → `SqlJobStore.LeaseAsync` → Npgsql bağlantı hatası zinciri
+**300 kez** tekrarlandı (`PollInterval=250ms` ile ~75 sn boyunca, döngü
+sürdü, süreç ölmedi). Yönlendirici geri başlatıldı: `GET /api/jobs` hemen
+`200`'e döndü; taze bir iş kuyruğa gönderildi ve normal şekilde
+`Completed` oldu. Beklenen sonucun ölçülen kısmı (süreç ayakta kalır,
+okuma istisna fırlatır, DB dönünce normale döner) birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-RES-089
+
+**Gerçek sonuç**
+`Tracon:Providers:OpenAI:Endpoint` yanıt vermeyen bir adrese
+(`http://192.0.2.1:81/v1` — TEST-NET-1, garantili yönlendirilemez) ve
+`Timeout=00:00:03`'e çekilerek yeniden başlatıldı. `Idempotency-Key`
+başlıklı akışsız istek → `502`, `application/problem+json`,
+`detail:"The model provider request failed."` (ham istisna metni
+YOK) — beklenen sonucun bu kısmı birebir örtüştü. `run.status:"Failed"`
+doğrulandı. AMA `error.class` **`"Unknown"`** döndü, `"Timeout"` DEĞİL —
+bu spesifikasyonun beklediği ayrımın TUTMADIĞI, `00-INDEKS.md`'nin
+birikmiş notlarındaki (ap-s1 dosya 05, `HATA-S1-020`) AYNI kök nedenin bu
+ailede bir kez daha doğrulanması: `upstream_error` sınıflandırıcıda
+tanınmıyor, her sağlayıcı hatası `Unknown`/tek `fingerprint`'e düşüyor.
+**Yeni bir `HATA-S3` kaydı AÇILMADI** — dosya 07'nin `MT-API-040/041/042`
+deseniyle aynı: mevcut `HATA-S1-020`'nin ek bir doğrulanmasıdır.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı — `HATA-S1-020`
+(yeni kayıt açılmadı, ek doğrulama).
+
+---
+
+### MT-RES-090
+
+**Gerçek sonuç**
+Ön koşul özel bir `IRunEventSink` KAYDI ister (her olayda ~200 ms bekleyen,
+sonra fırlatan). `grep -rn "IRunEventSink" samples/Tracon.Api/*.cs` **boş**
+döndü — `samples/Tracon.Api` böyle bir sink kaydetmiyor ve kod bu turda
+donuk (kural 1), bu kaydı EKLEMEK bir kod değişikliği olurdu. Bu case bu
+ortamda koşulamadı. Otomatik karşılığı (`FailureManifests.SlowSinkTests`)
+donuk kod tabanında zaten mevcut ve ayrı bir doğrulama gerektirmiyor.
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı — gerekçe:
+`samples/Tracon.Api`'de özel `IRunEventSink` kaydı yok, eklemek kod
+değişikliği gerektirir (kural 1 donmuş kodu yasaklıyor); kapanışta
+`00-INDEKS.md`'nin açık kalem tablosuna taşınacak.
+
+---
+
+## § 9 — Depo Sözleşmesi: İptal Edilmiş Token (Faz 177)
+
+### MT-RES-091
+
+**Gerçek sonuç**
+Dört önceden derlenmiş `release` ikilisi kullanıldı (`--list-tests` ile
+sayım, sonra `--filter-method "*Canceled_token*"` ile gerçek koşum).
+Bellek içi: **61/61** listelenip geçti. PostgreSQL: **65/65**
+(kendi `testcontainers` container'ını kullandı, `ap-pg`'ye DOKUNMADI).
+SQL Server: **65/65** (kendi container'ı). SQLite: **65/65**. Dördü de
+beklenen sayılarla ve "hepsi geçti" iddiasıyla birebir örtüştü. Hiçbir
+koşumda sağlayıcıya özgü bir istisna (yalnız `OperationCanceledException`
+bekleniyordu) gözlenmedi — dördü de sıfır başarısızlıkla bitti.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-RES-092
+
+**Yöntem notu.** Case'in kendi adımları `samples/Tracon.Samples.
+FileRunStore/FileRunStore.cs`'i GEÇİCİ olarak bozup geri almayı istiyor —
+kural 1 (kod donuk) bunu tur boyunca yasaklıyor, geçici olsa bile. Bunun
+yerine case'in kendi "Otomatik karşılığı" satırının andığı
+`StoreCancellationContractSelfProofTests` doğrudan koşuldu — bu, AYNI iki
+kırık uygulamayı (`TokenBlindSkillStore`, `LateCheckSkillStore`)
+kaynakta KALICI olarak barındıran, kod DEĞİŞTİRMEDEN çalıştırılabilen bir
+meta-test; case'in adım 1-4'ünün ölçtüğü dört iddiayı birebir kapsıyor.
+
+**Gerçek sonuç**
+`./Tracon.Core.UnitTests --filter-method "*StoreCancellationContractSelfProofTests*"`
+→ **4/4 geçti**: `Read_case_fails_for_a_store_that_ignores_the_token`
+(adım 2'nin `Canceled_token_throws_on_read` DÜŞER iddiası —
+`TokenBlindSkillStore`), `Write_case_fails_for_a_store_that_ignores_the_token`
+(aynı deseninin yazma tarafı), `Write_case_fails_for_a_store_that_checks_
+the_token_too_late` (adım 4'ün `Canceled_token_throws_on_write_and_leaves_
+no_trace` DÜŞER iddiası — `LateCheckSkillStore`),
+`Read_case_PASSES_for_that_same_store` (adım 4'ün `Canceled_token_throws_
+on_read` GEÇER iddiası, aynı geç-kontrol store'u için). Dördü de beklenen
+sonucun dört maddesiyle birebir örtüşüyor — sözleşmenin kırık
+uygulamaları GERÇEKTEN yakaladığı, kod dokunulmadan kanıtlandı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
