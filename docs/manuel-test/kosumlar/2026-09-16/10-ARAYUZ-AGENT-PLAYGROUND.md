@@ -29,7 +29,7 @@ sıfırdan düşürülüp yeniden oluşturuldu (aile 08'in verisi temiz atıldı
 
 ## Devir notu
 
-**Oturum 1-7 bitti: MT-UIAG-001..040 koşuldu (36 Geçti · 2 Kaldı · 2 Atlandı).**
+**Oturum 1-8 bitti: MT-UIAG-001..042 koşuldu (38 Geçti · 2 Kaldı · 2 Atlandı).**
 Uygulama AÇIK bırakıldı (port 5081, arka planda `launch_s1.py` ile başlatıldı,
 PID script'i `/private/tmp/.../scratchpad/s1-app.pid`de) — sonraki oturum
 sıfırdan başlatmak yerine devam edebilir, yalnız `curl .../api/diagnostics`
@@ -872,6 +872,48 @@ pratik değil) kutuya verilince React state'i TAM uzunlukta kabul etti
 ölçüldü: `message` alanı birebir `49999` karakter taşıyordu (kırpma YOK).
 Sunucu tarafında da reddedilmedi (`200 OK`), tur normal tamamlandı:
 `25.351 token`, final metin `"How can I help you today?"`.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-UIAG-041 — Var olmayan agent adıyla akış hiç başlamadan ÜSTTE ve tur içinde hata gösterir
+
+**Gerçek sonuç — beklendiği gibi (spec'in Türkçe metni bayattı, düzeltildi
+— K-228, altıncı tekrar bu ailede).**
+`playground/manuel-yok-boyle-agent`'a doğrudan gidilip `Merhaba`
+gönderildi. Ağ sekmesi: `POST v1/conversations` → `200`, hemen ardından
+`POST api/agents/manuel-yok-boyle-agent/run` → **`404`** (SSE değil, düz
+`ProblemDetails`). Panelin ÜSTÜNDE kırmızı bir `alert`: `"Agent not
+found: There is no agent named 'manuel-yok-boyle-agent'."` — AYNI ZAMANDA
+turun İÇİNDE de aynı metinle kırmızı bir hata kutusu var. İki gösterge
+birden doğrulandı (spec'in "bu case AYRIŞIYOR" notuyla tutarlı).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-UIAG-042 — `FIX-PROMPT-05` guard engeli → yalnız tur içi hata; ÜST hata kutusu YOK
+
+**Gerçek sonuç — beklendiği gibi (paylaşılan `FIX-PROMPT-05` fixture'ı
+bayattı, `00-INDEKS.md`'de düzeltildi — bu tek case'e özgü değil).**
+`samples/Tracon.Api/Program.cs:217` ölçüldü: `DeniedTerms` listesi
+`"confidential-project"` taşıyor, spec'in ve `00-INDEKS.md`'nin eski
+`"gizli-proje"` metni ARTIK TETİKLEMİYOR (K-228 aynı bayatlık —
+MT-OAI-084'te bulunanla birebir aynı kalıp). `00-INDEKS.md`'deki
+`FIX-PROMPT-05` fixture tanımı `"confidential-project hakkinda bilgi
+ver"` olarak düzeltildi (paylaşılan fixture, başka aileleri de etkileyebilir
+— kapanışta bu terimi kullanan diğer case'ler taranmalı).
+
+Düzeltilmiş metinle test edildi: panelin ÜSTÜNDE **hiçbir** alert
+belirmedi (`document.querySelectorAll('[role="alert"]').length === 0`).
+Turun İÇİNDE kırmızı hata kutusu: `"TraconContentBlockedException:
+Content was blocked by the 'pattern' guard (rule: denied-term, direction:
+Input). Content matched the configured denied-term list. The blocked
+text is deliberately not recorded."` — engellenen metnin kendisi mesajda
+YOK. `GET /api/runs/{id}` ile doğrulandı: `error.type: "content_blocked"`
+(spec'in "runs.error_type" kısaltması bu alana karşılık geliyor),
+`error.class: "ContentBlocked"`.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 

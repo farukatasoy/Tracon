@@ -1372,8 +1372,9 @@ Negatif senaryo — akış hiç başlamadan gelen `ProblemDetails` yolu.
 - `openStream`'in ilk `fetch`'i `404` döner (`RunAsync`'in `agent is null`
   dalı, akış HİÇ başlamaz — yanıt SSE değil, düz `ProblemDetails`'tir).
 - Panelin ÜSTÜNDE kırmızı bir `ErrorNote` belirir (`setError(caught)` —
-  `ApiError` mesajı `"Agent bulunamadi: 'manuel-yok-boyle-agent' adinda bir
-  agent yok."`).
+  `ApiError` mesajı `"Agent not found: There is no agent named
+  'manuel-yok-boyle-agent'."` — spec'in Türkçe metni 2026-09-16 turunda
+  düzeltildi, K-228 aynı kök neden).
 - AYNI ZAMANDA turun içinde de kırmızı bir hata kutusu görünür (`turn.error`
   aynı mesajı taşır) — bu case'te İKİ gösterge birden vardır, bu Bölüm 7'nin
   diğer iki case'inden AYRIŞAN noktadır.
