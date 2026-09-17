@@ -152,6 +152,22 @@ turda AYNI davranış ASLA gözlemlenemedi, muhtemel bir gerileme (regresyon).
 
 ---
 
+### MT-UIRUN-001
+
+**Gerçek sonuç**
+Yukarıdaki "Ortam notu"nda açıklandığı gibi, "reset sonrası boş liste" ön
+koşulu bu şeritte doğrulanamadı: `mt_s3` şemasını sıfırlamak paylaşılan bir
+şerit kaynağını geri dönüşü olmayan biçimde silmek anlamına geliyordu ve
+kullanıcı onayı bu oturumda istenmedi (skill §1.4 kural 3 — paylaşılan
+kaynağı bozacak eylem). Case koşulamadı.
+
+**Durum:** ☐ Beklemede — gerekçe: `mt_s3` şemasını `DROP SCHEMA ... CASCADE`
+ile sıfırlamak gerekiyor, bu paylaşılan şerit kaynağını geri dönüşsüz
+siler; kullanıcı onayı istenmedi. Kapanışta `00-INDEKS.md`'nin açık kalem
+tablosuna taşınacak.
+
+---
+
 ### MT-UIRUN-002
 
 **Gerçek sonuç**
@@ -1082,5 +1098,150 @@ adları arasında `event: child.timed-out` VAR (`child.completed`,
 tamamı birebir örtüştü.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-UIRUN-062
+
+**Yöntem notu.** DevTools "kesme" yerine Playwright'ın kendi rota
+yakalaması (`page.route`) kullanıldı — aynı etkiyi (istemci tarafında
+`500` yanıtı zorlamak) sunucuya dokunmadan sağlıyor.
+
+**Gerçek sonuç**
+Arayüz dili Türkçeye çevrildi (düğme metni "Yeniden dene" oldu, dil
+değişikliğini doğruladı). `GET /api/sessions` ilk üç denemede `500`
+döndürüldü: hata notu ancak ÜÇÜNCÜ (yani konsolun kendi iki otomatik
+tekrar denemesinden SONRAKİ) başarısız denemeden sonra göründü
+(`interceptCount:3` — bire kadar hiç göstermedi). Hata metni HAM İngilizce
+kaldı ("Internal Server Error: Simulated failure...") — Türkçeye
+çevrilmemiş (K-232). "Yeniden dene" düğmesine tıklanınca (bu noktada
+yakalama zaten devre dışı) istek TEKRARLANDI, sayfa yenilenmeden **48**
+satır yüklendi, hata notu kayboldu. Beklenen sonucun tamamı birebir
+örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-UIRUN-063
+
+**Gerçek sonuç**
+Ön koşul `TraconPolicies.Admin`'in reddedeceği bir "reader" kimliği ister.
+Bu şeritte (ve dosyanın kendi sınır notunda tekrar tekrar anılan) TEK bir
+statik bearer token var ve o token HER ZAMAN tam rol taşıyor (`MT-UIRUN-
+029`/`MT-RES-029`'un aynı ortam sınırı) — ayrı bir "reader" kimliği üretmenin
+bu örnek uygulamada bir yolu yok. Koşulamadı.
+
+**Durum:** ☐ Beklemede — gerekçe: ortamda "reader" rolünü temsil eden ayrı
+bir kimlik yok (dosyanın kendi tekrarlanan sınır notu); kapanışta
+`00-INDEKS.md`'nin açık kalem tablosuna taşınacak.
+
+---
+
+### MT-UIRUN-064
+
+**Yöntem notu.** İskelet-yerleşim zıplaması (👤 görsel) bu turda
+gözlemlenmedi — DOM/erişilebilirlik tarafı programatik olarak ölçüldü.
+
+**Gerçek sonuç**
+`jobs` ekranındaki Lane filtresi: `<input id="_r_1_">` ile eşleşen GERÇEK
+bir `<label for="_r_1_">Lane'a göre süz</label>` var (yalnız placeholder
+DEĞİL) — `runs` ekranındaki Agent/Status/Scope seçicileri de (önceki
+case'lerde zaten görüldü) kendi `<label>`'larını taşıyor. "Clear filters"
+düğmesi filtre BOŞKEN yoktu; Lane alanına metin girilince BELİRDİ;
+tıklanınca hem düğme KAYBOLDU hem alan GERÇEKTEN boşaldı (`inputValue:""`).
+Beklenen sonucun ölçülebilir kısmı (etiketler, temizle düğmesinin
+görünürlük/işlev döngüsü) birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-UIRUN-065
+
+**Gerçek sonuç**
+`runs` tablosunda kimlik hücresinin linki her zaman vurgu renginde
+(`rgb(115,217,194)`), agent hücresinin linki her zaman soluk
+(`rgb(179,198,196)`) — hover/focus'tan bağımsız, kalıcı bir ayrım. Hover'da
+kimlik linkinin `text-decoration-line` değeri `none`'dan `underline`'a
+geçiyor (`:hover` gerçek fare imleciyle ölçüldü). Klavye `Tab` ile kimlik
+linkine ulaşınca satırın `<tr>` arkaplanı `rgba(0,0,0,0)`'dan
+`rgb(23,36,41)`'e değişiyor (satırın tamamı vurgulanıyor) ve link
+`underline` alıyor; `Enter` kaydı gerçekten açtı (`/tracon/runs/{id}`'ye
+navigasyon doğrulandı). Oturum detay ekranındaki "N çalıştırma" düğmesi tek
+bir `<a href="/tracon/runs?sessionId=...">` — alt öge yok, dolayısıyla **tek
+tab durağı**; orta tıklama gerçek bir yeni sekme açtı (ana sekme aynı sayfada
+kaldı). `agents` ekranındaki "Yeni agent" düğmesi de aynı şekilde tek `<a>`
+(içindeki `<svg>` odaklanabilir değil, `tabIndex` yok); orta tıklama yeni
+sekme açtı. Beklenen sonucun ölçülebilir tamamı (renk ayrımı, hover/focus
+altı çizgisi, satır vurgusu, Enter navigasyonu, tek tab durağı, orta tık) 👤
+işaretli göz denetimi hariç birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-UIRUN-066
+
+**Yöntem notu.** Ön koşulu doldurmak için `mt-uirun-fixture` adıyla yerel bir
+MCP sunucusu kaydedildi (`http://localhost:3001/mcp`, aynı
+`@modelcontextprotocol/server-everything` fixture'ı — dosya 18'in kaydında
+zaten belgeli). Kayıt sonrası ortamda 133 run, 30+ oturum, 50 iş, 1 MCP
+sunucusu, 3 sağlayıcı (anthropic/google/openai) vardı — ön koşulun tamamı
+karşılandı.
+
+**Gerçek sonuç**
+Tarayıcı 375×700'e ayarlandı. On sekiz gezinme ekranının (Gösterge Paneli,
+Playground, Çalıştırmalar, Oturumlar, Onaylar, İşler, Değerlendirmeler,
+Deneyler, Denetim, Teşhis, Agent'lar, Workflow'lar, Tool'lar, Skill'ler,
+Modeller, MCP, Tetikleyiciler, Ayarlar) HER BİRİNDE
+`document.documentElement.scrollWidth - clientWidth === 0` — sayfa gövdesi
+hiçbir ekranda yatay kaymadı. Bir run detay ekranında ve bir oturumun "Ham
+durum" (JSON) sekmesinde de aynı ölçüm sıfır çıktı. `runs` tablosunun kendisi
+798px genişliğinde ama kendi `overflow-x-auto` sarmalayıcısının içinde —
+sayfa değil, o `<div>` kayıyor (beklenen davranış). `models` ekranında en
+sağdaki sağlık badge'inin (right≈331px, viewport 375px — kenara 44px)
+tooltip'i hover'da göründü ve tam viewport içinde kaldı (left=148,
+right=356 — hiç taşmadı). `runs` tablosunun "Ağaç token" sütun başlığının
+açıklama balonu da (yatay kaydırılıp görünür alana getirildikten sonra)
+viewport içinde kaldı (left=57, right=281). Beklenen sonucun ölçülebilir
+kısmı (sıfır yatay taşma, tablo/kod bloğunun kendi kutusunda kalması,
+tooltip'in viewport içinde kalması) birebir örtüştü; balonun "sola kayma"
+mekanizmasının kendisi (CSS tarafı) ayrıca izlenmedi, yalnız SONUCU
+(taşmama) ölçüldü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## Aile 11 (`UIRUN`) TAMAMLANDI (oturum 17 sonu)
+
+66/66 case işlendi: 64 koşuldu (61 ☑ Geçti, 3 ☒ Kaldı), 2 case ortam sınırı
+yüzünden `☐ Beklemede` kaldı — `MT-UIRUN-001` (paylaşılan `mt_s3` şemasını
+sıfırlamak onay gerektiriyordu, istenmedi) ve `MT-UIRUN-063` (bu şeritte
+"reader" rolünü temsil eden ayrı bir kimlik yok, tek statik bearer token her
+zaman tam rol taşıyor). İkisi de kapanışta `00-INDEKS.md`'nin açık kalem
+tablosuna taşınacak.
+
+Bu ailede **üç kusur** bulundu (kayıtları yukarıda):
+
+- `HATA-S3-005` (Yüksek) — SSE bağlantısı sessizce koparsa çalıştırma ekranı
+  sonsuza dek "Waiting for events…" yazısında donuk kalır, hiçbir hata
+  gösterilmez (`run-detail.tsx:184-210`, `for await` döngüsünde zaman
+  aşımı/heartbeat denetimi yok).
+- `HATA-S3-006` — `RecordReasoningDeltas=true` iken model gerçekten düşünme
+  içeriği üretse bile `ReasoningDelta` olayı hiç kaydedilmiyor.
+- `HATA-S2-002`'nin bu şeritte de tekrar gözlendiği (yalnız bilgi amaçlı,
+  yeni kayıt açılmadı): `/tracon/*` sayfalarının inline tema-boyama script'i
+  kendi CSP başlığı tarafından her sayfa yüklemesinde engelleniyor (konsol
+  hatası bu oturumda da her navigasyonda görüldü).
+
+`MT-UIRUN-066` için ön koşulu doldurmak amacıyla bu şeride kalıcı bir test
+fixture'ı eklendi: MCP sunucusu `mt-uirun-fixture` →
+`http://localhost:3001/mcp` (dosya 18'in `server-everything` fixture'ı,
+salt paylaşılan/okunur, sunucu süreci durdurulmadı).
+
+Kod tamamen donuk bırakıldı; uygulama durduruldu. Sıradaki aile:
+`25-SAGLIK-TESHIS-OPENAPI.md`.
 
 ---
