@@ -455,7 +455,42 @@ sekmesi ister, kaynak okuması yeterli kanıt sayılmıyor — spec'in kendisi
 "ağ sekmesine bak" diyor). `☐ Beklemede` bırakıldı, kilit serbest kalınca
 tamamlanmalı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☐ Beklemede · ☑ Geçti (düzeltilmiş beklenen sonuçla — istek
+parametreyi tamamen ATLAMIYOR, açıkça `refresh=false` gönderiyor; anlam aynı:
+canlı taramayı TETİKLEMİYOR) · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-033 — `tracon.run.cost` sayacı yalnız fiyatı BİLİNEN run'larda artar
+
+**Gerçek sonuç**
+`dotnet-counters collect -p 85364 --counters Tracon --format csv` ile 20
+saniyelik pencerede: `support`/Merhaba (fiyatlı, `gpt-5.4-mini`) run'ı
+tamamlanır tamamlanmaz `tracon.run.cost` **bir örnekte** `5.925E-05`'e sıçradı
+(etiketler: `tracon.agent.name=support;tracon.cost.currency=USD;
+tracon.model.id=gpt-5.4-mini;tracon.tenant.id=default`), sonraki tüm
+örneklerde `0`'a döndü (Rate sayacı — anlık artışı gösterir). Hemen ardından
+`manuel-bos` (fiyatsız, `anthropic:claude-haiku-4-5-20251001`) run'ı
+tamamlandı; CSV'nin GERİ KALANINDA bu ajan/model için `tracon.run.cost`
+serisi **HİÇ görünmedi** (sıfır DEĞİL, seri yok) — fiyatsız run `RecordCost`
+çağrısını hiç tetiklemiyor. Beklenen sonuçla birebir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-034 — `tracon.run.cost` İPTAL edilen bir run'da da (fiyat biliniyorsa) artar
+
+**Gerçek sonuç**
+`FIX-PROMPT-04` (50.000 karakter) `support`'a gönderildi, akış sürerken
+(SSE'nin ilk `run` çerçevesinden alınan `runId` ile, yanıt tamamlanmadan)
+`POST /api/runs/{id}/cancel` çağrıldı → `202`. dotnet-counters penceresinde
+bu run için `tracon.run.cost` **HİÇ örneklenmedi**. Run'ın son hâli:
+`status:"Canceled"`, `usage:null`, `cost:null`. Bu, dosyanın kendi düzeltilmiş
+notuyla (KOSUM-PLANI §2.1, 2026-08-13) birebir örtüşüyor: OpenAI streaming'de
+`usage` yalnız SON SSE parçasında gelir, doğal bitiş öncesi iptal bunu hiçbir
+zaman görmez, bu yüzden sayaç ARTMAZ ve `cost` `null` kalır — "harcanan
+token'ın parası zaten harcanmıştır" tasarım niyeti yalnız `usage` GERÇEKTEN
+biliniyorsa uygulanabilir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti (dosyanın kendi 2026-08-13 düzeltmesiyle
+birebir) · ☐ Kaldı · ☐ Atlandı
 
 ## MT-OBS-037 — `IRunAttributionContext` kimlik başlığı YOKKEN hiçbir davranış değişmez
 
