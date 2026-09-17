@@ -366,8 +366,15 @@ yapılandırmaya **hiç bakılmaz** — kayıt "kapalı" olsa bile. Bir kullanı
 varsa **hiçbir şey silinmez**.
 
 **Ön koşul**
-- `dotnet user-secrets set "Tracon:Retention:Traces:MaxAgeDays" "14"` ile
-  config tabanlı bir varsayılan tanımlı, uygulama yeniden başlatıldı.
+- 🚨 `dotnet user-secrets set "Tracon:Retention:Traces:MaxAgeDays" "14"`
+  **yanlıştır** — düzeltildi 2026-09-17, ap-s2. `traces` hedefi
+  `TraconRetentionOptions.Spans`'a eşlenir (`Traces` diye bir özellik yok),
+  VE ayrı bir üst düzey `Tracon:Retention:Enabled=true` bayrağı da
+  gerekir (varsayılan `false` — bir paket yükseltmesi config eklenmeden
+  veri silmesin diye). Doğru kurulum:
+  `dotnet user-secrets set "Tracon:Retention:Enabled" "true"` **ve**
+  `dotnet user-secrets set "Tracon:Retention:Spans:MaxAgeDays" "14"`,
+  uygulama yeniden başlatılır.
 
 **Adımlar**
 1. `traces` hedefi için `Enabled=false` bir DB kaydı yaz.
