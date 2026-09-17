@@ -654,3 +654,62 @@ olmadan listeden KALKTI. Beklenen sonucun tamamı birebir örtüştü.
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
+
+### MT-UIRUN-038
+
+**Gerçek sonuç**
+`DELETE /api/sessions/yok-boyle-bir-oturum` → `404`, `title:"Session not
+found"`, `detail:"There is no session with id 'yok-boyle-bir-oturum'."`
+(Türkçe "Oturum bulunamadi" DEĞİL — `en` varsayılan locale). Beklenen
+sonucun davranışsal kısmı birebir örtüştü; dil beklentisi geçersiz.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-UIRUN-039
+
+**Gerçek sonuç**
+`sessions/mt-uirun-002`'nin varsayılan "Chat history" sekmesi: `user`/
+`assistant`/`tool` rol etiketleriyle sırayla mesaj satırları, her birinde
+"Branch from here" düğmesi. "Raw state" sekmesine geçilince:
+`sessionDetail.stateNotice` uyarısı ("This is the session state of the
+framework itself. Tracon stores it and never interprets it...") + ham
+JSON (`{"stateBag": {"toolApprovalState": {...` — kaydırılabilir,
+yorumlanmamış). Beklenen sonucun tamamı birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-UIRUN-040
+
+**Gerçek sonuç**
+Dosyanın kendi "doküman düzeltmesi" notu (önceki bir tur tarafından zaten
+uygulanmış) doğrulandı: PostgreSQL bağlantısı boşken (`Tracon:PostgreSql:
+ConnectionString=""`) `support` ile üretilen oturumun `GET /api/sessions/
+{id}` yanıtı `messages` alanını TAM doldurdu (`support` her koşulda MAF'ın
+kendi `InMemoryChatHistoryProvider`'ını kullanıyor — Tracon'in SQL
+seçiminden bağımsız). Arayüzde "Chat history" sekmesi mesajları normal
+şekilde gösterdi, `sessionDetail.noHistory` boş-durumu TETİKLENMEDİ. Adım
+2 (`POST .../branch`) → `501`, `title:"Branching not supported"` (Türkçe
+"Dallandirma desteklenmiyor" DEĞİL — `en` varsayılan locale), `detail`
+gerekçeyi tam anlatıyor. Bağlantı ayarı test sonunda geri kuruldu. Adım 1
+düzeltilmiş beklentiyle, adım 2 (davranış, dil hariç) orijinal beklentiyle
+örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-UIRUN-041
+
+**Gerçek sonuç**
+`sessions/mt-uirun-002` sayfasında "1 run" düğmesi vardı (tekil run
+sayısını doğru gösteriyor). Tıklanınca `/tracon/runs?sessionId=mt-uirun-002`
+adresine gidildi; "Çalıştırmalar" listesi yalnız **1** satır gösterdi (o
+oturuma ait run). Beklenen sonucun tamamı birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
