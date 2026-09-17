@@ -42,7 +42,12 @@ GEREKTİRMİYOR (anahtar zaten rotasyon listesinde) ama şeffaflık için
 kaydediliyor. Bundan sonra bu oturumda yalnız `--json` + Python filtreleme
 kullanıldı (değerler asla doğrudan `echo`/`print` edilmedi).
 
-**Oturum 1 — MT-MM-001..042 koşuldu (37 case).** Ayrıntı case bloklarında.
+**Oturum 1 — MT-MM-001..055 koşuldu (46 case; 043/046-050/053-055 dahil,
+051/052 numarası spesifikasyonda yok).** Ayrıntı case bloklarında.
+**Bir yeni kusur açıldı: `HATA-S1-024`** (aşağıda, MT-MM-047 ve MT-MM-049) —
+`FunctionInvokingChatClient` tool'lardan fırlatılan `TraconException`'ı
+modele ulaştırmadan genel bir mesaja çeviriyor; kapsamı muhtemelen ses
+tool'larının ötesine geçiyor, kapanışta SINIF TARAMASI önerildi.
 
 **🚨 Ölçülen ortam tuzağı — DLL doğrudan koşumu `appsettings.json`'ı bulamıyor.**
 `dotnet artifacts/bin/Tracon.Api/release/Tracon.Api.dll` çalışma dizini
@@ -345,6 +350,164 @@ görünmüyor).
 `"The text is 6000 characters; the limit is 5000. ..."` — istek ElevenLabs'e
 GİTMEDEN reddedildi (400, 502 değil). Düzeltilen kusur hâlâ düzeltilmiş
 durumda, regresyon yok.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-043 — `GET /api/voice/sessions` konuşma katmanı kapalıyken boş liste döner, `501` DEĞİL
+
+**Gerçek sonuç (MT-MM-031'e ek doğrulama olarak koşuldu)**
+Voice/VoiceConversation kapalıyken (`Tracon:Voice:ApiKey` boş) `GET
+/api/voice/sessions` `HTTP: 200`, gövde `[]` — `501` DEĞİL.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-046 — `speak` gerçek bir çalıştırmada çağrılır, ek `session_id`'si doludur (G1)
+
+**Gerçek sonuç**
+`voice-assistant` agent'ı `speak` tool'unu doğru argümanla çağırdı, gerçek
+ElevenLabs sesi üretti (`attachmentId=01a0acdc-67ae-71b8-8b53-33de2d7d5c18`,
+`audio/mpeg`, 33062 bayt). SQL: `session_id='manuel-mm-speak-1'`,
+`run_id` dolu, `media_type='audio/mpeg'` — tek satır, `session_id` NULL
+DEĞİL.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-047 — `speak` — `MaxCharactersPerRequest` aşımı tool içinde hata döner
+
+**Gerçek sonuç — 🚨 KUSUR (`HATA-S1-024`, ayrıntı aşağıda).** Model, 6000
+karakterlik istemi HER SEFERİNDE (üç farklı deneme, üç farklı istem
+biçimiyle) kendiliğinden ~1100 karaktere kısaltarak `speak` tool'unu çağırdı
+— sınırı hiç aşmadı, bu yüzden case'in ASIL senaryosu (tool'un limit hatası
+DÖNMESİ) doğrudan gözlenemedi. Kaynak okumasıyla (`SpeakTool.cs`,
+`TranscribeTool.cs`) ve MT-MM-049'un ampirik sonucuyla doğrulandı ki: tool
+`TraconException` FIRLATTIĞINDA, MAF'ın `FunctionInvokingChatClient`'ı bu
+istisnayı YUTAR ve modele yalnız genel `"Error: Function failed."` metnini
+döndürür — spec'in beklediği `"Metin 6000 karakter; sinir 5000..."` açıklayıcı
+metni MODELE HİÇBİR ZAMAN ULAŞMAZ. Bu, Tracon'in kendi kod tabanında ZATEN
+ÖLÇÜLMÜŞ bir davranıştır (`src/Tracon.Core/Replay/RecordedToolPlayback.cs`
+satır ~133: *"`FunctionInvokingChatClient` CATCHES an exception coming out
+of a tool body, turns the error into a tool result, ... this was
+measured."*) — ekip bunu farklı bir özellik (`ReplayMismatchGuard`) için
+zaten telafi ediyor ama `SpeakTool`/`TranscribeTool` bu telafiyi
+kullanmıyor. 3 gerçek ElevenLabs çağrısı bu araştırma sırasında yapıldı
+(~1100 karakterlik sesler; kredi harcandı, geri alınamaz).
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+
+### HATA-S1-024 — Tool içi `TraconException` mesajı modele hiç ulaşmıyor (`FunctionInvokingChatClient` genel hataya çeviriyor)
+
+- **Case:** MT-MM-047, MT-MM-049 (aynı kök neden; sınıf muhtemelen `throw new
+  TraconException(...)` kullanan HER Tracon tool'unu etkiler — yalnız ses
+  tool'larıyla sınırlı değil, bkz. Kapsam)
+- **Önem:** Yüksek (genişlik nedeniyle — tek bir davranış değil, muhtemelen
+  düzinelerce tool'un hata yolunu etkileyen bir ÖRÜNTÜ)
+- **İzlek:** B (gerçek OpenAI + gerçek ElevenLabs çağrısıyla ampirik olarak
+  gözlendi)
+- **Ortam:** macOS arm64 · net10 · PostgreSQL · OpenAI (`gpt-5.4-mini`) +
+  ElevenLabs
+
+**Beklenen**
+`SpeakTool`/`TranscribeTool` içinde fırlatılan `TraconException`'ın
+`.Message`'ı, tool çağrısının SONUCU olarak modele (ve dolayısıyla son
+kullanıcıya) ulaşmalı — spec bunu MT-MM-047/049'da açıkça vaat ediyor
+(`"Metin X karakter; sinir Y..."`, `"'...' bir ses dosyasi degil..."`).
+
+**Gerçekleşen**
+Model, tool sonucu olarak yalnız `"Error: Function failed."` genel metnini
+görüyor — açıklayıcı mesajın hiçbir parçası ulaşmıyor. `FunctionInvokingChatClient`
+varsayılan olarak `IncludeDetailedErrors=false` davranışıyla çalışıyor ve
+Tracon bunu HİÇBİR yerde açıkça `true` yapmıyor (`grep -rn
+"IncludeDetailedErrors" src/` boş döner). Bu davranış Tracon'in kendi
+`RecordedToolPlayback.cs` yorumunda "bu ölçüldü" diye zaten belgeleniyor —
+ama yalnız `ReplayMismatchGuard` bunu telafi ediyor, sıradan tool'lar
+etmiyor.
+
+**Yeniden üretme**
+1. `voice-assistant` agent'ına ses eki OLMAYAN bir attachmentId ile
+   `transcribe` tool'unu tetikleyen bir istem gönder (MT-MM-049 adımları).
+2. Akıştaki `functionResult` içeriğini oku.
+
+**Kanıt**
+- MT-MM-049 çalıştırması: `"result": "Error: Function failed."` (spec'in
+  beklediği `"...is not an audio file (type: image/png)."` yerine).
+- Kaynak: `src/Tracon.Voice/Tools/TranscribeTool.cs:75-76`,
+  `src/Tracon.Voice/Tools/SpeakTool.cs:69-71` (her ikisi de `throw new
+  TraconException`).
+- Kaynak: `src/Tracon.Core/Replay/RecordedToolPlayback.cs:133-137` (davranışın
+  ekip tarafından önceden ölçüldüğüne dair yorum).
+
+**Kapsam**
+Yalnız bu iki case değil — kod tabanında `throw new TraconException` deseni
+KULLANAN her `AIFunction`/Tracon tool'u (grep: onlarca sonuç, ör. güvenlik/
+onay/skill tool'ları) muhtemelen aynı sessiz yutmaya maruz. Kapanış
+oturumunda bir SINIF TARAMASI (`grep -rn "throw new TraconException" src/**/Tools`
++ her birinin `FunctionInvokingChatClient` üzerinden gerçekten çağrıldığı
+doğrulanarak) önerilir. Olası düzeltme yönleri: (a) tool taban sınıfında
+(`VoiceToolBase` ve benzerleri) `TraconException`'ı YAKALAYIP açıklayıcı bir
+STRING dönmek (throw etmemek), (b) `AIAgent`/`ChatClientAgentOptions`
+üzerinden `IncludeDetailedErrors=true` açmak (ama bu TÜM istisna türlerinin
+detayını sızdırır — güvenlik açısından daha riskli), ya da (c) her tool'un
+kendi `catch (TraconException ex) { return ex.Message; }` desenini
+benimsemesi. Karar kapanış oturumuna bırakıldı.
+
+## MT-MM-048 — `transcribe` kayıtlı bir ses ekini metne çevirir
+
+**Gerçek sonuç**
+Yanıt `transcribe` tool çağrısı içerdi; sonuç `"[lang=tur] Merhaba dedi gibi
+sesli söyle"` — `[dil=...] ...` biçiminde, boş değil. SQL:
+`usage_unit='seconds'`, `usage_quantity≈1.997`.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-049 — `transcribe` — ses OLMAYAN bir ekle çağrılırsa hata döner
+
+**Gerçek sonuç — aynı kök neden, `HATA-S1-024`'e bağlı.** Tool DOĞRU şekilde
+işlemi durdurdu (PNG'yi transcribe ETMEDİ, `usage_unit` boş kaldı — yan etki
+yok) ama modele dönen mesaj spec'in beklediği `"'...' bir ses dosyasi
+degil..."` yerine yalnız genel `"Error: Function failed."` oldu. Fonksiyonel
+güvenlik korunuyor (yanlış türde dosya işlenmiyor), yalnız hata mesajının
+açıklayıcılığı kayboluyor.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı (bkz. `HATA-S1-024`)
+
+## MT-MM-050 — `list_voices` ücret üretmeden sesleri listeler
+
+**Gerçek sonuç**
+Yanıt `list_voices` tool çağrısı içerdi; sonuç `"Ad (kimlik) — kategori —
+cinsiyet"` biçiminde 21 satırdır (`Ad (kimlik)` çekirdeği spec ile eşleşiyor;
+ek `— premade — male` gibi bir son ek Faz 138'in `attributes` zenginleştirmesi
+— bkz. MT-MM-100/102, kusur değil, daha sonraki bir geliştirme). 21 ses
+`MaxListedVoices=50` altında olduğu için kısaltma satırı görünmedi (bu hesapta
+50'den fazla ses yok — MT-MM-104 bu senaryoyu gerçek sağlayıcıyla test
+edemez, otomatik teste bırakılmalı). ElevenLabs panelinde bu çağrı ayrı bir
+karakter/dakika tüketimi YARATMADI (`GET /v2/voices`).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-053 — `speak` tool çağrısı `tool_invocations`'a `usage_unit=characters` ile yazılır
+
+**Gerçek sonuç**
+MT-MM-046'nın `run_id`'siyle: `usage_unit='characters'`,
+`usage_quantity=8.0`, `usage_estimated=false`, `cost=0.00088`,
+`cost_currency='USD'`.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-054 — `transcribe` tool çağrısı `usage_unit=seconds` ile yazılır
+
+**Gerçek sonuç**
+MT-MM-048'in `run_id`'siyle: `usage_unit='seconds'`,
+`usage_quantity≈1.997` — sesin gerçek uzunluğuna yakın.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-055 — `POST /api/voice/speak` (operatör yolu) `tool_invocations`'a hiç satır yazmaz
+
+**Gerçek sonuç**
+`tool_name='speak' AND created_at > now()-5min` sayımı TAM OLARAK `4` —
+bu, agent üzerinden yapılan 4 gerçek `speak` çağrısıyla (MT-MM-046 + üç
+MT-MM-047 denemesi) birebir eşleşiyor. MT-MM-040'ın operatör çağrısı (aynı
+5 dakikalık pencerede) HİÇ satır eklemedi.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
