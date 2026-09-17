@@ -1278,16 +1278,27 @@ curl -s -i -X POST "$APU/api/runs/$ORPHANED_RUN_ID/replay" -H "$APB" \
 ```
 
 **Beklenen sonuç (şüphe — bu case'in kendisi ölçer)**
-- Adım 1: muhtemelen `404` — bu manuel testin SQL ile ürettiği yapay öksüz
-  satırın gerçek bir `RunInputRecord`'u yoktur (`InMemoryRunInputStore`'a
-  hiç yazılmadı; süreç yeniden başlatılınca bellek-içi depo da sıfırlandı).
-  GERÇEK bir öksüz kalma senaryosunda (gerçek bir süreç çöküşü) girdi
-  ÇÖKMEDEN ÖNCE zaten yazılmış olurdu — bu ayrım not düşülür.
+> 🚨 **Doküman düzeltmesi (2026-09-17 koşumu, ap-s3).** Bu ortam PostgreSQL
+> kalıcılığıyla kurulu; `IRunInputStore`'un kayıtlı uygulaması
+> `InMemoryRunInputStore` DEĞİL `SqlRunInputStore`'dur (bkz. `src/
+> Tracon.PostgreSql/TraconPostgreSqlBuilderExtensions.cs`) — süreç yeniden
+> başlasa da girdi kaybolmaz. `InMemoryRunInputStore` yalnız hiçbir
+> kalıcılık sağlayıcısı kayıtlı DEĞİLKEN devreye giren varsayılandır.
+> Aşağıdaki "muhtemelen 404" beklentisi bu nedenle bu ortamda GEÇERSİZDİR.
+- Adım 1: `200` — girdi kaydı GERÇEKTEN vardır (`RecordRunInput` varsayılan
+  `true`, PostgreSQL kalıcılığı süreç yeniden başlasa da korur).
 - Adım 2 (girdi varsa): `RunReplayService.PrepareAsync` kaynak çalıştırmanın
   `Status`'una bakmaz (yalnız girdi ve agent tanımına bakar); `Failed`/
   `Infrastructure` olması oynatmayı ENGELLEMEMELİDİR — `200` beklenir.
   Doğrularsa bu, uzlaştırmayla kapanmış bir çalıştırmanın hâlâ
   incelenebilir/tekrarlanabilir kaldığını KANITLAR.
+  > 🚨 Bu adım `support` örnek agent'ıyla İZOLE ÖLÇÜLEMEDİ (koşuma bkz.) —
+  > `support` kodda tanımlı (persistent definition YOK) ve onay gerektiren
+  > bir tool (`cancel_order`) taşıyor; bu ikisi `ReplayTools`/`NoTools`'u ve
+  > `LiveTools`'u AYRI AYRI, `Status`'tan BAĞIMSIZ nedenlerle engelliyor.
+  > `Status`'un kendisinin oynatmayı engelleyip engellemediği bu ortamda
+  > gösterilemedi; farklı bir (persistent definition'lı, onaysız-tool'lu)
+  > agent gerektirir.
 
 ---
 
@@ -1313,6 +1324,15 @@ Bu bölümdeki her case, `support` agent'ına bağlı **oturumlu** bir çalışt
 kurar (`sessionId` verilir), sonra o çalıştırmayı SQL ile "10 dakika önce
 başlamış, hâlâ çalışıyor" durumuna sokar. §5'in ortam değişkenleri (`APB`,
 `APU`, `PG`) geçerlidir.
+
+> 🚨 **Doküman düzeltmesi (2026-09-17 koşumu, ap-s3).** `support` — ve
+> örnek uygulamanın kataloğundaki DİĞER on bir agent'ın hepsi — kodda
+> tanımlıdır (`origin:"Code"`), kalıcı bir tanım TAŞIMAZ. `RunContinuation`
+> kalıcı bir tanım gerektirir (`TraconException`: "a code-defined or
+> deleted agent cannot be continued"); `support` ile başarılı bir devam
+> koşusu ASLA üretilemez. Bu bölümün "mutlu yol" case'leri (`061`, `062`,
+> `067`) `POST /api/agents` ile üretilen kalıcı bir klon (`durability-support`
+> — `support` ile aynı tool'lar) kullanılarak koşuldu.
 
 ### MT-RES-060 — Varsayılan kapalı: `RunContinuation:Enabled=false` iken öksüz koşu devam ETMEZ
 
@@ -1633,11 +1653,16 @@ $PG -c "SELECT count(*) FROM tracon.runs WHERE started_at > now() - interval '15
 3. Bağlantıya tıkla.
 
 **Beklenen sonuç**
-- Özet metninde `"..., continued from <kısaltılmış kaynak kimliği>"`
-  (`en`) / `"..., devam ettiği koşu <kısaltılmış kimlik>"` (`tr`) biçiminde
-  bir ibare vardır — `replayOfRunId` ile AYNI görsel desende (alt çizgili
-  mono bağlantı).
-3. Tıklamak kaynak çalıştırmanın (`$SRC`) sayfasına GÖTÜRÜR.
+> 🚨 **Doküman düzeltmesi (2026-09-17 koşumu, ap-s3).** İlişki özet
+> metninde SATIR OLARAK görünmüyor — `run-detail.tsx` satır 250-255'te
+> `continuedFromRunId` (ve `replayOfRunId`, `parentRunId`, `sessionId`)
+> başlığın yanındaki "Related" AÇILIR MENÜSÜNÜN bir ögesi olarak sunuluyor.
+
+- Adım 2: "Related" düğmesine tıklanınca açılan menüde `"continued from
+  01a0b089-eff…9050f"` (`runDetail.continuationOf` çeviri anahtarı +
+  kısaltılmış kimlik) bir menü ögesi olarak görünür.
+- Adım 3: menü ögesine tıklamak kaynak çalıştırmanın (`$SRC`) sayfasına
+  GÖTÜRÜR.
 
 ---
 
