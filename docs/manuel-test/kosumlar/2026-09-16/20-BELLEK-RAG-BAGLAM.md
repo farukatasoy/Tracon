@@ -465,3 +465,68 @@ doğru uyguluyor, kusur yok. Düzeltilmiş beklenen sonuç birebir örtüştü.
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
+
+## 6. `EnableVectorSearch` doğrulama hataları (§6)
+
+**Yöntem notu.** Uygulama PostgreSQL/SQLite/SQL Server bağlantı dizgileri
+BOŞ (tamamen bellek içi) olarak yeniden başlatıldı (eski PID `39547`
+sonlandırıldı, yeni PID `42573`, port 5083) — `/health` → `Degraded`
+(beklenen, depo yok).
+
+### MT-MEM-025
+
+**Doküman düzeltmesi.** Spec'in Türkçe `title`/`detail` beklentisi
+gerçek İngilizce metinle değiştirildi (K-228).
+
+**Gerçek sonuç**
+Dört uç da (`POST .../documents`, `GET .../documents`, `POST .../search`,
+`DELETE .../documents/x`) `HTTP: 501` döndü, `title`: `"Knowledge base not
+supported"`, `detail`: `"An IVectorSearchStore (today only PostgreSQL:
+UsePostgreSql()) AND an IEmbeddingGenerator<string, Embedding<float>>
+must both be registered."` — dördü de birebir aynı, düzeltilmiş beklenen
+sonuçla örtüştü. `IVectorSearchStore` hiç kayıtlı değilken sessizce boş
+sonuç DÖNMÜYOR (K1 gereksinimi doğrulandı).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-MEM-028
+
+**Doküman düzeltmesi.** Aynı K-228 gerekçesiyle spec'in Türkçe mesaj
+beklentisi İngilizce metinle değiştirildi.
+
+**Gerçek sonuç**
+`EnableVectorSearch:true` bir tanım (`manuel-vektor-yok`) doğrulandı →
+`valid:false`, `messages[0].message`: `"Agent 'manuel-vektor-yok' wants
+semantic search, but IVectorSearchStore is not registered (today only
+PostgreSQL: UsePostgreSql())."` — düzeltilmiş beklentiyle birebir örtüştü.
+Sessizce geçmiyor, derleme hatası veriyor (K4/K-343 doğrulandı).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-MEM-029
+
+**Yöntem notu.** Uygulama PostgreSQL AÇIK, `Tracon__Providers__OpenAI__ApiKey`
+BOŞ olarak yeniden başlatıldı (eski PID `42573` sonlandırıldı, yeni PID
+`42950`, port 5083, `mt_s3` şeması) — `/health` → `Degraded` (beklenen,
+OpenAI eksik). Örnek uygulama bu modda model sağlayıcısı olarak `echo`
+kaydediyor (`Program.cs:149`), spec'in öngördüğü gibi.
+
+**Doküman düzeltmesi.** Aynı K-228 gerekçesiyle spec'in Türkçe mesaj
+beklentisi İngilizce metinle değiştirildi.
+
+**Gerçek sonuç**
+`{provider:"echo", model:"echo-1"}` modelli, `EnableVectorSearch:true`
+bir tanım (`manuel-gomu-yok`) doğrulandı → `valid:false`,
+`messages[0].message`: `"Agent 'manuel-gomu-yok' wants semantic search,
+but IEmbeddingGenerator<string, Embedding<float>> is not registered."` —
+düzeltilmiş beklentiyle birebir örtüştü. PostgreSQL (`IVectorSearchStore`)
+kayıtlı olsa BİLE `IEmbeddingGenerator` eksikken derleme hatası veriyor,
+sessizce geçmiyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---

@@ -1186,10 +1186,11 @@ curl -s -w "\nHTTP: %{http_code}\n" -X DELETE "$APU/api/knowledge/manuel-bilgi/d
 
 **Beklenen sonuç**
 - Dördü de `HTTP: 501`.
-- `title` tam olarak: `Bilgi tabani desteklenmiyor`.
-- `detail` tam olarak: `Bir IVectorSearchStore (bugun yalniz PostgreSQL:
-  UsePostgreSql()) VE bir IEmbeddingGenerator<string, Embedding<float>>
-  birlikte kayitli olmalidir.`
+- `title` tam olarak: `Knowledge base not supported` (K-228 — bu case'in
+  Türkçe metni 2026-09-18'de koşum sırasında düzeltildi).
+- `detail` tam olarak: `An IVectorSearchStore (today only PostgreSQL:
+  UsePostgreSql()) AND an IEmbeddingGenerator<string, Embedding<float>>
+  must both be registered.`
 
 **Ön koşulu geri al**
 ```bash
@@ -1315,9 +1316,10 @@ curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: applicati
 
 **Beklenen sonuç**
 - `valid: false`.
-- `messages[0].message` tam olarak: `'manuel-vektor-yok' agent'i anlamsal
-  arama istiyor ancak IVectorSearchStore kayitli degil (bugun yalniz
-  PostgreSQL: UsePostgreSql()).`
+- `messages[0].message` tam olarak: `Agent 'manuel-vektor-yok' wants
+  semantic search, but IVectorSearchStore is not registered (today only
+  PostgreSQL: UsePostgreSql()).` (K-228 — bu case'in Türkçe metni
+  2026-09-18'de koşum sırasında düzeltildi.)
 
 **Ön koşulu geri al**
 ```bash
@@ -1363,9 +1365,10 @@ curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: applicati
 
 **Beklenen sonuç**
 - `valid: false`.
-- `messages[0].message` tam olarak: `'manuel-gomu-yok' agent'i anlamsal
-  arama istiyor ancak IEmbeddingGenerator<string, Embedding<float>> kayitli
-  degil.`
+- `messages[0].message` tam olarak: `Agent 'manuel-gomu-yok' wants semantic
+  search, but IEmbeddingGenerator<string, Embedding<float>> is not
+  registered.` (K-228 — bu case'in Türkçe metni 2026-09-18'de koşum
+  sırasında düzeltildi.)
 
 **Ön koşulu geri al**
 ```bash
