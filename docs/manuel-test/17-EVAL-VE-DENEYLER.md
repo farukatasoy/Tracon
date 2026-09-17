@@ -1451,9 +1451,21 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/experiments/destek-talimat-
   "minSampleSize": 3,
   "maxErrorRateDelta": 0.2,
   "rampSteps": [25, 50, 100],
-  "rampIntervalHours": 1
+  "rampInterval": "01:00:00"
 }'
 ```
+
+🚨 **Doküman düzeltildi (koşum, 2026-09-17, ap-s3).** Spec `rampIntervalHours`
+(int) alanı gönderiyordu — istek gövdesi doğrudan `CanaryPolicy` domain
+tipine bağlanıyor (`ExperimentEndpoints.cs:110`,
+`.Accepts<CanaryPolicy>()`) ve o tipte böyle bir alan yok, yalnız
+`RampInterval` (`TimeSpan`, JSON'da `"HH:MM:SS"` dizgesi,
+`CanaryPolicy.cs:63`). Yanlış alan adı **sessizce yok sayılıyor** —
+`400` vermiyor, yalnız sınıfın varsayılanı (`TimeSpan.FromHours(1)`)
+geçerli oluyor. Ürün kusuru değil (istek gövdesi zaten domain tipine
+1:1 bağlanıyor, dokümante edilmeyen bir "DTO" yok), ama sessiz yok sayma
+riskli — `rampInterval`i KISA tutmak isteyen bir tüketici (MT-EVAL-075
+gibi) fark etmeden hep 1 saat alır.
 
 **Beklenen sonuç**
 - `HTTP: 200`.
@@ -1566,9 +1578,11 @@ Sınır senaryosu.
 
 **Ön koşul**
 - Yeni bir iki-varyantlı deney (`kanarya-saglikli`), kanarya politikası
-  `rampSteps: [25, 50, 100]`, `minSampleSize: 3`, `rampIntervalHours: 0`
-  (test hızlandırmak için — gerçek `TimeSpan` string'i `"0:00:01"` gibi
-  çok kısa bir değer kullanılabilir). `AutoRollbackEnabled=true` (MT-EVAL-074'ten).
+  `rampSteps: [25, 50, 100]`, `minSampleSize: 3`, `rampInterval: "00:00:01"`
+  (🚨 MT-EVAL-071'de düzeltilen alan adı — `rampIntervalHours` DEĞİL,
+  yoksa sessizce `01:00:00` varsayılanına düşer ve bu case'in "60 saniye
+  içinde ramp-up gözlenir" iddiası hiç doğrulanamaz).
+  `AutoRollbackEnabled=true` (MT-EVAL-074'ten).
 
 **Adımlar**
 1. Kanarya varyantına 3+ BAŞARILI run üret (kontrol varyantına da eşit

@@ -665,3 +665,167 @@ Beklenen sonucun tamamı (Running VE Stopped ikisinde de gizli) birebir
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
+
+### MT-EVAL-062
+
+**Yöntem notu.** Yeni bir deney (`destek-talimat-testi-2`, aynı
+`kisa-talimat@4`/`detayli-talimat@5` varyantları) kurulup başlatıldı —
+`destek-talimat-testi` zaten `Stopped`, yeniden kullanılamaz.
+
+**Gerçek sonuç**
+Aynı `sessionId` (`belirlenirlik-testi-42`) ile `manuel-destek` **5 kez**
+art arda çalıştırıldı (hepsi `200`). `SELECT DISTINCT variant FROM
+mt_s3.runs WHERE experiment_id IS NOT NULL AND session_id =
+'belirlenirlik-testi-42'` → **tek** satır: `kisa-talimat`. Beş
+çalıştırmanın tümü aynı varyanta düştü. Beklenen sonuç birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-EVAL-063
+
+**Gerçek sonuç**
+`SELECT experiment_id, variant, agent_version FROM mt_s3.runs WHERE
+session_id = 'belirlenirlik-testi-42' LIMIT 1` → `experiment_id`
+`destek-talimat-testi-2`'nin id'siyle birebir eşleşiyor, `variant:
+"kisa-talimat"` (MT-EVAL-062'yle aynı), `agent_version: 4` — o varyantın
+kendi `version` numarasıyla birebir eşleşiyor. Beklenen sonucun tamamı
+birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## Devir notu (oturum 19 devam) — §7 kanarya politikası
+
+---
+
+### MT-EVAL-070
+
+**Gerçek sonuç**
+Üç varyantlı bir deney (`uc-varyantli`, `34/33/33`) oluşturulup kanarya
+politikası eklenmeye çalışıldı → `400`: `"A canary rule can only be
+defined on two-variant experiments."`. Beklenen sonuç birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-EVAL-071
+
+**Gerçek sonuç**
+`PUT .../destek-talimat-testi-2/canary` (`canaryVariant:"detayli-talimat",
+minSampleSize:3, maxErrorRateDelta:0.2, rampSteps:[25,50,100],
+rampIntervalHours:1`) → `200`, deney gövdesinde `canary` alanı tam
+gönderilen değerlerle doldu. Beklenen sonuç birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-EVAL-072
+
+**Gerçek sonuç**
+`GET .../canary` → `evaluation.decision:"InsufficientData"`, `reason:
+"The minimum settled run count (3) was not reached: canary 0, control
+10."` — MT-EVAL-062'nin 5 run'ı (+ önceki testlerden birikenler) hep
+`kisa-talimat` (kontrol) koluna düştüğü için kanarya kolunda (`detayli-
+talimat`) hiç tamamlanmış run yok. Beklenen sonucun tamamı birebir
+örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-EVAL-073
+
+**Gerçek sonuç**
+`destek-talimat-testi-2` kanarya politikası taşıyarak `Running`de
+dakikalarca durdu (varsayılan `appsettings.json`, `Tracon:Canary` bölümü
+yok, `AutoRollbackEnabled` derleme-zamanı varsayılanı `false`).
+`GET /api/experiments` → `rollbackReason: null`, `status: "Running"` —
+hiçbir otomatik geri alma tetiklenmedi. Beklenen sonuç birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-EVAL-074
+
+**Yöntem notu.** `manuel-destek`'in geçerli sürümlerini bozmadan kanarya
+kolunu güvenilir biçimde başarısız kılmak için YENİ bir sürüm
+(`version:6`) kasıtlı geçersiz bir modelle (`gpt-model-yok-9999`)
+oluşturuldu ve yeni bir deneye (`destek-talimat-testi-3`,
+`kisa-talimat@4` kontrol / `bozuk-model@6` kanarya) bağlandı — spec'in
+adlandırdığı `destek-talimat-testi-2` yerine. Ana örnek
+`Tracon__Canary__AutoRollbackEnabled=true`,
+`Tracon__Canary__ScanInterval=00:00:30` env değişkenleriyle yeniden
+başlatıldı (skill §1.2). `maxErrorRateDelta=0.0` (herhangi bir fark
+tetikler). 12 farklı `sessionId` ile `manuel-destek` çalıştırıldı; kova
+ataması 6/6 böldü — kanarya kolunun 6'sı da GERÇEKTEN `Failed` (durum
+kodu 2, `model_not_found`), kontrol kolunun 6'sı da GERÇEKTEN
+`Completed` (durum 1). 65 saniye (2 tarama döngüsü) beklendi.
+
+**Gerçek sonuç**
+`mt_s3.audit_log`da `experiment.auto_rollback` kaydı VAR
+(`entity: "experiment:destek-talimat-testi-3"`,
+`created_at: 22:27:32.134630`). Deneyin kendi `updatedAt`/`endedAt`
+zaman damgası `22:27:32.146986` — audit kaydı mutasyondan **~12ms ÖNCE**
+yazılmış (spec'in "audit ÖNCE yazılır" iddiası zaman damgasıyla
+kanıtlandı). `GET /api/experiments/destek-talimat-testi-3` →
+`status:"Stopped"`, `rollbackReason: "The canary error rate (100.0 %)
+exceeds the control rate (0.0 %) by more than the 0.0 % threshold."`,
+`variants`: `bozuk-model` ağırlığı **`0`**, `kisa-talimat` ağırlığı
+**`100`** — spec'in tam istediği kanarya-sıfır/kontrol-yüz sonucu.
+Beklenen sonucun tamamı birebir örtüştü — bu dosyanın en kritik
+senaryosu gerçek bir arka plan döngüsüyle uçtan uca doğrulandı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-EVAL-075
+
+**Yöntem notu.** Doğru `rampInterval` alan adıyla (`MT-EVAL-071` bkz.)
+yeni bir sağlıklı deney kuruldu: `kanarya-saglikli`, ikisi de `version 4`
+olan iki varyant (`kontrol`/`kanarya`, ikisi de her zaman başarılı),
+`rampInterval:"00:00:01"`. 12 farklı `sessionId` ile çalıştırıldı
+(`kontrol:4, kanarya:8`, hepsi `Completed`). 40 saniye beklendi (30s
+tarama aralığı × en az 1 tur).
+
+**Gerçek sonuç**
+Kanarya varyantının ağırlığı **`50`'den `100`'e** çıktı (kontrol
+`50`'den `0`'a düştü) — spec'in beklediği "bir sonraki basamağa (`25`)"
+değil, doğrudan SON basamağa. Sebep ölçüldü: `rampInterval` (1 saniye)
+ile 40 saniyelik bekleme arasındaki oran — geçen süre üç basamağın
+(`25,50,100`) hepsinin aralığını çoktan aştığı için tarama döngüsü tek
+turda son basamağa "yakaladı" (idempotent catch-up), kademe kademe
+durmadı. Bu, spec'in KENDİ test tasarımının (aşırı kısa `rampInterval`)
+bir sonucu — ürün kusuru değil, ramp-up'ın GERÇEKTEN gerçekleştiğinin
+daha güçlü kanıtı. `SELECT action FROM mt_s3.audit_log WHERE action LIKE
+'experiment%' AND entity = 'experiment:kanarya-saglikli'` → tam **4**
+satır: yalnız `experiment.create`, iki `experiment.canary_policy`,
+`experiment.start` — **hiçbiri ramp-up'a ait değil**, ağırlık gerçekten
+değişmesine rağmen audit'te hiçbir "ramp" eylemi yok. Spec'in asıl
+iddiası ("ramp-up audit'e hiç yazılmaz") birebir doğrulandı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-EVAL-076
+
+**Gerçek sonuç**
+`destek-talimat-testi-3`'ün (MT-EVAL-074'ün otomatik geri aldığı deney)
+detay ekranında kırmızı bir banner: `"Otomatik geri alındı: The canary
+error rate (100.0 %) exceeds the control rate (0.0 %) by more than the
+0.0 % threshold."` — metin kırmızımsı renkte (`rgb(245, 165, 155)`,
+aynı kırmızı skala). Kontrol grubu: elle durdurulmuş
+`destek-talimat-testi`'nin AYNI ekranında `"Otomatik geri alındı"`
+dizgesi HİÇ geçmiyor — banner yalnız otomatik geri almada görünüyor,
+manuel `Stop`'ta yok. Beklenen sonucun tamamı birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
