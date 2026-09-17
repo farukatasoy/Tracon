@@ -257,4 +257,73 @@ aşımı hatası yok. `COUNT(*)` tam **39** (78 değil).
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
+# 4 — Diyalekt ve eşzamanlılık
+
+## MT-SQL-030 — WAL modu dosyaları oluşur, `busy_timeout` eşzamanlı yazmayı bekletir
+
+**Gerçek sonuç**
+`-wal`/`-shm` dosyaları oluştu. 20 eş zamanlı `POST /api/agents` isteğinin
+20'si de `201`. `SELECT count(*)` → **20**. Loglarda `SQLITE_BUSY`/
+`database is locked` **sıfır** eşleşme.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SQL-031 — Yabancı anahtar zorlaması açıktır: agent silindiğinde sürüm satırları CASCADE ile gider
+
+**Gerçek sonuç**
+Silme öncesi sürüm sayısı **2**. `DELETE` → `204`. Silme sonrası sürüm
+sayısı **0** — `PRAGMA foreign_keys = ON` etkin, CASCADE çalıştı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SQL-032 — `TablePrefix` değiştirildiğinde aynı dosyada bağımsız bir tablo seti oluşur
+
+**Gerçek sonuç**
+`TablePrefix=ikinci_` ile açıldı: "Tracon applied 38 migration(s). Schema:
+ikinci_." — 38, MT-SQL-020'de kurulan güncel sayı. Hem `tracon_tenants`
+hem `ikinci_tenants` sorguları **1** döndü — iki önek aynı dosyada
+çakışmadan bir arada.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+# 5 — SQL Server'a özgü
+
+## MT-SQL-040 — Maliyet ondalık hassasiyeti kesilmeden geri döner
+
+**Gerçek sonuç — ortam eksiği tamamlandı.** İlk deneme `cost` alanının TÜM
+alt alanlarını `null` verdi — kök neden `appsettings.json`'ın `Pricing`
+bloğunda `openai`/`gpt-5.4-mini` için HİÇ fiyat tanımlı DEĞİL (yalnız Voice
+ve Images fiyatları var) — bu, case'in kendi koşullu dalı ("RunPricingResolver
+modeli tanıyorsa") zaten öngörüyor. `00-INDEKS.md`/`12-GOZLEMLENEBILIRLIK-
+MALIYET.md`'nin kurduğu yerleşik desen kullanıldı:
+`Tracon:Pricing:openai:gpt-5.4-mini:Input=0.15` ve `:Output=0.60` (env
+değişkeni, `user-secrets`'a yazılmadı). Yeniden koşulunca: `cost.inputCost
+= 5.22e-05`, `cost.outputCost = 1.2e-05`, ikisi de pozitif ve NULL DEĞİL.
+SQL'den doğrudan okunan değer BİREBİR aynı: `input_cost=.0000522000,
+output_cost=.0000120000` — hiçbir basamak tam sayıya yuvarlanmadı
+(`decimal(20,10)` doğrulandı).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SQL-041 — `SchemaName` değiştirildiğinde aynı veritabanında bağımsız bir tablo seti oluşur
+
+**Gerçek sonuç**
+`SchemaName=ikinci` ile açıldı: "Tracon applied 39 migration(s). Schema:
+ikinci." Hem `tracon` hem `ikinci` şemalarında **48** tablo (MT-SQL-024'te
+kurulan güncel sayı, spec'in "44"ü değil) — iki şema tam bağımsız, birbirinden
+etkilenmedi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SQL-042 — `mcr.microsoft.com/mssql/server` bu makinede başlar
+
+**Gerçek sonuç**
+`docker inspect ap-mssql` → `mcr.microsoft.com/mssql/server:2022-latest`,
+`Status: running, ExitCode: 0` — K-386'nın güncellemesi doğrulandı, GERÇEK
+`mssql/server` bu makinede sorunsuz çalışıyor. Bu dosyanın SQL Server
+bölümündeki (`010`–`041`) HER case zaten bu gerçek imaja karşı koşuldu —
+`azure-sql-edge` ikamesine hiç gerek kalmadı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
 ---
