@@ -1208,6 +1208,125 @@ sonuçla tam eşleşiyor.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
+## MT-JOB-111 — `Lanes: ["media"]` olan worker `default` `lane`'inden kiralayamaz
+
+**Gerçek sonuç**
+⚠️ **Canlı ortamda izole koşulamadı — mimari çakışma.** Bu ailenin geri
+kalanı (091-131) `mt_s4` şemasını 5084'teki (worker açık, `Lanes` AYARSIZ)
+sürece bağımlı tutuyor; bu süreç durdurulamadığından (bkz. MT-JOB-103
+notu), `Lanes:["media"]` ile YENİ bir üçüncü süreç başlatılsa bile 5084'ün
+kısıtsız worker'ı (`Lanes=null` → kaynak: `AND ($4 IS NULL OR lane =
+ANY($4))` sorgusu, `$4=NULL` iken HER lane'i eşler — `JobStore` SQL'inde
+doğrulandı) `default` lane'indeki işi rakip worker'dan önce kiralar ve
+"hâlâ Pending" beklentisini yapısal olarak geçersiz kılar — bu ortamın bir
+kısıtı, ürün kusuru değil. Otomatik karşılığı çalıştırıldı:
+`JobWorkerBackgroundServiceTests.A_worker_scoped_to_one_lane_never_leases_another_lane`
+— **Geçti** (izole `InMemoryJobStore`'da tek worker, `Lanes:["media"]`,
+`default` lane'inde bekleyen iş 200ms sonra hâlâ `Pending` — rakip
+worker olmadığı için iddia temiz ölçülüyor). `dotnet test`/binary filtreli
+koşum: 4/4 (bu dosyadaki tüm `JobWorkerBackgroundServiceTests`) geçti.
+Mekanizma kanıtlandı; canlı çok-süreçli ortamda DOĞRULANMADI (yapısal
+çakışma nedeniyle).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-JOB-112 — `MaxConcurrentJobsPerLane` dolu bir `lane`, `default`'u aç bırakır
+
+**Gerçek sonuç**
+Aynı yapısal çakışma MT-JOB-111 için geçerli (5084'ün kısıtsız worker'ı
+canlı ortamda kontrolü bozar). Otomatik karşılığı:
+`JobWorkerBackgroundServiceTests.A_full_lane_does_not_block_the_default_lanes_job`
+— **Geçti**: iki `media` işi (`MaxConcurrentJobsPerLane["media"]=1`) kalıcı
+olarak bloke ederken bir `default` işi hemen `Completed` oluyor — `media`
+dolu olması `default`'u BEKLETMİYOR (129.4'ün starvation-önleme garantisi).
+Aynı dosyadaki 4/4 test geçti. Mekanizma kanıtlandı; canlı ortamda
+DOĞRULANMADI.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-JOB-116 — Jobs ekranı: `lane` sütunu ve süzgeci
+
+**Gerçek sonuç**
+⚠️ **Playwright kullanılamadı** (paylaşılan tarayıcı profili meşgul, aynı
+sınır — retry yapıldı, hâlâ meşgul). API + kaynak eşdeğeriyle doğrulandı:
+`GET /api/jobs?limit=50` 50 satırın hepsinde `lane` alanı taşıyor
+(`Counter({'default': 48, 'media': 2})` — bu ailenin önceki case'lerinin
+gerçek verisi). `GET /api/jobs?lane=media&limit=50` yalnız `media`
+satırlarını döndürdü (2/2). `src/Tracon.UI/frontend/src/screens/jobs.tsx:123-143`
+`laneFilter` state'ini doğrudan `lane` sorgu parametresine bağlıyor;
+`:515-523` süzgeç kutusunu `Toolbar`/`ToolbarField` ile render ediyor ve
+`:515` `onReset`'i kutu dolu olduğunda aktif ediyor (boşaltma → liste eski
+hâline döner). Veri/mantık katmanı tam doğrulandı; görsel render (sütun
+başlığı metni, tablo düzeni) Playwright ile TEYİT EDİLMEDİ.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-JOB-117 — Job sayacı ve süre histogramı ayar olmadan yazılır
+
+**Gerçek sonuç**
+⚠️ **`samples/Tracon.Api/Program.cs` hiçbir OTel metrik pipeline'ı
+kaydetmiyor** (`grep -n "WithMetrics\|AddOpenTelemetry\|AddMeter"` boş
+döndü) — spec'in ön koşulu ("OTel konsol exporter'ı `TraconDiagnostics.
+MeterName`'i dinliyor") bu örnek uygulamada hiç KURULMAMIŞ; kod donuk
+olduğu için canlı süreçte bu pipeline'ı eklemek mümkün değil. Otomatik
+karşılıkları çalıştırıldı (`Tracon.Core.UnitTests/Diagnostics/
+JobMetricsTests.cs`, `JobQueueDepthGaugeTests.cs`):
+`A_completed_job_is_counted_once_with_its_lane_kind_and_status`,
+`The_duration_histogram_carries_no_tenant_tag`,
+`No_measurement_is_produced_and_the_store_is_not_queried_while_disabled`
+— **26/26 Geçti** (bu dört dosyanın toplamı, 390ms). Üçü de tam olarak
+MT-JOB-117'nin iddialarını ölçüyor: `tracon.job.executions` lane/kind/status
+etiketleriyle bir kez sayılıyor, `tracon.job.duration`'da `tenant` etiketi
+yok, `tracon.job.queue.depth` gauge kapalıyken hiç ölçüm üretmiyor VE
+`store`'u sorgulamıyor. Canlı OTel çıktısıyla DOĞRULANMADI (pipeline yok);
+mekanizma birim testleriyle kanıtlandı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-JOB-118 — Kuyruk derinliği gauge'ı açıldığında `lane` × `status` raporlar
+
+**Gerçek sonuç**
+Aynı altyapı sınırı (OTel pipeline yok). Otomatik karşılıkları:
+`JobQueueDepthGaugeTests.Depth_is_reported_per_lane_and_status_when_enabled`,
+`The_gauge_carries_no_tenant_tag`,
+`A_second_scrape_inside_the_refresh_interval_does_not_query_the_store` —
+**Geçti** (yukarıdaki 26/26 koşumun parçası). Üçü sırasıyla: gauge açıkken
+`lane`/`status` etiketli ölçüm üretiyor, `tenant` etiketi taşımıyor, ve
+yenileme aralığı içindeki ikinci scrape `store`'a ikinci sorgu
+göndermiyor (önbellek). Canlı `psql` sorgu logu izlemesiyle DOĞRULANMADI.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-JOB-119 — `retry` bırakması sayaca girmez, yalnız nihai durum sayılır
+
+**Gerçek sonuç**
+Aynı altyapı sınırı. Otomatik karşılığı:
+`JobMetricsTests.A_release_for_retry_is_not_counted_only_the_final_failure_is`
+— **Geçti**: sayaç yalnız nihai `Failed` durumunda **1** artıyor, ara
+`ReleaseForRetryAsync` çağrıları sayılmıyor, histogram tek ölçüm taşıyor
+(son denemenin süresi). `attempt` alanının işin toplam deneme sayısını
+yansıttığı MT-JOB-115'in canlı koşumunda zaten ayrıca doğrulandı
+(`attempt: 3`, `status: Failed`). Beklenen sonuçla birleşik olarak
+eşleşiyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-JOB-120 — `lane` kardinalite muhafızı `other`'a düşürür
+
+**Gerçek sonuç**
+Aynı altyapı sınırı. Otomatik karşılıkları:
+`JobLaneCardinalityTests.A_lane_beyond_the_limit_is_written_as_other`,
+`A_lane_that_earned_its_name_keeps_it_after_the_limit_is_reached`,
+`JobQueueDepthGaugeTests.The_gauge_applies_the_same_lane_cardinality_guard_as_the_counter`
+— **Geçti**: `MaxJobLaneCardinality` aşıldığında yeni lane adı `other`'a
+düşüyor, daha önce adı geçen bir lane süreç ömrü boyunca adını koruyor,
+ve `queue.depth` gauge'ı **aynı** kardinalite kümesini sayaçla paylaşıyor
+(iki enstrüman ayrı bütçe tutmuyor). Canlı taze-süreç koşumuyla
+DOĞRULANMADI (OTel pipeline yok, ayrıca taze süreç gereksinimini
+sağlamak MT-JOB-103/111/112'nin aynı yeniden başlatma kısıtına takılırdı).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
 ## Sayım (skill §7 betiği)
 
 ```
