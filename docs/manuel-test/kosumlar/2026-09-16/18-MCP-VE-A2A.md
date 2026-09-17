@@ -189,6 +189,80 @@ empty. No authentication header will be sent."` Anahtar sonra geri alındı.
 
 ---
 
+# 6 — MCP Sunucusu: `summarizer` Fixture (Faz 50)
+
+## MT-MCP-030 — Varsayılan KAPALI: yalnız beyaz listedeki agent görünür
+
+**Gerçek sonuç**
+`tools/list` TAM OLARAK bir tool döndü. `Bos_beyaz_liste_hicbir_tool_dondurmez`
+testi (`McpServerEndpointTests.cs:14`) bu genel garantiyi zaten kapsıyor;
+bu koşum örnek uygulamanın YALNIZ `summarizer`'ı açtığını doğruladı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MCP-031 — `summarizer` fixture: `tools/list` gerçek çıktısı — spec düzeltildi
+
+**Gerçek sonuç**
+`tools/list` → tam bir tool: `tracon_summarizer` (spec `tracon_ozetleyici`
+yazıyordu — Aşama 0'da kapatılan bayat Türkçe ad örüntüsü, düzeltildi),
+`inputSchema` yalnız `message` (string, required). Başka hiçbir agent
+listede yok.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MCP-032 — `tools/call` gerçek çıktı üretir
+
+**Gerçek sonuç**
+`HTTP 200`, `result.content[0].text` gerçek bir 3-madde özet
+("- Bugün hava çok güzeldi. - İş yerinde her şey yolunda gitti. - Toplantılar
+verimli geçti."). `GET /api/runs?agentName=summarizer` yeni bir kök run
+gösterdi (`depth:0, status:Completed`).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MCP-033 — `message` alanı BOŞ/EKSİKSE hata döner
+
+**Gerçek sonuç**
+`{"isError":true, "content":[{"text":"'message' argument cannot be empty."}]}`
+— boş mesajla agent çalıştırılmadı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MCP-034 — Onay gerektiren tool taşıyan agent'ı dışa açmak → UYGULAMA BAŞLAMAZ
+
+**Gerçek sonuç**
+`samples/Tracon.Api/Program.cs`'te GEÇİCİ değişiklik istiyor — kural 1
+kod donmasını hiçbir istisna olmadan koşum boyunca zorunlu kılıyor
+(MT-MM-120-122 ile aynı emsal, dosya 19). Kapanışa ertelendi.
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MCP-035 — Canlı katalog: yeni bir agent DB'ye eklenince MCP sunucusu YENİDEN BAŞLATILMADAN görünür
+
+**Gerçek sonuç**
+Spec'in kendi düzeltilmiş yordamı da `Program.cs`'e GEÇİCİ bir satır
+ekliyor (`o.ExposedAgents.Add("manuel-canli-katalog")`) — `summarizer`
+KOD-tanımlı olduğu için (`isEditable:false`) düzenlenemiyor, ve
+`ExposedAgents` yalnız kayıt-zamanlı (config'ten okunmuyor, MT-MCP-011 ile
+aynı ilke). Kod donması nedeniyle kapanışa ertelendi (MT-MCP-034 ile aynı
+gerekçe).
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MCP-036 — Gerçek bir MCP istemcisiyle (Claude Code CLI) uçtan uca el sıkışma
+
+**Gerçek sonuç**
+`claude mcp add --transport http tracon-manuel-test
+http://localhost:5081/tracon/mcp -s local --header "Authorization: Bearer
+manuel-test-token-2026"` → `claude mcp get tracon-manuel-test` →
+**`Status: ✔ Connected`**. Tracon'in MCP yüzeyi bağımsız, gerçek bir
+istemciyle (Claude Code CLI) doğrulandı. Case sonrası `claude mcp remove
+tracon-manuel-test -s local` ile temizlendi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 # 4 — Keşif, İzolasyon ve Sağlamlık (Faz 22) + § 5 kurulum
 
 ## MT-MCP-015 — Var olmayan bir MCP sunucusu kaydetmek AGENT KAYDINI ETKİLEMEZ
