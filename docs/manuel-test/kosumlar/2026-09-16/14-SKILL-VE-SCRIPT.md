@@ -318,3 +318,109 @@ HİÇBİR onay kartı belirmedi, `load_skill` doğrudan çalıştı, sonuç yine
 `load_skill` için de `cancel_order` ile aynı mekanizmayla çalışıyor.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-SKILL-040 — Varsayılan durumda HERHANGİ bir script uzantısı reddedilir
+
+**Gerçek sonuç**
+`HTTP: 400`, `title: "Script extension not allowed"` (İngilizce —
+K-228), `detail: "There is no registered interpreter for the 'py'
+extension."`. Tam beklenen.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-SKILL-041 — `Interpreters`'a `sh` eklenince kayıt başarılı olur — ÖNERME TERSİNE ÇEVRİLDİ
+
+🚨🚨 **En önemli bulgu (bu aile için).** Spec'in önermesi ("Interpreters
+sözlüğü IConfiguration'dan HER ZAMAN bağlanır, `UseSkillScripts()`'ten
+BAĞIMSIZ, config-only açılabilir") artık **DOĞRU DEĞİL** — kod, bunun tam
+TERSİNİ yapıyor.
+
+**Gerçek sonuç**
+`Tracon__Skills__Scripts__Interpreters__sh=/bin/bash` env değişkeniyle
+yeniden başlatıldı (spec'in adımı birebir), env değişkeninin PROCESS'e
+ulaştığı `ps eww` ile doğrulandı — ama `PUT .../scriptli-skill`
+(`extension:"sh"`) yine `HTTP: 400`, `"There is no registered interpreter
+for the 'sh' extension."` verdi (MT-SKILL-040 ile AYNI hata). Kaynak
+okundu: `TraconServiceCollectionExtensions.Binding.Core.cs:190-200`
+şunu söylüyor — "`AllowStoredScripts`, `SkillRoots` ve `Interpreters`
+artık BİLİNÇLİ OLARAK config'ten bağlanmıyor. Üçü de sunucuda
+çalıştırılabilecek şeyi genişletir... `Tracon__Skills__Scripts__Interpreters__sh=/bin/sh`
+gibi bir ortam değişkeni uygulamanın HİÇ ONAYLAMADIĞI bir yorumlayıcı
+ekler." — yani bu TAM OLARAK spec'in önerdiği senaryo, ve kasıtlı olarak
+KAPATILMIŞ (`Enabled`/`PlatformIsolationAcknowledged` hâlâ config'ten
+bağlanıyor — bunlar yalnız DARALTABİLİR, genişletemez).
+
+**Sonuç:** Bu, ürün kusuru DEĞİL — tam tersi, spec yazıldıktan SONRA
+yapılmış bir güvenlik SIKILAŞTIRMASI (config yoluyla keyfi yorumlayıcı
+ekleme yolu kapatılmış). §3'ün geri kalanı (042-046) ve §6/§7'nin
+(050-063) script gerçekten çalıştırma case'leri artık YALNIZ kod
+değişikliğiyle test edilebilir. `samples/Tracon.Api/Program.cs`'e geçici
+`tracon.UseSkillScripts(o => { o.PlatformIsolationAcknowledged = true;
+o.Interpreters["sh"] = "/bin/bash"; })` eklendi (MT-SEC-070/MT-WF-090
+deseni), `dotnet build` (0/0), yeniden başlatıldı. Bu ikinci denemeyle
+`PUT` → `HTTP: 201` — kayıt DB'de duruyor. `Beklenen sonuç` bu bulguyla
+tersine çevrildi; adımlar bölümü "geçici kod değişikliği gerektirir"
+notuyla güncellendi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-SKILL-042 — 11. script eklenirse (limit 10) → `400`
+
+**Gerçek sonuç**
+(Kod-tabanlı `sh` interpreter kaydıyla — bkz. MT-SKILL-041 notu.)
+`HTTP: 400`, `title: "Too many scripts"` (İngilizce — K-228),
+`detail: "A skill may carry at most 10 scripts."`. Tam beklenen.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-SKILL-043 — Aynı skill içinde iki script aynı adı taşırsa → `400`
+
+**Gerçek sonuç**
+`HTTP: 400`, `title: "Script name invalid"` (İngilizce — K-228),
+`detail: "Every script name must be non-empty and unique within the
+skill."`. Tam beklenen.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-SKILL-044 — Geçersiz JSON `parametersSchema` → `400`
+
+**Gerçek sonuç**
+`HTTP: 400`, `title: "Parameter schema invalid"` (İngilizce — K-228),
+`detail: "parametersSchema must be a valid JSON object."`. Tam beklenen.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-SKILL-045 — Script içeriği 64 KB sınırını aşarsa → `400`
+
+**Gerçek sonuç**
+`HTTP: 400`, `title: "Script too large"` (İngilizce — K-228),
+`detail: "Each script may be at most 65536 bytes."`. Tam beklenen.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-SKILL-046 — `scripts.Enabled = false` iken bile script KAYDEDİLİR/OKUNUR
+
+**Gerçek sonuç**
+Kod hâlâ `UseSkillScripts` ile `sh` interpreter'ı taşırken, ayrıca
+`Tracon__Skills__Scripts__Enabled=false` env değişkeniyle DARALTILARAK
+yeniden başlatıldı (kod comment'inin belirttiği "Enabled yalnız
+daraltabilir" kuralı doğrulandı — bu env değişkeni GERÇEKTEN etkili
+oldu, MT-SKILL-041'in aksine). `GET /api/skills/scriptli-skill` →
+`scripts` dizisinde `merhaba` script'i TAM içerikle (`content: "echo
+merhaba-tracon"`) döndü — kayıt asla gizlenmedi. Tam beklenen.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
