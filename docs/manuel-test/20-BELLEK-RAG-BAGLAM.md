@@ -414,15 +414,22 @@ curl -s "$APU/api/runs/<son-runId>/events" -H "$APB" | python3 -m json.tool
   nedeniyle).
 - En az bir run'ın olay listesinde `type: "HistoryCompacted"` bir satır
   vardır.
-- O satırın `text` alanı `"N mesaj ozetlendi"` biçimindedir (`N > 0`) — **strateji
-  `SlidingWindow` olsa bile** metin hep "özetlendi" der (`ObservedCompactionStrategy`
-  tüm stratejiler için aynı sabit metni yazar — bu bir isimlendirme
-  tuhaflığıdır, gerçek bir özetleme çağrısı OLMAYABİLİR; §MT-MEM-009 ile
-  karşılaştırın).
+- O satırın `text` alanı `"N messages compacted"` biçimindedir (`N > 0`
+  — 🚨 doküman düzeltildi, koşum 2026-09-17 ap-s3, kaynak İngilizce'dir,
+  K-228) — **strateji `SlidingWindow` olsa bile** metin hep "compacted"
+  der (`ObservedCompactionStrategy` tüm stratejiler için aynı sabit
+  metni yazar — bu bir isimlendirme tuhaflığıdır, gerçek bir özetleme
+  çağrısı OLMAYABİLİR; §MT-MEM-009 ile karşılaştırın).
 - `payload` alanı `beforeMessages=`, `afterMessages=`, `beforeTokens=`,
   `afterTokens=` alanlarını taşır ve `afterMessages < beforeMessages`.
 
 **Doğrulama sorgusu**
+
+🚨 **Doküman notu (koşum, 2026-09-17, ap-s3):** `text`/`payload` sütunları
+DB'de uygulama-seviyesi şifreli (`$apEnc` zarfı) — bu sorgu yalnız SATIR
+SAYAR (`type=10` var/yok), içeriği OKUYAMAZ; içerik `GET
+/api/runs/{id}/events` üzerinden okunmalı. Ayrıca kendi şerit şeması
+(`mt_s3`) kullanılmalı, `tracon` DEĞİL.
 ```sql
 SELECT r.id, e.seq, e.type, e.text, e.payload
 FROM tracon.run_events e
