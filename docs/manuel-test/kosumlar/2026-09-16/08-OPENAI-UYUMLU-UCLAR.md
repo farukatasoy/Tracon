@@ -164,3 +164,147 @@ BİREBİR aynı.
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
+
+# 2 — `POST /v1/responses` (oturum destekli)
+
+## MT-COMPAT-017 — `model` alanından agent seçilir, mutlu yol
+
+**Gerçek sonuç**
+`HTTP 200`, gerçek OpenAI Responses şeması: `id` `resp_` önekli,
+`object` yok ama `status:"completed"`, `output[0]` mesajı doğru.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-COMPAT-018 — `metadata.entity_id` ile agent seçilir
+
+**Gerçek sonuç**
+`model` verilmeden `metadata.entity_id:"support"` → `HTTP 200`,
+`status:"completed"`.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-COMPAT-019 — Agent seçilmezse `400` + bilinen agent listesi
+
+**Gerçek sonuç**
+`HTTP 400`, mesaj `"Kayitli agent'lar"` yerine İngilizce `"Registered
+agents:"` ile 22 agent adını listeliyor (`support` dahil) — Chat
+Completions'tan (MT-COMPAT-003, liste YOK) farkı doğrulandı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-COMPAT-020 — Bilinmeyen agent `404` + bilinen agent listesi
+
+**Gerçek sonuç**
+`HTTP 404`, `error.type:"model_not_found"`, mesaj hem agent adını hem
+`"Registered agents:"` listesini içeriyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-COMPAT-021 — `conversation` alanı oturumu o kimlikle saklar (K-043)
+
+**Gerçek sonuç**
+Yanıt `id` (`resp_...`) `manuel-conv-021`'den farklı. `GET
+/api/sessions/manuel-conv-021` → `200`, `agentName:"support"` — ikinci
+bir depo açılmadı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-COMPAT-022 — `previous_response_id` geçmişi zincirler
+
+**Gerçek sonuç**
+İkinci tur "Az önce sorduğunuz sipariş numarası: **ORD-1001**." — ilk
+turun geçmişini gördü. `GET /api/sessions/$RID1` → `200`.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-COMPAT-023 — Konuşma kimliğine çapraz kiracı erişimi `404` döner
+
+**Gerçek sonuç**
+`kiraci-beta` ile aynı `conversation` kimliğine erişim → `HTTP 404`,
+`error.type:"not_found_error"`.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-COMPAT-024 — Akışlı yanıt OpenAI olay adlarını kullanır, `[DONE]` YOKTUR
+
+**Gerçek sonuç**
+İlk olay `response.created`, son olay `response.completed`. `[DONE]`
+sıfır eşleşme. Ara olaylar `response.in_progress`,
+`response.output_item.added/done`, `response.content_part.added/done`,
+`response.output_text.delta/done` — spec'in kod okumasıyla ölçtüğü
+listeyle birebir örtüşüyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-COMPAT-027 — Akışsız yolda sağlayıcı hatası `502` döner — `azure-support` yerine ikame
+
+**Gerçek sonuç — ortam ikamesi (gerekçe aşağıda).** `azure-support`
+agent'ı bu ortamda hiç KAYITLI DEĞİL (`404` — Azure kimliği yok, bilinen
+kısıt, `00-INDEKS.md`). Aynı "bilinçli kırık sağlayıcı" senaryosunu
+üreten, önceki bir aileden kalma gerçek bir fixture (`manuel-bozuk-model`,
+`provider:openai, model:"gpt-olmayan-model-xyz"`) kullanıldı — salt
+okundu, değiştirilmedi. Sonuç: `HTTP 502`, `error.type:"upstream_error"`,
+gövde OpenAI zarfı (`ProblemDetails` değil).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-COMPAT-028 — Akışlı yolda sağlayıcı hatası `event: error` çerçevesi üretir (düzeltildi) — aynı ikame
+
+**Gerçek sonuç**
+Aynı `manuel-bozuk-model` ikamesiyle: başlıklar `200`/`text/event-stream`
+gönderildi, bağlantı çerçevesiz KAPANMADI — `event: error` çerçevesi
+geldi (`"message":"The model provider request failed."`). Çapraz
+doğrulama: `GET /api/runs?agentName=manuel-bozuk-model&take=1` →
+`status:"Failed"`. K-296'nın düzeltmesi hâlâ geçerli.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-COMPAT-025 — Gömülü `data:` URI bir eke çevrilir, sohbet geçmişine gömülmez
+
+**Gerçek sonuç**
+`/api/attachments?sessionId=manuel-conv-025` → tam 1 kayıt,
+`mediaType:"image/png"`. `GET /api/sessions/manuel-conv-025` geçmişinde
+ham base64 dizgisi YOK, yalnız `attachments/` referans URI'si VAR.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-COMPAT-026 — Tanınmayan ikili tür `400` ile reddedilir
+
+**Gerçek sonuç**
+`HTTP 400`, `"File type not recognized. Supported types: application/pdf,
+audio/*, image/gif, image/jpeg, image/png, image/webp, text/plain."`
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-COMPAT-029 — Onay gerektiren bir tool çağrısı `/v1/responses` üzerinden nasıl görünür
+
+**Gerçek sonuç — gözlenen davranış tam kaydedildi, kod düzeyinde ZATEN
+gerekçeli (kusur DEĞİL).** HTTP yanıtı `status:"completed"`,
+`output[0]` bir `function_call` ögesi (`name:"cancel_order",
+arguments:{"orderId":"ORD-1001"}, status:"completed"`) taşıyor —
+tool GERÇEKTEN çalışmış gibi görünüyor. Ama `GET /api/runs?...` aynı
+çalıştırmayı `status:"AwaitingApproval"` gösteriyor — HTTP yanıtı ile run
+kaydı GERÇEKTEN TUTARSIZ. Kaynak (`OpenAIResponsesEndpoints.cs:339-383`)
+bu tam senaryoyu ÖNCEDEN, uzun bir yorumla belgeliyor: MAF'ın
+`OpenAIResponses.WriteResponse`'u onay bekleyen bir çağrıyı SESSİZCE
+düşürüyordu (çıktı boş array + `status:completed` — çağrının VARLIĞINDAN
+bile haberdar olunmuyordu); düzeltme, öğeyi gerçek OpenAI'nin
+`function_call` şemasıyla BAYT-BAYTA aynı şekilde enjekte ediyor — bu,
+MAF'ın NORMAL (onaysız) bir tool çağrısı için ürettiği AYNI şekil, ve
+gerçek OpenAI Responses API'si de bekleyen bir çağrıyı `"requires_action"`
+DEĞİL tam olarak böyle temsil ediyor. **Çağrı bu UÇTAN asla
+yanıtlanamaz** — yönetim onay API'si (`POST /api/approvals/{id}/decide`)
+kullanılmalı. Bu, kodun kendi belgelediği, kasıtlı ve doğru bir
+tasarımdır — HATA açılmadı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-COMPAT-030 — `Idempotency-Key` + `stream: true` `/v1/responses`'ta da `400`
+
+**Gerçek sonuç**
+`HTTP 400`, `title:"Idempotency-Key not supported on streaming requests"`
+— MT-COMPAT-015 ile aynı filtre.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
