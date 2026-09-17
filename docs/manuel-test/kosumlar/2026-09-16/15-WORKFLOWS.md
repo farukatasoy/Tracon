@@ -768,3 +768,147 @@ güncellendi; **Kusur açılmadı** (MT-RET-040 ile aynı desen — daha önce
 gerçek olan bir boşluk aradaki bir dalgada kapatılmış).
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-WF-110 — Kod düğümü hiç kaydedilmemişken davranış korunur
+
+**Gerçek sonuç**
+Sıradan `summarize-and-translate` çalıştırıldı (agent-only, `nodes` boş —
+`AgentNames` yolu); SSE akışında `"type":"Function"` düğümüne ait TEK bir
+olay bile yok (`grep -c` ile 0 doğrulandı). Regresyon yok. Tam beklenen.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-WF-111 — `GET /api/workflows/functions` kayıtlı fonksiyonu listeler
+
+**Gerçek sonuç**
+`HTTP: 200`; `[{"name":"word-count","description":"Appends a word count
+to the incoming text. Runs no model call.","inputType":"System.Collections.Generic.List\`1[[Microsoft.Extensions.AI.ChatMessage,
+...]]","outputType":"...aynı..."}]`. Tam beklenen.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-WF-112 — Agent → fonksiyon → agent zinciri uçtan uca
+
+**Gerçek sonuç**
+`summarize-and-count` (`Sequential`, `nodes: [summarizer:Agent,
+word-count:Function]`) kaydedildi. Graf: tam
+`[('summarizer','Agent','summarizer'), ('word-count','Function',None)]`.
+Çalıştırma: her iki düğüm için `ExecutorInvoked`/`ExecutorCompleted` (2+2),
+`WorkflowOutput` özetin SONUNA `"(word count: 20)"` eklenmiş hâliyle geldi.
+`GET /api/runs/{runId}/tree`: kök `Workflow` satırının `childRunCount: 1`
+— yalnız `summarizer` bir `Agent` satırı açtı, `word-count` SIFIR `runs`
+satırı açtı (maliyet toplamına katkısı yok, kanıtlandı). Arayüz (Playwright,
+DOM `<rect>` denetimi): `summarizer` → `fill: color-mix(...series-1...)`,
+`rx="8"`; `word-count` → `fill: color-mix(...series-4...)`, `rx="2"` —
+FARKLI renk VE köşe yarıçapı doğrulandı; sayfada "function" lejant metni
+bulundu. (Sayfa yüklenirken bilinen `HATA-S2-002` CSP konsol hatası
+tekrar gözlendi — ilgisiz, önceden kayıtlı.) Tam beklenen.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-WF-113 — Kayıtlı olmayan fonksiyon adı kaydetme anında reddedilir
+
+**Gerçek sonuç**
+`HTTP: 400`, `title: "Workflow definition invalid"`, `detail: "Workflow
+'kayitsiz-fonksiyon' uses function 'yok-boyle-bir-fonksiyon', but no such
+function is registered. Register it with AddWorkflowFunction() before
+referencing it from a workflow definition."` — ad ve "no such function is
+registered" ifadesi birebir var. Tam beklenen.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-WF-114 — Patlayan fonksiyon düğümü → `ExecutorFailed`
+
+**Gerçek sonuç**
+Bu case ve MT-WF-115..119, spec'in kendisinde "Gerçekten koşuldu ve
+doğrulandı" (birim testiyle) olarak işaretli — canlı HTTP ortamında yan
+etkili/retry'lı özel bir fonksiyon kaydı gerektirdiğinden (kod
+değişikliği), bu koşumda TAZE doğrulama olarak ilgili birim test sınıfları
+çalıştırıldı: `dotnet test tests/Tracon.Workflows.UnitTests -c release`
+→ **109/109 geçti** (bkz. §9 devir notu — bir çalıştırmada ilgisiz
+`WorkflowEventSinkTests` testi flaky düştü, 3 tekrarda hep geçti, MT-WF
+114-119'un kendi test sınıflarını ETKİLEMİYOR). `WorkflowFunctionNodeTests`
+içindeki case'e karşılık gelen test dahil tümü YEŞİL. Spec'in beklenen
+sonucu (fonksiyonun fırlattığı GERÇEK istisna metni, sarmalayıcı soyma)
+güncel kodda hâlâ geçerli. Doğrulandı, kusur yok.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-WF-115 — İptal, fonksiyon düğümünün ortasında istense de `Canceled`
+
+**Gerçek sonuç**
+Bkz. MT-WF-114'ün devir notu — `WorkflowFunctionNodeTests.Cancellation_requested_inside_a_function_node_still_records_Canceled`
+bu koşumda YEŞİL (109/109'un parçası). Doğrulandı, kusur yok.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-WF-116 — Kontrol noktasından devam: kod düğümü İDEMPOTENT olmalı
+
+**Gerçek sonuç**
+Bkz. MT-WF-114'ün devir notu —
+`WorkflowFunctionNodeTests.Resuming_an_ALREADY_COMPLETED_mixed_chain_does_NOT_re_run_its_function_node`
+ve `...RE_RUNS_the_function_node_that_follows_it` ikisi de YEŞİL (109/109'un
+parçası). Ölçülen sözleşme güncel kodda hâlâ geçerli. Doğrulandı, kusur yok.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-WF-117 — Düğüm başına retry: geçici hata yeniden denenir
+
+**Gerçek sonuç**
+Bkz. MT-WF-114'ün devir notu —
+`WorkflowNodeRetryTests.A_transient_error_in_a_function_node_is_retried_and_costs_no_extra_super_step`
+YEŞİL (109/109'un parçası). Doğrulandı, kusur yok.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-WF-118 — Düğüm başına retry: kalıcı hata yeniden DENENMEZ
+
+**Gerçek sonuç**
+Bkz. MT-WF-114'ün devir notu —
+`WorkflowNodeRetryTests.A_permanent_error_is_never_retried` YEŞİL
+(109/109'un parçası). Doğrulandı, kusur yok.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-WF-119 — Aynı adda iki kod-tanımlı workflow → `TraconException`
+
+**Gerçek sonuç**
+Bkz. MT-WF-114'ün devir notu —
+`WorkflowCatalogTests.Duplicate_code_workflow_names_throw_an_TraconException`
+YEŞİL (109/109'un parçası). Doğrulandı, kusur yok.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## Devir notu — Dosya 15 (Workflows) TAMAMLANDI: 70/70 Geçti, 0 Kaldı
+
+Tüm 9 bölüm (§1 CRUD/doğrulama, §UI editör, §2 çalıştırma/olaylar,
+§3 checkpoint/resume, §4 human-in-the-loop, §5 plan onayı, §6 graf/arayüz,
+§7 config/limitler, §8 fonksiyon düğümleri) bitti. **0 HATA** açıldı — tek
+gerçek ürün bulgusu yoktu, ancak 5 spec önermesi/mesajı düzeltildi:
+MT-WF-020 (önceki oturum), MT-WF-092 (mekanizma), MT-WF-093 (mesaj
+netleştirme), MT-WF-100 (önerme tamamen çürüdü — MT-RET-040 ile aynı
+"boşluk zaten kapanmış" deseni), MT-WF-066 (tenancy env flags, önceki
+oturum). Sayım: 70 case, 70 Geçti, 0 Kaldı, 0 Atlandı, 0 Beklemede.
+Sıradaki: dosya 14 (47 case, ap-s2'nin son ailesi).
