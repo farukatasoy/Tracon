@@ -1,10 +1,16 @@
 # 23 — Saklama, Arşiv, Kota ve Çalıştırma-İçi Bütçe — koşum kaydı (2026-09-16, ap-s2)
 
-> **Devir notu (oturum 15, ap-s2 devam):** §1 (MT-RET-001..015) bitiyor —
-> 001, 002, 003, 004, 005, 006, 010, 011, 012 = **9/9 Geçti, 0 Kaldı** şu ana
-> kadar. Sırada 013, 014, 015, sonra §2 (020-023), §3 (yok, atlanmış numara),
-> §4 kota (030-035, GERÇEK OpenAI çağrısı), §5 bütçe (050-055, GERÇEK OpenAI),
-> §6 süre bütçesi (060-064), §7 SSE bildirimleri (070-076).
+> **Devir notu (oturum 15, ap-s2 — DOSYA 23 TAMAMEN BİTTİ):** MT-RET-001
+> ile 076 arası **45/45 Geçti, 0 Kaldı**. Hiç ürün kusuru bulunmadı. Bir
+> güvenlik bulgusu (`HATA` DEĞİL, tersine bir kapanış doğrulaması):
+> `MT-RET-040`'ın önermesi tam tersine döndü — `RetentionEndpoints`/
+> `QuotaEndpoints`'in kapsam sızıntısı zaten düzeltilmiş. **En önemli
+> yöntem dersi (gelecek turlar için, `docs/hafiza/`'ya taşınmalı):**
+> `QuotaEnforcer.cs`'in `_firedThresholds` süreç-içi önbelleği SQL ile
+> `quota_usage` sıfırlamayla temizlenmez — "temiz dönem" gerektiren kota
+> eşiği case'lerinde (070-076) uygulamanın **tamamen yeniden başlatılması**
+> şart, yalnız DB satırını silmek yetmez (MT-RET-071'de üç art arda yanlış-
+> negatif ölçümle keşfedildi). Sıradaki aile: `15-WORKFLOWS.md` (70 case).
 >
 > **Ortam:** ap-s2'nin PAYLAŞILAN PostgreSQL örneği (port 5082) bu aile için
 > UYGUN DEĞİL — case'ler SQLite'a özgü doğrudan SQL fixture'ları kullanıyor.
@@ -14,7 +20,9 @@
 > `Tracon__PostgreSql__ConnectionString=""` (paketlenmiş `artifacts/bin/
 > Tracon.Api/release/Tracon.Api.dll` doğrudan çalıştırılıyor, kod dokunulmadı).
 > Bu, dosya 03/05'in "yapılandırma katmanı" tarifiyle aynı desendir. Arşiv
-> testi için `/tmp/ap-s2-arsiv` kullanıldı. Tur sonunda hepsi silinecek.
+> testi için `/tmp/ap-s2-arsiv` kullanıldı, `/tmp/ap-s2-ret.db` ve `/tmp/ap-s2-
+> ret.log` de tur sonunda topluca silinecek. Port 5087'deki geçici uygulama
+> durduruldu; ap-s2'nin asıl uygulaması (port 5082, PostgreSQL) hâlâ ayakta.
 
 ---
 
@@ -510,6 +518,103 @@ Spec'in kendi notu gereği elle güvenilir tetiklenemez (zamanlama şansı
 gerektirir). Otomatik karşılığı yeniden koşuldu:
 `RunDeadlineTests.Cancelling_a_run_while_the_deadline_has_already_passed_
 still_classifies_as_Canceled` → **1/1 Geçti**.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-RET-070 — Anahtar kapalıyken davranış birebir eskisiyle aynıdır
+
+**Gerçek sonuç**
+🚨 **Yöntem notu (kural 1.1 istisnası, kusur değil):** `support` agent'ının
+günlük sayacı bu turun önceki case'lerinden zaten yüksekti (12) — SQL ile
+`tracon_quota_usage`'dan silinerek temiz döneme getirildi. Varsayılan
+(`PublishThresholdToRunStream` ayarlanmamış) yapılandırmayla: sıra `run →
+update×14 → done`, **`custom` çerçevesi yok**. Tam beklenen.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-RET-071 — Anahtar açıkken `custom` çerçevesi `done`'dan ÖNCE gelir
+
+**Gerçek sonuç**
+🚨🚨 **Önemli yöntem bulgusu (ürün kusuru DEĞİL — test metodolojisi
+dersi, gelecek oturumlar için not edilmeli):** İlk denemede `custom`
+çerçevesi göründü, ama SQL ile `quota_usage`'ı sıfırlayıp SÜRECİ
+YENİDEN BAŞLATMADAN tekrar denendiğinde **hiç görünmedi** (3 art arda
+deneme, hepsi 0). Kök neden kaynakta bulundu: `QuotaEnforcer.cs:325`
+`_firedThresholds` adlı **süreç-içi bellek önbelleği** tutuyor ("Fast
+path: already handled by THIS process in this period — no store
+round-trip needed"). SQL ile DB satırını silmek bu önbelleği
+**temizlemez** — yalnız uygulamayı yeniden başlatmak temizler. Süreç
+yeniden başlatılıp DB satırı sıfırlandığında: `custom` çerçevesi
+`done`'dan **önce** geldi, tam beklenen. Payload doğrulandı:
+`"type":"Custom"`, `"customType":"tracon.quota.threshold"`,
+`thresholdPercent:100, limit:1, used:1, metric:"Runs", period:"Daily"`.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-RET-072 — Doğrudan akış ile `GET /api/runs/{id}/events` AYNI bildirimi sunar
+
+**Gerçek sonuç**
+Aynı `noticeId` (`01a0afa5-a744-72ed-a8d2-7428e99c2b5e`) hem doğrudan akışta
+hem `GET .../events`'te — ikinci bir kopya üretilmedi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-RET-073 — `Last-Event-ID` ile yeniden bağlanma bildirimi tekrar okuyabilir
+
+**Gerçek sonuç**
+`Last-Event-ID: 0` ile yeniden okuma → `1` (`custom` çerçevesi hâlâ okunabilir).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-RET-074 — Aynı dönemde ikinci bir eşik geçişi bildirimi TEKRARLAMAZ
+
+**Gerçek sonuç**
+🚨 **Doküman düzeltmesi (kusur değil):** Case'in kendi `Girilecek veri`
+scripti `-H 'content-type: application/json'` **atlıyor** — bu yüzden
+istek `415 Unsupported Media Type` ile sessizce başarısız oluyor, run hiç
+başlamıyor (ölçüldü: başlıksız istekle iki denemenin ikisi de `custom
+sayısı: 0` verdi, ama gerçekte HİÇ run olmamıştı). Başlık eklenip
+`ThresholdPercents:0=50` + `maxRuns=2` ile temiz bir süreçte: **ilk çağrı
+`1`** (50% eşiği ilk kez geçildi, bildirim var), **ikinci çağrı `0`**
+(aynı eşik zaten claim edilmiş, tekrar yayımlanmadı) — tam beklenen.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-RET-075 — Host yeniden başlatıldığında aynı eşik yeniden yayımlanmaz
+
+**Gerçek sonuç**
+MT-RET-074'ün eşiği claim edilmiş durumdayken (`notified_thresholds:
+0:50` DB'de kalıcı) `maxRuns` yükseltilip **süreç tamamen yeniden
+başlatıldı** (bellek içi `_firedThresholds` böylece temizlendi — bkz.
+MT-RET-071'in bulgusu). Yeni bir `run`'ın akışında `custom` çerçevesi
+**yok** (`0`) — kalıcı DB claim'i, bellek içi önbellek sıfırlansa bile
+korundu. Tam beklenen; durabilite (146.4) doğrulandı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-RET-076 — Alt-agent ağacı eşiği geçirirse bildirim yalnız KÖK `run`'da bir kez görünür
+
+**Gerçek sonuç**
+Bu case'in kendi scripti zaten `content-type` başlığını taşıyordu (074'ün
+aksine). `router` (`support`'u alt-agent olarak çağırıyor) için `maxRuns=1`
+politikasıyla:
+kök run'ın akışında tam **`1`** `custom` çerçevesi — alt çalıştırmanın
+(`support`) kendi işlemi ayrı bir bildirim yazmadı, `Depth==0` kapısı
+burada da geçerli.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 

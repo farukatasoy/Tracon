@@ -1927,8 +1927,10 @@ curl -s "$APU/api/runs/$RUN_ID/events" -H "$APB" -H "Last-Event-ID: 0" | grep -c
 curl -s -X PUT "$APU/api/quotas" -H "$APB" -H "content-type: application/json" \
   -d '{"agentName":"support","period":"Daily","maxRuns":2,"enabled":true}'
 
-curl -N -s "$APU/api/agents/support/run" -H "$APB" -d '{"message":"once"}' | grep -c '^event: custom'
-curl -N -s "$APU/api/agents/support/run" -H "$APB" -d '{"message":"iki"}' | grep -c '^event: custom'
+# 🚨 content-type BAŞLIĞI GEREKİR -- yoksa 415 ile sessizce başarısız olur
+# ve grep -c "custom" hep 0 döner (run hiç başlamaz) -- düzeltildi 2026-09-17, ap-s2:
+curl -N -s "$APU/api/agents/support/run" -H "$APB" -H 'content-type: application/json' -d '{"message":"once"}' | grep -c '^event: custom'
+curl -N -s "$APU/api/agents/support/run" -H "$APB" -H 'content-type: application/json' -d '{"message":"iki"}' | grep -c '^event: custom'
 ```
 
 **Beklenen sonuç**
