@@ -30,7 +30,57 @@ sabit 3001). Uç: `http://localhost:3001/mcp`. Sunucu `tools`, `prompts`,
 
 ## Devir notu
 
-Aile açılıyor — bu ilk devir notu.
+**Aile KAPANDI: MT-MCP-001..068 koşuldu (48 Geçti · 9 Beklemede · 1 Kaldı,
+toplam 58/58 case hesaba katıldı).**
+
+**Bir yeni kusur açıldı:**
+- `HATA-S1-026` (Yüksek) — `TruncatingAIFunction`'ın `AIContent` sonuçları
+  için erken `return`'ü, MCP tool çıktılarının `Tracon:Tools
+  :DefaultMaxOutputBytes` sınırını TAMAMEN atlamasına yol açıyor (ölçüldü:
+  200 baytlık sınıra karşı 8095 bayt, sıfır kırpma). Ayrıntı MT-MCP-059'da.
+
+**Bir eski kusur notu ÇÜRÜTÜLDÜ (spec ve `00-INDEKS.md` düzeltildi):**
+`GovernanceEndpoints.cs`'in `RequireApiKeyScope` hiç çağırmadığı
+(2026-08-10 tarihli, "BEŞİNCİ bağımsız tekrar") notu artık DOĞRU DEĞİL —
+kod bu tarihten sonra düzeltilmiş, her `mcp-servers` ucu artık kapsam
+denetimi taşıyor (MT-MCP-051). Altındaki AYRI boşluk (statik paylaşılan
+token'ın bu denetimin tamamen dışında olması) hâlâ açık ve MT-MCP-052 ile
+yeniden doğrulandı.
+
+**Dört spec düzeltmesi yapıldı** (doküman kusuru, kod donuk kaldı):
+MT-MCP-005 (minimal örnek payload asıl kuralı hiç tetiklemiyordu),
+MT-MCP-008 (beklenen `204` yerine gerçek `404`), MT-MCP-031/032/033
+(bayat Türkçe agent adı `tracon_ozetleyici` → `tracon_summarizer`,
+Aşama 0'ın zaten kapattığı örüntünün bir tekrarı).
+
+**Dört case `Program.cs`'te GEÇİCİ değişiklik istiyor, kural 1 (kod
+donması, istisnasız) nedeniyle kapanışa ertelendi:** MT-MCP-034, 035, 045,
+053 — hepsi aynı `McpApprovalGuardFilter`/`A2AApprovalGuardFilter`/
+`ExternalSurfaceGuard` ailesini veya kayıt-zamanlı `ExposedAgents`
+listesini test ediyor.
+
+**Üç case UI (Playwright) gerektiriyor** (MT-MCP-047/048/049) — tarayıcı
+bu OTURUMUN TAMAMI boyunca başka bir şeritçe meşguldü, hiç boşalmadı.
+
+**İki case fiziksel/ortam sınırı taşıyor:** MT-MCP-058 (gerçek iç ağ MCP
+sunucusu yok — ama iki yarısı da MT-MCP-054/055 ile dolaylı zaten
+kanıtlandı), MT-MCP-067 (gerçek TTL bekleme, otomatik karşılığı yok).
+
+**Ortam notu — yerel MCP sunucusu:** `npx -y @modelcontextprotocol/server-everything
+streamableHttp`, port **3001** (spec'in `--port 6060` örneği bu CLI'da
+geçersiz). `Tracon:Egress:AllowPrivateNetworkTargets=true` MT-MCP-054'ü
+varsayılan (kapalı) durumda koşturduktan SONRA açıldı — sonraki her case
+bunu miras aldı.
+
+🚨 **Bir üçüncü taraf sızıntısı (Tracon kusuru DEĞİL):** yerel referans MCP
+sunucusunun `get-env` demo tool'u KENDİ sürecinin ortam değişkenlerini
+(bu oturumun kabuğundan miras, `CLAUDE_CODE_MESSAGING_TOKEN` dahil)
+döndürdü (HATA-S1-026'yı araştırırken). Yalnız bu oturumun geçici
+dosyalarında kısa süre durdu, hepsi silindi.
+
+**Sıradaki ailenin işi:** `10-ARAYUZ-AGENT-PLAYGROUND.md` açılmalı —
+Playwright'ın boşaldığını önce kontrol et (bu ailenin 3 UI case'i de
+tarayıcı boşalınca geriye dönüp koşulabilir).
 
 ---
 
@@ -555,6 +605,48 @@ koşulmadı (spec bunu zaten "⬜" işaretliyor).
 
 ---
 
+# 8 — Arayüz (UI, Playwright)
+
+## MT-MCP-047 — Tools ekranında MCP kökenli tool `mcp: {sunucu}` rozetiyle ayrışır
+
+**Gerçek sonuç**
+Playwright tarayıcısı bu oturum boyunca başka bir şeridin kullanımındaydı
+(`Browser is already in use for .../mcp-chrome-3eca5a9`) — tekrar tekrar
+kontrol edildi, hep meşgul bulundu. Ertelendi.
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MCP-048 — `mcp.tsx` formu: OAuth açılınca `authorizationConfigurationKey` OTOMATİK TEMİZLENİR
+
+**Gerçek sonuç**
+Aynı gerekçeyle (Playwright meşgul) ertelendi.
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MCP-049 — `mcp.tsx` sunucu listesi tablosunda secret DEĞERİ hiç GÖRÜNMEZ
+
+**Gerçek sonuç**
+Aynı gerekçeyle ertelendi. Not: API seviyesindeki karşılığı (MT-MCP-007)
+bu oturumda TAM doğrulandı.
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MCP-058 — 👤 İç ağdaki gerçek MCP sunucusu: önce red, ayar sonrası bağlantı
+
+**Gerçek sonuç**
+👤 Gerçekten erişilebilir bir İÇ AĞ MCP sunucusu gerektiriyor (ev/ofis
+ağı) — bu makinede böyle bir sunucu yok. §4.3 fiziksel eylem tablosuna
+eklendi. Not: bu case'in İKİ YARISI da (red + izin) dolaylı olarak zaten
+kanıtlandı — MT-MCP-054 (private/loopback red) ve MT-MCP-055 (aynı
+kayıt bayrak açılınca kabul) `169.254.169.254` ile birebir aynı
+mekanizmayı doğruladı; yalnız "gerçek bağlantının da geçtiği" (3. adım)
+iç ağa özgü ve `test-sunucu`nun `localhost`'ta olması nedeniyle ayrı
+kanıtlanamadı.
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 # 4 — Keşif, İzolasyon ve Sağlamlık (Faz 22) + § 5 kurulum
 
 ## MT-MCP-015 — Var olmayan bir MCP sunucusu kaydetmek AGENT KAYDINI ETKİLEMEZ
@@ -679,4 +771,32 @@ karşılaştırmalı) araştırılması önerilir — `ADAYLAR.md`'ye not düş�
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
+## MT-MCP-016 — Sunucu keşif turu ortasında OFFLINE olursa, ESKİ tool listesi KORUNMAZ
+
+**Gerçek sonuç**
+`test-sunucu` 14 tool sunarken yerel sunucu durduruldu, `/refresh` →
+`{"toolCount":0}`. `GET /api/tools`'ta `test-sunucu_*` tool sayısı **0**'a
+düştü — `RefreshCatalogAsync` başarısız olunca önceki iyi listeyi
+TUTMADI. Sunucu sonra yeniden başlatıldı (bir sonraki case'ler için).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MCP-053 — `AllowRemoteAccess=true` + `ExternalInvoke` anahtarı YOKKEN → UYGULAMA BAŞLAMAZ
+
+**Gerçek sonuç**
+`TraconEndpointOptions.AllowRemoteAccess`'i açmak `Program.cs`'te geçici
+kod değişikliği istiyor — MT-MCP-034/035/045 ile aynı gerekçeyle (kural 1
+kod donması) kapanışa ertelendi.
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
 ---
+
+## Fiziksel eylem / kod donması / paylaşılan kaynak nedeniyle koşulamayan case'ler
+
+| Case | Neden | Kullanıcıdan istenen / kapanışta yapılacak |
+|---|---|---|
+| MT-MCP-034, 035, 045, 053 | `Program.cs`'te geçici satır değişikliği istiyor, kural 1 kod donması | Kapanışta, `git checkout` ile geri alınacak şekilde tek tek koşulmalı |
+| MT-MCP-047, 048, 049 | Playwright tarayıcısı oturum boyunca başka şeritçe meşguldü | Tarayıcı boşalınca `/tracon/mcp` ve `/tracon/tools` ekranlarından koşulabilir |
+| MT-MCP-058 | Gerçek, erişilebilir bir iç ağ MCP sunucusu yok bu makinede | Böyle bir sunucu bulununca koşulmalı; iki yarısı MT-MCP-054/055 ile dolaylı zaten kanıtlı |
+| MT-MCP-067 | Gerçek `TaskTimeToLive` bekleme süresi gerekiyor, otomatik karşılığı yok | Kısa bir TTL ile elle koşulmalı |
