@@ -204,3 +204,75 @@ agent exists in the catalog...")` → `event: done` — HTTP/bağlantı
 düzeyinde `event: error` YOK, akış normal bitti. Birebir beklenen.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-WF-030 — Workflows ekranı: kod/veritabanı rozetleri ve katılımcı zinciri
+
+**Gerçek sonuç**
+Playwright ile `/tracon/workflows` açıldı (`inceleme-zinciri` MT-WF-006'da
+silinmiş olduğu için yeniden `PUT` edildi). `summarize-and-translate`/
+`summarize-and-approve`: Pattern sütunu "code graph", Source sütunu "code"
+rozeti. `inceleme-zinciri`: Pattern "Sequential", Source "database".
+Agents sütunu: "summarizer arrow translator" — birebir beklenen.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-WF-031 — Editör: `Save` butonu ad/katılımcı boşken devre dışı, sunucuya istek gitmez
+
+**Gerçek sonuç**
+Boş formda `Save` disabled, ağ sekmesinde hiçbir `/api/workflows`
+isteği yok. Yalnız ad girilince de (katılımcı yokken) `Save` hâlâ
+disabled.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-WF-032 — Editör: desen değişince alan görünürlüğü ve maliyet uyarısı değişir
+
+**Gerçek sonuç**
+İki katılımcıyla (summarizer, translator) desen sırayla değiştirildi:
+`Handoff` -> "Handoff instructions" alanı göründü. `GroupChat` -> "Max
+iterations" göründü, "Handoff instructions" yok. `Magentic` -> "Manager
+agent" açılır listesi göründü ve seçenekleri summarizer/translator'ı
+hariç tuttu (`available.filter` iddiası doğrulandı), "Max iterations"
+da göründü, "Ask a person to approve the plan" checkbox'ı "costs a
+manager turn" rozetiyle birlikte göründü. Hepsi tam beklenen.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-WF-033 — Editör: `Concurrent` desende tek katılımcı seçiliyken uyarı metni görünür
+
+**Gerçek sonuç**
+Tek katılımcıyla (summarizer) `Concurrent` seçilince:
+uyarı metni "Concurrent needs at least two participants." (sarı uyarı),
+`Save` disabled. Tam beklenen.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-WF-034 — Detay ekranı: kod-tanımlı workflow'da `Edit` düğmesi hiç yok
+
+**Gerçek sonuç**
+`summarize-and-translate` detay ekranında başlık yanında `Edit` düğmesi
+yok; Graph ve Run panelleri normal görünüyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-WF-035 — Kod-tanımlı bir adın `/edit` URL'ine doğrudan gidilirse hata paneli
+
+**Gerçek sonuç**
+Form gösterilmedi; bir uyarı paneli MT-WF-004'ün ayırt edici mesajını
+taşıyor ("No editable definition: 'summarize-and-translate' is a
+workflow defined in code (AddWorkflow)...", buton: "Try again") — K-228
+dil deseni (İngilizce, Türkçe değil), anlamca tam beklenen.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
