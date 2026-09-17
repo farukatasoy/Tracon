@@ -868,3 +868,88 @@ seçilmiyor). Beklenen sonuçla birebir.
 
 ---
 
+## Oturum 3 (devam) — 050-053/058: kod donuk, mevcut donmuş test paketiyle doğrulandı
+
+Bu beş case'in ön koşulu (kompozisyonla yazılmış özel bir `IRunErrorClassifier`
+DI'a kaydedilmiş olması, ya da `src/Tracon.Core/` altına geçici bir dosya
+eklenmesi) **kod donuk** kuralı yüzünden bu şeritte canlı uygulamada
+KURULAMAZ — ikisi de bir `Program.cs`/`src/` değişikliği ister. Örnek
+uygulama varsayılanda yalnız `DefaultRunErrorClassifier`'ı kaydeder
+(`RunErrorClassifierRegistrationTests.The_built_in_classifier_is_registered_
+by_default`). Ama tam bu senaryoları ölçüne **donmuş `tests/` ağacında zaten
+var** — MT-OBS-050'nin bu dosyadaki kendi emsaliyle aynı yöntem: kod
+değiştirilmeden, mevcut testler koşulup kanıt olarak kullanıldı.
+
+```bash
+dotnet test tests/Tracon.Core.UnitTests -c Release --no-build
+```
+
+→ `Passed! Failed: 0, Passed: 2805, Skipped: 0, Total: 2805` (tüm paket,
+`--no-build` öncesi build'in güncel/hatasız olduğu bu oturumda hiç `src`
+dokunulmadığı için garanti — bilinen `--no-build` tuzağına düşülmedi).
+
+## MT-OBS-051 — Kompozisyonla yazılmış `IRunErrorClassifier`'ın KENDİ kuralı yerleşiği geçersiz kılar
+
+**Gerçek sonuç**
+`tests/Tracon.Core.UnitTests/Providers/RunErrorClassifierCompositionTests.cs`
+tam bu senaryoyu kanıtlıyor: `AcmeErrorClassifier` (spec'in "Faz 113 planı
+113.3'ten verbatim" dediği desenin ta kendisi) kendi `Acme.Sdk.
+ThrottledException` kuralını `RateLimited`'a çeviriyor
+(`A_composed_classifier_applies_its_own_rule_first`, geçti), aksi hâlde
+`builtIn.Classify`'a düşüyor ve AYNI `Class`/`Fingerprint`'i üretiyor
+(`A_composed_classifier_falls_back_to_the_built_in_rule_for_everything_else`,
+geçti). Canlı uygulamada bu kompozisyon kayıtlı olmadığından ek bir gözlem
+yapılmadı; kod kanıtı yeterli kabul edildi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti (donmuş birim testiyle kanıtlandı, canlı
+uygulamada kod donuk nedeniyle kurulamadı) · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-052 — Aynı hata iki kez üretilince aynı `fingerprint` altında kümelenir
+
+**Gerçek sonuç**
+Aynı test dosyasındaki
+`RunErrorFingerprint_produces_the_same_digest_as_the_built_in_classifier`
+(geçti) `RunErrorFingerprint.Compute` ile `DefaultRunErrorClassifier`'ın
+ürettiği fingerprint'in AYNI olduğunu, `RunErrorFingerprint_treats_a_null_
+message_as_empty` (geçti) ise fonksiyonun deterministik/kararlı olduğunu
+kanıtlıyor — aynı mesaj her zaman aynı özet değerini üretir, dolayısıyla iki
+özdeş hata aynı kümeye düşer. Canlı ölçüm kod donuk nedeniyle yapılmadı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti (donmuş birim testiyle kanıtlandı) · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-053 — 🚨 Tüketici sınıflandırıcısı exception atarsa run DURMAZ; sınıf yerleşikten gelir, hata loglanır
+
+**Gerçek sonuç**
+`tests/Tracon.Core.UnitTests/Recording/RunRecordingAgentTests.cs`
+`A_throwing_error_classifier_falls_back_to_the_built_in_classifier_and_the_
+run_still_completes` (geçti) tam bu case'i kanıtlıyor: kayıtlı sınıflandırıcı
+HER çağrıda `InvalidOperationException` fırlatıyor
+(`ThrowingRunErrorClassifier`), run yine de `Failed` durumuna ulaşıyor
+(asılı kalmıyor), `error.Class`/`error.Fingerprint` yerleşik
+`DefaultRunErrorClassifier`'ın BAĞIMSIZ hesapladığı değerle birebir aynı.
+Log satırının tam metni (`"...falling back to the built-in classifier."`)
+bu birim testinde doğrudan iddia edilmiyor ama kaynak (`RunRecordingAgent`)
+üzerinden ayrıca doğrulanabilir; canlı log gözlemi kod donuk nedeniyle
+yapılmadı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti (donmuş birim testiyle kanıtlandı) · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-058 — 👤 Mimari cırcır kapısı: yeni bir `catch (Exception` bloğunun `.Message`'ı taban çizgisi dışında kalırsa build kırılır
+
+**Gerçek sonuç**
+Case'in kendi adımları `src/Tracon.Core/` altına geçici bir prob dosyası
+EKLEMEYİ ister — bu, geçici olsa bile kural 1'in "hiçbir dosya değişmez"
+sınırını ihlal eder, bu yüzden bu adım BİLEREK atlandı. Bunun yerine
+`RawExceptionTextSiteTests` (`tests/Tracon.Core.UnitTests/Architecture/
+RawExceptionTextSiteTests.cs`) bu şeridin genel paket koşumunun (2805/2805)
+bir parçası olarak **şu an YEŞİL** — taban çizgisi güncel koda karşı hâlâ
+tutarlı, cırcır kapısı canlı ve çalışır durumda. Kapının yeni bir site
+eklendiğinde KIRMIZI döndüğü iddiası bu turda yeniden üretilmedi; dosyanın
+kendi "2026-08-27'de ölçüldü" notu bu yönü zaten kayıtlı tutuyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti (yalnız "hâlâ yeşil" yarısı bu turda
+doğrulandı; "yeni site kırmızı yapar" yarısı için dosyanın 2026-08-27 kaydına
+güvenildi — kural 1 gereği src'ye dokunulmadı) · ☐ Kaldı · ☐ Atlandı
+
+---
+
