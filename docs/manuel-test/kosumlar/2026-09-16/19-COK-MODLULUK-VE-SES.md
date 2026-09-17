@@ -77,6 +77,41 @@ Anthropic, Google, OpenRouter, Voice) izole edilmiştir; `ContentProtection`,
 zararsızdı (yalnız okuma, şifreleme anahtarı sızmadı — HTTP yanıtında hiçbir
 yerde görünmedi) ama not düşülüyor.
 
+**Oturum 2 — aile KAPANDI: MT-MM-059..122 koşuldu (66 Geçti · 3 Kaldı · 23
+Beklemede · 1 Atlandı, toplam 93/93 case hesaba katıldı).** Devralınan
+durum stale idi — `DEVIR.md` "19 henüz açılmadı" diyordu ama aslında 3
+önceki commit (`aedeac02`, `3c9da77f`, `906cc71b`) MT-MM-001..055'i zaten
+bitirmişti; ayrıca yarıda kalmış bir önceki oturumdan DB'de leftover state
+bulundu (bkz. MT-MM-067, MT-MM-082) — dosyaya hiçbir kayıp yazılmamıştı,
+yalnız uygulama süreci ve birkaç test satırı temizlenip yeniden koşuldu.
+
+**İki yeni kusur açıldı:**
+- `HATA-S1-025` (Yüksek) — 30s zaman aşımından SONRA arka planda başarıyla
+  biten bir tool çağrısının (`generate_image`, gerçek `gpt-image-1`) gerçek
+  çıktısı (ek) doğru kaydediliyor ama `tool_invocations.usage`/`succeeded`
+  kalıcı olarak `null`/`false` kalıyor — gerçek sağlayıcı harcaması
+  gözlemlenebilirlikten düşüyor. `HATA-S1-024` ailesinden (aynı
+  `TraconException` yutulması) ama sonucu daha ağır. Ayrıntı MT-MM-095'te.
+
+**İki spec düzeltmesi yapıldı (doküman kusuru, kod donuk kaldı):**
+MT-MM-067 (`X-Tenant-Id` → `X-Tracon-Tenant`, ayrıca tenancy bayrakları)
+ve MT-MM-073 (`--no-commit`'in kendi notuyla çelişmesi). Ayrıntı ilgili
+case bloklarında.
+
+**Ortam notu:** `Tracon:Tenancy:Enabled`/`AllowHeaderResolution` bu
+oturumdan itibaren `ap-s1`'de AÇIK bırakıldı (MT-MM-067'den beri) — sonraki
+family'ler (04, 18, 10, 08) bunu bilerek devralmalı; varsayılan davranışı
+değiştirmedi (header yoksa yine `default` tenant), yalnız header
+resolution'ı etkinleştiriyor.
+
+**Playwright bu oturum boyunca başka bir şeritçe meşguldü** — MT-MM-088,
+090, 099 (Playground UI, gerçek mikrofon gerekmez) bu yüzden ertelendi;
+tarayıcı boşalınca ayrıca koşulmalı.
+
+**Sıradaki ailenin işi:** `04-COK-AJAN-VE-DEVIR.md` (ya da plandaki
+sıradaki dosya) açılmalı — bu dosyanın kalanı (§Fiziksel eylem tablosu) ve
+`HATA-S1-025` kapanışta ele alınacak.
+
 ---
 
 ## MT-MM-001 — Geçerli bir PNG yüklenir
@@ -743,14 +778,14 @@ runner'ında değiştiği ayrı bir tooling notu (kapanışta spec'e eklenebilir
 **Gerçek sonuç**
 Gerçek mikrofon/konuşma gerektiriyor — bkz. §4.3 fiziksel eylem tablosu.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ## MT-MM-087 — "Interrupt" düğmesi
 
 **Gerçek sonuç**
 Gerçek mikrofon/konuşma gerektiriyor — bkz. §4.3 fiziksel eylem tablosu.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ## MT-MM-088 — `persistAudio` açıkken görünür bir rozet belirir
 
@@ -760,7 +795,7 @@ Playwright tarayıcısı bu oturum sırasında BAŞKA BİR ŞERİDİN kullanım�
 kaynağa dokunulmadı, case ertelendi. Not: koşulacaksa önce uygulama
 `Tracon:Voice:Conversation:PersistAudio=true` ile başlatılmalı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ## MT-MM-089 — Güvenli bağlam yoksa panel açılmaz
 
@@ -781,7 +816,7 @@ zaten aynı sonuca (ulaşılamama) varır.
 Playwright tarayıcısı bu oturum sırasında başka bir şeridin kullanımındaydı,
 ertelendi (bkz. MT-MM-088).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ## MT-MM-091 — `includeTimestamps` verilmeden bugünkü yanıtla birebir aynıdır
 
@@ -939,7 +974,7 @@ Bu case özel bir `UriContent` dönen test adaptörü gerektiriyor; donuk
 `ImageAttachmentWriterTests` sınıfını taşıyor. Canlı akış doğrulanmadı —
 bu bir sınırlama olarak not düşülüyor, geçti sayılmıyor.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ## MT-MM-098 — Google adapter'ı boyut tahmin etmez
 
@@ -954,7 +989,7 @@ test bulunamadı, ama kayıt testleri geçti). İkinci iddia (boyutsuz çağrın
 sağlayıcı varsayılanıyla ÇALIŞTIĞI) canlı bir Google görsel modeli
 gerektiriyor; geçerli bir model adı bu turda doğrulanamadı — koşulmadı.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ## MT-MM-099 — Tur üretmeyen bir `commit` paneli asmaz
 
@@ -964,7 +999,7 @@ ertelendi (bkz. MT-MM-088). Not: bu case'in SUNUCU tarafı zaten MT-MM-073
 ile dolaylı doğrulandı (`idle` çerçevesi, `done` YOK); yalnız panelin görsel
 "asılı kalmama" davranışı gözlenemedi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ## MT-MM-100 — `list_voices` ve `GET /api/voice/voices` attribute taşır
 
@@ -1013,7 +1048,7 @@ enjekte edilemez. Otomatik kanıt kullanıldı: `ListVoicesToolTests.cs`
 `"No voices available."` iddiasını taşıyor ve MT-MM-093'te TAM koşulan
 `Tracon.Voice.UnitTests` paketinin içinde (68/68 geçti).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ## MT-MM-104 — 50'den fazla ses varken kalan sayı satırı İngilizce'dir
 
@@ -1023,6 +1058,203 @@ düşüldü).** Bu hesapta yalnız 21 gerçek ElevenLabs sesi var,
 tetiklenmez. `ListVoicesToolTests.cs` aynı dosyada "... and N more voices."
 iddiasını taşıyor ve MT-MM-093'ün tam koştuğu pakette (68/68 geçti).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-105 — Kaynak dili kapısı yeşildir
+
+**Gerçek sonuç**
+`dotnet test tests/Tracon.Core.UnitTests --filter "..."` — filtre yine yok
+sayıldı (MT-MM-083/093 tuzağı), TÜM paket koştu: 2805/2805 geçti.
+`source-language-baseline.txt` yalnız 4 satır (üstbilgi yorumları), hiçbir
+dosya girdisi yok — taban çizgisi boş, büyümedi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-106 — Ses yolu Native AOT'ta çalışır
+
+**Gerçek sonuç — ortam temizliği gerekti.** İlk koşum
+`❌ Extension sample contract ihlal edildi: release feed contains stale
+Tracon packages ...0.789.nupkg` ile `exit=1` verdi — kök neden AOT/ses ile
+İLGİSİZ: `ap-s1`'in kendi `artifacts/package/release/` dizininde ÖNCEKİ bir
+oturumdan (16 Eylül 20:07, muhtemelen dosya 01 paketleme turu) kalma
+`0.0.0-preview.0.789` paketleri, bu koşumun ürettiği `.827` paketleriyle
+`release_extension_samples.verify()`'ın taze/bayat kontrolünü tetikledi.
+Yalnız kendi worktree'imin üretilen `artifacts/` dizini (git-izlenmeyen
+derleme çıktısı) temizlendi, hiçbir kaynak dosyasına dokunulmadı. Temiz
+feed ile yeniden koşuldu: `python3 scripts/kapi.py yayin --kuru` **başarıyla
+bitti** (exit=0) — AOT smoke adımı `release_extension_samples.verify()`
+içinde çalıştı ve ses yolunu (yeni `Dictionary<string,string>` serileştirmesi
+dahil) hatasız geçti.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-107 — Var olan özel `ISpeechSynthesizer` uygulaması değişmeden derlenir
+
+**Gerçek sonuç — ayrı bir harici proje kurulmadan, mevcut bir tüketiciyle
+doğrulandı.** `tests/Tracon.Ui.E2ETests/Infrastructure/StubSpeechSynthesizer.cs`
+`ISpeechSynthesizer`'ı uyguluyor ve `ListVoicesAsync`'te `new
+VoiceDescriptor { VoiceId = ..., Name = ..., Category = ... }` yazıyor —
+`Attributes` alanını HİÇ ayarlamıyor (bu dosya `Attributes` eklenmeden ÖNCE
+yazılmış, hiç güncellenmemiş). Kaynak: `VoiceDescriptor.Attributes` `{ get;
+init; } = ReadOnlyDictionary<string,string>.Empty` — `required` DEĞİL,
+varsayılanlı. Tüm çözüm (`dotnet build`, bu turun onlarca `dotnet test`
+koşumu) sıfır uyarıyla derleniyor — bu eski nesne başlatıcı hâlâ hatasız
+derleniyor, tam case'in iddiası.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-108 — `UseOpenAILive()` çağrılmadan canlı oturum ucu 501 döner
+
+**Gerçek sonuç — canlı deneme örnek uygulamanın gerçek yapılandırmasıyla
+ÇELİŞTİ, otomatik test kanıtı kullanıldı.** `samples/Tracon.Api/Program.cs`
+`UseOpenAILive()`'ı OpenAI anahtarı varken KOŞULSUZ çağırıyor — bu turda
+her zaman öyle. Canlı deneme (`POST .../voice/live/sessions` sahte SDP ile)
+beklenen `501` yerine `502 "provider status 400"` verdi (gerçek sağlayıcıya
+gitti, sahte SDP'yi reddetti) — bu case'in ön koşulu (`UseOpenAILive`
+çağrılMAmış) donuk `samples/`'ta yeniden üretilemez. `LiveVoiceRegistrationTests.
+With_UseLiveVoice_but_no_provider_the_answer_is_501` bu TAM senaryoyu
+kapsıyor ve `Tracon.AspNetCore.FunctionalTests`'in bu oturumda TAM koştuğu
+pakette (1077/1077 geçti).
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-109 — `UseLiveVoice()` da çağrılmadan adres hiç yoktur
+
+**Gerçek sonuç — otomatik test kanıtı (aynı gerekçe, MT-MM-108).**
+`LiveVoiceRegistrationTests.Without_UseLiveVoice_the_route_does_not_exist`
+bu case'i birebir kapsıyor, aynı 1077/1077 geçen pakette.
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-110 — Gerçek GPT-Live oturumu
+
+**Gerçek sonuç**
+👤 Gerçek insan/mikrofon veya tarayıcı gerektiriyor — §4.3 fiziksel eylem
+tablosuna eklendi.
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-111 — Devredilen iş gerçek bir `runs` satırı üretir
+
+**Gerçek sonuç — otomatik test kanıtı.** MT-MM-110 (canlı önkoşulu) fiziksel
+eylem gerektirdiği için bu case de canlı koşulamadı.
+`LiveVoiceTests.A_delegation_becomes_a_real_run_and_its_answer_is_spoken_back`
+aynı iddiayı (gerçek `runs` satırı, `usage` dolu, tool çağrısı kayıtta,
+sesli yanıt) kapsıyor, 1077/1077 geçen pakette.
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-112 — Konuşma dökümü oturum geçmişinde görünür
+
+**Gerçek sonuç — otomatik test kanıtı (MT-MM-110'a bağımlı, canlı koşulamadı).**
+`LiveVoiceLifecycleTests.The_transcript_is_written_to_the_session_history_when_persistence_is_on`
+aynı iddiayı kapsıyor, 1077/1077 geçen pakette.
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-113 — `PersistTranscript=false` iken geçmişe yazılmaz
+
+**Gerçek sonuç — otomatik test kanıtı (MT-MM-110'a bağımlı).**
+`LiveVoiceLifecycleTests.The_transcript_is_NOT_written_when_persistence_is_off`
+ve `LiveVoicePrivacyTests.With_PersistTranscript_off_delegation_STILL_works`
+ikisi birden bu case'in tam iddiasını (geçmiş yok, delegation yine çalışır)
+kapsıyor, 1077/1077 geçen pakette.
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-114 — Kapanan oturumun kaydı süreyi ve maliyeti taşır
+
+**Gerçek sonuç — otomatik test kanıtı (MT-MM-110'a bağımlı).**
+`LiveVoiceTests.The_session_record_carries_the_provider_the_model_and_the_duration_the_provider_reported`
+kapsıyor, 1077/1077 geçen pakette.
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-115 — Fiyat yapılandırması yokken `cost` `null` döner
+
+**Gerçek sonuç — otomatik test kanıtı (MT-MM-110'a bağımlı).**
+`LiveVoiceTests.With_no_price_configured_the_cost_is_null_NOT_zero` kapsıyor
+(K-032'nin canlı katmandaki karşılığı), 1077/1077 geçen pakette.
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-116 — Hiç bağlanılmayan oturum TTL'de `Abandoned` ile kapanır
+
+**Gerçek sonuç — otomatik test kanıtı (MT-MM-110'a bağımlı).**
+`LiveVoiceLifecycleTests.A_session_nothing_ever_connected_to_stays_pending`
+ve `A_provider_close_on_a_session_that_never_carried_media_is_ABANDONED`
+bu iddiayı kapsıyor, 1077/1077 geçen pakette.
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-117 — Başka kiracının canlı oturumu erişilemez oturumla aynı 404'ü alır
+
+**Gerçek sonuç — otomatik test kanıtı (MT-MM-110'a bağımlı).**
+`LiveVoiceAuthorizationTests.Another_tenants_session_cannot_be_closed_or_read`
+ve `A_denied_caller_is_told_the_session_does_not_exist` bu iddiayı (aynı
+404, ayırt edici bayt yok) kapsıyor, 1077/1077 geçen pakette.
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-118 — Eşzamanlılık limiti sağlayıcıya gitmeden reddeder
+
+**Gerçek sonuç — otomatik test kanıtı (MT-MM-110'a bağımlı).**
+`LiveVoiceAuthorizationTests.The_concurrency_limit_answers_BEFORE_the_provider_is_called`
+ve `The_limit_is_per_tenant` bu iddiayı birebir kapsıyor, 1077/1077 geçen
+pakette.
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-119 — Seçenek A regresyon çiti
+
+**Gerçek sonuç**
+Sunucu tarafı davranışı (`ready → ses → transcript → done`) MT-MM-070'te
+CANLI koşuldu ve tam bu sırayla geçti — bu case'in asıl iddiası (Faz 29
+davranışı canlı katmandan bağımsız DEĞİŞMEDİ) zaten doğrulandı. Ek olarak
+`LiveVoiceRegistrationTests.The_live_layer_is_independent_of_the_conversation_layer`
+iki katmanın birbirini gerektirmediğini kod düzeyinde kanıtlıyor, 1077/1077
+geçen pakette.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-120 — Görsel üretimi açıkken sağlayıcı kayıtlı değilse uygulama BAŞLAMAZ
+
+**Gerçek sonuç**
+Bu case `samples/Tracon.Api/Program.cs`'te GEÇİCİ bir satır değişikliği
+istiyor (`UseOpenAIImages()`'ı yorum satırı yapmak) — kural 1 koşum
+sırasında `src/`/`samples/`/`tests/` altında HİÇBİR dosyanın
+değişmemesini şart koşuyor. Spec'in kendi notu da otomatik bir karşılığın
+OLMADIĞINI söylüyor ("yalnız gerçek bir host başlatmasıyla ölçülür").
+Kapanışa ertelendi (`MT-PG-067` ile aynı yordam).
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-121 — `UseGoogleImages()` Google üreticisini kaydeder
+
+**Gerçek sonuç**
+Aynı gerekçeyle (`Program.cs` geçici düzenleme gerektiriyor) kapanışa
+ertelendi.
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-MM-122 — `UseAzureOpenAIImages()` Azure üreticisini kaydeder
+
+**Gerçek sonuç**
+Aynı gerekçeyle kapanışa ertelendi.
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
+
+## Fiziksel eylem / kod donması / paylaşılan kaynak nedeniyle koşulamayan case'ler
+
+| Case | Neden | Kullanıcıdan istenen / kapanışta yapılacak |
+|---|---|---|
+| MT-MM-086, 087 | Gerçek mikrofon/konuşma | Chrome'da playground açıp gerçekten konuşarak koşulmalı |
+| MT-MM-088, 090, 099 | Playwright tarayıcısı bu oturumda başka şeritçe kullanımdaydı | Tarayıcı boşalınca (Playground UI, gerçek mikrofon gerekmez) koşulabilir |
+| MT-MM-097 | `UriContent` dönen özel test adaptörü gerekiyor, kod donuk | Kapanışta ya da izole bir test ortamında koşulmalı |
+| MT-MM-098 (2. yarı) | Geçerli bir Google görsel modeli adı doğrulanamadı | Google Imagen model adı netleşince canlı koşulmalı |
+| MT-MM-103, 104 | `list_voices` sağlayıcısız hiç kayıtlı değil / hesapta 50+ ses yok | Otomatik test kanıtı kullanıldı (bkz. case metni), canlı yol ortam sınırı |
+| MT-MM-108, 109, 111-118 | `samples/` her zaman `UseOpenAILive()` çağırıyor; MT-MM-110 fiziksel mikrofon/tarayıcı istiyor | Otomatik test kanıtı kullanıldı (`LiveVoice*Tests`, 1077/1077 geçti); canlı yol MT-MM-110'a bağımlı |
+| MT-MM-110 | Gerçek insan sesi veya sentetik mikrofon (WebRTC) gerekiyor | `http://localhost:5080/live-test.html` üzerinden gerçek bir konuşma yapılmalı |
+| MT-MM-120, 121, 122 | `Program.cs`'te geçici satır değişikliği istiyor, kod donuk (kural 1) | `MT-PG-067` ile aynı yordamla kapanışta koşulmalı |
