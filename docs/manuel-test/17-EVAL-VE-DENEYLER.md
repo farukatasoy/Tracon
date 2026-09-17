@@ -1950,7 +1950,8 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/runs/<YENI-RUN_ID>/input" -H "$APB
 ```
 
 **Beklenen sonuç**
-- `HTTP: 404`, `title: "Girdi kaydi yok"`.
+- `HTTP: 404`, `title: "No recorded input"` (🚨 doküman düzeltildi, koşum
+  2026-09-17 ap-s3 — kaynak İngilizce'dir, K-228).
 - Case sonrası `dotnet user-secrets remove "Tracon:RunRecording
   :RecordRunInput"` ile varsayılana dön.
 
@@ -1994,13 +1995,11 @@ Negatif senaryo — iki katmanlı yetkilendirme.
 | **İlgili karar** | — |
 
 **Ön koşul**
-- Yalnız `Operator` rolüne sahip (ama `Admin` olmayan) bir kimlikle
-  çağrılabilecek bir test kurulumu (bu ortamda statik bearer token her
-  role eşdeğer davrandığından — bkz. `00-INDEKS.md` §8 rol matrisi
-  no-op notu — bu case'in gerçek ayrımı ancak rol politikaları AÇIKÇA
-  kayıtlı bir ortamda gözlenebilir; bu ortamda yalnız KOD OKUMASIYLA
-  doğrulanan bir iddia olarak işaretlenir, koşum bunu "koşulamadı,
-  varsayılan kurulumda rol ayrımı yok" notuyla kapatabilir).
+- 🚨 **Doküman düzeltildi (koşum, 2026-09-17, ap-s3).** Spec bu case'in
+  statik-token ortamında koşulamayacağını varsayıyordu. K-431'in demo rol
+  bayrağı (`Tracon__Demo__Roles__Enabled=true`, `X-Tracon-Demo-Role:
+  reader|operator|admin`) tam olarak bunu mümkün kılıyor — case gerçekten
+  üç rolle de koşuldu, aşağıda.
 
 **Girilecek veri**
 ```bash
@@ -2009,11 +2008,10 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/runs/<RUN_ID>/replay" -H "
 ```
 
 **Beklenen sonuç**
-- Bu statik-token ortamında `HTTP: 200` beklenir (rol ayrımı no-op) —
-  `get_order_status` GERÇEKTEN yeniden çağrılır. Koşum notu, gerçek bir
-  rol-ayrımlı ortamda bu isteğin `Admin` olmayan bir kimlik için `403`
-  vermesi GEREKTİĞİNİ, ama bu manuel test ortamında doğrulanamadığını
-  kaydeder.
+- Demo rol bayrağıyla: `X-Tracon-Demo-Role: operator` → `403` (rotayı
+  geçer, işleyicinin kendi iç kontrolü reddeder). `X-Tracon-Demo-Role:
+  reader` → `403` (rota seviyesinde zaten reddedilir). `X-Tracon-Demo-Role:
+  admin` → `200`, `get_order_status` gerçekten yeniden çağrılır.
 
 ### MT-EVAL-100 — `ApiKeyScope` enum'ında Eval/Experiment için kapsam YOK — yalnız Role ile sınırlı anahtar TÜM uçlara erişir — ✅ DÜZELTİLDİ (2026-08-14, K-407)
 
