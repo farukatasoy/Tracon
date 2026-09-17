@@ -948,3 +948,71 @@ canlı bir örnekle kanıtlanamadı.
 (bağımlı case, kök nedeni paylaşıyor).
 
 ---
+
+### MT-UIRUN-052
+
+**Gerçek sonuç**
+`support`'a `mark_preview_ready` çağıran bir istek gönderildi. Olay
+akışında `sequence:2`, `type:"Custom"`, `customType:"contoso.preview-
+ready"`, `payload:"{\"orderId\":\"ORD-7\"}"` — case'in "ölçülen" örneğiyle
+birebir aynı şekil. Hemen ardından `sequence:3`, `type:"ToolInvoked"`,
+`customType:null` — Custom OLMAYAN olay customType taşımıyor. Beklenen
+sonucun tamamı birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-UIRUN-053 (👤 insan gerekir — Playwright ile programatik olarak doğrulandı)
+
+**Gerçek sonuç**
+`runs/{id}` sayfasının Zaman Çizelgesi'nde sıra 2'deki satır: olay adı
+alanında (normalde `custom`/`content.blocked` gibi sabit adların olduğu
+yerde) DOĞRUDAN `contoso.preview-ready` (yani `CustomType` DEĞERİNİN
+kendisi) yazıyor — jenerik kart, satır adı gerçekten `CustomType`. Gövde
+`prettyJson` ile 2 boşluklu girintiyle biçimlendirilmiş (`{ "orderId":
+"ORD-7" }`). Beklenen sonucun tamamı birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-UIRUN-054
+
+**Yöntem notu.** Ön koşul geçici bir tool eklemeyi istiyor — kod donuk
+olduğu için bunun yerine case'in kendi andığı otomatik test doğrudan
+koşuldu.
+
+**Gerçek sonuç**
+`./Tracon.Core.UnitTests --filter-method
+"*A_Custom_event_under_the_reserved_tracon_prefix_is_rejected*"` →
+**1/1 geçti**. `tracon.` önekli bir `CustomType` ile `AppendAsync`
+çağrısının `ArgumentException` fırlattığı, donuk kod tabanında zaten
+kanıtlı. Beklenen sonucun otomatik-test kanıtı birebir doğrulandı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-UIRUN-055
+
+**Gerçek sonuç**
+`MT-UIRUN-052`'nin run'ının olay akışı, `customType` alanını YOK SAYAN bir
+ayrıştırıcıyla okundu (eski istemci simülasyonu): **23** olayın tamamı
+hatasız ayrıştırıldı. Beklenen sonucun tamamı birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+### MT-UIRUN-056
+
+**Gerçek sonuç**
+`support`'a bir e-posta adresi içeren bir mesaj gönderildi
+(`MaskedPii` PII kalıbı). Olay akışının benzersiz `event:` adları:
+`content.masked`, `message.delta`, `run.completed`, `run.started` —
+`unknown` HİÇ geçmedi. Beklenen sonucun tamamı birebir örtüştü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
