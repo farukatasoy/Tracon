@@ -613,3 +613,178 @@ iddia (spesifik ret nedeni bir yerde kalıcı olarak tutulur, modele
 sızmaz) doğru; yalnız TABLO/SÜTUN ve tam metin yanlıştı.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-SKILL-060 — Zaman aşımı: uzun süren script öldürülür
+
+**Gerçek sonuç**
+`Tracon__Skills__Scripts__Timeout=00:00:02` ile yeniden başlatıldı,
+`uyuyan` script'i (`sleep 10 && echo bitti`) eklendi ve izin verildi.
+Çalıştırıldı: sonuç `"The script timed out and the process tree was
+terminated."` (İngilizce — K-228), `stdout`/`stderr` bölümü YOK, `bitti`
+hiç görünmedi. `GET /api/runs/{runId}` üzerinden ÖLÇÜLEN gerçek süre:
+`startedAt`→`completedAt` = **3.5 saniye** (2s sınır + süreç
+sonlandırma/rapor gecikmesi) — kesinlikle 10 saniye DEĞİL, süreç
+gerçekten erken öldürüldü. Tam beklenen.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-SKILL-061 — Çıktı sınırı: büyük çıktı kırpılır
+
+**Gerçek sonuç**
+`Tracon__Skills__Scripts__MaxOutputBytes=100` (aynı yeniden başlatmayla,
+060 ile birleştirildi), `buyuk-cikti` script'i (`python3 -c "print('x'*5000)"`)
+eklendi, izin verildi. Çalıştırıldı: sonuç `exit_code: 0 stdout:
+xxx...xxx [Tracon: output truncated at the 100-byte limit.]` (İngilizce —
+K-228) — tam 100 `x` karakteri + kırpma mesajı. `exit_code: 0` — zaman
+aşımına UĞRAMADI, kırpma ve zaman aşımı bağımsız kapılar olduğu
+doğrulandı. Tam beklenen. (Timeout/MaxOutputBytes ayarları bu case
+sonrası kaldırıldı, varsayılana dönüldü.)
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-SKILL-062 — Ortam değişkenleri sızmaz
+
+**Gerçek sonuç**
+`ortam-dokumu` script'i (`env | sort`) eklendi, izin verildi, çalıştırıldı.
+`stdout` TAM OLARAK 7 satır: `HOME=...`, `PATH=...`, `PWD=/private/var/
+folders/.../tracon-script-...`, `SHLVL=1`, `TRACON_SKILL_NAME=scriptli-skill`,
+`TRACON_SKILL_TEMP=/var/folders/.../tracon-skill-...`, `_=/usr/bin/env` —
+spec'in 2026-08-15 düzeltmesindeki "7 satır" sayımıyla BİREBİR eşleşti.
+`OpenAI__ApiKey`, `Tracon__PostgreSql__ConnectionString` gibi HİÇBİR
+Tracon-özel/`secret` değişken ÇIKTIDA YOK. Tam beklenen — Faz 11'in temel
+güvenlik iddiası doğrulandı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-SKILL-063 — Kiracı başına eşzamanlılık sınırı — KISMEN DOĞRULANDI
+
+**Gerçek sonuç**
+🚨 **Yöntem sınırlaması (dürüstçe kaydediliyor, ürün kusuru DEĞİL):**
+Playwright ile sıralı (tek seferde bir eylem) yürütülen tarayıcı
+otomasyonu, 3 sohbeti GERÇEKTEN eşzamanlı (alt saniye farkla) tetikleyecek
+kadar hızlı değil — her "New chat" + yazma + Enter + sekme geçişi
+saniyeler süren gerçek round-trip'ler taşıyor, üstüne her turun kendi
+LLM gecikmesi (skill/script çağırma kararı için ~2-4 sn) ekleniyor. Bu
+yüzden gerçekleştirilen denemelerde `GET /api/runs` üzerinden ölçülen
+`startedAt`/`completedAt` aralıkları hiçbir zaman ÇAKIŞMADI — sıralı
+kaldı, semaforun gerçekten devreye girip BEKLETTİĞİ bir an yakalanamadı.
+
+Bunun yerine mekanizma KAYNAKTAN doğrulandı:
+`SkillScriptConcurrencyLimiter.cs:24-42` — `AcquireAsync` önce kiracı
+başına `SemaphoreSlim(_perTenantLimit, _perTenantLimit)` üzerinde
+`WaitAsync` çağırıyor (spec'in dediği gibi REDDETMEZ, BEKLER), sonra
+global `_total` semaforunu bekliyor; `TraconOptions.cs:374` varsayılan
+`MaxConcurrentPerTenant = 2` (spec'in beklediğiyle birebir). Ayrıca
+birden fazla `bekleyen`/`merhaba`/`uyuyan` çalıştırması bu oturumda ART
+ARDA (sırayla) sorunsuz tamamlandı — çökme, kilitlenme veya sızıntı
+gözlenmedi.
+
+**Sonuç:** Mekanizmanın DOĞRU yazıldığı kaynaktan kanıtlandı; canlı
+"üçüncü çağrı gerçekten bekliyor" zamanlama iddiası mevcut araçlarla
+GÜVENİLİR şekilde tekrar üretilemedi — bu bir eksik doğrulama olarak
+kaydediliyor, "Geçti" değil "Kısmen" işaretleniyor.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☑ Atlandı (kısmen — mekanizma kaynaktan doğrulandı, canlı zamanlama ölçülemedi)
+
+---
+
+## MT-SKILL-070 — `execute_skill_script` span'i öznitelikleri — KALDI
+
+**Gerçek sonuç**
+🚨 **Ürün kusuru bulundu, HATA-S2-003.** `Tracon__Observability__SuccessSampleRatio=1`
+ile yeniden başlatıldı, `merhaba` script'i İKİ AYRI bağımsız çalıştırmada
+(`01a0b032-68ac-...`, `01a0b034-9bca-...`) test edildi — HER İKİSİ de
+`exit_code: 0` ile GERÇEKTEN başarılı oldu. `GET /api/runs/{id}/trace`
+ile alınan span'ler:
+- `execute_skill_script` span'i yalnız `tracon.skill.name`/
+  `tracon.script.name` taşıyor — `tracon.script.exit_code` ve
+  `tracon.script.duration_ms` HİÇBİR ikisinde de YOK. `status: "Unset"`
+  (`"Ok"` beklenirdi).
+- Ebeveyn `execute_tool run_skill_script` span'i her ikisinde de
+  `status: "Error"`, `error.type: "Tracon.TraconException"` taşıyor —
+  ÇALIŞTIRMA BAŞARILI olduğu hâlde.
+
+Kaynak okundu: `SandboxedSkillScriptRunner.cs:355-359`
+`activity?.SetTag(TraconDiagnostics.Tags.ExitCode, ...)` /
+`...DurationMs, ...)` / `activity?.SetStatus(result.Succeeded ? Ok :
+Error)` GERÇEKTEN kodda var ve `SkillScriptProcessRunner.ExecuteAsync`
+dönüşünden HEMEN sonra çağrılıyor — kod, `activity`'yi doğru şekilde
+(AsyncLocal'a güvenmeden) açık parametre olarak taşıyor
+(`TraconDiagnostics.SkillScriptActivityName` açılışı METODUN KENDİ
+gövdesinde, dokümante edilmiş kurala uygun). Ama sonuçta izlenen span'de
+bu etiketler YOK ve durum "Ok" yerine hep "Unset"/ebeveynde "Error" —
+etiketlerin/kararın span DİNLENDİĞİNDE (recorder/exporter) yakalandığı
+an ile `SetTag`/`SetStatus`'un GERÇEKTEN çağrıldığı an arasında bir
+kayıp/zamanlama sorunu olduğu görülüyor (script yürütmesi async I/O
+içerdiği için `SetTag` await'ten SONRA, span'in muhtemelen ERKEN
+serileştirilen bir görünümünden SONRA geliyor olabilir — tam kök neden
+kapanışta netleştirilmeli).
+
+**Etki:** Gözlemlenebilirlik verisi hatalı/eksik — bir script başarıyla
+çalışsa bile trace'te "Error" görünüyor ve exit_code/duration_ms hiç
+kaydedilmiyor; bu, span'e bakan biri için YANLIŞ ALARM anlamına gelir
+(gerçek bir hatayla ayırt edilemez).
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+
+---
+
+## MT-SKILL-071 — (kapsam dışı, spec'in kendi notuyla koşulmadı)
+
+**Gerçek sonuç**
+Spec bu case'i bilinçli olarak "yazılmadı" işaretliyor (audit-yazım
+hatası enjekte etmek DB'yi bozar). Otomatik test dosyası taze koşuldu:
+`dotnet test tests/Tracon.Core.UnitTests -c release --no-build` →
+2804/2805 geçti; TEK başarısız `SourceLanguageTests` bu oturumun KENDİ
+geçici Türkçe kod yorumlarından kaynaklandı (henüz geri alınmamıştı) —
+`SandboxedSkillScriptRunnerTests`'in tamamı YEŞİL. Doğrulandı, kapsam
+dışı kalmaya devam ediyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı (otomatik test kapsamı doğrulandı)
+
+---
+
+## 🚨 HATA-S2-003 — `execute_skill_script` span'i başarılı çalıştırmada bile `exit_code`/`duration_ms` taşımıyor, ebeveyn span yanlış "Error" gösteriyor
+
+**Önem:** Düşük (yalnız gözlemlenebilirlik/trace verisi; script'in kendi
+çalışması, sonucu, `tool_invocations`/`audit_log` kayıtları TAMAMEN
+doğru — kullanıcıya/modelin aldığı sonuca hiçbir etkisi yok).
+
+**Bulgu:** `MT-SKILL-058`'in KENDİSİ dahil, bu oturumdaki HER başarılı
+`merhaba`/`bekleyen`/`buyuk-cikti`/`ortam-dokumu` script çalıştırması
+(en az 6 bağımsız örnek) için `GET /api/runs/{id}/trace` şunu gösterdi:
+- `execute_skill_script` span'i: yalnız `tracon.skill.name`/
+  `tracon.script.name`; `tracon.script.exit_code`/`tracon.script.duration_ms`
+  HİÇ YOK; `status: "Unset"`.
+- Ebeveyn `execute_tool run_skill_script` span'i: `status: "Error"`,
+  `error.type: "Tracon.TraconException"` — çalıştırma GERÇEKTEN
+  başarılıyken.
+
+**Kök neden (kısmi):** `SandboxedSkillScriptRunner.cs:355-359`
+`activity?.SetTag(ExitCode/DurationMs)` ve `activity?.SetStatus(...)`
+kod olarak DOĞRU yazılmış (`RunStoredScriptAsync`/`RunCodeScriptAsync`
+her ikisi de `activity`'yi AsyncLocal'a güvenmeden açık parametre olarak
+taşıyor — dokümante edilmiş kalıba uygun) ve `SkillScriptProcessRunner
+.ExecuteAsync`'in (async, süreç I/O'su içeren) dönüşünden HEMEN sonra
+çağrılıyor. Trace'e YAZAN mekanizma (span recorder/exporter) bu geç
+`SetTag`/`SetStatus` çağrılarını YAKALAMIYOR — muhtemelen span'in bir
+ERKEN görünümünü (aktivite başlarken) kalıcı depoya yazıyor, `Dispose()`
+anındaki NİHAİ etiket/durum kümesini değil. Tam kök neden (hangi
+recorder/exporter, hangi anda serileştiriyor) bu koşumda izlenmedi —
+kapanışta kod okumasıyla netleştirilmeli.
+
+**Düzeltme yönü (uygulanmadı, kural 1 gereği):** Span'i kaydeden
+mekanizmanın `ActivityStopped` (ya da eşdeğer `Dispose` sonrası) anını
+beklediğinden emin olunmalı — muhtemelen bir `ActivityListener` erken
+bir `Sample`/`ActivityStarted` kancasında span'i zaten "bitmiş" sayıp
+kaydediyor.
+
+**Durum:** Kayıt, düzeltilmedi (kural 1) — kapanışta değerlendirilmeli.
