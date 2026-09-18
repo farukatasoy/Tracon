@@ -48,6 +48,34 @@ internal sealed partial class InMemoryRunStore
     }
 
     /// <inheritdoc />
+    public ValueTask<long?> GetLastEventSequenceAsync(
+        Guid runId,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (!_events.TryGetValue(runId, out var log))
+        {
+            return ValueTask.FromResult<long?>(null);
+        }
+
+        lock (log)
+        {
+            long? highest = null;
+
+            foreach (var existing in log)
+            {
+                if (highest is null || existing.Sequence > highest)
+                {
+                    highest = existing.Sequence;
+                }
+            }
+
+            return ValueTask.FromResult(highest);
+        }
+    }
+
+    /// <inheritdoc />
     public ValueTask RecordToolInvocationAsync(
         ToolInvocationRecord invocation,
         CancellationToken cancellationToken = default)

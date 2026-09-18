@@ -1260,7 +1260,8 @@ internal static class AgentEndpoints
 
                 if (session is not null)
                 {
-                    await sessions.SaveSessionAsync(agent, session, cancellationToken).ConfigureAwait(false);
+                    await SaveSessionRecordingConflictAsync(
+                        httpContext, sessions, agent, session, runId, cancellationToken).ConfigureAwait(false);
                 }
 
                 sequence = await WriteQuotaThresholdNoticesAsync(httpContext, runId, writer, sequence, cancellationToken)
@@ -1305,6 +1306,77 @@ internal static class AgentEndpoints
                     CancellationToken.None).ConfigureAwait(false);
             }
         }
+
+        /// <summary>
+        /// Saves the session and, when that write loses a race, records the
+        /// conflict on the run before letting the exception continue.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The run itself stays <see cref="RunStatus.Completed"/>, which is the
+        /// truthful status: the model was called, tokens were spent, an answer
+        /// was produced. What lost the race is the session write that happens
+        /// AFTER the run, and the caller is told about that with a 409.
+        /// </para>
+        /// <para>
+        /// Before this event the conflict left no trace in the
+        /// record at all. The operator saw two successful runs for the same
+        /// session, and the losing side existed only in a response the caller
+        /// had already consumed - so "my message went missing" could not be
+        /// answered from the control plane's own record.
+        /// </para>
+        /// <para>
+        /// The write is best effort and never replaces the 409: observability
+        /// does not break functionality. A store that cannot take the event
+        /// leaves the caller's answer unchanged.
+        /// </para>
+        /// </remarks>
+        private static async ValueTask SaveSessionRecordingConflictAsync(
+            HttpContext httpContext,
+            AgentSessionManager sessions,
+            Microsoft.Agents.AI.AIAgent agent,
+            Microsoft.Agents.AI.AgentSession session,
+            Guid runId,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                await sessions.SaveSessionAsync(agent, session, cancellationToken).ConfigureAwait(false);
+            }
+            catch (TraconSessionConflictException conflict)
+            {
+                var runs = httpContext.RequestServices.GetRequiredService<IRunStore>();
+
+                try
+                {
+                    var lastSequence = await runs
+                        .GetLastEventSequenceAsync(runId, cancellationToken)
+                        .ConfigureAwait(false);
+
+                    await runs.AppendEventAsync(
+                        new RunEvent
+                        {
+                            RunId = runId,
+                            Sequence = (lastSequence ?? -1) + 1,
+                            Type = RunEventType.SessionWriteConflicted,
+                            Timestamp = DateTimeOffset.UtcNow,
+                            Text = conflict.SessionId,
+                            TenantId = httpContext.RequestServices.GetRequiredService<ITenantContext>().TenantId,
+                        },
+                        cancellationToken).ConfigureAwait(false);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    httpContext.RequestServices
+                        .GetRequiredService<ILoggerFactory>()
+                        .CreateLogger(typeof(AgentEndpoints))
+                        .LogWarning(ex, "The session conflict on run {RunId} could not be recorded.", runId);
+                }
+
+                throw;
+            }
+        }
+
 
         /// <summary>
         /// Mirrors any quota threshold notice this run's completion just wrote
@@ -1392,7 +1464,8 @@ internal static class AgentEndpoints
 
                 if (session is not null)
                 {
-                    await sessions.SaveSessionAsync(agent, session, cancellationToken).ConfigureAwait(false);
+                    await SaveSessionRecordingConflictAsync(
+                        httpContext, sessions, agent, session, runId, cancellationToken).ConfigureAwait(false);
                 }
 
                 await Results.Json(

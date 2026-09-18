@@ -95,234 +95,6 @@ Tracon.AgentParameterKind
 Tracon.AgentParameterKind.Boolean = 2 -> Tracon.AgentParameterKind
 Tracon.AgentParameterKind.Number = 1 -> Tracon.AgentParameterKind
 Tracon.AgentParameterKind.Text = 0 -> Tracon.AgentParameterKind
-Tracon.TraconAgentSourceException
-Tracon.TraconAgentSourceException.TraconAgentSourceException(string! sourceName, string! errorType, string! message, System.Exception? innerException = null) -> void
-Tracon.TraconAgentSourceException.SourceName.get -> string!
-Tracon.TraconCompilationException
-Tracon.TraconCompilationException.AgentName.get -> string?
-Tracon.TraconCompilationException.AgentName.init -> void
-Tracon.TraconCompilationException.TraconCompilationException() -> void
-Tracon.TraconCompilationException.TraconCompilationException(string! message) -> void
-Tracon.TraconCompilationException.TraconCompilationException(string! message, System.Exception! innerException) -> void
-Tracon.TraconContentBlockedException
-Tracon.TraconContentBlockedException.TraconContentBlockedException() -> void
-Tracon.TraconContentBlockedException.TraconContentBlockedException(string! message) -> void
-Tracon.TraconContentBlockedException.TraconContentBlockedException(string! message, System.Exception! innerException) -> void
-Tracon.TraconContentBlockedException.Direction.get -> Tracon.ContentGuardDirection
-Tracon.TraconContentBlockedException.Direction.init -> void
-Tracon.TraconContentBlockedException.GuardName.get -> string?
-Tracon.TraconContentBlockedException.GuardName.init -> void
-Tracon.TraconContentBlockedException.RuleName.get -> string?
-Tracon.TraconContentBlockedException.RuleName.init -> void
-Tracon.TraconContentFilteredException
-Tracon.TraconContentFilteredException.TraconContentFilteredException() -> void
-Tracon.TraconContentFilteredException.TraconContentFilteredException(string! message) -> void
-Tracon.TraconContentFilteredException.TraconContentFilteredException(string! message, System.Exception! innerException) -> void
-Tracon.TraconContentFilteredException.FinishReason.get -> string?
-Tracon.TraconContentFilteredException.FinishReason.init -> void
-Tracon.TraconContentFilteredException.ProviderName.get -> string?
-Tracon.TraconContentFilteredException.ProviderName.init -> void
-Tracon.TraconDiagnosticsReport
-Tracon.TraconDiagnosticsReport.<Clone>$() -> Tracon.TraconDiagnosticsReport!
-Tracon.TraconDiagnosticsReport.AgentCount.get -> int?
-Tracon.TraconDiagnosticsReport.AgentCount.init -> void
-Tracon.TraconDiagnosticsReport.TraconDiagnosticsReport() -> void
-Tracon.TraconDiagnosticsReport.AgentSources.get -> System.Collections.Generic.IReadOnlyList<Tracon.AgentSourceDiagnostic!>!
-Tracon.TraconDiagnosticsReport.AgentSources.init -> void
-Tracon.TraconDiagnosticsReport.CanConnect.get -> bool
-Tracon.TraconDiagnosticsReport.CanConnect.init -> void
-Tracon.TraconDiagnosticsReport.Configuration.get -> System.Collections.Generic.IReadOnlyList<Tracon.ConfigurationDiagnostic!>!
-Tracon.TraconDiagnosticsReport.Configuration.init -> void
-Tracon.TraconDiagnosticsReport.Equals(Tracon.TraconDiagnosticsReport? other) -> bool
-Tracon.TraconDiagnosticsReport.ExtensionPoints.get -> System.Collections.Generic.IReadOnlyList<Tracon.ExtensionPointDiagnostic!>!
-Tracon.TraconDiagnosticsReport.ExtensionPoints.init -> void
-Tracon.TraconDiagnosticsReport.MigrationsUpToDate.get -> bool
-Tracon.TraconDiagnosticsReport.MigrationsUpToDate.init -> void
-Tracon.TraconDiagnosticsReport.ModelProviders.get -> System.Collections.Generic.IReadOnlyList<Tracon.ProviderDiagnostic!>!
-Tracon.TraconDiagnosticsReport.ModelProviders.init -> void
-Tracon.TraconDiagnosticsReport.PendingMigrations.get -> System.Collections.Generic.IReadOnlyList<string!>!
-Tracon.TraconDiagnosticsReport.PendingMigrations.init -> void
-Tracon.TraconDiagnosticsReport.PersistenceProvider.get -> string!
-Tracon.TraconDiagnosticsReport.PersistenceProvider.init -> void
-Tracon.TraconDiagnosticsReport.RegisteredPersistenceProviders.get -> int
-Tracon.TraconDiagnosticsReport.RegisteredPersistenceProviders.init -> void
-Tracon.TraconDiagnosticsReport.ToolCount.get -> int
-Tracon.TraconDiagnosticsReport.ToolCount.init -> void
-Tracon.TraconDiagnosticsReport.UiEmbedded.get -> bool
-Tracon.TraconDiagnosticsReport.UiEmbedded.init -> void
-Tracon.TraconEgressOptions
-Tracon.TraconEgressOptions.TraconEgressOptions() -> void
-Tracon.TraconEgressOptions.AllowPrivateNetworkTargets.get -> bool
-Tracon.TraconEgressOptions.AllowPrivateNetworkTargets.set -> void
-Tracon.TraconException
-Tracon.TraconException.TraconException() -> void
-Tracon.TraconException.TraconException(string! message) -> void
-Tracon.TraconException.TraconException(string! message, System.Exception? innerException) -> void
-Tracon.TraconExternalCallException
-Tracon.TraconExternalCallException.AgentName.get -> string!
-Tracon.TraconExternalCallException.AgentName.init -> void
-Tracon.TraconExternalCallException.TraconExternalCallException() -> void
-Tracon.TraconExternalCallException.TraconExternalCallException(string! message) -> void
-Tracon.TraconExternalCallException.TraconExternalCallException(string! message, System.Exception! innerException) -> void
-Tracon.TraconExternalCallException.Protocol.get -> string!
-Tracon.TraconExternalCallException.Protocol.init -> void
-Tracon.TraconGeneratedToolArguments
-Tracon.TraconId
-Tracon.TraconInboundTriggerOptions
-Tracon.TraconInboundTriggerOptions.TraconInboundTriggerOptions() -> void
-Tracon.TraconInboundTriggerOptions.AllowedConfigurationPrefix.get -> string!
-Tracon.TraconInboundTriggerOptions.AllowedConfigurationPrefix.set -> void
-Tracon.TraconInboundTriggerOptions.MaxBodyBytes.get -> int
-Tracon.TraconInboundTriggerOptions.MaxBodyBytes.set -> void
-Tracon.TraconInboundTriggerOptions.MaxRequestsPerMinute.get -> int
-Tracon.TraconInboundTriggerOptions.MaxRequestsPerMinute.set -> void
-Tracon.TraconInboundTriggerOptions.TimestampTolerance.get -> System.TimeSpan
-Tracon.TraconInboundTriggerOptions.TimestampTolerance.set -> void
-Tracon.TraconMcpSecurityOptions
-Tracon.TraconMcpSecurityOptions.TraconMcpSecurityOptions() -> void
-Tracon.TraconMcpSecurityOptions.AllowedConfigurationPrefix.get -> string!
-Tracon.TraconMcpSecurityOptions.AllowedConfigurationPrefix.set -> void
-Tracon.TraconModelConcurrencyOptions
-Tracon.TraconModelConcurrencyOptions.TraconModelConcurrencyOptions() -> void
-Tracon.TraconModelConcurrencyOptions.MaxConcurrentCallsPerProvider.get -> int?
-Tracon.TraconModelConcurrencyOptions.MaxConcurrentCallsPerProvider.set -> void
-Tracon.TraconPreflightOptions
-Tracon.TraconPreflightOptions.TraconPreflightOptions() -> void
-Tracon.TraconPreflightOptions.Enabled.get -> bool
-Tracon.TraconPreflightOptions.Enabled.set -> void
-Tracon.TraconPreflightOptions.ReserveRatio.get -> double
-Tracon.TraconPreflightOptions.ReserveRatio.set -> void
-Tracon.TraconProviderUnavailableException
-Tracon.TraconProviderUnavailableException.TraconProviderUnavailableException() -> void
-Tracon.TraconProviderUnavailableException.TraconProviderUnavailableException(string! message) -> void
-Tracon.TraconProviderUnavailableException.TraconProviderUnavailableException(string! message, System.Exception! innerException) -> void
-Tracon.TraconProviderUnavailableException.ProviderName.get -> string?
-Tracon.TraconProviderUnavailableException.ProviderName.init -> void
-Tracon.TraconProviderUnavailableException.RetryAfter.get -> System.DateTimeOffset?
-Tracon.TraconProviderUnavailableException.RetryAfter.init -> void
-Tracon.TraconRunBudgetExceededException
-Tracon.TraconRunBudgetExceededException.TraconRunBudgetExceededException() -> void
-Tracon.TraconRunBudgetExceededException.TraconRunBudgetExceededException(string! message) -> void
-Tracon.TraconRunBudgetExceededException.TraconRunBudgetExceededException(string! message, System.Exception! innerException) -> void
-Tracon.TraconRunOptions
-Tracon.TraconRunOptions.TraconRunOptions() -> void
-Tracon.TraconRunOptions.AgentVersion.get -> int?
-Tracon.TraconRunOptions.AgentVersion.init -> void
-Tracon.TraconRunOptions.BeforePendingApprovalIsPublished.get -> System.Func<System.Collections.Generic.IEnumerable<Microsoft.Extensions.AI.ChatMessage!>!, System.Collections.Generic.IReadOnlyDictionary<string!, Tracon.ToolApprovalPresentation?>!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>?
-Tracon.TraconRunOptions.BeforePendingApprovalIsPublished.init -> void
-Tracon.TraconRunOptions.Budget.get -> Tracon.AgentRunBudget?
-Tracon.TraconRunOptions.Budget.init -> void
-Tracon.TraconRunOptions.ContinuedFromRunId.get -> System.Guid?
-Tracon.TraconRunOptions.ContinuedFromRunId.init -> void
-Tracon.TraconRunOptions.Depth.get -> int
-Tracon.TraconRunOptions.Depth.init -> void
-Tracon.TraconRunOptions.ExperimentId.get -> System.Guid?
-Tracon.TraconRunOptions.ExperimentId.init -> void
-Tracon.TraconRunOptions.Kind.get -> Tracon.RunKind?
-Tracon.TraconRunOptions.Kind.init -> void
-Tracon.TraconRunOptions.ParentRunId.get -> System.Guid?
-Tracon.TraconRunOptions.ParentRunId.init -> void
-Tracon.TraconRunOptions.ReplayOfRunId.get -> System.Guid?
-Tracon.TraconRunOptions.ReplayOfRunId.init -> void
-Tracon.TraconRunOptions.RootRunId.get -> System.Guid?
-Tracon.TraconRunOptions.RootRunId.init -> void
-Tracon.TraconRunOptions.RunId.get -> System.Guid?
-Tracon.TraconRunOptions.RunId.init -> void
-Tracon.TraconRunOptions.SessionId.get -> string?
-Tracon.TraconRunOptions.SessionId.init -> void
-Tracon.TraconRunOptions.Variant.get -> string?
-Tracon.TraconRunOptions.Variant.init -> void
-Tracon.TraconSchedulingOptions
-Tracon.TraconSchedulingOptions.TraconSchedulingOptions() -> void
-Tracon.TraconSchedulingOptions.Enabled.get -> bool
-Tracon.TraconSchedulingOptions.Enabled.set -> void
-Tracon.TraconSchedulingOptions.HttpSchedulableHandlerKeys.get -> System.Collections.Generic.IList<string!>!
-Tracon.TraconSchedulingOptions.LaneByHandlerKey.get -> System.Collections.Generic.IDictionary<string!, string!>!
-Tracon.TraconSchedulingOptions.Lanes.get -> System.Collections.Generic.IReadOnlyList<string!>?
-Tracon.TraconSchedulingOptions.Lanes.set -> void
-Tracon.TraconSchedulingOptions.LeaseDuration.get -> System.TimeSpan
-Tracon.TraconSchedulingOptions.LeaseDuration.set -> void
-Tracon.TraconSchedulingOptions.MaxAttempts.get -> int
-Tracon.TraconSchedulingOptions.MaxAttempts.set -> void
-Tracon.TraconSchedulingOptions.MaxConcurrentJobs.get -> int
-Tracon.TraconSchedulingOptions.MaxConcurrentJobs.set -> void
-Tracon.TraconSchedulingOptions.MaxConcurrentJobsPerLane.get -> System.Collections.Generic.IDictionary<string!, int>!
-Tracon.TraconSchedulingOptions.MaxItemsPerJob.get -> int
-Tracon.TraconSchedulingOptions.MaxItemsPerJob.set -> void
-Tracon.TraconSchedulingOptions.PollInterval.get -> System.TimeSpan
-Tracon.TraconSchedulingOptions.PollInterval.set -> void
-Tracon.TraconSchedulingOptions.RunWorker.get -> bool
-Tracon.TraconSchedulingOptions.RunWorker.set -> void
-Tracon.TraconSessionConflictException
-Tracon.TraconSessionConflictException.TraconSessionConflictException() -> void
-Tracon.TraconSessionConflictException.TraconSessionConflictException(string! message) -> void
-Tracon.TraconSessionConflictException.TraconSessionConflictException(string! message, System.Exception! innerException) -> void
-Tracon.TraconSessionConflictException.SessionId.get -> string?
-Tracon.TraconSessionConflictException.SessionId.init -> void
-Tracon.TraconSessionOwnerRequiredException
-Tracon.TraconSessionOwnerRequiredException.TraconSessionOwnerRequiredException() -> void
-Tracon.TraconSessionOwnerRequiredException.TraconSessionOwnerRequiredException(string! message) -> void
-Tracon.TraconSessionOwnerRequiredException.TraconSessionOwnerRequiredException(string! message, System.Exception! innerException) -> void
-Tracon.TraconSessionOwnerRequiredException.SessionId.get -> string?
-Tracon.TraconSessionOwnerRequiredException.SessionId.init -> void
-Tracon.TraconSessionOwnershipOptions
-Tracon.TraconSessionOwnershipOptions.TraconSessionOwnershipOptions() -> void
-Tracon.TraconSessionOwnershipOptions.Enabled.get -> bool
-Tracon.TraconSessionOwnershipOptions.Enabled.set -> void
-Tracon.TraconSessionOwnershipOptions.ManagementPolicy.get -> string?
-Tracon.TraconSessionOwnershipOptions.ManagementPolicy.set -> void
-Tracon.TraconSessionOwnershipOptions.RefuseUnownedSessions.get -> bool
-Tracon.TraconSessionOwnershipOptions.RefuseUnownedSessions.set -> void
-Tracon.TraconSessionOwnershipOptions.RequireAuthenticatedOwner.get -> bool
-Tracon.TraconSessionOwnershipOptions.RequireAuthenticatedOwner.set -> void
-Tracon.TraconSessionStateKeys
-Tracon.TraconStructuredResponseException
-Tracon.TraconStructuredResponseException.TraconStructuredResponseException() -> void
-Tracon.TraconStructuredResponseException.TraconStructuredResponseException(string! message) -> void
-Tracon.TraconStructuredResponseException.TraconStructuredResponseException(string! message, System.Exception! innerException) -> void
-Tracon.TraconTenantProviderOptions
-Tracon.TraconTenantProviderOptions.TraconTenantProviderOptions() -> void
-Tracon.TraconTenantProviderOptions.AllowedConfigurationPrefix.get -> string!
-Tracon.TraconTenantProviderOptions.AllowedConfigurationPrefix.set -> void
-Tracon.TraconToolAttribute
-Tracon.TraconToolAttribute.TraconToolAttribute() -> void
-Tracon.TraconToolAttribute.TraconToolAttribute(string! name) -> void
-Tracon.TraconToolAttribute.TraconToolAttribute(string! name, string! description) -> void
-Tracon.TraconToolAttribute.Description.get -> string?
-Tracon.TraconToolAttribute.Description.init -> void
-Tracon.TraconToolAttribute.Effect.get -> Tracon.ToolEffect
-Tracon.TraconToolAttribute.Effect.init -> void
-Tracon.TraconToolAttribute.JsonSerializerContext.get -> System.Type?
-Tracon.TraconToolAttribute.JsonSerializerContext.init -> void
-Tracon.TraconToolAttribute.MaxOutputBytes.get -> int
-Tracon.TraconToolAttribute.MaxOutputBytes.init -> void
-Tracon.TraconToolAttribute.Name.get -> string?
-Tracon.TraconToolAttribute.RequiredPermission.get -> string?
-Tracon.TraconToolAttribute.RequiredPermission.init -> void
-Tracon.TraconToolAttribute.RequiresApproval.get -> bool
-Tracon.TraconToolAttribute.RequiresApproval.init -> void
-Tracon.TraconToolAttribute.SafeToRepeat.get -> bool
-Tracon.TraconToolAttribute.SafeToRepeat.init -> void
-Tracon.TraconToolAttribute.TimeoutSeconds.get -> int
-Tracon.TraconToolAttribute.TimeoutSeconds.init -> void
-Tracon.TraconToolRegistration
-Tracon.TraconToolRegistration.TraconToolRegistration(Microsoft.Extensions.AI.AIFunctionDeclaration! function, bool requiresApproval = false, string? source = null, Tracon.ToolEffect effect = Tracon.ToolEffect.Read, string? requiredPermission = null, System.TimeSpan? timeout = null, bool safeToRepeat = false, int? maxOutputBytes = null) -> void
-Tracon.TraconToolRegistration.Effect.get -> Tracon.ToolEffect
-Tracon.TraconToolRegistration.Function.get -> Microsoft.Extensions.AI.AIFunctionDeclaration!
-Tracon.TraconToolRegistration.MaxOutputBytes.get -> int?
-Tracon.TraconToolRegistration.RequiredPermission.get -> string?
-Tracon.TraconToolRegistration.RequiresApproval.get -> bool
-Tracon.TraconToolRegistration.SafeToRepeat.get -> bool
-Tracon.TraconToolRegistration.Source.get -> string?
-Tracon.TraconToolRegistration.Timeout.get -> System.TimeSpan?
-Tracon.TraconToolTimeoutException
-Tracon.TraconToolTimeoutException.TraconToolTimeoutException() -> void
-Tracon.TraconToolTimeoutException.TraconToolTimeoutException(string! message) -> void
-Tracon.TraconToolTimeoutException.TraconToolTimeoutException(string! message, System.Exception! innerException) -> void
-Tracon.TraconToolTimeoutException.Timeout.get -> System.TimeSpan?
-Tracon.TraconToolTimeoutException.Timeout.init -> void
-Tracon.TraconToolTimeoutException.ToolName.get -> string?
-Tracon.TraconToolTimeoutException.ToolName.init -> void
 Tracon.AgentResponseFormat
 Tracon.AgentResponseFormat.<Clone>$() -> Tracon.AgentResponseFormat!
 Tracon.AgentResponseFormat.AgentResponseFormat() -> void
@@ -1213,8 +985,6 @@ Tracon.IAgentDefinitionStore.ListAsync(System.Threading.CancellationToken cancel
 Tracon.IAgentDefinitionStore.ListVersionsAsync(string! name, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Tracon.AgentDefinition!>!>
 Tracon.IAgentDefinitionStore.RollbackAsync(string! name, int version, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.AgentDefinition!>
 Tracon.IAgentDefinitionStore.SaveAsync(Tracon.AgentDefinition! definition, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.AgentDefinition!>
-Tracon.ITraconDrainState
-Tracon.ITraconDrainState.IsDraining.get -> bool
 Tracon.IAgentSkillStore
 Tracon.IAgentSkillStore.DeleteAsync(string! tenantId, string! name, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
 Tracon.IAgentSkillStore.GetAsync(string! tenantId, string! name, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.AgentSkillDefinition?>
@@ -1381,6 +1151,9 @@ Tracon.IPendingApprovalStore.DecideAsync(System.Guid id, bool approved, string! 
 Tracon.IPendingApprovalStore.ExpireAsync(System.DateTimeOffset olderThan, int max, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Tracon.PendingApproval!>!>
 Tracon.IPendingApprovalStore.GetAsync(System.Guid id, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.PendingApproval?>
 Tracon.IPendingApprovalStore.ListPendingAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Tracon.PendingApproval!>!>
+Tracon.IProductionProfileCheck
+Tracon.IProductionProfileCheck.Evaluate(System.IServiceProvider! services) -> Tracon.ProductionProfileResult!
+Tracon.IProductionProfileCheck.Risk.get -> Tracon.TraconProductionRisk
 Tracon.IProviderRetryClassifier
 Tracon.IProviderRetryClassifier.Classify(System.Exception! exception) -> Tracon.ProviderRetryDecision
 Tracon.IQuotaStore
@@ -1438,6 +1211,7 @@ Tracon.IRunStore.AppendEventAsync(Tracon.RunEvent! runEvent, System.Threading.Ca
 Tracon.IRunStore.ClaimOrphanedRunsAsync(System.DateTimeOffset staleBefore, int max, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Tracon.RunRecord!>!>
 Tracon.IRunStore.CompleteRunAsync(Tracon.RunCompletion! completion, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
 Tracon.IRunStore.GetExperimentResultsAsync(Tracon.ExperimentResultsQuery! query, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Tracon.ExperimentVariantResult!>!>
+Tracon.IRunStore.GetLastEventSequenceAsync(System.Guid runId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<long?>
 Tracon.IRunStore.GetRunAsync(System.Guid runId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.RunRecord?>
 Tracon.IRunStore.GetStatisticsAsync(Tracon.RunStatisticsQuery! query, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.RunStatistics!>
 Tracon.IRunStore.GetTimeSeriesAsync(Tracon.RunTimeSeriesQuery! query, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Tracon.TimeSeriesPoint!>!>
@@ -1517,6 +1291,8 @@ Tracon.IToolRegistry.TryGet(string! name, out Microsoft.Extensions.AI.AIFunction
 Tracon.ITraceStore
 Tracon.ITraceStore.GetTraceByRunAsync(System.Guid runId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.RunTrace?>
 Tracon.ITraceStore.WriteSpansAsync(Tracon.TraceSpanBatch! batch, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+Tracon.ITraconDrainState
+Tracon.ITraconDrainState.IsDraining.get -> bool
 Tracon.IVectorSearchStore
 Tracon.IVectorSearchStore.DeleteSourceAsync(string! tenantId, string! collection, string! sourceId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<int>
 Tracon.IVectorSearchStore.Dimensions.get -> int
@@ -2306,6 +2082,15 @@ Tracon.PricingSource
 Tracon.PricingSource.Catalog = 0 -> Tracon.PricingSource
 Tracon.PricingSource.Configuration = 1 -> Tracon.PricingSource
 Tracon.PricingSource.Unknown = 2 -> Tracon.PricingSource
+Tracon.ProductionProfileResult
+Tracon.ProductionProfileResult.Observed.get -> string!
+Tracon.ProductionProfileResult.Remedy.get -> string!
+Tracon.ProductionProfileResult.Setting.get -> string!
+Tracon.ProductionProfileResult.State.get -> Tracon.ProductionProfileState
+Tracon.ProductionProfileState
+Tracon.ProductionProfileState.NotApplicable = 2 -> Tracon.ProductionProfileState
+Tracon.ProductionProfileState.Permissive = 1 -> Tracon.ProductionProfileState
+Tracon.ProductionProfileState.Satisfied = 0 -> Tracon.ProductionProfileState
 Tracon.ProtectedColumn
 Tracon.ProtectedColumn.AgentFileContent = 7 -> Tracon.ProtectedColumn
 Tracon.ProtectedColumn.AttachmentContent = 8 -> Tracon.ProtectedColumn
@@ -2740,6 +2525,7 @@ Tracon.RunEventType.RunCompleted = 6 -> Tracon.RunEventType
 Tracon.RunEventType.RunContinuationBlocked = 25 -> Tracon.RunEventType
 Tracon.RunEventType.RunFailed = 7 -> Tracon.RunEventType
 Tracon.RunEventType.RunStarted = 0 -> Tracon.RunEventType
+Tracon.RunEventType.SessionWriteConflicted = 32 -> Tracon.RunEventType
 Tracon.RunEventType.StructuredResponseRejected = 27 -> Tracon.RunEventType
 Tracon.RunEventType.StructuredResponseRepairAttempted = 28 -> Tracon.RunEventType
 Tracon.RunEventType.SuperStepCompleted = 13 -> Tracon.RunEventType
@@ -3879,6 +3665,241 @@ Tracon.TraceSpanStatus
 Tracon.TraceSpanStatus.Error = 2 -> Tracon.TraceSpanStatus
 Tracon.TraceSpanStatus.Ok = 1 -> Tracon.TraceSpanStatus
 Tracon.TraceSpanStatus.Unset = 0 -> Tracon.TraceSpanStatus
+Tracon.TraconAgentSourceException
+Tracon.TraconAgentSourceException.SourceName.get -> string!
+Tracon.TraconAgentSourceException.TraconAgentSourceException(string! sourceName, string! errorType, string! message, System.Exception? innerException = null) -> void
+Tracon.TraconCompilationException
+Tracon.TraconCompilationException.AgentName.get -> string?
+Tracon.TraconCompilationException.AgentName.init -> void
+Tracon.TraconCompilationException.TraconCompilationException() -> void
+Tracon.TraconCompilationException.TraconCompilationException(string! message) -> void
+Tracon.TraconCompilationException.TraconCompilationException(string! message, System.Exception! innerException) -> void
+Tracon.TraconContentBlockedException
+Tracon.TraconContentBlockedException.Direction.get -> Tracon.ContentGuardDirection
+Tracon.TraconContentBlockedException.Direction.init -> void
+Tracon.TraconContentBlockedException.GuardName.get -> string?
+Tracon.TraconContentBlockedException.GuardName.init -> void
+Tracon.TraconContentBlockedException.RuleName.get -> string?
+Tracon.TraconContentBlockedException.RuleName.init -> void
+Tracon.TraconContentBlockedException.TraconContentBlockedException() -> void
+Tracon.TraconContentBlockedException.TraconContentBlockedException(string! message) -> void
+Tracon.TraconContentBlockedException.TraconContentBlockedException(string! message, System.Exception! innerException) -> void
+Tracon.TraconContentFilteredException
+Tracon.TraconContentFilteredException.FinishReason.get -> string?
+Tracon.TraconContentFilteredException.FinishReason.init -> void
+Tracon.TraconContentFilteredException.ProviderName.get -> string?
+Tracon.TraconContentFilteredException.ProviderName.init -> void
+Tracon.TraconContentFilteredException.TraconContentFilteredException() -> void
+Tracon.TraconContentFilteredException.TraconContentFilteredException(string! message) -> void
+Tracon.TraconContentFilteredException.TraconContentFilteredException(string! message, System.Exception! innerException) -> void
+Tracon.TraconDiagnosticsReport
+Tracon.TraconDiagnosticsReport.<Clone>$() -> Tracon.TraconDiagnosticsReport!
+Tracon.TraconDiagnosticsReport.AgentCount.get -> int?
+Tracon.TraconDiagnosticsReport.AgentCount.init -> void
+Tracon.TraconDiagnosticsReport.AgentSources.get -> System.Collections.Generic.IReadOnlyList<Tracon.AgentSourceDiagnostic!>!
+Tracon.TraconDiagnosticsReport.AgentSources.init -> void
+Tracon.TraconDiagnosticsReport.CanConnect.get -> bool
+Tracon.TraconDiagnosticsReport.CanConnect.init -> void
+Tracon.TraconDiagnosticsReport.Configuration.get -> System.Collections.Generic.IReadOnlyList<Tracon.ConfigurationDiagnostic!>!
+Tracon.TraconDiagnosticsReport.Configuration.init -> void
+Tracon.TraconDiagnosticsReport.Equals(Tracon.TraconDiagnosticsReport? other) -> bool
+Tracon.TraconDiagnosticsReport.ExtensionPoints.get -> System.Collections.Generic.IReadOnlyList<Tracon.ExtensionPointDiagnostic!>!
+Tracon.TraconDiagnosticsReport.ExtensionPoints.init -> void
+Tracon.TraconDiagnosticsReport.MigrationsUpToDate.get -> bool
+Tracon.TraconDiagnosticsReport.MigrationsUpToDate.init -> void
+Tracon.TraconDiagnosticsReport.ModelProviders.get -> System.Collections.Generic.IReadOnlyList<Tracon.ProviderDiagnostic!>!
+Tracon.TraconDiagnosticsReport.ModelProviders.init -> void
+Tracon.TraconDiagnosticsReport.PendingMigrations.get -> System.Collections.Generic.IReadOnlyList<string!>!
+Tracon.TraconDiagnosticsReport.PendingMigrations.init -> void
+Tracon.TraconDiagnosticsReport.PersistenceProvider.get -> string!
+Tracon.TraconDiagnosticsReport.PersistenceProvider.init -> void
+Tracon.TraconDiagnosticsReport.RegisteredPersistenceProviders.get -> int
+Tracon.TraconDiagnosticsReport.RegisteredPersistenceProviders.init -> void
+Tracon.TraconDiagnosticsReport.ToolCount.get -> int
+Tracon.TraconDiagnosticsReport.ToolCount.init -> void
+Tracon.TraconDiagnosticsReport.TraconDiagnosticsReport() -> void
+Tracon.TraconDiagnosticsReport.UiEmbedded.get -> bool
+Tracon.TraconDiagnosticsReport.UiEmbedded.init -> void
+Tracon.TraconEgressOptions
+Tracon.TraconEgressOptions.AllowPrivateNetworkTargets.get -> bool
+Tracon.TraconEgressOptions.AllowPrivateNetworkTargets.set -> void
+Tracon.TraconEgressOptions.TraconEgressOptions() -> void
+Tracon.TraconException
+Tracon.TraconException.TraconException() -> void
+Tracon.TraconException.TraconException(string! message) -> void
+Tracon.TraconException.TraconException(string! message, System.Exception? innerException) -> void
+Tracon.TraconExternalCallException
+Tracon.TraconExternalCallException.AgentName.get -> string!
+Tracon.TraconExternalCallException.AgentName.init -> void
+Tracon.TraconExternalCallException.Protocol.get -> string!
+Tracon.TraconExternalCallException.Protocol.init -> void
+Tracon.TraconExternalCallException.TraconExternalCallException() -> void
+Tracon.TraconExternalCallException.TraconExternalCallException(string! message) -> void
+Tracon.TraconExternalCallException.TraconExternalCallException(string! message, System.Exception! innerException) -> void
+Tracon.TraconGeneratedToolArguments
+Tracon.TraconId
+Tracon.TraconInboundTriggerOptions
+Tracon.TraconInboundTriggerOptions.AllowedConfigurationPrefix.get -> string!
+Tracon.TraconInboundTriggerOptions.AllowedConfigurationPrefix.set -> void
+Tracon.TraconInboundTriggerOptions.MaxBodyBytes.get -> int
+Tracon.TraconInboundTriggerOptions.MaxBodyBytes.set -> void
+Tracon.TraconInboundTriggerOptions.MaxRequestsPerMinute.get -> int
+Tracon.TraconInboundTriggerOptions.MaxRequestsPerMinute.set -> void
+Tracon.TraconInboundTriggerOptions.TimestampTolerance.get -> System.TimeSpan
+Tracon.TraconInboundTriggerOptions.TimestampTolerance.set -> void
+Tracon.TraconInboundTriggerOptions.TraconInboundTriggerOptions() -> void
+Tracon.TraconMcpSecurityOptions
+Tracon.TraconMcpSecurityOptions.AllowedConfigurationPrefix.get -> string!
+Tracon.TraconMcpSecurityOptions.AllowedConfigurationPrefix.set -> void
+Tracon.TraconMcpSecurityOptions.TraconMcpSecurityOptions() -> void
+Tracon.TraconModelConcurrencyOptions
+Tracon.TraconModelConcurrencyOptions.MaxConcurrentCallsPerProvider.get -> int?
+Tracon.TraconModelConcurrencyOptions.MaxConcurrentCallsPerProvider.set -> void
+Tracon.TraconModelConcurrencyOptions.TraconModelConcurrencyOptions() -> void
+Tracon.TraconPreflightOptions
+Tracon.TraconPreflightOptions.Enabled.get -> bool
+Tracon.TraconPreflightOptions.Enabled.set -> void
+Tracon.TraconPreflightOptions.ReserveRatio.get -> double
+Tracon.TraconPreflightOptions.ReserveRatio.set -> void
+Tracon.TraconPreflightOptions.TraconPreflightOptions() -> void
+Tracon.TraconProductionRisk
+Tracon.TraconProductionRisk.SingleTenant = 0 -> Tracon.TraconProductionRisk
+Tracon.TraconProductionRisk.UnboundedRetention = 5 -> Tracon.TraconProductionRisk
+Tracon.TraconProductionRisk.UnencryptedContentAtRest = 2 -> Tracon.TraconProductionRisk
+Tracon.TraconProductionRisk.UninspectedContent = 3 -> Tracon.TraconProductionRisk
+Tracon.TraconProductionRisk.UnlimitedRequestRate = 4 -> Tracon.TraconProductionRisk
+Tracon.TraconProductionRisk.UnownedSessions = 1 -> Tracon.TraconProductionRisk
+Tracon.TraconProviderUnavailableException
+Tracon.TraconProviderUnavailableException.ProviderName.get -> string?
+Tracon.TraconProviderUnavailableException.ProviderName.init -> void
+Tracon.TraconProviderUnavailableException.RetryAfter.get -> System.DateTimeOffset?
+Tracon.TraconProviderUnavailableException.RetryAfter.init -> void
+Tracon.TraconProviderUnavailableException.TraconProviderUnavailableException() -> void
+Tracon.TraconProviderUnavailableException.TraconProviderUnavailableException(string! message) -> void
+Tracon.TraconProviderUnavailableException.TraconProviderUnavailableException(string! message, System.Exception! innerException) -> void
+Tracon.TraconRunBudgetExceededException
+Tracon.TraconRunBudgetExceededException.TraconRunBudgetExceededException() -> void
+Tracon.TraconRunBudgetExceededException.TraconRunBudgetExceededException(string! message) -> void
+Tracon.TraconRunBudgetExceededException.TraconRunBudgetExceededException(string! message, System.Exception! innerException) -> void
+Tracon.TraconRunOptions
+Tracon.TraconRunOptions.AgentVersion.get -> int?
+Tracon.TraconRunOptions.AgentVersion.init -> void
+Tracon.TraconRunOptions.BeforePendingApprovalIsPublished.get -> System.Func<System.Collections.Generic.IEnumerable<Microsoft.Extensions.AI.ChatMessage!>!, System.Collections.Generic.IReadOnlyDictionary<string!, Tracon.ToolApprovalPresentation?>!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>?
+Tracon.TraconRunOptions.BeforePendingApprovalIsPublished.init -> void
+Tracon.TraconRunOptions.Budget.get -> Tracon.AgentRunBudget?
+Tracon.TraconRunOptions.Budget.init -> void
+Tracon.TraconRunOptions.ContinuedFromRunId.get -> System.Guid?
+Tracon.TraconRunOptions.ContinuedFromRunId.init -> void
+Tracon.TraconRunOptions.Depth.get -> int
+Tracon.TraconRunOptions.Depth.init -> void
+Tracon.TraconRunOptions.ExperimentId.get -> System.Guid?
+Tracon.TraconRunOptions.ExperimentId.init -> void
+Tracon.TraconRunOptions.Kind.get -> Tracon.RunKind?
+Tracon.TraconRunOptions.Kind.init -> void
+Tracon.TraconRunOptions.ParentRunId.get -> System.Guid?
+Tracon.TraconRunOptions.ParentRunId.init -> void
+Tracon.TraconRunOptions.ReplayOfRunId.get -> System.Guid?
+Tracon.TraconRunOptions.ReplayOfRunId.init -> void
+Tracon.TraconRunOptions.RootRunId.get -> System.Guid?
+Tracon.TraconRunOptions.RootRunId.init -> void
+Tracon.TraconRunOptions.RunId.get -> System.Guid?
+Tracon.TraconRunOptions.RunId.init -> void
+Tracon.TraconRunOptions.SessionId.get -> string?
+Tracon.TraconRunOptions.SessionId.init -> void
+Tracon.TraconRunOptions.TraconRunOptions() -> void
+Tracon.TraconRunOptions.Variant.get -> string?
+Tracon.TraconRunOptions.Variant.init -> void
+Tracon.TraconSchedulingOptions
+Tracon.TraconSchedulingOptions.Enabled.get -> bool
+Tracon.TraconSchedulingOptions.Enabled.set -> void
+Tracon.TraconSchedulingOptions.HttpSchedulableHandlerKeys.get -> System.Collections.Generic.IList<string!>!
+Tracon.TraconSchedulingOptions.LaneByHandlerKey.get -> System.Collections.Generic.IDictionary<string!, string!>!
+Tracon.TraconSchedulingOptions.Lanes.get -> System.Collections.Generic.IReadOnlyList<string!>?
+Tracon.TraconSchedulingOptions.Lanes.set -> void
+Tracon.TraconSchedulingOptions.LeaseDuration.get -> System.TimeSpan
+Tracon.TraconSchedulingOptions.LeaseDuration.set -> void
+Tracon.TraconSchedulingOptions.MaxAttempts.get -> int
+Tracon.TraconSchedulingOptions.MaxAttempts.set -> void
+Tracon.TraconSchedulingOptions.MaxConcurrentJobs.get -> int
+Tracon.TraconSchedulingOptions.MaxConcurrentJobs.set -> void
+Tracon.TraconSchedulingOptions.MaxConcurrentJobsPerLane.get -> System.Collections.Generic.IDictionary<string!, int>!
+Tracon.TraconSchedulingOptions.MaxItemsPerJob.get -> int
+Tracon.TraconSchedulingOptions.MaxItemsPerJob.set -> void
+Tracon.TraconSchedulingOptions.PollInterval.get -> System.TimeSpan
+Tracon.TraconSchedulingOptions.PollInterval.set -> void
+Tracon.TraconSchedulingOptions.RunWorker.get -> bool
+Tracon.TraconSchedulingOptions.RunWorker.set -> void
+Tracon.TraconSchedulingOptions.TraconSchedulingOptions() -> void
+Tracon.TraconSessionConflictException
+Tracon.TraconSessionConflictException.SessionId.get -> string?
+Tracon.TraconSessionConflictException.SessionId.init -> void
+Tracon.TraconSessionConflictException.TraconSessionConflictException() -> void
+Tracon.TraconSessionConflictException.TraconSessionConflictException(string! message) -> void
+Tracon.TraconSessionConflictException.TraconSessionConflictException(string! message, System.Exception! innerException) -> void
+Tracon.TraconSessionOwnerRequiredException
+Tracon.TraconSessionOwnerRequiredException.SessionId.get -> string?
+Tracon.TraconSessionOwnerRequiredException.SessionId.init -> void
+Tracon.TraconSessionOwnerRequiredException.TraconSessionOwnerRequiredException() -> void
+Tracon.TraconSessionOwnerRequiredException.TraconSessionOwnerRequiredException(string! message) -> void
+Tracon.TraconSessionOwnerRequiredException.TraconSessionOwnerRequiredException(string! message, System.Exception! innerException) -> void
+Tracon.TraconSessionOwnershipOptions
+Tracon.TraconSessionOwnershipOptions.Enabled.get -> bool
+Tracon.TraconSessionOwnershipOptions.Enabled.set -> void
+Tracon.TraconSessionOwnershipOptions.ManagementPolicy.get -> string?
+Tracon.TraconSessionOwnershipOptions.ManagementPolicy.set -> void
+Tracon.TraconSessionOwnershipOptions.RefuseUnownedSessions.get -> bool
+Tracon.TraconSessionOwnershipOptions.RefuseUnownedSessions.set -> void
+Tracon.TraconSessionOwnershipOptions.RequireAuthenticatedOwner.get -> bool
+Tracon.TraconSessionOwnershipOptions.RequireAuthenticatedOwner.set -> void
+Tracon.TraconSessionOwnershipOptions.TraconSessionOwnershipOptions() -> void
+Tracon.TraconSessionStateKeys
+Tracon.TraconStructuredResponseException
+Tracon.TraconStructuredResponseException.TraconStructuredResponseException() -> void
+Tracon.TraconStructuredResponseException.TraconStructuredResponseException(string! message) -> void
+Tracon.TraconStructuredResponseException.TraconStructuredResponseException(string! message, System.Exception! innerException) -> void
+Tracon.TraconTenantProviderOptions
+Tracon.TraconTenantProviderOptions.AllowedConfigurationPrefix.get -> string!
+Tracon.TraconTenantProviderOptions.AllowedConfigurationPrefix.set -> void
+Tracon.TraconTenantProviderOptions.TraconTenantProviderOptions() -> void
+Tracon.TraconToolAttribute
+Tracon.TraconToolAttribute.Description.get -> string?
+Tracon.TraconToolAttribute.Description.init -> void
+Tracon.TraconToolAttribute.Effect.get -> Tracon.ToolEffect
+Tracon.TraconToolAttribute.Effect.init -> void
+Tracon.TraconToolAttribute.JsonSerializerContext.get -> System.Type?
+Tracon.TraconToolAttribute.JsonSerializerContext.init -> void
+Tracon.TraconToolAttribute.MaxOutputBytes.get -> int
+Tracon.TraconToolAttribute.MaxOutputBytes.init -> void
+Tracon.TraconToolAttribute.Name.get -> string?
+Tracon.TraconToolAttribute.RequiredPermission.get -> string?
+Tracon.TraconToolAttribute.RequiredPermission.init -> void
+Tracon.TraconToolAttribute.RequiresApproval.get -> bool
+Tracon.TraconToolAttribute.RequiresApproval.init -> void
+Tracon.TraconToolAttribute.SafeToRepeat.get -> bool
+Tracon.TraconToolAttribute.SafeToRepeat.init -> void
+Tracon.TraconToolAttribute.TimeoutSeconds.get -> int
+Tracon.TraconToolAttribute.TimeoutSeconds.init -> void
+Tracon.TraconToolAttribute.TraconToolAttribute() -> void
+Tracon.TraconToolAttribute.TraconToolAttribute(string! name) -> void
+Tracon.TraconToolAttribute.TraconToolAttribute(string! name, string! description) -> void
+Tracon.TraconToolRegistration
+Tracon.TraconToolRegistration.Effect.get -> Tracon.ToolEffect
+Tracon.TraconToolRegistration.Function.get -> Microsoft.Extensions.AI.AIFunctionDeclaration!
+Tracon.TraconToolRegistration.MaxOutputBytes.get -> int?
+Tracon.TraconToolRegistration.RequiredPermission.get -> string?
+Tracon.TraconToolRegistration.RequiresApproval.get -> bool
+Tracon.TraconToolRegistration.SafeToRepeat.get -> bool
+Tracon.TraconToolRegistration.Source.get -> string?
+Tracon.TraconToolRegistration.Timeout.get -> System.TimeSpan?
+Tracon.TraconToolRegistration.TraconToolRegistration(Microsoft.Extensions.AI.AIFunctionDeclaration! function, bool requiresApproval = false, string? source = null, Tracon.ToolEffect effect = Tracon.ToolEffect.Read, string? requiredPermission = null, System.TimeSpan? timeout = null, bool safeToRepeat = false, int? maxOutputBytes = null) -> void
+Tracon.TraconToolTimeoutException
+Tracon.TraconToolTimeoutException.Timeout.get -> System.TimeSpan?
+Tracon.TraconToolTimeoutException.Timeout.init -> void
+Tracon.TraconToolTimeoutException.ToolName.get -> string?
+Tracon.TraconToolTimeoutException.ToolName.init -> void
+Tracon.TraconToolTimeoutException.TraconToolTimeoutException() -> void
+Tracon.TraconToolTimeoutException.TraconToolTimeoutException(string! message) -> void
+Tracon.TraconToolTimeoutException.TraconToolTimeoutException(string! message, System.Exception! innerException) -> void
 Tracon.ValidationMessage
 Tracon.ValidationMessage.<Clone>$() -> Tracon.ValidationMessage!
 Tracon.ValidationMessage.Code.get -> string!
@@ -4456,23 +4477,6 @@ Tracon.WorkflowRunRequest.SessionId.init -> void
 Tracon.WorkflowRunRequest.WorkflowName.get -> string!
 Tracon.WorkflowRunRequest.WorkflowName.init -> void
 Tracon.WorkflowRunRequest.WorkflowRunRequest() -> void
-const Tracon.TraconAgentSourceException.SourceContractErrorType = "agent_source_contract" -> string!
-const Tracon.TraconAgentSourceException.SourceFailedErrorType = "agent_source_failed" -> string!
-const Tracon.TraconCompilationException.CompilationFailedErrorType = "compilation_failed" -> string!
-const Tracon.TraconContentBlockedException.ContentBlockedErrorType = "content_blocked" -> string!
-const Tracon.TraconContentFilteredException.ContentFilteredErrorType = "content_filtered" -> string!
-const Tracon.TraconEgressOptions.SectionName = "Tracon:Egress" -> string!
-const Tracon.TraconExternalCallException.ExternalCallRejectedErrorType = "external_call_rejected" -> string!
-const Tracon.TraconMcpSecurityOptions.SectionName = "Tracon:Mcp" -> string!
-const Tracon.TraconProviderUnavailableException.ProviderUnavailableErrorType = "provider_unavailable" -> string!
-const Tracon.TraconRunBudgetExceededException.RunBudgetExceededErrorType = "run_budget_exceeded" -> string!
-const Tracon.TraconSchedulingOptions.SectionName = "Tracon:Scheduling" -> string!
-const Tracon.TraconSessionConflictException.SessionConflictErrorType = "session_conflict" -> string!
-const Tracon.TraconSessionOwnerRequiredException.SessionOwnerRequiredErrorType = "session_owner_required" -> string!
-const Tracon.TraconSessionOwnershipOptions.SectionName = "Tracon:SessionOwnership" -> string!
-const Tracon.TraconSessionStateKeys.ChatHistory = "Tracon.ChatHistory" -> string!
-const Tracon.TraconStructuredResponseException.StructuredResponseInvalidErrorType = "structured_response_invalid" -> string!
-const Tracon.TraconToolTimeoutException.ToolTimeoutErrorType = "tool_timeout" -> string!
 const Tracon.AgentSourcePriority.Code = 0 -> int
 const Tracon.AgentSourcePriority.Database = 100 -> int
 const Tracon.EvalRunDiffUnavailableException.EvalRunDiffUnavailableErrorType = "eval_run_diff_unavailable" -> string!
@@ -4531,6 +4535,23 @@ const Tracon.ToolUsageUnits.Characters = "characters" -> string!
 const Tracon.ToolUsageUnits.Images = "images" -> string!
 const Tracon.ToolUsageUnits.Seconds = "seconds" -> string!
 const Tracon.ToolUsageUnits.Tokens = "tokens" -> string!
+const Tracon.TraconAgentSourceException.SourceContractErrorType = "agent_source_contract" -> string!
+const Tracon.TraconAgentSourceException.SourceFailedErrorType = "agent_source_failed" -> string!
+const Tracon.TraconCompilationException.CompilationFailedErrorType = "compilation_failed" -> string!
+const Tracon.TraconContentBlockedException.ContentBlockedErrorType = "content_blocked" -> string!
+const Tracon.TraconContentFilteredException.ContentFilteredErrorType = "content_filtered" -> string!
+const Tracon.TraconEgressOptions.SectionName = "Tracon:Egress" -> string!
+const Tracon.TraconExternalCallException.ExternalCallRejectedErrorType = "external_call_rejected" -> string!
+const Tracon.TraconMcpSecurityOptions.SectionName = "Tracon:Mcp" -> string!
+const Tracon.TraconProviderUnavailableException.ProviderUnavailableErrorType = "provider_unavailable" -> string!
+const Tracon.TraconRunBudgetExceededException.RunBudgetExceededErrorType = "run_budget_exceeded" -> string!
+const Tracon.TraconSchedulingOptions.SectionName = "Tracon:Scheduling" -> string!
+const Tracon.TraconSessionConflictException.SessionConflictErrorType = "session_conflict" -> string!
+const Tracon.TraconSessionOwnerRequiredException.SessionOwnerRequiredErrorType = "session_owner_required" -> string!
+const Tracon.TraconSessionOwnershipOptions.SectionName = "Tracon:SessionOwnership" -> string!
+const Tracon.TraconSessionStateKeys.ChatHistory = "Tracon.ChatHistory" -> string!
+const Tracon.TraconStructuredResponseException.StructuredResponseInvalidErrorType = "structured_response_invalid" -> string!
+const Tracon.TraconToolTimeoutException.ToolTimeoutErrorType = "tool_timeout" -> string!
 const Tracon.VoiceAttributeNames.Accent = "accent" -> string!
 const Tracon.VoiceAttributeNames.Age = "age" -> string!
 const Tracon.VoiceAttributeNames.Gender = "gender" -> string!
@@ -4555,21 +4576,6 @@ override Tracon.AgentDescriptor.ToString() -> string!
 override Tracon.AgentParameter.Equals(object? obj) -> bool
 override Tracon.AgentParameter.GetHashCode() -> int
 override Tracon.AgentParameter.ToString() -> string!
-override Tracon.TraconAgentSourceException.ErrorType.get -> string!
-override Tracon.TraconCompilationException.ErrorType.get -> string!
-override Tracon.TraconContentBlockedException.ErrorType.get -> string!
-override Tracon.TraconContentFilteredException.ErrorType.get -> string!
-override Tracon.TraconDiagnosticsReport.Equals(object? obj) -> bool
-override Tracon.TraconDiagnosticsReport.GetHashCode() -> int
-override Tracon.TraconDiagnosticsReport.ToString() -> string!
-override Tracon.TraconExternalCallException.ErrorType.get -> string!
-override Tracon.TraconProviderUnavailableException.ErrorType.get -> string!
-override Tracon.TraconRunBudgetExceededException.ErrorType.get -> string!
-override Tracon.TraconRunOptions.Clone() -> Microsoft.Agents.AI.AgentRunOptions!
-override Tracon.TraconSessionConflictException.ErrorType.get -> string!
-override Tracon.TraconSessionOwnerRequiredException.ErrorType.get -> string!
-override Tracon.TraconStructuredResponseException.ErrorType.get -> string!
-override Tracon.TraconToolTimeoutException.ErrorType.get -> string!
 override Tracon.AgentResponseFormat.Equals(object? obj) -> bool
 override Tracon.AgentResponseFormat.GetHashCode() -> int
 override Tracon.AgentResponseFormat.ToString() -> string!
@@ -5079,6 +5085,21 @@ override Tracon.TraceSpan.ToString() -> string!
 override Tracon.TraceSpanBatch.Equals(object? obj) -> bool
 override Tracon.TraceSpanBatch.GetHashCode() -> int
 override Tracon.TraceSpanBatch.ToString() -> string!
+override Tracon.TraconAgentSourceException.ErrorType.get -> string!
+override Tracon.TraconCompilationException.ErrorType.get -> string!
+override Tracon.TraconContentBlockedException.ErrorType.get -> string!
+override Tracon.TraconContentFilteredException.ErrorType.get -> string!
+override Tracon.TraconDiagnosticsReport.Equals(object? obj) -> bool
+override Tracon.TraconDiagnosticsReport.GetHashCode() -> int
+override Tracon.TraconDiagnosticsReport.ToString() -> string!
+override Tracon.TraconExternalCallException.ErrorType.get -> string!
+override Tracon.TraconProviderUnavailableException.ErrorType.get -> string!
+override Tracon.TraconRunBudgetExceededException.ErrorType.get -> string!
+override Tracon.TraconRunOptions.Clone() -> Microsoft.Agents.AI.AgentRunOptions!
+override Tracon.TraconSessionConflictException.ErrorType.get -> string!
+override Tracon.TraconSessionOwnerRequiredException.ErrorType.get -> string!
+override Tracon.TraconStructuredResponseException.ErrorType.get -> string!
+override Tracon.TraconToolTimeoutException.ErrorType.get -> string!
 override Tracon.ValidationMessage.Equals(object? obj) -> bool
 override Tracon.ValidationMessage.GetHashCode() -> int
 override Tracon.ValidationMessage.ToString() -> string!
@@ -5180,15 +5201,6 @@ static Tracon.AgentDescriptor.operator !=(Tracon.AgentDescriptor? left, Tracon.A
 static Tracon.AgentDescriptor.operator ==(Tracon.AgentDescriptor? left, Tracon.AgentDescriptor? right) -> bool
 static Tracon.AgentParameter.operator !=(Tracon.AgentParameter? left, Tracon.AgentParameter? right) -> bool
 static Tracon.AgentParameter.operator ==(Tracon.AgentParameter? left, Tracon.AgentParameter? right) -> bool
-static Tracon.TraconDiagnosticsReport.operator !=(Tracon.TraconDiagnosticsReport? left, Tracon.TraconDiagnosticsReport? right) -> bool
-static Tracon.TraconDiagnosticsReport.operator ==(Tracon.TraconDiagnosticsReport? left, Tracon.TraconDiagnosticsReport? right) -> bool
-static Tracon.TraconGeneratedToolArguments.GetArray<T>(Microsoft.Extensions.AI.AIFunctionArguments! arguments, string! name, System.Func<System.Text.Json.JsonElement, T>! convert, bool required, System.Collections.Generic.IReadOnlyList<T>? defaultValue) -> System.Collections.Generic.IReadOnlyList<T>!
-static Tracon.TraconGeneratedToolArguments.GetOptional<T>(Microsoft.Extensions.AI.AIFunctionArguments! arguments, string! name, System.Func<System.Text.Json.JsonElement, T>! convert, T defaultValue) -> T
-static Tracon.TraconGeneratedToolArguments.GetRequired<T>(Microsoft.Extensions.AI.AIFunctionArguments! arguments, string! name, System.Func<System.Text.Json.JsonElement, T>! convert) -> T
-static Tracon.TraconId.DeriveId(System.DateTimeOffset timestamp, string! seed) -> System.Guid
-static Tracon.TraconId.GetTimestamp(System.Guid id) -> System.DateTimeOffset
-static Tracon.TraconId.NewId() -> System.Guid
-static Tracon.TraconId.NewId(System.DateTimeOffset timestamp) -> System.Guid
 static Tracon.AgentResponseFormat.operator !=(Tracon.AgentResponseFormat? left, Tracon.AgentResponseFormat? right) -> bool
 static Tracon.AgentResponseFormat.operator ==(Tracon.AgentResponseFormat? left, Tracon.AgentResponseFormat? right) -> bool
 static Tracon.AgentRunDocument.operator !=(Tracon.AgentRunDocument? left, Tracon.AgentRunDocument? right) -> bool
@@ -5392,6 +5404,9 @@ static Tracon.ModelProviderSettings.ReadString(Tracon.ModelBinding! binding, str
 static Tracon.ModelProviderSettings.Validate(Tracon.ModelBinding! binding, string! providerPrefix, System.Collections.Generic.IReadOnlyCollection<string!>! supportedKeys) -> void
 static Tracon.PendingApproval.operator !=(Tracon.PendingApproval? left, Tracon.PendingApproval? right) -> bool
 static Tracon.PendingApproval.operator ==(Tracon.PendingApproval? left, Tracon.PendingApproval? right) -> bool
+static Tracon.ProductionProfileResult.NotApplicable(string! setting, string! reason) -> Tracon.ProductionProfileResult!
+static Tracon.ProductionProfileResult.Permissive(string! setting, string! observed, string! remedy) -> Tracon.ProductionProfileResult!
+static Tracon.ProductionProfileResult.Satisfied(string! setting) -> Tracon.ProductionProfileResult!
 static Tracon.ProviderDiagnostic.operator !=(Tracon.ProviderDiagnostic? left, Tracon.ProviderDiagnostic? right) -> bool
 static Tracon.ProviderDiagnostic.operator ==(Tracon.ProviderDiagnostic? left, Tracon.ProviderDiagnostic? right) -> bool
 static Tracon.QuotaConsumption.operator !=(Tracon.QuotaConsumption? left, Tracon.QuotaConsumption? right) -> bool
@@ -5581,6 +5596,15 @@ static Tracon.TraceSpan.operator !=(Tracon.TraceSpan? left, Tracon.TraceSpan? ri
 static Tracon.TraceSpan.operator ==(Tracon.TraceSpan? left, Tracon.TraceSpan? right) -> bool
 static Tracon.TraceSpanBatch.operator !=(Tracon.TraceSpanBatch? left, Tracon.TraceSpanBatch? right) -> bool
 static Tracon.TraceSpanBatch.operator ==(Tracon.TraceSpanBatch? left, Tracon.TraceSpanBatch? right) -> bool
+static Tracon.TraconDiagnosticsReport.operator !=(Tracon.TraconDiagnosticsReport? left, Tracon.TraconDiagnosticsReport? right) -> bool
+static Tracon.TraconDiagnosticsReport.operator ==(Tracon.TraconDiagnosticsReport? left, Tracon.TraconDiagnosticsReport? right) -> bool
+static Tracon.TraconGeneratedToolArguments.GetArray<T>(Microsoft.Extensions.AI.AIFunctionArguments! arguments, string! name, System.Func<System.Text.Json.JsonElement, T>! convert, bool required, System.Collections.Generic.IReadOnlyList<T>? defaultValue) -> System.Collections.Generic.IReadOnlyList<T>!
+static Tracon.TraconGeneratedToolArguments.GetOptional<T>(Microsoft.Extensions.AI.AIFunctionArguments! arguments, string! name, System.Func<System.Text.Json.JsonElement, T>! convert, T defaultValue) -> T
+static Tracon.TraconGeneratedToolArguments.GetRequired<T>(Microsoft.Extensions.AI.AIFunctionArguments! arguments, string! name, System.Func<System.Text.Json.JsonElement, T>! convert) -> T
+static Tracon.TraconId.DeriveId(System.DateTimeOffset timestamp, string! seed) -> System.Guid
+static Tracon.TraconId.GetTimestamp(System.Guid id) -> System.DateTimeOffset
+static Tracon.TraconId.NewId() -> System.Guid
+static Tracon.TraconId.NewId(System.DateTimeOffset timestamp) -> System.Guid
 static Tracon.ValidationMessage.operator !=(Tracon.ValidationMessage? left, Tracon.ValidationMessage? right) -> bool
 static Tracon.ValidationMessage.operator ==(Tracon.ValidationMessage? left, Tracon.ValidationMessage? right) -> bool
 static Tracon.VectorChunk.operator !=(Tracon.VectorChunk? left, Tracon.VectorChunk? right) -> bool
@@ -5670,25 +5694,3 @@ virtual Tracon.TraconException.ErrorType.get -> string!
 ~override Tracon.ConversationBranch.ToString() -> string
 ~override Tracon.McpRefreshOutcome.Equals(object obj) -> bool
 ~override Tracon.McpRefreshOutcome.ToString() -> string
-Tracon.IProductionProfileCheck
-Tracon.IProductionProfileCheck.Evaluate(System.IServiceProvider! services) -> Tracon.ProductionProfileResult!
-Tracon.IProductionProfileCheck.Risk.get -> Tracon.TraconProductionRisk
-Tracon.ProductionProfileResult
-Tracon.ProductionProfileResult.Observed.get -> string!
-Tracon.ProductionProfileResult.Remedy.get -> string!
-Tracon.ProductionProfileResult.Setting.get -> string!
-Tracon.ProductionProfileResult.State.get -> Tracon.ProductionProfileState
-Tracon.ProductionProfileState
-Tracon.ProductionProfileState.NotApplicable = 2 -> Tracon.ProductionProfileState
-Tracon.ProductionProfileState.Permissive = 1 -> Tracon.ProductionProfileState
-Tracon.ProductionProfileState.Satisfied = 0 -> Tracon.ProductionProfileState
-Tracon.TraconProductionRisk
-Tracon.TraconProductionRisk.SingleTenant = 0 -> Tracon.TraconProductionRisk
-Tracon.TraconProductionRisk.UnboundedRetention = 5 -> Tracon.TraconProductionRisk
-Tracon.TraconProductionRisk.UnencryptedContentAtRest = 2 -> Tracon.TraconProductionRisk
-Tracon.TraconProductionRisk.UninspectedContent = 3 -> Tracon.TraconProductionRisk
-Tracon.TraconProductionRisk.UnlimitedRequestRate = 4 -> Tracon.TraconProductionRisk
-Tracon.TraconProductionRisk.UnownedSessions = 1 -> Tracon.TraconProductionRisk
-static Tracon.ProductionProfileResult.NotApplicable(string! setting, string! reason) -> Tracon.ProductionProfileResult!
-static Tracon.ProductionProfileResult.Permissive(string! setting, string! observed, string! remedy) -> Tracon.ProductionProfileResult!
-static Tracon.ProductionProfileResult.Satisfied(string! setting) -> Tracon.ProductionProfileResult!

@@ -457,6 +457,9 @@ public sealed class StructuredResponseValidatingAgentTests
         public ValueTask AppendEventAsync(RunEvent runEvent, CancellationToken cancellationToken = default)
             => throw new InvalidOperationException("store unavailable");
 
+        public ValueTask<long?> GetLastEventSequenceAsync(Guid runId, CancellationToken cancellationToken = default)
+            => ValueTask.FromResult<long?>(null);
+
         public ValueTask CompleteRunAsync(RunCompletion completion, CancellationToken cancellationToken = default)
             => _inner.CompleteRunAsync(completion, cancellationToken);
 

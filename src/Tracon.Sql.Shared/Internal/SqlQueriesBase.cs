@@ -626,6 +626,9 @@ internal abstract class SqlQueriesBase
     /// <summary>Gets the query that reads the run events by sequence number.</summary>
     public string SelectRunEvents { get; protected set; } = string.Empty;
 
+    /// <summary>Gets the query that returns the highest sequence number a run has written.</summary>
+    public string SelectLastRunEventSequence { get; protected set; } = string.Empty;
+
     /// <summary>Gets the query that inserts or updates a conversation.</summary>
     public string UpsertConversation { get; protected set; } = string.Empty;
 
@@ -1234,6 +1237,15 @@ internal abstract class SqlQueriesBase
             JOIN {Table("runs")} r ON r.id = e.run_id
             WHERE e.run_id = @run_id AND e.seq >= @from_sequence AND r.tenant_id = @tenant_id
             ORDER BY e.seq;
+            """;
+
+        // No tenant join: the caller is the run's own writer, which is resuming
+        // a run it already holds. A tenant filter here would answer "no events"
+        // for a legitimate takeover whose ambient tenant differs from the run's
+        // (the job queue and workflows both do that, K-355) and the writer would
+        // restart at zero - the very collision this query exists to avoid.
+        SelectLastRunEventSequence = $"""
+            SELECT MAX(seq) FROM {Table("run_events")} WHERE run_id = @run_id;
             """;
 
         SelectNextConversationSequence = $"""

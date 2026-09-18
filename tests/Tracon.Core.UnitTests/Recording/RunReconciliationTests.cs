@@ -450,6 +450,9 @@ public sealed class RunReconciliationTests
         public ValueTask AppendEventAsync(RunEvent runEvent, CancellationToken cancellationToken = default)
             => inner.AppendEventAsync(runEvent, cancellationToken);
 
+        public ValueTask<long?> GetLastEventSequenceAsync(Guid runId, CancellationToken cancellationToken = default)
+            => ValueTask.FromResult<long?>(null);
+
         public ValueTask CompleteRunAsync(RunCompletion completion, CancellationToken cancellationToken = default)
             => inner.CompleteRunAsync(completion, cancellationToken);
 

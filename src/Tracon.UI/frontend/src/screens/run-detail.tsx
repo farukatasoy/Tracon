@@ -115,6 +115,7 @@ const EVENT_STYLE: Record<RunEventType, { label: string; tone: StatusTone }> = {
   // problem — the payload's continuedBy names the criterion that asked for
   // another turn.
   LoopIterationCompleted: { label: 'loop.iteration-completed', tone: 'neutral' },
+  SessionWriteConflicted: { label: 'session.write-conflicted', tone: 'warn' },
 };
 
 /**

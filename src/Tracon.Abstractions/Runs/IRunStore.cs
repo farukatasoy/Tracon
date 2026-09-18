@@ -149,6 +149,33 @@ public interface IRunStore
     /// </remarks>
     ValueTask AppendEventAsync(RunEvent runEvent, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Gets the highest <see cref="RunEvent.Sequence"/> written for a run.
+    /// </summary>
+    /// <param name="runId">The run id.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>
+    /// The highest sequence number written, or <see langword="null"/> when the
+    /// run has no events yet or does not exist.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// A run that is retried keeps its identity: the <c>runs</c> row is
+    /// upserted, not reopened. The event stream has no such upsert — it is
+    /// append-only and its sequence numbers are unique per run — so a second
+    /// attempt that restarted its numbering at zero collided with the first
+    /// attempt's events, and the writer that saw the collision disabled itself
+    /// for the rest of the run. The work then finished while the record stayed
+    /// in <see cref="RunStatus.Running"/> forever: the job endpoint reported
+    /// Completed and the run endpoint contradicted it.
+    /// </para>
+    /// <para>
+    /// <see cref="RunRecord.EventCount"/> cannot answer this question: it is
+    /// written at completion, and a run being taken over has not completed.
+    /// </para>
+    /// </remarks>
+    ValueTask<long?> GetLastEventSequenceAsync(Guid runId, CancellationToken cancellationToken = default);
+
     /// <summary>Closes the run and updates its summary.</summary>
     /// <param name="completion">The completion information.</param>
     /// <param name="cancellationToken">The cancellation token.</param>

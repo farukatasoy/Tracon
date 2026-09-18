@@ -38,11 +38,34 @@ public sealed partial class RunRecordingAgent
         // documentation of that method. The `messages` variable that is passed on to the
         // caller is DELIBERATELY left unchanged; the text that goes to the model must not
         // be affected by this masking.
+        // A guard FAILURE leaves the verdict on this text unknown, and unknown
+        // content does not pass through - the exception is rethrown below and the
+        // run never reaches the model. But the run must still leave a record:
+        // before HATA-S4-003 the row was never opened, so the client saw an error
+        // frame on the stream while GET /api/runs/{id} answered 404 forever, and
+        // audit, retry and idempotency could none of them find the run.
+        //
+        // The record is opened with NO query text: the guard did not finish, so
+        // its verdict on that text is unknown and recording it anyway would
+        // publish exactly the content the guard exists to hold back.
+        System.Runtime.ExceptionServices.ExceptionDispatchInfo? guardFailure = null;
+
         if (_contentGuardPipeline is { HasGuards: true } guardPipeline && guardPipeline.Options.InspectInput)
         {
-            input = await ContentGuardMessageMasker
-                .PreviewAsync(guardPipeline, ContentGuardDirection.Input, input, _modelId, cancellationToken)
-                .ConfigureAwait(false);
+            try
+            {
+                input = await ContentGuardMessageMasker
+                    .PreviewAsync(guardPipeline, ContentGuardDirection.Input, input, _modelId, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // A cancellation is deliberately NOT caught here: the caller's
+                // finally already writes Canceled for it (HATA-S4-012), and that
+                // is the truthful status for a run the caller gave up on.
+                guardFailure = System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(ex);
+                input = [];
+            }
         }
 
         await start.Writer.StartAsync(
@@ -74,6 +97,12 @@ public sealed partial class RunRecordingAgent
             },
             ExtractQuery(input),
             cancellationToken).ConfigureAwait(false);
+
+        // The row now exists, so the caller can close the run as Failed. Nothing
+        // else is written: the input never passed a guard. The ORIGINAL exception
+        // is rethrown with its stack intact - the caller and the guard's own
+        // contract both expect that exact exception.
+        guardFailure?.Throw();
 
         await WriteDocumentAttachedEventsAsync(start.Writer, input, cancellationToken).ConfigureAwait(false);
         await SaveInputAsync(start, input, cancellationToken).ConfigureAwait(false);

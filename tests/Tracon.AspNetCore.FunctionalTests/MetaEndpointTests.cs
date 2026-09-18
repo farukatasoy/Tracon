@@ -113,6 +113,9 @@ public sealed class MetaEndpointTests
         public ValueTask AppendEventAsync(RunEvent runEvent, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
 
+        public ValueTask<long?> GetLastEventSequenceAsync(Guid runId, CancellationToken cancellationToken = default)
+            => ValueTask.FromResult<long?>(null);
+
         public ValueTask CompleteRunAsync(RunCompletion completion, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
 

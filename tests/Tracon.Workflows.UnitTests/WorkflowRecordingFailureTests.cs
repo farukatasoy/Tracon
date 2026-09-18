@@ -60,6 +60,9 @@ public sealed class WorkflowRecordingFailureTests
         public ValueTask AppendEventAsync(RunEvent runEvent, CancellationToken cancellationToken = default)
             => ValueTask.CompletedTask;
 
+        public ValueTask<long?> GetLastEventSequenceAsync(Guid runId, CancellationToken cancellationToken = default)
+            => ValueTask.FromResult<long?>(null);
+
         public ValueTask CompleteRunAsync(RunCompletion completion, CancellationToken cancellationToken = default)
             => ValueTask.CompletedTask;
 

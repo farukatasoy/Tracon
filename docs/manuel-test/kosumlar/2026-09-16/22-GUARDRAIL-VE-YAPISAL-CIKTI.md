@@ -112,6 +112,41 @@ failed. (ref: ...)"}`) — bu çerçeve VAR ama run'ın kendisi kalıcı değil.
   spesifik olarak "run satırı yazılmadan önceki guard istisnası" penceresine
   ait olduğunu doğruluyor.
 
+---
+
+### ✅ KAPANDI — 2026-09-18 (Aşama 2, Aile B)
+
+**Ampirik yeniden üretim (düzeltmeden ÖNCE).** `RunStartGuardFailureTests`'in
+üç testi de düştü: guard `throw` ettiğinde `runs` tablosunda hiç satır yoktu.
+
+**Düzeltme.** Guard'ın önizleme adımı artık kendi `try`/`catch`'inde. Bir
+istisna yakalandığında:
+
+1. `input` **boşaltılır** — guard bitirmediği için verdiği karar bilinmiyor;
+   metni yine de kaydetmek guard'ın tam da tutmak için var olduğu içeriği
+   yayımlamak olurdu. Kayıt **sorgu metni olmadan** açılır.
+2. `start.Writer.StartAsync(...)` çağrılır, yani `runs` satırı **yazılır**.
+3. Orijinal istisna `ExceptionDispatchInfo` ile yığını bozulmadan yeniden
+   fırlatılır — çağıranın ve guard'ın kendi sözleşmesinin beklediği istisna odur.
+
+`OperationCanceledException` **bilinçli olarak yakalanmaz**: onun için
+`Canceled` doğru durumdur ve `HATA-S4-012` bunu kanıtlayan case'tir.
+
+**Akışlı yol ayrıca düzeltildi.** `RunCoreStreamingAsync`'in `catch`'i yalnız
+döngü içindeki `MoveNextAsync`'i sarıyordu; `WriteRunStartAsync`'in istisnası
+`finally`'ye düşüp **`Canceled`** yazıyordu. Kendi `catch` bloğu eklendi ve
+`Failed` yazıyor. Akışsız yolun buna ihtiyacı yok — orada tek `try` tüm gövdeyi
+sarıyor.
+
+**Sınıf taraması — kusur kaydının istediği ölçüm yapıldı.** Kayıt "guard'ın
+tool sonucu/model çıktısı denetlerken attığı istisna etkilenmeyebilir, bu turda
+doğrulanmadı" diyordu. **Ölçüldü:** çıktı yönünde `throw` eden bir guard run'ı
+doğru şekilde `Failed` kaydediyor, çünkü o kontrol run satırı yazıldıktan
+SONRA korunan bölgede çalışıyor. Beklenen doğruydu ve artık
+`A_guard_that_throws_on_the_output_also_records_a_Failed_run` ile kilitli.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
 **Kapsam:** Yalnız `IContentGuard.InspectAsync`'in **kullanıcının ilk girdi
 mesajını** denetlerken (run satırı yazılmadan önce, `WriteRunStartAsync`
 içinde) senkron `throw` ettiği durumu etkiler. Normal `Block`/`Mask`

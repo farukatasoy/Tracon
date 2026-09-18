@@ -1241,6 +1241,39 @@ bilgilendirildi); bedeli olay sonrası teşhisin imkânsızlaşması.
 
 ---
 
+### ✅ KAPANDI — 2026-09-18 (Aşama 2, Aile B)
+
+**Kök neden ölçüldü.** `AgentEndpoints` `SaveSessionAsync`'i `agent.RunAsync`'ten
+**sonra** çağırıyor, yani `CompleteAsync(Completed)` çoktan yazılmış oluyor.
+Run gerçekten tamamlandı: model çağrıldı, token harcandı, yanıt üretildi.
+Düşen şey run'ın **oturum yazımı**.
+
+**Kullanıcı kararı 👤 (2026-09-18):** durum `Completed` **kalır**, çakışma yeni
+bir olay olarak kaydedilir. `Failed` demek run'ın maliyetini ve ürettiği yanıtı
+da başarısız gösterirdi, ve hata sınıflandırma/uyarı hatları bunu gerçek bir
+kesinti sanabilirdi.
+
+**Düzeltme.** `RunEventType.SessionWriteConflicted = 32` eklendi (32, çünkü
+`run_events.type` bir `smallint` sütunu ve var olan bir üyenin sayısal değeri
+asla kaydırılamaz). Her iki yol da — akışlı ve akışsız — `SaveSessionAsync`'i
+`SaveSessionRecordingConflictAsync` üzerinden çağırıyor; çakışmada olay run'a
+yazılır, `Text` oturum kimliğini taşır, sonra istisna olduğu gibi devam eder ve
+çağıran yine `409` alır.
+
+Olay yazımı **best effort**'tur ve `409`'un yerine geçmez: gözlemlenebilirlik
+işlevselliği bozmaz. Olayı alamayan bir store çağıranın yanıtını değiştirmez,
+yalnız bir uyarı loglanır.
+
+**Sınıf taraması.** Kayıt "akış başladıktan sonra atılan her istisna" taramasını
+istiyordu. Aynı oturumda `HATA-S4-003` ile birlikte kapandı: o kusur run
+satırının yazılmasından **önceki** pencereyi, bu kusur **sonraki** pencereyi
+kapsıyor. Aradaki pencere (`MoveNextAsync` döngüsü) zaten `Failed` yazıyordu ve
+ölçümle doğrulandı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ## MT-CORE-060 — Geçersiz `MaxPayloadLength` açılışı durdurur
 
 **Gerçek sonuç**
