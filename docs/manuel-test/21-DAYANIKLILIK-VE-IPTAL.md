@@ -656,11 +656,21 @@ dotnet user-secrets set "Tracon:SingletonExecution:Enabled" "true"
 3. `GET /api/approvals/pending` ile listeyi al, ilgili kaydı bul.
 4. `GET /api/approvals/{id}` ile tekil kaydı al.
 
+> 🚨 **Doküman düzeltmesi (2026-09-16 koşumu, ap-s3).** Aşağıdaki örnek
+> `sessionId` alanı EKLENDİ. Onsuz istek `Failed` olur —
+> `TraconException: "The queued run requested approval, but no 'sessionId'
+> was given; approval is the input to the next turn and cannot be resolved
+> without a session."` Kuyruğa alınan (async) bir çalıştırmanın onay kararı
+> BİR SONRAKİ turun girdisi olduğu için oturumsuz çözülemiyor — bu, ürün
+> kusuru DEĞİL, doğru ve açık bir hata mesajıyla uygulanan tasarım kısıtı.
+> `MT-RES-021`'in zaten referans verdiği `$SESSION_ID` de yalnız bu düzeltmeyle
+> anlamlı hâle gelir.
+
 **Girilecek veri**
 ```bash
 RESP=$(curl -s -X POST "$APU/api/agents/support/run" -H "$APB" \
   -H "content-type: application/json" -H "Prefer: respond-async" \
-  -d '{"message":"ORD-1001 siparisimi iptal et"}')
+  -d '{"message":"ORD-1001 siparisimi iptal et","sessionId":"mt-res-020"}')
 RUN=$(echo "$RESP" | python3 -c "import json,sys;print(json.load(sys.stdin)['runId'])")
 
 sleep 3
@@ -947,14 +957,16 @@ curl -s -i -X POST "$APU/api/approvals/$APPROVAL_ID/decide" -H "$APB" \
 
 ---
 
-### MT-RES-028 — 🚨 `ApprovalEndpoints` hiçbir ucunda `RequireApiKeyScope` çağırmaz — yalnız-okuma kapsamlı bir anahtar onay kararı verebiliyor mu
+### MT-RES-028 — `ApprovalEndpoints` `RequireApiKeyScope` taşır — yalnız-okuma kapsamlı bir anahtar onay kararı veremez
 
-`grep -n "RequireApiKeyScope" src/Tracon.AspNetCore/Endpoints/
-ApprovalEndpoints.cs` **boş** döner. `Workflow`/`Scheduling`/`Eval-Experiment`/
-`Governance`/`Knowledge` uçlarında zaten defalarca ölçülen aynı desenin
-(`00-INDEKS.md`'nin birikmiş notları) onay kutusundaki tekrarı — `AgentEndpoints
-.cs`/`RunEndpoints.cs`'in aksine (`cancel` ucu `RequireApiKeyScope(ApiKeyScope
-.RunsWrite)` TAŞIR, doğrulandı).
+> 🚨 **Doküman düzeltmesi (2026-09-17 koşumu, ap-s3).** Bu case'in kendi
+> gerekçesi yanlıştı: `grep -n "RequireApiKeyScope" src/Tracon.AspNetCore/
+> Endpoints/ApprovalEndpoints.cs` bu koşumda **üç eşleşme** döndü (satır 37,
+> 54, 67 — `GET /api/approvals/pending`, `GET /api/approvals/{id}` →
+> `RunsRead`; `POST /api/approvals/{id}/decide` → `RunsWrite`). Boşluk
+> **kapanmış** — `MT-RET-040`/`MT-WF-100`'ün bu turda daha önce doğruladığı
+> "boşluk zaten kapanmış" deseninin bir tekrarı. Başlık ve "şüphe" aşağıda
+> o hâliyle bırakıldı, gerçek sonuç bunu çürütüyor.
 
 | | |
 |---|---|
@@ -978,7 +990,7 @@ ApprovalEndpoints.cs` **boş** döner. `Workflow`/`Scheduling`/`Eval-Experiment`
 ```bash
 KEY_JSON=$(curl -s -X POST "$APU/api/api-keys" -H "$APB" -H "content-type: application/json" \
   -d '{ "name": "onay-kapsam-testi", "scopes": ["RunsRead"] }')
-RAW=$(echo "$KEY_JSON" | python3 -c "import json,sys; print(json.load(sys.stdin)['rawKey'])")
+RAW=$(echo "$KEY_JSON" | python3 -c "import json,sys; print(json.load(sys.stdin)['plaintextKey'])")
 
 curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/approvals/$APPROVAL_ID/decide" \
   -H "Authorization: Bearer $RAW" -H "content-type: application/json" -d '{"approved":true}'
@@ -988,14 +1000,12 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/agents/kapsam-kontrol" \
   -d '{"name":"kapsam-kontrol","instructions":"test"}'
 ```
 
-**Beklenen sonuç (şüphe)**
-- Adım 2: `HTTP: 200` — kapsam kısıtı UYGULANMAZ (kodun okuduğu hâliyle
-  beklenen).
-- Adım 3: `HTTP: 403` — kontrol grubu, kapsam sisteminin `AgentEndpoints`'te
-  çalıştığını ama `ApprovalEndpoints`'te HİÇ devrede olmadığını gösterir.
-- Doğrularsa: **Kusur, Önem: Yüksek** — salt-okunur bir otomasyon anahtarı
-  bekleyen bir siparişi iptal kararını (gerçek yan etkili bir tool'u)
-  onaylayabilir/reddedebilir. Çürürse not güncellenir.
+**Beklenen sonuç (düzeltildi, bkz. yukarıdaki doküman düzeltmesi notu)**
+- Adım 2: `HTTP: 403`, `title:"Insufficient scope"`,
+  `detail:"...requires the 'RunsWrite' scope..."` — kapsam kısıtı UYGULANIR.
+- Adım 3: `HTTP: 403`, `detail:"...requires the 'AgentsAdmin' scope..."` —
+  kontrol grubu da aynı şekilde reddedilir.
+- Bu artık kusur DEĞİL: her iki uç da kendi doğru kapsamını zorluyor.
 
 ---
 
@@ -1129,12 +1139,18 @@ curl -s -o /dev/null -w "%{http_code}\n" -X POST "$APU/api/agents/support/run" \
 4. Çalıştırma bağlantısına tıkla.
 
 **Beklenen sonuç**
-- Adım 1: satırda `cancel_order` (mono, kalın), altında argüman metni
-  (`truncate` ile kırpılmış, `title` özniteliğinde tam hâli), run kimliğinin
-  kısaltılmış hâli + oturum kimliği, göreli oluşturulma zamanı, MUTLAK
-  süre-sonu zamanı (`relativeTime` DEĞİL — kod yorumu: gelecekteki bir an
-  için `relativeTime` her zaman "az önce" yazardı, bu yüzden bilerek
-  `absoluteTime` kullanılıyor).
+> 🚨 **Doküman düzeltmesi (2026-09-17 koşumu, ap-s3).** Satırın üst kısmı
+> Faz 142'nin `presentation` alanını (`entityName`/`message`) önceliklendirir;
+> ham argüman `truncate`/`title` ile HER ZAMAN görünür DEĞİL, varsayılan
+> kapalı bir `<details><summary>Raw arguments</summary>` açılır bileşeninin
+> arkasındadır. Aşağıdaki madde bununla düzeltildi.
+- Adım 1: satırda üstte `presentation.entityName` (kalın), altında
+  `cancel_order` (mono, subtle), altında `presentation.message`; en altta
+  kapalı bir "Raw arguments" açılır bileşeni (açılınca ham argümanı —
+  `orderId=ORD-1001` — gösterir), run kimliğinin kısaltılmış hâli + oturum
+  kimliği, göreli oluşturulma zamanı, MUTLAK süre-sonu zamanı (`relativeTime`
+  DEĞİL — kod yorumu: gelecekteki bir an için `relativeTime` her zaman "az
+  önce" yazardı, bu yüzden bilerek `absoluteTime` kullanılıyor).
 - Adım 2: `refetchInterval: 5000` sayesinde ek bir istek gözlenir.
 - Adım 4: `runs/{runId}` sayfasına gider — ORİJİNAL (`AwaitingApproval`)
   çalıştırma.
@@ -1159,11 +1175,20 @@ curl -s -o /dev/null -w "%{http_code}\n" -X POST "$APU/api/agents/support/run" \
 2. Tıklama anında düğmenin durumuna bak (`busy`).
 3. İstek dönünce listeye bak.
 
+> 🚨 **Doküman düzeltmesi (2026-09-17 koşumu, ap-s3).** Adım 1'in tıklaması
+> isteği DOĞRUDAN göndermiyor — önce bir onay diyaloğu açılıyor ("Approve
+> cancel_order?" başlığı, "Cancel"/"Approve" düğmeleri). Asıl `decide`
+> isteği diyaloğun KENDİ "Approve" düğmesine tıklanınca gider. Spesifikasyon
+> bu ara adımı hiç anmıyor — muhtemelen diyalog sonradan eklendi. Bu bir
+> kusur DEĞİL, ek bir güvenlik onayı katmanı.
+
 **Beklenen sonuç**
-- Adım 2: yalnız tıklanan düğme `busy` (dönen simge) olur; Reddet düğmesi
-  `disabled` olur (aynı satırda ikisi birden tetiklenemesin diye).
+- Adım 1: satır düğmesine tıklayınca bir onay diyaloğu açılır; gerçek karar
+  diyaloğun kendi Onayla düğmesine tıklanınca gönderilir.
+- Adım 2: istek çok hızlı tamamlandığı için `busy` durumunu bu ortamda
+  yakalamak güvenilir değil (bkz. `MT-RES-003`'ün aynı sınırı).
 - Adım 3: `onSuccess` `approvals-pending` sorgusunu geçersiz kılar; satır
-  listeden KALKAR (artık `Pending` değil).
+  listeden KALKAR (artık `Pending` değil) — bu adım gözlemlendi ve doğrulandı.
 
 ---
 
@@ -1183,8 +1208,11 @@ curl -s -o /dev/null -w "%{http_code}\n" -X POST "$APU/api/agents/support/run" \
 1. Reddet (baş parmak aşağı) düğmesine tıkla.
 
 **Beklenen sonuç**
-- `MT-RES-022`'nin HTTP davranışıyla aynı sonuç arayüzden tetiklenir; satır
-  listeden kalkar.
+> 🚨 **Doküman düzeltmesi (2026-09-17 koşumu, ap-s3).** `MT-RES-042`'de
+> ölçülen aynı onay diyaloğu (bu kez "Reject cancel_order?" başlığıyla) bu
+> case için de geçerli — Reddet düğmesi de DOĞRUDAN göndermiyor.
+- `MT-RES-022`'nin HTTP davranışıyla aynı sonuç arayüzden (diyaloğun kendi
+  Reddet düğmesi üzerinden) tetiklenir; satır listeden kalkar.
 
 ---
 
@@ -1209,9 +1237,14 @@ curl -s -o /dev/null -w "%{http_code}\n" -X POST "$APU/api/agents/support/run" \
 2. `decide.isError` durumunun panelde nasıl göründüğüne bak.
 
 **Beklenen sonuç**
-- İkinci istek gerçekten giderse (`disabled` denetimini atlatan bir yarış),
-  `ErrorNote` panelin ALTINDA görünür (`decide.isError && <div className=
-  "border-t ...">`), sayfa çökmez, tablo görünür kalır.
+> 🚨 **Doküman düzeltmesi (2026-09-17 koşumu, ap-s3).** Onay diyaloğu
+> (`MT-RES-042`/`043`) çift tıklama yarışını doğrudan engeller; bu case'in
+> yarışı üretmesi için diyaloğun açık olduğu ANDA onayı DIŞARIDAN (curl ile)
+> TERS bir kararla kararlandırmak gerekti (`MT-RES-023`'ün idempotency
+> kuralı: AYNI karar 200 döner, yalnız TERS karar 409 üretir).
+- İkinci istek gerçekten giderse, hata iki yerde birden görünür: diyaloğun
+  İÇİNDE (`role="alert"`, paragrafın altında) VE sayfanın ALT kısmında
+  (tablo/boş-durum panelinin altında, aynı metinle) — sayfa çökmez.
 
 ### MT-RES-050 — Uzlaştırmayla `Infrastructure` sınıfıyla kapanan bir çalıştırma yeniden oynatılabiliyor mu
 
@@ -1245,16 +1278,27 @@ curl -s -i -X POST "$APU/api/runs/$ORPHANED_RUN_ID/replay" -H "$APB" \
 ```
 
 **Beklenen sonuç (şüphe — bu case'in kendisi ölçer)**
-- Adım 1: muhtemelen `404` — bu manuel testin SQL ile ürettiği yapay öksüz
-  satırın gerçek bir `RunInputRecord`'u yoktur (`InMemoryRunInputStore`'a
-  hiç yazılmadı; süreç yeniden başlatılınca bellek-içi depo da sıfırlandı).
-  GERÇEK bir öksüz kalma senaryosunda (gerçek bir süreç çöküşü) girdi
-  ÇÖKMEDEN ÖNCE zaten yazılmış olurdu — bu ayrım not düşülür.
+> 🚨 **Doküman düzeltmesi (2026-09-17 koşumu, ap-s3).** Bu ortam PostgreSQL
+> kalıcılığıyla kurulu; `IRunInputStore`'un kayıtlı uygulaması
+> `InMemoryRunInputStore` DEĞİL `SqlRunInputStore`'dur (bkz. `src/
+> Tracon.PostgreSql/TraconPostgreSqlBuilderExtensions.cs`) — süreç yeniden
+> başlasa da girdi kaybolmaz. `InMemoryRunInputStore` yalnız hiçbir
+> kalıcılık sağlayıcısı kayıtlı DEĞİLKEN devreye giren varsayılandır.
+> Aşağıdaki "muhtemelen 404" beklentisi bu nedenle bu ortamda GEÇERSİZDİR.
+- Adım 1: `200` — girdi kaydı GERÇEKTEN vardır (`RecordRunInput` varsayılan
+  `true`, PostgreSQL kalıcılığı süreç yeniden başlasa da korur).
 - Adım 2 (girdi varsa): `RunReplayService.PrepareAsync` kaynak çalıştırmanın
   `Status`'una bakmaz (yalnız girdi ve agent tanımına bakar); `Failed`/
   `Infrastructure` olması oynatmayı ENGELLEMEMELİDİR — `200` beklenir.
   Doğrularsa bu, uzlaştırmayla kapanmış bir çalıştırmanın hâlâ
   incelenebilir/tekrarlanabilir kaldığını KANITLAR.
+  > 🚨 Bu adım `support` örnek agent'ıyla İZOLE ÖLÇÜLEMEDİ (koşuma bkz.) —
+  > `support` kodda tanımlı (persistent definition YOK) ve onay gerektiren
+  > bir tool (`cancel_order`) taşıyor; bu ikisi `ReplayTools`/`NoTools`'u ve
+  > `LiveTools`'u AYRI AYRI, `Status`'tan BAĞIMSIZ nedenlerle engelliyor.
+  > `Status`'un kendisinin oynatmayı engelleyip engellemediği bu ortamda
+  > gösterilemedi; farklı bir (persistent definition'lı, onaysız-tool'lu)
+  > agent gerektirir.
 
 ---
 
@@ -1280,6 +1324,15 @@ Bu bölümdeki her case, `support` agent'ına bağlı **oturumlu** bir çalışt
 kurar (`sessionId` verilir), sonra o çalıştırmayı SQL ile "10 dakika önce
 başlamış, hâlâ çalışıyor" durumuna sokar. §5'in ortam değişkenleri (`APB`,
 `APU`, `PG`) geçerlidir.
+
+> 🚨 **Doküman düzeltmesi (2026-09-17 koşumu, ap-s3).** `support` — ve
+> örnek uygulamanın kataloğundaki DİĞER on bir agent'ın hepsi — kodda
+> tanımlıdır (`origin:"Code"`), kalıcı bir tanım TAŞIMAZ. `RunContinuation`
+> kalıcı bir tanım gerektirir (`TraconException`: "a code-defined or
+> deleted agent cannot be continued"); `support` ile başarılı bir devam
+> koşusu ASLA üretilemez. Bu bölümün "mutlu yol" case'leri (`061`, `062`,
+> `067`) `POST /api/agents` ile üretilen kalıcı bir klon (`durability-support`
+> — `support` ile aynı tool'lar) kullanılarak koşuldu.
 
 ### MT-RES-060 — Varsayılan kapalı: `RunContinuation:Enabled=false` iken öksüz koşu devam ETMEZ
 
@@ -1600,11 +1653,16 @@ $PG -c "SELECT count(*) FROM tracon.runs WHERE started_at > now() - interval '15
 3. Bağlantıya tıkla.
 
 **Beklenen sonuç**
-- Özet metninde `"..., continued from <kısaltılmış kaynak kimliği>"`
-  (`en`) / `"..., devam ettiği koşu <kısaltılmış kimlik>"` (`tr`) biçiminde
-  bir ibare vardır — `replayOfRunId` ile AYNI görsel desende (alt çizgili
-  mono bağlantı).
-3. Tıklamak kaynak çalıştırmanın (`$SRC`) sayfasına GÖTÜRÜR.
+> 🚨 **Doküman düzeltmesi (2026-09-17 koşumu, ap-s3).** İlişki özet
+> metninde SATIR OLARAK görünmüyor — `run-detail.tsx` satır 250-255'te
+> `continuedFromRunId` (ve `replayOfRunId`, `parentRunId`, `sessionId`)
+> başlığın yanındaki "Related" AÇILIR MENÜSÜNÜN bir ögesi olarak sunuluyor.
+
+- Adım 2: "Related" düğmesine tıklanınca açılan menüde `"continued from
+  01a0b089-eff…9050f"` (`runDetail.continuationOf` çeviri anahtarı +
+  kısaltılmış kimlik) bir menü ögesi olarak görünür.
+- Adım 3: menü ögesine tıklamak kaynak çalıştırmanın (`$SRC`) sayfasına
+  GÖTÜRÜR.
 
 ---
 
@@ -1647,11 +1705,23 @@ curl -s -o /dev/null -w "%{http_code}\n" -X POST "$APU/api/agents/support/run" \
 ```
 
 **Beklenen sonuç**
-- Adım 3: `503` (`title: "Service is shutting down"`) — sürecin kendisi hâlâ
-  ayaktadır (drain penceresi içinde) ama yeni koşu KABUL EDİLMEZ.
-- Adım 4: süreç, adım 1'in akışı TAMAMLANANA kadar (veya en fazla 10 saniye
-  — `Drain:Timeout`) ayakta kalır, sonra çıkar. Süreç `SIGTERM`'den HEMEN
-  sonra ölmez.
+> 🚨 **Doküman düzeltmesi (2026-09-17 koşumu, ap-s3).** Kaynakta belgelenmiş
+> ve `docs/YAYIN-HAZIRLIK.md`'de zaten `BL-026` olarak 🟡'ye indirilmiş,
+> bilinen bir sınır var: `TraconDrainService`'in kendisi `DrainGate.Check`'in
+> ürettiği `503`'ü GARANTİ ETMEZ — Kestrel kendi bağlantı kabulünü SIGTERM'de
+> ÇOK ERKEN durdurur, bu yüzden yeni bir istek genelde `DrainGate`
+> middleware'ine hiç ULAŞAMADAN ham bağlantı reddiyle karşılaşır (ölçülmüş,
+> tekrarlanabilir). İş kaybı yoktur (bkz. adım 4), yalnız "temiz 503" vaadi
+> Kestrel'in kendi davranışına bel bağlar.
+- Adım 3: pratikte `503` DEĞİL, HAM bağlantı reddi (`curl` exit 7, TCP
+  düzeyinde) beklenir — Kestrel `ApplicationStopping` anında yeni bağlantı
+  kabulünü durdurur, `DrainGate` middleware'i bu isteğe hiç çalışmaz.
+- Adım 4: süreç adım 1'in akışı TAMAMLANANA kadar ayakta kalır — ama bunu
+  sağlayan `Drain:Timeout` (10 sn) DEĞİL, Kestrel'in KENDİ bağlantı
+  tahliyesidir (ASP.NET Core'un varsayılan `HostOptions.ShutdownTimeout`,
+  30 sn, üst sınırına kadar). `Drain:Timeout` yalnız `IRunCancellationRegistry
+  .ActiveCount`'u beklerken uygulanır; Kestrel'in kendi tahliyesi BAĞIMSIZ
+  ikinci bir mekanizmadır ve bu senaryoda asıl belirleyici odur.
 
 ---
 

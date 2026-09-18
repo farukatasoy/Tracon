@@ -306,12 +306,33 @@ Dağılım `00-KOSUM-PLANI.md` §3.1'dedir:
 |---|---|---|---|---|
 | `ap-s1` | 5081 | `mt_s1` | 13 · 19 · 04 · 18 · 10 · 08 | 🎉 **ALTI AİLENİN ALTISI DA KAPANDI** (aynı oturum zincirinde arka arkaya): 13 (142/142), 19 (66 Geçti·3 Kaldı·23 Beklemede·1 Atlandı), 04 (44 Geçti·1 Beklemede, 45/45), 18 (48 Geçti·9 Beklemede·1 Kaldı, 58/58), 10 (54 Geçti·2 Kaldı·2 Atlandı, 58/58, `HATA-S1-027/028`), 08 (50/50). **Bu şeridin Faz B işi bitti** — sıradaki aile yok. Uygulama durduruldu, commit `e22b84ee` |
 | `ap-s2` | 5082 | `mt_s2` | 36 · 33 · 12 · 24 · 35 · 23 · 15 · 14 | 🎉🎉 **SEKİZ AİLE KAPANDI — ap-s2'nin TÜM ataması bitti** — 36, 33, 12, 24, 35, 23, 15, 14 (48/48, 25/25, 65/65, 64/66, 9/11, 45/45, 70/70, **45/47**). Dosya 23 (RET) sıfır kusurla bitti — tek dikkat çeken bulgu (`MT-RET-040`) bir güvenlik açığının ZATEN kapanmış olduğunu doğruladı. Dosya 15 (WF) sıfır kusurla bitti (70/70) — `MT-WF-100` aynı "boşluk zaten kapanmış" desenini doğruladı. Dosya 14 (SKILL) 45/47 ile kapandı — **yeni kusur `HATA-S2-003`**: başarılı script çalıştırmalarında bile `execute_skill_script` span'i `exit_code`/`duration_ms` taşımıyor ve ebeveyn span yanlışlıkla "Error" gösteriyor (yalnız gözlemlenebilirlik, işlevsel etki yok, `SandboxedSkillScriptRunner.cs:355-359`); MT-SKILL-063 (kiracı eşzamanlılık sınırı) kısmen doğrulandı — mekanizma kaynaktan (`SkillScriptConcurrencyLimiter.cs`) kanıtlandı ama canlı zamanlama sıralı tarayıcı otomasyonuyla ölçülemedi; MT-SKILL-041 önemli bir önerme tersine çevirmesi buldu — script yorumlayıcıları artık YALNIZ kodda ayarlanabiliyor, config'ten bağlanmıyor (bilinçli güvenlik sıkılaştırması). Önemli bir yöntem dersi (dosya 23'ten): `QuotaEnforcer`'ın `_firedThresholds` süreç-içi önbelleği SQL ile temizlenmiyor, uygulama YENİDEN BAŞLATILMALI (kapanışta `docs/hafiza/`'ya taşınmalı). Kod tamamen donuk bırakıldı, `Tracon.Core.UnitTests` tam takım yeşil (2805/2805), commit `5e3c5862` (`test/kosum-s2` dalında). Kapanış (§6-§9, kusur giderme dahil) ayrı çok-şeritli bir faz — bu şeridin koşum sorumluluğu bitti. |
-| `ap-s3` | 5083 | `mt_s3` | 32 · 29 · 34 · 21 · 11 · 25 · 17 · 20 | ✅ **aile 32, 29 ve 34 KAPANDI** (40/40, 24/24, 46/46). Sıradaki: `21-DAYANIKLILIK-VE-IPTAL.md`, henüz açılmadı. Uygulama durduruldu, commit `00ca6328` |
+| `ap-s3` | 5083 | `mt_s3` | 32 · 29 · 34 · 21 · 11 · 25 · 17 · 20 | 🎉 **SEKİZ AİLENİN SEKİZİ DE KAPANDI — ap-s3'ün TÜM ataması bitti** — 372/372 case işlendi (348 Geçti · 10 Kaldı — `HATA-S3-001..008`, ikisi `HATA-S1-020` ile aynı kök nedeni paylaşıyor · 10 Beklemede (fiziksel/ortam kısıtı) · 4 Atlandı). Uygulama normal duruma (PostgreSQL+OpenAI açık, tenancy kapalı) döndürüldü, commit `ec3efff5` |
 | `ap-s4` | 5084 | `mt_s4` | 31 · 16 · 30 · 22 · 09 · 27 · 26 · 28 · 06 | ✅ **aile 31 KAPANDI** (35/35). Aile 16 **kısmi**: 61/61 kayıtlı case Geçti (MT-JOB-001..085 + 090), MT-JOB-091'den devam (~37 case kaldı: Bölüm 8'in kalanı + 9-10). Uygulama AÇIK bırakıldı (port 5084, DLL doğrudan çalıştırılıyor — bkz. ortam kararsızlığı notu), commit `a6fc40ac`. 🚨 **Bu satır bayat olabilir** — dal üzerinde `a6fc40ac`'ten sonra üç commit daha var (`d8e9c308`, `8f4f8c68`, `240d74a7` en son: "MT-JOB-111, 112, 116..120"), yani MT-JOB-091'den 120'ye kadar zaten işlenmiş görünüyor; gerçek sayım ve aile 16'nın kapanıp kapanmadığı doğrulanmadı, sıradaki ap-s4 oturumu `00-KOSUM-PLANI.md`'nin sayım betiğiyle kontrol etmeli |
 
 `ap-s2`/`ap-s3`/`ap-s4` oturum 13'te `main`'e fast-forward edildi (Faz A
 kapanış commit'lerini almaları için) — kendi commit'leri yoktu, çakışma
 olmadı. `ap-s1` dokunulmadı (kendi commit'leri var, ayrı ilerliyor).
+
+#### `ap-s3` kapandı — devredilen 10 Beklemede case
+
+Koşum tamamlandı ama on case bu şeritte/ortamda koşulamadı — hepsi
+gerekçeli, `☐ Beklemede` (Atlandı **değil**, skill §1.4/§4.3). Aşama 2
+kapanışında `00-INDEKS.md`'nin açık kalem tablosuna taşınmalıdır:
+
+| Case | Dosya | Neden |
+|---|---|---|
+| `MT-DKL-001..004, 006` | 32 | 👤 gerçek göz gerektirir (hero/kontrol şeridi, koyu tema, 360px kaydırma, diyagram, troubleshooting dizini) |
+| `MT-AGD-018` | 29 | İzole, taze-bağlamlı bir kod agent oturumu gerektirir — bu oturumun kendi araç setinin dışında |
+| `MT-AGD-024` | 29 | Nested gerçek `claude` CLI çağrısı gerektirir — bu oturumun kapsamı dışında |
+| `MT-RES-090` | 21 | Ön koşul özel bir `IRunEventSink` kaydı ister; eklemek kod değişikliği olurdu (kural 1 donuk kodu yasaklıyor) |
+| `MT-UIRUN-001` | 11 | `mt_s3` şemasını `DROP SCHEMA ... CASCADE` ile sıfırlamak gerekiyor — paylaşılan şerit kaynağını geri dönüşsüz siler, kullanıcı onayı istenmedi |
+| `MT-UIRUN-063` | 11 | Ortamda "reader" rolünü temsil eden ayrı bir kimlik yok — tek statik bearer token her zaman tam rol taşıyor |
+
+**Kusurlar (10 `Kaldı`):** `HATA-S3-001..008` (dosya 32: 001-002 ·
+dosya 34: 003 · dosya 21: 004 · dosya 11: 005-006 · dosya 17: 007-008).
+Dosya 21'de ayrıca bir case `HATA-S1-020` ile aynı kök nedeni paylaştığı
+için yeni kayıt açmadan ona referans verdi (S1'in bulgusunun S3'te bir
+kez daha doğrulanması).
 
 ---
 

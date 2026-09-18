@@ -295,8 +295,11 @@ bütçesi için de koşar.
 2. `wc -c dist/llms.txt dist/llms-full.txt`
 
 **Beklenen sonuç:** İki dosya da yayınlanan sitede kök altındadır. `llms.txt`
-sürüm işaretiyle başlar ve `agentMapBudgetBytes`'ı aşmaz; `llms-full.txt` elle yazılmış
-sayfaların tamamını taşır (~350 KB) ve üretilen API/HTTP referansını
+sürüm işaretiyle başlar ve kendi bütçesini (`llmsBudgetBytes`, 24576 bayt —
+`agentMapBudgetBytes` `Tracon.AgentMap.md`/`AGENTS.md` içindir, `llms.txt`
+için değil) aşmaz; `llms-full.txt` elle yazılmış sayfaların tamamını taşır
+(56 sayfa, ölçülen boyut turdan tura büyür — bu turda ~766 KB, "~350 KB" Faz
+85'ten kalan bayat bir tahmindir) ve üretilen API/HTTP referansını
 **taşımaz**.
 
 ---
@@ -309,10 +312,16 @@ sayfaların tamamını taşır (~350 KB) ve üretilen API/HTTP referansını
 1. `grep -n "Embedding points" -A 7 src/Tracon.Core/buildTransitive/Tracon.AgentMap.md`
 2. `wc -c src/Tracon.Core/buildTransitive/Tracon.AgentMap.md`
 
-**Beklenen sonuç:** `### Embedding points` bölümü beş satır (`ITenantContext`,
-`IRunAttributionContext`, `IToolAuthorizationHandler`, `IRunEventSink`,
-`IAttachmentStorage`) ve bir `- Rule:` satırı taşır. Dosya toplamı **10 240
-bayt**'ı aşmaz.
+**Beklenen sonuç:** `### Embedding points` bölümü şu an **yedi** satır
+(`ITenantContext`/`ITenantStore`, `IRunAttributionContext`,
+`IToolAuthorizationHandler`, `IRunAuthorizationHandler`, `IRunEventSink`,
+`IAttachmentStorage`, `IToolApprovalPresenter`) ve bir `- Rule:` satırı taşır
+— bu case Faz 85'te beş nokta ile yazıldı, ürün o zamandan beri
+`IRunAuthorizationHandler` ve `IToolApprovalPresenter` ile büyüdü; `- Rule:`
+satırının kendisi de artık "seven" der. Dosya toplamı `agentMapBudgetBytes`'ı
+aşmaz (**Faz 153'ten beri 11264 bayt** — bu case'in "10 240 bayt" metni Faz
+85'ten kalan bayat bir sabittir, sayı tek kaynaktan okunur, buraya
+kopyalanmaz; bkz. MT-AGD-002).
 
 ---
 
@@ -346,6 +355,12 @@ agent'a **gösterilmez**.
 `IAttachmentStorage`) soru sormadan bulur ve `AddTracon()`'den **önce**
 kaydeder. Bu kalemin ölçülen boşluğu tam olarak budur — 2026-08-21 ölçümünde
 hiçbir sayfa bu beşini birlikte anlatmıyordu.
+
+> ⚠️ **Bu turda ölçüldü (2026-09-17):** ürün Faz 85'ten beri büyüdü — harita artık
+> **yedi** gömme noktası taşıyor (`IRunAuthorizationHandler` ve
+> `IToolApprovalPresenter` eklendi, bkz. MT-AGD-016). Bu case'in beklenen
+> sonucu beşle sınırlı kalır çünkü ölçülen boşluk tarihi bir gözlemdir; canlı
+> koşumda agent'ın **yedisini** de bulup bulmadığı bu turda ayrıca not edilir.
 
 ---
 
