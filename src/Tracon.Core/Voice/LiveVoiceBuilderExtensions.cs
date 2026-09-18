@@ -91,7 +91,7 @@ public static class LiveVoiceBuilderExtensions
             services.Configure(configure);
         }
 
-        services.TryAddSingleton<IVoiceSessionStore, InMemoryVoiceSessionStore>();
+        services.TryAddTraconDefault<IVoiceSessionStore, InMemoryVoiceSessionStore>();
         services.TryAddSingleton<VoiceDurationPricing>();
 
         services.TryAddSingleton(static provider =>

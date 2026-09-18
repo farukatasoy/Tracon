@@ -49,6 +49,12 @@ public static partial class TraconServiceCollectionExtensions
         // through RequireCustomBinding.
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, RequiredBindingValidator>());
 
+        // Reports store contracts a storage provider declined to overwrite
+        // because the application registered its own. The overwrite used to be
+        // silent and that silence is what made HATA-S1-019 expensive to find.
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IHostedService, PreservedStoreRegistrationWarningService>());
+
         // Composition gate for the six production decisions (phase 170, F-231).
         // Its sibling above covers the BINDING half of the same argument; this
         // one covers the OPTIONS half. Registered here for the same reason and
@@ -119,8 +125,8 @@ public static partial class TraconServiceCollectionExtensions
         // no binding (K1). Explicit factory: TenantProviderCredentialResolver
         // needs IConfiguration, which may not be registered outside ASP.NET
         // Core hosting (see its own null-safety remark).
-        services.TryAddSingleton<ITenantProviderBindingStore, InMemoryTenantProviderBindingStore>();
-        services.TryAddSingleton<ITenantEgressPolicyStore, InMemoryTenantEgressPolicyStore>();
+        services.TryAddTraconDefault<ITenantProviderBindingStore, InMemoryTenantProviderBindingStore>();
+        services.TryAddTraconDefault<ITenantEgressPolicyStore, InMemoryTenantEgressPolicyStore>();
         services.TryAddSingleton(static provider => new TenantProviderCredentialResolver(
             provider.GetService<IConfiguration>(),
             provider.GetRequiredService<IOptionsMonitor<TraconTenantProviderOptions>>()));
@@ -229,7 +235,7 @@ public static partial class TraconServiceCollectionExtensions
         // the provider's fields; that is why a single instance being shared
         // across all sessions is the usage MAF anticipates.
         // Tracon.PostgreSql replaces this with PostgresChatHistoryProvider.
-        services.TryAddSingleton<Microsoft.Agents.AI.ChatHistoryProvider>(
+        services.TryAddTraconDefault<Microsoft.Agents.AI.ChatHistoryProvider>(
             static _ => new Microsoft.Agents.AI.InMemoryChatHistoryProvider(
                 new Microsoft.Agents.AI.InMemoryChatHistoryProviderOptions()));
 
@@ -240,7 +246,7 @@ public static partial class TraconServiceCollectionExtensions
         // MAAI001: AgentFileStore is marked "evaluation purposes only" - the
         // rationale is the same as in AgentDefinitionCompiler.
 #pragma warning disable MAAI001
-        services.TryAddSingleton<Microsoft.Agents.AI.AgentFileStore>(
+        services.TryAddTraconDefault<Microsoft.Agents.AI.AgentFileStore>(
             static _ => new Microsoft.Agents.AI.InMemoryAgentFileStore());
 #pragma warning restore MAAI001
 
@@ -324,7 +330,7 @@ public static partial class TraconServiceCollectionExtensions
         // Tracon.AspNetCore writes HttpContext.User there at the start of
         // every protected request. This way Core can read the actor without
         // adding a dependency on ASP.NET Core.
-        services.TryAddSingleton<IAuditLog, InMemoryAuditLog>();
+        services.TryAddTraconDefault<IAuditLog, InMemoryAuditLog>();
         services.TryAddSingleton<IAuditActorResolver, AmbientAuditActorResolver>();
 
         // At-rest content protection (Phase 82). The default writes plaintext
@@ -339,7 +345,7 @@ public static partial class TraconServiceCollectionExtensions
         // creates/starts/stops, it is wrapped with the audit trail decorator
         // for the same rationale as IAgentDefinitionStore (unlike
         // IEvalStore/IJobStore, which are a byproduct of execution).
-        services.TryAddSingleton<IExperimentStore>(static provider => new AuditingExperimentStore(
+        services.TryAddTraconDefault<IExperimentStore>(static provider => new AuditingExperimentStore(
             new InMemoryExperimentStore(),
             provider.GetRequiredService<IAuditLog>(),
             provider.GetRequiredService<ITenantContext>(),
@@ -348,7 +354,7 @@ public static partial class TraconServiceCollectionExtensions
             provider.GetRequiredService<TraconMetrics>()));
         services.TryAddSingleton<ExperimentAssignmentResolver>();
 
-        services.TryAddSingleton<ITenantStore>(static provider => new AuditingTenantStore(
+        services.TryAddTraconDefault<ITenantStore>(static provider => new AuditingTenantStore(
             new InMemoryTenantStore(),
             provider.GetRequiredService<IAuditLog>(),
             provider.GetRequiredService<ITenantContext>(),

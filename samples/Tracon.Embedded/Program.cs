@@ -47,6 +47,10 @@ builder.Services.AddHttpContextAccessor();
 // calls TryAdd* for all seven, so a registration made first wins. Made after,
 // a TryAdd registration is dropped because Tracon's default already holds
 // the slot; registering first is the order that always works.
+//
+// ITenantStore below is a STORE, not one of the seven. It follows the same
+// rule and UsePostgreSql() further down respects it: a storage provider
+// overrides Tracon's own defaults and never a registration this host made.
 builder.Services.AddSingleton<ITenantContext, EmbeddedTenantContext>();
 builder.Services.AddSingleton<ITenantStore, EmbeddedTenantStore>();
 builder.Services.AddSingleton<IRunAttributionContext, EmbeddedRunAttributionContext>();
@@ -64,10 +68,16 @@ builder.Services.AddSingleton<EmbeddedJobQueue>();
 builder.Services.AddHostedService<EmbeddedJobWorker>();
 
 var tracon = builder.AddTracon()
-    // The host does not start if any of these four falls back to Tracon's
+    // The host does not start if any of these five falls back to Tracon's
     // built-in default — a module-order mistake becomes a startup failure
     // instead of an authorization decision nobody notices.
+    //
+    // ITenantStore is in the list because this host's tenant directory is the
+    // one that must answer, and UsePostgreSql() below registers a store for
+    // the same contract. The declaration turns a composition mistake into a
+    // startup failure rather than a run recorded against the wrong directory.
     .RequireCustomBinding<ITenantContext>()
+    .RequireCustomBinding<ITenantStore>()
     .RequireCustomBinding<IToolAuthorizationHandler>()
     .RequireCustomBinding<IRunAuthorizationHandler>()
     .RequireCustomBinding<IAttachmentStorage>()
