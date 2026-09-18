@@ -46,6 +46,35 @@ def has_section(changelog_text: str, version: str) -> bool:
     return bool(body)
 
 
+UNRELEASED = "Unreleased"
+
+
+def release_notes(changelog_text: str, version: str) -> tuple[str | None, str | None]:
+    """The notes a release of `version` would ship, and the heading they came from.
+
+    `## [<version>]` wins when it exists. When it does not, `## [Unreleased]`
+    is used instead: a version section is written at TAG time, by renaming the
+    Unreleased heading to the version and the date it shipped on, so before
+    that moment the notes for the next release are the ones under Unreleased
+    (K-825). Returns (None, None) when neither section carries a body - a
+    release with no notes is what the gate exists to stop.
+    """
+    body = section_body(changelog_text, version)
+    if body:
+        return body, version
+
+    body = section_body(changelog_text, UNRELEASED)
+    if body:
+        return body, UNRELEASED
+
+    return None, None
+
+
 def read_section(changelog_path: pathlib.Path, version: str) -> str | None:
     """Convenience wrapper: reads the file, then extracts the section."""
     return section_body(changelog_path.read_text(encoding="utf-8"), version)
+
+
+def read_release_notes(changelog_path: pathlib.Path, version: str) -> tuple[str | None, str | None]:
+    """Convenience wrapper around :func:`release_notes`."""
+    return release_notes(changelog_path.read_text(encoding="utf-8"), version)

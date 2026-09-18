@@ -8,8 +8,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 Nothing here has been published yet. Tracon is in development: no version
 has been pushed to NuGet or npm, and there is no release tag. The entries below
-describe what is on `main`. The first real release will get its own section,
-fixed to the artifacts it actually ships, and carries the date it shipped on.
+describe what is on `main`.
+
+A version section is not written ahead of time. At tag time this heading is
+renamed to the version and the date it shipped on, and a fresh empty
+`## [Unreleased]` is opened above it, so a section always names artifacts that
+actually exist. Until then the release rehearsal and the GitHub release body
+both read the notes from here.
 
 The public API is not frozen either: `PublicAPI.Shipped.txt` is empty in every
 package, and the surface may still be reduced before 1.0.

@@ -1101,9 +1101,24 @@ def _finish_release_rehearsal(
         if not changelog_path.exists():
             print("❌ CHANGELOG.md bulunamadı")
             return 1
-        if not changelog.has_section(changelog_path.read_text(encoding="utf-8"), resolved_version):
-            print(f"❌ CHANGELOG.md içinde '## [{resolved_version}]' bölümü yok veya boş")
+        # Sürüm bölümü ETİKET anında yazılır: `## [Unreleased]` başlığı sürüme
+        # ve sevk tarihine dönüştürülür. O ana kadar bir sonraki sürümün notları
+        # Unreleased altındadır, bu yüzden prova oradan okur (K-825). Kapının
+        # koruduğu şey "bölüm var mı" değil, NOTSUZ SÜRÜM ÇIKMASIN'dır.
+        _, notes_heading = changelog.read_release_notes(changelog_path, resolved_version)
+        if notes_heading is None:
+            print(
+                f"❌ CHANGELOG.md'de ne '## [{resolved_version}]' ne de "
+                "'## [Unreleased]' bölümü var; ikisi de yok ya da boş"
+            )
             return 1
+        if notes_heading == changelog.UNRELEASED:
+            print(
+                f"ℹ️ Sürüm notları '## [Unreleased]' bölümünden okundu; "
+                f"'v{resolved_version}' etiketlenirken bu başlık "
+                f"'## [{resolved_version}] - <tarih>' olarak yeniden adlandırılır "
+                "(YAYIN-HAZIRLIK Adım 5)"
+            )
 
     # İki yönlü karşılaştırma: yalnız EKSİK paket değil, beklenmeyen (fazla) bir
     # paket de yakalanmalı - ör. bir test projesinin yanlışlıkla packable hâle
