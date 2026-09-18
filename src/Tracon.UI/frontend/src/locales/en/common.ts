@@ -8,6 +8,7 @@ export const enCommon = {
   "common.copy": 'Copy',
   "common.copied": 'Copied',
   "common.retry": 'Try again',
+  "common.streamLost": 'The connection to this run went quiet and was closed. The run itself is unaffected — reload to reconnect and the events replay from the start.',
   "common.save": 'Save',
   "common.saving": 'Saving',
   "common.cancel": 'Cancel',

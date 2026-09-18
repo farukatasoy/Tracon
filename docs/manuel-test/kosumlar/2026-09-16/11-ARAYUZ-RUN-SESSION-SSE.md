@@ -459,6 +459,49 @@ kopması (TCP RST/zaman aşımı) farklı davranabilir; bu ayrım koşulamadı.
 
 ---
 
+### Yeniden koşum — 2026-09-18 (Aile F kapanışı)
+
+**Gerçek sonuç — ✅ GEÇTİ, ama kaydın TEŞHİSİ ÇÜRÜTÜLDÜ.**
+
+🚨 **`setOffline(true)` açık bir `chunked` SSE gövdesini KESMİYOR.** Aynı
+yordam gerçek Chromium'da tekrarlandı (uzun bir `respond-async` run, run
+sayfası açık, `page.context().setOffline(true)`):
+
+```
+offline yururlukte   -> fetch('/tracon/api/diagnostics') = "threw: Failed to fetch"
+                        navigator.onLine = false
+ayni anda ayni akis  -> BES OLAY DAHA teslim etti, run "tamamlandi"ya gecti
+                        (olay zaman cizelgesi 1 -> 5)
+```
+
+Yani bağlantı **ölmedi**; turun gördüğü 23 saniyelik donukluk sağlıklı bir
+bağlantı üzerinde **sessiz bir run**'dı (düşünen model hiçbir olay
+üretmiyordu). Kaydın "bağlantı sessizce koptu" teşhisi bu ölçümle
+yanlışlanmıştır.
+
+**Kaydın MEKANİZMA tespiti yine de doğruydu ve düzeltildi.** `for await`
+döngüsünde hiçbir zaman aşımı yoktu; gerçekten ölü bir bağlantıda (uyuyan
+dizüstü, zaman aşımına uğrayan proxy) `reader.read()` hiçbir şey atmadan
+sonsuza dek bekler. `readSse` artık isteğe bağlı `idleTimeoutMs` alıyor ve
+konsol 30 saniye geçiriyor (K-803). Ölçü **bayttır, frame değil**: sunucu
+`RunEventPollInterval`'de bir `: waiting` gönderir ama `SseDecoder` yorumları
+düşürür, yani sağlıklı ama sessiz bir run hiç frame üretmez.
+
+Kanıt, `setOffline`'ın üretemediği koşulu doğrudan kuran testlerdedir:
+`packages/tracon-client/test/sse-idle.test.ts` (dört test, ikisi düzeltmeden
+önce 5 sn zaman aşımıyla düşüyordu) ve
+`src/Tracon.UI/frontend/src/screens/run-detail.test.tsx` (ekran eşikten sonra
+`ErrorNote` gösteriyor; düzeltmeden önce kırmızıydı).
+
+**Altından ayrı bir bulgu çıktı ve aday olarak yazıldı (`F-245`):** sessiz bir
+run ile ölü bir bağlantı kullanıcıya **hâlâ aynı görünüyor**. Keep-alive'lar
+canlılığı kanıtlıyor ama konsol onları hiç görmüyor. Bu bir arayüz tasarımı
+kararıdır, bu kusurun kapsamında değildir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ### MT-UIRUN-020
 
 **Yöntem notu.** Kabuğun bearer token'ı `localStorage`'da DEĞİL, sekmeye
@@ -897,6 +940,61 @@ notu (2026-08-19, 7 `ReasoningDelta` kaydedilmiş) bu turda ASLA tekrar
 üretilemedi — olası bir gerileme.
 
 **Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı — `HATA-S3-006`.
+
+---
+
+### Yeniden koşum — 2026-09-18 (Aile F kapanışı)
+
+**Gerçek sonuç — ✅ GEÇTİ; kusur YENİDEN ÜRETİLEMEDİ.** Kod tur boyunca donuk
+kaldı ve bu yol A–E ailelerinde hiç değişmedi (`git diff 7e3a4de7..HEAD --
+src/Tracon.Core/Recording/RunRecordingAgent.Persistence.cs`: `Reasoning`
+dalına dokunulmadı). Aynı `claude-thinking` agent'ıyla, gerçek Anthropic
+anahtarıyla:
+
+```
+akissiz  -> response.messages[0].contents: reasoning (349 karakter) + text
+            GET .../events: RunStarted, ReasoningDelta x1, MessageDelta,
+                            MessageCompleted, RunCompleted
+akisli   -> SSE'de 88 reasoning parcasi
+            GET .../events: ReasoningDelta x86, MessageDelta x51
+            (eksik iki parca imza deltasidir; metni bos, guard dogru atliyor)
+```
+
+**Turun gördüğü semptomun ne ürettiği de ölçüldü.** Aynı uygulama
+`Tracon__RunRecording__RecordReasoningDeltas=false` ile yeniden başlatıldı:
+
+```
+SSE'de 41 reasoning parcasi
+GET .../events: RunStarted, MessageDelta x28, RunCompleted   <- SIFIR ReasoningDelta
+```
+
+Bu, kaydın tarif ettiği semptomun **birebir kendisidir**, ve kodda bu sonucu
+üretebilecek başka hiçbir yol yok (`grep -rn "ReasoningDelta" src/`: ayarı ve
+boş metni süzen dal dışında hiçbir katman bu olayı filtrelemiyor). ∴ ayar o
+oturumda kapalıydı.
+
+🚨 **Kaydın elemesi geçersizdi.** "Kardeş alan `RecordMessageDeltas` aynı
+koşumlarda çalışıyor, bu options bağlama sorununu ekarte ediyor" — ama
+`RecordMessageDeltas` **varsayılan olarak `true`**'dur; bağlama hiç olmasa da
+çalışırdı. Eleme hiçbir şey elemiyordu ve kusur bu yüzden bir tur boyunca
+izole edilemedi.
+
+**Teşhis boşluğu kapatıldı (K-804).** `/api/diagnostics` artık yürürlükteki
+`runRecording` ayarlarını bildiriyor; bir operatör "model düşünmedi" ile
+"kayıt kapalı" ile "bozuk"u tek istekle ayırt edebiliyor. Alan eklenirken
+ortaya çıktı ki `TraconDiagnosticsCollector`'ın DI fabrikası **son iki isteğe
+bağlı argümanı hiç geçmiyordu** — rapor kurulumun değil varsayılanların
+ayarlarını söylerdi, ve `logger` de hiç verilmediği için katalog okuma hatası
+her kurulumda sessizce yutuluyordu. İkisi de düzeltildi.
+
+Eksik test seviyesi de kalıcı hâle getirildi:
+`ReasoningRecordingEndpointTests` (DI + HTTP; açık kaydeder, kapalı kaydetmez,
+rapor hangisi olduğunu söyler). Var olan `ReasoningRecordingTests` yalnız
+sarmalayıcının kendi anahtarını kilitliyordu ve kurulum-düzeyi davranış
+hakkında hiçbir şey söylemiyordu — turun dört gerçek sağlayıcı çağrısı harcayıp
+izole edememesinin nedeni tam olarak bu boşluktu.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 

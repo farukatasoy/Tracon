@@ -78,4 +78,42 @@ public sealed record TraconDiagnosticsReport
     /// is Tracon's built-in default.
     /// </remarks>
     public required IReadOnlyList<ExtensionPointDiagnostic> ExtensionPoints { get; init; }
+
+    /// <summary>Gets the run recording settings this installation is running with.</summary>
+    public required RunRecordingDiagnostic RunRecording { get; init; }
+}
+
+/// <summary>What a run actually records, as configured.</summary>
+/// <remarks>
+/// These settings decide which run events exist at all, and an event that was
+/// never recorded is indistinguishable from one the model never produced.
+/// Reading the effective value is the difference between "the model did not
+/// think" and "reasoning recording is off" — a distinction that otherwise
+/// costs real provider calls to establish. Carries no <c>secret</c>: every
+/// member is a switch or a length.
+/// </remarks>
+public sealed record RunRecordingDiagnostic
+{
+    /// <summary>Gets whether runs are recorded at all.</summary>
+    public required bool Enabled { get; init; }
+
+    /// <summary>Gets whether the input messages are stored so a run can be replayed.</summary>
+    public required bool RecordRunInput { get; init; }
+
+    /// <summary>Gets whether assistant text is recorded as <c>MessageDelta</c> events.</summary>
+    public required bool RecordMessageDeltas { get; init; }
+
+    /// <summary>Gets whether model reasoning is recorded as <c>ReasoningDelta</c> events.</summary>
+    /// <remarks>
+    /// Off by default, unlike <see cref="RecordMessageDeltas"/>. A model that
+    /// returns reasoning content while this is off produces no event and no
+    /// warning — the stream carries the reasoning, the record does not.
+    /// </remarks>
+    public required bool RecordReasoningDeltas { get; init; }
+
+    /// <summary>Gets whether tool arguments and results are recorded.</summary>
+    public required bool RecordToolPayloads { get; init; }
+
+    /// <summary>Gets the longest recorded payload, in characters. <c>0</c> means no trimming.</summary>
+    public required int MaxPayloadLength { get; init; }
 }

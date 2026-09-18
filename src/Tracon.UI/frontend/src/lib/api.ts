@@ -55,6 +55,24 @@ async function toError(response: Response): Promise<TraconError> {
  * `text/event-stream`, not JSON, and a `fetch`-based typed client reads a
  * response body as JSON (docs/arsiv/fazlar/84-TYPESCRIPT-ISTEMCISI-VE-NPM.md, section 84.4).
  */
+/**
+ * How long a run's event stream may send NOTHING AT ALL before the console
+ * treats it as dead.
+ *
+ * 🚨 The server sends a `: waiting` keep-alive every `RunEventPollInterval`
+ * (250ms by default) for as long as a run is going, so silence this long means
+ * the connection died without saying so — a laptop that slept, a proxy that
+ * timed out, a network that went away mid-body. None of those throw: the
+ * reader simply waits forever, and the screen sat on "Waiting for events…"
+ * with no way for the reader to tell it apart from a run still working
+ * (HATA-S3-005).
+ *
+ * The threshold has to clear the server's keep-alive interval with room for a
+ * slow link. It is generous on purpose: cutting a healthy run off is worse
+ * than noticing a dead one late.
+ */
+export const STREAM_IDLE_TIMEOUT_MS = 30_000;
+
 export async function openStream(
   path: string,
   init?: RequestInit & { lastEventId?: string },
