@@ -80,6 +80,49 @@ public sealed class TraconPricingBindingTests
             .Message.ShouldContain("Voice:elevenlabs:tts-1");
     }
 
+    /// <summary>
+    /// The rejection reaches the consumer's console, so it must read as English
+    /// (K-228). Both messages used to glue a two-letter Turkish correlative
+    /// conjunction around the two key names, which the language gate could not
+    /// see while it skipped two-letter words. It no longer skips them, so the
+    /// phrase cannot be quoted here either — see
+    /// <see cref="Architecture.SourceLanguageTests"/>.
+    /// </summary>
+    [Fact]
+    public void Rejection_of_a_provider_price_key_reads_as_English()
+    {
+        var configValues = new Dictionary<string, string?>(StringComparer.Ordinal)
+        {
+            ["Tracon:Pricing:echo:echo-1:InputCostPerMillionTokens"] = "0.25",
+        };
+
+        using var provider = BuildTracon(configValues);
+
+        var message = Should.Throw<OptionsValidationException>(
+            () => provider.GetRequiredService<IOptions<TraconOptions>>().Value).Message;
+
+        message.ShouldContain("'echo:echo-1' contains neither 'Input' nor 'Output'. Check the key name.");
+    }
+
+    /// <summary>Same boundary as the provider message above; see its remarks.</summary>
+    [Fact]
+    public void Rejection_of_a_voice_price_key_reads_as_English()
+    {
+        var configValues = new Dictionary<string, string?>(StringComparer.Ordinal)
+        {
+            ["Tracon:Pricing:Voice:elevenlabs:tts-1:PerMillionChars"] = "30.0",
+        };
+
+        using var provider = BuildTracon(configValues);
+
+        var message = Should.Throw<OptionsValidationException>(
+            () => provider.GetRequiredService<IOptions<TraconOptions>>().Value).Message;
+
+        message.ShouldContain(
+            "'Voice:elevenlabs:tts-1' contains neither 'PerMillionCharacters' nor 'PerMinute'. " +
+            "Check the key name.");
+    }
+
     [Fact]
     public void Price_written_with_the_correct_key_is_accepted_at_startup()
     {

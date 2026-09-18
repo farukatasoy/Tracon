@@ -289,8 +289,8 @@ internal sealed class TraconOptionsValidator : IValidateOptions<TraconOptions>
                 if (price.InputCostPerMillionTokens is null && price.OutputCostPerMillionTokens is null)
                 {
                     (failures ??= []).Add(
-                        $"{nameof(TraconPricingOptions)}: '{providerName}:{modelName}' ne 'Input' ne 'Output' " +
-                        "contains neither value. Check the key name.");
+                        $"{nameof(TraconPricingOptions)}: '{providerName}:{modelName}' contains neither " +
+                        "'Input' nor 'Output'. Check the key name.");
                 }
             }
         }
@@ -309,9 +309,9 @@ internal sealed class TraconOptionsValidator : IValidateOptions<TraconOptions>
                 if (price.PerMillionCharacters is null && price.PerMinute is null)
                 {
                     (failures ??= []).Add(
-                        $"{nameof(TraconPricingOptions)}: 'Voice:{providerName}:{modelName}' ne " +
-                        $"'{nameof(VoicePriceOverride.PerMillionCharacters)}' ne '{nameof(VoicePriceOverride.PerMinute)}' " +
-                        "contains neither value. Check the key name.");
+                        $"{nameof(TraconPricingOptions)}: 'Voice:{providerName}:{modelName}' contains neither " +
+                        $"'{nameof(VoicePriceOverride.PerMillionCharacters)}' nor " +
+                        $"'{nameof(VoicePriceOverride.PerMinute)}'. Check the key name.");
                 }
             }
         }

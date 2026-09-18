@@ -3,7 +3,7 @@
 > **Bu turu kapatan her oturum ÖNCE burayı okur.** Koşum bitti; bu dosya
 > kapanışın tek kontrol düzlemidir.
 >
-> **Durum:** 🟡 Aşama 2 sürüyor · **Aile A · B · C · D · E · F · G · H · I · J KAPANDI** · 26 açık kusur, 12 aile kaldı
+> **Durum:** 🟡 Aşama 2 sürüyor · **Aile A · B · C · D · E · F · G · H · I · J · K KAPANDI** · 24 açık kusur, 11 aile kaldı
 > **Son güncelleme:** 2026-09-18 (Aile J kapandı — `S1-020`; ölçüm **ikinci bir katman** buldu: parmak izi normalleştirmesi durum kodunu da siliyordu)
 
 Turdan bağımsız kapanış protokolü — aile aile oturum yordamı, "önce ampirik
@@ -749,7 +749,43 @@ kapanış analizi bu ikinci katmanı öngörmüştü; yalnız **kırmızı test*
 Dosya kontrol karakteri için tarandı, satır indeksiyle düzeltildi. Kaynak
 dosyaya regex yazan her betik sonrasında `chr(8)`/`chr(11)`/`chr(12)` taraması
 yapmalıdır.
-| **K** · Sevk edilen metinde dil karışıklığı | `S1-012` Orta · `S1-018` Orta | Üç sevk edilen hata mesajında yarım kalmış Türkçe (`ne 'Input' ne 'Output' contains neither value`). `SourceLanguageTests` iki harfli kelimeleri bilinçli dışladığı için bunu **yapısal olarak** göremiyor. Düzeltme kapıyı da kapsar (K-228; taban **yalnız küçülür**) | ☐ |
+| **K** · Sevk edilen metinde dil karışıklığı | `S1-012` Orta · `S1-018` Orta | Üç sevk edilen hata mesajında yarım kalmış Türkçe. `SourceLanguageTests` iki harfli kelimeleri bilinçli dışladığı için bunu **yapısal olarak** göremiyor. Düzeltme kapıyı da kapsar (K-228; taban **yalnız küçülür**) | ✅ **KAPANDI 2026-09-18** |
+
+#### Aile K — ✅ kapandı (2026-09-18)
+
+İki kusur, **aynı** üç satır, ve asıl iş metinde değil **kapıda**.
+
+| Katman | Ölçülen kök neden | Düzeltme |
+|---|---|---|
+| Metin | `TraconOptionsValidator.cs:292 · 312 · 313` iki anahtar adının etrafına Türkçe bir eş bağlaç sarıyor; üstüne aynı olumsuzlamayı iki kez söylüyor | Üç satır, **aynı bloğun** zaten doğru olan `Images` cümlesine hizalandı: `'{anahtar}' contains neither 'X' nor 'Y'. Check the key name.` |
+| Kapı | `SourceLanguageTests` iki harfli **her** kelimeyi dışlıyordu ve gerekçesi bir varsayımdı | Yedi bağlaç listeye girdi (K-819); dışlama artık ölçülmüş |
+
+👤 **Karar (K-819):** dışlama varsayım değil ölçüm olur. Taranan ağacın
+tamamında **16** iki-harfli aday sayıldı: yedisinin (`ne · ya · ki · mi · mu ·
+da · ve`) sıfır çakışması var ve listeye girdiler; üçü **bilerek** dışarıda
+kaldı — `de` ve `en` BCP-47 dil etiketi olarak literal geçiyor, `bu` çevrilmiş
+arayüz metnini doğrulayan E2E testinde.
+
+🚨 **Kusur kaydının önerdiği düzeltme ölçülünce yanlış çıktı.** Kayıt "`ne`
+yalnız tırnaklı bir terimin yanındaysa yakala" diyordu. O desen üç satırı
+yakalıyor ama `packages/tracon-client/test/streaming.test.ts`'in bilinçli olarak
+`'event: do'` + `'ne\ndata: par'` diye bölünmüş SSE parçasını da yanlış pozitif
+yapıyor. Bölme noktası `don` + `e` yapıldı — testin niyeti (parça sınırı
+kelimenin ortasından geçer) aynı kaldı — ve kelime listesi çakışmasız oldu.
+
+🚨 **Yeni kural ilk olarak KENDİ testimi yakaladı.** Regresyon testinin XML
+dokümanı kusuru göstermek için Türkçe kalıbı **alıntılıyordu** ve kapı kırmızı
+verdi. Bu, Aile B'nin `HATA-*` referansı ve Aile D'nin `🚨` emojisiyle aynı
+sınıftır: **bir kapıyı güçlendiren değişiklik, o kapının karşı örneğini yazacak
+yeri de daraltır.** Cümle kalıbı alıntılamadan yeniden yazıldı.
+
+| Adım | Sonuç |
+|---|---|
+| Ampirik yeniden üretim | ☑ iki yeni test düzeltmeden önce kırmızı; ölçülen metin kaydın yazdığıyla birebir aynı |
+| Sınıf taraması | ☑ dört Türkçe eş bağlaç kalıbı (`ne…ne` · `ya…ya` · `hem…hem` · `gerek…gerek`) taranan ağaçta arandı → yalnız bu üç satır. Ardından 16 iki-harfli aday tek tek sayıldı |
+| Testler | 2 yeni birim testi + kapının kendisi; taban çizgisi **boş kaldı** |
+| Kapı | `SourceLanguageTests` yeşil — yeni kural repoda başka hiçbir satır bulmuyor |
+
 | **L** · Katalog ve agent kaynağı mesajları | `S1-009` Orta · `S1-013` Düşük · `S1-008` Düşük · `S1-014` Düşük | Kod kaynaklı agent'ın `versions` ucu "böyle bir agent yok" diyor — agent var; `IAgentDefinitionStore`'da yokluk her yerde yokluk sanılıyor. `Custom` kaynaklı agent'a "bu agent kodda tanımlı" deniyor, yönlendirme de yanlış. Bilinmeyen `compaction.strategy` reddediliyor ama mesaj ne reddedilen değeri ne geçerli listeyi söylüyor. Analyzer'ın `TRC0007` metni `AddScopedTool`'u anmıyor; runtime metni anıyor — pratikte görülen analyzer'ınki | ☐ |
 | **M** · Sağlık ve açılış gürültüsü | `S1-016` Düşük-Orta · `S1-017` Düşük | `/health` kendi başına hiçbir zaman `Healthy`'ye ulaşmıyor — `/api/models/health` çağrılmadıkça sonsuza dek `Degraded`. Taze şemaya karşı her açılış `Error` seviyesinde yığın izi basıyor; yutma bir katman geç yapılıyor | ☐ |
 | **N** · CSP ve inline script | `S1-004` · `S2-002` Düşük-Orta | Aynı sınıf, iki yüzey. Hem gömülü arayüzün hem gömülü konsolun `index.html`'i nonce/hash'siz bir inline `<script>` taşıyor (erken tema boyama), ama aynı yanıtın kendi CSP başlığı `script-src 'self'` gönderiyor — script **her sayfa yüklemesinde** engelleniyor. `theme.ts` sonradan doğru temayı yazdığı için işlevsel kırılma yok, erken-boyama optimizasyonu hiç çalışmıyor (olası FOUC) | ☐ |
