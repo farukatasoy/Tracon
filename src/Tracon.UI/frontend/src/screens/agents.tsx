@@ -20,6 +20,7 @@ import {
 } from '../components/ui';
 import { Toolbar } from '../components/toolbar';
 import { PlusIcon } from '../components/icons';
+import { Tooltip } from '../components/tooltip';
 import type { TraconMetaResponse } from '@tracon/client';
 import type { AgentDescriptor } from '../lib/server-types';
 
@@ -183,7 +184,22 @@ export function AgentsScreen({ meta }: { meta: TraconMetaResponse }): ReactNode 
                     {agent.toolNames.length === 0 ? (
                       <span className="text-subtle">—</span>
                     ) : (
-                      agent.toolNames.length
+                      // 🚨 The count alone was the whole cell, and the names
+                      // were nowhere on this screen — not in a tooltip, not in
+                      // the markup, so an operator had to open the agent to
+                      // learn which tools "6" meant. A `title` is not the fix
+                      // (see the model cell above); this is the described-value
+                      // pattern `Th` already uses, so the names are reachable
+                      // by hover, by focus and to a screen reader.
+                      <Tooltip text={agent.toolNames.join(', ')}>
+                        <span
+                          tabIndex={0}
+                          data-testid="agent-tool-count"
+                          className="underline decoration-dotted decoration-from-font"
+                        >
+                          {agent.toolNames.length}
+                        </span>
+                      </Tooltip>
                     )}
                   </Td>
                   <Td className="text-muted" title={absoluteTime(agent.updatedAt)}>

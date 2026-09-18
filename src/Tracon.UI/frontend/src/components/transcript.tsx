@@ -37,7 +37,13 @@ export function TranscriptView({
                 key={item.id}
                 className={cx(
                   'text-base leading-relaxed whitespace-pre-wrap',
-                  streaming === true && isLast && 'ap-stream-caret',
+                  // 🚨 The name has to be the one styles.css defines. This
+                  // read `ap-stream-caret`, a leftover of the rename that
+                  // turned the `ap-` prefix into `tracon-`, and no rule
+                  // matched: the class was applied on every streaming turn and
+                  // the caret never appeared. Nothing broke, so 79 E2E cases
+                  // stayed green - `check-custom-classes.mjs` is the gate.
+                  streaming === true && isLast && 'tracon-stream-caret',
                 )}
               >
                 {item.text}
