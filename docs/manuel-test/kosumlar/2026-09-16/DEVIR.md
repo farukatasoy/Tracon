@@ -1,15 +1,30 @@
 # Devir — 2026-09-16 manuel kabul turu
 
-> **Bu turu devralan oturum ÖNCE burayı okur.** Turun durumu, değişmez
-> kuralları, ortamı ve sıradaki işi taşır.
+> ## 📦 KOŞUM BİTTİ — bu dosya artık TARİHSEL KAYITTIR
 >
-> **Durum:** 🎉 **Aşama 1 (Faz A zinciri) BİTTİ** — dosya 01, 02, 03, 05 ve 07
-> KAPANDI (311 case) · kod `7e3a4de7`'de donuk · **Faz B** dört şeritte
-> sürüyor (`ap-s1` VE `ap-s2` şeritlerin TÜM işi bitti — `ap-s2` sekiz aile
-> kapattı: 36, 33, 12, 24, 35, 23, 15, 14; `ap-s3`/`ap-s4` devam ediyor —
-> bkz. §5 tablosu, `ap-s4` satırı doğrulama bekliyor)
-> **Son güncelleme:** 2026-09-17 (`ap-s2` dosya 14'ü (SKILL) KAPATTI —
-> 45/47 Geçti, 1 Kaldı, 1 Kısmen; **ap-s2'nin TÜM ataması bitti**)
+> **Koşum 2026-09-18'de kapandı:** 36 ailenin 36'sı koşuldu, dört şerit dalı
+> `main`'e alındı, worktree'ler silindi. Kod tur boyunca `7e3a4de7`'de donuk
+> kaldı ve öyle kaldı.
+>
+> **Sıradaki iş kapanıştır ve buradan yürütülmez.** Kapanışın tek kontrol
+> düzlemi: **[`KAPANIS-PLANI.md`](KAPANIS-PLANI.md)** — 22 kusur ailesi,
+> freeze kaynaklı case'lerin yeniden koşum listesi, fiziksel eylem listesi ve
+> bitti tanımı oradadır.
+>
+> **Bu dosyayı baştan sona okuma.** Koşumun nasıl yürüdüğünü ararken
+> `grep`'lenir. Kapanışın ihtiyaç duyduğu her şey (ortam kuralları, sayım,
+> açık kalemler) `KAPANIS-PLANI.md`'ye taşındı.
+>
+> **Son koşum sayımı** (düzeltilmiş §7 betiği): 1856 benzersiz case —
+> 1693 Geçti · 35 Kaldı · 107 Beklemede · 18 Atlandı · 3 işaretsiz.
+> 44 `HATA-*` kaydı, biri yanlış pozitif → **43 açık kusur**.
+
+---
+
+## Aşağısı koşumun kendi devir notudur (tarihsel)
+
+Kapanış için **gerekli değildir**; koşum sırasındaki durumu, şerit dağılımını
+ve oturum oturum biriken kararları taşır.
 
 ---
 

@@ -369,8 +369,9 @@ taşıyor. Düzeltme yalnız kapanış modunda yapılabilir (kural 1); bu koşum
 şunu taşıyor: `git show 9c32242:docs/arsiv/fazlar/73-TUKETICI-AGENT-DESTEGI.md`
 (case metninin yazdığı `docs/73-...md` kısaltılmış bir yoldu — gerçek
 göstergede `arsiv/fazlar/` öneki var, o yol **hiç var olmadı**:
-`git show 9c32242:docs/73-TUKETICI-AGENT-DESTEGI.md` → `fatal: path ... does
-not exist`). Doğru yolla komut tam metni döndürdü: `# Faz 73 — Tüketici Agent
+aynı komut kısaltılmış yolla, yani `arsiv/fazlar/` öneki olmadan
+`docs/73-TUKETICI-AGENT-DESTEGI.md` ile çağrılırsa `fatal: path ... does not
+exist` verir). Doğru yolla komut tam metni döndürdü: `# Faz 73 — Tüketici Agent
 Desteği` başlığı, `Durum`/`Kaynak`/`Önkoşul` satırları — bugünkü damıtılmış
 kısa dosyada YOK olan bölümler (plan gövdesi vb.) hâlâ git geçmişinde
 çözülüyor (K-598). Bugünkü dosya bu SHA'yı **değiştirmedi** — düzeltme yalnız
@@ -726,8 +727,8 @@ kullanıyor): `Tekrarlanan kapı tanımları: ❌ 1 bulgu` /
 `kurtarma.md ham kapanış komutunu kopyalıyor; kapilar.md'ye bağlanmalı` —
 spec'in ilk iddiasıyla birebir eşleşti. Satır geri alındı.
 
-**Mutasyon 2:** `KR-12` satırındaki `→ [kapilar.md](kapilar.md) — performans
-alt komutu` bağlantısı `**Burada** ↓` ile değiştirildi (dosyada `kapilar.md`
+**Mutasyon 2:** `KR-12` satırındaki `→ [kapilar.md](kapilar.md)` bağlantısı
+(`— performans alt komutu` metniyle) `**Burada** ↓` ile değiştirildi (dosyada `kapilar.md`
 geçen tek yer buydu, `grep -c` ile doğrulandı: 0). `--denetle` yeniden
 çalıştırıldı: `Tekrarlanan kapı tanımları: ❌ 1 bulgu` /
 `kurtarma.md kapı sözleşmesine bağlanmıyor` — spec'in ikinci iddiasıyla
