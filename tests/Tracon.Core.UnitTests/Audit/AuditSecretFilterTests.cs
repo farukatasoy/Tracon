@@ -109,6 +109,66 @@ public sealed class AuditSecretFilterTests
     }
 
     /// <summary>
+    /// A name that ends in "configurationKey" or "configurationName" holds the
+    /// NAME of a configuration entry, never its value (K-059), so redacting it
+    /// removes the only useful thing in the record.
+    /// </summary>
+    [Theory]
+    [InlineData("authorizationConfigurationKey")]
+    [InlineData("oauthClientSecretConfigurationKey")]
+    [InlineData("secretConfigurationKey")]
+    [InlineData("apiKeyConfigurationName")]
+    [InlineData("signingSecretConfigurationName")]
+    public void A_configuration_key_reference_is_kept(string propertyName)
+    {
+        var json = $$"""{"{{propertyName}}":"Tracon:Providers:OpenAI:ApiKey"}""";
+
+        AuditSecretFilter.Redact(json).ShouldNotBeNull()
+            .ShouldContain("Tracon:Providers:OpenAI:ApiKey");
+    }
+
+    /// <summary>
+    /// A name that ends in "mode" classifies a flow; it never carries a
+    /// credential. Measured: an MCP server record redacted
+    /// "oauthAuthorizationMode":"AuthorizationCode", so a reader could not see
+    /// which OAuth flow the server used.
+    /// </summary>
+    [Theory]
+    [InlineData("oauthAuthorizationMode")]
+    [InlineData("tokenMode")]
+    public void A_mode_field_is_kept(string propertyName)
+    {
+        var json = $$"""{"{{propertyName}}":"AuthorizationCode"}""";
+
+        AuditSecretFilter.Redact(json).ShouldNotBeNull().ShouldContain("AuthorizationCode");
+    }
+
+    /// <summary>
+    /// A value that cannot carry a secret is left alone whatever its name is.
+    /// Replacing a null with "***" does not protect anything and tells the
+    /// reader a secret is present where none is.
+    /// </summary>
+    [Theory]
+    [InlineData("null")]
+    [InlineData("true")]
+    [InlineData("false")]
+    public void A_value_that_cannot_hold_a_secret_is_kept(string literal)
+    {
+        var json = $$"""{"authorization":{{literal}}}""";
+
+        AuditSecretFilter.Redact(json).ShouldNotBeNull().ShouldContain(literal);
+    }
+
+    /// <summary>A string under the same name is still redacted.</summary>
+    [Fact]
+    public void A_string_under_an_exempted_shape_is_still_redacted()
+    {
+        const string Json = """{"authorization":"Bearer sk-live-secret"}""";
+
+        AuditSecretFilter.Redact(Json).ShouldNotBeNull().ShouldNotContain("sk-live-secret");
+    }
+
+    /// <summary>
     /// The other half of the contract: stripping separators must not start
     /// redacting counters. K-081 recorded that a plural "tokens" is a count, and
     /// blanket-redacting it emptied real agent records.
