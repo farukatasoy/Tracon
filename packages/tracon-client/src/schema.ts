@@ -997,12 +997,12 @@ export interface paths {
         };
         /**
          * Lists a suite's cases.
-         * @description Cases come back in their stored order, and that order is their identity: a case is addressed by its sequence number, so reordering the list changes which case a past result refers to. An unknown suite name returns 404, while a suite with no cases returns an empty list.
+         * @description Cases come back in their stored order. Each carries an 'id' that is its identity for life — send it back on a replace to keep the case, and the run-to-run diff behind '--baseline' will read it as the same case. The sequence number is position, not identity: reordering the list re-numbers the cases without changing which case is which. An unknown suite name returns 404, while a suite with no cases returns an empty list.
          */
         get: operations["TraconListEvalCases"];
         /**
          * Replaces all of a suite's cases with the given list.
-         * @description This is a full replacement, not an append: cases missing from the body are removed, so send the complete list every time. Sequence numbers are assigned from the body's order, which means reordering the list re-numbers the cases and past results then line up with different cases. Every case needs a non-empty 'query'; one that does not fails the whole request with 400 and nothing is written. An unknown suite name returns 404.
+         * @description This is a full replacement, not an append: cases missing from the body are removed, so send the complete list every time. Send each kept case back with the 'id' it was listed with — a case holds that id for its whole life and the run-to-run diff behind '--baseline' is matched on it, so a case that arrives without one is a NEW case and an unchanged case sent without its id reads as one removed and another added. An id that does not belong to this suite, or that appears twice, fails the whole request with 400. 'parameters' travels the same way: it is part of the case, and a parameterized agent's case sent without it then fails the missing-parameter check at run time. Promotion data is the server's own and follows the id: keep the case, keep its origin. Sequence numbers are assigned from the body's order, which means reordering the list re-numbers the cases. Every case needs a non-empty 'query'; one that does not fails the whole request with 400 and nothing is written. An unknown suite name returns 404.
          */
         put: operations["TraconSaveEvalCases"];
         post?: never;
@@ -3922,6 +3922,12 @@ export interface components {
         EvalCaseDiffKind: "Unchanged" | "Fixed" | "Regressed" | "StillFailing" | "Added" | "Removed";
         /** @description Input shape of an eval case (in a request). */
         EvalCaseInput: {
+            /**
+             * Format: uuid
+             * @description The identifier of the case this entry is, or `null` to
+             *     create a new one.
+             */
+            id?: null | string;
             /** @description Query text to send to the agent. */
             query: string;
             /** @description Expected output. */
@@ -3930,6 +3936,13 @@ export interface components {
             expectedTools?: string[];
             /** @description Text to give the model as extra context. */
             context?: null | string;
+            /**
+             * @description Values for the target agent's parameter schema, or `null`
+             *     for an agent that declares none.
+             */
+            parameters?: null | {
+                [key: string]: string;
+            };
         };
         /** @description Request to promote a run to a case. */
         EvalCasePromotionRequest: {
@@ -6104,6 +6117,8 @@ export interface components {
              * @description The creation/last-updated time.
              */
             createdAt?: string;
+            /** @description The version of the component that produced this score, when one is known. */
+            evaluatorVersion?: null | string;
         };
         /**
          * @description One aggregated group: every score sharing a breakdown key AND a

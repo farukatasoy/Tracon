@@ -17,6 +17,11 @@ Kaldı), kalan 4 case (`MT-CLI-012`, `022`, `037`, `046`) spec'in kendisi
 `PUT /api/evals/{name}/cases` ile düzenlemek (hand-add tek yolu) suitedeki
 **her** case'in kimliğini (veritabanı id'si) sıfırlıyor, içerik/sıra aynı
 kalsa bile. Ayrıntı aşağıda ve HATA kaydında.
+**✅ KAPANDI 2026-09-18** (Aile E). Kapanış aynı `PUT` turunda iki kayıp
+daha ölçtü: `HATA-S3-009` (`Parameters` DTO'da yok — parametreli agent'ın
+case'leri her kayıttan sonra düşüyordu) ve `HATA-S3-010` (`InsertEvalCase`
+promosyon üçlüsünü hiç yazmıyordu — promosyon guard'ı devre dışı kalıyor,
+aynı run ikinci kez yükseltilebiliyordu).
 
 **Ortam notu — uygulama sürecinin kararsızlığı.** Bu oturumda
 `samples/Tracon.Api` süreci en az üç kez, görünürde hiçbir hata/istisna
@@ -369,6 +374,52 @@ kodu `0`.
 kanıt HATA-S3-003'te. İki kez tekrar üretildi (aynı sonuç).
 
 **Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+
+---
+
+### Yeniden koşum — 2026-09-18 (Aile E kapanışı)
+
+**Gerçek sonuç — ✅ GEÇTİ.** `EvalCaseInput` `Id` alanı kazandı (K-801);
+canlı ölçüm `samples/Tracon.Api` + gerçek OpenAI anahtarı + gerçek `tracon
+eval` ikilisiyle tekrarlandı.
+
+```
+PUT /api/evals/ok029/cases  [{"query":"Merhaba","expectedOutput":"tamam"}]
+GET -> CASE_ID_1: 01a0b45e-ee07-7dbf-82fb-4daaf086f327
+tracon eval --suite ok029                       -> Completed: 1/1 passed
+
+PUT  ayni case KENDI id'siyle + yeni bir case
+GET -> CASE_ID_1_AFTER: 01a0b45e-ee07-7dbf-82fb-4daaf086f327   KEPT: True
+tracon eval --suite ok029 --baseline previous --max-regressions 0
+  -> vs baseline: 0 regressed, 0 fixed, 1 added, 0 removed.
+```
+
+**`1 added, 0 removed`** — case'in kendi beklentisi. Koşumun ölçtüğü
+`2 added, 1 removed` gitti.
+
+**Kaydın "daha ciddisi" dediği yarım da ölçüldü ve kapandı.** Agent'ın
+talimatı bozuldu (`tamam` → `degisti`) ve **aynı pencerede** case listesi
+düzenlendi (ilk case id'siyle korundu, bir yeni case eklendi):
+
+```
+tracon eval --suite ok029 --baseline previous --max-regressions 0
+  -> vs baseline: 1 regressed, 0 fixed, 1 added, 0 removed.
+     regressed: case 01a0b45e-...: Response does not contain expected output: "tamam"
+  -> cikis kodu 3
+```
+
+Regresyon artık `Removed` değil `Regressed` sınıfında ve CI kapısı onu
+**yakalıyor** (çıkış kodu `3`). Düzeltmeden önce bu run `Removed` sayılıp
+`--max-regressions 0`'dan geçerdi.
+
+İki reddetme yolu da canlı doğrulandı: bu suite'e ait olmayan id → `400
+"Case id '…' does not belong to this suite…"`, aynı id iki kez → `400
+"Case id '…' appears more than once…"`; ikisinde de hiçbir şey yazılmadı.
+
+**Sınıf taraması aynı turda İKİ kayıp daha buldu** (`HATA-S3-009`,
+`HATA-S3-010`) — `EvalCaseInput` `Parameters`'ı da taşımıyordu ve
+`InsertEvalCase` SQL'i promosyon üçlüsünü hiç yazmıyordu. Tam anlatı
+kapanış planının Aile E bölümünde; kararlar K-801 · K-802.
 
 ## MT-CLI-030 — eval baseline, --json ile regresyon
 

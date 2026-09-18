@@ -6370,7 +6370,7 @@ namespace Tracon.Client.Generated
         /// Lists a suite's cases.
         /// </summary>
         /// <remarks>
-        /// Cases come back in their stored order, and that order is their identity: a case is addressed by its sequence number, so reordering the list changes which case a past result refers to. An unknown suite name returns 404, while a suite with no cases returns an empty list.
+        /// Cases come back in their stored order. Each carries an 'id' that is its identity for life — send it back on a replace to keep the case, and the run-to-run diff behind '--baseline' will read it as the same case. The sequence number is position, not identity: reordering the list re-numbers the cases without changing which case is which. An unknown suite name returns 404, while a suite with no cases returns an empty list.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -6452,7 +6452,7 @@ namespace Tracon.Client.Generated
         /// Replaces all of a suite's cases with the given list.
         /// </summary>
         /// <remarks>
-        /// This is a full replacement, not an append: cases missing from the body are removed, so send the complete list every time. Sequence numbers are assigned from the body's order, which means reordering the list re-numbers the cases and past results then line up with different cases. Every case needs a non-empty 'query'; one that does not fails the whole request with 400 and nothing is written. An unknown suite name returns 404.
+        /// This is a full replacement, not an append: cases missing from the body are removed, so send the complete list every time. Send each kept case back with the 'id' it was listed with — a case holds that id for its whole life and the run-to-run diff behind '--baseline' is matched on it, so a case that arrives without one is a NEW case and an unchanged case sent without its id reads as one removed and another added. An id that does not belong to this suite, or that appears twice, fails the whole request with 400. 'parameters' travels the same way: it is part of the case, and a parameterized agent's case sent without it then fails the missing-parameter check at run time. Promotion data is the server's own and follows the id: keep the case, keep its origin. Sequence numbers are assigned from the body's order, which means reordering the list re-numbers the cases. Every case needs a non-empty 'query'; one that does not fails the whole request with 400 and nothing is written. An unknown suite name returns 404.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -18810,6 +18810,14 @@ namespace Tracon.Client.Generated
     public partial class EvalCaseInput
     {
         /// <summary>
+        /// The identifier of the case this entry is, or `null` to
+        /// <br/>create a new one.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("id")]
+        public System.Guid? Id { get; set; } = default!;
+
+        /// <summary>
         /// Query text to send to the agent.
         /// </summary>
 
@@ -18836,6 +18844,14 @@ namespace Tracon.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("context")]
         public string? Context { get; set; } = default!;
+
+        /// <summary>
+        /// Values for the target agent's parameter schema, or `null`
+        /// <br/>for an agent that declares none.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("parameters")]
+        public System.Collections.Generic.IDictionary<string, string>? Parameters { get; set; } = default!;
 
     }
 
@@ -23449,6 +23465,13 @@ namespace Tracon.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("createdAt")]
         public System.DateTimeOffset CreatedAt { get; set; } = default!;
+
+        /// <summary>
+        /// The version of the component that produced this score, when one is known.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("evaluatorVersion")]
+        public string? EvaluatorVersion { get; set; } = default!;
 
     }
 

@@ -62,114 +62,6 @@ Tracon.AgentDetailResponse.FactoryInstructions.get -> string?
 Tracon.AgentDetailResponse.FactoryInstructions.init -> void
 Tracon.AgentDetailResponse.IsEditable.get -> bool
 Tracon.AgentDetailResponse.IsEditable.init -> void
-Tracon.TraconA2ABuilderExtensions
-Tracon.TraconA2AExtensions
-Tracon.TraconA2AOptions
-Tracon.TraconA2AOptions.TraconA2AOptions() -> void
-Tracon.TraconA2AOptions.Budget.get -> Tracon.AgentRunBudget!
-Tracon.TraconA2AOptions.Budget.set -> void
-Tracon.TraconA2AOptions.ExposedAgents.get -> System.Collections.Generic.IList<string!>!
-Tracon.TraconAgentSessionStore
-Tracon.TraconAgentSessionStore.TraconAgentSessionStore(Tracon.AgentSessionManager! sessions) -> void
-Tracon.TraconAuthenticationMeta
-Tracon.TraconAuthenticationMeta.<Clone>$() -> Tracon.TraconAuthenticationMeta!
-Tracon.TraconAuthenticationMeta.TraconAuthenticationMeta() -> void
-Tracon.TraconAuthenticationMeta.AllowRemoteAccess.get -> bool
-Tracon.TraconAuthenticationMeta.AllowRemoteAccess.init -> void
-Tracon.TraconAuthenticationMeta.Equals(Tracon.TraconAuthenticationMeta? other) -> bool
-Tracon.TraconAuthenticationMeta.RequiresAuthorizationPolicy.get -> bool
-Tracon.TraconAuthenticationMeta.RequiresAuthorizationPolicy.init -> void
-Tracon.TraconAuthenticationMeta.RequiresBearerToken.get -> bool
-Tracon.TraconAuthenticationMeta.RequiresBearerToken.init -> void
-Tracon.TraconEndpointOptions
-Tracon.TraconEndpointOptions.TraconEndpointOptions() -> void
-Tracon.TraconEndpointOptions.AllowRemoteAccess.get -> bool
-Tracon.TraconEndpointOptions.AllowRemoteAccess.set -> void
-Tracon.TraconEndpointOptions.AllowedOrigins.get -> System.Collections.Generic.IList<string!>!
-Tracon.TraconEndpointOptions.AuthToken.get -> string?
-Tracon.TraconEndpointOptions.AuthToken.set -> void
-Tracon.TraconEndpointOptions.AuthorizationPolicy.get -> string?
-Tracon.TraconEndpointOptions.EnableDiagnosticsEndpoint.get -> bool
-Tracon.TraconEndpointOptions.EnableDiagnosticsEndpoint.set -> void
-Tracon.TraconEndpointOptions.MapOpenAIConversations.get -> bool
-Tracon.TraconEndpointOptions.MapOpenAIConversations.set -> void
-Tracon.TraconEndpointOptions.RequireAuthorization(string! policyName) -> void
-Tracon.TraconEndpointOptions.RequireRolePolicies.get -> bool
-Tracon.TraconEndpointOptions.RequireRolePolicies.set -> void
-Tracon.TraconEndpointOptions.RunEventPollInterval.get -> System.TimeSpan
-Tracon.TraconEndpointOptions.RunEventPollInterval.set -> void
-Tracon.TraconEndpointRouteBuilderExtensions
-Tracon.TraconHealthCheckExtensions
-Tracon.TraconMcpServerBuilderExtensions
-Tracon.TraconMcpServerExtensions
-Tracon.TraconMcpServerOptions
-Tracon.TraconMcpServerOptions.TraconMcpServerOptions() -> void
-Tracon.TraconMcpServerOptions.Budget.get -> Tracon.AgentRunBudget!
-Tracon.TraconMcpServerOptions.Budget.set -> void
-Tracon.TraconMcpServerOptions.EnableTasks.get -> bool
-Tracon.TraconMcpServerOptions.EnableTasks.set -> void
-Tracon.TraconMcpServerOptions.ExposeAllAgents.get -> bool
-Tracon.TraconMcpServerOptions.ExposeAllAgents.set -> void
-Tracon.TraconMcpServerOptions.ExposedAgents.get -> System.Collections.Generic.IList<string!>!
-Tracon.TraconMcpServerOptions.TaskPollInterval.get -> System.TimeSpan
-Tracon.TraconMcpServerOptions.TaskPollInterval.set -> void
-Tracon.TraconMcpServerOptions.TaskTimeToLive.get -> System.TimeSpan
-Tracon.TraconMcpServerOptions.TaskTimeToLive.set -> void
-Tracon.TraconMcpServerOptions.ToolNamePrefix.get -> string!
-Tracon.TraconMcpServerOptions.ToolNamePrefix.set -> void
-Tracon.TraconMetaResponse
-Tracon.TraconMetaResponse.<Clone>$() -> Tracon.TraconMetaResponse!
-Tracon.TraconMetaResponse.TraconMetaResponse() -> void
-Tracon.TraconMetaResponse.Authentication.get -> Tracon.TraconAuthenticationMeta!
-Tracon.TraconMetaResponse.Authentication.init -> void
-Tracon.TraconMetaResponse.Equals(Tracon.TraconMetaResponse? other) -> bool
-Tracon.TraconMetaResponse.Prefix.get -> string!
-Tracon.TraconMetaResponse.Prefix.init -> void
-Tracon.TraconMetaResponse.Roles.get -> Tracon.TraconRoleMeta!
-Tracon.TraconMetaResponse.Roles.init -> void
-Tracon.TraconMetaResponse.Storage.get -> Tracon.TraconStorageMeta!
-Tracon.TraconMetaResponse.Storage.init -> void
-Tracon.TraconMetaResponse.Version.get -> string!
-Tracon.TraconMetaResponse.Version.init -> void
-Tracon.TraconPolicies
-Tracon.TraconRoleMeta
-Tracon.TraconRoleMeta.<Clone>$() -> Tracon.TraconRoleMeta!
-Tracon.TraconRoleMeta.TraconRoleMeta() -> void
-Tracon.TraconRoleMeta.CanAdminister.get -> bool
-Tracon.TraconRoleMeta.CanAdminister.init -> void
-Tracon.TraconRoleMeta.CanOperate.get -> bool
-Tracon.TraconRoleMeta.CanOperate.init -> void
-Tracon.TraconRoleMeta.CanRead.get -> bool
-Tracon.TraconRoleMeta.CanRead.init -> void
-Tracon.TraconRoleMeta.Equals(Tracon.TraconRoleMeta? other) -> bool
-Tracon.TraconStorageMeta
-Tracon.TraconStorageMeta.<Clone>$() -> Tracon.TraconStorageMeta!
-Tracon.TraconStorageMeta.AgentDefinitionStore.get -> string!
-Tracon.TraconStorageMeta.AgentDefinitionStore.init -> void
-Tracon.TraconStorageMeta.TraconStorageMeta() -> void
-Tracon.TraconStorageMeta.Equals(Tracon.TraconStorageMeta? other) -> bool
-Tracon.TraconStorageMeta.JobStore.get -> string!
-Tracon.TraconStorageMeta.JobStore.init -> void
-Tracon.TraconStorageMeta.JobWorkerEnabled.get -> bool
-Tracon.TraconStorageMeta.JobWorkerEnabled.init -> void
-Tracon.TraconStorageMeta.Persistent.get -> bool
-Tracon.TraconStorageMeta.Persistent.init -> void
-Tracon.TraconStorageMeta.RunStore.get -> string!
-Tracon.TraconStorageMeta.RunStore.init -> void
-Tracon.TraconStorageMeta.SessionStore.get -> string!
-Tracon.TraconStorageMeta.SessionStore.init -> void
-Tracon.TraconTenancyBuilderExtensions
-Tracon.TraconTenancyOptions
-Tracon.TraconTenancyOptions.TraconTenancyOptions() -> void
-Tracon.TraconTenancyOptions.AllowHeaderResolution.get -> bool
-Tracon.TraconTenancyOptions.AllowHeaderResolution.set -> void
-Tracon.TraconTenancyOptions.AllowedTenants.get -> System.Collections.Generic.IList<string!>!
-Tracon.TraconTenancyOptions.ClaimType.get -> string?
-Tracon.TraconTenancyOptions.ClaimType.set -> void
-Tracon.TraconTenancyOptions.Enabled.get -> bool
-Tracon.TraconTenancyOptions.Enabled.set -> void
-Tracon.TraconTenancyOptions.HeaderName.get -> string!
-Tracon.TraconTenancyOptions.HeaderName.set -> void
 Tracon.AgentRollbackRequest
 Tracon.AgentRollbackRequest.<Clone>$() -> Tracon.AgentRollbackRequest!
 Tracon.AgentRollbackRequest.AgentRollbackRequest() -> void
@@ -273,6 +165,10 @@ Tracon.EvalCaseInput.ExpectedOutput.get -> string?
 Tracon.EvalCaseInput.ExpectedOutput.init -> void
 Tracon.EvalCaseInput.ExpectedTools.get -> System.Collections.Generic.IReadOnlyList<string!>!
 Tracon.EvalCaseInput.ExpectedTools.init -> void
+Tracon.EvalCaseInput.Id.get -> System.Guid?
+Tracon.EvalCaseInput.Id.init -> void
+Tracon.EvalCaseInput.Parameters.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>?
+Tracon.EvalCaseInput.Parameters.init -> void
 Tracon.EvalCaseInput.Query.get -> string!
 Tracon.EvalCaseInput.Query.init -> void
 Tracon.EvalCasePromotionRequest
@@ -765,6 +661,114 @@ Tracon.ToolApprovalRuleRequest.Equals(Tracon.ToolApprovalRuleRequest? other) -> 
 Tracon.ToolApprovalRuleRequest.ToolApprovalRuleRequest() -> void
 Tracon.ToolApprovalRuleRequest.ToolName.get -> string!
 Tracon.ToolApprovalRuleRequest.ToolName.init -> void
+Tracon.TraconA2ABuilderExtensions
+Tracon.TraconA2AExtensions
+Tracon.TraconA2AOptions
+Tracon.TraconA2AOptions.Budget.get -> Tracon.AgentRunBudget!
+Tracon.TraconA2AOptions.Budget.set -> void
+Tracon.TraconA2AOptions.ExposedAgents.get -> System.Collections.Generic.IList<string!>!
+Tracon.TraconA2AOptions.TraconA2AOptions() -> void
+Tracon.TraconAgentSessionStore
+Tracon.TraconAgentSessionStore.TraconAgentSessionStore(Tracon.AgentSessionManager! sessions) -> void
+Tracon.TraconAuthenticationMeta
+Tracon.TraconAuthenticationMeta.<Clone>$() -> Tracon.TraconAuthenticationMeta!
+Tracon.TraconAuthenticationMeta.AllowRemoteAccess.get -> bool
+Tracon.TraconAuthenticationMeta.AllowRemoteAccess.init -> void
+Tracon.TraconAuthenticationMeta.Equals(Tracon.TraconAuthenticationMeta? other) -> bool
+Tracon.TraconAuthenticationMeta.RequiresAuthorizationPolicy.get -> bool
+Tracon.TraconAuthenticationMeta.RequiresAuthorizationPolicy.init -> void
+Tracon.TraconAuthenticationMeta.RequiresBearerToken.get -> bool
+Tracon.TraconAuthenticationMeta.RequiresBearerToken.init -> void
+Tracon.TraconAuthenticationMeta.TraconAuthenticationMeta() -> void
+Tracon.TraconEndpointOptions
+Tracon.TraconEndpointOptions.AllowRemoteAccess.get -> bool
+Tracon.TraconEndpointOptions.AllowRemoteAccess.set -> void
+Tracon.TraconEndpointOptions.AllowedOrigins.get -> System.Collections.Generic.IList<string!>!
+Tracon.TraconEndpointOptions.AuthToken.get -> string?
+Tracon.TraconEndpointOptions.AuthToken.set -> void
+Tracon.TraconEndpointOptions.AuthorizationPolicy.get -> string?
+Tracon.TraconEndpointOptions.EnableDiagnosticsEndpoint.get -> bool
+Tracon.TraconEndpointOptions.EnableDiagnosticsEndpoint.set -> void
+Tracon.TraconEndpointOptions.MapOpenAIConversations.get -> bool
+Tracon.TraconEndpointOptions.MapOpenAIConversations.set -> void
+Tracon.TraconEndpointOptions.RequireAuthorization(string! policyName) -> void
+Tracon.TraconEndpointOptions.RequireRolePolicies.get -> bool
+Tracon.TraconEndpointOptions.RequireRolePolicies.set -> void
+Tracon.TraconEndpointOptions.RunEventPollInterval.get -> System.TimeSpan
+Tracon.TraconEndpointOptions.RunEventPollInterval.set -> void
+Tracon.TraconEndpointOptions.TraconEndpointOptions() -> void
+Tracon.TraconEndpointRouteBuilderExtensions
+Tracon.TraconHealthCheckExtensions
+Tracon.TraconMcpServerBuilderExtensions
+Tracon.TraconMcpServerExtensions
+Tracon.TraconMcpServerOptions
+Tracon.TraconMcpServerOptions.Budget.get -> Tracon.AgentRunBudget!
+Tracon.TraconMcpServerOptions.Budget.set -> void
+Tracon.TraconMcpServerOptions.EnableTasks.get -> bool
+Tracon.TraconMcpServerOptions.EnableTasks.set -> void
+Tracon.TraconMcpServerOptions.ExposeAllAgents.get -> bool
+Tracon.TraconMcpServerOptions.ExposeAllAgents.set -> void
+Tracon.TraconMcpServerOptions.ExposedAgents.get -> System.Collections.Generic.IList<string!>!
+Tracon.TraconMcpServerOptions.TaskPollInterval.get -> System.TimeSpan
+Tracon.TraconMcpServerOptions.TaskPollInterval.set -> void
+Tracon.TraconMcpServerOptions.TaskTimeToLive.get -> System.TimeSpan
+Tracon.TraconMcpServerOptions.TaskTimeToLive.set -> void
+Tracon.TraconMcpServerOptions.ToolNamePrefix.get -> string!
+Tracon.TraconMcpServerOptions.ToolNamePrefix.set -> void
+Tracon.TraconMcpServerOptions.TraconMcpServerOptions() -> void
+Tracon.TraconMetaResponse
+Tracon.TraconMetaResponse.<Clone>$() -> Tracon.TraconMetaResponse!
+Tracon.TraconMetaResponse.Authentication.get -> Tracon.TraconAuthenticationMeta!
+Tracon.TraconMetaResponse.Authentication.init -> void
+Tracon.TraconMetaResponse.Equals(Tracon.TraconMetaResponse? other) -> bool
+Tracon.TraconMetaResponse.Prefix.get -> string!
+Tracon.TraconMetaResponse.Prefix.init -> void
+Tracon.TraconMetaResponse.Roles.get -> Tracon.TraconRoleMeta!
+Tracon.TraconMetaResponse.Roles.init -> void
+Tracon.TraconMetaResponse.Storage.get -> Tracon.TraconStorageMeta!
+Tracon.TraconMetaResponse.Storage.init -> void
+Tracon.TraconMetaResponse.TraconMetaResponse() -> void
+Tracon.TraconMetaResponse.Version.get -> string!
+Tracon.TraconMetaResponse.Version.init -> void
+Tracon.TraconPolicies
+Tracon.TraconRoleMeta
+Tracon.TraconRoleMeta.<Clone>$() -> Tracon.TraconRoleMeta!
+Tracon.TraconRoleMeta.CanAdminister.get -> bool
+Tracon.TraconRoleMeta.CanAdminister.init -> void
+Tracon.TraconRoleMeta.CanOperate.get -> bool
+Tracon.TraconRoleMeta.CanOperate.init -> void
+Tracon.TraconRoleMeta.CanRead.get -> bool
+Tracon.TraconRoleMeta.CanRead.init -> void
+Tracon.TraconRoleMeta.Equals(Tracon.TraconRoleMeta? other) -> bool
+Tracon.TraconRoleMeta.TraconRoleMeta() -> void
+Tracon.TraconStorageMeta
+Tracon.TraconStorageMeta.<Clone>$() -> Tracon.TraconStorageMeta!
+Tracon.TraconStorageMeta.AgentDefinitionStore.get -> string!
+Tracon.TraconStorageMeta.AgentDefinitionStore.init -> void
+Tracon.TraconStorageMeta.Equals(Tracon.TraconStorageMeta? other) -> bool
+Tracon.TraconStorageMeta.JobStore.get -> string!
+Tracon.TraconStorageMeta.JobStore.init -> void
+Tracon.TraconStorageMeta.JobWorkerEnabled.get -> bool
+Tracon.TraconStorageMeta.JobWorkerEnabled.init -> void
+Tracon.TraconStorageMeta.Persistent.get -> bool
+Tracon.TraconStorageMeta.Persistent.init -> void
+Tracon.TraconStorageMeta.RunStore.get -> string!
+Tracon.TraconStorageMeta.RunStore.init -> void
+Tracon.TraconStorageMeta.SessionStore.get -> string!
+Tracon.TraconStorageMeta.SessionStore.init -> void
+Tracon.TraconStorageMeta.TraconStorageMeta() -> void
+Tracon.TraconTenancyBuilderExtensions
+Tracon.TraconTenancyOptions
+Tracon.TraconTenancyOptions.AllowHeaderResolution.get -> bool
+Tracon.TraconTenancyOptions.AllowHeaderResolution.set -> void
+Tracon.TraconTenancyOptions.AllowedTenants.get -> System.Collections.Generic.IList<string!>!
+Tracon.TraconTenancyOptions.ClaimType.get -> string?
+Tracon.TraconTenancyOptions.ClaimType.set -> void
+Tracon.TraconTenancyOptions.Enabled.get -> bool
+Tracon.TraconTenancyOptions.Enabled.set -> void
+Tracon.TraconTenancyOptions.HeaderName.get -> string!
+Tracon.TraconTenancyOptions.HeaderName.set -> void
+Tracon.TraconTenancyOptions.TraconTenancyOptions() -> void
 Tracon.UploadDocumentChunk
 Tracon.UploadDocumentChunk.<Clone>$() -> Tracon.UploadDocumentChunk!
 Tracon.UploadDocumentChunk.Content.get -> string!
@@ -897,21 +901,6 @@ override Tracon.AgentDefinitionRequest.ToString() -> string!
 override Tracon.AgentDetailResponse.Equals(object? obj) -> bool
 override Tracon.AgentDetailResponse.GetHashCode() -> int
 override Tracon.AgentDetailResponse.ToString() -> string!
-override Tracon.TraconAgentSessionStore.DeleteSessionAsync(Microsoft.Agents.AI.AIAgent! agent, string! sessionStoreId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
-override Tracon.TraconAgentSessionStore.GetSessionAsync(Microsoft.Agents.AI.AIAgent! agent, string! sessionStoreId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AgentSession!>
-override Tracon.TraconAgentSessionStore.SaveSessionAsync(Microsoft.Agents.AI.AIAgent! agent, string! sessionStoreId, Microsoft.Agents.AI.AgentSession! session, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
-override Tracon.TraconAuthenticationMeta.Equals(object? obj) -> bool
-override Tracon.TraconAuthenticationMeta.GetHashCode() -> int
-override Tracon.TraconAuthenticationMeta.ToString() -> string!
-override Tracon.TraconMetaResponse.Equals(object? obj) -> bool
-override Tracon.TraconMetaResponse.GetHashCode() -> int
-override Tracon.TraconMetaResponse.ToString() -> string!
-override Tracon.TraconRoleMeta.Equals(object? obj) -> bool
-override Tracon.TraconRoleMeta.GetHashCode() -> int
-override Tracon.TraconRoleMeta.ToString() -> string!
-override Tracon.TraconStorageMeta.Equals(object? obj) -> bool
-override Tracon.TraconStorageMeta.GetHashCode() -> int
-override Tracon.TraconStorageMeta.ToString() -> string!
 override Tracon.AgentRollbackRequest.Equals(object? obj) -> bool
 override Tracon.AgentRollbackRequest.GetHashCode() -> int
 override Tracon.AgentRollbackRequest.ToString() -> string!
@@ -1059,6 +1048,21 @@ override Tracon.ToolApprovalDecision.ToString() -> string!
 override Tracon.ToolApprovalRuleRequest.Equals(object? obj) -> bool
 override Tracon.ToolApprovalRuleRequest.GetHashCode() -> int
 override Tracon.ToolApprovalRuleRequest.ToString() -> string!
+override Tracon.TraconAgentSessionStore.DeleteSessionAsync(Microsoft.Agents.AI.AIAgent! agent, string! sessionStoreId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+override Tracon.TraconAgentSessionStore.GetSessionAsync(Microsoft.Agents.AI.AIAgent! agent, string! sessionStoreId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AgentSession!>
+override Tracon.TraconAgentSessionStore.SaveSessionAsync(Microsoft.Agents.AI.AIAgent! agent, string! sessionStoreId, Microsoft.Agents.AI.AgentSession! session, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+override Tracon.TraconAuthenticationMeta.Equals(object? obj) -> bool
+override Tracon.TraconAuthenticationMeta.GetHashCode() -> int
+override Tracon.TraconAuthenticationMeta.ToString() -> string!
+override Tracon.TraconMetaResponse.Equals(object? obj) -> bool
+override Tracon.TraconMetaResponse.GetHashCode() -> int
+override Tracon.TraconMetaResponse.ToString() -> string!
+override Tracon.TraconRoleMeta.Equals(object? obj) -> bool
+override Tracon.TraconRoleMeta.GetHashCode() -> int
+override Tracon.TraconRoleMeta.ToString() -> string!
+override Tracon.TraconStorageMeta.Equals(object? obj) -> bool
+override Tracon.TraconStorageMeta.GetHashCode() -> int
+override Tracon.TraconStorageMeta.ToString() -> string!
 override Tracon.UploadDocumentChunk.Equals(object? obj) -> bool
 override Tracon.UploadDocumentChunk.GetHashCode() -> int
 override Tracon.UploadDocumentChunk.ToString() -> string!
@@ -1095,21 +1099,6 @@ static Tracon.AgentDefinitionRequest.operator !=(Tracon.AgentDefinitionRequest? 
 static Tracon.AgentDefinitionRequest.operator ==(Tracon.AgentDefinitionRequest? left, Tracon.AgentDefinitionRequest? right) -> bool
 static Tracon.AgentDetailResponse.operator !=(Tracon.AgentDetailResponse? left, Tracon.AgentDetailResponse? right) -> bool
 static Tracon.AgentDetailResponse.operator ==(Tracon.AgentDetailResponse? left, Tracon.AgentDetailResponse? right) -> bool
-static Tracon.TraconA2ABuilderExtensions.UseA2A(this Tracon.ITraconBuilder! builder, System.Action<Tracon.TraconA2AOptions!>? configure = null) -> Tracon.ITraconBuilder!
-static Tracon.TraconA2AExtensions.MapTraconA2A(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder! endpoints, string! pattern = "/tracon/a2a") -> Microsoft.AspNetCore.Builder.IEndpointConventionBuilder!
-static Tracon.TraconAuthenticationMeta.operator !=(Tracon.TraconAuthenticationMeta? left, Tracon.TraconAuthenticationMeta? right) -> bool
-static Tracon.TraconAuthenticationMeta.operator ==(Tracon.TraconAuthenticationMeta? left, Tracon.TraconAuthenticationMeta? right) -> bool
-static Tracon.TraconEndpointRouteBuilderExtensions.MapTracon(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder! endpoints, string! prefix = "/tracon", System.Action<Tracon.TraconEndpointOptions!>? configure = null) -> Microsoft.AspNetCore.Builder.IEndpointConventionBuilder!
-static Tracon.TraconHealthCheckExtensions.AddTraconHealthChecks(this Microsoft.Extensions.DependencyInjection.IHealthChecksBuilder! builder, string! name = "tracon", System.Collections.Generic.IEnumerable<string!>? tags = null) -> Microsoft.Extensions.DependencyInjection.IHealthChecksBuilder!
-static Tracon.TraconMcpServerBuilderExtensions.UseMcpServer(this Tracon.ITraconBuilder! builder, System.Action<Tracon.TraconMcpServerOptions!>? configure = null) -> Tracon.ITraconBuilder!
-static Tracon.TraconMcpServerExtensions.MapTraconMcpServer(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder! endpoints, string! pattern = "/tracon/mcp") -> Microsoft.AspNetCore.Builder.IEndpointConventionBuilder!
-static Tracon.TraconMetaResponse.operator !=(Tracon.TraconMetaResponse? left, Tracon.TraconMetaResponse? right) -> bool
-static Tracon.TraconMetaResponse.operator ==(Tracon.TraconMetaResponse? left, Tracon.TraconMetaResponse? right) -> bool
-static Tracon.TraconRoleMeta.operator !=(Tracon.TraconRoleMeta? left, Tracon.TraconRoleMeta? right) -> bool
-static Tracon.TraconRoleMeta.operator ==(Tracon.TraconRoleMeta? left, Tracon.TraconRoleMeta? right) -> bool
-static Tracon.TraconStorageMeta.operator !=(Tracon.TraconStorageMeta? left, Tracon.TraconStorageMeta? right) -> bool
-static Tracon.TraconStorageMeta.operator ==(Tracon.TraconStorageMeta? left, Tracon.TraconStorageMeta? right) -> bool
-static Tracon.TraconTenancyBuilderExtensions.UseTenancy(this Tracon.ITraconBuilder! builder, System.Action<Tracon.TraconTenancyOptions!>! configure) -> Tracon.ITraconBuilder!
 static Tracon.AgentRollbackRequest.operator !=(Tracon.AgentRollbackRequest? left, Tracon.AgentRollbackRequest? right) -> bool
 static Tracon.AgentRollbackRequest.operator ==(Tracon.AgentRollbackRequest? left, Tracon.AgentRollbackRequest? right) -> bool
 static Tracon.AgentRunRequest.operator !=(Tracon.AgentRunRequest? left, Tracon.AgentRunRequest? right) -> bool
@@ -1209,6 +1198,21 @@ static Tracon.ToolApprovalDecision.operator !=(Tracon.ToolApprovalDecision? left
 static Tracon.ToolApprovalDecision.operator ==(Tracon.ToolApprovalDecision? left, Tracon.ToolApprovalDecision? right) -> bool
 static Tracon.ToolApprovalRuleRequest.operator !=(Tracon.ToolApprovalRuleRequest? left, Tracon.ToolApprovalRuleRequest? right) -> bool
 static Tracon.ToolApprovalRuleRequest.operator ==(Tracon.ToolApprovalRuleRequest? left, Tracon.ToolApprovalRuleRequest? right) -> bool
+static Tracon.TraconA2ABuilderExtensions.UseA2A(this Tracon.ITraconBuilder! builder, System.Action<Tracon.TraconA2AOptions!>? configure = null) -> Tracon.ITraconBuilder!
+static Tracon.TraconA2AExtensions.MapTraconA2A(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder! endpoints, string! pattern = "/tracon/a2a") -> Microsoft.AspNetCore.Builder.IEndpointConventionBuilder!
+static Tracon.TraconAuthenticationMeta.operator !=(Tracon.TraconAuthenticationMeta? left, Tracon.TraconAuthenticationMeta? right) -> bool
+static Tracon.TraconAuthenticationMeta.operator ==(Tracon.TraconAuthenticationMeta? left, Tracon.TraconAuthenticationMeta? right) -> bool
+static Tracon.TraconEndpointRouteBuilderExtensions.MapTracon(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder! endpoints, string! prefix = "/tracon", System.Action<Tracon.TraconEndpointOptions!>? configure = null) -> Microsoft.AspNetCore.Builder.IEndpointConventionBuilder!
+static Tracon.TraconHealthCheckExtensions.AddTraconHealthChecks(this Microsoft.Extensions.DependencyInjection.IHealthChecksBuilder! builder, string! name = "tracon", System.Collections.Generic.IEnumerable<string!>? tags = null) -> Microsoft.Extensions.DependencyInjection.IHealthChecksBuilder!
+static Tracon.TraconMcpServerBuilderExtensions.UseMcpServer(this Tracon.ITraconBuilder! builder, System.Action<Tracon.TraconMcpServerOptions!>? configure = null) -> Tracon.ITraconBuilder!
+static Tracon.TraconMcpServerExtensions.MapTraconMcpServer(this Microsoft.AspNetCore.Routing.IEndpointRouteBuilder! endpoints, string! pattern = "/tracon/mcp") -> Microsoft.AspNetCore.Builder.IEndpointConventionBuilder!
+static Tracon.TraconMetaResponse.operator !=(Tracon.TraconMetaResponse? left, Tracon.TraconMetaResponse? right) -> bool
+static Tracon.TraconMetaResponse.operator ==(Tracon.TraconMetaResponse? left, Tracon.TraconMetaResponse? right) -> bool
+static Tracon.TraconRoleMeta.operator !=(Tracon.TraconRoleMeta? left, Tracon.TraconRoleMeta? right) -> bool
+static Tracon.TraconRoleMeta.operator ==(Tracon.TraconRoleMeta? left, Tracon.TraconRoleMeta? right) -> bool
+static Tracon.TraconStorageMeta.operator !=(Tracon.TraconStorageMeta? left, Tracon.TraconStorageMeta? right) -> bool
+static Tracon.TraconStorageMeta.operator ==(Tracon.TraconStorageMeta? left, Tracon.TraconStorageMeta? right) -> bool
+static Tracon.TraconTenancyBuilderExtensions.UseTenancy(this Tracon.ITraconBuilder! builder, System.Action<Tracon.TraconTenancyOptions!>! configure) -> Tracon.ITraconBuilder!
 static Tracon.UploadDocumentChunk.operator !=(Tracon.UploadDocumentChunk? left, Tracon.UploadDocumentChunk? right) -> bool
 static Tracon.UploadDocumentChunk.operator ==(Tracon.UploadDocumentChunk? left, Tracon.UploadDocumentChunk? right) -> bool
 static Tracon.UploadDocumentRequest.operator !=(Tracon.UploadDocumentRequest? left, Tracon.UploadDocumentRequest? right) -> bool

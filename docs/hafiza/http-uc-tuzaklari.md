@@ -55,3 +55,23 @@
   dokunmak çok daha büyük bir değişiklik ister. Bugüne kadar hiçbir
   test/örnek declarative kod agent'ını `Parameters` ile birleştirmedi; biri
   birleştirirse önce burası kırılır.
+- **🚨 Bir "tam değiştirme" ucunun girdi DTO'su, alan adı alan adı, yazdığı
+  kayıtla karşılaştırılır — eksik her alan o uca her çağrıda SESSİZCE
+  kaybolur** (2026-09-18, `HATA-S3-003` ve sınıf taraması). `PUT /api/evals
+  /{name}/cases`'in `EvalCaseInput`'u `EvalCase`'in dört alanını taşımıyordu:
+  `Id` (kimlik — `EvalRunDiffBuilder` iki koşumu bununla hizalar, yokluğunda
+  değişmeyen bir case `Removed`+`Added` oluyor ve aynı penceredeki gerçek bir
+  regresyon `--max-regressions` kapısını atlıyordu), `Parameters` (parametreli
+  agent'ın case'leri her kayıttan sonra "zorunlu parametre eksik" ile düşüyordu)
+  ve promosyon üçlüsü. Store katmanı `Id`'yi ve `Parameters`'ı zaten
+  destekliyordu — kusur yalnız sözleşmedeydi. **Kontrol:** yeni bir `*Input`
+  DTO'su yazarken hedef `record`'un alanlarını yan yana koy; taşınmayan her
+  alan için "bunu kim doldurur ve tur bittiğinde hâlâ orada mı?" sorusunu
+  yazılı yanıtla. Sunucunun kendi verisi (promosyon kaydı gibi) istemciden
+  DEĞİL, **kimlikle** eşleşen mevcut kayıttan taşınır — istemci gönderebilseydi
+  sahte köken uydurulabilirdi. K-801 · K-802.
+- **Konsolun `GET → map → PUT` turu sözleşmenin ikinci yarısıdır** (aynı vaka):
+  `eval-detail.tsx` case'leri okuyup girdi şekline çevirirken `id`'yi düşürüyordu,
+  yani sunucu tarafı düzeltme tek başına kullanıcının gördüğü kusuru kapatmazdı.
+  Bir uca alan eklerken `grep -rn "<uç yolu>" src/Tracon.UI/frontend/src/` ile
+  turu kapatan ekranı da ara.

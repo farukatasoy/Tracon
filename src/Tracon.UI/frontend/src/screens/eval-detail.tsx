@@ -143,10 +143,17 @@ export function EvalSuiteDetailScreen({ name, meta }: { name: string; meta: Meta
 
     setCases(
       existingCases.data.map((item) => ({
+        // The id and the parameter values travel back with every case that is
+        // being kept. Dropping them here is not a cosmetic loss: the save
+        // would read as "every case removed, every case added" in the
+        // run-to-run diff, and a parameterized agent's cases would come back
+        // with no values to run against.
+        id: item.id,
         query: item.query,
         expectedOutput: item.expectedOutput ?? null,
         expectedTools: item.expectedTools,
         context: item.context ?? null,
+        parameters: item.parameters ?? null,
       })),
     );
   }, [existingCases.isSuccess, existingCases.data]);

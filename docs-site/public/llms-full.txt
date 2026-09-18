@@ -729,14 +729,22 @@ Cases are a separate, ordered list of queries:
 ```bash
 curl -X PUT http://localhost:5081/tracon/api/evals/support/cases \
      -H 'Content-Type: application/json' \
-     -d '[{"query":"Where is order 4182?","expectedOutput":"shipped"}]'
+     -d '[{"id":"01a0b449-ac16-712d-8bd8-1a60155d0d87",
+          "query":"Where is order 4182?","expectedOutput":"shipped"},
+         {"query":"Has order 4182 shipped yet?","expectedOutput":"shipped"}]'
 ```
 
 That `PUT` is a **full replacement**: cases missing from the body are removed, so send
-the whole list every time. Sequence numbers come from the body's order, so reordering
-re-numbers the cases — but a sequence number is only display order. Runs are compared
-by case **identifier** (see below), so reordering does not line a past result up
-against a different question. `expectedOutput` reaches `containsExpected`;
+the whole list every time. Send each case you are keeping back with the `id` it was
+listed with — a case holds that identifier for life, and runs are compared by it (see
+below). A case that arrives without an `id` is a **new** case, so an unchanged case
+sent without its id reads as one removed and another added; that is also how a real
+regression in the same window escapes `--max-regressions`, which ignores removals by
+design. An `id` that does not belong to this suite, or that appears twice, fails the
+whole request with `400` and nothing is written. `parameters` travels back the same
+way: it is part of the case, not of the request. Sequence numbers come from the body's
+order, so reordering re-numbers the cases — but a sequence number is only display
+order and does not change which case is which. `expectedOutput` reaches `containsExpected`;
 a case also carries an `expectedTools` field for record-keeping, but the tool names a
 `toolCalled` check verifies come from the suite's own check definition, shown above.
 
@@ -791,12 +799,11 @@ Two answers are refusals rather than results:
   `Removed` and quietly narrow the regression count to the rows that happen to remain.
 - **`400`** — the two runs measure different suites, or one of them never completed.
 
-Cases are aligned by identifier, and a case's content is not snapshotted per run. The
-shipped API makes that safe: `PUT /api/evals/{name}/cases` assigns fresh identifiers,
-so editing a case shows up as a `Removed` plus an `Added` entry rather than as a silent
-comparison of two different questions. Calling `IEvalStore.ReplaceCasesAsync` directly
-while preserving identifiers is the one path that can defeat this, and nothing detects
-it.
+Cases are aligned by identifier, and a case's content is not snapshotted per run. So
+keeping a case's `id` while rewriting its question compares the new question's result
+against the old question's — the diff reads them as the same case because you said they
+were. That is what you want for a reworded or corrected case, and not what you want for
+a different question: give a different question its own case by omitting the `id`.
 
 ### As a CI gate
 

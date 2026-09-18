@@ -2757,7 +2757,7 @@
           "Evals"
         ],
         "summary": "Lists a suite\u0027s cases.",
-        "description": "Cases come back in their stored order, and that order is their identity: a case is addressed by its sequence number, so reordering the list changes which case a past result refers to. An unknown suite name returns 404, while a suite with no cases returns an empty list.",
+        "description": "Cases come back in their stored order. Each carries an \u0027id\u0027 that is its identity for life \u2014 send it back on a replace to keep the case, and the run-to-run diff behind \u0027--baseline\u0027 will read it as the same case. The sequence number is position, not identity: reordering the list re-numbers the cases without changing which case is which. An unknown suite name returns 404, while a suite with no cases returns an empty list.",
         "operationId": "TraconListEvalCases",
         "parameters": [
           {
@@ -2791,7 +2791,7 @@
           "Evals"
         ],
         "summary": "Replaces all of a suite\u0027s cases with the given list.",
-        "description": "This is a full replacement, not an append: cases missing from the body are removed, so send the complete list every time. Sequence numbers are assigned from the body\u0027s order, which means reordering the list re-numbers the cases and past results then line up with different cases. Every case needs a non-empty \u0027query\u0027; one that does not fails the whole request with 400 and nothing is written. An unknown suite name returns 404.",
+        "description": "This is a full replacement, not an append: cases missing from the body are removed, so send the complete list every time. Send each kept case back with the \u0027id\u0027 it was listed with \u2014 a case holds that id for its whole life and the run-to-run diff behind \u0027--baseline\u0027 is matched on it, so a case that arrives without one is a NEW case and an unchanged case sent without its id reads as one removed and another added. An id that does not belong to this suite, or that appears twice, fails the whole request with 400. \u0027parameters\u0027 travels the same way: it is part of the case, and a parameterized agent\u0027s case sent without it then fails the missing-parameter check at run time. Promotion data is the server\u0027s own and follows the id: keep the case, keep its origin. Sequence numbers are assigned from the body\u0027s order, which means reordering the list re-numbers the cases. Every case needs a non-empty \u0027query\u0027; one that does not fails the whole request with 400 and nothing is written. An unknown suite name returns 404.",
         "operationId": "TraconSaveEvalCases",
         "parameters": [
           {
@@ -10191,6 +10191,14 @@
         ],
         "type": "object",
         "properties": {
+          "id": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The identifier of the case this entry is, or \u0060null\u0060 to\ncreate a new one.",
+            "format": "uuid"
+          },
           "query": {
             "type": "string",
             "description": "Query text to send to the agent."
@@ -10215,6 +10223,16 @@
               "string"
             ],
             "description": "Text to give the model as extra context."
+          },
+          "parameters": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Values for the target agent\u0027s parameter schema, or \u0060null\u0060\nfor an agent that declares none."
           }
         },
         "description": "Input shape of an eval case (in a request)."

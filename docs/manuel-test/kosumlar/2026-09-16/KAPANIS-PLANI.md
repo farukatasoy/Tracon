@@ -3,8 +3,8 @@
 > **Bu turu kapatan her oturum ÖNCE burayı okur.** Koşum bitti; bu dosya
 > kapanışın tek kontrol düzlemidir.
 >
-> **Durum:** 🟡 Aşama 2 sürüyor · **Aile A · B · C · D KAPANDI** · 36 açık kusur, 18 aile kaldı
-> **Son güncelleme:** 2026-09-18 (Aile D kapandı — `S1-026` + kapanışta ölçülen `S1-029` · `S1-030`)
+> **Durum:** 🟡 Aşama 2 sürüyor · **Aile A · B · C · D · E KAPANDI** · 35 açık kusur, 17 aile kaldı
+> **Son güncelleme:** 2026-09-18 (Aile E kapandı — `S3-003` + kapanışta ölçülen `S3-009` · `S3-010`)
 
 Turdan bağımsız kapanış protokolü — aile aile oturum yordamı, "önce ampirik
 yeniden üret" kuralı, bitti tanımı ve sayım betiği —
@@ -57,8 +57,9 @@ flowchart LR
 **43 açık**. Dağılım: `S1-001..028` (27) · `S2-001..003` (3) · `S3-001..008` (8)
 · `S4-001..005` (5).
 
-**Kapanış sırasında iki kusur EKLENDİ** (aynı kök nedenden, aile içinde ölçüldü
-ve aynı oturumda kapandı): `HATA-S1-029` · `HATA-S1-030` — ikisi de Aile D.
+**Kapanış sırasında dört kusur EKLENDİ** (hepsi aynı aileden bir kök nedenin
+ikinci/üçüncü vakası; aile içinde ölçüldü ve aynı oturumda kapandı):
+`HATA-S1-029` · `HATA-S1-030` (Aile D) · `HATA-S3-009` · `HATA-S3-010` (Aile E).
 
 ### Kullanıcı kararları (2026-09-18, bağlayıcı)
 
@@ -167,16 +168,16 @@ Bunlar kapanış oturumlarında da geçerlidir ve bitti tanımında
 
 ## 3.6 Sıradaki iş — 2026-09-18 itibarıyla
 
-**Aile E.** `HATA-S3-003` (Yüksek): `PUT /api/evals/{name}/cases` suite'teki
-her case'in id'sini sıfırlıyor — `EvalCaseInput` DTO'sunda `Id` yok, bu yüzden
-`SaveCasesAsync` hep `Guid.Empty` alıyor. Sonuç: aynı pencerede gerçek bir
-regresyon "Removed" sayılıp `--max-regressions 0` kapısını sessizce
-atlatabiliyor. Kök neden `EvaluationContracts.cs`/`EvalEndpoints` satır
-düzeyinde tespit edilmiştir; kayıt ilgili aile dosyasındadır.
+**Aile F.** İki kusur, iki ayrı katman, aynı oturumda kapanır (iki commit
+olabilir): `HATA-S3-005` (Yüksek) — bağlantı sessizce koparsa çalıştırma ekranı
+sonsuza dek "Waiting for events…" yazısında donuyor, kullanıcıya hiçbir hata
+gösterilmiyor. `HATA-S3-006` (Yüksek) — `RecordReasoningDeltas=true` iken model
+gerçekten düşünme içeriği üretse bile `ReasoningDelta` olayı HİÇ kaydedilmiyor
+(gerçek Anthropic extended-thinking çağrısıyla ölçüldü).
 
-Ondan sonra sırayla **F** (SSE ve düşünme kaydı) · **G** (maliyet muhasebesi) ·
-**H** (agent önbelleği); yüksek öncelik orada biter. Orta ve düşük öncelik
-§4'ün ikinci tablosundadır.
+Ondan sonra sırayla **G** (maliyet muhasebesi) · **H** (agent önbelleği);
+yüksek öncelik orada biter. Orta ve düşük öncelik §4'ün ikinci
+tablosundadır.
 
 **Oturum açılışında koş** (taban çizgisinin hâlâ yeşil olduğunu doğrula):
 
@@ -361,7 +362,55 @@ döndürdü. `run` kaydı veritabanından silindi, tüm şemalar tarandı (0 eş
 süreç durduruldu, sunucu `env -i` ile boş ortamla yeniden başlatıldı ve ölçüm
 ortamı hiç okumayan `get-tiny-image` ile yapıldı. Token §6.5'in döndürme
 listesine eklendi.
-| **E** · Eval case kimliği sıfırlanıyor | `S3-003` **Yüksek** | `PUT /api/evals/{name}/cases` suite'teki **her** case'in id'sini sıfırlıyor: `EvalCaseInput` DTO'sunda `Id` yok → `SaveCasesAsync` hep `Guid.Empty` alıyor. Sonuç: aynı pencerede gerçek bir regresyon "Removed" sayılıp `--max-regressions 0` kapısını **sessizce** atlatabiliyor. Kök neden `EvaluationContracts.cs`/`EvalEndpoints` satır düzeyinde tespit edildi | ☐ |
+| **E** · Case verisi `PUT` turunda kayboluyor | `S3-003` **Yüksek** · `S3-009` **Yüksek** (kapanışta ölçüldü) · `S3-010` **Yüksek** (kapanışta ölçüldü) | Tek desen: `PUT /api/evals/{name}/cases`'in girdi DTO'su yazdığı kaydın alanlarını taşımıyor, taşımadığı her alan her çağrıda sessizce kayboluyor | ✅ **KAPANDI 2026-09-18** |
+
+#### Aile E — ✅ kapandı (2026-09-18)
+
+Kayıt tek kusur biliyordu; `EvalCaseInput` ile `EvalCase`'i alan alan
+karşılaştırmak **üç** kayıp gösterdi.
+
+| Kaybolan | Kusur | Ölçülen sonuç |
+|---|---|---|
+| `Id` | `S3-003` | Değişmeyen bir case bile `Removed`+`Added`; aynı penceredeki gerçek bir regresyon `Removed` sayılıp `--max-regressions 0` kapısından geçiyor |
+| `Parameters` | `S3-009` 👤 | Parametreli agent'ın case'leri her kayıttan sonra "zorunlu parametre eksik" ile **düşüyor** — store alanı destekliyor, DTO taşımıyordu |
+| `SourceRunId` · `SourceKind` · `PromotedAt` | `S3-010` 👤 | `InsertEvalCase` SQL'i bu üç sütunu **hiç yazmıyordu**. Promosyon kaydı gidince `eval_cases_source_run_uq` guard'ı run'ı tanımaz oluyor ve **aynı run ikinci kez case'e yükseltilebiliyor**. Bellek içi store koruyordu → **sağlayıcı sapması**, sözleşme testi yoktu |
+
+**Alınan iki karar 👤 (2026-09-18):**
+
+1. **Kimlik istemcinin açık sorumluluğudur** (K-801). `EvalCaseInput` `Id`
+   kazandı; **id yoksa yeni case**. Bu suite'e ait olmayan ya da iki kez geçen
+   bir id **tüm isteği** `400` ile düşürür — ucun boş `query` için zaten
+   uyguladığı kural. İçerikten örtük eşleme **reddedildi**: "tam değiştirme"
+   ucunun davranışını gövdenin dışındaki duruma bağlar ve aynı metinli iki
+   case'te belirsizleşir.
+2. **Promosyon kaydı sunucunun kendi verisidir ve kimlikle taşınır** (K-802).
+   İstemci gönderemez — gönderebilseydi bir case'e sahte köken uydurulabilirdi.
+   Uç, eşleşen mevcut case'ten taşır; SQL de artık yazar.
+
+| Adım | Sonuç |
+|---|---|
+| Ampirik yeniden üretim | ☑ gerçek PostgreSQL: `ID_KEPT=True` ama `SRC_KEPT=False`; HTTP: `ID_KEPT=False`, DTO'da `Id` de `Parameters` de yok |
+| Kök neden düzeltmesi | DTO iki alan kazandı · uç kimliği doğrulayıp promosyonu taşıyor · `InsertEvalCase` üç sütunu yazıyor (tek metin, `SqlQueriesBase`) · konsol turu id ve parametreleri geri gönderiyor |
+| Sınıf taraması | ☑ `ReplaceCasesAsync` tek çağıranlı, `*Input` DTO'su repoda tek; kimlik taşıyan başka liste-değiştiren uç **yok** (`SetCanaryAsync` tek değer yazar) |
+| Testler | 2 sözleşme testi (dört sağlayıcıda) · 5 HTTP testi · 1 promosyon testi · 1 konsol testi. Sözleşme testi düzeltmeden önce **bellek içinde yeşil, iki SQL sağlayıcısında kırmızı** — sapmayı tek koşumda gösterdi |
+| Canlı koşum | ☑ `MT-CLI-029` yeniden koşuldu: `1 added, 0 removed`. Ayrıca kaydın "daha ciddisi" yarısı: aynı pencerede regresyon + liste düzenlemesi → `1 regressed`, CLI **çıkış kodu 3** |
+| Tüketici yüzeyi | `concepts/evaluation.md` kusuru bir **özellik** olarak belgeliyordu ("`PUT` fresh identifiers assigns… makes that safe"); iki paragraf yeniden yazıldı |
+
+🚨 **Üretilen .NET istemcisi kaynak belgesinden BAYATTI ve hiçbir kapı bunu
+söylemiyor.** Yeniden üretim, Faz 176'da (`1dcb4f5f`) OpenAPI'ye eklenen ama
+`TraconApiClient.g.cs`'e hiç işlenmeyen `EvaluatorVersion` alanını da
+getirdi — yani istemci bir fazdan beri eksikti. `ClientDescriptionBaselineTests`
+ve `ClientCoverageTests` var ama ikisi de **eksik bir DTO alanını** görmüyor.
+Aile T'ye yazıldı.
+
+🚨 **Test altyapısına eklenen bir yetenek, ilgisiz bir testi kırabilir.**
+Fixture handler'ına istek gövdesini geçirmek için her isteğin gövdesi okunuyordu;
+`playground.test.tsx`'in ek dosya yükleme testi kırmızıya döndü (`FormData`
+gövdesi okunduktan sonra yüklemeye bir şey kalmıyor). Okuma yalnız
+`application/json` ile sınırlandı ve gerekçe `api-fixtures.ts`'e yazıldı.
+
+---
+
 | **F** · SSE ve düşünme kaydı | `S3-005` **Yüksek** · `S3-006` **Yüksek** | Bağlantı sessizce koparsa çalıştırma ekranı sonsuza dek "Waiting for events…" yazısında donuyor; kullanıcıya hiçbir hata gösterilmiyor. Ayrıca `RecordReasoningDeltas=true` iken model gerçekten düşünme içeriği üretse bile `ReasoningDelta` olayı HİÇ kaydedilmiyor (gerçek Anthropic extended-thinking çağrısıyla ölçüldü). İki ayrı katman — aynı oturumda kapanır, iki commit olabilir | ☐ |
 | **G** · Maliyet muhasebesi | `S1-025` **Yüksek** · `S1-010` Orta | Zaman aşımından SONRA başarıyla biten tool çağrısının kullanım/maliyeti kalıcı olarak kayboluyor. Ayrıca katalogdaki **13 modelin hiçbirinde fiyat yok** → her `run` maliyetsiz kaydediliyor; mekanizma dürüst (`pricing_source=NotDefined`), eksik olan **veri** | ☐ |
 | **H** · Derlenmiş agent önbelleği | `S4-004` **Kritik** | `CompiledAgentCache.Evict` HİÇBİR YERDEN çağrılmıyor. Silinip aynı adla yeniden oluşturulan agent, sürüm sayacı 1'e sıfırlandığı için ESKİ (silinmiş) tanımla çalışmaya devam ediyor. `GET /api/agents/{name}` doğru görünür ama **çalıştırma yanlış** — sessiz ve operatörü yanlış yöne yönlendirir | ☐ |
@@ -430,7 +479,7 @@ kolu için ikinci bir test eklendi).
 | **Q** · Eval ve geri bildirim arayüzü | `S3-007` Orta · `S3-008` Düşük | `FeedbackControl`, bir run'da bir `Stars` puanı da varsa "tekrar tıkla = sil" yerine yinelenen satır oluşturuyor. "Şimdi puanla" düğmesi yargıç yokken HİÇBİR mesaj göstermiyor (tip uyuşmazlığı) | ☐ |
 | **R** · Playground arayüzü | `S1-027` Düşük · `S1-028` Düşük | Agent kataloğunda tool sayısı hücresinin tam tool adı listesi hiçbir yerde (ne tooltip ne görünür metin) sunulmuyor. Akış imleci (`ap-stream-caret`) CSS sınıf adı uyuşmazlığı yüzünden hiçbir zaman görsel olarak render edilmiyor | ☐ |
 | **S** · Gözlemlenebilirlik span'i | `S2-003` Düşük | Başarılı script çalıştırmalarında bile `execute_skill_script` span'i `exit_code`/`duration_ms` taşımıyor ve ebeveyn span yanlışlıkla "Error" gösteriyor (`SandboxedSkillScriptRunner.cs:355-359`). Yalnız gözlemlenebilirlik, işlevsel etki yok | ☐ |
-| **T** · Kapılar ve geliştirme aparatı | `S4-001` Orta · `S3-001` Düşük · `S2-001` Düşük · `S1-005` · `S1-001` · `S1-002` · `S1-003` + §3.3'ün iki yanlış pozitifi | Ölü-tanı-referansı kapısının regex'i eski ürün adının önekini arıyor, artık hiçbir şeyi yakalamıyor. `npm run check` fresh checkout'ta yanlış sırayla kırılıyor. `AGENTS.md` ham `kapanis` komutunu tekrarlıyor (Faz 92 ihlali). Şablonun kendi yer tutucusu teşhis edilemeyen bir ilk koşum hatası üretiyor. SQLite entegrasyon testleri tam çözüm yükü altında `database is locked` veriyor; `LiveVoiceLifecycleTests` yük altında kırılgan; `dotnet test` 2,5 dakika eşiği bugünkü set için ulaşılabilir değil. **Üçüncü kırılganlık örneği ölçüldü (2026-09-18 taban çizgisi):** `PackCleanlinessGateTests.DirtyWorkingTreeStopsPackWithTracon0004` tam çözüm koşumunda düştü — `ExitCode` `0` geldi, yani kirli ağaçta `dotnet pack` BAŞARILI oldu ve `TRACON0004` hiç çıkmadı — ama **izole koşumda altısı da geçti**. Üç kırılganlığın kök nedeni birlikte aranmalı. **Ürün değil apparat** — ayrı commit'ler, hızlı kapanır | ☐ |
+| **T** · Kapılar ve geliştirme aparatı | `S4-001` Orta · `S3-001` Düşük · `S2-001` Düşük · `S1-005` · `S1-001` · `S1-002` · `S1-003` + §3.3'ün iki yanlış pozitifi | Ölü-tanı-referansı kapısının regex'i eski ürün adının önekini arıyor, artık hiçbir şeyi yakalamıyor. `npm run check` fresh checkout'ta yanlış sırayla kırılıyor. `AGENTS.md` ham `kapanis` komutunu tekrarlıyor (Faz 92 ihlali). Şablonun kendi yer tutucusu teşhis edilemeyen bir ilk koşum hatası üretiyor. SQLite entegrasyon testleri tam çözüm yükü altında `database is locked` veriyor; `LiveVoiceLifecycleTests` yük altında kırılgan; `dotnet test` 2,5 dakika eşiği bugünkü set için ulaşılabilir değil. **Üçüncü kırılganlık örneği ölçüldü (2026-09-18 taban çizgisi):** `PackCleanlinessGateTests.DirtyWorkingTreeStopsPackWithTracon0004` tam çözüm koşumunda düştü — `ExitCode` `0` geldi, yani kirli ağaçta `dotnet pack` BAŞARILI oldu ve `TRACON0004` hiç çıkmadı — ama **izole koşumda altısı da geçti**. Üç kırılganlığın kök nedeni birlikte aranmalı. **Ürün değil apparat** — ayrı commit'ler, hızlı kapanır. **Aile E'den bir kalem daha (2026-09-18):** üretilen `.NET` istemcisi (`TraconApiClient.g.cs`) kaynak belgesinden bir fazdır bayat — Faz 176'nın eklediği `EvaluatorVersion` alanı hiç işlenmemişti ve `ClientDescriptionBaselineTests` ile `ClientCoverageTests`'in ikisi de eksik bir DTO alanını görmüyor. Aile E'nin yeniden üretimi alanı getirdi; **kapı hâlâ yok** | ☐ |
 | **U** · docs-site | `S3-002` Düşük | Açılış sayfası 1024 px'te 32 px yatay taşıyor (`.scope-rings`) — dekoratif arka plan grafiği, içerik okunabilirliğini bozmuyor | ☐ |
 | **V** · `CHANGELOG` düğümü | `S1-007` | **Kod kusuru değil, karar.** `scripts/kapi.py` hedef sürüm için `CHANGELOG.md`'de `## [<sürüm>]` bölümü arıyor; changelog ise bilinçli olarak yalnız `## [Unreleased]` taşıyor (`6cfbc2d3` sürüm bölümünü **bilerek** geri aldı). İki kural birbirini kilitliyor. `K-*` olarak çözülür ve `YAYIN-HAZIRLIK.md` Adım 5'e bağlanır. Bloklanan case'ler: `MT-PKG-104 · 105 · 115 · 116 · 117` | ☐ |
 

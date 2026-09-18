@@ -22,6 +22,26 @@ public sealed record EvalSuiteSaveRequest
 /// <summary>Input shape of an eval case (in a request).</summary>
 public sealed record EvalCaseInput
 {
+    /// <summary>
+    /// The identifier of the case this entry is, or <see langword="null"/> to
+    /// create a new one.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A case keeps this identifier for its whole life, and the run-to-run
+    /// diff behind <c>--baseline</c> is matched on it. Send back the
+    /// identifier <c>GET /api/evals/{name}/cases</c> gave you for every case
+    /// you are keeping; a case that arrives without one is a new case and gets
+    /// a new identifier.
+    /// </para>
+    /// <para>
+    /// Editing a case's text while keeping its identifier is the normal way to
+    /// revise it — the diff then reads the revision as the same case, not as
+    /// one case removed and another added.
+    /// </para>
+    /// </remarks>
+    public Guid? Id { get; init; }
+
     /// <summary>Query text to send to the agent.</summary>
     public required string Query { get; init; }
 
@@ -33,6 +53,20 @@ public sealed record EvalCaseInput
 
     /// <summary>Text to give the model as extra context.</summary>
     public string? Context { get; init; }
+
+    /// <summary>
+    /// Values for the target agent's parameter schema, or <see langword="null"/>
+    /// for an agent that declares none.
+    /// </summary>
+    /// <remarks>
+    /// These are part of the case, not of the request: an agent whose
+    /// instructions reference <c>{{name}}</c> placeholders cannot be evaluated
+    /// without a value for each one, and a case that arrives without them
+    /// fails the same missing-parameter check a normal run applies. Send them
+    /// back with every case you are keeping, exactly as
+    /// <c>GET /api/evals/{name}/cases</c> returned them.
+    /// </remarks>
+    public IReadOnlyDictionary<string, string>? Parameters { get; init; }
 }
 
 /// <summary>Request to trigger an eval run immediately.</summary>

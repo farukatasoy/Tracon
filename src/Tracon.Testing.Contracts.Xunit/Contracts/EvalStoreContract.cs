@@ -157,6 +157,72 @@ public abstract class EvalStoreContract : TenantIsolationContract<IEvalStore>
     }
 
     [Fact]
+    public async Task ReplaceCasesAsync_keeps_an_identifier_it_was_given()
+    {
+        // A case holds its identifier for life: the run-to-run diff behind
+        // EvalRunDiffBuilder is matched on it, so a replace that reassigned
+        // identifiers would read an unchanged case as one removed and another
+        // added, and a real regression in the same window would be classed
+        // "Removed" — which the --max-regressions gate deliberately ignores.
+        var suite = await Store.SaveSuiteAsync(TestData.EvalSuite());
+
+        var saved = await Store.ReplaceCasesAsync(suite.Id, [TestData.EvalCase(suite.Id, "first")]);
+        var original = saved[0].Id;
+
+        original.ShouldNotBe(Guid.Empty);
+
+        var replaced = await Store.ReplaceCasesAsync(
+            suite.Id,
+            [saved[0] with { Query = "first, revised" }, TestData.EvalCase(suite.Id, "second")]);
+
+        replaced[0].Id.ShouldBe(original);
+        replaced[0].Query.ShouldBe("first, revised");
+        replaced[1].Id.ShouldNotBe(original);
+
+        var loaded = await Store.ListCasesAsync(suite.Id);
+        loaded[0].Id.ShouldBe(original);
+    }
+
+    [Fact]
+    public async Task ReplaceCasesAsync_keeps_the_promotion_fields_it_was_given()
+    {
+        // A replace rewrites every row of the suite. Writing the case back
+        // without its origin silently un-promoted it, and with the origin gone
+        // the store's own duplicate guard stopped recognising the run — the
+        // same run could be promoted a second time.
+        var suite = await Store.SaveSuiteAsync(TestData.EvalSuite());
+
+        var promoted = await Store.AddCaseAsync(
+            suite.Id,
+            new EvalCaseDraft
+            {
+                Query = "promoted",
+                SourceRunId = Guid.NewGuid(),
+                SourceKind = EvalCaseSource.FailedRun,
+            });
+
+        await Store.ReplaceCasesAsync(suite.Id, [promoted.Case]);
+        var loaded = (await Store.ListCasesAsync(suite.Id))[0];
+
+        loaded.SourceRunId.ShouldBe(promoted.Case.SourceRunId);
+        loaded.SourceKind.ShouldBe(EvalCaseSource.FailedRun);
+        loaded.PromotedAt.ShouldNotBeNull();
+
+        // The guard still sees it, so the run is not promotable twice.
+        var again = await Store.AddCaseAsync(
+            suite.Id,
+            new EvalCaseDraft
+            {
+                Query = "promoted",
+                SourceRunId = promoted.Case.SourceRunId,
+                SourceKind = EvalCaseSource.FailedRun,
+            });
+
+        again.Created.ShouldBeFalse();
+        again.Case.Id.ShouldBe(loaded.Id);
+    }
+
+    [Fact]
     public async Task AddCaseAsync_assigns_seq_atomically()
     {
         var suite = await Store.SaveSuiteAsync(TestData.EvalSuite());

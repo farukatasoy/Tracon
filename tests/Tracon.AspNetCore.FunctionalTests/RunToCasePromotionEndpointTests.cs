@@ -63,6 +63,74 @@ public sealed class RunToCasePromotionEndpointTests
     }
 
     [Fact]
+    public async Task Editing_the_case_list_does_not_un_promote_a_promoted_case()
+    {
+        // A replace rewrites every case in the suite. Promotion data is the
+        // server's own record and no client sends it, so it used to be lost on
+        // the first save from the console — and with the origin gone the
+        // duplicate guard stopped recognising the run, which made the same run
+        // promotable a second time.
+        await using var host = await TraconTestHost.StartAsync(
+            static builder => builder.AddAgent(TestData.Definition()));
+
+        var runId = await RunAsync(host, "hello", "session-promoted");
+        await SaveSuiteAsync(host, "kod-agent");
+
+        using (var promoted = await host.Client.PostAsync(PromoteUri(runId), content: null))
+        {
+            promoted.StatusCode.ShouldBe(HttpStatusCode.Created);
+        }
+
+        var before = (await ReadCasesAsync(host))[0];
+        var caseId = before.GetProperty("id").GetGuid();
+
+        // What the console does: send the listed cases back, plus a new one.
+        using (var saved = await host.Client.PutAsJsonAsync(
+            CasesUri,
+            new[]
+            {
+                new EvalCaseInput
+                {
+                    Id = caseId,
+                    Query = before.GetProperty("query").GetString()!,
+                    ExpectedOutput = before.GetProperty("expectedOutput").GetString(),
+                },
+                new EvalCaseInput { Query = "a hand-written case" },
+            }))
+        {
+            saved.EnsureSuccessStatusCode();
+        }
+
+        var after = await ReadCasesAsync(host);
+
+        after.Length.ShouldBe(2);
+        after[0].GetProperty("id").GetGuid().ShouldBe(caseId);
+        after[0].GetProperty("sourceRunId").GetGuid().ShouldBe(runId);
+        after[0].GetProperty("sourceKind").GetString().ShouldBe("ReferenceRun");
+        after[0].GetProperty("promotedAt").ValueKind.ShouldNotBe(System.Text.Json.JsonValueKind.Null);
+
+        // A hand-written case has no origin and must not borrow one.
+        after[1].GetProperty("sourceRunId").ValueKind.ShouldBe(System.Text.Json.JsonValueKind.Null);
+
+        // The guard still sees the run, so promoting it again adds nothing.
+        using (var again = await host.Client.PostAsync(PromoteUri(runId), content: null))
+        {
+            again.StatusCode.ShouldBe(HttpStatusCode.OK);
+            (await TraconTestHost.ReadJsonAsync(again)).GetProperty("id").GetGuid().ShouldBe(caseId);
+        }
+
+        (await ReadCasesAsync(host)).Length.ShouldBe(2);
+    }
+
+    private static async Task<System.Text.Json.JsonElement[]> ReadCasesAsync(TraconTestHost host)
+    {
+        using var listed = await host.Client.GetAsync(CasesUri);
+        listed.EnsureSuccessStatusCode();
+
+        return [.. (await TraconTestHost.ReadJsonAsync(listed)).EnumerateArray()];
+    }
+
+    [Fact]
     public async Task Failed_run_is_promoted_and_expectedOutput_is_empty()
     {
         await using var host = await TraconTestHost.StartAsync(

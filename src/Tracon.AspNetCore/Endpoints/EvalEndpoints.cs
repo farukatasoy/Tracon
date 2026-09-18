@@ -81,10 +81,12 @@ internal static class EvalEndpoints
             .WithTags("Tracon", "Evals")
             .WithSummary("Lists a suite's cases.")
             .WithDescription(
-                "Cases come back in their stored order, and that order is their identity: a case " +
-                "is addressed by its sequence number, so reordering the list changes which case " +
-                "a past result refers to. An unknown suite name returns 404, while a suite with " +
-                "no cases returns an empty list.");
+                "Cases come back in their stored order. Each carries an 'id' that is its " +
+                "identity for life — send it back on a replace to keep the case, and the " +
+                "run-to-run diff behind '--baseline' will read it as the same case. The " +
+                "sequence number is position, not identity: reordering the list re-numbers the " +
+                "cases without changing which case is which. An unknown suite name returns 404, " +
+                "while a suite with no cases returns an empty list.");
 
         builder.MapPut("/api/evals/{name}/cases", SaveCasesAsync)
             .RequireRole(roles.Admin)
@@ -94,11 +96,19 @@ internal static class EvalEndpoints
             .WithSummary("Replaces all of a suite's cases with the given list.")
             .WithDescription(
                 "This is a full replacement, not an append: cases missing from the body are " +
-                "removed, so send the complete list every time. Sequence numbers are assigned " +
-                "from the body's order, which means reordering the list re-numbers the cases and " +
-                "past results then line up with different cases. Every case needs a non-empty " +
-                "'query'; one that does not fails the whole request with 400 and nothing is " +
-                "written. An unknown suite name returns 404.")
+                "removed, so send the complete list every time. Send each kept case back with " +
+                "the 'id' it was listed with — a case holds that id for its whole life and the " +
+                "run-to-run diff behind '--baseline' is matched on it, so a case that arrives " +
+                "without one is a NEW case and an unchanged case sent without its id reads as " +
+                "one removed and another added. An id that does not belong to this suite, or " +
+                "that appears twice, fails the whole request with 400. 'parameters' travels the " +
+                "same way: it is part of the case, and a parameterized agent's case sent " +
+                "without it then fails the missing-parameter check at run time. Promotion data " +
+                "is the server's own and follows the id: keep the case, keep its origin. " +
+                "Sequence numbers are assigned from the body's order, which means reordering " +
+                "the list re-numbers the cases. Every case needs a non-empty 'query'; one that " +
+                "does not fails the whole request with 400 and nothing is written. An unknown " +
+                "suite name returns 404.")
             .Accepts<IReadOnlyList<EvalCaseInput>>("application/json");
 
         builder.MapDelete("/api/evals/{name}/cases", ClearCasesAsync)
@@ -360,20 +370,83 @@ internal static class EvalEndpoints
             return InvalidSuite("Each case must have a non-empty 'query' field.");
         }
 
+        var existing = (await store.ListCasesAsync(suite.Id, cancellationToken).ConfigureAwait(false))
+            .ToDictionary(static item => item.Id);
+
+        if (IdentityError(cases, existing) is { } identityError)
+        {
+            return InvalidSuite(identityError);
+        }
+
         var converted = cases
-            .Select(static (input, seq) => new EvalCase
+            .Select((input, seq) =>
             {
-                SuiteId = default,
-                Seq = seq,
-                Query = input.Query,
-                ExpectedOutput = input.ExpectedOutput,
-                ExpectedTools = input.ExpectedTools,
-                Context = input.Context,
+                // Promotion data is the server's own record of where a case came
+                // from; a client never sends it and must not be able to. It
+                // travels with the identity instead: keep the case, keep its
+                // origin.
+                var kept = input.Id is { } id ? existing[id] : null;
+
+                return new EvalCase
+                {
+                    Id = input.Id ?? Guid.Empty,
+                    SuiteId = default,
+                    Seq = seq,
+                    Query = input.Query,
+                    ExpectedOutput = input.ExpectedOutput,
+                    ExpectedTools = input.ExpectedTools,
+                    Context = input.Context,
+                    Parameters = input.Parameters,
+                    SourceRunId = kept?.SourceRunId,
+                    SourceKind = kept?.SourceKind,
+                    PromotedAt = kept?.PromotedAt,
+                };
             })
             .ToArray();
 
         var saved = await store.ReplaceCasesAsync(suite.Id, converted, cancellationToken).ConfigureAwait(false);
         return TypedResults.Ok(saved);
+    }
+
+    /// <summary>
+    /// Checks the identifiers in a replace body, or <see langword="null"/> when
+    /// they are sound.
+    /// </summary>
+    /// <remarks>
+    /// Both rules fail the whole request rather than the one entry, the same
+    /// way an empty <c>query</c> does: a replace writes the suite's entire case
+    /// list, and a partially honoured one leaves a list nobody asked for.
+    /// Silently treating an unrecognised identifier as a new case is what the
+    /// caller is trying to avoid by sending it at all — the diff behind
+    /// <c>--baseline</c> is matched on identity, so a quietly reassigned one
+    /// reads as a case removed and another added.
+    /// </remarks>
+    private static string? IdentityError(
+        IReadOnlyList<EvalCaseInput> cases, Dictionary<Guid, EvalCase> existing)
+    {
+        var seen = new HashSet<Guid>();
+
+        foreach (var input in cases)
+        {
+            if (input.Id is not { } id)
+            {
+                continue;
+            }
+
+            if (!existing.ContainsKey(id))
+            {
+                return FormattableString.Invariant(
+                    $"Case id '{id}' does not belong to this suite. Send the id a case was returned with to keep it, or omit 'id' to create a new case.");
+            }
+
+            if (!seen.Add(id))
+            {
+                return FormattableString.Invariant(
+                    $"Case id '{id}' appears more than once. Each case in the list needs its own id, and a copy of an existing case is a new case: omit its 'id'.");
+            }
+        }
+
+        return null;
     }
 
     private static async Task<Results<NoContent, ProblemHttpResult>> ClearCasesAsync(
