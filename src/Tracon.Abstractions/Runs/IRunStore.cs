@@ -23,9 +23,11 @@ namespace Tracon;
 /// <term>Expected tenant</term>
 /// <description>
 /// <see cref="AppendEventAsync"/>, <see cref="CompleteRunAsync"/>,
-/// <see cref="UpdateRunCostAsync"/>. The tenant carried by the call is
+/// <see cref="UpdateRunCostAsync"/>,
+/// <see cref="CompleteLateToolInvocationAsync"/>. The tenant carried by the call is
 /// compared against the record's own tenant; a mismatch fails the write (or,
-/// for <see cref="UpdateRunCostAsync"/>, silently affects no row). The
+/// for <see cref="UpdateRunCostAsync"/> and
+/// <see cref="CompleteLateToolInvocationAsync"/>, silently affects no row). The
 /// ambient tenant is <strong>not</strong> consulted — a workflow or job
 /// queue writes on behalf of a run whose tenant may differ from whatever is
 /// ambient on the calling thread. A <see langword="null"/> tenant on the
@@ -230,6 +232,36 @@ public interface IRunStore
     /// </remarks>
     ValueTask RecordToolInvocationAsync(
         ToolInvocationRecord invocation,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Writes the settled outcome of a call whose timeout had already been
+    /// reported onto that call's EXISTING record.
+    /// </summary>
+    /// <param name="completion">The settled outcome.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>
+    /// <see langword="true"/> when a record was updated;
+    /// <see langword="false"/> when no record matches the run, the call
+    /// identifier and the tenant — the run may have been deleted by retention
+    /// before the call settled.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// This is the ONLY update on a tool record, and it fills in fields the
+    /// timeout left empty: the result, the reported usage and the real
+    /// duration. It never rewrites what the model was told —
+    /// <see cref="ToolInvocationRecord.TimedOut"/> and
+    /// <see cref="ToolInvocationRecord.Error"/> stay as they were written.
+    /// </para>
+    /// <para>
+    /// A second row is deliberately NOT written: every per-tool total
+    /// (<see cref="GetToolUsageAsync"/>) counts rows, so an extra row would
+    /// report one call as two and halve the tool's error rate.
+    /// </para>
+    /// </remarks>
+    ValueTask<bool> CompleteLateToolInvocationAsync(
+        LateToolCompletion completion,
         CancellationToken cancellationToken = default);
 
     /// <summary>Lists the tool calls of a run in chronological order.</summary>

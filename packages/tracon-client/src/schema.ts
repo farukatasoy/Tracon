@@ -5328,6 +5328,21 @@ export interface components {
              */
             createdAt: string;
         };
+        /** @description Whether the catalog can actually put a price on a run. */
+        PricingDiagnostic: {
+            /**
+             * Format: int32
+             * @description Gets the number of catalog models that resolve to a price.
+             */
+            pricedModels: number | string;
+            /**
+             * @description Gets the `provider/model` pairs no price source covers, in catalog
+             *     order. Empty when every model is priced.
+             */
+            unpricedModels: string[];
+            /** @description Gets the currency every computed cost is expressed in. */
+            currency: null | string;
+        };
         /**
          * @description Reports where a run's cost pricing came from.
          * @enum {unknown}
@@ -7142,6 +7157,13 @@ export interface components {
              *     (TraconToolTimeoutException).
              */
             timedOut?: boolean;
+            /**
+             * Format: date-time
+             * @description The moment a call that had already been reported as timed out actually
+             *     settled (UTC). `null` for every call that settled
+             *     within its own timeout.
+             */
+            lateCompletedAt?: null | string;
             /** @description Whether the call finished successfully. */
             succeeded?: boolean;
         };
@@ -7280,6 +7302,8 @@ export interface components {
             extensionPoints: components["schemas"]["ExtensionPointDiagnostic"][];
             /** @description Gets the run recording settings this installation is running with. */
             runRecording: components["schemas"]["RunRecordingDiagnostic"];
+            /** @description Gets whether this installation can actually put a price on a run. */
+            pricing: components["schemas"]["PricingDiagnostic"];
         };
         /**
          * @description Response for `{prefix}/api/meta`. Carries the minimum information the
@@ -8120,6 +8144,7 @@ export type OnlineEvaluationSummary = components['schemas']['OnlineEvaluationSum
 export type OpenAiErrorBody = components['schemas']['OpenAIErrorBody'];
 export type OpenAiErrorEnvelope = components['schemas']['OpenAIErrorEnvelope'];
 export type PendingApproval = components['schemas']['PendingApproval'];
+export type PricingDiagnostic = components['schemas']['PricingDiagnostic'];
 export type PricingSource = components['schemas']['PricingSource'];
 export type ProblemDetails = components['schemas']['ProblemDetails'];
 export type ProviderDiagnostic = components['schemas']['ProviderDiagnostic'];

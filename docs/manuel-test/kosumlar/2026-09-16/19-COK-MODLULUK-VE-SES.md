@@ -92,6 +92,10 @@ yalnız uygulama süreci ve birkaç test satırı temizlenip yeniden koşuldu.
   kalıcı olarak `null`/`false` kalıyor — gerçek sağlayıcı harcaması
   gözlemlenebilirlikten düşüyor. `HATA-S1-024` ailesinden (aynı
   `TraconException` yutulması) ama sonucu daha ağır. Ayrıntı MT-MM-095'te.
+  **✅ KAPANDI 2026-09-18 (Aile G)** — teşhis doğruydu ama eksikti: kök neden
+  yutulan istisna değil, zaman aşımının **hiçbir şeyi iptal etmemesiydi**
+  (K-805). Ayrıca sevk edilen kayıt genel 30 sn varsayılanını miras alıyordu
+  (K-807) ve geç biten çağrının harcamasını alacak kimse yoktu (K-806).
 
 **İki spec düzeltmesi yapıldı (doküman kusuru, kod donuk kaldı):**
 MT-MM-067 (`X-Tenant-Id` → `X-Tracon-Tenant`, ayrıca tenancy bayrakları)
@@ -1004,6 +1008,64 @@ taraması önerilir (`TimeoutAIFunction` kullanan her tool + gerçek harcama
 yapan tool'ların timeout süresi).
 
 **Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+
+---
+
+**Yeniden koşum — 2026-09-18 (Aile G kapanışı) · ☑ GEÇTİ**
+
+Gerçek OpenAI `gpt-image-1`, gerçek PostgreSQL (`mt_g` şeması), sevk edilen
+varsayılanlarla. **İki ayrı ölçüm yapıldı; ikisi de kaydın anlattığı çelişkiyi
+ortadan kaldırıyor.**
+
+**Ölçüm 1 — zaman aşımı ZORLANDI (`Tracon:Images:Timeout=00:00:10`).**
+Model tool'u iki kez çağırdı, ikisi de 10 sn'de düştü
+(`timed_out=t`, `duration_ms` 10036 / 10008). Turdan farkı:
+
+```
+SELECT count(*) FROM mt_g.attachments;  ->  0
+GET /api/attachments?sessionId=aile-g-095  ->  []
+```
+
+**Turun bulduğu çelişki kökünden kalktı.** Turda aynı yordam `tool_invocations`
+satırları `succeeded:false` iken **2 gerçek, faturalanmış görsel** üretmişti;
+bugün zaman aşımı gövdeyi gerçekten **iptal ediyor** (K-805) ve
+`GenerateImageTool` token'ını `GenerateAsync`'e geçirdiği için sağlayıcı
+çağrısı durur — üretilmemiş bir görselin bedeli de yoktur. `late_completed_at`
+bu yüzden boş: iptal edilen gövde hiçbir şey üretmedi, uydurulacak bir hesap
+yok.
+
+**Ölçüm 2 — sevk edilen varsayılan (`00:02:00`, K-807).** Zaman aşımı **hiç
+olmadı**; çağrı 21,8 sn'de başarıyla bitti:
+
+```
+ tool_name      | timed_out | succeeded | usage_unit | usage_quantity | duration_ms | late
+ generate_image | f         | t         | tokens     | 4160           | 21796       | f
+
+ attachments: 1 × image/png, 1.264.473 bayt, run_id dolu
+ SSE yanıtı: attachmentIds=01a0b4f1-356a-7a36-934d-29d5574f1885
+```
+
+Spec'in kendi barı (tool yalnız ek kimliği döndürür) karşılandı **ve** kaydın
+açtığı kusur kapandı: satır artık çağrının gerçekten ne yaptığını söylüyor.
+30 sn'lik genel varsayılan bu çağrıyı turdaki gibi kesecekti.
+
+⚠️ `cost` bu satırda hâlâ boş — `usage_quantity` (4160 token) kayıtlı ama
+`Tracon:Pricing:Images:openai:gpt-image-1` örnek uygulamada **yapılandırılmamış**
+(appsettings'teki `//Images` yorumu yolu gösteriyor). Bu, `HATA-S1-010`'un
+model fiyatlarından ayrı bir kalemdir; görsel fiyatı asla tahmin edilmez ve
+`UnpricedModelWarningService` yalnız sohbet katalogunu tarar. Kapanışta
+kullanıcıya sunulan açık kalem listesine yazıldı.
+
+🚨 **Bu yeniden koşum ikinci bir kusur buldu:** `TraconImageOptions.Timeout`
+eklenmiş ve `docs-site`'ta yapılandırılabilir diye belgelenmiş, ama
+yansımasız bağlayıcıya (`BindImages`) **hiç yazılmamıştı** — `Enabled`
+bağlanıyordu, `Timeout` sessizce yok sayılıyordu. Canlı koşum yakaladı, hiçbir
+test yakalamadı: `TraconOptionsBindingCoverageTests` bu sınıfı yapısal olarak
+kilitler ama `TraconOptions` AĞACINI gezer ve `TraconImageOptions` o ağacın
+düğümü değil, **kardeş** bir section'dır. Bağlayıcı düzeltildi;
+`TraconImageOptionsBindingTests` eklendi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ## MT-MM-096 — Kapalı ayar tool'u ve operator ucunu açmaz
 

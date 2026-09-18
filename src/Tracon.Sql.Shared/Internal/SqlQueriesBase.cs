@@ -194,6 +194,9 @@ internal abstract class SqlQueriesBase
     /// <summary>Gets the query that lists the tool invocations of a run.</summary>
     public string SelectToolInvocations { get; protected set; } = string.Empty;
 
+    /// <summary>Gets the query that writes a late-settled outcome onto an existing tool invocation record.</summary>
+    public string UpdateLateToolInvocation { get; protected set; } = string.Empty;
+
     /// <summary>Gets the query that produces the usage summary per tool.</summary>
     public string SelectToolUsage { get; protected set; } = string.Empty;
 
@@ -1326,11 +1329,45 @@ internal abstract class SqlQueriesBase
             SELECT t.id, t.run_id, t.tool_name, t.tool_call_id, t.source, t.arguments, t.result,
                    t.duration_ms, t.error, t.created_at,
                    t.usage_unit, t.usage_quantity, t.usage_estimated, t.cost, t.cost_currency,
-                   t.authorization_denied, t.timed_out
+                   t.authorization_denied, t.timed_out, t.late_completed_at
             FROM {Table("tool_invocations")} t
             JOIN {Table("runs")} r ON r.id = t.run_id
             WHERE t.run_id = @run_id AND r.tenant_id = @tenant_id
             ORDER BY t.created_at, t.id;
+            """;
+
+        // A tool call that outlived its timeout and settled anyway. It fills in
+        // what the timeout left empty and REWRITES NOTHING the model was told:
+        // `timed_out` and `error` are absent from the SET list on purpose.
+        //
+        // 🚨 Every value column is COALESCEd, never assigned flat. A tool that
+        // reports its usage BEFORE it hangs (GenerateImageTool reports before
+        // it writes the attachment) already has that usage on the row: the
+        // accumulator was drained when the timeout was recorded, so the late
+        // write carries no usage of its own and a flat assignment would erase
+        // the very measurement this whole path exists to keep.
+        //
+        // 🚨 `late_completed_at IS NULL` makes the write idempotent: the
+        // continuation that carries a late outcome runs once per call, but a
+        // retry must never overwrite a settled outcome with a second one.
+        //
+        // Same tenant guard as InsertToolInvocation (K-355).
+        UpdateLateToolInvocation = $"""
+            UPDATE {Table("tool_invocations")}
+            SET result            = COALESCE(@result, result),
+                duration_ms       = COALESCE(@duration_ms, duration_ms),
+                usage_unit        = COALESCE(@usage_unit, usage_unit),
+                usage_quantity    = COALESCE(@usage_quantity, usage_quantity),
+                usage_estimated   = COALESCE(@usage_estimated, usage_estimated),
+                cost              = COALESCE(@cost, cost),
+                cost_currency     = COALESCE(@cost_currency, cost_currency),
+                late_completed_at = @late_completed_at
+            WHERE run_id = @run_id
+              AND tool_call_id = @tool_call_id
+              AND late_completed_at IS NULL
+              AND EXISTS (
+                SELECT 1 FROM {Table("runs")} r
+                WHERE r.id = @run_id AND (@tenant_id IS NULL OR r.tenant_id = @tenant_id));
             """;
 
         DeleteExperiment = $"""

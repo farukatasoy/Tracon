@@ -285,6 +285,14 @@ image prices.
 `Model` are required and `MaxImagesPerRequest` must be at least one. Enabling it adds
 the `generate_image` tool and maps `POST /api/images/generate`.
 
+`Timeout` bounds one `generate_image` call and defaults to `00:02:00`,<!-- claim:option TraconImageOptions.Timeout=00:02:00 -->
+**not** the 30 second `Tracon:Tools:DefaultTimeout` every other tool inherits. Image
+generation is slower than the tool the generic default was chosen for: a measured
+`gpt-image-1` request routinely needs 30 to 35 seconds, so the generic bound cut off
+a call that was about to succeed. Shorten it if you would rather fail fast — a call
+that outlives it is cancelled, and if the provider finishes anyway the spend is still
+recorded against the original call.
+
 ```json
 {
   "Tracon": {
@@ -292,7 +300,8 @@ the `generate_image` tool and maps `POST /api/images/generate`.
       "Enabled": true,
       "Provider": "openai",
       "Model": "gpt-image-1",
-      "MaxImagesPerRequest": 1
+      "MaxImagesPerRequest": 1,
+      "Timeout": "00:02:00"
     },
     "Pricing": {
       "Currency": "USD",

@@ -55,6 +55,13 @@ public static partial class TraconServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IHostedService, PreservedStoreRegistrationWarningService>());
 
+        // Reports catalog models with no price. The cost mechanism was already
+        // honest about an unknown price; what it never did was SAY so, and an
+        // installation could record thousands of runs with empty cost columns
+        // before anyone read the pricing_source enum to find out why.
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IHostedService, UnpricedModelWarningService>());
+
         // Composition gate for the six production decisions (phase 170, F-231).
         // Its sibling above covers the BINDING half of the same argument; this
         // one covers the OPTIONS half. Registered here for the same reason and

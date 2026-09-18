@@ -471,6 +471,9 @@ public sealed class RunReconciliationTests
         public ValueTask RecordToolInvocationAsync(ToolInvocationRecord invocation, CancellationToken cancellationToken = default)
             => inner.RecordToolInvocationAsync(invocation, cancellationToken);
 
+        public ValueTask<bool> CompleteLateToolInvocationAsync(LateToolCompletion completion, CancellationToken cancellationToken = default)
+            => inner.CompleteLateToolInvocationAsync(completion, cancellationToken);
+
         public ValueTask<IReadOnlyList<ToolInvocationRecord>> ListToolInvocationsAsync(Guid runId, CancellationToken cancellationToken = default)
             => inner.ListToolInvocationsAsync(runId, cancellationToken);
 

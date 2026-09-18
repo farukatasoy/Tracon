@@ -766,6 +766,39 @@ internal sealed class SqlRunStore : IRunStore
     }
 
     /// <inheritdoc />
+    public async ValueTask<bool> CompleteLateToolInvocationAsync(
+        LateToolCompletion completion,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(completion);
+
+        var command = CreateCommand(_sql.UpdateLateToolInvocation);
+        DbHelpers.Add(command, "run_id", completion.RunId);
+        AddNullableText(command, "tool_call_id", completion.ToolCallId);
+        Dialect.AddText(command, "result", ProtectedValue.Write(_context, ProtectedColumn.ToolResult, completion.Result));
+
+        // Same millisecond clamp as RecordToolInvocationAsync above.
+        Dialect.AddInt32(command, "duration_ms", completion.Duration is { } duration
+                ? (int)Math.Clamp(duration.TotalMilliseconds, 0, int.MaxValue)
+                : null);
+
+        AddNullableText(command, "usage_unit", completion.Usage?.Unit);
+        Dialect.AddDecimal(command, "usage_quantity", completion.Usage?.Quantity);
+        Dialect.AddNullableBoolean(command, "usage_estimated", completion.Usage?.IsEstimated);
+        Dialect.AddDecimal(command, "cost", completion.Usage?.Cost);
+        AddNullableText(command, "cost_currency", completion.Usage?.Currency);
+        Dialect.AddTimestamp(command, "late_completed_at", completion.LateCompletedAt);
+
+        // EXPECTED tenant (K-355). NULL means no check.
+        AddNullableText(command, "tenant_id", completion.TenantId);
+
+        // 🚨 No row is NOT an error here, unlike RecordToolInvocationAsync. The
+        // call settles after its own run has been reported done, and retention
+        // may legitimately have deleted the run in between. The caller logs it.
+        return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
+    }
+
+    /// <inheritdoc />
     public async ValueTask<IReadOnlyList<ToolInvocationRecord>> ListToolInvocationsAsync(
         Guid runId,
         CancellationToken cancellationToken = default)
@@ -1114,6 +1147,10 @@ internal sealed class SqlRunStore : IRunStore
             // DbHelpers.ToBoolean rather than reader.GetBoolean.
             AuthorizationDenied = DbHelpers.ToBoolean(reader.GetValue(15)),
             TimedOut = DbHelpers.ToBoolean(reader.GetValue(16)),
+
+            // Index 17: set only for a call that outlived its timeout and then
+            // settled anyway; NULL for every ordinary call.
+            LateCompletedAt = reader.IsDBNull(17) ? null : DbHelpers.GetTimestamp(reader, 17),
         };
 
     /// <summary>

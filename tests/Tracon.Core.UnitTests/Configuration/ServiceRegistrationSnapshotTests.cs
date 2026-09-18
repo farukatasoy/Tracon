@@ -125,6 +125,7 @@ public sealed class ServiceRegistrationSnapshotTests
         "Tracon.IRunAuthorizationHandler | Singleton | Tracon.AllowAllRunAuthorizationHandler",
         "Microsoft.Extensions.Hosting.IHostedService | Singleton | Tracon.RequiredBindingValidator",
         "Microsoft.Extensions.Hosting.IHostedService | Singleton | Tracon.PreservedStoreRegistrationWarningService",
+        "Microsoft.Extensions.Hosting.IHostedService | Singleton | Tracon.UnpricedModelWarningService",
         "Microsoft.Extensions.Hosting.IHostedService | Singleton | Tracon.ProductionProfileValidator",
         "Tracon.IProductionProfileCheck | Singleton | Tracon.TenancyProfileCheck",
         "Tracon.IProductionProfileCheck | Singleton | Tracon.SessionOwnershipProfileCheck",

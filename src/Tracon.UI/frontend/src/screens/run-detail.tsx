@@ -557,6 +557,22 @@ function ToolCallRow({ call }: { call: ToolInvocationRecord }): ReactNode {
         ) : (
           <Badge tone="danger">{t('runs.status.failed')}</Badge>
         )}
+        {/*
+          Without this badge the row reads as a plain failure while showing the
+          call's REAL duration -- 34s on a tool bounded at 30s -- which is the
+          one combination an operator cannot explain. The model was told it
+          timed out; the call finished anyway and its cost is on this record.
+        */}
+        {call.lateCompletedAt != null && (
+          <Badge
+            tone="warn"
+            description={t('runDetail.finishedLateHint', {
+              at: absoluteTime(call.lateCompletedAt),
+            })}
+          >
+            {t('runDetail.finishedLate')}
+          </Badge>
+        )}
         <span className="ml-auto text-xs text-subtle">
           {call.duration != null ? formatMs(parseDuration(call.duration)) : t('runDetail.notMeasured')}
         </span>

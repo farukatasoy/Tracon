@@ -104,6 +104,9 @@ export const enRuns = {
   "runDetail.mcpSource": 'Discovered on the remote MCP server "{server}".',
   "runDetail.ok": 'ok',
   "runDetail.notMeasured": 'not measured',
+  "runDetail.finishedLate": 'finished late',
+  "runDetail.finishedLateHint":
+    'The model was told this call timed out. It kept running and settled at {at}; the duration and any usage shown here are what it really cost.',
   "runDetail.streamed": 'streamed',
   "runDetail.nonStreaming": 'non-streaming',
   "runDetail.cancel.button": 'Cancel run',

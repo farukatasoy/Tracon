@@ -450,6 +450,7 @@ Tracon.RunEventDraft.Type.init -> void
 Tracon.RunEventWriter
 Tracon.RunEventWriter.AppendAsync(Tracon.RunEventDraft draft, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.RunEvent!>
 Tracon.RunEventWriter.CompleteAsync(Tracon.RunStatus status, Tracon.RunUsage? usage = null, Tracon.RunError? error = null, Tracon.RunCost? cost = null, string? modelId = null, string? modelProvider = null, string? closingEventPayload = null, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
+Tracon.RunEventWriter.CompleteLateToolInvocationAsync(Tracon.LateToolCompletion! completion, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
 Tracon.RunEventWriter.EventCount.get -> long
 Tracon.RunEventWriter.IsDisabled.get -> bool
 Tracon.RunEventWriter.RecordToolInvocationAsync(Tracon.ToolInvocationRecord! invocation, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
@@ -630,6 +631,7 @@ Tracon.TextChunker
 Tracon.TextTrimming
 Tracon.TimeoutAIFunction
 Tracon.TimeoutAIFunction.TimeoutAIFunction(Microsoft.Extensions.AI.AIFunction! innerFunction, System.TimeSpan timeout, Microsoft.Extensions.Logging.ILogger<Tracon.TimeoutAIFunction!>! logger) -> void
+Tracon.TimeoutAIFunction.TimeoutAIFunction(Microsoft.Extensions.AI.AIFunction! innerFunction, System.TimeSpan timeout, Microsoft.Extensions.Logging.ILogger<Tracon.TimeoutAIFunction!>! logger, System.TimeProvider! timeProvider) -> void
 Tracon.ToolApprovalPolicyRegistration
 Tracon.ToolApprovalPolicyRegistration.<Clone>$() -> Tracon.ToolApprovalPolicyRegistration!
 Tracon.ToolApprovalPolicyRegistration.Deconstruct(out string! ToolName, out System.Func<Tracon.ToolApprovalContext!, Tracon.ToolApprovalPolicyDecision>! Policy) -> void
@@ -758,6 +760,8 @@ Tracon.TraconImageOptions.Model.get -> string?
 Tracon.TraconImageOptions.Model.set -> void
 Tracon.TraconImageOptions.Provider.get -> string?
 Tracon.TraconImageOptions.Provider.set -> void
+Tracon.TraconImageOptions.Timeout.get -> System.TimeSpan
+Tracon.TraconImageOptions.Timeout.set -> void
 Tracon.TraconImageOptions.TraconImageOptions() -> void
 Tracon.TraconKnowledgeOptions
 Tracon.TraconKnowledgeOptions.ChunkOverlap.get -> int

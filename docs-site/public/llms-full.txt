@@ -227,7 +227,7 @@ caller's role and key scopes. See the complete scope table in
 | Run event stream | Gapless, ordered domain events | Recording options choose deltas, tool payloads, input, and payload size |
 | OpenTelemetry traces | `ActivitySource` spans | Your exporter remains in control; Tracon can also persist a sample |
 | Metrics | Run counts, duration, tokens, cost, tools, errors, judges, background-job executions and attempt duration, plus optional quota and job-queue-depth gauges | Standard .NET metrics; high-cardinality tags are bounded and store-backed gauges are opt-in and cached |
-| Cost attribution | Per model, agent, run, child run, voice, and image usage | Prices come from a model catalog or explicit configuration; image prices are never inferred |
+| Cost attribution | Per model, agent, run, child run, voice, and image usage | Prices come from a model catalog or explicit configuration; image prices are never inferred. A model no price source covers is named at startup and in `GET /api/diagnostics` rather than recorded as free |
 | Provider health | Cached status and optional background polling | On-demand by default; a provider without a health check reports `Unknown` |
 | Health checks | `AddTraconHealthChecks()` | Adds checks to the consumer's health-check system; you choose the route with `MapHealthChecks()` |
 | Diagnostics report | `GET /api/diagnostics` and console | Endpoint is off by default because it reveals deployment shape |
@@ -2715,12 +2715,28 @@ card an operator sees carries only this raw call; register
 [`IToolApprovalPresenter`](/concepts/governance/#approvals) to show a resolved entity
 name instead. A call that outlives its
 timeout does not fail the run either: the model sees a tool error and continues, the same
-as a denial. Timeout is **not cooperative**: it never forcibly stops the body, and it
-never hands the body a linked, timeout-aware token either — the body only ever sees the
-*caller's own* `CancellationToken`. A tool that never reads that token keeps running to
-completion, possibly with a real side effect, after the model has already moved on; only
-the *wait* is cut short. The timeout applies to execution only, never to a pending
-approval, which can wait indefinitely.
+as a denial.
+
+When the timeout elapses the body is handed a **cancelled token** — a token linked to the
+caller's own, which this layer cancels. Cancellation is cooperative, so what happens next
+depends on the body:
+
+- **A body that reads its token** stops there and spends nothing more. Accept a
+  `CancellationToken` parameter and pass it down to every call you make.
+- **A body that never reads it** is not forcibly stopped and keeps running to completion,
+  possibly with a real side effect, after the model has already moved on.
+
+A call in that second group is still accounted for. When it finally settles successfully,
+its result, its real duration and anything it reported through `TraconToolUsage.Report`
+are written onto **that same call's record** — `lateCompletedAt` on the
+`ToolInvocationRecord` says when, `timedOut` and `error` stay as they were because they
+record what the *model* was told. This matters for a tool that spends money: image
+generation that needs 35 seconds against a 30 second limit has produced and been billed
+for a real image, and without this the charge would appear in no cost report at all. No
+second record is written, so per-tool totals still count one call.
+
+The timeout applies to execution only, never to a pending approval, which can wait
+indefinitely.
 
 A tool body can also run **more than once for the same logical call**, on two different
 timelines that are easy to conflate:
@@ -8174,6 +8190,17 @@ it is not converted to zero. Tracon also does not invent a price. A run can have
 token metrics but no cost metric when neither the model catalog nor your pricing
 configuration supplies a price.
 
+That is the honest answer, not a useful one, so the host **says so at startup**: a
+`Warning` names every `provider/model` pair no price source covers, and
+`GET /api/diagnostics` reports the same list under `pricing` along with how many
+models do resolve to a price. A catalog with no prices at all records every run with
+empty cost columns and `PricingSource.Unknown`, which reads exactly like a cost
+report that is broken. Set the rate on the catalog entry
+(`InputCostPerMillionTokens` / `OutputCostPerMillionTokens`) or under
+`Tracon:Pricing:Providers`, then backfill the runs you already have with
+`POST /api/stats/recalculate-costs`. Tracon ships no built-in price table on
+purpose: rates change far faster than a NuGet package is released.
+
 A run's cost is a **price snapshot** ([concepts/runs](/concepts/runs/#what-a-run-carries)):
 computed once, from the unit price in effect when the run ended, and never
 recomputed from a later price change. `POST /api/stats/recalculate-costs` is a
@@ -13494,6 +13521,14 @@ image prices.
 `Model` are required and `MaxImagesPerRequest` must be at least one. Enabling it adds
 the `generate_image` tool and maps `POST /api/images/generate`.
 
+`Timeout` bounds one `generate_image` call and defaults to `00:02:00`,<!-- claim:option TraconImageOptions.Timeout=00:02:00 -->
+**not** the 30 second `Tracon:Tools:DefaultTimeout` every other tool inherits. Image
+generation is slower than the tool the generic default was chosen for: a measured
+`gpt-image-1` request routinely needs 30 to 35 seconds, so the generic bound cut off
+a call that was about to succeed. Shorten it if you would rather fail fast — a call
+that outlives it is cancelled, and if the provider finishes anyway the spend is still
+recorded against the original call.
+
 ```json
 {
   "Tracon": {
@@ -13501,7 +13536,8 @@ the `generate_image` tool and maps `POST /api/images/generate`.
       "Enabled": true,
       "Provider": "openai",
       "Model": "gpt-image-1",
-      "MaxImagesPerRequest": 1
+      "MaxImagesPerRequest": 1,
+      "Timeout": "00:02:00"
     },
     "Pricing": {
       "Currency": "USD",

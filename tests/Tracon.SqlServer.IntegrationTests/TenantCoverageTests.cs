@@ -71,10 +71,15 @@ public sealed class TenantCoverageTests
         // (K-355): AppendEventAsync, CompleteRunAsync, UpdateRunCostAsync and
         // RecordToolInvocationAsync are now filtered by the EXPECTED tenant
         // carried by the call, and RunStoreContract checks this both ways.
+        // CompleteLateToolInvocationAsync joined them on 2026-09-18 with the
+        // same guard: the tenant travels on the call, and a mismatch updates
+        // zero rows rather than throwing — ToolInvocationContract asserts that
+        // the row is left untouched when the tenant does not match.
         ["SqlRunStore"] =
             ["StartRunAsync", "GetRunAsync", "QueryRunsAsync", "ReadEventsAsync", "ListToolInvocationsAsync",
              "GetToolUsageAsync", "GetStatisticsAsync", "GetTimeSeriesAsync", "GetExperimentResultsAsync",
-             "AppendEventAsync", "CompleteRunAsync", "UpdateRunCostAsync", "RecordToolInvocationAsync"],
+             "AppendEventAsync", "CompleteRunAsync", "UpdateRunCostAsync", "RecordToolInvocationAsync",
+             "CompleteLateToolInvocationAsync"],
         ["SqlSessionStore"] =
             ["SaveAsync", "GetAsync", "DeleteAsync", "QueryAsync", "TryCreateAsync", "TryUpdateAsync",
              "GetOwnerTenantIdAsync"],

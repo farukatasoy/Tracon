@@ -201,6 +201,14 @@ public static partial class TraconServiceCollectionExtensions
         {
             options.MaxImagesPerRequest = maxImages;
         }
+
+        if (TimeSpan.TryParse(
+                section[nameof(TraconImageOptions.Timeout)],
+                CultureInfo.InvariantCulture,
+                out var timeout))
+        {
+            options.Timeout = timeout;
+        }
     }
 
     private static decimal? ReadDecimal(IConfiguration section, string key)

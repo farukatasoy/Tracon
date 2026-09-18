@@ -223,6 +223,17 @@ it is not converted to zero. Tracon also does not invent a price. A run can have
 token metrics but no cost metric when neither the model catalog nor your pricing
 configuration supplies a price.
 
+That is the honest answer, not a useful one, so the host **says so at startup**: a
+`Warning` names every `provider/model` pair no price source covers, and
+`GET /api/diagnostics` reports the same list under `pricing` along with how many
+models do resolve to a price. A catalog with no prices at all records every run with
+empty cost columns and `PricingSource.Unknown`, which reads exactly like a cost
+report that is broken. Set the rate on the catalog entry
+(`InputCostPerMillionTokens` / `OutputCostPerMillionTokens`) or under
+`Tracon:Pricing:Providers`, then backfill the runs you already have with
+`POST /api/stats/recalculate-costs`. Tracon ships no built-in price table on
+purpose: rates change far faster than a NuGet package is released.
+
 A run's cost is a **price snapshot** ([concepts/runs](/concepts/runs/#what-a-run-carries)):
 computed once, from the unit price in effect when the run ended, and never
 recomputed from a later price change. `POST /api/stats/recalculate-costs` is a

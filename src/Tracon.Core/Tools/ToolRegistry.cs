@@ -39,9 +39,14 @@ internal sealed class ToolRegistry : IToolRegistry, IVerifiedToolRegistry
             var generator = provider.GetRequiredService<ImageGeneratorResolver>().Resolve();
 
             _ = generator;
+            // 🚨 An explicit timeout, NOT the installation default. The generic
+            // 30s default is meant for a tool that queries something; a measured
+            // gpt-image-1 request routinely needs 30-35s and was being cut off
+            // just before it succeeded.
             registrations.Add(new TraconToolRegistration(
                 new GenerateImageTool(provider),
-                effect: ToolEffect.External));
+                effect: ToolEffect.External,
+                timeout: images.Timeout));
         }
 
         return new ToolRegistry(

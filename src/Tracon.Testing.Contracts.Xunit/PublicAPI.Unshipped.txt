@@ -575,10 +575,17 @@ Tracon.Testing.Contracts.Storage.ToolApprovalRuleStoreContract.Different_conditi
 Tracon.Testing.Contracts.Storage.ToolApprovalRuleStoreContract.Same_scope_added_twice_leaves_a_single_record() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.ToolApprovalRuleStoreContract.ToolApprovalRuleStoreContract() -> void
 Tracon.Testing.Contracts.Storage.ToolInvocationContract
+Tracon.Testing.Contracts.Storage.ToolInvocationContract.A_late_settlement_does_not_count_as_a_second_call() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ToolInvocationContract.A_late_settlement_never_erases_a_measurement_the_row_already_carries() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ToolInvocationContract.A_second_late_settlement_for_the_same_call_changes_nothing() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.ToolInvocationContract.Failed_invocation_is_counted_as_unsuccessful() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.ToolInvocationContract.Invocation_fields_round_trip() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.ToolInvocationContract.Invocation_with_no_reported_usage_comes_back_with_EMPTY_usage() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.ToolInvocationContract.Invocations_come_back_in_time_order() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ToolInvocationContract.Late_settlement_fills_in_the_timed_out_record_without_rewriting_what_the_model_was_told() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ToolInvocationContract.Late_settlement_for_an_unknown_call_reports_that_it_wrote_nothing() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ToolInvocationContract.Late_settlement_from_the_wrong_tenant_writes_nothing() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ToolInvocationContract.Late_settlement_touches_only_the_call_it_names() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.ToolInvocationContract.Non_token_measurement_round_trips() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.ToolInvocationContract.Summary_does_not_count_another_tenants_invocations() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.ToolInvocationContract.Summary_is_aggregated_per_tool() -> System.Threading.Tasks.Task!

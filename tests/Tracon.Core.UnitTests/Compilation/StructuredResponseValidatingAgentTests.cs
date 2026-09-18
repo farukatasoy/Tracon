@@ -481,6 +481,10 @@ public sealed class StructuredResponseValidatingAgentTests
             ToolInvocationRecord invocation, CancellationToken cancellationToken = default)
             => _inner.RecordToolInvocationAsync(invocation, cancellationToken);
 
+        public ValueTask<bool> CompleteLateToolInvocationAsync(
+            LateToolCompletion completion, CancellationToken cancellationToken = default)
+            => _inner.CompleteLateToolInvocationAsync(completion, cancellationToken);
+
         public ValueTask<IReadOnlyList<ToolInvocationRecord>> ListToolInvocationsAsync(
             Guid runId, CancellationToken cancellationToken = default)
             => _inner.ListToolInvocationsAsync(runId, cancellationToken);

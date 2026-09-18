@@ -3,8 +3,8 @@
 > **Bu turu kapatan her oturum ÖNCE burayı okur.** Koşum bitti; bu dosya
 > kapanışın tek kontrol düzlemidir.
 >
-> **Durum:** 🟡 Aşama 2 sürüyor · **Aile A · B · C · D · E · F KAPANDI** · 33 açık kusur, 16 aile kaldı
-> **Son güncelleme:** 2026-09-18 (Aile F kapandı — `S3-005` düzeltildi, `S3-006` yeniden üretilemedi)
+> **Durum:** 🟡 Aşama 2 sürüyor · **Aile A · B · C · D · E · F · G KAPANDI** · 31 açık kusur, 15 aile kaldı
+> **Son güncelleme:** 2026-09-18 (Aile G kapandı — `S1-025` + `S1-010`; canlı koşum üçüncü bir kusur buldu: `Tracon:Images:Timeout` hiç bağlanmıyordu)
 
 Turdan bağımsız kapanış protokolü — aile aile oturum yordamı, "önce ampirik
 yeniden üret" kuralı, bitti tanımı ve sayım betiği —
@@ -54,7 +54,8 @@ flowchart LR
 | **toplam benzersiz case** | **1856** |
 
 **Kusur:** 44 `HATA-*` kaydı. `HATA-S1-006` yanlış pozitif çıktı ve kapandı →
-**43 açık**. Dağılım: `S1-001..028` (27) · `S2-001..003` (3) · `S3-001..008` (8)
+**43 açık**; kapanışta 8'i kapandı (A · B ×3 · C ×2 · D ×3 · E ×3 · F ×2 ·
+G ×2 — artı kapanış sırasında eklenen 4 kalem), **31 kaldı**. Dağılım: `S1-001..028` (27) · `S2-001..003` (3) · `S3-001..008` (8)
 · `S4-001..005` (5).
 
 **İki kusur kapanışta YENİDEN ÜRETİLEMEDİ** ve kod kusuru olmadıkları
@@ -165,6 +166,8 @@ Bunlar kapanış oturumlarında da geçerlidir ve bitti tanımında
 | `timeout` | macOS'ta yoktur (çıkış 127). Süreci arka planda koş, çıkış kodunu dosyaya yaz |
 | Model adı | `gpt-5.4-mini`. Rastgele bir OpenAI modeli `403 model_not_found` verir |
 | Azure | Kimlik **yoktur**; Azure isteyen case `⏭ Atlandı` kalır, kusur değildir |
+| Paketlenmiş DLL'i çalıştırma | `--contentRoot <.../artifacts/bin/Tracon.Api/release>` **verilmezse** `appsettings.json` hiç okunmaz; kabuğun CWD'si content root sanılır. Belirti yanıltıcıdır: `GET /api/models` **boş liste** döner ve Development'ta `UseOpenAICompatible` "Endpoint is required" ile **açılışta patlar** |
+| `user-secrets` okunması | Yalnız **Development**'ta yüklenir. `ASPNETCORE_ENVIRONMENT=Development` verilmezse sağlayıcı anahtarları görünmez ve agent sessizce `echo` sağlayıcısına düşer — yanıt modelden değil echo'dan gelir |
 | Yerel MCP sunucusu | `env -i` ile **boş ortamla** başlat. Referans sunucunun `get-env` demo tool'u kendi sürecinin ortamını döndürür ve kabuktan miras alınan her `secret` modele + `run` kaydına gider. Port sabit **3001**; `--port` bayrağı yok, `PORT` ortam değişkeni çalışır. Ortam okumayan büyük çıktı gerekiyorsa `get-tiny-image` kullan |
 | Eski MCP süreci | Yeni sunucu 3001'i alamazsa **sessizce** eskisine bağlanırsın — `lsof -nP -iTCP:3001 -sTCP:LISTEN` ile PID'i doğrula, log'da "Port 3001 is already in use" ara |
 | MCP sunucusu yeniden başlarsa | Tracon eski session kimliğini tutar; `/refresh` `{"toolCount":0}` ve log'da `Bad Request: No valid session ID provided` verir. **Uygulamayı yeniden başlat** |
@@ -173,18 +176,20 @@ Bunlar kapanış oturumlarında da geçerlidir ve bitti tanımında
 
 ## 3.6 Sıradaki iş — 2026-09-18 itibarıyla
 
-**Aile G.** İki kusur, tek tema (maliyet muhasebesi): `HATA-S1-025` (Yüksek) —
-zaman aşımından SONRA başarıyla biten tool çağrısının kullanım/maliyeti kalıcı
-olarak kayboluyor. `HATA-S1-010` (Orta) — katalogdaki 13 modelin hiçbirinde
-fiyat yok, bu yüzden her `run` maliyetsiz kaydediliyor; mekanizma dürüst
-(`pricing_source=NotDefined`), eksik olan **veri**.
+**Aile H.** Tek kusur ama **Kritik**: `HATA-S4-004` — `CompiledAgentCache.Evict`
+hiçbir yerden çağrılmıyor, silinip aynı adla yeniden oluşturulan agent ESKİ
+tanımla çalışmaya devam ediyor. Yüksek öncelik orada biter; orta ve düşük
+öncelik §4'ün ikinci tablosundadır.
 
-Ondan sonra **H** (agent önbelleği, `S4-004` **Kritik**); yüksek öncelik orada
-biter. Orta ve düşük öncelik §4'ün ikinci tablosundadır.
+🚨 **Aile F ve G'nin ortak dersi:** kayıttaki kök-neden teşhisi F'de iki kez
+yanlıştı, G'de **doğru ama yarımdı** — `S1-025`'in asıl nedeni yutulan istisna
+değil, zaman aşımının hiçbir şeyi iptal etmemesiydi. Kayıt bir teşhis
+içeriyorsa onu **kanıt** değil **hipotez** say; önce semptomu kendi yordamıyla
+yeniden üret ve teşhisin ötesini de ölç.
 
-🚨 **Aile F'nin dersi bir sonraki aileye taşınır:** iki kusurun da kayıttaki
-kök-neden teşhisi yanlıştı. Kayıt bir teşhis içeriyorsa onu **kanıt** değil
-**hipotez** say; önce semptomu kendi yordamıyla yeniden üret.
+🚨 **Aile G'nin kendi dersi:** canlı koşum, hiçbir testin göremediği bir kusur
+buldu (`Tracon:Images:Timeout` bağlanmıyordu). Bir aile yeni bir **ayar**
+ekliyorsa, kapanışın canlı koşumu o ayarı gerçekten değiştirerek yapılır.
 
 **Oturum açılışında koş** (taban çizgisinin hâlâ yeşil olduğunu doğrula):
 
@@ -468,7 +473,95 @@ hatası her kurulumda sessizce yutuluyordu. İkisi de düzeltildi.
 
 ---
 
-| **G** · Maliyet muhasebesi | `S1-025` **Yüksek** · `S1-010` Orta | Zaman aşımından SONRA başarıyla biten tool çağrısının kullanım/maliyeti kalıcı olarak kayboluyor. Ayrıca katalogdaki **13 modelin hiçbirinde fiyat yok** → her `run` maliyetsiz kaydediliyor; mekanizma dürüst (`pricing_source=NotDefined`), eksik olan **veri** | ☐ |
+| **G** · Maliyet muhasebesi | `S1-025` **Yüksek** · `S1-010` Orta | Zaman aşımından SONRA başarıyla biten tool çağrısının kullanım/maliyeti kalıcı olarak kayboluyor. Ayrıca katalogdaki **13 modelin hiçbirinde fiyat yok** → her `run` maliyetsiz kaydediliyor; mekanizma dürüst (`pricing_source=NotDefined`), eksik olan **veri** | ✅ **KAPANDI 2026-09-18** |
+
+#### Aile G — ✅ kapandı (2026-09-18)
+
+İki kusur, tek tema (maliyet muhasebesi), **iki farklı ağırlık**. Ayrım
+ölçüldü: `S1-010`'da veri geri getirilebilir
+(`POST /api/stats/recalculate-costs` fiyat sonradan girilince geçmişi
+hesaplar), `S1-025`'te harcama **kalıcı olarak** kaybediliyordu.
+
+**`S1-025` — kayıttaki teşhis doğruydu ama kök nedenin YARISIYDI.**
+
+Kayıt "`ToolInvocationTracker.cs:143` yalnız ilk sonucu temel alıyor" diyordu.
+Doğru. Ampirik yeniden üretim iki şey daha gösterdi:
+
+| Ölçüm (eski kodda) | Sonuç |
+|---|---|
+| Token'ını her beklemede okuyan **tam işbirlikçi** bir tool, 300 ms sınır | **3 sn'lik gövdesini sonuna kadar koşturdu** — hiçbir şey iptal edilmiyordu |
+| Geç gövdede `TraconToolUsage.Report(...)` | **`true` döndü** — harcama accumulator'a ULAŞIYOR, onu alan kimse yok |
+| 300 ms'lik sınırın modele bildirdiği cümle | `"did not complete within 0s"` — `{TotalSeconds:F0}` yuvarlaması |
+
+🚨 **Sınıf taraması kod tabanının kendi emsalini buldu:** `ChildAgentInvoker`
+(`deadline.CancelAfter`) ve `OnlineEvalJobHandler` (`budget.CancelAfter`) aynı
+`WhenAny` yarışını **zaten iptalle** kuruyordu. Tool zaman aşımı tek istisnaydı;
+üstelik `TimeoutAIFunction`'ın XML dokümanı ve `docs-site/concepts/tools.md` bu
+davranışı bilinçli bir sınır diye **belgeliyordu**. Belge doğruydu, tasarım
+yanlıştı. Ayrıca bir çocuk `run`'ın harcaması kaybolmaz — **kendi `runs`
+satırına** sahiptir; bir tool çağrısının sahibi yoktu, fark buradaydı.
+
+**Alınan üç karar 👤 (2026-09-18):**
+
+1. **Zaman aşımı gövdeyi İPTAL EDER** (K-805). Bağlı bir CTS; çağıranın token'ı
+   yine akar, gerçek bir çağıran iptali kimliğini korur.
+2. **Geç biten çağrının sonucu ve harcaması AYNI satıra yazılır** (K-806). Yeni
+   `IRunStore.CompleteLateToolInvocationAsync`; `timed_out` ve `error`
+   **değişmez** (modele ne söylendiğini kaydeder). İkinci satır **reddedildi**:
+   `GetToolUsageAsync` satır sayar, bir çağrı iki görünür ve hata oranı yarıya
+   inerdi. Yalnız run olayı da **reddedildi**: maliyet raporunun okuduğu yer
+   `tool_invocations`'tır.
+3. **Sevk edilen `generate_image` kendi timeout'unu taşır** (K-807, 2 dk). Genel
+   30 sn varsayılanı bir şeyi *sorgulayan* tool için seçilmiştir; ölçülen
+   `gpt-image-1` isteği 21–35 sn sürer, yani sevk edilen tool **varsayılan
+   kurulumda düşmeye ayarlıydı**.
+
+**`S1-010` — mekanizma doğruydu, sessizliği kusurdu** (K-808, K-809). Fiyatsız
+model açılışta adıyla bildirilir ve `/api/diagnostics` aynı listeyi taşır; iki
+okuyucu **tek** `UnpricedModels.Find`'ı çağırır. Örnek uygulamanın 13 modeli
+fiyat kazandı, rakamlar `//Models` yorumunda **açıkça ÖRNEK** olarak işaretli
+(K-032 gereği pakete gömülü fiyat tablosu yine yok).
+
+| Adım | Sonuç |
+|---|---|
+| Ampirik yeniden üretim | ☑ eski kodda ölçüldü: `usage=NULL · result=NULL · timedOut=true` · işbirlikçi tool **iptal edilmiyor** · `Report` `true` dönüyor · mesaj `"0s"` |
+| Kök neden düzeltmesi | `TimeoutAIFunction` iptal eder + `LateToolCompletionRecorder` · `CompleteLateToolInvocationAsync` (12 uygulayıcı) · `late_completed_at` sütunu (3 migration) · `TraconImageOptions.Timeout` · `UnpricedModelWarningService` + `PricingDiagnostic` |
+| Sınıf taraması | ☑ `grep -rn "Task.WhenAny" src/` → dört yarış; diğer üçü zaten iptal ediyor ya da kaydın sahibi var. `grep -rn "PricingSource.Unknown" src/` → diğer okuyucular doğru |
+| Testler | 3 birim (timeout) · 2 birim (image timeout) · 2 birim (binding) · 6 birim (uyarı) · 7 sözleşme testi **üç SQL sağlayıcısında + bellek içi** · 4 fonksiyonel · 1 diagnostics · 1 konsol. **Düzeltme öncesi kırmızı oldukları ayrı bir koşumda doğrulandı:** 2/3 birim, 3/4 fonksiyonel (kalan ikisi kasıtlı koruma testi) |
+| Canlı koşum | ☑ `MT-CORE-044` · `MT-CORE-045` (gerçek OpenAI, token sayıları turla **birebir**, `pricing_source` 2→0) · ☑ `MT-MM-095` (gerçek `gpt-image-1`, iki ölçüm) |
+| Tüketici yüzeyi | `concepts/tools.md`'nin "asla timeout-aware bir token vermez" paragrafı **yanlıştı**, yeniden yazıldı · `guides/observability.md` · `reference/configuration.md` · `capabilities.md` · konsolda "finished late" rozeti |
+
+🚨 **Canlı koşum ikinci bir kusur buldu ve hiçbir test bulamazdı.**
+`TraconImageOptions.Timeout` eklendi, `docs-site`'ta yapılandırılabilir diye
+belgelendi, ama yansımasız bağlayıcıya (`BindImages`) **hiç yazılmadı** —
+`Enabled` bağlanıyordu, `Timeout` sessizce yok sayılıyordu.
+`TraconOptionsBindingCoverageTests` bu sınıfı yapısal olarak kilitler ama
+`TraconOptions` **ağacını** gezer ve `TraconImageOptions` o ağacın düğümü değil,
+**kardeş** bir section'dır. `AGENTS.md`'nin "imza değiştirmek ile gövdeyi
+kullanmak iki ayrı adımdır" kuralının bu ailedeki somut vakası. Bağlayıcı
+düzeltildi, `TraconImageOptionsBindingTests` eklendi; **scanner'ın kardeş
+section'ları görmemesi Aile T'ye yazıldı.**
+
+🚨 **Turun `MT-MM-095` çelişkisi kökünden kalktı.** Turda zorlanan zaman aşımı
+`tool_invocations` satırlarını `succeeded:false` bırakırken **2 gerçek,
+faturalanmış görsel** üretmişti. Bugün aynı yordam (`Timeout=00:00:10`) iki
+düşen satır üretiyor ve **`attachments` tablosu BOŞ** — `GenerateImageTool`
+token'ını `GenerateAsync`'e geçirdiği için iptal sağlayıcı çağrısını gerçekten
+durduruyor. Sevk edilen 2 dk varsayılanıyla ise zaman aşımı **hiç olmuyor**:
+çağrı 21,8 sn'de bitti, `usage_quantity=4160 tokens`, 1 ek.
+
+⚠️ **Açık kalem (kullanıcıya):** `gpt-image-1` satırında `cost` hâlâ boş —
+`usage_quantity` kayıtlı ama `Tracon:Pricing:Images:openai:gpt-image-1` örnek
+uygulamada yapılandırılmamış (appsettings'teki `//Images` yorumu yolu
+gösteriyor). Görsel fiyatı asla tahmin edilmez ve `UnpricedModelWarningService`
+yalnız **sohbet** katalogunu tarar. `HATA-S1-010`'un kapsamı 13 sohbet
+modeliydi; görsel/ses fiyat boşluğu ayrı bir kalemdir.
+
+🚨 **Ortam:** paketlenmiş DLL `--contentRoot` VERİLMEDEN çalıştırılırsa
+`appsettings.json`'ı **hiç okumaz** — kabuğun CWD'sini content root sanar.
+Belirti yanıltıcıdır: `GET /api/models` boş liste döner ve Development'ta
+`UseOpenAICompatible` "Endpoint is required" ile **açılışta patlar**. §3.4'ün
+ortam tablosuna eklendi. |
 | **H** · Derlenmiş agent önbelleği | `S4-004` **Kritik** | `CompiledAgentCache.Evict` HİÇBİR YERDEN çağrılmıyor. Silinip aynı adla yeniden oluşturulan agent, sürüm sayacı 1'e sıfırlandığı için ESKİ (silinmiş) tanımla çalışmaya devam ediyor. `GET /api/agents/{name}` doğru görünür ama **çalıştırma yanlış** — sessiz ve operatörü yanlış yöne yönlendirir | ☐ |
 
 #### Aile A — alınan iki karar 👤 (2026-09-18)
@@ -535,7 +628,7 @@ kolu için ikinci bir test eklendi).
 | **Q** · Eval ve geri bildirim arayüzü | `S3-007` Orta · `S3-008` Düşük | `FeedbackControl`, bir run'da bir `Stars` puanı da varsa "tekrar tıkla = sil" yerine yinelenen satır oluşturuyor. "Şimdi puanla" düğmesi yargıç yokken HİÇBİR mesaj göstermiyor (tip uyuşmazlığı) | ☐ |
 | **R** · Playground arayüzü | `S1-027` Düşük · `S1-028` Düşük | Agent kataloğunda tool sayısı hücresinin tam tool adı listesi hiçbir yerde (ne tooltip ne görünür metin) sunulmuyor. Akış imleci (`ap-stream-caret`) CSS sınıf adı uyuşmazlığı yüzünden hiçbir zaman görsel olarak render edilmiyor | ☐ |
 | **S** · Gözlemlenebilirlik span'i | `S2-003` Düşük | Başarılı script çalıştırmalarında bile `execute_skill_script` span'i `exit_code`/`duration_ms` taşımıyor ve ebeveyn span yanlışlıkla "Error" gösteriyor (`SandboxedSkillScriptRunner.cs:355-359`). Yalnız gözlemlenebilirlik, işlevsel etki yok | ☐ |
-| **T** · Kapılar ve geliştirme aparatı | `S4-001` Orta · `S3-001` Düşük · `S2-001` Düşük · `S1-005` · `S1-001` · `S1-002` · `S1-003` + §3.3'ün iki yanlış pozitifi | Ölü-tanı-referansı kapısının regex'i eski ürün adının önekini arıyor, artık hiçbir şeyi yakalamıyor. `npm run check` fresh checkout'ta yanlış sırayla kırılıyor. `AGENTS.md` ham `kapanis` komutunu tekrarlıyor (Faz 92 ihlali). Şablonun kendi yer tutucusu teşhis edilemeyen bir ilk koşum hatası üretiyor. SQLite entegrasyon testleri tam çözüm yükü altında `database is locked` veriyor; `LiveVoiceLifecycleTests` yük altında kırılgan; `dotnet test` 2,5 dakika eşiği bugünkü set için ulaşılabilir değil. **Üçüncü kırılganlık örneği ölçüldü (2026-09-18 taban çizgisi):** `PackCleanlinessGateTests.DirtyWorkingTreeStopsPackWithTracon0004` tam çözüm koşumunda düştü — `ExitCode` `0` geldi, yani kirli ağaçta `dotnet pack` BAŞARILI oldu ve `TRACON0004` hiç çıkmadı — ama **izole koşumda altısı da geçti**. Üç kırılganlığın kök nedeni birlikte aranmalı. **Ürün değil apparat** — ayrı commit'ler, hızlı kapanır. **Aile E'den bir kalem daha (2026-09-18):** üretilen `.NET` istemcisi (`TraconApiClient.g.cs`) kaynak belgesinden bir fazdır bayat — Faz 176'nın eklediği `EvaluatorVersion` alanı hiç işlenmemişti ve `ClientDescriptionBaselineTests` ile `ClientCoverageTests`'in ikisi de eksik bir DTO alanını görmüyor. Aile E'nin yeniden üretimi alanı getirdi; **kapı hâlâ yok** | ☐ |
+| **T** · Kapılar ve geliştirme aparatı | `S4-001` Orta · `S3-001` Düşük · `S2-001` Düşük · `S1-005` · `S1-001` · `S1-002` · `S1-003` + §3.3'ün iki yanlış pozitifi | Ölü-tanı-referansı kapısının regex'i eski ürün adının önekini arıyor, artık hiçbir şeyi yakalamıyor. `npm run check` fresh checkout'ta yanlış sırayla kırılıyor. `AGENTS.md` ham `kapanis` komutunu tekrarlıyor (Faz 92 ihlali). Şablonun kendi yer tutucusu teşhis edilemeyen bir ilk koşum hatası üretiyor. SQLite entegrasyon testleri tam çözüm yükü altında `database is locked` veriyor; `LiveVoiceLifecycleTests` yük altında kırılgan; `dotnet test` 2,5 dakika eşiği bugünkü set için ulaşılabilir değil. **Üçüncü kırılganlık örneği ölçüldü (2026-09-18 taban çizgisi):** `PackCleanlinessGateTests.DirtyWorkingTreeStopsPackWithTracon0004` tam çözüm koşumunda düştü — `ExitCode` `0` geldi, yani kirli ağaçta `dotnet pack` BAŞARILI oldu ve `TRACON0004` hiç çıkmadı — ama **izole koşumda altısı da geçti**. Üç kırılganlığın kök nedeni birlikte aranmalı. **Ürün değil apparat** — ayrı commit'ler, hızlı kapanır. **Aile E'den bir kalem daha (2026-09-18):** üretilen `.NET` istemcisi (`TraconApiClient.g.cs`) kaynak belgesinden bir fazdır bayat — Faz 176'nın eklediği `EvaluatorVersion` alanı hiç işlenmemişti ve `ClientDescriptionBaselineTests` ile `ClientCoverageTests`'in ikisi de eksik bir DTO alanını görmüyor. Aile E'nin yeniden üretimi alanı getirdi; **kapı hâlâ yok**. **Aile G'den bir kalem daha (2026-09-18):** `TraconOptionsBindingCoverageTests` "alan eklendi ama `Bind()`'a yazılmadı" kusurunu yapısal olarak kilitler, ama yalnız `TraconOptions` **ağacını** gezer. `TraconImageOptions` gibi **kardeş** section'lar (`Tracon:Images`, `Tracon:Skills` altındakiler, sağlayıcı seçenekleri) scanner'ın kapsamı dışındadır ve `TraconImageOptions.Timeout` tam da oradan sızdı — canlı koşum yakaladı, hiçbir test yakalamadı. Scanner kardeş section'lara genişletilmeli | ☐ |
 | **U** · docs-site | `S3-002` Düşük | Açılış sayfası 1024 px'te 32 px yatay taşıyor (`.scope-rings`) — dekoratif arka plan grafiği, içerik okunabilirliğini bozmuyor | ☐ |
 | **V** · `CHANGELOG` düğümü | `S1-007` | **Kod kusuru değil, karar.** `scripts/kapi.py` hedef sürüm için `CHANGELOG.md`'de `## [<sürüm>]` bölümü arıyor; changelog ise bilinçli olarak yalnız `## [Unreleased]` taşıyor (`6cfbc2d3` sürüm bölümünü **bilerek** geri aldı). İki kural birbirini kilitliyor. `K-*` olarak çözülür ve `YAYIN-HAZIRLIK.md` Adım 5'e bağlanır. Bloklanan case'ler: `MT-PKG-104 · 105 · 115 · 116 · 117` | ☐ |
 
@@ -595,6 +688,7 @@ koşulmayanlar `00-INDEKS.md` §7.1'e gerekçesiyle yazılır.
 | `MT-DKL-001` · `002` · `003` · `004` · `006` | İnsan gözü — tipografi/hizalama yargısı |
 | `MT-GDK-024` | İkinci bir işletim sistemi (Linux CI'da `kapi.py performans --guncelle`) |
 | `MT-CORE-095` | Bu depoda kiracıya duyarlı örnek bir `IAgentSource` **yok** — `ADAYLAR.md` adayı olabilir |
+| 👤 **Aile G'den (kod değil, karar):** görsel/ses fiyat boşluğu | `gpt-image-1` çağrısı `usage_quantity=4160 tokens` kaydediyor ama `cost` boş: `Tracon:Pricing:Images:openai:gpt-image-1` örnek uygulamada yapılandırılmamış (appsettings'teki `//Images` yorumu yolu gösteriyor). Görsel fiyatı **asla tahmin edilmez** ve yeni `UnpricedModelWarningService` yalnız **sohbet** katalogunu tarar. `HATA-S1-010`'un kapsamı 13 sohbet modeliydi. Karar: örnek fiyat girilsin mi, yoksa uyarı görsel/ses fiyatlarını da kapsasın mı? |
 
 ---
 
