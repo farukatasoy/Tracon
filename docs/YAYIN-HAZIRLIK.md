@@ -137,7 +137,7 @@ KG-029 (sürüm numarası) — gerekçeleri §11'dedir.
 | 2 | Turun bulduğu kusurlar · 🔄 **SIRADAKİ** → **[KAPANIŞ PLANI](manuel-test/kosumlar/2026-09-16/KAPANIS-PLANI.md)** | `kusur-giderme` | 43 açık kusur, 22 aile. Tek vaka değil **sınıf** kapanır. Tek şerit, `main` üzerinde, aile başına ayrı commit (kullanıcı kararı 2026-09-18) |
 | 3 | **Public öncesi geçmiş denetimi** | Kullanıcı + `nuget-danismani` | Tam `git` geçmişinde secret taraması; `docs/guvenlik-tarama/` ve `.agents/` için yayımla/çıkar kararı (RK-014) |
 | 4 | **Yayın turu** | `nuget-danismani` Adım 1→8 | Bu dosyaya yeni karar bloğu; ❌ → ✅ |
-| 5 | **Sürüm kesimi** | Elle | `CHANGELOG.md` → `## [1.0.0-preview.1]` + sevk tarihi, commit |
+| 5 | **Sürüm kesimi** | Elle | `CHANGELOG.md`'nin `## [Unreleased]` **başlığı** `## [1.0.0-preview.1] - <sevk tarihi>` olarak yeniden adlandırılır (gövde taşınmaz, başlık değişir), üstüne **boş** bir `## [Unreleased]` açılır, commit |
 | 6 | **Kapılar** | `kapi.py kapanis --taban <commit>` · `kapi.py yayin --kuru --surum 1.0.0-preview.1` | İkisi de sıfır uyarı |
 | 7 | **Repo public + push** | Kullanıcı | `git push origin main`; public tag'den **önce** olmalı — Source Link tag commit'ine bakar |
 | 8 | **Tag** | Kullanıcı | `git tag v1.0.0-preview.1 && git push origin v1.0.0-preview.1`; CI: build → pack + release-dryrun → npm-publish → publish (OIDC) → github-release |
@@ -149,10 +149,18 @@ KG-029 (sürüm numarası) — gerekçeleri §11'dedir.
 `farukatasoy/Tracon` + `ci.yml` + `environment: nuget` üçlüsüne bağlıdır;
 başka bir remote'a atılan tag yayın üretmez.
 
-🚨 **Adım 5 atlanamaz.** `github-release` işi sürüm notlarını
-`## [1.0.0-preview.1]` bölümünden okur ve bölüm yoksa **hata verir** — o noktada
-NuGet ve npm çoktan basmış olur. Yarım yayın, yayın provasının yakalayamadığı
-tek sıra kusurudur.
+🚨 **Adım 5 bir yeniden adlandırmadır, yeni bir bölüm yazmak değildir.**
+Notlar zaten `## [Unreleased]` altında birikir; kesim o başlığı sürüme ve sevk
+tarihine çevirir. Prova (`kapi.py yayin --kuru`) ve `github-release` işi **aynı
+ayrıştırıcıyı** ve aynı yedeği kullanır (K-825): sürüm bölümü yoksa ikisi de
+`## [Unreleased]`'i okur. Bu yüzden prova Adım 5'ten **önce** de yeşil olabilir
+ve provanın yeşili bir şey ifade eder; ikisinden yalnız biri yedeği kullansaydı
+prova yeşil, release gövdesi boş olurdu.
+
+Kapının koruduğu şey "bölüm var mı" değil, **notsuz sürüm çıkmasın**dır: ikisi
+de boşsa prova kırmızıdır. Adım 5'in kendisi yine de atlanamaz — atlanırsa
+yayınlanan sürümün notları `Unreleased` başlığı altında kalır ve bir sonraki
+sürüm onları ikinci kez sevk eder.
 
 ---
 
