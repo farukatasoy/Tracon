@@ -143,6 +143,15 @@ internal sealed class SqlEvalStore : IEvalStore
                         "expected_tools",
                         candidate.ExpectedTools.Count > 0 ? string.Join(',', candidate.ExpectedTools) : null);
                     AddNullableText(insert, "context", candidate.Context);
+
+                    // A replace rewrites the row, so whatever the caller hands
+                    // back has to be written back: a case that was promoted
+                    // from a run keeps its origin, and with it the
+                    // eval_cases_source_run_uq guard against promoting that run
+                    // a second time.
+                    AddNullableUuid(insert, "source_run_id", candidate.SourceRunId);
+                    Dialect.AddInt16(insert, "source_kind", candidate.SourceKind is { } kind ? (short)kind : null);
+                    Dialect.AddTimestamp(insert, "promoted_at", candidate.PromotedAt);
                     Dialect.AddJsonb(insert, "parameters", JsonStringMapCodec.Serialize(candidate.Parameters));
                     await DbHelpers.ExecuteAsync(insert, cancellationToken).ConfigureAwait(false);
 

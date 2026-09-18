@@ -83,3 +83,18 @@ tipi, migration kilidi, uuid harf buyuklugu) **taşındı**:
 deadlock) ve yeniden deneme kurallari ayri dosyadadir:
 [`sql-migration.md`](sql-migration.md) — Faz 133'te butce asimini gidermek icin
 ayrildi, `sqlite.md`'nin Faz 36'daki emsaliyle.
+- **🚨 `INSERT` metni ile hedef tablonun sütun kümesi ayrı ayrı bayatlar; aynı
+  tabloya yazan İKİ sorgu varsa biri eksik kalabilir ve sözleşme testi yoksa
+  bunu yalnız üretim gösterir** (2026-09-18, `HATA-S3-003` sınıf taraması).
+  `eval_cases`'e iki sorgu yazıyordu: `InsertEvalCaseWithComputedSeq`
+  (promosyon yolu) `source_run_id`/`source_kind`/`promoted_at` sütunlarını
+  yazıyor, `InsertEvalCase` (`ReplaceCasesAsync` yolu) **yazmıyordu**. Sonuç:
+  her tam değiştirme bir case'i sessizce "promosyonsuz" bırakıyor, store'un
+  kendi `eval_cases_source_run_uq` guard'ı o run'ı tanımaz oluyor ve **aynı run
+  ikinci kez yükseltilebiliyordu**. Bellek içi store kaydı olduğu gibi
+  koruduğu için sapma yalnız SQL'deydi. **Kontrol:** bir tabloya yazan her
+  sorguyu birlikte ara (`grep -n "INSERT INTO .*<tablo>" -r src/`) ve sütun
+  listelerini karşılaştır; fark varsa bunu bir sözleşme testine çevir —
+  `EvalStoreContract.ReplaceCasesAsync_keeps_the_promotion_fields_it_was_given`
+  düzeltmeden önce bellek içinde YEŞİL, iki SQL sağlayıcısında KIRMIZI idi ve
+  sapmayı tek koşumda gösterdi.

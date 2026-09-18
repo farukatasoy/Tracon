@@ -1607,11 +1607,18 @@ internal abstract class SqlQueriesBase
 
         DeleteEvalCases = $"DELETE FROM {Table("eval_cases")} WHERE suite_id = @suite_id;";
 
+        // source_run_id/source_kind/promoted_at are written here as well as in
+        // InsertEvalCaseWithComputedSeq: a replace rewrites every row, so
+        // leaving them out silently stripped a promoted case of its origin —
+        // and with it the eval_cases_source_run_uq guard that stops the same
+        // run being promoted twice.
         InsertEvalCase = $"""
             INSERT INTO {Table("eval_cases")}
-                (id, suite_id, seq, query, expected_output, expected_tools, context, parameters)
+                (id, suite_id, seq, query, expected_output, expected_tools, context,
+                 source_run_id, source_kind, promoted_at, parameters)
             VALUES
-                (@id, @suite_id, @seq, @query, @expected_output, @expected_tools, @context, @parameters);
+                (@id, @suite_id, @seq, @query, @expected_output, @expected_tools, @context,
+                 @source_run_id, @source_kind, @promoted_at, @parameters);
             """;
 
         SelectEvalCaseBySourceRun = $"""

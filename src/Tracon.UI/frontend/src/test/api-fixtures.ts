@@ -18,8 +18,18 @@ export const testMeta: TraconMetaResponse = {
   roles: { canRead: true, canOperate: true, canAdminister: true },
 };
 
-/** A raw `Response` bypasses JSON encoding entirely — see `sseFixture`. */
-export type FixtureHandler = (params: Record<string, string>, url: URL) => unknown | Response;
+/**
+ * A raw `Response` bypasses JSON encoding entirely — see `sseFixture`.
+ *
+ * `body` is the request body as sent, already parsed when it was JSON, so a
+ * test can assert what a screen SENDS and not only what it renders from the
+ * reply. `undefined` for a request that carries no body.
+ */
+export type FixtureHandler = (
+  params: Record<string, string>,
+  url: URL,
+  body?: unknown,
+) => unknown | Response;
 
 export interface FixtureRoute {
   method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
@@ -111,6 +121,37 @@ function isDefaultCollection(path: string): boolean {
   return DEFAULT_COLLECTION_ROUTES.some((pattern) => matchRoute(pattern, path) !== null);
 }
 
+/**
+ * The request body, parsed, for a JSON request — and `undefined` for anything
+ * else.
+ *
+ * 🚨 Only JSON is read, on purpose. An attachment upload sends a `FormData`
+ * body, and reading one here (even through `clone()`) left the playground's
+ * upload with nothing to send: the screen never got its attachment back and
+ * `playground.test.tsx` went red. A test that needs to inspect a non-JSON body
+ * should say so explicitly rather than have every request pay for it.
+ */
+async function readJsonBody(input: RequestInfo | URL, init?: RequestInit): Promise<unknown> {
+  const type =
+    input instanceof Request ? input.headers.get('Content-Type') : new Headers(init?.headers).get('Content-Type');
+
+  if (type === null || !type.includes('application/json')) {
+    return undefined;
+  }
+
+  const raw = input instanceof Request ? await input.clone().text() : typeof init?.body === 'string' ? init.body : '';
+
+  if (raw.length === 0) {
+    return undefined;
+  }
+
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return raw;
+  }
+}
+
 function toResponse(body: unknown, status: number): Response {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 }
@@ -123,7 +164,7 @@ function toResponse(body: unknown, status: number): Response {
  */
 let activeOverrides: FixtureRoute[] = [];
 
-function resolve(method: string, path: string, url: URL): Response {
+function resolve(method: string, path: string, url: URL, body?: unknown): Response {
   for (const route of activeOverrides) {
     if (route.method !== method) {
       continue;
@@ -132,7 +173,7 @@ function resolve(method: string, path: string, url: URL): Response {
     const match = matchRoute(route.pattern, path);
 
     if (match !== null) {
-      const result = route.handler(match.params, url);
+      const result = route.handler(match.params, url, body);
 
       return result instanceof Response ? result : toResponse(result, route.status ?? 200);
     }
@@ -171,7 +212,7 @@ export function installPersistentFetchStub(): void {
     // API paths are always rooted at 'api/' or 'v1/'.
     const path = url.pathname.replace(/^\/+/, '').replace(/^.*?\b(api|v1)\//, '$1/');
 
-    return resolve(method, path, url);
+    return resolve(method, path, url, await readJsonBody(input, init));
   });
 
   vi.stubGlobal('fetch', handler);
