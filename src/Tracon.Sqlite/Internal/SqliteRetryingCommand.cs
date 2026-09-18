@@ -25,7 +25,7 @@ namespace Tracon;
 /// deadlock victim, which the stores already handle where it matters.
 /// </para>
 /// <para>
-/// 🚨 A statement inside a caller-managed transaction is NEVER retried. Only
+/// A statement inside a caller-managed transaction is NEVER retried. Only
 /// the whole transaction can be retried - resending one statement of it would
 /// reapply part of a unit of work whose earlier statements may already have
 /// been rolled back by SQLite. The retry therefore applies to the
