@@ -223,6 +223,26 @@ edilmemiş şema + `AllowRemoteAccess=true` kesişiminde. Varsayılan bellek iç
 depoda veya migrasyon tamamlandıktan sonraki bir restart'ta gözlenmez (bu
 turda MT-SEC-071 tam olarak bu ikinci durumu doğruladı — sorun yok).
 
+### ✅ KAPANDI — 2026-09-18 (Aşama 2, Aile I)
+
+**Kaydın iki tespiti de doğruydu.** Guard gerçekten veritabanına dokunuyor — ve
+dokunmak zorunda: `external:invoke` kapsamlı bir anahtarın var olduğunu
+kanıtlamak kontrolün **kendisidir**. Yanlış olan XML dokümanıydı, düzeltildi.
+
+**Düzeltme (K-814).** `DbException` yakalanır ve **fail-closed** yorumlanır:
+cevap veremeyen bir depo bir anahtarın varlığını kanıtlayamaz, ve başarısız bir
+sorgunun üzerine dışa açık bir agent yüzeyi açmak tam da bu kapının engellemek
+için var olduğu şeydir. Host yine durur — ama artık belgelenen
+`InvalidOperationException` ile ve **hangi kuralın** durdurduğunu söyleyerek;
+ham istisna `InnerException` olarak taşınır.
+
+**Sınıf taraması.** Açılışta senkron store okuyan tek diğer yer
+`TraconA2AExtensions`'ın agent kartı süslemesidir ve o **zaten** geniş bir
+`catch` + güvenli yedekle çözmüştü (orada güvenlik kontrolü yok, yalnız
+`Description`/`Version` süslemesi — yedek meşru). `QuotaUsageObserver` ve
+`JobQueueDepthObserver` da kendi `RefreshAsync`'lerinde yakalıyor. Kaydın
+"`EnsureRemoteAccessNotCombined` bu korumadan yoksun" tespiti tek boşluktu.
+
 ---
 
 ### HATA-S1-022 — `AuditSecretFilter` bazı BENİGN alan adlarını da (`ConfigurationKey` son eki, `AuthorizationMode`) gereksizce `"***"` yapıyor
@@ -325,6 +345,22 @@ sırasında (yeni `ActiveKeyId`'ye geçilirken eski bir satırın `kid`'i için
 YANLIŞ bir ham değer yapılandırılırsa) veya ham kripto bozulmasında (bit
 hatası) tetiklenir — sıradan "anahtar hiç yok/boş" operasyonel hatasından
 DAHA NADİR ama aynı ailenin bir parçası.
+
+### ✅ KAPANDI — 2026-09-18 (Aşama 2, Aile I)
+
+**Kaydın ölçtüğü asimetri aynen kapatıldı** (K-815). `CryptographicException`
+(`AuthenticationTagMismatchException` ondan türer) yakalanıp `TraconException`'a
+çevriliyor; mesaj `kid`'i **ve** yapılandırma anahtarının adını söylüyor — diğer
+dört dalla aynı hizada — ve en olası nedeni (bir `kid`'in materyalinin yenisiyle
+değiştirilmesi) adıyla anıyor. Orijinal istisna `InnerException` olarak duruyor.
+
+**K-059 ayrıca testle zorlanıyor:** mesajda anahtar materyali de, korunan değerin
+kendisi de görünmüyor.
+
+**Sınıf taraması.** Repoda `AesGcm.Decrypt` çağrısı **iki** yerdedir (`Unprotect`,
+`UnprotectBytes`) ve ikisi de tek ortak yardımcıya alındı; kaydın "ikisi de
+etkilenir" tespiti doğruydu. Başka kriptografik doğrulama yolu yok — API key
+karşılaştırması ve webhook imzası eşitlik karşılaştırmasıdır, istisna atmaz.
 
 ---
 

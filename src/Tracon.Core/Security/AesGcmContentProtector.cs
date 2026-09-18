@@ -77,8 +77,9 @@ internal sealed class AesGcmContentProtector : IContentProtector
     /// <inheritdoc />
     /// <exception cref="TraconException">
     /// <paramref name="stored"/> carries an envelope whose key id is not configured
-    /// (removed, or never added), or whose configured value does not resolve to a
-    /// valid 32-byte AES-256 key.
+    /// (removed, or never added), whose configured value does not resolve to a
+    /// valid 32-byte AES-256 key, or whose configured key is well-formed but is not
+    /// the key the value was written with.
     /// </exception>
     public string Unprotect(string stored)
     {
@@ -92,10 +93,7 @@ internal sealed class AesGcmContentProtector : IContentProtector
         var key = ResolveKey(keyId);
         var plaintextBytes = new byte[ciphertext.Length];
 
-        using (var aesGcm = new AesGcm(key, ContentProtectionEnvelope.TagSizeBytes))
-        {
-            aesGcm.Decrypt(nonce, ciphertext, tag, plaintextBytes);
-        }
+        Decrypt(keyId, key, nonce, ciphertext, tag, plaintextBytes);
 
         return Encoding.UTF8.GetString(plaintextBytes);
     }
@@ -122,8 +120,9 @@ internal sealed class AesGcmContentProtector : IContentProtector
 
     /// <inheritdoc />
     /// <exception cref="TraconException">
-    /// <paramref name="stored"/> carries an envelope whose key id is not configured, or
-    /// whose configured value does not resolve to a valid 32-byte AES-256 key.
+    /// <paramref name="stored"/> carries an envelope whose key id is not configured,
+    /// whose configured value does not resolve to a valid 32-byte AES-256 key, or
+    /// whose configured key is well-formed but is not the key the value was written with.
     /// </exception>
     public byte[] UnprotectBytes(ReadOnlySpan<byte> stored)
     {
@@ -137,12 +136,58 @@ internal sealed class AesGcmContentProtector : IContentProtector
         var key = ResolveKey(keyId);
         var plaintextBytes = new byte[ciphertext.Length];
 
-        using (var aesGcm = new AesGcm(key, ContentProtectionEnvelope.TagSizeBytes))
-        {
-            aesGcm.Decrypt(nonce, ciphertext, tag, plaintextBytes);
-        }
+        Decrypt(keyId, key, nonce, ciphertext, tag, plaintextBytes);
 
         return plaintextBytes;
+    }
+
+    /// <summary>
+    /// Decrypts one envelope, turning a verification failure into the same kind
+    /// of diagnostic the key-resolution failures produce.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A key id can resolve to a perfectly valid 32-byte key that is simply not
+    /// the key this value was written with — a rotation where an old id was
+    /// pointed at new material, or a restored backup. <see cref="AesGcm"/>
+    /// answers that with <c>AuthenticationTagMismatchException</c>, whose
+    /// message names neither the key id nor the configuration key, so an
+    /// operator reading the log has nothing to act on.
+    /// </para>
+    /// <para>
+    /// The four resolution failures in <see cref="LoadKey"/> all name the key
+    /// id; this fifth one now does too. The message carries the key id and the
+    /// configuration key NAME only — never key material and never the protected
+    /// value. The original exception stays as the inner exception.
+    /// </para>
+    /// </remarks>
+    private void Decrypt(
+        string keyId,
+        byte[] key,
+        ReadOnlySpan<byte> nonce,
+        ReadOnlySpan<byte> ciphertext,
+        ReadOnlySpan<byte> tag,
+        Span<byte> plaintext)
+    {
+        try
+        {
+            using var aesGcm = new AesGcm(key, ContentProtectionEnvelope.TagSizeBytes);
+            aesGcm.Decrypt(nonce, ciphertext, tag, plaintext);
+        }
+        catch (CryptographicException exception)
+        {
+            var configurationKeyName = _options.CurrentValue.Keys.TryGetValue(keyId, out var name)
+                ? name
+                : "(not configured)";
+
+            throw new TraconException(
+                $"Content protection key '{keyId}' (configuration key '{configurationKeyName}') did not decrypt a " +
+                "value that carries its key id. The configured key is well-formed but is not the key this value " +
+                "was written with — the usual cause is that the key id was pointed at new material instead of a " +
+                "new key id being added. Restore the original value of that configuration key; a key id must keep " +
+                "its material for as long as any stored value carries it.",
+                exception);
+        }
     }
 
     private (string KeyId, byte[] Key) ResolveActiveKey()

@@ -3,8 +3,8 @@
 > **Bu turu kapatan her oturum ÖNCE burayı okur.** Koşum bitti; bu dosya
 > kapanışın tek kontrol düzlemidir.
 >
-> **Durum:** 🟡 Aşama 2 sürüyor · **Aile A · B · C · D · E · F · G · H KAPANDI** · 30 açık kusur, 14 aile kaldı
-> **Son güncelleme:** 2026-09-18 (Aile H kapandı — `S4-004`; kayıt tek yüzey biliyordu, ölçüm **üç** buldu: agent · shared instructions bloğu · callable sub-agent)
+> **Durum:** 🟡 Aşama 2 sürüyor · **Aile A · B · C · D · E · F · G · H · I KAPANDI** · 27 açık kusur, 13 aile kaldı
+> **Son güncelleme:** 2026-09-18 (Aile I kapandı — `S1-015` · `S1-021` · `S1-023`; tek tema, **üç ayrı kök neden**: kütüphane kendi yanıtını belirlemiyordu)
 
 Turdan bağımsız kapanış protokolü — aile aile oturum yordamı, "önce ampirik
 yeniden üret" kuralı, bitti tanımı ve sayım betiği —
@@ -176,8 +176,9 @@ Bunlar kapanış oturumlarında da geçerlidir ve bitti tanımında
 
 ## 3.6 Sıradaki iş — 2026-09-18 itibarıyla
 
-**Aile I.** Yüksek öncelik Aile H ile bitti; sıra §4'ün ikinci tablosunda,
-**Aile I**'dedir (`S1-015` · `S1-021` · `S1-023` — opak `500` ve ham istisna).
+**Aile J.** Yüksek öncelik Aile H ile bitti, Aile I de kapandı; sıra §4'ün
+ikinci tablosunda **Aile J**'dedir (`S1-020` — sağlayıcı hatası sınıflandırma;
+kayıt açıkça "karar gerekir" diyor).
 
 🚨 **Aile F ve G'nin ortak dersi:** kayıttaki kök-neden teşhisi F'de iki kez
 yanlıştı, G'de **doğru ama yarımdı** — `S1-025`'in asıl nedeni yutulan istisna
@@ -672,7 +673,42 @@ kolu için ikinci bir test eklendi).
 
 | Aile | Kusur | Kök neden | Durum |
 |---|---|---|---|
-| **I** · Opak `500` ve ham istisna | `S1-015` Orta · `S1-021` Orta · `S1-023` Düşük-Orta | Bekleyen migration varken yazma ucu opak `500` dönüyor — uygulama 51 bekleyen migration'ı biliyor (`/health` 503, `diagnostics`) ama yanıta taşımıyor; erişilemez veritabanı da aynı opak `500`'e düşüyor. `ExternalSurfaceGuard` kendi XML doc'unun aksine veritabanına dokunuyor ve taze SQL şemasında çöküş mesajı yanlış sınıfa düşüyor. Yanlış (ama var olan) bir `ContentProtection` anahtarı ham `AuthenticationTagMismatchException` sızdırıyor — sınıfın diğer dört hata dalı düzgün `TraconException` üretiyor | ☐ |
+| **I** · Opak `500` ve ham istisna | `S1-015` Orta · `S1-021` Orta · `S1-023` Düşük-Orta | Tek tema ("uygulama nedeni biliyor, çağırana söylemiyor"), **üç ayrı kök neden** | ✅ **KAPANDI 2026-09-18** |
+
+#### Aile I — ✅ kapandı (2026-09-18)
+
+Üç kusur, tek tema, **üç ayrı kök neden** — ve üçü de aynı cümleyle özetlenir:
+*bir kütüphane, kendi ucundan çıkabilecek istisnanın yanıtını KENDİ
+belirlemelidir.*
+
+| Kusur | Kök neden | Düzeltme |
+|---|---|---|
+| `S1-015` | Tracon'un `DbException` için **hiçbir** eşlemesi yoktu; çağıranın gördüğü şey tüketicinin `UseExceptionHandler()` kurulumuna kalıyordu | `StoreUnavailableProblemMiddleware` — `503` + ayırt eden `title` 👤 |
+| `S1-021` | `EnsureRemoteAccessNotCombined` kendi XML dokümanının aksine veritabanına dokunuyor; taze şemada ham `no such table` ile host çöküyor | `DbException` yakalanır, **fail-closed** yorumlanır, mesaj hangi kuralın durdurduğunu söyler |
+| `S1-023` | `AesGcm.Decrypt`'in `AuthenticationTagMismatchException`'ı yakalanmıyor; sınıfın diğer **dört** hata dalı `kid`'i adıyla söylerken beşincisi susuyor | `CryptographicException` → `TraconException`, `kid` + yapılandırma anahtarının **adı** |
+
+👤 **Karar (K-813):** `503`, ve **iki neden ayırt edilir**. Bilgi hiç eksik
+değildi, yalnız eriştirilmiyordu: yazma opak `500` dönerken aynı uygulama
+`/health`'te `503`, `/api/diagnostics`'te `pendingMigrations: 51` bildiriyordu.
+Middleware diagnostics ucunun sorduğu aynı soruyu sorar. Bekleyen migration
+operatör eylemi bekler (yeniden deneme yardım etmez), erişilemez veritabanı
+genellikle geçicidir — tek cümleye düşürmek kusurun yarısını açık bırakırdı.
+`500` reddedildi: eksik şema bir kod kusuru değil kurulum durumudur.
+**Bugünkü opaklığın savunulabilir yarısı korundu** — sağlayıcının mesajı şema
+adını ve ifadeyi taşır, bu yüzden **loga** gider, yanıta değil.
+
+| Adım | Sonuç |
+|---|---|
+| Ampirik yeniden üretim | ☑ üçü de düzeltmeden önce kırmızı: ham `DbException` boru hattından çıkıyor · guard ham store istisnasıyla çöküyor · `Unprotect` ham `AuthenticationTagMismatchException` atıyor |
+| Sınıf taraması | ☑ `S1-015`: kaydın **ikinci** ampirik örneği (çalıştırma yolu) ve store'a doğrudan bağımlı okuma da kilitlendi · `S1-021`: açılışta senkron store okuyan tek diğer yer (`TraconA2AExtensions` agent kartı) **zaten** güvenli yedeğe düşüyordu, iki gauge observer'ı da yakalıyor · `S1-023`: repoda `AesGcm.Decrypt` **iki** yerde, ikisi de tek yardımcıya alındı |
+| Testler | 7 fonksiyonel + 3 birim; hepsi düzeltmeden önce kırmızıydı. Ayrı bir test `secret` sızıntısını zorluyor (şema adı · SQL metni · anahtar materyali) |
+| Tüketici yüzeyi | `http-api.md`'nin `503` satırı ve yeni "hangi tür erişilemezlik" tablosu · `troubleshooting.md`'nin `AutoApplyMigrations=false` bölümü |
+
+🚨 **`GET /api/agents` bu eşlemeye girmez ve bu DOĞRUDUR.** İlk yazılan okuma
+testi katalog listesini kullanıyordu ve `200` alıyordu; sebep kusur değil,
+**bilinçli hata izolasyonu** (`AgentSourceFaultIsolationTests`): bozuk bir kaynak
+listeyi düşürmez. Test store'a doğrudan bağımlı bir okumaya
+(`GET /api/agents/{ad}/versions`) çevrildi. Ürün davranışı değiştirilmedi.
 | **J** · Sağlayıcı hatası sınıflandırma | `S1-020` Orta | Normalleştirilen **her** sağlayıcı hatası `RunError.Class = Unknown`'a **ve tek bir fingerprint'e** düşüyor; K-296'nın eklediği desenler bu yolda ölü kod. İki bağımsız ölçüm (OpenAI 404 · OpenRouter 402) aynı parmak izini verdi; 17 kararlı kimliğin 10'u sınıflandırıcıda tanınmıyor. **Karar gerekir:** en küçük düzeltme `StableIdentities`'e giriş eklemek, ama fingerprint sabit `SafeErrorText` mesajından üretildiği için **ayrı bir girdiye** dayanması gerekebilir | ☐ |
 | **K** · Sevk edilen metinde dil karışıklığı | `S1-012` Orta · `S1-018` Orta | Üç sevk edilen hata mesajında yarım kalmış Türkçe (`ne 'Input' ne 'Output' contains neither value`). `SourceLanguageTests` iki harfli kelimeleri bilinçli dışladığı için bunu **yapısal olarak** göremiyor. Düzeltme kapıyı da kapsar (K-228; taban **yalnız küçülür**) | ☐ |
 | **L** · Katalog ve agent kaynağı mesajları | `S1-009` Orta · `S1-013` Düşük · `S1-008` Düşük · `S1-014` Düşük | Kod kaynaklı agent'ın `versions` ucu "böyle bir agent yok" diyor — agent var; `IAgentDefinitionStore`'da yokluk her yerde yokluk sanılıyor. `Custom` kaynaklı agent'a "bu agent kodda tanımlı" deniyor, yönlendirme de yanlış. Bilinmeyen `compaction.strategy` reddediliyor ama mesaj ne reddedilen değeri ne geçerli listeyi söylüyor. Analyzer'ın `TRC0007` metni `AddScopedTool`'u anmıyor; runtime metni anıyor — pratikte görülen analyzer'ınki | ☐ |
@@ -698,7 +734,22 @@ güçlü**. Düzeltme testi zayıflatmak değildir: iddia, değişmezin kendisin
 (kayıp tur yok + düşen varsa `TraconSessionConflictException`) indirilmelidir.
 ⚠️ Değişiklik ÖNCESİ tam koşumda bu testin davranışı **ölçülmedi**; kendi
 projesinde geçtiği ve yalnız makine geneli yük altında düştüğü ölçüldü.
-Dört kırılganlığın kök nedeni birlikte aranmalı. **Ürün değil apparat** — ayrı commit'ler, hızlı kapanır. **Aile E'den bir kalem daha (2026-09-18):** üretilen `.NET` istemcisi (`TraconApiClient.g.cs`) kaynak belgesinden bir fazdır bayat — Faz 176'nın eklediği `EvaluatorVersion` alanı hiç işlenmemişti ve `ClientDescriptionBaselineTests` ile `ClientCoverageTests`'in ikisi de eksik bir DTO alanını görmüyor. Aile E'nin yeniden üretimi alanı getirdi; **kapı hâlâ yok**. **Aile G'den bir kalem daha (2026-09-18):** `TraconOptionsBindingCoverageTests` "alan eklendi ama `Bind()`'a yazılmadı" kusurunu yapısal olarak kilitler, ama yalnız `TraconOptions` **ağacını** gezer. `TraconImageOptions` gibi **kardeş** section'lar (`Tracon:Images`, `Tracon:Skills` altındakiler, sağlayıcı seçenekleri) scanner'ın kapsamı dışındadır ve `TraconImageOptions.Timeout` tam da oradan sızdı — canlı koşum yakaladı, hiçbir test yakalamadı. Scanner kardeş section'lara genişletilmeli | ☐ |
+**Beşinci ve altıncı örnek (Aile I kapanışı, 2026-09-18):**
+`ObjectToolAotPackageTests.An_object_parameter_tool_publishes_under_Native_AOT_without_a_trim_warning_and_runs`
+(tam koşumda `dotnet publish` ILCompiler'ı `Code generation failed` ile düştü —
+**trim uyarısı değil**, derleyici çöküşü) ve
+`UiTests.Approvals_screen_shows_pending_request_and_run_completes_once_approved`
+(Playwright 15 sn'lik `cancel_order` beklemesinde zaman aşımı). **İkisi de izole
+koşumda 1/1 geçti.**
+
+**Altı örneğin ortak deseni ölçüldü ve teşhisi tek cümledir:** `-maxcpucount:1`
+test **projeleri** arasında paralelliği kapatır, bir projenin İÇİNDEKİ paralel
+koşuma dokunmaz. Aynı anda gerçek bir tarayıcı, gerçek zamanlı bir ses döngüsü,
+bir Native AOT `publish` ve eşzamanlı veritabanı yazmaları koşuyor; makine
+doyduğunda önce zaman-duyarlı olanlar düşüyor. Kanıt: altısı da izole koşumda
+geçiyor ve düşenler koşumdan koşuma değişiyor (`SessionPersistenceTests` bir
+koşumda düştü, sonrakinde geçti). Kök neden bu yüzden **tek tek testlerde değil
+koşum profilinde** aranmalı — Aile T bunu tek kalem olarak ele almalı. **Ürün değil apparat** — ayrı commit'ler, hızlı kapanır. **Aile E'den bir kalem daha (2026-09-18):** üretilen `.NET` istemcisi (`TraconApiClient.g.cs`) kaynak belgesinden bir fazdır bayat — Faz 176'nın eklediği `EvaluatorVersion` alanı hiç işlenmemişti ve `ClientDescriptionBaselineTests` ile `ClientCoverageTests`'in ikisi de eksik bir DTO alanını görmüyor. Aile E'nin yeniden üretimi alanı getirdi; **kapı hâlâ yok**. **Aile G'den bir kalem daha (2026-09-18):** `TraconOptionsBindingCoverageTests` "alan eklendi ama `Bind()`'a yazılmadı" kusurunu yapısal olarak kilitler, ama yalnız `TraconOptions` **ağacını** gezer. `TraconImageOptions` gibi **kardeş** section'lar (`Tracon:Images`, `Tracon:Skills` altındakiler, sağlayıcı seçenekleri) scanner'ın kapsamı dışındadır ve `TraconImageOptions.Timeout` tam da oradan sızdı — canlı koşum yakaladı, hiçbir test yakalamadı. Scanner kardeş section'lara genişletilmeli | ☐ |
 | **U** · docs-site | `S3-002` Düşük | Açılış sayfası 1024 px'te 32 px yatay taşıyor (`.scope-rings`) — dekoratif arka plan grafiği, içerik okunabilirliğini bozmuyor | ☐ |
 | **V** · `CHANGELOG` düğümü | `S1-007` | **Kod kusuru değil, karar.** `scripts/kapi.py` hedef sürüm için `CHANGELOG.md`'de `## [<sürüm>]` bölümü arıyor; changelog ise bilinçli olarak yalnız `## [Unreleased]` taşıyor (`6cfbc2d3` sürüm bölümünü **bilerek** geri aldı). İki kural birbirini kilitliyor. `K-*` olarak çözülür ve `YAYIN-HAZIRLIK.md` Adım 5'e bağlanır. Bloklanan case'ler: `MT-PKG-104 · 105 · 115 · 116 · 117` | ☐ |
 

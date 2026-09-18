@@ -75,3 +75,31 @@
   yani sunucu tarafı düzeltme tek başına kullanıcının gördüğü kusuru kapatmazdı.
   Bir uca alan eklerken `grep -rn "<uç yolu>" src/Tracon.UI/frontend/src/` ile
   turu kapatan ekranı da ara.
+- **🚨 Bir kütüphanede İŞLENMEMİŞ istisna, tüketicinin kurulumuna bırakılmış bir
+  YANITTIR** (2026-09-18, `HATA-S1-015`). Tracon'un `DbException` için hiçbir
+  eşlemesi yoktu, yani şeması eksik ya da erişilemez bir veritabanında çağıranın
+  gördüğü şey tamamen tüketicinin `UseExceptionHandler()`/`AddProblemDetails()`
+  çağırıp çağırmamasına bağlıydı — çoğu kurulumda gövdesiz bir `500`. **Kural:**
+  bir kütüphane, kendi ucundan çıkabilecek her istisna sınıfı için yanıtı KENDİ
+  belirlemelidir; emsal `JsonBindingProblemMiddleware`'dir ve `MapTracon`'dan
+  bağlanır, yalnız `Tracon` etiketli uçlara uygulanır. K-813.
+- **🚨 Uygulamanın BİLDİĞİ bir cevabı yanıta taşımamak bir kusurdur** (aynı
+  vaka). Yazma ucu opak `500` dönerken aynı uygulama `/health`'te `503` ve
+  `/api/diagnostics`'te `pendingMigrations: 51` bildiriyordu. Teşhis "bilgi yok"
+  değil "bilgi taşınmıyor" olduğunda düzeltme ucuzdur: middleware zaten var olan
+  `ISqlPersistenceDiagnostics`'e sorar. **Ayrıca:** iki erişilemezlik nedeni
+  (bekleyen migration · bağlantı yok) istemci için farklıdır — biri operatör
+  eylemi bekler, diğeri yeniden denemeyi. Tek bir cümleye düşürmek kusurun
+  yarısını açık bırakır.
+- **🚨 Bir yanıtın gövdesini doldururken sağlayıcının mesajını OLDUĞU GİBİ
+  geçirme** (aynı vaka). `DbException.Message` her sağlayıcıda şema adını ve
+  ifadeyi taşır. Bugünkü opaklığın savunulabilir yarısı buydu ve korundu: mesaj
+  **loga** gider, yanıta gerekçenin kendi cümlesi yazılır (`502`'nin sığ
+  `detail`'iyle aynı kural). Kapı: `DatabaseNotReadyDiagnosticsTests
+  .The_answer_does_not_leak_the_schema_name_or_the_sql_text`.
+- **`GET /api/agents` bir store hatasında `503` DÖNMEZ ve bu doğrudur**
+  (2026-09-18, aynı kapanışta ölçüldü). Katalog listesi bilinçli olarak
+  hata-izolelidir: bozuk bir kaynak listeyi düşürmez, yalnız o kaynağın
+  agent'ları eksik gelir (`AgentSourceFaultIsolationTests`). Store'a doğrudan
+  bağımlı bir okumayı sınamak isteyen test `GET /api/agents/{ad}/versions`
+  kullanmalıdır — ilk yazılan test bu ayrımı bilmediği için yanlış uca bakıyordu.

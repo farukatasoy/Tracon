@@ -597,6 +597,34 @@ düşüyor. Düzeltme ortak yola konmalıdır; ayrıca bu iki durum istemci içi
 farklıdır — biri kalıcı (şema eksik), diğeri **geçici** (yeniden denenebilir).
 Bugünkü yanıt ikisini ayırt etmiyor.
 
+### ✅ KAPANDI — 2026-09-18 (Aşama 2, Aile I)
+
+**Kaydın teşhisi doğruydu ve önerisi olduğu gibi uygulandı** (K-813 👤). Ölçüldü:
+`DbException` Tracon'un boru hattından **hiç eşlenmeden** çıkıyor — yani çağıranın
+gördüğü şey ürünün kararı değil, tüketicinin `UseExceptionHandler()` kurulumunun
+sonucuydu. Test host'ta istisna istemciye kadar çıktı; gerçek bir uygulamada
+gövdesiz `500` olur.
+
+**Düzeltme.** `StoreUnavailableProblemMiddleware` `MapTracon`'dan bağlanır
+(`JsonBindingProblemMiddleware` emsali), `Tracon` etiketli **her uca** uygulanır ve
+`503` + `ProblemDetails` döner. Kaydın "bu iki durum istemci için farklıdır"
+tespiti karşılandı: middleware `ISqlPersistenceDiagnostics`'e sorar —
+`Database schema is not current` (kalıcı; yeniden deneme yardım etmez) ile
+`Persistence store unavailable` (genellikle geçici) ayrı `title` taşır.
+
+**Kaydın "sızdırılmamalı" şartı korundu.** Sağlayıcının mesajı şema adını ve ifadeyi
+taşır; **loga** gider, yanıta değil. Ayrı bir test bunu zorluyor.
+
+**Sınıf taraması kaydın kendi notunu doğruladı** ("düzeltme tek uca değil ortak
+yola konmalıdır"): kaydın ikinci ampirik örneği (`POST /api/agents/{ad}/run`) ve
+store'a doğrudan bağımlı bir okuma (`GET /api/agents/{ad}/versions`) da ayrı
+testlerle kilitlendi.
+
+🚨 **`GET /api/agents` bu eşlemeye GİRMEZ ve bu doğrudur** — katalog listesi
+bilinçli olarak hata izolelidir (`AgentSourceFaultIsolationTests`): bozuk bir
+kaynak listeyi düşürmez. İlk yazılan okuma testi bunu bilmiyordu ve yanlış uca
+bakıyordu; test düzeltildi, ürün davranışı değiştirilmedi.
+
 ## MT-PG-026 — Şema adı değiştirildiğinde bağımsız bir migration seti oluşur
 
 **Gerçek sonuç**

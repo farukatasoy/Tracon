@@ -98,3 +98,17 @@
   kurulur** (`BuildToolNameMap`, duz metinde tahsis yok). Harita eksik kalabilir;
   `ToolName` o zaman `null` ama `Source` yine `ToolResult` — karar `Source`'a
   dayanmali, ada degil.
+- **🚨 Bir sınıfın hata dallarından biri diğerlerinden SESSİZ kalıyorsa bu bir
+  asimetridir, tercih değil** (2026-09-18, `HATA-S1-023`).
+  `AesGcmContentProtector.LoadKey`'in dört çözümleme hatası `kid`'i ve
+  yapılandırma anahtarının adını söylüyordu; beşinci durum — `kid` çözülüyor,
+  değer geçerli 32 bayt, ama **yanlış anahtar** — ham
+  `AuthenticationTagMismatchException` sızdırıyordu ve o istisnanın mesajı ne
+  `kid`'i ne etkilenen kaydı söyler. Tetikleyici nadir ama sıradan: bir `kid`'in
+  materyali yenisiyle değiştirilmiş ya da eski bir yedek geri yüklenmiş.
+  **Kural:** bir sınıfın hata dallarını sayarken kütüphane/BCL'in attığı
+  istisnayı da bir dal say; o dal da sınıfın kendi diliyle konuşmalıdır. K-815.
+- **Bir kriptografi tanısı anahtarı ADIYLA söyler, DEĞERİYLE değil** (aynı
+  vaka, K-059). Mesaj `kid` ve yapılandırma anahtarının **adını** taşır; anahtar
+  materyali ve korunan değer **hiç** görünmez. Kapı:
+  `AesGcmContentProtectorTests.Unprotect_does_not_put_key_material_in_the_message`.
