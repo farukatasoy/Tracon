@@ -180,13 +180,15 @@ public sealed class SandboxedSkillScriptRunnerTests : IDisposable
 
         await runner.RunStoredScriptAsync(
             "demo",
-            new AgentSkillScriptDefinition { Name = "echo", Extension = "sh", Content = "echo hello-tracon" },
+            new AgentSkillScriptDefinition { Name = "echo-ok-span", Extension = "sh", Content = "echo hello-tracon" },
             arguments: null,
             CancellationToken.None);
 
-        var span = stopped.ShouldHaveSingleItem();
+        // The listener sees every span this ActivitySource produces, including
+        // the ones other tests in this assembly open in parallel; the script
+        // name is what picks out this run's.
+        var span = SpanFor(stopped, "echo-ok-span");
 
-        span.OperationName.ShouldBe(TraconDiagnostics.SkillScriptActivityName);
         span.GetTagItem(TraconDiagnostics.Tags.ExitCode).ShouldBe(0);
         span.GetTagItem(TraconDiagnostics.Tags.DurationMs).ShouldNotBeNull();
         span.Status.ShouldBe(ActivityStatusCode.Ok);
@@ -223,9 +225,13 @@ public sealed class SandboxedSkillScriptRunnerTests : IDisposable
         using var runner = CreateRunner(new InMemoryAuditLog());
 
         await Should.ThrowAsync<TraconException>(
-            async () => await runner.RunStoredScriptAsync("demo", EchoScript(), null, CancellationToken.None));
+            async () => await runner.RunStoredScriptAsync(
+                "demo",
+                EchoScript() with { Name = "echo-denied-span" },
+                null,
+                CancellationToken.None));
 
-        var span = stopped.ShouldHaveSingleItem();
+        var span = SpanFor(stopped, "echo-denied-span");
 
         span.Status.ShouldBe(ActivityStatusCode.Error);
         span.GetTagItem(TraconDiagnostics.Tags.ScriptDenialReason)
@@ -247,6 +253,23 @@ public sealed class SandboxedSkillScriptRunnerTests : IDisposable
             }
         }
     }
+
+    /// <summary>
+    /// The one span this test opened, out of everything the listener saw.
+    /// </summary>
+    /// <remarks>
+    /// An ActivityListener is process-wide: it receives the spans every other
+    /// test in the assembly opens on the same source while it is attached, so
+    /// a single-item assertion here fails for a reason that has nothing to do
+    /// with the behavior under test.
+    /// </remarks>
+    private static Activity SpanFor(IEnumerable<Activity> stopped, string scriptName)
+        => stopped.Single(activity =>
+            string.Equals(activity.OperationName, TraconDiagnostics.SkillScriptActivityName, StringComparison.Ordinal)
+            && string.Equals(
+                activity.GetTagItem(TraconDiagnostics.Tags.ScriptName) as string,
+                scriptName,
+                StringComparison.Ordinal));
 
     private static AgentSkillScriptDefinition EchoScript() => new()
     {
