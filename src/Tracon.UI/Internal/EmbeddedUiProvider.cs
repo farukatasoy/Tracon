@@ -30,9 +30,11 @@ internal sealed class EmbeddedUiProvider : ITraconUiProvider
     private const string RevalidateCacheControl = "no-cache";
 
     /// <summary>
-    /// The Content Security Policy sent for the shell.
+    /// The Content Security Policy sent for the shell, up to the point where
+    /// the inline scripts' hashes go.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// The UI connects only to its own origin; it fetches no external script, font,
     /// or data. <c>style-src</c> includes <c>'unsafe-inline'</c> because React
     /// components' <c>style</c> attributes count as inline styles. <c>img-src</c>
@@ -44,10 +46,27 @@ internal sealed class EmbeddedUiProvider : ITraconUiProvider
     /// <c>SpeakButton</c>) - so the source is always a <c>blob:</c> URL.
     /// <c>frame-ancestors 'none'</c> keeps the UI from being embedded in another
     /// page inside a frame - against clickjacking.
+    /// </para>
+    /// <para>
+    /// 🚨 <c>script-src</c> stays free of <c>'unsafe-inline'</c>. The shell ships
+    /// one inline script - the early theme paint - and it is allowed by the
+    /// HASH of its own text, computed from the shipped shell in
+    /// <see cref="BuildShell"/> rather than written down here. A literal hash
+    /// would be a second copy of the script that nothing keeps in step: the
+    /// script would go on being blocked the first time it changed, silently,
+    /// because the page still works without it. A nonce was the other option
+    /// and was rejected - it has to differ per response, which means rendering
+    /// the shell per request and giving up the cached, ETagged document.
+    /// </para>
     /// </remarks>
-    private const string ContentSecurityPolicy =
+    private const string ContentSecurityPolicyBeforeHashes =
         "default-src 'none'; " +
-        "script-src 'self'; " +
+        "script-src 'self'";
+
+    /// <summary>The rest of the policy, after the inline scripts' hashes.</summary>
+    /// <remarks>See <see cref="ContentSecurityPolicyBeforeHashes"/> for the whole rationale.</remarks>
+    private const string ContentSecurityPolicyAfterHashes =
+        "; " +
         "style-src 'self' 'unsafe-inline'; " +
         "img-src 'self' data: blob:; " +
         "media-src 'self' blob:; " +
@@ -116,7 +135,7 @@ internal sealed class EmbeddedUiProvider : ITraconUiProvider
     {
         var shell = _shells.GetOrAdd(basePath, BuildShell);
 
-        context.Response.Headers.ContentSecurityPolicy = ContentSecurityPolicy;
+        context.Response.Headers.ContentSecurityPolicy = shell.ContentSecurityPolicy;
         context.Response.Headers.XContentTypeOptions = "nosniff";
         context.Response.Headers["Referrer-Policy"] = "same-origin";
 
@@ -212,7 +231,54 @@ internal sealed class EmbeddedUiProvider : ITraconUiProvider
 
         var content = Encoding.UTF8.GetBytes(html);
 
-        return new ShellDocument(content, ComputeETag(content, null));
+        return new ShellDocument(
+            content,
+            ComputeETag(content, null),
+            BuildContentSecurityPolicy(html));
+    }
+
+    /// <summary>
+    /// Builds the shell's policy, allowing each inline script by the hash of
+    /// its own text.
+    /// </summary>
+    /// <param name="html">The shell as it will be sent, base path already written in.</param>
+    /// <returns>The <c>Content-Security-Policy</c> header value.</returns>
+    /// <remarks>
+    /// The hash covers exactly the characters between the opening tag's
+    /// <c>&gt;</c> and the closing <c>&lt;/script&gt;</c>, which is what a
+    /// browser hashes - every byte of it, leading newline and indentation
+    /// included. A script with a <c>src</c> is not inline and is skipped;
+    /// <c>'self'</c> already covers it.
+    /// </remarks>
+    private static string BuildContentSecurityPolicy(string html)
+    {
+        var hashes = new StringBuilder();
+        var cursor = 0;
+
+        while (html.IndexOf("<script", cursor, StringComparison.OrdinalIgnoreCase) is var open && open >= 0)
+        {
+            var openEnd = html.IndexOf('>', open);
+            var close = openEnd < 0 ? -1 : html.IndexOf("</script>", openEnd, StringComparison.OrdinalIgnoreCase);
+
+            if (close < 0)
+            {
+                break;
+            }
+
+            var tag = html.AsSpan(open, openEnd - open);
+            var body = html[(openEnd + 1)..close];
+
+            if (!tag.Contains(" src=", StringComparison.OrdinalIgnoreCase) && body.Length > 0)
+            {
+                hashes.Append(" 'sha256-")
+                      .Append(Convert.ToBase64String(SHA256.HashData(Encoding.UTF8.GetBytes(body))))
+                      .Append('\'');
+            }
+
+            cursor = close + "</script>".Length;
+        }
+
+        return ContentSecurityPolicyBeforeHashes + hashes + ContentSecurityPolicyAfterHashes;
     }
 
     private byte[] ReadStored(UiAsset asset)
@@ -327,5 +393,5 @@ internal sealed class EmbeddedUiProvider : ITraconUiProvider
         return lastSegment.Contains('.', StringComparison.Ordinal);
     }
 
-    private sealed record ShellDocument(byte[] Content, string ETag);
+    private sealed record ShellDocument(byte[] Content, string ETag, string ContentSecurityPolicy);
 }

@@ -1454,6 +1454,32 @@ testi yeşil geçiyor çünkü hiçbiri konsola bakmıyor. Bu, skill §5'in
 üretilir, ya da script kaldırılıp tema sıçraması kabul edilir. Ek olarak
 E2E setine konsol-hatası kapısı eklenmesi bu sınıfı kapatır.
 
+**✅ KAPANDI 2026-09-18 (Aile N; `HATA-S2-002` ile aynı kusur).** Üç seçenekten
+**hash** seçildi (K-824) — ama **sabit yazılmış** hash değil: `EmbeddedUiProvider`
+hash'i sevk edilen shell'in kendi metninden, shell'i kurarken hesaplıyor.
+
+Sabit hash reddedildi çünkü script'in ikinci bir kopyasıdır ve onu güncel tutan
+hiçbir şey yoktur: script ilk değiştiğinde yeniden **sessizce** engellenirdi —
+sayfa onsuz da çalıştığı için kimse fark etmezdi. Bu, kusurun bugünkü hâlinin
+birebir tekrarı olurdu. Nonce reddedildi çünkü yanıt başına değişmek zorundadır,
+yani shell'in istek başına render edilmesini ve önbelleklenmiş/ETag'li
+dokümanın kaybını gerektirir. Script'i kaldırmak reddedildi çünkü var olma
+sebebi (stil sayfasından önce doğru zemini boyamak) hâlâ geçerli.
+
+🚨 **Kaydın istediği konsol-hatası kapısı eklendi ve ikinci bir katman
+kazandı.** İki test var ve ikisi de düzeltmeden önce kırmızıydı:
+`Shell_loads_with_no_console_error` gerçek tarayıcıda konsolu dinliyor
+(ölçülen mesaj kayıttaki ile birebir, önerdiği hash dahil);
+`Shell_CSP_allows_every_inline_script_it_ships_by_hash` tarayıcısız çalışıyor ve
+**sunulan HTML'den** hash'i yeniden hesaplayıp CSP'de arıyor — yani bayatlayamaz,
+ki sabit hash'in başarısız olma biçimi tam olarak buydu.
+
+| Adım | Sonuç |
+|---|---|
+| Ampirik yeniden üretim | ☑ iki test de kırmızı; tarayıcı testi CSP ihlalini birebir kaydettiği metinle raporladı |
+| Sınıf taraması | ☑ `grep -rn "script-src" src/` → **tek** CSP tanımı (`EmbeddedUiProvider.cs:50`); `grep -rln "<script>" src/**.html` → tek sevk edilen shell. `HATA-S1-004` ve `HATA-S2-002` iki ayrı yüzey değil, **aynı** yüzeyin iki ayrı şeritte gözlenmiş hâli. Gömülü widget'ın kendi HTML'i yoktur; barındıran sayfanın CSP'si geçerlidir |
+| `script-src` | `'unsafe-inline'` **girmedi** ve test bunu ayrıca zorluyor — hash bu script'i çalıştırır, anahtar kelime gelecekteki her enjekte script'i de çalıştırırdı |
+
 ---
 
 ## MT-PKG-072 — Şablon gerçek bir model çağrısı yapar

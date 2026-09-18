@@ -1,24 +1,15 @@
 # Olcum, Kota ve Secenek Baglama Tuzaklari
 
-> Metrik/sayac yazimi, maliyet toplama, kota kapisi, `secret` gizlilik suzgeci
-> ve `Bind()` secenek baglama. Calistirma yolunun KENDISI (RunRecording zinciri,
+> Metrik/sayac yazimi, maliyet toplama, kota kapisi ve bir raporun dogruyu
+> soylemesi. `Bind()` secenek baglama ve `secret` gizlilik suzgeci Faz 174'te
+> AYRILDI: [`secenek-baglama-ve-gizlilik.md`](secenek-baglama-ve-gizlilik.md).
+> Calistirma yolunun KENDISI (RunRecording zinciri,
 > `scope`/span, olay yazimi, iptal) icin: [`cekirdek-calistirma.md`](cekirdek-calistirma.md).
 >
 > Bu dosya `MEMORY.md`'nin alan dosyasidir. Yalnizca bu alana dokunurken okunur.
 > Faz 90'da ayrildi: `cekirdek-calistirma.md` 15.999/16.000 B'ye ulasmisti (%0
 > bosluk). Olcum ekseni calistirma yolundan BAGIMSIZ buyuyor -- her gozlemlenebilirlik
 > fazi ona ekliyordu. K-214 merdiveni: gercek bolunme.
-
-## Secenek baglama
-
-- **🚨 Yapılandırma bağlamada erken dönüş sonraki bölümleri yutar** (2026-08-02): `Bind` metodu `RunRecording` yoksa `return` ediyordu; `Observability` hiç okunmadı ve `Tracon__Observability__SuccessSampleRatio=1` sessizce yok sayıldı. Her alt bölüm **kendi varlığından** sorumlu olmalı (`BindRunRecording` / `BindObservability`).
-- **🚨 Alan eklenip `Bind()`'a eklenmeyi 3× unutuldu; standalone `IOptionsMonitor<TNested>` içiçe seçenekten kopar** (2026-08-14): `RecordRunInput`(K-406)/`IncludeAgentVersionTag`/`Validation.McpTimeout`(K-253); çözüm `TraconOptionsBindingCoverageTests.cs`. `QuotaUsageObserver` de `Configure<>`siz `IOptionsMonitor<TraconObservabilityOptions>` alıyordu; `SectionName`'siz türü standalone enjekte etme.
-- **🚨 Bir seçeneğin geçerli ARALIĞI çalışma anındaki bir değişmezi kırıyorsa, o aralık YAZIYLA değil `IValidateOptions` ile korunur** (2026-09-09, K-743): Kural: **yenileme aralığı, yenilediği geçerlilik penceresinin içinde kalmalıdır**; iki sabit tek yerde durur (`SingletonGuard.MinimumRenewInterval` · `MinimumLeaseDuration`) ve bir test onları birbirine kilitler. Aynı sınıfın doğru yazılmış örneği: `RunReconciliationOptionsValidator`'ın `OrphanThreshold >= HeartbeatInterval` kontrolü. Vaka: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
-
-## Gizlilik suzgeci
-
-- **🚨 `secret` filtresinde alt dize eslemesi cogul/tekil ayrimi gozetmezse YANLIS alanlari gizler** (Faz 9, K-081): `model.maxOutputTokens` gercek bir denetim kaydinda `***` oldu ("token" fragmani "Tokens"i esledi); sentetik veri kullanan birim testleri yakalamadi. `IsSecretKey` artik "tokens" (cogul) iceren anahtarda eslesmeyi iptal eder. Vaka: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
-- **🚨 `AuditSecretFilter` alan ADINA bakar, DEGERE degil** (Faz 65): adinda `apikey`/`authorization`/`token`/`password`/`secret` gecen HER alan, icerigi zararsiz olsa da `***` olur ve teshis degeri sessizce kaybolur. Cozum alani degistirmek degil, denetim ozetinde farkli adlandirmaktir (`configKeyName`). Vaka: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 
 ## Metrik ve maliyet
 
@@ -120,6 +111,18 @@ hâle gelebileceği bir kurulum var mı diye sor. Varsa durumu bir kez söyle �
 açılışta bir `Warning` (`UnpricedModelWarningService`, Aile A'nın
 `PreservedStoreRegistrationWarningService` emsali) ve `/api/diagnostics`'te bir
 alan (Aile F'nin `runRecording` emsali). K-808.
+
+🚨 **Aynı sınıfın ikinci ölçülmüş vakası: `/health`** (2026-09-18, Aile M,
+K-822). Hiçbir şey bir model sağlayıcısını kendiliğinden problamaz —
+`ModelProviderHealthCache` yalnız `GET /api/models/health` ya da
+`Tracon:Health:BackgroundInterval` ile dolar, ve **gerçek bir sohbet çağrısı
+ona yazmaz** (ölçüldü: başarılı bir `run`'dan sonra beş sağlayıcının beşi
+`Unknown`). `TraconHealthCheck` "hiç ölçülmedi" ile "ölçüldü ve bozuk"u tek
+dala koyuyordu, yani doğru kurulmuş bir uygulama kalıcı `Degraded` raporluyordu
+ve operatör gerçek bir bozulmayı bu gürültüden ayıramıyordu. Durum artık yalnız
+**bilinen** arızayı yansıtır; ölçümün yokluğu mesajda söylenir. **Üç durumlu
+bir göstergede "bilmiyorum" ile "bozuk" ayrı dallardır** — yukarıdaki kuralın
+`null` yerine ENUM ile yazılmış hâli.
 
 **İki okuyucu tek kural uygular.** Uyarı ile rapor aynı `UnpricedModels.Find`
 metodunu çağırır. Aynı mantığın iki kopyası kaçınılmaz olarak kayar ve

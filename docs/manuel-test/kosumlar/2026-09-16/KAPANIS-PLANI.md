@@ -3,7 +3,7 @@
 > **Bu turu kapatan her oturum ÖNCE burayı okur.** Koşum bitti; bu dosya
 > kapanışın tek kontrol düzlemidir.
 >
-> **Durum:** 🟡 Aşama 2 sürüyor · **Aile A · B · C · D · E · F · G · H · I · J · K · L · M KAPANDI** · 18 açık kusur, 9 aile kaldı
+> **Durum:** 🟡 Aşama 2 sürüyor · **Aile A · B · C · D · E · F · G · H · I · J · K · L · M · N KAPANDI** · 16 açık kusur, 8 aile kaldı
 > **Son güncelleme:** 2026-09-18 (Aile J kapandı — `S1-020`; ölçüm **ikinci bir katman** buldu: parmak izi normalleştirmesi durum kodunu da siliyordu)
 
 Turdan bağımsız kapanış protokolü — aile aile oturum yordamı, "önce ampirik
@@ -176,11 +176,29 @@ Bunlar kapanış oturumlarında da geçerlidir ve bitti tanımında
 
 ## 3.6 Sıradaki iş — 2026-09-18 itibarıyla
 
-**Aile K.** Yüksek öncelik Aile H ile bitti; I ve J de kapandı. Sıra §4'ün
-ikinci tablosunda **Aile K**'dedir (`S1-012` · `S1-018` — sevk edilen üç hata
-mesajında yarım kalmış Türkçe). 🚨 Düzeltme **kapıyı da kapsar**: `SourceLanguageTests`
-iki harfli kelimeleri bilinçli dışladığı için bu sınıfı yapısal olarak göremiyor
-(K-228; taban **yalnız küçülür**).
+**Aile O.** Yüksek öncelik Aile H ile bitti; I · J · K · L · M · N de kapandı.
+Sıra §4'ün ikinci tablosunda **Aile O**'dadır (`S4-002` — `PUT /api/schedules/{ad}`
+gövdede `payload` alanı olmadan `500` veriyor). 🚨 Kaydın kendi istediği tarama:
+**aynı desendeki diğer `PUT`/`POST` uçları.** Aile L'nin ölçümü burada doğrudan
+işe yarar — `RequestBodyBinding` her gövdeyi tek yerden okur ve `AgentEndpoints`
+onun elle yazılmış bir kopyasını taşıyordu; `500` veren bir uç ya o okuyucuyu
+hiç kullanmıyordur ya da hatayı okuduktan **sonra** üretiyordur.
+
+🚨 **Aile K · L · M · N'nin ortak dersi — MEVCUT BİR TEST KUSURU KİLİTLİYOR
+OLABİLİR.** Dört ailede **beş** test düzeltmeden sonra kırmızıya döndü ve
+beşi de haklı olarak: `No_provider_checked_yet_returns_Degraded` yanlış
+davranışı **adıyla** zorluyordu, iki `JsonBindingProblemMiddlewareTests` testi
+`detail`'in CLR tip adını taşımasını bekliyordu, Aile K'nin kapısı kendi
+regresyon testinin doküman yorumunu yakaladı. Hiçbiri zayıflatılmadı; aynı şeyi
+daha güçlü kanıtlayan iddialara çevrildiler. **Bir aileye başlarken o alanın
+mevcut testlerini de oku** — yeşil bir test doğru davranışın kanıtı değildir.
+
+🚨 **Aile L'nin dersi — sevk edilen bir SÖZLEŞMEYİ ÜRETEN mekanizmaya
+dokunuyorsan, üretimi tazeleyip FARKI OKU.** `S1-008`'in ilk tasarımı derlemeyi
+ve testleri yeşil bıraktı ve yayınlanan OpenAPI belgesinden **42 enum'un `enum`
+listesini** sildi (287 satır). Bunu yalnız `TRACON_OPENAPI_REFRESH=1` + `git diff`
+gösterdi. Zincirin tamamı: OpenAPI anlık görüntüsü → `npm run generate`
+(`schema.ts`) → nswag (`TraconApiClient.g.cs`) → `npm run build` (`dist/`).
 
 🚨 **Aile F ve G'nin ortak dersi:** kayıttaki kök-neden teşhisi F'de iki kez
 yanlıştı, G'de **doğru ama yarımdı** — `S1-025`'in asıl nedeni yutulan istisna
@@ -857,7 +875,37 @@ gerekçesini yazmış olması onu kusur olmaktan çıkarmıyor.
 | Testler | 3 fonksiyonel test (1 yeniden yazıldı, 2 yeni); ikisi karşı yönü kilitliyor — proplanmış ve bozuk sağlayıcı hâlâ `Degraded`, şema hazırken süsleme hâlâ çalışıyor |
 | Tüketici yüzeyi | `docs-site/guides/observability.md` durum tablosu + sorun giderme satırı |
 
-| **N** · CSP ve inline script | `S1-004` · `S2-002` Düşük-Orta | Aynı sınıf, iki yüzey. Hem gömülü arayüzün hem gömülü konsolun `index.html`'i nonce/hash'siz bir inline `<script>` taşıyor (erken tema boyama), ama aynı yanıtın kendi CSP başlığı `script-src 'self'` gönderiyor — script **her sayfa yüklemesinde** engelleniyor. `theme.ts` sonradan doğru temayı yazdığı için işlevsel kırılma yok, erken-boyama optimizasyonu hiç çalışmıyor (olası FOUC) | ☐ |
+| **N** · CSP ve inline script | `S1-004` · `S2-002` Düşük-Orta | Sevk edilen shell'in inline `<script>`'i (erken tema boyama) kendi CSP'si tarafından her sayfa yüklemesinde engelleniyor. İşlevsel kırılma yok — bu yüzden 79 E2E testi yeşil geçiyordu | ✅ **KAPANDI 2026-09-18** |
+
+#### Aile N — ✅ kapandı (2026-09-18)
+
+**Tek yüzey, iki gözlem.** Kayıt "iki yüzey" diyordu (gömülü arayüz + gömülü
+konsol); ölçüm **bir** buldu: repoda tek bir CSP tanımı (`EmbeddedUiProvider.cs`)
+ve tek bir sevk edilen shell var. `S1-004` ile `S2-002` aynı kusurun iki ayrı
+şeritte kaydedilmiş hâli. Gömülü widget'ın kendi HTML'i yoktur — barındıran
+sayfanın CSP'si geçerlidir.
+
+👤 **Karar (K-824): hash, ama YAZILMIŞ hash değil.** `EmbeddedUiProvider` hash'i
+sevk edilen shell'in **kendi metninden**, shell'i kurarken hesaplıyor. Sabit bir
+hash script'in ikinci bir kopyasıdır ve onu güncel tutan hiçbir şey yoktur:
+script ilk değiştiğinde kusur **sessizce** geri gelirdi — sayfa onsuz da
+çalıştığı için. Nonce reddedildi (yanıt başına değişmek zorunda ⇒ istek başına
+render ⇒ önbelleklenmiş/ETag'li doküman kaybı). `'unsafe-inline'` reddedildi
+(hash yalnız bu script'i, anahtar kelime gelecekteki her script'i çalıştırır).
+
+🚨 **Kaydın teşhisi "hiçbir E2E testi konsola bakmıyor" idi ve bu, düzeltmenin
+kendisinden daha değerli çıktı.** Eklenen iki testten biri gerçek tarayıcıda
+konsolu dinliyor; ölçtüğü mesaj kayıttakiyle birebir aynı, tarayıcının önerdiği
+hash dahil. Diğeri tarayıcısızdır ve **sunulan HTML'den hash'i yeniden
+hesaplayıp** CSP'de arar — yani bayatlayamaz, ki sabit hash'in başarısız olma
+biçimi tam olarak buydu.
+
+| Adım | Sonuç |
+|---|---|
+| Ampirik yeniden üretim | ☑ iki test de düzeltmeden önce kırmızı |
+| Sınıf taraması | ☑ `grep -rn "script-src" src/` → tek tanım · sevk edilen HTML'de tek inline script; hash döngüsü yine de **her** inline script'i kapsıyor, ikincisi eklenirse kapı onu da ister |
+| Testler | 2 E2E testi; `script-src`'ın `'unsafe-inline'` kazanmadığı ayrıca zorlanıyor |
+
 | **O** · HTTP sözleşme kusurları | `S4-002` Orta | `PUT /api/schedules/{name}` gövdede `payload` alanı olmadan `500` veriyor. **Tarama:** aynı desendeki diğer `PUT`/`POST` uçları | ☐ |
 | **P** · Denetim secret filtresi | `S1-022` Düşük-Orta | `AuditSecretFilter` bazı BENİGN alan adlarını da (`ConfigurationKey` son eki, `AuthorizationMode`) gereksizce `"***"` yapıyor | ☐ |
 | **Q** · Eval ve geri bildirim arayüzü | `S3-007` Orta · `S3-008` Düşük | `FeedbackControl`, bir run'da bir `Stars` puanı da varsa "tekrar tıkla = sil" yerine yinelenen satır oluşturuyor. "Şimdi puanla" düğmesi yargıç yokken HİÇBİR mesaj göstermiyor (tip uyuşmazlığı) | ☐ |
