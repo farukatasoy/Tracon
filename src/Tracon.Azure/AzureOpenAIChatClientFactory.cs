@@ -113,7 +113,7 @@ public sealed class AzureOpenAIChatClientFactory
         ArgumentNullException.ThrowIfNull(binding);
 
         var deployment = Trim(binding.Model) ?? _defaultDeployment
-            ?? throw new TraconException(
+            ?? throw new ProviderSettingsValidationException(
                 "The deployment name is empty and no default deployment is defined. In Azure OpenAI, " +
                 $"the {nameof(ModelBinding)}.{nameof(ModelBinding.Model)} field is not a MODEL name — " +
                 "it expects a DEPLOYMENT name defined in your Azure resource. Fill in the field or " +

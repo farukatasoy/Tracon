@@ -57,7 +57,7 @@ internal static class GoogleSafetySettings
             }
         }
 
-        throw new TraconException(
+        throw new ProviderSettingsValidationException(
             $"'{setting}' has an unrecognized value: '{value}'. Valid values: " +
             $"{string.Join(", ", HarmBlockThreshold.AllValues.Select(static candidate => candidate.Value))}.");
     }

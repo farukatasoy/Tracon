@@ -108,7 +108,7 @@ public sealed class AnthropicChatClientFactory
         ArgumentNullException.ThrowIfNull(binding);
 
         var model = Trim(binding.Model) ?? _defaultModel
-            ?? throw new TraconException(
+            ?? throw new ProviderSettingsValidationException(
                 $"Model name is empty and no default model is defined. Fill in the " +
                 $"{nameof(ModelBinding)}.{nameof(ModelBinding.Model)} field in the agent definition, or set " +
                 $"'{AnthropicProviderOptions.SectionName}:{nameof(AnthropicProviderOptions.DefaultModel)}'.");
@@ -130,7 +130,7 @@ public sealed class AnthropicChatClientFactory
 
         if (thinkingBudget is { } budget && budget <= 0)
         {
-            throw new TraconException(
+            throw new ProviderSettingsValidationException(
                 $"'{AnthropicProviderNames.ThinkingBudgetTokensSetting}' must be greater than zero. " +
                 $"Actual value: {budget}.");
         }

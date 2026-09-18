@@ -23,4 +23,24 @@
     <InternalsVisibleTo Include="Tracon.Workflows" />
   </ItemGroup>
 
+  <!--
+    The four shipped provider adapters THROW the same marker. Their factories
+    validate configuration by hand (an empty model name, a thinking budget out
+    of range, an unrecognized safety threshold), and ProviderFailureNormalizer
+    masks everything a factory raises EXCEPT this marker - it cannot otherwise
+    tell Tracon's own validation apart from a raw SDK failure, which is what
+    the masking exists for.
+
+    The marker stays internal rather than becoming public API: its whole value
+    is that it cannot be forged, and only first-party adapters are on this
+    list. A third-party adapter reaches the same outcome through
+    ModelProviderSettings.Validate, which raises it on their behalf.
+  -->
+  <ItemGroup Label="Internal visibility - shipped provider adapters">
+    <InternalsVisibleTo Include="Tracon.Anthropic" />
+    <InternalsVisibleTo Include="Tracon.Azure" />
+    <InternalsVisibleTo Include="Tracon.Google" />
+    <InternalsVisibleTo Include="Tracon.OpenAI" />
+  </ItemGroup>
+
 </Project>

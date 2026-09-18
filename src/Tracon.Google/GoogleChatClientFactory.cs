@@ -78,7 +78,7 @@ public sealed class GoogleChatClientFactory : IDisposable
         ArgumentNullException.ThrowIfNull(binding);
 
         var model = Trim(binding.Model) ?? _defaultModel
-            ?? throw new TraconException(
+            ?? throw new ProviderSettingsValidationException(
                 $"Model name is empty and no default model is defined. Fill in the " +
                 $"{nameof(ModelBinding)}.{nameof(ModelBinding.Model)} field in the agent definition, or set " +
                 $"'{GoogleProviderOptions.SectionName}:{nameof(GoogleProviderOptions.DefaultModel)}'.");
@@ -105,7 +105,7 @@ public sealed class GoogleChatClientFactory : IDisposable
         // time by the request, so it is caught at compile time instead.
         if (thinkingBudget is { } budget && budget is < -1 or > 65535)
         {
-            throw new TraconException(
+            throw new ProviderSettingsValidationException(
                 $"'{GoogleProviderNames.ThinkingBudgetTokensSetting}' must be in the [-1, 65535] range " +
                 $"(-1 leaves it to the model, 0 turns thinking off). Actual value: {budget}.");
         }
