@@ -34,6 +34,27 @@ public abstract class EvalStoreContract : TenantIsolationContract<IEvalStore>
         saved.UpdatedAt.ShouldNotBe(default);
     }
 
+    /// <summary>
+    /// A suite saved with no checks round-trips through every provider.
+    /// </summary>
+    /// <remarks>
+    /// The eval side of the same class as the schedule payload: the unset
+    /// value used to reach the column as the literal <c>null</c>, which SQL
+    /// Server's <c>CHECK (ISJSON(checks) = 1)</c> rejects.
+    /// </remarks>
+    [Fact]
+    public async Task SaveSuiteAsync_round_trips_a_suite_that_carries_no_checks()
+    {
+        var saved = await Store.SaveSuiteAsync(TestData.EvalSuite() with { Checks = default });
+
+        saved.Checks.ValueKind.ShouldBe(System.Text.Json.JsonValueKind.Array);
+        saved.Checks.GetArrayLength().ShouldBe(0);
+
+        var fetched = await Store.GetSuiteAsync("default", saved.Name);
+        fetched!.Checks.ValueKind.ShouldBe(System.Text.Json.JsonValueKind.Array);
+        fetched.Checks.GetArrayLength().ShouldBe(0);
+    }
+
     [Fact]
     public async Task SaveSuiteAsync_keeps_the_id_for_the_same_name_and_updates()
     {

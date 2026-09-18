@@ -185,8 +185,15 @@ internal sealed class SqlJobScheduleStore : IJobScheduleStore
         return document.RootElement.Clone();
     }
 
+    /// <remarks>
+    /// An unset value is written as the empty JSON ARRAY, not as the literal
+    /// <c>null</c>: every column this helper feeds carries SQL Server's
+    /// <c>CHECK (ISJSON(...) = 1)</c>, and <c>ISJSON(N'null')</c> is <c>0</c>.
+    /// The records normalize on the way in (<c>FreeFormJson</c>), so this is
+    /// the second line of the same rule, not the first.
+    /// </remarks>
     private static string RawJson(JsonElement payload)
-        => payload.ValueKind == JsonValueKind.Undefined ? "null" : payload.GetRawText();
+        => payload.ValueKind == JsonValueKind.Undefined ? "[]" : payload.GetRawText();
 
     private void AddNullableText(DbCommand command, string name, string? value)
         => Dialect.AddText(command, name, value);

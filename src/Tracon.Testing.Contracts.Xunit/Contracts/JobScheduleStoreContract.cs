@@ -43,6 +43,29 @@ public abstract class JobScheduleStoreContract : TenantIsolationContract<IJobSch
         fetched!.TargetName.ShouldBe("new-target");
     }
 
+    /// <summary>
+    /// A schedule saved with no payload round-trips through every provider.
+    /// </summary>
+    /// <remarks>
+    /// An unset payload used to be written as the literal
+    /// <c>null</c>, which SQL Server's <c>CHECK (ISJSON(payload) = 1)</c>
+    /// rejects, while Postgres and SQLite accepted it - a provider divergence
+    /// no in-memory test could see. The empty array satisfies all three, and
+    /// the read-back has to agree with what was written.
+    /// </remarks>
+    [Fact]
+    public async Task SaveAsync_round_trips_a_schedule_that_carries_no_payload()
+    {
+        var saved = await Store.SaveAsync(TestData.Schedule() with { Payload = default });
+
+        saved.Payload.ValueKind.ShouldBe(System.Text.Json.JsonValueKind.Array);
+        JobPayload.ExtractItems(saved.Payload).ShouldBeEmpty();
+
+        var fetched = await Store.GetAsync("default", "night-report");
+        fetched!.Payload.ValueKind.ShouldBe(System.Text.Json.JsonValueKind.Array);
+        JobPayload.ExtractItems(fetched.Payload).ShouldBeEmpty();
+    }
+
     [Fact]
     public async Task GetAsync_returns_null_for_another_tenant()
     {

@@ -44,7 +44,15 @@ public sealed record JobRecord
     public required JobStatus Status { get; init; }
 
     /// <summary>The input set or parameters.</summary>
-    public JsonElement Payload { get; init; }
+    /// <remarks>
+    /// An unset payload is stored as the empty JSON array, never as
+    /// <see cref="JsonValueKind.Undefined"/> - see <see cref="FreeFormJson"/>.
+    /// </remarks>
+    public JsonElement Payload
+    {
+        get;
+        init => field = FreeFormJson.OrEmpty(value);
+    }
 
     /// <summary>The total number of items.</summary>
     public int TotalItems { get; init; }

@@ -31,7 +31,15 @@ public sealed record EvalSuite
     /// <summary>
     /// The check definitions. Example: <c>[{"kind":"nonEmpty","minLength":10}]</c>.
     /// </summary>
-    public JsonElement Checks { get; init; }
+    /// <remarks>
+    /// An unset value is stored as the empty JSON array, never as
+    /// <see cref="JsonValueKind.Undefined"/> - see <see cref="FreeFormJson"/>.
+    /// </remarks>
+    public JsonElement Checks
+    {
+        get;
+        init => field = FreeFormJson.OrEmpty(value);
+    }
 
     /// <summary>The creation time (UTC).</summary>
     public DateTimeOffset CreatedAt { get; init; }

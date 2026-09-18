@@ -241,6 +241,77 @@ public sealed class SchedulingEndpointTests
         save.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
     }
 
+    [Fact]
+    public async Task A_schedule_body_without_payload_is_accepted_and_reads_back_as_an_empty_array()
+    {
+        await using var host = await TraconTestHost.StartAsync();
+
+        using var created = await host.Client.PutAsync(
+            new Uri("/tracon/api/schedules/payloadsiz", UriKind.Relative),
+            JsonBody("""
+                {"handlerKey":"tracon.agent-batch","targetName":"ozetleyici","cron":"0 3 * * *","enabled":true}
+                """));
+
+        created.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await TraconTestHost.ReadJsonAsync(created)).GetProperty("payload").GetArrayLength()
+            .ShouldBe(0);
+
+        using var read = await host.Client.GetAsync(
+            new Uri("/tracon/api/schedules/payloadsiz", UriKind.Relative));
+        (await TraconTestHost.ReadJsonAsync(read)).GetProperty("payload").GetArrayLength()
+            .ShouldBe(0);
+    }
+
+    /// <summary>
+    /// A schedule saved with no payload produces no job items - the literal
+    /// <c>null</c> the store writes is "no payload", not one item of text
+    /// <c>"null"</c>.
+    /// </summary>
+    [Fact]
+    public async Task A_schedule_without_a_payload_triggers_a_job_with_no_items()
+    {
+        await using var host = await TraconTestHost.StartAsync();
+
+        using (var created = await host.Client.PutAsync(
+                   new Uri("/tracon/api/schedules/payloadsiz-tetik", UriKind.Relative),
+                   JsonBody("""
+                       {"handlerKey":"tracon.agent-batch","targetName":"ozetleyici","enabled":true}
+                       """)))
+        {
+            created.StatusCode.ShouldBe(HttpStatusCode.OK);
+        }
+
+        using var triggered = await host.Client.PostAsync(
+            new Uri("/tracon/api/schedules/payloadsiz-tetik/trigger", UriKind.Relative),
+            content: null);
+
+        triggered.StatusCode.ShouldBe(HttpStatusCode.OK);
+        var job = await TraconTestHost.ReadJsonAsync(triggered);
+        job.GetProperty("totalItems").GetInt32().ShouldBe(0);
+        job.GetProperty("payload").GetArrayLength().ShouldBe(0);
+    }
+
+    /// <summary>
+    /// The same defect on the eval surface: <c>checks</c> is optional and the
+    /// saved suite is echoed back.
+    /// </summary>
+    [Fact]
+    public async Task An_eval_suite_body_without_checks_is_accepted_and_reads_back_as_an_empty_array()
+    {
+        await using var host = await TraconTestHost.StartAsync();
+
+        using var created = await host.Client.PutAsync(
+            new Uri("/tracon/api/evals/checksiz", UriKind.Relative),
+            JsonBody("""{"agentName":"ozetleyici"}"""));
+
+        created.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await TraconTestHost.ReadJsonAsync(created)).GetProperty("checks").GetArrayLength()
+            .ShouldBe(0);
+    }
+
+    private static StringContent JsonBody(string json)
+        => new(json, System.Text.Encoding.UTF8, "application/json");
+
     private static JobScheduleSaveRequest Request()
         => new()
         {
