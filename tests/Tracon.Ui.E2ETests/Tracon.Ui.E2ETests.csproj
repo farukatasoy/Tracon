@@ -19,4 +19,18 @@
     <ProjectReference Include="../../src/Tracon.Testing/Tracon.Testing.csproj" />
   </ItemGroup>
 
+  <!--
+    🚨 The run profile, not a single flaky test. Six timing failures across four
+    projects were measured in full-solution runs and every one of them passed
+    in isolation: a live voice loop that missed a 60-second window, a Playwright
+    click that timed out, a Native AOT publish whose compiler crashed, and
+    concurrent database writers. `-maxcpucount:1` serializes the test PROJECTS
+    (measured: one test process at a time) but says nothing about the threads
+    INSIDE one, and xunit defaults to one per processor. This caps them, so a
+    project cannot saturate the machine on its own.
+  -->
+  <ItemGroup>
+    <Content Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>
