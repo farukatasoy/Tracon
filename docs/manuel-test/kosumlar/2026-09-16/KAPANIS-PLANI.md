@@ -149,6 +149,32 @@ altısı da geçti (`dotnet test tests/Tracon.Package.Tests -c Release --no-buil
 `HATA-S1-001`/`002` ile aynı sınıf ve **Aile T**'ye üçüncü örnek olarak
 yazıldı. Taban çizgisi bu yüzden **yeşil sayılır**.
 
+### 3.7 Sekiz kapının tam ölçümü — 2026-09-19 (Aile K · L · M · N sonrası)
+
+Dördü de kapandıktan sonra sekiz kapı **temiz ağaçta** baştan koşuldu:
+
+| Kapı | Sonuç |
+|---|---|
+| `unittest discover -s scripts` | ✅ 339 test |
+| `build-agent-map.mjs --check` | ✅ (`llms-full.txt` tazelendi) |
+| `denetim-paketi.py --taban 7e3a4de7` | ✅ çıkış 0 |
+| `dotnet build -c Release` | ✅ sıfır uyarı |
+| `dotnet test -c Release -maxcpucount:1` | ✅ **çıkış 0 · 22 proje · 7813 test · 0 düşen** (TRX ile ikinci kez doğrulandı) |
+| `dotnet pack --no-build` | ✅ çıkış 0 |
+| `dotnet format --verify-no-changes` | ✅ |
+| `docs-site && npm run check` | ✅ 1152 sayfa · 0 kırık bağlantı · 0 SEO hatası |
+
+🚨 **2026-09-18 taban çizgisinin kırılgan testi bu koşumda DÜŞMEDİ.**
+`PackCleanlinessGateTests.DirtyWorkingTreeStopsPackWithTracon0004` tam çözüm
+koşumunda geçti. Kırılganlık kapanmış sayılmaz — Aile T'nin kaydı duruyor —
+ama bu koşum onu üretmedi.
+
+🚨 **İlk tam koşum GEÇERSİZDİ ve sebebi kaydedilmeye değer.** Koşum arka
+plandayken kaynak dosyalar düzenlendi ve ağaç kirliydi; `ReleaseArtifactTests`'in
+kendi içinde koştuğu `dotnet pack` altı testi birden düşürdü. **Tam koşum
+başladıktan sonra çalışma ağacına dokunulmaz** — `dotnet pack` kirli ağacı
+`TRACON0004` ile reddeder ve bu, test kodunun içinden gelen bir hata gibi görünür.
+
 ---
 
 ### 3.4 Turun bıraktığı ortam kuralları
@@ -239,6 +265,9 @@ SAYIM
 🚨 **TRX klasörü ESKİ koşumları da biriktirir.** `artifacts/bin/*/release/TestResults/`
 temizlenmezse bir önceki koşumun raporu yenisiyle karışır ve kapanmış bir kusur
 hâlâ açık sanılır. Tam koşumdan önce `rm -rf artifacts/bin/*/release/TestResults`.
+
+**Taban çizgisi 2026-09-19 itibarıyla §3.7'dedir** — sekiz kapının sekizi de
+temiz ağaçta yeşil ölçüldü.
 
 **Oturum açılışında koş** (taban çizgisinin hâlâ yeşil olduğunu doğrula):
 
