@@ -30,6 +30,30 @@ public static class AuditSecretFilter
         "secret",
     ];
 
+    /// <summary>
+    /// Name endings that mean "this field does not hold the value" even though
+    /// the name carries one of the fragments above.
+    /// </summary>
+    /// <remarks>
+    /// Each entry is measured, not assumed - the same standard the singular
+    /// "token" exception was held to. A configuration-key reference holds the
+    /// NAME of a configuration entry and never its value, which is the rule
+    /// the whole code base follows for secrets, so redacting it removes the
+    /// only useful thing in the record; five shipped properties
+    /// have this shape (AuthorizationConfigurationKey,
+    /// OAuthClientSecretConfigurationKey, SecretConfigurationKey,
+    /// ApiKeyConfigurationName, SigningSecretConfigurationName). A name ending
+    /// in "mode" classifies a flow: an MCP server record redacted
+    /// "oauthAuthorizationMode":"AuthorizationCode" and a reader could no
+    /// longer tell which OAuth flow the server used.
+    /// </remarks>
+    private static readonly string[] NonValueKeySuffixes =
+    [
+        "configurationkey",
+        "configurationname",
+        "mode",
+    ];
+
     /// <summary>Redacts secret fields in the supplied JSON text.</summary>
     /// <param name="json">The raw JSON text. Returns it unchanged when <see langword="null"/>.</param>
     /// <returns>The redacted JSON text.</returns>
@@ -77,7 +101,7 @@ public static class AuditSecretFilter
                 {
                     writer.WritePropertyName(property.Name);
 
-                    if (IsSecretKey(property.Name))
+                    if (IsSecretKey(property.Name) && CanHoldSecret(property.Value))
                     {
                         writer.WriteStringValue("***");
                     }
@@ -107,6 +131,20 @@ public static class AuditSecretFilter
         }
     }
 
+    /// <summary>
+    /// Whether a value of this kind could carry a secret at all.
+    /// </summary>
+    /// <remarks>
+    /// A null, a true or a false holds nothing to protect, and replacing it
+    /// with "***" tells a reader that a secret is present where none is - the
+    /// measured complaint was an audit record whose
+    /// "authorizationConfigurationKey":null read back as "***". A number stays
+    /// in scope on purpose: a one-time code is a number, and a name-based
+    /// filter cannot tell one from a counter.
+    /// </remarks>
+    private static bool CanHoldSecret(JsonElement value)
+        => value.ValueKind is not (JsonValueKind.Null or JsonValueKind.True or JsonValueKind.False);
+
     private static bool IsSecretKey(string propertyName)
     {
         // 🚨 Separators are stripped before matching. The fragments are written
@@ -117,6 +155,14 @@ public static class AuditSecretFilter
         // use them), and free-form surfaces such as MCP server headers, agent
         // metadata and skill script arguments carry caller-chosen key names.
         var normalized = Normalize(propertyName);
+
+        foreach (var suffix in NonValueKeySuffixes)
+        {
+            if (normalized.EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+        }
 
         foreach (var fragment in SecretKeyFragments)
         {
