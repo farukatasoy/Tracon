@@ -404,17 +404,23 @@ It reads the cached model-provider health view:
 
 | State | Meaning |
 |---|---|
-| `Healthy` | Storage is reachable, migrations are current, and at least one provider is confirmed healthy |
-| `Degraded` | Storage works, but a provider circuit is open, more than one persistence provider is registered, or no provider is confirmed healthy |
+| `Healthy` | Storage is reachable, migrations are current, and no provider is known to be broken |
+| `Degraded` | Storage works, but a provider circuit is open, more than one persistence provider is registered, no provider is registered at all, or every provider that was probed came back unhealthy |
 | `Unhealthy` | Storage is unreachable or migrations are pending |
+
+A provider that has not been probed yet is not a degradation, and the description
+says so: `Healthy. No model provider has been probed yet`. The status reflects only
+what is known to be wrong, so a correct installation reads green from its first
+request and a real outage stands out against it.
 
 Provider probes call the provider's model-list health surface, not a completion. A
 provider that has no health implementation reports `Unknown`. Read the cache with
 `GET /api/models/health`; add `?refresh=true` to request a fresh probe.
 
 Health results are cached for 60 seconds by default. No background refresh timer runs
-unless `Tracon:Health:BackgroundInterval` is set. A deployment can therefore be
-degraded until the first provider refresh fills the cache.
+unless `Tracon:Health:BackgroundInterval` is set. Nothing else fills the cache — a
+completion through the provider does not — so without one of those two the readiness
+description keeps saying that nothing has been probed.
 
 ## Enable setup diagnostics deliberately
 
@@ -463,7 +469,7 @@ operational information.
 | The run succeeded but events stopped | Inspect the first run-store write error; Tracon disables later event writes for that run so execution can continue |
 | A reasoning model's thinking never appears in recorded events | Set `RunRecording.RecordReasoningDeltas = true`; the live stream shows it either way, only recording is gated |
 | A registered `IRunEventSink` stops receiving events partway through a run | Check the warning log for that sink's exception; it is disabled for the rest of that run only, other sinks and the store are unaffected |
-| Readiness starts as `Degraded` | Refresh `/api/models/health?refresh=true` or configure a background health interval |
+| Readiness says no provider has been probed | Nothing probes on its own: call `/api/models/health?refresh=true` or set `Tracon:Health:BackgroundInterval` |
 | Health is `Unhealthy` after deployment | Check database reachability and pending migrations before investigating providers |
 | Quota gauges never appear | Enable `Observability.EnableQuotaUsageGauge` and confirm the meter is collected |
 

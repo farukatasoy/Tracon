@@ -149,6 +149,38 @@ public sealed class A2AEndpointTests
     }
 
     [Fact]
+    public async Task MapTraconA2A_logs_no_error_on_an_empty_sqlite_database()
+    {
+        // Not crashing was only half of it. The catch above swallows the
+        // exception one layer too late: CompositeAgentCatalog.ListAsync has
+        // already logged it at Error level, with a provider stack trace, by the
+        // time it returns. So a correct, expected, handled path printed
+        // "Agent source 'database' failed during list" on the 7th line of EVERY
+        // first startup against an empty schema — before the migration runner
+        // has created the schema — and that is a consumer's first impression of
+        // this library.
+        using var database = new TempSqliteDatabase("a2a-empty-db-quiet");
+
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: builder => builder
+                .UseSqlite(database.ConnectionString)
+                .AddAgent(TestData.Definition())
+                .UseA2A(o => o.ExposedAgents.Add("kod-agent")),
+            configureAfterMap: app => app.MapTraconA2A());
+
+        host.Logs.Entries
+            .Where(static entry => entry.StartsWith("Error", StringComparison.Ordinal))
+            .ShouldBeEmpty();
+
+        // The decoration still has to work once the schema IS ready, which is
+        // the whole reason the read exists.
+        using var response = await host.Client.GetAsync(
+            new Uri("/tracon/a2a/kod-agent/.well-known/agent-card.json", UriKind.Relative));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact]
     public async Task The_call_is_written_to_the_audit_log()
     {
         await using var host = await TraconTestHost.StartAsync(

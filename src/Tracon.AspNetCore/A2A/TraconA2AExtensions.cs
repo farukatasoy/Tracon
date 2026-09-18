@@ -87,16 +87,36 @@ public static class TraconA2AExtensions
         // there is no SECURITY check, falling back to agentName on failure is
         // SAFE. A broad catch is DELIBERATE because the type/message of the
         // "no such table" error differs across providers.
+        //
+        // 🚨 The catch is not enough on its own, and the gate below is why.
+        // Swallowing the exception here happens one layer too late:
+        // `CompositeAgentCatalog.ListAsync` has ALREADY logged it at Error
+        // level with a full stack trace by the time it returns. So a correct,
+        // expected, handled path printed "Agent source 'database' failed
+        // during list" with a provider stack trace on the 7th line of EVERY
+        // first startup against an empty schema — before the migration runner
+        // has even created the schema — and that is a consumer's first
+        // impression of this library. Asking the gate first means the question
+        // is never put to the store while the answer can only be an error.
+        // The gate opens on its own when no SQL provider is registered, so an
+        // in-memory installation still gets its decorated card.
         Dictionary<string, AgentDescriptor> descriptorsByName;
 
-        try
-        {
-            var descriptors = catalog.ListAsync().AsTask().GetAwaiter().GetResult();
-            descriptorsByName = descriptors.ToDictionary(static d => d.Name, StringComparer.Ordinal);
-        }
-        catch (Exception)
+        if (!services.GetRequiredService<SchemaReadyGate>().IsReady)
         {
             descriptorsByName = new Dictionary<string, AgentDescriptor>(StringComparer.Ordinal);
+        }
+        else
+        {
+            try
+            {
+                var descriptors = catalog.ListAsync().AsTask().GetAwaiter().GetResult();
+                descriptorsByName = descriptors.ToDictionary(static d => d.Name, StringComparer.Ordinal);
+            }
+            catch (Exception)
+            {
+                descriptorsByName = new Dictionary<string, AgentDescriptor>(StringComparer.Ordinal);
+            }
         }
 
         var approvalGuardFilter = new A2AApprovalGuardFilter(
