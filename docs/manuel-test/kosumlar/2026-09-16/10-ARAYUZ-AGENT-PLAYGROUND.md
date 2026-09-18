@@ -159,6 +159,24 @@ kayıp değil, yalnız bu listeleme ekranında eksik.
 
 ---
 
+**Gerçek sonuç — kapanış yeniden koşumu (2026-09-19, gerçek tarayıcı)**
+`HATA-S1-027` kapandı. `/tracon/agents` açıldı, tool sayısı hücresi ölçüldü:
+
+```
+{ text: "2", describedBy: "_r_4_",
+  names: "get_order_status, list_recent_orders",
+  underline: "underline", tabIndex: 0 }
+```
+
+Üzerine gelindiğinde balon **görünür** oldu ve aynı listeyi taşıdı
+(`visible: true`, `sr-only` değil). `title` DEĞİL: hücre `aria-describedby`
+ile listeye bağlı, odaklanabilir ve noktalı alt çizgiyle işaretli — ekranın
+kendi `Th` deseni. Koşumda hücre yalnız sayıyı taşıyordu.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ## MT-UIAG-002 — "Yeni Agent" düğmesi yalnız `canAdminister` rolünde görünür
 
 **Gerçek sonuç — spec'in kendi fallback'i uygulandı, ⏭ ATLA.**
@@ -646,6 +664,27 @@ etkilenmiyor. Muhtemelen bir yeniden adlandırma sırasında (`tracon-` →
 `ap-` önek geçişi ya da tersi) bileşen güncellenmemiş.
 
 **Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+
+---
+
+**Gerçek sonuç — kapanış yeniden koşumu (2026-09-19, gerçek tarayıcı)**
+`HATA-S1-028` kapandı. Sunulan konsolda bileşenin uyguladığı sınıf adıyla
+(`tracon-stream-caret`) bir eleman oluşturulup `::after` hesaplanan stili
+okundu:
+
+```
+{ content: "\"\"", width: "8px",
+  background: "rgb(115, 217, 194)", animation: "tracon-blink" }
+```
+
+Koşumda aynı ölçüm `content: "none"` veriyordu, çünkü bileşen
+`ap-stream-caret` uyguluyordu ve o ada karşılık gelen kural yoktu. 🚨 Ölçüm
+akışlı bir turla değil sunulan stil sayfasıyla yapıldı; bileşenin **hangi
+sınıfı uyguladığı** ayrı bir kapıyla kilitli
+(`scripts/check-custom-classes.mjs`, iki yönlü) ve o kapı düzeltme öncesi
+kırmızı olduğu ölçülerek doğrulandı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 

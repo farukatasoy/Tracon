@@ -1592,6 +1592,30 @@ tüketici `payload`'ı atlarsa (JSON'da opsiyonel bir alan olduğu için makul
 bir varsayım) aynı 500'e düşer.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☑ Kaldı · ☐ Atlandı (kısmi — 1., 2., 3.
+
+---
+
+**Gerçek sonuç — kapanış yeniden koşumu (2026-09-19, canlı sunucu)**
+`HATA-S4-002` kapandı. Aynı istek, aynı uç, PostgreSQL destekli canlı örnek
+(`127.0.0.1:5199`, `samples/Tracon.Api`, gerçek `Tracon:Ui:AuthToken`):
+
+```
+PUT /tracon/api/schedules/payloadsiz-kapanis
+{"handlerKey":"tracon.workflow","targetName":"t","cron":"*/5 * * * *","enabled":true}
+-> HTTP 200   "payload":[]
+GET /tracon/api/schedules/payloadsiz-kapanis
+-> HTTP 200   "payload":[]
+```
+
+`500` yok; yazılan ile geri okunan aynı. Ölçümün kaydı üç katman buldu ve
+üçü de kapandı: yanıtın serileştirilmesi, **SQL Server'ın `CHECK (ISJSON(...))`
+kısıtı** (`null` literali reddediliyordu — `job_schedules_payload_json` ihlali
+birebir ölçüldü) ve `JobPayload.ExtractItems`'in JSON `null`'ı **tek bir
+`"null"` kalemi** sanması. Sınıf taraması beş özelliğe genişledi. Kapı:
+`FreeFormJsonContractTests` (her özelliğin kendi `init`'ini çağırır) +
+üç sağlayıcıda koşan iki `store` sözleşme testi. Zamanlama silindi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 adımlar Geçti; 2. adımın `payload`sız hâli `HATA-S4-002`'yi açtı; 4. adım
 kaynaktan doğrulandı, canlı ölçülmedi)
 

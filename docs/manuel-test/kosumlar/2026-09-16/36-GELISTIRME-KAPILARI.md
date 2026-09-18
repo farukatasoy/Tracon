@@ -362,6 +362,27 @@ taşıyor. Düzeltme yalnız kapanış modunda yapılabilir (kural 1); bu koşum
 
 **Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
+---
+
+**Gerçek sonuç — kapanış ölçümü (2026-09-19)**
+🚨 **`HATA-S2-001` bir ürün kusuru DEĞİLDİ; case'in beklenen sonucu koda
+aykırıydı ve düzeltildi.** Beklenti "`AGENTS.md` ham `kapi.py kapanis`
+komutunu tekrarlamaz" diyordu. Satır kaldırıldı ve ölçüldü:
+
+```
+python3 scripts/dokuman-bakim.py --denetle
+  Tekrarlanan kapı tanımları: ❌ 1 bulgu
+    AGENTS.md kapanış kapısını kapi.py'ye devretmiyor
+```
+
+`dokuman-bakim.py` `tekrarlanan_kapi_tanimlari()` o satırın **varlığını**
+devir teslimin kanıtı sayar (`scripts/dokuman-bakim.py:1247`). Faz 92'nin
+yasakladığı kopya **dört ham `dotnet` komutudur** ve `AGENTS.md` onları
+taşımıyor. Satır geri konuldu, `AGENTS.md` neden orada olduğunu artık kendi
+metninde söylüyor, spec düzeltildi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
 ## MT-GDK-013 — Damıtılmış Faz 73 kaydının tam metin göstergesi hâlâ çözülüyor
 
 **Gerçek sonuç**
