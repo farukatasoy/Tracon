@@ -9,7 +9,7 @@
 > ([`kesif/`](kesif/)) · plana dönüşmüş kalemlerin gövdelerini
 > ([`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md)).
 
-**Durum (2026-09-15):** **0 sıralanabilir aday** · 14 bekleyen kalem (10 tek satırlık + 4 gövdeli).
+**Durum (2026-09-18):** **0 sıralanabilir aday** · 16 bekleyen kalem (12 tek satırlık + 4 gövdeli).
 Son plana dönüşen: **F-239 · F-224 · F-218 · F-213 · F-232 →
 [Faz 174](arsiv/fazlar/174-KAPASITE-DAMGASI-KAPISI.md) · [175](arsiv/fazlar/175-GERI-ALINAMAZ-KARAR-DOGRULAMASI.md) ·
 [176](arsiv/fazlar/176-EVALUATOR-SURUM-DAMGASI.md) · [177](arsiv/fazlar/177-STORE-IPTAL-SOZLESMESI.md) ·
@@ -102,6 +102,7 @@ dönüşebilmeleri için duruyor. Bir kalemi buradan çıkarmanın tek yolu
 | **F-242** · `ResolveVersion`'ın `catch` dalı kanıtlanmadı | Sürüm çözümünde attribute okuması **hata verirse** alan `null` kalır ve skor yine yazılır (K-790). Bugün yalnız "attribute yok" yolu testle kanıtlı; `catch` dalını koşturmak `GetCustomAttribute`'u attıran düşmanca bir tip ister ve kazanç maliyeti karşılamıyor | Assembly attribute okumasının gerçekten attığı bir kurulum (kısıtlı host, bozuk assembly) raporlanırsa ([Faz 176](arsiv/fazlar/176-EVALUATOR-SURUM-DAMGASI.md) denetim bulgusu 🟢 2) |
 | **F-243** · Analitik store yüzeyleri metot bazında iptal kapsamını kaybetti | [Faz 177](arsiv/fazlar/177-STORE-IPTAL-SOZLESMESI.md) iki emsal case'i ortak tabana taşırken `IEvalStore.DiffRunsAsync` ve `IRunScoreStore.SummarizeAsync` **metot bazında** kapsamdan çıktı: yeni hook'lar `ListSuitesAsync`/`ListAsync`'i hedefliyor. §177.1'in "store başına bir okuma + bir yazma" sınırı bilinçlidir ve vaadi kanıtlamaya yeter — ama iptali en pahalı olan yüzeyler bu toplayıcı sorgulardır (store'un İÇİNDE hesaplanırlar, K-483 sınıfı). Aynı kalem `IRunStore.GetStatisticsAsync` ve `GetTimeSeriesAsync` için de geçerli | Bir toplayıcı sorgunun iptal edilmemesi gerçek bir kaynak tüketimi raporlarsa, ya da sözleşme "store başına bir okuma" sınırını gevşetmeye karar verirse ([Faz 177](arsiv/fazlar/177-STORE-IPTAL-SOZLESMESI.md) denetim bulgusu 🟢 6) |
 | **F-245** · Sessiz bir `run` ile ölü bir bağlantı ekranda AYNI görünüyor | 🚨 **`HATA-S3-005`'in ASIL bulgusu; kusur kaydının teşhisi yanlıştı.** Kayıt "bağlantı sessizce koptu" diyor; 2026-09-18'de canlı ölçüldü ki `setOffline(true)` açık bir `chunked` SSE gövdesini **kesmiyor** — çevrimdışıyken yeni bir `fetch` gerçekten `Failed to fetch` atarken aynı akış **beş olay daha teslim etti** ve `run` tamamlandı. Yani turun gördüğü 23 saniyelik donukluk sağlıklı bir bağlantı üzerinde **sessiz bir run**'dı. Sunucu 250 ms'de bir `: waiting` gönderiyor ve bu canlılığı kanıtlıyor, ama `SseDecoder` yorumları düşürüyor ve konsol onları hiç görmüyor: kullanıcı "düşünüyor" ile "öldü"yü ayırt edemiyor. Aile F ölü bağlantıyı kapattı (30 sn bayt eşiği); bu kalem **canlılık göstergesi** sorunudur ve bir arayüz tasarımı kararıdır | Bir kullanıcı sessiz bir run'ı öldü sanıp elle yeniden yüklerse, ya da keep-alive'ı yüzeye çıkarmanın (frame tipi ya da "son sinyal: 2 sn önce" göstergesi) bedeli tartışılırken |
+| **F-246** · Sekiz kararlı hata kimliğinin karşılığı olan bir `RunErrorClass` YOK | 🚨 **`HATA-S1-020`'nin sınıf taramasının kalanı; kodlanamaz çünkü yeni yetenek ister.** Kaynakta 17 kararlı hata kimliği (`const string *ErrorType`) tanımlı; `DefaultRunErrorClassifier.StableIdentities` Aile J'den sonra **9**'unu tanıyor. Kalan 8'i (`session_conflict` · `session_owner_required` · `external_call_rejected` · `agent_source_contract` · `agent_source_failed` · `replay_tool_mismatch` · `job_retry` · `eval_run_diff_unavailable`) bilerek eşlenmedi: **hiçbirinin karşılığı olan bir `RunErrorClass` üyesi yok** ve var olan üyelerin doküman anlamları dar — örneğin `Infrastructure` kendi yorumunda *"yalnız öksüz run uzlaştırması bu sınıfa düşer"* diyor, `ContentBlocked` ise Tracon'un kendi içerik politikasını. Yanlış kovaya koymak `Unknown`'dan **kötüdür**: `Unknown` kendi dokümanında *"hiçbir kurala uymadı; bir kusur değil, bir ölçüm aracı"* olarak tanımlı ve dürüsttür. Yeni enum üyesi eklemek public sözleşme işidir: OpenAPI belgesi, TypeScript şeması, iki arayüz sözlüğü ve `RunErrorClassContractTests` (emekli 9 numaralı boşluk disiplini, K-603) birlikte değişir | Bir operatör bu kimliklerden birini panoda ayırt etmek istediğinde, ya da taksonomi bir sonraki kez elden geçirilirken — o zaman sekizi tek turda ölçülür ve kaç yeni üye gerektiği birlikte kararlaştırılır |
 | **F-240** · Kapasite kapısının beş dar açığı | [Faz 174](arsiv/fazlar/174-KAPASITE-DAMGASI-KAPISI.md) denetiminin 🟢 bulguları, beşi de bugün doğru ama sessizce ayrışabilir: (1) `SCHEMAS.storage` ölçülmüş bir tekrar sayısını başlık dizesinde sabitliyor (`'Rows per run (3 repeats)'`); (2) `P95_SAMPLE_FLOOR = 100` ile `LatencyStatistics.P95SampleFloor` elle senkron, uyumu hiçbir şey ölçmüyor; (3) commit damgası regex'i 8+ hex istiyor — `packageVersion`'ın 7 karakterlik biçimi (`e44d89f`) sayfaya girerse **sessizce** denetlenmez; (4) `checkArrivalRow` bir rate'in her `evidence` penceresini `status`'a bakmadan topluyor, `invalid` bir tekrar toplama karışır; (5) 19 işaret `docs-site/public/llms-full.txt`'e düz metin olarak sızıyor (emsal `claim:` zaten 11 tane sızdırıyor) | Kapasite ölçümü yenilendiğinde — o koşum (1) ve (2)'yi zaten elden geçirtir. (3) ve (4) tek satırlık savunma; bir sonraki kapı dokunuşunda birlikte kapanır |
 
 ### F-95 · Agent düzeyinde kesinti/devam kancası
@@ -308,7 +309,13 @@ keşif kaydındadır; burada yalnız hangi kanala düştükleri yazar.
 ### F-ID tahsis kuralı
 
 Numara **geri dönüştürülmez** ve bir numara **tek kaleme** aittir. Sıradaki
-numara: **F-246**.
+numara: **F-247**.
+
+**F-246** 2026-09-18'de `HATA-S1-020`'nin kapanışında tahsis edildi: kusurun
+kendisi (her sağlayıcı hatasının `Unknown` sınıfına ve tek bir parmak izine
+düşmesi) kapandı, ama kaydın sınıf taraması eşlenemeyen sekiz kararlı kimlik
+gösterdi — eşlemek yeni `RunErrorClass` üyeleri ister ve o public sözleşme
+işidir, kusur giderme değil.
 
 **F-245** 2026-09-18'de `HATA-S3-005`'in kapanışında tahsis edildi: kusurun
 kendisi (ölü bağlantıda sonsuz bekleme) kapandı, ama canlı ölçüm kaydın

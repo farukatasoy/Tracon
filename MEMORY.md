@@ -9,7 +9,10 @@
 ## 🔄 Açık iş — 2026-09-18
 
 **Manuel kabul turunun kapanışı (Aşama 2) sürüyor.** Koşum bitti (36/36 aile,
-1856 case); 43 kusurun 8'i kapandı, 35 kaldı.
+1856 case); kusurlar **aile aile** kapanıyor, her aile ayrı commit.
+
+🚨 **Sayım burada TEKRARLANMAZ** — kaç kusurun kapandığı her ailede değişir ve
+iki yerde tutmak kayma üretir. Güncel durum tek yerdedir: planın başlığı.
 
 Tek kontrol düzlemi:
 [`docs/manuel-test/kosumlar/2026-09-16/KAPANIS-PLANI.md`](docs/manuel-test/kosumlar/2026-09-16/KAPANIS-PLANI.md)

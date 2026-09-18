@@ -49,6 +49,21 @@ public sealed partial class DefaultRunErrorClassifier : IRunErrorClassifier
         [TraconToolTimeoutException.ToolTimeoutErrorType] = RunErrorClass.ToolTimeout,
         [TraconRunBudgetExceededException.RunBudgetExceededErrorType] = RunErrorClass.QuotaExceeded,
         [TraconStructuredResponseException.StructuredResponseInvalidErrorType] = RunErrorClass.StructuredResponseInvalid,
+
+        // 🚨 The identity the normalizer stamps on EVERY foreign provider
+        // failure. Without this entry it matched nothing: the normalizer
+        // replaces the SDK's exception with a TraconException carrying a fixed
+        // message, so neither the type patterns nor the message patterns below
+        // could ever see the provider's own text. Measured on a real OpenAI 404
+        // and a real OpenRouter 402 — both recorded as Unknown, which is the
+        // one bucket the taxonomy exists to avoid.
+        [ProviderFailureNormalizer.UpstreamErrorType] = RunErrorClass.ProviderError,
+
+        // Not a provider fault: the run's tenant has a credential for a
+        // provider whose adapter cannot take one, so the chat client is never
+        // built. That is a configuration mismatch caught while assembling the
+        // agent, which is what CompilationFailed records.
+        [ProviderFailureNormalizer.CredentialUnsupportedErrorType] = RunErrorClass.CompilationFailed,
     };
 
     /// <inheritdoc />
@@ -70,6 +85,12 @@ public sealed partial class DefaultRunErrorClassifier : IRunErrorClassifier
             return stable;
         }
 
+        // 🚨 The patterns below run on the exception's TYPE NAME and MESSAGE as
+        // text, and a normalized provider failure reaches them with neither:
+        // its identity is matched above instead. They still carry every foreign
+        // exception that fails OUTSIDE the model-call boundary, where nothing
+        // normalized it — that is the traffic they were measured against.
+        //
         // 🚨 The timeout check runs BEFORE the cancelled-type check, and the
         // order is the whole point. TaskCanceledException is what HttpClient
         // raises on its own request timeout, so the TYPE alone cannot separate
@@ -141,6 +162,13 @@ public sealed partial class DefaultRunErrorClassifier : IRunErrorClassifier
     // Azure SDKs throw RequestFailedException. The type pattern therefore also
     // covers SDK wrappers; the System.Net types (socket/IO) are only for
     // providers that use an HTTP client directly.
+    //
+    // 🚨 That measurement no longer describes the MODEL-CALL path. Since the
+    // normalizer was added, a failure crossing that boundary arrives as
+    // upstream_error and is matched by identity above — this pattern never sees
+    // ClientResultException there any more. It still carries the same SDK types
+    // when they escape somewhere the normalizer does not wrap, so it stays; the
+    // claim that it is what catches a provider 404 does not.
     [GeneratedRegex(
         @"httprequestexception|socketexception|ioexception|clientresultexception|requestfailedexception|apiexception",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,

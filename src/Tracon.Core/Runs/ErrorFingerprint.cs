@@ -24,6 +24,14 @@ namespace Tracon;
 /// into a single cluster. Identity/number/date cleanup already removes most of
 /// the noise from messages.
 /// </para>
+/// <para>
+/// An HTTP status is the one number that is NOT noise, and it is kept. The
+/// number pattern used to swallow it, so a provider's 404 and its 500 produced
+/// the same cluster key — the number cleanup exists to stop an id or a count
+/// from splitting one fault into many, and a status code does the opposite: it
+/// is what tells two faults apart. Measured on a real OpenAI 404 and a real
+/// OpenRouter 402, which shared one fingerprint character for character.
+/// </para>
 /// </remarks>
 internal static partial class ErrorFingerprint
 {
@@ -79,7 +87,14 @@ internal static partial class ErrorFingerprint
         matchTimeoutMilliseconds: 1000)]
     private static partial Regex GuidPattern();
 
-    [GeneratedRegex(@"\d+", RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 1000)]
+    // The lookbehind keeps a status code that an "HTTP " prefix marks as one.
+    // Everything else a message counts - an attempt number, a byte size, a line
+    // number - still collapses to {n}, which is what stops one fault from
+    // splitting into a cluster per occurrence.
+    [GeneratedRegex(
+        @"(?<!\bHTTP\s)\d+",
+        RegexOptions.CultureInvariant,
+        matchTimeoutMilliseconds: 1000)]
     private static partial Regex NumberPattern();
 
     // Runs AFTER the number replacement: "2026-08-06T10:15:30.123Z" becomes

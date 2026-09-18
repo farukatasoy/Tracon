@@ -3,8 +3,8 @@
 > **Bu turu kapatan her oturum ÖNCE burayı okur.** Koşum bitti; bu dosya
 > kapanışın tek kontrol düzlemidir.
 >
-> **Durum:** 🟡 Aşama 2 sürüyor · **Aile A · B · C · D · E · F · G · H · I KAPANDI** · 27 açık kusur, 13 aile kaldı
-> **Son güncelleme:** 2026-09-18 (Aile I kapandı — `S1-015` · `S1-021` · `S1-023`; tek tema, **üç ayrı kök neden**: kütüphane kendi yanıtını belirlemiyordu)
+> **Durum:** 🟡 Aşama 2 sürüyor · **Aile A · B · C · D · E · F · G · H · I · J KAPANDI** · 26 açık kusur, 12 aile kaldı
+> **Son güncelleme:** 2026-09-18 (Aile J kapandı — `S1-020`; ölçüm **ikinci bir katman** buldu: parmak izi normalleştirmesi durum kodunu da siliyordu)
 
 Turdan bağımsız kapanış protokolü — aile aile oturum yordamı, "önce ampirik
 yeniden üret" kuralı, bitti tanımı ve sayım betiği —
@@ -176,9 +176,11 @@ Bunlar kapanış oturumlarında da geçerlidir ve bitti tanımında
 
 ## 3.6 Sıradaki iş — 2026-09-18 itibarıyla
 
-**Aile J.** Yüksek öncelik Aile H ile bitti, Aile I de kapandı; sıra §4'ün
-ikinci tablosunda **Aile J**'dedir (`S1-020` — sağlayıcı hatası sınıflandırma;
-kayıt açıkça "karar gerekir" diyor).
+**Aile K.** Yüksek öncelik Aile H ile bitti; I ve J de kapandı. Sıra §4'ün
+ikinci tablosunda **Aile K**'dedir (`S1-012` · `S1-018` — sevk edilen üç hata
+mesajında yarım kalmış Türkçe). 🚨 Düzeltme **kapıyı da kapsar**: `SourceLanguageTests`
+iki harfli kelimeleri bilinçli dışladığı için bu sınıfı yapısal olarak göremiyor
+(K-228; taban **yalnız küçülür**).
 
 🚨 **Aile F ve G'nin ortak dersi:** kayıttaki kök-neden teşhisi F'de iki kez
 yanlıştı, G'de **doğru ama yarımdı** — `S1-025`'in asıl nedeni yutulan istisna
@@ -709,7 +711,44 @@ testi katalog listesini kullanıyordu ve `200` alıyordu; sebep kusur değil,
 **bilinçli hata izolasyonu** (`AgentSourceFaultIsolationTests`): bozuk bir kaynak
 listeyi düşürmez. Test store'a doğrudan bağımlı bir okumaya
 (`GET /api/agents/{ad}/versions`) çevrildi. Ürün davranışı değiştirilmedi.
-| **J** · Sağlayıcı hatası sınıflandırma | `S1-020` Orta | Normalleştirilen **her** sağlayıcı hatası `RunError.Class = Unknown`'a **ve tek bir fingerprint'e** düşüyor; K-296'nın eklediği desenler bu yolda ölü kod. İki bağımsız ölçüm (OpenAI 404 · OpenRouter 402) aynı parmak izini verdi; 17 kararlı kimliğin 10'u sınıflandırıcıda tanınmıyor. **Karar gerekir:** en küçük düzeltme `StableIdentities`'e giriş eklemek, ama fingerprint sabit `SafeErrorText` mesajından üretildiği için **ayrı bir girdiye** dayanması gerekebilir | ☐ |
+| **J** · Sağlayıcı hatası sınıflandırma | `S1-020` Orta | Normalleştirme katmanı, ondan sonra gelen sınıflandırıcıyı körleştiriyordu; parmak izi de sabit mesajdan üretiliyordu | ✅ **KAPANDI 2026-09-18** |
+
+#### Aile J — ✅ kapandı (2026-09-18)
+
+Tek kusur, **iki yarı**, ve kapanış **üçüncü** bir katman buldu.
+
+| Yarı | Ölçülen kök neden | Düzeltme |
+|---|---|---|
+| Sınıf | Normalleştirici yabancı istisnayı sabit mesajlı bir `TraconException` ile değiştiriyor; sınıflandırıcı ise `RunError`'ın iki dizgisine bakıyor — K-296'nın SDK tip desenleri o yolda **hiçbir şey** görmüyordu | `StableIdentities`: `upstream_error` → `ProviderError`, `provider_credential_unsupported` → `CompilationFailed` |
+| Parmak izi | `ErrorFingerprint.Compute(Message)` ve mesaj **sabit** — iki sağlayıcının iki farklı hatası karakter karakter aynı parmak izi | Mesaj Tracon'un KENDİ seçtiği üç olguyu taşır: sağlayıcı adı · istisna tip adı · HTTP durum kodu |
+
+👤 **Karar (K-817):** durum kodu **Core'da, mesaj metninden** okunur —
+`FallbackRetryClassifier`'ın zaten uyguladığı emsal. ⚠️ Adaptör başına tipli bir
+seam **önce seçildi, sonra geri alındı**: seçim "durum kodunu yalnız adaptör
+bilebilir" gerekçesine dayanıyordu ve o gerekçe yanlıştı; kullanıcıya bildirilip
+karar yenilendi. Aynı soruya iki mekanizma koymak bu repoda ölçülmüş bir kayma
+sınıfıdır.
+
+🚨 **Ayırt edici mesaj eklendi ve test HÂLÂ kırmızı kaldı** — kusur bir değil
+**iki** katmandaydı. `ErrorFingerprint.NumberPattern` (`\d+`) her sayıyı `{n}`
+yapıyor, yani `HTTP 404` ile `HTTP 500` aynı küme anahtarına düşüyordu. Sayı
+temizliği bir **id**'nin tek hatayı yüzlerce kümeye bölmesini engellemek içindir
+(ölçülmüş: 2000 oluşum → 1368 küme); bir **durum kodu** tam tersini yapar.
+`(?<!\bHTTP\s)` lookbehind'ı yalnız onu korur (K-818). Ne kusur kaydı ne
+kapanış analizi bu ikinci katmanı öngörmüştü; yalnız **kırmızı test** gösterdi.
+
+| Adım | Sonuç |
+|---|---|
+| Ampirik yeniden üretim | ☑ dört testin ikisi düzeltmeden önce kırmızı; ayırt edici eklendikten sonra dördüncüsü **yine** kırmızı kaldı ve ikinci katmanı açığa çıkardı |
+| Sınıf taraması | ☑ 17 kararlı kimlikten `StableIdentities` artık **9**'unu tanıyor; kalan 8 **bilerek** eşlenmedi → `ADAYLAR.md` **F-246** |
+| Testler | 4 yeni birim testi; komşu `ErrorFingerprintTests` (9) ve `ModelProviderFailureNormalizationTests` (3) yeşil kaldı |
+| Bayat yorum | K-296'nın "gerçek bir OpenAI 404'ünde ölçüldü" yorumu bugünkü kodu tarif etmiyordu — desenler ölü değil, ama sağlayıcı 404'ünü yakalayan şey artık onlar değil; yorum düzeltildi |
+
+🚨 **Yazım tuzağı:** C# regex'i bir Python string'i üzerinden yazılırken `\b`
+**backspace karakterine** dönüştü (`\x08`) ve desen hiçbir zaman eşleşmezdi.
+Dosya kontrol karakteri için tarandı, satır indeksiyle düzeltildi. Kaynak
+dosyaya regex yazan her betik sonrasında `chr(8)`/`chr(11)`/`chr(12)` taraması
+yapmalıdır.
 | **K** · Sevk edilen metinde dil karışıklığı | `S1-012` Orta · `S1-018` Orta | Üç sevk edilen hata mesajında yarım kalmış Türkçe (`ne 'Input' ne 'Output' contains neither value`). `SourceLanguageTests` iki harfli kelimeleri bilinçli dışladığı için bunu **yapısal olarak** göremiyor. Düzeltme kapıyı da kapsar (K-228; taban **yalnız küçülür**) | ☐ |
 | **L** · Katalog ve agent kaynağı mesajları | `S1-009` Orta · `S1-013` Düşük · `S1-008` Düşük · `S1-014` Düşük | Kod kaynaklı agent'ın `versions` ucu "böyle bir agent yok" diyor — agent var; `IAgentDefinitionStore`'da yokluk her yerde yokluk sanılıyor. `Custom` kaynaklı agent'a "bu agent kodda tanımlı" deniyor, yönlendirme de yanlış. Bilinmeyen `compaction.strategy` reddediliyor ama mesaj ne reddedilen değeri ne geçerli listeyi söylüyor. Analyzer'ın `TRC0007` metni `AddScopedTool`'u anmıyor; runtime metni anıyor — pratikte görülen analyzer'ınki | ☐ |
 | **M** · Sağlık ve açılış gürültüsü | `S1-016` Düşük-Orta · `S1-017` Düşük | `/health` kendi başına hiçbir zaman `Healthy`'ye ulaşmıyor — `/api/models/health` çağrılmadıkça sonsuza dek `Degraded`. Taze şemaya karşı her açılış `Error` seviyesinde yığın izi basıyor; yutma bir katman geç yapılıyor | ☐ |
@@ -749,7 +788,17 @@ bir Native AOT `publish` ve eşzamanlı veritabanı yazmaları koşuyor; makine
 doyduğunda önce zaman-duyarlı olanlar düşüyor. Kanıt: altısı da izole koşumda
 geçiyor ve düşenler koşumdan koşuma değişiyor (`SessionPersistenceTests` bir
 koşumda düştü, sonrakinde geçti). Kök neden bu yüzden **tek tek testlerde değil
-koşum profilinde** aranmalı — Aile T bunu tek kalem olarak ele almalı. **Ürün değil apparat** — ayrı commit'ler, hızlı kapanır. **Aile E'den bir kalem daha (2026-09-18):** üretilen `.NET` istemcisi (`TraconApiClient.g.cs`) kaynak belgesinden bir fazdır bayat — Faz 176'nın eklediği `EvaluatorVersion` alanı hiç işlenmemişti ve `ClientDescriptionBaselineTests` ile `ClientCoverageTests`'in ikisi de eksik bir DTO alanını görmüyor. Aile E'nin yeniden üretimi alanı getirdi; **kapı hâlâ yok**. **Aile G'den bir kalem daha (2026-09-18):** `TraconOptionsBindingCoverageTests` "alan eklendi ama `Bind()`'a yazılmadı" kusurunu yapısal olarak kilitler, ama yalnız `TraconOptions` **ağacını** gezer. `TraconImageOptions` gibi **kardeş** section'lar (`Tracon:Images`, `Tracon:Skills` altındakiler, sağlayıcı seçenekleri) scanner'ın kapsamı dışındadır ve `TraconImageOptions.Timeout` tam da oradan sızdı — canlı koşum yakaladı, hiçbir test yakalamadı. Scanner kardeş section'lara genişletilmeli | ☐ |
+koşum profilinde** aranmalı — Aile T bunu tek kalem olarak ele almalı.
+
+**En ağır örnek (Aile J kapanışı, 2026-09-18):** aynı makinede arka arkaya koşan
+tam setlerden birinde SQL Server container'ı `Execution Timeout Expired … the
+server is not responding` verdi; `SqlServerSchemaFixture` migration'ı
+uygulayamadı ve **31 test zincirleme** düştü. Aynı proje hemen ardından tek
+başına koşturulunca **820/820** geçti. Bu, tek tek testlerin kırılganlığı
+değil; doygun bir makinede **bir fixture'ın tamamen düşmesidir** ve tek bir
+testi sağlamlaştırmakla çözülmez. Aile T'nin kalemi bu yüzden koşum profilidir:
+`-maxcpucount:1` proje **arası** paralelliği kapatır, proje **içi** koşuma ve
+Docker container'larının kaynak payına dokunmaz. **Ürün değil apparat** — ayrı commit'ler, hızlı kapanır. **Aile E'den bir kalem daha (2026-09-18):** üretilen `.NET` istemcisi (`TraconApiClient.g.cs`) kaynak belgesinden bir fazdır bayat — Faz 176'nın eklediği `EvaluatorVersion` alanı hiç işlenmemişti ve `ClientDescriptionBaselineTests` ile `ClientCoverageTests`'in ikisi de eksik bir DTO alanını görmüyor. Aile E'nin yeniden üretimi alanı getirdi; **kapı hâlâ yok**. **Aile G'den bir kalem daha (2026-09-18):** `TraconOptionsBindingCoverageTests` "alan eklendi ama `Bind()`'a yazılmadı" kusurunu yapısal olarak kilitler, ama yalnız `TraconOptions` **ağacını** gezer. `TraconImageOptions` gibi **kardeş** section'lar (`Tracon:Images`, `Tracon:Skills` altındakiler, sağlayıcı seçenekleri) scanner'ın kapsamı dışındadır ve `TraconImageOptions.Timeout` tam da oradan sızdı — canlı koşum yakaladı, hiçbir test yakalamadı. Scanner kardeş section'lara genişletilmeli | ☐ |
 | **U** · docs-site | `S3-002` Düşük | Açılış sayfası 1024 px'te 32 px yatay taşıyor (`.scope-rings`) — dekoratif arka plan grafiği, içerik okunabilirliğini bozmuyor | ☐ |
 | **V** · `CHANGELOG` düğümü | `S1-007` | **Kod kusuru değil, karar.** `scripts/kapi.py` hedef sürüm için `CHANGELOG.md`'de `## [<sürüm>]` bölümü arıyor; changelog ise bilinçli olarak yalnız `## [Unreleased]` taşıyor (`6cfbc2d3` sürüm bölümünü **bilerek** geri aldı). İki kural birbirini kilitliyor. `K-*` olarak çözülür ve `YAYIN-HAZIRLIK.md` Adım 5'e bağlanır. Bloklanan case'ler: `MT-PKG-104 · 105 · 115 · 116 · 117` | ☐ |
 

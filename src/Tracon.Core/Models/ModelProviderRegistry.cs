@@ -404,7 +404,7 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
         catch (Exception exception) when (ProviderFailureNormalizer.ShouldNormalize(exception))
         {
             ProviderFailureNormalizer.Log(_loggerFactory, binding, exception, "construction");
-            throw ProviderInvocationException.UpstreamFailure(exception);
+            throw ProviderInvocationException.UpstreamFailure(exception, binding.Provider);
         }
 
         // Mark only exceptions that originate in the raw SDK client. The
