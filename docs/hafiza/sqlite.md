@@ -118,3 +118,14 @@
   varsayılan vermek, sütunu atlayan bir insert'in bir sağlayıcıda geçip
   diğerinde patladığı sessiz bir sağlayıcı farkı üretir. `run_scores.name` üçünde
   de `DEFAULT 'overall'` taşır ve bu, HTTP ucunun uyguladığı varsayılanla aynıdır.
+- **`SQLITE_LOCKED` (6) busy handler'a HİÇ ulaşmaz.** `PRAGMA busy_timeout`
+  yalnız `SQLITE_BUSY` için bekler; `SQLITE_LOCKED` için handler çağrılmaz, ∴
+  hiçbir timeout değeri onu kapsamaz. Reddedilen ifadeyi **yeniden göndermek**
+  tek çaredir — `SqliteRetryingCommand` bunu yapar (K-827). Çağıranın yönettiği
+  bir işlemin içindeki ifade yeniden denenmez: yalnız işlemin tamamı denenebilir.
+- 🚨 **Kilit çekişmesini sahneleyen bir test, düzeltme KALDIRILDIĞINDA da
+  geçer.** Yazma kilidini bir an tutup "yazma yine ulaştı" demek `busy_timeout`'un
+  zaten yuttuğu bir şeyi ölçer — ölçüldü, `CreateDbCommand` override'ı silinmiş
+  hâlde aynı test yeşil kaldı. Retry'ı kanıtlamak için mekanizmayı (sahte bir iç
+  komutla: reddet, reddet, başar) ve kablolamayı (data source'un verdiği her
+  komut sarmalı mı) AYRI AYRI ölç.

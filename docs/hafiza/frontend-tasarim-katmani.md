@@ -172,3 +172,14 @@
   kırmızı yapıp kendi ekran görüntüsünü istedi. Yeni bir ekran eklerken tabloya
   eklemek yeter; `ui.md` bölümü ve `public/screenshots/<path>.png` kapı
   tarafından zorlanır.
+- **Elle yazılmış bir CSS sınıfı kuralsız kalırsa HİÇBİR ŞEY hata vermez.**
+  Konsoldaki diğer her sınıf bir Tailwind utility'sidir ve kaynaktan üretilir;
+  yanlış yazılan biri yalnız kural üretmez. Kendi sınıflarımız elle yazılır ve
+  ikisini birbirine bağlayan hiçbir şey yoktur: `transcript.tsx` uzun süre
+  `ap-stream-caret` uyguladı, kural ise `.tracon-stream-caret::after` idi
+  (`ap-` öneki bir yeniden adlandırmayla emekliye ayrılmıştı). Akış imleci hiç
+  çizilmedi ve 79 E2E testi yeşil geçmeye devam etti, çünkü hiçbir şey
+  BAŞARISIZ olmuyordu. Kapı `scripts/check-custom-classes.mjs`'tir ve
+  **simetriktir**: uygulanan sınıfın kuralı, kuralın da kullanıcısı olmalıdır.
+  Yalnız `className` konumlarını okur — bir eleman `id`'si aynı şekilde yazılır
+  ve her string literali tarayan bir sürüm dört tanesini yanlışlıkla raporlar.
