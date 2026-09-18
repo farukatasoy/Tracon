@@ -453,7 +453,10 @@ jobs:
   # KALMAZ, yalniz release sayfasi eksik kalir GitHub API erisilemezse (OP-007
   # hata modu tablosu). Govde CHANGELOG.md'nin o surume ait bolumudur --
   # `scripts/changelog.py` kapi.py'nin surum-notu kapisiyla AYNI ayrıştırıcıdır,
-  # iki ayri parser yazmak drift uretirdi.
+  # iki ayri parser yazmak drift uretirdi. Surum bolumu yoksa `## [Unreleased]`
+  # okunur: bolum ETIKET aninda yazilir, yani bu is kosarken heniz yazilmamis
+  # olabilir (K-825). Iki taraf ayni fallback'i kullanmazsa prova yesil,
+  # release govdesi bos olurdu.
   # ---------------------------------------------------------------------------
   github-release:
     name: GitHub release olustur
@@ -489,9 +492,10 @@ jobs:
           import changelog
 
           version = os.environ['TAG_NAME'].removeprefix('v')
-          body = changelog.read_section(pathlib.Path('CHANGELOG.md'), version)
+          body, heading = changelog.read_release_notes(pathlib.Path('CHANGELOG.md'), version)
           if not body:
-              sys.exit(f\"CHANGELOG.md has no '## [{version}]' section\")
+              sys.exit(f\"CHANGELOG.md has no '## [{version}]' and no '## [Unreleased]' section\")
+          print(f'release notes read from: ## [{heading}]')
           pathlib.Path('release-notes.md').write_text(body, encoding='utf-8')
           "
 
