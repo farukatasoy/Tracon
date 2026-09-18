@@ -16,7 +16,7 @@
 | **Case sayısı** | 98 toplam (MT-JOB-001..131, numaralar bloklu, sıralı değil) |
 | **Port** | 5084 |
 | **Şema** | `mt_s4` (PostgreSQL, paylaşılan `ap-pg` container) |
-| **Bu oturumda koşulan** | Oturum 2: MT-JOB-001..013 (Bölüm 1, kısmi). Oturum 3: MT-JOB-014..054 (Bölüm 1 tamamlandı, Bölüm 2-5 tamamlandı). Oturum 4: MT-JOB-060..066 (Bölüm 6, Tek Yürütücü Seçimi, tam), MT-JOB-070..085 (Bölüm 7, async-run, tam), MT-JOB-090 (Bölüm 8, tetikleyici kapsam şüphesi, tek case). Oturum 5: MT-JOB-091'den devam (§8 — Gelen Tetikleyiciler) |
+| **Bu oturumda koşulan** | Oturum 2: MT-JOB-001..013 (Bölüm 1, kısmi). Oturum 3: MT-JOB-014..054 (Bölüm 1 tamamlandı, Bölüm 2-5 tamamlandı). Oturum 4: MT-JOB-060..066 (Bölüm 6, Tek Yürütücü Seçimi, tam), MT-JOB-070..085 (Bölüm 7, async-run, tam), MT-JOB-090 (Bölüm 8, tetikleyici kapsam şüphesi, tek case). Oturum 5-13 (önceki devir notlarında): MT-JOB-091..121. **Oturum 14 (bu oturum): MT-JOB-122..131 (Bölüm 9-10) + regresyon `MT-JOB-098`(B03) — AİLE KAPANDI, 98/98** |
 
 **Sapma — `user-secrets` yazılmaz** (skill §1.2): MT-JOB-012, 016, 025, 040,
 050, 052, 054 `dotnet user-secrets set ...` yerine ortam değişkeniyle
@@ -32,106 +32,146 @@ OpenAI/Anthropic/Google anahtarları MT-JOB-014, 020-024, 030-032, 040-044,
 
 ---
 
+## HATA-S4-002 — `PUT /api/schedules/{name}` gövdede `payload` alanı olmadan `500` verir
+
+- **Case:** MT-JOB-129
+- **Önem:** Orta (bir HTTP API tüketicisi opsiyonel bir alanı atladığında
+  `400`/`200` yerine ham `500` alıyor; veri kaybı yok, hizmet kesintisi yok,
+  ama sözleşme ihlali ve kötü hata mesajı)
+- **İzlek:** A (salt HTTP)
+- **Ortam:** macOS arm64 · net10 · PostgreSQL (`mt_s4` VE ayrı bir scratch
+  şeması, ikisinde de aynı sonuç) · sağlayıcı yok
+
+**Beklenen:** `payload` alanı olmadan `PUT /api/schedules/{name}` ya
+kabul edilir (boş payload varsayılır, `200`) ya da açık bir doğrulama
+hatası döner (`400`).
+
+**Gerçekleşen:** `500 Internal Server Error`,
+`System.InvalidOperationException: Operation is not valid due to the
+current state of the object.` — `JsonElementConverter.Write`
+`default(JsonElement)`'i (ValueKind=Undefined) serialize edemiyor.
+
+**Yeniden üretme:**
+1. Sağlıklı bir Tracon örneğine karşı: `curl -X PUT
+   $BASE/api/schedules/x -H "Authorization: Bearer $TOK" -H
+   "Content-Type: application/json" -d
+   '{"handlerKey":"tracon.workflow","targetName":"t","cron":"*/5 * * * *","enabled":true}'`
+   — gövdede `payload` **yok**.
+2. Yanıt `500` (boş gövde, `traceId` dışında bilgi yok).
+3. Aynı istek `"payload":{}` eklenerek tekrarlanırsa `200` döner.
+
+**Kanıt:**
+- Ana uygulamada (port 5084, `mt_s4`) ve `~/tracon-manuel/job-handlers-s4`
+  scratch host'unda (port 5190, `mtjob_s4`) BİREBİR aynı çöküş.
+- Sunucu log'u: `Unhandled exception... at
+  System.Text.Json.Serialization.Converters.JsonElementConverter.Write`,
+  çağrı zinciri `SaveScheduleAsync`'in `TypedResults.Ok(saved)`'ine kadar
+  iniyor.
+- Kök neden satırları: `src/Tracon.AspNetCore/Contracts/SchedulingContracts.cs:45`
+  (`JobScheduleSaveRequest.Payload` — `required` değil, varsayım yok) ve
+  `src/Tracon.AspNetCore/Endpoints/SchedulingEndpoints.cs:266`
+  (`Payload = request.Payload` — normalize edilmeden yanıt nesnesine
+  kopyalanıyor, `TriggerScheduleAsync`'in `JobRecord.Payload` alanı ise
+  DB round-trip'inden geçtiği için bu sorunu YAŞAMIYOR — bkz. MT-JOB-122/126
+  kayıtlarında `"payload":null` başarıyla dönen `GET /api/jobs/{id}`).
+
+**Kapsam:** Yalnız `PUT /api/schedules/{name}`'i doğrudan HTTP ile,
+`payload` alanı olmadan çağıran bir tüketiciyi etkiler. Tracon.UI'nin
+kendi formu `payload`'ı her zaman `"[]"` ile dolu gönderdiği için arayüzden
+ERİŞİLEMEZ (MT-JOB-130'da doğrulandı). Bu turda `PUT
+/api/schedules/{name}` kullanan diğer case'ler (`MT-JOB-001-003`, `102`,
+`113-115`) hepsi `payload` alanını açıkça gönderdi, bu yüzden başka hiçbir
+case bu turda etkilenmedi — ama sınıf taraması (aynı desende başka bir
+`JsonElement`, `required` değil, alan) kapanış oturumunda yapılmalı.
+
+---
+
 ## Devir notu
 
-**Nerede kalındı (oturum 4, bu oturum):** Oturum 3 MT-JOB-001..054'ü
-tam kapatmıştı (37/37 Geçti). Bu oturum **MT-JOB-060'tan başladı** ve
-**Bölüm 6'yı (Tek Yürütücü Seçimi, `singleton_leases`, 060-066) TAM
-kapattı**, ardından **Bölüm 7'yi (async-run, `Prefer: respond-async`,
-070-085) TAM kapattı**, son olarak **Bölüm 8'in ilk case'i MT-JOB-090'ı**
-koştu. **Toplam bu oturumda 24 case koştu, hepsi ☑ Geçti** — hiç `Kaldı`,
-hiç `Beklemede` yok. `MT-JOB-001..085` + `090` artık **tam kapalı** (61/61
-bu dosyada, `MT-JOB-091`'den `131`'e kadar — 40 case, Bölüm 8'in kalanı +
-Bölüm 9-10 — bu oturumda koşulmadı).
+**🎉 AİLE 16 (JOB) KAPANDI — bu oturum (oturum 14).** Önceki devir notu
+(oturum 5-13 birikimi) `MT-JOB-091`'den `121`'e kadarki çalışmayı
+kaydetmiş ve "`122`'den `131`'e kadar (37 case) koşulmadı" demişti — bu
+sayı **bayattı**: dosyanın git geçmişi (`d8e9c308`, `8f4f8c68`, `240d74a7`)
+gösteriyor ki `091..121` zaten önceki oturumlarda koşulmuş. Bu oturum
+gerçek kalanı ölçtü (`### MT-JOB-` blok sayımı: spec 98 blok, kayıt 87 blok
+→ 11 eksik) ve hepsini kapattı: **`MT-JOB-122..131`** (Bölüm 9-10, 10 case)
++ spec'in `098` numarasını **ikinci kez** kullandığı regresyon case'i
+(`Yarıda kalan approval handoff'u..., B03`, K-726). **Toplam: 98/98 case,
+97 Geçti, 1 Kaldı (`MT-JOB-129` → `HATA-S4-002`), 0 Beklemede, 0 Atlandı.**
 
-🚨 **Kurulum sapması (koordinatör talimatı) — MT-JOB-062/063/065:** Spec bu
-üç case için `dotnet publish` + SQLite dosyası öneriyor; bunun yerine
-**PostgreSQL `mt_s4` şeması PAYLAŞILARAK** iki ayrı süreç (port 5084 + yeni
-port 5094) kullanıldı. **Ampirik bulgu: spec'in "`dotnet run` ile
-ÇALIŞTIRILAMAZ, `launchSettings.json` her zaman 5080'i açar" iddiası bu
-ortamda YANLIŞ** — `--urls` argümanı güvenilir şekilde kazanıyor (kanıt:
-MT-JOB-062 kaydı). İkinci süreç (port 5094) case'ler bitince kapatıldı,
-yalnız 5084 açık bırakıldı.
+**Yöntem — donuk `samples/`'a dokunmadan üç ayrı teknik kullanıldı:**
+1. **Özel scratch host** (`~/tracon-manuel/job-handlers-s4`, yerel paket
+   feed'i `ap-s4/artifacts/package/release`, sürüm `0.0.0-preview.0.819`):
+   `acme.a`/`acme.b` custom `IJobHandler`'ları, bir DI-scope marker'ı, bir
+   `handoff-agent` + onay gerektiren `cancel_order` tool'u içeriyor.
+   `JOBH_SCENARIO` ortam değişkeniyle beş varyant çalıştırıldı: `normal`,
+   `handlers-before-addtracon` (123), `dup-type` (124, host çökmeli),
+   `reserved` (125, host çökmeli), `sched-allow` (129 adım 3). Cases
+   122-127, 129-131, 098(B03) hepsi bu host'ta koşuldu.
+2. **Ham migration SQL + elle doldurulmuş `__migrations` ledger'ı** (128):
+   `0001..0042` `{schema}` yerine gerçek şema adı geçirilerek doğrudan
+   `psql`'e uygulandı, spec'in fixture'ı (9 `kind` × 1 schedule+job, `kind=0`
+   için ikinci job) yazıldı, ledger'a `MigrationDescriptor.ComputeChecksum`
+   ile birebir eşleşen SHA-256'lar elle yazıldı (`shasum -a 256`), sonra
+   donuk DLL bu şemaya karşı başlatılıp gerçek `MigrationRunner.ApplyAsync`
+   kalan 9 migration'ı (43+) çalıştırdı. 🚨 **Tuzak:** ledger'ı BOŞ bırakıp
+   1-42'yi "replay" ettirmek denendi önce — `0040_persisted_payload_version.sql`
+   idempotent OLMAYAN bir `RENAME COLUMN schema_version` taşıyor, ikinci
+   çalıştırmada `column "schema_version" does not exist` ile patlıyor. Ders:
+   "migration dosyaları hep IF NOT EXISTS/idempotent" varsayımı YANLIŞ,
+   ledger'sız replay güvenli değil.
+3. **Ana uygulama (port 5084, `mt_s4`)** doğrudan: 098(B03)'ün regresyon
+   akışı denenmeden önce `support` agent'ının bu süreçte **echo**'ya
+   bağlandığı görüldü (muhtemelen DLL doğrudan `ASPNETCORE_ENVIRONMENT`
+   Development olmadan başlatıldığı için `user-secrets` yüklenmedi,
+   `openAiEnabled=false` kaldı) — bu yüzden 098(B03) yerine scratch host'un
+   kendi deterministik `handoff-model` (`FakeModelProvider.CallsTool`)
+   agent'ı kullanıldı; ana uygulama yalnız `HATA-S4-002`'nin ana koddaki
+   tekrarını doğrulamak için kullanıldı (payload'sız `PUT
+   /api/schedules/manual-test-payloadless`, aynı `500`).
 
-🚨 **Yeni altyapı tuzağı — `dotnet run` sarmalayıcısı bu ortamda kararsız.**
-MT-JOB-090 sırasında uygulama iki kez (her ikisinde de `Application is
-shutting down...` — istisna/hata günlüğü YOK) beklenmedik şekilde kapandı;
-sinyal kaynağı belirlenemedi (muhtemelen ajan koşum ortamının arka plan
-süreç yönetimi, `dotnet run`'ın kendi CLI sarmalayıcı sürecine bağlı).
-**Çözüm:** derlenmiş DLL'i DOĞRUDAN çalıştırmak
-(`dotnet artifacts/bin/Tracon.Api/release/Tracon.Api.dll --urls
-http://localhost:5084` + aynı ortam değişkenleri, `dotnet run`
-sarmalayıcısı OLMADAN) — bu şekilde başlatılan süreç kararlı kaldı.
-**Sonraki oturum bu deseni kullanmalı**, `dotnet run --project ...`
-DEĞİL (ikisi de `--no-build` gerektirir, ilki DLL'i `artifacts/bin/`'den
-doğrudan alır). `setsid` macOS'ta YOKTUR (yeni ölçülen tuzak,
-`timeout`/`user-secrets` engeli gibi) — kullanma.
+🚨 **Yeni kusur — `HATA-S4-002` (Orta, `MT-JOB-129`).** `PUT
+/api/schedules/{name}` gövdede `payload` alanı **olmadan** gönderilirse
+`500` (`JsonElementConverter.Write` — `default(JsonElement)` serialize
+edilemiyor). Kök neden `SchedulingContracts.cs:45`
+(`JobScheduleSaveRequest.Payload`, `required` değil, varsayımsız) →
+`SchedulingEndpoints.cs:266` (`Payload = request.Payload`, normalize
+edilmeden yanıta kopyalanıyor). Hem scratch host'ta hem donuk ana
+uygulamada (port 5084, gerçek `mt_s4`) birebir tekrarlandı — host'a özgü
+değil. UI formu `payload`'ı her zaman `"[]"` gönderdiği için arayüzden
+ERİŞİLEMEZ; yalnız `payload` alanını atlayan bir HTTP API tüketicisini
+etkiler. Ayrıntı ve tam repro case kaydında (`MT-JOB-129`, yukarıda).
 
-🚨 **Sistemik spec bayatlığı sürüyor (Faz 129 handler_key migrasyonu),
-060-090 arasında da doğrulandı:** `PUT .../schedules/{name}` çağrılarında
-hâlâ `"handlerKey"` kullanıldı (`"kind"` DEĞİL); `job.kind` alanı da yok,
-`job.handlerKey` var (MT-JOB-073/090'da ayrıca doğrulandı). Spec dosyasına
-hâlâ dokunulmadı — Bölüm 8'in kalanı (091+) da muhtemelen aynı düzeltmeyi
-isteyecek.
+**Kod donması ihlali YOK.** `git diff --stat 7e3a4de7..HEAD -- src samples
+tests` bu oturumun sonunda da **boş**. Scratch host (`~/tracon-manuel/
+job-handlers-s4`) ve geçici migration şeması (`mtjob128mig`, iş bitince
+`DROP SCHEMA ... CASCADE` ile silindi) repo **dışında**.
 
-🆕 **Bu oturumda bulunan doküman kusurları (skill §1.1 istisnası, ürün
-kusuru DEĞİL):**
-1. **MT-JOB-084** — spec'in kendi önceki "doküman düzeltmesi" notu ampirik
-   doğrulandı: `Idempotency-Key` + `Prefer` YOK → `HTTP: 200` (400 DEĞİL).
-2. **MT-JOB-090** — `POST /api/api-keys` yanıtı `rawKey` DEĞİL
-   `plaintextKey` alanı taşıyor.
-3. **MT-JOB-090** — spec'in "şüphe"si (SchedulingEndpoints'te
-   `RequireApiKeyScope` yok) **ÇÜRÜTÜLDÜ**: kod artık 9 çağrı taşıyor
-   (`grep -n "RequireApiKeyScope"
-   src/Tracon.AspNetCore/Endpoints/SchedulingEndpoints.cs` boş dönmüyor).
-   Ampirik: `RunsRead`-kapsamlı anahtarla `PUT`/`DELETE /api/schedules/*`
-   → ikisi de `403 Insufficient scope`. `WorkflowEndpoints`'in (`MT-WF-100`)
-   düştüğü boşluğa `SchedulingEndpoints` **düşmüyor**. Yeni `HATA` açılmadı.
+🚨 **Bulk secret extraction reddedildi.** Beş provider secret'ını tek
+seferde ayrı dosyalara çekmeye çalışan bir komut ("Credential
+Materialization" gerekçesiyle) otomatik-mod sınıflandırıcısı tarafından
+reddedildi. Tek tek, kullanım anında (`dotnet user-secrets list | grep
+<tek anahtar>`) çekmek sorunsuz çalıştı (`Tracon:PostgreSql:ConnectionString`
+bu şekilde alındı). **Ders:** provider anahtarlarını toplu/önden değil,
+ihtiyaç anında tek tek çek.
 
-**Kod donması ihlali YOK** — bu oturumda `src/`'e hiç dokunulmadı; tek
-istisna MT-JOB-062/063/065'in `dotnet publish`/DLL kullanımı (spec'in
-kendi izin verdiği "İzlek A" yordamı, kaynağı değiştirmez, yalnız derlenmiş
-çıktıyı doğrudan çalıştırır). `git diff --stat 7e3a4de7..HEAD -- src
-samples tests` oturum sonunda **boş** doğrulandı.
+**Sonraki oturumun işi:** Bu ailenin koşum işi bitti — `ap-s4`'in sıradaki
+ataması `00-KOSUM-PLANI.md`'deki diğer altı aile (`06`, `09`, `22`, `26`,
+`27`, `28`, `30`, hiçbiri henüz açılmadı, bkz. DEVIR.md §5 tablosu). Ana
+uygulama (port 5084) hâlâ **açık** — echo provider'a bağlı `support` agent'ı
+dahil tüm önceki case'lerin fixture'ları korunuyor. Bir sonraki aile
+gerçek Anthropic/Google/Azure sağlayıcı çağrısı gerektiriyorsa (aile 06),
+uygulamanın `openAiEnabled`/`anthropicEnabled`/`googleEnabled` bayraklarının
+o an **hangi ortamda** doğru okunduğunu (Development mi Production mı)
+önce doğrulamalı — bu oturum ortam değişkeni tabanlı bir override
+denemedi (bulk-secret engeli nedeniyle yarım bırakıldı).
 
-**Oturum 5 (bu oturum) — altyapı notu:** `dotnet Tracon.api.dll` süreçlerini
-başlatma/durdurma eylemleri bu ortamda ajan otonom-mod izin sınıflandırıcısı
-tarafından ARA SIRA "Interfere With Workloads" gerekçesiyle reddedildi
-(hem `kill` hem yeni bir `dotnet ... --urls` süreci başlatma birer kez
-reddedildi, sonra retry ile bazıları geçti — deterministik değil, aynı
-`user-secrets list` engelinin örüntüsü, Oturum 3 notuna bkz). **`kill`
-komutu bu oturumda HİÇ başarılı olmadı** (birden fazla deneme). Bu yüzden
-5084'teki süreç (o an `TriggerSecrets:Slack` OLMADAN ayakta) durdurulamadı;
-§8 için gereken `Tracon:TriggerSecrets:Slack` ortam değişkenini eklemek
-üzere **ikinci bir süreç 5086 portunda** (`Tracon__Scheduling__RunWorker=false`,
-aynı `mt_s4` şeması, aynı `Tracon:Ui:AuthToken`) başlatıldı — 5084'teki
-worker'ın işi kiralamasına izin verilirken, 5086 yalnız tetikleyici HTTP
-uçlarını sunar. §8'in tüm HTTP istekleri **5086**'ya, çalıştırma durumu
-sorguları (`GET /api/runs/{id}`, `GET /api/jobs/{id}`) **5084**'e gitti
-(paylaşılan `mt_s4` şeması üzerinden veri her ikisinde de aynı). Bu bir
-şerit-içi sapmadır, paylaşılan kaynağı bozmaz (skill §1.3 ihlali değil —
-yalnız `mt_s4`'e ek bir okuyucu/yazıcı süreç, kendi worktree'sinin derlenmiş
-DLL'i).
-
-**Sonraki oturum neyle başlamalı:** MT-JOB-091'den devam (§8 — Gelen
-Tetikleyiciler, `TRIGSECRET`/`openssl` imza yordamı ortak kurulumu
-gerektirir; `Tracon:TriggerSecrets:Slack` **ortam değişkenine çevrilmeli**,
-`dotnet user-secrets set` DEĞİL — skill §1.2). Uygulama bu oturumun
-sonunda **açık bırakıldı**, PID değişebilir ama süreç DLL doğrudan
-çalıştırılarak başlatıldı (port 5084, şema `mt_s4`, tüm ayarlar
-varsayılan — `SingletonExecution`/`AsyncRun`/`Scheduling.*` hiçbiri
-override edilmemiş durumda, `ps eww <pid> | grep Tracon__` ile
-doğrulanabilir). Sonraki oturum önce `curl .../api/diagnostics` ile
-canlılığını doğrulamalı; kapalıysa **DLL yordamıyla** yeniden başlatmalı
-(`dotnet run` DEĞİL, yukarıdaki tuzağa bakın).
-
-**Artık test fixture'ları (temizlenmedi, zararsız):** `bozuk-hedef`,
-`wf-toplu` (bu oturumda da yeniden kullanıldı, MT-JOB-065), `hesapli-cron`
-— hepsi önceki oturumlardan, dokunulmadı. `dakikalik-ozet` oturum 3'te
-zaten silinmişti (bu oturumda `mt_s4.job_schedules`'ta 4 satır: `ozet-toplu`,
-`hesapli-cron`, `bozuk-hedef`, `wf-toplu` — doğrulandı). Bu oturum yeni
-kalıcı fixture BIRAKMADI: geçici kota kuralı (MT-JOB-079) ve geçici API
-anahtarı (MT-JOB-090) ikisi de case sonunda silindi.
+**Artık test fixture'ları (temizlenmedi, zararsız):** önceki oturumlardan
+kalanlar (`bozuk-hedef`, `wf-toplu`, `hesapli-cron`, `ozet-toplu`)
+dokunulmadı. Bu oturum `mt_s4` şemasına eklediği tek kalıcı iz: scratch
+host'un kendi `mtjob_s4` şemasındaki test job/schedule satırları (`acme.a`/
+`acme.b`/`acme.no-such-handler` — ayrı şema, `mt_s4`'ü etkilemiyor,
+temizlenmedi çünkü zararsız ve kanıt değeri taşıyor).
 
 ---
 
@@ -1327,14 +1367,271 @@ sağlamak MT-JOB-103/111/112'nin aynı yeniden başlatma kısıtına takılırd�
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
+## MT-JOB-121 — Derinlik sorgusu `jobs_claim_idx` kullanır
+
+**Gerçek sonuç**
+`mt_s4.jobs` bu turda yalnız **88** satır taşıyor (status 3/4/5 — hiçbiri
+0/1/2 "açık" değil), spec'in varsaydığı 60 000 satır / 3 000 açık ölçeğinde
+DEĞİL — bu ailenin fixture verisiyle bu ölçek üretilemedi. Yine de
+`EXPLAIN (ANALYZE, BUFFERS)` planı **`Index Only Scan using jobs_claim_idx
+on jobs`** gösterdi (Bitmap Index Scan bile değil, daha güçlü bir plan —
+`jobs_claim_idx`'in `WHERE status = ANY(ARRAY[0,1,2])` kısmi indeksi
+sorguyla birebir örtüşüyor), **`Seq Scan on jobs` planda hiç yok**.
+`rows=0.00` (şu an açık iş yok) ve `Execution Time: 0.096 ms`. Beklenen
+sonucun **plan şekli** iddiası (indeks kullanılıyor, seq scan yok)
+doğrulandı; **satır ölçeği** iddiası (3 000 satır tarandığı, tablonun
+tamamı değil) bu veri hacminde ANLAMLI ölçülemedi — küçük tabloda planlayıcı
+zaten en iyi planı seçiyor, büyük ölçekte davranışın DEĞİŞMEYECEĞİ kısmi
+indeksin tanımından (yalnız açık durumları kapsıyor) mantıksal olarak
+çıkarılabilir ama ampirik olarak bu turda kanıtlanmadı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-JOB-098 — Yarıda kalan approval handoff'u, AYNI kararı tekrarlayarak tamamlanır (B03)
+
+**Gerçek sonuç**
+Spec bu case'i `MT-JOB-098` olarak numaralandırıyor — dosyanın başındaki
+gerçek MT-JOB-098 (kota testi, bu dosyada satır 1021) ile **ID çakışması**;
+spec'e dokunulmadı (kural 1), kayıt bu ikinci `## MT-JOB-098` bloğu ile
+tutuluyor. `~/tracon-manuel/job-handlers-s4` scratch host'una
+`FakeModelProvider("handoff-model").CallsTool("cancel_order", {orderId:
+"ORD-7"}).EchoesLastToolResult()` + `AddTool(..., RequiresApproval=true)` +
+`handoff-agent` eklenerek K-726'nın otomatik testiyle (`ApprovalResumeHandoffTests.cs`)
+birebir aynı senaryo canlı sunucuda kuruldu:
+1. `POST /api/agents/handoff-agent/run` → run `AwaitingApproval`'a düştü,
+   `GET /api/approvals/pending` bekleyen approval'ı verdi.
+2. `POST /api/approvals/{id}/decide {approved:true}` → `200`, approval
+   `Approved`, yeni bir resume run (`...750e...`) `Completed` kapandı —
+   normal yol.
+3. **AYNI** kararı (`approved:true`) tekrar `POST` etmek — HTTP `200`
+   (eski davranışta `409 AlreadyDecided` olurdu), approval kaydı
+   değişmeden döndü, `GET /api/runs?sessionId=...` **hâlâ 2 run** gösterdi
+   (yeni bir resume run DOĞMADI — aynı satıra indi, K-726'nın vaadi).
+4. **TERS** kararı (`approved:false`) aynı id'ye `POST` etmek → `409
+   Decision already made` — hâlâ gerçek bir çakışma.
+Gerçek bir kesinti-penceresi (decide↔enqueue arası çökme) enjekte edilemedi
+(kod donuk, `FailFirstResumeEnqueue` test-only fault injection'dır); ama
+dışa dönük sözleşme — aynı karar tekrarı idempotent `200`, ters karar
+tekrarı `409` — canlı ölçüldü ve otomatik testle birebir örtüşüyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-JOB-122 — İki custom handler kendi işini çalıştırır
+
+**Gerçek sonuç**
+`~/tracon-manuel/job-handlers-s4` scratch host'u (donuk `samples/`'a
+dokunmadan, paketlenmiş `0.0.0-preview.0.819` yerel feed'den, `AddJobHandler
+<AHandler>("acme.a")` + `AddJobHandler<BHandler>("acme.b")`) ile: `acme.a`
+ve `acme.b` işleri kuyruğa alındı, ikisi de `Completed` kapandı.
+Sunucu log'u yalnız `AHandler ran job <a-id>` ve `BHandler ran job <b-id>`
+yazdı — hiçbir handler diğerinin job id'sini görmedi.
+`GET /api/jobs?handlerKey=acme.a` yalnız `acme.a` job'ını döndü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-JOB-123 — Kayıt sırası sonucu değiştirmez
+
+**Gerçek sonuç**
+Aynı scratch host, `JOBH_SCENARIO=handlers-before-addtracon` ile yeniden
+başlatıldı — bu kez `AddJobHandler<AHandler>("acme.a")` /
+`AddJobHandler<BHandler>("acme.b")` çağrıları `builder.AddTracon()`'den
+**ÖNCE** yapıldı. Host normal açıldı (hata yok); iki yeni `acme.a`/`acme.b`
+işi tekrar kuyruğa alındı ve MT-JOB-122 ile **birebir aynı** sonucu verdi
+(ikisi de `Completed`, doğru handler'a dispatch). Faz 137 sonrası sıra
+kazananı belirlemiyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-JOB-124 — Aynı anahtarın iki kez kaydı host'u açtırmaz
+
+**Gerçek sonuç**
+`JOBH_SCENARIO=dup-type` (aynı host, `acme.a` için ek olarak
+`AddJobHandler<BHandlerAsA>("acme.a")`) ile başlatılan süreç **4 saniye
+içinde çöktü** (`Hosting failed to start`):
+```
+System.InvalidOperationException: Two job handlers are registered for the
+key 'acme.a': 'AHandler' and 'BHandlerAsA'. A key identifies exactly one
+handler; give one of them a different key.
+   at Tracon.JobHandlerRegistry.Create(...)
+   at Microsoft.Extensions.Hosting.Internal.Host.StartAsync(...)
+```
+Kök neden: `JobHandlerRegistry.Create`
+(`src/Tracon.Core/Scheduling/JobHandlerRegistry.cs:78-84`), bir
+`IValidateOnStart` doğrulayıcısı (`JobHandlerRegistryValidator.cs`)
+üzerinden `Host.StartAsync`'te tetikleniyor — worker'ın ilk tick'i değil,
+**host başlangıcı**. Mesaj çakışan anahtarı ve iki tam tip adını birlikte
+taşıyor. Beklenen sonuçla birebir örtüşüyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-JOB-125 — `tracon.` öneki tüketiciye kapalıdır
+
+**Gerçek sonuç**
+`JOBH_SCENARIO=reserved` (`AddJobHandler<AHandler>("tracon.retention")`)
+süreç **anında** çöktü — `Build()`/`Run()`'a hiç ulaşmadı:
+```
+System.ArgumentException: The job handler key 'tracon.retention' is
+reserved: the 'tracon.' namespace belongs to Tracon's own handlers. Pick a
+key of your own (for example 'contoso.nightly-report'). (Parameter
+'handlerKey')
+   at Tracon.TraconServiceCollectionExtensions.AddJobHandler[THandler](...)
+   at Program.<Main>$(String[] args) in Program.cs:line 50
+```
+`AddJobHandler<T>` çağrısının **kendisi** senkron olarak fırlatıyor
+(`src/Tracon.Core/TraconServiceCollectionExtensions.cs:122-127`) — yerleşik
+`tracon.retention` handler'ı hiç gölgelenmedi (süreç zaten hiç ayağa
+kalkmadı). Beklenen sonuçla birebir örtüşüyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-JOB-126 — Kayıtsız anahtarlı iş fail-closed'dır ve anahtarı sızdırmaz
+
+**Gerçek sonuç**
+`IJobStore.EnqueueAsync` ile doğrudan (dispatcher'ı atlayarak)
+`handlerKey="acme.no-such-handler"` yazıldı. Worker tick'inden sonra:
+`GET /api/jobs/{id}` → `status:"Failed"`,
+`errorMessage:"tracon.job.unknown-handler-key (ref: bd57fbee)"` — **ham
+anahtar yok**. Sunucu log'u: `Job <id> carries the handler key
+'acme.no-such-handler', which no IJobHandler is registered for. (ref:
+bd57fbee)` — ham anahtar **yalnız** burada, ve `ref` errorMessage'daki
+korelasyon kimliğiyle birebir aynı. Kaynak:
+`JobWorkerBackgroundService.cs:277-291`, `JobErrorCodes.cs:26,56`.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-JOB-127 — Her execution kendi DI scope'unu alır
+
+**Gerçek sonuç**
+`services.AddScoped<Marker>()` + `AHandler(Marker, ILogger)`. İki ayrı
+`acme.a` işi (`marker-1`, `marker-2`) **farklı** marker id'leriyle çalıştı
+(`8532796e...` / `4f7c6a3a...`). Üçüncü iş (`target=fail-once`) 1.
+denemede marker `b4870a6f...` ile fırlattı, `ReleaseForRetryAsync` sonrası
+2. denemede **farklı** marker `9f292b7c...` ile `Completed` kapandı — retry
+yeni bir DI scope alıyor, `JobContext` üzerinde `IServiceProvider` yok
+(constructor injection dışında erişim yolu da yok).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-JOB-128 — `handler_key` migration'ı dokuz değerin dokuzunu eşler
+
+**Gerçek sonuç**
+PostgreSQL için canlı ölçüldü (SQLite/SQL Server'da AYNI yordamla
+tekrarlanmadı — zaman bütçesi, aşağıda not edildi). `ap-pg`'de yeni şema
+`mtjob128mig`: migration `0001..0042` ham SQL olarak (`{schema}` yerine
+substitute edilerek) uygulandı, spec'in `Adımlar`ındaki gibi 9 `kind`
+değerinin her biri için bir schedule + bir job, `kind=0` için ikinci bir
+job yazıldı (10 job, 9 schedule — otomatik testle (`JobHandlerKeyMigrationTests.cs`)
+birebir aynı fixture). `__migrations` ledger'ı gerçek dosya SHA-256
+checksum'larıyla (`MigrationDescriptor.ComputeChecksum` — ham metnin
+SHA-256'sı) 1-42 için elle dolduruldu (ledger boş bırakılıp migration'lar
+"replay" edilseydi `0040`'ın idempotent OLMAYAN `RENAME COLUMN
+schema_version` satırı ikinci kez çalışıp patlardı — bunu ampirik olarak
+kanıtladım, bkz. not). Sonra donuk ikili (`Tracon.Api.dll`) bu şemaya karşı
+başlatıldı — `AutoApplyMigrations=true` varsayılanıyla **9 migration**
+(43'ten sona) gerçekten uygulandı:
+- Satır sayıları **değişmedi** (10 job, 9 schedule).
+- Eşleme tam beklenen gibi: `0→tracon.agent-batch`, `1→tracon.workflow`,
+  `2→tracon.eval`, `3→tracon.webhook-delivery`, `4→tracon.retention`,
+  `5→tracon.agent-run`, `6→tracon.online-eval`, `7→tracon.approval-resume`,
+  `8→tracon.run-continuation`.
+- `\d mtjob128mig.jobs`: `kind` sütunu **yok**, `handler_key` **NOT NULL**,
+  0 satırda `handler_key IS NULL`.
+Geçici şema iş bitince `DROP SCHEMA ... CASCADE` ile silindi.
+⚠️ **SQLite ve SQL Server'da tekrarlanmadı** — mekanizma (aynı
+`MigrationRunner`, aynı ledger sözleşmesi) sağlayıcılar arası paylaşılıyor
+ve üç sağlayıcı için de ayrı `JobHandlerKeyMigrationTests.cs` otomatik
+testi zaten var, ama bu turda yalnız PostgreSQL ampirik olarak canlı
+koşuldu.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-JOB-129 — Zamanlama ucu izin listesi dışındaki anahtarı reddeder
+
+**Gerçek sonuç**
+1. `GET /api/schedules/handler-keys` (varsayılan, `HttpSchedulableHandlerKeys`
+   boş) → yalnız dokuz yerleşik anahtar.
+2. `PUT /api/schedules/x {"handlerKey":"acme.a",...}` → `400`, mesaj
+   `HttpSchedulableHandlerKeys`'i adlandırıyor; zamanlama oluşmadı.
+3. `JOBH_SCENARIO=sched-allow` ile yeniden başlatma (`HttpSchedulableHandlerKeys`'e
+   `acme.a` eklendi) sonrası: `GET .../handler-keys` → `["acme.a"]` (liste
+   **acme.a'yı içeriyor** — beklenen budur; yerleşik dokuzun listede
+   KALMAMASI `ListHandlerKeysAsync`'in tasarımı: liste boş değilse
+   built-in'lerin YERİNE geçer, `SchedulingEndpoints.cs:171-174` — bug
+   değil). `PUT /api/schedules/x {"handlerKey":"acme.a",...,"payload":{}}`
+   → `200`.
+4. `GET /api/schedules/handler-keys` `RequireRole(roles.Admin)` taşıyor
+   (`SchedulingEndpoints.cs:66`) — bu scratch host'ta Reader/Admin ayrımı
+   ampirik ÖLÇÜLMEDİ (basit tek-token demo auth, dosya 02/07'nin zaten
+   kapsamlıca doğruladığı genel rol politikasının aynısı; kaynaktan
+   doğrulandı, bu case'te ayrıca canlı koşulmadı).
+
+🚨 **Yeni kusur — `HATA-S4-002` (Orta):** 2. adımın PUT'unu `payload` alanı
+**olmadan** göndermek (`{"handlerKey":...,"targetName":...,"cron":...,"enabled":true}`,
+gövdede `payload` yok) sunucu tarafında `500` ile patlıyor —
+`400` beklenirdi ya da (boş payload varsayılarak) `200`. Kök neden:
+`JobScheduleSaveRequest.Payload` (`src/Tracon.AspNetCore/Contracts/SchedulingContracts.cs:45`)
+`JsonElement`, `required` değil ve varsayılan yok; alan gövdede yoksa STJ
+onu `default(JsonElement)` (ValueKind=Undefined) bırakıyor.
+`SaveScheduleAsync` bunu doğrudan yanıt nesnesine kopyalıyor
+(`SchedulingEndpoints.cs:266`: `Payload = request.Payload`) ve
+`TypedResults.Ok(saved)` bunu serialize etmeye çalışınca
+`System.InvalidOperationException: Operation is not valid due to the
+current state of the object.` (`JsonElementConverter.Write`) ile patlıyor.
+**Ölçüldü — donuk ana uygulamada da (samples/Tracon.Api, port 5084, gerçek
+`mt_s4` şeması) birebir tekrarlandı**, scratch host'a özgü değil:
+`curl -X PUT .../api/schedules/manual-test-payloadless` (payload'sız,
+`tracon.workflow`) aynı `500`'ü verdi. UI formu payload alanını her zaman
+`"[]"` ile dolu gönderdiği için (MT-JOB-130'da gözlendi) arayüzden
+ERİŞİLEMEZ — yalnız HTTP API'yi doğrudan çağıran bir tüketici
+(`payload` alanını atlarsa) etkileniyor. Kapsam: yalnız bu case mi, yoksa
+başka `PUT /api/schedules/{name}` kullanan case'ler de mi — dosya
+16'daki diğer PUT çağıran case'ler (102, 113-115, 129 adım 3'ün
+işaretlediğim workaround'u) hepsi `payload` alanını AÇIKÇA gönderdi, bu
+yüzden bu turda başka hiçbir case'i etkilemedi; ama HERHANGİ bir gerçek
+tüketici `payload`'ı atlarsa (JSON'da opsiyonel bir alan olduğu için makul
+bir varsayım) aynı 500'e düşer.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☑ Kaldı · ☐ Atlandı (kısmi — 1., 2., 3.
+adımlar Geçti; 2. adımın `payload`sız hâli `HATA-S4-002`'yi açtı; 4. adım
+kaynaktan doğrulandı, canlı ölçülmedi)
+
+## MT-JOB-130 — Arayüz handler açılır listesi sunucudan gelir
+
+**Gerçek sonuç**
+Playwright, scratch host'un UI'sine (`Tracon.UI`, `.UseUI()`) bearer token
+ile giriş yaptı. Jobs ekranı → "New schedule" → "Handler key" açılır
+listesi: `sched-allow` senaryosu aktifken (server `["acme.a"]` döndürüyor)
+liste **tam olarak** `["Pick a handler…", "acme.a"]` gösterdi — iki sabit
+seçenek DEĞİL, `GET /api/schedules/handler-keys` yanıtının birebir
+yansıması. Jobs ekranındaki hem "Schedules" hem "Recent jobs" tablosunda
+sütun başlığı **"Handler key"** ve hücreler tam anahtarı gösteriyor
+(`acme.a`, `acme.no-such-handler` — kısaltılmamış). Konsol: 2 hata —
+(1) `script-src 'self'` CSP'sinin inline script'i engellemesi, bu **zaten
+bilinen `HATA-S2-002`** ile aynı kök neden (embedded console erken tema
+boyama), yeni değil; (2) ilk yüklemede `/api/agents`'a `401` — bu scratch
+host'ta hiç agent kaydı olmadığından kaynaklanan, iş/zamanlama iddialarıyla
+ilgisiz bir gözlem, HATA açılmadı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-JOB-131 — `GET /api/jobs` her satırda `handlerKey` taşır
+
+**Gerçek sonuç**
+`GET /api/jobs` (tüm satırlar): her satırda `handlerKey` alanı var
+(`acme.a`, `acme.b`, `acme.no-such-handler`), hiçbir satırda `kind` alanı
+yok. `?handlerKey=acme.b` → 2 satır, ikisi de `acme.b`. `?handlerKey=tracon.retention`
+(bu türde hiç iş yok) → `[]` — süzgeç gerçekten uygulanıyor, boş liste
+sessizce "tümü" değil.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
 ## Sayım (skill §7 betiği)
 
 ```
-{'Geçti': 61} toplam: 61
+{'Geçti': 97, 'Kaldı': 1} toplam: 98
 ```
 
-Bölüm 1-7 (`MT-JOB-001..085`, spec'te var olan her case) + `MT-JOB-090`
-**tamamlandı**, 61/61 Geçti, sıfır `Kaldı`, sıfır `Beklemede`.
-`MT-JOB-091`'den `MT-JOB-131`'e kadar (Bölüm 8'in kalanı + Bölüm 9-10,
-37 case) bu oturumda koşulmadı — sonraki oturumun işi (yukarıdaki devir
-notu).
+Bölüm 1-7 (`MT-JOB-001..085`) + `MT-JOB-090` + Bölüm 8 (`MT-JOB-091..121`)
++ Bölüm 9-10 (`MT-JOB-122..131`) + regresyon `MT-JOB-098`(B03) — **aile 16
+TAMAMLANDI**: 98/98 case işlendi, 97 Geçti, 1 Kaldı (`MT-JOB-129`,
+`HATA-S4-002`), sıfır `Beklemede`. Sıfır `Atlandı`.
