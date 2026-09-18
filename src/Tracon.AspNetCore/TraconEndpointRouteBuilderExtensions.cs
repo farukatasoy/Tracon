@@ -118,6 +118,14 @@ public static class TraconEndpointRouteBuilderExtensions
             jsonProblemApp.Use(JsonBindingProblemMiddleware.InvokeAsync);
         }
 
+        // HATA-S1-015: a store that cannot answer must say so. Attached OUTSIDE
+        // the binding mapping above so that it also covers a DbException thrown
+        // while that middleware is unwinding.
+        if (endpoints is IApplicationBuilder storeProblemApp)
+        {
+            storeProblemApp.Use(StoreUnavailableProblemMiddleware.InvokeAsync);
+        }
+
         var idempotencyFilter = new IdempotencyFilter(
             services.GetRequiredService<IOptionsMonitor<TraconIdempotencyOptions>>());
 

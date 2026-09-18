@@ -7,6 +7,8 @@ namespace Tracon.Core.UnitTests.Security;
 public sealed class AesGcmContentProtectorTests
 {
     private static readonly string ValidKey = Convert.ToBase64String(new byte[32]);
+    private static readonly string OtherValidKey = Convert.ToBase64String(
+        [.. Enumerable.Range(1, 32).Select(static i => (byte)i)]);
 
     [Fact]
     public void Protect_then_unprotect_round_trips_the_plaintext()
@@ -141,6 +143,65 @@ public sealed class AesGcmContentProtectorTests
 
         protector.Unprotect(protectedWithK1).ShouldBe("old data");
         protector.Unprotect(protectedWithK2).ShouldBe("new data");
+    }
+
+    [Fact]
+    public void Unprotect_names_the_key_when_the_configured_key_does_not_match_the_stored_value()
+    {
+        // HATA-S1-023: the key id resolves and the value is a valid 32-byte
+        // key, but it is the WRONG key - the one the value was written with is
+        // gone. The four resolution failures all name the key id; this fifth
+        // branch let a raw AuthenticationTagMismatchException out instead, and
+        // the operator saw a bodyless 500 with no key id anywhere.
+        var written = CreateProtector(activeKeyId: "rotating", keys: ("rotating", "Keys:rotating"), configuration: ("Keys:rotating", ValidKey));
+        var stored = written.Protect("secret payload");
+
+        var reconfigured = CreateProtector(
+            activeKeyId: "rotating",
+            keys: ("rotating", "Keys:rotating"),
+            configuration: ("Keys:rotating", OtherValidKey));
+
+        var exception = Should.Throw<TraconException>(() => reconfigured.Unprotect(stored));
+
+        exception.Message.ShouldContain("rotating");
+        exception.Message.ShouldContain("Keys:rotating");
+    }
+
+    [Fact]
+    public void UnprotectBytes_names_the_key_when_the_configured_key_does_not_match_the_stored_value()
+    {
+        var written = CreateProtector(activeKeyId: "rotating", keys: ("rotating", "Keys:rotating"), configuration: ("Keys:rotating", ValidKey));
+        var stored = written.ProtectBytes([1, 2, 3, 4]);
+
+        var reconfigured = CreateProtector(
+            activeKeyId: "rotating",
+            keys: ("rotating", "Keys:rotating"),
+            configuration: ("Keys:rotating", OtherValidKey));
+
+        var exception = Should.Throw<TraconException>(() => reconfigured.UnprotectBytes(stored));
+
+        exception.Message.ShouldContain("rotating");
+        exception.Message.ShouldContain("Keys:rotating");
+    }
+
+    [Fact]
+    public void Unprotect_does_not_put_key_material_in_the_message()
+    {
+        var written = CreateProtector(activeKeyId: "rotating", keys: ("rotating", "Keys:rotating"), configuration: ("Keys:rotating", ValidKey));
+        var stored = written.Protect("secret payload");
+
+        var reconfigured = CreateProtector(
+            activeKeyId: "rotating",
+            keys: ("rotating", "Keys:rotating"),
+            configuration: ("Keys:rotating", OtherValidKey));
+
+        var exception = Should.Throw<TraconException>(() => reconfigured.Unprotect(stored));
+
+        // K-059: a diagnostic names the key, never its value - and never the
+        // protected payload either.
+        exception.Message.ShouldNotContain(OtherValidKey);
+        exception.Message.ShouldNotContain(ValidKey);
+        exception.Message.ShouldNotContain(stored);
     }
 
     private static AesGcmContentProtector CreateProtector(
