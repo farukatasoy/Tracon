@@ -293,15 +293,18 @@ for PROVIDER in openai anthropic google azure; do
     --provider "$PROVIDER" --TraconVersion "$SURUM" >/dev/null
 
   echo "== $PROVIDER =="
-  grep -c "MODEL_ADINI_BURAYA_YAZIN" "$TMP/p/Program.cs"
+  grep -c "WRITE_MODEL_NAME_HERE" "$TMP/p/Program.cs"
   grep -iE "gpt-|claude-|gemini-|o1-|o3-|text-embedding-" "$TMP/p/Program.cs" \
     && echo "SABIT MODEL ADI VAR" || echo "temiz"
 done
 ```
 
 **Beklenen sonuç**
-- Dördü için de `Program.cs` **tam olarak bir kez** `MODEL_ADINI_BURAYA_YAZIN`
-  placeholder'ını içerir.
+- Dördü için de `Program.cs` **tam olarak bir kez** `WRITE_MODEL_NAME_HERE`
+  placeholder'ını içerir. 🚨 Placeholder metni İngilizce'dir (dil sınırı, K-228
+  — pakete giren ve çalışma anında çalışan her şey İngilizce'dir); önceki
+  beklenti Türkçe `MODEL_ADINI_BURAYA_YAZIN` yazıyordu, düzeltildi
+  (2026-09-17, ap-s2).
 - Dördü için de bilinen model öneki taraması **"temiz"** yazar.
 
 ---
@@ -418,14 +421,19 @@ TMP=$(mktemp -d)
 dotnet new tracon-api -n Meta.Kontrol -o "$TMP/a" --TraconVersion "$SURUM"
 cat "$TMP/a"/*.csproj
 
-dotnet new tracon-api -n Meta.Kontrol2 -o "$TMP/b" --persistence postgres --TraconVersion "$SURUM"
+dotnet new tracon-api -n Meta.Kontrol -o "$TMP/b" --persistence postgres --TraconVersion "$SURUM"
 diff "$TMP/a"/*.csproj "$TMP/b"/*.csproj
 ```
 
 **Beklenen sonuç**
-- İki `.csproj` dosyası **birebir aynıdır** (`diff` boş döner) — `postgres`
-  seçmek `.csproj`'a hiçbir satır eklemez, çünkü `Tracon.PostgreSql` zaten
-  `Tracon` meta referansı üzerinden geçişli olarak gelir.
+- 🚨 `<ItemGroup>`/`<PackageReference>` bloğu **birebir aynıdır** — `postgres`
+  seçmek `.csproj`'a hiçbir paket referansı satırı eklemez, çünkü
+  `Tracon.PostgreSql` zaten `Tracon` meta referansı üzerinden geçişli olarak
+  gelir. (Önceki beklenti "iki dosya birebir aynıdır, diff boş döner" diyordu;
+  düzeltildi 2026-09-17, ap-s2 — her `dotnet new` çağrısı rastgele bir
+  `UserSecretsId` GUID'i üretir, bu persistence seçimiyle ilgisizdir ve `diff`
+  hiçbir zaman tam boş dönmez. Yukarıdaki komut da artık iki projeyi **aynı**
+  `-n` ile üretir; farklı adlarla `RootNamespace` da farka eklenirdi.)
 - İki proje de yalnız `<PackageReference Include="Tracon" .../>` taşır (tek satır).
 
 ---
@@ -1238,8 +1246,12 @@ catch (TraconAssertionException ex)
 
 **Beklenen sonuç**
 - `TraconAssertionException` fırlatılır.
-- Mesaj `'olmayan-agent' calistirilamadi` ile başlar ve HTTP durum kodunu
-  (agent bulunamadığı için `404` beklenir) içerir.
+- 🚨 Mesaj `Failed to run 'olmayan-agent'.` ile başlar ve HTTP durum kodunu
+  (agent bulunamadığı için `404` beklenir) içerir — tam biçim: `Failed to run
+  'olmayan-agent'. Expected a successful status code, found '404': {...
+  "title":"Agent not found","status":404,...}`. (Önceki beklenti Türkçe
+  `'olmayan-agent' calistirilamadi` metnini arıyordu; düzeltildi 2026-09-17,
+  ap-s2 — çalışma anındaki mesajlar İngilizce, K-228.)
 
 ---
 
@@ -1437,9 +1449,10 @@ catch (TraconAssertionException ex)
 **Beklenen sonuç**
 - `GECEN YOL: basarili.` yazdırılır — `ShouldHaveCompleted()` tamamlanmış bir
   çalıştırmada istisna atmaz.
-- `DUSEN YOL mesaji:` satırı **hem beklenen hem bulunan durumu** içerir:
-  `"Calistirmanin durumu 'Failed' olmasi beklenirdi ama 'Completed' bulundu."`
-  (`RunAssertions.cs:51-52`'deki mesaj biçimi).
+- 🚨 `DUSEN YOL mesaji:` satırı **hem beklenen hem bulunan durumu** içerir:
+  `"Expected the run status to be 'Failed' but found 'Completed'."`
+  (`RunAssertions.cs:51-52`'deki mesaj biçimi; önceki beklenti Türkçe
+  metin arıyordu, düzeltildi 2026-09-17, ap-s2 — mesajlar İngilizce, K-228).
 
 ---
 
@@ -1512,8 +1525,10 @@ catch (TraconAssertionException ex)
 
 **Beklenen sonuç**
 - `GECEN YOL: dogru hata tipi.` yazdırılır.
-- `DUSEN YOL mesaji:` `"Hata tipinin 'baska_bir_tip' olmasi beklenirdi ama
-  'content_blocked' bulundu."` içerir (`RunAssertions.cs:72-73`).
+- 🚨 `DUSEN YOL mesaji:` `"Expected the error type to be 'baska_bir_tip' but
+  found 'content_blocked'."` içerir (`RunAssertions.cs:72-73`; önceki beklenti
+  Türkçe metin arıyordu, düzeltildi 2026-09-17, ap-s2 — mesajlar İngilizce,
+  K-228).
 
 ---
 
@@ -1577,8 +1592,10 @@ catch (TraconAssertionException ex)
 
 **Beklenen sonuç**
 - `GECEN YOL: tam olarak 2 cagri.` yazdırılır.
-- `DUSEN YOL mesaji:` `"'get_order_status' tool'unun 5 kez cagrilmasi
-  beklenirdi ama 2 kez cagrildi."` içerir (`RunAssertions.cs:96-97`).
+- 🚨 `DUSEN YOL mesaji:` `"Expected tool 'get_order_status' to be called 5
+  time(s) but it was called 2 time(s)."` içerir (`RunAssertions.cs:96-97`;
+  önceki beklenti Türkçe metin arıyordu, düzeltildi 2026-09-17, ap-s2 —
+  mesajlar İngilizce, K-228).
 
 ---
 
@@ -1642,8 +1659,10 @@ catch (TraconAssertionException ex)
 
 **Beklenen sonuç**
 - `GECEN YOL: cancel_order hic cagrilmadi.` yazdırılır.
-- `DUSEN YOL mesaji:` `"'get_order_status' tool'unun hic cagrilmamasi
-  beklenirdi ama 1 kez cagrildi."` içerir (`RunAssertions.cs:113-114`).
+- 🚨 `DUSEN YOL mesaji:` `"Expected tool 'get_order_status' to never be called
+  but it was called 1 time(s)."` içerir (`RunAssertions.cs:113-114`; önceki
+  beklenti Türkçe metin arıyordu, düzeltildi 2026-09-17, ap-s2 — mesajlar
+  İngilizce, K-228).
 
 ---
 
@@ -1784,14 +1803,21 @@ paketlenmiş `.nupkg` üzerinden elle tekrarı.
 
 **Girilecek veri**
 ```bash
-unzip -p ~/tracon-local-feed/Tracon.Testing.*.nupkg Tracon.Testing.nuspec | grep -A10 "<dependencies>"
+unzip -p ~/tracon-local-feed/Tracon.Testing.0.0.0-preview.0.789.nupkg Tracon.Testing.nuspec | sed -n '/<dependencies>/,/<\/dependencies>/p'
 ```
 
 **Beklenen sonuç**
-- Bağımlılık grubu yalnız `Tracon.AspNetCore`, `Tracon.Core` ve
-  `Microsoft.AspNetCore.TestHost`'u listeler.
+- Bağımlılık grubu (üç TFM için de: `net8.0`, `net9.0`, `net10.0`) yalnız
+  `Tracon.AspNetCore`, `Tracon.Core` ve `Microsoft.AspNetCore.TestHost`'u
+  listeler.
 - `xunit`, `NUnit`, `MSTest`, `Shouldly`, `FluentAssertions`,
-  `Microsoft.NET.Test.Sdk` dizelerinden **hiçbiri** çıktıda geçmez.
+  `Microsoft.NET.Test.Sdk` dizelerinden **hiçbiri** çıktıda geçmez. 🚨 Tarama
+  yalnız `<dependencies>` bloğuna scope edilmelidir — paketin `<description>`
+  alanı bilinçli olarak "Binds to no test framework (xunit, NUnit, MSTest)"
+  yazdığı için tüm dosyayı tarayan bir `grep` yanlış pozitif üretir. Ayrıca
+  `Tracon.Testing.*.nupkg` deseni `Tracon.Testing.Contracts.Xunit.*.nupkg`
+  dosyasını da eşleştirir; kesin dosya adı kullanılmalı. Düzeltildi
+  2026-09-17, ap-s2.
 
 ---
 
@@ -1829,18 +1855,23 @@ grep -c "Tracon.Testing" /Users/farukatasoy/Desktop/projects/Tracon/src/Tracon/T
 
 ---
 
-### MT-TEST-062 — `Tracon.Testing` yalnız `net10.0` hedefler — `net8.0` projeden kullanılamaz
+### MT-TEST-062 — `Tracon.Testing` çalışma paketleriyle aynı matrisi hedefler — `net8.0` projeden de kullanılabilir
 
 | | |
 |---|---|
 | **İzlek** | A |
 | **Önem** | Orta |
 | **İlgili faz** | Faz 39 |
-| **İlgili karar** | K-270 |
+| **İlgili karar** | K-780 (K-270'i kaldırdı) |
 
-Negatif/sınır senaryosu. Diğer tüm Tracon paketleri `net8.0;net9.0;net10.0`
-hedefler (`src/Directory.Build.props:12`); `Tracon.Testing` **istisnadır**
-(`Microsoft.AspNetCore.TestHost` sürüm kısıtı, `Tracon.Testing.csproj:15`).
+🚨 **Bu case 2026-09-17'de (ap-s2) tersine çevrildi.** K-270 (2026-08-06)
+`Tracon.Testing`i `net10.0`'a daraltmıştı (`Microsoft.AspNetCore.TestHost`ın
+merkezi sürümü yalnız `net10.0` destekliyordu). **K-780 (2026-09-15) bu kararı
+kaldırdı:** `TestHost` sürümü artık TFM başına (`VersionOverride`) çözülüyor,
+bu yüzden `Tracon.Testing` diğer tüm Tracon paketleriyle **aynı matrisi**
+(`net8.0;net9.0;net10.0`) hedefliyor (`Tracon.Testing.csproj`). Eski başlık ve
+iddia (K-270 döneminden kalma) tamamen geçersizdi; başlık ve senaryo buna göre
+yeniden yazıldı.
 
 **Ön koşul**
 - Yerel NuGet feed hazır.
@@ -1852,17 +1883,32 @@ hedefler (`src/Directory.Build.props:12`); `Tracon.Testing` **istisnadır**
 **Girilecek veri**
 ```bash
 mkdir -p ~/tracon-manuel/net8-deneme && cd ~/tracon-manuel/net8-deneme
-dotnet new console --framework net8.0
-dotnet add package Tracon.Testing --version "$SURUM" --source ~/tracon-local-feed
-dotnet build
+
+# 🚨 `dotnet new console --framework net8.0` SDK 10.0.100'de artık reddedilir
+# (şablon yalnız net9.0/net10.0 sunuyor — Tracon.Testing ile ilgisiz, ayrı bir
+# SDK kısıtı). net8.0 hedefleyen .csproj elle yazılır:
+cat > net8-deneme.csproj <<'EOF'
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+  </PropertyGroup>
+</Project>
+EOF
+echo 'Console.WriteLine("hi");' > Program.cs
+
+# 🚨 --source ile tek kaynağa sabitleme, gecişli bağımlılıkları (System.Buffers
+# vb.) nuget.org'dan çözemediği için NU1101 verir — global NuGet.Config zaten
+# tracon-local'ı taşıyor, --source VERİLMEMELİ:
+dotnet add package Tracon.Testing --version "$SURUM"
+dotnet build -c Release
 ```
 
 **Beklenen sonuç**
-- `dotnet add package` **başarısız olur veya** bir uyumsuzluk uyarısı verir
-  (paket `net10.0` dışında bir `TargetFramework` sunmaz — `TargetFrameworks`
-  (çoğul, tekil değil) yalnız `net10.0` içerir).
-- `dotnet build` (paket eklenmeye zorlanırsa) `NU1202` (paket uyumsuz) türü bir
-  hata ile başarısız olur.
+- `dotnet add package` **başarıyla eklenir** — çıktı "Package 'Tracon.Testing'
+  is compatible with all the specified frameworks" satırını içerir.
+- `dotnet build -c Release` **sıfır uyarı, sıfır hata** ile biter. `NU1202`
+  **alınmaz**.
 
 ---
 
@@ -1894,24 +1940,30 @@ denemesiyle ne ürettiği ölçülür.
 ```bash
 mkdir -p ~/tracon-manuel/aot-deneme && cd ~/tracon-manuel/aot-deneme
 dotnet new console
-dotnet add package Tracon.Testing --version "$SURUM" --source ~/tracon-local-feed
+dotnet add package Tracon.Testing --version "$SURUM"   # --source VERME, bkz. MT-TEST-062
 
-cat > aot-deneme.csproj.aot.props <<'EOF'
-EOF
-# .csproj'a elle <PublishAot>true</PublishAot> ekle (dotnet new console'un
-# uretttigi .csproj'da PropertyGroup icine).
+# .csproj'un <PropertyGroup>'una elle <PublishAot>true</PublishAot> ekle.
+# Program.cs'i de FakeModelProvider().CallsTool(...) CAGIRACAK sekilde
+# degistir -- varsayilan "Hello, World!" govdesi hicbir Tracon.Testing API'sini
+# cagirmadigi icin trimmer'in analiz edecek bir cagri grafigi olmaz.
 
 dotnet publish -c Release -r osx-arm64 --self-contained 2>&1 | tee aot-cikti.log
 grep -E "warning IL[0-9]+|NETSDK1210" aot-cikti.log
 ```
 
-**Beklenen sonuç (önceden iddia edilmez)**
-- `dotnet publish`in **başarılı olup olmadığı** ve **kaç adet** `IL2075`/`IL3050`/`NETSDK1210`
-  türü uyarı ürettiği koşumda kaydedilir.
-- Beklenti (kod yorumuna dayanır, doğrulanacak): en az bir trim/AOT analiz
-  uyarısı `Tracon.Testing.dll` ile ilişkilendirilir — paket `IsAotCompatible`
-  **olarak işaretli değildir**. **Sıfır** uyarı çıkması, kod yorumunun
-  güncelliğini yitirdiği anlamına gelebilir ve not düşülmelidir.
+**Beklenen sonuç**
+- 🚨 **Ölçüldü (2026-09-17, ap-s2): `dotnet publish` başarıyla biter, SIFIR**
+  `IL2075`/`IL3050`/`NETSDK1210` uyarısı üretir — `Program.cs`
+  `FakeModelProvider().CallsTool(...)` çağırsa bile. Kök neden kaynakta
+  doğrulandı: `Tracon.Testing.csproj`'daki `<TraconAotCompatible>false</...>`,
+  `Directory.Build.targets`'ta yalnız `true` iken `IsAotCompatible=true`
+  atıyor; `false` için `IsAotCompatible` hiç atanmıyor (varsayılan `false`).
+  Mekanizma önceki beklentinin tersidir: paket AOT-uyumlu **olarak
+  işaretlenmediği için** derleyici onun yüzeyini
+  `RequiresDynamicCode`/`RequiresUnreferencedCode` ile doğrulamaz ve tüketici
+  tarafında da uyarı **üretmez** — "uyarı üretir" değil, "analiz dışı kalır,
+  sessiz kalır". Önceki beklenti ("en az bir uyarı üretilir") bu mekanizmayı
+  ters yönde varsaymıştı; düzeltildi.
 
 ---
 
@@ -1977,18 +2029,27 @@ tool'un **paketten** akan analyzer ile derlendiğini ve gerçekten
 - Yerel NuGet feed hazır (`dotnet pack Tracon.src.slnf -c Release`).
 
 **Adımlar**
-1. `python3 scripts/kapi.py test --proje Tracon.Package.Tests --sinif ConsumerRunTests` çalıştır.
+1. `python3 scripts/kapi.py test --proje Tracon.Package.Tests --sinif '*ConsumerRunTests*'` çalıştır.
 
 **Girilecek veri**
 ```bash
 cd /Users/farukatasoy/Desktop/projects/Tracon
-python3 scripts/kapi.py test --proje Tracon.Package.Tests --sinif ConsumerRunTests
+python3 scripts/kapi.py test --proje Tracon.Package.Tests --sinif '*ConsumerRunTests*'
 ```
+
+🚨 **`--sinif` joker karakter GEREKTİRİR** (`docs/hafiza/test-kosum-tuzaklari.md`):
+çıplak sınıf adı (`ConsumerRunTests`) tam nitelikli ada
+(`Tracon.Package.Tests.ConsumerRunTests`) eşleşmez, `Zero tests ran` sessizce
+döner. Düzeltildi 2026-09-17, ap-s2.
 
 **Beklenen sonuç**
 - Test **yeşil** biter.
 - Alt sürecin `stdout`'u `OK run=<guid> events=<n> tools=1` satırını taşır,
   `n > 0`.
+- İlk koşumda `TemplateFixture`'ın kendi `dotnet pack Tracon.src.slnf`'i
+  soğuk önbellekle **birkaç dakika** sürebilir (20 dakikalık zaman aşımı bu
+  yüzden geniş tutulmuş) — bu süre boyunca ilerleme çubuğu `[+0/x0/?0]`
+  gösterir, DONMUŞ değildir; erken kesmeyin.
 
 ---
 
@@ -2022,7 +2083,7 @@ cp src/Tracon.Core/Tracon.Core.csproj /tmp/Core.csproj.orig
 sed -i '' "s/Condition=\"'\$(TargetFramework)' == 'net10.0'\"/Condition=\"'\$(TargetFramework)' == 'net99.0'\"/" \
   src/Tracon.Core/Tracon.Core.csproj
 
-python3 scripts/kapi.py test --proje Tracon.Package.Tests --sinif ConsumerRunTests
+python3 scripts/kapi.py test --proje Tracon.Package.Tests --sinif '*ConsumerRunTests*'
 
 # geri al -- touch SART, aksi halde mtime yuzunden bir onceki (sahte kusurlu)
 # derleme sessizce yeniden kullanilir (docs/hafiza/test-kosum-tuzaklari.md)
@@ -2076,7 +2137,7 @@ open(p, 'w').write(s)
 sed -i '' 's#<PackageReference Include="Google.GenAI" />#<PackageReference Include="Google.GenAI" />\n    <PackageReference Include="Humanizer.Core" />#' \
   src/Tracon.Google/Tracon.Google.csproj
 
-python3 scripts/kapi.py test --proje Tracon.Package.Tests --sinif TransitiveDependencyTests
+python3 scripts/kapi.py test --proje Tracon.Package.Tests --sinif '*TransitiveDependencyTests*'
 
 cp /tmp/Directory.Packages.props.orig Directory.Packages.props
 cp /tmp/Google.csproj.orig src/Tracon.Google/Tracon.Google.csproj
@@ -2197,11 +2258,28 @@ Test run summary: Failed!
   succeeded: 0
 ```
 
+**Gerçek sonuç (2026-09-17, ap-s2)**
+```
+Build succeeded. 0 Error(s)
+Test run summary: Failed!
+  total: 99
+  failed: 97
+  succeeded: 0
+  skipped: 2
+```
+🚨 `RunStoreContract` 2026-08-24'ten bu yana büyümüş (88 → 99). 2 atlanan
+case opsiyonel `IRunScoreStore`'a bağlı (`CreateScoreStoreAsync()` override
+edilmezse skorla ilgili iki case atlanır) — `IRunStore`'un 15 zorunlu
+metoduna dahil değil, kusur değil.
+
 **Beklenen sonuç**
 - `dotnet build` **sıfır hata** ile biter — sözleşme normal bir NuGet
   tüketicisinden derlenebilir.
-- Suite koşar ve **kırmızıdır** (88/88 başarısız), her biri
-  `System.NotSupportedException` ile — derleme zamanı değil çalışma zamanı hatası.
+- Suite koşar ve **kırmızıdır** (opsiyonel skor senaryoları hariç tüm
+  case'ler başarısız), her biri `System.NotSupportedException` ile —
+  derleme zamanı değil çalışma zamanı hatası. 🚨 Tam sayı sabitlenmez, suite
+  büyüdükçe değişir (ölçülen: 2026-08-24'te 88/88, 2026-09-17'de 97/99 + 2
+  opsiyonel atlama).
 
 ---
 
@@ -2243,6 +2321,17 @@ Test run summary: Passed!
   failed: 0
   succeeded: 88
 ```
+
+**Gerçek sonuç (2026-09-17, ap-s2)**
+```
+Build succeeded. 0 Warning(s), 0 Error(s)
+Test run summary: Passed!
+  total: 99
+  failed: 0
+  succeeded: 99
+```
+🚨 Sayı 88 → 99 büyümüş (aynı `RunStoreContract` tabanı, bkz. MT-TEST-074) —
+kusur değil, kabul kriteri (tamamı yeşil) hâlâ geçerli.
 
 **Beklenen sonuç**
 - Derleme sıfır uyarı/hata ile biter.
@@ -2436,7 +2525,10 @@ dotnet test samples/Tracon.Samples.CustomModelProvider.Tests -c Release
 ```
 
 **Beklenen sonuç**
-- İkisi de geçer (PostgreSQL ve SQL Server aynı kod yolunu koşar, container ister).
+- 🚨 İkisi de geçer (önceki metin "PostgreSQL ve SQL Server" diyordu, ama
+  komut `Tracon.Core.UnitTests` (bellek içi) ve `Tracon.Sqlite.
+  IntegrationTests`'i çağırıyor — düzeltildi 2026-09-17, ap-s2, kopyala-
+  yapıştır kalıntısıydı).
 - `ContractCoverage.MissingDerivedTypes` her çağrıda bir **aile adı** alır;
   aile adı almayan aşırı yükleme yoktur. Bir depolama tüketicisi, Tracon
   sağlayıcı sözleşmesi yayınladı diye kırılamaz.
@@ -2530,7 +2622,12 @@ python3 scripts/kapi.py test --proje Tracon.Core.UnitTests --sinif '*JobWorkerBa
 ```
 
 **Beklenen sonuç**
-- Bir test geçer.
+- 🚨 Dört test geçer (önceki beklenti "bir test" diyordu; sınıf büyümüş —
+  düzeltildi 2026-09-17, ap-s2:
+  `StopAsync_waits_for_a_leased_job_to_release_its_concurrency_slot` ·
+  `A_full_lane_does_not_block_the_default_lanes_job` ·
+  `A_worker_scoped_to_one_lane_never_leases_another_lane` ·
+  `A_throwing_handlers_own_message_never_reaches_jobs_error_message`).
 - `StopAsync`, çalışan handler serbest bırakılana kadar tamamlanmaz.
 - Handler tamamlanınca worker slotu serbest bırakır; dispose edilmiş
   `SemaphoreSlim` için `ObjectDisposedException` veya süreç çöküşü oluşmaz.
@@ -2652,7 +2749,7 @@ dotnet build "$TMP/apg" -c Release
   görünür.
 - `dotnet build` **`0 Error(s)`** ile biter — uyarı derlemeyi kırmaz.
 
-### MT-TEST-089 — Nesne parametreli bir tool metodu TRC0003 hatası üretir; mesaj iç içe nesnenin ifade edilemediğini ve kaçış yolunu adıyla söyler (Faz 125)
+### MT-TEST-089 — Desteklenmeyen bir parametre tipi TRC0003 hatası üretir; mesaj desteklenen tipleri ve kaçış yolunu adıyla söyler (Faz 125)
 
 | | |
 |---|---|
@@ -2660,12 +2757,25 @@ dotnet build "$TMP/apg" -c Release
 | **Önem** | Orta |
 | **İlgili faz** | Faz 125 |
 
+🚨 **Başlık ve senaryo 2026-09-17'de (ap-s2) düzeltildi (kural 1.1 istisnası,
+ürün kusuru DEĞİL — generator'a sonradan bir yetenek eklenmiş).** Eski
+önerme ("nesne parametresi TRC0003 verir, nested object hiç ifade
+edilemez") artık **yanlış**: `ToolDiagnostics.cs`'teki TRC0003 mesajının
+kendisi bugün "a supported object - a public record or class with a single
+public constructor, up to 3 nested object levels deep (see TRC0011,
+TRC0012)" diyor — basit bir `record` parametresi (`OrderFilter(string,
+int)`) artık **desteklidir** ve TRC0003 yerine `TRC0011` verir (tip
+`JsonSerializerContext`'e kayıtlı değilse). Gerçek `TRC0003`'ü tetiklemek
+için GENUINE desteklenmeyen bir tip gerekir (örn. `Dictionary<string,
+string>`).
+
 **Ön koşul**
 - Şablon kurulu (MT-TEST-001).
 
 **Adımlar**
 1. En yalın birleşimle bir proje üret (MT-TEST-002).
-2. `Tools/OrderTools.cs`'e nesne parametreli, `[TraconTool]` işaretli yeni bir metot ekle.
+2. `Tools/OrderTools.cs`'e desteklenmeyen tipte (örn. `Dictionary<string,
+   string>`) parametreli, `[TraconTool]` işaretli yeni bir metot ekle.
 3. Projeyi derle.
 
 **Girilecek veri**
@@ -2675,21 +2785,27 @@ dotnet new tracon-api -n ApgDeneme2 -o "$TMP/apg2" \
   --persistence memory --provider openai --ui false --TraconVersion "$SURUM"
 
 # Tools/OrderTools.cs içine ekle:
-#   public sealed record OrderFilter(string Status, int MinAmount);
-#
 #   [TraconTool("search_orders", "Searches orders.")]
-#   public static string SearchOrders(OrderFilter filter) => filter.Status;
+#   public static string SearchOrders(Dictionary<string, string> filter) => filter.Count.ToString();
 
 dotnet build "$TMP/apg2" -c Release
 ```
 
 **Beklenen sonuç**
-- Çıktıda `error TRC0003: ... is not supported by the generator. Supported
-  types: ... The generator also never expresses a nested object, or a
-  minimum, maximum, length, or pattern constraint, on any parameter. For
-  another type, or a constrained schema, register manually with
+- Çıktıda `error TRC0003: Parameter 'filter' (type
+  'System.Collections.Generic.Dictionary<string, string>') ... is not
+  supported by the generator. Supported types: primitive types, string,
+  Guid, DateTime(Offset), enum, arrays/IReadOnlyList<T> of these,
+  CancellationToken, and a supported object - a public record or class with
+  a single public constructor, up to 3 nested object levels deep (see
+  TRC0011, TRC0012). For another type, register manually with
   'AddTool(AIFunctionFactory.Create(...))'.` görünür.
 - `dotnet build` hata ile biter (`0` çıkış kodu **değil**).
+- **Ayrıca not:** basit bir `record` (`OrderFilter(string Status, int
+  MinAmount)`) parametresi artık TRC0003 vermez — bunun yerine
+  `TRC0011: ... is not declared with [JsonSerializable(typeof(...))] on the
+  JsonSerializerContext...` verir (yine derleme hatası, ama farklı
+  kod/mesaj) — nested object desteği (3 seviyeye kadar) sonradan eklendi.
 
 ---
 

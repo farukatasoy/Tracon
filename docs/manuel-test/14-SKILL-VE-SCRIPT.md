@@ -884,28 +884,46 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/skills/scriptli-skill" -H "
 
 ---
 
-### MT-SKILL-041 — `Interpreters`'a `sh` eklenince AYNI kayıt başarılı olur (yalnız config, kod değişikliği YOK)
+### MT-SKILL-041 — `Interpreters`'a `sh` eklenince AYNI kayıt başarılı olur (geçici kod değişikliği gerektirir)
 
-🚨 **Doğrulanmış keşif.** `TraconSkillScriptOptions.Interpreters` sözlüğü
-`IConfiguration`'dan HER ZAMAN bağlanır (`TraconServiceCollectionExtensions.cs:1136-1141`,
-`BindSkillScripts`), `UseSkillScripts()` çağrılıp çağrılmadığından BAĞIMSIZDIR.
-Faz 11 dokümanının "Seçenek A ÖNERİLEN... kökler KODDA, arayüzden DEĞİL" notu
-script KÖKLERİ (`SkillRoots`) için doğrudur ama yorumlayıcı beyaz listesi de
-AYNI mekanizmayla `dotnet user-secrets` üzerinden ayarlanabilir — script
-KAYDI (henüz ÇALIŞTIRMA değil) bu yolla açılabilir.
+🚨 **ÖNERME TERSİNE ÇEVRİLDİ (2026-09-17 koşumunda ölçüldü).** Bu case
+önceden "`Interpreters` config'ten HER ZAMAN bağlanır, `dotnet
+user-secrets` ile açılabilir" diyordu. Güncel kod TAM TERSİNİ yapıyor:
+`TraconServiceCollectionExtensions.Binding.Core.cs:190-200` `AllowStoredScripts`,
+`SkillRoots` VE `Interpreters`'ı **bilinçli olarak config'ten bağlamıyor**
+— üçü de sunucuda çalıştırılabilecek yüzeyi genişletir, ve kod yorumu
+doğrudan `Tracon__Skills__Scripts__Interpreters__sh=/bin/sh` örneğini
+verip bunun "uygulamanın hiç onaylamadığı bir yorumlayıcı eklediğini"
+söylüyor — yani bu case'in ORİJİNAL senaryosu artık kasıtlı olarak
+KAPALI (güvenlik sıkılaştırması, kusur değil). Yalnız `Enabled` ve
+`PlatformIsolationAcknowledged` hâlâ config'ten bağlanır (bunlar yalnız
+DARALTABİLİR, asla genişletemez).
+
+Bu yüzden case artık MT-SEC-070/MT-WF-090 deseninde **geçici bir kod
+değişikliği** gerektirir — `dotnet user-secrets`/ortam değişkeni ile
+AÇILAMAZ.
 
 | | |
 |---|---|
 | **İzlek** | B |
 | **Önem** | Orta |
 | **İlgili faz** | Faz 11 |
-| **İlgili karar** | K-088 |
+| **İlgili karar** | K-088 (muhtemelen sonraki bir dalgada sıkılaştırıldı) |
 
 **Ön koşul**
-```bash
-dotnet user-secrets set "Tracon:Skills:Scripts:Interpreters:sh" "/bin/bash"
+`samples/Tracon.Api/Program.cs`'e GEÇİCİ olarak ekle (`tracon` değişkeni
+tanımlandıktan sonra):
+```csharp
+tracon.UseSkillScripts(o =>
+{
+    o.PlatformIsolationAcknowledged = true;
+    o.Interpreters["sh"] = "/bin/bash";
+});
 ```
-Uygulama yeniden başlatılır.
+`dotnet build`, uygulamayı yeniden başlat. (Bu çağrı `Scripts.Enabled`'ı
+da `true` yapar — §6/§7'nin çoğu case'i zaten bunu ister; yalnız
+`Enabled:false` gereken bir case için env değişkeniyle DARALT:
+`Tracon__Skills__Scripts__Enabled=false`, bkz. MT-SKILL-046/050.)
 
 **Adımlar**
 1. MT-SKILL-040'daki AYNI isteği, `extension: "sh"` ile tekrarla.
@@ -921,8 +939,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/skills/scriptli-skill" -H "
 ```
 
 **Beklenen sonuç**
-- `HTTP: 201`. Kayıt DB'de durur ama `scripts.Enabled` hâlâ `false`
-  (varsayılan) olduğu için HİÇBİR ŞEKİLDE çalıştırılamaz — bkz. §6.
+- `HTTP: 201`. Kayıt DB'de durur; `scripts.Enabled` durumuna göre
+  çalıştırılabilir/çalıştırılamaz (kodun bu koşumdaki hâli `Enabled:true`
+  bırakır — bkz. §6).
 
 ---
 
@@ -1214,11 +1233,18 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/skill-script-grants" -H "$
 2. `http://localhost:5080/tracon/skills` sayfasını aç, en alttaki
    "Script Çalıştırma İzinleri" panelini incele.
 
-**Beklenen sonuç**
+**Beklenen sonuç — CSS sınıfı DÜZELTİLDİ (2026-09-17 koşumunda ölçüldü)**
 - Adım 1: liste `scriptli-skill`/`merhaba` çiftini içerir.
-- Adım 2: panelin üstünde kırmızı bir uyarı kutusu görünür
-  (`data-testid` yok ama CSS sınıfı `border-red-500`,
-  `skills.tsx:154-156`) ve grant tablosu aynı kaydı gösterir.
+- Adım 2: panelin üstünde belirgin bir "danger" tonlu uyarı kutusu görünür
+  ve grant tablosu aynı kaydı gösterir. `data-testid` hâlâ yok; CSS sınıfı
+  artık `border-red-500` DEĞİL — bileşen `src/Tracon.UI/frontend/src/screens/skills/script-grants.tsx`'e
+  taşınmış ve tema token'larına geçirilmiş: `border-danger bg-danger-soft
+  text-danger` (`.bg-danger-soft` seçicisiyle DOM'da doğrulandı). Kodun
+  kendi yorumu bunu açıklıyor: eski `border-red-500 bg-red-500/10
+  text-red-500` ham Tailwind paleti temaya uymuyordu, "ürünün en yüksek
+  sesli uyarısı hiçbir yerde kullanılmayan tek renkti" — bilinçli bir
+  tasarım-sistemi düzeltmesi, kusur değil. Görsel/davranışsal iddia
+  (belirgin tehlike kutusu var) hâlâ doğru.
 
 ---
 
