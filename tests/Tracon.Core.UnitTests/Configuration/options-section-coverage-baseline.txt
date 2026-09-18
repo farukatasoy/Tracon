@@ -1,0 +1,35 @@
+# Configuration sections that are bound BY HAND with nothing proving every
+# scalar reaches them. One name per line. The list may only SHRINK: a new
+# section here fails OptionsSectionCoverageTests, and a section that gains a
+# '<TypeName>BindingTests' class has to leave the file.
+#
+# Measured 2026-09-19, closing HATA-S1-003's scanner item. TraconOptions is
+# NOT the parent of these: they are root-level sibling sections bound one by
+# one, so TraconOptionsBindingCoverageTests never reached any of them. The
+# defect this shape produces was measured on a section that DID get a test
+# afterwards - TraconImageOptions.Timeout was added, documented as
+# configurable, and bound nowhere; a live run caught it, no test did.
+CanaryOptions
+OnlineEvaluationOptions
+PatternContentGuardOptions
+RunReconciliationOptions
+SingletonExecutionOptions
+TraconApprovalOptions
+TraconAsyncRunOptions
+TraconContentGuardOptions
+TraconContentProtectionOptions
+TraconDrainOptions
+TraconEgressOptions
+TraconIdempotencyOptions
+TraconKnowledgeOptions
+TraconMcpSecurityOptions
+TraconQuotaOptions
+TraconRateLimitOptions
+TraconRetentionOptions
+TraconRunContinuationOptions
+TraconSchedulingOptions
+TraconSessionOwnershipOptions
+TraconStructuredResponseOptions
+TraconWebhookOptions
+VoiceConversationOptions
+VoiceLiveOptions

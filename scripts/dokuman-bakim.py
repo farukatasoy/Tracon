@@ -1489,9 +1489,13 @@ def _fence_bloklarini_soy(metin: str) -> str:
 
 
 def _kod_bloklarini_soy(metin: str) -> str:
-    """Fence + satir ici kod: HER IKISI de gosterimdir. Uzunluk KORUNUR."""
+    """Fence + satir ici kod: HER IKISI de gosterimdir. Uzunluk KORUNUR.
+
+    Satir SAYISI da korunur: kod parcasi bir satir sonunu asabildigi icin
+    (asagi bak) onu bosluga cevirmek satirlari birlestirirdi ve satir
+    numarasiyla rapor veren her cagirani kaydirirdi."""
     return _SATIR_ICI_KOD.sub(
-        lambda m: " " * len(m.group(0)), _fence_bloklarini_soy(metin))
+        lambda m: re.sub(r"[^\n]", " ", m.group(0)), _fence_bloklarini_soy(metin))
 
 
 # Satir ici kod da GOSTERIMDIR: `[x](../../YOK.md)` bir baglanti degil, bir
@@ -1499,7 +1503,15 @@ def _kod_bloklarini_soy(metin: str) -> str:
 # yanlis pozitifi uretti. Uzunluk korunur ki sutun kaymasin.
 # `[`dosya.md`](dosya.md)` deseni GUVENLIDIR: yalniz ETIKET bir kod parcasidir,
 # hedef parantez disinda kalir ve taranmaya devam eder.
-_SATIR_ICI_KOD = re.compile(r"(?<!`)`[^`\n]+`(?!`)")
+#
+# 🚨 Desen BIR satir sonunu asabilir. Markdown'da kod parcasi satir sonu
+# tasiyabilir ve bu depoda satirlar ~80 sutunda sarildigi icin gercekten
+# tasiyor: iki satira bolunmus bir `[kapilar.md](kapilar.md)` alintisi kod
+# SAYILMIYORDU ve kapi onu gercek bir baglanti sanip kirik ilan etti
+# (2026-09-16 kosumu, iki vaka). Sinir bilincli olarak TEK satir sonudur --
+# `[^`]*` yazmak, tek basina kalmis bir backtick'in dokumanin yarisini
+# yutmasina izin verirdi.
+_SATIR_ICI_KOD = re.compile(r"(?<!`)`[^`\n]*(?:\n[^`\n]*)?`(?!`)")
 
 
 def kirik_baglantilar(kok: pathlib.Path = ROOT) -> list[str]:
@@ -2437,7 +2449,12 @@ def tam_metin_denetle(kok: pathlib.Path = ROOT) -> list[str]:
             metin = dosya.read_text(encoding="utf-8")
         except (UnicodeDecodeError, OSError):
             continue
-        for sha, yol in set(_TAM_METIN.findall(metin)):
+        # Isaret KOD GOSTERIMI DISINDA aranir: bir kayit `git show <sha>:<yol>`
+        # komutunu KARSI ORNEK olarak alintilayabilir ("bu yol cozulmez") ve
+        # kapi onu gercek bir tam-metin referansi sanip kirmizi olur
+        # (2026-09-16 kosumu). Mesru referans blok alintisinda (`> git show
+        # ...`) yasar, kod blogunda degil.
+        for sha, yol in set(_TAM_METIN.findall(_kod_bloklarini_soy(metin))):
             if _git("cat-file", "-e", f"{sha}:{yol}") is None:
                 bulunan.append(f"{dosya.relative_to(kok).as_posix()} -> {sha}:{yol} çözülmüyor")
                 continue
