@@ -6,10 +6,12 @@
 
 ---
 
-## 🔄 Açık iş — 2026-09-18
+## 🔄 Açık iş — 2026-09-19
 
 **Manuel kabul turunun kapanışı (Aşama 2) sürüyor.** Koşum bitti (36/36 aile,
-1856 case); kusurlar **aile aile** kapanıyor, her aile ayrı commit.
+1856 case); **yirmi iki ailenin yirmi ikisi de kapandı.** Kalan iş kusur
+düzeltmek değil, **kapanmış ailelerin `Kaldı` case'lerini canlı sunucuda
+yeniden koşmak** — ve ardından bitti tanımı + damıtma.
 
 🚨 **Sayım burada TEKRARLANMAZ** — kaç kusurun kapandığı her ailede değişir ve
 iki yerde tutmak kayma üretir. Güncel durum tek yerdedir: planın başlığı.
