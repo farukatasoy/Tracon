@@ -88,3 +88,27 @@ Yeni bir halka eklerken tek soru sudur: **her model cagrisini gormesi gerekiyor 
   prompt-injection yolu tam olarak budur. Regresyon:
   `tests/Tracon.Core.UnitTests/Models/PipelineOwnershipTests.cs` — iddia
   guard'in gordugu YONDUR, boru hattindaki tip sayisi degil.
+- **🚨 Bir maskeleme katmanı eklemek, ondan SONRA gelen her sınıflandırıcıyı
+  körleştirir** (2026-09-18, `HATA-S1-020`). `ProviderFailureNormalizer` yabancı
+  istisnayı sabit mesajlı bir `TraconException` ile değiştiriyor;
+  `DefaultRunErrorClassifier` ise istisna **nesnesine değil** `RunError`'ın iki
+  dizgisine bakıyor. Sonuç: K-296'nın ölçüp eklediği SDK tip desenleri
+  (`clientresultexception|requestfailedexception|…`) o yolda **hiçbir şey**
+  görmüyordu ve yabancı sağlayıcıdan gelen her hata `Unknown`'a düşüyordu —
+  desenin kendi yorumu hâlâ "gerçek bir OpenAI 404'ünde ölçüldü" diyordu ve o
+  cümle artık bugünkü kodu tarif etmiyordu. **Kural:** bir istisnayı değiştiren
+  katman eklediğinde, o istisnayı OKUYAN her katmanı ayrıca ara; "ölçtüm, çalışıyor"
+  diyen bir yorum başka bir katman araya girdiğinde sessizce yalan olur. K-816.
+- **Maskelenen bir hatanın mesajı SABİTse parmak izi de sabittir** (aynı vaka).
+  `ErrorFingerprint.Compute(runError.Message)` ölçüyü mesajdan alır; mesaj sabit
+  olunca iki farklı sağlayıcının iki farklı hatası (OpenAI 404 · OpenRouter 402)
+  **karakter karakter aynı** parmak izini verdi. Maskeleme ile ayırt edicilik
+  çelişmez: mesaja Tracon'un KENDİ seçtiği üç olgu girer (sağlayıcı adı · istisna
+  tip adı · HTTP durum kodu), sağlayıcının kendi metni hiç girmez. K-817.
+- **Durum kodu Core'da METNİNDEN okunur — SDK tipiyle değil** (aynı vaka).
+  `FallbackRetryClassifier` bunu zaten böyle yapıyor (`Flatten` + `HTTP` deseni) ve
+  kendi dokümanı gerekçesini yazıyor: Core hiçbir sağlayıcı SDK'sının istisna
+  tipini bilmez. Aynı soruya ikinci bir mekanizma (adaptör başına tipli bir seam)
+  koymak bu repoda ölçülmüş bir **kayma sınıfı**dır; önce seçildi, sonra bu
+  emsal bulununca geri alındı.
+

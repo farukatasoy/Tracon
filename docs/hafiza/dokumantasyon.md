@@ -96,6 +96,14 @@ konan tek bir 🚨 kapiyi kirmiziya dondurdu. Implementation yorumu (`//`) kapsa
 DISINDADIR — maintainer icin "K-320 bu konumu olctu" yazmak serbesttir, ayni
 cumle `<summary>` icinde degildir.
 
+**Duzeltme tabani tazelemek DEGILDIR, cumleyi yeniden yazmaktir.** Kapinin
+tabani (`shipped-documentation-baseline.txt`) yalniz **kucululur**; bir dosya
+icin sayiyi buyutmek borcu kalicilastirir. 2026-09 kapanisinda bu kapi **uc ayri
+ailede** (D · I · J) kirmiziya dondu — her seferinde yeni yazilan bir `///`
+blogunda bir 🚨 ya da bir `K-NNN` referansi vardi, ve her seferinde cozum tek bir
+cumlenin yeniden yazilmasiydi. Yeni bir `///` blogu yazdiktan sonra
+`grep -n "🚨\|K-[0-9]" <dosya> | grep "///"` kos.
+
 ## 🚨 Sayısal sıralama knob'unun YÖNÜ dokümanda ters yazılır
 
 `IAgentDecorator.Order`'ın `<summary>`'si yıllarca gerçek davranışın tersini

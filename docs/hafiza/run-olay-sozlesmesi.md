@@ -58,3 +58,18 @@ yolda da koşar; bir genişleme noktası yola göre sessizce farklı davranmamal
   onay sarmalayıcısının yerleşimiyle ilgili ilişkili not (MEAI'nin
   `ApprovalRequiredAIFunction`'ı `GetService` ile bulması):
   [`tool-onay-ve-yetkilendirme.md`](tool-onay-ve-yetkilendirme.md).
+- **🚨 Parmak izi normalleştirmesinde her sayı gürültü DEĞİLDİR**
+  (2026-09-18, `HATA-S1-020` kapanışında ölçüldu). `ErrorFingerprint`'in
+  `NumberPattern`'ı (`\d+`) her sayı dizisini `{n}` yapıyordu; ayrı edici bir
+  mesaj eklendikten SONRA bile `HTTP 404` ile `HTTP 500` aynı küme anahtarına
+  düşüyordu. Sayı temizliği bir **id**'nin tek hatayı yüzlerce kümeye
+  bölmesini engellemek içindir (ölçülmüş: 2000 oluşum → 1368 küme); bir **durum
+  kodu** bunun tersini yapar, iki hatayı ayırır. `(?<!\bHTTP\s)` lookbehind'ı
+  yalnız onu korur. **Kural:** bir normalleştirme kuralı eklerken "bu değer
+  oluşum başına mı değişiyor, yoksa HATAYI mi tanımlıyor?" diye sor — ilkine
+  gürültü, ikincisine kimlik denir. K-818.
+- **Bir düzeltmenin testi hâlâ kırmızıysa kusur BİR DEĞİL İKİ katmandadır**
+  (aynı vaka). Mesaja ayrı edici eklendi, test yine düştü; ikinci katman
+  (`ErrorFingerprint`'in kendi normalleştirmesi) ancak o kırmızı sayesinde
+  görüldü. Kusur kaydı da, kapanış analizi de bu ikinci katmanı öngörmemişti.
+

@@ -758,6 +758,65 @@ sözlüğü bunların yalnız **7**'sini tanıyor. Tanınmayan 10:
 | `replay_tool_mismatch` | replay uyuşmazlığı |
 | `job_retry` · `eval_run_diff_unavailable` | iş/eval yolları |
 
+### ✅ KAPANDI — 2026-09-18 (Aşama 2, Aile J)
+
+**Kaydın iki teşhisi de doğruydu; kapanış ÜÇÜNCÜ bir katman buldu.**
+
+**Birinci yarı — sınıf.** Kaydın önerdiği yön aynen uygulandı (K-816):
+`StableIdentities`'e `upstream_error → ProviderError` ve
+`provider_credential_unsupported → CompilationFailed` girdileri eklendi. İkincisi
+bir sağlayıcı hatası değildir: kiracının kimlik bilgisi var ama adaptör kabul
+etmiyor, yani sohbet istemcisi hiç kurulamıyor. Kaydın "K-296'nın kodu artık
+ulaşılamaz" tespiti **yarı doğru** çıktı: desenler ölü değil — normalleştiricinin
+sarmalamadığı yerlerde kaçan aynı SDK tiplerini hâlâ taşıyorlar — ama sağlayıcı
+404'ünü yakalayan şey artık onlar değil. Bayat yorum düzeltildi.
+
+**İkinci yarı — parmak izi** (K-817 👤). Kaydın "ayırt edici bir girdiye dayanması
+gerekir" tespiti uygulandı: mesaj Tracon'un **kendi seçtiği** üç olguyu taşıyor —
+sağlayıcı adı, istisnanın tip adı, HTTP durum kodu. Sağlayıcının kendi metni
+**hiç** girmiyor (istek gövdesi, iç URL, `host:port` ya da kısmi kimlik bilgisi
+taşıyabilir ve `run` kaydı kalıcıdır); tam istisna yine `ILogger`'a gidiyor.
+Durum kodu **Core'da, mesaj metninden** okunuyor — `FallbackRetryClassifier`'ın
+zaten uyguladığı emsal, SDK referansı ve reflection yok.
+
+⚠️ **Adaptör başına tipli bir seam önce seçildi, sonra geri alındı.** Seçim
+"durum kodunu yalnız adaptör bilebilir" gerekçesine dayanıyordu; kod okununca o
+gerekçenin yanlış olduğu görüldü, kullanıcıya bildirildi ve karar yenilendi.
+
+🚨 **ÜÇÜNCÜ katman: ayırt edici mesaj eklendi ve test HÂLÂ kırmızı kaldı.**
+`ErrorFingerprint.NumberPattern` (`\d+`) **her** sayı dizisini `{n}` yapıyor,
+yani `HTTP 404` ile `HTTP 500` aynı normalleştirilmiş metne düşüyordu. Sayı
+temizliği bir **id**'nin ya da bir **sayım**ın tek hatayı yüzlerce kümeye
+bölmesini engellemek için vardır (o sınıfın kendi ölçümü: 2000 oluşum → 1368
+küme); bir **durum kodu** bunun tersini yapar. `(?<!\bHTTP\s)` lookbehind'ı
+yalnız onu koruyor, diğer her sayı yine `{n}`'e iniyor (K-818). Bu katmanı ne
+kusur kaydı ne kapanış analizi öngörmüştü — yalnız kırmızı kalan test gösterdi.
+
+**Sınıf taraması — kalan sekiz kimlik BİLEREK eşlenmedi.** Kaydın saydığı 10
+tanınmayan kimlikten ikisi yukarıda kapandı; kalan 8'inin (`session_conflict` ·
+`session_owner_required` · `external_call_rejected` · `agent_source_contract` ·
+`agent_source_failed` · `replay_tool_mismatch` · `job_retry` ·
+`eval_run_diff_unavailable`) **karşılığı olan bir `RunErrorClass` üyesi yok** ve
+var olan üyelerin doküman anlamları dardır (`Infrastructure` kendi yorumunda
+"yalnız öksüz run uzlaştırması bu sınıfa düşer" diyor). Yanlış kovaya koymak
+`Unknown`'dan kötüdür — `Unknown` kendi dokümanında "bir kusur değil, bir ölçüm
+aracı". Yeni enum üyesi eklemek public sözleşme işidir (OpenAPI, TypeScript
+şeması, iki arayüz sözlüğü, `RunErrorClassContractTests`'in emekli-boşluk
+disiplini), yani **yeni yetenek**: `docs/ADAYLAR.md` → **F-246**.
+
+**Son doğrulama koşumu (2026-09-18).** Sekiz kapının sekizi de yeşil: `build`
+(sıfır uyarı) · `pack` · `format` · `scripts` birim testleri (339) · agent map ·
+`denetim-paketi` · `docs-site npm run check` · tam `dotnet test`. Tam koşumda üç
+test düştü ve **üçü de izole koşumda geçti** — ikisi Aile T'de zaten kayıtlı
+(`ObjectToolAotPackageTests`), üçüncüsü bu turun en ağır örneği: SQL Server
+container'ı zaman aşımına uğrayınca `SqlServerSchemaFixture` migration'ı
+uygulayamadı ve **31 test zincirleme** düştü; aynı proje tek başına **820/820**
+geçti. Aile T'ye yazıldı.
+
+🚨 **Sevk edilen doküman kapısı bu ailede de kırmızıya döndü** (`///` satırında
+🚨). Aile D ve I'yle aynı kapı, üçüncü vaka. **Taban tazelenmedi**, iki cümle
+yeniden yazıldı; kuralın kendisi `docs/hafiza/dokumantasyon.md`'ye eklendi.
+
 Bunların bir kısmı geri düşüş desenlerine **rastlantısal** olarak takılabilir
 (örneğin mesajında `tool` geçen bir kimlik `ToolError` sayılır) — ama bu tasarım
 değil, tesadüftür ve mesaj metni değişince sessizce bozulur. Taksonomide karşılığı

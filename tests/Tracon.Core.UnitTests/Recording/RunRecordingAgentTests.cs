@@ -179,8 +179,20 @@ public sealed class RunRecordingAgentTests
         var run = (await store.QueryRunsAsync(new RunQuery())).ShouldHaveSingleItem();
         run.Status.ShouldBe(RunStatus.Failed);
         run.Error.ShouldNotBeNull();
-        run.Error!.Message.ShouldBe("The model provider request failed.");
         run.Error.Type.ShouldBe("upstream_error");
+
+        // The masked sentence, plus the three facts that tell one provider
+        // fault from another. The provider's OWN message never appears - that
+        // is what the mask exists for.
+        run.Error!.Message.ShouldBe(
+            "The model provider request failed. Provider: 'fake', fault: 'InvalidOperationException'.");
+        run.Error.Message.ShouldNotContain("model crashed");
+
+        // Class and Fingerprint stay null here on purpose: this agent is built
+        // without an IRunErrorClassifier, and a record written with no
+        // classifier carries neither. What that identity is classified AS lives
+        // in ProviderErrorClassificationTests.
+        run.Error.Class.ShouldBeNull();
     }
 
     [Fact]
