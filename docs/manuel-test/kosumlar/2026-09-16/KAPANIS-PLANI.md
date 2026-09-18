@@ -443,14 +443,19 @@ koşulmayanlar `00-INDEKS.md` §7.1'e gerekçesiyle yazılır.
    geçmeyen ve ⚠️/🚨/`düzeltme`/`kusur` işareti taşıyan her case **bire bir**
    korunur. **İçerik silinmez.** Spesifikasyon dosyalarına dokunulmaz.
 3. **Arşiv** — kayıt `docs/arsiv/manuel-test-kosum-2026-09/` altına taşınır.
-4. **Tur aparatı ve anahtarlar — kullanıcı eylemi:**
+4. **`MEMORY.md`'nin açık iş bloğu SİLİNİR.** Dosyanın başındaki
+   `## 🔄 Açık iş — 2026-09-18` bloğu bu kapanışa giden izdir ve yalnız
+   kapanış sürerken doğrudur. Kapanış bittiğinde orada kalırsa her oturum
+   kapanmış bir işi açık sanar ve var olmayan bir plana gider. `MEMORY.md`
+   başlangıç bağlamıdır — yanlış bir satırın bedelini **her** oturum öder.
+5. **Tur aparatı ve anahtarlar — kullanıcı eylemi:**
    - 🚨 Beş sağlayıcı anahtarı tur boyunca düz metne çıktı (üç ayrı olay:
      `ps eww`, filtresiz `user-secrets list`, ortam hata ayıklaması).
      **Beşi de döndürülmeli.** Kapanışın **sonunda** yapılır — kapanış
      oturumları hâlâ gerçek sağlayıcı çağrısı koşuyor.
    - `~/tracon-manuel/` altında 25+ dizin birikti — topluca silinir.
    - `ap-pg` (55432) ve `ap-mssql` (51433) container'ları durdurulur.
-5. **Yayın hattı** — [`YAYIN-HAZIRLIK.md`](../../../YAYIN-HAZIRLIK.md) §4 sıra
+6. **Yayın hattı** — [`YAYIN-HAZIRLIK.md`](../../../YAYIN-HAZIRLIK.md) §4 sıra
    tablosunda Adım 1 ve 2 ✅ işaretlenir. Sıradaki iş **Adım 3**: repo public
    yapılmadan önce tam `git` geçmişinde secret taraması (RK-014 — `kapi.py`'nin
    `find_secrets`'ı yalnız çalışma ağacını yürüyor, 806 commit'lik geçmiş hiç
