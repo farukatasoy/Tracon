@@ -1889,7 +1889,7 @@ internal static class AgentEndpoints
     /// thrown and left uncaught during minimal API's binding stage.
     /// </summary>
     /// <remarks>
-    /// 🚨 This used to be a second, hand-rolled copy of
+    /// <strong>This used to be a second, hand-rolled copy</strong> of
     /// <see cref="RequestBodyBinding.ReadAsync{T}"/> that called
     /// <c>ReadFromJsonAsync</c> with no options at all, so the three agent
     /// definition endpoints silently missed everything the shared reader adds:
