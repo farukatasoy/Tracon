@@ -78,7 +78,15 @@ public sealed record JobRequest
     public string Lane { get; init; } = JobLanes.Default;
 
     /// <summary>The input set or parameters, interpreted by the handler.</summary>
-    public JsonElement Payload { get; init; }
+    /// <remarks>
+    /// An unset payload is queued as the empty JSON array, never as
+    /// <see cref="JsonValueKind.Undefined"/> - see <see cref="FreeFormJson"/>.
+    /// </remarks>
+    public JsonElement Payload
+    {
+        get;
+        init => field = FreeFormJson.OrEmpty(value);
+    }
 
     /// <summary>
     /// The job's items. Left empty, the items are extracted from

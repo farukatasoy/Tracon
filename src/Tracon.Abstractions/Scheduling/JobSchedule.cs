@@ -46,7 +46,15 @@ public sealed record JobSchedule
     public string TimeZone { get; init; } = "UTC";
 
     /// <summary>The input set or parameters. Interpreted by the job's handler.</summary>
-    public JsonElement Payload { get; init; }
+    /// <remarks>
+    /// An unset payload is stored as the empty JSON array, never as
+    /// <see cref="JsonValueKind.Undefined"/> - see <see cref="FreeFormJson"/>.
+    /// </remarks>
+    public JsonElement Payload
+    {
+        get;
+        init => field = FreeFormJson.OrEmpty(value);
+    }
 
     /// <summary>Whether the schedule is enabled. If disabled, it is not triggered automatically.</summary>
     public bool Enabled { get; init; } = true;

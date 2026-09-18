@@ -32,7 +32,15 @@ public sealed record EvalCaseResult
     public string? Output { get; init; }
 
     /// <summary>Per-check score list (free-form JSON).</summary>
-    public JsonElement Scores { get; init; }
+    /// <remarks>
+    /// An unset value is stored as the empty JSON array, never as
+    /// <see cref="JsonValueKind.Undefined"/> - see <see cref="FreeFormJson"/>.
+    /// </remarks>
+    public JsonElement Scores
+    {
+        get;
+        init => field = FreeFormJson.OrEmpty(value);
+    }
 
     /// <summary>The failure reason. Populated only when <c>Passed</c> is <see langword="false"/>.</summary>
     public string? FailureReason { get; init; }
