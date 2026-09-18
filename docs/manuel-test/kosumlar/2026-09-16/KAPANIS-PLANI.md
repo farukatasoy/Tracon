@@ -3,8 +3,9 @@
 > **Bu turu kapatan her oturum ÖNCE burayı okur.** Koşum bitti; bu dosya
 > kapanışın tek kontrol düzlemidir.
 >
-> **Durum:** 🟡 Aşama 2 sürüyor · **Aile A · B · C · D · E · F · G · H · I · J · K · L · M · N KAPANDI** · 16 açık kusur, 8 aile kaldı
-> **Son güncelleme:** 2026-09-18 (Aile J kapandı — `S1-020`; ölçüm **ikinci bir katman** buldu: parmak izi normalleştirmesi durum kodunu da siliyordu)
+> **Durum:** 🟡 Aşama 2 sürüyor · **YİRMİ İKİ AİLENİN YİRMİ İKİSİ DE KAPANDI (A…V)** · 0 açık kusur ailesi
+> **Kalan iş kusur değil, YENİDEN KOŞUM:** kapanmış ailelerin 13 `Kaldı` case'i hâlâ canlı sunucuda koşulmadı (§4.1) — ardından bitti tanımı + damıtma.
+> **Son güncelleme:** 2026-09-19 (Aile O · P · Q · R · S · T · U · V kapandı; `S2-003` **kısmen** — kaydın teşhisi çürütüldü, altındaki gerçek kusur kapandı, kaydın semptomu yeniden üretilemedi)
 
 Turdan bağımsız kapanış protokolü — aile aile oturum yordamı, "önce ampirik
 yeniden üret" kuralı, bitti tanımı ve sayım betiği —
@@ -44,10 +45,10 @@ flowchart LR
 
 **Sayım** (skill §7, düzeltilmiş betik — bkz. §3.1):
 
-| Durum | Koşum sonu | 2026-09-19 (Aile N sonrası) |
+| Durum | Koşum sonu | 2026-09-19 (Aile V sonrası) |
 |---|---|---|
-| ☑ Geçti | 1693 | **1701** |
-| ☒ Kaldı | 35 | **27** |
+| ☑ Geçti | 1693 | **1714** |
+| ☒ Kaldı | 35 | **14** |
 | ☐ Beklemede | 107 | 107 |
 | ⏭ Atlandı | 18 | 18 |
 | işaretsiz (gerekçe düz metin) | 3 | 3 |
@@ -57,15 +58,19 @@ Kapanan her aile, kusuru yüzünden `Kaldı` kalmış case'ini **canlı sunucuda
 yeniden koşar ve ikinci bir `Gerçek sonuç` bloğu ekler; sayım her case'in
 **son** işaretini alır.
 
-**Kusur:** 44 `HATA-*` kaydı. `HATA-S1-006` yanlış pozitif çıktı ve kapandı →
-**43 açık**; kapanışta 8'i kapandı (A · B ×3 · C ×2 · D ×3 · E ×3 · F ×2 ·
-G ×2 — artı kapanış sırasında eklenen 4 kalem), **31 kaldı**. Dağılım: `S1-001..028` (27) · `S2-001..003` (3) · `S3-001..008` (8)
-· `S4-001..005` (5).
+**Kusur:** 44 `HATA-*` kaydı + kapanışta eklenen 4 kalem = 48. **Hepsi
+kapandı** (`S2-003` kısmen — §4'ün S satırı). Dağılım: `S1-001..030` ·
+`S2-001..003` · `S3-001..010` · `S4-001..005`.
 
-**İki kusur kapanışta YENİDEN ÜRETİLEMEDİ** ve kod kusuru olmadıkları
-kanıtlandı: `HATA-S1-006` (koşumda zaten öyle işaretlendi) ve `HATA-S3-006`
-(Aile F; ayar o oturumda kapalıydı — semptomun birebir kendisi ölçülerek
-gösterildi).
+**ÜÇ kusur yeniden ÜRETİLEMEDİ** ve kod kusuru olmadıkları kanıtlandı:
+`HATA-S1-006` (koşumda zaten öyle işaretlendi), `HATA-S3-006` (Aile F; ayar o
+oturumda kapalıydı) ve `HATA-S2-001` (Aile T; case'in beklenen sonucu kapının
+gerektirdiğinin **tersini** istiyordu — satır kaldırılınca kapı kırmızı oldu,
+ölçüldü). Üçünde de beklenen sonuç koda göre düzeltildi.
+
+🚨 **Kapanış üç kaydın KÖK-NEDEN TEŞHİSİNİ çürüttü:** `S1-025` (G), `S1-002`
+ve `S2-003` (T · S). Kayıttaki teşhis **kanıt değil hipotezdir** — bu turda
+üç kez yanlış çıktı.
 
 **Kapanış sırasında dört kusur EKLENDİ** (hepsi aynı aileden bir kök nedenin
 ikinci/üçüncü vakası; aile içinde ölçüldü ve aynı oturumda kapandı):
@@ -204,15 +209,14 @@ Bunlar kapanış oturumlarında da geçerlidir ve bitti tanımında
 
 ---
 
-## 3.6 Sıradaki iş — 2026-09-18 itibarıyla
+## 3.6 Sıradaki iş — 2026-09-19 itibarıyla
 
-**Aile O.** Yüksek öncelik Aile H ile bitti; I · J · K · L · M · N de kapandı.
-Sıra §4'ün ikinci tablosunda **Aile O**'dadır (`S4-002` — `PUT /api/schedules/{ad}`
-gövdede `payload` alanı olmadan `500` veriyor). 🚨 Kaydın kendi istediği tarama:
-**aynı desendeki diğer `PUT`/`POST` uçları.** Aile L'nin ölçümü burada doğrudan
-işe yarar — `RequestBodyBinding` her gövdeyi tek yerden okur ve `AgentEndpoints`
-onun elle yazılmış bir kopyasını taşıyordu; `500` veren bir uç ya o okuyucuyu
-hiç kullanmıyordur ya da hatayı okuduktan **sonra** üretiyordur.
+🚨 **Kusur ailesi kalmadı. Sıradaki iş §4.1'dir: kapanmış ailelerin `Kaldı`
+case'lerini canlı sunucuda yeniden koşmak.** Onüç case, hepsi A…N
+ailelerinden; kodları kapandı ama case'leri hiç yeniden koşulmadı. Bunlar
+düzeltme değil **kanıt** işidir ve bitti tanımının önündeki tek engeldir.
+
+Ortam bu oturumda kuruldu ve işe yaradı; yordam §4.1'dedir.
 
 🚨 **Aile K · L · M · N'nin ortak dersi — MEVCUT BİR TEST KUSURU KİLİTLİYOR
 OLABİLİR.** Dört ailede **beş** test düzeltmeden sonra kırmızıya döndü ve
@@ -278,6 +282,46 @@ python3 scripts/dokuman-bakim.py --denetle   # TEK kirmizi: kosumlar butcesi (§
 
 Dört .NET kapısı §3.2'dedir. `kapi.py kapanis` **kullanma** — ikinci adımda
 durur, gerekçe §3.2'de.
+
+---
+
+## 4.1 SIRADAKİ İŞ — kapanmış ailelerin `Kaldı` case'leri
+
+Bu onüç case'in **kodu kapandı**; case'in kendisi hiç yeniden koşulmadı.
+Kapanış kuralı (`manuel-test-kosumu` §6, adım 5) her aileden bunu ister; A…N
+turlarında atlandı. Düzeltme değil **kanıt** işi, ve bitti tanımının önündeki
+tek engel.
+
+| Case | Kusur | Aile | Ne ister |
+|---|---|---|---|
+| `MT-CORE-044` · `MT-CORE-045` | `S1-010` | G | Fiyatı olan bir model kataloğu; `run` kaydında `cost` dolu mu |
+| `MT-PG-025` | `S1-015` | I | PostgreSQL destekli örnek; opak `500` yerine sınıflandırılmış hata |
+| `MT-OAI-043` | `S1-020` | J | Gerçek OpenAI hatası; `RunErrorClass` ve parmak izi ayrışıyor mu |
+| `MT-MM-049` | `S1-024` | C | Tool içi `TraconException` mesajı modele ulaşıyor mu |
+| `MT-CLI-029` | `S3-003` | E | `PUT /api/evals/{ad}/cases` turu; `Id` korunuyor mu |
+| `MT-RES-086` · `MT-RES-089` | `S3-004` | B | Lease devralan ikinci deneme; `seq` sürüyor mu |
+| `MT-UIRUN-049` | `S3-006` | F | Ayar AÇIKken düşünme kaydı — koşumda ayar kapalıydı |
+| `MT-GUARD-073` | `S4-003` | B | Guard'ın giriş-öncesi istisnası `run` satırını yazıyor mu |
+| `MT-PROV-032` · `033` · `034` | `S4-004` · `S4-005` | H · C | Silinip yeniden yaratılan agent önbelleği; sağlayıcı doğrulama mesajı |
+| `MT-SKILL-070` | `S2-003` | S | Skill + script + grant fixture'ı; **başarılı** bir koşumun izi |
+
+**Ortam bu oturumda kuruldu ve çalıştı** — yordam:
+
+```bash
+dotnet build samples/Tracon.Api -c Release
+ASPNETCORE_ENVIRONMENT=Development \
+  dotnet artifacts/bin/Tracon.Api/release/Tracon.Api.dll \
+  --contentRoot "$PWD/artifacts/bin/Tracon.Api/release" \
+  --urls http://127.0.0.1:5199
+# token: dotnet user-secrets list --project samples/Tracon.Api | grep AuthToken
+```
+
+🚨 `--contentRoot` ve `ASPNETCORE_ENVIRONMENT=Development` ikisi de zorunludur
+(§3.4). Tarayıcı işleri için konsol `http://127.0.0.1:5199/tracon` adresinde;
+token giriş kartına yapıştırılır. Sağlayıcısız bir örnek gerekiyorsa
+`Tracon__Providers__*__ApiKey=""` ile başlat — `MT-EVAL-090` böyle koşuldu.
+
+**Bittiğinde:** skill §7'nin bitti tanımı → damıtma (§6) → arşiv.
 
 ---
 
@@ -939,11 +983,11 @@ biçimi tam olarak buydu.
 | Sınıf taraması | ☑ `grep -rn "script-src" src/` → tek tanım · sevk edilen HTML'de tek inline script; hash döngüsü yine de **her** inline script'i kapsıyor, ikincisi eklenirse kapı onu da ister |
 | Testler | 2 E2E testi; `script-src`'ın `'unsafe-inline'` kazanmadığı ayrıca zorlanıyor |
 
-| **O** · HTTP sözleşme kusurları | `S4-002` Orta | `PUT /api/schedules/{name}` gövdede `payload` alanı olmadan `500` veriyor. **Tarama:** aynı desendeki diğer `PUT`/`POST` uçları | ☐ |
-| **P** · Denetim secret filtresi | `S1-022` Düşük-Orta | `AuditSecretFilter` bazı BENİGN alan adlarını da (`ConfigurationKey` son eki, `AuthorizationMode`) gereksizce `"***"` yapıyor | ☐ |
-| **Q** · Eval ve geri bildirim arayüzü | `S3-007` Orta · `S3-008` Düşük | `FeedbackControl`, bir run'da bir `Stars` puanı da varsa "tekrar tıkla = sil" yerine yinelenen satır oluşturuyor. "Şimdi puanla" düğmesi yargıç yokken HİÇBİR mesaj göstermiyor (tip uyuşmazlığı) | ☐ |
-| **R** · Playground arayüzü | `S1-027` Düşük · `S1-028` Düşük | Agent kataloğunda tool sayısı hücresinin tam tool adı listesi hiçbir yerde (ne tooltip ne görünür metin) sunulmuyor. Akış imleci (`ap-stream-caret`) CSS sınıf adı uyuşmazlığı yüzünden hiçbir zaman görsel olarak render edilmiyor | ☐ |
-| **S** · Gözlemlenebilirlik span'i | `S2-003` Düşük | Başarılı script çalıştırmalarında bile `execute_skill_script` span'i `exit_code`/`duration_ms` taşımıyor ve ebeveyn span yanlışlıkla "Error" gösteriyor (`SandboxedSkillScriptRunner.cs:355-359`). Yalnız gözlemlenebilirlik, işlevsel etki yok | ☐ |
+| **O** · HTTP sözleşme kusurları | `S4-002` Orta | Ölçüm **üç katman** buldu: yanıtın serileştirilmesi · SQL Server'ın `ISJSON` kısıtı `null` literalini **reddediyor** (sağlayıcı sapması, birebir ölçüldü) · geri okunan `null`'ın tek bir `"null"` kalemine dönmesi. Sınıf taraması **beş** özellik. Boş değer **boş dizidir** (K-826) | ✅ **KAPANDI 2026-09-19** |
+| **P** · Denetim secret filtresi | `S1-022` Düşük-Orta | Sınıf taraması kaydı genişletti: yapılandırma-referansı şeklinde **iki değil beş** sevk edilen özellik. İki dar kural (ad soneki · değer türü), `tekil token` istisnasının şeklinde (K-829) | ✅ **KAPANDI 2026-09-19** |
+| **Q** · Eval ve geri bildirim arayüzü | `S3-007` Orta · `S3-008` Düşük | `mine` eşleşmesine `kind` eklendi; yanlış şekli adlandıran iddia düzeltildi. **115 iddia yerinin tamamı** üretilen şemaya karşı tarandı — yanlış şekil adlandıran **tek bu vardı**; kapıyı tip düzeyine taşımak F-248 | ✅ **KAPANDI 2026-09-19** |
+| **R** · Playground arayüzü | `S1-027` Düşük · `S1-028` Düşük | Tool adları `Th`'nin kendi described-value desenine bağlandı. İmleç: yeniden adlandırmadan kalan sınıf adı. Kapı **simetriktir** (`check-custom-classes.mjs`) ve iki yönde de kırmızı olduğu doğrulandı | ✅ **KAPANDI 2026-09-19** |
+| **S** · Gözlemlenebilirlik span'i | `S2-003` Düşük | 🟡 **KISMİ.** Kaydın teşhisi (recorder erken serileştiriyor) **ölçülerek çürütüldü**: başarılı koşum etiketleri bırakıyor, collector onları saklıyor. Altındaki gerçek kusur kapandı — **reddedilen** koşum span'e hiçbir sonuç bırakmıyordu (K-830). Kaydın "başarılı koşumda da yok" semptomu yeniden üretilemedi; `MT-SKILL-070` §4.1'de | 🟡 **KISMEN KAPANDI 2026-09-19** |
 | **T** · Kapılar ve geliştirme aparatı | `S4-001` Orta · `S3-001` Düşük · `S2-001` Düşük · `S1-005` · `S1-001` · `S1-002` · `S1-003` + §3.3'ün iki yanlış pozitifi | Ölü-tanı-referansı kapısının regex'i eski ürün adının önekini arıyor, artık hiçbir şeyi yakalamıyor. `npm run check` fresh checkout'ta yanlış sırayla kırılıyor. `AGENTS.md` ham `kapanis` komutunu tekrarlıyor (Faz 92 ihlali). Şablonun kendi yer tutucusu teşhis edilemeyen bir ilk koşum hatası üretiyor. SQLite entegrasyon testleri tam çözüm yükü altında `database is locked` veriyor; `LiveVoiceLifecycleTests` yük altında kırılgan; `dotnet test` 2,5 dakika eşiği bugünkü set için ulaşılabilir değil. **Üçüncü kırılganlık örneği ölçüldü (2026-09-18 taban çizgisi):** `PackCleanlinessGateTests.DirtyWorkingTreeStopsPackWithTracon0004` tam çözüm koşumunda düştü — `ExitCode` `0` geldi, yani kirli ağaçta `dotnet pack` BAŞARILI oldu ve `TRACON0004` hiç çıkmadı — ama **izole koşumda altısı da geçti**. **Dördüncü örnek ve tek KÖK NEDENİ TEŞHİS EDİLMİŞ olanı (Aile H kapanışı,
 2026-09-18):** `SessionPersistenceTests.Two_concurrent_later_turns_on_the_same_existing_session_do_not_silently_lose_a_message`
 tam koşumda **iki kez** düştü (`outcomes.Count(ex => ex is null)` `1` yerine
@@ -984,9 +1028,34 @@ başına koşturulunca **820/820** geçti. Bu, tek tek testlerin kırılganlığ
 değil; doygun bir makinede **bir fixture'ın tamamen düşmesidir** ve tek bir
 testi sağlamlaştırmakla çözülmez. Aile T'nin kalemi bu yüzden koşum profilidir:
 `-maxcpucount:1` proje **arası** paralelliği kapatır, proje **içi** koşuma ve
-Docker container'larının kaynak payına dokunmaz. **Ürün değil apparat** — ayrı commit'ler, hızlı kapanır. **Aile E'den bir kalem daha (2026-09-18):** üretilen `.NET` istemcisi (`TraconApiClient.g.cs`) kaynak belgesinden bir fazdır bayat — Faz 176'nın eklediği `EvaluatorVersion` alanı hiç işlenmemişti ve `ClientDescriptionBaselineTests` ile `ClientCoverageTests`'in ikisi de eksik bir DTO alanını görmüyor. Aile E'nin yeniden üretimi alanı getirdi; **kapı hâlâ yok**. **Aile G'den bir kalem daha (2026-09-18):** `TraconOptionsBindingCoverageTests` "alan eklendi ama `Bind()`'a yazılmadı" kusurunu yapısal olarak kilitler, ama yalnız `TraconOptions` **ağacını** gezer. `TraconImageOptions` gibi **kardeş** section'lar (`Tracon:Images`, `Tracon:Skills` altındakiler, sağlayıcı seçenekleri) scanner'ın kapsamı dışındadır ve `TraconImageOptions.Timeout` tam da oradan sızdı — canlı koşum yakaladı, hiçbir test yakalamadı. Scanner kardeş section'lara genişletilmeli | ☐ |
-| **U** · docs-site | `S3-002` Düşük | Açılış sayfası 1024 px'te 32 px yatay taşıyor (`.scope-rings`) — dekoratif arka plan grafiği, içerik okunabilirliğini bozmuyor | ☐ |
-| **V** · `CHANGELOG` düğümü | `S1-007` | **Kod kusuru değil, karar.** `scripts/kapi.py` hedef sürüm için `CHANGELOG.md`'de `## [<sürüm>]` bölümü arıyor; changelog ise bilinçli olarak yalnız `## [Unreleased]` taşıyor (`6cfbc2d3` sürüm bölümünü **bilerek** geri aldı). İki kural birbirini kilitliyor. `K-*` olarak çözülür ve `YAYIN-HAZIRLIK.md` Adım 5'e bağlanır. Bloklanan case'ler: `MT-PKG-104 · 105 · 115 · 116 · 117` | ☐ |
+Docker container'larının kaynak payına dokunmaz. **Ürün değil apparat** — ayrı commit'ler, hızlı kapanır. **Aile E'den bir kalem daha (2026-09-18):** üretilen `.NET` istemcisi (`TraconApiClient.g.cs`) kaynak belgesinden bir fazdır bayat — Faz 176'nın eklediği `EvaluatorVersion` alanı hiç işlenmemişti ve `ClientDescriptionBaselineTests` ile `ClientCoverageTests`'in ikisi de eksik bir DTO alanını görmüyor. Aile E'nin yeniden üretimi alanı getirdi; **kapı hâlâ yok**. **Aile G'den bir kalem daha (2026-09-18):** `TraconOptionsBindingCoverageTests` "alan eklendi ama `Bind()`'a yazılmadı" kusurunu yapısal olarak kilitler, ama yalnız `TraconOptions` **ağacını** gezer. `TraconImageOptions` gibi **kardeş** section'lar (`Tracon:Images`, `Tracon:Skills` altındakiler, sağlayıcı seçenekleri) scanner'ın kapsamı dışındadır ve `TraconImageOptions.Timeout` tam da oradan sızdı — canlı koşum yakaladı, hiçbir test yakalamadı. Scanner kardeş section'lara genişletilmeli | ✅ **KAPANDI 2026-09-19** |
+| **U** · docs-site | `S3-002` Düşük | Bant kayıttan **genişti**: 1024'te 32 px, 1152 ve 1200'de 24 px. Bir kırılma noktası daha eklemek boşluğu taşırdı; dekoratif taşma **opt-in** oldu. On dört genişlik × iki tema `0` | ✅ **KAPANDI 2026-09-19** |
+| **V** · `CHANGELOG` düğümü | `S1-007` | Kapının koruduğu şey "bölüm var mı" değil **notsuz sürüm çıkmasın**dır; sürüm bölümü yoksa `## [Unreleased]` okunur ve dolu olması şart koşulur. Aynı yedeği `github-release` işi de kullanır. Adım 5 artık bir **yeniden adlandırma**dır (K-825, kullanıcı kararı). 🚨 **Yayın provası ilk kez yeşil** — `kapi.py yayin --kuru --surum 1.0.0-preview.1` çıkış `0` | ✅ **KAPANDI 2026-09-19** |
+
+#### Aile T — ✅ kapandı (2026-09-19)
+
+Yedi kalem, üç karar ve **bir yanlış pozitif**. En değerli bulgu son maddedir.
+
+| Kalem | Sonuç |
+|---|---|
+| `S4-001` ölü-tanı kapısı | Desen sabit `APG\d{4}` idi; **tanı kimliklerinden türetiliyor** artık. Ayrıca "hiçbir şey eşleştirmeyen tarama" kapısı eklendi — kusurun kendisi buydu |
+| `S3-001` `npm run check` sırası | `check` önce `build` koşuyor; iki kez üretmek docfx'i iki kez ödetirdi. Fresh-checkout senaryosu ölçüldü: çıkış 0 |
+| `S1-005` şablon yer tutucusu | 👤 Açılışta durur — **ama yalnız sağlayıcı yapılandırıldığında** (K-828) |
+| `S1-001` SQLite kilidi | 👤 **Ürün yeniden dener** (K-827). 39 temizlik hatası ayrı düzeltme istemedi |
+| `S1-002` canlı ses kırılganlığı | Kaydın teşhisi yanlıştı: `WaitForAsync` zaten **koşul** bekliyor. Doygunluk semptomu; koşum profiliyle kapandı |
+| `S1-003` eşik + koşum profili | 👤 Üç ağır projede proje içi paralellik dörtte sınırlandı; eşik **ölçülen** 10 dk 27 sn'ye göre 15 dakikaya çekildi |
+| §3.3'ün iki yanlış pozitifi | Kod parçası eşleşmesi CommonMark kuralına geçti. 🚨 İlk düzeltme YANLIŞTI ve yeni bir kırık bağlantı üretti — commit mesajında kayıtlı |
+| `ClientDescriptionBaselineTests` boşluğu | `ClientSchemaFieldCoverageTests`: şemanın her özelliği üretilen tipe karşı reflection'la. `RunScore.evaluatorVersion` silinerek kırmızı olduğu doğrulandı |
+| `TraconOptionsBindingCoverageTests` boşluğu | Kayıttan **geniş** çıktı: `TraconOptions` 24 bölümün ebeveyni değil, hepsi kök seviyede kardeş. Ratchet + taban çizgisi kondu; listeyi boşaltmak **F-247** |
+
+🚨 **`S2-001` bir ürün kusuru DEĞİLDİ.** Case `AGENTS.md`'nin ham
+`kapi.py kapanis` satırını taşımamasını bekliyordu; `dokuman-bakim.py` o
+satırın **varlığını** devir teslimin kanıtı sayıyor ve satır kaldırılınca
+kapı kırmızı oluyor (ölçüldü). Faz 92'nin yasakladığı kopya dört ham `dotnet`
+komutudur. Beklenen sonuç koda aykırıydı ve düzeltildi — `HATA-S1-006` ve
+`HATA-S3-006` ile aynı sınıf, bu turun **üçüncü** yanlış pozitifi.
+
+---
 
 `HATA-S1-006` (docs-site içerik kapısı temiz ağaçta kırmızı) **yanlış pozitif**
 çıktı ve kapandı — yeniden açılmaz.
@@ -1012,7 +1081,7 @@ bittikten **sonra** aynı oturumda koşulur.
 | 12 (OBS) | `MT-OBS-046` · `047` · `055` · `059` | gerçek `samples/Tracon.Api` + sağlayıcı anahtarı yapılandırması |
 | 03 (PG) | `MT-PG-067` adım 2 | `src/` altında kod değişikliği ister; adım 1 ve 3 yeşil koşuldu. Yordam dosya 03'ün sonundaki tabloda |
 | 21 (RES) | `MT-RES-090` | aynı sınıf |
-| 01 (PKG) | `MT-PKG-104` · `105` · `115` · `116` · `117` | **Aile V** (CHANGELOG kararı) kapanınca çözülür |
+| 01 (PKG) | `MT-PKG-104` · `105` · `115` · `116` · `117` | ✅ **ENGEL KALKTI (2026-09-19).** Aile V kapandı ve yayın provası ilk kez yeşil (`kapi.py yayin --kuru --surum 1.0.0-preview.1` → çıkış `0`). Beşi de artık koşulabilir; bu oturumda koşulmadılar |
 
 ### (b) Ortam sınırı — kapanışta ÇÖZÜLEBİLİR
 
