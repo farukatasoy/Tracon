@@ -252,7 +252,8 @@ public sealed class UiTests(BrowserFixture browsers)
         };
 
         await session.Page.GotoAsync($"{host.UiAddress}/agents");
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Agents" }).WaitForAsync();
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Agents", Exact = true })
+            .WaitForAsync();
 
         lock (errors)
         {

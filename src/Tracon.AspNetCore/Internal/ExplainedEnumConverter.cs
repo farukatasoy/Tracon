@@ -33,7 +33,7 @@ namespace Tracon;
 /// casing stay exactly what they were.
 /// </para>
 /// <para>
-/// 🚨 This is attached to the REQUEST-BODY options
+/// <strong>This is attached to the REQUEST-BODY options</strong>
 /// (<see cref="RequestBodyBinding"/>), never to the enum types themselves. A
 /// <c>[JsonConverter]</c> attribute would reach every path, including schema
 /// generation — and it was measured there: <c>JsonSchemaExporter</c> recognizes

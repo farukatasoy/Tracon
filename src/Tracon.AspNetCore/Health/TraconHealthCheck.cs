@@ -27,7 +27,8 @@ namespace Tracon;
 /// </item>
 /// </list>
 /// <para>
-/// 🚨 "Not probed yet" is not a degradation, and the two used to be one branch.
+/// <strong>"Not probed yet" is not a degradation</strong>, and it used to share
+/// a branch with "probed and broken".
 /// Nothing probes a provider on its own: the cache fills only when
 /// <c>GET /api/models/health</c> is called or when
 /// <c>Tracon:Health:BackgroundInterval</c> is set, and a real chat call does
