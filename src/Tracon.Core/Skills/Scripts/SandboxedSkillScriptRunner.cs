@@ -247,7 +247,8 @@ public sealed class SandboxedSkillScriptRunner : IDisposable
                     request.SkillName,
                     request.ScriptName,
                     "Skill script execution is disabled. It must be enabled with UseSkillScripts.",
-                    cancellationToken)
+                    cancellationToken,
+                    activity)
                 .ConfigureAwait(false);
         }
 
@@ -261,7 +262,8 @@ public sealed class SandboxedSkillScriptRunner : IDisposable
                     request.SkillName,
                     request.ScriptName,
                     "There is no valid execution grant for this script.",
-                    cancellationToken)
+                    cancellationToken,
+                    activity)
                 .ConfigureAwait(false);
         }
 
@@ -271,7 +273,8 @@ public sealed class SandboxedSkillScriptRunner : IDisposable
                     request.SkillName,
                     request.ScriptName,
                     $"Extension '{request.Extension}' is not on the interpreter allow-list.",
-                    cancellationToken)
+                    cancellationToken,
+                    activity)
                 .ConfigureAwait(false);
             interpreter = string.Empty;
         }
@@ -284,13 +287,14 @@ public sealed class SandboxedSkillScriptRunner : IDisposable
                     request.SkillName,
                     request.ScriptName,
                     $"The arguments exceed the {options.MaxArgumentBytes}-byte limit.",
-                    cancellationToken)
+                    cancellationToken,
+                    activity)
                 .ConfigureAwait(false);
         }
 
         if (!SkillScriptArgumentValidator.TryValidate(request.Schema, request.Arguments, out var schemaError))
         {
-            await DenyAsync(request.SkillName, request.ScriptName, schemaError!, cancellationToken)
+            await DenyAsync(request.SkillName, request.ScriptName, schemaError!, cancellationToken, activity)
                 .ConfigureAwait(false);
         }
 
@@ -446,14 +450,35 @@ public sealed class SandboxedSkillScriptRunner : IDisposable
     }
 
     /// <summary>Writes the denial to the audit trail and stops the run.</summary>
-    /// <remarks>This method always throws; the return type only shortens the call site.</remarks>
+    /// <remarks>
+    /// <para>This method always throws; the return type only shortens the call site.</para>
+    /// <para>
+    /// The span is closed here as well. A denied run never reaches the
+    /// process, so the exit code and duration that every other outcome writes
+    /// are never set, and the span used to end carrying the skill and script
+    /// names and nothing else - the shape of a span that never finished. The
+    /// only trace of the denial was an error.type on MAF's own
+    /// <c>execute_tool</c> span above it, which names the exception type and
+    /// not the gate.
+    /// </para>
+    /// <para>
+    /// <paramref name="activity"/> is passed rather than read from
+    /// <see cref="Activity.Current"/>: the span belongs to the caller's body,
+    /// and this repository does not touch the ambient one from an async
+    /// helper.
+    /// </para>
+    /// </remarks>
     [DoesNotReturn]
     private async ValueTask DenyAsync(
         string skillName,
         string scriptName,
         string reason,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Activity? activity = null)
     {
+        activity?.SetTag(TraconDiagnostics.Tags.ScriptDenialReason, reason);
+        activity?.SetStatus(ActivityStatusCode.Error, reason);
+
         await AuditRecorder.WriteAsync(
                 _auditLog,
                 _actorResolver,
