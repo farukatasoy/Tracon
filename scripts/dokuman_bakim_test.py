@@ -1275,7 +1275,7 @@ class TamMetinKarsiOrnekTestleri(unittest.TestCase):
     def test_kod_blogundaki_karsi_ornek_referans_sayilmaz(self):
         metin = (
             "Karsi ornek:\n\n```\n"
-            "git show 0000000:docs/yok.md\n"
+            "git show 0000000:sahte/yok.md\n"
             "```\n"
         )
 
@@ -1284,13 +1284,13 @@ class TamMetinKarsiOrnekTestleri(unittest.TestCase):
         self.assertEqual(dokuman_bakim._TAM_METIN.findall(soyulmus), [])
 
     def test_blok_alintisindaki_mesru_referans_gorulur(self):
-        metin = "> git show 7f1833e:docs/arsiv/fazlar/05-X.md\n"
+        metin = "> git show 7f1833e:sahte/05-X.md\n"
 
         soyulmus = dokuman_bakim._kod_bloklarini_soy(metin)
 
         self.assertEqual(
             dokuman_bakim._TAM_METIN.findall(soyulmus),
-            [("7f1833e", "docs/arsiv/fazlar/05-X.md")])
+            [("7f1833e", "sahte/05-X.md")])
 
 if __name__ == "__main__":
     unittest.main()
