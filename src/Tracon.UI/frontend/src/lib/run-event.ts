@@ -39,7 +39,8 @@ export type RunEventType =
   | 'StructuredResponseRepairAttempted'
   | 'Custom'
   | 'ChildRunTimedOut'
-  | 'LoopIterationCompleted';
+  | 'LoopIterationCompleted'
+  | 'SessionWriteConflicted';
 
 export interface RunEvent {
   runId: string;

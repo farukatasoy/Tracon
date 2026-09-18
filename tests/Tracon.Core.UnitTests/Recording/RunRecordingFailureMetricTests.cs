@@ -487,6 +487,9 @@ public sealed class RunRecordingFailureMetricTests
                 : ValueTask.CompletedTask;
         }
 
+        public ValueTask<long?> GetLastEventSequenceAsync(Guid runId, CancellationToken cancellationToken = default)
+            => ValueTask.FromResult<long?>(null);
+
         public ValueTask RecordToolInvocationAsync(ToolInvocationRecord invocation, CancellationToken cancellationToken = default)
         {
             Interlocked.Increment(ref _storeCalls);
@@ -581,6 +584,9 @@ public sealed class RunRecordingFailureMetricTests
 
             throw new InvalidOperationException("store unavailable");
         }
+
+        public ValueTask<long?> GetLastEventSequenceAsync(Guid runId, CancellationToken cancellationToken = default)
+            => ValueTask.FromResult<long?>(null);
 
         public ValueTask CompleteRunAsync(RunCompletion completion, CancellationToken cancellationToken = default)
             => ValueTask.CompletedTask;

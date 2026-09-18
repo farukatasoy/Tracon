@@ -85,6 +85,40 @@ KAPALI tuttu), bu `run` bir süre sonra heartbeat eşiğini aşıp YANLIŞLIKLA
 `Infrastructure`/`orphaned` olarak sınıflandırılabilir — GERÇEK bir başarıyı
 sahte bir altyapı hatası gibi gösterir.
 
+---
+
+### ✅ KAPANDI — 2026-09-18 (Aşama 2, Aile B)
+
+**Ampirik yeniden üretim.** `RunEventSequenceResumeTests` düzeltme olmadan
+düştü: aynı `runId` ile ikinci bir `RunRecordingAgent` koşumu `seq=0`'ı yeniden
+kullanmaya çalıştı, writer devre dışı kaldı ve `run` `Running` kaldı.
+
+**Kullanıcı kararı 👤 (2026-09-18):** son `seq` **sözleşmeden okunur**.
+`IRunStore`'a `GetLastEventSequenceAsync` eklendi. `RunRecord.EventCount` bu
+soruyu yanıtlayamaz — yalnız **tamamlanmada** yazılıyor ve devralınan bir run
+henüz tamamlanmamış.
+
+**Düzeltme.** `RunEventWriter.StartAsync` artık `StartRunAsync`'ten sonra son
+`seq`'i okuyor ve `_sequence`'ı `written + 1`'e alıyor. İlk denemede sorgu
+`null` döner ve sayaç sıfırda kalır.
+
+**SQL sorgusunda tenant join'i YOK** ve bu bilinçli: çağıran run'ın kendi
+writer'ıdır ve zaten tuttuğu bir run'ı sürdürüyor. Tenant filtresi, ortam
+kiracısı run'ınkinden farklı olan meşru bir devralmada (job kuyruğu ve
+workflow'lar ikisi de böyle çalışır, K-355) "hiç olay yok" derdi ve writer
+sıfırdan başlardı — tam da bu sorgunun engellemek için var olduğu çakışma.
+
+**Sözleşme paketi güncellendi.** `RunStoreContract` iki yeni test taşıyor
+(`The_last_event_sequence_is_readable`, `An_unknown_run_has_no_last_event_sequence`),
+yani üç SQL sağlayıcısının üçü de ve üçüncü taraf store'lar aynı iddiayı koşar.
+
+**Sözleşme değişikliğinin bedeli ölçüldü:** `IRunStore`'u uygulayan **on**
+yer güncellendi (üç ürün store'u, `samples/Tracon.Samples.FileRunStore`, bench
+ve altı test stub'ı). `PublicAPI.Unshipped` olduğu için 1.0 öncesi kabul
+edilebilir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
 **Yeniden üretme**
 1. İki worker süreci aynı PostgreSQL şemasına, kısa `LeaseDuration` ile
    başlat (bu koşumda 20 sn; işin doğal süresinden kısa olması yeterli).

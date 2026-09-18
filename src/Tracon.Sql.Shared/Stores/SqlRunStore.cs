@@ -1,5 +1,6 @@
 using System.Buffers;
 using System.Data.Common;
+using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Text.Json;
 
@@ -680,6 +681,25 @@ internal sealed class SqlRunStore : IRunStore
                 }
             }
         }
+    }
+
+    /// <inheritdoc />
+    [TenantAgnostic(
+        "The caller is the run's OWN event writer resuming a run it already holds, and it asks " +
+        "only how far its own stream got. A tenant filter would answer 'no events' for a " +
+        "legitimate takeover whose ambient tenant differs from the run's - the job queue and " +
+        "workflows both do that (K-355) - and the writer would restart at zero, causing the " +
+        "very sequence collision this query exists to avoid. It reads one number, never content.")]
+    public async ValueTask<long?> GetLastEventSequenceAsync(
+        Guid runId,
+        CancellationToken cancellationToken = default)
+    {
+        var command = CreateCommand(_sql.SelectLastRunEventSequence);
+        DbHelpers.Add(command, "run_id", runId);
+
+        var result = await DbHelpers.ExecuteScalarAsync(command, cancellationToken).ConfigureAwait(false);
+
+        return result is null or DBNull ? null : Convert.ToInt64(result, CultureInfo.InvariantCulture);
     }
 
     /// <inheritdoc />

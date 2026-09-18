@@ -181,6 +181,32 @@ public sealed class JsonFileRunStore : IRunStore
     }
 
     /// <inheritdoc />
+    public ValueTask<long?> GetLastEventSequenceAsync(Guid runId, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (_gate)
+        {
+            if (!_events.TryGetValue(runId, out var log))
+            {
+                return ValueTask.FromResult<long?>(null);
+            }
+
+            long? highest = null;
+
+            foreach (var existing in log)
+            {
+                if (highest is null || existing.Sequence > highest)
+                {
+                    highest = existing.Sequence;
+                }
+            }
+
+            return ValueTask.FromResult(highest);
+        }
+    }
+
+    /// <inheritdoc />
     public ValueTask CompleteRunAsync(RunCompletion completion, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(completion);

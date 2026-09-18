@@ -56,6 +56,47 @@ public sealed class SessionConflictEndpointTests
         problem.GetProperty("errorType").GetString().ShouldBe("session_conflict");
     }
 
+    /// <summary>
+    /// HATA-S1-011: the run record carries the conflict.
+    /// </summary>
+    /// <remarks>
+    /// The run stays <see cref="RunStatus.Completed"/> — it completed, and
+    /// calling it failed would misreport both its cost and its answer. What
+    /// was missing is any trace at all: the operator saw two successful runs
+    /// for the same session, and the losing side lived only in a response the
+    /// caller had already consumed.
+    /// </remarks>
+    [Fact]
+    public async Task The_run_record_carries_the_conflict_and_still_reads_Completed()
+    {
+        await using var host = await StartAsync();
+
+        (await PostRunAsync(host)).Dispose();
+        (await PostRunAsync(host)).Dispose();
+
+        var runs = host.Services.GetRequiredService<IRunStore>();
+        var records = await runs.QueryRunsAsync(new RunQuery(), TestContext.Current.CancellationToken);
+
+        records.Count.ShouldBe(2);
+        records.ShouldAllBe(record => record.Status == RunStatus.Completed);
+
+        var conflicted = new List<string?>();
+
+        foreach (var record in records)
+        {
+            await foreach (var runEvent in runs.ReadEventsAsync(record.Id, 0, TestContext.Current.CancellationToken))
+            {
+                if (runEvent.Type == RunEventType.SessionWriteConflicted)
+                {
+                    conflicted.Add(runEvent.Text);
+                }
+            }
+        }
+
+        // Exactly one side lost the race, and the event names the session.
+        conflicted.ShouldHaveSingleItem().ShouldBe(SessionId);
+    }
+
     [Fact]
     public async Task Openai_responses_answers_409_instead_of_502()
     {

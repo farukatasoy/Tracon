@@ -46,6 +46,7 @@ public sealed class RunEventTypeTests
         ("Custom", 29),
         ("ChildRunTimedOut", 30),
         ("LoopIterationCompleted", 31),
+        ("SessionWriteConflicted", 32),
     ];
 
     [Fact]

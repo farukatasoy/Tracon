@@ -35,6 +35,9 @@ internal sealed class NoOpRunStore : IRunStore
 
     public ValueTask AppendEventAsync(RunEvent runEvent, CancellationToken cancellationToken = default) => default;
 
+    public ValueTask<long?> GetLastEventSequenceAsync(Guid runId, CancellationToken cancellationToken = default)
+        => ValueTask.FromResult<long?>(null);
+
     public ValueTask CompleteRunAsync(RunCompletion completion, CancellationToken cancellationToken = default) => default;
 
     public ValueTask<RunRecord?> GetRunAsync(Guid runId, CancellationToken cancellationToken = default)

@@ -391,7 +391,35 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
         {
             // 🚨 HATA-S4-012: this step is DELIBERATELY INSIDE the try/finally — the reason
             // is in the documentation of WriteRunStartAsync and in the note of CreateScope.
-            await WriteRunStartAsync(start, messages, cancellationToken).ConfigureAwait(false);
+            //
+            // 🚨 HATA-S4-003: it needs its OWN catch as well. The catch below covers only
+            // MoveNextAsync inside the loop, so a failure here fell through to the finally,
+            // which writes Canceled — and a run that failed is not a run the caller gave up
+            // on. The non-streaming path needs no such block: there, one try wraps the whole
+            // body and its catch already sees this step.
+            try
+            {
+                await WriteRunStartAsync(start, messages, cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                // Left to the finally, which writes Canceled: that IS the truthful
+                // status here and HATA-S4-012 is the case that proves it.
+                throw;
+            }
+            catch (Exception ex)
+            {
+                completedByCatch = true;
+                var startCorrelationId = SafeErrorText.NewCorrelationId();
+                _logger.LogError(
+                    ex, "Run {RunId} failed before it started. (ref: {CorrelationId})",
+                    scope.Writer.RunId, startCorrelationId);
+
+                await CompleteAsync(
+                    scope, RunStatus.Failed, null, ToRunError(ex, startCorrelationId), CancellationToken.None)
+                    .ConfigureAwait(false);
+                throw;
+            }
 
             while (true)
             {
