@@ -190,3 +190,15 @@ eşzamanlılık probu var; eskiden ilk gelenler sonuncuyu yirmi saniye bekliyord
   kusurdur**. Yeni bir barrier boyutlandırırken sayıyı çekirdek sayısına göre
   seç, ya da doğrudan `SimultaneousCalls` kullan.
 
+- **`-maxcpucount:1` test PROJELERİNİ serileştirir, proje İÇİNİ etmez.** Ölçüldü
+  (2026-09-19): tam koşum boyunca işlem tablosu örneklendiğinde her an **tek**
+  test süreci vardı — yani projeler arası çekişme yok. Doygunluk xunit'in proje
+  içi paralelliğinden gelir (varsayılan: işlemci başına bir thread). Zaman-duyarlı
+  bir proje (gerçek tarayıcı, gerçek zamanlı ses döngüsü, Native AOT `publish`)
+  makineyi tek başına doyurabilir; çözüm o projenin `xunit.runner.json`'ında
+  `maxParallelThreads`'tir. Bedeli ölçüldü ve küçüktür (fonksiyonel testler
+  2 dk 43 sn → 3 dk 07 sn).
+- **Kendi koşumunu kendin kirletme.** Tam koşum arka plandayken derleme ya da
+  başka bir test koşmak ölçümü geçersizleştirir (ve `--no-build` koşumu
+  değişmiş ikilileri çalıştırır). Bu turda bir koşum bu yüzden **iptal edildi**;
+  raporlanmadı.

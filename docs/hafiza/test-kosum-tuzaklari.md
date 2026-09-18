@@ -216,3 +216,8 @@ diger zamanlamaya bagli dogrulamalar zaten onu kullaniyordu; bu biri atlamisti.
 **Teshis sirasi ucuzdan pahaliya:** once tek test izole, sonra **tek assembly'nin
 tamami**, sonra tum cozum. Ortadaki adim burada belirleyici oldu — 1046 testin
 gecmesi "sira bagimliligi degil, zamanlama" dedi.
+- **`ActivityListener` SÜREÇ GENELİDİR.** Bir teste listener takıp "durdurulan
+  tek span" iddiası kurmak, aynı assembly'deki diğer testlerin aynı kaynakta
+  açtığı span'ler yüzünden düşer — ölçüldü: bir yerine **on** span geldi. Span'i
+  kendi etiketiyle (ör. script adı) seç ve o adı başka hiçbir test kullanmasın.
+  Filtreli koşum bunu göstermez; süreçteki tek listener odur.

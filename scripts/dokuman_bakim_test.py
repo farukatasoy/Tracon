@@ -1261,10 +1261,30 @@ class SatirIciKodSatirSonuTestleri(unittest.TestCase):
             dokuman_bakim._kod_bloklarini_soy(metin).count("\n"),
             metin.count("\n"))
 
-    def test_iki_satir_sonu_asan_desen_kod_sayilmaz(self):
-        # Sinir TEK satir sonudur: tek basina kalmis bir backtick dokumanin
-        # yarisini yutmamalidir.
-        metin = "`a\nb\nc`"
+    def test_eslesmeyen_backtick_kod_sayilmaz(self):
+        # Tek basina kalmis bir backtick dokumanin yarisini yutmamalidir.
+        metin = "`a\nb\nc"
+
+        self.assertEqual(dokuman_bakim._kod_bloklarini_soy(metin), metin)
+
+    def test_tek_sayida_backtick_tasiyan_satir_sonrakini_yutmaz(self):
+        # 🚨 Olculdu (2026-09-19): "tek satir sonuna izin ver" kurali, tek
+        # sayida backtick tasiyan bir satirin artan backtick'ini sonraki
+        # satira bagliyordu ve aradaki GERCEK kod parcasini disarida
+        # birakiyordu. CommonMark eslesmesi (N backtick <-> N backtick) bunu
+        # cozer.
+        metin = (
+            "`yol.md`'nin sonuna ` ```markdown `\n"
+            "blogu icinde `[x](../../YOK.md)` eklendi.\n"
+        )
+
+        soyulmus = dokuman_bakim._kod_bloklarini_soy(metin)
+
+        self.assertNotIn("](", soyulmus)
+        self.assertIn("blogu icinde", soyulmus)
+
+    def test_cok_uzun_bir_acilis_kod_sayilmaz(self):
+        metin = "`a\nb\nc\nd\ne\nf`"
 
         self.assertEqual(dokuman_bakim._kod_bloklarini_soy(metin), metin)
 

@@ -1491,11 +1491,10 @@ def _fence_bloklarini_soy(metin: str) -> str:
 def _kod_bloklarini_soy(metin: str) -> str:
     """Fence + satir ici kod: HER IKISI de gosterimdir. Uzunluk KORUNUR.
 
-    Satir SAYISI da korunur: kod parcasi bir satir sonunu asabildigi icin
-    (asagi bak) onu bosluga cevirmek satirlari birlestirirdi ve satir
-    numarasiyla rapor veren her cagirani kaydirirdi."""
-    return _SATIR_ICI_KOD.sub(
-        lambda m: re.sub(r"[^\n]", " ", m.group(0)), _fence_bloklarini_soy(metin))
+    Satir SAYISI da korunur: bir kod parcasi satir sonunu asabilir ve onu
+    duz bosluga cevirmek satirlari birlestirirdi -- satir numarasiyla rapor
+    veren her cagiran kayardi."""
+    return _satir_ici_kodu_soy(_fence_bloklarini_soy(metin))
 
 
 # Satir ici kod da GOSTERIMDIR: `[x](../../YOK.md)` bir baglanti degil, bir
@@ -1503,15 +1502,56 @@ def _kod_bloklarini_soy(metin: str) -> str:
 # yanlis pozitifi uretti. Uzunluk korunur ki sutun kaymasin.
 # `[`dosya.md`](dosya.md)` deseni GUVENLIDIR: yalniz ETIKET bir kod parcasidir,
 # hedef parantez disinda kalir ve taranmaya devam eder.
+_BACKTICK_DIZISI = re.compile(r"`+")
+
+# Bir kod parcasi satir sonu ASABILIR ve bu depoda gercekten asiyor: satirlar
+# ~80 sutunda sarildigi icin iki satira bolunmus bir `[kapilar.md](kapilar.md)`
+# alintisi kod SAYILMIYORDU ve kapi onu gercek bir baglanti sanip kirik ilan
+# etti (2026-09-16 kosumu, iki vaka).
 #
-# 🚨 Desen BIR satir sonunu asabilir. Markdown'da kod parcasi satir sonu
-# tasiyabilir ve bu depoda satirlar ~80 sutunda sarildigi icin gercekten
-# tasiyor: iki satira bolunmus bir `[kapilar.md](kapilar.md)` alintisi kod
-# SAYILMIYORDU ve kapi onu gercek bir baglanti sanip kirik ilan etti
-# (2026-09-16 kosumu, iki vaka). Sinir bilincli olarak TEK satir sonudur --
-# `[^`]*` yazmak, tek basina kalmis bir backtick'in dokumanin yarisini
-# yutmasina izin verirdi.
-_SATIR_ICI_KOD = re.compile(r"(?<!`)`[^`\n]*(?:\n[^`\n]*)?`(?!`)")
+# 🚨 Bunu "tek satir sonuna izin ver" diye yazmak BASKA bir yanlis pozitif
+# uretir ve olculdu: tek sayida backtick tasiyan bir satirin (` ```markdown `
+# gibi) artan backtick'i SONRAKI satirin backtick'ine baglanir, aradaki GERCEK
+# metni siler ve onun icindeki gercek bir kod parcasini disarida birakir --
+# `33-DOKUMAN-KAPILARI.md` boylece yeni bir kirik baglanti uretti.
+#
+# Dogru kural CommonMark'in kendi kuralidir: N backtick'lik bir acilis dizisi,
+# tam olarak N backtick'lik BIR SONRAKI dizi ile kapanir. Ust sinir (dort satir)
+# yalnizca eslesmeyen bir backtick'in dokumanin yarisini yutmasini engeller.
+_KOD_PARCASI_AZAMI_SATIR = 4
+
+
+def _satir_ici_kodu_soy(metin: str) -> str:
+    """Eslesen backtick dizileri arasini bosluga cevirir; satir sonlari kalir."""
+    parcalar: list[str] = []
+    konum = 0
+
+    while (acilis := _BACKTICK_DIZISI.search(metin, konum)) is not None:
+        uzunluk = len(acilis.group(0))
+        arama = acilis.end()
+        kapanis = None
+
+        while (aday := _BACKTICK_DIZISI.search(metin, arama)) is not None:
+            if len(aday.group(0)) == uzunluk:
+                kapanis = aday
+                break
+            arama = aday.end()
+
+        govde = metin[acilis.start():kapanis.end()] if kapanis else ""
+
+        if kapanis is None or govde.count("\n") > _KOD_PARCASI_AZAMI_SATIR:
+            # Eslesmeyen ya da makul olmayacak kadar uzun: kod degil, metin.
+            parcalar.append(metin[konum:acilis.end()])
+            konum = acilis.end()
+            continue
+
+        parcalar.append(metin[konum:acilis.start()])
+        parcalar.append(re.sub(r"[^\n]", " ", govde))
+        konum = kapanis.end()
+
+    parcalar.append(metin[konum:])
+
+    return "".join(parcalar)
 
 
 def kirik_baglantilar(kok: pathlib.Path = ROOT) -> list[str]:

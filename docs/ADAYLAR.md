@@ -292,6 +292,93 @@ diyor.
 
 ---
 
+### F-247 · Yirmi dört yapılandırma bölümü için bağlama kanıtı
+
+**Sorun:** `TraconOptionsBindingCoverageTests` "alan eklendi ama `Bind()`'a
+yazılmadı" kusurunu yapısal olarak kilitler — ama yalnız `TraconOptions`
+**ağacı** için. Ölçüldü (2026-09-19, `HATA-S1-003` kapanışı): `TraconOptions`
+bu bölümlerin ebeveyni **değildir**. `Tracon:Scheduling`, `Tracon:Quotas`,
+`Tracon:Retention` ve 21 tanesi daha kök seviyede **kardeş** bölümlerdir ve
+tek tek bağlanırlar; tarayıcı hiçbirine ulaşmaz. Bu şeklin ürettiği kusur
+ölçüldü: `TraconImageOptions.Timeout` eklendi, yapılandırılabilir olarak
+belgelendi ve hiçbir yere bağlanmadı — canlı koşum yakaladı, hiçbir test
+yakalamadı (`HATA-S1-010` turu).
+
+**Kapsam:** Yirmi dört bölümün her biri için `<TypeName>BindingTests`: her
+skaler alan tek bir yapılandırma kümesiyle doldurulur ve geri okunur. Kapsam
+zaten kilitli — `OptionsSectionCoverageTests` bir **ratchet**'tır ve
+`options-section-coverage-baseline.txt` bugün eksik olan yirmi dördü adıyla
+sayar; yeni bir bölüm eklenemez, var olan biri listeden ancak testini
+kazanınca çıkar. Bu aday o listeyi **boşaltmaktır**.
+
+**Değer:** Sessizce bağlanmayan bir ayar, dokümanın vaat ettiği ama ürünün
+yapmadığı şeydir; tüketici bunu yalnız canlı koşumda görür.
+
+**Hazırlık — ölçüldü (2026-09-19):** Ratchet ve taban çizgisi yerinde;
+`TraconImageOptionsBindingTests` ile `TraconPricingBindingTests` izlenecek
+deseni gösteriyor. İş mekaniktir ve paralelleştirilebilir.
+
+**Maliyet:** Ölçülmedi. Yeni ürün kodu gerekmez; yirmi dört test sınıfı.
+
+**Risk:** Yok — yalnız test eklenir.
+
+---
+
+### F-248 · `unwrap(...) as Promise<T>` iddialarının tip düzeyinde kapısı
+
+**Sorun:** Konsol her uç çağrısını `unwrap(client.X(...)) as Promise<T>` ile
+daraltır; `T` üretilen şemanın (her alanı opsiyonel) yerine `server-types.ts`'in
+daha dar tipini koyar ve bu **bilinçli** bir tasarımdır. Ama iddia yanlış bir
+ŞEKLİ de adlandırabilir ve hiçbir şey bunu söylemez: `HATA-S3-008`'de bir çağrı
+`{scores,failures}` döndüren bir ucu `RunScore[]` ilan etti, `data.length` her
+zaman `undefined` kaldı ve arayüz sessizce hiçbir şey göstermedi.
+
+**Kapsam:** Daraltmayı bir *assertion* yerine bir yardımcıya taşımak ve
+`Narrow extends Wide` kısıtını tip sistemine kurdurmak, böylece uyumsuz bir
+şekil **derleme hatası** olur. 115 çağrı yerinin hepsi dönüştürülür.
+
+**Değer:** Sınıfın tamamı derleyiciye devredilir; bugünkü tek örnek elle
+tarandı, sonrakini kimse taramaz.
+
+**Hazırlık — ölçüldü (2026-09-19):** 115 çağrı yerinin tamamı üretilen şemaya
+karşı tek seferlik bir betikle tarandı; **yalnız bir tanesi** yanlış şekil
+adlandırıyordu, gerisi amaçlandığı gibi daraltıyor. 🚨 İddiaları **silmek**
+denendi ve yanlıştır: `tsc` 40+ hata verdi — daraltmalar yük taşıyor.
+Betiğin kendisi 115 yerde 8 yanlış pozitif üretti (204 yanıtlar, import
+takma adları, çok satırlı eşleşmeler), ∴ kapı ayrıştırıcı değil tip düzeyi
+olmalıdır.
+
+**Maliyet:** Ölçülmedi. Mekanik ama geniş bir dokunuş.
+
+**Risk:** Kısıtın meşru daraltmaları reddetmesi. Önce üç-beş yerde ölçülmeli.
+
+---
+
+### F-249 · docs-site için tarayıcı tabanlı yerleşim kapısı
+
+**Sorun:** `MT-DKL-026` (dokuz şablon × dört genişlik × iki tema, yatay kayma
+yok) **elle** koşulan bir case'tir ve iki turda da gerçek bir kusur buldu
+(`HATA-S3-002`). `npm run check` içerik, bağlantı ve ağırlık ölçer; yerleşim
+ölçmez. Dekoratif bir öğenin sayfayı genişletmesi hiçbir kapıyı kırmaz.
+
+**Kapsam:** docs-site'a Playwright bağımlılığı ve `dist/` üzerinde koşan bir
+`check:layout` adımı: sayfa kümesi × genişlik kümesi × iki tema için
+`scrollWidth - clientWidth == 0`.
+
+**Değer:** Bugün 72 ölçüm noktasını insan koşuyor. Kusur iki turda da oradan
+çıktı.
+
+**Hazırlık — ölçüldü (2026-09-19):** Ölçümün kendisi bu turda Playwright ile
+yapıldı ve mekaniktir (on dört genişlik × iki tema, tek betik). Eksik olan
+yalnız docs-site'ın kendi bağımlılığı ve CI adımı.
+
+**Maliyet:** Ölçülmedi. Yeni bir npm bağımlılığı ve CI'da tarayıcı kurulumu.
+
+**Risk:** CI süresine tarayıcı indirme maliyeti ekler; docs-site bugün
+tarayıcısızdır.
+
+---
+
 ## Aday Olmayan Açık Kayıtlar
 
 Bu kalemler faz sıralamasına **girmez**. Tam kanıt, geçmiş ve sonraki adım
@@ -309,7 +396,13 @@ keşif kaydındadır; burada yalnız hangi kanala düştükleri yazar.
 ### F-ID tahsis kuralı
 
 Numara **geri dönüştürülmez** ve bir numara **tek kaleme** aittir. Sıradaki
-numara: **F-247**.
+numara: **F-250**.
+
+**F-247**, **F-248** ve **F-249** 2026-09-19'da 2026-09-16 turunun kapanışında
+tahsis edildi: üçü de bir kusurun **sınıfını** kapatmayı ister ve kusurun
+kendisi kapandı. F-247 yirmi dört yapılandırma bölümünün bağlama kanıtı
+(ratchet yerinde, liste boşaltılacak), F-248 istemci iddialarının tip düzeyinde
+kapısı, F-249 docs-site'ın yerleşim kapısı.
 
 **F-246** 2026-09-18'de `HATA-S1-020`'nin kapanışında tahsis edildi: kusurun
 kendisi (her sağlayıcı hatasının `Unknown` sınıfına ve tek bir parmak izine

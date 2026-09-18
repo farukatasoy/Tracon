@@ -202,4 +202,12 @@ Kural: kendi bütçesini kuran çağıran `TraconClientOptions.Timeout`'u
 additive'dir; `null` bırakıldığında davranış değişmez (100 sn varsayılanı kalır),
 sıfır veya negatif değer `ArgumentException` atar. `tracon eval` ve
 `tracon health` bunu yapar. Sebep tarafı: `cekirdek-calistirma.md`, K-759.
-
+- **Üretilen istemci bir ALAN kadar bayat kalabilir ve iki kapı da göremez.**
+  Faz 176 bir yanıt kaydına `EvaluatorVersion` ekledi, OpenAPI anlık görüntüsü
+  onu aldı, nswag yeniden koşulmadı: alan bir faz boyunca `TraconApiClient.g.cs`
+  içinde **yoktu** ve tipli istemciden onu okuyan bir tüketici hiçbir şey aldı.
+  `ClientCoverageTests` `operationId` başına bir METOT olduğunu kanıtlar;
+  `ClientDescriptionBaselineTests` bir SAYIYI sabitler; ikisi de eksik bir
+  özelliği görmez. `ClientSchemaFieldCoverageTests` şemanın her özelliğini
+  üretilen tipe karşı **reflection ile** karşılaştırır (adı
+  `JsonPropertyNameAttribute`'tan okur, ∴ adlandırma kuralıyla kaymaz).
