@@ -68,3 +68,22 @@
   kusurdur; `onRetry` için `mutation.variables` kullanılır (argümanlı olanlarda
   `undefined` kontrolüyle).
 - **`Record<RunEventType, ...>` sözlüğü eksik anahtarı DERLEME HATASI yapar — `run-detail.tsx`'teki `EVENT_STYLE` bu yüzden `ModelFallbackUsed`'ın (Faz 62'den beri backend'de var olan) frontend'de HİÇ tanımlanmadığını Faz 70'te ortaya çıkardı** (2026-08-19, Faz 70): `types.ts`'teki `RunEventType` union'ına yeni bir üye eklemek `EVENT_STYLE`'ın tüm anahtarları taşımasını ZORUNLU kılar (TS2739 benzeri hata) — bu, backend enum'ı ile frontend union'ının senkron kalmasını sağlayan TEK mekanizmadır. Yeni bir `RunEventType` üyesi eklerken `types.ts`'in union'ına VE `run-detail.tsx`'in `EVENT_STYLE`'ına birlikte eklenmeli; biri unutulursa derleyici yakalar, ikisi de eklenmezse (union'a hiç eklenmezse) hiçbir uyarı gelmez ve olay `foldRunEvents`'in `default: break` dalına sessizce düşer.
+- **🚨 Tarayıcının "offline"ı ZATEN AÇIK bir `chunked` gövdeyi KESMEZ** (2026-09-18,
+  `HATA-S3-005` kapanışında canlı ölçüldü, Chromium/Playwright): `page.context()
+  .setOffline(true)` yürürlükteyken yeni bir `fetch` gerçekten `Failed to fetch`
+  atarken **aynı SSE akışı beş olay daha teslim etti** ve `run` tamamlandı.
+  Sonuç: `setOffline` bir "bağlantı koptu" senaryosunun **repro'su değildir** —
+  turun bununla ölçtüğü 23 saniyelik donukluk sağlıklı bir bağlantı üzerinde
+  **sessiz bir run**'dı. Gerçekten sessiz bir akışı sınamak için gövdesi hiç
+  parça üretmeyen bir `ReadableStream` kullan (bkz.
+  `packages/tracon-client/test/sse-idle.test.ts`); CDP ile ağ kesmeye çalışma.
+- **🚨 SSE'de canlılık FRAME ile ölçülemez** (aynı vaka, K-803): sunucu
+  `RunEventPollInterval`'de bir `: waiting` yorumu gönderir ama `SseDecoder`
+  yorumları düşürür — düşünen sağlıklı bir run **hiç frame üretmez**. Frame
+  sayan bir zaman aşımı onu keser. Bayt say: `readSse(response,
+  { idleTimeoutMs })` `reader.read()`'i yarıştırır.
+- **`ErrorNote` sunucu metnini bilerek çevirmez, ama konsolun KENDİ ürettiği
+  hatayı çevirmelidir** (2026-09-18): bileşenin gerekçesi "konsolun tanımadığı
+  bir mesaja Türkçe uydurmak neyin başarısız olduğunu gizler" — tanıdığı bir
+  hata (`SseIdleTimeoutError`) bu gerekçenin kapsamında değildir. Ekran onu
+  yakalayıp `t('common.streamLost')` ile değiştirir.

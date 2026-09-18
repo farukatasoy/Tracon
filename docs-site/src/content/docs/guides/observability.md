@@ -417,10 +417,19 @@ app.MapTracon("/tracon", options =>
 });
 ```
 
-`GET /api/diagnostics` reports selected storage, migration state, provider setup, and
-whether expected configuration keys resolve. It never returns secret values. It
-performs a light SQL probe and does not run a migration or call a model. The endpoint
-requires the Tracon Admin role when role policies are registered.
+`GET /api/diagnostics` reports selected storage, migration state, provider setup,
+whether expected configuration keys resolve, and the run recording settings in force.
+It never returns secret values. It performs a light SQL probe and does not run a
+migration or call a model. The endpoint requires the Tracon Admin role when role
+policies are registered.
+
+The `runRecording` block is there for one question in particular: an event that was
+never recorded looks exactly like one the model never produced. `RecordReasoningDeltas`
+is off by default, and while it is off a model that returns reasoning content
+streams it to the caller and records nothing, with no warning anywhere. Reading the
+effective value is the difference between "the model did not think", "recording is
+off" and "something is broken" — a distinction that otherwise costs real provider
+calls to establish.
 
 :::caution[Production caveat]
 Tenant, agent, model, and version tags create time series. Review cardinality before

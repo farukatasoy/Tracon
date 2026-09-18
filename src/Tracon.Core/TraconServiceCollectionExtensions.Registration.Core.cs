@@ -225,7 +225,15 @@ public static partial class TraconServiceCollectionExtensions
             provider.GetServices<IRunEventSink>(),
             provider.GetRequiredService<IToolApprovalPresenter>(),
             provider.GetService<IAttachmentStorage>(),
-            provider.GetService<ModelProviderCircuitBreaker>()));
+            provider.GetService<ModelProviderCircuitBreaker>(),
+            // 🚨 Both of these default to null on the constructor, so leaving
+            // them off the factory compiles and runs — and then the report
+            // states the built-in recording defaults instead of this
+            // installation's, and a catalog read failure is swallowed without
+            // a line anywhere. Neither shows up as an error; the report simply
+            // describes an installation that is not the one running.
+            provider.GetRequiredService<IOptions<TraconOptions>>(),
+            provider.GetService<Microsoft.Extensions.Logging.ILogger<TraconDiagnosticsCollector>>()));
 
         // Chat history provider. Without registration, MAF would set up its own
         // in-memory provider for each agent and that instance would not be

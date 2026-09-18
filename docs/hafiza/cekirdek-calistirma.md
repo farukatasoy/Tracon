@@ -67,3 +67,21 @@
   taraması: tek üretim çağıranı `DefaultRunErrorClassifier:62`; `InMemoryRunStore`
   orphaned sabit fingerprint'i gerekçeli tasarımdır, vaka değil. Regresyon:
   `ErrorFingerprintTests.The_same_foreign_failure_clusters_together_across_occurrences`.
+- **🚨 Varsayılanı `true` olan bir kardeş alanın çalışması, yapılandırma
+  bağlamasının çalıştığını KANITLAMAZ** (2026-09-18, `HATA-S3-006`). Tur,
+  `RecordReasoningDeltas`'ın hiç kaydetmediğini gördü ve "options bağlama
+  sorununu" `RecordMessageDeltas` aynı koşuda çalıştığı için ekarte etti — ama
+  `RecordMessageDeltas` **varsayılan olarak `true`**'dur, yani bağlama hiç
+  olmasa da çalışırdı. Eleme geçersizdi ve kusur bir tur boyunca izole
+  edilemedi. **Kural:** bir ayarın gerçekten okunduğunu, varsayılanı
+  ARANAN DEĞERDEN FARKLI olan bir alanla kanıtla; ya da doğrudan yürürlükteki
+  değeri oku (bugün `/api/diagnostics` `runRecording`'i bildiriyor, K-804).
+- **🚨 Elle yazılmış bir DI fabrikası, kurucunun isteğe bağlı argümanlarını
+  sessizce atlayabilir** (2026-09-18, aynı vaka): `TraconDiagnosticsCollector`'ın
+  `TryAddSingleton(provider => new …)` fabrikası son iki parametreyi
+  (`IOptions<TraconOptions>`, `ILogger<…>`) hiç geçmiyordu. İkisi de `= null`
+  varsayılanlı olduğu için derleme ve testler yeşildi; sonuç, raporun kurulumun
+  değil **varsayılanların** ayarlarını söylemesi ve katalog okuma hatasının her
+  kurulumda sessizce yutulmasıydı. Kurucuya isteğe bağlı parametre eklerken
+  `grep -n "new <Tip>(" src/` ile fabrikayı da aç: `ActivatorUtilities` değil
+  elle yazılmış bir fabrika varsa yeni parametre **kendiliğinden** bağlanmaz.

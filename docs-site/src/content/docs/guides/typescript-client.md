@@ -127,6 +127,36 @@ incrementally, so a frame split across network chunks is reassembled rather than
 mis-parsed. `SseDecoder` is exported too, for a transport that is not a `fetch`
 `Response`.
 
+### Noticing a connection that died quietly
+
+A connection can stop without closing: a laptop sleeps, a proxy times out, a
+network changes underneath an open body. Nothing throws — the reader waits on a
+chunk that never comes, and a caller cannot tell that apart from a run that is
+still working. Give `readSse` an idle timeout and it ends the stream with an
+`SseIdleTimeoutError` instead:
+
+```ts
+import { readSse, SseIdleTimeoutError } from '@tracon/client';
+
+try {
+  for await (const frame of readSse(response, { idleTimeoutMs: 30_000 })) {
+    console.log(frame.event, frame.data);
+  }
+} catch (error) {
+  if (error instanceof SseIdleTimeoutError) {
+    // The run itself is unaffected — reconnect and the events replay.
+  }
+}
+```
+
+The threshold counts **bytes, not frames**. Tracon sends a `: waiting` comment
+every `RunEventPollInterval` (250 ms by default) for as long as a run is going,
+and `readSse` skips comments — so a run that is thinking yields no frames at
+all while it thinks, and a frame-based timeout would cut it off. Set the
+threshold above that interval, with room for a slow link. Leave the option out
+and the stream waits forever, which is the behavior every existing caller
+already has.
+
 `EventSource` is deliberately not used here: it cannot send an `Authorization`
 header and cannot issue a `POST`, and these endpoints need both.
 

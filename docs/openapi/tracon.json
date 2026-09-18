@@ -14405,6 +14405,49 @@
         },
         "description": "Summary of a run. It acts as the header of the event stream."
       },
+      "RunRecordingDiagnostic": {
+        "required": [
+          "enabled",
+          "recordRunInput",
+          "recordMessageDeltas",
+          "recordReasoningDeltas",
+          "recordToolPayloads",
+          "maxPayloadLength"
+        ],
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "Gets whether runs are recorded at all."
+          },
+          "recordRunInput": {
+            "type": "boolean",
+            "description": "Gets whether the input messages are stored so a run can be replayed."
+          },
+          "recordMessageDeltas": {
+            "type": "boolean",
+            "description": "Gets whether assistant text is recorded as \u0060MessageDelta\u0060 events."
+          },
+          "recordReasoningDeltas": {
+            "type": "boolean",
+            "description": "Gets whether model reasoning is recorded as \u0060ReasoningDelta\u0060 events."
+          },
+          "recordToolPayloads": {
+            "type": "boolean",
+            "description": "Gets whether tool arguments and results are recorded."
+          },
+          "maxPayloadLength": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Gets the longest recorded payload, in characters. \u00600\u0060 means no trimming.",
+            "format": "int32"
+          }
+        },
+        "description": "What a run actually records, as configured."
+      },
       "RunReplayRequest": {
         "type": "object",
         "properties": {
@@ -16808,7 +16851,8 @@
           "toolCount",
           "agentCount",
           "agentSources",
-          "extensionPoints"
+          "extensionPoints",
+          "runRecording"
         ],
         "type": "object",
         "properties": {
@@ -16890,6 +16934,10 @@
               "$ref": "#/components/schemas/ExtensionPointDiagnostic"
             },
             "description": "Gets the embedding points a host application binds to attach Tracon\nto its own tenancy, identity, authorization, eventing, and storage."
+          },
+          "runRecording": {
+            "description": "Gets the run recording settings this installation is running with.",
+            "$ref": "#/components/schemas/RunRecordingDiagnostic"
           }
         },
         "description": "Reports the self-diagnostics of the installation."

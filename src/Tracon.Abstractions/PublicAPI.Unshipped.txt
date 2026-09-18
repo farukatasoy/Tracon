@@ -2718,6 +2718,22 @@ Tracon.RunRecord.Variant.get -> string?
 Tracon.RunRecord.Variant.init -> void
 Tracon.RunRecord.WorkflowName.get -> string?
 Tracon.RunRecord.WorkflowName.init -> void
+Tracon.RunRecordingDiagnostic
+Tracon.RunRecordingDiagnostic.<Clone>$() -> Tracon.RunRecordingDiagnostic!
+Tracon.RunRecordingDiagnostic.Enabled.get -> bool
+Tracon.RunRecordingDiagnostic.Enabled.init -> void
+Tracon.RunRecordingDiagnostic.Equals(Tracon.RunRecordingDiagnostic? other) -> bool
+Tracon.RunRecordingDiagnostic.MaxPayloadLength.get -> int
+Tracon.RunRecordingDiagnostic.MaxPayloadLength.init -> void
+Tracon.RunRecordingDiagnostic.RecordMessageDeltas.get -> bool
+Tracon.RunRecordingDiagnostic.RecordMessageDeltas.init -> void
+Tracon.RunRecordingDiagnostic.RecordReasoningDeltas.get -> bool
+Tracon.RunRecordingDiagnostic.RecordReasoningDeltas.init -> void
+Tracon.RunRecordingDiagnostic.RecordRunInput.get -> bool
+Tracon.RunRecordingDiagnostic.RecordRunInput.init -> void
+Tracon.RunRecordingDiagnostic.RecordToolPayloads.get -> bool
+Tracon.RunRecordingDiagnostic.RecordToolPayloads.init -> void
+Tracon.RunRecordingDiagnostic.RunRecordingDiagnostic() -> void
 Tracon.RunReplayRequest
 Tracon.RunReplayRequest.<Clone>$() -> Tracon.RunReplayRequest!
 Tracon.RunReplayRequest.AgentVersion.get -> int?
@@ -3715,6 +3731,8 @@ Tracon.TraconDiagnosticsReport.PersistenceProvider.get -> string!
 Tracon.TraconDiagnosticsReport.PersistenceProvider.init -> void
 Tracon.TraconDiagnosticsReport.RegisteredPersistenceProviders.get -> int
 Tracon.TraconDiagnosticsReport.RegisteredPersistenceProviders.init -> void
+Tracon.TraconDiagnosticsReport.RunRecording.get -> Tracon.RunRecordingDiagnostic!
+Tracon.TraconDiagnosticsReport.RunRecording.init -> void
 Tracon.TraconDiagnosticsReport.ToolCount.get -> int
 Tracon.TraconDiagnosticsReport.ToolCount.init -> void
 Tracon.TraconDiagnosticsReport.TraconDiagnosticsReport() -> void
@@ -4932,6 +4950,9 @@ override Tracon.RunQuery.ToString() -> string!
 override Tracon.RunRecord.Equals(object? obj) -> bool
 override Tracon.RunRecord.GetHashCode() -> int
 override Tracon.RunRecord.ToString() -> string!
+override Tracon.RunRecordingDiagnostic.Equals(object? obj) -> bool
+override Tracon.RunRecordingDiagnostic.GetHashCode() -> int
+override Tracon.RunRecordingDiagnostic.ToString() -> string!
 override Tracon.RunReplayRequest.Equals(object? obj) -> bool
 override Tracon.RunReplayRequest.GetHashCode() -> int
 override Tracon.RunReplayRequest.ToString() -> string!
@@ -5479,6 +5500,8 @@ static Tracon.RunQuery.operator !=(Tracon.RunQuery? left, Tracon.RunQuery? right
 static Tracon.RunQuery.operator ==(Tracon.RunQuery? left, Tracon.RunQuery? right) -> bool
 static Tracon.RunRecord.operator !=(Tracon.RunRecord? left, Tracon.RunRecord? right) -> bool
 static Tracon.RunRecord.operator ==(Tracon.RunRecord? left, Tracon.RunRecord? right) -> bool
+static Tracon.RunRecordingDiagnostic.operator !=(Tracon.RunRecordingDiagnostic? left, Tracon.RunRecordingDiagnostic? right) -> bool
+static Tracon.RunRecordingDiagnostic.operator ==(Tracon.RunRecordingDiagnostic? left, Tracon.RunRecordingDiagnostic? right) -> bool
 static Tracon.RunReplayRequest.operator !=(Tracon.RunReplayRequest? left, Tracon.RunReplayRequest? right) -> bool
 static Tracon.RunReplayRequest.operator ==(Tracon.RunReplayRequest? left, Tracon.RunReplayRequest? right) -> bool
 static Tracon.RunScore.operator !=(Tracon.RunScore? left, Tracon.RunScore? right) -> bool

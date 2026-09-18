@@ -13,6 +13,7 @@ export const trCommon: Pick<Messages, keyof typeof enCommon> = {
   "common.copy": 'Kopyala',
   "common.copied": 'Kopyalandı',
   "common.retry": 'Yeniden dene',
+  "common.streamLost": 'Bu çalıştırmayla bağlantı sessizleşti ve kapatıldı. Çalıştırmanın kendisi etkilenmedi — yeniden yükleyin, olaylar baştan akar.',
   "common.save": 'Kaydet',
   "common.saving": 'Kaydediliyor',
   "common.cancel": 'Vazgeç',

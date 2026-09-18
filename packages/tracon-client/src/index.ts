@@ -15,4 +15,10 @@ export { createTraconClient, type TraconClient, type TraconClientOptions } from 
 // pass `parseAs: 'stream'`, or read the `response` every call returns — but it
 // does need a decoder, and writing one per consumer is how framing bugs get
 // duplicated (Phase 159).
-export { readSse, SseDecoder, type SseFrame } from './sse.js';
+export {
+  readSse,
+  SseDecoder,
+  SseIdleTimeoutError,
+  type ReadSseOptions,
+  type SseFrame,
+} from './sse.js';

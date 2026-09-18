@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { client, openStream, unwrap } from '../lib/api';
-import { readSse } from '@tracon/client';
+import { client, openStream, STREAM_IDLE_TIMEOUT_MS, unwrap } from '../lib/api';
+import { readSse, SseIdleTimeoutError } from '@tracon/client';
 import { Link, useNavigate } from '../lib/router';
 import { shortId } from '../lib/format';
 import { useT, type MessageKey } from '../lib/i18n';
@@ -85,7 +85,7 @@ export function WorkflowDetailScreen({ name, meta }: { name: string; meta: Meta 
 
   const consume = useCallback(
     async (response: Response) => {
-      for await (const frame of readSse(response)) {
+      for await (const frame of readSse(response, { idleTimeoutMs: STREAM_IDLE_TIMEOUT_MS })) {
         if (frame.event === 'run') {
           setRunId((JSON.parse(frame.data) as { runId: string }).runId);
 
@@ -131,7 +131,9 @@ export function WorkflowDetailScreen({ name, meta }: { name: string; meta: Meta 
 
       await consume(response);
     } catch (caught) {
-      if (!(caught instanceof DOMException && caught.name === 'AbortError')) {
+      if (caught instanceof SseIdleTimeoutError) {
+        setError(new Error(t('common.streamLost')));
+      } else if (!(caught instanceof DOMException && caught.name === 'AbortError')) {
         setError(caught);
       }
     } finally {
@@ -167,7 +169,11 @@ export function WorkflowDetailScreen({ name, meta }: { name: string; meta: Meta 
 
         await consume(response);
       } catch (caught) {
-        if (!(caught instanceof DOMException && caught.name === 'AbortError')) {
+        if (caught instanceof SseIdleTimeoutError) {
+          // The console recognises this one, so it says it in the reader's
+          // language — unlike a server message, which ErrorNote shows as-is.
+          setError(new Error(t('common.streamLost')));
+        } else if (!(caught instanceof DOMException && caught.name === 'AbortError')) {
           setError(caught);
         }
       } finally {

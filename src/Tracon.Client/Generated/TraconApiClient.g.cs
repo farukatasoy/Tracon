@@ -23289,6 +23289,56 @@ namespace Tracon.Client.Generated
     }
 
     /// <summary>
+    /// What a run actually records, as configured.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class RunRecordingDiagnostic
+    {
+        /// <summary>
+        /// Gets whether runs are recorded at all.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("enabled")]
+        public bool Enabled { get; set; } = default!;
+
+        /// <summary>
+        /// Gets whether the input messages are stored so a run can be replayed.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("recordRunInput")]
+        public bool RecordRunInput { get; set; } = default!;
+
+        /// <summary>
+        /// Gets whether assistant text is recorded as `MessageDelta` events.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("recordMessageDeltas")]
+        public bool RecordMessageDeltas { get; set; } = default!;
+
+        /// <summary>
+        /// Gets whether model reasoning is recorded as `ReasoningDelta` events.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("recordReasoningDeltas")]
+        public bool RecordReasoningDeltas { get; set; } = default!;
+
+        /// <summary>
+        /// Gets whether tool arguments and results are recorded.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("recordToolPayloads")]
+        public bool RecordToolPayloads { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the longest recorded payload, in characters. `0` means no trimming.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("maxPayloadLength")]
+        public int MaxPayloadLength { get; set; } = default!;
+
+    }
+
+    /// <summary>
     /// A replay request.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
@@ -25847,6 +25897,13 @@ namespace Tracon.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("extensionPoints")]
         public System.Collections.Generic.ICollection<ExtensionPointDiagnostic> ExtensionPoints { get; set; } = new System.Collections.Generic.List<ExtensionPointDiagnostic>();
+
+        /// <summary>
+        /// Gets the run recording settings this installation is running with.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("runRecording")]
+        public RunRecordingDiagnostic RunRecording { get; set; } = new RunRecordingDiagnostic();
 
     }
 

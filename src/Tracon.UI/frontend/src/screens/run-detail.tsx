@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { client, unwrap, openStream, TraconError } from '../lib/api';
+import { client, unwrap, openStream, STREAM_IDLE_TIMEOUT_MS, TraconError } from '../lib/api';
 import { formatDateTime, useT } from '../lib/i18n';
-import { readSse } from '@tracon/client';
+import { readSse, SseIdleTimeoutError } from '@tracon/client';
 import { foldRunEvents } from '../lib/transcript';
 import { Link, useNavigate } from '../lib/router';
 import { absoluteTime, count, duration, money, prettyJson, relativeTime, shortId } from '../lib/format';
@@ -196,13 +196,17 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
           signal: controller.signal,
         });
 
-        for await (const frame of readSse(response)) {
+        for await (const frame of readSse(response, { idleTimeoutMs: STREAM_IDLE_TIMEOUT_MS })) {
           const event = JSON.parse(frame.data) as RunEvent;
 
           setEvents((current) => [...current, event]);
         }
       } catch (caught) {
-        if (!(caught instanceof DOMException && caught.name === 'AbortError')) {
+        if (caught instanceof SseIdleTimeoutError) {
+          // The console recognises this one, so it says it in the reader's
+          // language — unlike a server message, which ErrorNote shows as-is.
+          setError(new Error(t('common.streamLost')));
+        } else if (!(caught instanceof DOMException && caught.name === 'AbortError')) {
           setError(caught);
         }
       } finally {

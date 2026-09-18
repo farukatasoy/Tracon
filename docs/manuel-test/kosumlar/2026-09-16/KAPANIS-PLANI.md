@@ -3,8 +3,8 @@
 > **Bu turu kapatan her oturum ÖNCE burayı okur.** Koşum bitti; bu dosya
 > kapanışın tek kontrol düzlemidir.
 >
-> **Durum:** 🟡 Aşama 2 sürüyor · **Aile A · B · C · D · E KAPANDI** · 35 açık kusur, 17 aile kaldı
-> **Son güncelleme:** 2026-09-18 (Aile E kapandı — `S3-003` + kapanışta ölçülen `S3-009` · `S3-010`)
+> **Durum:** 🟡 Aşama 2 sürüyor · **Aile A · B · C · D · E · F KAPANDI** · 33 açık kusur, 16 aile kaldı
+> **Son güncelleme:** 2026-09-18 (Aile F kapandı — `S3-005` düzeltildi, `S3-006` yeniden üretilemedi)
 
 Turdan bağımsız kapanış protokolü — aile aile oturum yordamı, "önce ampirik
 yeniden üret" kuralı, bitti tanımı ve sayım betiği —
@@ -56,6 +56,11 @@ flowchart LR
 **Kusur:** 44 `HATA-*` kaydı. `HATA-S1-006` yanlış pozitif çıktı ve kapandı →
 **43 açık**. Dağılım: `S1-001..028` (27) · `S2-001..003` (3) · `S3-001..008` (8)
 · `S4-001..005` (5).
+
+**İki kusur kapanışta YENİDEN ÜRETİLEMEDİ** ve kod kusuru olmadıkları
+kanıtlandı: `HATA-S1-006` (koşumda zaten öyle işaretlendi) ve `HATA-S3-006`
+(Aile F; ayar o oturumda kapalıydı — semptomun birebir kendisi ölçülerek
+gösterildi).
 
 **Kapanış sırasında dört kusur EKLENDİ** (hepsi aynı aileden bir kök nedenin
 ikinci/üçüncü vakası; aile içinde ölçüldü ve aynı oturumda kapandı):
@@ -168,16 +173,18 @@ Bunlar kapanış oturumlarında da geçerlidir ve bitti tanımında
 
 ## 3.6 Sıradaki iş — 2026-09-18 itibarıyla
 
-**Aile F.** İki kusur, iki ayrı katman, aynı oturumda kapanır (iki commit
-olabilir): `HATA-S3-005` (Yüksek) — bağlantı sessizce koparsa çalıştırma ekranı
-sonsuza dek "Waiting for events…" yazısında donuyor, kullanıcıya hiçbir hata
-gösterilmiyor. `HATA-S3-006` (Yüksek) — `RecordReasoningDeltas=true` iken model
-gerçekten düşünme içeriği üretse bile `ReasoningDelta` olayı HİÇ kaydedilmiyor
-(gerçek Anthropic extended-thinking çağrısıyla ölçüldü).
+**Aile G.** İki kusur, tek tema (maliyet muhasebesi): `HATA-S1-025` (Yüksek) —
+zaman aşımından SONRA başarıyla biten tool çağrısının kullanım/maliyeti kalıcı
+olarak kayboluyor. `HATA-S1-010` (Orta) — katalogdaki 13 modelin hiçbirinde
+fiyat yok, bu yüzden her `run` maliyetsiz kaydediliyor; mekanizma dürüst
+(`pricing_source=NotDefined`), eksik olan **veri**.
 
-Ondan sonra sırayla **G** (maliyet muhasebesi) · **H** (agent önbelleği);
-yüksek öncelik orada biter. Orta ve düşük öncelik §4'ün ikinci
-tablosundadır.
+Ondan sonra **H** (agent önbelleği, `S4-004` **Kritik**); yüksek öncelik orada
+biter. Orta ve düşük öncelik §4'ün ikinci tablosundadır.
+
+🚨 **Aile F'nin dersi bir sonraki aileye taşınır:** iki kusurun da kayıttaki
+kök-neden teşhisi yanlıştı. Kayıt bir teşhis içeriyorsa onu **kanıt** değil
+**hipotez** say; önce semptomu kendi yordamıyla yeniden üret.
 
 **Oturum açılışında koş** (taban çizgisinin hâlâ yeşil olduğunu doğrula):
 
@@ -411,7 +418,56 @@ gövdesi okunduktan sonra yüklemeye bir şey kalmıyor). Okuma yalnız
 
 ---
 
-| **F** · SSE ve düşünme kaydı | `S3-005` **Yüksek** · `S3-006` **Yüksek** | Bağlantı sessizce koparsa çalıştırma ekranı sonsuza dek "Waiting for events…" yazısında donuyor; kullanıcıya hiçbir hata gösterilmiyor. Ayrıca `RecordReasoningDeltas=true` iken model gerçekten düşünme içeriği üretse bile `ReasoningDelta` olayı HİÇ kaydedilmiyor (gerçek Anthropic extended-thinking çağrısıyla ölçüldü). İki ayrı katman — aynı oturumda kapanır, iki commit olabilir | ☐ |
+| **F** · SSE ve düşünme kaydı | `S3-005` **Yüksek** · `S3-006` **Yüksek** | İki ayrı katman. Biri gerçek bir kod kusuru, diğeri yeniden üretilemedi — ikisinin de KAYITTAKİ teşhisi yanlıştı | ✅ **KAPANDI 2026-09-18** |
+
+#### Aile F — ✅ kapandı (2026-09-18)
+
+İki kusur, iki farklı sonuç. **Her ikisinin de kayıttaki kök-neden teşhisi
+canlı ölçümle yanlışlandı**; biri yine de gerçek bir boşluk gizliyordu.
+
+**`S3-005` — mekanizma gerçekti, repro değildi.**
+
+🚨 `setOffline(true)` açık bir `chunked` SSE gövdesini **kesmiyor**. Gerçek
+Chromium'da ölçüldü: çevrimdışı yürürlükteyken yeni bir `fetch` gerçekten
+`Failed to fetch` atarken **aynı akış beş olay daha teslim etti** ve run
+tamamlandı. Turun gördüğü 23 saniyelik donukluk sağlıklı bir bağlantı üzerinde
+**sessiz bir run**'dı.
+
+Mekanizma tespiti (`for await` döngüsünde zaman aşımı yok) yine de doğruydu:
+gerçekten ölü bir bağlantıda `reader.read()` hiçbir şey atmadan sonsuza dek
+bekler. 👤 **Karar (K-803):** `readSse` isteğe bağlı `idleTimeoutMs` alır,
+konsol 30 sn geçirir, ve ölçü **bayttır, frame değil** — `SseDecoder` keep-alive
+yorumlarını düşürdüğü için sağlıklı ama sessiz bir run hiç frame üretmez ve
+frame tabanlı bir eşik onu keserdi. Kanıt `setOffline`'ın üretemediği koşulu
+doğrudan kuran testlerdedir (ikisi düzeltmeden önce zaman aşımıyla düşüyordu).
+
+**`S3-006` — yeniden üretilemedi.** Kod tur boyunca donuktu ve bu yol A–E'de hiç
+değişmedi; bugün gerçek Anthropic çağrısıyla akışsızda 1, akışlıda **86**
+`ReasoningDelta` kaydedildi. Aynı uygulama `RecordReasoningDeltas=false` ile
+başlatıldığında **kaydın tarif ettiği semptomun birebir kendisi** çıktı (SSE'de
+41 reasoning parçası, kayıtta sıfır `ReasoningDelta`, `MessageDelta` sağlam).
+
+🚨 **Kaydın elemesi geçersizdi:** "kardeş alan `RecordMessageDeltas` çalışıyor,
+options bağlama sorunu ekarte edildi" — ama o alan **varsayılan olarak
+`true`**'dur, bağlama hiç olmasa da çalışırdı. Eleme hiçbir şey elemiyordu.
+
+👤 **Karar (K-804):** `/api/diagnostics` yürürlükteki `RunRecording` ayarlarını
+bildirir. Alan eklenirken çıktı ki `TraconDiagnosticsCollector`'ın DI fabrikası
+**son iki isteğe bağlı argümanı hiç geçmiyordu** — rapor kurulumun değil
+varsayılanların ayarlarını söylerdi ve `logger` verilmediği için katalog okuma
+hatası her kurulumda sessizce yutuluyordu. İkisi de düzeltildi.
+
+| Adım | Sonuç |
+|---|---|
+| Ampirik yeniden üretim | `S3-005`: kayıttaki yordam **koşuldu ve kusuru üretmedi**; gerçek koşul testle kuruldu. `S3-006`: dört kanaldan denendi, **üretilemedi** |
+| Kök neden düzeltmesi | `readSse` bayt düzeyinde `idleTimeoutMs` · konsolun iki akış ekranı da geçiriyor · `/api/diagnostics` `runRecording` · collector fabrikası `options` + `logger` |
+| Sınıf taraması | `readSse`'nin iki tüketicisi de kapsandı (`run-detail`, `workflow-detail`); `grep -rn "ReasoningDelta" src/` başka filtre yok |
+| Testler | 4 paket testi · 1 konsol testi · 4 fonksiyonel test. `readSse` ve konsol testleri düzeltmeden önce kırmızıydı |
+| Canlı koşum | ☑ `MT-UIRUN-019` (gerçek tarayıcı, `setOffline`) · ☑ `MT-UIRUN-048` (gerçek Anthropic, açık ve kapalı ayarla) |
+| Aday | `F-245` — sessiz bir run ile ölü bir bağlantı ekranda **hâlâ** aynı görünüyor. Bu bir arayüz tasarımı kararıdır, bu kusurun kapsamında değil |
+
+---
+
 | **G** · Maliyet muhasebesi | `S1-025` **Yüksek** · `S1-010` Orta | Zaman aşımından SONRA başarıyla biten tool çağrısının kullanım/maliyeti kalıcı olarak kayboluyor. Ayrıca katalogdaki **13 modelin hiçbirinde fiyat yok** → her `run` maliyetsiz kaydediliyor; mekanizma dürüst (`pricing_source=NotDefined`), eksik olan **veri** | ☐ |
 | **H** · Derlenmiş agent önbelleği | `S4-004` **Kritik** | `CompiledAgentCache.Evict` HİÇBİR YERDEN çağrılmıyor. Silinip aynı adla yeniden oluşturulan agent, sürüm sayacı 1'e sıfırlandığı için ESKİ (silinmiş) tanımla çalışmaya devam ediyor. `GET /api/agents/{name}` doğru görünür ama **çalıştırma yanlış** — sessiz ve operatörü yanlış yöne yönlendirir | ☐ |
 

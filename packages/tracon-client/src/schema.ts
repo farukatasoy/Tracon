@@ -6039,6 +6039,24 @@ export interface components {
              */
             continuedFromRunId?: null | string;
         };
+        /** @description What a run actually records, as configured. */
+        RunRecordingDiagnostic: {
+            /** @description Gets whether runs are recorded at all. */
+            enabled: boolean;
+            /** @description Gets whether the input messages are stored so a run can be replayed. */
+            recordRunInput: boolean;
+            /** @description Gets whether assistant text is recorded as `MessageDelta` events. */
+            recordMessageDeltas: boolean;
+            /** @description Gets whether model reasoning is recorded as `ReasoningDelta` events. */
+            recordReasoningDeltas: boolean;
+            /** @description Gets whether tool arguments and results are recorded. */
+            recordToolPayloads: boolean;
+            /**
+             * Format: int32
+             * @description Gets the longest recorded payload, in characters. `0` means no trimming.
+             */
+            maxPayloadLength: number | string;
+        };
         /** @description A replay request. */
         RunReplayRequest: {
             /**
@@ -7260,6 +7278,8 @@ export interface components {
              *     to its own tenancy, identity, authorization, eventing, and storage.
              */
             extensionPoints: components["schemas"]["ExtensionPointDiagnostic"][];
+            /** @description Gets the run recording settings this installation is running with. */
+            runRecording: components["schemas"]["RunRecordingDiagnostic"];
         };
         /**
          * @description Response for `{prefix}/api/meta`. Carries the minimum information the
@@ -8130,6 +8150,7 @@ export type RunKind = components['schemas']['RunKind'];
 export type RunLabelStatistics = components['schemas']['RunLabelStatistics'];
 export type RunModelStatistics = components['schemas']['RunModelStatistics'];
 export type RunRecord = components['schemas']['RunRecord'];
+export type RunRecordingDiagnostic = components['schemas']['RunRecordingDiagnostic'];
 export type RunReplayRequest = components['schemas']['RunReplayRequest'];
 export type RunReplayResponse = components['schemas']['RunReplayResponse'];
 export type RunScore = components['schemas']['RunScore'];

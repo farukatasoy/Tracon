@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Tracon;
 
@@ -34,6 +35,7 @@ public sealed class TraconDiagnosticsCollector
     private readonly IEnumerable<IRunEventSink> _runEventSinks;
     private readonly IAttachmentStorage? _attachmentStorage;
     private readonly IToolApprovalPresenter _approvalPresenter;
+    private readonly TraconRunRecordingOptions _runRecording;
     private readonly ILogger<TraconDiagnosticsCollector>? _logger;
 
     /// <summary>Initializes a diagnostics collector.</summary>
@@ -52,6 +54,10 @@ public sealed class TraconDiagnosticsCollector
     /// <param name="attachmentStorage">The bound attachment storage, reported as an embedding point. <see langword="null"/> when content lives in the database.</param>
     /// <param name="approvalPresenter">The bound tool-approval presenter, reported as an embedding point.</param>
     /// <param name="circuitBreaker">The circuit breaker. No circuit is open when it is not registered.</param>
+    /// <param name="options">
+    /// The installation's options, read for the run recording settings. When
+    /// absent, the report states the built-in defaults.
+    /// </param>
     /// <param name="logger">
     /// The logger. When absent, a catalog read failure is ignored and the report
     /// leaves <see cref="TraconDiagnosticsReport.AgentCount"/> empty.
@@ -73,6 +79,7 @@ public sealed class TraconDiagnosticsCollector
         IToolApprovalPresenter approvalPresenter,
         IAttachmentStorage? attachmentStorage = null,
         ModelProviderCircuitBreaker? circuitBreaker = null,
+        IOptions<TraconOptions>? options = null,
         ILogger<TraconDiagnosticsCollector>? logger = null)
     {
         ArgumentNullException.ThrowIfNull(providers);
@@ -103,6 +110,7 @@ public sealed class TraconDiagnosticsCollector
         _runEventSinks = runEventSinks;
         _attachmentStorage = attachmentStorage;
         _approvalPresenter = approvalPresenter;
+        _runRecording = options?.Value.RunRecording ?? new TraconRunRecordingOptions();
         _circuitBreaker = circuitBreaker;
         _logger = logger;
     }
@@ -209,6 +217,15 @@ public sealed class TraconDiagnosticsCollector
                     Implementation = source.GetType().FullName ?? source.GetType().Name,
                 })],
             ExtensionPoints = CollectExtensionPoints(),
+            RunRecording = new RunRecordingDiagnostic
+            {
+                Enabled = _runRecording.Enabled,
+                RecordRunInput = _runRecording.RecordRunInput,
+                RecordMessageDeltas = _runRecording.RecordMessageDeltas,
+                RecordReasoningDeltas = _runRecording.RecordReasoningDeltas,
+                RecordToolPayloads = _runRecording.RecordToolPayloads,
+                MaxPayloadLength = _runRecording.MaxPayloadLength,
+            },
         };
     }
 
