@@ -134,14 +134,33 @@ public sealed class SourceLanguageTests
     /// repository. Matching is whole-word and case-insensitive.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Words that are also English words, or that appear inside identifiers, are
     /// deliberately absent: <c>her</c>, <c>son</c>, <c>alt</c>, <c>rol</c>,
     /// <c>ise</c>, <c>gibi</c>, <c>ama</c>, <c>para</c> (an XML doc tag),
-    /// <c>once</c>, <c>var</c>, <c>tek</c>, and every two-letter word. The list
-    /// below is wide enough that a Turkish sentence practically cannot avoid it.
+    /// <c>once</c>, <c>var</c> and <c>tek</c>. The list below is wide enough that
+    /// a Turkish sentence practically cannot avoid it.
+    /// </para>
+    /// <para>
+    /// Two-letter words used to be excluded wholesale, which left a structural
+    /// blind spot: a shipped validation message read
+    /// <c>'{provider}:{model}' ne 'Input' ne 'Output'</c> and this gate could not
+    /// see it, because <c>ne</c> carries no Turkish letter and no three-letter
+    /// word appears in the phrase. The exclusion is now measured rather than
+    /// assumed. Every two-letter connective and question particle this repository
+    /// actually writes was counted across the scanned tree: <c>ne</c>, <c>ya</c>,
+    /// <c>ki</c>, <c>mi</c>, <c>mu</c>, <c>da</c> and <c>ve</c> collide with
+    /// nothing and are listed below. Three still collide and stay out —
+    /// <c>de</c> and <c>en</c> are BCP-47 language tags that this repository
+    /// passes around as literals, and <c>bu</c> appears in the end-to-end test
+    /// that asserts translated Turkish UI text.
+    /// </para>
     /// </remarks>
     private static readonly string[] TurkishWords =
     [
+        // two-letter connectives and question particles — see the remarks above
+        // for why these seven, and only these seven, are safe to list
+        "ne", "ya", "ki", "mi", "mu", "da", "ve",
         // connectives, pronouns, adverbs
         "bir", "ile", "icin", "ayni", "olarak", "yalniz", "yalnizca", "hicbir",
         "veya", "kendi", "zaten", "burada", "yoksa", "yuzden", "icinde",
