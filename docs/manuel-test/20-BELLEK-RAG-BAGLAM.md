@@ -123,7 +123,7 @@ Bu veriler yalnız bu dosyaya özgüdür, `00-INDEKS.md`'ye girmez (`PROMPT.md`
 | `FIX-MEM-COMPACT-03` | `FIX-MEM-COMPACT-01` ile aynı, yalnız `Compaction.Strategy: Pipeline`, ad `manuel-pipeline` |
 | `FIX-MEM-FILE-01` | Ad `manuel-dosya-bellek` · Model `{provider: openai, model: gpt-5.4-mini}` · Talimat `"Kullanici bir bilgiyi hatirlamani isterse dosya bellegine kisa bir not olarak yaz. Sorulduğunda dosyadan okuyup cevapla."` · `Memory: {EnableFileMemory: true}` |
 | `FIX-MEM-FILE-02` | Ad `manuel-dosya-arama` · aynı model · Talimat `"Kullanicinin sordugu konuyu dosya belleginde ara ve bulduğun iceriği ozetle."` · `Memory: {EnableTextSearch: true}` |
-| `FIX-MEM-COLLECTION-01` | Koleksiyon adı `manuel-bilgi` (sample'ın `kurumsal` koleksiyonuyla çakışmaz) |
+| `FIX-MEM-COLLECTION-01` | Koleksiyon adı `manuel-bilgi` (sample'ın `knowledge-base` koleksiyonuyla çakışmaz — 2026-09-18 düzeltmesi, bkz. `MT-MEM-026`) |
 | `FIX-MEM-DOC-01` | `sourceId: "izin-notu"` · metin `"Yillik izin 14 gundur. Bes yildan sonra 20 gune cikar."` (Faz 51'in kendi gerçek kanıtıyla aynı örnek — kelime eşleşmesi olmayan sorguyla arandığında bulunması ÖLÇÜLMÜŞ) |
 | `FIX-MEM-QUERY-01` | `"tatil hakkim ne kadar"` — `FIX-MEM-DOC-01` içinde "tatil" kelimesi HİÇ geçmez |
 
@@ -186,9 +186,11 @@ curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: applicati
 **Beklenen sonuç**
 - `valid: false`.
 - `messages[0].code` = `"compilation_error"`.
-- `messages[0].message` tam olarak şu metni içerir: `'manuel-tetiksiz' agent'i
-  'SlidingWindow' sikistirma stratejisini secti ancak hicbir tetikleyici
-  vermedi (TriggerTokens/TriggerMessages/TriggerTurns'ten en az biri gerekir).`
+- `messages[0].message` tam olarak şu metni içerir (🚨 doküman düzeltildi,
+  koşum 2026-09-17 ap-s3 — kaynak İngilizce'dir, K-228): `"Agent
+  'manuel-tetiksiz' selected the 'SlidingWindow' compaction strategy but
+  gave no trigger (at least one of TriggerTokens/TriggerMessages
+  /TriggerTurns is required)."`
 - Hiçbir kayıt oluşmaz: `GET $APU/api/agents` çıktısında `manuel-tetiksiz`
   **yoktur**.
 
@@ -224,9 +226,14 @@ curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: applicati
 
 **Beklenen sonuç**
 - `valid: false`.
-- `messages[0].message` tam olarak: `'manuel-pencere-eksik' agent'i
-  ContextWindow sikistirma stratejisini secti ancak MaxContextWindowTokens
-  vermedi.`
+- `messages[0].message` şunu İÇERİR (🚨 doküman düzeltildi, koşum
+  2026-09-17 ap-s3 — kaynak İngilizce'dir, K-228; mesaj ayrıca modelin
+  kendi katalog bağlam penceresine de baktığını söyleyen bir cümle
+  KAZANMIŞ, spec'in yazıldığı andan sonra — ürün kusuru değil, daha
+  bilgilendirici hâle gelmiş): `"selected the ContextWindow compaction
+  strategy but did not supply MaxContextWindowTokens, and its model
+  ('openai/gpt-5.4-mini') has no context window size in the catalog
+  either. Set MaxContextWindowTokens explicitly."`
 
 ---
 
@@ -345,13 +352,17 @@ curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: applicati
 }'
 ```
 
-**Beklenen sonuç**
-- Adım 1: `valid: false`, mesaj tam olarak: `'manuel-cakisma-1' agent'i
-  sikistirma istiyor ancak HarnessSettings.DisableCompaction kapatilmis.`
-- Adım 2: `valid: false`, mesaj tam olarak: `'manuel-cakisma-2' agent'i dosya
-  bellegi istiyor ancak HarnessSettings.DisableFileMemory kapatilmis.`
-- Adım 3: `valid: false`, mesaj tam olarak: `'manuel-cakisma-3' agent'i todo
-  takibi istiyor ancak HarnessSettings.DisableTodoProvider kapatilmis.`
+**Beklenen sonuç** (🚨 doküman düzeltildi, koşum 2026-09-17 ap-s3 — kaynak
+İngilizce'dir, K-228)
+- Adım 1: `valid: false`, mesaj tam olarak: `"Agent 'manuel-cakisma-1'
+  wants compaction, but HarnessSettings.DisableCompaction is turned
+  off."`
+- Adım 2: `valid: false`, mesaj tam olarak: `"Agent 'manuel-cakisma-2'
+  wants file memory, but HarnessSettings.DisableFileMemory is turned
+  off."`
+- Adım 3: `valid: false`, mesaj tam olarak: `"Agent 'manuel-cakisma-3'
+  wants todo tracking, but HarnessSettings.DisableTodoProvider is turned
+  off."`
 
 ### MT-MEM-006 — `SlidingWindow` gerçek konuşmada tetiklenir; `HistoryCompacted` olayı üretilir
 
@@ -403,15 +414,22 @@ curl -s "$APU/api/runs/<son-runId>/events" -H "$APB" | python3 -m json.tool
   nedeniyle).
 - En az bir run'ın olay listesinde `type: "HistoryCompacted"` bir satır
   vardır.
-- O satırın `text` alanı `"N mesaj ozetlendi"` biçimindedir (`N > 0`) — **strateji
-  `SlidingWindow` olsa bile** metin hep "özetlendi" der (`ObservedCompactionStrategy`
-  tüm stratejiler için aynı sabit metni yazar — bu bir isimlendirme
-  tuhaflığıdır, gerçek bir özetleme çağrısı OLMAYABİLİR; §MT-MEM-009 ile
-  karşılaştırın).
+- O satırın `text` alanı `"N messages compacted"` biçimindedir (`N > 0`
+  — 🚨 doküman düzeltildi, koşum 2026-09-17 ap-s3, kaynak İngilizce'dir,
+  K-228) — **strateji `SlidingWindow` olsa bile** metin hep "compacted"
+  der (`ObservedCompactionStrategy` tüm stratejiler için aynı sabit
+  metni yazar — bu bir isimlendirme tuhaflığıdır, gerçek bir özetleme
+  çağrısı OLMAYABİLİR; §MT-MEM-009 ile karşılaştırın).
 - `payload` alanı `beforeMessages=`, `afterMessages=`, `beforeTokens=`,
   `afterTokens=` alanlarını taşır ve `afterMessages < beforeMessages`.
 
 **Doğrulama sorgusu**
+
+🚨 **Doküman notu (koşum, 2026-09-17, ap-s3):** `text`/`payload` sütunları
+DB'de uygulama-seviyesi şifreli (`$apEnc` zarfı) — bu sorgu yalnız SATIR
+SAYAR (`type=10` var/yok), içeriği OKUYAMAZ; içerik `GET
+/api/runs/{id}/events` üzerinden okunmalı. Ayrıca kendi şerit şeması
+(`mt_s3`) kullanılmalı, `tracon` DEĞİL.
 ```sql
 SELECT r.id, e.seq, e.type, e.text, e.payload
 FROM tracon.run_events e
@@ -709,13 +727,27 @@ curl -s -X POST "$APU/api/agents/manuel-dosya-arama/run" -H "$APB" \
 ```
 
 **Beklenen sonuç**
-- Yanıt `FILE-7841` dizgisini içerir — `manuel-dosya-arama`,
-  `manuel-dosya-bellek`'in YAZDIĞI dosyayı bulabildi. 🚨 **2026-08-10 durumu:**
-  `MT-MEM-014`'ün (kiracılar arası) kısmı düzeltildi (`TenantPrefixingAgentFileStore`),
-  ama bu case'in ölçtüğü **aynı kiracı içindeki** ajan/oturum sınırı hâlâ
-  YOKTUR — bu, beklenen (henüz düzeltilmemiş) bir davranıştır, bkz.
-  `docs/ADAYLAR.md` F-105. Bu case bu yüzden **"Geçti"** değil,
-  **"Kaldı (bilinen, F-105'e bağlı)"** olarak kaydedilmelidir.
+
+🚨 **Doküman düzeltildi (koşum, 2026-09-17, ap-s3) — spec'in "2026-08-10
+durumu" notu artık BAYAT.** `docs/arsiv/PLANA-DONUSEN-ADAYLAR.md:363`:
+`F-105 · Dosya belleği kiracı-içi sınırı — ✅ KAPATILDI (2026-08-18)`.
+Yani spec'in kendi notunun yazıldığı 2026-08-10'dan SEKİZ gün sonra,
+aynı kiracı İÇİNDEKİ ajan sınırı da kapatılmış:
+`TenantPrefixingAgentFileStore`'un öneki artık `/{tenantId}/{agentName}/...`
+(yalnız `/{tenantId}/...` değil — kaynağın kendi belgesi,
+`TenantPrefixingAgentFileStore.cs:20-23`, bunu doğruluyor). Sonuç: ADIM 1'in
+ORİJİNAL iddiası (`manuel-dosya-arama`, `manuel-dosya-bellek`'in dosyasını
+BULUR) artık **yanlış**; spec'in 2026-08-10 düzeltmesi de (`"Kaldı, F-105'e
+bağlı"` beklentisi) artık **bayat** — F-105 kapandığı için bu case ARTIK
+GERÇEKTEN GEÇMELİDİR (izolasyon çalışır, sızıntı YOKTUR).
+
+- Yanıt `FILE-7841` dizgisini İÇERMEMELİDİR — `manuel-dosya-arama`,
+  `manuel-dosya-bellek`'in dosyasına erişememelidir (ajan-düzeyi izolasyon).
+- Bu davranışın gerçekten çalıştığını GÖSTERMEK için AYNI agent'ın hem
+  yazıp hem araması gerekir (`manuel-dosya-hem` gibi, `enableFileMemory`
+  VE `enableTextSearch` ikisi birden) — farklı bir oturumda yazdığı notu
+  kendi text search'üyle bulabilmesi, mekanizmanın kendisinin ÇALIŞTIĞININ
+  kanıtıdır (yalnız cross-agent izolasyonun kör bırakmadığının kanıtı).
 
 ---
 
@@ -728,12 +760,13 @@ yazılmıştı: `AgentDefinitionCompiler.SearchFileStoreAsync`
 paylaşılan `AgentFileStore` tek bir süreç-çapında singleton olduğu için hiçbir
 `tenant_id` filtresi taşımıyordu. Kod okumasıyla doğrulandı ve düzeltildi:
 `RequireFileStore` artık paylaşılan depoyu her kiracı için
-`TenantPrefixingAgentFileStore` ile sarmalıyor (`/{tenantId}/...` öneki) —
-hem yazma (`FileMemoryProvider`) hem okuma (`TextSearchProvider`) tarafı artık
-kendi kiracısının izole alt ağacında çalışıyor. Bu case artık düzeltilmiş
-davranışı doğrular; **aynı kiracı içindeki** ajan/oturum sınırı ise hâlâ
-YOKTUR (bkz. `MT-MEM-013`'ün güncellenmiş notu ve `docs/ADAYLAR.md`
-F-105) — bu case'in kapsamı yalnız kiracı sınırıdır.
+`TenantPrefixingAgentFileStore` ile sarmalıyor (öneki artık
+`/{tenantId}/{agentName}/...` — 🚨 doküman düzeltildi, koşum 2026-09-17
+ap-s3: F-105 de `✅ KAPATILDI (2026-08-18)`, ajan adı da öneke eklendi,
+yalnız `/{tenantId}/...` değil) — hem yazma (`FileMemoryProvider`) hem
+okuma (`TextSearchProvider`) tarafı artık hem kendi kiracısının hem kendi
+agent'ının izole alt ağacında çalışıyor. Bu case düzeltilmiş kiracı
+davranışını doğrular; ajan-içi sınır `MT-MEM-013`'te ayrıca doğrulanır.
 
 | | |
 |---|---|
@@ -1020,8 +1053,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/knowledge/manuel-bilgi/doc
 
 **Beklenen sonuç**
 - `HTTP: 400`.
-- `detail` tam olarak: `Ya text ya da chunks verilmelidir; ikisi birden ya da
-  hicbiri olamaz.`
+- `detail` tam olarak: `Either text or chunks must be given; not both, and
+  not neither.` (K-228 — çalışma anı mesajları İngilizce; bu case'in
+  Türkçe metni 2026-09-18'de koşum sırasında düzeltildi.)
 
 ---
 
@@ -1046,7 +1080,8 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/knowledge/manuel-bilgi/doc
 ```
 
 **Beklenen sonuç**
-- `HTTP: 400`, aynı `detail` metni (`MT-MEM-021` ile aynı kural, ters uç).
+- `HTTP: 400`, aynı `detail` metni (`MT-MEM-021` ile aynı kural, ters uç,
+  İngilizce — K-228).
 
 ---
 
@@ -1074,8 +1109,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/knowledge/kurumsal%20bilgi
 
 **Beklenen sonuç**
 - `HTTP: 400`.
-- `detail` tam olarak: `'kurumsal bilgi' gecerli bir koleksiyon adi degil.
-  Yalniz harf, rakam, alt cizgi ve tire icerebilir.`
+- `detail` tam olarak: `'kurumsal bilgi' is not a valid collection name. It
+  may only contain letters, digits, underscores, and hyphens.` (K-228 —
+  bu case'in Türkçe metni 2026-09-18'de koşum sırasında düzeltildi.)
 
 ---
 
@@ -1104,8 +1140,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/knowledge/manuel-bilgi/doc
 
 **Beklenen sonuç**
 - `HTTP: 400`.
-- `detail` tam olarak: `Parca 0 gomu uzunlugu (2) depo boyutuyla (1536)
-  eslesmiyor.`
+- `detail` tam olarak: `Chunk 0 embedding length (2) does not match the
+  store dimension (1536).` (K-228 — bu case'in Türkçe metni 2026-09-18'de
+  koşum sırasında düzeltildi.)
 - `document_embeddings`'te `yanlis-boyut` için hiçbir satır yazılmaz (kısmi
   yazma yok — `UpsertAsync` tek transaction).
 
@@ -1149,10 +1186,11 @@ curl -s -w "\nHTTP: %{http_code}\n" -X DELETE "$APU/api/knowledge/manuel-bilgi/d
 
 **Beklenen sonuç**
 - Dördü de `HTTP: 501`.
-- `title` tam olarak: `Bilgi tabani desteklenmiyor`.
-- `detail` tam olarak: `Bir IVectorSearchStore (bugun yalniz PostgreSQL:
-  UsePostgreSql()) VE bir IEmbeddingGenerator<string, Embedding<float>>
-  birlikte kayitli olmalidir.`
+- `title` tam olarak: `Knowledge base not supported` (K-228 — bu case'in
+  Türkçe metni 2026-09-18'de koşum sırasında düzeltildi).
+- `detail` tam olarak: `An IVectorSearchStore (today only PostgreSQL:
+  UsePostgreSql()) AND an IEmbeddingGenerator<string, Embedding<float>>
+  must both be registered.`
 
 **Ön koşulu geri al**
 ```bash
@@ -1162,8 +1200,11 @@ dotnet user-secrets set "Tracon:PostgreSql:ConnectionString" \
 
 ### MT-MEM-026 — `knowledge-assistant` uçtan uca: belge yükle → soru sor → `search_knowledge` tam bir kez çağrılır
 
-Faz 51'in kendi gerçek kanıtıyla aynı akış; hazır fixture (`knowledge-assistant`,
-`00-INDEKS.md` §3.1) `kurumsal` koleksiyonuna bağlıdır.
+Faz 51'in kendi gerçek kanıtıyla aynı akış; hazır fixture (`knowledge-assistant`)
+`knowledge-base` koleksiyonuna bağlıdır (`samples/Tracon.Api/Program.cs:843` —
+`VectorCollection = "knowledge-base"`; spec'in önceki `kurumsal` adı yanlıştı,
+2026-09-18'de koşum sırasında düzeltildi, ampirik olarak `[]` sonuç dönerek
+bulundu).
 
 | | |
 |---|---|
@@ -1177,13 +1218,13 @@ Faz 51'in kendi gerçek kanıtıyla aynı akış; hazır fixture (`knowledge-ass
   OpenAI anahtarı aktif.
 
 **Adımlar**
-1. `kurumsal` koleksiyonuna bir belge yükle.
+1. `knowledge-base` koleksiyonuna bir belge yükle.
 2. `knowledge-assistant`'na kelime eşleşmesi olmayan bir soru sor.
 3. Run'ın tool çağrılarını oku.
 
 **Girilecek veri**
 ```bash
-curl -s -X POST "$APU/api/knowledge/kurumsal/documents" -H "$APB" -H "content-type: application/json" \
+curl -s -X POST "$APU/api/knowledge/knowledge-base/documents" -H "$APB" -H "content-type: application/json" \
      -d '{"sourceId":"izin-politikasi","text":"Yillik izin 14 gundur. Bes yildan sonra 20 gune cikar."}'
 
 curl -s -X POST "$APU/api/agents/knowledge-assistant/run" -H "$APB" \
@@ -1275,9 +1316,10 @@ curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: applicati
 
 **Beklenen sonuç**
 - `valid: false`.
-- `messages[0].message` tam olarak: `'manuel-vektor-yok' agent'i anlamsal
-  arama istiyor ancak IVectorSearchStore kayitli degil (bugun yalniz
-  PostgreSQL: UsePostgreSql()).`
+- `messages[0].message` tam olarak: `Agent 'manuel-vektor-yok' wants
+  semantic search, but IVectorSearchStore is not registered (today only
+  PostgreSQL: UsePostgreSql()).` (K-228 — bu case'in Türkçe metni
+  2026-09-18'de koşum sırasında düzeltildi.)
 
 **Ön koşulu geri al**
 ```bash
@@ -1323,9 +1365,10 @@ curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: applicati
 
 **Beklenen sonuç**
 - `valid: false`.
-- `messages[0].message` tam olarak: `'manuel-gomu-yok' agent'i anlamsal
-  arama istiyor ancak IEmbeddingGenerator<string, Embedding<float>> kayitli
-  degil.`
+- `messages[0].message` tam olarak: `Agent 'manuel-gomu-yok' wants semantic
+  search, but IEmbeddingGenerator<string, Embedding<float>> is not
+  registered.` (K-228 — bu case'in Türkçe metni 2026-09-18'de koşum
+  sırasında düzeltildi.)
 
 **Ön koşulu geri al**
 ```bash
@@ -1381,21 +1424,18 @@ WHERE collection = 'manuel-bilgi' AND source_id = 'alfa-belge';
 -- beklenen: tek satir, tenant_id = 'kiraci-alfa'
 ```
 
-### MT-MEM-031 — 🚨 `KnowledgeEndpoints` hiçbir ucunda `RequireApiKeyScope` çağırmıyor — yalnız-okuma anahtarı belge yazabiliyor/silebiliyor mu?
+### MT-MEM-031 — `KnowledgeEndpoints`'te `RequireApiKeyScope` — yalnız-okuma anahtarı belge yazabiliyor/silebiliyor mu?
 
-Şüpheli davranış — koddan ölçüldü, koşumda doğrulanacak/çürütülecek.
-`grep -n "RequireApiKeyScope" src/Tracon.AspNetCore/Endpoints/KnowledgeEndpoints.cs`
-**boş** döner — karşılaştırma: `AgentEndpoints.cs`/`RunEndpoints.cs` her
-uca `RequireApiKeyScope(ApiKeyScope.AgentsAdmin/RunsWrite/...)` ekler.
-Bu, `WorkflowEndpoints` (`15-WORKFLOWS.md` `MT-WF-100`), `SchedulingEndpoints`
-(`16-IS-KUYRUGU-VE-ZAMANLAMA.md` `MT-JOB-090`), Eval/Experiment yüzeyinin
-(`17-EVAL-VE-DENEYLER.md` `MT-EVAL-100`/`101`, farklı kök nedenle: kapsam
-değeri hiç tanımlı değil) ve `GovernanceEndpoints`'in (`18-MCP-VE-A2A.md`
-`MT-MCP-051`/`052`) ardından **beşinci bilinen** tekrardır (önceki
-notlardaki sayaç `00-INDEKS.md` içinde tutarsız ilerliyor — bu doküman kesin
-bir sıra numarası iddia etmez, yalnız listelenen dört önceki örneğe ek
-BİR tekrar daha olduğunu kaydeder) — sistematik bir denetim boşluğuna
-işaret eder.
+**Doküman düzeltmesi (2026-09-18) — spec'in kod kanıtı bayat çıktı.**
+Spec'in dayandığı `grep -n "RequireApiKeyScope"
+src/Tracon.AspNetCore/Endpoints/KnowledgeEndpoints.cs` iddiası (boş döner)
+BU KOŞUMDA çürütüldü: aynı komut güncel kaynakta 4 satır döndürüyor —
+`KnowledgeAdmin` (satır 25, 52) yazma/silme uçlarında, `KnowledgeRead`
+(satır 38, 66) okuma uçlarında zorunlu. Kapsam denetimi ampirik olarak da
+çalışıyor (aşağıda). Spec başlığındaki 🚨 ve "beşinci bilinen tekrar"
+iddiası kaldırıldı — bu artık dördüncü örneklerle (`MT-WF-100`, `MT-JOB-090`,
+`MT-EVAL-100`/`101`, `MT-MCP-051`/`052`) AYNI SINIFTAN bir tekrar değil,
+kapanmış bir örnek.
 
 | | |
 |---|---|
@@ -1419,7 +1459,7 @@ işaret eder.
 ```bash
 KEY_JSON=$(curl -s -X POST "$APU/api/api-keys" -H "$APB" -H "content-type: application/json" \
   -d '{ "name": "mem-kapsam-testi", "scopes": ["RunsRead"] }')
-echo "$KEY_JSON" | python3 -c "import json,sys; print(json.load(sys.stdin)['rawKey'])"
+echo "$KEY_JSON" | python3 -c "import json,sys; print(json.load(sys.stdin)['plaintextKey'])"
 export MEMKEY="Authorization: Bearer <yukaridaki-rawKey>"
 
 curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/knowledge/kapsam-testi/documents" -H "$MEMKEY" \
@@ -1431,11 +1471,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/agents/kapsam-kontrol" -H "
      -H "content-type: application/json" -d '{"name":"kapsam-kontrol","instructions":"test"}'
 ```
 
-**Beklenen sonuç (şüphe)**
-- Adım 2 ve 3: `HTTP: 200`/`204` — kapsam kısıtı UYGULANMAZ (kodun okuduğu
-  hâliyle beklenen).
-- Adım 4: `HTTP: 403` — kontrol grubu, kapsam sisteminin `AgentEndpoints`'te
-  çalıştığını ama `KnowledgeEndpoints`'te HİÇ devrede olmadığını gösterir.
-- Doğrularsa: **Kusur, Önem: Yüksek** — bir okuma-amaçlı otomasyon anahtarı
-  bilgi tabanı içeriğini yazabilir/silebilir (embedding maliyeti de dahil).
-  Çürürse not güncellenir.
+**Beklenen sonuç (düzeltildi — koşumda ampirik olarak doğrulandı)**
+- Adım 2 ve 3: `HTTP: 403`, `detail`: `"This endpoint requires the
+  'KnowledgeAdmin' scope; the key does not carry it."` — kapsam kısıtı
+  UYGULANIYOR.
+- Adım 4: `HTTP: 403`, `detail`: `"...requires the 'AgentsAdmin' scope..."`
+  — kontrol grubu da aynı şekilde reddediyor, tutarlı.

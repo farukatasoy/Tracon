@@ -200,8 +200,11 @@ Console.WriteLine("Aciklama: " + entry.Description);
 
 **Beklenen sonuç**
 - `Durum: Degraded`.
-- `Aciklama: Henuz saglikli oldugu dogrulanmis bir model saglayicisi yok.`
-  (`TraconHealthCheck.cs:76` mesajıyla birebir).
+- `Aciklama: No model provider has been confirmed healthy yet.`
+  (`TraconHealthCheck.cs:76` mesajıyla birebir — 🚨 **doküman düzeltildi
+  (koşum, 2026-09-17, ap-s3):** spec Türkçe bir mesaj bekliyordu, ama
+  paket çalışma-anı mesajları İngilizce'dir (K-228, dil sınırı kuralı);
+  ürün kusuru değil).
 
 ---
 
@@ -295,7 +298,9 @@ curl -s "$APU/api/diagnostics" -H "$APB" | jq '{migrationsUpToDate, pendingMigra
 **Beklenen sonuç**
 - Adım 1'de `28` (veya güncel migration sayısı) döner.
 - `/health` **`503 Unhealthy`** döner (`TraconHealthCheck.cs:46-51`,
-  `"{N} bekleyen migration var."` mesajıyla).
+  `"{N} migration(s) are pending."` mesajıyla — 🚨 **doküman düzeltildi
+  (koşum, 2026-09-17, ap-s3):** spec Türkçe mesaj bekliyordu, kaynak
+  İngilizce'dir (K-228), ürün kusuru değil).
 - `/api/diagnostics` `migrationsUpToDate: false` ve `pendingMigrations`
   alanında **silinen tek** migration'ın adını taşır — geri kalan 27 (veya N-1)
   migration hâlâ uygulanmış sayılır, yalnız silinen satır eksiktir.
@@ -375,8 +380,11 @@ Console.WriteLine("Aciklama: " + entry.Description);
 
 **Beklenen sonuç**
 - `Durum: Degraded`.
-- `Aciklama:` `"Birden fazla kalicilik saglayicisi kayitli (2); su an 'SQLite'
-  kazaniyor. Yalniz bir Use*() cagirin."` biçiminde bir mesaj (`TraconHealthCheck.cs:55-58`).
+- `Aciklama:` `"More than one persistence provider is registered (2);
+  'SQLite' currently wins. Call only one Use*()."` biçiminde bir mesaj
+  (`TraconHealthCheck.cs:55-58` — 🚨 **doküman düzeltildi (koşum,
+  2026-09-17, ap-s3):** spec Türkçe mesaj bekliyordu, kaynak İngilizce'dir
+  (K-228), ürün kusuru değil).
 - **Not:** `UseSqlite("Data Source=:memory:")` ile bellek içi SQLite'ın
   gerçekte açılıp açılmadığı bu case'in konusu değildir; yalnız K-183
   sayacının davranışı ölçülür. Sayı tutmazsa (`2` yerine başka bir değer)
@@ -1330,12 +1338,31 @@ curl -s http://localhost:5080/tracon/api/diagnostics | jq '.extensionPoints'
 ```
 
 **Beklenen sonuç**
-- Dizi **5** eleman taşır.
-- `ITenantContext`, `IToolAuthorizationHandler`, `IRunEventSink`,
+
+🚨 **Doküman düzeltildi (koşum, 2026-09-17, ap-s3).** Spec Faz 85 anında
+**beş** genişleme noktası varsayıyordu; kaynak (`TraconExtensionPoints.cs`'in
+kendi XML dokümanı: *"the **seven** embedding points"*) artık **yedi**
+taşıyor — sonraki bir faz `IRunAuthorizationHandler` ve
+`IToolApprovalPresenter`'ı ekledi. Ürün kusuru değil, doküman bayatlığı
+(51-migration deseninin aynısı).
+
+- Dizi **7** eleman taşır (5 değil).
+- `IToolAuthorizationHandler`, `IRunAuthorizationHandler`, `IRunEventSink`,
   `IAttachmentStorage` → `isBuiltInDefault: true`.
 - `IRunAttributionContext` → `isBuiltInDefault: false`,
   `implementation: "DemoRunAttributionContext"` — bu ÖNCEDEN gelen bir
   bağlamadır, Faz 85'in eklediği bir şey değil.
+- `IToolApprovalPresenter` → `isBuiltInDefault: false`,
+  `implementation: "OrderApprovalPresenter"` (`Program.cs:146`,
+  `AddSingleton<IToolApprovalPresenter, OrderApprovalPresenter>()`).
+- **`ITenantContext`'in kendisi ARTIK `isBuiltInDefault: true` DEĞİL** —
+  `implementation: "HttpTenantContext"`, `isBuiltInDefault: false`.
+  Kaynağa göre (`TraconExtensionPoints.cs`) Core katmanının çıplak
+  varsayılanı `SingleTenantContext`'tir; `Tracon.AspNetCore` barındırma
+  katmanı kendi HTTP-context-farkında varsayılanını (`HttpTenantContext`)
+  bağlıyor — bu **tüketicinin özelleştirmesi değil**, ASP.NET Core
+  entegrasyonunun kendi (Core'dan farklı) varsayılanıdır. Spec'in "beşi
+  yerleşik" varsayımı bu ayrımı hiç görmüyordu.
 
 ---
 
@@ -1361,10 +1388,23 @@ jq '.extensionPoints' /tmp/embedded-diag.json
 ```
 
 **Beklenen sonuç**
-- Dizi **5** eleman taşır, hepsi `isBuiltInDefault: false`.
-- `implementation` alanları sırasıyla `EmbeddedTenantContext`,
-  `EmbeddedRunAttributionContext`, `EmbeddedToolAuthorizationHandler`,
-  `BoundedChannelRunEventSink`, `InMemoryBufferAttachmentStorage`'dır.
+
+🚨 **Doküman düzeltildi (koşum, 2026-09-17, ap-s3) — MT-DIAG-049'daki AYNI
+5→7 bayatlığı.**
+
+- Dizi **7** eleman taşır (5 değil).
+- Altısı `isBuiltInDefault: false` — `implementation` alanları:
+  `ITenantContext→EmbeddedTenantContext`,
+  `IRunAttributionContext→EmbeddedRunAttributionContext`,
+  `IToolAuthorizationHandler→EmbeddedToolAuthorizationHandler`,
+  `IRunAuthorizationHandler→EmbeddedRunAuthorizationHandler` (yeni nokta,
+  Embedded örneği bunu da özelleştiriyor), `IRunEventSink→
+  BoundedChannelRunEventSink`, `IAttachmentStorage→
+  InMemoryBufferAttachmentStorage`.
+- **`IToolApprovalPresenter`** — `isBuiltInDefault: true`,
+  `implementation: "NullToolApprovalPresenter"` — Embedded örneği bunu
+  ÖZELLEŞTİRMİYOR, tek istisna budur (Faz 85'in "beşi de kendi tipi"
+  iddiası artık yedi noktanın altısı için doğru, yedincisi için değil).
 
 ---
 

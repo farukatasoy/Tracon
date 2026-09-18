@@ -241,9 +241,12 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/evals/kirik-takim" -H "$APB
 ```
 
 **Beklenen sonuç**
-- `HTTP: 400`. Mesaj `"Bilinmeyen denetim turu: 'regexMatch'. Ozel bir
-  denetimse 'ITraconBuilder.AddEvalCheck(\"regexMatch\", ...)' ile
-  kaydedilmelidir."` metnini içerir.
+- `HTTP: 400`. Mesaj `"Unknown check kind: 'regexMatch'. Built-in kinds:
+  nonEmpty, containsExpected, keywords, toolCalled, toolCallsPresent,
+  hasImageContent. If this is a custom check, it must be registered with
+  'ITraconBuilder.AddEvalCheck(\"regexMatch\", ...)'."` metnini içerir
+  (🚨 doküman düzeltildi, koşum 2026-09-17 ap-s3 — spec Türkçe mesaj
+  bekliyordu, kaynak İngilizce'dir, K-228).
 - `GET /api/evals/kirik-takim` → `404` (kayıt hiç oluşmadı).
 
 ---
@@ -406,7 +409,10 @@ curl -s "$APU/api/evals/destek-degerlendirme/cases" -H "$APB"
 ```
 
 **Beklenen sonuç**
-- `HTTP: 200`, ikinci çağrı `[]` döner.
+- `HTTP: 204` (🚨 doküman düzeltildi, koşum 2026-09-17 ap-s3 — spec `200`
+  bekliyordu, gerçek uç gövdesiz `204 No Content` döndürüyor, `DELETE
+  /api/evals/{name}`'in kendisiyle [MT-EVAL-007] tutarlı; ürün kusuru
+  değil), ikinci çağrı (`GET`) `[]` döner.
 - Bu case'den sonra MT-EVAL-010'un ilk `PUT`'unu tekrar uygula — §3 gerçek
   vakaya ihtiyaç duyar.
 
@@ -696,9 +702,11 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/evals/denetimsiz-takim/run
 - Tetikleme isteği `HTTP: 200` döner (senkron doğrulama denetim
   **sayısını** kontrol etmez, yalnız `kind` geçerliliğini kontrol eder).
 - Birkaç saniye sonra `GET /api/evals/runs/{id}` → `status: "Failed"`,
-  `passed=0, failed=total`. `EvalJobHandler`'ın attığı
-  `TraconException` ("'{ad}' takiminin hic denetimi yok; en az bir
-  denetim gereklidir.") koşuyu senkron değil, ASENKRON olarak düşürür.
+  `passed=0, failed=total`. `EvalJobHandler`'ın attığı istisnanın mesajı
+  (🚨 doküman düzeltildi, koşum 2026-09-17 ap-s3 — kaynak İngilizce'dir,
+  K-228): `"Suite '{suite.Name}' has no checks; at least one check is
+  required."` (`EvalJobHandler.cs:137`) — koşuyu senkron değil, ASENKRON
+  olarak düşürür.
 
 ---
 
@@ -867,8 +875,14 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST \
    `RunRecordingAgent` içinde tetiklenir).
 
 **Doğrulama sorgusu**
+
+🚨 **Doküman düzeltildi (koşum, 2026-09-17, ap-s3).** `jobs` tablosunda
+`kind` diye bir sütun yok (`handler_key` metin sütunu var,
+`JobHandlerKeys.OnlineEval = "tracon.online-eval"`); ayrıca sorgu kendi
+şeridin şeması yerine kullanılmalı (`mt_s3`, `tracon` DEĞİL — skill kural
+3). Doğru sorgu:
 ```sql
-SELECT count(*) FROM tracon.jobs WHERE kind = 6;  -- JobKind.OnlineEval
+SELECT count(*) FROM mt_s3.jobs WHERE handler_key = 'tracon.online-eval';
 ```
 
 **Beklenen sonuç**
@@ -905,13 +919,16 @@ dotnet user-secrets set "Tracon:OnlineEvaluation:SampleRate" "1.0"
 3. 15 saniye bekle.
 
 **Doğrulama sorgusu**
+
+🚨 **Doküman düzeltildi (koşum, 2026-09-17, ap-s3) — MT-EVAL-040'daki AYNI
+şema düzeltmesi (`handler_key`, kendi şerit şeması):**
 ```sql
-SELECT j.kind, j.status FROM tracon.jobs j WHERE j.kind = 6 ORDER BY j.created_at DESC LIMIT 1;
-SELECT kind, value, source, author FROM tracon.run_scores WHERE run_id = '<RUN_ID>';
+SELECT handler_key, status FROM mt_s3.jobs WHERE handler_key = 'tracon.online-eval' ORDER BY created_at DESC LIMIT 1;
+SELECT kind, value, source, author FROM mt_s3.run_scores WHERE run_id = '<RUN_ID>';
 ```
 
 **Beklenen sonuç**
-- `jobs` tablosunda bir `OnlineEval` (`kind=6`) satırı, `status=Completed`.
+- `jobs` tablosunda bir `OnlineEval` (`handler_key='tracon.online-eval'`) satırı, `status` tamamlanmış anlamına gelen sayısal değeri taşır (`status` `smallint`).
 - `run_scores`'ta `kind=3` (`Numeric`), `source='judge:model'`,
   `author='judge:model'` satırı.
 - Case sonrası `dotnet user-secrets remove` ile her iki anahtarı kaldır.
@@ -1434,9 +1451,21 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/experiments/destek-talimat-
   "minSampleSize": 3,
   "maxErrorRateDelta": 0.2,
   "rampSteps": [25, 50, 100],
-  "rampIntervalHours": 1
+  "rampInterval": "01:00:00"
 }'
 ```
+
+🚨 **Doküman düzeltildi (koşum, 2026-09-17, ap-s3).** Spec `rampIntervalHours`
+(int) alanı gönderiyordu — istek gövdesi doğrudan `CanaryPolicy` domain
+tipine bağlanıyor (`ExperimentEndpoints.cs:110`,
+`.Accepts<CanaryPolicy>()`) ve o tipte böyle bir alan yok, yalnız
+`RampInterval` (`TimeSpan`, JSON'da `"HH:MM:SS"` dizgesi,
+`CanaryPolicy.cs:63`). Yanlış alan adı **sessizce yok sayılıyor** —
+`400` vermiyor, yalnız sınıfın varsayılanı (`TimeSpan.FromHours(1)`)
+geçerli oluyor. Ürün kusuru değil (istek gövdesi zaten domain tipine
+1:1 bağlanıyor, dokümante edilmeyen bir "DTO" yok), ama sessiz yok sayma
+riskli — `rampInterval`i KISA tutmak isteyen bir tüketici (MT-EVAL-075
+gibi) fark etmeden hep 1 saat alır.
 
 **Beklenen sonuç**
 - `HTTP: 200`.
@@ -1549,9 +1578,11 @@ Sınır senaryosu.
 
 **Ön koşul**
 - Yeni bir iki-varyantlı deney (`kanarya-saglikli`), kanarya politikası
-  `rampSteps: [25, 50, 100]`, `minSampleSize: 3`, `rampIntervalHours: 0`
-  (test hızlandırmak için — gerçek `TimeSpan` string'i `"0:00:01"` gibi
-  çok kısa bir değer kullanılabilir). `AutoRollbackEnabled=true` (MT-EVAL-074'ten).
+  `rampSteps: [25, 50, 100]`, `minSampleSize: 3`, `rampInterval: "00:00:01"`
+  (🚨 MT-EVAL-071'de düzeltilen alan adı — `rampIntervalHours` DEĞİL,
+  yoksa sessizce `01:00:00` varsayılanına düşer ve bu case'in "60 saniye
+  içinde ramp-up gözlenir" iddiası hiç doğrulanamaz).
+  `AutoRollbackEnabled=true` (MT-EVAL-074'ten).
 
 **Adımlar**
 1. Kanarya varyantına 3+ BAŞARILI run üret (kontrol varyantına da eşit
@@ -1634,7 +1665,8 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/runs/<RUN_ID>/feedback" -H
 ```
 
 **Beklenen sonuç**
-- `HTTP: 400`, `detail: "Ikili puan ('binary') yalniz 0 veya 1 olabilir."`
+- `HTTP: 400`, `detail: "A binary score ('binary') can only be 0 or 1."`
+  (🚨 doküman düzeltildi, koşum 2026-09-17 ap-s3 — kaynak İngilizce'dir, K-228).
 
 ---
 
@@ -1918,7 +1950,8 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/runs/<YENI-RUN_ID>/input" -H "$APB
 ```
 
 **Beklenen sonuç**
-- `HTTP: 404`, `title: "Girdi kaydi yok"`.
+- `HTTP: 404`, `title: "No recorded input"` (🚨 doküman düzeltildi, koşum
+  2026-09-17 ap-s3 — kaynak İngilizce'dir, K-228).
 - Case sonrası `dotnet user-secrets remove "Tracon:RunRecording
   :RecordRunInput"` ile varsayılana dön.
 
@@ -1962,13 +1995,11 @@ Negatif senaryo — iki katmanlı yetkilendirme.
 | **İlgili karar** | — |
 
 **Ön koşul**
-- Yalnız `Operator` rolüne sahip (ama `Admin` olmayan) bir kimlikle
-  çağrılabilecek bir test kurulumu (bu ortamda statik bearer token her
-  role eşdeğer davrandığından — bkz. `00-INDEKS.md` §8 rol matrisi
-  no-op notu — bu case'in gerçek ayrımı ancak rol politikaları AÇIKÇA
-  kayıtlı bir ortamda gözlenebilir; bu ortamda yalnız KOD OKUMASIYLA
-  doğrulanan bir iddia olarak işaretlenir, koşum bunu "koşulamadı,
-  varsayılan kurulumda rol ayrımı yok" notuyla kapatabilir).
+- 🚨 **Doküman düzeltildi (koşum, 2026-09-17, ap-s3).** Spec bu case'in
+  statik-token ortamında koşulamayacağını varsayıyordu. K-431'in demo rol
+  bayrağı (`Tracon__Demo__Roles__Enabled=true`, `X-Tracon-Demo-Role:
+  reader|operator|admin`) tam olarak bunu mümkün kılıyor — case gerçekten
+  üç rolle de koşuldu, aşağıda.
 
 **Girilecek veri**
 ```bash
@@ -1977,11 +2008,10 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/runs/<RUN_ID>/replay" -H "
 ```
 
 **Beklenen sonuç**
-- Bu statik-token ortamında `HTTP: 200` beklenir (rol ayrımı no-op) —
-  `get_order_status` GERÇEKTEN yeniden çağrılır. Koşum notu, gerçek bir
-  rol-ayrımlı ortamda bu isteğin `Admin` olmayan bir kimlik için `403`
-  vermesi GEREKTİĞİNİ, ama bu manuel test ortamında doğrulanamadığını
-  kaydeder.
+- Demo rol bayrağıyla: `X-Tracon-Demo-Role: operator` → `403` (rotayı
+  geçer, işleyicinin kendi iç kontrolü reddeder). `X-Tracon-Demo-Role:
+  reader` → `403` (rota seviyesinde zaten reddedilir). `X-Tracon-Demo-Role:
+  admin` → `200`, `get_order_status` gerçekten yeniden çağrılır.
 
 ### MT-EVAL-100 — `ApiKeyScope` enum'ında Eval/Experiment için kapsam YOK — yalnız Role ile sınırlı anahtar TÜM uçlara erişir — ✅ DÜZELTİLDİ (2026-08-14, K-407)
 
