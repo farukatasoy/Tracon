@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -140,6 +141,96 @@ public sealed class SandboxedSkillScriptRunnerTests : IDisposable
 
         var entries = await log.QueryAsync(new AuditQuery { TenantId = "default" });
         entries.ShouldContain(entry => entry.Action == "script.run");
+    }
+
+    /// <summary>
+    /// A successful run leaves the span carrying its exit code, its duration
+    /// and an Ok status.
+    /// </summary>
+    /// <remarks>
+    /// 🚨 The manual run measured six successful executions whose
+    /// <c>execute_skill_script</c> span carried only the skill and script
+    /// names: no <c>exit_code</c>, no <c>duration_ms</c>, status Unset. The
+    /// tags are set right after the process returns, so the question this
+    /// test answers is whether they reach the span at all - a span that is
+    /// read before it stops would show exactly that shape.
+    /// </remarks>
+    [Fact]
+    public async Task A_successful_run_leaves_its_exit_code_and_duration_on_the_span()
+    {
+        Assert.SkipWhen(!File.Exists("/bin/bash"), "bash not found.");
+
+        var stopped = new List<Activity>();
+
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = static source =>
+                string.Equals(source.Name, TraconDiagnostics.ActivitySourceName, StringComparison.Ordinal),
+            Sample = static (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
+            ActivityStopped = stopped.Add,
+        };
+
+        ActivitySource.AddActivityListener(listener);
+
+        using var runner = CreateRunner(new InMemoryAuditLog(), await GrantAllAsync(), options =>
+        {
+            options.Interpreters.Clear();
+            options.Interpreters["sh"] = "/bin/bash";
+        });
+
+        await runner.RunStoredScriptAsync(
+            "demo",
+            new AgentSkillScriptDefinition { Name = "echo", Extension = "sh", Content = "echo hello-tracon" },
+            arguments: null,
+            CancellationToken.None);
+
+        var span = stopped.ShouldHaveSingleItem();
+
+        span.OperationName.ShouldBe(TraconDiagnostics.SkillScriptActivityName);
+        span.GetTagItem(TraconDiagnostics.Tags.ExitCode).ShouldBe(0);
+        span.GetTagItem(TraconDiagnostics.Tags.DurationMs).ShouldNotBeNull();
+        span.Status.ShouldBe(ActivityStatusCode.Ok);
+    }
+
+    /// <summary>
+    /// A run a gate stops leaves that on the span too.
+    /// </summary>
+    /// <remarks>
+    /// 🚨 This is the shape the manual run reported: a span carrying the
+    /// skill and the script name, no exit code, no duration and status Unset -
+    /// a span that reads as though it never finished. A denied run never
+    /// reaches the process, so the outcome every other path writes after it
+    /// was never written, and the only trace of the denial was an error.type
+    /// on MAF's own execute_tool span above, which names the exception type
+    /// and not the gate that closed.
+    /// </remarks>
+    [Fact]
+    public async Task A_denied_run_leaves_the_gate_that_stopped_it_on_the_span()
+    {
+        var stopped = new List<Activity>();
+
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = static source =>
+                string.Equals(source.Name, TraconDiagnostics.ActivitySourceName, StringComparison.Ordinal),
+            Sample = static (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
+            ActivityStopped = stopped.Add,
+        };
+
+        ActivitySource.AddActivityListener(listener);
+
+        // No grant: the gate this run hits is the one that matters most.
+        using var runner = CreateRunner(new InMemoryAuditLog());
+
+        await Should.ThrowAsync<TraconException>(
+            async () => await runner.RunStoredScriptAsync("demo", EchoScript(), null, CancellationToken.None));
+
+        var span = stopped.ShouldHaveSingleItem();
+
+        span.Status.ShouldBe(ActivityStatusCode.Error);
+        span.GetTagItem(TraconDiagnostics.Tags.ScriptDenialReason)
+            .ShouldBeOfType<string>()
+            .ShouldContain("execution grant");
     }
 
     public void Dispose()
