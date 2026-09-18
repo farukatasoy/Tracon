@@ -1239,6 +1239,59 @@ class TamMetinKodBloguTestleri(unittest.TestCase):
                 self.assertTrue(dokuman_bakim.tam_metin_denetle(tmp))
 
 
+
+
+class SatirIciKodSatirSonuTestleri(unittest.TestCase):
+    """Bir satir sonuna sarilan kod parcasi da GOSTERIMDIR."""
+
+    def test_iki_satira_bolunmus_kod_parcasi_baglanti_sayilmaz(self):
+        # 2026-09-16 kosumu: bir kayit `[kapilar.md](kapilar.md)` alintisini
+        # 80 sutunda sardi, kod parcasi satir sonunu asamadigi icin kod
+        # sayilmadi ve kapi onu gercek bir kirik baglanti ilan etti.
+        metin = "Kural: `[kapilar.md](\n../ortak/kapilar.md)` yazilmaz.\n"
+
+        soyulmus = dokuman_bakim._kod_bloklarini_soy(metin)
+
+        self.assertNotIn("](", soyulmus)
+
+    def test_soyma_satir_sayisini_korur(self):
+        metin = "bir\niki `a\nb` uc\ndort\n"
+
+        self.assertEqual(
+            dokuman_bakim._kod_bloklarini_soy(metin).count("\n"),
+            metin.count("\n"))
+
+    def test_iki_satir_sonu_asan_desen_kod_sayilmaz(self):
+        # Sinir TEK satir sonudur: tek basina kalmis bir backtick dokumanin
+        # yarisini yutmamalidir.
+        metin = "`a\nb\nc`"
+
+        self.assertEqual(dokuman_bakim._kod_bloklarini_soy(metin), metin)
+
+
+class TamMetinKarsiOrnekTestleri(unittest.TestCase):
+    """Kod gosterimi icindeki `git show` bir referans degil, ornektir."""
+
+    def test_kod_blogundaki_karsi_ornek_referans_sayilmaz(self):
+        metin = (
+            "Karsi ornek:\n\n```\n"
+            "git show 0000000:docs/yok.md\n"
+            "```\n"
+        )
+
+        soyulmus = dokuman_bakim._kod_bloklarini_soy(metin)
+
+        self.assertEqual(dokuman_bakim._TAM_METIN.findall(soyulmus), [])
+
+    def test_blok_alintisindaki_mesru_referans_gorulur(self):
+        metin = "> git show 7f1833e:docs/arsiv/fazlar/05-X.md\n"
+
+        soyulmus = dokuman_bakim._kod_bloklarini_soy(metin)
+
+        self.assertEqual(
+            dokuman_bakim._TAM_METIN.findall(soyulmus),
+            [("7f1833e", "docs/arsiv/fazlar/05-X.md")])
+
 if __name__ == "__main__":
     unittest.main()
 
