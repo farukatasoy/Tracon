@@ -38,6 +38,17 @@ internal sealed class SqliteDataSource : DbDataSource
     public override string ConnectionString => _connectionString;
 
     /// <inheritdoc />
+    /// <remarks>
+    /// Every command the stores send through this data source is wrapped, so a
+    /// statement SQLite refuses because another writer holds the database is
+    /// sent again instead of surfacing as <c>database is locked</c>. See
+    /// <see cref="SqliteRetryingCommand"/> for why <c>busy_timeout</c> alone
+    /// does not cover it.
+    /// </remarks>
+    protected override DbCommand CreateDbCommand(string? commandText = null)
+        => new SqliteRetryingCommand(base.CreateDbCommand(commandText));
+
+    /// <inheritdoc />
     protected override DbConnection CreateDbConnection()
     {
         var connection = new SqliteConnection(_connectionString);
