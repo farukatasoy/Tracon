@@ -522,7 +522,17 @@ Sınır durumu — arayüzden yalnızca iki tür zamanlanabilir; diğer beş
 2. **Kind** açılır listesine bak.
 
 **Beklenen sonuç**
-- Yalnızca iki seçenek: `AgentBatch`, `Workflow` (`jobs.tsx:231-233`).
+- ⚠️ **Doküman düzeltmesi (2026-09-17, skill §1.1 istisnası):** Faz 137
+  (K-665) `Kind` alanını kaldırıp dinamik "Handler key" açılır listesi
+  getirdi — liste artık sabit iki seçenek değil, `GET
+  /api/schedules/handler-keys` yanıtıdır (varsayılanda **dokuz** yerleşik
+  anahtar: `jobs.tsx:129-137` yorumu bunu açıkça söylüyor). Bu case'in
+  orijinal beklentisi Faz 17 döneminden kalma ve şimdi MT-JOB-130 tarafından
+  ikame ediliyor. Güncel beklenti: **Handler key** açılır listesi
+  `tracon.agent-batch`, `tracon.workflow`, `tracon.eval`,
+  `tracon.webhook-delivery`, `tracon.retention`, `tracon.agent-run`,
+  `tracon.online-eval`, `tracon.approval-resume`, `tracon.run-continuation`
+  (dokuz anahtar) gösterir.
 
 ---
 
@@ -1069,8 +1079,15 @@ yapmaz.
 1. Yeni bir zamanlama oluştur, sil, bir iş tetikle, iptal et.
 
 **Doğrulama sorgusu**
+
+⚠️ **Doküman düzeltmesi (2026-09-17):** `audit_log` tablosunda `occurred_at`
+sütunu yoktur, zaman damgası sütunu `created_at`'tır (ampirik doğrulandı:
+`\d <şema>.audit_log`). Şema adı da şeride göre değişir (`tracon` yalnız
+tek örnekli genel ortamda geçerlidir, manuel test şeritlerinde
+`mt_s<N>`'dir).
+
 ```sql
-SELECT count(*) FROM tracon.audit_log WHERE occurred_at > now() - interval '2 minutes'
+SELECT count(*) FROM <şema>.audit_log WHERE created_at > now() - interval '2 minutes'
   AND (action LIKE 'schedule.%' OR action LIKE 'job.%');
 ```
 
