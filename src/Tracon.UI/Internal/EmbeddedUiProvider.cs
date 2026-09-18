@@ -48,7 +48,7 @@ internal sealed class EmbeddedUiProvider : ITraconUiProvider
     /// page inside a frame - against clickjacking.
     /// </para>
     /// <para>
-    /// 🚨 <c>script-src</c> stays free of <c>'unsafe-inline'</c>. The shell ships
+    /// <strong><c>script-src</c> stays free of <c>'unsafe-inline'</c>.</strong> The shell ships
     /// one inline script - the early theme paint - and it is allowed by the
     /// HASH of its own text, computed from the shipped shell in
     /// <see cref="BuildShell"/> rather than written down here. A literal hash

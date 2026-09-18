@@ -97,13 +97,13 @@ public sealed class AgentVersionHistoryOriginTests
         await using var host = await TraconTestHost.StartAsync();
 
         using var response = await host.Client.GetAsync(
-            new Uri("/tracon/api/agents/yok-boyle-bir-agent/versions", UriKind.Relative));
+            new Uri("/tracon/api/agents/no-such-agent/versions", UriKind.Relative));
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
         var json = await TraconTestHost.ReadJsonAsync(response);
 
         json.GetProperty("title").GetString().ShouldBe("Agent not found");
-        json.GetProperty("detail").GetString()!.ShouldContain("There is no agent named 'yok-boyle-bir-agent'.");
+        json.GetProperty("detail").GetString()!.ShouldContain("There is no agent named 'no-such-agent'.");
     }
 
     [Fact]
@@ -112,7 +112,7 @@ public sealed class AgentVersionHistoryOriginTests
         await using var host = await TraconTestHost.StartAsync();
 
         using var response = await host.Client.GetAsync(
-            new Uri("/tracon/api/agents/yok-boyle-bir-agent/versions/1/diff/2", UriKind.Relative));
+            new Uri("/tracon/api/agents/no-such-agent/versions/1/diff/2", UriKind.Relative));
 
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
         var json = await TraconTestHost.ReadJsonAsync(response);
