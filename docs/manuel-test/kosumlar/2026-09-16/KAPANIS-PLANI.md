@@ -151,7 +151,7 @@ Sıra yukarıdan aşağıdır; yüksek öncelik önce kapanır.
 
 | Aile | Kusur | Kök neden ve sınıf taraması sorusu | Durum |
 |---|---|---|---|
-| **A** · Store kaydı sözleşmesi | `S1-019` **Yüksek** | `UsePostgreSql` tüketicinin store kaydını `Replace` ile **sessizce** eziyor. `AGENTS.md`'nin "`TryAdd*` ile kaydet; tüketicinin kaydı her zaman kazanmalı" kuralının ihlali — bir **paket sözleşmesi** kusuru. 117 çağrı, 34 store arayüzü, üç sağlayıcı. `samples/Tracon.Embedded`'in README'sinde belgelenmiş akışı kırıyor (`MT-PG-068` bu yüzden Kaldı). **Açık soru:** `RequireCustomBinding<ITenantStore>()` çağrılsaydı başlangıçta patlar mıydı, yoksa sessiz mi kalırdı? Cevap kusurun örnekte mi koruma mekanizmasında mı olduğunu belirler | ☐ |
+| **A** · Store kaydı sözleşmesi | `S1-019` **Yüksek** | `UsePostgreSql` tüketicinin store kaydını `Replace` ile **sessizce** eziyor. `AGENTS.md`'nin "`TryAdd*` ile kaydet; tüketicinin kaydı her zaman kazanmalı" kuralının ihlali — bir **paket sözleşmesi** kusuru. 117 çağrı, 34 store arayüzü, üç sağlayıcı. `samples/Tracon.Embedded`'in README'sinde belgelenmiş akışı kırıyor (`MT-PG-068` bu yüzden Kaldı). ✅ **Açık soru yanıtlandı (2026-09-18):** `RequireCustomBinding<ITenantStore>()` **patlardı ama yanlış nedenle** — `TraconExtensionPoints.All` yalnız **yedi** sözleşme taşıyor (`ITenantContext`, `IRunAttributionContext`, `IToolAuthorizationHandler`, `IRunAuthorizationHandler`, `IRunEventSink`, `IAttachmentStorage`, `IToolApprovalPresenter`) ve `ITenantStore` bunlardan biri değil; mesaj "kaydın ezildi" değil "bu bir genişleme noktası değil" olurdu. Koruma mekanizmasının 34 store sözleşmesinde **hiç kapsamı yok** ∴ kusur yalnız örnekte değil, mekanizmanın kendisinde. `samples/Tracon.Embedded/Program.cs:17` kendi yorumunda `ITenantStore`'u 1. gömülme noktasının parçası sayıyor — mekanizma onu tanımıyor | 🔄 |
 | **B** · Run kaydının doğruluğu | `S4-003` **Yüksek** · `S3-004` **Yüksek** · `S1-011` Orta | Üçü de "run kaydı gerçeği yansıtmıyor": guard'ın GİRİŞ-öncesi istisnası run kaydını hiç oluşturmuyor (istemci SSE'de `error` görür, `GET /api/runs/{id}` `404` verir — denetim/yeniden-deneme/idempotency o run'ı bulamaz); lease devralan ikinci deneme sessizce başarısız kalıyor ve run sonsuza dek `Running`; çakışmayla düşen run kayıtta `Completed` görünüyor. **Tarama:** her terminalleşme yolu kaydı gerçekten yazıyor mu? | ☐ |
 | **C** · Tracon'un kendi istisnası maskeleniyor | `S1-024` **Yüksek** · `S4-005` Orta | Tool içi `TraconException` mesajı modele hiç ulaşmıyor — `FunctionInvokingChatClient` onu `"Error: Function failed."`e çeviriyor. Aynı desen sağlayıcı fabrikasında: `ProviderFailureNormalizer` Anthropic/Google fabrikalarının kendi el ile attığı doğrulama hatalarını (düşünme bütçesi, güvenlik eşiği) yabancı SDK hatasıyla aynı maskeye sokuyor, özgül mesaj `/api/agents/validate`'te kayboluyor. **Tarama:** `throw new TraconException` kullanan HER tool ve fabrika | ☐ |
 | **D** · MCP çıktısı kırpılmıyor | `S1-026` **Yüksek** | `TruncatingAIFunction` MCP tool sonuçlarını (`AIContent`) atlıyor. Ölçüm: `Tracon:Tools:DefaultMaxOutputBytes=200` iken modele **8095 bayt** gitti — sınırın 40 katı, hiçbir kırpma işareti yok. Sessizce fark edilmez | ☐ |
@@ -159,6 +159,30 @@ Sıra yukarıdan aşağıdır; yüksek öncelik önce kapanır.
 | **F** · SSE ve düşünme kaydı | `S3-005` **Yüksek** · `S3-006` **Yüksek** | Bağlantı sessizce koparsa çalıştırma ekranı sonsuza dek "Waiting for events…" yazısında donuyor; kullanıcıya hiçbir hata gösterilmiyor. Ayrıca `RecordReasoningDeltas=true` iken model gerçekten düşünme içeriği üretse bile `ReasoningDelta` olayı HİÇ kaydedilmiyor (gerçek Anthropic extended-thinking çağrısıyla ölçüldü). İki ayrı katman — aynı oturumda kapanır, iki commit olabilir | ☐ |
 | **G** · Maliyet muhasebesi | `S1-025` **Yüksek** · `S1-010` Orta | Zaman aşımından SONRA başarıyla biten tool çağrısının kullanım/maliyeti kalıcı olarak kayboluyor. Ayrıca katalogdaki **13 modelin hiçbirinde fiyat yok** → her `run` maliyetsiz kaydediliyor; mekanizma dürüst (`pricing_source=NotDefined`), eksik olan **veri** | ☐ |
 | **H** · Derlenmiş agent önbelleği | `S4-004` **Kritik** | `CompiledAgentCache.Evict` HİÇBİR YERDEN çağrılmıyor. Silinip aynı adla yeniden oluşturulan agent, sürüm sayacı 1'e sıfırlandığı için ESKİ (silinmiş) tanımla çalışmaya devam ediyor. `GET /api/agents/{name}` doğru görünür ama **çalıştırma yanlış** — sessiz ve operatörü yanlış yöne yönlendirir | ☐ |
+
+#### Aile A — alınan iki karar 👤 (2026-09-18)
+
+1. **`Replace` tüketicinin kaydını bulunca onu KORUR ve başlangıçta `Warning`
+   loglar.** Tracon'in kendi `TryAdd` varsayılanı işaretlenir; `Replace` yalnız
+   **işaretli** kaydı ezer. İşaretsiz (yani tüketicinin) bir kayda dokunulmaz ve
+   host başlarken "`ITenantStore` için kendi kaydınız kullanılıyor;
+   `UsePostgreSql` onu ezmedi" uyarısı düşer. Kırıcı değildir ve sessiz kaybı
+   kapatır.
+   - İşaretin doğru sinyali **hangi `ServiceDescriptor`'ı Tracon'in eklediğidir**.
+     `TryAdd` tüketici önce kaydettiyse zaten no-op olur; o durumda contract için
+     Tracon'in bir varsayılanı **hiç yoktur**. Yani `ImplementationType` kontrolü
+     yetmez — varsayılanlar `TryAddSingleton<T>(factory)` ile kaydediliyor ve
+     `ImplementationType` `null`.
+2. **`RequireCustomBinding<T>()` store sözleşmelerini de kabul eder.** Tüketici
+   `RequireCustomBinding<ITenantStore>()` yazabilir; kayıt ezilir ya da düşerse
+   host **başlamaz**. Aynı işaret mekanizmasını paylaşır. `samples/Tracon.Embedded`
+   bu çağrıyı ekler ve README'sindeki akış böylece kapıyla kilitlenir.
+
+Kapsam: `Tracon.Core` (işaret + varsayılan kayıtlar) · `Tracon.PostgreSql` ·
+`Tracon.SqlServer` · `Tracon.Sqlite` (117 `Replace` çağrısı) ·
+`TraconExtensionPoints` · `samples/Tracon.Embedded`.
+
+---
 
 ### Orta ve düşük öncelik
 
