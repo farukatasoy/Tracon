@@ -258,28 +258,45 @@ Yeni bir **yetenek** isteyen bulgular kodlanmaz — faz adayı olarak
 > **iki** `Durum:` satırı taşır (önce `Kaldı`, sonra `Geçti`); satır sayan bir
 > `grep` onu iki kez sayar. Aşağıdaki betik her case'in **son** işaretini alır.
 
+> 🚨 **Betiğin üç sınır durumu vardır; hiçbiri gevşetilmez** (2026-09-16 turunda
+> üçü de ölçüldü ve o turun her ölçümünü bozdu):
+>
+> 1. **Glob `[0-9][0-9]*.md` olmalı.** Eski `[0-2]*.md` 30–36 numaralı aileleri
+>    hiç görmüyordu — altı aile sayıma hiç girmedi.
+> 2. **Başlık iki ya da üç `#` olabilir ve önünde tek bir emoji taşıyabilir.**
+>    Kayıt dosyaları hem `## MT-…` hem `### MT-…` kullanır; bazıları `## 🚨 MT-…`
+>    yazar. Case kimliği başlığın **başında** olmalıdır — serbest önek kabul eden
+>    bir regex `### Konsolide not — MT-SEC-183..189` gibi satırları da case sanır
+>    ve `Durum` taşımayan sahte bir blok üretir.
+> 3. **Sayım case kimliğine göre tekilleştirilir.** Kapanışta yeniden koşulan
+>    bir case **ikinci bir blok** alır; blok sayan bir betik onu iki kez sayar.
+
 ```bash
-python3 - <<'PY'
+python3 - <<'SAYIM'
 import pathlib, re
 from collections import Counter
 K = pathlib.Path("docs/manuel-test/kosumlar/<YYYY-AA-GG>")
-CASE, DURUM = re.compile(r"^## (MT-[A-Z0-9]+-\d+)"), re.compile(r"^\s*\*\*Durum:\*\*(.*)")
-c, acik = Counter(), []
-for p in sorted(K.glob("[0-2]*.md")):
+CASE = re.compile(r"^#{2,3}\s+(?:[^\sA-Za-z0-9]+\s+)?(MT-[A-Z0-9]+-\d+)")
+DURUM = re.compile(r"^\s*\*\*Durum:?\*\*:?(.*)")
+son = {}
+for p in sorted(K.glob("[0-9][0-9]*.md")):
+    if p.name.startswith("00-"):
+        continue
     L = p.read_text(encoding="utf-8").split("\n")
-    b = [i for i, s in enumerate(L) if CASE.match(s)] + [len(L)]
-    for k in range(len(b) - 1):
-        ad = CASE.match(L[b[k]]).group(1)
+    idx = [i for i, s in enumerate(L) if CASE.match(s)]
+    b = idx + [len(L)]
+    for k in range(len(idx)):
+        ad = CASE.match(L[idx[k]]).group(1)
         d = [x for i in range(b[k], b[k+1]) if (m := DURUM.match(L[i]))
              for x in ("Beklemede", "Geçti", "Kaldı", "Atlandı")
              if re.search(r"[☒☑]\s*" + x, m.group(1))]
-        s = d[-1] if d else "İŞARETSİZ"
-        c[s] += 1
-        if s in ("Beklemede", "İŞARETSİZ"):
-            acik.append(f"{ad} ({p.name}) -> {s}")
+        son[ad] = (d[-1] if d else "İŞARETSİZ", p.name)  # ayni case tekrar gelirse SON blok kazanir
+c = Counter(s for s, _ in son.values())
+acik = [f"{ad} ({f}) -> {s}" for ad, (s, f) in sorted(son.items())
+        if s in ("Beklemede", "İŞARETSİZ")]
 print(dict(c), "toplam:", sum(c.values()))
 print("ACIK:", *acik, sep="\n  ")
-PY
+SAYIM
 ```
 
 Tur **bitti** sayılır:
