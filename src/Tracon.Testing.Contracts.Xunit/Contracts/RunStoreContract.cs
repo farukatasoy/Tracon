@@ -125,6 +125,37 @@ public abstract class RunStoreContract : TenantIsolationContract<IRunStore>
         second.Labels["team"].ShouldBe("payments");
     }
 
+    /// <summary>
+    /// A run that is retried keeps its identity, so the second attempt must
+    /// continue the event stream instead of restarting it.
+    /// </summary>
+    /// <remarks>
+    /// Without it the writer restarted at zero on every lease takeover, hit
+    /// the unique <c>(run_id, seq)</c> key, disabled itself for the rest of the
+    /// run, and then skipped the completion write. The job reported Completed
+    /// while the run stayed in <see cref="RunStatus.Running"/> forever. A store
+    /// answers this question so the writer never has to guess.
+    /// </remarks>
+    [Fact]
+    public async Task The_last_event_sequence_is_readable()
+    {
+        var runId = TraconId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId));
+
+        (await Store.GetLastEventSequenceAsync(runId)).ShouldBeNull();
+
+        await Store.AppendEventAsync(TestData.Event(runId, 0));
+        (await Store.GetLastEventSequenceAsync(runId)).ShouldBe(0);
+
+        await Store.AppendEventAsync(TestData.Event(runId, 1));
+        await Store.AppendEventAsync(TestData.Event(runId, 2));
+        (await Store.GetLastEventSequenceAsync(runId)).ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task An_unknown_run_has_no_last_event_sequence()
+        => (await Store.GetLastEventSequenceAsync(TraconId.NewId())).ShouldBeNull();
+
     [Fact]
     public async Task Reusing_a_sequence_number_is_rejected()
     {

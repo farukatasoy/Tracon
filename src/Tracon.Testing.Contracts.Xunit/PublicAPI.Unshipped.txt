@@ -386,6 +386,7 @@ Tracon.Testing.Contracts.Storage.RunStoreContract.A_label_key_without_a_value_ma
 Tracon.Testing.Contracts.Storage.RunStoreContract.A_run_that_reports_only_a_cache_count_still_produces_a_usage_record() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.A_run_without_attribution_reads_back_as_null_not_as_an_empty_map() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.A_second_start_without_attribution_does_not_erase_the_first_one() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.An_unknown_run_has_no_last_event_sequence() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.AppendEventAsync_does_not_write_with_the_wrong_expected_tenant() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.Applied_unit_prices_round_trip_and_do_not_enter_the_total() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.Attribution_round_trips() -> System.Threading.Tasks.Task!
@@ -457,6 +458,7 @@ Tracon.Testing.Contracts.Storage.RunStoreContract.Summary_returns_no_error_rate_
 Tracon.Testing.Contracts.Storage.RunStoreContract.Summary_rows_with_no_error_class_appear_in_the_unknown_bucket() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.Summary_sorts_agent_breakdown_by_run_count() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.The_cache_charge_round_trips_and_counts_toward_the_total() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.RunStoreContract.The_last_event_sequence_is_readable() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.The_token_breakdown_round_trips_and_stays_null_when_it_was_never_reported() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.Time_series_does_not_exclude_eval_runs() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RunStoreContract.Time_series_fills_empty_buckets() -> System.Threading.Tasks.Task!

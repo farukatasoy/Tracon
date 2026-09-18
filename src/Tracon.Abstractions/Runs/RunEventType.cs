@@ -337,4 +337,29 @@ public enum RunEventType
     /// </para>
     /// </remarks>
     LoopIterationCompleted = 31,
+
+    /// <summary>
+    /// The run finished, but the session write that follows it lost a race and
+    /// nothing was saved to that session. <c>Text</c> carries the session id.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The run itself is <see cref="RunStatus.Completed"/> and that is the
+    /// truthful status: the model was called, tokens were spent, an answer was
+    /// produced. What failed is the session write that happens AFTER the run,
+    /// and the caller was told — it received a 409.
+    /// </para>
+    /// <para>
+    /// Before this event the conflict left no trace at all in the record:
+    /// the operator saw two successful runs for the same session
+    /// and the losing side existed only in the response the caller already
+    /// consumed. When a session owner says a message went missing, the run
+    /// record now carries the evidence.
+    /// </para>
+    /// <para>
+    /// 32, not 30 or 31: <c>run_events.type</c> is a <c>smallint</c> column, so
+    /// an existing member's numeric value can never be shifted.
+    /// </para>
+    /// </remarks>
+    SessionWriteConflicted = 32,
 }

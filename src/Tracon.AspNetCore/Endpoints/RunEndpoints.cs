@@ -1311,6 +1311,7 @@ internal static class RunEndpoints
             RunEventType.Custom => "custom",
             RunEventType.ChildRunTimedOut => "child.timed-out",
             RunEventType.LoopIterationCompleted => "loop.iteration-completed",
+            RunEventType.SessionWriteConflicted => "session.write-conflicted",
             _ => "unknown",
         };
     }

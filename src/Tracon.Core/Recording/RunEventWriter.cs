@@ -136,6 +136,25 @@ public sealed class RunEventWriter
         try
         {
             await _store.StartRunAsync(info, cancellationToken).ConfigureAwait(false);
+
+            // 🚨 A retried run keeps its identity: StartRunAsync UPSERTS the row
+            // rather than opening a second one. The event stream has no such
+            // upsert - it is append-only and (run_id, seq) is unique - so a second
+            // attempt that restarted its numbering at zero collided with the first
+            // attempt's events. The collision disabled this writer for the rest of
+            // the run, and CompleteAsync then skipped CompleteRunAsync silently:
+            // the work finished, the job said Completed, and the run stayed in
+            // Running forever with no usage and no cost (HATA-S3-004). That is not
+            // an edge case - it was the deterministic outcome of EVERY lease
+            // takeover, which is the entire point of the feature.
+            var lastSequence = await _store
+                .GetLastEventSequenceAsync(info.RunId, cancellationToken)
+                .ConfigureAwait(false);
+
+            if (lastSequence is { } written)
+            {
+                _sequence = written + 1;
+            }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
