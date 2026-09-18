@@ -40,7 +40,15 @@ public sealed class JsonBindingProblemMiddlewareTests
 
         var json = await TraconTestHost.ReadJsonAsync(response);
         json.GetProperty("title").GetString().ShouldBe("Invalid request body");
-        (json.GetProperty("detail").GetString() ?? string.Empty).ShouldContain("ApiKeyScope");
+        // The detail used to be the raw System.Text.Json message, whose only
+        // identifying content was the CLR type name — which appears nowhere in
+        // the request the caller wrote. It now names the refused value, the
+        // accepted ones, and the field, which proves the same routing far more
+        // directly than the type name did.
+        var detail = json.GetProperty("detail").GetString() ?? string.Empty;
+        detail.ShouldContain("'runs:all' is not a valid value.");
+        detail.ShouldContain("RunsRead");
+        detail.ShouldContain("$.scopes[0]");
     }
 
     [Fact]
@@ -60,7 +68,10 @@ public sealed class JsonBindingProblemMiddlewareTests
 
         var json = await TraconTestHost.ReadJsonAsync(response);
         json.GetProperty("title").GetString().ShouldBe("Invalid request body");
-        (json.GetProperty("detail").GetString() ?? string.Empty).ShouldContain("McpTransportMode");
+        var detail = json.GetProperty("detail").GetString() ?? string.Empty;
+        detail.ShouldContain("'Stdio' is not a valid value.");
+        detail.ShouldContain("StreamableHttp");
+        detail.ShouldContain("$.transport");
     }
 
     [Fact]

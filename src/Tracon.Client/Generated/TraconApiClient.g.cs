@@ -659,7 +659,7 @@ namespace Tracon.Client.Generated
         /// Lists a definition's version history, newest first.
         /// </summary>
         /// <remarks>
-        /// Every entry is a full definition snapshot, not a delta, so a single entry is enough to inspect or restore a past state. The agent must have a current stored definition; a code-defined or deleted name returns 404. Code agents have no version history at all — their history is the application's source history.
+        /// Every entry is a full definition snapshot, not a delta, so a single entry is enough to inspect or restore a past state. The agent must have a current stored definition; a deleted name returns 404. A code-defined or agent-source name also returns 404, with a reason that says so — such a definition is not stored by Tracon and has no version history at all.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -830,7 +830,7 @@ namespace Tracon.Client.Generated
         /// Returns two definition versions as raw JSON; the diff is computed in the UI.
         /// </summary>
         /// <remarks>
-        /// The server does no diffing and takes no position on how a change should be displayed; it returns both snapshots verbatim as 'left' and 'right' so the client chooses the presentation. The two version numbers may be given in any order. When either version is missing the response is 404 and names the one that was not found.
+        /// The server does no diffing and takes no position on how a change should be displayed; it returns both snapshots verbatim as 'left' and 'right' so the client chooses the presentation. The two version numbers may be given in any order. When either version is missing the response is 404 and names the one that was not found; a code-defined or agent-source name returns 404 saying it has no version history.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -16148,8 +16148,8 @@ namespace Tracon.Client.Generated
         public AgentDefinitionOrigin Origin { get; set; } = default!;
 
         /// <summary>
-        /// Gets the definition version. Every save increments this value and so naturally
-        /// <br/>invalidates the compiled agent cache.
+        /// Gets the definition version. Every save increments it, and the store owns the
+        /// <br/>number: the value on an incoming definition is ignored.
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("version")]

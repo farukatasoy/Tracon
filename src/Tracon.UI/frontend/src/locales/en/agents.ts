@@ -49,6 +49,7 @@ export const enAgents = {
   "agentDetail.deleteTitle": 'Delete agent "{name}"?',
   "agentDetail.deleteEffect": 'Deletes the definition and every version in its history. Recorded runs keep their rows, but nothing can be started from this agent again and the definition cannot be brought back from this console.',
   "agentDetail.codeNotice": 'This agent is declared in code. A code definition is validated at compile time and cannot be changed from the console — edit the application source instead.',
+  "agentDetail.sourceNotice": "This agent comes from the '{source}' agent source. Its definition is not stored by Tracon and cannot be changed from the console — edit whatever that source reads.",
   "agentDetail.summary": 'Summary',
   "agentDetail.harness": 'Harness',
   "agentDetail.instructions": 'Instructions',

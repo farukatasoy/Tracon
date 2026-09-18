@@ -54,6 +54,7 @@ export const trAgents: Pick<Messages, keyof typeof enAgents> = {
   "agentDetail.deleteTitle": '"{name}" agent\'ı silinsin mi?',
   "agentDetail.deleteEffect": 'Tanımı ve geçmişteki her sürümü siler. Kayıtlı run satırları kalır ama bu agent ile bir daha hiçbir şey başlatılamaz ve tanım bu konsoldan geri getirilemez.',
   "agentDetail.codeNotice": 'Bu agent kodda tanımlı. Kod tanımı derleme zamanında doğrulanır ve konsoldan değiştirilemez — bunun yerine uygulama kaynağını düzenleyin.',
+  "agentDetail.sourceNotice": "Bu agent '{source}' agent kaynağından geliyor. Tanımı Tracon'da saklanmaz ve konsoldan değiştirilemez — o kaynağın okuduğu yeri düzenleyin.",
   "agentDetail.summary": 'Özet',
   "agentDetail.harness": 'Harness',
   "agentDetail.instructions": 'Talimatlar',

@@ -136,9 +136,18 @@ export function AgentDetailScreen({ name, meta }: { name: string; meta: Meta }):
         </div>
       )}
 
+      {/* Read-only has two causes and they send the operator to two different
+          files. The notice used to read only isEditable, so an agent that came
+          from an IAgentSource was told it lives in code — the badge beside it
+          said otherwise on the same screen. */}
       {!isEditable && (
-        <div className="mb-4 rounded-md border border-line bg-info-soft px-3 py-2 text-sm text-info">
-          {t('agentDetail.codeNotice')}
+        <div
+          className="mb-4 rounded-md border border-line bg-info-soft px-3 py-2 text-sm text-info"
+          data-testid="agent-readonly-notice"
+        >
+          {descriptor.origin === 'Custom'
+            ? t('agentDetail.sourceNotice', { source: descriptor.sourceName })
+            : t('agentDetail.codeNotice')}
         </div>
       )}
 

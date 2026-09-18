@@ -677,9 +677,24 @@ public static OrderPreview PreviewOrder(string orderId) => new(orderId, "ready")
 
 Generated tools must be static. Microsoft Agent Framework invokes an
 `AIFunction` with an empty service provider, so an instance method cannot rely
-on constructor dependencies. Make the generated method static, or create the
-object during registration and expose a hand-built `AIFunction` that creates a
-scope for each invocation.
+on constructor dependencies. There are three ways out, and the diagnostic names
+all three: make the generated method static, create the object during
+registration and hand over a built function with
+`AddTool(AIFunctionFactory.Create(...))`, or — when the dependency has to be
+resolved per call — register it with `AddScopedTool(...)`, which opens a scope
+for each invocation:
+
+```csharp
+builder.AddTracon()
+       .AddScopedTool(AIFunctionFactory.Create(
+           async (string orderId, AIFunctionArguments arguments) =>
+           {
+               var orders = arguments.Services!.GetRequiredService<IOrderRepository>();
+               return await orders.GetAsync(orderId);
+           },
+           "look_up_order",
+           "Looks an order up by its identifier."));
+```
 
 ### A tool parameter has no description (TRC0009)
 

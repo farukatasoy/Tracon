@@ -71,7 +71,7 @@ internal static class ToolDiagnostics
     public static readonly DiagnosticDescriptor InstanceMethod = new(
         "TRC0007",
         "An instance method cannot be a tool",
-        "'{0}' is an instance method and cannot be a tool. MAF passes an empty provider as AIFunctionArguments.Services (decision K-218). Make the method 'static', or instantiate the tool at setup time and register it with 'AddTool(AIFunctionFactory.Create(...))'.",
+        "'{0}' is an instance method and cannot be a tool. MAF passes an empty provider as AIFunctionArguments.Services (decision K-218). Make the method 'static', instantiate the tool at setup time and register it with 'AddTool(AIFunctionFactory.Create(...))', or use 'AddScopedTool(...)' if the dependency must be resolved per call.",
         Category,
         DiagnosticSeverity.Error,
         isEnabledByDefault: true,

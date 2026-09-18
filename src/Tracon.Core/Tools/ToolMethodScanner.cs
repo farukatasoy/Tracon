@@ -24,7 +24,9 @@ namespace Tracon;
 /// <see cref="TraconException"/> during <see cref="Scan"/>, the earliest
 /// run-time point, rather than waiting for the first tool call. For instance
 /// method tools, create the target during registration and call
-/// <c>AddTool(AIFunctionFactory.Create(...))</c>.
+/// <c>AddTool(AIFunctionFactory.Create(...))</c>, or call
+/// <c>AddScopedTool(...)</c> when the dependency has to be resolved per call —
+/// the same three escapes the run-time message and <c>TRC0007</c> name.
 /// </para>
 /// </remarks>
 internal static class ToolMethodScanner
