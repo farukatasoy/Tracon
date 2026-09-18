@@ -366,8 +366,15 @@ yapılandırmaya **hiç bakılmaz** — kayıt "kapalı" olsa bile. Bir kullanı
 varsa **hiçbir şey silinmez**.
 
 **Ön koşul**
-- `dotnet user-secrets set "Tracon:Retention:Traces:MaxAgeDays" "14"` ile
-  config tabanlı bir varsayılan tanımlı, uygulama yeniden başlatıldı.
+- 🚨 `dotnet user-secrets set "Tracon:Retention:Traces:MaxAgeDays" "14"`
+  **yanlıştır** — düzeltildi 2026-09-17, ap-s2. `traces` hedefi
+  `TraconRetentionOptions.Spans`'a eşlenir (`Traces` diye bir özellik yok),
+  VE ayrı bir üst düzey `Tracon:Retention:Enabled=true` bayrağı da
+  gerekir (varsayılan `false` — bir paket yükseltmesi config eklenmeden
+  veri silmesin diye). Doğru kurulum:
+  `dotnet user-secrets set "Tracon:Retention:Enabled" "true"` **ve**
+  `dotnet user-secrets set "Tracon:Retention:Spans:MaxAgeDays" "14"`,
+  uygulama yeniden başlatılır.
 
 **Adımlar**
 1. `traces` hedefi için `Enabled=false` bir DB kaydı yaz.
@@ -521,11 +528,14 @@ hassasiyet sınıfı) bu listede **yoktur** — config tabanlı bir `MaxAgeDays`
 varsayılanı `run_inputs` için normal şekilde çalışır.
 
 **Ön koşul**
-- `dotnet user-secrets set "Tracon:Retention:RunInputs:MaxAgeDays" "60"`.
+- `Tracon:Retention:Enabled` `true` olmalı (ayrı bir üst düzey bayrak,
+  bkz. MT-RET-011) **ve**
+  `dotnet user-secrets set "Tracon:Retention:RunInputs:MaxAgeDays" "60"`.
 
 **Adımlar**
 1. Uygulamayı yeniden başlat.
-2. `run_inputs` için `preview` çağır (politika hiç kaydedilmeden).
+2. `run_inputs` için `preview` çağır (`sessions`'a hiç dokunmadan, kendi
+   config'i verilmeden).
 
 **Girilecek veri**
 ```bash
@@ -535,19 +545,26 @@ curl -s "$APU/api/retention/preview?target=sessions" -H "$APB" | jq
 
 **Beklenen sonuç**
 
-> ⚠️ **Bu beklenti koşumda yanlış bulundu ve koda göre düzeltildi
-> (KOSUM-PLANI §2.1 istisnası).** Özgün metin, `run_inputs`'ın config
-> varsayılanını kullandığını, `sessions`'ın ise kullanmadığını iddia
-> ediyordu. Gerçek davranış **tam tersidir**. Gerekçe `Gerçek sonuç`
-> alanındadır.
+> ⚠️⚠️ **Bu beklenti İKİ KEZ yanlış çıktı — özgün metin doğruydu, 2026-08-13
+> turunun "düzeltmesi" tam tersini iddia ederek YANLIŞ bir düzeltme yapmıştı,
+> 2026-09-17'de (ap-s2) tekrar düzeltildi.** `TraconRetentionOptions.
+> ForTarget` switch'inde `RunInputs` İÇİN BİR CASE **VARDIR**
+> (`RetentionTargets.RunInputs => RunInputs`) — önceki "düzeltme" bunun
+> tersini iddia ediyordu, kaynakla doğrudan çelişiyordu. Gerekçe ve iki
+> ayrı deney `Gerçek sonuç` alanındadır.
 
-- `run_inputs` için `preview` config'teki varsayılanı **KULLANMAZ** —
-  `TraconRetentionOptions.ForTarget` içinde `run_inputs` için bir case
-  **yoktur**, `_ => null` dalına düşer. Yanıt `enabled: false`,
-  `maxAgeDays: null` olur.
-- `sessions` için config varsayılanı **KULLANILIR**. `UserDataTargets`
-  listesinin anlamı "config yok sayılır" değil, "yerleşik varsayılanı
-  `null`'dur, yani açıkça açılmadıkça kapalıdır"tır.
+- Hiçbir hedefe **kendi** `MaxAgeDays`'i verilmeden, yalnız `Enabled=true` +
+  `RunInputs:MaxAgeDays=60` ile: `run_inputs` → `enabled:true,
+  maxAgeDays:60` (kendi gömülü varsayılanı zaten `30`dur, config bunu
+  ezer). `sessions` → `enabled:false, maxAgeDays:null` — **hiç config
+  verilmediği için**, kendi gömülü varsayılanı `null`dur.
+- Asıl mekanizma: `UserDataTargets` listesi "config yok sayılır" anlamına
+  gelmez — her iki hedef de config'ten okunabilir (ikisine de açıkça
+  `MaxAgeDays` verilirse ikisi de eşit şekilde etkinleşir). Fark yalnız
+  her hedefin KENDİ gömülü varsayılanıdır: `RunInputs.MaxAgeDays = 30`
+  (kod içinde), `Sessions.MaxAgeDays`/`Conversations.MaxAgeDays = null`
+  ("desteklenir ama kapalı" — tüketici açıkça açmadıkça hiçbir şey
+  silinmez).
 
 ### MT-RET-020 — Yalnız `MaxRows`, 150 satırlık hedefte fazlayı siler
 
@@ -575,8 +592,10 @@ Faz kapanışında gerçek koşumla (SQLite, port 5080) doğrulanmış senaryonu
 **Girilecek veri**
 ```bash
 sqlite3 samples/Tracon.Api/tracon-manuel.db <<'SQL'
-INSERT INTO tracon_runs (id, tenant_id, agent_name, status, created_at, updated_at)
-VALUES ('22222222-2222-2222-2222-222222222222','default','support',1,datetime('now'),datetime('now'));
+-- 🚨 runs kolonlari created_at/updated_at DEGIL, started_at/is_streaming'dir
+-- (MT-RET-001'de de duzeltildi) -- duzeltildi 2026-09-17, ap-s2:
+INSERT INTO tracon_runs (id, tenant_id, agent_name, status, started_at, is_streaming)
+VALUES ('22222222-2222-2222-2222-222222222222','default','support',1,datetime('now'),0);
 WITH RECURSIVE seq(x) AS (SELECT 1 UNION ALL SELECT x+1 FROM seq WHERE x < 150)
 INSERT INTO tracon_run_events (run_id, seq, type, created_at)
 SELECT '22222222-2222-2222-2222-222222222222', x, 0,
@@ -727,10 +746,12 @@ curl -s -X PUT "$APU/api/retention/run_events" \
 
 curl -s -X POST "$APU/api/retention/run?target=run_events" \
   -H "$APB" -H "X-Tracon-Tenant: kiraci-alfa" | jq -r '.jobId'
-sleep 2
+sleep 4
 
+# 🚨 tracon_run_events'te tenant_id sütunu YOK (kiracı runs'tan JOIN ile
+# çözülür) — düzeltildi 2026-09-17, ap-s2:
 sqlite3 samples/Tracon.Api/tracon-manuel.db \
-  "SELECT tenant_id, count(*) FROM tracon_run_events GROUP BY tenant_id;"
+  "SELECT r.tenant_id, count(*) FROM tracon_run_events e JOIN tracon_runs r ON e.run_id=r.id GROUP BY r.tenant_id;"
 ```
 
 **Beklenen sonuç (K-279'un doğrulanması, K-260'ın çürütülmesi)**
@@ -1026,7 +1047,7 @@ wait
   `200` görülebilir — makine yüküne bağlıdır). **Sıfır** `200` görülmesi
   ise gerçek bir kusurdur (kotanın hiç izin vermediği anlamına gelir).
 
-### MT-RET-040 — 🚨 `RetentionEndpoints` VE `QuotaEndpoints` `RequireApiKeyScope` çağırmaz
+### MT-RET-040 — `RetentionEndpoints` VE `QuotaEndpoints` `RequireApiKeyScope` ÇAĞIRIR (düzeltilmiş)
 
 | | |
 |---|---|
@@ -1035,45 +1056,46 @@ wait
 | **İlgili faz** | Faz 21, 25 |
 | **İlgili karar** | — |
 
-Negatif senaryo — bilinen ailenin **sekizinci** (`Retention`) ve
-**dokuzuncu** (`Quota`) bağımsız tekrarı (önceki yediyi bkz.
-`15/16/17/18/20/21`). `grep -n "RequireApiKeyScope" src/Tracon.AspNetCore/
-Endpoints/RetentionEndpoints.cs src/Tracon.AspNetCore/Endpoints/
-QuotaEndpoints.cs` **sıfır** sonuç döner — ikisi de yalnız
-`RequireRole(roles.Admin)` taşır, ve rol politikaları örnek uygulamada hiç
-kayıtlı değildir (`14-SKILL-VE-SCRIPT.md`'nin bulgusu). Sonuç: statik bearer
-token'a sahip **herhangi bir** otomasyon anahtarı — kapsamı `RunsRead` bile
-olsa — saklama politikası yazabilir, gerçek bir silme çalıştırması tetikleyebilir
-ve kota kurallarını değiştirebilir.
+🚨🚨 **Başlık ve önerme 2026-09-17'de (ap-s2) tersine çevrildi — güvenlik
+açığı KAPANMIŞ.** Case yazıldığında `grep -n "RequireApiKeyScope"
+src/Tracon.AspNetCore/Endpoints/RetentionEndpoints.cs
+src/Tracon.AspNetCore/Endpoints/QuotaEndpoints.cs` sıfır sonuç veriyordu.
+**Artık böyle değil**: her iki dosyanın HER ucu `.RequireApiKeyScope(
+ApiKeyScope.PlatformRead)` veya `PlatformAdmin` taşıyor. Statik bearer
+token'a sahip anahtarların kapsamı artık doğru uygulanıyor — bu bir kapanış
+kanıtıdır, açık kanıtı değil.
 
 **Ön koşul**
-- Bir API anahtarı sistemi kurulu (`13-KIRACI-VE-GUVENLIK.md`'nin ortam kurulumu) —
-  yalnız `ApiKeyScope.RunsRead` taşıyan bir anahtar tanımlı.
+- Bir API anahtarı sistemi kurulu (`POST /api/api-keys` ile) — yalnız
+  `ApiKeyScope.RunsRead` taşıyan bir anahtar oluşturulur.
 
 **Adımlar**
-1. Bu salt-okunur anahtarla `PUT /api/retention/{target}` dene (beklenen: kabul edilir).
-2. Kontrol grubu: aynı anahtarla `AgentsAdmin` gerektiren bir uca yaz (beklenen: `403`).
+1. Bu salt-okunur anahtarla `PUT /api/retention/{target}` dene (beklenen: `403`).
+2. Pozitif kontrol: `PlatformAdmin` kapsamlı bir anahtarla aynı istek (beklenen: `200`).
 
 **Girilecek veri**
 ```bash
-export RO="Authorization: Bearer <RunsRead-KAPSAMLI-ANAHTAR>"
+RO_KEY=$(curl -s -X POST "$APU/api/api-keys" -H "$APB" -H "content-type: application/json" \
+  -d '{"name":"ret-ro-test","scopes":["RunsRead"]}' | jq -r '.plaintextKey')
+export RO="Authorization: Bearer $RO_KEY"
 
 curl -s -i -X PUT "$APU/api/retention/jobs" -H "$RO" -H "content-type: application/json" \
   -d '{"maxAgeDays":30,"archive":false,"enabled":true}'
 
-# Kontrol grubu — bunun 403 vermesi gerekir:
-curl -s -i -X POST "$APU/api/agents" -H "$RO" -H "content-type: application/json" \
-  -d '{"name":"kontrol-grubu","instructions":"x","model":{"provider":"openai","model":"gpt-5.4-mini"}}'
+ADMIN_KEY=$(curl -s -X POST "$APU/api/api-keys" -H "$APB" -H "content-type: application/json" \
+  -d '{"name":"ret-admin-test","scopes":["PlatformAdmin"]}' | jq -r '.plaintextKey')
+curl -s -i -X PUT "$APU/api/retention/jobs" -H "Authorization: Bearer $ADMIN_KEY" \
+  -H "content-type: application/json" -d '{"maxAgeDays":30,"archive":false,"enabled":true}'
 ```
 
-**Beklenen sonuç (şüphenin doğrulanması)**
-- İlk istek `200`/`201` ile **başarılı olur** — salt-okunur bir anahtar
-  gerçek bir saklama politikası yazabilir.
-- Kontrol grubu `403` döner — `AgentEndpoints`'in kendisi kapsamı doğru
-  uyguluyor, yalnız `Retention`/`Quota` yüzeyi bu denetimden **muaf**.
-- Doğrularsa: `13-KIRACI-VE-GUVENLIK.md`'nin kapsam matrisine bu iki uç
-  ailesi eklenmelidir; önem derecesi **Yüksek** — veri SİLME yetkisi salt
-  okunur bir anahtara sızıyor olabilir.
+**Beklenen sonuç**
+- `RunsRead` kapsamlı anahtar → **`403 Forbidden`** — yetersiz kapsam
+  reddedilir.
+- `PlatformAdmin` kapsamlı anahtar → **`200 OK`** — doğru kapsam kabul
+  edilir.
+- `QuotaEndpoints` için de aynı doğrulama geçerlidir (kaynakta
+  `.RequireApiKeyScope(ApiKeyScope.PlatformRead/PlatformAdmin)` her ucunda
+  mevcut).
 
 ---
 
@@ -1108,10 +1130,11 @@ curl -s -X PUT "$APU/api/retention/run_events" \
 
 curl -s -X POST "$APU/api/retention/run?target=run_events" \
   -H "$APB" -H "X-Tracon-Tenant: kiraci-alfa" | jq -r '.jobId'
-sleep 2
+sleep 4
 
+# 🚨 tenant_id sütunu run_events'te yok, runs'tan JOIN gerekir (bkz. MT-RET-023)
 sqlite3 samples/Tracon.Api/tracon-manuel.db \
-  "SELECT tenant_id, count(*) FROM tracon_run_events GROUP BY tenant_id;"
+  "SELECT r.tenant_id, count(*) FROM tracon_run_events e JOIN tracon_runs r ON e.run_id=r.id GROUP BY r.tenant_id;"
 ```
 
 **Beklenen sonuç**
@@ -1904,8 +1927,10 @@ curl -s "$APU/api/runs/$RUN_ID/events" -H "$APB" -H "Last-Event-ID: 0" | grep -c
 curl -s -X PUT "$APU/api/quotas" -H "$APB" -H "content-type: application/json" \
   -d '{"agentName":"support","period":"Daily","maxRuns":2,"enabled":true}'
 
-curl -N -s "$APU/api/agents/support/run" -H "$APB" -d '{"message":"once"}' | grep -c '^event: custom'
-curl -N -s "$APU/api/agents/support/run" -H "$APB" -d '{"message":"iki"}' | grep -c '^event: custom'
+# 🚨 content-type BAŞLIĞI GEREKİR -- yoksa 415 ile sessizce başarısız olur
+# ve grep -c "custom" hep 0 döner (run hiç başlamaz) -- düzeltildi 2026-09-17, ap-s2:
+curl -N -s "$APU/api/agents/support/run" -H "$APB" -H 'content-type: application/json' -d '{"message":"once"}' | grep -c '^event: custom'
+curl -N -s "$APU/api/agents/support/run" -H "$APB" -H 'content-type: application/json' -d '{"message":"iki"}' | grep -c '^event: custom'
 ```
 
 **Beklenen sonuç**
