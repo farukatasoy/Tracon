@@ -252,7 +252,7 @@ Dağılım `00-KOSUM-PLANI.md` §3.1'dedir:
 | `ap-s1` | 5081 | `mt_s1` | 19 | 13 · 19 · 04 · 18 · 10 · 08 | 🟡 sürüyor — aile 13: 74/144 case (MT-SEC-001..119), uygulama durdurulmuş halde devredildi. **Tamamlanmadı** — bu oturum tarafından dokunulmadı, ilerleyen bir oturum devam eder |
 | `ap-s2` | 5082 | `mt_s2` | 17 | 36 · 33 · 12 · 24 · 35 · 23 · 15 · 14 | 🚀 oturum 13'te arka plan agent'ı olarak başlatıldı (aile 36'dan) |
 | `ap-s3` | 5083 | `mt_s3` | 18 | 32 · 29 · 34 · 21 · 11 · 25 · 17 · 20 | 🚀 oturum 13'te arka plan agent'ı olarak başlatıldı (aile 32'den) |
-| `ap-s4` | 5084 | `mt_s4` | 18+ | 31 · 16 · 30 · 22 · 09 · 27 · 26 · 28 · 06 | ✅ **aile 31 ve aile 16 KAPANDI** (35/35, 98/98 — 97 Geçti, 1 Kaldı → `HATA-S4-002`, `PUT /api/schedules/{name}` `payload`sız gövdede `500`, `SchedulingEndpoints.cs:266`). Sıradaki: `30-YEREL-REFERANS.md`, henüz açılmadı. Ana uygulama port 5084'te açık bırakıldı |
+| `ap-s4` | 5084 | `mt_s4` | 18+ | 31 · 16 · 30 · 22 · 09 · 27 · 26 · 28 · 06 | ✅ **aile 31, 16 ve 30 KAPANDI** (35/35, 98/98 — 1 Kaldı → `HATA-S4-002`, 27/27 — 25 Geçti, 2 Beklemede fiziksel eylem MT-YRF-026/027). Sıradaki: `22-GUARDRAIL-VE-YAPISAL-CIKTI.md`, henüz açılmadı. Ana uygulama port 5084'te açık bırakıldı |
 
 `ap-s2`/`ap-s3`/`ap-s4` oturum 13'te `main`'e fast-forward edildi (Faz A
 kapanış commit'lerini almaları için) — kendi commit'leri yoktu, çakışma
