@@ -252,7 +252,7 @@ Dağılım `00-KOSUM-PLANI.md` §3.1'dedir:
 | `ap-s1` | 5081 | `mt_s1` | 19 | 13 · 19 · 04 · 18 · 10 · 08 | 🟡 sürüyor — aile 13: 74/144 case (MT-SEC-001..119), uygulama durdurulmuş halde devredildi. **Tamamlanmadı** — bu oturum tarafından dokunulmadı, ilerleyen bir oturum devam eder |
 | `ap-s2` | 5082 | `mt_s2` | 17 | 36 · 33 · 12 · 24 · 35 · 23 · 15 · 14 | 🚀 oturum 13'te arka plan agent'ı olarak başlatıldı (aile 36'dan) |
 | `ap-s3` | 5083 | `mt_s3` | 18 | 32 · 29 · 34 · 21 · 11 · 25 · 17 · 20 | 🚀 oturum 13'te arka plan agent'ı olarak başlatıldı (aile 32'den) |
-| `ap-s4` | 5084 | `mt_s4` | 18+ | 31 · 16 · 30 · 22 · 09 · 27 · 26 · 28 · 06 | ✅ **aile 31, 16, 30 ve 22 KAPANDI** (35/35, 98/98 — 1 Kaldı → `HATA-S4-002`, 27/27 — 25 Geçti/2 fiziksel, 56/56 — 53 Geçti/1 Kaldı → `HATA-S4-003`/2 fiziksel). 🚨 Bu oturum ana uygulamayı `ASPNETCORE_ENVIRONMENT=Development` ile yeniden başlattı (önceki oturumlarda user-secrets hiç yüklenmiyordu, `support` sessizce echo'ya bağlıydı) — artık gerçek OpenAI/Anthropic/Google/OpenRouter hepsi `Healthy`, aile 06/27'nin önü açık. Sıradaki: `09-ARAYUZ-GENEL.md`, henüz açılmadı. Ana uygulama port 5084'te açık bırakıldı |
+| `ap-s4` | 5084 | `mt_s4` | 18+ | 31 · 16 · 30 · 22 · 09 · 27 · 26 · 28 · 06 | ✅ **aile 31, 16, 30, 22 ve 09 KAPANDI** (35/35, 98/98 — 1 Kaldı → `HATA-S4-002`, 27/27 — 25 Geçti/2 fiziksel, 56/56 — 53 Geçti/1 Kaldı → `HATA-S4-003`/2 fiziksel, 57/57 — 56 Geçti/1 fiziksel, yeni kusur yok). Sıradaki: `27-MODEL-YEDEK-VE-ON-UCUS.md`, henüz açılmadı. Ana uygulama port 5084'te (gerçek OpenAI/Anthropic/Google/OpenRouter hepsi `Healthy`) açık bırakıldı |
 
 `ap-s2`/`ap-s3`/`ap-s4` oturum 13'te `main`'e fast-forward edildi (Faz A
 kapanış commit'lerini almaları için) — kendi commit'leri yoktu, çakışma
