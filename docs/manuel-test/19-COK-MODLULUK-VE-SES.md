@@ -708,9 +708,15 @@ dotnet run
 
 **Beklenen sonuç**
 - Uygulama açılışta `OptionsValidationException` ile ÇÖKER; mesaj
-  `'pcm_16000' bicimi ek olarak saklanamaz` metnini içerir (`VoiceOptionsValidator.IsStorableFormat`).
+  `format 'pcm_16000' cannot be stored as an attachment` metnini içerir
+  (`VoiceOptionsValidator.IsStorableFormat`).
 - **Geri al:** `dotnet user-secrets remove "Tracon:Voice:OutputFormat"`,
   yeniden başlat.
+
+> **Doküman düzeltmesi (2026-09-16 koşumu):** Beklenen mesaj metni Türkçe
+> yazılmıştı; `VoiceOptionsValidator.cs`'in gerçek metni İngilizce'dir
+> (K-228 — paket koduna giren her şey İngilizce, yalnız `docs/`/`.agents/`
+> Türkçe kalır). Yukarıda düzeltildi.
 
 ---
 
@@ -733,10 +739,13 @@ dotnet run
 ```
 
 **Beklenen sonuç**
-- Açılış çöker; mesaj `'azure-cognitive-speech' saglayicisi taninmiyor.
-  Yerlesik saglayici: 'elevenlabs'` metnini içerir.
+- Açılış çöker; mesaj `provider 'azure-cognitive-speech' is not recognized.
+  Built-in provider: 'elevenlabs'` metnini içerir.
 - **Geri al:** `dotnet user-secrets remove "Tracon:Voice:Provider"`,
   yeniden başlat.
+
+> **Doküman düzeltmesi (2026-09-16 koşumu):** Beklenen mesaj metni Türkçe
+> yazılmıştı; gerçek metin İngilizce'dir (K-228). Yukarıda düzeltildi.
 
 ---
 
@@ -759,10 +768,13 @@ dotnet run
 ```
 
 **Beklenen sonuç**
-- Açılış çöker; mesaj `eszamanli istek siniri sifirdan buyuk olmalidir`
+- Açılış çöker; mesaj `concurrent request limit must be greater than zero`
   içerir.
 - **Geri al:** `dotnet user-secrets remove "Tracon:Voice:MaxConcurrentRequests"`,
   yeniden başlat.
+
+> **Doküman düzeltmesi (2026-09-16 koşumu):** Beklenen mesaj metni Türkçe
+> yazılmıştı; gerçek metin İngilizce'dir (K-228). Yukarıda düzeltildi.
 
 ---
 
@@ -791,10 +803,14 @@ curl -s "$APU/api/voice/health" -H "$APB" | python3 -m json.tool
 
 **Beklenen sonuç**
 - `isHealthy: false`. `detail` alanı yalnız HTTP durum kodunu ve genel bir
-  ipucu içerir (`" API anahtari gecersiz."`) — `SAHTE-GECERSIZ-ANAHTAR-xyz789`
+  ipucu içerir (`" The API key is invalid."`) — `SAHTE-GECERSIZ-ANAHTAR-xyz789`
   metni yanıtın HİÇBİR YERİNDE görünmez. Uygulama loglarını da tara: anahtar
   orada da görünmemelidir.
 - **Geri al:** gerçek anahtarı tekrar ayarla, yeniden başlat.
+
+> **Doküman düzeltmesi (2026-09-16 koşumu):** İpucu metni Türkçe yazılmıştı;
+> `ElevenLabsSpeechClient.cs`'in gerçek metni İngilizce'dir (K-228).
+> Yukarıda düzeltildi.
 
 ### MT-MM-038 — `GET /api/voice/voices` gerçek ses listesini döner
 
@@ -1460,18 +1476,24 @@ Kritik negatif senaryo — K-277 davranışı.
 
 **Ön koşul**
 - `kiraci-alfa` altında `paylasilan-oturum-id` adlı bir oturum zaten var
-  (`X-Tenant-Id: kiraci-alfa` ile `POST {APU}/api/agents/support/run -d
+  (`X-Tracon-Tenant: kiraci-alfa` ile `POST {APU}/api/agents/support/run -d
   '{"sessionId":"paylasilan-oturum-id","message":"merhaba"}'`).
+  🚨 **Düzeltildi (2026-09-17):** spec `X-Tenant-Id` yazıyordu —
+  `TraconTenancyOptions.HeaderName` varsayılanı `X-Tracon-Tenant`'tır
+  (dosya 13'ün 21 case'i zaten bunu kullanıyor). Ayrıca bu case'in
+  çalışması için sunucunun `Tracon:Tenancy:Enabled=true` VE
+  `Tracon:Tenancy:AllowHeaderResolution=true` ile başlatılması gerekir
+  (ikisi de varsayılan kapalı — skill'in bilinen tuzağı).
 
 **Adımlar**
-1. VARSAYILAN kiracı (`X-Tenant-Id` başlığı YOK) ile aynı oturum kimliğine
-   bağlan.
+1. VARSAYILAN kiracı (`X-Tracon-Tenant` başlığı YOK) ile aynı oturum
+   kimliğine bağlan.
 
 **Girilecek veri**
 ```bash
 python3 ~/tracon-manuel-test/voice_client.py --session paylasilan-oturum-id --token manuel-test-token-2026
-curl -s "$APU/api/sessions/paylasilan-oturum-id" -H "$APB" -H "X-Tenant-Id: kiraci-alfa" \
-     | python3 -c "import json,sys; print(len(json.load(sys.stdin).get('items', [])))"
+curl -s "$APU/api/sessions/paylasilan-oturum-id" -H "$APB" -H "X-Tracon-Tenant: kiraci-alfa" \
+     | python3 -c "import json,sys; print(len(json.load(sys.stdin).get('messages') or []))"
 ```
 
 **Beklenen sonuç**
@@ -1575,10 +1597,14 @@ kopmamalıdır.
 **Girilecek veri**
 ```bash
 python3 ~/tracon-manuel-test/voice_client.py --session manuel-ws-bos-commit \
-  --send-audio-before-start --audio-seconds 0.0 --no-commit
-# Not: bu komut once "commit"i ELLE gondermeden BOS bir ses gonderir; ardindan
-# aracin kendisi commit gonderir. Boş parca (0 saniye) VoiceUtteranceBuffer'in
-# HasAudio=false durumunu tetikler.
+  --send-audio-before-start --audio-seconds 0.0
+# Not: bu komut BOS bir ses gonderir, ardindan aracin kendisi commit gonderir.
+# Boş parca (0 saniye) VoiceUtteranceBuffer'in HasAudio=false durumunu tetikler.
+# 🚨 Düzeltildi (2026-09-17): spec ayrıca `--no-commit` taşıyordu — bu bayrak
+# istemcinin commit'i HİÇ göndermemesine yol açar (kod: `if not
+# args.no_commit`), notun "araç commit gönderir" iddiasıyla ÇELİŞİYORDU.
+# `--no-commit` olmadan koşulunca gerçekten commit gidiyor ve senaryo (boş
+# parça + commit → tur üretilmez) doğru gözlenebiliyor.
 ```
 
 **Beklenen sonuç**
@@ -2051,7 +2077,10 @@ Negatif/maliyet senaryosu. MT-MM-091 ve MT-MM-092'nin karşılaştırması.
 | **İlgili karar** | — |
 
 **Ön koşul**
-- MT-MM-091 ve MT-MM-092 aynı metinle (`"Merhaba"`) koşuldu.
+- MT-MM-091 ve MT-MM-092 aynı metinle (`"Merhaba"`) koşuldu. 🚨 Düzeltildi
+  (2026-09-17): MT-MM-091'in kendi örnek komutu farklı bir metin
+  ("Zaman damgasiz sentez.") taşıyor — bu case için MT-MM-091,
+  MT-MM-092'nin metniyle (`"Merhaba"`) AYRICA koşulmalı.
 
 **Beklenen sonuç**
 - İki yanıttaki `characters` ve `cost` (yapılandırılmışsa) değerleri

@@ -276,8 +276,10 @@ Negatif senaryo.
 
 **Beklenen sonuç**
 - Form kapanmaz; sayfanın üstünde kırmızı bir `ErrorNote` görünür.
-- Mesaj sunucunun `ProblemDetails.detail`'ini **birebir** taşır: `"'manuel-bos'
-  adinda bir tanim zaten var. Guncellemek icin PUT kullanin."`
+- Mesaj sunucunun `ProblemDetails.detail`'ini **birebir** taşır: `"A
+  definition named 'manuel-bos' already exists. Use PUT to update it."`
+  (2026-09-16 turunda düzeltildi: metin İngilizce — `AgentEndpoints.cs:543`
+  — K-228 gereği runtime metni İngilizce'dir; spec'in Türkçe metni bayattı.)
 - Formdaki veri kaybolmaz — kullanıcı adı değiştirip yeniden deneyebilir.
 
 ---
@@ -302,9 +304,11 @@ kullanıcıya sunucudan geldiği gibi gösterir.
 
 **Beklenen sonuç**
 - `ErrorNote`, `MT-UIAG-006`'dan **farklı** bir gerekçe metni taşır:
-  `"'support' kodda tanimli bir agent'tir ve yonetim API'sinden
-  degistirilemez. Ad cakismasinda kod kazandigi icin ayni adla yazilan bir
-  tanim hicbir zaman cozulmezdi."`
+  `"'support' is an agent defined in code and cannot be changed from the
+  management API. Code wins name conflicts, so a definition written with
+  the same name would never resolve."` (2026-09-16 turunda düzeltildi: metin
+  İngilizce — `AgentEndpoints.cs:538-540` — K-228, aynı bayatlık MT-UIAG-006'da
+  da bulundu.)
 - Katalogda ikinci bir `support` satırı **oluşmaz**.
 
 ---
@@ -489,9 +493,10 @@ Negatif senaryo.
 **Beklenen sonuç**
 - Adım 1: kendisi seçenek listesinde hiç görünmez (kendi kendini çağıramaz —
   bu kısıt istemci tarafında filtrelenir).
-- Adım 3: kayıt `400` ile reddedilir; `ErrorNote` başlığı `"Cagri grafigi
-  gecersiz"` metnini taşır, ayrıntı `AgentCallGraph.Validate`'in ürettiği
-  çevrim açıklamasıdır. Form kapanmaz, veri kaybolmaz.
+- Adım 3: kayıt `400` ile reddedilir; `ErrorNote` başlığı `"Call graph
+  invalid"` metnini taşır (2026-09-16 turunda düzeltildi: metin İngilizce,
+  K-228 — spec'in Türkçe başlığı bayattı), ayrıntı `AgentCallGraph.Validate`'in
+  ürettiği çevrim açıklamasıdır. Form kapanmaz, veri kaybolmaz.
 
 ### MT-UIAG-014 — Var olan DB agent'ı açılınca form dolar, `name` alanı salt okunurdur
 
@@ -570,9 +575,13 @@ Sınır durumu — `isEditable = false`.
 - Sayfanın altında `agentDetail.codeNotice` metniyle bilgilendirme satırı
   görünür.
 - Adım 3: editör ekranı AÇILIR (yönlendirici bunu engellemez) ama "Sürüm
-  Kaydet"e basıldığında `409 Kodda tanimli agent degistirilemez` hatası
-  görünür — arayüz bu güvenliği yalnızca DÜĞMEYİ GİZLEYEREK sağlar, URL
-  seviyesinde bir engel yoktur; gerçek sınır sunucudadır.
+  Kaydet"e basıldığında `409` hatası görünür: `"Code-defined agent cannot
+  be modified: 'support' is defined in code. Code definitions are
+  validated at compile time and cannot be changed from the management
+  API; update the application code to change it."` (2026-09-16 turunda
+  düzeltildi: metin İngilizce, K-228 — spec'in Türkçe metni bayattı) —
+  arayüz bu güvenliği yalnızca DÜĞMEYİ GİZLEYEREK sağlar, URL seviyesinde
+  bir engel yoktur; gerçek sınır sunucudadır.
 
 ### MT-UIAG-017 — DB kökenli agent özet + talimat + tam tanım JSON'u gösterir
 
@@ -617,10 +626,21 @@ Sınır durumu — `isEditable = false`.
 **Beklenen sonuç**
 - `descriptor.model`/`toolNames` yine de doğru görünür (katalog özeti kod
   tanımından üretilir).
-- `definition` (kalıcı tanım) `null`'dır — kod agent'ının hiçbir zaman bir
-  `AgentDefinition` satırı YOKTUR; bu durumda "Tanım" paneli hiç render
-  edilmez (`{definition !== null && (...)}`), talimat panelinde
-  `agentDetail.noDefinitionForCode` ek notu görünür.
+- `definition`'ın null olup olmadığı kod agent'ının NASIL kaydedildiğine
+  bağlıdır (2026-09-16 turunda düzeltildi — `AgentEndpoints.cs`'in kendi
+  `WithDescription`'ı bunu açıkça ayırıyor, spec'in eski "her kod agent'ının
+  definition'ı null'dır" varsayımı BAYAT): `AddAgent(new AgentDefinition
+  {...})` ile (deklaratif) kayıtlı bir agent'ın `definition`'ı DOLU gelir
+  (`instructions` dahil tam nesne) — bu yüzden "Tanım" paneli RENDER EDİLİR
+  ve `noDefinitionForCode` notu GÖRÜNMEZ. Yalnız `AddAgent(name, factory)`
+  ile (fabrika) kayıtlı bir agent'ın `definition`'ı `null` gelir — o zaman
+  panel gizlenir ve not görünür. `samples/Tracon.Api/Program.cs`'teki
+  **her** agent (`support` dahil, 15 kayıt) deklaratif — bu ortamda fabrika
+  stili tek bir örnek YOK, yani `null`-definition/`noDefinitionForCode`
+  dalı bu ortamda ampirik olarak hiç tetiklenemiyor (ölçüldü: `GET
+  /api/agents/support` `definition` alanı dolu, `factoryInstructions: null`
+  döndü). Bu bir Tracon kusuru değil, fixture kapsamı boşluğu — açık kalem
+  olarak `00-INDEKS.md`'ye yazılmalı.
 - Sayfanın altında "Sürümler" bölümü hiç YOKTUR (`isEditable` koşulu
   `VersionHistory`'yi de kapsar) — kod agent'ının versiyon geçmişi olmaz.
 
@@ -888,10 +908,13 @@ Oturum kimliği sunucudan rezerve edilir (K-043) — arayüz kendi biçimini uyd
 1. `Merhaba` (`FIX-PROMPT-02`) gönder.
 
 **Beklenen sonuç**
-- Yanıt metin metin akar (`ap-stream-caret` imleç sınıfı son metin bloğunda
-  görünür, akış bitince kaybolur).
+- Yanıt metin metin akar; `ap-stream-caret` sınıfı son metin bloğunda
+  DOM'a eklenir ama görsel karşılığı YOKTUR — bkz. `HATA-S1-028` (2026-09-16
+  turunda bulundu): CSS yalnız `.tracon-stream-caret::after` tanımlıyor,
+  bileşen `ap-stream-caret` uyguluyor, ikisi hiç eşleşmiyor.
 - **Hiçbir** `data-testid="tool-card"` öğesi belirmez.
-- Tur `done` olunca "Konuştur" (`playground.speak`) düğmesi görünür
+- Tur `done` olunca "Seslendir" (`playground.speak`, spec'in eski "Konuştur"
+  metni bayattı — 2026-09-16 turunda düzeltildi) düğmesi görünür
   (`spokenText.length > 0`).
 
 ---
@@ -917,10 +940,13 @@ Oturum kimliği sunucudan rezerve edilir (K-043) — arayüz kendi biçimini uyd
 
 **Beklenen sonuç**
 - Adım 2: kart `data-testid="tool-card"`, İÇİ AÇIK belirir (`state='running'`
-  anında `useState(item.state !== 'ok')` → `true`), `Çalışıyor` rozeti.
+  anında `useState(item.state !== 'ok')` → `true`), `"sürüyor"` rozeti
+  (2026-09-16 turunda düzeltildi: spec'in `"Çalışıyor"` metni bayattı —
+  gerçek i18n anahtarı `runs.status.running` küçük harfle `"sürüyor"`).
 - Adım 3: kart HÂLÂ açık — bileşen aynı `key={item.id}` ile yeniden render
   edildiği için `useState`'in başlangıç değeri BİR DAHA hesaplanmaz; rozet
-  `Tamamlandı`'ya döner, "Argümanlar" ve "Sonuç" bölümleri dolu görünür
+  `"bitti"`'ye döner (spec'in `"Tamamlandı"` metni de bayat —
+  `transcript.done` i18n anahtarı), "Argümanlar" ve "Sonuç" bölümleri dolu görünür
   (`get_order_status` çağrısının argümanı `ORD-1001` içerir).
 - Adım 4: kullanıcı elle açıp kapatabilir — bu davranış yalnız İLK render'da
   otomatiktir.
@@ -944,9 +970,15 @@ Oturum kimliği sunucudan rezerve edilir (K-043) — arayüz kendi biçimini uyd
 2. Akış bitene kadar bekle.
 
 **Beklenen sonuç**
-- `data-testid="approval-card"` görünür: tool adı `cancel_order` başlıkta
-  (mono yazı tipi — hiçbir `IToolApprovalPresenter` kayıtlı değilse
-  gösterilecek varlık adı yoktur), `tools.approvalRequired` rozeti.
+- `data-testid="approval-card"` görünür: `cancel_order` mono yazı tipiyle
+  görünür. Spec'in "hiçbir `IToolApprovalPresenter` kayıtlı değilse
+  gösterilecek varlık adı yoktur" varsayımı bu ortam için BAYAT (2026-09-16
+  turunda düzeltildi): `samples/Tracon.Api/Program.cs:146`
+  `OrderApprovalPresenter`'ı HER ZAMAN kayıtlı tutuyor (kod donuk, kaldırılamaz)
+  — bu yüzden başlıkta `"Order ORD-1001"` varlık adı da görünür. "Presenter
+  kayıtlı değil" dalı bu ortamda ampirik olarak hiç sınanamıyor; o dal zaten
+  `MT-UIAG-053`'ün konusu (Faz 142, "presenter varken varlık adı gösterir").
+  `tools.approvalRequired` rozeti (`"onay gerekli"`) doğru görünür.
 - "Argümanlar" satırı KATLI durur (Faz 142): `data-testid=
   "approval-toggle-arguments"` düğmesine tıklamadan argüman içeriği
   görünmez. Tıklandığında `orderId: "ORD-1001"` içeren bölüm açılır.
@@ -1340,8 +1372,9 @@ Negatif senaryo — akış hiç başlamadan gelen `ProblemDetails` yolu.
 - `openStream`'in ilk `fetch`'i `404` döner (`RunAsync`'in `agent is null`
   dalı, akış HİÇ başlamaz — yanıt SSE değil, düz `ProblemDetails`'tir).
 - Panelin ÜSTÜNDE kırmızı bir `ErrorNote` belirir (`setError(caught)` —
-  `ApiError` mesajı `"Agent bulunamadi: 'manuel-yok-boyle-agent' adinda bir
-  agent yok."`).
+  `ApiError` mesajı `"Agent not found: There is no agent named
+  'manuel-yok-boyle-agent'."` — spec'in Türkçe metni 2026-09-16 turunda
+  düzeltildi, K-228 aynı kök neden).
 - AYNI ZAMANDA turun içinde de kırmızı bir hata kutusu görünür (`turn.error`
   aynı mesajı taşır) — bu case'te İKİ gösterge birden vardır, bu Bölüm 7'nin
   diğer iki case'inden AYRIŞAN noktadır.
@@ -1409,12 +1442,15 @@ DEĞİŞMEDİ — yalnız backend artık işleyicinin beklediği çerçeveyi gö
 | **İlgili karar** | K-296 |
 
 **Ön koşul**
-- `playground/support` açık, yeni sohbet.
 - Katalogda geçersiz bir model adı taşıyan bir agent (K-296'nın orijinal
   ölçümünde kullanılan türden — örn. sağlayıcının `404 model_not_found`
-  döneceği bilinen bir ad) — yoksa geçici olarak `agents/support/edit`'ten
-  `Model` alanını `gecersiz-model-adi-xyz` yap, kaydet, case bitince
-  `gpt-5.4-mini`'ye GERİ AL.
+  döneceği bilinen bir ad). **Doküman düzeltmesi (2026-09-16):** spec'in
+  önerdiği "geçici olarak `agents/support/edit`'ten Model'i değiştir"
+  yolu ARTIK GEÇERSİZ — `support` kod kökenli (`MT-UIAG-016`'da kanıtlandı:
+  düzenleme isteği `409 Code-defined agent cannot be modified` ile
+  reddedilir). Bunun yerine geçici, atılabilir bir DB-kökenli agent
+  oluşturulur (`Ad: manuel-provider-hata-test`, `Sağlayıcı: openai`,
+  `Model: gecersiz-model-adi-xyz`), test edilir, sonra silinir.
 
 **Adımlar**
 1. `Merhaba` gönder.
@@ -1541,8 +1577,10 @@ Negatif senaryo.
 
 **Beklenen sonuç**
 - Yükleme `400` ile reddedilir; form alanının üstünde `ErrorNote`
-  `"Ek turu reddedildi: Dosya turu taninmadi. Desteklenen turler: ..."`
-  metnini gösterir (beyaz listedeki yedi tür alfabetik sırayla listelenir).
+  `"Attachment type rejected: File type not recognized. Supported types:
+  application/pdf, audio/*, image/gif, image/jpeg, image/png, image/webp,
+  text/plain."` metnini gösterir (2026-09-16 turunda düzeltildi: spec'in
+  Türkçe metni bayattı, K-228 — yedi tür yine de alfabetik sırayla listeleniyor).
 - Hiçbir chip eklenmez.
 
 ---
