@@ -7,6 +7,48 @@
  * It ships here instead: the Tracon UI is one consumer of it, not its
  * owner (Phase 159).
  */
+/** Options for {@link readSse}. */
+export interface ReadSseOptions {
+  /**
+   * Ends the stream with an {@link SseIdleTimeoutError} when no bytes at all
+   * arrive for this long. Omitted means wait forever.
+   *
+   * 🚨 Measure BYTES, not frames. Tracon sends `: waiting` comments while a run
+   * is still going and {@link SseDecoder} drops comments, so a healthy but
+   * quiet run yields no frames for as long as the run is quiet — a
+   * frame-based timeout would cut it off. Bytes tell the two apart: a run that
+   * is still going keeps sending them, a finished one closes the stream, and a
+   * connection that died without either sends nothing.
+   *
+   * Set it above the server's `RunEventPollInterval` (250 ms by default), with
+   * room for a slow link: that interval is how often the keep-alive is sent,
+   * and a threshold under it would fire between two healthy keep-alives.
+   */
+  idleTimeoutMs?: number;
+}
+
+/**
+ * Thrown by {@link readSse} when a stream goes completely quiet for longer
+ * than {@link ReadSseOptions.idleTimeoutMs}.
+ *
+ * A connection that drops without a close frame — a laptop going to sleep, a
+ * proxy timing out, a network that goes away mid-body — leaves the reader
+ * waiting on a chunk that will never come and throws nothing at all. Without
+ * this, a consumer cannot tell that from a run that is simply still working:
+ * both look like silence forever.
+ */
+export class SseIdleTimeoutError extends Error {
+  constructor(idleTimeoutMs: number) {
+    super(`The event stream sent nothing for ${idleTimeoutMs}ms and was closed.`);
+
+    this.name = 'SseIdleTimeoutError';
+    this.idleTimeoutMs = idleTimeoutMs;
+  }
+
+  /** The threshold that was exceeded, in milliseconds. */
+  readonly idleTimeoutMs: number;
+}
+
 /** One Server-Sent Events frame. */
 export interface SseFrame {
   /** Value of the `id:` field, when present. */
@@ -139,7 +181,10 @@ export class SseDecoder {
  * `EventSource` is not used: it cannot send an `Authorization` header and it
  * cannot issue a POST, and Tracon needs both.
  */
-export async function* readSse(response: Response): AsyncGenerator<SseFrame> {
+export async function* readSse(
+  response: Response,
+  options?: ReadSseOptions,
+): AsyncGenerator<SseFrame> {
   if (response.body === null) {
     return;
   }
@@ -147,10 +192,12 @@ export async function* readSse(response: Response): AsyncGenerator<SseFrame> {
   const reader = response.body.getReader();
   const utf8 = new TextDecoder();
   const decoder = new SseDecoder();
+  const idleTimeoutMs = options?.idleTimeoutMs;
 
   try {
     for (;;) {
-      const { done, value } = await reader.read();
+      const { done, value } =
+        idleTimeoutMs === undefined ? await reader.read() : await readWithin(reader, idleTimeoutMs);
 
       if (done) {
         break;
@@ -162,5 +209,35 @@ export async function* readSse(response: Response): AsyncGenerator<SseFrame> {
     }
   } finally {
     reader.releaseLock();
+  }
+}
+
+/**
+ * Reads the next chunk, or throws {@link SseIdleTimeoutError} when nothing at
+ * all arrives within `idleTimeoutMs`.
+ *
+ * The reader is cancelled on the way out so the underlying connection is
+ * released rather than left half-open behind a generator nobody is pulling.
+ */
+async function readWithin(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  idleTimeoutMs: number,
+): Promise<{ done: boolean; value?: Uint8Array }> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+
+  const idle = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => reject(new SseIdleTimeoutError(idleTimeoutMs)), idleTimeoutMs);
+  });
+
+  try {
+    return await Promise.race([reader.read(), idle]);
+  } catch (error) {
+    if (error instanceof SseIdleTimeoutError) {
+      await reader.cancel().catch(() => undefined);
+    }
+
+    throw error;
+  } finally {
+    clearTimeout(timer);
   }
 }
