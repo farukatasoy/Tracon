@@ -159,6 +159,30 @@ Bunlar kapanış oturumlarında da geçerlidir ve bitti tanımında
 
 ---
 
+## 3.6 Sıradaki iş — 2026-09-18 itibarıyla
+
+**Aile D.** `HATA-S1-026` (Yüksek): `TruncatingAIFunction` MCP tool
+sonuçlarını (`AIContent`) atlıyor, hiç kırpma yok. Ölçüm:
+`Tracon:Tools:DefaultMaxOutputBytes=200` iken modele **8095 bayt** gitti —
+sınırın 40 katı, hiçbir kırpma işareti olmadan. Kayıt
+[`18-MCP-VE-A2A.md`](18-MCP-VE-A2A.md)'nin `MT-MCP-059` bloğundadır.
+
+Ondan sonra sırayla **E** (eval case kimlikleri) · **F** (SSE ve düşünme
+kaydı) · **G** (maliyet muhasebesi) · **H** (agent önbelleği); yüksek öncelik
+orada biter. Orta ve düşük öncelik §4'ün ikinci tablosundadır.
+
+**Oturum açılışında koş** (taban çizgisinin hâlâ yeşil olduğunu doğrula):
+
+```bash
+git status --short                 # temiz olmali
+python3 scripts/dokuman-bakim.py --denetle   # TEK kirmizi: kosumlar butcesi (§3.2)
+```
+
+Dört .NET kapısı §3.2'dedir. `kapi.py kapanis` **kullanma** — ikinci adımda
+durur, gerekçe §3.2'de.
+
+---
+
 ## 4. Aileler
 
 Aile = aynı kök nedeni paylaşan kusur kümesi. **Bir oturum bir aile bitirir.**
@@ -223,7 +247,7 @@ sıfırdan başlardı: tam da bu sorgunun engellemek için var olduğu çakışm
 
 ---
 
-| **C** · Tracon'un kendi istisnası maskeleniyor | `S1-024` **Yüksek** · `S4-005` Orta | Tool içi `TraconException` mesajı modele hiç ulaşmıyor — `FunctionInvokingChatClient` onu `"Error: Function failed."`e çeviriyor. Aynı desen sağlayıcı fabrikasında: `ProviderFailureNormalizer` Anthropic/Google fabrikalarının kendi el ile attığı doğrulama hatalarını (düşünme bütçesi, güvenlik eşiği) yabancı SDK hatasıyla aynı maskeye sokuyor, özgül mesaj `/api/agents/validate`'te kayboluyor. **Tarama:** `throw new TraconException` kullanan HER tool ve fabrika | ☐ |
+| **C** · Tracon'un kendi istisnası maskeleniyor | `S1-024` **Yüksek** · `S4-005` Orta | Tool içi `TraconException` mesajı modele hiç ulaşmıyor — `FunctionInvokingChatClient` onu `"Error: Function failed."`e çeviriyor. Aynı desen sağlayıcı fabrikasında: `ProviderFailureNormalizer` Anthropic/Google fabrikalarının kendi el ile attığı doğrulama hatalarını (düşünme bütçesi, güvenlik eşiği) yabancı SDK hatasıyla aynı maskeye sokuyor, özgül mesaj `/api/agents/validate`'te kayboluyor. **Tarama:** `throw new TraconException` kullanan HER tool ve fabrika | ✅ **KAPANDI 2026-09-18** |
 #### Aile C — ✅ kapandı (2026-09-18)
 
 İki kusur, tek sınıf: **Tracon'un kendi yazdığı cümle, yabancı bir SDK
