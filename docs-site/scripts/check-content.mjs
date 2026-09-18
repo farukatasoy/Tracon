@@ -2,6 +2,16 @@ import { checkCapacityStamp } from './check-capacity-stamp.mjs';
 import { checkConsoleScreens } from './check-console-screens.mjs';
 // Product-documentation invariants that are cheap enough to run on every build.
 //
+// 🚨 This script needs the GENERATED pages on disk. `reference/changelog.md` is
+// gitignored and written by `npm run generate`, which npm runs as `prebuild`,
+// so on a fresh checkout it does not exist until `astro build` has run once.
+// `npm run check` used to call this first, and all three of its findings were
+// the same absence: an llms.txt built without the changelog page cannot match
+// the committed one, and the 404 exemption list names a page that is not
+// there. `check` therefore builds FIRST now. The cost is that a content error
+// surfaces after the build rather than before it; the alternative, generating
+// twice, pays for docfx twice on every run.
+//
 // This gate is intentionally about facts and structure, not subjective prose style.
 // It catches the defect classes that previously shipped: unusable install commands,
 // stale template choices, internal development notes in the public API reference,

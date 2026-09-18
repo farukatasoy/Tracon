@@ -42,13 +42,18 @@ if (!string.IsNullOrWhiteSpace(sqlite["ConnectionString"]))
 
 // The provider is optional too (the "zero surprise" rule). The app still
 // starts up without an API key; only runs that actually call the model
-// return an error.
+// return an error. `providerConfigured` records whether one was wired up, so
+// the model-name check below can stay silent on a host that can never reach a
+// provider anyway.
+var providerConfigured = false;
+
 #if (UseOpenAI)
 var openAi = builder.Configuration.GetSection(OpenAIProviderOptions.SectionName);
 
 if (!string.IsNullOrWhiteSpace(openAi["ApiKey"]))
 {
     tracon.UseOpenAI(openAi);
+    providerConfigured = true;
 }
 #endif
 #if (UseAnthropic)
@@ -57,6 +62,7 @@ var anthropic = builder.Configuration.GetSection(AnthropicProviderOptions.Sectio
 if (!string.IsNullOrWhiteSpace(anthropic["ApiKey"]))
 {
     tracon.UseAnthropic(anthropic);
+    providerConfigured = true;
 }
 #endif
 #if (UseGoogle)
@@ -65,6 +71,7 @@ var google = builder.Configuration.GetSection(GoogleProviderOptions.SectionName)
 if (!string.IsNullOrWhiteSpace(google["ApiKey"]))
 {
     tracon.UseGoogle(google);
+    providerConfigured = true;
 }
 #endif
 #if (UseAzure)
@@ -73,6 +80,7 @@ var azureOpenAI = builder.Configuration.GetSection(AzureOpenAIProviderOptions.Se
 if (!string.IsNullOrWhiteSpace(azureOpenAI["Endpoint"]) && !string.IsNullOrWhiteSpace(azureOpenAI["ApiKey"]))
 {
     tracon.UseAzureOpenAI(azureOpenAI);
+    providerConfigured = true;
 }
 #endif
 
@@ -85,6 +93,26 @@ tracon.UseUI();
 // the provider's own docs and
 // replace the placeholder below, or read it from the
 // `Tracon:Providers:*:DefaultModel` setting in appsettings.json.
+const string ModelName = "WRITE_MODEL_NAME_HERE";
+
+// Left in place, the placeholder is a model no provider serves, and the first
+// run comes back as "The model provider request failed." — the provider's own
+// 404 names the model, but that text is a foreign SDK message and is redacted
+// before it reaches the client, so the first five minutes go on an error that
+// names nothing. This stops at startup instead, and names the line to edit.
+//
+// Only when a provider is actually configured: with no API key the agent can
+// never reach a model, so an unedited template still starts up and still
+// answers, which is the "zero surprise" rule above and what
+// TemplateRunTests measures.
+if (providerConfigured && ModelName.StartsWith("WRITE_", StringComparison.Ordinal))
+{
+    throw new InvalidOperationException(
+        $"Program.cs still carries the model-name placeholder ('{ModelName}'). Replace it with a " +
+        "model your provider serves today — Tracon ships no model list, so the name comes from the " +
+        "provider's own documentation.");
+}
+
 tracon.AddAgent(new AgentDefinition
 {
     Name = "support",
@@ -105,7 +133,7 @@ tracon.AddAgent(new AgentDefinition
 #if (UseAzure)
         Provider = AzureOpenAIProviderNames.AzureOpenAI,
 #endif
-        Model = "WRITE_MODEL_NAME_HERE",
+        Model = ModelName,
     },
     ToolNames = ["get_order_status"],
 });
