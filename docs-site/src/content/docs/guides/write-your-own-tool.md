@@ -139,8 +139,9 @@ The source generator preserves all this metadata. For a complex result, declare 
 `JsonSerializerContext` in your own source as shown above; Roslyn does not let one
 source generator feed a context to another in the same compilation. The context makes
 the result canonical JSON, so content guards, the output limit, run records, and the
-model inspect the same data. Return `AIContent` only for the existing attachment
-contract; attachments are not inline output and are not subject to `MaxOutputBytes`.
+model inspect the same data. Returning `AIContent` blocks instead — the shape an MCP
+tool answers with — is also inspected and also counts against `MaxOutputBytes`; the
+blocks survive as long as the result fits.
 
 Do not resolve dependencies from `AIFunctionArguments.Services`: MAF supplies an empty
 provider. Resolve a singleton dependency when you register an `AIFunction`, as shown

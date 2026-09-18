@@ -102,6 +102,37 @@ public sealed class RunRecordingAgentTests
     }
 
     [Fact]
+    public async Task An_mcp_tool_result_is_recorded_instead_of_leaving_the_event_empty()
+    {
+        // 🚨 A remote MCP tool answers with AIContent blocks. ToolResultText
+        // could not read those, so the event payload and the tool invocation
+        // record were both written as null: the run record said a tool had
+        // been called and nothing about what it answered (HATA-S1-026's class
+        // scan).
+        var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());
+
+        var client = new FakeChatClient(_ => new ChatResponse(
+        [
+            new ChatMessage(ChatRole.Assistant, [new FunctionCallContent("call-1", "remote_report", new Dictionary<string, object?>(StringComparer.Ordinal))]),
+            new ChatMessage(ChatRole.Tool, [new FunctionResultContent("call-1", new TextContent("in transit"))]),
+            new ChatMessage(ChatRole.Assistant, "Your order is in transit."),
+        ]));
+
+        var agent = CreateAgent(store, client);
+
+        await agent.RunAsync("where is my order");
+
+        var run = (await store.QueryRunsAsync(new RunQuery())).ShouldHaveSingleItem();
+        var events = await ReadEventsAsync(store, run.Id);
+
+        var invoked = events.Where(static e => e.Type == RunEventType.ToolInvoked).ShouldHaveSingleItem();
+        invoked.Payload.ShouldNotBeNull().ShouldContain("in transit", Case.Sensitive);
+
+        var invocation = (await store.ListToolInvocationsAsync(run.Id)).ShouldHaveSingleItem();
+        invocation.Result.ShouldNotBeNull().ShouldContain("in transit", Case.Sensitive);
+    }
+
+    [Fact]
     public async Task Streaming_run_writes_text_deltas()
     {
         var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());

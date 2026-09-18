@@ -117,8 +117,14 @@ public sealed class McpTenantToolsTests
         // 🚨 MCP tools go through a SECOND, separate wrapping chain
         // (McpTenantTools.Create) — this is the contract that both chains
         // must carry the same rings, proven directly rather than assumed.
+        //
+        // 🚨 The stand-in returns an AIContent, not a string: that IS the
+        // shape McpClientTool answers with, and a string-returning fake hid
+        // HATA-S1-026 for a whole phase — the chain was installed, the budget
+        // was configured, and 8 KB still reached the model past a 200-byte
+        // limit. A fake that cannot produce the real defect proves nothing.
         var registration = new TraconToolRegistration(
-            AIFunctionFactory.Create(() => new string('a', 10_000), "remote_report"),
+            McpShapedTool("remote_report", new string('a', 10_000)),
             source: "github-mcp",
             maxOutputBytes: 100);
 
@@ -144,7 +150,7 @@ public sealed class McpTenantToolsTests
     public async Task The_installation_default_output_limit_applies_to_mcp_tools_too()
     {
         var registration = new TraconToolRegistration(
-            AIFunctionFactory.Create(() => new string('a', 10_000), "remote_report"),
+            McpShapedTool("remote_report", new string('a', 10_000)),
             source: "github-mcp");
 
         var tools = McpTenantTools.Create(
@@ -187,6 +193,30 @@ public sealed class McpTenantToolsTests
         tools.TryGet("remote_report", out var tool).ShouldBeTrue();
 
         ((AITool)tool!).GetService<TruncatingAIFunction>().ShouldBeOfType<TruncatingAIFunction>();
+    }
+
+    /// <summary>
+    /// A tool answering the way <c>McpClientTool</c> does — one
+    /// <see cref="AIContent"/> block for a single-block result — instead of a
+    /// bare <see langword="string"/>.
+    /// </summary>
+    private static ContentResultFunction McpShapedTool(string name, string text)
+        => new(name, new TextContent(text));
+
+    private sealed class ContentResultFunction(string name, AIContent result) : AIFunction
+    {
+        private static readonly System.Text.Json.JsonElement EmptySchema =
+            System.Text.Json.JsonDocument.Parse("""{"type":"object","properties":{}}""").RootElement;
+
+        public override string Name { get; } = name;
+
+        public override string Description => string.Empty;
+
+        public override System.Text.Json.JsonElement JsonSchema => EmptySchema;
+
+        protected override ValueTask<object?> InvokeCoreAsync(
+            AIFunctionArguments arguments, CancellationToken cancellationToken)
+            => new(result);
     }
 
     private sealed class DenyingHandler(string reason) : IToolAuthorizationHandler

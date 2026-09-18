@@ -24,11 +24,38 @@ public sealed class ToolResultTextTests
     }
 
     [Fact]
-    public void Attachment_is_not_inline_tool_text()
+    public void Protocol_content_returns_the_text_a_provider_adapter_sends()
     {
-        ToolResultText.TryGetText(new TextContent("attachment"), out var text).ShouldBeFalse();
+        // 🚨 This used to answer false, and five callers branch on it: the
+        // output budget skipped an MCP result, the run event and the tool
+        // invocation record stored nothing for it, replay lost it, and the
+        // content guards swapped it for a fixed sentence — for the one input
+        // class ("text a remote MCP tool returned") they exist to read.
+        ToolResultText.TryGetText(new TextContent("remote answer"), out var text).ShouldBeTrue();
 
-        text.ShouldBeNull();
+        text.ShouldNotBeNull().ShouldContain("remote answer", Case.Sensitive);
+    }
+
+    [Fact]
+    public void A_multi_block_protocol_result_is_inspectable_too()
+    {
+        // An MCP tool answering with more than one block returns an
+        // AIContent[], which is not itself an AIContent.
+        var blocks = new AIContent[] { new TextContent("first"), new TextContent("second") };
+
+        ToolResultText.TryGetText(blocks, out var text).ShouldBeTrue();
+
+        text.ShouldNotBeNull().ShouldContain("second", Case.Sensitive);
+    }
+
+    [Fact]
+    public void Only_a_protocol_result_keeps_its_own_shape()
+    {
+        ToolResultText.IsProtocolResult(new TextContent("remote answer")).ShouldBeTrue();
+        ToolResultText.IsProtocolResult(new AIContent[] { new TextContent("first") }).ShouldBeTrue();
+
+        ToolResultText.IsProtocolResult("plain text").ShouldBeFalse();
+        ToolResultText.IsProtocolResult(null).ShouldBeFalse();
     }
 
     [Fact]

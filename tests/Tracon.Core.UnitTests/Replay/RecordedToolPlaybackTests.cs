@@ -108,6 +108,27 @@ public sealed class RecordedToolPlaybackTests
         liveCalls.ShouldBe(0);
     }
 
+    [Fact]
+    public async Task A_live_mcp_tool_call_is_recorded_so_the_next_link_replays_its_answer()
+    {
+        // 🚨 A remote MCP tool answers with AIContent blocks. ToolResultText
+        // could not read those, so the ledger entry was written with a null
+        // Result: the next fallback link asking the same question replayed
+        // "nothing" instead of the tool's real answer, and never ran the tool
+        // again to find out (HATA-S1-026's class scan).
+        var playback = new RecordedToolPlayback(
+            [], ToolPlaybackMismatchPolicy.RunLive, recordLiveCalls: true);
+
+        var first = playback.Wrap(new ContentResultFunction("weather", new TextContent("live-sunny")));
+        var second = playback.Wrap(new ContentResultFunction("weather", new TextContent("never-runs")));
+
+        await first.InvokeAsync(Arguments("city", "Paris"), TestContext.Current.CancellationToken);
+
+        var replayed = await second.InvokeAsync(Arguments("city", "Paris"), TestContext.Current.CancellationToken);
+
+        replayed.ShouldNotBeNull().ToString()!.ShouldContain("live-sunny", Case.Sensitive);
+    }
+
     private static AIFunctionArguments Arguments(string key, string value)
         => new(StringComparer.Ordinal) { [key] = value };
 
@@ -131,4 +152,25 @@ public sealed class RecordedToolPlaybackTests
                 return liveResult;
             },
             name);
+
+    /// <summary>
+    /// A tool answering the way <c>McpClientTool</c> does — one
+    /// <see cref="AIContent"/> block — instead of a bare string.
+    /// </summary>
+    private sealed class ContentResultFunction(string name, AIContent result) : AIFunction
+    {
+        private static readonly System.Text.Json.JsonElement CitySchema =
+            System.Text.Json.JsonDocument.Parse(
+                """{"type":"object","properties":{"city":{"type":"string"}}}""").RootElement;
+
+        public override string Name { get; } = name;
+
+        public override string Description => string.Empty;
+
+        public override System.Text.Json.JsonElement JsonSchema => CitySchema;
+
+        protected override ValueTask<object?> InvokeCoreAsync(
+            AIFunctionArguments arguments, CancellationToken cancellationToken)
+            => new(result);
+    }
 }

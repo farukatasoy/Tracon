@@ -161,6 +161,122 @@ public sealed class TruncatingAIFunctionTests
     }
 
     [Fact]
+    public async Task A_protocol_content_result_over_the_limit_is_truncated()
+    {
+        // The shape an MCP tool answers with: McpClientTool turns a single
+        // content block into one AIContent. It used to leave here untouched,
+        // so a configured budget bound every tool EXCEPT the remote ones.
+        var inner = new RawResultFunction("remote_report", new TextContent(new string('a', 8000)));
+        var wrapped = new TruncatingAIFunction(inner, maxOutputBytes: 200);
+
+        var result = await wrapped.InvokeAsync(new AIFunctionArguments(StringComparer.Ordinal));
+
+        Encoding.UTF8.GetByteCount((string)result!).ShouldBeLessThanOrEqualTo(200);
+        ParseEnvelope(result).GetProperty("truncated").GetBoolean().ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task A_protocol_content_result_within_the_limit_keeps_its_own_shape()
+    {
+        // Measuring it must not flatten it: Tracon.Anthropic's adapter renders
+        // these blocks itself, and turning an image into text to respect a
+        // budget it never exceeded would lose the image for nothing.
+        var content = new TextContent("small enough");
+        var inner = new RawResultFunction("remote_report", content);
+        var wrapped = new TruncatingAIFunction(inner, maxOutputBytes: 1024);
+
+        var result = await wrapped.InvokeAsync(new AIFunctionArguments(StringComparer.Ordinal));
+
+        result.ShouldBeSameAs(content);
+    }
+
+    [Fact]
+    public async Task A_multi_block_protocol_result_is_never_replaced_by_the_unsupported_text()
+    {
+        // 🚨 An MCP tool answering with more than one content block gets an
+        // AIContent[], which is not itself an AIContent. It fell through to
+        // the unreadable-result branch and was swapped for the failure
+        // sentinel — at ANY size, including with no budget configured at all,
+        // since this layer is always installed.
+        var blocks = new AIContent[] { new TextContent("first"), new TextContent("second") };
+        var inner = new RawResultFunction("remote_report", blocks);
+        var wrapped = new TruncatingAIFunction(inner, maxOutputBytes: 4096);
+
+        var result = await wrapped.InvokeAsync(new AIFunctionArguments(StringComparer.Ordinal));
+
+        result.ShouldNotBe(ToolResultText.UnsupportedResultText);
+        result.ShouldBeSameAs(blocks);
+    }
+
+    [Fact]
+    public async Task A_multi_block_protocol_result_over_the_limit_is_truncated()
+    {
+        var inner = new RawResultFunction(
+            "remote_report",
+            new AIContent[] { new TextContent(new string('a', 4000)), new TextContent(new string('b', 4000)) });
+
+        var wrapped = new TruncatingAIFunction(inner, maxOutputBytes: 200);
+
+        var result = await wrapped.InvokeAsync(new AIFunctionArguments(StringComparer.Ordinal));
+
+        Encoding.UTF8.GetByteCount((string)result!).ShouldBeLessThanOrEqualTo(200);
+        ParseEnvelope(result).GetProperty("truncated").GetBoolean().ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task A_binary_content_result_over_the_limit_is_truncated()
+    {
+        // An image or audio block travels to the model as base64 inside the
+        // same tool result, so it spends the same budget as text does.
+        var inner = new RawResultFunction("remote_screenshot", new DataContent(new byte[4000], "image/png"));
+        var wrapped = new TruncatingAIFunction(inner, maxOutputBytes: 200);
+
+        var result = await wrapped.InvokeAsync(new AIFunctionArguments(StringComparer.Ordinal));
+
+        Encoding.UTF8.GetByteCount((string)result!).ShouldBeLessThanOrEqualTo(200);
+    }
+
+    [Fact]
+    public async Task Truncating_a_protocol_content_result_is_recorded_as_a_run_event()
+    {
+        var store = new InMemoryRunStore();
+        var writer = new RunEventWriter(store, new TraconRunRecordingOptions(), NullLogger.Instance, TraconId.NewId(), metrics: null);
+
+        await writer.StartAsync(
+            new RunStartInfo { RunId = writer.RunId, AgentName = "test-agent", StartedAt = DateTimeOffset.UtcNow },
+            query: "hello");
+
+        TraconRunContext.SetCurrent(new AgentRunScope
+        {
+            RunId = writer.RunId,
+            RootRunId = writer.RunId,
+            Writer = writer,
+        });
+
+        try
+        {
+            var inner = new RawResultFunction("remote_report", new TextContent(new string('a', 8000)));
+            var wrapped = new TruncatingAIFunction(inner, maxOutputBytes: 200);
+
+            await wrapped.InvokeAsync(new AIFunctionArguments(StringComparer.Ordinal));
+        }
+        finally
+        {
+            TraconRunContext.SetCurrent(null);
+        }
+
+        var events = new List<RunEvent>();
+        await foreach (var runEvent in store.ReadEventsAsync(writer.RunId))
+        {
+            events.Add(runEvent);
+        }
+
+        events.Where(static e => e.Type == RunEventType.ToolOutputTruncated)
+            .ShouldHaveSingleItem()
+            .ToolName.ShouldBe("remote_report");
+    }
+
+    [Fact]
     public void Constructor_throws_for_a_zero_or_negative_limit()
     {
         var inner = new RawResultFunction("get_order", "ok");
