@@ -357,6 +357,13 @@ That flag makes schema deployment your responsibility. Apply the embedded migrat
 in the deployment step before application traffic starts. The optional diagnostics
 report shows applied and pending state, but its endpoint must be enabled explicitly.
 
+Requests that need a table which does not exist yet answer `503` with the title
+`Database schema is not current` and the number of pending migrations, so you do
+not have to read the server log to find out why a write failed. Retrying does not
+help until the migrations are applied. A store that cannot be reached at all
+answers `503` as well, with the title `Persistence store unavailable`; that one
+usually clears on its own.
+
 ## Knowledge and memory
 
 ### Knowledge endpoints return `501`

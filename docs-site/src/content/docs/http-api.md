@@ -128,7 +128,7 @@ shows server text as it is.
 | `429` | A quota or rate limit was exceeded |
 | `501` | The capability is not registered — the workflow engine, voice, or knowledge |
 | `502` | The model provider failed or never answered — including a request that timed out |
-| `503` | The process is draining in-flight runs before it stops; retry shortly |
+| `503` | The store could not answer, or the process is draining in-flight runs before it stops |
 
 `501` is worth its own note: it means "this build does not have that package wired
 up", which is a different problem from a wrong address, and the API says so rather
@@ -141,6 +141,21 @@ reads the exception type alone answers a timed-out provider with a clean, empty
 success. Tracon decides from the request instead: unless the caller's
 connection actually went away, a run that ends this way is a failure, the status
 is `502`, and the run is recorded as `Failed` with the `Timeout` error class.
+
+**A `503` says which kind of unavailable it is.** A store that cannot answer used
+to surface as whatever your own exception handler made of a raw provider
+exception — usually a bodyless `500` — while the same application was already
+reporting the reason on `/health` and `/api/diagnostics`. Now the reason reaches
+the caller, and the two causes are told apart by `title`:
+
+| `title` | What it means | Does retrying help |
+|---|---|---|
+| `Database schema is not current` | The store is reachable; migrations have not been applied | No — apply them with `tracon migrate`, or start with `AutoApplyMigrations` on |
+| `Persistence store unavailable` | The store could not be reached at all | Usually yes |
+| `Server is shutting down` | In-flight runs are draining | Yes, shortly |
+
+The `detail` never carries the schema name or the statement text; that stays in
+your server's log, for the same reason a `502`'s detail is shallow.
 
 **A `502`'s `detail` is deliberately shallow** — it never carries the failing
 provider's own error text, only its exception type and a correlation id you can

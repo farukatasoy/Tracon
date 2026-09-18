@@ -1,3 +1,4 @@
+using System.Data.Common;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
@@ -10,8 +11,14 @@ namespace Tracon;
 /// Both apply the no-surprises rule: an explicit failure instead of an external
 /// surface that silently half works. <see cref="EnsureRemoteAccessNotCombined"/> runs at
 /// the moment of the <c>MapTraconMcpServer</c>/<c>MapTraconA2A</c> call (endpoint
-/// mapping, BEFORE <c>app.Run()</c>) and does not touch the database. The approval guard
-/// (<see cref="EnsureNoApprovalRequiredTools"/>) does touch the database, so it runs from
+/// mapping, BEFORE <c>app.Run()</c>) and DOES read the key store: proving that a key with
+/// the <c>external:invoke</c> scope exists is the whole check. It therefore has to survive
+/// a store that cannot answer yet — on a never-migrated schema the query fails with the
+/// provider's own "no such table", and a raw provider exception at that point tells the
+/// operator nothing about which rule stopped the host. It is treated as "no key can be
+/// proven", which is the fail-closed answer and the one this guard already gives.
+/// The approval guard
+/// (<see cref="EnsureNoApprovalRequiredTools"/>) also touches the database, and runs from
 /// <c>McpApprovalGuardFilter</c>/<c>A2AApprovalGuardFilter</c> inside a Task that STARTS at
 /// endpoint mapping time but waits in the background until the schema is ready — this
 /// prevents a crash with "no such table" on an empty database.
@@ -105,7 +112,8 @@ internal static class ExternalSurfaceGuard
     /// <param name="protocol">The name of the external surface being exposed.</param>
     /// <param name="apiKeyStore">The key store.</param>
     /// <exception cref="InvalidOperationException">
-    /// When it is called while remote access is on and no valid <c>external:invoke</c> key exists.
+    /// When it is called while remote access is on and no valid <c>external:invoke</c> key
+    /// exists — or cannot be proven to exist because the key store did not answer.
     /// </exception>
     /// <remarks>
     /// <para>
@@ -128,23 +136,46 @@ internal static class ExternalSurfaceGuard
             return;
         }
 
-        var hasExternalInvokeKey = apiKeyStore
-            .HasActiveScopeAsync(ApiKeyScope.ExternalInvoke)
-            .AsTask()
-            .GetAwaiter()
-            .GetResult();
+        bool hasExternalInvokeKey;
+        DbException? storeFailure = null;
+
+        try
+        {
+            hasExternalInvokeKey = apiKeyStore
+                .HasActiveScopeAsync(ApiKeyScope.ExternalInvoke)
+                .AsTask()
+                .GetAwaiter()
+                .GetResult();
+        }
+        catch (DbException exception)
+        {
+            // A store that cannot answer cannot prove a key exists, so the guard
+            // reaches its own conclusion rather than letting the provider's
+            // exception out: that exception names a missing table, not the rule
+            // that stopped the host, and the operator reads it at startup with no
+            // other context. Fail-closed is also the only safe direction here —
+            // opening an external agent surface on the strength of a failed
+            // lookup is exactly what this guard exists to prevent.
+            hasExternalInvokeKey = false;
+            storeFailure = exception;
+        }
 
         if (hasExternalInvokeKey)
         {
             return;
         }
 
+        var reason = storeFailure is null
+            ? "the system holds no API key with the 'external:invoke' scope that is neither expired nor revoked"
+            : "the API key store could not be read, so no key with the 'external:invoke' scope can be proven to " +
+              "exist. A schema that has not been migrated yet reads this way; apply the migrations, then start again";
+
         throw new InvalidOperationException(
-            $"{protocol} cannot be exposed while AllowRemoteAccess is on: the system holds no " +
-            "API key with the 'external:invoke' scope that is neither expired nor revoked. A " +
+            $"{protocol} cannot be exposed while AllowRemoteAccess is on: {reason}. A " +
             "single static bearer token is not enough to protect an agent surface exposed " +
             "beyond loopback. Create a key with the 'external:invoke' scope through " +
-            "'POST /api/api-keys'.");
+            "'POST /api/api-keys'.",
+            storeFailure);
     }
 
     /// <summary>

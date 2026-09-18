@@ -25,3 +25,17 @@
   JSON, icinde tirnak tasiyan bir degerde bozulur; `AuditSecretFilter` `JsonException`'i
   yakalayip metni **redakte etmeden** dondurur ve PostgreSQL'de `jsonb` cast'i duser —
   mutasyon uygulanmis, kayit yazilmamis olur.
+- **🚨 Bir açılış kapısının "veritabanına dokunmuyorum" demesi ona dokunmadığı
+  anlamına gelmez — ve dokunuyorsa TAZE ŞEMAYI hesaba katmalıdır** (2026-09-18,
+  `HATA-S1-021`). `ExternalSurfaceGuard.EnsureRemoteAccessNotCombined`'in kendi
+  XML dokümanı dokunmadığını iddia ediyordu; `external:invoke` kapsamlı bir
+  anahtarın varlığını kanıtlamak kontrolün **kendisidir**. Hiç migrate
+  edilmemiş bir şemada sorgu sağlayıcının ham `no such table` istisnasıyla
+  düşüyor ve host açılışta onunla çöküyordu — belgelenen
+  `InvalidOperationException` değil. **Kural:** açılışta store okuyan her kapı
+  cevap veremeyen bir store için KENDİ sonucuna varmalıdır; güvenlik kapısında
+  o sonuç **fail-closed**'dur (başarısız bir sorgunun üzerine dışa açık bir
+  yüzey açılmaz) ve mesaj hangi kuralın durdurduğunu söylemelidir. Emsal:
+  `TraconA2AExtensions`'ın agent kartı süslemesi aynı riski zaten geniş bir
+  `catch` + güvenli yedekle çözmüştü — orada güvenlik kontrolü yok, bu yüzden
+  yedek meşru. K-814.
