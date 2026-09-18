@@ -44,14 +44,18 @@ flowchart LR
 
 **Sayım** (skill §7, düzeltilmiş betik — bkz. §3.1):
 
-| Durum | Sayı |
-|---|---|
-| ☑ Geçti | 1693 |
-| ☒ Kaldı | 35 |
-| ☐ Beklemede | 107 |
-| ⏭ Atlandı | 18 |
-| işaretsiz (gerekçe düz metin) | 3 |
-| **toplam benzersiz case** | **1856** |
+| Durum | Koşum sonu | 2026-09-19 (Aile N sonrası) |
+|---|---|---|
+| ☑ Geçti | 1693 | **1701** |
+| ☒ Kaldı | 35 | **27** |
+| ☐ Beklemede | 107 | 107 |
+| ⏭ Atlandı | 18 | 18 |
+| işaretsiz (gerekçe düz metin) | 3 | 3 |
+| **toplam benzersiz case** | **1856** | **1856** |
+
+Kapanan her aile, kusuru yüzünden `Kaldı` kalmış case'ini **canlı sunucuda**
+yeniden koşar ve ikinci bir `Gerçek sonuç` bloğu ekler; sayım her case'in
+**son** işaretini alır.
 
 **Kusur:** 44 `HATA-*` kaydı. `HATA-S1-006` yanlış pozitif çıktı ve kapandı →
 **43 açık**; kapanışta 8'i kapandı (A · B ×3 · C ×2 · D ×3 · E ×3 · F ×2 ·

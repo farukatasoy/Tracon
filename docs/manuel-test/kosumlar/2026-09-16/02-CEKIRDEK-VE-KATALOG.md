@@ -466,6 +466,34 @@ ulaşmıyor, ASP.NET Core'un JSON okuyucusunda düşüyor.
 
 ---
 
+**Gerçek sonuç — yeniden koşum 2026-09-19 (Aile L kapanışı sonrası)**
+
+Canlı host (`artifacts/bin/Tracon.Api/release`, `--urls :5087`,
+`ASPNETCORE_ENVIRONMENT=Development`, OpenAI anahtarı komut satırından boşaltıldı
+ki `EchoModelProvider` kaydolsun — case'in kendi girdisi `echo/echo-1`).
+Dört alt kontrolün dördü de:
+
+```
+c1b '"strategy":"Summarization"' (tetikleyicisiz)
+  -> valid:false · "Agent 'c1b' selected the 'Summarization' compaction strategy
+                    but gave no trigger (at least one of TriggerTokens/
+                    TriggerMessages/TriggerTurns is required)."
+c2  '"strategy":"BoyleBirSeyYok"'
+  -> HTTP 400 · "'BoyleBirSeyYok' is not a valid value. The valid values are:
+                 None, SlidingWindow, Truncation, ToolResult, Summarization,
+                 ContextWindow, Pipeline. Path: $.compaction.strategy"
+c3  ContextWindow, maxContextWindowTokens YOK -> valid:true   (katalogdan türetildi)
+c3b ContextWindow, model "katalogda-yok"      -> valid:false · iki kaynağı da söylüyor
+```
+
+`c2` artık reddedilen değeri **ve** geçerli listeyi taşıyor; `BytePositionInLine`
+gibi tüketiciye hiçbir şey anlatmayan ayrıntı gitti, yararlı olan tek parça
+(`$.compaction.strategy`) kaldı. Case'in `Kaldı` sebebi buydu.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ### HATA-S1-008 — Sıkıştırma stratejisi adı yanlışsa hata reddedilen değeri de geçerli listeyi de söylemiyor
 
 | | |
@@ -766,6 +794,41 @@ kaldırmak için `Beklenen sonuç` netleştirildi (skill §1.1) ve case `Kaldı`
 işaretlendi.
 
 **Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+
+---
+
+**Gerçek sonuç — yeniden koşum 2026-09-19 (Aile L kapanışı sonrası)**
+
+Canlı host (`:5087`). `manuel-surum` bu veritabanında yoktu; case'in kendi
+adımlarıyla yeniden kuruldu (`POST` → 201, `PUT` → 200) ve koşum sonunda
+silindi (`DELETE` → 204).
+
+```
+GET /api/agents/support/versions      -> HTTP 404
+  { "title": "Agent has no version history",
+    "detail": "'support' is defined in code. A code definition is not stored by
+               Tracon, so it has no version history; its history is the
+               application's source history." }
+
+GET /api/agents/support               -> HTTP 200   (agent VAR; iki cevap artik celiskisiz)
+
+GET /api/agents/manuel-surum/versions -> HTTP 200 · IKI surum
+  version 2 | IKINCI SURUM TALIMATI.
+  version 1 | BIRINCI SURUM TALIMATI.
+
+GET /api/agents/support/versions/1/diff/2 -> HTTP 404 · AYNI gerekce
+  (sinif taramasinin bulduğu ikinci yuzey; onceden "Agent 'support' has no
+   version 1." diyordu, yani agent'in burada surumlendigini iddia ediyordu)
+
+GET /api/agents/hicbir-yerde-olmayan/versions -> HTTP 404
+  { "title": "Agent not found", "detail": "There is no agent named
+    'hicbir-yerde-olmayan'." }   (ters yon korundu)
+```
+
+Case'in gerekçesinin istediği şey — var olan bir agent için "yok" dememek ve
+sebebi açıkça söylemek — sağlandı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
