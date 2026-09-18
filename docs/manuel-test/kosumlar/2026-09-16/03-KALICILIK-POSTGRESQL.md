@@ -1270,6 +1270,39 @@ kararıdır, kusur düzeltmesi değil:
 F-NN olarak girer, Aşama 2'de kodlanacak bir kusur olarak değil. Karar Aşama
 2'de verilir (skill §6).
 
+**✅ KAPANDI 2026-09-18 (Aile M).** 👤 Karar: **birinci seçenek — "henüz
+proplanmadı" ile "proplandı ve bozuk" ayırt edilir** (K-822). Bulgu `F-NN`
+olmadı; ölçüldüğünde bunun yeni bir yetenek değil bir **sınıflandırma hatası**
+olduğu görüldü: `Degraded` "bir şey bozuk" demektir, oysa söylenen şey "hiçbir
+şey ölçülmedi"ydi. Bilginin yokluğu bir bozulma değildir.
+
+```
+prop yok            -> Healthy  "...No model provider has been probed yet — a probe
+                                 runs when GET /api/models/health is called, or on the
+                                 interval set by Tracon:Health:BackgroundInterval."
+proplanmis saglikli -> Healthy  (degismedi)
+proplanmis bozuk    -> Degraded "No model provider is healthy: local-test is Unhealthy."
+devre acik          -> Degraded (degismedi)
+hic saglayici yok   -> Degraded "No model provider is registered; no agent can run."
+```
+
+Açılışta prob koşma seçeneği **reddedildi**: her açılışta her sağlayıcıya bir
+ağ isteği ve kota maliyeti ekler, ve `TraconDiagnosticsCollector`'ın "yan etkisi
+yoktur" sözleşmesi bir orchestrator'ın bu ucu yoklayabilmesinin sebebidir.
+
+🚨 **Mevcut test kusuru kilitliyordu.** `HealthCheckTests.No_provider_checked_yet_returns_Degraded`
+adıyla birlikte bugünkü yanlış davranışı zorluyordu. Zayıflatılmadı; doğru
+beklentiye çevrildi ve **karşı yönü** kilitleyen ikinci bir test eklendi
+(gerçekten proplanmış ve `Unhealthy` dönen bir sağlayıcı hâlâ `Degraded`
+yapar).
+
+| Adım | Sonuç |
+|---|---|
+| Ampirik yeniden üretim | ☑ düzeltme stash'lendiğinde yeni test kırmızı |
+| Sınıf taraması | ☑ `Unknown` iki şeyi birden anlatıyor — "hiç proplanmadı" **ve** "bu sağlayıcı health check taşımıyor". İkisi de kusur kanıtı değildir, bu yüzden tek dal ikisini de kapsar |
+| Testler | 2 fonksiyonel test (biri yeniden yazıldı, biri yeni); `HealthCheckTests` 6/6 |
+| Tüketici yüzeyi | `docs-site/guides/observability.md`'nin durum tablosu ve sorun giderme satırı |
+
 ## MT-PG-060 — 20 eşzamanlı yazma isteği veri bozulmadan tamamlanır
 
 **Gerçek sonuç**
@@ -1463,6 +1496,18 @@ etkiler. `McpDiscoveryService.cs:72` ve `A2AApprovalGuardFilter` bunu doğru
 yapıyor — `SchemaReadyGate.WaitAsync` bekliyorlar. Kurulum anındaki senkron
 liste bu korumanın **dışında** kalan tek yol olabilir; kapanışta
 `GetAwaiter().GetResult()` çağrıları taranmalı.
+
+**✅ KAPANDI 2026-09-18 (Aile M).** Kaydın önerdiği **birinci** seçenek
+uygulandı: A2A kurulum yolu `SchemaReadyGate.IsReady` `false` iken kataloğu hiç
+listelemiyor. Geniş `catch` yerinde duruyor — ama artık ikinci savunma hattı;
+kusur zaten yakalanan istisnanın **yakalanmadan önce** loglanmış olmasıydı.
+
+| Adım | Sonuç |
+|---|---|
+| Ampirik yeniden üretim | ☑ boş bir SQLite dosyasına karşı yeni fonksiyonel test kırmızı; ölçülen satır birebir kayıttaki: `Error Tracon.CompositeAgentCatalog Agent source 'database' failed during list. … 'no such table: tracon_agent_definitions'` |
+| Sınıf taraması | ☑ kaydın istediği tarama koşuldu: `grep -rn "GetAwaiter().GetResult()" src/` → beş çağrı. İkisi gauge observer'ıdır ve **`Warning`** ile loglayıp önceki değeri korurlar (doğru); biri `TraconRolePolicies`'tir ve depoya hiç gitmez; biri bu satırdı. Ayrıca kurulum anında kataloğu çözen diğer tek yol (`TraconMcpServerExtensions`) onu **okumadan** gate bekleyen bir filtreye veriyor |
+| Testler | 1 fonksiyonel test; aynı test şema hazır olduğunda süslemenin **hâlâ çalıştığını** da zorluyor |
+| Kapının kendisi | `CompositeAgentCatalog`'un `Error` seviyesi **değiştirilmedi** — çalışma anında gerçekten başarısız olan bir kaynak bir hatadır. Düzeltme, cevabın yalnız hata olabileceği anda soruyu sormamaktır |
 
 ## MT-PG-063 — Aynı ortamda `EnableKnowledge = true` açık ve okunur bir başlangıç hatası verir
 

@@ -3,7 +3,7 @@
 > **Bu turu kapatan her oturum ÖNCE burayı okur.** Koşum bitti; bu dosya
 > kapanışın tek kontrol düzlemidir.
 >
-> **Durum:** 🟡 Aşama 2 sürüyor · **Aile A · B · C · D · E · F · G · H · I · J · K · L KAPANDI** · 20 açık kusur, 10 aile kaldı
+> **Durum:** 🟡 Aşama 2 sürüyor · **Aile A · B · C · D · E · F · G · H · I · J · K · L · M KAPANDI** · 18 açık kusur, 9 aile kaldı
 > **Son güncelleme:** 2026-09-18 (Aile J kapandı — `S1-020`; ölçüm **ikinci bir katman** buldu: parmak izi normalleştirmesi durum kodunu da siliyordu)
 
 Turdan bağımsız kapanış protokolü — aile aile oturum yordamı, "önce ampirik
@@ -828,7 +828,35 @@ aynı yönlendirmeyi daha güçlü kanıtlayan iddialara çevrildiler (reddedile
 | Testler | 11 yeni test (6 fonksiyonel · 3 fonksiyonel · 2 vitest) + 2 mevcut testin iddiası güncellendi |
 | Tüketici yüzeyi | İki OpenAPI `description` · `docs-site/troubleshooting.md` `TRC0007` bölümü (çalışan `AddScopedTool` örneğiyle) · yayınlanan belge ve ondan türeyen istemciler tazelendi |
 
-| **M** · Sağlık ve açılış gürültüsü | `S1-016` Düşük-Orta · `S1-017` Düşük | `/health` kendi başına hiçbir zaman `Healthy`'ye ulaşmıyor — `/api/models/health` çağrılmadıkça sonsuza dek `Degraded`. Taze şemaya karşı her açılış `Error` seviyesinde yığın izi basıyor; yutma bir katman geç yapılıyor | ☐ |
+| **M** · Sağlık ve açılış gürültüsü | `S1-016` Düşük-Orta · `S1-017` Düşük | İki kusur, tek cümle: **doğru kurulmuş bir uygulama kendini bozuk gösteriyor** | ✅ **KAPANDI 2026-09-18** |
+
+#### Aile M — ✅ kapandı (2026-09-18)
+
+| Kusur | Ölçülen kök neden | Düzeltme |
+|---|---|---|
+| `S1-016` | `Degraded` iki ayrı şeyi anlatıyor: "bir şey bozuk" ve "hiçbir şey ölçülmedi". İkincisi bir bozulma değildir — ve hiçbir şey sağlayıcıyı kendiliğinden problamaz, gerçek bir `run` bile | Durum yalnız **bilinen** arızayı yansıtır; ölçümün yokluğu mesajda söylenir 👤 (K-822) |
+| `S1-017` | Yutma bir katman geç: `CompositeAgentCatalog` istisnayı geri dönmeden **önce** `Error` + yığın iziyle loglamış oluyor | A2A kurulumu `SchemaReadyGate.IsReady` `false` iken kataloğu hiç listelemiyor (K-823) |
+
+👤 **Karar (K-822): bulgu `F-NN` OLMADI.** Kayıt üç seçeneğin de "yeni davranış"
+istediğini, dolayısıyla adaylığa gitmesi gerekebileceğini söylüyordu. Ölçüldüğünde
+bunun yeni bir yetenek değil bir **sınıflandırma hatası** olduğu görüldü: bilginin
+yokluğu ile arızanın varlığı tek dala konmuştu. Açılışta prob koşma seçeneği
+reddedildi — her açılışta her sağlayıcıya bir ağ isteği, artı `TraconDiagnosticsCollector`'ın
+"yan etkisi yoktur" sözleşmesinin bozulması.
+
+🚨 **İkisinde de mevcut kod kusuru bir kural gibi anlatıyordu.** `S1-016`'da
+`HealthCheckTests.No_provider_checked_yet_returns_Degraded` yanlış davranışı
+**adıyla** zorluyordu; `S1-017`'de geniş `catch`'in yorumu durumu doğru tarif
+ediyor ama eksik ölçüyordu ("crash olmuyor" ≠ "sessiz"). Bir kusurun kendi
+gerekçesini yazmış olması onu kusur olmaktan çıkarmıyor.
+
+| Adım | Sonuç |
+|---|---|
+| Ampirik yeniden üretim | ☑ ikisi de: düzeltmeler stash'lenip yeniden koşuldu, iki test kırmızı. `S1-017`'nin ölçülen log satırı kayıttakiyle birebir |
+| Sınıf taraması | ☑ `S1-016`: `Unknown`'ın iki anlamı da kusur kanıtı değil → tek dal · `S1-017`: kaydın istediği `GetAwaiter().GetResult()` taraması koşuldu (5 çağrı; iki gauge observer'ı **`Warning`** ile loglayıp önceki değeri koruyor — doğru), artı kurulum anında kataloğu çözen tek diğer yol onu okumadan gate bekleyen bir filtreye veriyor |
+| Testler | 3 fonksiyonel test (1 yeniden yazıldı, 2 yeni); ikisi karşı yönü kilitliyor — proplanmış ve bozuk sağlayıcı hâlâ `Degraded`, şema hazırken süsleme hâlâ çalışıyor |
+| Tüketici yüzeyi | `docs-site/guides/observability.md` durum tablosu + sorun giderme satırı |
+
 | **N** · CSP ve inline script | `S1-004` · `S2-002` Düşük-Orta | Aynı sınıf, iki yüzey. Hem gömülü arayüzün hem gömülü konsolun `index.html`'i nonce/hash'siz bir inline `<script>` taşıyor (erken tema boyama), ama aynı yanıtın kendi CSP başlığı `script-src 'self'` gönderiyor — script **her sayfa yüklemesinde** engelleniyor. `theme.ts` sonradan doğru temayı yazdığı için işlevsel kırılma yok, erken-boyama optimizasyonu hiç çalışmıyor (olası FOUC) | ☐ |
 | **O** · HTTP sözleşme kusurları | `S4-002` Orta | `PUT /api/schedules/{name}` gövdede `payload` alanı olmadan `500` veriyor. **Tarama:** aynı desendeki diğer `PUT`/`POST` uçları | ☐ |
 | **P** · Denetim secret filtresi | `S1-022` Düşük-Orta | `AuditSecretFilter` bazı BENİGN alan adlarını da (`ConfigurationKey` son eki, `AuthorizationMode`) gereksizce `"***"` yapıyor | ☐ |
