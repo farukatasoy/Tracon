@@ -96,6 +96,40 @@ public sealed class AnthropicChatClientFactoryTests
         exception.Message.ShouldContain(AnthropicProviderNames.SettingsPrefix);
     }
 
+    /// <summary>
+    /// HATA-S4-005: the adapter's own configuration validation survives the
+    /// registry's failure masking.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <c>ModelProviderRegistry.BuildPipeline</c> replaces anything
+    /// <c>CreateChatClient</c> raises with a generic "The model provider
+    /// request failed." That masking exists for a raw SDK exception, whose
+    /// body can carry a tenant address or a credential. This sentence is the
+    /// adapter's own, written for the operator, and three
+    /// <c>POST /api/agents/validate</c> cases answered with the generic six
+    /// words instead of it.
+    /// </para>
+    /// <para>
+    /// The test goes through the REGISTRY rather than the factory: the factory
+    /// always threw the right message, and what changed is whether anything
+    /// downstream keeps it.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public void The_thinking_budget_message_survives_the_registrys_failure_masking()
+    {
+        var registry = new ModelProviderRegistry(
+            [new AnthropicModelProvider("anthropic", Factory(), [])]);
+
+        var exception = Should.Throw<TraconException>(() => registry.CreateChatClient(
+            TestData.Binding(providerSettings: TestData.Settings(
+                (AnthropicProviderNames.ThinkingBudgetTokensSetting, 0)))));
+
+        exception.Message.ShouldContain(AnthropicProviderNames.ThinkingBudgetTokensSetting);
+        exception.Message.ShouldNotContain("The model provider request failed.");
+    }
+
     [Fact]
     public void Zero_or_negative_thinking_budget_is_rejected()
     {

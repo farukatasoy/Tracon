@@ -158,6 +158,17 @@ public sealed record AgentRunScope
     internal ToolAuthorizationAccumulator? ToolAuthorization { get; init; }
 
     /// <summary>
+    /// Gets the failures <see cref="ExplainedFailureAIFunction"/> turned into
+    /// results, keyed by call identity.
+    /// </summary>
+    /// <remarks>
+    /// Same reason and same pattern as <see cref="ToolAuthorization"/>: a call
+    /// whose explanation became its result carries no exception for the record
+    /// to read, so the failure travels beside it instead.
+    /// </remarks>
+    internal ToolExplainedFailureAccumulator? ToolExplainedFailures { get; init; }
+
+    /// <summary>
     /// Gets the holder that records which model actually answered when a
     /// <see cref="ModelBinding.Fallbacks"/> link was used instead of the
     /// primary binding.

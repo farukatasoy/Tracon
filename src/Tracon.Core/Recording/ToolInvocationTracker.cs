@@ -35,6 +35,7 @@ internal sealed class ToolInvocationTracker
     private readonly ToolUsageAccumulator? _usage;
     private readonly string? _tenantId;
     private readonly ToolAuthorizationAccumulator? _authorization;
+    private readonly ToolExplainedFailureAccumulator? _explainedFailures;
 
     /// <summary>Creates a new tracker.</summary>
     /// <param name="runId">The run identity.</param>
@@ -53,13 +54,19 @@ internal sealed class ToolInvocationTracker
     /// <see langword="null"/>, no denial is ever recorded — used for a run
     /// that never wraps a tool with <c>AuthorizingAIFunction</c>.
     /// </param>
+    /// <param name="explainedFailures">
+    /// The failures reported as results by <c>ExplainedFailureAIFunction</c>.
+    /// If <see langword="null"/>, only an exception carried by the result
+    /// itself marks a call as failed.
+    /// </param>
     public ToolInvocationTracker(
         Guid runId,
         bool measureDuration,
         TimeProvider timeProvider,
         ToolUsageAccumulator? usage = null,
         string? tenantId = null,
-        ToolAuthorizationAccumulator? authorization = null)
+        ToolAuthorizationAccumulator? authorization = null,
+        ToolExplainedFailureAccumulator? explainedFailures = null)
     {
         ArgumentNullException.ThrowIfNull(timeProvider);
 
@@ -69,6 +76,7 @@ internal sealed class ToolInvocationTracker
         _usage = usage;
         _tenantId = tenantId;
         _authorization = authorization;
+        _explainedFailures = explainedFailures;
     }
 
     /// <summary>Records that a tool call started.</summary>
@@ -117,6 +125,12 @@ internal sealed class ToolInvocationTracker
             }
         }
 
+        // A call whose explanation became its RESULT carries no exception here:
+        // that is the price of letting the model read why it failed. The record
+        // must not read it as a success, so the failure travels beside the
+        // result and is taken exactly once, by call identity.
+        var failure = result.Exception ?? _explainedFailures?.TakeFailure(result.CallId);
+
         return new ToolInvocationRecord
         {
             Id = TraconId.NewId(),
@@ -125,9 +139,9 @@ internal sealed class ToolInvocationTracker
             ToolCallId = result.CallId,
             Source = source,
             Arguments = arguments,
-            Result = result.Exception is null && ToolResultText.TryGetText(result.Result, out var text) ? text : null,
+            Result = failure is null && ToolResultText.TryGetText(result.Result, out var text) ? text : null,
             Duration = duration,
-            Error = ToolFailureText.Get(result.Exception),
+            Error = ToolFailureText.Get(failure),
             CreatedAt = _timeProvider.GetUtcNow(),
 
             // The tool may have reported its own metric under the call
@@ -140,7 +154,7 @@ internal sealed class ToolInvocationTracker
             AuthorizationDenied = _authorization?.TakeDenied(result.CallId) ?? false,
 
             // A timeout is an exception with a stable, known identity.
-            TimedOut = result.Exception is TraconToolTimeoutException,
+            TimedOut = failure is TraconToolTimeoutException,
 
             // Expected tenant stamp (K-355).
             TenantId = _tenantId,

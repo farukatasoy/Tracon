@@ -263,11 +263,14 @@ public sealed partial class RunRecordingAgent
         var record = scope.Tools.OnResult(result);
 
         await scope.Writer.AppendAsync(
-            new RunEventDraft(result.Exception is null ? RunEventType.ToolInvoked : RunEventType.ToolFailed)
+            // The RECORD decides, not the result: a call whose explanation became
+            // its result carries no exception, and reading the result alone
+            // reported it as an ordinary success.
+            new RunEventDraft(record.Succeeded ? RunEventType.ToolInvoked : RunEventType.ToolFailed)
             {
                 ToolName = record.ToolName,
                 ToolCallId = result.CallId,
-                Text = ToolFailureText.Get(result.Exception),
+                Text = record.Error,
                 Payload = ToolResultText.TryGetText(result.Result, out var text) ? text : null,
             },
             cancellationToken).ConfigureAwait(false);
