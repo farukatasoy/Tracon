@@ -4,7 +4,7 @@ import { client as apiClient, unwrap } from '../lib/api';
 import { useT } from '../lib/i18n';
 import { Button, ErrorNote, Panel, TextArea } from './ui';
 import { ThumbsDownIcon, ThumbsUpIcon } from './icons';
-import type { RunScore } from '../lib/server-types';
+import type { JudgeRunResponse, RunScore } from '../lib/server-types';
 import { Tooltip } from './tooltip';
 
 /** The score name this control owns. Every other name is read-only here. */
@@ -42,13 +42,20 @@ export function FeedbackControl({ runId }: { runId: string }): ReactNode {
   // `messageId`) score belonging to whoever is looking at the screen right
   // now, which the server resolves — the client never has to know who that is.
   //
-  // 🚨 `source` and `name` are both required in the match. A judge score also
-  // carries no `messageId`, so matching on that alone picked up the judge's
-  // row as "mine" — the thumbs then rendered the judge's number and Remove
-  // deleted the judge's score. Since phase 152 a human can hold several names
-  // as well, so this control names the one it owns.
+  // 🚨 `source`, `name` AND `kind` are all required in the match. A judge score
+  // also carries no `messageId`, so matching on that alone picked up the
+  // judge's row as "mine" — the thumbs then rendered the judge's number and
+  // Remove deleted the judge's score. Since phase 152 a human can hold several
+  // names as well, so this control names the one it owns. `kind` joined the
+  // match last: a Stars score may carry the SAME name as this control's Binary
+  // one (the API does not forbid it, and `IRunScoreStore.ListAsync` documents
+  // no order), and `mine` then bound to a value that can never equal 0 or 1 —
+  // every click created a duplicate row instead of removing the existing one.
   const mine = feedback.data?.find((score) =>
-    score.messageId == null && score.source === 'human' && score.name === OVERALL);
+    score.messageId == null &&
+    score.source === 'human' &&
+    score.name === OVERALL &&
+    score.kind === 'Binary');
 
   // Everything the control does not own: a second human name, a categorical
   // label, a judge score. Read-only, so a name this screen cannot write is
@@ -134,11 +141,17 @@ export function FeedbackControl({ runId }: { runId: string }): ReactNode {
   // they are told apart by their `source` prefix (`judge:{name}`).
   const judgeScores = feedback.data?.filter((score) => score.source.startsWith('judge:')) ?? [];
 
+  // 🚨 The asserted type has to be the one the endpoint answers with. This
+  // said `RunScore[]` while the endpoint answers `{scores,failures}`, so
+  // `data.length` was always `undefined`: the "no judge is configured" line
+  // could never render and the button reported success by changing nothing on
+  // screen. An assertion here NARROWS the generated shape (whose fields are
+  // all optional); it must never name a different shape.
   const judgeNow = useMutation({
     mutationFn: () =>
       unwrap(
         apiClient.POST('/api/runs/{runId}/judge', { params: { path: { runId } } }),
-      ) as Promise<RunScore[]>,
+      ) as Promise<JudgeRunResponse>,
     onSuccess: () => void client.invalidateQueries({ queryKey }),
   });
 
@@ -239,7 +252,7 @@ export function FeedbackControl({ runId }: { runId: string }): ReactNode {
             <Button tone="default" onClick={() => judgeNow.mutate()} disabled={judgeNow.isPending} testId="judge-now">
               {t('onlineEval.judgeButton')}
             </Button>
-            {judgeNow.isSuccess && judgeNow.data.length === 0 && (
+            {judgeNow.isSuccess && judgeNow.data.scores.length === 0 && (
               <span className="text-xs text-subtle">{t('onlineEval.judgeNoJudges')}</span>
             )}
           </div>
