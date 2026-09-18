@@ -131,3 +131,26 @@ seçeneği yalnız SVG bağlantısını basar, diğer ikisi `head`'e elle ekleni
   deseni ikisini de kaçırıyordu; kalan `.md` yolu sayfaya göreli çözülüp 404 veriyordu.
   Artık scheme'siz göreli adres sayfaya göre çözülüp denetleniyor. Ders: bir kapının
   "sıfır hata" demesi, baktığı kümenin doğru olduğunu KANITLAMAZ — neyi atladığını sor.
+
+## 🚨 Site içeriği repo private iken kendi GitHub URL'ine bağlanamaz (Faz 123)
+
+`check-content.mjs` `repositoryIsPublic=false` (`site.config.mjs`) iken
+`repositoryUrl` metnini (link veya düz metin, ikisi de) her sayfada reddeder
+— okuyucuya bugün `404` dönerdi. Elle yazılan bir sayfa `CHANGELOG.md`'ye
+"bağlantı ekle" gibi bir plan kararını uygularken bunu yakaladı. Repo private
+kaldığı sürece dosya adını düz metinle (`` `CHANGELOG.md` ``) anlat, GitHub
+URL'i yazma; repo açıldığında `repositoryIsPublic=true` olur ve gerçek
+bağlantı eklenebilir.
+
+## 🚨 robots.txt'te isimli grup, `*` grubunu TAMAMEN geçersizler (2026-09-14)
+
+RFC 9309: bir crawler yalnız **en özgül** eşleşen grubu okur, kalanını yok sayar.
+`User-agent: *` altına yazılan `Disallow: /pagefind/fragment/`, `User-agent: GPTBot`
+grubu eklendiği anda GPTBot için **etkisiz** olur. Yol kısıtları her gruba tekrar
+yazılır (`src/pages/robots.txt.ts`).
+
+İkinci tuzak: kısıtı `Allow: /`'dan **önce** yaz — uyumlu parser en uzun eşleşmeyi
+alır ama Python'un `urllib.robotparser`'ı ilkini alır. Politikanın kendisi
+`site.config.mjs`'deki `crawlerPolicy`'dedir; karar veri, endpoint yalnız render
+eder. Ölçülmüş kapsam gerçekleri:
+[`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).

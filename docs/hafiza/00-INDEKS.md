@@ -17,7 +17,8 @@
 | Agent derleme, derleme kimliği, derlenmiş agent önbelleği | [agent-derleme-ve-onbellek](agent-derleme-ve-onbellek.md) |
 | `RunEventType`/`RunStatus` terminal durum sözleşmesi | [run-olay-sozlesmesi](run-olay-sozlesmesi.md) |
 | Tool onayı, yetkilendirme sırası, sunum seam'i | [tool-onay-ve-yetkilendirme](tool-onay-ve-yetkilendirme.md) |
-| Metrik, maliyet, kota, `secret` süzgeci | [olcum-kota-ve-secenekler](olcum-kota-ve-secenekler.md) |
+| Metrik, maliyet, kota, rapor dürüstlüğü | [olcum-kota-ve-secenekler](olcum-kota-ve-secenekler.md) |
+| `Bind()` seçenek bağlama, `secret` süzgeci | [secenek-baglama-ve-gizlilik](secenek-baglama-ve-gizlilik.md) |
 | Genişleme noktası kaydı, denetim izi kapsamı | [genisleme-noktalari-ve-denetim](genisleme-noktalari-ve-denetim.md) |
 | Paylaşılan SQL katmanı, yeni sağlayıcı | [sql-saglayicilari](sql-saglayicilari.md) |
 | Paylaşılan sorgu ÜRETİM mekaniği | [sql-paylasilan-sorgu-uretimi](sql-paylasilan-sorgu-uretimi.md) |
@@ -58,3 +59,4 @@
 | Karar defteri bakımı, indeks üretimi, faz arşivleme | [defter-bakimi](defter-bakimi.md) |
 | Site üretim betikleri (`build-agent-map.mjs`, `docfx`) | [site-uretim-kapilari](site-uretim-kapilari.md) |
 | Site yayını (`site-deploy.sh`), Starlight | [site-yayin-ve-tema](site-yayin-ve-tema.md) |
+| Site metni yazımı (markdown, makine okuyucusu) | [site-icerik-yazimi](site-icerik-yazimi.md) |

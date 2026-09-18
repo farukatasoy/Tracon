@@ -7,6 +7,8 @@
 > Sevk edilen dokumantasyonun DOGRULUGU (paketlenen XML, paket README'leri,
 > paketlenen OpenAPI belgesi, metin kapisi yazma tuzaklari).
 >
+> Site METNININ yazim tuzaklari (markdown ayristiricisi, makine okuyucusu)
+> AYRI dosyadadir: [`site-icerik-yazimi.md`](site-icerik-yazimi.md).
 > Site YAYIN hatti ve Starlight temasi AYRI dosyadadir:
 > [`site-yayin-ve-tema.md`](site-yayin-ve-tema.md). Site UREtim betikleri
 > (`build-agent-map.mjs`, `docfx`) ve onlarin kapi davranisi da AYRI dosyadadir:
@@ -138,16 +140,6 @@ kapsamalı — yalnız başlığı değil. Düzeltme: tarama artık başlık doc
 gövdedeki her `///` satırını birleştirip arıyor (`InterfaceDocSurface`).
 Regresyon testi: `A_dimension_answered_on_a_MEMBERs_doc_counts_as_answered`.
 
-## 🚨 Site içeriği repo private iken kendi GitHub URL'ine bağlanamaz (Faz 123)
-
-`check-content.mjs` `repositoryIsPublic=false` (`site.config.mjs`) iken
-`repositoryUrl` metnini (link veya düz metin, ikisi de) her sayfada reddeder
-— okuyucuya bugün `404` dönerdi. Elle yazılan bir sayfa `CHANGELOG.md`'ye
-"bağlantı ekle" gibi bir plan kararını uygularken bunu yakaladı. Repo private
-kaldığı sürece dosya adını düz metinle (`` `CHANGELOG.md` ``) anlat, GitHub
-URL'i yazma; repo açıldığında `repositoryIsPublic=true` olur ve gerçek
-bağlantı eklenebilir.
-
 ## 🚨 Uretilen referans bir KESIF yuzeyi degildir (2026-09-03)
 
 `quota.threshold` sevk edilmisti ve calisiyordu; anlati onu hic anlatmiyordu.
@@ -176,71 +168,3 @@ denetlenebilir yarısıdır. Ölçüm:
 - **🚨 Kapı sapmayı YAKALAR; sapmayı ÜRETEN protokol düzeltilmezse sınıf kapanmaz** (2026-09-08): `00-INDEKS.md` 1488 case yazıyordu, gerçek 1597'ydi — 36 ailenin **17'si** bayat. Sebep tek bir cümleydi: `faz-tamamlama` Adım 3 indeksi yalnız "alan dosyası yoksa" güncelletiyordu, yani mevcut bir aileye case eklemek sayacı hiç güncellemiyordu. Faz 157 bir aile dosyasına 170 satır ekledi ve indekse dokunmadı. **İki düzeltme birlikte gerekir:** kapı (`manuel_test_sayim_kaymasi`) unutulanı yakalar, protokol adımı unutulmayı önler. Yalnız kapı eklemek her fazda bir kırmızı üretir ve insanları onu susturmaya eğitir.
 - **🚨 Bir kapı İLK koşumunda kırmızı yanarsa, önce KAPIYI doğrula** (2026-09-08, `bagimlilik_surum_damgasi` yazılırken): kapı `IVectorSearchStore.cs:16`'daki `10.8.0` damgasını `Microsoft.Extensions.AI` pini `10.9.0` ile karşılaştırıp sapma bildirdi. Sapma **yoktu** — damga `Microsoft.Extensions.VectorData` hakkındaydı ve repo o paketi hiç almıyor; hatalı olan kapının eşleme kaydıydı. Kod "düzeltilseydi" doğru bir cümle yanlışla değiştirilecekti. Kural: yeni kapının ilk bulgusu bir kanıttır, bir emir değil. Pinlenmeyen paket için kayıt `None` taşır — bu bir atlama değil, yazılı karardır.
 - **🚨 Üretilen dosyayı `Edit`'ten korumak ÜRETECİ kilitlemez — ama `ask` bir kilit de değildir** (Faz 167, `claude 2.1.269`): `Edit(<yol>)` deny'ı `Edit` + `Write` **ve** `rm <yol>` Bash komutunu kapsar; `dokuman-bakim.py` **Python ile** yazdığı için üretim modu kuralı hiç tetiklemez (`MT-GDK-029`). Ama `ask` (`docs/arsiv/fazlar/*.md`) oturumun izin moduna tabidir: auto mode'da sınıflandırıcı **sessizce onaylar**, aynı oturumda `deny` sertçe durur. Her iddia kontrol koşumuyla ayırt edildi — kural yokken aynı `rm` dosyayı sildi. Ölçümler ve sınırlar: K-761 · K-763. Doküman kuralını araca taşırken sorulacak soru "kural kondu mu" değil, **"hangi yazma yolunu gerçekten kapatıyor"**.
-
-
-## 🚨 Makine okuyucusu için HTML, kod bloğunu SESSİZCE bozar (2026-09-14, GEO denetimi)
-
-Expressive Code her kod SATIRINI kendi `<div class="ec-line">`'ına yazar ve aralarına
-newline **koymaz**. Etiketleri düşüren bir metin dönüşümü şunu üretir:
-
-```
-var builder = WebApplication.CreateBuilder(args);builder.AddTracon().UseUI();
-```
-
-Derlenmeyen C#. Tablolarda aynı kusur sütun sınırında olur: satır ayrımı korunur,
-sütun ayrımı kaybolur. Bunu hiçbir kapı göremezdi çünkü **render doğru**; bozulan
-yalnız düz metne indirgeme.
-
-Çözüm sayfa sayfa değil merkezî: `src/pages/[...slug].md.ts` her içerik sayfasının
-markdown kaynağını `<adres>index.md` olarak yayınlar (1.136 dosya). Kapı
-`scripts/site-seo-denetle.py` içindedir ve **varlığı yetmez** diye yazılmıştır:
-kopyanın gövdesindeki `> Page:` satırı sayfanın canonical'ına eşit olmalıdır. İlk
-koşumda açılış sayfası `/index/index.md` altına, var olmayan `/index/` adresiyle
-yazıldı — sebebi loader'ın `concepts/index.md`'den `index`'i düşürüp site kökünde
-düşürmemesi. Site içinden bakan hiçbir kontrol bunu göremezdi.
-
-İki yan koşul, ikisi de `deploy/nginx.conf`'ta:
-
-- Stok `mime.types`'ta `.md` **yoktur**. `location ~ \.md$ { default_type text/markdown; }`
-  kullan — server seviyesinde `types { }` **miras haritanın tamamını siler**.
-- `charset_types`'a `text/markdown` ekle, ama `text/html` **yazma**: o zaten örtük ve
-  listelemek `nginx -t`'de uyarı verir.
-
-## 🚨 robots.txt'te isimli grup, `*` grubunu TAMAMEN geçersizler (2026-09-14)
-
-RFC 9309: bir crawler yalnız **en özgül** eşleşen grubu okur, kalanını yok sayar.
-`User-agent: *` altına yazılan `Disallow: /pagefind/fragment/`, `User-agent: GPTBot`
-grubu eklendiği anda GPTBot için **etkisiz** olur. Yol kısıtları her gruba tekrar
-yazılır (`src/pages/robots.txt.ts`).
-
-İkinci tuzak: kısıtı `Allow: /`'dan **önce** yaz — uyumlu parser en uzun eşleşmeyi
-alır ama Python'un `urllib.robotparser`'ı ilkini alır. Politikanın kendisi
-`site.config.mjs`'deki `crawlerPolicy`'dedir; karar veri, endpoint yalnız render
-eder. Ölçülmüş kapsam gerçekleri:
-[`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
-
-## 🚨 Markdown tablosunun SATIRLARI ARASINA yorum koymak tabloyu YOK EDER (Faz 174)
-
-Bir tablo satırını makine okunur bir işaretle bağlarken ilk akla gelen yazım
-**çalışmaz** — GFM'de tablo bitişik satırlardan oluşur ve bir HTML bloğu (yorum
-da bir HTML bloğudur) tabloyu **o satırda kapatır**:
-
-```markdown
-<!-- capacity: … -->
-| Buffered | 1 | 174 |      ← tablo BURADA biter
-```
-
-Repo'nun remark sürümüyle ölçüldü: 13 satırlık tablo **1 satıra** düştü.
-`npm run build` yeşil kalır — yalnız tablo kaybolur. Kapan `|`'dan **sonra**
-yazmak da bozar: başlıkta olmayan fazladan bir hücre üretir.
-
-**Doğru yer hücrenin içidir, kapan `|`'dan önce:**
-
-```markdown
-| Buffered | 1 | 174 | 1044 ms <!-- capacity: profile=sweep concurrency=1 --> |
-```
-
-Repo bunu Faz 158'den beri yapıyor (`<!-- claim:option … -->`,
-`reference/configuration.md`) — yeni işaret tasarlamadan önce o emsale bak.
-İşaret sevk edilen İngilizce sayfaya girdiği için anahtarı da İngilizcedir;
-`SourceLanguageTests` `docs-site/`'ı taramaz, kapı bu hatayı yakalamaz (K-228).
