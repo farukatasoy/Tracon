@@ -501,6 +501,51 @@ hiçbir şey anlatmıyor; alan adı (`$.compaction.strategy`) tek yararlı kıs�
 **Etki:** düşük — istek yine reddediliyor, sessiz kabul yok. Bedeli teşhis
 süresi: kullanıcı geçerli adı dokümanda aramak zorunda.
 
+**✅ KAPANDI 2026-09-18 (Aile L).** 👤 Karar: **tek converter, bütün enum
+alanları** (K-821). Mesaj artık şu:
+
+```
+'BoyleBirSeyYok' is not a valid value. The valid values are: None,
+SlidingWindow, Truncation, ToolResult, Summarization, ContextWindow,
+Pipeline. Path: $.compaction.strategy
+```
+
+🚨 **İlk tasarım ÖLÇÜMLE reddedildi.** Converter'ı enum tiplerinin kendisine
+`[JsonConverter]` ile takmak akla yatkındı ve **yayınlanan sözleşmeyi
+bozuyordu**: `JsonSchemaExporter` yalnız framework'ün kendi enum converter'ını
+tanır, bu yüzden `docs/openapi/tracon.json` **42 enum'un `enum` listesini birden
+kaybetti** (287 satır silindi; `CompactionStrategyKind` şeması yalnız
+`description` olarak kaldı) ve üretilen her istemci union'larını yitirirdi. Bu
+ancak belgeyi tazeleyip `git diff`'e bakınca görüldü — derleme ve testler
+yeşildi.
+
+Çözüm, aynı sonucu sözleşmeye hiç dokunmadan verir: converter **istek gövdesi
+options'ına** takılır. Bir options converter'ı tip düzeyindeki attribute'u
+geçer (çözüm sırası: property attribute → options listesi → tip attribute'u),
+yani gövdeler için kazanır, şema üretiminde hiç görünmez, ve `Tracon.Abstractions`
+public yüzeyi büyümez.
+
+🚨 **İkinci katman: `AgentEndpoints` gövdeyi KENDİ okuyordu.** Converter
+takıldıktan sonra test hâlâ kırmızı kaldı. Sebep: `BindAgentDefinitionRequestAsync`
+`RequestBodyBinding`'in **elle yazılmış ikinci bir kopyasıydı** ve
+`ReadFromJsonAsync`'i **hiç options vermeden** çağırıyordu. Üç agent tanımı ucu
+bu yüzden paylaşılan okuyucunun eklediği her şeyi sessizce kaçırıyordu —
+yalnız bu converter'ı değil, `RespectNullableAnnotations`'ı da. İki okuyucunun
+başlığı ve durum kodu **aynı** olduğu için kopya fark edilmeden durabilmişti.
+Artık delege ediyor.
+
+🚨 **Üçüncü katman: yolu System.Text.Json eklemiyor.** STJ `JsonException.Path`
+alanını bir converter'ın attığı istisna için de doldurur, ama **mesaja** yalnız
+kendi ürettiği istisnalarda ekler. Daha iyi bir cümle yazan converter bu yüzden
+stok mesajın tek yararlı parçasını kaybediyordu. `RequestBodyBinding.Describe`
+yolu bir kez, her gövde hatası için ekliyor.
+
+| Adım | Sonuç |
+|---|---|
+| Ampirik yeniden üretim | ☑ üç fonksiyonel testin ikisi düzeltmeden önce kırmızı |
+| Sınıf taraması | ☑ `grep -rn "ReadFromJsonAsync" src/` → gövdeyi elle okuyan başka **iki** yer var (OpenAI uyumluluk uçları) ve ikisi de `JsonElement` okuyor, yani enum bağlama yok. Kaydın saydığı iki alan yerine **tüm** enum alanları kapsandı |
+| Testler | 3 fonksiyonel test; ikisi ayrı sözleşme/uç, biri geçerli değerin hâlâ kabul edildiğini kilitliyor |
+
 ---
 
 ## MT-CORE-023 — Skill kataloğu kayıtlı değilken skill isteyen tanım
@@ -777,6 +822,20 @@ kaynaklı agent'la çağrıldıklarında aynı yanıltıcı metni üretme ihtima
 
 **Etki:** orta — veri kaybı yok, güvenlik sorunu yok; bedeli tüketicinin
 teşhis süresi ve dokümana duyduğu güven.
+
+**✅ KAPANDI 2026-09-18 (Aile L).** 👤 Karar: **durum kodu `404` kalır, gerekçe
+doğruyu söyler** (K-820). Sürüm geçmişi kaynağı gerçekten yoktur; değişen tek
+şey çağıranın üzerine iş yaptığı cümledir. `409` reddedildi — o kod bir
+**değişiklik** çakışması içindir ve bu bir `GET`'tir. `200 + boş liste` de
+reddedildi: "hiç sürüm yok" ile "burada sürümlenmiyor" ayrımını siler.
+
+| Adım | Sonuç |
+|---|---|
+| Ampirik yeniden üretim | ☑ altı fonksiyonel testin beşi düzeltmeden önce kırmızı |
+| Sınıf taraması | ☑ kaydın şüphesi **yarı** doğru çıktı. `rollback` **zaten** doğruydu — `GuardCodeAgentAsync`'ten geçiyor. `versions/{a}/diff/{b}` ise kaydın öngörmediği bir **ikinci** biçimde yanlıştı: agent varlığını hiç kontrol etmiyor, doğrudan `"Agent 'x' has no version N."` diyordu — yani "bu agent burada sürümleniyor, yalnız o numara yok" iddiası; iki yarısı da yanlış |
+| Düzeltme | Ortak `NoVersionHistoryAsync`: `Code` · `Custom` · bilinmeyen ad için üç ayrı cevap, tek yerde. `diff` artık varlık kontrolünü **iki sürüm okumasından önce** yapıyor |
+| Testler | 6 fonksiyonel test; ikisi ters yönü kilitliyor (bilinmeyen ad **hâlâ** "There is no agent named 'x'." alır) |
+| Tüketici yüzeyi | İki ucun OpenAPI `description` metni; yayınlanan belge tazelendi |
 
 ---
 
@@ -2036,6 +2095,17 @@ source"), yalnız bilgi kutusu onu kullanmıyor.
 **`HATA-S1-009` ile aynı sınıf:** "veritabanında yok" → "kodda" varsayımı.
 Kapanışta ikisi birlikte değerlendirilmeli.
 
+**✅ KAPANDI 2026-09-18 (Aile L).** Bilgi kutusu artık `descriptor.origin`'i
+okuyor; `Custom` için yeni bir metin (`agentDetail.sourceNotice`, en + tr)
+kaynağı **adıyla** söylüyor ve doğru eylemi gösteriyor. Sayfa bu bilgiyi zaten
+rozette gösteriyordu; eksik olan kutunun onu kullanmasıydı.
+
+| Adım | Sonuç |
+|---|---|
+| Ampirik yeniden üretim | ☑ iki vitest testi düzeltmeden önce kırmızı |
+| Sınıf taraması | ☑ `grep -rn "isEditable" src/Tracon.UI/frontend/src` → beş kullanım; kalan dördü düğme görünürlüğüdür ve `Code`/`Custom` ayrımı onlar için anlamsızdır (ikisi de düzenlenemez). Rozet (`OriginBadge`) ayrımı zaten yapıyordu |
+| Testler | `agent-detail.test.tsx`; ikinci test kod kaynaklı agent'ın metnini kilitliyor |
+
 ---
 
 ## MT-CORE-088 — `Custom` kaynağa ait ada `PUT`/`POST` çakışması `409` döner
@@ -2629,6 +2699,15 @@ iki metin aynı seçenek kümesini saymalı.
 **Etki:** düşük — kusur her iki yolda da yakalanıyor; bedeli, kalıcı bir
 bağımlılığı olan tüketicinin doğru API'yi (kendisi için var olan `AddScopedTool`)
 bulamaması.
+
+**✅ KAPANDI 2026-09-18 (Aile L).** Analyzer metni üçüncü seçeneği kazandı.
+
+| Adım | Sonuç |
+|---|---|
+| Ampirik yeniden üretim | ☑ `TRC0007` testi genişletildi ve düzeltmeden önce kırmızı |
+| Sınıf taraması | ☑ kayıt **iki** yüzey sayıyordu; ölçüm **dört** buldu. `AddScopedTool`'u anmayan diğer ikisi: `ToolMethodScanner`'ın kendi XML dokümanı (sevk edilen metin) ve `docs-site/troubleshooting.md`'nin `TRC0007` bölümü — ikincisi `AddScopedTool`'un yaptığı işi **tarif ediyor** ama adını vermiyordu, yani okuyan kişi API'yi yine bulamıyordu. İkisi de düzeltildi; siteye çalışan bir örnek eklendi |
+| Diğer ikizler | `TRC0004` ve `TRC0005`'in çalışma-anı karşılıkları da karşılaştırıldı: `TRC0004` birebir aynı, `TRC0005`'in iki metni **bilerek** farklı (biri `AddGeneratedTools()` çağrısını, diğeri `AddToolsFrom(type)` çağrısını anlatır) — kayma değil |
+| Testler | `DiagnosticTests`; üç seçeneğin üçü de adıyla zorlanıyor |
 
 ---
 

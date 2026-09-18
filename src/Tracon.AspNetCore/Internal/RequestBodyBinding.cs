@@ -31,6 +31,31 @@ internal static class RequestBodyBinding
     internal const string ProblemTitle = "Invalid request body";
 
     /// <summary>
+    /// The <c>detail</c> for a body that failed to parse: the exception's own
+    /// message, followed by the JSON path of the property it failed on.
+    /// </summary>
+    /// <param name="exception">The parse failure.</param>
+    /// <returns>The text to put in <c>ProblemDetails.detail</c>.</returns>
+    /// <remarks>
+    /// System.Text.Json fills <see cref="JsonException.Path"/> for every failure
+    /// it routes, including one a converter threw, but it appends the path to
+    /// <see cref="Exception.Message"/> only for exceptions it created itself.
+    /// So a converter that writes a better sentence than the stock one — see
+    /// <see cref="ExplainedEnumConverter{TEnum}"/> — would lose the single piece
+    /// of the stock message that pointed at the offending field. The path is
+    /// appended here, once, for both readers and for whatever else the
+    /// framework raises.
+    /// </remarks>
+    internal static string Describe(JsonException exception)
+    {
+        ArgumentNullException.ThrowIfNull(exception);
+
+        return exception.Path is { Length: > 0 } path && !exception.Message.Contains(path, StringComparison.Ordinal)
+            ? $"{exception.Message} Path: {path}"
+            : exception.Message;
+    }
+
+    /// <summary>
     /// Per-consumer <see cref="JsonSerializerOptions"/> derived from the
     /// application's own, keyed by the instance they were derived from.
     /// </summary>
@@ -74,6 +99,19 @@ internal static class RequestBodyBinding
     /// written with the application's own options, so nothing Tracon
     /// serializes can start throwing on a null.
     /// </para>
+    /// <para>
+    /// It also carries <see cref="ExplainedEnumConverterFactory"/>, which is
+    /// what makes a refused enum value name itself and its alternatives. That
+    /// converter lives here, on the read options, rather than on the enum types:
+    /// a type-level attribute reaches schema generation too, and measured there
+    /// it cost the published OpenAPI document the <c>enum</c> list of all 42
+    /// enums. An options-level converter takes precedence over a type-level
+    /// attribute, so it wins for bodies and is invisible everywhere else. It is
+    /// APPENDED, not inserted first: a consumer who registered their own enum
+    /// converter through <c>ConfigureHttpJsonOptions</c> was copied in ahead of
+    /// it and keeps winning, which is the same rule the store registrations
+    /// follow — the consumer's registration always wins.
+    /// </para>
     /// </remarks>
     private static JsonSerializerOptions ReadOptions(HttpContext httpContext)
     {
@@ -81,9 +119,16 @@ internal static class RequestBodyBinding
             .GetRequiredService<IOptions<JsonOptions>>()
             .Value.SerializerOptions;
 
-        return BodyOptions.GetValue(
-            applicationOptions,
-            static source => new JsonSerializerOptions(source) { RespectNullableAnnotations = true });
+        return BodyOptions.GetValue(applicationOptions, CreateBodyOptions);
+    }
+
+    private static JsonSerializerOptions CreateBodyOptions(JsonSerializerOptions source)
+    {
+        var options = new JsonSerializerOptions(source) { RespectNullableAnnotations = true };
+
+        options.Converters.Add(new ExplainedEnumConverterFactory());
+
+        return options;
     }
 
     /// <summary>
@@ -122,7 +167,7 @@ internal static class RequestBodyBinding
         {
             return (default, TypedResults.Problem(
                 title: ProblemTitle,
-                detail: ex.Message,
+                detail: Describe(ex),
                 statusCode: StatusCodes.Status400BadRequest));
         }
     }
@@ -176,7 +221,7 @@ internal static class RequestBodyBinding
         {
             return (default, TypedResults.Problem(
                 title: ProblemTitle,
-                detail: ex.Message,
+                detail: Describe(ex),
                 statusCode: StatusCodes.Status400BadRequest));
         }
     }

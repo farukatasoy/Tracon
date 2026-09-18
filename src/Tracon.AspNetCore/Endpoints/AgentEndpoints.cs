@@ -144,8 +144,9 @@ internal static class AgentEndpoints
             .WithDescription(
                 "Every entry is a full definition snapshot, not a delta, so a single entry is " +
                 "enough to inspect or restore a past state. The agent must have a current stored " +
-                "definition; a code-defined or deleted name returns 404. Code agents have no " +
-                "version history at all — their history is the application's source history.");
+                "definition; a deleted name returns 404. A code-defined or agent-source name also " +
+                "returns 404, with a reason that says so — such a definition is not stored by " +
+                "Tracon and has no version history at all.");
 
         builder.MapPost("/api/agents/{name}/rollback", RollbackAsync)
             .RequireRole(roles.Admin)
@@ -170,7 +171,8 @@ internal static class AgentEndpoints
                 "The server does no diffing and takes no position on how a change should be " +
                 "displayed; it returns both snapshots verbatim as 'left' and 'right' so the client " +
                 "chooses the presentation. The two version numbers may be given in any order. When " +
-                "either version is missing the response is 404 and names the one that was not found.");
+                "either version is missing the response is 404 and names the one that was not found; " +
+                "a code-defined or agent-source name returns 404 saying it has no version history.");
 
         builder.MapPost("/api/agents/{name}/run", async (
                 string name,
@@ -417,9 +419,19 @@ internal static class AgentEndpoints
         string name,
         int a,
         int b,
+        IAgentCatalog catalog,
         IAgentDefinitionStore definitions,
         CancellationToken cancellationToken)
     {
+        // Checked BEFORE the two version reads: without it, an agent whose
+        // definition lives outside the store answers "has no version 1", which
+        // states that the agent is versioned here and only that number is
+        // missing. Both halves of that are wrong.
+        if (await definitions.GetAsync(name, cancellationToken).ConfigureAwait(false) is null)
+        {
+            return await NoVersionHistoryAsync(catalog, name, cancellationToken).ConfigureAwait(false);
+        }
+
         var left = await definitions.GetVersionAsync(name, a, cancellationToken).ConfigureAwait(false);
         var right = await definitions.GetVersionAsync(name, b, cancellationToken).ConfigureAwait(false);
 
@@ -663,12 +675,13 @@ internal static class AgentEndpoints
 
     private static async Task<Results<Ok<IReadOnlyList<AgentDefinition>>, ProblemHttpResult>> ListVersionsAsync(
         string name,
+        IAgentCatalog catalog,
         IAgentDefinitionStore definitions,
         CancellationToken cancellationToken)
     {
         if (await definitions.GetAsync(name, cancellationToken).ConfigureAwait(false) is null)
         {
-            return NotFound(name);
+            return await NoVersionHistoryAsync(catalog, name, cancellationToken).ConfigureAwait(false);
         }
 
         return TypedResults.Ok(
@@ -1823,38 +1836,72 @@ internal static class AgentEndpoints
             statusCode: StatusCodes.Status404NotFound);
 
     /// <summary>
+    /// The answer for a version-history read when <see cref="IAgentDefinitionStore"/>
+    /// holds nothing under <paramref name="name"/>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// "The database store has no row" and "there is no such agent" are not the
+    /// same statement. A code agent's definition lives in the
+    /// <c>CodeAgentRegistration</c> singleton and an <c>IAgentSource</c> agent's
+    /// lives in that source; neither is ever written to the store, so the plain
+    /// "no such agent" answer contradicts <c>GET /api/agents/{name}</c>, which
+    /// answers <c>200</c> for the same name at the same moment.
+    /// </para>
+    /// <para>
+    /// The status stays <c>404</c> — the version-history resource really does not
+    /// exist — but the reason is what the caller acts on, and the two reasons
+    /// call for different actions: edit the application source, or edit whatever
+    /// the named agent source reads.
+    /// </para>
+    /// </remarks>
+    private static async ValueTask<ProblemHttpResult> NoVersionHistoryAsync(
+        IAgentCatalog catalog,
+        string name,
+        CancellationToken cancellationToken)
+    {
+        var descriptor = await FindDescriptorAsync(catalog, name, cancellationToken).ConfigureAwait(false);
+
+        return descriptor?.Origin switch
+        {
+            AgentDefinitionOrigin.Code => TypedResults.Problem(
+                title: VersionHistoryMissingTitle,
+                detail: $"'{name}' is defined in code. A code definition is not stored by Tracon, " +
+                        "so it has no version history; its history is the application's source history.",
+                statusCode: StatusCodes.Status404NotFound),
+            AgentDefinitionOrigin.Custom => TypedResults.Problem(
+                title: VersionHistoryMissingTitle,
+                detail: $"'{name}' belongs to the '{descriptor.SourceName}' agent source. Its definition " +
+                        "is not stored by Tracon, so it has no version history.",
+                statusCode: StatusCodes.Status404NotFound),
+            _ => NotFound(name),
+        };
+    }
+
+    /// <summary>Shared by both version-history reads so they cannot drift apart.</summary>
+    private const string VersionHistoryMissingTitle = "Agent has no version history";
+
+    /// <summary>
     /// Reads the body by hand (instead of minimal API's automatic JSON
     /// binding): a parsing error (for example, an unrecognized enum value)
     /// thus falls under this endpoint's own <c>400</c> contract, rather than
     /// falling through to a generic <c>500</c> from a <see cref="JsonException"/>
     /// thrown and left uncaught during minimal API's binding stage.
     /// </summary>
+    /// <remarks>
+    /// 🚨 This used to be a second, hand-rolled copy of
+    /// <see cref="RequestBodyBinding.ReadAsync{T}"/> that called
+    /// <c>ReadFromJsonAsync</c> with no options at all, so the three agent
+    /// definition endpoints silently missed everything the shared reader adds:
+    /// <c>RespectNullableAnnotations</c>, and the enum converter that names a
+    /// refused value and its alternatives. Both readers already produced the
+    /// same title and the same status, which is what let the copy sit here
+    /// unnoticed. It now delegates.
+    /// </remarks>
     private static async Task<(AgentDefinitionRequest? Request, ProblemHttpResult? Error)> BindAgentDefinitionRequestAsync(
         HttpContext httpContext,
         CancellationToken cancellationToken)
-    {
-        try
-        {
-            var request = await httpContext.Request
-                .ReadFromJsonAsync<AgentDefinitionRequest>(cancellationToken)
-                .ConfigureAwait(false);
-
-            if (request is null)
-            {
-                return (null, TypedResults.Problem(
-                    title: "Invalid request body",
-                    detail: "The body cannot be empty.",
-                    statusCode: StatusCodes.Status400BadRequest));
-            }
-
-            return (request, null);
-        }
-        catch (JsonException ex)
-        {
-            return (null, TypedResults.Problem(
-                title: "Invalid request body",
-                detail: ex.Message,
-                statusCode: StatusCodes.Status400BadRequest));
-        }
-    }
+        => await RequestBodyBinding
+            .ReadAsync<AgentDefinitionRequest>(httpContext, cancellationToken)
+            .ConfigureAwait(false);
 }

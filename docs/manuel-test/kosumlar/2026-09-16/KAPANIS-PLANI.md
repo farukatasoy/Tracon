@@ -3,7 +3,7 @@
 > **Bu turu kapatan her oturum ÖNCE burayı okur.** Koşum bitti; bu dosya
 > kapanışın tek kontrol düzlemidir.
 >
-> **Durum:** 🟡 Aşama 2 sürüyor · **Aile A · B · C · D · E · F · G · H · I · J · K KAPANDI** · 24 açık kusur, 11 aile kaldı
+> **Durum:** 🟡 Aşama 2 sürüyor · **Aile A · B · C · D · E · F · G · H · I · J · K · L KAPANDI** · 20 açık kusur, 10 aile kaldı
 > **Son güncelleme:** 2026-09-18 (Aile J kapandı — `S1-020`; ölçüm **ikinci bir katman** buldu: parmak izi normalleştirmesi durum kodunu da siliyordu)
 
 Turdan bağımsız kapanış protokolü — aile aile oturum yordamı, "önce ampirik
@@ -786,7 +786,48 @@ yeri de daraltır.** Cümle kalıbı alıntılamadan yeniden yazıldı.
 | Testler | 2 yeni birim testi + kapının kendisi; taban çizgisi **boş kaldı** |
 | Kapı | `SourceLanguageTests` yeşil — yeni kural repoda başka hiçbir satır bulmuyor |
 
-| **L** · Katalog ve agent kaynağı mesajları | `S1-009` Orta · `S1-013` Düşük · `S1-008` Düşük · `S1-014` Düşük | Kod kaynaklı agent'ın `versions` ucu "böyle bir agent yok" diyor — agent var; `IAgentDefinitionStore`'da yokluk her yerde yokluk sanılıyor. `Custom` kaynaklı agent'a "bu agent kodda tanımlı" deniyor, yönlendirme de yanlış. Bilinmeyen `compaction.strategy` reddediliyor ama mesaj ne reddedilen değeri ne geçerli listeyi söylüyor. Analyzer'ın `TRC0007` metni `AddScopedTool`'u anmıyor; runtime metni anıyor — pratikte görülen analyzer'ınki | ☐ |
+| **L** · Katalog ve agent kaynağı mesajları | `S1-009` Orta · `S1-013` Düşük · `S1-008` Düşük · `S1-014` Düşük | Dört kusur, tek cümle: **uygulama bir ayrımı biliyor ve onu söylemesi gereken yerde söylemiyor** | ✅ **KAPANDI 2026-09-18** |
+
+#### Aile L — ✅ kapandı (2026-09-18)
+
+| Kusur | Bilinen ama söylenmeyen ayrım | Düzeltme |
+|---|---|---|
+| `S1-009` | "veritabanı deposunda satır yok" ≠ "böyle bir agent yok" — yazma uçları bu ayrımı **zaten** yapıyordu | Ortak `NoVersionHistoryAsync`; `404` kalır, gerekçe değişir 👤 (K-820) |
+| `S1-008` | Reddedilen enum değeri ve geçerli liste biliniyor; mesaj CLR tip adını ve bayt offset'ini söylüyor | Gövde options'ına takılan `ExplainedEnumConverterFactory` 👤 (K-821) |
+| `S1-013` | Sayfa `origin`'i **rozette gösteriyor**, bilgi kutusu onu okumuyor | `agentDetail.sourceNotice`; kaynağı adıyla söyler |
+| `S1-014` | Çalışma-anı metni `AddScopedTool`'u anıyor, analyzer metni anmıyor — **görülen** analyzer'ınki | `TRC0007` üçüncü seçeneği kazandı |
+
+🚨 **Akla yatkın bir tasarım yayınlanan sözleşmeyi bozdu ve bunu yalnız
+`git diff` gösterdi.** `S1-008`'in doğal çözümü converter'ı enum tiplerine
+`[JsonConverter]` ile takmaktı. Derleme yeşil, testler yeşil — ve
+`docs/openapi/tracon.json` tazelendiğinde **42 enum'un `enum` listesi birden
+silinmişti** (287 satır). `JsonSchemaExporter` yalnız framework'ün kendi enum
+converter'ını tanıyor. Ders: **sevk edilen bir sözleşmeyi üreten her mekanizma
+için, değişikliğin o üretimi de tazeleyip farkı okumak gerekir** — testler
+üretilmiş belgeyi değil, kodu ölçer.
+
+🚨 **`S1-008` üç katmandı ve kayıt yalnız birincisini biliyordu.** Converter
+takıldıktan sonra test hâlâ kırmızıydı: `AgentEndpoints` `RequestBodyBinding`'in
+**elle yazılmış ikinci bir kopyasını** taşıyordu ve `ReadFromJsonAsync`'i hiç
+options vermeden çağırıyordu — üç agent tanımı ucu paylaşılan okuyucunun
+eklediği her şeyi (bu converter'ı **ve** `RespectNullableAnnotations`'ı) sessizce
+kaçırıyordu. İki okuyucunun başlığı ve durum kodu aynı olduğu için kopya
+görünmüyordu. Üçüncü katman: STJ `JsonException.Path`'i doldurur ama mesaja
+yalnız kendi istisnalarında ekler.
+
+🚨 **İki mevcut test düzeltmeden sonra kırmızı oldu ve ikisi de HAKLI olarak.**
+`JsonBindingProblemMiddlewareTests`'in iki testi `detail`'in **CLR tip adını**
+taşımasını bekliyordu — yani kusurun kendisini kilitliyorlardı. Zayıflatılmadılar;
+aynı yönlendirmeyi daha güçlü kanıtlayan iddialara çevrildiler (reddedilen değer
+· geçerli liste · JSON yolu).
+
+| Adım | Sonuç |
+|---|---|
+| Ampirik yeniden üretim | ☑ dördü de: 5/6 · 2/3 · 2/2 · 1/1 test düzeltmeden önce kırmızı |
+| Sınıf taraması | ☑ dördünde de kaydın saydığından **fazlası** çıktı: `diff` ucu (`S1-009`) · tüm enum alanları + ikinci binder (`S1-008`) · `ToolMethodScanner` XML dokümanı + `docs-site` (`S1-014`) |
+| Testler | 11 yeni test (6 fonksiyonel · 3 fonksiyonel · 2 vitest) + 2 mevcut testin iddiası güncellendi |
+| Tüketici yüzeyi | İki OpenAPI `description` · `docs-site/troubleshooting.md` `TRC0007` bölümü (çalışan `AddScopedTool` örneğiyle) · yayınlanan belge ve ondan türeyen istemciler tazelendi |
+
 | **M** · Sağlık ve açılış gürültüsü | `S1-016` Düşük-Orta · `S1-017` Düşük | `/health` kendi başına hiçbir zaman `Healthy`'ye ulaşmıyor — `/api/models/health` çağrılmadıkça sonsuza dek `Degraded`. Taze şemaya karşı her açılış `Error` seviyesinde yığın izi basıyor; yutma bir katman geç yapılıyor | ☐ |
 | **N** · CSP ve inline script | `S1-004` · `S2-002` Düşük-Orta | Aynı sınıf, iki yüzey. Hem gömülü arayüzün hem gömülü konsolun `index.html`'i nonce/hash'siz bir inline `<script>` taşıyor (erken tema boyama), ama aynı yanıtın kendi CSP başlığı `script-src 'self'` gönderiyor — script **her sayfa yüklemesinde** engelleniyor. `theme.ts` sonradan doğru temayı yazdığı için işlevsel kırılma yok, erken-boyama optimizasyonu hiç çalışmıyor (olası FOUC) | ☐ |
 | **O** · HTTP sözleşme kusurları | `S4-002` Orta | `PUT /api/schedules/{name}` gövdede `payload` alanı olmadan `500` veriyor. **Tarama:** aynı desendeki diğer `PUT`/`POST` uçları | ☐ |

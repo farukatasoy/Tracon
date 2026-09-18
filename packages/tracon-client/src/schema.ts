@@ -105,7 +105,7 @@ export interface paths {
         };
         /**
          * Lists a definition's version history, newest first.
-         * @description Every entry is a full definition snapshot, not a delta, so a single entry is enough to inspect or restore a past state. The agent must have a current stored definition; a code-defined or deleted name returns 404. Code agents have no version history at all — their history is the application's source history.
+         * @description Every entry is a full definition snapshot, not a delta, so a single entry is enough to inspect or restore a past state. The agent must have a current stored definition; a deleted name returns 404. A code-defined or agent-source name also returns 404, with a reason that says so — such a definition is not stored by Tracon and has no version history at all.
          */
         get: operations["TraconListAgentVersions"];
         put?: never;
@@ -145,7 +145,7 @@ export interface paths {
         };
         /**
          * Returns two definition versions as raw JSON; the diff is computed in the UI.
-         * @description The server does no diffing and takes no position on how a change should be displayed; it returns both snapshots verbatim as 'left' and 'right' so the client chooses the presentation. The two version numbers may be given in any order. When either version is missing the response is 404 and names the one that was not found.
+         * @description The server does no diffing and takes no position on how a change should be displayed; it returns both snapshots verbatim as 'left' and 'right' so the client chooses the presentation. The two version numbers may be given in any order. When either version is missing the response is 404 and names the one that was not found; a code-defined or agent-source name returns 404 saying it has no version history.
          */
         get: operations["TraconGetAgentVersionDiff"];
         put?: never;
@@ -2827,8 +2827,8 @@ export interface components {
             origin?: components["schemas"]["AgentDefinitionOrigin"];
             /**
              * Format: int32
-             * @description Gets the definition version. Every save increments this value and so naturally
-             *     invalidates the compiled agent cache.
+             * @description Gets the definition version. Every save increments it, and the store owns the
+             *     number: the value on an incoming definition is ignored.
              */
             version?: number | string;
             /** @description Gets the tenant this definition belongs to. A single-tenant setup uses the default value. */
