@@ -45,6 +45,38 @@ public sealed class DiagnosticsEndpointTests
     }
 
     [Fact]
+    public async Task The_report_names_the_catalog_models_that_carry_no_price()
+    {
+        // 🚨 A run answered by an unpriced model is recorded with empty cost
+        // columns and PricingSource.Unknown — honest, never zero. The mechanism
+        // was right and said so nowhere, so an installation could record
+        // thousands of costless runs before anyone read the pricing_source
+        // value on a row to find out why.
+        await using var host = await TraconTestHost.StartAsync(
+            builder => builder.AddModelProvider(new Tracon.Testing.FakeModelProvider("priced")
+                    .WithModel(new ModelDescriptor { Name = "cheap-1", InputCostPerMillionTokens = 0.25m }))
+                .AddModelProvider(new Tracon.Testing.FakeModelProvider("unpriced")
+                    .WithModel(new ModelDescriptor { Name = "mystery-1" })),
+            configureEndpoints: static options => options.EnableDiagnosticsEndpoint = true);
+
+        using var response = await host.Client.GetAsync(Diagnostics);
+        response.EnsureSuccessStatusCode();
+
+        var pricing = (await TraconTestHost.ReadJsonAsync(response)).GetProperty("pricing");
+
+        var unpriced = pricing.GetProperty("unpricedModels").EnumerateArray()
+            .Select(static model => model.GetString())
+            .ToList();
+
+        unpriced.ShouldContain(static model => string.Equals(model, "unpriced/mystery-1", StringComparison.Ordinal));
+        unpriced.ShouldNotContain(static model => string.Equals(model, "priced/cheap-1", StringComparison.Ordinal));
+
+        // The default "echo" provider TraconTestHost registers carries no
+        // catalog at all, so it adds nothing to either count.
+        pricing.GetProperty("pricedModels").GetInt32().ShouldBe(1);
+    }
+
+    [Fact]
     public async Task Green_field_setup_reports_all_seven_embedding_points_as_built_in_default()
     {
         await using var host = await TraconTestHost.StartAsync(

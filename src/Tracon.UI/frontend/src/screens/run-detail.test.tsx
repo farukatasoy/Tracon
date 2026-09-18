@@ -72,4 +72,43 @@ describe('RunDetailScreen', () => {
 
     expect(alert.textContent).toContain('went quiet');
   });
+
+  it('marks a tool call that finished after its timeout was already reported', async () => {
+    // 🚨 HATA-S1-025: without the badge this row reads as a plain failure while
+    // showing the call's REAL duration — 34s on a tool bounded at 30s — which
+    // is the one combination an operator cannot explain.
+    restoreFetch = installApiMock([
+      fixture('GET', 'api/runs/:runId', { ...runRecord(), status: 'Completed' }),
+      {
+        method: 'GET',
+        pattern: 'api/runs/:runId/events',
+        handler: () => new Response('', { status: 200, headers: { 'Content-Type': 'text/event-stream' } }),
+      },
+      fixture('GET', 'api/runs/:runId/trace', { spans: [] }),
+      fixture('GET', 'api/runs/:runId/tree', []),
+      fixture('GET', 'api/runs/:runId/tools', [
+        {
+          id: '22222222-2222-2222-2222-222222222222',
+          runId,
+          toolName: 'generate_image',
+          toolCallId: 'call-late',
+          source: null,
+          arguments: null,
+          result: 'Images produced. count=1.',
+          duration: '00:00:34.0000000',
+          error: "Tool 'generate_image' did not complete within 30s.",
+          createdAt: '2026-09-01T10:00:30Z',
+          usage: { unit: 'images', quantity: 1, cost: 0.04, currency: 'USD', isEstimated: false },
+          authorizationDenied: false,
+          timedOut: true,
+          lateCompletedAt: '2026-09-01T10:00:34Z',
+          succeeded: false,
+        },
+      ]),
+    ]);
+
+    renderScreen(<RunDetailScreen id={runId} />);
+
+    expect(await screen.findByText('finished late')).toBeTruthy();
+  });
 });

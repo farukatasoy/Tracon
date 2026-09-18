@@ -21850,6 +21850,36 @@ namespace Tracon.Client.Generated
     }
 
     /// <summary>
+    /// Whether the catalog can actually put a price on a run.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
+    public partial class PricingDiagnostic
+    {
+        /// <summary>
+        /// Gets the number of catalog models that resolve to a price.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("pricedModels")]
+        public int PricedModels { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the `provider/model` pairs no price source covers, in catalog
+        /// <br/>order. Empty when every model is priced.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("unpricedModels")]
+        public System.Collections.Generic.ICollection<string> UnpricedModels { get; set; } = new System.Collections.Generic.List<string>();
+
+        /// <summary>
+        /// Gets the currency every computed cost is expressed in.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("currency")]
+        public string? Currency { get; set; } = default!;
+
+    }
+
+    /// <summary>
     /// Reports where a run's cost pricing came from.
     /// </summary>
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
@@ -25600,6 +25630,15 @@ namespace Tracon.Client.Generated
         public bool TimedOut { get; set; } = default!;
 
         /// <summary>
+        /// The moment a call that had already been reported as timed out actually
+        /// <br/>settled (UTC). `null` for every call that settled
+        /// <br/>within its own timeout.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("lateCompletedAt")]
+        public System.DateTimeOffset? LateCompletedAt { get; set; } = default!;
+
+        /// <summary>
         /// Whether the call finished successfully.
         /// </summary>
 
@@ -25904,6 +25943,13 @@ namespace Tracon.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("runRecording")]
         public RunRecordingDiagnostic RunRecording { get; set; } = new RunRecordingDiagnostic();
+
+        /// <summary>
+        /// Gets whether this installation can actually put a price on a run.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("pricing")]
+        public PricingDiagnostic Pricing { get; set; } = new PricingDiagnostic();
 
     }
 

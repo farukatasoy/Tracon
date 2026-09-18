@@ -55,6 +55,88 @@ public sealed class TimeoutAIFunctionTests
     }
 
     [Fact]
+    public async Task The_timeout_cancels_the_tool_body_instead_of_only_giving_up_on_it()
+    {
+        // 🚨 Measured on the old code: NOTHING was cancelled. A body that read
+        // its token on every wait still ran its full 3 seconds against a 300ms
+        // limit — the wrapper stopped waiting and left the work running, so a
+        // cooperative tool went on spending money nobody was waiting for.
+        var outcome = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        var inner = AIFunctionFactory.Create(
+            async (CancellationToken cancellationToken) =>
+            {
+                try
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(30), cancellationToken);
+                    outcome.TrySetResult("ran to completion");
+
+                    return "too late";
+                }
+                catch (OperationCanceledException)
+                {
+                    outcome.TrySetResult("cancelled");
+
+                    throw;
+                }
+            },
+            "cooperative_slow_tool");
+
+        var wrapped = new TimeoutAIFunction(inner, TimeSpan.FromMilliseconds(200), NullLogger<TimeoutAIFunction>.Instance);
+
+        await Should.ThrowAsync<TraconToolTimeoutException>(
+            async () => await wrapped.InvokeAsync(new AIFunctionArguments(StringComparer.Ordinal)));
+
+        var result = await outcome.Task.WaitAsync(TimeSpan.FromSeconds(10));
+
+        result.ShouldBe("cancelled");
+    }
+
+    [Fact]
+    public async Task A_sub_second_timeout_is_reported_in_milliseconds_not_as_zero_seconds()
+    {
+        // The message goes to the MODEL. A whole-second format turned every
+        // sub-second bound into "did not complete within 0s", which is not a
+        // sentence a model can act on.
+        var inner = AIFunctionFactory.Create(
+            async () =>
+            {
+                await Task.Delay(TimeSpan.FromSeconds(30), CancellationToken.None);
+
+                return "too late";
+            },
+            "brief_tool");
+
+        var wrapped = new TimeoutAIFunction(inner, TimeSpan.FromMilliseconds(500), NullLogger<TimeoutAIFunction>.Instance);
+
+        var exception = await Should.ThrowAsync<TraconToolTimeoutException>(
+            async () => await wrapped.InvokeAsync(new AIFunctionArguments(StringComparer.Ordinal)));
+
+        exception.Message.ShouldBe("Tool 'brief_tool' did not complete within 500ms.");
+        exception.Message.ShouldNotContain("0s");
+    }
+
+    [Fact]
+    public async Task A_whole_second_timeout_keeps_reading_in_seconds()
+    {
+        var inner = AIFunctionFactory.Create(
+            async () =>
+            {
+                await Task.Delay(TimeSpan.FromSeconds(30), CancellationToken.None);
+
+                return "too late";
+            },
+            "slow_tool");
+
+        var wrapped = new TimeoutAIFunction(inner, TimeSpan.FromSeconds(1), NullLogger<TimeoutAIFunction>.Instance);
+
+        var exception = await Should.ThrowAsync<TraconToolTimeoutException>(
+            async () => await wrapped.InvokeAsync(new AIFunctionArguments(StringComparer.Ordinal)));
+
+        exception.Message.ShouldBe("Tool 'slow_tool' did not complete within 1s.");
+    }
+
+    [Fact]
     public async Task A_call_that_honors_cancellation_propagates_the_real_cancellation_not_a_timeout()
     {
         var inner = AIFunctionFactory.Create(

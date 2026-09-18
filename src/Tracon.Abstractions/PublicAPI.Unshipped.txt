@@ -1209,6 +1209,7 @@ Tracon.IRunScoreStore.UpsertAsync(Tracon.RunScore! score, System.Threading.Cance
 Tracon.IRunStore
 Tracon.IRunStore.AppendEventAsync(Tracon.RunEvent! runEvent, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
 Tracon.IRunStore.ClaimOrphanedRunsAsync(System.DateTimeOffset staleBefore, int max, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Tracon.RunRecord!>!>
+Tracon.IRunStore.CompleteLateToolInvocationAsync(Tracon.LateToolCompletion! completion, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<bool>
 Tracon.IRunStore.CompleteRunAsync(Tracon.RunCompletion! completion, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask
 Tracon.IRunStore.GetExperimentResultsAsync(Tracon.ExperimentResultsQuery! query, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Tracon.ExperimentVariantResult!>!>
 Tracon.IRunStore.GetLastEventSequenceAsync(System.Guid runId, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<long?>
@@ -1668,6 +1669,24 @@ Tracon.JudgeScore.TextValue.get -> string?
 Tracon.JudgeScore.TextValue.init -> void
 Tracon.JudgeScore.Value.get -> double?
 Tracon.JudgeScore.Value.init -> void
+Tracon.LateToolCompletion
+Tracon.LateToolCompletion.<Clone>$() -> Tracon.LateToolCompletion!
+Tracon.LateToolCompletion.Duration.get -> System.TimeSpan?
+Tracon.LateToolCompletion.Duration.init -> void
+Tracon.LateToolCompletion.Equals(Tracon.LateToolCompletion? other) -> bool
+Tracon.LateToolCompletion.LateCompletedAt.get -> System.DateTimeOffset
+Tracon.LateToolCompletion.LateCompletedAt.init -> void
+Tracon.LateToolCompletion.LateToolCompletion() -> void
+Tracon.LateToolCompletion.Result.get -> string?
+Tracon.LateToolCompletion.Result.init -> void
+Tracon.LateToolCompletion.RunId.get -> System.Guid
+Tracon.LateToolCompletion.RunId.init -> void
+Tracon.LateToolCompletion.TenantId.get -> string?
+Tracon.LateToolCompletion.TenantId.init -> void
+Tracon.LateToolCompletion.ToolCallId.get -> string!
+Tracon.LateToolCompletion.ToolCallId.init -> void
+Tracon.LateToolCompletion.Usage.get -> Tracon.ToolCallUsage?
+Tracon.LateToolCompletion.Usage.init -> void
 Tracon.LiveVoiceAppend
 Tracon.LiveVoiceAppend.<Clone>$() -> Tracon.LiveVoiceAppend!
 Tracon.LiveVoiceAppend.Channel.get -> Tracon.LiveVoiceAppendChannel
@@ -2078,6 +2097,16 @@ Tracon.PendingApproval.TenantId.get -> string!
 Tracon.PendingApproval.TenantId.init -> void
 Tracon.PendingApproval.ToolName.get -> string!
 Tracon.PendingApproval.ToolName.init -> void
+Tracon.PricingDiagnostic
+Tracon.PricingDiagnostic.<Clone>$() -> Tracon.PricingDiagnostic!
+Tracon.PricingDiagnostic.Currency.get -> string?
+Tracon.PricingDiagnostic.Currency.init -> void
+Tracon.PricingDiagnostic.Equals(Tracon.PricingDiagnostic? other) -> bool
+Tracon.PricingDiagnostic.PricedModels.get -> int
+Tracon.PricingDiagnostic.PricedModels.init -> void
+Tracon.PricingDiagnostic.PricingDiagnostic() -> void
+Tracon.PricingDiagnostic.UnpricedModels.get -> System.Collections.Generic.IReadOnlyList<string!>!
+Tracon.PricingDiagnostic.UnpricedModels.init -> void
 Tracon.PricingSource
 Tracon.PricingSource.Catalog = 0 -> Tracon.PricingSource
 Tracon.PricingSource.Configuration = 1 -> Tracon.PricingSource
@@ -3576,6 +3605,8 @@ Tracon.ToolInvocationRecord.Error.get -> string?
 Tracon.ToolInvocationRecord.Error.init -> void
 Tracon.ToolInvocationRecord.Id.get -> System.Guid
 Tracon.ToolInvocationRecord.Id.init -> void
+Tracon.ToolInvocationRecord.LateCompletedAt.get -> System.DateTimeOffset?
+Tracon.ToolInvocationRecord.LateCompletedAt.init -> void
 Tracon.ToolInvocationRecord.Result.get -> string?
 Tracon.ToolInvocationRecord.Result.init -> void
 Tracon.ToolInvocationRecord.RunId.get -> System.Guid
@@ -3729,6 +3760,8 @@ Tracon.TraconDiagnosticsReport.PendingMigrations.get -> System.Collections.Gener
 Tracon.TraconDiagnosticsReport.PendingMigrations.init -> void
 Tracon.TraconDiagnosticsReport.PersistenceProvider.get -> string!
 Tracon.TraconDiagnosticsReport.PersistenceProvider.init -> void
+Tracon.TraconDiagnosticsReport.Pricing.get -> Tracon.PricingDiagnostic!
+Tracon.TraconDiagnosticsReport.Pricing.init -> void
 Tracon.TraconDiagnosticsReport.RegisteredPersistenceProviders.get -> int
 Tracon.TraconDiagnosticsReport.RegisteredPersistenceProviders.init -> void
 Tracon.TraconDiagnosticsReport.RunRecording.get -> Tracon.RunRecordingDiagnostic!
@@ -4786,6 +4819,9 @@ override Tracon.JudgeRunResponse.ToString() -> string!
 override Tracon.JudgeScore.Equals(object? obj) -> bool
 override Tracon.JudgeScore.GetHashCode() -> int
 override Tracon.JudgeScore.ToString() -> string!
+override Tracon.LateToolCompletion.Equals(object? obj) -> bool
+override Tracon.LateToolCompletion.GetHashCode() -> int
+override Tracon.LateToolCompletion.ToString() -> string!
 override Tracon.LiveVoiceAppend.Equals(object? obj) -> bool
 override Tracon.LiveVoiceAppend.GetHashCode() -> int
 override Tracon.LiveVoiceAppend.ToString() -> string!
@@ -4862,6 +4898,9 @@ override Tracon.ModelProviderHealth.ToString() -> string!
 override Tracon.PendingApproval.Equals(object? obj) -> bool
 override Tracon.PendingApproval.GetHashCode() -> int
 override Tracon.PendingApproval.ToString() -> string!
+override Tracon.PricingDiagnostic.Equals(object? obj) -> bool
+override Tracon.PricingDiagnostic.GetHashCode() -> int
+override Tracon.PricingDiagnostic.ToString() -> string!
 override Tracon.ProviderDiagnostic.Equals(object? obj) -> bool
 override Tracon.ProviderDiagnostic.GetHashCode() -> int
 override Tracon.ProviderDiagnostic.ToString() -> string!
@@ -5369,6 +5408,8 @@ static Tracon.JudgeRunResponse.operator !=(Tracon.JudgeRunResponse? left, Tracon
 static Tracon.JudgeRunResponse.operator ==(Tracon.JudgeRunResponse? left, Tracon.JudgeRunResponse? right) -> bool
 static Tracon.JudgeScore.operator !=(Tracon.JudgeScore? left, Tracon.JudgeScore? right) -> bool
 static Tracon.JudgeScore.operator ==(Tracon.JudgeScore? left, Tracon.JudgeScore? right) -> bool
+static Tracon.LateToolCompletion.operator !=(Tracon.LateToolCompletion? left, Tracon.LateToolCompletion? right) -> bool
+static Tracon.LateToolCompletion.operator ==(Tracon.LateToolCompletion? left, Tracon.LateToolCompletion? right) -> bool
 static Tracon.LiveVoiceAppend.operator !=(Tracon.LiveVoiceAppend? left, Tracon.LiveVoiceAppend? right) -> bool
 static Tracon.LiveVoiceAppend.operator ==(Tracon.LiveVoiceAppend? left, Tracon.LiveVoiceAppend? right) -> bool
 static Tracon.LiveVoiceCreateRequest.operator !=(Tracon.LiveVoiceCreateRequest? left, Tracon.LiveVoiceCreateRequest? right) -> bool
@@ -5425,6 +5466,8 @@ static Tracon.ModelProviderSettings.ReadString(Tracon.ModelBinding! binding, str
 static Tracon.ModelProviderSettings.Validate(Tracon.ModelBinding! binding, string! providerPrefix, System.Collections.Generic.IReadOnlyCollection<string!>! supportedKeys) -> void
 static Tracon.PendingApproval.operator !=(Tracon.PendingApproval? left, Tracon.PendingApproval? right) -> bool
 static Tracon.PendingApproval.operator ==(Tracon.PendingApproval? left, Tracon.PendingApproval? right) -> bool
+static Tracon.PricingDiagnostic.operator !=(Tracon.PricingDiagnostic? left, Tracon.PricingDiagnostic? right) -> bool
+static Tracon.PricingDiagnostic.operator ==(Tracon.PricingDiagnostic? left, Tracon.PricingDiagnostic? right) -> bool
 static Tracon.ProductionProfileResult.NotApplicable(string! setting, string! reason) -> Tracon.ProductionProfileResult!
 static Tracon.ProductionProfileResult.Permissive(string! setting, string! observed, string! remedy) -> Tracon.ProductionProfileResult!
 static Tracon.ProductionProfileResult.Satisfied(string! setting) -> Tracon.ProductionProfileResult!

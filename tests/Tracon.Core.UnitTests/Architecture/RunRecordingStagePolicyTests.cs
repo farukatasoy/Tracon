@@ -27,14 +27,16 @@ public sealed partial class RunRecordingStagePolicyTests
     /// <summary>Files allowed to publish a stage value, and how many call sites each has.</summary>
     /// <remarks>
     /// The numbers are asserted so that a new call site has to be reviewed rather than
-    /// silently absorbed. <c>RunEventWriter</c>'s six are: four <c>Disable</c> calls
-    /// (one per store stage), the sink site that records directly, and <c>Disable</c>'s
-    /// own forward of the value to the counter. The input stage is recorded where it
-    /// happens, outside the writer.
+    /// silently absorbed. <c>RunEventWriter</c>'s seven are: FIVE <c>Disable</c> calls
+    /// (one per store stage, plus the late tool-completion write, which reuses the
+    /// <c>ToolInvocation</c> stage because it writes to the same row through the same
+    /// store), the sink site that records directly, and <c>Disable</c>'s own forward of
+    /// the value to the counter. The input stage is recorded where it happens, outside
+    /// the writer.
     /// </remarks>
     private static readonly (string File, int CallSites)[] AllowedCallSites =
     [
-        ("src/Tracon.Core/Recording/RunEventWriter.cs", 6),
+        ("src/Tracon.Core/Recording/RunEventWriter.cs", 7),
         ("src/Tracon.Core/Recording/RunRecordingAgent.Persistence.cs", 1),
     ];
 

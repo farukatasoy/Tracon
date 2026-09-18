@@ -499,6 +499,15 @@ public sealed class RunRecordingFailureMetricTests
                 : ValueTask.CompletedTask;
         }
 
+        public ValueTask<bool> CompleteLateToolInvocationAsync(LateToolCompletion completion, CancellationToken cancellationToken = default)
+        {
+            Interlocked.Increment(ref _storeCalls);
+
+            return failAt is FailAt.ToolInvocation
+                ? throw new InvalidOperationException("store unavailable")
+                : ValueTask.FromResult(true);
+        }
+
         public ValueTask CompleteRunAsync(RunCompletion completion, CancellationToken cancellationToken = default)
         {
             Interlocked.Increment(ref _storeCalls);
@@ -592,6 +601,9 @@ public sealed class RunRecordingFailureMetricTests
             => ValueTask.CompletedTask;
 
         public ValueTask RecordToolInvocationAsync(ToolInvocationRecord invocation, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public ValueTask<bool> CompleteLateToolInvocationAsync(LateToolCompletion completion, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
 
         public ValueTask<RunRecord?> GetRunAsync(Guid runId, CancellationToken cancellationToken = default)

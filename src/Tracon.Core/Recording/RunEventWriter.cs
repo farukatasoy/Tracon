@@ -329,6 +329,43 @@ public sealed class RunEventWriter
         }
     }
 
+    /// <summary>
+    /// Writes the settled outcome of a call whose timeout had already been
+    /// reported onto that call's existing record.
+    /// </summary>
+    /// <param name="completion">The settled outcome.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns><see langword="true"/> when a record was updated.</returns>
+    /// <remarks>
+    /// This runs AFTER the run has been completed, on the continuation of a
+    /// call the timeout stopped waiting for. It takes no cancellation from the
+    /// run: the run's own token is already cancelled by the time a late call
+    /// settles, and honouring it would throw the measurement away exactly when
+    /// it matters. Its failure is swallowed like every other recording write.
+    /// </remarks>
+    public async ValueTask<bool> CompleteLateToolInvocationAsync(
+        LateToolCompletion completion,
+        CancellationToken cancellationToken = default)
+    {
+        if (IsDisabled)
+        {
+            return false;
+        }
+
+        try
+        {
+            return await _store
+                .CompleteLateToolInvocationAsync(completion, cancellationToken)
+                .ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            Disable(ex, RunRecordingStages.ToolInvocation);
+
+            return false;
+        }
+    }
+
     /// <summary>Terminates the run.</summary>
     /// <param name="status">The final status.</param>
     /// <param name="usage">The token usage.</param>
