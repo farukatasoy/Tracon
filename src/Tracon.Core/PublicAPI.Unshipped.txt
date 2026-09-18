@@ -1188,6 +1188,7 @@ const Tracon.TraconDiagnostics.Tags.QuotaPeriod = "tracon.quota.period" -> strin
 const Tracon.TraconDiagnostics.Tags.QuotaScope = "tracon.quota.scope" -> string!
 const Tracon.TraconDiagnostics.Tags.RecordingStage = "tracon.recording.stage" -> string!
 const Tracon.TraconDiagnostics.Tags.RunId = "tracon.run.id" -> string!
+const Tracon.TraconDiagnostics.Tags.ScriptDenialReason = "tracon.script.denial_reason" -> string!
 const Tracon.TraconDiagnostics.Tags.ScriptName = "tracon.script.name" -> string!
 const Tracon.TraconDiagnostics.Tags.SessionId = "tracon.session.id" -> string!
 const Tracon.TraconDiagnostics.Tags.SkillName = "tracon.skill.name" -> string!

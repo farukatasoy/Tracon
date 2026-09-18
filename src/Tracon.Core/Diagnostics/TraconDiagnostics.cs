@@ -147,6 +147,17 @@ public static class TraconDiagnostics
         /// <summary>Gets the script execution duration tag name in milliseconds.</summary>
         public const string DurationMs = "tracon.script.duration_ms";
 
+        /// <summary>Gets the tag name that names the gate a denied script run hit.</summary>
+        /// <remarks>
+        /// A denied run never reaches the process, so it carries no exit code
+        /// and no duration; without this tag its span ends with the skill and
+        /// script names and NOTHING else, which reads as a span that never
+        /// finished. The value is one of the runner's own fixed sentences and
+        /// carries no caller-supplied text, so it is safe to persist whatever
+        /// <c>RecordSensitiveData</c> is set to.
+        /// </remarks>
+        public const string ScriptDenialReason = "tracon.script.denial_reason";
+
         /// <summary>Gets the summarization-call input-token tag name.</summary>
         public const string CompactionInputTokens = "tracon.compaction.input_tokens";
 
