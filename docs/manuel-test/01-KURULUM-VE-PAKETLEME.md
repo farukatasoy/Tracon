@@ -181,8 +181,15 @@ dotnet format Tracon.slnx --verify-no-changes --no-restore
 - `dotnet build` çıktısında `Warning(s)` sayısı **0**'dır.
 - `dotnet test` çıktısında `failed` sayısı **0**'dır.
 - `dotnet format` hiçbir dosya değişikliği bildirmez.
-- Her komutun süresi not edilir. `dotnet test` **2,5 dakikayı** aşarsa bu bir
+- Her komutun süresi not edilir. `dotnet test` **15 dakikayı** aşarsa bu bir
   kusurdur: asılı kalan alt süreç aranır (`ps aux | grep MSBuild`).
+  🚨 Eşik **ölçülmüştür, tahmin değildir** (2026-09-19, `HATA-S1-003`): boş bir
+  makinede tam koşum **10 dk 27 sn** sürdü — 22 proje · 7930 test · 0 düşen.
+  Eski 2,5 dakikalık eşik set bu boyuta gelmeden önce yazılmıştı ve bugün
+  **ulaşılamazdır**; tek başına `Tracon.AspNetCore.FunctionalTests` 3 dk 07 sn,
+  `Tracon.Package.Tests` 1 dk 31 sn sürüyor. 15 dakika ölçülen süreye ~%45 pay
+  bırakır. 🚨 **Ölçüm başka bir iş koşarken yapılmaz**: bu turda bir koşum,
+  aynı anda koşan derlemeler yüzünden kirlendi ve iptal edildi.
 
 ---
 
