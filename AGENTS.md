@@ -128,7 +128,9 @@ python3 scripts/kapi.py kapanis --taban <faz öncesi commit>
 
 Tam anlatı — komut yüzeyi, neden dördü de zorunlu, hızlı iç döngü, `secret` ve
 ortam kuralları — [`.agents/ortak/kapilar.md`](.agents/ortak/kapilar.md)
-içindedir (Faz 91 · 92).
+içindedir (Faz 91 · 92). Bu tek satır **kopya değil devir teslimdir**: Faz
+92'nin kuralı dört ham `dotnet` komutunun kopyalanmamasıdır ve
+`dokuman-bakim.py` bu satırın **varlığını** devrin kanıtı sayar.
 
 ---
 

@@ -11,7 +11,7 @@
     "build": "astro build",
     "check:content": "node --test scripts/build-agent-map.test.mjs scripts/path-utils.test.mjs scripts/check-console-screens.test.mjs scripts/check-capacity-stamp.test.mjs && node scripts/check-content.mjs",
     "check:links": "node scripts/check-links.mjs && python3 ../scripts/site-seo-denetle.py",
-    "check": "npm run check:content && npm run build && npm run check:links && npm run check:weight",
+    "check": "npm run build && npm run check:content && npm run check:links && npm run check:weight",
     "dev": "astro dev",
     "preview": "astro preview",
     "check:weight": "node scripts/check-weight.mjs",

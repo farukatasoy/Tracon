@@ -71,10 +71,40 @@ public sealed class DiagnosticIntegrityTests
         RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.Multiline,
         TimeSpan.FromSeconds(5));
 
-    private static readonly Regex ApgCodePattern = new(
-        @"APG\d{4}",
+    /// <summary>
+    /// Matches a diagnostic code on the troubleshooting page, with the prefix
+    /// read from the DESCRIPTORS rather than written here.
+    /// </summary>
+    /// <remarks>
+    /// 🚨 This used to be the literal <c>APG\d{4}</c>. The rename that turned
+    /// the product's name into Tracon moved the diagnostic prefix from
+    /// <c>APG</c> to <c>TRC</c> and left the pattern behind, so the gate below
+    /// stopped matching anything at all: it could not fail for any input, and
+    /// a dead diagnostic reference could sit on a shipped page forever. A
+    /// pattern derived from the declared ids cannot die that way, and
+    /// <see cref="The_stale_reference_scan_actually_matches_the_page"/> fails
+    /// if it ever matches nothing.
+    /// </remarks>
+    private static readonly Regex DiagnosticCodePattern = new(
+        $@"{DiagnosticIdPrefix()}\d{{4}}",
         RegexOptions.Compiled | RegexOptions.CultureInvariant,
         TimeSpan.FromSeconds(5));
+
+    /// <summary>The letters every declared diagnostic id starts with.</summary>
+    private static string DiagnosticIdPrefix()
+    {
+        var prefixes = Descriptors()
+            .Select(descriptor => new string([.. descriptor.Id.TakeWhile(char.IsLetter)]))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+        prefixes.Count.ShouldBe(
+            1,
+            $"The diagnostics declare more than one id prefix ({string.Join(", ", prefixes)}); " +
+            "the troubleshooting scan reads one.");
+
+        return prefixes[0];
+    }
 
     public static TheoryData<string> DiagnosticIds() => [.. Descriptors().Select(descriptor => descriptor.Id)];
 
@@ -215,7 +245,7 @@ public sealed class DiagnosticIntegrityTests
         var page = File.ReadAllText(TroubleshootingPath);
         var known = Descriptors().Select(descriptor => descriptor.Id).ToHashSet(StringComparer.Ordinal);
 
-        var stale = ApgCodePattern.Matches(page)
+        var stale = DiagnosticCodePattern.Matches(page)
             .Select(match => match.Value)
             .Distinct(StringComparer.Ordinal)
             .Where(code => !known.Contains(code))
@@ -223,6 +253,26 @@ public sealed class DiagnosticIntegrityTests
             .ToList();
 
         stale.ShouldBeEmpty($"troubleshooting.md names a diagnostic no descriptor declares: {string.Join(", ", stale)}.");
+    }
+
+    /// <summary>
+    /// The scan above is only worth anything while it matches something.
+    /// </summary>
+    /// <remarks>
+    /// A scan that matches nothing passes its own test for the wrong reason,
+    /// which is exactly how the stale pattern went unnoticed: the page carried
+    /// zero <c>APG####</c> codes and the gate reported success on every run.
+    /// </remarks>
+    [Fact]
+    public void The_stale_reference_scan_actually_matches_the_page()
+    {
+        var page = File.ReadAllText(TroubleshootingPath);
+
+        DiagnosticCodePattern.Matches(page)
+            .Select(match => match.Value)
+            .Distinct(StringComparer.Ordinal)
+            .Count()
+            .ShouldBe(Descriptors().Select(descriptor => descriptor.Id).Distinct(StringComparer.Ordinal).Count());
     }
 
     /// <summary>
