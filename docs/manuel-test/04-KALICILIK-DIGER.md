@@ -125,10 +125,23 @@ cd samples/Tracon.Api && dotnet run
 ```
 
 **Beklenen sonuç**
-- Uygulama başlamayı **reddeder** (`ValidateOnStart`); konsolda
-  `OptionsValidationException` görünür, mesaj
-  `TraconSqliteOptions.ConnectionString bos olamaz` metnini taşır.
-- `/health` hiçbir zaman yanıt vermez.
+> **Düzeltildi (2026-09-17, aynı gerekçeyle `03-KALICILIK-POSTGRESQL.md`
+> `MT-PG-001`'de 2026-08-15'te düzeltildi) — İzlek B ile bu senaryo yapısal
+> olarak erişilemez, beklenti koda göre düzeltildi:**
+> `samples/Tracon.Api/Program.cs:867-870` boş bağlantı dizesinde
+> `UseSqlite()`'ı hiç çağırmaz — validator'a hiçbir zaman ulaşılmaz
+> (`SqlServer → PostgreSql → Sqlite` sırasıyla İLK doluyu seçer, üçü de
+> boşsa hiçbiri çağrılmaz). Örnek uygulama sessizce InMemory'e düşer,
+> `/health` **200** döner (kalıcılık nedeniyle değil, model sağlayıcı
+> sağlığı nedeniyle Healthy/Degraded). `TraconSqliteOptionsValidator`'ın
+> kendisi doğru çalışır — bu yalnız İzlek A/C (doğrudan `UseSqlite()`
+> çağıran bir harness) üzerinden gözlemlenebilir.
+
+~~Eski beklenti (yanlış öncül — İzlek B'de validator'a hiç ulaşılmadığını
+gözden kaçırıyordu): Uygulama başlamayı **reddeder** (`ValidateOnStart`);
+konsolda `OptionsValidationException` görünür, mesaj
+`TraconSqliteOptions.ConnectionString bos olamaz` metnini taşır.
+`/health` hiçbir zaman yanıt vermez.~~
 
 ---
 
@@ -259,7 +272,7 @@ sqlite3 "$SQLITEDB" "SELECT count(*) FROM sqlite_master WHERE type='table';"
 
 ---
 
-### MT-SQL-005 — `Data Source=:memory:` desteklenir ama KALICI DEĞİLDİR
+### MT-SQL-005 — Paylaşımlı `:memory:` desteklenir ama KALICI DEĞİLDİR; ÇIPLAK `:memory:` reddedilir
 
 | | |
 |---|---|
@@ -268,16 +281,25 @@ sqlite3 "$SQLITEDB" "SELECT count(*) FROM sqlite_master WHERE type='table';"
 | **İlgili faz** | Faz 24 |
 | **İlgili karar** | — |
 
-Negatif/sınır senaryosu. `TraconSqliteOptions.ConnectionString`'in XML
-dokümanı açıktır: `:memory:` desteklenir ama bağlantı kapanınca veri gider.
-Bu case iddiayı doğrular ve migration kilidinin `:memory:`'de ATLANDIĞINI
+> **Düzeltildi (2026-09-17) — spec çıplak `:memory:`'nin desteklendiğini
+> söylüyordu, artık DEĞİL:** `TraconSqliteOptions.ConnectionString`'in
+> güncel XML dokümanı ve `TraconSqliteOptionsValidator`
+> (`src/Tracon.Sqlite/TraconSqliteOptionsValidator.cs:47`) çıplak
+> `Data Source=:memory:`'yi açıkça REDDEDİYOR — her `Microsoft.Data.Sqlite`
+> bağlantısı `:memory:`'nin KENDİ izole veritabanını açar (migration bir
+> bağlantıda uygulanır, sonraki sorgu BAŞKA bir bağlantıya gider ve boş
+> veritabanı görür). Doğru biçim `Data Source=file::memory:?cache=shared`
+> (paylaşımlı önbellek) — bu case o biçimle koşuldu.
+
+Negatif/sınır senaryosu. Bu case paylaşımlı `:memory:` biçiminin kalıcı
+OLMADIĞINI doğrular ve migration kilidinin `:memory:`'de ATLANDIĞINI
 (dosya kilidi kurulamaz çünkü dosya yoktur) doğrular.
 
 **Ön koşul**
 - Yok.
 
 **Adımlar**
-1. Bağlantı dizesini `:memory:` yap.
+1. Bağlantı dizesini paylaşımlı `:memory:` yap.
 2. Uygulamayı başlat, bir agent kaydet.
 3. Kaydı doğrula.
 4. Uygulamayı durdur, yeniden başlat.
@@ -285,7 +307,7 @@ Bu case iddiayı doğrular ve migration kilidinin `:memory:`'de ATLANDIĞINI
 
 **Girilecek veri**
 ```bash
-dotnet user-secrets set "Tracon:Sqlite:ConnectionString" "Data Source=:memory:"
+dotnet user-secrets set "Tracon:Sqlite:ConnectionString" "Data Source=file::memory:?cache=shared"
 cd samples/Tracon.Api && dotnet run
 ```
 ```bash
@@ -399,8 +421,14 @@ cd samples/Tracon.Api && dotnet run
 ```
 
 **Beklenen sonuç**
-- Uygulama başlamayı reddeder; hata mesajı
-  `TraconSqlServerOptions.ConnectionString bos olamaz` metnini taşır.
+> **Düzeltildi (2026-09-17, aynı gerekçeyle `MT-PG-001`/`MT-SQL-001`) —**
+> `Program.cs:861-863` boş bağlantı dizesinde `UseSqlServer()`'ı hiç
+> çağırmaz. Örnek uygulama sessizce InMemory'e (veya sıradaki dolu
+> sağlayıcıya) düşer, `/health` **200** döner. `TraconSqlServerOptionsValidator`
+> yalnız İzlek A/C üzerinden gözlemlenebilir.
+
+~~Eski beklenti: Uygulama başlamayı reddeder; hata mesajı
+`TraconSqlServerOptions.ConnectionString bos olamaz` metnini taşır.~~
 
 ---
 
@@ -648,10 +676,21 @@ sqlite3 "$SQLITEDB" "SELECT name FROM tracon___migrations ORDER BY id;"
 ```
 
 **Beklenen sonuç**
-- Konsol `Tracon 15 migration uyguladi.` yazar.
-- `count(*)` **15** döner.
-- Ad listesi `0001_initial`'dan `0015_experiment_canary`'e sırayla gider.
-- `sqlite_master`'daki tablo sayısı **44**'tür.
+> **Düzeltildi (2026-09-17) — bu dosyadaki HER "15 migration"/"44 tablo"
+> referansı bayat (`MT-SQL-020/021/023/024/025/027/032/041/060`):** bu
+> koşumda ölçülen değer **38 migration, 48 tablo**'dur
+> (`0001_initial` … `0038_run_score_evaluator_version`, İngilizce konsol
+> mesajı: `"Tracon applied 38 migration(s)."` — mesaj metni de İngilizce'ye
+> dönmüş, K-228). Faz 111'in `runs_v1` görünümü (MT-SQL-077/078) DAHİL
+> DEĞİLDİR (`EnableReadViews` ayrı bayrak). Aşağıdaki case'ler için sabit
+> sayı yerine bu KOŞUMUN kendi ölçümüne güvenilir; her case'in kaydı gerçek
+> sayıyı taşır.
+- Konsol migration sayısını yazar (İngilizce: `"Tracon applied N
+  migration(s)."`).
+- `count(*)` uygulanan migration sayısını döner.
+- Ad listesi `0001_initial`'dan başlar, sırayla artar.
+- `sqlite_master`'daki tablo sayısı migration sayısıyla TUTARLI bir sayıdır
+  (bu koşumda 38 migration → 48 tablo).
 
 **Doğrulama sorgusu**
 ```bash

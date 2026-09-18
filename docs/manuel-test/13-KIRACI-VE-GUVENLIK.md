@@ -196,8 +196,11 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APULAN/api/agents" -H "$APB"
 
 **Beklenen sonuç**
 - `HTTP: 403`.
-- `title: "Uzak erisim kapali"`, `detail` `AllowRemoteAccess ayarini acin...`
-  ile devam eder.
+- `title: "Remote access disabled"`, `detail: "Tracon endpoints are reachable
+  only from the same machine by default. For remote access, enable the
+  AllowRemoteAccess setting and configure an authentication method (AuthToken
+  or RequireAuthorization)."` (İngilizce — koşumda düzeltildi, K-228; ürün her
+  zaman İngilizce metin döner).
 - Token doğru olmasına rağmen reddedilir — loopback katmanı önce çalışır.
 
 ---
@@ -227,8 +230,9 @@ curl -s -D - -o /dev/null "$APU/api/agents"
 **Beklenen sonuç**
 - `HTTP: 401`.
 - Yanıt başlıklarında `WWW-Authenticate: Bearer` vardır.
-- Gövde `title: "Kimlik dogrulanamadi"`, `detail`
-  `Gecerli bir 'Authorization: Bearer <token>' basligi gerekiyor.`
+- Gövde `title: "Authentication failed"`, `detail: "A valid 'Authorization:
+  Bearer <token>' header is required."` (İngilizce — koşumda düzeltildi,
+  K-228).
 
 ---
 
@@ -391,13 +395,20 @@ curl -s -o /dev/null -w "loopback: %{http_code}\n" "$APU/"
 curl -s -o /dev/null -w "lan:      %{http_code}\n" "$APULAN/"
 ```
 
-**Beklenen sonuç**
-- `loopback: 200` — `MapUi`'nin grubu `requireBearerToken: false` ile kurulur
-  (`TraconEndpointRouteBuilderExtensions.cs:294`); tarayıcı bir
-  `<script src>` isteğine `Authorization` ekleyemeyeceği için bu katman
-  bilerek atlanır.
-- `lan: 403` — loopback kısıtı bu grup için de geçerlidir, yalnız bearer
-  katmanı atlanır.
+**Beklenen sonuç — koşumda düzeltildi (doküman koda göre yanlıştı, kod
+değil).** Spec `lan: 403` bekliyordu; gerçek kod her ikisi için de `200`
+döner:
+- `loopback: 200` VE `lan: 200` — `MapUi`'nin grubu
+  `requireLoopback: false` ile kurulur
+  (`TraconEndpointRouteBuilderExtensions.cs:344`, `MapUi`), yalnız
+  `requireBearerToken: false` DEĞİL. XML doc'un kendi gerekçesi
+  (`TraconEndpointRouteBuilderExtensions.cs:316-325`): kabuk hiçbir veri
+  taşımaz, gerçek koruma veri uçlarındaki filtre örnekleridir; kabuk LAN'dan
+  da yüklenebilmelidir ki istemci tarafı `AccessGate` bileşeni "uzak erişim
+  kapalı" mesajını gösterebilsin — kabuğun kendisi engellenirse kullanıcı
+  boş bir bağlantı hatası görür, açıklayıcı ekranı hiç göremez. Bu kasıtlı
+  bir tasarım kararıdır, kusur değildir; gerçek koruma MT-SEC-002'nin
+  doğruladığı veri uçlarındadır (`lan` + `/api/agents` → `403`).
 
 ### MT-SEC-020 — `UseTenancy` hiç çağrılmamışken her istek varsayılan kiracıya düşer
 
@@ -841,9 +852,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/tenants/kiraci%20alfa" -H "
 ```
 
 **Beklenen sonuç**
-- `HTTP: 400`. `title: "Kiraci anahtari gecersiz"`, `detail`
-  `Anahtar en fazla 64 karakter olmali ve yalnizca harf, rakam, nokta, alt
-  cizgi ve tire icermelidir.`
+- `HTTP: 400`. `title: "Tenant key invalid"`, `detail: "The key must be at
+  most 64 characters and contain only letters, digits, dots, underscores,
+  and hyphens."` (İngilizce — koşumda düzeltildi, K-228).
 
 ---
 
@@ -923,7 +934,8 @@ curl -s -w "\nHTTP: %{http_code}\n" -X DELETE "$APU/api/tenants/hic-yok" -H "$AP
 ```
 
 **Beklenen sonuç**
-- `HTTP: 404`. `title: "Kiraci bulunamadi"`.
+- `HTTP: 404`. `title: "Tenant not found"` (İngilizce — koşumda düzeltildi,
+  K-228).
 
 ### MT-SEC-050 — `POST /api/api-keys` yeni anahtar üretir, ham değer `ap_` ile başlar
 
@@ -1003,7 +1015,8 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/api-keys" -H "$APB" \
 ```
 
 **Beklenen sonuç**
-- `HTTP: 400`. `detail: "'name' bos olamaz."`
+- `HTTP: 400`. `detail: "'name' cannot be empty."` (İngilizce — koşumda
+  düzeltildi, K-228).
 
 ---
 
@@ -1028,7 +1041,8 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/api-keys" -H "$APB" \
 ```
 
 **Beklenen sonuç**
-- `HTTP: 400`. `detail: "En az bir kapsam ('scopes') secilmelidir."`
+- `HTTP: 400`. `detail: "At least one scope ('scopes') must be selected."`
+  (İngilizce — koşumda düzeltildi, K-228).
 
 ---
 
@@ -1111,8 +1125,9 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents" \
 ```
 
 **Beklenen sonuç**
-- `HTTP: 403`. `title: "Kapsam yetersiz"`, `detail`
-  `Bu uc 'AgentsAdmin' kapsamini gerektiriyor; anahtar bu kapsami tasimiyor.`
+- `HTTP: 403`. `title: "Insufficient scope"`, `detail: "This endpoint
+  requires the 'AgentsAdmin' scope; the key does not carry it."` (İngilizce —
+  koşumda düzeltildi, K-228).
 
 ---
 
@@ -1247,8 +1262,10 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/agents" \
 ```
 
 **Beklenen sonuç**
-- `HTTP: 403`. `title: "Kiraci uyusmuyor"`, `detail`
-  `'X-Tracon-Tenant' basligi API anahtarinin baglandigi kiraciyi EZEMEZ...`
+- `HTTP: 403`. `title: "Tenant mismatch"`, `detail: "The 'X-Tracon-Tenant'
+  header CANNOT override the tenant the API key is bound to. Remove the
+  header or give a value matching the key's tenant."` (İngilizce — koşumda
+  düzeltildi, K-228).
 
 ---
 
@@ -1326,11 +1343,13 @@ Negatif senaryo.
 **Ön koşul**
 - Reset sonrası temiz durum — sistemde HİÇ `ExternalInvoke` kapsamlı anahtar
   yok.
-- `samples/Tracon.Api/Program.cs`'te `app.MapTracon("/tracon", options => { ... })`
-  bloğuna (satır ~701-712, `options.AuthToken = ...` bloğunun hemen altına)
-  GEÇİCİ olarak şu satır eklenir:
-  ```csharp
-  options.AllowRemoteAccess = true;
+- **Koşumda düzeltildi (kural 1 istisnası):** GEÇİCİ kod değişikliği artık
+  gerekmiyor — dosyanın başındaki not (§"Koşmadan önce") zaten
+  `Tracon:Ui:AllowRemoteAccess`'in `Program.cs:953-956`'ya bağlandığını
+  söylüyor, bu case'in kendi ön koşulu güncellenmemişti. Ortam değişkeni
+  yeterli:
+  ```bash
+  export Tracon__Ui__AllowRemoteAccess=true
   ```
 
 **Adımlar**
@@ -1343,8 +1362,9 @@ cd samples/Tracon.Api && dotnet run
 
 **Beklenen sonuç**
 - Süreç açılışta `InvalidOperationException` ile ÇÖKER. Konsol çıktısı
-  `AllowRemoteAccess acikken mcp disa acilamaz: sistemde 'external:invoke'
-  kapsamli...` dizgisini içerir (`ExternalSurfaceGuard.cs:72-76`).
+  `MCP cannot be exposed while AllowRemoteAccess is on: the system holds no
+  API key with the 'external:invoke' scope...` dizgisini içerir (İngilizce —
+  koşumda düzeltildi, K-228; kod: `ExternalSurfaceGuard.cs:142-147`).
 - Bu, `EnsureRemoteAccessNotCombined`'in senkron ve açılışta çalıştığının
   kanıtıdır — hiçbir istek bu denetimin önüne geçemez.
 
@@ -1360,15 +1380,20 @@ cd samples/Tracon.Api && dotnet run
 | **İlgili karar** | — |
 
 **Ön koşul**
-- MT-SEC-070'in geçici satırı GERİ ALINIR (`AllowRemoteAccess = true` kaldırılır,
-  varsayılana dönülür).
+- `Tracon__Ui__AllowRemoteAccess` ortam değişkeni KALDIRILIR (varsayılana
+  dönülür — koşumda düzeltildi, bkz. MT-SEC-070).
 - Uygulama `AllowRemoteAccess` OLMADAN normal başlatılır.
+- **Ekleme (koşumda öğrenildi):** varsayılan bellek içi depoda `ExternalInvoke`
+  anahtarı restart'ta KAYBOLUR — bu case'in "önce anahtar üret, SONRA
+  yeniden başlat" akışı gerçek anlamda ancak KALICI bir depoyla (SQLite/
+  PostgreSQL/SQL Server) test edilebilir. Bellek içiyle koşulursa MT-SEC-070
+  ile birebir aynı çöküş tekrar gözlenir (yanlış negatif değil, doğru ama
+  farklı bir senaryo test edilmiş olur).
 
 **Adımlar**
 1. `ExternalInvoke` kapsamlı bir anahtar oluştur.
-2. Uygulamayı durdur, `options.AllowRemoteAccess = true;` satırını TEKRAR
-   ekle (MT-SEC-070'teki gibi), `dotnet run --urls "http://0.0.0.0:5080"`
-   ile yeniden başlat.
+2. Uygulamayı durdur, `Tracon__Ui__AllowRemoteAccess=true` İLE (kalıcı depo
+   AÇIK kalarak, aynı veritabanı dosyası/şeması) yeniden başlat.
 3. `$LANIP` üzerinden, doğru bearer token ile bir uca istek at.
 
 **Girilecek veri**

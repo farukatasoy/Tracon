@@ -327,7 +327,12 @@ SELECT count(*) FROM tracon.mcp_servers WHERE name IN ('ftp-sunucu', 'stdio-dene
 ```
 
 **Beklenen sonuç**
-- `HTTP: 204`. SQL sorgusu `0` döner (bu üç sunucu hiç başarıyla
+> **Düzeltildi (2026-09-17):** `ftp-sunucu` MT-MCP-004'te ZATEN `400` ile
+> reddedilmiş, hiç oluşmamıştı — `DELETE` bu yüzden `204` değil `404 "MCP
+> server not found"` döner (uç var-olmayan bir kaydı silmeyi idempotent
+> `204` değil, açık `404` ile işaretliyor). Asıl iddia (üç negatif case'in
+> kalıcı iz BIRAKMADIĞI) SQL sorgusuyla doğrulanır, HTTP durum kodu değil.
+- `HTTP: 404`. SQL sorgusu `0` döner (bu üç sunucu hiç başarıyla
   oluşturulmamıştı — negatif case'lerin kalıcı iz bırakmadığının kanıtı).
 
 ### MT-MCP-010 — Örnek uygulama config-bağlı `UseMcp` overload'ını kullanır — `Tracon:Mcp:RefreshInterval` GERÇEKTEN etkilidir
@@ -789,7 +794,11 @@ curl -s -X POST "$APU/mcp" -H "$APB" -H "content-type: application/json" -H "acc
 ```
 
 **Beklenen sonuç**
-- Yanıt TAM OLARAK tek bir tool içerir: `tracon_ozetleyici`,
+> **Düzeltildi (2026-09-17):** spec `tracon_ozetleyici` yazıyordu (Aşama
+> 0'da zaten kapatılan bayat Türkçe agent adı örüntüsü — örnek uygulama
+> İngilizceye çevrildi). Gerçek tool adı `tracon_summarizer`'dır, bu dosyada
+> her geçtiği yerde düzeltildi (MT-MCP-032/033 dahil).
+- Yanıt TAM OLARAK tek bir tool içerir: `tracon_summarizer`,
   `inputSchema` yalnız `message` (string, required) alanı taşır. Başka
   hiçbir agent (ör. `support`) listede YOKTUR — beyaz listeye
   eklenmemiştir.
@@ -809,7 +818,7 @@ curl -s -X POST "$APU/mcp" -H "$APB" -H "content-type: application/json" -H "acc
 ```bash
 curl -s -X POST "$APU/mcp" -H "$APB" -H "content-type: application/json" -H "accept: application/json, text/event-stream" \
      -d '{ "jsonrpc": "2.0", "id": 2, "method": "tools/call",
-          "params": { "name": "tracon_ozetleyici", "arguments": { "message": "Bugun hava cok guzeldi. Is yerinde her sey yolunda gitti. Toplantilar verimliydi." } } }'
+          "params": { "name": "tracon_summarizer", "arguments": { "message": "Bugun hava cok guzeldi. Is yerinde her sey yolunda gitti. Toplantilar verimliydi." } } }'
 ```
 
 **Beklenen sonuç**
@@ -834,7 +843,7 @@ Negatif senaryo.
 ```bash
 curl -s -X POST "$APU/mcp" -H "$APB" -H "content-type: application/json" -H "accept: application/json, text/event-stream" \
      -d '{ "jsonrpc": "2.0", "id": 3, "method": "tools/call",
-          "params": { "name": "tracon_ozetleyici", "arguments": { "message": "" } } }'
+          "params": { "name": "tracon_summarizer", "arguments": { "message": "" } } }'
 ```
 
 **Beklenen sonuç**
@@ -1265,12 +1274,21 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/mcp-servers/kapsam-testi" -
 ```
 
 **Beklenen sonuç (şüphe)**
-- `HTTP: 200` — yalnız `RunsRead` taşıyan, `ExternalInvoke`'u OLMAYAN bir
-  anahtar YENİ bir dış MCP sunucusu kaydedebilir. Bu, kodun kendi
-  yorumunda `"GUVENLIK SINIRI"` diye adlandırdığı bir işlemdir
-  (`GovernanceEndpoints.cs:230`).
-- Doğrularsa: **Kusur, Önem: Yüksek** — MCP sunucu kaydı API anahtarı
-  kapsam sisteminden TAMAMEN bağımsız çalışıyor demektir.
+> **Düzeltildi (2026-09-17) — şüphe ÇÜRÜTÜLDÜ, kod 2026-08-10 ile
+> 2026-09-16 arasında düzeltilmiş:** `GovernanceEndpoints.cs`'teki `PUT
+> /api/mcp-servers/{name}` artık `.RequireRole(roles.Admin)` VE
+> `.RequireApiKeyScope(ApiKeyScope.AgentsAdmin)` taşıyor (satır ~269-270).
+> Bu dosyanın TÜM `mcp-servers` uçları (9 `Map*` çağrısı) aynı desende
+> `RequireApiKeyScope` taşıyor. `00-INDEKS.md` §8'deki "BEŞİNCİ bağımsız
+> tekrar" notu da düzeltildi.
+- ~~`HTTP: 200` — yalnız `RunsRead` taşıyan, `ExternalInvoke`'u OLMAYAN bir
+  anahtar YENİ bir dış MCP sunucusu kaydedebilir.~~ **Gerçek:** `HTTP:
+  403 "This endpoint requires the 'AgentsAdmin' scope; the key does not
+  carry it."`
+- 🚨 **Ayrı ve HÂLÂ açık kalan boşluk (bu case'in KAPSAMADIĞI):**
+  `RequireApiKeyScope` yalnız DB-destekli API anahtarlarına uygulanır —
+  STATİK paylaşılan bearer token bu denetimin tamamen dışındadır. Bkz.
+  `MT-MCP-052`.
 
 ---
 
