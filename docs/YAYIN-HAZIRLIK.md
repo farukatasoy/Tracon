@@ -133,8 +133,8 @@ KG-029 (sürüm numarası) — gerekçeleri §11'dedir.
 
 | # | İş | Yürüten | Bitti ölçütü |
 |---|---|---|---|
-| 1 | **Tam manuel kabul turu — 36 aile** · 🔄 Aşama 0 bitti, tur başlamadı → **[DEVİR](manuel-test/kosumlar/2026-09-16/DEVIR.md)** | `manuel-test-kosumu` | `kosumlar/2026-09-16/` altında 36 aile kaydı; tur boyunca `src/`+`samples/`+`tests/` **`7e3a4de7`'de donar** |
-| 2 | Turun bulduğu kusurlar | `kusur-giderme` | Tek vaka değil **sınıf** kapanır |
+| 1 | **Tam manuel kabul turu — 36 aile** · ✅ **BİTTİ (2026-09-18)** | `manuel-test-kosumu` | 36/36 aile kaydı `kosumlar/2026-09-16/` altında; 1856 benzersiz case — 1693 Geçti · 35 Kaldı · 107 Beklemede · 18 Atlandı · 3 işaretsiz. Kod tur boyunca `7e3a4de7`'de donuk kaldı, merge sonrası da donuk (ölçüldü) |
+| 2 | Turun bulduğu kusurlar · 🔄 **SIRADAKİ** → **[KAPANIŞ PLANI](manuel-test/kosumlar/2026-09-16/KAPANIS-PLANI.md)** | `kusur-giderme` | 43 açık kusur, 22 aile. Tek vaka değil **sınıf** kapanır. Tek şerit, `main` üzerinde, aile başına ayrı commit (kullanıcı kararı 2026-09-18) |
 | 3 | **Public öncesi geçmiş denetimi** | Kullanıcı + `nuget-danismani` | Tam `git` geçmişinde secret taraması; `docs/guvenlik-tarama/` ve `.agents/` için yayımla/çıkar kararı (RK-014) |
 | 4 | **Yayın turu** | `nuget-danismani` Adım 1→8 | Bu dosyaya yeni karar bloğu; ❌ → ✅ |
 | 5 | **Sürüm kesimi** | Elle | `CHANGELOG.md` → `## [1.0.0-preview.1]` + sevk tarihi, commit |
