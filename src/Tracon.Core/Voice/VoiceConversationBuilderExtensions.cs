@@ -105,7 +105,7 @@ public static class VoiceConversationBuilderExtensions
             services.Configure(configure);
         }
 
-        services.TryAddSingleton<IVoiceSessionStore, InMemoryVoiceSessionStore>();
+        services.TryAddTraconDefault<IVoiceSessionStore, InMemoryVoiceSessionStore>();
 
         services.TryAddSingleton(static provider => new VoiceConversationDriver(
             provider.GetRequiredService<IAgentCatalog>(),

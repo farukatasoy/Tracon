@@ -180,4 +180,21 @@
     <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />
   </ItemGroup>
 
+  <!--
+    The three storage providers override ~34 store contracts each. They do that
+    through TraconDefaultRegistrationExtensions, which must tell Tracon's own
+    default apart from a registration the consuming application made - see
+    Tracon.Core/Diagnostics/TraconDefaultRegistrations.cs.
+
+    It stays INTERNAL rather than becoming public API: writing a STORE is a
+    shipped seam and needs nothing from it (an ordinary AddSingleton is the
+    documented step, guides/write-your-own-store), while writing a storage
+    PROVIDER is not a shipped seam.
+  -->
+  <ItemGroup Label="Internal visibility - storage providers" Condition=" '$(MSBuildProjectName)' == 'Tracon.Core' ">
+    <InternalsVisibleTo Include="Tracon.PostgreSql" />
+    <InternalsVisibleTo Include="Tracon.SqlServer" />
+    <InternalsVisibleTo Include="Tracon.Sqlite" />
+  </ItemGroup>
+
 </Project>

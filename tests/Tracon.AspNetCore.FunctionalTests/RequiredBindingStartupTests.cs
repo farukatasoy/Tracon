@@ -146,14 +146,36 @@ public sealed class RequiredBindingStartupTests
     }
 
     [Fact]
-    public async Task A_contract_that_is_not_an_extension_point_stops_the_host()
+    public async Task A_contract_Tracon_knows_nothing_about_stops_the_host()
+    {
+        // IDisposable is neither an extension point nor a contract Tracon
+        // registers a default for. A STORE contract is accepted since
+        // HATA-S1-019 - the test below covers that half.
+        var exception = await Should.ThrowAsync<InvalidOperationException>(
+            async () => await TraconTestHost.StartAsync(
+                configureTracon: static builder => builder.RequireCustomBinding<IDisposable>()));
+
+        exception.Message.ShouldContain("neither treats it as an extension point");
+        exception.Message.ShouldContain(nameof(ITenantContext));
+    }
+
+    /// <summary>
+    /// A store contract still on Tracon's own registration stops the host, the
+    /// same way an extension point on its built-in default does.
+    /// </summary>
+    /// <remarks>
+    /// HATA-S1-019: declaring a store used to be rejected outright, so a host
+    /// that bound its own store had no way to ask for the guarantee at all.
+    /// </remarks>
+    [Fact]
+    public async Task A_store_contract_on_Tracons_own_registration_stops_the_host()
     {
         var exception = await Should.ThrowAsync<InvalidOperationException>(
             async () => await TraconTestHost.StartAsync(
                 configureTracon: static builder => builder.RequireCustomBinding<IRunStore>()));
 
-        exception.Message.ShouldContain("not a Tracon extension point");
-        exception.Message.ShouldContain(nameof(ITenantContext));
+        exception.Message.ShouldContain(nameof(IRunStore));
+        exception.Message.ShouldContain("Tracon's own");
     }
 
     [Fact]

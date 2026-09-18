@@ -78,6 +78,9 @@ public sealed class ServiceRegistrationSnapshotTests
         "Microsoft.Extensions.Options.IValidateOptions`1[Tracon.TraconSchedulingOptions] | Singleton | Tracon.TraconSchedulingOptionsValidator",
         "Microsoft.Extensions.Options.IConfigureOptions`1[Microsoft.Extensions.Options.StartupValidatorOptions] | Transient | Factory",
         "Microsoft.Extensions.Options.IValidateOptions`1[Tracon.SingletonExecutionOptions] | Singleton | Tracon.SingletonExecutionOptionsValidator",
+        // The lazily created marker registry: it appears at the FIRST
+        // TryAddTraconDefault call, which is ISingletonLeaseStore below.
+        "Tracon.TraconDefaultRegistrations | Singleton | Instance:Tracon.TraconDefaultRegistrations",
         "Tracon.ISingletonLeaseStore | Singleton | Tracon.InMemorySingletonLeaseStore",
         "Microsoft.Extensions.Options.IConfigureOptions`1[Microsoft.Extensions.Options.StartupValidatorOptions] | Transient | Factory",
         "Microsoft.Extensions.Options.IConfigureOptions`1[Microsoft.Extensions.Options.StartupValidatorOptions] | Transient | Factory",
@@ -121,6 +124,7 @@ public sealed class ServiceRegistrationSnapshotTests
         "Tracon.IToolAuthorizationHandler | Singleton | Tracon.AllowAllToolAuthorizationHandler",
         "Tracon.IRunAuthorizationHandler | Singleton | Tracon.AllowAllRunAuthorizationHandler",
         "Microsoft.Extensions.Hosting.IHostedService | Singleton | Tracon.RequiredBindingValidator",
+        "Microsoft.Extensions.Hosting.IHostedService | Singleton | Tracon.PreservedStoreRegistrationWarningService",
         "Microsoft.Extensions.Hosting.IHostedService | Singleton | Tracon.ProductionProfileValidator",
         "Tracon.IProductionProfileCheck | Singleton | Tracon.TenancyProfileCheck",
         "Tracon.IProductionProfileCheck | Singleton | Tracon.SessionOwnershipProfileCheck",

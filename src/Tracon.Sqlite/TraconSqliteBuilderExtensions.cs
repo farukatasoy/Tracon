@@ -83,7 +83,7 @@ public static class TraconSqliteBuilderExtensions
         // Phase 110: the data source is resolved HERE, not registered as its own
         // public DI service — see the matching comment in
         // TraconPostgreSqlBuilderExtensions.UsePostgreSql for the rationale.
-        services.Replace(ServiceDescriptor.Singleton(static provider =>
+        services.ReplaceTraconDefault(ServiceDescriptor.Singleton(static provider =>
         {
             var options = provider.GetRequiredService<IOptions<TraconSqliteOptions>>().Value;
             var contentProtector = provider.GetRequiredService<IContentProtector>();
@@ -118,7 +118,7 @@ public static class TraconSqliteBuilderExtensions
         // logged at startup and /api/diagnostics reports it. Rationale: K-183.
         services.AddSingleton(new SqlPersistenceRegistrationMarker("SQLite"));
 
-        services.Replace(ServiceDescriptor.Singleton(static provider => new MigrationRunner(
+        services.ReplaceTraconDefault(ServiceDescriptor.Singleton(static provider => new MigrationRunner(
             provider.GetRequiredService<SqlStoreContext>(),
             provider.GetRequiredService<ILogger<MigrationRunner>>())));
         services.AddHostedService<MigrationHostedService>();
@@ -126,26 +126,26 @@ public static class TraconSqliteBuilderExtensions
         // Diagnostics (Phase 33): the winning provider's MigrationRunner is also
         // resolved as ISqlPersistenceDiagnostics; the same instance, no extra
         // SQL connection produced.
-        services.Replace(ServiceDescriptor.Singleton<ISqlPersistenceDiagnostics>(
+        services.ReplaceTraconDefault(ServiceDescriptor.Singleton<ISqlPersistenceDiagnostics>(
             static provider => provider.GetRequiredService<MigrationRunner>()));
 
         // Same reasoning, for the `tracon migrate` CLI command (Phase 83,
         // section 83.5): MigrationRunner is linked-source, so a consumer that
         // references more than one provider sees ambiguous types with the
         // same name (CS0433). IMigrationApplier is the resolvable seam.
-        services.Replace(ServiceDescriptor.Singleton<IMigrationApplier>(
+        services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IMigrationApplier>(
             static provider => provider.GetRequiredService<MigrationRunner>()));
 
         // State preflight (Phase 156): read-only, tenant-agnostic counting of
         // the stored schema generations. A separate seam from ISessionStore on
         // purpose - that one always filters by tenant, pages, and pulls the
         // whole state payload, none of which a whole-database preflight wants.
-        services.Replace(ServiceDescriptor.Singleton<IStatePreflightReader>(
+        services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IStatePreflightReader>(
             static provider => new SqlStatePreflightReader(provider.GetRequiredService<SqlStoreContext>())));
 
-        services.Replace(ServiceDescriptor.Singleton<IAuditLog, SqlAuditLog>());
+        services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IAuditLog, SqlAuditLog>());
 
-        services.Replace(ServiceDescriptor.Singleton<IAgentDefinitionStore, AuditingAgentDefinitionStore>(
+        services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IAgentDefinitionStore, AuditingAgentDefinitionStore>(
             static provider => new AuditingAgentDefinitionStore(
                 ActivatorUtilities.CreateInstance<SqlAgentDefinitionStore>(provider),
                 provider.GetRequiredService<IAuditLog>(),
@@ -153,7 +153,7 @@ public static class TraconSqliteBuilderExtensions
                 provider.GetRequiredService<IAuditActorResolver>(),
                 provider.GetRequiredService<ILogger<AuditingAgentDefinitionStore>>(),
                 provider.GetRequiredService<TraconMetrics>())));
-        services.Replace(ServiceDescriptor.Singleton<IAgentSkillStore, AuditingAgentSkillStore>(
+        services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IAgentSkillStore, AuditingAgentSkillStore>(
             static provider => new AuditingAgentSkillStore(
                 ActivatorUtilities.CreateInstance<SqlAgentSkillStore>(provider),
                 provider.GetRequiredService<IAuditLog>(),
@@ -161,81 +161,81 @@ public static class TraconSqliteBuilderExtensions
                 provider.GetRequiredService<ILogger<AuditingAgentSkillStore>>(),
                 provider.GetRequiredService<TraconMetrics>())));
 
-        services.Replace(ServiceDescriptor.Singleton<ISkillScriptGrantStore, AuditingSkillScriptGrantStore>(
+        services.ReplaceTraconDefault(ServiceDescriptor.Singleton<ISkillScriptGrantStore, AuditingSkillScriptGrantStore>(
             static provider => new AuditingSkillScriptGrantStore(
                 ActivatorUtilities.CreateInstance<SqlSkillScriptGrantStore>(provider),
                 provider.GetRequiredService<IAuditLog>(),
                 provider.GetRequiredService<IAuditActorResolver>(),
                 provider.GetRequiredService<ILogger<AuditingSkillScriptGrantStore>>(),
                 provider.GetRequiredService<TraconMetrics>())));
-        services.Replace(ServiceDescriptor.Singleton<IRunStore, SqlRunStore>());
+        services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IRunStore, SqlRunStore>());
 
-        services.Replace(ServiceDescriptor.Singleton<IWorkflowDefinitionStore, AuditingWorkflowDefinitionStore>(
+        services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IWorkflowDefinitionStore, AuditingWorkflowDefinitionStore>(
             static provider => new AuditingWorkflowDefinitionStore(
                 ActivatorUtilities.CreateInstance<SqlWorkflowDefinitionStore>(provider),
                 provider.GetRequiredService<IAuditLog>(),
                 provider.GetRequiredService<IAuditActorResolver>(),
                 provider.GetRequiredService<ILogger<AuditingWorkflowDefinitionStore>>(),
                 provider.GetRequiredService<TraconMetrics>())));
-        services.Replace(
+        services.ReplaceTraconDefault(
             ServiceDescriptor.Singleton<IWorkflowCheckpointStore, SqlWorkflowCheckpointStore>());
 
-        services.Replace(ServiceDescriptor.Singleton<IJobStore, SqlJobStore>());
-        services.Replace(ServiceDescriptor.Singleton<IJobScheduleStore, SqlJobScheduleStore>());
-        services.Replace(ServiceDescriptor.Singleton<IInboundTriggerStore, SqlInboundTriggerStore>());
+        services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IJobStore, SqlJobStore>());
+        services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IJobScheduleStore, SqlJobScheduleStore>());
+        services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IInboundTriggerStore, SqlInboundTriggerStore>());
 
-        services.Replace(ServiceDescriptor.Singleton<IEvalStore, SqlEvalStore>());
+        services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IEvalStore, SqlEvalStore>());
 
-        services.Replace(ServiceDescriptor.Singleton<IQuotaStore, SqlQuotaStore>());
-        services.Replace(ServiceDescriptor.Singleton<IWebhookStore, SqlWebhookStore>());
+        services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IQuotaStore, SqlQuotaStore>());
+        services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IWebhookStore, SqlWebhookStore>());
 
         // Tenant-scoped API keys (Phase 53). Not decorated: same rationale as
         // the quota/webhook stores, admin actions are separately written to the
         // audit log in the HTTP layer.
-        services.Replace(ServiceDescriptor.Singleton<IApiKeyStore, SqlApiKeyStore>());
+        services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IApiKeyStore, SqlApiKeyStore>());
 
         // Tenant provider bindings (BYOK) and egress policy (Phase 65). Same
         // rationale as the API key store: not wrapped, administrator actions
         // are written to the audit trail separately at the HTTP layer.
-        services.Replace(ServiceDescriptor.Singleton<ITenantProviderBindingStore, SqlTenantProviderBindingStore>());
-        services.Replace(ServiceDescriptor.Singleton<ITenantEgressPolicyStore, SqlTenantEgressPolicyStore>());
+        services.ReplaceTraconDefault(ServiceDescriptor.Singleton<ITenantProviderBindingStore, SqlTenantProviderBindingStore>());
+        services.ReplaceTraconDefault(ServiceDescriptor.Singleton<ITenantEgressPolicyStore, SqlTenantEgressPolicyStore>());
 
         // Data retention and archiving (Phase 25).
-        services.Replace(ServiceDescriptor.Singleton<IRetentionPolicyStore, SqlRetentionPolicyStore>());
-        services.Replace(ServiceDescriptor.Singleton<IRetentionStore, SqlRetentionStore>());
+        services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IRetentionPolicyStore, SqlRetentionPolicyStore>());
+        services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IRetentionStore, SqlRetentionStore>());
 
         // Data subject export/erasure (Phase 64). Replaces the in-memory
         // NullDataSubjectStore; meaningful only with a SQL provider on.
-        services.Replace(ServiceDescriptor.Singleton<IDataSubjectStore, SqlDataSubjectStore>());
+        services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IDataSubjectStore, SqlDataSubjectStore>());
 
         // Single-executor election (Phase 42). Replaces the in-memory
         // InMemorySingletonLeaseStore; lease sharing is only meaningful here in
         // a multi-instance deployment.
-        services.Replace(ServiceDescriptor.Singleton<ISingletonLeaseStore, SqlSingletonLeaseStore>());
+        services.ReplaceTraconDefault(ServiceDescriptor.Singleton<ISingletonLeaseStore, SqlSingletonLeaseStore>());
 
         // Voice session recording (Phase 29). Only writes anything if
         // UseVoiceConversation() was called; the store stays empty if it was
         // not. NOT decorated with the audit log: recording is a byproduct of
         // execution, not an admin decision.
-        services.Replace(ServiceDescriptor.Singleton<IVoiceSessionStore, SqlVoiceSessionStore>());
+        services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IVoiceSessionStore, SqlVoiceSessionStore>());
 
         // Run/message scores (Phase 31). NOT decorated with the audit log:
         // same rationale as the quota/webhook stores -- a score is not an
         // admin decision, it is user-supplied feedback.
-        services.Replace(ServiceDescriptor.Singleton<IRunScoreStore, SqlRunScoreStore>());
+        services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IRunScoreStore, SqlRunScoreStore>());
 
         // Idempotency-Key support (Phase 43). Replaces the in-memory
         // InMemoryIdempotencyStore; deduplication is only meaningful here in a
         // multi-instance deployment.
-        services.Replace(ServiceDescriptor.Singleton<IIdempotencyStore, SqlIdempotencyStore>());
+        services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IIdempotencyStore, SqlIdempotencyStore>());
 
         // Run inputs (Phase 47). Replaces the in-memory InMemoryRunInputStore;
         // replay only keeps working after the process restarts once the input
         // is persisted.
-        services.Replace(ServiceDescriptor.Singleton<IRunInputStore, SqlRunInputStore>());
+        services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IRunInputStore, SqlRunInputStore>());
 
         // Async approval inbox (Phase 55).
-        services.Replace(ServiceDescriptor.Singleton<IPendingApprovalStore, SqlPendingApprovalStore>());
+        services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IPendingApprovalStore, SqlPendingApprovalStore>());
 
         // Conversation branching (Phase 47). There is NO in-memory equivalent:
         // MAF's InMemoryChatHistoryProvider keeps history in an opaque blob of
@@ -243,7 +243,7 @@ public static class TraconSqliteBuilderExtensions
         // Registration only happens here; a stateless setup returns 501.
         services.TryAddSingleton<IConversationBranchStore, SqlConversationBranchStore>();
 
-        services.Replace(ServiceDescriptor.Singleton<IExperimentStore, AuditingExperimentStore>(
+        services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IExperimentStore, AuditingExperimentStore>(
             static provider => new AuditingExperimentStore(
                 ActivatorUtilities.CreateInstance<SqlExperimentStore>(provider),
                 provider.GetRequiredService<IAuditLog>(),
@@ -252,7 +252,7 @@ public static class TraconSqliteBuilderExtensions
                 provider.GetRequiredService<ILogger<AuditingExperimentStore>>(),
                 provider.GetRequiredService<TraconMetrics>())));
 
-        services.Replace(ServiceDescriptor.Singleton<ISessionStore, AuditingSessionStore>(
+        services.ReplaceTraconDefault(ServiceDescriptor.Singleton<ISessionStore, AuditingSessionStore>(
             static provider => new AuditingSessionStore(
                 ActivatorUtilities.CreateInstance<SqlSessionStore>(provider),
                 provider.GetRequiredService<IAuditLog>(),
@@ -260,22 +260,22 @@ public static class TraconSqliteBuilderExtensions
                 provider.GetRequiredService<IAuditActorResolver>(),
                 provider.GetRequiredService<ILogger<AuditingSessionStore>>(),
                 provider.GetRequiredService<TraconMetrics>())));
-        services.Replace(ServiceDescriptor.Singleton<ITraceStore, SqlTraceStore>());
-        services.Replace(ServiceDescriptor.Singleton<IToolApprovalRuleStore, AuditingToolApprovalRuleStore>(
+        services.ReplaceTraconDefault(ServiceDescriptor.Singleton<ITraceStore, SqlTraceStore>());
+        services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IToolApprovalRuleStore, AuditingToolApprovalRuleStore>(
             static provider => new AuditingToolApprovalRuleStore(
                 ActivatorUtilities.CreateInstance<SqlToolApprovalRuleStore>(provider),
                 provider.GetRequiredService<IAuditLog>(),
                 provider.GetRequiredService<IAuditActorResolver>(),
                 provider.GetRequiredService<ILogger<AuditingToolApprovalRuleStore>>(),
                 provider.GetRequiredService<TraconMetrics>())));
-        services.Replace(ServiceDescriptor.Singleton<IMcpServerStore, AuditingMcpServerStore>(
+        services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IMcpServerStore, AuditingMcpServerStore>(
             static provider => new AuditingMcpServerStore(
                 ActivatorUtilities.CreateInstance<SqlMcpServerStore>(provider),
                 provider.GetRequiredService<IAuditLog>(),
                 provider.GetRequiredService<IAuditActorResolver>(),
                 provider.GetRequiredService<ILogger<AuditingMcpServerStore>>(),
                 provider.GetRequiredService<TraconMetrics>())));
-        services.Replace(ServiceDescriptor.Singleton<ITenantStore, AuditingTenantStore>(
+        services.ReplaceTraconDefault(ServiceDescriptor.Singleton<ITenantStore, AuditingTenantStore>(
             static provider => new AuditingTenantStore(
                 ActivatorUtilities.CreateInstance<SqlTenantStore>(provider),
                 provider.GetRequiredService<IAuditLog>(),
@@ -284,13 +284,13 @@ public static class TraconSqliteBuilderExtensions
                 provider.GetRequiredService<ILogger<AuditingTenantStore>>(),
                 provider.GetRequiredService<TraconMetrics>())));
 
-        services.Replace(ServiceDescriptor.Singleton<ChatHistoryProvider, SqlChatHistoryProvider>());
+        services.ReplaceTraconDefault(ServiceDescriptor.Singleton<ChatHistoryProvider, SqlChatHistoryProvider>());
 
-        services.Replace(ServiceDescriptor.Singleton<IAttachmentStore>(
+        services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IAttachmentStore>(
             static provider => ActivatorUtilities.CreateInstance<SqlAttachmentStore>(provider)));
 
 #pragma warning disable MAAI001 // AgentFileStore — rationale same as TraconServiceCollectionExtensions.
-        services.Replace(ServiceDescriptor.Singleton<AgentFileStore>(
+        services.ReplaceTraconDefault(ServiceDescriptor.Singleton<AgentFileStore>(
             static provider => ActivatorUtilities.CreateInstance<SqlAgentFileStore>(provider)));
 #pragma warning restore MAAI001
 
