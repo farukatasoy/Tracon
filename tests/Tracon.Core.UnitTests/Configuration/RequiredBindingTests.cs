@@ -24,7 +24,7 @@ public sealed class RequiredBindingTests
         // scope at all: an installation that never calls RequireCustomBinding
         // must keep its exact composition order, and resolving a service here
         // would build it earlier than before.
-        var validator = new RequiredBindingValidator([], new ThrowingScopeFactory());
+        var validator = new RequiredBindingValidator([], NoDefaults, new ThrowingScopeFactory());
 
         await validator.StartAsync(TestContext.Current.CancellationToken);
     }
@@ -32,17 +32,62 @@ public sealed class RequiredBindingTests
     [Fact]
     public async Task Membership_is_checked_before_anything_is_resolved()
     {
+        // A contract that is neither an extension point nor one Tracon
+        // registers a default for. The scope factory throws, so this also
+        // proves membership is judged before anything is resolved.
         var validator = new RequiredBindingValidator(
-            [new RequiredBindingRegistration(typeof(IRunStore))],
+            [new RequiredBindingRegistration(typeof(IDisposable))],
+            NoDefaults,
             new ThrowingScopeFactory());
 
         var exception = await Should.ThrowAsync<InvalidOperationException>(
             async () => await validator.StartAsync(TestContext.Current.CancellationToken));
 
-        exception.Message.ShouldContain("not a Tracon extension point");
-        exception.Message.ShouldContain(nameof(IRunStore));
+        exception.Message.ShouldContain("neither treats it as an extension point");
+        exception.Message.ShouldContain(nameof(IDisposable));
         exception.Message.ShouldContain(nameof(ITenantContext));
         exception.Message.ShouldContain(nameof(IToolApprovalPresenter));
+    }
+
+    /// <summary>
+    /// The store half of the accepted set, added for HATA-S1-019: a consumer who
+    /// binds their own store wants the same startup failure an extension point
+    /// gives them, and before this the call was rejected outright with "not a
+    /// Tracon extension point".
+    /// </summary>
+    [Fact]
+    public async Task A_store_contract_on_Tracons_own_default_fails_the_host()
+    {
+        var services = new ServiceCollection();
+        services.AddTracon();
+
+        await using var provider = services.BuildServiceProvider();
+        var validator = new RequiredBindingValidator(
+            [new RequiredBindingRegistration(typeof(IRunStore))],
+            services.DefaultRegistrations(),
+            provider.GetRequiredService<IServiceScopeFactory>());
+
+        var exception = await Should.ThrowAsync<InvalidOperationException>(
+            async () => await validator.StartAsync(TestContext.Current.CancellationToken));
+
+        exception.Message.ShouldContain(nameof(IRunStore));
+        exception.Message.ShouldContain("Tracon's own");
+    }
+
+    [Fact]
+    public async Task A_store_contract_the_consumer_registered_satisfies_the_declaration()
+    {
+        var services = new ServiceCollection();
+        services.AddSingleton<ITenantStore, StubTenantStore>();
+        services.AddTracon();
+
+        await using var provider = services.BuildServiceProvider();
+        var validator = new RequiredBindingValidator(
+            [new RequiredBindingRegistration(typeof(ITenantStore))],
+            services.DefaultRegistrations(),
+            provider.GetRequiredService<IServiceScopeFactory>());
+
+        await validator.StartAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -119,6 +164,7 @@ public sealed class RequiredBindingTests
                 new RequiredBindingRegistration(typeof(IRunAuthorizationHandler)),
                 new RequiredBindingRegistration(typeof(IRunAuthorizationHandler)),
             ],
+            services.DefaultRegistrations(),
             provider.GetRequiredService<IServiceScopeFactory>());
 
         await validator.StartAsync(TestContext.Current.CancellationToken);
@@ -134,6 +180,7 @@ public sealed class RequiredBindingTests
         await using var provider = services.BuildServiceProvider();
         var validator = new RequiredBindingValidator(
             [new RequiredBindingRegistration(typeof(IRunAuthorizationHandler))],
+            services.DefaultRegistrations(),
             provider.GetRequiredService<IServiceScopeFactory>());
 
         await validator.StartAsync(TestContext.Current.CancellationToken);
@@ -148,6 +195,7 @@ public sealed class RequiredBindingTests
 
         var validator = new RequiredBindingValidator(
             [new RequiredBindingRegistration(typeof(IRunAuthorizationHandler))],
+            NoDefaults,
             new ThrowingScopeFactory());
 
         await Should.ThrowAsync<OperationCanceledException>(
@@ -156,7 +204,7 @@ public sealed class RequiredBindingTests
 
     [Fact]
     public async Task Stopping_does_nothing()
-        => await new RequiredBindingValidator([], new ThrowingScopeFactory())
+        => await new RequiredBindingValidator([], NoDefaults, new ThrowingScopeFactory())
             .StopAsync(TestContext.Current.CancellationToken);
 
     private static async Task ValidateAsync(Action<IServiceCollection> configure, Type contract)
@@ -168,9 +216,24 @@ public sealed class RequiredBindingTests
         await using var provider = services.BuildServiceProvider();
         var validator = new RequiredBindingValidator(
             [new RequiredBindingRegistration(contract)],
+            services.DefaultRegistrations(),
             provider.GetRequiredService<IServiceScopeFactory>());
 
         await validator.StartAsync(TestContext.Current.CancellationToken);
+    }
+
+    /// <summary>A registry that knows no Tracon default at all.</summary>
+    private static TraconDefaultRegistrations NoDefaults => new ServiceCollection().DefaultRegistrations();
+
+    private sealed class StubTenantStore : ITenantStore
+    {
+        public ValueTask<IReadOnlyList<TenantDescriptor>> ListAsync(CancellationToken cancellationToken = default)
+            => new([]);
+
+        public ValueTask<TenantDescriptor> SaveAsync(TenantDescriptor tenant, CancellationToken cancellationToken = default)
+            => new(tenant);
+
+        public ValueTask<bool> DeleteAsync(string slug, CancellationToken cancellationToken = default) => new(false);
     }
 
     private sealed class ThrowingScopeFactory : IServiceScopeFactory

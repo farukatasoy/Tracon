@@ -3,8 +3,8 @@
 > **Bu turu kapatan her oturum ÖNCE burayı okur.** Koşum bitti; bu dosya
 > kapanışın tek kontrol düzlemidir.
 >
-> **Durum:** 🟡 Aşama 2 açıldı · konsolidasyon bitti · 43 açık kusur, 22 aile
-> **Son güncelleme:** 2026-09-18 (konsolidasyon oturumu)
+> **Durum:** 🟡 Aşama 2 sürüyor · **Aile A KAPANDI** · 42 açık kusur, 21 aile kaldı
+> **Son güncelleme:** 2026-09-18 (Aile A kapandı — `HATA-S1-019`)
 
 Turdan bağımsız kapanış protokolü — aile aile oturum yordamı, "önce ampirik
 yeniden üret" kuralı, bitti tanımı ve sayım betiği —
@@ -172,7 +172,7 @@ Sıra yukarıdan aşağıdır; yüksek öncelik önce kapanır.
 
 | Aile | Kusur | Kök neden ve sınıf taraması sorusu | Durum |
 |---|---|---|---|
-| **A** · Store kaydı sözleşmesi | `S1-019` **Yüksek** | `UsePostgreSql` tüketicinin store kaydını `Replace` ile **sessizce** eziyor. `AGENTS.md`'nin "`TryAdd*` ile kaydet; tüketicinin kaydı her zaman kazanmalı" kuralının ihlali — bir **paket sözleşmesi** kusuru. 117 çağrı, 34 store arayüzü, üç sağlayıcı. `samples/Tracon.Embedded`'in README'sinde belgelenmiş akışı kırıyor (`MT-PG-068` bu yüzden Kaldı). ✅ **Açık soru yanıtlandı (2026-09-18):** `RequireCustomBinding<ITenantStore>()` **patlardı ama yanlış nedenle** — `TraconExtensionPoints.All` yalnız **yedi** sözleşme taşıyor (`ITenantContext`, `IRunAttributionContext`, `IToolAuthorizationHandler`, `IRunAuthorizationHandler`, `IRunEventSink`, `IAttachmentStorage`, `IToolApprovalPresenter`) ve `ITenantStore` bunlardan biri değil; mesaj "kaydın ezildi" değil "bu bir genişleme noktası değil" olurdu. Koruma mekanizmasının 34 store sözleşmesinde **hiç kapsamı yok** ∴ kusur yalnız örnekte değil, mekanizmanın kendisinde. `samples/Tracon.Embedded/Program.cs:17` kendi yorumunda `ITenantStore`'u 1. gömülme noktasının parçası sayıyor — mekanizma onu tanımıyor | 🔄 |
+| **A** · Store kaydı sözleşmesi | `S1-019` **Yüksek** | `UsePostgreSql` tüketicinin store kaydını `Replace` ile **sessizce** eziyor. `AGENTS.md`'nin "`TryAdd*` ile kaydet; tüketicinin kaydı her zaman kazanmalı" kuralının ihlali — bir **paket sözleşmesi** kusuru. 117 çağrı, 34 store arayüzü, üç sağlayıcı. `samples/Tracon.Embedded`'in README'sinde belgelenmiş akışı kırıyor (`MT-PG-068` bu yüzden Kaldı). ✅ **Açık soru yanıtlandı (2026-09-18):** `RequireCustomBinding<ITenantStore>()` **patlardı ama yanlış nedenle** — `TraconExtensionPoints.All` yalnız **yedi** sözleşme taşıyor (`ITenantContext`, `IRunAttributionContext`, `IToolAuthorizationHandler`, `IRunAuthorizationHandler`, `IRunEventSink`, `IAttachmentStorage`, `IToolApprovalPresenter`) ve `ITenantStore` bunlardan biri değil; mesaj "kaydın ezildi" değil "bu bir genişleme noktası değil" olurdu. Koruma mekanizmasının 34 store sözleşmesinde **hiç kapsamı yok** ∴ kusur yalnız örnekte değil, mekanizmanın kendisinde. `samples/Tracon.Embedded/Program.cs:17` kendi yorumunda `ITenantStore`'u 1. gömülme noktasının parçası sayıyor — mekanizma onu tanımıyordu | ✅ **KAPANDI 2026-09-18** |
 | **B** · Run kaydının doğruluğu | `S4-003` **Yüksek** · `S3-004` **Yüksek** · `S1-011` Orta | Üçü de "run kaydı gerçeği yansıtmıyor": guard'ın GİRİŞ-öncesi istisnası run kaydını hiç oluşturmuyor (istemci SSE'de `error` görür, `GET /api/runs/{id}` `404` verir — denetim/yeniden-deneme/idempotency o run'ı bulamaz); lease devralan ikinci deneme sessizce başarısız kalıyor ve run sonsuza dek `Running`; çakışmayla düşen run kayıtta `Completed` görünüyor. **Tarama:** her terminalleşme yolu kaydı gerçekten yazıyor mu? | ☐ |
 | **C** · Tracon'un kendi istisnası maskeleniyor | `S1-024` **Yüksek** · `S4-005` Orta | Tool içi `TraconException` mesajı modele hiç ulaşmıyor — `FunctionInvokingChatClient` onu `"Error: Function failed."`e çeviriyor. Aynı desen sağlayıcı fabrikasında: `ProviderFailureNormalizer` Anthropic/Google fabrikalarının kendi el ile attığı doğrulama hatalarını (düşünme bütçesi, güvenlik eşiği) yabancı SDK hatasıyla aynı maskeye sokuyor, özgül mesaj `/api/agents/validate`'te kayboluyor. **Tarama:** `throw new TraconException` kullanan HER tool ve fabrika | ☐ |
 | **D** · MCP çıktısı kırpılmıyor | `S1-026` **Yüksek** | `TruncatingAIFunction` MCP tool sonuçlarını (`AIContent`) atlıyor. Ölçüm: `Tracon:Tools:DefaultMaxOutputBytes=200` iken modele **8095 bayt** gitti — sınırın 40 katı, hiçbir kırpma işareti yok. Sessizce fark edilmez | ☐ |
@@ -202,6 +202,31 @@ Sıra yukarıdan aşağıdır; yüksek öncelik önce kapanır.
 Kapsam: `Tracon.Core` (işaret + varsayılan kayıtlar) · `Tracon.PostgreSql` ·
 `Tracon.SqlServer` · `Tracon.Sqlite` (117 `Replace` çağrısı) ·
 `TraconExtensionPoints` · `samples/Tracon.Embedded`.
+
+#### Aile A — ✅ kapandı (2026-09-18)
+
+| Adım | Sonuç |
+|---|---|
+| Ampirik yeniden üretim | ☑ eski kodda `ConsumerStoreRegistrationTests` düştü — tüketicinin store'u yerine `AuditingTenantStore` çözüldü |
+| Kök neden düzeltmesi | `TraconDefaultRegistrations` işaret mekanizması; 117 `Replace` + 35 varsayılan dönüştürüldü |
+| Sınıf taraması | ☑ üç sağlayıcının üçü de aynı 39 `Replace` çağrısını paylaşıyordu; üçünde de aynı test koşuyor |
+| Uyarı | `PreservedStoreRegistrationWarningService` korunan sözleşmeyi adıyla loglar |
+| Koruma kapsamı | `RequireCustomBinding` store sözleşmelerini kabul ediyor; kabul kümesi **kendi kendini besler** (ayrı liste yok) |
+| Canlı koşum | ☑ `MT-PG-068` yeniden koşuldu — üç beklentinin üçü de karşılandı, `GET /api/runs/{id}` `404` → **`200`**, liste `403` → **`200`** |
+| Testler | Core 7 mekanizma testi · üç sağlayıcıda 3'er sınıf testi · `RequiredBindingTests` + `RequiredBindingStartupTests` yeni sözleşmeye taşındı |
+
+🚨 **Bir test gerçek bir tasarım boşluğu buldu.** Tüketici sözleşmeyi
+`AddTracon()`'dan ÖNCE kaydettiğinde `TryAdd` no-op olur ve hiçbir işaret
+yazılmıyordu; `RequireCustomBinding<ITenantStore>()` tam da o tüketici için
+"genişleme noktası değil" diye reddediliyordu. **Bilmek** ile **sahip olmak**
+iki ayrı küme yapıldı.
+
+🚨 **Üç test değişikliğin beklenen sonucu olarak düştü ve düzeltildi** —
+`SourceLanguageTests` (yeni test dosyasında iki Türkçe satır; **taban
+tazelenmedi**, metin İngilizce'ye çevrildi) · `ServiceRegistrationSnapshotTests`
+(iki yeni kayıt, sıralama değişmedi) · `RequiredBindingStartupTests`
+(`IRunStore` artık **kabul ediliyor**; test `IDisposable`'a taşındı ve store
+kolu için ikinci bir test eklendi).
 
 ---
 

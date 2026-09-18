@@ -42,6 +42,7 @@ internal sealed record RequiredBindingRegistration(Type Contract);
 /// </remarks>
 internal sealed class RequiredBindingValidator(
     IEnumerable<RequiredBindingRegistration> registrations,
+    TraconDefaultRegistrations defaults,
     IServiceScopeFactory scopeFactory) : IHostedService
 {
     /// <inheritdoc />
@@ -65,12 +66,18 @@ internal sealed class RequiredBindingValidator(
         // binding that happens to be missing.
         foreach (var contract in required)
         {
-            if (TraconExtensionPoints.Find(contract) is null)
+            // A contract is acceptable when it is one of the seven behavioral
+            // extension points, OR when Tracon registered a default for it -
+            // which is every store contract a storage provider overrides. The
+            // second arm reads the SAME marks ReplaceTraconDefault writes, so
+            // the accepted set cannot drift away from the overriding code.
+            if (TraconExtensionPoints.Find(contract) is null && !defaults.Knows(contract))
             {
                 throw new InvalidOperationException(
-                    $"{contract.Name} was declared as a required custom binding, but it is not a Tracon " +
-                    $"extension point. RequireCustomBinding accepts these seven contracts: " +
-                    $"{TraconExtensionPoints.ContractNames}.");
+                    $"{contract.Name} was declared as a required custom binding, but Tracon neither treats " +
+                    $"it as an extension point nor registers a default for it. RequireCustomBinding accepts " +
+                    $"the extension points ({TraconExtensionPoints.ContractNames}) and any store contract a " +
+                    $"storage provider registers.");
             }
         }
 
@@ -83,7 +90,26 @@ internal sealed class RequiredBindingValidator(
         foreach (var contract in required)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            Validate(scope.ServiceProvider, TraconExtensionPoints.Find(contract)!);
+
+            if (TraconExtensionPoints.Find(contract) is { } point)
+            {
+                Validate(scope.ServiceProvider, point);
+                continue;
+            }
+
+            // A store contract has no single built-in default TYPE to compare
+            // against: UsePostgreSql wraps SqlTenantStore in AuditingTenantStore
+            // and the in-memory default wraps InMemoryTenantStore in the SAME
+            // decorator. The question a type check cannot answer, and the mark
+            // can, is WHOSE registration won.
+            if (!defaults.ConsumerOwns(contract))
+            {
+                throw new InvalidOperationException(
+                    $"{contract.Name} was declared as a required custom binding, but the registration that " +
+                    $"resolves is Tracon's own. Register your own {contract.Name} on IServiceCollection - " +
+                    $"before or after AddTracon(), both win - and make sure a storage provider's own " +
+                    $"registration is not the one in effect.");
+            }
         }
 
         return Task.CompletedTask;

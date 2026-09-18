@@ -60,7 +60,7 @@ her case için bu tarifi kullanmalıdır.
 
 | Bulgu | Önem | Kısaca |
 |---|---|---|
-| `HATA-S1-019` | **Yüksek** | `UsePostgreSql` tüketicinin store kaydını `Replace` ile sessizce eziyor — `AGENTS.md`'nin "`TryAdd*` ile kaydet" kuralının ihlali. 117 çağrı, 34 arayüz. `Tracon.Embedded`'in belgelenmiş akışını kırıyor (MT-PG-068 bu yüzden **Kaldı**) |
+| `HATA-S1-019` | **Yüksek** ✅ kapandı 2026-09-18 | `UsePostgreSql` tüketicinin store kaydını `Replace` ile sessizce eziyor — `AGENTS.md`'nin "`TryAdd*` ile kaydet" kuralının ihlali. 117 çağrı, 34 arayüz. `Tracon.Embedded`'in belgelenmiş akışını kırıyor (MT-PG-068 bu yüzden **Kaldı**) |
 | `HATA-S1-018` | Orta | Sevk edilen iki hata mesajı karışık dilde (`ne 'Input' ne 'Output'`); dil kapısı iki harfli kelimeleri bilinçli dışladığı için **yapısal olarak** göremiyor |
 | `HATA-S1-017` | Düşük | Taze şemaya karşı her açılış `Error` seviyesinde yığın izi basıyor; yutma bir katman geç yapılıyor |
 | `HATA-S1-016` | Düşük–Orta | `/health` kendi başına hiçbir zaman `Healthy`'ye ulaşmaz — `/api/models/health` çağrılmadıkça sonsuza dek `Degraded` |
@@ -1956,6 +1956,59 @@ okuduğu için `acme`'yi tanımıyor.
 
 **Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
+---
+
+**Kapanış koşumu — 2026-09-18 (Aşama 2, Aile A). ☑ GEÇTİ.**
+
+Düzeltmeden sonra aynı yol yeniden koşuldu: `samples/Tracon.Embedded`, taze
+`tracon_embedded_kapanis` veritabanı (`ap-pg`), port 5091, dış
+`NpgsqlDataSource`. Üç beklentinin **üçü de** karşılandı.
+
+**1. Kiraci dizini artık örneğin kendi store'u** (önceki koşumda yalnız
+`default` dönüyordu — kök neden buydu):
+
+```
+GET /tracon/api/tenants -H "X-Host-Tenant: acme"
+-> [{"slug":"acme","displayName":"Acme Corp",...},
+    {"slug":"globex","displayName":"Globex Inc",...}]
+```
+
+`EmbeddedTenantStore`'un yapıcısında seed ettiği iki kiracı görünüyor, yani
+çalışan `ITenantStore` örneğin kendisininki.
+
+**2. Tek havuz, iki tüketici** — değişmedi, yine tutuyor:
+
+```
+POST /tickets -> HTTP 201
+{"id":"3eea0745-...","tenantId":"acme","runId":"01a0b390-389f-77d1-a0dc-839f5492f11c"}
+```
+
+**3. ☑ Düşen adım artık geçiyor:**
+
+```
+GET /tracon/api/runs/01a0b390-...  -H "X-Host-Tenant: acme"  -> HTTP 200
+  {"id":"01a0b390-...","agentName":"assistant","status":"Completed",
+   "tenantId":"acme","userId":"u-1","modelProvider":"echo", ...}
+
+GET /tracon/api/runs               -H "X-Host-Tenant: acme"  -> HTTP 200
+  [{"id":"01a0b390-...", ...}]          <- onceki kosumda 403 idi
+```
+
+Liste ucunun eski `403`'ü de kalktı: `EmbeddedRunAuthorizationHandler` artık
+`acme`'yi tanıyor, çünkü okuduğu kiracı dizini örneğin kendisininki.
+
+**4. Korunan kayıt artık sessiz değil.** Başlangıçta beklenen uyarı düştü:
+
+```
+warn: Tracon.PreservedStoreRegistrationWarningService
+      ITenantStore stays bound to this application's own registration. A storage
+      provider did not overwrite it, so that store does not use the provider's
+      database. Remove your registration if the provider's store is what you
+      meant to use.
+```
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
 ### HATA-S1-019 — `UsePostgreSql` tüketicinin store kaydını `Replace` ile eziyor
 
 | | |
@@ -2042,6 +2095,54 @@ dönüyor ama devamındaki `GET /tracon/api/runs/{id}` 200 yerine 404 veriyor.
 için de çağrılsaydı başlangıçta patlar mıydı, yoksa o da mı sessiz kalırdı?
 Kapanışın ilk sorusu bu olmalı — cevabı "patlardı" ise kusur yalnız örnekte,
 "sessiz kalırdı" ise koruma mekanizmasının kendisinde.
+
+---
+
+### ✅ KAPANDI — 2026-09-18 (Aşama 2, Aile A)
+
+**Açık sorunun cevabı: ÜÇÜNCÜ bir şık.** `RequireCustomBinding<ITenantStore>()`
+**patlardı ama yanlış nedenle.** `TraconExtensionPoints.All` yalnız **yedi**
+sözleşme taşıyordu (`ITenantContext` · `IRunAttributionContext` ·
+`IToolAuthorizationHandler` · `IRunAuthorizationHandler` · `IRunEventSink` ·
+`IAttachmentStorage` · `IToolApprovalPresenter`) ve hiçbiri store değildi; mesaj
+"kaydın ezildi" değil "bu bir genişleme noktası değil" olurdu. Yani koruma
+mekanizmasının 34 store sözleşmesinde **hiç kapsamı yoktu** ∴ kusur yalnız
+örnekte değil, mekanizmanın kendisindeydi.
+
+**Ampirik yeniden üretim (düzeltmeden ÖNCE).** `ConsumerStoreRegistrationTests`
+eski kodda düştü: tüketicinin `ConsumerTenantStore`'u yerine `AuditingTenantStore`
+çözüldü.
+
+**Düzeltme — işaretli varsayılan.** `TraconDefaultRegistrations` Tracon'in kendi
+`TryAdd` varsayılanı olarak eklediği **descriptor örneklerini** tutar;
+`ReplaceTraconDefault` yalnız **işaretli** bir kaydı ezer. Ayırt edici sinyal
+implementation TYPE değildir — varsayılanların çoğu factory ile kaydediliyor ve
+`ImplementationType` `null`. Üç sağlayıcıdaki 117 `Replace` çağrısı ve Core'daki
+35 varsayılan dönüştürüldü.
+
+**Korunan kayıt sessiz kalmıyor.** `PreservedStoreRegistrationWarningService`
+başlangıçta sözleşmeyi adıyla loglar. Kırıcı değildir: kendi store'unu kaydedip
+`UsePostgreSql` çağırmak desteklenen bir birleşimdir, sağlayıcı kalan ~33
+sözleşmeyi vermeye devam eder.
+
+**`RequireCustomBinding` store sözleşmelerini de kabul ediyor** (kullanıcı
+kararı). Kabul kümesi kendi kendini besler: bir sözleşme ya yedi genişleme
+noktasından biridir ya da Tracon onun için bir varsayılan kaydetmiştir — ikinci
+kol `ReplaceTraconDefault`'un yazdığı **aynı** işaretleri okur, bu yüzden ayrı
+bir liste kayamaz. `samples/Tracon.Embedded` artık
+`RequireCustomBinding<ITenantStore>()` çağırıyor ve README'deki akış kapıyla
+kilitli.
+
+**Sınıf taraması.** Üç sağlayıcının üçünde de aynı testler koşuyor
+(`ConsumerStoreRegistrationTests`, PostgreSQL · SQL Server · SQLite). Üçü de
+aynı 39 `Replace` çağrısını paylaşıyordu, yani üçü de aynı kusuru taşıyordu.
+
+**Bir test tasarım boşluğu buldu.** Tüketici sözleşmeyi `AddTracon()`'dan ÖNCE
+kaydettiğinde `TryAdd` no-op olur, bu yüzden hiçbir işaret yazılmıyordu ve
+`RequireCustomBinding<ITenantStore>()` "genişleme noktası değil" diye
+reddediliyordu — tam da o tüketici için. Çözüm: **bilmek** ile **sahip olmak**
+iki ayrı küme (`_known` ve `_marked`); bir sözleşme, varsayılanı eklenmese bile
+bilinen sayılır.
 
 ---
 

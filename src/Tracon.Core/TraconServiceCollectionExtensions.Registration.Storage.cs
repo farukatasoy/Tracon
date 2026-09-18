@@ -18,7 +18,7 @@ public static partial class TraconServiceCollectionExtensions
         // own implementations with the same decorators (see UsePostgreSql);
         // this way the audit trail works identically no matter which store is
         // registered. Rationale: docs/arsiv/fazlar/09-YONETISIM-VE-DENETIM-IZI.md, section 9.2.
-        services.TryAddSingleton<IAgentDefinitionStore>(static provider => new AuditingAgentDefinitionStore(
+        services.TryAddTraconDefault<IAgentDefinitionStore>(static provider => new AuditingAgentDefinitionStore(
             new InMemoryAgentDefinitionStore(provider.GetRequiredService<ITenantContext>()),
             provider.GetRequiredService<IAuditLog>(),
             provider.GetRequiredService<ITenantContext>(),
@@ -30,7 +30,7 @@ public static partial class TraconServiceCollectionExtensions
         // definition does (F-170). Its script GRANT store was already audited
         // while the skill itself was not, which recorded who permitted a
         // script to run but not who wrote it.
-        services.TryAddSingleton<IAgentSkillStore>(static provider => new AuditingAgentSkillStore(
+        services.TryAddTraconDefault<IAgentSkillStore>(static provider => new AuditingAgentSkillStore(
             new InMemoryAgentSkillStore(),
             provider.GetRequiredService<IAuditLog>(),
             provider.GetRequiredService<IAuditActorResolver>(),
@@ -50,51 +50,51 @@ public static partial class TraconServiceCollectionExtensions
         // SummarizeAsync call) -- IRunStore's own factory needs IRunScoreStore,
         // so resolving it eagerly here would be a constructor-time cycle
         // (Phase 154).
-        services.TryAddSingleton<IRunScoreStore>(provider => new InMemoryRunScoreStore(
+        services.TryAddTraconDefault<IRunScoreStore>(provider => new InMemoryRunScoreStore(
             provider.GetRequiredService<ITenantContext>(),
             (runId, cancellationToken) => ResolveScoredRunAgentNameAsync(provider, runId, cancellationToken)));
-        services.TryAddSingleton<IRunStore>(static provider => new InMemoryRunStore(
+        services.TryAddTraconDefault<IRunStore>(static provider => new InMemoryRunStore(
             provider.GetRequiredService<IRunScoreStore>(),
             provider.GetRequiredService<ITenantContext>()));
 
         // Run inputs (Phase 47). The store is always registered (K-018:
         // first-class) - replay works even without a SQL provider. Persistent
         // providers replace this with their own implementations.
-        services.TryAddSingleton<IRunInputStore, InMemoryRunInputStore>();
+        services.TryAddTraconDefault<IRunInputStore, InMemoryRunInputStore>();
 
         // Async approval inbox (Phase 55). The store is always registered (the
         // SAME rationale as K-018): if a queued run requests approval, the
         // store works even without a persistent provider. Persistent providers
         // replace this with their own implementations.
-        services.TryAddSingleton<IPendingApprovalStore>(static provider => new InMemoryPendingApprovalStore(
+        services.TryAddTraconDefault<IPendingApprovalStore>(static provider => new InMemoryPendingApprovalStore(
             provider.GetRequiredService<ITenantContext>()));
 
         // Script run permissions. The store is always registered; the run
         // feature itself is DISABLED until UseSkillScripts is called. The mere
         // existence of a permission record runs nothing by itself.
-        services.TryAddSingleton<ISkillScriptGrantStore>(static provider => new AuditingSkillScriptGrantStore(
+        services.TryAddTraconDefault<ISkillScriptGrantStore>(static provider => new AuditingSkillScriptGrantStore(
             new InMemorySkillScriptGrantStore(),
             provider.GetRequiredService<IAuditLog>(),
             provider.GetRequiredService<IAuditActorResolver>(),
             provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<AuditingSkillScriptGrantStore>>(),
             provider.GetRequiredService<TraconMetrics>()));
 
-        services.TryAddSingleton<ISessionStore>(static provider => new AuditingSessionStore(
+        services.TryAddTraconDefault<ISessionStore>(static provider => new AuditingSessionStore(
             new InMemorySessionStore(provider.GetRequiredService<ITenantContext>()),
             provider.GetRequiredService<IAuditLog>(),
             provider.GetRequiredService<ITenantContext>(),
             provider.GetRequiredService<IAuditActorResolver>(),
             provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<AuditingSessionStore>>(),
             provider.GetRequiredService<TraconMetrics>()));
-        services.TryAddSingleton<ITraceStore>(static provider => new InMemoryTraceStore(
+        services.TryAddTraconDefault<ITraceStore>(static provider => new InMemoryTraceStore(
             provider.GetRequiredService<ITenantContext>()));
-        services.TryAddSingleton<IToolApprovalRuleStore>(static provider => new AuditingToolApprovalRuleStore(
+        services.TryAddTraconDefault<IToolApprovalRuleStore>(static provider => new AuditingToolApprovalRuleStore(
             new InMemoryToolApprovalRuleStore(),
             provider.GetRequiredService<IAuditLog>(),
             provider.GetRequiredService<IAuditActorResolver>(),
             provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<AuditingToolApprovalRuleStore>>(),
             provider.GetRequiredService<TraconMetrics>()));
-        services.TryAddSingleton<IMcpServerStore>(static provider => new AuditingMcpServerStore(
+        services.TryAddTraconDefault<IMcpServerStore>(static provider => new AuditingMcpServerStore(
             new InMemoryMcpServerStore(),
             provider.GetRequiredService<IAuditLog>(),
             provider.GetRequiredService<IAuditActorResolver>(),
@@ -103,7 +103,7 @@ public static partial class TraconServiceCollectionExtensions
         // Attachment store and type guard. When IAttachmentStorage is not
         // registered, content lives directly in memory (in production: the database).
         services.TryAddSingleton<AttachmentTypeGuard>();
-        services.TryAddSingleton<IAttachmentStore>(
+        services.TryAddTraconDefault<IAttachmentStore>(
             static provider => new InMemoryAttachmentStore(provider.GetService<IAttachmentStorage>()));
 
         // Image generation uses the same attachment store as uploads and voice.
@@ -118,21 +118,21 @@ public static partial class TraconServiceCollectionExtensions
         // UseWorkflows() is called. This split is deliberate: the HTTP layer
         // must be able to list and manage definitions even without the
         // engine, only the "run" endpoint returns 501.
-        services.TryAddSingleton<IWorkflowDefinitionStore>(static provider => new AuditingWorkflowDefinitionStore(
+        services.TryAddTraconDefault<IWorkflowDefinitionStore>(static provider => new AuditingWorkflowDefinitionStore(
             new InMemoryWorkflowDefinitionStore(),
             provider.GetRequiredService<IAuditLog>(),
             provider.GetRequiredService<IAuditActorResolver>(),
             provider.GetRequiredService<Microsoft.Extensions.Logging.ILogger<AuditingWorkflowDefinitionStore>>(),
             provider.GetRequiredService<TraconMetrics>()));
-        services.TryAddSingleton<IWorkflowCheckpointStore, InMemoryWorkflowCheckpointStore>();
+        services.TryAddTraconDefault<IWorkflowCheckpointStore, InMemoryWorkflowCheckpointStore>();
 
         // Job queue and scheduling stores (Phase 17). Same split as the
         // workflow stores: the stores are ALWAYS registered; the background
         // worker is turned on/off with TraconSchedulingOptions.RunWorker.
         // Neither of these two is wrapped with a decorator - the job queue
         // carries its own state machine, and an audit trail can be added here in Phase 18.
-        services.TryAddSingleton<IJobStore, InMemoryJobStore>();
-        services.TryAddSingleton<IJobScheduleStore, InMemoryJobScheduleStore>();
+        services.TryAddTraconDefault<IJobStore, InMemoryJobStore>();
+        services.TryAddTraconDefault<IJobScheduleStore, InMemoryJobScheduleStore>();
 
         // Inbound triggers (Phase 66): an external, signed event queues a run
         // through the SAME job queue as everything else. The store is always
@@ -142,7 +142,7 @@ public static partial class TraconServiceCollectionExtensions
         // IConfiguration may not be registered outside ASP.NET Core hosting,
         // and the built-in DI container does not fill in constructor
         // parameters that carry a default value.
-        services.TryAddSingleton<IInboundTriggerStore, InMemoryInboundTriggerStore>();
+        services.TryAddTraconDefault<IInboundTriggerStore, InMemoryInboundTriggerStore>();
         services.TryAddSingleton(static provider => new InboundTriggerSecretResolver(
             provider.GetService<IConfiguration>(),
             provider.GetRequiredService<IOptionsMonitor<TraconInboundTriggerOptions>>()));
@@ -194,7 +194,7 @@ public static partial class TraconServiceCollectionExtensions
         // is always registered; runs execute through the same job queue
         // (JobHandlerKeys.Eval). The check registry is built from custom records
         // (added via AddEvalCheck); the six built-in kinds are fixed inside EvalCheckRegistry.
-        services.TryAddSingleton<IEvalStore, InMemoryEvalStore>();
+        services.TryAddTraconDefault<IEvalStore, InMemoryEvalStore>();
         services.TryAddSingleton<EvalCheckRegistry>();
 
         // Phase 155: the seam around "what grades a suite". TryAdd, so a
@@ -228,13 +228,13 @@ public static partial class TraconServiceCollectionExtensions
         // registered; nothing is rejected unless a rule is defined, and no
         // event is published when there is no subscriber. This is why no
         // separate Use...() call is needed.
-        services.TryAddSingleton<IQuotaStore, InMemoryQuotaStore>();
-        services.TryAddSingleton<IWebhookStore, InMemoryWebhookStore>();
+        services.TryAddTraconDefault<IQuotaStore, InMemoryQuotaStore>();
+        services.TryAddTraconDefault<IWebhookStore, InMemoryWebhookStore>();
 
         // Tenant-scoped API keys (Phase 53). The store is always registered
         // (K-018: first-class); the static bearer token's behavior does not
         // change unless a key is created (K1 - zero surprise).
-        services.TryAddSingleton<IApiKeyStore, InMemoryApiKeyStore>();
+        services.TryAddTraconDefault<IApiKeyStore, InMemoryApiKeyStore>();
 
         // 🚨 The one guard every outbound surface builds its client from
         // (K-164). Registered unconditionally: a surface that could not
@@ -293,7 +293,7 @@ public static partial class TraconServiceCollectionExtensions
         // Idempotency-Key support (Phase 43). The store is always registered
         // (K-018: first-class); InMemoryIdempotencyStore is sufficient for a
         // single-instance deployment. No separate Use...() call is needed.
-        services.TryAddSingleton<IIdempotencyStore, InMemoryIdempotencyStore>();
+        services.TryAddTraconDefault<IIdempotencyStore, InMemoryIdempotencyStore>();
 
         // Data retention and archiving (Phase 25). The policy/run store is
         // always registered (control plane); the data plane
@@ -301,8 +301,8 @@ public static partial class TraconServiceCollectionExtensions
         // (NullRetentionStore) - retention is meaningful only with a
         // persistent SQL provider on. When IArchiveSink is NOT registered, a
         // policy requesting archiving deletes no rows (the Phase 25 decision).
-        services.TryAddSingleton<IRetentionPolicyStore, InMemoryRetentionPolicyStore>();
-        services.TryAddSingleton<IRetentionStore, NullRetentionStore>();
+        services.TryAddTraconDefault<IRetentionPolicyStore, InMemoryRetentionPolicyStore>();
+        services.TryAddTraconDefault<IRetentionStore, NullRetentionStore>();
         services.TryAddSingleton<RetentionPolicyResolver>();
 
         // Data subject export/erasure (Phase 64). Same precedent as
@@ -311,7 +311,7 @@ public static partial class TraconServiceCollectionExtensions
         // default registration for IDataSubjectResolver — Tracon does not
         // store personal identity, so only the consumer can supply one; the
         // endpoints return 409 until it is registered.
-        services.TryAddSingleton<IDataSubjectStore, NullDataSubjectStore>();
+        services.TryAddTraconDefault<IDataSubjectStore, NullDataSubjectStore>();
 
         // Resolves the internal chat-history conversation a session carries
         // (ISessionStore + IAgentCatalog are both always registered, so this has

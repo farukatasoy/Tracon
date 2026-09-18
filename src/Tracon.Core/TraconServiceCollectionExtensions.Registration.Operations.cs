@@ -55,7 +55,7 @@ public static partial class TraconServiceCollectionExtensions
 
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IValidateOptions<SingletonExecutionOptions>, SingletonExecutionOptionsValidator>());
-        services.TryAddSingleton<ISingletonLeaseStore, InMemorySingletonLeaseStore>();
+        services.TryAddTraconDefault<ISingletonLeaseStore, InMemorySingletonLeaseStore>();
 
         // Quotas and event publishing (Phase 21). Same rationale as
         // scheduling: carries its own SectionName and requires no separate
