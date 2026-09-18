@@ -638,6 +638,26 @@ boş, doğrulandı); `git diff --stat 7e3a4de7..HEAD -- src samples tests` boş.
 
 **Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
+---
+
+**Gerçek sonuç — kapanış yeniden koşumu (2026-09-19)**
+`HATA-S4-001` kapandı. Case'in kendi yordamı birebir uygulandı:
+`troubleshooting.md`'ye `### probe (TRC0099)` eklendi →
+
+```
+failed ...The_troubleshooting_page_names_no_diagnostic_that_no_longer_exists
+  troubleshooting.md names a diagnostic no descriptor declares: TRC0099.
+```
+
+Test artık **düşüyor** ve kodu adıyla söylüyor; koşumda aynı girdi için
+geçiyordu. Satır geri alındı, testler yeşil. Desen sabit `APG\d{4}` değil,
+**tanı kimliklerinin kendisinden** türetiliyor — bir sonraki yeniden
+adlandırma onu taşır. Ayrıca `The_stale_reference_scan_actually_matches_the_page`
+eklendi: tarama hiçbir şey eşleştirmezse kapı yine kırmızı olur, çünkü bu
+kusurun kendisi "hiçbir şey eşleştirmeyen bir tarama"ydı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
 ## MT-DDG-029 — Tüm `<example>` blokları silinince "hiç blok bulunamadı" testi düşer
 
 **Gerçek sonuç**

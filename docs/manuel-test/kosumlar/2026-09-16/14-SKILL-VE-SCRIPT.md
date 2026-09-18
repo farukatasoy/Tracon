@@ -737,6 +737,43 @@ kaydedilmiyor; bu, span'e bakan biri için YANLIŞ ALARM anlamına gelir
 
 ---
 
+**Gerçek sonuç — kapanış ölçümü (2026-09-19) — KISMİ, case `Kaldı` KALIYOR**
+`HATA-S2-003`'ün kaydındaki teşhis (recorder span'i erken serileştiriyor)
+**ölçülerek çürütüldü**, ama case'in kendi senaryosu bu oturumda birebir
+yeniden üretilemedi.
+
+**Ölçülen:**
+1. Gerçek bir `ActivityListener` ve gerçek bir süreç çalıştırmasıyla:
+   BAŞARILI bir koşum span'e `tracon.script.exit_code = 0`,
+   `tracon.script.duration_ms` ve `status = Ok` **bırakıyor**
+   (`A_successful_run_leaves_its_exit_code_and_duration_on_the_span`).
+2. `RunTraceCollector` etiketleri `ActivityStopped` anında okuyor ve
+   duyarlı olmayan her etiketi saklıyor; iki etiket adı da filtresinden
+   geçiyor (`IsSensitive` yalnız `message`/`prompt`/`completion` arar).
+
+∴ Yalnız iki ad etiketiyle biten bir span, etiket satırına **hiç
+ulaşmamış** bir koşumdur; metottan o satırdan önce çıkan tek yol bir
+kapının `TraconException` fırlatmasıdır — kaydın ebeveyn span'de gördüğü
+`error.type: Tracon.TraconException` ile birebir uyuşan şey budur.
+
+**Düzeltme:** kapanan her kapı artık span'in durumunu `Error` yapıyor ve
+kendini `tracon.script.denial_reason` ile adlandırıyor
+(`A_denied_run_leaves_the_gate_that_stopped_it_on_the_span`, düzeltme
+öncesi kırmızı olduğu doğrulandı). Aynı iz artık kendini açıklıyor.
+
+**Açık kalan:** kayıt aynı çalıştırmaların `exit_code: 0` ile başarılı
+olduğunu da söylüyor. Kod yoluna göre bu ikisi tek bir çağrının doğrusu
+olamaz; en olası okuma iki AYRI çağrıya bakıldığıdır (iz düşen çağrıyı,
+`tool_invocations`/`audit_log` başarılı olanı gösterir). Bunu kanıtlamak
+o oturumun skill/script/grant fixture'ını canlı sunucuda yeniden kurmayı
+gerektirir; bu oturumda kurulmadı. Case bu yüzden `Kaldı` kalıyor.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı — `HATA-S2-003`
+(kısmen kapandı: reddedilen koşumun izi düzeltildi ve kilitlendi; başarılı
+koşumun kayıttaki semptomu yeniden üretilemedi)
+
+---
+
 ## MT-SKILL-071 — (kapsam dışı, spec'in kendi notuyla koşulmadı)
 
 **Gerçek sonuç**

@@ -426,6 +426,18 @@ yanlışlığı değil, gerçek bir sıralama kusuru).
 
 **Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
+---
+
+**Gerçek sonuç — kapanış yeniden koşumu (2026-09-19)**
+`HATA-S3-001` kapandı. Fresh-checkout senaryosu birebir üretildi: üretilen
+`src/content/docs/reference/changelog.md` **silindi** ve `npm run check`
+koşuldu → **çıkış 0**, dört adımın dördü de yeşil. Koşumda aynı durumda ilk
+adım üç hatayla kızarıyordu. Düzeltme sıradır: `check` artık önce `build`
+koşar (`prebuild` üretimi yapar), sonra `check:content`. İki kez üretmek
+docfx'i her koşumda iki kez ödetirdi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
 ## MT-DKL-021 — Claim işaretinin tipini var olmayan bir tipe değiştirince kapı adıyla kızarır
 
 **Gerçek sonuç**
@@ -840,6 +852,27 @@ kullanılıyor, dosyanın kendi yorumu: "only the home route loads them") ve
 düzeltilmedi.** `HATA-S3-002` açıldı (aşağıda).
 
 **Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+
+---
+
+**Gerçek sonuç — kapanış yeniden koşumu (2026-09-19, gerçek tarayıcı)**
+`HATA-S3-002` kapandı ve bant kayıttakinden **genişti**. `astro preview`
+üzerinde on dört genişlikte, iki temada ölçüldü:
+
+```
+360 640 800 900 1000 1024 1100 1152 1200 1280 1366 1440 1600 1920
+  0   0   0   0    0    0    0    0    0    0    0    0    0    0   (açık)
+  0   0   0   0    0    0    0    0    0    0    0    0    0    0   (koyu)
+```
+
+Düzeltme öncesi aynı ölçüm 1024'te **32**, 1152 ve 1200'de **24** veriyordu —
+yani taşma 1024 ile sınırlı değildi. Bir `max-width` kırılma noktası daha
+eklemek boşluğu kapatmaz, taşır; bu yüzden dekoratif taşma **opt-in** oldu ve
+yalnız ölçülen güvenli genişlikten (`min-width: 90rem`) itibaren geri geliyor.
+1440'ta tasarım korunuyor (halkalar figürün 48 px sağına taşıyor, viewport'un
+40 px içinde). Diğer sekiz şablon case'in dört genişliğinde de `0`.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ## MT-DKL-027 — 👤 Arama: filtre grupları ve sayıları
 

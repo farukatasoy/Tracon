@@ -265,6 +265,30 @@ ulaşılabilir değil → `HATA-S1-003` (doküman, düşük önem).
 
 ---
 
+**Gerçek sonuç — kapanış yeniden koşumu (2026-09-19)**
+`HATA-S1-001` · `HATA-S1-002` · `HATA-S1-003` kapandı. Boş bir makinede tam
+koşum:
+
+```
+dotnet build  -c Release            -> 0 Warning(s), 0 Error(s)
+dotnet test   -c Release -maxcpucount:1 -> çıkış 0 · 22 proje · 7930 test · 0 düşen · 10 dk 27 sn
+dotnet format --verify-no-changes   -> temiz
+```
+
+Üç ölçüm kaydı düzeltiyor:
+1. `-maxcpucount:1` test PROJELERİNİ gerçekten serileştiriyor — koşum boyunca
+   işlem tablosu örneklendi, her an **tek** test süreci vardı. Doygunluk
+   proje **içinden** geliyor; xunit varsayılanı işlemci başına bir thread.
+   Üç ağır proje artık dörtte sınırlı (`xunit.runner.json`).
+2. Altı kırılgan örnekten **hiçbiri** bu koşumda düşmedi.
+3. 2,5 dakikalık eşik ulaşılamaz; ölçülen süreye ~%45 pay bırakan **15
+   dakika** yazıldı. 🚨 Ölçüm başka iş koşarken yapılmaz: bir koşum yanında
+   koşan derlemeler yüzünden kirlendi ve **iptal edildi**, raporlanmadı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ### HATA-S1-001 — SQLite entegrasyon testleri tam çözüm yükü altında `database is locked` veriyor
 
 | | |
@@ -1537,6 +1561,28 @@ o yarısı tutuyor. Model adını taşıma iddiası tutmuyor → `HATA-S1-005`.
 
 ---
 
+**Gerçek sonuç — kapanış yeniden koşumu (2026-09-19)**
+`HATA-S1-005` kapandı (kullanıcı kararı: şablon açılışta hızlı düşer).
+Şablon yer tutucuyu hâlâ **tam olarak bir kez** taşıyor (`grep -c` → `1`),
+ama artık bir sağlayıcı yapılandırılmışken açılışta duruyor ve düzenlenecek
+dosyayı adıyla söylüyor:
+
+```
+Program.cs still carries the model-name placeholder ('WRITE_MODEL_NAME_HERE').
+Replace it with a model your provider serves today — ...
+```
+
+🚨 **Koşulsuz bir `throw` mevcut bir sözleşmeyi kırdı.**
+`TemplateRunTests.Default_combination_starts_up_without_setup_and_returns_the_catalog`
+şablonun kendi "sıfır sürpriz" kuralını ölçüyor: anahtar yokken uygulama yine
+açılır ve kataloğu döndürür. Kontrol bu yüzden **yalnız sağlayıcı
+yapılandırıldığında** koşar — anahtar yokken agent zaten modele ulaşamaz.
+İki taraf da test altında: 57/57 paket testi yeşil.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ### HATA-S1-005 — Şablonun kendi yer tutucusu teşhis edilemeyen bir ilk koşum hatası üretiyor
 
 | | |
@@ -2035,6 +2081,33 @@ bölümü yazılmadan yayın adımına geçilemez.
 
 ---
 
+**Gerçek sonuç — kapanış yeniden koşumu (2026-09-19)**
+`HATA-S1-007` kapandı (kullanıcı kararı, K-825). Prova artık sürüm bölümünü
+bulamazsa `## [Unreleased]`'i okuyor ve **dolu olmasını** şart koşuyor:
+
+```
+python3 scripts/kapi.py yayin --kuru --surum 1.0.0-preview.1
+  ℹ️ Sürüm notları '## [Unreleased]' bölümünden okundu; 'v1.0.0-preview.1'
+     etiketlenirken bu başlık '## [1.0.0-preview.1] - <tarih>' olarak
+     yeniden adlandırılır (YAYIN-HAZIRLIK Adım 5)
+  ✅ 20 paket, sürüm '1.0.0-preview.1'
+  ✅ npm publish --dry-run
+  ✅ 6 exact-version packed sample ve Native AOT smoke
+  çıkış 0
+```
+
+**Prova ilk kez yeşil.** Aynı yedeği `github-release` işi de kullanıyor;
+yalnız biri kullansaydı prova yeşil, release gövdesi boş olurdu.
+🚨 İlk iki deneme ortam yüzünden kırmızıydı, kod yüzünden değil: yerel release
+feed'i eski `0.0.0-preview.0.*` paketlerini taşıyordu ve staging dizininde
+aynı sürümün farklı içerikli kopyası duruyordu. İkisi de temizlendi.
+
+Bu case `CHANGELOG` düğümünü **bloklanan** taraftan görüyordu; düğüm çözüldü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ## MT-PKG-098 — icon.png paketlerin hepsinde tam olarak var
 
 **Gerçek sonuç**
@@ -2240,6 +2313,31 @@ ağacına hiçbir şey yazılmadı. `staging/` `finally` bloğunda temizlendi.
 `0.0.0-preview.0.789` paketleri var, `1.0.0-preview.1` **terfi etmedi**.
 
 **Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+
+---
+
+**Gerçek sonuç — kapanış yeniden koşumu (2026-09-19)**
+`HATA-S1-007` kapandı (kullanıcı kararı, K-825). Prova artık sürüm bölümünü
+bulamazsa `## [Unreleased]`'i okuyor ve **dolu olmasını** şart koşuyor:
+
+```
+python3 scripts/kapi.py yayin --kuru --surum 1.0.0-preview.1
+  ℹ️ Sürüm notları '## [Unreleased]' bölümünden okundu; 'v1.0.0-preview.1'
+     etiketlenirken bu başlık '## [1.0.0-preview.1] - <tarih>' olarak
+     yeniden adlandırılır (YAYIN-HAZIRLIK Adım 5)
+  ✅ 20 paket, sürüm '1.0.0-preview.1'
+  ✅ npm publish --dry-run
+  ✅ 6 exact-version packed sample ve Native AOT smoke
+  çıkış 0
+```
+
+**Prova ilk kez yeşil.** Aynı yedeği `github-release` işi de kullanıyor;
+yalnız biri kullansaydı prova yeşil, release gövdesi boş olurdu.
+🚨 İlk iki deneme ortam yüzünden kırmızıydı, kod yüzünden değil: yerel release
+feed'i eski `0.0.0-preview.0.*` paketlerini taşıyordu ve staging dizininde
+aynı sürümün farklı içerikli kopyası duruyordu. İkisi de temizlendi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 

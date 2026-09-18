@@ -1018,6 +1018,26 @@ eşleşmesi `score.kind`'ı kontrol etmiyor. Beklenen sonuç TEMİZ run'da
 birebir örtüştü; kirli run'da (Stars puanı bulunan) ☑ Kaldı.
 
 **Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı — `HATA-S3-007`
+
+---
+
+**Gerçek sonuç — kapanış yeniden koşumu (2026-09-19, gerçek tarayıcı)**
+`HATA-S3-007` kapandı. Case'in KİRLİ senaryosu birebir kuruldu: run
+`01a0b48a-732e-...` üzerine API'den `{"name":"overall","kind":"Stars",
+"value":4}` yazıldı, sonra konsolda başparmak-yukarıya iki kez tıklandı.
+Ağ trafiği (`page.on('request')`):
+
+```
+POST   /api/runs/{id}/feedback              <- birinci tıklama
+DELETE /api/runs/{id}/feedback/01a0b6e2-...  <- ikinci tıklama
+```
+
+İkinci tıklama artık **DELETE**; koşumda ikinci bir `POST` gönderip yinelenen
+satır üretiyordu. `GET .../feedback` sonrasında **tek satır** kaldı (kurulan
+`Stars`), yinelenen `Binary` satırı yok. Kök neden: `mine` eşleşmesi
+`score.kind === 'Binary'` koşulunu taşımıyordu.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 (temiz rundaki alt senaryo Geçti, Stars-puanlı rundaki alt senaryo Kaldı;
 case Kaldı olarak işaretlendi çünkü "herhangi bir run" ön koşulu ikisini
 de kapsıyor ve biri gerçekten bozuluyor)
@@ -1113,6 +1133,25 @@ bulundu ve kaydedildi: **`HATA-S3-008`** (yukarıda) —
 taşımaması yüzünden asla doğru olamıyor.
 
 **Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı — `HATA-S3-008`
+
+---
+
+**Gerçek sonuç — kapanış yeniden koşumu (2026-09-19, gerçek tarayıcı)**
+`HATA-S3-008` kapandı. Örnek uygulama üç sağlayıcı anahtarı da **boş** olacak
+şekilde yeniden başlatıldı (hiçbir `IRunJudge` kayıtlı değil);
+`POST /api/runs/{id}/judge` yine `{"scores":[],"failures":[]}` döndü. Konsolda
+"Şimdi puanla"ya tıklandı:
+
+```
+tıklamadan önce: sayfada "No judge is configured" YOK
+tıklamadan sonra: düğmenin yanında "Judge now | No judge is configured."
+```
+
+Koşumda hiçbir metin belirmiyordu. Kök neden: `as Promise<RunScore[]>`
+iddiası ucun gerçek gövdesini (`{scores,failures}`) yanlış adlandırıyordu,
+`data.length` her zaman `undefined` kalıyordu.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
