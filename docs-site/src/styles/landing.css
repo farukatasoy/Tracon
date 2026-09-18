@@ -17,7 +17,16 @@
 .hero-figure img { inline-size: 100%; block-size: auto; border: 1px solid var(--tracon-border-strong); border-radius: 3px; }
 .hero-figure figcaption { font-size: .875rem; color: var(--tracon-text-muted); margin-top: .65rem; }
 .strip-id { color: var(--tracon-accent); }
-.scope-rings { position: absolute; width: 22rem; height: 22rem; right: -3rem; top: -4rem; z-index: -1; overflow: hidden; pointer-events: none; }
+/* 🚨 The bleed is opt-in, not opt-out. The rings used to sit at right:-3rem at
+   every width, and only the widest layouts had enough container margin to
+   absorb those 48px; everything from roughly 800px to 1200px grew the
+   document's scrollWidth instead and put a horizontal scrollbar on the landing
+   page (measured: 32px at 1024px, 24px at 1152px and at 1200px, in both
+   themes). Chasing it with one more max-width breakpoint is what produced the
+   gap in the first place, so the default keeps the decoration inside its own
+   column and the bleed returns only above the width where it was measured to
+   fit. */
+.scope-rings { position: absolute; width: 22rem; height: 22rem; right: 0; top: -4rem; z-index: -1; overflow: hidden; pointer-events: none; }
 .scope-rings i { position: absolute; border: 1px solid var(--tracon-border-strong); border-radius: 50%; inset: 0; }
 .scope-rings i:nth-child(2) { inset: 3rem; }
 .scope-rings i:nth-child(3) { inset: 6rem; }
@@ -97,6 +106,12 @@
 .boundary-note { margin-block: 2rem; padding: 1.5rem; border-inline-start: 2px solid var(--tracon-border-strong); background: var(--tracon-surface-raised); }
 .boundary-note p { margin: 0; }
 
+/* The container's own margin absorbs the 48px bleed only from here up; this is
+   the width the measurement showed a clean document at. */
+@media (min-width: 90rem) {
+  .scope-rings { right: -3rem; }
+}
+
 @media (max-width: 71.99rem) {
   .approach-hero { gap: 2.5rem; padding-block: 3rem; }
   .approach-hero h1 { font-size: 2.5rem; }
@@ -108,7 +123,7 @@
   .approach-hero { grid-template-columns: 1fr; gap: 2.5rem; padding-block: 2rem 3rem; }
   .approach-hero h1 { font-size: clamp(2rem,7vw,2.75rem); }
   .hero-description { font-size: 1.0625rem; }
-  .scope-rings { right: 0; width: 14rem; height: 14rem; top: -2rem; }
+  .scope-rings { width: 14rem; height: 14rem; top: -2rem; }
   .scope-rings i:nth-child(2) { inset: 2rem; }
   .scope-rings i:nth-child(3) { inset: 4rem; }
   .hero-actions { align-items: stretch; flex-direction: column; }

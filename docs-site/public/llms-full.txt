@@ -8068,6 +8068,7 @@ metric names above.
 | `tracon.model.cache.result` | `tracon.model.cache` | `hit` or `miss` |
 | `tracon.skill.name` | Skill signals | The loaded skill |
 | `tracon.script.name` · `tracon.script.exit_code` · `tracon.script.duration_ms` | Skill-script span | The script, how it ended, and how long it took |
+| `tracon.script.denial_reason` | Skill-script span | Present only when a gate stopped the run before it started: which gate, and why. The span's status is `Error` and it carries no exit code or duration, because no process ran |
 | `tracon.compaction.input_tokens` · `tracon.compaction.output_tokens` | Compaction span | What the summarization call itself cost |
 | `tracon.agent_source.name` | `tracon.agent_source.failures` | The failing `IAgentSource`'s name |
 | `tracon.agent_source.operation` | `tracon.agent_source.failures` | `list`, `resolve`, or `consistency` |
