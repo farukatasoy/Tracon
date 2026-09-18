@@ -3,8 +3,8 @@
 > **Bu turu kapatan her oturum ÖNCE burayı okur.** Koşum bitti; bu dosya
 > kapanışın tek kontrol düzlemidir.
 >
-> **Durum:** 🟡 Aşama 2 sürüyor · **Aile A · B · C KAPANDI** · 37 açık kusur, 19 aile kaldı
-> **Son güncelleme:** 2026-09-18 (Aile C kapandı — `S1-024` · `S4-005`)
+> **Durum:** 🟡 Aşama 2 sürüyor · **Aile A · B · C · D KAPANDI** · 36 açık kusur, 18 aile kaldı
+> **Son güncelleme:** 2026-09-18 (Aile D kapandı — `S1-026` + kapanışta ölçülen `S1-029` · `S1-030`)
 
 Turdan bağımsız kapanış protokolü — aile aile oturum yordamı, "önce ampirik
 yeniden üret" kuralı, bitti tanımı ve sayım betiği —
@@ -56,6 +56,9 @@ flowchart LR
 **Kusur:** 44 `HATA-*` kaydı. `HATA-S1-006` yanlış pozitif çıktı ve kapandı →
 **43 açık**. Dağılım: `S1-001..028` (27) · `S2-001..003` (3) · `S3-001..008` (8)
 · `S4-001..005` (5).
+
+**Kapanış sırasında iki kusur EKLENDİ** (aynı kök nedenden, aile içinde ölçüldü
+ve aynı oturumda kapandı): `HATA-S1-029` · `HATA-S1-030` — ikisi de Aile D.
 
 ### Kullanıcı kararları (2026-09-18, bağlayıcı)
 
@@ -156,20 +159,24 @@ Bunlar kapanış oturumlarında da geçerlidir ve bitti tanımında
 | `timeout` | macOS'ta yoktur (çıkış 127). Süreci arka planda koş, çıkış kodunu dosyaya yaz |
 | Model adı | `gpt-5.4-mini`. Rastgele bir OpenAI modeli `403 model_not_found` verir |
 | Azure | Kimlik **yoktur**; Azure isteyen case `⏭ Atlandı` kalır, kusur değildir |
+| Yerel MCP sunucusu | `env -i` ile **boş ortamla** başlat. Referans sunucunun `get-env` demo tool'u kendi sürecinin ortamını döndürür ve kabuktan miras alınan her `secret` modele + `run` kaydına gider. Port sabit **3001**; `--port` bayrağı yok, `PORT` ortam değişkeni çalışır. Ortam okumayan büyük çıktı gerekiyorsa `get-tiny-image` kullan |
+| Eski MCP süreci | Yeni sunucu 3001'i alamazsa **sessizce** eskisine bağlanırsın — `lsof -nP -iTCP:3001 -sTCP:LISTEN` ile PID'i doğrula, log'da "Port 3001 is already in use" ara |
+| MCP sunucusu yeniden başlarsa | Tracon eski session kimliğini tutar; `/refresh` `{"toolCount":0}` ve log'da `Bad Request: No valid session ID provided` verir. **Uygulamayı yeniden başlat** |
 
 ---
 
 ## 3.6 Sıradaki iş — 2026-09-18 itibarıyla
 
-**Aile D.** `HATA-S1-026` (Yüksek): `TruncatingAIFunction` MCP tool
-sonuçlarını (`AIContent`) atlıyor, hiç kırpma yok. Ölçüm:
-`Tracon:Tools:DefaultMaxOutputBytes=200` iken modele **8095 bayt** gitti —
-sınırın 40 katı, hiçbir kırpma işareti olmadan. Kayıt
-[`18-MCP-VE-A2A.md`](18-MCP-VE-A2A.md)'nin `MT-MCP-059` bloğundadır.
+**Aile E.** `HATA-S3-003` (Yüksek): `PUT /api/evals/{name}/cases` suite'teki
+her case'in id'sini sıfırlıyor — `EvalCaseInput` DTO'sunda `Id` yok, bu yüzden
+`SaveCasesAsync` hep `Guid.Empty` alıyor. Sonuç: aynı pencerede gerçek bir
+regresyon "Removed" sayılıp `--max-regressions 0` kapısını sessizce
+atlatabiliyor. Kök neden `EvaluationContracts.cs`/`EvalEndpoints` satır
+düzeyinde tespit edilmiştir; kayıt ilgili aile dosyasındadır.
 
-Ondan sonra sırayla **E** (eval case kimlikleri) · **F** (SSE ve düşünme
-kaydı) · **G** (maliyet muhasebesi) · **H** (agent önbelleği); yüksek öncelik
-orada biter. Orta ve düşük öncelik §4'ün ikinci tablosundadır.
+Ondan sonra sırayla **F** (SSE ve düşünme kaydı) · **G** (maliyet muhasebesi) ·
+**H** (agent önbelleği); yüksek öncelik orada biter. Orta ve düşük öncelik
+§4'ün ikinci tablosundadır.
 
 **Oturum açılışında koş** (taban çizgisinin hâlâ yeşil olduğunu doğrula):
 
@@ -294,7 +301,66 @@ tek kaynaktan (`record.Succeeded`) okunuyor.
 
 ---
 
-| **D** · MCP çıktısı kırpılmıyor | `S1-026` **Yüksek** | `TruncatingAIFunction` MCP tool sonuçlarını (`AIContent`) atlıyor. Ölçüm: `Tracon:Tools:DefaultMaxOutputBytes=200` iken modele **8095 bayt** gitti — sınırın 40 katı, hiçbir kırpma işareti yok. Sessizce fark edilmez | ☐ |
+| **D** · MCP tool sonucu okunamıyor | `S1-026` **Yüksek** · `S1-029` **Yüksek** (kapanışta ölçüldü) · `S1-030` **Yüksek** (kapanışta ölçüldü) | Tek kök neden: `ToolResultText.TryGetText` bir `AIContent` sonucu için `false` dönüyor ve BEŞ çağıran bunun üstüne dallanıyor. Bir MCP tool'unun sonucu `string` değil `AIContent`'tir (`McpClientTool.InvokeCoreAsync`: tek blok → `AIContent`, çok blok → `AIContent[]`, hata/yapısal → `JsonElement`) | ✅ **KAPANDI 2026-09-18** |
+
+#### Aile D — ✅ kapandı (2026-09-18)
+
+Kayıt tek bir kusur biliyordu; ölçüm **üç** buldu ve üçü de tek bir `switch`
+dalından geliyordu.
+
+| Yüzey | Kusur | Bugünkü davranış (ölçüldü) |
+|---|---|---|
+| `TruncatingAIFunction` — tek blok | `S1-026` | Sınır hiç uygulanmıyor: 200 bayta karşı **8035 bayt** |
+| `TruncatingAIFunction` — çok blok | `S1-029` 👤 | `AIContent[]` bir `AIContent` DEĞİLDİR; okunamayan sonuç dalına düşüp `{"error":"tool_result_unsupported"}` ile **değiştiriliyor** — sınır yapılandırılmamış olsa bile, çünkü katman her zaman kurulu |
+| `ContentGuardMessageMasker` | `S1-030` 👤 | Guard kayıtlıyken HER MCP sonucu modele ulaşmadan `[Tool result could not be inspected]` oluyor — guard'ın kendi doküman yorumunun "kötücül MCP metni tam olarak buradan girer" dediği girdi sınıfı |
+| `ToolInvocationTracker` · `RunRecordingAgent` | — | `Result`/`Payload` `null`: kayıt tool'un çağrıldığını söylüyor, ne döndürdüğünü söylemiyor |
+| `RecordedToolPlayback` | — | Canlı kaydedilen girdi `Result = null`; sonraki fallback halkası "hiçbir şeyi" replay ediyor |
+
+**Alınan üç karar 👤 (2026-09-18):**
+
+1. **Ölçü birimi, adaptörün tele yazdığı metindir** (K-798). `ToolResultText`
+   protokol sonucunu `JsonSerializer.Serialize(sonuç, AIJsonUtilities
+   .DefaultOptions.GetTypeInfo(typeof(object)))` ile okur — bu, hem
+   `Microsoft.Extensions.AI.OpenAI`'nin hem `Anthropic` SDK'sının
+   `FunctionResultContent.Result` için yaptığı **aynı** çağrıdır. `Tracon.Core`'da
+   AOT temiz olduğu ölçüldü (sıfır `IL2026`/`IL3050`).
+2. **Sınırın ALTINDA kalan protokol sonucu dokunulmadan geçer.** `Tracon.Anthropic`
+   onu gerçek içerik bloklarına çevirir; aşmadığı bir bütçe için bir görseli
+   metne düzleştirmek onu bedelsiz kaybederdi. Aşan sonuç her tool'un aldığı
+   aynı zarfa iner.
+3. **Sınıf taraması beş çağıranın hepsini kapsar** (K-799). Fail-closed kuralı
+   **okunamayan** sonuç için aynen sürer — ham CLR nesnesi hâlâ değiştirilir.
+   Guard artık okuyabildiğini inceler, okuyamadığını değiştirir.
+
+| Adım | Sonuç |
+|---|---|
+| Ampirik yeniden üretim | ☑ eski kodda ölçüldü: `TextContent` 8035 B / 200 B · `DataContent` 5392 B / 200 B · `AIContent[]` → sentinel · guard → placeholder |
+| Kök neden düzeltmesi | `ToolResultText` protokol sonucunu okur; `TruncatingAIFunction` sığanı şekliyle, aşanı zarfla döndürür |
+| Sınıf taraması | ☑ `grep -rn "ToolResultText" src/` → beş çağıran; beşi de tek düzeltmeyle kapandı |
+| Testler | 14 yeni/taşınan test, altı sınıfta; **hepsinin düzeltme öncesi kırmızı olduğu ayrı bir koşumda doğrulandı** |
+| Canlı koşum | ☑ `MT-MCP-059` yeniden koşuldu — gerçek MCP sunucusu, gerçek model. 200 B sınır → tam **200 bayt** zarf + `ToolOutputTruncated` (seq 2); sınırsız → **5557 baytlık iki bloklu liste** modele olduğu gibi ulaştı |
+| Tüketici yüzeyi | `concepts/tools.md` ve `guides/write-your-own-tool.md`'nin "`AIContent` bu sınıra tabi değildir" cümleleri **yanlıştı**, düzeltildi |
+
+🚨 **Faz 89'un DoD'u "MCP tool'ları da kırpılır" diyordu ve üç yeşil test bunu
+"kanıtlıyordu".** Üçü de `AIFunctionFactory.Create(() => new string('a', 10_000))`
+sarıyordu — `string` döndüren bir vekil. Gerçek `McpClientTool` `AIContent`
+döndürür ve kusur tam olarak o ayrımda yaşıyordu. Şekli taklit etmeyen bir fake
+yalnız sarmalayıcının **kurulduğunu** kanıtlar. K-800; üç test `AIContent`
+döndüren bir vekile taşındı ve üstüne gerçek SDK istemcisiyle konuşan bir
+fonksiyonel test eklendi (`McpToolResultTruncationTests`).
+
+🚨 **Sevk edilen XML dokümanında `🚨` kullanılamaz.**
+`ShippedDocumentationSelfContainmentTests` `///` satırlarındaki alarm emojisini
+reddeder (Aile B'nin `HATA-*` referansı ile aynı kapı, farklı desen). Taban
+tazelenmedi, cümle yeniden yazıldı. Düz `//` yorumda serbesttir.
+
+🚨 **Yeniden koşumun ilk denemesi 2026-09-16 turundan kalan bir MCP sunucusuna
+bağlandı** (PID 2295, `--port 3003` ile başlatılmıştı ama 3001'i tutuyordu) ve
+o oturumun ortamını taşıdığı için `get-env` `CLAUDE_CODE_MESSAGING_TOKEN`'ı yine
+döndürdü. `run` kaydı veritabanından silindi, tüm şemalar tarandı (0 eşleşme),
+süreç durduruldu, sunucu `env -i` ile boş ortamla yeniden başlatıldı ve ölçüm
+ortamı hiç okumayan `get-tiny-image` ile yapıldı. Token §6.5'in döndürme
+listesine eklendi.
 | **E** · Eval case kimliği sıfırlanıyor | `S3-003` **Yüksek** | `PUT /api/evals/{name}/cases` suite'teki **her** case'in id'sini sıfırlıyor: `EvalCaseInput` DTO'sunda `Id` yok → `SaveCasesAsync` hep `Guid.Empty` alıyor. Sonuç: aynı pencerede gerçek bir regresyon "Removed" sayılıp `--max-regressions 0` kapısını **sessizce** atlatabiliyor. Kök neden `EvaluationContracts.cs`/`EvalEndpoints` satır düzeyinde tespit edildi | ☐ |
 | **F** · SSE ve düşünme kaydı | `S3-005` **Yüksek** · `S3-006` **Yüksek** | Bağlantı sessizce koparsa çalıştırma ekranı sonsuza dek "Waiting for events…" yazısında donuyor; kullanıcıya hiçbir hata gösterilmiyor. Ayrıca `RecordReasoningDeltas=true` iken model gerçekten düşünme içeriği üretse bile `ReasoningDelta` olayı HİÇ kaydedilmiyor (gerçek Anthropic extended-thinking çağrısıyla ölçüldü). İki ayrı katman — aynı oturumda kapanır, iki commit olabilir | ☐ |
 | **G** · Maliyet muhasebesi | `S1-025` **Yüksek** · `S1-010` Orta | Zaman aşımından SONRA başarıyla biten tool çağrısının kullanım/maliyeti kalıcı olarak kayboluyor. Ayrıca katalogdaki **13 modelin hiçbirinde fiyat yok** → her `run` maliyetsiz kaydediliyor; mekanizma dürüst (`pricing_source=NotDefined`), eksik olan **veri** | ☐ |
@@ -453,6 +519,13 @@ koşulmayanlar `00-INDEKS.md` §7.1'e gerekçesiyle yazılır.
      `ps eww`, filtresiz `user-secrets list`, ortam hata ayıklaması).
      **Beşi de döndürülmeli.** Kapanışın **sonunda** yapılır — kapanış
      oturumları hâlâ gerçek sağlayıcı çağrısı koşuyor.
+   - 🚨 **`CLAUDE_CODE_MESSAGING_TOKEN` de döndürülmeli.** Turun yerel MCP
+     sunucusu o oturumun kabuk ortamını miras aldı ve demo `get-env` tool'u
+     onu iki kez döndürdü (turda bir kez, Aile D kapanışının ilk denemesinde
+     bir kez daha — ikincisinde sunucu turdan kalan süreçti). Kayıtlar her iki
+     seferde de silindi, ama token düz metne çıkmıştır.
+   - Yerel MCP sunucusu bundan sonra **`env -i` ile boş ortamla** başlatılır;
+     turun bıraktığı süreç (`pkill -f server-everything`) kapanışta durduruldu.
    - `~/tracon-manuel/` altında 25+ dizin birikti — topluca silinir.
    - `ap-pg` (55432) ve `ap-mssql` (51433) container'ları durdurulur.
 6. **Yayın hattı** — [`YAYIN-HAZIRLIK.md`](../../../YAYIN-HAZIRLIK.md) §4 sıra

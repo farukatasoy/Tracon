@@ -142,6 +142,55 @@ public sealed class ContentGuardMaskTests
         result.Result.ShouldNotBe(secret);
     }
 
+    [Fact]
+    public async Task An_mcp_tool_result_is_inspected_instead_of_being_swapped_for_a_placeholder()
+    {
+        // 🚨 A remote MCP tool answers with AIContent blocks, not a string.
+        // ToolResultText could not read those, so the fail-closed branch below
+        // fired on EVERY MCP tool result: the model received
+        // "[Tool result could not be inspected]" and the guards never saw the
+        // text they exist to examine — measured, not assumed (HATA-S1-026's
+        // class scan). Fail-closed is for a result no one can read.
+        var inner = new FakeChatClient();
+
+        using var chatClient = Guarded(inner, StubContentGuard.Masking("sk-live-key", "[redacted]"));
+
+        await chatClient.GetResponseAsync(
+            [
+                new ChatMessage(ChatRole.User, "summarize the result"),
+                new ChatMessage(ChatRole.Tool, [new FunctionResultContent("call-1", new TextContent("key sk-live-key"))]),
+            ],
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        var result = inner.LastRequest[1].Contents.Single().ShouldBeOfType<FunctionResultContent>();
+        result.CallId.ShouldBe("call-1");
+
+        var text = result.Result.ShouldBeOfType<string>();
+        text.Equals(ContentGuardMessageMasker.UninspectableToolResultText, StringComparison.Ordinal).ShouldBeFalse();
+        text.ShouldContain("[redacted]", Case.Sensitive);
+        text.ShouldNotContain("sk-live-key", Case.Sensitive);
+    }
+
+    [Fact]
+    public async Task An_mcp_tool_result_no_guard_objects_to_keeps_its_blocks()
+    {
+        var inner = new FakeChatClient();
+
+        using var chatClient = Guarded(inner, StubContentGuard.Masking("never-matches-anything", "***"));
+
+        var block = new TextContent("harmless remote answer");
+
+        await chatClient.GetResponseAsync(
+            [
+                new ChatMessage(ChatRole.User, "summarize the result"),
+                new ChatMessage(ChatRole.Tool, [new FunctionResultContent("call-1", block)]),
+            ],
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        var result = inner.LastRequest[1].Contents.Single().ShouldBeOfType<FunctionResultContent>();
+        result.Result.ShouldBeSameAs(block);
+    }
+
     private static IChatClient Guarded(FakeChatClient inner, params IContentGuard[] guards)
         => TestData
             .Providers(TestData.ContentGuards(guards: guards), new FakeModelProvider(inner))

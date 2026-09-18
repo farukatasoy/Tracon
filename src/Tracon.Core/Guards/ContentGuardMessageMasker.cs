@@ -226,6 +226,14 @@ internal static class ContentGuardMessageMasker
     /// model and permanent storage completely unmasked despite guards being
     /// registered — the opposite of "content that cannot be inspected is not
     /// let through" (see <see cref="ContentGuardPipeline"/>'s own remarks).
+    /// <para>
+    /// That replacement is for a result no one can read, not for one that
+    /// merely is not a string. An MCP tool answers with <see cref="AIContent"/>
+    /// blocks, and <see cref="ToolResultText"/> reads those — so remote tool
+    /// output is inspected here, as it must be. Narrowing it back would not
+    /// harden anything: it would silently swap every MCP tool's output for a
+    /// fixed sentence and leave the guards nothing to examine.
+    /// </para>
     /// </remarks>
     /// <param name="content">The content to inspect.</param>
     /// <param name="pipeline">The guard pipeline.</param>

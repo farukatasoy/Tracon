@@ -187,8 +187,10 @@ a byte limit — per tool, or once for every tool that does not set its own — 
 result over it is trimmed before the model ever sees it. The limit is measured against
 the same canonical text form described above, for every result type it applies to —
 a large complex object is bounded exactly like a large string, not skipped because it
-is not one. The one exception is `AIContent` (an attachment, such as the id
-`generate_image` returns): it is never inline output and is never subject to this limit.
+is not one. A tool that answers with `AIContent` blocks rather than text — every MCP
+tool does — is measured the same way, by the text its provider adapter sends. A result
+that fits reaches the model with its blocks intact; one that does not is replaced by
+the same envelope any other oversized result gets.
 
 ```csharp
 services.AddSingleton(new TraconToolRegistration(

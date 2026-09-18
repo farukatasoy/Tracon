@@ -38,6 +38,11 @@ toplam 58/58 case hesaba katıldı).**
   için erken `return`'ü, MCP tool çıktılarının `Tracon:Tools
   :DefaultMaxOutputBytes` sınırını TAMAMEN atlamasına yol açıyor (ölçüldü:
   200 baytlık sınıra karşı 8095 bayt, sıfır kırpma). Ayrıntı MT-MCP-059'da.
+  **✅ KAPANDI 2026-09-18** (Aile D). Kapanış aynı kök nedenden iki kusur daha
+  ölçtü: `HATA-S1-029` (çok bloklu MCP sonucu `{"error":"tool_result_unsupported"}`
+  ile değiştiriliyordu) ve `HATA-S1-030` (guard açıkken her MCP sonucu
+  `[Tool result could not be inspected]` oluyordu). Üçü de MT-MCP-059'un
+  yeniden koşum notundadır.
 
 **Bir eski kusur notu ÇÜRÜTÜLDÜ (spec ve `00-INDEKS.md` düzeltildi):**
 `GovernanceEndpoints.cs`'in `RequireApiKeyScope` hiç çağırmadığı
@@ -512,6 +517,77 @@ kendi sürecinin ortamını okuyor), ama bu kayıt üretilirken geçici dosyalar
 temizlendi ve token bu dosyada saklı BIRAKILMADI.
 
 **Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+
+---
+
+### Yeniden koşum — 2026-09-18 (Aile D kapanışı)
+
+**Gerçek sonuç — ✅ GEÇTİ.** Kök neden düzeltildi (K-798); canlı ölçüm
+`samples/Tracon.Api` + gerçek OpenAI anahtarı + gerçek yerel MCP sunucusu
+(`@modelcontextprotocol/server-everything`, `streamableHttp`, port 3001) ile
+tekrarlandı.
+
+**Kök neden — kayıttaki teşhis DOĞRUYDU ama TAM DEĞİLDİ.**
+`McpClientTool.InvokeCoreAsync` (kaynak okundu, `ModelContextProtocol.Core`
+2.2.0) üç şekilden birini döndürür: tek bloklu sonuç için bir `AIContent`,
+**çok bloklu sonuç için bir `AIContent[]`**, yalnız hata/`StructuredContent`/
+uygulama meta'sı taşıyan sonuç için bir `JsonElement`. Kayıt yalnız ilkini
+görmüştü. İkincisi `AIContent` DEĞİLDİR, erken `return`'e hiç girmiyordu ve
+okunamayan sonuç dalına düşüp `{"error":"tool_result_unsupported"}` ile
+**değiştiriliyordu** — sınır hiç yapılandırılmamış olsa bile, çünkü katman
+her zaman kuruludur (`ToolWrapperChain.Compose`). Yani çok bloklu her MCP
+sonucu **veri kaybına** uğruyordu. Ayrı kusur olarak `HATA-S1-029` açıldı ve
+aynı düzeltmeyle kapandı.
+
+**Ölçüm 1 — sınır uygulanıyor** (`Tracon:Tools:DefaultMaxOutputBytes=200`,
+`test-sunucu_get-tiny-image`, metin + görüntü = iki blok):
+
+```
+functionResult = {"truncated":true,"omittedBytes":5474,"content":"[\n  {\n    \"$type\": \"text\", ..."}
+                 -> tam 200 UTF-8 bayt (200 bayt sinirina karsi)
+
+run_events:
+  seq 1  ToolInvoking          test-sunucu_get-tiny-image
+  seq 2  ToolOutputTruncated   test-sunucu_get-tiny-image
+         text    = "5474 byte(s) omitted (limit 200)"
+         payload = {"maxOutputBytes":200,"omittedBytes":5474}
+  seq 3  ToolInvoked           payload = zarfin kendisi (onceden null'di)
+```
+
+**Ölçüm 2 — sınır YOKKEN sonuç dokunulmadan geçiyor** (aynı tool, hiç
+`DefaultMaxOutputBytes` verilmeden):
+
+```
+functionResult -> 5557 bayt, tip: LIST
+  [{"$type":"text","text":"Here's the image you requested:"},
+   {"$type":"data","uri":"data:image/png;base64,iVBOR..."}]
+sentinel mi? HAYIR
+ToolInvoked payload = 5601 bayt (onceden null'di)
+```
+
+Zarf `MT-OBS-048`'in kod-tanımlı tool'uyla **birebir aynı** biçimdedir —
+case'in kendi iddiası karşılandı.
+
+**Sınıf taraması bu case'in dışına çıktı.** Aynı `false` dalına dallanan beş
+çağıran vardı; en ağırı `ContentGuardMessageMasker`: bir `ContentGuard`
+kayıtlıyken HER MCP tool sonucu modele ulaşmadan
+`[Tool result could not be inspected]` ile değiştiriliyordu (`HATA-S1-030`).
+Tam liste ve dersler
+[`docs/hafiza/tool-onay-ve-yetkilendirme.md`](../../../hafiza/tool-onay-ve-yetkilendirme.md),
+kararlar K-798 · K-799 · K-800.
+
+🚨 **Üçüncü taraf sızıntısı TEKRARLANDI ve kapatıldı.** Yeniden koşumun ilk
+denemesinde port 3001'e yanıt veren sunucu **2026-09-16 turundan kalan**
+süreçti (PID 2295, `--port 3003` ile başlatılmış, 3001'i tutuyordu) ve o
+oturumun kabuk ortamını taşıyordu; `get-env` `CLAUDE_CODE_MESSAGING_TOKEN`'ı
+yine döndürdü. Eylem: o `run` kaydı (`run_events` 19 satır ·
+`tool_invocations` 1 · `runs` 1) veritabanından **silindi**, geçici dosya
+silindi, tüm şemalarda artık tarandı (0 eşleşme); eski süreç durduruldu ve
+sunucu `env -i` ile **boş ortamla** yeniden başlatıldı. Ölçümün kendisi
+`get-env` yerine `get-tiny-image` ile yapıldı — o tool ortamı hiç okumaz.
+`CLAUDE_CODE_MESSAGING_TOKEN` kapanış planı §6.5'in döndürme listesine eklendi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ## MT-MCP-060 — MCP agent-tool sonucu provider hatasının ham metnini sızdırmaz (Faz 103)
 

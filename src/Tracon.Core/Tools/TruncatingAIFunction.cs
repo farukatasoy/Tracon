@@ -24,6 +24,14 @@ namespace Tracon;
 /// knows its data, this only counts bytes. This class is the last defence for
 /// the day that bound is forgotten.
 /// </para>
+/// <para>
+/// A result is measured by the text a provider adapter really sends
+/// (<c>ToolResultText</c>), so an MCP tool — whose result is one or more
+/// <see cref="AIContent"/> blocks rather than a string — is bounded on the
+/// same terms as a code-defined one. A protocol result that fits is passed on
+/// untouched, keeping its blocks; one that does not collapses into the same
+/// envelope every other tool gets.
+/// </para>
 /// </remarks>
 public sealed class TruncatingAIFunction : DelegatingAIFunction
 {
@@ -65,14 +73,6 @@ public sealed class TruncatingAIFunction : DelegatingAIFunction
     {
         var result = await base.InvokeCoreAsync(arguments, cancellationToken).ConfigureAwait(false);
 
-        // AIContent is a protocol-level result. It keeps its runtime shape and
-        // is handled by the provider adapter rather than the inline canonical
-        // text contract.
-        if (result is AIContent)
-        {
-            return result;
-        }
-
         // A raw CLR object without generated type information cannot be
         // serialized safely in an AOT-compatible library. Never call
         // Object.ToString(): it can expose data and it is not the JSON a
@@ -84,7 +84,12 @@ public sealed class TruncatingAIFunction : DelegatingAIFunction
 
         if (Encoding.UTF8.GetByteCount(text!) <= _maxOutputBytes)
         {
-            return text;
+            // A protocol-level result that fits is handed on exactly as the
+            // tool produced it: the provider adapter renders its content
+            // blocks itself, and flattening an image to text to stay inside a
+            // budget it never exceeded would lose the image for nothing. Every
+            // other shape canonicalizes to its text here.
+            return ToolResultText.IsProtocolResult(result) ? result : text;
         }
 
         var (envelope, omittedBytes) = ToolOutputEnvelope.Build(text!, _maxOutputBytes);

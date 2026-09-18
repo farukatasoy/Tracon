@@ -83,3 +83,39 @@
   farklı eylemlerdir. Sahipliği "tek yardımcıda toplamak" isteyen bir
   sadeleştirme bu asimetriyi siler; `The_management_exemption_does_not_extend_to_starting_a_run`
   onu tutar.
+- **🚨 Bir MCP tool'unun sonucu `string` DEĞİL `AIContent`'tir; `ToolResultText`
+  onu okuyamadığında BEŞ tüketici birden sessizce bozulur** (2026-09-18,
+  `HATA-S1-026` ve kapanışta ölçülen iki kusur daha). `McpClientTool
+  .InvokeCoreAsync` tek bloklu sonucu bir `AIContent`, çok bloklu sonucu bir
+  `AIContent[]`, yalnız hata/`StructuredContent`/uygulama meta'sı taşıyan
+  sonucu bir `JsonElement` döndürür (kaynak okundu, `ModelContextProtocol.Core`
+  2.2.0 — ilk ikisi kaydın "protokol sonucu, adaptörün işi" varsayımını
+  yanlışlar). `TryGetText` `AIContent` için `false` dönüyordu ve şunlar bunun
+  üstüne dallanır: `TruncatingAIFunction` (sınır HİÇ uygulanmadı — 200 bayta
+  karşı 8035 bayt ölçüldü; `AIContent[]` ise `AIContent` DEĞİLDİR ve
+  `{"error":"tool_result_unsupported"}` ile değiştirildi, sınır hiç
+  yapılandırılmamış olsa bile — katman her zaman kuruludur) ·
+  `ContentGuardMessageMasker` (her MCP sonucu modele ulaşmadan
+  `[Tool result could not be inspected]` oldu) · `ToolInvocationTracker` ve
+  `RunRecordingAgent` (`Result`/`Payload` `null`) · `RecordedToolPlayback`
+  (replay sonucu kaybetti). **Ders:** ortak bir kanonikleştiriciye yeni bir
+  sonuç şekli eklemek tek bir `switch` satırı değildir —
+  `grep -rn "ToolResultText" src/` ile TÜKETİCİLERİ say; her biri `false`
+  dalında ayrı bir sessiz davranış saklıyor olabilir. K-798 · K-799.
+- **`AIJsonUtilities.DefaultOptions` ile serileştirmek `Tracon.Core`'da AOT
+  temizdir** (2026-09-18, ölçüldü: sıfır `IL2026`/`IL3050`). `AIContent`
+  tipleri MEAI'nin kendi kaynak-üretilmiş context'inden çözülür ve
+  `JsonSerializer.Serialize(sonuç, options.GetTypeInfo(typeof(object)))`
+  adaptörlerin `FunctionResultContent.Result` için yaptığı **aynı** çağrıdır —
+  ölçülen bayt tele giden bayttır. Bu yol için AOT kaçış merdivenine (elle
+  yazma → `source generator` → `[RequiresUnreferencedCode]`) gerek yoktur.
+- **🚨 Uzak bir tool'un davranışını sınayan fake, uzak tool'un DÖNÜŞ ŞEKLİNİ
+  taklit etmelidir** (2026-09-18, K-800): Faz 89 "her iki sarmalama zinciri
+  aynı halkaları taşır" sözleşmesini üç testle kapattı ve üçü de
+  `AIFunctionFactory.Create(() => new string('a', 10_000))` sarıyordu — `string`
+  döndüren bir vekil. Gerçek `McpClientTool` `AIContent` döndürür ve kusur tam
+  olarak o ayrımda yaşıyordu: testler yeşil, zincir kurulu, sınır bir faz
+  boyunca hiç uygulanmadı. Şekli taklit etmeyen fake yalnız sarmalayıcının
+  **kurulduğunu** kanıtlar, davranışını değil. Bugün o üç test `AIContent`
+  döndüren bir vekile taşındı ve üstüne gerçek SDK istemcisiyle konuşan bir
+  fonksiyonel test (`McpToolResultTruncationTests`) eklendi.
