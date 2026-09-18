@@ -7206,7 +7206,7 @@
               "integer",
               "string"
             ],
-            "description": "Gets the definition version. Every save increments this value and so naturally\ninvalidates the compiled agent cache.",
+            "description": "Gets the definition version. Every save increments it, and the store owns the\nnumber: the value on an incoming definition is ignored.",
             "format": "int32"
           },
           "tenantId": {

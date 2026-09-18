@@ -14,6 +14,7 @@
 | MAF oturumu, `ChatHistoryProvider`, Responses | [maf-oturum](maf-oturum.md) |
 | Workflow yürütme, executor kimliği, HITL | [workflows](workflows.md) |
 | `RunRecording` zinciri, `scope`/span, iptal | [cekirdek-calistirma](cekirdek-calistirma.md) |
+| Agent derleme, derleme kimliği, derlenmiş agent önbelleği | [agent-derleme-ve-onbellek](agent-derleme-ve-onbellek.md) |
 | `RunEventType`/`RunStatus` terminal durum sözleşmesi | [run-olay-sozlesmesi](run-olay-sozlesmesi.md) |
 | Tool onayı, yetkilendirme sırası, sunum seam'i | [tool-onay-ve-yetkilendirme](tool-onay-ve-yetkilendirme.md) |
 | Metrik, maliyet, kota, `secret` süzgeci | [olcum-kota-ve-secenekler](olcum-kota-ve-secenekler.md) |

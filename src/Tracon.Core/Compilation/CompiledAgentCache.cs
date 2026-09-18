@@ -4,21 +4,35 @@ using Microsoft.Agents.AI;
 namespace Tracon;
 
 /// <summary>
-/// Caches compiled agents keyed by <c>(tenant, name, version, skill fingerprint, culture)</c>.
+/// Caches compiled agents keyed by
+/// <c>(tenant, name, definition fingerprint, dependency fingerprint, culture)</c>.
 /// </summary>
 /// <remarks>
 /// <para>
-/// When a definition is updated, its version increases and the cache
-/// <em>naturally</em> becomes stale. There is therefore no explicit
-/// invalidation logic; the old version's entry is cleared with <see cref="Evict"/>.
+/// <strong>The key measures CONTENT, not a version number.</strong> An earlier
+/// design keyed the entry by the definition's version and relied on "a save
+/// increments the version, so the entry naturally goes stale". That reasoning
+/// does not hold for a DELETE followed by a CREATE of the same name: the store
+/// restarts numbering, the new definition is version <c>1</c> again, and the
+/// deleted definition's compiled agent kept answering every run - the database
+/// read correctly while the run did not. Measured on a real host.
+/// </para>
+/// <para>
+/// The version component was therefore replaced by a fingerprint of the
+/// definition's own serialized content
+/// (<see cref="AgentDefinitionCompiler.CreateDefinitionFingerprint"/>). Two
+/// entries share a compiled agent only when the definitions that produced them
+/// are byte-identical, which is exactly when sharing is correct. No explicit
+/// invalidation is needed, and none exists: an entry that can no longer be
+/// reached is simply never read again.
 /// </para>
 /// <para>
 /// The <c>tenant</c> component of the key is REQUIRED. Agent names are unique
 /// only within a tenant (see <c>SqlAgentDefinitionStore</c>) - it is common for
 /// two different tenants to have a definition with the same name (e.g.
-/// <c>"support"</c>), the same version (the first record is always <c>1</c>),
-/// and the same dependency fingerprint (an empty string for both if they use
-/// no skills/callable agents). If the tenant is not included in the key,
+/// <c>"support"</c>), byte-identical content, and the same dependency
+/// fingerprint (an empty string for both if they use no skills/callable
+/// agents). If the tenant is not included in the key,
 /// resolution for the second tenant returns the FIRST tenant's compiled agent
 /// (instructions, tool bindings - including the tenant identity bound into
 /// e.g. <c>search_knowledge</c>): tenant isolation broken outright.
@@ -37,12 +51,15 @@ public sealed class CompiledAgentCache
     /// </summary>
     /// <param name="tenantId">Identifier of the tenant requesting resolution.</param>
     /// <param name="name">Agent name.</param>
-    /// <param name="version">Definition version.</param>
+    /// <param name="definitionFingerprint">
+    /// Fingerprint of the definition's own content; see
+    /// <see cref="AgentDefinitionCompiler.CreateDefinitionFingerprint"/>.
+    /// </param>
     /// <param name="factory">Producer called when absent from the cache.</param>
     /// <returns>The compiled agent.</returns>
     /// <exception cref="ArgumentNullException">One of the parameters is <see langword="null"/>.</exception>
-    public AIAgent GetOrAdd(string tenantId, string name, int version, Func<AIAgent> factory)
-        => GetOrAdd(tenantId, name, version, string.Empty, string.Empty, factory);
+    public AIAgent GetOrAdd(string tenantId, string name, string definitionFingerprint, Func<AIAgent> factory)
+        => GetOrAdd(tenantId, name, definitionFingerprint, string.Empty, string.Empty, factory);
 
     /// <summary>
     /// Retrieves the agent from the cache together with its dependency
@@ -51,7 +68,10 @@ public sealed class CompiledAgentCache
     /// </summary>
     /// <param name="tenantId">Identifier of the tenant requesting resolution.</param>
     /// <param name="name">Agent name.</param>
-    /// <param name="version">Definition version.</param>
+    /// <param name="definitionFingerprint">
+    /// Fingerprint of the definition's own content; see
+    /// <see cref="AgentDefinitionCompiler.CreateDefinitionFingerprint"/>.
+    /// </param>
     /// <param name="dependencyFingerprint">
     /// Current fingerprint of the definition's <em>external</em> dependencies:
     /// skills and callable sub-agents. These can change without incrementing
@@ -59,8 +79,8 @@ public sealed class CompiledAgentCache
     /// </param>
     /// <param name="factory">Producer called when absent from the cache.</param>
     /// <returns>The compiled agent.</returns>
-    public AIAgent GetOrAdd(string tenantId, string name, int version, string dependencyFingerprint, Func<AIAgent> factory)
-        => GetOrAdd(tenantId, name, version, dependencyFingerprint, string.Empty, factory);
+    public AIAgent GetOrAdd(string tenantId, string name, string definitionFingerprint, string dependencyFingerprint, Func<AIAgent> factory)
+        => GetOrAdd(tenantId, name, definitionFingerprint, dependencyFingerprint, string.Empty, factory);
 
     /// <summary>
     /// Retrieves the agent from the cache together with its dependency fingerprint and
@@ -68,9 +88,12 @@ public sealed class CompiledAgentCache
     /// </summary>
     /// <param name="tenantId">Identifier of the tenant requesting resolution.</param>
     /// <param name="name">Agent name.</param>
-    /// <param name="version">Definition version.</param>
+    /// <param name="definitionFingerprint">
+    /// Fingerprint of the definition's own content; see
+    /// <see cref="AgentDefinitionCompiler.CreateDefinitionFingerprint"/>.
+    /// </param>
     /// <param name="dependencyFingerprint">
-    /// See <see cref="GetOrAdd(string, string, int, string, Func{AIAgent})"/>.
+    /// See <see cref="GetOrAdd(string, string, string, string, Func{AIAgent})"/>.
     /// </param>
     /// <param name="culture">
     /// The culture the definition was compiled with (see <see cref="InstructionCultureResolver"/>).
@@ -84,18 +107,19 @@ public sealed class CompiledAgentCache
     public AIAgent GetOrAdd(
         string tenantId,
         string name,
-        int version,
+        string definitionFingerprint,
         string dependencyFingerprint,
         string culture,
         Func<AIAgent> factory)
     {
         ArgumentNullException.ThrowIfNull(tenantId);
         ArgumentNullException.ThrowIfNull(name);
+        ArgumentNullException.ThrowIfNull(definitionFingerprint);
         ArgumentNullException.ThrowIfNull(dependencyFingerprint);
         ArgumentNullException.ThrowIfNull(culture);
         ArgumentNullException.ThrowIfNull(factory);
 
-        var key = new CacheKey(tenantId, name, version, dependencyFingerprint, culture);
+        var key = new CacheKey(tenantId, name, definitionFingerprint, dependencyFingerprint, culture);
 
         // 🚨 Checked separately from the GetOrAdd(key, valueFactory) call below:
         // that overload allocates its `Func<CacheKey, AIAgent>` closure argument
@@ -121,8 +145,11 @@ public sealed class CompiledAgentCache
     /// </summary>
     /// <param name="tenantId">Identifier of the tenant requesting resolution.</param>
     /// <param name="name">Agent name.</param>
-    /// <param name="version">Definition version.</param>
-    /// <param name="dependencyFingerprint">See <see cref="GetOrAdd(string, string, int, string, Func{AIAgent})"/>.</param>
+    /// <param name="definitionFingerprint">
+    /// Fingerprint of the definition's own content; see
+    /// <see cref="AgentDefinitionCompiler.CreateDefinitionFingerprint"/>.
+    /// </param>
+    /// <param name="dependencyFingerprint">See <see cref="GetOrAdd(string, string, string, string, Func{AIAgent})"/>.</param>
     /// <param name="factory">Producer called when absent from the cache.</param>
     /// <returns>The compiled agent.</returns>
     /// <remarks>
@@ -135,10 +162,10 @@ public sealed class CompiledAgentCache
     public ValueTask<AIAgent> GetOrAddAsync(
         string tenantId,
         string name,
-        int version,
+        string definitionFingerprint,
         string dependencyFingerprint,
         Func<ValueTask<AIAgent>> factory)
-        => GetOrAddAsync(tenantId, name, version, dependencyFingerprint, string.Empty, factory);
+        => GetOrAddAsync(tenantId, name, definitionFingerprint, dependencyFingerprint, string.Empty, factory);
 
     /// <summary>
     /// Retrieves the agent from the cache together with its dependency fingerprint and
@@ -147,26 +174,30 @@ public sealed class CompiledAgentCache
     /// </summary>
     /// <param name="tenantId">Identifier of the tenant requesting resolution.</param>
     /// <param name="name">Agent name.</param>
-    /// <param name="version">Definition version.</param>
-    /// <param name="dependencyFingerprint">See <see cref="GetOrAdd(string, string, int, string, Func{AIAgent})"/>.</param>
-    /// <param name="culture">See <see cref="GetOrAdd(string, string, int, string, string, Func{AIAgent})"/>.</param>
+    /// <param name="definitionFingerprint">
+    /// Fingerprint of the definition's own content; see
+    /// <see cref="AgentDefinitionCompiler.CreateDefinitionFingerprint"/>.
+    /// </param>
+    /// <param name="dependencyFingerprint">See <see cref="GetOrAdd(string, string, string, string, Func{AIAgent})"/>.</param>
+    /// <param name="culture">See <see cref="GetOrAdd(string, string, string, string, string, Func{AIAgent})"/>.</param>
     /// <param name="factory">Producer called when absent from the cache.</param>
     /// <returns>The compiled agent.</returns>
     public async ValueTask<AIAgent> GetOrAddAsync(
         string tenantId,
         string name,
-        int version,
+        string definitionFingerprint,
         string dependencyFingerprint,
         string culture,
         Func<ValueTask<AIAgent>> factory)
     {
         ArgumentNullException.ThrowIfNull(tenantId);
         ArgumentNullException.ThrowIfNull(name);
+        ArgumentNullException.ThrowIfNull(definitionFingerprint);
         ArgumentNullException.ThrowIfNull(dependencyFingerprint);
         ArgumentNullException.ThrowIfNull(culture);
         ArgumentNullException.ThrowIfNull(factory);
 
-        var key = new CacheKey(tenantId, name, version, dependencyFingerprint, culture);
+        var key = new CacheKey(tenantId, name, definitionFingerprint, dependencyFingerprint, culture);
 
         if (_entries.TryGetValue(key, out var existing))
         {
@@ -194,23 +225,8 @@ public sealed class CompiledAgentCache
         return second.Length == 0 ? first : string.Concat(first, "|", second);
     }
 
-    /// <summary>Removes all versions of an agent from the cache.</summary>
-    /// <param name="name">Agent name.</param>
-    public void Evict(string name)
-    {
-        ArgumentNullException.ThrowIfNull(name);
-
-        foreach (var key in _entries.Keys)
-        {
-            if (string.Equals(key.Name, name, StringComparison.Ordinal))
-            {
-                _entries.TryRemove(key, out _);
-            }
-        }
-    }
-
     /// <summary>Empties the cache entirely.</summary>
     public void Clear() => _entries.Clear();
 
-    private readonly record struct CacheKey(string TenantId, string Name, int Version, string DependencyFingerprint, string Culture);
+    private readonly record struct CacheKey(string TenantId, string Name, string DefinitionFingerprint, string DependencyFingerprint, string Culture);
 }

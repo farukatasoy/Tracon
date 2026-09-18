@@ -64,6 +64,63 @@ tutarsızlığı).
 **Durum:** Kod DEĞİŞTİRİLMEDİ (koşum kuralı 1.1) — düzeltme kapanışa
 bırakıldı.
 
+### ✅ KAPANDI — 2026-09-18 (Aşama 2, Aile H)
+
+**Kayıttaki teşhis doğruydu ve KAPSAMI DARDI.** Kayıt tek bir yüzey biliyordu;
+ölçüm **üç** buldu ve üçü de tek bir kök nedenden geliyor: **anahtardaki
+`version` bileşeni içeriğin vekiliydi ve store bir adı silip yeniden yaratınca
+vekil olmaktan çıkıyor.**
+
+| Yüzey | Ölçülen davranış (eski kodda) |
+|---|---|
+| Agent'ın kendisi | Silinip aynı adla yeniden yaratılan agent ESKİ instructions ile koşuyor (`"first"` bekleniyordu `"second"`) |
+| Shared instructions bloğu | Parmak izi `"{blok}:{sürüm}"`; blok silinip yeniden yaratılınca onu okuyan agent **silinmiş bloğun metnini** kullanmaya devam ediyor |
+| Callable sub-agent | Parmak izi `(ad, sürüm)`; alt agent silinip yeniden yaratılınca çağıran, **silinmiş alt agent'ın açıklamasını** modele anlatmaya devam ediyor |
+
+**Düzeltme (K-811 · K-812 👤).** Anahtar artık içeriği ölçer:
+`CompiledAgentCache` anahtarının `version` bileşeni yerine tanımın
+serileştirilmiş içeriğinin SHA-256'sı (`AgentDefinitionCompiler
+.CreateDefinitionFingerprint`) geçti; blok parmak izi metnin hash'i oldu;
+callable parmak izi `CallableAgentInfo`'nun tamamını (ad + sürüm + açıklama)
+hash'liyor. İki kayıt ancak **bayt bayt aynı** olduklarında derlenmiş agent'ı
+paylaşır — ki bu tam olarak paylaşmanın doğru olduğu durumdur. ∴ açık geçersiz
+kılmaya ihtiyaç kalmadı ve hiç çağrılmayan `CompiledAgentCache.Evict`
+**kaldırıldı**; güvenlik taramasının `B02-9` bulgusu (`Evict` kiracı ayırt
+etmiyordu) böylece kendiliğinden kapandı.
+
+**Parmak izi alan alan DEĞİL, serileştirilerek hash'lenir.** Elle yazılan bir
+alan listesi `AgentDefinition`'a sonradan eklenen alanı kaçırırdı ve kaçırmanın
+bedeli sessizdir — Aile G'nin `TraconImageOptions.Timeout` vakasıyla aynı
+sınıf. `DefinitionFingerprintTests.Every_field_of_the_record_reaches_the_fingerprint`
+record'un kendi alanlarını gezerek bunu yapısal olarak kilitler.
+
+| Adım | Sonuç |
+|---|---|
+| Ampirik yeniden üretim | ☑ eski kodda üç fonksiyonel test de kırmızı: agent `"first"` · blok `BLOCK-ONE` · sub-agent `DESC-ONE` |
+| Kök neden düzeltmesi | anahtar `(kiracı, ad, **içerik parmak izi**, bağımlılık, kültür)`; iki bağımlılık parmak izi gömülen içeriği ölçüyor; `Evict` kaldırıldı |
+| Sınıf taraması | ☑ sürüm numarasıyla anahtarlanan başka önbellek **yok**: skill parmak izi zaten `UpdatedAt.UtcTicks` taşıyor, workflow grafiği **her koşumda yeniden kuruluyor** (hiç önbelleklenmiyor), `WorkflowAgentCache` katalogdan **her çağrıda** çözümlüyor |
+| Testler | 3 fonksiyonel (üçü de düzeltmeden önce kırmızı) · 4 birim parmak izi testi · 6 önbellek birim testi yeni anahtara taşındı |
+| Tüketici yüzeyi | `AgentDefinition.Version`'ın XML dokümanı "her kayıt önbelleği DOĞAL olarak geçersiz kılar" diyordu — **yanlıştı**, yeniden yazıldı; OpenAPI snapshot'ı ve site referansı tazelendi |
+
+🚨 **Sevk edilen XML dokümanında `🚨` kullanılamaz** — `ShippedDocumentationSelfContainmentTests`
+`///` satırlarındaki alarm emojisini reddetti (Aile D ile aynı kapı, üçüncü
+vaka). **Taban tazelenmedi**, cümle yeniden yazıldı; düz `//` yorumda serbest.
+
+🚨 **Uzun koşum arka plana alınınca çıkış kodu KAYBOLDU.** Tam koşum dört
+düşen testle bittiği hâlde arka plan sarmalayıcısı "exit code 0" bildirdi;
+gerçek kod ancak `dotnet test ... > kayit.log 2>&1; echo "EXIT=$?"` yazılınca
+(`1`) göründü. Düşenler TRX raporları okunarak bulundu: ikisi bu değişikliğin
+beklenen sonucuydu (OpenAPI snapshot'ı, sevk edilen doküman kapısı), ikisi yük
+altı kırılganlıktı (`LiveVoiceLifecycleTests` — Aile T'de zaten var;
+`SessionPersistenceTests.Two_concurrent_later_turns_on_the_same_existing_session_do_not_silently_lose_a_message`
+— Aile T'ye **dördüncü** örnek olarak, teşhis edilmiş kök nedeniyle yazıldı:
+test bir yarışın gerçekleşmesini iddia ediyor, oysa iki görev serileşirse ikisi
+de meşru olarak başarılı olur).
+
+**Son doğrulama koşumu:** 22 test projesi · **7784 test** · tek düşen yukarıdaki
+`SessionPersistenceTests` vakası. `Tracon.PostgreSql.IntegrationTests` tek başına
+koşturulunca **903/903** geçti.
+
 ### HATA-S4-005 — Sağlayıcı fabrikasının KENDİ el ile attığı `TraconException` (bütçe/eşik doğrulaması), yabancı SDK hatasıyla AYNI şekilde maskeleniyor — özgül mesaj kayboluyor
 
 **Bulundu:** MT-PROV-032/033/034'ü koşarken. Üçü de `POST

@@ -72,7 +72,8 @@ Yeni bir halka eklerken tek soru sudur: **her model cagrisini gormesi gerekiyor 
   etmez.** Calisma anı probuyla olculdu: derlenmis agent
   `Microsoft.Agents.AI.ChatClientAgent`'tir ve ne `IDisposable` ne
   `IAsyncDisposable` uygular; bir `run` sonrasi ham istemcinin dispose sayisi
-  **0**; `CompiledAgentCache.Evict` yalniz `TryRemove` yapar. Boru hattinin
+  **0**; `CompiledAgentCache` bir kaydi dusurdugunde yalniz sozlukten cikarir,
+  hicbir sey dispose etmez. Boru hattinin
   tepesi ELLE dispose edilirse zincir ham istemciye iner (sayi 1) — ama eden
   yoktur. Saglayici donen nesnenin omrunu sahiplenir ve o nesne hic dispose
   edilmemeye dayanikli olmalidir (K-609).

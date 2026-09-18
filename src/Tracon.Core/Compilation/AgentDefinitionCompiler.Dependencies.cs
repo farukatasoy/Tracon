@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 
 namespace Tracon;
 
@@ -9,6 +10,39 @@ namespace Tracon;
 /// </summary>
 public sealed partial class AgentDefinitionCompiler
 {
+    /// <summary>
+    /// Produces the fingerprint of a definition's own content: the
+    /// <see cref="CompiledAgentCache"/> key component that decides whether a
+    /// compiled agent may be reused.
+    /// </summary>
+    /// <param name="definition">The definition to fingerprint.</param>
+    /// <returns>The fingerprint, as an uppercase hex SHA-256 string.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="definition"/> is <see langword="null"/>.</exception>
+    /// <remarks>
+    /// <para>
+    /// <strong>The whole serialized definition is hashed, deliberately.</strong>
+    /// Listing the compile-relevant fields by hand would be cheaper, but a field
+    /// added to <see cref="AgentDefinition"/> later would not reach the list, and
+    /// the failure mode is silent: the cache would serve an agent compiled from
+    /// the OLD value of that field. Serializing the record makes a new field part
+    /// of the fingerprint the moment it is declared.
+    /// </para>
+    /// <para>
+    /// This replaces <see cref="AgentDefinition.Version"/>, which was a proxy for
+    /// content and stopped being one after a delete: the store restarts numbering,
+    /// so a recreated name is version <c>1</c> again. Content is the thing that was
+    /// always meant; the version only stood in for it.
+    /// </para>
+    /// </remarks>
+    public static string CreateDefinitionFingerprint(AgentDefinition definition)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+
+        var json = JsonSerializer.SerializeToUtf8Bytes(definition, TraconCoreJsonContext.Default.AgentDefinition);
+
+        return Convert.ToHexString(SHA256.HashData(json));
+    }
+
     /// <summary>Resolves the dependencies that determine a definition's compilation cache key.</summary>
     /// <param name="definition">The definition to inspect.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
@@ -83,7 +117,19 @@ public sealed partial class AgentDefinitionCompiler
             };
         }
 
-        return new ResolvedSharedInstructions(block.Instructions ?? string.Empty, $"{blockName}:{block.Version}");
+        var text = block.Instructions ?? string.Empty;
+
+        // 🚨 The block's TEXT, not its version. The text is what gets prepended to
+        // the referencing agent's instructions at compile time, and a version
+        // number stops tracking it the moment the block is deleted and recreated:
+        // numbering restarts at 1 and the referencing agent keeps the deleted
+        // block's words. Same root cause as the definition fingerprint above.
+        var fingerprint = string.Concat(
+            blockName,
+            ":",
+            Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text))));
+
+        return new ResolvedSharedInstructions(text, fingerprint);
     }
 
     /// <summary>
@@ -128,10 +174,17 @@ public sealed partial class AgentDefinitionCompiler
     /// Produces a cache fingerprint from the sub-agent list.
     /// </summary>
     /// <remarks>
-    /// A sub-agent's <em>description</em> is embedded in the instruction text
-    /// sent to the model. If the fingerprint did not carry the version, the
-    /// calling agent would stay in the cache with the old text when a
-    /// sub-agent's description was updated, and the change would never take effect.
+    /// <para>
+    /// A sub-agent's <em>description</em> is embedded in the instruction text sent
+    /// to the model, so the whole <see cref="CallableAgentInfo"/> that gets baked
+    /// into the calling agent is hashed - description included, not just the
+    /// version.
+    /// </para>
+    /// <para>
+    /// The version alone was not enough. A sub-agent deleted and recreated under the
+    /// same name is version <c>1</c> again, and the caller stayed in the cache
+    /// describing the deleted sub-agent to the model.
+    /// </para>
     /// </remarks>
     private static string CreateCallableFingerprint(IReadOnlyList<CallableAgentInfo> infos)
     {
@@ -139,7 +192,9 @@ public sealed partial class AgentDefinitionCompiler
 
         foreach (var info in infos)
         {
-            content.Append('|').Append(info.Name).Append(':').Append(info.Version);
+            content.Append('|').Append(info.Name)
+                   .Append(':').Append(info.Version)
+                   .Append(':').Append(info.Description);
         }
 
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(content.ToString())));

@@ -683,7 +683,7 @@ metninin ölçülmüş hâlle uyuşmadığının kaydıdır.
 | Kimlik | Özet | Yer |
 |---|---|---|
 | B02-8 | `TenantPrefixingAgentFileStore.Rewrite` `..` normalize etmez. Kalıcı uygulama güvenlidir; MAF `InMemoryAgentFileStore.NormalizeRelativePath` davranışı doğrulanamadı. Ayrıca `".."` biçimsel olarak geçerli bir `tenant_id`'dir | `TenantPrefixingAgentFileStore.cs:115-128` |
-| B02-9 | `CompiledAgentCache.Evict(name)` kiracı ayırt etmez; gürültülü komşu maliyeti. Sızıntı yönü terstir | `CompiledAgentCache.cs:186-196` |
+| B02-9 · **KAPANDI (`HATA-S4-004` kapanışı, 2026-09-18)** | `CompiledAgentCache.Evict(name)` kiracı ayırt etmiyordu; gürültülü komşu maliyeti. Metot **kaldırıldı** — anahtar artık tanımın içeriğini ölçtüğü için hiçbir çağıranın açık geçersiz kılmaya ihtiyacı yok (K-811) | `CompiledAgentCache` — `Evict` yok |
 | B05-7 · **KAPANDI (Faz 77)** | `WebhookUrlValidator.IsPrivate` NAT64 (`64:ff9b::/96`) ve IPv4-uyumlu IPv6 (`::a.b.c.d`) biçimlerini kapsamaz | `EgressAddressValidator.TryGetEmbeddedIPv4` — NAT64, IPv4-uyumlu, IPv4-çevrilmiş ve 6to4 birlikte; `EgressAddressValidatorTests` |
 | B05-8 | Alıcının yanıt gövdesi (8 KB'a kadar) `Error` alanına yazılır ve yönetici API'sinden döner | `WebhookDeliveryJobHandler.cs:258` |
 | B06-4 | Saklama arşivi ek dosyaların ham baytlarını `SELECT *` ile dışarı yazar; veri konusu ihracı aynı sütunu bilerek dışlar. Dışlama gerekçesi **boyut**tur, gizlilik değil | `SqlDialect.cs:286` · `SqlJsonRowWriter.cs:112-113` |

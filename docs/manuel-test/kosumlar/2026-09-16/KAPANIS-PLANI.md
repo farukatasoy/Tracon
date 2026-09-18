@@ -3,8 +3,8 @@
 > **Bu turu kapatan her oturum ÖNCE burayı okur.** Koşum bitti; bu dosya
 > kapanışın tek kontrol düzlemidir.
 >
-> **Durum:** 🟡 Aşama 2 sürüyor · **Aile A · B · C · D · E · F · G KAPANDI** · 31 açık kusur, 15 aile kaldı
-> **Son güncelleme:** 2026-09-18 (Aile G kapandı — `S1-025` + `S1-010`; canlı koşum üçüncü bir kusur buldu: `Tracon:Images:Timeout` hiç bağlanmıyordu)
+> **Durum:** 🟡 Aşama 2 sürüyor · **Aile A · B · C · D · E · F · G · H KAPANDI** · 30 açık kusur, 14 aile kaldı
+> **Son güncelleme:** 2026-09-18 (Aile H kapandı — `S4-004`; kayıt tek yüzey biliyordu, ölçüm **üç** buldu: agent · shared instructions bloğu · callable sub-agent)
 
 Turdan bağımsız kapanış protokolü — aile aile oturum yordamı, "önce ampirik
 yeniden üret" kuralı, bitti tanımı ve sayım betiği —
@@ -176,10 +176,8 @@ Bunlar kapanış oturumlarında da geçerlidir ve bitti tanımında
 
 ## 3.6 Sıradaki iş — 2026-09-18 itibarıyla
 
-**Aile H.** Tek kusur ama **Kritik**: `HATA-S4-004` — `CompiledAgentCache.Evict`
-hiçbir yerden çağrılmıyor, silinip aynı adla yeniden oluşturulan agent ESKİ
-tanımla çalışmaya devam ediyor. Yüksek öncelik orada biter; orta ve düşük
-öncelik §4'ün ikinci tablosundadır.
+**Aile I.** Yüksek öncelik Aile H ile bitti; sıra §4'ün ikinci tablosunda,
+**Aile I**'dedir (`S1-015` · `S1-021` · `S1-023` — opak `500` ve ham istisna).
 
 🚨 **Aile F ve G'nin ortak dersi:** kayıttaki kök-neden teşhisi F'de iki kez
 yanlıştı, G'de **doğru ama yarımdı** — `S1-025`'in asıl nedeni yutulan istisna
@@ -190,6 +188,32 @@ yeniden üret ve teşhisin ötesini de ölç.
 🚨 **Aile G'nin kendi dersi:** canlı koşum, hiçbir testin göremediği bir kusur
 buldu (`Tracon:Images:Timeout` bağlanmıyordu). Bir aile yeni bir **ayar**
 ekliyorsa, kapanışın canlı koşumu o ayarı gerçekten değiştirerek yapılır.
+
+🚨 **Aile H'nin dersi — uzun koşumu arka plana alırken çıkış kodunu ELLE
+yakala.** `dotnet test` tam koşumu arka plana alındığında geri bildirilen kod
+sarmalayıcının kodudur, test koşucusunun değil: koşum dört düşen testle
+bitmişken "exit code 0" göründü. `dotnet test ... > kayit.log 2>&1; echo
+"EXIT=$?"` yazıldığında gerçek kod (`1`) göründü. İkinci kanıt olarak kapanış
+oturumu TRX raporlarını da okur:
+
+```bash
+python3 - <<'SAYIM'
+import pathlib, xml.etree.ElementTree as ET
+ns = {"t": "http://microsoft.com/schemas/VisualStudio/TeamTest/2010"}
+for d in sorted(pathlib.Path("artifacts/bin").glob("*/release/TestResults")):
+    ps = list(d.glob("*.trx"))
+    if not ps:
+        continue
+    c = ET.parse(max(ps, key=lambda p: p.stat().st_mtime)).getroot() \
+          .find("t:ResultSummary/t:Counters", ns)
+    if c is not None and int(c.get("failed", 0)):
+        print("DUSEN:", d.parts[2], c.get("failed"))
+SAYIM
+```
+
+🚨 **TRX klasörü ESKİ koşumları da biriktirir.** `artifacts/bin/*/release/TestResults/`
+temizlenmezse bir önceki koşumun raporu yenisiyle karışır ve kapanmış bir kusur
+hâlâ açık sanılır. Tam koşumdan önce `rm -rf artifacts/bin/*/release/TestResults`.
 
 **Oturum açılışında koş** (taban çizgisinin hâlâ yeşil olduğunu doğrula):
 
@@ -562,7 +586,38 @@ modeliydi; görsel/ses fiyat boşluğu ayrı bir kalemdir.
 Belirti yanıltıcıdır: `GET /api/models` boş liste döner ve Development'ta
 `UseOpenAICompatible` "Endpoint is required" ile **açılışta patlar**. §3.4'ün
 ortam tablosuna eklendi. |
-| **H** · Derlenmiş agent önbelleği | `S4-004` **Kritik** | `CompiledAgentCache.Evict` HİÇBİR YERDEN çağrılmıyor. Silinip aynı adla yeniden oluşturulan agent, sürüm sayacı 1'e sıfırlandığı için ESKİ (silinmiş) tanımla çalışmaya devam ediyor. `GET /api/agents/{name}` doğru görünür ama **çalıştırma yanlış** — sessiz ve operatörü yanlış yöne yönlendirir | ☐ |
+| **H** · Derlenmiş agent önbelleği | `S4-004` **Kritik** | Anahtardaki `version` bileşeni içeriğin **vekiliydi**; store bir adı silip yeniden yaratınca numaralandırma `1`'den başlıyor ve silinmiş tanım her `run`'ı cevaplamaya devam ediyor. `GET /api/agents/{name}` doğru görünür ama **çalıştırma yanlış** | ✅ **KAPANDI 2026-09-18** |
+
+#### Aile H — ✅ kapandı (2026-09-18)
+
+Kayıt tek yüzey biliyordu; ölçüm **üç** buldu ve üçü de tek kök nedendi.
+
+| Yüzey | Ölçülen davranış (eski kodda) |
+|---|---|
+| Agent'ın kendisi | Silinip aynı adla yeniden yaratılan agent ESKİ instructions ile koşuyor |
+| Shared instructions bloğu | Parmak izi `"{blok}:{sürüm}"` — blok yeniden yaratılınca okuyan agent **silinmiş bloğun metnini** kullanıyor |
+| Callable sub-agent | Parmak izi `(ad, sürüm)` — alt agent yeniden yaratılınca çağıran **silinmiş açıklamayı** modele anlatıyor |
+
+👤 **Karar (K-811, K-812):** anahtar **içeriği** ölçer. `version` bileşeninin
+yerini tanımın serileştirilmiş içeriğinin SHA-256'sı aldı; blok parmak izi
+metnin hash'i, callable parmak izi `CallableAgentInfo`'nun tamamı oldu. İki
+kayıt ancak **bayt bayt aynı** olduklarında derlenmiş agent'ı paylaşır — ki bu
+tam olarak paylaşmanın doğru olduğu durumdur. ∴ açık geçersiz kılmaya ihtiyaç
+kalmadı; hiç çağrılmayan `Evict` **kaldırıldı** ve güvenlik taramasının `B02-9`
+bulgusu kendiliğinden kapandı.
+
+**Parmak izi alan alan DEĞİL, serileştirilerek hash'lenir** — elle yazılan bir
+liste sonradan eklenen alanı **sessizce** kaçırırdı (Aile G'nin
+`TraconImageOptions.Timeout` vakasıyla aynı sınıf). `DefinitionFingerprintTests`
+record'un alanlarını gezerek bunu yapısal olarak kilitler.
+
+| Adım | Sonuç |
+|---|---|
+| Ampirik yeniden üretim | ☑ eski kodda üç fonksiyonel test de kırmızı |
+| Sınıf taraması | ☑ sürümle anahtarlanan başka önbellek **yok**: skill parmak izi zaten `UpdatedAt.UtcTicks` taşıyor, workflow grafiği her koşumda yeniden kuruluyor, `WorkflowAgentCache` her çağrıda katalogdan çözümlüyor |
+| Testler | 3 fonksiyonel (üçü de önce kırmızı) · 4 birim parmak izi · 6 önbellek birimi yeni anahtara taşındı |
+| Tüketici yüzeyi | `AgentDefinition.Version`'ın "her kayıt önbelleği DOĞAL olarak geçersiz kılar" cümlesi **yanlıştı**, yeniden yazıldı; OpenAPI snapshot'ı + site referansı tazelendi |
+
 
 #### Aile A — alınan iki karar 👤 (2026-09-18)
 
@@ -628,7 +683,22 @@ kolu için ikinci bir test eklendi).
 | **Q** · Eval ve geri bildirim arayüzü | `S3-007` Orta · `S3-008` Düşük | `FeedbackControl`, bir run'da bir `Stars` puanı da varsa "tekrar tıkla = sil" yerine yinelenen satır oluşturuyor. "Şimdi puanla" düğmesi yargıç yokken HİÇBİR mesaj göstermiyor (tip uyuşmazlığı) | ☐ |
 | **R** · Playground arayüzü | `S1-027` Düşük · `S1-028` Düşük | Agent kataloğunda tool sayısı hücresinin tam tool adı listesi hiçbir yerde (ne tooltip ne görünür metin) sunulmuyor. Akış imleci (`ap-stream-caret`) CSS sınıf adı uyuşmazlığı yüzünden hiçbir zaman görsel olarak render edilmiyor | ☐ |
 | **S** · Gözlemlenebilirlik span'i | `S2-003` Düşük | Başarılı script çalıştırmalarında bile `execute_skill_script` span'i `exit_code`/`duration_ms` taşımıyor ve ebeveyn span yanlışlıkla "Error" gösteriyor (`SandboxedSkillScriptRunner.cs:355-359`). Yalnız gözlemlenebilirlik, işlevsel etki yok | ☐ |
-| **T** · Kapılar ve geliştirme aparatı | `S4-001` Orta · `S3-001` Düşük · `S2-001` Düşük · `S1-005` · `S1-001` · `S1-002` · `S1-003` + §3.3'ün iki yanlış pozitifi | Ölü-tanı-referansı kapısının regex'i eski ürün adının önekini arıyor, artık hiçbir şeyi yakalamıyor. `npm run check` fresh checkout'ta yanlış sırayla kırılıyor. `AGENTS.md` ham `kapanis` komutunu tekrarlıyor (Faz 92 ihlali). Şablonun kendi yer tutucusu teşhis edilemeyen bir ilk koşum hatası üretiyor. SQLite entegrasyon testleri tam çözüm yükü altında `database is locked` veriyor; `LiveVoiceLifecycleTests` yük altında kırılgan; `dotnet test` 2,5 dakika eşiği bugünkü set için ulaşılabilir değil. **Üçüncü kırılganlık örneği ölçüldü (2026-09-18 taban çizgisi):** `PackCleanlinessGateTests.DirtyWorkingTreeStopsPackWithTracon0004` tam çözüm koşumunda düştü — `ExitCode` `0` geldi, yani kirli ağaçta `dotnet pack` BAŞARILI oldu ve `TRACON0004` hiç çıkmadı — ama **izole koşumda altısı da geçti**. Üç kırılganlığın kök nedeni birlikte aranmalı. **Ürün değil apparat** — ayrı commit'ler, hızlı kapanır. **Aile E'den bir kalem daha (2026-09-18):** üretilen `.NET` istemcisi (`TraconApiClient.g.cs`) kaynak belgesinden bir fazdır bayat — Faz 176'nın eklediği `EvaluatorVersion` alanı hiç işlenmemişti ve `ClientDescriptionBaselineTests` ile `ClientCoverageTests`'in ikisi de eksik bir DTO alanını görmüyor. Aile E'nin yeniden üretimi alanı getirdi; **kapı hâlâ yok**. **Aile G'den bir kalem daha (2026-09-18):** `TraconOptionsBindingCoverageTests` "alan eklendi ama `Bind()`'a yazılmadı" kusurunu yapısal olarak kilitler, ama yalnız `TraconOptions` **ağacını** gezer. `TraconImageOptions` gibi **kardeş** section'lar (`Tracon:Images`, `Tracon:Skills` altındakiler, sağlayıcı seçenekleri) scanner'ın kapsamı dışındadır ve `TraconImageOptions.Timeout` tam da oradan sızdı — canlı koşum yakaladı, hiçbir test yakalamadı. Scanner kardeş section'lara genişletilmeli | ☐ |
+| **T** · Kapılar ve geliştirme aparatı | `S4-001` Orta · `S3-001` Düşük · `S2-001` Düşük · `S1-005` · `S1-001` · `S1-002` · `S1-003` + §3.3'ün iki yanlış pozitifi | Ölü-tanı-referansı kapısının regex'i eski ürün adının önekini arıyor, artık hiçbir şeyi yakalamıyor. `npm run check` fresh checkout'ta yanlış sırayla kırılıyor. `AGENTS.md` ham `kapanis` komutunu tekrarlıyor (Faz 92 ihlali). Şablonun kendi yer tutucusu teşhis edilemeyen bir ilk koşum hatası üretiyor. SQLite entegrasyon testleri tam çözüm yükü altında `database is locked` veriyor; `LiveVoiceLifecycleTests` yük altında kırılgan; `dotnet test` 2,5 dakika eşiği bugünkü set için ulaşılabilir değil. **Üçüncü kırılganlık örneği ölçüldü (2026-09-18 taban çizgisi):** `PackCleanlinessGateTests.DirtyWorkingTreeStopsPackWithTracon0004` tam çözüm koşumunda düştü — `ExitCode` `0` geldi, yani kirli ağaçta `dotnet pack` BAŞARILI oldu ve `TRACON0004` hiç çıkmadı — ama **izole koşumda altısı da geçti**. **Dördüncü örnek ve tek KÖK NEDENİ TEŞHİS EDİLMİŞ olanı (Aile H kapanışı,
+2026-09-18):** `SessionPersistenceTests.Two_concurrent_later_turns_on_the_same_existing_session_do_not_silently_lose_a_message`
+tam koşumda **iki kez** düştü (`outcomes.Count(ex => ex is null)` `1` yerine
+`2`); **kendi projesi tek başına koşunca 903/903 geçti**. Bu yalnız kırılganlık
+değil, bir **test kusuru**: test iki eşzamanlı "sonraki tur" başlatıp `ShouldBe(1)`
+ile **tam birinin** çakışmayla düşmesini şart koşuyor — yani bir YARIŞIN
+gerçekleşmesini iddia ediyor. Makine yük altındayken iki görev tamamen
+serileşebilir; o zaman ikincisi birincinin sürümünü okur, ikisi de meşru olarak
+başarılı olur ve **hiçbir mesaj kaybolmaz**. Testin kendi yorumu da zaten bunu
+söylüyor ("en fazla biri düşer, düşen AÇIKÇA çakışma görmeli — asla bir turun
+eksik olduğu iki sessiz başarı"); son satırdaki iddia o değişmezden **daha
+güçlü**. Düzeltme testi zayıflatmak değildir: iddia, değişmezin kendisine
+(kayıp tur yok + düşen varsa `TraconSessionConflictException`) indirilmelidir.
+⚠️ Değişiklik ÖNCESİ tam koşumda bu testin davranışı **ölçülmedi**; kendi
+projesinde geçtiği ve yalnız makine geneli yük altında düştüğü ölçüldü.
+Dört kırılganlığın kök nedeni birlikte aranmalı. **Ürün değil apparat** — ayrı commit'ler, hızlı kapanır. **Aile E'den bir kalem daha (2026-09-18):** üretilen `.NET` istemcisi (`TraconApiClient.g.cs`) kaynak belgesinden bir fazdır bayat — Faz 176'nın eklediği `EvaluatorVersion` alanı hiç işlenmemişti ve `ClientDescriptionBaselineTests` ile `ClientCoverageTests`'in ikisi de eksik bir DTO alanını görmüyor. Aile E'nin yeniden üretimi alanı getirdi; **kapı hâlâ yok**. **Aile G'den bir kalem daha (2026-09-18):** `TraconOptionsBindingCoverageTests` "alan eklendi ama `Bind()`'a yazılmadı" kusurunu yapısal olarak kilitler, ama yalnız `TraconOptions` **ağacını** gezer. `TraconImageOptions` gibi **kardeş** section'lar (`Tracon:Images`, `Tracon:Skills` altındakiler, sağlayıcı seçenekleri) scanner'ın kapsamı dışındadır ve `TraconImageOptions.Timeout` tam da oradan sızdı — canlı koşum yakaladı, hiçbir test yakalamadı. Scanner kardeş section'lara genişletilmeli | ☐ |
 | **U** · docs-site | `S3-002` Düşük | Açılış sayfası 1024 px'te 32 px yatay taşıyor (`.scope-rings`) — dekoratif arka plan grafiği, içerik okunabilirliğini bozmuyor | ☐ |
 | **V** · `CHANGELOG` düğümü | `S1-007` | **Kod kusuru değil, karar.** `scripts/kapi.py` hedef sürüm için `CHANGELOG.md`'de `## [<sürüm>]` bölümü arıyor; changelog ise bilinçli olarak yalnız `## [Unreleased]` taşıyor (`6cfbc2d3` sürüm bölümünü **bilerek** geri aldı). İki kural birbirini kilitliyor. `K-*` olarak çözülür ve `YAYIN-HAZIRLIK.md` Adım 5'e bağlanır. Bloklanan case'ler: `MT-PKG-104 · 105 · 115 · 116 · 117` | ☐ |
 

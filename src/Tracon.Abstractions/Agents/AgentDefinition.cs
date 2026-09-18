@@ -118,9 +118,16 @@ public sealed record AgentDefinition
     public AgentDefinitionOrigin Origin { get; init; } = AgentDefinitionOrigin.Database;
 
     /// <summary>
-    /// Gets the definition version. Every save increments this value and so naturally
-    /// invalidates the compiled agent cache.
+    /// Gets the definition version. Every save increments it, and the store owns the
+    /// number: the value on an incoming definition is ignored.
     /// </summary>
+    /// <remarks>
+    /// The version is a history marker, not an identity. Deleting a definition and
+    /// creating one with the same name starts the numbering again at <c>1</c>, so two
+    /// different definitions can carry the same name and the same version. Anything
+    /// that needs to tell one definition's content from another's must compare the
+    /// content itself; the compiled agent cache does exactly that.
+    /// </remarks>
     public int Version { get; init; } = 1;
 
     /// <summary>Gets the tenant this definition belongs to. A single-tenant setup uses the default value.</summary>
