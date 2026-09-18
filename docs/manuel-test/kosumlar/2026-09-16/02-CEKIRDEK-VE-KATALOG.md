@@ -1528,6 +1528,19 @@ profesyonel görünümü ve K-228'in ihlali.
 
 ---
 
+**✅ KAPANDI 2026-09-18 (Aile K).** Üç satır düzeltildi ve kapının kör noktası
+kapatıldı.
+
+| Adım | Sonuç |
+|---|---|
+| Ampirik yeniden üretim | ☑ iki yeni test düzeltmeden önce kırmızı; ölçülen metin: `TraconPricingOptions: 'echo:echo-1' ne 'Input' ne 'Output' contains neither value.` |
+| Düzeltme | Üç satır `Images` dalının **zaten doğru** olan cümlesine hizalandı: `'{anahtar}' contains neither 'X' nor 'Y'. Check the key name.` Çifte olumsuzlama da kalktı |
+| Kapı | `SourceLanguageTests` iki harfli kelimeleri artık toptan atlamıyor; `ne · ya · ki · mi · mu · da · ve` listeye girdi |
+| Sınıf taraması | ☑ taranan ağacın tamamında 16 iki-harfli aday ölçüldü; listeye giren yedisinin **sıfır** çakışması var. Çakışan üçü dışarıda kaldı: `de` ve `en` BCP-47 etiketi olarak literal geçiyor, `bu` çevrilmiş arayüz metnini doğrulayan E2E testinde |
+| Taban çizgisi | **boş kaldı** — yeni kural repoda başka hiçbir satır bulmuyor |
+
+---
+
 ## MT-CORE-070 — Bellek içi depolar veritabanı olmadan çalışır
 
 **Gerçek sonuç**

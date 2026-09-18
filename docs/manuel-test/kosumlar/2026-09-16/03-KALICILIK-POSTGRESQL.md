@@ -1863,6 +1863,15 @@ geçmemiş. 312. satır 292'nin `Voice` karşılığıdır ve aynı cümleyi tek
 ∴ kapanışta üç satır düzeltilince sınıf kapanır; ayrıca kapıya hedefli kural
 eklenirse yeniden açılması engellenir.
 
+**✅ KAPANDI 2026-09-18 (Aile K)** — `HATA-S1-012` ile **aynı** üç satır; tam
+kapanış kaydı orada (`02-CEKIRDEK-VE-KATALOG.md`). Bu kaydın öngörüsü doğru
+çıktı: üç satır düzeltildi **ve** kapıya kural eklendi. Eklenen kural kaydın
+önerdiği "tırnak komşuluğu" deseni **değil**, ölçülmüş bir kelime kümesidir —
+tırnak deseni `packages/tracon-client/test/streaming.test.ts`'in bilinçli olarak
+`do`+`ne` diye bölünmüş SSE parçasını da yakalıyordu. Bölme noktası `don`+`e`
+yapıldı (testin niyeti aynı: parça sınırı kelimenin ortasından geçiyor) ve
+kelime kümesi çakışmasız kaldı.
+
 ## MT-PG-069 — `DataSource` ve `ConnectionString` birlikte verilirse başlangıç hatası
 
 **Gerçek sonuç**

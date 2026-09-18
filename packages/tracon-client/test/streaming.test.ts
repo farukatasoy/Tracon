@@ -63,7 +63,7 @@ describe('streaming through the typed client', () => {
   it('reassembles a frame split across network chunks', async () => {
     const client = createTraconClient({
       baseUrl: 'https://example.test/tracon',
-      fetch: async () => eventStreamResponse(['event: do', 'ne\ndata: par', 'tial\n\n']),
+      fetch: async () => eventStreamResponse(['event: don', 'e\ndata: par', 'tial\n\n']),
     });
 
     const { response } = await client.POST('/v1/responses', {
