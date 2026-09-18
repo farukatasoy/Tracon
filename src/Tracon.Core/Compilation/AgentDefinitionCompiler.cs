@@ -453,7 +453,7 @@ public sealed partial class AgentDefinitionCompiler
         return await cache.GetOrAddAsync(
             tenantId,
             definition.Name,
-            definition.Version,
+            CreateDefinitionFingerprint(definition),
             dependencies.CacheFingerprint,
             culture ?? string.Empty,
             () => CompileAsync(definition, dependencies.CallableAgents, culture, cancellationToken)).ConfigureAwait(false);

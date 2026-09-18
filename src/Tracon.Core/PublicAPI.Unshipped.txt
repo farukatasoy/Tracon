@@ -131,12 +131,11 @@ Tracon.CompiledAgentCache
 Tracon.CompiledAgentCache.Clear() -> void
 Tracon.CompiledAgentCache.CompiledAgentCache() -> void
 Tracon.CompiledAgentCache.Count.get -> int
-Tracon.CompiledAgentCache.Evict(string! name) -> void
-Tracon.CompiledAgentCache.GetOrAdd(string! tenantId, string! name, int version, System.Func<Microsoft.Agents.AI.AIAgent!>! factory) -> Microsoft.Agents.AI.AIAgent!
-Tracon.CompiledAgentCache.GetOrAdd(string! tenantId, string! name, int version, string! dependencyFingerprint, System.Func<Microsoft.Agents.AI.AIAgent!>! factory) -> Microsoft.Agents.AI.AIAgent!
-Tracon.CompiledAgentCache.GetOrAdd(string! tenantId, string! name, int version, string! dependencyFingerprint, string! culture, System.Func<Microsoft.Agents.AI.AIAgent!>! factory) -> Microsoft.Agents.AI.AIAgent!
-Tracon.CompiledAgentCache.GetOrAddAsync(string! tenantId, string! name, int version, string! dependencyFingerprint, System.Func<System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent!>>! factory) -> System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent!>
-Tracon.CompiledAgentCache.GetOrAddAsync(string! tenantId, string! name, int version, string! dependencyFingerprint, string! culture, System.Func<System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent!>>! factory) -> System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent!>
+Tracon.CompiledAgentCache.GetOrAdd(string! tenantId, string! name, string! definitionFingerprint, System.Func<Microsoft.Agents.AI.AIAgent!>! factory) -> Microsoft.Agents.AI.AIAgent!
+Tracon.CompiledAgentCache.GetOrAdd(string! tenantId, string! name, string! definitionFingerprint, string! dependencyFingerprint, System.Func<Microsoft.Agents.AI.AIAgent!>! factory) -> Microsoft.Agents.AI.AIAgent!
+Tracon.CompiledAgentCache.GetOrAdd(string! tenantId, string! name, string! definitionFingerprint, string! dependencyFingerprint, string! culture, System.Func<Microsoft.Agents.AI.AIAgent!>! factory) -> Microsoft.Agents.AI.AIAgent!
+Tracon.CompiledAgentCache.GetOrAddAsync(string! tenantId, string! name, string! definitionFingerprint, string! dependencyFingerprint, System.Func<System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent!>>! factory) -> System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent!>
+Tracon.CompiledAgentCache.GetOrAddAsync(string! tenantId, string! name, string! definitionFingerprint, string! dependencyFingerprint, string! culture, System.Func<System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent!>>! factory) -> System.Threading.Tasks.ValueTask<Microsoft.Agents.AI.AIAgent!>
 Tracon.ConfigurationKeyGuard
 Tracon.ContentGuardPipeline
 Tracon.ContentGuardPipeline.ContentGuardPipeline(System.Collections.Generic.IEnumerable<Tracon.IContentGuard!>! guards, Microsoft.Extensions.Options.IOptionsMonitor<Tracon.TraconContentGuardOptions!>! options, Tracon.IAuditLog! auditLog, Tracon.IAuditActorResolver! actorResolver, Tracon.ITenantContext! tenantContext, Microsoft.Extensions.Logging.ILoggerFactory! loggerFactory, Tracon.TraconMetrics? metrics = null) -> void
@@ -1308,6 +1307,7 @@ static Tracon.AgentCallGraph.ValidateDetailed(string! agentName, System.Collecti
 static Tracon.AgentCallGraphProblem.operator !=(Tracon.AgentCallGraphProblem left, Tracon.AgentCallGraphProblem right) -> bool
 static Tracon.AgentCallGraphProblem.operator ==(Tracon.AgentCallGraphProblem left, Tracon.AgentCallGraphProblem right) -> bool
 static Tracon.AgentDecoratorPipeline.Apply(Microsoft.Agents.AI.AIAgent! agent, Tracon.AgentDescriptor! descriptor, System.Collections.Generic.IEnumerable<Tracon.IAgentDecorator!>! decorators) -> Microsoft.Agents.AI.AIAgent!
+static Tracon.AgentDefinitionCompiler.CreateDefinitionFingerprint(Tracon.AgentDefinition! definition) -> string!
 static Tracon.AgentParameterValidationError.operator !=(Tracon.AgentParameterValidationError? left, Tracon.AgentParameterValidationError? right) -> bool
 static Tracon.AgentParameterValidationError.operator ==(Tracon.AgentParameterValidationError? left, Tracon.AgentParameterValidationError? right) -> bool
 static Tracon.AgentParameterValidationResult.operator !=(Tracon.AgentParameterValidationResult? left, Tracon.AgentParameterValidationResult? right) -> bool
