@@ -234,7 +234,18 @@ public sealed class DiagnosticTests
 
         var diagnostics = result.DiagnosticsWithId("TRC0007");
         diagnostics.Count.ShouldBe(1);
-        diagnostics[0].GetMessage(CultureInfo.InvariantCulture).ShouldContain("K-218");
+        var message = diagnostics[0].GetMessage(CultureInfo.InvariantCulture);
+        message.ShouldContain("K-218");
+
+        // The runtime scanner rejects the same mistake with the same three
+        // escapes (ToolRegistrationTests.AddToolsFrom_rejects_the_sample_method_at_scan_time).
+        // This message is the one a developer actually reads: the analyzer fails
+        // the BUILD, so the runtime path never runs. It offered only two of the
+        // three, and the missing one is the answer for the case that brings a
+        // developer here — a tool with a dependency that must be resolved per call.
+        message.ShouldContain("static");
+        message.ShouldContain("AddTool(");
+        message.ShouldContain("AddScopedTool(");
     }
 
     [Fact]

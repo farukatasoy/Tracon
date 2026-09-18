@@ -77,7 +77,9 @@ internal static class JsonBindingProblemMiddleware
 
             await TypedResults.Problem(
                     title: isBodyBindingFailure ? RequestBodyBinding.ProblemTitle : ParameterProblemTitle,
-                    detail: isBodyBindingFailure ? ex.InnerException!.Message : ex.Message,
+                    detail: isBodyBindingFailure
+                        ? RequestBodyBinding.Describe((JsonException)ex.InnerException!)
+                        : ex.Message,
                     statusCode: StatusCodes.Status400BadRequest)
                 .ExecuteAsync(httpContext)
                 .ConfigureAwait(false);
