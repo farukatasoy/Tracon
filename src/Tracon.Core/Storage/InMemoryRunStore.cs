@@ -72,4 +72,21 @@ internal sealed partial class InMemoryRunStore : IRunStore
                 $"Run '{runId}' does not belong to the expected tenant ('{expectedTenantId}'). {suffix}");
         }
     }
+
+    /// <summary>
+    /// Whether the write's target run belongs to the expected tenant, as an
+    /// ANSWER rather than an exception.
+    /// </summary>
+    /// <param name="runId">The run's identity.</param>
+    /// <param name="expectedTenantId">The expected tenant. No check is performed if <see langword="null"/>.</param>
+    /// <returns><see langword="false"/> only when the tenant is known and differs.</returns>
+    /// <remarks>
+    /// Used by the writes whose SQL counterpart is a <c>WHERE</c>-guarded
+    /// UPDATE: those affect zero rows on a mismatch rather than failing, and
+    /// the two stores must not disagree about the tenant guard.
+    /// </remarks>
+    private bool OwnedByExpectedTenant(Guid runId, string? expectedTenantId)
+        => expectedTenantId is null
+            || !_runs.TryGetValue(runId, out var run)
+            || string.Equals(run.TenantId, expectedTenantId, StringComparison.Ordinal);
 }

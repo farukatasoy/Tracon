@@ -85,3 +85,34 @@
   kurulumda sessizce yutulmasıydı. Kurucuya isteğe bağlı parametre eklerken
   `grep -n "new <Tip>(" src/` ile fabrikayı da aç: `ActivatorUtilities` değil
   elle yazılmış bir fabrika varsa yeni parametre **kendiliğinden** bağlanmaz.
+- **🚨 Bir bekleme sınırı beklemeyi bitirir, İŞİ bitirmez — token'ı ayrıca
+  iptal etmiyorsan hiçbir şeyi iptal etmemişsindir** (2026-09-18,
+  `HATA-S1-025`). `TimeoutAIFunction` `Task.WhenAny(invocation, delay)` ile
+  yarışıyor, ama gövdeye **çağıranın kendi** token'ını veriyordu. Ölçüldü:
+  token'ını her beklemede okuyan **tam işbirlikçi** bir tool bile 300 ms'lik
+  sınıra karşı 3 sn'lik gövdesini sonuna kadar koşturdu. Sınıfın XML dokümanı
+  ve `docs-site/concepts/tools.md` bu davranışı bilinçli bir sınır diye
+  **belgeliyordu**; belge doğruydu, tasarım yanlıştı. Kod tabanının kendi
+  emsali zaten doğruydu: `ChildAgentInvoker` (`deadline.CancelAfter`) ve
+  `OnlineEvalJobHandler` (`budget.CancelAfter`) bağlı bir CTS'i zaman aşımında
+  iptal eder. **Kural:** `WhenAny` ile bir bekleme sınırı kuruyorsan, kaybeden
+  tarafa bağlı bir CTS'i iptal et — yoksa yarışı yalnız SEN kaybedersin, iş
+  koşmaya (ve harcamaya) devam eder. K-805.
+- **🚨 Bir accumulator'a yazılan değer, onu ALAN kod çoktan koştuysa sessizce
+  düşer** (2026-09-18, aynı vaka). Zaman aşımından sonra arka planda biten
+  tool gövdesi `TraconToolUsage.Report`'u çağırıyor ve çağrı **başarılı
+  oluyor** (`true` döner — `AsyncLocal` gövdeye akmaya devam eder), ama
+  `ToolInvocationTracker.OnResult` accumulator'ı çoktan boşaltmıştı. Sonuç:
+  gerçek bir sağlayıcı harcaması (üretilip faturalanmış bir görsel) hiçbir
+  maliyet raporunda görünmüyordu. **Kural:** ambient-yaz / scoped-oku
+  desenindeki her accumulator için "yazan, okuyandan SONRA gelebilir mi?"
+  sorusunu sor; gelebiliyorsa geç gelen değerin bir sahibi olmalıdır
+  (`IRunStore.CompleteLateToolInvocationAsync`, K-806). Teşhis: `Report`'un
+  dönüş değerini ölç — `false` "bağlam yok" der, `true` + kayıtta boş alan
+  "alıcı kalmadı" der.
+- **🚨 Bir istisna mesajını modele göstermeye başladığın an, biçimi de bir
+  sözleşmedir** (2026-09-18, aynı kapanışta ölçülen ikinci kusur).
+  `{TotalSeconds:F0}` 300 ms'lik bir sınırı modele `"did not complete within
+  0s"` diye bildiriyordu. Aile C'den beri bu metin `ExplainedFailureAIFunction`
+  üzerinden modelin kendisine ulaşıyor — yani model üzerine akıl
+  yürütemeyeceği bir cümle okuyor. K-810.

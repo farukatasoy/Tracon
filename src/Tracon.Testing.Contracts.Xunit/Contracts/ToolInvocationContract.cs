@@ -182,6 +182,269 @@ public abstract class ToolInvocationContract : TenantIsolationContract<IRunStore
     }
 
     [Fact]
+    public async Task Late_settlement_fills_in_the_timed_out_record_without_rewriting_what_the_model_was_told()
+    {
+        // A timeout stops the wait, not the work. A body that ignores its
+        // cancellation can still succeed and still spend money; that spend has
+        // to reach the row every cost query already reads.
+        var runId = TraconId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId));
+
+        await Store.RecordToolInvocationAsync(new ToolInvocationRecord
+        {
+            Id = TraconId.NewId(),
+            RunId = runId,
+            ToolName = "generate_image",
+            ToolCallId = "call-late",
+            CreatedAt = DateTimeOffset.UtcNow,
+            Duration = TimeSpan.FromSeconds(30),
+            Error = "Tool 'generate_image' did not complete within 30s.",
+            TimedOut = true,
+        });
+
+        var settledAt = DateTimeOffset.UtcNow;
+
+        (await Store.CompleteLateToolInvocationAsync(new LateToolCompletion
+        {
+            RunId = runId,
+            ToolCallId = "call-late",
+            LateCompletedAt = settledAt,
+            Result = "Images produced. count=1.",
+            Duration = TimeSpan.FromSeconds(34),
+            Usage = new ToolCallUsage
+            {
+                Unit = ToolUsageUnits.Images,
+                Quantity = 1m,
+
+                // Same fractional-precision guard as the measurement test
+                // above: SQL Server silently truncates an untyped decimal.
+                Cost = 0.0401357m,
+                Currency = "USD",
+            },
+        })).ShouldBeTrue();
+
+        var stored = (await Store.ListToolInvocationsAsync(runId)).ShouldHaveSingleItem();
+
+        // What the model was told is history and is NOT rewritten.
+        stored.TimedOut.ShouldBeTrue();
+        stored.Succeeded.ShouldBeFalse();
+        string.Equals(stored.Error, "Tool 'generate_image' did not complete within 30s.", StringComparison.Ordinal)
+            .ShouldBeTrue();
+
+        // What the timeout left empty is now filled in.
+        string.Equals(stored.Result, "Images produced. count=1.", StringComparison.Ordinal).ShouldBeTrue();
+        stored.Usage.ShouldNotBeNull();
+        stored.Usage.Cost.ShouldBe(0.0401357m);
+        stored.Usage.Quantity.ShouldBe(1m);
+        stored.LateCompletedAt.ShouldNotBeNull();
+        stored.LateCompletedAt.Value.ShouldBe(settledAt, tolerance: TimeSpan.FromSeconds(1));
+        stored.Duration.ShouldNotBeNull();
+        stored.Duration.Value.TotalSeconds.ShouldBe(34, tolerance: 1);
+    }
+
+    [Fact]
+    public async Task A_late_settlement_never_erases_a_measurement_the_row_already_carries()
+    {
+        // 🚨 A tool that reports its usage BEFORE it hangs — which is what
+        // GenerateImageTool does, reporting before it writes the attachment —
+        // already has that measurement on its row: the accumulator was drained
+        // when the timeout was recorded, so the late write carries none of its
+        // own. Assigning the columns flat would erase the very charge this
+        // whole path exists to keep.
+        var runId = TraconId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId));
+
+        await Store.RecordToolInvocationAsync(new ToolInvocationRecord
+        {
+            Id = TraconId.NewId(),
+            RunId = runId,
+            ToolName = "generate_image",
+            ToolCallId = "call-reported-early",
+            CreatedAt = DateTimeOffset.UtcNow,
+            Error = "Tool 'generate_image' did not complete within 30s.",
+            TimedOut = true,
+            Usage = new ToolCallUsage
+            {
+                Unit = ToolUsageUnits.Images,
+                Quantity = 1m,
+                Cost = 0.04m,
+                Currency = "USD",
+            },
+        });
+
+        (await Store.CompleteLateToolInvocationAsync(new LateToolCompletion
+        {
+            RunId = runId,
+            ToolCallId = "call-reported-early",
+            LateCompletedAt = DateTimeOffset.UtcNow,
+            Result = "Images produced. count=1.",
+            Duration = TimeSpan.FromSeconds(34),
+            Usage = null,
+        })).ShouldBeTrue();
+
+        var stored = (await Store.ListToolInvocationsAsync(runId)).ShouldHaveSingleItem();
+
+        stored.Usage.ShouldNotBeNull();
+        stored.Usage.Cost.ShouldBe(0.04m);
+        stored.Usage.Quantity.ShouldBe(1m);
+        string.Equals(stored.Result, "Images produced. count=1.", StringComparison.Ordinal).ShouldBeTrue();
+        stored.LateCompletedAt.ShouldNotBeNull();
+    }
+
+    [Fact]
+    public async Task A_second_late_settlement_for_the_same_call_changes_nothing()
+    {
+        // The continuation runs once per call, but a retried write must never
+        // overwrite a settled outcome with a second one.
+        var runId = TraconId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId));
+
+        await Store.RecordToolInvocationAsync(
+            Invocation(runId, "slow_tool", TimeSpan.FromSeconds(30)) with
+            {
+                ToolCallId = "call-once",
+                Error = "Tool 'slow_tool' did not complete within 30s.",
+                TimedOut = true,
+            });
+
+        (await Store.CompleteLateToolInvocationAsync(new LateToolCompletion
+        {
+            RunId = runId,
+            ToolCallId = "call-once",
+            LateCompletedAt = DateTimeOffset.UtcNow,
+            Result = "first",
+        })).ShouldBeTrue();
+
+        (await Store.CompleteLateToolInvocationAsync(new LateToolCompletion
+        {
+            RunId = runId,
+            ToolCallId = "call-once",
+            LateCompletedAt = DateTimeOffset.UtcNow,
+            Result = "second",
+        })).ShouldBeFalse();
+
+        var stored = (await Store.ListToolInvocationsAsync(runId)).ShouldHaveSingleItem();
+
+        string.Equals(stored.Result, "first", StringComparison.Ordinal).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task Late_settlement_touches_only_the_call_it_names()
+    {
+        // One run may call the same tool several times and only one of them
+        // outlived its timeout. Matching on the tool name would book the
+        // charge against the wrong call.
+        var runId = TraconId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId));
+
+        await Store.RecordToolInvocationAsync(
+            Invocation(runId, "slow_tool", TimeSpan.FromMilliseconds(10)) with { ToolCallId = "call-fast" });
+        await Store.RecordToolInvocationAsync(
+            Invocation(runId, "slow_tool", TimeSpan.FromSeconds(30)) with
+            {
+                ToolCallId = "call-slow",
+                Error = "Tool 'slow_tool' did not complete within 30s.",
+                TimedOut = true,
+            });
+
+        (await Store.CompleteLateToolInvocationAsync(new LateToolCompletion
+        {
+            RunId = runId,
+            ToolCallId = "call-slow",
+            LateCompletedAt = DateTimeOffset.UtcNow,
+            Result = "arrived late",
+        })).ShouldBeTrue();
+
+        var stored = await Store.ListToolInvocationsAsync(runId);
+
+        var fast = stored.Single(record => string.Equals(record.ToolCallId, "call-fast", StringComparison.Ordinal));
+        var slow = stored.Single(record => string.Equals(record.ToolCallId, "call-slow", StringComparison.Ordinal));
+
+        fast.LateCompletedAt.ShouldBeNull();
+        string.Equals(slow.Result, "arrived late", StringComparison.Ordinal).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task Late_settlement_for_an_unknown_call_reports_that_it_wrote_nothing()
+    {
+        // Not an error: the call settles after its run was reported done, and
+        // retention may legitimately have removed the run in between.
+        var runId = TraconId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId));
+
+        (await Store.CompleteLateToolInvocationAsync(new LateToolCompletion
+        {
+            RunId = runId,
+            ToolCallId = "call-that-never-was",
+            LateCompletedAt = DateTimeOffset.UtcNow,
+            Result = "orphan",
+        })).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task Late_settlement_from_the_wrong_tenant_writes_nothing()
+    {
+        // K-355: an EXPECTED-tenant write guard. The SQL side updates zero
+        // rows rather than throwing; the in-memory side must not disagree.
+        AmbientTenant.TenantId = TenantA;
+
+        var runId = TraconId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId));
+        await Store.RecordToolInvocationAsync(
+            Invocation(runId, "slow_tool", TimeSpan.FromSeconds(30)) with
+            {
+                ToolCallId = "call-tenant",
+                TimedOut = true,
+            });
+
+        (await Store.CompleteLateToolInvocationAsync(new LateToolCompletion
+        {
+            RunId = runId,
+            ToolCallId = "call-tenant",
+            LateCompletedAt = DateTimeOffset.UtcNow,
+            Result = "crossed the boundary",
+            TenantId = TenantB,
+        })).ShouldBeFalse();
+
+        var stored = (await Store.ListToolInvocationsAsync(runId)).ShouldHaveSingleItem();
+
+        stored.LateCompletedAt.ShouldBeNull();
+        stored.Result.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task A_late_settlement_does_not_count_as_a_second_call()
+    {
+        // 🚨 The reason a second ROW was rejected: GetToolUsageAsync counts
+        // rows. An extra row would report one call as two and halve the
+        // tool's error rate.
+        var runId = TraconId.NewId();
+        await Store.StartRunAsync(TestData.Run(runId));
+
+        await Store.RecordToolInvocationAsync(
+            Invocation(runId, "slow_tool", TimeSpan.FromSeconds(30)) with
+            {
+                ToolCallId = "call-counted",
+                Error = "Tool 'slow_tool' did not complete within 30s.",
+                TimedOut = true,
+            });
+
+        await Store.CompleteLateToolInvocationAsync(new LateToolCompletion
+        {
+            RunId = runId,
+            ToolCallId = "call-counted",
+            LateCompletedAt = DateTimeOffset.UtcNow,
+            Result = "arrived late",
+        });
+
+        var usage = (await Store.GetToolUsageAsync(new ToolUsageQuery()))
+            .Single(tool => string.Equals(tool.ToolName, "slow_tool", StringComparison.Ordinal));
+
+        usage.TotalCalls.ShouldBe(1);
+        usage.FailedCalls.ShouldBe(1);
+    }
+
+    [Fact]
     public async Task Invocations_come_back_in_time_order()
     {
         var runId = TraconId.NewId();

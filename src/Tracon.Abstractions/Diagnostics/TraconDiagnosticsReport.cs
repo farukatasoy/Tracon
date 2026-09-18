@@ -81,6 +81,42 @@ public sealed record TraconDiagnosticsReport
 
     /// <summary>Gets the run recording settings this installation is running with.</summary>
     public required RunRecordingDiagnostic RunRecording { get; init; }
+
+    /// <summary>Gets whether this installation can actually put a price on a run.</summary>
+    public required PricingDiagnostic Pricing { get; init; }
+}
+
+/// <summary>Whether the catalog can actually put a price on a run.</summary>
+/// <remarks>
+/// <para>
+/// A model with no price is not an error and it is not billed as zero: the run
+/// is recorded with <see cref="PricingSource.Unknown"/> and empty cost columns,
+/// because zero would claim the model is free. The mechanism is honest, but it
+/// is also silent, and an installation could record thousands of costless runs
+/// before anyone read the <c>pricing_source</c> value on a row to find out why.
+/// </para>
+/// <para>
+/// Carries no <c>secret</c>: a model name and a count.
+/// </para>
+/// </remarks>
+public sealed record PricingDiagnostic
+{
+    /// <summary>Gets the number of catalog models that resolve to a price.</summary>
+    public required int PricedModels { get; init; }
+
+    /// <summary>
+    /// Gets the <c>provider/model</c> pairs no price source covers, in catalog
+    /// order. Empty when every model is priced.
+    /// </summary>
+    /// <remarks>
+    /// The same list the startup warning names. A run answered by one of these
+    /// carries no cost that a report can use; set the rate on the catalog entry
+    /// or under <c>Tracon:Pricing:Providers</c>, then recalculate past runs.
+    /// </remarks>
+    public required IReadOnlyList<string> UnpricedModels { get; init; }
+
+    /// <summary>Gets the currency every computed cost is expressed in.</summary>
+    public required string? Currency { get; init; }
 }
 
 /// <summary>What a run actually records, as configured.</summary>

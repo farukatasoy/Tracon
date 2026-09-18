@@ -571,6 +571,9 @@ public sealed class RunRecordingAgentTests
         public ValueTask RecordToolInvocationAsync(ToolInvocationRecord invocation, CancellationToken cancellationToken = default)
             => throw new InvalidOperationException("store unavailable");
 
+        public ValueTask<bool> CompleteLateToolInvocationAsync(LateToolCompletion completion, CancellationToken cancellationToken = default)
+            => throw new InvalidOperationException("store unavailable");
+
         public ValueTask<IReadOnlyList<ToolInvocationRecord>> ListToolInvocationsAsync(Guid runId, CancellationToken cancellationToken = default)
             => throw new InvalidOperationException("store unavailable");
 

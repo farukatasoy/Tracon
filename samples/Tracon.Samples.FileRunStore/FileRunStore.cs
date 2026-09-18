@@ -531,6 +531,60 @@ public sealed class JsonFileRunStore : IRunStore
     }
 
     /// <inheritdoc />
+    public ValueTask<bool> CompleteLateToolInvocationAsync(
+        LateToolCompletion completion,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(completion);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        lock (_gate)
+        {
+            // A tenant mismatch affects no row rather than throwing: this write
+            // lands after its run has already been reported done, and the
+            // caller only logs the outcome.
+            if (!_runs.TryGetValue(completion.RunId, out var run) ||
+                (completion.TenantId is not null &&
+                 !string.Equals(run.TenantId, completion.TenantId, StringComparison.Ordinal)) ||
+                !_toolInvocations.TryGetValue(completion.RunId, out var log))
+            {
+                return new ValueTask<bool>(false);
+            }
+
+            for (var index = 0; index < log.Count; index++)
+            {
+                var record = log[index];
+
+                if (record.LateCompletedAt is not null ||
+                    !string.Equals(record.ToolCallId, completion.ToolCallId, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                // `TimedOut` and `Error` are carried over untouched: they record
+                // what the model was told, which does not change after the fact.
+                // Every value falls back to what the row already carries, the
+                // same COALESCE the SQL statement applies: a tool that reported
+                // its usage BEFORE it hung already has that measurement here,
+                // and the late write carries none of its own.
+                log[index] = record with
+                {
+                    Result = completion.Result ?? record.Result,
+                    Usage = completion.Usage ?? record.Usage,
+                    Duration = completion.Duration ?? record.Duration,
+                    LateCompletedAt = completion.LateCompletedAt,
+                };
+
+                Save();
+
+                return new ValueTask<bool>(true);
+            }
+        }
+
+        return new ValueTask<bool>(false);
+    }
+
+    /// <inheritdoc />
     public ValueTask<IReadOnlyList<ToolInvocationRecord>> ListToolInvocationsAsync(
         Guid runId,
         CancellationToken cancellationToken = default)

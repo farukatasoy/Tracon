@@ -20,17 +20,22 @@ namespace Tracon;
 /// execution, never an approval wait.
 /// </para>
 /// <para>
-/// <see cref="CancellationToken"/> is <strong>cooperative</strong>. A tool
-/// body that never reads its token is not forcibly stopped: this class races
-/// the call against a delay and, on timeout, returns control to the caller
-/// while the call keeps running in the background until it finishes or
-/// faults on its own. This is a documented limit, not a bug.
+/// On timeout the call is <strong>cancelled</strong> and the caller is handed
+/// <see cref="TraconToolTimeoutException"/>. Cancellation is
+/// <see cref="CancellationToken">cooperative</see>: a body that reads its token
+/// stops there and spends nothing more, while one that never reads it is not
+/// forcibly stopped and keeps running in the background until it finishes or
+/// faults on its own. That remaining case is not left silent — when such a call
+/// does settle, its result and whatever usage it reported are written onto the
+/// call's existing record, which is the only way a charge incurred after the
+/// timeout reaches a cost report at all.
 /// </para>
 /// </remarks>
 public sealed class TimeoutAIFunction : DelegatingAIFunction
 {
     private readonly TimeSpan _timeout;
     private readonly ILogger<TimeoutAIFunction> _logger;
+    private readonly TimeProvider _timeProvider;
 
     /// <summary>Creates a new timeout wrapper.</summary>
     /// <param name="innerFunction">The tool to wrap.</param>
@@ -38,13 +43,31 @@ public sealed class TimeoutAIFunction : DelegatingAIFunction
     /// <param name="logger">The logger for a call that outlives its timeout.</param>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="timeout"/> is zero or negative.</exception>
     public TimeoutAIFunction(AIFunction innerFunction, TimeSpan timeout, ILogger<TimeoutAIFunction> logger)
+        : this(innerFunction, timeout, logger, TimeProvider.System)
+    {
+    }
+
+    /// <summary>Creates a new timeout wrapper with an explicit time source.</summary>
+    /// <param name="innerFunction">The tool to wrap.</param>
+    /// <param name="timeout">The longest duration one call may run.</param>
+    /// <param name="logger">The logger for a call that outlives its timeout.</param>
+    /// <param name="timeProvider">The time source used for the timeout and for the real duration of a late call.</param>
+    /// <exception cref="ArgumentOutOfRangeException"><paramref name="timeout"/> is zero or negative.</exception>
+    /// <exception cref="ArgumentNullException">A dependency is <see langword="null"/>.</exception>
+    public TimeoutAIFunction(
+        AIFunction innerFunction,
+        TimeSpan timeout,
+        ILogger<TimeoutAIFunction> logger,
+        TimeProvider timeProvider)
         : base(innerFunction)
     {
         ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(timeout, TimeSpan.Zero);
         ArgumentNullException.ThrowIfNull(logger);
+        ArgumentNullException.ThrowIfNull(timeProvider);
 
         _timeout = timeout;
         _logger = logger;
+        _timeProvider = timeProvider;
     }
 
     /// <inheritdoc />
@@ -52,7 +75,20 @@ public sealed class TimeoutAIFunction : DelegatingAIFunction
         AIFunctionArguments arguments,
         CancellationToken cancellationToken)
     {
-        var invocation = base.InvokeCoreAsync(arguments, cancellationToken).AsTask();
+        // 🚨 Captured HERE, in the synchronous part of the call. Both values
+        // live in an AsyncLocal, and the continuation that observes a late
+        // settlement cannot be relied on to still see either of them.
+        var scope = TraconRunContext.Current;
+        var callId = FunctionInvokingChatClient.CurrentContext?.CallContent.CallId;
+        var startedAt = _timeProvider.GetTimestamp();
+
+        // The tool body is handed a token that this wrapper can fire. Cancelling
+        // it on timeout is what stops a cooperative tool from spending money
+        // nobody is waiting for any more; the caller's own token still flows
+        // through, so a real caller cancellation keeps its own identity below.
+        using var timedOut = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+        var invocation = base.InvokeCoreAsync(arguments, timedOut.Token).AsTask();
 
         // A plain, uncancellable delay: it must fire ONLY when the timeout
         // genuinely elapses, never when the caller's OWN cancellationToken
@@ -60,54 +96,53 @@ public sealed class TimeoutAIFunction : DelegatingAIFunction
         // wins the race on its own and the real OperationCanceledException
         // propagates unchanged below.
         using var delayCts = new CancellationTokenSource();
-        var delay = Task.Delay(_timeout, delayCts.Token);
+        var delay = Task.Delay(_timeout, _timeProvider, delayCts.Token);
 
         var winner = await Task.WhenAny(invocation, delay).ConfigureAwait(false);
 
         if (winner == invocation)
         {
             delayCts.Cancel();
+
             return await invocation.ConfigureAwait(false);
         }
 
-        // The wait is cut short here; the underlying call is NOT. Observe its
-        // eventual outcome so a late fault never surfaces as an unobserved
-        // task exception, and log it so the boundary is visible in practice.
         var toolName = Name;
         var timeout = _timeout;
-        var logger = _logger;
 
-        _ = invocation.ContinueWith(
-            t =>
-            {
-                if (t.IsFaulted)
-                {
-                    if (logger.IsEnabled(LogLevel.Warning))
-                    {
-                        logger.LogWarning(
-                            t.Exception,
-                            "Tool '{ToolName}' faulted after its {TimeoutSeconds}s timeout had already been reported to the model.",
-                            toolName,
-                            timeout.TotalSeconds);
-                    }
-                }
-                else if (logger.IsEnabled(LogLevel.Information))
-                {
-                    logger.LogInformation(
-                        "Tool '{ToolName}' finished after its {TimeoutSeconds}s timeout had already been reported to the model.",
-                        toolName,
-                        timeout.TotalSeconds);
-                }
-            },
-            CancellationToken.None,
-            TaskContinuationOptions.ExecuteSynchronously,
-            TaskScheduler.Default);
+        // Ask the body to stop. A body that reads its token ends here; one that
+        // does not keeps running, and the observer below books whatever it
+        // eventually produces.
+        await timedOut.CancelAsync().ConfigureAwait(false);
+
+        LateToolCompletionRecorder.Observe(
+            invocation,
+            scope,
+            callId,
+            toolName,
+            timeout,
+            startedAt,
+            _timeProvider,
+            _logger);
 
         throw new TraconToolTimeoutException(
-            $"Tool '{toolName}' did not complete within {timeout.TotalSeconds:F0}s.")
+            $"Tool '{toolName}' did not complete within {FormatSeconds(timeout)}.")
         {
             ToolName = toolName,
             Timeout = timeout,
         };
     }
+
+    /// <summary>
+    /// Formats a duration for the sentence the MODEL reads.
+    /// </summary>
+    /// <remarks>
+    /// A whole-second format rendered every sub-second timeout as "0s", so a
+    /// tool bounded at 500ms told the model it had not finished within zero
+    /// seconds. One decimal is kept only where it carries meaning.
+    /// </remarks>
+    private static string FormatSeconds(TimeSpan timeout)
+        => timeout.TotalSeconds >= 1
+            ? $"{timeout.TotalSeconds:0.##}s"
+            : $"{timeout.TotalMilliseconds:0.##}ms";
 }

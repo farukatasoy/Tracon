@@ -69,6 +69,9 @@ public sealed class WorkflowRecordingFailureTests
         public ValueTask RecordToolInvocationAsync(ToolInvocationRecord invocation, CancellationToken cancellationToken = default)
             => ValueTask.CompletedTask;
 
+        public ValueTask<bool> CompleteLateToolInvocationAsync(LateToolCompletion completion, CancellationToken cancellationToken = default)
+            => ValueTask.FromResult(false);
+
         public ValueTask<RunRecord?> GetRunAsync(Guid runId, CancellationToken cancellationToken = default)
             => ValueTask.FromResult<RunRecord?>(null);
 

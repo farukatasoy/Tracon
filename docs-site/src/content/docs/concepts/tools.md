@@ -129,12 +129,28 @@ card an operator sees carries only this raw call; register
 [`IToolApprovalPresenter`](/concepts/governance/#approvals) to show a resolved entity
 name instead. A call that outlives its
 timeout does not fail the run either: the model sees a tool error and continues, the same
-as a denial. Timeout is **not cooperative**: it never forcibly stops the body, and it
-never hands the body a linked, timeout-aware token either — the body only ever sees the
-*caller's own* `CancellationToken`. A tool that never reads that token keeps running to
-completion, possibly with a real side effect, after the model has already moved on; only
-the *wait* is cut short. The timeout applies to execution only, never to a pending
-approval, which can wait indefinitely.
+as a denial.
+
+When the timeout elapses the body is handed a **cancelled token** — a token linked to the
+caller's own, which this layer cancels. Cancellation is cooperative, so what happens next
+depends on the body:
+
+- **A body that reads its token** stops there and spends nothing more. Accept a
+  `CancellationToken` parameter and pass it down to every call you make.
+- **A body that never reads it** is not forcibly stopped and keeps running to completion,
+  possibly with a real side effect, after the model has already moved on.
+
+A call in that second group is still accounted for. When it finally settles successfully,
+its result, its real duration and anything it reported through `TraconToolUsage.Report`
+are written onto **that same call's record** — `lateCompletedAt` on the
+`ToolInvocationRecord` says when, `timedOut` and `error` stay as they were because they
+record what the *model* was told. This matters for a tool that spends money: image
+generation that needs 35 seconds against a 30 second limit has produced and been billed
+for a real image, and without this the charge would appear in no cost report at all. No
+second record is written, so per-tool totals still count one call.
+
+The timeout applies to execution only, never to a pending approval, which can wait
+indefinitely.
 
 A tool body can also run **more than once for the same logical call**, on two different
 timelines that are easy to conflate:

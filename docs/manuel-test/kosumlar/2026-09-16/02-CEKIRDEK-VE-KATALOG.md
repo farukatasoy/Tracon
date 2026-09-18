@@ -991,6 +991,25 @@ bekliyor; alan **boş**. İki ayrı sebep var ve ikisi de kayda geçti:
 
 ---
 
+**Yeniden koşum — 2026-09-18 (Aile G kapanışı) · ☑ GEÇTİ**
+
+Gerçek OpenAI `gpt-5.4-mini`, gerçek PostgreSQL (`mt_g` şeması). Token sayıları
+**turdakiyle birebir aynı** çıktı (402 / 25), yani ölçülen tek fark fiyattır:
+
+```
+ agent_name | status | model_id     | input_tokens | output_tokens | input_cost   | output_cost  | cur | pricing_source
+ support    |      1 | gpt-5.4-mini |          402 |            25 | 0.0001005000 | 0.0000500000 | USD | 0
+```
+
+`pricing_source` **2 (`Unknown`) → 0 (`Catalog`)**. Hesap elle doğrulandı:
+402 × 0,25 / 1e6 = 0,0001005 ✓ · 25 × 2,00 / 1e6 = 0,00005 ✓. Dört beklentinin
+dördü de karşılandı; `tool_invocations` satır sayısı yine **1**.
+
+Örnek uygulamanın katalogu artık fiyat taşıyor (K-809) ve mekanizma
+değişmedi — eksik olan yalnız veriydi.
+
+---
+
 ## MT-CORE-045 — Tool gerekmeyen istek tool çağırmaz
 
 **Gerçek sonuç**
@@ -1013,6 +1032,20 @@ kendi davranışsal iddiası doğru olduğu için bulgu 044'e bağlandı; case m
 beklentisi yüzünden `Kaldı`.
 
 **Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+
+---
+
+**Yeniden koşum — 2026-09-18 (Aile G kapanışı) · ☑ GEÇTİ**
+
+Aynı oturum, aynı kurulum. Token sayıları yine **turdakiyle birebir** (343 / 13):
+
+```
+ agent_name | input_tokens | output_tokens | input_cost   | output_cost  | pricing_source | tool_calls
+ support    |          343 |            13 | 0.0000857500 | 0.0000260000 |              0 |          0
+```
+
+343 × 0,25 / 1e6 = 0,00008575 ✓ · 13 × 2,00 / 1e6 = 0,000026 ✓. Case'in asıl
+iddiası (selam isteği tool çağırmaz) yine tuttu: **0** tool çağrısı.
 
 ---
 
@@ -1059,6 +1092,36 @@ geçiyor: tüketici `cost` sütunlarını görüyor, doldurmuyor ve sebebini anc
 
 **Etki:** orta — veri kaybı yok, yanlış sayı **üretilmiyor** (en önemlisi bu);
 bedeli, maliyet raporlamasının kutudan çıkmamasıdır.
+
+---
+
+**✅ KAPANDI 2026-09-18 (Aile G).** Kaydın teşhisi doğruydu ve iki yarısı da
+kapatıldı (K-808, K-809):
+
+1. **Mekanizma artık susmuyor.** `UnpricedModelWarningService` açılışta her
+   fiyatsız `provider/model` çiftini `Warning` ile adlandırır ve
+   `GET /api/diagnostics` aynı listeyi `pricing` altında bildirir. İki okuyucu
+   **tek** `UnpricedModels.Find` metodunu çağırır — iki kopya kaçınılmaz olarak
+   kayar ve raporu uyarıyı doğrulamak için açan operatör farklı bir liste
+   görürdü.
+2. **Örnek uygulama artık dolu.** 13 modelin 13'ü fiyat taşıyor; rakamlar
+   `//Models` yorumunda **açıkça ÖRNEK** olarak işaretlendi (bakımı yapılan bir
+   fiyat listesi değil — K-032). Paket içine gömülü fiyat tablosu yine yok.
+
+Canlı ölçüm (gerçek kurulum, `mt_g` şeması):
+
+```
+GET /api/models            -> 13 model, 13'ü fiyatlı  (turda: 13 / 0)
+GET /api/diagnostics       -> "pricing": { "pricedModels": 13,
+                                           "unpricedModels": [], "currency": "USD" }
+acilis kaydi (echo saglayicisi acikken):
+  warn: Tracon.UnpricedModelWarningService[1]
+        1 catalog model(s) carry no price ... Unpriced: echo/echo-1
+```
+
+Veri kaybı olmadığı kayıtta zaten doğruydu: `POST /api/stats/recalculate-costs`
+fiyat sonradan girilince geçmişi geri hesaplar. `HATA-S1-025`'ten (tool
+harcamasının **kalıcı** kaybı) bu ailedeki ikizini ayıran şey budur.
 
 ---
 

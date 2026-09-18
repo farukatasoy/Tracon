@@ -104,3 +104,30 @@ Kural: bir rapor alanı makine büyüklüğü iddia ediyorsa donanımı okur
 src/ tests/` — başka vaka yok. `Environment.MachineName`'in `SingletonGuard` ve
 `JobWorkerBackgroundService`'teki kullanımları bir **sahip kimliğidir**, makine
 kapasitesi iddiası değil; vaka sayılmaz.
+
+## 🚨 Dürüst bir "bilmiyorum" bir süre sonra kırık bir rapordan ayırt edilemez
+
+`RunPricingResolver` fiyat hiçbir kaynakta yoksa `PricingSource.Unknown` yazar
+ve maliyet sütunlarını **boş** bırakır — sıfır değil, çünkü sıfır modelin
+bedava olduğunu iddia ederdi. Mekanizma doğrudur ve öyle kalır. Kusur
+(`HATA-S1-010`) mekanizmada değil **sessizliğindeydi**: örnek kurulumun 13
+modelinin hiçbirinde fiyat yoktu, yani her `run` maliyetsiz kaydediliyordu ve
+sebebini öğrenmenin tek yolu bir satırdaki `pricing_source` enum'unu okumaktı.
+Operatörün gördüğü şey kırık bir maliyet raporundan ayırt edilemezdi.
+
+**Kural:** `null` ile "ölçülmedi"yi ayıran her alan için, o durumun **kalıcı**
+hâle gelebileceği bir kurulum var mı diye sor. Varsa durumu bir kez söyle —
+açılışta bir `Warning` (`UnpricedModelWarningService`, Aile A'nın
+`PreservedStoreRegistrationWarningService` emsali) ve `/api/diagnostics`'te bir
+alan (Aile F'nin `runRecording` emsali). K-808.
+
+**İki okuyucu tek kural uygular.** Uyarı ile rapor aynı `UnpricedModels.Find`
+metodunu çağırır. Aynı mantığın iki kopyası kaçınılmaz olarak kayar ve
+raporu uyarıyı doğrulamak için açan operatör farklı bir liste görür.
+
+**Sınıf taraması (2026-09-18):** `grep -rn "PricingSource.Unknown" src/` —
+diğer okuyucular (`RunRecordingAgent.Completion`, `RunCostRecalculationService`,
+`OnlineEvalSummaryService`, `QuotaTypes`) durumu zaten doğru ele alıyor; hiçbiri
+sıfır yazmıyor. `RunCostRecalculationService` fiyat sonradan girilince geçmişi
+geri hesaplar, yani bu kusurda **veri kaybı yoktur** — `HATA-S1-025`'ten (tool
+harcamasının kalıcı kaybı) ayıran şey budur.

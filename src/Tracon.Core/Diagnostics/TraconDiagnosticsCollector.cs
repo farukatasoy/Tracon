@@ -36,6 +36,7 @@ public sealed class TraconDiagnosticsCollector
     private readonly IAttachmentStorage? _attachmentStorage;
     private readonly IToolApprovalPresenter _approvalPresenter;
     private readonly TraconRunRecordingOptions _runRecording;
+    private readonly TraconPricingOptions _pricing;
     private readonly ILogger<TraconDiagnosticsCollector>? _logger;
 
     /// <summary>Initializes a diagnostics collector.</summary>
@@ -111,6 +112,7 @@ public sealed class TraconDiagnosticsCollector
         _attachmentStorage = attachmentStorage;
         _approvalPresenter = approvalPresenter;
         _runRecording = options?.Value.RunRecording ?? new TraconRunRecordingOptions();
+        _pricing = options?.Value.Pricing ?? new TraconPricingOptions();
         _circuitBreaker = circuitBreaker;
         _logger = logger;
     }
@@ -226,6 +228,35 @@ public sealed class TraconDiagnosticsCollector
                 RecordToolPayloads = _runRecording.RecordToolPayloads,
                 MaxPayloadLength = _runRecording.MaxPayloadLength,
             },
+            Pricing = CollectPricing(),
+        };
+    }
+
+    /// <summary>
+    /// Reports whether the catalog can actually put a price on a run.
+    /// </summary>
+    /// <remarks>
+    /// Shares <see cref="UnpricedModels.Find"/> with the startup warning on
+    /// purpose: an operator who opens this report to check that warning must
+    /// see the same list, and two copies of the rule would drift.
+    /// </remarks>
+    private PricingDiagnostic CollectPricing()
+    {
+        var unpriced = UnpricedModels.Find(_providers, _pricing);
+
+        // Counted over the same DISTINCT pairs Find collapses, so a provider
+        // registered twice (UseOpenAI registers ChatCompletions and Responses)
+        // does not count its catalog twice.
+        var total = _providers
+            .SelectMany(provider => provider.Models.Select(model => $"{provider.Name}/{model.Name}"))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Count();
+
+        return new PricingDiagnostic
+        {
+            PricedModels = total - unpriced.Count,
+            UnpricedModels = unpriced,
+            Currency = _pricing.Currency,
         };
     }
 

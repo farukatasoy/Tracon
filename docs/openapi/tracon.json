@@ -12969,6 +12969,40 @@
         },
         "description": "The pending tool approval request of a run that executes from the queue."
       },
+      "PricingDiagnostic": {
+        "required": [
+          "pricedModels",
+          "unpricedModels",
+          "currency"
+        ],
+        "type": "object",
+        "properties": {
+          "pricedModels": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Gets the number of catalog models that resolve to a price.",
+            "format": "int32"
+          },
+          "unpricedModels": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Gets the \u0060provider/model\u0060 pairs no price source covers, in catalog\norder. Empty when every model is priced."
+          },
+          "currency": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Gets the currency every computed cost is expressed in."
+          }
+        },
+        "description": "Whether the catalog can actually put a price on a run."
+      },
       "PricingSource": {
         "enum": [
           "Catalog",
@@ -16668,6 +16702,14 @@
             "type": "boolean",
             "description": "Whether the call ended because its execution timeout elapsed\n(TraconToolTimeoutException)."
           },
+          "lateCompletedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The moment a call that had already been reported as timed out actually\nsettled (UTC). \u0060null\u0060 for every call that settled\nwithin its own timeout.",
+            "format": "date-time"
+          },
           "succeeded": {
             "type": "boolean",
             "description": "Whether the call finished successfully."
@@ -16852,7 +16894,8 @@
           "agentCount",
           "agentSources",
           "extensionPoints",
-          "runRecording"
+          "runRecording",
+          "pricing"
         ],
         "type": "object",
         "properties": {
@@ -16938,6 +16981,10 @@
           "runRecording": {
             "description": "Gets the run recording settings this installation is running with.",
             "$ref": "#/components/schemas/RunRecordingDiagnostic"
+          },
+          "pricing": {
+            "description": "Gets whether this installation can actually put a price on a run.",
+            "$ref": "#/components/schemas/PricingDiagnostic"
           }
         },
         "description": "Reports the self-diagnostics of the installation."

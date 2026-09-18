@@ -109,6 +109,9 @@ export const trRuns: Pick<Messages, keyof typeof enRuns> = {
   "runDetail.mcpSource": 'Uzak MCP sunucusu "{server}" üzerinde bulundu.',
   "runDetail.ok": 'tamam',
   "runDetail.notMeasured": 'ölçülmedi',
+  "runDetail.finishedLate": 'geç bitti',
+  "runDetail.finishedLateHint":
+    'Modele bu çağrının zaman aşımına uğradığı bildirildi. Çağrı koşmaya devam etti ve {at} anında sonuçlandı; burada görünen süre ve kullanım gerçek bedelidir.',
   "runDetail.streamed": 'akışlı',
   "runDetail.nonStreaming": 'akışsız',
   "runDetail.cancel.button": 'Çalıştırmayı iptal et',
