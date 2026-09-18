@@ -54,8 +54,14 @@ public sealed class ToolWrapperChainTests
         var codeChain = ((AITool)codeFunction).GetType();
         var mcpChain = ((AITool)mcpFunction).GetType();
 
-        codeChain.ShouldBe(typeof(AuthorizingAIFunction));
-        mcpChain.ShouldBe(typeof(AuthorizingAIFunction));
+        // ExplainedFailureAIFunction is the outermost layer since HATA-S1-024:
+        // it covers every layer beneath it, so a rejected argument, a denial and
+        // a timeout all reach the model with the sentence Tracon wrote.
+        codeChain.ShouldBe(typeof(ExplainedFailureAIFunction));
+        mcpChain.ShouldBe(typeof(ExplainedFailureAIFunction));
+
+        ((AITool)codeFunction).GetService<AuthorizingAIFunction>().ShouldBeOfType<AuthorizingAIFunction>();
+        ((AITool)mcpFunction).GetService<AuthorizingAIFunction>().ShouldBeOfType<AuthorizingAIFunction>();
 
         ((AITool)codeFunction).GetService<TimeoutAIFunction>().ShouldBeOfType<TimeoutAIFunction>();
         ((AITool)mcpFunction).GetService<TimeoutAIFunction>().ShouldBeOfType<TimeoutAIFunction>();
@@ -98,7 +104,8 @@ public sealed class ToolWrapperChainTests
 
         var function = Compose(registration, Descriptor("validated_tool"), validator: new AllowingValidator());
 
-        ((AITool)function).GetType().ShouldBe(typeof(AuthorizingAIFunction));
+        ((AITool)function).GetType().ShouldBe(typeof(ExplainedFailureAIFunction));
+        ((AITool)function).GetService<AuthorizingAIFunction>().ShouldBeOfType<AuthorizingAIFunction>();
         ((AITool)function).GetService<ValidatingAIFunction>().ShouldBeOfType<ValidatingAIFunction>();
     }
 

@@ -101,6 +101,38 @@ kontroller). MT-PROV-030/031 (`ModelProviderSettings.Validate`'in kendi
 istisnası) ETKİLENMEZ — onlar zaten `ProviderSettingsValidationException`
 taşıyıp doğru özgül mesajı veriyor (aşağıdaki case kayıtlarında görülüyor).
 
+### ✅ KAPANDI — 2026-09-18 (Aşama 2, Aile C)
+
+**Sınıf taraması kusur kaydından GENİŞ çıktı.** Kayıt iki sağlayıcı paketi
+(Anthropic, Google) diyordu; ölçüm **dört** paketin **beş** dosyasında
+**yedi** maskelenen `throw` buldu:
+
+| Dosya | Sayı | Ne doğruluyor |
+|---|---|---|
+| `AnthropicChatClientFactory.cs` | 2 | boş model adı · düşünme bütçesi ≤ 0 |
+| `GoogleChatClientFactory.cs` | 2 | boş model adı · bütçe aralık dışı |
+| `GoogleSafetySettings.cs` | 1 | tanınmayan güvenlik eşiği |
+| `OpenAIChatClientFactory.cs` | 1 | boş model adı |
+| `AzureOpenAIChatClientFactory.cs` | 1 | boş model adı |
+
+**Düzeltme.** Yedisi de artık `ProviderSettingsValidationException` fırlatıyor —
+`ProviderFailureNormalizer.IsKnownSafe`'in zaten muaf tuttuğu tip. Böylece
+`BuildPipeline`'ın kendi yorumunun söylediği şey gerçekleşiyor: "yalnız ham SDK
+istemcisinden gelen istisnalar işaretlenir... dış normalleştirici sağlayıcı
+hatalarını maskeleyebilir ama bir Tracon guard'ının attığı hatayı gizlemez."
+
+**İşaret tipi `internal` KALDI, public API'ye çıkmadı.** Değerinin tamamı
+taklit edilememesinden geliyor. `InternalsVisibleTo` yalnız **dört sevk edilen
+adaptöre** genişletildi (Aile A'daki store sağlayıcılarıyla aynı emsal).
+Üçüncü taraf bir adaptör aynı sonuca `ModelProviderSettings.Validate` ile
+ulaşır; o metot istisnayı onların adına fırlatıyor.
+
+**Test kayıt seviyesinde, fabrika seviyesinde değil.** Fabrika mesajı zaten
+doğru üretiyordu; değişen şey aşağı akışta bir şeyin onu koruyup korumadığı.
+Test `ModelProviderRegistry` üzerinden geçiyor.
+
+---
+
 **Ayrım — kusur DEĞİL:** MT-PROV-036/042/053 de aynı jenerik mesajı
 görüyor, ama BUNLAR gerçek yabancı SDK istisnaları (Anthropic/Gemini'nin
 kendi `400`/`404` hataları) — `BuildPipeline`'ın maskeleme NİYETİ tam

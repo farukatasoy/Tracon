@@ -485,6 +485,65 @@ detayını sızdırır — güvenlik açısından daha riskli), ya da (c) her to
 kendi `catch (TraconException ex) { return ex.Message; }` desenini
 benimsemesi. Karar kapanış oturumuna bırakıldı.
 
+---
+
+### ✅ KAPANDI — 2026-09-18 (Aşama 2, Aile C)
+
+**Sınıf taraması ölçüldü: 17 çalışma-anı `throw`, beş tipte** —
+`TranscribeTool` (4) · `SpeakTool` (2) · `VoiceToolBase` (1) ·
+`GenerateImageTool` (9) · `ValidatingAIFunction` (1). Hepsi modele aynı altı
+kelimeyle gidiyordu. En ağırı `ValidatingAIFunction`: argüman reddinin
+gerekçesi modele ulaşmadığı için model kendini düzeltemiyor, yani aynı hatalı
+çağrıyı tekrarlıyor.
+
+**Kullanıcı kararı 👤 (2026-09-18): seçenek (a), genelleştirilmiş.**
+`ToolWrapperChain.Compose` **her tool kaynağına ulaşan tek birleştirme
+noktasıdır** (kod tool'ları ve MCP kiracı tool'ları), bu yüzden düzeltme tek
+bir yerde duruyor ve yeni tool'lar otomatik kapsanıyor.
+
+**Düzeltme.** `ExplainedFailureAIFunction` zincire **en dış katman** olarak
+eklendi. Yalnız `TraconException` yakalanır ve `.Message` tool sonucu olarak
+döndürülür. En dışta olması altındaki her katmanı kapsar: argüman doğrulama,
+yetkilendirme, zaman aşımı ve tool'un kendi gövdesi.
+
+**Seçenek (b) reddedildi.** `IncludeDetailedErrors=true` **her** istisna
+türünün detayını modele sızdırır — sağlayıcı SDK mesajları, yığın izleri
+dahil. K-059'un ruhuna aykırı. Katmanın dar olması bilinçlidir ve testle
+kilitli: `InvalidOperationException` ve `OperationCanceledException` dokunulmadan
+geçmeye devam ediyor.
+
+🚨 **İlk düzeltme bir gerileme üretti ve kapılar onu yakaladı.** Katmanın ilk
+hâlinin doküman yorumu "run kaydı çağrıyı yine başarısız gösterir, alttaki
+katmanlar kendi olaylarını zaten yazdı" diyordu. **Bu iddia yanlıştı.** Kayıt
+ve olay tipi `FunctionResultContent.Exception`'ı okuyor; istisnayı yutunca:
+
+- `ToolInvocationRecord.TimedOut` **false** oldu (zaman aşımına uğrayan çağrı
+  başarılı göründü),
+- `Error` **null** oldu, yani `Succeeded` true,
+- olay `ToolFailed` yerine `ToolInvoked` yazıldı.
+
+Üç işlevsel test bunu yakaladı (`ConcurrentToolInvocationTests`,
+`ToolGovernanceEndpointTests` ×2). **Testler zayıflatılmadı** — kod düzeltildi.
+
+**Çözüm kod tabanının kendi emsalini izliyor.** `AuthorizingAIFunction` da bir
+reddi normal bir sonuç olarak döndürüyor ve tam bu sorunu
+`ToolAuthorizationAccumulator` ile çözmüş: işaret, sonucun yanında çağrı
+kimliğine göre taşınıyor. `ToolExplainedFailureAccumulator` aynı deseni
+uyguluyor, ama bayrak değil **istisnanın kendisini** taşıyor — kayıt hem
+metnini istiyor hem de bir zaman aşımının zaman aşımı olarak tanınabilir
+kalması gerekiyor.
+
+Ek olarak olay tipi artık `record.Succeeded`'dan okunuyor, `result.Exception`'dan
+değil: tek kaynak.
+
+**Tip `internal` yapıldı.** Zincirdeki public kardeşlerinden farklı olarak
+tüketici onu ne kurar ne yapılandırır. `public-surface-baseline.txt` "sayı
+yalnız küçülebilir; büyüme bilinçli bir eklemedir" diyor — kimsenin
+adresleyemediği bir katman için paket yüzeyini büyütmek karşılıksız bir
+maliyet olurdu.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
 ## MT-MM-048 — `transcribe` kayıtlı bir ses ekini metne çevirir
 
 **Gerçek sonuç**

@@ -3,8 +3,8 @@
 > **Bu turu kapatan her oturum ÖNCE burayı okur.** Koşum bitti; bu dosya
 > kapanışın tek kontrol düzlemidir.
 >
-> **Durum:** 🟡 Aşama 2 sürüyor · **Aile A ve B KAPANDI** · 39 açık kusur, 20 aile kaldı
-> **Son güncelleme:** 2026-09-18 (Aile B kapandı — `S4-003` · `S3-004` · `S1-011`)
+> **Durum:** 🟡 Aşama 2 sürüyor · **Aile A · B · C KAPANDI** · 37 açık kusur, 19 aile kaldı
+> **Son güncelleme:** 2026-09-18 (Aile C kapandı — `S1-024` · `S4-005`)
 
 Turdan bağımsız kapanış protokolü — aile aile oturum yordamı, "önce ampirik
 yeniden üret" kuralı, bitti tanımı ve sayım betiği —
@@ -224,6 +224,52 @@ sıfırdan başlardı: tam da bu sorgunun engellemek için var olduğu çakışm
 ---
 
 | **C** · Tracon'un kendi istisnası maskeleniyor | `S1-024` **Yüksek** · `S4-005` Orta | Tool içi `TraconException` mesajı modele hiç ulaşmıyor — `FunctionInvokingChatClient` onu `"Error: Function failed."`e çeviriyor. Aynı desen sağlayıcı fabrikasında: `ProviderFailureNormalizer` Anthropic/Google fabrikalarının kendi el ile attığı doğrulama hatalarını (düşünme bütçesi, güvenlik eşiği) yabancı SDK hatasıyla aynı maskeye sokuyor, özgül mesaj `/api/agents/validate`'te kayboluyor. **Tarama:** `throw new TraconException` kullanan HER tool ve fabrika | ☐ |
+#### Aile C — ✅ kapandı (2026-09-18)
+
+İki kusur, tek sınıf: **Tracon'un kendi yazdığı cümle, yabancı bir SDK
+hatasıyla aynı maskeye düşüyor.** İkisinin de yüzeyi ayrı.
+
+**`S1-024` — tool sonucu.** Ölçülen kapsam: **17 çalışma-anı `throw`, beş
+tipte** (`TranscribeTool` 4 · `SpeakTool` 2 · `VoiceToolBase` 1 ·
+`GenerateImageTool` 9 · `ValidatingAIFunction` 1). En ağırı sonuncusu: argüman
+reddinin gerekçesi modele ulaşmadığı için model kendini düzeltemiyor ve aynı
+hatalı çağrıyı tekrarlıyor.
+
+👤 **Karar:** `ToolWrapperChain`'e en dışta tek katman
+(`ExplainedFailureAIFunction`). Yalnız `TraconException` yakalanır; başka
+hiçbir istisna türü dokunulmadan geçer. `IncludeDetailedErrors=true`
+**reddedildi** — o, sağlayıcı SDK mesajları ve yığın izleri dahil **her**
+istisnanın detayını modele sızdırırdı (K-059'un ruhu).
+
+**`S4-005` — sağlayıcı doğrulaması.** Sınıf taraması kusur kaydından **geniş**
+çıktı: kayıt iki paket diyordu, ölçüm **dört** pakette **yedi** maskelenen
+`throw` buldu (Anthropic 2 · Google 3 · OpenAI 1 · Azure 1). Yedisi de artık
+`ProviderFailureNormalizer`'ın zaten muaf tuttuğu
+`ProviderSettingsValidationException` fırlatıyor.
+
+İşaret tipi **`internal` kaldı** — değerinin tamamı taklit edilememesinden
+geliyor. `InternalsVisibleTo` yalnız dört sevk edilen adaptöre genişletildi;
+bu Aile A'daki store sağlayıcılarıyla **aynı emsal**.
+
+🚨 **Aile C'nin ilk düzeltmesi bir gerileme üretti; kapılar yakaladı, testler
+zayıflatılmadı.** Katmanın doküman yorumu "kayıt çağrıyı yine başarısız
+gösterir" diyordu — yanlıştı. Kayıt ve olay tipi
+`FunctionResultContent.Exception`'ı okuyor, istisna yutulunca zaman aşımına
+uğrayan çağrı **başarılı** göründü (`TimedOut` false, `Error` null,
+`ToolInvoked`). Üç işlevsel test bunu yakaladı.
+
+Çözüm **kod tabanının kendi emsalini** izliyor: `AuthorizingAIFunction` da bir
+reddi normal sonuç olarak döndürüyor ve bunu `ToolAuthorizationAccumulator` ile
+çözmüş. `ToolExplainedFailureAccumulator` aynı deseni uyguluyor ama bayrak
+değil **istisnanın kendisini** taşıyor — kayıt metnini istiyor ve bir zaman
+aşımının zaman aşımı olarak tanınabilir kalması gerekiyor. Olay tipi de artık
+tek kaynaktan (`record.Succeeded`) okunuyor.
+
+**Ders:** bir istisnayı sonuca çevirmek yalnız modelin okuduğunu değil,
+**kaydın okuduğunu** da değiştirir. Kapanışta `docs/hafiza/`'ya taşınacak.
+
+---
+
 | **D** · MCP çıktısı kırpılmıyor | `S1-026` **Yüksek** | `TruncatingAIFunction` MCP tool sonuçlarını (`AIContent`) atlıyor. Ölçüm: `Tracon:Tools:DefaultMaxOutputBytes=200` iken modele **8095 bayt** gitti — sınırın 40 katı, hiçbir kırpma işareti yok. Sessizce fark edilmez | ☐ |
 | **E** · Eval case kimliği sıfırlanıyor | `S3-003` **Yüksek** | `PUT /api/evals/{name}/cases` suite'teki **her** case'in id'sini sıfırlıyor: `EvalCaseInput` DTO'sunda `Id` yok → `SaveCasesAsync` hep `Guid.Empty` alıyor. Sonuç: aynı pencerede gerçek bir regresyon "Removed" sayılıp `--max-regressions 0` kapısını **sessizce** atlatabiliyor. Kök neden `EvaluationContracts.cs`/`EvalEndpoints` satır düzeyinde tespit edildi | ☐ |
 | **F** · SSE ve düşünme kaydı | `S3-005` **Yüksek** · `S3-006` **Yüksek** | Bağlantı sessizce koparsa çalıştırma ekranı sonsuza dek "Waiting for events…" yazısında donuyor; kullanıcıya hiçbir hata gösterilmiyor. Ayrıca `RecordReasoningDeltas=true` iken model gerçekten düşünme içeriği üretse bile `ReasoningDelta` olayı HİÇ kaydedilmiyor (gerçek Anthropic extended-thinking çağrısıyla ölçüldü). İki ayrı katman — aynı oturumda kapanır, iki commit olabilir | ☐ |

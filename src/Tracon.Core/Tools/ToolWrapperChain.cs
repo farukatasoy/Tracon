@@ -15,7 +15,7 @@ namespace Tracon;
 /// miss the other.
 /// </summary>
 /// <remarks>
-/// Composition order (outermost first): Authorizing -&gt; Validating -&gt;
+/// Composition order (outermost first): ExplainedFailure -&gt; Authorizing -&gt; Validating -&gt;
 /// Timeout -&gt; ApprovalRequired -&gt; Truncating -&gt; the real function.
 /// Authorization runs before everything else: asking for approval, waiting
 /// out a timeout, or validating arguments for a call the caller could never
@@ -114,12 +114,17 @@ internal static class ToolWrapperChain
             ? wrapped
             : new ValidatingAIFunction(wrapped, descriptor, validator, validatingLogger);
 
-        return new AuthorizingAIFunction(
+        wrapped = new AuthorizingAIFunction(
             wrapped,
             authorizationHandler,
             descriptor.Effect,
             registration.RequiredPermission,
             attribution,
             authorizingLogger);
+
+        // Outermost, so it covers every layer beneath it: a rejected argument,
+        // a denied call, a timeout and the tool's own body all reach the model
+        // with the sentence Tracon wrote instead of "Error: Function failed."
+        return new ExplainedFailureAIFunction(wrapped);
     }
 }

@@ -83,7 +83,7 @@ public sealed class OpenAIChatClientFactory
         ArgumentNullException.ThrowIfNull(binding);
 
         var model = Trim(binding.Model) ?? _defaultModel
-            ?? throw new TraconException(
+            ?? throw new ProviderSettingsValidationException(
                 "The model name is empty and no default model is configured. Set the " +
                 $"{nameof(ModelBinding)}.{nameof(ModelBinding.Model)} field of the agent definition, or " +
                 $"configure '{OpenAIProviderOptions.SectionName}:{nameof(OpenAIProviderOptions.DefaultModel)}'.");
