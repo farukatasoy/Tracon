@@ -58,6 +58,46 @@ Kapı: `_bolum_disi_karar_satirlari()` — tarama artık dosyanın tamamındadı
 Aynı asimetri Faz 169'da da görüldü (kesik başlık taraması §2 ile sınırlıydı) —
 bu ikinci vakadır.
 
+## 🚨 Bir kapının DIŞLAMA listesi onun sözleşmesidir — `arsiv` dışlanınca secret kapısı körleşti (2026-09-19)
+
+`kapi.py tarama` ✅ **temiz** derken `docs/arsiv/fazlar/53-KIRACI-API-ANAHTARLARI.md:78`
+içinde GERÇEK bir `ApiKeyGenerator.Generate` çıktısı duruyordu. Repo public
+yapılmadan önceki denetimde bulundu; kapı 13 ay boyunca yeşildi.
+
+İki bağımsız boşluk vardı ve **her biri tek başına yeterliydi**:
+
+1. **Desen ürünün KENDİ credential formatını tanımıyordu.** `SECRET_PATTERN`
+   `sk-*`, `AVNS_*` ve yerel kurulum deyimini biliyordu; Tracon'un kendi
+   `ap_<kiracı>_<base64url>` formatını bilmiyordu. Bir secret kapısının kendi
+   ürününün anahtarını tanımaması, kapının olmamasıyla aynı sınıftadır.
+2. **`SCAN_EXCLUDED_DIRS` `arsiv` ve `manuel-test` ağaçlarını hiç yürümüyordu** —
+   oysa **gerçek koşum çıktısı taşıyan tek yer orasıdır.** Arşivlenmiş faz kaydı
+   "doğrulama komutları — gerçek çıktı" blokları taşır; üretilmiş bir
+   credential'ın yapışacağı yer tam olarak burasıdır. Kapı, en çok bakması
+   gereken ağacı dışlamıştı.
+
+🚨 **Ders: dışlama listesi performans ayarı değil, kapının kapsam sözleşmesidir.**
+Bir ağacı "gürültülü" diye dışlamak, o ağaçta aradığın şeyin olmadığını
+varsaymaktır. Buradaki varsayım tam tersine çıktı.
+
+**Kapsamı tüm desenlere açmak çözüm DEĞİLDİR** — ölçüldü: 51 eşleşmenin 48'i
+localhost docker parolasıdır ve hepsini `SYNTHETIC-CREDENTIAL` ile işaretlemek
+`find_secrets`'in kendi yorumunun yasakladığı şeyi (sessizce büyüyen istisna
+listesi) üretirdi. Ayrım **şekildedir**: bir credential ŞEKLİ dokümanda asla
+meşru değildir, yerel kurulum deyimi ise manuel testin kendisidir. Tarama bu
+yüzden iki katmanlıdır ve maliyet 51'den **9'a** iner (KG-031).
+
+Desen yazarken iki tuzak ölçüldü:
+
+- **Uzunluk TAM verilir.** `ap_[a-z0-9]{1,12}_[A-Za-z0-9_-]{43,}` snake_case
+  İngilizce metni yakalar (`ap_on_total_source_code_size_for_...`) — 70+ yanlış
+  pozitif. `{43}` + `\b` sıfır verir; base64url(32 bayt) tam 43 karakterdir.
+- **Deseni düz yazan yorum kapıyı kendi kaynağı üzerinde kırmızı yapar.**
+  `kapi.py` kendi taramasına girer. `kapi_test.py` fixture'ı bu yüzden parçalı
+  yazar (`"Pass" + "word="`); aynı disiplin yorumlar için de geçerlidir.
+
+Mutasyonla doğrulandı (8/8), `IkiKatmanliSecretTaramasiTestleri` sınıfı kilitler.
+
 ## 🚨 `faz-arsivle` kendi bağlantı onarımını kaçırabilir — koştuktan SONRA denetle (Faz 104)
 
 Skill "tek bir yeni kırık bağlantı üretirse taşımayı geri alır" diyor. Faz

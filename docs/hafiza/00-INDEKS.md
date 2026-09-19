@@ -57,7 +57,7 @@
 | MCP Tasks uzantısı | [mcp-tasks](mcp-tasks.md) |
 | Marka hikayesi, metafor, ses ve ton; kullanıcı metni | [marka](marka.md) |
 | Sevk edilen doküman metni, metin kapısı, ekran | [dokumantasyon](dokumantasyon.md) |
-| Karar defteri bakımı, indeks üretimi, faz arşivleme | [defter-bakimi](defter-bakimi.md) |
+| Karar defteri bakımı, indeks üretimi, faz arşivleme, kapı KAPSAMI | [defter-bakimi](defter-bakimi.md) |
 | Site üretim betikleri (`build-agent-map.mjs`, `docfx`) | [site-uretim-kapilari](site-uretim-kapilari.md) |
 | Site yayını (`site-deploy.sh`), Starlight | [site-yayin-ve-tema](site-yayin-ve-tema.md) |
 | Site metni yazımı (markdown, makine okuyucusu) | [site-icerik-yazimi](site-icerik-yazimi.md) |

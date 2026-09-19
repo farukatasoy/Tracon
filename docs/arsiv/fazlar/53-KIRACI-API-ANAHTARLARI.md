@@ -91,6 +91,13 @@ GET /tracon/api/api-keys → liste, hiçbir kayıtta plaintextKey/hash yok
 grep raw-key /tmp/tracon-api.log → 0 eşleşme
 ```
 
+> **Redaksiyon notu (2026-09-19).** `plaintextKey` bu blokta gerçek bir
+> `ApiKeyGenerator.Generate` çıktısı olarak duruyordu. Repo public yapılmadan
+> önce redakte edildi; `keyPrefix` ürünün kendi tasarladığı 12 karakterlik
+> görüntü önekidir ve secret değildir. Kapı bunu kaçırıyordu — `SCAN_EXCLUDED_DIRS`
+> `arsiv` ağacını hiç yürümüyordu ve desen `ap_*` formatını tanımıyordu; ikisi de
+> aynı turda düzeltildi (`find_secrets` iki katmanlı).
+
 ## Sonraki Faza Devir Notu
 
 **Devralınan sözleşmeler:**
