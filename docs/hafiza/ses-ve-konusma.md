@@ -181,6 +181,11 @@ tazele.
   kendisini olcer.
 - **`LiveTranscriptLedger` is parcacigi guvenli DEGIL.** Pump yazarken delegation
   gorevi `Cut` cagirir. `MaxConcurrentDelegations` yukseltilecekse once kilit.
+- **🚨 Dis `CloseAsync` `_lifetime`'i pump bitmeden iptal edemez** (2026-09-19,
+  Windows CI): sideband'de alinmis ama pump'in henuz ledger'a yazmadigi transcript
+  frame'leri vardir. Once delegation'lari durdur, sideband'i kapat, pump'i bekle;
+  sonra `FlushHistoryAsync` cagir. Tersi sira session history'yi sessizce eksik
+  yazar.
 
 - **🚨 Sentetik bir ses akışı WebRTC'de çalışır, `MediaRecorder`'da ÇALIŞMAZ**
   (2026-09-19, manuel kapanış §5 turları 8-9): canlı ses (`live-test.html`,
