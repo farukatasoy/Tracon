@@ -23,7 +23,7 @@ spec'in üzerine yazmaz, `kosumlar/` altında yeni bir tarih dizini açar.
 
 > 🔄 **Açık tur: 2026-09-16.** Bir koşum oturumuna başlıyorsan bu dosyayı değil,
 > önce turun devir notunu oku:
-> [`kosumlar/2026-09-16/DEVIR.md`](kosumlar/2026-09-16/DEVIR.md) — durum,
+> [`../arsiv/manuel-test-kosum-2026-09/DEVIR.md`](../arsiv/manuel-test-kosum-2026-09/DEVIR.md) — durum,
 > değişmez kurallar, ortam doğrulaması ve sıradaki iş oradadır. Bu dosya turdan
 > **bağımsız** ortamı tarif eder, turun kendisini değil.
 
@@ -426,7 +426,7 @@ ya da artar.
 Tur kapandı: **1.813 case geçti**, 1 `Kaldı`, 19 `Atlandı`. Aşağıdaki **26**
 case koşulamadı ve gerekçesiyle devreder; ayrıca **8** case hiç kayıt bloğu
 almadı (E maddesi). Kaynak: turun kapanış kaydı,
-[`kosumlar/2026-09-16/KAPANIS-PLANI.md`](kosumlar/2026-09-16/KAPANIS-PLANI.md)
+[`../arsiv/manuel-test-kosum-2026-09/KAPANIS-PLANI.md`](../arsiv/manuel-test-kosum-2026-09/KAPANIS-PLANI.md)
 §5 ve her case'in kendi koşum kaydı.
 
 **A. İnsan gözü gerekiyor — tipografi, görsel doğruluk, iki dil** (10)
@@ -523,7 +523,7 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
 > ## 🔧 2026-09-16 — Tur öncesi tazeleme (`manuel-test-tazelik.py`)
 >
 > Tam tur açılmadan önce set, taban tura (`12fb6477`, 2026-08-15) karşı ölçüldü.
-> Ölçüm ve koşum sırası: [`kosumlar/2026-09-16/00-KOSUM-PLANI.md`](kosumlar/2026-09-16/00-KOSUM-PLANI.md).
+> Ölçüm ve koşum sırası: [`../arsiv/manuel-test-kosum-2026-09/00-KOSUM-PLANI.md`](../arsiv/manuel-test-kosum-2026-09/00-KOSUM-PLANI.md).
 >
 > **Kapatıldı:**
 >

@@ -6,27 +6,6 @@
 
 ---
 
-## 🔄 Açık iş — 2026-09-19
-
-**Manuel kabul turunun kapanışı (Aşama 2) sürüyor.** Koşum bitti (36/36 aile,
-1856 case); **yirmi iki ailenin yirmi ikisi de kapandı.** Kalan iş kusur
-düzeltmek değil, **kapanmış ailelerin `Kaldı` case'lerini canlı sunucuda
-yeniden koşmak** — ve ardından bitti tanımı + damıtma.
-
-🚨 **Sayım burada TEKRARLANMAZ** — kaç kusurun kapandığı her ailede değişir ve
-iki yerde tutmak kayma üretir. Güncel durum tek yerdedir: planın başlığı.
-
-Tek kontrol düzlemi:
-[`docs/manuel-test/kosumlar/2026-09-16/KAPANIS-PLANI.md`](docs/manuel-test/kosumlar/2026-09-16/KAPANIS-PLANI.md)
-— aile listesi, sıradaki iş, düzeltilmiş öncüller ve bitti tanımı oradadır.
-Bu satır kapanış bitince silinir.
-
-⚠️ **`kapi.py kapanis` bu turda ikinci adımda durur** — koşum kaydı doküman
-bütçesini aşıyor ve bu **kabul edilmiştir**; damıtma kapanışın son adımıdır.
-Dört .NET kapısı doğrudan koşulur, komutlar planın §3.2'sindedir.
-
----
-
 ## Nereye Bakmalı
 
 Alan notları `docs/hafiza/` altındadır. Hangi dosya olduğunu
