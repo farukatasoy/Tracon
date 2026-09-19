@@ -36,6 +36,7 @@ public sealed class WorkflowRunTimeoutReasonTests
     {
         var host = new WorkflowTestHost("one");
         var slowStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var slowInvocationRecorded = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
         host.AddFunction<List<ChatMessage>, List<ChatMessage>>(
             "slow",
@@ -54,8 +55,19 @@ public sealed class WorkflowRunTimeoutReasonTests
             clock,
             static options => options.RunTimeout = TimeSpan.FromMinutes(5));
 
-        var collecting = Collect(runner, "chain", "hello");
-        await slowStarted.Task.WaitAsync(TestContext.Current.CancellationToken);
+        var collecting = Collect(runner, "chain", "hello", observed: runEvent =>
+        {
+            if (runEvent.Type == RunEventType.ExecutorInvoked &&
+                string.Equals(runEvent.Text, "slow", StringComparison.Ordinal))
+            {
+                slowInvocationRecorded.TrySetResult();
+            }
+        });
+
+        // MAF can invoke the handler before it publishes ExecutorInvoked.
+        // Both facts must be true before the test fires the runner deadline.
+        await Task.WhenAll(slowStarted.Task, slowInvocationRecorded.Task)
+            .WaitAsync(TestContext.Current.CancellationToken);
         clock.TriggerAll();
 
         var events = await collecting;
@@ -106,7 +118,7 @@ public sealed class WorkflowRunTimeoutReasonTests
         // behind, which is written on both paths.
         try
         {
-            await Collect(runner, "chain", "hello", caller.Token);
+            await Collect(runner, "chain", "hello", cancellationToken: caller.Token);
         }
         catch (OperationCanceledException)
         {
@@ -138,6 +150,7 @@ public sealed class WorkflowRunTimeoutReasonTests
         WorkflowRunner runner,
         string name,
         string message,
+        Action<RunEvent>? observed = null,
         CancellationToken cancellationToken = default)
     {
         var events = new List<RunEvent>();
@@ -146,6 +159,7 @@ public sealed class WorkflowRunTimeoutReasonTests
             new WorkflowRunRequest { WorkflowName = name, Message = message }, cancellationToken))
         {
             events.Add(runEvent);
+            observed?.Invoke(runEvent);
         }
 
         return events;

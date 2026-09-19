@@ -72,7 +72,7 @@ public sealed class TwoProcessLeaseTakeoverTests(PostgresFixture fixture) : IAsy
         {
             Directory.Delete(_logDirectory, recursive: true);
         }
-        catch (IOException)
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
             // A killed worker may still hold the file open for a moment; the
             // operating system reclaims the temp directory either way.

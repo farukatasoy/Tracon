@@ -184,6 +184,8 @@ SENKRON yolu sahte saatle test et. Vaka: `RunDeadlineTests.Deadline_is_enforced_
 
 - **Process testinde bekleme MUTLAK SÜRE değil KOŞUL olmalıdır** (Faz 157). Hazırlık için process'in stdout'a yazdığı bir satır (`HARNESS-READY`), devralma için veritabanının KENDİ `lease_until` değeri beklenir; `Task.Delay(sabit)` yüklü bir ajanda kırılgandır. `ManagedProcess.DisposeAsync` her yolda ağacı öldürür — düşen bir test öksüz worker bırakmaz.
 
+- **Windows'ta geçici dizin temizliği, kilitli dosyayı `IOException` YERİNE `UnauthorizedAccessException` ile bildirebilir** (2026-09-19): subprocess bitmiş görünse de yüklenmiş `.dll` kısa süre kilitli kalabilir. Test sonucu zaten doğrulandıktan sonraki cleanup, iki istisnayı da yutar; aksi hâlde ürün assertion'i geçen test yalnız teardown yüzünden kırmızı görünür.
+
 ## Playwright E2E'de yuk kaynakli gezinme zaman asimi (Faz 161)
 
 `Tracon.Ui.E2ETests` tam kosumda **her seferinde baska bir test** 30 sn'lik

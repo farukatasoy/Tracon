@@ -199,7 +199,7 @@ public sealed class SqliteWriteContentionTests : IDisposable
             {
                 File.Delete(_path + suffix);
             }
-            catch (IOException)
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
             {
                 // A temp file that is still held is cleaned up by the OS.
             }
