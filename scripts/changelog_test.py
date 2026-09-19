@@ -104,11 +104,28 @@ class ChangelogTestleri(unittest.TestCase):
         self.assertIsNone(heading)
 
     def test_deponun_kendi_changelogu_provayi_gecirir(self):
-        root = pathlib.Path(__file__).resolve().parent.parent
-        body, heading = changelog.read_release_notes(root / "CHANGELOG.md", "1.0.0-preview.1")
+        """Whatever state the repository's own file is in, the rehearsal finds notes.
+
+        The assertion follows the file instead of freezing one moment of it.
+        An earlier version demanded the heading be `Unreleased`, which was true
+        only until the first version was cut -- it went red on cut day and said
+        nothing about what had broken. Both states are legitimate: before a cut
+        the notes come from Unreleased, after one they come from the version
+        section, and in both the body has to be there.
+        """
+        path = pathlib.Path(__file__).resolve().parent.parent / "CHANGELOG.md"
+        cut = [
+            match.group("version")
+            for line in path.read_text(encoding="utf-8").splitlines()
+            if (match := changelog.SECTION_HEADER_PATTERN.match(line))
+            and match.group("version") != changelog.UNRELEASED
+        ]
+
+        target = cut[0] if cut else "1.0.0-preview.1"
+        body, heading = changelog.read_release_notes(path, target)
 
         self.assertIsNotNone(body)
-        self.assertEqual(heading, "Unreleased")
+        self.assertEqual(heading, target if cut else changelog.UNRELEASED)
 
 
 if __name__ == "__main__":
