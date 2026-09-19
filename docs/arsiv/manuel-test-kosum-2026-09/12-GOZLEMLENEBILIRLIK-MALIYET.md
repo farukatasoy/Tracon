@@ -1,0 +1,1004 @@
+# 12 — Gözlemlenebilirlik ve Maliyet (`OBS`) — Koşum Kaydı (2026-09-16)
+
+> 🎉 **KAPANDI (Oturum 3, 2026-09-17): 65/65 case işlendi — 61 Geçti, 4
+> ortam bekliyor** (`046`/`047`: `generate_image` tool'u bu örnekte hiç
+> kayıtlı değil · `055`: PostgreSQL `sessionId` sınırsız `text` · `059`:
+> `MT-MYU-002`'nin `flaky` provider fixture'ı bu örnekte hiç yok). Hiçbir
+> case kırmızı (`Kaldı`) değil. Kapanışta bu dördü `00-INDEKS.md`'nin açık
+> kalem tablosuna taşınmalı.
+
+> **Bu dosya bir koşum kaydıdır, spesifikasyon değildir.**
+> Spesifikasyon: [`../../12-GOZLEMLENEBILIRLIK-MALIYET.md`](../../manuel-test/12-GOZLEMLENEBILIRLIK-MALIYET.md)
+> — `Ön koşul`, `Adımlar`, `Beklenen sonuç` oradadır ve yeniden koşulabilir.
+>
+> Aşağısı yalnız **2026-09-16** koşumunun `Gerçek sonuç` ve `Durum` kayıtlarıdır.
+
+| | |
+|---|---|
+| **Şerit** | `ap-s2` (Faz B) |
+| **Çalışma kopyası** | `/Users/farukatasoy/Desktop/projects/ap-s2` · dal `test/kosum-s2` |
+| **Kod** | `7e3a4de7` donuk |
+| **Case sayısı** | 65 (MT-OBS-001..065) |
+| **Port** | `5082` · şema `mt_s2` |
+| **Depo** | PostgreSQL (`mt_s2`) |
+
+Ortam: uygulama `dotnet artifacts/bin/Tracon.Api/release/Tracon.Api.dll --urls http://localhost:5082`
+ile PID `4008` altında koştu (üst süreç `dotnet run` PID `4002` — `dotnet-counters`
+gerçek PID'i (`4008`) kullandı, `01-INDEKS.md` uyarısına uygun). `dotnet-counters`
+global aracı bu oturumda kuruldu (10.0.745401). Reset yordamı uygulandı (`mt_s2`
+şeması düşürüldü, sıfırdan migrate edildi — 51 migration).
+
+🚨 **Ortam kısıtı — Playwright MCP paylaşılan tarayıcı kilidi.** Bu makinede
+birden çok Claude Code oturumu eşzamanlı çalışıyor (ps çıktısıyla doğrulandı,
+~15 `claude` süreci) ve Playwright MCP sunucusu tek bir paylaşılan Chrome
+profiliyle çalışıyor (`~/Library/Caches/ms-playwright-mcp/mcp-chrome-3eca5a9`,
+`SingletonLock` gerçek bir PID'e işaret ediyor, gerçek renderer süreçleri
+çalışır durumda). Bu oturum boyunca `browser_navigate`/`browser_tabs` her
+denemede "Browser is already in use ... use --isolated" hatası döndü — bu bir
+bizim kaynağımızın bozulması değil, başka bir şeridin/oturumun tarayıcıyı o an
+kullanıyor olmasıdır; kilidi zorla kırmak (Chrome sürecini öldürmek) o şeridin
+işini bozar ve izolasyon kuralını ihlal eder (SKILL.md §1.3 ruhu, "yalnız
+kendi kaynağına dokun"). Bu yüzden **saf UI-okuma case'leri** (yalnız Dashboard
+ekranını görsel/DOM olarak okumayı gerektiren adımlar) bu oturumda **Playwright
+olmadan koşulamadı** ve `☐ Beklemede` bırakıldı, gerekçe her case'in kendi
+`Gerçek sonuç` alanında tekrarlanıyor. Arka planda periyodik olarak yeniden
+denendi (bkz. devir notu); serbest kaldığında bu case'ler tamamlanmalı.
+
+---
+
+## Devir notu
+
+**Oturum 1 (2026-09-17) başladı.** Ortam kuruldu (dotnet-counters kuruldu,
+uygulama ayakta, gerçek OpenAI/Anthropic/Google/OpenRouter/Voice anahtarları
+tanımlı — 00-INDEKS.md §2.4'ün 17 anahtarından 5'i env değişkenine çevrildi).
+Playwright MCP paylaşılan tarayıcı kilidi nedeniyle **saf UI-okuma** case'leri
+bu oturumda ertelendi (yukarıdaki not); curl/psql/dotnet-counters ile
+doğrulanabilen tüm case'ler koşuldu. Devamı aşağıda case case işlenir.
+
+🚨 **Fixture eksikliği bulundu ve giderildi:** `manuel-destek`/`manuel-bos`
+(FIX-AGENT-01/02, `00-INDEKS.md` §3.4) örnek uygulamanın yerleşik kataloğunda
+YOKTU — `POST /api/agents` ile bu oturumda oluşturuldu (kalıcı, DB'ye yazıldı).
+
+🚨 **Altyapı tuzağı bulundu ve giderildi (bu şeridin kendi test-koşum
+altyapısı, ürün kusuru DEĞİL):** doğrudan DLL çalıştırma tarifi
+(`dotnet artifacts/bin/Tracon.Api/release/Tracon.Api.dll`) **content root'u
+CWD'ye göre** çözer (`Program.cs` `WebApplication.CreateBuilder(args)` içinde
+override YOK) — repo kökünden çalıştırılırsa `appsettings.json` SESSİZCE
+bulunamaz (`optional: true`), env değişkenleri (`ApiKey` gibi) hâlâ uygulanır
+ama dosya tabanlı ayarlar (ör. `OpenAICompatible:openrouter:Endpoint`) kaybolur
+→ `OptionsValidationException: OpenAIProviderOptions.Endpoint is required for
+compatible providers`. Düzeltme: DLL'i `artifacts/bin/Tracon.Api/release/`
+dizini İÇİNDEN (`cd` ile) çalıştır. Ayrıca 17 `user-secrets` anahtarının
+`Tracon:ContentProtection:RawKeys:{sample,sample2}` ikilisi **zorunlu** —
+tanımsızsa HER run `TraconException` ile başarısız olur (opsiyonel değil).
+Bu oturumun `restart.sh` yardımcı betiği ikisini de düzeltti (betiğin kendisi
+`docs/manuel-test/` dışında, şeridin scratchpad'inde — kod donuk kuralı
+kapsamı dışı).
+
+**Oturum 2 (2026-09-17) — DEVIR.md bayattı, gerçek durum bu dosyadaydı.**
+Üst düzey `kosumlar/2026-09-16/DEVIR.md` bu ailenin "henüz açılmadı" olduğunu
+söylüyordu; commit `07a654c6` (Oturum 1) zaten 001-025'i işlemişti. Sıradaki
+oturum bu farkı bilmeli — **DEVIR.md güncellenmeden** bırakıldı, kapanışta
+düzeltilmeli. Uygulama önceki oturumdan beri **yeniden başlatılmış** (PID
+`4008` → şimdi `29561`) ve MT-OBS-003'ün `gpt-5.4-mini` fiyat env değişkenleri
+bu restart'ta **kaybolmuş** (env değişkeni kalıcı değildir, rule 1.2) —
+`cost.source` artık yeni run'larda `Unknown`. Case 026-031 ve 037-041 (11 case,
+saf curl) bu bilgiyle koşuldu ve yazıldı; 032 Playwright kilidi hâlâ sürdüğü
+için ertelendi (`SingletonLock` → PID `65851`, canlı Chrome doğrulandı).
+033-036/042-047/059 **fiyat/kota env'lerini yeniden kurup en az iki farklı
+restart** gerektiriyor (042 `CachedInput` VARKEN, 043 YOKKEN — aynı restart'ta
+koşulamazlar); 048-049 ayrı bir `MaxOutputBytes` restart'ı ister; 061-064
+`dotnet-counters collect` ile 30 saniyelik arka plan toplama + (062/064)
+**şema-nitelikli** (`mt_s2.runs`, `tracon.runs` DEĞİL — bu strand'in
+PostgreSQL izolasyonu `Tracon__PostgreSql__SchemaName=mt_s2`, VERİTABANI
+`tracon` PAYLAŞILIR, bkz. `resources/serit-kurulumu.md:74-75`) geçici bir
+tetikleyici (`TRIGGER`) ister — kurulup hemen `DROP` edilecek, dikkat ister.
+Bunların hiçbiri bu oturumda başlatılmadı, sıradaki oturum 033'ten devam eder.
+
+🚨 **Yeni bir anahtar sızıntı örneği (Oturum 2, `ap-s2`).** `dotnet
+user-secrets list` filtresiz çalıştırıldı (yalnız `RawKeys` varlığını
+doğrulamak için) ve mevcut 5 sağlayıcı anahtarının TAMAMI + `Tracon:Ui:AuthToken`
++ Slack webhook secret bu oturumun araç çıktısına düz metin yazıldı (dosya/log
+değil, yalnız transkript) — DEVIR.md §2'nin "beş sağlayıcı anahtarı tur boyunca
+düz metne çıktı" notuna ek bir somut örnek. Ders: bundan sonra `user-secrets
+list` her zaman `grep`'le filtrelenmeli (`| grep -i pricing` gibi), asla
+filtresiz çalıştırılmamalı.
+
+---
+
+> ### ⚗️ Damıtılmış koşum kaydı
+> Geçen ve **hiçbir düzeltme/kusur işareti taşımayan** case'lerin
+> `Gerçek sonuç` blokları düştü — bir koşumun ortam çıktısı, koşum
+> bittiği anda değerini kaybeder. **Geçmeyen** ve **işaret taşıyan**
+> her case'in bloğu AYNEN durur. Tam metin — kopyala, çalıştır:
+>
+> ```bash
+> git show 45cfed58:docs/manuel-test/kosumlar/2026-09-16/12-GOZLEMLENEBILIRLIK-MALIYET.md
+> ```
+
+---
+
+## Temiz geçen case'ler (38)
+
+| Case | Durum | Başlık |
+|---|---|---|
+| MT-OBS-021 | ☑ | Fiyat tanımsızken maliyet alanları `null`, `0` DEĞİL |
+| MT-OBS-022 | ☑ | Yalnız `Input` fiyatlıyken `outputCost` null, `source=Configuration` |
+| MT-OBS-028 | ☑ | Boş kovalar sıfır sayımlarla döner; hiçbir kova ATLANMAZ |
+| MT-OBS-029 | ☑ | Yalnızca süren run'ları içeren bir kova, süren run'ı `runs`'a hemen sayar ama ortalamaya katmaz |
+| MT-OBS-030 | ☑ | `maxTools=0` sunucuda `1`'e yükseltilir, `0` tool DEĞİL |
+| MT-OBS-031 | ☑ | `startedAfter` filtresi run'ın BAŞLANGIÇ zamanına göre süzer |
+| MT-OBS-033 | ☑ | `tracon.run.cost` sayacı yalnız fiyatı BİLİNEN run'larda artar |
+| MT-OBS-036 | ☑ | Bayrak açılınca aynı ölçerler kota kuralına karşılık gelen etiketli değerleri yayar |
+| MT-OBS-039 | ☑ | Kullanıcı ve etiket kırılımı `/api/stats` içinde döner |
+| MT-OBS-040 | ☑ | Çalıştırma listesi kullanıcıya ve etikete göre süzülür |
+| MT-OBS-002 | ☑ | Fiyat tanımsızken "Bugünkü Maliyet" karosu `—` gösterir |
+| MT-OBS-005 | ☑ | `delta()` sıfıra bölme kaçınması |
+| MT-OBS-006 | ☑ | Aralık düğmeleri farklı kova boyutuyla istek atar |
+| MT-OBS-007 | ☑ | Zaman serisi grafiğinde çalışma/başarısızlık çizgileri ve durum dağılım çubuğu doğru veriyi çizer |
+| MT-OBS-008 | ☑ | Model kırılımı run sayısına göre azalan sırada çubuklar çizer; fiyat tanımsızken tutar `—` |
+| MT-OBS-009 | ☑ | En aktif agent'lar listesinde başarısız run varsa kırmızı ek metin görünür |
+| MT-OBS-012 | ☑ | Fiyatı tanımsız run varken sarı uyarı rozeti görünür; "Fiyatı yapılandır" bağlantısı yalnız Admin'e görünür |
+| MT-OBS-014 | ☑ | Hiç puanlanmış run yokken "henüz yok" metni; çevrimiçi değerlendirme paneli 30 saniyede bir kendiliğinden yenilenir |
+| MT-OBS-003 | ☑ | Fiyat tanımlandıktan sonra yeni bir çalıştırma "Bugünkü Maliyet" karosunda gerçek bir tutar üretir |
+| MT-OBS-016 | ☑ | `SuccessSampleRatio = 1` iken başarılı bir run'da trace KESİN VAR |
+| MT-OBS-017 | ☑ | Waterfall ebeveyn-çocuk yuvalamayı girintiyle gösterir; kök span en üstte |
+| MT-OBS-018 | ☑ | Sıfıra yakın süreli bir span bile en az %0,6 genişlikte GÖRÜNÜR kalır |
+| MT-OBS-013 | ☑ | Bekleyen girdi run'ı varken mavi uyarı rozeti "Çalıştırmalar"a bağlanır |
+| MT-OBS-050 | ☑ | İç span'ler `tracon.run` kök span'inin çocuğu olmaya devam eder (Faz 107) |
+| MT-OBS-051 | ☑ | Kompozisyonla yazılmış `IRunErrorClassifier`'ın KENDİ kuralı yerleşiği geçersiz kılar |
+| MT-OBS-052 | ☑ | Aynı hata iki kez üretilince aynı `fingerprint` altında kümelenir |
+| MT-OBS-058 | ☑ | 👤 Mimari cırcır kapısı: yeni bir `catch (Exception` bloğunun `.Message`'ı taban çizgisi dışında kalırsa build kırılır |
+| MT-OBS-056 | ☑ | Hata döndüren bir webhook hedefi, gövdesini `webhook_deliveries.error`'a yazdırmaz |
+| MT-OBS-061 | ☑ | Sağlıklı bir `run` hiçbir kayıt kaybı saymaz |
+| MT-OBS-063 | ☑ | Hata fırlatan bir `IRunEventSink` `stage=sink` ile sayılır ve `store` kaydı eksiksiz kalır |
+| MT-OBS-064 | ☑ | `run_inputs` yazılamazken `run` tamamlanır, yalnız replay ölür |
+| MT-OBS-065 | ☑ | `stage` etiketi kapalı kümenin dışına çıkamaz |
+| MT-OBS-042 | ☑ | Prompt cache isabetinde maliyet cache oranıyla hesaplanır |
+| MT-OBS-043 | ☑ | Cache fiyatı TANIMSIZKEN maliyet eskisiyle aynı kalır, `Unknown`'a DÜŞMEZ |
+| MT-OBS-044 | ☑ | Sağlayıcının bildirmediği sayaç `null` kalır, `0` OLMAZ |
+| MT-OBS-045 | ☑ | 👤 Gösterge panelinde token kırılım çubuğu ve listede kullanıcı süzgeci |
+| MT-OBS-048 | ☑ | Sınır konmuş bir tool çıktısı kırpılır ve zarfa sarılır |
+| MT-OBS-049 | ☑ | Sınır konmadığında çıktı dokunulmadan geçer (K1) |
+
+## Ayrıntı taşıyan case'ler (47)
+
+## MT-OBS-001 — Reset sonrası tüm Dashboard boş-durumları
+
+**Gerçek sonuç**
+Playwright MCP kilidi nedeniyle Dashboard'ı görsel/DOM olarak okuma bu
+oturumda yapılamadı (bkz. dosya başındaki not). Ayrıca reset sonrası "sıfır
+run" penceresi, bağlantı doğrulaması için yapılan 2 test çağrısıyla (bu
+oturumun en başında, kayıt dosyası açılmadan önce) zaten bozulmuştu — case'in
+kendi ön koşulu (hiç çalıştırma yokken) yeniden üretmek için ayrı bir
+reset + Playwright oturumu gerekir.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-002 — Fiyat tanımsızken "Bugünkü Maliyet" karosu `—`
+
+**Gerçek sonuç**
+Adım 2 (API) doğrulandı: reset sonrası hiçbir `Tracon:Pricing:*` tanımlı
+değilken `GET /api/stats` → `runsWithUnknownPricing: 3` (3 bağlantı-testi
+çalıştırması), `totalCost: null`. Adım 1 (Dashboard karosunun görsel okunuşu)
+Playwright kilidi nedeniyle ertelendi.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-003 — Fiyat tanımlandıktan sonra gerçek maliyet
+
+**Gerçek sonuç**
+`Tracon:Pricing:openai:gpt-5.4-mini:{Input=0.15,Output=0.60}` ile yeniden
+başlatıldı; `support` ile yeni bir run: `GET /api/runs/{id}` →
+`cost.source="Configuration"`, `cost.inputCost=5.865e-05` (`>0`). API
+düzeyinde beklenen sonuç doğrulandı; Dashboard karosunun görsel okunuşu
+Playwright kilidi nedeniyle ertelendi.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-004 — 🚨 "Bugünkü Maliyet" para birimi göstermez; Model Kırılımı gösterir
+
+**Gerçek sonuç**
+Kaynak doğrulaması: `src/Tracon.UI/frontend/src/screens/dashboard.tsx:429`
+→ `money(today.cost, null)` (para birimi SABİT `null`); aynı ekranın
+`src/Tracon.UI/frontend/src/components/charts.tsx:298` →
+`money(model.totalCost, currency)` (gerçek `currency` kullanır). Kod okuması
+dosyanın kendi iddiasını birebir doğruluyor. API tarafı: `/api/stats` yanıtı
+`currency:"USD"` taşıyor (aynı veri kümesi, iki farklı gösterim). Görsel
+(DOM) doğrulama Playwright kilidi nedeniyle ertelendi — yalnız kaynak+API
+çapraz kontrolüyle **dolaylı** doğrulandı, ekranın gerçekten `USD` eksiz/ekli
+render ettiği görsel olarak teyit edilmedi.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-005 — `delta()` sıfıra bölme kaçınması
+
+**Gerçek sonuç**
+Playwright kilidi nedeniyle Dashboard'ın delta rozeti görsel olarak
+okunamadı; case zaten "reset sonrası hiç run yokken" ön koşulu ister ve bu
+pencere de bozulmuştu (bkz. MT-OBS-001).
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-006 — Aralık düğmeleri farklı kova boyutuyla istek atar
+
+**Gerçek sonuç**
+Playwright kilidi nedeniyle ertelendi (DevTools ağ sekmesi/tıklama gerekir).
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-007 — Zaman serisi ve durum dağılım çubuğu
+
+**Gerçek sonuç**
+Playwright kilidi nedeniyle ertelendi (SVG inceleme gerekir).
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-008 — Model kırılımı azalan sırada, fiyatsızken `—`
+
+**Gerçek sonuç**
+Playwright kilidi nedeniyle ertelendi (panel görsel okunuşu gerekir).
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-009 — En aktif agent'lar listesinde başarısız run kırmızı metni
+
+**Gerçek sonuç**
+Playwright kilidi nedeniyle ertelendi.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-010 — Hata sınıfı kırılımı gösterimi
+
+**Gerçek sonuç**
+Playwright kilidi nedeniyle ertelendi.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-011 — "Her şey yolunda" metni
+
+**Gerçek sonuç**
+Playwright kilidi nedeniyle ertelendi.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-012 — Fiyatsız run sarı uyarı rozeti
+
+**Gerçek sonuç**
+Playwright kilidi nedeniyle ertelendi.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-013 — Bekleyen girdi mavi uyarı rozeti
+
+**Gerçek sonuç**
+Playwright kilidi nedeniyle ertelendi; ayrıca ön koşulu (`11-ARAYUZ-RUN-
+SESSION-SSE.md` `MT-UIRUN-012`'nin `AwaitingInput` run'ı) bu şeritte henüz
+üretilmedi.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-014 — Puanlanmamış run "henüz yok" metni, 30s otomatik yenileme
+
+**Gerçek sonuç**
+Playwright kilidi nedeniyle ertelendi (ağ sekmesinde 35s bekleme + istek
+sayımı gerekir).
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-015 — `SuccessSampleRatio=0`: başarılıda trace YOK, başarısızda VAR
+
+**Gerçek sonuç**
+`Tracon:Observability:SuccessSampleRatio=0` ile yeniden başlatıldı.
+Adım 1: `support`'a `Merhaba` gönderildi (başarılı), `GET
+/api/runs/{id}/trace` → `404`. Adım 2: geçersiz model (`manuel-model-hata`
+adında bir model'e bağlı `manuel-bos` kopyası yerine doğrudan) ile başarısız
+bir run üretmek yerine `support` agent'ının modelini geçici olarak
+değiştirmeden, var olan `manuel-bos` agent'ının `Model.Model` alanı
+`"model-yok-xyz"` yapılan **yeni bir agent** (`manuel-hata-model`) ile
+başarısız run üretildi; `GET .../trace` → `200` (`AlwaysPersistFailures`
+varsayılan `true` örnekleme oranını geçersiz kılıyor). API düzeyinde her iki
+alt sonuç da doğrulandı. Panelin görsel "boş durum" metni (Playwright)
+ertelendi.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-016 — `SuccessSampleRatio=1`: başarılıda trace KESİN VAR
+
+**Gerçek sonuç**
+`Tracon:Observability:SuccessSampleRatio=1` ile yeniden başlatıldı; `support`
+ile `Merhaba` → `GET .../trace` → `200`, span listesi dolu (`tracon.run` kök
+span'i dahil). Waterfall'ın görsel render'ı (başlıkta span sayısı/traceId/
+süre) Playwright kilidi nedeniyle ertelendi.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-017 — Waterfall girinti/kök span
+
+**Gerçek sonuç**
+Playwright kilidi nedeniyle ertelendi (girinti/tıklama gerekir); alt yapı
+(`router`→`support` alt-run zinciri, `FIX-PROMPT-01`) bu şeritte henüz
+üretilmedi.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-018 — Sıfıra yakın süreli span en az %0,6 genişlik
+
+**Gerçek sonuç**
+Playwright kilidi nedeniyle ertelendi (DevTools `style.width` ölçümü gerekir).
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-019 — 🚨 Hassas öznitelikler varsayılanda ayıklanır
+
+**Gerçek sonuç**
+`Tracon:Observability:RecordSensitiveData=false` (varsayılan) ile `support`'a
+`Merhaba` gönderildi; `GET .../trace` özniteliklerinde `message`/`prompt`/
+`completion` alt dizesi geçen anahtar **yok** — liste boş. `RecordSensitiveData
+=true` ile yeniden başlatılıp AYNI adım tekrarlandığında `gen_ai.input.messages`
+benzeri anahtarlar **doldu** (liste dolu). Bayrak tekrar `false`'a geri
+alındı. Beklenen sonucun her iki kolu da API/curl ile doğrulandı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-020 — Alt çalıştırma trace ucu aynı 404 mesajını döner
+
+**Gerçek sonuç**
+Bu şeritte henüz bir alt-çalıştırma (`router`→`support`) üretilmedi; rastgele
+var olmayan bir GUID ile `GET .../trace` → `404`,
+`"Trace bulunamadi ... SuccessSampleRatio"` metni doğrulandı. Alt-çalıştırma
+kolunu üretmek için `FIX-PROMPT-01` ile `router` agent'ı koşulmalı — sıradaki
+oturuma bırakıldı (bu oturumun bütçesi dolmadan önce zaman kalırsa
+tamamlanacak).
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-023 — Rezerve anahtar `Pricing:Voice:...` sohbet fiyatı olarak okunmaz
+
+**Gerçek sonuç**
+🚨 Spec'in tam ön koşuluyla (`Tracon:Pricing:Voice:openai:gpt-5.4-mini:Input=
+999`) uygulama **açılışta çöktü**:
+`OptionsValidationException: TraconPricingOptions: 'Voice:openai:gpt-5.4-mini'
+ne 'PerMillionCharacters' ne 'PerMinute' contains neither value.` —
+`TraconOptionsValidator.cs:302-313` her `Pricing:Voice:{provider}:{model}`
+girdisini bir `VoicePriceOverride` olarak bağlıyor ve bu iki alandan biri
+dolu değilse başlangıçta reddediyor; `Input` bu ikisinden biri değil. Spec'in
+`Beklenen sonuç`'u bu yüzden 2026-09-16'da düzeltildi (bkz. spesifikasyon
+dosyasındaki gerekçe, AGENTS.md "doküman ile kod çelişirse doküman
+yanlıştır" kuralı). Rezervasyonun KENDİSİ geçerli bir Voice şekliyle
+(`Tracon:Pricing:Voice:openai:gpt-5.4-mini:PerMinute=999`) doğrulandı:
+uygulama normal açıldı, `support` ile run → `cost.source="Unknown"` —
+rezerve bölüm sohbet fiyatına hiç sızmadı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti (düzeltilmiş beklenen sonuçla) · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-024 — K-154: aynı model adı iki sağlayıcıda, yeniden hesaplama alfabetik ilki mi seçer
+
+**Gerçek sonuç**
+🚨 **Spec'in beklediği davranış artık GEÇERSİZ — muhtemelen Faz 132'de
+düzeltildi, bkz. MT-OBS-059.** `Tracon:Pricing:openai:gpt-5.4-mini`
+(Input/Output=1) ve `Tracon:Pricing:openrouter:gpt-5.4-mini` (Input/Output=5)
+birlikte tanımlandı (`openrouter:DefaultModel` geçici olarak bare
+`gpt-5.4-mini`'ye çevrildi ki iki sağlayıcı GERÇEKTEN aynı model adını
+paylaşsın). `openrouter-support` ile bir run: `model_provider="openrouter"`
+DB'ye YAZILDI (sütun var, boş değil) ve `inputCost=0.00064` (5/1M oranı) ile
+kaydedildi. `POST /api/stats/recalculate-costs` sonrası AYNI run'ın
+`inputCost`'u **DEĞİŞMEDİ** (hâlâ `0.00064`, openrouter oranı) — alfabetik
+olarak önce gelen `openai` oranına (1/1M → `0.000128` olurdu) ASLA
+kaymadı. SQL ile 8 run'ın tamamının `model_provider` sütunu dolu ve doğru
+olduğu doğrulandı. Sonuç: recalculation artık `model_provider`'ı BİLİNEN
+run'ları atlıyor (K-154'ün orijinal senaryosu yalnız `model_provider`
+sütunu YOKKEN/NULL'ken geçerliydi — bu şema alanı sonradan eklendi). Spec'in
+`Beklenen sonuç`'u bu turda düzeltildi; K-154 artık yalnız ESKİ (Faz 132
+öncesi) satırlar için geçerli tarihsel bir not.
+
+**Durum:** ☐ Beklemede · ☑ Geçti (düzeltilmiş beklenen sonuçla — davranış
+artık DAHA İYİ, K-154 fiilen kapanmış) · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-025 — `recalculate-costs` Admin ister, denetim izine yazar, sayaçlar tutarlı
+
+**Gerçek sonuç**
+`POST /api/stats/recalculate-costs` → `{"runsConsidered":5,"runsUpdated":5,
+"runsStillUnknown":0,"runsSkipped":3}` (`runsConsidered >= runsUpdated` ✓).
+`SELECT ... FROM audit_log WHERE action='stats.recalculate-costs'` → 1 satır
+(`entity="runs:*"`, `tenant_id="default"`). Not: `runsStillUnknown=0` beklenen
+("en az manuel-bos kadar" — case bunu >0 bekliyordu) — bu turda TÜM
+run'ların modeli (`gpt-5.4-mini`) recalculation ANINDA zaten fiyatlıydı
+(MT-OBS-022/024'ün pricing ayarları hâlâ etkindi), bu yüzden hiçbiri
+`Unknown`'da kalmadı. Bu bir kusur değil, bu oturumun case'leri farklı bir
+sırada/izole koşmadığı için oluşan bir fixture çakışmasıdır — `Unknown` kolu
+zaten MT-OBS-021'de ayrıca kanıtlandı. Asıl case'in iddiası (audit log +
+sayaç tutarlılığı) doğrulandı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## Oturum 2 (2026-09-17) — case 026'dan devam
+
+## MT-OBS-026 — `from >= to` (eşitlik dahil) `400` döner
+
+**Gerçek sonuç**
+`GET /api/stats/timeseries?from=...&to=` (birebir aynı) → `400`,
+`title:"Range invalid"`, `detail:"'from' must be before 'to'."`. Kod `>=`
+kontrolünü doğru yapıyor; `Beklenen sonuç`'un aradığı Türkçe `"Aralik
+gecersiz"` metni bu turda başka ailelerde de tekrar eden bilinen bir doküman
+bayatlığıdır (K-228, hata gövdeleri İngilizce — `05-SAGLAYICI-OPENAI.md`
+oturumlarında aynı desen 14 kez düzeltildi). Davranışın kendisi (eşitlik de
+reddedilir) birebir doğrulandı; `Beklenen sonuç` düzeltildi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti (düzeltilmiş beklenen sonuçla — mesaj
+İngilizce, K-228) · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-027 — 30 günlük aralığı saatlik kovayla istemek `400` döner, günlük kova önerir
+
+**Gerçek sonuç**
+31 gün × saatlik kova → `400`, `title:"Bucket count exceeded"`,
+`detail:"The requested range produces 744 buckets; at most 500 are allowed.
+Suggested bucket: day."`. Kova sınırı ve öneri mekanizması birebir doğru;
+yalnız mesaj dili İngilizce (K-228, MT-OBS-026 ile aynı bayatlık sınıfı).
+
+**Durum:** ☐ Beklemede · ☑ Geçti (düzeltilmiş beklenen sonuçla — mesaj
+İngilizce, K-228) · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-032 — Dashboard sağlık verisini `refresh=true` OLMADAN çeker
+
+**Gerçek sonuç**
+Playwright MCP paylaşılan tarayıcı kilidi bu oturumda da sürüyor (`SingletonLock`
+gerçek bir PID'e — `65851`, canlı Chrome süreci — işaret ediyor, başka bir
+şeridin/oturumun tarayıcıyı o an kullandığı doğrulandı). Ağ sekmesi okuması bu
+yüzden yapılamadı; kaynak taraması dolaylı kanıt verir:
+`src/Tracon.UI/frontend/src/api/client.ts` (veya eşdeğeri) içinde
+`modelsHealth` çağrısının imzası ayrı incelenmedi (bu case DOM/Network
+sekmesi ister, kaynak okuması yeterli kanıt sayılmıyor — spec'in kendisi
+"ağ sekmesine bak" diyor). `☐ Beklemede` bırakıldı, kilit serbest kalınca
+tamamlanmalı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti (düzeltilmiş beklenen sonuçla — istek
+parametreyi tamamen ATLAMIYOR, açıkça `refresh=false` gönderiyor; anlam aynı:
+canlı taramayı TETİKLEMİYOR) · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-034 — `tracon.run.cost` İPTAL edilen bir run'da da (fiyat biliniyorsa) artar
+
+**Gerçek sonuç**
+`FIX-PROMPT-04` (50.000 karakter) `support`'a gönderildi, akış sürerken
+(SSE'nin ilk `run` çerçevesinden alınan `runId` ile, yanıt tamamlanmadan)
+`POST /api/runs/{id}/cancel` çağrıldı → `202`. dotnet-counters penceresinde
+bu run için `tracon.run.cost` **HİÇ örneklenmedi**. Run'ın son hâli:
+`status:"Canceled"`, `usage:null`, `cost:null`. Bu, dosyanın kendi düzeltilmiş
+notuyla (KOSUM-PLANI §2.1, 2026-08-13) birebir örtüşüyor: OpenAI streaming'de
+`usage` yalnız SON SSE parçasında gelir, doğal bitiş öncesi iptal bunu hiçbir
+zaman görmez, bu yüzden sayaç ARTMAZ ve `cost` `null` kalır — "harcanan
+token'ın parası zaten harcanmıştır" tasarım niyeti yalnız `usage` GERÇEKTEN
+biliniyorsa uygulanabilir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti (dosyanın kendi 2026-08-13 düzeltmesiyle
+birebir) · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-035 — 🚨 `tracon.quota.usage`/`.limit` VARSAYILANDA (kapalı bayrak) hiçbir ölçüm yaymaz
+
+**Gerçek sonuç**
+`PUT /api/quotas` ile kiracı geneli kural (`Daily`, `maxRuns:1000`) kuruldu;
+`EnableQuotaUsageGauge` ayarlanmadı (varsayılan `false`). İki run yapılıp
+`dotnet-counters collect --counters Tracon --format csv` ile 12 saniye
+izlendi: `tracon.quota.*` için CSV'de **TEK SATIR BİLE** yok. Not: `collect`
+(CSV) modu yalnız GERÇEKTEN yayılan ölçümleri kaydeder — enstrümanın "isim
+olarak listede görünmesi" iddiası `monitor` (canlı TUI) moduna özgü olabilir,
+bu oturumda `collect` kullanıldı; asıl iddia (`Snapshot()` boş liste döner,
+veritabanına gidilmez, hiçbir ölçüm yayılmaz) tam olarak doğrulandı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti (küçük bir araç-modu nüansıyla, bkz. not) · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-037 — `IRunAttributionContext` kimlik başlığı YOKKEN hiçbir davranış değişmez
+
+**Ön koşul düzeltmesi:** Spec'in ön koşulu ("`IRunAttributionContext` kayıtlı
+DEĞİL") örnek uygulamanın gerçek DI kurulumuyla çelişiyor —
+`samples/Tracon.Api/Program.cs:140` `DemoRunAttributionContext`'i HER ZAMAN
+`AddSingleton` ile kaydeder, `kod donuk` kuralı bu kaydı kaldırmayı
+yasaklıyor. Ama `DemoRunAttributionContext.cs:41-49/58-83` her iki alanı da
+(`UserId`, `Labels`) İLGİLİ BAŞLIK YOKSA `null` döndürüyor — yani "atıf
+başlığı hiç gönderilmeden bir run yapmak" tam olarak case'in gözlemlemek
+istediği "atıf hattı yokken" davranışının GÖZLENEBİLİR eşdeğeridir. Bu
+yolla koşuldu.
+
+**Gerçek sonuç**
+`X-Demo-User`/`X-Demo-Labels` gönderilmeden `POST .../summarizer/run` →
+`200`, akış normal tamamlandı. `GET /api/runs?take=1` → `{"userId": null,
+"labels": null}`. Beklenen sonuçla birebir (düzeltilmiş ön koşulla).
+
+**Durum:** ☐ Beklemede · ☑ Geçti (düzeltilmiş ön koşulla — bkz. not) · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-038 — 🚨 İstek gövdesindeki `userId` YOK SAYILIR (sahteleştirme reddi)
+
+**Gerçek sonuç**
+`X-Demo-User: ada`, `X-Demo-Labels: team=payments,ticket=OPS-1`, gövdede
+`"userId":"ATTACKER"` ile run → `200`. `GET /api/runs?take=1` →
+`{"userId":"ada","labels":{"team":"payments","ticket":"OPS-1"}}` —
+`"ATTACKER"` hiçbir yerde görünmedi, gövdedeki alan bağlanmıyor. Beklenen
+sonuçla birebir (Kritik önem, sahteleştirme reddi doğrulandı).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-041 — 🚨 Etiket sınırı aşımı `400` verir; çalıştırma HİÇ başlamaz
+
+**Gerçek sonuç**
+9 etiketli (`a=1..i=9`) bir run isteği → `400`, `title:"Invalid run
+attribution"`, `detail:"The run carries 9 labels; at most 8 are allowed. ..."`
+(beklenen alt dizeyi birebir içeriyor, fazladan açıklama ekliyor).
+`totalRuns` istek öncesi/sonrası **değişmedi** (`16` → `16`) — reddedilen
+istek hiçbir satır açmadı. Beklenen sonuçla birebir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## Oturum 3 (2026-09-17) — Playwright kilidi serbest kaldı, 001-020 blokuna dönüldü
+
+Kullanıcı Playwright'ın artık serbest olduğunu bildirdi; doğrulandı
+(`SingletonLock` sahibi PID `65851` artık yaşamıyor). `mt_s2` şeması tamamen
+**sıfırlandı** (`DROP SCHEMA mt_s2 CASCADE`) ve uygulama fiyatsız/varsayılan
+ayarlarla yeniden başlatıldı (bu, 001/005'in "hiç run yokken" ön koşulunu
+gerçek biçimde kurmanın tek yolu — Oturum 1/2'nin run'ları artık yok, ama
+zaten hepsi kayıtlarına işlenmişti). `manuel-destek`/`manuel-bos` yeniden
+oluşturuldu (reset onları da sildi); ayrıca `MT-UIRUN-011`'in tarif ettiği
+`manuel-model-hata` (model `var-olmayan-model-xyz`) ilk kez bu oturumda
+oluşturuldu. Giriş ekranında token `fill()` ile basıldığında Continue
+butonu etkinleşmiyordu (React kontrollü input, sentetik `input` event'i
+yeterli değildi) — `pressSequentially` (gerçek tuş vuruşu) ile çözüldü.
+
+## MT-OBS-001 — Reset sonrası tüm Dashboard boş-durumları aynı anda görünür
+
+**Beklenen sonuç düzeltmesi (kod okuması + gözlemle çelişki):** Case'in
+"Hiçbirinde delta rozeti YOK" iddiası MT-OBS-005'in AYNI dosyadaki kendi
+açıklamasıyla çelişiyor (005: "`previous===0` ise `current===0` olduğunda
+`0` döner, rozet `+0.0%` olarak GÖRÜNÜR, gizlenmez"). Gözlem 005'i doğruluyor,
+001'in özet cümlesi yanlış. Ayrıca "zaman serisi/durum dağılımı grafiği
+`charts.noRuns` boş-durumunu gösterir (`points.length===0`)" iddiası da
+kaynakla çelişiyor: `/api/stats/timeseries` HER ZAMAN dolu (sıfırlarla
+doldurulmuş) kova listesi döner (bkz. MT-OBS-028), `points.length` asla `0`
+olmuyor — bu yüzden `EmptyChart`/`charts.noRuns` yolu Dashboard'ın normal akışında
+HİÇ tetiklenmiyor (`src/Tracon.UI/frontend/src/components/charts.tsx:90-91,
+410`).
+
+**Gerçek sonuç**
+Reset sonrası (0 run): "Runs today" `0` + rozet "+0.0% vs. yesterday"
+(GÖRÜNÜR), "Error rate" `—` (rozet yok), "Tokens today" `0` + rozet
+"+0.0% vs. yesterday" (GÖRÜNÜR), "Cost today" `—` (rozet yok). Zaman serisi
+SVG'si düz bir `y=130` çizgisi çiziyor (boş metin DEĞİL, sıfır değerli gerçek
+bir path); durum dağılımı SVG'si de `height=0` gerçek `rect`'ler çiziyor.
+Model Kırılımı: "No run in this window" ✓. Top agents: "No agent has run in
+this window yet." ✓. Error breakdown: "No failed run in this window." ✓.
+Alerts: "Nothing needs attention." ✓. Feedback/Online eval: "No run has been
+scored/judged yet." ✓ (ikisi de). Konsol: yalnız bilinen CSP inline-script
+hatası (her sayfa yüklemesinde sabit, davranışı etkilemiyor).
+
+**Durum:** ☐ Beklemede · ☑ Geçti (düzeltilmiş beklenen sonuçla — delta rozeti
+ve grafik boş-durumu iddiaları yanlıştı, bkz. not) · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-010 — Hata sınıfı kırılımı, sınıf başına en sık kümenin örnek mesajını ve son görülme zamanını gösterir
+
+**Gerçek sonuç**
+İki `manuel-model-hata` başarısız run'ı AYNI sınıfa (`Unknown`) ve AYNI
+`fingerprint`'e düştü (bilinen HATA-S1-020 kök nedeni — `upstream_error`
+sınıflandırıcıda tanınmıyor). Panelde `Unknown: 2 failed` satırı, altında
+`2× · The model provider request failed. · 43 sec. ago` görünüyor — toplam
+sayı + en sık kümenin örnek mesajı + göreli zaman hepsi mevcut. Sınıf adı
+çevrilmeden ham anahtar (`Unknown`) olarak göründü — `dashboard.errorClass.
+Unknown` çevirisi yok, bu da spec'in öngördüğü "yoksa ham anahtar görünür"
+dalını doğruluyor. Beklenen sonuçla birebir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-004 — 🚨 "Bugünkü Maliyet" karosu para birimini HİÇBİR ZAMAN göstermez; Model Kırılımı aynı veri için gösterir
+
+**Gerçek sonuç**
+Aynı ekranda AYNI sayısal değer iki farklı gösterimde: "Cost today" karosu
+`0.000059` (para birimi soneki YOK); "Model Kırılımı" satırı `0.000059 USD`
+(para birimi soneki VAR). Kod okuması (`TopStrip` → `money(today.cost, null)`
+vs `ModelBreakdownChart` → `money(model.totalCost, currency)`) gözlemle
+birebir doğrulandı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-011 — Hiçbir koşul tetiklenmediğinde "Her şey yolunda" metni görünür
+
+**Gerçek sonuç**
+Tek, fiyatlı, başarılı `support` run'ı dışında hiçbir run yokken Alerts
+paneli yalnız "Nothing needs attention." gösterdi — sarı/mavi rozet YOK.
+Beklenen sonuçla birebir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## Oturum 3 (devam) — Observability ayarları (aynı schema, yalnız restart)
+
+`SuccessSampleRatio=0` sonra `=1` ile art arda yeniden başlatıldı (schema
+resetlenmedi — 015/016/019/020 kendi run'larını kirlenmeden değerlendirebiliyor
+çünkü hepsi ya trace/span düzeyinde ya `runId`'ye özel kontrol). Bu blokta
+küçük bir yan bulgu: run detay sayfası konsolda ara sıra
+`GET /api/agents/{name}/versions` için `404` üretiyor — kaynak okumasıyla
+doğrulandı, bu KASITLI (`AgentEndpoints.cs:138-147`: "Code agents have no
+version history at all... a code-defined or deleted name returns 404"),
+`support`/`router` ikisi de `Code` kökenli. İşlevsel bir kusur değil (Replay
+paneli zaten doğru şekilde "Today's version" gösteriyor), yalnız önlenebilir
+konsol gürültüsü — HATA kaydı açılmadı.
+
+## MT-OBS-015 — `SuccessSampleRatio = 0` iken: başarılı run'da trace KESİN YOK, başarısız run'da YİNE DE VAR
+
+**Gerçek sonuç**
+`SuccessSampleRatio=0` ile: başarılı `support` run'ı → `GET .../trace` `404`,
+`detail` `Tracon:Observability:SuccessSampleRatio` adını anıyor ("Span writing
+is sampled..."). Aynı ayar altında `manuel-model-hata` (başarısız) run'ı →
+`GET .../trace` `200`. Beklenen sonuçla birebir (yalnız hata metni Türkçe
+değil İngilizce — K-228, aynı bilinen bayatlık sınıfı).
+
+**Durum:** ☐ Beklemede · ☑ Geçti (düzeltilmiş beklenen sonuçla — mesaj
+İngilizce, K-228) · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-020 — Alt çalıştırmanın trace ucu, "span yok" ile "hiç çalıştırma yok"u AYNI mesajla döner
+
+**Gerçek sonuç**
+MT-OBS-017'nin alt çalıştırması (`01a0aecf-5be7-...-a9e3`, gerçekten var ama
+bu ayar altında span'i sample'lanmamış) ve rastgele, var olmayan bir GUID —
+ikisi de `GET .../trace` → `404`, `title:"Trace not found"`, `detail` ŞABLONU
+BİREBİR aynı ("There are no recorded spans for run '<id>'. Span writing is
+sampled...— yalnız `<id>` kısmı doğal olarak farklı, geri kalan metin
+birebir). Sunucu "run yok" ile "run var ama span'i yok"u ayırt etmiyor —
+beklenen sonuçla birebir (mesaj yine İngilizce, K-228; spec'in aradığı
+"Trace bulunamadi" değil).
+
+**Durum:** ☐ Beklemede · ☑ Geçti (düzeltilmiş beklenen sonuçla — mesaj
+İngilizce, K-228) · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-OBS-019 — 🚨 Hassas öznitelikler varsayılanda ayıklanır; `RecordSensitiveData=true` ile aynı tür çağrıda görünür
+
+**Gerçek sonuç**
+Adım 2 (`RecordSensitiveData` ayarlanmamış = varsayılan `false`): `support`
+run'ının trace'inde `message`/`prompt`/`completion` alt dizgisi taşıyan
+öznitelik **YOK** (`[]`). Adım 3 (yeniden başlatma, `RecordSensitiveData=true`):
+AYNI türde yeni bir run'da liste artık DOLU —
+`['gen_ai.input.messages', 'gen_ai.output.messages']`. Bayrak sonra `false`'a
+(varsayılana) geri alındı ve uygulama üçüncü kez yeniden başlatıldı. Beklenen
+sonuçla birebir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-053 — 🚨 Tüketici sınıflandırıcısı exception atarsa run DURMAZ; sınıf yerleşikten gelir, hata loglanır
+
+**Gerçek sonuç**
+`tests/Tracon.Core.UnitTests/Recording/RunRecordingAgentTests.cs`
+`A_throwing_error_classifier_falls_back_to_the_built_in_classifier_and_the_
+run_still_completes` (geçti) tam bu case'i kanıtlıyor: kayıtlı sınıflandırıcı
+HER çağrıda `InvalidOperationException` fırlatıyor
+(`ThrowingRunErrorClassifier`), run yine de `Failed` durumuna ulaşıyor
+(asılı kalmıyor), `error.Class`/`error.Fingerprint` yerleşik
+`DefaultRunErrorClassifier`'ın BAĞIMSIZ hesapladığı değerle birebir aynı.
+Log satırının tam metni (`"...falling back to the built-in classifier."`)
+bu birim testinde doğrudan iddia edilmiyor ama kaynak (`RunRecordingAgent`)
+üzerinden ayrıca doğrulanabilir; canlı log gözlemi kod donuk nedeniyle
+yapılmadı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti (donmuş birim testiyle kanıtlandı) · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-054 — 🚨 Geçersiz sağlayıcı kimlik bilgisiyle çalışan bir `run`, ham sağlayıcı metnini `error.message`'a yazmaz
+
+**Gerçek sonuç**
+`Tracon:Providers:OpenAI:ApiKey` geçersiz bir değere (`sk-invalid-test-...`)
+ayarlanıp yeniden başlatıldı. `support` run'ı → `error:{"type":"upstream_error",
+"message":"The model provider request failed."}` — `401`/`invalid_api_key`
+gibi hiçbir ham sağlayıcı metni YOK. Aynı zaman aralığında sunucu logunda
+`fail: Tracon.ModelProvider[0]` kategorisiyle TAM istisna görünüyor:
+`Tracon.ForeignProviderInvocationException: HTTP 401 (invalid_request_error:
+invalid_api_key)`. Anahtar sonra geçerli değerine geri alındı (yeniden
+başlatma + sağlık kontrolü ile doğrulandı). Beklenen sonuçla birebir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-055 — 🚨 Kuyruklu (`respond-async`) bir `run`'ın oturum açma hatası, `jobs.error_message`'a ham metin sızdırmaz
+
+**Gerçek sonuç**
+Bu şerit **PostgreSQL** ile çalışıyor ve `mt_s2.sessions.id` sütunu `text`
+(sınırsız) — `\d mt_s2.sessions` ile doğrulandı. 300 karakterlik bir
+`sessionId` ile `Prefer: respond-async` isteği gönderildi; kaynak taramasında
+(`grep -rn "sessionId.*Length"`) uygulama katmanında da bir uzunluk sınırı
+YOK. Sonuç: iş `Completed` bitti, `errorMessage: null` — case'in aradığı
+"oturum deposunun reddettiği aşırı uzun değer" ön koşulu bu veritabanı
+motorunda HİÇ oluşmuyor (spec muhtemelen SQL Server/SQLite'ın sabit-uzunluk
+sütun sınırlarını varsayıyor). Daha uzun bir dize denemek de sonucu
+değiştirmez (Postgres `text` ~1GB'a kadar serbesttir) — bu ortamda case'in
+kod yolu (`AgentRunJobHandler.FailQueuedRunAsync`'in ham metin sızdırmaması)
+tetiklenemiyor.
+
+**Durum:** ☑ Beklemede (ortam bekliyor — PostgreSQL'de `sessionId` sınırsız,
+bu strand'de yeniden üretilemiyor; SQL Server/SQLite arka uçlu bir strand'de
+denenmeli) · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 3) · ☐ AÇIK KALIYOR**
+
+🚨 **Spec'in tetikleyicisi ÜÇ SAĞLAYICININ HİÇBİRİNDE ÇALIŞMIYOR — turun
+"SQL Server/SQLite strand'inde denenmeli" önerisi de yanlıştı.** Ölçüldü:
+
+| Sağlayıcı | `runs.session_id` | `sessions.id` | 300 karakterde ne olur |
+|---|---|---|---|
+| PostgreSQL | `text` | `text` | sınır yok — run **`Completed`** |
+| SQLite | `TEXT` | `TEXT` | sınır yok — aynı |
+| SQL Server | `nvarchar(200)` | `nvarchar(200)` | **run satırı ÖNCE reddeder** |
+
+SQL Server'da iki sütun **eşit genişlikte**, ve run satırı oturumdan **önce**
+yazılır. ∴ oturum deposunu uzunlukla düşürebilecek her değer daha önce run
+satırında patlar; iş hiç kuyruğa girmez, `jobs` satırı hiç oluşmaz:
+
+```
+POST /api/agents/support/run   (Prefer: respond-async, sessionId = 300 x 's')
+→ HTTP 503  "Persistence store unavailable"
+```
+
+💡 **Sızıntı sınırı yine de ölçüldü ve BİR KATMAN YUKARIDA TUTUYOR.**
+Yanıt jenerik; tablo adı, sütun adı ve değer **yok**. Ham sürücü hatası
+yalnız günlükte:
+
+```
+Microsoft.Data.SqlClient.SqlException (0x80131904): String or binary data
+would be truncated in table 'mt_obs055.tracon.runs', column 'session_id'.
+Truncated value: 'sssss...'.
+```
+
+💡 **`FailQueuedRunAsync` yolunun kendisi de çalışıyor — ayrı tetiklendi.**
+Agent kuyruğa alındıktan **sonra** silindi; iş `Failed` oldu ve
+`errorMessage` geldi:
+
+```
+"No agent named 'mt-obs055-gecici' was found. The job will be marked as failed."
+```
+
+Bu **redakte edilmemiş** ve doğrusu budur: cümle Tracon'un **kendi**
+`TraconException`'ıdır, yabancı bir istisna değil (K-817 ayrımı).
+
+**Neden hâlâ açık:** case'in asıl iddiası — *yabancı* bir istisnanın
+`jobs.error_message`'a `"{TypeName} failed. (ref: {kimlik})"` olarak inmesi —
+ölçülemedi. Denenen ve yetmeyen üç tetikleyici: (1) uzun `sessionId` (yukarıda),
+(2) agent silme → Tracon'un kendi cümlesi, (3) aynı `sessionId`'yi farklı bir
+agent'la kullanma → serbest, run `Completed`. Gereken: iş **çalışırken**
+oturum deposunu yabancı bir istisnayla düşüren bir yol (ör. deponun iş
+sırasında kopması) — ama aynı kopma `FailQueuedRunAsync`'in **yazmasını** da
+engeller, yani tetikleyici tasarımı ayrı bir iştir.
+
+Spec'in `Adımlar` kısmı bu ölçümle düzeltildi (skill §1.1); `00-INDEKS.md`
+açık kalem tablosuna taşınır.
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-OBS-057 — MCP `tools/call` üzerinden çalıştırılan bozuk bir agent, ham hata metnini `CallToolResult`'a yazmaz
+
+**Gerçek sonuç**
+Örnek uygulama MCP'de yalnız `summarizer`'ı dışa açıyor
+(`Program.cs:189 o.ExposedAgents.Add("summarizer")`, kod donuk — başka agent
+eklenemedi); bu yüzden MT-OBS-054'ün geçersiz-anahtar kurulumu TEKRARLANDI
+(summarizer de `openai:gpt-5.4-mini` kullanıyor, aynı anahtarı paylaşıyor).
+`POST $APU/mcp` `tools/call` → `tracon_summarizer` (araç adı bu turda
+İngilizce, tazeleme turunun düzeltmesiyle tutarlı) →
+`{"result":{"content":[{"type":"text","text":"'summarizer' could not be run:
+The model provider request failed."},"isError":true}}`. Format `'{agent}'
+could not be run: {güvenli metin}` birebir eşleşiyor; `isError:true`. Not:
+güvenli metin `{TypeName} failed. (ref: ...)` değil, MT-OBS-054'ün sabit
+`ProviderFailureNormalizer` metni — bu, hata sınıfının (sağlayıcı hatası vs.
+genel istisna) `SafeErrorText` çıktısını değiştirdiğini gösteriyor, ikisi de
+"ham metin sızdırmaz" iddiasını doğruluyor, yalnız spec'in "tip adı + ref"
+tarifi bu spesifik hata sınıfı için tam uymuyor. Anahtar sonra tekrar geri
+alındı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti (düzeltilmiş beklenen sonuçla — güvenli
+metin `ProviderFailureNormalizer`'ın sabit metni, "tip adı + ref" değil,
+bkz. not) · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-OBS-059 — `modelProvider` ve birim fiyatlar taşınır, snapshot kalır (toplama girmez, yeniden hesaplama üzerine yazmaz)
+
+**Ön koşul engeli:** `MT-MYU-002`'nin `birincil-kirik` agent'ı (`flaky`
+birincil sağlayıcı + gerçek `openai` yedek) bu örnek uygulamada HİÇ
+kayıtlı değil — `grep -rn "birincil-kirik\|flaky" samples/Tracon.Api/`
+sıfır sonuç döner, `GET /api/agents` listesinde yok. `flaky` bir PROVIDER
+TÜRÜdür ve provider türleri yalnızca kodda tanımlanır (`AGENTS.md`), API'den
+oluşturulamaz; kod donuk kuralı da bunu engelliyor. Bu yüzden case'in
+yedek-sağlayıcı-snapshot'ı iddiası (`modelProvider` birincilin değil
+yedeğin sağlayıcısı) bu turda ölçülemedi.
+
+**Gerçek sonuç (ölçülebilen kısım)**
+`support`'un zaten var olan bir run'ı: `modelId:"gpt-5.4-mini"`,
+`modelProvider:"openai"`, `cost.inputPricePerMillionTokens:0.15`,
+`outputPricePerMillionTokens:0.6` — birim fiyat alanları yalnız GÖSTERİM,
+`inputCost`/`outputCost` zaten `usage×oran/1e6` olarak ayrıca hesaplı
+(toplama katılmıyor). Sonra `Tracon:Pricing:openai:gpt-5.4-mini:Input`
+`999`'a değiştirilip yeniden başlatıldı, `POST /api/stats/recalculate-costs`
+çağrıldı → `{"runsConsidered":1,"runsUpdated":0,"runsStillUnknown":1,
+"runsSkipped":22}` (22 zaten-fiyatlı run `runsSkipped`'e girdi,
+`runsConsidered`'e SAYILMAZ — beklenen). AYNI run'ı tekrar okundu:
+`inputPricePerMillionTokens` hâlâ `0.15`, `999` YANSIMADI — maliyet gerçek
+bir SNAPSHOT, yeniden hesaplama üzerine yazmıyor. Fiyat sonra `0.15`'e geri
+alındı. Arayüz tarafı (PROVIDER/fiyat karolarının görünürlüğü,
+`manuel-bos`'ta hiç görünmemesi) ayrıca test edilmedi.
+
+**Durum:** ☑ Beklemede (kısmen doğrulandı — fiyat snapshot'ı ve
+`recalculate-costs` alan şekli kanıtlandı, ama `birincil-kirik` yedek-
+sağlayıcı iddiası MT-MYU-002'nin `flaky` provider fixture'ı bu örnek
+uygulamada hiç yok olduğu için ölçülemedi) · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 15) · ☑ GEÇTİ**
+
+| Adım | Sonuç |
+|---|---|
+| 2 — `support` run | `modelId: gpt-5.4-mini` · `modelProvider: openai` |
+| 3 — `recalculate-costs` | `{"runsConsidered":0,"runsUpdated":0,"runsStillUnknown":0,"runsSkipped":1}` |
+| 4 — aynı run tekrar | fiyat ve maliyet **aynı**; `999` **yansımadı** |
+
+☑ **Birim fiyat alanları toplama KATILMIYOR** — hesapı birebir doğrulandı:
+
+```
+usage.inputTokens  343 × 0.25 / 1e6 = 8.575e-05  =  cost.inputCost   ☑
+usage.outputTokens  13 × 2.0  / 1e6 = 2.6e-05    =  cost.outputCost  ☑
+```
+
+☑ Adım 3'ün yanıtı dört alanı da taşıyor ve `support`'un run'ı
+**`runsSkipped`**'e girdi — `runsConsidered`'e **sayılmadı**.
+☑ Adım 4: `inputPricePerMillionTokens` hâlâ `0.25`, `inputCost` hâlâ
+`8.575e-05`. **Anlık görüntü korunuyor**; sonradan değiştirilen fiyat
+geçmiş kaydı yeniden yazmıyor.
+
+⚠️ **İki sapma, ikisi de sabit değerde:** (1) spec `0.15`/`0.6` diyor,
+ölçülen kataloq fiyatı `0.25`/`2.0` — ön koşul MT-OBS-003'ün ayrı bir
+yapılandırmasını varsayıyordu. (2) Fiyatsız run için yaratılan `manuel-bos`
+agent'ı geçersiz model adıyla `Failed` oldu, ∴ `usage` üretmedi ve
+`runsConsidered` `0` kaldı. **İddianın kendisi** (birim fiyat toplama
+girmez · anlık görüntü yeniden hesaplamada korunur) iki sapmadan da
+bağımsız olarak tam ölçüldü.
+
+👤 Son madde (arayüzde `PROVIDER` ve birim fiyat karoları) görsel yargı
+gerektiriyor ve bu kayıtta ölçülmedi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-OBS-060 — `run_scores` zaman aralığı sorgusu indeks kullanır, tam tablo taraması değil
+
+**Gerçek sonuç**
+`\di+ *run_scores*` → dört indeks: `run_scores_created_at_idx`,
+`run_scores_pkey`, `run_scores_run_idx`, `run_scores_target_author_name_idx`
+(ikisi de — `created_at_idx` ve `target_author_name_idx` — spec'in beklediği
+gibi listede). `EXPLAIN SELECT * FROM run_scores WHERE tenant_id='default'
+AND created_at >= now() - interval '30 days'` → `Index Scan using
+run_scores_target_author_name_idx` — `Seq Scan` **görünmüyor** (asıl iddia
+doğrulandı), ama planlayıcı beklenen `created_at_idx` YERİNE
+`target_author_name_idx`'i seçti. Tablo bu şeritte **0 satır**
+(`SELECT count(*)`) — planlayıcının boş bir tabloda iki geçerli indeks
+arasında seçim yapması istatistik gürültüsüdür, üretim ölçeğinde temsili
+değildir. Çekirdek anti-regresyon iddiası (Seq Scan yok) sağlam.
+
+**Durum:** ☐ Beklemede · ☑ Geçti (düzeltilmiş beklenen sonuçla — Seq Scan
+yok iddiası doğru, ama boş tabloda `created_at_idx` yerine
+`target_author_name_idx` seçildi, bkz. not) · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-062 — 🚨 `runs` yazılamazken `run` TAMAMLANIR ve kayıp `stage=start` ile sayılır
+
+**Gerçek sonuç**
+`mt_s2.runs` üzerine (🚨 **şema-nitelikli** — paylaşılan `tracon` VERİTABANI
+içindeki KENDİ şeması, `resources/serit-kurulumu.md:74-75`'e göre) geçici bir
+`BEFORE INSERT` tetikleyicisi kuruldu. `support` run'ı → `HTTP 200`, akış
+`event: done` ile normal bitti. `dotnet-counters` penceresinde
+`tracon.run.recording_failures[stage=input]=1` VE `[stage=start]=1` (ikisi
+de bir kez), `tracon.runs[status=Completed]=1`. Log: `"Tracon run recording
+was disabled (the run record could not be opened). Run <id> continues
+normally."` (birebir). Tetikleyici `DROP` edildikten sonra
+`SELECT count(*) FROM mt_s2.runs WHERE agent_name='support'` yalnız sağlıklı
+run'ları saydı — engellenen run'ın satırı yok. Beklenen sonuçla birebir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-OBS-046 — Görsel fiyatı yalnız açık yapılandırmadan hesaplanır
+
+**Gerçek sonuç**
+`GET /api/tools` → bu örnek uygulamada kayıtlı 10 tool'un HİÇBİRİ
+`generate_image` değil (`cancel_order, estimate_shipping_cost,
+get_order_status, get_slow_report, list_recent_orders, list_voices,
+mark_preview_ready, read_shopping_cart, speak, transcribe`). `MT-MM-095`'in
+ön koşulu ("generate_image tool'unu taşıyan bir agent tanımı oluştur veya
+seç") bu yüzden kurulamıyor — `AGENTS.md`'nin "Tool'lar yalnızca kodda
+tanımlanır" güvenlik kuralı gereği API'den yeni bir tool TÜRÜ eklenemez, kod
+donuk kuralı da `src/`'ye dokunmayı yasaklıyor. Görsel üretim gerçek bir
+sağlayıcı çağrısı gerektirdiği için kod dışı bir workaround yok.
+
+**Durum:** ☑ Beklemede (ortam bekliyor — bu örnek uygulamada `generate_image`
+tool'u hiç kayıtlı değil, MT-MM-095 kurulamıyor) · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 15) · ☑ GEÇTİ**
+
+Gerçek `gpt-image-1` çağrısıyla koşuldu (**kullanıcı harcamayı onayladı**);
+ölçüm `generate_image` tool'unun `usage` kaydından okundu.
+
+| Adım | `usage` |
+|---|---|
+| 1 — fiyat **yapılandırılmadan** | `{"unit":"tokens","quantity":4160,"cost":null,"isEstimated":false}` |
+| 3 — `PerImage=0.04` + `SizeMultipliers:1024x1024=2` | `{"unit":"images","quantity":1,"cost":0.08,"isEstimated":false}` |
+
+☑ Adım 1: `cost` **`null`**, `0` **değil**; `isEstimated: false` — fiyat
+uydurulmuyor.
+☑ Adım 3: `unit=images`, `quantity=1`, `cost=0.08` — yapılandırılan
+`0.04 × 2` çarpanıyla birebir.
+
+🚨 **Asıl bulgu iki satırın FARKINDA: fiyat yapılandırmak BİRİMİ de
+değiştiriyor.** Fiyat yokken adaptör sağlayıcının bildirdiği **token**
+sayısını (`4160`) kaydediyor; per-image fiyatı yapılandırılınca **görsel**
+sayısına (`1`) geçiyor. ∴ `quantity` alanının anlamı fiyat yapılandırmasına
+bağlıdır.
+
+⚠️ Spec'in adım 1 beklentisi *"ölçülen `quantity` gerçek görsel sayısıdır"*
+diyor; ölçülen `4160` **token**'dır. Spec bu ölçümle düzeltildi (skill §1.1).
+
+💡 Bu ölçüm §5(c)'nin açık **görsel fiyat sorusunu** da yanıtlıyor: örnek
+uygulamada `Tracon:Pricing:Images:*` hiç yapılandırılmadığı için `cost` boş
+kalıyor — kusur değil, eksik yapılandırma. Bir değer verildiğinde maliyet
+doğru hesaplanıyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+## MT-OBS-047 — Token fiyatı ile görsel başı fiyat birlikte yapılandırılamaz
+
+**Gerçek sonuç**
+Bu case yalnızca `Tracon:Pricing:Images:openai:<model>` bölümünü ve
+uygulamanın başlangıç doğrulamasını (`OptionsValidation`) test ediyor —
+gerçek görsel üretim gerektirmiyor, bu yüzden MT-OBS-046'nın engeli burada
+GEÇERLİ DEĞİL. Ama `<model>` yerine somut bir görsel model adı gerekiyor ve
+bu örnek uygulamanın hangi görsel modeli tanıdığı (`Tracon:Images:Model`)
+MT-OBS-046'nın engellediği görsel akışla birlikte belgelenmiş — model adı
+bağımsız olarak doğrulanamadı. Adımın kendisi (`PerImage` VE
+`OutputCostPerMillionTokens`'ı AYNI anda ayarlayıp `dotnet run` ile başlatmak,
+başarısızlığı beklemek) prensipte kod donuk kuralını ihlal etmiyor (yalnız
+config, `dotnet run -c Release` zaten normal başlatma yöntemi) — ama
+gerçekçi bir model adı olmadan yapılandırma anahtarının kendisi (`<model>`)
+belirsiz kalıyor.
+
+**Durum:** ☑ Beklemede (ortam bekliyor — geçerli bir görsel model adı MT-OBS-
+046'nın engellediği akışla birlikte netleşir) · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 3) · ☑ GEÇTİ**
+
+Turun engeli "gerçekçi bir model adı yok"tu. `gpt-image-1` kullanıldı —
+kataloqda zaten bu ad geçiyor (§5(c)'nin görsel fiyat sorusu aynı modeli
+adlandırıyor). **Hiçbir sağlayıcı çağrısı yapılmadı**: kapı açılışta çalışıyor.
+
+```
+$ dotnet Tracon.Api.dll \
+    "--Tracon:Pricing:Images:openai:gpt-image-1:PerImage=0.04" \
+    "--Tracon:Pricing:Images:openai:gpt-image-1:OutputCostPerMillionTokens=10"
+EXIT=134
+Unhandled exception. Microsoft.Extensions.Options.OptionsValidationException:
+TraconPricingOptions: 'Images:openai:gpt-image-1' cannot contain both
+'PerImage' and 'OutputCostPerMillionTokens'.
+```
+
+İki iddia da tuttu: uygulama **başlangıçta** options validation hatasıyla
+duruyor ve mesaj aynı image modelinde iki değerin birlikte olamayacağını
+**açıkça** söylüyor. Çıkış `134` — süreç ölüyor, endpoint hiç bağlanmıyor,
+∴ hiçbir görsel çağrısı para harcayamıyor.
+
+💡 **Karşı kontrol — kapı anahtarın VARLIĞINA değil BİRLEŞİMİNE bakıyor.**
+Yalnız `PerImage` verildiğinde aynı komut temiz başladı: `health=200`,
+günlükte `OptionsValidationException` sayısı `0`. Bu ikinci ölçüm olmadan
+case yalnız "fiyat anahtarı uygulamayı çökertüyor" derdi.
+
+⚠️ Noktalı ayar komut satırından verildi (`--"anahtar=değer"`), `user-secrets`
+ile değil — §3.4 kuralı. `user-secrets` yazılması skill §1.2 ile de yasaktır.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---

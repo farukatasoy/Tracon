@@ -258,7 +258,14 @@ DIZIN_BUTCESI = {
     # ~18 KB vaka anlatisini buraya indirdi, yani sayacin artmasi disiplinin
     # CALISTIGININ isaretidir, kacisinin degil. Arsive tasinan icerigin baska bir
     # hedefi yoktur; tek alternatif silmekti ve AGENTS.md onu yasaklar. olculen/0.85.
-    ("docs/arsiv", True, False):      5_496_000,    # ONCEKI KALIBRASYON 2026-09-07; olculen 4_092_925
+    # YENIDEN KALIBRE 2026-09-19 (2026-09-16 manuel kabul turunun kapanisi):
+    # 5_496_000 -> 7_400_000; olculen 6_289_937 (turun kaydi damitildiktan
+    # SONRA arsive tasindi: 2_001_650 -> 1_476_779 B, -%27). Ayni formul:
+    # olculen/(1-%15 bosluk), yukari yuvarlandi. Bu bir BUYUTME karari degil,
+    # tasimanin OLCULEN sonucudur: kayit sicak yoldan (docs/manuel-test/kosumlar)
+    # cikti ve tek alternatif silmekti -- AGENTS.md onu yasaklar. Kullanici
+    # karari, 2026-09-19.
+    ("docs/arsiv", True, False):      7_400_000,    # ONCEKI KALIBRASYON 2026-09-07; olculen 4_092_925
     # (dokuman butcesi mudahale turu: MIMARI-GUVENLIK.md'nin Skill script
     # calistirma bolumu 11-SKILL-SCRIPT-CALISTIRMA.md'ye tasindi). Ayni formul:
     # olculen/(1-%15 bosluk) = 4_815_206, yukari yuvarlandi. Bu bir BUYUTME
@@ -2483,7 +2490,8 @@ def tam_metin_denetle(kok: pathlib.Path = ROOT) -> list[str]:
     bulunan: list[str] = []
     kaynaklar = [kok / "docs" / "arsiv" / "fazlar",
                  kok / "docs" / "manuel-test" / "kosumlar",
-                 kok / "docs" / "arsiv" / "manuel-test-kosum-2026-08"]
+                 kok / "docs" / "arsiv" / "manuel-test-kosum-2026-08",
+                 kok / "docs" / "arsiv" / "manuel-test-kosum-2026-09"]
     for dosya in sorted(d for k in kaynaklar if k.exists() for d in k.rglob("*.md")):
         try:
             metin = dosya.read_text(encoding="utf-8")
