@@ -161,10 +161,52 @@ koşulu bu şeritte doğrulanamadı: `mt_s3` şemasını sıfırlamak paylaşıl
 kullanıcı onayı bu oturumda istenmedi (skill §1.4 kural 3 — paylaşılan
 kaynağı bozacak eylem). Case koşulamadı.
 
-**Durum:** ☐ Beklemede — gerekçe: `mt_s3` şemasını `DROP SCHEMA ... CASCADE`
-ile sıfırlamak gerekiyor, bu paylaşılan şerit kaynağını geri dönüşsüz
-siler; kullanıcı onayı istenmedi. Kapanışta `00-INDEKS.md`'nin açık kalem
-tablosuna taşınacak.
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+— gerekçe: `mt_s3` şemasını `DROP SCHEMA ... CASCADE` ile sıfırlamak gerekiyordu, bu
+paylaşılan şerit kaynağını geri dönüşsüz siler; kullanıcı onayı istenmedi.
+
+---
+
+**Yeniden koşum — 2026-09-19 (kapanış, §5(b)) · ☑ GEÇTİ**
+
+Şeritler kapandığı için paylaşılan kaynak sorunu yok. `mt_s3`'e hiç
+dokunulmadı: **taze ve boş** bir şema (`mt_u1`) açıldı, `AutoApplyMigrations=true`
+ile ayrı bir örnek (port 5201) başlatıldı. Başlangıç durumu ölçüldü:
+
+```
+GET /tracon/api/runs   → []
+GET /tracon/api/stats  → HTTP 200
+{"totalRuns":0,"completedRuns":0,"failedRuns":0,…,"errorRate":null,…}
+```
+
+**Case'in asıl konusu — doküman düzeltmesi doğru çıktı.** İstatistik şeridi
+**gizlenmedi**; dört kutu da render edildi ve liste tarafındaki `Empty` bileşeni
+**aynı anda** göründü. Tarayıcı erişilebilirlik anlık görüntüsü:
+
+```yaml
+- generic:                      # istatistik şeridi — GIZLENMEDI
+  - generic: [Runs,       "0"]
+  - generic: [Failed,     "0"]
+  - generic: [Error rate, "—", "Of finished runs only."]
+  - generic: [Tokens,     "0"]
+- generic:                      # AYNI ANDA: Empty bileşeni
+  - paragraph: No run is recorded
+  - generic: Nothing has been run yet. Send a message in the playground, or
+             call the agent through the API.
+  - link "Open the playground" → /tracon/playground
+```
+
+İki iddia da tuttu: `runs.empty.title` başlığı görünüyor ve içindeki bağlantı
+gerçekten `playground` rotasına gidiyor (`/tracon/playground`).
+
+⚠️ **Bir ayrıntı bayattı ve spec keskinleştirildi** (skill §1.1 istisnası).
+Spec "dört kutu, **hepsi `0`/`%0`**" diyordu. Ölçülen: üç kutu `0`, hata oranı
+kutusu **`—`**. Sebep `stats` yanıtında görünüyor — `errorRate` **`null`**, `0`
+değil. Bu kasıtlı ve doğru: sıfır koşmada `%0` yazmak "çalıştırdık, hiçbiri
+başarısız olmadı" anlamına gelirdi. Kutunun kendi ipucu sınırı yazıyor:
+*"Of finished runs only."*
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1272,9 +1314,68 @@ statik bearer token var ve o token HER ZAMAN tam rol taşıyor (`MT-UIRUN-
 029`/`MT-RES-029`'un aynı ortam sınırı) — ayrı bir "reader" kimliği üretmenin
 bu örnek uygulamada bir yolu yok. Koşulamadı.
 
-**Durum:** ☐ Beklemede — gerekçe: ortamda "reader" rolünü temsil eden ayrı
-bir kimlik yok (dosyanın kendi tekrarlanan sınır notu); kapanışta
-`00-INDEKS.md`'nin açık kalem tablosuna taşınacak.
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+— gerekçe: ortamda "reader" rolünü temsil eden ayrı bir kimlik yok
+(dosyanın kendi tekrarlanan sınır notu).
+
+---
+
+**Yeniden koşum — 2026-09-19 (kapanış, §5(b)) · ☑ GEÇTİ**
+
+🚨 **Turun "ayrı kimlik üretmenin yolu yok" tespiti YANLIŞTI.** Örnek uygulama
+bunu taşıyan bir bayrak zaten taşıyor: `Tracon:Demo:Roles:Enabled=true`
+üç politika adını (`TraconPolicies.Reader/Operator/Admin`) kaydeder ve rolü
+`X-Tracon-Demo-Role` başlığından okuyan bir gösterim şeması açar
+(`samples/Tracon.Api/Program.cs:104-125`, `DemoRoleAuthentication.cs:46`).
+Hiçbir `Program.cs` değişikliği gerekmedi. Tarayıcı tarafta başlık
+`context.setExtraHTTPHeaders({'X-Tracon-Demo-Role':'reader'})` ile enjekte edildi.
+**Ders: bir case "ortamda bunun yolu yok" diyorsa önce ÖRNEĞİN BAYRAKLARINI ara.**
+
+Kimlik doğruluğu ölçüldü (`GET /tracon/api/meta`):
+
+| Kimlik | `canRead` | `canOperate` | `canAdminister` |
+|---|---|---|---|
+| başlıksız | `false` | `false` | `false` |
+| `reader` | **`true`** | `false` | `false` |
+| `admin` | `true` | `true` | `true` |
+
+Ön koşulun ikinci yarısı da sağlandı: bir agent yaratılıp silindi, denetim izinde
+**iki** kayıt oluştu (`agent.create` · `agent.delete`).
+
+**Dört adımın dördü de yetkisiz durumu gösterdi** — kilit simgesi (`LockIcon`,
+`data-testid="unauthorized"`), gereken rol ve ne yapılacağı:
+
+> Your role does not reach this screen
+> It needs the administrator role. Ask whoever configured this deployment for it.
+
+| Adım | Yüzey | Sonuç |
+|---|---|---|
+| 1 | `audit` | ☑ kilit + rol metni; "kayıt yok" metni **yok** (sunucu: reader `403`, admin `200`) |
+| 2 | `diagnostics` | ☑ aynısı; sorgu `enabled: allowed` ile **hiç gönderilmiyor** |
+| 3 | script izni paneli | ☑ form `Unauthorized` çiziyor — ama panel **`settings`'te değil** (aşağı) |
+| 4 | `mcp` → Prompt'lar sekmesi | ☑ kilit + rol metni; "prompt yok" metni **yok** |
+
+Adım 4'ün sunucu tarafı ayrıca ölçüldü ve **yetkilendirme aramadan ÖNCE**
+koşuyor: olmayan bir sunucu adıyla reader `403`, admin `404` alıyor.
+
+⚠️ **Adım 3'ün iki beklentisi bayattı; ikisi de spec'te düzeltildi** (skill §1.1):
+
+1. **Panel `settings`'te değil, `skills` ekranında** —
+   `screens/skills/script-grants.tsx`. Spec'in adımı eski yerini yazıyordu.
+2. **"Hiçbirinde 'kayıt yok' metni görünmez" bu yüzeye olduğu gibi uymuyor.**
+   Panelde reader hem "No script grant" hem kilidi görüyor — ve bu **doğru**:
+   grant **listesi** reader'a açıktır, yalnız **form** admin'e aittir. Ölçüldü:
+   `GET /api/skill-script-grants` reader'a `200 []`, admin'e de `200 []` — **birebir
+   aynı**; `POST` ise reader'a `403`. ∴ "kayıt yok" burada **gerçek bilgidir**,
+   reddın maskesi değil. Case'in korktuğu karışıklık ("yasak" → "boş" diye okunmak)
+   bu yüzeyde oluşmuyor.
+
+🚨 **Ölçüm case'in DİŞINDA yeni bir kusur açığa çıkardı → K-833, aynı oturumda
+kapatıldı.** `settings` ekranının **dört** paneli ve `mcp` ekranının "Remembered
+approvals" paneli — **beş** panel — reader'a `HTTP 403` metnini bir **`Try again`
+düğmesiyle** çiziyordu. Ayrıntı, sınıf taraması ve düzeltme K-833'tedir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 

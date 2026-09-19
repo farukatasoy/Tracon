@@ -2820,8 +2820,13 @@ unzip -p artifacts/package/release/Tracon.Core.1.0.0-preview.1.nupkg '*.nuspec' 
 ```
 
 **Beklenen sonuç**
-- `https://github.com/farukatasoy/Tracon/blob/v1.0.0-preview.1/CHANGELOG.md`.
-- `v$(Version)` veya `v/CHANGELOG.md` (boş sürüm) **görünmez**.
+- `https://tracon.dev/reference/changelog/#v1.0.0-preview.1`.
+- `v$(Version)` veya `#v` (boş sürüm) **görünmez**.
+
+> Hedef Faz 162'de (`630f3212`) GitHub blob URL'inden site sayfasına döndü:
+> repo private olduğu sürece bir `github.com` URL'i her tüketici için `404`
+> verir. Gerekçe `src/Directory.Build.props:120-137` yorumundadır. Case'in
+> asıl konusu URL'in **adresi** değil, `$(Version)`'ın çözümlenmiş olmasıdır.
 
 ---
 
@@ -3153,6 +3158,10 @@ akışının deterministik no-op yolu.
 
 **Ön koşul**
 - `git status --porcelain` boş.
+- `artifacts/package/release/` **yayınlanacak sürümden başka** `Tracon*` paketi
+  taşımaz. Extension sample contract kapısı bayat feed'i reddeder ("release
+  feed contains stale Tracon packages") ve prova terfiden **sonra** sıfır
+  olmayan çıkışla durur — no-op sorusu o zaman ölçülemez. Ölçüldü 2026-09-19.
 
 **Adımlar**
 1. Yayın provasını koş.

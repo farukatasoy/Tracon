@@ -119,3 +119,30 @@
   **kurulduğunu** kanıtlar, davranışını değil. Bugün o üç test `AIContent`
   döndüren bir vekile taşındı ve üstüne gerçek SDK istemcisiyle konuşan bir
   fonksiyonel test (`McpToolResultTruncationTests`) eklendi.
+
+- **🚨 Rolün reddettiği bir panel isteği HİÇ GÖNDERMEMELİDİR — 403'ü çizmek
+  "konsol bozuk" diye okunur** (2026-09-19, manuel kapanış `MT-UIRUN-063`,
+  K-833): reader rolüyle `settings`'in dört paneli ve `mcp`'nin "Remembered
+  approvals" paneli `HTTP 403` metnini bir **`Try again` düğmesiyle**
+  çiziyordu. Düğme çalışması **imkânsız** olan tek eylemi öneriyor — reddin
+  sebebi roldür. `diagnostics.tsx` ve MCP prompt sekmesi bu boşluğu
+  **kendileri için** çoktan kapatmış ve gerekçeyi 🚨 yorumu olarak yazmıştı;
+  beş panel aynı işlemden hiç geçmemişti. Desen: sorgu `enabled: canAdminister`
+  ile hiç koşmaz, gövde `Unauthorized requires="administrator"` çizer, birincil
+  eylem düğmesi gizlenir. **Asıl iddia metin değil, isteğin GÖNDERİLMEMESİDİR**:
+  yalnız `enabled:` guard'ını silmek kusurun tamamını geri getirir ve metne
+  bakan her iddia yeşil kalır, çünkü 403 o zaman gelir ve gerçek bir taşıma
+  hatası için dosyada duran aynı `ErrorNote` dalı onu çizer
+  (`admin-panel-roles.test.tsx` bunu zorlar; düşerliği ölçüldü).
+  ⚠️ Her panel kapsamda değildir: **listesi** reader'a açık olan bir yüzeyde
+  (`skill-script-grants` — reader'a da admin'e de `200 []`) boş durum
+  **gerçek bilgidir**, reddin maskesi değil; orada yalnız form gizlenir.
+- **Örnek uygulama rol denemesi için hazır bir bayrak taşıyor: `Tracon:Demo:Roles:Enabled`**
+  (2026-09-19, aynı vaka): üç politika adını kaydeder ve rolü
+  `X-Tracon-Demo-Role: reader|operator|admin` başlığından okuyan bir gösterim
+  şeması açar (`samples/Tracon.Api/Program.cs:104-125`,
+  `DemoRoleAuthentication.cs:46`). Rol davranışını ölçmek için `Program.cs`
+  değiştirmek **gerekmez** — turun "ayrı kimlik üretmenin yolu yok" tespiti bu
+  yüzden yanlıştı. Tarayıcıda başlık
+  `context.setExtraHTTPHeaders({...})` ile enjekte edilir; konsolun kendi
+  `fetch` sarmalayıcısı bu başlığı **göndermez**.

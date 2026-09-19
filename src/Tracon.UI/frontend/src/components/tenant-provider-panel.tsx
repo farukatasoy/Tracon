@@ -3,7 +3,19 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { client, unwrap } from '../lib/api';
 import { relativeTime } from '../lib/format';
 import { useT } from '../lib/i18n';
-import { Badge, Button, Empty, ErrorNote, Field, Loading, Mono, Panel, Select, TextInput } from './ui';
+import {
+  Badge,
+  Button,
+  Empty,
+  ErrorNote,
+  Field,
+  Loading,
+  Mono,
+  Panel,
+  Select,
+  TextInput,
+  Unauthorized,
+} from './ui';
 import type { TenantProviderBindingResponse as TenantProviderBinding } from '@tracon/client';
 import type { ModelProviderDescriptor } from '../lib/server-types';
 
@@ -16,14 +28,30 @@ import type { ModelProviderDescriptor } from '../lib/server-types';
  * `dotnet user-secrets`, an environment variable, or a key vault — never
  * through this screen.
  */
-export function TenantProviderPanel(): ReactNode {
+export function TenantProviderPanel({ canAdminister }: { canAdminister: boolean }): ReactNode {
   const t = useT();
   const current = useQuery({
     queryKey: ['current-tenant'],
     queryFn: () => unwrap(client.GET('/api/tenants/current')),
+    enabled: canAdminister,
   });
   const [tenantId, setTenantId] = useState<string | null>(null);
   const effectiveTenantId = tenantId ?? current.data?.tenantId ?? '';
+
+  // 🚨 Gated at the panel, not inside each section: BOTH subsections below read
+  // an administrator-only endpoint, so a reader used to get two 403s rendered as
+  // generic failures with "try again" buttons — which reads as "the console is
+  // broken" rather than "this panel is not yours", and retrying can never
+  // succeed. Same reason diagnostics.tsx gives for not issuing the request.
+  // The tenant field is hidden too: typing a key into it does nothing a reader
+  // is allowed to see.
+  if (!canAdminister) {
+    return (
+      <Panel title={t('tenantProviders.title')} className="lg:col-span-2">
+        <Unauthorized requires="administrator" />
+      </Panel>
+    );
+  }
 
   return (
     <Panel title={t('tenantProviders.title')} className="lg:col-span-2">
