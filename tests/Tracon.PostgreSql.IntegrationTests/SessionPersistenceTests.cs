@@ -1,3 +1,4 @@
+using Microsoft.Agents.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Tracon.PostgreSql.IntegrationTests.Infrastructure;
 using Tracon.Testing;
@@ -165,16 +166,46 @@ public sealed class SessionPersistenceTests(PostgresFixture fixture)
         await using var first = BuildProvider(context);
         await using var second = BuildProvider(context);
 
-        static async Task<Exception?> TryRunLaterTurnAsync(ServiceProvider provider, string message)
+        // Make the race real. Without this barrier, a fast first task may finish
+        // its read, run and compare-and-swap before the second task reads the row;
+        // both calls then succeed legitimately, and the assertion below mistakes
+        // serialized success for a lost update. The contract is about two callers
+        // writing the same generation, so both reads must complete first.
+        var bothSessionsLoaded = new TaskCompletionSource<object?>
+            (TaskCreationOptions.RunContinuationsAsynchronously);
+        var loadedCount = 0;
+
+        async Task<Exception?> TryRunLaterTurnAsync(ServiceProvider provider, string message)
         {
+            AIAgent? agent = null;
+            AgentSession? session = null;
+
             try
             {
-                var agent = await ResolveAsync(provider, "support");
+                agent = await ResolveAsync(provider, "support");
                 var manager = provider.GetRequiredService<AgentSessionManager>();
 
-                var session = await manager.GetOrCreateSessionAsync(agent, SessionId);
-                await agent.RunAsync(message, session);
-                await manager.SaveSessionAsync(agent, session);
+                session = await manager.GetOrCreateSessionAsync(agent, SessionId);
+            }
+            catch (Exception ex)
+            {
+                return ex;
+            }
+            finally
+            {
+                if (Interlocked.Increment(ref loadedCount) == 2)
+                {
+                    bothSessionsLoaded.TrySetResult(null);
+                }
+            }
+
+            try
+            {
+                await bothSessionsLoaded.Task;
+                await agent!.RunAsync(message, session!);
+
+                var manager = provider.GetRequiredService<AgentSessionManager>();
+                await manager.SaveSessionAsync(agent, session!);
                 return null;
             }
             catch (Exception ex)
