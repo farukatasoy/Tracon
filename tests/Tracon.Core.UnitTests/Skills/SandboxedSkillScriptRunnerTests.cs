@@ -247,7 +247,7 @@ public sealed class SandboxedSkillScriptRunnerTests : IDisposable
             {
                 Directory.Delete(directory, recursive: true);
             }
-            catch (IOException)
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
             {
                 // Temp directory cleanup must not change the test's outcome.
             }

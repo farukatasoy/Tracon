@@ -101,7 +101,7 @@ public sealed class SkillScriptProcessRunnerTests : IDisposable
         {
             Directory.Delete(_root, recursive: true);
         }
-        catch (IOException)
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
             // A cleanup failure must not change the test result.
         }
