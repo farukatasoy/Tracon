@@ -182,6 +182,35 @@ başladıktan sonra çalışma ağacına dokunulmaz** — `dotnet pack` kirli a�
 
 ---
 
+### 3.8 Sekiz kapının tam ölçümü — 2026-09-19 (Aile O…V sonrası)
+
+Sekizi de **boş bir makinede**, temiz ağaçta, tek tek koşuldu:
+
+| Kapı | Sonuç |
+|---|---|
+| `unittest discover -s scripts` | ✅ 351 test |
+| `build-agent-map.mjs --check` | ✅ bütçede |
+| `denetim-paketi.py --taban 7e3a4de7` | ✅ çıkış 0 |
+| `dotnet build -c Release` | ✅ sıfır uyarı |
+| `dotnet test -c Release -maxcpucount:1` | ✅ **çıkış 0 · 22 proje · 7848 test · 0 düşen · 599 sn** (TRX ile ayrıca doğrulandı) |
+| `dotnet pack --no-build` | ✅ çıkış 0 |
+| `dotnet format --verify-no-changes` | ✅ çıkış 0 |
+| `docs-site && npm run check` | ✅ çıkış 0 · 1152 sayfa |
+
+`dokuman-bakim.py --denetle`: **tek kırmızı** koşum kaydı bütçesi (§3.2,
+kabul edilmiş). Diğer her kontrol yeşil, kırık bağlantı **0**.
+
+⚠️ `kapi.py tarama` **kırmızı, ama bu turun işinden değil** — ikisi de bu
+oturumdan öncedir ve dokunulmadı (`git diff 6303e2a9..HEAD` o yollarda boş):
+`ConsumerStoreRegistrationTests.cs:61`'deki sentetik `Password=unused`, ve
+tarama tabanı `630f3212`'den **sonra** eklenmiş üç migration dosyası. Yayın
+öncesi bunlar ayrıca ele alınmalıdır (`YAYIN-HAZIRLIK` Adım 3).
+
+🚨 **Altı kırılganlık örneğinin hiçbiri bu koşumda düşmedi** — ikinci kez.
+Koşum profili değişikliği (§4'ün Aile T satırı) yürürlükte.
+
+---
+
 ### 3.4 Turun bıraktığı ortam kuralları
 
 Bunlar kapanış oturumlarında da geçerlidir ve bitti tanımında
