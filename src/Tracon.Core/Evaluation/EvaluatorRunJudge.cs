@@ -154,11 +154,14 @@ internal sealed class EvaluatorRunJudge(
         // losing the version.
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            logger?.LogDebug(
-                exception,
-                "Judge '{Judge}' could not read the version of evaluator '{Evaluator}'; its scores are stored without one.",
-                name,
-                evaluator.GetType().FullName);
+            if (logger?.IsEnabled(LogLevel.Debug) is true)
+            {
+                logger.LogDebug(
+                    exception,
+                    "Judge '{Judge}' could not read the version of evaluator '{Evaluator}'; its scores are stored without one.",
+                    name,
+                    evaluator.GetType().FullName);
+            }
             return null;
         }
 
@@ -167,10 +170,13 @@ internal sealed class EvaluatorRunJudge(
             // Debug, not Warning: a third-party evaluator with no informational
             // version is ordinary, and a warning per judge would be noise. But
             // staying entirely silent leaves a null column with no explanation.
-            logger?.LogDebug(
-                "Judge '{Judge}' bridges evaluator '{Evaluator}', whose assembly carries no informational version; its scores are stored without one.",
-                name,
-                evaluator.GetType().FullName);
+            if (logger?.IsEnabled(LogLevel.Debug) is true)
+            {
+                logger.LogDebug(
+                    "Judge '{Judge}' bridges evaluator '{Evaluator}', whose assembly carries no informational version; its scores are stored without one.",
+                    name,
+                    evaluator.GetType().FullName);
+            }
             return null;
         }
 

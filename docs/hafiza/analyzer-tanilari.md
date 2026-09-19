@@ -56,11 +56,13 @@
 ## CA13xx/CA18xx tani vakalari
 
 - **🚨 `CA1873`, logging argumani olarak verilen property erisimini de pahali
-  sayabilir** (2026-08-28, Ubuntu CI): `_buffer.Length`, `judge.Name` ve
-  `timeout.TotalSeconds` gibi erisimler bes cagrida build'i kirdi. Mesaji
+  sayabilir** (2026-09-19, Windows ve Ubuntu CI): `_request.SessionId`,
+  `result.Observed`, `evaluator.GetType().FullName` ve
+  `timeout.TotalSeconds` gibi erisimler on cagrida build'i kirdi. Mesaji
   susturma. Cagriyi ayni seviyenin `logger.IsEnabled(LogLevel.X)` guard'i
   icine al; nullable logger icin `logger?.IsEnabled(...) is true` kullan.
-  Ayni tani her target framework icin tekrarlandigi icin 5 vaka 15 hata gorunur.
+  Ayni tani her target framework icin tekrarlandigi icin 10 vaka 30 hata
+  gorunur.
 - **`CA1875` için `Regex.Matches(...).Count` kullanma.** Yalnız eşleşme sayısı
   gerekiyorsa `Regex.Count(...)` kullan; `MatchCollection` üretme. Analyzer
   sürümü veya işletim sistemi farkı nedeniyle yerel incremental build tanıyı

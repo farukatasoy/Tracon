@@ -93,9 +93,12 @@ internal sealed class ProductionProfileValidator(
                 // No check carries this decision in this composition. Reported
                 // rather than skipped: a decision that quietly disappears from
                 // the gate is exactly the silence the gate exists to remove.
-                logger.LogInformation(
-                    "Production profile: {Risk} is not applicable - no registered check covers it in this composition.",
-                    risk);
+                if (logger.IsEnabled(LogLevel.Information))
+                {
+                    logger.LogInformation(
+                        "Production profile: {Risk} is not applicable - no registered check covers it in this composition.",
+                        risk);
+                }
                 continue;
             }
 
@@ -105,11 +108,14 @@ internal sealed class ProductionProfileValidator(
                     // An accepted risk does not pass in silence. One line per
                     // decision, so an operator can grep the log for what this
                     // deployment chose to carry.
-                    logger.LogInformation(
-                        "Production profile: {Risk} is accepted. {Setting} is permissive: {Observed}.",
-                        risk,
-                        result.Setting,
-                        result.Observed);
+                    if (logger.IsEnabled(LogLevel.Information))
+                    {
+                        logger.LogInformation(
+                            "Production profile: {Risk} is accepted. {Setting} is permissive: {Observed}.",
+                            risk,
+                            result.Setting,
+                            result.Observed);
+                    }
                     break;
 
                 case ProductionProfileState.Permissive:
@@ -117,19 +123,25 @@ internal sealed class ProductionProfileValidator(
                     break;
 
                 case ProductionProfileState.NotApplicable:
-                    logger.LogInformation(
-                        "Production profile: {Risk} is not applicable. {Setting}: {Observed}.",
-                        risk,
-                        result.Setting,
-                        result.Observed);
+                    if (logger.IsEnabled(LogLevel.Information))
+                    {
+                        logger.LogInformation(
+                            "Production profile: {Risk} is not applicable. {Setting}: {Observed}.",
+                            risk,
+                            result.Setting,
+                            result.Observed);
+                    }
                     break;
 
                 case ProductionProfileState.Satisfied:
                 default:
-                    logger.LogDebug(
-                        "Production profile: {Risk} is satisfied by {Setting}.",
-                        risk,
-                        result.Setting);
+                    if (logger.IsEnabled(LogLevel.Debug))
+                    {
+                        logger.LogDebug(
+                            "Production profile: {Risk} is satisfied by {Setting}.",
+                            risk,
+                            result.Setting);
+                    }
                     break;
             }
         }
