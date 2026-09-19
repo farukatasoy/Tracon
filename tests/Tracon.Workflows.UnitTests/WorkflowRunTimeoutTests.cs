@@ -18,11 +18,13 @@ public sealed class WorkflowRunTimeoutTests
     public async Task A_run_past_the_deadline_stops_inside_the_node_that_overran()
     {
         var host = new WorkflowTestHost("one");
+        var slowStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
         host.AddFunction<List<ChatMessage>, List<ChatMessage>>(
             "slow",
-            static async (messages, _, cancellationToken) =>
+            async (messages, _, cancellationToken) =>
             {
+                slowStarted.TrySetResult();
                 await Task.Delay(TimeSpan.FromSeconds(30), cancellationToken).ConfigureAwait(false);
 
                 return messages;
@@ -39,9 +41,16 @@ public sealed class WorkflowRunTimeoutTests
             ],
         });
 
-        var runner = host.CreateRunner(static options => options.RunTimeout = TimeSpan.FromMilliseconds(200));
+        var clock = new TriggerableTimeProvider();
+        var runner = host.CreateRunnerWithTimeProvider(
+            clock,
+            static options => options.RunTimeout = TimeSpan.FromMinutes(5));
 
-        var events = await Collect(runner, "chain", "hello");
+        var collecting = Collect(runner, "chain", "hello");
+        await slowStarted.Task.WaitAsync(TestContext.Current.CancellationToken);
+        clock.TriggerAll();
+
+        var events = await collecting;
 
         // The stream ends INSIDE the slow node: it was entered and never
         // completed. The first node's pair is intact, so this is the deadline

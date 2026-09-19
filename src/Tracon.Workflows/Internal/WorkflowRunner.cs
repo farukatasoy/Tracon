@@ -403,7 +403,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
 
         // Timeout and cancellation merge into a single token: even when the client
         // drops the connection, the server-side execution must not run forever.
-        using var timeout = new CancellationTokenSource(settings.RunTimeout);
+        using var timeout = new CancellationTokenSource(settings.RunTimeout, _timeProvider);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeout.Token);
 
         // The workflow row is the root of its own tree (RunId == RootRunId): an

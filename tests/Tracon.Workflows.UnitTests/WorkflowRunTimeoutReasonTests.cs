@@ -35,11 +35,13 @@ public sealed class WorkflowRunTimeoutReasonTests
     public async Task The_timed_out_run_names_the_setting_that_stopped_it()
     {
         var host = new WorkflowTestHost("one");
+        var slowStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
         host.AddFunction<List<ChatMessage>, List<ChatMessage>>(
             "slow",
-            static async (messages, _, cancellationToken) =>
+            async (messages, _, cancellationToken) =>
             {
+                slowStarted.TrySetResult();
                 await Task.Delay(TimeSpan.FromSeconds(30), cancellationToken).ConfigureAwait(false);
 
                 return messages;
@@ -47,9 +49,16 @@ public sealed class WorkflowRunTimeoutReasonTests
 
         await SaveChainAsync(host);
 
-        var runner = host.CreateRunner(static options => options.RunTimeout = TimeSpan.FromMilliseconds(200));
+        var clock = new TriggerableTimeProvider();
+        var runner = host.CreateRunnerWithTimeProvider(
+            clock,
+            static options => options.RunTimeout = TimeSpan.FromMinutes(5));
 
-        var events = await Collect(runner, "chain", "hello");
+        var collecting = Collect(runner, "chain", "hello");
+        await slowStarted.Task.WaitAsync(TestContext.Current.CancellationToken);
+        clock.TriggerAll();
+
+        var events = await collecting;
         var closing = events[^1];
 
         closing.Type.ShouldBe(RunEventType.RunFailed);
