@@ -6,9 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-Nothing here has been published yet. Tracon is in development: no version
-has been pushed to NuGet or npm, and there is no release tag. The entries below
-describe what is on `main`.
+Nothing here yet. Entries land as changes are made on `main`.
 
 A version section is not written ahead of time. At tag time this heading is
 renamed to the version and the date it shipped on, and a fresh empty
@@ -16,7 +14,11 @@ renamed to the version and the date it shipped on, and a fresh empty
 actually exist. Until then the release rehearsal and the GitHub release body
 both read the notes from here.
 
-The public API is not frozen either: `PublicAPI.Shipped.txt` is empty in every
+## [1.0.0-preview.1] - 2026-09-19
+
+The first published version: twenty packages on one version line.
+
+The public API is not frozen: `PublicAPI.Shipped.txt` is empty in every
 package, and the surface may still be reduced before 1.0.
 
 ### Added
