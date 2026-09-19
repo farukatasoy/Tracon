@@ -48,3 +48,23 @@
 - **🚨 Npgsql havuzu `NpgsqlDataSource` ÖRNEĞİNE aittir, connection string'e DEĞİL** (2026-08-26, Faz 110, K-625): aynı connection string'le kurulan İKİ ayrı `NpgsqlDataSource` bağlantı havuzunu PAYLAŞMAZ — her biri kendi havuzunu açar. Ölçüldü: `ConnectionPoolSharingTests` — iki data source'tan 5'er eşzamanlı bağlantı tutuldu, `pg_stat_activity` tam **10** backend gördü (5 değil). `TraconPostgreSqlOptions.DataSource` seçeneği bu yüzden var: gerçek paylaşım, YALNIZ aynı örneği iki tarafa da vermekle olur (`NpgsqlDataSourceBuilder(...).Build()` bir kez, sonra hem `UseNpgsql(dataSource)` hem `UsePostgreSql(o => o.DataSource = dataSource)`).
 - **🚨 Dış verilen bir `DbDataSource`'u Tracon ASLA dispose etmez** (Faz 110, K-625): `SqlStoreContext.OwnsDataSource` bu sahiplik bayrağını taşır — `ConnectionString`'den kendi kurduğunda `true`, `Options.DataSource` verildiğinde `false`. Yanlış yön tüketicinin kendi `DbContext`'ini host kapanışında sessizce öldürür. `Dispose`/`DisposeAsync` bu bayrağa koşulludur; kanıt bir spy `DbDataSource` ile izole edildi (`SqlStoreContextDisposalTests`, Docker gerekmez).
 - **🚨 `agent_definitions.definition` TÜM `AgentDefinition` içeriğini tek `jsonb` blob'unda taşır — yeni bir alan eklemek migration İSTEMEZ** (2026-08-19, Faz 72, K-499): `AgentDefinitionPayload` (`Tracon.Sql.Shared`) sadece `Name`/`Version`/`TenantId`/`UpdatedAt` sütun; geri kalan HER `AgentDefinition` alanı payload'ın kendisidir ve üç sağlayıcının `TraconJsonContext`'i zaten kayıtlı tipleri (ör. `Dictionary<string,string>`) paylaşır. Faz 72'nin planı "üç migration seti gerekli" diyordu — ölçülmeden yazılmış yanlış bir yapısal iddiaydı (`faz-uygulama` Adım 1'in tam örneği). Yeni alan eklerken kontrol et: alan zaten `AgentDefinitionPayload`'a mı giriyor (migration YOK), yoksa kendi SÜTUNU mu gerekiyor (migration VAR, K-308'deki `run_inputs` gibi ayrı tablo deseni)?
+
+- **Kısıtlı bir uygulama rolüyle koşmanın yordamı** (2026-09-19, manuel kapanış
+  `MT-SEC-190…192`): `REVOKE` süperkullanıcıyı etkilemez, o yüzden izin
+  senaryoları `postgres` ile ölçülemez. Sıra önemlidir — migration'lar önce
+  `postgres` ile koşulur, sonra uygulama kısıtlı role çevrilir:
+  ```sql
+  CREATE ROLE tracon_app LOGIN PASSWORD '…';          -- rolsuper = f
+  GRANT USAGE ON SCHEMA <şema> TO tracon_app;
+  GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA <şema> TO tracon_app;
+  ```
+  Uygulama `AutoApplyMigrations=false` ile o role bağlanır. Doğrulama:
+  `SELECT has_table_privilege('tracon_app','<şema>.audit_log','INSERT')` → `f`.
+- **🚨 Denetim yazımının İKİ ayrı yolu vardır ve aynı veritabanı hatası iki
+  farklı sonuç verir** (aynı vaka): onay **kararı** `AuditRecorder.WriteOrThrowAsync`
+  ile yazar — yazamazsa `LogError` + `500` ve karar **uygulanmaz**
+  (`ApprovalEndpoints.DecideAsync`). Agent **oluşturma** ise
+  `AuditingAgentDefinitionStore` ile yazar — yazamazsa `LogWarning` + `201` ve
+  işlem **tamamlanır**. Ayrım keyfi değil: biri denetim izi olmadan
+  yapılmaması gereken bir **karar**, diğeri izsiz de doğru olan bir **yazım**.
+  Bir izin senaryosu ölçerken hangi yolda olduğunu önce belirle.

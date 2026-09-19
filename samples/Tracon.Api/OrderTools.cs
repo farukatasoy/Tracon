@@ -48,6 +48,30 @@ internal static class OrderTools
     public static string CancelOrder([Description("The order number.")] string orderId)
         => $"Order {orderId} has been canceled.";
 
+    /// <summary>Refunds part or all of an order.</summary>
+    /// <param name="orderId">The order number.</param>
+    /// <param name="amount">The amount to refund, in the order's currency.</param>
+    /// <returns>The refund result text.</returns>
+    /// <remarks>
+    /// 🚨 The one approval-requiring tool in this sample that takes a NUMERIC
+    /// argument, and it is here for that reason. A conditional approval rule
+    /// (<c>ToolApprovalRule.ArgumentConditions</c>, for example
+    /// <c>amount &lt;= 100</c>) can only be demonstrated against an argument it
+    /// can compare; <c>cancel_order</c> carries an order id and nothing to
+    /// threshold. Without this tool the whole conditional-rule feature is
+    /// reachable through the management API but never OBSERVABLE in a run.
+    /// </remarks>
+    [TraconTool(
+        "refund_order",
+        "Refunds part or all of an order.",
+        RequiresApproval = true,
+        Effect = ToolEffect.Destructive,
+        RequiredPermission = "orders.refund")]
+    public static string RefundOrder(
+        [Description("The order number.")] string orderId,
+        [Description("The amount to refund, in the order's currency.")] decimal amount)
+        => $"Refunded {amount} for order {orderId}.";
+
     /// <summary>
     /// Demo tool for F-114 (docs/arsiv/fazlar/69-TOOL-YETKILENDIRMESI-VE-TIMEOUT.md): its
     /// body sleeps far longer than its own 1-second timeout, showing that the
@@ -108,6 +132,23 @@ internal static class OrderTools
 
         return $"Preview for order {orderId} is ready to review.";
     }
+
+    /// <summary>Reports which user the current run is attributed to.</summary>
+    /// <returns>The attributed user id, or a sentence saying there is none.</returns>
+    /// <remarks>
+    /// 🚨 Demonstration tool. It exists so the run attribution seam can be
+    /// OBSERVED from inside a tool: <see cref="IRunAttributionContext"/> is read
+    /// once, when the run opens, and the value is carried on the ambient
+    /// <see cref="TraconRunContext"/> for the rest of it. Without a tool that
+    /// reads it back, nothing in this reference application shows that the
+    /// identity actually reaches tool code — the run record alone only proves
+    /// the recorder saw it.
+    /// </remarks>
+    [TraconTool("whoami", "Reports which user the current run is attributed to.")]
+    public static string WhoAmI() =>
+        TraconRunContext.Current?.UserId is { Length: > 0 } userId
+            ? $"This run is attributed to '{userId}'."
+            : "This run carries no attributed user.";
 }
 
 /// <summary>

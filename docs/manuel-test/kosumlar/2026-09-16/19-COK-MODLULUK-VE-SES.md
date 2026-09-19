@@ -874,12 +874,81 @@ Gerçek mikrofon/konuşma gerektiriyor — bkz. §4.3 fiziksel eylem tablosu.
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 9) · ☐ AÇIK KALIYOR (§5c)**
+🚨 **ÖLÇÜLDÜ: konuşma paneli sentetik ses AKIŞINI KABUL ETMİYOR.**
+MT-MM-110…118'i açan yordam (mikrofonu kendi
+`MediaStreamAudioDestinationNode`'umuza bağlayıp sunucunun TTS'ini içine
+çalmak) burada **çalışmıyor**, ve sebebi kesin ölçüldü. WebSocket'in
+`send` çağrısı sarıldı:
+
+```
+gonderilen cerceve: 2      (yalniz 'start' + 'commit' kontrol mesaji)
+gonderilen bayt:   85
+gelen:             ready, idle
+ses parcasi:       0        ← HIC SES GONDERILMEDI
+```
+
+Fark şu: canlı ses yolu parçayı **WebRTC'ye doğrudan** veriyor ve orada
+sentetik akış sorunsuz taşındı (sağlayıcı *"order four four two"* diye
+transkript etti). Konuşma paneli ise `MediaRecorder` kullanıyor ve bu
+tarayıcıda `MediaRecorder` sentetik bir `MediaStream`'den **veri üretmiyor**.
+Bu bir Tracon kusuru değil, tarayıcı sınırıdır.
+
+∴ case gerçek bir insanın mikrofona konuşmasını ister — §5(c). `00-INDEKS.md`
+açık kalem tablosuna taşınır.
+
+💡 **Aynı panelin üç case'i bu turda ÖLÇÜLEBİLDİ** (`MT-MM-088` · `090` · `099`)
+— çünkü hiçbiri konuşma **içeriği** gerektirmiyor. Sınır yalnız
+"gerçek cümle söyle" diyen case'leri vuruyor.
+
+Panel açıldı, `listening` durumuna geçti ve `Send now` çalışıyor — ama
+transkript alanı doldurulamadığı için "canlı transkript dolar, ardından yanıt
+altyazı olarak akar" iddiası ölçülemedi.
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ## MT-MM-087 — "Interrupt" düğmesi
 
 **Gerçek sonuç**
 Gerçek mikrofon/konuşma gerektiriyor — bkz. §4.3 fiziksel eylem tablosu.
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 9) · ☐ AÇIK KALIYOR (§5c)**
+🚨 **ÖLÇÜLDÜ: konuşma paneli sentetik ses AKIŞINI KABUL ETMİYOR.**
+MT-MM-110…118'i açan yordam (mikrofonu kendi
+`MediaStreamAudioDestinationNode`'umuza bağlayıp sunucunun TTS'ini içine
+çalmak) burada **çalışmıyor**, ve sebebi kesin ölçüldü. WebSocket'in
+`send` çağrısı sarıldı:
+
+```
+gonderilen cerceve: 2      (yalniz 'start' + 'commit' kontrol mesaji)
+gonderilen bayt:   85
+gelen:             ready, idle
+ses parcasi:       0        ← HIC SES GONDERILMEDI
+```
+
+Fark şu: canlı ses yolu parçayı **WebRTC'ye doğrudan** veriyor ve orada
+sentetik akış sorunsuz taşındı (sağlayıcı *"order four four two"* diye
+transkript etti). Konuşma paneli ise `MediaRecorder` kullanıyor ve bu
+tarayıcıda `MediaRecorder` sentetik bir `MediaStream`'den **veri üretmiyor**.
+Bu bir Tracon kusuru değil, tarayıcı sınırıdır.
+
+∴ case gerçek bir insanın mikrofona konuşmasını ister — §5(c). `00-INDEKS.md`
+açık kalem tablosuna taşınır.
+
+💡 **Aynı panelin üç case'i bu turda ÖLÇÜLEBİLDİ** (`MT-MM-088` · `090` · `099`)
+— çünkü hiçbiri konuşma **içeriği** gerektirmiyor. Sınır yalnız
+"gerçek cümle söyle" diyen case'leri vuruyor.
+
+Ön koşulu MT-MM-086'dır (*"agent şu anda sesli yanıt veriyor"*). O tur
+üretilemediği için "Interrupt" düğmesi hiç görünmedi ve kesinti ölçülemedi.
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
 
 ## MT-MM-088 — `persistAudio` açıkken görünür bir rozet belirir
 
@@ -890,6 +959,40 @@ kaynağa dokunulmadı, case ertelendi. Not: koşulacaksa önce uygulama
 `Tracon:Voice:Conversation:PersistAudio=true` ile başlatılmalı.
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 2) · ☑ GEÇTİ**
+
+🚨 **§5(b)'nin "LAN arayüzünde dinlenmiyordu" teşhisi YANLIŞTI.** Kaydın
+kendisi doğru sebebi yazıyor: tarayıcı kilidi. Kilit kalkınca case
+koştu; hiçbir ağ yapılandırması değişmedi.
+
+Uygulama `--Tracon:Voice:Conversation:PersistAudio=true` ile başlatıldı,
+Playground → `Voice Assistant` → Conversation mode → Talk. Rozet belirdi:
+
+```
+[data-testid="voice-recording-notice"]  →  "Audio of the reply is being stored"
+```
+
+**Negatif kontrol de koşuldu** — case'in asıl iddiası budur. Aynı adımlar,
+bayrak **kapalı**: oturum yine canlı (`listening` · `End conversation`
+görünüyor) ama rozet **yok** (`count: 0`, metin hiç geçmiyor). Yani rozet
+oturumun kendisine değil ayara bağlı.
+
+💡 **Rozet sunucu olayından besleniyor, istemci ayarından değil**
+(`voice-panel.tsx:147` — `setPersistAudio(event.persistAudio === true)`),
+∴ canlı bir oturum açılmadan görülemez. Panel de `play.conversation &&
+play.sessionId !== null` koşuluna bağlıdır: yalnız "Conversation mode"
+düğmesine basmak yetmez, `voice-toggle` ("Talk") ile oturum **başlatılmalıdır**.
+
+⚠️ Bu makinede gerçek mikrofon erişilebilir çıktı
+(`getUserMedia` → *"Default - MacBook Pro Microphone (Built-in)"*, 4 giriş
+cihazı). §5(c)'nin ses case'leri (`MT-MM-086` · `087` · `110` · `111`) bu
+yüzden **yeniden değerlendirilmelidir** — "mikrofon yok" varsayımı bu ortamda
+doğru değil.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
 
 ## MT-MM-089 — Güvenli bağlam yoksa panel açılmaz
 
@@ -911,6 +1014,37 @@ Playwright tarayıcısı bu oturum sırasında başka bir şeridin kullanımınd
 ertelendi (bkz. MT-MM-088).
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 9) · ☑ GEÇTİ**
+
+Konuşma paneli açıkken dil ve tema anahtarları çevrildi.
+
+**Dil — panelin sabit metinlerinin hepsi çevriliyor:**
+
+| Türkçe | İngilizce |
+|---|---|
+| `Konuşma modu` | `Conversation mode` |
+| `Konuşmayı bitir` | `End conversation` |
+| `dinliyor` | `listening` |
+| `Şimdi gönder` | `Send now` |
+| `Söylediğinizi gönder` | `Send what you said` |
+| `Gönder` · `Dosya ekle` · `Yeni sohbet` | `Send` · `Attach a file` · `New chat` |
+
+Karışık metin **yok** — iki dilde de panelin tamamı tek dilde.
+
+**Tema — `dark` ↔ `light` geçişi çalışıyor ve 12 çubuk ikisinde de okunur:**
+
+| Tema | Sayfa arka planı | Çubuk rengi | Çubuk sayısı |
+|---|---|---|---|
+| `light` | `rgb(238,242,236)` | `rgb(211,221,214)` (daha koyu) | **12** |
+| `dark` | `rgb(10,17,19)` | `rgb(34,52,58)` (daha açık) | **12** |
+
+Çubuklar her iki temada da arka plandan **doğru yönde** ayrışıyor: açık
+temada koyulaşıyor, koyu temada açılıyor. Kontrast kaybolmuyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
 
 ## MT-MM-091 — `includeTimestamps` verilmeden bugünkü yanıtla birebir aynıdır
 
@@ -1128,6 +1262,24 @@ bu bir sınırlama olarak not düşülüyor, geçti sayılmıyor.
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 9) · ☐ AÇIK KALIYOR**
+
+Ön koşul *"`UriContent` dönen bir görsel sağlayıcı veya test adapter'ı"*
+istiyor. Sevk edilen üç adapter'ın (`UseOpenAIImages` · `UseGoogleImages` ·
+`UseAzureOpenAIImages`) **hiçbiri** `UriContent` döndürmüyor — üçü de
+`DataContent` (bayt) üretiyor (ölçüldü: `GoogleImageGenerator.cs`
+`new DataContent(bytes, …)`).
+
+∴ giden ağ muhafızının görsel **indirme** yolu bu kurulumda hiç
+tetiklenemiyor; case yeni bir test adapter'ı ister. K-834'ün deseniyle
+eklenebilir ama bu, sevk edilen örneğe **sahte bir görsel sağlayıcısı**
+koymak demektir — diğer demo kancalarından farklı bir karar. Kullanıcıya
+bırakıldı; `00-INDEKS.md` açık kalem tablosuna yazılır.
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ## MT-MM-098 — Google adapter'ı boyut tahmin etmez
 
 **Gerçek sonuç — ilk yarı kaynakla doğrulandı, ikinci yarı canlı koşulmadı.**
@@ -1143,6 +1295,32 @@ gerektiriyor; geçerli bir model adı bu turda doğrulanamadı — koşulmadı.
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 9) · ☐ AÇIK KALIYOR (K-835 engelliyor)**
+
+**Adım 1 GEÇTİ — case'in asıl konusu.** `--Tracon:Images:Provider=google` ile
+`size: "1024x1024"` gönderildi:
+
+```
+POST /api/images/generate  {"prompt":"a red bicycle","size":"1024x1024"}
+→ 502  "Google image generation does not accept WIDTHxHEIGHT.
+         Omit 'size' and use the provider default."
+```
+
+☑ Açık hata. ☑ Adapter `WIDTHxHEIGHT`'ı Google'ın aspect-ratio/size-tier
+sözleşmesine **tahmin ederek çevirmiyor**. Kontrol adapter'ın **içinde**,
+sağlayıcıya gitmeden önce (`GoogleImageGenerator.cs`, `options.ImageSize is
+not null` dalı) — yani hatalı bir istek para harcamıyor.
+
+**Adım 2 ÖLÇÜLEMEDİ.** *"İkinci çağrı sağlayıcının varsayılan boyutuyla
+çalışır"* iddiası **K-835** yüzünden imkânsız: Google görsel yolu artık
+sunulmayan Imagen `:predict` ucunu hedefliyor ve `size` verilmeden de `502`
+dönüyor. Kontrol koşulamadığı için case açık kalıyor; K-835 düzeltilince
+yalnız adım 2 tekrarlanmalıdır.
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ## MT-MM-099 — Tur üretmeyen bir `commit` paneli asmaz
 
 **Gerçek sonuç**
@@ -1152,6 +1330,28 @@ ile dolaylı doğrulandı (`idle` çerçevesi, `done` YOK); yalnız panelin gör
 "asılı kalmama" davranışı gözlenemedi.
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 9) · ☑ GEÇTİ**
+
+WebSocket çerçeveleri yakalanarak ölçüldü. Panel açıldı, **hiç konuşmadan**
+hemen `Send now`'a basıldı:
+
+```
+gelen cerceveler: ["ready", "idle"]
+panel durumu:     listening
+```
+
+☑ Sunucu **tek bir `idle`** çerçevesi gönderdi. ☑ **`done` GÖNDERMEDİ.**
+☑ Panel dinleme durumuna döndü, **asılmadı**, ve yeni bir tur başlatılabilir
+durumda kaldı (`Send now` hâlâ etkin).
+
+💡 Bu case'in bir kusuru görmesi için `done` beklemek yetmez — **hiçbir şey**
+gelmemesi de geçerli bir arızadır ve panel sonsuza kadar "gönderiliyor"da
+kalırdı. Çerçeve listesini okumak ikisini birden ayırt ediyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
 
 ## MT-MM-100 — `list_voices` ve `GET /api/voice/voices` attribute taşır
 
@@ -1202,6 +1402,38 @@ enjekte edilemez. Otomatik kanıt kullanıldı: `ListVoicesToolTests.cs`
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 9) · ☑ GEÇTİ**
+
+İki yönden ölçüldü.
+
+**1) Canlı çağrı (gerçek ElevenLabs, 21 ses).** `list_voices` tool'unu bağlı
+bir agent çalıştırıldı ve tool sonucu okundu:
+
+```
+Adam - Dominant, Firm (pNInz6obpgDQGcFmaJgB) — premade — male
+Alice - Clear, Engaging Educator (Xb7hH8MSUJpSbSDYk0k2) — premade — female
+… (21 satir)
+```
+
+**Türkçe karakter sayısı: `0`** (`[çğıöşüÇĞİÖŞÜ]` taraması).
+
+**2) Sıfır ses koşulu — case'in ön koşulunun *sahte* `ISpeechSynthesizer*`
+seçeneği.** Bu koşul canlı hesapla üretilemez (sağlayıcı her zaman 21 ses
+döndürür), ama tam o sahteyi kullanan bir test var ve koşuldu:
+
+```
+ListVoicesToolTests.No_voices_yields_an_English_message
+  result.ShouldBe("No voices available.")
+→ 4 test · 0 düşen
+```
+
+Kaynaktaki metin de İngilizce sabittir (`ListVoicesTool.cs:56`) ve K-228'in
+`SourceLanguageTests` kapısı altındadır.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ## MT-MM-104 — 50'den fazla ses varken kalan sayı satırı İngilizce'dir
 
 **Gerçek sonuç — canlı koşulamadı (ortam sınırı, MT-MM-050'de zaten not
@@ -1211,6 +1443,30 @@ tetiklenmez. `ListVoicesToolTests.cs` aynı dosyada "... and N more voices."
 iddiasını taşıyor ve MT-MM-093'ün tam koştuğu pakette (68/68 geçti).
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 9) · ☑ GEÇTİ**
+
+⚠️ **Ön koşul canlı hesapla sağlanamıyor ve sayı ölçüldü:** taşma satırının
+eşiği `MaxListedVoices = 50` (`ListVoicesTool.cs:21`), hesapta ise **21** ses
+var. ∴ canlı çağrıda satır **doğru olarak** görünmüyor (ölçüldü: `"more
+voices"` yok) — bu, case'in karşıt kontrolüdür.
+
+Ön koşulun ikinci seçeneği (*sahte `ISpeechSynthesizer`*) tam bu sınırı
+zorlayan testle karşılanıyor ve koşuldu:
+
+```
+ListVoicesToolTests.Overflow_line_is_in_English
+  result.ShouldContain("… and 3 more voices.")
+→ 4 test · 0 düşen
+```
+
+Biçim case'in dediğiyle birebir: `"… and N more voices."`, İngilizce, Türkçe
+metin yok. Test dosyasının kendi dokümanı da bunu söylüyor: *"Verifies the
+list_voices tool's output text: no Turkish…"*
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
 
 ## MT-MM-105 — Kaynak dili kapısı yeşildir
 
@@ -1270,6 +1526,29 @@ pakette (1077/1077 geçti).
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 7) · ☑ GEÇTİ**
+Ön koşulun istediği geçici yorum satırı yerine kalıcı bayrak kullanıldı
+(K-834): `Tracon:Demo:SuppressRegistrations`. Varsayılan değişmedi.
+
+`--Tracon:Demo:SuppressRegistrations=OpenAILive` (yani `UseLiveVoice()` **var**,
+sağlayıcı **yok**):
+
+```
+POST /tracon/api/voice/live/sessions
+→ HTTP 501  {"title":"Live voice provider not configured",
+              "detail":"A live voice session needs a registered ILiveVoiceProvider.
+                        Call `UseOpenAILive(...)` (and `UseOpenAI(...)` before it)
+                        to enable one."}
+```
+
+☑ `501`. ☑ `detail` eksik çağrının adını **ve** ondan önce gelmesi gereken
+çağrıyı söylüyor. Uygulama ayakta (`health=200`) — eksik sağlayıcı host'u
+düşürmüyor, yalnız o ucu kapatıyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ## MT-MM-109 — `UseLiveVoice()` da çağrılmadan adres hiç yoktur
 
 **Gerçek sonuç — otomatik test kanıtı (aynı gerekçe, MT-MM-108).**
@@ -1278,6 +1557,34 @@ bu case'i birebir kapsıyor, aynı 1077/1077 geçen pakette.
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 7) · ☑ GEÇTİ**
+Ön koşulun istediği geçici yorum satırı yerine kalıcı bayrak kullanıldı
+(K-834): `Tracon:Demo:SuppressRegistrations`. Varsayılan değişmedi.
+
+`--Tracon:Demo:SuppressRegistrations=OpenAILive,LiveVoice` (ikisi de yok):
+
+☑ **Rota hiç açılmamış** — OpenAPI belgesinde `voice/live` geçen **hiçbir
+yol yok**. Yetenek "var ama kapalı" görünmüyor.
+
+⚠️ **Spec `404` diyor; ölçülen `POST`ta `405`, `GET`te `404`** — ve bu
+bir ürün kusuru değil. Kanıt: **tamamen uydurma** bir yol da birebir aynı
+davranıyor:
+
+| Yol | POST | GET |
+|---|---|---|
+| `api/voice/live/sessions` | `405` | `404` |
+| `api/tamamen-uydurma-yol` | `405` | `404` |
+| `api/voice/live/sessions/alt/yol` | `405` | `404` |
+
+∴ canlı ses rotası **hiç tanımlanmamış bir yoldan ayirt edilemiyor** —
+case'in asıl iddiası budur ve tutuyor. `405`, konsol varlıklarının
+`{prefix}/{**path}` yakala-hepsi rotasının GET-only olmasından geliyor.
+Spec bu ölçümle keskinleştirildi (skill §1.1).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ## MT-MM-110 — Gerçek GPT-Live oturumu
 
 **Gerçek sonuç**
@@ -1285,6 +1592,45 @@ bu case'i birebir kapsıyor, aynı 1077/1077 geçen pakette.
 tablosuna eklendi.
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 8) · ☑ GEÇTİ**
+🚨 **Türün çözümü — gerçek konuşma sentezle üretildi.** `live-test.html`
+mikrofondan besleniyor ve sessiz bir odada anlamlı bir soru oluşmuyor. Yordam:
+`navigator.mediaDevices.getUserMedia` **oturum açılmadan önce** kendi
+`MediaStreamAudioDestinationNode`'umuza bağlandı (parça oturum boyunca **aynı**
+kalır), sonra sorunun sesi sunucunun **kendi** TTS'iyle üretilip
+(`POST /api/voice/speak` → ek) o düğüme çalındı. Ses gerçekten WebRTC
+üzerinden sağlayıcıya gitti — kanıtı dökümde: sağlayıcı *"order four four
+two"* diye transkript etti.
+
+⚠️ İlk denemede `replaceTrack` kullanıldı ve oturum `Abandoned` oldu; parçayı
+**değiştirmek** yerine **içine çalmak** gerekiyor.
+
+Gerçek GPT-Live oturumu açıldı:
+
+```
+microphone granted
+offer ready, asking Tracon to create the session
+session 01a0b7c4-9bc9-780f-8d20-db9b205ea5f1 on gpt-live-1
+transcript persisted: true
+ice: checking → remote audio track → answer applied — speak now
+connection: connecting → ice: connected → connection: connected
+```
+
+☑ Oturum açıldı (`gpt-live-1`). ☑ **Sesli yanıt geldi** — kulakla değil
+`getStats()` ile ölçüldü, çift yönlü RTP akıyor:
+
+| Yön | Bayt | Paket |
+|---|---|---|
+| gelen (sağlayıcı → tarayıcı) | **70.225** | **958** |
+| giden (tarayıcı → sağlayıcı) | 55.000 | 1.000 |
+
+`remote audio track` sayfanın `#speaker` öğesine bağlı. Yanıtın **içeriği**
+MT-MM-112'nin dökümünde okunabiliyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
 
 ## MT-MM-111 — Devredilen iş gerçek bir `runs` satırı üretir
 
@@ -1296,6 +1642,44 @@ sesli yanıt) kapsıyor, 1077/1077 geçen pakette.
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 8) · ☑ GEÇTİ**
+
+MT-MM-110'un oturumu sürerken sentezlenmiş soru çalındı: *"Please check the
+status of order 442 using your tool, and tell me what it says."*
+
+☑ **Gerçek bir `runs` satırı oluştu:**
+
+```
+agentName: support          ← oturumu açan agent
+sessionId: mm-live-kanit    ← istekteki değer
+status:    Completed
+modelId:   gpt-5.4-mini     ← DEVREDILEN run, gpt-live-1 DEGIL
+```
+
+☑ **Tool gerçekten çağrıldı:**
+
+```
+get_order_status  arg: orderId=442
+                  sonuc: "Order 442 has shipped. Estimated delivery: 2 days."
+```
+
+☑ **Girdi etiketli**: *"The following is a live voice conversation. Carry out
+the task the user is asking for and answer with the r…"*
+
+☑ **Olağan bir run'ın tüm muhasebesi var:**
+
+```
+usage: inputTokens 448 · outputTokens 20 · totalTokens 468
+cost:  inputCost 0.000112 · outputCost 0.00004 · source: Catalog
+```
+
+∴ canlı oturumun devrettiği iş gerçekten **olağan bir run**: aynı tool'lar,
+aynı kota, aynı maliyet ve aynı denetim izi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ## MT-MM-112 — Konuşma dökümü oturum geçmişinde görünür
 
 **Gerçek sonuç — otomatik test kanıtı (MT-MM-110'a bağımlı, canlı koşulamadı).**
@@ -1303,6 +1687,32 @@ sesli yanıt) kapsıyor, 1077/1077 geçen pakette.
 aynı iddiayı kapsıyor, 1077/1077 geçen pakette.
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 8) · ☑ GEÇTİ**
+
+MT-MM-111'in oturumu `DELETE /api/voice/live/sessions/{id}` ile kapatıldı
+(`204`). `GET /api/sessions/mm-live-kanit` **altı** mesaj taşıyor — iki katman
+birlikte:
+
+```
+user      | The following is a live voice conversation. Carry out the task…   ← devredilen run (ETIKETLI)
+assistant |                                                                    ← tool cagrisi
+tool      |
+assistant | Order 442 has shipped, and it's estimated to arrive in 2 days.
+user      | Hello, please check the status of order four four two using your tool, and tell me what it says
+assistant | Sure—let Order four four two has shipped, and it's estimated to arrive in two days.
+```
+
+☑ Konuşmanın dökümü geçmişte duruyor. ☑ Devredilen run'ın girdisi
+**etiketli** ve dökümden ayrışıyor.
+
+💡 Son iki satır aynı zamanda MT-MM-110'un *"sesli yanıt duyulur"* iddiasının
+**içeriğini** veriyor: sağlayıcı sorusunu doğru transkript etmiş
+(*"order four four two"*) ve sesli cevabını vermiş.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
 
 ## MT-MM-113 — `PersistTranscript=false` iken geçmişe yazılmaz
 
@@ -1314,6 +1724,24 @@ kapsıyor, 1077/1077 geçen pakette.
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 8) · ☑ GEÇTİ**
+
+`--Tracon:Voice:Live:PersistTranscript=false`. Üç iddia da tuttu:
+
+| İddia | Sonuç |
+|---|---|
+| Oturum yaratma yanıtı `persistTranscript: false` bildirir | ☑ sayfa `transcript persisted: false` yazdı |
+| Delegation yine çalışır | ☑ `runs` satırı oluştu (`support`, `gpt-5.4-mini`), oturum kaydı `turns: 1` |
+| Geçmişte transcript **yoktur** | ☑ `GET /api/sessions/mm113-115` → **0 mesaj** |
+
+💡 Bayrak yalnız ses dökümünü değil **devredilen run'ın mesajlarını da**
+geçmişe yazmıyor (MT-MM-112'de aynı akış altı mesaj bırakmıştı). Run'ın
+kendisi ve muhasebesi yerinde duruyor; kaybolan yalnız **oturum geçmişi**.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ## MT-MM-114 — Kapanan oturumun kaydı süreyi ve maliyeti taşır
 
 **Gerçek sonuç — otomatik test kanıtı (MT-MM-110'a bağımlı).**
@@ -1322,6 +1750,28 @@ kapsıyor, 1077/1077 geçen pakette.
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 8) · ☑ GEÇTİ**
+
+MT-MM-111'in oturumu `DELETE` ile kapatıldı (`204`):
+
+```json
+{"turns": 1, "endedAt": "2026-09-19T03:45:52Z", "liveSeconds": 28.0,
+ "cost": {"durationCost": 0.28, "characterCost": null, "currency": "USD"},
+ "endReason": "Client", "model": "gpt-live-1", "provider": "openai"}
+```
+
+☑ Süre (`liveSeconds: 28.0`) ve maliyet (`durationCost: 0.28 USD`) kaydın
+içinde. ☑ `turns: 1` — devredilen tur sayıldı. ☑ `endReason: Client` —
+istemcinin kapatması, terk değil.
+
+💡 Karşıtı da ölçüldü: aynı turda TTL ile reaped olan oturumlar
+`endReason: Abandoned` aldı (MT-MM-116). İki kapanış sebebi kayıtta
+ayrışıyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ## MT-MM-115 — Fiyat yapılandırması yokken `cost` `null` döner
 
 **Gerçek sonuç — otomatik test kanıtı (MT-MM-110'a bağımlı).**
@@ -1329,6 +1779,32 @@ kapsıyor, 1077/1077 geçen pakette.
 (K-032'nin canlı katmandaki karşılığı), 1077/1077 geçen pakette.
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 8) · ☑ GEÇTİ**
+
+`Tracon:Pricing:Voice:openai:gpt-live-1` **olmadan** koşuldu:
+
+```json
+{"turns": 1, "liveSeconds": 15.0, "cost": null, "endReason": "Client"}
+```
+
+☑ `cost` **`null`** — **`0` değil**. ☑ `liveSeconds` yine dolu (`15.0`).
+Sıfır, konuşmanın ücretsiz olduğunu iddia ederdi; `null` "fiyatı bilmiyorum"
+diyor.
+
+🚨 **Fiyatı kaldırmak düşünülduğünden zordu ve yol kayda değer.** Fiyat
+`user-secrets`'tadır ve skill §1.2 `user-secrets` yazmayı yasaklar. Komut
+satırından **boş** vermek de çalışmıyor — geçersiz bir kayıt üretiyor ve
+kapı haklı olarak durduruyor:
+`OptionsValidationException: 'Voice:openai:gpt-live-1' contains neither
+'PerMillionCharacters' nor 'PerMinute'`. Çözüm `ASPNETCORE_ENVIRONMENT=Production`
+ile koşmaktı (`user-secrets` yalnız Development'ta yüklenir — §3.4) ve gereken
+yedi ayarı **çift alt çizgili ortam değişkeni** olarak vermek; komut satırına
+`secret` **konmadı** (§6'nın `ps eww` sızıntı dersi).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
 
 ## MT-MM-116 — Hiç bağlanılmayan oturum TTL'de `Abandoned` ile kapanır
 
@@ -1339,6 +1815,25 @@ bu iddiayı kapsıyor, 1077/1077 geçen pakette.
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 8) · ☑ GEÇTİ**
+
+`--Tracon:Voice:Live:PendingSessionTimeout=00:00:20`. Geçerli bir SDP teklifi
+tarayıcıda üretilip `POST` edildi, ama **cevap hiç uygulanmadı** ve peer
+connection kapatıldı — yani oturum yaratıldı, tarayıcı hiç bağlanmadı.
+
+```json
+{"endReason": "Abandoned", "endedAt": "2026-09-19T03:51:24Z",
+ "turns": 0, "liveSeconds": 15.0,
+ "cost": {"durationCost": 0.15, "currency": "USD"}}
+```
+
+☑ `endReason: "Abandoned"` — **`Error` DEĞİL**. Terk edilmiş bir oturum hata
+değildir ve kayıt bunu ayrı bir sebep olarak taşıyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ## MT-MM-117 — Başka kiracının canlı oturumu erişilemez oturumla aynı 404'ü alır
 
 **Gerçek sonuç — otomatik test kanıtı (MT-MM-110'a bağımlı).**
@@ -1348,6 +1843,36 @@ ve `A_denied_caller_is_told_the_session_does_not_exist` bu iddiayı (aynı
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 8) · ☑ GEÇTİ**
+
+Kiracı modu açık. `tenant-a` bir canlı oturum açtı; üç istek `tenant-b` ile:
+
+| Adım | İstek | Sonuç |
+|---|---|---|
+| 2 | `DELETE .../{tenant-a'nin id'si}` | ☑ `404` |
+| 2 | `GET .../{tenant-a'nin id'si}` | ☑ `404` |
+| 3 | `GET .../{rastgele id}` | ☑ `404` |
+
+Gövdeler **birebir aynı kalıpta**:
+
+```json
+{"type":"…rfc9110#section-15.5.5","title":"Session not found","status":404,
+ "detail":"There is no session with id '<ID>', or it does not belong to this tenant."}
+```
+
+⚠️ **Spec "kimlik dışında bayt bayt aynı" diyor; ölçümde İKİ alan değişiyor:**
+`id` **ve** `traceId`. `traceId` her istekte değişen bir korelasyon
+değeridir, sızıntı değil — `type`, `title`, `status` ve `detail` dördü de
+bayt bayt aynı. Spec bu ölçümle keskinleştirildi (skill §1.1).
+
+💡 `detail` cümlesinin kendisi de tasarımın parçası: *"or it does not belong
+to this tenant"* — iki durumu **tek** cümlede birleştiriyor, ∴ hangisi
+olduğu anlaşılmıyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ## MT-MM-118 — Eşzamanlılık limiti sağlayıcıya gitmeden reddeder
 
 **Gerçek sonuç — otomatik test kanıtı (MT-MM-110'a bağımlı).**
@@ -1356,6 +1881,23 @@ ve `The_limit_is_per_tenant` bu iddiayı birebir kapsıyor, 1077/1077 geçen
 pakette.
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 8) · ☑ GEÇTİ**
+
+`--Tracon:Voice:Live:MaxConcurrentSessionsPerTenant=1`, taze şema.
+
+```
+1. oturum  → 200   (01a0b7cb-01d2-…)
+2. oturum  → 429   "A tenant may hold at most 1 live voice sessions open."
+```
+
+☑ İkinci istek `429`. ☑ **Sağlayıcıda tek oturum**: `GET /api/voice/sessions`
+**bir** kayıt döndürüyor (`mm118-bir`). Reddedilen istek faturalanan bir
+oturum **bırakmıyor** — kapı sağlayıcı çağrısından **önce** çalışıyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
 
 ## MT-MM-119 — Seçenek A regresyon çiti
 
@@ -1381,6 +1923,37 @@ Kapanışa ertelendi (`MT-PG-067` ile aynı yordam).
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 7) · ☑ GEÇTİ**
+Ön koşulun istediği geçici yorum satırı yerine kalıcı bayrak kullanıldı
+(K-834): `Tracon:Demo:SuppressRegistrations`. Varsayılan değişmedi.
+
+`--Tracon:Images:Enabled=true --Tracon:Images:Model=gpt-image-1`
+`--Tracon:Demo:SuppressRegistrations=OpenAIImages` ve Google anahtarı boş
+(`UseGoogleImages()` de koşmuyor):
+
+```
+EXIT=134   Application started: 0
+Unhandled exception. Tracon.TraconException: TraconImageOptions is enabled but no
+image generator is registered for provider 'openai'. Install a supported provider
+package and call UseOpenAIImages(), UseAzureOpenAIImages(), or UseGoogleImages().
+   at Tracon.TraconEndpointRouteBuilderExtensions.MapTracon(...)
+      TraconEndpointRouteBuilderExtensions.cs:line 70
+```
+
+☑ Uygulama **başlamadı**. ☑ `TraconException` **`MapTracon`'dan** düşüyor —
+arıza HTTP yüzeyi kurulurken çıkıyor, ilk ücretli çağrıda değil.
+☑ Mesaj eksik sağlayıcı adını (`'openai'`) **ve üç kayıt çağrısının
+hepsini** yazıyor.
+
+💡 İlk deneme başka bir kapıya takıldı ve o da doğru: `Model` verilmeden
+`OptionsValidationException: TraconImageOptions.Model is required when Enabled
+is true`. İki kapı ayrı şeyleri koruyor — biri **ayarın eksikliğini**, diğeri
+**kaydın eksikliğini**.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ## MT-MM-121 — `UseGoogleImages()` Google üreticisini kaydeder
 
 **Gerçek sonuç**
@@ -1388,6 +1961,53 @@ Aynı gerekçeyle (`Program.cs` geçici düzenleme gerektiriyor) kapanışa
 ertelendi.
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 7) · ☒ KALDI — ÜRÜN KUSURU (K-835)**
+Ön koşulun istediği geçici yorum satırı yerine kalıcı bayrak kullanıldı
+(K-834): `Tracon:Demo:SuppressRegistrations`. Varsayılan değişmedi.
+
+**Adım 1 GEÇTİ.** `--Tracon:Images:Provider=google` ile uygulama sorunsuz
+başladı (`health=200`, `Application started: 1`) — MT-MM-120'nin kapısı Google
+sağlayıcısıyla da tatmin oluyor, ve kayıt çağrısı ile `Provider` seçimi
+gerçekten **ayrı iki karar**.
+
+🚨 **Adım 2 KALDI — ve sebep ortam sınırı DEĞİL.** Her üretim isteği
+`502 "Image could not be generated"` veriyor.
+
+```
+POST /api/images/generate  {"prompt":"a red bicycle"}  → 502
+```
+
+**Üç adımda kanıtlandı:**
+
+1. `GoogleImageGenerator.cs:56` `Client.Models.GenerateImagesAsync(...)`
+   çağırıyor — bu Imagen `:predict` ucudur.
+2. Bu anahtarda `ListModels` **58 model** döndürüyor; altı görsel modelinin
+   **hiçbiri** `predict` desteklemiyor, altısı da yalnız `generateContent`:
+   ```
+   gemini-2.5-flash-image        -> ['generateContent', 'countTokens', ...]
+   gemini-3-pro-image            -> ['generateContent', ...]
+   gemini-3.1-flash-image        -> ['generateContent', ...]
+   ```
+   `imagen-3.0-generate-002:predict` doğrudan çağrıldığında Google
+   **`404 NOT_FOUND`** diyor.
+3. **Yetenek var**: **aynı anahtarla**
+   `gemini-2.5-flash-image:generateContent` çağrısı **3.2 MB'lık bir PNG**
+   üretti (`inlineData`, `image/png`).
+
+Google SDK'nın kendisi de koşum günlüğünde söylüyor:
+*"The GenerateImagesAsync method is deprecated … Please use the
+GenerateContentAsync method with image models instead."*
+
+∴ paket tüketicinin **kullanamayacağı** bir yol sevk ediyor. Kusur kodlandı:
+**K-835**. Düzeltme bu oturumda **yapılmadı** — sevk edilen bir paketin
+davranışını değiştirir ve seçenek eşlemesi birebir değildir
+(`Count` → `candidateCount` ama görsel modelleri genelde 1 döndürür;
+`MediaType` hiç kontrol edilemez). Karar kullanıcıya bırakıldı.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
+
+---
 
 ## MT-MM-122 — `UseAzureOpenAIImages()` Azure üreticisini kaydeder
 
@@ -1410,3 +2030,20 @@ Aynı gerekçeyle kapanışa ertelendi.
 | MT-MM-108, 109, 111-118 | `samples/` her zaman `UseOpenAILive()` çağırıyor; MT-MM-110 fiziksel mikrofon/tarayıcı istiyor | Otomatik test kanıtı kullanıldı (`LiveVoice*Tests`, 1077/1077 geçti); canlı yol MT-MM-110'a bağımlı |
 | MT-MM-110 | Gerçek insan sesi veya sentetik mikrofon (WebRTC) gerekiyor | `http://localhost:5080/live-test.html` üzerinden gerçek bir konuşma yapılmalı |
 | MT-MM-120, 121, 122 | `Program.cs`'te geçici satır değişikliği istiyor, kod donuk (kural 1) | `MT-PG-067` ile aynı yordamla kapanışta koşulmalı |
+
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 7) · ⏭ ATLANDI**
+
+Azure kimliği bu ortamda **yok** — `00-INDEKS.md` §3.1 ve §3.4'ün kuralı:
+*"Azure | Kimlik **yoktur**; Azure isteyen case `⏭ Atlandı` kalır, kusur
+değildir."* Doğrulandı: `Tracon:Providers:AzureOpenAI:Endpoint` ve `ApiKey`
+tanımlı değil, ∴ `UseAzureOpenAIImages()` zaten hiç koşmuyor.
+
+💡 Case'in asıl iddiası (*"üç görsel sağlayıcısının kayıt yüzeyi tek
+biçimdir"*) diğer ikisiyle **kısmen** ölçüldü: `UseOpenAIImages()` ve
+`UseGoogleImages()` aynı kalıbı izliyor ve ikisi de MT-MM-120'nin kapısını
+tatmin ediyor (MT-MM-121 adım 1). Azure kimliği geldiğinde yalnız üçüncü
+satır doğrulanacaktır.
+
+**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☑ Atlandı
+
+---

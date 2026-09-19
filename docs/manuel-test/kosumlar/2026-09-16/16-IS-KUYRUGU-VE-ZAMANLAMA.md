@@ -1387,13 +1387,14 @@ indeksin tanımından (yalnız açık durumları kapsıyor) mantıksal olarak
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
-## MT-JOB-098 — Yarıda kalan approval handoff'u, AYNI kararı tekrarlayarak tamamlanır (B03)
+## MT-JOB-132 — Yarıda kalan approval handoff'u, AYNI kararı tekrarlayarak tamamlanır (B03)
 
 **Gerçek sonuç**
-Spec bu case'i `MT-JOB-098` olarak numaralandırıyor — dosyanın başındaki
-gerçek MT-JOB-098 (kota testi, bu dosyada satır 1021) ile **ID çakışması**;
-spec'e dokunulmadı (kural 1), kayıt bu ikinci `## MT-JOB-098` bloğu ile
-tutuluyor. `~/tracon-manuel/job-handlers-s4` scratch host'una
+Case spec'e `MT-JOB-098` olarak girmişti ve dosyanın başındaki gerçek
+MT-JOB-098 (kota testi) ile **ID çakışıyordu**; koşum sırasında spec'e
+dokunulmaz (kural 1), bu yüzden kayıt o zaman ikinci bir `## MT-JOB-098`
+bloğuyla tutuldu. **Kapanışta düzeltildi (2026-09-19): case artık
+`MT-JOB-132`**; bu başlık da onunla birlikte değişti. `~/tracon-manuel/job-handlers-s4` scratch host'una
 `FakeModelProvider("handoff-model").CallsTool("cancel_order", {orderId:
 "ORD-7"}).EchoesLastToolResult()` + `AddTool(..., RequiresApproval=true)` +
 `handoff-agent` eklenerek K-726'nın otomatik testiyle (`ApprovalResumeHandoffTests.cs`)

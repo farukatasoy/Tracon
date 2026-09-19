@@ -24,3 +24,20 @@
 - **🚨 MCP önek ayarı `TraconMcpOptions`'ta DEĞİL, `Tracon.Abstractions`'taki `TraconMcpSecurityOptions`'tadır** (2026-08-20, K-534): sebep paket grafiğidir — kuralı zorlayan iki yer (`GovernanceEndpoints` / `Tracon.AspNetCore` ve `McpTransportFactory` / `Tracon.Mcp`) **birbirini görmez**; `AspNetCore` yalnız `Core`'a bağlıdır. `SectionName` ikisinde de `Tracon:Mcp`, yani operatör için tek bölümdür. Bağlama `Tracon.Core`'daki `BindMcpSecurity` içindedir, `TraconMcpBuilderExtensions.Bind`'de **değil** — `TraconMcpOptions`'a ayar eklerken K-353 hâlâ geçerli ama bu ayar o listede yok.
 - **~~Tool sarmalama zinciri iki ayrı yerde kurulur~~ — Faz 127'de kapandı.** `ToolRegistry.cs` (kod-tanımlı) ve `McpTenantTools.cs` (MCP) artık `ToolWrapperChain.Compose` adlı **tek** metodu çağırıyor; yeni bir halka orada eklenir, iki çağrı yerine ayrı ayrı taşınmaz. `ToolWrapperChainTests` iki yolun aynı sırayı ürettiğini doğrudan ölçer. Tek kalan fark (MCP'nin `Read → External` yükseltmesi) bilinçli olarak Compose'un DIŞINDA, çağrı yerinde kaldı — descriptor Compose'a girmeden önce hesaplanır. Beşinci bir tool kaynağı gelirse yalnız o kaynağın kendi `Compose` çağrısını kurması yeterlidir.
 - **🚨 İstisnayı YAKALAMAK yetmez; onu üreten katman ÇOKTAN `Error` ile loglamış olabilir** (2026-09-18, manuel kapanış Aile M, K-823): `MapTraconA2A` agent kartını süslemek için kataloğu senkron listeliyor ve bu, `IHostedService` sırası gereği migration çalıştırıcısından **önce** koşuyor. Geniş `catch` bilinçli ve doğruydu — ama `CompositeAgentCatalog.ListAsync` istisnayı geri dönmeden önce `LogLevel.Error` ile, tam yığın iziyle loglamış oluyor. Ölçüldü: boş bir şemaya karşı **her ilk açılışta** logun 7. satırı `Agent source 'database' failed during list` + sağlayıcı yığın izi; `CREATE SCHEMA` 39. satırda geliyor. Kütüphane için bu, tüketicinin ilk çalıştırma deneyimidir. Çözüm `SchemaReadyGate.IsReady` kontrolüdür — `McpDiscoveryService` ve `A2AApprovalGuardFilter`'ın zaten uyguladığı emsal. Kaynağın `Error` seviyesi **değiştirilmez**: çalışma anında gerçekten başarısız olan bir kaynak bir hatadır. **Ders: cevabın yalnız hata olabileceği anda soruyu sorma; "crash olmuyor" ≠ "sessiz".**
+
+- **🚨 Yerel referans MCP sunucusu `env -i` ile BOŞ ORTAMLA başlatılır**
+  (2026-09-16 turu): referans sunucunun `get-env` demo tool'u kendi sürecinin
+  ortamını döndürür ve kabuktan miras alınan her `secret` modele **ve `run`
+  kaydına** gider. Turda iki kez oldu; kayıtlar silindi ama token'ların
+  döndürülmesi gerekti. Port sabit **3001** (`--port` bayrağı yok, `PORT`
+  ortam değişkeni çalışır). Ortam okumayan büyük çıktı gerekiyorsa
+  `get-tiny-image` kullan.
+- **🚨 Eski bir MCP süreci 3001'i tutuyorsa SESSİZCE ona bağlanırsın**
+  (2026-09-16 turu): yeni sunucu portu alamaz, Tracon eskisiyle konuşur ve
+  ölçtüğünü sandığın şey bir önceki kurulumdur. `lsof -nP -iTCP:3001
+  -sTCP:LISTEN` ile PID doğrula, günlükte "Port 3001 is already in use" ara.
+- **🚨 MCP sunucusu yeniden başlarsa Tracon ESKİ session kimliğini tutar**
+  (2026-09-16 turu): `/refresh` `{"toolCount":0}` döner ve günlükte
+  `Bad Request: No valid session ID provided` görünür. Çözüm: **uygulamayı**
+  yeniden başlat — sunucuyu yeniden başlatmak yetmez.
+

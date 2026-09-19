@@ -39,6 +39,7 @@
 | NSwag ile üretilen istemci (`Tracon.Client`/`@tracon/client`) | [nswag-istemci-uretimi](nswag-istemci-uretimi.md) |
 | Test **yazımı** (xunit, sözleşme, Playwright) | [test-altyapisi](test-altyapisi.md) |
 | Test **koşumu** asılı/eksik (`dotnet test`) | [test-kosum-tuzaklari](test-kosum-tuzaklari.md) |
+| Örnek uygulamayı **elle** ayağa kaldırma (manuel tur, repro) | [elle-kosum-ortami](elle-kosum-ortami.md) |
 | Test tek başına geçip **tam koşumda** düşüyor | [test-yalitimi](test-yalitimi.md) |
 | Tam koşumda düşen testin **ölçülmüş vakaları** | [test-yalitimi-vakalari](test-yalitimi-vakalari.md) |
 | Kapanış kapısı taban ölçümü (wall-clock) | [test-kosum-olcumleri](test-kosum-olcumleri.md) |

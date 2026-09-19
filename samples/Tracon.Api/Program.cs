@@ -139,11 +139,67 @@ builder.Services.AddOpenApi();
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSingleton<IRunAttributionContext, DemoRunAttributionContext>();
 
+// Run authorization (phase 154). Tracon ships AllowAllRunAuthorizationHandler
+// by default, so without this block the seam is invisible here: every run is
+// allowed and no case can show one being refused. The alternative was to
+// hand-edit this file for a test and undo the edit afterwards, which is not a
+// mechanism — the next person has to rediscover it, and a forgotten edit ships.
+//
+// 🚨 Registered BEFORE AddTracon() for the same reason as IRunAttributionContext
+// above: TryAddSingleton must not overwrite it. The identity it compares
+// against comes from the X-Demo-User header (DemoRunAttributionContext).
+//
+// An unrecognized value STOPS the application instead of falling back to the
+// allow-all default: a misspelled mode that quietly allowed everything would
+// turn a refusal test green for the wrong reason.
+if (builder.Configuration[DemoRunAuthorization.ModeKey] is { Length: > 0 } demoAuthorizationMode)
+{
+    var parsedMode = demoAuthorizationMode.Trim().ToLowerInvariant() switch
+    {
+        "deny-all" => DemoRunAuthorizationMode.DenyAll,
+        "allow-user-a" => DemoRunAuthorizationMode.AllowUserA,
+        "throw" => DemoRunAuthorizationMode.Throw,
+        "deny-foreign-session" => DemoRunAuthorizationMode.DenyForeignSession,
+        "deny-session-read" => DemoRunAuthorizationMode.DenySessionRead,
+        "deny-session-list" => DemoRunAuthorizationMode.DenySessionList,
+        "deny-session-delete" => DemoRunAuthorizationMode.DenySessionDelete,
+        "deny-session-branch" => DemoRunAuthorizationMode.DenySessionBranch,
+        "deny-session-voice" => DemoRunAuthorizationMode.DenySessionVoice,
+        _ => throw new InvalidOperationException(
+            $"'{DemoRunAuthorization.ModeKey}' is '{demoAuthorizationMode}', which is not a known "
+            + "mode. Use one of: deny-all, allow-user-a, throw, deny-foreign-session, "
+            + "deny-session-read, deny-session-list, deny-session-delete, deny-session-branch, "
+            + "deny-session-voice."),
+    };
+
+    builder.Services.AddSingleton<IRunAuthorizationHandler>(provider =>
+        new DemoRunAuthorization(
+            parsedMode,
+            provider.GetRequiredService<ILogger<DemoRunAuthorization>>()));
+}
+
 // Tool-approval presentation (phase 142): turns the cancel_order approval
 // card's raw `{ "orderId": "ORD-1001" }` into "Cancel order for Priya Shah".
 // Registered BEFORE AddTracon() for the same reason as
 // IRunAttributionContext above — TryAddSingleton must not overwrite it.
 builder.Services.AddSingleton<IToolApprovalPresenter, OrderApprovalPresenter>();
+
+// 🚨 Tool authorization (phase 69). Tracon allows every tool call unless a
+// consumer refuses one, so this seam is invisible here by default. Same
+// reasoning as Tracon:Demo:RunAuthorization:Mode (K-834): a refusal that can
+// only be produced by editing this file and undoing the edit is not a
+// mechanism. `deny-all` refuses every call.
+if (builder.Configuration["Tracon:Demo:ToolAuthorization:Mode"] is { Length: > 0 } toolAuthMode)
+{
+    if (!string.Equals(toolAuthMode.Trim(), "deny-all", StringComparison.OrdinalIgnoreCase))
+    {
+        throw new InvalidOperationException(
+            $"'Tracon:Demo:ToolAuthorization:Mode' is '{toolAuthMode}', which is not a known mode. "
+            + "The only supported value is: deny-all.");
+    }
+
+    builder.Services.AddSingleton<IToolAuthorizationHandler, DemoDenyAllToolAuthorization>();
+}
 
 // Response caching (Phase 81, F-45) needs an IDistributedCache; Tracon
 // never registers one itself (an agent that enables ResponseCache without
@@ -187,10 +243,27 @@ var tracon = builder.AddTracon()
     // on to demonstrate the MCP Tasks extension end to end.
     .UseMcpServer(o =>
     {
-        o.ExposedAgents.Add("summarizer");
+        // 🚨 Which agents are exposed is a SECURITY decision, so the default is
+        // the single agent this sample means to publish. The configuration key
+        // exists for the same reason as Tracon:Demo:RunAuthorization:Mode
+        // (K-834): the guard that refuses to expose an agent carrying an
+        // approval-requiring tool can only be OBSERVED by exposing a different
+        // agent, and a line that has to be edited and put back is not a
+        // mechanism. An empty or absent key keeps the safe default.
+        foreach (var name in DemoExposedAgents(builder.Configuration, "Mcp"))
+        {
+            o.ExposedAgents.Add(name);
+        }
+
         o.EnableTasks = true;
     })
-    .UseA2A(o => o.ExposedAgents.Add("summarizer"))
+    .UseA2A(o =>
+    {
+        foreach (var name in DemoExposedAgents(builder.Configuration, "A2A"))
+        {
+            o.ExposedAgents.Add(name);
+        }
+    })
     // The workflow execution engine. Agents in the catalog are wired together
     // with ready-made patterns. If the engine is not registered, definitions
     // are still manageable — only the run endpoint returns 501.
@@ -211,11 +284,6 @@ var tracon = builder.AddTracon()
     // A consumer plugs in their own rule set by implementing IContentGuard
     // and calling .AddContentGuard<T>(); multiple guards run in sequence and
     // the strictest verdict wins.
-    .AddPatternContentGuard(options =>
-    {
-        options.MaskedPii = PiiPatterns.CreditCard | PiiPatterns.Email | PiiPatterns.ProviderApiKey;
-        options.DeniedTerms.Add("confidential-project");
-    })
     // At-rest content protection. 🚨 WITHOUT this call, the settings below
     // are read but never applied: the registration itself is K1's gate, same
     // as the content guard above. Settings (Enabled/ActiveKeyId/Keys) live in
@@ -254,15 +322,36 @@ if (openAiEnabled)
     // This is independent of UseVoiceConversation() above: that layer has
     // Tracon transcribe, run and synthesize for providers with no realtime
     // API. Both can be on at once.
-    tracon.UseOpenAILive(
-        builder.Configuration.GetSection(OpenAILiveOptions.SectionName));
+    // 🚨 The three calls below are normally unconditional. They are wrapped
+    // because each one is a SEAM whose absence has its own documented answer
+    // — a 501 naming the missing call, a route that does not exist at all, a
+    // startup failure naming the three registration options — and none of
+    // those answers can be observed while the call is always made.
+    //
+    // `Tracon:Demo:SuppressRegistrations` takes a comma-separated list of the
+    // names below and skips those registrations. It follows K-834: a line that
+    // has to be commented out and put back is not a mechanism. An empty or
+    // absent key changes nothing.
+    var suppressed = DemoSuppressedRegistrations(builder.Configuration);
 
-    tracon.UseLiveVoice(
-        builder.Configuration.GetSection(VoiceLiveOptions.SectionName));
+    if (!suppressed.Contains("OpenAILive"))
+    {
+        tracon.UseOpenAILive(
+            builder.Configuration.GetSection(OpenAILiveOptions.SectionName));
+    }
+
+    if (!suppressed.Contains("LiveVoice"))
+    {
+        tracon.UseLiveVoice(
+            builder.Configuration.GetSection(VoiceLiveOptions.SectionName));
+    }
 
     // Image generation is separately enabled by Tracon:Images. Registering
     // this keyed adapter alone does not expose generate_image or map its endpoint.
-    tracon.UseOpenAIImages();
+    if (!suppressed.Contains("OpenAIImages"))
+    {
+        tracon.UseOpenAIImages();
+    }
 
     // Knowledge base / semantic search. Tracon does NOT choose an
     // embedding model (the pattern behind K-032: model names change faster
@@ -886,14 +975,107 @@ if (!string.IsNullOrWhiteSpace(archivePath))
 // resolved from a claim first, and only from a header if explicitly allowed.
 // A header can be spoofed; the setup below is for the sample only and stays
 // inactive unless explicitly turned on in configuration.
-if (builder.Configuration.GetValue<bool>("Tracon:Tenancy:Enabled"))
+// 🚨 The branch runs when the key is PRESENT, not only when it is true. The
+// false case is its own documented behavior — UseTenancy(Enabled = false) is
+// still a single-tenant deployment, and the production profile must still
+// count it as one — and that cannot be observed if the call is skipped
+// whenever the value is false (K-834's reasoning).
+if (builder.Configuration["Tracon:Tenancy:Enabled"] is { Length: > 0 })
 {
     tracon.UseTenancy(options =>
     {
-        options.Enabled = true;
+        options.Enabled = builder.Configuration.GetValue<bool>("Tracon:Tenancy:Enabled");
         options.ClaimType = builder.Configuration["Tracon:Tenancy:ClaimType"];
         options.AllowHeaderResolution =
             builder.Configuration.GetValue<bool>("Tracon:Tenancy:AllowHeaderResolution");
+
+        // 🚨 The option existed but this sample never bound it, so the
+        // allow-list could not be exercised at all here: every tenant name
+        // was accepted and the "a name outside the list does not fall back to
+        // the default tenant" rule had nothing to refuse. Comma-separated;
+        // an empty or absent key keeps the option empty, which means
+        // "no allow-list" and is the previous behavior exactly.
+        foreach (var name in (builder.Configuration["Tracon:Tenancy:AllowedTenants"] ?? string.Empty)
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            options.AllowedTenants.Add(name);
+        }
+    });
+}
+
+// Production profile (phase 175). The gate refuses to start a host whose
+// permissive decisions have not been looked at. It is OFF here because this is
+// a sample — turning it on unconditionally would stop `dotnet run` for anyone
+// exploring the repository.
+//
+// 🚨 A demonstration flag rather than a hand-edit, for the same reason as
+// Tracon:Demo:RunAuthorization:Mode (K-834): a line that has to be added and
+// removed again is not a mechanism. `Tracon:Demo:ProductionProfile:Accept`
+// takes the comma-separated risk names to accept, so the "an accept covers
+// only the risk it names" behavior can be shown without editing this file.
+if (builder.Configuration.GetValue<bool>("Tracon:Demo:ProductionProfile:Enabled"))
+{
+    var accepted = (builder.Configuration["Tracon:Demo:ProductionProfile:Accept"] ?? string.Empty)
+        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+    tracon.RequireProductionProfile(profile =>
+    {
+        foreach (var name in accepted)
+        {
+            // An unknown name stops the host rather than being ignored: a typo
+            // that silently accepted nothing would make the gate look stricter
+            // than it is, and a typo that silently accepted everything would
+            // make it look weaker. Neither failure is visible in the output.
+            if (!Enum.TryParse<TraconProductionRisk>(name, ignoreCase: true, out var risk))
+            {
+                throw new InvalidOperationException(
+                    $"'Tracon:Demo:ProductionProfile:Accept' names '{name}', which is not a "
+                    + $"TraconProductionRisk. Known values: {string.Join(", ", Enum.GetNames<TraconProductionRisk>())}.");
+            }
+
+            profile.Accept(risk);
+        }
+    });
+}
+
+// Tool approval POLICY (code) versus approval RULES (data). The policy is
+// consulted first and its Required/NotRequired answers override the stored
+// rules; a policy that answers Undecided leaves the rules in charge. 🚨 The
+// sample registers none by default, so the precedence — code beats data — is
+// not observable here. Same reasoning as the other demo hooks (K-834).
+//
+// Format: comma-separated `tool=Decision`, for example
+// `refund_order=Required`. An unknown tool name is fine (the policy simply
+// never fires); an unknown DECISION stops the host, because a misspelling
+// that silently became Undecided would make a precedence test pass against
+// the data rule it was supposed to override.
+foreach (var entry in (builder.Configuration["Tracon:Demo:ToolApprovalPolicy"] ?? string.Empty)
+    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+{
+    var parts = entry.Split('=', 2, StringSplitOptions.TrimEntries);
+
+    if (parts.Length != 2 || !Enum.TryParse<ToolApprovalPolicyDecision>(parts[1], ignoreCase: true, out var decision))
+    {
+        throw new InvalidOperationException(
+            $"'Tracon:Demo:ToolApprovalPolicy' entry '{entry}' is not `tool=Decision`. Known decisions: "
+            + string.Join(", ", Enum.GetNames<ToolApprovalPolicyDecision>()));
+    }
+
+    tracon.AddToolApprovalPolicy(parts[0], _ => decision);
+}
+
+// The pattern content guard, registered separately from the chain above so it
+// can be left out. 🚨 Emptying its rule set is NOT the same as not registering
+// it, and that difference is exactly what the production profile measures: the
+// UninspectedContent check asks whether an IContentGuard is REGISTERED, not
+// whether an options flag is set. Leaving it out is the only way to see that
+// check report, so it follows K-834 rather than a hand-edit.
+if (!DemoSuppressedRegistrations(builder.Configuration).Contains("ContentGuard"))
+{
+    tracon.AddPatternContentGuard(options =>
+    {
+        options.MaskedPii = PiiPatterns.CreditCard | PiiPatterns.Email | PiiPatterns.ProviderApiKey;
+        options.DeniedTerms.Add("confidential-project");
     });
 }
 
@@ -955,6 +1137,16 @@ app.MapTracon("/tracon", options =>
         options.AllowRemoteAccess = allowRemoteAccess;
     }
 
+    // 🚨 A shipped option whose OFF position this sample could never SHOW.
+    // MapOpenAIConversations is decided here, at MapTracon time, so the only
+    // way to reach its false branch was a temporary edit of this file — the
+    // exact thing K-834 refuses. The key binds the REAL option; it adds no
+    // behavior of its own, and its absence leaves the shipped default (true).
+    if (builder.Configuration.GetValue<bool?>("Tracon:Demo:MapOpenAIConversations") is { } mapConversations)
+    {
+        options.MapOpenAIConversations = mapConversations;
+    }
+
     // CORS (Phase 61): empty by default (K1). Enables the embeddable chat
     // widget to be hosted on a different origin than this API.
     foreach (string origin in builder.Configuration.GetSection("Tracon:Ui:AllowedOrigins").Get<string[]>() ?? [])
@@ -972,7 +1164,13 @@ app.MapTracon("/tracon", options =>
     // be active, a missing registration must FAIL AT STARTUP instead of
     // silently turning every RequireRole(...) into a no-op. If someone later
     // removes the AddPolicy calls above, this application no longer starts.
-    options.RequireRolePolicies = demoRolesEnabled;
+    // 🚨 Normally tied to the demo roles: when the names are meant to be
+    // active, a missing registration must fail at startup. The override exists
+    // because the OPPOSITE combination — the gate on with NO policy registered
+    // — is its own documented behavior and cannot be reached otherwise
+    // (turning the demo roles on registers the policies, which satisfies it).
+    options.RequireRolePolicies =
+        builder.Configuration.GetValue<bool?>("Tracon:Demo:RequireRolePolicies") ?? demoRolesEnabled;
 });
 
 // MCP/A2A external surfaces. They inherit the SAME access protection as
@@ -982,3 +1180,60 @@ app.MapTraconMcpServer();
 app.MapTraconA2A();
 
 app.Run();
+
+/// <summary>
+/// The agent names the sample exposes over <paramref name="surface"/>.
+/// </summary>
+/// <param name="configuration">The application configuration.</param>
+/// <param name="surface">Either <c>Mcp</c> or <c>A2A</c>.</param>
+/// <returns>The configured names, or the sample's own default.</returns>
+/// <remarks>
+/// Reads <c>Tracon:Demo:ExposedAgents:{surface}</c> as a comma-separated list.
+/// The default is <c>summarizer</c>, the one agent this sample publishes: it
+/// carries no approval-requiring tool, so the startup guard lets it through.
+/// </remarks>
+static string[] DemoExposedAgents(IConfiguration configuration, string surface)
+{
+    var configured = configuration[$"Tracon:Demo:ExposedAgents:{surface}"];
+
+    return string.IsNullOrWhiteSpace(configured)
+        ? ["summarizer"]
+        : configured.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+}
+
+/// <summary>
+/// The registration calls the sample skips, from
+/// <c>Tracon:Demo:SuppressRegistrations</c>.
+/// </summary>
+/// <param name="configuration">The application configuration.</param>
+/// <returns>The suppressed names; empty when the key is absent.</returns>
+/// <remarks>
+/// 🚨 Demonstration only. Known names: <c>OpenAILive</c>, <c>LiveVoice</c>,
+/// <c>OpenAIImages</c>. An unknown name stops the host rather than being
+/// ignored — a typo that suppressed nothing would make a case measuring the
+/// "missing registration" answer pass against the registration that is still
+/// there.
+/// </remarks>
+static HashSet<string> DemoSuppressedRegistrations(IConfiguration configuration)
+{
+    string[] known = ["OpenAILive", "LiveVoice", "OpenAIImages", "ContentGuard"];
+
+    var configured = (configuration["Tracon:Demo:SuppressRegistrations"] ?? string.Empty)
+        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+    var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+    foreach (var name in configured)
+    {
+        if (!known.Contains(name, StringComparer.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                $"'Tracon:Demo:SuppressRegistrations' names '{name}', which is not a known "
+                + $"registration. Known values: {string.Join(", ", known)}.");
+        }
+
+        result.Add(name);
+    }
+
+    return result;
+}

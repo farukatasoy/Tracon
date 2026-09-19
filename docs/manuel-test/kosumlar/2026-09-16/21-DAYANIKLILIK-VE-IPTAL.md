@@ -1268,6 +1268,33 @@ değişikliği gerektirir (kural 1 donmuş kodu yasaklıyor); kapanışta
 
 ## § 9 — Depo Sözleşmesi: İptal Edilmiş Token (Faz 177)
 
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 14) · ☑ GEÇTİ**
+
+Ön koşulun istediği iki `IRunEventSink` kaydı (yavaş ve fırlatan) tam olarak
+`FailureManifests/SlowSinkTests.cs` içinde kurulu ve **gerçek PostgreSQL'e
+karşı** (testcontainers) koşuyor. İkisi de koşuldu:
+
+```
+Tracon.PostgreSql.IntegrationTests --filter-class "*SlowSinkTests*"
+  A_slow_sink_delays_the_run_because_dispatch_is_inline          ☑
+  A_failing_sink_is_disabled_for_the_run_and_the_store_keeps_writing  ☑
+total: 2 · failed: 0
+```
+
+☑ **Yavaş `sink`**: `run` tamamlanıyor ama süre olay sayısı × gecikme kadar
+uzuyor — testin adı mekanizmayı da söylüyor: *"because dispatch is inline"*,
+yani dağıtım sıcak yolda `await` ediliyor, arka plana atılmıyor.
+☑ **Fırlatan `sink`**: o `run` için devre dışı bırakılıyor ve **depo yazmaya
+devam ediyor**.
+
+⚠️ Testteki gecikme `120 ms`, case `~200 ms` diyor. İddia sabit değere değil
+**ilişkiye** (olay sayısı × gecikme) dayandığı için fark önemsizdir;
+`EventCount = 5` ile ölçüm aynı şeyi zorlar.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ### MT-RES-091
 
 **Gerçek sonuç**

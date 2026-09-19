@@ -554,6 +554,38 @@ otomatik config-section binding yapmıyor).
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 11) · ☑ GEÇTİ**
+Ön koşulun istediği geçici `Program.cs` düzenlemesi yerine kalıcı kanca
+kullanıldı (K-834). Varsayılan davranış değişmedi.
+
+`Tracon:Tenancy:AllowedTenants` artık config'ten okunuyor — **seçenek vardı
+ama örnek uygulama onu hiç bağlamıyordu**, ∴ beyaz liste bu kurulumda hiç
+zorlanamıyordu.
+
+`--Tracon:Tenancy:AllowedTenants=kiraci-alfa` ile:
+
+| İstek | Sonuç |
+|---|---|
+| `X-Tracon-Tenant: kiraci-gamma` (listede **yok**) | **`403`** |
+| `X-Tracon-Tenant: kiraci-alfa` (listede **var**) | `200` → `{"tenantId":"kiraci-alfa"}` |
+
+```json
+{"title":"Tenant rejected","status":403,
+ "detail":"The resolved tenant is not on the allow list. This request is NOT
+           silently downgraded to the default tenant's data; it is rejected."}
+```
+
+☑ **`{"tenantId":"default"}` DÖNMEDİ** — düzeltilmiş davranış yerinde; fix
+öncesi sessiz düşüş **geri gelmemiş**. Yanıtın `detail`'i bunu cümleyle de
+söylüyor.
+
+⚠️ Spec `title: "Kiraci reddedildi"` (Türkçe) bekliyor; sevk edilen metin
+**İngilizce**dir (`"Tenant rejected"`) — K-228. Spec düzeltildi (skill §1.1).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ## MT-SEC-030 — Kiracı A'da `FIX-AGENT-01` oluşturma
 
 **Gerçek sonuç**
@@ -877,6 +909,32 @@ yasaklıyor.
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 11) · ☑ GEÇTİ**
+Ön koşulun istediği geçici `Program.cs` düzenlemesi yerine kalıcı kanca
+kullanıldı (K-834). Varsayılan davranış değişmedi.
+
+`Tracon:Demo:RequireRolePolicies` kancası eklendi. Normalde bu bayrak demo
+rollerine bağlıdır; ama case'in istediği **ters** bileşim (kapı açık, politika
+**hiç kayıtlı değil**) o yolla üretilemez — demo rollerini açmak politikaları
+da kaydeder ve kapıyı tatmin eder.
+
+```
+EXIT=134   Application started: 0
+Unhandled exception. System.InvalidOperationException:
+TraconEndpointOptions.RequireRolePolicies is on but these policies are not
+registered: Tracon.Reader, Tracon.Operator, Tracon.Admin. Define the
+TraconPolicies.Reader/Operator/Admin names inside
+builder.Services.AddAuthorization(...), or turn RequireRolePolicies off.
+```
+
+☑ Açılışta `InvalidOperationException`. ☑ Mesaj **üç politika adını da**
+içeriyor: `Tracon.Reader` · `Tracon.Operator` · `Tracon.Admin`. Ayrıca iki
+çıkış yolu da yazılı (kaydet **ya da** kapıyı kapat).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ## MT-SEC-085 — `/api/meta`'nın `roles` alanı: hiçbir policy kayıtlı değilken hepsi `true`
 
 **Gerçek sonuç**
@@ -977,6 +1035,33 @@ MT-SEC-100). Açık soru olarak devir notuna eklendi.
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 10) · ☑ GEÇTİ**
+🚨 **Turun engeli kalktı: `refund_order` artık gerçek bir tool.** MT-SEC-100 ve
+101'in kaydı *"davranışsal kısım koşulamadı — `refund_order` örnek uygulamada
+gerçek bir tool DEĞİL"* diyordu. K-834'ün kapsamında **kalıcı** olarak eklendi
+(`OrderTools.cs`): onay isteyen ve **sayısal** bir argüman alan tek tool budur
+— `cancel_order` yalnız bir sipariş kimliği taşır, eşik uygulanacak bir şey
+yok. O tool olmadan koşullu kural özelliği yönetim API'sinden erişilebiliyor
+ama bir koşumda **hiç gözlemlenemiyordu**.
+
+Kural: `refund_order` üzerinde `amount <= 100`.
+
+| Çağrı | Run durumu | Tool |
+|---|---|---|
+| `amount = 50` (eşik altı) | `Completed` | koştu — *"Refunded 50 for order 442."* |
+| **`amount = 500`** (eşik üstü) | **`AwaitingApproval`** | **koşmadı** |
+
+☑ 500 > 100 olduğu için koşul eşleşmiyor ve **kapalı düşme** devreye giriyor:
+run `RunAwaitingInput` olayıyla onay bekliyor, tool çalışmıyor.
+
+💡 Karşı kontrol aynı tabloda: eşik **altındaki** çağrı otomatik geçti ve tool
+gerçekten koştu. Tek başına `AwaitingApproval` görmek "kural hiç işlemiyor"
+anlamına da gelebilirdi — bu, MT-SEC-101'in davranışsal yarısını da kapatıyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ## MT-SEC-103 — Argüman hiç gönderilmezse onay ister (yol çözülemez → kapalı düşme)
 
 **Gerçek sonuç**
@@ -984,12 +1069,63 @@ MT-SEC-100). Açık soru olarak devir notuna eklendi.
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 10) · ☑ GEÇTİ**
+
+⚠️ **Tool seçimi değiştirildi ve sebebi ölçümün kendisidir.** `refund_order`
+ile *"tutarı belirtme"* denendiğinde model boş bırakmak yerine `amount=0`
+gönderdi — yol **çözüldü** (`0 <= 100`) ve çağrı otomatik onaylandı. Yani
+`decimal` bir parametreyle "argüman hiç gönderilmesin" koşulu modele
+bırakılarak üretilemiyor. Onun yerine koşul **yapısal olarak** kuruldu:
+kural `cancel_order` üzerine yazıldı ve yolu `amount` seçildi — o tool'da
+böyle bir argüman **yok**.
+
+```
+kural:  cancel_order  amount <= 100
+cagri:  cancel_order(orderId = "442")      ← 'amount' argumanı YOK
+sonuc:  AwaitingApproval        tool: KOSMADI
+```
+
+☑ `ToolArgumentConditionMatcher.TryResolvePath` yolu çözemedi, koşul
+eşleşmedi, çağrı onay istedi.
+
+💡 **Karşı kontrol MT-SEC-104 ile ortaktır** (aşağıdaki üçüncü satır): aynı
+tool'da çözülebilen bir yolla yazılan kural otomatik onay veriyor. ∴ buradaki
+ret "kural `cancel_order`'da hiç işlemiyor" değil, gerçekten **yolun
+çözülememesi**.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ## MT-SEC-104 — Tip uyuşmazsa onay ister (`"50"` metni sayı kuralını geçemez)
 
 **Gerçek sonuç**
 **KOŞULAMADI** — MT-SEC-102 ile aynı gerekçe.
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 10) · ☑ GEÇTİ**
+
+Aynı yapısal yaklaşım (MT-SEC-103'ün notu): kural **sayı** ile yazıldı,
+argüman **dıze** gönderildi.
+
+| # | Kural | Çağrı | Sonuç | Tool |
+|---|---|---|---|---|
+| 1 | `orderId <= 100` (**SAYI** `100`) | `cancel_order(orderId = "50")` | **`AwaitingApproval`** | koşmadı |
+| 2 | `orderId == "50"` (**DİZE**) | `cancel_order(orderId = "50")` | `Completed` | **koştu** |
+
+☑ Satır 1: `"50"` metni ile `100` sayısı aynı JSON türünde değil ∴ **sessiz
+tip dönüştürme yapılmıyor** ve çağrı onay istiyor. Sayısal olarak
+`50 <= 100` doğru olurdu; eşleşme **olmuyor** çünkü türler ayrışıyor.
+
+☑ Satır 2 — **bu turun en değerli ölçümü**: aynı yol, aynı argüman, yalnız
+kuralın değeri dızeye çevrildi ve çağrı **otomatik onaylandı**. Bu iki satır
+birlikte ret sebebinin **tip** olduğunu kanıtlıyor; tek satır "kural bu tool'da
+hiç çalışmıyor" ile aynı görünürdü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
 
 ## MT-SEC-105 — Kodda kayıtlı politika veri kuralını EZER
 
@@ -999,6 +1135,30 @@ MT-SEC-100). Açık soru olarak devir notuna eklendi.
 koşulamaz" diyor. Bu turun kod donması kuralıyla tutarlı biçimde atlandı.
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 11) · ☑ GEÇTİ**
+Ön koşulun istediği geçici `Program.cs` düzenlemesi yerine kalıcı kanca
+kullanıldı (K-834). Varsayılan davranış değişmedi.
+
+`Tracon:Demo:ToolApprovalPolicy=refund_order=Required` kancası eklendi.
+Kurulum: MT-SEC-100'ün **koşulsuz** kuralı kayıtlı (her çağrıyı otomatik
+onaylar) **ve** kod politikası `Required` dönüyor.
+
+| Kurulum | Run |
+|---|---|
+| Koşulsuz veri kuralı **+ kod politikası `Required`** | **`AwaitingApproval`** |
+| Aynı veri kuralı, **kod politikası YOK** | `Completed` — tool koştu (*"Refunded 50 for order 442."*) |
+
+☑ Kod kazanıyor: `IsAutoApprovedAsync`'in politika dalı (`Required`/
+`NotRequired`) veri kurallarından **ÖNCE** değerlendiriliyor.
+
+💡 **İkinci satır olmadan bu case yanlış sebeple yeşil görünürdü**: tek
+başına `AwaitingApproval`, veri kuralının hiç işlememesiyle aynı görünür.
+Karşı kontrol kuralın **gerçekten** otomatik onayladığını gösteriyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
 
 ## MT-SEC-106 — Aynı kapsam ve aynı koşulla ikinci kural `409` alır
 
@@ -1031,6 +1191,38 @@ başlatılmamıştı). Zorla denenmedi (paylaşılan kaynağı bozma riski). Aç
 soru tablosuna eklendi.
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 2) · ☑ GEÇTİ**
+
+🚨 **Turun engeli tarayıcı kilidiydi, rol değil.** §5(b) bu case'i "reader
+kimliği yok" satırına koymuştu; kaydın kendisi ise doğru sebebi yazıyor
+(`Browser is already in use`). Önceki oturumdan kalmış yedi süreç
+durduruldu ve case hiçbir rol yapılandırması olmadan koştu.
+
+Kural arayüzden oluşturuldu (`refund_order`, `amount` `≤` `100`) ve listeye
+geri okundu:
+
+```
+Remembered approvals
+TOOL           AGENT        SCOPE          CREATED
+refund_order   All agents   amount ≤ 100   now
+               "The call is auto-approved only when every condition below matches."
+```
+
+**K2 sınırı ölçüldü ve tutuyor.** Operatör alanı bir `<select>` ve **tam sekiz**
+sabit seçenek taşıyor:
+
+```
+equals (=) · not equals (≠) · greater than (>) · greater than or equal (≥)
+less than (<) · less than or equal (≤) · in (∈) · not in (∉)
+```
+
+Formun tamamında `<textarea>` **sayısı 0**; hiçbir alan ifade/formül kabul
+etmiyor. Alan ve değer yalnız düz metin kutuları (`amount`, `100`).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
 
 ## MT-SEC-109 — Bağlama önek dışındaki bir yapılandırma anahtarı adıyla reddedilir
 
@@ -1153,6 +1345,40 @@ tarafından kilitli). Açık soru tablosuna eklendi.
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 2) · ☑ GEÇTİ**
+
+Aynı tarayıcı kilidi kalktı. Bağlama formu açıldı ve **üç** alan taşıyor:
+
+| Alan | Tür | Not |
+|---|---|---|
+| Provider | `<select>` (5 seçenek) | `anthropic` · `google` · `openai` · `openai-responses` · `openrouter` |
+| Configuration key name | metin | yer tutucu `Tracon:ProviderKeys:Acme:OpenAI` |
+| Endpoint override | metin | isteğe bağlı |
+
+Formun kendi ipucu sınırı yazıyor: *"The name only — set the value with
+dotnet user-secrets, an environment variable, or a key vault. **Never entered
+here.**"* Panelin altında ikinci bir cümle: *"No field on this screen ever
+accepts a credential value — only the name of the configuration key it is read
+from at call time."*
+
+`input[type="password"]` **sayısı 0**; "api key value" / "secret value" /
+"paste your key" kalıplarının hiçbiri sayfada geçmiyor. K-059 sınırı tutuyor.
+
+**Çözümleme rozeti de ölçüldü.** Bir bağlama kaydedildi
+(`Tracon:ProviderKeys:MtSec118:OpenAI` — yapılandırmada **yok**) ve satır
+salt-okunur bir rozetle geldi:
+
+```
+anthropic   Not resolved   Delete
+Tracon:ProviderKeys:MtSec118:OpenAI      Updated: now
+```
+
+Rozet durumu **gösteriyor**, düzenlenebilir bir alan değil.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ## MT-SEC-120 — Yetkilendirme kancası kayıtlı değilken davranış değişmez
 
 **Gerçek sonuç**
@@ -1179,12 +1405,66 @@ reddi tetiklemenin bir yolu yok. Aynı sınıf: MT-SEC-024/084/105.
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 11) · ☑ GEÇTİ**
+Ön koşulun istediği geçici `Program.cs` düzenlemesi yerine kalıcı kanca
+kullanıldı (K-834). Varsayılan davranış değişmedi.
+
+`Tracon:Demo:ToolAuthorization:Mode=deny-all` kancası eklendi
+(`DemoDenyAllToolAuthorization`, her çağrıyı `ToolAuthorizationResult.Deny`
+ile reddeder).
+
+```
+run status: Completed      error: None
+```
+
+☑ Run **`Completed`**, **`Failed` DEĞİL**. ☑ Model ret metnini bir **tool
+sonucu** olarak aldı ve turuna devam etti:
+
+```
+result: "The demonstration handler refuses every tool call, including
+         'get_order_status'."
+```
+
+☑ Kayıtta `authorizationDenied: true`, `error: null`.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ## MT-SEC-122 — Yetki reddi olay akışında `ToolFailed`'den ayırt edilebilir
 
 **Gerçek sonuç — KOŞULAMADI, MT-SEC-121 ile aynı kök neden.** Reddedilen
 tool çağrısı üretilemeden bu case'in `run`'ı da elde edilemiyor.
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 11) · ☑ GEÇTİ**
+
+MT-SEC-121'in run'ı için `GET /api/runs/{id}/tools`:
+
+```json
+{
+  "toolName": "get_order_status",
+  "arguments": "orderId=442",
+  "result": "The demonstration handler refuses every tool call, including 'get_order_status'.",
+  "duration": "00:00:00.0170000",
+  "error": null,
+  "authorizationDenied": true,
+  "timedOut": false,
+  "succeeded": true
+}
+```
+
+☑ `authorizationDenied: true` · ☑ `timedOut: false` · ☑ `error` **boş**.
+
+💡 Kayıt genel bir hata görünümünden **üç alanla birden** ayrışıyor:
+`error` boş, `succeeded: true`, ve reddin kendisi ayrı bir bayrakta
+(`authorizationDenied`). ∴ "ret bir hata değildir" iddiası veri
+modelinde de geçerli, yalnız metinde değil.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
 
 ## MT-SEC-123 — Timeout'lu bir tool ~1 saniyede kesilir, `run` devam eder
 
@@ -1261,6 +1541,30 @@ rozetlerinin bu alanlardan üretildiği varsayımı case'in kendi metniyle uyuml
 ama GÖRSEL render doğrulanamadı.
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 2) · ☑ GEÇTİ**
+
+Turda API verisi doğrulanmış, görsel render kalmıştı. Tarayıcı kilidi kalkınca
+render de ölçüldü. ⚠️ Tools ekranı **tablo değil kart** düzeni — `tr`
+sayısı `0`; satır arayan bir seçici boş döner.
+
+| Tool | Etki rozeti | İzin rozeti |
+|---|---|---|
+| `cancel_order` | ☑ `destructive` + *"This tool cannot be undone."* | ☑ `orders.cancel` + *"A caller needs the permission \"orders.cancel\" to call this tool."* |
+| `get_order_status` | ☑ **yok** | ☑ **yok** |
+| `list_recent_orders` | ☑ **yok** | ☑ **yok** |
+
+Rozetin kırmızı olduğu hesaplanmış stille doğrulandı, adıyla değil:
+sınıf `bg-danger-soft text-danger`, `color: rgb(245,165,155)`,
+`background: rgb(51,25,26)`.
+
+⚠️ Etki filtresi açılır listesi de `destructive` kelimesini taşıyor
+(`<option>`); rozet arayan bir ölçüm önce onu bulur. Ölçüm yalnız
+yaprak düğüm + rozet kabuğu zincirine bakılarak yapıldı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
 
 ## MT-SEC-127 — Token okumayan tool: `run` 1 saniyede devam eder, gövde arkada biter
 
@@ -1459,11 +1763,61 @@ yasaklıyor. Ayrıntı: aşağıdaki konsolide not (MT-SEC-141..150, 152..163).
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 4) · ☑ GEÇTİ**
+🚨 **Turun "geçici `Program.cs` değişikliği" ön koşulu ARTIK GEÇERSİZ.**
+Örnek uygulamaya kalıcı bir demo kancası eklendi (K-834):
+`Tracon:Demo:RunAuthorization:Mode`. `DemoRoleAuthenticationHandler`'ın
+deseninin aynısıdır, varsayılan kapalıdır ve kimliği `X-Demo-User`
+başlığından okur. Hiçbir dosya elle düzenlenip geri alınmadı.
+
+Mod `allow-user-a`:
+
+| Adım | Kimlik | Sonuç |
+|---|---|---|
+| 1 | `a` | ☑ `HTTP 200`, run çalıştı |
+| 2 | `b` | ☑ `HTTP 403`, `title: "Run not authorized"` |
+
+`runs` listesi **tek** satır taşıyor (`user=a`, `Completed`) — reddedilen
+çağrı için satır **açılmadı**.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ## MT-SEC-142 — Reddedilen bir run başkasının session'ını da kapsar
 
 **Gerçek sonuç — KOŞULAMADI, MT-SEC-141 ile aynı kök neden.**
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 4) · ☑ GEÇTİ**
+`a` ile `sessionId: "session-of-a"` açıldıktan sonra `b` aynı oturumla denedi:
+`HTTP 403`.
+
+💡 **"Karar SessionId'yi de görebilir" iddiası İKİ YOLLA kanıtlandı.**
+Tek başına 403 bunu göstermez — `allow-user-a` zaten `b`'yi reddediyordu.
+
+**(1) Karar SessionId'ye göre değişiyor.** `deny-foreign-session` modu
+`session-of-{user}` sahiplik kuralını uygular; **aynı** kullanıcı `b` yalnız
+oturum değiştiği için farklı yanıt alıyor:
+
+| Kimlik | `sessionId` | Sonuç |
+|---|---|---|
+| `a` | `session-of-a` | `200` |
+| `b` | `session-of-a` | **`403`** — *"refuses a session that belongs to another user"* |
+| `b` | `session-of-b` | `200` |
+
+**(2) Handler'ın aldığı istek doğrudan görüldü.** Demo handler aldığı her
+isteği günlüklüyor:
+
+```
+Demo run authorization: mode=AllowUserA tenant=default agent=support
+                        session=session-of-a user=a access=Start run=(null)
+```
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
 
 ## MT-SEC-143 — `throw` eden handler reddeder (fail-closed)
 
@@ -1471,17 +1825,71 @@ yasaklıyor. Ayrıntı: aşağıdaki konsolide not (MT-SEC-141..150, 152..163).
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 4) · ☑ GEÇTİ**
+Mod `throw` — `AuthorizeRunAsync` her çağrıda `InvalidOperationException`
+fırlatıyor.
+
+```
+HTTP 403   {"title":"Run not authorized",
+            "detail":"The registered IRunAuthorizationHandler denied this run."}
+```
+
+☑ `403`, **`500` DEĞİL** — fail-closed tutuyor. ☑ `runs` sayısı değişmedi
+(`5 → 5`), satır açılmadı.
+
+💡 Fırlatılan istisnanın **kendi metni yanıta girmiyor**; `detail` jenerik
+bir cümle. Kapı hem kapanıyor hem sessiz kalıyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ## MT-SEC-144 — Reddedilen run kotayı tüketmez (sıra: atıf → yetki → kota)
 
 **Gerçek sonuç — KOŞULAMADI, MT-SEC-141 ile aynı kök neden.**
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 4) · ☑ GEÇTİ**
+
+Mod `deny-all`, günlük `MaxRuns=1` kotası tanımlı. Üç adım da ölçüldü:
+
+| # | İşlem | Sonuç |
+|---|---|---|
+| 1 | Reddedilecek run | ☑ `HTTP 403` |
+| 2 | `GET /api/quotas/usage` | ☑ `usage: []` — sayaç **hâlâ boş** |
+| 3 | Mod kapatıldı, izinli run | ☑ `HTTP 200`; sayaç `runs: 1` oldu |
+| 4 | İkinci izinli run | ☑ `HTTP 429` — limit ancak şimdi doldu |
+
+💡 **Dördüncü adım case'de yok ama iddiayı aslında O kanıtlıyor.** Sayacın boş
+görünmesi tek başına "henüz yazılmadı" da olabilirdi; `MaxRuns=1` limitinin
+**reddedilen çağrıdan sonra da tam** kalması ve izinli run'ın hakkının
+tamamını alabilmesi, reddin kotadan hiç düşmediğinin kesin kanıtıdır.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ## MT-SEC-145 — Kuyruğa alınan (`Prefer: respond-async`) run da kapsanır
 
 **Gerçek sonuç — KOŞULAMADI, MT-SEC-141 ile aynı kök neden.**
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 4) · ☑ GEÇTİ**
+Mod `deny-all`, `Prefer: respond-async`:
+
+```
+HTTP 403   {"title":"Run not authorized",
+            "detail":"The demonstration handler refuses every run."}
+```
+
+☑ `403`, **`202 Accepted` DEĞİL**. ☑ `GET /api/jobs` sayısı `0 → 0` — iş
+kuyruğuna hiç yazılmadı. Kapı worker'a düşmeden HTTP katmanında çalışıyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
 
 ## MT-SEC-146 — Session erişimi: `List` → `403`, `Read`/`Delete`/`Branch` → `404`
 
@@ -1492,11 +1900,58 @@ reddi ÜRETEMEZ.
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 4) · ☑ GEÇTİ**
+Dört ayrı mod, her biri **yalnız kendi** erişimini reddediyor. Her modun
+öncesinde oturum tazelendi (ilk ölçümde `DELETE` oturumu silmiş ve sonraki
+modları kirletmişti — tekrarlandı):
+
+| Mod | List | Read | Branch | Delete |
+|---|---|---|---|---|
+| `deny-session-list` | **403** | 200 | 201 | 204 |
+| `deny-session-read` | 200 | **404** | 409† | 204 |
+| `deny-session-delete` | 200 | 200 | 409† | **404** |
+| `deny-session-branch` | 200 | 200 | **404** | 204 |
+
+† `409` kalan bir `branch-of-a`'dan; o modlarda branch **reddedilmiyor**,
+çakışmaya kadar ilerliyor — doğru sonuç.
+
+💡 **Case'in `List` notu ölçümde görünüyor.** `List` bir **işlem**tir, tekil
+bir kaynağa dokunmaz ∴ `403` güvenlidir. Diğer üçü var olan bir kaynağa
+dokunur ∴ `404` ile varlık gizlenir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ## MT-SEC-147 — Dört run başlatan yüzeyin dördü de kapsanır (bypass yok)
 
 **Gerçek sonuç — KOŞULAMADI, MT-SEC-141 ile aynı kök neden.**
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 4) · ☑ GEÇTİ**
+Mod `deny-all`. **Dört yüzeyin dördü de `403`** — hiçbiri handler'ı atlamıyor:
+
+| # | Yüzey | Çağrı | Sonuç |
+|---|---|---|---|
+| 1 | Agent run | `POST /api/agents/support/run` | ☑ `403` |
+| 2 | Workflow run | `POST /api/workflows/summarize-and-approve/run` | ☑ `403` |
+| 3 | Inbound trigger | `POST /api/triggers/default/mt-sec-147` (**imzalı**) | ☑ `403` |
+| 4 | OpenAI uyumlu | `POST /v1/chat/completions` | ☑ `403` (`type: run_not_authorized`) |
+
+⚠️ **Yüzey 3'te sıra önemli: imza kapısı yetkilendirmeden ÖNCE çalışıyor.**
+İmzasız istek `401 Signature verification failed` alıyor, `403` değil. Geçerli
+HMAC üretilmeden bu yüzey ölçülemez:
+`sha256=HMACSHA256(secret, "{unixSeconds}.{body}")`, başlıklar
+`X-Tracon-Timestamp` + `X-Tracon-Signature`.
+
+⚠️ Trigger'ın `signingSecretConfigurationName` alanı **yalnız**
+`Tracon:TriggerSecrets:` öneki altındaki bir anahtara işaret edebilir; başka
+bir önek `400` ile reddediliyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
 
 ## MT-SEC-148 — Handler'a giden `TenantId` ambient kiracıdır
 
@@ -1504,6 +1959,25 @@ reddi ÜRETEMEZ.
 gördüğü değeri loglamak için YİNE bir handler kaydı gerekir).
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 4) · ☑ GEÇTİ**
+Demo handler aldığı isteği günlüklüyor, ∴ `TenantId` doğrudan okunabiliyor:
+
+```
+Demo run authorization: mode=AllowUserA tenant=default agent=support
+                        session=session-of-a user=a access=Start run=(null)
+```
+
+☑ `tenant=default` — `SingleTenantContext`'in varsayılanı. Kapı kendi kiracı
+değerini **uydurmuyor**; `RunAuthorizationGate.cs:53` `TenantId = tenants.TenantId`
+yazıyor, yani her zaman `ITenantContext`'ten okuyor.
+
+💡 Aynı satır `access=Start` ve `run=(null)` da gösteriyor — arayüzün
+dokümanının dediği gibi bir `Start` isteğinde henüz run yoktur.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
 
 ## MT-SEC-149 — İzin verilen çağıranın kimliği tool gövdesine ulaşır
 
@@ -1514,11 +1988,57 @@ uymuyor).
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 4) · ☑ GEÇTİ**
+
+Ön koşulun istediği "çağıranın kimliğini döndüren test tool'u" örnek uygulamaya
+kalıcı olarak eklendi (`whoami`, K-834) — geçici düzenleme yapılmadı.
+Kimlik `X-Demo-User: ada` ile verildi.
+
+```
+GET /api/runs/{id}         → userId: ada
+GET /api/runs/{id}/tools   → tool: whoami
+                              sonuç: "This run is attributed to 'ada'."
+```
+
+☑ Tool `TraconRunContext.Current?.UserId` üzerinden `"ada"`yı gördü.
+
+💡 İki satır birlikte case'in asıl cümlesini kanıtlıyor: run **kaydındaki**
+`userId` ile tool'un **gördüğü** değer aynı — yeni bir kavram değil,
+`IRunAttributionContext`'in okuduğu değerin tool'a açılan aynı kopyası.
+Run kaydı tek başına yalnız **kaydedicinin** gördüğünü kanıtlardı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ## MT-SEC-150 — Eşzamanlı çağrılar aynı handler örneğinde birbirini bozmaz
 
 **Gerçek sonuç — KOŞULAMADI, MT-SEC-141 ile aynı kök neden.**
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 4) · ☑ GEÇTİ**
+
+Mod `allow-user-a`. **Sekiz** run eşzamanlı gönderildi — dördü `a`, dördü `b`:
+
+```
+b1=403 b3=403 b2=403 b4=403 a3=200 a1=200 a2=200 a4=200
+```
+
+Handler günlüğü **tam sekiz** karar taşıyor:
+
+```
+   4 user=a access=Start run=(null)
+   4 user=b access=Start run=(null)
+```
+
+☑ Hepsi tutarlı: her `a` izinli, her `b` reddedildi. ☑ İstisna yok, çakışma
+yok, kayıp karar yok — handler her çağrıyı **ayrı ayrı** gördü. Singleton
+handler eşzamanlı çağrılarda durum taşımıyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
 
 ## MT-SEC-151 — Handler kayıtlı değilken 21 kaynak ucunun hiçbiri değişmez
 
@@ -1540,11 +2060,36 @@ tabanı olmadığından yalnız not düşülüyor). Liste uçları: `/api/runs` 
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 4) · ☑ GEÇTİ**
+Mod `deny-all`. **Var olan** bir run'ın reddedilen okuması ile **var olmayan**
+bir run'ın okuması birebir aynı:
+
+```
+GET /api/runs/01a0b794-1552-...   → 404  {"title":"Run not found", "detail":"There is no run with id '01a0b794-...'"}
+GET /api/runs/01a00000-0000-...   → 404  {"title":"Run not found", "detail":"There is no run with id '01a00000-...'"}
+```
+
+İki yanıt yalnız çağıranın **kendi verdiği** kimlikte ayrışıyor; durum kodu,
+başlık ve cümle aynı. Varlık sızıntısı yok.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ## MT-SEC-153 — Reddedilen olay akışı hiç açılmaz
 
 **Gerçek sonuç — KOŞULAMADI, MT-SEC-152 ile aynı kök neden.**
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 4) · ☑ GEÇTİ**
+Mod `deny-all`. `GET /api/runs/{id}/events` → **`404`**. Akış hiç açılmıyor:
+yanıt `text/event-stream` değil, tek bir problem belgesi. Reddedilen bir
+okumada SSE kanalının açılıp boş kapanması da olmuyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
 
 ## MT-SEC-154 — Reddedilen `trace`, `input` ve `tools` üçü de `404`
 
@@ -1552,17 +2097,67 @@ tabanı olmadığından yalnız not düşülüyor). Liste uçları: `/api/runs` 
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 4) · ☑ GEÇTİ**
+Mod `deny-all`, üçü de reddedildi ve üçü de **`404`**:
+
+```
+GET /api/runs/{id}/trace  → 404
+GET /api/runs/{id}/input  → 404
+GET /api/runs/{id}/tools  → 404
+```
+
+Üçü de tekil bir kaynağa dokunuyor ∴ `403` yerine `404` — MT-SEC-152'nin
+varlık gizleme kuralıyla tutarlı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ## MT-SEC-155 — Reddedilen `cancel` `404` döner, `409` DEĞİL
 
 **Gerçek sonuç — KOŞULAMADI, MT-SEC-152 ile aynı kök neden.**
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 4) · ☑ GEÇTİ**
+Mod `deny-all`. `POST /api/runs/{id}/cancel` → **`404`**, **`409` DEĞİL**.
+
+💡 Ayrım önemli: `409` "bu run var ama iptal edilemez" derdi ve run'ın
+**varlığını** açık ederdi. `404` hiçbir şey söylemiyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ## MT-SEC-156 — Reddedilen `replay` `403` döner, satır açılmaz, kota tüketilmez
 
 **Gerçek sonuç — KOŞULAMADI, MT-SEC-152 ile aynı kök neden.**
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 4) · ☑ GEÇTİ**
+
+Mod `deny-all`. ⚠️ **Kalıcı tanımlı bir agent gerekti:** `support` kod-tanımlı
+olduğu için replay daha yetkilendirmeye gelmeden `400 Replay not supported`
+veriyor (*"Agent 'support' has no persistent definition"*). Ölçüm bu yüzden
+API'den yaratılan `mt-sec-156` agent'ıyla yapıldı.
+
+```
+POST /api/runs/{id}/replay
+→ HTTP 403  {"title":"Run not authorized",
+              "detail":"The registered IRunAuthorizationHandler denied this request."}
+```
+
+☑ `403`. ☑ `runs` tablo sayısı `3 → 3` — satır **açılmadı**, ∴ kota da
+tüketilemez.
+
+💡 **Neden burada `403`, MT-SEC-152'de `404`?** Replay **yeni bir run başlatır**
+— `Start` ailesinden bir işlemdir, tekil bir kaynağın varlığını açık etmez.
+Salt okuma ise var olan bir kaynağa dokunur ∴ `404` ile varlık gizlenir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
 
 ## MT-SEC-157 — `/v1/chat/completions` akışlı ve akışsız dalda ayrı ayrı kapsanır
 
@@ -1576,11 +2171,44 @@ oturum `samples/Tracon.Embedded`'i `X-Host-Tenant` başlığı OLMADAN (→ ambi
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 4) · ☑ GEÇTİ**
+Mod `deny-all`. `/v1/chat/completions` **iki dalda da** kapsanıyor:
+
+| Dal | Sonuç |
+|---|---|
+| `stream: false` (akışsız) | ☑ `403` |
+| `stream: true` (akışlı) | ☑ `403` |
+
+Akışlı dal **SSE açıp içine hata koymuyor**; istek daha akış başlamadan
+`403` ile bitiyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ## MT-SEC-158 — Ek uçları: yükleme ve liste `403`, indirme ve silme `404`
 
 **Gerçek sonuç — KOŞULAMADI, MT-SEC-152 ile aynı kök neden.**
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 4) · ☑ GEÇTİ**
+Mod `deny-all`. Dört uç, case'in dediği bölünme birebir:
+
+| Uç | Beklenen | Ölçülen |
+|---|---|---|
+| `POST /api/attachments` (yükleme) | `403` | ☑ `403` |
+| `GET /api/attachments` (liste) | `403` | ☑ `403` |
+| `GET /api/attachments/{id}` (indirme) | `404` | ☑ `404` |
+| `DELETE /api/attachments/{id}` (silme) | `404` | ☑ `404` |
+
+⚠️ Ek uçları `runs/{id}/attachments` **değil**, kökte `api/attachments`.
+İlk ölçüm yanlış yola gidip `404` almıştı; o `404` yetkilendirme değil
+yönlendirme sonucuydu.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
 
 ## MT-SEC-159 — Onay uçları: liste `403`, okuma ve karar `404`, kayıt `Pending` kalır
 
@@ -1588,17 +2216,80 @@ oturum `samples/Tracon.Embedded`'i `X-Host-Tenant` başlığı OLMADAN (→ ambi
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 4) · ☑ GEÇTİ**
+Mod `deny-all`:
+
+| Uç | Beklenen | Ölçülen |
+|---|---|---|
+| `GET /api/approvals/pending` (liste) | `403` | ☑ `403` |
+| `GET /api/approvals/{id}` (okuma) | `404` | ☑ `404` |
+| `POST /api/approvals/{id}/decide` (karar) | `404` | ☑ `404` |
+
+⚠️ Karar ucu `POST /api/approvals/{id}` **değil** `.../{id}/decide`; ilk
+ölçüm `405` almıştı ve bu yetkilendirmeyle ilgili değildi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ## MT-SEC-160 — `throw` eden handler her kaynağı reddeder (fail-closed)
 
 **Gerçek sonuç — KOŞULAMADI, MT-SEC-152 ile aynı kök neden.**
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 4) · ☑ GEÇTİ**
+Mod `throw` — handler her karar noktasında istisna fırlatıyor. **Her kaynak**
+reddedildi:
+
+| Erişim | Sonuç |
+|---|---|
+| `POST /api/agents/support/run` | ☑ `403` |
+| `GET /api/runs` (liste) | ☑ `403` |
+| `GET /api/attachments` (liste) | ☑ `403` |
+| `GET /api/approvals/pending` (liste) | ☑ `403` |
+| `GET /api/runs/{id}` | ☑ `404` |
+| `GET /api/runs/{id}/events` | ☑ `404` |
+| `GET /api/runs/{id}/trace` | ☑ `404` |
+| `GET /api/runs/{id}/input` | ☑ `404` |
+| `POST /api/runs/{id}/cancel` | ☑ `404` |
+
+Hiçbiri `500` değil, hiçbiri geçmiş değil. Fail-closed yalnız run başlatmada
+değil **kaynak erişiminin tamamında** geçerli, ve `403`/`404` bölünmesi
+`deny-all` ile birebir aynı — istisna yolu ayrı bir kod yolu değil.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ## MT-SEC-161 — Handler'a başka kiracının kimliği HİÇ gitmez
 
 **Gerçek sonuç — KOŞULAMADI, MT-SEC-152 ile aynı kök neden.**
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 4) · ☑ GEÇTİ**
+
+Kiracı modu açık (`Tracon:Tenancy:Enabled=true` **ve**
+`AllowHeaderResolution=true` — §3.4, ikisi de şart). `kiraci-a` bir run açtı.
+
+| Adım | Çağrı | Sonuç |
+|---|---|---|
+| 1 | `kiraci-b` ile **`kiraci-a`'nın** run id'si | ☑ `404` |
+| 2 | `kiraci-b` ile **var olmayan** run id | ☑ `404` |
+| 3 | Handler karar sayısı | ☑ `1 → 1` — **hiç çağrılmadı** |
+
+💡 **Karşı kontrol iddiayı tamamlıyor.** Aynı run **kendi** kiracısından
+okunduğunda `200` geldi **ve** karar sayısı `1 → 2` oldu. Yani handler
+susmuyor; yalnız kaynak bulunup kiracısı doğrulandıktan **sonra** soruluyor.
+Bu ikinci ölçüm olmadan "hiç çağrılmadı" bulgusu, handler'ın hiç kayıtlı
+olmamasıyla aynı görünürdü.
+
+∴ başka kiracının kimliği handler'a **hiç gitmiyor**.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
 
 ## MT-SEC-162 — Ses: başka kullanıcının oturumuna bağlanma reddedilir
 
@@ -1607,11 +2298,64 @@ oturum `samples/Tracon.Embedded`'i `X-Host-Tenant` başlığı OLMADAN (→ ambi
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 4) · ☑ GEÇTİ**
+
+Mod `deny-session-voice` (K-834 ile eklenen beşinci oturum modu).
+
+```
+WebSocket el sıkışması  /api/voice/sessions/session-of-a/stream        → 404
+WebSocket el sıkışması  /api/voice/sessions/hic-olmayan-oturum/stream  → 404
+```
+
+☑ `404` — **`401` DEĞİL** (kimlik doğrulaması başarılıydı) ve **`403` DEĞİL**
+(oturumun varlığını doğrulardı). Erişilemeyen oturumun aldığı yanıtla birebir
+aynı.
+
+🚨 **Token bu uçta `Authorization` başlığıyla GİTMEZ.** WebSocket
+**subprotocol**'ü kullanılır:
+`Sec-WebSocket-Protocol: tracon.voice.v1, tracon.token.<token>`
+(`VoiceConversationProtocol.cs:23,34`). İlk ölçüm `Authorization` başlığıyla
+yapıldı ve `401` döndü — o `401` yetkilendirme reddi değil, **token'ın hiç
+ulaşmaması**ydı. Bu ayrım case'in kendi iddiasının merkezinde: yanlış taşıma
+kullanılırsa case yanlış sebeple "geçti" görünür.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ## MT-SEC-163 — Ses: var olmayan oturumun ilk turu HÂLÂ açılır (K-283 korunur)
 
 **Gerçek sonuç — KOŞULAMADI, MT-SEC-152 ile aynı kök neden.**
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 4) · ☑ GEÇTİ**
+
+Handler kayıtlı ama `Voice`'a izin veren bir modda (`deny-session-branch`).
+Sunucunun **hiç görmediği** bir `sessionId` ile bağlanıldı:
+
+```
+WebSocket el sıkışması → 101 Switching Protocols
+```
+
+☑ Bağlantı **açıldı** — K-283 korunuyor, ilk tur oturumu oluşturabilir.
+
+☑ **Handler yine de soruldu**: karar sayısı `0 → 1` ve günlük satırı tam olarak
+o oturumu ve erişim türünü taşıyor:
+
+```
+Demo session authorization: mode=DenySessionBranch tenant=default
+                            session=hic-gorulmemis-1789787198 user=(null) access=Voice
+```
+
+💡 İki iddia birlikte ölçülmeliydi: yalnız `101` görmek "kapı hiç sorulmadı"
+anlamına da gelebilirdi — ki bu case'in korkusu tam tersi yönde aynı kusurdur.
+Karar sayısının artması, yeni konuşma izninin gerçekten tüketiciye
+sorulduğunu gösteriyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
 
 ## MT-SEC-164 — Sahiplik kapalıyken (varsayılan) hiçbir davranış değişmez
 
@@ -1766,6 +2510,44 @@ eklendi.
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 13) · ☑ GEÇTİ**
+
+🚨 **Turun engeli kalktı: üretim benzeri tablo ÜRETİLDİ.** `mt_z1.sessions`
+`generate_series` ile dolduruldu — **3.000.001 satır, 529 MB**. Sonra
+`owner_id` sütunu düşürülüp migration (`0047_session_owner.sql`) yeniden
+uygulandı ve **süre ölçüldü**, tahmin edilmedi.
+
+**Sağlayıcı: PostgreSQL 18** (case "üçten en az biri" diyor).
+
+| Ölçüm | Değer |
+|---|---|
+| Satır sayısı | **3.000.001** |
+| Tablo boyutu | **529 MB** |
+| `ALTER TABLE … ADD COLUMN owner_id text` | **18,2 ms** |
+| — bunun kilit içinde geçen kısmı | **16,8 ms** |
+| `CREATE INDEX … WHERE owner_id IS NOT NULL` (kısmi) | **157,8 ms** |
+| Kısmi indeksin boyutu | **8.192 bayt** |
+
+☑ **Tablo yeniden yazımı olmadı.** 529 MB'lık bir tabloda `ADD COLUMN` 18 ms
+sürdü; yeniden yazım olsaydı dakikalar sürerdi. Sebep sütunun `NULL`
+varsayılanlı olması — PostgreSQL yalnız katalogu güncelliyor.
+
+💡 **Kısmi indeksin ucuzluğu karşı kontrolle ölçüldü.** Aynı sütunlar
+üzerine **tam** bir indeks de kuruldu ve karşılaştırıldı:
+
+| İndeks | Süre | Boyut |
+|---|---|---|
+| Kısmi (`WHERE owner_id IS NOT NULL`) | **157,8 ms** | **8 KB** |
+| Tam (karşılaştırma için) | 1.960,6 ms | 20 MB |
+
+∴ sahiplik kapalıyken kısmi indeks **2.560 kat küçük** ve **12 kat hızlı**
+— "sahipliği hiç açmayan bir kurulum hiçbir şey ödemez" iddiası sayıyla
+karşılanıyor. Karşılaştırma indeksi ölçümden sonra düşürüldü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ## MT-SEC-175 — `RefuseUnownedSessions` tek başına hiçbir şey yapmaz
 
 **Gerçek sonuç**
@@ -1840,6 +2622,72 @@ ile aynı `GET` → `HTTP: 404` — politika yokken de `404` (fail-closed).
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
+## MT-SEC-180 — `/v1/conversations` tüketicinin yetki handler'ından geçer
+
+**Not — bu case turda HİÇ kayıt bloğu almamıştı.** Kapanış ölçümü (2026-09-19)
+spec'in 144 case'ini kaydın 142'siyle karşılaştırdığında ortaya çıktı: sayım
+betiği yalnız blok taşıyan case'i görür, bu yüzden `İŞARETSİZ` sayısı onu hiç
+saymadı. Case `İnsan gerekir: Hayır` diyor ve ön koşulu K-834'ün
+`Tracon:Demo:RunAuthorization:Mode=deny-all` kancasıyla **kod değişikliği
+olmadan** karşılanıyor.
+
+**Gerçek sonuç**
+Canlı `samples/Tracon.Api` (Release DLL, `--contentRoot`, Development).
+Önce mod KAPALIYKEN `summarizer` ile `conv-1` oturumu gerçekten yaratıldı
+(`GET /api/sessions/conv-1` → `200`, iki mesaj). Sonra uygulama
+`Tracon__Demo__RunAuthorization__Mode=deny-all` ile yeniden başlatıldı:
+
+| Adım | Ölçülen |
+|---|---|
+| 1 · `GET /tracon/v1/conversations/conv-1` | `404` · `{"error":{"message":"'conv-1' was not found.","type":"not_found_error"}}` |
+| 2 · `GET …/conv-1/items` | `404` · **aynı gövde** |
+| 3 · `DELETE …/conv-1` | `404` · **aynı gövde** |
+| Karşı kontrol · `GET …/baska-kiraci-conv` (hiç var olmayan kimlik) | `404` · yalnız kimlik dizesi farklı, biçim **birebir aynı** |
+| 4 · `POST /tracon/v1/conversations` | `200` · `{"id":"conv_01a0b85f…","object":"conversation"}` |
+
+`403` hiçbir adımda dönmedi — dönseydi konuşmanın varlığını doğrulardı.
+🚨 **Satır silinmedi:** mod kapatılıp uygulama yeniden başlatıldığında
+`GET /tracon/api/sessions/conv-1` → `200` ve iki mesaj hâlâ yerinde.
+⚠️ Karşı kontrol olmadan bu case yanlış sebeple yeşil görünürdü: bu uçta var
+olmayan bir kimlik ret YOKKEN `200` + sentezlenmiş gövde döndürüyor
+(ölçüldü, taban çizgisi), yani `404` gerçekten kapının cevabıdır.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+## MT-SEC-181 — `/v1/conversations` haritalaması kapatılabilir
+
+**Not — bu case de turda hiç kayıt bloğu almamıştı** (aynı ölçüm). Ön koşulu
+(`options.MapOpenAIConversations = false`) örnek uygulamada çevirebilecek bir
+anahtar YOKTU; K-834 gereği **kalıcı** bir demo kancası eklendi —
+`Tracon:Demo:MapOpenAIConversations` gerçek seçeneği bağlar, yeni bir davranış
+eklemez, yokluğunda sevk edilen varsayılan (`true`) kalır.
+
+**Gerçek sonuç**
+Uygulama `Tracon__Demo__MapOpenAIConversations=false` ile başlatıldı.
+
+| Adım | Ölçülen |
+|---|---|
+| 1 · `POST /v1/conversations` | `405` |
+| 1 · `GET /v1/conversations/conv-1` | `404` |
+| 1 · `GET …/conv-1/items` | `404` |
+| 1 · `DELETE …/conv-1` | `405` |
+| 2 · `openapi/v1.json` conversations yolları | `[]` |
+| 3 · `GET /tracon/api/sessions/conv-1` | `200` — oturum kendi ucundan erişilebilir, satır duruyor |
+| 4 · `/tracon/v1/responses` · `/tracon/v1/chat/completions` | ikisi de belgede **duruyor** |
+
+⚠️ **Spec `dördü de 404` diyor; bu host ikisinde `405` verir ve case yine
+GEÇER.** Sebep ortam farkıdır, kapsam farkı değil: referans uygulama konsolu
+sunar ve SPA yedek rotası her yolu **yalnız GET** için eşler, bu yüzden
+eşlenmemiş bir yola gelen GET dışı her metot `405` alır. Karşı kontrol bunu
+ayrıştırdı — `POST /tracon/v1/hic-boyle-yol-yok` → `405`,
+`DELETE /tracon/v1/hic-boyle-yol-yok/abc` → `405`, `GET` → `404`: **hiç var
+olmamış** bir yol ile kapatılmış conversations yolu **birebir aynı** cevabı
+veriyor. Case'in iddiası (`rota hiç yok, reddedilmiyor`) tam da budur.
+Spec'in `404`'ü otomatik karşılığının host'unda (konsolsuz, yedek rotasız)
+ölçülmüştür. Taban çizgisi: bayrak AÇIKken aynı dört uç `200` döner (ölçüldü).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
 ## MT-SEC-182 — Profil çağrılmayan kurulum aynı kalır
 
 **Not:** `dotnet run` üzerinden koşuldu (bu şeridin standart tarifi);
@@ -1864,17 +2712,87 @@ taşındı.
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 5) · ☑ GEÇTİ**
+
+Ön koşulun istediği geçici satır yerine kalıcı bayrak kullanıldı (K-834):
+`--Tracon:Demo:ProductionProfile:Enabled=true`.
+
+☑ Host **başlamadı**: `exit=134`, `Application started` **0**.
+☑ Her kalem üç bilgiyi taşıyor — `Setting` · `Today` · `Fix`.
+☑ Mesajın sonu `Accept(…)` yolunu **ve** kapının sınırını yazıyor:
+
+```
+Accept a decision you have deliberately taken instead of changing it, for example:
+RequireProductionProfile(profile => profile.Accept(TraconProductionRisk.SingleTenant)).
+This gate changes no setting and secures nothing by itself; it only refuses to let
+one of these decisions go unanswered.
+```
+
+⚠️ **Sayı bayattı: case 5 diyor, bugün 4.** Mesajın kendi başlığı
+*"4 production decisions are still on the permissive default"* diyor ve dört
+kalem sayıyor: `SingleTenant` · `UnownedSessions` · `UnlimitedRequestRate` ·
+`UnboundedRetention`.
+
+**Sebebi ölçüldü ve gerilemenin tersi.** Altı riskten **ikisi** örnek
+uygulamada artık karşılanıyor: `UninspectedContent` (case'in zaten saydığı
+gibi, `AddPatternContentGuard` kayıtlı) **ve** `UnencryptedContentAtRest` —
+`appsettings.json`'da `Tracon:ContentProtection:Enabled` **`true`**
+(`ContentProtectionProfileCheck.cs` o bayrağı okuyor ve `Satisfied` dönüyor).
+Case yazıldığında ikinci kalem hâlâ açıkmış. Spec 4'e çekildi (skill §1.1).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ## MT-SEC-184 — Kabul edilen risk host'u durdurmaz ve adıyla loglanır
 
 **Gerçek sonuç — KOŞULAMADI, MT-SEC-183 ile aynı kök neden.**
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 5) · ☑ GEÇTİ**
+
+`Accept=SingleTenant,UnencryptedContentAtRest` + üç ayar açık
+(`SessionOwnership` · `RateLimit` · `Retention`).
+
+☑ Host **başladı**: `health=200`, `Application started` **1**.
+☑ Kabul edilen risk **adıyla** loglandı:
+
+```
+Production profile: SingleTenant is accepted. ITenantContext is permissive:
+resolves to Tracon's built-in SingleTenantContext, so every call runs as the
+default tenant.
+```
+
+💡 **Yalnız `SingleTenant` loglandı, ikinci kabul loglandı değil** — ve bu
+doğru: `UnencryptedContentAtRest` zaten **karşılanmış** durumda (MT-SEC-183'ün
+notu), ∴ kabul edecek bir şey yok. Kabul yalnız **gerçekten açık** bir kararı
+susturur; karşılanmış bir kalemi kabul etmek sessizdir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ## MT-SEC-185 — Kabul komşu kalemi kapsamaz
 
 **Gerçek sonuç — KOŞULAMADI, MT-SEC-183 ile aynı kök neden.**
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 5) · ☑ GEÇTİ**
+
+MT-SEC-184'ün kurulumu, ama `Tracon:SessionOwnership:Enabled` **verilmedi**.
+
+☑ Host **başlamadı**: `exit=134`, `Application started` **0**.
+☑ Mesaj **yalnız** `UnownedSessions` kalemini sayıyor; başlık tekil:
+*"and 1 production decision is still on the permissive default"*.
+☑ Kabul edilen `SingleTenant` mesajda **hiç geçmiyor** (`grep -c` → `0`).
+
+∴ kabul yalnız **adlandırdığı** riski kapsıyor, komşusunu değil.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
 
 ## MT-SEC-186 — İçerik denetimi kayıtla ölçülür, bayrakla değil
 
@@ -1884,6 +2802,38 @@ ikinci bir kaynak değişikliği).
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 11) · ☑ GEÇTİ**
+Ön koşulun istediği geçici `Program.cs` düzenlemesi yerine kalıcı kanca
+kullanıldı (K-834). Varsayılan davranış değişmedi.
+
+`Tracon:Demo:SuppressRegistrations=ContentGuard` kancası eklendi. Zincirin
+ortasındaki `AddPatternContentGuard` çağrısı zincirden **ayrıldı** ki
+bırakılabilsin.
+
+| Adım | Sonuç |
+|---|---|
+| 1 — guard **kayıtlı değil** | `UninspectedContent` listede; açık karar sayısı **4 → 5** |
+| 2 — guard geri | kalem **düştü**; sayı **5 → 4** |
+
+Adım 1'in kalemi:
+
+```
+UninspectedContent
+  Setting: IContentGuard
+  Today:   no content guard is registered, so no prompt or response is inspected
+           and the inspecting wrapper is never added to the model pipeline
+  Fix:     call AddPatternContentGuard(...) or AddContentGuard<TGuard>() on the
+           Tracon chain, or populate the Tracon:ContentGuard:Pattern section
+```
+
+☑ `Setting` satırı **`IContentGuard`** diyor — bir **seçenek bayrağı değil**,
+kaydın kendisi. Case'in asıl iddiası budur: kural setini boşaltmak, guard'ı
+kaydetmemekle **aynı şey değildir**.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ## MT-SEC-187 — `UseTenancy(Enabled = false)` hâlâ tek kiracı sayılır
 
 **Gerçek sonuç — KOŞULAMADI, MT-SEC-183 ile aynı kök neden** (ayrıca
@@ -1891,12 +2841,73 @@ ikinci bir kaynak değişikliği).
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 11) · ☑ GEÇTİ**
+Ön koşulun istediği geçici `Program.cs` düzenlemesi yerine kalıcı kanca
+kullanıldı (K-834). Varsayılan davranış değişmedi.
+
+`UseTenancy` dalı artık anahtar **varsa** koşuyor (yalnız `true` iken değil) ve
+`options.Enabled` değerden okunuyor. `--Tracon:Tenancy:Enabled=false`:
+
+```
+EXIT=134   Application started: 0
+
+SingleTenant
+  Setting: UseTenancy(options => options.Enabled)
+  Today:   false although UseTenancy was called, so the request's tenant is
+           never read and every request falls to the default tenant
+  Fix:     set options.Enabled to true inside UseTenancy(...) and choose a claim
+           type, or remove the UseTenancy call if this deployment is
+           single-tenant on purpose
+```
+
+☑ Host **başlamıyor**. ☑ `SingleTenant` kalemi listede **duruyor** —
+`UseTenancy` çağrılmış olması tek kiracılığı değiştirmiyor.
+☑ `Setting` satırı bir **kod çağrısını** gösteriyor
+(`UseTenancy(options => options.Enabled)`), bir `appsettings` anahtarını
+**değil** — çünkü Tracon `TraconTenancyOptions`'a hiçbir yapılandırma
+bölümü bağlamaz.
+
+💡 `Today` cümlesi *"false **although UseTenancy was called**"* diyor —
+"çağrılmış ama kapalı" ile "hiç çağrılmamış" durumlarını ayrı cümlelerle
+anlatıyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ## MT-SEC-188 — Mesaj ve log hiçbir yapılandırma değeri taşımaz
 
 **Gerçek sonuç — KOŞULAMADI, MT-SEC-183 ile aynı kök neden** (ön koşulu
 "MT-SEC-183'ün kurulumu").
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 5) · ☑ GEÇTİ**
+
+İçerik koruması kapatıldı ve anahtar haritası canary değerlerle dolduruldu:
+
+```
+--Tracon:ContentProtection:Enabled=false
+--Tracon:ContentProtection:Keys:canary-4f2a-key-id=CanaryKeys:canary-4f2a
+```
+
+☑ Mesaj ayarın **adını** taşıyor: `Tracon:ContentProtection:Enabled`
+(günlükte **4** kez).
+
+☑ **Günlüğün TAMAMINDA hiçbir canary dizesi yok** — üçü de `grep -c` → `0`:
+
+| Aranan | Sayı |
+|---|---|
+| `canary-4f2a-key-id` (anahtar **kimliği**) | `0` |
+| `CanaryKeys` (işaret edilen yapılandırma anahtarı) | `0` |
+| `canary` (büyük/küçük harf duyarsız, herhangi bir yerde) | `0` |
+
+∴ kapı ayarın adını söylüyor, **değerini** ya da haritasını hiç
+sızdırmıyor. Hata mesajı da yığın izi de temiz.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
 
 ## MT-SEC-189 — Kapı HTTP yüzeyi olmayan host'ta da koşar
 
@@ -1919,6 +2930,54 @@ uymuyor. **Kalıcı çözüm:** kapanış modunda (kod donması kalkınca) veya 
 dışı YENİ bir minimal host (`RequireProductionProfile()` çağıran, `MapTracon`
 çağırmayan) ile koşulmalı — `docs/ADAYLAR.md` adayı olabilir.
 
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 13) · ☑ GEÇTİ**
+
+🚨 **Turun engeli kalktı: repo DIŞINDA minimal bir host kuruldu.** Kayıt
+*"`samples/Tracon.Embedded` de `MapTracon` çağırıyor"* diyordu. Scratchpad'de
+`Host.CreateApplicationBuilder` tabanlı bir konsol uygulaması yazıldı ve
+**yerel feed'den** `Tracon.Core 1.0.0-preview.1` paketine bağlandı — yani
+sevk edilen paket, repo referansı değil. **HTTP yüzeyi yok; `MapTracon` hiç
+çağrılmıyor.**
+
+```csharp
+var builder = Host.CreateApplicationBuilder(args);
+builder.AddTracon().RequireProductionProfile();
+var app = builder.Build();
+await app.StartAsync();
+```
+
+```
+HOST BASLADI — kapi kosmadi.
+fail: Microsoft.Extensions.Hosting.Internal.Host[11]
+      Hosting failed to start
+      System.InvalidOperationException: RequireProductionProfile() was called, and
+      6 production decisions are still on the permissive default, so the host does
+      not start.
+
+        SingleTenant
+          Setting: ITenantContext
+          Today:   resolves to Tracon's built-in SingleTenantContext, so every
+                   call runs as the default tenant
+          Fix:     register your own ITenantContext before the AddTracon() call,
+                   or on an ASP.NET Core host call UseTenancy(...)
+```
+
+☑ Host **başlamadı** — bunlar kompozisyon kararları, bir HTTP kaygısı değil.
+☑ `SingleTenant` kalemi **`SingleTenantContext` adını taşıyor**; kiracı
+sorusu gömülü host'ta da anlamlı yanıtlanıyor, sessizce eksilmiyor.
+
+💡 **Sayı 6, örnek uygulamada 4** (MT-SEC-183) — ve fark tutarlı: çıplak host
+ne içerik guard'ı ne de içerik koruması yapılandırıyor, ∴ `UninspectedContent`
+ve `UnencryptedContentAtRest` de listeye giriyor. Aynı kapı, aynı muhasebe.
+
+⚠️ `Fix` cümlesi HTTP'siz host'u da düşünüyor: *"register your own
+ITenantContext … **or on an ASP.NET Core host** call UseTenancy(…)"* — iki
+barındırma modeli ayrı ayrı adlandırılıyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ## MT-SEC-190 — Denetim izi yazılamazken onay kararı uygulanmaz
 
 **Gerçek sonuç — KOŞULAMADI, ortam sınırı (kod donması DEĞİL).** Case
@@ -1932,11 +2991,87 @@ Ayrıntı: aşağıdaki konsolide not.
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 12) · ☑ GEÇTİ**
+🚨 **Turun engeli kalktı: kısıtlı bir rol kuruldu.** Kayıt *"tur `postgres`
+süperkullanıcısını kullandı; süperkullanıcılar `REVOKE`'tan etkilenmez"* diyordu.
+Yordam:
+
+```sql
+CREATE ROLE tracon_app LOGIN PASSWORD '…';        -- rolsuper = f
+GRANT USAGE ON SCHEMA mt_z1 TO tracon_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA mt_z1 TO tracon_app;
+```
+
+Migration'lar önce `postgres` ile koşuldu (49 tablo), sonra uygulama
+`AutoApplyMigrations=false` ile **`tracon_app`** bağlantı dizesine çevrildi.
+`REVOKE` artık gerçekten ısırıyor: `has_table_privilege(…,'INSERT')` → `f`.
+
+⚠️ **Kuyruklu onay `sessionId` ister.** İlk deneme `Failed` oldu ve mesaj
+sebebi açıkça yazdı: *"The queued run requested approval, but no 'sessionId'
+was given; approval is the input to the next turn and cannot be resolved
+without a session."* Kalıcı bir `pending_approvals` satırı ancak
+`Prefer: respond-async` **+** `sessionId` ile oluşuyor — senkron koşumda onay
+akışın içinde taşınıyor ve tabloya yazılmıyor.
+
+`REVOKE INSERT ON mt_z1.audit_log FROM tracon_app` sonrası:
+
+| Adım | Sonuç |
+|---|---|
+| 2 — `POST /api/approvals/{id}/decide` | ☑ **`500`** |
+| 3 — `GET /api/approvals/{id}` | ☑ `status: Pending`, `decidedBy: null`, `decidedAt: null` |
+
+☑ Karar **uygulanmadı** (K-089 · K-370). Günlükte hata, **`WriteOrThrow`**
+yolundan:
+
+```
+Npgsql.PostgresException (0x80004005): 42501: permission denied for table audit_log
+  at Tracon.SqlAuditLog.WriteAsync(…)               SqlAuditLog.cs:109
+  at Tracon.AuditRecorder.WriteOrThrowAsync(…)       AuditRecorder.cs:133 / 154
+  at Tracon.ApprovalEndpoints.DecideAsync(…)         ApprovalEndpoints.cs:227
+```
+
+💡 Çağrı zinciri iddianın kendisini gösteriyor: karar ucu audit yazımını
+**`WriteOrThrow`** ile çağırıyor — yani audit burada best-effort **değil**,
+kritik yolda.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ## MT-SEC-191 — Denetim izi yazılamazken yönetim çağrısı devam eder
 
 **Gerçek sonuç — KOŞULAMADI, MT-SEC-190 ile aynı kök neden.**
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 12) · ☑ GEÇTİ**
+
+MT-SEC-190'ın `REVOKE`'u yürürlükteyken:
+
+| Adım | Sonuç |
+|---|---|
+| 1 — `POST /api/agents` | ☑ **`201`** |
+| 2 — `GET /api/agents/{name}` | ☑ **`200`** — agent **gerçekten** oluştu |
+
+☑ Best-effort yol işlevselliği **bozmuyor**. Günlükte `LogWarning`:
+
+```
+warn: Tracon.AuditingAgentDefinitionStore[0]
+      Could not write action 'agent.create' for entity 'agent:z1-best-effort'
+      to the audit trail.
+      Npgsql.PostgresException: 42501: permission denied for table audit_log
+```
+
+💡 **MT-SEC-190 ile yan yana okununca tasarım görünüyor:** aynı veritabanı
+hatası, iki farklı sonuç. Onay kararı `WriteOrThrow` ile **durduruluyor**
+(`LogError` + `500`); agent oluşturma `AuditingAgentDefinitionStore` ile
+**yutuluyor** (`LogWarning` + `201`). Ayrım keyfi değil: biri denetim izinin
+kanıtı olmadan yapılmaması gereken bir **karar**, diğeri izsiz de doğru olan
+bir **yazım**.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
 
 ## MT-SEC-192 — `audit_log` onarıldıktan sonra aynı karar uygulanır
 
@@ -1944,6 +3079,27 @@ Ayrıntı: aşağıdaki konsolide not.
 MT-SEC-190'ın DEVAMI, onun kurulumuna bağımlı).
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 12) · ☑ GEÇTİ**
+
+`GRANT INSERT ON mt_z1.audit_log TO tracon_app` sonrası **aynı** onay tekrar
+karara bağlandı:
+
+```
+POST /api/approvals/{id}/decide  → 200
+GET  /api/approvals/{id}         → status: Approved
+                                    decidedAt: 2026-09-19T04:27:08Z
+GET  /api/audit/verify           → {"status":"Valid","entriesChecked":2,
+                                     "firstFailingEntryId":null}
+```
+
+☑ Karar uygulandı, audit satırı yazıldı. ☑ Zincir **`Valid`** — reddedilen
+deneme zincirde **boşluk bırakmadı**, çünkü hiç satır yazılmamıştı.
+☑ Ret bir **zehirli hap değil**: başarısız deneme sonraki kararı engellemedi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
 
 ## MT-SEC-193 — Denetim izi yazılamazken veri konusu silinmez
 
@@ -1969,6 +3125,33 @@ etkileme riski taşır ve bu oturumun bütçesi dışında kaldı). MT-SEC-193 a
 ikinci bir engelle karşılaşıyor. **Kalıcı çözüm:** kapanış modunda, izole bir
 doğrulama sunucusunda (skill §serit-kurulumu §4) kısıtlı bir rol oluşturup
 tek seferlik koşulmalı.
+
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 12) · ☐ AÇIK KALIYOR**
+
+Ön koşulun **ikinci** yarısı sağlanamadı. Kısıtlı rol kuruldu ve `REVOKE`
+yürürlükte (MT-SEC-190), ama `IDataSubjectResolver` örnek uygulamada
+**kayıtlı değil** — `grep -rn IDataSubjectResolver samples/` boş dönüyor.
+Uç bunu açıkça söylüyor:
+
+```
+DELETE /api/data-subjects/test-kisi?dryRun=true
+→ 409  {"title":"No data subject resolver registered",
+         "detail":"IDataSubjectResolver is not registered. Tracon does not store
+                   personal identity and cannot resolve a subject id to
+                   sessions/runs/conversations on its own — register an
+                   IDataSubjectResolver implementation to use this endpoint."}
+```
+
+⚠️ **Bu, K-834'ün diğer kancalarından farklı bir karar.** Öteki kancalar var
+olan bir anahtarı çeviriyor; burada gereken şey bir **alan uygulaması**dır —
+bir kimliği hangi oturum/run/konuşma satırlarına eşleyeceğini uyduran demo
+kod. Ucun kendi cümlesi de bunu söylüyor: *"Tracon does not store personal
+identity."* Karar kullanıcıya bırakıldı; `00-INDEKS.md` açık kalem tablosuna
+yazılır.
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
 
 ## MT-SEC-119 — Egress politikası silinince kiracı tekrar kısıtsız olur
 

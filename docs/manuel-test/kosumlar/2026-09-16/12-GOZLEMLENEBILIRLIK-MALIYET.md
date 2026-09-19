@@ -1013,6 +1013,63 @@ tetiklenemiyor.
 bu strand'de yeniden üretilemiyor; SQL Server/SQLite arka uçlu bir strand'de
 denenmeli) · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 3) · ☐ AÇIK KALIYOR**
+
+🚨 **Spec'in tetikleyicisi ÜÇ SAĞLAYICININ HİÇBİRİNDE ÇALIŞMIYOR — turun
+"SQL Server/SQLite strand'inde denenmeli" önerisi de yanlıştı.** Ölçüldü:
+
+| Sağlayıcı | `runs.session_id` | `sessions.id` | 300 karakterde ne olur |
+|---|---|---|---|
+| PostgreSQL | `text` | `text` | sınır yok — run **`Completed`** |
+| SQLite | `TEXT` | `TEXT` | sınır yok — aynı |
+| SQL Server | `nvarchar(200)` | `nvarchar(200)` | **run satırı ÖNCE reddeder** |
+
+SQL Server'da iki sütun **eşit genişlikte**, ve run satırı oturumdan **önce**
+yazılır. ∴ oturum deposunu uzunlukla düşürebilecek her değer daha önce run
+satırında patlar; iş hiç kuyruğa girmez, `jobs` satırı hiç oluşmaz:
+
+```
+POST /api/agents/support/run   (Prefer: respond-async, sessionId = 300 x 's')
+→ HTTP 503  "Persistence store unavailable"
+```
+
+💡 **Sızıntı sınırı yine de ölçüldü ve BİR KATMAN YUKARIDA TUTUYOR.**
+Yanıt jenerik; tablo adı, sütun adı ve değer **yok**. Ham sürücü hatası
+yalnız günlükte:
+
+```
+Microsoft.Data.SqlClient.SqlException (0x80131904): String or binary data
+would be truncated in table 'mt_obs055.tracon.runs', column 'session_id'.
+Truncated value: 'sssss...'.
+```
+
+💡 **`FailQueuedRunAsync` yolunun kendisi de çalışıyor — ayrı tetiklendi.**
+Agent kuyruğa alındıktan **sonra** silindi; iş `Failed` oldu ve
+`errorMessage` geldi:
+
+```
+"No agent named 'mt-obs055-gecici' was found. The job will be marked as failed."
+```
+
+Bu **redakte edilmemiş** ve doğrusu budur: cümle Tracon'un **kendi**
+`TraconException`'ıdır, yabancı bir istisna değil (K-817 ayrımı).
+
+**Neden hâlâ açık:** case'in asıl iddiası — *yabancı* bir istisnanın
+`jobs.error_message`'a `"{TypeName} failed. (ref: {kimlik})"` olarak inmesi —
+ölçülemedi. Denenen ve yetmeyen üç tetikleyici: (1) uzun `sessionId` (yukarıda),
+(2) agent silme → Tracon'un kendi cümlesi, (3) aynı `sessionId`'yi farklı bir
+agent'la kullanma → serbest, run `Completed`. Gereken: iş **çalışırken**
+oturum deposunu yabancı bir istisnayla düşüren bir yol (ör. deponun iş
+sırasında kopması) — ama aynı kopma `FailQueuedRunAsync`'in **yazmasını** da
+engeller, yani tetikleyici tasarımı ayrı bir iştir.
+
+Spec'in `Adımlar` kısmı bu ölçümle düzeltildi (skill §1.1); `00-INDEKS.md`
+açık kalem tablosuna taşınır.
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ## MT-OBS-056 — Hata döndüren bir webhook hedefi, gövdesini `webhook_deliveries.error`'a yazdırmaz
 
 **Gerçek sonuç**
@@ -1082,6 +1139,42 @@ alındı. Arayüz tarafı (PROVIDER/fiyat karolarının görünürlüğü,
 `recalculate-costs` alan şekli kanıtlandı, ama `birincil-kirik` yedek-
 sağlayıcı iddiası MT-MYU-002'nin `flaky` provider fixture'ı bu örnek
 uygulamada hiç yok olduğu için ölçülemedi) · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 15) · ☑ GEÇTİ**
+
+| Adım | Sonuç |
+|---|---|
+| 2 — `support` run | `modelId: gpt-5.4-mini` · `modelProvider: openai` |
+| 3 — `recalculate-costs` | `{"runsConsidered":0,"runsUpdated":0,"runsStillUnknown":0,"runsSkipped":1}` |
+| 4 — aynı run tekrar | fiyat ve maliyet **aynı**; `999` **yansımadı** |
+
+☑ **Birim fiyat alanları toplama KATILMIYOR** — hesapı birebir doğrulandı:
+
+```
+usage.inputTokens  343 × 0.25 / 1e6 = 8.575e-05  =  cost.inputCost   ☑
+usage.outputTokens  13 × 2.0  / 1e6 = 2.6e-05    =  cost.outputCost  ☑
+```
+
+☑ Adım 3'ün yanıtı dört alanı da taşıyor ve `support`'un run'ı
+**`runsSkipped`**'e girdi — `runsConsidered`'e **sayılmadı**.
+☑ Adım 4: `inputPricePerMillionTokens` hâlâ `0.25`, `inputCost` hâlâ
+`8.575e-05`. **Anlık görüntü korunuyor**; sonradan değiştirilen fiyat
+geçmiş kaydı yeniden yazmıyor.
+
+⚠️ **İki sapma, ikisi de sabit değerde:** (1) spec `0.15`/`0.6` diyor,
+ölçülen kataloq fiyatı `0.25`/`2.0` — ön koşul MT-OBS-003'ün ayrı bir
+yapılandırmasını varsayıyordu. (2) Fiyatsız run için yaratılan `manuel-bos`
+agent'ı geçersiz model adıyla `Failed` oldu, ∴ `usage` üretmedi ve
+`runsConsidered` `0` kaldı. **İddianın kendisi** (birim fiyat toplama
+girmez · anlık görüntü yeniden hesaplamada korunur) iki sapmadan da
+bağımsız olarak tam ölçüldü.
+
+👤 Son madde (arayüzde `PROVIDER` ve birim fiyat karoları) görsel yargı
+gerektiriyor ve bu kayıtta ölçülmedi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -1246,6 +1339,39 @@ sağlayıcı çağrısı gerektirdiği için kod dışı bir workaround yok.
 **Durum:** ☑ Beklemede (ortam bekliyor — bu örnek uygulamada `generate_image`
 tool'u hiç kayıtlı değil, MT-MM-095 kurulamıyor) · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 15) · ☑ GEÇTİ**
+
+Gerçek `gpt-image-1` çağrısıyla koşuldu (**kullanıcı harcamayı onayladı**);
+ölçüm `generate_image` tool'unun `usage` kaydından okundu.
+
+| Adım | `usage` |
+|---|---|
+| 1 — fiyat **yapılandırılmadan** | `{"unit":"tokens","quantity":4160,"cost":null,"isEstimated":false}` |
+| 3 — `PerImage=0.04` + `SizeMultipliers:1024x1024=2` | `{"unit":"images","quantity":1,"cost":0.08,"isEstimated":false}` |
+
+☑ Adım 1: `cost` **`null`**, `0` **değil**; `isEstimated: false` — fiyat
+uydurulmuyor.
+☑ Adım 3: `unit=images`, `quantity=1`, `cost=0.08` — yapılandırılan
+`0.04 × 2` çarpanıyla birebir.
+
+🚨 **Asıl bulgu iki satırın FARKINDA: fiyat yapılandırmak BİRİMİ de
+değiştiriyor.** Fiyat yokken adaptör sağlayıcının bildirdiği **token**
+sayısını (`4160`) kaydediyor; per-image fiyatı yapılandırılınca **görsel**
+sayısına (`1`) geçiyor. ∴ `quantity` alanının anlamı fiyat yapılandırmasına
+bağlıdır.
+
+⚠️ Spec'in adım 1 beklentisi *"ölçülen `quantity` gerçek görsel sayısıdır"*
+diyor; ölçülen `4160` **token**'dır. Spec bu ölçümle düzeltildi (skill §1.1).
+
+💡 Bu ölçüm §5(c)'nin açık **görsel fiyat sorusunu** da yanıtlıyor: örnek
+uygulamada `Tracon:Pricing:Images:*` hiç yapılandırılmadığı için `cost` boş
+kalıyor — kusur değil, eksik yapılandırma. Bir değer verildiğinde maliyet
+doğru hesaplanıyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ## MT-OBS-047 — Token fiyatı ile görsel başı fiyat birlikte yapılandırılamaz
 
 **Gerçek sonuç**
@@ -1264,6 +1390,39 @@ belirsiz kalıyor.
 
 **Durum:** ☑ Beklemede (ortam bekliyor — geçerli bir görsel model adı MT-OBS-
 046'nın engellediği akışla birlikte netleşir) · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 3) · ☑ GEÇTİ**
+
+Turun engeli "gerçekçi bir model adı yok"tu. `gpt-image-1` kullanıldı —
+kataloqda zaten bu ad geçiyor (§5(c)'nin görsel fiyat sorusu aynı modeli
+adlandırıyor). **Hiçbir sağlayıcı çağrısı yapılmadı**: kapı açılışta çalışıyor.
+
+```
+$ dotnet Tracon.Api.dll \
+    "--Tracon:Pricing:Images:openai:gpt-image-1:PerImage=0.04" \
+    "--Tracon:Pricing:Images:openai:gpt-image-1:OutputCostPerMillionTokens=10"
+EXIT=134
+Unhandled exception. Microsoft.Extensions.Options.OptionsValidationException:
+TraconPricingOptions: 'Images:openai:gpt-image-1' cannot contain both
+'PerImage' and 'OutputCostPerMillionTokens'.
+```
+
+İki iddia da tuttu: uygulama **başlangıçta** options validation hatasıyla
+duruyor ve mesaj aynı image modelinde iki değerin birlikte olamayacağını
+**açıkça** söylüyor. Çıkış `134` — süreç ölüyor, endpoint hiç bağlanmıyor,
+∴ hiçbir görsel çağrısı para harcayamıyor.
+
+💡 **Karşı kontrol — kapı anahtarın VARLIĞINA değil BİRLEŞİMİNE bakıyor.**
+Yalnız `PerImage` verildiğinde aynı komut temiz başladı: `health=200`,
+günlükte `OptionsValidationException` sayısı `0`. Bu ikinci ölçüm olmadan
+case yalnız "fiyat anahtarı uygulamayı çökertüyor" derdi.
+
+⚠️ Noktalı ayar komut satırından verildi (`--"anahtar=değer"`), `user-secrets`
+ile değil — §3.4 kuralı. `user-secrets` yazılması skill §1.2 ile de yasaktır.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
 
 ## MT-OBS-048 — Sınır konmuş bir tool çıktısı kırpılır ve zarfa sarılır
 

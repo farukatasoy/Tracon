@@ -129,3 +129,14 @@
   hâlde aynı test yeşil kaldı. Retry'ı kanıtlamak için mekanizmayı (sahte bir iç
   komutla: reddet, reddet, başar) ve kablolamayı (data source'un verdiği her
   komut sarmalı mı) AYRI AYRI ölç.
+
+- **🚨 `chmod` ÇALIŞAN bir sürecin SQLite yazmalarını durdurmaz** (2026-09-19,
+  manuel kapanış `MT-SQL-071`): iki ayrı sebep birlikte ölçüldü. (1) Unix
+  izinleri `open()` anında denetlenir, her `write()`'ta değil — süreç dosya
+  tanıtıcısını zaten açık tuttuğu için sonradan yapılan `chmod 444` ona hiç
+  ulaşmaz. (2) Veritabanı **WAL modundadır**: yazmalar ana dosyaya değil
+  `-wal` dosyasına gider (ölçüldü: ana dosya 4 KB iken `-wal` 1,6 MB).
+  Üçünü birden (`db` · `-wal` · `-shm`) `444` yapmak da sonucu değiştirmedi.
+  ∴ "çalışma anında dosya salt-okunur olursa" senaryosu `chmod` ile
+  üretilemez; gereken şey bir **salt-okunur remount**'tur (VFS seviyesinde
+  yazma yolunu geçersiz kılar).

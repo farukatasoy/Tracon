@@ -588,7 +588,10 @@ arm64). Aynı commit'i Linux CI'da da `kapi.py performans --guncelle` ile
 koşup `bench/baseline.json`'ı karşılaştırmak bu oturumun tek makinesiyle
 yapılamaz. Fiziksel eylem listesine eklendi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+— gerekçe: ikinci bir işletim sistemi gerekir (Linux CI'da
+`kapi.py performans --guncelle`); bu makine tek OS taşıyor.
+`00-INDEKS.md` §7.2 (B) tablosuna yazıldı.
 
 ## MT-GDK-025 — `Tracon.Benchmarks` paketlenmez, uyarı üretmez
 

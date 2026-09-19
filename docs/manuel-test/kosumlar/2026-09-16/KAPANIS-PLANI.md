@@ -3,11 +3,14 @@
 > **Bu turu kapatan her oturum ÖNCE burayı okur.** Koşum bitti; bu dosya
 > kapanışın tek kontrol düzlemidir.
 >
-> **Durum:** 🟢 Aşama 2 bitti · **YİRMİ İKİ AİLENİN YİRMİ İKİSİ DE KAPANDI (A…V)** · 0 açık kusur ailesi · **0 `Kaldı` case**
+> **Durum:** 🟢 Aşama 2 bitti · **YİRMİ İKİ AİLENİN YİRMİ İKİSİ DE KAPANDI (A…V)** · 0 açık kusur ailesi · **1 `Kaldı` case** (`MT-MM-121`, K-835)
+> **§7 BİTTİ (2026-09-19):** bitti tanımının doküman maddeleri kapandı — `hafiza/` (yeni alan dosyası `elle-kosum-ortami.md` + MCP tuzakları) · `ADAYLAR.md` **F-250** · `00-INDEKS.md` §3.2 tool tablosu ve §7 `Koşum` sütunu bu turun sayımıyla değiştirildi.
 > **§4.1 BİTTİ:** 14 `Kaldı` case'in 14'ü de kapandı — 3'ü zaten canlı koşulmuştu (yalnız `Durum` satırı eksikti), 11'i bu oturumda canlı sunucuda koşuldu.
-> **§5 BAŞLADI:** kapanan 7 case → `Geçti` **1728 → 1735**. `Beklemede` **107 → 102** (5 PKG case'i, §5(a)) · `İŞARETSİZ` **3 → 1** (`MT-UIRUN-001` · `MT-UIRUN-063`, §5(b); kalan `MT-GDK-024` §5(c) — ikinci işletim sistemi ister).
-> **Kalan iş:** §5'in geri kalanı (**102 `Beklemede` + 1 `İŞARETSİZ` = 103 açık**) → bitti tanımı (skill §7) → damıtma (§6) → arşiv.
-> **Son güncelleme:** 2026-09-19 (§5 turu 1: yedi case kapandı; `MT-UIRUN-063` yeni bir kusur açığa çıkardı ve **aynı oturumda kodlandı** → K-833 — beş panel reader'a `HTTP 403` + `Try again` çiziyordu)
+> **§5 BİTTİ — 82 case kapandı:** `Geçti` **1728 → 1810** · `Beklemede` **107 → 25** · `İŞARETSİZ` **3 → 0** · `Atlandı` 18 → 19 · `Kaldı` 0 → **1**.
+> **26 açık case'in 26'sı da** [`00-INDEKS.md` §7.2](../../00-INDEKS.md)'ye gerekçesiyle yazıldı — **bitti tanımının 1. maddesi karşılandı**.
+> **Üç kalıcı kod kararı:** K-833 (arayüzde beş panelin `403` kusuru) · **K-834** (demo kancaları — kullanıcı kararı) · **K-835** (`Tracon.Google` görsel yolu; kusur açık, düzeltme kullanıcıya bırakıldı).
+> **Kalan iş:** damıtma (§6.2) → arşiv (§6.3) → `MEMORY.md` açık iş bloğu (§6.4) → 👤 anahtar döndürme ve ortam temizliği (§6.5).
+> **Son güncelleme:** 2026-09-19 (bitti tanımı §7 — doküman maddeleri kapandı, iki kayıtsız case koşuldu)
 
 Turdan bağımsız kapanış protokolü — aile aile oturum yordamı, "önce ampirik
 yeniden üret" kuralı, bitti tanımı ve sayım betiği —
@@ -47,14 +50,26 @@ flowchart LR
 
 **Sayım** (skill §7, düzeltilmiş betik — bkz. §3.1):
 
-| Durum | Koşum sonu | Aile V sonrası | §4.1 sonrası | **§5 turu 1 sonrası** |
-|---|---|---|---|---|
-| ☑ Geçti | 1693 | 1714 | 1728 | **1735** |
-| ☒ Kaldı | 35 | 14 | 0 | **0** |
-| ☐ Beklemede | 107 | 107 | 107 | **102** |
-| ⏭ Atlandı | 18 | 18 | 18 | 18 |
-| işaretsiz (gerekçe düz metin) | 3 | 3 | 3 | **1** |
-| **toplam benzersiz case** | **1856** | **1856** | **1856** | **1856** |
+| Durum | Koşum sonu | Aile V sonrası | §4.1 sonrası | §5 sonrası | **§7 sonrası** |
+|---|---|---|---|---|---|
+| ☑ Geçti | 1693 | 1714 | 1728 | 1810 | **1813** |
+| ☒ Kaldı | 35 | 14 | 0 | 1 | **1** |
+| ☐ Beklemede | 107 | 107 | 107 | 25 | **26** |
+| ⏭ Atlandı | 18 | 18 | 18 | 19 | **19** |
+| işaretsiz (gerekçe düz metin) | 3 | 3 | 3 | 0 | **0** |
+| **toplam benzersiz case** | **1856** | **1856** | **1856** | **1856** | **1859** |
+
+🚨 **Toplam neden 1856'dan 1859'a çıktı — sayım betiğinin DÖRDÜNCÜ kör
+noktası.** Betik yalnız **blok taşıyan** case'i görür; hiç bloğu olmayan bir
+case `İŞARETSİZ` sayısına bile girmez, yani "0 İŞARETSİZ" onları saymadığı
+için sessizce doğru görünür. Kapanışta sayım **spec'in `Hedef case`
+sütunuyla** karşılaştırıldı ve on case'in hiç bloğu olmadığı ölçüldü:
+`MT-SEC-180` · `181` (koşuldu, ikisi de geçti — §5.3), `MT-TEST-077` · `083`,
+`MT-CLI-012` · `022` · `037` · `046`, `MT-TSC-008` · `009` (sekizi de 👤,
+gerekçeleri kayıtta yazılı → `00-INDEKS.md` §7.2 E). Ayrıca `MT-JOB-098`
+**iki ayrı case'e** verilmişti; ikincisi `MT-JOB-132` olarak yeniden
+numaralandırıldı ve sayıma girdi. **Ders: bir sayım betiği yalnız gördüğünü
+sayar; kapsamı ayrı bir kaynağa karşı doğrulanmalıdır.**
 
 Kapanan her aile, kusuru yüzünden `Kaldı` kalmış case'ini **canlı sunucuda**
 yeniden koşar ve ikinci bir `Gerçek sonuç` bloğu ekler; sayım her case'in
@@ -289,6 +304,36 @@ karşılanmaz; ayrıca koşulur.**
 
 ---
 
+### 3.11 Sekiz kapının tam ölçümü — 2026-09-19 (§5 KAPANIŞ ÖLÇÜMÜ)
+
+K-834'ün örnek uygulama değişiklikleri dahil (dokuz demo kancası, iki yeni
+tool, dört yeni dosya):
+
+| Kapı | Sonuç |
+|---|---|
+| `unittest discover -s scripts` | ✅ 351 test · `OK` |
+| `build-agent-map.mjs --check` | ✅ bütçede |
+| `denetim-paketi.py --taban 7e3a4de7` | ✅ çıkış 0 |
+| `dotnet build -c Release` | ✅ sıfır uyarı |
+| `dotnet test -c Release -maxcpucount:1` | ✅ **çıkış 0 · 22 proje · 7853 test · 0 düşen** (TRX ile doğrulandı) |
+| `dotnet pack --no-build` | ✅ çıkış 0 |
+| `dotnet format --verify-no-changes` | ✅ çıkış 0 |
+| `docs-site && npm run check` | ✅ çıkış 0 |
+
+`secret` taraması: **0 bulgu · 7 atlanan sentetik**.
+`dokuman-bakim.py --denetle`: tek kırmızı yine koşum kaydı bütçesi
+(2.519.017 B / 620.000 B — damıtmayla düşecek); diğer **14** kontrol yeşil.
+
+💡 **Test sayısı yine 7853 — değişmedi.** K-834'ün kodu `samples/` altındadır
+ve hiçbir testin kapsamına girmez; `src/` paketlerine **dokunulmadı**. Bu,
+kararın kapsam iddiasının ölçümüdür.
+
+⚠️ `dotnet pack` release feed'i yine kirletti (§3.10'un kuralı); paketler
+`artifacts/package/kosum-2026-09-16/kapi-pack-son/` altına alındı ve feed'de
+yalnız `1.0.0-preview.1` kaldı.
+
+---
+
 ### 3.4 Turun bıraktığı ortam kuralları
 
 Bunlar kapanış oturumlarında da geçerlidir ve bitti tanımında
@@ -318,148 +363,57 @@ Bunlar kapanış oturumlarında da geçerlidir ve bitti tanımında
 
 ## 3.6 Sıradaki iş — 2026-09-19 itibarıyla
 
-✅ **§4.1 BİTTİ. §5 BAŞLADI ve ilk turu bitti (7 case).** `Kaldı` case yok.
+✅ **§4.1 BİTTİ. §5 BİTTİ — on beş tur, 82 case.** `İŞARETSİZ` case kalmadı.
 
-| Durum | §4.1 sonrası | **§5 turu 1 sonrası** |
-|---|---|---|
-| ☑ Geçti | 1728 | **1735** |
-| ☐ Beklemede | 107 | **102** |
-| ⏭ Atlandı | 18 | 18 |
-| işaretsiz | 3 | **1** |
-| **toplam** | **1856** | **1856** |
+**26 açık case'in tamamı** [`00-INDEKS.md` §7.2](../../00-INDEKS.md)'ye dört
+başlık altında gerekçesiyle yazıldı: (A) insan gözü 10 · (B) fiziksel/dış
+ortam 9 · (C) izole agent/CLI 2 · (D) kullanıcı kararı 5.
 
-⚠️ Kapanan yedinin **beşi** `Beklemede`ydi (PKG), **ikisi** işaretsizdi
-(`MT-UIRUN-001` · `MT-UIRUN-063`) — iki sayaç ayrı düştü.
+**Sıradaki iş:** damıtma (§6.2) → arşiv (§6.3) → `MEMORY.md` (§6.4) →
+👤 §6.5. ✅ **Bitti tanımının doküman maddeleri 2026-09-19'da kapandı:**
 
-**Sıradaki iş: §5'in geri kalanı** — **102 `Beklemede` + 1 `İŞARETSİZ`**. Aile
-aile, §5(a) ve §5(b) tablolarının sırasıyla. Bitince: bitti tanımı (skill §7)
-→ damıtma (§6) → arşiv.
+| Madde | Ne yapıldı |
+|---|---|
+| `docs/hafiza/` tuzakları | Yeni alan dosyası [`elle-kosum-ortami.md`](../../../hafiza/elle-kosum-ortami.md) — §3.4'ün tablosu + turun üç dersi; MCP'nin üç tuzağı [`mcp-a2a-sunucu.md`](../../../hafiza/mcp-a2a-sunucu.md)'ye; `hafiza/00-INDEKS.md`'ye satır |
+| `ADAYLAR.md` | **F-250** (kiracıya duyarlı örnek `IAgentSource` yok — `MT-CORE-095`). F-245…249 önceki oturumlarda yazılmıştı |
+| `00-INDEKS.md` §3.2 | Tool tablosu ölçümle değiştirildi: `OrderTools.cs` **8** + istemci tool'u **1** + ses tool'u **3** (anahtarlıysa) = **12**; eksik `estimate_shipping_cost` satırı eklendi |
+| `00-INDEKS.md` §7 | `Koşum` sütununun 36 satırı da bu turun sayımıyla değiştirildi (önceki değer 2026-08-13 turundandı) |
+| `00-INDEKS.md` §7.2 | **E maddesi**: kayıt bloğu hiç açılmamış 8 case, gerekçesiyle |
+| Kusur → `KARARLAR.md` | K-834'e üçüncü demo kancası işlendi; yeni karar açılmadı (aynı kararın aynı sınıfı) |
+| Kimlik çakışması | `MT-JOB-098` iki case'e verilmişti → ikincisi **`MT-JOB-132`** |
 
-🚨 **§5'in birinci dersi — "ortamda bunun yolu yok" DENETLENMEDEN kabul
-edilmez.** `MT-UIRUN-063` tur boyunca "ayrı bir reader kimliği üretilemez" diye
-bekliyordu ve §5(b) bunu "ikinci bir token/rol yapılandırılabilir" diye
-tekrarlıyordu. Gerçek: örnek uygulama **hazır bir bayrak taşıyor** —
-`Tracon:Demo:Roles:Enabled=true` üç politika adını kaydeder ve rolü
-`X-Tracon-Demo-Role: reader|operator|admin` başlığından okur
-(`samples/Tracon.Api/Program.cs:104-125`). Hiçbir kod değişikliği gerekmedi.
-**§5(a)'nın "geçici `Program.cs` değişikliği ister" diyen satırlarının her biri
-koşulmadan önce aynı şekilde denetlenmelidir** — özellikle `MT-SEC` ve
-`MT-MCP` aileleri. Tarayıcıda başlık
-`page.context().setExtraHTTPHeaders({...})` ile enjekte edilir; konsolun kendi
-`fetch` sarmalayıcısı onu göndermez.
+🚨 **§5'in en büyük dersi — "ortamda bunun yolu yok" tespitlerinin ÇOĞU
+YANLIŞTI.** Turun ve §5'in açık kalem gerekçelerinden **altısı** ölçümle
+çürütüldü:
 
-🚨 **İkinci ders — bir ön koşul `git` ağacıyla sınırlı değildir.**
-`MT-PKG-115`'in ilk denemesi terfiden **sonra** sıfır olmayan çıkışla durdu;
-sebep çalışma ağacı değil, `artifacts/package/release/` içinde §4.1'in bıraktığı
-182 adet `0.0.0-preview.0.8xx` paketti ("release feed contains stale Tracon
-packages"). O paketler artık `artifacts/package/kosum-2026-09-16/bayat-feed/`
-altındadır (silinmedi — §4.1'in kanıtı), release feed'de yalnız
-`1.0.0-preview.1` durur. **Yayın provası koşacak her oturum önce `ls
-artifacts/package/release/` yapar.**
+| Tespit | Ölçülen gerçek |
+|---|---|
+| "ayrı bir reader kimliği üretilemez" | `Tracon:Demo:Roles:Enabled` **zaten vardı**; kod değişikliği gerekmedi |
+| "`MT-SEC-108` · `118` · `126` reader ister" | Engel **tarayıcı kilidiydi**, rol değil |
+| "`MT-MM-088` LAN arayüzünde dinlenmiyordu" | Engel yine **tarayıcı kilidi** |
+| "`MT-SEC-190…193` süperkullanıcı yüzünden koşulamaz" | Kısıtlı rol **kurulabildi** (`rolsuper=f`), `REVOKE` ısırdı |
+| "`MT-SEC-174` birkaç milyon satır ister" | `generate_series` ile **3.000.001 satır** üretildi |
+| "`MT-SEC-189` repo dışı minimal host ister" | Yerel feed'den **kuruldu** (sevk edilen paket) |
 
-🚨 **Üçüncü ders — canlı rol ölçümü yine testin göremediğini gösterdi.**
-`MT-UIRUN-063`'ün dört adımı da geçti, ama ölçüm case'in **dışında** bir kusur
-buldu: `settings`'in dört paneli ve `mcp`'nin "Remembered approvals" paneli
-reader'a `HTTP 403` metnini bir `Try again` düğmesiyle çiziyordu — çalışması
-imkânsız olan tek eylem. `diagnostics.tsx` ve MCP prompt sekmesi bu boşluğu
-kendileri için çoktan kapatmış ve gerekçeyi 🚨 yorumu olarak yazmıştı; beş
-panel aynı işlemden hiç geçmemişti. Kodlandı ve aynı oturumda kapatıldı
-(K-833); düşen test `admin-panel-roles.test.tsx`.
+**Ders: bir açık kalem gerekçesi bir ÖLÇÜM değil bir HİPOTEZDİR.** Kapanış
+oturumu her birini önce denemelidir.
 
-🚨 **§4.1'in ilk dersi — "koşulmamış" sanılan üç case ZATEN KOŞULMUŞTU.**
-`MT-CORE-044`, `MT-CORE-045` ve `MT-CLI-029` canlı yeniden koşum bloklarını
-2026-09-18'de almışlar ve bloklar "☑ GEÇTİ" yazıyordu — ama **makine
-okunabilir `**Durum:**` satırı yoktu**, ve sayım betiği her case'in *son*
-`Durum` satırını aldığı için üçü de hâlâ `Kaldı` sayılıyordu. On dört case'in
-üçü hiç iş gerektirmedi. **Ders: yeniden koşum bloğu düzyazıda "geçti" demekle
-bitmez; `Durum` satırı eklenmezse sayım onu görmez.**
+🚨 **İkinci ders — KARŞI KONTROL olmadan yedi case yanlış sebeple yeşil
+görünürdü.** `MT-SEC-144` (boş sayaç "henüz yazılmadı" da olabilirdi) ·
+`MT-SEC-161` ("hiç çağrılmadı" = kayıtlı değil gibi görünür) · `MT-SEC-163` ·
+`MT-SEC-104` · `MT-SEC-105` · `MT-MCP-053` · `MT-OBS-047`. Her birinde ikinci
+bir ölçüm ret sebebini **ayrıştırdı**.
 
-🚨 **İkinci ders — bu tur SPEC BAYATLIĞININ asıl hacmini burada gördü.** On bir
-case'in **yedisi** ürün kusuru değil doküman kusuru taşıyordu ve hepsi skill
-§1.1 istisnasıyla düzeltildi: beş beklenen sonuç Türkçe yazılmıştı ama sevk
-edilen metin İngilizce (K-228 — `MT-MM-049`, `MT-PROV-032/033/034`), bir
-beklenti artık var olmayan bir CSS değişkenine (`--ap-violet`) dayanıyordu,
-`MT-GUARD-073`'ün **kendi kod parçası derlenmiyordu** (`CS8803`), ve
-`14-SKILL-VE-SCRIPT.md` §6'nın kurulum parçası `AllowStoredScripts` bayrağını
-hiç yazmıyordu — o olmadan script'ler modele **hiç sunulmuyor** ve belirti
-("Script 'merhaba' not found") kurulumun eksik olduğunu değil script'in yok
-olduğunu düşündürüyor.
+🚨 **Üçüncü ders — YANLIŞ TAŞIMA yanlış sonucu doğru sandırır.**
+`MT-SEC-162` ilk ölçümde `401` verdi ve bu yetkilendirme reddi **değildi**:
+ses ucunda token WebSocket **subprotocol**'üyle gider
+(`Sec-WebSocket-Protocol: tracon.voice.v1, tracon.token.<token>`). Aynı sınıf
+iki kez daha çıktı: `MT-SEC-158`'in ek uçları kökte `api/attachments`,
+`MT-SEC-159`'un karar ucu `approvals/{id}/decide`.
 
-🚨 **Üçüncü ders — canlı koşum otomatik testin sahtesinin yalan söylediği yeri
-gösterdi.** `MT-RES-089` sağlayıcı zaman aşımının `Timeout` değil
-`ProviderError` sınıflandığını ölçtü. `FailureManifests.ProviderTimeoutTests`
-bunu göremiyordu çünkü (a) adı `..._is_classified_as_a_timeout_...` olduğu
-hâlde gövdesi yalnız `Failed`'ı iddia ediyordu ve (b) sahtesi
-`TaskCanceledException`'ı **doğrudan** atıyor, yani normalleştirilmeyen yolu
-koşuyor. Gerçek SDK zaman aşımını `AggregateException` içinde sarmalar ve **o**
-yol normalleştirilir. Düzeltme, yeni sahte ve sınıf taraması: K-831 · K-832.
+⚠️ **`dokuman-bakim.py --denetle` bu turda da tek kırmızı verir** (koşum kaydı
+bütçesi, §3.2). Dört .NET kapısı §3.2'dedir; `kapi.py kapanis` **kullanılmaz**.
 
-Ortam yordamı §4.1'de korundu.
-
-🚨 **Aile K · L · M · N'nin ortak dersi — MEVCUT BİR TEST KUSURU KİLİTLİYOR
-OLABİLİR.** Dört ailede **beş** test düzeltmeden sonra kırmızıya döndü ve
-beşi de haklı olarak: `No_provider_checked_yet_returns_Degraded` yanlış
-davranışı **adıyla** zorluyordu, iki `JsonBindingProblemMiddlewareTests` testi
-`detail`'in CLR tip adını taşımasını bekliyordu, Aile K'nin kapısı kendi
-regresyon testinin doküman yorumunu yakaladı. Hiçbiri zayıflatılmadı; aynı şeyi
-daha güçlü kanıtlayan iddialara çevrildiler. **Bir aileye başlarken o alanın
-mevcut testlerini de oku** — yeşil bir test doğru davranışın kanıtı değildir.
-
-🚨 **Aile L'nin dersi — sevk edilen bir SÖZLEŞMEYİ ÜRETEN mekanizmaya
-dokunuyorsan, üretimi tazeleyip FARKI OKU.** `S1-008`'in ilk tasarımı derlemeyi
-ve testleri yeşil bıraktı ve yayınlanan OpenAPI belgesinden **42 enum'un `enum`
-listesini** sildi (287 satır). Bunu yalnız `TRACON_OPENAPI_REFRESH=1` + `git diff`
-gösterdi. Zincirin tamamı: OpenAPI anlık görüntüsü → `npm run generate`
-(`schema.ts`) → nswag (`TraconApiClient.g.cs`) → `npm run build` (`dist/`).
-
-🚨 **Aile F ve G'nin ortak dersi:** kayıttaki kök-neden teşhisi F'de iki kez
-yanlıştı, G'de **doğru ama yarımdı** — `S1-025`'in asıl nedeni yutulan istisna
-değil, zaman aşımının hiçbir şeyi iptal etmemesiydi. Kayıt bir teşhis
-içeriyorsa onu **kanıt** değil **hipotez** say; önce semptomu kendi yordamıyla
-yeniden üret ve teşhisin ötesini de ölç.
-
-🚨 **Aile G'nin kendi dersi:** canlı koşum, hiçbir testin göremediği bir kusur
-buldu (`Tracon:Images:Timeout` bağlanmıyordu). Bir aile yeni bir **ayar**
-ekliyorsa, kapanışın canlı koşumu o ayarı gerçekten değiştirerek yapılır.
-
-🚨 **Aile H'nin dersi — uzun koşumu arka plana alırken çıkış kodunu ELLE
-yakala.** `dotnet test` tam koşumu arka plana alındığında geri bildirilen kod
-sarmalayıcının kodudur, test koşucusunun değil: koşum dört düşen testle
-bitmişken "exit code 0" göründü. `dotnet test ... > kayit.log 2>&1; echo
-"EXIT=$?"` yazıldığında gerçek kod (`1`) göründü. İkinci kanıt olarak kapanış
-oturumu TRX raporlarını da okur:
-
-```bash
-python3 - <<'SAYIM'
-import pathlib, xml.etree.ElementTree as ET
-ns = {"t": "http://microsoft.com/schemas/VisualStudio/TeamTest/2010"}
-for d in sorted(pathlib.Path("artifacts/bin").glob("*/release/TestResults")):
-    ps = list(d.glob("*.trx"))
-    if not ps:
-        continue
-    c = ET.parse(max(ps, key=lambda p: p.stat().st_mtime)).getroot() \
-          .find("t:ResultSummary/t:Counters", ns)
-    if c is not None and int(c.get("failed", 0)):
-        print("DUSEN:", d.parts[2], c.get("failed"))
-SAYIM
-```
-
-🚨 **TRX klasörü ESKİ koşumları da biriktirir.** `artifacts/bin/*/release/TestResults/`
-temizlenmezse bir önceki koşumun raporu yenisiyle karışır ve kapanmış bir kusur
-hâlâ açık sanılır. Tam koşumdan önce `rm -rf artifacts/bin/*/release/TestResults`.
-
-**Taban çizgisi 2026-09-19 itibarıyla §3.9'dadır** — sekiz kapının sekizi de
-yeşil ölçüldü (K-831'in kod düzeltmesi dahil).
-
-**Oturum açılışında koş** (taban çizgisinin hâlâ yeşil olduğunu doğrula):
-
-```bash
-git status --short                 # temiz olmali
-python3 scripts/dokuman-bakim.py --denetle   # TEK kirmizi: kosumlar butcesi (§3.2)
-```
-
-Dört .NET kapısı §3.2'dedir. `kapi.py kapanis` **kullanma** — ikinci adımda
-durur, gerekçe §3.2'de.
 
 ---
 
@@ -1278,14 +1232,14 @@ bittikten **sonra** aynı oturumda koşulur.
 
 | Aile | Case'ler | Ne ister |
 |---|---|---|
-| 13 (SEC) | `MT-SEC-024` · `084` · `105` · `121` · `122` | `samples/Tracon.Api`'ye geçici `AddToolApprovalPolicy` / özel handler kaydı |
-| 13 (SEC) | `MT-SEC-141..150` · `152..163` (22 case) | `Program.cs`'e geçici özel `IRunAuthorizationHandler` (`services.Replace(...)`). `samples/Tracon.Embedded` ikamesi araştırıldı ve **yetersiz**: reddi KİRACI temelli üretiyor, case'ler KULLANICI temelli reddi ölçüyor; `AuthorizeSessionAsync` her zaman `Allow()` döner |
-| 13 (SEC) | `MT-SEC-183..189` (7 case) | `Program.cs`'e geçici `RequireProductionProfile(...)` çağrısı. `MT-SEC-189` "HTTP yüzeyi olmayan host" ister — `Tracon.Embedded` de `MapTracon` çağırdığı için uymuyor; repo dışı minimal bir host gerekir |
-| 18 (MCP) | `MT-MCP-034` · `035` · `045` · `047..049` · `053` | `TraconEndpointOptions.AllowRemoteAccess` vb. geçici `Program.cs` değişikliği |
+| 13 (SEC) | ✅ **BEŞİ DE KOŞULDU ve GEÇTİ** — `MT-SEC-024` · `084` · `105` · `121` · `122` | `samples/Tracon.Api`'ye geçici `AddToolApprovalPolicy` / özel handler kaydı |
+| 13 (SEC) | ✅ **22'SİNİN 22'Sİ DE GEÇTİ** — `MT-SEC-141..150` · `152..163` | `Program.cs`'e geçici özel `IRunAuthorizationHandler` (`services.Replace(...)`). `samples/Tracon.Embedded` ikamesi araştırıldı ve **yetersiz**: reddi KİRACI temelli üretiyor, case'ler KULLANICI temelli reddi ölçüyor; `AuthorizeSessionAsync` her zaman `Allow()` döner |
+| 13 (SEC) | ✅ **6 GEÇTİ** (`183`…`189`); yalnız `MT-SEC-193` açık (ayrı satır) | `Program.cs`'e geçici `RequireProductionProfile(...)` çağrısı. `MT-SEC-189` "HTTP yüzeyi olmayan host" ister — `Tracon.Embedded` de `MapTracon` çağırdığı için uymuyor; repo dışı minimal bir host gerekir |
+| 18 (MCP) | ✅ **HEPSİ GEÇTİ** — `034` · `035` · `045` · `047` · `048` · `049` · `053` | `TraconEndpointOptions.AllowRemoteAccess` vb. geçici `Program.cs` değişikliği |
 | 19 (MM) | `MT-MM-097` · `103` · `108` · ve aynı sınıftan diğerleri | Özel `UriContent` dönen test adaptörü — donuk `samples/` taşımıyor |
-| 12 (OBS) | `MT-OBS-046` · `047` · `055` · `059` | gerçek `samples/Tracon.Api` + sağlayıcı anahtarı yapılandırması |
+| 12 (OBS) | ✅ `046` · `047` · `059` GEÇTİ; `055` açık (tetikleyici üç sağlayıcıda da çalışmıyor) | gerçek `samples/Tracon.Api` + sağlayıcı anahtarı yapılandırması |
 | 03 (PG) | `MT-PG-067` adım 2 | `src/` altında kod değişikliği ister; adım 1 ve 3 yeşil koşuldu. Yordam dosya 03'ün sonundaki tabloda |
-| 21 (RES) | `MT-RES-090` | aynı sınıf |
+| 21 (RES) | ✅ `MT-RES-090` GEÇTİ — `SlowSinkTests` gerçek PostgreSQL'e karşı koşuldu |
 | 01 (PKG) | `MT-PKG-104` · `105` · `115` · `116` · `117` | ✅ **BEŞİ DE KOŞULDU ve GEÇTİ (2026-09-19).** Ayrıntı §5.1 |
 
 ### (b) Ortam sınırı — kapanışta ÇÖZÜLEBİLİR
@@ -1343,6 +1297,102 @@ konsolun kendi `fetch` sarmalayıcısı `X-Tracon-Demo-Role`'ü **göndermez**.
 ⚠️ **Playwright profil kilidi yine çıktı** (§4.1'in aynısı): önceki oturumdan
 kalan yedi süreç `mcp-chrome-3eca5a9` profilini tutuyordu. Yalnız o profile
 bağlı süreçler durduruldu (`pkill -f mcp-chrome-3eca5a9`).
+
+---
+
+### 5.2 §5 turları 2-15 — 2026-09-19 (75 case)
+
+🚨 **BU TURLARIN ANA KARARI — K-834.** §5(a)'nın "geçici `Program.cs`
+değişikliği" ön koşulları **geçersizdir**. Kullanıcı kararıyla örnek uygulamaya
+**kalıcı** demo kancaları eklendi; hiçbir dosya elle düzenlenip geri alınmadı.
+
+| Kanca | Ne açar | Case'ler |
+|---|---|---|
+| `Tracon:Demo:RunAuthorization:Mode` (8 kural) | `IRunAuthorizationHandler` | `MT-SEC-141`…`150` · `152`…`163` |
+| `Tracon:Demo:ProductionProfile:Enabled` / `:Accept` | `RequireProductionProfile` | `MT-SEC-183`…`188` |
+| `Tracon:Demo:ExposedAgents:Mcp` / `:A2A` | MCP/A2A sevk listesi | `MT-MCP-034` · `035` · `045` |
+| `Tracon:Demo:SuppressRegistrations` | `OpenAILive` · `LiveVoice` · `OpenAIImages` · `ContentGuard` | `MT-MM-108` · `109` · `120` · `MT-SEC-186` |
+| `Tracon:Demo:ToolAuthorization:Mode` | `IToolAuthorizationHandler` | `MT-SEC-121` · `122` |
+| `Tracon:Demo:ToolApprovalPolicy` | `AddToolApprovalPolicy` | `MT-SEC-105` |
+| `Tracon:Demo:RequireRolePolicies` | kapı açık + politika yok | `MT-SEC-084` |
+| `Tracon:Tenancy:AllowedTenants` | **seçenek vardı, bağlanmıyordu** | `MT-SEC-024` |
+| `whoami` · `refund_order` tool'ları | run kimliği · sayısal onay argümanı | `MT-SEC-149` · `102`…`105` |
+
+💡 **Kancanın asıl değeri karar değil GÜNLÜK.** Demo handler aldığı her isteği
+yazıyor; beş case yalnız bununla ölçülebildi — `MT-SEC-148` (`tenant=default`),
+`142` (`session=…`), `150` (sekiz eşzamanlı çağrının sekizi de ayrı), `161`
+(sayaç artmıyor ⇒ hiç çağrılmadı), `163` (`0 → 1` ⇒ çağrıldı).
+
+**Turların özeti**
+
+| Tur | Case'ler | Öne çıkan |
+|---|---|---|
+| 2 | `MT-SEC-108` · `118` · `126` · `MT-MCP-047` · `048` · `053` · `MT-MM-088` | Engel rol değil **tarayıcı kilidiymiş** |
+| 3 | `MT-OBS-047` | Karşı kontrol: tek başına `PerImage` ile başlıyor |
+| 4 | `MT-SEC-141`…`163` (22) | `403`/`404` bölünmesi tutarlı ve kasıtlı |
+| 5 | `MT-SEC-183` · `184` · `185` · `188` | Sayı 5 değil **4** — iki risk artık karşılanıyor |
+| 6 | `MT-MCP-034` · `035` · `045` | Canlı katalog: `POST`/`PUT` sonrası **restart yok** |
+| 7 | `MT-MM-108` · `109` · `120` · `121` · `122` | **K-835 bulundu** (`MT-MM-121`) |
+| 8 | `MT-MM-110`…`118` (9) | Sentezlenmiş konuşma WebRTC'ye beslendi |
+| 9 | `MT-MM-086` · `087` · `090` · `097` · `098` · `099` · `103` · `104` | `MediaRecorder` sınırı ölçüldü |
+| 10 | `MT-SEC-102` · `103` · `104` | Tip uyuşmazlığı karşı kontrolle kanıtlandı |
+| 11 | `MT-SEC-024` · `084` · `105` · `121` · `122` · `186` · `187` | `AllowedTenants` **hiç bağlanmıyormuş** |
+| 12 | `MT-SEC-190`…`193` | Kısıtlı `tracon_app` rolü kuruldu |
+| 13 | `MT-SEC-174` · `189` | 3.000.001 satır · repo dışı host |
+| 14 | `MT-DKP-006` · `021` · `MT-PG-067` · `MT-MCP-049` · `MT-RES-090` · `MT-SQL-071` | İki doküman kapısı kırmızıya sokulup geri alındı |
+| 15 | `MT-OBS-046` · `059` | Fiyat yapılandırmak **birimi de** değiştiriyor |
+
+🚨 **Tur 8'in yordamı — gerçek konuşma SENTEZLE üretildi.** `live-test.html`
+mikrofondan beslenir ve sessiz bir odada anlamlı soru oluşmaz. Çözüm:
+`navigator.mediaDevices.getUserMedia` oturum açılmadan **önce** kendi
+`MediaStreamAudioDestinationNode`'umuza bağlandı (parça oturum boyunca aynı
+kalır), sonra sorunun sesi sunucunun **kendi** TTS'iyle üretilip o düğüme
+çalındı. Sağlayıcı *"order four four two"* diye transkript etti — ses gerçekten
+WebRTC üzerinden gitti. ⚠️ `replaceTrack` **çalışmaz** (oturum `Abandoned`
+olur); parçayı değiştirmek değil **içine çalmak** gerekir.
+
+🚨 **Tur 9 aynı yordamın SINIRINI ölçtü.** Konuşma paneli `MediaRecorder`
+kullanıyor ve bu tarayıcıda sentetik bir `MediaStream`'den veri üretmiyor:
+giden çerçeve `2` (yalnız `start` + `commit`), **ses parçası `0`**. ∴
+`MT-MM-086` · `087` gerçek bir insan gerektirir — ama aynı panelin `088` ·
+`090` · `099` case'leri **ölçülebildi**, çünkü hiçbiri konuşma *içeriği*
+istemiyor.
+
+**Bu turların bıraktığı kaynaklar** (§6 adım 5 ile birlikte silinir):
+
+| Kaynak | Ne |
+|---|---|
+| `mt_u1` · `mt_u63` · `mt_v1` · `mt_w1` · `mt_w2` · `mt_w3` · `mt_x1` · `mt_x2` · `mt_x3` · `mt_y1` · `mt_y2` · `mt_z1` · `mt_obs046` · `mt_obs059` şemaları | `ap-pg` içinde |
+| `mt_obs055` veritabanı | `ap-mssql` içinde |
+| **`tracon_app` rolü** | `ap-pg` — kısıtlı (`rolsuper=f`); `MT-SEC-190…192`'nin kanıtı |
+| `mt_z1.sessions` — **3.000.001 satır / 529 MB** | `MT-SEC-174`'ün ölçüm verisi |
+| `scratchpad/sec189/` | Repo dışı minimal host (`MT-SEC-189`) |
+| `artifacts/package/kosum-2026-09-16/` | Bayat feed + önceki commit paketleri + `kapi-pack-876/877` |
+
+---
+
+### 5.3 Kayıtsız iki case — `MT-SEC-180` · `181` (2026-09-19)
+
+Bu ikisi §5'in listesinde **yoktu**: turda hiç kayıt bloğu almamışlardı ve
+sayım betiği onları hiç görmedi (yukarıdaki kör nokta). İkisi de
+`İnsan gerekir: Hayır` diyor. Canlı `samples/Tracon.Api`'ye karşı koşuldular
+ve **ikisi de geçti**; blokları
+[`13-KIRACI-VE-GUVENLIK.md`](13-KIRACI-VE-GUVENLIK.md)'dedir.
+
+| Case | Ön koşul nasıl karşılandı | Ölçülen |
+|---|---|---|
+| `MT-SEC-180` | **Kod değişikliği yok** — K-834'ün `Tracon:Demo:RunAuthorization:Mode=deny-all` kancası | 1–3: `404`, OpenAI biçiminde, var olmayan bir kimliğin gövdesiyle birebir aynı; `403` yok. Satır **silinmedi** (mod kapatılıp `GET /api/sessions/conv-1` → `200`). 4: `200` |
+| `MT-SEC-181` | **K-834'ün üçüncü kancası eklendi** — `Tracon:Demo:MapOpenAIConversations` gerçek seçeneği bağlar | Dört uç gitti (`GET` `404`, GET-dışı `405`), OpenAPI'de conversations yolu `[]`, `/v1/responses` ve `/v1/chat/completions` **duruyor**, oturum kendi ucundan `200` |
+
+⚠️ **Spec `dördü de 404` diyor, host ikisinde `405` verdi ve case yine
+GEÇTİ.** Karşı kontrol ayrıştırdı: **hiç var olmamış** bir yol (`POST
+/tracon/v1/hic-boyle-yol-yok`) da `405` döner — konsolu sunan host'ta SPA
+yedek rotası her yolu yalnız GET için eşler. İddia "rota yok"tur ve sağlandı.
+Spec'in beklenen sonucu bu ortam farkıyla birlikte yazıldı (kod doğru,
+doküman eksikti).
+
+🚨 **Bu iki case, §5'in birinci dersinin dördüncü kanıtıdır:** "koşulamaz"
+sanılan bir case'in gerekçesi yoktu — kimse bakmamıştı.
 
 ---
 
