@@ -104,6 +104,30 @@ internal sealed class WorkflowTestHost
         IServiceProvider? services,
         IEnumerable<IRunEventSink>? sinks,
         params CodeWorkflowRegistration[] codeWorkflows)
+        => CreateRunnerCore(configure, services, sinks, timeProvider: null, codeWorkflows);
+
+    /// <summary>Builds a runner that obtains elapsed time from <paramref name="timeProvider"/>.</summary>
+    /// <remarks>
+    /// Timeout tests use this overload to advance the runner's own deadline only
+    /// after the graph has entered the node whose cancellation they assert.
+    /// </remarks>
+    public WorkflowRunner CreateRunnerWithTimeProvider(
+        TimeProvider timeProvider,
+        Action<TraconWorkflowOptions>? configure = null,
+        IServiceProvider? services = null,
+        params CodeWorkflowRegistration[] codeWorkflows)
+    {
+        ArgumentNullException.ThrowIfNull(timeProvider);
+
+        return CreateRunnerCore(configure, services, sinks: null, timeProvider, codeWorkflows);
+    }
+
+    private WorkflowRunner CreateRunnerCore(
+        Action<TraconWorkflowOptions>? configure,
+        IServiceProvider? services,
+        IEnumerable<IRunEventSink>? sinks,
+        TimeProvider? timeProvider,
+        params CodeWorkflowRegistration[] codeWorkflows)
     {
         var settings = new TraconWorkflowOptions();
         configure?.Invoke(settings);
@@ -123,6 +147,7 @@ internal sealed class WorkflowTestHost
             Options.Create(settings),
             Options.Create(new TraconOptions()),
             NullLogger<WorkflowRunner>.Instance,
+            timeProvider: timeProvider,
             sinks: sinks);
     }
 

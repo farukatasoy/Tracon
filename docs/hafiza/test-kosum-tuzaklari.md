@@ -82,6 +82,8 @@ supheli bir derlemeden HEMEN sonra calistirmadan once bu adimi atlama.
 
 - **🚨 Full solution test run'inda test PROJELERI sinirsiz paralel kosmaz** (2026-08-25, Faz 100 sonrasi): `dotnet test Tracon.slnx` 24 test executable'i ayni anda baslatinca Docker container'lari, Playwright, functional host'lar ve `Tracon.Package.Tests` icindeki `dotnet pack` ayni CPU/RAM butcesine saldirir. Belirti urun hatasi degildir: `SourceLanguageTests` 5 sn Regex timeout'u ve CLI'nin 10 sn HTTP timeout'u yalniz tam run'da duser; ikisi de izolasyonda saniyeler icinde gecer. **Uc** worker bile Package build, PostgreSQL ve functional host'lari birlikte dakikalara iterdi. Cozum: gate ve CI tam run'lari **`-maxcpucount:1`** ile kosar. Bu, toplam wall-clock suresini artirir; ancak Docker ve package testi ayni anda makineyi doyurmadigi icin kaynak cekismesinden uzayan tekil testleri ve sahte timeout'lari kaldirir.
 
+- **🚨 Timeout testi gercek saatin callback'ini dar bir pencerede beklemez** (2026-09-19, Ubuntu CI): drain testi 150 ms timeout'un ardindan iki saniye icinde donmesini bekliyordu; yüklü CI scheduler timer callback'ini geciktirince test, urun sozlesmesi yerine makinenin anlik kapasitesini ölçtü. Timeout davranışı `TimeProvider` alan kodda kontrol edilebilir bir test clock ile ve timer'i testin tetiklemesiyle kanıtlanır. Gercek zaman yalnız entegrasyon veya kabul seviyesinde ölçülür.
+
 - **🚨 `dotnet new sln` varsayilan uzantisi SDK'ya gore degisir** (2026-08-28):
   Yerel SDK `.sln`, CI SDK'si `.slnx` uretebilir. Sonraki `dotnet sln` veya
   `dotnet build` komutunda sabit bir dosya adi kullanan test bu nedenle yalniz
