@@ -492,6 +492,7 @@ public sealed class UiTests(BrowserFixture browsers)
         await using var session = await Session.OpenAsync(browsers, host);
 
         await session.Page.GotoAsync($"{host.UiAddress}/agents/new");
+        await WaitForDefaultProviderAsync(session.Page);
 
         await session.Page.GetByTestId("agent-name").FillAsync("ui-agent");
         await session.Page.GetByTestId("agent-display-name").FillAsync("Console agent");
@@ -517,6 +518,7 @@ public sealed class UiTests(BrowserFixture browsers)
         await using var session = await Session.OpenAsync(browsers, host);
 
         await session.Page.GotoAsync($"{host.UiAddress}/agents/new");
+        await WaitForDefaultProviderAsync(session.Page);
 
         await session.Page.GetByTestId("agent-name").FillAsync("fallback-agent");
         await session.Page.GetByTestId("agent-model").FillAsync(ScriptedModels.Default);
@@ -1894,6 +1896,16 @@ public sealed class UiTests(BrowserFixture browsers)
     /// produce a second version. Shared precondition for the diff and
     /// experiment tests.
     /// </summary>
+    private static async Task WaitForDefaultProviderAsync(IPage page)
+    {
+        // The editor renders before its provider catalogue query completes.
+        // Filling the other fields proves neither that the query settled nor
+        // that the form is valid; under CI load the Save button can therefore
+        // remain disabled until Playwright's unrelated click timeout expires.
+        await Assertions.Expect(page.GetByTestId("agent-provider"))
+            .ToHaveValueAsync(ScriptedModels.ProviderName, new() { Timeout = 60_000 });
+    }
+
     private static async Task CreateAgentWithTwoVersionsAsync(
         UiHost host,
         Session session,
@@ -1902,8 +1914,7 @@ public sealed class UiTests(BrowserFixture browsers)
         string secondInstructions)
     {
         await session.Page.GotoAsync($"{host.UiAddress}/agents/new");
-        await Assertions.Expect(session.Page.GetByTestId("agent-provider"))
-            .ToHaveValueAsync(ScriptedModels.ProviderName);
+        await WaitForDefaultProviderAsync(session.Page);
         await session.Page.GetByTestId("agent-name").FillAsync(name);
         await session.Page.GetByTestId("agent-instructions").FillAsync(firstInstructions);
         await session.Page.GetByTestId("agent-model").FillAsync(ScriptedModels.Default);
@@ -2625,6 +2636,7 @@ public sealed class UiTests(BrowserFixture browsers)
         // An entry is written as a side effect of storing an agent, which is
         // the only way this screen has anything to expand.
         await session.Page.GotoAsync($"{host.UiAddress}/agents/new");
+        await WaitForDefaultProviderAsync(session.Page);
         await session.Page.GetByTestId("agent-name").FillAsync("audited-agent");
         await session.Page.GetByTestId("agent-model").FillAsync(ScriptedModels.Default);
         await session.Page.GetByTestId("agent-save").ClickAsync();
