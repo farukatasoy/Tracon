@@ -135,7 +135,7 @@ python3 scripts/kapi.py yayin --kuru --surum <hedef sürüm>
 
 Tek komut yediyi birden yapar: sürümü zorlar · paketler · bayat `.nupkg`'leri
 siler · kimlik kümesini ve metaveriyi doğrular · `npm publish --dry-run` koşar ·
-**beş extension sample'ını exact sürüm ve izole `NUGET_PACKAGES` ile** çalıştırır
+**altı extension sample'ını exact sürüm ve izole `NUGET_PACKAGES` ile** çalıştırır
 (`scripts/release_extension_samples.py`, `kapi.py` içinden çağrılır — tek başına
 çalıştırılabilir bir script değildir) · Native AOT smoke publish eder ve
 çalıştırır. **Ağa hiçbir şey yazmaz, `git tag` atmaz.**

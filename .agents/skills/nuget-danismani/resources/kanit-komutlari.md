@@ -25,11 +25,11 @@ Kapsadığı yedi iş ve **kapsamadıkları**:
 | Yapar | Yapmaz |
 |---|---|
 | Sürümü zorlar (`MinVerVersionOverride`), `git tag` atmaz | Etiketi **atmaz** — o kullanıcının kararıdır |
-| Bayat `.nupkg`/`.snupkg` siler, sonra paketler | Kaynak ağacındaki davranışı ölçmez |
+| Koşuma özgü bir **staging** dizinine paketler, sonra `release_dir`'e promote eder — aynı kimlikte FARKLI içerik varsa **hiçbirini taşımaz** ve kırmızı döner (Faz 136, `_promote_staged_packages`; eski "bayat paketi sil" davranışı KALDIRILDI) | Kaynak ağacındaki davranışı ölçmez |
 | Paket kimlik kümesini, sürüm hattını, ikonu, metaveriyi, K-008 ön sürüm sınırını doğrular | Paket **içeriğinin** doğruluğunu ölçmez (bkz. §3) |
 | TFM başına XML doküman varlığını doğrular | XML dokümanının **doğruluğunu** ölçmez |
 | `npm publish --dry-run` koşar (npm yoksa **atlar**) | npm yoksa sessizce geçer — çıktıyı oku |
-| Beş extension sample'ını exact sürüm + izole `NUGET_PACKAGES` ile koşar | Sample'ın **iddia ettiği** davranışı yargılamaz |
+| **Altı** extension sample'ını exact sürüm + izole `NUGET_PACKAGES` ile koşar (BL-052, Faz 123 — envanter kapısıyla kilitli) | Sample'ın **iddia ettiği** davranışı yargılamaz |
 | Native AOT smoke publish eder ve **çalıştırır** | Diğer paketlerin AOT davranışını ölçmez |
 
 > ⚠️ `--surum` verilmezse MinVer'in bugünkü değeri kullanılır ve
