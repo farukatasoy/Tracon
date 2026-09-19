@@ -16,6 +16,7 @@ import {
   Th,
   Table,
   TextInput,
+  Unauthorized,
 } from './ui';
 import type { WebhookDeliveryStatus, WebhookTestResponse } from '@tracon/client';
 import type { WebhookDelivery, WebhookSubscription } from '../lib/server-types';
@@ -39,7 +40,7 @@ const EVENTS = [
  * of the configuration key its signing secret is read from; the value stays in
  * `IConfiguration` and never reaches the browser or the database.
  */
-export function WebhookPanel(): ReactNode {
+export function WebhookPanel({ canAdminister }: { canAdminister: boolean }): ReactNode {
   const t = useT();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -48,6 +49,11 @@ export function WebhookPanel(): ReactNode {
   const subscriptions = useQuery({
     queryKey: ['webhooks'],
     queryFn: () => unwrap(client.GET('/api/webhooks')) as Promise<WebhookSubscription[]>,
+    // 🚨 Not requested at all without the role — the same reason diagnostics.tsx
+    // gives: a reader used to get the 403 rendered as a generic failure with a
+    // "try again" button, which reads as "the console is broken" rather than
+    // "this panel is not yours", and retrying can never succeed.
+    enabled: canAdminister,
   });
 
   const remove = useMutation({
@@ -61,13 +67,16 @@ export function WebhookPanel(): ReactNode {
       title={t('webhooks.title')}
       className="lg:col-span-2"
       actions={
-        <Button tone="default" onClick={() => setOpen((value) => !value)}>
-          {open ? t('common.close') : t('webhooks.add')}
-        </Button>
+        canAdminister ? (
+          <Button tone="default" onClick={() => setOpen((value) => !value)}>
+            {open ? t('common.close') : t('webhooks.add')}
+          </Button>
+        ) : undefined
       }
     >
-      {subscriptions.isPending && <Loading rows={3} />}
-      {subscriptions.isError && (
+      {!canAdminister && <Unauthorized requires="administrator" />}
+      {canAdminister && subscriptions.isPending && <Loading rows={3} />}
+      {canAdminister && subscriptions.isError && (
         <div className="p-4">
           <ErrorNote error={subscriptions.error} onRetry={() => void subscriptions.refetch()} />
         </div>

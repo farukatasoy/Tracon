@@ -15,6 +15,7 @@ import {
   Td,
   Th,
   TextInput,
+  Unauthorized,
 } from './ui';
 import type { RetentionPolicy, RetentionPreview, RetentionRun } from '../lib/server-types';
 
@@ -56,7 +57,7 @@ const TARGETS: { value: RetentionTarget; label: MessageKey }[] = [
  * delete. "Run now" only enqueues a job; the actual sweep happens in the
  * queue worker.
  */
-export function RetentionPanel(): ReactNode {
+export function RetentionPanel({ canAdminister }: { canAdminister: boolean }): ReactNode {
   const t = useT();
   const client = useQueryClient();
   const [editingTarget, setEditingTarget] = useState<RetentionTarget | null>(null);
@@ -64,10 +65,12 @@ export function RetentionPanel(): ReactNode {
   const preview = useQuery({
     queryKey: ['retention-preview'],
     queryFn: () => unwrap(apiClient.GET('/api/retention/preview')) as Promise<RetentionPreview[]>,
+    enabled: canAdminister,
   });
   const policies = useQuery({
     queryKey: ['retention-policies'],
     queryFn: () => unwrap(apiClient.GET('/api/retention')) as Promise<RetentionPolicy[]>,
+    enabled: canAdminister,
   });
   const history = useQuery({
     queryKey: ['retention-history'],
@@ -75,6 +78,7 @@ export function RetentionPanel(): ReactNode {
       unwrap(
         apiClient.GET('/api/retention/history', { params: { query: { take: 10 } } }),
       ) as Promise<RetentionRun[]>,
+    enabled: canAdminister,
   });
 
   const invalidate = (): void => {
@@ -93,6 +97,19 @@ export function RetentionPanel(): ReactNode {
       unwrap(apiClient.DELETE('/api/retention/{target}', { params: { path: { target } } })),
     onSuccess: invalidate,
   });
+
+  // 🚨 Answered before any query state, because none of the three ran: a reader
+  // used to get three 403s rendered as generic failures with "try again"
+  // buttons, which reads as "the console is broken" rather than "this panel is
+  // not yours", and retrying can never succeed. Same reason diagnostics.tsx
+  // gives for not issuing the request at all.
+  if (!canAdminister) {
+    return (
+      <Panel title={t('retention.title')}>
+        <Unauthorized requires="administrator" />
+      </Panel>
+    );
+  }
 
   if (preview.isPending || policies.isPending) {
     return (

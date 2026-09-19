@@ -14,6 +14,7 @@ import {
   Mono,
   Panel,
   TextInput,
+  Unauthorized,
 } from './ui';
 import type { ApiKeyCreationResult, ApiKeyScope } from '@tracon/client';
 import type { ApiKeyRecord } from '../lib/server-types';
@@ -48,7 +49,7 @@ const SCOPES: ApiKeyScope[] = [
  * The raw value the create call returns is held in local state only, for as
  * long as this panel stays open.
  */
-export function ApiKeyPanel(): ReactNode {
+export function ApiKeyPanel({ canAdminister }: { canAdminister: boolean }): ReactNode {
   const t = useT();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -57,6 +58,12 @@ export function ApiKeyPanel(): ReactNode {
   const keys = useQuery({
     queryKey: ['api-keys'],
     queryFn: () => unwrap(client.GET('/api/api-keys')) as Promise<ApiKeyRecord[]>,
+    // 🚨 Not requested at all without the role — the same reason
+    // diagnostics.tsx gives: a reader used to get the 403 rendered as a
+    // generic failure with a "try again" button, which reads as "the console
+    // is broken" rather than "this panel is not yours", and retrying can
+    // never succeed.
+    enabled: canAdminister,
   });
 
   const revoke = useMutation({
@@ -69,13 +76,16 @@ export function ApiKeyPanel(): ReactNode {
       title={t('apiKeys.title')}
       className="lg:col-span-2"
       actions={
-        <Button tone="default" onClick={() => setOpen((value) => !value)}>
-          {open ? t('common.close') : t('apiKeys.add')}
-        </Button>
+        canAdminister ? (
+          <Button tone="default" onClick={() => setOpen((value) => !value)}>
+            {open ? t('common.close') : t('apiKeys.add')}
+          </Button>
+        ) : undefined
       }
     >
-      {keys.isPending && <Loading rows={3} />}
-      {keys.isError && (
+      {!canAdminister && <Unauthorized requires="administrator" />}
+      {canAdminister && keys.isPending && <Loading rows={3} />}
+      {canAdminister && keys.isError && (
         <div className="p-4">
           <ErrorNote error={keys.error} onRetry={() => void keys.refetch()} />
         </div>

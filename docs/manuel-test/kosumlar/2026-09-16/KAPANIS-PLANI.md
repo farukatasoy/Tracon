@@ -5,8 +5,9 @@
 >
 > **Durum:** 🟢 Aşama 2 bitti · **YİRMİ İKİ AİLENİN YİRMİ İKİSİ DE KAPANDI (A…V)** · 0 açık kusur ailesi · **0 `Kaldı` case**
 > **§4.1 BİTTİ:** 14 `Kaldı` case'in 14'ü de kapandı — 3'ü zaten canlı koşulmuştu (yalnız `Durum` satırı eksikti), 11'i bu oturumda canlı sunucuda koşuldu.
-> **Kalan iş:** bitti tanımı (skill §7) → damıtma (§6) → arşiv.
-> **Son güncelleme:** 2026-09-19 (§4.1 kapandı; `S2-003` **tamamen** kapandı — başarılı koşumun span'i canlı ölçüldü; `MT-RES-089` yeni bir kusur açığa çıkardı ve kodlandı → K-831, sınıf taraması K-832)
+> **§5 BAŞLADI:** kapanan 7 case → `Geçti` **1728 → 1735**. `Beklemede` **107 → 102** (5 PKG case'i, §5(a)) · `İŞARETSİZ` **3 → 1** (`MT-UIRUN-001` · `MT-UIRUN-063`, §5(b); kalan `MT-GDK-024` §5(c) — ikinci işletim sistemi ister).
+> **Kalan iş:** §5'in geri kalanı (**102 `Beklemede` + 1 `İŞARETSİZ` = 103 açık**) → bitti tanımı (skill §7) → damıtma (§6) → arşiv.
+> **Son güncelleme:** 2026-09-19 (§5 turu 1: yedi case kapandı; `MT-UIRUN-063` yeni bir kusur açığa çıkardı ve **aynı oturumda kodlandı** → K-833 — beş panel reader'a `HTTP 403` + `Try again` çiziyordu)
 
 Turdan bağımsız kapanış protokolü — aile aile oturum yordamı, "önce ampirik
 yeniden üret" kuralı, bitti tanımı ve sayım betiği —
@@ -38,22 +39,22 @@ donuk (`git diff --stat 7e3a4de7..HEAD -- src samples tests` boş).
 ```mermaid
 flowchart LR
     A["Asama 1 - Kosum<br/>BITTI - 36/36 aile"] --> B["Konsolidasyon<br/>BITTI"]
-    B --> C["Asama 2 - Kusur kapanisi<br/>SIRADAKI - 22 aile"]
-    C --> D["Freeze kaynakli case'lerin<br/>yeniden kosumu"]
+    B --> C["Asama 2 - Kusur kapanisi<br/>BITTI - 22 aile"]
+    C --> D["Freeze kaynakli case'lerin<br/>yeniden kosumu<br/>SIRADAKI - 7 bitti, 103 kaldi"]
     D --> E["Bitti tanimi + damitma"]
     E --> F["YAYIN-HAZIRLIK<br/>Adim 3 -> 10"]
 ```
 
 **Sayım** (skill §7, düzeltilmiş betik — bkz. §3.1):
 
-| Durum | Koşum sonu | Aile V sonrası | **§4.1 sonrası (2026-09-19)** |
-|---|---|---|---|
-| ☑ Geçti | 1693 | 1714 | **1728** |
-| ☒ Kaldı | 35 | 14 | **0** |
-| ☐ Beklemede | 107 | 107 | 107 |
-| ⏭ Atlandı | 18 | 18 | 18 |
-| işaretsiz (gerekçe düz metin) | 3 | 3 | 3 |
-| **toplam benzersiz case** | **1856** | **1856** | **1856** |
+| Durum | Koşum sonu | Aile V sonrası | §4.1 sonrası | **§5 turu 1 sonrası** |
+|---|---|---|---|---|
+| ☑ Geçti | 1693 | 1714 | 1728 | **1735** |
+| ☒ Kaldı | 35 | 14 | 0 | **0** |
+| ☐ Beklemede | 107 | 107 | 107 | **102** |
+| ⏭ Atlandı | 18 | 18 | 18 | 18 |
+| işaretsiz (gerekçe düz metin) | 3 | 3 | 3 | **1** |
+| **toplam benzersiz case** | **1856** | **1856** | **1856** | **1856** |
 
 Kapanan her aile, kusuru yüzünden `Kaldı` kalmış case'ini **canlı sunucuda**
 yeniden koşar ve ikinci bir `Gerçek sonuç` bloğu ekler; sayım her case'in
@@ -247,6 +248,47 @@ yürürlükte.
 
 ---
 
+### 3.10 Sekiz kapının tam ölçümü — 2026-09-19 (§5 turu 1 sonrası)
+
+K-833'ün kod düzeltmesi (beş arayüz paneli + yeni test) dahil:
+
+| Kapı | Sonuç |
+|---|---|
+| `unittest discover -s scripts` | ✅ 351 test · `OK` |
+| `build-agent-map.mjs --check` | ✅ bütçede |
+| `denetim-paketi.py --taban 7e3a4de7` | ✅ çıkış 0 |
+| `dotnet build -c Release` | ✅ sıfır uyarı |
+| `dotnet test -c Release -maxcpucount:1` | ✅ **çıkış 0 · 22 proje · 7853 test · 0 düşen** (TRX ile ikinci kez doğrulandı) |
+| `dotnet pack --no-build` | ✅ çıkış 0 |
+| `dotnet format --verify-no-changes` | ✅ çıkış 0 |
+| `docs-site && npm run check` | ✅ çıkış 0 · 1152 sayfa · 0 SEO hatası |
+
+Arayüz tarafı ayrıca: `npm run typecheck` temiz, **258** vitest (254 + K-833'ün
+dört yeni olgusu) geçti.
+
+`dokuman-bakim.py --denetle`: **tek kırmızı** yine koşum kaydı bütçesi
+(2.415.685 B / 620.000 B — §3.2, kabul edilmiş; damıtma §6 ile düşecek).
+
+🚨 **`secret` taraması KıRMıZı başladı ve bitti tanımının 4. maddesiydi.**
+Bu tarama **§3.2'nin sekiz kapısında YOKTUR** — `kapi.py kapanis`'in içindedir
+ve o ikinci adımda duruyor, ∴ tur boyunca hiç koşmamış. Tek bulgu
+`ConsumerStoreRegistrationTests.cs:61`'di ve yanlış pozitifti: her alan
+**harfi harfine `unused`**, port **1**, ve test yalnız bir `ServiceProvider`
+kuruyor — hiç bağlantı açmıyor. Tarayıcının kendi belgelenmiş yordamıyla
+kapatıldı: satıra `// SYNTHETIC-CREDENTIAL` işaretlendi (*gizlemek değil
+işaretlemek* — `kapi.py:186-194`). Tarama artık **0 bulgu · 7 atlanan
+sentetik**. **Ders: bitti tanımının `secret` maddesi §3.2'nin sekiz kapısıyla
+karşılanmaz; ayrıca koşulur.**
+
+🚨 **`dotnet pack` kapısı release feed'i YENİDEN KİRLETİR.** Kapı 20 adet
+`0.0.0-preview.0.876` paketi `artifacts/package/release/` altına yazıyor ve bu,
+`MT-PKG-115`/`116`'nın ön koşulunu **aynı kapanış içinde** bozar. O paketler
+`artifacts/package/kosum-2026-09-16/kapi-pack-876/` altına alındı.
+**Sıra önemlidir: yayın provası isteyen case'ler `dotnet pack` kapısından
+ÖNCE koşulur, ya da feed aradan temizlenir.**
+
+---
+
 ### 3.4 Turun bıraktığı ortam kuralları
 
 Bunlar kapanış oturumlarında da geçerlidir ve bitti tanımında
@@ -276,8 +318,53 @@ Bunlar kapanış oturumlarında da geçerlidir ve bitti tanımında
 
 ## 3.6 Sıradaki iş — 2026-09-19 itibarıyla
 
-✅ **§4.1 BİTTİ (2026-09-19). Sıradaki iş: bitti tanımı (skill §7) → damıtma
-(§6) → arşiv.** `Kaldı` case kalmadı; sayım `0` diyor.
+✅ **§4.1 BİTTİ. §5 BAŞLADI ve ilk turu bitti (7 case).** `Kaldı` case yok.
+
+| Durum | §4.1 sonrası | **§5 turu 1 sonrası** |
+|---|---|---|
+| ☑ Geçti | 1728 | **1735** |
+| ☐ Beklemede | 107 | **102** |
+| ⏭ Atlandı | 18 | 18 |
+| işaretsiz | 3 | **1** |
+| **toplam** | **1856** | **1856** |
+
+⚠️ Kapanan yedinin **beşi** `Beklemede`ydi (PKG), **ikisi** işaretsizdi
+(`MT-UIRUN-001` · `MT-UIRUN-063`) — iki sayaç ayrı düştü.
+
+**Sıradaki iş: §5'in geri kalanı** — **102 `Beklemede` + 1 `İŞARETSİZ`**. Aile
+aile, §5(a) ve §5(b) tablolarının sırasıyla. Bitince: bitti tanımı (skill §7)
+→ damıtma (§6) → arşiv.
+
+🚨 **§5'in birinci dersi — "ortamda bunun yolu yok" DENETLENMEDEN kabul
+edilmez.** `MT-UIRUN-063` tur boyunca "ayrı bir reader kimliği üretilemez" diye
+bekliyordu ve §5(b) bunu "ikinci bir token/rol yapılandırılabilir" diye
+tekrarlıyordu. Gerçek: örnek uygulama **hazır bir bayrak taşıyor** —
+`Tracon:Demo:Roles:Enabled=true` üç politika adını kaydeder ve rolü
+`X-Tracon-Demo-Role: reader|operator|admin` başlığından okur
+(`samples/Tracon.Api/Program.cs:104-125`). Hiçbir kod değişikliği gerekmedi.
+**§5(a)'nın "geçici `Program.cs` değişikliği ister" diyen satırlarının her biri
+koşulmadan önce aynı şekilde denetlenmelidir** — özellikle `MT-SEC` ve
+`MT-MCP` aileleri. Tarayıcıda başlık
+`page.context().setExtraHTTPHeaders({...})` ile enjekte edilir; konsolun kendi
+`fetch` sarmalayıcısı onu göndermez.
+
+🚨 **İkinci ders — bir ön koşul `git` ağacıyla sınırlı değildir.**
+`MT-PKG-115`'in ilk denemesi terfiden **sonra** sıfır olmayan çıkışla durdu;
+sebep çalışma ağacı değil, `artifacts/package/release/` içinde §4.1'in bıraktığı
+182 adet `0.0.0-preview.0.8xx` paketti ("release feed contains stale Tracon
+packages"). O paketler artık `artifacts/package/kosum-2026-09-16/bayat-feed/`
+altındadır (silinmedi — §4.1'in kanıtı), release feed'de yalnız
+`1.0.0-preview.1` durur. **Yayın provası koşacak her oturum önce `ls
+artifacts/package/release/` yapar.**
+
+🚨 **Üçüncü ders — canlı rol ölçümü yine testin göremediğini gösterdi.**
+`MT-UIRUN-063`'ün dört adımı da geçti, ama ölçüm case'in **dışında** bir kusur
+buldu: `settings`'in dört paneli ve `mcp`'nin "Remembered approvals" paneli
+reader'a `HTTP 403` metnini bir `Try again` düğmesiyle çiziyordu — çalışması
+imkânsız olan tek eylem. `diagnostics.tsx` ve MCP prompt sekmesi bu boşluğu
+kendileri için çoktan kapatmış ve gerekçeyi 🚨 yorumu olarak yazmıştı; beş
+panel aynı işlemden hiç geçmemişti. Kodlandı ve aynı oturumda kapatıldı
+(K-833); düşen test `admin-panel-roles.test.tsx`.
 
 🚨 **§4.1'in ilk dersi — "koşulmamış" sanılan üç case ZATEN KOŞULMUŞTU.**
 `MT-CORE-044`, `MT-CORE-045` ve `MT-CLI-029` canlı yeniden koşum bloklarını
@@ -1199,7 +1286,7 @@ bittikten **sonra** aynı oturumda koşulur.
 | 12 (OBS) | `MT-OBS-046` · `047` · `055` · `059` | gerçek `samples/Tracon.Api` + sağlayıcı anahtarı yapılandırması |
 | 03 (PG) | `MT-PG-067` adım 2 | `src/` altında kod değişikliği ister; adım 1 ve 3 yeşil koşuldu. Yordam dosya 03'ün sonundaki tabloda |
 | 21 (RES) | `MT-RES-090` | aynı sınıf |
-| 01 (PKG) | `MT-PKG-104` · `105` · `115` · `116` · `117` | ✅ **ENGEL KALKTI (2026-09-19).** Aile V kapandı ve yayın provası ilk kez yeşil (`kapi.py yayin --kuru --surum 1.0.0-preview.1` → çıkış `0`). Beşi de artık koşulabilir; bu oturumda koşulmadılar |
+| 01 (PKG) | `MT-PKG-104` · `105` · `115` · `116` · `117` | ✅ **BEŞİ DE KOŞULDU ve GEÇTİ (2026-09-19).** Ayrıntı §5.1 |
 
 ### (b) Ortam sınırı — kapanışta ÇÖZÜLEBİLİR
 
@@ -1207,9 +1294,57 @@ bittikten **sonra** aynı oturumda koşulur.
 |---|---|---|
 | `MT-SEC-190..193` | Tur `postgres` süperkullanıcısını kullandı; süperkullanıcılar `REVOKE`'tan **etkilenmez** (PostgreSQL'in kendi davranışı) | İzole bir doğrulama sunucusunda kısıtlı bir `tracon_app` rolü oluştur, uygulamanın bağlantı dizesini o role çevir, tek seferlik koş. `MT-SEC-193` ayrıca `IDataSubjectResolver`'ın hiç kayıtlı olmamasıyla ikinci bir engele takılıyor |
 | `MT-SEC-126` | Paylaşılan tarayıcı kilidi | Şerit yok artık; doğrudan koşulur |
-| `MT-UIRUN-001` | `mt_s3` şemasını `DROP SCHEMA … CASCADE` ile sıfırlamak gerekiyordu | Şeritler kapandı; şema artık serbestçe sıfırlanabilir |
-| `MT-UIRUN-063` · `MT-SEC-108` · `118` | Ortamda "reader" rolünü temsil eden ayrı kimlik yok; tek statik bearer token her zaman tam rol taşıyor | Kapanışta ikinci bir token/rol yapılandırılabilir |
+| `MT-UIRUN-001` | `mt_s3` şemasını `DROP SCHEMA … CASCADE` ile sıfırlamak gerekiyordu | ✅ **KOŞULDU ve GEÇTİ (2026-09-19).** `mt_s3`'e hiç dokunulmadı — taze bir şema (`mt_u1`) açıldı |
+| `MT-UIRUN-063` · `MT-SEC-108` · `118` | Ortamda "reader" rolünü temsil eden ayrı kimlik yok; tek statik bearer token her zaman tam rol taşıyor | 🚨 **BU TEŞHİS YANLIŞTI.** `Tracon:Demo:Roles:Enabled=true` + `X-Tracon-Demo-Role` başlığı zaten var; kod değişikliği gerekmez. `MT-UIRUN-063` ✅ **KOŞULDU ve GEÇTİ (2026-09-19)**; `MT-SEC-108` · `118` aynı yordamla **artık koşulabilir**, henüz koşulmadı |
 | `MT-MM-088` | LAN arayüzünde dinlenmiyordu | Yeniden yapılandırılabilir |
+
+### 5.1 §5 turu 1 — 2026-09-19 (yedi case)
+
+| Case | Sonuç | Notu |
+|---|---|---|
+| `MT-PKG-104` | ☑ | Çözümlenmiş sürüm taşınıyor. Beklenen **URL** bayattı: Faz 162 (`630f3212`) GitHub blob'dan site sayfasına döndü — repo private olduğu için `github.com` URL'i her tüketiciye `404` verirdi |
+| `MT-PKG-105` | ☑ | 20/20 paket `releaseNotes` taşıyor; hiç `EKSIK` satırı yok |
+| `MT-PKG-115` | ☑ | İki ardışık prova, ikisi de çıkış `0`, `❌` yok, SHA-256 birebir aynı — no-op deterministik. Ön koşula ikinci madde eklendi (bayat feed) |
+| `MT-PKG-116` | ☑ | Senaryo **kendiliğinden** oluştu (paketler `4b28940f`'ten, `HEAD` `89f44ab3`) → sentetik commit'e gerek kalmadı, kaydın `git add -A` uyarısı hiç devreye girmedi |
+| `MT-PKG-117` | ☑ | `20 1.0.0-preview.1 False`; 18 kütüphane kaydında `symbols*` dolu, boş olan iki paket metapaket ve şablon |
+| `MT-UIRUN-001` | ☑ | Taze boş şema (`mt_u1`). Şerit **gizlenmedi**, `Empty` ile **aynı anda** çizildi. Hata oranı kutusu `%0` değil `—` — `errorRate` `null`; spec keskinleştirildi |
+| `MT-UIRUN-063` | ☑ | Dört adımın dördü de kilit + rol metni. İki spec düzeltmesi (panel `settings`'te değil `skills`'te; script grant listesi reader'a **açık**) → **yeni kusur: K-833** |
+
+**Neden 20 paketin hepsi "farklı" işaretlenir** (MT-PKG-116'nın yan ürünü): her
+`.nuspec` commit kimliğini taşır —
+`<repository … commit="89f44ab3…" />`. Kimlik metadata'sı her commit'te
+değişir, ∴ yalnız 3 proje değişmiş olsa da 20 paketin baytı değişir. Aşırı
+raporlama değil, doğru davranış; build'in kendisi deterministiktir.
+
+**Bu turun bıraktığı kaynaklar** (§6 adım 5 ile birlikte silinir):
+
+| Kaynak | Ne |
+|---|---|
+| `mt_u1` · `mt_u63` şemaları | `ap-pg` içinde; `MT-UIRUN-001` ve `MT-UIRUN-063`'ün ölçüm verisi |
+| `artifacts/package/kosum-2026-09-16/bayat-feed/` | §4.1'in 182 adet `0.0.0-preview.0.8xx` paketi — **silinmedi**, release feed'den çıkarıldı |
+| `artifacts/package/kosum-2026-09-16/onceki-commit/` | `4b28940f`'ten kalan 39 dosya — `MT-PKG-116`'nın kanıtı |
+| `mt_u63` içindeki `mt-u63-skill` · `mt-u63-mcp` | Ön koşul fixture'ları (denetim kaydı ve MCP satırı için) |
+
+**Ortam yordamı** (§4.1'inkine ek olarak):
+
+```bash
+# rol denemesi — KOD DEĞİŞİKLİĞİ GEREKMEZ
+dotnet artifacts/bin/Tracon.Api/release/Tracon.Api.dll \
+  --contentRoot "$PWD/artifacts/bin/Tracon.Api/release" \
+  --urls http://127.0.0.1:5202 \
+  --Tracon:Demo:Roles:Enabled=true
+curl -H "X-Tracon-Demo-Role: reader" -H "Authorization: Bearer $TOKEN" \
+     http://127.0.0.1:5202/tracon/api/meta        # roles.canAdminister=false
+```
+
+⚠️ Tarayıcıda başlık `page.context().setExtraHTTPHeaders(…)` ile enjekte edilir;
+konsolun kendi `fetch` sarmalayıcısı `X-Tracon-Demo-Role`'ü **göndermez**.
+
+⚠️ **Playwright profil kilidi yine çıktı** (§4.1'in aynısı): önceki oturumdan
+kalan yedi süreç `mcp-chrome-3eca5a9` profilini tutuyordu. Yalnız o profile
+bağlı süreçler durduruldu (`pkill -f mcp-chrome-3eca5a9`).
+
+---
 
 ### (c) Gerçekten insan/fiziksel eylem gerekir — 👤 KULLANICIYA SORULUR
 

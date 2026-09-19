@@ -58,7 +58,10 @@ public sealed class ConsumerStoreRegistrationTests
         registerConsumerStores(services);
         services.AddTracon().UseSqlServer(static options =>
         {
-            options.ConnectionString = "Server=localhost,1;Database=unused;User Id=unused;Password=unused;TrustServerCertificate=true";
+            // Every field is the literal word "unused" and the port is 1: this test only
+            // builds a ServiceProvider and never opens a connection. Marked rather than
+            // hidden so the exception stays visible in review.
+            options.ConnectionString = "Server=localhost,1;Database=unused;User Id=unused;Password=unused;TrustServerCertificate=true"; // SYNTHETIC-CREDENTIAL
             options.AutoApplyMigrations = false;
         });
 

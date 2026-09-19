@@ -120,8 +120,12 @@ Sınır durumu — hiç çalıştırma yokken.
   doğrulandı):** İstatistik şeridi GİZLENMEZ. `runs.tsx:128`
   `{stats.isSuccess && (...)}` şartı `totalRuns > 0` gibi bir sıfır-sayım
   koruması TAŞIMIYOR — `stats` sorgusu sıfır run'da da başarıyla döner
-  (`isSuccess:true`, tüm alanlar `0`), bu yüzden şerit dört kutuyla (hepsi
-  `0`/`%0`) RENDER EDİLİR. Liste tarafı AYRICA `runs.isSuccess &&
+  (`isSuccess:true`, sayım alanları `0`), bu yüzden şerit dört kutuyla
+  RENDER EDİLİR. Üçü `0` gösterir; **hata oranı kutusu `—` gösterir**, `%0`
+  değil — `stats` yanıtında `errorRate` `null`'dır ve sıfır koşmada `%0`
+  yazmak "çalıştırdık, hiçbiri başarısız olmadı" anlamına gelirdi. Kutunun
+  ipucu sınırı yazar: *"Of finished runs only."* (ölçüldü 2026-09-19).
+  Liste tarafı AYRICA `runs.isSuccess &&
   runs.data.length === 0` (satır 153) koşuluyla `Empty` bileşenini gösterir
   — ikisi AYNI ANDA görünür, biri diğerini gizlemez.
 - `runs.empty.title` başlığı ve içinde `playground` rotasına giden bir bağlantı
@@ -2011,13 +2015,22 @@ kaydedilmedi" görüp denetim izinin boş olduğu sonucuna varıyordu.
 **Adımlar**
 1. Adres çubuğundan doğrudan `audit` aç.
 2. Doğrudan `diagnostics` aç.
-3. `settings` içindeki script izni panelini aç.
+3. `skills` ekranındaki "Script execution grants" panelini aç. (Panel Faz
+   165'ten beri `settings`'te **değildir**; ölçüldü 2026-09-19 —
+   `screens/skills/script-grants.tsx`.)
 4. `mcp` ekranında bir server satırını genişletip "Prompt'lar" sekmesine geç.
 
 **Beklenen sonuç**
 - Dördünde de **yetkisiz durumu** görünür: kilit simgesi, hangi rolün gerektiği
   ve reader'ın ne yapabildiği yazılıdır. 👤
-- Hiçbirinde "kayıt yok" / "boş" metni görünmez — ikisi karıştırılmaz. 👤
+- `audit`, `diagnostics` ve prompt sekmesinde "kayıt yok" / "boş" metni
+  görünmez — ikisi karıştırılmaz. 👤
+- ⚠️ **Script izni paneli bu kuralın dışındadır ve olmalıdır.** Orada reader
+  hem "No script grant" hem kilidi görür, çünkü grant **listesi** reader'a
+  açıktır ve yalnız **form** admin'e aittir: `GET /api/skill-script-grants`
+  reader'a da admin'e de `200 []` döner (birebir aynı), `POST` reader'a `403`.
+  ∴ oradaki boş metin reddin maskesi değil, gerçek bilgidir (ölçüldü
+  2026-09-19).
 - Kenar çubuğunda ve komut paletinde bu ekranlar zaten görünmez; sunucu her
   hâlde tek gerçek zorlayıcıdır.
 

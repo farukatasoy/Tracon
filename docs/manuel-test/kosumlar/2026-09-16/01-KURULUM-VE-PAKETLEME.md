@@ -2819,12 +2819,55 @@ Koşulduğunda **önce bu doğrulanmalı**, yoksa doğru davranış kusur sanıl
 
 ---
 
+**Yeniden koşum — 2026-09-19 (kapanış, §5(a) PKG) · ☑ GEÇTİ**
+
+Engel kalktı: `HATA-S1-007` kapandı, prova terfiye ulaşıyor, `release/` altında
+20 paket var (`1.0.0-preview.1`, commit `89f44ab3`).
+
+```
+$ unzip -p artifacts/package/release/Tracon.Core.1.0.0-preview.1.nupkg '*.nuspec' | grep releaseNotes
+    <releaseNotes>https://tracon.dev/reference/changelog/#v1.0.0-preview.1</releaseNotes>
+```
+
+**Case'in asıl konusu geçti.** Alan çözümlenmiş sürümü (`1.0.0-preview.1`)
+taşıyor; `v$(Version)` de boş sürüm de görünmüyor. `BeforeTargets="GenerateNuspec"`
+hedefi MinVer'den **sonra** değerlendiği için `$(Version)` dolu okunuyor.
+
+⚠️ **Turdaki uyarı doğru çıktı — beklenen değer bayattı.** Spec bir GitHub blob
+URL'i bekliyordu. Hedef Faz 162'de (`630f3212`) site sayfasına döndü; gerekçe
+`src/Directory.Build.props:120-137` yorumunda yazılı: *"a github.com URL would
+404 for every consumer while the repository is private."* Spec'in
+`Beklenen sonuç`'u koda göre düzeltildi (skill §1.1 istisnası). Kaydın 2026-09-16
+tarihli "koşulduğunda önce bu doğrulanmalı" notu bu oturumu doğrudan kurtardı —
+doğru davranış kusur sanılmadı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ## MT-PKG-105 — 20/20 paket `releaseNotes` alanını taşır
 
 **Gerçek sonuç**
 Koşulmadı — ön koşul `MT-PKG-101`, `HATA-S1-007` ile bloklu.
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+**Yeniden koşum — 2026-09-19 (kapanış, §5(a) PKG) · ☑ GEÇTİ**
+
+```
+$ for f in artifacts/package/release/*.nupkg; do
+    unzip -p "$f" '*.nuspec' | grep -q '<releaseNotes>' || echo "EKSIK: $f"
+  done
+(çıktı yok)
+$ ls artifacts/package/release/*.nupkg | wc -l
+      20
+```
+
+Hiçbir satır basılmadı: **20/20** paket alanı taşıyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2840,6 +2883,35 @@ değiştirmedi ve `staging/` `finally` bloğunda temizlendi.
 
 ---
 
+**Yeniden koşum — 2026-09-19 (kapanış, §5(a) PKG) · ☑ GEÇTİ**
+
+İki ardışık prova, aynı sürüm, temiz ağaç:
+
+| Koşum | Çıkış | `❌` satırı | `Tracon.Abstractions` SHA-256 |
+|---|---|---|---|
+| 1 | `0` | yok | `1933629e…56ce910` |
+| 2 | `0` | yok | `1933629e…56ce910` |
+
+İkincisi deterministik no-op: aynı SHA-256 promote edilmeden geçti.
+
+🚨 **Ön koşul eksikti ve ölçümü bir kez bozdu.** İlk denemede prova terfiden
+**sonra** sıfır olmayan çıkışla durdu — sebep `git` değil, `release/` altında
+§4.1'in bıraktığı 182 adet `0.0.0-preview.0.8xx` paketiydi:
+
+```
+❌ Extension sample contract ihlal edildi:
+  release feed contains stale Tracon packages: Tracon.0.0.0-preview.0.865.nupkg, …
+```
+
+Kapı haklı — bayat bir feed tüketiciye yanlış sürüm çözdürür. Ama case'in
+`Ön koşul`'u yalnız `git status --porcelain` boş diyordu. Spec'e ikinci ön koşul
+eklendi (skill §1.1 istisnası). **Ders: yayın provası çalışma ağacına olduğu
+kadar `release/` dizininin içeriğine de duyarlıdır.**
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ## MT-PKG-116 — Aynı kimlikte farklı içerik yayın koşumunu durdurur, mevcut artifact yerinde kalır
 
 **Gerçek sonuç**
@@ -2852,6 +2924,38 @@ dosyayı stage'le (`git add <dosya>`) ve reset'ten önce kayıtların commit'li
 olduğunu doğrula — aksi hâlde `--hard` yazılmamış sonuçları siler.
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
+**Yeniden koşum — 2026-09-19 (kapanış, §5(a) PKG) · ☑ GEÇTİ**
+
+🚨 **Case'in senaryosu KENDİLİĞİNDEN oluşmuştu — sentetik commit'e hiç gerek
+kalmadı.** `release/` altındaki paketler commit `4b28940f`'ten, `HEAD` ise
+`89f44ab3`'ten (K-831'in kod düzeltmesi, 04:40'ta indi; paketler 04:26–04:32'de
+üretilmişti). Yani "aynı sürüm iddiası, farklı içerik" durumu gerçek bir
+geliştirme olayı olarak zaten oradaydı. Kaydın `git add -A` uyarısı bu yüzden
+hiç devreye girmedi: **hiçbir commit atılmadı, hiçbir `--hard` reset koşulmadı.**
+
+Dört iddianın dördü de tuttu:
+
+| İddia | Sonuç |
+|---|---|
+| Sıfır olmayan çıkış | ☑ iki bağımsız koşumda da `1` |
+| "FARKLI içerikli bir artifact zaten var" mesajı | ☑ |
+| Mesaj `Tracon.Abstractions`'ı adlandırıyor | ☑ (38 dosyanın listesinde) |
+| İki `shasum` **aynı** değeri verir | ☑ `69a8297e…87b2ad7d` — iki koşumun öncesi ve sonrası |
+
+Dosyanın `mtime`'ı da hiç oynamadı (`Sep 19 04:26:22`): mevcut artifact gerçekten
+**yerinde kaldı**, üzerine yazılıp aynı içerikle geri getirilmedi.
+
+💡 **Neden 3 proje değişmişken 20 paketin hepsi "farklı" işaretlendi?** Aşırı
+raporlama değil: her `.nuspec` commit kimliğini taşıyor —
+`<repository … commit="89f44ab3dfcd49a6801d9de3c4343448fc2503f9" />`. Kimlik
+metadata'sı her commit'te değişir, dolayısıyla her paketin baytları da değişir.
+Doğru davranış. Buildin kendisi deterministiktir; MT-PKG-115 aynı commit'ten
+iki koşumda **birebir aynı** SHA-256'yı ölçtü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2872,4 +2976,30 @@ Koşulmadı — ön koşul `MT-PKG-115`, `HATA-S1-007` ile bloklu.
 |---|---|---|
 | MT-PKG-121 | Paket npmjs.com'da yayınlanmadı | Yayın sonrası npmjs.com'da lisans rozetinin `PolyForm-Small-Business-1.0.0` gösterdiği gözle doğrulanır |
 | MT-PKG-104 · 105 · 115 · 116 · 117 | `HATA-S1-007` — yayın provası terfi adımına gelemiyor | `CHANGELOG.md` / kapı düğümü Aşama 2'de çözülünce beşi birden koşulur |
+
+**Yeniden koşum — 2026-09-19 (kapanış, §5(a) PKG) · ☑ GEÇTİ**
+
+```
+$ python3 -c "import json; d=json.load(open('artifacts/package/release/package-manifest.json')); print(len(d['packages']), d['version'], d['dirty']); print(d['packages'][0])"
+20 1.0.0-preview.1 False
+{'id': 'Tracon', 'file': 'Tracon.1.0.0-preview.1.nupkg',
+ 'sha256': '7f66f0d4…022d6b4f', 'symbolsFile': None, 'symbolsSha256': None}
+```
+
+`20 1.0.0-preview.1 False` — beklenen satırın birebir kendisi. İlk kayıt `id`,
+`file`, `sha256` alanlarını taşıyor.
+
+Spec'in parantezi (*"kütüphane profilindeyse `symbolsFile`/`symbolsSha256` de
+dolu"*) ayrıca doğrulandı: **18** kayıtta ikisi de dolu, boş olan **iki** paket
+`Tracon` (metapaket) ve `Tracon.Templates` (şablon paketi) — ikisi de kütüphane
+profili değil, yani `None` doğru değer.
+
+```
+Tracon.Abstractions → symbolsFile: Tracon.Abstractions.1.0.0-preview.1.snupkg
+                      symbolsSha256: 3188ceed…eb6f3b77
+```
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
 
