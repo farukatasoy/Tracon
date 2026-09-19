@@ -774,6 +774,51 @@ koşumun kayıttaki semptomu yeniden üretilemedi)
 
 ---
 
+**Yeniden koşum — 2026-09-19 (kapanış, fixture canlı kuruldu) · ☑ GEÇTİ**
+
+Kapanışın "açık kalan" maddesi **ölçüldü ve kapandı.** `samples/Tracon.Api`'ye
+geçici `UseSkillScripts` eklendi (ölçüm sonrası **geri alındı**), `mt_z70`
+şeması, `SuccessSampleRatio=1`, gerçek OpenAI. Skill + script + grant + agent
+canlı kuruldu ve `merhaba` script'i onay kartlarından geçirilerek **gerçekten**
+çalıştırıldı:
+
+```
+functionResult: "exit_code: 0\nstdout:\nmerhaba-tracon\n\n"
+```
+
+`GET /api/runs/01a0b720-0cb6-73b2-8c08-ce3eb89ed142/trace`:
+
+```
+--- execute_skill_script | status = Ok
+     tracon.script.duration_ms = 53.0284
+     tracon.script.exit_code   = 0
+     tracon.script.name        = merhaba
+     tracon.skill.name         = scriptli-skill
+--- execute_tool run_skill_script | status = Unset     <- "Error" DEGIL
+```
+
+**Dört beklentinin dördü de karşılandı** ve turun iki semptomu da gitti:
+`exit_code`/`duration_ms` **var**, span durumu `Unset` değil **`Ok`**, ebeveyn
+span `Error` **değil**.
+
+🚨 **Kapanışın hipotezi doğrulandı.** 2026-09-19'un kısmi kapanışı "kayıt iki
+AYRI çağrıya bakmış olmalı; iki ad etiketiyle biten span, etiket satırına hiç
+ulaşmamış — yani bir kapının `TraconException` fırlattığı **reddedilen** bir
+koşumdur" diyordu. Başarılı koşum bugün ölçüldü ve **tam da beklendiği gibi**
+dört etiketi ve `Ok`'ı bıraktı. `HATA-S2-003` artık **tamamen** kapalıdır.
+
+⚠️ **Spec'in §6 kod parçası eksikti ve düzeltildi** (skill §1.1 istisnası).
+`UseSkillScripts` çağrısı yalnız `PlatformIsolationAcknowledged` ve
+`Interpreters` ayarlıyordu; **`AllowStoredScripts = true` yok**. O bayrak
+olmadan `TraconSkillsSource.CreateSkill` (`TraconSkillsSource.cs:81`) depodaki
+script'leri modele **hiç sunmuyor** ve `run_skill_script` `Error: Script
+'merhaba' not found in skill 'scriptli-skill'.` döndürüyor — kayıt DB'de
+dururken. Belirti yanıltıcıdır: skill API'si script'i gösterir, model göremez.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ## MT-SKILL-071 — (kapsam dışı, spec'in kendi notuyla koşulmadı)
 
 **Gerçek sonuç**

@@ -421,6 +421,8 @@ Regresyon artık `Removed` değil `Regressed` sınıfında ve CI kapısı onu
 `InsertEvalCase` SQL'i promosyon üçlüsünü hiç yazmıyordu. Tam anlatı
 kapanış planının Aile E bölümünde; kararlar K-801 · K-802.
 
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
 ## MT-CLI-030 — eval baseline, --json ile regresyon
 
 **Gerçek sonuç**

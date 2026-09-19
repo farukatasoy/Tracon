@@ -1063,6 +1063,48 @@ canlı bir örnekle kanıtlanamadı.
 
 ---
 
+**Yeniden koşum — 2026-09-19 (kapanış, Aile F sonrası) · ☑ GEÇTİ**
+
+`HATA-S3-006`'nın kapanışı ayarın kapalı olmasıydı; bu oturumda örnek
+uygulamanın kendi varsayılanı (`RecordReasoningDeltas: true`) yürürlükteydi ve
+**gerçek veri üretildi.** Önce `MT-UIRUN-048` koşuldu (gerçek Anthropic
+`claude-haiku-4-5-20251001`, `claude-thinking` agent'ı):
+
+```
+run 01a0b70e-276a-7ca1-83ad-a469eb48f0ab · 93 olay · sequence 0..92 boşluksuz
+RunStarted 1 · ReasoningDelta 60 · MessageDelta 31 · RunCompleted 1
+düşünme 357 karakter · yanıt 192 karakter
+```
+
+Arayüz `http://127.0.0.1:5199/tracon/runs/<id>` sayfasında tarayıcıyla açıldı.
+
+**Adım 1 — ☑.** Transkript panelinde yanıt metninin **ÜSTÜNDE** kapalı bir
+"Reasoning" bloğu var. Kapalıyken panelin metni yalnız yanıtı taşıyor:
+
+```
+Transcript
+Reasoning
+# 17 × 24 Hesaplaması ...
+```
+
+**Adım 2 — ☑.** Başlığa tıklayınca blok açıldı ve düşünme metni düz metin
+olarak göründü (`17 çarpı 24 işlemini adım adım çözelim. … Her iki yöntemde de
+aynı sonuca ulaştık: 408`); ikinci tıklamada yeniden gizlendi (DOM ile
+ölçüldü, `Yöntem 1` dizgisi kayboldu).
+
+⚠️ **Üçüncü beklenti bayattı ve spec düzeltildi** (skill §1.1 istisnası, ürün
+kusuru DEĞİL): satır `reasoning.delta`'nın mor (`--ap-violet`),
+`message.delta`'nın camgöbeği olduğunu söylüyordu. Ölçüm ikisinin de
+`rgb(115, 217, 194)` olduğunu gösterdi; kaynak bunun **bilinçli** olduğunu
+yazıyor (`run-detail.tsx:90-92`: `ReasoningDelta` ve `MessageDelta` ikisi de
+`tone: 'accent'`, çünkü ikisi de "model üretirken"dir). `--ap-*` değişkenleri
+zaten ürün adı değişiminde (`630f3212`) kalkmıştı. İki satır **etiket adıyla**
+ayrılıyor ve zaman çizelgesinde ayrı ayrı okunuyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ### MT-UIRUN-052
 
 **Gerçek sonuç**

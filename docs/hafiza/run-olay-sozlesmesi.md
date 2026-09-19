@@ -73,3 +73,31 @@ yolda da koşar; bir genişleme noktası yola göre sessizce farklı davranmamal
   (`ErrorFingerprint`'in kendi normalleştirmesi) ancak o kırmızı sayesinde
   görüldü. Kusur kaydı da, kapanış analizi de bu ikinci katmanı öngörmemişti.
 
+- **🚨 `StableIdentities` sınıflandırıcının İLK adımıdır ve altındaki her
+  deseni GÖLGELER** (2026-09-19, `MT-RES-089` canlı ölçümü, K-831 · K-832).
+  `upstream_error → ProviderError` eşlemesi eklendiğinde (K-816) normalleştirilen
+  **her** sağlayıcı hatası o satırda durur; `TimeoutPattern` ve
+  `RateLimitPattern` o trafiği hiç görmez. Ölçülen sonuç: gerçek bir sağlayıcı
+  zaman aşımı `Timeout` değil `ProviderError`, gerçek bir `429` `RateLimited`
+  değil `ProviderError`. **Kural:** sözlüğe geniş bir kimlik eklerken "bu kimlik
+  altında taksonominin DAHA ÖZGÜL bir kovası var mı?" diye sor; varsa daraltmayı
+  aynı anda yaz. Zaman aşımı daraltması kodlandı (K-831), `429` bilerek açık
+  bırakıldı (K-832).
+- **🚨 Sınıflandırıcı, kendisine ulaşmadan REDAKTE EDİLMİŞ bir metni okuyamaz**
+  (aynı vaka). `RunRecordingAgent.ToRunError` yabancı bir istisnanın mesajını
+  `SafeErrorText`'ten geçirir ve kayda `"<TipAdi> failed. (ref: …)"` yazar —
+  K-737'nin "iptal mi zaman aşımı mı" ayrımını taşıyan **kelimeler orada yok**.
+  ∴ mesaja bakan her desen normalleştirilmeyen yolda kördür ve
+  `CanceledTypePattern` tipte eşleşip `Canceled` verir. **Kural:** bir desen
+  `RunError.Message`'a bakıyorsa, o mesajın o noktaya hangi hâlde geldiğini
+  ÖLÇ — `SafeErrorText` ve `ProviderFailureNormalizer` ikisi de metni değiştirir.
+- **🚨 Sahtenin ŞEKLİ gerçeği taşımıyorsa test yeşil yalan söyler**
+  (aynı vaka). `ProviderTimeoutTests`'in sahtesi `TaskCanceledException`'ı
+  **doğrudan** atıyordu; `ShouldNormalize` her `OperationCanceledException`'ı
+  geçirdiği için o yol hiç normalleştirilmiyor ve üretimdeki yolu hiç
+  koşmuyordu. Gerçek SDK zaman aşımını `AggregateException("Retry failed after
+  N tries")` içinde sarmalar (şekil koşum günlüğünden alındı). Testin **adı**
+  `..._is_classified_as_a_timeout_...` olduğu hâlde gövdesi yalnız `Failed`'ı
+  iddia ediyordu, ∴ sınıf sessizce değişebildi. **Kural:** bir sağlayıcı
+  hatasını taklit eden sahte, istisnayı gerçek SDK'nın sardığı gibi sarmalı;
+  ve testin adı neyi iddia ediyorsa gövdesi onu ölçmeli.

@@ -1614,8 +1614,12 @@ doğrulandı.
   `ReasoningBlock`, `kind: 'reasoning'` öğesini render eder.
 - Adım 2: blok açılır, düşünme metni düz metin olarak görünür; kapatınca
   tekrar gizlenir.
-- Olay Zaman Çizelgesi'nde `reasoning.delta` satırları mor renkte
-  (`--ap-violet`), `message.delta`'dan (camgöbeği) AYRI görünür.
+- Olay Zaman Çizelgesi'nde `reasoning.delta` satırları `message.delta`'dan
+  **etiket adıyla** ayrılır, renkle değil. ⚠️ Bu satır 2026-09-19'a kadar mor
+  (`--ap-violet`) diyordu ve iki yönden bayattı: `--ap-*` değişkenleri ürün
+  adı değişiminde (`630f3212`) kalktı, ve ikisi **aynı** `accent` tonunu
+  bilerek paylaşır — `run-detail.tsx:90-92`'nin yorumu gerekçeyi yazıyor
+  ("still the model producing, so it shares the live accent with MessageDelta").
 
 ---
 

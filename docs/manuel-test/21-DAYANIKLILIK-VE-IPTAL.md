@@ -2143,6 +2143,11 @@ bu case'ler örnek uygulamada elle gözlem içindir.
 **Beklenen sonuç**
 - HTTP `502` + `application/problem+json`; **200 + boş gövde DEĞİL**.
 - `run.status` `Failed`, `errorClass` `Timeout`'tur; `Canceled` DEĞİLDİR.
+  🚨 Zaman aşımı gerçek SDK'da **sarmalanmış** gelir (`AggregateException`
+  içinde `TaskCanceledException`), normalleştiriciden geçer ve
+  `upstream_error` kimliğini alır. Sınıfı `Timeout` yapan şey, Tracon'un kendi
+  cümlesindeki `fault: 'TaskCanceledException'` adıdır (2026-09-19; öncesinde
+  `ProviderError` geliyordu).
 - Sağlayıcının ham istisna metni yanıtta GÖRÜNMEZ.
 - Agent'a bir fallback eklendiğinde aynı senaryo `200` döner ve
   `modelProvider` YANIT VEREN sağlayıcıdır.

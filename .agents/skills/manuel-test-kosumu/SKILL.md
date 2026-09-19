@@ -239,6 +239,7 @@ flowchart TD
 | Bir oturum bir aile bitirir. Aile ortasında bırakma. | Aile sınırı kesme noktasıdır; yarım aile sonraki oturumu yanıltır. |
 | Her aile **ayrı commit**. | Geri alınabilirlik (K-400..K-407 turunun yordamı). |
 | Eski `Gerçek sonuç` **silinmez**; altına `---` ve yeni koşum notu eklenir. | Kusurun tarihçesi en değerli bilgidir. |
+| 🚨 Yeniden koşum bloğu **kendi `Durum` satırını** taşır. | Sayım her case'in **son** `Durum` satırını alır. Blok düzyazıda “☑ GEÇTİ” dese bile, `Durum` satırı yoksa case eski işaretiyle sayılır. 2026-09-16 turunda üç case (`MT-CORE-044` · `045` · `MT-CLI-029`) bu yüzden `Kaldı` göründü — canlı koşulmuş oldukları hâlde. |
 | Kök neden düzeltilir, semptom değil. Aynı sınıfın diğer örnekleri taranır. | `kusur-giderme` skill'i — SINIF TARAMASI. |
 | Dört kapı kırmızıysa iş **bitmemiştir**. | `AGENTS.md`. |
 

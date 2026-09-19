@@ -1013,6 +1013,58 @@ tekrarlanır (kod okumasıyla doğrulandı, ikinci bir koşuma gerek kalmadı).
 
 ---
 
+**Yeniden koşum — 2026-09-19 (kapanış, Aile B sonrası) · ☑ GEÇTİ**
+
+İki gerçek worker süreci, tek şema (`mt_z86`), `LeaseDuration=00:00:20`,
+`PollInterval=00:00:00.250`, gerçek OpenAI (`gpt-5.4-mini`, ~5.700 token'lık
+bir roman isteği). Worker B (`pid 81537`) lease'ledi, `kill -9` ile öldürüldü.
+
+```
+03:39:14  Running | attempt 1 | leaseOwner …:81537…   <- B olu, lease dolmadi
+03:39:20  Running | attempt 1 | leaseOwner …:81537…   <- MT-RES-085 hala tutuyor
+03:39:26  Running | attempt 2 | leaseOwner …:81522…   <- A devraldi
+03:39:56  Completed | attempt 2
+```
+
+**Turun ÇELİŞKİSİ GİTTİ.** `GET /api/runs/{id}` artık `job` ile aynı şeyi
+söylüyor:
+
+```json
+"status": "Completed",
+"startedAt": "2026-09-19T00:39:21.697313+00:00",
+"completedAt": "2026-09-19T00:39:52.485284+00:00",
+"eventCount": 5,
+"usage": {"inputTokens": 77, "outputTokens": 5677, "totalTokens": 5754}
+```
+
+Tur bu run'ı sonsuza dek `Running` görüyordu, `completedAt` `NULL`'du ve
+`usage`/`cost` boştu.
+
+**`seq` sürüyor — `HATA-S3-004`'ün tam kanıtı.** `mt_z86.run_events`'te bu
+`run_id` için **beş** satır var, `seq` `0..4` **boşluksuz**:
+
+```
+ seq | type
+   0 |    0   <- B'nin RunStarted'i (olmeden once yazdi)
+   1 |    0   <- A'nin RunStarted'i: seq SIFIRDAN BASLAMADI
+   2 |    1
+   3 |    2
+   4 |    6
+```
+
+Turda bu tabloda **tek** satır vardı (`seq=0`) ve A'nın ilk yazımı
+`(run_id, 0)` birincil anahtarıyla çakışıp writer'ı kalıcı devre dışı
+bırakıyordu. `IRunStore.GetLastEventSequenceAsync` (K-…, Aile B) writer'a son
+`seq`'i okutuyor; A `1`'den devam etti.
+
+⚠️ `doneItems` iddiası bu koşumda ölçülmedi: `tracon.agent-run` job'u **batch
+değildir** (`totalItems: 0`), madde sayacı yalnız batch handler'larında
+anlamlıdır. Case'in asıl konusu olan devralma ve gözlemlenebilirlik ölçüldü.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ### MT-RES-087
 
 **Gerçek sonuç**
@@ -1074,6 +1126,126 @@ deseniyle aynı: mevcut `HATA-S1-020`'nin ek bir doğrulanmasıdır.
 
 **Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı — `HATA-S1-020`
 (yeni kayıt açılmadı, ek doğrulama).
+
+---
+
+**Yeniden koşum — 2026-09-19 (kapanış, Aile J sonrası) · 🟡 DÖRT BEKLENTİNİN
+ÜÇÜ GEÇTİ · `errorClass` KARAR BEKLİYOR**
+
+`Tracon__Providers__OpenAI__Endpoint=http://192.0.2.1:81/v1` (TEST-NET-1,
+garantili yönlendirilemez) · `Timeout=00:00:03` · `mt_z89` şeması.
+
+| Beklenti | Sonuç |
+|---|---|
+| `502` + `application/problem+json`, `200`+boş DEĞİL | ☑ |
+| `run.status` `Failed` | ☑ |
+| Sağlayıcının ham istisna metni yanıtta görünmez | ☑ |
+| Fallback eklenince `200` ve `modelProvider` YANIT VEREN | ☑ |
+| `errorClass` **`Timeout`** | ☒ — **`ProviderError`** geldi |
+
+```json
+"status": "Failed",
+"error": { "type": "upstream_error",
+           "message": "The model provider request failed. Provider: 'openai', fault: 'TaskCanceledException'.",
+           "class": "ProviderError",
+           "fingerprint": "63fb576e265c82d1d264c9f55c14802a9ef8c2aaefd5c4f9f42f04216d9f8580" }
+```
+
+Fallback yarısı ayrıca ölçüldü ve **tuttu**: aynı ölü uca bağlı bir agent'a
+`anthropic` fallback'i eklendiğinde istek `200` döndü, `status: Completed`,
+`modelProvider: anthropic`, `error: null`.
+
+🚨 **`Unknown` gitti ama `Timeout` gelmedi — ve nedeni ölçüldü.** Tur bu alanı
+`Unknown` görmüştü; `HATA-S1-020`'nin düzeltmesi (K-817) `StableIdentities`'e
+`upstream_error → ProviderError` satırını ekledi. O sözlük sınıflandırıcının
+**ilk** adımıdır (`DefaultRunErrorClassifier.cs:83`) ve `TimeoutPattern`
+kontrolünden (satır 102) **önce** çalışır. Normalleştiriciden geçen her
+sağlayıcı hatasının tipi `upstream_error` olduğu için, bu yolda `Timeout`
+sınıfına **hiçbir zaman** ulaşılamaz.
+
+🚨 **Otomatik test bunu göremiyor ve sebebi öğretici.**
+`FailureManifests.ProviderTimeoutTests`'in sahtesi (`TimingOutModelProvider`)
+`TaskCanceledException`'ı **doğrudan** fırlatır; `ShouldNormalize` bir
+`OperationCanceledException`'ı normalleştirmez, yani o yol `upstream_error`'a
+hiç girmez ve `TimeoutPattern` mesajı görür. Gerçek OpenAI SDK'sında zaman
+aşımı **sarmalanmış** gelir, `ShouldNormalize` dıştaki yabancı istisnayı
+görür ve normalleştirir. Testin adı `..._is_classified_as_a_timeout_...` ama
+gövdesi yalnız `Failed`'ı iddia ediyor — sınıfı hiç ölçmüyor, bu yüzden
+değişim sessiz kaldı. **Canlı koşum, otomatik testin sahtesinin gerçeği
+taşımadığı yeri gösterdi.**
+
+⚠️ **Case'in koruduğu regresyon GERİ GELMEDİ:** sınıf `Canceled` değil.
+Kaybolan şey "sağlayıcı hiç cevap vermedi" ile "sağlayıcı hata döndü"
+ayrımıdır. `fingerprint` ikisini hâlâ ayırıyor (mesaj `fault:` alanında
+farklı), yani kümeleme çalışıyor; kaba olan yalnız **sınıf**.
+
+👤 **KARAR ALINDI (2026-09-19): `Timeout` kazanır, kodlandı.** Gerekçe:
+K-737'nin ayrımı ("sağlayıcı hiç cevap vermedi") yeniden deneme ve alarm
+davranışını "sağlayıcı hata döndürdü"den farklı sürer.
+
+**Düzeltme.** `DefaultRunErrorClassifier.ClassifyCore`, `StableIdentities`
+eşleşmesi `ProviderError` olduğunda mesajı **bir kez** daraltıyor: normalleştirilmiş
+metin `fault: 'TimeoutException' | 'TaskCanceledException' |
+'OperationCanceledException'` taşıyorsa sınıf `Timeout` olur. Desen
+(`NormalizedTimeoutFaultPattern`) yalnız Tracon'un **kendi** cümlesine
+(`ProviderFailureNormalizer.DescribeUpstreamFailure`) dayanır; sağlayıcının
+metni oraya hiç girmez. `fault: '...'` çapası, sağlayıcı mesajında geçen bir
+"cancel" kelimesinin yanlışlıkla eşleşmesini engeller.
+
+⚠️ **Burada iptal edilmiş bir TİP zaman aşımı demektir** — sınıflandırıcının
+alt kısmındakinin **tersi**. Model çağrısı sınırında normalleştirici bir
+`OperationCanceledException`'ı **dokunmadan** geçirir
+(`ProviderFailureNormalizer.ShouldNormalize`), yani çağıranın durdurması hiçbir
+zaman `upstream_error` üretmez. Buraya kadar gelen bir iptal, sağlayıcının kendi
+HTTP yığınının kendi süresine karşı attığıdır.
+
+**Canlı doğrulama — ☑ GEÇTİ** (aynı ölü uç, `mt_z89b` şeması):
+
+```json
+HTTP 502  application/problem+json
+"status": "Failed",
+"error": { "type": "upstream_error",
+           "message": "The model provider request failed. Provider: 'openai', fault: 'TaskCanceledException'.",
+           "class": "Timeout",
+           "fingerprint": "63fb576e265c82d1d264c9f55c14802a9ef8c2aaefd5c4f9f42f04216d9f8580" }
+```
+
+Dört beklentinin **dördü de** karşılandı.
+
+**Testler.** `DefaultRunErrorClassifierTests`'e dört satır (iki zaman aşımı
+faultu `Timeout`; iki HTTP faultu **hâlâ** `ProviderError` — daraltma bir vakayı
+daraltır, eşlemeyi değiştirmez). `ProviderTimeoutTests`'e
+`A_timeout_the_sdk_wrapped_is_still_classified_as_a_timeout`: sahte sağlayıcı
+artık **gerçek şekli** taklit ediyor — `AggregateException("Retry failed after
+4 tries")` içinde `TaskCanceledException`. Şekil koşum günlüğünden alındı
+(`srv89.log:2042`), tahmin edilmedi. İlk yazdığım sahte `InvalidOperationException`
+ile sarmalıyordu ve test **yanlış sebeple** kırmızı kaldı: `ReadFaultType`
+yalnız `AggregateException` soyar, bu yüzden fault adı `InvalidOperationException`
+oluyordu. Gerçek SDK'nın retry hattı `AggregateException` atıyor.
+
+🚨 **SINIF TARAMASI İKİ VAKA DAHA BULDU — ikisi de bu turda KODLANMADI.**
+
+1. **Normalleştirilmiş `429` `RateLimited` değil `ProviderError` oluyor.**
+   Ölçüldü: `upstream_error` + `... (HTTP 429).` → `ProviderError`; `402` ve
+   `503` de aynı. `RateLimitPattern` `StableIdentities`'in **altında** olduğu
+   için hiç çalışmıyor — `Timeout` ile birebir aynı gölgeleme. Taksonomide
+   `RateLimited` kovası var ve geri çekilme davranışını sürer.
+2. 🚨 **Normalleştirilmeyen yolda durum daha kötü: sınıf `Canceled` geliyor.**
+   `ProviderTimeoutTests.Without_a_fallback_...`'ın sahtesi `TaskCanceledException`'ı
+   **doğrudan** atar; o yol normalleştirilmez, ama `RunRecordingAgent.ToRunError`
+   mesajı `SafeErrorText`'ten geçirir ve kayda `"TaskCanceledException failed.
+   (ref: …)"` yazar. K-737'nin dayandığı zaman aşımı **kelimeleri redakte
+   edilmiştir**, bu yüzden `TimeoutPattern` hiçbir şey görmez ve
+   `CanceledTypePattern` tipte eşleşip **`Canceled`** verir — `status` `Failed`
+   olduğu hâlde. Çağıranın durdurması buraya **ulaşamaz**
+   (`RunRecordingAgent.cs:309` onu `when (cancellationSource.IsCancellationRequested)`
+   ile ayırır), yani `Canceled` burada yanlıştır. Düzeltmek
+   `IRunErrorClassifier`'ın **provenance'ını göremediği** bir `RunError` için ne
+   vaat ettiğini değiştirir — bu bir karardır, kusur düzeltmesi değil.
+   Testte assertion **eklenmedi**; onun yerine o satıra bulgunun tam gerekçesi
+   yorum olarak yazıldı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 

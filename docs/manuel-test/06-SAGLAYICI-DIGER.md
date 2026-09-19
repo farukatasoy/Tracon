@@ -644,8 +644,9 @@ curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: applicati
 
 **Beklenen sonuç**
 - `valid` alanı `false`'tur, `code: invalid_setting`.
-- Mesaj `'anthropic.thinking.budgetTokens' sifirdan buyuk olmalidir. Gelen
-  deger: 0.` metnini taşır.
+- Mesaj `'anthropic.thinking.budgetTokens' must be greater than zero. Actual
+  value: 0.` metnini taşır, `path` alanı `model.providerSettings`'tir. Metin
+  İngilizce'dir (K-228); bu satır 2026-09-19'a kadar Türkçe yazılmıştı.
 
 ---
 
@@ -684,9 +685,10 @@ curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: applicati
 
 **Beklenen sonuç**
 - `valid` alanı `false`'tur, `code: invalid_setting`.
-- Mesaj `'google.thinking.budgetTokens' degeri [-1, 65535] araliginda olmalidir
-  (-1 modele birakir, 0 dusunmeyi kapatir). Gelen deger: 100000.` metnini
-  taşır.
+- Mesaj `'google.thinking.budgetTokens' must be in the [-1, 65535] range
+  (-1 leaves it to the model, 0 turns thinking off). Actual value: 100000.`
+  metnini taşır. Metin İngilizce'dir (K-228); bu satır 2026-09-19'a kadar
+  Türkçe yazılmıştı.
 
 ---
 
@@ -724,8 +726,9 @@ curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: applicati
 
 **Beklenen sonuç**
 - `valid` alanı `false`'tur, `code: invalid_setting`.
-- Mesaj `'google.safety.harassment' ayarinin degeri taninmiyor: 'COK_TEHLIKELI'.
-  Gecerli degerler:` ile başlar ve `HARM_BLOCK_THRESHOLD_UNSPECIFIED`,
+- Mesaj `'google.safety.harassment' has an unrecognized value: 'COK_TEHLIKELI'.
+  Valid values:` ile başlar (metin İngilizce'dir — K-228; bu satır 2026-09-19'a
+  kadar Türkçe yazılmıştı) ve `HARM_BLOCK_THRESHOLD_UNSPECIFIED`,
   `BLOCK_LOW_AND_ABOVE`, `BLOCK_MEDIUM_AND_ABOVE`, `BLOCK_ONLY_HIGH`,
   `BLOCK_NONE`, `OFF` değerlerinin tamamını listeler (**doküman
   düzeltmesi** — orijinal liste `HARM_BLOCK_THRESHOLD_UNSPECIFIED`'ı
