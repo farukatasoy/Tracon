@@ -2,13 +2,13 @@
 
 > **Durum:** ✅ Tamamlandı (2026-09-19)
 > **Plan onayı:** farukatasoy, 2026-09-19 (K1 · KG-034)
-> **Kaynak:** [YAYIN-HAZIRLIK.md](YAYIN-HAZIRLIK.md) §4 "🔴 1" · §13.0 **A-1**
+> **Kaynak:** [YAYIN-HAZIRLIK.md](../../YAYIN-HAZIRLIK.md) §4 "🔴 1" · §13.0 **A-1**
 > **Önkoşul:** Yok — K-639'un kapattığı kardeş vaka (`provider_name`) zaten sevk edildi ve şablon odur
 > **Paketler:** `Tracon.Abstractions`, `Tracon.Core`, `Tracon.AspNetCore`, `Tracon.Sql.Shared`, `Tracon.PostgreSql`, `Tracon.SqlServer`, `Tracon.Sqlite`, `Tracon.Testing.Contracts.Xunit`
 > **Yeni paket:** Yok · **Migration:** Gerekli — üç sağlayıcı için birer **guard** script'i; numaralar uygulama anında alınır
 > **Public API:** Büyüyor (bir statik metot) — `wc -l src/*/PublicAPI.Shipped.txt` ölçüldü: **boş olmayan 0 satır**, yani Faz 7'den önce ucuz
 > **Tüketici yüzeyi:** `docs-site/` — kiracı kimliği biçim kuralı bugün **hiçbir sayfada yok** (ölçüldü); `concepts/` altında bir kural bölümü açılır · sevk edilen: `AmbientTenantScope`, `ITenantContext`, `TraconTenancyOptions.AllowedTenants` XML'leri
-> **Manuel test alanı:** [`docs/manuel-test/13-KIRACI-VE-GUVENLIK.md`](manuel-test/13-KIRACI-VE-GUVENLIK.md)
+> **Manuel test alanı:** [`docs/manuel-test/13-KIRACI-VE-GUVENLIK.md`](../../manuel-test/13-KIRACI-VE-GUVENLIK.md)
 
 ---
 
@@ -30,14 +30,14 @@
    (`PublicAPI.Shipped.txt` boştur, yüzey Faz 7'ye kadar ucuzdur) · **K-178**
    (migration numaraları sağlayıcı başına **bağımsızdır**)
 3. Alan hafızası (bu faz üç alana dokunuyor):
-   [`hafiza/http-uc-guvenlik-ve-sozlesme.md`](hafiza/http-uc-guvenlik-ve-sozlesme.md)
+   [`hafiza/http-uc-guvenlik-ve-sozlesme.md`](../../hafiza/http-uc-guvenlik-ve-sozlesme.md)
    (kiracı çözümü ve uç güvenliği) ·
-   [`hafiza/sql-migration.md`](hafiza/sql-migration.md) (üç sağlayıcı için
+   [`hafiza/sql-migration.md`](../../hafiza/sql-migration.md) (üç sağlayıcı için
    migration yazımı) ·
-   [`hafiza/sql-server-tuzaklari.md`](hafiza/sql-server-tuzaklari.md)
+   [`hafiza/sql-server-tuzaklari.md`](../../hafiza/sql-server-tuzaklari.md)
    (🚨 collation — bu fazın ana tuzağı orada yaşıyor)
 4. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MIMARI-GUVENLIK.md`](MIMARI-GUVENLIK.md) — kiracı yalıtımı bölümü
+   [`MIMARI-GUVENLIK.md`](../../MIMARI-GUVENLIK.md) — kiracı yalıtımı bölümü
 5. Emsalin kendisi — **oku, kopyalama**:
    ```bash
    sed -n '19,60p' src/Tracon.Abstractions/Tenancy/TenantProviderBinding.cs
@@ -69,14 +69,14 @@ Böylece düz bir `=` yüklemi üç motorda da aynı davranır.
 | Kanıt | Gözlem |
 |---|---|
 | `grep -rn "TenantId" src/ \| grep -iE "ToLower\|Normaliz\|Canonical"` | **0 eşleşme.** Kiracı kimliği hiçbir yerde normalleştirilmiyor |
-| [`HttpTenantContext.cs:145`](../src/Tracon.AspNetCore/Tenancy/HttpTenantContext.cs#L145) | Biçim `^[a-zA-Z0-9_.-]+$` — **büyük harf serbest**, uzunluk ≤ 64 |
-| [`HttpTenantContext.cs:142`](../src/Tracon.AspNetCore/Tenancy/HttpTenantContext.cs#L142) | `AllowedTenants` üyeliği `StringComparer.Ordinal` ile ölçülüyor |
-| [`TraconEndpointFilter.cs:275`](../src/Tracon.AspNetCore/Security/TraconEndpointFilter.cs#L275) | Aynı allowlist ikinci kez, yine `StringComparer.Ordinal` |
+| [`HttpTenantContext.cs:145`](../../../src/Tracon.AspNetCore/Tenancy/HttpTenantContext.cs#L145) | Biçim `^[a-zA-Z0-9_.-]+$` — **büyük harf serbest**, uzunluk ≤ 64 |
+| [`HttpTenantContext.cs:142`](../../../src/Tracon.AspNetCore/Tenancy/HttpTenantContext.cs#L142) | `AllowedTenants` üyeliği `StringComparer.Ordinal` ile ölçülüyor |
+| [`TraconEndpointFilter.cs:275`](../../../src/Tracon.AspNetCore/Security/TraconEndpointFilter.cs#L275) | Aynı allowlist ikinci kez, yine `StringComparer.Ordinal` |
 | `grep -rn "Ordinal" src/ \| grep -ci tenant` | **116 satır** kiracı kimliğini `Ordinal` karşılaştırıyor — bu, kapatılacak sınıfın boyutudur |
 | SQL Server `tenant_id nvarchar(200)` sütunları | **Hiçbirinde `COLLATE` yok** ⇒ sunucu varsayılanı geçerli. Testlerin kullandığı imajda ölçüldü: `SQL_Latin1_General_CP1_CI_AS`; `'acme'` yazılan satır **`'Acme'` sorgusuna döndü** |
 | `CREATE TABLE` taraması (PostgreSQL) | **34 tablo** `tenant_id` taşıyor — migration kapsamı budur |
-| [`ModelProviderRegistry.cs:287`](../src/Tracon.Core/Models/ModelProviderRegistry.cs#L287) | `if (policy is not null)` — harf durumu kayması politika satırını **ıskalarsa** hiçbir egress kısıtı uygulanmaz |
-| [`TenantProviderBinding.cs:53`](../src/Tracon.Abstractions/Tenancy/TenantProviderBinding.cs#L53) | Emsal **sevk edilmiş durumda**: `NormalizeProviderName` public, `ToLowerInvariant()`, store iki yönde de uyguluyor |
+| [`ModelProviderRegistry.cs:287`](../../../src/Tracon.Core/Models/ModelProviderRegistry.cs#L287) | `if (policy is not null)` — harf durumu kayması politika satırını **ıskalarsa** hiçbir egress kısıtı uygulanmaz |
+| [`TenantProviderBinding.cs:53`](../../../src/Tracon.Abstractions/Tenancy/TenantProviderBinding.cs#L53) | Emsal **sevk edilmiş durumda**: `NormalizeProviderName` public, `ToLowerInvariant()`, store iki yönde de uyguluyor |
 | `wc -l src/*/PublicAPI.Shipped.txt` | Boş olmayan **0** satır — public yüzey eklemek bugün ucuz (K-603) |
 
 > Kanıtlar 2026-09-19 tarihinde doğrulandı.
@@ -309,19 +309,58 @@ metin kapısı olmadan bu faz kendi sınıfını üretir (K-483 sınıfı).
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] `X-Tenant-Id: Acme` ile yazılan `run`, `X-Tenant-Id: acme` ile listelenir (manuel case 1, çıktı belgeye yazıldı)
-- [ ] `AllowedTenants: ["acme"]` iken `X-Tenant-Id: ACME` **200**, `other` **403** döner
-- [ ] `TenantIsolationContract`'ın harf-kayması senaryosu **dört koşumda** yeşil
-- [ ] Üç guard migration'ı temiz veritabanında geçer, kanonik olmayan satırda **durur** — SQL Server case'i CI collation altında ölçüldü
-- [ ] `TenantParameterChokePointTests` yeşil; `Tracon.Sql.Shared` içinde normalleştirmeyen `tenant_id` parametresi **0**
-- [ ] `grep -rn "Ordinal" src/ | grep -ci tenant` sonucu **yeniden ölçüldü** ve kalan her satırın iki tarafının da kanonik olduğu gerekçelendi
-- [ ] Dört doğrulama kapısı sıfır uyarı verir
-- [ ] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı
-- [ ] `secret` taraması boş döndü
-- [ ] Manuel kabul case'leri `docs/manuel-test/13-KIRACI-VE-GUVENLIK.md` içine eklendi; otomatikleştirilebilenler koşuldu
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
-- [ ] `docs-site/` kiracı kimliği biçim ve harf duyarlılığı kuralını **yayımlıyor**; `npm run build` + `check-links.mjs` temiz
-- [ ] Egress fail-open kalemi `docs/ADAYLAR.md`'ye yazıldı
+- [x] `X-Tracon-Tenant: Acme` ile yazılan `run`, `acme` ile listelenir — **canlı ölçüldü**, çıktı aşağıda. (Başlık adı planda `X-Tenant-Id` yazılmıştı; sevk edilen ad `X-Tracon-Tenant`'tır)
+- [x] `AllowedTenants: ["acme"]` iken `ACME` **200**, `other` **403** döner — **canlı ölçüldü**, çıktı aşağıda
+- [x] `TenantIsolationContract`'ın harf-kayması senaryosu **dört koşumda** yeşil — sapma 6 gereği taban yerine iki fail-open sözleşmesinde
+- [x] Guard temiz veritabanında geçer, kanonik olmayan satırda **durur** — **üç sağlayıcının üçünde de** test var: SQL Server case'i CI collation altında (denetim 🔴 #1), SQLite, **ve PostgreSQL** (`TenantIdCaseGuardTests` ×3). PG'nin kendi katalog sorgusu da mutasyonla kanıtlandı
+- [x] `TenantParameterChokePointTests` yeşil; `Tracon.Sql.Shared` içinde normalleştirmeyen `tenant_id` parametresi **0** (tek adlandırılmış istisna: `SqlQueriesBase.cs:133` sütun tanımlayıcısı — sapma 5)
+- [x] `grep -rn "Ordinal" src/ | grep -ci tenant` **yeniden ölçüldü: 118 satır.** Tamamı kanonik-kanonik karşılaştırmadır: ezici çoğunluğu K-839'un kanonik girdi bekleyen bellek içi ailesi, kalanı `ChildAgentInvoker`'ın iki tarafı da runtime'dan gelen `scope.TenantId`/`_tenantContext.TenantId` karşılaştırması ve sözlük anahtarı sıralamaları
+- [x] Dört doğrulama kapısı sıfır uyarı verir
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı
+- [x] `secret` taraması boş döndü (`kapi.py tarama` ✅)
+- [x] Manuel kabul case'leri `docs/manuel-test/13-KIRACI-VE-GUVENLIK.md` içine eklendi (**MT-SEC-194…198**); otomatikleştirilen karşılığı `TenantIdCaseTests` koşuldu
+- [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı (ikisi de kapandı — Denetim Bulguları)
+- [x] `docs-site/` kiracı kimliği biçim ve harf duyarlılığı kuralını **yayımlıyor** (`concepts/governance.md` "What a tenant identifier may be"); `npm run check` temiz
+- [x] Egress fail-open kalemi `docs/ADAYLAR.md`'ye yazıldı (**F-254**)
+
+### Canlı koşum kanıtı (2026-09-19, `samples/Tracon.Api`, gerçek PostgreSQL)
+
+Kapanış iddiası kaynaktan değil **çalışan üründen** alındı. Üç ölçüm:
+
+**1 · Harf kayması aynı kiracıya çözülür.** `X-Tracon-Tenant: Acme` ile bir
+`run` yazıldı, `acme` ile listelendi:
+
+```
+POST /tracon/api/agents/support/run   X-Tracon-Tenant: Acme   -> HTTP 200
+  runId 01a0b9d7-a35e-7370-b51a-2b57e3a95541
+GET  /tracon/api/runs                 X-Tracon-Tenant: acme   -> HTTP 200
+  { "id": "01a0b9d7-…", "tenantId": "acme", "status": "Completed", "agentName": "support" }
+GET  /tracon/api/tenants/current      X-Tracon-Tenant: Acme   -> {"tenantId":"acme"}
+```
+
+Kiracı **reddedilmedi, normalleştirildi** — ve depoya kanonik hâliyle indi.
+
+**2 · Allowlist iki tarafta da harf duyarsızdır, ama genişlemez.**
+`AllowedTenants = ["acme"]` ile:
+
+```
+ACME  -> 200 {"tenantId":"acme"}      other -> 403 "Tenant rejected"
+Acme  -> 200 {"tenantId":"acme"}      OTHER -> 403 "Tenant rejected"
+acme  -> 200 {"tenantId":"acme"}
+```
+
+Fold, reddin kendisini zayıflatmıyor (K-382 yüzeyi).
+
+**3 · Guard gerçek bir PostgreSQL'de koştu.** Başlangıçta katalogdan **34
+tabloyu** okudu ve tek `UNION ALL` ile hepsini denetledi — elle yazılmış tablo
+listesi yok, K-838'in iddia ettiği davranış bu:
+
+```sql
+SELECT 'agent_definitions' AS offending_table WHERE EXISTS (
+  SELECT 1 FROM agentprism.agent_definitions
+   WHERE tenant_id IS NOT NULL AND tenant_id <> lower(tenant_id))
+UNION ALL SELECT 'agent_files' … (34 tablo)
+```
 
 ### Doğrulama komutları
 
@@ -407,6 +446,22 @@ bir sütun tanımlayıcısıdır, parametre bağlama değil. Kapı bugünkü ba�
 şekillerine daraltılmadı (o hâlde yarınki şekli kaçırırdı); tek bir adlandırılmış
 istisna eklendi.
 
+**7. PostgreSQL guard testi kapanışta eklendi — denetimin 🔴 #1'i ile aynı sınıf.**
+Kod donduktan sonra ölçüldü: guard'ın üç sağlayıcısından **ikisinin** testi
+vardı. `PostgresDialect` kendi `TenantIdTableCatalogSql`'ini override ediyor ve
+o override (diğer ikisinden farklı olarak `t.table_type = 'BASE TABLE'` filtresi
+taşır) **hiçbir testten geçmiyordu** — tam olarak denetimin SQL Server predicate'i
+için bulduğu şekil: katalog sorgusu boş dönerse guard temiz rapor verir ve hata
+**sessizdir**. `tests/Tracon.PostgreSql.IntegrationTests/TenantIdCaseGuardTests.cs`
+eklendi (2 case) ve mutasyonla kanıtlandı: katalog sorgusunun sütun adı
+bozulunca test **kırmızı yanıyor** (2/2 → 1/2). SQLite case'leri bunu
+karşılayamıyordu; onlar `pragma_table_info` üzerinden başka bir override'ı
+koşuyor.
+
+**8. Sevk edilen kiracı başlığının adı `X-Tracon-Tenant`.** Plan boyunca
+`X-Tenant-Id` yazılmıştı; bu plan metninin hatasıydı, ürünün değil. Manuel
+case'ler (MT-SEC-194…198) doğru adı taşıyor.
+
 ## Bu Fazda Verilen Kararlar
 
 | Karar | Ne |
@@ -461,6 +516,8 @@ tests/Tracon.Core.UnitTests/Tenancy/TenantIdNormalizationTests.cs        (15 cas
 tests/Tracon.Core.UnitTests/Architecture/TenantParameterChokePointTests.cs
 tests/Tracon.AspNetCore.FunctionalTests/TenantIdCaseTests.cs             (6 case)
 tests/Tracon.Sqlite.IntegrationTests/TenantIdCaseGuardTests.cs           (3 case)
+tests/Tracon.SqlServer.IntegrationTests/TenantIdCaseGuardTests.cs        (2 case, denetim 🔴 #1)
+tests/Tracon.PostgreSql.IntegrationTests/TenantIdCaseGuardTests.cs       (2 case, sapma 7)
 
 docs-site/src/content/docs/concepts/governance.md            (biçim + harf kuralı)
 docs-site/src/content/docs/getting-started/persistence.md    (guard uyarısı)
@@ -483,7 +540,7 @@ docs/manuel-test/13-KIRACI-VE-GUVENLIK.md                    (MT-SEC-194…198)
 
 `faz-denetim` taze bağlamlı `faz-denetcisi` ile koşuldu (2026-09-19). Denetçi
 ağaca yazmadı. **🔴 2 · 🟡 8 · 🟢 2.** İkisi de gerçek çıktı; on iki bulgunun
-onu düzeltildi, ikisi gerekçelendi. Kayıt: [KG-035](YAYIN-HAZIRLIK.md).
+onu düzeltildi, ikisi gerekçelendi. Kayıt: [KG-035](../../YAYIN-HAZIRLIK.md).
 
 ### 🔴 — ikisi de kapandı
 
@@ -503,8 +560,8 @@ bilinçlidir, gizlenmemiştir:
 
 | Bulgu | Neden kapsam dışı | Nereye gitti |
 |---|---|---|
-| 🟡 #9 — harf-kayması sözleşme senaryosu paylaşılan tabana değil iki türemiş sözleşmeye kondu | Taban sözleşme bellek içi store'lar üzerinde de koşuyor; K-839 gereği onların 30'u normalleştirmiyor, senaryoyu tabana koymak o 30 koşumu kırardı (sapma 6) | [**F-256**](ADAYLAR.md) |
-| Egress politikası satırı **yokken** hiçbir kısıt uygulanmaması | Fazın kapattığı şey tetikleyiciydi (harf kayması artık satırı ıskalamıyor); `policy is null ⇒ kısıt yok` ürünün belgelenmiş varsayılanıdır ve fail-closed yapmak ayrı bir ürün kararıdır (KG-034) | [**F-254**](ADAYLAR.md) |
+| 🟡 #9 — harf-kayması sözleşme senaryosu paylaşılan tabana değil iki türemiş sözleşmeye kondu | Taban sözleşme bellek içi store'lar üzerinde de koşuyor; K-839 gereği onların 30'u normalleştirmiyor, senaryoyu tabana koymak o 30 koşumu kırardı (sapma 6) | [**F-256**](../../ADAYLAR.md) |
+| Egress politikası satırı **yokken** hiçbir kısıt uygulanmaması | Fazın kapattığı şey tetikleyiciydi (harf kayması artık satırı ıskalamıyor); `policy is null ⇒ kısıt yok` ürünün belgelenmiş varsayılanıdır ve fail-closed yapmak ayrı bir ürün kararıdır (KG-034) | [**F-254**](../../ADAYLAR.md) |
 
 ## Sonraki Faza Devir Notu
 
