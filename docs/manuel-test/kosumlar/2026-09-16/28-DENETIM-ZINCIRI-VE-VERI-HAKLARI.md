@@ -66,133 +66,33 @@ bu oturumda taze koşuldu) üstünde bırakıldı.
 
 ---
 
-## MT-DVR-001 — Zincir yazımı: `prev_hash`/`hash` doğru doldurulur
+> ### ⚗️ Damıtılmış koşum kaydı
+> Geçen ve **hiçbir düzeltme/kusur işareti taşımayan** case'lerin
+> `Gerçek sonuç` blokları düştü — bir koşumun ortam çıktısı, koşum
+> bittiği anda değerini kaybeder. **Geçmeyen** ve **işaret taşıyan**
+> her case'in bloğu AYNEN durur. Tam metin — kopyala, çalıştır:
+>
+> ```bash
+> git show b9c706a5:docs/manuel-test/kosumlar/2026-09-16/28-DENETIM-ZINCIRI-VE-VERI-HAKLARI.md
+> ```
 
-**Gerçek sonuç**
-Ana uygulama UZUN SÜREDİR çalışıyor (bu turun diğer ailelerinden 48 önceki
-denetim kaydı birikmiş) — spec'in "audit_log boş" ön koşulu bu paylaşılan
-örnekte geçerli değil (destructive bir sıfırlama diğer kapanmış ailelerin
-kanıtlarını riske atacağından yapılmadı). İki `PUT /api/retention/run_events`
-(30 sonra 45) çağrıldı: `GET /api/audit?entity=retention:run_events` iki
-kayıt döndürdü, en yeninin `previousHash`'i eskinin `hash`'iyle **birebir
-eşit**. "En eski kaydın `previousHash: null`" iddiası bu FİLTRELENMİŞ
-görünümde değil, zincirin GERÇEK kökünde (`chain_seq=1`) doğrulandı: `SELECT
-... FROM mt_s4.audit_log WHERE chain_seq=1` → `prev_hash IS NULL: true`.
-Her `hash` tam **64** hex karakter (`length(hash)` ile doğrulandı — JSON'da
-görsel olarak 65 gibi göründü, SQL kesin saydı).
+---
 
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+## Temiz geçen case'ler (9)
 
-## MT-DVR-002 — `GET /api/audit/verify` boş zincirde ve dolu zincirde `Valid` döner
+| Case | Durum | Başlık |
+|---|---|---|
+| MT-DVR-001 | ☑ | Zincir yazımı: `prev_hash`/`hash` doğru doldurulur |
+| MT-DVR-002 | ☑ | `GET /api/audit/verify` boş zincirde ve dolu zincirde `Valid` döner |
+| MT-DVR-003 | ☑ | Elle değiştirilen bir satır `Broken` verir, ilk bozuk kaydın kimliğiyle |
+| MT-DVR-004 | ☑ | Elle silinen bir satır `Gap` verir |
+| MT-DVR-005 | ☑ | Eş zamanlı yazımda zincir tek dal kalır |
+| MT-DVR-006 | ☑ | Çözümleyici kayıtlı değilken export ve silme `409` döner |
+| MT-DVR-007 | ☑ | Kapsamsız anahtarla silme `403` döner |
+| MT-DVR-008 | ☑ | `dryRun` varsayılanı `true`: silme hiçbir satıra dokunmaz |
+| MT-DVR-009 | ☑ | Silme sonrası zincir hâlâ `Valid` — denetim izi dokunulmamış |
 
-**Gerçek sonuç**
-Dolu zincir: `{"status":"Valid","entriesChecked":49,"firstFailingEntryId":null}`.
-"Boş zincir" alt-iddiası bu paylaşılan/uzun-süredir-çalışan uygulamada
-yıkıcı bir sıfırlama olmadan test edilemedi (yöntem notu — MT-DVR-001'le
-aynı gerekçe); `AuditLogContract` sözleşme testleri (`InMemoryStoreContractTests`
-dahil) boş zincir durumunu ayrıca kapsıyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-DVR-003 — Elle değiştirilen bir satır `Broken` verir, ilk bozuk kaydın kimliğiyle
-
-**Gerçek sonuç**
-`mt_s4.audit_log`'da MT-DVR-001'in en yeni kaydının (`id:
-01a0b323-5ca0-742d-b2a9-e5a837eaaa7f`) `after` alanı doğrudan SQL ile
-`{"tampered":true}`'ya değiştirildi (hash yeniden hesaplanmadan). `GET
-/api/audit/verify`: `{"status":"Broken","entriesChecked":49,
-"firstFailingEntryId":"01a0b323-5ca0-742d-b2a9-e5a837eaaa7f"}` —
-`firstFailingEntryId` değiştirilen kaydın id'siyle **birebir eşit**.
-**Kalıcı yan etki:** bu tahrifat `mt_s4.audit_log` zincirini KALICI olarak
-`Broken` bırakır (spec'in kendi tasarladığı, geri alınamaz bir kanıt
-mekanizması — MT-DVR-002'nin ardından koşulan başka hiçbir case artık bu
-şemada `Valid` bir zincir GÖREMEZ; bu turda MT-DVR-003'ten sonra `verify`ye
-bakan tek case yoktu, ama gelecekteki bir oturum bunu bilmeli).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-DVR-004 — Elle silinen bir satır `Gap` verir
-
-**Gerçek sonuç**
-MT-DVR-003'ün `mt_s4`'ü kalıcı `Broken` bıraktığı fark edildiği için (Gap
-iddiası aksi hâlde hiç gözlenemezdi — walker ilk hatayı, en eski olanı,
-raporlar), ayrı bir `mt_s4_dvr_scratch` şemasında temiz bir zincir kuruldu:
-izole `TraconTestHost` ile 3× `PUT /api/retention/run_events` (10→20→30),
-`chain_seq` sırası SQL ile doğrulandı (1,2,3), **ortadaki** (`chain_seq=2`)
-kayıt `DELETE FROM ... WHERE chain_seq=2` ile silindi. Aynı host'un
-`GET /api/audit/verify`'ı: `{"status":"Gap","entriesChecked":2,
-"firstFailingEntryId":"01a0b327-07c8-...-0398cb8bc"}` — bu id silinenin
-**ARDINDAN gelen** (`chain_seq=3`) kaydın id'si, tam beklendiği gibi.
-Scratch şema koşum sonunda `DROP SCHEMA ... CASCADE` ile silindi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-DVR-005 — Eş zamanlı yazımda zincir tek dal kalır
-
-**Gerçek sonuç**
-Spec'in kendisi `curl`'ün pratik olmadığını, otomatik kanıtın yeterli
-kabul edildiğini söylüyor. `Concurrent_writes_for_one_tenant_produce_a_single_valid_chain`
-bu oturumda TAZE koşuldu, üç sağlayıcının hepsinde yeşil: PostgreSQL
-(1/1, kendi testcontainer'ı), SQL Server (1/1, kendi testcontainer'ı),
-SQLite (1/1).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-DVR-006 — Çözümleyici kayıtlı değilken export ve silme `409` döner
-
-**Gerçek sonuç**
-Ana uygulama (`IDataSubjectResolver` kayıtlı DEĞİL — varsayılan): `GET
-/api/data-subjects/user-42/export` → `409`; `DELETE
-/api/data-subjects/user-42` → `409`. Gövde: `{"title":"No data subject
-resolver registered","detail":"IDataSubjectResolver is not
-registered...register an IDataSubjectResolver implementation to use this
-endpoint."}`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-DVR-007 — Kapsamsız anahtarla silme `403` döner
-
-**Gerçek sonuç**
-`AgentsRead` kapsamlı bir API anahtarı üretildi (`POST /api/api-keys`),
-o anahtarla `DELETE /api/data-subjects/user-42`: `403`. Anahtar hemen
-iptal edildi (`DELETE /api/api-keys/{id}` → `204`). Otomatik kanıt da
-taze koşuldu: `DataSubjectEndpointTests` (fonksiyonel) **8/8** yeşil,
-`Missing_scope_gets_403` dahil.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-DVR-008 — `dryRun` varsayılanı `true`: silme hiçbir satıra dokunmaz
-
-**Gerçek sonuç**
-İzole `TraconTestHost` (`mt_s4_dvr_scratch` şeması, gerçek PostgreSQL),
-`subjectId → sessionId` eşleyen 5 satırlık bir `IDataSubjectResolver`
-(`ConfigureServices` — `AddTracon()`'dan ÖNCE, `services.AddSingleton`)
-kaydedildi. Adımlar:
-1. `dvr-agent` (fake sağlayıcı) `sessionId: mt-dvr-008-session` ile
-   çalıştırıldı — oturum oluştu.
-2. `GET /api/sessions/mt-dvr-008-session`: `200`, mesajlar dolu.
-3. `DELETE /api/data-subjects/mt-dvr-008-subject` (sorgu dizesi YOK):
-   `{"dryRun":true,"rowsByTarget":{"sessions":1,"conversations":1,
-   "runs":1,...}}`.
-4. `GET /api/sessions/mt-dvr-008-session`: **hâlâ `200`** — dry run hiçbir
-   satıra dokunmadı.
-5. `DELETE ...?dryRun=false`: `{"dryRun":false,"rowsByTarget":{"sessions":1,...}}`.
-6. `GET /api/sessions/mt-dvr-008-session`: **`404` "Session not found"**.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-DVR-009 — Silme sonrası zincir hâlâ `Valid` — denetim izi dokunulmamış
-
-**Gerçek sonuç**
-MT-DVR-008'in AYNI host'unda (adım 5'in hemen ardından):
-- `GET /api/audit/verify`: `{"status":"Valid","entriesChecked":1,
-  "firstFailingEntryId":null}` — gerçek silme `audit_log`'u bozmadı.
-- `GET /api/audit?entity=data-subject:mt-dvr-008-subject`: **tek** kayıt,
-  `action: "data_subject.erase"`, `after`: `{"subjectId":
-  "mt-dvr-008-subject","rowsByTarget":{"sessions":1,"conversations":1,
-  "runs":1,...}}` — `rowsByTarget.sessions: 1` beklenen alanı birebir var.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+## Ayrıntı taşıyan case'ler (1)
 
 ## MT-DVR-010 — Silme özet mesajları da kaldırır (K-107 istisnası)
 

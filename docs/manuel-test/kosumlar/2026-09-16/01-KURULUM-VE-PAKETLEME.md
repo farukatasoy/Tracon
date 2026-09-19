@@ -172,31 +172,68 @@ durmadı.
 
 ---
 
-## MT-PKG-001 — SDK sürümü ve roll-forward politikası
-
-**Gerçek sonuç**
-```
-dotnet --list-sdks -> 9.0.305 · 9.0.306 · 10.0.100
-dotnet --version   -> 10.0.100
-global.json        -> version 10.0.100 · rollForward latestFeature · allowPrerelease false
-```
-`10.0.1xx` bandında, önizleme eki yok.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+> ### ⚗️ Damıtılmış koşum kaydı
+> Geçen ve **hiçbir düzeltme/kusur işareti taşımayan** case'lerin
+> `Gerçek sonuç` blokları düştü — bir koşumun ortam çıktısı, koşum
+> bittiği anda değerini kaybeder. **Geçmeyen** ve **işaret taşıyan**
+> her case'in bloğu AYNEN durur. Tam metin — kopyala, çalıştır:
+>
+> ```bash
+> git show 1fc43e92:docs/manuel-test/kosumlar/2026-09-16/01-KURULUM-VE-PAKETLEME.md
+> ```
 
 ---
 
-## MT-PKG-002 — Node.js ve npm arayüz derlemesi için yeterli
+## Temiz geçen case'ler (44)
 
-**Gerçek sonuç**
-```
-node --version -> v22.23.2   (esik 20.19)
-npm  --version -> 10.9.8     (cikis kodu 0)
-```
+| Case | Durum | Başlık |
+|---|---|---|
+| MT-PKG-001 | ☑ | SDK sürümü ve roll-forward politikası |
+| MT-PKG-002 | ☑ | Node.js ve npm arayüz derlemesi için yeterli |
+| MT-PKG-012 | ☑ | Uyarı gerçekten hataya dönüşüyor |
+| MT-PKG-013 | ☑ | Senkronizasyon kopyası derlemeyi kırar, sessizce geçmez |
+| MT-PKG-014 | ☑ | Hızlı iç döngü arayüz zincirini atlar |
+| MT-PKG-024 | ☑ | Sembol paketi taşınabilir PDB taşır |
+| MT-PKG-025 | ☑ | Deterministik build: iki paketleme aynı derlemeyi üretir |
+| MT-PKG-026 | ☑ | Şablon paketi doğru biçimde kurulur |
+| MT-PKG-030 | ☑ | Meta paket yalnız altı bileşen getirir |
+| MT-PKG-031 | ☑ | Geçişli sabitleme kapalı: grafik kirlenmiyor |
+| MT-PKG-032 | ☑ | Önsürüm MAF paketleri yalnız `Tracon.AspNetCore`'da |
+| MT-PKG-033 | ☑ | Roslyn tüketicinin grafiğine sızmıyor |
+| MT-PKG-034 | ☑ | Ağır sağlayıcı zincirleri kendi paketlerinde kalıyor |
+| MT-PKG-042 | ☑ | `TRC0001`: aynı tool adı iki metotta |
+| MT-PKG-043 | ☑ | `TRC0002`: geçersiz karakterli tool adı |
+| MT-PKG-044 | ☑ | `TRC0003`: desteklenmeyen parametre tipi |
+| MT-PKG-045 | ☑ | `TRC0004`: generic metot tool olamaz |
+| MT-PKG-046 | ☑ | `TRC0005`: çağrı var, işaretli metot yok |
+| MT-PKG-047 | ☑ | `TRC0006`: açıklama eksik — hata değil, uyarı |
+| MT-PKG-048 | ☑ | `TRC0007`: örnek metot tool olamaz |
+| MT-PKG-060 | ☑ | AOT uyumlu paketler sıfır trim uyarısı verir |
+| MT-PKG-061 | ☑ | `AddToolsFrom` AOT bedelini çağırana iletiyor |
+| MT-PKG-073 | ☑ | Kalıcılık seçenekleri doğru paket ve kod üretiyor |
+| MT-PKG-074 | ☑ | Sağlayıcı seçenekleri doğru paket ve kod üretiyor |
+| MT-PKG-075 | ☑ | `--ui false` arayüzü hiç bağlamaz |
+| MT-PKG-076 | ☑ | Şablon sürüm sabitlemesi çalışıyor |
+| MT-PKG-080 | ☑ | Tüketicinin kaydı her zaman kazanır |
+| MT-PKG-082 | ☑ | İki kalıcılık sağlayıcısı aynı anda verilirse |
+| MT-PKG-090 | ☑ | Public API kapısı temiz ağaçta sıfır uyarı verir |
+| MT-PKG-091 | ☑ | Kayıtsız yeni bir public üye derlemeyi kırar |
+| MT-PKG-092 | ☑ | `PublicAPI.Unshipped.txt`'e eklenince kapı tekrar yeşil |
+| MT-PKG-093 | ☑ | Sadeleşen aşırı yüklemeler paketlenmiş tüketicide görünür ve çalışır |
+| MT-PKG-096 | ☑ | Takipsiz packable paket beyan kapısında yakalanır |
+| MT-PKG-100 | ☑ | Prova kapısı gerçekten yayının önündedir |
+| MT-PKG-108 | ☑ | Temiz ağaçta pack normal çalışır |
+| MT-PKG-109 | ☑ | Commit'siz bir değişiklik `TRACON0004` ile pack'i durdurur |
+| MT-PKG-110 | ☑ | Kirli ağaçta `dotnet build` etkilenmez |
+| MT-PKG-111 | ☑ | Yalnız untracked bir dosya da kapıyı tetikler |
+| MT-PKG-112 | ☑ | Override sürümsüz verilirse `TRACON0006` ister |
+| MT-PKG-113 | ☑ | Açık `dirty` sürümüyle override başarıyla paketler |
+| MT-PKG-118 | ☑ | Lisans matrisi: her paket tam olarak bir lisans dosyası taşır |
+| MT-PKG-119 | ☑ | Beyan edilen lisans ile paketlenen dosya aynı |
+| MT-PKG-120 | ☑ | PolyForm gövdesi kanonik metinden sapmamış |
+| MT-PKG-121 | ☑ | 👤 npm istemcisi NuGet ikiziyle aynı şartları taşır |
 
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
+## Ayrıntı taşıyan case'ler (37)
 
 ## MT-PKG-003 — Docker hazır ve `mssql/server` imajı arm64'te çekilebiliyor
 
@@ -435,67 +472,6 @@ aynı anda kırmızıdır. `git checkout --` sonrası `git status --short` **bo�
 
 ---
 
-## MT-PKG-012 — Uyarı gerçekten hataya dönüşüyor
-
-**Gerçek sonuç**
-```
-dotnet build src/Tracon.Core -c Release   (ManuelUyariTesti.cs varken) -> cikis 1
-  ManuelUyariTesti.cs(3,21): error CS1591: Missing XML comment for
-    publicly visible type or member 'ManuelUyariTesti'        [net8.0 · net9.0 · net10.0]
-  ManuelUyariTesti.cs(5,16): error CS1591: ... 'ManuelUyariTesti.Deger' [net8.0 · net9.0 · net10.0]
-  Build FAILED.
-
-rm + dotnet build src/Tracon.Core -c Release -> cikis 0
-  Build succeeded. 0 Warning(s) · 0 Error(s)
-```
-
-`CS1591` **error** olarak çıktı, `warning` olarak değil — üç TFM'in üçünde ve
-iki üyenin ikisinde de (6 tanı). `TreatWarningsAsErrors` muafiyetsiz çalışıyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PKG-013 — Senkronizasyon kopyası derlemeyi kırar, sessizce geçmez
-
-**Gerçek sonuç**
-```
-1) find src -name "* 2.*" -not -path "*/node_modules/*"   -> BOS
-2) cp TraconToolAttribute.cs "TraconToolAttribute 2.cs"
-3) dotnet build src/Tracon.Abstractions -c Release        -> cikis 1
-   TraconToolAttribute.cs(30,21): error CS0101: The namespace 'Tracon'
-     already contains a definition for 'TraconToolAttribute'  [net8.0 · net9.0 · net10.0]
-   Build FAILED.
-4) rm + find                                              -> BOS
-   dotnet build src/Tracon.Abstractions -c Release        -> cikis 0
-   Build succeeded. 0 Warning(s) · 0 Error(s)
-```
-
-Kopya **sessizce geçmedi**; derleme `CS0101` ile durdu. `git status --short`
-son adımdan sonra boş.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PKG-014 — Hızlı iç döngü arayüz zincirini atlar
-
-**Gerçek sonuç**
-```
-dotnet build Tracon.slnx -c Release -p:TraconFrontendEnabled=false
-  -> cikis 0 · 42 sn · Build succeeded · 0 Warning(s) · 0 Error(s)
-grep -Ei "npm ci|npm run build|arayuz derleniyor"
-  -> NPM ADIMI YOK - beklenen
-```
-
-Karşılaştırma: aynı worktree'de arayüz açıkken tam derleme 62 sn (MT-PKG-010),
-kapalıyken 42 sn. Bu bayrakla derlenen çıktıyla **E2E testi koşulmadı**;
-MT-PKG-015'in son adımı `src/Tracon.UI`'yi normal biçimde yeniden derledi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
 ## MT-PKG-015 — Arayüz varlığı yokken `pack` hata verir
 
 **Gerçek sonuç**
@@ -667,25 +643,6 @@ kayıp bir kısıt değil:
 
 ---
 
-## MT-PKG-024 — Sembol paketi taşınabilir PDB taşır
-
-**Gerçek sonuç**
-```
-unzip -l <scratch>/ap-pack/Tracon.Core.*.snupkg
-    5.876 B  Tracon.Core.nuspec
-  514.376 B  lib/net8.0/Tracon.Core.pdb
-  514.612 B  lib/net9.0/Tracon.Core.pdb
-  514.248 B  lib/net10.0/Tracon.Core.pdb
-
-uzanti: Tracon.Core.0.0.0-preview.0.789.snupkg   (.symbols.nupkg DEGIL)
-```
-
-Üç TFM için birer `.pdb`; uzantı `.snupkg`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
 ## MT-PKG-023 — nuspec üstverisi eksiksiz
 
 **Gerçek sonuç** — `Tracon.Core.0.0.0-preview.0.789.nuspec`
@@ -727,50 +684,6 @@ NuGet'in `license` elementi kullanıldığında otomatik yazdığı yer tutucudu
 
 ---
 
-## MT-PKG-025 — Deterministik build: iki paketleme aynı derlemeyi üretir
-
-**Gerçek sonuç**
-```
-1: 44956cd7e44ad45abb90053df1980f6145723ae518cd032badc82fba9435ac56
-2: 44956cd7e44ad45abb90053df1980f6145723ae518cd032badc82fba9435ac56
-AYNI
-```
-
-`artifacts/obj/Tracon.Abstractions` silindikten sonra yeniden paketlendi;
-`lib/net10.0/Tracon.Abstractions.dll` SHA-256 özeti **birebir aynı**. Gömülü
-mutlak yol veya zaman damgası yok.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PKG-026 — Şablon paketi doğru biçimde kurulur
-
-**Gerçek sonuç**
-```
-content/Tracon.Starter/.template.config/template.json        3.526 B
-content/Tracon.Starter/.template.config/dotnetcli.host.json    391 B
-content/Tracon.Starter/.gitignore                              145 B
-content/Tracon.Starter/Program.cs · appsettings.json · appsettings.Development.json
-content/Tracon.Starter/Properties/launchSettings.json · README.md
-content/Tracon.Starter/Tools/OrderTools.cs · Tracon.Starter.csproj
-
-"content/content/" eslesme sayisi : 0
-"lib/"            eslesme sayisi : 0
-
-nuspec:
-  <readme>README.md</readme>
-  <packageTypes><packageType name="Template" /></packageTypes>
-```
-
-Nokta ile başlayan iki yol (`.template.config/`, `.gitignore`) pakete
-**girmiş** — `NoDefaultExcludes` çalışıyor. Yollar tek katmanlı, `lib/` yok,
-paket tipi `Template`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
 ## MT-PKG-027 — Sürüm git etiketinden gelir
 
 **Gerçek sonuç**
@@ -806,116 +719,6 @@ sıkılaştırabilir.
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
-
-## MT-PKG-030 — Meta paket yalnız altı bileşen getirir
-
-**Gerçek sonuç** — `Tracon.nuspec` bağımlılıkları (tamamı):
-```
-Tracon.AspNetCore · Tracon.Mcp · Tracon.OpenAI
-Tracon.PostgreSql · Tracon.UI · Tracon.Workflows
-```
-
-Tam **altı**, beklenen altının aynısı. Görünmeyenler doğrulandı:
-`Tracon.SqlServer` · `Tracon.Sqlite` · `Tracon.Anthropic` · `Tracon.Google` ·
-`Tracon.Azure` · `Tracon.Voice` · `Tracon.Testing` · `Tracon.Templates`.
-
-📌 MT-PKG-020'de bulunan üç yeni paket (`Tracon.Cli`, `Tracon.Client`,
-`Tracon.Testing.Contracts.Xunit`) meta pakete **girmemiş** — K-185'in
-tasarım kuralı korunuyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PKG-031 — Geçişli sabitleme kapalı: grafik kirlenmiyor
-
-**Gerçek sonuç** (`net10.0` grubu)
-```
-Tracon.PostgreSql   -> 2 bagimlilik
-  Tracon.Core  0.0.0-preview.0.789
-  Npgsql       10.0.3
-Tracon.Abstractions -> 2 bagimlilik
-  Microsoft.Agents.AI.Abstractions      1.20.0
-  Microsoft.Extensions.AI.Abstractions  10.9.0
-```
-
-İkisi de **2**. `CentralPackageTransitivePinningEnabled=true` olsaydı
-`Tracon.PostgreSql` 13 bildirirdi. `OpenTelemetry.Api`, `OpenAI` gibi geçişli
-paketler hiçbirinde görünmüyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PKG-032 — Önsürüm MAF paketleri yalnız `Tracon.AspNetCore`'da
-
-**Gerçek sonuç** — 20 paketin tamamı tarandı, çıkan **her** satır:
-```
-Tracon.AspNetCore : A2A.AspNetCore                         1.0.0-preview2
-Tracon.AspNetCore : Microsoft.Agents.AI.Hosting            1.20.0-preview.260831.1
-Tracon.AspNetCore : Microsoft.Agents.AI.Hosting.A2A        1.20.0-preview.260831.1
-Tracon.AspNetCore : Microsoft.Agents.AI.Hosting.AspNetCore 1.20.0-preview.260831.1
-Tracon.AspNetCore : Microsoft.Agents.AI.Hosting.OpenAI     1.20.0-alpha.260831.1
-```
-
-Beş satırın beşi de `Tracon.AspNetCore` ile başlıyor. `Tracon.Core`,
-`Tracon.Abstractions`, `Tracon.PostgreSql`, `Tracon.OpenAI` hiçbir satırda yok.
-Beklenen beş önsürüm paketinin beşi de listede. K-008 sınırı tutuyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PKG-033 — Roslyn tüketicinin grafiğine sızmıyor
-
-**Gerçek sonuç**
-```
-(hicbir BULGU satiri yok)
-tarama bitti
-```
-
-20 paketin nuspec'inde `CodeAnalysis` geçen **tek** satır yok.
-`Microsoft.CodeAnalysis.CSharp` hiçbir pakette bağımlılık olarak bildirilmiyor
-— üreteç `analyzers/dotnet/cs/` altında taşınıyor (MT-PKG-021), bağımlılık
-olarak değil. K-348 · K-349 tutuyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PKG-034 — Ağır sağlayıcı zincirleri kendi paketlerinde kalıyor
-
-**Gerçek sonuç** — 20 paket tarandı, çıkan **tüm** satırlar:
-```
-Tracon.Anthropic  : Anthropic                    12.39.0
-Tracon.Google     : Google.GenAI                  1.16.0
-Tracon.OpenAI     : OpenAI                        2.12.0
-Tracon.PostgreSql : Npgsql                        10.0.3
-Tracon.SqlServer  : Microsoft.Data.SqlClient       7.0.2
-```
-
-Her sağlayıcı SDK'sı **tam olarak bir** pakette. Meta pakette hiçbiri yok
-(MT-PKG-030'un altı satırında görülebilir). K-205 tutuyor: Gemini
-kullanmayan tüketici `Google.Apis.Auth` → `Newtonsoft.Json` →
-`System.Management` zincirini almıyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-> ### 🔧 Bölüm ön koşulu bu turda GERİ GETİRİLDİ
-> `MT-PKG-040`..`050` (ve `060`, `061`) "Bölüm ön koşulu uygulandı" diyor ama
-> o ön koşul spec'te **yoktu** — `946a37fb` ("faz 58") bölüm başlıklarıyla
-> birlikte onu da düşürmüş, koşum kaydında bırakmıştı. Sekiz case koşulamaz
-> durumdaydı. Blok git'ten çözülüp bugünkü adlara çevrildi ve spec'e
-> `## Üreteç bölümünün ön koşulu` başlığıyla geri kondu (bölüm **başlığı**
-> eklenmedi — kullanıcı kararı gereği bölme noktası onluk bloktur).
-> Ölçüm: setin geri kalanında tanımsız referans **yok** (yalnız bu dosya, 8 ref).
->
-> Uygulanan ön koşul: `~/tracon-manuel/uretec` konsol projesi, `nuget.config`
-> yalnız nuget.org + yerel paket dizini, `Tracon.Core 0.0.0-preview.0.789`
-> **doğrudan** `PackageReference`. Sapma: yerel dizin `/tmp/ap-pack` yerine
-> oturumun scratchpad'i.
 
 ## MT-PKG-040 — Üreteç işaretli statik metodu kaydeder
 
@@ -1001,169 +804,6 @@ komut üretilen **tüm** `.g.cs` dosyalarını tarar, yalnız birini değil.
 
 ---
 
-## MT-PKG-042 — `TRC0001`: aynı tool adı iki metotta
-
-**Gerçek sonuç**
-```
-dotnet build -c Release -> cikis 1 (Build FAILED)
-
-Hata.cs(6,26): error TRC0001: Tool name 'ayni_ad' is used on more than one
-  method: global::CakisanTools.Bir, global::CakisanTools.Iki. Each tool name
-  must be unique within the compilation.
-  (https://tracon.dev/capabilities/#tools-skills-and-context)
-Hata.cs(9,26): error TRC0001: (ayni mesaj)
-```
-
-Dört iddianın dördü de tuttu:
-- Derleme **başarısız** ✅
-- `TRC0001` **error** olarak çıktı (uyarı değil) ✅
-- Mesaj `ayni_ad` adını **ve iki metodu birden** listeliyor
-  (`CakisanTools.Bir, CakisanTools.Iki`) ✅
-- Tanı **iki ayrı konumda** bildirildi: `(6,26)` ve `(9,26)` ✅
-
-Son kayıt sessizce kazanmıyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PKG-043 — `TRC0002`: geçersiz karakterli tool adı
-
-**Gerçek sonuç**
-```
-1. derleme (3 gecersiz ad) -> cikis 1
-   TRC0002 essiz tani sayisi: 3   (ham satir sayisi 6 - her tani iki kez basiliyor)
-   'KotuAdTools.A' -> 'get order'  (bosluk)
-   'KotuAdTools.B' -> 'get.order'  (nokta)
-   'KotuAdTools.C' -> 65 karakterlik ad
-   Mesaj: "A tool name must be 1-64 characters and contain only letters,
-           digits, '_', or '-'."
-2. derleme (64 karakter) -> cikis 0 · TRC0002 sayisi 0
-```
-
-Üç iddia da tuttu: 3 tanı, 64 karakter geçerli, mesaj **hem metot adını hem
-geçersiz tool adını** taşıyor.
-
-📌 **Sayım nüansı.** Spec `grep -c "TRC0002"` diyor ve "3" bekliyor; ham sayım
-**6** verir çünkü her tanı iki kez basılıyor. Eşsiz tanı sayısı 3'tür. Spec'e
-dokunulmadı — iddia (üç geçersiz ad, üç tanı) doğru; ölçen komut gevşek.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PKG-044 — `TRC0003`: desteklenmeyen parametre tipi
-
-**Gerçek sonuç**
-```
-1. derleme (internal record parametre) -> cikis 1
-error TRC0003: Parameter 'siparis' (type 'Siparis') of method
-  'BilesikTools.SiparisVer' is not supported by the generator. Supported types:
-  primitive types, string, Guid, DateTime(Offset), enum, arrays/IReadOnlyList<T>
-  of these, CancellationToken, and a supported object - a public record or class
-  with a single public constructor, up to 3 nested object levels deep
-  (see TRC0011, TRC0012). For another type, register manually with
-  'AddTool(AIFunctionFactory.Create(...))'.
-
-2. derleme (14 parametreli beyaz liste) -> cikis 0 · TRC0003 sayisi 0
-```
-
-Dört iddia da tuttu: 1. derleme düştü, mesaj desteklenen tipleri **listeliyor**,
-`AddTool(AIFunctionFactory.Create(...))` kaçış yolunu **gösteriyor**, 2. derleme
-temiz ve `CancellationToken` bir tool parametresi olarak **kabul edildi**.
-
-📌 **Case'in gerekçe metni bayat, iddiası değil.** Spec başlığında "Beyaz liste
-`record`/`class` tiplerini **kapsamaz**; bu bilinçli bir sınırdır" yazıyor.
-Tanının kendi metni artık bunun tersini söylüyor: *public* record/class **tek**
-public kurucuyla, 3 seviye derinliğe kadar **destekleniyor** (TRC0011 · TRC0012
-sonradan eklenmiş). Case yine de geçiyor çünkü fixture `internal sealed record`
-kullanıyor — `internal` olduğu için reddediliyor. Spec'e dokunulmadı; gerekçe
-cümlesinin tazelenmesi kapanış oturumunun işidir.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PKG-045 — `TRC0004`: generic metot tool olamaz
-
-**Gerçek sonuç**
-```
-dotnet build -c Release -> cikis 1
-error TRC0004: Method 'GenericTools.Getir' is marked with [TraconTool] but is
-  generic. Tool methods cannot be generic; write a concrete wrapper method.
-```
-
-`error` seviyesinde ve mesaj **somut bir sarmalayıcı metot** yazmayı öneriyor.
-Eskiden çalışma anında çıkan hata artık derleme anında yakalanıyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PKG-046 — `TRC0005`: çağrı var, işaretli metot yok
-
-**Gerçek sonuç**
-```
-Tools.cs tasindi; Program.cs -> services.AddTracon().AddGeneratedTools();
-dotnet build -c Release -> cikis 1
-error TRC0005: 'AddGeneratedTools()' was called, but this compilation has no
-  method marked with [TraconTool]. Mark tool methods, or remove this call.
-
-baska derleme hatasi (CS****): YOK
-Tools.cs geri konuldu -> cikis 0 · TRC0005 sayisi 0
-```
-
-Üç iddia da tuttu: derleme düştü, `TRC0005` **error**, mesaj **iki çözüm**
-öneriyor (metotları işaretle **veya** çağrıyı kaldır). Sessiz atlama yok.
-Başka bir derleme hatası tanıyı gölgelemedi.
-
-**Sapma:** `Tools.cs` yedeği `/tmp` yerine scratchpad'e alındı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PKG-047 — `TRC0006`: açıklama eksik — hata değil, uyarı
-
-**Gerçek sonuç**
-```
-1. derleme -> cikis 0  (BASARILI)
-warning TRC0006: Tool 'aciklamasiz' has no description. The model cannot know
-  when to call the tool without one; give a description for [TraconTool].
-
-dotnet build -p:NoWarn=TRC0006 -> cikis 0 · TRC0006 sayisi 0
-```
-
-Üç iddia da tuttu: `TRC0006` **warning** seviyesinde, tüketicinin derlemesi
-**kırılmadı** (çıkış 0), ve `NoWarn` ile tamamen bastırılabiliyor. Kütüphane
-tüketicinin derlemesini kırma hakkını dikkatli kullanıyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PKG-048 — `TRC0007`: örnek metot tool olamaz
-
-**Gerçek sonuç**
-```
-1. derleme (instance metot) -> cikis 1
-error TRC0007: 'OrnekTools.Getir' is an instance method and cannot be a tool.
-  MAF passes an empty provider as AIFunctionArguments.Services (decision K-218).
-  Make the method 'static', or instantiate the tool at setup time and register
-  it with 'AddTool(AIFunctionFactory.Create(...))'.
-
-static yapildi -> cikis 0 · TRC0007 sayisi 0
-```
-
-Üç iddia da tuttu: derleme düştü, mesaj **K-218'e açıkça atıf yapıyor**
-("decision K-218"), ve **iki çözüm** gösteriyor (`static` yap **veya** kurulum
-anında örnekleyip `AddTool(AIFunctionFactory.Create(...))` ile kaydet).
-Eskiden sessizce bozuk olan yol artık derleme anında duruyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
 ## MT-PKG-049 — İşaretsiz metot sessizce tool olmaz
 
 **Gerçek sonuç**
@@ -1217,57 +857,6 @@ tüketici yansımasız yolu kullanabiliyor. MT-PKG-021 ile birlikte okunduğunda
 
 📌 Tek uyarı yine `TRC0009` (`meta_tool`'un `id` parametresinde
 `[Description]` yok) — case sıfır uyarı iddia etmiyor, kusur değil.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PKG-060 — AOT uyumlu paketler sıfır trim uyarısı verir
-
-**Gerçek sonuç**
-```
-dotnet publish -c Release -r osx-arm64 -p:PublishAot=true -> cikis 0
-  Generating native code
-  uretec -> .../bin/Release/net10.0/osx-arm64/publish/
-
-IL2xxx / IL3xxx sayisi: 0
-
-./bin/Release/net10.0/osx-arm64/publish/uretec
-  -> "kayit tamam"   (calisma cikis 0)
-```
-
-Üç iddia da tuttu: sıfır trim/AOT uyarısı, yayınlama başarılı, üretilen
-**yerel ikili çalıştı** ve beklenen çıktıyı verdi. Üretilen tool kaydı AOT
-altında ayakta kalıyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PKG-061 — `AddToolsFrom` AOT bedelini çağırana iletiyor
-
-**Gerçek sonuç**
-```
-dotnet publish -c Release -r osx-arm64 -p:PublishAot=true -> cikis 0
-
-Program.cs(5): AOT analysis warning IL3050: Using member
-  'Tracon.ITraconBuilder.AddToolsFrom(Type)' which has
-  'RequiresDynamicCodeAttribute' can break functionality when AOT compiling.
-  Tool scanning may require code generation at runtime.
-
-Program.cs(5): Trim analysis warning IL2026: Using member
-  'Tracon.ITraconBuilder.AddToolsFrom(Type)' which has
-  'RequiresUnreferencedCodeAttribute' can break functionality when trimming
-  application code. Tool scanning uses reflection; method information may be
-  lost in trimmed applications.
-
-toplam IL2026/IL3050 satiri: 4  (iki essiz tani, her biri iki kez)
-```
-
-İki iddia da tuttu: uyarı **çıktı** (bastırılmamış) ve hem
-`RequiresUnreferencedCode` hem `RequiresDynamicCode` gerekçesini **adıyla**
-taşıyor. Yansıma yolu meşru bir kaçış kapısı olarak duruyor ama bedeli
-çağırana iletiliyor — MT-PKG-060'ın sıfır uyarısıyla karşıtlığı tam.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -1637,92 +1226,6 @@ anlaşılır bir başlangıç hatası).
 
 ---
 
-## MT-PKG-073 — Kalıcılık seçenekleri doğru paket ve kod üretiyor
-
-**Gerçek sonuç**
-
-| Varyant | csproj paketleri | `Program.cs` | `appsettings.json` | `#if` | build |
-|---|---|---|---|---|---|
-| `postgres` | yalnız `Tracon` | `tracon.UsePostgreSql(postgreSql);` | yalnız `"PostgreSql"` | yok | ☑ |
-| `sqlite` | `Tracon` + `Tracon.Sqlite` | `tracon.UseSqlite(sqlite);` | yalnız `"Sqlite"` | yok | ☑ |
-| `sqlserver` | `Tracon` + `Tracon.SqlServer` | `tracon.UseSqlServer(sqlServer);` | yalnız `"SqlServer"` | yok | ☑ |
-
-Altı iddia da tuttu: `postgres` ek paket **almıyor** (PostgreSQL meta pakete
-dâhil, MT-PKG-030 ile tutarlı), diğer ikisi kendi paketini ekliyor, her
-varyantın `appsettings.json`'ı yalnız **kendi** sağlayıcısının bölümünü taşıyor,
-hiçbirinde `#if` / `//#if` kalıntısı yok ve üçü de derleniyor. Üçünde de
-`ConnectionString` değeri boş dize.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PKG-074 — Sağlayıcı seçenekleri doğru paket ve kod üretiyor
-
-**Gerçek sonuç**
-
-| Varyant | Ek paket | `Program.cs` | build |
-|---|---|---|---|
-| `openai` | **yok** (meta paketten) | `tracon.UseOpenAI(openAi);` | ☑ |
-| `anthropic` | `Tracon.Anthropic` | `tracon.UseAnthropic(anthropic);` | ☑ |
-| `google` | `Tracon.Google` | `tracon.UseGoogle(google);` | ☑ |
-| `azure` | `Tracon.Azure` | `tracon.UseAzureOpenAI(azureOpenAI);` | ☑ |
-
-Dört iddia da tuttu. Her varyant **tek bir** `Use*` çağrısı taşıyor ve dördü de
-derleniyor. Azure varyantının derlenmesi **kimlik bilgisi istemedi** — case'in
-kapsamı üretim ve derleme; gerçek Azure `run`'ı `06-SAGLAYICI-DIGER.md`'de
-atlanır (Azure kimliği yok).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PKG-075 — `--ui false` arayüzü hiç bağlamaz
-
-**Gerçek sonuç**
-```
-dotnet new tracon-api --ui false   -> cikis 0
-grep -c "UseUI" Program.cs         -> 0
-csproj                             -> yalniz <PackageReference Include="Tracon" />
-dotnet build -c Release            -> cikis 0
-
-meta   : 200
-arayuz : 404
-logda arayuzle ilgili hata: yok
-```
-
-Dört iddia da tuttu: `UseUI` çağrısı üretilmedi, HTTP API **çalışmaya devam
-etti** (200), arayüz kökü 404 döndü ve uygulama çökmedi. Arayüz istemeyen
-tüketici için kontrol düzlemi ayakta kalıyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PKG-076 — Şablon sürüm sabitlemesi çalışıyor
-
-**Gerçek sonuç**
-```
-1) dotnet new tracon-api --skip-restore  -> cikis 0
-   csproj: <PackageReference Include="Tracon" Version="*-*" />
-   TRACON_TEMPLATE_PACKAGE_VERSION yer tutucusu: 0 kez (kalmamis)
-   ciktida "Restor" gecen satir: 0  (--skip-restore gercekten atladi)
-
-2) dotnet new tracon-api --TraconVersion 99.99.99 --skip-restore
-   dotnet restore -> cikis 1
-   NU1102: Unable to find package Tracon with version (>= 99.99.99)
-   NU1102:   - Found 0 version(s) in nuget.org
-   NU1102:   - Found 1 version(s) in ap-yerel [ Nearest version: 0.0.0-preview.0.789 ]
-```
-
-Üç iddia da tuttu. Hata mesajı hem paket adını (`Tracon`) hem istenen sürümü
-(`99.99.99`) açıkça yazıyor **ve** en yakın mevcut sürümü gösteriyor —
-beklenenden iyi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
 ## MT-PKG-077 — Şablon `secret` sızdırmıyor
 
 **Gerçek sonuç**
@@ -1757,27 +1260,6 @@ genişletildi.
 
 ---
 
-## MT-PKG-080 — Tüketicinin kaydı her zaman kazanır
-
-**Gerçek sonuç**
-```
-BenimRunStore.cs -> IRunStore'un 15 uyesi de NotSupportedException ile uygulandi
-  (imzalar src/Tracon.Abstractions/Runs/IRunStore.cs'ten birebir cikarildi)
-
-dotnet run -c Release -> cikis 0
-once:  BenimRunStore
-sonra: BenimRunStore
-```
-
-İki iddia da tuttu. Tüketicinin kaydı **Tracon'den önce** yapıldığında Tracon
-onu ezmedi (`TryAdd*` sözleşmesi), **sonra** yapıldığında son kayıt kazandı.
-Hiçbir adımda istisna atılmadı. Kütüphane tüketicinin kararını her iki sırada
-da koruyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
 ## MT-PKG-081 — Hiçbir `Use*` çağrılmadan kurulum ayakta kalır
 
 **Gerçek sonuç**
@@ -1796,132 +1278,6 @@ Beş iddia da tuttu ve 2026-08-15'te düzeltilen tip adlarının üçü de bireb
 `IToolRegistry` `InMemory` öneki taşımıyor. Tasarım kuralı #1'in tek doğrudan
 testi: hiçbir `Use*` çağrılmadan çekirdek servisler çözümlendi, hiçbir bağlantı
 denenmedi, hiçbir uyarı loglanmadı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PKG-082 — İki kalıcılık sağlayıcısı aynı anda verilirse
-
-**Gerçek sonuç**
-```
-Program.cs:22  tracon.UseSqlite(sqlite);
-Program.cs:29  tracon.UsePostgreSql(postgreSql);      <- SON cagri
-build cikis: 0
-
-GET /tracon/api/meta
-  "storage": { "persistent": true,
-               "agentDefinitionStore": "SqlAgentDefinitionStore",
-               "runStore":  "SqlRunStore",
-               "sessionStore": "SqlSessionStore",
-               "jobStore": "SqlJobStore" }
-
-acilis logu:
-warn: Tracon.MigrationHostedService[0]
-      Tracon has more than one persistence provider registered: SQLite,
-      PostgreSQL. The last registration wins and PostgreSQL is currently in
-      use. Call only one.
-
-ardindan: CREATE SCHEMA IF NOT EXISTS mt_s1_cift ... (PostgreSQL migration'lari)
-```
-
-Dört iddia da tuttu:
-- Uygulama **çökmedi**, ayağa kalktı ✅
-- `meta` **tek** aktif kalıcılık bildirdi (tek `Sql*` depo kümesi) ✅
-- Aktif olan **son** çağrılan sağlayıcı: `UsePostgreSql` (satır 29) ✅ —
-  uyarı bunu açıkça söylüyor ("PostgreSQL is currently in use")
-- Log'da uyarı **var** ve iki sağlayıcıyı da adıyla sayıyor ✅
-
-`README.md:252` ve `src/Tracon.Sqlite/README.md:103` iddiası
-("last registration wins and a warning is logged at startup") **kodla
-doğrulandı**: uyarı `src/Tracon.Sql.Shared/Migrations/MigrationHostedService.cs:129`
-içinde yaşıyor.
-
-📌 **Uyarı iki kez basılıyor.** Aynı satır açılışta iki defa görünüyor. Zararsız
-ama gürültülü; kapanış oturumu tek basıma indirebilir.
-
-**Sapma:** Case `dotnet user-secrets set` diyor; skill §1.2 gereği iki bağlantı
-dizesi de **ortam değişkeni** ile verildi. Şema `mt_s1_cift` şerit kapsamında
-açıldı ve case bitince düşürüldü.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PKG-090 — Public API kapısı temiz ağaçta sıfır uyarı verir
-
-**Gerçek sonuç**
-```
-git status --short -> bos
-dotnet build Tracon.slnx -c Release --no-incremental -> cikis 0 · 61 sn
-grep -c "warning RS0" -> 0
-Build succeeded. 0 Warning(s) · 0 Error(s)
-```
-
-Kayıtlı bir yüzeyde kapı sessiz. 2026-08-16 ölçümüyle birebir aynı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PKG-091 — Kayıtsız yeni bir public üye derlemeyi kırar
-
-**Gerçek sonuç**
-```
-ITraconBuilder.cs  += void ProbeUnregisteredMember();
-TraconBuilder.cs   += public void ProbeUnregisteredMember() { }
-
-dotnet build src/Tracon.Core/Tracon.Core.csproj -c Release -> cikis 1
-error RS0016: Symbol 'Tracon.ITraconBuilder.ProbeUnregisteredMember() -> void'
-  is not part of the declared public API
-  [::TargetFramework=net8.0]  [::TargetFramework=net9.0]  [::TargetFramework=net10.0]
-RS0016 satir sayisi: 6  (3 TFM × 2)
-```
-
-Kapı **gerçekten** çalışıyor: derleme kırıldı ve tanı eklenen üyenin **tam
-imzasını** adıyla söyledi. 2026-08-16 ölçümüyle birebir aynı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PKG-092 — `PublicAPI.Unshipped.txt`'e eklenince kapı tekrar yeşil
-
-**Gerçek sonuç**
-```
-src/Tracon.Core/PublicAPI.Unshipped.txt +=
-  Tracon.ITraconBuilder.ProbeUnregisteredMember() -> void
-
-dotnet build src/Tracon.Core/Tracon.Core.csproj -c Release -> cikis 0
-Build succeeded. 0 Warning(s) · 0 Error(s)
-RS00xx tanisi: 0
-```
-
-Kapı kayıtlı üyeyi engellemiyor. Üç dosya `git checkout --` ile geri alındı;
-`git status --short` **boş**.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PKG-093 — Sadeleşen aşırı yüklemeler paketlenmiş tüketicide görünür ve çalışır
-
-**Gerçek sonuç**
-```
-ConsumerProbe: Tracon.Anthropic + Tracon.Mcp 0.0.0-preview.0.789 (yerel feed)
-Program.cs yalniz PUBLIC yuzeyi kullanir:
-  AnthropicChatClientFactory.CreateClient(new AnthropicProviderOptions { ApiKey = "k" })
-  AnthropicChatClientFactory.FromClient(client, defaultModel: "claude-sonnet", loggerFactory: null)
-  services.AddTracon().UseAnthropic("k").UseMcp();      <- bare asiri yukleme
-
-dotnet build -c Release -> cikis 0 · 0 Warning(s) · 0 Error(s)
-dotnet run  -c Release --no-build ->
-  Consumer probe OK: Tracon.AnthropicChatClientFactory
-```
-
-Üç iddia da tuttu ve 2026-08-16 ölçümüyle birebir aynı çıktı üretildi.
-RS0026 sadeleştirmeleri `ProjectReference` ile değil **gerçek `.nupkg`** ile
-tüketildiğinde de çalışıyor.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -2011,30 +1367,6 @@ failed PublicSurfaceBaselineTests.Public_type_count_matches_the_checked_in_basel
 Kapı gerçekten kırılıyor ve mesaj **hangi paket** (`Tracon.Anthropic`),
 **gerçek sayı** (5) ve **taban çizgi** (4) üçünü birden veriyor; üstüne
 düzeltme komutunu da yazıyor. Sessizce büyüyen bir yüzey buradan geçemez.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PKG-096 — Takipsiz packable paket beyan kapısında yakalanır
-
-**Gerçek sonuç**
-```
-PublicAPI.Shipped.txt ve PublicAPI.Unshipped.txt gecici olarak tasindi
-
-failed PublicApiTrackingDeclarationTests.Every_src_project_declares_its_public_API_tracking_status (30ms)
-  Tracon.Core: neither carries both PublicAPI.Shipped.txt and
-  PublicAPI.Unshipped.txt, nor sets TraconPublicApiTrackingEnabled=false in its
-  own .csproj. Add the tracking files, or opt out explicitly.
-  at PublicApiTrackingDeclarationTests.cs:77
-
-cikis: 2 · total 1 · failed 1
-dosyalar geri tasindi -> git status --short bos
-```
-
-Kapı kırıldı ve mesaj **iki seçeneği de** adıyla gösterdi: izleme dosyalarını
-ekle **veya** açıkça `TraconPublicApiTrackingEnabled=false` yaz. Takip
-dosyası unutulan bir paket sessizce izlenmez kalamıyor.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -2247,33 +1579,6 @@ Hiçbir tracked dosya değişmedi (`git status --short` boş) — üretilen sayf
 **Aşama 2 için iş kalmadı.** Kalan tek gerçek risk: kapıyı üreteçsiz koşmak
 yanıltıcı bir kırmızı veriyor. Bunu `docs/hafiza/dokumantasyon.md`'ye tuzak
 olarak yazmak yeterli (tur sonu kontrol listesi).
-
----
-## MT-PKG-100 — Prova kapısı gerçekten yayının önündedir
-
-**Gerçek sonuç**
-```
-ci.yml:288  release-dryrun:  needs: build
-ci.yml:337  publish:         needs: [pack, release-dryrun, npm-publish]
-ci.yml:344                   if: startsWith(github.ref, 'refs/tags/v')
-ci.yml:387  npm-publish:     needs: [build, release-dryrun]
-ci.yml:391                   if: startsWith(github.ref, 'refs/tags/v')
-ci.yml:234  pack:            needs: build
-```
-
-`release-dryrun` **ikisinde de** listeli. Prova yolun üzerindedir.
-
-**Adım 3 (yalnız gözle, dosya değiştirilmedi):** `release-dryrun` iki `needs:`
-satırından da çıkarılırsa graf `build → {pack, npm-publish} → publish` olur;
-`publish` provayı hiç beklemeden `pack` biter bitmez koşar. Tek bir `needs:`
-satırından çıkarmak yetmez — `publish` `npm-publish`'e, o da provaya bağlı
-olduğu için kapı dolaylı olarak ayakta kalır. Yani koruma **iki** satıra
-birden dayanıyor; ikisi de korunmalı.
-
-Her iki iş `refs/tags/v` ile sınırlı, yani case'in "CI'da simüle edilemez"
-gerekçesi doğrulandı — graf elle okundu.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 
@@ -2521,131 +1826,6 @@ diyor, olmayan bir sürümü adlandırmıyor.
 
 ---
 
-## MT-PKG-108 — Temiz ağaçta pack normal çalışır
-
-**Gerçek sonuç**
-```
-git status --porcelain -> bos
-dotnet pack src/Tracon.Abstractions -c Release -> cikis 0
-  Successfully created package '.../release/Tracon.Abstractions.0.0.0-preview.0.789.nupkg'
-  Successfully created package '.../release/Tracon.Abstractions.0.0.0-preview.0.789.snupkg'
-```
-
-Kapı temiz ağaçta **hiçbir şey yapmıyor** — `-p:` bayrağı verilmedi, ek
-yapılandırma gerekmedi, uyarı çıkmadı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PKG-109 — Commit'siz bir değişiklik `TRACON0004` ile pack'i durdurur
-
-**Gerçek sonuç**
-```
-printf '\n' >> src/Directory.Build.props
-git status --porcelain -> " M src/Directory.Build.props"
-dotnet pack ... -> cikis 1
-
-Directory.Build.targets(127,5): error TRACON0004: Working tree is not clean
-('git status --porcelain' reported changes) for package 'Tracon.Abstractions'.
-A packed artifact whose content cannot be traced back to a commit has no
-provenance; commit or stash first. Reported entries:  M src/Directory.Build.props.
-For local experimentation only, set TraconAllowDirtyPack=true together with an
-explicit MinVerVersionOverride carrying 'dirty' (e.g. 0.0.0-dirty.<name>) -
-never in CI.
-```
-
-**Yeni `.nupkg` ÜRETİLMEDİ — SHA-256 ile kanıtlandı:**
-```
-pack oncesi:  571ecb0c5166b17f2adada9c728b043926c35430c9a92e04d7df0c7187301bbd
-pack sonrasi: 571ecb0c5166b17f2adada9c728b043926c35430c9a92e04d7df0c7187301bbd
-```
-Mevcut paket **yerinde ve dokunulmamış** kaldı. AP-REQ-002 (aynı `<id, sürüm>`
-çiftinin farklı içerikli iki artifact adlandırması) bu kapıyla kapalı.
-
-Tanı kalitesi yüksek: kirleten dosyayı **adıyla** veriyor, sebebini
-(provenance) açıklıyor ve çıkış yolunu tarif ediyor. Dil İngilizce — pakete
-giren kod için doğru (K-228).
-
-`git checkout --` sonrası ağaç temiz.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PKG-110 — Kirli ağaçta `dotnet build` etkilenmez
-
-**Gerçek sonuç**
-```
-printf '\n' >> src/Directory.Build.props
-dotnet build src/Tracon.Abstractions -c Release -> cikis 0
-  Build succeeded.
-grep -c TRACON0004 -> 0
-```
-
-Kapı `build` yolunu **hiç görmüyor**; yalnız `GenerateNuspec`'ten önce koşuyor.
-İç geliştirme döngüsü (derle/test) kirli ağaçta bedelsiz.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PKG-111 — Yalnız untracked bir dosya da kapıyı tetikler
-
-**Gerçek sonuç**
-```
-touch src/Tracon.Abstractions/.mt-pkg-111-marker
-git status --porcelain -> "?? src/Tracon.Abstractions/.mt-pkg-111-marker"
-dotnet pack ... -> cikis 1 · error TRACON0004
-```
-
-136.1'in bilinçli kararı doğrulandı: `git status --porcelain` `-uno` **almıyor**.
-Takip edilmeyen bir `.cs` dosyası SDK'nın varsayılan glob'uyla pakete girebilir;
-`-uno` olsaydı bu sessizce geçerdi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PKG-112 — Override sürümsüz verilirse `TRACON0006` ister
-
-**Gerçek sonuç**
-```
-dotnet pack ... -p:TraconAllowDirtyPack=true   (MinVerVersionOverride YOK)
-  -> cikis 1
-
-error TRACON0006: TraconAllowDirtyPack=true requires an explicit
-MinVerVersionOverride that carries 'dirty' (e.g. 0.0.0-dirty.<name>).
-A dirty artifact must sort BELOW every clean release version, and it must
-never b[e ...]
-```
-
-Override **sürüm üretmiyor, insandan istiyor**. MinVer'in kirli bir artifact'i
-kendiliğinden bir sürüme bağlaması tamamen engellenmiş. Mesaj sıralama
-gerekçesini de veriyor (kirli sürüm her temiz sürümün ALTINDA sıralanmalı).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PKG-113 — Açık `dirty` sürümüyle override başarıyla paketler
-
-**Gerçek sonuç**
-```
-dotnet pack ... -p:TraconAllowDirtyPack=true -p:MinVerVersionOverride=0.0.0-dirty.deneme
-  -> cikis 0
-  Successfully created package '.../Tracon.Abstractions.0.0.0-dirty.deneme.nupkg'
-  Successfully created package '.../Tracon.Abstractions.0.0.0-dirty.deneme.snupkg'
-```
-
-Kaçış yolu **çalışıyor** — kapı yerel deneyi imkânsız kılmıyor, yalnız
-bilinçli ve adlandırılmış olmasını şart koşuyor. Üretilen iki dosya case'in
-temizlik adımıyla silindi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
 ## MT-PKG-114 — CI'da override tamamen reddedilir
 
 **Gerçek sonuç**
@@ -2666,93 +1846,6 @@ değişkeni değiştiği için reddedildi. Kirli bir pack hiçbir CI koşumundan
 çıkamaz — `dirty` taşıyan açık bir sürümle bile.
 
 `git status --porcelain` her case'in sonunda boş doğrulandı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PKG-118 — Lisans matrisi: her paket tam olarak bir lisans dosyası taşır
-
-**Gerçek sonuç**
-
-**Sapma:** `/tmp/ap-pack` yerine oturum 1'in bıraktığı
-`<scratch>/ap-pack` kullanıldı (aynı 20 paket, `0.0.0-preview.0.789`).
-
-```
-20 satir dondu. Dagilim:
-
-LICENSE-MIT.md (3):  Tracon.Abstractions · Tracon.Templates ·
-                     Tracon.Testing.Contracts.Xunit
-LICENSE.md    (17):  Tracon · .Anthropic · .AspNetCore · .Azure · .Cli ·
-                     .Client · .Core · .Google · .Mcp · .OpenAI · .PostgreSql ·
-                     .SqlServer · .Sqlite · .Testing · .UI · .Voice · .Workflows
-
-Iki lisans dosyasini birden tasiyan paket: YOK
-```
-
-Spec'in saydığı üç MIT paketi **birebir** tuttu; 3 + 17 = 20. Tüketicinin
-eline hangi şartların geçtiği her pakette tek anlamlı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PKG-119 — Beyan edilen lisans ile paketlenen dosya aynı
-
-**Gerçek sonuç**
-```
-== Tracon.Abstractions
-   <license type="file">LICENSE-MIT.md</license>
-   requireLicenseAcceptance elementi: YOK           ✅ (NuGet false'u yazmaz)
-   paket icindeki dosya: LICENSE-MIT.md             ✅ ayni
-
-== Tracon.Core
-   <license type="file">LICENSE.md</license>
-   <requireLicenseAcceptance>true</requireLicenseAcceptance>   ✅
-   paket icindeki dosya: LICENSE.md                 ✅ ayni
-```
-
-Üç beklentinin üçü de tuttu. Ticari şart taşıyan paket kabul istiyor,
-permissive olan istemiyor — ayrım doğru yerde.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PKG-120 — PolyForm gövdesi kanonik metinden sapmamış
-
-**Gerçek sonuç**
-```
-curl SPDX PolyForm-Small-Business-1.0.0.txt -> 121 satir
-awk ile LICENSE.md govdesi              -> 121 satir
-diff                                    -> BOS · "BIREBIR"
-```
-
-Lisans **tanınır** hâlde: tüketicinin lisans tarayıcısı adı eşleştirebilir.
-Bu modelin tahsilat mekanizması tam olarak o eşleşme olduğu için sapma
-olmaması kritik.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-PKG-121 — 👤 npm istemcisi NuGet ikiziyle aynı şartları taşır
-
-**Gerçek sonuç**
-```
-package.json: "license": "PolyForm-Small-Business-1.0.0"   ✅
-npm pack --dry-run: "npm notice 6.3kB LICENSE.md"          ✅ pakete giriyor
-diff packages/tracon-client/LICENSE.md ../../LICENSE.md
-  -> BOS · "KOPYA BIREBIR"                                 ✅
-```
-
-npm tarafı NuGet ikiziyle aynı şartları taşıyor ve kopya kök dosyadan
-sapmamış.
-
-⏳ **İnsan doğrulaması bekliyor:** npmjs.com lisans rozetinin
-`PolyForm-Small-Business-1.0.0` gösterdiği ancak paket **yayınlandıktan
-sonra** görülebilir. Paket henüz yayınlanmadı (`CHANGELOG.md`: "no version has
-been pushed to NuGet or npm"). Fiziksel eylem listesine alındı.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -3002,4 +2095,3 @@ Tracon.Abstractions → symbolsFile: Tracon.Abstractions.1.0.0-preview.1.snupkg
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
-

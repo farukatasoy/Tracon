@@ -79,20 +79,37 @@ gitmedi ya da yalnız dinlemeyen bir porta bağlanmaya çalıştı (ücretsiz).
 
 ---
 
-## MT-MYU-001 — `Fallbacks` boş: geçersiz anahtarla çalıştırma bugünkü hatayı birebir korur
+> ### ⚗️ Damıtılmış koşum kaydı
+> Geçen ve **hiçbir düzeltme/kusur işareti taşımayan** case'lerin
+> `Gerçek sonuç` blokları düştü — bir koşumun ortam çıktısı, koşum
+> bittiği anda değerini kaybeder. **Geçmeyen** ve **işaret taşıyan**
+> her case'in bloğu AYNEN durur. Tam metin — kopyala, çalıştır:
+>
+> ```bash
+> git show 5ef711d6:docs/manuel-test/kosumlar/2026-09-16/27-MODEL-YEDEK-VE-ON-UCUS.md
+> ```
 
-**Gerçek sonuç**
-İzole `TraconTestHost`'ta `openai` kasıtlı geçersiz bir anahtarla
-kaydedildi (`sk-deliberately-invalid-mt-myu-001`), `FailureThreshold=1`,
-`birincil-saglam` agent'ı `Fallbacks: []`.
-- Çağrı 1: `502`, `"The model provider request failed."` (kimlik doğrulama
-  hatası, devre açılır).
-- Çağrı 2: `502`, `"The 'openai' provider was temporarily stopped by the
-  circuit breaker (1 consecutive failures). Will retry in 29s."` — devre
-  kesicinin kendi `TraconProviderUnavailableException` mesajı, `Fallbacks`
-  boş olduğu için hiçbir yedek denenmedi.
+---
 
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+## Temiz geçen case'ler (13)
+
+| Case | Durum | Başlık |
+|---|---|---|
+| MT-MYU-001 | ☑ | `Fallbacks` boş: geçersiz anahtarla çalıştırma bugünkü hatayı birebir korur |
+| MT-MYU-003 | ☑ | Maliyet raporu yedek modelin fiyatıyla hesaplanır, birincilin fiyatıyla DEĞİL |
+| MT-MYU-004 | ☑ | Zincirin tamamı düşerse hata mesajı denenen sağlayıcıları sayar; İLK hatayı yansıtır |
+| MT-MYU-005 | ☑ | Ön uçuş kapalıyken (varsayılan) pencereden büyük bir istem sağlayıcıdan hata alır |
+| MT-MYU-006 | ☑ | Ön uçuş açıkken aynı istem sağlayıcıya HİÇ gitmeden `400` döner |
+| MT-MYU-007 | ☑ | `POST /estimate` sayı döner, sağlayıcıya HİÇ istek gitmez |
+| MT-MYU-008 | ☑ | `MaxContextWindowTokens` boş, model üstverisi dolu: `ContextWindow` sıkıştırmalı agent kaydı GEÇER |
+| MT-MYU-009 | ☑ | İkisi de boş: anlaşılır hata hangi iki alandan birinin doldurulacağını söyler |
+| MT-MYU-011 | ☑ | Farklı tool kümesine sahip iki agent aynı önbellek kaydını PAYLAŞMAZ |
+| MT-MYU-012 | ☑ | Başka kiracının önbelleklenmiş yanıtı GÖRÜNMEZ |
+| MT-MYU-013 | ☑ | `ResponseCache.Enabled` açıkken `IDistributedCache` kayıtlı değilse anlaşılır bir hata döner |
+| MT-MYU-014 | ☑ | 👤 `AllowConcurrentToolCalls` kapalıyken (varsayılan) davranış bugünküyle birebir aynıdır |
+| MT-MYU-016 | ☑ | `IProviderRetryClassifier` `DoNotRetry` dönerse yedek zincire HİÇ geçilmez |
+
+## Ayrıntı taşıyan case'ler (4)
 
 ## MT-MYU-002 — 🚨 Birincilin devresi açıkken yedek devreye girer; `run` kaydı VE `ByModel` yedek modeli gösterir
 
@@ -112,102 +129,6 @@ yedek), `FailureThreshold=1`.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
-## MT-MYU-003 — Maliyet raporu yedek modelin fiyatıyla hesaplanır, birincilin fiyatıyla DEĞİL
-
-**Gerçek sonuç**
-Aynı host'ta `Tracon:Pricing:openai:gpt-5.4-mini` = Input 0.15 / Output
-0.60 (₺/milyon token birimiyle aynı ölçek), `Tracon:Pricing:flaky:flaky-model`
-= Input 99 / Output 99 (kasıtlı bariz farklı) yapılandırıldı.
-MT-MYU-002'nin çalıştırması: `usage.inputTokens=18`,
-`usage.outputTokens=12` → `cost.inputCost = 0.0000027` (=18×0.15/1e6),
-`cost.outputCost = 0.0000072` (=12×0.60/1e6), `cost.source: "Configuration"`.
-Hesap **birebir** `openai`'nin fiyatıyla tutarlı; `flaky`'nin 99/99 fiyatı
-hiç kullanılmadı (kullanılsaydı `inputCost` ~0.00178 olurdu — iki değer
-büyüklük farkıyla ayırt edilebilir).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-MYU-004 — Zincirin tamamı düşerse hata mesajı denenen sağlayıcıları sayar; İLK hatayı yansıtır
-
-**Gerçek sonuç**
-`ikisi-de-kirik` (`flaky` birincil, `flaky2` yedek — ikisi de
-`http://localhost:1/v1`): `502`,
-`"detail":"All providers in the fallback chain failed (tried: flaky,
-flaky2)."` — her iki adın ikisi de mesajda. "İlk hatayı yansıtır" iddiası
-canlı ölçümle ayırt edilemez (ikisi de bağlantı reddi, metinler aynı türden);
-spec'in kendi önerdiği birim testiyle doğrulandı:
-`Tracon.Core.UnitTests --filter-class "*FallbackChatClientTests*"` → **18/18
-yeşil**, `Exhausted_chain_throws_the_first_failure_not_the_last` dahil.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-MYU-005 — Ön uçuş kapalıyken (varsayılan) pencereden büyük bir istem sağlayıcıdan hata alır
-
-**Gerçek sonuç**
-`Preflight:Enabled` varsayılan (`false`, hiç ayarlanmadı). `birincil-saglam`
-(dinamik kayıt, gerçek `anthropic`/`claude-haiku-4-5-20251001` — bkz.
-yukarıdaki sapma notu) 400.001 token'lık bir istemle çağrıldı:
-`502`, `{"title":"Agent run failed","detail":"The model provider request
-failed."}`. İstek GERÇEKTEN sağlayıcıya gitti (Tracon'in kendi `400`'ü
-DEĞİL — sağlayıcının bağlam sınırı reddi 502 olarak yüzeye çıktı).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-MYU-006 — Ön uçuş açıkken aynı istem sağlayıcıya HİÇ gitmeden `400` döner
-
-**Gerçek sonuç**
-Ana uygulama `Tracon__Preflight__Enabled=true` ile yeniden başlatıldı.
-MT-MYU-005'in AYNI 400.001 token'lık istemi `birincil-saglam`'a gönderildi:
-`400`, `{"title":"Prompt too large for the model's context window",
-"detail":"The prompt is estimated at 400001 tokens; the 'birincil-saglam'
-agent's model allows at most 160000 tokens for the prompt (context window
-200000, reserved for the answer: 20 %). No call was made to the provider.",
-"promptTokens":400001,"contextWindowTokens":200000,"allowedPromptTokens":160000}`.
-`promptTokens > allowedPromptTokens` doğrulandı; gövde metni sağlayıcıya
-çağrı yapılmadığını açıkça belirtiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-MYU-007 — `POST /estimate` sayı döner, sağlayıcıya HİÇ istek gitmez
-
-**Gerçek sonuç**
-`support` agent'ı (gerçek `openai`, kod tanımlı, `Fallbacks: []` — spec'in
-"herhangi bir gerçek-openai agent'ı" gereksinimini zaten karşılıyor)
-kullanıldı.
-- Adım 1 (kısa mesaj): `{"promptTokens":2,"contextWindowTokens":null,
-  "allowedPromptTokens":null,"wouldBeRejected":false}`.
-- Adım 2 (400.001 token): `{"promptTokens":400001,"contextWindowTokens":null,
-  "allowedPromptTokens":null,"wouldBeRejected":false}` — `openai`
-  kataloğunda pencere olmadığı için `contextWindowTokens: null` dalı
-  gerçekleşti (spec'in belirttiği iki dalın ikincisi); beklendiği gibi
-  sağlayıcıya YENİ bir çağrı olmadı (uç saf hesap, model çağırmıyor).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-MYU-008 — `MaxContextWindowTokens` boş, model üstverisi dolu: `ContextWindow` sıkıştırmalı agent kaydı GEÇER
-
-**Gerçek sonuç**
-`baglam-turetilen` (dinamik kayıt, `anthropic`/`claude-haiku-4-5-20251001`
-— katalogda `ContextWindowTokens: 200000`), `compaction.strategy:
-"ContextWindow"`, `MaxContextWindowTokens` GÖNDERİLMEDEN: `201 Created`.
-Derleme başarılı, `400` değil.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-MYU-009 — İkisi de boş: anlaşılır hata hangi iki alandan birinin doldurulacağını söyler
-
-**Gerçek sonuç**
-`baglam-eksik` (`openai`/`katalogda-olmayan-model-adi`, katalogda YOK),
-aynı `compaction.strategy: "ContextWindow"`: `400`,
-`"detail":"Agent 'baglam-eksik' selected the ContextWindow compaction
-strategy but did not supply MaxContextWindowTokens, and its model
-('openai/katalogda-olmayan-model-adi') has no context window size in the
-catalog either. Set MaxContextWindowTokens explicitly."` — mesaj hem
-`MaxContextWindowTokens`'ı hem katalog eksikliğini açıkça adlandırıyor,
-`AgentDefinitionCompiler.BuildContextWindowStrategy`'nin birebir metni.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
 ## MT-MYU-010 — 🚨 Aynı istem iki kez sorulunca ikinci `run` modele ÇIKMAZ; ama önbellekteki tool çağrısı yine ÇALIŞIR
 
 **Gerçek sonuç**
@@ -224,61 +145,6 @@ catalog either. Set MaxContextWindowTokens explicitly."` — mesaj hem
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
-## MT-MYU-011 — Farklı tool kümesine sahip iki agent aynı önbellek kaydını PAYLAŞMAZ
-
-**Gerçek sonuç**
-`cached-support-notools` dinamik kaydedildi (`cached-support` ile aynı
-talimat/model, `ResponseCache.Enabled: true`, **tool YOK**). "order 88"
-sorusu önce `cached-support`'a (önbelleğe yazdı, 2 `usage` bloğu), sonra
-AYNI soru `cached-support-notools`'a soruldu: 0 `functionCall` (tool
-kümesi boş, model onu göremiyor) — ama 1 `usage` bloğu VAR: ikinci çağrı
-GERÇEKTEN modele gitti, birincinin kaydına İSABET ETMEDİ. Anahtar tool
-kümesini doğru izole ediyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-MYU-012 — Başka kiracının önbelleklenmiş yanıtı GÖRÜNMEZ
-
-**Gerçek sonuç**
-Ana uygulama `Tracon__Tenancy__Enabled=true` +
-`Tracon__Tenancy__AllowHeaderResolution=true` ile yeniden başlatıldı.
-"order 99" sorusu `X-Tracon-Tenant: acme` ile soruldu (1 `usage` bloğu,
-`responseId: chatcmpl-EPLMJ...`), sonra AYNI soru `X-Tracon-Tenant: beta`
-ile soruldu: yine 1 `usage` bloğu, FARKLI bir `responseId`
-(`chatcmpl-EPLMN...`) — ikinci çağrı GERÇEKTEN modele gitti, `acme`'nin
-kaydı `beta`'ya sızmadı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-MYU-013 — `ResponseCache.Enabled` açıkken `IDistributedCache` kayıtlı değilse anlaşılır bir hata döner
-
-**Gerçek sonuç**
-İzole `TraconTestHost` (varsayılan — `AddDistributedMemoryCache()` HİÇ
-çağrılmadı) üzerinde `POST /api/agents/validate`,
-`model.responseCache.enabled: true`: `200`,
-`{"valid":false,"messages":[{"severity":"Error","code":"invalid_setting",
-"message":"Model 'fake/model-1' enables response caching (ResponseCache.Enabled
-= true), but no IDistributedCache is registered. Register one, for example
-`builder.Services.AddDistributedMemoryCache()`, before compiling an agent
-with response caching turned on.","path":"model.providerSettings"}]}` —
-tek kayıt, `code: invalid_setting` (planın öngördüğü `compilation_error`
-DEĞİL — K-556 birebir), mesaj `IDistributedCache` VE
-`AddDistributedMemoryCache()`'i açıkça adlandırıyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-MYU-014 — 👤 `AllowConcurrentToolCalls` kapalıyken (varsayılan) davranış bugünküyle birebir aynıdır
-
-**Gerçek sonuç**
-`support` agent'ı (varsayılan `AllowConcurrentToolCalls: false`) çok
-sipariş sorgulayan bir istemle çağrıldı: 3 `functionCall` (2×
-`get_order_status`, 1× `list_recent_orders`), run hatasız tamamlandı —
-regresyon yok. Spec'in belirttiği garantili otomatik kanıt ayrıca koşuldu:
-`Tracon.AspNetCore.FunctionalTests --filter-method
-"*ConcurrentToolInvocation*"` → **4/4 yeşil**.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
 ## MT-MYU-015 — 🚨 `IProviderRetryClassifier` kayıtlı değilken (veya `Unknown` dönerken) yedek zincir bugünküyle birebir aynıdır — ve yedek GERÇEKTEN doğru modeli çağırır
 
 **Gerçek sonuç**
@@ -290,20 +156,6 @@ BİREBİR `"Hi"` (talimat "Reply with exactly: Hi"), `GET /api/runs/{runId}`:
 tutucusu DEĞİL. Regresyon testi de koşuldu:
 `Fallback_link_is_called_with_its_own_ModelId_not_the_primarys` (18/18
 `FallbackChatClientTests` içinde) — yeşil.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-MYU-016 — `IProviderRetryClassifier` `DoNotRetry` dönerse yedek zincire HİÇ geçilmez
-
-**Gerçek sonuç**
-Aynı `retry-seam-demo` kurulumu, artık her istisnada `DoNotRetry` dönen bir
-`IProviderRetryClassifier` `services.AddSingleton` ile kayıtlı (`ConfigureServices`
-— `AddTracon()`'dan ÖNCE çalışır). Aynı mesaj gönderildi: `502`,
-`{"title":"Agent run failed","detail":"The model provider request
-failed."}` — birincil bağlantı reddiyle düşen tek-sağlayıcı senaryosuyla
-AYNI genel mesaj (yedek zincire HİÇ girilmediğinin işareti — bir
-`model.fallback-used` olayı yok, gerçek `openai`'ye hiç istek gitmedi,
-maliyetsiz).
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 

@@ -103,23 +103,48 @@ etkilemeyen Orta önemli bir bulgu.
 
 ---
 
-## MT-DDG-001 — Paketlenen her `lib/net10.0/*.xml` içinde iç referans deseni aranır
+> ### ⚗️ Damıtılmış koşum kaydı
+> Geçen ve **hiçbir düzeltme/kusur işareti taşımayan** case'lerin
+> `Gerçek sonuç` blokları düştü — bir koşumun ortam çıktısı, koşum
+> bittiği anda değerini kaybeder. **Geçmeyen** ve **işaret taşıyan**
+> her case'in bloğu AYNEN durur. Tam metin — kopyala, çalıştır:
+>
+> ```bash
+> git show fca6f3a1:docs/manuel-test/kosumlar/2026-09-16/31-DOKUMAN-DOGRULUGU.md
+> ```
 
-**Gerçek sonuç**
-`dotnet pack Tracon.slnx -c Release` çalıştırıldı (21 nupkg üretildi, sürüm
-`0.0.0-preview.0.819`). `for p in artifacts/package/release/Tracon*.nupkg; do
-unzip -p "$p" 'lib/net10.0/*.xml'; done | grep -ciE "phase [0-9]+|K-[0-9]{3}|F-[0-9]{2,3}|docs/"`
-→ **`0`**. Beklenen sonuçla eşleşiyor.
+---
 
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+## Temiz geçen case'ler (24)
 
-## MT-DDG-002 — Paketlenen OpenAPI belgesinde (`buildTransitive/tracon.json`) aynı desen aranır
+| Case | Durum | Başlık |
+|---|---|---|
+| MT-DDG-001 | ☑ | Paketlenen her `lib/net10.0/*.xml` içinde iç referans deseni aranır |
+| MT-DDG-002 | ☑ | Paketlenen OpenAPI belgesinde (`buildTransitive/tracon.json`) aynı desen aranır |
+| MT-DDG-005 | ☑ | `///` satırına `(phase 88)` yazılınca kapı kızarır ve dosya adını söyler |
+| MT-DDG-006 | ☑ | `(phase` ve `88)` iki ayrı `///` satırına bölününce kapı yine kızarır |
+| MT-DDG-008 | ☑ | `capabilities.md`'den kural paragrafı silinince harita üretimi hata verir |
+| MT-DDG-010 | ☑ | `ui.md`'de `## Jobs` başlığı `## Queue` yapılınca kapı kızarır |
+| MT-DDG-011 | ☑ | `tracon.tenant.id` → `tracon.tenant.identifier` olunca kapı tam ad arar, ön eki kabul etmez |
+| MT-DDG-012 | ☑ | Belgesiz public property eklenince derleme kızarır ve property adını söyler |
+| MT-DDG-013 | ☑ | `http-api.md`'deki sayı elle değiştirilince kapı kızarır ve gerçek sayıyı yazar |
+| MT-DDG-014 | ☑ | Paketlenen OpenAPI belgesine elle `(phase 12)` yazılınca kapı kızarır |
+| MT-DDG-015 | ☑ | XML dokümanına `(K-123)` yazılınca API referans üreteci hata verir, sessizce onarmaz |
+| MT-DDG-016 | ☑ | `TRACON_UI_SCREENSHOTS=1` ile E2E: 19 görüntü üretilir |
+| MT-DDG-019 | ☑ | Kök `README.md` İngilizce, faz numarası kayması yok, bütçe içinde |
+| MT-DDG-020 | ☑ | `check:content && build && check:links` üçü de temiz |
+| MT-DDG-021 | ☑ | Türetebilen bir dosyaya (`sidebar.mjs`) adres harfiyen yazılınca kapı kızarır ve dosya adını söyler |
+| MT-DDG-022 | ☑ | Paket README'sine eski bir barındırıcı (`formerHosts`) yazılınca kapı kızarır |
+| MT-DDG-023 | ☑ | `DocumentationLinks.Site` değişince her `APG` tanısı için kızarır |
+| MT-DDG-024 | ☑ | Derlenen site: `canonical`, `robots.txt`, `sitemap-index.xml` üçü de `site.config.mjs`'in adresini taşır |
+| MT-DDG-025 | ☑ | `<example>` bloğuna var olmayan üye eklenince test düşer ve dosya/satır + `CS1061` adlandırılır |
+| MT-DDG-027 | ☑ | `TRC0002` bölümü silinince aynı test düşer; tersi test etkilenmez |
+| MT-DDG-030 | ☑ | `CONTRIBUTING.md`'ye Türkçe cümle eklenince dil kapısı düşer, dosyayı adlandırır |
+| MT-DDG-031 | ☑ | Hız sınırının kapsam beyanı üç yüzeyde birbirini tutuyor, kardeş tiple çelişki yok |
+| MT-DDG-032 | ☑ | Kiracı yalıtımının katmanı üç kaynakta aynı: uygulama katmanı, RLS bilinçli olarak yok, karar kayıtlı |
+| MT-DDG-033 | ☑ | `threat-model.md` ile `security.md`'nin sınır tabloları aynı kümeyi taşır |
 
-**Gerçek sonuç**
-`unzip -p artifacts/package/release/Tracon.AspNetCore.*.nupkg
-buildTransitive/tracon.json | grep -ciE "phase [0-9]+|K-[0-9]{3}"` → **`0`**.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+## Ayrıntı taşıyan case'ler (11)
 
 ## MT-DDG-003 — Paket README'leri (`src/*/README.md`) iç referans için taranır
 
@@ -146,32 +171,6 @@ sayısı da **`21`** (`ls src/*/README.md | wc -l`) — yani **21/21**, tam kaps
 **⚠️ Aynı sayı sapması:** spec "18/18 (taban: 5)" bekliyor; gerçek ağaçta
 21/21. Nitel iddia (tam kapsama) korunuyor, yalnız payda büyümüş. Kaydedildi,
 düzeltilmedi (spec donuk).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-DDG-005 — `///` satırına `(phase 88)` yazılınca kapı kızarır ve dosya adını söyler
-
-**Gerçek sonuç**
-`src/Tracon.Abstractions/TraconId.cs:6`'daki `/// summary` satırına
-` (phase 88)` eklendi. `dotnet test tests/Tracon.Core.UnitTests -c Release
---no-build --filter "FullyQualifiedName~ShippedDocumentationSelfContainmentTests"`
-→ **düştü**: `Shouldly.ShouldAssertException`, mesaj tam olarak
-`+ src/Tracon.Abstractions/TraconId.cs: 1 offending lines, baseline allows 0`
-— dosya adı ve satır sayısı doğru adlandırılıyor. Mutasyon hemen geri alındı
-(`git diff --stat -- src/Tracon.Abstractions/TraconId.cs` boş, doğrulandı).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-DDG-006 — `(phase` ve `88)` iki ayrı `///` satırına bölününce kapı yine kızarır
-
-**Gerçek sonuç**
-Aynı dosyada `/// ...(RFC 9562). (phase` / `/// 88)` / `/// </summary>` olacak
-şekilde blok iki satıra bölündü (aynı bitişik `///` bloğu içinde). Aynı filtre
-ile koşum → **düştü**: `+ src/Tracon.Abstractions/TraconId.cs: 2 offending
-lines, baseline allows 0` — kapı blok metnini **birleştirerek** okuyor ve
-eşleşmeyi kapsayan **her iki** satırı (`CountOffendingBlockLines`) suçlu
-işaretliyor, tek satır taraması bunu kaçırırdı. Mutasyon geri alındı ve
-doğrulandı.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -229,28 +228,6 @@ ve kapanış oturumuna devreder.
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
-## MT-DDG-008 — `capabilities.md`'den kural paragrafı silinince harita üretimi hata verir
-
-**Gerçek sonuç**
-`capabilities.md`'nin "Agent design and model control" bölümündeki kural
-paragrafı (`Tracon uses ... directly. It is a control plane around MAF, not a
-competing agent abstraction.`) **iki ayrı tek-satır silme** adımıyla
-kaldırıldı (bir sandbox notu: tek `Edit` çağrısında iki satırı birden silmek
-izin sınıflandırıcısı tarafından "Irreversible Local Destruction" gerekçesiyle
-reddedildi; aynı sonuç iki ardışık tek-satırlık silme ile elde edildi — net
-sonuç aynı). `cd docs-site && node scripts/build-agent-map.mjs` → **hata
-verdi**, çıkış kodu 1:
-```
-Error: capabilities.md: section 'Agent design and model control' has a
-capability table but no rule paragraph. Add one sentence stating the rule an
-agent must not violate.
-```
-Kuralsız harita üretilmedi — beklenen davranış. Mutasyon hemen geri alındı
-(`git diff --stat -- docs-site/src/content/docs/capabilities.md` boş,
-doğrulandı).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
 ## MT-DDG-009 — `llms.txt`'te kesmeler kelime sınırında ve bölüm/kural sayısı eşleşiyor
 
 **Gerçek sonuç**
@@ -284,152 +261,6 @@ gürültüdür** — sayfa metnini değiştiren her mutasyon bu satırı tetikle
 (tam metin karşılaştırması); aşağıdaki case'lerde ayrıca not edilmeyecek,
 yalnız case'e özgü mesaj aranacak.
 
-## MT-DDG-010 — `ui.md`'de `## Jobs` başlığı `## Queue` yapılınca kapı kızarır
-
-**Gerçek sonuç**
-`docs-site/src/content/docs/ui.md:174`'teki `## Jobs` başlığı `## Queue`
-yapıldı. `node scripts/check-content.mjs` → **düştü**, case'e özgü mesaj tam
-olarak: `ui.md has no section describing the 'Jobs' console screen` (yanında
-her mutasyonda beklenen `llms-full.txt` gürültüsü de vardı, yukarıda not
-edildi). Mutasyon geri alındı, doğrulandı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-DDG-011 — `tracon.tenant.id` → `tracon.tenant.identifier` olunca kapı tam ad arar, ön eki kabul etmez
-
-**Gerçek sonuç**
-`docs-site/src/content/docs/guides/observability.md:94`'teki
-`tracon.tenant.id` hücresi `tracon.tenant.identifier` yapıldı (tek eşleşme,
-`grep -rln` doğrulandı). `node scripts/check-content.mjs` → **düştü**:
-`Telemetry name 'tracon.tenant.id' appears on no hand-written page` — kapı
-`(?![\w.])` negatif ileri-bakış ile tam kelime eşleşmesi arıyor, `identifier`
-metnindeki `tracon.tenant.id` ön eki onu tatmin etmiyor (kaynak:
-`check-content.mjs:606-611`). Mutasyon geri alındı, doğrulandı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-DDG-012 — Belgesiz public property eklenince derleme kızarır ve property adını söyler
-
-**Gerçek sonuç**
-`src/Tracon.Core/TraconImageOptions.cs`'e `///` yorumu olmayan
-`public int MtDdg012ProbeProperty { get; set; }` eklendi. `dotnet build
-src/Tracon.Core/Tracon.Core.csproj -c Release` → **düştü**, üç hedef
-çerçevenin (`net8.0`/`net9.0`/`net10.0`) her birinde:
-`error CS1591: Missing XML comment for publicly visible type or member
-'TraconImageOptions.MtDdg012ProbeProperty'` — property adı tam olarak
-söyleniyor. Ayrıca (spec'in beklemediği ama tutarlı bir ek sinyal)
-`RS0016: Symbol ... is not part of the declared public API` de düştü —
-Roslyn'in genel public-API analizörü aynı mutasyonu bağımsız olarak
-yakalıyor. Mutasyon geri alındı, `Tracon.Core` yeniden derlendi (Build
-succeeded, 0 uyarı/hata) ve `git diff --stat 7e3a4de7..HEAD -- src samples
-tests` boş, doğrulandı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-DDG-013 — `http-api.md`'deki sayı elle değiştirilince kapı kızarır ve gerçek sayıyı yazar
-
-**Gerçek sonuç**
-`docs-site/src/content/docs/http-api.md:9`'daki `168 operations across 130
-paths` `169 operations...` yapıldı. `node scripts/check-content.mjs` →
-**düştü**, iki bağımsız kontrol birden yakaladı:
-`http-api.md: says "169 operations" but there are 168 HTTP operations. Update
-the number, or drop it if the page does not need to count.` ve
-`http-api.md claims 169 operations across 130 paths; the document has 168
-across 130` — gerçek sayı (168) her iki mesajda da doğru yazılıyor. Mutasyon
-geri alındı, doğrulandı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-DDG-014 — Paketlenen OpenAPI belgesine elle `(phase 12)` yazılınca kapı kızarır
-
-**Gerçek sonuç**
-`docs/openapi/tracon.json`'ın `info.description` alanına ` (phase 12)`
-eklendi (bu dosya `src`/`samples`/`tests` altında değil — kural 1'in donma
-kapsamı dışında, doğrudan mutasyon/geri alma uygulanabilir). `node
-scripts/check-content.mjs` → **düştü**: `docs/openapi/tracon.json: internal
-development history is packaged into Tracon.AspNetCore` — paketlenen belge
-kapının içinde, beklendiği gibi. Mutasyon geri alındı, doğrulandı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-**⚙️ Ortam notu:** Bu case'ten itibaren API referans üretimi `docfx` .NET
-aracını gerektiriyor. `dotnet tool restore` (kayıtlı: `docfx 2.78.5`,
-`nswag.consolecore 14.2.0`) ve `cd docfx && dotnet docfx metadata docfx.json`
-bir kez koşuldu (girdi: zaten pack için üretilmiş `artifacts/bin/*/release_net10.0/*.dll`,
-771 öge dışa aktarıldı). Sonrasında `node scripts/build-api-reference.mjs
---skip-docfx` temiz koşuyor (762 tip, 16 derleme, 149 hedefsiz çapraz-referans
-kod olarak render ediliyor — bu bir hata değil, betiğin kendi tasarımı: "an
-internal uid is linked only when the page exists").
-
-## MT-DDG-015 — XML dokümanına `(K-123)` yazılınca API referans üreteci hata verir, sessizce onarmaz
-
-**Gerçek sonuç**
-`src/Tracon.Core/TraconImageOptions.cs`'in `<remarks>` bloğuna ` (K-123)`
-eklendi, `dotnet build src/Tracon.Core/Tracon.Core.csproj -c Release -f
-net10.0` ile XML doküman dosyası tazelendi, `dotnet docfx metadata
-docfx.json` ile metadata yeniden üretildi (771 öge). `node
-scripts/build-api-reference.mjs --skip-docfx` → **hata verdi** (çıkış kodu
-1, `process.exit` yok ama uncaught exception ile düştü):
-```
-Error: Internal development history reached the API reference: "K-123" in
-"...also registered. (K-123) ## Constructors ### <a id=...". Fix the XML
-documentation in src/ rather than filtering it here.
-```
-Üreteç artık sessizce filtrelemiyor, tam olarak beklenen davranış. Mutasyon
-geri alındı; `Tracon.Core` yeniden derlendi ve `docfx metadata` yeniden
-koşuldu (temiz metadata geri yüklendi); `build-api-reference.mjs --skip-docfx`
-yeniden temiz koştu (762 tip/16 derleme). `git diff --stat 7e3a4de7..HEAD --
-src samples tests` boş, doğrulandı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-DDG-016 — `TRACON_UI_SCREENSHOTS=1` ile E2E: 19 görüntü üretilir
-
-**Gerçek sonuç**
-**Kurulum + koşum bu oturumda (oturum 2) tamamlandı.** `pwsh` bu makinede
-yok (`command not found`), yalnız `artifacts/bin/Tracon.Ui.E2ETests/release/playwright.ps1`
-var (`.sh` yok) — bunun yerine aynı derlemenin kendi `runtimeconfig.json`/
-`deps.json`'ı üzerinden doğrudan `Microsoft.Playwright.dll`'in `Program.Main`'i
-çağrıldı: `dotnet exec --runtimeconfig Tracon.Ui.E2ETests.runtimeconfig.json
---depsfile Tracon.Ui.E2ETests.deps.json Microsoft.Playwright.dll install
---with-deps` — Firefox 151.0 ve WebKit 26.5 indirildi (`~/Library/Caches/ms-playwright/`;
-not: DEVIR'in yazdığı `~/.cache/ms-playwright` yolu macOS'ta yanlış, gerçek
-yol `~/Library/Caches/ms-playwright`), Chromium zaten kuruluydu (üç sürüm,
-önceki bir kurulumdan). `cd src/Tracon.UI/frontend && npm run build` →
-temiz koştu (21 dosya, 246 test, Vite build iki kez — ana + embed widget,
-0 hata); çıktı `dist/` değil `../wwwroot/` altına gidiyor (spec'in "dist"
-sözü yanıltıcı, gerçek klasör `wwwroot`) ve `.gitignore:69` tarafından
-gitignore'lı, kod donmasını etkilemiyor.
-
-`dotnet build tests/Tracon.Ui.E2ETests -c Release` temiz (0/0), ardından
-`TRACON_UI_SCREENSHOTS=1 dotnet test tests/Tracon.Ui.E2ETests -c Release
---no-build` → **`Passed! - Failed: 0, Passed: 79, Total: 79`** (1m 24s).
-`docs-site/public/screenshots/*.png` altında **40 görüntü** üretildi (20
-ekran × açık/koyu tema) — spec'in "19" sayısı bayat (bu koşumda ekran sayısı
-20; ışık/koyu tema çarpımı muhtemelen spec yazıldığında yoktu ya da ekran
-sayısı artmış — nitel iddia etkilenmiyor). Spec'in özellikle vurguladığı iki
-iddia test kaynağından **doğrulandı**: `jobs` ekranının `Landmark`'ı
-`SeededScheduleName` (`"nightly-summary"`) ve kod satır 238 zamanlaması net
-— schedule koşum sonrası **gerçek bir job satırı** oluşana kadar tetikleniyor
-(`DocumentationScreenshotTests.cs:238`, yorum: "Triggering it once turns the
-empty 'Recent jobs' panel into a real row"); `sessions` ekranının
-`Landmark`'ı `SeededSessionId` (`"support-ord-7"`) — yani "Jobs bir schedule
-ve bir job satırı, Sessions bir oturum gösterir" iddiası koddan doğrulanıyor,
-79/79 test geçtiği için bu landmark'lar gerçekten sayfada bulunmuş.
-
-**Geri alma:** Üretilen 40 `.png`, `docs-site/public/screenshots/` altında
-**git-tracked** dosyaları yerinde güncelledi (`git status --short` 40 `M`
-gösterdi). Bu case'in kanıtı mekanizmanın çalıştığını göstermek olduğundan
-— siteyi gerçekten yenilemek ayrı bir karar (`tuketici-dokuman-senkronu`
-kapsamı) — diğer mutasyon içeren case'lerle aynı disiplinle
-`git checkout -- docs-site/public/screenshots` ile geri alındı;
-`git status --short` ve `git diff --stat 7e3a4de7..HEAD -- src samples
-tests` ikisi de **boş**, doğrulandı. Playwright tarayıcıları ve derlenmiş
-frontend (`wwwroot/`) makinede **kalıcı olarak kuruludur**, sonraki koşumlar
-bunları tekrar kurmaz.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
 ## MT-DDG-017 — `guides/coding-agents/` sayfası APG tanıları, MSBuild özellikleri, üretilen dosyaları eksiksiz anlatır 👤
 
 **Gerçek sonuç**
@@ -452,105 +283,6 @@ konsolun 18 girişinin `ui.md` metniyle **anlam olarak** eşleştiğini
 ölçemez. Fiziksel eylem listesine eklendi.
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-DDG-019 — Kök `README.md` İngilizce, faz numarası kayması yok, bütçe içinde
-
-**Gerçek sonuç**
-`README.md` okundu (374 satır, 18 868 bayt). `grep -inE "phase [0-9]+|faz
-[0-9]+|K-[0-9]{3}|F-[0-9]{2,3}"` → **0 eşleşme**. `grep -inE
-"[çğıöşüÇĞİÖŞÜ]"` → **0 eşleşme** (Türkçe harf yok). İçerik elle okundu:
-profesyonel, tamamı İngilizce, geliştirme jargonu sızıntısı yok ("in
-development, not yet published" gibi ifadeler ürünün gerçek durumunu
-anlatıyor, dahili faz/karar referansı değil). Boyut (374 satır) bir paket
-README'si için makul; programatik bir bayt bütçesi bulunamadı (aranan
-komutlarda `README.*budget` deseni sıfır eşleşme verdi) — "bütçe içinde"
-iddiası burada öznel bir okur yargısı, otomatik kapı değil.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-DDG-020 — `check:content && build && check:links` üçü de temiz
-
-**Gerçek sonuç**
-Ortam: `cd docs-site && npm ci` bir kez koşuldu (480 paket; npm audit 4
-zafiyet bildirdi — standart uyarı, bu case'in kapsamı dışı). `npm run
-check:content` → **56 elle yazılan sayfa, 845 toplam sayfa geçti** (845 = 56
-elle yazılan + docfx'in ürettiği API referansı, MT-DDG-015'te kurulan
-metadata sayesinde). `npm run build` → **1147 sayfa** üretildi, Pagefind
-arama indeksi kuruldu, sitemap üretildi, hatasız tamamlandı. `npm run
-check:links` → `188739 internal reference(s) across 1147 pages and
-llms.txt, none broken` ve `1147 HTML, 1146 sitemap URL, 1146 erişilebilir
-sayfa; 0 hata`. Üçü de temiz — beklenen sonuçla tam eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-DDG-021 — Türetebilen bir dosyaya (`sidebar.mjs`) adres harfiyen yazılınca kapı kızarır ve dosya adını söyler
-
-**Gerçek sonuç**
-`docs-site/src/sidebar.mjs`'in ilk yorum satırına ` See tracon.dev.` eklendi.
-`node scripts/check-content.mjs` → **düştü**:
-`docs-site/src/sidebar.mjs: spells out 'tracon.dev'. Import it from
-docs-site/site.config.mjs (C#: DocumentationLinks) instead.` — dosya adı tam
-söyleniyor. Mutasyon geri alındı, doğrulandı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-DDG-022 — Paket README'sine eski bir barındırıcı (`formerHosts`) yazılınca kapı kızarır
-
-**Gerçek sonuç**
-`site.config.mjs`'in `formerHosts` listesindeki `farukatasoy.github.io`
-`src/Tracon.Core/README.md`'ye eklendi. `node scripts/check-content.mjs` →
-**düştü**: `src/Tracon.Core/README.md: still points at
-'farukatasoy.github.io', which no longer serves this site. The site is
-published at https://tracon.dev/.` — eski barındırıcı artık siteyi
-sunmadığı doğru şekilde adlandırılıyor. Mutasyon geri alındı; `git diff
---stat 7e3a4de7..HEAD -- src samples tests` boş, doğrulandı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-DDG-023 — `DocumentationLinks.Site` değişince her `APG` tanısı için kızarır
-
-**Gerçek sonuç**
-`src/Tracon.Generators/DocumentationLinks.cs`'teki `Site` sabiti
-`https://tracon.dev/` → `https://example.invalid/` yapıldı, proje yeniden
-derlendi. `dotnet test tests/Tracon.Generators.UnitTests -c Release --filter
-"FullyQualifiedName~DiagnosticIntegrityTests"` → **22 test düştü** (291
-toplamdan; kalan 269 bu case'i sınamayan diğer bütünlük testleri). Örnek
-mesaj: `TRC0401 points at an address the site does not publish;
-site.config.mjs declares https://tracon.dev/.` — her `TRC0*` tanısı için
-ayrı ayrı, gerçek adres doğru yazılarak kızıyor. Mutasyon geri alındı,
-`Tracon.Generators` yeniden derlendi (Build succeeded, 0/0).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-DDG-024 — Derlenen site: `canonical`, `robots.txt`, `sitemap-index.xml` üçü de `site.config.mjs`'in adresini taşır
-
-**Gerçek sonuç**
-Ön koşul MT-DDG-020'nin `npm run build`'inden sağlandı (`dist/` mevcut).
-`grep -o 'rel="canonical"...' dist/index.html` → `href="https://tracon.dev/"`.
-`cat dist/robots.txt` → `Sitemap: https://tracon.dev/sitemap-index.xml` (ayrıca
-model-eğitimi/arama/kullanıcı-tetikli botlar için üç ayrı izin bloğu — sitenin
-kendi tasarımı, bu case'in kapsamı dışı). `dist/sitemap-index.xml` →
-`<loc>https://tracon.dev/sitemap-0.xml</loc>`. Üçü de `site.config.mjs`'teki
-`https://tracon.dev/` adresini taşıyor; `robots.txt` sitemap'i doğru işaret
-ediyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-DDG-025 — `<example>` bloğuna var olmayan üye eklenince test düşer ve dosya/satır + `CS1061` adlandırılır
-
-**Gerçek sonuç**
-`src/Tracon.Core/TraconContentProtectionExtensions.cs:32`'deki `<example>`
-bloğuna `options.NoSuchThing = 1;` satırı eklendi. `dotnet test
-tests/Tracon.Generators.UnitTests -c Release --filter
-"FullyQualifiedName~ExampleCompilationTests"` → **düştü**:
-`Every_example_block_compiles(origin: "src/Tracon.Core/
-TraconContentProtectionExtensions.")` — mesaj tam olarak `(134,28): error
-CS1061: 'TraconContentProtectionOptions' does not contain a definition for
-'NoSuchThing'...` ve `src/Tracon.Core/TraconContentProtectionExtensions.cs:32
-does not compile`, kaynağı da (`Origin`) gösteriyor. Mutasyon geri alındı,
-doğrulandı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ## MT-DDG-026 — Yeni bir tanı eklenir, sayfada yoksa `Every_diagnostic_is_explained_on_the_troubleshooting_page` düşer
 
@@ -577,21 +309,6 @@ koşumda **ikinci, ilgisiz bir test** de düştü —
 `AnalyzerReleases.Unshipped.md`) geri alındı, `Tracon.Generators` yeniden
 derlendi (Build succeeded, 0/0). `git diff --stat 7e3a4de7..HEAD -- src
 samples tests` boş, doğrulandı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-DDG-027 — `TRC0002` bölümü silinince aynı test düşer; tersi test etkilenmez
-
-**Gerçek sonuç**
-`docs-site/src/content/docs/troubleshooting.md`'den `### A tool name is
-invalid (TRC0002)` bölümünün tamamı (başlık + iki paragraf) silindi. `dotnet
-test tests/Tracon.Generators.UnitTests -c Release --filter
-"FullyQualifiedName~Every_diagnostic_is_explained_on_the_troubleshooting_page|FullyQualifiedName~The_troubleshooting_page_names_no_diagnostic_that_no_longer_exists"`
-→ **1 test düştü, 290 geçti**: `Every_diagnostic_is_explained_on_the_troubleshooting_page(id: "TRC0002")`
-→ `TRC0002 does not appear on troubleshooting.md.` `The_troubleshooting_page_names_no_diagnostic_that_no_longer_exists`
-**etkilenmedi** (geçti) — beklenen tam olarak bu: silinen kod hâlâ
-`ToolDiagnostics.cs`'te var, o yüzden "artık var olmayan tanı" testi
-tetiklenmiyor. Mutasyon geri alındı, doğrulandı.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -687,67 +404,6 @@ geri yüklendi (elle yeniden yazma yok). Doğrulama: `git status --short src`
 `git diff --stat 7e3a4de7..HEAD -- src samples tests` → **boş**.
 `dotnet build tests/Tracon.Generators.UnitTests -c Release` geri yükleme
 sonrası temiz koştu (`Build succeeded, 0 Warning(s), 0 Error(s)`).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-DDG-030 — `CONTRIBUTING.md`'ye Türkçe cümle eklenince dil kapısı düşer, dosyayı adlandırır
-
-**Gerçek sonuç**
-Kök `CONTRIBUTING.md`'nin son satırına `Bu bir Türkçe cümledir.` eklendi
-(bu dosya `src`/`samples`/`tests` altında değil, donma kapsamı dışı).
-`dotnet test tests/Tracon.Core.UnitTests -c Release --no-build --filter
-"FullyQualifiedName~SourceLanguageTests"` → **düştü**:
-`+ CONTRIBUTING.md: 1 offending lines, baseline allows 0` — kapı Faz 104'te
-genişleyip `CONTRIBUTING.md`'yi (ve `ARCHITECTURE.md`, kök `README.md`'yi)
-kapsamış, doğrulandı (`ScannedRootFiles` dizisi `tests/Tracon.Core.UnitTests/
-Architecture/SourceLanguageTests.cs:69-70`'te üçünü de listeliyor). Mutasyon
-geri alındı, doğrulandı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-DDG-031 — Hız sınırının kapsam beyanı üç yüzeyde birbirini tutuyor, kardeş tiple çelişki yok
-
-**Gerçek sonuç**
-`grep -c "per instance" src/Tracon.Core/Quotas/TraconRateLimitOptions.cs` →
-**1** — XML doküman: "the limit therefore applies **per instance**", ve
-`InboundTriggerRateLimiter`'ın "the same scope"a sahip olduğunu açıkça
-söylüyor. `grep -c "per process" docs-site/src/content/docs/guides/production.md`
-→ **1** (satır 252: "Rate limits are per process for the same reason. The
-endpoint limiter... and the inbound trigger limiter both count in the
-memory of one instance") — aynı iki tipi birlikte anıyor, çelişki yok.
-`concepts/governance.md` daha az açık ama tutarlı: hız sınırları "in
-memory", kotalar "in the database" diye ayrılıyor. Üçü de kotayı **toplam
-tüketim sınırı** olarak gösteriyor (`TraconQuotaOptions`/veritabanı). Kardeş
-tiple (`InboundTriggerRateLimiter`) çelişki yok — ikisi de aynı kapsamda.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-DDG-032 — Kiracı yalıtımının katmanı üç kaynakta aynı: uygulama katmanı, RLS bilinçli olarak yok, karar kayıtlı
-
-**Gerçek sonuç**
-`concepts/governance.md:51-58`: "Isolation lives in the application layer,
-and that is a deliberate choice... Tracon does not create database row
-level security policies". `docs/MIMARI-GUVENLIK.md:127-130` (§Çok
-kiracılılık): "**Uygulama katmanında**... Veritabanı RLS'i **bilinçli
-olarak yoktur**... (gerekçe K-623)". `docs/KARARLAR.md:670`, **K-623**:
-"Kiracı yalıtımı UYGULAMA KATMANINDA tek hat kalır; veritabanı RLS'i
-eklenmez" + yeniden açılma koşulu ("üç sağlayıcının hepsinde gerçek
-container üzerinde doğrulanabilir bir zemin oluştuğunda... RLS savunma
-derinliği olarak yeniden değerlendirilir"). Üçü **aynı şeyi** söylüyor ve
-karar gerekçesiyle kayıtlı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-DDG-033 — `threat-model.md` ile `security.md`'nin sınır tabloları aynı kümeyi taşır
-
-**Gerçek sonuç**
-`getting-started/security.md:268-283`'teki "The boundaries Tracon enforces"
-tablosu (14 satır) ile `reference/threat-model.md:63-78`'deki "Boundary
-mapping" tablosu (14 satır) elle yan yana okundu — **ilk sütun** (sınır adı)
-ve **ikinci sütun** (ne reddettiği) tam olarak aynı, sıra dahil (Endpoint
-access…Production profile). Tehdit modeli `/reference/security-policy/`
-sayfasına bağlantı veriyor, o sayfa "reporting a vulnerability, and scope"
-diye tanımlanıyor — zafiyet bildirim yolu bağlantısı var.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 

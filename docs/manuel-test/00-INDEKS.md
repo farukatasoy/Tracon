@@ -347,6 +347,12 @@ case'tir; aradaki **8** case hiç kayıt bloğu almadı (⬜ — §7.2 E maddesi
 yoksa `İŞARETSİZ` sayısına da girmez. Turun sayımı bu yüzden `Hedef case`
 sütunuyla karşılaştırılarak doğrulanır.
 
+⚠️ **Sayımı damıtılmış kayıt üzerinde TEKRARLAMA.** Damıtma temiz geçen
+case'leri tablo satırına indirir; bir case iki blok taşıyorsa (ilk deneme
+ertelendi, ikincisi geçti) geriye **ilk** blok kalır ve işaretsiz görünür
+(ölçüldü: 19 blok, `F-251`). Yukarıdaki sayı damıtmadan **önce** ölçülmüştür
+ve bu tablonun kendisi tek kaynaktır.
+
 **Üretim işaretleri:** ☐ beklemede · ◐ yarım · ✅ bitti
 
 `Kaynak` sütunu, o dosyayı üretecek oturumun okuyacağı **tek** kaynak kümesidir.
