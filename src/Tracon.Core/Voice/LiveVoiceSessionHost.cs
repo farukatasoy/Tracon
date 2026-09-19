@@ -341,10 +341,13 @@ internal sealed class LiveVoiceSessionHost : IAsyncDisposable
                             ? VoiceSessionEndReason.Provider
                             : VoiceSessionEndReason.Abandoned;
 
-                        _logger.LogInformation(
-                            "Live voice session {SessionId} was closed by the provider: {Reason}.",
-                            _request.SessionId,
-                            evt.Reason ?? "no reason given");
+                        if (_logger.IsEnabled(LogLevel.Information))
+                        {
+                            _logger.LogInformation(
+                                "Live voice session {SessionId} was closed by the provider: {Reason}.",
+                                _request.SessionId,
+                                evt.Reason ?? "no reason given");
+                        }
 
                         return;
 
