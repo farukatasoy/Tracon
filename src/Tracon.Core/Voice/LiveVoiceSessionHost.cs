@@ -194,7 +194,17 @@ internal sealed class LiveVoiceSessionHost : IAsyncDisposable
     /// <summary>Closes the session and writes its record.</summary>
     /// <param name="reason">Why it closed.</param>
     /// <returns>The completion task.</returns>
-    public async Task CloseAsync(VoiceSessionEndReason reason)
+    public Task CloseAsync(VoiceSessionEndReason reason)
+        => CloseCoreAsync(reason, waitForPump: true);
+
+    /// <summary>Closes the host, optionally waiting for the receive pump.</summary>
+    /// <param name="reason">Why the session ended.</param>
+    /// <param name="waitForPump">
+    /// Whether to wait for the receive pump to finish. The pump itself must pass
+    /// <see langword="false"/> from its <c>finally</c> block or it would wait for
+    /// the task that is currently executing the close.
+    /// </param>
+    private async Task CloseCoreAsync(VoiceSessionEndReason reason, bool waitForPump)
     {
         await _closeGate.WaitAsync(CancellationToken.None).ConfigureAwait(false);
 
@@ -217,27 +227,32 @@ internal sealed class LiveVoiceSessionHost : IAsyncDisposable
             // silence. Same class as the pump's own scope, different path.
             using var tenant = AmbientTenantScope.Begin(_request.TenantId);
 
-            // Shutdown order: cancel every delegation, wait for all of them, write
-            // the record, then drop the socket. Writing the record first would race
-            // a delegation still appending to the history.
-            foreach (var cancellation in _delegations.Values)
-            {
-                await cancellation.CancelAsync().ConfigureAwait(false);
-            }
+            // Shutdown order: cancel every delegation, wait for all of them, stop
+            // the receive pump, flush the history, then write the session record.
+            // Writing the history before the delegation tasks finish would race a
+            // task still appending to the session.
+            await StopDelegationsAsync().ConfigureAwait(false);
 
-            foreach (var task in _delegationTasks.Values)
-            {
-                try
-                {
-                    await task.ConfigureAwait(false);
-                }
-                catch (Exception exception)
-                {
-                    _logger.LogDebug(exception, "A delegation ended with an error while the session was closing.");
-                }
-            }
-
+            // The receive pump may already have transcript frames queued in the
+            // sideband. Stop the sideband first, then wait for the pump to finish
+            // consuming what it has already received. Cancelling _lifetime before
+            // that wait made an external close race the pump: the socket stopped
+            // before the transcript reached _ledger, so FlushHistoryAsync saved an
+            // empty history. The provider close is also the only bounded signal
+            // available through ILiveVoiceSideband that tells ReceiveAsync to end.
+            await DisposeSidebandAsync().ConfigureAwait(false);
             await _lifetime.CancelAsync().ConfigureAwait(false);
+
+            if (waitForPump)
+            {
+                await _pump.ConfigureAwait(false);
+
+                // The pump may have received a delegation event while the first
+                // stop pass was waiting. No task can be added after the pump has
+                // ended, so this second pass closes that small hand-off window
+                // before history is flushed.
+                await StopDelegationsAsync().ConfigureAwait(false);
+            }
 
             await FlushHistoryAsync().ConfigureAwait(false);
 
@@ -246,17 +261,6 @@ internal sealed class LiveVoiceSessionHost : IAsyncDisposable
             // available here.
             await SaveRecordAsync(reason, CancellationToken.None).ConfigureAwait(false);
 
-            if (_sideband is not null)
-            {
-                try
-                {
-                    await _sideband.DisposeAsync().ConfigureAwait(false);
-                }
-                catch (Exception exception)
-                {
-                    _logger.LogDebug(exception, "The sideband could not be closed cleanly.");
-                }
-            }
         }
         finally
         {
@@ -387,13 +391,39 @@ internal sealed class LiveVoiceSessionHost : IAsyncDisposable
         {
             if (!_closed)
             {
-                await CloseAsync(reason).ConfigureAwait(false);
+                // This code runs on _pump itself. CloseCoreAsync must not await
+                // _pump here; the external close path does that after stopping the
+                // sideband, which keeps the history flush ordered after the pump.
+                await CloseCoreAsync(reason, waitForPump: false).ConfigureAwait(false);
             }
+        }
+    }
+
+    /// <summary>Stops the sideband without allowing cleanup to block history persistence.</summary>
+    private async Task DisposeSidebandAsync()
+    {
+        if (_sideband is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await _sideband.DisposeAsync().ConfigureAwait(false);
+        }
+        catch (Exception exception)
+        {
+            _logger.LogDebug(exception, "The sideband could not be closed cleanly.");
         }
     }
 
     private void StartDelegation(string delegationId, int offsetMilliseconds)
     {
+        if (_closed)
+        {
+            return;
+        }
+
         if (_delegations.Count >= _options.MaxConcurrentDelegations)
         {
             // 🚨 No run is opened. The provider does not get to decide how many
@@ -423,6 +453,27 @@ internal sealed class LiveVoiceSessionHost : IAsyncDisposable
         _delegationTasks[delegationId] = Task.Run(
             () => RunDelegationAsync(delegationId, offsetMilliseconds, cancellation),
             CancellationToken.None);
+    }
+
+    /// <summary>Stops all delegation tasks currently known to the host.</summary>
+    private async Task StopDelegationsAsync()
+    {
+        foreach (var cancellation in _delegations.Values)
+        {
+            await cancellation.CancelAsync().ConfigureAwait(false);
+        }
+
+        foreach (var task in _delegationTasks.Values)
+        {
+            try
+            {
+                await task.ConfigureAwait(false);
+            }
+            catch (Exception exception)
+            {
+                _logger.LogDebug(exception, "A delegation ended with an error while the session is closing.");
+            }
+        }
     }
 
     private async Task RunDelegationAsync(
