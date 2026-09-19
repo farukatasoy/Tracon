@@ -38,7 +38,7 @@
 | MinVer sürümleme, repo dışı tüketiciyi bağlama | [yayin-ve-surumleme](yayin-ve-surumleme.md) |
 | NSwag ile üretilen istemci (`Tracon.Client`/`@tracon/client`) | [nswag-istemci-uretimi](nswag-istemci-uretimi.md) |
 | Test **yazımı** (xunit, sözleşme, Playwright) | [test-altyapisi](test-altyapisi.md) |
-| Test **koşumu** asılı/eksik (`dotnet test`) | [test-kosum-tuzaklari](test-kosum-tuzaklari.md) |
+| Test **koşumu** asılı/eksik (`dotnet test`) | [komut/MSBuild](test-kosum-tuzaklari.md) · [paralellik/zamanlama](test-paralellik-ve-zamanlama.md) |
 | Örnek uygulamayı **elle** ayağa kaldırma (manuel tur, repro) | [elle-kosum-ortami](elle-kosum-ortami.md) |
 | Test tek başına geçip **tam koşumda** düşüyor | [test-yalitimi](test-yalitimi.md) |
 | Tam koşumda düşen testin **ölçülmüş vakaları** | [test-yalitimi-vakalari](test-yalitimi-vakalari.md) |
