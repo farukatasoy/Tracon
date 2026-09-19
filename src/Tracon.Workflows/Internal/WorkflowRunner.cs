@@ -1336,7 +1336,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
 
         /// <summary>Execution stopped because a token was cancelled.</summary>
         /// <remarks>
-        /// 🚨 The REASON is deliberately not built here. A deadline can end a
+        /// The reason is deliberately not built here. A deadline can end a
         /// run through three separate doors - startup, a super-step boundary,
         /// a cancelled MoveNextAsync - and MAF can also end its stream quietly,
         /// through no door at all. While each door built its own reason, the
