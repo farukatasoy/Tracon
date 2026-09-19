@@ -17,6 +17,8 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { site } from '../site.config.mjs';
+
 const here = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(here, '../..');
 const changelogPath = join(repositoryRoot, 'CHANGELOG.md');
@@ -78,14 +80,36 @@ function parseReleases(text) {
       // The body's own `### Added` headings drop one level: the version becomes
       // an `###` under `## Releases`, and `## Read next` stays the last `##` the
       // closing-section gate looks for.
-      body: section
-        .slice(heading.length)
-        .replace(/^### /gm, '#### ')
-        .trim(),
+      body: onThisSite(
+        section
+          .slice(heading.length)
+          .replace(/^### /gm, '#### ')
+          .trim(),
+      ),
     });
   }
 
   return releases;
+}
+
+/**
+ * Turns this site's own absolute links into site-relative ones.
+ *
+ * The root CHANGELOG.md is read in three places and only one of them is this
+ * site: the GitHub release body and a package's release-notes link both live
+ * off-site, where `/reference/licensing/` would resolve against the wrong
+ * host. So the root file writes the address in full, and the page drops it on
+ * the way in - which is also what `check-content.mjs` enforces, since a page
+ * under src/ that spells the host out survives a domain move as a broken link.
+ */
+function onThisSite(body) {
+  // An autolink is handled first and separately: `<https://host/x/>` cannot
+  // just lose its host, because `</x/>` is not an autolink any more - Markdown
+  // wants an absolute URI inside the angle brackets and a reader would be left
+  // with literal text or a stray tag.
+  const autolink = new RegExp(`<${site.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([^>]*)>`, 'g');
+
+  return body.replace(autolink, (_, path) => `[${path}](${path})`).split(site).join('');
 }
 
 function renderUnreleased() {

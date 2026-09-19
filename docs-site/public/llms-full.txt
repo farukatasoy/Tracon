@@ -13138,7 +13138,7 @@ package, and the surface may still be reduced before 1.0.
   now declare `<license type="file">` and carry the text inside the `.nupkg`
   rather than naming an SPDX expression. Nothing was published under MIT, so no
   existing consumer is affected. See
-  <https://tracon.dev/reference/licensing/>.
+  [/reference/licensing/](/reference/licensing/).
 
 - **The `/v1/conversations` read and delete routes now go through your
   registered `IRunAuthorizationHandler`.** `GET /v1/conversations/{id}`,
