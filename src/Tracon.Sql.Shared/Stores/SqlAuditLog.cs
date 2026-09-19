@@ -94,7 +94,7 @@ internal sealed class SqlAuditLog : IAuditLog
 
             var command = CreateCommand(_sql.InsertAuditEntry);
             DbHelpers.Add(command, "id", id);
-            DbHelpers.Add(command, "tenant_id", entry.TenantId);
+            DbHelpers.AddTenant(command, entry.TenantId);
             AddNullableText(command, "actor", entry.Actor);
             DbHelpers.Add(command, "action", entry.Action);
             DbHelpers.Add(command, "entity", entry.Entity);
@@ -141,7 +141,7 @@ internal sealed class SqlAuditLog : IAuditLog
         ArgumentNullException.ThrowIfNull(query);
 
         var command = CreateCommand(_sql.SelectAuditLog);
-        DbHelpers.Add(command, "tenant_id", ResolveTenantId(query.TenantId));
+        DbHelpers.AddTenant(command, ResolveTenantId(query.TenantId));
         AddNullableText(command, "actor", query.Actor);
         AddNullableText(command, "action", query.Action);
         AddNullableText(command, "entity", query.Entity);
@@ -160,7 +160,7 @@ internal sealed class SqlAuditLog : IAuditLog
         ArgumentNullException.ThrowIfNull(query);
 
         var command = CreateCommand(_sql.SelectAuditChain);
-        DbHelpers.Add(command, "tenant_id", ResolveTenantId(query.TenantId));
+        DbHelpers.AddTenant(command, ResolveTenantId(query.TenantId));
         Dialect.AddTimestamp(command, "started_after", query.After);
         Dialect.AddTimestamp(command, "started_before", query.Before);
 
@@ -179,7 +179,7 @@ internal sealed class SqlAuditLog : IAuditLog
     private async ValueTask<string?> ReadLastHashAsync(string tenantId, CancellationToken cancellationToken)
     {
         var command = CreateCommand(_sql.SelectLastAuditHash);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
 
         var result = await DbHelpers.ExecuteScalarAsync(command, cancellationToken).ConfigureAwait(false);
 

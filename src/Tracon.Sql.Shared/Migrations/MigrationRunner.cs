@@ -244,6 +244,25 @@ public sealed class MigrationRunner : ISqlPersistenceDiagnostics, IMigrationAppl
             "The Tracon migration ledger could not be read",
             token => ReadAppliedAsync(connection, token),
             cancellationToken).ConfigureAwait(false);
+
+        // 🚨 Before anything is migrated, not after: a database that still
+        // holds a non-canonical tenant_id must not have further schema laid on
+        // top of it. On a fresh database the catalog is empty and this is a
+        // no-op. See TenantIdCaseGuard for why it refuses rather than folds.
+        //
+        // Under the SAME transient-conflict retry as every bootstrap step
+        // above, and for the reason written there: the migration lock is
+        // scoped to the SCHEMA, so two schemas bootstrapping at once meet on
+        // catalog objects shared by the whole database and one is chosen as
+        // the deadlock victim. This step reads sys.columns / information_schema
+        // and then scans every tenant table, so it is a LIKELIER victim than
+        // the four before it, not a rarer one. It is read-only, therefore
+        // retrying is as safe here as it is there (K-540).
+        await RetryOnTransientConflictAsync(
+            "The Tracon tenant_id case guard could not run",
+            token => TenantIdCaseGuard.VerifyAsync(_context, connection, token),
+            cancellationToken).ConfigureAwait(false);
+
         var count = 0;
 
         foreach (var set in sets)

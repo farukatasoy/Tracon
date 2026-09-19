@@ -28,6 +28,28 @@ The packages are still pre-release. Install them with an explicit preview versio
 the CLI's pre-release option. The template package also needs a preview version or
 pre-release selection.
 
+### How long each target framework stays
+
+Tracon follows Microsoft's own .NET support lifecycle and does not extend it. A
+target framework stays in the matrix while Microsoft still supports it; once
+that support ends, a later Tracon release may drop it.
+
+Plan for this before it happens, because it changes what you can upgrade to:
+
+- **Dropping an out-of-support target framework is not treated as a breaking
+  change** under the versioning policy. It can land in a minor release.
+- A release that drops one says so in its changelog entry, and the package's
+  own `net8.0`/`net9.0`/`net10.0` assets simply stop appearing.
+- Your application keeps working on the release it already resolved; nothing
+  is withdrawn from nuget.org. What ends is new Tracon releases for that
+  framework.
+
+Support dates come from Microsoft, not from Tracon, and they move: check the
+[.NET support policy](https://dotnet.microsoft.com/platform/support/policy/dotnet-core)
+for the current end-of-support date of each version before you pin one. `net10.0`
+is the longest-lived target in the matrix today, and a new application should
+start there.
+
 ## The 20 packages
 
 “Meta” shows whether `dotnet add package Tracon` brings the package into the
@@ -51,7 +73,7 @@ dependency graph. `AOT` states the promise made by the package itself.
 | `Tracon.Azure` | No | net8/9/10 | Yes | Azure OpenAI provider; managed identity stays consumer-selected |
 | `Tracon.Voice` | No | net8/9/10 | Yes | ElevenLabs speech tools and reusable speech contracts |
 | `Tracon.Testing` | No | net8/9/10 | No promise | Assertions use reflection and the test host uses runtime JSON serialization |
-| `Tracon.Testing.Contracts.Xunit` | No | net8/9/10 | No promise | Behavior contract suite for five extension families — storage (`IRunStore` and 32 other store interfaces), model providers, run judges, agent sources, and custom tools — as xunit.v3 fixtures; uses reflection for a build-time coverage check |
+| `Tracon.Testing.Contracts.Xunit` | No | net8/9/10 | No promise | Behavior contract suite for six extension families — storage (`IRunStore` and 29 other store interfaces), model providers, run judges, agent sources, job handlers, and custom tools — as xunit.v3 fixtures; uses reflection for a build-time coverage check |
 | `Tracon.Templates` | No | net10 output | N/A | `dotnet new tracon-api` content package |
 | `Tracon.Client` | No | net8/9/10 | No | Typed management client generated from the OpenAPI document; every request/response call is hand-wired to a generic `JsonSerializer` overload the trim/AOT analyzer cannot prove type coverage for |
 | `Tracon.Cli` | No | net10 (`DotnetTool`) | No | The `tracon` global tool; wraps `Tracon.Client` and ships as IL, not native code |

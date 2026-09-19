@@ -82,7 +82,7 @@ internal sealed class SqlChatHistoryProvider : ChatHistoryProvider
 
         var command = CreateCommand(_sql.SelectConversationItems);
         DbHelpers.Add(command, "conversation_id", conversationId);
-        DbHelpers.Add(command, "tenant_id", _tenantContext.TenantId);
+        DbHelpers.AddTenant(command, _tenantContext.TenantId);
 
         var messages = await DbHelpers
             .ReadListAsync(command, reader => ProtectedValue.Read(_context, reader.GetString(0))!, cancellationToken)
@@ -138,7 +138,7 @@ internal sealed class SqlChatHistoryProvider : ChatHistoryProvider
                 var upsert = _context.CreateCommand(_sql.UpsertConversation, connection, transaction);
 
                 DbHelpers.Add(upsert, "id", conversationId);
-                DbHelpers.Add(upsert, "tenant_id", _tenantContext.TenantId);
+                DbHelpers.AddTenant(upsert, _tenantContext.TenantId);
                 DbHelpers.Add(upsert, "agent_name", agentName);
                 Dialect.AddTimestamp(upsert, "now", now);
 

@@ -72,7 +72,7 @@ internal sealed class SqlConversationBranchStore : IConversationBranchStore
                 var insert = _context.CreateCommand(_sql.InsertBranchConversation, connection, transaction);
                 Dialect.AddUuid(insert, "id", newConversationId);
                 Dialect.AddUuid(insert, "parent_conversation_id", parentConversationId);
-                DbHelpers.Add(insert, "tenant_id", tenantId);
+                DbHelpers.AddTenant(insert, tenantId);
                 Dialect.AddTimestamp(insert, "now", now);
                 Dialect.AddInt64(insert, "branch_from_seq", branchPoint.LastSequence);
 

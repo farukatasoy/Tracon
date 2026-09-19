@@ -12,7 +12,7 @@ brings it. Reference it on its own when you are writing an implementation of one
 the contracts below and want to depend on the seam rather than the runtime.
 
 ```bash
-dotnet add package Tracon.Abstractions
+dotnet add package Tracon.Abstractions --prerelease
 ```
 
 ## What is in here

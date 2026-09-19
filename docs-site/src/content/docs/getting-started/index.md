@@ -79,9 +79,11 @@ configuration without a deployment.
 It does not fit if you want a hosted agent product, or if you are not on .NET. Runtime
 packages target `net8.0`, `net9.0`, and `net10.0`, and the testing packages follow the
 same matrix, so an app on .NET 8 LTS can be tested on .NET 8. The project template
-generates a `net10.0` project, the `tracon` global tool targets `net10.0`, and the
-source generator that ships inside Core targets `netstandard2.0`. The
-[compatibility matrix](/reference/compatibility/) carries the per-package detail.
+generates a `net10.0` project pinned to the template package's own Tracon version
+(`--TraconVersion x.y.z` overrides it), the `tracon` global tool targets `net10.0`,
+and the source generator that ships inside Core targets `netstandard2.0`. The
+[compatibility matrix](/reference/compatibility/) carries the per-package detail,
+including how long each target framework stays in the matrix.
 
 ## Read next
 

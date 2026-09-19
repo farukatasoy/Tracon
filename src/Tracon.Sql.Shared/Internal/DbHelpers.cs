@@ -177,6 +177,30 @@ internal static class DbHelpers
     }
 
     /// <summary>
+    /// Binds the <c>tenant_id</c> parameter in its canonical form.
+    /// </summary>
+    /// <param name="command">The command to bind onto.</param>
+    /// <param name="tenantId">The tenant identifier as the caller wrote it.</param>
+    /// <remarks>
+    /// <para>
+    /// <strong>Every</strong> <c>tenant_id</c> parameter goes through here,
+    /// on the write path and on the query path alike. A store that binds the
+    /// raw value is case-sensitive while the rest of the product is not: the
+    /// same tenant then reaches two different rows on PostgreSQL and SQLite,
+    /// and on SQL Server's case-insensitive default collation two tenants
+    /// reach one row. The rule itself is
+    /// <see cref="AmbientTenantScope.Normalize"/>.
+    /// </para>
+    /// <para>
+    /// Normalizing here and not in the caller is what makes the promise
+    /// checkable: <c>TenantParameterChokePointTests</c> fails the build when a
+    /// store binds <c>tenant_id</c> any other way.
+    /// </para>
+    /// </remarks>
+    public static void AddTenant(DbCommand command, string tenantId)
+        => Add(command, "tenant_id", AmbientTenantScope.Normalize(tenantId));
+
+    /// <summary>
     /// Reads a timestamp column as a UTC-stamped value.
     /// </summary>
     /// <param name="reader">The reader.</param>

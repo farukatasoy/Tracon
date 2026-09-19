@@ -36,7 +36,7 @@ internal sealed class SqlInboundTriggerStore : IInboundTriggerStore
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
         var command = CreateCommand(_sql.SelectInboundTrigger);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
         DbHelpers.Add(command, "name", name);
 
         return await DbHelpers.ReadSingleAsync(command, ReadTrigger, cancellationToken).ConfigureAwait(false);
@@ -50,7 +50,7 @@ internal sealed class SqlInboundTriggerStore : IInboundTriggerStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
 
         var command = CreateCommand(_sql.SelectInboundTriggers);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
 
         return await DbHelpers.ReadListAsync(command, ReadTrigger, cancellationToken).ConfigureAwait(false);
     }
@@ -64,7 +64,7 @@ internal sealed class SqlInboundTriggerStore : IInboundTriggerStore
 
         var command = CreateCommand(_sql.UpsertInboundTrigger);
         DbHelpers.Add(command, "id", id);
-        DbHelpers.Add(command, "tenant_id", trigger.TenantId);
+        DbHelpers.AddTenant(command, trigger.TenantId);
         DbHelpers.Add(command, "name", trigger.Name);
         DbHelpers.Add(command, "target_kind", (short)trigger.TargetKind);
         DbHelpers.Add(command, "target_name", trigger.TargetName);
@@ -94,7 +94,7 @@ internal sealed class SqlInboundTriggerStore : IInboundTriggerStore
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
         var command = CreateCommand(_sql.DeleteInboundTrigger);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
         DbHelpers.Add(command, "name", name);
 
         return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;

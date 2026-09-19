@@ -30,7 +30,7 @@ internal sealed class SqlTenantEgressPolicyStore : ITenantEgressPolicyStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
 
         var command = CreateCommand(_sql.SelectTenantEgressPolicy);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
 
         return await DbHelpers.ReadSingleAsync(command, ReadRecord, cancellationToken).ConfigureAwait(false);
     }
@@ -44,7 +44,7 @@ internal sealed class SqlTenantEgressPolicyStore : ITenantEgressPolicyStore
         var updatedAt = _timeProvider.GetUtcNow();
 
         var command = CreateCommand(_sql.UpsertTenantEgressPolicy);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
         Dialect.AddTextArray(command, "allowed_providers", allowedProviders);
         Dialect.AddTimestamp(command, "updated_at", updatedAt);
 
@@ -64,7 +64,7 @@ internal sealed class SqlTenantEgressPolicyStore : ITenantEgressPolicyStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
 
         var command = CreateCommand(_sql.DeleteTenantEgressPolicy);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
 
         return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
     }

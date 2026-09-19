@@ -3,6 +3,14 @@ using System.Collections.Concurrent;
 namespace Tracon;
 
 /// <summary>In-memory <see cref="ITenantEgressPolicyStore"/> implementation.</summary>
+/// <remarks>
+/// The tenant is keyed by its canonical form
+/// (<see cref="AmbientTenantScope.Normalize"/>). A miss here is fail-OPEN:
+/// <c>ModelProviderRegistry</c> applies no egress restriction at all when the
+/// policy row is missing, so a tenant reached under a different letter case
+/// would call a provider its own allow-list forbids. The same rule the SQL
+/// stores apply, for the same reason.
+/// </remarks>
 internal sealed class InMemoryTenantEgressPolicyStore : ITenantEgressPolicyStore
 {
     private readonly ConcurrentDictionary<string, TenantEgressPolicy> _policies = new(StringComparer.Ordinal);
@@ -21,7 +29,7 @@ internal sealed class InMemoryTenantEgressPolicyStore : ITenantEgressPolicyStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         cancellationToken.ThrowIfCancellationRequested();
 
-        _policies.TryGetValue(tenantId, out var policy);
+        _policies.TryGetValue(AmbientTenantScope.Normalize(tenantId), out var policy);
         return ValueTask.FromResult(policy);
     }
 
@@ -32,14 +40,15 @@ internal sealed class InMemoryTenantEgressPolicyStore : ITenantEgressPolicyStore
         ArgumentNullException.ThrowIfNull(allowedProviders);
         cancellationToken.ThrowIfCancellationRequested();
 
+        var canonical = AmbientTenantScope.Normalize(tenantId);
         var policy = new TenantEgressPolicy
         {
-            TenantId = tenantId,
+            TenantId = canonical,
             AllowedProviders = allowedProviders,
             UpdatedAt = _timeProvider.GetUtcNow(),
         };
 
-        _policies[tenantId] = policy;
+        _policies[canonical] = policy;
         return ValueTask.FromResult(policy);
     }
 
@@ -49,6 +58,6 @@ internal sealed class InMemoryTenantEgressPolicyStore : ITenantEgressPolicyStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
         cancellationToken.ThrowIfCancellationRequested();
 
-        return ValueTask.FromResult(_policies.TryRemove(tenantId, out _));
+        return ValueTask.FromResult(_policies.TryRemove(AmbientTenantScope.Normalize(tenantId), out _));
     }
 }

@@ -167,10 +167,20 @@ node failure from your own code keeps its message, a failure from a provider,
 library, or transport carries only its exception type and a correlation id.
 
 A workflow run ends `Canceled` only when the run was actually cancelled — the
-caller's request going away, or the workflow's own `MaxDuration` elapsing. A node
-whose model or tool call never came back ends the run `Failed` instead, even
-though .NET surfaces an `HttpClient` timeout as a `TaskCanceledException`. Alert
-on the two separately: one is a person stopping, the other is an outage.
+caller's request going away, the workflow's own `MaxDuration` elapsing, or
+`Tracon:Workflows:RunTimeout` being reached. A node whose model or tool call
+never came back ends the run `Failed` instead, even though .NET surfaces an
+`HttpClient` timeout as a `TaskCanceledException`. Alert on the two separately:
+one is a person stopping, the other is an outage.
+
+`RunTimeout` (10 minutes by default) is **cooperative, and observed between
+super-steps**. It cancels the token the run is given and the runner checks it
+as each super-step ends; it does not abandon a node already running. So it
+bounds how long a run keeps taking new steps, not wall-clock time: a node that
+ignores its cancellation token runs to completion and the run stops at the
+next boundary. To bound one step, give that node its own timeout inside the
+handler. A run stopped this way currently records no reason, so pair the alert
+with the run's duration rather than reading its error.
 
 A workflow's root run shares the same call-tree budget every agent run does
 (`AgentGraph.MaxTotalTokens`/`MaxTotalCost`/`MaxDuration` — see [Reliable

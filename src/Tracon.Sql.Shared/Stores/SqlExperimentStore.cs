@@ -45,7 +45,7 @@ internal sealed class SqlExperimentStore : IExperimentStore
         ArgumentNullException.ThrowIfNull(tenantId);
 
         var command = CreateCommand(_sql.SelectExperiments);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
 
         return await DbHelpers.ReadListAsync(command, ReadExperiment, cancellationToken).ConfigureAwait(false);
     }
@@ -57,7 +57,7 @@ internal sealed class SqlExperimentStore : IExperimentStore
         ArgumentNullException.ThrowIfNull(name);
 
         var command = CreateCommand(_sql.SelectExperiment);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
         DbHelpers.Add(command, "name", name);
 
         return await DbHelpers.ReadSingleAsync(command, ReadExperiment, cancellationToken).ConfigureAwait(false);
@@ -70,7 +70,7 @@ internal sealed class SqlExperimentStore : IExperimentStore
         ArgumentNullException.ThrowIfNull(agentName);
 
         var command = CreateCommand(_sql.SelectRunningExperiment);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
         DbHelpers.Add(command, "agent_name", agentName);
 
         return await DbHelpers.ReadSingleAsync(command, ReadExperiment, cancellationToken).ConfigureAwait(false);
@@ -94,7 +94,7 @@ internal sealed class SqlExperimentStore : IExperimentStore
 
         var command = CreateCommand(_sql.UpsertExperiment);
         DbHelpers.Add(command, "id", experiment.Id);
-        DbHelpers.Add(command, "tenant_id", experiment.TenantId);
+        DbHelpers.AddTenant(command, experiment.TenantId);
         DbHelpers.Add(command, "name", experiment.Name);
         DbHelpers.Add(command, "agent_name", experiment.AgentName);
         Dialect.AddJsonb(command, "variants", variantsJson);
@@ -126,7 +126,7 @@ internal sealed class SqlExperimentStore : IExperimentStore
         ArgumentNullException.ThrowIfNull(name);
 
         var command = CreateCommand(_sql.DeleteExperiment);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
         DbHelpers.Add(command, "name", name);
 
         var affected = await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
@@ -155,7 +155,7 @@ internal sealed class SqlExperimentStore : IExperimentStore
         var now = DateTimeOffset.UtcNow;
 
         var command = CreateCommand(_sql.StartExperiment);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
         DbHelpers.Add(command, "name", name);
         Dialect.AddTimestamp(command, "now", now);
 
@@ -188,7 +188,7 @@ internal sealed class SqlExperimentStore : IExperimentStore
         var now = DateTimeOffset.UtcNow;
 
         var command = CreateCommand(_sql.StopExperiment);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
         DbHelpers.Add(command, "name", name);
         Dialect.AddTimestamp(command, "now", now);
 
@@ -221,7 +221,7 @@ internal sealed class SqlExperimentStore : IExperimentStore
         var policyJson = policy is null ? null : JsonSerializer.Serialize(policy, TraconJsonContext.Default.CanaryPolicy);
 
         var command = CreateCommand(_sql.SetExperimentCanaryPolicy);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
         DbHelpers.Add(command, "name", name);
         Dialect.AddJsonb(command, "canary_policy", policyJson);
         Dialect.AddTimestamp(command, "now", now);
@@ -248,7 +248,7 @@ internal sealed class SqlExperimentStore : IExperimentStore
         var variantsJson = JsonSerializer.Serialize(variants, TraconJsonContext.Default.IReadOnlyListExperimentVariant);
 
         var command = CreateCommand(_sql.AdvanceExperimentCanaryRamp);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
         DbHelpers.Add(command, "name", name);
         Dialect.AddJsonb(command, "variants", variantsJson);
         Dialect.AddTimestamp(command, "now", now);
@@ -277,7 +277,7 @@ internal sealed class SqlExperimentStore : IExperimentStore
         var variantsJson = JsonSerializer.Serialize(variants, TraconJsonContext.Default.IReadOnlyListExperimentVariant);
 
         var command = CreateCommand(_sql.RollbackExperimentCanary);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
         DbHelpers.Add(command, "name", name);
         Dialect.AddJsonb(command, "variants", variantsJson);
         AddNullableText(command, "rollback_reason", reason);

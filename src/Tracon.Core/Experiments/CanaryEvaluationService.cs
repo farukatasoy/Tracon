@@ -96,7 +96,7 @@ internal sealed class CanaryEvaluationService(
         {
             running = await experiments.ListRunningWithCanaryAsync(stoppingToken).ConfigureAwait(false);
         }
-        catch (Exception exception) when (exception is not OperationCanceledException)
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, stoppingToken))
         {
             if (logger is not null && logger.IsEnabled(LogLevel.Warning))
             {
@@ -112,7 +112,7 @@ internal sealed class CanaryEvaluationService(
             {
                 await EvaluateAsync(experiment, stoppingToken).ConfigureAwait(false);
             }
-            catch (Exception exception) when (exception is not OperationCanceledException)
+            catch (Exception exception) when (OperationCancellation.IsFailure(exception, stoppingToken))
             {
                 // A scan must never die: an error in one experiment does not
                 // block the others, it is retried on the next tick.

@@ -82,7 +82,7 @@ internal sealed class SqlTraceStore : ITraceStore
     {
         var header = CreateCommand(_sql.SelectTraceByRun);
         DbHelpers.Add(header, "run_id", runId);
-        DbHelpers.Add(header, "tenant_id", _tenantContext.TenantId);
+        DbHelpers.AddTenant(header, _tenantContext.TenantId);
 
         var trace = await DbHelpers.ReadSingleAsync(header, ReadTrace, cancellationToken).ConfigureAwait(false);
 
@@ -112,7 +112,7 @@ internal sealed class SqlTraceStore : ITraceStore
         var command = _context.CreateCommand(_sql.UpsertTrace, connection, transaction);
 
         DbHelpers.Add(command, "id", TraconId.NewId());
-        DbHelpers.Add(command, "tenant_id", batch.TenantId);
+        DbHelpers.AddTenant(command, batch.TenantId);
         DbHelpers.Add(command, "trace_id", batch.TraceId);
         Dialect.AddUuid(command, "run_id", batch.RunId);
         Dialect.AddTimestamp(command, "started_at", startedAt);

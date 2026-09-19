@@ -6,7 +6,7 @@ Covers every `/api/*` operation: agents, runs, sessions, evals, workflows,
 tenants, and the rest of the control plane.
 
 ```bash
-dotnet add package Tracon.Client
+dotnet add package Tracon.Client --prerelease
 ```
 
 ## Setup

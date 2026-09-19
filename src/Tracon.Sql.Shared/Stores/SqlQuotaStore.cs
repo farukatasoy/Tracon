@@ -42,7 +42,7 @@ internal sealed class SqlQuotaStore : IQuotaStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
 
         var command = CreateCommand(_sql.SelectQuotas);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
 
         return await DbHelpers.ReadListAsync(command, ReadQuota, cancellationToken).ConfigureAwait(false);
     }
@@ -57,7 +57,7 @@ internal sealed class SqlQuotaStore : IQuotaStore
 
         var command = CreateCommand(_sql.SelectQuota);
         DbHelpers.Add(command, "id", id);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
 
         return await DbHelpers.ReadSingleAsync(command, ReadQuota, cancellationToken).ConfigureAwait(false);
     }
@@ -71,7 +71,7 @@ internal sealed class SqlQuotaStore : IQuotaStore
 
         var command = CreateCommand(_sql.UpsertQuota);
         DbHelpers.Add(command, "id", definition.Id);
-        DbHelpers.Add(command, "tenant_id", definition.TenantId);
+        DbHelpers.AddTenant(command, definition.TenantId);
         Dialect.AddText(command, "agent_name", definition.AgentName);
         DbHelpers.Add(command, "period", (short)definition.Period);
         Dialect.AddInt64(command, "max_runs", definition.MaxRuns);
@@ -96,7 +96,7 @@ internal sealed class SqlQuotaStore : IQuotaStore
 
         var command = CreateCommand(_sql.DeleteQuota);
         DbHelpers.Add(command, "id", id);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
 
         return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
     }
@@ -109,7 +109,7 @@ internal sealed class SqlQuotaStore : IQuotaStore
         ArgumentNullException.ThrowIfNull(query);
 
         var command = CreateCommand(_sql.SelectQuotaUsage);
-        DbHelpers.Add(command, "tenant_id", query.TenantId);
+        DbHelpers.AddTenant(command, query.TenantId);
 
         // 🚨 In the `(@p IS NULL OR col = @p)` pattern, when the parameter is
         // NULL the driver cannot infer its type and PostgreSQL returns
@@ -165,7 +165,7 @@ internal sealed class SqlQuotaStore : IQuotaStore
     {
         var command = _context.CreateCommand(_sql.AddQuotaUsage, connection, transaction);
 
-        DbHelpers.Add(command, "tenant_id", consumption.TenantId);
+        DbHelpers.AddTenant(command, consumption.TenantId);
         DbHelpers.Add(command, "agent_name", agentName);
         DbHelpers.Add(command, "period", (short)period);
         DbHelpers.Add(command, "period_start", periodStart);
@@ -195,7 +195,7 @@ internal sealed class SqlQuotaStore : IQuotaStore
 
         var command = CreateCommand(_sql.TryClaimQuotaThresholdNotification);
 
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
         DbHelpers.Add(command, "agent_name", agentName);
         DbHelpers.Add(command, "period", (short)period);
         DbHelpers.Add(command, "period_start", periodStart);

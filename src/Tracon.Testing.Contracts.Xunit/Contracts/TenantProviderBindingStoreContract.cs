@@ -76,6 +76,30 @@ public abstract class TenantProviderBindingStoreContract : TenantIsolationContra
         (await Store.GetAsync(Tenant, requestedAs)).ShouldNotBeNull();
     }
 
+    [Theory]
+    [InlineData("acme", "Acme")]
+    [InlineData("Acme", "acme")]
+    [InlineData("ACME", "acme")]
+    public async Task A_tenant_is_matched_case_insensitively(string savedAs, string requestedAs)
+    {
+        // 🚨 The other half of the key. K-639 made the PROVIDER name canonical
+        // after a case-sensitive store silently billed the wrong tenant; the
+        // TENANT half of the same key stayed raw until phase 179. A miss falls
+        // through to the global setup credential exactly the same way, with no
+        // error raised.
+        await Store.UpsertAsync(Binding(savedAs, "openai"));
+
+        var binding = await Store.GetAsync(requestedAs, "openai");
+
+        binding.ShouldNotBeNull();
+        // Spelled out, not recomputed: an assertion that applies the rule
+        // under test passes whatever the rule does.
+        binding.TenantId.ShouldBe("acme");
+
+        (await Store.ListAsync(requestedAs)).Count.ShouldBe(1);
+        (await Store.DeleteAsync(requestedAs, "openai")).ShouldBeTrue();
+    }
+
     [Fact]
     public async Task A_binding_saved_under_a_different_case_replaces_the_existing_one()
     {

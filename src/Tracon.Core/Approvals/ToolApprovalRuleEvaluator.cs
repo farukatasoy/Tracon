@@ -210,6 +210,12 @@ public sealed class ToolApprovalRuleEvaluator
     /// fingerprint for the same call would prevent a "do not ask again" rule from matching.
     /// </para>
     /// <para>
+    /// Each field is written <strong>length-prefixed</strong>, so no value can
+    /// be read as a field boundary and two different argument sets cannot
+    /// produce one fingerprint. This is what lets a grant mean "this exact
+    /// call" and nothing wider.
+    /// </para>
+    /// <para>
     /// This method does <em>not</em> use JSON serialization. Reflection-based serialization
     /// produces <c>IL2026</c>, and <c>Tracon.Core</c> is marked as AOT-compatible.
     /// </para>
@@ -225,16 +231,43 @@ public sealed class ToolApprovalRuleEvaluator
 
         foreach (var pair in arguments.OrderBy(static pair => pair.Key, StringComparer.Ordinal))
         {
-            builder.Append(pair.Key)
-                .Append('=')
-                .Append(Convert.ToString(pair.Value, CultureInfo.InvariantCulture))
-                // The separator is the unit separator (U+001F). It is not present in text
-                // values, so different dictionaries cannot produce the same fingerprint.
-                .Append('\u001F');
+            // 🚨 Length-prefixed, not separator-delimited. The previous format
+            // joined fields with the unit separator (U+001F) on the stated
+            // assumption that "it is not present in text values" -- an
+            // assumption nothing enforced, while a JSON argument can carry any
+            // character. A collision was constructed by hand: {"a":"x","b":"y"}
+            // and {"a":"x<US>b=y"} hashed the same, so a grant for one call
+            // could be inherited by a call of a different SHAPE. The path is the
+            // script dispatcher, the surface that runs code.
+            //
+            // Writing each field as <byte length>:<value> removes the
+            // assumption instead of documenting it: a value can no longer be
+            // read as a field boundary whatever it contains.
+            AppendLengthPrefixed(builder, pair.Key);
+            AppendLengthPrefixed(builder, Convert.ToString(pair.Value, CultureInfo.InvariantCulture));
         }
 
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(builder.ToString()));
 
         return Convert.ToHexString(hash);
+    }
+
+    /// <summary>
+    /// Writes one field as its UTF-8 byte length, a colon, then the value.
+    /// </summary>
+    /// <param name="builder">The buffer being hashed.</param>
+    /// <param name="value">The field; <see langword="null"/> is written as an empty field.</param>
+    /// <remarks>
+    /// The length counts <strong>UTF-8 bytes</strong>, the same encoding the
+    /// buffer is hashed in. A character count would let two values of equal
+    /// length in characters but different length in bytes agree on the prefix.
+    /// </remarks>
+    private static void AppendLengthPrefixed(StringBuilder builder, string? value)
+    {
+        value ??= string.Empty;
+
+        builder.Append(Encoding.UTF8.GetByteCount(value).ToString(CultureInfo.InvariantCulture))
+            .Append(':')
+            .Append(value);
     }
 }

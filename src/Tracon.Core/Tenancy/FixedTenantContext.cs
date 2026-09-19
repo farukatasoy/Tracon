@@ -25,5 +25,5 @@ public sealed class FixedTenantContext(string tenantId) : ITenantContext
     public static FixedTenantContext Default { get; } = new("default");
 
     /// <inheritdoc />
-    public string TenantId { get; } = tenantId;
+    public string TenantId { get; } = AmbientTenantScope.Normalize(tenantId);
 }

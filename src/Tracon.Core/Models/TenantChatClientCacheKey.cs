@@ -35,13 +35,24 @@ namespace Tracon;
 /// the number of distinct (credential, model, settings) combinations is
 /// bounded by what an operator's tenants actually use, not by request volume.
 /// </para>
+/// <para>
+/// <strong>The key begins with the tenant's plaintext credential.</strong>
+/// That is why this type is internal and not public API: inside Tracon the
+/// value never leaves an in-process dictionary, but a public helper that
+/// returns a secret invites the one debugging move that turns it into a leak,
+/// logging the key on a cache miss. Do not write this value anywhere.
+/// </para>
 /// </remarks>
-public static class TenantChatClientCacheKey
+internal static class TenantChatClientCacheKey
 {
     /// <summary>Builds the cache key for a credential and a binding.</summary>
     /// <param name="credential">The resolved tenant credential.</param>
     /// <param name="binding">The binding the client is produced for.</param>
-    /// <returns>A key stable across calls with observably identical inputs.</returns>
+    /// <returns>
+    /// A key stable across calls with observably identical inputs. Its first
+    /// field is <see cref="ModelProviderCredential.ApiKey"/> in plaintext:
+    /// treat the whole string as a secret and never log or persist it.
+    /// </returns>
     /// <exception cref="ArgumentNullException">A parameter is <see langword="null"/>.</exception>
     public static string For(ModelProviderCredential credential, ModelBinding binding)
     {

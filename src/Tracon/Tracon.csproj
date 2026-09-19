@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Description>Tracon meta package. A production-oriented agent control plane built on Microsoft Agent Framework, with PostgreSQL support and an embedded management UI. This package brings in all Tracon components with a single reference.</Description>
+    <Description>Tracon meta package. A production-oriented agent control plane built on Microsoft Agent Framework, with PostgreSQL support and an embedded management UI. One reference brings the common set: runtime, HTTP API, PostgreSQL persistence, the OpenAI provider, workflows, MCP, and the embedded management UI. Other providers and storage engines are separate packages.</Description>
     <PackageTags>$(CommonPackageTags);meta;all-in-one</PackageTags>
     <!-- The meta package carries no code; the build output is not packed, to avoid an empty assembly. -->
     <TraconAotCompatible>false</TraconAotCompatible>

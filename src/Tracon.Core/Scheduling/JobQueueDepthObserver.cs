@@ -182,7 +182,7 @@ internal sealed class JobQueueDepthObserver : IHostedService, IDisposable
         {
             return await _jobStore.GetQueueDepthAsync().ConfigureAwait(false);
         }
-        catch (Exception exception) when (exception is not OperationCanceledException)
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, CancellationToken.None))
         {
             if (_logger is not null && _logger.IsEnabled(LogLevel.Warning))
             {

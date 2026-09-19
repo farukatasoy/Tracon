@@ -1,7 +1,7 @@
 # Tracon.Testing.Contracts.Xunit
 
 Behavior contract suites for Tracon's extension points — the store
-interfaces (`IRunStore` and 30 others), `IModelProvider`, `IRunJudge`,
+interfaces (`IRunStore` and 29 others), `IModelProvider`, `IRunJudge`,
 `IAgentSource`, `IJobHandler`, and code-defined custom tools — packaged as
 xunit.v3 test base classes.
 
@@ -20,7 +20,7 @@ find out before a deployment does.
 ## Install
 
 ```bash
-dotnet add package Tracon.Testing.Contracts.Xunit
+dotnet add package Tracon.Testing.Contracts.Xunit --prerelease
 ```
 
 The package name says what it needs: xunit.v3 and Shouldly are ordinary

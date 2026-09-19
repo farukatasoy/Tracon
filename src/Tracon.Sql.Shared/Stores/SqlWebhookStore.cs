@@ -37,7 +37,7 @@ internal sealed class SqlWebhookStore : IWebhookStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
 
         var command = CreateCommand(_sql.SelectWebhookSubscriptions);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
 
         return await DbHelpers.ReadListAsync(command, ReadSubscription, cancellationToken).ConfigureAwait(false);
     }
@@ -52,7 +52,7 @@ internal sealed class SqlWebhookStore : IWebhookStore
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
         var command = CreateCommand(_sql.SelectWebhookSubscription);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
         DbHelpers.Add(command, "name", name);
 
         return await DbHelpers.ReadSingleAsync(command, ReadSubscription, cancellationToken).ConfigureAwait(false);
@@ -68,7 +68,7 @@ internal sealed class SqlWebhookStore : IWebhookStore
         ArgumentException.ThrowIfNullOrWhiteSpace(eventType);
 
         var command = CreateCommand(_sql.SelectWebhookSubscriptionsForEvent);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
         DbHelpers.Add(command, "event_type", eventType);
 
         return await DbHelpers.ReadListAsync(command, ReadSubscription, cancellationToken).ConfigureAwait(false);
@@ -83,7 +83,7 @@ internal sealed class SqlWebhookStore : IWebhookStore
 
         var command = CreateCommand(_sql.UpsertWebhookSubscription);
         DbHelpers.Add(command, "id", subscription.Id);
-        DbHelpers.Add(command, "tenant_id", subscription.TenantId);
+        DbHelpers.AddTenant(command, subscription.TenantId);
         DbHelpers.Add(command, "name", subscription.Name);
         DbHelpers.Add(command, "url", subscription.Url);
         Dialect.AddTextArray(command, "events", subscription.Events);
@@ -110,7 +110,7 @@ internal sealed class SqlWebhookStore : IWebhookStore
 
         // The delivery history is deleted along with it via ON DELETE CASCADE (migration 0012).
         var command = CreateCommand(_sql.DeleteWebhookSubscription);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
         DbHelpers.Add(command, "name", name);
 
         return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
@@ -147,7 +147,7 @@ internal sealed class SqlWebhookStore : IWebhookStore
         var command = CreateCommand(_sql.InsertWebhookDelivery);
         DbHelpers.Add(command, "id", delivery.Id);
         DbHelpers.Add(command, "subscription_id", delivery.SubscriptionId);
-        DbHelpers.Add(command, "tenant_id", delivery.TenantId);
+        DbHelpers.AddTenant(command, delivery.TenantId);
         DbHelpers.Add(command, "event_type", delivery.EventType);
         DbHelpers.Add(command, "payload", delivery.Payload);
         DbHelpers.Add(command, "status", (short)delivery.Status);
@@ -203,7 +203,7 @@ internal sealed class SqlWebhookStore : IWebhookStore
         ArgumentNullException.ThrowIfNull(query);
 
         var command = CreateCommand(_sql.SelectWebhookDeliveries);
-        DbHelpers.Add(command, "tenant_id", query.TenantId);
+        DbHelpers.AddTenant(command, query.TenantId);
 
         // 🚨 In the `(@p IS NULL OR col = @p)` pattern, when the parameter is
         // NULL the driver cannot infer its type (`42P08`). Optional filter

@@ -41,7 +41,7 @@ internal sealed class SqlToolApprovalRuleStore : IToolApprovalRuleStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
 
         var command = CreateCommand(_sql.SelectToolApprovalRules);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
 
         return await DbHelpers.ReadListAsync(command, ReadRule, cancellationToken).ConfigureAwait(false);
     }
@@ -55,7 +55,7 @@ internal sealed class SqlToolApprovalRuleStore : IToolApprovalRuleStore
 
         var command = CreateCommand(_sql.InsertToolApprovalRule);
         DbHelpers.Add(command, "id", rule.Id == Guid.Empty ? TraconId.NewId() : rule.Id);
-        DbHelpers.Add(command, "tenant_id", rule.TenantId);
+        DbHelpers.AddTenant(command, rule.TenantId);
         AddNullableText(command, "agent_name", rule.AgentName);
         DbHelpers.Add(command, "tool_name", rule.ToolName);
         AddNullableText(command, "arguments_hash", rule.ArgumentsHash);
@@ -138,7 +138,7 @@ internal sealed class SqlToolApprovalRuleStore : IToolApprovalRuleStore
 
         var command = CreateCommand(_sql.DeleteToolApprovalRule);
         DbHelpers.Add(command, "id", ruleId);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
 
         return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
     }
@@ -205,7 +205,7 @@ internal sealed class SqlMcpServerStore : IMcpServerStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
 
         var command = CreateCommand(_sql.SelectMcpServers);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
 
         return await DbHelpers.ReadListAsync(command, ReadServer, cancellationToken).ConfigureAwait(false);
     }
@@ -220,7 +220,7 @@ internal sealed class SqlMcpServerStore : IMcpServerStore
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
         var command = CreateCommand(_sql.SelectMcpServer);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
         DbHelpers.Add(command, "name", name);
 
         return await DbHelpers.ReadSingleAsync(command, ReadServer, cancellationToken).ConfigureAwait(false);
@@ -235,7 +235,7 @@ internal sealed class SqlMcpServerStore : IMcpServerStore
 
         var command = CreateCommand(_sql.UpsertMcpServer);
         DbHelpers.Add(command, "id", server.Id == Guid.Empty ? TraconId.NewId() : server.Id);
-        DbHelpers.Add(command, "tenant_id", server.TenantId);
+        DbHelpers.AddTenant(command, server.TenantId);
         DbHelpers.Add(command, "name", server.Name);
         AddNullableText(command, "description", server.Description);
         DbHelpers.Add(command, "endpoint", server.Endpoint.ToString());
@@ -266,7 +266,7 @@ internal sealed class SqlMcpServerStore : IMcpServerStore
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
         var command = CreateCommand(_sql.DeleteMcpServer);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
         DbHelpers.Add(command, "name", name);
 
         return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
@@ -397,7 +397,11 @@ internal sealed class SqlTenantStore : ITenantStore
 
         var command = CreateCommand(_sql.UpsertTenantDescriptor);
         DbHelpers.Add(command, "id", tenant.Id == Guid.Empty ? TraconId.NewId() : tenant.Id);
-        DbHelpers.Add(command, "slug", tenant.Slug);
+        // The slug IS the tenant identifier — the same text every other table
+        // stores as tenant_id — so it is folded the same way. Without this a
+        // record saved as 'Acme' would name a tenant the runtime never
+        // resolves, and DELETE with the canonical spelling would answer 404.
+        DbHelpers.Add(command, "slug", AmbientTenantScope.Normalize(tenant.Slug));
         DbHelpers.Add(command, "display_name", tenant.DisplayName);
         Dialect.AddTimestamp(command, "created_at", tenant.CreatedAt == default ? DateTimeOffset.UtcNow : tenant.CreatedAt);
 
@@ -414,7 +418,7 @@ internal sealed class SqlTenantStore : ITenantStore
         ArgumentException.ThrowIfNullOrWhiteSpace(slug);
 
         var command = CreateCommand(_sql.DeleteTenant);
-        DbHelpers.Add(command, "slug", slug);
+        DbHelpers.Add(command, "slug", AmbientTenantScope.Normalize(slug));
 
         return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
     }

@@ -47,7 +47,7 @@ internal sealed class SqlWorkflowCheckpointStore : IWorkflowCheckpointStore
 
         var command = CreateCommand(_sql.InsertWorkflowCheckpoint);
         DbHelpers.Add(command, "id", record.Id);
-        DbHelpers.Add(command, "tenant_id", record.TenantId);
+        DbHelpers.AddTenant(command, record.TenantId);
         DbHelpers.Add(command, "session_id", record.SessionId);
         DbHelpers.Add(command, "checkpoint_id", record.CheckpointId);
         Dialect.AddText(command, "parent_id", record.ParentCheckpointId);
@@ -74,7 +74,7 @@ internal sealed class SqlWorkflowCheckpointStore : IWorkflowCheckpointStore
         ArgumentException.ThrowIfNullOrWhiteSpace(checkpointId);
 
         var command = CreateCommand(_sql.SelectWorkflowCheckpoint);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
         DbHelpers.Add(command, "session_id", sessionId);
         DbHelpers.Add(command, "checkpoint_id", checkpointId);
 
@@ -105,7 +105,7 @@ internal sealed class SqlWorkflowCheckpointStore : IWorkflowCheckpointStore
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
 
         var command = CreateCommand(_sql.SelectWorkflowCheckpoints);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
         DbHelpers.Add(command, "session_id", sessionId);
 
         return await DbHelpers.ReadListAsync(command, ReadMetadata, cancellationToken).ConfigureAwait(false);
@@ -120,7 +120,7 @@ internal sealed class SqlWorkflowCheckpointStore : IWorkflowCheckpointStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
 
         var command = CreateCommand(_sql.SelectWorkflowCheckpointsByRun);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
         DbHelpers.Add(command, "run_id", runId);
 
         return await DbHelpers.ReadListAsync(command, ReadMetadata, cancellationToken).ConfigureAwait(false);
@@ -136,7 +136,7 @@ internal sealed class SqlWorkflowCheckpointStore : IWorkflowCheckpointStore
         ArgumentException.ThrowIfNullOrWhiteSpace(sessionId);
 
         var command = CreateCommand(_sql.DeleteWorkflowCheckpoints);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
         DbHelpers.Add(command, "session_id", sessionId);
 
         return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);

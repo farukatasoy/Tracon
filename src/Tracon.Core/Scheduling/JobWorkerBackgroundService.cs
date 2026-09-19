@@ -109,7 +109,7 @@ internal sealed class JobWorkerBackgroundService(
         {
             await DispatchDueSchedulesAsync(stoppingToken).ConfigureAwait(false);
         }
-        catch (Exception exception) when (exception is not OperationCanceledException)
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, stoppingToken))
         {
             if (logger is not null && logger.IsEnabled(LogLevel.Warning))
             {
@@ -186,7 +186,7 @@ internal sealed class JobWorkerBackgroundService(
             {
                 job = await jobStore.LeaseAsync(_ownerId, leaseDuration, lanes, stoppingToken).ConfigureAwait(false);
             }
-            catch (Exception exception) when (exception is not OperationCanceledException)
+            catch (Exception exception) when (OperationCancellation.IsFailure(exception, stoppingToken))
             {
                 semaphore.Release();
 
@@ -232,7 +232,7 @@ internal sealed class JobWorkerBackgroundService(
         {
             await ExecuteJobAsync(job, stoppingToken).ConfigureAwait(false);
         }
-        catch (Exception exception) when (exception is not OperationCanceledException)
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, stoppingToken))
         {
             if (logger is not null && logger.IsEnabled(LogLevel.Warning))
             {
@@ -318,7 +318,7 @@ internal sealed class JobWorkerBackgroundService(
             {
                 handler = (IJobHandler)scope.ServiceProvider.GetRequiredService(handlerType);
             }
-            catch (Exception exception) when (exception is not OperationCanceledException)
+            catch (Exception exception) when (OperationCancellation.IsFailure(exception, stoppingToken))
             {
                 // 🚨 Before the handler resolves, NOTHING owns the job's outcome:
                 // the attempt limit lives in ExecuteWithHandlerAsync's catch, and
@@ -443,7 +443,7 @@ internal sealed class JobWorkerBackgroundService(
 
             RecordJobMetric(job, finalStatus, startedAt);
         }
-        catch (Exception exception) when (exception is not OperationCanceledException)
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, stoppingToken))
         {
             var correlationId = SafeErrorText.NewCorrelationId();
 

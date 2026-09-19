@@ -114,7 +114,7 @@ internal sealed class RunReconciliationService(
                 await TryContinueAsync(record, stoppingToken).ConfigureAwait(false);
             }
         }
-        catch (Exception exception) when (exception is not OperationCanceledException)
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, stoppingToken))
         {
             // A reconciliation pass must never crash the process: a failure
             // is retried on the next tick.
@@ -262,7 +262,7 @@ internal sealed class RunReconciliationService(
                 },
                 cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception exception) when (exception is not OperationCanceledException)
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
         {
             if (logger is not null && logger.IsEnabled(LogLevel.Warning))
             {
@@ -310,7 +310,7 @@ internal sealed class RunReconciliationService(
                 [],
                 cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception exception) when (exception is not OperationCanceledException)
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
         {
             var correlationId = SafeErrorText.NewCorrelationId();
 
@@ -336,7 +336,7 @@ internal sealed class RunReconciliationService(
                     },
                     cancellationToken).ConfigureAwait(false);
             }
-            catch (Exception completionException) when (completionException is not OperationCanceledException)
+            catch (Exception completionException) when (OperationCancellation.IsFailure(completionException, cancellationToken))
             {
                 if (logger is not null && logger.IsEnabled(LogLevel.Warning))
                 {

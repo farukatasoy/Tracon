@@ -4193,3 +4193,120 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST "$APU/../v1/chat/completions" \
 - Adım 3'ün sayımı adım 1'inkiyle **aynıdır** — silme `COMMIT` edilmemiştir
   (K-462: audit yazımı `beforeCommitAsync` içinden koşar, hata her `DELETE`'i geri alır).
 - Otomatikleştirilmiş karşılığı: `Erase_fails_loudly_when_the_audit_write_fails`.
+
+### MT-SEC-194 — Harf durumu kaymış kiracı başlığı aynı kiracıya çözülür
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 179 |
+| **İnsan gerekir** | Hayır |
+
+**Ön koşul**
+- `samples/Tracon.Api` ayakta; tenancy açık ve `AllowHeaderResolution = true`.
+
+**Adımlar**
+1. `X-Tracon-Tenant: acme` ile bir MCP sunucu kaydı yaz.
+2. `X-Tracon-Tenant: ACME` ile `GET /api/mcp-servers` çağır.
+3. `X-Tracon-Tenant: Acme` ile `GET /api/tenants/current` çağır.
+
+**Beklenen sonuç**
+- Adım 2 adım 1'de yazılan kaydı **döndürür**.
+- Adım 3 `acme` döner — büyük harf reddedilmez, **normalleştirilir**.
+- Otomatikleştirilmiş karşılığı: `TenantIdCaseTests`.
+
+### MT-SEC-195 — Allowlist iki tarafta da harf duyarsızdır, ama genişlemez
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 179 |
+| **İnsan gerekir** | Hayır |
+
+**Ön koşul**
+- Tenancy açık, `AllowHeaderResolution = true`, `AllowedTenants = ["acme"]`.
+
+**Adımlar**
+1. `X-Tracon-Tenant: ACME` ile `GET /api/tenants/current` çağır.
+2. `AllowedTenants`'ı `["Acme"]` yapıp uygulamayı yeniden başlat, `acme` ile çağır.
+3. `X-Tracon-Tenant: other` ve `X-Tracon-Tenant: OTHER` ile çağır.
+
+**Beklenen sonuç**
+- Adım 1 ve 2 `200` döner ve gövde `acme` taşır.
+- Adım 3'ün **ikisi de** `403` döner — fold reddi zayıflatmaz.
+- Otomatikleştirilmiş karşılığı: `TenantIdCaseTests`.
+
+### MT-SEC-196 — Yönetim ucu route'tan gelen kiracıyı kanonik yazar
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 179 |
+| **İnsan gerekir** | Hayır |
+
+**Ön koşul**
+- `samples/Tracon.Api` ayakta.
+
+**Adımlar**
+1. `PUT /api/tenants/Acme/egress` ile `{"allowedProviders":["openai"]}` yaz.
+2. `GET /api/tenants/acme/egress` çağır.
+3. `acme` kiracısı olarak `openai` dışında bir sağlayıcı çağıran bir agent çalıştır.
+
+**Beklenen sonuç**
+- Adım 2 politikayı **döndürür**.
+- Adım 3 reddedilir — politika satırı bulunur, yani egress kısıtı **fail-open
+  düşmez**. Bu, bulgunun ölçülmüş tetikleyicisidir.
+- Otomatikleştirilmiş karşılığı: `TenantIdCaseTests`.
+
+### MT-SEC-197 — Kanonik olmayan `tenant_id` migration'ı durdurur
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 179 |
+| **İnsan gerekir** | Hayır |
+
+**Ön koşul**
+- Migration'ları uygulanmış bir PostgreSQL, SQL Server ve SQLite veritabanı.
+
+**Adımlar**
+1. Her üçünde `tenant_egress_policies` tablosuna elle `tenant_id = 'Acme'`
+   taşıyan bir satır yaz.
+2. Migration'ları yeniden koş.
+3. Satırı `acme` yapıp migration'ları yeniden koş.
+
+**Beklenen sonuç**
+- Adım 2 **üç sağlayıcıda da** durur ve mesaj `tenant_egress_policies`
+  tablosunu adlandırır.
+- 🚨 SQL Server case'i atlanamaz: varsayılan CI collation altında
+  `COLLATE Latin1_General_BIN2` olmadan guard **hiçbir satır bulamaz ve
+  sessizce yeşil döner**.
+- Adım 2 hiçbir satırı **değiştirmez** — guard onarmaz, bildirir.
+- Adım 3 sorunsuz geçer.
+- Otomatikleştirilmiş karşılığı: `TenantIdCaseGuardTests` (SQLite).
+
+### MT-SEC-198 — Kanonik olmayan `DefaultTenantId` başlangıçta reddedilir
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 179 |
+| **İnsan gerekir** | Hayır |
+
+**Ön koşul**
+- `samples/Tracon.Api` yapılandırması elde.
+
+**Adımlar**
+1. `Tracon:DefaultTenantId` değerini `Acme` yap ve uygulamayı başlat.
+2. Değeri `acme` yapıp yeniden başlat.
+
+**Beklenen sonuç**
+- Adım 1 başlangıçta durur; mesaj hem yazılan değeri hem beklenen kanonik
+  değeri içerir.
+- Adım 2 sorunsuz açılır.
+- Otomatikleştirilmiş karşılığı: `TenantIdNormalizationTests`.

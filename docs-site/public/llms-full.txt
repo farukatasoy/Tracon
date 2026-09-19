@@ -1121,6 +1121,43 @@ before it reaches any endpoint.
 authenticated user could reach another tenant's data by adding a header. The header
 path also has to be enabled explicitly — an HTTP header is not proof of identity.
 
+### What a tenant identifier may be
+
+A tenant identifier matches `^[a-zA-Z0-9_.-]+$` and is at most 64 characters. A
+value that does not match is never resolved, and the request **falls to the
+default tenant** — the allow-list does not catch it, because the allow-list
+only sees values that passed the format check. Treat a malformed header as a
+request that reaches the default tenant, not as one that is refused: if that
+matters to you, reject it in front of Tracon.
+
+**Letter case does not distinguish two tenants.** `acme`, `Acme` and `ACME` are
+one tenant. Tracon reaches that by folding the *value* to invariant lower case
+wherever a tenant enters the system — the resolved context, the allow-list on
+both sides, the admin routes, and every store, on the write path and the query
+path alike. `AmbientTenantScope.Normalize` is that rule, and a store you write
+yourself must apply it too.
+
+Folding the value, rather than comparing case-insensitively at query time, is
+what makes the three storage providers agree. A plain `=` predicate then means
+the same thing on PostgreSQL, SQLite and SQL Server whatever collation the
+database was created with, the primary key keeps rejecting duplicates on all
+three, and the index stays usable. Without it a deployment answers "same
+tenant" or "different tenant" for the same pair depending on which layer is
+asked: SQL Server's default collation is case-insensitive, PostgreSQL's and
+SQLite's are not.
+
+Two consequences are worth planning for:
+
+- `Tracon:DefaultTenantId` is **rejected at startup** when it is not already
+  lower case. Tracon does not fold it silently, because a value you wrote as
+  `Acme` and then read back as `acme` in the audit trail gives you nothing to
+  search for.
+- Migrations **refuse to run** against a database that still holds a
+  non-canonical `tenant_id`, and they name the tables. Tracon does not fold
+  those rows for you: on a case-sensitive engine `Acme` and `acme` may be two
+  real tenants, and merging two tenants cannot be undone. Decide per table
+  whether the rows are one tenant or two, then start again.
+
 Isolation is enforced by contract tests that check it in both directions, across the
 in-memory store and all three SQL providers, with a coverage gate requiring every
 public store method to be either tested or exempted with a documented reason.
@@ -3114,10 +3151,20 @@ node failure from your own code keeps its message, a failure from a provider,
 library, or transport carries only its exception type and a correlation id.
 
 A workflow run ends `Canceled` only when the run was actually cancelled — the
-caller's request going away, or the workflow's own `MaxDuration` elapsing. A node
-whose model or tool call never came back ends the run `Failed` instead, even
-though .NET surfaces an `HttpClient` timeout as a `TaskCanceledException`. Alert
-on the two separately: one is a person stopping, the other is an outage.
+caller's request going away, the workflow's own `MaxDuration` elapsing, or
+`Tracon:Workflows:RunTimeout` being reached. A node whose model or tool call
+never came back ends the run `Failed` instead, even though .NET surfaces an
+`HttpClient` timeout as a `TaskCanceledException`. Alert on the two separately:
+one is a person stopping, the other is an outage.
+
+`RunTimeout` (10 minutes by default) is **cooperative, and observed between
+super-steps**. It cancels the token the run is given and the runner checks it
+as each super-step ends; it does not abandon a node already running. So it
+bounds how long a run keeps taking new steps, not wall-clock time: a node that
+ignores its cancellation token runs to completion and the run stops at the
+next boundary. To bound one step, give that node its own timeout inside the
+handler. A run stopped this way currently records no reason, so pair the alert
+with the run's duration rather than reading its error.
 
 A workflow's root run shares the same call-tree budget every agent run does
 (`AgentGraph.MaxTotalTokens`/`MaxTotalCost`/`MaxDuration` — see [Reliable
@@ -3348,8 +3395,10 @@ app.Run();
 
 This first agent uses a chat model only. To let a later agent generate stored image
 attachments, add `UseOpenAIImages(...)`, set `Tracon:Images:Enabled`, and choose
-an image model explicitly. An image model is not inferred from this agent's chat
-model; see [image generation providers](/guides/model-providers/#image-generation-providers).
+an image model explicitly — one the provider serves for image generation, which is
+not always the same family as its chat models. An image model is not inferred from
+this agent's chat model; see
+[image generation providers](/guides/model-providers/#image-generation-providers).
 
 ```bash
 dotnet run --urls http://localhost:5081
@@ -3496,9 +3545,11 @@ configuration without a deployment.
 It does not fit if you want a hosted agent product, or if you are not on .NET. Runtime
 packages target `net8.0`, `net9.0`, and `net10.0`, and the testing packages follow the
 same matrix, so an app on .NET 8 LTS can be tested on .NET 8. The project template
-generates a `net10.0` project, the `tracon` global tool targets `net10.0`, and the
-source generator that ships inside Core targets `netstandard2.0`. The
-[compatibility matrix](/reference/compatibility/) carries the per-package detail.
+generates a `net10.0` project pinned to the template package's own Tracon version
+(`--TraconVersion x.y.z` overrides it), the `tracon` global tool targets `net10.0`,
+and the source generator that ships inside Core targets `netstandard2.0`. The
+[compatibility matrix](/reference/compatibility/) carries the per-package detail,
+including how long each target framework stays in the matrix.
 
 ## Read next
 
@@ -3636,6 +3687,18 @@ once:
 - Each applied file's SHA-256 is recorded. If the content later differs from what was
   applied, startup **fails loudly** rather than running against a schema that is not
   what the code expects.
+
+:::caution[Migrations refuse a non-canonical tenant id]
+The tenant identifier is stored in its canonical (lower-case) form — see
+[Multi-tenancy](/concepts/governance/#what-a-tenant-identifier-may-be). Before
+applying anything, the runner checks every table that carries a `tenant_id` and
+**stops, naming the tables**, if any row holds a value that is not canonical.
+
+It does not fold those rows for you. On PostgreSQL and SQLite, which compare
+case-sensitively, `Acme` and `acme` may be two real tenants, and merging two
+tenants cannot be undone. Decide per table whether the rows belong to one
+tenant (lower-case them) or to two (rename one), then start again.
+:::
 
 :::danger[Do not edit an applied migration]
 The checksum covers the file's whole text, comments included. Editing a file that has
@@ -5308,7 +5371,7 @@ the installed version first*.
 It is written by the `tracon` tool, once, into the repository you point it at:
 
 ```bash
-dotnet tool install -g Tracon.Cli
+dotnet tool install -g Tracon.Cli --prerelease
 tracon agent-skill
 ```
 
@@ -5334,7 +5397,7 @@ the difference once your installed packages ship a newer one. Because the tool
 carries the revision it stamps, refresh the tool first:
 
 ```bash
-dotnet tool update -g Tracon.Cli
+dotnet tool update -g Tracon.Cli --prerelease
 rm .claude/skills/tracon/SKILL.md
 tracon agent-skill
 ```
@@ -7186,7 +7249,7 @@ tracon
 // tracon.UseAzureOpenAIImages(options => options.Model = "image-deployment");
 
 // Google uses a provider image model. It does not support WIDTHxHEIGHT in this surface.
-// tracon.UseGoogleImages(options => options.Model = "your-imagen-model");
+// tracon.UseGoogleImages(options => options.Model = "gemini-2.5-flash-image");
 ```
 
 Each extension shares the authenticated client factory already created by `UseOpenAI`,
@@ -7198,6 +7261,16 @@ application registers remains the fallback for a custom provider.
 
 `UseOpenAICompatible()` does not imply image support. Register a supported image
 extension only after you verify that its provider API supports the selected model.
+
+Google generates images through the `generateContent` surface, so the model you
+name must be one that supports it — a Gemini image model. The older Imagen
+`predict` surface is not served by the Gemini API, and a model that only
+supports it fails every request. Two option limits follow from that surface:
+`Count` is passed as the candidate count and an image model commonly returns one
+image whatever you ask for, and a requested media type is passed to the model
+and then **checked** — if the model answers in another format the call fails
+rather than handing back bytes that do not match the request. Omit the media
+type to accept the model's own choice.
 
 Then bind an agent to one stable provider name:
 
@@ -11291,8 +11364,9 @@ overload twice for the same type registers it once.
 `Order` decides the position: the catalog sorts decorators by **descending**
 `Order` and applies them in that sequence, so the **highest** value runs
 first and ends up **innermost** — closest to the agent's own calls. Tracon's
-own decorators use `0` (run recording, outermost), `10` (telemetry), and `20`
-(tool approval). Place a decorator that has to observe or veto everything
+own decorators use `0` (run recording, outermost), `10` (telemetry), `20`
+(tool approval), and `30` (structured-response validation, innermost — closest
+to the model call). Place a decorator that has to observe or veto everything
 below it at a low value; place one that has to sit close to the model call
 itself at a high value.
 
@@ -11318,13 +11392,26 @@ depending on whether the extension point allows one implementation or many.
 | Seam shape | Examples | Registered **before** `AddTracon()` | Registered **after** `AddTracon()` |
 |---|---|---|---|
 | Single-instance | `ITenantContext`, `IProviderRetryClassifier`, `IRunErrorClassifier` | Your registration wins outright; only one registration remains | Also wins for a direct resolve, but Tracon's own registration is not removed — it stays behind as a second, unused entry |
-| Multi-registration | `IAgentDecorator`, `IAgentSource`, `IRunJudge`, `IContentGuard`, `IModelProvider`, `IJobHandler` | Your registration joins the list alongside the built-in ones | Also joins the list — the built-in implementation keeps running too |
+| Multi-registration | `IAgentDecorator`, `IAgentSource`, `IRunJudge`, `IContentGuard`, `IModelProvider` | Your registration joins the list alongside the built-in ones | Also joins the list — the built-in implementation keeps running too |
+| Keyed | `IJobHandler` | Order does not matter; the handler is found by its key, not by position | Same — but a plain `AddSingleton<IJobHandler, T>()` registers nothing the dispatcher can find |
 
 The dedicated `Add*()` methods (`AddAgentDecorator`, `AddAgentSource`,
 `AddRunJudge`, `AddContentGuard`, `AddModelProvider`) exist for the
 multi-registration seams precisely because getting this wrong there is
 silent: a decorator you meant to *replace* the built-in one instead runs
-*alongside* it, and both apply. A single-instance seam has no such trap — a
+*alongside* it, and both apply.
+
+`IJobHandler` is **keyed**, not multi-registration, and its `Add*()` method is
+not optional. A job names the handler it needs, so the handler is registered
+against that name:
+
+```csharp
+builder.Services.AddJobHandler<NightlyReportJobHandler>("contoso.nightly-report");
+```
+
+Writing `services.AddSingleton<IJobHandler, NightlyReportJobHandler>()` instead
+compiles and appears to work: nothing is registered under a key, so the
+dispatcher finds no handler and the first job queued for that name fails. A single-instance seam has no such trap — a
 consumer's own `services.AddSingleton<IProviderRetryClassifier, T>()` simply
 overrides the default, in either order — which is why those extension points
 have no dedicated registration method: the plain escape hatch already behaves
@@ -11716,9 +11803,18 @@ builder.Services.UseScheduling(options =>
 `JobContext.Job`, with the SAME item list — can reach `ExecuteAsync` more than
 once: a thrown exception is retried up to the job's attempt limit
 (`JobRetryException.RetryAfter` controls the delay), and a worker that
-crashes or whose lease simply expires before it returns lets another worker
-(or the same one, on its next poll) re-lease the job and call `ExecuteAsync`
-again from scratch. Neither path resets item progress.
+crashes, or whose lease lapses, lets another worker (or the same one, on its
+next poll) re-lease the job and call `ExecuteAsync` again from scratch.
+Neither path resets item progress.
+
+**A running handler is never interrupted by its own lease, and nothing caps
+how long it may run.** The worker renews the lease on a timer for as long as
+`ExecuteAsync` has not returned, without a limit — there is no `JobTimeout`
+setting. So a handler that blocks forever holds its worker slot forever, that
+slot counts against `MaxConcurrentJobs` (default 2), and no replica can pick
+the work up instead: the job is leased, not abandoned. Give any handler that
+calls out to the network its own timeout. The `CancellationToken` you receive
+is cancelled when the worker shuts down, not when the job has taken too long.
 
 `JobContext.Items` reflects that: it carries **every** item, not only the
 `Pending` ones. On a retry, items already `Completed` or `Failed` from an
@@ -12099,10 +12195,14 @@ The same three things every store contract leaves to you, regardless of interfac
 ## Other store interfaces
 
 `IRunStore` is the largest and most heavily documented seam, but the same package
-ships a contract class for every other store interface in `Tracon.Abstractions` —
+ships a contract class for 29 of the other store interfaces in `Tracon.Abstractions` —
 sessions, agent definitions, jobs, evals, experiments, webhooks, and more. Each follows
 the same shape: derive the matching `*Contract` class, supply a store instance, run
 `dotnet test`.
+
+Four have no contract yet: `IConversationBranchStore`, `IDataSubjectStore`,
+`ITenantStore` and `IVectorSearchStore`. Implementing one of those is supported;
+you write your own tests for it.
 
 `IJobStore`'s contract (`JobStoreContract`) also verifies lane behavior: `LeaseAsync`
 takes an optional list of lanes and must only return a job from one of them, `null` or
@@ -12918,6 +13018,9 @@ that made it.
 Two projects are deliberately excluded: `Tracon.Generators` is a `netstandard2.0`
 build-time analyzer carried inside the Core package, not a separate NuGet package;
 `Tracon.Templates` is a .NET 10 `dotnet new` content package, not runtime API.
+The project it generates references the Tracon packages at **the template
+package's own version**, so a template and the runtime it writes always come
+from the same release. Pass `--TraconVersion x.y.z` to choose another one.
 
 ## What does not enter your graph
 
@@ -13005,6 +13108,28 @@ The packages are still pre-release. Install them with an explicit preview versio
 the CLI's pre-release option. The template package also needs a preview version or
 pre-release selection.
 
+### How long each target framework stays
+
+Tracon follows Microsoft's own .NET support lifecycle and does not extend it. A
+target framework stays in the matrix while Microsoft still supports it; once
+that support ends, a later Tracon release may drop it.
+
+Plan for this before it happens, because it changes what you can upgrade to:
+
+- **Dropping an out-of-support target framework is not treated as a breaking
+  change** under the versioning policy. It can land in a minor release.
+- A release that drops one says so in its changelog entry, and the package's
+  own `net8.0`/`net9.0`/`net10.0` assets simply stop appearing.
+- Your application keeps working on the release it already resolved; nothing
+  is withdrawn from nuget.org. What ends is new Tracon releases for that
+  framework.
+
+Support dates come from Microsoft, not from Tracon, and they move: check the
+[.NET support policy](https://dotnet.microsoft.com/platform/support/policy/dotnet-core)
+for the current end-of-support date of each version before you pin one. `net10.0`
+is the longest-lived target in the matrix today, and a new application should
+start there.
+
 ## The 20 packages
 
 “Meta” shows whether `dotnet add package Tracon` brings the package into the
@@ -13028,7 +13153,7 @@ dependency graph. `AOT` states the promise made by the package itself.
 | `Tracon.Azure` | No | net8/9/10 | Yes | Azure OpenAI provider; managed identity stays consumer-selected |
 | `Tracon.Voice` | No | net8/9/10 | Yes | ElevenLabs speech tools and reusable speech contracts |
 | `Tracon.Testing` | No | net8/9/10 | No promise | Assertions use reflection and the test host uses runtime JSON serialization |
-| `Tracon.Testing.Contracts.Xunit` | No | net8/9/10 | No promise | Behavior contract suite for five extension families — storage (`IRunStore` and 32 other store interfaces), model providers, run judges, agent sources, and custom tools — as xunit.v3 fixtures; uses reflection for a build-time coverage check |
+| `Tracon.Testing.Contracts.Xunit` | No | net8/9/10 | No promise | Behavior contract suite for six extension families — storage (`IRunStore` and 29 other store interfaces), model providers, run judges, agent sources, job handlers, and custom tools — as xunit.v3 fixtures; uses reflection for a build-time coverage check |
 | `Tracon.Templates` | No | net10 output | N/A | `dotnet new tracon-api` content package |
 | `Tracon.Client` | No | net8/9/10 | No | Typed management client generated from the OpenAPI document; every request/response call is hand-wired to a generic `JsonSerializer` overload the trim/AOT analyzer cannot prove type coverage for |
 | `Tracon.Cli` | No | net10 (`DotnetTool`) | No | The `tracon` global tool; wraps `Tracon.Client` and ships as IL, not native code |
@@ -15807,7 +15932,7 @@ The tool carries the revision it stamps, so update the tool first — re-running
 older one writes the same stale value back:
 
 ```bash
-dotnet tool update -g Tracon.Cli
+dotnet tool update -g Tracon.Cli --prerelease
 rm .claude/skills/tracon/SKILL.md
 tracon agent-skill
 ```
