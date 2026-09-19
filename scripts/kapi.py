@@ -62,9 +62,41 @@ DOC_REFERENCE_PLACEHOLDER = re.compile(r"(^|[-/])(NN|X|Y)([-.]|$)")
 # assumed. The gate must not demand the impossible, so those directories are
 # exempt; the comment stays true of the moment the migration shipped.
 DOC_REFERENCE_FROZEN_DIR = re.compile(r"(^|[\\/])Migrations[A-Za-z]*[\\/]")
-SECRET_PATTERN = re.compile(
-    r"sk-[a-z]+-[A-Za-z0-9_-]{24,}|AVNS_[A-Za-z0-9]{12,}|(Password|pwd)=[^ \";']{6,}"
+# 🚨 İki katman (2026-09-19). Tek desen tek kapsamla koşarken kapı yeşil derken
+# `docs/arsiv/fazlar/53-*.md` içinde GERÇEK bir `ApiKeyGenerator` çıktısı duruyordu.
+# İki bağımsız boşluk vardı ve ikisi de tek başına yeterliydi: desen ürünün KENDİ
+# anahtar formatını (`ap_*`) tanımıyordu, ve kapsam `arsiv` ile `manuel-test`
+# ağaçlarını hiç yürümüyordu — oysa üretilmiş bir credential'ın yapışacağı tek
+# yer gerçek koşum çıktısı taşıyan o iki ağaçtır.
+#
+# Kapsamı tüm desenler için açmak çözüm DEĞİLDİR: ölçüldü, 51 eşleşmenin 48'i
+# localhost docker parolasıdır ve hepsini işaretlemek aşağıdaki SYNTHETIC_MARKER
+# yorumunun yasakladığı şeyi üretir. Ayrım ŞEKİLDEDİR: bir credential şekli
+# dokümanda asla meşru değildir, yerel kurulum deyimi ise manuel testin kendisidir.
+#
+# 🚨 Bu yorum deyimi düz yazamaz - dosya kapının KENDİ taramasına girer ve düz
+# yazılan bir örnek kapıyı kendi kaynağı üzerinde kırmızı yapar. `kapi_test.py`
+# aynı sebeple fixture'ı parçalı yazar (`"Pass" + "word="`). Ölçüldü, yaşandı.
+CREDENTIAL_SHAPE_PATTERN = re.compile(
+    r"sk-[a-z]+-[A-Za-z0-9_-]{24,}"
+    r"|AVNS_[A-Za-z0-9]{12,}"
+    # `ApiKeyGenerator`: `ap_` + kiracı eki (≤12) + `_` + base64url(32 bayt) = 43 karakter.
+    # Uzunluk TAM verilir: `{43,}` yazmak `ap_on_total_source_code_size_for_...`
+    # gibi snake_case İngilizce metni yakalar - ölçüldü, 70+ yanlış pozitif.
+    r"|\bap_[a-z0-9]{1,12}_[A-Za-z0-9_-]{43}\b"
+    r"|\bghp_[A-Za-z0-9]{36}\b"
+    r"|\bAKIA[0-9A-Z]{16}\b"
+    r"|\bAIza[A-Za-z0-9_-]{35}\b"
+    r"|\bwhsec_[A-Za-z0-9]{24,}\b"
 )
+# Yerel kurulum deyimi. Yalnız kod ağacında aranır; `arsiv` ve `manuel-test`
+# kayıtlarında bir docker parolası kusur değil, tekrar üretilebilirlik talimatıdır.
+LOCAL_CREDENTIAL_PATTERN = re.compile(r"(?:Password|pwd)=[^ \";']{6,}")
+# Yerel kurulum deyiminin meşru olduğu ağaçlar: arşivlenmiş faz kaydı, manuel
+# kabul seti ve onu koşan skill'in kurulum kaynağı. Burada yalnız
+# CREDENTIAL_SHAPE_PATTERN koşar - şekil taraması bu ağaçlara GİRER, çünkü
+# kaçırılan gerçek anahtar tam olarak burada duruyordu.
+RUN_RECORD_DIRS = {"arsiv", "manuel-test", "manuel-test-kosumu"}
 # Bir secret tarayıcısını doğrulamak için sahte bir credential gerekir (Faz 166).
 # İstisna GİZLENMEZ, İŞARETLENİR: bu belirteci taşıyan satır atlanır ve kaç
 # satırın atlandığı raporlanır.
@@ -191,21 +223,30 @@ def find_secrets(root: pathlib.Path = ROOT) -> tuple[list[str], int]:
     Çözüm gizlemek DEĞİL işaretlemektir: satırın kendisi SYNTHETIC_MARKER
     taşımalıdır, böylece istisna kod incelemesinde görünür kalır. Kaç satırın
     atlandığı ayrıca raporlanır - sessizce büyüyen bir istisna listesi, kapının
-    olmamasıyla aynı şeydir."""
+    olmamasıyla aynı şeydir.
+
+    Tarama iki katmanlıdır (bkz. CREDENTIAL_SHAPE_PATTERN). Şekil taraması
+    `arsiv` ve `manuel-test` dahil her yerde koşar; yerel kurulum deyimi yalnız
+    kod ağacında aranır."""
     found: list[str] = []
     skipped = 0
-    for path in _walk_files(root):
+    shape_scope = SCAN_EXCLUDED_DIRS - RUN_RECORD_DIRS
+    for path in _walk_files(root, excluded_dirs=shape_scope):
         try:
             lines = path.read_text(encoding="utf-8").splitlines()
         except (OSError, UnicodeDecodeError):
             continue
+        relative = path.relative_to(root)
+        patterns = [CREDENTIAL_SHAPE_PATTERN]
+        if not RUN_RECORD_DIRS.intersection(relative.parts):
+            patterns.append(LOCAL_CREDENTIAL_PATTERN)
         for line_number, line in enumerate(lines, 1):
-            if not SECRET_PATTERN.search(line):
+            if not any(pattern.search(line) for pattern in patterns):
                 continue
             if SYNTHETIC_MARKER in line:
                 skipped += 1
                 continue
-            found.append(f"{path.relative_to(root)}:{line_number}:{line}")
+            found.append(f"{relative}:{line_number}:{line}")
     return found, skipped
 
 

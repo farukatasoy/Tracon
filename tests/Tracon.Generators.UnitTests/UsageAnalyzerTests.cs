@@ -151,7 +151,7 @@ public sealed class UsageAnalyzerTests
                     TenantId = "default",
                     Name = "github",
                     Endpoint = new Uri("https://example.test/mcp"),
-                    AuthorizationConfigurationKey = "ghp_0123456789abcdef0123456789abcdef0123",
+                    AuthorizationConfigurationKey = "ghp_0123456789abcdef0123456789abcdef0123", // SYNTHETIC-CREDENTIAL
                 };
             }
             """);

@@ -139,7 +139,7 @@ public sealed class PatternContentGuardTests
     [Theory]
     [InlineData("key sk-abcdefghijklmnopqrstuvwx")]
     [InlineData("token ghp_abcdefghijklmnopqrstuvwxyz01")]
-    [InlineData("access AKIAIOSFODNN7EXAMPLE")]
+    [InlineData("access AKIAIOSFODNN7EXAMPLE")] // SYNTHETIC-CREDENTIAL
     public async Task Provider_api_key_is_masked(string text)
     {
         var guard = Guard(options => options.MaskedPii = PiiPatterns.ProviderApiKey);
