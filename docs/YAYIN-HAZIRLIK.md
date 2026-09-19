@@ -6,7 +6,12 @@
 >
 > **Son güncelleme:** 2026-09-19  
 > **Çalışma modu:** `nuget-danismani` — Yayın kararı  
-> **🚨 Güncel karar §4'ün başındaki 2026-09-19 bloğudur — ✅ Yayınlanabilir.**
+> **🚨 Güncel karar §4'ün başındaki 2026-09-19 BAĞIMSIZ İKİNCİ TUR bloğudur —
+> ❌ Yayınlanmamalı.** Aynı günün önceki turu ✅ demişti; ikinci tur onu
+> devralmadı, yeniden ölçtü ve artifact'i temiz buldu — fakat artifact dışında
+> iki 🔴 (kiracı kimliği karşılaştırma semantiği · sevk edilen dokümanın
+> çalışmayan bir yeteneği çalışır anlatması) ve bir 🟡 (release-notes bağlantısı)
+> buldu. Aşağıdaki ✅ metni **tarihsel bağlamdır**.
 > Kalan yolu ve dört ürün kararını (KG-026…029) 2026-09-16 bloğu taşır; o blok
 > hâlâ sıra kaynağıdır, fakat **yayın kararı 2026-09-19'dadır**. 2026-09-16'nın
 > ❌'i devralınamaz: adım 1–3 bitti ve prova tag'lenecek commit'ten koştu.
@@ -108,7 +113,177 @@ değerlendirilecektir.
 
 ## 4. Mevcut net yayın kararı
 
-### Güncel karar — 2026-09-19 (`nuget-danismani`, yayın turu)
+### 🚨 GÜNCEL KARAR — 2026-09-19 (`nuget-danismani`, bağımsız ikinci tur)
+
+**❌ Bugün yayınlanmamalı — `1.0.0-preview.1`.** Aynı günün önceki turu
+✅ demişti; bu tur onu **devralmadı** ve yeniden ölçtü. Paket artifact'i temiz
+çıktı, fakat **artifact dışında** üç açık kalem bulundu. İkisi sevk edilen
+dokümanın runtime ile çeliştiği yerler, biri kiracı yalıtımı sınırıdır.
+
+#### Artifact kanıtı — TEMİZ (yeniden üretildi)
+
+`python3 scripts/kapi.py yayin --kuru --surum 1.0.0-preview.1` → **çıkış 0**,
+HEAD `49caa193`'ten, `release` dizini **boşaltıldıktan sonra**. 20 paket, tek
+sürüm hattı, 6/6 packed sample + Native AOT smoke. `package-manifest.json`
+yeniden doğrulandı: **20/20 paket ve 18/18 sembol paketi hash uyumlu**, 20
+`.nuspec`'in hepsi `commit="49caa193…"` taşıyor.
+
+#### 🔴 1 — Kiracı kimliğinin karşılaştırma semantiği sağlayıcılar arasında AYRIŞIYOR
+
+Kiracı kimliği **hiçbir yerde normalize edilmiyor** (`src/` içinde `TenantId` +
+`ToLower|Normaliz|Canonical` → **0 eşleşme**). `HttpTenantContext`
+`^[a-zA-Z0-9_.-]+$` kabul eder (büyük harf serbest); `AllowedTenants`
+`StringComparer.Ordinal`; `RunCancellationRegistry` `StringComparison.Ordinal`.
+Buna karşılık SQL Server'da `tenant_id nvarchar(200)` için **hiçbir `COLLATE`
+yok** ve store sorguları düz `tenant_id = @tenant_id`.
+
+**Ölçüldü** (testlerin kullandığı imaj, Tracon'un sütun tanımı):
+`SQL_Latin1_General_CP1_CI_AS`; `'acme'` yazılan satır **`'Acme'` sorgusuna
+döndü**. ∴ SQL Server'da yetkilendirme katmanı iki kiracıyı **ayrı**, depolama
+katmanı **aynı** sayar. PostgreSQL/SQLite varsayılanı case-sensitive olduğu için
+aynı kurulum orada **ters** davranır (tek kiracının verisi sessizce ikiye bölünür).
+
+🚨 **Emsal:** birebir aynı sınıf `provider_name` için K-639 / migration 0025 ile
+bir **güvenlik düzeltmesi** olarak kapatılmıştı (RK-007). Kiracı kimliği — yani
+ürünün birincil yalıtım anahtarı — o düzeltmenin dışında kaldı.
+**Ölçülmeyen:** Tracon'un kendi store API'si üzerinden uçtan uca koşum.
+
+🚨 **Ağırlaştıran ikinci kol — case-SENSITIVE motorlarda adı konmuş bir güvenlik
+kontrolü sessizce uygulanmıyor.** Zincir uçtan uca doğrulandı:
+`TraconTenancyOptions.AllowedTenants` **varsayılan boştur** ve dokümanı "If left
+empty, any value matching the format is accepted" der; `HttpTenantContext.Accept`
+o durumda adayı **olduğu gibi** döndürür; `ModelProviderRegistry.cs:287` ise
+`if (policy is not null)` — yani kiracı satırı **bulunamazsa hiçbir egress kısıtı
+uygulanmaz (fail-open)**. ∴ PostgreSQL/SQLite'ta `acme` için yazılmış egress
+allow-list'i, istek `Acme` olarak geldiğinde **tamamen devre dışı kalır** ve
+kiracı yasaklanmış bir sağlayıcıyı çağırabilir. Saldırgan kontrollü yol API key
+sunulduğunda `TraconEndpointFilter` (Ordinal → 403) ile **kapalıdır**; kalan
+gerçekçi tetikleyici claim tabanlı (JWT/OIDC) kurulumda IdP'nin harf durumu
+kayması ve API key zorunlu olmayan loopback varsayılanıdır — saldırı değil,
+**operasyonel kayma**.
+
+🚨 **Sınıf taraması sonucu:** aynı ayrışma `tool_name`, `agent_name`,
+`skill_name`/`script_name` için de **var**, fakat üçü de **fail-closed** yöndedir
+(grant ıskalanır → yetki doğmaz). `provider_name` (K-639) ve API key hash'i
+(`varbinary(32)`, collation-bağışık) **kapalıdır**. ∴ `tenant_id` bu sınıfın
+**tek fail-open üyesidir** — ve düzeltmenin şablonu depoda hazır durur.
+
+#### 🟡 4 — Public API düz metin BYOK anahtarı döndürüyor
+
+`TenantChatClientCacheKey.For(...)` **public**'tir ve `preview.1` ile çıkar
+(`PublicAPI.Unshipped.txt:624,1411`). Döndürdüğü string'in **ilk alanı kiracının
+düz metin API anahtarıdır** (`string.Concat(credential.ApiKey, "|", …)`); XML
+yalnız "A key stable across calls with observably identical inputs" der,
+anahtarın içeride olduğunu **söylemez**. Tracon'un kendi kodunda aktif sızıntı
+**yok** (yalnız in-process dictionary anahtarı); risk tüketici davranışıdır —
+"cache miss'te anahtarı logla" doğal bir debug hamlesidir. K-059 disiplininin
+dışında kalmış tek yüzey. `Shipped.txt` boş olduğu için bugün `internal` yapmak
+ya da değeri hash'lemek **bedava**.
+
+#### 🟡 6 — Bir `store` OCE'si TÜM HOST'U durduruyor — ürün kuralının kendi yazıldığı yerde ihlali
+
+Depoda **hiçbir yer** `BackgroundServiceExceptionBehavior` ayarlamıyor (ölçüldü:
+`src/`, `tests/`, `samples/` → **0 eşleşme**) ⇒ .NET varsayılanı **`StopHost`**.
+Altı arka plan servisi ortak bir desen kullanıyor: tick
+`catch (Exception ex) when (ex is not OperationCanceledException)`, döngü
+`catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)`.
+`stoppingToken` iptal edilmemişken gelen bir OCE **iki filtreyi de geçer**,
+`ExecuteAsync` fault eder ve host durur.
+
+🚨 [RunHeartbeatWriter.cs:83](../src/Tracon.Core/Recording/RunHeartbeatWriter.cs#L83)
+— filtrenin **hemen üstündeki yorum** "Observability does not break
+functionality. A failed cycle does not affect active runs and the next cycle
+retries." diyor. Yani kural tam olarak ihlal edildiği satırda yazılı.
+
+**Tetikleyici:** `IRunStore`/`IApprovalStore`/`IJobStore` **public genişleme
+noktalarıdır** ve rehber sayfaları vardır; bir tüketici store'unu HTTP üzerinden
+yazarsa `HttpClient.Timeout` → `TaskCanceledException` (OCE türevi) → host durur.
+Birinci-parti SQL sürücüleri command timeout'u `SqlException`/`NpgsqlException`
+olarak bildirdiği için **yerleşik yol temizdir**. Daha sinsi alt vaka:
+`ApprovalExpirationService` `finally { await guardTask; }` ile istisnayı yutar ⇒
+singleton seçimi **açıkken** servis **sessizce, log'suz** durur; onaylar bir daha
+hiç expire olmaz. Desen sınıfı: `is not OperationCanceledException` `src/` içinde
+**97 yerde**. Düzeltme yerel ve API kırmaz.
+
+#### 🟡 7 — `Timeout` adlı üç public options alanı gerçek wait cutoff DEĞİL
+
+Gerçek cutoff yalnız üç yerde var (`TimeoutAIFunction`, `IRunJudge`,
+`SkillScriptProcessRunner` — üçü de `WhenAny` + geç tamamlanmayı observe).
+Kalanlar `CreateLinkedTokenSource` + `CancelAfter`, yani **kooperatif**:
+
+- `TraconWebhookOptions.Timeout` — CTS `SendAsync` dönünce **dispose** edilir
+  (`WebhookHttpClient.cs:88-99`), gövde okuması job worker token'ıyla sürer ⇒
+  yalnız **header fazı** kesilir. XML "a single delivery attempt" diyor.
+- `TraconWorkflowOptions.RunTimeout` — süper-adım **sınırında** kontrol edilir;
+  MAF adım ortasında token'ı onurlandırmıyor (repo bunu F-107 ile zaten ölçmüş).
+  `rg "RunTimeout" tests/` → **sıfır test**. `MaxConcurrentRuns` varsayılanı 4 ve
+  XML'i "shared across all tenants" diyor.
+- `TraconSchedulingOptions`'da **hiç** `Timeout` alanı yok; `RenewLoopAsync`
+  kiralamayı handler bitene kadar **süresiz** yeniler ⇒ takılan bir handler
+  `MaxConcurrentJobs` (varsayılan 2) slotunu kalıcı tutar ve başka replika işi
+  **alamaz**. `IJobHandler` XML'i ise lease dolunca yeniden lease edilmeyi anlatır.
+
+#### 🟡 5 — Onay parmak izinin ayırıcı varsayımı zorlanmıyor
+
+`ToolApprovalRuleEvaluator.cs:226-236` argümanları `U+001F` ile birleştirir ve
+yorum "It is not present in text values" der; **bu önerme hiçbir yerde
+doğrulanmıyor** — JSON `` taşıyabilir. Elle inşa edilen çakışma:
+`{"a":"x","b":"y"}` ile `{"a":"x␟b=y"}` **aynı** `arguments_hash`'i üretir, yani
+"bu tam çağrıyı bir daha sorma" grant'i argüman şekli farklı bir çağrıya miras
+kalabilir. Yol script dispatcher'da — yani kod çalıştıran yüzeyde — zorunludur.
+**Dürüst sınır:** çakışma inşa edilebiliyor, **istismarı gösterilemedi** (çakışan
+sözlük alanları birleştirir, değer değiştirmez). Hash formatını değiştirmek
+preview sonrası migration + davranış değişikliğidir; bugün maliyeti sıfıra yakın.
+
+#### 🔴 2 — Sevk edilen doküman, çalışmayan bir yeteneği çalışıyor gibi anlatıyor
+
+K-835 (`MT-MM-121`): `Tracon.Google` görsel yolu artık sunulmayan Imagen
+`:predict` ucunu hedefliyor; **canlı ölçümde her üretim `502`**. Buna rağmen
+`docs-site/capabilities.md:126`, `api/Tracon.md:557` ve `UseGoogleImages` XML
+`<example>`'ı yeteneği çalışır gösteriyor ve hiçbir yerde uyarı yok. Kusurun
+kendisi kullanıcı kararına bırakılmıştı; **doküman çelişkisi bırakılmamıştı**.
+
+#### 🟡 3 — 20 paketin release-notes bağlantısı, "yayınlanmadı" diyen bir sayfaya gidiyor
+
+20/20 `.nuspec`:
+`<releaseNotes>https://tracon.dev/reference/changelog/#v1.0.0-preview.1</releaseNotes>`.
+**Ölçüldü:** sayfa HTTP 200 döner, fakat `1.0.0-preview.1` **hiç geçmez** ve metin
+"has not been released yet" der. `.nuspec` basıldıktan sonra **değiştirilemez**;
+yalnız sayfa düzeltilebilir ⇒ site deploy'u tag'in **önüne** alınmalı.
+
+#### Bu turda kapatılanlar
+
+- §10 checklist'i OP-001/OP-005 ile hizalandı: trusted publishing policy kalemi
+  `[x]`'ten **`[ ]`**'e çekildi (organizasyon sahipliğinde yeniden kurulmalı;
+  policy'nin **"yeni paket" scope'u** ayrıca doğrulanmalı — ilk yayın 20 YENİ
+  kimliktir). Owner modeli "kişisel hesap" yerine **organizasyon `Tracon`** yazıldı.
+- Manuel kabul turu kalemi gerçeğe çekildi ve K-835 açık kalem olarak eklendi.
+- `dependabot.yml`'a beşinci ekosistem: **`packages/tracon-client`** — sevk edilen
+  npm paketinin kendi ağacını üç ekosistemin hiçbiri görmüyordu.
+
+#### Kapının koşmadıkları (bu tur ölçülen sınırlar)
+
+- `release-dryrun` kendi paketini üretip **atar**; `publish` ise **`pack` işinin**
+  (`dotnet pack Tracon.slnx`) ürettiği artifact'ı glob ile basar. İkisi arasında
+  fingerprint karşılaştırması **yok**. Bugün iki yol da tam 20 paket üretiyor
+  (ölçüldü: `tests`/`samples`/`bench` + `Generators` hepsi `IsPackable=false`),
+  yani kusur **gizil**, canlı değil.
+- Kapı `package-manifest.json`'ı **yazar ama bir daha doğrulamaz**. Bu tur
+  başında dizin karışık durumdaydı: 18 paket `49caa193`, 2 paket `225f1472`,
+  manifest ise 20'sinin de `225f1472` olduğunu iddia ediyordu ve **18'inin hash'i
+  tutmuyordu**. Dizin boşaltılınca sorun kayboldu ⇒ yerel prova kanıtı, dizin
+  pristine değilse **güvenilmez**.
+- Paketlenmiş kurulum yolu bu turda **elle ölçüldü ve çalıştı**:
+  `dotnet tool install Tracon.Cli` (izole `--tool-path`) → `tracon --help` ✅;
+  `dotnet new install Tracon.Templates.1.0.0-preview.1.nupkg` → `dotnet new
+  tracon-api` ✅. 🚨 Ancak üretilen proje `<PackageReference Include="Tracon"
+  Version="*-*" />` taşır (bilinçli varsayılan, `--TraconVersion` ile
+  geçersiz kılınabilir) ve **ölçümde global cache'teki bayat
+  `0.0.0-preview.0.789`'a çözüldü** — `1.0.0-preview.1`'e değil.
+
+---
+
+### Önceki karar — 2026-09-19 (`nuget-danismani`, yayın turu)
 
 **✅ Yayınlanabilir — `1.0.0-preview.1`.** Açık 🔴 yoktur ve bu tur ilk kez
 **tag atılacak commit'in kendisinden** üretilmiş artifact kanıtına dayanır.
@@ -646,7 +821,8 @@ operasyon kritik yolunu yeniden açmaz.
 
 - [x] Hedef yayın türü kullanıcı tarafından onaylandı: `preview` (UR-001).
 - [x] Sürüm `1.0.0-preview.1` kullanıcı tarafından onaylandı (KG-029); tag adı `v1.0.0-preview.1`.
-- [ ] Tam manuel kabul turu (36 aile) koşuldu ve bulduğu kusurlar kapandı (KG-027).
+- [x] Tam manuel kabul turu (36 aile) koşuldu ve bulduğu kusurlar kapandı (KG-027, 2026-09-18/19): 1.859 case — 1.813 Geçti · 26 Beklemede · 19 Atlandı · 1 Kaldı; 48 kusur kaydının hepsi kapandı. **Tek istisna `MT-MM-121` / K-835** — `Tracon.Google` görsel yolu, düzeltme kullanıcı kararına bırakıldı; aşağıdaki açık kalem odur.
+- [ ] 🚨 **K-835 kararı verilmedi:** `Tracon.Google`'ın görsel üretim yolu artık sunulmayan Imagen `:predict` ucunu hedefliyor ve **canlı ölçümde her üretim `502` veriyor**. Buna karşılık `docs-site/capabilities.md` ve `UseGoogleImages` XML `<example>`'ı bu yeteneği **çalışıyormuş gibi** anlatıyor — yani bugün sevk edilen doküman runtime ile çelişiyor. Üç seçenek: (A) `GenerateContentAsync`'e geçir — `Count`/`MediaType` sözleşmesi yeniden yazılır, (B) yüzeyi `preview.1`'den çıkar (`Shipped.txt` boş, bugün bedava), (C) bilinen sınır olarak dokümante et. Karar verilmeden tag atılmamalı.
 - [x] `CHANGELOG.md` sevk edilen davranışı doğru anlatıyor (K-658 eklendi) ve tarihi güncel (2026-09-03 — **tag gününde yeniden doğrulanır**).
 - [x] En küçük güvenli paket kümesi onaylandı: tam 20 paket (UR-002).
 - [x] Exact sürümlü temiz pack başarılı.
@@ -688,10 +864,11 @@ operasyon kritik yolunu yeniden açmaz.
 
 ### NuGet.org ve yayın operasyonu
 
-- [x] NuGet.org hesabı doğrulandı; trusted publishing policy oluşturuldu (KN-022).
+- [x] NuGet.org hesabı doğrulandı (KN-022).
+- [ ] 🚨 **Trusted publishing policy `Tracon` ORGANİZASYONU sahipliğinde YENİDEN kurulmalı (OP-005).** 2026-08-28'de kurulan policy bugün geçersizdir: sahibi kişisel hesaptır, alanları eski adı taşır ve private-repo penceresi dolmuştur. Bir policy yalnız KENDİ sahibinin paketlerine uygulanır. Policy `preview.1`'den önce kurulmazsa `publish` işi hata verir ve npm tek başına yayınlanır (F-11). Kurulum **repo public yapıldıktan sonra** olmalı — o zaman yedi günlük pending penceresi hiç açılmaz. Policy'nin **"yeni paket yayınlama" scope'unu** taşıdığı ayrıca doğrulanmalı: ilk yayın 20 YENİ kimliktir.
 - [x] NuGet.org'un zorunlu Microsoft-account 2FA sınırı authenticated policy oluşturma akışında geçildi (OP-002/KN-022).
-- [x] Owner modeli seçildi: kişisel `farukatasoy` hesabı (OP-001).
-- [x] 20 Package ID'nin uygunluğu ölçüldü ve kişisel sahiplik planı seçildi (OP-001/003).
+- [x] Owner modeli seçildi: **organizasyon `Tracon`** (OP-001, 2026-09-12, K-755 — önceki kişisel hesap kararı yeniden açıldı ve değişti).
+- [x] 20 Package ID'nin uygunluğu ölçüldü: 20/20 müsait (OP-003). Sahiplik modeli organizasyondur (OP-001).
 - [x] npm organization, npm 2FA, CI publish token ve GitHub repository `NPM_TOKEN` secret kullanıcı tarafından doğrulandı (KN-021).
 - [x] Publishing authentication onaylandı: secret'sız OIDC trusted publishing, bir saatlik geçici key (OP-004/005, KN-022).
 - [x] CI environment protection ve yayın yetkilendirmesi kararı verildi (OP-011 seçenek A; tek kalıcı secret `NPM_TOKEN`, NuGet tarafı OIDC).
@@ -754,7 +931,69 @@ operasyon kritik yolunu yeniden açmaz.
 
 ## 13. Sonraki adım
 
-**Güncel sıradaki iş sürüm kesimidir — §4'ün adım 5'i.** Repo içi yayın kritik yolu
+> 🚨 **2026-09-19 bağımsız ikinci tur bu bölümü geçersiz kıldı.** Aşağıdaki
+> "sıradaki iş sürüm kesimidir" anlatısı, yayın turunun ✅ döndüğü varsayımına
+> dayanıyordu. İkinci tur **❌** verdi (§4). **Sürüm kesimi (adım 5) sıradaki iş
+> DEĞİLDİR**; önce aşağıdaki aksiyon tablosu kapanır. Bu bölümün geri kalanı
+> adım 5–8'in **nasıl** koşulacağını hâlâ doğru anlatır ve o yüzden duruyor.
+
+### 13.0 Aksiyon tablosu — 2026-09-19 ikinci turunun çıktısı
+
+Her satır bir **kanala** aittir. Kanal, işi hangi skill'in ya da kimin
+yürüteceğini söyler; `Önkoşul` boş değilse o karar verilmeden işe başlanmaz.
+
+| # | Bulgu | Kanal | Önkoşul karar | Öncelik |
+|---|---|---|---|---|
+| A-1 | **Kiracı kimliği semantiği ayrışıyor** — normalizasyon yok; SQL Server'da CI collation kiracıları birleştiriyor, PG/SQLite'ta egress allow-list'i `policy is null` ile fail-open düşüyor | **Faz adayı** (kod + 3 migration + contract + doküman; `provider_name`/K-639 şablonu hazır) | **K1** | 🔴 tag öncesi |
+| A-2 | **`Tracon.Google` görsel yolu çalışmıyor** (K-835, canlı 502) ama site + XML çalışır gösteriyor | **K2'ye göre:** A→`kusur-giderme` · B→public yüzey daraltma · C→`tuketici-dokuman-senkronu` | **K2** | 🔴 tag öncesi |
+| A-3 | **Arka plan servisinde `store` OCE'si host'u durduruyor** — `BackgroundServiceExceptionBehavior` hiç ayarlanmamış, .NET varsayılanı `StopHost`; ürün kuralı ihlal edildiği satırda yazılı | **`kusur-giderme`** — 🚨 **SINIF TARAMASI zorunlu**: `is not OperationCanceledException` deseni `src/` içinde **97 yerde** | — | 🔴 tag öncesi |
+| A-4 | **`TenantChatClientCacheKey.For(...)` public ve düz metin BYOK anahtarı döndürüyor** | **`kusur-giderme`** (küçük: `internal` yap ya da hash'le) | **K3** | 🟡 tag öncesi (bugün bedava) |
+| A-5 | **Onay parmak izi `U+001F` ayırıcı varsayımını zorlamıyor** — çakışma inşa edildi, istismar gösterilemedi | **`kusur-giderme`** (uzunluk-önekli format) | **K4** | 🟡 tag öncesi (sonra migration) |
+| A-6 | **`TraconWebhookOptions.Timeout` yalnız header fazını kesiyor** — CTS `SendAsync` dönünce dispose ediliyor | **`kusur-giderme`** | — | 🟡 tag öncesi |
+| A-7 | **`TraconWorkflowOptions.RunTimeout` wait cutoff değil** ve **sıfır testi var**; XML koşulsuz "maximum duration" diyor | **`tuketici-dokuman-senkronu`** (XML'i gerçeğe çek) + test | — | 🟡 |
+| A-8 | **Job gövdesi için süre sınırı yok**; kiralama süresiz yenileniyor, takılan handler `MaxConcurrentJobs` slotunu kalıcı tutuyor | **Faz adayı** (options alanı + kesme davranışı) | **K6** | 🟡 |
+| A-9 | **Şablonun ürettiği proje `Version="*-*"` taşıyor** — ölçümde global cache'teki bayat `0.0.0-preview.0.789`'a çözüldü | **`kusur-giderme`** (varsayılanı şablon paketinin kendi sürümüne çek) | **K5** | 🟡 tag öncesi |
+| A-10 | **20 paketin `releaseNotes` çapası canlı sayfada yok**; sayfa "has not been released yet" diyor. `.nuspec` basıldıktan sonra değişmez | **Manuel müdahale** — site deploy'u tag'in **önüne** al; §4 adım 9'un "bitti ölçütü" hücresi **boş**, doldurulmalı | — | 🔴 tag sırası |
+| A-11 | **Trusted publishing policy geçersiz** (OP-005): sahibi kişisel hesap, alanları eski ad, pencere dolmuş | **Manuel müdahale** — `Tracon` org sahipliğinde, **repo public olduktan sonra**, **"yeni paket" scope'u doğrulanarak** | — | 🔴 tag öncesi |
+| A-12 | **`environment:` blokları bugün etkisiz** (Free + private). Public adımı ile tag adımı arasında koruma kuran adım yok | **Manuel müdahale** — adım 7 ile 8 arasına gir | — | 🔴 tag sırası |
+| A-13 | **Action'lar SHA'ya pinli değil**; `NuGet/login@v1` OIDC token'ını gören iştir | **`kusur-giderme`** (küçük, Dependabot SHA pinlerini günceller) | — | 🟡 tag öncesi |
+| A-14 | **`net8.0`/`net9.0` 52 gün sonra destek dışı**; `compatibility.md` lifecycle hakkında tek kelime etmiyor | **`tuketici-dokuman-senkronu`** | — | 🟡 |
+| A-15 | **Kapı kendi bastığı byte'ları doğrulamıyor** — `release-dryrun` kendi paketini üretip atar, `publish` `pack` işininkini glob'la basar; ayrıca `package-manifest.json` yazılır ama bir daha doğrulanmaz | **Faz adayı** (kapı sertleştirme; bugün gizil, canlı değil) | — | ⚪ GA |
+| A-16 | **`Tracon.Mcp`'nin üç sevk edilen tipi hiçbir seviyede test edilmiyor**; `IMcpOAuthCoordinator._pending` süreç-içi ⇒ çok-replikada akış kırılır ve XML bunu söylemiyor | **Faz adayı** | — | 🟡 GA |
+| A-17 | **`Tracon.Azure` çağrı yolu için hiçbir kanıt yok** (manuel aile 06 kimlik yokluğundan atlandı) | **Faz adayı** | — | 🟡 GA |
+| A-18 | **Dış sample kanıtı `IRunStore` ile sınırlı** — 30/33 store contract'ının dış tüketicisi yok; boşluğun kusur ürettiği bir kez ölçüldü (BL-053) | **Faz adayı** (KG-019 ile zaten GA'ya taşınmıştı) | — | 🟡 GA |
+| A-19 | 🚨 **13 paket README'sinde 14 kurulum komutu `--prerelease`/`--version` TAŞIMIYOR.** Stable sürüm yok ⇒ tüketicinin nuget.org'da gördüğü ilk komut `NU1103` ile biter. Kök `README.md:221` doğru yazıyor; kapı (`check-content.mjs:425-434`) yalnız **site** sayfalarında koşuyor. Sitede de bir delik var: `guides/coding-agents.md:177` `dotnet tool install -g Tracon.Cli` bayraksız | **`tuketici-dokuman-senkronu`** + kapıyı `src/*/README.md`'ye ve `dotnet tool install` desenine genişlet | — | 🔴 tag öncesi |
+| A-20 | **Meta paketin nuget.org `Description`'ı "brings in all Tracon components" diyor**; nuspec **6** doğrudan bağımlılık sayıyor (+Core +Abstractions = 8/20). Paketin **kendi README'si** "the common set" diyor — sayfa kendiyle çelişiyor | **`kusur-giderme`** (kod: `src/Tracon/Tracon.csproj` `<Description>`) | — | 🟡 tag öncesi |
+| A-21 | **Contract-suite kapsamı üç sevk edilen yüzeyde çelişiyor:** `compatibility.md:54` "32 other" (33) · contracts nuspec `Description` "30 others" (31) · `write-your-own-store.md:173` "every other store interface". **Gerçek: 29 store contract'ı, 33 store arayüzü** ⇒ `IConversationBranchStore`, `IDataSubjectStore`, `ITenantStore`, `IVectorSearchStore` contract'sız. Ayrıca `compatibility.md:54` "five extension families" diyor, **altı** (`JobHandlerContract`) | **`tuketici-dokuman-senkronu`** (sayıları eşitle) **+ Faz adayı** (4 eksik contract) | Hangi sayının hedef olduğu | 🟡 tag öncesi (doküman) |
+| A-22 | **`IJobHandler` rehberin seam tablosunda "Multi-registration" satırında**; runtime **anahtarlı tekil kayıt** istiyor (`AddJobHandler<T>("key")`). Tabloyu izleyen tüketici `AddSingleton<IJobHandler, MyHandler>()` yazar, kayıt **sessizce hiçbir şeye bağlanmaz**, ilk kuyruğa atmada `JobDispatcher` patlar | **`tuketici-dokuman-senkronu`** | — | 🟡 tag öncesi |
+| A-23 | **`IRunErrorClassifier`'ın dokümansız ikinci tüketicisi var:** `WorkflowNodeRetry.IsTransient` node'un retry edilip edilmeyeceğine karar veriyor. O yolda `try/catch` **yok**, log **yok**, built-in'e fallback **yok** — üstelik çağrı bir exception filter'ının içinde ⇒ atan sınıflandırıcı **sessizce yutulur** ve node retry edilmez. Rehber ise "classifier throws ⇒ built-in devralır, hata loglanır" diyor | **`tuketici-dokuman-senkronu`** (ikinci iş yazılır) **+ `kusur-giderme`** (doküman daha güvenli davranışı anlatıyor ⇒ **kod yanlış**) | — | 🟡 tag öncesi |
+| A-24 | **"never throws" / "never blocks" / "does not stop the run" XML sınıfı — A-3'ün doküman yarısı.** Yeni üyeler: `IRunInputStore.cs:23` ve `ITraceStore.cs:8` (ikisi de koşulsuz, runtime OCE'yi dışlıyor) · `QuotaEnforcer.cs:129` "never throws" ama `ArgumentNullException` ve OCE atıyor · `ToolApprovalPresenterRunner.cs:15-18` timeout'u sert sınır gibi anlatıyor. 🚨 Store rehberi tüketiciye **"OCE at"** diye öğretiyor (`write-your-own-store.md:123-124`) ⇒ **yön: KOD yanlış**, doküman doğru | **`kusur-giderme`** (A-3 ile aynı iş) + kalan XML cümleleri | — | 🟡 tag öncesi |
+| A-25 | **Küçük doküman drift'leri:** decorator envanteri üç sayıyor, gerçek dört (`Order = 30`) · `TimeoutAIFunction` XML'inde iki kırık cümle (pakete girdiği doğrulandı) · üretilen API sayfasında `?text=` ham query string (tek vaka, üretici iç metinli `<see cref>`'i basamıyor) · `Tracon.Voice` "Zero NuGet dependencies" (bir bağımlılık var: `Tracon.Core`) | **`tuketici-dokuman-senkronu`** + üretici düzeltmesi | — | 🟢 |
+
+**Önkoşul kararlar (kullanıcıya ait, §4'te gerekçeleri var):**
+K1 kiracı kimliği semantiği · K2 Google görsel yüzeyi · K3 `TenantChatClientCacheKey`
+· K4 onay parmak izi formatı · K5 şablon sürüm varsayılanı · K6 job süre sınırı.
+
+**A-1'i pekiştiren doküman ölçümü:** `docs-site` kiracı kimliği için **hiçbir
+kural yayımlamıyor** — ne harf duyarlılığı, ne karakter kümesi, ne uzunluk.
+`TraconTenancyOptions.AllowedTenants` XML'i "any value matching **the format** is
+accepted" diyor ama o "format" ne tipin `<remarks>`'inde ne sitede tanımlı.
+Biçim sevk edilen metinde **tek bir yerde** geçiyor (`Tracon.Client` içindeki
+tenant display-name ucunun açıklaması) ve orası runtime ile uyuşuyor. ∴
+operatörün `acme` ile `Acme`'nin ayrı kiracı olduğunu öğrenebileceği **hiçbir
+sevk edilen cümle yok.**
+
+**Altı kulvarın hepsi koştu.** Doküman kulvarının temiz çıkardıkları: sevk
+edilen yüzeyde **`AgentPrism` kalıntısı yok** · **ASCII kutu çizimi yok** ·
+lisans anlatısı doğru ve tutarlı (17 PolyForm / 3 MIT, hiçbir yerde "open
+source" iddiası yok) · fail-closed audit tablosu tam (6 satır, 9 çağrı yeri) ·
+konsol `en`/`tr` dil dosyaları birebir eşit (1238 anahtar) · `TryAdd*` "senin
+kaydın kazanır" anlatısı doğru · K-835 **tekil**, sınıf değil.
+
+---
+
+**Aşağıdaki anlatı adım 5–8'in nasıl koşulacağını tarif eder; sırası hâlâ
+geçerlidir, fakat 13.0 kapanmadan başlamaz.** Repo içi yayın kritik yolu
 Faz 123 ve KG-022 ile, hesap ve operasyon kararları 2026-09-03 turuyla kapandı.
 Manuel kabul turu (adım 1, KG-027) ve kusur kapanışı (adım 2) 2026-09-18/19'da,
 public öncesi geçmiş denetimi (adım 3, RK-014) ve **yayın turu (adım 4, KG-032 →
