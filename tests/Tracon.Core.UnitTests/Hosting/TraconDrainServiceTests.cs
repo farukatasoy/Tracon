@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Tracon.Core.UnitTests.Fakes;
 
 namespace Tracon.Core.UnitTests.Hosting;
 
@@ -74,23 +75,25 @@ public sealed class TraconDrainServiceTests
     }
 
     [Fact]
-    public async Task Enabled_times_out_with_a_stuck_run_and_returns_anyway()
+    public async Task Enabled_stops_when_the_drain_timeout_elapses_with_a_stuck_run()
     {
         var registry = new RunCancellationRegistry();
         using var runCts = new CancellationTokenSource();
         using var registration = registry.Register(Guid.NewGuid(), Guid.NewGuid(), tenantId: null, runCts);
+        var clock = new TriggerableTimeProvider();
 
         var service = new TraconDrainService(
             registry,
-            Options(new TraconDrainOptions { Enabled = true, Timeout = TimeSpan.FromMilliseconds(150) }),
+            Options(new TraconDrainOptions { Enabled = true, Timeout = TimeSpan.FromMinutes(5) }),
+            timeProvider: clock,
             logger: NullLogger<TraconDrainService>.Instance);
 
         await service.StartAsync(TestContext.Current.CancellationToken);
 
         var stopped = service.StopAsync(TestContext.Current.CancellationToken);
-        var completedFirst = await Task.WhenAny(stopped, Task.Delay(TimeSpan.FromSeconds(2), TestContext.Current.CancellationToken));
+        clock.TriggerAll();
 
-        completedFirst.ShouldBe(stopped);
+        await stopped.WaitAsync(TestContext.Current.CancellationToken);
         registry.ActiveCount.ShouldBe(1);
     }
 
