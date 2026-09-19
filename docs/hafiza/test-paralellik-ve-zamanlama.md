@@ -17,6 +17,8 @@
 
 - **🚨 Timeout testi gercek saatin callback'ini dar bir pencerede beklemez** (2026-09-19, Ubuntu CI): drain testi 150 ms timeout'un ardindan iki saniye icinde donmesini bekliyordu; yüklü CI scheduler timer callback'ini geciktirince test, urun sozlesmesi yerine makinenin anlik kapasitesini ölçtü. Timeout davranışı `TimeProvider` alan kodda kontrol edilebilir bir test clock ile ve timer'i testin tetiklemesiyle kanıtlanır. Gercek zaman yalnız entegrasyon veya kabul seviyesinde ölçülür.
 
+- **🚨 Bir node handler'inin baslamasi, event stream'inin o node'a ulastigini KANITLAMAZ** (2026-09-19, Ubuntu CI): MAF handler'i calistirip testin `TaskCompletionSource`unu tamamladiktan sonra `ExecutorInvoked` olayini yayimlayabilir. Test o arada deadline'i tetiklerse, run baslamis gorunur ama onceki node'un olaylari akimdan okunmadan kesilir. Timeout testi hem handler'in basladigini hem de hedef node'un `ExecutorInvoked` olayinin stream'e yazildigini bekler; sonra saati tetikler.
+
 - **🚨 `dotnet new sln` varsayilan uzantisi SDK'ya gore degisir** (2026-08-28):
   Yerel SDK `.sln`, CI SDK'si `.slnx` uretebilir. Sonraki `dotnet sln` veya
   `dotnet build` komutunda sabit bir dosya adi kullanan test bu nedenle yalniz

@@ -19,6 +19,7 @@ public sealed class WorkflowRunTimeoutTests
     {
         var host = new WorkflowTestHost("one");
         var slowStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var slowInvocationRecorded = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
         host.AddFunction<List<ChatMessage>, List<ChatMessage>>(
             "slow",
@@ -46,8 +47,20 @@ public sealed class WorkflowRunTimeoutTests
             clock,
             static options => options.RunTimeout = TimeSpan.FromMinutes(5));
 
-        var collecting = Collect(runner, "chain", "hello");
-        await slowStarted.Task.WaitAsync(TestContext.Current.CancellationToken);
+        var collecting = Collect(runner, "chain", "hello", runEvent =>
+        {
+            if (runEvent.Type == RunEventType.ExecutorInvoked &&
+                string.Equals(runEvent.Text, "slow", StringComparison.Ordinal))
+            {
+                slowInvocationRecorded.TrySetResult();
+            }
+        });
+
+        // The function can begin before MAF has published the executor event.
+        // Wait for both boundaries: otherwise the fake deadline can cut the
+        // stream between the handler starting and the event being recorded.
+        await Task.WhenAll(slowStarted.Task, slowInvocationRecorded.Task)
+            .WaitAsync(TestContext.Current.CancellationToken);
         clock.TriggerAll();
 
         var events = await collecting;
@@ -107,7 +120,11 @@ public sealed class WorkflowRunTimeoutTests
         workflowRun.Status.ShouldBe(RunStatus.Completed);
     }
 
-    private static async Task<List<RunEvent>> Collect(WorkflowRunner runner, string name, string message)
+    private static async Task<List<RunEvent>> Collect(
+        WorkflowRunner runner,
+        string name,
+        string message,
+        Action<RunEvent>? observed = null)
     {
         var events = new List<RunEvent>();
 
@@ -115,6 +132,7 @@ public sealed class WorkflowRunTimeoutTests
             new WorkflowRunRequest { WorkflowName = name, Message = message }))
         {
             events.Add(runEvent);
+            observed?.Invoke(runEvent);
         }
 
         return events;

@@ -85,7 +85,7 @@ public sealed class DatabaseUnavailableTests : IAsyncLifetime
         {
             Directory.Delete(_logDirectory, recursive: true);
         }
-        catch (IOException)
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
             // The temp directory is reclaimed by the operating system anyway.
         }
