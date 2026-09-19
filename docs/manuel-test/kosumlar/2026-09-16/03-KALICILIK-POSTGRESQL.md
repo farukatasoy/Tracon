@@ -1732,6 +1732,38 @@ gerekçesini kendi mesajında söylüyor. Kusur değil.
 > Adım 1 ve 3 yeşil; case yalnız adım 2 nedeniyle **Beklemede**. Adım 2'nin
 > kararı verilince yeniden koşulacak tek adım odur.
 
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 14) · ☑ GEÇTİ**
+
+Turun kaydı *"adım 2 `src/` altında kod değişikliği ister"* diyordu; donma
+kalktığı için adım koşuldu ve **geri alındı**.
+
+| Adım | Sonuç |
+|---|---|
+| 1 — taban | ☑ **22 test · 0 düşen** |
+| 2 — `CostAddends`'e sahte dördüncü terim | ☑ **7 test düştü** |
+| 3 — `git checkout --` ile geri al | ☑ **22 test · 0 düşen** |
+
+Adım 2'de **iki ayrı kapı** yakaladı:
+
+```
+failed SqlTextSnapshotTests.SqlServer_sql_text_matches_baseline
+failed CostAddendsCrossCheckTests.CostAddends_match_the_decimal_properties_RunCost_Total_sums
+  ["cached_input_cost", "input_cost", "output_cost", "sahte_dorduncu_terim"]
+  ["cached_input_cost", "input_cost", "output_cost", *"sahte_dorduncu_terim"*]
+```
+
+💡 İkinci kapı kayda değer: yalnız SQL **metnini** değil, `CostAddends`
+listesinin `RunCost`'un **decimal özellikleriyle** örtüşüp örtüşmediğini de
+karşılaştırıyor — yani anlık görüntü tazelense bile uyuşmazlık yakalanırdı.
+
+☑ Adım 3'ün üç entegrasyon paketi bu oturumun **tam koşumunda** zaten
+yeşildi (22 proje · 7853 test · 0 düşen); Docker'lı üç dialekt de o koşuma
+dahil.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ## MT-PG-072 — `runs_v1` görünümü 111.2 sütun tablosunu birebir karşılar; korunan sütun taşımaz
 
 **Gerçek sonuç**

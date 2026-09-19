@@ -549,11 +549,10 @@ davranışı doğrular.
 dotnet user-secrets set "Tracon:Tenancy:Enabled" "true"
 dotnet user-secrets set "Tracon:Tenancy:AllowHeaderResolution" "true"
 ```
-`Program.cs`'in `UseTenancy` bloğu `AllowedTenants`'ı okumaz (yalnız
-`Enabled`/`ClaimType`/`AllowHeaderResolution`) — bu yüzden bu case'i
-koşabilmek için `tracon.UseTenancy(...)` çağrısına GEÇİCİ olarak
-`options.AllowedTenants.Add("kiraci-alfa");` satırı eklenir (Program.cs
-satır ~666-672 civarı), test bitince kaldırılır.
+`--Tracon:Tenancy:AllowedTenants=kiraci-alfa` ile başlat.
+**Geçici kod eklemeye GEREK YOK** — örnek uygulama bu anahtarı 2026-09-19'dan
+beri kalıcı olarak okuyor (K-834). Virgülle ayrılır; anahtar boş/yoksa liste
+boş kalır, yani "beyaz liste yok".
 
 **Adımlar**
 1. Listede OLMAYAN bir kiracı adıyla iste (`kiraci-gamma`).
@@ -564,7 +563,10 @@ curl -s "$APU/api/tenants/current" -H "$APB" -H "X-Tracon-Tenant: kiraci-gamma"
 ```
 
 **Beklenen sonuç**
-- `403 Forbidden` döner (`title: "Kiraci reddedildi"`).
+- `403 Forbidden` döner. Sevk edilen başlık **İngilizce**dir:
+  `title: "Tenant rejected"` (K-228; ölçüldü 2026-09-19). `detail` ayrıca
+  kuralı cümleyle yazar: *"This request is NOT silently downgraded to the
+  default tenant's data; it is rejected."*
 - `{"tenantId":"default"}` **DÖNMEZ** — beyaz listeye girmeyen bir istemci
   varsayılan kiracının verisini asla görmemelidir. Bu gözlemlenirse (fix
   öncesi davranışa dönüş) **Kusur, Önem: Kritik** — bkz. `00-INDEKS.md` §5.
@@ -3787,7 +3789,9 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST "$APU/../v1/chat/completions" \
 
 **Ön koşul**
 - `AuthorizeSessionAsync`'i reddeden bir `IRunAuthorizationHandler` kayıtlı.
-- Var olan bir oturum (`conv-1`).
+  Örnek uygulamada kod değişikliği gerekmez:
+  `Tracon:Demo:RunAuthorization:Mode=deny-all` (K-834).
+- Var olan bir oturum (`conv-1`) — mod KAPALIYKEN bir `run` ile yaratılır.
 
 **Adımlar**
 1. `GET /v1/conversations/conv-1`.
@@ -3818,6 +3822,8 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST "$APU/../v1/chat/completions" \
 
 **Ön koşul**
 - `app.MapTracon(prefix, options => options.MapOpenAIConversations = false);`
+  Örnek uygulamada kod değişikliği gerekmez: `Tracon:Demo:MapOpenAIConversations=false`
+  gerçek seçeneği bağlar (K-834 deseni).
 - Var olan bir oturum (`conv-1`).
 
 **Adımlar**
@@ -3829,7 +3835,10 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST "$APU/../v1/chat/completions" \
 4. `/v1/responses` ve `/v1/chat/completions` yollarının belgede durduğunu doğrula.
 
 **Beklenen sonuç**
-- 1: dördü de `404` — rota **hiç yok**, reddedilmiyor.
+- 1: dördü de `404` — rota **hiç yok**, reddedilmiyor. ⚠️ Konsolu sunan bir
+  host'ta (örnek uygulama) GET dışı metotlar `405` alır: SPA yedek rotası her
+  yolu yalnız GET için eşler. Ayrım yol değil metottur — **hiç var olmamış**
+  bir yol aynı cevabı verir, karşı kontrolle ayrıştır.
 - 2: `[]`.
 - 3: `200` — oturum kendi ucundan hâlâ erişilebilir; satır silinmemiştir.
 - 4: iki yol da **durur**; bayrak yalnız conversations'ı yönetir.
@@ -3875,8 +3884,10 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST "$APU/../v1/chat/completions" \
 | **İnsan gerekir** | Hayır |
 
 **Ön koşul**
-- `samples/Tracon.Api`'ye geçici olarak `tracon.RequireProductionProfile();` eklenmiş
-  (`builder.Services.AddHealthChecks()` satırından hemen önce).
+- `--Tracon:Demo:ProductionProfile:Enabled=true` ile başlatılmış.
+  **Geçici kod eklemeye GEREK YOK** — örnek uygulama bu bayrağı kalıcı olarak
+  taşır (K-834). Kabul edilecek riskler
+  `--Tracon:Demo:ProductionProfile:Accept=<virgüllü adlar>` ile verilir.
 
 **Adımlar**
 1. Host'u başlat.
@@ -3884,8 +3895,14 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST "$APU/../v1/chat/completions" \
 
 **Beklenen sonuç**
 - Host **başlamaz**; `exit=134`, `Application started` **0**.
-- Mesaj açık kalan **her** kararı ayrı ayrı sayar (örnek uygulamada **5**: içerik
-  denetimi zaten kayıtlıdır, o kalem listede **yoktur**).
+- Mesaj açık kalan **her** kararı ayrı ayrı sayar. Örnek uygulamada bugün
+  **4**: `SingleTenant` · `UnownedSessions` · `UnlimitedRequestRate` ·
+  `UnboundedRetention`. Altı riskten **ikisi** karşılanmış olduğu için listede
+  **yoktur** — `UninspectedContent` (`AddPatternContentGuard` kayıtlı) ve
+  `UnencryptedContentAtRest` (`appsettings.json`'da
+  `Tracon:ContentProtection:Enabled` `true`). ⚠️ Sayı örneğin
+  yapılandırmasına bağlıdır; sabitleme, **gerekçesiyle** doğrula
+  (ölçüldü 2026-09-19: 4).
 - Her kalem üç bilgiyi taşır: `Setting` · `Today` · `Fix`.
 - Mesajın sonu `Accept(...)` yolunu ve "bu kapı hiçbir ayarı değiştirmez"
   cümlesini taşır.

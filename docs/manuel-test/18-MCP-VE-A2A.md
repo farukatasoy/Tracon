@@ -1346,9 +1346,12 @@ başlangıç koruması hâlâ vardır.
   temiz durum).
 
 **Adımlar**
-1. `TraconEndpointOptions.AllowRemoteAccess`'i GEÇİCİ olarak `true`
-   yapacak şekilde `Program.cs`'i değiştir (loopback dışı erişimi açar).
-2. `dotnet run` ile başlatmayı dene.
+1. Uygulamayı `--Tracon:Ui:AllowRemoteAccess=true` ile başlatmayı dene
+   (loopback dışı erişimi açar). **`Program.cs` değişikliği GEREKMEZ** —
+   örnek uygulama bu anahtarı seçeneğe bağlıyor
+   (`samples/Tracon.Api/Program.cs:953-956`); ölçüldü 2026-09-19.
+2. Karşı kontrol: `ExternalInvoke` kapsamlı bir anahtar yarat
+   (`POST /api/api-keys`) ve **aynı** komutu tekrar koş.
 
 **Beklenen sonuç**
 - Uygulama başlangıçta `InvalidOperationException` fırlatır —
@@ -1356,7 +1359,11 @@ başlangıç koruması hâlâ vardır.
   aç" ile "yalnız tek bir statik token'la koru"nun AYNI ANDA
   olamayacağını zorlar. Bu, MT-MCP-052'nin gösterdiği boşluğun bilinçli
   olarak dar tutulduğunun (yalnız loopback'te izin verilir) kanıtıdır.
-- Case sonrası `Program.cs` değişikliği GERİ ALINIR.
+- **Karşı kontrol:** `ExternalInvoke` kapsamlı bir anahtar varken aynı komut
+  temiz başlar (`health=200`, sıfır `InvalidOperationException`). Kapı bayrağa
+  değil EKSİK ANAHTARA bakar; bu ikinci ölçüm olmadan case yalnız "bayrak
+  uygulamayı çökertiyor" der.
+- Geri alma: yalnız bayrağı kaldır — kalıcı bir değişiklik yapılmaz.
 
 ---
 

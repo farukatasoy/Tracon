@@ -1637,9 +1637,16 @@ kök/çocuk span hiyerarşisini bozmadığını kanıtlar.
   `UseSqlite`) ile çalışıyor — `jobs` tablosunu okumak için gerekli.
 
 **Adımlar**
-1. `Prefer: respond-async` başlığıyla bir agent çalıştır, aynı anda
-   `sessionId` alanına oturum deposunun reddedeceği (aşırı uzun, örn.
-   300 karakter) bir değer ver.
+1. İşin İÇİNDE bir oturum açma hatası üret.
+   🚨 **Uzun `sessionId` BU İŞİ YAPMAZ — üç sağlayıcıda da ölçüldü
+   (2026-09-19).** PostgreSQL ve SQLite'ta `sessions.id` ile
+   `runs.session_id` `text`tir (sınırsız); SQL Server'da ikisi de
+   `nvarchar(200)`, yani **eşit genişlikte**, ve run satırı oturumdan ÖNCE
+   yazılır — her aşırı uzun değer `503` ile kuyruğa girmeden durur ve
+   `jobs` satırı hiç oluşmaz. Tetikleyici yeniden tasarlanmalıdır:
+   iş çalışırken oturum deposunu **yabancı** bir istisnayla düşüren bir yol
+   gerekir (agent silmek yetmez — o Tracon'un kendi `TraconException`'ını
+   üretir ve doğru olarak redakte EDİLMEZ).
 2. `GET /api/jobs/{jobId}` (veya doğrudan `jobs` tablosu) ile `errorMessage`'ı oku.
 3. Sunucu logunu `"Queued run"` + `"(ref:"` için tara.
 

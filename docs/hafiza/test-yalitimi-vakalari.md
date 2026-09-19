@@ -135,3 +135,18 @@
   `publish` tam bir native derlemedir ve `-maxcpucount:1` altinda bile
   Docker/Playwright ile ayni CPU/RAM butcesini paylasir; urun kusuru degildir.
 
+- **🚨 KAPI KOŞARKEN İKİNCİ BİR AĞIR KOMUT KOŞMA — 83 test bu yüzden düştü**
+  (2026-09-19, manuel tur kapanışı). `dotnet test Tracon.slnx -maxcpucount:1`
+  sürerken aynı makinede `python3 -m unittest discover -s scripts` başlatıldı;
+  o paket içinde `dotnet pack` ve bir **yayın provası** koşan testler var
+  (çalışma ağacını geçici değiştirir, feed'e paket basar). Sonuç:
+  `SqlServer.IntegrationTests` **80** düştü (hepsi aynı belirti —
+  `Migration '0037_run_score_message_key' could not be applied: Execution
+  Timeout Expired`) ve `Ui.E2ETests` **3** düştü (Playwright `GotoAsync` /
+  `ToBeVisible` timeout'u). Ölçüm ayrıştırdı: aynı iki proje **tek başına**
+  koşunca `822/822` ve `81/81` geçti, ve süre `6 dk 59 sn → 1 dk 41 sn`
+  düştü — dört kat. ∴ kusur kodda değil, **eşzamanlı kaynak çekişmesindeydi**.
+  Belirti aldatıcıdır: 80 düşen testin hepsi tek bir migration adını gösterir
+  ve gerçek bir migration kusuru gibi okunur. Kural: dört kapı **yalnız
+  başına** koşar; başka bir `dotnet` ya da container işi paralel çalışıyorsa
+  ölçümün kanıt değeri yoktur.

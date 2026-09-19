@@ -292,6 +292,34 @@ kod donmasını hiçbir istisna olmadan koşum boyunca zorunlu kılıyor
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 6) · ☑ GEÇTİ**
+Ön koşulun istediği geçici `Program.cs` düzenlemesi yerine kalıcı bayrak
+kullanıldı (K-834): `Tracon:Demo:ExposedAgents:Mcp` / `:A2A`. Varsayılan
+değişmedi — anahtar boş/yoksa yine yalnız `summarizer` sevk edilir.
+
+`--Tracon:Demo:ExposedAgents:Mcp=support` (`support`, onay isteyen
+`cancel_order` tool'unu taşır):
+
+```
+crit: Tracon.McpApprovalGuardFilter[0]
+      System.InvalidOperationException: The 'support' agent cannot be exposed over
+      MCP: the 'cancel_order' tools ask for user approval. An external caller is
+      not a human and cannot answer an approval request. Remove this agent from
+      the allow list, or limit it to tools that need no approval.
+        at Tracon.ExternalSurfaceGuard.EnsureNoApprovalRequiredTools(...)
+        at Tracon.McpApprovalGuardFilter.RunCheckAsync(...)
+```
+
+☑ `LogCritical` — seviye `crit`, kaynak `McpApprovalGuardFilter`.
+☑ Uygulama **kendini kapattı** (`Application is shutting down` günlükte).
+
+💡 Mesaj gerekçeyi de yazıyor: *"An external caller is not a human and cannot
+answer an approval request."* — kapı keyfi değil, onay modelinin sonucu.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ## MT-MCP-035 — Canlı katalog: yeni bir agent DB'ye eklenince MCP sunucusu YENİDEN BAŞLATILMADAN görünür
 
 **Gerçek sonuç**
@@ -303,6 +331,34 @@ aynı ilke). Kod donması nedeniyle kapanışa ertelendi (MT-MCP-034 ile aynı
 gerekçe).
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 6) · ☑ GEÇTİ**
+Ön koşulun istediği geçici `Program.cs` düzenlemesi yerine kalıcı bayrak
+kullanıldı (K-834): `Tracon:Demo:ExposedAgents:Mcp` / `:A2A`. Varsayılan
+değişmedi — anahtar boş/yoksa yine yalnız `summarizer` sevk edilir.
+
+Kaydın düzeltilmiş yaklaşımı kullanıldı: henüz **var olmayan** bir
+veritabanı-kökenli ad sevk listesine kondu
+(`--Tracon:Demo:ExposedAgents:Mcp=summarizer,manuel-canli-katalog`).
+
+☑ **Var olmayan ad açılışı engellemedi** (`health=200`) — guard yalnız
+kataloqda **eşleşen** bir agent'ın tool'larına bakıyor.
+
+Üç `tools/list` çağrısı, **tek bir çalışma içinde, hiç restart olmadan**:
+
+| # | Ne yapıldı | `tools/list` sonucu |
+|---|---|---|
+| 1 | (henüz yok) | yalnız `tracon_summarizer` |
+| 2 | `POST /api/agents` → `201` | **`tracon_manuel-canli-katalog \| ILK aciklama`** belirdi |
+| 3 | `PUT .../manuel-canli-katalog` → `200` | açıklama **`GUNCELLENMIS aciklama - canli katalog testi`** oldu |
+
+∴ `CatalogToolListHandler` her çağrıda `IAgentCatalog`'u **canlı** okuyor;
+önbelleklenmiş bir kopya döndürmüyor. MCP'nin A2A'dan ayrıştığı nokta
+(MT-MCP-044) burada görünüyor.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
 
 ## MT-MCP-036 — Gerçek bir MCP istemcisiyle (Claude Code CLI) uçtan uca el sıkışma
 
@@ -377,6 +433,28 @@ donması) kapanışa ertelendi.
 ---
 
 # 9 — Rol/API Anahtarı Kapsamı (sıra öne alındı — egress bayrağıyla birlikte)
+
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 6) · ☑ GEÇTİ**
+Ön koşulun istediği geçici `Program.cs` düzenlemesi yerine kalıcı bayrak
+kullanıldı (K-834): `Tracon:Demo:ExposedAgents:Mcp` / `:A2A`. Varsayılan
+değişmedi — anahtar boş/yoksa yine yalnız `summarizer` sevk edilir.
+
+`--Tracon:Demo:ExposedAgents:A2A=support`:
+
+```
+crit: Tracon.A2AApprovalGuardFilter[0]
+        at Tracon.A2AApprovalGuardFilter.RunCheckAsync(...)
+```
+
+☑ **MT-MCP-034 ile birebir aynı sonuç**: `LogCritical` + kendini kapatma
+(`Application is shutting down`). Yalnız filtrenin adı değişiyor
+(`A2AApprovalGuardFilter` ↔ `McpApprovalGuardFilter`); ikisi de aynı
+`ExternalSurfaceGuard.EnsureNoApprovalRequiredTools` çağrısına dayanıyor,
+yani desen gerçekten paylaşılıyor — kopyalanmış iki kontrol değil.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
 
 ## MT-MCP-050 — `/tracon/mcp` ve `/tracon/a2a` GRUP SEVİYESİNDE `ExternalInvoke` kapsamını doğru uygular
 
@@ -692,12 +770,66 @@ kontrol edildi, hep meşgul bulundu. Ertelendi.
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 2) · ☑ GEÇTİ**
+
+Gerçek bir MCP sunucusu kuruldu — §3.4'ün kuralına uyularak **boş ortamla**
+(`env -i`, port 3001). Sızıntı kontrolü yapıldı: sürecin ortamında
+`TOKEN|KEY|SECRET` eşleşmesi **0**. Sunucu `test-sunucu` adıyla kaydedildi ve
+`/refresh` **14 tool** keşfetti.
+
+```
+test-sunucu_echo
+  "mcp: test-sunucu"
+  Discovered on the remote MCP server "test-sunucu". Its definition lives on
+  that server, not in this application.
+  external        ← ayri rozet
+  approval required
+```
+
+| İddia | Sonuç |
+|---|---|
+| Sarı/uyarı tonlu `mcp: {sunucu}` rozeti | ☑ `bg-warn-soft text-warn`, `color: rgb(239,205,136)` |
+| 14 MCP tool'unun hepsinde var | ☑ sayfada **14** rozet |
+| Kod tanımlı tool'da rozet YOK | ☑ `get_order_status` hiç taşımıyor |
+| Onay rozeti BAĞIMSIZ | ☑ `cancel_order` **kod tanımlı** olduğu hâlde `approval required` taşıyor — ikisi ayrı eksen |
+
+⚠️ 127.0.0.1 uç noktasını kaydetmek `Tracon:Egress:AllowPrivateNetworkTargets=true`
+ister; SSRF koruması aksi hâlde `400 Address not allowed` verir.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ## MT-MCP-048 — `mcp.tsx` formu: OAuth açılınca `authorizationConfigurationKey` OTOMATİK TEMİZLENİR
 
 **Gerçek sonuç**
 Aynı gerekçeyle (Playwright meşgul) ertelendi.
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 2) · ☑ GEÇTİ**
+
+Saf istemci tarafı davranış; hiçbir kayıt gerekmedi.
+
+```
+1. "Add server" → form açıldı
+2. "Authorization configuration key" alanına yazıldı:
+   önce = "Tracon:McpSecrets:MtMcp048"
+3. "OAuth (Authorization Code)" onay kutusu işaretlendi
+   sonra = ""            ← OTOMATİK TEMİZLENDİ
+```
+
+Alan **gizlenmiyor ve devre dışı bırakılmıyor** (`visible: true`,
+`disabled: false`) — yalnız değeri boşalıyor, yani sunucudaki karşılıklı
+dışlama kuralı (MT-MCP-005) form seviyesinde önceden yansıtılıyor.
+
+⚠️ Spec adımları Türkçe etiket yazıyor ("Yeni sunucu", "OAuth kullan");
+sevk edilen arayüz **İngilizce**dir (K-228). Gerçek etiketler: `Add server`,
+`Authorization configuration key`, `OAuth (Authorization Code)`.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
 
 ## MT-MCP-049 — `mcp.tsx` sunucu listesi tablosunda secret DEĞERİ hiç GÖRÜNMEZ
 
@@ -706,6 +838,30 @@ Aynı gerekçeyle ertelendi. Not: API seviyesindeki karşılığı (MT-MCP-007)
 bu oturumda TAM doğrulandı.
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 14) · ☑ GEÇTİ**
+
+Bir MCP sunucusu **yapılandırma anahtarı adıyla** kaydedildi
+(`authorizationConfigurationKey: "Tracon:McpSecrets:GithubToken"`), sonra
+`/tracon/mcp` listesine bakıldı:
+
+```
+Servers
+NAME          ENDPOINT                      AUTH
+mt-mcp-049    http://127.0.0.1:3001/mcp     Tracon:McpSecrets:GithubToken
+```
+
+☑ `AUTH` sütunu yapılandırma **ANAHTARININ ADINI** gösteriyor.
+☑ Sayfanın tamamında gerçek bir token deseni **yok**
+(`gh[pousr]_…` / `sk-…` taraması → eşleşme yok).
+
+💡 MT-MCP-007'nin API seviyesindeki kanıtının arayüz karşılığı: `secret`
+değeri veritabanına da yazılmaz (K-059), ∴ arayüzün gösterecek bir değeri
+zaten yoktur — sınır iki katmanda da aynı yerde.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
 
 ## MT-MCP-058 — 👤 İç ağdaki gerçek MCP sunucusu: önce red, ayar sonrası bağlantı
 
@@ -876,3 +1032,38 @@ kod donması) kapanışa ertelendi.
 | MT-MCP-047, 048, 049 | Playwright tarayıcısı oturum boyunca başka şeritçe meşguldü | Tarayıcı boşalınca `/tracon/mcp` ve `/tracon/tools` ekranlarından koşulabilir |
 | MT-MCP-058 | Gerçek, erişilebilir bir iç ağ MCP sunucusu yok bu makinede | Böyle bir sunucu bulununca koşulmalı; iki yarısı MT-MCP-054/055 ile dolaylı zaten kanıtlı |
 | MT-MCP-067 | Gerçek `TaskTimeToLive` bekleme süresi gerekiyor, otomatik karşılığı yok | Kısa bir TTL ile elle koşulmalı |
+
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 2) · ☑ GEÇTİ**
+
+🚨 **Spec'in 1. adımı bayat: `Program.cs` değişikliği GEREKMİYOR.**
+`Tracon:Ui:AllowRemoteAccess` bir yapılandırma anahtarıdır ve
+`samples/Tracon.Api/Program.cs:953-956` onu seçeneğe bağluyor. Kod donması
+bu case'i hiç engellemiyormuş. Spec düzeltildi (skill §1.1).
+
+Ön koşul doğrulandı: `GET /api/api-keys` → `[]`.
+
+```
+$ dotnet Tracon.Api.dll --Tracon:Ui:AllowRemoteAccess=true
+EXIT=134
+Unhandled exception. System.InvalidOperationException: MCP cannot be exposed
+while AllowRemoteAccess is on: the system holds no API key with the
+'external:invoke' scope that is neither expired nor revoked. A single static
+bearer token is not enough to protect an agent surface exposed beyond loopback.
+Create a key with the 'external:invoke' scope through 'POST /api/api-keys'.
+   at Tracon.ExternalSurfaceGuard.EnsureRemoteAccessNotCombined(...)
+      ExternalSurfaceGuard.cs:line 173
+```
+
+İddianın üçü de tuttu: `InvalidOperationException` atılıyor, atan
+`ExternalSurfaceGuard.EnsureRemoteAccessNotCombined`, ve mesaj "loopback
+dışına aç" ile "yalnız tek statik token'la koru" birleşimini reddediyor.
+
+💡 **Karşı kontrol de koşuldu — kapı `AllowRemoteAccess`'e değil EKSİK
+ANAHTARA bakıyor.** `ExternalInvoke` kapsamlı bir anahtar yaratıldıktan sonra
+**aynı komut** temiz başladı: `health=200`, günlükte `InvalidOperationException`
+sayısı `0`. Pozitif kontrol olmadan bu case yalnız "bayrak uygulamayı
+çökertüyor" derdi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---

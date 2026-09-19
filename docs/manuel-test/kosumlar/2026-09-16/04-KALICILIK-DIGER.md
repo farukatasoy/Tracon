@@ -470,6 +470,40 @@ yöntemi sınırlamasıdır.
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
 
+**Yeniden koşum — 2026-09-19 (kapanış, §5 turu 14) · ☐ AÇIK KALIYOR**
+
+🚨 **Case'in tetikleyicisi çalışan bir süreç üzerinde ÇALIŞMIYOR — ve sebebi
+işletim sistemidir, Tracon değil.** SQLite arka uçlu bir örnek ayakta
+bırakılıp dosya salt-okunur yapıldı; yazma **başarılı** oldu:
+
+```
+chmod 444 mt_sql071.db
+POST /api/agents   → 201   (yazıldı)
+health             → 200
+```
+
+İki mekanik sebep ölçüldü:
+
+1. **Açık dosya tanıtıcısı.** Unix izinleri `open()` anında denetlenir, her
+   `write()`'ta değil. Süreç tanıtıcıyı zaten açık tuttuğu için sonradan
+   yapılan `chmod` ona ulaşmıyor.
+2. **WAL modu.** Yazmalar ana dosyaya değil `-wal` dosyasına gidiyor
+   (ölçüldü: `mt_sql071.db` 4 KB iken `mt_sql071.db-wal` **1,6 MB**).
+   Üçünü birden (`db` · `-wal` · `-shm`) `444` yapmak da sonucu
+   değiştirmedi — aynı birinci sebep.
+
+∴ `chmod` tabanlı hiçbir yaklaşım bu koşulu üretemez. Case'in kendi
+düzyazısı aslında doğru senaryoyu yazıyor — *"disk salt-okunur **bağlanır**"* —
+ve bir yeniden bağlama (remount) VFS seviyesinde yazma yolunu geçersiz kılardığı
+için **işe yarardı**. Bu ortamda ayrı bir disk/imaj gerekir.
+
+Spec'in `Girilecek veri`'si bu ölçümle düzeltildi; `00-INDEKS.md` açık kalem
+tablosuna yazılır.
+
+**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+
+---
+
 ## MT-SQL-072 — SQL Server: 20 eşzamanlı agent kaydı veri bozulmadan tamamlanır
 
 **Gerçek sonuç**
