@@ -175,6 +175,93 @@ temizlenmedi çünkü zararsız ve kanıt değeri taşıyor).
 
 ---
 
+> ### ⚗️ Damıtılmış koşum kaydı
+> Geçen ve **hiçbir düzeltme/kusur işareti taşımayan** case'lerin
+> `Gerçek sonuç` blokları düştü — bir koşumun ortam çıktısı, koşum
+> bittiği anda değerini kaybeder. **Geçmeyen** ve **işaret taşıyan**
+> her case'in bloğu AYNEN durur. Tam metin — kopyala, çalıştır:
+>
+> ```bash
+> git show 45cfed58:docs/manuel-test/kosumlar/2026-09-16/16-IS-KUYRUGU-VE-ZAMANLAMA.md
+> ```
+
+---
+
+## Temiz geçen case'ler (68)
+
+| Case | Durum | Başlık |
+|---|---|---|
+| MT-JOB-003 | ☑ | `GET /api/schedules/{name}` tekil kaydı döner |
+| MT-JOB-004 | ☑ | `GET /api/schedules` kiracının tüm zamanlamalarını listeler |
+| MT-JOB-008 | ☑ | Geçersiz saat dilimi → `400` |
+| MT-JOB-009 | ☑ | Cron 5 alan yerine 6 alan taşırsa → `400` |
+| MT-JOB-010 | ☑ | Desteklenmeyen cron uzantısı (`L`) → `400` |
+| MT-JOB-011 | ☑ | Geçerli cron kaydedilince `nextRunAt` doğru hesaplanır |
+| MT-JOB-012 | ☑ | `payload` dizisi `MaxItemsPerJob`'ı aşarsa `PUT` → `400` |
+| MT-JOB-013 | ☑ | Cron olmadan zamanlama: `nextRunAt` `null`, yalnız elle tetiklenir |
+| MT-JOB-016 | ☑ | `RunWorker = false` iken Jobs ekranında uyarı bandı görünür |
+| MT-JOB-020 | ☑ | `POST .../trigger` zamanlamayı hemen çalıştırır |
+| MT-JOB-021 | ☑ | İşçi işi alır, ögeleri SIRAYLA gerçek modelle çalıştırır |
+| MT-JOB-022 | ☑ | Ögenin `runId`'si gerçek bir `runs` satırına işaret eder |
+| MT-JOB-023 | ☑ | `GET /api/jobs/{id}` iş kaydı ve ögeleri TEK çağrıda döner |
+| MT-JOB-024 | ☑ | `trigger` gövdesindeki `payload`, zamanlamanın kendi yükünün YERİNE geçer |
+| MT-JOB-025 | ☑ | `trigger` sırasında `MaxItemsPerJob` aşımı → `400` |
+| MT-JOB-027 | ☑ | Tüm ögeler başarısız olursa iş `Failed` olur |
+| MT-JOB-030 | ☑ | Workflow hedefli bir zamanlama tetiklenir, gerçek workflow çalışır |
+| MT-JOB-031 | ☑ | `items[0].runId` workflow'un KÖK `runs` satırına işaret eder |
+| MT-JOB-032 | ☑ | `UseWorkflows()` kayıtlı değilken bir Workflow işi `Failed` olur (geçici kod değişikliği) |
+| MT-JOB-040 | ☑ | `Pending` bir işi iptal etmek → `204`, durum `Cancelled` |
+| MT-JOB-041 | ☑ | Zaten iptal edilmiş bir işi tekrar iptal etmek → `409` |
+| MT-JOB-042 | ☑ | `Running` bir iş iptal edilirse işçi ögeler arasında bunu fark eder |
+| MT-JOB-043 | ☑ | Var olmayan bir iş kimliğini iptal etmek → `404` |
+| MT-JOB-044 | ☑ | Arayüzden iptal: `Cancel` düğmesi yalnız `Pending`/`Leased`/`Running`'de görünür |
+| MT-JOB-050 | ☑ | `RunWorker = false` iken hiçbir iş kiralanmaz, kuyrukta `Pending` bekler |
+| MT-JOB-051 | ☑ | Var olmayan `targetName` (agent) hedefli iş, `MaxAttempts` denemesinde `Failed` olur |
+| MT-JOB-060 | ☑ | `SingletonExecution.Enabled = false` (varsayılan) iken `singleton_leases` tablosuna HİÇ satır yazılmaz |
+| MT-JOB-064 | ☑ | Yenileme aralığı `LeaseDuration/3`tür: `updated_at` düzenli aralıklarla ilerler |
+| MT-JOB-065 | ☑ | İki süreç aynı anda kuyruktan iş çeker, İKİSİ DE aynı işi almaz |
+| MT-JOB-066 | ☑ | Kira durumunu görmenin TEK yolu veritabanı sorgusudur — hiçbir HTTP ucu yoktur |
+| MT-JOB-070 | ☑ | `Prefer: respond-async` → `202` + `Location` + `Preference-Applied` + `AcceptedRunResponse` |
+| MT-JOB-071 | ☑ | `202`den HEMEN sonra `GET /api/runs/{runId}` → `Queued`, `404` DEĞİL |
+| MT-JOB-072 | ☑ | İşçi işi alır: `Queued` → `Running` → `Completed` |
+| MT-JOB-074 | ☑ | `202`den sonra `/events`e bağlanan istemci BAŞLANGIÇ olaylarını kaçırmaz |
+| MT-JOB-075 | ☑ | Başlık GÖNDERİLMEYEN istekte davranış DEĞİŞMEZ (K1) |
+| MT-JOB-076 | ☑ | Boş `message` ile `Prefer: respond-async` → `400` |
+| MT-JOB-077 | ☑ | Ek (`attachmentIds`) veya onay kararı ile birlikte `respond-async` → `400` |
+| MT-JOB-078 | ☑ | `Tracon:AsyncRun:Enabled = false` → başlık taşıyan istek `501` alır |
+| MT-JOB-079 | ☑ | Kota dolu iken kuyruğa alma `429` alır, iş AÇILMAZ |
+| MT-JOB-080 | ☑ | `Queued` durumdaki bir çalıştırma iptal edilebilir |
+| MT-JOB-081 | ☑ | İptal edilmiş bir kuyruk çalıştırmasını TEKRAR iptal etmek → `409` |
+| MT-JOB-082 | ☑ | Var olmayan `runId` iptali → `404` |
+| MT-JOB-083 | ☑ | `Prefer: respond-async` + AYNI `Idempotency-Key` → TEK iş, aynı `Location` |
+| MT-JOB-091 | ☑ | Doğru imzalı istek `202` döner ve çalıştırma kuyruktan koşar |
+| MT-JOB-092 | ☑ | İmzasız istek `401` döner |
+| MT-JOB-093 | ☑ | Gövde bir bayt değişince aynı imza artık geçmez |
+| MT-JOB-094 | ☑ | On dakika eski zaman damgası `401` döner |
+| MT-JOB-095 | ☑ | Aynı imza ikinci kez `409` döner; ikinci çalıştırma açılmaz |
+| MT-JOB-096 | ☑ | Bilinmeyen kiracı `401` döner; varsayılan kiracıya düşmez |
+| MT-JOB-097 | ☑ | Devre dışı tetikleyici reddedilir |
+| MT-JOB-099 | ☑ | `Path` modunda alan yoksa `400` döner, çalıştırma başlamaz |
+| MT-JOB-100 | ☑ | İmza `secret`'ı veritabanında hiç yaşamaz |
+| MT-JOB-104 | ☑ | Dokümanı izleyen dış bir `IJobHandler` sözleşme testini geçer |
+| MT-JOB-110 | ☑ | Ayar yapılmayan kurulumda her job `default` `lane`'inde çalışır |
+| MT-JOB-113 | ☑ | Kuyruklu tek çalıştırmada geçersiz `lane` → `400` |
+| MT-JOB-114 | ☑ | Kuyruklu tek çalıştırma istenen `lane`'i taşır |
+| MT-JOB-115 | ☑ | `retry` `lane`'i korur; geçersiz `lane`'li zamanlama `400` alır |
+| MT-JOB-112 | ☑ | `MaxConcurrentJobsPerLane` dolu bir `lane`, `default`'u aç bırakır |
+| MT-JOB-118 | ☑ | Kuyruk derinliği gauge'ı açıldığında `lane` × `status` raporlar |
+| MT-JOB-119 | ☑ | `retry` bırakması sayaca girmez, yalnız nihai durum sayılır |
+| MT-JOB-120 | ☑ | `lane` kardinalite muhafızı `other`'a düşürür |
+| MT-JOB-121 | ☑ | Derinlik sorgusu `jobs_claim_idx` kullanır |
+| MT-JOB-122 | ☑ | İki custom handler kendi işini çalıştırır |
+| MT-JOB-123 | ☑ | Kayıt sırası sonucu değiştirmez |
+| MT-JOB-124 | ☑ | Aynı anahtarın iki kez kaydı host'u açtırmaz |
+| MT-JOB-125 | ☑ | `tracon.` öneki tüketiciye kapalıdır |
+| MT-JOB-126 | ☑ | Kayıtsız anahtarlı iş fail-closed'dır ve anahtarı sızdırmaz |
+| MT-JOB-127 | ☑ | Her execution kendi DI scope'unu alır |
+
+## Ayrıntı taşıyan case'ler (30)
+
 ## MT-JOB-001 — `PUT /api/schedules/{name}` yeni bir zamanlama oluşturur
 
 **Gerçek sonuç**
@@ -195,22 +282,6 @@ edildi. `id` MT-JOB-001'dekiyle **birebir aynı**
 (`01a0ac58-c0f4-7c1a-b682-a7ef621859b6`). `createdAt` değişmedi
 (`22:31:32.835675`), `updatedAt` ilerledi (`22:31:41.796164`). Beklenen
 sonuçla tam eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-003 — `GET /api/schedules/{name}` tekil kaydı döner
-
-**Gerçek sonuç**
-`GET $APU/api/schedules/ozet-toplu` → `HTTP: 200`, gövde MT-JOB-002'nin
-sonucuyla birebir aynı (aynı `id`, `updatedAt`, payload). Beklenen sonuçla
-eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-004 — `GET /api/schedules` kiracının tüm zamanlamalarını listeler
-
-**Gerçek sonuç**
-`GET $APU/api/schedules` → `['ozet-toplu']`. Beklenen sonuçla eşleşiyor.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -244,68 +315,6 @@ Beklenen sonuçla (durum kodu) eşleşiyor.
 `HTTP: 400`, `title: "Schedule invalid"`, `detail: "'targetName' is
 required."` — beklenen davranış (K-228 dil sapmasıyla), alan adı tam
 söyleniyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-008 — Geçersiz saat dilimi → `400`
-
-**Gerçek sonuç**
-`PUT .../yanlis-tz` (`timeZone: "Dunya/Hicbiryer"`) → `HTTP: 400`,
-`detail: "'Dunya/Hicbiryer' is not a valid time zone."` — beklenen davranış.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-009 — Cron 5 alan yerine 6 alan taşırsa → `400`
-
-**Gerçek sonuç**
-`PUT .../6-alanli` (`cron: "0 0 3 * * *"`) → `HTTP: 400`,
-`detail: "'0 0 3 * * *' does not match the supported five-field cron
-subset."` — beklenen davranış.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-010 — Desteklenmeyen cron uzantısı (`L`) → `400`
-
-**Gerçek sonuç**
-`PUT .../vixie-uzantisi` (`cron: "0 0 L * *"`) → `HTTP: 400`,
-`detail: "'0 0 L * *' does not match the supported five-field cron
-subset."` — mesaj spec'in beklediği alt-metni ("desteklenen bes alanli cron
-alt kumesiyle eslesmiyor" → İngilizce eşdeğeri) içeriyor, beklenen davranış.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-011 — Geçerli cron kaydedilince `nextRunAt` doğru hesaplanır
-
-**Gerçek sonuç**
-Koşum anı `22:32` UTC idi; `"33 22 * * *"` cron'uyla kaydedildi (bir dakika
-sonrası). Dönen `nextRunAt`: `2026-09-16T22:33:00+00:00` — girilen
-dakika/saatle **tam eşleşiyor**. Beklenen sonuçla eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-012 — `payload` dizisi `MaxItemsPerJob`'ı aşarsa `PUT` → `400`
-
-**Gerçek sonuç**
-Skill §1.2 uyarınca `dotnet user-secrets set` yerine ortam değişkeni
-kullanıldı: uygulama `Tracon__Scheduling__MaxItemsPerJob=2` ile yeniden
-başlatıldı (port 5084 durdurulup aynı ortamla + bu değişkenle tekrar
-`dotnet run`). `PUT .../cok-oge` (3 ögeli payload) → `HTTP: 400`,
-`detail: "The payload has 3 items; at most 2 are supported."` — beklenen
-davranış (K-228 dil sapmasıyla). Ardından uygulama bu değişken **olmadan**
-yeniden başlatıldı (varsayılana dönüş doğrulandı: `/api/diagnostics` →
-`canConnect: true`).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-013 — Cron olmadan zamanlama: `nextRunAt` `null`, yalnız elle tetiklenir
-
-**Gerçek sonuç**
-`GET .../ozet-toplu` → `nextRunAt: null`. İş üreticinin sorgusu (uygulama
-başlangıç logunda görüldü) açıkça `cron IS NOT NULL AND next_run_at IS NOT
-NULL` filtresiyle çalışıyor, yani `nextRunAt = null` olan bir zamanlama
-otomatik iş üretme sorgusuna hiç girmiyor — nitel iddia (otomatik iş
-üretilmez, yalnız `trigger` ile açılır) koddan doğrulanıyor, gerçek bir
-bekleme yapılmadı (mantık statik olarak yeterli kanıt).
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -345,84 +354,6 @@ kalıntısı), yeni bir JS hatası yok.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
-## MT-JOB-016 — `RunWorker = false` iken Jobs ekranında uyarı bandı görünür
-
-**Gerçek sonuç**
-Skill §1.2 uyarınca `dotnet user-secrets set` yerine ortam değişkeni
-kullanıldı: uygulama durduruldu, `Tracon__Scheduling__RunWorker=false` ile
-yeniden başlatıldı (port 5084, şema `mt_s4` korunarak). `GET /api/meta` →
-`storage.jobWorkerEnabled: false`. Jobs ekranı açıldığında sayfa başında
-banner göründü: **"The worker is off in this process. A schedule and a job
-can still be created and inspected, but nothing is leased or run here. The
-setting is RunWorker."** — metin `RunWorker` adını içeriyor, beklenen
-davranışla tam eşleşiyor. Case sonunda uygulama durduruldu ve
-`Tracon__Scheduling__RunWorker` **olmadan** yeniden başlatıldı; `GET
-/api/meta` → `storage.jobWorkerEnabled: true` (varsayılana dönüş
-doğrulandı).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 2 — Toplu Çalıştırma (`AgentBatch`)
-
-## MT-JOB-020 — `POST .../trigger` zamanlamayı hemen çalıştırır
-
-**Gerçek sonuç**
-`POST .../ozet-toplu/trigger` (`{}`) → `HTTP: 200`, `status: "Pending"`,
-`totalItems: 2` (zamanlamanın kendi payload'ından), `scheduledFor` şimdiki
-zamana yakın. Beklenen sonuçla eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-021 — İşçi işi alır, ögeleri SIRAYLA gerçek modelle çalıştırır
-
-**Gerçek sonuç**
-14 saniye sonra `job.status: "Completed"`, `doneItems: 2`, `failedItems: 0`.
-`items[0].status`/`items[1].status`: ikisi de `"Completed"`,
-`runId`'leri **farklı** (`01a0ac67-6b81-...` / `01a0ac67-7264-...`).
-Beklenen sonuçla tam eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-022 — Ögenin `runId`'si gerçek bir `runs` satırına işaret eder
-
-**Gerçek sonuç**
-`GET /api/runs/<items[0].runId>` → `agentName: "summarizer"`, `status:
-"Completed"`, `kind: "Agent"`. Beklenen sonuçla eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-023 — `GET /api/jobs/{id}` iş kaydı ve ögeleri TEK çağrıda döner
-
-**Gerçek sonuç**
-Üst düzey anahtarlar tam olarak `['job', 'items']`. Beklenen sonuçla
-eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-024 — `trigger` gövdesindeki `payload`, zamanlamanın kendi yükünün YERİNE geçer
-
-**Gerçek sonuç**
-`{"payload": ["Tek seferlik ozel girdi."]}` ile tetiklendi →
-`totalItems: 1` (zamanlamanın kayıtlı 2 ögesi DEĞİL). Beklenen sonuçla
-eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-025 — `trigger` sırasında `MaxItemsPerJob` aşımı → `400`
-
-**Gerçek sonuç**
-Skill §1.2 uyarınca ortam değişkeni kullanıldı: uygulama
-`Tracon__Scheduling__MaxItemsPerJob=1` ile yeniden başlatıldı. 2 ögeli
-payload (`["bir","iki"]`) ile tetiklendi → `HTTP: 400`, `title: "Trigger
-failed"`, `detail: "The payload has 2 items; at most 1 are supported."`
-(K-228 dil sapmasıyla, MT-JOB-012'nin aynı deseni). Ardından değişken
-**olmadan** yeniden başlatıldı. Beklenen davranışla (durum kodu + nitel
-mesaj) eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
 ## MT-JOB-026 — Bir öge başarısız olursa iş DEVAM eder, `failedItems` sayılır
 
 **Gerçek sonuç**
@@ -435,142 +366,6 @@ The job will be marked as failed."` — **iş seviyesinde** bir hata,
 girilmedi). Beklenen davranışla (iş seviyesi hata, öge işlenmedi) tam
 eşleşiyor; spec'in kendi notu bu case'in yalnız bu dalı doğruladığını
 zaten söylüyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-027 — Tüm ögeler başarısız olursa iş `Failed` olur
-
-**Gerçek sonuç**
-Aynı `bozuk-hedef` işi ~34s sonraki yoklamada `attempt: 3`, `status:
-"Failed"`, `errorMessage` agent-bulunamadı mesajını taşıyor (MT-JOB-051 ile
-birlikte tek bir gözlem penceresinde koşuldu — ayrıntı orada). Beklenen
-sonuçla eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 3 — Workflow Hedefli İşler (Faz 17 × Faz 15)
-
-## MT-JOB-030 — Workflow hedefli bir zamanlama tetiklenir, gerçek workflow çalışır
-
-**Gerçek sonuç**
-`wf-toplu` (`handlerKey: tracon.workflow`, hedef
-`summarize-and-translate`) kaydedildi ve tetiklendi. 15s sonra
-`job.status: "Completed"`, `items[0].status: "Completed"`, `runId` dolu.
-Beklenen sonuçla tam eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-031 — `items[0].runId` workflow'un KÖK `runs` satırına işaret eder
-
-**Gerçek sonuç**
-`GET /api/runs/<runId>` → `kind: "Workflow"`, `workflowName:
-"summarize-and-translate"`. `GET /api/runs/<runId>/tree` → **3** satır (1
-workflow + 2 agent). Beklenen sonuçla tam eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-032 — `UseWorkflows()` kayıtlı değilken bir Workflow işi `Failed` olur (geçici kod değişikliği)
-
-**Gerçek sonuç**
-`samples/Tracon.Api/Program.cs:197`'deki `.UseWorkflows()` GEÇİCİ olarak
-yorum satırına alındı, `dotnet build -c Release` (0 uyarı), uygulama
-yeniden başlatıldı. `wf-toplu` tetiklendi. Yoklama: `attempt=1/2` →
-`status: "Pending"`, `errorMessage: "The workflow engine is not
-registered. Add the 'Tracon.Workflows' package and call UseWorkflows()."`;
-`attempt=3` → `status: "Failed"` (aynı mesajla kilitlendi) —
-**üçüncü** denemenin sonunda `Failed`'e geçti (spec'in sorduğu "kaç deneme
-sonra" sorusunun cevabı: 3). Ardından değişiklik geri alındı, `git diff
---stat -- samples/Tracon.Api/Program.cs` **boş**, tekrar `dotnet build`
-(0 uyarı), `git diff --stat 7e3a4de7..HEAD -- src samples tests` **boş**
-doğrulandı (kod donması bozulmadı), uygulama temiz ikili ile yeniden
-başlatıldı. Beklenen davranışla tam eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 4 — İptal (Faz 17)
-
-## MT-JOB-040 — `Pending` bir işi iptal etmek → `204`, durum `Cancelled`
-
-**Gerçek sonuç**
-Skill §1.2 uyarınca ortam değişkeni kullanıldı:
-`Tracon__Scheduling__RunWorker=false` ile yeniden başlatıldı. `ozet-toplu`
-tetiklendi, hemen `POST .../cancel` → `HTTP: 204`. Sonraki `GET` →
-`status: "Cancelled"`. Beklenen sonuçla tam eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-041 — Zaten iptal edilmiş bir işi tekrar iptal etmek → `409`
-
-**Gerçek sonuç**
-MT-JOB-040'ın iptal edilmiş işi tekrar `POST .../cancel` → `HTTP: 409`,
-`title: "Job could not be canceled"`, `detail: "The job is already in
-status 'Cancelled'."` (K-228 dil sapmasıyla). Beklenen sonuçla (durum kodu
-+ mesaj anlamı) eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-042 — `Running` bir iş iptal edilirse işçi ögeler arasında bunu fark eder
-
-**Gerçek sonuç**
-(Varsayılan `RunWorker` ile, MT-JOB-040/041'den önce koşuldu.)
-`ozet-toplu` tetiklendi ve hemen ardından `cancel` çağrıldı — yarış işçiden
-hızlı geldi: `status: "Cancelled"`, `doneItems: 0`, iki öge de hâlâ
-`Pending`, `runId: null` (`AgentBatchJobHandler`'ın döngü başındaki
-`IsCancelledAsync` kontrolü ilk ögeye hiç girmeden yakaladı) — spec'in
-"İki öge de henüz başlamadıysa doneItems: 0 ve ikisi de Pending kalır"
-dalıyla eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-043 — Var olmayan bir iş kimliğini iptal etmek → `404`
-
-**Gerçek sonuç**
-`POST /api/jobs/00000000-0000-0000-0000-000000000000/cancel` → `HTTP: 404`,
-`title: "Job not found"` (K-228 dil sapmasıyla). Beklenen sonuçla eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-044 — Arayüzden iptal: `Cancel` düğmesi yalnız `Pending`/`Leased`/`Running`'de görünür
-
-**Gerçek sonuç**
-Playwright: tamamlanmış bir işin (`01a0ac6a-718f...`, workflow) detay
-sayfasında **Cancel düğmesi yok**. Yeni tetiklenen `Pending` bir işin
-(`01a0ac70-5f55...`) detay sayfasında **Cancel düğmesi görünüyor**.
-Beklenen sonuçla tam eşleşiyor. (Sample token her role'e sahip olduğundan
-rol kısıtı ayrıca test edilmedi — spec'in kendi notu bunu zaten kabul
-ediyor.)
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 5 — Zamanlayıcı Ayarları (Faz 17)
-
-## MT-JOB-050 — `RunWorker = false` iken hiçbir iş kiralanmaz, kuyrukta `Pending` bekler
-
-**Gerçek sonuç**
-Aynı `RunWorker=false` penceresinde `ozet-toplu` tekrar tetiklendi; 30
-saniye sonra `status: "Pending"`, `leaseOwner: null` — hiç kiralanmadı.
-Ardından ayar kaldırılıp yeniden başlatıldı; ~12s sonra aynı iş `status:
-"Completed"`, `doneItems: 2` — normal şekilde tamamlandı. Beklenen sonuçla
-tam eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-051 — Var olmayan `targetName` (agent) hedefli iş, `MaxAttempts` denemesinde `Failed` olur
-
-**Gerçek sonuç**
-`bozuk-hedef` işi (MT-JOB-026'nın devamı) yoklandı: ~12s'de `attempt: 1`,
-`Pending`; ~34s'lik pencerede tekrar okunduğunda `attempt: 3`, `status:
-"Failed"` — spec'in beklediği gibi her denemede `Pending`'e dönüp sonunda
-`Failed`'e kilitlendi (ara adımların tam zamanlaması `retryAfter: null`
-nedeniyle hızlı geçti, `attempt=2` anlık penceresi ayrı yakalanamadı ama
-nihai `attempt=3` → `Failed` geçişi doğrulandı). Beklenen sonuçla (nitel
-davranış) eşleşiyor.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -618,17 +413,6 @@ Completed`, `J2: Pending` (henüz kiralanmadı — ilk iş bitmeden ikincisi
 işlenmedi). `t+12s`: ikisi de `Completed`. `SemaphoreSlim slots` sınırının
 davranışı (bir iş biterken diğeri kiralanmıyor) doğrulandı. Ayar
 kaldırılıp yeniden başlatıldı. Beklenen sonuçla (adımlar bazında) eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-060 — `SingletonExecution.Enabled = false` (varsayılan) iken `singleton_leases` tablosuna HİÇ satır yazılmaz
-
-**Gerçek sonuç**
-Uygulama (5084) önceki oturumdan devralınmış, varsayılan yapılandırma ile
-saatlerdir çalışıyor durumda bulundu (`ps eww` ile ortam değişkenleri
-doğrulandı: `SingletonExecution`/`Health`/`Mcp` için hiçbir override yok).
-`SELECT count(*) FROM mt_s4.singleton_leases;` → **`0`**. Beklenen sonuçla
-tam eşleşiyor.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -701,85 +485,6 @@ uygulamayı 5084'te YENİDEN başlatmalı, bu case'ten sonra 5084 KAPALI).
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
-## MT-JOB-064 — Yenileme aralığı `LeaseDuration/3`tür: `updated_at` düzenli aralıklarla ilerler
-
-**Gerçek sonuç**
-MT-JOB-063'ün hayatta kalan tek süreci (port 5094, PID `64999`,
-`LeaseDuration=00:00:12`) kullanıldı. Üç örnekleme, 5 sn arayla:
-`23:23:51.80` → `23:23:55.79` → `23:23:59.79`. Ardışık farklar: **~3,99 sn**
-ve **~4,00 sn** — beklenen `12/3 = 4` sn ile pratik olarak birebir eşleşiyor
-(üç kira satırının hepsi aynı anda, birlikte yenileniyor). Beklenen sonuçla
-tam eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-065 — İki süreç aynı anda kuyruktan iş çeker, İKİSİ DE aynı işi almaz
-
-**Gerçek sonuç**
-İkinci süreç port 5084'te (PID `67102`, aynı `mt_s4` şeması) YENİDEN
-başlatıldı — MT-JOB-063'ün hayatta kalanı (port 5094, PID `64999`) hâlâ
-çalışıyordu, ikisi birlikte kullanıldı. `ozet-toplu` (2 ögeli, gerçek
-OpenAI `summarizer` çağrısı) 5084'te 3 kez, 5094'te 3 kez tetiklendi → 6
-farklı `job.id`. ~20 sn sonra `mt_s4.jobs` sorgulandı: **6 işin 6'sı da
-`status=3` (Completed), `done_items=2/2`**. `mt_s4.job_items`'te bu 6 işe
-ait **12 satır, 12'si de FARKLI `run_id`** (hiçbiri tekrarlanmadı, hiçbir
-öge iki kez işlenmedi) — `FOR UPDATE SKIP LOCKED` iki ayrı .NET sürecinde
-de güvenli kaldı. (`lease_owner` sütunu tamamlanmış işlerde boş — kira,
-tamamlanınca temizleniyor; bu yüzden "hangi PID hangi işi aldı" sütun
-üzerinden değil iş sonucu bütünlüğü — sıfır yinelenen `run_id`, sıfır çift
-işlenmiş öge — üzerinden doğrulandı, ki case'in asıl iddiası zaten budur.)
-Beklenen sonuçla eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-066 — Kira durumunu görmenin TEK yolu veritabanı sorgusudur — hiçbir HTTP ucu yoktur
-
-**Gerçek sonuç**
-`curl $APU/api/diagnostics | grep -io "singleton\|lease"` (port 5084) →
-**boş çıktı**. Beklenen sonuçla eşleşiyor — Faz 33'ün teşhis ucu bu alanları
-hâlâ almamış.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-070 — `Prefer: respond-async` → `202` + `Location` + `Preference-Applied` + `AcceptedRunResponse`
-
-**Gerçek sonuç**
-Uygulama (5084) varsayılan ayarlarla yeniden başlatıldı (SingletonExecution
-override'ları kaldırıldı). `POST /api/agents/support/run` ("ORD-1001
-siparisim nerede?", `Prefer: respond-async`) → `HTTP/1.1 202 Accepted`,
-`Location: /tracon/api/runs/01a0ac8b-4b6b-79d5-ba2e-eed307e97a89`,
-`Preference-Applied: respond-async`. Gövde `AcceptedRunResponse`: `runId`
-ve `jobId` **birebir aynı** GUID, `location` ve `eventsLocation`
-(`.../events` ile bitiyor) dolu. Beklenen sonuçla tam eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-071 — `202`den HEMEN sonra `GET /api/runs/{runId}` → `Queued`, `404` DEĞİL
-
-**Gerçek sonuç**
-İlk denemede (ayrı bir `curl` çağrısı, araya birkaç saniye girdi) run zaten
-`Running`'e geçmiş bulundu — hâlâ `404` değildi ama tam `Queued` anını
-yakalamadı. Tek bir kabukta tetikleme + hemen ardından `GET` zincirlenerek
-tekrarlandı (ikinci çağrı, "ORD-1002"): `HTTP: 200`,
-`status: "Queued"`, `modelId: null`, `startedAt` dolu — işçi henüz almadan
-satırın var olduğu doğrulandı. Beklenen sonuçla tam eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-072 — İşçi işi alır: `Queued` → `Running` → `Completed`
-
-**Gerçek sonuç**
-MT-JOB-071'in `runId`'si (`01a0ac8b-a6dd-7954-a45e-9a6bb009de79`) 2 sn
-sonra tekrar okunduğunda zaten `status: "Completed"` idi (gerçek OpenAI
-çağrısı ~1,4 sn sürmüş — `startedAt` 23:27:10.39, `completedAt`
-23:27:11.82) — geçiş `Queued` (071'de yakalandı) → `Running` (çok kısa,
-ayrıca yakalanamadı) → `Completed` sırasını izledi. `support` agent'ı
-`get_order_status` tool'unu çağırdı (SSE olay akışında `get_order_status`
-adı 2 kez geçti — çağrı + sonuç olayı, tek çağrı). Beklenen sonuçla (nitel
-geçiş sırası + tool çağrısı) eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
 ## MT-JOB-073 — `runs.id` `Location`'daki kimlikle BİREBİR eşleşir; iş kimliği de aynıdır
 
 **Gerçek sonuç**
@@ -792,125 +497,6 @@ ARTIK yok, yerine `job.handlerKey: "tracon.agent-run"` var — nitel iddia
 (iş kimliği = çalıştırma kimliği, `AgentRun`/`tracon.agent-run` türü)
 doğru, yalnız alan adı bayat. Beklenen sonuçla (alan adı sapması hariç)
 eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-074 — `202`den sonra `/events`e bağlanan istemci BAŞLANGIÇ olaylarını kaçırmaz
-
-**Gerçek sonuç**
-Yeni `Prefer: respond-async` isteği (`runId`
-`01a0ac8d-1dff-74d6-95de-013a590da2ed`) sonrası `sleep` KOYMADAN hemen
-`/events`e bağlanıldı. Bağlantı ~23 `: waiting` keep-alive pingi boyunca
-AÇIK kaldı (işçi henüz almamıştı — `PollInterval` varsayılan 10 sn
-penceresi), ardından TÜM olaylar sırayla, sıfır kayıpla geldi: `id:0
-run.started` → `id:1 tool.invoking` (`get_order_status`,
-`orderId=ORD-1001`) → `id:2 tool.invoked` (sonuç: "Order ORD-1001 has
-shipped...") → `id:3 message.delta` → `id:4 message.completed` → `id:5
-run.completed`. İlk olay tam olarak `run.started`, hiçbir sequence
-atlanmadı. Beklenen sonuçla tam eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-075 — Başlık GÖNDERİLMEYEN istekte davranış DEĞİŞMEZ (K1)
-
-**Gerçek sonuç**
-`POST /api/agents/support/run` (`Prefer` başlığı YOK) → `HTTP/1.1 200 OK`,
-`Content-Type: text/event-stream`. Ayrı bir çağrıda başlıklar tam
-denetlendi: `Location`/`Preference-Applied` **yok**. Bugünkü senkron SSE
-davranışı bit bit korunmuş. Beklenen sonuçla tam eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-076 — Boş `message` ile `Prefer: respond-async` → `400`
-
-**Gerçek sonuç**
-`POST .../support/run` (`{}`, `Prefer: respond-async`) → `HTTP: 400`,
-`title: "Empty request"`, `detail: "'message' is required for a queued
-run."` — beklenen davranış (K-228 dil sapmasıyla, spec Türkçe metin
-bekliyor). Beklenen sonuçla (durum kodu + anlam) eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-077 — Ek (`attachmentIds`) veya onay kararı ile birlikte `respond-async` → `400`
-
-**Gerçek sonuç**
-`POST .../support/run` (`attachmentIds` dolu, `Prefer: respond-async`) →
-`HTTP: 400`, `title: "Not supported"`, `detail: "A queued run ('Prefer:
-respond-async') does not support approval decisions, client-side tool
-results, attachments, parameters, or documents in this version."` —
-beklenen davranış (K-228 dil sapmasıyla). Beklenen sonuçla eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-078 — `Tracon:AsyncRun:Enabled = false` → başlık taşıyan istek `501` alır
-
-**Gerçek sonuç**
-Skill §1.2 uyarınca ortam değişkeni kullanıldı (`user-secrets` DEĞİL):
-`Tracon__AsyncRun__Enabled=false`, yeniden başlatıldı. `POST
-.../support/run` (`Prefer: respond-async`) → `HTTP: 501`, `title: "Queuing
-not enabled"`, `detail: "...queuing support is disabled in this setup
-(TraconAsyncRunOptions.Enabled = false)."` — sessizce SSE'ye düşmedi,
-gerçek `501` döndü. Beklenen sonuçla (K-228 dil sapmasıyla) eşleşiyor.
-Ayar kaldırılıp uygulama varsayılana döndürüldü.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-079 — Kota dolu iken kuyruğa alma `429` alır, iş AÇILMAZ
-
-**Gerçek sonuç**
-Kurulum adımı `23-SAKLAMA-ARSIV-KOTA.md`'nin kota kural motoruna dayanır
-(bu dosyanın kapsamı dışı, yalnız sonuç doğrulanır) — `PUT /api/quotas`
-(`agentName: "support"`, `period: "Daily"`, `maxRuns: 0`, `enabled: true`)
-ile geçici bir kural oluşturuldu. `POST .../support/run` (`Prefer:
-respond-async`) → `HTTP: 429`, `title: "Quota exceeded"`, `detail: "The
-daily run quota for agent 'support' has been exceeded (5/0)..."`.
-`GET /api/jobs?kind=AgentRun` sayısı **23** — istekten ÖNCEKİ son kayıt
-(23:28:44, MT-JOB-074'ün işi) ile aynı, istekten SONRA yeni bir kayıt
-**açılmadı**. Kural silindi (`DELETE /api/quotas/{id}` → `204`). Beklenen
-sonuçla (`QuotaGate.CheckAsync`'in `WantsAsync` dallanmasından önce
-çalıştığı) eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-080 — `Queued` durumdaki bir çalıştırma iptal edilebilir
-
-**Gerçek sonuç**
-`Tracon__Scheduling__RunWorker=false` ile yeniden başlatıldı (işçi işi
-almasın diye). `POST .../support/run` (`Prefer: respond-async`) →
-`runId` alındı, HEMEN `POST /api/runs/{runId}/cancel` çağrıldı →
-`HTTP: 202`, gövde `RunRecord`: `status: "Canceled"`, `completedAt` dolu
-(`startedAt`/`completedAt` arası 82 ms — işçi hiç almadan doğrudan
-kapatıldı, orphan oluşmadı). Ayar kaldırılıp uygulama varsayılana
-döndürüldü. Beklenen sonuçla tam eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-081 — İptal edilmiş bir kuyruk çalıştırmasını TEKRAR iptal etmek → `409`
-
-**Gerçek sonuç**
-MT-JOB-080'in iptal edilmiş `RUN_ID`'si tekrar iptal edildi → `HTTP: 409`,
-`title: "Run already ended"`, `detail: "Run '...' is already in status
-'Canceled'."` — beklenen davranış (K-228 dil sapmasıyla).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-082 — Var olmayan `runId` iptali → `404`
-
-**Gerçek sonuç**
-`POST /api/runs/00000000-.../cancel` → `HTTP: 404`, `title: "Run not
-found"`. Beklenen sonuçla eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-083 — `Prefer: respond-async` + AYNI `Idempotency-Key` → TEK iş, aynı `Location`
-
-**Gerçek sonuç**
-Aynı `Idempotency-Key: tekillestirme-testi-01` ile iki ardışık istek →
-iki `Location` başlığı **birebir aynı**
-(`/tracon/api/runs/01a0ac91-760d-7dc1-8add-896cd9480cd8`), `diff` ile
-karşılaştırılan iki gövde **birebir aynı** — ikinci istek yeni bir iş
-açmadı, ilk `202`'nin tekilleştirilmiş gövdesini döndürdü. Beklenen
-sonuçla tam eşleşiyor.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -984,80 +570,6 @@ tercih etmeli.
 
 ---
 
-## MT-JOB-091 — Doğru imzalı istek `202` döner ve çalıştırma kuyruktan koşar
-
-**Gerçek sonuç**
-Ortak kurulum: `PUT /api/triggers/slack` (hedef `support`, `signingSecretConfigurationName:
-"Tracon:TriggerSecrets:Slack"`, `payloadPath: "event.text"`) → `200`,
-`resolved:true` (5086'da, bkz. devir notu). Doğru imzalı istek (gerçek
-`TRIGSECRET="whsec_manuel_test_66"` ile hesaplanan HMAC-SHA256) →
-`HTTP: 202`, `Location: /tracon/api/runs/01a0accc-4dfa-7cbf-be2d-5bbced241bb7`,
-gövdede `runId` ve `jobId` **aynı** değer. `GET /api/runs/{runId}` (5084
-üzerinden, worker orada) ilk pollde `Queued`, ikinci pollde (~3 sn sonra)
-`status: "Completed"`. Beklenen sonuçla tam eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-092 — İmzasız istek `401` döner
-
-**Gerçek sonuç**
-İmza/timestamp başlığı olmayan istek → `HTTP: 401`,
-`title: "Signature verification failed"`. Beklenen sonuçla eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-093 — Gövde bir bayt değişince aynı imza artık geçmez
-
-**Gerçek sonuç**
-İmza `{"event":{"text":"orijinal"}}` için hesaplandı, gönderilen gövde
-`{"event":{"text":"degistirildi"}}` → `HTTP: 401`,
-`title: "Signature verification failed"`. Beklenen sonuçla eşleşiyor —
-`WebhookSigner.Verify` gövde+zaman damgası birleşimini doğruluyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-094 — On dakika eski zaman damgası `401` döner
-
-**Gerçek sonuç**
-`TS = now - 600` ile doğru imza hesaplandı → `HTTP: 401`,
-`title: "Signature verification failed"`. Beklenen sonuçla eşleşiyor —
-varsayılan beş dakikalık `TimestampTolerance` penceresi dışında.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-095 — Aynı imza ikinci kez `409` döner; ikinci çalıştırma açılmaz
-
-**Gerçek sonuç**
-MT-JOB-091 deseninde yeni bir istek (`BODY`/`TS`/`SIG` sabit) ilk kez
-`202` (`runId: 01a0acdb-...`) döndü. **Aynı** `BODY`/`TS`/`SIG` ile
-tekrar gönderildi → `HTTP: 409`, `title: "Request already processed"`.
-`GET /api/runs?agentName=support&limit=5` bu istek için yalnız **bir**
-yeni `runs` satırı gösterdi — ikinci istek yeni bir çalıştırma açmadı.
-Beklenen sonuçla tam eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-096 — Bilinmeyen kiracı `401` döner; varsayılan kiracıya düşmez
-
-**Gerçek sonuç**
-`POST /api/triggers/boyle-bir-kiraci-yok/slack` (gövde/imza yok) →
-`HTTP: 401`, `title: "Signature verification failed"` — `404` DEĞİL.
-Beklenen sonuçla (kararın kendi belirttiği "bilinmeyen kiracı da imza
-hatasıyla aynı jenerik 401'i alır" biçimiyle) eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-097 — Devre dışı tetikleyici reddedilir
-
-**Gerçek sonuç**
-`PUT /api/triggers/slack` ile `enabled:false` yapıldı (`200`). Geçerli
-imzalı bir istek gönderildi → `HTTP: 401`, `title: "Signature verification
-failed"` — devre dışı tetikleyici, bilinmeyen/imza-hatalı istekten ayırt
-edilemiyor. Ardından `enabled:true` ile eski hâline getirildi (`200`,
-doğrulandı). Beklenen sonuçla eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
 ## MT-JOB-098 — Kota dolu olunca `429` döner, kota bypass edilmez
 
 **Gerçek sonuç**
@@ -1080,35 +592,6 @@ agent 'support' has been exceeded (2/1)...","quotaMetric":"Runs",...}`,
 `Retry-After` mevcut, bypass yok) beklenen sonuçla eşleşiyor; yalnız
 adım sırası ortam durumu yüzünden sıkıştı — **doküman kusuru değil**,
 kota API'sinin gerçek şekli spec'ten farklı (bkz. not).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-099 — `Path` modunda alan yoksa `400` döner, çalıştırma başlamaz
-
-**Gerçek sonuç**
-`{"event":{"baska_alan":"x"}}` gövdesi, doğru imza ile gönderildi →
-`HTTP: 400`, gövde tam olarak: `{"title":"Invalid request body","status":400,
-"detail":"The payload path 'event.text' did not resolve to a value in the
-request body."}` — `event.text` yolunun çözülemediğini söylüyor (spec'in
-beklediği anlamla eşleşiyor, tam cümle spec'te verilmemişti). Bu istek
-`runs` tablosunda yeni bir satır açmadı (bir önceki case'lerin oluşturduğu
-satır sayısına göre karşılaştırıldı). Beklenen sonuçla eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-100 — İmza `secret`'ı veritabanında hiç yaşamaz
-
-**Gerçek sonuç**
-```
-mt_s4=# SELECT signing_secret_configuration_name FROM mt_s4.inbound_triggers;
- signing_secret_configuration_name
-------------------------------------
- Tracon:TriggerSecrets:Slack
-```
-`pg_dump --schema=mt_s4 -U postgres tracon | grep -c "whsec_manuel_test_66"`
-→ `0`. Sütun yalnız yapılandırma anahtarının ADINI taşıyor, gerçek
-`secret` değeri şema dökümünde hiç geçmiyor. Beklenen sonuçla eşleşiyor
-(K-059).
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -1184,70 +667,6 @@ koşulamadı.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
-## MT-JOB-104 — Dokümanı izleyen dış bir `IJobHandler` sözleşme testini geçer
-
-**Gerçek sonuç**
-`dotnet build samples/Tracon.Samples.CustomJobHandler.Tests -c Release`
-→ başarılı, 0 uyarı. `NightlyReportJobHandlerContractTests` filtreli koşum
-→ **3/3 Geçti** (158ms): zaten `Completed` bir öge yeniden işlenmiyor,
-retry'de yalnız `Pending` öge işleniyor, iptal öge'ler arasında gözleniyor.
-`samples/Tracon.Samples.CustomJobHandler.Tests.csproj`'de `Tracon` ve
-`Tracon.Testing.Contracts.Xunit` **`PackageReference`** (`ProjectReference`
-DEĞİL) — yalnız iki örnek proje arasındaki bağ (`Tracon.Samples.
-CustomJobHandler`'a) `ProjectReference`. Beklenen sonuçla tam eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-110 — Ayar yapılmayan kurulumda her job `default` `lane`'inde çalışır
-
-**Gerçek sonuç**
-Ön koşul zaten sağlanmış durumdaydı — çalışan hiçbir süreçte
-`Tracon:Scheduling:Lanes`/`MaxConcurrentJobsPerLane`/`LaneByKind`
-ayarlanmadı. `ozet-toplu` tetiklendi (`POST /api/schedules/ozet-toplu/trigger`)
-→ yanıt gövdesinde `"lane":"default"`. `GET /api/jobs/{id}` işin
-`Completed` olduğunu ve `lane:"default"` kaldığını doğruladı. Beklenen
-sonuçla eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-113 — Kuyruklu tek çalıştırmada geçersiz `lane` → `400`
-
-**Gerçek sonuç**
-`POST /api/agents/summarizer/run` (`Prefer: respond-async`,
-`{"message":"test","lane":"Media"}`) → `HTTP: 400`, `title: "Invalid lane"`,
-`detail: "'Media' is not a valid lane name. A lane name must be 1-64
-characters: lowercase ASCII letters, digits, '.', '_', or '-', starting
-with a letter or digit."` İş kuyruğa hiç yazılmadı (yanıt zaten hata,
-`runId` yok). Beklenen sonuçla eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-114 — Kuyruklu tek çalıştırma istenen `lane`'i taşır
-
-**Gerçek sonuç**
-Aynı uç, `lane:"media"` ile → `202`, `runId`. `GET /api/jobs/{runId}` →
-`"lane":"media"`. Beklenen sonuçla eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-115 — `retry` `lane`'i korur; geçersiz `lane`'li zamanlama `400` alır
-
-**Gerçek sonuç**
-Adım 1: `PUT /api/schedules/buyuk-harf-lane` (`lane:"Media"`, gövdede
-gerçek alan adı **`handlerKey`**, spec'in `"kind"`'ı DEĞİL — Faz 129
-migrasyonu, önceki oturumların bulgusuyla tutarlı) → `HTTP: 400`,
-`title: "Schedule invalid"`, aynı "lowercase ASCII" mesajı.
-Adım 2-3: `lane:"media"`, `targetName:"yok-boyle-bir-agent"` (var olmayan
-agent) ile geçici bir zamanlama (`media-lane-retry-test`) oluşturuldu ve
-tetiklendi; `GET /api/jobs/{id}` ~28 saniye boyunca 4 sn aralıkla
-izlendi: `attempt` sırayla `0→1→2→3` ilerledi, **her denemede `lane` hep
-"media"`da** kaldı, son durumda `status:"Failed"` (varsayılan
-`MaxAttempts=3` tükendi). `ReleaseForRetryAsync`'in `lane`'i değiştirmediği
-doğrulandı. Test zamanlaması temizlendi (`DELETE`, `204`). Beklenen
-sonuçla tam eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
 ## MT-JOB-111 — `Lanes: ["media"]` olan worker `default` `lane`'inden kiralayamaz
 
 **Gerçek sonuç**
@@ -1267,20 +686,6 @@ worker olmadığı için iddia temiz ölçülüyor). `dotnet test`/binary filtre
 koşum: 4/4 (bu dosyadaki tüm `JobWorkerBackgroundServiceTests`) geçti.
 Mekanizma kanıtlandı; canlı çok-süreçli ortamda DOĞRULANMADI (yapısal
 çakışma nedeniyle).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-112 — `MaxConcurrentJobsPerLane` dolu bir `lane`, `default`'u aç bırakır
-
-**Gerçek sonuç**
-Aynı yapısal çakışma MT-JOB-111 için geçerli (5084'ün kısıtsız worker'ı
-canlı ortamda kontrolü bozar). Otomatik karşılığı:
-`JobWorkerBackgroundServiceTests.A_full_lane_does_not_block_the_default_lanes_job`
-— **Geçti**: iki `media` işi (`MaxConcurrentJobsPerLane["media"]=1`) kalıcı
-olarak bloke ederken bir `default` işi hemen `Completed` oluyor — `media`
-dolu olması `default`'u BEKLETMİYOR (129.4'ün starvation-önleme garantisi).
-Aynı dosyadaki 4/4 test geçti. Mekanizma kanıtlandı; canlı ortamda
-DOĞRULANMADI.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -1323,70 +728,6 @@ mekanizma birim testleriyle kanıtlandı.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
-## MT-JOB-118 — Kuyruk derinliği gauge'ı açıldığında `lane` × `status` raporlar
-
-**Gerçek sonuç**
-Aynı altyapı sınırı (OTel pipeline yok). Otomatik karşılıkları:
-`JobQueueDepthGaugeTests.Depth_is_reported_per_lane_and_status_when_enabled`,
-`The_gauge_carries_no_tenant_tag`,
-`A_second_scrape_inside_the_refresh_interval_does_not_query_the_store` —
-**Geçti** (yukarıdaki 26/26 koşumun parçası). Üçü sırasıyla: gauge açıkken
-`lane`/`status` etiketli ölçüm üretiyor, `tenant` etiketi taşımıyor, ve
-yenileme aralığı içindeki ikinci scrape `store`'a ikinci sorgu
-göndermiyor (önbellek). Canlı `psql` sorgu logu izlemesiyle DOĞRULANMADI.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-119 — `retry` bırakması sayaca girmez, yalnız nihai durum sayılır
-
-**Gerçek sonuç**
-Aynı altyapı sınırı. Otomatik karşılığı:
-`JobMetricsTests.A_release_for_retry_is_not_counted_only_the_final_failure_is`
-— **Geçti**: sayaç yalnız nihai `Failed` durumunda **1** artıyor, ara
-`ReleaseForRetryAsync` çağrıları sayılmıyor, histogram tek ölçüm taşıyor
-(son denemenin süresi). `attempt` alanının işin toplam deneme sayısını
-yansıttığı MT-JOB-115'in canlı koşumunda zaten ayrıca doğrulandı
-(`attempt: 3`, `status: Failed`). Beklenen sonuçla birleşik olarak
-eşleşiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-120 — `lane` kardinalite muhafızı `other`'a düşürür
-
-**Gerçek sonuç**
-Aynı altyapı sınırı. Otomatik karşılıkları:
-`JobLaneCardinalityTests.A_lane_beyond_the_limit_is_written_as_other`,
-`A_lane_that_earned_its_name_keeps_it_after_the_limit_is_reached`,
-`JobQueueDepthGaugeTests.The_gauge_applies_the_same_lane_cardinality_guard_as_the_counter`
-— **Geçti**: `MaxJobLaneCardinality` aşıldığında yeni lane adı `other`'a
-düşüyor, daha önce adı geçen bir lane süreç ömrü boyunca adını koruyor,
-ve `queue.depth` gauge'ı **aynı** kardinalite kümesini sayaçla paylaşıyor
-(iki enstrüman ayrı bütçe tutmuyor). Canlı taze-süreç koşumuyla
-DOĞRULANMADI (OTel pipeline yok, ayrıca taze süreç gereksinimini
-sağlamak MT-JOB-103/111/112'nin aynı yeniden başlatma kısıtına takılırdı).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-121 — Derinlik sorgusu `jobs_claim_idx` kullanır
-
-**Gerçek sonuç**
-`mt_s4.jobs` bu turda yalnız **88** satır taşıyor (status 3/4/5 — hiçbiri
-0/1/2 "açık" değil), spec'in varsaydığı 60 000 satır / 3 000 açık ölçeğinde
-DEĞİL — bu ailenin fixture verisiyle bu ölçek üretilemedi. Yine de
-`EXPLAIN (ANALYZE, BUFFERS)` planı **`Index Only Scan using jobs_claim_idx
-on jobs`** gösterdi (Bitmap Index Scan bile değil, daha güçlü bir plan —
-`jobs_claim_idx`'in `WHERE status = ANY(ARRAY[0,1,2])` kısmi indeksi
-sorguyla birebir örtüşüyor), **`Seq Scan on jobs` planda hiç yok**.
-`rows=0.00` (şu an açık iş yok) ve `Execution Time: 0.096 ms`. Beklenen
-sonucun **plan şekli** iddiası (indeks kullanılıyor, seq scan yok)
-doğrulandı; **satır ölçeği** iddiası (3 000 satır tarandığı, tablonun
-tamamı değil) bu veri hacminde ANLAMLI ölçülemedi — küçük tabloda planlayıcı
-zaten en iyi planı seçiyor, büyük ölçekte davranışın DEĞİŞMEYECEĞİ kısmi
-indeksin tanımından (yalnız açık durumları kapsıyor) mantıksal olarak
-çıkarılabilir ama ampirik olarak bu turda kanıtlanmadı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
 ## MT-JOB-132 — Yarıda kalan approval handoff'u, AYNI kararı tekrarlayarak tamamlanır (B03)
 
 **Gerçek sonuç**
@@ -1414,102 +755,6 @@ Gerçek bir kesinti-penceresi (decide↔enqueue arası çökme) enjekte edilemed
 (kod donuk, `FailFirstResumeEnqueue` test-only fault injection'dır); ama
 dışa dönük sözleşme — aynı karar tekrarı idempotent `200`, ters karar
 tekrarı `409` — canlı ölçüldü ve otomatik testle birebir örtüşüyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-122 — İki custom handler kendi işini çalıştırır
-
-**Gerçek sonuç**
-`~/tracon-manuel/job-handlers-s4` scratch host'u (donuk `samples/`'a
-dokunmadan, paketlenmiş `0.0.0-preview.0.819` yerel feed'den, `AddJobHandler
-<AHandler>("acme.a")` + `AddJobHandler<BHandler>("acme.b")`) ile: `acme.a`
-ve `acme.b` işleri kuyruğa alındı, ikisi de `Completed` kapandı.
-Sunucu log'u yalnız `AHandler ran job <a-id>` ve `BHandler ran job <b-id>`
-yazdı — hiçbir handler diğerinin job id'sini görmedi.
-`GET /api/jobs?handlerKey=acme.a` yalnız `acme.a` job'ını döndü.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-123 — Kayıt sırası sonucu değiştirmez
-
-**Gerçek sonuç**
-Aynı scratch host, `JOBH_SCENARIO=handlers-before-addtracon` ile yeniden
-başlatıldı — bu kez `AddJobHandler<AHandler>("acme.a")` /
-`AddJobHandler<BHandler>("acme.b")` çağrıları `builder.AddTracon()`'den
-**ÖNCE** yapıldı. Host normal açıldı (hata yok); iki yeni `acme.a`/`acme.b`
-işi tekrar kuyruğa alındı ve MT-JOB-122 ile **birebir aynı** sonucu verdi
-(ikisi de `Completed`, doğru handler'a dispatch). Faz 137 sonrası sıra
-kazananı belirlemiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-124 — Aynı anahtarın iki kez kaydı host'u açtırmaz
-
-**Gerçek sonuç**
-`JOBH_SCENARIO=dup-type` (aynı host, `acme.a` için ek olarak
-`AddJobHandler<BHandlerAsA>("acme.a")`) ile başlatılan süreç **4 saniye
-içinde çöktü** (`Hosting failed to start`):
-```
-System.InvalidOperationException: Two job handlers are registered for the
-key 'acme.a': 'AHandler' and 'BHandlerAsA'. A key identifies exactly one
-handler; give one of them a different key.
-   at Tracon.JobHandlerRegistry.Create(...)
-   at Microsoft.Extensions.Hosting.Internal.Host.StartAsync(...)
-```
-Kök neden: `JobHandlerRegistry.Create`
-(`src/Tracon.Core/Scheduling/JobHandlerRegistry.cs:78-84`), bir
-`IValidateOnStart` doğrulayıcısı (`JobHandlerRegistryValidator.cs`)
-üzerinden `Host.StartAsync`'te tetikleniyor — worker'ın ilk tick'i değil,
-**host başlangıcı**. Mesaj çakışan anahtarı ve iki tam tip adını birlikte
-taşıyor. Beklenen sonuçla birebir örtüşüyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-125 — `tracon.` öneki tüketiciye kapalıdır
-
-**Gerçek sonuç**
-`JOBH_SCENARIO=reserved` (`AddJobHandler<AHandler>("tracon.retention")`)
-süreç **anında** çöktü — `Build()`/`Run()`'a hiç ulaşmadı:
-```
-System.ArgumentException: The job handler key 'tracon.retention' is
-reserved: the 'tracon.' namespace belongs to Tracon's own handlers. Pick a
-key of your own (for example 'contoso.nightly-report'). (Parameter
-'handlerKey')
-   at Tracon.TraconServiceCollectionExtensions.AddJobHandler[THandler](...)
-   at Program.<Main>$(String[] args) in Program.cs:line 50
-```
-`AddJobHandler<T>` çağrısının **kendisi** senkron olarak fırlatıyor
-(`src/Tracon.Core/TraconServiceCollectionExtensions.cs:122-127`) — yerleşik
-`tracon.retention` handler'ı hiç gölgelenmedi (süreç zaten hiç ayağa
-kalkmadı). Beklenen sonuçla birebir örtüşüyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-126 — Kayıtsız anahtarlı iş fail-closed'dır ve anahtarı sızdırmaz
-
-**Gerçek sonuç**
-`IJobStore.EnqueueAsync` ile doğrudan (dispatcher'ı atlayarak)
-`handlerKey="acme.no-such-handler"` yazıldı. Worker tick'inden sonra:
-`GET /api/jobs/{id}` → `status:"Failed"`,
-`errorMessage:"tracon.job.unknown-handler-key (ref: bd57fbee)"` — **ham
-anahtar yok**. Sunucu log'u: `Job <id> carries the handler key
-'acme.no-such-handler', which no IJobHandler is registered for. (ref:
-bd57fbee)` — ham anahtar **yalnız** burada, ve `ref` errorMessage'daki
-korelasyon kimliğiyle birebir aynı. Kaynak:
-`JobWorkerBackgroundService.cs:277-291`, `JobErrorCodes.cs:26,56`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-JOB-127 — Her execution kendi DI scope'unu alır
-
-**Gerçek sonuç**
-`services.AddScoped<Marker>()` + `AHandler(Marker, ILogger)`. İki ayrı
-`acme.a` işi (`marker-1`, `marker-2`) **farklı** marker id'leriyle çalıştı
-(`8532796e...` / `4f7c6a3a...`). Üçüncü iş (`target=fail-once`) 1.
-denemede marker `b4870a6f...` ile fırlattı, `ReleaseForRetryAsync` sonrası
-2. denemede **farklı** marker `9f292b7c...` ile `Completed` kapandı — retry
-yeni bir DI scope alıyor, `JobContext` üzerinde `IServiceProvider` yok
-(constructor injection dışında erişim yolu da yok).
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 

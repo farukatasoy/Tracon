@@ -11,32 +11,68 @@
 
 ---
 
-## MT-WF-001 — `PUT /api/workflows/{name}` yeni bir Sequential tanım oluşturur (`200`)
-
-**Gerçek sonuç**
-`HTTP: 200`, gövde `version:1, tenantId:"default", agentNames:["summarizer","translator"]`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-WF-002 — Aynı adı tekrar `PUT` etmek günceller, `version` artar
-
-**Gerçek sonuç**
-`HTTP: 200`, `version:2`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+> ### ⚗️ Damıtılmış koşum kaydı
+> Geçen ve **hiçbir düzeltme/kusur işareti taşımayan** case'lerin
+> `Gerçek sonuç` blokları düştü — bir koşumun ortam çıktısı, koşum
+> bittiği anda değerini kaybeder. **Geçmeyen** ve **işaret taşıyan**
+> her case'in bloğu AYNEN durur. Tam metin — kopyala, çalıştır:
+>
+> ```bash
+> git show bbc8abc6:docs/manuel-test/kosumlar/2026-09-16/15-WORKFLOWS.md
+> ```
 
 ---
 
-## MT-WF-003 — `GET /api/workflows/{name}` veritabanında saklı bir tanımı döner
+## Temiz geçen case'ler (44)
 
-**Gerçek sonuç**
-Gövde MT-WF-002'nin sonucuyla birebir aynı.
+| Case | Durum | Başlık |
+|---|---|---|
+| MT-WF-001 | ☑ | `PUT /api/workflows/{name}` yeni bir Sequential tanım oluşturur (`200`) |
+| MT-WF-002 | ☑ | Aynı adı tekrar `PUT` etmek günceller, `version` artar |
+| MT-WF-003 | ☑ | `GET /api/workflows/{name}` veritabanında saklı bir tanımı döner |
+| MT-WF-005 | ☑ | `GET /api/workflows` kod + veritabanı birleşik liste; isim çakışmasında KOD kazanır |
+| MT-WF-006 | ☑ | `DELETE` veritabanı kaydını siler, sonraki `GET` `404` verir |
+| MT-WF-007 | ☑ | Var olmayan bir adı silmek → `404` |
+| MT-WF-009 | ☑ | Boşluktan ibaret ad → `400` "name alanı zorunludur" |
+| MT-WF-011 | ☑ | `agentNames` boş → `400` |
+| MT-WF-012 | ☑ | Aynı agent adı iki kez → `400` |
+| MT-WF-013 | ☑ | `Concurrent` + tek agent → `400` (en az iki ister) |
+| MT-WF-014 | ☑ | `Magentic` + boş `managerAgentName` → `400` |
+| MT-WF-015 | ☑ | `Magentic` + yönetici aynı zamanda katılımcı → `400` |
+| MT-WF-016 | ☑ | `GroupChat` + `managerAgentName` verilirse → `400` |
+| MT-WF-017 | ☑ | `Sequential` + `handoffInstructions` verilirse → `400` |
+| MT-WF-018 | ☑ | `Magentic` olmayan desende `requirePlanApproval: true` → `400` |
+| MT-WF-019 | ☑ | `maxIterations: 0` → `400` |
+| MT-WF-030 | ☑ | Workflows ekranı: kod/veritabanı rozetleri ve katılımcı zinciri |
+| MT-WF-031 | ☑ | Editör: `Save` butonu ad/katılımcı boşken devre dışı, sunucuya istek gitmez |
+| MT-WF-032 | ☑ | Editör: desen değişince alan görünürlüğü ve maliyet uyarısı değişir |
+| MT-WF-033 | ☑ | Editör: `Concurrent` desende tek katılımcı seçiliyken uyarı metni görünür |
+| MT-WF-034 | ☑ | Detay ekranı: kod-tanımlı workflow'da `Edit` düğmesi hiç yok |
+| MT-WF-035 | ☑ | Kod-tanımlı bir adın `/edit` URL'ine doğrudan gidilirse hata paneli |
+| MT-WF-040 | ☑ | `summarize-and-translate` çalıştırma: olay tipleri ve `runs` ağacı |
+| MT-WF-043 | ☑ | Kontrol noktalarının `run_id` ve `session_id` ile filtrelenebilirliği |
+| MT-WF-050 | ☑ | `inceleme-zinciri` tanımla ve çalıştır, ağaç 3 satır |
+| MT-WF-051 | ☑ | Varsayılan `resume`: `checkpointId` verilmezse SON kontrol noktası kullanılır |
+| MT-WF-052 | ☑ | Belirli bir `checkpointId` ile erken bir noktadan `resume` |
+| MT-WF-061 | ☑ | `GET /requests` yalnız akış kapandıktan sonra çağrılır (arayüz kuralı) |
+| MT-WF-062 | ☑ | `respond` onayla → yeni `runId`, çıktı BİREBİR sabit metin |
+| MT-WF-063 | ☑ | `respond` reddet → çıktı BİREBİR sabit metin |
+| MT-WF-065 | ☑ | `AwaitingInput` OLMAYAN bir çalıştırmaya `respond` → SSE `error` |
+| MT-WF-070 | ☑ | `plan-onayli` tanımla ve çalıştır → `AwaitingInput`, form `PlanReview` |
+| MT-WF-071 | ☑ | Planı onayla → yönetici bitirir, katılımcı agent çalışır |
+| MT-WF-080 | ☑ | `GET /graph` düğüm kimlikleri `ExecutorInvoked` ile birebir eşleşir |
+| MT-WF-081 | ☑ | Graf HİÇ çalıştırılmamış bir tanım için de `200` döner |
+| MT-WF-083 | ☑ | `Concurrent` desende `Batcher` düğümleri agent SAYILMAZ |
+| MT-WF-090 | ☑ | `UseWorkflows()` KALDIRILIRSA çalıştırma uçları `501` döner |
+| MT-WF-091 | ☑ | `Tracon:Workflows:Enabled=false` → SSE hata, çalıştırma kapalı |
+| MT-WF-094 | ☑ | Hiç checkpoint yazılmamış bir `runId`'yi sürdürmek |
+| MT-WF-095 | ☑ | `sessionId` 128 karakter sınırı |
+| MT-WF-096 | ☑ | `sessionId` izin verilmeyen karakter |
+| MT-WF-110 | ☑ | Kod düğümü hiç kaydedilmemişken davranış korunur |
+| MT-WF-111 | ☑ | `GET /api/workflows/functions` kayıtlı fonksiyonu listeler |
+| MT-WF-113 | ☑ | Kayıtlı olmayan fonksiyon adı kaydetme anında reddedilir |
 
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
+## Ayrıntı taşıyan case'ler (26)
 
 ## MT-WF-004 — Aynı uç, KODda tanımlı bir workflow için ayırt edici bir `404` döner (düzeltildi)
 
@@ -45,35 +81,6 @@ Gövde MT-WF-002'nin sonucuyla birebir aynı.
 (Türkçe "Duzenlenebilir tanim yok" değil), `detail` workflow'un kodda
 tanımlı olduğunu ve düzenlenebilir bir tanım taşımadığını açıklıyor —
 generic mesaj değil, ayırt edici. Anlamca tam beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-WF-005 — `GET /api/workflows` kod + veritabanı birleşik liste; isim çakışmasında KOD kazanır
-
-**Gerçek sonuç**
-`PUT` → `200` (kabul edildi). Liste: `summarize-and-translate` →
-`origin:"Code", kind:null, agentNames:[]` — DB kaydı listede görünmez
-oldu, tam beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-WF-006 — `DELETE` veritabanı kaydını siler, sonraki `GET` `404` verir
-
-**Gerçek sonuç**
-`DELETE` → `204`, sonraki `GET` → `404` (K-228: "Workflow not found").
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-WF-007 — Var olmayan bir adı silmek → `404`
-
-**Gerçek sonuç**
-`404`, `title: "Workflow not found"` (K-228, anlamca "Workflow bulunamadi").
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -95,100 +102,10 @@ HTTP üzerinden **kaldırılamaz** iddiası doğrulandı.
 
 ---
 
-## MT-WF-009 — Boşluktan ibaret ad → `400` "name alanı zorunludur"
-
-**Gerçek sonuç**
-`400`, `detail: "The workflow definition's 'name' field is required."` (K-228).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
 ## MT-WF-010 — 🚨 `kind` alanı gövdede atlanırsa sessizce `Sequential`'a düşer
 
 **Gerçek sonuç**
 `200`, `kind:"Sequential"` — şüphe doğrulandı, hatasız ama sessiz varsayılan.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-WF-011 — `agentNames` boş → `400`
-
-**Gerçek sonuç**
-`400`, `detail: "Workflow 'bos-katilimci' has no agents. 'agentNames' must carry at least one name."`
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-WF-012 — Aynı agent adı iki kez → `400`
-
-**Gerçek sonuç**
-`400`, `detail`: "Agent 'summarizer' appears more than once in workflow 'tekrar-eden'. ..."
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-WF-013 — `Concurrent` + tek agent → `400` (en az iki ister)
-
-**Gerçek sonuç**
-`400`, `detail`: "... 'Concurrent' pattern, which requires at least two agents; the list has 1."
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-WF-014 — `Magentic` + boş `managerAgentName` → `400`
-
-**Gerçek sonuç**
-`400`, `detail`: "... 'Magentic' pattern, and 'managerAgentName' is required. ..."
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-WF-015 — `Magentic` + yönetici aynı zamanda katılımcı → `400`
-
-**Gerçek sonuç**
-`400`, `detail`: "... 'summarizer' appears as both manager and participant. ..."
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-WF-016 — `GroupChat` + `managerAgentName` verilirse → `400`
-
-**Gerçek sonuç**
-`400`, `detail`: "... does not use 'managerAgentName' in the 'GroupChat' pattern. ..."
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-WF-017 — `Sequential` + `handoffInstructions` verilirse → `400`
-
-**Gerçek sonuç**
-`400`, `detail`: "... does not use 'handoffInstructions' in the 'Sequential' pattern. ..."
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-WF-018 — `Magentic` olmayan desende `requirePlanApproval: true` → `400`
-
-**Gerçek sonuç**
-`400`, `detail`: "... Plan approval belongs only to the 'Magentic' pattern; ..."
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-WF-019 — `maxIterations: 0` → `400`
-
-**Gerçek sonuç**
-`400`, `detail`: "Workflow 'sifir-tur''s 'maxIterations' value must be positive."
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -202,91 +119,6 @@ Spec'in kendi kod-okuma düzeltmesi doğrulandı: `PUT` → `200`. `run` akış�
 "Workflow 'hayali-agent' uses agent 'yok-boyle-bir-agent', but no such
 agent exists in the catalog...")` → `event: done` — HTTP/bağlantı
 düzeyinde `event: error` YOK, akış normal bitti. Birebir beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-WF-030 — Workflows ekranı: kod/veritabanı rozetleri ve katılımcı zinciri
-
-**Gerçek sonuç**
-Playwright ile `/tracon/workflows` açıldı (`inceleme-zinciri` MT-WF-006'da
-silinmiş olduğu için yeniden `PUT` edildi). `summarize-and-translate`/
-`summarize-and-approve`: Pattern sütunu "code graph", Source sütunu "code"
-rozeti. `inceleme-zinciri`: Pattern "Sequential", Source "database".
-Agents sütunu: "summarizer arrow translator" — birebir beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-WF-031 — Editör: `Save` butonu ad/katılımcı boşken devre dışı, sunucuya istek gitmez
-
-**Gerçek sonuç**
-Boş formda `Save` disabled, ağ sekmesinde hiçbir `/api/workflows`
-isteği yok. Yalnız ad girilince de (katılımcı yokken) `Save` hâlâ
-disabled.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-WF-032 — Editör: desen değişince alan görünürlüğü ve maliyet uyarısı değişir
-
-**Gerçek sonuç**
-İki katılımcıyla (summarizer, translator) desen sırayla değiştirildi:
-`Handoff` -> "Handoff instructions" alanı göründü. `GroupChat` -> "Max
-iterations" göründü, "Handoff instructions" yok. `Magentic` -> "Manager
-agent" açılır listesi göründü ve seçenekleri summarizer/translator'ı
-hariç tuttu (`available.filter` iddiası doğrulandı), "Max iterations"
-da göründü, "Ask a person to approve the plan" checkbox'ı "costs a
-manager turn" rozetiyle birlikte göründü. Hepsi tam beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-WF-033 — Editör: `Concurrent` desende tek katılımcı seçiliyken uyarı metni görünür
-
-**Gerçek sonuç**
-Tek katılımcıyla (summarizer) `Concurrent` seçilince:
-uyarı metni "Concurrent needs at least two participants." (sarı uyarı),
-`Save` disabled. Tam beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-WF-034 — Detay ekranı: kod-tanımlı workflow'da `Edit` düğmesi hiç yok
-
-**Gerçek sonuç**
-`summarize-and-translate` detay ekranında başlık yanında `Edit` düğmesi
-yok; Graph ve Run panelleri normal görünüyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-WF-035 — Kod-tanımlı bir adın `/edit` URL'ine doğrudan gidilirse hata paneli
-
-**Gerçek sonuç**
-Form gösterilmedi; bir uyarı paneli MT-WF-004'ün ayırt edici mesajını
-taşıyor ("No editable definition: 'summarize-and-translate' is a
-workflow defined in code (AddWorkflow)...", buton: "Try again") — K-228
-dil deseni (İngilizce, Türkçe değil), anlamca tam beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-WF-040 — `summarize-and-translate` çalıştırma: olay tipleri ve `runs` ağacı
-
-**Gerçek sonuç**
-SSE akışında beklenen tüm tipler göründü: `WorkflowStarted`,
-`SuperStepStarted`, `ExecutorInvoked`, `ExecutorCompleted`,
-`SuperStepCompleted`, `WorkflowOutput`, `RunCompleted`. `/tree`: tam 3
-satır — `depth=0 kind=Workflow` (summarize-and-translate, childRunCount:2)
-+ `depth=1 kind=Agent` (summarizer, translator). Tam beklenen.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -318,18 +150,6 @@ kayıt, `parentCheckpointId` zincirlenmiş. SQL: `sutun_tipi = json` (K-027,
 
 ---
 
-## MT-WF-043 — Kontrol noktalarının `run_id` ve `session_id` ile filtrelenebilirliği
-
-**Gerçek sonuç**
-İkinci bir çalıştırma farklı `sessionId` (`ikinci-oturum`) ile yapıldı. SQL:
-iki ayrı `session_id`, her biri kendi `run_id`'sine bağlı 3'er kontrol
-noktası — sızıntı yok. `GET .../checkpoints` yalnız ilgili run'ın 3
-noktasını döndü.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
 ## MT-WF-044 — Aynı workflow iki kez çalıştırılınca executor kimlikleri SABİT kalır (K-127 kanıtı)
 
 **Gerçek sonuç**
@@ -338,40 +158,6 @@ gerçek kimlik İngilizce `summarizer_<hash>`. İki ayrı çalıştırmada (fark
 `sessionId`) birebir aynı kimlik: `summarizer_771ef71a7f6739f38d3e79585
 f2f494c` — tam beklenen, `WorkflowAgentIdentity.Compute` çalıştırmadan
 bağımsız.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-WF-050 — `inceleme-zinciri` tanımla ve çalıştır, ağaç 3 satır
-
-**Gerçek sonuç**
-`FIX-WF-01` (yeniden `PUT` edildi, MT-WF-006'da silinmişti). `/tree`: 3
-satır — Workflow satırının `agentName` alanı `"inceleme-zinciri"` (workflow
-adı), 2 Agent alt satırı. Tam beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-WF-051 — Varsayılan `resume`: `checkpointId` verilmezse SON kontrol noktası kullanılır
-
-**Gerçek sonuç**
-TAMAMLANMIŞ bir çalıştırma boş gövdeyle sürdürüldü: `event: run` **YENİ**
-bir `runId` bildirdi, akış `WorkflowOutput` üretti. Tam beklenen —
-`resume` tamamlanmış bir çalıştırmayı bile kabul ediyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-WF-052 — Belirli bir `checkpointId` ile erken bir noktadan `resume`
-
-**Gerçek sonuç**
-İLK kontrol noktasından (`parentCheckpointId: null`) sürdürüldü: akış
-başarıyla başladı, tamamlandı (`event: done`), 56 `MessageDelta` + 13
-`ExecutorInvoked` olayı gözlendi — `summarizer`'nin yeniden çalıştığı
-doğrulandı. Tam beklenen.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -408,43 +194,6 @@ asıl iddia doğru. `form:"Boolean"`, `requestType:"System.String"`,
 
 ---
 
-## MT-WF-061 — `GET /requests` yalnız akış kapandıktan sonra çağrılır (arayüz kuralı)
-
-**Gerçek sonuç**
-Arayüzden çalıştırıldı. "Streaming sırasında panel gizli" anı (adım 2),
-gerçek API çağrısının çok hızlı tamamlanması yüzünden **güvenilir
-yakalanamadı** (dürüstçe not düşülüyor — bir test aracı sınırlaması, ürün
-davranışı hakkında değil). Adım 3 (akış bitince panel görünür, "Yes"/"No"
-düğmeleri) **doğrulandı** — panel "Waiting on you" başlığıyla, doğru
-prompt metniyle ve iki düğmeyle göründü.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-WF-062 — `respond` onayla → yeni `runId`, çıktı BİREBİR sabit metin
-
-**Gerçek sonuç**
-Arayüzden "Yes" tıklandı (aynı zamanda MT-WF-061'in devamı). Yeni bir
-`runId` (`01a0afb2-da7f-...`) üretildi, `WorkflowOutput.text` **birebir**
-`"Summary published."` (K-228: "Ozet yayinlandi."nin İngilizcesi, sabit
-kod metni). `GET /api/runs/{yeni-runId}` → `status: "Completed"`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-WF-063 — `respond` reddet → çıktı BİREBİR sabit metin
-
-**Gerçek sonuç**
-Yeni bir çalıştırma + `approved:false` ile `respond`: `WorkflowOutput.text`
-**birebir** `"Publication canceled; summary kept in the archive."` (K-228:
-"Yayin iptal edildi; ozet arsivde birakildi."nin İngilizcesi).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
 ## MT-WF-064 — Yanlış `requestId` ile `respond` → SSE `error`
 
 **Gerçek sonuç**
@@ -453,18 +202,6 @@ Yeni bir çalıştırma + `approved:false` ile `respond`: `WorkflowOutput.text`
 "message":"There is no pending request with id 'uydurma-istek-kimligi'
 on run '...'. Refresh the request list with GET /api/workflows/runs/
 {runId}/requests."}` — K-228 (İngilizce), anlamca tam beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-WF-065 — `AwaitingInput` OLMAYAN bir çalıştırmaya `respond` → SSE `error`
-
-**Gerçek sonuç**
-Tamamlanmış bir çalıştırmaya (MT-WF-040'ın run'ı) `respond` denendi:
-`event: error`, `message: "Run '...' is not awaiting human input (status:
-Completed). Only a run in 'AwaitingInput' status can be responded to."`
-(K-228). Tam beklenen.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -486,30 +223,6 @@ sonrası tüm önceki workflow tanımları doğrulandı: hâlâ erişilebilir).
 Doğru kurulumla tekrar denendi: `kiraci-beta` başlığıyla `kiraci-alfa`'nın
 run'ına erişim → **`404`**, `title: "Run not found"` (K-228) — "yetkisiz"
 bile demiyor, varlığı sızdırmıyor. Tam beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-WF-070 — `plan-onayli` tanımla ve çalıştır → `AwaitingInput`, form `PlanReview`
-
-**Gerçek sonuç**
-`PUT` → `200`, `requirePlanApproval: true`. `run` → `RunAwaitingInput` olayı
-göründü. `GET .../requests`: `form:"PlanReview"`,
-`requestType:"Microsoft.Agents.AI.Workflows.MagenticPlanReviewRequest"`,
-`prompt` planın kendisiyle dolu (boş değil). Tam beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-WF-071 — Planı onayla → yönetici bitirir, katılımcı agent çalışır
-
-**Gerçek sonuç**
-Yeni bir `runId` açıldı, `ExecutorInvoked(translator_8217e31...)` ve
-`WorkflowOutput` (boş olmayan, gerçek çeviri metni: "Tracon is a family
-of NuGet packages built on the Microsoft Agent Framework.") göründü. Tam
-beklenen.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -544,28 +257,6 @@ kez çalıştı (maliyet notu doğrulandı).
 
 ---
 
-## MT-WF-080 — `GET /graph` düğüm kimlikleri `ExecutorInvoked` ile birebir eşleşir
-
-**Gerçek sonuç**
-MT-WF-040'ın `summarizer_771ef71...` kimliğiyle eşleşen düğüm bulundu:
-`kind:"Agent", agentName:"summarizer"`. `startExecutorId` aynı düğüme
-işaret ediyor. `mermaid` alanı "flowchart TD" ile başlıyor. Tam beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-WF-081 — Graf HİÇ çalıştırılmamış bir tanım için de `200` döner
-
-**Gerçek sonuç**
-Taze bir Sequential tanım (`hic-calismadi`) kaydedilip hemen `/graph`
-istendi → `200`, tam bir graf (nodes/edges/mermaid) — çalıştırma geçmişi
-gerekmedi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
 ## MT-WF-082 — Arayüzde canlı düğüm renklendirme: `running` (cyan, nabız) → `done` (yeşil)
 
 **Gerçek sonuç**
@@ -588,17 +279,6 @@ işledi — çalıştırma çökmedi, `RunCompleted` ile bitti, tanılama mesaj�
 net biçimde raporlandı. Bu case'in kendi kapsamı (düğüm renklendirme)
 etkilenmedi, ayrı bir `HATA` açılmadı — geçici/ortama bağlı olduğu
 değerlendirildi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-WF-083 — `Concurrent` desende `Batcher` düğümleri agent SAYILMAZ
-
-**Gerçek sonuç**
-`cift-gorus` (Concurrent, 2 agent) grafiğinde tam `2 ['summarizer',
-'translator']` Agent düğümü; `Batcher/*` düğümleri `Orchestration` olarak
-sınıflandı, agent sayılmadı. Tam beklenen.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -630,40 +310,6 @@ doğrulayan kanıt: `/private/tmp/ap-s2-main.log`'daki başarılı
 `GET .../tracon/api/workflows` kayıtları (MT-WF-080-084'ün kendisi de
 bu önekle çalışmıştı).
 
-## MT-WF-090 — `UseWorkflows()` KALDIRILIRSA çalıştırma uçları `501` döner
-
-**Gerçek sonuç**
-`samples/Tracon.Api/Program.cs:197`'deki `.UseWorkflows()` satırı geçici
-olarak yorum satırına alındı, `dotnet build -c release` (0 uyarı, 0 hata),
-uygulama yeniden başlatıldı. Katalog (`GET /api/workflows`): `HTTP: 200`,
-yalnız 6 VERİTABANI kaydı listelendi (`cift-gorus`, `hayali-agent`,
-`hic-calismadi`, `inceleme-zinciri`, `kind-eksik`, `plan-onayli`) — kod
-tanımlı `summarize-and-translate`/`summarize-and-approve` listede YOK.
-`run` ve `graph`: ikisi de `HTTP: 501`, `title: "Workflow engine not
-registered"`, `detail: "Add the Tracon.Workflows package and call
-UseWorkflows() to run workflows."` (İngilizce — K-228). Tam beklenen.
-Değişiklik GERİ ALINDI (`git status --short` temiz doğrulandı), yeniden
-`dotnet build` (0/0), uygulama yeniden başlatıldı; `GET /api/workflows`
-tüm 8 tanımı (6 DB + 2 kod) tekrar listeledi — veri kaybı yok.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-WF-091 — `Tracon:Workflows:Enabled=false` → SSE hata, çalıştırma kapalı
-
-**Gerçek sonuç**
-Ortam değişkeni `Tracon__Workflows__Enabled=false` ile yeniden başlatıldı.
-`event: run` (runId üretildi), ardından `event: error`;
-`message: "Workflow execution is disabled. Enable the
-'Tracon:Workflows:Enabled' setting."` (İngilizce — K-228). Ayar kaldırıldı,
-yeniden başlatıldı. Tam beklenen (mekanizma: gerçek `event: error`, bir
-`TraconException`'dan geliyor — K-296 boşluğuna girmiyor).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
 ## MT-WF-092 — `MaxSuperSteps` sınırı aşılınca çalıştırma durur — DÜZELTİLDİ
 
 **Gerçek sonuç**
@@ -693,40 +339,6 @@ başlatıldı, `summarize-and-translate` çalıştırıldı (checkpoint yazılma
 has no checkpoint. A run started while checkpoint writing was disabled
 cannot be resumed."` (İngilizce — K-228). Ayar kaldırıldı, yeniden
 başlatıldı. Mekanizma netleştirmesiyle tam beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-WF-094 — Hiç checkpoint yazılmamış bir `runId`'yi sürdürmek
-
-**Gerçek sonuç**
-Sıfır-GUID ile `resume`: `event: run` (yeni runId), ardından `event: error`;
-`message: "There is no run with id '00000000-0000-0000-0000-000000000000'."`
-(İngilizce — K-228). Run-varlığı denetimi checkpoint denetiminden ÖNCE
-çalıştığı doğrulandı (spec'in ima ettiği sıra doğru). Tam beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-WF-095 — `sessionId` 128 karakter sınırı
-
-**Gerçek sonuç**
-129 karakterli `sessionId` ile çalıştırma: `event: run`, ardından
-`event: error`; `message: "Execution session id may be at most 128
-characters."` (İngilizce — K-228). Tam beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-WF-096 — `sessionId` izin verilmeyen karakter
-
-**Gerçek sonuç**
-`"gecersiz oturum!"` (boşluk + `!`) ile çalıştırma: `event: run`, ardından
-`event: error`; `message: "Execution session id may only contain letters,
-digits, '-', and '_'."` (İngilizce — K-228). Tam beklenen.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -771,28 +383,6 @@ gerçek olan bir boşluk aradaki bir dalgada kapatılmış).
 
 ---
 
-## MT-WF-110 — Kod düğümü hiç kaydedilmemişken davranış korunur
-
-**Gerçek sonuç**
-Sıradan `summarize-and-translate` çalıştırıldı (agent-only, `nodes` boş —
-`AgentNames` yolu); SSE akışında `"type":"Function"` düğümüne ait TEK bir
-olay bile yok (`grep -c` ile 0 doğrulandı). Regresyon yok. Tam beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-WF-111 — `GET /api/workflows/functions` kayıtlı fonksiyonu listeler
-
-**Gerçek sonuç**
-`HTTP: 200`; `[{"name":"word-count","description":"Appends a word count
-to the incoming text. Runs no model call.","inputType":"System.Collections.Generic.List\`1[[Microsoft.Extensions.AI.ChatMessage,
-...]]","outputType":"...aynı..."}]`. Tam beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
 ## MT-WF-112 — Agent → fonksiyon → agent zinciri uçtan uca
 
 **Gerçek sonuç**
@@ -809,19 +399,6 @@ DOM `<rect>` denetimi): `summarizer` → `fill: color-mix(...series-1...)`,
 FARKLI renk VE köşe yarıçapı doğrulandı; sayfada "function" lejant metni
 bulundu. (Sayfa yüklenirken bilinen `HATA-S2-002` CSP konsol hatası
 tekrar gözlendi — ilgisiz, önceden kayıtlı.) Tam beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-WF-113 — Kayıtlı olmayan fonksiyon adı kaydetme anında reddedilir
-
-**Gerçek sonuç**
-`HTTP: 400`, `title: "Workflow definition invalid"`, `detail: "Workflow
-'kayitsiz-fonksiyon' uses function 'yok-boyle-bir-fonksiyon', but no such
-function is registered. Register it with AddWorkflowFunction() before
-referencing it from a workflow definition."` — ad ve "no such function is
-registered" ifadesi birebir var. Tam beklenen.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 

@@ -160,6 +160,39 @@ kalem **kapandı**. (§3.2 tool tablosu hâlâ bayat — o dosya 02'nin konusu.)
 
 ---
 
+> ### ⚗️ Damıtılmış koşum kaydı
+> Geçen ve **hiçbir düzeltme/kusur işareti taşımayan** case'lerin
+> `Gerçek sonuç` blokları düştü — bir koşumun ortam çıktısı, koşum
+> bittiği anda değerini kaybeder. **Geçmeyen** ve **işaret taşıyan**
+> her case'in bloğu AYNEN durur. Tam metin — kopyala, çalıştır:
+>
+> ```bash
+> git show 45cfed58:docs/manuel-test/kosumlar/2026-09-16/03-KALICILIK-POSTGRESQL.md
+> ```
+
+---
+
+## Temiz geçen case'ler (14)
+
+| Case | Durum | Başlık |
+|---|---|---|
+| MT-PG-008 | ☑ | `secret` hiçbir zaman veritabanına veya dosyaya yazılmaz |
+| MT-PG-035 | ☑ | Sağlayıcı çağrı sırası değişirse kazanan değişir |
+| MT-PG-040 | ☑ | `pgvector` eklentisi ve HNSW indeksi migration sonrası kuruludur |
+| MT-PG-042 | ☑ | Aynı kaynak yeniden yazılırsa eski parçalar silinir (upsert-üzerine-yazma) |
+| MT-PG-044 | ☑ | İki kiracı aynı koleksiyon/kaynak kimliğini paylaşsa da birbirini görmez |
+| MT-PG-045 | ☑ | Kaynak silindiğinde tüm parçaları kaybolur |
+| MT-PG-046 | ☑ | `MaxDistance` filtresi uzak sonuçları eler |
+| MT-PG-060 | ☑ | 20 eşzamanlı yazma isteği veri bozulmadan tamamlanır |
+| MT-PG-064 | ☑ | `pgvector` kurulu PostgreSQL'de `EnableKnowledge = true` gerçek bir belge yükleme + arama turu tamamlar |
+| MT-PG-066 | ☑ | SQL Server ve SQLite bu fazdan etkilenmez |
+| MT-PG-075 | ☑ | `EnableReadViews` varsayılan kapalı; açık değilken görünüm hiç kurulmaz |
+| MT-PG-069 | ☑ | `DataSource` ve `ConnectionString` birlikte verilirse başlangıç hatası |
+| MT-PG-070 | ☑ | Dış data source host kapanışında dispose edilmez |
+| MT-PG-071 | ☑ | Havuz paylaşımı ölçümü: aynı connection string, iki `NpgsqlDataSource`, tek havuz DEĞİL |
+
+## Ayrıntı taşıyan case'ler (36)
+
 ## MT-PG-001 — Boş bağlantı dizesiyle başlatma reddedilir
 
 **Gerçek sonuç**
@@ -353,26 +386,6 @@ sessizce çalışan bir Tracon örneği ortaya çıkmıyor.
 altında loglanıyor — katalog kalıcılığa erişmeyi deniyor ve düşüyor. Süreç yine
 de kapandığı için davranış doğru; yalnız ilk görünen hata satırı "katalog"
 diyor, "migration" demiyor. Kusur değil, gürültü notu.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-PG-008 — `secret` hiçbir zaman veritabanına veya dosyaya yazılmaz
-
-**Gerçek sonuç**
-K-059 iddiası doğrulandı. Uygulama normal çalışırken (14 agent kayıtlı,
-51 migration uygulanmış):
-
-| Tarama | Sonuç |
-|---|---|
-| `grep -rn "Password=tracon\|Host=localhost;Port=55432" samples/Tracon.Api/appsettings*.json` | **0 satır** (çıkış kodu 1) |
-| `mt_s1.agent_definitions WHERE definition::text ILIKE '%Password=%'` | **0** |
-| `mt_s1.audit_log WHERE before/after ILIKE '%Password=%'` | **0** |
-
-**Spec'in iki sorgusundan fazlasını koştum.** Case `Kritik` olduğu için şemadaki
-`text` · `jsonb` · `varchar` tipli **221 sütunun tamamı** üretilen bir `UNION ALL`
-sorgusuyla hem `%Password=%` hem `%sk-%` (sağlayıcı anahtarı deseni) için
-tarandı — **sıfır** eşleşme. Bağlantı dizesi de sağlayıcı anahtarı da veritabanına
-hiçbir sütundan sızmıyor.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -844,62 +857,6 @@ alındı; bu harness eksiğiydi, ürün kusuru değil.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
-## MT-PG-035 — Sağlayıcı çağrı sırası değişirse kazanan değişir
-
-**Gerçek sonuç**
-Sıra tersine çevrildi (`UseSqlite` → `UsePostgreSql`) ve kazanan değişti:
-
-```
-warn: Tracon has more than one persistence provider registered: SQLite, PostgreSQL.
-      The last registration wins and PostgreSQL is currently in use. Call only one.
-```
-
-| Ölçüm | MT-PG-034 (pg önce) | MT-PG-035 (sqlite önce) |
-|---|---|---|
-| `persistenceProvider` | `SQLite` | **`PostgreSQL`** |
-| `registeredPersistenceProviders` | 2 | **2** |
-
-Uyarı metninin kendisi de sırayı yansıtıyor (`SQLite, PostgreSQL`) ve kullanımdaki
-sağlayıcıyı doğru adlandırıyor. K-025 `Replace` deseni doğrulandı: **son çağrı
-kazanır**, kayıt sırası tek belirleyici.
-
-Aynı repo dışı host kullanıldı; sıra `SIRA=sqlite-once` ortam değişkeniyle
-seçildi, hiçbir kaynak dosyası değiştirilmedi. Temizlik: host durduruldu,
-`manuel-test-ikinci.db*` silindi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-PG-040 — `pgvector` eklentisi ve HNSW indeksi migration sonrası kuruludur
-
-**Gerçek sonuç**
-Üçü de tuttu.
-
-```
-extname | extversion
-vector  | 0.8.6
-```
-
-`mt_s1.document_embeddings` indeksleri — beklenen dördü de var, artı iki kısıt
-indeksi:
-
-| indeks | beklenen mi |
-|---|---|
-| `document_embeddings_hnsw_idx` | ☑ |
-| `document_embeddings_tenant_collection_idx` | ☑ |
-| `document_embeddings_tenant_collection_source_idx` | ☑ |
-| `document_embeddings_tenant_created_idx` | ☑ |
-| `document_embeddings_pkey` | birincil anahtar (beklenti "artı ... kısıtı" der) |
-| `document_embeddings_uq` | benzersizlik kısıtı (aynı şekilde) |
-
-HNSW tanımı her iki ifadeyi de taşıyor:
-
-```sql
-CREATE INDEX document_embeddings_hnsw_idx ON mt_s1.document_embeddings
-  USING hnsw (embedding vector_cosine_ops)
-```
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
 ## MT-PG-041 — Embedding uzunluğu depo boyutuyla eşleşmezse `UpsertAsync` reddedilir
 
 **Gerçek sonuç**
@@ -934,28 +891,6 @@ ne olursa olsun kaydedildiği için tüketicinin önceki kaydı yine de onu blok
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
-## MT-PG-042 — Aynı kaynak yeniden yazılırsa eski parçalar silinir (upsert-üzerine-yazma)
-
-**Gerçek sonuç**
-```
-arama sonuc sayisi (ikinci yazimdan sonra): 1
-  manuel-kaynak parca=0 icerik='ikinci surum, tek parca' mesafe=0,0000
-```
-
-Veritabanı doğrulaması aynı şeyi söylüyor — `mt_s1.document_embeddings` bu
-kiracı/koleksiyon için **tek satır** taşıyor:
-
-```
- source_id     | chunk_index | content
- manuel-kaynak |           0 | ikinci surum, tek parca
-```
-
-İlk yazımın iki parçası (`ilk surum, parca 0` · `parca 1`) **silinmiş**;
-`ilk surum` metni ne aramada ne tabloda görünüyor. Sorgu vektörü tam eşleştiği
-için mesafe `0,0000`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
 ## MT-PG-043 — Arama kosinüs mesafesine göre artan sıralı döner
 
 **Gerçek sonuç**
@@ -972,57 +907,6 @@ Cebirsel beklenti birebir tuttu: sorgu vektörüyle aynı yöndeki `eksen-0` mes
 ⚠️ Ondalık ayırıcı virgül (`0,0000`) — koşan makinenin kültürü `tr-TR`. Bu
 `Console.WriteLine` biçimlendirmesidir, depodan gelen değer değil; beklentiyi
 etkilemez.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-PG-044 — İki kiracı aynı koleksiyon/kaynak kimliğini paylaşsa da birbirini görmez
-
-**Gerçek sonuç**
-```
-kiraci-beta 1 sonuc goruyor:
-  BETA'nin gizli belgesi
-```
-
-`kiraci-beta` **tek** sonuç gördü ve o kendi belgesiydi; `ALFA'nin gizli belgesi`
-metni hiç görünmedi — üstelik iki kayıt **aynı** koleksiyon ve **aynı** kaynak
-kimliğini paylaşıyor.
-
-Yalıtımın nasıl uygulandığı da doğrulandı: tabloda **iki satır da duruyor**,
-yani birincil anahtar veya benzersizlik kısıtı ikinci yazımı reddetmedi —
-ayrım okuma anında `WHERE tenant_id` ile yapılıyor:
-
-```
- tenant_id   | source_id    | content
- kiraci-alfa | ortak-kaynak | ALFA'nin gizli belgesi
- kiraci-beta | ortak-kaynak | BETA'nin gizli belgesi
-```
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-PG-045 — Kaynak silindiğinde tüm parçaları kaybolur
-
-**Gerçek sonuç**
-```
-silinen parca sayisi: 3
-kalan kaynak sayisi: 0
-```
-
-`DeleteSourceAsync` üç parçanın üçünü de sildi ve sayıyı doğru raporladı.
-Veritabanı doğrulaması: `collection='silme-testi'` için **0** satır kaldı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-PG-046 — `MaxDistance` filtresi uzak sonuçları eler
-
-**Gerçek sonuç**
-```
-filtresiz: 2
-filtreli (<=0.5): 1
-  kalan: yakin mesafe=0,0000
-```
-
-Filtresiz arama iki kaydı da getirdi; `MaxDistance = 0.5` ile yalnız `yakin`
-(mesafe **0,0000**) kaldı, dik olan `uzak` (mesafe 1,0) elendi.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -1343,40 +1227,6 @@ yapar).
 | Testler | 2 fonksiyonel test (biri yeniden yazıldı, biri yeni); `HealthCheckTests` 6/6 |
 | Tüketici yüzeyi | `docs-site/guides/observability.md`'nin durum tablosu ve sorun giderme satırı |
 
-## MT-PG-060 — 20 eşzamanlı yazma isteği veri bozulmadan tamamlanır
-
-**Gerçek sonuç**
-20 isteğin 20'si de **201** döndü, veritabanında **20** satır var:
-
-```
-=== HTTP kodlari (sayim) ===
-  20 201
-=== veritabani ===
- kayitli
-      20
-=== benzersizlik ===
- tekil_ad | satir
-       20 |    20
-```
-
-Kayıp yok, çift kayıt yok — 20 ad da tekil. Uygulama istekler boyunca ayakta
-kaldı (`/health` → 200).
-
-**Havuz tükenmesi izi yok.** `TimeoutException|exhaust|connection pool` taraması
-5 satır getirdi, hepsi **migration SQL'inin yorum satırları** (`-- not depend on
-the connection pool...`), çalışma anı hatası değil. Gerçek bir
-`Npgsql...TimeoutException` kaydı yok.
-
-📝 **Sapma — `provider:"echo"` kullanılamadı.** Spec `echo` yazıyor; gerçek
-sağlayıcı anahtarları kayıtlıyken `echo` kayıtlanmaz ve `400 Tanım geçersiz`
-verir (dosya 02'den taşınan ortam kuralı). `openai`/`gpt-5.4-mini` kullanıldı.
-Case yazma yolunu ölçüyor, model çağrısı yapılmıyor — ölçülen davranış değişmez.
-
-📝 **Sapma — şema `mt_s1`.** Spec `tracon.agent_definitions` yazar; şerit
-izolasyonu gereği `mt_s1.agent_definitions` sorgulandı (skill §1.3).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
 ## MT-PG-061 — PostgreSQL koşum sırasında durursa çalışan bir istek anlaşılır hatayla başarısız olur, uygulama çökmez
 
 **Gerçek sonuç**
@@ -1587,45 +1437,6 @@ bloğu tarihiyle korundu.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
-## MT-PG-064 — `pgvector` kurulu PostgreSQL'de `EnableKnowledge = true` gerçek bir belge yükleme + arama turu tamamlar
-
-**Gerçek sonuç**
-Paylaşılan `ap-pg` (`pgvector/pgvector:pg18`), şema `mt_s1`,
-`EnableKnowledge=true`. Gerçek OpenAI gömü çağrısı yapıldı.
-
-```
-to_regclass('mt_s1.document_embeddings') -> mt_s1.document_embeddings
-
-1) POST /api/knowledge/faz67-test/documents   -> HTTP 200
-   {"sourceId":"doc-1","chunkCount":1}
-
-2) POST /api/knowledge/faz67-test/search      -> HTTP 200
-   [{"sourceId":"doc-1","chunkIndex":0,
-     "content":"Tracon Faz 67 makes the PostgreSQL migration sets optional.",
-     "distance":0.6148895159019339,"metadata":null}]
-```
-
-Arama yüklenen içeriği **birebir** döndürdü ve `distance` alanı taşıyor.
-Veritabanı doğrulaması gömünün gerçek olduğunu gösteriyor:
-
-```
- source_id | chunk_index | icerik                                   | boyut
- doc-1     |           0 | Tracon Faz 67 makes the PostgreSQL migr.. |  1536
-```
-
-`vector_dims = 1536` — sahte/sıfır vektör değil, gerçek OpenAI gömüsü.
-Üç beklentinin üçü de karşılandı.
-
-📝 **Sapma — belge metni İngilizce yazıldı.** Spec Türkçe bir cümle taşıyor.
-Sevk edilen yüzey ve gömü modeli için dil farkı ölçülen davranışı değiştirmez;
-İngilizce metin K-228 ile de tutarlıdır. Sorgu da İngilizce sorularak anlamsal
-eşleşme korundu.
-
-📝 **Sapma — koleksiyon `ap-pg`/`mt_s1` üzerinde.** Spec `ap-pg` diyor, şerit
-şeması `mt_s1` (skill §1.3).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
 ## MT-PG-065 — Case 062'nin veritabanı sonradan `EnableKnowledge = true` ile yeniden başlatılınca yalnız knowledge seti uygulanır
 
 **Gerçek sonuç**
@@ -1662,26 +1473,6 @@ doğrulandı (K-475/K-477: setler bağımsız ilerliyor).
 📝 **Spec düzeltmesi.** Ön koşul ve beklenen sonuç "32 çekirdek" / "`__migrations`
 toplam **33**" yazıyordu → bugün **50** ve **51**. Sabit sayı yerine yapıya
 bakan ifadeye çevrildi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-PG-066 — SQL Server ve SQLite bu fazdan etkilenmez
-
-**Gerçek sonuç**
-İki sözleşme seti de gerçek hedeflere karşı koşuldu (`ap-mssql` container'ı ·
-yerel SQLite dosyası), donuk `7e3a4de7` ikilisiyle:
-
-```
-Tracon.Sqlite.IntegrationTests     -> Passed!  825/825, failed 0, skipped 0  (40s)
-Tracon.SqlServer.IntegrationTests  -> Passed!  806/806, failed 0, skipped 0  (1m 33s)
-```
-
-İki sağlayıcıda da davranış aynı; vektör migration'ı hiçbirine sızmadı.
-
-📝 **Not — kanıt bloğundaki sayılar büyümüş, bayat değil.** 2026-08-19 kaydı
-554 (SQLite) ve 540 (SQL Server) diyor; bugün 825 ve 806. Bu bir bayatlık
-değil, aradaki fazlarda eklenen testlerdir. Case'in iddiası sayıya değil
-**farksızlığa** bakar: iki set de sıfır başarısızlıkla yeşil.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -1808,27 +1599,6 @@ sütunun dördü de fiyatlandırma metadata'sıdır (`model_provider` + üç
 `*_price_per_mtok`), içerik değil — korunan sütun kuralı bozulmuyor. Beklenen
 sonuç "birebir eşleşir" yerine **"111.2'nin tamamını kapsar, hiçbir korunan
 sütun taşımaz"** biçimine çevrildi; doğru değişmez budur.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-PG-075 — `EnableReadViews` varsayılan kapalı; açık değilken görünüm hiç kurulmaz
-
-**Gerçek sonuç**
-`EnableReadViews` hiç verilmeyen iki şemada da görünüm yok:
-
-```
- mt_s1_gorunum | mt_s1_k_gorunum
-               |                  <- ikisi de NULL
-
- set_name  | count            views_satiri
- core      |    50            -> 0
- knowledge |     1
-```
-
-`to_regclass` iki şemada da `NULL`, `__migrations`'ta `set_name='views'`
-satırı **yok**. Karşıt kanıt aynı oturumda ölçüldü: `EnableReadViews=true`
-verilen `mt_s1_v` şemasında hem görünüm hem `views` satırı oluştu (MT-PG-072).
-Varsayılan gerçekten kapalı ve açık istek olmadan set devreye girmiyor.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -1988,62 +1758,6 @@ tırnak deseni `packages/tracon-client/test/streaming.test.ts`'in bilinçli olar
 `do`+`ne` diye bölünmüş SSE parçasını da yakalıyordu. Bölme noktası `don`+`e`
 yapıldı (testin niyeti aynı: parça sınırı kelimenin ortasından geçiyor) ve
 kelime kümesi çakışmasız kaldı.
-
-## MT-PG-069 — `DataSource` ve `ConnectionString` birlikte verilirse başlangıç hatası
-
-**Gerçek sonuç**
-İzlek C. Case bir `ServiceProvider`'ı kod içinde kurmayı ister; koşum turunda
-kod yazılamaz (kural 1), bu yüzden spec'in kendi işaret ettiği otomatik
-karşılığı **bu oturumda** donuk `7e3a4de7` ikilisiyle ve gerçek `ap-pg`
-konteynerine karşı koşuldu:
-
-```
-Tracon.PostgreSql.IntegrationTests.ExternalDataSourceTests
-  .DataSource_and_ConnectionString_together_is_rejected     -> mevcut, GEÇTİ
-
-Paket sonucu: Passed!  888/889, failed 0, skipped 1  (49s)
-```
-
-Testin adı `--list-tests` ile doğrulandı (varlığı teyit edildi) ve paket
-**sıfır başarısızlıkla** bitti, yani bu test geçenler arasındadır. Tek atlanan
-test bu değil (aşağıya bak).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-PG-070 — Dış data source host kapanışında dispose edilmez
-
-**Gerçek sonuç**
-İzlek C, MT-PG-069 ile aynı yöntem. Sahipliğin **iki yönü** de ayrı testlerle
-kapsanıyor ve ikisi de bu oturumda geçti:
-
-```
-ExternalDataSourceTests.External_data_source_is_not_disposed_when_the_host_stops -> GEÇTİ
-ExternalDataSourceTests.Own_data_source_is_disposed_when_the_host_stops          -> GEÇTİ
-```
-
-Beklenen sonucun iki maddesi bunlara birebir karşılık geliyor: dış data source
-kapanıştan sağ çıkıyor, Tracon'in **kendi** kurduğu data source ise dispose
-ediliyor. Sahiplik doğru yönde çalışıyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-PG-071 — Havuz paylaşımı ölçümü: aynı connection string, iki `NpgsqlDataSource`, tek havuz DEĞİL
-
-**Gerçek sonuç**
-İzlek C. 👤 işaretli `psql` adımını otomatik test `pg_stat_activity`'yi
-doğrudan sorgulayarak yürütüyor:
-
-```
-ConnectionPoolSharingTests
-  .Two_data_sources_built_from_the_same_connection_string_do_not_share_a_pool -> GEÇTİ
-```
-
-Test gerçek `ap-pg` konteynerine karşı koştu ve geçti; ∴ ölçülen backend sayısı
-beklenen `2 × concurrentConnectionsPerSource` değerindedir, `embedding.md`'nin
-çürütülmüş eski iddiası olan tek havuz değil. Npgsql havuzu connection
-string'e değil `NpgsqlDataSource` **örneğine** aittir.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ## MT-PG-068 — Dış `NpgsqlDataSource`: tek havuz, iki tüketici
 

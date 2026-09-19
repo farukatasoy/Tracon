@@ -12,17 +12,28 @@
 
 ---
 
-## MT-TSC-001 — Client paketi arayüzden önce derlenir, sıfır uyarı
-
-**Gerçek sonuç**
-`dotnet build Tracon.slnx -c Release`: **0 Warning(s), 0 Error(s)**.
-Kaynakta doğrulandı (`src/Tracon.UI/Tracon.UI.Frontend.targets:209`):
-`TraconFrontendChain`'in `DependsOnTargets` zinciri `TraconBuildClientPackage`'ı
-`TraconBuildFrontend`'den **önce** listeliyor — sıra yapısal olarak garanti.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+> ### ⚗️ Damıtılmış koşum kaydı
+> Geçen ve **hiçbir düzeltme/kusur işareti taşımayan** case'lerin
+> `Gerçek sonuç` blokları düştü — bir koşumun ortam çıktısı, koşum
+> bittiği anda değerini kaybeder. **Geçmeyen** ve **işaret taşıyan**
+> her case'in bloğu AYNEN durur. Tam metin — kopyala, çalıştır:
+>
+> ```bash
+> git show 596f24c3:docs/manuel-test/kosumlar/2026-09-16/35-TYPESCRIPT-ISTEMCISI.md
+> ```
 
 ---
+
+## Temiz geçen case'ler (4)
+
+| Case | Durum | Başlık |
+|---|---|---|
+| MT-TSC-001 | ☑ | Client paketi arayüzden önce derlenir, sıfır uyarı |
+| MT-TSC-003 | ☑ | Playground'da token'lar akarak gelir (SSE) |
+| MT-TSC-004 | ☑ | Workflow `resume`/`respond` akışı çalışır |
+| MT-TSC-006 | ☑ | Farklı önek (`/control`) altında tüm çağrılar çalışır |
+
+## Ayrıntı taşıyan case'ler (5)
 
 ## MT-TSC-002 — Konsol eskisi gibi yüklenir (agent/run listesi, run ayrıntısı)
 
@@ -45,31 +56,6 @@ davranışı bozmuyor:
 
 ---
 
-## MT-TSC-003 — Playground'da token'lar akarak gelir (SSE)
-
-**Gerçek sonuç**
-`support` agent'ına "ORD-7 nerede?" gönderildi. `get_order_status` tool'u
-`{"orderId":"ORD-7"}` argümanıyla çağrıldı, sonuç "Order ORD-7 has shipped.
-Estimated delivery: 2 days." döndü, asistan "ORD-7 kargoya verilmiş. Tahmini
-teslimat: 2 gün." yazdı — uçtan uca akış (SSE) çalıştı, yeni konsol hatası
-yok (yalnız bilinen CSP hatası).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-TSC-004 — Workflow `resume`/`respond` akışı çalışır
-
-**Gerçek sonuç**
-`summarize-and-approve` workflow'u bir metinle çalıştırıldı, "Waiting on
-you — publish-approval: Should this summary be published?" ekranı doğru
-göründü (Yes/No butonlarıyla). "Yes" tıklanınca run devam etti ve "Summary
-published." ile tamamlandı. Yeni konsol hatası yok.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
 ## MT-TSC-005 — Yanlış token → 401 → token istemine döner, `onUnauthorized` çalışır
 
 **Gerçek sonuç**
@@ -82,21 +68,6 @@ yazılıyor, prompt metniyle tutarlı), bir ekran yenilendi. Token istemi
 token. Check the value configured in TraconEndpointOptions.AuthToken."` —
 `onUnauthorized` doğru bağlı, "reddedildi" anlamı net. Doğru token tekrar
 girilerek oturum kurtarıldı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-TSC-006 — Farklı önek (`/control`) altında tüm çağrılar çalışır
-
-**Gerçek sonuç**
-ap-s2'nin kendi `samples/Tracon.Api`'si `/tracon`'a sabit (`Program.cs:942`,
-kod donuk, değiştirilemez), bu yüzden repo **dışında** (`~/tracon-manuel/
-prefix-deneme`) `app.MapTracon("/control", ...)` ile minimal bir tüketici
-kuruldu (port 5085). Token girişinden sonra tüm menü bağlantıları
-(`Dashboard`, `Playground`, `Runs`, ... `Settings`) doğru şekilde
-`/control/...` önekini taşıdı, Dashboard gerçek veriyle yüklendi
-(`document.baseURI`'den türetildiği doğrulandı). İş bitince süreç durduruldu.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 

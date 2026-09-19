@@ -259,71 +259,44 @@ istemler). §2 (030-034) yalnız `/validate` (model çağırmaz). §6/7 (060,
 
 ---
 
-## MT-PROV-001 — `UseAnthropic()`/`UseGoogle()` doğru adlarla kaydeder
+> ### ⚗️ Damıtılmış koşum kaydı
+> Geçen ve **hiçbir düzeltme/kusur işareti taşımayan** case'lerin
+> `Gerçek sonuç` blokları düştü — bir koşumun ortam çıktısı, koşum
+> bittiği anda değerini kaybeder. **Geçmeyen** ve **işaret taşıyan**
+> her case'in bloğu AYNEN durur. Tam metin — kopyala, çalıştır:
+>
+> ```bash
+> git show 89f44ab3:docs/manuel-test/kosumlar/2026-09-16/06-SAGLAYICI-DIGER.md
+> ```
 
-**Gerçek sonuç**
-`GET /api/models`: `anthropic` girdisi var (3 model, alfabetik:
-haiku < opus < sonnet); `google` girdisi var (`gemini` değil, 3 model,
-alfabetik: flash-lite < pro-preview < 3.6-flash); `azure-openai` girdisi
-YOK.
+---
 
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+## Temiz geçen case'ler (20)
 
-## MT-PROV-002 — Anahtar yokken sağlayıcı VE ona bağlı agent'lar hiç kaydolmaz
+| Case | Durum | Başlık |
+|---|---|---|
+| MT-PROV-001 | ☑ | `UseAnthropic()`/`UseGoogle()` doğru adlarla kaydeder |
+| MT-PROV-002 | ☑ | Anahtar yokken sağlayıcı VE ona bağlı agent'lar hiç kaydolmaz |
+| MT-PROV-003 | ☑ | `ApiKey` boşken `UseAnthropic()`/`UseGoogle()` çağrılırsa doğrulama hata verir |
+| MT-PROV-010 | ☑ | Anthropic: `DefaultMaxOutputTokens` sıfır veya negatifse reddedilir |
+| MT-PROV-011 | ☑ | Anthropic: negatif `MaxRetries` reddedilir |
+| MT-PROV-012 | ☑ | Google: göreli (relative) `Endpoint` reddedilir |
+| MT-PROV-014 | ☑ | Doğrulama mesajları hiçbir alanda API anahtarını taşımaz |
+| MT-PROV-020 | ☑ | Aynı ad iki kez tanımlanırsa son tanım kazanır (Anthropic VE Google) |
+| MT-PROV-030 | ☑ | Yabancı sağlayıcının ayarı reddedilir (`google.*` anahtarı `anthropic` binding'inde) |
+| MT-PROV-031 | ☑ | Bilinmeyen Anthropic ayarı reddedilir ve desteklenen anahtarları listeler |
+| MT-PROV-035 | ☑ | `claude-thinking` fixture'ı genişletilmiş düşünmeyle uçtan uca çalışır |
+| MT-PROV-040 | ☑ | `claude-support`: tool çağrısıyla uçtan uca çalıştırma |
+| MT-PROV-041 | ☑ | Akış (SSE) `claude-support` ile üç çerçeve üretir: `run`, `update`(ler), `done` |
+| MT-PROV-050 | ☑ | `gemini-support`: tool çağrısıyla uçtan uca çalıştırma |
+| MT-PROV-051 | ☑ | Akış (SSE) `gemini-support` ile üç çerçeve üretir: `run`, `update`(ler), `done` |
+| MT-PROV-060 | ☑ | Anthropic ve Google `Healthy` döner, farklı kimlik başlıkları kullanır |
+| MT-PROV-061 | ☑ | Erişilemeyen Anthropic adresi hata detayında adres veya anahtar sızdırmaz |
+| MT-PROV-070 | ☑ | API anahtarları hiçbir HTTP çıktısında görünmez |
+| MT-PROV-071 | ☑ | `ConfigurationDiagnostic` yalnız çözülüp çözülmediğini taşır, DEĞER taşımaz (Anthropic + Google) |
+| MT-PROV-072 | ☑ | Konsol günlüğünde API anahtarı görünmez |
 
-**Gerçek sonuç**
-`Tracon__Providers__Anthropic__ApiKey=""` ile yeniden başlatıldı: uygulama
-**hatasız** açıldı (`200`). `GET /api/models`: `['google', 'openai',
-'openai-responses', 'openrouter']` — `anthropic` YOK, `google` HÂLÂ VAR
-(bağımsız bayraklar doğrulandı). `GET /api/agents`: `claude-support` ve
-`claude-thinking` listede YOK.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-PROV-003 — `ApiKey` boşken `UseAnthropic()`/`UseGoogle()` çağrılırsa doğrulama hata verir
-
-**Gerçek sonuç**
-İzole konsol uygulaması (`Tracon.Core`/`Tracon.Anthropic`/`Tracon.Google`
-`0.0.0-preview.0.829`, yerel feed):
-- `anthropic`: `OptionsValidationException`, mesaj `"AnthropicProviderOptions.ApiKey
-  cannot be empty. Provide the key through the \`UseAnthropic(apiKey)\` call,
-  or define 'Tracon:Providers:Anthropic:ApiKey' inside \`dotnet
-  user-secrets\`."` — `ApiKey bos olamaz` + `dotnet user-secrets` ibaresi
-  eşleşiyor.
-- `google`: `OptionsValidationException`, mesaj `"GoogleProviderOptions.ApiKey
-  cannot be empty. Pass the key in the \`UseGoogle(apiKey)\` call, or set
-  'Tracon:Providers:Google:ApiKey' inside \`dotnet user-secrets\`."`
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-PROV-010 — Anthropic: `DefaultMaxOutputTokens` sıfır veya negatifse reddedilir
-
-**Gerçek sonuç**
-`Tracon__Providers__Anthropic__DefaultMaxOutputTokens=0`: uygulama
-başlamayı REDDETTİ (`curl` bağlantı reddi, `http_code: 000`, süreç
-listede yok). Konsol: `"AnthropicProviderOptions.DefaultMaxOutputTokens
-must be greater than zero. The Anthropic Messages API requires the
-\`max_tokens\` field. Actual value: 0."`
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-PROV-011 — Anthropic: negatif `MaxRetries` reddedilir
-
-**Gerçek sonuç**
-`Tracon__Providers__Anthropic__MaxRetries=-1`: başlamayı reddetti.
-Konsol: `"AnthropicProviderOptions.MaxRetries cannot be negative. Actual
-value: -1."`
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-PROV-012 — Google: göreli (relative) `Endpoint` reddedilir
-
-**Gerçek sonuç**
-`Tracon__Providers__Google__Endpoint=sadece-bir-yol`: başlamayı
-reddetti. Konsol: `"GoogleProviderOptions.Endpoint must be an absolute
-address. Actual value: 'sadece-bir-yol'."`
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+## Ayrıntı taşıyan case'ler (19)
 
 ## MT-PROV-013 — Katalogda adı boş bir model reddedilir (Anthropic VE Google)
 
@@ -340,25 +313,6 @@ diyor, birebir eşleşiyor.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
-## MT-PROV-014 — Doğrulama mesajları hiçbir alanda API anahtarını taşımaz
-
-**Gerçek sonuç**
-MT-PROV-010/011/012/013'ün DÖRT konsol kaydı (`/tmp/ap-s4-prov0{10,11,12,13,13b}.log`)
-gerçek Anthropic VE Google anahtarlarına karşı `grep` tarandı: **sıfır**
-eşleşme.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-PROV-020 — Aynı ad iki kez tanımlanırsa son tanım kazanır (Anthropic VE Google)
-
-**Gerçek sonuç**
-`claude-haiku-4-5-20251001` ikinci kez (`displayName: "IKINCI TANIM"`)
-eklenip yeniden başlatıldı: `GET /api/models`'te `anthropic.models`
-dizisi **hâlâ 3** öge (4 değil), `claude-haiku-4-5-20251001` için tek
-`displayName`: `["IKINCI TANIM"]` — son tanım kazandı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
 ## MT-PROV-021 — Katalogda olmayan bir Claude modeli reddedilmez, yalnız günlüğe yazılır
 
 **Gerçek sonuç**
@@ -372,29 +326,6 @@ ret sağlayıcıdan geldi. Aynı iddia, gerçek/çalışan bir katalog-dışı m
 (`claude-sonnet-4-5-20250929`) ve TAZE bir agent adıyla (`HATA-S4-004`'ün
 önbellek çakışmasından kaçınmak için) tekrarlandı: run **başarıyla
 tamamlandı** (`"tamam"` yanıtı), aynı bilgi günlüğü yine üretildi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-PROV-030 — Yabancı sağlayıcının ayarı reddedilir (`google.*` anahtarı `anthropic` binding'inde)
-
-**Gerçek sonuç**
-`/api/agents/validate`: `valid:false`, `code:invalid_setting`,
-`path:model.providerSettings`, mesaj: `"...these keys do not belong to
-the 'anthropic' provider: google.safety.harassment. ...the old settings
-must be cleared when the provider changes. Supported keys:
-anthropic.promptCaching, anthropic.thinking.budgetTokens."` — spec'in
-Türkçe paraphrase'iyle birebir eşleşiyor (K-228: çalışma zamanı metni
-İngilizce).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-PROV-031 — Bilinmeyen Anthropic ayarı reddedilir ve desteklenen anahtarları listeler
-
-**Gerçek sonuç**
-`valid:false`, `code:invalid_setting`, mesaj: `"...these keys are not
-recognized: anthropic.thinkingBudget. Supported keys:
-anthropic.promptCaching, anthropic.thinking.budgetTokens."` — alfabetik
-sıralı.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -471,14 +402,6 @@ provider request failed."` — aynı kök neden, `HATA-S4-005`.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
-## MT-PROV-035 — `claude-thinking` fixture'ı genişletilmiş düşünmeyle uçtan uca çalışır
-
-**Gerçek sonuç**
-`status:Completed`, `error:null`. Yanıt metninde `"408"` (17×24'ün doğru
-sonucu) **6 kez** geçiyor (reasoning + son yanıt).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
 ## MT-PROV-036 — Düşünme açıkken sıcaklık `1` değilse gerçek Anthropic API'si reddeder
 
 **Gerçek sonuç**
@@ -504,23 +427,6 @@ kusuru değil, Anthropic'in kendi eşik kısıtı.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
-## MT-PROV-040 — `claude-support`: tool çağrısıyla uçtan uca çalıştırma
-
-**Gerçek sonuç**
-Yanıt metninde `"ORD-1001"` (3 kez). `status:Completed`,
-`totalTokens:923`. Olaylar: `get_order_status` **tam bir kez**
-(`tool.invoking`+`tool.invoked`, aynı `toolCallId`).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-PROV-041 — Akış (SSE) `claude-support` ile üç çerçeve üretir: `run`, `update`(ler), `done`
-
-**Gerçek sonuç**
-`content-type: text/event-stream`. Çerçeve sayımı: 1× `run` (ilk), 7×
-`update`, 1× `done` (son), 0× `error`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
 ## MT-PROV-042 — Var olmayan bir Claude modeliyle çalıştırma: SSE `error` çerçevesi üretilir (düzeltildi); sınıflandırma hâlâ `Unknown` olabilir
 
 **Gerçek sonuç**
@@ -530,22 +436,6 @@ doğrulandı). `status:Failed`, `error.type:"upstream_error"`,
 (`error.class` `Unknown` çıkabilir) tam ölçüldü. `error.type`'ın
 `Anthropic.Exceptions.AnthropicNotFoundException` metnini TAŞIMAMASI
 doküman kusuru #3'e giriyor (genel, kararlı kategori etiketi tasarımı).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-PROV-050 — `gemini-support`: tool çağrısıyla uçtan uca çalıştırma
-
-**Gerçek sonuç**
-Yanıt metninde `"ORD-1001"` (3 kez). `status:Completed`,
-`totalTokens:512`. Olaylar: `get_order_status` **tam bir kez**.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-PROV-051 — Akış (SSE) `gemini-support` ile üç çerçeve üretir: `run`, `update`(ler), `done`
-
-**Gerçek sonuç**
-`content-type: text/event-stream`. 1× `run`, 3× `update`, 1× `done`, 0×
-`error`.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -571,58 +461,6 @@ kanıtlıyor: muaf tip tam mesajını korur.)
 `event: error` göründü. `status:Failed`, `error.type:"upstream_error"`,
 `error.class:"Unknown"` — spec'in "kod-doğrulanmış şüphe"siyle tutarlı
 (doküman kusuru #3).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-PROV-060 — Anthropic ve Google `Healthy` döner, farklı kimlik başlıkları kullanır
-
-**Gerçek sonuç**
-`anthropic: Healthy`, `latency` dolu, `models` gerçek Anthropic
-kataloğundan (appsettings'teki 3 adla birebir aynı DEĞİL — K-032 gereği
-beklenen). `google: Healthy`, `models` adlarında `models/` öneki YOK.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-PROV-061 — Erişilemeyen Anthropic adresi hata detayında adres veya anahtar sızdırmaz
-
-**Gerçek sonuç**
-`Program.cs`'te geçici mutasyon (gerçek `UseAnthropic(anthropic)` yerine
-sahte anahtar + `http://127.0.0.1:59999/`), `dotnet build` + yeniden
-başlatma: `GET /api/models/health/anthropic` → `status:Unhealthy`,
-`detail:"Connection error (ConnectionError)."` — ne sahte anahtar
-(`sk-ant-cok-gizli-test-anahtari-12345`) ne adres (`127.0.0.1:59999`)
-metinde geçiyor. Mutasyon HEMEN `git checkout` + `dotnet build` ile geri
-alındı, gerçek Anthropic tekrar `Healthy` doğrulandı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-PROV-070 — API anahtarları hiçbir HTTP çıktısında görünmez
-
-**Gerçek sonuç**
-`/api/models`, `/api/models/health`, `/api/models/health/anthropic`,
-`/api/models/health/google` — dördünde de gerçek Anthropic/Google
-anahtarlarına karşı `grep` sayımı **0**.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-PROV-071 — `ConfigurationDiagnostic` yalnız çözülüp çözülmediğini taşır, DEĞER taşımaz (Anthropic + Google)
-
-**Gerçek sonuç**
-`/api/diagnostics`: `Tracon:Providers:Anthropic:ApiKey` — **tek** girdi,
-`resolved:true`, `hint:null`. `Tracon:Providers:Google:ApiKey` — **tek**
-girdi, `resolved:true`, `hint:null` — OpenAI'nin aksine (MT-OAI-092'nin
-tekilleştirmesi) BAĞIMSIZ iki girdi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-PROV-072 — Konsol günlüğünde API anahtarı görünmez
-
-**Gerçek sonuç**
-Bu ailenin TÜM konsol kayıtları (`/tmp/ap-s4-restart{5,6,7,8}.log` +
-`prov0{10,11,12,13,13b,20}.log` — spec'in istediğinden çok daha geniş bir
-kapsam, MT-PROV-021/035-037/040-042/050-053/060/061 dahil onlarca gerçek
-çalıştırma) gerçek Anthropic VE Google anahtarlarına karşı tarandı:
-**sıfır** eşleşme, hiçbir dosyada.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 

@@ -105,74 +105,62 @@ var (bu şeridin dağılımı: `32 · 29 · 34 · 21 · 11 · 25 · 17 · 20`).
 
 ## Case'ler
 
-## MT-CLI-001 — SQLite migrate, boş dosya
+> ### ⚗️ Damıtılmış koşum kaydı
+> Geçen ve **hiçbir düzeltme/kusur işareti taşımayan** case'lerin
+> `Gerçek sonuç` blokları düştü — bir koşumun ortam çıktısı, koşum
+> bittiği anda değerini kaybeder. **Geçmeyen** ve **işaret taşıyan**
+> her case'in bloğu AYNEN durur. Tam metin — kopyala, çalıştır:
+>
+> ```bash
+> git show 89f44ab3:docs/manuel-test/kosumlar/2026-09-16/34-ISTEMCI-VE-CLI.md
+> ```
 
-**Gerçek sonuç**
-`38 applied`; çıkış kodu `0`.
+---
 
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+## Temiz geçen case'ler (38)
 
-## MT-CLI-002 — SQLite migrate, tekrar (idempotent)
+| Case | Durum | Başlık |
+|---|---|---|
+| MT-CLI-001 | ☑ | SQLite migrate, boş dosya |
+| MT-CLI-002 | ☑ | SQLite migrate, tekrar (idempotent) |
+| MT-CLI-003 | ☑ | migrate status sonrası, yazma yok |
+| MT-CLI-004 | ☑ | migrate status, migrate hiç koşulmadan |
+| MT-CLI-005 | ☑ | health, kimlik doğrulama yapılandırılmamış |
+| MT-CLI-006 | ☑ | health --json |
+| MT-CLI-007 | ☑ | health, geçersiz token |
+| MT-CLI-008 | ☑ | health, sunucu kapalı |
+| MT-CLI-010 | ☑ | hiçbir komut, uydurma bağlantı dizesi/token, secret sızmaz |
+| MT-CLI-013 | ☑ | eval, hepsi geçen takım |
+| MT-CLI-014 | ☑ | eval, bir case düşüyor |
+| MT-CLI-015 | ☑ | eval, --max-failures 1 tolerans |
+| MT-CLI-016 | ☑ | eval, iki eşik birden (VE) |
+| MT-CLI-017 | ☑ | eval, olmayan takım adı |
+| MT-CLI-018 | ☑ | eval, sunucu kapalı |
+| MT-CLI-019 | ☑ | eval, --timeout 1 |
+| MT-CLI-020 | ☑ | eval, yalnız EvalsRead scope'lu anahtar |
+| MT-CLI-021 | ☑ | eval, --json |
+| MT-CLI-023 | ☑ | eval baseline, regresyon tespiti |
+| MT-CLI-024 | ☑ | eval baseline, regresyon yok |
+| MT-CLI-025 | ☑ | eval baseline, ilk koşum |
+| MT-CLI-026 | ☑ | eval baseline, kısmen budanmış sonuç |
+| MT-CLI-027 | ☑ | eval, --max-regressions --baseline olmadan |
+| MT-CLI-028 | ☑ | eval, --baseline yesterday |
+| MT-CLI-030 | ☑ | eval baseline, --json ile regresyon |
+| MT-CLI-031 | ☑ | eval baseline, başka suite'in run id'si |
+| MT-CLI-032 | ☑ | state-check, sağlıklı veritabanı |
+| MT-CLI-033 | ☑ | state-check, okunamaz satır |
+| MT-CLI-034 | ☑ | state-check, yanlış bağlantı dizesi |
+| MT-CLI-035 | ☑ | state-check, --sample 5 |
+| MT-CLI-036 | ☑ | state-check, öncesi/sonrası anlık görüntü |
+| MT-CLI-038 | ☑ | TraconOpenAIResponsesStreamAsync, stream:true |
+| MT-CLI-039 | ☑ | TraconOpenAIChatCompletionsStreamAsync, stream:true |
+| MT-CLI-040 | ☑ | TraconOpenAIResponsesAsync, stream:false |
+| MT-CLI-041 | ☑ | TraconOpenAIResponsesAsync, gövdede stream:true |
+| MT-CLI-042 | ☑ | TraconOpenAIResponsesStreamAsync, gövdede stream:false |
+| MT-CLI-043 | ☑ | TraconOpenAIResponsesAsync(default) |
+| MT-CLI-044 | ☑ | TraconRunAgentStreamAsync, iki çerçeve sonra break |
 
-**Gerçek sonuç**
-`0 applied`; çıkış kodu `0`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-CLI-003 — migrate status sonrası, yazma yok
-
-**Gerçek sonuç**
-`0 pending`; çıkış kodu `0`. Dosyanın `mtime`'ı komut öncesi/sonrası
-birebir aynı (`stat -f %m`).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-CLI-004 — migrate status, migrate hiç koşulmadan
-
-**Gerçek sonuç**
-`38 pending`, 38 migration adı tek tek listelendi (`0001_initial` ...
-`0038_run_score_evaluator_version`); çıkış kodu `0`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-CLI-005 — health, kimlik doğrulama yapılandırılmamış
-
-**Gerçek sonuç**
-Ayrı bir örnek `Tracon__Ui__AuthToken=""` (açık boş override) ile açıldı
-(bkz. sapma 1). `GET /api/meta` → `requiresBearerToken:false` doğrulandı.
-`tracon health --url ...` (token verilmeden): sağlayıcı sağlık satırları
-tek tek yazıldı (`anthropic: Healthy`, `google: Healthy`, `openai:
-Healthy`, `openai-responses: Healthy`, `openrouter: Healthy`); çıkış
-kodu `0`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-CLI-006 — health --json
-
-**Gerçek sonuç**
-`--json` çıktısı geçerli JSON (`jq .` hatasız), her sağlayıcı için
-`providerName`/`status`/`latency`/`models` alanları dolu; çıkış kodu `0`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-CLI-007 — health, geçersiz token
-
-**Gerçek sonuç**
-Gerçek `AuthToken` ile yeniden başlatılan sunucuya karşı `--token
-yanlis-token`: `Request failed: HTTP 401.`; çıkış kodu `2` (**`0` değil**).
-`yanlis-token` metni çıktıda **hiç geçmiyor** (`grep -c` → 0).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-CLI-008 — health, sunucu kapalı
-
-**Gerçek sonuç**
-`--url http://localhost:1/tracon`: `Connection failed: Connection refused
-(localhost:1)`; çıkış kodu `2`; komut `<1` saniyede döndü (macOS'ta
-`timeout(1)` yok — arka planda çalıştırıp watchdog ile ölçüldü, bkz.
-`serit-kurulumu.md` §5).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+## Ayrıntı taşıyan case'ler (4)
 
 ## MT-CLI-009 — health, özel `MapTracon` öneki
 
@@ -186,18 +174,6 @@ soyma tasarımı kanıtlandı — istemci `/control` önekinin ARDINDAKİ
 alınırdı). Durum değeri `Unknown` bir kusur değil; bu minimal
 `EchoModelProvider`'ın sağlık kontrolü gerçek bir ağ çağrısı yapmadığı
 için varsayılan döndüğü değer.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-CLI-010 — hiçbir komut, uydurma bağlantı dizesi/token, secret sızmaz
-
-**Gerçek sonuç**
-`tracon migrate --provider postgres --connection "Host=nope.invalid;...
-Password=SuperSecretPassword123!..."`: `Migration failed: NpgsqlException:
-nodename nor servname provided, or not known`; çıkış kodu `2`. Şifre ve
-host adı çıktıda **hiç geçmiyor** (`grep -c` → 0 ikisi için de).
-`tracon health --token totally-fake-token-xyz-789` (gerçek sunucuya
-karşı): `Request failed: HTTP 401.`; sahte token çıktıda **hiç geçmiyor**.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -216,147 +192,6 @@ bayat — `agent-skill` komutu (Faz 73, family 29'un kapsamı) spec'in bu
 satırına hiç eklenmemiş. Kod ile doküman çelişince doküman yanlıştır
 (`AGENTS.md`); `../../34-ISTEMCI-VE-CLI.md` satır 63 "Beş komut" →
 "Altı komut (... `agent-skill` ...)" olarak düzeltildi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-CLI-013 — eval, hepsi geçen takım
-
-**Gerçek sonuç**
-Fixture: suite `ok` (agent `manuel-bos`, check `containsExpected`, 1 case
-"Merhaba"→"tamam"). `tracon eval --suite ok --min-pass-rate 1.0`:
-`Completed: 1/1 passed in 10.6 s.`; çıkış kodu `0`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-CLI-014 — eval, bir case düşüyor
-
-**Gerçek sonuç**
-Fixture: suite `mixed` (aynı agent, 2 case — biri geçer "tamam", biri
-kasıtlı yanlış beklenti ile düşer). `tracon eval --suite mixed
---min-pass-rate 1.0`: `Completed: 1/2 passed in 5.3 s.` +
-`FAILED case <id>: contains_expected: ...`; çıkış kodu **`3`**, düşen
-case'in kimliği yazıldı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-CLI-015 — eval, --max-failures 1 tolerans
-
-**Gerçek sonuç**
-`--suite mixed --max-failures 1`: aynı 1/2 sonucu, çıkış kodu `0` (bir
-başarısızlığa tolerans var).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-CLI-016 — eval, iki eşik birden (VE)
-
-**Gerçek sonuç**
-`--suite mixed --min-pass-rate 1.0 --max-failures 5`: çıkış kodu `3` —
-`min-pass-rate` sağlanmadığı için ikisi birden sağlanmalı kuralı doğrulandı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-CLI-017 — eval, olmayan takım adı
-
-**Gerçek sonuç**
-`--suite yok`: `Request failed: HTTP 404 (suite 'yok' not found for this
-tenant).`; çıkış kodu `2`; sunucu gövdesi yazılmadı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-CLI-018 — eval, sunucu kapalı
-
-**Gerçek sonuç**
-`--url http://localhost:1/tracon`: `Connection failed: Connection refused
-(localhost:1)`; çıkış kodu `2`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-CLI-019 — eval, --timeout 1
-
-**Gerçek sonuç**
-`--suite mixed --timeout 1`: `Timed out after 1 s waiting for suite
-'mixed' to finish.`; çıkış kodu `2`; komut ~1 saniyede döndü, asılı
-kalmadı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-CLI-020 — eval, yalnız EvalsRead scope'lu anahtar
-
-**Gerçek sonuç**
-`POST /api/api-keys` ile `scopes:["EvalsRead"]` bir anahtar üretildi.
-Bu anahtarla `tracon eval --suite ok`: `Request failed: HTTP 403 (missing
-the 'RunsWrite' API key scope).`; çıkış kodu `2`, eksik scope **adıyla**
-söylendi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-CLI-021 — eval, --json
-
-**Gerçek sonuç**
-`--suite ok --json`: çıktı `jq .` ile hatasız ayrıştı; çıkış kodu eşikten
-bağımsız doğru (`0`, eşik verilmedi).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-CLI-023 — eval baseline, regresyon tespiti
-
-**Gerçek sonuç**
-Fixture: suite `reg-test` (agent `manuel-flip`, "tamam" döndürüyor, 1
-case). Koşum 1 (taban çizgisi): `Completed: 1/1 passed`. Agent'ın
-talimatı `"degisti" yaz`'a çevrildi (aynı case listesi, agent DEĞİŞTİ).
-Koşum 2: `tracon eval --suite reg-test --baseline previous
---max-regressions 0`: `Completed: 0/1 passed` +
-`vs baseline <id>: 1 regressed, 0 fixed, 0 added, 0 removed.` +
-`regressed: case <id>: contains_expected: ...`; çıkış kodu **`3`**.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-CLI-024 — eval baseline, regresyon yok
-
-**Gerçek sonuç**
-Suite `ok`'un 3. koşumu (agent değişmedi): `tracon eval --suite ok
---baseline previous --max-regressions 0`: `Completed: 1/1 passed` +
-`vs baseline <id>: 0 regressed, 0 fixed, 0 added, 0 removed.`; çıkış
-kodu `0`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-CLI-025 — eval baseline, ilk koşum
-
-**Gerçek sonuç**
-Fixture: yeni suite `fresh-once` (hiç koşulmamış). `tracon eval --suite
-fresh-once --baseline previous --max-regressions 0`: `Completed: 1/1
-passed` + stderr: `No earlier completed run of suite 'fresh-once' to
-compare against; the relative gate was skipped.`; çıkış kodu **`0`** —
-kapı atlandı, kırmızı yanmadı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-CLI-026 — eval baseline, kısmen budanmış sonuç
-
-**Gerçek sonuç**
-`mixed` suite'inin en eski koşumunun 2 `eval_case_results` satırından
-biri elle silindi (`DELETE ... WHERE id = ...`, psql). `tracon eval
---suite mixed --baseline <o runId> --max-regressions 0`: çıkış kodu
-**`4`** (`3` değil); stderr: `Could not compare run <id> against baseline
-<id>: HTTP 409.`
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-CLI-027 — eval, --max-regressions --baseline olmadan
-
-**Gerçek sonuç**
-`--suite ok --max-regressions 0` (`--baseline` verilmeden): `'--max-
-regressions' needs '--baseline <runId|previous>'; ...`; çıkış kodu `1`.
-Sessiz no-op değil.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-CLI-028 — eval, --baseline yesterday
-
-**Gerçek sonuç**
-`--baseline yesterday`: `'--baseline' must be an eval run id, or the word
-'previous'.`; çıkış kodu `1`.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -420,151 +255,6 @@ Regresyon artık `Removed` değil `Regressed` sınıfında ve CI kapısı onu
 `HATA-S3-010`) — `EvalCaseInput` `Parameters`'ı da taşımıyordu ve
 `InsertEvalCase` SQL'i promosyon üçlüsünü hiç yazmıyordu. Tam anlatı
 kapanış planının Aile E bölümünde; kararlar K-801 · K-802.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-CLI-030 — eval baseline, --json ile regresyon
-
-**Gerçek sonuç**
-Fixture: `reg-test-2` (agent `manuel-flip2`). Koşum 1 (baseline, agent
-"tamam" iken): geçti. Agent talimatı "degisti"ye çevrildi. Koşum 2:
-`tracon eval --suite reg-test-2 --json --baseline previous
---max-regressions 0`, stdout/stderr **ayrı dosyalara** yönlendirildi:
-stdout `jq .` ile hatasız tek bir JSON belge (yalnızca `{run, results}`);
-özet satırı (`vs baseline ...: 1 regressed, ...` ve `regressed: case
-...`) **yalnızca stderr'de**; çıkış kodu `3`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-CLI-031 — eval baseline, başka suite'in run id'si
-
-**Gerçek sonuç**
-`mixed` suite'inin bir run id'si, `ok` suite'inin koşumuna `--baseline`
-olarak verildi: `tracon eval --suite ok --baseline <mixed-run-id>`: çıkış
-kodu **`4`**; stderr: `Could not compare run <id> against baseline <id>:
-HTTP 400.`
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-CLI-032 — state-check, sağlıklı veritabanı
-
-**Gerçek sonuç**
-Spec'in hazırlık script'i uygulandı (2 satır, `state_schema_version=1`).
-`tracon state-check --provider sqlite --connection ...`: `generation 1: 2
-row(s), readable by this build`; `Sampled 2 row(s) ... 2 fully decoded, 0
-checked for structure only, 0 failed.`; çıkış kodu `0`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-CLI-033 — state-check, okunamaz satır
-
-**Gerçek sonuç**
-Bir satırın `state_schema_version`'ı elle `99` yapıldı. Aynı komut:
-`generation 1: 1 row(s), readable`; `generation 99: 1 row(s), NOT
-readable by this build`; `1 row(s) carry a schema generation this build
-cannot read. Upgrade the Tracon packages before starting this build
-against this database.`; çıkış kodu **`3`**. Satırın `state_schema_
-version` değeri komut sonrası **hâlâ `99`** (doğrulandı, değişmedi).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-CLI-034 — state-check, yanlış bağlantı dizesi
-
-**Gerçek sonuç**
-`--connection "Data Source=/no/such/dir/x.db"`: tek satır — `State check
-failed: SqliteException: SQLite Error 14: 'unable to open database
-file'.`; çıkış kodu `2`; bağlantı dizesi yazdırılmadı; yığın izi yok.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-CLI-035 — state-check, --sample 5
-
-**Gerçek sonuç**
-Temiz bir veritabanına (tek kuşak, 8 satır) `--sample 5`: `Sampled 5
-row(s), at most 5 per generation: 5 fully decoded, 0 checked for
-structure only, 0 failed.` + `This is a sample, not a survey: rows
-outside it were not read.`; "all readable"/"every row" **demiyor**; çıkış
-kodu `0`. (İlk denemede kirli bir veritabanı — case 33'ten kalma `99`
-kuşaklı satırla — karışık sonuç verdi; temiz bir dosyayla tekrarlandı.)
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-CLI-036 — state-check, öncesi/sonrası anlık görüntü
-
-**Gerçek sonuç**
-Tam tablo anlık görüntüsü (`id|tenant_id|agent_name|state|
-state_schema_version|state_maf_version|created_at|updated_at|version|
-owner_id`) komut öncesi ve sonrası alındı. `diff` **boş** — birebir aynı,
-`updated_at`/`version` dahil hiçbir sütun değişmedi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-CLI-038 — TraconOpenAIResponsesStreamAsync, stream:true
-
-**Gerçek sonuç**
-`/tmp/mt-s3-sse-client` (Tracon.Client 0.0.0-preview.0.821, yerel feed)
-ile `manuel-bos` agent'ına karşı çağrıldı. 11 çerçeve, sırayla:
-`response.created` → `response.in_progress` → `response.output_item.
-added` → `response.content_part.added` → 3× `response.output_text.delta`
-→ `response.output_text.done` → `response.content_part.done` →
-`response.output_item.done` → `response.completed`. Her çerçeve tek bir
-ham SSE olayı (rawlen 210-768 arası, tüm gövde tek çerçevede değil); çökme
-yok.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-CLI-039 — TraconOpenAIChatCompletionsStreamAsync, stream:true
-
-**Gerçek sonuç**
-5 çerçeve. İlk çerçeve `"object":"chat.completion.chunk"` taşıyor; son
-çerçeve `data: [DONE]`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-CLI-040 — TraconOpenAIResponsesAsync, stream:false
-
-**Gerçek sonuç**
-JSON belge döndü: `"object":"response"`, `"status":"completed"`,
-`output[0].content[0].text = "tamam"`. Faz 159 öncesi davranış (JSON
-şekli) korunmuş.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-CLI-041 — TraconOpenAIResponsesAsync, gövdede stream:true
-
-**Gerçek sonuç**
-`TraconApiException`: "The server answered 200 with content type
-'text/event-stream', not 'application/json'. ... Send \"stream\": false,
-or call **TraconOpenAIResponsesStreamAsync** for the streaming shape."
-Opak "could not deserialize" değil, doğru metodu adıyla öneriyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-CLI-042 — TraconOpenAIResponsesStreamAsync, gövdede stream:false
-
-**Gerçek sonuç**
-`TraconApiException`: "The server answered 200 with content type
-'application/json', not 'text/event-stream'. ... Send \"stream\": true,
-or call **TraconOpenAIResponsesAsync** for the JSON shape." Sessiz boş
-akış değil.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-CLI-043 — TraconOpenAIResponsesAsync(default)
-
-**Gerçek sonuç**
-`ArgumentException`, `ParamName=body`, mesaj: "The request body is an
-uninitialized JsonElement. Build one first, for example with
-System.Text.Json.JsonSerializer.SerializeToElement(value)." Serileştirici
-içinde opak `InvalidOperationException` değil.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-CLI-044 — TraconRunAgentStreamAsync, iki çerçeve sonra break
-
-**Gerçek sonuç**
-2 çerçeve alındıktan sonra `break`; istisna yok; toplam 593 ms; süreç
-asılı kalmadı (bağlantı serbest bırakıldı, program normal döndü).
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 

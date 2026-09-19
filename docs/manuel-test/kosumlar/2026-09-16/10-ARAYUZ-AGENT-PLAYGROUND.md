@@ -85,6 +85,57 @@ onay davranışını test etmek isterse bu kuralı hesaba katmalı ya da
 
 # 1 — Agent kataloğu (`agents.tsx`)
 
+> ### ⚗️ Damıtılmış koşum kaydı
+> Geçen ve **hiçbir düzeltme/kusur işareti taşımayan** case'lerin
+> `Gerçek sonuç` blokları düştü — bir koşumun ortam çıktısı, koşum
+> bittiği anda değerini kaybeder. **Geçmeyen** ve **işaret taşıyan**
+> her case'in bloğu AYNEN durur. Tam metin — kopyala, çalıştır:
+>
+> ```bash
+> git show fca6f3a1:docs/manuel-test/kosumlar/2026-09-16/10-ARAYUZ-AGENT-PLAYGROUND.md
+> ```
+
+---
+
+## Temiz geçen case'ler (32)
+
+| Case | Durum | Başlık |
+|---|---|---|
+| MT-UIAG-004 | ☑ | `FIX-AGENT-02` ile minimal agent oluşturma; canlı JSON önizlemesi gönderilen gövdeyle birebir eşleşir |
+| MT-UIAG-005 | ☑ | `FIX-AGENT-01` ile tool seçili agent oluşturma; `cancel_order`ın onay rozeti seçim listesinde de görünür |
+| MT-UIAG-008 | ☑ | "Doğrula" kaydetmeden `AgentValidationReport`'u gösterir, hiçbir kayıt oluşmaz |
+| MT-UIAG-009 | ☑ | Bozuk JSON şeması Kaydet/Doğrula'yı devre dışı bırakır ve hata metni gösterir |
+| MT-UIAG-010 | ☑ | Harness açılınca ek alanlar görünür, kapatılınca gövdede `harness: null` gider |
+| MT-UIAG-011 | ☑ | Sıkıştırma (compaction) stratejisi değişince yalnız o stratejiye özgü alanlar görünür |
+| MT-UIAG-014 | ☑ | Var olan DB agent'ı açılınca form dolar, `name` alanı salt okunurdur |
+| MT-UIAG-015 | ☑ | Düzenleyip kaydetme yeni bir versiyon üretir, agent detayına döner |
+| MT-UIAG-017 | ☑ | DB kökenli agent özet + talimat + tam tanım JSON'u gösterir |
+| MT-UIAG-020 | ☑ | Versiyon tablosu yeni-eski sıralı, güncel sürüm rozetiyle işaretli |
+| MT-UIAG-021 | ☑ | Tek versiyon seçiliyken "bir tane daha seç" ipucu görünür |
+| MT-UIAG-023 | ☑ | Üçüncü versiyon seçilince en eski seçim düşer (kayan seçim) |
+| MT-UIAG-024 | ☑ | "Geri Al" tek tık kalır; Sil doğrulama ister — asimetri BİLİNÇLİDİR |
+| MT-UIAG-029 | ☑ | Onayla → yeni bir tur başlar, kart 'approved' rozetine döner, tekrar tıklanamaz |
+| MT-UIAG-031 | ☑ | "Hatırla" ile onaylanan karar kalıcı bir kural yazar; SONRAKİ çağrıda onay kartı hiç çıkmaz |
+| MT-UIAG-033 | ☑ | Klavye: Enter gönderir, Shift+Enter satır ekler, Ctrl/Cmd+Enter de gönderir |
+| MT-UIAG-034 | ☑ | Boş mesaj + ek yokken Gönder devre dışıdır, form no-op'tur |
+| MT-UIAG-035 | ☑ | "Yeni Sohbet" turları/ekleri/oturumu sıfırlar |
+| MT-UIAG-036 | ☑ | Agent değişince route değişir, ekran sıfırlanır |
+| MT-UIAG-038 | ☑ | Kullanım (token) özeti yalnız `usage` içeriği geldiyse görünür |
+| MT-UIAG-039 | ☑ | Şube (Branch) düğmesi TÜM sohbeti dallandırır ve yeni oturuma yönlendirir |
+| MT-UIAG-040 | ☑ | `FIX-PROMPT-04` (50.000 karakter) sınırsız kabul edilir, istemci kırpmaz |
+| MT-UIAG-044 | ☑ | PNG yükleme → chip + küçük resim önizleme, mesajla birlikte gider |
+| MT-UIAG-045 | ☑ | Bekleyen eki kaldırma: chip kaybolur + sunucudaki kayıt best-effort silinir |
+| MT-UIAG-046 | ☑ | Sürükle-bırak aynı yükleme yolunu kullanır |
+| MT-UIAG-048 | ☑ | 20 MB sınırını aşan dosya "Ek çok büyük" hatası verir |
+| MT-UIAG-049 | ☑ | Mikrofon düğmesi konuşma panelini açar/kapar |
+| MT-UIAG-051 | ☑ | Seslendirme sağlayıcısı yapılandırılmamışsa düğme yanında hata notu görünür |
+| MT-UIAG-053 | ☑ | Kayıtlı bir `IToolApprovalPresenter` varken onay kartı başlıkta varlık adını gösterir (Faz 142) |
+| MT-UIAG-055 | ☑ | Yalnız vector search açık olan `memory` bloğu kaydetmede kaybolmaz (B01) |
+| MT-UIAG-057 | ☑ | Bir düğmenin açıklaması hem işaretçiyle hem klavyeyle görünür (Faz 165) |
+| MT-UIAG-058 | ☑ | Yükleme hatası boş bir form göstermez (Faz 165) |
+
+## Ayrıntı taşıyan case'ler (26)
+
 ## MT-UIAG-001 — 🚨 Tool sayısı hücresinde tooltip HİÇ YOK — 🚨 KUSUR (`HATA-S1-027`)
 
 **Gerçek sonuç — kısmen KUSUR BULUNDU.**
@@ -234,39 +285,6 @@ deterministik değil" durumu; not düşülüyor, kusur değil). `Model`'e
 
 ---
 
-## MT-UIAG-004 — `FIX-AGENT-02` ile minimal agent oluşturma; canlı JSON önizlemesi gönderilen gövdeyle birebir eşleşir
-
-**Gerçek sonuç — beklendiği gibi.**
-`Ad: manuel-bos`, `Talimatlar: Yalnizca "tamam" yaz.`, `Sağlayıcı: openai`,
-`Model: gpt-5.4-mini`, hiçbir tool/beceri seçilmeden sağ paneldeki JSON
-önizlemesi ölçüldü — **tam olarak** gönderilecek gövdeyle birebir:
-`toolNames: []`, `skillNames: []`, `callableAgentNames: []`,
-`harness: null`, `compaction: null`, `memory: null`, `subAgents: null`.
-"Oluştur"a tıklayınca `/tracon/agents/manuel-bos`'a yönlendi, tanım
-paneli `db · v1` rozetini gösterdi (tooltip: "Saklanan tanım, sürüm 1.").
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-UIAG-005 — `FIX-AGENT-01` ile tool seçili agent oluşturma; `cancel_order`ın onay rozeti seçim listesinde de görünür
-
-**Gerçek sonuç — beklendiği gibi.**
-`cancel_order` satırında sarı `approval` rozeti + `Bu tool çalışmadan önce
-onay ister` tooltip'i işaretlemeden ÖNCE bile görünüyor (yalnız bilgi,
-seçimi engellemiyor). Tool listesi 10 checkbox'tan oluşuyor
-(`cancel_order`, `estimate_shipping_cost`, `get_order_status`,
-`get_slow_report`, `list_recent_orders`, `list_voices`,
-`mark_preview_ready`, `read_shopping_cart`, `speak`, `transcribe`) —
-serbest metin alanı YOK, yalnız `GET /api/tools`'tan gelen kayıtlı adlar.
-`get_order_status` işaretlenince JSON önizlemesi `toolNames:
-["get_order_status"]` gösterdi. "Oluştur" → `/tracon/agents/manuel-destek`'e
-yönlendi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
 ## MT-UIAG-006 — Aynı adla ikinci oluşturma denemesi ekranda `409` mesajını gösterir
 
 **Gerçek sonuç — davranış doğru, spec metni bayattı (doküman düzeltildi).**
@@ -298,78 +316,6 @@ katalogda hâlâ tek bir `support` girdisi var, ikinci satır oluşmadı.
 ---
 
 # 2 — Agent editörü doğrulama ve bağlam alanları
-
-## MT-UIAG-008 — "Doğrula" kaydetmeden `AgentValidationReport`'u gösterir, hiçbir kayıt oluşmaz
-
-**Gerçek sonuç — beklendiği gibi.**
-`Ad: manuel-dogrula-test`, `Sağlayıcı: openai`,
-`Model: bilinmeyen-model-adi-xyz` ile "Doğrula"ya tıklanınca panel
-`Geçerli` rozeti + `"Sorun bulunamadı. Hiçbir şey kaydedilmedi, hiçbir
-model çağrılmadı."` gösterdi — doğrulama biçimsel (ad+model dolu), model
-adının sağlayıcıda gerçekten var olup olmadığını canlı çağrıyla
-sınamıyor (metnin kendisi bunu açıkça söylüyor). `Agents` listesine
-dönüp `manuel-dogrula-test` arandı: katalogda **görünmedi** —
-doğrulama hiçbir kayıt üretmedi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-UIAG-009 — Bozuk JSON şeması Kaydet/Doğrula'yı devre dışı bırakır ve hata metni gösterir
-
-**Gerçek sonuç — beklendiği gibi.**
-`Yanıt biçimi: JsonSchema` seçilip şema kutusuna `{ bozuk json` yazılınca:
-her iki düğme (`Doğrula`, `Oluştur`) devre dışı kaldı, kutunun altında
-`Geçerli JSON değil.` alert'i belirdi. Metin alanı salt okunur OLMADI —
-`[active]` durumda, yazmaya devam edilebilir durumda kaldı. Ağ isteklerinde
-(`browser_network_requests`) bu adım boyunca yalnız önceki `GET
-/api/agents` çağrıları vardı, hiçbir `POST`/`validate` görünmedi —
-doğrulama tamamen istemcide. Kutuya `{}` yazılınca iki düğme de tekrar
-etkinleşti, hata notu kayboldu.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-UIAG-010 — Harness açılınca ek alanlar görünür, kapatılınca gövdede `harness: null` gider
-
-**Gerçek sonuç — beklendiği gibi (alan etiketleri Türkçeye çevrilmiş,
-anahtar adları spec'le birebir).**
-Harness açılınca beş alan/checkbox göründü — Türkçe etiketler:
-`En fazla bağlam penceresi token`, `İstek başına en fazla yineleme`,
-`Sıkıştırmayı kapat`, `Todo izlemeyi kapat`, `Dosya belleğini kapat`,
-`Web aramasını kapat`, `Tool onayı iste` (5 checkbox + 2 sayısal alan —
-spec'in beklediği 5 boolean karşılığı, yalnız ad çevirisi farklı;
-`disableCompaction/disableTodoProvider/disableFileMemory/
-disableWebSearch/disableToolAutoApproval` anahtarları JSON'da aynen
-kullanılıyor). `32000`/`8`/Web aramasını kapat/Dosya belleğini kapat
-işaretlenince JSON önizlemesi **tam olarak** spec'in beklediği nesneyi
-verdi: `{ maxContextWindowTokens: 32000, maximumIterationsPerRequest: 8,
-disableWebSearch: true, disableFileMemory: true }`. Checkbox kapatılınca
-`harness: null` oldu; tekrar açılınca önceki değerler (`32000`, `8`, iki
-checkbox) DEĞİŞMEDEN geri geldi — form state hafızada kalıyor, yalnız
-gönderilen gövdeden düşüyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-UIAG-011 — Sıkıştırma (compaction) stratejisi değişince yalnız o stratejiye özgü alanlar görünür
-
-**Gerçek sonuç — dört adımın dördü de beklendiği gibi.**
-`SlidingWindow`: `Tetik: token sayısı` / `Tetik: mesaj sayısı` /
-`Tetik: tur sayısı` + `En az korunacak tur` göründü; `minPreservedGroups`
-veya özetleme alanları YOK. `ContextWindow`: yalnız
-`En fazla bağlam penceresi token *` (zorunlu) ve `En fazla çıktı token`
-göründü; `Tetik:*` alanları tamamen kayboldu. `Summarization`:
-`Tetik:*` üçlüsü + `En az korunacak grup` + `Özetleme promptu`/
-`Özetleme modeli sağlayıcısı`/`Özetleme modeli adı` göründü; `En az
-korunacak tur` (yalnız SlidingWindow/Pipeline'a özgü) YOK. `None`'a
-dönünce tüm alt alanlar kayboldu, JSON önizlemesinde `compaction: null`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
 
 ## MT-UIAG-012 — Beceri (skill) seçimi 10'da sınırlanır, sonraki checkbox'lar devre dışı kalır
 
@@ -406,35 +352,6 @@ değiştirmeye devam edebildim (bkz. MT-UIAG-015).
 
 ---
 
-## MT-UIAG-014 — Var olan DB agent'ı açılınca form dolar, `name` alanı salt okunurdur
-
-**Gerçek sonuç — beklendiği gibi.**
-`agents/manuel-destek/edit`: `Talimatlar` ("Sen bir siparis destek
-asistanisin. Kisa yanit ver."), `Sağlayıcı` (openai), `Model`
-(gpt-5.4-mini), seçili tool (`get_order_status`) kayıtlı tanımla birebir
-dolu geldi. `Ad` alanının DOM'u `readOnly: true` — değeri `manuel-destek`,
-tıklanabilir ama değiştirilemez. Başlık: `"manuel-destek düzenle"` (agent
-adını gömüyor). Sağ panel önizlemesi `PUT api/agents/manuel-destek`
-etiketini taşıyor. "Oluştur" yerine `"Yeni sürüm kaydet"` yazıyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-UIAG-015 — Düzenleyip kaydetme yeni bir versiyon üretir, agent detayına döner
-
-**Gerçek sonuç — beklendiği gibi.**
-`Talimatlar`ı `"...Nazik ol."` ekleyerek değiştirip "Yeni sürüm kaydet"e
-tıklayınca `agents/manuel-destek` detay sayfasına yönlendi. Özet panelinde
-güncel talimat metni (`"...Nazik ol."`) görünüyor, `db · v2` rozeti var.
-"Sürüm geçmişi" tablosunda artık İKİ satır var: `v2` (`geçerli` rozeti,
-"Şu anda çözülen tanım" tooltip'i) ve `v1` (12 dk. önce, "Geri al"
-düğmesi + "v1'ı canlı tanım yapar..." tooltip'i).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
 ## MT-UIAG-016 — Kod kökenli `support`'ta Düzenle/Sil düğmeleri hiç render edilmez
 
 **Gerçek sonuç — davranış doğru, spec metni bayattı (doküman düzeltildi,
@@ -458,20 +375,6 @@ gerçek sınır sunucuda.
 ---
 
 # 3 — Agent detay: özet, versiyon, karşılaştırma, silme
-
-## MT-UIAG-017 — DB kökenli agent özet + talimat + tam tanım JSON'u gösterir
-
-**Gerçek sonuç — beklendiği gibi.**
-`agents/manuel-destek` (v2): özet panelinde `gpt-5.4-mini`, `Harness:
-Kapalı`, `Tool'lar: get_order_status`, `Güncellendi: 3 dk. önce` doğru
-göründü, köken rozeti `db · v2`. Talimat metni ayrı panelde tam
-görünüyor (`"...Nazik ol."` dahil). "Tanım" panelinde `AgentDefinition`'ın
-tüm alanlarını taşıyan ham JSON var (`origin`, `version`, `tenantId`,
-`updatedAt` dahil).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
 
 ## MT-UIAG-018 — Kod kökenli agent'ta "kod bildirimi" notu görünür, `definition` paneli farklı davranır
 
@@ -517,28 +420,6 @@ döndü. Adım 4: `Sil` → dialog içindeki `Sil`e (Onayla karşılığı) tık
 
 ---
 
-## MT-UIAG-020 — Versiyon tablosu yeni-eski sıralı, güncel sürüm rozetiyle işaretli
-
-**Gerçek sonuç — beklendiği gibi.**
-`agents/manuel-destek` "Sürümler" tablosu `v2, v1` sırasında (yeniden
-eskiye). Yalnız `v2` satırında `geçerli` rozeti, tooltip `"Şu anda çözülen
-tanım"`. Her satırda model adı (`gpt-5.4-mini`), tool sayısı (`1`), göreli
-kayıt zamanı (`13 dk. önce` / `26 dk. önce`) var.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-UIAG-021 — Tek versiyon seçiliyken "bir tane daha seç" ipucu görünür
-
-**Gerçek sonuç — beklendiği gibi.**
-Yalnız `v1` checkbox'ı işaretlenince tablonun altında `"Karşılaştırmak için
-bir sürüm daha seçin."` göründü. Karşılaştırma paneli AÇILMADI.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
 ## MT-UIAG-022 — İki versiyon seçilince otomatik karşılaştırma paneli açılır (`DiffView`/`FieldDiffTable`/`SetDiff`)
 
 **Gerçek sonuç — beklendiği gibi (spec'in kendi "Doküman düzeltmesi"
@@ -555,38 +436,6 @@ için set diff (`get_order_status` değişmedi). `Harness`/`Sıkıştırma`/
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
-
-## MT-UIAG-023 — Üçüncü versiyon seçilince en eski seçim düşer (kayan seçim)
-
-**Gerçek sonuç — beklendiği gibi.**
-`manuel-destek`'e `v3` üretildi (`Talimatlar` sonuna `" Emoji kullanma."`
-eklendi, "Yeni sürüm kaydet"). `v1`+`v2` seçiliyken `v3`'ün checkbox'ı da
-işaretlenince başlık `"v1 → v2"`'den `"v2 → v3 karşılaştırması"`'na değişti
-— en eski seçim (`v1`) düştü, `v2`+`v3` karşılaştırılıyor. `v1`'in
-checkbox'ı DOM'da ölçüldü: `checked: false`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-UIAG-024 — "Geri Al" tek tık kalır; Sil doğrulama ister — asimetri BİLİNÇLİDİR
-
-**Gerçek sonuç — beklendiği gibi.**
-`v1` satırının "Geri Al" düğmesine tıklanınca HİÇBİR doğrulama dialogu
-çıkmadı — istek hemen gitti (tıklamadan önce tooltip zaten hangi sürümün
-canlı olacağını söylüyordu: `"v1'ı canlı tanım yapar. Şu anki v3 geçmişte
-kalır ve bundan sonra başlayan her run v1'ı kullanır."`). İşlem bitince
-yeni bir `v4` satırı belirdi (`geçerli` rozeti, `db · v4`), içeriği
-ölçüldü: `instructions: "Sen bir siparis destek asistanisin. Kisa yanit
-ver."` — birebir `v1`'in içeriğiyle AYNI (yeni sürüm olarak yazıldı, `v1`'e
-geri SARILMADI, sayaç 4'e çıktı). `v1`'in satırında hâlâ "Geri Al" düğmesi
-var (kendine dönüş engellenmiyor).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 4 — Playground: akış, tool/onay kartları, ekler (GERÇEK OpenAI çağrıları başlıyor)
 
 ## MT-UIAG-025 — Agent seçiciyle açılış; ilk mesaj bir konuşma/oturum rezerve eder ve bağlantı gösterir
 
@@ -727,23 +576,6 @@ tutarlı ve beklenen.
 
 ---
 
-## MT-UIAG-029 — Onayla → yeni bir tur başlar, kart 'approved' rozetine döner, tekrar tıklanamaz
-
-**Gerçek sonuç — beklendiği gibi.**
-"Onayla"ya tıklandı ("Hatırla" işaretsiz). Orijinal kart rozeti AKIŞ
-BAŞLAMADAN HEMEN `"onaylandı"`ya döndü (yerel state, sunucu yanıtı
-beklenmedi) ve `Onayla`/`Reddet` düğmeleri kayboldu (`find("Onayla")`
-yalnız kenar çubuğundaki "Onaylar" nav linkiyle eşleşti, karttaki düğme
-yok). Yeni bir tur eklendi: balon metni `"onay kararı gönderildi"` (spec'in
-`"Onay gönderildi" benzeri` beklentisiyle uyumlu). Yeni turda `cancel_order`
-tool kartı `"bitti"` durumunda, `Sonuç: "Order ORD-1001 has been
-canceled."`, ardından final metin `"ORD-1001 siparişiniz iptal edildi."`
-aktı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
 ## MT-UIAG-030 — Reddet → kart 'rejected' rozetine döner, tool hiç çalışmaz
 
 **Gerçek sonuç — beklendiği gibi (spec'in kendi önceki "Doküman
@@ -756,23 +588,6 @@ metin DEĞİL, MAF'ın sabit red-stub'u. Final metin siparişin iptal
 EDİLMEDİĞİNİ açıkça söylüyor: `"Üzgünüm, şu anda siparişi iptal edemedim.
 İsterseniz tekrar deneyebilirim..."`. Asıl tool kodu hiç çalışmadı
 (spec'in düzeltilmiş iddiasıyla birebir).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-UIAG-031 — "Hatırla" ile onaylanan karar kalıcı bir kural yazar; SONRAKİ çağrıda onay kartı hiç çıkmaz
-
-**Gerçek sonuç — beklendiği gibi.**
-Yeni sohbette `FIX-PROMPT-03` gönderildi, "Hatırla" (`Bu tool için bir daha
-sorma`) işaretlenip "Onayla"ya tıklandı. SQL ile doğrulandı:
-`tool_approval_rules`'ta TEK satır (`tool_name=cancel_order,
-agent_name=support, arguments_hash IS NULL` — argüman bazlı sınırlama YOK,
-tool-genel kural). "Yeni sohbet" ile oturum sıfırlandı, `ORD-1001
-siparisimi iptal et` TEKRAR gönderildi: bu sefer HİÇBİR onay kartı
-belirmedi — `cancel_order` doğrudan `"bitti"` durumunda, `Sonuç: "Order
-ORD-1001 has been canceled."` (gerçek tool çıktısı, red-stub DEĞİL), final
-metin iptalin başarılı olduğunu doğruluyor.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -801,62 +616,6 @@ olarak doğrulandı — hata gösterilmedi.
 
 ---
 
-## MT-UIAG-033 — Klavye: Enter gönderir, Shift+Enter satır ekler, Ctrl/Cmd+Enter de gönderir
-
-**Gerçek sonuç — beklendiği gibi.**
-`Birinci satir` yazılıp `Shift+Enter` ile ikinci satıra geçildi, `Ikinci
-satir` eklendi — kutunun DOM değeri ölçüldü: `"Birinci satir\nIkinci
-satir"` (iki satır, `\n` korunuyor), hiçbir istek gitmedi (boş durum
-görünmeye devam etti). Düz `Enter`e basılınca mesaj gönderildi, kutu
-boşaldı; agent'ın yanıtı iki satırı da aldığını doğruladı ("İki satır
-aldım: Birinci satir Ikinci satir"). Yeni bir metin yazılıp `Control+Enter`
-basılınca kutu yine boşaldı (gönderim tetiklendi) — `event.ctrlKey ||
-event.metaKey` yolu doğrulandı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-UIAG-034 — Boş mesaj + ek yokken Gönder devre dışıdır, form no-op'tur
-
-**Gerçek sonuç — beklendiği gibi.**
-Boş kutuda `Gönder` `disabled: true`. Yalnız üç boşluk karakteri (`"   "`)
-yazılınca da `disabled: true` kaldı (`trim().length === 0`). Kutu
-tamamen boşaltılıp `Enter`e basılınca hiçbir istek gitmedi, hiçbir tur
-eklenmedi — ekran hâlâ `"Başlamak için bir mesaj gönderin"` boş durumunda,
-"Yeni sohbet" hâlâ devre dışı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-UIAG-035 — "Yeni Sohbet" turları/ekleri/oturumu sıfırlar
-
-**Gerçek sonuç — beklendiği gibi.**
-Bir tur tamamlandıktan sonra "Yeni sohbet" `enabled` oldu; tıklanınca
-panel `"Başlamak için bir mesaj gönderin"` boş durumuna döndü, "Oturum"
-bağlantısı kayboldu ve düğmenin KENDİSİ (`turns.length === 0 &&
-sessionId === null` artık sağlandığı için) tekrar `disabled` oldu.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-UIAG-036 — Agent değişince route değişir, ekran sıfırlanır
-
-**Gerçek sonuç — beklendiği gibi (adım 3 kaynak okumasıyla doğrulandı,
-akış ortasında yakalamak yerine).**
-`support` ile bir tur tamamlandıktan sonra agent seçiciden `Researcher`
-seçildi: adres HEMEN `playground/researcher`'a değişti, panel
-`"Başlamak için bir mesaj gönderin"` boş durumuna döndü — `support`'un
-turu sızmadı. Adım 3 (akış sürerken agent değiştirme) ayrıca kaynaktan
-doğrulandı: `use-playground-run.ts:144-145`'te `reset()`'in İLK satırı
-`abort.current?.abort()` — bağlantı kesme sıfırlamadan ÖNCE çağrılıyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
 ## MT-UIAG-037 — Run bağlantısı ilk `run` çerçevesinde belirir, tur bitmeden tıklanabilir
 
 **Gerçek sonuç — beklendiği gibi.**
@@ -867,50 +626,6 @@ DOM'da belirdi (`gpt-5.4-mini`'nin gerçek bir yanıtı bu kadar hızlı
 Bağlantı yeni bir sekmede açıldı: o sekme YENİDEN token istedi (sessionStorage
 sekmeye özgüdür, K-047 — beklenen, kusur değil), token girilince aynı
 `runId` (`01a0ae7b-e972-7f2a-afec-82cd800af269`) run detayında görüldü.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-UIAG-038 — Kullanım (token) özeti yalnız `usage` içeriği geldiyse görünür
-
-**Gerçek sonuç — beklendiği gibi (bu tur boyunca zaten pasif olarak
-onlarca kez doğrulandı — HER gerçek OpenAI turu bu alanı göstermişti).**
-`Merhaba` gönderildi, tur bitince bilgi çubuğunda `"356 token"` göründü
-(`usage.totalTokens`). Bu ailenin bu turdaki HER gerçek OpenAI çağrısı
-(025'ten 037'ye kadar) aynı alanı tutarlı biçimde gösterdi — alanın
-"yalnız usage geldiyse" render edildiği iddiası dolaylı olarak da güçlü
-biçimde destekleniyor (gpt-5.4-mini akışı her zaman usage üretiyor).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-UIAG-039 — Şube (Branch) düğmesi TÜM sohbeti dallandırır ve yeni oturuma yönlendirir
-
-**Gerçek sonuç — beklendiği gibi (PostgreSQL yolu).**
-"Buradan dallan"a tıklanınca `sessions/01a0ae7e-9554-7577-ab80-24cc1f64225c`
-(yeni bir oturum id'si) adresine yönlendi. Yeni oturumun "Sohbet geçmişi"
-sekmesi eski oturumun TÜM mesajlarını taşıyordu: kullanıcının `Merhaba`si
-VE asistanın `"Merhaba! Size nasıl yardımcı olabilirim?"` yanıtı ikisi de
-kopyalanmıştı. (Bellek içi depo dalı bu ortamda PostgreSQL aktif olduğu
-için sınanmadı — spec zaten bunu ayrı bir dal olarak işaretliyor.)
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-UIAG-040 — `FIX-PROMPT-04` (50.000 karakter) sınırsız kabul edilir, istemci kırpmaz
-
-**Gerçek sonuç — beklendiği gibi.**
-Giriş kutusunun `maxLength` özniteliği ölçüldü: yok (`-1`/`hasAttribute:
-false`). 49.999 karakterlik metin (native setter + `input` eventi ile
-"yapıştırma" simüle edildi — klavyeyle 50.000 karakter yazmak
-pratik değil) kutuya verilince React state'i TAM uzunlukta kabul etti
-(`value.length: 49999`), "Gönder" etkin kaldı. İstek gövdesi ağ sekmesinden
-ölçüldü: `message` alanı birebir `49999` karakter taşıyordu (kırpma YOK).
-Sunucu tarafında da reddedilmedi (`200 OK`), tur normal tamamlandı:
-`25.351 token`, final metin `"How can I help you today?"`.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -980,52 +695,6 @@ düzeltmesi hâlâ geçerli.
 
 # 5 — Playground: ekler (dosya yükleme, sürükle-bırak, sınırlar)
 
-## MT-UIAG-044 — PNG yükleme → chip + küçük resim önizleme, mesajla birlikte gider
-
-**Gerçek sonuç — beklendiği gibi.**
-4×4 piksellik gerçek bir PNG (`browser_file_upload`) yüklendi. Form
-alanının üstünde `data-testid="attachment-chip"` belirdi, dosya adı
-(`test.png`) + resim önizlemesi vardı — `img.src` ölçüldü:
-`"blob:http://localhost:5081/..."` (nesne URL'i, doğrudan `api/
-attachments/{id}` DEĞİL — token taşıyamayacağı için `fetch`+object URL
-yolu doğru çalışıyor). Mesaj gönderilince istek gövdesi ölçüldü:
-`attachmentIds: ["01a0ae89-65a9-7fdf-bf6a-c549f2b8a597"]`. Gönderim
-sonrası bekleyen chip alanı boşaldı, ek turun üstünde (kullanıcı
-balonunun üstünde) tekrar göründü.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-UIAG-045 — Bekleyen eki kaldırma: chip kaybolur + sunucudaki kayıt best-effort silinir
-
-**Gerçek sonuç — beklendiği gibi.**
-Yeni bir PNG yüklendi (`POST api/attachments` → `201`), "kaldır"
-düğmesine tıklanınca chip ANINDA kayboldu. Ağ sekmesi doğrulandı:
-`DELETE api/attachments/{id}` → `204 No Content` gitti, hiçbir hata
-arayüzde görünmedi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-UIAG-046 — Sürükle-bırak aynı yükleme yolunu kullanır
-
-**Gerçek sonuç — beklendiği gibi (kaynak okuması + gerçek sentetik `drop`
-olayıyla ampirik doğrulama).**
-Kaynak: `playground.tsx:208` (`onDrop`) ve `playground.tsx:271` (dosya
-seçici `onChange`) İKİSİ DE birebir aynı fonksiyonu çağırıyor:
-`attachments.upload(...)`. Finder'dan gerçek bir OS-seviyeli sürükleme
-Playwright'ta simüle edilemediği için, gerçek bir `File` nesnesi taşıyan
-sentetik bir `DragEvent('drop', {dataTransfer})` formun üzerine
-dispatch edildi: chip GERÇEKTEN belirdi (`test-drop.pdf`, kaldır düğmesiyle
-birlikte), ağ sekmesi `POST api/attachments?sessionId=...` → `201
-Created` gösterdi — dosya seçici ile birebir aynı uç nokta ve davranış.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
 ## MT-UIAG-047 — Desteklenmeyen dosya türü reddedilir (sihirli bayt beyaz listede yok)
 
 **Gerçek sonuç — beklendiği gibi (spec metni bayattı, düzeltildi —
@@ -1036,39 +705,6 @@ sekmesi `POST api/attachments` → `400`. Form alanının üstünde `alert`:
 application/pdf, audio/*, image/gif, image/jpeg, image/png, image/webp,
 text/plain."` — yedi tür alfabetik sırada (spec'in Türkçe metni bayattı,
 düzeltildi). Hiçbir chip eklenmedi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-UIAG-048 — 20 MB sınırını aşan dosya "Ek çok büyük" hatası verir
-
-**Gerçek sonuç — beklendiği gibi (metin İngilizce, aynı bayat spec deseni
-— ayrı bir HATA açılmadı, tekrar eden aynı kök neden).**
-Gerçek bir PNG imzasıyla başlayan `22.020.104` baytlık (~21 MB) dosya
-yüklendi. Ağ sekmesi `POST api/attachments` → `400`. `alert`: `"Attachment
-too large: 'buyuk.png' is 22020104 bytes; the limit is 20971520 bytes."`
-— `20971520 = 20×1024×1024` sınırı birebir doğru. Dosyanın TAMAMI
-yüklenmeye çalışıldı (istek birkaç saniye sürdü, sunucu tam boyutu doğru
-raporladı) — istemci tarafında ön denetim YOK, ret sunucudan geldi. Hiçbir
-chip eklenmedi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-# 6 — Playground: ses (mikrofon paneli, Seslendir), erişilebilirlik, editör ayrıntıları
-
-## MT-UIAG-049 — Mikrofon düğmesi konuşma panelini açar/kapar
-
-**Gerçek sonuç — beklendiği gibi.**
-`Konuşma modu` düğmesine tıklanınca sınıfı `bg-accent text-accent-fg ...
-font-semibold` (primary tona) döndü ve panelin ALTINDA yeni bir `"Konuş"`
-düğmesi belirdi (VoicePanel render edildi). Tekrar tıklanınca `"Konuş"`
-düğmesi DOM'dan tamamen kayboldu (koşullu render — gizlenmiyor, hiç
-yok), `Konuşma modu` sınıfı normale (`bg-raised text-fg border-line-strong`)
-döndü. Panelin içindeki gerçek zamanlı konuşma akışı (mikrofon izni,
-WebSocket) bu case'in kapsamı dışında tutuldu, sınanmadı.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -1087,22 +723,6 @@ notu (karakter sayısı + tutar/para birimi — `result.cost != null` dalı).
 Bu eylem için Run listesinde YENİ bir satır oluşmadı — orijinal turun
 tek run bağlantısı değişmeden kaldı, `api/voice/speak` bir operatör
 eylemi olarak ayrı kaldı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-UIAG-051 — Seslendirme sağlayıcısı yapılandırılmamışsa düğme yanında hata notu görünür
-
-**Gerçek sonuç — beklendiği gibi.**
-Uygulama `Tracon__Voice__ApiKey=""` ile yeniden başlatıldı (ortam
-değişkeni ile, `user-secrets` dokunulmadı — skill §1.2). "Seslendir"e
-tıklanınca ağ sekmesi `POST api/voice/speak` → `501`. Düğmenin yanında
-kırmızı not: `"Voice provider not configured: Add the 'Tracon.Voice'
-package and call 'UseVoice(...)' to enable voice."` — sunucudan gelen
-gerçek mesaj (spec'in öngördüğü iki olası kaynaktan biri). Ses oynatıcı
-HİÇ belirmedi, düğme `disabled: false` (idle, tekrar denenebilir). Case
-sonrası uygulama `Tracon:Voice:ApiKey` GERİ YÜKLENEREK yeniden başlatıldı.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -1132,26 +752,6 @@ paylaşılan buton bileşenini kullanıyorlar (`Gönder`/`Seslendir` ile aynı
 
 ---
 
-## MT-UIAG-053 — Kayıtlı bir `IToolApprovalPresenter` varken onay kartı başlıkta varlık adını gösterir (Faz 142)
-
-**Gerçek sonuç — beklendiği gibi (MT-UIAG-028'in canlı koşumuyla çapraz
-doğrulandı — gereksiz ikinci bir gerçek OpenAI çağrısı yapılmadı; aynı
-senaryo, aynı kod yolu).**
-`MT-UIAG-028`'de (`ORD-1001 siparisimi iptal et`, `support`) ölçülen
-onay kartı ZATEN bu case'in tarif ettiği tam biçimdeydi: başlıkta
-`"Order ORD-1001"` (`text-sm font-medium`) + altında/yanında ince mono
-`cancel_order` (`font-mono text-2xs text-subtle` — kaynak:
-`transcript.tsx:133-138`, `entityName !== null` dalı), altında `"Cancel
-order ORD-1001 for Priya Shah."` mesajı, `Argümanlar` KATLI başlayıp
-açılınca `orderId: "ORD-1001"` gösteriyordu. `samples/Tracon.Api`'nin
-`OrderApprovalPresenter`'ı bu ortamda HER ZAMAN kayıtlı olduğu için
-(`Program.cs:146`) bu, MT-UIAG-028'in ZATEN kanıtladığı davranışın
-aynısı — iki case birbirini doğruluyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
 ## MT-UIAG-054 — Konsolda açıklamayı düzenlemek, editörün kontrolü OLMAYAN alanları düşürmez (B01)
 
 **Gerçek sonuç — beklendiği gibi (B01 düzeltmesi hâlâ tutuyor, regresyon
@@ -1170,23 +770,6 @@ sürüm kaydet"e tıklandı. `GET api/agents/manuel-b01-test`: `description`
 güncellendi, `version: 2`, dört alanın DÖRDÜ DE birebir korunmuş
 (`parameters`, `providerSettings`, `responseCache`, `allowConcurrentToolCalls`)
 — hiçbiri `null`/boş olmadı. Test agent'ı silindi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-UIAG-055 — Yalnız vector search açık olan `memory` bloğu kaydetmede kaybolmaz (B01)
-
-**Gerçek sonuç — beklendiği gibi (B01'in ikinci yarısı da hâlâ tutuyor).**
-HTTP ile `manuel-b01-memory-test` yazıldı: `memory: {enableVectorSearch:
-true, vectorCollection: "test-koleksiyon"}`, diğer üç memory bayrağı
-(`enableFileMemory`/`enableTodo`/`enableTextSearch`) kapalı. Konsolda
-agent açıldı: JSON önizlemesi kaydetmeden ÖNCE bile `memory` bloğunu
-doğru taşıyordu. Ad/açıklamaya dokunmadan "Yeni sürüm kaydet"e tıklandı.
-`GET api/agents/manuel-b01-memory-test`: `memory` **null DEĞİL**,
-`enableVectorSearch: true` ve `vectorCollection: "test-koleksiyon"` birebir
-korunmuş, `version: 2`. `memoryHasAnything`'in artık `enableVectorSearch`'ü
-de kapsadığı doğrulandı. Test agent'ı silindi.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -1219,62 +802,6 @@ izinleri" paneli: `"Script izni yok"` + `"Etkin izin yok."`.
 agent'ı HER ZAMAN var), `workflows` (2 kod workflow'u HER ZAMAN var),
 `audit` (bu turun kendi CRUD aktivitesi 22+ kayıt üretti) — üçü de bu
 örnek uygulamada asla gerçekten boş olamaz.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-UIAG-057 — Bir düğmenin açıklaması hem işaretçiyle hem klavyeyle görünür (Faz 165)
-
-**Gerçek sonuç — beklendiği gibi (kaynak + gerçek klavye-odaklama
-ölçümüyle doğrulandı; öznel "açıklama metni yeterince açık mı" yargısı
-👤'ye kalır, case'in kendi işareti).**
-Ortak `Tooltip` bileşeni (`components/tooltip.tsx`) kaynağı okundu:
-`onMouseEnter`/`onFocus` İKİSİ DE `setVisible(true)` çağırıyor,
-metin `aria-describedby` ile bağlanıyor, `Esc` `setVisible(false)`
-yapıyor ve `stopPropagation()` ÇAĞIRMIYOR (üstteki katmanı etkilemiyor).
-`Badge` ve `Th` bileşenleri de AYNI `Tooltip`'i sarmalıyor — `Th` ek
-olarak `tabIndex={0}` ile klavye erişimi sağlıyor (`runs` ekranının
-"Ağaç token" başlığı böyle).
-
-`agents/manuel-destek`'te `v3` satırının "Geri al" düğmesi tarayıcı-içi
-ölçüldü: `.focus()` sonrası (bir tık gecikmeyle, React state güncellemesi
-beklenerek) `aria-describedby` hedefi `sr-only`'den ÇIKTI (`visible:
-true`) — açıklama İŞARETÇİ OLMADAN, yalnız klavye odağıyla göründü.
-`Escape` dispatch edilince tekrar `sr-only`'ye döndü. `document
-.activeElement === button` doğrulandı (gerçekten odaklanmıştı).
-
-Model sağlık rozeti (`models` ekranı) ve `runs`'ın "Ağaç token" başlığı
-AYNI bileşenleri kullandığı için (kaynak kanıtı) tekrar ayrı ayrı
-ölçülmedi — bu, kapanışta "aynı bileşen, ayrı case" tekrarından kaçınma
-kararıdır.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-UIAG-058 — Yükleme hatası boş bir form göstermez (Faz 165)
-
-**Gerçek sonuç — beklendiği gibi, üç ekranın ÜÇÜNDE de (gerçek `page.route`
-ağ kesmesiyle, DevTools yerine Playwright'ın kendi mekanizmasıyla).**
-Bu ortamda saklanan bir skill, trigger, workflow yoktu — HTTP ile üçü de
-üretildi (`manuel-058-skill`, `manuel-058-trigger` → `support` hedefli,
-`manuel-058-workflow` → `Sequential`). Her biri için ilgili `GET` ucu
-`page.route()` ile `500`e kesildi, düzenleme ekranı açıldı, React
-Query'nin varsayılan yeniden deneme/geri çekilme döngüsü tükenene kadar
-(~8 sn) beklendi:
-
-| Ekran | Kesme sırasında | Form var mı | Sunucu metni çevrilmemiş mi |
-|---|---|---|---|
-| `skills/manuel-058-skill/edit` | `"Internal Server Error: Simulated failure for MT-UIAG-058"` + `"Yeniden dene"` | HAYIR (`input,textarea` sıfır) | Evet, birebir |
-| `triggers/manuel-058-trigger/edit` | aynı desen (`(trigger)` etiketiyle) | HAYIR | Evet |
-| `workflows/manuel-058-workflow/edit` | aynı desen (`(workflow)` etiketiyle) | HAYIR | Evet |
-
-Üçünde de kesme kaldırılıp "Yeniden dene"ye tıklanınca form GERÇEK
-değerlerle doldu: skill'in `textarea.value` tam markdown içeriğini
-taşıdı, trigger'ın hedef adı alanı `"support"`, workflow'un açıklama
-alanı `"Test workflow 058"` — hiçbiri boş kalmadı. Üç test fixture'ı
-temizlendi (silindi).
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 

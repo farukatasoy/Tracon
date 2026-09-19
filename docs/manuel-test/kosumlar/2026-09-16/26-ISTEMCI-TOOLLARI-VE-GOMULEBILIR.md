@@ -68,120 +68,37 @@ MT-IST-001/002/007/008/009/012/014 gerçek `openai`'ye küçük çağrılar yapt
 
 ---
 
-## MT-IST-001 — İstemci tool'u çağrılır ama sunucuda ÇALIŞMAZ
+> ### ⚗️ Damıtılmış koşum kaydı
+> Geçen ve **hiçbir düzeltme/kusur işareti taşımayan** case'lerin
+> `Gerçek sonuç` blokları düştü — bir koşumun ortam çıktısı, koşum
+> bittiği anda değerini kaybeder. **Geçmeyen** ve **işaret taşıyan**
+> her case'in bloğu AYNEN durur. Tam metin — kopyala, çalıştır:
+>
+> ```bash
+> git show 392f50a3:docs/manuel-test/kosumlar/2026-09-16/26-ISTEMCI-TOOLLARI-VE-GOMULEBILIR.md
+> ```
 
-**Gerçek sonuç**
-`support`'a `sessionId: mt-ist-001` ile "sepetimde ne var?" gönderildi:
-yanıt tek bir `functionCall` (`name: "read_shopping_cart"`) taşıyor,
-`functionResult` YOK, `finishReason: "tool_calls"`. `read_shopping_cart`
-istemci tool'u olduğu için (`AddClientTool`) mimari olarak sunucu tarafında
-hiçbir gövde çalıştırılmıyor — koşacak kod yolu yok, dolayısıyla log izi de
-yok (K2).
+---
 
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+## Temiz geçen case'ler (13)
 
-## MT-IST-002 — `toolResults` ile sonuç gönderilince tur tamamlanır
+| Case | Durum | Başlık |
+|---|---|---|
+| MT-IST-001 | ☑ | İstemci tool'u çağrılır ama sunucuda ÇALIŞMAZ |
+| MT-IST-002 | ☑ | `toolResults` ile sonuç gönderilince tur tamamlanır |
+| MT-IST-003 | ☑ | Aynı `callId` ikinci kez yanıtlanır → `409` |
+| MT-IST-004 | ☑ | Bilinmeyen `callId` ile sonuç gönderilir → `400` |
+| MT-IST-005 | ☑ | `sessionId` olmadan `toolResults` gönderilir → `400` |
+| MT-IST-006 | ☑ | Kuyruk yolunda (`Prefer: respond-async`) `toolResults` reddedilir |
+| MT-IST-007 | ☑ | `errorMessage` model'e ulaşır, `result` yerine kullanılır |
+| MT-IST-008 | ☑ | İstemciden gelen sonuç guard'dan geçer |
+| MT-IST-009 | ☑ | Başka kiracının oturumuna sonuç yazılamaz |
+| MT-IST-010 | ☑ | `AllowedOrigins` boşken CORS başlığı yollanmaz |
+| MT-IST-011 | ☑ | `AllowedOrigins` açıldığında izin verilen origin geçer |
+| MT-IST-014 | ☑ | Persistent bir agent'ın istemci tool'u REPLAY'İ HER ÜÇ MOD'DA reddeder (Faz 112) |
+| MT-IST-015 | ☑ | Kod tanımlı (`support`) agent'ta da replay 409 döner (katalog kolu, Faz 112) |
 
-**Gerçek sonuç**
-Aynı `sessionId` ile `toolResults: [{callId, result: "2x Kablosuz Fare"}]`
-gönderildi: `200`, yanıt metni "Sepetinizde: 2 adet Kablosuz Fare var."
-(sepet içeriğinden bahsediyor), `finishReason: "stop"`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-IST-003 — Aynı `callId` ikinci kez yanıtlanır → `409`
-
-**Gerçek sonuç**
-Aynı `Idempotency-Key` ile tekrar: `200` + `Idempotency-Replayed: true`
-(idempotency katmanı devreye girdi, gerçek iş mantığına hiç uğramadı —
-yukarıdaki sapma notuna bakın). **Yeni** bir `Idempotency-Key` ile aynı
-`callId`/`result` tekrar gönderildiğinde: `409`,
-`{"title":"Tool call already answered","detail":"The client-side tool
-call with id '...' already has a result."}` — case'in iddia ettiği davranış
-doğrulandı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-IST-004 — Bilinmeyen `callId` ile sonuç gönderilir → `400`
-
-**Gerçek sonuç**
-`400`, `{"title":"Unknown tool call","detail":"There is no pending
-client-side tool call with id 'hic-var-olmayan' in this session."}`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-IST-005 — `sessionId` olmadan `toolResults` gönderilir → `400`
-
-**Gerçek sonuç**
-`400`, `{"title":"Session required for tool result","detail":"A pending
-client-side tool call lives in session history; 'sessionId' is
-required."}`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-IST-006 — Kuyruk yolunda (`Prefer: respond-async`) `toolResults` reddedilir
-
-**Gerçek sonuç**
-`message` alanı EKLENEREK (yukarıdaki sapma notu) tekrar denendi: `400`,
-`{"title":"Not supported","detail":"A queued run ('Prefer: respond-async')
-does not support approval decisions, client-side tool results,
-attachments, parameters, or documents in this version."}` — kuyruk kısıtını
-açıkça anlatıyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-IST-007 — `errorMessage` model'e ulaşır, `result` yerine kullanılır
-
-**Gerçek sonuç**
-Yeni oturum (`mt-ist-007`), `toolResults: [{callId, errorMessage:
-"kullanici izin vermedi"}]`: `200`, model yanıtı "Sepeti göremedim çünkü
-erişim izni verilmedi. İsterseniz izni açıp tekrar deneyebilirim." —
-`errorMessage` temelinde, `finishReason: "stop"`, tur tamamlandı — `400`
-DEĞİL.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-IST-008 — İstemciden gelen sonuç guard'dan geçer
-
-**Gerçek sonuç**
-`support`'un kalıcı `AddPatternContentGuard` kaydı (`samples/Tracon.Api/
-Program.cs:214-218`, yasaklı terim `confidential-project`) kullanıldı.
-Yeni oturum, `toolResults.result` yasaklı terimi taşıyor: `422`,
-`errorType: "content_blocked"`, `detail: "...The blocked text is
-deliberately not recorded."` — yanıt gövdesi yasaklı terimi taşımıyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-IST-009 — Başka kiracının oturumuna sonuç yazılamaz
-
-**Gerçek sonuç**
-Ana uygulama `Tenancy:Enabled`+`AllowHeaderResolution` ile yeniden
-başlatıldı. `X-Tracon-Tenant: tenant-a` ile MT-IST-001 tekrarlandı
-(`callId` alındı), sonra AYNI `sessionId`+`callId` ile `X-Tracon-Tenant:
-tenant-b` başlığıyla `toolResults` gönderildi: `400`, `"Unknown tool
-call"` — `tenant-b`'nin bakış açısından çağrı/oturum hiç yok (aynı
-bilinmeyen-`callId` yoluna düşüyor, `tenant-a`'nın bekleyen çağrısına
-asla erişilmedi).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-IST-010 — `AllowedOrigins` boşken CORS başlığı yollanmaz
-
-**Gerçek sonuç**
-Temel durumda (`AllowedOrigins: []`), `Origin: https://baska-site.example.com`
-başlığıyla `GET /api/meta`: `grep -i access-control` çıktısı **boş** —
-`Access-Control-Allow-Origin` yok.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-IST-011 — `AllowedOrigins` açıldığında izin verilen origin geçer
-
-**Gerçek sonuç**
-`Tracon__Ui__AllowedOrigins__0=https://baska-site.example.com` ile yeniden
-başlatılınca AYNI istek: `Access-Control-Allow-Origin:
-https://baska-site.example.com` başlığı döndü.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+## Ayrıntı taşıyan case'ler (3)
 
 ## MT-IST-012 — Gömülebilir bileşen tarayıcıda çalışır ve turu tamamlar
 
@@ -221,39 +138,6 @@ ARAYUZ-GENEL.md`'ye bırakıyor (o dosya 2026-09-16'da 56/57 kusursuz
 kapandı) — yeni bir `HATA-S4-*` AÇILMADI, ama tur kapanışında `09` ailesinin
 kendi konsol taramasının bu iki rotayı (`/tools`, `/runs/{id}`) gerçekten
 ziyaret edip etmediği doğrulanması ÖNERİLİR.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-IST-014 — Persistent bir agent'ın istemci tool'u REPLAY'İ HER ÜÇ MOD'DA reddeder (Faz 112)
-
-**Gerçek sonuç**
-`manuel-ist-replay` (gerçek `openai`/`gpt-5.4-mini` — `echo` yok, sapma
-notuna bakın; yalnız `read_shopping_cart` taşıyor) kaydedildi ve bir run
-tamamlandı. Üç replay isteği:
-- `ReplayTools`: `409`.
-- `LiveTools`: `409`.
-- `NoTools`: `409`.
-
-Üçü de AYNI `detail`i taşıyor: `"Agent 'manuel-ist-replay' carries the
-client-side tool 'read_shopping_cart' (AddClientTool)...This run cannot be
-replayed in any tool mode."` — `read_shopping_cart` adı ve "cannot be
-replayed in any tool mode" ibaresi her üçünde birebir var; `NoTools`
-DAHİL reddedildi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-IST-015 — Kod tanımlı (`support`) agent'ta da replay 409 döner (katalog kolu, Faz 112)
-
-**Gerçek sonuç**
-MT-IST-001'in `runId`'siyle `LiveTools` replay denendi: `409`,
-`{"title":"A tool requiring approval cannot run live","detail":"Agent
-'support' carries the tool 'cancel_order', which requires approval, and
-cannot run in 'LiveTools' mode...This agent has no persistent definition
-(code-defined or deleted), so 'ReplayTools'/'NoTools' are not available
-either — this run cannot be replayed."}` — `cancel_order` (onay
-gerektiren guard önce tetiklendi) adını taşıyor; case'in kendi notu
-gereği `read_shopping_cart` yerine bu ad çıkması da kabul edilen bir
-sonuç.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 

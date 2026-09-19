@@ -175,6 +175,49 @@ oturumunun ilk çalıştırmasını yanıltıyor.
 
 ---
 
+> ### ⚗️ Damıtılmış koşum kaydı
+> Geçen ve **hiçbir düzeltme/kusur işareti taşımayan** case'lerin
+> `Gerçek sonuç` blokları düştü — bir koşumun ortam çıktısı, koşum
+> bittiği anda değerini kaybeder. **Geçmeyen** ve **işaret taşıyan**
+> her case'in bloğu AYNEN durur. Tam metin — kopyala, çalıştır:
+>
+> ```bash
+> git show fca6f3a1:docs/manuel-test/kosumlar/2026-09-16/32-DOKUMAN-KALITESI.md
+> ```
+
+---
+
+## Temiz geçen case'ler (24)
+
+| Case | Durum | Başlık |
+|---|---|---|
+| MT-DKL-007 | ☑ | Dört bölümden birer sayfanın `og:image` etiketi dört farklı dosyaya işaret eder |
+| MT-DKL-008 | ☑ | `## Read next` bölümü silinince kapı sayfayı adıyla söyler |
+| MT-DKL-010 | ☑ | Görselsiz sidebar bölümü eklenince kapı bölümü adıyla söyler |
+| MT-DKL-011 | ☑ | Diyagramı silinen sayfa muafiyet mekanizmasını adıyla gösterir |
+| MT-DKL-013 | ☑ | Çifti olmayan renk token'ı eklenince kapı adıyla kızarır |
+| MT-DKL-014 | ☑ | Açık tema tanımı silinince kapı "hesap atlanmaz" ilkesiyle kızarır |
+| MT-DKL-015 | ☑ | Bir token'ın son kullanımı kaldırılınca kapı adıyla kızarır |
+| MT-DKL-017 | ☑ | Tavan düşürülünce kapı kaç sayfanın aştığını söyler |
+| MT-DKL-018 | ☑ | Karar numarası sızınca kapı sayfayı ve nedeni söyler |
+| MT-DKL-019 | ☑ | Muaf sayfaya diyagram eklenince kapı muafiyeti düşürmeyi ister |
+| MT-DKL-021 | ☑ | Claim işaretinin tipini var olmayan bir tipe değiştirince kapı adıyla kızarır |
+| MT-DKL-022 | ☑ | Görünür değer işaretten sürüklenince kapı "backtick-quoted literal" ile kızarır |
+| MT-DKL-031 | ☑ | Sonsuz animasyon yok; `prefers-reduced-motion` kuralı var |
+| MT-DKL-033 | ☑ | `dist/404.html` özel 404 sayfası |
+| MT-DKL-035 | ☑ | "an Tracon" yazılınca kapı bağlamıyla kızarır |
+| MT-DKL-038 | ☑ | `site-seo-denetle.py` production build üzerinde sıfır hata |
+| MT-DKL-039 | ☑ | Nginx HTTP sözleşmesi: redirect, port/scheme sızıntısı, noindex, 404 |
+| MT-DKL-040 | ☑ | Preview build tamamı `noindex`, canonical production'a işaret eder |
+| MT-DKL-012 | ☑ | 👤 Klavyeyle `Tab`: skip-to-content, odak halkası |
+| MT-DKL-025 | ☑ | 👤 Açılış sayfası CTA'ları |
+| MT-DKL-027 | ☑ | 👤 Arama: filtre grupları ve sayıları |
+| MT-DKL-028 | ☑ | 👤 Sonuçsuz arama sorgusu |
+| MT-DKL-029 | ☑ | 👤 Sayfa yüklenince `Tab`: skip-to-content, landmark'lar, tek `h1` |
+| MT-DKL-030 | ☑ | 👤 Koyu tema + %200 yakınlaştırma, taşma yok |
+
+## Ayrıntı taşıyan case'ler (16)
+
 ## MT-DKL-005 — `Read next` bölümü olmayan sayfaları grep'le, yalnız muaf olanlar çıkmalı
 
 **Gerçek sonuç**
@@ -198,40 +241,6 @@ kendisi (gerçek kapı) zaten ikisini de doğru muaf tutuyor ve kızarmıyor.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
-## MT-DKL-007 — Dört bölümden birer sayfanın `og:image` etiketi dört farklı dosyaya işaret eder
-
-**Gerçek sonuç**
-`npx astro preview --port 4321` üzerinden (`npm run build` bu oturumda zaten
-koşuldu):
-```
-/                     -> og:image = https://tracon.dev/social/overview.png   (200)
-/ui/                  -> og:image = https://tracon.dev/social/console.png    (200)
-/guides/production/   -> og:image = https://tracon.dev/social/operate.png    (200)
-/reference/glossary/  -> og:image = https://tracon.dev/social/reference.png (200)
-```
-Dört farklı dosya adı, dördü de sayfada `200` — hem etiket hem dosyanın kendisi
-ayrıca `curl`'lendi ve ikisi de `200` döndü.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-DKL-008 — `## Read next` bölümü silinince kapı sayfayı adıyla söyler
-
-**Gerçek sonuç**
-`guides/reliability.md`'nin `## Read next` bölümünden itibaren gövde geçici
-olarak kesildi (yedek alındı), `node scripts/check-content.mjs`:
-```
-Content check failed with 2 issue(s):
-  docs-site/public/llms-full.txt does not match capabilities.md; run: node docs-site/scripts/build-agent-map.mjs
-  guides/reliability.md: does not end with '## Read next' (last section: Troubleshooting)
-```
-İkinci satır beklenen davranış: sayfa **adıyla** söyleniyor. İlk satır bu
-case'in kendi mutasyonunun yan etkisi (kesilen sayfa `llms-full.txt`'nin
-üretilen kopyasını da değiştiriyor) — case'in odağı olan davranışla ilgisi yok.
-Değişiklik geri alındı (`cp` yedekten), `git diff --stat` boş — dosya
-kirlenmedi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
 ## MT-DKL-009 — Açık temada kontrast oranı düşürülünce kapı oranı yazarak kızarır
 
 **Gerçek sonuç**
@@ -250,90 +259,6 @@ koda göre yanlıştı). Değişiklik geri alındı, `git diff --stat` boş.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
-## MT-DKL-010 — Görselsiz sidebar bölümü eklenince kapı bölümü adıyla söyler
-
-**Gerçek sonuç**
-`src/sidebar.mjs`'in `sidebar` dizisine `sectionImages`'ta karşılığı olmayan
-`'MT-DKL-010 temp section'` etiketli boş bir bölüm eklendi (yedek alındı),
-`node scripts/check-content.mjs`:
-```
-Content check failed with 1 issue(s):
-  Sidebar section 'MT-DKL-010 temp section' has no link-preview image in src/sidebar.mjs
-```
-Tam beklenen biçimde: `Sidebar section '…' has no link-preview image`.
-Değişiklik geri alındı, `git diff --stat` boş.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-DKL-011 — Diyagramı silinen sayfa muafiyet mekanizmasını adıyla gösterir
-
-**Gerçek sonuç**
-`guides/reliability.md`'nin tek `mermaid` bloğu geçici olarak silindi (yedek
-alındı), `node scripts/check-content.mjs`:
-```
-Content check failed with 2 issue(s):
-  docs-site/public/llms-full.txt does not match capabilities.md; run: node docs-site/scripts/build-agent-map.mjs
-  guides/reliability.md: 21194 bytes of narrative with no diagram or image. Add one, or add it to DIAGRAM_EXEMPT in this file with the reason it is a table page.
-```
-İkinci satır beklenen davranışı karşılıyor — sayfayı adıyla söylüyor ve
-muafiyet mekanizmasını (`DIAGRAM_EXEMPT`) adıyla gösteriyor; spec'in "muafiyet
-listesini gösterir" ifadesi listenin **tam içeriğini** basmak değil, mekanizmayı
-adlandırmak anlamına geliyor (mesaj listenin kendisini dökmüyor, nasıl
-ekleneceğini söylüyor). İlk satır (`llms-full.txt`) MT-DKL-008'deki gibi bu
-mutasyonun yan etkisi, case'in odağıyla ilgisiz. Değişiklik geri alındı,
-`git diff --stat` boş.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-DKL-013 — Çifti olmayan renk token'ı eklenince kapı adıyla kızarır
-
-**Gerçek sonuç**
-`:root` (karanlık tema) bloğuna `--tracon-mtdkl13-test: #ff00ff;` eklendi
-(yedek alındı, hiçbir yerde kullanılmayan yeni bir token), `node
-scripts/check-content.mjs`:
-```
-Content check failed with 2 issue(s):
-  site.css: --tracon-mtdkl13-test is a colour with no contrast pair. Add it to CONTRAST_PAIRS or to DECORATIVE with the reason it carries no information.
-  site.css: --tracon-mtdkl13-test is declared but nothing reads it
-```
-Birinci satır tam beklenen mesaj. İkinci satır beklenmedik ama tutarlı bir yan
-etki: yeni token hiçbir yerde `var(...)` ile okunmadığı için MT-DKL-015'in
-kapısı da aynı anda tetikleniyor — aynı minimal mutasyon iki kuralı birden
-ihlal ediyor, bu **case'in beklediği** davranışın dışında değil, üstünde.
-Değişiklik geri alındı, `git diff --stat` boş.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-DKL-014 — Açık tema tanımı silinince kapı "hesap atlanmaz" ilkesiyle kızarır
-
-**Gerçek sonuç**
-`:root[data-theme='light']` bloğundan `--tracon-accent-quiet` satırı geçici
-olarak silindi (yedek alındı), `node scripts/check-content.mjs`:
-```
-Content check failed with 1 issue(s):
-  site.css: --tracon-accent-quiet has no value in the light theme
-```
-Tam beklenen mesaj, tek hata — kontrast hesaplaması **atlanmadan**
-(front/back'ten biri yoksa direkt hataya düşülüyor, sessizce geçilmiyor,
-`check-content.mjs:1097-1101`). Değişiklik geri alındı, `git diff --stat` boş.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-DKL-015 — Bir token'ın son kullanımı kaldırılınca kapı adıyla kızarır
-
-**Gerçek sonuç**
-`--tracon-warning`'in `site.css` içindeki **tek** kullanımı
-(`--sl-color-orange: var(--tracon-warning);`) geçici olarak silindi (yedek
-alındı; token'ın kendi `:root` tanımları dokunulmadı), `node
-scripts/check-content.mjs`:
-```
-Content check failed with 1 issue(s):
-  site.css: --tracon-warning is declared but nothing reads it
-```
-Tam beklenen mesaj, tek hata. Değişiklik geri alındı, `git diff --stat` boş.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
 ## MT-DKL-016 — Sayfa ağırlığı tavanın altında; en ağır sayfa adıyla ve bayt olarak yazılır
 
 **Gerçek sonuç**
@@ -345,59 +270,6 @@ Weight: 1147 pages under 59000 B gzip. Heaviest: troubleshooting/index.html at 5
 kendi tarihçe yorumuyla doğrulandı ve gerekçeli (içerik büyümesi, her raise
 ölçüm ve tarihle gerekçelendirilmiş). Spec bu koşumda düzeltildi (kural 1
 istisnası).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-DKL-017 — Tavan düşürülünce kapı kaç sayfanın aştığını söyler
-
-**Gerçek sonuç**
-`check-weight.mjs`'teki `CEILING` geçici olarak `59_000`'den `40_000`'e
-düşürüldü (yedek alındı), `node scripts/check-weight.mjs`:
-```
-27 page(s) over the weight ceiling:
-  api/package-tracon-abstractions/index.html: 40702 B gzip, ceiling 40000 B
-  api/tracon/index.html: 52357 B gzip, ceiling 40000 B
-  ... (27 satır)
-Either reduce the page, or raise CEILING in this file with the measurement.
-```
-Beklenen davranış tam karşılandı: kaç sayfa (27) aştığı başlıkta yazılı.
-Değişiklik geri alındı; `node scripts/check-weight.mjs` yeniden çalıştırılıp
-tek satır temiz çıktıya döndüğü doğrulandı, `git diff --stat` boş.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-DKL-018 — Karar numarası sızınca kapı sayfayı ve nedeni söyler
-
-**Gerçek sonuç**
-`reference/glossary.md`'nin sonuna `<!-- MT-DKL-018 temp: K-382 -->` eklendi
-(yedek alındı), `node scripts/check-content.mjs`:
-```
-Content check failed with 2 issue(s):
-  docs-site/public/llms-full.txt does not match capabilities.md; run: node docs-site/scripts/build-agent-map.mjs
-  reference/glossary.md: internal development history leaked into a public page
-```
-İkinci satır tam beklenen mesaj (`internal-history.mjs`'nin ortak dedektörü,
-`check-content.mjs:1165`). İlk satır yan etki (MT-DKL-008 ile aynı desen).
-Değişiklik geri alındı, `git diff --stat` boş.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-DKL-019 — Muaf sayfaya diyagram eklenince kapı muafiyeti düşürmeyi ister
-
-**Gerçek sonuç**
-`DIAGRAM_EXEMPT`'te listeli `reference/glossary.md`'ye geçici bir `mermaid`
-bloğu eklendi (yedek alındı), `node scripts/check-content.mjs`:
-```
-Content check failed with 4 issue(s):
-  reference/glossary.md: Mermaid diagram is missing an accessible title
-  reference/glossary.md: Mermaid diagram is missing an accessible description
-  docs-site/public/llms-full.txt does not match capabilities.md; run: node docs-site/scripts/build-agent-map.mjs
-  reference/glossary.md: listed as a table page but now shows a figure; drop the exemption
-```
-Dördüncü satır tam beklenen mesaj. İlk ikisi test diyagramının `accTitle`/
-`accDescr` eklemeden yazılmasının yan etkisi (gerçek bir diyagram eklenirse bu
-iki uyarı da ayrıca doğru bir kapıdır), üçüncüsü MT-DKL-008 deseniyle aynı yan
-etki. Değişiklik geri alındı, `git diff --stat` boş.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -435,39 +307,6 @@ koşuldu → **çıkış 0**, dört adımın dördü de yeşil. Koşumda aynı d
 adım üç hatayla kızarıyordu. Düzeltme sıradır: `check` artık önce `build`
 koşar (`prebuild` üretimi yapar), sonra `check:content`. İki kez üretmek
 docfx'i her koşumda iki kez ödetirdi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-DKL-021 — Claim işaretinin tipini var olmayan bir tipe değiştirince kapı adıyla kızarır
-
-**Gerçek sonuç**
-`reference/configuration.md`'deki `<!-- claim:option
-TraconSchedulingOptions.RunWorker=true -->` işareti geçici olarak
-`TraconSchedulingOptionsNope.RunWorker=true` yapıldı (yedek alındı), `node
-scripts/check-content.mjs`:
-```
-Content check failed with 2 issue(s):
-  docs-site/public/llms-full.txt does not match capabilities.md; run: node docs-site/scripts/build-agent-map.mjs
-  reference/configuration.md: claim names 'TraconSchedulingOptionsNope', which is not a public sealed Options type
-```
-İkinci satır tam beklenen mesaj. İlk satır MT-DKL-008 deseniyle aynı yan etki.
-Değişiklik geri alındı, `git diff --stat` boş.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-DKL-022 — Görünür değer işaretten sürüklenince kapı "backtick-quoted literal" ile kızarır
-
-**Gerçek sonuç**
-Aynı satırda **yalnız görünür** metin (`` `true` ``) `` `false` `` yapıldı,
-işaret (`<!-- claim:option TraconSchedulingOptions.RunWorker=true -->`)
-**dokunulmadı** (yedek alındı), `node scripts/check-content.mjs`:
-```
-Content check failed with 2 issue(s):
-  docs-site/public/llms-full.txt does not match capabilities.md; run: node docs-site/scripts/build-agent-map.mjs
-  reference/configuration.md: claim says TraconSchedulingOptions.RunWorker=true, but the sentence right before the marker does not state that value as a backtick-quoted literal (found: 'false')
-```
-İkinci satır tam beklenen davranış — görünür metin ile işaret birbirinden
-sürüklenince yakalanıyor. Değişiklik geri alındı, `git diff --stat` boş.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -546,43 +385,6 @@ bit-bit aynı. `git status --short` de temiz.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
-## MT-DKL-031 — Sonsuz animasyon yok; `prefers-reduced-motion` kuralı var
-
-**Gerçek sonuç**
-```
-grep -rn "@keyframes|animation:|animation-iteration-count" src/ --include="*.astro" --include="*.css"
-site.css:188: @media (prefers-reduced-motion: reduce) { *, *::before, *::after {
-  animation: none !important; transition: none !important;
-  scroll-behavior: auto !important; } }
-```
-Tüm `src/` içinde (bileşenler dahil) tek bir `@keyframes` veya `animation:`
-bildirimi bu satır — yani sitede tanımlı **hiçbir** sonsuz/tekrarlı animasyon
-yok, ve `prefers-reduced-motion: reduce` kuralı mevcut ve tüm animasyon/geçiş/
-scroll davranışını kapatıyor. Statik kod taraması yeterliydi, tarayıcı
-gerekmedi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-DKL-033 — `dist/404.html` özel 404 sayfası
-
-**Gerçek sonuç**
-`npm run build` çıktısından `dist/404.html` doğrudan okundu:
-```
-<title>Page not found | Tracon</title>
-Body: "Documentation Page not found This address does not point to a
-  documentation page. The page may have moved, or the link may be
-  incomplete. Open the documentation or return home. You can also use
-  Search in the header to find a task, type, or endpoint."
-```
-"Page not found" başlığı, dokümana ("Open the documentation") ve ana sayfaya
-("return home") bağlantı, aramaya yönlendirme ("use Search in the header") —
-dördü de mevcut. Dosya gerçek host'un sunacağı statik `dist/404.html`;
-`astro preview`'ın kendi dev-time 404'ünden ayrı olduğu doğrulanmadı (bu ayrım
-için `astro preview`'da bilinçli olarak var olmayan bir yol denenmedi —
-case'in kendi iddiası, bu turda ayrıca sınanmadı).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
 ## MT-DKL-034 — Alarm emojisi sızınca kapı sayfayı ve satırı söyler
 
 **Gerçek sonuç**
@@ -598,21 +400,6 @@ Content check failed with 2 issue(s):
 ```
 İkinci satır tam beklenen davranış — sayfa **ve** satır numarası (`:230`)
 birlikte yazılıyor. Değişiklik geri alındı, `git diff --stat` boş.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-DKL-035 — "an Tracon" yazılınca kapı bağlamıyla kızarır
-
-**Gerçek sonuç**
-`reference/glossary.md`'ye "This is an Tracon agent used only for a manual
-check." cümlesi eklendi (yedek alındı), `node scripts/check-content.mjs`:
-```
-Content check failed with 2 issue(s):
-  docs-site/public/llms-full.txt does not match capabilities.md; run: node docs-site/scripts/build-agent-map.mjs
-  reference/glossary.md: "an Tracon" — the product name takes "a", not "an". Context: "ion names these terms appear in This is an Tracon agent used only for a manual c".
-```
-İkinci satır tam beklenen mesaj, bağlamı da taşıyor. Değişiklik geri alındı,
-`git diff --stat` boş.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -656,68 +443,6 @@ açıkça gösteriyor — `/tracon` yolu iddiası bu ekranda doğrulandı. Örne
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
-## MT-DKL-038 — `site-seo-denetle.py` production build üzerinde sıfır hata
-
-**Gerçek sonuç**
-Repo kökünde (`docs-site/dist` bu oturumda zaten üretilmişti):
-```
-python3 scripts/site-seo-denetle.py
-SEO: 1147 HTML, 1146 sitemap URL, 1146 erişilebilir sayfa; 0 hata.
-```
-Tekil title/description, canonical/JSON-LD, sitemap eşitliği, erişilebilirlik
-ve başlık seviyesi kontrolleri sıfır hata ile geçti (varsayılan mod =
-production, `--preview` verilmedi).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-DKL-039 — Nginx HTTP sözleşmesi: redirect, port/scheme sızıntısı, noindex, 404
-
-**Gerçek sonuç**
-Resmi `nginx:1.27-alpine` imajıyla **geçici, bu oturumun kendi** container'ı
-(`ap-s3-seo-nginx`, port `41753`, paylaşılan `ap-pg`/`ap-mssql`'e dokunmadan)
-başlatıldı — `deploy/nginx.conf` `NGINX_ENVSUBST_FILTER=SITE_HOST` ile template
-olarak yüklendi, `docs-site/dist` salt-okunur bağlandı:
-```
-docker run -d --rm --name ap-s3-seo-nginx -p 127.0.0.1:41753:8080 \
-  -e SITE_HOST="tracon.dev" -e NGINX_ENVSUBST_FILTER=SITE_HOST \
-  -v ".../docs-site/dist:/usr/share/nginx/html:ro" \
-  -v ".../docs-site/deploy/nginx.conf:/etc/nginx/templates/default.conf.template:ro" \
-  nginx:1.27-alpine
-
-python3 scripts/site-http-denetle.py http://127.0.0.1:41753
-HTTP: 24 yanıt denetlendi; 0 hata.
-```
-24 yanıt = 12 kontrol × 2 host (`tracon.dev` + `preview.invalid`). Slash
-redirect query korunuyor, `preview.invalid` host'unda `X-Robots-Tag: noindex`,
-gerçek host'ta yok, `404` sayfaları `Page not found` + `noindex` taşıyor —
-hepsi 0 hata ile. Container test sonunda `docker stop` ile kaldırıldı
-(`--rm` otomatik sildi); `docker ps` paylaşılan iki container'ın (`ap-pg`,
-`ap-mssql`) dokunulmadığını doğruladı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-DKL-040 — Preview build tamamı `noindex`, canonical production'a işaret eder
-
-**Gerçek sonuç**
-Mevcut `dist/`'e dokunmadan ayrı bir çıktı dizinine build alındı:
-```
-TRACON_SITE_INDEXING=disabled npx astro build --outDir dist-preview
-... 1147 page(s) built ...
-
-python3 scripts/site-seo-denetle.py --preview --dist docs-site/dist-preview
-SEO: 1147 HTML, 1146 sitemap URL, 1146 erişilebilir sayfa; 0 hata.
-```
-Örnek doğrulama (`dist-preview/index.html`):
-```
-<meta name="robots" content="noindex"/>
-<link rel="canonical" href="https://tracon.dev/"/>
-```
-`noindex` var, canonical **production** adresine işaret ediyor, robots
-taramayı engellemiyor (yalnız indexlemeyi), sıfır hata. `dist-preview/`
-oturum sonunda silindi, `dist/` (production) dokunulmadı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
 ## MT-DKL-001 — 👤 Açılış sayfası hero ve kontrol şeridi
 
 **Gerçek sonuç**
@@ -755,54 +480,6 @@ Koşulmadı — gerçek göz gerektirir. Fiziksel eylem tablosuna eklendi.
 Koşulmadı — gerçek göz gerektirir. Fiziksel eylem tablosuna eklendi.
 
 **Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-DKL-012 — 👤 Klavyeyle `Tab`: skip-to-content, odak halkası
-
-**Gerçek sonuç**
-Koşulmadı bu oturumda. Not: bu case Playwright ile **nesnel** olarak
-koşulabilir (erişilebilirlik ağacı + `browser_press_key` ile `Tab` sırası,
-odak halkasının `outline`/`box-shadow` CSS'i hesaplanabilir) — aile 02'nin
-önceki bir oturumu benzer bir 👤 case'i (MT-CORE-081) Playwright ile koşup
-`Geçti` işaretlemişti. Bu oturumda budget CLI case'lere ayrıldığı için
-denenmedi; sonraki oturum için iyi bir aday.
-
-**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-**Gerçek sonuç (oturum 14, Playwright — `npx astro preview --port 4321`)**
-`/` ve `/guides/production/` sayfalarında sayfa yüklendikten hemen sonra
-gerçek klavye `Tab` tuşuyla (`browser_press_key`) doğrulandı:
-```
-{ text: "Skip to content", href: "#_top", outlineStyle: "solid", outlineWidth: "2px", outlineColor: "rgb(9, 101, 82)" }
-```
-İlk durak her iki sayfada da "Skip to content", hedefi `#_top` DOM'da var
-(`document.getElementById('_top')` → `true`). Odak halkası yalnız ilk
-durakta değil; sonraki 5 `Tab` durağında da (logo linki, ürün nav linkleri)
-görünür kaldı (`outlineStyle: solid`, `outlineWidth: 2px`, tutarlı renk) —
-"her yerde görünür" iddiası nesnel olarak doğrulandı. Aile 02'nin MT-CORE-081
-emsaliyle aynı yöntem, aynı sonuç.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-DKL-025 — 👤 Açılış sayfası CTA'ları
-
-**Gerçek sonuç**
-Koşulmadı bu oturumda. Playwright ile nesnel olarak koşulabilir (tıkla, URL'yi
-oku, alt satırı oku) — sonraki oturum adayı.
-
-**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-**Gerçek sonuç (oturum 14, Playwright)**
-Açılış sayfasında iki CTA bulundu: "What Tracon is" (`/getting-started/`) ve
-"Capability map" (`/capabilities/`). Sırayla tıklandı, ikisi de doğru sayfaya
-gitti (`browser_navigate` sonrası `Page URL` doğrulandı: `/getting-started/`
-ve `/capabilities/`). CTA'ların altındaki satır: "In development. Not yet
-published to NuGet or npm." — paketlerin yayımlanmadığını açıkça söylüyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ## MT-DKL-026 — 👤 Dokuz şablon × dört genişlik × iki tema, yatay kayma yok
 
@@ -871,93 +548,6 @@ eklemek boşluğu kapatmaz, taşır; bu yüzden dekoratif taşma **opt-in** oldu
 yalnız ölçülen güvenli genişlikten (`min-width: 90rem`) itibaren geri geliyor.
 1440'ta tasarım korunuyor (halkalar figürün 48 px sağına taşıyor, viewport'un
 40 px içinde). Diğer sekiz şablon case'in dört genişliğinde de `0`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-DKL-027 — 👤 Arama: filtre grupları ve sayıları
-
-**Gerçek sonuç**
-Koşulmadı bu oturumda. Playwright ile nesnel olarak koşulabilir — sonraki
-oturum adayı.
-
-**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-**Gerçek sonuç (oturum 14, Playwright)**
-Arama açıldı (üst çubuktaki "Search" düğmesi), `tenant isolation` yazıldı.
-Üç filtre grubu sayılarıyla geldi: `.NET API (45)` · `Documentation (16)` ·
-`HTTP API (0)`. Sonuç sayısı yazılı: "61 results for tenant isolation".
-`Documentation (16)` filtresi tıklandı, sonuç metni "16 results for..."a
-düştü — filtre seçmek listeyi gerçekten daraltıyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-DKL-028 — 👤 Sonuçsuz arama sorgusu
-
-**Gerçek sonuç**
-Koşulmadı bu oturumda. Playwright ile nesnel olarak koşulabilir — sonraki
-oturum adayı.
-
-**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-**Gerçek sonuç (oturum 14, Playwright)**
-Arama kutusuna sonuçsuz bir sorgu (`zzznonexistentqueryxyz`) yazıldı.
-Görünür (bounding box > 0, `display`/`visibility` gizli değil) elemanlar
-arasında: "No results for zzznonexistentqueryxyz" + "Search by task, type
-name, or endpoint. Use the content filters to narrow the results." +
-"Browse the documentation" linki. DOM'da ayrıca bir "Search could not load.
-Check your connection and try again." bloğu var ama bu **gizli** (bounding
-box 0×0) — yalnız gerçek bir ağ/indeks hatasında gösterilen ayrı bir panel,
-boş sonuç durumunda görünmüyor. Yani boş sonuç gerçekten bir hata gibi
-görünmüyor, yardım metni ve dokümana dönüş bağlantısı çıkıyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-DKL-029 — 👤 Sayfa yüklenince `Tab`: skip-to-content, landmark'lar, tek `h1`
-
-**Gerçek sonuç**
-Koşulmadı bu oturumda. Playwright ile nesnel olarak koşulabilir
-(erişilebilirlik ağacında landmark rolleri ve `h1` sayısı sayılabilir) —
-sonraki oturum adayı.
-
-**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-**Gerçek sonuç (oturum 14, Playwright)**
-`/` ve `/guides/production/` üzerinde doğrulandı. İlk `Tab` durağı "Skip to
-content", hedefi `#_top` DOM'da mevcut. Landmark sayımı (`querySelectorAll`):
-`header=1, main=1, footer=1` her iki sayfada da; `nav` sayısı birden fazla
-(2 ve 5) ama her biri **ayrı `aria-label`** taşıyor (`"Product"`, `"Footer"`,
-rehber sayfasında ayrıca sidebar/TOC nav'ları) — bu geçerli bir
-erişilebilirlik deseni (çoklu nav landmark, her biri etiketli), spec'in
-"birer landmark olarak bulunur" ifadesiyle çelişmiyor: aranan landmark
-*türleri* (header/nav/main/footer) hepsi mevcut. Her iki sayfada `h1` sayısı
-tam **1**.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-DKL-030 — 👤 Koyu tema + %200 yakınlaştırma, taşma yok
-
-**Gerçek sonuç**
-Koşulmadı bu oturumda. Playwright ile nesnel olarak koşulabilir
-(`browser_resize` ~640px + tema geçişi + `scrollWidth` ölçümü) — sonraki
-oturum adayı.
-
-**Durum:** ☑ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-**Gerçek sonuç (oturum 14, Playwright)**
-640 px genişlik (≈200% yakınlaştırmanın karşılığı), koyu tema
-(`document.documentElement.dataset.theme = 'dark'`). `/troubleshooting/` ve
-`/api/tracon/` üzerinde `body` arkaplanı `rgb(16, 25, 28)` (koyu) — MT-DKL-026
-sweep'inin 640 px verisiyle de örtüşüyor: bu genişlikte 9 şablonun 9'u da
-`docOverflow=0` (bkz. MT-DKL-026 kaydı, aynı 640 px ölçümü orada da alındı).
-Taşma yok, arkaplan koyu.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 

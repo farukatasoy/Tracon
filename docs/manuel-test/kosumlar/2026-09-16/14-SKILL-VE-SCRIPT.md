@@ -12,129 +12,57 @@
 
 # 1 — Skill CRUD ve Frontmatter Doğrulama (Faz 10)
 
-## MT-SKILL-001 — `PUT /api/skills/{name}` yeni bir skill oluşturur (`201`)
-
-**Gerçek sonuç**
-`HTTP: 201`. Gövdede `version: 1`, `createdAt == updatedAt`
-(`"2026-09-17T15:31:29.743493+00:00"` ikisinde de). Tam beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-SKILL-002 — Aynı skill'i tekrar `PUT` etmek günceller (`200`)
-
-**Gerçek sonuç**
-`HTTP: 200` (`201` değil). `version: 2`, `createdAt` DEĞİŞMEDİ,
-`updatedAt` ilerledi. Tam beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+> ### ⚗️ Damıtılmış koşum kaydı
+> Geçen ve **hiçbir düzeltme/kusur işareti taşımayan** case'lerin
+> `Gerçek sonuç` blokları düştü — bir koşumun ortam çıktısı, koşum
+> bittiği anda değerini kaybeder. **Geçmeyen** ve **işaret taşıyan**
+> her case'in bloğu AYNEN durur. Tam metin — kopyala, çalıştır:
+>
+> ```bash
+> git show 89f44ab3:docs/manuel-test/kosumlar/2026-09-16/14-SKILL-VE-SCRIPT.md
+> ```
 
 ---
 
-## MT-SKILL-003 — `GET /api/skills` kiracının skill listesini döner
+## Temiz geçen case'ler (33)
 
-**Gerçek sonuç**
-`['fatura-kontrolu']` — liste skill'i içeriyor. Tam beklenen.
+| Case | Durum | Başlık |
+|---|---|---|
+| MT-SKILL-001 | ☑ | `PUT /api/skills/{name}` yeni bir skill oluşturur (`201`) |
+| MT-SKILL-002 | ☑ | Aynı skill'i tekrar `PUT` etmek günceller (`200`) |
+| MT-SKILL-003 | ☑ | `GET /api/skills` kiracının skill listesini döner |
+| MT-SKILL-004 | ☑ | `DELETE` skill'i ve cascade kaynaklarını siler |
+| MT-SKILL-005 | ☑ | Var olmayan skill'i silmek → `404` |
+| MT-SKILL-006 | ☑ | Yoldaki ad ile gövdedeki ad uyuşmazsa → `400` |
+| MT-SKILL-007 | ☑ | Büyük harf/alt çizgi içeren ad → `400` |
+| MT-SKILL-008 | ☑ | 65 karakterlik ad → `400` |
+| MT-SKILL-009 | ☑ | Boş `description` → `400` |
+| MT-SKILL-010 | ☑ | `instructions` 64 KB sınırını aşarsa → `400` |
+| MT-SKILL-011 | ☑ | 21. kaynak eklenirse (limit 20) → `400` |
+| MT-SKILL-012 | ☑ | Aynı skill içinde iki kaynak aynı adı taşırsa → `400` |
+| MT-SKILL-014 | ☑ | Skill'i arayüzden devre dışı bırakma, checkbox kilitlenir |
+| MT-SKILL-021 | ☑ | `MaxSkillsPerAgent` aşımı SAVE'de geçer, yalnız RUN'da `400` |
+| MT-SKILL-022 | ☑ | Devre dışı skill derlemeye girmez, model `load_skill` görmez |
+| MT-SKILL-023 | ☑ | Kod tanımlı skill, aynı adlı DB kaydını geçersiz kılar |
+| MT-SKILL-024 | ☑ | Skill düzenlemesi, önbellek parmak izini değiştirir |
+| MT-SKILL-030 | ☑ | `FIX-SKILL-PROMPT` → `load_skill` onay kartı üretir |
+| MT-SKILL-031 | ☑ | Onayla → skill talimatı bağlama girer |
+| MT-SKILL-032 | ☑ | Reddet → skill hiç yüklenmez |
+| MT-SKILL-033 | ☑ | "Do not ask again" ile onay → sonraki çağrıda kart çıkmaz |
+| MT-SKILL-040 | ☑ | Varsayılan durumda HERHANGİ bir script uzantısı reddedilir |
+| MT-SKILL-042 | ☑ | 11. script eklenirse (limit 10) → `400` |
+| MT-SKILL-043 | ☑ | Aynı skill içinde iki script aynı adı taşırsa → `400` |
+| MT-SKILL-044 | ☑ | Geçersiz JSON `parametersSchema` → `400` |
+| MT-SKILL-045 | ☑ | Script içeriği 64 KB sınırını aşarsa → `400` |
+| MT-SKILL-050 | ☑ | Script çalıştırma KAPALIYKEN izin vermeye çalışmak → `409` |
+| MT-SKILL-051 | ☑ | `scripts.Enabled=true` (yalnız config) → AYNI istek `201` |
+| MT-SKILL-052 | ☑ | Geçmiş bir `expiresAt` → `400` |
+| MT-SKILL-053 | ☑ | Boş `skillName` → `400` |
+| MT-SKILL-055 | ☑ | İzni arayüzden iptal et → liste hemen güncellenir |
+| MT-SKILL-060 | ☑ | Zaman aşımı: uzun süren script öldürülür |
+| MT-SKILL-061 | ☑ | Çıktı sınırı: büyük çıktı kırpılır |
 
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-SKILL-004 — `DELETE` skill'i ve cascade kaynaklarını siler
-
-**Gerçek sonuç**
-Kaynaklı `test-kaynakli` oluşturuldu (`201`). `DELETE` → `HTTP: 204`.
-Ardından `GET` → `HTTP: 404`, `title: "Skill not found"` (İngilizce —
-K-228). SQL doğrulaması: `SELECT count(*) FROM mt_s2.agent_skill_resources
-WHERE skill_id = (...)` → `0` — cascade çalışıyor. Tam beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-SKILL-005 — Var olmayan skill'i silmek → `404`
-
-**Gerçek sonuç**
-`HTTP: 404`, `title: "Skill not found"`, `detail: "There is no skill named
-'hic-yok'."` (İngilizce — K-228). Tam beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-SKILL-006 — Yoldaki ad ile gövdedeki ad uyuşmazsa → `400`
-
-**Gerçek sonuç**
-`HTTP: 400`, `title: "Name mismatch"` (İngilizce — K-228), `detail: "The
-path name is 'skill-a', the body name is 'skill-b'."`. Tam beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-SKILL-007 — Büyük harf/alt çizgi içeren ad → `400`
-
-**Gerçek sonuç**
-`HTTP: 400`, `title: "Skill name invalid"` (İngilizce — K-228), `detail`
-spec'in beklediği İngilizce MAF metniyle BİREBİR eşleşiyor: "Skill name
-must use only lowercase letters, numbers, and hyphens, and must not start
-or end with a hyphen or contain consecutive hyphens." Tam beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-SKILL-008 — 65 karakterlik ad → `400`
-
-**Gerçek sonuç**
-`HTTP: 400`, `detail: "Skill name must be 64 characters or fewer."` —
-spec'in beklediğiyle birebir. Tam beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-SKILL-009 — Boş `description` → `400`
-
-**Gerçek sonuç**
-`HTTP: 400`, `title: "Skill description invalid"` (İngilizce — K-228),
-`detail: "Skill description is required."`. Tam beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-SKILL-010 — `instructions` 64 KB sınırını aşarsa → `400`
-
-**Gerçek sonuç**
-`HTTP: 400`, `title: "Skill instructions too large"` (İngilizce — K-228),
-`detail: "instructions may be at most 65536 bytes."`. Tam beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-SKILL-011 — 21. kaynak eklenirse (limit 20) → `400`
-
-**Gerçek sonuç**
-`HTTP: 400`, `title: "Too many resources"` (İngilizce — K-228),
-`detail: "A skill may carry at most 20 resources."`. Tam beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-SKILL-012 — Aynı skill içinde iki kaynak aynı adı taşırsa → `400`
-
-**Gerçek sonuç**
-`HTTP: 400`, `title: "Resource name invalid"` (İngilizce — K-228),
-`detail: "Every resource name must be non-empty and unique within the
-skill."`. Tam beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
+## Ayrıntı taşıyan case'ler (14)
 
 ## MT-SKILL-013 — Arayüzden skill oluşturma ve düzenleme
 
@@ -148,20 +76,6 @@ EDİLMEDEN aynen göründü (başlık/madde işaretine dönüşmedi). Sayfanın
 kendi başlığı da zaten "Markdown is stored as source text. The console
 does not render it." diyor. Tam beklenen. (Bilinen `HATA-S2-002` CSP
 konsol hatası tekrar gözlendi, ilgisiz.)
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-SKILL-014 — Skill'i arayüzden devre dışı bırakma, checkbox kilitlenir
-
-**Gerçek sonuç**
-`arayuz-skilli` düzenlendi, "Enabled" checkbox kaldırıldı, Save. Listede
-`Disabled` rozeti göründü ("Stored but not attached to any run: an agent
-that references it gets nothing." açıklamasıyla). `manuel-bos` (DB
-kaynaklı, düzenlenebilir) agent'ının düzenleme ekranı açıldı, Skills
-panelinde `arayuz-skilli` checkbox'ı `[disabled]` özniteliğiyle ve
-"Disabled" etiketiyle göründü — tıklanamıyor. Tam beklenen.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -188,68 +102,6 @@ zarfı yanlış — spec'in "Beklenen sonuç" zarf varsayımı düzeltilmeli.
 
 ---
 
-## MT-SKILL-021 — `MaxSkillsPerAgent` aşımı SAVE'de geçer, yalnız RUN'da `400`
-
-**Gerçek sonuç**
-`Tracon__Skills__MaxSkillsPerAgent=1` ile yeniden başlatıldı. İki skill
-oluşturuldu (201/201). Adım 1 (`iki-skilli-agent`, 2 skill): `HTTP: 201`
-— kayıt BAŞARILI, limit denetlenmedi. Adım 2 (çalıştır): `HTTP: 400`,
-`title: "Agent compilation failed"` (İngilizce — K-228), `detail: "Agent
-'iki-skilli-agent' can have at most 1 skills."`. Tam beklenen — asimetri
-doğrulandı. Ayar kaldırıldı, yeniden başlatıldı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-SKILL-022 — Devre dışı skill derlemeye girmez, model `load_skill` görmez
-
-**Gerçek sonuç**
-`fatura-kontrolu` devre dışı bırakıldı (`enabled:false`), `manuel-skill-test`
-agent'ı oluşturuldu (`skillNames:["fatura-kontrolu"]`). Playground'da
-`FIX-SKILL-PROMPT` gönderildi: HİÇBİR `load_skill` onay kartı belirmedi —
-model doğrudan genel bir yardım yanıtı üretti (fatura kontrolüyle ilgili
-genel bir soru-cevap, `FATURA_SKILL_ACTIVE` işaretçisi YOK). Tam beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-SKILL-023 — Kod tanımlı skill, aynı adlı DB kaydını geçersiz kılar
-
-**Gerçek sonuç**
-`samples/Tracon.Api/Program.cs`'e geçici `tracon.AddSkill(new
-AgentSkillDefinition { Name = "fatura-kontrolu", ... "KOD_SKILL_ACTIVE" yaz
-..., Enabled = true })` eklendi, `dotnet build -c release` (0/0), yeniden
-başlatıldı. Playground'da `FIX-SKILL-PROMPT` gönderildi, onaylandı:
-`load_skill` sonucu `<description>KOD TANIMLI surum - DB kaydini gecersiz
-kilar.</description>` ve `KOD_SKILL_ACTIVE` talimatını taşıdı (DB'deki
-`Fatura kontrol kurallarini aciklar.`/`FATURA_SKILL_ACTIVE` DEĞİL). Modelin
-nihai yanıtı tam olarak `KOD_SKILL_ACTIVE`. Tam beklenen. Kod değişikliği
-GERİ ALINDI (`git status --short` temiz), yeniden `dotnet build` (0/0),
-yeniden başlatıldı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-SKILL-024 — Skill düzenlemesi, önbellek parmak izini değiştirir
-
-**Gerçek sonuç**
-`fatura-kontrolu` yeniden ETKİN yapıldı (`FATURA_SKILL_ACTIVE` işaretçili,
-kod skill'i geri alınmış hâldeyken). Playground'da (yeni sohbet)
-`FIX-SKILL-PROMPT` gönderildi, onaylandı: yanıt `FATURA_SKILL_ACTIVE`.
-Skill'in `instructions`'ı `FATURA_SKILL_V2` işaretçisine güncellendi
-(`PUT`, `version: 5`). YENİ bir sohbette (fresh `/playground/manuel-skill-test`)
-aynı prompt tekrar gönderildi, onaylandı: `load_skill` sonucu ve modelin
-nihai yanıtı `FATURA_SKILL_V2` — eski (önbelleğe alınmış) `ACTIVE` metni
-HİÇ sızmadı. Tam beklenen; `CompiledAgentCache` parmak izi düzenlemede
-doğru şekilde geçersiz kılınıyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
 ## MT-SKILL-025 — Sunucu `MaxSkillsPerAgent`'ı değiştirir, arayüz HABERSİZ kalır
 
 **Gerçek sonuç**
@@ -265,68 +117,6 @@ can have at most 2 skills."` — kullanıcı arayüzde "izin verildi" görürken
 arayüz/sunucu senkron eksikliği — MT-SKILL-021'in doğal sonucu).
 `manuel-bos` fixture'ı `skillNames: []`'e geri PUT edildi, ayar kaldırıldı,
 uygulama yeniden başlatıldı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-SKILL-030 — `FIX-SKILL-PROMPT` → `load_skill` onay kartı üretir
-
-**Gerçek sonuç**
-`fatura-kontrolu` orijinal `FATURA_SKILL_ACTIVE` işaretçisine geri
-alındı. Playground'da `manuel-skill-test`'e `FIX-SKILL-PROMPT` gönderildi:
-onay kartı belirdi, `load_skill` · "approval required"; argümanlar
-`{"skillName":"fatura-kontrolu"}`. Tam beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-SKILL-031 — Onayla → skill talimatı bağlama girer
-
-**Gerçek sonuç**
-"Approve" tıklandı: YENİ tur eklendi, `load_skill` sonucu skill'in tam
-talimat metnini taşıyor (`<instructions>...FATURA_SKILL_ACTIVE...`).
-Modelin nihai yanıtı tam olarak `FATURA_SKILL_ACTIVE` dizgisi. Tam
-beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-SKILL-032 — Reddet → skill hiç yüklenmez
-
-**Gerçek sonuç**
-Yeni sohbette aynı prompt gönderildi, "Reject" tıklandı: kart `rejected`
-rozetine döndü, sonuç `"Tool call invocation rejected."`. Modelin nihai
-yanıtı fatura bilgisi isteyen genel bir mesaj — `FATURA_SKILL_ACTIVE`
-dizgisi YOK. Tam beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-SKILL-033 — "Do not ask again" ile onay → sonraki çağrıda kart çıkmaz
-
-**Gerçek sonuç**
-Yeni sohbette prompt gönderildi, "Do not ask again for this tool"
-işaretlendi, "Approve" tıklandı — bu turda `FATURA_SKILL_ACTIVE` üretildi
-(kural kaydedildi). Sonra TAMAMEN yeni bir sohbet açılıp (`New chat`
-yerine sayfa yeniden yüklenerek, aynı etki) aynı prompt tekrar gönderildi:
-HİÇBİR onay kartı belirmedi, `load_skill` doğrudan çalıştı, sonuç yine
-`FATURA_SKILL_ACTIVE`. Tam beklenen — `tool_approval_rules` kalıcı kuralı
-`load_skill` için de `cancel_order` ile aynı mekanizmayla çalışıyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-SKILL-040 — Varsayılan durumda HERHANGİ bir script uzantısı reddedilir
-
-**Gerçek sonuç**
-`HTTP: 400`, `title: "Script extension not allowed"` (İngilizce —
-K-228), `detail: "There is no registered interpreter for the 'py'
-extension."`. Tam beklenen.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -370,48 +160,6 @@ notuyla güncellendi.
 
 ---
 
-## MT-SKILL-042 — 11. script eklenirse (limit 10) → `400`
-
-**Gerçek sonuç**
-(Kod-tabanlı `sh` interpreter kaydıyla — bkz. MT-SKILL-041 notu.)
-`HTTP: 400`, `title: "Too many scripts"` (İngilizce — K-228),
-`detail: "A skill may carry at most 10 scripts."`. Tam beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-SKILL-043 — Aynı skill içinde iki script aynı adı taşırsa → `400`
-
-**Gerçek sonuç**
-`HTTP: 400`, `title: "Script name invalid"` (İngilizce — K-228),
-`detail: "Every script name must be non-empty and unique within the
-skill."`. Tam beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-SKILL-044 — Geçersiz JSON `parametersSchema` → `400`
-
-**Gerçek sonuç**
-`HTTP: 400`, `title: "Parameter schema invalid"` (İngilizce — K-228),
-`detail: "parametersSchema must be a valid JSON object."`. Tam beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-SKILL-045 — Script içeriği 64 KB sınırını aşarsa → `400`
-
-**Gerçek sonuç**
-`HTTP: 400`, `title: "Script too large"` (İngilizce — K-228),
-`detail: "Each script may be at most 65536 bytes."`. Tam beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
 ## MT-SKILL-046 — `scripts.Enabled = false` iken bile script KAYDEDİLİR/OKUNUR
 
 **Gerçek sonuç**
@@ -436,55 +184,6 @@ kod TAMAMEN geri alınarak sağlandı (aşağıda). MT-SKILL-041'deki geçici
 `tracon.UseSkillScripts(...)` satırı bu adımdan önce TAMAMEN geri alındı
 (`git status --short` temiz, `dotnet build` 0/0).
 
-## MT-SKILL-050 — Script çalıştırma KAPALIYKEN izin vermeye çalışmak → `409`
-
-**Gerçek sonuç**
-Kod TAMAMEN varsayılana döndürülmüş hâlde (hiçbir `UseSkillScripts`
-çağrısı yok, hiçbir script env ayarı yok) yeniden başlatıldı. `POST
-/api/skill-script-grants` → `HTTP: 409`, `title: "Script running
-disabled"` (İngilizce — K-228), `detail: "Enable script running with
-UseSkillScripts(...) before granting access."`. Tam beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-SKILL-051 — `scripts.Enabled=true` (yalnız config) → AYNI istek `201`
-
-**Gerçek sonuç**
-`Tracon__Skills__Scripts__Enabled=true` + `...PlatformIsolationAcknowledged=true`
-İKİSİ DE env değişkeniyle (kod değişikliği YOK) ayarlanıp yeniden
-başlatıldı. Aynı istek → `HTTP: 201`, `grantedBy: null`, `expiresAt:
-null`. Tam beklenen — bu, `UseSkillScripts()` HİÇ çağrılmadığında config
-tek başına `Enabled`'ı gerçekten değiştirebildiğini kanıtlıyor (§4'ün
-başındaki ortam notundaki asimetriyle tutarlı: kod `UseSkillScripts` ile
-`true` dayattığında env `false`'a daraltamıyor, ama kod HİÇ dayatmadığında
-env `false`'dan `true`'ya taşıyabiliyor).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-SKILL-052 — Geçmiş bir `expiresAt` → `400`
-
-**Gerçek sonuç**
-`HTTP: 400`, `title: "Expiration in the past"` (İngilizce — K-228),
-`detail: "expiresAt must be a moment in the future."`. Tam beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-SKILL-053 — Boş `skillName` → `400`
-
-**Gerçek sonuç**
-`HTTP: 400`, `title: "Skill name required"` (İngilizce — K-228),
-`detail: "skillName cannot be empty."`. Tam beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
 ## MT-SKILL-054 — `GET /api/skill-script-grants` listesi, arayüzde uyarıyla görünür
 
 **Gerçek sonuç**
@@ -500,19 +199,6 @@ token'larına geçirilmiş (`border-danger bg-danger-soft text-danger`).
 Kod yorumu bunu bilinçli bir tasarım-sistemi düzeltmesi olarak açıklıyor
 (ham Tailwind kırmızısı temaya uymuyordu). Görsel/davranışsal iddia
 (belirgin uyarı kutusu var) doğru kaldı; yalnız sınıf adı güncellendi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-SKILL-055 — İzni arayüzden iptal et → liste hemen güncellenir
-
-**Gerçek sonuç**
-"Revoke" tıklandı: satır listeden ANINDA kayboldu (skills tablosu
-kaldı, grant tablosu boşaldı). SQL doğrulaması: `SELECT skill_name,
-script_name, revoked_at FROM mt_s2.skill_script_grants WHERE skill_name =
-'scriptli-skill'` → satır SİLİNMEDİ, `revoked_at` dolu
-(`2026-09-17 16:01:57...`). Tam beklenen.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -611,38 +297,6 @@ this script."` (İngilizce — K-228; spec'in Türkçe "'scriptli-skill/merhaba'
 script'i calistirilmadi: ..." öneki de YOK, mesaj daha kısa). Davranışsal
 iddia (spesifik ret nedeni bir yerde kalıcı olarak tutulur, modele
 sızmaz) doğru; yalnız TABLO/SÜTUN ve tam metin yanlıştı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-SKILL-060 — Zaman aşımı: uzun süren script öldürülür
-
-**Gerçek sonuç**
-`Tracon__Skills__Scripts__Timeout=00:00:02` ile yeniden başlatıldı,
-`uyuyan` script'i (`sleep 10 && echo bitti`) eklendi ve izin verildi.
-Çalıştırıldı: sonuç `"The script timed out and the process tree was
-terminated."` (İngilizce — K-228), `stdout`/`stderr` bölümü YOK, `bitti`
-hiç görünmedi. `GET /api/runs/{runId}` üzerinden ÖLÇÜLEN gerçek süre:
-`startedAt`→`completedAt` = **3.5 saniye** (2s sınır + süreç
-sonlandırma/rapor gecikmesi) — kesinlikle 10 saniye DEĞİL, süreç
-gerçekten erken öldürüldü. Tam beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-SKILL-061 — Çıktı sınırı: büyük çıktı kırpılır
-
-**Gerçek sonuç**
-`Tracon__Skills__Scripts__MaxOutputBytes=100` (aynı yeniden başlatmayla,
-060 ile birleştirildi), `buyuk-cikti` script'i (`python3 -c "print('x'*5000)"`)
-eklendi, izin verildi. Çalıştırıldı: sonuç `exit_code: 0 stdout:
-xxx...xxx [Tracon: output truncated at the 100-byte limit.]` (İngilizce —
-K-228) — tam 100 `x` karakteri + kırpma mesajı. `exit_code: 0` — zaman
-aşımına UĞRAMADI, kırpma ve zaman aşımı bağımsız kapılar olduğu
-doğrulandı. Tam beklenen. (Timeout/MaxOutputBytes ayarları bu case
-sonrası kaldırıldı, varsayılana dönüldü.)
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 

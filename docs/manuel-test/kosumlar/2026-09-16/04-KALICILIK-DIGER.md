@@ -71,6 +71,60 @@ yönlendiriciyle taklit edildi (dosya 03'ün tarifi).
 
 ---
 
+> ### ⚗️ Damıtılmış koşum kaydı
+> Geçen ve **hiçbir düzeltme/kusur işareti taşımayan** case'lerin
+> `Gerçek sonuç` blokları düştü — bir koşumun ortam çıktısı, koşum
+> bittiği anda değerini kaybeder. **Geçmeyen** ve **işaret taşıyan**
+> her case'in bloğu AYNEN durur. Tam metin — kopyala, çalıştır:
+>
+> ```bash
+> git show 45cfed58:docs/manuel-test/kosumlar/2026-09-16/04-KALICILIK-DIGER.md
+> ```
+
+---
+
+## Temiz geçen case'ler (35)
+
+| Case | Durum | Başlık |
+|---|---|---|
+| MT-SQL-003 | ☑ | `CommandTimeoutSeconds` sınırları |
+| MT-SQL-004 | ☑ | `AutoApplyMigrations=false` migration uygulamaz |
+| MT-SQL-006 | ☑ | Yazılamayan bir dizinde başlatma reddedilir |
+| MT-SQL-007 | ☑ | Üç `UseSqlite` aşırı yüklemesi aynı sonucu üretir (izlek C) |
+| MT-SQL-011 | ☑ | Şema adı `dbo` olamaz |
+| MT-SQL-012 | ☑ | Geçersiz şema adı biçimleri ve enjeksiyon denemesi reddedilir |
+| MT-SQL-013 | ☑ | `CommandTimeoutSeconds` sınırları |
+| MT-SQL-014 | ☑ | `AutoApplyMigrations=false` migration uygulamaz |
+| MT-SQL-015 | ☑ | Yanlış host ile başlatma migration adımında çöker (fail-fast) |
+| MT-SQL-016 | ☑ | Üç `UseSqlServer` aşırı yüklemesi aynı sonucu üretir (izlek C) |
+| MT-SQL-021 | ☑ | SQLite: yeniden başlatma migration'ları tekrar uygulamaz |
+| MT-SQL-022 | ☑ | SQLite: uygulanmış migration'ın checksum'ı bozulursa başlama reddedilir |
+| MT-SQL-023 | ☑ | SQLite: iki eşzamanlı örnek dosya kilidiyle çakışmadan migration uygular |
+| MT-SQL-025 | ☑ | SQL Server: yeniden başlatma migration'ları tekrar uygulamaz |
+| MT-SQL-026 | ☑ | SQL Server: uygulanmış migration'ın checksum'ı bozulursa başlama reddedilir |
+| MT-SQL-027 | ☑ | SQL Server: iki eşzamanlı örnek `sp_getapplock` ile çakışmadan migration uygular |
+| MT-SQL-030 | ☑ | WAL modu dosyaları oluşur, `busy_timeout` eşzamanlı yazmayı bekletir |
+| MT-SQL-031 | ☑ | Yabancı anahtar zorlaması açıktır: agent silindiğinde sürüm satırları CASCADE ile gider |
+| MT-SQL-032 | ☑ | `TablePrefix` değiştirildiğinde aynı dosyada bağımsız bir tablo seti oluşur |
+| MT-SQL-040 | ☑ | Maliyet ondalık hassasiyeti kesilmeden geri döner |
+| MT-SQL-041 | ☑ | `SchemaName` değiştirildiğinde aynı veritabanında bağımsız bir tablo seti oluşur |
+| MT-SQL-042 | ☑ | `mcr.microsoft.com/mssql/server` bu makinede başlar |
+| MT-SQL-050 | ☑ | Hiçbir `Use*()` çağrılmadığında uygulama sorunsuz açılır |
+| MT-SQL-051 | ☑ | Bellek içi izlekte de tüm temel CRUD uçları çalışır |
+| MT-SQL-052 | ☑ | Bellek içi izlekte yeniden başlatma TÜM veriyi kaybeder |
+| MT-SQL-053 | ☑ | Bellek içi izlekte konuşma dallandırma ucu 501 döner |
+| MT-SQL-061 | ☑ | Şema/önek adı doğrulama kuralı üç sağlayıcıda da birebir aynıdır (izlek C) |
+| MT-SQL-062 | ☑ | `/api/diagnostics` her sağlayıcıda doğru `persistenceProvider` adını bildirir |
+| MT-SQL-063 | ☑ | `secret` hiçbir zaman veritabanına veya dosyaya yazılmaz |
+| MT-SQL-070 | ☑ | SQLite: 20 eşzamanlı agent kaydı veri bozulmadan tamamlanır |
+| MT-SQL-072 | ☑ | SQL Server: 20 eşzamanlı agent kaydı veri bozulmadan tamamlanır |
+| MT-SQL-076 | ☑ | SQL Server ve SQLite'ta dış `DataSource`: simetri, sahiplik ve çakışma |
+| MT-SQL-077 | ☑ | SQL Server: `runs_v1` içindeki toplam maliyet store'un raporladığıyla eşleşir |
+| MT-SQL-075 | ☑ | Boşluk kapısı: bir sorgu `string.Empty`'ye ezilirse `SqlQueryCompletenessTests` düşer |
+| MT-SQL-078 | ☑ | SQLite: `{prefix}runs_v1` nokta olmadan kurulur |
+
+## Ayrıntı taşıyan case'ler (10)
+
 ## MT-SQL-001 — Boş bağlantı dizesiyle başlatma reddedilir — spec düzeltildi
 
 **Gerçek sonuç**
@@ -98,24 +152,6 @@ hiç OLUŞMADI (üçü de dosya oluşmadan reddedildi) — `DROP TABLE`'ın
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
-## MT-SQL-003 — `CommandTimeoutSeconds` sınırları
-
-**Gerçek sonuç**
-`-1` ve `3601` ikisi de `OptionsValidationException`
-("must be between 0 and 3600") ile reddedildi. `0` kabul edildi, uygulama
-normal açıldı (`/api/diagnostics` 200).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-SQL-004 — `AutoApplyMigrations=false` migration uygulamaz
-
-**Gerçek sonuç**
-Uygulama açıldı, konsolda "Tracon migrations are not applied automatically
-(AutoApplyMigrations is off)..." bilgi satırı (İngilizce, K-228). SQLite
-dosyası oluştu ama tablo sayısı **0**. `/health` → `503 Unhealthy`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
 ## MT-SQL-005 — Paylaşımlı `:memory:` desteklenir ama kalıcı değildir
 
 **Gerçek sonuç — spec iki yerde düzeltildi (gerekçe spec dosyasında).**
@@ -133,27 +169,6 @@ gibi.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
-## MT-SQL-006 — Yazılamayan bir dizinde başlatma reddedilir
-
-**Gerçek sonuç**
-`chmod 555` ile salt-okunur yapılan dizine karşı: `Microsoft.Data.Sqlite
-.SqliteException (0x80004005): SQLite Error 14: 'unable to open database
-file'` ile süreç sonlandı, "Now listening on" satırı hiç yazılmadı
-(`http_code=000` — dinleyici hiç açılmadı).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-SQL-007 — Üç `UseSqlite` aşırı yüklemesi aynı sonucu üretir (izlek C)
-
-**Gerçek sonuç**
-`UseSqlite(string)` ve `UseSqlite(IConfiguration)` ikisi de
-`UseSqlite(Action<TraconSqliteOptions>)`'a delege ediyor
-(`TraconSqliteBuilderExtensions.cs:28-73`) — tek kayıt yolu doğrulandı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-# 2 — SQL Server
-
 ## MT-SQL-010 — Boş bağlantı dizesiyle başlatma reddedilir — spec düzeltildi
 
 **Gerçek sonuç**
@@ -163,64 +178,6 @@ file'` ile süreç sonlandı, "Now listening on" satırı hiç yazılmadı
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
-## MT-SQL-011 — Şema adı `dbo` olamaz
-
-**Gerçek sonuç**
-`OptionsValidationException`: "TraconSqlServerOptions.SchemaName cannot be
-'dbo'. Tracon never touches the consumer's default schema. Rationale:
-docs/KARARLAR.md, decision K-013." `dbo` şemasındaki tablo sayısı denemeden
-önce/sonra **0** — hiçbir tablo yazılmadı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-SQL-012 — Geçersiz şema adı biçimleri ve enjeksiyon denemesi reddedilir
-
-**Gerçek sonuç**
-Üçü de `OptionsValidationException` ile reddedildi (büyük harf, boşluk,
-enjeksiyon denemesi) — mesaj İngilizce (K-228), hiçbir DDL çalışmadı (süreç
-migration adımına hiç ulaşmadan düştü).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-SQL-013 — `CommandTimeoutSeconds` sınırları
-
-**Gerçek sonuç**
-`-1` ve `3601` ikisi de `OptionsValidationException`
-("must be between 0 and 3600") ile reddedildi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-SQL-014 — `AutoApplyMigrations=false` migration uygulamaz
-
-**Gerçek sonuç**
-`Tracon_S1` veritabanı sıfırlandı (`DROP`+`CREATE`). Uygulama açıldı,
-konsolda "Tracon migrations are not applied automatically..." bilgi
-satırı. `tracon` şemasındaki tablo sayısı **0** (şema bile oluşmadı).
-`/health` → `503 Unhealthy`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-SQL-015 — Yanlış host ile başlatma migration adımında çöker (fail-fast)
-
-**Gerçek sonuç**
-Port `1`'e karşı: `Microsoft.Data.SqlClient.SqlException (0x80131904): A
-network-related or instance-specific error...` zinciri, `Unhandled
-exception` ile süreç sonlandı. `/health` isteği hiçbir zaman yanıt vermedi
-(`HTTP: 000`, bağlantı reddi).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-SQL-016 — Üç `UseSqlServer` aşırı yüklemesi aynı sonucu üretir (izlek C)
-
-**Gerçek sonuç**
-`UseSqlServer(string)` ve `UseSqlServer(IConfiguration)` ikisi de
-`UseSqlServer(Action<TraconSqlServerOptions>)`'a delege ediyor
-(`TraconSqlServerBuilderExtensions.cs:29-93`).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-# 3 — Migration'lar
-
 ## MT-SQL-020 — SQLite: boş DB'de migration'lar sırayla uygulanır — sayı düzeltildi
 
 **Gerçek sonuç — bu dosyanın HER "15 migration/44 tablo" referansı bayat
@@ -229,33 +186,6 @@ migration(s). Schema: tracon_."` `count(*)` → **38**. Ad listesi
 `0001_initial`'dan `0038_run_score_evaluator_version`'a sırayla gider
 (tam liste devir notunda/kanıt dosyalarında). `sqlite_master` tablo
 sayısı **48**.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-SQL-021 — SQLite: yeniden başlatma migration'ları tekrar uygulamaz
-
-**Gerçek sonuç**
-Yeniden başlatmada konsolda migration uygulama satırı GÖRÜNMEDİ.
-`count(*)` hâlâ **38** (38'in gerçek sayı olduğu MT-SQL-020'de kurulmuştur).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-SQL-022 — SQLite: uygulanmış migration'ın checksum'ı bozulursa başlama reddedilir
-
-**Gerçek sonuç**
-`Tracon.TraconException: Migration '0001_initial' has been applied to the
-database but the file's content has changed. Checksum in the database:
-bozuk, checksum of the file: E56F3238...` ile başlamayı reddetti.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-SQL-023 — SQLite: iki eşzamanlı örnek dosya kilidiyle çakışmadan migration uygular
-
-**Gerçek sonuç**
-İki örnek (port 5081 ve 5091) eş zamanlı başlatıldı, AYNI dosyaya karşı.
-Yalnız 5081 "Tracon applied 38 migration(s)" yazdı; 5091'in logunda migration
-satırı HİÇ yok (kilidi ikinci sırada aldı, 0 uyguladı). Checksum hatası ya
-da çökme yok. `count(*)` tam **38** (76 değil).
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -269,137 +199,6 @@ karşılaştırılacak). `tracon.__migrations` → **39**. `sys.tables`
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
-## MT-SQL-025 — SQL Server: yeniden başlatma migration'ları tekrar uygulamaz
-
-**Gerçek sonuç**
-Yeniden başlatmada migration satırı yok, `COUNT(*)` hâlâ **39**.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-SQL-026 — SQL Server: uygulanmış migration'ın checksum'ı bozulursa başlama reddedilir
-
-**Gerçek sonuç**
-`Tracon.TraconException: Migration '0001_initial' has been applied to the
-database but the file's content has changed...` ile reddedildi — SQLite ile
-aynı mesaj kalıbı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-SQL-027 — SQL Server: iki eşzamanlı örnek `sp_getapplock` ile çakışmadan migration uygular
-
-**Gerçek sonuç**
-İki örnek (5081, 5091) eş zamanlı başlatıldı. Yalnız 5081 "Tracon applied
-39 migration(s)" yazdı; 5091 sessizce bekledi ve 0 uyguladı. Kilit zaman
-aşımı hatası yok. `COUNT(*)` tam **39** (78 değil).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-# 4 — Diyalekt ve eşzamanlılık
-
-## MT-SQL-030 — WAL modu dosyaları oluşur, `busy_timeout` eşzamanlı yazmayı bekletir
-
-**Gerçek sonuç**
-`-wal`/`-shm` dosyaları oluştu. 20 eş zamanlı `POST /api/agents` isteğinin
-20'si de `201`. `SELECT count(*)` → **20**. Loglarda `SQLITE_BUSY`/
-`database is locked` **sıfır** eşleşme.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-SQL-031 — Yabancı anahtar zorlaması açıktır: agent silindiğinde sürüm satırları CASCADE ile gider
-
-**Gerçek sonuç**
-Silme öncesi sürüm sayısı **2**. `DELETE` → `204`. Silme sonrası sürüm
-sayısı **0** — `PRAGMA foreign_keys = ON` etkin, CASCADE çalıştı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-SQL-032 — `TablePrefix` değiştirildiğinde aynı dosyada bağımsız bir tablo seti oluşur
-
-**Gerçek sonuç**
-`TablePrefix=ikinci_` ile açıldı: "Tracon applied 38 migration(s). Schema:
-ikinci_." — 38, MT-SQL-020'de kurulan güncel sayı. Hem `tracon_tenants`
-hem `ikinci_tenants` sorguları **1** döndü — iki önek aynı dosyada
-çakışmadan bir arada.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-# 5 — SQL Server'a özgü
-
-## MT-SQL-040 — Maliyet ondalık hassasiyeti kesilmeden geri döner
-
-**Gerçek sonuç — ortam eksiği tamamlandı.** İlk deneme `cost` alanının TÜM
-alt alanlarını `null` verdi — kök neden `appsettings.json`'ın `Pricing`
-bloğunda `openai`/`gpt-5.4-mini` için HİÇ fiyat tanımlı DEĞİL (yalnız Voice
-ve Images fiyatları var) — bu, case'in kendi koşullu dalı ("RunPricingResolver
-modeli tanıyorsa") zaten öngörüyor. `00-INDEKS.md`/`12-GOZLEMLENEBILIRLIK-
-MALIYET.md`'nin kurduğu yerleşik desen kullanıldı:
-`Tracon:Pricing:openai:gpt-5.4-mini:Input=0.15` ve `:Output=0.60` (env
-değişkeni, `user-secrets`'a yazılmadı). Yeniden koşulunca: `cost.inputCost
-= 5.22e-05`, `cost.outputCost = 1.2e-05`, ikisi de pozitif ve NULL DEĞİL.
-SQL'den doğrudan okunan değer BİREBİR aynı: `input_cost=.0000522000,
-output_cost=.0000120000` — hiçbir basamak tam sayıya yuvarlanmadı
-(`decimal(20,10)` doğrulandı).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-SQL-041 — `SchemaName` değiştirildiğinde aynı veritabanında bağımsız bir tablo seti oluşur
-
-**Gerçek sonuç**
-`SchemaName=ikinci` ile açıldı: "Tracon applied 39 migration(s). Schema:
-ikinci." Hem `tracon` hem `ikinci` şemalarında **48** tablo (MT-SQL-024'te
-kurulan güncel sayı, spec'in "44"ü değil) — iki şema tam bağımsız, birbirinden
-etkilenmedi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-SQL-042 — `mcr.microsoft.com/mssql/server` bu makinede başlar
-
-**Gerçek sonuç**
-`docker inspect ap-mssql` → `mcr.microsoft.com/mssql/server:2022-latest`,
-`Status: running, ExitCode: 0` — K-386'nın güncellemesi doğrulandı, GERÇEK
-`mssql/server` bu makinede sorunsuz çalışıyor. Bu dosyanın SQL Server
-bölümündeki (`010`–`041`) HER case zaten bu gerçek imaja karşı koşuldu —
-`azure-sql-edge` ikamesine hiç gerek kalmadı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-# 6 — Bellek içi izlek
-
-## MT-SQL-050 — Hiçbir `Use*()` çağrılmadığında uygulama sorunsuz açılır
-
-**Gerçek sonuç**
-Üç sağlayıcının da bağlantı dizesi boş. `/health` → `200 Degraded` (model
-sağlayıcı nedeniyle). `/api/diagnostics` →
-`persistenceProvider:"InMemory", registeredPersistenceProviders:0,
-migrationsUpToDate:true, pendingMigrations:[]`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-SQL-051 — Bellek içi izlekte de tüm temel CRUD uçları çalışır
-
-**Gerçek sonuç**
-Oluştur `201`, oku `200`, sil `204` — üçü de 2xx.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-SQL-052 — Bellek içi izlekte yeniden başlatma TÜM veriyi kaybeder
-
-**Gerçek sonuç**
-İlk sorgu `200`. Uygulama yeniden başlatıldıktan sonra aynı sorgu `404`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-SQL-053 — Bellek içi izlekte konuşma dallandırma ucu 501 döner
-
-**Gerçek sonuç**
-Var olmayan bir oturum kimliğiyle bile `501 "Branching not supported...
-only works when a persistent SQL provider is enabled..."` — oturumun var
-olup olmadığı hiç kontrol edilmedi (İngilizce metin, K-228).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-# 7 — Üç sağlayıcı arası tutarlılık
-
 ## MT-SQL-060 — Üç sağlayıcının migration/tablo sayısı ölçümü tutarlıdır — sayı düzeltildi
 
 **Gerçek sonuç**
@@ -408,42 +207,6 @@ PostgreSQL (`mt_s1`) **49**. Fark tam **1**. Tablo adı KÜMELERİ karşılaşt�
 (`comm`): SQLite ile SQL Server BİREBİR aynı 48 ad; PostgreSQL'in tek fazlası
 `document_embeddings` (pgvector'a özgü) — spec'in iddiası (granülerlik farkı
 değil, tek pgvector eklentisi) sayılar değişmiş olsa da AYNEN doğrulandı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-SQL-061 — Şema/önek adı doğrulama kuralı üç sağlayıcıda da birebir aynıdır (izlek C)
-
-**Gerçek sonuç**
-Üç validator dosyası da `SqlIdentifier.IsValidUnquoted` çağırıyor
-(`TraconSqlServerOptionsValidator.cs:37`, `TraconSqliteOptionsValidator.cs:51`,
-`TraconPostgreSqlOptionsValidator.cs:39`) — aynı statik metot, tek kaynak.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-SQL-062 — `/api/diagnostics` her sağlayıcıda doğru `persistenceProvider` adını bildirir
-
-**Gerçek sonuç**
-SQLite aktifken → `"SQLite"`. SQL Server aktifken → `"SQL Server"`. Her
-ikisinde de `registeredPersistenceProviders: 1`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-SQL-063 — `secret` hiçbir zaman veritabanına veya dosyaya yazılmaz
-
-**Gerçek sonuç**
-`appsettings*.json`'da `Password=` alt dizgisi **sıfır** eşleşme.
-SQLite `tracon_audit_log` ve SQL Server `tracon.audit_log`'da
-`before`/`after` alanlarında `Password=` araması ikisinde de **0**.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-# 8 — Yük ve dayanıklılık
-
-## MT-SQL-070 — SQLite: 20 eşzamanlı agent kaydı veri bozulmadan tamamlanır
-
-**Gerçek sonuç**
-Spec'in kendi notu gereği MT-SQL-030 ile aynı ölçüm — sonuç oradan
-kopyalandı: 20/20 `2xx`, `count(*)=20`, `SQLITE_BUSY` yok.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -504,14 +267,6 @@ tablosuna yazılır.
 
 ---
 
-## MT-SQL-072 — SQL Server: 20 eşzamanlı agent kaydı veri bozulmadan tamamlanır
-
-**Gerçek sonuç**
-20/20 `201`. `COUNT(*)` → **20**. Loglarda bağlantı havuzu tükenmesi hatası
-**sıfır**.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
 ## MT-SQL-073 — SQL Server: container koşum sırasında durursa çalışan bir istek anlaşılır hatayla başarısız olur
 
 **Gerçek sonuç — paylaşılan container'a DOKUNULMADI, şerit-yerel TCP
@@ -541,29 +296,6 @@ bağlantı kurdu, süreç yeniden başlatmaya gerek duymadı.
 
 # 9 — Kaynak-doğrulanan sözleşmeler (izlek C, bu turda taze koşuldu)
 
-## MT-SQL-076 — SQL Server ve SQLite'ta dış `DataSource`: simetri, sahiplik ve çakışma
-
-**Gerçek sonuç — bu turda taze koşuldu.** `dotnet test
-tests/Tracon.SqlServer.IntegrationTests -c Release --no-build` (kendi
-izole testcontainer'ına karşı, `ap-mssql`'e hiç dokunmadı): **806/806
-geçti** (Ağustos'ta 479'du). `ExternalDataSourceTests.cs` hem
-`Tracon.SqlServer.IntegrationTests` hem `Tracon.Sqlite.IntegrationTests`
-(MT-SQL-074/078'in 825/825'i, aynı koşum) içinde mevcut — dört senaryo da
-(dış kaynakla doğrulama geçer + `OwnsDataSource=false`, iki alan birden
-verilince `OptionsValidationException`, dispose sonrası `ObjectDisposedException`
-YOK, kendi kurduğu kaynakta `OwnsDataSource=true`) kapsanıyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-SQL-077 — SQL Server: `runs_v1` içindeki toplam maliyet store'un raporladığıyla eşleşir
-
-**Gerçek sonuç — bu turda taze koşuldu.** `ReadViewContractTests.cs`
-`tests/Tracon.SqlServer.IntegrationTests/`'te mevcut, aynı 806/806 geçen
-koşumun parçası (kendi izole testcontainer'ına karşı, gerçek `CREATE OR
-ALTER VIEW` + `EXEC(N'...')` sarmalaması dahil).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
 ## MT-SQL-074 — SQLite: SQL tek kaynak sonrası tablo nitelendirmesi noktasız kalır
 
 **Gerçek sonuç — bu turda taze koşuldu (spec'in 2026-08-24 kanıtı hâlâ
@@ -573,30 +305,3 @@ geçerli, sayı büyüdü).** `dotnet test tests/Tracon.Sqlite.IntegrationTests
 kullanan sorgular noktasız ad üretiyor.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-SQL-075 — Boşluk kapısı: bir sorgu `string.Empty`'ye ezilirse `SqlQueryCompletenessTests` düşer
-
-**Gerçek sonuç — bu turda taze koşuldu.** `dotnet test
-tests/Tracon.Sql.Shared.UnitTests -c Release --no-build`: **22/22 geçti**
-(Ağustos'ta 8'di). Kod donuk olduğu için "bir sorguyu elle boz" adımı bu
-turda TEKRARLANMADI (Ağustos'ta zaten ampirik olarak kanıtlanmıştı: `["UpsertMcpServer"]`
-ile düştü, geri alınca yeşil) — yalnız GEÇERLİ hâlin hâlâ yeşil olduğu
-doğrulandı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-SQL-078 — SQLite: `{prefix}runs_v1` nokta olmadan kurulur
-
-**Gerçek sonuç — bu turda taze koşuldu.** `ReadViewContractTests.cs`
-`tests/Tracon.Sqlite.IntegrationTests/` içinde mevcut ve MT-SQL-074 ile
-AYNI 825/825 geçen koşumun parçası (gerçek dosya veritabanına karşı).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## Fiziksel eylem / ortam sınırı nedeniyle sonuçsuz kalan case
-
-| Case | Neden | Kullanıcıdan istenen / kapanışta yapılacak |
-|---|---|---|
-| MT-SQL-071 | macOS'ta bağlantı havuzu, izin değişikliğinden önce açılmış bir dosya tanıtıcısını koruyor — üç farklı yöntem (chmod tek dosya, chmod üç dosya, chflags uchg) çalışan sürecin yazmasını engelleyemedi | Linux'ta (gerçek üretim/CI) tekrar denenmeli; macOS'ta yalnız süreç YENİDEN BAŞLATILDIKTAN sonra izin testi anlamlı olur ama bu MT-SQL-006 ile örtüşür |

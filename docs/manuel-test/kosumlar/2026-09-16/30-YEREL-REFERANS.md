@@ -47,27 +47,42 @@ anahtar sızıntı örneği").
 
 ---
 
-## MT-YRF-001 — Özellik kapalıyken referans dosyası yazılmaz
+> ### ⚗️ Damıtılmış koşum kaydı
+> Geçen ve **hiçbir düzeltme/kusur işareti taşımayan** case'lerin
+> `Gerçek sonuç` blokları düştü — bir koşumun ortam çıktısı, koşum
+> bittiği anda değerini kaybeder. **Geçmeyen** ve **işaret taşıyan**
+> her case'in bloğu AYNEN durur. Tam metin — kopyala, çalıştır:
+>
+> ```bash
+> git show d34632fc:docs/manuel-test/kosumlar/2026-09-16/30-YEREL-REFERANS.md
+> ```
 
-**Gerçek sonuç**
-Hiçbir Tracon MSBuild özelliği ayarlanmamış `Consumer.csproj` (`Tracon`
-meta paketi referanslı) için `dotnet build -c Release` → **Build
-succeeded**. `test -f $APLR` → `exit=1` — dosya oluşmadı.
+---
 
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+## Temiz geçen case'ler (18)
 
-## MT-YRF-002 — Tek anahtar ikisini de açar ve her yol diskte vardır
+| Case | Durum | Başlık |
+|---|---|---|
+| MT-YRF-001 | ☑ | Özellik kapalıyken referans dosyası yazılmaz |
+| MT-YRF-002 | ☑ | Tek anahtar ikisini de açar ve her yol diskte vardır |
+| MT-YRF-004 | ☑ | Önce adı bulan `grep` öğretilir |
+| MT-YRF-005 | ☑ | Yalnız `Tracon.Core` referanslı projede HTTP bölümü yok |
+| MT-YRF-008 | ☑ | İkinci build dosyaya dokunmaz |
+| MT-YRF-009 | ☑ | İkinci özellik dosyayı tek başına kapatır |
+| MT-YRF-011 | ☑ | Eski `AGENTS.md` taşıyan tüketicide `TRC0401` çıkar |
+| MT-YRF-012 | ☑ | Şablonun `.gitignore`'u referans dosyasını kapsar |
+| MT-YRF-013 | ☑ | Örnek silinince kapı adıyla kızarır |
+| MT-YRF-014 | ☑ | Var olmayan bir API öğreten örnek kızarır |
+| MT-YRF-016 | ☑ | Çözüm derlenmemişken kapı sessizce geçmez |
+| MT-YRF-017 | ☑ | Generic üyeler arite eki yüzünden atlanmaz |
+| MT-YRF-018 | ☑ | Harita yerel referans dosyasını adıyla işaret eder |
+| MT-YRF-019 | ☑ | Farklı paket kümesi taşıyan iki proje kendi cevabını alır |
+| MT-YRF-020 | ☑ | Yerel referansın **ilk** bölümü yetenek haritasıdır |
+| MT-YRF-022 | ☑ | Üretilmiş `AGENTS.md` `TRC0402` üretmez |
+| MT-YRF-023 | ☑ | Tek özellik **yedi** kodun tamamını susturur |
+| MT-YRF-025 | ☑ | `title`/`description` kaybeden sayfa üreteci düşürür |
 
-**Gerçek sonuç**
-`<TraconWriteAgentsFile>true</TraconWriteAgentsFile>` eklenip yeniden
-derlenince `$APLR` (`src/Consumer/Tracon.LocalReference.md`) oluştu. İlk
-satır **birebir**: `<!-- Tracon local reference - regenerated on every
-build - machine-specific - do not commit -->`. Ayrı bir `Installed
-version:` başlığı yok (`grep -c "Installed version:"` → `0`). Dosyadaki
-her `.xml` yolu diskte gerçekten var (`grep -o '/.*\.xml' | while read p;
-do test -f "$p" || echo YOK` → hiçbir satır yazmadı).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+## Ayrıntı taşıyan case'ler (9)
 
 ## MT-YRF-003 — İşaret ettiği korpus gerçekten cevap verir
 
@@ -95,30 +110,6 @@ sorun yok, tek satırlık kör grep yeterli olmayabiliyor.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
-## MT-YRF-004 — Önce adı bulan `grep` öğretilir
-
-**Gerçek sonuç**
-`sed -n '/## How to read them/,$p' $APLR` bölümü tam beklenen metni
-yazdı: iki adımlı reçete (`grep -o 'name="M:...'` sonra `grep -A 12
-'AddToolApprovalPolicy'` — MT-YRF-003'te ölçülen tam da bu örnek) VE
-generic üyelerin arite eki taşıdığı uyarısı (`` AddContentGuard``1 ``).
-Adım 2 (`grep -o 'name="M:Tracon[^"]*Tenant[^"]*"' $APXML | head -5`)
-gerçek üye kimlikleri döndürdü (`InMemoryPendingApprovalStore`,
-`ToolApprovalRuleEvaluator`, ... hepsi `ITenantContext` alan
-constructor'lar).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-YRF-005 — Yalnız `Tracon.Core` referanslı projede HTTP bölümü yok
-
-**Gerçek sonuç**
-Ayrı bir tüketici dizini (`Microsoft.NET.Sdk`, yalnız `Tracon.Core`
-paketi, `TraconWriteAgentsFile=true`). `dotnet build -c Release` →
-başarılı. `grep -c '## HTTP API document' Tracon.LocalReference.md` →
-`0`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
 ## MT-YRF-006 — `Tracon.AspNetCore` ile HTTP belgesi gelir ve okunur
 
 **Gerçek sonuç**
@@ -143,24 +134,6 @@ pakette) tam doğrulandı.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
-## MT-YRF-008 — İkinci build dosyaya dokunmaz
-
-**Gerçek sonuç**
-`stat -f %m $APLR` derleme öncesi/sonrası **aynı** (`1789691990`). İkinci
-`dotnet build -c Release` (rebuild değil, sıradan build) dosyaya
-dokunmadı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-YRF-009 — İkinci özellik dosyayı tek başına kapatır
-
-**Gerçek sonuç**
-`TraconWriteAgentsFile=true` + `TraconWriteLocalReference=false`,
-önceki çıktı silindi, `-t:Rebuild`. `test -f $APC/AGENTS.md` → `exit=0`
-(harita var). `test -f $APLR` → `exit=1` (referans dosyası yok).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
 ## MT-YRF-010 — Yazılamayan dosya build'i kırmaz
 
 **Gerçek sonuç**
@@ -173,62 +146,6 @@ yalnız) sıfırlayıp tekrar koştum. Salt-okunur kaynak ağacına karşı
 -p:ArtifactsPath=$APOUT` → **tam beklenen** `warning MSB3491: Could not
 write lines to file ".../Tracon.LocalReference.md". Access to the path
 ... is denied.` VE **`exit=0`** (`Build succeeded`, 1 Warning, 0 Error).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-YRF-011 — Eski `AGENTS.md` taşıyan tüketicide `TRC0401` çıkar
-
-**Gerçek sonuç**
-Sahte eski `AGENTS.md` (`revision: 00000000`) ile `-t:Rebuild` →
-`warning TRC0401: 'AGENTS.md' was generated from capability map revision
-'00000000', but the installed Tracon ships revision '76d02c99'. ...`
-(tam mesaj, yenileme yolu dahil). `AGENTS.md` silinip tekrar derlenince
-`grep -c TRC0401` → `0`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-YRF-012 — Şablonun `.gitignore`'u referans dosyasını kapsar
-
-**Gerçek sonuç**
-`dotnet new install src/Tracon.Templates` (küresel kayıt, case bitince
-`uninstall` ile geri alındı). `dotnet new tracon-api -n Sablon -o .
---TraconVersion 0.0.0-preview.0.829 --persistence memory --provider
-openai --ui false` → başarılı. `dotnet build -c Release` → başarılı,
-`Tracon.LocalReference.md` gerçekten oluştu (`find` ile doğrulandı).
-`git status --porcelain | grep LocalReference` → **boş** (`eslesme=1`,
-yani dosya git tarafından hiç görülmüyor) — şablonun `.gitignore`'unda
-(`grep -n LocalReference .gitignore` → satır 7) desen gerçekten var ve
-işliyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-YRF-013 — Örnek silinince kapı adıyla kızarır
-
-**Gerçek sonuç**
-`src/Tracon.Core/ITraconBuilder.cs`'de `AddSkill`'in `<example>` bloğu
-silindi, `dotnet build Tracon.slnx -c Release
--p:TraconFrontendEnabled=false` başarılı, `dotnet test
-tests/Tracon.Core.UnitTests -c Release --no-build` → **1 kızarma**:
-`CapabilityExampleTests.Every_registration_entry_point_shows_a_worked_example`,
-mesaj tam beklenen: `["+ AddSkill: a registration entry point whose
-documentation carries no <example>"]`. `git checkout
-src/Tracon.Core/ITraconBuilder.cs` + yeniden `dotnet build` ile geri
-alındı, taban çizgisi (2805/2805 Geçti) doğrulandı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-YRF-014 — Var olmayan bir API öğreten örnek kızarır
-
-**Gerçek sonuç**
-`src/Tracon.Sqlite/TraconSqliteBuilderExtensions.cs`'te örnek çağrısı
-`.UseSqlite(` → `.UseSqLite(` yapıldı. `dotnet test` → **2 kızarma**:
-beklenen `No_example_teaches_a_registration_that_does_not_exist`
-(mesaj tam beklenen: `"the example calls 'UseSqLite', which the public
-API does not declare"`) VE ek olarak (spec'te adı geçmeyen ama aynı
-mutasyonu doğru şekilde yakalayan) `Every_example_calls_the_member_it_documents`
-(`"the example never calls 'UseSqlite'"`) — iki farklı kapı aynı
-bozukluğu iki farklı açıdan doğruluyor, çelişki değil. `git checkout`
-ile geri alındı, taban çizgisi doğrulandı.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -258,70 +175,6 @@ ile üç dosya (`ITraconBuilder.cs`, `TraconBuilder.cs`,
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
-## MT-YRF-016 — Çözüm derlenmemişken kapı sessizce geçmez
-
-**Gerçek sonuç**
-`rm -rf artifacts/bin/Tracon.Voice/release_net10.0`, `dotnet test
-tests/Tracon.Core.UnitTests -c Release --no-build` → **2 kızarma**,
-beklenen `Every_registration_entry_point_shows_a_worked_example`
-mesajı tam: `"No XML documentation was found for these entry points:
-UseVoice."` + **`Build the solution first: dotnet build Tracon.slnx -c
-Release`** satırı — kapı sessizce geçmiyor, yüksek sesle reddediyor.
-`dotnet build Tracon.slnx -c Release -p:TraconFrontendEnabled=false` ile
-artifact geri getirildi, `dotnet test` tekrar **2805/2805 Geçti**
-doğrulandı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-YRF-017 — Generic üyeler arite eki yüzünden atlanmaz
-
-**Gerçek sonuç**
-`dotnet test` (taban çizgisi, MT-YRF-016'nın rebuild'inden hemen sonra)
-`The_reader_sees_every_entry_point_including_the_generic_ones` dahil
-2805/2805 Geçti. `grep -o 'name="M:[^"]*AddContentGuard[^"]*"'
-Tracon.Core.xml` → üç satır, ilki `` AddContentGuard``1`` (arite eki) —
-generic overload'un XML kimliği gerçekten arite eki taşıyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-YRF-018 — Harita yerel referans dosyasını adıyla işaret eder
-
-**Gerçek sonuç**
-`grep -A 6 'Where to look' $APC/AGENTS.md` ilk satır **birebir**:
-`- Exact local paths for the version you have: Tracon.LocalReference.md,
-beside each project that references Tracon`. `node
-docs-site/scripts/build-agent-map.mjs --check` → `Agent map: up to date
-and within budget.`
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-YRF-019 — Farklı paket kümesi taşıyan iki proje kendi cevabını alır
-
-**Gerçek sonuç**
-Bir `.sln` içinde `src/Web` (`Sdk.Web`, `Tracon` meta paketi) ve
-`src/Worker` (`Sdk`, yalnız `Tracon.Core`), ikisinde de
-`TraconWriteAgentsFile=true`. `dotnet build Multi.sln -c Release
--t:Rebuild` sonrası `find . -name Tracon.LocalReference.md` → **iki**
-dosya, her biri kendi projesinin yanında; git kökünde (`$APM/`) **hiçbir**
-`Tracon.LocalReference.md` yok. `grep -c '## HTTP API document'`:
-Web → `1`, Worker → `0`. İkinci `dotnet build Multi.sln -c Release`
-(rebuild değil) sonrası iki dosyanın `mtime`'ı da **değişmedi**.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-YRF-020 — Yerel referansın **ilk** bölümü yetenek haritasıdır
-
-**Gerçek sonuç**
-`grep -n '^## ' Tracon.LocalReference.md | head -1` → `8:## Capability
-map - read this first` (dosyanın ilk `##` başlığı). O bölüm tek bir
-mutlak yol yazıyor
-(`.../tracon.core/0.0.0-preview.0.829/buildTransitive/Tracon.AgentMap.md`).
-O dosyanın ilk satırı `<!-- Tracon agent map · revision: 76d02c99 ·
-generated by docs-site/scripts/build-agent-map.mjs -->` — yol ölü değil,
-gerçek haritayı gösteriyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
 ## MT-YRF-021 — Eski `AGENTS.md`'si olan depoda `TRC0402` öter
 
 **Gerçek sonuç**
@@ -334,27 +187,6 @@ derlenince ⚠️ case'in kendi `grep -c APG0` reçetesi **bayat** (tanı
 öneki Faz 162'de `APG`'den `TRC`'ye geçti, dosya 31'in `HATA-S4-001`'i
 ile AYNI kök sebep) — düzeltilmiş `grep -c "TRC0"` ile ölçüldüğünde
 gerçekten `0`: tek satır uyarı ailesini kapatıyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-YRF-022 — Üretilmiş `AGENTS.md` `TRC0402` üretmez
-
-**Gerçek sonuç**
-`AGENTS.md` silinip yeniden derlenince harita `AGENTS.md` olarak
-yazıldı, ilk satırı revizyon imzası taşıyor
-(`<!-- Tracon agent map · revision: 76d02c99 ... -->`). Yeniden derleme
-`grep -c "TRC0"` → `0` — üretilmiş dosya `TRC0402` tetiklemiyor (K-507).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-YRF-023 — Tek özellik **yedi** kodun tamamını susturur
-
-**Gerçek sonuç**
-Elle yazılmış, işaretçisiz `AGENTS.md` ile
-`-p:TraconUsageDiagnostics=false` → `grep -c "TRC0"` → `0`. Aynı bayrakla
-sahte-eski üretilmiş `AGENTS.md`'ye (`revision: 00000000`) geçilip
-tekrar derlenince de → `0`. İki farklı `AGENTS.md` biçimi (elle yazılmış
-sessizlik / üretilmiş bayatlık) tek özellikle birden susturuluyor.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -377,21 +209,6 @@ başarıyla üretildi. `node scripts/check-links.mjs` → `Links: 188739
 internal reference(s) across 1147 pages and llms.txt, none broken.`
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-YRF-025 — `title`/`description` kaybeden sayfa üreteci düşürür
-
-**Gerçek sonuç**
-`docs-site/src/content/docs/concepts/governance.md`'den `description:`
-satırı silindi. `node docs-site/scripts/build-agent-map.mjs` →
-**`exit=1`**, hata: `Error: src/content/docs/concepts/governance.md: the
-page index needs both 'title' and 'description' in the frontmatter; this
-page has no description. Add the missing field - a page cannot be listed
-without it.` — hangi sayfanın hangi alanı kaybettiği tam adıyla
-söyleniyor. `git checkout` ile geri alındı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
 
 ## MT-YRF-026 — 👤 Gerçek tüketicide agent haritayı yolu tahmin etmeden bulur
 

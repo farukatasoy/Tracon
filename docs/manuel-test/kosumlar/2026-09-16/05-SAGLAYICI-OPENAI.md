@@ -113,23 +113,32 @@ case'ler için `<scratch>/kos.sh <etiket> <port> [ek args]` kullanılır —
 
 ---
 
-## MT-OAI-001 — `UseOpenAI()` tek çağrıyla iki sağlayıcı kaydeder
+> ### ⚗️ Damıtılmış koşum kaydı
+> Geçen ve **hiçbir düzeltme/kusur işareti taşımayan** case'lerin
+> `Gerçek sonuç` blokları düştü — bir koşumun ortam çıktısı, koşum
+> bittiği anda değerini kaybeder. **Geçmeyen** ve **işaret taşıyan**
+> her case'in bloğu AYNEN durur. Tam metin — kopyala, çalıştır:
+>
+> ```bash
+> git show 89f44ab3:docs/manuel-test/kosumlar/2026-09-16/05-SAGLAYICI-OPENAI.md
+> ```
 
-**Gerçek sonuç**
-`GET /api/models` beş sağlayıcı döndü: `anthropic`, `google`, `openai`,
-`openai-responses`, `openrouter`. Beklenen ikisi de var.
+---
 
-```
-openai            -> gpt-5.4-mini, gpt-5.6-luna, gpt-5.6-terra
-openai-responses  -> gpt-5.4-mini, gpt-5.6-luna, gpt-5.6-terra
-```
+## Temiz geçen case'ler (8)
 
-İki `models` listesi **nesne düzeyinde birebir eşit** (Python `==` ile
-karşılaştırıldı, yalnız ad değil; `contextWindowTokens`, `supportsTools`,
-`supportsReasoning` dâhil her alan aynı). Tek `OpenAIProviderOptions` örneğinin
-ikisini de beslediği doğrulandı.
+| Case | Durum | Başlık |
+|---|---|---|
+| MT-OAI-001 | ☑ | `UseOpenAI()` tek çağrıyla iki sağlayıcı kaydeder |
+| MT-OAI-031 | ☑ | İki yüzey de `/api/models`'te bağımsız görünür ve aynı katalogu taşır |
+| MT-OAI-041 | ☑ | Akış (SSE) üç çerçeve üretir: `run`, `update`(ler), `done` |
+| MT-OAI-050 | ☑ | `openrouter` adlandırılmış sağlayıcı olarak görünür |
+| MT-OAI-054 | ☑ | Responses yüzeyi varsayılan olarak KAYDEDİLMEZ |
+| MT-OAI-081 | ☑ | Açık devre `/api/models/health`'te `Unhealthy` olarak yansır |
+| MT-OAI-083 | ☑ | Devre kesici kapatılırsa (`Enabled=false`) hatalar sayılmaz |
+| MT-OAI-091 | ☑ | API anahtarı doğrulama/hata mesajlarında görünmez |
 
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+## Ayrıntı taşıyan case'ler (32)
 
 ## MT-OAI-002 — Bilinmeyen sağlayıcı adıyla çalıştırma anlaşılır hata verir
 
@@ -472,17 +481,6 @@ kaldı vermelidir" koşulu, sapmanın varlığıyla birlikte doğrulandı.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
-## MT-OAI-031 — İki yüzey de `/api/models`'te bağımsız görünür ve aynı katalogu taşır
-
-**Gerçek sonuç**
-MT-OAI-001'de nesne düzeyinde eşitlik zaten ölçülmüştü; burada spec'in kendi
-komutuyla tekrarlandı ve `True` döndü. İki yüzey `/api/models`'te **ayrı ögeler**
-olarak görünüyor (`openai` ve `openai-responses`), `models` dizileri her alanda
-birebir aynı. `UseOpenAI`'nin ikisini de tek `OpenAIModelCatalog.Build(options)`
-sonucuyla kurduğu doğrulandı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
 ## MT-OAI-040 — Tool çağrısı ile uçtan uca çalıştırma
 
 **Gerçek sonuç**
@@ -526,38 +524,6 @@ Aynı `toolCallId` (`call_zLLpHQXzvHJ5JI0a1DaSlYZp`) hem `ToolInvoking` hem
 `ToolInvoked` olayında görünüyor, yani tek bir çağrının iki ucu — tekrar yok.
 Tool `payload`'ı gidiş-dönüş taşıyor: `orderId=ORD-1001` →
 `Order ORD-1001 has shipped. Estimated delivery: 2 days.`
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-OAI-041 — Akış (SSE) üç çerçeve üretir: `run`, `update`(ler), `done`
-
-**Gerçek sonuç**
-Beş beklentinin beşi de doğrulandı.
-
-Yanıt başlığı: `Content-Type: text/event-stream`.
-
-İlk çerçeve (ham):
-
-```
-id: 0
-event: run
-data: {"runId":"01a0ab83-fc49-7753-ad48-605abcdda6f9","sessionId":"oai-sse-01"}
-```
-
-Alan adları camelCase (`runId`, `sessionId`). Ardından **5** `event: update`
-çerçevesi geldi. Son çerçeve:
-
-```
-id: 6
-event: done
-data: {"sessionId":"oai-sse-01"}
-```
-
-Çerçeve sayımı `{'run': 1, 'update': 5, 'done': 1}` — hiçbir `event: error`
-yok. Birleşik metin: `tamam`.
-
-Her çerçevenin `id:` alanı da var ve sıfırdan artıyor (spec bunu istemiyor ama
-akışın yeniden bağlanabilirliği için önemli).
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -883,28 +849,6 @@ ayırt edici yaptı, çünkü sabit mesaj her sağlayıcı hatasına **tek** bir
 
 ---
 
-## MT-OAI-050 — `openrouter` adlandırılmış sağlayıcı olarak görünür
-
-**Gerçek sonuç**
-Her iki beklenti de doğrulandı.
-
-```
-saglayicilar: ['anthropic', 'google', 'openai', 'openai-responses', 'openrouter']
-openrouter-responses var mi: False
-openrouter modelleri: ['openai/gpt-5.4-mini']
-```
-
-`appsettings.json`'ın `OpenAICompatible:openrouter` bloğuyla karşılaştırıldı:
-tek `Models` girdisi var (`openai/gpt-5.4-mini`, `DisplayName` "GPT-5.4 mini
-(OpenRouter)") ve katalog birebir onu taşıyor. Responses yüzeyi varsayılan
-kapalı — MT-OAI-054/055 bunu ayrıca kanıtlayacak.
-
-Yapılandırmanın kendi yorum satırı OpenRouter'ın model kimliği kuralını da
-belgeliyor: *"OpenRouter model ids carry a provider prefix: not `gpt-5.4-mini`
-but `openai/gpt-5.4-mini`."*
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
 ## MT-OAI-051 — Sağlayıcı adı doğrulaması: rezerve ad, geçersiz desen, 33. karakter
 
 **Gerçek sonuç**
@@ -989,24 +933,6 @@ sapma S5), yani kapsama boşluğu bırakmıyor.
 kategori.
 
 **Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☑ Atlandı
-
-## MT-OAI-054 — Responses yüzeyi varsayılan olarak KAYDEDİLMEZ
-
-**Gerçek sonuç**
-Şeridin uygulamasında spec'in komutu `False` döndü — `openrouter-responses`
-katalogda yok. Sağlayıcı listesi: `anthropic, google, openai, openai-responses,
-openrouter`.
-
-Varsayılanın gerçekten **varsayılan** olduğu ayrıca doğrulandı: MT-OAI-055'in
-tüketici host'u `EnableResponsesSurface` bayrağına hiç dokunmadan da
-`['openrouter']` verdi. Yani yokluk `appsettings.json`'ın bir ayarından değil,
-`UseOpenAICompatible`'ın kendi varsayılanından geliyor.
-
-Karşıtlığı da anlamlı: `UseOpenAI` iki yüzeyi **birden** kaydeder (MT-OAI-001),
-`UseOpenAICompatible` yalnız birini. Uyumlu sağlayıcıların çoğu Responses API'yi
-konuşmaz; varsayılanın kapalı olması doğru yöndür.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ## MT-OAI-055 — `EnableResponsesSurface = true` ikinci bir sağlayıcı kaydeder
 
@@ -1330,33 +1256,6 @@ Sapma yalnız **dil** (K-228); `Beklenen sonuç` düzeltildi.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
-## MT-OAI-081 — Açık devre `/api/models/health`'te `Unhealthy` olarak yansır
-
-**Gerçek sonuç**
-Her iki beklenti de doğrulandı — ve spec'in "ham denetim başarılı olsa bile"
-koşulu **fiilen gerçekleşti**, yani case en güçlü hâliyle koşuldu:
-
-```json
-{ "providerName": "openai",
-  "status": "Unhealthy",
-  "detail": "Circuit breaker is open. Will retry in 13s.",
-  "latency": "00:00:00.9922843",
-  "models": ["gpt-5.4-mini", "gpt-5.6-luna", "gpt-5.6-terra", "gpt-image-1",
-             "gpt-live-1", "text-embedding-3-large", "text-embedding-3-small"] }
-```
-
-`models` dizisi **dolu** ve `latency` 0.99 saniye — yani `refresh=true` gerçek
-ağ çağrısını yaptı ve `GET {endpoint}/models` **başarılı** oldu. Buna rağmen
-`status` `Unhealthy`. Durumu ezen şey ham denetim değil,
-`ModelProviderHealthCache.ApplyCircuitBreakerOverlay`.
-
-`detail` kalan süreyi taşıyor (`13s`) — MT-OAI-080'in 20 saniyesinden geriye
-sayıyor.
-
-Sapma yalnız **dil** (K-228): spec `Devre kesici acik.` bekliyordu.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
 ## MT-OAI-082 — Mola süresi dolunca yarı-açık tek deneme; başarılıysa devre kapanır
 
 **Gerçek sonuç**
@@ -1379,32 +1278,6 @@ kalkıyor; devrenin gerçekten sağlıklı olduğunu kanıtlayan bir başarı he
 kaydedilmemişken `Healthy` görünüyor. Bu `HalfOpen` durumunun doğasıdır ve
 kusur olarak açılmadı — ama sağlık ucuna bakan bir otomasyon, mola bitiminde
 sağlayıcının **denenmemiş** olduğunu bilmez. Kayıt amaçlı not.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-OAI-083 — Devre kesici kapatılırsa (`Enabled=false`) hatalar sayılmaz
-
-**Gerçek sonuç**
-Her iki beklenti de doğrulandı. `Enabled=false` **ve** `FailureThreshold=1` ile
-açıldı — yani eşik en agresif değerinde, devre yine de hiç açılmadı.
-
-```
-deneme 1 | 1.184 sn | ProviderInvocationException
-deneme 2 | 0.356 sn | ProviderInvocationException
-deneme 3 | 0.430 sn | ProviderInvocationException
-```
-
-**Süreler kanıtın kendisi.** Üçü de yüz milisaniyelerin üstünde, yani üçü de
-gerçek OpenAI'a çıktı. `TraconProviderUnavailableException` hiç görünmedi.
-Kıyas: MT-OAI-080'de devre açıkken üçüncü deneme 57 ms sürüyordu. Eşik `1`
-olduğu için, devre kesici etkin olsaydı ikinci deneme zaten kesilmiş olurdu.
-
-Sağlık ucu ham denetim sonucunu gösterdi: `Healthy`, `detail: null`, 7 model —
-üç ardışık başarısızlığa rağmen devre kesici katmanı hiç eklenmedi. MT-OAI-081
-ile karşıtlığı tam: orada ham denetim başarılıyken `Unhealthy` görünüyordu.
-
-`IsEnabled` kontrolünün `EnsureRequestAllowed`/`RecordFailure`'ı baştan devre
-dışı bıraktığı, iki uçtan (çalıştırma ve sağlık) birden doğrulandı.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -1539,36 +1412,5 @@ yani case'in ön koşulu sağlandı ve bu ayrıntı düzeyinde bile sızıntı y
 ⚠️ Bu ölçümün ağırlığı MT-OAI-057'den geliyor: OpenRouter'ın hata mesajı
 günlüğe bir **anahtar yönetim URL'si** yazdı. Yani günlüğe yabancı içerik
 gerçekten akıyor; buna rağmen anahtarın kendisi hiçbir yerde yok.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
-## MT-OAI-091 — API anahtarı doğrulama/hata mesajlarında görünmez
-
-**Gerçek sonuç**
-Bu case ayrı çağrı yapmaz; bu turun önceki kayıtlarını bu açıdan yeniden okur.
-Ön koşulun saydığı dört case (MT-OAI-010 · 011 · 052 · 073) ve ayrıca 012 · 013
-· 043 · 057 koşuldu. Ürettikleri her hata metni gözden geçirildi:
-
-| Case | Üretilen mesaj | Anahtar değeri var mı |
-|---|---|---|
-| MT-OAI-010 | `...Endpoint must be an absolute address. Received value: 'sadece-bir-yol'.` | hayır |
-| MT-OAI-011 | `...Timeout must be greater than zero. Received value: 00:00:00.` | hayır |
-| MT-OAI-012 | `The model name for ...Models[3] cannot be empty.` | hayır |
-| MT-OAI-013 | `...ApiKey cannot be empty. Pass the key to the \`UseOpenAI(apiKey)\` call, or define 'Tracon:Providers:OpenAI:ApiKey' in \`dotnet user-secrets\`.` | hayır — yalnız **ayar yolunun adı** |
-| MT-OAI-043 | `The model provider request failed.` (`upstream_error`) | hayır |
-| MT-OAI-052 | `...Endpoint is required for compatible providers...` | hayır |
-| MT-OAI-057 | `The model provider request failed.` | hayır |
-| MT-OAI-073 | `Connection error (ConnectionError).` | hayır — sahte anahtar `sk-cok-gizli-test-anahtari-12345` de **yok** |
-
-Hiçbirinde `sk-` ile başlayan gerçek bir OpenAI anahtarı, `sk-or-` ile başlayan
-bir OpenRouter anahtarı geçmiyor. MT-OAI-013'ün mesajı beklendiği gibi yalnız
-**ayar anahtarının adını** taşıyor, değerini değil — K-059'un sözleşmesi tam
-budur.
-
-**MT-OAI-073 bu case'in en güçlü tanığıdır:** orada anahtar *bilinen bir
-dizgiydi* (`sk-cok-gizli-test-anahtari-12345`) ve hata yolu doğrudan o
-sağlayıcıya aitti; `grep -F` ile arandı, bulunamadı. Gerçek anahtarlarla yapılan
-arama ise MT-OAI-090 (altı HTTP ucu) ve MT-OAI-093 (13.310 satır günlük)
-kayıtlarındadır — ikisi de sıfır.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı

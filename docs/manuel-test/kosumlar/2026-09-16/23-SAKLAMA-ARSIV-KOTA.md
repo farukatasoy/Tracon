@@ -26,6 +26,55 @@
 
 ---
 
+> ### ⚗️ Damıtılmış koşum kaydı
+> Geçen ve **hiçbir düzeltme/kusur işareti taşımayan** case'lerin
+> `Gerçek sonuç` blokları düştü — bir koşumun ortam çıktısı, koşum
+> bittiği anda değerini kaybeder. **Geçmeyen** ve **işaret taşıyan**
+> her case'in bloğu AYNEN durur. Tam metin — kopyala, çalıştır:
+>
+> ```bash
+> git show e06f6577:docs/manuel-test/kosumlar/2026-09-16/23-SAKLAMA-ARSIV-KOTA.md
+> ```
+
+---
+
+## Temiz geçen case'ler (30)
+
+| Case | Durum | Başlık |
+|---|---|---|
+| MT-RET-003 | ☑ | `preview` hiçbir satır silmez |
+| MT-RET-005 | ☑ | Boş politika tablosunda hiçbir şey silinmez |
+| MT-RET-006 | ☑ | `history` geçmiş çalıştırmaları listeler |
+| MT-RET-010 | ☑ | `audit_log` beyaz listede YOKTUR, asla otomatik silinmez |
+| MT-RET-013 | ☑ | `run_events` silinirken `runs` özeti KORUNUR |
+| MT-RET-014 | ☑ | `MaxRows` için config anahtarı YOKTUR, yalnız açık DB politikası |
+| MT-RET-021 | ☑ | Tablo sınırın ALTINDAYKEN hiçbir satır silinmez |
+| MT-RET-022 | ☑ | `MaxAgeDays` VE `MaxRows` birlikte: daha YENİ eşik kazanır |
+| MT-RET-030 | ☑ | Günlük kota aşıldığında `429` ve anlaşılır `ProblemDetails` |
+| MT-RET-032 | ☑ | Kota aşımında DEVAM EDEN çalıştırma KESİLMEZ |
+| MT-RET-033 | ☑ | Kota sayacı yalnız KÖK çalıştırmada işler (`Depth == 0`) |
+| MT-RET-034 | ☑ | Fiyatsız modelde `MaxCost` kuralı ETKİSİZDİR (ölü kod) |
+| MT-RET-042 | ☑ | `quota_usage` hiçbir saklama hedefinde YOKTUR |
+| MT-RET-043 | ☑ | Bellek içi kurulumda saklama uçları hata vermez, hiçbir şey yapmaz |
+| MT-RET-044 | ☑ | `InMemoryRunStore.MaxRuns` aşılınca en eski `run` ile birlikte event/tool/heartbeat kaydı da düşer (Faz 108) |
+| MT-RET-051 | ☑ | Kesilen `run` istemciye YARIM bir tool sonucu veya model mesajı SIZDIRMAZ |
+| MT-RET-052 | ☑ | Hiçbir tavan tanımlı değilken davranış AYNIDIR (gerileme yok) |
+| MT-RET-053 | ☑ | Maliyet tavanı tanımlıyken, fiyatı BİLİNMEYEN modelde tavan UYGULANMAZ |
+| MT-RET-054 | ☑ | Ağaçtaki TÜM dallar aynı bütçeyi görür (alt-agent çağrısı) |
+| MT-RET-055 | ☑ | `202 Accepted` ile arka planda koşan `run` da aynı şekilde kesilir |
+| MT-RET-060 | ☑ | Düşük süre tavanı, bir tool döngülü `run`'ı KESER |
+| MT-RET-061 | ☑ | Kesilen `run` istemciye YARIM bir tool sonucu veya model mesajı SIZDIRMAZ |
+| MT-RET-062 | ☑ | Hiçbir tavan tanımlı değilken davranış AYNIDIR (gerileme yok) |
+| MT-RET-063 | ☑ | `202 Accepted` ile arka planda koşan (kuyruklu/dayanıklı) `run` da aynı şekilde kesilir |
+| MT-RET-064 | ☑ | İptal, süre tavanından ÖNCE gelirse hata sınıfı `Canceled` KALIR |
+| MT-RET-072 | ☑ | Doğrudan akış ile `GET /api/runs/{id}/events` AYNI bildirimi sunar |
+| MT-RET-073 | ☑ | `Last-Event-ID` ile yeniden bağlanma bildirimi tekrar okuyabilir |
+| MT-RET-075 | ☑ | Host yeniden başlatıldığında aynı eşik yeniden yayımlanmaz |
+| MT-RET-076 | ☑ | Alt-agent ağacı eşiği geçirirse bildirim yalnız KÖK `run`'da bir kez görünür |
+| MT-RET-012 | ☑ | Arşiv sink'i yokken `archive=true` HİÇBİR satır silmez |
+
+## Ayrıntı taşıyan case'ler (15)
+
 ## MT-RET-001 — Politika kaydedilir, `preview` doğru sayar, `run` gerçekten siler
 
 **Gerçek sonuç**
@@ -59,16 +108,6 @@ run_inputs, document_embeddings`.
 
 ---
 
-## MT-RET-003 — `preview` hiçbir satır silmez
-
-**Gerçek sonuç**
-Üç ardışık `preview` çağrısı, üçü de `matchingRows: 0` (MT-RET-001 zaten
-eskimiş satırları temizlemişti) — tutarlı, değişmiyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
 ## MT-RET-004 — `run` ucu SENKRON silmez, bir iş kuyruğa yazar
 
 **Gerçek sonuç**
@@ -77,36 +116,6 @@ değişmiş):** `GET /api/jobs/{jobId}` yanıtında `kind` alanı **yok** —
 bunun yerine `handlerKey: "tracon.retention"` var (aynı bilgiyi taşıyor,
 farklı adla). `targetName: "run_events"` doğrulandı. `status: "Pending"`
 (senkron tamamlanmış yanıt yok) — beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-RET-005 — Boş politika tablosunda hiçbir şey silinmez
-
-**Gerçek sonuç**
-`tool_invocations` için (politikasız): `{"enabled":false,"matchingRows":0}`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-RET-006 — `history` geçmiş çalıştırmaları listeler
-
-**Gerçek sonuç**
-`?target=run_events&take=5` → her iki kayıt da `id, target, deletedRows,
-archivedRows, startedAt, completedAt, error` alanlarını taşıyor, `target`
-her ikisinde de `run_events`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-RET-010 — `audit_log` beyaz listede YOKTUR, asla otomatik silinmez
-
-**Gerçek sonuç**
-`PUT .../audit_log` → `400`, aynı "Unknown target" hata yolu, 16 hedef
-listesinde `audit_log` hiç geçmiyor.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -134,29 +143,6 @@ tam beklenen). DB kaydı silinince (`DELETE`, `204`) `preview` →
 `{"enabled":true,"maxAgeDays":14,"cutoff":"..."}` — config devreye
 **girdi**, tam beklenen. Mekanizma sağlam; yalnız case'in kurulum
 talimatı bayattı/eksikti.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-RET-013 — `run_events` silinirken `runs` özeti KORUNUR
-
-**Gerçek sonuç**
-`GET /api/runs/{id}` → `200`, `status: "Completed"` — özet satırı hâlâ orada.
-`PUT /api/retention/runs` → `400 Bad Request` — `runs` beyaz listede yok.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-RET-014 — `MaxRows` için config anahtarı YOKTUR, yalnız açık DB politikası
-
-**Gerçek sonuç**
-`Tracon:Retention:RunEvents:MaxRows=100` ayarlanıp DB politikası silindikten
-sonra `preview` → `{"enabled":false,"maxAgeDays":null}` — hiçbir etki yok.
-Kaynakta da doğrulandı: `RetentionTargetOptions` sınıfı yalnız `MaxAgeDays`
-ve `Archive` özelliklerine sahip, `MaxRows` diye bir alan **hiç yok** —
-yapısal olarak imkansız, çalışma zamanı testi gereksiz ama yine de koşuldu.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -211,25 +197,6 @@ sağlandı.
 
 ---
 
-## MT-RET-021 — Tablo sınırın ALTINDAYKEN hiçbir satır silinmez
-
-**Gerçek sonuç**
-`MaxRows=500` (tablo 100 satır) → `matchingRows: 0`, `cutoff: null`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-RET-022 — `MaxAgeDays` VE `MaxRows` birlikte: daha YENİ eşik kazanır
-
-**Gerçek sonuç**
-`maxAgeDays:1, maxRows:10` (100 satır, hepsi güncel) → `matchingRows: 90`
-(100−10) — hacim eşiği kazandı, tam beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
 ## MT-RET-023 — `MaxRows` kiracı yalıtımı — Faz 36'nın kendi notu ARTIK YANLIŞ
 
 **Gerçek sonuç**
@@ -252,60 +219,12 @@ kod ilerledi) birebir tutarlı — yeniden doğrulandı, yeni bir bulgu değil.
 
 ---
 
-## MT-RET-030 — Günlük kota aşıldığında `429` ve anlaşılır `ProblemDetails`
-
-**Gerçek sonuç**
-`maxRuns:1` kotası kaydedildi. İlk çağrı `200`. İkinci çağrı `429 Too Many
-Requests`: `{"quotaMetric":"Runs","quotaPeriod":"Daily","quotaLimit":1,
-"quotaUsed":1,"quotaResetsAt":"2026-09-18T00:00:00...Z"}` (gece yarısı UTC),
-`Retry-After: 37214` (saniye, sayısal) — tam beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
 ## MT-RET-031 — Kullanım sayaçları çalıştırma bittiğinde DÖRT satır üretir
 
 **Gerçek sonuç**
 Spec'in kendi düzeltmesi (`.usage[]`, kiracı-geneli `agentName:""`) doğru —
 dört kombinasyon da mevcut: `("", Daily)`, `("", Monthly)`,
 `("support", Daily)`, `("support", Monthly)`, hepsinin `runs≥1`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-RET-032 — Kota aşımında DEVAM EDEN çalıştırma KESİLMEZ
-
-**Gerçek sonuç**
-Kota zaten doluyken yeni bir istek → `429` (MT-RET-030'un tekrarı, beklenen).
-Case'in kendi notu gereği "devam eden çalıştırma kesilmiyor" iddiası
-zamanlama güvenilir tetiklenemediği için ayrıca kanıtlanmadı, belgelenen
-davranışa (K-162, kod yorumu) güveniliyor — spec'in kendi kabul ettiği sınır.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-RET-033 — Kota sayacı yalnız KÖK çalıştırmada işler (`Depth == 0`)
-
-**Gerçek sonuç**
-`summarize-and-translate` (iki agent adımlı workflow) **iki kez** ayrı ayrı
-çalıştırıldı. Her ikisinde de günlük kiracı-geneli sayaç tam **`1`** arttı
-(FARK=1, FARK2=1) — workflow'un iki adımı da TEK bir kök çalıştırma olarak
-sayıldı, kod yorumundaki "yalnız kök işler" beklentisiyle birebir, tutarlı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-RET-034 — Fiyatsız modelde `MaxCost` kuralı ETKİSİZDİR (ölü kod)
-
-**Gerçek sonuç**
-Ön koşul doğrulandı (`InputCostPerMillionTokens` `samples/Tracon.Api/
-Program.cs`'te hiç yok). `maxCost:0.000001` kotasıyla 3 çağrı, üçü de
-`200` — hiçbiri reddedilmedi. Kullanım kaydı: `runs:7, tokens:2064,
-cost:0.0` — maliyet hiç birikmedi, şüphe (ölü kod) tam doğrulandı.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -360,43 +279,6 @@ beklenen.
 
 ---
 
-## MT-RET-042 — `quota_usage` hiçbir saklama hedefinde YOKTUR
-
-**Gerçek sonuç**
-`PUT /api/retention/quota_usage` → `400`, "Unknown target" (K-228, aynı
-dil deseni), 16 hedef listesinde `quota_usage` yok — şüphe doğrulandı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-RET-043 — Bellek içi kurulumda saklama uçları hata vermez, hiçbir şey yapmaz
-
-**Gerçek sonuç**
-Repo dışı bir tüketici projesinde (`UsePostgreSql`/`UseSqlite`/`UseSqlServer`
-hiç çağrılmadan) `TraconTestHost` kuruldu. `IRetentionStore`
-çözümlendiğinde: `Store tipi: NullRetentionStore`,
-`CountOlderThanAsync: 0`, `FindRowLimitCutoffAsync: null` — istisna
-atılmadı, hiçbir veritabanı denenmedi. Birebir beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-RET-044 — `InMemoryRunStore.MaxRuns` aşılınca en eski `run` ile birlikte event/tool/heartbeat kaydı da düşer (Faz 108)
-
-**Gerçek sonuç**
-👤 case'in kendi notu gereği doğrudan `curl` ile koşulamaz (`MaxRuns` yalnız
-kod düzeyinde kurucu parametresi). Spec'in kendi kaydettiği iki otomatik
-karşılığı (`InMemoryRunStoreTests.When_the_upper_limit_is_exceeded_the_
-oldest_run_is_dropped`, `InMemoryRunStoreStructureTests.Trim_drops_the_
-dropped_runs_events_and_tool_invocations_too`) bu oturumda yeniden koşuldu:
-**2/2 Geçti**.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
 ## MT-RET-050 — Düşük token tavanı, uzun tool döngülü bir `run`'ı KESER
 
 **Gerçek sonuç**
@@ -407,117 +289,6 @@ tree's token budget is exhausted (367/150)..."` (rakam 2026-08-26'nın
 254/150'sinden farklı — gerçek token kullanımı çağrı başına değişir, kusur
 değil). `GET /api/runs/{id}`: `status: Failed`, `error.type:
 "run_budget_exceeded"`, `error.class: "QuotaExceeded"` — tam beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-RET-051 — Kesilen `run` istemciye YARIM bir tool sonucu veya model mesajı SIZDIRMAZ
-
-**Gerçek sonuç**
-Aynı run'ın olay akışı: yalnız `run.started` → `run.failed`, arada
-`tool_invoking`/`tool_invoked`/`message_delta` YOK. Spec'in kendi
-"ölçüldü" notuyla birebir — hiçbir ara ilerleme sızmıyor.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-RET-052 — Hiçbir tavan tanımlı değilken davranış AYNIDIR (gerileme yok)
-
-**Gerçek sonuç**
-Tavan olmadan yeniden başlatıldı. Aynı sipariş sorusu tam bir yanıt
-üretti (tool çağrısı + sonuç + son mesaj), `status: "Completed"`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-RET-053 — Maliyet tavanı tanımlıyken, fiyatı BİLİNMEYEN modelde tavan UYGULANMAZ
-
-**Gerçek sonuç**
-`MaxTotalCost=0.000001` + `MaxTotalTokens=200000` ile yeniden başlatıldı.
-`status: "Completed"` — maliyet tavanı hiç uygulanmadı (fiyatsız model),
-yüksek token tavanı da bu kısa run'ı kesmedi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-RET-054 — Ağaçtaki TÜM dallar aynı bütçeyi görür (alt-agent çağrısı)
-
-**Gerçek sonuç**
-`MaxTotalTokens=150` ile yeniden başlatıldı. `router` agent'ı (`support`'u
-alt-agent olarak çağırıyor) → `502`. Kök run: `status: Failed,
-errorClass: QuotaExceeded, agentName: router` — alt çalıştırmanın (support)
-harcaması kökü de kesti, aynı bütçe nesnesi paylaşıldığı doğrulandı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-RET-055 — `202 Accepted` ile arka planda koşan `run` da aynı şekilde kesilir
-
-**Gerçek sonuç**
-`Prefer: respond-async` ile aynı sorgu → kabul yanıtı (`runId`/`jobId`).
-3 saniye sonra poll: `status: "Failed", errorClass: "QuotaExceeded"` —
-arka plan yolu senkron yolla aynı kesme davranışını üretti.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-RET-060 — Düşük süre tavanı, bir tool döngülü `run`'ı KESER
-
-**Gerçek sonuç**
-`Tracon:AgentGraph:MaxDuration=00:00:00.001` ile başlatıldı. `502`,
-`detail`: `"The run tree's time budget is exhausted
-(00:00:00.0693770/00:00:00.0010000)..."` — kaydedilen metin biçimiyle
-birebir. `status: Failed`, `error.type: "run_budget_exceeded"`,
-`error.class: "QuotaExceeded"`. Geçen süre (0.069s) tavandan (0.001s)
-büyük ama sıfıra yakın — kesme ikinci model turunda oldu.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-RET-061 — Kesilen `run` istemciye YARIM bir tool sonucu veya model mesajı SIZDIRMAZ
-
-**Gerçek sonuç**
-Olay akışı tam 2 olay: `run.started` → `run.failed`, arada hiçbir tool/mesaj
-olayı yok.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-RET-062 — Hiçbir tavan tanımlı değilken davranış AYNIDIR (gerileme yok)
-
-**Gerçek sonuç**
-Tavansız yeniden başlatıldı. `status: "Completed"`, `error: null`.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-RET-063 — `202 Accepted` ile arka planda koşan (kuyruklu/dayanıklı) `run` da aynı şekilde kesilir
-
-**Gerçek sonuç**
-`Prefer: respond-async` ile aynı süre tavanı altında: ilk poll `Queued`,
-birkaç saniye sonra `status: "Failed"`, `error.type: "run_budget_exceeded"`,
-`error.class: "QuotaExceeded"` — senkron yolla aynı davranış.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-RET-064 — İptal, süre tavanından ÖNCE gelirse hata sınıfı `Canceled` KALIR
-
-**Gerçek sonuç**
-Spec'in kendi notu gereği elle güvenilir tetiklenemez (zamanlama şansı
-gerektirir). Otomatik karşılığı yeniden koşuldu:
-`RunDeadlineTests.Cancelling_a_run_while_the_deadline_has_already_passed_
-still_classifies_as_Canceled` → **1/1 Geçti**.
 
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
@@ -557,25 +328,6 @@ yeniden başlatılıp DB satırı sıfırlandığında: `custom` çerçevesi
 
 ---
 
-## MT-RET-072 — Doğrudan akış ile `GET /api/runs/{id}/events` AYNI bildirimi sunar
-
-**Gerçek sonuç**
-Aynı `noticeId` (`01a0afa5-a744-72ed-a8d2-7428e99c2b5e`) hem doğrudan akışta
-hem `GET .../events`'te — ikinci bir kopya üretilmedi.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-RET-073 — `Last-Event-ID` ile yeniden bağlanma bildirimi tekrar okuyabilir
-
-**Gerçek sonuç**
-`Last-Event-ID: 0` ile yeniden okuma → `1` (`custom` çerçevesi hâlâ okunabilir).
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
 ## MT-RET-074 — Aynı dönemde ikinci bir eşik geçişi bildirimi TEKRARLAMAZ
 
 **Gerçek sonuç**
@@ -591,44 +343,3 @@ sayısı: 0` verdi, ama gerçekte HİÇ run olmamıştı). Başlık eklenip
 **Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
-
-## MT-RET-075 — Host yeniden başlatıldığında aynı eşik yeniden yayımlanmaz
-
-**Gerçek sonuç**
-MT-RET-074'ün eşiği claim edilmiş durumdayken (`notified_thresholds:
-0:50` DB'de kalıcı) `maxRuns` yükseltilip **süreç tamamen yeniden
-başlatıldı** (bellek içi `_firedThresholds` böylece temizlendi — bkz.
-MT-RET-071'in bulgusu). Yeni bir `run`'ın akışında `custom` çerçevesi
-**yok** (`0`) — kalıcı DB claim'i, bellek içi önbellek sıfırlansa bile
-korundu. Tam beklenen; durabilite (146.4) doğrulandı.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-RET-076 — Alt-agent ağacı eşiği geçirirse bildirim yalnız KÖK `run`'da bir kez görünür
-
-**Gerçek sonuç**
-Bu case'in kendi scripti zaten `content-type` başlığını taşıyordu (074'ün
-aksine). `router` (`support`'u alt-agent olarak çağırıyor) için `maxRuns=1`
-politikasıyla:
-kök run'ın akışında tam **`1`** `custom` çerçevesi — alt çalıştırmanın
-(`support`) kendi işlemi ayrı bir bildirim yazmadı, `Depth==0` kapısı
-burada da geçerli.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
-
----
-
-## MT-RET-012 — Arşiv sink'i yokken `archive=true` HİÇBİR satır silmez
-
-**Gerçek sonuç**
-İki eski satır eklendi (40 gün önce). `archive=true` politikasıyla `run`
-çalıştırıldı — **sink henüz kayıtlı değilken**: `deletedRows: 0,
-archivedRows: 0`, satır sayısı değişmedi (4). Uygulama
-`Tracon:Retention:ArchivePath=/tmp/ap-s2-arsiv` ile yeniden başlatıldı
-(`FileSystemArchiveSink` artık kayıtlı) — aynı politika ile `run`:
-**`deletedRows: 2, archivedRows: 2`**, `/tmp/ap-s2-arsiv/run_events/
-2026-09-17.jsonl.gz` dosyası oluştu. İki yarı da tam beklenen.
-
-**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
