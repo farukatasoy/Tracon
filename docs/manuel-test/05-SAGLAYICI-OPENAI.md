@@ -1294,7 +1294,7 @@ Negatif senaryo. **Geçici kod değişikliği.**
 **Adımlar**
 1. `tracon.UseOpenAICompatible("openrouter", openRouter);` satırından
    (yaklaşık 160. satır) hemen SONRA ekle:
-   `tracon.UseOpenAICompatible("kapali-port-testi", o => { o.Endpoint = new Uri("http://127.0.0.1:59999/v1"); o.ApiKey = "sk-cok-gizli-test-anahtari-12345"; });`
+   `tracon.UseOpenAICompatible("kapali-port-testi", o => { o.Endpoint = new Uri("http://127.0.0.1:59999/v1"); o.ApiKey = "sk-cok-gizli-test-anahtari-12345"; });` <!-- SYNTHETIC-CREDENTIAL -->
 2. Başlat, sağlığı sorgula.
 3. Satırı kaldır.
 
@@ -1314,7 +1314,7 @@ git checkout -- samples/Tracon.Api/Program.cs
   (K-228 — sevk edilen metin İngilizce'dir).
   ⚠️ `ConnectionRefused` bir `HttpRequestError` üyesi **değildir**
   (o bir `SocketError` adıdır); onu arama.
-- `detail` alanı `127.0.0.1`, `59999` VEYA `sk-cok-gizli-test-anahtari-12345`
+- `detail` alanı `127.0.0.1`, `59999` VEYA `sk-cok-gizli-test-anahtari-12345` <!-- SYNTHETIC-CREDENTIAL -->
   dizgilerinin **hiçbirini** içermez.
 
 ---

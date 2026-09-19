@@ -803,6 +803,73 @@ class SentetikCredentialTestleri(unittest.TestCase):
         self.assertEqual(skipped, 0)
 
 
+class IkiKatmanliSecretTaramasiTestleri(unittest.TestCase):
+    """2026-09-19. Kapı YEŞİL derken `docs/arsiv/fazlar/53-*.md` içinde gerçek bir
+    `ApiKeyGenerator` çıktısı duruyordu. İki bağımsız boşluk vardı: desen ürünün
+    kendi anahtar formatını tanımıyordu, ve kapsam gerçek koşum çıktısı taşıyan
+    iki ağacı (`arsiv`, `manuel-test`) hiç yürümüyordu."""
+
+    # Gerçek format: `ap_` + kiracı eki + `_` + base64url(32 bayt) = 43 karakter.
+    URETILMIS_ANAHTAR = "ap_default_" + ("2zKqRNjJ6MVXcwtTxPKuXkouy85tReMOhGAgYr9MGzo")
+
+    def _tara(self, relative_path, line):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            path = root / relative_path
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(line + "\n", encoding="utf-8")
+            return kapi.find_secrets(root)
+
+    def test_uretilmis_anahtar_arsivde_yakalanir(self):
+        # 🚨 Bu tam olarak kaçırılan vakadır. Arşivlenmiş faz kaydı GERÇEK koşum
+        # çıktısı taşır - üretilmiş bir credential'ın yapışacağı tek yer orasıdır.
+        found, _ = self._tara("docs/arsiv/fazlar/99-X.md", self.URETILMIS_ANAHTAR)
+
+        self.assertEqual(len(found), 1)
+
+    def test_uretilmis_anahtar_manuel_testte_yakalanir(self):
+        found, _ = self._tara("docs/manuel-test/99-X.md", self.URETILMIS_ANAHTAR)
+
+        self.assertEqual(len(found), 1)
+
+    def test_yerel_kurulum_deyimi_arsivde_kapiyi_kirmaz(self):
+        # Arşiv ve manuel test kaydında bir docker parolası kusur değil, tekrar
+        # üretilebilirlik talimatıdır. Kapsamı tüm desenlere açmak 48 satırı
+        # işaretletirdi ve istisna listesi kapının kendisini anlamsızlaştırırdı.
+        found, skipped = self._tara("docs/arsiv/fazlar/99-Y.md", SECRET_LINE)
+
+        self.assertEqual(found, [])
+        self.assertEqual(skipped, 0)
+
+    def test_yerel_kurulum_deyimi_kod_agacinda_yakalanir(self):
+        found, _ = self._tara("src/b.cs", SECRET_LINE)
+
+        self.assertEqual(len(found), 1)
+
+    def test_snake_case_metin_anahtar_sanilmaz(self):
+        # 🚨 `{43,}` yazmak snake_case İngilizce metni yakalar; ölçüldü, 70+
+        # yanlış pozitif. Uzunluk TAM verilmelidir.
+        found, _ = self._tara(
+            "src/c.cs",
+            "ap_on_total_source_code_size_for_JavaScript_files_in_the_TypeScript_x")
+
+        self.assertEqual(found, [])
+
+    def test_kisa_gorunum_oneki_anahtar_sanilmaz(self):
+        # `KeyPrefix` ürünün kendi tasarladığı 12 karakterlik görüntü önekidir
+        # ve kayıtlarda meşru olarak durur.
+        found, _ = self._tara("docs/arsiv/fazlar/99-Y.md", 'keyPrefix":"ap_default_2"')
+
+        self.assertEqual(found, [])
+
+    def test_arsivdeki_isaretli_satir_atlanir_ve_sayilir(self):
+        found, skipped = self._tara(
+            "docs/arsiv/fazlar/99-X.md", self.URETILMIS_ANAHTAR + " <!-- " + MARKER + " -->")
+
+        self.assertEqual(found, [])
+        self.assertEqual(skipped, 1)
+
+
 class KapasiteKomutuTestleri(unittest.TestCase):
     """Faz 166. Kapasite ölçümü bir KAPI DEĞİLDİR (K-738)."""
 

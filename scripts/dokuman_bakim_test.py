@@ -594,7 +594,7 @@ class Faz91DokumanKapilariTestleri(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             tmp = pathlib.Path(d)
             (tmp / "scripts").mkdir()
-            (tmp / "scripts" / "kapi.py").write_text("SECRET_PATTERN SYNC_ROOTS", encoding="utf-8")
+            (tmp / "scripts" / "kapi.py").write_text("CREDENTIAL_SHAPE_PATTERN LOCAL_CREDENTIAL_PATTERN SYNC_ROOTS", encoding="utf-8")
             (tmp / ".github" / "workflows").mkdir(parents=True)
             (tmp / ".github" / "workflows" / "ci.yml").write_text(
                 "python3 scripts/kapi.py tarama", encoding="utf-8")
@@ -624,7 +624,7 @@ class Faz91DokumanKapilariTestleri(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             tmp = pathlib.Path(d)
             (tmp / "scripts").mkdir()
-            (tmp / "scripts" / "kapi.py").write_text("SECRET_PATTERN SYNC_ROOTS", encoding="utf-8")
+            (tmp / "scripts" / "kapi.py").write_text("CREDENTIAL_SHAPE_PATTERN LOCAL_CREDENTIAL_PATTERN SYNC_ROOTS", encoding="utf-8")
             (tmp / ".github" / "workflows").mkdir(parents=True)
             (tmp / ".github" / "workflows" / "ci.yml").write_text(
                 "python3 scripts/kapi.py tarama", encoding="utf-8")

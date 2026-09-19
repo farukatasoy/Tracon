@@ -75,7 +75,7 @@ K-356, K-357, K-358, K-359, K-360, K-361 — `docs/KARARLAR.md`.
 POST /tracon/api/api-keys {"name":"ci","scopes":["RunsRead"]}
 → {"record":{"id":"019fe119-...","tenantId":"default","name":"ci","keyPrefix":"ap_default_2",
    "scopes":["RunsRead"],...,"isActive":true},
-   "plaintextKey":"ap_default_2zKqRNjJ6MVXcwtTxPKuXkouy85tReMOhGAgYr9MGzo"}
+   "plaintextKey":"ap_default_[redacted]"}
 
 GET /tracon/api/agents  (Authorization: Bearer <RunsRead anahtarı>)
 → 403  (agents:read kapsamı yok — doğru davranış)
@@ -90,6 +90,13 @@ DELETE /tracon/api/api-keys/{id} → 204; sonraki istekte aynı anahtar → 401
 GET /tracon/api/api-keys → liste, hiçbir kayıtta plaintextKey/hash yok
 grep raw-key /tmp/tracon-api.log → 0 eşleşme
 ```
+
+> **Redaksiyon notu (2026-09-19).** `plaintextKey` bu blokta gerçek bir
+> `ApiKeyGenerator.Generate` çıktısı olarak duruyordu. Repo public yapılmadan
+> önce redakte edildi; `keyPrefix` ürünün kendi tasarladığı 12 karakterlik
+> görüntü önekidir ve secret değildir. Kapı bunu kaçırıyordu — `SCAN_EXCLUDED_DIRS`
+> `arsiv` ağacını hiç yürümüyordu ve desen `ap_*` formatını tanımıyordu; ikisi de
+> aynı turda düzeltildi (`find_secrets` iki katmanlı).
 
 ## Sonraki Faza Devir Notu
 

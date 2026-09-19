@@ -1144,7 +1144,7 @@ yapılandırılabilir olduğu bu ölçümün kendisiyle kanıtlandı.
 **Gerçek sonuç**
 🚨 **Kritik case — geçti.** Spec `Program.cs` düzenlemesi ister; kural 1
 yasakladığı için tüketici host'una kapalı bir porta bakan sağlayıcı kuruldu
-(`http://127.0.0.1:59999/v1`, anahtar `sk-cok-gizli-test-anahtari-12345`).
+(`http://127.0.0.1:59999/v1`, anahtar `sk-cok-gizli-test-anahtari-12345`). <!-- SYNTHETIC-CREDENTIAL -->
 
 ```json
 {
@@ -1162,7 +1162,7 @@ yasakladığı için tüketici host'una kapalı bir porta bakan sağlayıcı kur
 ```
 127.0.0.1                         -> yok
 59999                             -> yok
-sk-cok-gizli-test-anahtari-12345  -> yok
+sk-cok-gizli-test-anahtari-12345  -> yok   # SYNTHETIC-CREDENTIAL
 localhost                         -> yok
 ```
 

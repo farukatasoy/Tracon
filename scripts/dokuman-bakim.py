@@ -1241,7 +1241,10 @@ def tekrarlanan_kapi_tanimlari(kok: pathlib.Path = ROOT) -> list[str]:
 
     kapi_text = kapi.read_text(encoding="utf-8")
     bulgular: list[str] = []
-    if "SECRET_PATTERN" not in kapi_text or "SYNC_ROOTS" not in kapi_text:
+    # 2026-09-19: tarama iki katmanlidir (KG-031). Kapi ikisini de arar --
+    # yalniz birini aramak, digeri sessizce silinince kor kalirdi.
+    secret_desenleri = ("CREDENTIAL_SHAPE_PATTERN", "LOCAL_CREDENTIAL_PATTERN")
+    if any(ad not in kapi_text for ad in secret_desenleri) or "SYNC_ROOTS" not in kapi_text:
         bulgular.append("scripts/kapi.py sync/secret desenlerinin kaynağı değil")
 
     ci_text = ci.read_text(encoding="utf-8")

@@ -1258,7 +1258,7 @@ bu yüzden burada tekrarlanmaz.
 
 **Adımlar**
 1. `tracon.UseAnthropic(anthropic);` satırından (yaklaşık 171. satır) hemen
-   SONRA ekle: `tracon.UseAnthropic(o => { o.ApiKey = "sk-ant-cok-gizli-test-anahtari-12345"; o.Endpoint = new Uri("http://127.0.0.1:59999/"); });`
+   SONRA ekle: `tracon.UseAnthropic(o => { o.ApiKey = "sk-ant-cok-gizli-test-anahtari-12345"; o.Endpoint = new Uri("http://127.0.0.1:59999/"); });` <!-- SYNTHETIC-CREDENTIAL -->
    — **dikkat:** bu ikinci çağrı `alreadyRegistered` kontrolü yüzünden yeni bir
    sağlayıcı kaydetmez, yalnız ayarları birleştirir (K-025); bu yüzden gerçek
    anahtarı **geçici olarak** yorum satırına alıp yalnız bu geçersiz adresi
@@ -1277,7 +1277,7 @@ git checkout -- samples/Tracon.Api/Program.cs
 
 **Beklenen sonuç**
 - `status: Unhealthy`.
-- `detail` alanı `Baglanti hatasi (...)` biçimindedir; ne `sk-ant-cok-gizli-test-anahtari-12345`
+- `detail` alanı `Baglanti hatasi (...)` biçimindedir; ne `sk-ant-cok-gizli-test-anahtari-12345` <!-- SYNTHETIC-CREDENTIAL -->
   ne de `127.0.0.1:59999` adresi `detail` içinde görünür (`AnthropicProviderHealthCheck`
   yalnız `exception.HttpRequestError` kategori adını yazar, adres veya
   anahtarı **değil**).
