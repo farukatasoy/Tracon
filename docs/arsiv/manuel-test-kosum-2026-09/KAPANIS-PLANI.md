@@ -366,6 +366,21 @@ yazıldı: **dört kapı yalnız başına koşar.**
 ⚠️ `dotnet pack` release feed'i yine kirletti (§3.10); 36 paket
 `artifacts/package/kosum-2026-09-16/kapi-pack-2026-09-19/` altına alındı.
 
+🚨 **DOKUZUNCU kapı listede yoktu ve kırmızıydı: `kapi.py tarama`.** §3.2'nin
+sekiz komutluk listesi `kapanis` fail-fast olduğu için **elle** yazılmıştı ve
+`tarama` (sync kopyası · `secret` · migration bütünlüğü · bayat doküman
+referansı) o listeye hiç girmedi — yani tur boyunca bir kez bile koşmadı.
+Kapanışta koşuldu ve üç migration dosyasının
+`scripts/applied-migrations.json`'a **ankrajlanmadığını** buldu
+(`0052_tool_late_completion.sql` + iki kardeşi, `b513dc87`). Ölçüldü:
+tabandan beri migration'larda **yalnız ekleme** var (`git diff --name-status`
+altı satırın altısı da `A`), yani uygulanmış bir migration değişmemiş; üç dosya
+emsaldeki gibi (`1dcb4f5f` üçlüsü) kendi commit'ine ankrajlandı ve `tarama`
+✅ temiz döndü (7 işaretli sentetik credential atlandı — bu aynı zamanda bitti
+tanımının `secret` maddesidir). Ders
+[`hafiza/sql-migration.md`](../../hafiza/sql-migration.md)'ye yazıldı:
+**kapı listesi elle kopyalandığında listenin kendisi eksik olabilir.**
+
 ---
 
 ### 3.4 Turun bıraktığı ortam kuralları

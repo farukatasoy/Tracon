@@ -39,3 +39,25 @@ Dört `store`'un (`Session`, `Idempotency`, `Experiment`, `Eval`)
 `IsUniqueViolation` yakalaması bu sınıf **değildir**: anlamsal daldır ve yazımları
 idempotent olmadığı için denenmez. Vakalar:
 [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
+
+## 🚨 Yeni bir migration `scripts/applied-migrations.json`'a ANKRAJLANMALIDIR
+
+**Ölçüldü 2026-09-19** (manuel tur kapanışı): `kapi.py tarama` üç dosya için
+kırmızı verdi — `0052_tool_late_completion.sql` (PostgreSQL) · `0040_…`
+(SQL Server) · `0039_…` (SQLite), hepsi *"git tabanı 630f3212 dosyayı
+içermiyor"*. Kapının kuralı şudur: her migration, `baselineCommit`'teki (ya da
+kendi `sourceCommits` girdisindeki) içerikle **bayt bayt** aynı olmalıdır;
+tabandan **sonra eklenen** bir dosya o tabanda yoktur ve kapı onu ihlal sayar.
+
+- **Çözüm, tabanı ileri taşımak DEĞİLDİR** — taban ilerlerse aradaki
+  **değişmiş** bir migration da sessizce onaylanır. Doğru adım, dosya başına
+  bir `sourceCommits` girdisiyle onu ekleyen commit'e ankrajlamaktır. Emsal
+  zaten dosyadaydı: `0051/0039/0038_run_score_evaluator_version.sql` üçlüsü
+  `1dcb4f5f`'e ankrajlı.
+- **Bu ihlal bir faz boyunca sessiz kaldı**, çünkü `kapi.py tarama` o turda
+  hiç koşulmadı (`kapanis` doküman bütçesinde durduğu için sekiz kapı elle
+  koşulmuştu ve `tarama` listede yoktu). Ders: kapı listesi elle kopyalandığında
+  **listenin kendisi** eksik olabilir — `kapi.py kapanis` tek kaynaktır.
+- Ankrajlamadan önce **ölç**: `git diff --name-status <taban>..HEAD --
+  "src/*/Migrations/*.sql"` yalnız `A` satırları göstermelidir. Bir `M` satırı
+  varsa sorun ankraj değil, uygulanmış bir migration'ın değişmesidir.
