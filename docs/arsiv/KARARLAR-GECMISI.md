@@ -5643,3 +5643,242 @@ K-639'un emsali tek tabloydu (`tenant_provider_bindings`) ve orada `DELETE` + `U
 ### K-838
 
 SQLite'ta `RAISE` yalnız trigger içinde çalışır ve dinamik SQL yoktur — 34 tabloyu dolaşan bir guard orada SQL ile ifade edilemez. Üç prosedürel lehçe yazmak aynı kuralı üç kez kopyalar ve SQL Server'ın `COLLATE Latin1_General_BIN2` tuzağını üç yere dağıtır; tek kod yolu o tuzağı tek bir `NonCanonicalTenantIdPredicate` override'ında toplar. Tablo listesi elle yazılmaz: elle liste 35. tablo eklendiğinde bayatlar ve guard tam da kırılan tabloyu atlar (K-483 sınıfı)
+
+## Faz 90 damıtmasında taşınan gerekçeler
+
+### K-784 — devam (Faz 90 damıtması)
+
+Süreç ölçümü bir yargıdır ve dış kaynağı yoktur, kapasite sayısının ise `summary.json`'da karşılığı vardır — ölçüldü: kapı 90 birebir karşılaştırma yapıyor ve bugünkü sayfada sıfır bulgu veriyor.
+
+### K-785 — devam (Faz 90 damıtması)
+
+Dokuz çağrı yeri sıfıra indi.
+
+### K-786 — devam (Faz 90 damıtması)
+
+Ölçüt bir tercih değil bir ölçümdür — `ON DELETE CASCADE` varsa (a), `SET NULL` veya bağımlı tablo yoksa değil; K-059 gereği `secret` satırda durmadığı için tetikleyici ve MCP kaydı ölçütü geçmez.
+
+### K-787 — devam (Faz 90 damıtması)
+
+Dialog modal olduğu için ekranın kendi `ErrorNote`'u arkada kalır ve aynı cümle iki kez görünmez. Tek anahtar kuralı iki yerde iki cümle yazmanın ürettiği kaymayı kapatır.
+
+### K-788
+
+Üç seçenek ölçüldü — `IRunJudge.Version` anlamsal olarak en yakınıydı ama public extension seam'ini büyütürdü, `JudgeScore.Version` aynı dizeyi metrik başına tekrarlardı. `RunJudgment` yargıcın Tracon'a zaten veri döndürdüğü kanaldır ve provenance kararın parçasıdır. **Tam gerekçe:** [`176-EVALUATOR-SURUM-DAMGASI.md`](fazlar/176-EVALUATOR-SURUM-DAMGASI.md) §"Plandan Sapmalar" 1.
+
+### K-789
+
+Sınırsız bir sütun, üçüncü taraf bir yargıcın tüketicinin tablosunda bir satırın ne kadar yer kaplayacağına karar vermesi demektir. Sınır tek yerdedir ve dört store'un hepsi onu görür (`MaxTextValueLength` emsali). Köprü kendi okuduğu assembly sürümünü **kırpar**; sözleşme hatası yalnız bir yargıç alanı elle doldurduğunda doğar.
+
+### K-790
+
+Sürüm gözlemlenebilirliktir ve gözlemlenebilirlik işlevselliği bozmaz: attribute'u olmayan bir assembly ya da okumayı reddeden bir host, kiracıya **skor satırlarına** mal olamaz. Migration backfill yapmaz; eski satırlar olduğu gibi doğrudur.
+
+### K-791
+
+Tracon'un kendi assembly sürümünü basmak, sütunu "hangi paket puanladı" ile "hangi kütüphane sürümü koştu" arasında iki anlamlı hâle getirirdi. Kapsam dışı kalması bilerek seçilmiştir.
+
+### K-792
+
+Yazma tarafının kanıtı **okuma**dır: yalnız fırlatmayı doğrulamak, işi yaptıktan SONRA kontrol eden bir uygulamayı da geçirir (`StoreCancellationContractSelfProofTests.Write_case_fails_for_a_store_that_checks_the_token_too_late` bunu kalıcı kanıtlar). İki sınır bilerek dışarıda: çağrı **ortasında** iptal (yarış içerir; deterministik case yazılamaz) ve store başına **her** metot (bir okuma + bir yazma kuralı kanıtlar, kalanı uygulama detayıdır). Zamanlama: `PublicAPI.Shipped.txt` on yedi pakette de **17 bayt** (`#nullable enable`) — ölçüldü; K-603 gereği preview hattı boyunca boş kalıyor, yani genişleme bugün uyumluluk sözü kırmıyor, yayından sonra **kırıcı** olurdu.
+
+### K-793
+
+Kökü tenant'sız tabana koymak 32'sini birden kapsar ve o kopyayı tek yere indirir. İptal hook'ları tenant kolunda ayrı metotlar değil, **mevcut** `SeedAsync`/`CountAsync` hook'larına bağlandı (ikisi artık `CancellationToken` alır): "yazılan şey okunan şeydir" böylece ayrı bir varsayım değil, zaten koşan `Tenant_does_not_see_another_tenants_record_in_the_list`'in sonucudur. Hook'lar `sealed` DEĞİL: listeleme ucu olmayan bir store (`TraceStoreContract`) boş store'da hiç store çağrısı yapmayan bir `CountAsync`'e sahip olabilir ve kendi okumasını bildirir.
+
+### K-794
+
+Ölçüm bölünme gösterdi — SQL tarafı `ExecuteReaderAsync(token)` ile zaten fırlatıyordu, bellek içi uygulama token'ı yalnız `yield` döngüsünün **içinde** okuyordu ve **boş** akışta (sahipsiz veya olaysız `run`) hiç fırlatmıyordu. Tek akış yüzeyi `IRunStore.ReadEventsAsync`'tir; iterator gövdesinin ilk satırına tek bir kontrol yetti ve case'i `RunStoreContract.Canceled_token_throws_on_the_first_step_of_the_event_stream` taşır.
+
+### K-795
+
+`agent-skill` tüketicinin dosya sistemine yazan ilkidir, bu yüzden sözleşme bugünkü `AGENTS.md` davranışının aynısıdır: var olan dosyaya `--force` olmadan **hiç** dokunulmaz, çıkış `0`, ne yapıldığı yazdırılır. Yazıcının **build değil CLI** olması: skill dizini çok dosyalıdır, commit edilir ve içeriği tüketicinindir; "yalnız yokken yaz" sözleşmesi bir dizin ağacına genişletilemez. Varsayılan hedef **repo köküdür** (çalışma dizini değil) ve bu bir denetim 🔴'sının sonucudur: build dosyayı repo kökünde arar, komut çalışma dizinine yazıyordu; alt dizinden koşan tüketici `TRC0403`'ün dediğini harfiyen yapınca kökteki dosyayı siliyor, yenisi alt dizine düşüyor, uyarı **kayboluyor** ve düzeldi sanılıyordu. İki yazıcı tek bir konuma bakmak zorundadır.
+
+### K-796
+
+Ölçüm izole projelerde koşuldu ve kanıt olarak **`Skill` tool çağrısının kaydı** alındı, modelin beyanı değil. Claude Code yolu (`.claude/skills/tracon/SKILL.md`) yüklendi ve koşumun ilk eylemi oldu; **aynı baytlar** `.agents/skills/tracon/SKILL.md` altında **sıfır** `Skill` çağrısı üretti — dosya yalnız dosya sistemi taramasıyla bulunabiliyordu. Cursor ve Copilot harness'ları bu makinede yok, **ölçülemedi**. ∴ yalnız Claude formatı sevk edilir; `--format` tanınmayan bir değeri sessizce Claude dosyası yazarak değil **argüman hatasıyla** reddeder. Gerekçe: çağrılmayan bir skill ölü ağırlıktır ve tüketicinin agent bağlam bütçesini her görevde yer.
+
+### K-797
+
+Damga o hâlde **tool'un** bildiği revizyondur; tüketicinin build'i onu **kurulu paketin** revizyonuyla karşılaştırır. Sonuç tanının metnine girer: eski bir tool ile "dosyayı sil, tekrar koş" aynı bayat değeri geri yazar ve `TRC0403` sonsuz döngüye girerdi. Bu, bu depoda ölçülmüş bir sınıftır — bir tanının önerdiği düzeltmenin uygulanabilir olduğu ayrıca doğrulanır.
+
+### K-798
+
+İkisi aynı anda doğru olamaz: `McpClientTool.InvokeCoreAsync` tek bloklu sonucu bir `AIContent`, çok bloklu sonucu bir `AIContent[]` döndürür (kaynak okundu, `ModelContextProtocol.Core` 2.2.0), yani MCP tool'larının **tamamı** o kapının dışındaydı. Ölçüldü: 200 baytlık sınıra karşı **8035 bayt**. `ToolResultText` artık protokol sonucunu `JsonSerializer.Serialize(sonuç, AIJsonUtilities.DefaultOptions.GetTypeInfo(typeof(object)))` ile okur — bu, `Microsoft.Extensions.AI.OpenAI`'nin ve `Anthropic` SDK'sının `FunctionResultContent.Result` için yaptığı **aynı** çağrıdır, yani sayılan bayt tele giden bayttır; `Tracon.Core`'da AOT temizdir (ölçüldü: sıfır `IL2026`/`IL3050`). Sınırın ALTINDA kalan protokol sonucu dokunulmadan geçer — `Tracon.Anthropic` onu gerçek içerik bloklarına çevirir ve aşmadığı bir bütçe için bir görseli metne düzleştirmek onu bedelsiz kaybederdi. Aşan sonuç her tool'un aldığı aynı zarfa iner.
+
+### K-799
+
+Yani guard, kendi doküman yorumunun "uzak bir MCP tool'unun döndürdüğü kötücül metin tam olarak buradan girer" dediği girdi sınıfını hiç görmüyordu, ve guard açık olan bir kurulumda MCP tool'ları işlevsizdi. K-798'in okuması bu dalı daraltmaz: ham CLR nesnesi hâlâ okunamaz ve hâlâ değiştirilir (`ContentGuardMaskTests` bunu ayrıca zorlar). Guard artık **okuyabildiğini inceler, okuyamadığını değiştirir** — ikisi ayrı kümedir.
+
+### K-800
+
+Gerçek `McpClientTool` `AIContent` döndürür ve kusur **tam olarak** o ayrımda yaşıyordu: testler yeşil, zincir kurulu, sınır bir faz boyunca hiç uygulanmadı. Şekli taklit etmeyen bir fake yalnız sarmalayıcının **kurulduğunu** kanıtlar, davranışını değil. Kapanış bu üç testi `AIContent` döndüren bir vekile taşıdı ve üstüne gerçek SDK istemcisiyle konuşan bir fonksiyonel test (`McpToolResultTruncationTests`) ekledi.
+
+### K-801
+
+Sonuç ölçüldü: değişmeyen bir case bile `Removed` + `Added` oluyordu ve aynı pencerede gerçek bir regresyon `Regressed` değil `Removed` sayılıp `--max-regressions 0` kapısını sessizce atlıyordu. DTO `Id` kazandı; **id yoksa yeni case**, id varsa korunur; bu suite'e ait olmayan ya da iki kez geçen bir id **tüm isteği** `400` ile düşürür (ucun boş `query` için zaten uyguladığı kural — kısmen uygulanan bir "tam değiştirme" kimsenin istemediği bir liste bırakır). İçerikten örtük eşleme **reddedildi**: "tam değiştirme" ucunun davranışını gövdenin dışındaki duruma bağlar ve aynı metinli iki case'te belirsizleşir.
+
+### K-802
+
+Bellek içi store aynı alanları koruyordu: sözleşme testi olmayan bir **sağlayıcı sapması**. İki katman birden düzeltildi — SQL üç sağlayıcıda da yazıyor (tek metin, `SqlQueriesBase`), ve uç promosyon alanlarını istemciden DEĞİL eşleşen mevcut case'ten taşıyor. İstemci bu alanları gönderemez; gönderebilseydi bir case'e sahte bir köken uydurulabilirdi.
+
+### K-803
+
+Tüketici bunu "run hâlâ çalışıyor"dan ayırt edemiyordu. Ayrım bayttadır: sürmekte olan bir run 250 ms'de bir `: waiting` gönderir, biten bir run akışı kapatır, ölen bir bağlantı ikisini de yapmaz. **Frame ile ölçmek yanlıştır** — `SseDecoder` yorum satırlarını düşürür, yani düşünen sağlıklı bir run hiç frame üretmez ve frame tabanlı bir eşik onu keserdi. `readSse` isteğe bağlı `idleTimeoutMs` alır (varsayılan: sonsuz bekle, davranış değişmez); konsol 30 sn geçirir. Eşik sunucunun `RunEventPollInterval`'inden (varsayılan 250 ms) büyük olmalıdır.
+
+### K-804
+
+`RecordReasoningDeltas` varsayılan olarak kapalıdır ve kapalıyken akış düşünme içeriğini taşırken kayıt taşımaz — hiçbir uyarı yok. Turda deneyimli bir testçi bu ayrımı kurmak için **dört gerçek Anthropic çağrısı** harcadı ve yine izole edemedi; kaydettiği "options bağlama sorunu ekarte edildi" gerekçesi de geçersizdi, çünkü kanıt olarak kullandığı `RecordMessageDeltas` zaten `true` varsayılıyor. Rapor `secret` taşımaz: her üye bir anahtar ya da bir uzunluktur. 🚨 Alan eklenince ortaya çıktı ki `TraconDiagnosticsCollector`'ın DI fabrikası **son iki isteğe bağlı argümanı hiç geçmiyordu** — rapor kurulumun değil varsayılanların ayarlarını söylüyordu, ve `logger` de hiç verilmediği için katalog okuma hatası her kurulumda sessizce yutuluyordu.
+
+### K-805
+
+`TimeoutAIFunction` yalnız `Task.WhenAny` ile beklemeyi bırakıyor, gövdeye çağıranın **kendi** token'ını veriyordu; sınıfın kendi XML dokümanı bu davranışı bilinçli bir sınır olarak anlatıyordu ve `docs-site/concepts/tools.md` "asla timeout-aware bir token vermez" diye **açıkça belgeliyordu**. Bedeli para: sınırdan sonra hiç kimsenin beklemediği bir sağlayıcı çağrısı faturalanmaya devam ediyordu. Artık bağlı bir CTS zaman aşımında iptal edilir — çağıranın token'ı yine akar, yani gerçek bir çağıran iptali kendi kimliğini korur. 🚨 Sınıf taraması bunun **kod tabanının kendi emsali** olduğunu gösterdi: `ChildAgentInvoker` (`deadline.CancelAfter`) ve `OnlineEvalJobHandler` (`budget.CancelAfter`) aynı yarışı zaten iptalle kuruyordu; tek istisna tool zaman aşımıydı.
+
+### K-806
+
+Ölçüldü: gövdenin `TraconToolUsage.Report` çağrısı run'ın accumulator'ına **ULAŞIYOR** (`true` döndü) — onu geri alan kimse yoktu, çünkü `ToolInvocationTracker.OnResult` çoktan koşmuştu. Yeni `IRunStore.CompleteLateToolInvocationAsync` o satırı tamamlar: `result`, `usage_*`, `cost`, gerçek `duration_ms` ve yeni `late_completed_at` yazılır; `timed_out` ve `error` **DEĞİŞTİRİLMEZ** — onlar modele ne söylendiğini kaydeder ve bu sonradan değişmez. **İkinci satır reddedildi:** `GetToolUsageAsync` satır sayar, yani bir çağrı iki görünür ve tool'un hata oranı yarıya inerdi. **Yalnız run olayı da reddedildi:** kusur maliyet muhasebesidir ve maliyet raporunun okuduğu yer `tool_invocations`'tır; olay akışına yazmak kusuru yarı açık bırakırdı. Bedel ölçüldü: Aile B'nin `GetLastEventSequenceAsync` ile aynı şekil — 12 uygulayıcı ve üç sağlayıcıda koşan 6 yeni sözleşme testi.
+
+### K-807
+
+O varsayılan bir şeyi **sorgulayan** tool için seçilmiştir; görsel üretimi o sınıfta değildir ve ölçülen `gpt-image-1` isteği rutin olarak 30–35 sn sürer. Sonuç: sevk edilen tool **varsayılan kurulumda düşmeye ayarlıydı** ve `HATA-S1-025`'in ilk vakası tam olarak buydu. `Tracon:Images:Timeout` ile kısaltılabilir — kısaltmak veri kaybettirmez, çünkü geç biten çağrının harcaması K-806 ile yine kaydedilir.
+
+### K-808
+
+Eksik olan **söylemesiydi**. Ölçüldü: örnek kurulumun 13 modelinin **hiçbirinde** fiyat yoktu, yani her `run` maliyetsiz kaydediliyordu ve sebebini öğrenmenin tek yolu bir satırdaki `pricing_source` enum'unu okumaktı — kırık bir maliyet raporundan ayırt edilemez. `UnpricedModelWarningService` (Aile A'nın `PreservedStoreRegistrationWarningService` emsali) her `provider/model` çiftini `Warning` ile adlandırır; `/api/diagnostics` aynı listeyi `pricing` altında bildirir (Aile F'nin `runRecording` emsali). **İki okuyucu tek `UnpricedModels.Find` uygular** — iki kopya kaçınılmaz olarak kayar. Veri kaybı yoktur: `POST /api/stats/recalculate-costs` fiyat sonradan girilince geçmişi geri hesaplar. Paket içine gömülü fiyat tablosu yine **yoktur** (K-032): fiyatlar NuGet sürümünden hızlı bayatlar.
+
+### K-809
+
+Çözüm `samples/Tracon.Api/appsettings.json`'ın **kendi emsalidir**: `AzureOpenAI` bloğu zaten "the sample names are placeholders" diyerek yer tutucu taşır. 13 modele `*CostPerMillionTokens` girildi ve `//Models` yorumu bunların ÖRNEK rakam olduğunu, sağlayıcının fiyat sayfasından değiştirilmesi gerektiğini ve fiyatsız bir modelin açılışta uyarı ürettiğini (K-808) söylüyor. ⚠️ Rakamlar bu ortamdan doğrulanamadı; örnek olarak işaretlenmelerinin sebebi budur.
+
+### K-810
+
+Aile C'den beri bu metin `ExplainedFailureAIFunction` üzerinden **modelin kendisine** ulaşıyor, yani model üzerine akıl yürütemeyeceği bir cümle okuyordu. 1 sn ve üstü saniye, altı milisaniye olarak yazılır.
+
+### K-811
+
+Ölçüldü (gerçek host + gerçek HTTP): `GET /api/agents/{name}` YENİ modeli gösterirken çalıştırma ESKİ modeli çağırıyor — veritabanı doğru, çalıştırma yanlış, ve operatör doğru yere bakamıyor. Sınıfın kendi doküman yorumu bu boşluğu bir tasarım ilkesi diye anlatıyordu ("sürüm artar, önbellek DOĞAL olarak bayatlar; bu yüzden açık geçersiz kılma mantığı yoktur"); ilke DELETE+CREATE için hiç geçerli değildi. Anahtar artık tanımın serileştirilmiş içeriğinin SHA-256'sını taşır: iki kayıt ancak **bayt bayt aynı** olduklarında derlenmiş agent'ı paylaşır, ki bu tam olarak paylaşmanın doğru olduğu durumdur. ∴ açık geçersiz kılmaya ihtiyaç kalmadı ve hiç çağrılmayan `Evict` **kaldırıldı** (`PublicAPI.Unshipped.txt`; güvenlik taramasının `B02-9` bulgusu — `Evict` kiracı ayırt etmiyordu — böylece kendiliğinden kapandı). **İçerik alan alan DEĞİL, serileştirilerek hash'lenir:** elle yazılan bir alan listesi `AgentDefinition`'a sonradan eklenen alanı kaçırırdı ve kaçırmanın bedeli sessizdir — önbellek o alanın ESKİ değeriyle derlenmiş agent'ı sunar. `DefinitionFingerprintTests.Every_field_of_the_record_reaches_the_fingerprint` bunu yapısal olarak kilitler.
+
+### K-812
+
+`ResolveSharedInstructionsAsync` parmak izi olarak `"{blok}:{sürüm}"` üretiyordu — blok silinip yeniden yaratılınca sürüm `1`'e dönüyor ve onu okuyan agent **silinmiş bloğun metnini** kullanmaya devam ediyordu. `CreateCallableFingerprint` yalnız `(ad, sürüm)` hash'liyordu, oysa çağırana gömülen şey alt agent'ın **açıklamasıdır** ve o açıklama modele giden instructions metnine giriyor. İkisi de artık gömülen şeyi ölçüyor: blok parmak izi metnin SHA-256'sı, callable parmak izi `CallableAgentInfo`'nun tamamı (ad + sürüm + açıklama). Üç yüzeyin üçü de düzeltmeden önce kırmızı olan birer fonksiyonel testle kilitlendi.
+
+### K-813
+
+Tracon'un `DbException` için **hiçbir** eşlemesi yoktu, yani çağıranın gördüğü şey tamamen tüketicinin `UseExceptionHandler()` kurulumuna kalıyordu. İki tetikleyici (`42P01 relation does not exist` · bağlantı kurulamıyor) ve iki yol (yazma · çalıştırma) tek opak yanıta düşüyordu. **İki neden AYIRT EDİLİR** çünkü istemci için farklılar: bekleyen migration operatör eylemi gerektirir ve yeniden deneme yardım etmez, erişilemez veritabanı genellikle geçicidir. Middleware `ISqlPersistenceDiagnostics`'e — diagnostics ucunun sorduğu aynı soruyu — sorar; probe'un kendisi de düşerse cevap zaten "erişilemez"dir. `500` **reddedildi**: eksik şema bir kod kusuru değil bir kurulum durumudur ve `500` onu load balancer/uptime probu için yanlış sınıfa koyardı. Bugünkü opaklığın savunulabilir yarısı **korundu**: sağlayıcının mesajı şema adını ve ifadeyi taşır, bu yüzden yanıta değil **loga** gider (`502`'nin sığ `detail`'iyle aynı kural). Kapsam `Tracon` etiketli **her uç**: `JsonBindingProblemMiddleware` emsali; `GET /api/agents` etkilenmez çünkü katalog listesi zaten bilinçli olarak hata-izoleli.
+
+### K-814
+
+Hiç migrate edilmemiş bir şemada o sorgu sağlayıcının ham `no such table` istisnasıyla düşüyor ve host açılışta işlenmemiş bir `SqliteException` ile çöküyordu: belgelenen `InvalidOperationException` DEĞİL, ve operatör hangi kuralın host'u durdurduğunu göremiyordu. Artık `DbException` yakalanır ve **fail-closed** yorumlanır — cevap veremeyen bir depo bir anahtarın varlığını kanıtlayamaz, ve başarısız bir sorgunun üzerine dışa açık bir agent yüzeyi açmak tam da bu kapının engellemek için var olduğu şeydir. Mesaj hangi kuralın durdurduğunu söyler ve ham istisnayı `InnerException` olarak taşır. Sınıf taraması: açılışta senkron store okuyan diğer tek yer `TraconA2AExtensions`'ın agent kartı süslemesidir ve o **zaten** geniş bir `catch` ile güvenli bir yedeğe düşüyordu (güvenlik kontrolü değil); iki gauge observer'ı da kendi `RefreshAsync`'lerinde yakalıyor.
+
+### K-815
+
+Beşinci durum — `kid` çözülüyor, değer geçerli 32 bayt, ama **yanlış anahtar** (bir `kid`'in materyali yenisiyle değiştirilmiş ya da eski bir yedek geri yüklenmiş) — ham `AuthenticationTagMismatchException` sızıyordu: HTTP yanıtı jenerik `ProblemDetails`, log mesajı ise yalnız "the computed authentication tag did not match" — ne `kid`, ne hangi `session`/`run`. Artık `CryptographicException` yakalanıp `TraconException`'a çevriliyor; mesaj `kid` ve yapılandırma anahtarının **adını** taşır, anahtar materyalini ve korunan değeri **asla** (K-059) — bu ayrıca testle zorlanıyor. Sınıf taraması: repoda `AesGcm.Decrypt` çağrısı **iki** yerdedir (`Unprotect`, `UnprotectBytes`) ve ikisi de tek ortak yardımcıya alındı; başka kriptografik doğrulama yolu yok.
+
+### K-816
+
+Sonuç: yabancı sağlayıcıdan gelen HER hata — 404, 500, bağlantı reddi, kimlik hatası — `Unknown`'a düşüyordu; taksonominin var olma sebebi tam olarak bunu önlemekti. Sınıflandırıcının kendi dokümanı zaten "önce kararlı kimliğin birebir eşleşmesini dener" diyordu: normalleştirici kararlı bir kimlik üretiyor, sözlük onu tanımıyordu. `upstream_error` → `ProviderError` ve `provider_credential_unsupported` → `CompilationFailed` (sağlayıcı hatası değil: kiracının kimlik bilgisi var ama adaptör kabul etmiyor, yani sohbet istemcisi hiç kurulamadı). K-296'nın ölçüm yorumu **bayattı** ve düzeltildi: desenler ölü değil — normalleştiricinin sarmalamadığı yerlerde kaçan aynı SDK tiplerini hâlâ taşıyorlar — ama sağlayıcı 404'ünü yakalayan şey artık onlar değil. **Kalan sekiz kimlik bilerek eşlenmedi** (F-246): karşılığı olan `RunErrorClass` üyesi yok ve yanlış kovaya koymak `Unknown`'dan kötüdür — `Unknown` kendi dokümanında "bir kusur değil, bir ölçüm aracı"dır.
+
+### K-817
+
+Parmak izinin işi benzerleri gruplamak, farklıları ayırmaktır; bu hâliyle ikisini de yapmıyordu. Üç olgu sınırlı ve güvenlidir: sağlayıcı adını **Tracon** seçer, tip adı bir sınıf adıdır, durum kodu üç hanedir. Sağlayıcının kendi mesajı **hiç** girmez — istek gövdesini, iç bir URL'i, `host:port`'u ya da kısmi bir kimlik bilgisini taşıyabilir ve `run` kaydı kalıcıdır; tam istisna yine `ILogger`'a gider. Durum kodu **Core'da, mesaj metninden** okunur: `FallbackRetryClassifier`'ın zaten uyguladığı emsal (`Flatten` + `\bHTTP\s+…`), ve sınıfın kendi yorumu bunu bilinçli bir mimari karar diye anlatıyor: "Core SDK tiplerini bilmez; sınıflandırma tip ADI ve MESAJ üzerinde metin olarak koşar." ⚠️ **Adaptör başına tipli bir seam önce seçilmiş, sonra geri alınmıştır:** seçim "durum kodunu yalnız adaptör bilebilir" gerekçesine dayanıyordu ve o gerekçe **yanlıştı**; aynı soruya iki mekanizma koymak bu repoda ölçülmüş bir kayma sınıfıdır.
+
+### K-818
+
+Sayı temizliği bir **id**'nin ya da bir **sayım**ın tek bir hatayı yüzlerce kümeye bölmesini engellemek için vardır (ölçülmüş: 2000 oluşum → 1368 küme); bir durum kodu bunun **tersini** yapar, iki hatayı ayırır. `NumberPattern` artık `(?<!\bHTTP\s)` lookbehind'ı taşıyor: "HTTP " öneki taşıyan kod korunur, diğer her sayı yine `{n}`'e iner. Bu, mesajında "HTTP nnn" geçen normalleştirilmemiş istisnaların **gelecekteki** parmak izlerini de duruma göre ayırır; eski satırlar kendi parmak izlerini korur.
+
+### K-819
+
+Liste **her** iki harfli kelimeyi dışlıyordu ve gerekçesi yalnız bir varsayımdı: "yanlış pozitif seli". Bedeli ölçüldü — sevk edilen bir doğrulama mesajı iki anahtar adının etrafına Türkçe bir eş bağlaç sarıyordu (`TraconOptionsValidator.cs:292 · 312 · 313`), tüketicinin konsoluna bozuk İngilizce çıkıyordu ve kapı bunu **yapısal olarak** göremiyordu: bağlaç Türkçe harf taşımıyor ve cümlede üç harfli tek bir Türkçe kelime yok. Kapının kendi taban çizgisi de boştu, yani bu borç kayıtlı bile değildi — kapıdan **kaçmıştı**. Varsayım ölçümle değiştirildi: taranan ağacın tamamında 16 iki-harfli aday sayıldı. Yedisinin (`ne · ya · ki · mi · mu · da · ve`) **sıfır** çakışması var ve listeye girdiler; üçü çakıştığı için **bilerek** dışarıda kaldı — `de` ve `en` bu repoda BCP-47 dil etiketi olarak literal geçiyor, `bu` ise çevrilmiş arayüz metnini doğrulayan E2E testinde. Kalan altısı bu repoda Türkçe düzyazıda hiç kullanılmıyor. **Tırnak komşuluğu deseni reddedildi:** kusur kaydının önerdiği "`ne` yalnız tırnaklı bir terimin yanındaysa" kuralı hem üç satırı yakalıyor hem de `streaming.test.ts`'in bilinçli olarak kelime ortasından bölünmüş SSE parçasını yanlış pozitif yapıyordu; kelime listesi kapının **zaten var olan** mekanizmasıdır ve gelecekteki bir sızıntıyı tırnaktan bağımsız yakalar.
+
+### K-820
+
+Sonuç ölçüldü: `GET /api/agents/support` **aynı anda** `200` dönerken `…/versions` "There is no agent named 'support'." diyordu — çağıranın gördüğü iki cevap birbiriyle çelişiyor. Yazma uçları bu ayrımı **zaten** yapıyordu (`GuardCodeAgentAsync`, `409` + kaynağın adı); eksik olan okuma yoluydu. Durum kodu `404` **kalır** — sürüm geçmişi kaynağı gerçekten yoktur — ama `Code` ve `Custom` için gerekçe ayrı yazılır, çünkü çağıranın yapacağı iş ayrıdır: biri uygulama kaynağını, diğeri agent kaynağının okuduğu yeri düzenler. **`409` reddedildi:** o kod bir değişiklik çakışmasıdır ve bu bir `GET`'tir. **`200 + boş liste` reddedildi:** "hiç sürüm yok" ile "burada sürümlenmiyor" ayrımını siler ve konsol sebepsiz boş bir tablo gösterir. 🚨 Sınıf taraması kaydın öngörmediği **ikinci** bir biçim buldu: `versions/{a}/diff/{b}` agent varlığını hiç kontrol etmiyor, doğrudan "Agent 'x' has no version N." diyordu — bu cümle agent'ın burada sürümlendiğini iddia eder ve o iddia da yanlıştır. İki okuma artık tek yardımcıyı paylaşıyor.
+
+### K-821
+
+⚠️ **İlk tasarım ölçümle reddedildi:** converter'ı enum tiplerine `[JsonConverter]` ile takmak yayınlanan sözleşmeyi bozuyor. `JsonSchemaExporter` yalnız framework'ün kendi enum converter'ını tanır; ölçüldü — `docs/openapi/tracon.json` **42 enum'un `enum` listesini birden** kaybetti (287 satır) ve üretilen her istemci union'larını yitirirdi. Derleme ve testler bunu göstermedi, yalnız belgeyi tazeleyip `git diff` okumak gösterdi. Çözüm aynı sonucu sözleşmeye dokunmadan verir: converter `RequestBodyBinding`'in türettiği **istek gövdesi** options'ına eklenir. Bir options converter'ı tip düzeyindeki attribute'u geçer (çözüm sırası: property attribute → options listesi → tip attribute'u), yani gövdeler için kazanır, şema üretiminde hiç görünmez ve `Tracon.Abstractions`'ın public yüzeyi büyümez. **Tüketicinin kendi enum converter'ı kazanmaya devam eder** — Tracon'unki listeye **eklenir**, başa konmaz (store kaydı kuralıyla aynı ilke). Parsing yeniden yazılmaz: converter `JsonStringEnumConverter<T>`'nin ürettiğine delege eder ve yalnız mesajı değiştirir. 🚨 Sınıf taraması iki katman daha buldu: `AgentEndpoints.BindAgentDefinitionRequestAsync` `RequestBodyBinding`'in elle yazılmış bir kopyasıydı ve `ReadFromJsonAsync`'i **hiç options vermeden** çağırıyordu (üç agent tanımı ucu `RespectNullableAnnotations`'ı da kaçırıyordu); ve `System.Text.Json` `JsonException.Path`'i doldurur ama **mesaja** yalnız kendi ürettiği istisnalarda ekler, yani daha iyi bir cümle yazan converter stok mesajın tek yararlı parçasını kaybediyordu — yol artık `RequestBodyBinding.Describe`'ta bir kez ekleniyor.
+
+### K-822
+
+∴ her şeyi doğru kurulmuş bir uygulama — veritabanı erişilebilir, 51 migration uygulanmış, üç gerçek anahtar çözülmüş — `/health`'te **süresiz** `Degraded` raporluyordu. `Degraded` "bir şey bozuk" demektir; söylenmek istenen "hiçbir şey ölçülmedi"ydi ve operatör gerçek bir bozulmayı bu gürültüden ayıramıyordu. Durum artık yalnız **bilinen** arızayı yansıtır, ölçümün yokluğu **mesajda** söylenir. `Unknown` iki durumu birden anlatır (hiç proplanmadı · sağlayıcı health check taşımıyor) ve ikisi de kusur kanıtı değildir, bu yüzden tek dal ikisini de kapsar. Proplanmış ve sağlıksız bir sağlayıcı **hâlâ** `Degraded` yapar ve adıyla söylenir; hiç sağlayıcı kayıtlı değilse de `Degraded`, çünkü o gerçek bir kurulum eksiğidir. **Açılışta prob koşmak reddedildi:** her açılışta her sağlayıcıya bir ağ isteği ve kota maliyeti ekler, ve `TraconDiagnosticsCollector`'ın "yan etkisi yoktur" sözleşmesi bu ucun bir orchestrator tarafından yoklanabilmesinin sebebidir. 🚨 Mevcut test (`No_provider_checked_yet_returns_Degraded`) kusuru adıyla kilitliyordu; doğru beklentiye çevrildi ve karşı yönü zorlayan ikinci bir test eklendi.
+
+### K-823
+
+Geniş `catch` bilinçliydi ve işlevsel olarak doğruydu — ama yutma bir katman **geç** yapılıyor: `CompositeAgentCatalog.ListAsync` istisnayı geri dönmeden önce `LogLevel.Error` ile, tam yığın iziyle **çoktan loglamış** oluyor. Sonuç ölçüldü: boş bir şemaya karşı her ilk açılışta logun 7. satırı `Agent source 'database' failed during list` + sağlayıcı yığın izi; migration'ın `CREATE SCHEMA` adımı 39. satırda geliyor. Tracon bir kütüphanedir ve bu, tüketicinin ilk çalıştırma deneyimidir. Düzeltme `SchemaReadyGate.IsReady` kontrolüdür — repoda `McpDiscoveryService` ve `A2AApprovalGuardFilter`'ın zaten uyguladığı emsal. `CompositeAgentCatalog`'un `Error` seviyesi **değiştirilmedi**: çalışma anında gerçekten başarısız olan bir kaynak bir hatadır ve öyle görünmelidir. `catch` de kaldırılmadı, ikinci savunma hattı olarak kaldı. Gate, SQL sağlayıcısı kayıtlı değilken kendiliğinden açıktır, yani bellek içi kurulum süslenmiş kartını almaya devam eder.
+
+### K-824
+
+İşlevsel kırılma yoktu — `theme.ts` aynı yazımı modül yüklenirken yapıyor — bu yüzden tek belirti kalıcı bir konsol hatası ve varsayılan olmayan tema seçmiş her tüketici için tema sıçramasıydı; 79 E2E testi konsola bakmadığı için yeşil geçiyordu. **Hash sabit yazılmaz:** yazılan bir hash script'in ikinci bir kopyasıdır ve onu güncel tutan hiçbir şey yoktur, yani script ilk değiştiğinde aynı kusur **sessizce** geri gelirdi. `EmbeddedUiProvider.BuildShell` hash'i sevk edilen shell'in kendi metninden hesaplar; `ShellDocument` artık kendi CSP'sini taşır ve shell zaten basePath başına önbelleklenmiş olduğu için ek maliyet yoktur. **Nonce reddedildi:** yanıt başına değişmek zorundadır, bu da shell'in istek başına render edilmesini ve önbelleklenmiş/ETag'li dokümanın kaybını gerektirir. **Script'i kaldırmak reddedildi:** erken boyama hâlâ değerlidir. **`'unsafe-inline'` reddedildi:** hash yalnız bu script'i çalıştırır, anahtar kelime gelecekte enjekte edilen her script'i de çalıştırırdı. Kapı iki testtir ve biri tarayıcısızdır: sunulan HTML'den hash'i **yeniden hesaplayıp** CSP'de arar, yani bayatlayamaz.
+
+### K-825
+
+İki kural birbirini kilitliyordu ∴ prova **hiçbir** sürüm numarasıyla yeşil olamıyordu ve `MT-PKG-104 · 105 · 115 · 116 · 117` bloklanmıştı. Çözüm kapının **koruduğu şeyi** yeniden ifade eder: korunan şey "bölüm var mı" değil, **notsuz sürüm çıkmasın**dır. Sürüm bölümü yoksa `## [Unreleased]` okunur ve **dolu olması** şart koşulur; ikisi de boşsa prova kırmızıdır. **Yedek iki tarafta da aynıdır** — `scripts/changelog.py` hem `kapi.py`'nin kapısını hem `github-release` işinin gövdesini besler; yalnız biri yedeği kullansaydı prova yeşil, release gövdesi boş olurdu. Adım 5 artık bir **yeniden adlandırma**dır: `## [Unreleased]` başlığı sürüme ve sevk tarihine çevrilir, üstüne boş bir `Unreleased` açılır. **Reddedilen iki seçenek:** (1) bölümü yayından önce elle yazmak — changelog'un kendi politikasını bozar ve sevk edilmemiş bir sürümü adlandırır; (2) kapıyı yalnız gerçek `v*` etiketinde koşturmak — provanın kapsamını daraltır, yani prova yeşilken gerçek yayın kırmızı olabilirdi ve provanın değeri tam olarak bu farkı ortadan kaldırmaktır.
+
+### K-826
+
+Ölçüm üç katman buldu. (1) Yanıt. (2) **Sağlayıcı sapması:** `RawJson` aynı değer için `null` literali yazıyordu ve SQL Server'ın `CHECK (ISJSON(payload) = 1)` kısıtı bunu **reddediyor** — `job_schedules_payload_json` ihlali birebir ölçüldü; Postgres ve SQLite sessizce kabul ediyordu, bu yüzden hiçbir bellek-içi veya Postgres testi göremezdi. (3) **Okuyucu:** geri okunan JSON `null`, `JobPayload.ExtractItems`'te metni `"null"` olan **tek bir kalem** oluyordu — boş bir zamanlama, sahte bir kalemi olan bir job üretiyordu. Sınıf taraması beş özellik buldu (`JobSchedule.Payload`, `JobRecord.Payload`, `JobRequest.Payload`, `EvalSuite.Checks`, `EvalCaseResult.Scores`). Boş değer **boş dizidir**: her sütunun kendi varsayılanı zaten odur, her okuyucu zaten onu "hiçbir şey" sayar ve üç sağlayıcının hepsini birden tatmin eden tek boşluk odur. `required` üyeler kapsam dışıdır — serileştirici onları atlayan gövdeyi reddeder, ∴ `Undefined` JSON'dan gelemez; elle `default` yazan bir tüketicinin hatasını sessizce düzeltmek onu gizlerdi. Kapı davranışsaldır: `FreeFormJsonContractTests` her özelliğin **kendi `init` erişimcisini** `default` ile çağırıp geri okur, yani bir yeniden adlandırmayla bayatlayamaz.
+
+### K-827
+
+Soru açıktı: harness sınırı mı, ürün sınırı mı? **Ürün sınırı** — SQLite'ı birden çok yerden yazan bir tüketici aynı duvara çarpar. Her komut sarmalanır; reddedilen ifade altı denemeye kadar, üstel geri çekilme + jitter ile, bağlantının kendi `busy_timeout`'unun üstüne ~1,5 saniye ekleyerek yeniden gönderilir. **`busy_timeout`'un üstüne ne kattığı ölçüldü:** `SQLITE_LOCKED` (6) busy handler'a **hiç** ulaşmaz, yani hiçbir timeout değeri onu kapsamaz; ve 5 saniyelik timeout tükendikten sonra gelen bir ret de kapsanmaz (ölçülen kusurun şekli buydu — testi 34 saniye sürmüştü). **Çağıranın yönettiği bir işlem içindeki ifade yeniden denenmez** ve denenmemelidir: yalnız işlemin tamamı yeniden denenebilir, tek bir ifadeyi göndermek SQLite'ın çoktan geri aldığı bir iş biriminin parçasını yeniden uygulardı. 🚨 Bariz entegrasyon testi **tiyatro olurdu**: kilidi bir an tutup yazmanın ulaştığını iddia etmek, retry KALDIRILDIĞINDA da geçiyor (ölçüldü) çünkü `busy_timeout` onu yutuyor. Kapılar bu yüzden kablolamayı ve mekanizmayı ayrı kanıtlar. 39 temizlik hatası ayrı düzeltme istemedi: fixture'ın DROP akışı aynı data source'tan geçiyor.
+
+### K-828
+
+Yer tutucu bırakılırsa ilk koşum `{"type":"ProviderInvocationException","message":"The model provider request failed."}` döndürüyordu — sağlayıcının 404'ü modeli adıyla söylüyor ama o metin yabancı bir SDK mesajıdır ve istemciye ulaşmadan redakte edilir (`ProviderFailureNormalizer`), ∴ tüketicinin ilk beş dakikası hiçbir şeyi adlandırmayan bir hataya gidiyordu. Şablon artık açılışta duruyor ve düzenlenecek dosyayı adıyla söylüyor. 🚨 **Koşulsuz bir `throw` mevcut bir sözleşmeyi kırdı:** `TemplateRunTests` şablonun kendi "sıfır sürpriz" kuralını ölçüyor — anahtar yokken uygulama yine açılır ve kataloğu döndürür. Kontrol bu yüzden `providerConfigured` koşuluna bağlıdır: anahtar yokken agent modele zaten ulaşamaz, ∴ durdurmanın koruyacağı bir şey yoktur. Ürünün redaksiyon politikasına dokunulmadı; düzeltme şablonun kendi dosyasındadır.
+
+### K-829
+
+Sınıf taraması kaydı genişletti: yapılandırma-referansı şeklinde **iki değil beş** sevk edilen özellik var (`AuthorizationConfigurationKey`, `OAuthClientSecretConfigurationKey`, `SecretConfigurationKey`, `ApiKeyConfigurationName`, `SigningSecretConfigurationName`) ve her biri K-059 gereği yalnız bir yapılandırma girdisinin **ADINI** taşır, değerini değil. İki kural, ikisi de dar ve ikisi de mevcut tekil-`token` istisnasının şeklinde: (1) `configurationKey` · `configurationName` · `mode` sonekiyle biten bir ad bir **referans ya da sınıflandırmadır**, değer değil; (2) `null`, `true` ve `false` korunacak hiçbir şey taşımaz — birini `"***"` yapmak hiçbir şeyi korumaz ve okuyucuya olmayan bir `secret`'ın varlığını söyler. **Sayı kapsamda kalır:** tek kullanımlık bir kod sayıdır ve ada bakan bir filtre onu sayaçtan ayıramaz. Aynı ad altındaki bir metin hâlâ redakte edilir; bir nesne ya da dizi hâlâ bütün olarak değiştirilir.
+
+### K-830
+
+**Teşhis ölçülerek çürütüldü:** gerçek bir `ActivityListener` ve gerçek bir süreçle başarılı bir koşum `exit_code`, `duration_ms` ve `Ok` durumunu span'e bırakıyor, ve `RunTraceCollector` etiketleri `ActivityStopped` anında okuyup duyarlı olmayan her birini saklıyor. ∴ iki ad etiketiyle biten bir span, etiket satırına hiç ulaşmamış bir koşumdur — ve metottan o satırdan önce çıkan tek yol bir kapının `TraconException` fırlatmasıdır, ki ebeveyndeki istisna TİPİ tam olarak budur. Reddedilen koşum hiçbir sonuç bırakmıyordu; artık `tracon.script.denial_reason` ile kendini adlandırıyor ve durumu `Error` oluyor. Değer, runner'ın kendi sabit cümlelerinden biridir ve çağıran metni taşımaz, ∴ `RecordSensitiveData=false` altında da kalır — `error.message` (StatusDescription) tasarım gereği düşer. Span erişimcinin gövdesinden **parametre olarak** geçirilir, `Activity.Current`'tan okunmaz. **Açık kalan ÖLÇÜLDÜ ve kapandı (2026-09-19):** `MT-SKILL-070`'in fixture'ı canlı sunucuda kuruldu (skill + script + grant + onay kartları, gerçek OpenAI) ve **başarılı** bir koşumun span'i tam da beklendiği gibi çıktı — `tracon.script.exit_code = 0`, `tracon.script.duration_ms = 53.0284`, `status = Ok`, ve ebeveyn `execute_tool` span'i `Error` **değil**. Hipotez doğrulandı: kayıt iki ayrı çağrıya bakmıştı. `HATA-S2-003` artık tamamen kapalıdır ve case `Geçti`.
+
+### K-831
+
+∴ normalleştiriciden geçen hiçbir sağlayıcı hatası `Timeout` sınıfına ulaşamaz hâle geldi ve K-737'nin ayrımı ("sağlayıcı hiç **cevap vermedi**" ≠ "sağlayıcı hata **döndürdü**") sessizce kayboldu. Ayrım ucuz değildir: yeniden deneme ve alarm davranışını farklı sürer. Canlı ölçüldü (`MT-RES-089`, yönlendirilemez uç + 3 sn timeout): kayıt `ProviderError` geldi. Düzeltme **tek bir daraltmadır** — eşleşme `ProviderError` ise ve Tracon'un **kendi** cümlesi `fault: 'TimeoutException' \| 'TaskCanceledException' \| 'OperationCanceledException'` taşıyorsa sınıf `Timeout` olur; diğer her normalleştirilmiş hata (404, 402, 503) `ProviderError` kalır ve bu ayrı testlerle zorlanır. Desen yalnız `DescribeUpstreamFailure`'ın ürettiği metne dayanır, sağlayıcının kendi metni oraya hiç girmez (K-817), ve `fault: '...'` çapası sağlayıcı mesajında geçen bir "cancel" kelimesinin eşleşmesini engeller. ⚠️ **İptal edilmiş bir TİP burada zaman aşımı demektir** — sınıflandırıcının alt kısmındakinin tersi: normalleştirici bir `OperationCanceledException`'ı **dokunmadan** geçirir (`ShouldNormalize`), ∴ çağıranın durdurması hiçbir zaman `upstream_error` üretmez. 🚨 **Otomatik test bunu göremiyordu ve sebebi kayda değer:** `ProviderTimeoutTests`'in sahtesi `TaskCanceledException`'ı **doğrudan** atıyor, yani normalleştirilmeyen yolu koşuyor; ve testin adı `..._is_classified_as_a_timeout_...` olduğu hâlde gövdesi yalnız `Failed`'ı iddia ediyordu. Gerçek SDK zaman aşımını `AggregateException("Retry failed after 4 tries")` içinde sarmalar (şekil koşum günlüğünden alındı, tahmin edilmedi) ve **o** yol normalleştirilir. Yeni sahte gerçek şekli taklit eder.
+
+### K-832
+
+(1) **Normalleştirilmiş `429` `RateLimited` değil `ProviderError` oluyor** — ölçüldü: `upstream_error` + `(HTTP 429)` → `ProviderError`; `402` ve `503` de aynı. `RateLimitPattern` `StableIdentities`'in altındadır, ∴ hiç koşmaz. Taksonomide `RateLimited` kovası vardır ve geri çekilme davranışını sürer. (2) **Normalleştirilmeyen yolda sınıf `Canceled` geliyor** — `RunRecordingAgent.ToRunError` yabancı bir istisnanın mesajını `SafeErrorText`'ten geçirir ve kayda `"TaskCanceledException failed. (ref: …)"` yazar; K-737'nin dayandığı zaman aşımı **kelimeleri redakte edilmiştir**, ∴ `TimeoutPattern` hiçbir şey göremez ve `CanceledTypePattern` tipte eşleşip `Canceled` verir — `status` `Failed` olduğu hâlde. Çağıranın durdurması o yola **ulaşamaz** (`RunRecordingAgent.cs:309` onu ayrı yakalar), ∴ `Canceled` orada yanlıştır; ama düzeltmek `IRunErrorClassifier`'ın **provenance'ını göremediği** bir `RunError` için ne vaat ettiğini değiştirir. Test dosyasına assertion **eklenmedi** (yanlış davranışı sabitlemek de tiyatrodur); onun yerine tam gerekçe o satıra yorum olarak yazıldı.
+
+### K-833
+
+Düğme, çalışması **imkânsız** olan tek eylemi öneriyor: reddin sebebi roldür, yeniden denemek onu değiştirmez. ∴ panel "bu senin ekranın değil" değil "konsol bozuk" diye okunur. Bu tam olarak `diagnostics.tsx`'in ve MCP prompt sekmesinin **kendileri için** kapattığı boşluktur ve ikisi de gerekçesini 🚨 yorumu olarak taşıyor (*"A reader used to get the 403 and see it rendered as a generic failure"*); bu beş panel aynı işlemden hiç geçmemiş. Düzeltme aynı desendir: sorgu `enabled: canAdminister` ile **hiç koşmaz** ve gövde `Unauthorized requires="administrator"` çizer; birincil eylem düğmesi de gizlenir. Uçlar ölçüldü — `api/webhooks` · `api/api-keys` · `api/retention(+preview,+history)` · `api/tenants/{id}/providers` · `.../egress` · `api/approvals/rules` hepsi reader'a `403`, admin'e `200`. 🚨 **Asıl iddia metin değil, isteğin GÖNDERİLMEMESİDİR:** yalnız `enabled:` guard'ı silmek kusurun tamamını geri getirir ve metne bakan her iddia yeşil kalır, çünkü 403 o zaman gelir ve gerçek bir taşıma hatası için dosyada duran aynı `ErrorNote` dalı onu çizer. `admin-panel-roles.test.tsx` bunu zorlar ve düşerliği ölçüldü (guard kaldırılınca kırmızı). ⚠️ `quota-panel` **kapsam dışıdır** — `api/quotas/usage` reader'a `200` döner, panel meşru olarak okunabilir.
+
+### K-834
+
+Bu, `CLAUDE.md`'nin "sonra değiştirilmek üzere tasarlanmış geçici çözüm önerme" kuralıyla doğrudan çelişir ve pratikte de çalışmaz: düzenlemeyi sonraki tur sıfırdan keşfeder, unutulan bir düzenleme ağaçta kalır, ve `git checkout` koşum kayıtlarını da silebilir (kaydın kendi `git add -A` uyarısı). Repo bu sorunu **bir kez zaten çözmüştü**: Faz 9'un `Tracon:Demo:Roles:Enabled` bayrağı, "bu referans uygulama bir rolün bir şeyi engellediğini hiç GÖSTEREMİYORDU" gerekçesiyle eklenmiş kalıcı bir demo kancasıdır — ve `MT-UIRUN-063` bugün tam olarak o bayrak sayesinde **sıfır kod değişikliğiyle** kapandı. Aynı desen genişletildi: (1) `Tracon:Demo:RunAuthorization:Mode` — sekiz sabit kural (`deny-all` · `allow-user-a` · `throw` · `deny-foreign-session` · dört `deny-session-*`), varsayılan kapalı, kimlik `X-Demo-User` başlığından; (2) `whoami` tool'u — `TraconRunContext.Current?.UserId`'yi geri okur. 🚨 **Handler aldığı her isteği `Information` düzeyinde GÜNLÜKLER** ve asıl değeri budur: bir karar tek başına handler'a hangi alanların ULAŞTIĞINI gösteremez. `MT-SEC-148` (`tenant=default`), `MT-SEC-142` (`session=...`), `MT-SEC-150` (sekiz eşzamanlı çağrının sekizi de ayrı), `MT-SEC-161` (karar sayacı artmıyor ⇒ hiç çağrılmadı) ve `MT-SEC-163` (0→1 ⇒ çağrıldı) iddialarının hepsi yalnız o günlükle ölçülebildi. Bilinmeyen bir mod değeri uygulamayı **açılışta durdurur**: sessizce allow-all'a düşen yanlış yazılmış bir mod, bir ret testini yanlış sebeple yeşil yapardı. ⚠️ Eklenen tool `whoami` tool sayısını 10→11 yapar; suite'in kendi kuralı bunu zaten karşılıyor (`02-CEKIRDEK-VE-KATALOG.md`: *"Sayıyı sabitleme, varlığı denetle"*). Kapsam **yalnız `samples/`**; `src/` altındaki hiçbir pakete dokunulmadı. ➕ **Aynı gün üçüncü kanca** (`MT-SEC-180`/`181` kapanışı): `Tracon:Demo:MapOpenAIConversations`. Sebep birebir aynıdır — `MapOpenAIConversations` `MapTracon` çağrısında karara bağlanır ve `false` kolu yalnız `Program.cs`'i geçici düzenleyerek görülebiliyordu. Kanca **gerçek seçeneği bağlar**, yeni davranış eklemez; anahtar yoksa sevk edilen varsayılan (`true`) kalır. İkisi de canlı koşuldu ve geçti.
+
+### K-835
+
+Canlı ölçüldü: uygulama sorunsuz başlıyor (MT-MM-120'nin kapısı tatmin oluyor) ama her üretim `502 "Image could not be generated"` veriyor. Sebep ortam sınırı DEĞİL: `ListModels` bu anahtarda **58 model** döndürüyor ve altı görsel modelinin **hiçbiri** `predict` desteklemiyor — altısı da yalnız `generateContent`. `imagen-3.0-generate-002:predict` doğrudan çağrıldığında Google `404 NOT_FOUND` diyor. Yeteneğin var olduğu ayrıca kanıtlandı: **aynı anahtarla** `gemini-2.5-flash-image:generateContent` **3.2 MB'lık bir PNG üretti** (`inlineData`, `image/png`). Google SDK'nın kendisi de koşum günlüğünde bunu söylüyor: *"The GenerateImagesAsync method is deprecated… Please use the GenerateContentAsync method with image models instead."* ∴ paket, tüketicinin kullanamayacağı bir yol sevk ediyor. ⚠️ **Düzeltme sevk edilen bir paketin davranışını değiştirir ve seçenek eşlemesi birebir değildir:** `ImageGenerationOptions.Count` `generateContent`'te `candidateCount`'a karşılık gelir ama görsel modelleri genelde 1 döndürür, ve `MediaType` hiç kontrol edilemez — model kendi mime türünü seçer. Bu yüzden düzeltme bu oturumda **yapılmadı**; kusur ölçümüyle birlikte kodlandı ve karar kullanıcıya bırakıldı.
+
+### K-836 — devam (Faz 90 damıtması)
+
+Aynı kurulumda yetkilendirme katmanı ile depolama katmanı `acme`/`Acme` için TERS karar veriyordu; `tenant_id` bu sınıfın **tek fail-open üyesiydi** (`provider_name` K-639 ile kapalı).
+
+### K-838 — devam (Faz 90 damıtması)
+
+Üç prosedürel lehçe aynı kuralı üç kez kopyalar ve SQL Server'ın `COLLATE Latin1_General_BIN2` tuzağını üç yere dağıtır; tek kod yolu onu tek bir override'da toplar. Tablo listesi katalogdan okunur — elle liste 35. tabloda bayatlar (K-483 sınıfı).
+
+### K-839 — devam (Faz 90 damıtması)
+
+Giriş sınırı ve route'tan kiracı alan 11 HTTP ucu kapatıldığında birinci-parti hiçbir yol bir bellek içi store'a ham değer göndermez; bellek içi durum ayrıca geçicidir. İstisna edilen iki store'un ıskalanması **fail-open**'dır, o yüzden onlar kapsama alındı.
+
+### K-840 — devam (Faz 90 damıtması)
+
+Tick filtresi tüm OCE'leri dışlıyor, döngü filtresi yalnız kendi kapanışını yakalıyordu: aradan geçen bir OCE `ExecuteAsync`'i fault ediyor ve **host duruyordu**. Store'lar public genişleme noktasıdır ve HTTP üzerinden yazılmış bir store timeout'unu `TaskCanceledException` olarak bildirir.
+
+### K-841 — devam (Faz 90 damıtması)
+
+Çakışma inşa edildi ve mutasyonla doğrulandı (üç vaka): grant, argüman ŞEKLİ farklı bir çağrıya miras kalabiliyordu. Uzunluk öneki varsayımı belgelemek yerine kaldırır; önek UTF-8 BAYT sayar.
+
+### K-842 — devam (Faz 90 damıtması)
+
+Tracon içinde aktif sızıntı yoktu; risk tüketici davranışıdır — "cache miss'te anahtarı logla". K-059 `secret`'i dosyadan ve veritabanından uzak tutar; bu onu public yüzeyden de uzak tutar.
+
+### K-843 — devam (Faz 90 damıtması)
+
+Joker "en yenisi" okunur, restore "zaten BİLİNEN en yenisi" cevabını verir. MinVer sürümü git tag'inden verdiği için değer paketleme anında damgalanır.
+
