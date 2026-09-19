@@ -543,7 +543,6 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                                    scope,
                                    writer,
                                    recording,
-                                   timeout,
                                    linked)
                                .ConfigureAwait(false))
             {
@@ -585,6 +584,19 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             {
                 status = RunStatus.Canceled;
             }
+
+            // 🚨 The deadline is the one stop nobody asked for, so it is the one
+            // that has to name itself. A caller who cancels already knows why
+            // and gets no reason; a run that ran past 'Tracon:Workflows:RunTimeout'
+            // gets the setting's name, on every path that ends it. Only the
+            // timeout source is consulted, never the linked one: the linked
+            // source is also tripped by the caller and by
+            // POST /api/runs/{id}/cancel, and blaming the deadline for those
+            // would put a wrong reason on a correct stop.
+            if (status == RunStatus.Canceled && error is null && timeout.IsCancellationRequested)
+            {
+                error = TimedOut();
+            }
         }
 
         await CompleteAsync(execution, scope, writer, status, error, activity, startedAt).ConfigureAwait(false);
@@ -611,7 +623,6 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         AgentRunScope scope,
         RunEventWriter writer,
         TraconRunRecordingOptions recording,
-        CancellationTokenSource timeout,
         CancellationTokenSource linked)
     {
         // 🚨 The scope is written BEFORE execution starts; the assignment
@@ -639,7 +650,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         // Phase 157.
         catch (OperationCanceledException) when (linked.IsCancellationRequested)
         {
-            startupFailure = PumpedEvent.FromCancellation(timeout.IsCancellationRequested);
+            startupFailure = PumpedEvent.FromCancellation();
         }
         catch (Exception exception)
         {
@@ -705,7 +716,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                         {
                             await CancelAsync(run).ConfigureAwait(false);
 
-                            yield return PumpedEvent.FromCancellation(timeout.IsCancellationRequested);
+                            yield return PumpedEvent.FromCancellation();
 
                             yield break;
                         }
@@ -729,7 +740,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                         // Same filter, same reason as StartAsync above.
                         catch (OperationCanceledException) when (linked.IsCancellationRequested)
                         {
-                            stepFailure = PumpedEvent.FromCancellation(timeout.IsCancellationRequested);
+                            stepFailure = PumpedEvent.FromCancellation();
                         }
                         catch (Exception exception)
                         {
@@ -1227,6 +1238,22 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             Text = error?.Message,
         };
 
+    /// <summary>The reason carried by a run that ran past its deadline.</summary>
+    /// <remarks>
+    /// Written once and read from the single place that closes a cancelled run.
+    /// The status stays <see cref="RunStatus.Canceled"/> - a deadline stops a
+    /// run, it does not fault one - so this text is the only thing that tells
+    /// an operator a timeout apart from a cancellation somebody asked for.
+    /// </remarks>
+    private static RunError TimedOut()
+        => new()
+        {
+            Type = nameof(TimeoutException),
+            Message = "Workflow timed out and was stopped. " +
+                      "Raise the 'Tracon:Workflows:RunTimeout' value, or " +
+                      "shorten the graph.",
+        };
+
     /// <summary>
     /// Converts an exception into a run error; strips reflection/handler-invocation
     /// wrappers.
@@ -1307,19 +1334,17 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         /// <summary>Execution is waiting for a human answer.</summary>
         public static PumpedEvent FromAwaiting() => new(null, null, false, true);
 
-        public static PumpedEvent FromCancellation(bool timedOut)
-            => timedOut
-                ? new PumpedEvent(
-                    null,
-                    new RunError
-                    {
-                        Type = nameof(TimeoutException),
-                        Message = "Workflow timed out and was stopped. " +
-                                  "Raise the 'Tracon:Workflows:RunTimeout' value, or " +
-                                  "shorten the graph.",
-                    },
-                    false,
-                    false)
-                : new PumpedEvent(null, null, true, false);
+        /// <summary>Execution stopped because a token was cancelled.</summary>
+        /// <remarks>
+        /// 🚨 The REASON is deliberately not built here. A deadline can end a
+        /// run through three separate doors - startup, a super-step boundary,
+        /// a cancelled MoveNextAsync - and MAF can also end its stream quietly,
+        /// through no door at all. While each door built its own reason, the
+        /// quiet path had none: the runner produced a RunError naming the
+        /// setting and then dropped it, and the operator saw a bare
+        /// cancellation at full cost. The reason is attached once now, where
+        /// the run is closed, so no path can be added that forgets it.
+        /// </remarks>
+        public static PumpedEvent FromCancellation() => new(null, null, true, false);
     }
 }
