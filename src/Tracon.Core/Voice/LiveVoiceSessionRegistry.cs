@@ -218,10 +218,13 @@ internal sealed class LiveVoiceSessionRegistry : IAsyncDisposable
                     continue;
                 }
 
-                _logger.LogInformation(
-                    "The live voice session {Id} is being closed by the sweeper: {Reason}.",
-                    host.Id,
-                    endReason);
+                if (_logger.IsEnabled(LogLevel.Information))
+                {
+                    _logger.LogInformation(
+                        "The live voice session {Id} is being closed by the sweeper: {Reason}.",
+                        host.Id,
+                        endReason);
+                }
 
                 try
                 {

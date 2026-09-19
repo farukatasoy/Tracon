@@ -78,12 +78,15 @@ internal static class LateToolCompletionRecorder
         {
             // A late FAILURE costs nothing and changes no accounting: the model
             // was already told the call failed, and it did.
-            logger.LogWarning(
-                task.Exception,
-                "Tool '{ToolName}' faulted after {ElapsedSeconds:F1}s, past the {TimeoutSeconds:F1}s timeout already reported to the model.",
-                toolName,
-                elapsed.TotalSeconds,
-                timeout.TotalSeconds);
+            if (logger.IsEnabled(LogLevel.Warning))
+            {
+                logger.LogWarning(
+                    task.Exception,
+                    "Tool '{ToolName}' faulted after {ElapsedSeconds:F1}s, past the {TimeoutSeconds:F1}s timeout already reported to the model.",
+                    toolName,
+                    elapsed.TotalSeconds,
+                    timeout.TotalSeconds);
+            }
 
             return;
         }
@@ -93,20 +96,26 @@ internal static class LateToolCompletionRecorder
             // The cooperative path: the tool honoured the cancellation the
             // timeout requested and stopped. Nothing was produced, so there is
             // nothing to book.
-            logger.LogDebug(
-                "Tool '{ToolName}' stopped on the cancellation its {TimeoutSeconds:F1}s timeout requested.",
-                toolName,
-                timeout.TotalSeconds);
+            if (logger.IsEnabled(LogLevel.Debug))
+            {
+                logger.LogDebug(
+                    "Tool '{ToolName}' stopped on the cancellation its {TimeoutSeconds:F1}s timeout requested.",
+                    toolName,
+                    timeout.TotalSeconds);
+            }
 
             return;
         }
 
-        logger.LogInformation(
-            "Tool '{ToolName}' finished after {ElapsedSeconds:F1}s, past the {TimeoutSeconds:F1}s timeout already reported to the model. " +
-            "Its result and any usage it reported are recorded against the original call.",
-            toolName,
-            elapsed.TotalSeconds,
-            timeout.TotalSeconds);
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            logger.LogInformation(
+                "Tool '{ToolName}' finished after {ElapsedSeconds:F1}s, past the {TimeoutSeconds:F1}s timeout already reported to the model. " +
+                "Its result and any usage it reported are recorded against the original call.",
+                toolName,
+                elapsed.TotalSeconds,
+                timeout.TotalSeconds);
+        }
 
         if (scope is not { Writer: { } writer } || callId is not { Length: > 0 })
         {
