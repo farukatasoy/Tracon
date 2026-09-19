@@ -102,7 +102,7 @@ public sealed partial class RunRecordingStagePolicyTests
                 continue;
             }
 
-            var count = CallPattern().Matches(File.ReadAllText(file)).Count;
+            var count = CallPattern().Count(File.ReadAllText(file));
 
             if (count > 0)
             {
