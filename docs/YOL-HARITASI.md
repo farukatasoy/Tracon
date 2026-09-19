@@ -191,6 +191,6 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [176](arsiv/fazlar/176-EVALUATOR-SURUM-DAMGASI.md) | Evaluator Sürüm Damgası | ✅ Tamamlandı |
 | [177](arsiv/fazlar/177-STORE-IPTAL-SOZLESMESI.md) | Store İptal Sözleşmesi | ✅ Tamamlandı |
 | [178](arsiv/fazlar/178-TUKETICI-KAPI-SKILLI.md) | Tüketici Kapı Skill'i | ✅ Tamamlandı |
-| [179](179-KIRACI-KIMLIGI-NORMALLESTIRME.md) | Kiracı Kimliğinin Normalleştirilmesi | ✅ Tamamlandı |
+| [179](arsiv/fazlar/179-KIRACI-KIMLIGI-NORMALLESTIRME.md) | Kiracı Kimliğinin Normalleştirilmesi | ✅ Tamamlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).
