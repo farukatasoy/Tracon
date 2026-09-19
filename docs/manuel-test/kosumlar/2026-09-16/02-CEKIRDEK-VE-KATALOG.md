@@ -1130,6 +1130,8 @@ dördü de karşılandı; `tool_invocations` satır sayısı yine **1**.
 Örnek uygulamanın katalogu artık fiyat taşıyor (K-809) ve mekanizma
 değişmedi — eksik olan yalnız veriydi.
 
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
 ---
 
 ## MT-CORE-045 — Tool gerekmeyen istek tool çağırmaz
@@ -1168,6 +1170,8 @@ Aynı oturum, aynı kurulum. Token sayıları yine **turdakiyle birebir** (343 /
 
 343 × 0,25 / 1e6 = 0,00008575 ✓ · 13 × 2,00 / 1e6 = 0,000026 ✓. Case'in asıl
 iddiası (selam isteği tool çağırmaz) yine tuttu: **0** tool çağrısı.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ---
 

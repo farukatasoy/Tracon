@@ -918,6 +918,11 @@ tracon.UseSkillScripts(o =>
 {
     o.PlatformIsolationAcknowledged = true;
     o.Interpreters["sh"] = "/bin/bash";
+    // 🚨 SART. Bu bayrak olmadan depodaki script'ler modele HIC sunulmaz
+    // (`TraconSkillsSource.cs:81`) ve `run_skill_script` "Script 'merhaba' not
+    // found in skill 'scriptli-skill'." doner — kayit DB'de dururken. Belirti
+    // yaniltici: skill API'si script'i gosterir, model goremez. (2026-09-19)
+    o.AllowStoredScripts = true;
 });
 ```
 `dotnet build`, uygulamayı yeniden başlat. (Bu çağrı `Scripts.Enabled`'ı

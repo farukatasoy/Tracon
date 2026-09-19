@@ -1096,8 +1096,11 @@ curl -s -X POST "$APU/api/agents/voice-assistant/run" -H "$APB" \
 ```
 
 **Beklenen sonuç**
-- Tool hatası: `'...' kimlikli ek bir ses dosyasi degil (tur: image/png).`
-  — `descriptor.MediaType.StartsWith("audio/")` kontrolü.
+- Tool sonucu modele **özgül** hatayı taşır (jenerik `Error: Function failed.`
+  değil): `The attachment with id '<id>' is not an audio file (type: image/png).`
+  — `descriptor.MediaType.StartsWith("audio/")` kontrolü. Metin İngilizce'dir
+  (K-228); bu satır 2026-09-19'a kadar Türkçe yazılmıştı ve bayattı.
+- Tool işlemi **durdurur** — PNG transcribe edilmez, yan etki yoktur.
 
 ---
 

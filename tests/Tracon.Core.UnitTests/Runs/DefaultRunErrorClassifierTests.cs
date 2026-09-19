@@ -73,6 +73,50 @@ public sealed class DefaultRunErrorClassifierTests
         legacy.Class.ShouldBe(expected);
     }
 
+    /// <summary>
+    /// A provider timeout that crossed the model-call boundary still lands in
+    /// <see cref="RunErrorClass.Timeout"/>, not in the broader
+    /// <see cref="RunErrorClass.ProviderError"/>.
+    /// </summary>
+    /// <remarks>
+    /// 🚨 Measured live (MT-RES-089, 2026-09-19) against an unroutable
+    /// endpoint, and the FIRST run to reach here in this shape: the real SDK
+    /// wraps its timeout, so <c>ProviderFailureNormalizer.ShouldNormalize</c>
+    /// sees a foreign exception rather than the <c>OperationCanceledException</c>
+    /// it lets through, and stamps <c>upstream_error</c> on it. That identity
+    /// is matched BEFORE the message patterns, so the timeout check below could
+    /// never see it and every provider timeout was filed as ProviderError —
+    /// undoing the distinction Phase 157 (K-737) exists to make.
+    ///
+    /// 🚨 The existing fake in <c>FailureManifests.ProviderTimeoutTests</c>
+    /// cannot produce this: it throws <c>TaskCanceledException</c> DIRECTLY,
+    /// which is never normalized, so it takes the unnormalized path instead.
+    /// </remarks>
+    [Theory]
+    [InlineData("The model provider request failed. Provider: 'openai', fault: 'TaskCanceledException'.")]
+    [InlineData("The model provider request failed. Provider: 'anthropic', fault: 'TimeoutException'.")]
+    public void A_normalized_provider_timeout_is_a_timeout_not_a_generic_provider_error(string message)
+    {
+        var result = _classifier.Classify(new RunError { Type = "upstream_error", Message = message });
+
+        result.Class.ShouldBe(RunErrorClass.Timeout);
+    }
+
+    /// <summary>
+    /// A normalized provider failure that is NOT a timeout keeps its
+    /// <see cref="RunErrorClass.ProviderError"/> class — the timeout rule above
+    /// narrows one case, it does not replace the mapping.
+    /// </summary>
+    [Theory]
+    [InlineData("The model provider request failed. Provider: 'openai', fault: 'ClientResultException' (HTTP 404).")]
+    [InlineData("The model provider request failed. Provider: 'openrouter', fault: 'ClientResultException' (HTTP 402).")]
+    public void A_normalized_provider_failure_that_is_not_a_timeout_stays_a_provider_error(string message)
+    {
+        var result = _classifier.Classify(new RunError { Type = "upstream_error", Message = message });
+
+        result.Class.ShouldBe(RunErrorClass.ProviderError);
+    }
+
     [Fact]
     public void The_same_error_always_produces_the_same_fingerprint()
     {

@@ -3,9 +3,10 @@
 > **Bu turu kapatan her oturum ÖNCE burayı okur.** Koşum bitti; bu dosya
 > kapanışın tek kontrol düzlemidir.
 >
-> **Durum:** 🟡 Aşama 2 sürüyor · **YİRMİ İKİ AİLENİN YİRMİ İKİSİ DE KAPANDI (A…V)** · 0 açık kusur ailesi
-> **Kalan iş kusur değil, YENİDEN KOŞUM:** kapanmış ailelerin 13 `Kaldı` case'i hâlâ canlı sunucuda koşulmadı (§4.1) — ardından bitti tanımı + damıtma.
-> **Son güncelleme:** 2026-09-19 (Aile O · P · Q · R · S · T · U · V kapandı; `S2-003` **kısmen** — kaydın teşhisi çürütüldü, altındaki gerçek kusur kapandı, kaydın semptomu yeniden üretilemedi)
+> **Durum:** 🟢 Aşama 2 bitti · **YİRMİ İKİ AİLENİN YİRMİ İKİSİ DE KAPANDI (A…V)** · 0 açık kusur ailesi · **0 `Kaldı` case**
+> **§4.1 BİTTİ:** 14 `Kaldı` case'in 14'ü de kapandı — 3'ü zaten canlı koşulmuştu (yalnız `Durum` satırı eksikti), 11'i bu oturumda canlı sunucuda koşuldu.
+> **Kalan iş:** bitti tanımı (skill §7) → damıtma (§6) → arşiv.
+> **Son güncelleme:** 2026-09-19 (§4.1 kapandı; `S2-003` **tamamen** kapandı — başarılı koşumun span'i canlı ölçüldü; `MT-RES-089` yeni bir kusur açığa çıkardı ve kodlandı → K-831, sınıf taraması K-832)
 
 Turdan bağımsız kapanış protokolü — aile aile oturum yordamı, "önce ampirik
 yeniden üret" kuralı, bitti tanımı ve sayım betiği —
@@ -45,14 +46,14 @@ flowchart LR
 
 **Sayım** (skill §7, düzeltilmiş betik — bkz. §3.1):
 
-| Durum | Koşum sonu | 2026-09-19 (Aile V sonrası) |
-|---|---|---|
-| ☑ Geçti | 1693 | **1714** |
-| ☒ Kaldı | 35 | **14** |
-| ☐ Beklemede | 107 | 107 |
-| ⏭ Atlandı | 18 | 18 |
-| işaretsiz (gerekçe düz metin) | 3 | 3 |
-| **toplam benzersiz case** | **1856** | **1856** |
+| Durum | Koşum sonu | Aile V sonrası | **§4.1 sonrası (2026-09-19)** |
+|---|---|---|---|
+| ☑ Geçti | 1693 | 1714 | **1728** |
+| ☒ Kaldı | 35 | 14 | **0** |
+| ☐ Beklemede | 107 | 107 | 107 |
+| ⏭ Atlandı | 18 | 18 | 18 |
+| işaretsiz (gerekçe düz metin) | 3 | 3 | 3 |
+| **toplam benzersiz case** | **1856** | **1856** | **1856** |
 
 Kapanan her aile, kusuru yüzünden `Kaldı` kalmış case'ini **canlı sunucuda**
 yeniden koşar ve ikinci bir `Gerçek sonuç` bloğu ekler; sayım her case'in
@@ -211,6 +212,41 @@ Koşum profili değişikliği (§4'ün Aile T satırı) yürürlükte.
 
 ---
 
+### 3.9 Sekiz kapının tam ölçümü — 2026-09-19 (§4.1 sonrası, KAPANIŞ ÖLÇÜMÜ)
+
+`MT-RES-089`'un kod düzeltmesi (K-831) dahil, sekizi de sırayla koşuldu:
+
+| Kapı | Sonuç |
+|---|---|
+| `unittest discover -s scripts` | ✅ 351 test · `OK` |
+| `build-agent-map.mjs --check` | ✅ bütçede |
+| `denetim-paketi.py --taban 7e3a4de7` | ✅ çıkış 0 |
+| `dotnet build -c Release` | ✅ sıfır uyarı |
+| `dotnet test -c Release -maxcpucount:1` | ✅ **çıkış 0 · 22 proje · 7853 test · 0 düşen** |
+| `dotnet pack --no-build` | ✅ çıkış 0 |
+| `dotnet format --verify-no-changes` | ✅ çıkış 0 |
+| `docs-site && npm run check` | ✅ çıkış 0 · 1152 sayfa · 189.756 bağlantı · 0 kırık · 0 SEO hatası |
+
+TRX ile ikinci kez doğrulandı: **22 proje · 7853 test · 0 düşen.**
+
+`dokuman-bakim.py --denetle`: **tek kırmızı** koşum kaydı bütçesi (§3.2,
+kabul edilmiş; damıtma §6 ile düşecek). Diğer her kontrol yeşil, kırık
+bağlantı **0**.
+
+🚨 **İlk tam koşum bir kapıyı kırdı ve kapı haklıydı.**
+`ShippedDocumentationSelfContainmentTests`, K-831'in düzeltmesine yazdığım
+`///` dokümanını reddetti: `🚨` emojisi ve bir `MT-*` referansı taşıyordu —
+tüketicinin elinde olmayan bir kayda işaret eder. **Taban tazelenmedi**
+(`TRACON_SHIPPED_DOCS_REFRESH=1` koşulmadı); Aile B'nin emsaline uyularak
+metin yeniden yazıldı. Gerekçenin tamamı düz `//` yorumda duruyor — kapı
+yalnız `///` satırlarına bakar.
+
+🚨 **Yedinci kırılganlık fırsatı da düşmedi.** Altı örneğin hiçbiri bu tam
+koşumda düşmedi (üçüncü kez). Koşum profili değişikliği (§4'ün Aile T satırı)
+yürürlükte.
+
+---
+
 ### 3.4 Turun bıraktığı ortam kuralları
 
 Bunlar kapanış oturumlarında da geçerlidir ve bitti tanımında
@@ -240,12 +276,38 @@ Bunlar kapanış oturumlarında da geçerlidir ve bitti tanımında
 
 ## 3.6 Sıradaki iş — 2026-09-19 itibarıyla
 
-🚨 **Kusur ailesi kalmadı. Sıradaki iş §4.1'dir: kapanmış ailelerin `Kaldı`
-case'lerini canlı sunucuda yeniden koşmak.** Onüç case, hepsi A…N
-ailelerinden; kodları kapandı ama case'leri hiç yeniden koşulmadı. Bunlar
-düzeltme değil **kanıt** işidir ve bitti tanımının önündeki tek engeldir.
+✅ **§4.1 BİTTİ (2026-09-19). Sıradaki iş: bitti tanımı (skill §7) → damıtma
+(§6) → arşiv.** `Kaldı` case kalmadı; sayım `0` diyor.
 
-Ortam bu oturumda kuruldu ve işe yaradı; yordam §4.1'dedir.
+🚨 **§4.1'in ilk dersi — "koşulmamış" sanılan üç case ZATEN KOŞULMUŞTU.**
+`MT-CORE-044`, `MT-CORE-045` ve `MT-CLI-029` canlı yeniden koşum bloklarını
+2026-09-18'de almışlar ve bloklar "☑ GEÇTİ" yazıyordu — ama **makine
+okunabilir `**Durum:**` satırı yoktu**, ve sayım betiği her case'in *son*
+`Durum` satırını aldığı için üçü de hâlâ `Kaldı` sayılıyordu. On dört case'in
+üçü hiç iş gerektirmedi. **Ders: yeniden koşum bloğu düzyazıda "geçti" demekle
+bitmez; `Durum` satırı eklenmezse sayım onu görmez.**
+
+🚨 **İkinci ders — bu tur SPEC BAYATLIĞININ asıl hacmini burada gördü.** On bir
+case'in **yedisi** ürün kusuru değil doküman kusuru taşıyordu ve hepsi skill
+§1.1 istisnasıyla düzeltildi: beş beklenen sonuç Türkçe yazılmıştı ama sevk
+edilen metin İngilizce (K-228 — `MT-MM-049`, `MT-PROV-032/033/034`), bir
+beklenti artık var olmayan bir CSS değişkenine (`--ap-violet`) dayanıyordu,
+`MT-GUARD-073`'ün **kendi kod parçası derlenmiyordu** (`CS8803`), ve
+`14-SKILL-VE-SCRIPT.md` §6'nın kurulum parçası `AllowStoredScripts` bayrağını
+hiç yazmıyordu — o olmadan script'ler modele **hiç sunulmuyor** ve belirti
+("Script 'merhaba' not found") kurulumun eksik olduğunu değil script'in yok
+olduğunu düşündürüyor.
+
+🚨 **Üçüncü ders — canlı koşum otomatik testin sahtesinin yalan söylediği yeri
+gösterdi.** `MT-RES-089` sağlayıcı zaman aşımının `Timeout` değil
+`ProviderError` sınıflandığını ölçtü. `FailureManifests.ProviderTimeoutTests`
+bunu göremiyordu çünkü (a) adı `..._is_classified_as_a_timeout_...` olduğu
+hâlde gövdesi yalnız `Failed`'ı iddia ediyordu ve (b) sahtesi
+`TaskCanceledException`'ı **doğrudan** atıyor, yani normalleştirilmeyen yolu
+koşuyor. Gerçek SDK zaman aşımını `AggregateException` içinde sarmalar ve **o**
+yol normalleştirilir. Düzeltme, yeni sahte ve sınıf taraması: K-831 · K-832.
+
+Ortam yordamı §4.1'de korundu.
 
 🚨 **Aile K · L · M · N'nin ortak dersi — MEVCUT BİR TEST KUSURU KİLİTLİYOR
 OLABİLİR.** Dört ailede **beş** test düzeltmeden sonra kırmızıya döndü ve
@@ -299,8 +361,8 @@ SAYIM
 temizlenmezse bir önceki koşumun raporu yenisiyle karışır ve kapanmış bir kusur
 hâlâ açık sanılır. Tam koşumdan önce `rm -rf artifacts/bin/*/release/TestResults`.
 
-**Taban çizgisi 2026-09-19 itibarıyla §3.7'dedir** — sekiz kapının sekizi de
-temiz ağaçta yeşil ölçüldü.
+**Taban çizgisi 2026-09-19 itibarıyla §3.9'dadır** — sekiz kapının sekizi de
+yeşil ölçüldü (K-831'in kod düzeltmesi dahil).
 
 **Oturum açılışında koş** (taban çizgisinin hâlâ yeşil olduğunu doğrula):
 
@@ -314,12 +376,39 @@ durur, gerekçe §3.2'de.
 
 ---
 
-## 4.1 SIRADAKİ İŞ — kapanmış ailelerin `Kaldı` case'leri
+## 4.1 ✅ BİTTİ — kapanmış ailelerin `Kaldı` case'leri (2026-09-19)
 
-Bu onüç case'in **kodu kapandı**; case'in kendisi hiç yeniden koşulmadı.
-Kapanış kuralı (`manuel-test-kosumu` §6, adım 5) her aileden bunu ister; A…N
-turlarında atlandı. Düzeltme değil **kanıt** işi, ve bitti tanımının önündeki
-tek engel.
+On dört case. **Üçü zaten koşulmuştu** ve yalnız `Durum` satırı eksikti;
+**on biri** bu oturumda canlı sunucuda koşuldu. Hepsi `Geçti`.
+
+| Case | Sonuç | Notu |
+|---|---|---|
+| `MT-CORE-044` · `045` · `MT-CLI-029` | ☑ | 2026-09-18'de zaten koşulmuş; eksik olan `**Durum:**` satırıydı |
+| `MT-PG-025` | ☑ | Opak `500` → `503` + `Database schema is not current`; sızıntı sınırı ölçüldü (yanıtta 0, günlükte 46) |
+| `MT-OAI-043` | ☑ | `error.class` `Unknown` → `ProviderError`; spec'in "sabit mesaj" satırı bayattı |
+| `MT-MM-049` | ☑ | `Error: Function failed.` → özgül mesaj modele ulaşıyor |
+| `MT-PROV-032` · `033` · `034` | ☑ | Jenerik mesaj → ayarın adı, kuralı ve gelen değer |
+| `MT-RES-086` | ☑ | Devralınan run artık `Completed`; `seq` sürüyor (5 satır, `0..4` boşluksuz) |
+| `MT-RES-089` | ☑ | Üç beklenti geçti; dördüncüsü **yeni kusur** açığa çıkardı → kodlandı (K-831) |
+| `MT-UIRUN-049` | ☑ | Gerçek `ReasoningDelta` verisiyle tarayıcıda doğrulandı; renk beklentisi bayattı |
+| `MT-GUARD-073` | ☑ | Run satırı artık **yazılıyor** (turda `404`'tü); `ref:` günlüğe çözülüyor |
+| `MT-SKILL-070` | ☑ | Başarılı koşumun span'i dört etiketi ve `Ok`'ı taşıyor; `HATA-S2-003` **tamamen** kapandı |
+
+**§4.1'in bıraktığı kaynaklar** (tur sonunda, §6 adım 5 ile birlikte silinir):
+
+| Kaynak | Ne |
+|---|---|
+| `mt_z` · `mt_z25` · `mt_z70` · `mt_z86` · `mt_z89` · `mt_z89b` şemaları | `ap-pg` içinde; §4.1'in altı ayrı kurulumunun kanıtı. Turun kapanışına kadar **durur** — ölçümlerin arkasındaki veri bunlar |
+| `guard073` konsol projesi | scratchpad'de; `Tracon.Testing 0.0.0-preview.0.875`'e karşı kuruldu |
+| Paketlenen `…875` nupkg'leri | `artifacts/package/release/` — yerel feed'in `…789`'u bayattı, `MT-GUARD-073` taze paket istedi |
+
+⚠️ **Bir playwright-mcp Chrome süreci kilidi tutuyordu ve durduruldu.**
+`MT-UIRUN-049` tarayıcı istiyordu; `ms-playwright-mcp/mcp-chrome-3eca5a9`
+profilini önceki bir oturumdan kalmış altı süreç tutuyordu ve MCP sunucusu
+"Browser is already in use" diyordu. Yalnız o profile bağlı süreçler
+durduruldu (kullanıcının kendi Chrome'u ayrı profildedir).
+
+Aşağıdaki tablo koşum öncesi listedir, kayıt olarak korunur.
 
 | Case | Kusur | Aile | Ne ister |
 |---|---|---|---|

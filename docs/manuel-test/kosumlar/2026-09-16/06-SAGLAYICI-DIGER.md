@@ -408,6 +408,24 @@ bakın). Gerçek değer kaydedildi.
 
 **Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı (`HATA-S4-005`) · ☐ Atlandı
 
+---
+
+**Yeniden koşum — 2026-09-19 (kapanış, Aile H sonrası) · ☑ GEÇTİ**
+
+```json
+{"valid": false, "inconclusive": false,
+ "messages": [{"severity": "Error", "code": "invalid_setting",
+   "message": "'anthropic.thinking.budgetTokens' must be greater than zero. Actual value: 0.",
+   "path": "model.providerSettings"}]}
+```
+
+Turun ölçtüğü jenerik `"The model provider request failed."` gitti; mesaj artık
+ayarın **adını**, kuralını ve gelen değeri taşıyor. ⚠️ Spec'in beklenen metni
+Türkçe yazılmıştı ve düzeltildi (skill §1.1 istisnası; sevk edilen metin
+İngilizce'dir — K-228).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
 ## MT-PROV-033 — Google düşünme bütçesi `[-1, 65535]` aralığı dışındaysa reddedilir
 
 **Gerçek sonuç**
@@ -416,6 +434,20 @@ provider request failed."` — aynı kök neden, `HATA-S4-005`.
 
 **Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı (`HATA-S4-005`) · ☐ Atlandı
 
+---
+
+**Yeniden koşum — 2026-09-19 (kapanış, Aile H sonrası) · ☑ GEÇTİ**
+
+```json
+{"valid": false, "code": "invalid_setting", "path": "model.providerSettings",
+ "message": "'google.thinking.budgetTokens' must be in the [-1, 65535] range (-1 leaves it to the model, 0 turns thinking off). Actual value: 100000."}
+```
+
+Aynı kök nedenin ikinci örneği; aralık ve iki özel değerin anlamı mesajda.
+⚠️ Spec metni Türkçe yazılmıştı, düzeltildi (K-228).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
 ## MT-PROV-034 — Google güvenlik eşiği taninmayan bir değer taşırsa reddedilir
 
 **Gerçek sonuç**
@@ -423,6 +455,21 @@ provider request failed."` — aynı kök neden, `HATA-S4-005`.
 provider request failed."` — aynı kök neden, `HATA-S4-005`.
 
 **Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı (`HATA-S4-005`) · ☐ Atlandı
+
+---
+
+**Yeniden koşum — 2026-09-19 (kapanış, Aile H sonrası) · ☑ GEÇTİ**
+
+```json
+{"valid": false, "code": "invalid_setting", "path": "model.providerSettings",
+ "message": "'google.safety.harassment' has an unrecognized value: 'COK_TEHLIKELI'. Valid values: HARM_BLOCK_THRESHOLD_UNSPECIFIED, BLOCK_LOW_AND_ABOVE, BLOCK_MEDIUM_AND_ABOVE, BLOCK_ONLY_HIGH, BLOCK_NONE, OFF."}
+```
+
+Üçüncü örnek. Case'in doküman düzeltmesi de doğrulandı: liste SDK enum'ının
+**altı** üyesini de sayıyor, `HARM_BLOCK_THRESHOLD_UNSPECIFIED` dahil.
+⚠️ Spec metni Türkçe yazılmıştı, düzeltildi (K-228).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
 
 ## MT-PROV-035 — `claude-thinking` fixture'ı genişletilmiş düşünmeyle uçtan uca çalışır
 

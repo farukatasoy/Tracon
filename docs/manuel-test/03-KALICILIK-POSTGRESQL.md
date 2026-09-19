@@ -769,9 +769,13 @@ curl -s -X POST "$APU/api/agents" -H "$APB" -H "content-type: application/json" 
 - Uygulama başlar (çökmez); log `migrations are not applied automatically`
   satırını taşır. (Metin İngilizce'dir — K-228.)
 - `/health` **Unhealthy** döner (bekleyen migration var).
-- Agent kaydı isteği veritabanı hatasıyla (tablo yok) başarısız olur; HTTP kodu
-  5xx'tir ama uygulama çökmez, sonraki istekler de aynı şekilde anlaşılır hata
-  döner.
+- Agent kaydı isteği **`503`** + `application/problem+json` döner; uygulama
+  çökmez ve sonraki istekler de aynı yanıtı verir. `title` alanı
+  `Database schema is not current`, `detail` alanı bekleyen migration **sayısını**
+  ve iki çıkış yolunu (`tracon migrate` · `AutoApplyMigrations`) söyler, ve
+  yeniden denemenin yardım etmeyeceğini yazar (kalıcı durum).
+- 🚨 Yanıt **şema adını ve SQL metnini taşımaz** — onlar yalnız günlüğe gider.
+  Bu bir güvenlik sınırıdır (`HATA-S1-015` kapanışı, K-813).
 
 ---
 

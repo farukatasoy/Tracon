@@ -796,21 +796,24 @@ curl -s "$APU/api/runs?agentName=manuel-bozuk-model" -H "$APB" | python3 -m json
   `status: Failed` ile görünür — `RunRecordingAgent.CompleteAsync` akış
   istisnasını `AgentRunStream`'in yakalamasından ÖNCE, kendi `try/catch`'inde
   yakalayıp kaydeder ve sonra yeniden fırlatır (K-294).
-- Bu kaydın `error.type` alanı **`upstream_error`**, `error.message` alanı
-  sabit `The model provider request failed.` metnidir. 🚨 Sağlayıcının kendi
-  tip adı ve mesajı kalıcı kayda **bilerek yazılmaz**:
-  `ProviderFailureNormalizer` yabancı istisnayı model çağrısı sınırında
-  `ProviderInvocationException`'a çevirir, çünkü yabancı bir mesaj adres,
-  `host:port` ya da kısmi bir kimlik taşıyabilir (`SafeErrorText` XML
-  dokümanı). Bu düzeltildi 2026-09-16: önceki beklenti normalleştirme
-  katmanından önceki davranışı tarif ediyordu.
+- Bu kaydın `error.type` alanı **`upstream_error`**'dur. 🚨 Sağlayıcının kendi
+  mesajı kalıcı kayda **bilerek yazılmaz**: `ProviderFailureNormalizer` yabancı
+  istisnayı model çağrısı sınırında `ProviderInvocationException`'a çevirir,
+  çünkü yabancı bir mesaj adres, `host:port` ya da kısmi bir kimlik taşıyabilir
+  (`SafeErrorText` XML dokümanı).
+- `error.message` **sabit bir metin değildir** — Tracon'un kendi seçtiği üç
+  olguyu taşır: sağlayıcı adı · istisna tip adı · HTTP durum kodu (K-817).
+  Bu çağrıda: `The model provider request failed. Provider: 'openai', fault:
+  'ClientResultException' (HTTP 404).` Üçü de Tracon'un seçtiğidir; sağlayıcının
+  ham metni hâlâ yazılmaz. Sabit mesaj her sağlayıcı hatasına **tek** bir
+  `fingerprint` verdiği için değişti.
 - Tam ayrıntı **günlükte** aranır, kayıtta değil — orada
   `System.ClientModel.ClientResultException: HTTP 404 (invalid_request_error:
   model_not_found)` satırı bulunur.
-- ⚠️ `error.class` bugün `Unknown` gelir. Bu **beklenen değildir**, açık bir
-  kusurdur (2026-09-16 turu, `HATA-S1-020`): normalleştirme sınıflandırıcıdan
-  önce çalıştığı için K-296'nın eklediği desenler bu yolda hiç eşleşmiyor.
-  Kusur kapandığında burada `ProviderError` beklenmelidir.
+- `error.class` **`ProviderError`**'dur. ⚠️ 2026-09-16 turunda `Unknown`
+  geliyordu (`HATA-S1-020`); normalleştirme sınıflandırıcıdan önce çalıştığı
+  için K-296'nın desenleri bu yolda hiç eşleşmiyordu. Kusur 2026-09-18'de
+  kapandı: `StableIdentities` `upstream_error`'u `ProviderError`'a eşliyor.
 
 ### MT-OAI-050 — `openrouter` adlandırılmış sağlayıcı olarak görünür
 

@@ -542,6 +542,46 @@ yolunu ölçtüğünden istek `openai` sağlayıcısıyla tekrarlandı.
 
 **Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
+---
+
+**Yeniden koşum — 2026-09-19 (kapanış, Aile I sonrası) · ☑ GEÇTİ**
+
+Taze, **boş** bir şema (`mt_z25`), `AutoApplyMigrations=false`, ayrı bir örnek
+(port 5200). Dört iddianın **dördü de** tuttu.
+
+| İddia | Sonuç |
+|---|---|
+| Uygulama başlar, çökmez | ☑ |
+| Log "otomatik uygulanmıyor" der | ☑ `Tracon migrations are not applied automatically (AutoApplyMigrations is off). Keeping the schema current is the caller's responsibility.` |
+| `/health` Unhealthy | ☑ **503 `Unhealthy`** |
+| Agent kaydı 5xx, çökmez, **anlaşılır** | ☑ — turun opak `500`'ü gitti |
+
+```json
+HTTP 503  application/problem+json
+{"type":"https://tools.ietf.org/html/rfc9110#section-15.6.4",
+ "title":"Database schema is not current","status":503,
+ "detail":"The persistence store is reachable but 52 migration(s) have not been
+           applied, so the table this request needs does not exist yet. Apply the
+           migrations with the 'tracon migrate' command, or start the application
+           with AutoApplyMigrations enabled. Retrying this request will not help
+           until then."}
+```
+
+Kaydın "bu iki durum istemci için farklıdır" tespiti yanıtta görünüyor:
+`Retrying this request will not help` — **kalıcı** durum, geçici olan değil.
+
+**Uygulama ayakta kaldı** ve ikinci · üçüncü istek aynı yanıtı verdi.
+
+🚨 **Sızıntı sınırı ölçüldü ve tutuyor.** Yanıtta `mt_z25`, `relation` ya da
+`42P01` **hiç geçmiyor** (`grep -c` → `0`); aynı oturumun günlüğünde şema adı
+**46** kez var. Kaydın "şema adı ve ham SQL metni sızdırılmamalı" şartı
+karşılandı.
+
+⚠️ Spec'in `Beklenen sonuç`'u "5xx" diyordu; ölçülen sözleşme artık `503` +
+`title`/`detail`'dir ve spec ona göre keskinleştirildi (skill §1.1 istisnası).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
 ### HATA-S1-015 — Bekleyen migration varken yazma ucu opak 500 döner
 
 | | |

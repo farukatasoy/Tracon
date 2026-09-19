@@ -830,6 +830,59 @@ yazılmıştı.
 
 ---
 
+**Yeniden koşum — 2026-09-19 (kapanış, Aile J sonrası) · ☑ GEÇTİ**
+
+Gerçek OpenAI anahtarı, gerçek `gpt-olmayan-model-xyz` 404'ü, `mt_z` şeması.
+Dört beklentinin **dördü de** karşılandı.
+
+**1 · Akış çerçevesiz kapanmadı** — turdakiyle aynı iki çerçeve, ama `error`
+çerçevesinin mesajı artık ayırt edici:
+
+```
+id: 0
+event: run
+data: {"runId":"01a0b70a-a275-78b7-bb02-787788069db0","sessionId":"oai-404-test"}
+
+id: 1
+event: error
+data: {"type":"ProviderInvocationException","message":"The model provider request
+       failed. Provider: 'openai', fault: 'ClientResultException' (HTTP 404)."}
+```
+
+**2 · Kalıcı kayıt** (`GET /api/runs/{id}`):
+
+```json
+"status": "Failed",
+"error": {
+  "type": "upstream_error",
+  "message": "The model provider request failed. Provider: 'openai', fault: 'ClientResultException' (HTTP 404).",
+  "class": "ProviderError",
+  "fingerprint": "039d1063ddcf549b1b7a97bef2a637b5b1cf0dbaf91df95339dad96a8b22c791"
+}
+```
+
+**3 · `error.class` `Unknown` → `ProviderError`** — `HATA-S1-020`'nin ölçülen
+kapanışı. Tur bu alanı `Unknown` görmüştü.
+
+**4 · Sağlayıcının ham metni hâlâ kayda yazılmıyor.** Yanıttaki üç olgunun
+üçünü de Tracon seçti (sağlayıcı adı · istisna tip adı · HTTP kodu, K-817).
+Sağlayıcının kendi metni yalnız **günlükte**:
+
+```
+Tracon.ProviderInvocationException: The model provider request failed. Provider: 'openai', fault: 'ClientResultException' (HTTP 404).
+ ---> System.ClientModel.ClientResultException: HTTP 404 (invalid_request_error: model_not_found)
+```
+
+⚠️ **Spec'in iki satırı bayatladı ve düzeltildi** (skill §1.1 istisnası):
+`error.message`'ın "sabit metin" olduğunu söyleyen satır — K-817 onu bilerek
+ayırt edici yaptı, çünkü sabit mesaj her sağlayıcı hatasına **tek** bir
+`fingerprint` veriyordu; ve `error.class`'ın `Unknown` geldiğini söyleyen satır.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
+
+---
+
 ## MT-OAI-050 — `openrouter` adlandırılmış sağlayıcı olarak görünür
 
 **Gerçek sonuç**

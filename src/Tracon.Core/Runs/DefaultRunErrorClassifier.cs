@@ -82,7 +82,24 @@ public sealed partial class DefaultRunErrorClassifier : IRunErrorClassifier
     {
         if (StableIdentities.TryGetValue(runError.Type, out var stable))
         {
-            return stable;
+            // 🚨 One narrowing, and only one. ProviderError is what a normalized
+            // provider failure means in general, but a provider that never
+            // ANSWERED is the distinction phase 157 (K-737) exists to keep: it
+            // drives retry and alerting differently from a provider that
+            // answered with an error. The normalizer names the foreign fault
+            // type in the message it builds (K-817), so that one fact is
+            // readable here without the provider's own text.
+            //
+            // 🚨 Measured live, not reasoned: MT-RES-089 (2026-09-19) against an
+            // unroutable endpoint recorded ProviderError. The real SDK WRAPS its
+            // timeout, so ShouldNormalize sees a foreign exception rather than
+            // the OperationCanceledException it lets through, and the identity
+            // below is matched before the message patterns ever run. Every
+            // provider timeout in production took this path; only the in-process
+            // fake, which throws TaskCanceledException directly, took the other.
+            return stable == RunErrorClass.ProviderError && NormalizedTimeoutFaultPattern().IsMatch(runError.Message)
+                ? RunErrorClass.Timeout
+                : stable;
         }
 
         // 🚨 The patterns below run on the exception's TYPE NAME and MESSAGE as
@@ -143,6 +160,32 @@ public sealed partial class DefaultRunErrorClassifier : IRunErrorClassifier
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
         matchTimeoutMilliseconds: 1000)]
     private static partial Regex TimeoutPattern();
+
+    /// <summary>
+    /// Matches the fault name a normalized provider failure carries when the
+    /// provider never answered.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Read only from the text <c>ProviderFailureNormalizer.DescribeUpstreamFailure</c>
+    /// builds, which is Tracon's own sentence — the provider's message never
+    /// reaches it. Anchoring on <c>fault: '...'</c> is what keeps this from
+    /// firing on a provider message that merely mentions a cancellation.
+    /// </para>
+    /// <para>
+    /// A cancelled type name means a timeout here, which is the opposite of
+    /// what it means in <see cref="CanceledTypePattern"/>. At the model-call
+    /// boundary the normalizer lets an <c>OperationCanceledException</c>
+    /// through untouched, so a caller's own stop never produces an
+    /// <c>upstream_error</c> at all. A cancellation that reached this text was
+    /// raised by the provider's HTTP stack against its own deadline.
+    /// </para>
+    /// </remarks>
+    [GeneratedRegex(
+        @"fault: '(?:TimeoutException|TaskCanceledException|OperationCanceledException)'",
+        RegexOptions.CultureInvariant,
+        matchTimeoutMilliseconds: 1000)]
+    private static partial Regex NormalizedTimeoutFaultPattern();
 
     [GeneratedRegex(
         @"\b429\b|toomanyrequests|\brate[\s_-]?limit(?:ed|ing)?\b",

@@ -522,6 +522,61 @@ kayıtta hiç yer almaz.
 
 **Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı
 
+---
+
+**Yeniden koşum — 2026-09-19 (kapanış, Aile B sonrası) · ☑ GEÇTİ**
+
+Taze paketlenen `Tracon.Testing 0.0.0-preview.0.875` (bu oturumda
+`dotnet pack` ile üretildi, yerel feed'in `…789`'u bayattı) + konsol projesi.
+
+```
+durum: Failed
+hata mesaji: InvalidOperationException failed. (ref: 187db51e)
+hata tipi:   System.InvalidOperationException
+hata sinifi: Unknown
+run id:      01a0b715-f0a9-716e-8e0d-abec9acf74da
+olaylar:     0:RunStarted, 1:RunFailed
+```
+
+**Kusurun kendisi kapandı.** Turun ölçtüğü "run hiç **başlamıyor**, kayıt yok,
+`GET /api/runs/{id}` kalıcı `404`" gitti: run satırı **yazıldı** ve iki olay
+taşıyor. `S4-003`'ün düzeltmesi (önizleme kendi `try`/`catch`'inde; istisnada
+kayıt sorgu metni olmadan açılır, sonra `ExceptionDispatchInfo` ile yeniden
+fırlatılır) canlı olarak doğrulandı.
+
+**Case'in ilk iddiası — ☑.** `durum: Failed`; istisna yutulmadı.
+
+**Case'in ikinci iddiası — ☑ ikinci yarısıyla.** Spec "`guard kasitli patladi`
+ifadesini taşır (**veya en azından istisnanın izini gösterir**)" diyordu.
+Kayıt ham metni taşımıyor (`SafeErrorText` sınırı) ama izi **tam** veriyor:
+tip adı kayıtta, ham mesaj günlükte, ve ikisini `ref:` bağlıyor. Ölçüldü:
+
+```
+fail: Tracon.RunRecordingAgent[0]
+      Run 01a0b715-f0a9-716e-8e0d-abec9acf74da failed before it started. (ref: 187db51e)
+      System.InvalidOperationException: guard kasitli patladi
+         at PatlayanGuard.InspectAsync(...) Program.cs:line 34
+         at Tracon.ContentGuardPipeline.PreviewAsync(...)
+```
+
+Kaydın `ref: 187db51e`'si günlüğün `ref: 187db51e`'siyle **birebir aynı** —
+`SafeErrorText`'in XML dokümanının verdiği "operatör bulabilir" sözü tutuyor.
+
+⚠️ İkinci bir `ref` (`537cb638`) daha var; o dış akış ucunun (`AgentEndpoints`)
+**kendi** günlük satırıdır, aynı istisna için ayrı bir çağrı yeri. Kusur değil —
+kaydın işaret ettiği kimlik doğru olandır.
+
+**Hata sınıfı koşumda kaydedildi** (spec bunu istiyordu): `Unknown`. Bilinçli;
+sınıflandırıcı yalnız kararlı kimlikleri eşler, tüketici guard'ının rastgele
+istisnası onlardan biri değildir.
+
+🚨 **Spec'in kendi kod parçası derlenmiyordu** (doküman kusuru, düzeltildi):
+`PatlayanGuard` tipi top-level statement'lardan **önce** yazılmıştı → `CS8803
+Top-level statements must precede namespace and type declarations`. Tip sona
+alındı ve uyarı satırı eklendi.
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
 ## MT-GUARD-074 — Tool sonucundaki API anahtarı İKİNCİ model çağrısında maskelenir
 
 **Gerçek sonuç**

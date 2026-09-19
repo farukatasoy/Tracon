@@ -1509,16 +1509,10 @@ geçerli değildir** — guard bir gözlem aracı değil bir kontroldür.
 **Girilecek veri**
 ```bash
 cd ~/tracon-manuel/guard-testleri
+# 🚨 Tip bildirimi top-level statement'lardan SONRA gelmelidir (CS8803).
 cat > Program.cs <<'EOF'
 using Tracon;
 using Tracon.Testing;
-
-internal sealed class PatlayanGuard : IContentGuard
-{
-    public string Name => "patlayan";
-    public ValueTask<ContentGuardResult> InspectAsync(ContentGuardContext context, CancellationToken cancellationToken = default)
-        => throw new InvalidOperationException("guard kasitli patladi");
-}
 
 var provider = new FakeModelProvider().EchoesUserMessage();
 
@@ -1537,6 +1531,15 @@ await using var host = await TraconTestHost.StartAsync(o =>
 var sonuc = await host.RunAsync("patlayan-guard-testi", "merhaba");
 Console.WriteLine("durum: " + sonuc.Record.Status);
 Console.WriteLine("hata mesaji: " + sonuc.Record.Error?.Message);
+Console.WriteLine("hata tipi: " + sonuc.Record.Error?.Type);
+Console.WriteLine("olaylar: " + string.Join(", ", sonuc.Events.Select(e => e.Sequence + ":" + e.Type)));
+
+internal sealed class PatlayanGuard : IContentGuard
+{
+    public string Name => "patlayan";
+    public ValueTask<ContentGuardResult> InspectAsync(ContentGuardContext context, CancellationToken cancellationToken = default)
+        => throw new InvalidOperationException("guard kasitli patladi");
+}
 EOF
 
 dotnet run -c Release
@@ -1545,9 +1548,22 @@ dotnet run -c Release
 **Beklenen sonuç**
 - `durum: Failed` — istisna **yutulmamıştır**, "gözlemlenemeyen içerik
   geçirilmez" garantisi tutar.
-- `hata mesaji` `guard kasitli patladi` ifadesini taşır (veya en azından
-  istisnanın izini gösterir) — kesin hata **sınıfı** önceden bilinmiyor,
-  koşumda kaydedilir.
+- 🚨 `run` satırı **yazılır** ve olayları taşır (`0:RunStarted, 1:RunFailed`).
+  Guard giriş-önizlemesinde patlasa bile kayıt açılır; 2026-09-16 turunda run
+  hiç başlamıyordu ve `GET /api/runs/{id}` kalıcı `404` veriyordu
+  (`HATA-S4-003`, kapandı 2026-09-18).
+- `hata mesaji` **ham istisna metnini taşımaz** — `SafeErrorText` sınırı:
+  yabancı bir istisnanın mesajı adres, `host:port` ya da kısmi bir kimlik
+  taşıyabilir. Kayda giden metin `InvalidOperationException failed.
+  (ref: <8 hex>)` biçimindedir, `hata tipi` ise tam tip adını
+  (`System.InvalidOperationException`) taşır.
+- 🚨 Kaydın `ref:` kimliği **günlükteki** tam istisnaya çözülür — aynı kimlikle
+  `Run <id> failed before it started. (ref: …)` satırı ve altında
+  `System.InvalidOperationException: guard kasitli patladi` bulunur. Operatörün
+  yolu budur.
+- `hata sınıfı` bugün `Unknown`'dur. Bu bilinçlidir: sınıflandırıcı yalnız
+  **kararlı kimlikleri** eşler ve bir tüketici guard'ının rastgele istisnası
+  onlardan biri değildir.
 
 ---
 

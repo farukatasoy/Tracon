@@ -568,6 +568,37 @@ açıklayıcılığı kayboluyor.
 
 **Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı (bkz. `HATA-S1-024`)
 
+---
+
+**Yeniden koşum — 2026-09-19 (kapanış, Aile C sonrası) · ☑ GEÇTİ**
+
+Gerçek OpenAI, `mt_z` şeması, yeni yüklenen PNG
+(`01a0b70c-1adf-7be3-b4a7-61c2a2e9e7b3`, `image/png`, 69 B).
+
+Model `transcribe`'ı çağırdı ve tool sonucu artık **özgül** hatayı taşıyor —
+turun ölçtüğü jenerik `Error: Function failed.` gitti:
+
+```json
+{ "$type": "functionResult",
+  "result": "The attachment with id '01a0b70c-1adf-7be3-b4a7-61c2a2e9e7b3'
+             is not an audio file (type: image/png).",
+  "callId": "call_KWYNPJIGFZ8ADXl3a6YwWR25" }
+```
+
+Mesaj modele ulaştığı için model de kullanıcıya **nedeni** söyleyebildi:
+
+```
+Bu ek bir ses dosyası değil; `image/png` olarak görünüyor. Bu yüzden
+`transcribe` ile metne çevrilemez.
+```
+
+Turun ölçtüğü fonksiyonel güvenlik korundu: PNG transcribe **edilmedi**.
+
+⚠️ **Spec'in beklenen metni bayattı ve düzeltildi** (skill §1.1 istisnası):
+satır Türkçe yazılmıştı, sevk edilen metin İngilizce'dir (K-228).
+
+**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı
+
 ## MT-MM-050 — `list_voices` ücret üretmeden sesleri listeler
 
 **Gerçek sonuç**
