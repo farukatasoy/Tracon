@@ -251,13 +251,13 @@ export function SettingsScreen({ meta }: { meta: Meta }): ReactNode {
 
         <QuotaPanel />
 
-        <WebhookPanel />
+        <WebhookPanel canAdminister={meta.roles.canAdminister} />
 
-        <ApiKeyPanel />
+        <ApiKeyPanel canAdminister={meta.roles.canAdminister} />
 
-        <TenantProviderPanel />
+        <TenantProviderPanel canAdminister={meta.roles.canAdminister} />
 
-        <RetentionPanel />
+        <RetentionPanel canAdminister={meta.roles.canAdminister} />
       </div>
     </>
   );

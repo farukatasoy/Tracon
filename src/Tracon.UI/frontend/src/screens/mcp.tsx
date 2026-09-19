@@ -19,6 +19,7 @@ import {
   Td,
   TextInput,
   Th,
+  Unauthorized,
 } from '../components/ui';
 import { Toolbar } from '../components/toolbar';
 import { Tooltip } from '../components/tooltip';
@@ -148,6 +149,11 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
   const rules = useQuery({
     queryKey: ['approval-rules'],
     queryFn: () => unwrap(client.GET('/api/approvals/rules')) as Promise<ToolApprovalRule[]>,
+    // 🚨 Not requested at all without the role — the same reason the prompts tab
+    // above gives: a reader used to get the 403 rendered as a generic failure
+    // with a "try again" button, which reads as "the console is broken" rather
+    // than "this panel is not yours", and retrying can never succeed.
+    enabled: meta.roles.canAdminister,
   });
 
   const invalidate = (): void => {
@@ -723,8 +729,9 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
           </form>
         )}
 
-        {rules.isPending && <Loading rows={4} />}
-        {rules.isError && (
+        {!meta.roles.canAdminister && <Unauthorized requires="administrator" />}
+        {meta.roles.canAdminister && rules.isPending && <Loading rows={4} />}
+        {meta.roles.canAdminister && rules.isError && (
           <div className="p-4">
             <ErrorNote error={rules.error} onRetry={() => void rules.refetch()} />
           </div>
