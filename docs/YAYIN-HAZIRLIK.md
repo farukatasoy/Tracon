@@ -1015,6 +1015,7 @@ operasyon kritik yolunu yeniden açmaz.
 | KG-035 | 2026-09-19 | Tamamlandı | **13.0 aksiyon tablosunun 17 kalemi kapatıldı — dört 🔴'nin dördü dahil.** A-1 [Faz 179](arsiv/fazlar/179-KIRACI-KIMLIGI-NORMALLESTIRME.md) olarak kapandı (K-836…839); A-2, A-3, A-4, A-5, A-6, A-7, A-9, A-13, A-14, A-19, A-20, A-21, A-22, A-23, A-24, A-25 kendi kanallarında kapandı (K-840…843). A-8 K6 gereği GA'ya ertelendi, dokümanı gerçeğe çekildi | Faz 179'a bağımsız denetim koştu ve **2× 🔴 · 8× 🟡 · 2× 🟢** buldu; ikisi de gerçekti ve on ikisinin onu düzeltildi, ikisi gerekçelendi. 🚨 Denetimin birinci 🔴'si fazın kendi risk tablosunun birinci satırıydı: SQL Server'ın `COLLATE Latin1_General_BIN2` predicate'i **hiçbir testten geçmiyordu** — guard'ın tek testi SQLite'tı ve orada temel yüklem zaten doğru çalıştığı için override silinse tek bir test bile kırılmıyordu. Şimdi gerçek SQL Server üzerinde ihlal yolu ölçülüyor ve mutasyonla kanıtlandı. İkinci 🔴 guard'ın tek sarmalanmamış bootstrap adımı olmasıydı. Dört düzeltme ayrıca mutasyonla kanıtlandı (kiracı normalleştirme 6'nın 5'i, tıkaç kapısı, arka plan servisi OCE, onay parmak izi çakışması üçünün üçü) | Kapanış kapısı ve dört doküman kapısı yeşil. **Kalan kök faz yaşam döngüsü bulgusu bilinçlidir:** `docs/179-*.md` `✅ Tamamlandı` ile kökte duruyor çünkü `faz-arsivle` temiz çalışma ağacı ister — arşivleme commit'ten sonradır ve commit kullanıcıya aittir. Yeni açılan kalemler: **A-26** (zaman aşımına uğrayan workflow run'ı sebep taşımıyor), **A-27** (`KARARLAR.md` bütçenin tam sınırında), **F-254** (egress fail-open varsayılanı), **F-255** (Google görsel yolu için canlı kanıt yok), **F-256** (harf-kayması sözleşmesi iki store'da) |
 | KG-036 | 2026-09-19 | Tamamlandı | **Üçüncü tur: karar ❌ olarak KALIR, fakat gerekçesi DEĞİŞTİ — artık açık bir ürün 🔴'si yoktur; kalan üç 🔴 (A-10 · A-11 · A-12) operasyoneldir ve repo dışındadır.** A-26 (K-844 👤) ve A-27 kapatıldı; §4/§10/§13'ün kendi drift'i gerçeğe çekildi; A-28 açıldı | İkinci turun ❌'i devralınamazdı: arada Faz 179 dahil dört commit ve 17 kalem kapanışı vardı. Artifact `c5ed5573`'ten YENİDEN ölçüldü — `kapi.py yayin --kuru` çıkış 0, manifest `dirty: false` ve **38/38 dosya hash'i elle doğrulandı**. Kapının ilk koşumu kirli bir `release` dizini yüzünden `EXIT=1` döndü; bu, kapının promote korumasının çalıştığının kanıtıdır ve adım 6 için yazılı bir uyarıya dönüştü | Kalan yol §13'ün adım 5–9'udur; adım 9 artık tag'den ÖNCEdir ve kendi bitti ölçütünü taşır |
 | KG-037 | 2026-09-19 | Tamamlandı | **Adım 5 (sürüm kesimi) ve adım 6 (kapılar) bitti; tag'e hazır commit `ce23527b`.** `CHANGELOG.md` `## [1.0.0-preview.1] - 2026-09-19` taşır ve üstünde boş bir `## [Unreleased]` vardır | Kesim bir başlık yeniden adlandırması sanılıyordu; ölçüldü ki **sevk edilmeyen bir gövdeyi ilk kez sevk edilir hâle getirir**. Kapanış kapısı üç gerçek kusur buldu (bayat changelog testi · üretilen sayfanın sitenin kendi adresini yazması · sevk edilen XML'de alarm emojisi) ve dördüncü turda çıkış 0 verdi. Prova ayrı koştu: 38/38 hash elle doğrulandı | 🚨 Bundan sonraki HER commit iki kapıyı da geçersiz kılar; tag ancak yeniden koşulan bir turdan sonra atılır |
+| KG-038 | 2026-09-19 | Tamamlandı | **Site deploy'u tag gününe ERTELENDİ 👤; provası bugün koşuldu ve geçti.** Adım 7'nin `git push origin main` yarısı yeniden açıldı | Sayfayı bugün yayımlamak, NuGet'te var olmayan bir sürümü yayınlanmış gösterirdi — A-11 ve A-12 kullanıcıdadır ve süreleri belirsizdir. Push kalemi bu turun kendi altı commit'i yüzünden yeniden açıldı: bir ölçümü cümleye çevirirken o ölçümün neyi varsaydığını da yazmak gerekiyor | Tag günü: `site-deploy.sh` → push → public → A-11/A-12 → tag; deploy bir kez düşerse tekrar denenir (kopma geçici ölçüldü) |
 
 ## 12. Ertelenen işler ve gerekçeleri
 
@@ -1111,14 +1112,29 @@ bağlıdır ve **`Tracon` organizasyonu sahipliğinde yeniden kurulmalıdır** (
 yazar; 20 kimliğin yirmisi de nuget.org'da hâlâ **boştur**, yani policy'nin
 "yeni paket" scope'u zorunludur). A-12 adım 7 ile adım 8'in arasına girer.
 
-🚨 **`git push origin main` ARTIK GEREKMİYOR** (ölçüldü 2026-09-19:
-`origin/main == HEAD == c5ed5573`). Adım 7'den geriye yalnız **görünürlüğü
-public yapmak** kaldı; anonim GitHub API isteği bugün hâlâ `404` döner.
+🚨 **Adım 7 İKİ iştir ve bu tur ikisini de açık bıraktı.** Ölçüldü
+2026-09-19 kapanışta: `origin/main` `c5ed5573`, `HEAD` `44eb68d1` ⇒ `main`
+**6 commit önde**. Bu satırın bir önceki hâli "push artık gerekmiyor" diyordu;
+o cümleyi bu turun KENDİ commit'leri bayatlattı — aynı sınıf, aynı gün,
+üçüncü kez. Ders: bir ölçümü cümleye çevirirken ölçümün neyi varsaydığını da
+yaz. Geriye kalan: `git push origin main` **ve** görünürlüğü public yapmak;
+anonim GitHub API isteği bugün hâlâ `404` döner.
 
-🚨 **Adım 5 sürüm kesimi yeni bir commit üretir.** Üçüncü turun provası
-`c5ed5573`'ten koştu; kesim commit'i onun üstüne binince adım 6 kapıları
-**yeniden** koşar ve `yayin --kuru` o commit'ten tazelenir. Tag ancak o
-koşumdan sonra atılır. 🚨 O koşumdan önce `artifacts/package/release`
+🚨 **Adım 9'un provası koşuldu, deploy'un kendisi BİLEREK ertelendi** 👤
+(2026-09-19). `scripts/site-deploy.sh --dry-run` uçtan uca **çıkış 0**: 1151
+sayfa derlendi, 189.676 iç bağlantının hiçbiri kırık değil, SEO 0 hata, ağırlık
+tavanı altında, `rsync` hedefe ulaştı. Deploy **tag günü, tag'den hemen önce**
+koşar: A-11 ve A-12 kullanıcıdadır ve süreleri belirsizdir; sayfayı bugün
+yayımlamak, NuGet'te var olmayan bir sürümü yayınlanmış gösterirdi — bu turun
+kapattığı "sevk edilen doküman runtime ile çelişiyor" sınıfının ta kendisi.
+⚠️ İlk iki prova denemesi `Connection closed by … port 22` ile düştü, üçüncüsü
+geçti; `ssh` ve `rsync` ayrı ayrı sağlam ölçüldü ⇒ kopma geçicidir, eksik
+yetki değil. Tag günü deploy bir kez düşerse **tekrar dene**.
+
+🚨 **Her yeni commit adım 6'yı geçersiz kılar ve bu tur bunu İKİ kez ödedi.**
+Üçüncü turun provası `c5ed5573`'ten koşmuştu; sürüm kesimi ve defter kapanışı
+onun üstüne binince kapılar iki kez yeniden koşuldu. Tag ancak, tag'lenecek
+commit'ten koşulmuş bir `kapanis` + `yayin --kuru` çiftinden sonra atılır. 🚨 O koşumdan önce `artifacts/package/release`
 **boşaltılır** — üçüncü turda kirli dizin kapıyı `EXIT=1` ile durdurdu.
 
 ### Önceki sistemik hat — tarihsel kapsam
