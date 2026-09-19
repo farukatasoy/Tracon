@@ -259,8 +259,49 @@ public sealed class WorkflowNodeRetryTests
         attempts.ShouldBe(1);
     }
 
+    [Fact]
+    public async Task A_classifier_that_throws_hands_over_to_the_built_in_one()
+    {
+        // 🚨 IsTransient runs INSIDE an exception filter, and C# swallows an
+        // exception thrown in a filter - the filter just evaluates to false.
+        // A throwing classifier therefore meant the node was silently NOT
+        // retried, with nothing logged, while the shipped store/classifier
+        // guide promises the built-in classifier takes over and the failure is
+        // logged. The built-in classifier reads
+        // TraconProviderUnavailableException as ProviderUnavailable, which IS
+        // retryable, so a working fallback shows up as a retry happening.
+        var attempts = 0;
+
+        Func<string, IWorkflowContext, CancellationToken, ValueTask<string>> handler =
+            (_, _, _) =>
+            {
+                attempts++;
+
+                return attempts < 3
+                    ? throw new TraconProviderUnavailableException("provider-x")
+                    : new ValueTask<string>("done");
+            };
+
+        var wrapped = WorkflowNodeRetry.Wrap(
+            handler,
+            new WorkflowNodeRetryPolicy { MaxAttempts = 5, InitialDelay = TimeSpan.FromMilliseconds(1) },
+            new ThrowingClassifier(),
+            TimeProvider.System);
+
+        var result = await wrapped("hello", null!, TestContext.Current.CancellationToken);
+
+        result.ShouldBe("done");
+        attempts.ShouldBe(3);
+    }
+
     private sealed class FixedClassifier(RunErrorClass value) : IRunErrorClassifier
     {
         public RunErrorClassification Classify(RunError runError) => new() { Class = value, Fingerprint = "fixed" };
+    }
+
+    private sealed class ThrowingClassifier : IRunErrorClassifier
+    {
+        public RunErrorClassification Classify(RunError runError)
+            => throw new InvalidOperationException("the consumer's classifier has a bug");
     }
 }

@@ -44,6 +44,43 @@ before it reaches any endpoint.
 authenticated user could reach another tenant's data by adding a header. The header
 path also has to be enabled explicitly — an HTTP header is not proof of identity.
 
+### What a tenant identifier may be
+
+A tenant identifier matches `^[a-zA-Z0-9_.-]+$` and is at most 64 characters. A
+value that does not match is never resolved, and the request **falls to the
+default tenant** — the allow-list does not catch it, because the allow-list
+only sees values that passed the format check. Treat a malformed header as a
+request that reaches the default tenant, not as one that is refused: if that
+matters to you, reject it in front of Tracon.
+
+**Letter case does not distinguish two tenants.** `acme`, `Acme` and `ACME` are
+one tenant. Tracon reaches that by folding the *value* to invariant lower case
+wherever a tenant enters the system — the resolved context, the allow-list on
+both sides, the admin routes, and every store, on the write path and the query
+path alike. `AmbientTenantScope.Normalize` is that rule, and a store you write
+yourself must apply it too.
+
+Folding the value, rather than comparing case-insensitively at query time, is
+what makes the three storage providers agree. A plain `=` predicate then means
+the same thing on PostgreSQL, SQLite and SQL Server whatever collation the
+database was created with, the primary key keeps rejecting duplicates on all
+three, and the index stays usable. Without it a deployment answers "same
+tenant" or "different tenant" for the same pair depending on which layer is
+asked: SQL Server's default collation is case-insensitive, PostgreSQL's and
+SQLite's are not.
+
+Two consequences are worth planning for:
+
+- `Tracon:DefaultTenantId` is **rejected at startup** when it is not already
+  lower case. Tracon does not fold it silently, because a value you wrote as
+  `Acme` and then read back as `acme` in the audit trail gives you nothing to
+  search for.
+- Migrations **refuse to run** against a database that still holds a
+  non-canonical `tenant_id`, and they name the tables. Tracon does not fold
+  those rows for you: on a case-sensitive engine `Acme` and `acme` may be two
+  real tenants, and merging two tenants cannot be undone. Decide per table
+  whether the rows are one tenant or two, then start again.
+
 Isolation is enforced by contract tests that check it in both directions, across the
 in-memory store and all three SQL providers, with a coverage gate requiring every
 public store method to be either tested or exempted with a documented reason.

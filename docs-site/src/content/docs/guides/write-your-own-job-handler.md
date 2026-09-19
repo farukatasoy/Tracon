@@ -140,9 +140,18 @@ builder.Services.UseScheduling(options =>
 `JobContext.Job`, with the SAME item list — can reach `ExecuteAsync` more than
 once: a thrown exception is retried up to the job's attempt limit
 (`JobRetryException.RetryAfter` controls the delay), and a worker that
-crashes or whose lease simply expires before it returns lets another worker
-(or the same one, on its next poll) re-lease the job and call `ExecuteAsync`
-again from scratch. Neither path resets item progress.
+crashes, or whose lease lapses, lets another worker (or the same one, on its
+next poll) re-lease the job and call `ExecuteAsync` again from scratch.
+Neither path resets item progress.
+
+**A running handler is never interrupted by its own lease, and nothing caps
+how long it may run.** The worker renews the lease on a timer for as long as
+`ExecuteAsync` has not returned, without a limit — there is no `JobTimeout`
+setting. So a handler that blocks forever holds its worker slot forever, that
+slot counts against `MaxConcurrentJobs` (default 2), and no replica can pick
+the work up instead: the job is leased, not abandoned. Give any handler that
+calls out to the network its own timeout. The `CancellationToken` you receive
+is cancelled when the worker shuts down, not when the job has taken too long.
 
 `JobContext.Items` reflects that: it carries **every** item, not only the
 `Pending` ones. On a retry, items already `Completed` or `Failed` from an

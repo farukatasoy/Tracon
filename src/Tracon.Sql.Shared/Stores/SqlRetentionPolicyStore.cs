@@ -34,7 +34,7 @@ internal sealed class SqlRetentionPolicyStore : IRetentionPolicyStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
 
         var command = CreateCommand(_sql.SelectRetentionPolicies);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
 
         return await DbHelpers.ReadListAsync(command, ReadPolicy, cancellationToken).ConfigureAwait(false);
     }
@@ -49,7 +49,7 @@ internal sealed class SqlRetentionPolicyStore : IRetentionPolicyStore
         ArgumentException.ThrowIfNullOrWhiteSpace(target);
 
         var command = CreateCommand(_sql.SelectRetentionPolicy);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
         DbHelpers.Add(command, "target", target);
 
         var found = await DbHelpers.ReadSingleAsync(command, ReadPolicy, cancellationToken).ConfigureAwait(false);
@@ -61,7 +61,7 @@ internal sealed class SqlRetentionPolicyStore : IRetentionPolicyStore
 
         // Falls back to the "*" global default when there is no tenant-specific record.
         var fallback = CreateCommand(_sql.SelectRetentionPolicy);
-        DbHelpers.Add(fallback, "tenant_id", "*");
+        DbHelpers.AddTenant(fallback, "*");
         DbHelpers.Add(fallback, "target", target);
 
         return await DbHelpers.ReadSingleAsync(fallback, ReadPolicy, cancellationToken).ConfigureAwait(false);
@@ -76,7 +76,7 @@ internal sealed class SqlRetentionPolicyStore : IRetentionPolicyStore
 
         var command = CreateCommand(_sql.UpsertRetentionPolicy);
         DbHelpers.Add(command, "id", policy.Id);
-        DbHelpers.Add(command, "tenant_id", policy.TenantId);
+        DbHelpers.AddTenant(command, policy.TenantId);
         DbHelpers.Add(command, "target", policy.Target);
         Dialect.AddInt32(command, "max_age_days", policy.MaxAgeDays);
         Dialect.AddInt64(command, "max_rows", policy.MaxRows);
@@ -100,7 +100,7 @@ internal sealed class SqlRetentionPolicyStore : IRetentionPolicyStore
         ArgumentException.ThrowIfNullOrWhiteSpace(target);
 
         var command = CreateCommand(_sql.DeleteRetentionPolicy);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
         DbHelpers.Add(command, "target", target);
 
         return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
@@ -113,7 +113,7 @@ internal sealed class SqlRetentionPolicyStore : IRetentionPolicyStore
 
         var command = CreateCommand(_sql.InsertRetentionRun);
         DbHelpers.Add(command, "id", run.Id);
-        DbHelpers.Add(command, "tenant_id", run.TenantId);
+        DbHelpers.AddTenant(command, run.TenantId);
         DbHelpers.Add(command, "target", run.Target);
         Dialect.AddTimestamp(command, "started_at", run.StartedAt);
 
@@ -167,7 +167,7 @@ internal sealed class SqlRetentionPolicyStore : IRetentionPolicyStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
 
         var command = CreateCommand(_sql.SelectRetentionRuns);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
         Dialect.AddText(command, "target", target);
         DbHelpers.Add(command, "skip", Math.Max(0, skip));
         DbHelpers.Add(command, "take", Math.Max(1, take));

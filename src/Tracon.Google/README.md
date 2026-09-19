@@ -11,14 +11,21 @@ After `UseGoogle(...)`, call `UseGoogleImages(...)` to register Tracon's narrow
 tracon.UseGoogleImages(options =>
 {
     options.Enabled = true;
-    options.Model = "your-imagen-model";
+    options.Model = "gemini-2.5-flash-image";
 });
 ```
 
+The model must generate images through `generateContent`. The older Imagen
+`predict` surface is not served by the Gemini API, and a model that only
+supports it fails every request.
+
 The generator key is `google`. This adapter generates from a prompt only; it does not
 map a `WIDTHxHEIGHT` request because Google's image API uses separate aspect-ratio and
-size-tier settings. Configure prices under `Tracon:Pricing:Images:google` when
-cost reporting is required.
+size-tier settings. `Count` is passed as the candidate count, and an image model
+commonly returns one image whatever you ask for. A requested media type is passed to
+the model and the answer is checked: if the model returns another format the call
+fails rather than handing back bytes that do not match the request. Configure prices
+under `Tracon:Pricing:Images:google` when cost reporting is required.
 
 ```csharp
 builder.AddTracon()

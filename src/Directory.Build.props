@@ -197,4 +197,24 @@
     <InternalsVisibleTo Include="Tracon.Sqlite" />
   </ItemGroup>
 
+  <!--
+    TenantChatClientCacheKey is shared by the four shipped provider adapters and
+    is INTERNAL rather than public API: the string it returns begins with the
+    tenant's PLAINTEXT credential. Inside Tracon it never leaves an in-process
+    dictionary, but a public helper that hands back a secret invites the one
+    debugging move that turns it into a leak - logging the key on a cache miss.
+    K-059 keeps secrets out of files and out of the database; this keeps them
+    out of the public surface too.
+
+    A third-party provider adapter does not need it. What the shipped
+    ModelProviderCredentialContract requires is the same-instance guarantee,
+    not this particular key.
+  -->
+  <ItemGroup Label="Internal visibility - provider adapters" Condition=" '$(MSBuildProjectName)' == 'Tracon.Core' ">
+    <InternalsVisibleTo Include="Tracon.Anthropic" />
+    <InternalsVisibleTo Include="Tracon.Azure" />
+    <InternalsVisibleTo Include="Tracon.Google" />
+    <InternalsVisibleTo Include="Tracon.OpenAI" />
+  </ItemGroup>
+
 </Project>

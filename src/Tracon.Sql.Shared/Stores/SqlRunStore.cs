@@ -85,7 +85,7 @@ internal sealed class SqlRunStore : IRunStore
 
         var command = CreateCommand(_sql.InsertRun);
         DbHelpers.Add(command, "id", record.Id);
-        DbHelpers.Add(command, "tenant_id", record.TenantId!);
+        DbHelpers.AddTenant(command, record.TenantId!);
         DbHelpers.Add(command, "agent_name", record.AgentName);
         AddNullableText(command, "session_id", record.SessionId);
         AddNullableText(command, "model_id", record.ModelId);
@@ -161,7 +161,7 @@ internal sealed class SqlRunStore : IRunStore
         // the job queue work), so filtering by the ambient tenant would drop
         // legitimate writes. NULL means no check.
         // Rationale: K-355.
-        AddNullableText(command, "tenant_id", runEvent.TenantId);
+        AddNullableText(command, "tenant_id", AmbientTenantScope.NormalizeOrNull(runEvent.TenantId));
 
         int affected;
 
@@ -239,7 +239,7 @@ internal sealed class SqlRunStore : IRunStore
         AddNullableText(command, "model_provider", completion.ModelProvider);
 
         // EXPECTED tenant (K-355). NULL means no check.
-        AddNullableText(command, "tenant_id", completion.TenantId);
+        AddNullableText(command, "tenant_id", AmbientTenantScope.NormalizeOrNull(completion.TenantId));
 
         var affected = await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
 
@@ -275,7 +275,7 @@ internal sealed class SqlRunStore : IRunStore
         // (POST /api/stats/recalculate-costs) gets ids from a query already
         // FILTERED by tenant and carries the same tenant here too, so the
         // two-phase path has no race.
-        AddNullableText(command, "tenant_id", tenantId);
+        AddNullableText(command, "tenant_id", AmbientTenantScope.NormalizeOrNull(tenantId));
 
         await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
     }
@@ -362,7 +362,7 @@ internal sealed class SqlRunStore : IRunStore
     {
         var command = CreateCommand(_sql.SelectRun);
         DbHelpers.Add(command, "id", runId);
-        DbHelpers.Add(command, "tenant_id", _tenantContext.TenantId);
+        DbHelpers.AddTenant(command, _tenantContext.TenantId);
 
         return await DbHelpers.ReadSingleAsync(command, ReadRun, cancellationToken).ConfigureAwait(false);
     }
@@ -375,7 +375,7 @@ internal sealed class SqlRunStore : IRunStore
         ArgumentNullException.ThrowIfNull(query);
 
         var command = CreateCommand(_sql.SelectRuns);
-        DbHelpers.Add(command, "tenant_id", query.TenantId ?? _tenantContext.TenantId);
+        DbHelpers.AddTenant(command, query.TenantId ?? _tenantContext.TenantId);
         AddNullableText(command, "agent_name", query.AgentName);
         Dialect.AddInt16(command, "status", (short?)query.Status);
         Dialect.AddInt16(command, "kind", (short?)query.Kind);
@@ -401,7 +401,7 @@ internal sealed class SqlRunStore : IRunStore
         ArgumentNullException.ThrowIfNull(query);
 
         var command = CreateCommand(_sql.SelectRunStatistics);
-        DbHelpers.Add(command, "tenant_id", query.TenantId ?? _tenantContext.TenantId);
+        DbHelpers.AddTenant(command, query.TenantId ?? _tenantContext.TenantId);
         AddNullableText(command, "agent_name", query.AgentName);
         AddNullableText(command, "user_id", query.UserId);
         AddLabelFilter(command, query.LabelKey, query.LabelValue);
@@ -645,7 +645,7 @@ internal sealed class SqlRunStore : IRunStore
         RunTimeSeriesBucketing.Validate(query.From, query.To, query.Bucket);
 
         var command = CreateCommand(_sql.SelectRunTimeSeries);
-        DbHelpers.Add(command, "tenant_id", query.TenantId ?? _tenantContext.TenantId);
+        DbHelpers.AddTenant(command, query.TenantId ?? _tenantContext.TenantId);
         Dialect.AddTimestamp(command, "from_ts", query.From);
         Dialect.AddTimestamp(command, "to_ts", query.To);
         DbHelpers.Add(command, "bucket_unit", query.Bucket == TimeSeriesBucket.Hour ? "hour" : "day");
@@ -667,7 +667,7 @@ internal sealed class SqlRunStore : IRunStore
         var command = CreateCommand(_sql.SelectRunEvents);
         DbHelpers.Add(command, "run_id", runId);
         DbHelpers.Add(command, "from_sequence", fromSequence);
-        DbHelpers.Add(command, "tenant_id", _tenantContext.TenantId);
+        DbHelpers.AddTenant(command, _tenantContext.TenantId);
 
         await using (command.ConfigureAwait(false))
         {
@@ -741,7 +741,7 @@ internal sealed class SqlRunStore : IRunStore
         Dialect.AddBoolean(command, "timed_out", invocation.TimedOut);
 
         // EXPECTED tenant (K-355). NULL means no check.
-        AddNullableText(command, "tenant_id", invocation.TenantId);
+        AddNullableText(command, "tenant_id", AmbientTenantScope.NormalizeOrNull(invocation.TenantId));
 
         int affected;
 
@@ -790,7 +790,7 @@ internal sealed class SqlRunStore : IRunStore
         Dialect.AddTimestamp(command, "late_completed_at", completion.LateCompletedAt);
 
         // EXPECTED tenant (K-355). NULL means no check.
-        AddNullableText(command, "tenant_id", completion.TenantId);
+        AddNullableText(command, "tenant_id", AmbientTenantScope.NormalizeOrNull(completion.TenantId));
 
         // 🚨 No row is NOT an error here, unlike RecordToolInvocationAsync. The
         // call settles after its own run has been reported done, and retention
@@ -805,7 +805,7 @@ internal sealed class SqlRunStore : IRunStore
     {
         var command = CreateCommand(_sql.SelectToolInvocations);
         DbHelpers.Add(command, "run_id", runId);
-        DbHelpers.Add(command, "tenant_id", _tenantContext.TenantId);
+        DbHelpers.AddTenant(command, _tenantContext.TenantId);
 
         return await DbHelpers
             .ReadListAsync(command, ReadToolInvocation, cancellationToken)
@@ -820,7 +820,7 @@ internal sealed class SqlRunStore : IRunStore
         ArgumentNullException.ThrowIfNull(query);
 
         var command = CreateCommand(_sql.SelectToolUsage);
-        DbHelpers.Add(command, "tenant_id", query.TenantId ?? _tenantContext.TenantId);
+        DbHelpers.AddTenant(command, query.TenantId ?? _tenantContext.TenantId);
         Dialect.AddTimestamp(command, "started_after", query.StartedAfter);
         DbHelpers.Add(command, "max_tools", Math.Max(query.MaxTools, 0));
 
@@ -837,7 +837,7 @@ internal sealed class SqlRunStore : IRunStore
         ArgumentNullException.ThrowIfNull(query);
 
         var command = CreateCommand(_sql.SelectExperimentResults);
-        DbHelpers.Add(command, "tenant_id", query.TenantId ?? _tenantContext.TenantId);
+        DbHelpers.AddTenant(command, query.TenantId ?? _tenantContext.TenantId);
         DbHelpers.Add(command, "experiment_id", query.ExperimentId);
         DbHelpers.Add(command, "status_completed", (short)RunStatus.Completed);
         DbHelpers.Add(command, "status_failed", (short)RunStatus.Failed);

@@ -51,6 +51,20 @@ internal sealed class PostgresDialect : SqlDialect
     public override string MigrationResourcePrefix => "Tracon.PostgreSql.Migrations.";
 
     /// <inheritdoc />
+    public override string TenantIdTableCatalogSql =>
+        """
+        SELECT c.table_name
+          FROM information_schema.columns c
+          JOIN information_schema.tables t
+            ON t.table_schema = c.table_schema
+           AND t.table_name = c.table_name
+         WHERE c.table_schema = '{schema}'
+           AND c.column_name = 'tenant_id'
+           AND t.table_type = 'BASE TABLE'
+         ORDER BY c.table_name
+        """;
+
+    /// <inheritdoc />
     /// <remarks>
     /// The "knowledge" set needs the <c>pgvector</c> extension and
     /// is therefore opt-in; a consumer without permission to

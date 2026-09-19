@@ -43,7 +43,7 @@ internal sealed class SqlRunInputStore : IRunInputStore
 
         var command = CreateCommand(_sql.InsertRunInput);
         Dialect.AddUuid(command, "run_id", record.RunId);
-        DbHelpers.Add(command, "tenant_id", record.TenantId);
+        DbHelpers.AddTenant(command, record.TenantId);
         Dialect.AddJson(
             command,
             "messages",
@@ -66,7 +66,7 @@ internal sealed class SqlRunInputStore : IRunInputStore
 
         var command = CreateCommand(_sql.SelectRunInput);
         Dialect.AddUuid(command, "run_id", runId);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
 
         return await DbHelpers
             .ReadSingleAsync(command, reader => Read(reader, tenantId, runId), cancellationToken)

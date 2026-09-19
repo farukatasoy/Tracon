@@ -5281,6 +5281,8 @@ static Tracon.AmbientRunAttributionScope.CurrentUserId.get -> string?
 static Tracon.AmbientRunAttributionScope.IsActive.get -> bool
 static Tracon.AmbientTenantScope.Begin(string! tenantId) -> System.IDisposable!
 static Tracon.AmbientTenantScope.Current.get -> string?
+static Tracon.AmbientTenantScope.Normalize(string! tenantId) -> string!
+static Tracon.AmbientTenantScope.NormalizeOrNull(string? tenantId) -> string?
 static Tracon.ApiKeyCreationResult.operator !=(Tracon.ApiKeyCreationResult? left, Tracon.ApiKeyCreationResult? right) -> bool
 static Tracon.ApiKeyCreationResult.operator ==(Tracon.ApiKeyCreationResult? left, Tracon.ApiKeyCreationResult? right) -> bool
 static Tracon.ApiKeyDraft.operator !=(Tracon.ApiKeyDraft? left, Tracon.ApiKeyDraft? right) -> bool

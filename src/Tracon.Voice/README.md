@@ -93,9 +93,10 @@ builder.AddTracon().UseVoice(...);
 
 ## Dependencies
 
-The package pulls in **no NuGet packages at all**. The surface used amounts to
-three HTTP endpoints and is written with a raw `HttpClient` + `System.Text.Json`
-source generator; the package is AOT-compatible.
+`Tracon.Core` is the only dependency, and it brings **no third-party NuGet
+package** with it for this surface. The provider integration amounts to three
+HTTP endpoints and is written with a raw `HttpClient` plus the
+`System.Text.Json` source generator; the package is AOT-compatible.
 
 ## Links
 

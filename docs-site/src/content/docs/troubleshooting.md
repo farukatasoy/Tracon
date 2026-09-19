@@ -856,7 +856,7 @@ The tool carries the revision it stamps, so update the tool first — re-running
 older one writes the same stale value back:
 
 ```bash
-dotnet tool update -g Tracon.Cli
+dotnet tool update -g Tracon.Cli --prerelease
 rm .claude/skills/tracon/SKILL.md
 tracon agent-skill
 ```

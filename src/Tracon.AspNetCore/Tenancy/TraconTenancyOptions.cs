@@ -59,5 +59,19 @@ public sealed class TraconTenancyOptions
     /// <summary>
     /// The accepted tenant ids. If left empty, any value matching the format is accepted.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>The format</strong> is <c>^[a-zA-Z0-9_.-]+$</c>, at most 64
+    /// characters. A value that does not match is never resolved.
+    /// </para>
+    /// <para>
+    /// <strong>Letter case does not distinguish two tenants.</strong> Entries
+    /// and incoming values are both folded with
+    /// <see cref="AmbientTenantScope.Normalize"/> before they are compared, so
+    /// <c>Acme</c> here admits a request that arrives as <c>acme</c>, and the
+    /// reverse. The same fold is what every store persists, so one tenant can
+    /// never split into two rows because someone typed a capital letter.
+    /// </para>
+    /// </remarks>
     public IList<string> AllowedTenants { get; } = [];
 }

@@ -35,6 +35,22 @@ public sealed class TraconWorkflowOptions
     public int MaxConcurrentRuns { get; set; } = 4;
 
     /// <summary>Gets or sets the maximum duration of a single workflow run.</summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>Cooperative, and observed between super-steps.</strong> The
+    /// deadline cancels the token the run is given, and the runner checks it
+    /// as each super-step ends; it does not abandon work already in flight.
+    /// A node that ignores its cancellation token therefore runs to
+    /// completion, and the run stops at the first boundary after it. Treat
+    /// this as a bound on how long a run keeps taking NEW steps, not as a
+    /// hard wall-clock limit.
+    /// </para>
+    /// <para>
+    /// A run stopped this way reports a <c>TimeoutException</c> error naming
+    /// this setting. To bound an individual step instead, give the node its
+    /// own timeout inside the handler.
+    /// </para>
+    /// </remarks>
     public TimeSpan RunTimeout { get; set; } = TimeSpan.FromMinutes(10);
 
     /// <summary>

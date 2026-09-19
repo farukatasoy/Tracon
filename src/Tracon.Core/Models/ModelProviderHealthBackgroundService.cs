@@ -67,7 +67,7 @@ internal sealed class ModelProviderHealthBackgroundService(
         {
             await cache.GetAllAsync(refresh: true, cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception exception) when (exception is not OperationCanceledException)
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
         {
             if (logger is not null && logger.IsEnabled(LogLevel.Warning))
             {

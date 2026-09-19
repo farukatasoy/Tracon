@@ -24,6 +24,23 @@ internal sealed class TraconOptionsValidator : IValidateOptions<TraconOptions>
             (failures ??= []).Add(
                 $"{nameof(TraconOptions)}.{nameof(TraconOptions.DefaultTenantId)} cannot be empty.");
         }
+        else if (!string.Equals(
+            options.DefaultTenantId,
+            AmbientTenantScope.Normalize(options.DefaultTenantId),
+            StringComparison.Ordinal))
+        {
+            // Rejected rather than folded silently: an operator who wrote
+            // "Acme" here and then reads "acme" in the audit trail has no way
+            // to find out where the change happened. Stopping at startup is
+            // cheap and readable. The default value is already canonical, so
+            // no existing setup breaks by accident.
+            (failures ??= []).Add(
+                $"{nameof(TraconOptions)}.{nameof(TraconOptions.DefaultTenantId)} must be canonical " +
+                $"(invariant lower-case): '{options.DefaultTenantId}' should be " +
+                $"'{AmbientTenantScope.Normalize(options.DefaultTenantId)}'. The tenant identifier is " +
+                "matched case-insensitively by normalizing the value, so a non-canonical default would " +
+                "never match the rows written for it.");
+        }
 
         if (options.MaxParameterValueLength < 1)
         {

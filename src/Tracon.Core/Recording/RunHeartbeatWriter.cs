@@ -79,7 +79,7 @@ internal sealed class RunHeartbeatWriter(
         {
             await runStore.TouchHeartbeatAsync(activeRunIds, _clock.GetUtcNow(), stoppingToken).ConfigureAwait(false);
         }
-        catch (Exception exception) when (exception is not OperationCanceledException)
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, stoppingToken))
         {
             // Observability does not break functionality. A failed cycle does not
             // affect active runs and the next cycle retries.

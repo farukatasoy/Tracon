@@ -174,7 +174,7 @@ the installed version first*.
 It is written by the `tracon` tool, once, into the repository you point it at:
 
 ```bash
-dotnet tool install -g Tracon.Cli
+dotnet tool install -g Tracon.Cli --prerelease
 tracon agent-skill
 ```
 
@@ -200,7 +200,7 @@ the difference once your installed packages ship a newer one. Because the tool
 carries the revision it stamps, refresh the tool first:
 
 ```bash
-dotnet tool update -g Tracon.Cli
+dotnet tool update -g Tracon.Cli --prerelease
 rm .claude/skills/tracon/SKILL.md
 tracon agent-skill
 ```

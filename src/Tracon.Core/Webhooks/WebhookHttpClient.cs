@@ -75,26 +75,32 @@ public sealed class WebhookHttpClient : IDisposable
 
     /// <summary>Sends a request.</summary>
     /// <param name="request">The request.</param>
-    /// <param name="timeout">The timeout specific to this request.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The response.</returns>
+    /// <returns>The response, with its body not yet read.</returns>
+    /// <remarks>
+    /// <para>
+    /// This returns as soon as the response <strong>headers</strong> arrive;
+    /// the body is still on the wire. The per-attempt deadline therefore
+    /// belongs to the caller, which is the only party that knows when the
+    /// attempt is finished. Passing the deadline in here instead would end it
+    /// when the headers landed, and the body read that follows would run with
+    /// no deadline at all.
+    /// </para>
+    /// <para>
+    /// The shared <see cref="HttpClient"/> carries an infinite timeout on
+    /// purpose: a timeout on a shared client would make one request's deadline
+    /// cancel another's.
+    /// </para>
+    /// </remarks>
     /// <exception cref="ArgumentNullException"><paramref name="request"/> is <see langword="null"/>.</exception>
     public async Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request,
-        TimeSpan timeout,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        using var timeoutSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-
-        if (timeout > TimeSpan.Zero)
-        {
-            timeoutSource.CancelAfter(timeout);
-        }
-
         return await _client
-            .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeoutSource.Token)
+            .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken)
             .ConfigureAwait(false);
     }
 

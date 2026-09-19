@@ -30,7 +30,7 @@ internal sealed class SqlEvalStore : IEvalStore
         ArgumentNullException.ThrowIfNull(tenantId);
 
         var command = CreateCommand(_sql.SelectEvalSuites);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
 
         return await DbHelpers.ReadListAsync(command, ReadSuite, cancellationToken).ConfigureAwait(false);
     }
@@ -45,7 +45,7 @@ internal sealed class SqlEvalStore : IEvalStore
         ArgumentNullException.ThrowIfNull(name);
 
         var command = CreateCommand(_sql.SelectEvalSuite);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
         DbHelpers.Add(command, "name", name);
 
         return await DbHelpers.ReadSingleAsync(command, ReadSuite, cancellationToken).ConfigureAwait(false);
@@ -59,7 +59,7 @@ internal sealed class SqlEvalStore : IEvalStore
         var now = DateTimeOffset.UtcNow;
         var command = CreateCommand(_sql.UpsertEvalSuite);
         DbHelpers.Add(command, "id", suite.Id == Guid.Empty ? TraconId.NewId(now) : suite.Id);
-        DbHelpers.Add(command, "tenant_id", suite.TenantId);
+        DbHelpers.AddTenant(command, suite.TenantId);
         DbHelpers.Add(command, "name", suite.Name);
         AddNullableText(command, "description", suite.Description);
         DbHelpers.Add(command, "agent_name", suite.AgentName);
@@ -80,7 +80,7 @@ internal sealed class SqlEvalStore : IEvalStore
         ArgumentNullException.ThrowIfNull(name);
 
         var command = CreateCommand(_sql.DeleteEvalSuite);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
         DbHelpers.Add(command, "name", name);
 
         return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
@@ -268,7 +268,7 @@ internal sealed class SqlEvalStore : IEvalStore
 
         var command = CreateCommand(_sql.InsertEvalRun);
         DbHelpers.Add(command, "id", run.Id == Guid.Empty ? TraconId.NewId() : run.Id);
-        DbHelpers.Add(command, "tenant_id", run.TenantId);
+        DbHelpers.AddTenant(command, run.TenantId);
         DbHelpers.Add(command, "suite_id", run.SuiteId);
         AddNullableUuid(command, "job_id", run.JobId);
         DbHelpers.Add(command, "total", run.Total);
@@ -325,7 +325,7 @@ internal sealed class SqlEvalStore : IEvalStore
 
         var command = CreateCommand(_sql.SelectEvalRun);
         DbHelpers.Add(command, "id", evalRunId);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
 
         return await DbHelpers.ReadSingleAsync(command, ReadRun, cancellationToken).ConfigureAwait(false);
     }
@@ -339,7 +339,7 @@ internal sealed class SqlEvalStore : IEvalStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
 
         var command = CreateCommand(_sql.SelectEvalRunByJobId);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
         DbHelpers.Add(command, "job_id", jobId);
 
         return await DbHelpers.ReadSingleAsync(command, ReadRun, cancellationToken).ConfigureAwait(false);
@@ -356,7 +356,7 @@ internal sealed class SqlEvalStore : IEvalStore
         // Not nullable any more: EvalRunQuery.TenantId is required, so the
         // "null means every tenant" branch of SelectEvalRuns is unreachable
         // from this store. The SQL keeps the guard for older callers.
-        DbHelpers.Add(command, "tenant_id", query.TenantId);
+        DbHelpers.AddTenant(command, query.TenantId);
         AddNullableUuid(command, "suite_id", query.SuiteId);
         DbHelpers.Add(command, "skip", Math.Max(query.Skip, 0));
         DbHelpers.Add(command, "take", Math.Max(query.Take, 0));
@@ -395,7 +395,7 @@ internal sealed class SqlEvalStore : IEvalStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
 
         var command = CreateCommand(_sql.SelectEvalCaseResults);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
         DbHelpers.Add(command, "eval_run_id", evalRunId);
 
         return await DbHelpers.ReadListAsync(command, ReadCaseResult, cancellationToken).ConfigureAwait(false);

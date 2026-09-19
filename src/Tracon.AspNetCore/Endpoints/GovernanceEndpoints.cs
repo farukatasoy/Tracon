@@ -179,8 +179,9 @@ internal static class GovernanceEndpoints
                 "creating one does not create the tenant and deleting one does not remove its " +
                 "data. The slug comes from the path and must be at most 64 characters of " +
                 "letters, digits, dots, underscores, and hyphens (400 otherwise) — it is the " +
-                "same text stored as 'tenant_id' on every other row. An empty display name " +
-                "falls back to the slug.")
+                "same text stored as 'tenant_id' on every other row, and it is folded to " +
+                "lower case for the same reason, so 'Acme' and 'acme' name one record. " +
+                "An empty display name falls back to the slug.")
             .Accepts<TenantRequest>("application/json");
 
         builder.MapDelete("/api/tenants/{slug}", async Task<Results<NoContent, ProblemHttpResult>> (

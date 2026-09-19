@@ -269,6 +269,49 @@ internal abstract class SqlDialect
     /// </remarks>
     public virtual string QualifyTable(string tableName) => Queries.QualifyTable(tableName);
 
+    // --- Tenant id canonical form (phase 179) ---
+
+    /// <summary>
+    /// The query that lists the tables in the Tracon schema carrying a
+    /// <c>tenant_id</c> column, one name per row.
+    /// </summary>
+    /// <remarks>
+    /// Read from the server's catalog rather than from a list in the source:
+    /// a hand-written list goes stale the first time a table is added, and the
+    /// guard would then pass over the very table that broke.
+    /// <see cref="SqlQueriesBase.ApplySchema"/> is applied to the text before
+    /// it runs.
+    /// </remarks>
+    public abstract string TenantIdTableCatalogSql { get; }
+
+    /// <summary>
+    /// Turns a name returned by <see cref="TenantIdTableCatalogSql"/> into the
+    /// form a <c>FROM</c> clause accepts.
+    /// </summary>
+    /// <param name="tableName">The name as the catalog reported it.</param>
+    /// <returns>The qualified name.</returns>
+    /// <remarks>
+    /// Separate from <see cref="QualifyTable"/> because the two inputs are
+    /// not the same. On PostgreSQL and SQL Server the catalog reports the bare
+    /// table name and the schema still has to be prefixed. On SQLite the
+    /// "schema" is a name prefix that is already part of what the catalog
+    /// reports, so prefixing again would name a table that does not exist.
+    /// </remarks>
+    public virtual string QualifyCatalogTable(string tableName) => QualifyTable(tableName);
+
+    /// <summary>
+    /// The predicate that matches a row whose <c>tenant_id</c> is not canonical.
+    /// </summary>
+    /// <remarks>
+    /// A dialect whose default collation is case-INsensitive must override
+    /// this. Under such a collation <c>tenant_id &lt;&gt; lower(tenant_id)</c>
+    /// is always false — the comparison itself ignores the difference it is
+    /// meant to find — and the guard reports a clean database while the
+    /// offending rows sit in it.
+    /// </remarks>
+    public virtual string NonCanonicalTenantIdPredicate
+        => "tenant_id IS NOT NULL AND tenant_id <> lower(tenant_id)";
+
     // --- Retention (phase 25): data plane batch queries ---
 
     /// <summary>

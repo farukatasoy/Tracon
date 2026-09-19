@@ -77,7 +77,7 @@ public sealed class QuotaEnforcer(
                 .GetUsageAsync(new QuotaUsageQuery { TenantId = tenantId }, cancellationToken)
                 .ConfigureAwait(false);
         }
-        catch (Exception exception) when (exception is not OperationCanceledException)
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
         {
             if (logger is not null && logger.IsEnabled(LogLevel.Warning))
             {
@@ -126,9 +126,18 @@ public sealed class QuotaEnforcer(
     /// does not depend on this return value; see the option's own remarks.
     /// </returns>
     /// <remarks>
-    /// This call <strong>never throws</strong>: quota accounting is an
+    /// A failure <em>below</em> this call never surfaces: quota accounting is an
     /// observability function and must not retroactively break a completed run.
-    /// A failure below returns an empty list, the same as "nothing crossed".
+    /// A store error, and a cancellation that is not the caller's own, return
+    /// an empty list — the same as "nothing crossed".
+    /// <para>
+    /// Two things do come out: <see cref="ArgumentNullException"/> when
+    /// <paramref name="consumption"/> is <see langword="null"/>, which is a
+    /// caller bug rather than a runtime failure, and
+    /// <see cref="OperationCanceledException"/> when
+    /// <paramref name="cancellationToken"/> is cancelled, which is the caller
+    /// asking to stop.
+    /// </para>
     /// </remarks>
     public async ValueTask<IReadOnlyList<QuotaThresholdCrossing>> RecordAsync(
         QuotaConsumption consumption,
@@ -152,7 +161,7 @@ public sealed class QuotaEnforcer(
 
             return await ClaimThresholdCrossingsAsync(consumption, options, timeZone, cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception exception) when (exception is not OperationCanceledException)
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
         {
             // Observability does not break functionality: if the counter
             // cannot be written, the run is still considered complete.

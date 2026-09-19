@@ -99,7 +99,7 @@ tracon
 // tracon.UseAzureOpenAIImages(options => options.Model = "image-deployment");
 
 // Google uses a provider image model. It does not support WIDTHxHEIGHT in this surface.
-// tracon.UseGoogleImages(options => options.Model = "your-imagen-model");
+// tracon.UseGoogleImages(options => options.Model = "gemini-2.5-flash-image");
 ```
 
 Each extension shares the authenticated client factory already created by `UseOpenAI`,
@@ -111,6 +111,16 @@ application registers remains the fallback for a custom provider.
 
 `UseOpenAICompatible()` does not imply image support. Register a supported image
 extension only after you verify that its provider API supports the selected model.
+
+Google generates images through the `generateContent` surface, so the model you
+name must be one that supports it — a Gemini image model. The older Imagen
+`predict` surface is not served by the Gemini API, and a model that only
+supports it fails every request. Two option limits follow from that surface:
+`Count` is passed as the candidate count and an image model commonly returns one
+image whatever you ask for, and a requested media type is passed to the model
+and then **checked** — if the model answers in another format the call fails
+rather than handing back bytes that do not match the request. Omit the media
+type to accept the model's own choice.
 
 Then bind an agent to one stable provider name:
 

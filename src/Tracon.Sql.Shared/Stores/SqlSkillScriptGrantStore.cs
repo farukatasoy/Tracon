@@ -37,7 +37,7 @@ internal sealed class SqlSkillScriptGrantStore : ISkillScriptGrantStore
         ArgumentNullException.ThrowIfNull(tenantId);
 
         var command = CreateCommand(_sql.SelectSkillScriptGrants);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
         return await DbHelpers.ReadListAsync(command, ReadGrant, cancellationToken).ConfigureAwait(false);
     }
 
@@ -54,7 +54,7 @@ internal sealed class SqlSkillScriptGrantStore : ISkillScriptGrantStore
         ArgumentNullException.ThrowIfNull(scriptName);
 
         var command = CreateCommand(_sql.SelectActiveSkillScriptGrant);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
         DbHelpers.Add(command, "skill_name", skillName);
         Dialect.AddText(command, "script_name", scriptName);
         Dialect.AddTimestamp(command, "instant", instant);
@@ -71,7 +71,7 @@ internal sealed class SqlSkillScriptGrantStore : ISkillScriptGrantStore
         var now = grant.GrantedAt == default ? DateTimeOffset.UtcNow : grant.GrantedAt;
         var command = CreateCommand(_sql.UpsertSkillScriptGrant);
         DbHelpers.Add(command, "id", grant.Id == Guid.Empty ? TraconId.NewId(now) : grant.Id);
-        DbHelpers.Add(command, "tenant_id", grant.TenantId);
+        DbHelpers.AddTenant(command, grant.TenantId);
         DbHelpers.Add(command, "skill_name", grant.SkillName);
         Dialect.AddText(command, "script_name", grant.ScriptName);
         Dialect.AddText(command, "granted_by", grant.GrantedBy);
@@ -94,7 +94,7 @@ internal sealed class SqlSkillScriptGrantStore : ISkillScriptGrantStore
         ArgumentNullException.ThrowIfNull(skillName);
 
         var command = CreateCommand(_sql.RevokeSkillScriptGrant);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
         DbHelpers.Add(command, "skill_name", skillName);
         Dialect.AddText(command, "script_name", scriptName);
         Dialect.AddTimestamp(command, "revoked_at", DateTimeOffset.UtcNow);
