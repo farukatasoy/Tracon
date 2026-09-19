@@ -126,7 +126,34 @@ updates:
           - "*"
 
   # ---------------------------------------------------------------------------
-  # 4. GitHub Actions — ci.yml'deki action surumleri
+  # 4. npm — @tracon/client (packages/tracon-client/)
+  #
+  # 🚨 Bu, SEVK EDILEN npm paketidir ve kendi package-lock.json'u vardir. Uc
+  # ekosistemin hicbiri onu gormuyordu: NuGet Audit yalniz .NET restore
+  # grafigini tarar, diger iki npm blogu baska dizinleri isaret eder ve CI
+  # hicbir yerde `npm audit` kosmaz. Yani yayinlanan paketin kendi agacindaki
+  # bir advisory'yi fark edecek HICBIR mekanizma yoktu (yayin oncesi denetim,
+  # 2026-09-19). Ayni turda olculdu: agacta `js-yaml` high ve `vitest`
+  # moderate advisory'leri vardi; ucu de devDependency oldugu icin sevk edilen
+  # `dist/` temizdi — ama bunu bir kapi degil, elle bir olcum gosterdi.
+  # ---------------------------------------------------------------------------
+  - package-ecosystem: npm
+    directory: "/packages/tracon-client"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Istanbul
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      tracon-client:
+        patterns:
+          - "*"
+
+  # ---------------------------------------------------------------------------
+  # 5. GitHub Actions — ci.yml'deki action surumleri
   # ---------------------------------------------------------------------------
   - package-ecosystem: github-actions
     directory: "/"
