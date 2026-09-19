@@ -146,7 +146,7 @@ public sealed class AuditWritePolicyTests
 
         foreach (var file in Directory.EnumerateFiles(Path.Combine(repoRoot, "src"), "*.cs", SearchOption.AllDirectories))
         {
-            found += FailClosedPattern.Matches(File.ReadAllText(file)).Count;
+            found += FailClosedPattern.Count(File.ReadAllText(file));
         }
 
         found.ShouldBe(

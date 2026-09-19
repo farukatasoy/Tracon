@@ -53,11 +53,14 @@ internal sealed class DemoRunAuthorization(
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        logger.LogInformation(
-            "Demo run authorization: mode={Mode} tenant={TenantId} agent={AgentName} "
-            + "session={SessionId} user={UserId} access={Access} run={RunId}",
-            mode, request.TenantId, request.AgentName, request.SessionId,
-            request.UserId, request.Access, request.RunId);
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            logger.LogInformation(
+                "Demo run authorization: mode={Mode} tenant={TenantId} agent={AgentName} "
+                + "session={SessionId} user={UserId} access={Access} run={RunId}",
+                mode, request.TenantId, request.AgentName, request.SessionId,
+                request.UserId, request.Access, request.RunId);
+        }
 
         return ValueTask.FromResult(mode switch
         {
@@ -118,10 +121,13 @@ internal sealed class DemoRunAuthorization(
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        logger.LogInformation(
-            "Demo session authorization: mode={Mode} tenant={TenantId} "
-            + "session={SessionId} user={UserId} access={Access}",
-            mode, request.TenantId, request.SessionId, request.UserId, request.Access);
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            logger.LogInformation(
+                "Demo session authorization: mode={Mode} tenant={TenantId} "
+                + "session={SessionId} user={UserId} access={Access}",
+                mode, request.TenantId, request.SessionId, request.UserId, request.Access);
+        }
 
         return ValueTask.FromResult(mode switch
         {
