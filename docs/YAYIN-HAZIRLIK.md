@@ -6,17 +6,14 @@
 >
 > **Son güncelleme:** 2026-09-19  
 > **Çalışma modu:** `nuget-danismani` — Yayın kararı  
-> **🚨 Güncel karar §4'ün başındaki 2026-09-19 BAĞIMSIZ İKİNCİ TUR bloğudur —
-> ❌ Yayınlanmamalı.** Aynı günün kapatma turu (KG-035) o turun **17 kalemini
-> kapattı** — dört 🔴'nin dördü dahil — ama karar yenilenmedi: yeni bir
-> `nuget-danismani` turu koşmadı ve §13.0'ın elle müdahale kalemleri (A-10 site
-> deploy sırası, A-11 trusted publishing policy, A-12 environment koruması)
-> hâlâ açıktır. Yayın kararını ancak taze artifact kanıtıyla koşan bir tur
-> yenileyebilir. Aynı günün önceki turu ✅ demişti; ikinci tur onu
-> devralmadı, yeniden ölçtü ve artifact'i temiz buldu — fakat artifact dışında
-> iki 🔴 (kiracı kimliği karşılaştırma semantiği · sevk edilen dokümanın
-> çalışmayan bir yeteneği çalışır anlatması) ve bir 🟡 (release-notes bağlantısı)
-> buldu. Aşağıdaki ✅ metni **tarihsel bağlamdır**.
+> **🚨 Güncel karar §4'ün başındaki 2026-09-19 ÜÇÜNCÜ TUR bloğudur —
+> ❌ Bugün tag atılmaz, açık ÜRÜN 🔴'si olduğu için değil.** O tur ikinci turun
+> ❌'ini devralmadı: artifact'i `c5ed5573`'ten **yeniden ölçtü** ve temiz buldu.
+> Kalan üç 🔴 (A-10 site deploy sırası · A-11 trusted publishing policy ·
+> A-12 environment koruması) **operasyoneldir ve hiçbiri repoda değildir**.
+> İkinci turun dört 🔴'sini kapatma turu (KG-035) kapattı; kalan iki 🟡'yi
+> (A-26 · A-27) üçüncü tur kapattı. Aşağıdaki ikinci ve birinci tur metinleri
+> **tarihsel bağlamdır**.
 > Kalan yolu ve dört ürün kararını (KG-026…029) 2026-09-16 bloğu taşır; o blok
 > hâlâ sıra kaynağıdır, fakat **yayın kararı 2026-09-19'dadır**. 2026-09-16'nın
 > ❌'i devralınamaz: adım 1–3 bitti ve prova tag'lenecek commit'ten koştu.
@@ -118,7 +115,70 @@ değerlendirilecektir.
 
 ## 4. Mevcut net yayın kararı
 
-### 🚨 GÜNCEL KARAR — 2026-09-19 (`nuget-danismani`, bağımsız ikinci tur)
+### 🚨 GÜNCEL KARAR — 2026-09-19 (`nuget-danismani`, üçüncü tur)
+
+**❌ Bugün tag atılmaz — `1.0.0-preview.1`.** Açık bir **ürün** 🔴'si yoktur.
+Kalan üç 🔴 operasyoneldir, üçü de repo dışındadır ve üçü de tag sırasına
+bağlıdır: A-10 · A-11 · A-12. Bu tur ikinci turun ❌'ini **devralmadı**;
+artifact'i tag'lenecek commit'ten yeniden ölçtü.
+
+#### Artifact kanıtı — TEMİZ (`c5ed5573`)
+
+`python3 scripts/kapi.py yayin --kuru --surum 1.0.0-preview.1` → **çıkış 0**.
+20 paket + 18 sembol paketi, `npm publish --dry-run`, 6/6 packed sample, Native
+AOT smoke. `package-manifest.json`: `commit: c5ed5573`, `dirty: false`; **38
+dosyanın 38'inin `sha256`'sı elle yeniden hesaplandı ve tuttu.**
+
+🚨 **Kapının ilk koşumu `EXIT=1` döndü ve sebebi kapının kendisi değildi:**
+`artifacts/package/release` bir önceki turun (`49caa193`) paketlerini
+taşıyordu; promote kapısı aynı kimlikte farklı içeriği reddetti (KG-033'ün
+koruduğu yol). Dizin boşaltılınca yeşil. **Adım 6'da aynı tuzak vardır** —
+prova, dizin pristine değilse bir şey kanıtlamaz.
+
+#### Bu turda ölçülen ve kapatılanlar
+
+- **A-27 kapandı.** Ölçüldü: `docs/KARARLAR.md` 495.820 / 496.000 B (%0 boş) ve
+  `kapi.py kapanis` içindeki `dokuman-bakim.py --denetle` bütçe aşımında **1
+  döner** ⇒ yayın turunun yazacağı ilk karar adım 6'yı kırmızıya çevirirdi.
+  `karar-damit` **59 satırın gerekçesini taşıdı** (41.807 B); defter 455.089 B
+  (%8 boş). Tavan **değişmedi** — K-781 ve 2026-09-15 turlarının aksine bu kez
+  taşıma tükenmemişti.
+- **A-26 kapandı** (K-844 👤). Kök sebep ölçüldü: sebep üç ayrı **çıkışta**
+  kuruluyordu, gerçek yol ise MAF'ın sessiz bitişiydi ve o yol hiçbirinden
+  geçmiyordu. Sebep artık `run`'ın **kapandığı tek yerde** eklenir ve yalnız
+  `timeout` kaynağına bakar. Durum `Canceled` **kalır** (kullanıcı kararı).
+  Kapı: `WorkflowRunTimeoutReasonTests` — iki yarım, üç koşumda da kararlı.
+- **Kontrol düzleminin kendi drift'i kapandı:** §4 başlığı ikinci turun ❌'ini
+  taşıyordu (KG-035 onu kapatmıştı) · §10'un K-835 kalemi "karar verilmedi"
+  diyordu (kod `GenerateContentAsync`'e geçmişti) · §13 adım 10 Faz 176–178'i
+  `preview.2` işi sayıyordu (üçü de **2026-09-16'da landi**, KG-026 pratikte
+  tersine döndü) · adım 9'un "bitti ölçütü" hücresi boştu.
+
+#### 🆕 A-28 — sesli delegasyonun zaman aşımı, barge-in'den AYIRT EDİLEMİYOR
+
+A-26'nın sınıf taraması bir **ikinci vaka** buldu ve bu turda **kapatılmadı**.
+`LiveVoiceSessionHost` delegasyonu `CreateLinkedTokenSource(_lifetime.Token)` +
+`CancelAfter(_options.DelegationTimeout)` ile kurar ve barge-in **aynı** kaynağı
+iptal eder (`_delegations.Values` üzerinden). ∴ `catch (OperationCanceledException)`
+dalında "süre doldu" ile "kullanıcı sözünü kesti" ayırt edilemez; alttaki agent
+`run`'ı `RunRecordingAgent` tarafından sebepsiz `Canceled` kapatılır. Düzeltme
+workflow'unkiyle aynı şekildedir (ayrı bir timeout kaynağı) ama **sesli seam'i
+yeniden yapılandırır** ve A-26'nın kapsamında değildir. Seviye 🟡: kayıt doğru
+kapanır, yalnız sebebi yoktur.
+
+**Sınıf taramasının geri kalanı temiz.** `src/` içindeki 20 iç deadline
+sahasının hepsi tek tek okundu; sebebini **zaten** adıyla kaydedenler:
+`ChildAgentInvoker` (`WriteTimedOutAsync` + `TimeoutRefusal`) ·
+`OnlineEvalJobHandler` (`JudgeFailureTypes.Timeout`) · `SkillScriptProcessRunner`
+(`TimedOut`) · `WebhookDeliveryJobHandler` (`"Timed out (Ns)."`) ·
+`ToolApprovalPresenterRunner` (limiti log'a yazar) · sağlayıcı health check'leri
+ve MCP (çağırana fırlatır). `RunRecordingAgent`'ın üç `Canceled` sahasının
+**kendi deadline'ı yoktur** ⇒ orada `Canceled` her zaman "biri istedi" demektir
+ve yeni kuralla tutarlıdır.
+
+---
+
+### Önceki karar — 2026-09-19 (`nuget-danismani`, bağımsız ikinci tur)
 
 **❌ Bugün yayınlanmamalı — `1.0.0-preview.1`.** Aynı günün önceki turu
 ✅ demişti; bu tur onu **devralmadı** ve yeniden ölçtü. Paket artifact'i temiz
@@ -417,8 +477,8 @@ KG-029 (sürüm numarası) — gerekçeleri §11'dedir.
 | 6 | **Kapılar** | `kapi.py kapanis --taban <commit>` · `kapi.py yayin --kuru --surum 1.0.0-preview.1` | İkisi de sıfır uyarı |
 | 7 | **Repo public + push** | Kullanıcı | `git push origin main`; public tag'den **önce** olmalı — Source Link tag commit'ine bakar |
 | 8 | **Tag** | Kullanıcı | `git tag v1.0.0-preview.1 && git push origin v1.0.0-preview.1`; CI: build → pack + release-dryrun → npm-publish → publish (OIDC) → github-release |
-| 9 | Site + ilk 72 saat | `site-deploy.sh` · §14 | |
-| 10 | Faz 176 → 177 → 178 | Faz zinciri | `preview.2` hattı |
+| 9 | **Site deploy** (adım 8'den ÖNCE) + ilk 72 saat | `site-deploy.sh` · §14 | `scripts/site-deploy.sh` koştu ve **canlı** `https://tracon.dev/reference/changelog/` sayfasında `v1.0.0-preview.1` çapası GERÇEKTEN çözülüyor (`curl` ile doğrulanır). 20 `.nuspec`'in `releaseNotes` URL'i tam olarak o çapayı gösterir ve `.nuspec` basıldıktan sonra değişmez ⇒ sayfa tag'den önce canlı olmalıdır (A-10) |
+| 10 | `preview.2` hattı | Faz zinciri | 🚨 **KG-026 pratikte tersine döndü:** Faz 176, 177 ve 178 `preview.1` ÖNCESİNDE (2026-09-16) tamamlandı ve `preview.1` içindedir. Bu adım artık A-8 · A-15 · A-16 · A-17 · A-18 · A-28 ve UR-003'ü taşır |
 
 🚨 **Tag `origin`'e gider.** Repo'nun ikinci bir remote'u vardır
 (`intelera` → `StudyZoneInt/Tracon`). Trusted publishing policy'si
@@ -827,7 +887,7 @@ operasyon kritik yolunu yeniden açmaz.
 - [x] Hedef yayın türü kullanıcı tarafından onaylandı: `preview` (UR-001).
 - [x] Sürüm `1.0.0-preview.1` kullanıcı tarafından onaylandı (KG-029); tag adı `v1.0.0-preview.1`.
 - [x] Tam manuel kabul turu (36 aile) koşuldu ve bulduğu kusurlar kapandı (KG-027, 2026-09-18/19): 1.859 case — 1.813 Geçti · 26 Beklemede · 19 Atlandı · 1 Kaldı; 48 kusur kaydının hepsi kapandı. **Tek istisna `MT-MM-121` / K-835** — `Tracon.Google` görsel yolu, düzeltme kullanıcı kararına bırakıldı; aşağıdaki açık kalem odur.
-- [ ] 🚨 **K-835 kararı verilmedi:** `Tracon.Google`'ın görsel üretim yolu artık sunulmayan Imagen `:predict` ucunu hedefliyor ve **canlı ölçümde her üretim `502` veriyor**. Buna karşılık `docs-site/capabilities.md` ve `UseGoogleImages` XML `<example>`'ı bu yeteneği **çalışıyormuş gibi** anlatıyor — yani bugün sevk edilen doküman runtime ile çelişiyor. Üç seçenek: (A) `GenerateContentAsync`'e geçir — `Count`/`MediaType` sözleşmesi yeniden yazılır, (B) yüzeyi `preview.1`'den çıkar (`Shipped.txt` boş, bugün bedava), (C) bilinen sınır olarak dokümante et. Karar verilmeden tag atılmamalı.
+- [x] **K-835 kapandı (KG-034 seçenek A 👤, KG-035):** `Tracon.Google`'ın görsel yolu `GenerateContentAsync`'e geçirildi ve `Count`/`MediaType` sözleşmesi birlikte yeniden yazıldı; site ve XML aynı turda gerçeğe çekildi. Sevk edilen doküman ile runtime arasında bu kalemde çelişki kalmadı.
 - [x] `CHANGELOG.md` sevk edilen davranışı doğru anlatıyor (K-658 eklendi) ve tarihi güncel (2026-09-03 — **tag gününde yeniden doğrulanır**).
 - [x] En küçük güvenli paket kümesi onaylandı: tam 20 paket (UR-002).
 - [x] Exact sürümlü temiz pack başarılı.
@@ -927,6 +987,7 @@ operasyon kritik yolunu yeniden açmaz.
 | KG-033 | 2026-09-19 | Tamamlandı | **`nuget-danismani`'nin kendi kaynağındaki iki bayat iddia düzeltildi** | Skill'in kanıt tablosu hâlâ Faz 136 ÖNCESİNİ anlatıyordu: "bayat `.nupkg` siler, sonra paketler". O davranış kaldırıldı; bugün koşuma özgü bir **staging** dizinine paketlenir ve `release_dir`'e promote edilirken aynı kimlikte farklı içerik varsa **hiçbiri taşınmaz** (`_promote_staged_packages`, fail-closed). Ayrıca "beş extension sample" iddiası BL-052'den (Faz 123) beri yanlıştı — altı | Bayat bir kanıt kaynağı, ölçümü yanlış yere bakmaya yönlendirir; bu turda tam olarak o oldu ve kod okunarak düzeltildi |
 | KG-034 | 2026-09-19 | Tamamlandı | **13.0 aksiyon tablosunun altı önkoşul kararı alındı 👤.** **K1** = kiracı kimliği, karşılaştırıcı değiştirilerek değil **değer normalleştirilerek** case-duyarsız yapılır; iş tek turluk bir düzeltme değil **[Faz 179](arsiv/fazlar/179-KIRACI-KIMLIGI-NORMALLESTIRME.md)** olarak açılır. **K2** = seçenek **A**: kusur düzeltilir (`GenerateImagesAsync` → `GenerateContentAsync`), `Count`/`MediaType` sözleşmesi birlikte yeniden yazılır. **K3** = `TenantChatClientCacheKey` **`internal`** yapılır. **K4** = onay parmak izi **uzunluk-önekli** formata geçer. **K5** = şablonun `TraconVersion` varsayılanı **şablon paketinin kendi sürümüne** çapalanır. **K6** = job süre sınırı **GA'ya ertelenir**; `preview.1`'de yalnız doküman gerçeğe çekilir | K1: aynı sınıf `provider_name` için K-639/migration 0025 ile zaten normalleştirme yönünde kapatılmıştı — emsalin tersine gitmek iki kimlik alanını iki ayrı kurala bağlardı; kapsam (kod + 3 migration + contract + doküman + public kural) bir `kusur-giderme` turundan büyüktür, bu yüzden faz zinciri ve bağımsız denetçi seçildi. K2: yeteneğin **aynı anahtarla** çalıştığı ölçülmüştü (K-835 — `gemini-2.5-flash-image:generateContent` 3,2 MB PNG üretti), yani düzeltme spekülatif değil; çalışmayan bir yolu sevk etmek ya da yalnız dokümana uyarı yazmak preview'ın varlık sebebiyle (gerçek tüketici geri bildirimi) çelişir. K3/K4/K5: `PublicAPI.Shipped.txt` her pakette **boştur** (K-603) — bugün bedava olan üç değişiklik `preview.1`'den sonra sırasıyla yüzey kırılması, migration ve şablon davranış değişikliği olur. K6: public yüzeyi büyütür ve KG-026 tam olarak bu sebeple üç fazı `preview.2`'ye ertelemişti; sınırın kendisi bugün yalnız yanlış **anlatılıyor**, düzeltilecek olan o | Oturum kapsamı olarak "tüm tag öncesi kalemler" seçildi 👤: 🔴 A-1, A-2, A-3, A-19 · 🟡 A-4, A-5, A-6, A-9, A-13, A-20, A-21, A-22, A-23, A-24 · 🟢 A-25. Elle müdahale kalemleri (A-10 site deploy sırası, A-11 trusted publishing policy, A-12 environment koruması) kullanıcıda kalır. Son kod değişikliğinden sonra dört kapı + `kapi.py yayin --kuru` yeniden koşar |
 | KG-035 | 2026-09-19 | Tamamlandı | **13.0 aksiyon tablosunun 17 kalemi kapatıldı — dört 🔴'nin dördü dahil.** A-1 [Faz 179](arsiv/fazlar/179-KIRACI-KIMLIGI-NORMALLESTIRME.md) olarak kapandı (K-836…839); A-2, A-3, A-4, A-5, A-6, A-7, A-9, A-13, A-14, A-19, A-20, A-21, A-22, A-23, A-24, A-25 kendi kanallarında kapandı (K-840…843). A-8 K6 gereği GA'ya ertelendi, dokümanı gerçeğe çekildi | Faz 179'a bağımsız denetim koştu ve **2× 🔴 · 8× 🟡 · 2× 🟢** buldu; ikisi de gerçekti ve on ikisinin onu düzeltildi, ikisi gerekçelendi. 🚨 Denetimin birinci 🔴'si fazın kendi risk tablosunun birinci satırıydı: SQL Server'ın `COLLATE Latin1_General_BIN2` predicate'i **hiçbir testten geçmiyordu** — guard'ın tek testi SQLite'tı ve orada temel yüklem zaten doğru çalıştığı için override silinse tek bir test bile kırılmıyordu. Şimdi gerçek SQL Server üzerinde ihlal yolu ölçülüyor ve mutasyonla kanıtlandı. İkinci 🔴 guard'ın tek sarmalanmamış bootstrap adımı olmasıydı. Dört düzeltme ayrıca mutasyonla kanıtlandı (kiracı normalleştirme 6'nın 5'i, tıkaç kapısı, arka plan servisi OCE, onay parmak izi çakışması üçünün üçü) | Kapanış kapısı ve dört doküman kapısı yeşil. **Kalan kök faz yaşam döngüsü bulgusu bilinçlidir:** `docs/179-*.md` `✅ Tamamlandı` ile kökte duruyor çünkü `faz-arsivle` temiz çalışma ağacı ister — arşivleme commit'ten sonradır ve commit kullanıcıya aittir. Yeni açılan kalemler: **A-26** (zaman aşımına uğrayan workflow run'ı sebep taşımıyor), **A-27** (`KARARLAR.md` bütçenin tam sınırında), **F-254** (egress fail-open varsayılanı), **F-255** (Google görsel yolu için canlı kanıt yok), **F-256** (harf-kayması sözleşmesi iki store'da) |
+| KG-036 | 2026-09-19 | Tamamlandı | **Üçüncü tur: karar ❌ olarak KALIR, fakat gerekçesi DEĞİŞTİ — artık açık bir ürün 🔴'si yoktur; kalan üç 🔴 (A-10 · A-11 · A-12) operasyoneldir ve repo dışındadır.** A-26 (K-844 👤) ve A-27 kapatıldı; §4/§10/§13'ün kendi drift'i gerçeğe çekildi; A-28 açıldı | İkinci turun ❌'i devralınamazdı: arada Faz 179 dahil dört commit ve 17 kalem kapanışı vardı. Artifact `c5ed5573`'ten YENİDEN ölçüldü — `kapi.py yayin --kuru` çıkış 0, manifest `dirty: false` ve **38/38 dosya hash'i elle doğrulandı**. Kapının ilk koşumu kirli bir `release` dizini yüzünden `EXIT=1` döndü; bu, kapının promote korumasının çalıştığının kanıtıdır ve adım 6 için yazılı bir uyarıya dönüştü | Kalan yol §13'ün adım 5–9'udur; adım 9 artık tag'den ÖNCEdir ve kendi bitti ölçütünü taşır |
 
 ## 12. Ertelenen işler ve gerekçeleri
 
@@ -938,11 +999,11 @@ operasyon kritik yolunu yeniden açmaz.
 
 ## 13. Sonraki adım
 
-> 🚨 **2026-09-19 bağımsız ikinci tur bu bölümü geçersiz kıldı.** Aşağıdaki
-> "sıradaki iş sürüm kesimidir" anlatısı, yayın turunun ✅ döndüğü varsayımına
-> dayanıyordu. İkinci tur **❌** verdi (§4). **Sürüm kesimi (adım 5) sıradaki iş
-> DEĞİLDİR**; önce aşağıdaki aksiyon tablosu kapanır. Bu bölümün geri kalanı
-> adım 5–8'in **nasıl** koşulacağını hâlâ doğru anlatır ve o yüzden duruyor.
+> 🚨 **Aksiyon tablosunun REPO kalemleri kapandı (2026-09-19, üçüncü tur).**
+> Açık kalan A-10 · A-11 · A-12'nin üçü de **elle müdahaledir** ve hiçbiri
+> koda dokunmaz. **Sıradaki repo işi artık adım 5'tir (sürüm kesimi).** Açık
+> kalan `preview.1` dışı kalemler (A-8 · A-15 · A-16 · A-17 · A-18 · A-28)
+> GA/`preview.2` hattındadır ve tag'i beklemez.
 
 ### 13.0 Aksiyon tablosu — 2026-09-19 ikinci turunun çıktısı
 
@@ -976,8 +1037,9 @@ yürüteceğini söyler; `Önkoşul` boş değilse o karar verilmeden işe başl
 | A-23 | **`IRunErrorClassifier`'ın dokümansız ikinci tüketicisi var:** `WorkflowNodeRetry.IsTransient` node'un retry edilip edilmeyeceğine karar veriyor. O yolda `try/catch` **yok**, log **yok**, built-in'e fallback **yok** — üstelik çağrı bir exception filter'ının içinde ⇒ atan sınıflandırıcı **sessizce yutulur** ve node retry edilmez. Rehber ise "classifier throws ⇒ built-in devralır, hata loglanır" diyor | **`tuketici-dokuman-senkronu`** (ikinci iş yazılır) **+ `kusur-giderme`** (doküman daha güvenli davranışı anlatıyor ⇒ **kod yanlış**) | ✅ **KAPANDI** — `WorkflowNodeRetry` built-in'e düşüyor ve logluyor | 🟡 tag öncesi |
 | A-24 | **"never throws" / "never blocks" / "does not stop the run" XML sınıfı — A-3'ün doküman yarısı.** Yeni üyeler: `IRunInputStore.cs:23` ve `ITraceStore.cs:8` (ikisi de koşulsuz, runtime OCE'yi dışlıyor) · `QuotaEnforcer.cs:129` "never throws" ama `ArgumentNullException` ve OCE atıyor · `ToolApprovalPresenterRunner.cs:15-18` timeout'u sert sınır gibi anlatıyor. 🚨 Store rehberi tüketiciye **"OCE at"** diye öğretiyor (`write-your-own-store.md:123-124`) ⇒ **yön: KOD yanlış**, doküman doğru | **`kusur-giderme`** (A-3 ile aynı iş) + kalan XML cümleleri | ✅ **KAPANDI** — A-3 ile aynı iş + `QuotaEnforcer`/`ToolApprovalPresenterRunner` XML'leri | 🟡 tag öncesi |
 | A-25 | **Küçük doküman drift'leri:** decorator envanteri üç sayıyor, gerçek dört (`Order = 30`) · `TimeoutAIFunction` XML'inde iki kırık cümle (pakete girdiği doğrulandı) · üretilen API sayfasında `?text=` ham query string (tek vaka, üretici iç metinli `<see cref>`'i basamıyor) · `Tracon.Voice` "Zero NuGet dependencies" (bir bağımlılık var: `Tracon.Core`) | **`tuketici-dokuman-senkronu`** + üretici düzeltmesi | ✅ **KAPANDI** — dört kalem; üretici iç metinli `<see cref>`'i artık basıyor | 🟢 |
-| A-26 | 🆕 **Zaman aşımına uğrayan workflow run'ı SEBEP TAŞIMIYOR.** A-7'nin testi yazılırken ölçüldü: `WorkflowRunner` `Tracon:Workflows:RunTimeout` adını içeren bir `RunError` **üretiyor**, ama kapanış `RunFailed` olayı `Text`'siz ve `Payload`'suz geliyor ve `RunRecord.Error` **null** kalıyor. Operatör çıplak bir `Canceled` görüyor. `WorkflowRunTimeoutTests` bu boşluğu şimdiden kilitliyor — kapandığı gün test kırmızı döner | **`kusur-giderme`** | — | 🟡 |
-| A-27 | 🆕 **`docs/KARARLAR.md` bütçesinin tam sınırında** (495 820 / 496 000 B, %0 boş). Bu turun sekiz kararının uzun gerekçeleri `arsiv/KARARLAR-GECMISI.md`'ye taşındı ve ledger ancak öyle bütçeye girdi. Bir sonraki karar bütçeyi aşar | **Manuel müdahale** — damıtma turu; içerik SİLİNMEZ, taşınır | — | 🟡 |
+| A-26 | 🆕 **Zaman aşımına uğrayan workflow run'ı SEBEP TAŞIMIYOR.** A-7'nin testi yazılırken ölçüldü: `WorkflowRunner` `Tracon:Workflows:RunTimeout` adını içeren bir `RunError` **üretiyor**, ama kapanış `RunFailed` olayı `Text`'siz ve `Payload`'suz geliyor ve `RunRecord.Error` **null** kalıyor. Operatör çıplak bir `Canceled` görüyor. `WorkflowRunTimeoutTests` bu boşluğu şimdiden kilitliyor — kapandığı gün test kırmızı döner | **`kusur-giderme`** | ✅ **KAPANDI** — sebep `run`'ın kapandığı tek yerde eklenir; durum `Canceled` kalır; K-844 | 🟡 |
+| A-27 | 🆕 **`docs/KARARLAR.md` bütçesinin tam sınırında** (495 820 / 496 000 B, %0 boş). Bu turun sekiz kararının uzun gerekçeleri `arsiv/KARARLAR-GECMISI.md`'ye taşındı ve ledger ancak öyle bütçeye girdi. Bir sonraki karar bütçeyi aşar | **Manuel müdahale** — damıtma turu; içerik SİLİNMEZ, taşınır | ✅ **KAPANDI** — `karar-damit` 59 satır · 41.807 B taşıdı; defter 455.089 B (%8 boş), tavan değişmedi | 🟡 |
+| A-28 | 🆕 **Sesli delegasyonun zaman aşımı barge-in'den ayırt edilemiyor** — `DelegationTimeout` ile kullanıcı kesmesi AYNI `CancellationTokenSource`'u iptal eder; alttaki agent `run`'ı sebepsiz `Canceled` kapanır. A-26'nın sınıf taramasının bulduğu ikinci vaka | **Faz adayı** (ayrı timeout kaynağı; düzeltme workflow'unkiyle aynı şekil) | — | 🟡 |
 
 **Önkoşul kararlar (kullanıcıya ait, §4'te gerekçeleri var):**
 K1 kiracı kimliği semantiği · K2 Google görsel yüzeyi · K3 `TenantChatClientCacheKey`
@@ -1009,17 +1071,28 @@ public öncesi geçmiş denetimi (adım 3, RK-014) ve **yayın turu (adım 4, KG
 ✅ Yayınlanabilir)** 2026-09-19'da bitti. Kalan altı adımın tam sırası §4'ün
 2026-09-16 bloğundadır; açık iş yeni bir faz **değildir**.
 
-Kalan dördü kullanıcı eylemidir ve sıra **tersine çevrilemez**: adım 5 sürüm
+Kalan beşi kullanıcı eylemidir ve sıra **tersine çevrilemez**: adım 5 sürüm
 kesimi (`## [Unreleased]` başlığı `## [1.0.0-preview.1] - <sevk tarihi>` olur,
 üstüne boş bir `## [Unreleased]` açılır), adım 6 kapılar (`kapanis` +
-`yayin --kuru`, ikisi de sıfır uyarı), adım 7 repo public + `git push origin main`,
-adım 8 tag. **Public, tag'den öncedir** — Source Link tag commit'ine bakar. Tag
-`origin`'e gider, `intelera`'ya değil; trusted publishing policy'si
-`farukatasoy/Tracon` + `ci.yml` + `environment: nuget` üçlüsüne bağlıdır.
+`yayin --kuru`, ikisi de sıfır uyarı), adım 7 repo public, **adım 9'un site
+deploy'u**, adım 8 tag. **Public de site de tag'den öncedir** — Source Link tag
+commit'ine bakar, ve 20 `.nuspec`'in `releaseNotes` çapası basıldıktan sonra
+değişmez (A-10). Tag `origin`'e gider, `intelera`'ya değil; trusted publishing
+policy'si `farukatasoy/Tracon` + `ci.yml` + `environment: nuget` üçlüsüne
+bağlıdır ve **`Tracon` organizasyonu sahipliğinde yeniden kurulmalıdır** (A-11:
+[`ci.yml`](../.github/workflows/ci.yml) `NuGet/login` adımı `user: Tracon`
+yazar; 20 kimliğin yirmisi de nuget.org'da hâlâ **boştur**, yani policy'nin
+"yeni paket" scope'u zorunludur). A-12 adım 7 ile adım 8'in arasına girer.
 
-🚨 **Adım 5 sürüm kesimi yeni bir commit üretir.** Bugünkü prova `225f1472`'den
-koştu; kesim commit'i onun üstüne binince adım 6 kapıları **yeniden** koşar ve
-`yayin --kuru` o commit'ten tazelenir. Tag ancak o koşumdan sonra atılır.
+🚨 **`git push origin main` ARTIK GEREKMİYOR** (ölçüldü 2026-09-19:
+`origin/main == HEAD == c5ed5573`). Adım 7'den geriye yalnız **görünürlüğü
+public yapmak** kaldı; anonim GitHub API isteği bugün hâlâ `404` döner.
+
+🚨 **Adım 5 sürüm kesimi yeni bir commit üretir.** Üçüncü turun provası
+`c5ed5573`'ten koştu; kesim commit'i onun üstüne binince adım 6 kapıları
+**yeniden** koşar ve `yayin --kuru` o commit'ten tazelenir. Tag ancak o
+koşumdan sonra atılır. 🚨 O koşumdan önce `artifacts/package/release`
+**boşaltılır** — üçüncü turda kirli dizin kapıyı `EXIT=1` ile durdurdu.
 
 ### Önceki sistemik hat — tarihsel kapsam
 
