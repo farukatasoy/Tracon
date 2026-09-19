@@ -202,3 +202,58 @@ eşzamanlılık probu var; eskiden ilk gelenler sonuncuyu yirmi saniye bekliyord
   başka bir test koşmak ölçümü geçersizleştirir (ve `--no-build` koşumu
   değişmiş ikilileri çalıştırır). Bu turda bir koşum bu yüzden **iptal edildi**;
   raporlanmadı.
+
+## Tahsis taban çizgisi — 2026-09-19 güncellemesi (Faz 179 kapanışı)
+
+`bench/baseline.json` `44832 → 45040 B` (`RunStoreQueryBenchmarks.QueryRuns`,
++208 B). Güncelleme Faz 116'nın yazdığı yoldan yapıldı
+(`kapi.py performans --guncelle`, tek satırlık gözden geçirilebilir diff).
+
+**Artışın sahibi Faz 179 DEĞİL.** Üç ölçüm bunu ayırdı:
+
+| Commit | Ölçüm | Ne söyler |
+|---|---:|---|
+| `381285c4` (taban çizgisinin kendi tarihi) | 44 832 B | Taban bu makinede **birebir** üretilebiliyor — sapma ölçüm gürültüsü değil |
+| `85505780` (Faz 179 **öncesi**) | 45 040 B | Artış faz başlamadan önce oradaydı |
+| `HEAD` (Faz 179 dahil) | 45 040 B | Faz 179 tahsis açısından **nötr** |
+
+`git bisect` (8 adım, her adımda derleme + filtreli benchmark) tek suçluyu
+buldu: **`bf319755`** — `SqliteRetryingCommand`. Benchmark SQLite üzerinde
+koşuyor ve dekoratör komut başına bir sarmalayıcı nesne + retry closure'ı +
+async durum makinesi ekliyor. Bu bir kusur değil, bir **doğruluk düzeltmesinin
+kabul edilmiş bedelidir**; taban çizgisi bu yüzden güncellendi, kapı
+gevşetilmedi.
+
+### 🚨 Asıl ders: kapı 460 commit boyunca hiç koşmadı
+
+`kapi.py kapanis` **ilk kırmızıda durur** ve `performans` listenin onuncu
+adımıdır. Doküman kapısı (adım 2) uzun süre kırmızı kaldığı için — kapanmış faz
+dokümanı kökte beklerken bu normaldir — sıra performans adımına hiç gelmedi ve
+gerçek bir gerileme o pencerede sessizce içeri girdi.
+
+Bunun sonuçları, bir dahaki sefere:
+
+- **Kapanış kapısının yeşili, "her adım koştu" demek değildir.** Hangi adımların
+  koştuğunu görmek için çıktıdaki `$ ...` satırlarını say; eksik adım varsa kapı
+  o adım hakkında hiçbir şey söylememiştir.
+- **Sapmayı ararken önce taban çizgisinin kendi commit'ini ölç.** Taban orada
+  üretilemiyorsa sorun koddan önce ortamdadır (SDK, makine) ve bisect boşa gider.
+  Burada birebir üretildi, bu yüzden bisect meşruydu.
+- **Bisect ölçümü `kapi.py performans`'ın tamamıyla yapılmaz** — üç benchmark'ın
+  üçünü de koşar. Tek benchmark'ı `--filter '*QueryRuns*' --exporters json` ile
+  koşup `Memory.BytesAllocatedPerOperation` okumak adım başına ~2 dakika kazandırır.
+
+### Ölçmeden "optimizasyon" yazma — bu turda bir kez olundu
+
+`AmbientTenantScope.Normalize`'ın `ToLowerInvariant()`'ı "zaten kanonik değerde
+de kopya üretiyor" varsayımıyla bir hızlı yol yazıldı, sonra ölçüldü:
+
+```
+zaten kanonik girdi : ToLowerInvariant 0,0 B/call · hızlı yol 0,0 B/call
+katlanması gereken  : ToLowerInvariant 48,0 B/call · hızlı yol 48,0 B/call
+```
+
+**.NET'in kendisi zaten aynı örneği geri veriyor.** Hızlı yol tamamen gereksizdi
+ve geri alındı. Ölçüm `GC.GetAllocatedBytesForCurrentThread()` ile yapıldı;
+🚨 sonucu tüketmezsen (`sink += ...Length`) JIT çağrıyı tamamen eler ve her iki
+taraf da yanıltıcı biçimde `0 B` görünür.
