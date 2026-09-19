@@ -542,6 +542,9 @@ Tracon.Testing.Contracts.Storage.StoreCancellationContract<TStore>.Store.get -> 
 Tracon.Testing.Contracts.Storage.StoreCancellationContract<TStore>.StoreCancellationContract() -> void
 Tracon.Testing.Contracts.Storage.StoreCancellationContract<TStore>.The_write_this_contract_checks_can_be_read_back() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.TenantEgressPolicyStoreContract
+Tracon.Testing.Contracts.Storage.TenantEgressPolicyStoreContract.A_policy_is_deleted_whatever_case_the_caller_uses() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.TenantEgressPolicyStoreContract.A_policy_saved_under_a_different_case_replaces_the_existing_one() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.TenantEgressPolicyStoreContract.A_tenant_is_matched_case_insensitively(string! savedAs, string! requestedAs) -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.TenantEgressPolicyStoreContract.Deleting_the_policy_makes_the_tenant_unrestricted_again() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.TenantEgressPolicyStoreContract.Saved_policy_is_read_back() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.TenantEgressPolicyStoreContract.TenantEgressPolicyStoreContract() -> void
@@ -560,6 +563,7 @@ Tracon.Testing.Contracts.Storage.TenantProviderBindingStoreContract
 Tracon.Testing.Contracts.Storage.TenantProviderBindingStoreContract.A_binding_is_deleted_whatever_case_the_caller_uses() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.TenantProviderBindingStoreContract.A_binding_saved_under_a_different_case_replaces_the_existing_one() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.TenantProviderBindingStoreContract.A_provider_name_is_matched_case_insensitively(string! savedAs, string! requestedAs) -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.TenantProviderBindingStoreContract.A_tenant_is_matched_case_insensitively(string! savedAs, string! requestedAs) -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.TenantProviderBindingStoreContract.Endpoint_is_optional() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.TenantProviderBindingStoreContract.Listing_returns_every_provider_binding_of_the_tenant() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.TenantProviderBindingStoreContract.Missing_binding_returns_null() -> System.Threading.Tasks.Task!

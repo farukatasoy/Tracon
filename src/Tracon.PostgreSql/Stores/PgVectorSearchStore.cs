@@ -101,7 +101,7 @@ internal sealed class PgVectorSearchStore : IVectorSearchStore
                     await using (insert.ConfigureAwait(false))
                     {
                         insert.Parameters.Add(new NpgsqlParameter("id", NpgsqlDbType.Uuid) { Value = TraconId.NewId(now) });
-                        insert.Parameters.Add(new NpgsqlParameter("tenant_id", NpgsqlDbType.Text) { Value = tenantId });
+                        insert.Parameters.Add(new NpgsqlParameter("tenant_id", NpgsqlDbType.Text) { Value = AmbientTenantScope.Normalize(tenantId) });
                         insert.Parameters.Add(new NpgsqlParameter("collection", NpgsqlDbType.Text) { Value = collection });
                         insert.Parameters.Add(new NpgsqlParameter("source_id", NpgsqlDbType.Text) { Value = sourceId });
                         insert.Parameters.Add(new NpgsqlParameter("chunk_index", NpgsqlDbType.Integer) { Value = chunk.Index });
@@ -138,7 +138,7 @@ internal sealed class PgVectorSearchStore : IVectorSearchStore
              LIMIT @top;
              """);
 
-        command.Parameters.Add(new NpgsqlParameter("tenant_id", NpgsqlDbType.Text) { Value = request.TenantId });
+        command.Parameters.Add(new NpgsqlParameter("tenant_id", NpgsqlDbType.Text) { Value = AmbientTenantScope.Normalize(request.TenantId) });
         command.Parameters.Add(new NpgsqlParameter("collection", NpgsqlDbType.Text) { Value = request.Collection });
         command.Parameters.Add(new NpgsqlParameter("query", NpgsqlDbType.Text) { Value = FormatVector(request.QueryEmbedding) });
         command.Parameters.Add(new NpgsqlParameter("top", NpgsqlDbType.Integer) { Value = request.Top });
@@ -206,7 +206,7 @@ internal sealed class PgVectorSearchStore : IVectorSearchStore
              ORDER BY source_id;
              """);
 
-        command.Parameters.Add(new NpgsqlParameter("tenant_id", NpgsqlDbType.Text) { Value = tenantId });
+        command.Parameters.Add(new NpgsqlParameter("tenant_id", NpgsqlDbType.Text) { Value = AmbientTenantScope.Normalize(tenantId) });
         command.Parameters.Add(new NpgsqlParameter("collection", NpgsqlDbType.Text) { Value = collection });
 
         var results = new List<string>();
@@ -242,7 +242,7 @@ internal sealed class PgVectorSearchStore : IVectorSearchStore
 
         await using (command.ConfigureAwait(false))
         {
-            command.Parameters.Add(new NpgsqlParameter("tenant_id", NpgsqlDbType.Text) { Value = tenantId });
+            command.Parameters.Add(new NpgsqlParameter("tenant_id", NpgsqlDbType.Text) { Value = AmbientTenantScope.Normalize(tenantId) });
             command.Parameters.Add(new NpgsqlParameter("collection", NpgsqlDbType.Text) { Value = collection });
             command.Parameters.Add(new NpgsqlParameter("source_id", NpgsqlDbType.Text) { Value = sourceId });
 

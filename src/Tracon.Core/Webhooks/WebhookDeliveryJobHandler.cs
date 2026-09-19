@@ -281,6 +281,20 @@ internal sealed class WebhookDeliveryJobHandler(
         TraconWebhookOptions options,
         CancellationToken cancellationToken)
     {
+        // 🚨 ONE deadline for the WHOLE attempt: the request AND the body read.
+        // The client returns when the response headers land, so a deadline
+        // that lived inside the send call ended there and the body read that
+        // follows ran under the job worker's token only - a remote target that
+        // answered instantly and then dribbled its body held the worker slot
+        // for as long as it liked, while TraconWebhookOptions.Timeout said "a
+        // single delivery attempt".
+        using var attempt = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+
+        if (options.Timeout > TimeSpan.Zero)
+        {
+            attempt.CancelAfter(options.Timeout);
+        }
+
         try
         {
             using var request = new HttpRequestMessage(HttpMethod.Post, subscription.Url)
@@ -309,7 +323,7 @@ internal sealed class WebhookDeliveryJobHandler(
             AddExtraHeaders(request, subscription, options);
 
             using var response = await httpClient
-                .SendAsync(request, options.Timeout, cancellationToken)
+                .SendAsync(request, attempt.Token)
                 .ConfigureAwait(false);
 
             var statusCode = (int)response.StatusCode;
@@ -322,7 +336,7 @@ internal sealed class WebhookDeliveryJobHandler(
             // The remote target's own response body is entirely third-party controlled and
             // is never persisted (119.3's open question #3): the status code is enough to
             // diagnose a delivery failure.
-            var body = await ReadCappedAsync(response, options.MaxResponseBytes, cancellationToken).ConfigureAwait(false);
+            var body = await ReadCappedAsync(response, options.MaxResponseBytes, attempt.Token).ConfigureAwait(false);
 
             if (logger is not null && logger.IsEnabled(LogLevel.Warning))
             {

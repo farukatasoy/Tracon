@@ -206,6 +206,9 @@ that made it.
 Two projects are deliberately excluded: `Tracon.Generators` is a `netstandard2.0`
 build-time analyzer carried inside the Core package, not a separate NuGet package;
 `Tracon.Templates` is a .NET 10 `dotnet new` content package, not runtime API.
+The project it generates references the Tracon packages at **the template
+package's own version**, so a template and the runtime it writes always come
+from the same release. Pass `--TraconVersion x.y.z` to choose another one.
 
 ## What does not enter your graph
 

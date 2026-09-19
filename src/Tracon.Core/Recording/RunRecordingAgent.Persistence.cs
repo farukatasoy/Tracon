@@ -184,7 +184,7 @@ public sealed partial class RunRecordingAgent
                 },
                 cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
         {
             // Same signal as every other lost write, on the same counter: the run
             // survived but its evidence did not. This one is outside RunEventWriter,

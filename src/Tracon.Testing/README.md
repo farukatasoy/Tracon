@@ -11,7 +11,7 @@ fails; every framework counts that as a failure.
 ## Setup
 
 ```bash
-dotnet add package Tracon.Testing
+dotnet add package Tracon.Testing --prerelease
 ```
 
 **The meta package (`Tracon`) does not reference this package.**

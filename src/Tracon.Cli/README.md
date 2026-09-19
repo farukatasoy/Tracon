@@ -7,7 +7,7 @@ CI quality gate, and writes the gate skill a coding agent's harness loads
 before it writes Tracon code.
 
 ```bash
-dotnet tool install -g Tracon.Cli
+dotnet tool install -g Tracon.Cli --prerelease
 tracon --help
 ```
 
@@ -58,7 +58,7 @@ and reports a difference as `TRC0403`. Because the tool carries the revision it
 stamps, update the tool before rewriting the file:
 
 ```bash
-dotnet tool update -g Tracon.Cli
+dotnet tool update -g Tracon.Cli --prerelease
 rm .claude/skills/tracon/SKILL.md
 tracon agent-skill
 ```

@@ -48,7 +48,7 @@ internal sealed class SqlApiKeyStore : IApiKeyStore
 
         var command = CreateCommand(_sql.InsertApiKey);
         DbHelpers.Add(command, "id", record.Id);
-        DbHelpers.Add(command, "tenant_id", record.TenantId);
+        DbHelpers.AddTenant(command, record.TenantId);
         DbHelpers.Add(command, "name", record.Name);
         Dialect.AddBinary(command, "key_hash", generated.KeyHash);
         DbHelpers.Add(command, "key_prefix", record.KeyPrefix);
@@ -69,7 +69,7 @@ internal sealed class SqlApiKeyStore : IApiKeyStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
 
         var command = CreateCommand(_sql.SelectApiKeys);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
 
         return await DbHelpers.ReadListAsync(command, ReadRecord, cancellationToken).ConfigureAwait(false);
     }
@@ -91,7 +91,7 @@ internal sealed class SqlApiKeyStore : IApiKeyStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
 
         var command = CreateCommand(_sql.RevokeApiKey);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
         DbHelpers.Add(command, "id", id);
         Dialect.AddTimestamp(command, "revoked_at", _timeProvider.GetUtcNow());
 

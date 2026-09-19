@@ -4,7 +4,7 @@ PostgreSQL persistence for Tracon, and the only provider that also carries vecto
 search.
 
 ```bash
-dotnet add package Tracon.PostgreSql
+dotnet add package Tracon.PostgreSql --prerelease
 ```
 
 ```csharp

@@ -85,6 +85,30 @@ internal sealed class SqlServerDialect : SqlDialect
     public override string MigrationResourcePrefix => "Tracon.SqlServer.Migrations.";
 
     /// <inheritdoc />
+    public override string TenantIdTableCatalogSql =>
+        """
+        SELECT t.name
+          FROM sys.columns c
+          JOIN sys.tables t ON t.object_id = c.object_id
+          JOIN sys.schemas s ON s.schema_id = t.schema_id
+         WHERE s.name = '{schema}'
+           AND c.name = 'tenant_id'
+         ORDER BY t.name
+        """;
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// <c>COLLATE Latin1_General_BIN2</c> is load-bearing. SQL Server's
+    /// default collation is case-INsensitive, so without it
+    /// <c>tenant_id &lt;&gt; LOWER(tenant_id)</c> is always false and the guard
+    /// silently reports a clean database. The same trap is written into
+    /// the provider-name migration, where it was met first.
+    /// </remarks>
+    public override string NonCanonicalTenantIdPredicate =>
+        "tenant_id IS NOT NULL AND tenant_id COLLATE Latin1_General_BIN2 " +
+        "<> LOWER(tenant_id) COLLATE Latin1_General_BIN2";
+
+    /// <inheritdoc />
     /// <remarks>
     /// The "views" set needs no extra permission; it is opt-in for the same
     /// reason as PostgreSQL's "knowledge" set — a published view is a

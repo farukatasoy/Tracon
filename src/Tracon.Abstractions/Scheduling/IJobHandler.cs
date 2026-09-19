@@ -47,10 +47,21 @@ public interface IJobHandler
     /// <see cref="ExecuteAsync"/> more than once: if the handler throws, the
     /// job is retried with <see cref="IJobStore.ReleaseForRetryAsync"/> (if
     /// the attempt limit is not exceeded) or marked as
-    /// <see cref="JobStatus.Failed"/>; if the process crashes or the lease
-    /// simply expires before the handler returns, another worker (or the
-    /// same one) re-leases the SAME job and calls <see cref="ExecuteAsync"/>
-    /// again from scratch. Neither case resets item progress.
+    /// <see cref="JobStatus.Failed"/>; if the process crashes or its lease
+    /// lapses, another worker (or the same one) re-leases the SAME job and
+    /// calls <see cref="ExecuteAsync"/> again from scratch. Neither case
+    /// resets item progress.
+    /// </para>
+    /// <para>
+    /// <strong>A running handler is never interrupted by its own lease.</strong>
+    /// The worker renews the lease on a timer for as long as
+    /// <see cref="ExecuteAsync"/> has not returned, and it renews without a
+    /// limit: there is no setting that caps how long one job may run. A
+    /// handler that blocks forever therefore holds its worker slot forever,
+    /// and that slot counts against the worker's concurrency limit, so no
+    /// replica can take the work instead. Give any handler that calls out to
+    /// the network its own timeout — the token this method receives is
+    /// cancelled only when the worker shuts down.
     /// </para>
     /// <para>
     /// Because of this, a handler with side effects (sending an email,

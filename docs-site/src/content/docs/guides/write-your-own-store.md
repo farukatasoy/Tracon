@@ -170,10 +170,14 @@ The same three things every store contract leaves to you, regardless of interfac
 ## Other store interfaces
 
 `IRunStore` is the largest and most heavily documented seam, but the same package
-ships a contract class for every other store interface in `Tracon.Abstractions` —
+ships a contract class for 29 of the other store interfaces in `Tracon.Abstractions` —
 sessions, agent definitions, jobs, evals, experiments, webhooks, and more. Each follows
 the same shape: derive the matching `*Contract` class, supply a store instance, run
 `dotnet test`.
+
+Four have no contract yet: `IConversationBranchStore`, `IDataSubjectStore`,
+`ITenantStore` and `IVectorSearchStore`. Implementing one of those is supported;
+you write your own tests for it.
 
 `IJobStore`'s contract (`JobStoreContract`) also verifies lane behavior: `LeaseAsync`
 takes an optional list of lanes and must only return a job from one of them, `null` or

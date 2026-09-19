@@ -64,6 +64,14 @@ public sealed class TraconWebhookOptions
     public int MaxExtraHeaders { get; set; } = 20;
 
     /// <summary>The timeout for a single delivery attempt.</summary>
+    /// <remarks>
+    /// Covers the <strong>whole</strong> attempt: opening the connection,
+    /// sending the payload, and reading the recipient's response body up to
+    /// <see cref="MaxResponseBytes"/>. A recipient that answers its headers
+    /// quickly and then stalls on the body is cut off at the same deadline.
+    /// Set to <see cref="TimeSpan.Zero"/> or less to impose no deadline of
+    /// Tracon's own; the delivery then ends only when the job worker stops.
+    /// </remarks>
     public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(10);
 
     /// <summary>The maximum bytes read from the recipient's response body.</summary>

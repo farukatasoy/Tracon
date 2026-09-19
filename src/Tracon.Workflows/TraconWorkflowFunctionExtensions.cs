@@ -1,6 +1,7 @@
 using Microsoft.Agents.AI.Workflows;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 
 namespace Tracon;
 
@@ -116,7 +117,8 @@ public static class TraconWorkflowFunctionExtensions
                         handler,
                         retryPolicy,
                         services.GetRequiredService<IRunErrorClassifier>(),
-                        services.GetService<TimeProvider>() ?? TimeProvider.System);
+                        services.GetService<TimeProvider>() ?? TimeProvider.System,
+                        services.GetService<ILoggerFactory>()?.CreateLogger(typeof(WorkflowNodeRetry)));
                 }
 
                 return executorId => new FunctionExecutor<TInput, TOutput>(executorId, handler);

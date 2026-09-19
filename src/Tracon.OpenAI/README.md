@@ -111,7 +111,7 @@ turned off entirely with `TraconOptions.CircuitBreaker.Enabled = false`.
 ## Installation
 
 ```bash
-dotnet add package Tracon.OpenAI
+dotnet add package Tracon.OpenAI --prerelease
 ```
 
 ## Configuration

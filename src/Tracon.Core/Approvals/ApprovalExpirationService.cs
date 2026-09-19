@@ -96,7 +96,7 @@ internal sealed class ApprovalExpirationService(
                 logger.LogWarning("{Count} approval requests expired and were closed.", expired.Count);
             }
         }
-        catch (Exception exception) when (exception is not OperationCanceledException)
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, stoppingToken))
         {
             // A scan must not terminate the service. The next cycle retries after an error.
             if (logger is not null && logger.IsEnabled(LogLevel.Warning))
@@ -126,7 +126,7 @@ internal sealed class ApprovalExpirationService(
                 },
                 cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception exception) when (exception is not OperationCanceledException)
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
         {
             if (logger is not null && logger.IsEnabled(LogLevel.Warning))
             {

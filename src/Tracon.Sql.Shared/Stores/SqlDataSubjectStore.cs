@@ -168,7 +168,7 @@ internal sealed class SqlDataSubjectStore : IDataSubjectStore
     /// </summary>
     private void BindScope(DbCommand command, string tenantId, DataSubjectScope scope)
     {
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
         _dialect.AddTextArray(command, "session_ids", scope.SessionIds);
         _dialect.AddUuidArray(command, "run_ids", scope.RunIds);
         _dialect.AddUuidArray(command, "conversation_ids", scope.ConversationIds);

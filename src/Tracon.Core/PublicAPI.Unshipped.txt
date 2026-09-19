@@ -621,7 +621,6 @@ Tracon.StateSampleFailure.SchemaGeneration.init -> void
 Tracon.StateSampleFailure.StateSampleFailure() -> void
 Tracon.StateSampleFailure.Target.get -> Tracon.StatePreflightTarget
 Tracon.StateSampleFailure.Target.init -> void
-Tracon.TenantChatClientCacheKey
 Tracon.TenantProviderCredentialResolver
 Tracon.TenantProviderCredentialResolver.Resolve(Tracon.TenantProviderBinding! binding) -> Tracon.ModelProviderCredential?
 Tracon.TenantProviderCredentialResolver.TenantProviderCredentialResolver(Microsoft.Extensions.Configuration.IConfiguration? configuration, Microsoft.Extensions.Options.IOptionsMonitor<Tracon.TraconTenantProviderOptions!>! options) -> void
@@ -1111,7 +1110,7 @@ Tracon.VoicePriceOverride.PerMinute.set -> void
 Tracon.VoicePriceOverride.VoicePriceOverride() -> void
 Tracon.WebhookHttpClient
 Tracon.WebhookHttpClient.Dispose() -> void
-Tracon.WebhookHttpClient.SendAsync(System.Net.Http.HttpRequestMessage! request, System.TimeSpan timeout, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<System.Net.Http.HttpResponseMessage!>!
+Tracon.WebhookHttpClient.SendAsync(System.Net.Http.HttpRequestMessage! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.Task<System.Net.Http.HttpResponseMessage!>!
 Tracon.WebhookHttpClient.WebhookHttpClient(Microsoft.Extensions.Options.IOptionsMonitor<Tracon.TraconWebhookOptions!>! optionsMonitor, Microsoft.Extensions.Options.IOptionsMonitor<Tracon.TraconEgressOptions!>! egressOptions) -> void
 Tracon.WebhookSigner
 Tracon.WebhookUrlValidator
@@ -1408,7 +1407,6 @@ static Tracon.StatePreflightReport.operator !=(Tracon.StatePreflightReport? left
 static Tracon.StatePreflightReport.operator ==(Tracon.StatePreflightReport? left, Tracon.StatePreflightReport? right) -> bool
 static Tracon.StateSampleFailure.operator !=(Tracon.StateSampleFailure? left, Tracon.StateSampleFailure? right) -> bool
 static Tracon.StateSampleFailure.operator ==(Tracon.StateSampleFailure? left, Tracon.StateSampleFailure? right) -> bool
-static Tracon.TenantChatClientCacheKey.For(Tracon.ModelProviderCredential! credential, Tracon.ModelBinding! binding) -> string!
 static Tracon.TextChunker.Split(string! text, int chunkSize, int chunkOverlap) -> System.Collections.Generic.IReadOnlyList<string!>!
 static Tracon.TextTrimming.Trim(string! text, int maxBytes) -> (string! Text, bool Truncated)
 static Tracon.ToolApprovalPolicyRegistration.operator !=(Tracon.ToolApprovalPolicyRegistration? left, Tracon.ToolApprovalPolicyRegistration? right) -> bool

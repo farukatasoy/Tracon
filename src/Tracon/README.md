@@ -8,7 +8,7 @@ runtime, PostgreSQL persistence, the OpenAI provider, the HTTP API, workflows, M
 and the embedded management UI.
 
 ```bash
-dotnet add package Tracon
+dotnet add package Tracon --prerelease
 ```
 
 ```csharp
@@ -30,9 +30,13 @@ playground, then read the recorded run event by event.
 Or start from the template, which writes a working application for you:
 
 ```bash
-dotnet new install Tracon.Templates
+dotnet new install Tracon.Templates@1.0.0-preview.N
 dotnet new tracon-api -o MyAgents
 ```
+
+Replace `N` with the latest preview number on
+[nuget.org](https://www.nuget.org/packages/Tracon.Templates): `dotnet new install`
+has no `--prerelease`, so a preview template is reachable only by exact version.
 
 ## What comes with it
 

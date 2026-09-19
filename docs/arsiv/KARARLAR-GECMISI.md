@@ -5609,3 +5609,37 @@ kenarıdır.
 i18n anahtarından gelir. İki yerde iki cümle yazmak, aceleci bir operatörün
 hangisine baktığına bağlı bir kayma üretir; `agentDetail.rollbackEffect`
 emsali bu kuralın kendisidir.
+
+### K-836
+
+Ölçüldü: `src/` içinde kiracı kimliği için normalleştirme **0** yerde vardı, 116 satır `Ordinal` karşılaştırıyordu ve SQL Server `tenant_id` sütunlarının hiçbirinde `COLLATE` yoktu. Testlerin kullandığı imajın collation'ı `SQL_Latin1_General_CP1_CI_AS`: `'acme'` yazılan satır `'Acme'` sorgusuna **döndü**. PostgreSQL/SQLite ise ayırıyordu. ∴ aynı kurulumda yetkilendirme katmanı ile depolama katmanı `acme`/`Acme` için TERS karar veriyordu ve `tenant_id` bu sınıfın (provider_name K-639 ile, API anahtarı hash'i `varbinary(32)` ile kapalı; `tool_name`/`agent_name`/`skill_name` fail-closed) **tek fail-open üyesiydi**. Ölçülmüş tetikleyici spekülatif değil: `PUT /api/tenants/{tenantId}/egress` politikayı URL'deki yazımla kaydeder, runtime kanonik formu çözer, `ModelProviderRegistry` satır yoksa **hiçbir egress kısıtı uygulamaz**. Karşılaştırıcıyı `OrdinalIgnoreCase`'e çevirmek reddedildi (K-639 gerekçesi): `=` yüklemi o zaman motorun collation'ına bağlı kalır, birincil anahtar çift kaydı reddetmeyi bırakır, index kullanılamaz. `ToLowerInvariant` zorunludur — `tr-TR` altında `ToLower()` `I`'yı noktasız i'ye çevirir ve aynı kimlik sunucu kültürüne göre iki kanonik değere düşer
+
+
+### K-840
+
+Ölçüldü: depoda `BackgroundServiceExceptionBehavior` **hiç** ayarlanmamış ⇒ .NET varsayılanı `StopHost`. Yedi arka plan servisinin tick filtresi tüm OCE'leri dışlıyor, döngü filtresi ise yalnız `stoppingToken.IsCancellationRequested` iken yakalıyordu: ikisinin arasından geçen bir OCE `ExecuteAsync`'i fault ediyor ve **host duruyordu**. Tetikleyici spekülatif değil — `IRunStore`/`IRunInputStore`/`ITraceStore`/`IApprovalStore`/`IJobStore` public genişleme noktalarıdır, sevk edilen store rehberi yazara "OCE at" diye öğretir ve HTTP üzerinden yazılmış bir store `HttpClient.Timeout`'u `TaskCanceledException` olarak bildirir. Birinci-parti SQL sürücüleri command timeout'u sağlayıcı istisnası olarak bildirdiği için yerleşik yol bunu hiç göstermedi. Aynı filtre `RunRecordingAgent.Persistence`, `RunTraceCollector` ve `QuotaEnforcer`'da XML'in "bu store hatası run'ı durdurmaz" / "never throws" vaadini de çiğniyordu. `McpDiscoveryService` zaten doğruydu (`catch (Exception ex)`) ve desenin emsali odur
+
+
+### K-843
+
+Varsayılan `*-*` idi ve gerçek makinede ölçüldü: üretilen proje global NuGet cache'teki **bayat** `0.0.0-preview.0.789`'a çözüldü, şablonun geldiği sürüme değil. Joker "en yenisi" okunur ama restore "zaten BİLİNEN en yenisi" cevabını verir ⇒ güncel şablon eski runtime ile sessizce karışır. MinVer `$(Version)`'ı git tag'inden verdiği için değer kaynak dosyaya yazılamaz; `template.json` obj/'ye kopyalanıp yer tutucu değiştirilir ve O kopya paketlenir. 🚨 `WriteLinesToFile` bu dosyayı YAZAMAZ: `Lines` bir item listesidir ve MSBuild item spec'inin yol ayırıcılarını normalleştirir — JSON'daki her `\"` `/"` oldu ve paketlenen `template.json` geçerli JSON olmaktan çıktı; paket başarıyla üretildi, hasar yalnız `.nupkg` içindeki dosya ayrıştırılarak görüldü. `RoslynCodeTaskFactory` ile `File.WriteAllText` (string parametre) dokunmadan geçirir
+
+### K-839
+
+Ölçüldü: bellek içi ailede 82 metot kiracı parametresi alıyor, 116 satır `Ordinal` karşılaştırıyor. Giriş sınırı (`ITenantContext` implementasyonları, `AmbientTenantScope.Begin`, `TraconOptionsValidator`) ve route'tan kiracı alan **11** HTTP ucu kapatıldığında birinci-parti hiçbir yol bir bellek içi store'a ham değer göndermez; bellek içi durum ayrıca **geçicidir**, oysa kalıcı katmanda hata kalıcıdır ve orası `DbHelpers.AddTenant` ile kapandı. İstisna edilen iki store'un ıskalanması **fail-open**'dır (egress kısıtı hiç uygulanmaz / yanlış kiracı faturalanır), o yüzden onlar kapsama alındı ve sözleşme testleri dört koşumda birden kuralı zorlar
+
+### K-841
+
+`ToolApprovalRuleEvaluator` alanları `U+001F` ile birleştiriyordu ve yorum "metin değerlerinde bulunmaz" diyordu — bu önermeyi **hiçbir şey zorlamıyordu**, oysa bir JSON argümanı her karakteri taşıyabilir. Çakışma elle inşa edildi ve mutasyonla doğrulandı: eski formatta `{"a":"x","b":"y"}` ile `{"a":"x␟b=y"}` **aynı** `arguments_hash`'i üretiyor (üç vaka), yani "bu tam çağrıyı bir daha sorma" grant'i argüman ŞEKLİ farklı bir çağrıya miras kalabiliyordu; yol script dispatcher'dır. Uzunluk öneki varsayımı belgelemek yerine **kaldırır**. Önek UTF-8 BAYT sayar, karakter değil: buffer UTF-8 olarak hash'lenir ve karakter sayısı iki farklı değeri aynı önekte buluşturabilirdi. `Shipped.txt` boşken maliyet sıfıra yakındı; sonrası migration + davranış değişikliği olurdu
+
+### K-842
+
+Tipin döndürdüğü string'in ilk alanı kiracının **düz metin** BYOK anahtarıdır ve XML bunu söylemiyordu. Tracon içinde aktif sızıntı yoktu (yalnız süreç içi sözlük anahtarı); risk tüketici davranışıdır — "cache miss'te anahtarı logla" doğal bir hata ayıklama hamlesidir ve public bir yardımcı onu davet eder. K-059 `secret`'i dosyadan ve veritabanından uzak tutar; bu onu public yüzeyden de uzak tutar. Dört sevk edilen sağlayıcı adaptörü `InternalsVisibleTo` ile görür. Üçüncü taraf adaptörün ihtiyacı yoktur: sevk edilen `ModelProviderCredentialContract`'ın istediği aynı-örnek garantisidir, bu anahtar değil
+
+### K-837
+
+K-639'un emsali tek tabloydu (`tenant_provider_bindings`) ve orada `DELETE` + `UPDATE lower()` savunulabilirdi. `tenant_id` **34 tabloda** (PostgreSQL ölçümü) ×3 sağlayıcı = 102 tablodadır. Case-sensitive bir motorda `Acme` ile `acme` iki GERÇEK kiracı olabilir ve iki kiracıyı birleştirmek geri alınamaz; 102 tabloda sessiz bir veri birleştirmesi, kapattığı riskten büyük bir risk üretir. Yayınlanmış paket ve üçüncü taraf veritabanı da yoktur (kullanıcı kararı). Guard tabloları adlandırır ve operatör kendi verisini kendi bilgisiyle çözer
+
+### K-838
+
+SQLite'ta `RAISE` yalnız trigger içinde çalışır ve dinamik SQL yoktur — 34 tabloyu dolaşan bir guard orada SQL ile ifade edilemez. Üç prosedürel lehçe yazmak aynı kuralı üç kez kopyalar ve SQL Server'ın `COLLATE Latin1_General_BIN2` tuzağını üç yere dağıtır; tek kod yolu o tuzağı tek bir `NonCanonicalTenantIdPredicate` override'ında toplar. Tablo listesi elle yazılmaz: elle liste 35. tablo eklendiğinde bayatlar ve guard tam da kırılan tabloyu atlar (K-483 sınıfı)

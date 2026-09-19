@@ -56,6 +56,8 @@
       trap: silent poisoning).
     -->
     <NoDefaultExcludes>true</NoDefaultExcludes>
+    <!-- Packed from a stamped copy; see TraconStampTemplateVersionDefault below. -->
+    <_TraconTemplateConfigRelative>content/Tracon.Starter/.template.config/template.json</_TraconTemplateConfigRelative>
   </PropertyGroup>
 
   <!--
@@ -68,7 +70,68 @@
     "content/content/..." - measured).
   -->
   <ItemGroup>
-    <None Include="content/**/*" Exclude="content/**/bin/**;content/**/obj/**" Pack="true" PackagePath="content/%(RecursiveDir)%(Filename)%(Extension)" />
+    <None Include="content/**/*"
+          Exclude="content/**/bin/**;content/**/obj/**;$(_TraconTemplateConfigRelative)"
+          Pack="true"
+          PackagePath="content/%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
+
+  <!--
+    🚨 WriteLinesToFile cannot write this file. Its Lines parameter is an item
+    list, and MSBuild normalizes an item spec's path separators: every `\"` in
+    the JSON came out as `/"` and the packed template.json was no longer valid
+    JSON. Measured - the pack succeeded and the damage was only visible by
+    parsing the file inside the .nupkg. A string parameter goes through
+    untouched.
+  -->
+  <UsingTask TaskName="TraconWriteTextFile"
+             TaskFactory="RoslynCodeTaskFactory"
+             AssemblyFile="$([System.IO.Path]::Combine($(MSBuildToolsPath),'Microsoft.Build.Tasks.Core.dll'))">
+    <ParameterGroup>
+      <Path ParameterType="System.String" Required="true" />
+      <Text ParameterType="System.String" Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Code Type="Fragment" Language="cs">
+        System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(Path));
+        System.IO.File.WriteAllText(Path, Text);
+      </Code>
+    </Task>
+  </UsingTask>
+
+  <!--
+    🚨 The generated project's package version defaults to THIS package's own
+    version, stamped in here at pack time.
+
+    It used to default to the wildcard "*-*". Measured on a real machine: the
+    generated project resolved a STALE 0.0.0-preview.0.789 that was already in
+    the global NuGet cache, not the version the template itself came from. A
+    wildcard reads "newest", but restore answers "newest ALREADY KNOWN", and a
+    first run then silently mixes a current template with an old runtime.
+
+    MinVer supplies $(Version) from the git tag, so it cannot be written into
+    the source file - it differs per build. The file is copied into obj/ with
+    the placeholder replaced, and THAT copy is packed. The Error below makes
+    the step fail closed: if the placeholder is ever renamed in template.json
+    the build stops, rather than shipping a template whose default version is
+    the literal placeholder.
+  -->
+  <Target Name="TraconStampTemplateVersionDefault" BeforeTargets="_GetPackageFiles;GenerateNuspec">
+    <PropertyGroup>
+      <_TraconTemplateConfigSource>$(MSBuildProjectDirectory)/$(_TraconTemplateConfigRelative)</_TraconTemplateConfigSource>
+      <_TraconTemplateConfigStamped>$(IntermediateOutputPath)template.json</_TraconTemplateConfigStamped>
+      <_TraconTemplateConfigText>$([System.IO.File]::ReadAllText('$(_TraconTemplateConfigSource)'))</_TraconTemplateConfigText>
+      <_TraconTemplateConfigStampedText>$(_TraconTemplateConfigText.Replace('TRACON_TEMPLATE_DEFAULT_VERSION', '$(Version)'))</_TraconTemplateConfigStampedText>
+    </PropertyGroup>
+
+    <Error Condition=" '$(_TraconTemplateConfigStampedText)' == '$(_TraconTemplateConfigText)' "
+           Text="TRACON_TEMPLATE_DEFAULT_VERSION not found in $(_TraconTemplateConfigRelative); the generated project would carry the placeholder as its package version." />
+
+    <TraconWriteTextFile Path="$(_TraconTemplateConfigStamped)" Text="$(_TraconTemplateConfigStampedText)" />
+
+    <ItemGroup>
+      <None Include="$(_TraconTemplateConfigStamped)" Pack="true" PackagePath="$(_TraconTemplateConfigRelative)" />
+    </ItemGroup>
+  </Target>
 
 </Project>

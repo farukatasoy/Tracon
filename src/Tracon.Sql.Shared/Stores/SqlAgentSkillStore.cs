@@ -30,7 +30,7 @@ internal sealed class SqlAgentSkillStore : IAgentSkillStore
         ArgumentNullException.ThrowIfNull(tenantId);
 
         var command = CreateCommand(_sql.SelectAgentSkills);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
         var rows = await DbHelpers.ReadListAsync(command, ReadSkill, cancellationToken).ConfigureAwait(false);
 
         for (var index = 0; index < rows.Count; index++)
@@ -56,7 +56,7 @@ internal sealed class SqlAgentSkillStore : IAgentSkillStore
         ArgumentNullException.ThrowIfNull(name);
 
         var command = CreateCommand(_sql.SelectAgentSkill);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
         DbHelpers.Add(command, "name", name);
         var skill = await DbHelpers.ReadSingleAsync(command, ReadSkill, cancellationToken).ConfigureAwait(false);
 
@@ -146,7 +146,7 @@ internal sealed class SqlAgentSkillStore : IAgentSkillStore
         ArgumentNullException.ThrowIfNull(name);
 
         var command = CreateCommand(_sql.DeleteAgentSkill);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
         DbHelpers.Add(command, "name", name);
         return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
     }
@@ -191,7 +191,7 @@ internal sealed class SqlAgentSkillStore : IAgentSkillStore
     private void ConfigureSkill(DbCommand command, AgentSkillDefinition skill, DateTimeOffset now)
     {
         DbHelpers.Add(command, "id", skill.Id == Guid.Empty ? TraconId.NewId(now) : skill.Id);
-        DbHelpers.Add(command, "tenant_id", skill.TenantId);
+        DbHelpers.AddTenant(command, skill.TenantId);
         DbHelpers.Add(command, "name", skill.Name);
         Dialect.AddText(command, "description", skill.Description);
         DbHelpers.Add(command, "instructions", skill.Instructions);

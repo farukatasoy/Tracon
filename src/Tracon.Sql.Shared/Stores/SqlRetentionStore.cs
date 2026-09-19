@@ -143,7 +143,7 @@ internal sealed class SqlRetentionStore : IRetentionStore
     {
         if (tenantId is not null)
         {
-            DbHelpers.Add(command, "tenant_id", tenantId);
+            DbHelpers.AddTenant(command, tenantId);
         }
     }
 }

@@ -45,8 +45,9 @@ overload twice for the same type registers it once.
 `Order` decides the position: the catalog sorts decorators by **descending**
 `Order` and applies them in that sequence, so the **highest** value runs
 first and ends up **innermost** — closest to the agent's own calls. Tracon's
-own decorators use `0` (run recording, outermost), `10` (telemetry), and `20`
-(tool approval). Place a decorator that has to observe or veto everything
+own decorators use `0` (run recording, outermost), `10` (telemetry), `20`
+(tool approval), and `30` (structured-response validation, innermost — closest
+to the model call). Place a decorator that has to observe or veto everything
 below it at a low value; place one that has to sit close to the model call
 itself at a high value.
 
@@ -72,13 +73,26 @@ depending on whether the extension point allows one implementation or many.
 | Seam shape | Examples | Registered **before** `AddTracon()` | Registered **after** `AddTracon()` |
 |---|---|---|---|
 | Single-instance | `ITenantContext`, `IProviderRetryClassifier`, `IRunErrorClassifier` | Your registration wins outright; only one registration remains | Also wins for a direct resolve, but Tracon's own registration is not removed — it stays behind as a second, unused entry |
-| Multi-registration | `IAgentDecorator`, `IAgentSource`, `IRunJudge`, `IContentGuard`, `IModelProvider`, `IJobHandler` | Your registration joins the list alongside the built-in ones | Also joins the list — the built-in implementation keeps running too |
+| Multi-registration | `IAgentDecorator`, `IAgentSource`, `IRunJudge`, `IContentGuard`, `IModelProvider` | Your registration joins the list alongside the built-in ones | Also joins the list — the built-in implementation keeps running too |
+| Keyed | `IJobHandler` | Order does not matter; the handler is found by its key, not by position | Same — but a plain `AddSingleton<IJobHandler, T>()` registers nothing the dispatcher can find |
 
 The dedicated `Add*()` methods (`AddAgentDecorator`, `AddAgentSource`,
 `AddRunJudge`, `AddContentGuard`, `AddModelProvider`) exist for the
 multi-registration seams precisely because getting this wrong there is
 silent: a decorator you meant to *replace* the built-in one instead runs
-*alongside* it, and both apply. A single-instance seam has no such trap — a
+*alongside* it, and both apply.
+
+`IJobHandler` is **keyed**, not multi-registration, and its `Add*()` method is
+not optional. A job names the handler it needs, so the handler is registered
+against that name:
+
+```csharp
+builder.Services.AddJobHandler<NightlyReportJobHandler>("contoso.nightly-report");
+```
+
+Writing `services.AddSingleton<IJobHandler, NightlyReportJobHandler>()` instead
+compiles and appears to work: nothing is registered under a key, so the
+dispatcher finds no handler and the first job queued for that name fails. A single-instance seam has no such trap — a
 consumer's own `services.AddSingleton<IProviderRetryClassifier, T>()` simply
 overrides the default, in either order — which is why those extension points
 have no dedicated registration method: the plain escape hatch already behaves

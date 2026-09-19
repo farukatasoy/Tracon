@@ -85,9 +85,9 @@
     "TraconVersion": {
       "type": "parameter",
       "datatype": "string",
-      "defaultValue": "*-*",
+      "defaultValue": "TRACON_TEMPLATE_DEFAULT_VERSION",
       "replaces": "TRACON_TEMPLATE_PACKAGE_VERSION",
-      "description": "The version of the Tracon packages. The default '*-*' takes the latest pre-release from the configured source; pass --TraconVersion x.y.z to pin a specific version."
+      "description": "The version of the Tracon packages. Defaults to the version of this template package, so the generated project resolves the release the template came from. Pass --TraconVersion x.y.z to pin another one."
     },
     "skipRestore": {
       "type": "parameter",

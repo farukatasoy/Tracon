@@ -130,6 +130,18 @@ once:
   applied, startup **fails loudly** rather than running against a schema that is not
   what the code expects.
 
+:::caution[Migrations refuse a non-canonical tenant id]
+The tenant identifier is stored in its canonical (lower-case) form — see
+[Multi-tenancy](/concepts/governance/#what-a-tenant-identifier-may-be). Before
+applying anything, the runner checks every table that carries a `tenant_id` and
+**stops, naming the tables**, if any row holds a value that is not canonical.
+
+It does not fold those rows for you. On PostgreSQL and SQLite, which compare
+case-sensitively, `Acme` and `acme` may be two real tenants, and merging two
+tenants cannot be undone. Decide per table whether the rows belong to one
+tenant (lower-case them) or to two (rename one), then start again.
+:::
+
 :::danger[Do not edit an applied migration]
 The checksum covers the file's whole text, comments included. Editing a file that has
 already been applied makes every existing database refuse to start. Add a new

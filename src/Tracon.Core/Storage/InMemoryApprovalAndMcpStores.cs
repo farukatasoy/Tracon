@@ -223,10 +223,16 @@ internal sealed class InMemoryTenantStore : ITenantStore
         ArgumentNullException.ThrowIfNull(tenant);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var saved = _tenants.TryGetValue(tenant.Slug, out var existing)
-            ? tenant with { Id = existing.Id, CreatedAt = existing.CreatedAt }
+        // The slug IS the tenant identifier, so it is folded the same way every
+        // other table folds tenant_id. A record saved as 'Acme' would
+        // otherwise name a tenant the runtime never resolves.
+        var slug = AmbientTenantScope.Normalize(tenant.Slug);
+
+        var saved = _tenants.TryGetValue(slug, out var existing)
+            ? tenant with { Slug = slug, Id = existing.Id, CreatedAt = existing.CreatedAt }
             : tenant with
             {
+                Slug = slug,
                 Id = tenant.Id == Guid.Empty ? TraconId.NewId() : tenant.Id,
                 CreatedAt = DateTimeOffset.UtcNow,
             };
@@ -242,6 +248,6 @@ internal sealed class InMemoryTenantStore : ITenantStore
         ArgumentException.ThrowIfNullOrWhiteSpace(slug);
         cancellationToken.ThrowIfCancellationRequested();
 
-        return new ValueTask<bool>(_tenants.TryRemove(slug, out _));
+        return new ValueTask<bool>(_tenants.TryRemove(AmbientTenantScope.Normalize(slug), out _));
     }
 }

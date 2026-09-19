@@ -47,7 +47,7 @@ internal sealed class SqlWorkflowDefinitionStore : IWorkflowDefinitionStore
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
         var command = CreateCommand(_sql.SelectWorkflow);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
         DbHelpers.Add(command, "name", name);
 
         return await DbHelpers.ReadSingleAsync(
@@ -69,7 +69,7 @@ internal sealed class SqlWorkflowDefinitionStore : IWorkflowDefinitionStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
 
         var command = CreateCommand(_sql.SelectWorkflows);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
 
         // The name lives in the column, NOT in the `definition` payload; when
         // reading, it must come from the column, not the JSON. Since the
@@ -104,7 +104,7 @@ internal sealed class SqlWorkflowDefinitionStore : IWorkflowDefinitionStore
 
         var command = CreateCommand(_sql.UpsertWorkflow);
         DbHelpers.Add(command, "id", TraconId.NewId());
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
         DbHelpers.Add(command, "name", definition.Name);
         Dialect.AddJsonb(command, "definition", payload);
         Dialect.AddTimestamp(command, "now", now);
@@ -134,7 +134,7 @@ internal sealed class SqlWorkflowDefinitionStore : IWorkflowDefinitionStore
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
         var command = CreateCommand(_sql.DeleteWorkflow);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
         DbHelpers.Add(command, "name", name);
 
         return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;

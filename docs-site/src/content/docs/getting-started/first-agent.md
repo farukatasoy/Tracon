@@ -89,8 +89,10 @@ app.Run();
 
 This first agent uses a chat model only. To let a later agent generate stored image
 attachments, add `UseOpenAIImages(...)`, set `Tracon:Images:Enabled`, and choose
-an image model explicitly. An image model is not inferred from this agent's chat
-model; see [image generation providers](/guides/model-providers/#image-generation-providers).
+an image model explicitly — one the provider serves for image generation, which is
+not always the same family as its chat models. An image model is not inferred from
+this agent's chat model; see
+[image generation providers](/guides/model-providers/#image-generation-providers).
 
 ```bash
 dotnet run --urls http://localhost:5081

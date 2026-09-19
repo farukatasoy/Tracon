@@ -3,6 +3,13 @@ using System.Collections.Concurrent;
 namespace Tracon;
 
 /// <summary>In-memory <see cref="ITenantProviderBindingStore"/> implementation.</summary>
+/// <remarks>
+/// Both halves of the key are canonical: the provider name through
+/// <see cref="TenantProviderBinding.NormalizeProviderName"/> and the
+/// tenant through <see cref="AmbientTenantScope.Normalize"/>. A miss on either
+/// falls through to the global setup credential with no error raised — the
+/// wrong tenant is billed and nothing says so.
+/// </remarks>
 internal sealed class InMemoryTenantProviderBindingStore : ITenantProviderBindingStore
 {
     private readonly ConcurrentDictionary<(string TenantId, string ProviderName), TenantProviderBinding> _bindings = new();
@@ -22,7 +29,9 @@ internal sealed class InMemoryTenantProviderBindingStore : ITenantProviderBindin
         ArgumentException.ThrowIfNullOrWhiteSpace(providerName);
         cancellationToken.ThrowIfCancellationRequested();
 
-        _bindings.TryGetValue((tenantId, TenantProviderBinding.NormalizeProviderName(providerName)), out var binding);
+        _bindings.TryGetValue(
+            (AmbientTenantScope.Normalize(tenantId), TenantProviderBinding.NormalizeProviderName(providerName)),
+            out var binding);
         return ValueTask.FromResult(binding);
     }
 
@@ -33,7 +42,8 @@ internal sealed class InMemoryTenantProviderBindingStore : ITenantProviderBindin
         cancellationToken.ThrowIfCancellationRequested();
 
         IReadOnlyList<TenantProviderBinding> result = _bindings.Values
-            .Where(binding => string.Equals(binding.TenantId, tenantId, StringComparison.Ordinal))
+            .Where(binding => string.Equals(
+                binding.TenantId, AmbientTenantScope.Normalize(tenantId), StringComparison.Ordinal))
             .OrderBy(static binding => binding.ProviderName, StringComparer.Ordinal)
             .ToList();
 
@@ -47,9 +57,11 @@ internal sealed class InMemoryTenantProviderBindingStore : ITenantProviderBindin
         cancellationToken.ThrowIfCancellationRequested();
 
         var providerName = TenantProviderBinding.NormalizeProviderName(binding.ProviderName);
+        var tenantId = AmbientTenantScope.Normalize(binding.TenantId);
 
-        _bindings[(binding.TenantId, providerName)] = binding with
+        _bindings[(tenantId, providerName)] = binding with
         {
+            TenantId = tenantId,
             ProviderName = providerName,
             UpdatedAt = _timeProvider.GetUtcNow(),
         };
@@ -65,6 +77,8 @@ internal sealed class InMemoryTenantProviderBindingStore : ITenantProviderBindin
         cancellationToken.ThrowIfCancellationRequested();
 
         return ValueTask.FromResult(
-            _bindings.TryRemove((tenantId, TenantProviderBinding.NormalizeProviderName(providerName)), out _));
+            _bindings.TryRemove(
+                (AmbientTenantScope.Normalize(tenantId), TenantProviderBinding.NormalizeProviderName(providerName)),
+                out _));
     }
 }

@@ -61,7 +61,7 @@ internal sealed class SqlAttachmentStore : IAttachmentStore
 
         var command = CreateCommand(_sql.InsertAttachment);
         DbHelpers.Add(command, "id", id);
-        DbHelpers.Add(command, "tenant_id", content.TenantId);
+        DbHelpers.AddTenant(command, content.TenantId);
         Dialect.AddText(command, "session_id", content.SessionId);
         Dialect.AddUuid(command, "run_id", content.RunId);
         DbHelpers.Add(command, "file_name", content.FileName);
@@ -102,7 +102,7 @@ internal sealed class SqlAttachmentStore : IAttachmentStore
         ArgumentNullException.ThrowIfNull(tenantId);
 
         var command = CreateCommand(_sql.SelectAttachment);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
         DbHelpers.Add(command, "id", id);
 
         return await DbHelpers.ReadSingleAsync(command, ReadDescriptor, cancellationToken).ConfigureAwait(false);
@@ -117,7 +117,7 @@ internal sealed class SqlAttachmentStore : IAttachmentStore
         ArgumentNullException.ThrowIfNull(tenantId);
 
         var command = CreateCommand(_sql.SelectAttachmentContent);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
         DbHelpers.Add(command, "id", id);
 
         var row = await DbHelpers.ReadSingleAsync(command, ReadContentRow, cancellationToken).ConfigureAwait(false);
@@ -144,7 +144,7 @@ internal sealed class SqlAttachmentStore : IAttachmentStore
         ArgumentNullException.ThrowIfNull(query);
 
         var command = CreateCommand(_sql.SelectAttachments);
-        DbHelpers.Add(command, "tenant_id", query.TenantId);
+        DbHelpers.AddTenant(command, query.TenantId);
         Dialect.AddText(command, "session_id", query.SessionId);
         DbHelpers.Add(command, "skip", query.Skip);
         DbHelpers.Add(command, "take", query.Take);
@@ -158,7 +158,7 @@ internal sealed class SqlAttachmentStore : IAttachmentStore
         ArgumentNullException.ThrowIfNull(tenantId);
 
         var command = CreateCommand(_sql.DeleteAttachment);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
         DbHelpers.Add(command, "id", id);
 
         var deleted = await DbHelpers.ReadListAsync(
@@ -190,7 +190,7 @@ internal sealed class SqlAttachmentStore : IAttachmentStore
         ArgumentNullException.ThrowIfNull(sessionId);
 
         var command = CreateCommand(_sql.DeleteAttachmentsBySession);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
         DbHelpers.Add(command, "session_id", sessionId);
 
         var deleted = await DbHelpers.ReadListAsync(

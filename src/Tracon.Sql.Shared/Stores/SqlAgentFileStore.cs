@@ -51,7 +51,7 @@ internal sealed class SqlAgentFileStore : AgentFileStore
     public override async Task<string?> ReadAsync(string path, CancellationToken cancellationToken = default)
     {
         var command = CreateCommand(_sql.SelectAgentFile);
-        DbHelpers.Add(command, "tenant_id", _tenantContext.TenantId);
+        DbHelpers.AddTenant(command, _tenantContext.TenantId);
         DbHelpers.Add(command, "agent_name", RequireAgentName());
         DbHelpers.Add(command, "path", NormalizePath(path));
 
@@ -68,7 +68,7 @@ internal sealed class SqlAgentFileStore : AgentFileStore
         var now = DateTimeOffset.UtcNow;
         var command = CreateCommand(_sql.UpsertAgentFile);
         DbHelpers.Add(command, "id", TraconId.NewId(now));
-        DbHelpers.Add(command, "tenant_id", _tenantContext.TenantId);
+        DbHelpers.AddTenant(command, _tenantContext.TenantId);
         DbHelpers.Add(command, "agent_name", RequireAgentName());
         DbHelpers.Add(command, "path", NormalizePath(path));
         DbHelpers.Add(command, "content", ProtectedValue.Write(_context, ProtectedColumn.AgentFileContent, content)!);
@@ -81,7 +81,7 @@ internal sealed class SqlAgentFileStore : AgentFileStore
     public override async Task<bool> DeleteAsync(string path, CancellationToken cancellationToken = default)
     {
         var command = CreateCommand(_sql.DeleteAgentFile);
-        DbHelpers.Add(command, "tenant_id", _tenantContext.TenantId);
+        DbHelpers.AddTenant(command, _tenantContext.TenantId);
         DbHelpers.Add(command, "agent_name", RequireAgentName());
         DbHelpers.Add(command, "path", NormalizePath(path));
 
@@ -92,7 +92,7 @@ internal sealed class SqlAgentFileStore : AgentFileStore
     public override async Task<bool> FileExistsAsync(string path, CancellationToken cancellationToken = default)
     {
         var command = CreateCommand(_sql.SelectAgentFile);
-        DbHelpers.Add(command, "tenant_id", _tenantContext.TenantId);
+        DbHelpers.AddTenant(command, _tenantContext.TenantId);
         DbHelpers.Add(command, "agent_name", RequireAgentName());
         DbHelpers.Add(command, "path", NormalizePath(path));
 
@@ -254,7 +254,7 @@ internal sealed class SqlAgentFileStore : AgentFileStore
         CancellationToken cancellationToken)
     {
         var command = CreateCommand(_sql.SelectAgentFilesFiltered);
-        DbHelpers.Add(command, "tenant_id", _tenantContext.TenantId);
+        DbHelpers.AddTenant(command, _tenantContext.TenantId);
         DbHelpers.Add(command, "agent_name", RequireAgentName());
         Dialect.AddText(command, "prefix_like", EscapeLikeLiteral(prefix) + "%");
         Dialect.AddText(command, "prefix_deep_like", deepLike);

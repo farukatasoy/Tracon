@@ -18,6 +18,14 @@ namespace Tracon;
 /// published either way, with its raw arguments intact.
 /// </para>
 /// <para>
+/// <strong>The timeout is cooperative.</strong> It cancels the token the
+/// presenter is given; it does not abandon the call. A presenter that ignores
+/// its token runs to completion and the result is discarded, so the deadline
+/// bounds what the approval request WAITS for, not what the presenter
+/// occupies. A presenter that blocks indefinitely still holds the calling
+/// path indefinitely.
+/// </para>
+/// <para>
 /// Called once per request from both the queue path (<c>AgentRunJobHandler</c>, to
 /// populate <see cref="PendingApproval.Presentation"/>) and the recording path
 /// (<see cref="RunRecordingAgent"/>, to build the closing run event's payload) —
@@ -110,7 +118,7 @@ public sealed class ToolApprovalPresenterRunner(
         // cancellation propagating (it is real cancellation of the whole run,
         // not a presentation failure) while still failing open for a
         // provider-raised one.
-        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
         {
             logger.LogWarning(
                 ex,

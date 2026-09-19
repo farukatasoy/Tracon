@@ -285,6 +285,8 @@ internal static class TriggerEndpoints
         string prefix,
         CancellationToken cancellationToken)
     {
+        tenantId = HttpTenantContext.NormalizeRouteTenantId(tenantId);
+
         var (body, sizeError) = await ReadBoundedBodyAsync(
             httpContext, options.CurrentValue.MaxBodyBytes, cancellationToken).ConfigureAwait(false);
 

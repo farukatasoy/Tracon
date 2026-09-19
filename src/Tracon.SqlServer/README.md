@@ -9,7 +9,7 @@ schema. The consumer's `dbo` schema is left untouched.
 ## Setup
 
 ```bash
-dotnet add package Tracon.SqlServer
+dotnet add package Tracon.SqlServer --prerelease
 ```
 
 ```csharp

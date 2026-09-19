@@ -9704,7 +9704,7 @@ namespace Tracon.Client.Generated
         /// Lists a tenant's model provider bindings.
         /// </summary>
         /// <remarks>
-        /// The response carries neither the credential value nor its configuration key's value — only the key's NAME and whether it currently resolves ('resolved'). This is the diagnosis path for 'I set the key but it does not work'.
+        /// The response carries neither the credential value nor its configuration key's value — only the key's NAME and whether it currently resolves ('resolved'). This is the diagnosis path for 'I set the key but it does not work'. The 'tenantId' route value is matched case-insensitively: it is folded to lower case before it reaches the store, so 'Acme' and 'acme' are one tenant on every storage engine.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -10041,7 +10041,7 @@ namespace Tracon.Client.Generated
         /// Creates or replaces a tenant's egress policy.
         /// </summary>
         /// <remarks>
-        /// Saving a policy is an ADDITIVE restriction: a tenant with no policy is unrestricted, and this call is the only way that changes. An agent definition naming a provider outside the saved list is rejected at compile time, not only at call time. An empty 'allowedProviders' array allows NO provider — it is not the same as having no policy; use DELETE to return to unrestricted.
+        /// Saving a policy is an ADDITIVE restriction: a tenant with no policy is unrestricted, and this call is the only way that changes. An agent definition naming a provider outside the saved list is rejected at compile time, not only at call time. An empty 'allowedProviders' array allows NO provider — it is not the same as having no policy; use DELETE to return to unrestricted. The 'tenantId' route value is folded to lower case before the policy is saved, so a policy written for 'Acme' is the policy the runtime finds for 'acme'.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -13085,7 +13085,7 @@ namespace Tracon.Client.Generated
         /// Adds or updates a tenant record.
         /// </summary>
         /// <remarks>
-        /// The record is a display name for a tenant key that already works without it; creating one does not create the tenant and deleting one does not remove its data. The slug comes from the path and must be at most 64 characters of letters, digits, dots, underscores, and hyphens (400 otherwise) — it is the same text stored as 'tenant_id' on every other row. An empty display name falls back to the slug.
+        /// The record is a display name for a tenant key that already works without it; creating one does not create the tenant and deleting one does not remove its data. The slug comes from the path and must be at most 64 characters of letters, digits, dots, underscores, and hyphens (400 otherwise) — it is the same text stored as 'tenant_id' on every other row, and it is folded to lower case for the same reason, so 'Acme' and 'acme' name one record. An empty display name falls back to the slug.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>

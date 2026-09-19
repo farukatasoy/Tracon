@@ -61,7 +61,7 @@ internal sealed class SqlRunScoreStore : IRunScoreStore
         {
             var command = _context.CreateCommand(_sql.UpsertRunScore);
             DbHelpers.Add(command, "id", id);
-            DbHelpers.Add(command, "tenant_id", score.TenantId);
+            DbHelpers.AddTenant(command, score.TenantId);
             DbHelpers.Add(command, "run_id", score.RunId);
             Dialect.AddText(command, "message_id", score.MessageId);
             DbHelpers.Add(command, "kind", (short)score.Kind);
@@ -98,7 +98,7 @@ internal sealed class SqlRunScoreStore : IRunScoreStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
 
         var command = _context.CreateCommand(_sql.SelectRunScores);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
         DbHelpers.Add(command, "run_id", runId);
 
         return await DbHelpers.ReadListAsync(command, Read, cancellationToken).ConfigureAwait(false);
@@ -114,7 +114,7 @@ internal sealed class SqlRunScoreStore : IRunScoreStore
 
         var command = _context.CreateCommand(_sql.DeleteRunScore);
         DbHelpers.Add(command, "id", scoreId);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
 
         return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
     }
@@ -269,7 +269,7 @@ internal sealed class SqlRunScoreStore : IRunScoreStore
 
     private void AddFilterParameters(DbCommand command, RunScoreQuery query)
     {
-        DbHelpers.Add(command, "tenant_id", query.TenantId ?? _tenantContext.TenantId);
+        DbHelpers.AddTenant(command, query.TenantId ?? _tenantContext.TenantId);
         Dialect.AddTimestamp(command, "from_ts", query.From);
         Dialect.AddTimestamp(command, "to_ts", query.To);
         Dialect.AddText(command, "score_name", query.ScoreName);

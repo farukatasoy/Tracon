@@ -4307,7 +4307,7 @@
           "TenantProviders"
         ],
         "summary": "Lists a tenant\u0027s model provider bindings.",
-        "description": "The response carries neither the credential value nor its configuration key\u0027s value \u2014 only the key\u0027s NAME and whether it currently resolves (\u0027resolved\u0027). This is the diagnosis path for \u0027I set the key but it does not work\u0027.",
+        "description": "The response carries neither the credential value nor its configuration key\u0027s value \u2014 only the key\u0027s NAME and whether it currently resolves (\u0027resolved\u0027). This is the diagnosis path for \u0027I set the key but it does not work\u0027. The \u0027tenantId\u0027 route value is matched case-insensitively: it is folded to lower case before it reaches the store, so \u0027Acme\u0027 and \u0027acme\u0027 are one tenant on every storage engine.",
         "operationId": "TraconListTenantProviderBindings",
         "parameters": [
           {
@@ -4457,7 +4457,7 @@
           "TenantProviders"
         ],
         "summary": "Creates or replaces a tenant\u0027s egress policy.",
-        "description": "Saving a policy is an ADDITIVE restriction: a tenant with no policy is unrestricted, and this call is the only way that changes. An agent definition naming a provider outside the saved list is rejected at compile time, not only at call time. An empty \u0027allowedProviders\u0027 array allows NO provider \u2014 it is not the same as having no policy; use DELETE to return to unrestricted.",
+        "description": "Saving a policy is an ADDITIVE restriction: a tenant with no policy is unrestricted, and this call is the only way that changes. An agent definition naming a provider outside the saved list is rejected at compile time, not only at call time. An empty \u0027allowedProviders\u0027 array allows NO provider \u2014 it is not the same as having no policy; use DELETE to return to unrestricted. The \u0027tenantId\u0027 route value is folded to lower case before the policy is saved, so a policy written for \u0027Acme\u0027 is the policy the runtime finds for \u0027acme\u0027.",
         "operationId": "TraconSaveTenantEgressPolicy",
         "parameters": [
           {
@@ -5835,7 +5835,7 @@
           "Governance"
         ],
         "summary": "Adds or updates a tenant record.",
-        "description": "The record is a display name for a tenant key that already works without it; creating one does not create the tenant and deleting one does not remove its data. The slug comes from the path and must be at most 64 characters of letters, digits, dots, underscores, and hyphens (400 otherwise) \u2014 it is the same text stored as \u0027tenant_id\u0027 on every other row. An empty display name falls back to the slug.",
+        "description": "The record is a display name for a tenant key that already works without it; creating one does not create the tenant and deleting one does not remove its data. The slug comes from the path and must be at most 64 characters of letters, digits, dots, underscores, and hyphens (400 otherwise) \u2014 it is the same text stored as \u0027tenant_id\u0027 on every other row, and it is folded to lower case for the same reason, so \u0027Acme\u0027 and \u0027acme\u0027 name one record. An empty display name falls back to the slug.",
         "operationId": "TraconSaveTenant",
         "parameters": [
           {

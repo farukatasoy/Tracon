@@ -8,7 +8,7 @@ in-memory implementation, so a first agent works with no database, no HTTP layer
 no UI — add those when you need them.
 
 ```bash
-dotnet add package Tracon.Core
+dotnet add package Tracon.Core --prerelease
 ```
 
 ```csharp

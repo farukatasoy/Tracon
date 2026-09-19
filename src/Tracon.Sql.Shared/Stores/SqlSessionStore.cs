@@ -68,7 +68,7 @@ internal sealed class SqlSessionStore : ISessionStore
 
         var command = CreateCommand(_sql.UpsertSession);
         DbHelpers.Add(command, "id", record.Id);
-        DbHelpers.Add(command, "tenant_id", record.TenantId ?? _tenantContext.TenantId);
+        DbHelpers.AddTenant(command, record.TenantId ?? _tenantContext.TenantId);
         DbHelpers.Add(command, "agent_name", record.AgentName);
         // The `json` column stores the text AS-IS. `jsonb` would reorder keys
         // and invalidate System.Text.Json's `$type` discriminator (decision K-027).
@@ -98,7 +98,7 @@ internal sealed class SqlSessionStore : ISessionStore
 
         var command = CreateCommand(_sql.InsertSession);
         DbHelpers.Add(command, "id", record.Id);
-        DbHelpers.Add(command, "tenant_id", record.TenantId ?? _tenantContext.TenantId);
+        DbHelpers.AddTenant(command, record.TenantId ?? _tenantContext.TenantId);
         DbHelpers.Add(command, "agent_name", record.AgentName);
         Dialect.AddJson(command, "state", ProtectedValue.Write(_context, ProtectedColumn.SessionState, record.State.GetRawText()));
         DbHelpers.Add(command, "state_schema_version", record.StateSchemaVersion);
@@ -135,7 +135,7 @@ internal sealed class SqlSessionStore : ISessionStore
 
         var command = CreateCommand(_sql.UpdateSessionIfVersionMatches);
         DbHelpers.Add(command, "id", record.Id);
-        DbHelpers.Add(command, "tenant_id", record.TenantId ?? _tenantContext.TenantId);
+        DbHelpers.AddTenant(command, record.TenantId ?? _tenantContext.TenantId);
         DbHelpers.Add(command, "agent_name", record.AgentName);
         Dialect.AddJson(command, "state", ProtectedValue.Write(_context, ProtectedColumn.SessionState, record.State.GetRawText()));
         DbHelpers.Add(command, "state_schema_version", record.StateSchemaVersion);
@@ -154,7 +154,7 @@ internal sealed class SqlSessionStore : ISessionStore
 
         var command = CreateCommand(_sql.SelectSession);
         DbHelpers.Add(command, "id", sessionId);
-        DbHelpers.Add(command, "tenant_id", _tenantContext.TenantId);
+        DbHelpers.AddTenant(command, _tenantContext.TenantId);
 
         return await DbHelpers.ReadSingleAsync(
             command,
@@ -200,7 +200,7 @@ internal sealed class SqlSessionStore : ISessionStore
 
         var command = CreateCommand(_sql.DeleteSession);
         DbHelpers.Add(command, "id", sessionId);
-        DbHelpers.Add(command, "tenant_id", _tenantContext.TenantId);
+        DbHelpers.AddTenant(command, _tenantContext.TenantId);
 
         return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
     }
@@ -213,7 +213,7 @@ internal sealed class SqlSessionStore : ISessionStore
         ArgumentNullException.ThrowIfNull(query);
 
         var command = CreateCommand(_sql.SelectSessions);
-        DbHelpers.Add(command, "tenant_id", query.TenantId ?? _tenantContext.TenantId);
+        DbHelpers.AddTenant(command, query.TenantId ?? _tenantContext.TenantId);
         Dialect.AddText(command, "agent_name", query.AgentName);
 
         // 🚨 Typed explicitly like every other optional filter parameter: an

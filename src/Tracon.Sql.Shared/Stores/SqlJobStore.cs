@@ -58,7 +58,7 @@ internal sealed class SqlJobStore : IJobStore
             {
                 var insertJob = _context.CreateCommand(_sql.InsertJob, connection, transaction);
                 DbHelpers.Add(insertJob, "id", job.Id);
-                DbHelpers.Add(insertJob, "tenant_id", job.TenantId);
+                DbHelpers.AddTenant(insertJob, job.TenantId);
                 AddNullableUuid(insertJob, "schedule_id", job.ScheduleId);
                 DbHelpers.Add(insertJob, "handler_key", job.HandlerKey);
                 DbHelpers.Add(insertJob, "target_name", job.TargetName);
@@ -209,7 +209,7 @@ internal sealed class SqlJobStore : IJobStore
 
         var command = CreateCommand(_sql.CancelJob);
         DbHelpers.Add(command, "id", jobId);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
         Dialect.AddTimestamp(command, "completed_at", DateTimeOffset.UtcNow);
 
         return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;
@@ -225,7 +225,7 @@ internal sealed class SqlJobStore : IJobStore
 
         var command = CreateCommand(_sql.SelectJob);
         DbHelpers.Add(command, "id", jobId);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
 
         return await DbHelpers.ReadSingleAsync(command, ReadJob, cancellationToken).ConfigureAwait(false);
     }
@@ -238,7 +238,7 @@ internal sealed class SqlJobStore : IJobStore
         ArgumentNullException.ThrowIfNull(query);
 
         var command = CreateCommand(_sql.SelectJobs);
-        AddNullableText(command, "tenant_id", query.TenantId);
+        AddNullableText(command, "tenant_id", AmbientTenantScope.NormalizeOrNull(query.TenantId));
         AddNullableText(command, "handler_key", query.HandlerKey);
         Dialect.AddInt16(command, "status", (short?)query.Status);
         AddNullableUuid(command, "schedule_id", query.ScheduleId);

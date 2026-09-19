@@ -189,15 +189,23 @@ function transform(page, uids, anchorsByUid, uidsByDisplayName, externalSlugs) {
   body = body.replace(/^# <a id="[^"]*"><\/a> .+$/m, '');
 
   // 2. Prose cross-references. This is the reason the script exists.
+  //
+  // 🚨 A `<see cref="X">text</see>` (one WITH inner text) does not reach here as
+  // an element with children: DocFX folds the text into the href as a
+  // `?text=` query. Without stripping it the reader saw the query string
+  // itself -- `Threading.CancellationToken?text=cooperative` -- in the middle
+  // of a sentence. The author's own words are the better label, so they become
+  // the link text.
   body = body.replace(/<xref href="([^"]+)"[^>]*>\s*<\/xref>/g, (_match, rawUid) => {
-    const link = resolveReference(decodeUid(rawUid), uids, anchorsByUid, externalSlugs);
+    const { uid, text } = splitReferenceText(decodeUid(rawUid));
+    const link = resolveReference(uid, uids, anchorsByUid, externalSlugs);
 
     if (link === null) {
       unresolvedCount += 1;
-      return `<code>${displayName(decodeUid(rawUid))}</code>`;
+      return `<code>${text ?? displayName(uid)}</code>`;
     }
 
-    return link;
+    return text === null ? link : relabel(link, text);
   });
 
   // 3. Page-to-page links: DocFX writes `Foo.md`, Starlight serves `/api/foo/`.
@@ -293,6 +301,48 @@ function transform(page, uids, anchorsByUid, uidsByDisplayName, externalSlugs) {
 }
 
 /** DocFX percent-encodes uids that carry a signature. */
+/**
+ * Splits a uid from the display text DocFX folded into it.
+ *
+ * `<see cref="X">text</see>` arrives as `X?text=the%20words`; a plain
+ * `<see cref="X"/>` arrives as `X` and yields a null text.
+ *
+ * @param {string} uid the decoded href
+ * @returns {{uid: string, text: string | null}} the uid and its label
+ */
+function splitReferenceText(uid) {
+  const separator = uid.indexOf('?text=');
+
+  if (separator < 0) {
+    return { uid, text: null };
+  }
+
+  const raw = uid.slice(separator + '?text='.length);
+
+  let text;
+
+  try {
+    text = decodeURIComponent(raw.replaceAll('+', ' '));
+  } catch {
+    text = raw;
+  }
+
+  return { uid: uid.slice(0, separator), text: text.length > 0 ? text : null };
+}
+
+/**
+ * Replaces a markdown link's label, keeping its target.
+ *
+ * @param {string} link a `[label](target)` string
+ * @param {string} text the label to use instead
+ * @returns {string} the relabelled link
+ */
+function relabel(link, text) {
+  const match = /^\[(?:[^\]]*)\]\((.*)\)$/s.exec(link);
+
+  return match === null ? link : `[${text}](${match[1]})`;
+}
+
 function decodeUid(uid) {
   try {
     return decodeURIComponent(uid.replaceAll('%60', '`'));

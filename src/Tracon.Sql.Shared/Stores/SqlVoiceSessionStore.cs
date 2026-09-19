@@ -32,7 +32,7 @@ internal sealed class SqlVoiceSessionStore : IVoiceSessionStore
 
         var command = _context.CreateCommand(_sql.UpsertVoiceSession);
         DbHelpers.Add(command, "id", record.Id);
-        DbHelpers.Add(command, "tenant_id", record.TenantId);
+        DbHelpers.AddTenant(command, record.TenantId);
         DbHelpers.Add(command, "session_id", record.SessionId);
         DbHelpers.Add(command, "agent_name", record.AgentName);
         Dialect.AddTimestamp(command, "started_at", record.StartedAt);
@@ -62,7 +62,7 @@ internal sealed class SqlVoiceSessionStore : IVoiceSessionStore
         ArgumentNullException.ThrowIfNull(query);
 
         var command = _context.CreateCommand(_sql.SelectVoiceSessions);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
 
         // 🚨 Optional filters are typed EXPLICITLY: when an untyped NULL is
         // sent, PostgreSQL cannot infer the type and returns 42P08.

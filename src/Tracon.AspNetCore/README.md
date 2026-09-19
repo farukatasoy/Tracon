@@ -4,7 +4,7 @@ The HTTP layer. One call maps the whole control plane into an existing ASP.NET C
 application.
 
 ```bash
-dotnet add package Tracon.AspNetCore
+dotnet add package Tracon.AspNetCore --prerelease
 ```
 
 ```csharp

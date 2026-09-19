@@ -44,7 +44,7 @@ internal sealed class SqlIdempotencyStore : IIdempotencyStore
         ArgumentNullException.ThrowIfNull(request);
 
         var command = CreateCommand(_sql.InsertIdempotencyKey);
-        DbHelpers.Add(command, "tenant_id", request.TenantId);
+        DbHelpers.AddTenant(command, request.TenantId);
         DbHelpers.Add(command, "key", request.Key);
         Dialect.AddText(command, "fingerprint", request.Fingerprint);
         Dialect.AddTimestamp(command, "created_at", request.CreatedAt);
@@ -84,7 +84,7 @@ internal sealed class SqlIdempotencyStore : IIdempotencyStore
         ArgumentNullException.ThrowIfNull(response);
 
         var command = CreateCommand(_sql.CompleteIdempotencyKey);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
         DbHelpers.Add(command, "key", key);
         Dialect.AddInt32(command, "status_code", response.StatusCode);
         Dialect.AddText(command, "content_type", response.ContentType);
@@ -103,7 +103,7 @@ internal sealed class SqlIdempotencyStore : IIdempotencyStore
         ArgumentException.ThrowIfNullOrWhiteSpace(key);
 
         var command = CreateCommand(_sql.DeleteIdempotencyKey);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
         DbHelpers.Add(command, "key", key);
 
         await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
@@ -112,7 +112,7 @@ internal sealed class SqlIdempotencyStore : IIdempotencyStore
     private async ValueTask<StoredEntry?> ReadAsync(string tenantId, string key, CancellationToken cancellationToken)
     {
         var command = CreateCommand(_sql.SelectIdempotencyKey);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
         DbHelpers.Add(command, "key", key);
 
         return await DbHelpers.ReadSingleAsync(command, Read, cancellationToken).ConfigureAwait(false);

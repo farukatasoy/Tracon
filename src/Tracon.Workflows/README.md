@@ -81,7 +81,7 @@ checkpoints are limited to the lifetime of the process.
 | Setting | Default | What it does |
 |------|-----------|----------|
 | `MaxConcurrentRuns` | 4 | The number of workflows running at the same time |
-| `RunTimeout` | 10 min | The maximum duration of a single run |
+| `RunTimeout` | 10 min | The maximum duration of a single run. Cooperative: checked between super-steps, so a node that ignores its cancellation token finishes and the run stops at the next boundary |
 | `MaxSuperSteps` | 100 | Infinite-loop protection |
 | `EnableCheckpointing` | `true` | Checkpoint writing |
 

@@ -11,13 +11,12 @@ namespace Tracon;
 /// <remarks>
 /// <para>
 /// Installed by the tool registry, one layer <strong>inside</strong> the
-/// authorization wrapper and <strong>outside</strong> the approval wrapper —
-///  This
-/// ordering matters: <c>ApprovalRequiredAIFunction</c> never blocks on the
-/// human decision inside a single call (Microsoft Agent Framework returns a
-/// pending request immediately and the decision resumes as a NEW run,
-/// ), so wrapping it with a timeout only ever bounds the tool's own
-/// execution, never an approval wait.
+/// authorization wrapper and <strong>outside</strong> the approval wrapper.
+/// The ordering matters: <c>ApprovalRequiredAIFunction</c> never blocks on the
+/// human decision inside a single call — Microsoft Agent Framework returns a
+/// pending request immediately and the decision resumes as a NEW run — so
+/// wrapping it with a timeout only ever bounds the tool's own execution, never
+/// an approval wait.
 /// </para>
 /// <para>
 /// On timeout the call is <strong>cancelled</strong> and the caller is handed

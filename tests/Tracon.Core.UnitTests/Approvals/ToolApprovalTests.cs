@@ -205,12 +205,49 @@ public sealed class ToolApprovalTests
         var first = ToolApprovalRuleEvaluator.ComputeArgumentsHash(
             new Dictionary<string, object?>(StringComparer.Ordinal) { ["a"] = "1", ["b"] = "2" });
 
-        // Without a separator, "a=1" + "b=2" and "a=1b=" + "2" could produce
-        // the same fingerprint.
+        // Without field boundaries, "a=1" + "b=2" and "a=1b=" + "2" could
+        // produce the same fingerprint.
         var second = ToolApprovalRuleEvaluator.ComputeArgumentsHash(
             new Dictionary<string, object?>(StringComparer.Ordinal) { ["a"] = "1b=2" });
 
         string.Equals(first, second, StringComparison.Ordinal).ShouldBeFalse();
+    }
+
+    [Theory]
+    // 🚨 The constructed collision that closed the separator assumption. The
+    // old format joined fields with the unit separator (U+001F) and a comment
+    // claimed the character "is not present in text values" -- nothing
+    // enforced that, and a JSON argument can carry any character. Each pair
+    // below hashed IDENTICALLY under the old format, which means a grant for
+    // one call could be inherited by a call of a different SHAPE. The path is
+    // the script dispatcher: the surface that runs code.
+    [InlineData("b", "y", "\u001Fb=y")]
+    [InlineData("b", "", "\u001Fb=")]
+    [InlineData("bb", "y", "\u001Fbb=y")]
+    public void A_value_cannot_be_read_as_a_field_boundary(string secondKey, string secondValue, string smuggled)
+    {
+        var twoFields = ToolApprovalRuleEvaluator.ComputeArgumentsHash(
+            new Dictionary<string, object?>(StringComparer.Ordinal) { ["a"] = "x", [secondKey] = secondValue });
+
+        var oneFieldCarryingTheSeparator = ToolApprovalRuleEvaluator.ComputeArgumentsHash(
+            new Dictionary<string, object?>(StringComparer.Ordinal) { ["a"] = "x" + smuggled });
+
+        string.Equals(twoFields, oneFieldCarryingTheSeparator, StringComparison.Ordinal).ShouldBeFalse();
+    }
+
+    [Fact]
+    public void The_fingerprint_counts_bytes_and_not_characters()
+    {
+        // A character count would let two values of equal character length but
+        // different byte length agree on the prefix. The buffer is hashed as
+        // UTF-8, so the prefix counts UTF-8 bytes.
+        var ascii = ToolApprovalRuleEvaluator.ComputeArgumentsHash(
+            new Dictionary<string, object?>(StringComparer.Ordinal) { ["a"] = "ab" });
+
+        var multiByte = ToolApprovalRuleEvaluator.ComputeArgumentsHash(
+            new Dictionary<string, object?>(StringComparer.Ordinal) { ["a"] = "\u00e9b" });
+
+        string.Equals(ascii, multiByte, StringComparison.Ordinal).ShouldBeFalse();
     }
 
     [Fact]

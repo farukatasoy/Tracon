@@ -42,6 +42,48 @@ const siteRoot = resolve(here, '..');
 const repositoryRoot = resolve(siteRoot, '..');
 const errors = [];
 
+/**
+ * Every shipped install command names a version.
+ *
+ * Tracon has no stable release, so `dotnet add package Tracon` alone ends in
+ * NU1103 and `dotnet tool install -g Tracon.Cli` in "package not found". The
+ * command a reader copies is the first thing they run, and it has to work.
+ *
+ * This runs over the site pages AND the packaged README files, because the
+ * README is what nuget.org renders on the package page -- for a first-time
+ * reader that page comes before the site. One definition, both surfaces: the
+ * gate used to cover the site only, and 14 commands across 13 package READMEs
+ * were shipping without a flag.
+ *
+ * @param {string} label file label used in the error message
+ * @param {string} text file contents
+ */
+function checkPreviewInstallCommands(label, text) {
+  for (const [lineIndex, line] of text.split('\n').entries()) {
+    const trimmed = line.trim();
+
+    if (
+      /^dotnet add package Tracon(?:\.[A-Za-z0-9.]+)?(?:\s|$)/.test(trimmed) &&
+      !trimmed.includes('--prerelease') &&
+      !trimmed.includes('--version')
+    ) {
+      errors.push(`${label}:${lineIndex + 1}: the package is preview; add --prerelease or --version`);
+    }
+
+    if (
+      /^dotnet tool (?:install|update)\b.*\bTracon\.Cli\b/.test(trimmed) &&
+      !trimmed.includes('--prerelease') &&
+      !trimmed.includes('--version')
+    ) {
+      errors.push(`${label}:${lineIndex + 1}: Tracon.Cli is preview; add --prerelease or --version`);
+    }
+
+    if (/^dotnet new install Tracon\.Templates(?:\s|$)/.test(trimmed)) {
+      errors.push(`${label}:${lineIndex + 1}: preview templates require an explicit @version`);
+    }
+  }
+}
+
 const requiredManualPages = [
   'capabilities.md',
   'guides/background-work.md',
@@ -220,6 +262,24 @@ const readme = readFileSync(join(repositoryRoot, 'README.md'), 'utf8');
 for (const [, stated] of readme.matchAll(/\b(\d+) operations\b/g)) {
   if (Number(stated) !== operationCount) {
     errors.push(`README.md says ${stated} operations, expected ${operationCount}`);
+  }
+}
+
+// The install commands the reader meets first: the repository README and the
+// package README that nuget.org renders on each package page.
+checkPreviewInstallCommands('README.md', readme);
+
+for (const entry of readdirSync(sourceRoot, { withFileTypes: true })) {
+  if (!entry.isDirectory()) {
+    continue;
+  }
+
+  const packagedReadme = join(sourceRoot, entry.name, 'README.md');
+
+  if (existsSync(packagedReadme)) {
+    checkPreviewInstallCommands(
+      `src/${entry.name}/README.md`,
+      readFileSync(packagedReadme, 'utf8'));
   }
 }
 
@@ -418,21 +478,7 @@ for (const file of manualContent) {
     errors.push(`${label}: description length is ${description.length}; expected 70..180 characters`);
   }
 
-  for (const [lineIndex, line] of text.split('\n').entries()) {
-    const trimmed = line.trim();
-
-    if (
-      /^dotnet add package Tracon(?:\s|$)/.test(trimmed) &&
-      !trimmed.includes('--prerelease') &&
-      !trimmed.includes('--version')
-    ) {
-      errors.push(`${label}:${lineIndex + 1}: Tracon is preview; add --prerelease or --version`);
-    }
-
-    if (/^dotnet new install Tracon\.Templates(?:\s|$)/.test(trimmed)) {
-      errors.push(`${label}:${lineIndex + 1}: preview templates require an explicit @version`);
-    }
-  }
+  checkPreviewInstallCommands(label, text);
 
   if (/--persistence\s+none\b/.test(text)) {
     errors.push(`${label}: template persistence choice is memory, not none`);

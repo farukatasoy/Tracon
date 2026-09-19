@@ -107,6 +107,39 @@ internal sealed class SqliteDialect : SqlDialect, IDisposable
 
     /// <inheritdoc />
     /// <remarks>
+    /// <para>
+    /// SQLite has no schema namespace; the prefix is part of the table name
+    /// (see <see cref="SqlDialect.QualifyTable"/>), so the catalog is filtered
+    /// by name prefix instead of by schema.
+    /// </para>
+    /// <para>
+    /// <c>substr</c>, not <c>LIKE</c>. The default prefix is
+    /// <c>tracon_</c> and <c>_</c> is a single-character wildcard in
+    /// <c>LIKE</c>, so <c>LIKE 'tracon_%'</c> also matches an unrelated
+    /// application table such as <c>traconics_customers</c> living in the same
+    /// file. The guard would then refuse to start over a table that is not
+    /// Tracon's.
+    /// </para>
+    /// </remarks>
+    public override string TenantIdTableCatalogSql =>
+        """
+        SELECT m.name
+          FROM sqlite_master m
+          JOIN pragma_table_info(m.name) p
+         WHERE m.type = 'table'
+           AND p.name = 'tenant_id'
+           AND substr(m.name, 1, length('{schema}')) = '{schema}'
+         ORDER BY m.name
+        """;
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// The catalog already reports the prefixed name, so it is used unchanged.
+    /// </remarks>
+    public override string QualifyCatalogTable(string tableName) => tableName;
+
+    /// <inheritdoc />
+    /// <remarks>
     /// The "views" set is opt-in for the same reason as PostgreSQL's
     /// "knowledge" set — a published view is a permanent data contract, and a
     /// consumer who never opts in should see no surprise object in their

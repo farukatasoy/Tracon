@@ -271,8 +271,11 @@ internal sealed class TraconEndpointFilter : IEndpointFilter
             candidate = null;
         }
 
+        // 🚨 The same canonical form HttpTenantContext.Accept produces, through
+        // the same helper (K-382). If the two surfaces folded letter case
+        // differently, one of them would refuse a request the other admits.
         if (!HttpTenantContext.IsValidTenantId(candidate)
-            || tenancyOptions.AllowedTenants.Contains(candidate, StringComparer.Ordinal))
+            || HttpTenantContext.IsAllowed(AmbientTenantScope.Normalize(candidate!), tenancyOptions))
         {
             return null;
         }

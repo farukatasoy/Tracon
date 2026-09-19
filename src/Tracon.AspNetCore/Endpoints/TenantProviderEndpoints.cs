@@ -35,7 +35,10 @@ internal static class TenantProviderEndpoints
             .WithDescription(
                 "The response carries neither the credential value nor its configuration " +
                 "key's value — only the key's NAME and whether it currently resolves " +
-                "('resolved'). This is the diagnosis path for 'I set the key but it does not work'.");
+                "('resolved'). This is the diagnosis path for 'I set the key but it does not work'. " +
+                "The 'tenantId' route value is matched case-insensitively: it is folded to " +
+                "lower case before it reaches the store, so 'Acme' and 'acme' are one tenant on " +
+                "every storage engine.");
 
         builder.MapPut("/api/tenants/{tenantId}/providers/{provider}", SaveBindingAsync)
             .RequireRole(roles.Admin)
@@ -80,7 +83,9 @@ internal static class TenantProviderEndpoints
                 "unrestricted, and this call is the only way that changes. An agent definition " +
                 "naming a provider outside the saved list is rejected at compile time, not only " +
                 "at call time. An empty 'allowedProviders' array allows NO provider — it is not " +
-                "the same as having no policy; use DELETE to return to unrestricted.");
+                "the same as having no policy; use DELETE to return to unrestricted. " +
+                "The 'tenantId' route value is folded to lower case before the policy is saved, " +
+                "so a policy written for 'Acme' is the policy the runtime finds for 'acme'.");
 
         builder.MapDelete("/api/tenants/{tenantId}/egress", DeleteEgressPolicyAsync)
             .RequireRole(roles.Admin)
@@ -97,6 +102,8 @@ internal static class TenantProviderEndpoints
         [FromServices] TenantProviderCredentialResolver resolver,
         CancellationToken cancellationToken)
     {
+        tenantId = HttpTenantContext.NormalizeRouteTenantId(tenantId);
+
         var bindings = await store.ListAsync(tenantId, cancellationToken).ConfigureAwait(false);
 
         return TypedResults.Ok<IReadOnlyList<TenantProviderBindingResponse>>(
@@ -117,6 +124,8 @@ internal static class TenantProviderEndpoints
         [FromServices] TraconMetrics metrics,
         CancellationToken cancellationToken)
     {
+        tenantId = HttpTenantContext.NormalizeRouteTenantId(tenantId);
+
         if (!HttpTenantContext.IsValidTenantId(tenantId))
         {
             return Invalid("Invalid tenant key.");
@@ -214,6 +223,8 @@ internal static class TenantProviderEndpoints
         [FromServices] TraconMetrics metrics,
         CancellationToken cancellationToken)
     {
+        tenantId = HttpTenantContext.NormalizeRouteTenantId(tenantId);
+
         var deleted = await store.DeleteAsync(tenantId, provider, cancellationToken).ConfigureAwait(false);
 
         if (!deleted)
@@ -241,6 +252,8 @@ internal static class TenantProviderEndpoints
         [FromServices] ITenantEgressPolicyStore store,
         CancellationToken cancellationToken)
     {
+        tenantId = HttpTenantContext.NormalizeRouteTenantId(tenantId);
+
         var policy = await store.GetAsync(tenantId, cancellationToken).ConfigureAwait(false);
 
         return TypedResults.Ok(new TenantEgressPolicyResponse
@@ -261,6 +274,8 @@ internal static class TenantProviderEndpoints
         [FromServices] TraconMetrics metrics,
         CancellationToken cancellationToken)
     {
+        tenantId = HttpTenantContext.NormalizeRouteTenantId(tenantId);
+
         if (!HttpTenantContext.IsValidTenantId(tenantId))
         {
             return Invalid("Invalid tenant key.");
@@ -308,6 +323,8 @@ internal static class TenantProviderEndpoints
         [FromServices] TraconMetrics metrics,
         CancellationToken cancellationToken)
     {
+        tenantId = HttpTenantContext.NormalizeRouteTenantId(tenantId);
+
         var deleted = await store.DeleteAsync(tenantId, cancellationToken).ConfigureAwait(false);
 
         if (!deleted)

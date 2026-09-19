@@ -37,7 +37,7 @@ internal sealed class SqlJobScheduleStore : IJobScheduleStore
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
         var command = CreateCommand(_sql.SelectJobSchedule);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
         DbHelpers.Add(command, "name", name);
 
         return await DbHelpers.ReadSingleAsync(command, ReadSchedule, cancellationToken).ConfigureAwait(false);
@@ -51,7 +51,7 @@ internal sealed class SqlJobScheduleStore : IJobScheduleStore
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
 
         var command = CreateCommand(_sql.SelectJobSchedules);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
 
         return await DbHelpers.ReadListAsync(command, ReadSchedule, cancellationToken).ConfigureAwait(false);
     }
@@ -73,7 +73,7 @@ internal sealed class SqlJobScheduleStore : IJobScheduleStore
 
         var command = CreateCommand(_sql.UpsertJobSchedule);
         DbHelpers.Add(command, "id", id);
-        DbHelpers.Add(command, "tenant_id", schedule.TenantId);
+        DbHelpers.AddTenant(command, schedule.TenantId);
         DbHelpers.Add(command, "name", schedule.Name);
         DbHelpers.Add(command, "handler_key", schedule.HandlerKey);
         DbHelpers.Add(command, "target_name", schedule.TargetName);
@@ -110,7 +110,7 @@ internal sealed class SqlJobScheduleStore : IJobScheduleStore
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
         var command = CreateCommand(_sql.DeleteJobSchedule);
-        DbHelpers.Add(command, "tenant_id", tenantId);
+        DbHelpers.AddTenant(command, tenantId);
         DbHelpers.Add(command, "name", name);
 
         return await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false) > 0;

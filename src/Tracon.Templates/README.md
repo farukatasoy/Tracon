@@ -5,8 +5,12 @@ A `dotnet new` template — generates a working [Tracon](https://www.nuget.org/p
 ## Install
 
 ```bash
-dotnet new install Tracon.Templates
+dotnet new install Tracon.Templates@1.0.0-preview.N
 ```
+
+Replace `N` with the latest preview number on
+[nuget.org](https://www.nuget.org/packages/Tracon.Templates): `dotnet new install`
+has no `--prerelease`, so a preview template is reachable only by exact version.
 
 ## Usage
 

@@ -27,7 +27,10 @@ public sealed class SingleTenantContext : ITenantContext
     /// <inheritdoc />
     /// <remarks>
     /// When <see cref="AmbientTenantScope.Current"/> is set, for example while a
-    /// scheduled job runs, its value takes precedence over the default.
+    /// scheduled job runs, its value takes precedence over the default. Both
+    /// sources are canonical: the scope normalizes what it is given, and
+    /// <see cref="TraconOptions.DefaultTenantId"/> is rejected at startup when
+    /// it is not already canonical.
     /// </remarks>
     public string TenantId => AmbientTenantScope.Current ?? _options.Value.DefaultTenantId;
 }

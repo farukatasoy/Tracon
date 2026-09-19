@@ -40,7 +40,7 @@ internal sealed class SqlPendingApprovalStore : IPendingApprovalStore
 
         var command = CreateCommand(_sql.InsertPendingApproval);
         DbHelpers.Add(command, "id", approval.Id);
-        DbHelpers.Add(command, "tenant_id", approval.TenantId);
+        DbHelpers.AddTenant(command, approval.TenantId);
         DbHelpers.Add(command, "run_id", approval.RunId);
         DbHelpers.Add(command, "session_id", approval.SessionId);
         DbHelpers.Add(command, "request_id", approval.RequestId);
@@ -65,7 +65,7 @@ internal sealed class SqlPendingApprovalStore : IPendingApprovalStore
     public async ValueTask<IReadOnlyList<PendingApproval>> ListPendingAsync(CancellationToken cancellationToken = default)
     {
         var command = CreateCommand(_sql.SelectPendingApprovals);
-        DbHelpers.Add(command, "tenant_id", _tenantContext.TenantId);
+        DbHelpers.AddTenant(command, _tenantContext.TenantId);
         DbHelpers.Add(command, "status", (short)ApprovalStatus.Pending);
 
         return await DbHelpers.ReadListAsync(command, ReadApproval, cancellationToken).ConfigureAwait(false);
@@ -76,7 +76,7 @@ internal sealed class SqlPendingApprovalStore : IPendingApprovalStore
     {
         var command = CreateCommand(_sql.SelectPendingApproval);
         DbHelpers.Add(command, "id", id);
-        DbHelpers.Add(command, "tenant_id", _tenantContext.TenantId);
+        DbHelpers.AddTenant(command, _tenantContext.TenantId);
 
         return await DbHelpers.ReadSingleAsync(command, ReadApproval, cancellationToken).ConfigureAwait(false);
     }
@@ -93,7 +93,7 @@ internal sealed class SqlPendingApprovalStore : IPendingApprovalStore
 
         var command = CreateCommand(_sql.DecidePendingApproval);
         DbHelpers.Add(command, "id", id);
-        DbHelpers.Add(command, "tenant_id", _tenantContext.TenantId);
+        DbHelpers.AddTenant(command, _tenantContext.TenantId);
         DbHelpers.Add(
             command,
             "status",

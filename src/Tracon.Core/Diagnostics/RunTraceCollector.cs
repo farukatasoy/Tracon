@@ -152,7 +152,7 @@ public sealed class RunTraceCollector : IDisposable
 
             return true;
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
         {
             // Observability does not break functionality: the run has already
             // completed, a failure to write spans does not surface to the user.

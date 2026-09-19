@@ -9,7 +9,7 @@ they do not collide with the consumer's own tables; SQLite has no schema concept
 ## Setup
 
 ```bash
-dotnet add package Tracon.Sqlite
+dotnet add package Tracon.Sqlite --prerelease
 ```
 
 ```csharp

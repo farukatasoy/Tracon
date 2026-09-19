@@ -139,7 +139,7 @@ internal sealed class SingletonGuard
                 {
                     await _store.ReleaseAsync(_leaseName, _ownerId, CancellationToken.None).ConfigureAwait(false);
                 }
-                catch (Exception exception) when (exception is not OperationCanceledException)
+                catch (Exception exception) when (OperationCancellation.IsFailure(exception, CancellationToken.None))
                 {
                     // Best-effort release; the lease expires on its own anyway.
                     LogFailure(exception);
@@ -191,7 +191,7 @@ internal sealed class SingletonGuard
                     .ConfigureAwait(false);
             }
         }
-        catch (Exception exception) when (exception is not OperationCanceledException)
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
         {
             LogFailure(exception);
         }
