@@ -109,9 +109,9 @@ appends a version, a rollback writes the old content forward as a new version, a
 the rollback is itself audited. See [versions and rollback](/concepts/agents/#versions).
 
 Storage starts in memory and the host still starts without a provider key, so each
-call above is a choice rather than a requirement. Tracon is not yet published: the
-[source-based guide](/getting-started/first-agent/) requires access to a checkout of
-the repository.
+call above is a choice rather than a requirement. The packages are published as
+`1.0.0-preview.1`, so install them with `--prerelease`: there is no stable version
+yet, and a command without the flag ends in `NU1103`.
 
 ## The console ships in the assembly.
 
