@@ -58,7 +58,7 @@ dosyanın § *Okuma Sırası* tablosu da seni doğru bölüme yollar.
 
 | Ne okunur | Neden |
 |---|---|
-| `README.md` yol haritası tablosu | Neyin bittiği. Faz durumu yalnız burada yaşar |
+| `docs/YOL-HARITASI.md` | Neyin bittiği. Faz durumu yalnız burada yaşar (K-413) |
 | Aday dosyası § *Sıralanabilir Adaylar* | Bugün masada ne var |
 | Aday dosyası § *Bekleyen Kalemler* | Zaten bilinen ama koşulu oluşmamış işler — aynısını yeniden önerme |
 | Aday dosyası § *Aday Olmayan Açık Kayıtlar* | Bir F-ID'nin hangi kanala düştüğü **ve sıradaki F numarası** |
