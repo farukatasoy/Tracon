@@ -7,12 +7,14 @@ Tracon is a .NET package family built on
 You write the AI harness; you operate it at `/tracon`. Start with
 `dotnet new tracon-api`, and test without calling a model using `Tracon.Testing`.
 
-> **Status:** in development, **not yet published** — nothing is on NuGet or npm and
-> there is no release tag, so the install command below does not resolve yet. Build
-> from this repository. Tracon is **operable**, its
-> [product documentation is published](https://tracon.dev), and the **public API gate**
-> (`EnablePublicApiTracking`) is on independently of any release decision — an
-> unrecorded surface change breaks the build.
+> **Status:** first preview published — **`1.0.0-preview.1`**, twenty packages on one
+> version line, plus `@tracon/client` on npm. The install command below resolves; keep
+> `--prerelease`, because there is no stable version yet. The public API is **not
+> frozen**: `PublicAPI.Shipped.txt` is empty in every package and the surface may still
+> be reduced before 1.0. The **public API gate** (`EnablePublicApiTracking`) is on
+> independently of any release decision — an unrecorded surface change breaks the build.
+> Product documentation is at [tracon.dev](https://tracon.dev); release notes are on the
+> [changelog](https://tracon.dev/reference/changelog/).
 >
 > - Runs recorded with spans, metrics and cost; tenants isolated; audit trail made
 >   tamper-evident with a hash chain (`GET /api/audit/verify`)

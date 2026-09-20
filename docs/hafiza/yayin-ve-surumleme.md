@@ -114,3 +114,33 @@
 - **Feed dizini sınırsız büyür** (commit başına 20 paket × 2 dosya); otomatik
   temizlik Faz 136'da bilinçli kaldırıldı. Ara sıra
   `rm -rf artifacts/package/release` çalıştırıp bir kez yeniden paketle.
+
+## Ilk yayin gunu olculenler (2026-09-20, `1.0.0-preview.1`)
+
+- **🚨 `NuGet/login`'in `user:` alani policy'yi OLUSTURAN hesabin profil adidir,
+  policy'nin SAHIBI degil.** Ikisi ayri eksendir: sahiplik (kisi ya da
+  organizasyon) yalnizca policy'nin HANGI paketleri yayinlayabilecegini belirler;
+  token'i kimin takas ettigini degistirmez. Policy `Tracon` organizasyonunun
+  sahipliginde oldugu icin `user: Tracon` dogru gorunuyordu ve `ci.yml`'deki
+  yorum bunu savunuyordu — ikisi de yanlisti. nuget.org'un cevabi:
+  `Token exchange failed (HTTP 401) ... Make sure you are using the username of
+  the policy creator, not the policy owner: No matching trust policy owned by
+  user 'Tracon' was found.` Dogru deger kisisel profil adidir (`farukatasoy`).
+  **Bu iddia hicbir testle yanlislanamazdi**: yalnizca gercek bir token takasi
+  onu olcer ve o takas yalnizca bir `v*` etiketinde olur.
+- **🚨 npm granular token'inda "Bypass two-factor authentication (2FA)" kutusu
+  ISARETLI olmali.** Scope'lar (`@tracon` + `tracon` org, read/write) dogru olsa
+  bile kutu kapaliyken her yazma OTP ister ve CI `npm error code EOTP` ile duser.
+  Org duzeyinde 2FA enforcement acikken bu zorunludur. Granular token, klasik
+  Automation token'dan daha dar oldugu icin tercih edilir; bypass'i isaretlemek
+  o daraltmayi bozmaz, yalniz CI'in OTP soramayacagi gercegini kabul eder.
+- **Sira geri donusu olmayani korudu ve isini yapti.** `publish` (NuGet)
+  `needs: npm-publish` oldugu icin npm `EOTP`'de dustugunde NuGet **hic
+  kosmadi**. Sonraki turda npm gecti, NuGet OIDC'de dustu ve `dotnet nuget push`
+  yine hic kosmadi. Iki yarim yayin denemesinin ikisinde de surum numarasi
+  yanmadi. `npm-publish` var olan surumu `npm view` ile gorup ATLAR ve is
+  KIRILMAZ — bu yuzden etiketi tasiyip yeniden denemek bedelsizdir.
+- **Yayindan sonra nuget.org hemen gorunmez.** `dotnet nuget push` basarili
+  donse ve GitHub release olussa bile `v3-flatcontainer`, registration ucu ve
+  paket sayfasi bir sure `404` verir; ilk kez yayinlanan paket kimlikleri
+  dogrulamadan gecer. "Push basarili" ile "paket gorunur" ayri anlardir.
