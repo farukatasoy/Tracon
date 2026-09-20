@@ -144,3 +144,22 @@
   donse ve GitHub release olussa bile `v3-flatcontainer`, registration ucu ve
   paket sayfasi bir sure `404` verir; ilk kez yayinlanan paket kimlikleri
   dogrulamadan gecer. "Push basarili" ile "paket gorunur" ayri anlardir.
+
+## Ikinci yayin turunda olculenler (2026-09-20, `1.0.0-preview.2`)
+
+- **🚨 npm `latest` dist-tag'i SILINEMEZ.** `npm dist-tag rm <paket> latest`
+  registry'den `403 Forbidden - DELETE .../dist-tags/latest` alir. Buna bagli
+  ikinci gercek: bir paketin **ILK** yayini `--tag next` verilse bile `latest`i
+  o surume baglar — `1.0.0-preview.1` canlida `latest` oldu. "Preview'i
+  `latest`ten kaldir" adimi bu yuzden TEK bir turda degil, HER preview turunda
+  kirmizi biter. Dogru kural: stable **varsa** preview `latest`e hic dokunmaz;
+  stable **yoksa** `latest` en yeni preview'e TASINIR (silinemedigine gore eski
+  bir preview'de takili kalmasi daha kotudur). Kalici kapi:
+  `dokuman-bakim.py` → `geri_alinamaz_registry_islemi`; ayni kapi
+  `npm unpublish` ve `dotnet nuget delete`'i de ci.yml'de yasaklar.
+- **Dist-tag adimi kirildiginda paket yayinda KALIR.** `npm publish` gecti,
+  yalnizca etiket hizalama adimi dustu; artifact byte'lari degismedi. Fakat
+  `github-release` isi `needs: [publish, npm-publish]` oldugu icin ATLANDI —
+  paketler canlida, release sayfasi eksik kaldi. Dist-tag/release gibi
+  yayin-sonrasi adimlarin duzeltilmesi etiketi yeniden kosturmakla olur; yayin
+  adimi var olan surumu `npm view` ile gorup atlar.

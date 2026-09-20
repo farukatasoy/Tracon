@@ -288,7 +288,7 @@ yeşil değildir.
 |---|---|---|
 | **A-34** | 🟡 **Source kapandı, live açık.** Şablon stamp hedefi artık MinVer'den sonra koşar; gizli `TraconVersion` seçeneği görünürdür. Packed-consumer testi sürümü override etmeden gerçek `.nupkg`'i kurar ve üretilen projeyi restore/build eder. Mevcut `preview.1` paketi değiştirilemez; düzeltme `preview.2` ister | `TemplateInstantiationTests` **3/3**; minimal ve full şablon build'i yeşil |
 | **A-35…A-41** | ✅ Kapandı | Site artık yayını ve public giriş yollarını anlatır; `tracon.dev` yeniden deploy edildi ve canlıdan doğrulandı. README örneği derlenir; GitHub metadata/Discussions/release türü canlıda düzeltildi; npm SSE README'si gerçek API'yi anlatır. Canlı kontrolde bulunan çift source-path'li `Edit page` URL'si de düzeltildi ve rendered URL kalıcı kapıya alındı |
-| **A-42** | 🟡 **CI ve doküman kapandı, live açık.** Preview yayınları bundan sonra `next` alır; workflow `latest` bir preview'e bakıyorsa onu kaldırır. Kurulum metni `@next` kullanır. Yerel ortam npm'e authenticated olmadığı için mevcut canlı `latest` bu turda değiştirilemedi | `npm view @tracon/client dist-tags --json` → `latest: 1.0.0-preview.1`; `npm whoami` → `E401` |
+| **A-42** | 🟡 **CI ve doküman kapandı, live açık.** Preview yayınları `next` alır ve kurulum metni `@next` kullanır. İlk tasarım `latest`i bir preview'den **kaldırıyordu**; npm bunu yapmaz — `DELETE .../dist-tags/latest` **403** döner ve bir paketin ilk yayını `--tag` ne olursa olsun `latest`i o sürüme bağlar. Kural değişti: stable yokken `latest` en yeni preview'e alınır, stable çıkınca preview `latest`e hiç dokunmaz. Canlı `latest` hâlâ `preview.1`; `v1.0.0-preview.2` işi yeniden koşturulunca `preview.2`'ye geçer | `npm view @tracon/client dist-tags --json` → `latest: 1.0.0-preview.1`, `next: 1.0.0-preview.2`; başarısız koşum: `403 Forbidden - DELETE .../dist-tags/latest` |
 | **A-43…A-57** | ✅ Kapandı | npm metadata, screenshot tazelik hash'i, tek ağırlık ölçümü, paket/README sayıları, sample kataloğu, dil ve operation-count kapıları, NuGet-uyumlu diyagram, exact kurulum sürümü ve `tracon --version` eklendi |
 | **A-58** | ✅ **Değişiklik gerektirmiyor.** NuGet license expression yalnız SPDX değil, NuGet'in kabul ettiği OSI/FSF lisansları için kullanılabilir. PolyForm bu kümede değildir. `PackageLicenseFile` doğru ve doğrulanabilir sunumdur | [NuGet nuspec `license` sözleşmesi](https://learn.microsoft.com/nuget/reference/nuspec#license) ve [.NET library guidance](https://learn.microsoft.com/dotnet/standard/library-guidance/nuget) |
 
@@ -310,6 +310,31 @@ gerekçeli geçiş kullanıldı.
 yeşil tamamlandı. `preview.2` dry-run'ı temiz worktree zorunluluğu nedeniyle
 commit öncesinde bilinçli olarak başlamadı; güvenlik kapısı aşılmadı. Canlı
 registry state'ini ölçmeden bu karar ✅ olmaz.
+
+#### `preview.2` yayın koşumu — 2026-09-20
+
+`v1.0.0-preview.2` etiketi koştu. **Paket yayınlandı** (`@tracon/client@1.0.0-preview.2`,
+`next` etiketiyle). **`Dagitim etiketini hizala` adımı kırmızı bitti:**
+
+```
+npm error 403 Forbidden - DELETE https://registry.npmjs.org/-/package/@tracon%2fclient/dist-tags/latest
+```
+
+Kök neden token değil, registry kuralıdır: npm `latest` dist-tag'ini **sildirmez**
+ve bir paketin **ilk** yayını `--tag next` verilse bile `latest`i o sürüme bağlar
+— canlıdaki `latest: 1.0.0-preview.1` böyle oluştu, adım da onu silmeye
+çalışıyordu. Silinemeyen bir etiket için tasarlanmış bir adım her preview turunda
+kırmızı olurdu.
+
+Kural değişti (A-42 satırı güncellendi): stable sürüm **varsa** preview `latest`e
+hiç dokunmaz; stable **yoksa** `latest` en yeni preview'e alınır. Eski bir etiket
+yeniden koşarsa dist-tag geri alınmaz — adım önce daha yeni bir yayın var mı diye
+sorar.
+
+`npm-publish` kırmızı bittiği için `github-release` işi **atlandı**: `preview.2`
+paketleri canlıda, GitHub release sayfası eksik. Kalan iş: düzeltme `main`e
+girdikten sonra `v1.0.0-preview.2` etiketi için workflow yeniden koşturulur;
+beklenen sonuç `latest: 1.0.0-preview.2` ve release sayfasının oluşması.
 
 Kapanış kanıtı: `python3 scripts/kapi.py kapanis --taban b76351fd` çıkış **0**;
 build **0 warning/0 error**, tüm .NET test projeleri yeşil, format ve paket
