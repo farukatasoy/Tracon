@@ -142,10 +142,25 @@ jobs:
       # değiştiyse koşar - `kapi.py performans`'ın kendi mantığı
       # (`performance_gate_triggered`) yeniden kullanılır, CI kendi diff
       # tabanını hesaplar (PR'de taban dal, push'ta önceki commit).
+      #
+      # 🚨 Bir ETIKET push'unda `github.event.before` KIRK SIFIRDIR - o commit
+      # yoktur, diff hesaplanamaz. Eskiden bu, aşağıdaki "taban çözülemedi"
+      # dalına düşer ve kapıyı KAZARA koşulsuz tetiklerdi. Sonuç ölçüldü
+      # (2026-09-20): kapı 21 push boyunca `skipped` kaldı, ilk gerçek koşumu
+      # ilk `v*` etiketi oldu ve orada düştü - yani yalnız yayın yolunda koşan,
+      # hiç denenmemiş bir kapıydı. Etiket artık AÇIKÇA ele alınır: etiketin
+      # gösterdiği commit main'de zaten derlenip ölçülmüştür, bu yüzden kapı
+      # etikette koşmaz. Kararı sıfır SHA'nın yan etkisine bırakmıyoruz.
       - name: Performans kapisi sicak yolu degisti mi?
         if: matrix.os == 'ubuntu-latest'
         id: perf-trigger
         run: |
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            echo "triggered=false" >> "$GITHUB_OUTPUT"
+            echo "etiket push'u - tahsis kapisi main'de olculdu, burada kosmaz"
+            exit 0
+          fi
+
           BASE="${{ github.event.pull_request.base.sha || github.event.before }}"
           if [ -z "$BASE" ] || ! git cat-file -e "$BASE" 2>/dev/null; then
             echo "triggered=true" >> "$GITHUB_OUTPUT"
