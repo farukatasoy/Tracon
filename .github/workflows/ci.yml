@@ -376,12 +376,23 @@ jobs:
         id: nuget_login
         uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1
         with:
-          # The nuget.org PROFILE NAME of the policy owner, not an email. The
-          # policy is owned by the Tracon organization and applies only to
-          # packages that organization owns, so this is the organization's
-          # profile name -- a personal name here would match a different
-          # owner's policy, or none.
-          user: Tracon
+          # 🚨 The nuget.org PROFILE NAME of the person who CREATED the policy,
+          # not the owner it applies to, and not an email. These are different
+          # things and the previous value confused them: the policy is OWNED by
+          # the Tracon organization, so `Tracon` looked like the right answer and
+          # the comment here even argued for it. Measured 2026-09-20 on the first
+          # tag that reached this step:
+          #
+          #   Token exchange failed (HTTP 401) ... Make sure you are using the
+          #   username of the policy creator, not the policy owner: No matching
+          #   trust policy owned by user 'Tracon' was found.
+          #
+          # nuget.org's own documentation says the same in fewer words: this is
+          # "your nuget.org username (profile name)" - the account that signs in
+          # and holds the policy. Policy OWNERSHIP (an individual or an org) only
+          # decides which packages the policy may publish; it never changes who
+          # exchanges the token.
+          user: farukatasoy
 
       - name: Yayinla
         run: >
