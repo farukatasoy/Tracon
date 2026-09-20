@@ -468,7 +468,32 @@ jobs:
       - name: Yayinla
         if: steps.exists.outputs.value == 'false'
         working-directory: packages/tracon-client
-        run: npm publish --access public
+        run: |
+          version="${{ steps.version.outputs.value }}"
+          if [[ "$version" == *-* ]]; then
+            npm publish --access public --tag next
+          else
+            npm publish --access public --tag latest
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # Preview surumleri ciplak `npm install` ile sessizce kurulmamalidir.
+      # Adim yayin zaten varken de kosar; yeniden denenen bir tag dist-tag'i
+      # duzeltir, immutable package byte'larina dokunmaz.
+      - name: Dagitim etiketini hizala
+        working-directory: packages/tracon-client
+        run: |
+          version="${{ steps.version.outputs.value }}"
+          if [[ "$version" == *-* ]]; then
+            npm dist-tag add "@tracon/client@$version" next
+            latest="$(npm view @tracon/client dist-tags.latest 2>/dev/null || true)"
+            if [[ "$latest" == *-* ]]; then
+              npm dist-tag rm @tracon/client latest
+            fi
+          else
+            npm dist-tag add "@tracon/client@$version" latest
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
@@ -543,11 +568,17 @@ jobs:
         if: steps.exists.outputs.value == 'false'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: >
-          gh release create "${{ github.ref_name }}"
-          --repo "${{ github.repository }}"
-          --title "${{ github.ref_name }}"
-          --notes-file release-notes.md
+          VERSION: ${{ github.ref_name }}
+        run: |
+          args=()
+          if [[ "$VERSION" == *-* ]]; then
+            args+=(--prerelease)
+          fi
+          gh release create "$VERSION" \
+            --repo "${{ github.repository }}" \
+            --title "$VERSION" \
+            --notes-file release-notes.md \
+            "${args[@]}"
 
   # ---------------------------------------------------------------------------
   # Dokuman sitesi (docs-site/) kapilari

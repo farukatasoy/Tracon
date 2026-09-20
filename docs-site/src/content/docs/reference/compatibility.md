@@ -4,11 +4,9 @@ description: A verified compatibility matrix for target frameworks, packages, AO
 slug: reference/compatibility
 ---
 
-:::caution[Package availability]
-Tracon packages and templates are not published yet. Package-install examples on
-this page describe the release form and do not currently resolve from public
-registries. With authorized repository access, use the
-[source build instructions](/getting-started/first-agent/).
+:::note[Preview packages]
+Tracon is published as `1.0.0-preview.2`. Use `--prerelease` for discovery or
+pin the exact version for reproducible builds.
 :::
 
 Use this page before you choose a target framework, database, model provider, or

@@ -30,13 +30,12 @@ playground, then read the recorded run event by event.
 Or start from the template, which writes a working application for you:
 
 ```bash
-dotnet new install Tracon.Templates@1.0.0-preview.N
+dotnet new install Tracon.Templates@1.0.0-preview.2
 dotnet new tracon-api -o MyAgents
 ```
 
-Replace `N` with the latest preview number on
-[nuget.org](https://www.nuget.org/packages/Tracon.Templates): `dotnet new install`
-has no `--prerelease`, so a preview template is reachable only by exact version.
+Check [nuget.org](https://www.nuget.org/packages/Tracon.Templates) before pinning a
+newer preview.
 
 ## What comes with it
 
@@ -46,7 +45,7 @@ has no `--prerelease`, so a preview template is reachable only by exact version.
 | `Tracon.Core` | Runtime: catalog, definition compiler, tool registry, run recording |
 | `Tracon.PostgreSql` | Persistence, and the vector store behind knowledge search |
 | `Tracon.OpenAI` | The OpenAI provider |
-| `Tracon.AspNetCore` | The HTTP API — 143 operations, layered access control |
+| `Tracon.AspNetCore` | The HTTP API — 168 operations, layered access control |
 | `Tracon.Workflows` | Multi-agent workflows, checkpoints, human-in-the-loop |
 | `Tracon.Mcp` | Tools from remote MCP servers |
 | `Tracon.UI` | The embedded management console — 30 screens, no `node_modules` |

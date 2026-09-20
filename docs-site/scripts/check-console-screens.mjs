@@ -1,5 +1,35 @@
-import { readFileSync, existsSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
+
+const screenshotStamp = '.ui-source.sha256';
+
+/** Hash every input that can change the rendered console screenshots. */
+export function computeUiSourceHash(sourceRoot) {
+  const frontendRoot = join(sourceRoot, 'Tracon.UI/frontend');
+  const files = [join(frontendRoot, 'package.json'), join(frontendRoot, 'package-lock.json')];
+  const pending = [join(frontendRoot, 'src')];
+
+  while (pending.length > 0) {
+    const directory = pending.pop();
+
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      const path = join(directory, entry.name);
+      if (entry.isDirectory()) pending.push(path);
+      else files.push(path);
+    }
+  }
+
+  const hash = createHash('sha256');
+  for (const file of files.sort()) {
+    hash.update(file.slice(frontendRoot.length));
+    hash.update('\0');
+    hash.update(readFileSync(file));
+    hash.update('\0');
+  }
+
+  return hash.digest('hex');
+}
 
 /**
  * Every console screen must have a section in the guide and a screenshot.
@@ -18,6 +48,15 @@ export function checkConsoleScreens(sourceRoot, docsRoot, siteRoot) {
   );
   const uiGuide = readFileSync(join(docsRoot, 'ui.md'), 'utf8');
   const screenshotRoot = join(siteRoot, 'public/screenshots');
+  const stampPath = join(screenshotRoot, screenshotStamp);
+  const expectedStamp = computeUiSourceHash(sourceRoot);
+
+  if (!existsSync(stampPath) || readFileSync(stampPath, 'utf8').trim() !== expectedStamp) {
+    errors.push(
+      `Console screenshots do not match the current UI source. Regenerate them and run ` +
+        '`node scripts/refresh-console-screenshot-stamp.mjs` from docs-site.',
+    );
+  }
 
   // `{ path: 'runs', label: 'nav.runs', english: 'Runs', ... }` — one entry per
   // screen, in the order the console shows them.

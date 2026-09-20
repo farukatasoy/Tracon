@@ -6,12 +6,17 @@
 >
 > **Son güncelleme:** 2026-09-20  
 > **Çalışma modu:** `nuget-danismani` — Yayın sonrası  
-> **🚨 GÜNCEL DURUM §4'ün başındaki 2026-09-20 YAYINLANDI bloğudur —
-> ✅ `1.0.0-preview.1` SEVK EDİLDİ.** Tag `v1.0.0-preview.1` → `f14f6309`;
+> **🚨 GÜNCEL DURUM iki bloktur.** ✅ `1.0.0-preview.1` **SEVK EDİLDİ** (§4
+> başı, YAYINLANDI bloğu) — fakat ❌ **DUYURU HÂLÂ YAPILMAMALI**: §4'teki
+> **2026-09-20 duyuru öncesi tüketici denetiminin** source ve doküman işleri
+> kapandı. Ancak immutable `preview.1` şablonu hâlâ `1.0.0` üretir (A-34) ve
+> npm'de `latest` hâlâ preview sürümünü gösterir (A-42). Duyurudan önce
+> düzeltmeler `preview.2` olarak yayımlanmalı ve npm dist-tag'leri canlıda
+> hizalanmalıdır. Yeni kalemler **A-34…A-58**. Tag `v1.0.0-preview.1` → `f14f6309`;
 > tag koşumu `35510131648` sekiz işin sekizinde de yeşil; `@tracon/client`
 > npm'de yayında, 20 NuGet paketi push edildi, GitHub release oluştu. Bu dosya
-> artık bir yayın **kararı** taşımıyor; yayın sonrası kayıt ve ilk 72 saat
-> planı (§14) için okunur. Yayın günü **üç kusur** bulundu ve üçü de kapandı —
+> artık bir **yayın** kararı taşımıyor — taşıdığı karar **duyuru** kararıdır;
+> yayın sonrası kayıt ve ilk 72 saat planı (§14) için okunur. Yayın günü **üç kusur** bulundu ve üçü de kapandı —
 > üçü de yalnız yayın yolunda koşan, o güne kadar hiç gerçek veri görmemiş
 > adımlardı: **A-29** (tahsis kapısı `/_`; CI'da 21 push boyunca `skipped`,
 > ilk koşumu tag'di), **A-32** (iptal edilen workflow `run`'ı hiç kapanmıyordu;
@@ -98,28 +103,28 @@
 Kaynak ölçümü `src/*/*.csproj` altında `IsPackable=false` olmayan **20** proje
 buldu. Artifact kimlik kümesi dry-run sonrasında ayrıca doğrulanacaktır.
 
-| Paket | Profil | Hedef TFM | İlk durum |
+| Paket | Profil | Hedef TFM | Yayın durumu |
 |---|---|---|---|
-| `Tracon` | Meta paket | `net8.0;net9.0;net10.0` dependency group | İnceleniyor |
-| `Tracon.Abstractions` | Library | `net8.0;net9.0;net10.0` | İnceleniyor |
-| `Tracon.Anthropic` | Provider adapter | `net8.0;net9.0;net10.0` | İnceleniyor |
-| `Tracon.AspNetCore` | HTTP/transport host | `net8.0;net9.0;net10.0` | İnceleniyor |
-| `Tracon.Azure` | Provider adapter | `net8.0;net9.0;net10.0` | İnceleniyor |
-| `Tracon.Cli` | .NET tool | `net10.0` | İnceleniyor |
-| `Tracon.Client` | Generated management client | `net8.0;net9.0;net10.0` | İnceleniyor |
-| `Tracon.Core` | Runtime | `net8.0;net9.0;net10.0` | İnceleniyor |
-| `Tracon.Google` | Provider adapter | `net8.0;net9.0;net10.0` | İnceleniyor |
-| `Tracon.Mcp` | MCP client/tool integration | `net8.0;net9.0;net10.0` | İnceleniyor |
-| `Tracon.OpenAI` | Provider adapter | `net8.0;net9.0;net10.0` | İnceleniyor |
-| `Tracon.PostgreSql` | Storage provider | `net8.0;net9.0;net10.0` | İnceleniyor |
-| `Tracon.SqlServer` | Storage provider | `net8.0;net9.0;net10.0` | İnceleniyor |
-| `Tracon.Sqlite` | Storage provider | `net8.0;net9.0;net10.0` | İnceleniyor |
-| `Tracon.Templates` | `dotnet new` content package | `net10.0` build host | İnceleniyor |
-| `Tracon.Testing` | Test helper library | `net10.0` | İnceleniyor |
-| `Tracon.Testing.Contracts.Xunit` | Reusable contract suite | `net8.0;net9.0;net10.0` | İnceleniyor |
-| `Tracon.UI` | Embedded UI | `net8.0;net9.0;net10.0` | İnceleniyor |
-| `Tracon.Voice` | Voice tool library | `net8.0;net9.0;net10.0` | İnceleniyor |
-| `Tracon.Workflows` | Workflow runtime | `net8.0;net9.0;net10.0` | İnceleniyor |
+| `Tracon` | Meta paket | `net8.0;net9.0;net10.0` dependency group | ✅ `1.0.0-preview.1` |
+| `Tracon.Abstractions` | Library | `net8.0;net9.0;net10.0` | ✅ `1.0.0-preview.1` |
+| `Tracon.Anthropic` | Provider adapter | `net8.0;net9.0;net10.0` | ✅ `1.0.0-preview.1` |
+| `Tracon.AspNetCore` | HTTP/transport host | `net8.0;net9.0;net10.0` | ✅ `1.0.0-preview.1` |
+| `Tracon.Azure` | Provider adapter | `net8.0;net9.0;net10.0` | ✅ `1.0.0-preview.1` |
+| `Tracon.Cli` | .NET tool | `net10.0` | ✅ `1.0.0-preview.1` |
+| `Tracon.Client` | Generated management client | `net8.0;net9.0;net10.0` | ✅ `1.0.0-preview.1` |
+| `Tracon.Core` | Runtime | `net8.0;net9.0;net10.0` | ✅ `1.0.0-preview.1` |
+| `Tracon.Google` | Provider adapter | `net8.0;net9.0;net10.0` | ✅ `1.0.0-preview.1` |
+| `Tracon.Mcp` | MCP client/tool integration | `net8.0;net9.0;net10.0` | ✅ `1.0.0-preview.1` |
+| `Tracon.OpenAI` | Provider adapter | `net8.0;net9.0;net10.0` | ✅ `1.0.0-preview.1` |
+| `Tracon.PostgreSql` | Storage provider | `net8.0;net9.0;net10.0` | ✅ `1.0.0-preview.1` |
+| `Tracon.SqlServer` | Storage provider | `net8.0;net9.0;net10.0` | ✅ `1.0.0-preview.1` |
+| `Tracon.Sqlite` | Storage provider | `net8.0;net9.0;net10.0` | ✅ `1.0.0-preview.1` |
+| `Tracon.Templates` | `dotnet new` content package | `net10.0` build host | ✅ `1.0.0-preview.1` |
+| `Tracon.Testing` | Test helper library | `net8.0;net9.0;net10.0` | ✅ `1.0.0-preview.1` |
+| `Tracon.Testing.Contracts.Xunit` | Reusable contract suite | `net8.0;net9.0;net10.0` | ✅ `1.0.0-preview.1` |
+| `Tracon.UI` | Embedded UI | `net8.0;net9.0;net10.0` | ✅ `1.0.0-preview.1` |
+| `Tracon.Voice` | Voice tool library | `net8.0;net9.0;net10.0` | ✅ `1.0.0-preview.1` |
+| `Tracon.Workflows` | Workflow runtime | `net8.0;net9.0;net10.0` | ✅ `1.0.0-preview.1` |
 
 Not: K-602'nin metni 19 paket der. Güncel kaynak 20 paket gösterir. Yeni paket
 eklendiğinde kimlik kümesini dinamik çıkaran kapı bunu kapsar. Karar metnindeki
@@ -181,7 +186,141 @@ Sıralama (geri dönüşü olan kanal önce) tasarlandığı işi yaptı — RK-
 ---
 
 
-### 🚨 GÜNCEL KARAR — 2026-09-20 (`nuget-danismani`, tag sonrası yayın turu)
+### 🚨 GÜNCEL KARAR — 2026-09-20 (`nuget-danismani`, duyuru öncesi tüketici denetimi)
+
+**❌ Bugün duyurulmamalı.** Paket artifact'i sağlamdır; **tüketicinin ilk yarım
+saati** kırıktır. İki bağımsız 🔴 var ve ikisi de aynı yerde buluşuyor — duyuruyu
+okuyan kişinin tıkladığı ilk iki yüzey:
+
+1. **`dotnet new tracon-api` restore edilemeyen bir proje üretiyor** (A-34).
+   Sevk edilen şablon `Version="1.0.0"` yazıyor; o sürüm nuget.org'da **yok**.
+2. **Sevk edilen dokümantasyon hâlâ "yayınlanmadı" diyor** (A-35…A-38).
+   `tracon.dev` ana sayfası ilk ekranda *"In development. Not yet published to
+   NuGet or npm."* diyor ve **aynı sayfanın** aşağısında *"The packages are
+   published as `1.0.0-preview.1`"* diyor.
+
+Bu tur **artifact'i yeniden yargılamadı** — 2026-09-20 YAYINLANDI bloğu geçerli.
+Yargılanan şey **tüketicinin gördüğü yüzeydir**: nuget.org · GitHub ·
+tracon.dev · paketten tüketim · npm.
+
+#### Ölçülen kanıtlar
+
+| Ne | Nasıl ölçüldü | Sonuç |
+|---|---|---|
+| Şablondan tüketim | Repo **dışında** temiz dizin, `<clear/>` + yalnız nuget.org, izole `NUGET_PACKAGES` | `dotnet new install Tracon.Templates` ✅ (`--prerelease` gerekmiyor) → `dotnet new tracon-api` **`NU1102`** |
+| Elle kurulum | Aynı izole dizin | `dotnet add package Tracon --prerelease` → `1.0.0-preview.1`, `dotnet build` **0 uyarı** ✅ |
+| Çalışma anı | `dotnet run`, `curl` | `/tracon/api/meta` → `"version":"1.0.0-preview.1"`, bellek içi store fallback ✅ |
+| Konsol | Playwright, temiz `localStorage` | `<html lang="en">`, "Dashboard" — İngilizce ✅ (ilk ölçümdeki Türkçe **yerel makinenin** `tracon.locale=tr` kalıntısıydı) |
+| Anahtarsız hata | `POST /api/agents/support/run` | *"No model provider named 'openai' is registered… call `builder.AddTracon().UseOpenAI(apiKey)`"* — düzeltmeyi **adıyla** söylüyor ✅ |
+| CLI | `dotnet tool install --tool-path … Tracon.Cli --prerelease` | Kuruldu ve koştu ✅ |
+| README kod bloğu | Yayınlanan pakete karşı **derlendi** | `README.md:118` → **`CS1501: No overload for method 'ResolveAsync' takes 1 arguments`** |
+| Konsol ağırlığı | `wwwroot/assets/*.js.br` → brotli aç → gzip -9 (kapının yöntemi) | **193,2 KB** / 250 KB. README **184,1** der, site **192,4** der |
+| Ekran ve rota | `app.tsx` ayrıştırıldı | **30 ekran · 36 rota** — README doğru ✅ |
+| Paket sayısı | `src/*/*.csproj`, `IsPackable=false` hariç | **20** ✅ · nuget.org arama indeksi **21 hit** (yetişti) ✅ |
+| `AgentPrism` | Tüm repo `git grep -i` + canlı HTML | Sevk edilen yüzeyde **0** ✅ (`site.config.mjs:34` kasıtlı **deny-list**) |
+| Dil sınırı (K-228) | `docs-site/src`, canlı HTML, `llms*.txt`, paket README'leri | **0 Türkçe** ✅ |
+| Lisans | 5 `.nupkg` içi + npm + site + README | Dört yüzeyde tutarlı ✅ |
+| `releaseNotes` çapası | `https://tracon.dev/reference/changelog/#v1.0.0-preview.1` | `id="v1.0.0-preview.1"` **var** ✅ |
+| 20 paket sayfası (canlı) | Her biri tek tek açıldı | 20/20 açılıyor · README render ediyor · icon · tag · `projectUrl` · **Prefix Reserved** · ön sürüm bandı ✅ Fazladan sürüm **yok** (flat container 20/20 yalnız `1.0.0-preview.1`) |
+| Sembol paketleri | `globalcdn.nuget.org/symbol-packages/*` | **18/18** `200`. Eksik ikisi (`Tracon`, `Tracon.Templates`) assembly taşımıyor ⇒ doğru ✅ |
+| Source Link | PDB doküman tabloları | `raw.githubusercontent.com/farukatasoy/Tracon/f14f6309…` → `200`; repo public, commit tag'le **eşleşiyor** ✅ |
+| K-008 (ön sürüm yoğunlaşması) | 20 paketin tamamı tarandı | Tracon dışı ön sürüm bağımlılığı **yalnız** `Tracon.AspNetCore`'da, **5 adet** — kural **tutuyor** ✅ |
+| README taşınabilirliği | 20 README, canlı sayfa | **0 göreli link · 0 resim · 0 ham HTML · 0 anchor-only link**; tablolar render ediyor ✅ (tek istisna A-55) |
+| Bağımlılık grupları | Çok-TFM 17 paket | net8/9/10 grupları **birebir aynı**, `lib/` üçünde de dolu ✅ |
+
+#### Bulgular
+
+| # | Bulgu | Seviye | Kök sebep | Kanal | Duyuruyu bloklar |
+|---|---|---|---|---|---|
+| **A-34** | **`dotnet new tracon-api` restore edilemiyor.** Sevk edilen `template.json` `defaultValue: "1.0.0"`; nuget.org'da yalnız `1.0.0-preview.1` var ⇒ `NU1102`. Her seçenek kombinasyonunda, her ek paket referansında tekrarlanır | 🔴 | `TraconStampTemplateVersionDefault` (`Tracon.Templates.csproj:119`) `BeforeTargets="_GetPackageFiles;GenerateNuspec"`; **`_GetPackageFiles` MinVer'den ÖNCE koşar** ⇒ `$(Version)` hâlâ SDK varsayılanı `1.0.0`. Kardeş hedef `TraconSetPackageReleaseNotes` (`src/Directory.Build.props:120`) yalnız `GenerateNuspec` kullanır ve **doğru** çalışır — kendi yorumu "`GenerateNuspec` … son nokta" der. **Kapı neden görmedi:** `<Error>` yalnız yer tutucunun *bulunduğunu* doğrular, ikamenin doğru sürümü ürettiğini değil; `TemplateFixture.cs:135` **her zaman** `--TraconVersion {Version}` + `--skip-restore` geçer ⇒ tüketicinin aldığı **varsayılan hiç koşulmadı**. 🚨 **Ağırlaştırıcı:** `dotnetcli.host.json` `TraconVersion`'ı `isHidden: "true"` yapıyor ⇒ `dotnet new tracon-api -h` **dört** seçenek gösteriyor, `--TraconVersion` **sıfır** kez geçiyor. Tek kurtuluş `NU1102`'nin kendi metnindeki "Nearest version" ipucuyla `.csproj`'u elle düzenlemek | `kusur-giderme` | **EVET** |
+| **A-35** | **Sevk edilen metin "yayınlanmadı" diyor — 18 dosya.** `Hero.astro:14` *"In development. Not yet published to NuGet or npm."* (**ilk ekran**) · `Footer.astro:13` (**1150 sayfanın hepsi**) · `index.mdx:183` · `README.md:219` **"## Installation / Not published yet"** · + 14 sayfa `:::caution`. Ana sayfa **kendi içinde çelişiyor** | 🔴 | Premis üç katmana gömülü (component · sayfa admonition'ı · config flag); `b76351fd` yalnız **düzyazıyı** düzeltti | `tuketici-dokuman-senkronu` | **EVET** |
+| **A-36** | **Kanonik ilk rehber kaynak checkout'u öğretiyor.** `getting-started/first-agent.md`: açıklaması *"Build a Tracon host from an authorized source checkout"*, ön koşulu *"An authorized checkout"*, adımı `dotnet add reference ../Tracon/src/…csproj`. `dotnet add package` / `dotnet new tracon-api` **sıfır kez** geçiyor. Repo **public**, paketler **canlı** — sitenin söylemediği iki çıkış yolu da açık | 🔴 | Rehber yayın öncesi yazıldı, yayın sonrası yeniden yazılmadı | `tuketici-dokuman-senkronu` | **EVET** |
+| **A-37** | **Troubleshooting, sebep olduğu hataya yanlış cevap veriyor.** `troubleshooting.md:64`, *"NuGet says no stable version exists"* başlığı altında: *"Tracon has not been published yet: no version exists on NuGet at all… Build from a clone"*. Doğru tek satırlık çözüm (`--prerelease`) gelecek zamanlı bir ihtimal olarak sunuluyor | 🔴 | A-35 ile aynı premis; ama bu sayfa **zaten takılmış** tüketiciyi yanlış yöne yolluyor | `tuketici-dokuman-senkronu` | **EVET** |
+| **A-38** | **Site'den ürüne hiçbir link yok.** 1150 sayfanın hiçbirinde nuget.org, github.com veya npm linki yok. Kök sebep `site.config.mjs:51` `repositoryIsPublic = false`; `check-content.mjs:1303` repo linkini **derlemeyi kırarak** yasaklıyor, Starlight `editLink`/GitHub ikonu kapalı. Flag'in kendi yorumu "Make the repository public and flip the flag" der; repo 2026-09-19'da public oldu | 🔴 | Flag elle bakımlı, gerçeğe bağlı değil | `kusur-giderme` (flag) + `tuketici-dokuman-senkronu` (linkler) | **EVET** |
+| **A-39** | **README'nin amiral kod bloğu derlenmiyor.** `README.md:118` `await catalog.ResolveAsync("support")` → yayınlanan pakete karşı **`CS1501`**. `IAgentCatalog.ResolveAsync`'in iki aşırı yüklemesi var, ikisi de ≥2 argüman ister | 🟡 | Blok elle yazılmış, derlenen bir örnekten üretilmiyor | `kusur-giderme` | hayır |
+| **A-40** | **GitHub deposu anonim.** `description: null` · `homepage: null` · `topics: []` · Discussions **kapalı**. `og:description` *"Contribute to farukatasoy/Tracon development…"*'a düşüyor ⇒ paylaşılan her duyuru linki jenerik kart olarak önizleniyor. Release `prerelease: false` ⇒ "Latest" rozeti taşıyor | 🟡 | Depo public yapılırken metadata doldurulmadı | Manuel müdahale | hayır (ama duyurunun **bedeli**) |
+| **A-41** | **npm README'si SSE'yi "desteklenmiyor" diyor; paket destekliyor.** README *"call these with your own `EventSource`"* diyor; paket `readSse`/`SseDecoder` **export ediyor** ve `sse.d.ts:8` `EventSource`'un `Authorization` header'ı gönderemediğini ve POST edemediğini yazıyor ⇒ tüketici **imkânsız** bir yola yollanıyor. Ayrıca "Six operations", gerçek **yedi** | 🟡 | `packages/tracon-client/README.md` Faz 159 öncesi sürümde kalmış; site rehberi güncel | `tuketici-dokuman-senkronu` | hayır |
+| **A-42** | **npm `latest` bir ön sürümü gösteriyor.** Çıplak `npm install @tracon/client` sessizce preview kurar ve `^1.0.0-preview.1` **floating** aralık yazar — sitenin kendi `versioning` sayfası floating aralıktan kaçınmayı söyler. NuGet tarafında `--prerelease` **zorunlu**; iki ekosistem zıt davranıyor ve bu hiçbir yerde yazılı değil | 🟡 | Yayın `--tag next` yerine varsayılan `latest` ile yapıldı | Ürün kararı + `tuketici-dokuman-senkronu` | hayır |
+| **A-43** | **npm `package.json`'da `repository`, `bugs`, `keywords` yok.** npm sayfası "Keywords: none" gösteriyor; `npm repo` çalışmıyor; provenance/attestation `repository` olmadan mümkün değil | 🟡 | — | `kusur-giderme` | hayır |
+| **A-44** | **Konsol ekran görüntüleri 10 arayüz commit'i bayat.** `docs-site/public/screenshots/` 40 dosyanın hepsi 2026-09-15 (`ada74d11`); o tarihten sonra `src/Tracon.UI/frontend/` 10 commit aldı (onay adımı, streaming caret, admin panelleri). `check-console-screens.mjs:55` yalnız `existsSync` bakar | 🟡 | Kapı **varlığı** ölçüyor, **tazeliği** değil | `kusur-giderme` (kapı) + yeniden çekim | hayır |
+| **A-45** | **Konsol ağırlığı üç yerde üç farklı.** Ölçülen **193,2 KB** gzip (kapının yöntemi) · `README.md` **184,1** · `ui.md:392` **192,4**. `kalite-sozlesmesi.md:201` 184,1'i "yalnız düşer" diye kaydeder — gerçek **yükseldi** ve kimse görmedi | 🟢 | Sayı üç yerde elle tutuluyor, ölçüme bağlı değil | `tuketici-dokuman-senkronu` + kapı | hayır |
+| **A-46** | **`README.md:183` `Tracon.Voice` için "Zero NuGet dependencies" diyor**; sevk edilen `.nuspec`'te `Tracon.Core` bağımlılığı var. Paketin **kendi** README'si doğru yazıyor ("`Tracon.Core` is the only dependency… no third-party NuGet"). A-25 bu kalemi **kapandı** diye kaydetmişti — site ve paket README'si düzeldi, kök README atlandı | 🟢 | Sınıf taraması kök README'yi kapsamadı | `tuketici-dokuman-senkronu` | hayır |
+| **A-47** | **README'de üç bayat sayı.** `:338` "671 public types" (site: **764**) · `:310` "20 test projects" (çözümde **23**, koşan **22**) · `:192` CLI listesi `agent-skill`'i **atlıyor** (6 komutun 5'i) · `:282` yol haritası "release phase stays open" diyor | 🟢 | Elle tutulan sayılar | `tuketici-dokuman-senkronu` | hayır |
+| **A-48** | **`samples/` giriş noktasından görünmez.** 6 extension sample + 6 test projesi; **hiçbirinde README yok**, **hiçbiri `Tracon.slnx`'te değil**, kök README yalnız `samples/Tracon.Api`'yi linkliyor — onun da README'si yok. README:192 "derive from them to verify your own `IRunStore`…" diye **reklamını yapıyor** | 🟢 | — | `faz-planlama` | hayır |
+| **A-49** | **`SourceLanguageTests` sevk edilen altı yüzeyi görmüyor:** `CHANGELOG.md`, `SECURITY.md`, `.github/**`, `samples/**/*.md`, `docs-site/**`, release notu. Bugün **hepsi temiz** — ama kapı bir regresyonu yakalayamaz | 🟢 | `ScanRoots` + `ScannedRootFiles` dar | `kusur-giderme` (kapı) | hayır |
+| **A-50** | **`check:weight` 277 B boşlukta.** `troubleshooting/index.html` 58 723 B / 59 000 B. 🚨 **A-37'nin düzeltmesi tam bu sayfayı düzenliyor** — tavan önce bilinçli yükseltilmeli | 🟢 | — | `kusur-giderme` | hayır |
+| **A-51** | **Yerel ortam kalıntısı:** `~/.nuget/NuGet/NuGet.Config` hâlâ `agentprism-local` feed'i taşıyor. Sevk edilen hiçbir şeyde değil, ama MEMORY.md'nin "yeniden adlandırma yerel ortamı geride bırakır" sınıfının **beşinci** vakası. Bu denetimin ilk şablon koşumunu da kirletti | 🟢 | — | Manuel müdahale | hayır |
+| **A-52** | **`Tracon.Client` `Description`'ı kendi bağımlılık tablosuyla çelişiyor.** nuspec: *"Takes no Tracon package and **no NuGet package**."* Gerçek: `Microsoft.Extensions.DependencyInjection.Abstractions 10.0.11`. Paketin **kendi README'si doğru** yazıyor ("**One** NuGet package"), kök `README.md:191` de doğru. Yanlış olan yalnız nuspec `Description`'ı — sayfanın en üstünde ve arama sonucunda görünen metin | 🟡 | "one" → "no" düzenleme kayması | `kusur-giderme` (`src/Tracon.Client/*.csproj`) | hayır |
+| **A-53** | **`Tracon.AspNetCore/README.md:20` "143 operations over 112 paths" diyor.** Gerçek **168 operasyon / 130 yol** — ve bunu ispatlayan OpenAPI dokümanı **aynı `.nupkg`'in içinde** (`buildTransitive/tracon.json`). Meta paketin README tablosu da 143'ü tekrarlıyor. Site ve landing sayfası 168 diyor ve kapılı | 🟡 | Sayı elle tutuluyor; `check-content.mjs` yalnız **site** sayfalarını ve landing metriklerini ölçüyor, paket README'lerini değil | `tuketici-dokuman-senkronu` + kapıyı `src/*/README.md`'ye genişlet | hayır |
+| **A-54** | **`Tracon.Abstractions/README.md:20` "64 interfaces and roughly 280 public types" diyor.** Sevk edilen `lib/net10.0/Tracon.Abstractions.xml`'den ölçüldü: **429 dokümante public tip**, **85** `I<Upper>` adlı arayüz (bağımsız reflection ölçümü 418 exported tip / 85 arayüz). Arayüz +%33, tip +%50 eksik sayılmış. Bu paketin **tek işi** "işte uygulayacağın sözleşmeler" demek | 🟡 | A-53 ile aynı sınıf | `tuketici-dokuman-senkronu` | hayır |
+| **A-55** | **nuget.org Mermaid basmıyor — `Tracon.Core` sayfasında diyagram yerine DSL kaynağı görünüyor.** Canlı HTML: `<pre><code class="language-mermaid">flowchart LR … A["Agent sources&lt;br/&gt;code + database"]` — okuyucu düz metin bir blok ve içinde literal `&lt;br/&gt;` görüyor. 20 README'nin **1'i** (`src/Tracon.Core/README.md:37`). GitHub'da doğru render ettiği için fark edilmedi | 🟡 | 🚨 `AGENTS.md`'nin "**her diyagram Mermaid**" kuralının **paket README'si istisnası yok**; nuget.org kısıtlı Markdown'dır | `tuketici-dokuman-senkronu` + kuralı `AGENTS.md`'de daralt | hayır |
+| **A-56** | **İki paket README'sinde kopyalanamayan kurulum komutu:** `dotnet new install Tracon.Templates@1.0.0-preview.N` (`src/Tracon/README.md:33`, `src/Tracon.Templates/README.md:8`). `N` literal yer tutucu; hemen ardından açıklanıyor, ama artık **tek** sürüm var ⇒ yer tutucu hiçbir şey kazandırmıyor, bir başarısız yapıştırma maliyeti getiriyor. `A-19`'un kapısı (`--prerelease`/`--version` varlığı) bunu **geçerli** sayıyor | 🟢 | Kapı bayrağın **varlığını** ölçüyor, sürümün **çözülüp çözülmediğini** değil | `tuketici-dokuman-senkronu` | hayır |
+| **A-57** | **`tracon --version` yok** — `Unknown command '--version'` döner. Kurulumu doğrulamak için ilk yazılan komut budur; `dotnet tool list -g` dolaylı çözüm | 🟢 | — | `kusur-giderme` | hayır |
+| **A-58** | **nuget.org kenar çubuğu 20 pakette de yalnız jenerik "License Info" gösteriyor**, çünkü hepsi SPDX ifadesi yerine `license type="file"` kullanıyor. Tüketici sayfa mobilyasından 17 paketin **gelir tavanlı source-available** olduğunu göremez; yalnız README gövdesinde yazıyor. PolyForm'un SPDX kimliği var (`PolyForm-Small-Business-1.0.0`) ve npm paketi onu **zaten kullanıyor** | 🟢 | İki kanal iki farklı lisans ifade biçimi kullanıyor | Ürün kararı + `kusur-giderme` | hayır |
+
+#### Bu turun sınıfı: **premis bayatladı, metin değil**
+
+A-34 · A-35 · A-36 · A-37 · A-38 tek bir cümlenin çocuklarıdır: *"Tracon henüz
+yayınlanmadı."* O cümle 2026-09-20 12:44'te yanlış oldu. `b76351fd` **iki**
+düzyazı cümlesini düzeltti; premis ise **beş ayrı mekanizmaya** gömülüydü:
+Astro component'i · sayfa admonition'ı · config flag'i · MSBuild hedefi ·
+şablon varsayılanı. Hiçbir kapı bunu göremez çünkü **hiçbir kapı registry'ye
+bakmıyor** — "yayınlandı mı?" sorusunun CI'da bir ölçümü yok.
+
+🚨 **Ders:** yayın gününün üç kusuru (A-29 · A-32 · A-33) "yalnız tag yolunda
+koşan adımlar" sınıfındandı. Bu turun beş kusuru onun **ikizi**: *yalnız yayın
+GERÇEKLEŞTİĞİNDE yanlışlanabilen iddialar.* İkisi de aynı boşluğu gösterir —
+gerçek dünyayla ilk teması yayın anında olan hiçbir iddianın kapısı yok.
+
+#### Doküman drift (bu dosyanın kendisi)
+
+- **Kapandı.** §3 artık `Tracon.Testing` için `net8.0;net9.0;net10.0` yazar.
+  Envanterin 20 satırı da yayımlanan `1.0.0-preview.1` sürümünü gösterir.
+
+#### Kapanış — 2026-09-20
+
+**Source tarafındaki 25 kalemin 25'i sonuçlandı.** 23 kalem tam kapandı. A-34
+ve A-42 için kalıcı source düzeltmesi hazırdır; ancak registry'deki mevcut
+artefact ve dist-tag immutable/live state olduğu için duyuru kararı henüz
+yeşil değildir.
+
+| Aralık | Sonuç | Kanıt |
+|---|---|---|
+| **A-34** | 🟡 **Source kapandı, live açık.** Şablon stamp hedefi artık MinVer'den sonra koşar; gizli `TraconVersion` seçeneği görünürdür. Packed-consumer testi sürümü override etmeden gerçek `.nupkg`'i kurar ve üretilen projeyi restore/build eder. Mevcut `preview.1` paketi değiştirilemez; düzeltme `preview.2` ister | `TemplateInstantiationTests` **3/3**; minimal ve full şablon build'i yeşil |
+| **A-35…A-41** | ✅ Kapandı | Site artık yayını ve public giriş yollarını anlatır; `tracon.dev` yeniden deploy edildi ve canlıdan doğrulandı. README örneği derlenir; GitHub metadata/Discussions/release türü canlıda düzeltildi; npm SSE README'si gerçek API'yi anlatır. Canlı kontrolde bulunan çift source-path'li `Edit page` URL'si de düzeltildi ve rendered URL kalıcı kapıya alındı |
+| **A-42** | 🟡 **CI ve doküman kapandı, live açık.** Preview yayınları bundan sonra `next` alır; workflow `latest` bir preview'e bakıyorsa onu kaldırır. Kurulum metni `@next` kullanır. Yerel ortam npm'e authenticated olmadığı için mevcut canlı `latest` bu turda değiştirilemedi | `npm view @tracon/client dist-tags --json` → `latest: 1.0.0-preview.1`; `npm whoami` → `E401` |
+| **A-43…A-57** | ✅ Kapandı | npm metadata, screenshot tazelik hash'i, tek ağırlık ölçümü, paket/README sayıları, sample kataloğu, dil ve operation-count kapıları, NuGet-uyumlu diyagram, exact kurulum sürümü ve `tracon --version` eklendi |
+| **A-58** | ✅ **Değişiklik gerektirmiyor.** NuGet license expression yalnız SPDX değil, NuGet'in kabul ettiği OSI/FSF lisansları için kullanılabilir. PolyForm bu kümede değildir. `PackageLicenseFile` doğru ve doğrulanabilir sunumdur | [NuGet nuspec `license` sözleşmesi](https://learn.microsoft.com/nuget/reference/nuspec#license) ve [.NET library guidance](https://learn.microsoft.com/dotnet/standard/library-guidance/nuget) |
+
+Kalıcı kapılar da genişledi: template testi artık packed default'u ölçer;
+`check-content.mjs` README çağrı imzasını ve paket README operation count'larını
+denetler; screenshot kapısı UI source hash'ini doğrular; `SourceLanguageTests`
+sevk edilen ek yüzeyleri tarar; CI preview/stable release ve npm dist-tag
+politikasını birbirinden ayırır.
+
+`dokuman-bakim.py --site-denetle` içindeki `cekirdek-kavram` kuralı
+`Tracon.Abstractions/README.md` değişikliği nedeniyle tetiklendi. Değişiklik
+yalnız ölçülen interface/public type sayısını günceller; kavram, davranış veya
+public contract değiştirmez. Bu nedenle `concepts/` sayfası değişmedi ve
+gerekçeli geçiş kullanıldı.
+
+**Duyuru için kalan sıra:** temiz commit üzerinde `preview.2` yayın dry-run'ı →
+`1.0.0-preview.2` yayını → authenticated npm dist-tag doğrulaması → dışarıdan
+`dotnet new tracon-api` restore/build smoke. Tam kapanış ve site deploy bu turda
+yeşil tamamlandı. `preview.2` dry-run'ı temiz worktree zorunluluğu nedeniyle
+commit öncesinde bilinçli olarak başlamadı; güvenlik kapısı aşılmadı. Canlı
+registry state'ini ölçmeden bu karar ✅ olmaz.
+
+Kapanış kanıtı: `python3 scripts/kapi.py kapanis --taban b76351fd` çıkış **0**;
+build **0 warning/0 error**, tüm .NET test projeleri yeşil, format ve paket
+kapıları yeşil. Site **1151 sayfa**, **189.663** internal reference, **0** kırık
+link, SEO **0 hata** ve tüm sayfalar 59.000 B gzip tavanının altında. İki
+`scripts/site-deploy.sh` koşumu çıkış **0**; son koşum doğru GitHub edit URL'sini,
+NuGet/npm/GitHub bağlantılarını ve yayın metnini canlıya taşıdı.
+
+---
+
+### Önceki karar — 2026-09-20 (`nuget-danismani`, tag sonrası yayın turu)
 
 **❌ Bu tag'den yayın çıkmaz — `1.0.0-preview.1`.** Açık bir **ürün** 🔴'si
 yoktur; artifact `75478786`'dan yeniden ölçüldü ve temiz. Blocker **CI'ın tag
@@ -1467,7 +1606,7 @@ kapanmalıdır:
 |---|---|---|
 | Yayın öncesi | **Tamamlandı (2026-09-03)** | Sorumlu: tek bakımcı (`farukatasoy`). Güvenlik kanalı `SECURITY.md` (özel e-posta, 72 saat içinde onay); kusur kanalı GitHub issue şablonları (bug · dokümantasyon). ✅ **Repo public yapıldı (2026-09-19), ∴ ikisi de artık dış tüketiciye görünür** — 2026-09-03'te kabul edilen boşluk kapandı |
 | **Sevk anı (2026-09-20)** | **Tamamlandı** | Tag `f14f6309`; koşum `35510131648` 8/8 yeşil; npm `latest` = `1.0.0-preview.1`; 20 NuGet paketi push edildi; GitHub release oluştu. 🚨 nuget.org indeksi push'tan **sonra** dolar — o andaki `404` bir kusur değildir |
-| 0–2 saat | **Sıradaki** | NuGet.org paket sayfaları, dependency graph, README/icon/license, symbol görünürlüğü ve temiz makinede install doğrulanır |
+| 0–2 saat | **Tamamlandı (2026-09-20) — ❌ DUYURMA** | `nuget-danismani` duyuru öncesi tüketici denetimi koştu: beş yüzey (nuget.org · GitHub · tracon.dev · paketten tüketim · npm). Artifact **temiz**; lisans, dil sınırı (K-228), `AgentPrism` taraması, 20 paket · 168 operasyon · 30 ekran · 36 rota ve `releaseNotes` çapası **doğrulandı**. **Giriş yolu kırık:** A-34 (`dotnet new tracon-api` → `NU1102`) ve A-35…A-38 (sevk edilen doküman hâlâ "yayınlanmadı" diyor). 25 yeni kalem **A-34…A-58**; beş 🔴 duyuruyu bloklar. 20 paket sayfası tek tek gezildi: sembol paketleri 18/18, Source Link `f14f6309`'da çözülüyor, K-008 tutuyor. Bkz. §4, 2026-09-20 duyuru öncesi tüketici denetimi bloğu |
 | 2–24 saat | Bekliyor | Restore/build/runtime sorunları, issue'lar, dependency ve security uyarıları izlenir; doğrulanmış kritik kusurda yeni indirmeler için deprecation değerlendirilir |
 | 24–48 saat | Bekliyor | İlk tüketici geri bildirimi public API, docs ve extension ergonomisi sınıflarına ayrılır; preview compatibility etkisi yazılır |
 | 48–72 saat | Bekliyor | Patch/sonraki preview kararı verilir; release retrospective ve risk kaydı güncellenir |

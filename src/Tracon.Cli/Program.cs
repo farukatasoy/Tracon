@@ -1,3 +1,4 @@
+using System.Reflection;
 using Tracon.Cli.Commands;
 
 namespace Tracon.Cli;
@@ -10,6 +11,12 @@ internal static class Program
         {
             PrintHelp();
             return args.Length == 0 ? 1 : 0;
+        }
+
+        if (args[0] is "--version" or "-v")
+        {
+            PrintVersion();
+            return 0;
         }
 
         using var cancellation = new CancellationTokenSource();
@@ -51,6 +58,17 @@ internal static class Program
         return 1;
     }
 
+    private static void PrintVersion()
+    {
+        var informationalVersion = typeof(Program).Assembly
+            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
+            .InformationalVersion;
+
+        Console.WriteLine(informationalVersion?.Split('+', 2)[0]
+            ?? typeof(Program).Assembly.GetName().Version?.ToString()
+            ?? "unknown");
+    }
+
     private static void PrintHelp()
     {
         Console.WriteLine(
@@ -58,6 +76,7 @@ internal static class Program
             tracon - Tracon management CLI
 
             Usage:
+              tracon --version
               tracon migrate --provider <postgres|sqlserver|sqlite> --connection <connection-string>
               tracon migrate status --provider <postgres|sqlserver|sqlite> --connection <connection-string>
               tracon state-check --provider <postgres|sqlserver|sqlite> --connection <connection-string>
