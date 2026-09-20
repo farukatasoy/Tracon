@@ -102,6 +102,20 @@ public interface ILiveVoiceProvider
 /// a new <see cref="LiveVoiceAppendChannel"/> value rather than as a new interface
 /// member, so the record and the enum grow while the interface does not.
 /// </para>
+/// <para>
+/// <strong>Disposal races the pump.</strong> The host may call <see cref="IAsyncDisposable.DisposeAsync"/>
+/// from a caller-initiated close while the single pump described above still has an
+/// outstanding <see cref="ReceiveAsync"/> call in flight — closing a session does not
+/// wait for the pump to notice first. An implementation over a transport with its own
+/// two-way close (a <c>ClientWebSocket</c>, for one) must not call that two-way close
+/// from its own dispose: it typically reads as part of completing the close
+/// handshake, and a second, concurrent reader racing the pump's own read can consume a
+/// message the pump never sees, even though the two-way call itself reports success.
+/// Send a one-way close signal instead (<c>CloseOutputAsync</c> on a
+/// <c>ClientWebSocket</c>) and let the pump's own loop end on its own — only tearing
+/// the transport down once that loop has actually finished, bounded by a timeout for a
+/// peer that never acknowledges.
+/// </para>
 /// </remarks>
 public interface ILiveVoiceSideband : IAsyncDisposable
 {
