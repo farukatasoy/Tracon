@@ -259,6 +259,12 @@ for (const [value, label] of [
 // pattern to skip it - do not widen the total.
 const readme = readFileSync(join(repositoryRoot, 'README.md'), 'utf8');
 
+if (/catalog\.ResolveAsync\([^,\n)]*\)/.test(readme)) {
+  errors.push(
+    'README.md calls IAgentCatalog.ResolveAsync with one argument; pass culture and cancellation explicitly.',
+  );
+}
+
 for (const [, stated] of readme.matchAll(/\b(\d+) operations\b/g)) {
   if (Number(stated) !== operationCount) {
     errors.push(`README.md says ${stated} operations, expected ${operationCount}`);
@@ -277,9 +283,19 @@ for (const entry of readdirSync(sourceRoot, { withFileTypes: true })) {
   const packagedReadme = join(sourceRoot, entry.name, 'README.md');
 
   if (existsSync(packagedReadme)) {
+    const packagedReadmeText = readFileSync(packagedReadme, 'utf8');
+
     checkPreviewInstallCommands(
       `src/${entry.name}/README.md`,
-      readFileSync(packagedReadme, 'utf8'));
+      packagedReadmeText);
+
+    for (const [, stated] of packagedReadmeText.matchAll(/\b(\d+) operations\b/g)) {
+      if (Number(stated) !== operationCount) {
+        errors.push(
+          `src/${entry.name}/README.md says ${stated} operations, expected ${operationCount}`,
+        );
+      }
+    }
   }
 }
 
@@ -1305,6 +1321,22 @@ for (const file of handWritten) {
       `${relative(repositoryRoot, file)}: links to ${repositoryUrl}, which is private ` +
         'and answers 404 to a reader. Link to the documentation site instead, or set ' +
         'repositoryIsPublic in docs-site/site.config.mjs once the repository is open.',
+    );
+  }
+}
+
+// Starlight appends the source path (`src/content/docs/...`) to `baseUrl`.
+// Supplying that path in the base as well creates a plausible-looking GitHub
+// link that answers 404 on every page. Verify the rendered URL, not only the
+// configuration flag that enables it.
+if (repositoryIsPublic) {
+  const landingHtmlPath = join(siteRoot, 'dist', 'index.html');
+  const landingHtml = readFileSync(landingHtmlPath, 'utf8');
+  const expectedEditLink = `${repositoryUrl}/edit/main/docs-site/src/content/docs/index.mdx`;
+
+  if (!landingHtml.includes(expectedEditLink)) {
+    errors.push(
+      `dist/index.html: public repository edit link is missing or malformed; expected ${expectedEditLink}`,
     );
   }
 }

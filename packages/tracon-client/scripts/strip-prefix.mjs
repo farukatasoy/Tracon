@@ -1,6 +1,5 @@
 #!/usr/bin/env node
-// The TypeScript counterpart of Faz 83's nswag-prepare-document.py strip_prefix
-// step (docs/arsiv/fazlar/83-TIPLI-ISTEMCI-VE-CLI.md, section 83.3).
+// The TypeScript counterpart of the .NET client's OpenAPI prefix-removal step.
 //
 // The committed document is generated with every path relative to the DEFAULT
 // MapTracon prefix ('/tracon'), but that prefix is a runtime parameter

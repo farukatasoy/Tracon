@@ -4,13 +4,6 @@ description: Symptom-first fixes for installation, providers, tools, storage, se
 slug: troubleshooting
 ---
 
-:::caution[Package availability]
-Tracon packages and templates are not published yet. Package-install examples on
-this page describe the release form and do not currently resolve from public
-registries. With authorized repository access, use the
-[source build instructions](/getting-started/first-agent/).
-:::
-
 Start with the first failing boundary. Do not debug a model response while the agent
 cannot compile, or debug the console while the API returns `401`.
 
@@ -61,20 +54,18 @@ Then call `GET /tracon/api/diagnostics`. The route is absent by default, so a
 
 ### NuGet says no stable version exists
 
-Tracon has not been published yet: no version exists on NuGet at all, stable
-or pre-release. Build from a clone of the repository until the first release.
-
-Once it is published, it will be a preview package, so select pre-release
-versions explicitly:
+Only a preview exists. Select it explicitly:
 
 ```bash
 dotnet add package Tracon --prerelease
 ```
 
-For reproducible builds, pin the exact preview version instead. Install the template
-with the same rule, for example
-`dotnet new install Tracon.Templates@1.0.0-preview.N` after replacing `N` with a
-published version.
+Pin `1.0.0-preview.2` for reproducible builds. Install the template by exact
+version too:
+
+```bash
+dotnet new install Tracon.Templates@1.0.0-preview.2
+```
 
 ### The generated project rejects a template option
 

@@ -17,10 +17,9 @@ needs a commercial licence. Details and the reasoning: [Licensing](/reference/li
 
 ## The meta package
 
-:::caution[Not published yet]
-No Tracon version has been pushed to NuGet or npm yet, so this command
-does not resolve. Until the first release, reference the projects from a
-clone of the repository.
+:::note[Preview package]
+The current release is `1.0.0-preview.2`. The command below selects it from
+NuGet; pin the exact version for reproducible builds.
 :::
 
 ```bash

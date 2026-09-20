@@ -36,19 +36,12 @@ export const formerHosts = ['farukatasoy.github.io', 'agentprism.doayen.web.tr']
 /**
  * The source repository, and whether a reader can open it.
  *
- * The repository is private, which is why the site moved hosts at all. The same fact
- * has a second consequence that is easy to miss: a link to it reaches the reader as a
- * 404. Starlight's edit links and its header icon are gone for that reason, and nine
- * package READMEs offered "Repository and full documentation" to consumers on NuGet
- * who cannot open either half.
- *
- * check-content.mjs bans the address in shipped and hand-written text while this flag
- * is false. Make the repository public and flip the flag: the ban lifts, and the
- * `editLink` / `social` blocks in astro.config.mjs are worth restoring at the same
- * time.
+ * check-content.mjs bans this address from shipped and hand-written text while the
+ * flag is false. Keep the flag aligned with the repository's anonymous visibility;
+ * the site configuration uses it for edit links and the GitHub header icon too.
  */
 export const repositoryUrl = 'https://github.com/farukatasoy/Tracon';
-export const repositoryIsPublic = false;
+export const repositoryIsPublic = true;
 
 /** Explicit preview builds remain crawlable so crawlers can read noindex. */
 export const indexingEnabled = process.env.TRACON_SITE_INDEXING !== 'disabled';
@@ -64,7 +57,7 @@ export const indexingEnabled = process.env.TRACON_SITE_INDEXING !== 'disabled';
  * here rather than a rewrite of the endpoint.
  *
  * The decision for all of them is currently ALLOW, and the reason is the product:
- * Tracon is an unpublished .NET package family whose documentation exists to be
+ * Tracon is a preview .NET package family whose documentation exists to be
  * found, and whose own capability map (llms.txt) is written for a coding agent to
  * read. Being in the training data of the models that write .NET code is what the
  * map is for; withholding it would cost the thing the site is published for.

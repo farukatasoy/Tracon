@@ -35,11 +35,13 @@ public sealed class SourceLanguageTests
 {
     private const string RefreshEnvVar = "TRACON_SOURCE_LANGUAGE_REFRESH";
 
-    private static readonly string[] ScanRoots = ["src", "tests", "samples", "packages"];
+    private static readonly string[] ScanRoots =
+        ["src", "tests", "samples", "packages", ".github/ISSUE_TEMPLATE", "docs-site/src", "docs-site/public"];
 
     private static readonly HashSet<string> ScannedExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         ".cs", ".sql", ".csproj", ".props", ".targets", ".json", ".ts", ".tsx",
+        ".md", ".mdx", ".astro", ".mjs", ".yml", ".yaml",
     };
 
     /// <summary>
@@ -67,7 +69,7 @@ public sealed class SourceLanguageTests
     /// them shipped artifacts in the same sense a package README is.
     /// </remarks>
     private static readonly string[] ScannedRootFiles =
-        ["README.md", "CONTRIBUTING.md", "ARCHITECTURE.md", "LICENSE.md", "LICENSE-MIT.md"];
+        ["README.md", "CHANGELOG.md", "SECURITY.md", "CONTRIBUTING.md", "ARCHITECTURE.md", "LICENSE.md", "LICENSE-MIT.md"];
 
     private static readonly string[] SkippedDirectorySegments =
         ["obj", "bin", "node_modules", "artifacts", "dist", "wwwroot"];

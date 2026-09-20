@@ -5,6 +5,20 @@
   "license": "PolyForm-Small-Business-1.0.0",
   "type": "module",
   "homepage": "https://tracon.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/farukatasoy/Tracon.git",
+    "directory": "packages/tracon-client"
+  },
+  "bugs": {
+    "url": "https://github.com/farukatasoy/Tracon/issues"
+  },
+  "keywords": [
+    "ai-agents",
+    "microsoft-agent-framework",
+    "openapi",
+    "tracon"
+  ],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

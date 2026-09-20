@@ -270,7 +270,7 @@ columns. Every generated reference page under /api/ and /http-api/ has one too.
 - [Tools, skills, and MCP](https://tracon.dev/concepts/tools/) — The ways an agent gains a capability, and the guards on the ones that cross the code-only boundary.
 - [Workflows](https://tracon.dev/concepts/workflows/) — Five multi-agent patterns, checkpoints, and asking a human mid-execution.
 - [Tracon and DevUI](https://tracon.dev/getting-started/devui/) — What MAF's DevUI does, what its own documentation says it is not for, and which of the two belongs in a production host.
-- [Your first agent](https://tracon.dev/getting-started/first-agent/) — Build a Tracon host from an authorized source checkout, configure a model, and inspect your first recorded agent run.
+- [Your first agent](https://tracon.dev/getting-started/first-agent/) — Install the Tracon template, configure a model, run an agent, and inspect its recorded execution in the embedded console.
 - [What Tracon is](https://tracon.dev/getting-started/) — What the packages give you, what they deliberately do not, and how to decide whether it fits.
 - [Persistence](https://tracon.dev/getting-started/persistence/) — Choose PostgreSQL, SQL Server, or SQLite and operate Tracon migrations safely from development to production.
 - [Securing the endpoints](https://tracon.dev/getting-started/security/) — Protect Tracon with network boundaries, bearer tokens, scoped API keys, roles, tenancy, and outbound guards.

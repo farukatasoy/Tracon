@@ -116,7 +116,9 @@
     the build stops, rather than shipping a template whose default version is
     the literal placeholder.
   -->
-  <Target Name="TraconStampTemplateVersionDefault" BeforeTargets="_GetPackageFiles;GenerateNuspec">
+  <Target Name="TraconStampTemplateVersionDefault"
+          BeforeTargets="_GetPackageFiles"
+          DependsOnTargets="MinVer">
     <PropertyGroup>
       <_TraconTemplateConfigSource>$(MSBuildProjectDirectory)/$(_TraconTemplateConfigRelative)</_TraconTemplateConfigSource>
       <_TraconTemplateConfigStamped>$(IntermediateOutputPath)template.json</_TraconTemplateConfigStamped>

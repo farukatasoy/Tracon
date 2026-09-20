@@ -3,11 +3,9 @@ title: Test agents without model calls
 description: Test agents without network model calls by using the in-memory host, scripted fake provider, recorded requests, and run assertions.
 ---
 
-:::caution[Package availability]
-Tracon packages and templates are not published yet. Package-install examples on
-this page describe the release form and do not currently resolve from public
-registries. With authorized repository access, use the
-[source build instructions](/getting-started/first-agent/).
+:::note[Preview packages]
+Tracon is published as `1.0.0-preview.2`. Use `--prerelease` for discovery or
+pin the exact version for reproducible builds.
 :::
 
 `Tracon.Testing` runs your agent through the real Tracon HTTP, catalog, tool,

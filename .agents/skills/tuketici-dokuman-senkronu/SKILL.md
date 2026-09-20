@@ -190,7 +190,9 @@ senin makinendedir. Siteyi sunucuya `scripts/site-deploy.sh` taşır ve o
 dışında) yayını da sen koşmalısın — yoksa düzelttiğin sayfa canlıda eski kalır.
 
 🚨 **Yeni ekran varsa ekran görüntüsü E2E'den üretilir ve commit edilir:**
-`TRACON_UI_SCREENSHOTS=1`. Ekran görüntüsünün **dosya olarak var olduğunu**
+`TRACON_UI_SCREENSHOTS=1`; ardından `docs-site` içinde
+`node scripts/refresh-console-screenshot-stamp.mjs` koşar. Ekran görüntüsünün
+**dosya olarak var olduğunu**
 `check-content.mjs` denetler; **doğru ekranı gösterdiğini** `DocumentationScreenshotTests`
 kanıtlar. İki kapı iki ayrı şey söyler ve ikisi de gereklidir. Yeni bir ekran
 eklerken tohumu da büyüt (`SeedCatalogAsync`) — boş bir ekran görüntüsü kılavuzda

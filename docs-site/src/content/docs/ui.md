@@ -389,8 +389,8 @@ for the full walkthrough, including how the widget runs a client-side tool.
   server or an approval rule stays one click, because the form beside it puts the
   same thing back. Both kinds say what they will do before you press them.
   Confirming everything is the same as confirming nothing
-- The JavaScript budget is 250 KB gzip and is enforced by the build. Current size:
-  192.4 KB
+- The JavaScript budget is 250 KB gzip and is enforced by the build. The build
+  prints the current measured size; documentation does not duplicate that value.
 - Four run-time JavaScript dependencies, and the build fails on a fifth. Dialogs,
   menus, tooltips and the command palette are written against the platform rather
   than pulled from a component library. The browser's own `confirm()` is not used

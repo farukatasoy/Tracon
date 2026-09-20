@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <Description>Typed management client for Tracon, generated from the OpenAPI document published at https://tracon.dev/openapi/tracon.json. Covers every /api/* management operation. Takes no Tracon package and no NuGet package.</Description>
+    <Description>Typed management client for Tracon, generated from the OpenAPI document published at https://tracon.dev/openapi/tracon.json. Covers every /api/* management operation. Takes no Tracon package and one NuGet dependency: Microsoft.Extensions.DependencyInjection.Abstractions.</Description>
     <PackageTags>$(CommonPackageTags);client;openapi;http</PackageTags>
     <!--
       The public surface (one method per operation in the document, plus a

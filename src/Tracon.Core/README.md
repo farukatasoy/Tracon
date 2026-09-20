@@ -34,14 +34,13 @@ An **agent definition** is data: a name, a model binding, a system prompt, and t
 names of the tools, skills, and callable agents it may use. The compiler turns that
 data into a Microsoft Agent Framework `AIAgent`.
 
-```mermaid
-flowchart LR
-    A["Agent sources<br/>code + database"] --> B["IAgentCatalog"]
-    B --> C["AgentDefinitionCompiler"]
-    C --> D["AIAgent"]
-    D --> E["RunRecordingAgent"]
-    E --> F["IRunStore"]
-```
+| Stage | Responsibility |
+|---|---|
+| Agent sources | Load definitions from code or a database |
+| `IAgentCatalog` | Resolve the named definition |
+| `AgentDefinitionCompiler` | Validate and compile it into an `AIAgent` |
+| `RunRecordingAgent` | Record the run around the compiled agent |
+| `IRunStore` | Persist the run and its event stream |
 
 `IAgentCatalog.ResolveAsync` is the entry point. What it hands back is already
 wrapped in the run recording decorator, so **every** run is written to `IRunStore`

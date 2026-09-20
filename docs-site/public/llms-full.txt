@@ -3315,40 +3315,33 @@ Build an ASP.NET Core host, register a model-backed agent, then inspect its run
 in the embedded console. MAF executes the agent; Tracon supplies the catalog,
 HTTP endpoints, and default-on recording around it.
 
-:::caution[Repository access required]
-Tracon packages and templates are not published yet. This guide requires an
-existing source checkout that you are authorized to access. If you do not have
-access, start with the [capability map](/capabilities/) and
-[architecture](/concepts/) to evaluate the design.
+:::note[Preview release]
+This guide uses `1.0.0-preview.2`. Preview packages require explicit selection;
+pin the exact version when you need a reproducible build.
 :::
 
 ## Prerequisites
 
-- An authorized checkout of the Tracon repository.
-- The .NET SDK selected by the repository's `global.json` and Node.js for the
-  embedded console build. See the checkout's README for development prerequisites.
+- The .NET 10 SDK.
 - An OpenAI API key and a chat model available to that account. The model request
   is sent to your configured provider and can incur provider charges.
 
 <span id="with-the-template"></span>
 
-## Build from source
+## Create the host
 
-Run these commands from the root of the Tracon checkout. They create a sibling
-application and reference the three source projects it needs.
+Install the published template, then create a project. The template pins every
+Tracon package to the same version as the template package.
 
 ```bash
-dotnet new web -o ../MyAgents
-cd ../MyAgents
-dotnet add reference ../Tracon/src/Tracon.AspNetCore/Tracon.AspNetCore.csproj
-dotnet add reference ../Tracon/src/Tracon.OpenAI/Tracon.OpenAI.csproj
-dotnet add reference ../Tracon/src/Tracon.UI/Tracon.UI.csproj
-dotnet user-secrets init
+dotnet new install Tracon.Templates@1.0.0-preview.2
+dotnet new tracon-api -n MyAgents
+cd MyAgents
 ```
 
-The commands assume the checkout directory is named `Tracon`. Use its actual
-relative path if you named it differently. The console assets build with the UI
-project; no separate console server is needed.
+Use `--persistence`, `--provider`, and `--ui` to change the generated project.
+Run `dotnet new tracon-api -h` to see the available values. The console is
+embedded in the host; no separate console server is needed.
 
 Store your provider settings in the application's development secrets. Replace
 the example values with your key and a model identifier available to your account.
@@ -3408,9 +3401,8 @@ The host listens on `http://localhost:5081`. Open
 `http://localhost:5081/tracon` for the console. Provider model names are explicit
 configuration: Tracon does not ship a built-in model list.
 
-The source template remains available in the repository for readers who want to
-inspect its generated application. A published-template install command will be
-added when a release is available.
+The template source is public at
+[github.com/farukatasoy/Tracon](https://github.com/farukatasoy/Tracon/tree/main/src/Tracon.Templates/content/Tracon.Starter).
 
 ## Run it
 
@@ -3481,11 +3473,10 @@ The packages run inside your host process. You choose the model providers,
 persistence, identity integration, and operational policies. Recording is
 best-effort: a recording-store failure is logged while agent execution continues.
 
-:::note[Evaluate through the documentation]
-Packages and templates are not published yet. You can explore the capabilities,
-API contracts, and limitations here. Running the source requires authorized
-repository access; the [source build guide](/getting-started/first-agent/) makes
-that prerequisite explicit.
+:::note[Preview release]
+Packages and templates are published as `1.0.0-preview.2`. The
+[first-agent guide](/getting-started/first-agent/) starts with the public template;
+pin the exact package version when reproducibility matters.
 :::
 
 ## What you get
@@ -3555,7 +3546,7 @@ including how long each target framework stays in the matrix.
 
 - [Capability map](/capabilities/) — match a system requirement to a feature and its limits.
 - [Architecture](/concepts/) — understand MAF and Tracon responsibilities.
-- [Your first agent](/getting-started/first-agent/) — build a working host with repository access.
+- [Your first agent](/getting-started/first-agent/) — build a working host from the published template.
 
 ---
 
@@ -4801,11 +4792,9 @@ idempotent.
 
 Source: https://tracon.dev/guides/cli/
 
-:::caution[Package availability]
-Tracon packages and templates are not published yet. Package-install examples on
-this page describe the release form and do not currently resolve from public
-registries. With authorized repository access, use the
-[source build instructions](/getting-started/first-agent/).
+:::note[Preview package]
+The CLI is published as `1.0.0-preview.2`. Use `--prerelease` for discovery or
+pin the exact version for a reproducible tool manifest.
 :::
 
 Use `Tracon.Client` for typed HTTP access to a running host. Use `Tracon.Cli`
@@ -5201,11 +5190,9 @@ credential meant for exactly this.
 
 Source: https://tracon.dev/guides/coding-agents/
 
-:::caution[Package availability]
-Tracon packages and templates are not published yet. The `dotnet new tracon-api`
-line below describes the release form and does not currently resolve from public
-registries. With authorized repository access, use the
-[source build instructions](/getting-started/first-agent/).
+:::note[Preview packages]
+Tracon is published as `1.0.0-preview.2`. Use `--prerelease` for discovery or
+pin the exact version for reproducible builds.
 :::
 
 A coding agent cannot use a capability it does not know exists. It will write a retry
@@ -10387,11 +10374,9 @@ and still reject a fenced payload at the application boundary.
 
 Source: https://tracon.dev/guides/testing/
 
-:::caution[Package availability]
-Tracon packages and templates are not published yet. Package-install examples on
-this page describe the release form and do not currently resolve from public
-registries. With authorized repository access, use the
-[source build instructions](/getting-started/first-agent/).
+:::note[Preview packages]
+Tracon is published as `1.0.0-preview.2`. Use `--prerelease` for discovery or
+pin the exact version for reproducible builds.
 :::
 
 `Tracon.Testing` runs your agent through the real Tracon HTTP, catalog, tool,
@@ -10656,11 +10641,9 @@ mistake instead of hiding it.
 
 Source: https://tracon.dev/guides/typescript-client/
 
-:::caution[Package availability]
-Tracon packages and templates are not published yet. Package-install examples on
-this page describe the release form and do not currently resolve from public
-registries. With authorized repository access, use the
-[source build instructions](/getting-started/first-agent/).
+:::note[Preview package]
+`@tracon/client` is published as `1.0.0-preview.2`. Install the `next` tag or pin
+the exact version; do not use a floating range in production.
 :::
 
 `@tracon/client` is the npm counterpart to [`Tracon.Client`](/guides/cli/):
@@ -10682,7 +10665,7 @@ flowchart LR
 ## Install
 
 ```bash
-npm install @tracon/client
+npm install @tracon/client@next
 ```
 
 ## Create a client
@@ -10852,11 +10835,9 @@ sync.
 
 Source: https://tracon.dev/guides/voice/
 
-:::caution[Package availability]
-Tracon packages and templates are not published yet. Package-install examples on
-this page describe the release form and do not currently resolve from public
-registries. With authorized repository access, use the
-[source build instructions](/getting-started/first-agent/).
+:::note[Preview packages]
+Tracon is published as `1.0.0-preview.2`. Use `--prerelease` for discovery or
+pin the exact version for reproducible builds.
 :::
 
 Tracon has three voice layers:
@@ -11666,11 +11647,9 @@ class comes from the built-in classifier instead, and the failure is logged.
 
 Source: https://tracon.dev/guides/write-your-own-job-handler/
 
-:::caution[Package availability]
-Tracon packages and templates are not published yet. Package-install examples on
-this page describe the release form and do not currently resolve from public
-registries. With authorized repository access, use the
-[source build instructions](/getting-started/first-agent/).
+:::note[Preview packages]
+Tracon is published as `1.0.0-preview.2`. Use `--prerelease` for discovery or
+pin the exact version for reproducible builds.
 :::
 
 `IJobHandler` executes a durable job under one **handler key** — a stable
@@ -11881,11 +11860,9 @@ handler actually receives a queued job.
 
 Source: https://tracon.dev/guides/write-your-own-judge/
 
-:::caution[Package availability]
-Tracon packages and templates are not published yet. Package-install examples on
-this page describe the release form and do not currently resolve from public
-registries. With authorized repository access, use the
-[source build instructions](/getting-started/first-agent/).
+:::note[Preview packages]
+Tracon is published as `1.0.0-preview.2`. Use `--prerelease` for discovery or
+pin the exact version for reproducible builds.
 :::
 
 `IRunJudge` scores a completed production run. A judge can be deterministic or
@@ -12028,11 +12005,9 @@ timeouts, persistence, or HTTP responses.
 
 Source: https://tracon.dev/guides/write-your-own-store/
 
-:::caution[Package availability]
-Tracon packages and templates are not published yet. Package-install examples on
-this page describe the release form and do not currently resolve from public
-registries. With authorized repository access, use the
-[source build instructions](/getting-started/first-agent/).
+:::note[Preview packages]
+Tracon is published as `1.0.0-preview.2`. Use `--prerelease` for discovery or
+pin the exact version for reproducible builds.
 :::
 
 The three built-in providers (`Tracon.PostgreSql`, `.SqlServer`, `.Sqlite`) cover
@@ -12119,7 +12094,7 @@ NUGET_PACKAGES=$(mktemp -d) dotnet test
 ```
 
 A prerelease version string can name different content over time. NuGet caches
-by package id and version, so once `1.0.0-preview.1` is extracted into your
+by package id and version, so once `1.0.0-preview.2` is extracted into your
 global cache, a later build carrying the same version is never re-read — your
 store then compiles against the older contract and the contract suite reports
 failures that do not exist in the package you just built.
@@ -12829,10 +12804,9 @@ needs a commercial licence. Details and the reasoning: [Licensing](/reference/li
 
 ## The meta package
 
-:::caution[Not published yet]
-No Tracon version has been pushed to NuGet or npm yet, so this command
-does not resolve. Until the first release, reference the projects from a
-clone of the repository.
+:::note[Preview package]
+The current release is `1.0.0-preview.2`. The command below selects it from
+NuGet; pin the exact version for reproducible builds.
 :::
 
 ```bash
@@ -13074,6 +13048,42 @@ entries assume.
 
 ## Releases
 
+<a id="v1.0.0-preview.2"></a>
+
+### 1.0.0-preview.2 — 2026-09-20
+
+The consumer-entry repair release. It keeps the same public API as preview.1
+and corrects the package, documentation, and registry paths a new consumer
+meets first.
+
+#### Fixed
+
+- `Tracon.Templates` now stamps its own resolved package version into generated
+  projects. `dotnet new tracon-api` therefore restores the published preview
+  without a hidden `--TraconVersion` override. The override remains available
+  and is now visible in template help.
+- The root README agent-catalog example now calls the shipped `ResolveAsync`
+  overload with its required culture and cancellation arguments.
+- Package descriptions, package READMEs, API counts, target-framework claims,
+  extension samples, and console screenshots now match the shipped artifacts.
+- NuGet-rendered package documentation no longer relies on Mermaid rendering.
+
+#### Added
+
+- `tracon --version` and `tracon -v` report the informational package version.
+- The TypeScript client README documents all seven SSE operations and its
+  exported `readSse`/`SseDecoder` helpers.
+- Regression gates now verify the packed template's default version, rendered
+  GitHub edit links, package README operation counts, shipped-language scope,
+  and console screenshot freshness against UI source.
+
+#### Changed
+
+- Preview npm releases use the `next` dist-tag. Stable releases alone use
+  `latest`; the release workflow also repairs stale preview dist-tags.
+- GitHub repository metadata, Discussions, preview release classification, and
+  public documentation links now describe the published product.
+
 <a id="v1.0.0-preview.1"></a>
 
 ### 1.0.0-preview.1 — 2026-09-20
@@ -13221,11 +13231,9 @@ package, and the surface may still be reduced before 1.0.
 
 Source: https://tracon.dev/reference/compatibility/
 
-:::caution[Package availability]
-Tracon packages and templates are not published yet. Package-install examples on
-this page describe the release form and do not currently resolve from public
-registries. With authorized repository access, use the
-[source build instructions](/getting-started/first-agent/).
+:::note[Preview packages]
+Tracon is published as `1.0.0-preview.2`. Use `--prerelease` for discovery or
+pin the exact version for reproducible builds.
 :::
 
 Use this page before you choose a target framework, database, model provider, or
@@ -14938,11 +14946,9 @@ unbounded retention.
 
 Source: https://tracon.dev/reference/versioning/
 
-:::caution[Package availability]
-Tracon packages and templates are not published yet. Package-install examples on
-this page describe the release form and do not currently resolve from public
-registries. With authorized repository access, use the
-[source build instructions](/getting-started/first-agent/).
+:::note[Preview packages]
+Tracon is published as `1.0.0-preview.2`. Use `--prerelease` for discovery or
+pin the exact version for reproducible builds.
 :::
 
 Tracon is a pre-1.0 package family. Treat version selection as part of your
@@ -15217,13 +15223,6 @@ content.
 
 Source: https://tracon.dev/troubleshooting/
 
-:::caution[Package availability]
-Tracon packages and templates are not published yet. Package-install examples on
-this page describe the release form and do not currently resolve from public
-registries. With authorized repository access, use the
-[source build instructions](/getting-started/first-agent/).
-:::
-
 Start with the first failing boundary. Do not debug a model response while the agent
 cannot compile, or debug the console while the API returns `401`.
 
@@ -15274,20 +15273,18 @@ Then call `GET /tracon/api/diagnostics`. The route is absent by default, so a
 
 ### NuGet says no stable version exists
 
-Tracon has not been published yet: no version exists on NuGet at all, stable
-or pre-release. Build from a clone of the repository until the first release.
-
-Once it is published, it will be a preview package, so select pre-release
-versions explicitly:
+Only a preview exists. Select it explicitly:
 
 ```bash
 dotnet add package Tracon --prerelease
 ```
 
-For reproducible builds, pin the exact preview version instead. Install the template
-with the same rule, for example
-`dotnet new install Tracon.Templates@1.0.0-preview.N` after replacing `N` with a
-published version.
+Pin `1.0.0-preview.2` for reproducible builds. Install the template by exact
+version too:
+
+```bash
+dotnet new install Tracon.Templates@1.0.0-preview.2
+```
 
 ### The generated project rejects a template option
 
@@ -16563,8 +16560,8 @@ for the full walkthrough, including how the widget runs a client-side tool.
   server or an approval rule stays one click, because the form beside it puts the
   same thing back. Both kinds say what they will do before you press them.
   Confirming everything is the same as confirming nothing
-- The JavaScript budget is 250 KB gzip and is enforced by the build. Current size:
-  192.4 KB
+- The JavaScript budget is 250 KB gzip and is enforced by the build. The build
+  prints the current measured size; documentation does not duplicate that value.
 - Four run-time JavaScript dependencies, and the build fails on a fifth. Dialogs,
   menus, tooltips and the command palette are written against the platform rather
   than pulled from a component library. The browser's own `confirm()` is not used

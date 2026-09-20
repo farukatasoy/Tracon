@@ -3,11 +3,9 @@ title: Write your own judge
 description: Implement a safe deterministic or model-backed IRunJudge and verify it with Tracon's executable contract suite.
 ---
 
-:::caution[Package availability]
-Tracon packages and templates are not published yet. Package-install examples on
-this page describe the release form and do not currently resolve from public
-registries. With authorized repository access, use the
-[source build instructions](/getting-started/first-agent/).
+:::note[Preview packages]
+Tracon is published as `1.0.0-preview.2`. Use `--prerelease` for discovery or
+pin the exact version for reproducible builds.
 :::
 
 `IRunJudge` scores a completed production run. A judge can be deterministic or

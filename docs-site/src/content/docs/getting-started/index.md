@@ -15,11 +15,10 @@ The packages run inside your host process. You choose the model providers,
 persistence, identity integration, and operational policies. Recording is
 best-effort: a recording-store failure is logged while agent execution continues.
 
-:::note[Evaluate through the documentation]
-Packages and templates are not published yet. You can explore the capabilities,
-API contracts, and limitations here. Running the source requires authorized
-repository access; the [source build guide](/getting-started/first-agent/) makes
-that prerequisite explicit.
+:::note[Preview release]
+Packages and templates are published as `1.0.0-preview.2`. The
+[first-agent guide](/getting-started/first-agent/) starts with the public template;
+pin the exact package version when reproducibility matters.
 :::
 
 ## What you get
@@ -89,4 +88,4 @@ including how long each target framework stays in the matrix.
 
 - [Capability map](/capabilities/) — match a system requirement to a feature and its limits.
 - [Architecture](/concepts/) — understand MAF and Tracon responsibilities.
-- [Your first agent](/getting-started/first-agent/) — build a working host with repository access.
+- [Your first agent](/getting-started/first-agent/) — build a working host from the published template.

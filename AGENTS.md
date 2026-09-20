@@ -204,6 +204,8 @@ kiracı · akış · depo · paket. → [`ortak/test-seviyeleri.md`](.agents/ort
 ## Diyagram Kuralı
 
 **Her diyagram Mermaid ile yazılır.** ASCII kutu çizimi (`┌─┐│└┘`) kullanılmaz —
-elle hizalanır, bayatlar ve `git diff`'i bozar. **İstisna:** dizin ağaçları düz
-metin kod bloğu kalır. Koddan sapmışsa **diyagram yanlıştır**. Tip seçimi ve
-yazım tuzakları: [`docs/hafiza/dokumantasyon.md`](docs/hafiza/dokumantasyon.md).
+elle hizalanır, bayatlar ve `git diff`'i bozar. **İstisnalar:** dizin ağaçları düz
+metin kod bloğu kalır; NuGet.org Mermaid render etmediği için `src/*/README.md`
+içindeki akışlar tablo veya düz prose olur. Koddan sapmışsa **diyagram yanlıştır**.
+Tip seçimi ve yazım tuzakları:
+[`docs/hafiza/dokumantasyon.md`](docs/hafiza/dokumantasyon.md).

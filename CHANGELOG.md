@@ -14,6 +14,40 @@ renamed to the version and the date it shipped on, and a fresh empty
 actually exist. Until then the release rehearsal and the GitHub release body
 both read the notes from here.
 
+## [1.0.0-preview.2] - 2026-09-20
+
+The consumer-entry repair release. It keeps the same public API as preview.1
+and corrects the package, documentation, and registry paths a new consumer
+meets first.
+
+### Fixed
+
+- `Tracon.Templates` now stamps its own resolved package version into generated
+  projects. `dotnet new tracon-api` therefore restores the published preview
+  without a hidden `--TraconVersion` override. The override remains available
+  and is now visible in template help.
+- The root README agent-catalog example now calls the shipped `ResolveAsync`
+  overload with its required culture and cancellation arguments.
+- Package descriptions, package READMEs, API counts, target-framework claims,
+  extension samples, and console screenshots now match the shipped artifacts.
+- NuGet-rendered package documentation no longer relies on Mermaid rendering.
+
+### Added
+
+- `tracon --version` and `tracon -v` report the informational package version.
+- The TypeScript client README documents all seven SSE operations and its
+  exported `readSse`/`SseDecoder` helpers.
+- Regression gates now verify the packed template's default version, rendered
+  GitHub edit links, package README operation counts, shipped-language scope,
+  and console screenshot freshness against UI source.
+
+### Changed
+
+- Preview npm releases use the `next` dist-tag. Stable releases alone use
+  `latest`; the release workflow also repairs stale preview dist-tags.
+- GitHub repository metadata, Discussions, preview release classification, and
+  public documentation links now describe the published product.
+
 ## [1.0.0-preview.1] - 2026-09-20
 
 The first published version: twenty packages on one version line.

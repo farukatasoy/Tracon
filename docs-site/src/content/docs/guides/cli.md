@@ -3,11 +3,9 @@ title: Typed client and CLI
 description: Call the management API from a typed client, and apply migrations, check health, or write the coding-agent gate skill without starting the application, using the tracon CLI.
 ---
 
-:::caution[Package availability]
-Tracon packages and templates are not published yet. Package-install examples on
-this page describe the release form and do not currently resolve from public
-registries. With authorized repository access, use the
-[source build instructions](/getting-started/first-agent/).
+:::note[Preview package]
+The CLI is published as `1.0.0-preview.2`. Use `--prerelease` for discovery or
+pin the exact version for a reproducible tool manifest.
 :::
 
 Use `Tracon.Client` for typed HTTP access to a running host. Use `Tracon.Cli`
