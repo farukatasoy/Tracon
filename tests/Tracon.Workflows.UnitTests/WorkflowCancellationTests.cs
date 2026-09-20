@@ -86,6 +86,52 @@ public sealed class WorkflowCancellationTests
         root.Status.ShouldBe(RunStatus.Completed);
     }
 
+    [Fact]
+    public async Task A_consumer_that_stops_reading_still_closes_the_run()
+    {
+        // 🚨 The run is opened by writer.StartAsync and closed by CompleteAsync,
+        // and RunGuardedAsync is an async iterator: everything between those two
+        // calls only runs while SOMEBODY IS STILL ENUMERATING. A consumer that
+        // breaks out of `await foreach` disposes the enumerator, the iterator
+        // body is resumed only to run its `finally` blocks, and a run with no
+        // `finally` around CompleteAsync is simply left open at Running.
+        //
+        // Measured 2026-09-20 (CI, windows-latest): the sibling race
+        // `Cancellation_requested_inside_a_function_node_still_records_Canceled`
+        // caught the same hole from the timing side and was red on two tag runs
+        // while green locally 40/40. This test reaches the hole WITHOUT a race -
+        // abandoning the enumeration is deterministic - so the defect cannot
+        // hide behind a fast machine.
+        //
+        // RunReconciliationService would eventually close the orphan, but as
+        // Failed: a run the caller walked away from would be reported as a
+        // failure, minutes later. Closing it here, as Canceled, is the honest
+        // record of what happened.
+        var host = new WorkflowTestHost("one", "two");
+
+        await host.SaveAsync(new WorkflowDefinition
+        {
+            Name = "chain",
+            Kind = WorkflowKind.Sequential,
+            AgentNames = ["one", "two"],
+        });
+
+        var runner = host.CreateRunner();
+
+        await foreach (var _ in runner.RunStreamingAsync(
+            new WorkflowRunRequest { WorkflowName = "chain", Message = "hello" }))
+        {
+            // The first event is enough: leaving now is what a client that
+            // disconnects mid-stream does.
+            break;
+        }
+
+        var runs = await host.RunStore.QueryRunsAsync(new RunQuery { OnlyRootRuns = false, Take = 100 });
+        var root = runs.Single(run => run.Kind == RunKind.Workflow);
+
+        root.Status.ShouldBe(RunStatus.Canceled);
+    }
+
     /// <summary>
     /// Agent that requests cancellation while it runs and then returns
     /// normally, exactly like a step that ignores the token.
