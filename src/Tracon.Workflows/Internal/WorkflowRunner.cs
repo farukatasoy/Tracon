@@ -511,100 +511,136 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             query: null,
             linked.Token).ConfigureAwait(false);
 
-        yield return FirstEvent(execution);
-
         var startedAt = _timeProvider.GetTimestamp();
         var status = RunStatus.Completed;
         RunError? error = null;
 
-        // Graph setup is tried separately: an error here (agent not found,
-        // invalid definition) is one the user can fix, and it must not leave
-        // the run open.
-        Workflow? workflow = null;
+        // 🚨 The run row is OPEN from writer.StartAsync above until
+        // CompleteAsync below, and this method is an async iterator: every
+        // line between those two only runs WHILE SOMEBODY IS STILL
+        // ENUMERATING. A consumer that breaks out of `await foreach`, or an
+        // exception unwinding through a `yield return`, disposes the
+        // enumerator and resumes the body only to run its `finally` blocks.
+        // Without this one the run was simply left at Running: measured
+        // 2026-09-20 on windows-latest, where the sibling race
+        // `Cancellation_requested_inside_a_function_node_still_records_Canceled`
+        // went red on two tag runs while passing 40/40 locally.
+        //
+        // RunReconciliationService would eventually claim the orphan, but it
+        // closes orphans as Failed - a run the caller walked away from would
+        // be reported, minutes later, as a failure that never happened.
+        var closed = false;
 
         try
         {
-            workflow = await _catalog.ResolveAsync(execution.WorkflowName, linked.Token).ConfigureAwait(false)
-                ?? throw new TraconException(
-                    $"There is no workflow named '{execution.WorkflowName}'.");
-        }
-        catch (Exception exception) when (exception is not OperationCanceledException)
-        {
-            status = RunStatus.Failed;
-            error = ToRunError(exception, execution.RunId);
-        }
+            yield return FirstEvent(execution);
 
-        if (workflow is not null)
-        {
-            await foreach (var produced in PumpAsync(
-                                   workflow,
-                                   execution,
-                                   settings,
-                                   scope,
-                                   writer,
-                                   recording,
-                                   linked)
-                               .ConfigureAwait(false))
+
+            // Graph setup is tried separately: an error here (agent not found,
+            // invalid definition) is one the user can fix, and it must not leave
+            // the run open.
+            Workflow? workflow = null;
+
+            try
             {
-                if (produced.Failure is { } failure)
+                workflow = await _catalog.ResolveAsync(execution.WorkflowName, linked.Token).ConfigureAwait(false)
+                    ?? throw new TraconException(
+                        $"There is no workflow named '{execution.WorkflowName}'.");
+            }
+            catch (Exception exception) when (exception is not OperationCanceledException)
+            {
+                status = RunStatus.Failed;
+                error = ToRunError(exception, execution.RunId);
+            }
+
+            if (workflow is not null)
+            {
+                await foreach (var produced in PumpAsync(
+                                       workflow,
+                                       execution,
+                                       settings,
+                                       scope,
+                                       writer,
+                                       recording,
+                                       linked)
+                                   .ConfigureAwait(false))
                 {
-                    status = RunStatus.Failed;
-                    error = failure;
-                    continue;
+                    if (produced.Failure is { } failure)
+                    {
+                        status = RunStatus.Failed;
+                        error = failure;
+                        continue;
+                    }
+
+                    if (produced.Canceled)
+                    {
+                        status = RunStatus.Canceled;
+                        continue;
+                    }
+
+                    if (produced.Awaiting)
+                    {
+                        status = RunStatus.AwaitingInput;
+                        continue;
+                    }
+
+                    yield return produced.Event!;
                 }
 
-                if (produced.Canceled)
+                // 🚨 MAF ends the stream QUIETLY when the token is canceled: no
+                // OperationCanceledException reaches the pump, MoveNextAsync simply
+                // returns false. Measured on a real sequential graph (2026-08-18,
+                // defect F-107): the caller cancels, the graph stops after the
+                // running step, and without this line the run was recorded as
+                // Completed with error: null — the caller was told the opposite of
+                // what happened. A silent stop is a CANCELLATION, not a completion.
+                //
+                // Only a would-be Completed run is rewritten: a run that already
+                // failed keeps its error, and one waiting for a human answer keeps
+                // AwaitingInput, because that state is a legitimate pause rather
+                // than an outcome.
+                if (linked.IsCancellationRequested && status == RunStatus.Completed)
                 {
                     status = RunStatus.Canceled;
-                    continue;
                 }
 
-                if (produced.Awaiting)
+                // 🚨 The deadline is the one stop nobody asked for, so it is the one
+                // that has to name itself. A caller who cancels already knows why
+                // and gets no reason; a run that ran past 'Tracon:Workflows:RunTimeout'
+                // gets the setting's name, on every path that ends it. Only the
+                // timeout source is consulted, never the linked one: the linked
+                // source is also tripped by the caller and by
+                // POST /api/runs/{id}/cancel, and blaming the deadline for those
+                // would put a wrong reason on a correct stop.
+                if (status == RunStatus.Canceled && error is null && timeout.IsCancellationRequested)
                 {
-                    status = RunStatus.AwaitingInput;
-                    continue;
+                    error = TimedOut();
                 }
-
-                yield return produced.Event!;
             }
 
-            // 🚨 MAF ends the stream QUIETLY when the token is canceled: no
-            // OperationCanceledException reaches the pump, MoveNextAsync simply
-            // returns false. Measured on a real sequential graph (2026-08-18,
-            // defect F-107): the caller cancels, the graph stops after the
-            // running step, and without this line the run was recorded as
-            // Completed with error: null — the caller was told the opposite of
-            // what happened. A silent stop is a CANCELLATION, not a completion.
-            //
-            // Only a would-be Completed run is rewritten: a run that already
-            // failed keeps its error, and one waiting for a human answer keeps
-            // AwaitingInput, because that state is a legitimate pause rather
-            // than an outcome.
-            if (linked.IsCancellationRequested && status == RunStatus.Completed)
-            {
-                status = RunStatus.Canceled;
-            }
+            await CompleteAsync(execution, scope, writer, status, error, activity, startedAt).ConfigureAwait(false);
 
-            // 🚨 The deadline is the one stop nobody asked for, so it is the one
-            // that has to name itself. A caller who cancels already knows why
-            // and gets no reason; a run that ran past 'Tracon:Workflows:RunTimeout'
-            // gets the setting's name, on every path that ends it. Only the
-            // timeout source is consulted, never the linked one: the linked
-            // source is also tripped by the caller and by
-            // POST /api/runs/{id}/cancel, and blaming the deadline for those
-            // would put a wrong reason on a correct stop.
-            if (status == RunStatus.Canceled && error is null && timeout.IsCancellationRequested)
+            closed = true;
+
+            // The client must also see the closing event: if the stream cuts off
+            // before saying "done", the client cannot tell a dropped connection
+            // from a finished job.
+            yield return LastEvent(execution, writer, status, error);
+        }
+        finally
+        {
+            // Reached only when the body did not close the run itself. The
+            // status is Canceled rather than Failed because nothing failed:
+            // either the caller cancelled, or it stopped reading, and both
+            // are "somebody stopped this". CompleteAsync passes
+            // CancellationToken.None all the way down, so the closing write
+            // still lands on an already-cancelled token.
+            if (!closed)
             {
-                error = TimedOut();
+                await CompleteAsync(execution, scope, writer, RunStatus.Canceled, error, activity, startedAt)
+                    .ConfigureAwait(false);
             }
         }
-
-        await CompleteAsync(execution, scope, writer, status, error, activity, startedAt).ConfigureAwait(false);
-
-        // The client must also see the closing event: if the stream cuts off
-        // before saying "done", the client cannot tell a dropped connection
-        // from a finished job.
-        yield return LastEvent(execution, writer, status, error);
     }
 
     /// <summary>

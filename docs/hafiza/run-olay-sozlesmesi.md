@@ -101,3 +101,27 @@ yolda da koşar; bir genişleme noktası yola göre sessizce farklı davranmamal
   iddia ediyordu, ∴ sınıf sessizce değişebildi. **Kural:** bir sağlayıcı
   hatasını taklit eden sahte, istisnayı gerçek SDK'nın sardığı gibi sarmalı;
   ve testin adı neyi iddia ediyorsa gövdesi onu ölçmeli.
+- **🚨 Bir `run` async iterator ile akıyorsa terminal durumu YALNIZ `finally`
+  garanti eder** (2026-09-20, A-32). `WorkflowRunner.RunGuardedAsync` `run`'ı
+  `writer.StartAsync` ile acar ve `CompleteAsync` ile kapatirdi; ikisi arasinda
+  `try/finally` **yoktu**. Async iterator gövdesi yalnizca **biri enumere
+  ederken** ilerler: tuketici `await foreach`'ten `break` ederse ya da bir
+  istisna bir `yield return`'den gecerek cikarsa, enumerator dispose edilir ve
+  gövde **sadece `finally` bloklarini** kosmak icin devam eder. `finally` yoksa
+  satir `Running`'de acik kalir. `RunReconciliationService` yetimi sonunda
+  kapatir ama **`Failed`** olarak ⇒ kullanicinin iptal ettigi `run`, dakikalar
+  sonra, hic olmamis bir basarisizlik olarak raporlanir.
+- **Ayni ders agent yolunda ZATEN yaziliydi; workflow yolu onu almadi.**
+  `RunRecordingAgent`'in akis yolu bu `finally`'yi iki kusurla (HATA-S4-012,
+  HATA-S4-003) sertlestirmis ve yorumuna yazmisti: *"this is an early
+  DisposeAsync() by the consumer. It is the LAST chance to write the terminal
+  status."* Sonradan eklenen workflow yolu ayni yuzeydi ama desen tasinmadi.
+  **Kural:** `run` acan her yuzey — bugun iki tane: `RunRecordingAgent` ve
+  `WorkflowRunner` — ayni terminal-durum garantisini tasimak zorundadir; yeni
+  bir tane eklenirse once bu iki gövdeye bakilir.
+- **Zamanlamaya dayali test kusuru GIZLER.** Bu kusuru once
+  `Cancellation_requested_inside_a_function_node_still_records_Canceled` yakaladi:
+  yerelde **40/40 gecti**, CI'da windows-latest'te iki kez dustu. Yaris testi
+  "kirilgan" diye damgalanmaya acikti. Terk yolu (`break`) ayni deligi
+  **deterministik** olarak gosterir (218 ms) — bir yarisi kovalamak yerine ayni
+  kusura zamanlamasiz bir yoldan ulasmak, siniflandirmayi tartisma disi birakir.
