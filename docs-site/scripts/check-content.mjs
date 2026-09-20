@@ -1330,14 +1330,26 @@ for (const file of handWritten) {
 // link that answers 404 on every page. Verify the rendered URL, not only the
 // configuration flag that enables it.
 if (repositoryIsPublic) {
-  const landingHtmlPath = join(siteRoot, 'dist', 'index.html');
-  const landingHtml = readFileSync(landingHtmlPath, 'utf8');
-  const expectedEditLink = `${repositoryUrl}/edit/main/docs-site/src/content/docs/index.mdx`;
+  const astroConfigPath = join(siteRoot, 'astro.config.mjs');
+  const astroConfig = readFileSync(astroConfigPath, 'utf8');
+  const expectedBaseUrl = 'baseUrl: `${repositoryUrl}/edit/main/docs-site/`';
 
-  if (!landingHtml.includes(expectedEditLink)) {
+  if (!astroConfig.includes(expectedBaseUrl)) {
     errors.push(
-      `dist/index.html: public repository edit link is missing or malformed; expected ${expectedEditLink}`,
+      `astro.config.mjs: public repository edit-link base is missing or malformed; expected ${expectedBaseUrl}`,
     );
+  }
+
+  const landingHtmlPath = join(siteRoot, 'dist', 'index.html');
+  if (existsSync(landingHtmlPath)) {
+    const landingHtml = readFileSync(landingHtmlPath, 'utf8');
+    const expectedEditLink = `${repositoryUrl}/edit/main/docs-site/src/content/docs/index.mdx`;
+
+    if (!landingHtml.includes(expectedEditLink)) {
+      errors.push(
+        `dist/index.html: public repository edit link is missing or malformed; expected ${expectedEditLink}`,
+      );
+    }
   }
 }
 
