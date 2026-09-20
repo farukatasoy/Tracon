@@ -13076,7 +13076,7 @@ entries assume.
 
 <a id="v1.0.0-preview.1"></a>
 
-### 1.0.0-preview.1 — 2026-09-19
+### 1.0.0-preview.1 — 2026-09-20
 
 The first published version: twenty packages on one version line.
 
