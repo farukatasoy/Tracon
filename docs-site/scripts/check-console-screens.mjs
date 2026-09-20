@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, relative, sep } from 'node:path';
 
 const screenshotStamp = '.ui-source.sha256';
 
@@ -22,7 +22,10 @@ export function computeUiSourceHash(sourceRoot) {
 
   const hash = createHash('sha256');
   for (const file of files.sort()) {
-    hash.update(file.slice(frontendRoot.length));
+    // The stamp is committed and checked on every supported runner. Native
+    // relative paths use `\\` on Windows and `/` elsewhere, so hashing the raw
+    // path made identical source trees produce platform-specific stamps.
+    hash.update(relative(frontendRoot, file).split(sep).join('/'));
     hash.update('\0');
     hash.update(readFileSync(file));
     hash.update('\0');
