@@ -13079,8 +13079,10 @@ meets first.
 
 #### Changed
 
-- Preview npm releases use the `next` dist-tag. Stable releases alone use
-  `latest`; the release workflow also repairs stale preview dist-tags.
+- Preview npm releases use the `next` dist-tag, so install previews with
+  `npm install @tracon/client@next`. npm does not let the `latest` tag be
+  removed, and a package's first publish binds `latest` to it, so `latest`
+  tracks the newest preview until the first stable release claims it.
 - GitHub repository metadata, Discussions, preview release classification, and
   public documentation links now describe the published product.
 
