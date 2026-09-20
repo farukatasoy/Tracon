@@ -5,22 +5,20 @@
 > ölçülen kanıtı, yayın kararlarını, risk kabulünü ve doğrulama durumunu taşır.
 >
 > **Son güncelleme:** 2026-09-20  
-> **Çalışma modu:** `nuget-danismani` — Yayın kararı  
-> **🚨 GÜNCEL KARAR §4'ün başındaki 2026-09-20 TAG SONRASI bloğudur —
-> ❌ Bu tag'den yayın çıkmaz.** Tag `v1.0.0-preview.1` → `75478786` atıldı,
-> CI koşumu düştü ve yayın işlerinin üçü de atlandı; **hiçbir şey
-> yayınlanmadı** (20/20 nuget kimliği `404`, npm `404`, release `0`), sürüm
-> numarası yanmadı. Artifact `75478786`'dan yeniden ölçüldü ve **temiz**
-> (kapanış + prova çıkış 0, 38/38 hash bağımsız doğrulandı). Blocker ürün
-> değil **CI'ın tag yoludur**: **A-29 — kök sebep bulundu ve DETERMİNİSTİK,
-> her tag'de tekrarlar:** CI'da `ContinuousIntegrationBuild` kaynak yollarını
-> `/_` yapar, bench'in `[CallerFilePath]` tabanlı `RepositoryRoot()`'u `/_`
-> döndürür ve BenchmarkDotNet dosya sistemi kökünde dizin açmaya çalışır
-> (`exit 134`). Kapı 21 push'ta `skipped` olduğu için bugüne kadar hiç
-> görünmedi. · A-30 (`Kapasite smoke` aynı commit'te iki sonuç, log henüz
-> alınmadı) · A-10 (site deploy hâlâ yapılmadı, çapa canlıda yok). A-12 bu turda **kapandı** (`nuget`
-> environment'ının kuralı `branch` tipindeydi, `tag` yapıldı). Aşağıdaki
-> 2026-09-19 ve öncesi metinler **tarihsel bağlamdır**.
+> **Çalışma modu:** `nuget-danismani` — Yayın sonrası  
+> **🚨 GÜNCEL DURUM §4'ün başındaki 2026-09-20 YAYINLANDI bloğudur —
+> ✅ `1.0.0-preview.1` SEVK EDİLDİ.** Tag `v1.0.0-preview.1` → `f14f6309`;
+> tag koşumu `35510131648` sekiz işin sekizinde de yeşil; `@tracon/client`
+> npm'de yayında, 20 NuGet paketi push edildi, GitHub release oluştu. Bu dosya
+> artık bir yayın **kararı** taşımıyor; yayın sonrası kayıt ve ilk 72 saat
+> planı (§14) için okunur. Yayın günü **üç kusur** bulundu ve üçü de kapandı —
+> üçü de yalnız yayın yolunda koşan, o güne kadar hiç gerçek veri görmemiş
+> adımlardı: **A-29** (tahsis kapısı `/_`; CI'da 21 push boyunca `skipped`,
+> ilk koşumu tag'di), **A-32** (iptal edilen workflow `run`'ı hiç kapanmıyordu;
+> desen agent yolunda vardı, workflow yoluna taşınmamıştı), **A-33**
+> (`NuGet/login` `user:` policy'nin sahibini değil **oluşturanını** ister).
+> A-10 (site deploy) ve A-12 (`nuget` environment kuralı `branch` → `tag`) de
+> kapandı. Aşağıdaki 2026-09-19 ve öncesi metinler **tarihsel bağlamdır**.
 > **Eski not — 2026-09-19 üçüncü turu için geçerliydi:** ❌ O gün tag
 > atılmazdı, açık ÜRÜN 🔴'si olduğu için değil. O tur ikinci turun
 > ❌'ini devralmadı: artifact'i `c5ed5573`'ten **yeniden ölçtü** ve temiz buldu.
@@ -129,6 +127,59 @@ sayının ürün politikası mı yoksa bayat ölçüm mü olduğu artifact sonra
 değerlendirilecektir.
 
 ## 4. Mevcut net yayın kararı
+
+### ✅ YAYINLANDI — 2026-09-20, `1.0.0-preview.1`
+
+**Tag `v1.0.0-preview.1` → `f14f6309`.** Koşum `35510131648`: sekiz işin
+sekizi de yeşil (`build` ×2 · `pack` · `release-dryrun` · `npm-publish` ·
+`publish` · `github-release`; `site` yalnız `main`'de koşar, etikette atlanır).
+`@tracon/client@1.0.0-preview.1` npm'de `latest` etiketiyle; 20 NuGet paketi
+push edildi; GitHub release oluştu.
+
+🚨 **"Push başarılı" ile "paket görünür" ayrı anlardır.** İlk kez yayınlanan
+paket kimlikleri nuget.org doğrulamasından geçer; `v3-flatcontainer`,
+registration ucu ve paket sayfası bir süre `404` döner. Yayın kanıtı CI'ın
+`publish` işidir, indeksin o andaki hâli değil.
+
+#### Sevk edilen artifact
+
+Prova `f14f6309`'un içeriğinden koştu (`YAYIN_EXIT=0`): 20 paket + 18 sembol
+paketi, tek sürüm hattı, manifest `dirty: false`, **38/38 `sha256` bağımsız
+yeniden hesaplandı**, fazla/eksik paket yok, 20 `.nuspec`'in 20'si
+`https://tracon.dev/reference/changelog/#v1.0.0-preview.1` ve doğru
+`repository commit` taşıyor. Kapanış kapısı aynı içerikten 10/10 yeşil.
+
+#### Yayın günü bulunan ve kapatılan üç kusur
+
+Üçünün de ortak sınıfı var: **yalnız yayın yolunda koşan, o güne kadar hiç
+gerçek veri görmemiş adımlar.** Üçü de yerel kapılardan geçmişti.
+
+| # | Kusur | Kök sebep | Kapanış |
+|---|---|---|---|
+| **A-29** | Tahsis kapısı her tag'de koşup `exit 134` veriyordu | `CI=true` → `ContinuousIntegrationBuild` → `DeterministicSourcePaths` kaynak yollarını `/_` yapar; bench'in `[CallerFilePath]` tabanlı `RepositoryRoot()`'u `/_` döndürür ve BenchmarkDotNet dosya sistemi kökünde dizin açmaya çalışır. CI geçmişinde kapı **21 push boyunca `skipped`**'ti; ilk gerçek koşumu tag oldu | `4e415098` — çözüm `AppContext.BaseDirectory`'den yukarı yürüyüş (`RepoRoot.cs` deseni); `BenchmarkRepositoryLayoutTests` her CI koşumunda koşar; `ci.yml` etiketi artık **açıkça** ele alır |
+| **A-32** | İptal edilen workflow `run`'ı hiç kapanmıyordu | `RunGuardedAsync` bir async iterator; `writer.StartAsync` ile `CompleteAsync` arasında `try/finally` **yoktu**. Tüketici `break` ederse enumerator dispose edilir ve gövde yalnız `finally` bloklarını koşar. `RunReconciliationService` yetimi sonunda **`Failed`** olarak kapatıyordu ⇒ kullanıcının iptali, dakikalar sonra, olmamış bir başarısızlık olarak raporlanıyordu | `d337d5af` — `finally` hâlâ açıksa `Canceled` yazar. **Sınıf taraması:** `run` açan tam iki yüzey var; `RunRecordingAgent` bu `finally`'yi iki kusurla (HATA-S4-012, HATA-S4-003) zaten kazanmıştı, workflow yoluna taşınmamıştı |
+| **A-33** | `NuGet/login` OIDC takası `HTTP 401` | `user:` policy'yi **oluşturan** hesabın profil adıdır, policy'nin **sahibi** değil. Policy `Tracon` org sahipliğinde olduğu için `user: Tracon` doğru görünüyordu ve `ci.yml` yorumu bunu savunuyordu | `f14f6309` — `user: farukatasoy`. **Hiçbir testle yanlışlanamazdı**: yalnız gerçek bir token takası ölçer, o da yalnız `v*` etiketinde olur |
+
+#### Yayın hesabı tarafında ölçülen iki ayar
+
+- **npm granular token'ında "Bypass two-factor authentication (2FA)" kutusu
+  işaretli olmalı.** Scope'lar (`@tracon` + `tracon` org, read/write) doğru olsa
+  bile kutu kapalıyken `npm error code EOTP`. Org düzeyinde 2FA enforcement
+  açıkken zorunlu.
+- **Trusted publishing policy'nin glob'u `Tracon*`** ve scope'u *"Push new
+  packages and package versions"* — 20 kimliğin 20'si de yeniydi, "yalnız yeni
+  sürüm" seçeneği hiçbirini basamazdı. Glob ölçüldü: **20/20 eşleşiyor**.
+
+#### İki yarım yayın denemesi ve neden bedelsiz kaldı
+
+npm `EOTP`'de düştüğünde `publish` (NuGet) `needs: npm-publish` olduğu için
+**hiç koşmadı**; NuGet OIDC'de düştüğünde `dotnet nuget push` **hiç koşmadı**.
+İkisinde de sürüm numarası yanmadı. `npm-publish` var olan sürümü `npm view`
+ile görüp **atlar ve iş kırılmaz** ⇒ etiketi taşıyıp yeniden denemek bedelsiz.
+Sıralama (geri dönüşü olan kanal önce) tasarlandığı işi yaptı — RK-011.
+
+---
+
 
 ### 🚨 GÜNCEL KARAR — 2026-09-20 (`nuget-danismani`, tag sonrası yayın turu)
 
@@ -1103,7 +1154,7 @@ operasyon kritik yolunu yeniden açmaz.
 - [x] `.nuspec` pre-release dependency sınırı doğrulandı.
 - [x] Paket README, icon, license, repository ve project URL varlığı doğrulandı.
 - [x] Tüketiciye dönük paket URL'lerinin gerçekten **çözüldüğü** ölçüldü (BL-056/K-659) — `PackageProjectUrl` ve `PackageReleaseNotes` doküman sitesine bakar.
-- [ ] `.snupkg` envanteri ölçüldü; Source Link üçüncü taraf için **çözemez** — repo private (RK-013, kabul edildi).
+- [x] `.snupkg` envanteri ölçüldü: 18 sembol paketi sevk edildi. **RK-013 kendiliğinden kapandı** — repo public yapıldı (`visibility: public`) ve `RepositoryUrl` `github.com/farukatasoy/Tracon`'a bakıyor, ∴ Source Link üçüncü taraf için **çözer**. Kabul edilen risk artık yok.
 - [ ] Deterministic/reproducible release ölçüldü.
 - [ ] Package validation sonucu incelendi.
 
@@ -1133,7 +1184,7 @@ operasyon kritik yolunu yeniden açmaz.
 ### NuGet.org ve yayın operasyonu
 
 - [x] NuGet.org hesabı doğrulandı (KN-022).
-- [ ] 🚨 **Trusted publishing policy `Tracon` ORGANİZASYONU sahipliğinde YENİDEN kurulmalı (OP-005).** 2026-08-28'de kurulan policy bugün geçersizdir: sahibi kişisel hesaptır, alanları eski adı taşır ve private-repo penceresi dolmuştur. Bir policy yalnız KENDİ sahibinin paketlerine uygulanır. Policy `preview.1`'den önce kurulmazsa `publish` işi hata verir ve npm tek başına yayınlanır (F-11). Kurulum **repo public yapıldıktan sonra** olmalı — o zaman yedi günlük pending penceresi hiç açılmaz. Policy'nin **"yeni paket yayınlama" scope'unu** taşıdığı ayrıca doğrulanmalı: ilk yayın 20 YENİ kimliktir.
+- [x] **Trusted publishing policy kuruldu ve KULLANILDI (OP-005).** `Tracon` org sahipliğinde, glob `Tracon*` (20/20 kimlik eşleşiyor, ölçüldü), scope *"Push new packages and package versions"*. 🚨 `user:` alanı policy'nin **oluşturanıdır** (`farukatasoy`), sahibi değil — A-33. Aşağıdaki 2026-08-28 metni tarihsel bağlamdır: 2026-08-28'de kurulan policy bugün geçersizdir: sahibi kişisel hesaptır, alanları eski adı taşır ve private-repo penceresi dolmuştur. Bir policy yalnız KENDİ sahibinin paketlerine uygulanır. Policy `preview.1`'den önce kurulmazsa `publish` işi hata verir ve npm tek başına yayınlanır (F-11). Kurulum **repo public yapıldıktan sonra** olmalı — o zaman yedi günlük pending penceresi hiç açılmaz. Policy'nin **"yeni paket yayınlama" scope'unu** taşıdığı ayrıca doğrulanmalı: ilk yayın 20 YENİ kimliktir.
 - [x] NuGet.org'un zorunlu Microsoft-account 2FA sınırı authenticated policy oluşturma akışında geçildi (OP-002/KN-022).
 - [x] Owner modeli seçildi: **organizasyon `Tracon`** (OP-001, 2026-09-12, K-755 — önceki kişisel hesap kararı yeniden açıldı ve değişti).
 - [x] 20 Package ID'nin uygunluğu ölçüldü: 20/20 müsait (OP-003). Sahiplik modeli organizasyondur (OP-001).
@@ -1148,8 +1199,8 @@ operasyon kritik yolunu yeniden açmaz.
 - [x] İlk 72 saat gözlem ve destek sorumluluğu onaylandı (§14; `SECURITY.md` + issue şablonları eklendi).
 - [x] Düzeltme sonrası dört kapı yeşil koştu (kapanış 10/10 · E2E 57/57 · yayın provası 20 paket + AOT).
 - [x] Public öncesi `git` geçmişi secret taraması koşuldu (RK-014, 2026-09-19): 1065 commit, gerçek credential sıfır.
-- [ ] Repo public yapıldı ve `git push origin main` tamamlandı (KG-028); tag `origin`'e atılır, `intelera`'ya değil.
-- [ ] Gerçek yayın için kullanıcıdan açık onay alındı.
+- [x] Repo public yapıldı ve `git push origin main` tamamlandı (KG-028); tag `origin`'e atıldı.
+- [x] Gerçek yayın için kullanıcıdan açık onay alındı 👤 ve `environment: npm` / `environment: nuget` onayları verildi (`required_reviewers: farukatasoy`).
 
 ## 11. Karar günlüğü
 
@@ -1205,11 +1256,20 @@ operasyon kritik yolunu yeniden açmaz.
 
 ## 13. Sonraki adım
 
-> 🚨 **Aksiyon tablosunun REPO kalemleri kapandı (2026-09-19, üçüncü tur).**
-> Açık kalan A-10 · A-11 · A-12'nin üçü de **elle müdahaledir** ve hiçbiri
-> koda dokunmaz. **Sıradaki repo işi artık adım 5'tir (sürüm kesimi).** Açık
-> kalan `preview.1` dışı kalemler (A-8 · A-15 · A-16 · A-17 · A-18 · A-28)
-> GA/`preview.2` hattındadır ve tag'i beklemez.
+> 🚨 **`preview.1` SEVK EDİLDİ (2026-09-20).** Aşağıdaki tablo kapanmış
+> `preview.1` yolunun kaydıdır; A-10 · A-11 · A-12 dahil tüm tag öncesi
+> kalemler kapandı. **Sıradaki iş `preview.2`/GA hattıdır** ve açık kalemler
+> şunlardır: A-8 (job süre sınırı) · A-15 (kapı kendi bastığı byte'ları
+> doğrulamıyor) · A-16 (`Tracon.Mcp` üç sevk edilen tipi testsiz) · A-17
+> (`Tracon.Azure` çağrı yolu kanıtsız) · A-18 (dış sample kanıtı `IRunStore`
+> ile sınırlı) · A-28 (sesli delegasyon timeout ≠ barge-in) · UR-003 (public
+> API freeze taraması) · A-31 (**yeni**: kapanış kapısı artımlı durumdan
+> yeniden üretilebilir değil — bayat çıktı kopyası 81 testi düşürdü ve kapı
+> bunu "gerçek regresyon" diye raporladı; A-15 sınıfı) · **4 eksik store
+> contract'ı** (A-21 ölçümü).
+>
+> Yayın günü bulunan A-29 · A-32 · A-33 **kapandı** — üçü de §4'ün başındaki
+> YAYINLANDI bloğundadır.
 
 ### 13.0 Aksiyon tablosu — 2026-09-19 ikinci turunun çıktısı
 
@@ -1405,8 +1465,9 @@ kapanmalıdır:
 
 | Zaman | Durum | Plan |
 |---|---|---|
-| Yayın öncesi | **Tamamlandı (2026-09-03)** | Sorumlu: tek bakımcı (`farukatasoy`). Güvenlik kanalı `SECURITY.md` (özel e-posta, 72 saat içinde onay); kusur kanalı GitHub issue şablonları (bug · dokümantasyon). 🚨 **Repo private olduğu sürece ikisi de dış tüketiciye görünmez** — public kanal bugün yalnız doküman sitesidir; repo public yapılana kadar bu bir kabul edilen boşluktur |
-| 0–2 saat | Bekliyor | NuGet.org paket sayfaları, dependency graph, README/icon/license, symbol görünürlüğü ve temiz makinede install doğrulanır |
+| Yayın öncesi | **Tamamlandı (2026-09-03)** | Sorumlu: tek bakımcı (`farukatasoy`). Güvenlik kanalı `SECURITY.md` (özel e-posta, 72 saat içinde onay); kusur kanalı GitHub issue şablonları (bug · dokümantasyon). ✅ **Repo public yapıldı (2026-09-19), ∴ ikisi de artık dış tüketiciye görünür** — 2026-09-03'te kabul edilen boşluk kapandı |
+| **Sevk anı (2026-09-20)** | **Tamamlandı** | Tag `f14f6309`; koşum `35510131648` 8/8 yeşil; npm `latest` = `1.0.0-preview.1`; 20 NuGet paketi push edildi; GitHub release oluştu. 🚨 nuget.org indeksi push'tan **sonra** dolar — o andaki `404` bir kusur değildir |
+| 0–2 saat | **Sıradaki** | NuGet.org paket sayfaları, dependency graph, README/icon/license, symbol görünürlüğü ve temiz makinede install doğrulanır |
 | 2–24 saat | Bekliyor | Restore/build/runtime sorunları, issue'lar, dependency ve security uyarıları izlenir; doğrulanmış kritik kusurda yeni indirmeler için deprecation değerlendirilir |
 | 24–48 saat | Bekliyor | İlk tüketici geri bildirimi public API, docs ve extension ergonomisi sınıflarına ayrılır; preview compatibility etkisi yazılır |
 | 48–72 saat | Bekliyor | Patch/sonraki preview kararı verilir; release retrospective ve risk kaydı güncellenir |
