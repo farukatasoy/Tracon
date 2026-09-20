@@ -5,7 +5,7 @@ import starlight from '@astrojs/starlight';
 import mermaid from 'astro-mermaid';
 
 import { sidebar } from './src/sidebar.mjs';
-import { base, site, siteUrl } from './site.config.mjs';
+import { base, repositoryIsPublic, repositoryUrl, site, siteUrl } from './site.config.mjs';
 
 // The diagram palette lives in site.css and is read from there rather than
 // repeated here. Mermaid needs literal colours because it does colour maths in
@@ -141,12 +141,12 @@ export default defineConfig({
         },
         { tag: 'meta', attrs: { name: 'twitter:card', content: 'summary_large_image' } },
       ],
-      // No `social` GitHub icon and no `editLink`. Both pointed at the repository,
-      // which is private: measured 2026-08-21, github.com/farukatasoy/Tracon
-      // answers 404 to an anonymous reader, and Starlight put an "Edit page" link on
-      // all 39 hand-written pages. A link that every visitor can only fail to follow
-      // is worse than no link. Restore both blocks if the repository is ever made
-      // public — that is the reopening condition recorded with K-542.
+      social: repositoryIsPublic
+        ? [{ icon: 'github', label: 'GitHub', href: repositoryUrl }]
+        : undefined,
+      editLink: repositoryIsPublic
+        ? { baseUrl: `${repositoryUrl}/edit/main/docs-site/` }
+        : undefined,
       customCss: ['./src/styles/site.css'],
       components: {
         Header: './src/components/Header.astro',

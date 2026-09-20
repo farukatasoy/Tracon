@@ -7,7 +7,7 @@ Tracon is a .NET package family built on
 You write the AI harness; you operate it at `/tracon`. Start with
 `dotnet new tracon-api`, and test without calling a model using `Tracon.Testing`.
 
-> **Status:** first preview published — **`1.0.0-preview.1`**, twenty packages on one
+> **Status:** second preview published — **`1.0.0-preview.2`**, twenty packages on one
 > version line, plus `@tracon/client` on npm. The install command below resolves; keep
 > `--prerelease`, because there is no stable version yet. The public API is **not
 > frozen**: `PublicAPI.Shipped.txt` is empty in every package and the surface may still
@@ -50,7 +50,7 @@ Experiments, Approvals, Tools, Models, MCP, Triggers, Audit, Diagnostics, Settin
 
 Written in React 19 and TypeScript, built with Vite, and embedded in the assembly
 **Brotli-compressed** — no JavaScript dependency reaches the consuming project and no
-`node_modules` folder is needed. The budget is **184.1 KB gzip** (gate: 250 KB), and a
+`node_modules` folder is needed. The JavaScript budget is **250 KB gzip**, and a
 gate fails the build on a fifth run-time dependency.
 
 The console runs under any prefix (`/tracon`, `/panel`, …), learning it at run time.
@@ -116,7 +116,7 @@ builder.AddTracon()
        .UseUI();                              // embedded console
 
 // Run with a durable session
-var agent = await catalog.ResolveAsync("support");
+var agent = await catalog.ResolveAsync("support", culture: null, CancellationToken.None);
 var session = await sessions.GetOrCreateSessionAsync(agent!, "customer-42");
 var response = await agent!.RunAsync("Where is my order?", session);
 await sessions.SaveSessionAsync(agent, session);
@@ -143,7 +143,8 @@ Without `UsePostgreSql()`, storage falls back to memory and nothing breaks. The 
 is created by embedded SQL migrations in a separate `tracon` schema; your
 application's `public` schema is left alone.
 
-A running example: [`samples/Tracon.Api`](samples/Tracon.Api).
+Running examples: [`samples/Tracon.Api`](samples/Tracon.Api) and the
+[extension sample catalog](samples/README.md).
 
 ---
 
@@ -180,7 +181,7 @@ for production use."* Tracon does not replace DevUI — it continues where DevUI
 | `Tracon.Anthropic` | PolyForm | Anthropic (Claude) adapter — official SDK, prompt caching, extended thinking. **Not in the meta package** |
 | `Tracon.Google` | PolyForm | Google Gemini adapter — official SDK, safety thresholds, thinking budget. **Not in the meta package**; brings a transitive `Google.Apis.Auth` chain |
 | `Tracon.Azure` | PolyForm | Azure OpenAI adapter — deployment-based model resolution, API key or Entra identity. **Not in the meta package**; `Azure.Identity` is **not** a dependency — the credential factory comes from you |
-| `Tracon.Voice` | PolyForm | Speech tools: `speak`, `transcribe`, `list_voices`, measured into `tool_invocations`. **Zero NuGet dependencies**; not in the meta package. Live conversation is in `Core` (`UseVoiceConversation()`) |
+| `Tracon.Voice` | PolyForm | Speech tools: `speak`, `transcribe`, `list_voices`, measured into `tool_invocations`. Depends only on `Tracon.Core`, with no third-party NuGet dependency; not in the meta package. Live conversation is in `Core` (`UseVoiceConversation()`) |
 | `Tracon.Mcp` | PolyForm | Tool discovery from remote MCP servers — HTTP only, approval default |
 | `Tracon.Workflows` | PolyForm | Workflow execution — five patterns, checkpoints, resume, HITL |
 | `Tracon.AspNetCore` | PolyForm | HTTP layer — management API, OpenAI-compatible endpoints, multi-tenancy |
@@ -189,7 +190,7 @@ for production use."* Tracon does not replace DevUI — it continues where DevUI
 | `Tracon.Testing` | PolyForm | `FakeModelProvider`, `TraconTestHost`, `RunAssertions`; framework neutral, not in the meta package |
 | `Tracon.Testing.Contracts.Xunit` | MIT | The behavior-contract suites the shipped implementations run — derive from them to verify your own `IRunStore`, `IModelProvider`, `IRunJudge`, `IAgentSource` or `IJobHandler`. Not in the meta package |
 | `Tracon.Client` | PolyForm | Typed management client generated from the OpenAPI document — 168 operations, zero Tracon dependency, no NuGet dependency beyond DI abstractions. Not in the meta package |
-| `Tracon.Cli` | PolyForm | The `tracon` global tool — `migrate`, `migrate status`, `health`, `eval`, `state-check`. Not a library; not in the meta package |
+| `Tracon.Cli` | PolyForm | The `tracon` global tool — `migrate`, `migrate status`, `health`, `eval`, `state-check`, `agent-skill`. Not a library; not in the meta package |
 | `@tracon/client` | PolyForm | **npm, not NuGet** — the same 168 operations as `Tracon.Client`, from the same OpenAPI document via `openapi-typescript` + `openapi-fetch` |
 
 **Target frameworks:** `net8.0`, `net9.0`, `net10.0` — including `Tracon.Testing`, so an
@@ -216,8 +217,8 @@ of those two. Per-package reasons:
 
 ## Installation
 
-**Not published yet** — this is what installation will look like; until the first
-release, reference the projects from a clone.
+The packages are published as `1.0.0-preview.2`. Select pre-release packages
+explicitly:
 
 ```bash
 dotnet add package Tracon --prerelease
@@ -280,8 +281,8 @@ write tool **code**, only pick from the tools registered in code. A security bou
 
 ## Roadmap
 
-Development runs in numbered phases; all are complete except the release phase, which
-stays open because the release date is a deliberate decision. The list is generated
+Development runs in numbered phases. The first preview shipped on 2026-09-20, and
+later work now targets the next preview and GA. The list is generated
 into [docs/YOL-HARITASI.md](docs/YOL-HARITASI.md); unselected candidates are in
 [docs/ADAYLAR.md](docs/ADAYLAR.md).
 
@@ -307,7 +308,7 @@ depends on GA packages only.
 
 ```bash
 dotnet build  Tracon.slnx -c Release              # 0 warnings expected
-dotnet test   Tracon.slnx -c Release --no-build   # 20 test projects
+dotnet test   Tracon.slnx -c Release --no-build   # 22 test projects run
 dotnet pack   Tracon.slnx -c Release --no-build
 dotnet format Tracon.slnx --verify-no-changes
 ```
@@ -335,7 +336,7 @@ cd src/Tracon.UI/frontend && npm run dev
 
 **The user-facing product documentation is a separate site:**
 <https://tracon.dev> — installation, your first agent, concepts, a console tour,
-the HTTP API (168 operations), and an API reference for 671 public types. Its source
+the HTTP API (168 operations), and an API reference for 764 public types. Its source
 is [`docs-site/`](docs-site/); [`scripts/site-deploy.sh`](scripts/site-deploy.sh)
 builds it, runs the four site gates, and publishes it behind the nginx stack in
 [`docs-site/deploy/`](docs-site/deploy/).

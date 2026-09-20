@@ -11,8 +11,7 @@
       "longName": "ui"
     },
     "TraconVersion": {
-      "longName": "TraconVersion",
-      "isHidden": "true"
+      "longName": "TraconVersion"
     },
     "skipRestore": {
       "longName": "skip-restore"

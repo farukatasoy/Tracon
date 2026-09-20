@@ -8,7 +8,7 @@ workflows, tenants, and the rest of the control plane. Built on
 dependency.
 
 ```bash
-npm install @tracon/client
+npm install @tracon/client@next
 ```
 
 ## Setup
@@ -60,17 +60,37 @@ try {
 `title` and `detail` come from the server's `application/problem+json` body
 and are shown verbatim — this package does not translate them.
 
+## Streaming responses
+
+Seven operations answer `text/event-stream`: agent `run`, the run event stream,
+workflow `run`/`resume`/`respond`, and the OpenAI-compatible `responses` and
+`chat/completions` endpoints. Request a raw stream, then use the decoder shipped
+by this package:
+
+```ts
+import { readSse } from '@tracon/client';
+
+const { response } = await client.POST('/api/agents/{name}/run', {
+  params: { path: { name: 'support' } },
+  body: { message: 'Where is order 4182?' },
+  parseAs: 'stream',
+});
+
+for await (const frame of readSse(response)) {
+  console.log(frame.event, frame.data);
+}
+```
+
+`readSse` handles split network chunks and keep-alive comments. `SseDecoder` is
+also exported for transports that do not expose a `fetch` `Response`. Do not use
+`EventSource`: it cannot send the required `Authorization` header or issue a
+`POST`.
+
 ## What this package does not cover
 
-- **Server-Sent Events.** Six operations (agent `run`, workflow
-  `run`/`resume`/`respond`, and the OpenAI-compatible `responses` and
-  `chat/completions` endpoints) answer `text/event-stream`, not JSON. A
-  `fetch`-based typed client reads a response body as JSON; call these with
-  your own `EventSource`/`fetch` streaming code instead, using this
-  package's `paths` types for the request shape.
-- **Token storage.** This package reads a token you supply — it does not
-  read or write `localStorage`, a cookie, or anything else. Store it however
-  your application already does.
+- **Token storage.** This package reads a token you supply — it does not read or
+  write `localStorage`, a cookie, or anything else. Store it however your
+  application already does.
 
 ## Why the base URL needs the prefix
 

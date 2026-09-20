@@ -3,11 +3,9 @@ title: Write your own store
 description: Implement IRunStore against your own persistence engine and prove it correct with the same contract suite the four shipped providers run.
 ---
 
-:::caution[Package availability]
-Tracon packages and templates are not published yet. Package-install examples on
-this page describe the release form and do not currently resolve from public
-registries. With authorized repository access, use the
-[source build instructions](/getting-started/first-agent/).
+:::note[Preview packages]
+Tracon is published as `1.0.0-preview.2`. Use `--prerelease` for discovery or
+pin the exact version for reproducible builds.
 :::
 
 The three built-in providers (`Tracon.PostgreSql`, `.SqlServer`, `.Sqlite`) cover
@@ -94,7 +92,7 @@ NUGET_PACKAGES=$(mktemp -d) dotnet test
 ```
 
 A prerelease version string can name different content over time. NuGet caches
-by package id and version, so once `1.0.0-preview.1` is extracted into your
+by package id and version, so once `1.0.0-preview.2` is extracted into your
 global cache, a later build carrying the same version is never re-read — your
 store then compiles against the older contract and the contract suite reports
 failures that do not exist in the package you just built.

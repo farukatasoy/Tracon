@@ -5,16 +5,14 @@ namespace Tracon.Package.Tests.Infrastructure;
 /// <summary>
 /// The one-time setup shared by all template tests: packs the solution
 /// (populating <c>artifacts/package/release</c> as a local NuGet feed),
-/// resolves the package version, and installs the template with
+/// resolves the package version, and installs the packed template with
 /// <c>dotnet new install</c>.
 /// </summary>
 /// <remarks>
-/// Because Tracon is not published on nuget.org (Phase 7 pending, K-068),
-/// the generated projects' <c>Tracon</c> package reference can only resolve
-/// from this local feed. The template's own default version value (<c>*-*</c>,
-/// a floating pre-release) assumes a full feed like nuget.org; for test
-/// isolation, the PACKED version is resolved explicitly here and passed to
-/// every `dotnet new` call.
+/// The generated projects resolve Tracon from the local feed. Installing the
+/// packed template is intentional: it verifies the version stamped into the
+/// package instead of bypassing that behavior through a source-directory
+/// install or an explicit <c>--TraconVersion</c> argument.
 /// </remarks>
 public sealed class TemplateFixture : IAsyncLifetime
 {
@@ -23,6 +21,8 @@ public sealed class TemplateFixture : IAsyncLifetime
 
     /// <summary>The version shared by all Tracon packages in the solution.</summary>
     public string Version { get; private set; } = string.Empty;
+
+    private string TemplatePackagePath { get; set; } = string.Empty;
 
     public async ValueTask InitializeAsync()
     {
@@ -40,16 +40,24 @@ public sealed class TemplateFixture : IAsyncLifetime
         }
 
         Version = ResolveMetaPackageVersion();
+        TemplatePackagePath = Path.Combine(
+            RepoPaths.PackageReleaseDirectory,
+            $"Tracon.Templates.{Version}.nupkg");
+
+        if (!File.Exists(TemplatePackagePath))
+        {
+            throw new InvalidOperationException($"Packed template not found: '{TemplatePackagePath}'.");
+        }
 
         ClearGlobalPackageCache();
 
         // Remove any registration left over from a previous run first - an
         // explicit error is preferred over silently running with a stale version.
-        await ProcessRunner.RunAsync("dotnet", $"new uninstall \"{RepoPaths.TemplatesProjectDirectory}\"", timeout: InstallTimeout);
+        await ProcessRunner.RunAsync("dotnet", "new uninstall Tracon.Templates", timeout: InstallTimeout);
 
         var installResult = await ProcessRunner.RunAsync(
             "dotnet",
-            $"new install \"{RepoPaths.TemplatesProjectDirectory}\"",
+            $"new install \"{TemplatePackagePath}\"",
             timeout: InstallTimeout);
 
         if (installResult.ExitCode != 0)
@@ -98,7 +106,7 @@ public sealed class TemplateFixture : IAsyncLifetime
 
     public async ValueTask DisposeAsync()
     {
-        await ProcessRunner.RunAsync("dotnet", $"new uninstall \"{RepoPaths.TemplatesProjectDirectory}\"", timeout: InstallTimeout);
+        await ProcessRunner.RunAsync("dotnet", "new uninstall Tracon.Templates", timeout: InstallTimeout);
     }
 
     /// <summary>
@@ -127,12 +135,17 @@ public sealed class TemplateFixture : IAsyncLifetime
     /// </summary>
     public async Task<ProcessResult> NewAsync(string name, string outputDirectory, string extraArgs = "")
     {
+        if (string.IsNullOrEmpty(Version))
+        {
+            throw new InvalidOperationException("The packed template fixture has not been initialized.");
+        }
+
         Directory.CreateDirectory(outputDirectory);
         await WriteLocalNuGetConfigAsync(outputDirectory);
 
         return await ProcessRunner.RunAsync(
             "dotnet",
-            $"new tracon-api -n {name} -o \"{outputDirectory}\" --TraconVersion {Version} --skip-restore {extraArgs}",
+            $"new tracon-api -n {name} -o \"{outputDirectory}\" --skip-restore {extraArgs}",
             timeout: InstallTimeout);
     }
 

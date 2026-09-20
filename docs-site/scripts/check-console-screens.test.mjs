@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { checkConsoleScreens } from './check-console-screens.mjs';
+import { checkConsoleScreens, computeUiSourceHash } from './check-console-screens.mjs';
 
 const AGENTS_ENTRY =
   "{ path: 'agents', label: 'nav.agents', english: 'Agents', icon: AgentsIcon },";
@@ -22,8 +22,21 @@ function fixture(t, entries = AGENTS_ENTRY) {
     join(components, 'navigation.ts'),
     `export const NAV_GROUPS = [{ group: 'nav.group.operate', items: [${entries}] }];`,
   );
+  writeFileSync(join(source, 'Tracon.UI/frontend/package.json'), '{}');
+  writeFileSync(join(source, 'Tracon.UI/frontend/package-lock.json'), '{}');
   writeFileSync(join(docs, 'ui.md'), '## Agents\n\nThe agent catalog.\n');
+  writeFileSync(
+    join(site, 'public/screenshots/.ui-source.sha256'),
+    `${computeUiSourceHash(source)}\n`,
+  );
   return { source, docs, site };
+}
+
+function refreshStamp(f) {
+  writeFileSync(
+    join(f.site, 'public/screenshots/.ui-source.sha256'),
+    `${computeUiSourceHash(f.source)}\n`,
+  );
 }
 
 test('an empty navigation inventory fails instead of checking zero screenshots', (t) => {
@@ -60,8 +73,20 @@ test('a nav.* key that is not in the table demands nothing', (t) => {
     `// A stray reference to the message key 'nav.skipToContent' in a comment.\n` +
       `export const NAV_GROUPS = [{ group: 'nav.group.operate', items: [${AGENTS_ENTRY}] }];`,
   );
+  refreshStamp(f);
 
   assert.deepEqual(checkConsoleScreens(f.source, f.docs, f.site), []);
+});
+
+test('a UI source change makes the screenshot set stale', (t) => {
+  const f = fixture(t);
+  writeFileSync(join(f.site, 'public/screenshots/agents.png'), 'fixture');
+  writeFileSync(
+    join(f.source, 'Tracon.UI/frontend/src/components/navigation.ts'),
+    `${AGENTS_ENTRY}\n// changed after capture`,
+  );
+
+  assert.match(checkConsoleScreens(f.source, f.docs, f.site).join('\n'), /do not match the current UI source/i);
 });
 
 test('an entry written in a different property order fails loudly instead of vanishing', (t) => {

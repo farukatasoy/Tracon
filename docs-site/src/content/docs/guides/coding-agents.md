@@ -4,11 +4,9 @@ description: Teach a coding agent what Tracon already does, via a gate skill, th
 slug: guides/coding-agents
 ---
 
-:::caution[Package availability]
-Tracon packages and templates are not published yet. The `dotnet new tracon-api`
-line below describes the release form and does not currently resolve from public
-registries. With authorized repository access, use the
-[source build instructions](/getting-started/first-agent/).
+:::note[Preview packages]
+Tracon is published as `1.0.0-preview.2`. Use `--prerelease` for discovery or
+pin the exact version for reproducible builds.
 :::
 
 A coding agent cannot use a capability it does not know exists. It will write a retry

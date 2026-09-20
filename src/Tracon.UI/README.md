@@ -57,7 +57,7 @@ By the area they manage:
 - The UI shell is exempt from the bearer token layer; the loopback restriction and
   authorization policy apply instead: a browser cannot add an
   `Authorization` header to a script request
-- JavaScript budget: 250 KB gzip (build gate). Current size 184.1 KB
+- JavaScript budget: 250 KB gzip, enforced by the build
 - Four run-time JavaScript dependencies, and a build gate on that list. Dialogs,
   menus, tooltips and the command palette are written against the platform
 - Colour, contrast and density come from one token set, checked on every build:

@@ -1,6 +1,6 @@
 ---
 title: Your first agent
-description: Build a Tracon host from an authorized source checkout, configure a model, and inspect your first recorded agent run.
+description: Install the Tracon template, configure a model, run an agent, and inspect its recorded execution in the embedded console.
 sidebar:
   order: 2
 ---
@@ -9,40 +9,33 @@ Build an ASP.NET Core host, register a model-backed agent, then inspect its run
 in the embedded console. MAF executes the agent; Tracon supplies the catalog,
 HTTP endpoints, and default-on recording around it.
 
-:::caution[Repository access required]
-Tracon packages and templates are not published yet. This guide requires an
-existing source checkout that you are authorized to access. If you do not have
-access, start with the [capability map](/capabilities/) and
-[architecture](/concepts/) to evaluate the design.
+:::note[Preview release]
+This guide uses `1.0.0-preview.2`. Preview packages require explicit selection;
+pin the exact version when you need a reproducible build.
 :::
 
 ## Prerequisites
 
-- An authorized checkout of the Tracon repository.
-- The .NET SDK selected by the repository's `global.json` and Node.js for the
-  embedded console build. See the checkout's README for development prerequisites.
+- The .NET 10 SDK.
 - An OpenAI API key and a chat model available to that account. The model request
   is sent to your configured provider and can incur provider charges.
 
 <span id="with-the-template"></span>
 
-## Build from source
+## Create the host
 
-Run these commands from the root of the Tracon checkout. They create a sibling
-application and reference the three source projects it needs.
+Install the published template, then create a project. The template pins every
+Tracon package to the same version as the template package.
 
 ```bash
-dotnet new web -o ../MyAgents
-cd ../MyAgents
-dotnet add reference ../Tracon/src/Tracon.AspNetCore/Tracon.AspNetCore.csproj
-dotnet add reference ../Tracon/src/Tracon.OpenAI/Tracon.OpenAI.csproj
-dotnet add reference ../Tracon/src/Tracon.UI/Tracon.UI.csproj
-dotnet user-secrets init
+dotnet new install Tracon.Templates@1.0.0-preview.2
+dotnet new tracon-api -n MyAgents
+cd MyAgents
 ```
 
-The commands assume the checkout directory is named `Tracon`. Use its actual
-relative path if you named it differently. The console assets build with the UI
-project; no separate console server is needed.
+Use `--persistence`, `--provider`, and `--ui` to change the generated project.
+Run `dotnet new tracon-api -h` to see the available values. The console is
+embedded in the host; no separate console server is needed.
 
 Store your provider settings in the application's development secrets. Replace
 the example values with your key and a model identifier available to your account.
@@ -102,9 +95,8 @@ The host listens on `http://localhost:5081`. Open
 `http://localhost:5081/tracon` for the console. Provider model names are explicit
 configuration: Tracon does not ship a built-in model list.
 
-The source template remains available in the repository for readers who want to
-inspect its generated application. A published-template install command will be
-added when a release is available.
+The template source is public at
+[github.com/farukatasoy/Tracon](https://github.com/farukatasoy/Tracon/tree/main/src/Tracon.Templates/content/Tracon.Starter).
 
 ## Run it
 

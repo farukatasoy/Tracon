@@ -18,6 +18,21 @@ public sealed class TemplateInstantiationTests(TemplateFixture fixture)
         TimeSpan.FromSeconds(1));
 
     [Fact]
+    public async Task Default_package_version_matches_the_packed_template_version()
+    {
+        using var dir = new TempDirectory();
+
+        var newResult = await fixture.NewAsync("Default.Version.Sample", dir.Path);
+        newResult.ExitCode.ShouldBe(0, newResult.Combined);
+
+        var project = await File.ReadAllTextAsync(
+            Path.Combine(dir.Path, "Default.Version.Sample.csproj"));
+
+        project.ShouldContain($"Version=\"{fixture.Version}\"");
+        project.ShouldNotContain("TRACON_TEMPLATE_PACKAGE_VERSION");
+    }
+
+    [Fact]
     public async Task Most_minimal_combination_compiles_with_zero_warnings()
     {
         using var dir = new TempDirectory();
