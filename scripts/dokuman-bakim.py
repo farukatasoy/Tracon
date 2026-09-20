@@ -1225,6 +1225,41 @@ def sevk_edilen_genisleme_noktasi(kok: pathlib.Path = ROOT) -> list[str]:
     return bulgular
 
 
+def geri_alinamaz_registry_islemi(kok: pathlib.Path = ROOT) -> list[str]:
+    """Reject release steps that assume a forbidden or irreversible registry call."""
+    ci = kok / ".github" / "workflows" / "ci.yml"
+    if not ci.exists():
+        return [".github/workflows/ci.yml eksik"]
+    # 2026-09-20: `1.0.0-preview.2` yayini `npm dist-tag rm @tracon/client latest`
+    # ile 403 aldi ve yayin isi kirmizi bitti; bagli `github-release` isi de
+    # atlandi. Kok neden token degil registry kuralidir: npm `latest` etiketini
+    # SILDIRMEZ ve bir paketin ILK yayini `--tag` ne olursa olsun onu baglar.
+    # Silinemeyen bir sey icin yazilmis adim TEK bir turda degil, HER preview
+    # turunda kirmizi olur. Kardes islemler ayni siniftadir: yayinlanmis bir
+    # artefacti geri alan komut CI'da kendiliginden kosmaz -- geri alinamaz
+    # sonucun karari insana aittir.
+    yasak = {
+        "npm dist-tag rm":
+            "npm `latest` etiketi silinemez (403); etiket kaldırılmaz, "
+            "yalnız başka bir sürüme taşınır",
+        "npm unpublish":
+            "yayınlanmış npm sürümü CI'dan geri alınmaz",
+        "dotnet nuget delete":
+            "yayınlanmış NuGet paketi CI'dan geri alınmaz",
+    }
+    bulgular: list[str] = []
+    for no, satir in enumerate(ci.read_text(encoding="utf-8").splitlines(), 1):
+        # Yorum satiri KAPSAM DISI: bu kurallarin gerekcesi ci.yml icinde
+        # anlatilir ve gerekceyi yasaklamak dokumani susturmak olurdu.
+        if satir.lstrip().startswith("#"):
+            continue
+        for desen, gerekce in yasak.items():
+            if desen in satir:
+                bulgular.append(
+                    f".github/workflows/ci.yml:{no}: «{desen}» — {gerekce}")
+    return bulgular
+
+
 def tekrarlanan_kapi_tanimlari(kok: pathlib.Path = ROOT) -> list[str]:
     """Ensure CI and skills delegate scan/closing commands to ``kapi.py``."""
     kapi = kok / "scripts" / "kapi.py"
@@ -2651,6 +2686,13 @@ def denetle() -> int:
     for s_ in nokta_bulgulari:
         print(f"  {s_}")
     hata |= int(bool(nokta_bulgulari))
+
+    registry_bulgulari = geri_alinamaz_registry_islemi()
+    print(f"\nGeri alınamaz registry işlemi: "
+          f"{'❌ ' + str(len(registry_bulgulari)) + ' bulgu' if registry_bulgulari else '✅ temiz'}")
+    for s in registry_bulgulari:
+        print(f"  {s}")
+    hata |= int(bool(registry_bulgulari))
 
     kapi_bulgulari = tekrarlanan_kapi_tanimlari()
     print(f"\nTekrarlanan kapı tanımları: "

@@ -590,6 +590,53 @@ class Faz91DokumanKapilariTestleri(unittest.TestCase):
             self.assertEqual(len(bulgular), 1)
             self.assertIn("gerçek değer true", bulgular[0])
 
+    def test_registry_kapisi_temiz_workflowu_gecirir(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = pathlib.Path(d)
+            (tmp / ".github" / "workflows").mkdir(parents=True)
+            (tmp / ".github" / "workflows" / "ci.yml").write_text(
+                "          npm dist-tag add \"@tracon/client@$version\" next\n",
+                encoding="utf-8")
+
+            self.assertEqual(dokuman_bakim.geri_alinamaz_registry_islemi(tmp), [])
+
+    def test_registry_kapisi_silinemeyen_etiketi_yakalar(self):
+        """2026-09-20 kusuru: `dist-tag rm ... latest` registry'den 403 alır ve
+        yayın işini her preview turunda kırmızı bitirir."""
+        with tempfile.TemporaryDirectory() as d:
+            tmp = pathlib.Path(d)
+            (tmp / ".github" / "workflows").mkdir(parents=True)
+            (tmp / ".github" / "workflows" / "ci.yml").write_text(
+                "          npm dist-tag rm @tracon/client latest\n"
+                "          npm unpublish @tracon/client@1.0.0\n"
+                "          dotnet nuget delete Tracon 1.0.0\n",
+                encoding="utf-8")
+
+            bulgular = dokuman_bakim.geri_alinamaz_registry_islemi(tmp)
+
+            self.assertEqual(len(bulgular), 3)
+            self.assertIn("npm dist-tag rm", bulgular[0])
+            self.assertIn("npm unpublish", bulgular[1])
+            self.assertIn("dotnet nuget delete", bulgular[2])
+
+    def test_registry_kapisi_gerekce_yorumunu_susturmaz(self):
+        """Kuralın gerekçesi `ci.yml` içinde anlatılır; yorumu yasaklamak
+        dokümanı susturur ve bir sonraki oturum aynı adımı geri yazar."""
+        with tempfile.TemporaryDirectory() as d:
+            tmp = pathlib.Path(d)
+            (tmp / ".github" / "workflows").mkdir(parents=True)
+            (tmp / ".github" / "workflows" / "ci.yml").write_text(
+                "      # preview.2 yayininda `npm dist-tag rm` 403 ile isi kirdi.\n",
+                encoding="utf-8")
+
+            self.assertEqual(dokuman_bakim.geri_alinamaz_registry_islemi(tmp), [])
+
+    def test_registry_kapisi_eksik_workflowu_yakalar(self):
+        with tempfile.TemporaryDirectory() as d:
+            bulgular = dokuman_bakim.geri_alinamaz_registry_islemi(pathlib.Path(d))
+
+            self.assertEqual(bulgular, [".github/workflows/ci.yml eksik"])
+
     def test_kapi_tanimlari_merkezi_delegasyonu_zorlar(self):
         with tempfile.TemporaryDirectory() as d:
             tmp = pathlib.Path(d)

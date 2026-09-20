@@ -478,18 +478,39 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      # Preview surumleri ciplak `npm install` ile sessizce kurulmamalidir.
-      # Adim yayin zaten varken de kosar; yeniden denenen bir tag dist-tag'i
-      # duzeltir, immutable package byte'larina dokunmaz.
+      # Preview surumleri ciplak `npm install` ile sessizce kurulmamalidir --
+      # ama npm `latest` etiketini SILDIRMEZ: DELETE .../dist-tags/latest 403
+      # doner ve bir paketin ILK yayini, --tag ne olursa olsun, `latest`i o
+      # surume baglar. Canlidaki latest=1.0.0-preview.1 boyle olustu ve
+      # preview.2 yayininda `dist-tag rm` 403 ile isi kirdi. Bu yuzden hedef
+      # "latest'i kaldirmak" degil, "latest'i en az zararli surume
+      # baktirmak"tir:
+      #   stable VARSA -> latest'e DOKUNULMAZ; preview yalniz `next` alir
+      #   stable YOKSA -> latest en yeni preview'e alinir. Silemedigimize gore
+      #                   eski bir preview'de takili kalmasi, duzeltmeleri
+      #                   iceren yenisinden kotudur; kurulum metni yine `@next`
+      #                   der ve ilk stable yayinda latest oraya gecer.
+      # Adim yayin zaten varken de kosar; dist-tag'i duzeltir, immutable
+      # package byte'larina dokunmaz. Yeniden kosulan ESKI bir etiket dist-tag'i
+      # GERI ALMAMALIDIR, o yuzden once "daha yeni yayin var mi" sorulur.
+      # Sinir: npm'in `>` araligi farkli major/minor/patch'in prerelease'lerini
+      # gormez (`>1.0.0-preview.2` sorgusu 1.0.1-preview.1'i bulmaz), koruma o
+      # kosede tam degildir.
       - name: Dagitim etiketini hizala
         working-directory: packages/tracon-client
         run: |
           version="${{ steps.version.outputs.value }}"
+          if npm view "@tracon/client@>$version" version >/dev/null 2>&1; then
+            echo "::notice::$version en yeni yayin degil -- dist-tag'lere dokunulmuyor"
+            exit 0
+          fi
           if [[ "$version" == *-* ]]; then
             npm dist-tag add "@tracon/client@$version" next
-            latest="$(npm view @tracon/client dist-tags.latest 2>/dev/null || true)"
-            if [[ "$latest" == *-* ]]; then
-              npm dist-tag rm @tracon/client latest
+            stable="$(npm view @tracon/client versions --json 2>/dev/null \
+              | grep -oE '"[0-9]+\.[0-9]+\.[0-9]+"' | tail -n1 | tr -d '"' || true)"
+            if [[ -z "$stable" ]]; then
+              npm dist-tag add "@tracon/client@$version" latest
+              echo "::notice::stable yayin yok -- latest $version'a alindi (npm latest'i sildirmez)"
             fi
           else
             npm dist-tag add "@tracon/client@$version" latest
