@@ -14,7 +14,7 @@ renamed to the version and the date it shipped on, and a fresh empty
 actually exist. Until then the release rehearsal and the GitHub release body
 both read the notes from here.
 
-## [1.0.0-preview.1] - 2026-09-19
+## [1.0.0-preview.1] - 2026-09-20
 
 The first published version: twenty packages on one version line.
 
