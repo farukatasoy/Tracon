@@ -27,6 +27,17 @@
     <Compile Include="../Shared/Infrastructure/RepoRoot.cs" Link="Infrastructure/Shared/RepoRoot.cs" />
   </ItemGroup>
 
+  <!--
+    The benchmark harness's root resolution is LINKED rather than reached by a
+    ProjectReference: Tracon.Benchmarks is an Exe whose entry point pulls in
+    BenchmarkDotNet, and this project needs only the one pure function. Linking
+    keeps the gate cheap and keeps ONE copy of the logic - the file compiled
+    into the benchmark binary is the file under test.
+  -->
+  <ItemGroup>
+    <Compile Include="../../bench/Tracon.Benchmarks/RepositoryLayout.cs" Link="Infrastructure/Bench/RepositoryLayout.cs" />
+  </ItemGroup>
+
   <ItemGroup>
     <Using Include="Tracon.Tests.Common" />
   </ItemGroup>

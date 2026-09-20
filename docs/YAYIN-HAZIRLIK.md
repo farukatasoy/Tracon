@@ -4,10 +4,25 @@
 > düzlemidir. Faz planı, sohbet özeti veya genel karar defteri değildir. Yalnız
 > ölçülen kanıtı, yayın kararlarını, risk kabulünü ve doğrulama durumunu taşır.
 >
-> **Son güncelleme:** 2026-09-19  
+> **Son güncelleme:** 2026-09-20  
 > **Çalışma modu:** `nuget-danismani` — Yayın kararı  
-> **🚨 Güncel karar §4'ün başındaki 2026-09-19 ÜÇÜNCÜ TUR bloğudur —
-> ❌ Bugün tag atılmaz, açık ÜRÜN 🔴'si olduğu için değil.** O tur ikinci turun
+> **🚨 GÜNCEL KARAR §4'ün başındaki 2026-09-20 TAG SONRASI bloğudur —
+> ❌ Bu tag'den yayın çıkmaz.** Tag `v1.0.0-preview.1` → `75478786` atıldı,
+> CI koşumu düştü ve yayın işlerinin üçü de atlandı; **hiçbir şey
+> yayınlanmadı** (20/20 nuget kimliği `404`, npm `404`, release `0`), sürüm
+> numarası yanmadı. Artifact `75478786`'dan yeniden ölçüldü ve **temiz**
+> (kapanış + prova çıkış 0, 38/38 hash bağımsız doğrulandı). Blocker ürün
+> değil **CI'ın tag yoludur**: **A-29 — kök sebep bulundu ve DETERMİNİSTİK,
+> her tag'de tekrarlar:** CI'da `ContinuousIntegrationBuild` kaynak yollarını
+> `/_` yapar, bench'in `[CallerFilePath]` tabanlı `RepositoryRoot()`'u `/_`
+> döndürür ve BenchmarkDotNet dosya sistemi kökünde dizin açmaya çalışır
+> (`exit 134`). Kapı 21 push'ta `skipped` olduğu için bugüne kadar hiç
+> görünmedi. · A-30 (`Kapasite smoke` aynı commit'te iki sonuç, log henüz
+> alınmadı) · A-10 (site deploy hâlâ yapılmadı, çapa canlıda yok). A-12 bu turda **kapandı** (`nuget`
+> environment'ının kuralı `branch` tipindeydi, `tag` yapıldı). Aşağıdaki
+> 2026-09-19 ve öncesi metinler **tarihsel bağlamdır**.
+> **Eski not — 2026-09-19 üçüncü turu için geçerliydi:** ❌ O gün tag
+> atılmazdı, açık ÜRÜN 🔴'si olduğu için değil. O tur ikinci turun
 > ❌'ini devralmadı: artifact'i `c5ed5573`'ten **yeniden ölçtü** ve temiz buldu.
 > Kalan üç 🔴 (A-10 site deploy sırası · A-11 trusted publishing policy ·
 > A-12 environment koruması) **operasyoneldir ve hiçbiri repoda değildir**.
@@ -115,7 +130,169 @@ değerlendirilecektir.
 
 ## 4. Mevcut net yayın kararı
 
-### 🚨 GÜNCEL KARAR — 2026-09-19 (`nuget-danismani`, üçüncü tur)
+### 🚨 GÜNCEL KARAR — 2026-09-20 (`nuget-danismani`, tag sonrası yayın turu)
+
+**❌ Bu tag'den yayın çıkmaz — `1.0.0-preview.1`.** Açık bir **ürün** 🔴'si
+yoktur; artifact `75478786`'dan yeniden ölçüldü ve temiz. Blocker **CI'ın tag
+yolunun kendisidir**: tag atıldı, koşum düştü, yayın işlerinin üçü de atlandı.
+
+#### Tag atıldı — ve hiçbir şey yayınlanmadı
+
+`refs/tags/v1.0.0-preview.1` → `75478786` origin'de. Koşum `35499705399`
+(08:29Z) **failure**; `Paketle`, `Yayin provasi`, `NuGet.org'a yayinla`,
+`npm.org'a yayinla` ve `GitHub release` **atlandı**. Üç kanaldan doğrulandı:
+**20 paket kimliğinin 20'si de nuget.org'da `404`**, npm `@tracon/client` `404`,
+GitHub releases `0`. Fail-fast çalıştı — `1.0.0-preview.1` hiçbir kayıtta
+yanmadı ve tag bedelsiz yeniden atılabilir.
+
+#### 🔴 A-29 — tahsis kapısı YALNIZ tag yolunda koşuyor ve orada düşüyor
+
+CI geçmişi tarandı (son 11 koşum, 22 örnek): `Performans kapisi (tahsis)`
+**21 kez `skipped`**, **1 kez `failure`** — ve o tek koşum **tag koşumudur**.
+∴ kapı CI'da bugüne kadar **hiç başarıyla koşmadı**; ilk gerçek koşumu tag
+oldu ve 9 saniyede düştü (derleme adımı 4 dakikada başarılıydı; 9 sn bir eşik
+ihlali için fazla kısa, BenchmarkDotNet'in ürettiği projenin derlenme fazı).
+
+**Kök sebep ölçüldü — yapısaldır, flake değildir.** [`ci.yml:149`](../.github/workflows/ci.yml)
+`BASE="${{ github.event.pull_request.base.sha || github.event.before }}"`
+yazar. Tag push'unda `github.event.before` **kırk sıfırdır**; `git cat-file -e`
+düşer ve fallback `triggered=true` verir. Yerelde doğrulandı: sıfırlarla
+`triggered=true`, `main` push'unda taban `47680acf` ile değişen üç doküman
+dosyası `performance_gate_triggered=False` veriyor. ∴ kapı, adımın kendi
+yorumunun ("yalnız üç sıcak yoldan biri değiştiyse koşar") tersine, **her
+tag'de koşulsuz koşar** — yani tam olarak düşmesinin yayını engellediği olayda.
+
+**Kapının kendisi sağlam:** yerelde `kapi.py performans` → **çıkış 0**, üç
+benchmark de taban değerinde (24 B · 112 B · 45040 B, 82 sn).
+
+🚨 **KÖK SEBEP ÖLÇÜLDÜ (log 👤) — flake değil, HER tag'de tekrarlar:**
+
+```
+System.UnauthorizedAccessException: Access to the path '/_' is denied.
+ ---> System.IO.IOException: Permission denied
+   at BenchmarkDotNet.Extensions.CommonExtensions.CreateIfNotExists(String)
+   at BenchmarkDotNet.Running.BenchmarkRunnerClean.GetRootArtifactsFolderPath(...)
+   at Program.<Main>$(String[]) in /_/bench/Tracon.Benchmarks/Program.cs:line 28
+❌ benchmark koşumu çıkış 134
+```
+
+Zincir üç dosyayı birbirine bağlar ve üçü de tek başına doğrudur:
+
+1. [`Directory.Build.props:33`](../Directory.Build.props) —
+   `<ContinuousIntegrationBuild Condition=" '$(CI)' == 'true' ">true</...>`.
+   CI'da açılır; SDK bunu görünce `DeterministicSourcePaths`'i açar ve depo
+   kökünü kaynak yollarında **`/_`** ile değiştirir.
+2. [`bench/Tracon.Benchmarks/Program.cs:14`](../bench/Tracon.Benchmarks/Program.cs)
+   `RepositoryRoot([CallerFilePath] string sourceFilePath = "")` yazar. Üstündeki
+   yorum varsayımı **açıkça** kurar: *"`[CallerFilePath]` gives this source
+   file's own absolute path AT BUILD TIME … always this checkout's path."*
+   O varsayım CI'da **yanlıştır**: yol `/_/bench/Tracon.Benchmarks/Program.cs`
+   olur (stack trace'te birebir görünür).
+3. ∴ `RepositoryRoot()` = `/_`, `WithArtifactsPath("/_/artifacts/benchmarks")`
+   ve BenchmarkDotNet **dosya sistemi kökünde** dizin açmaya çalışır → izin yok.
+
+**Ders — deponun kendi sınıfı:** yorum, farkında olduğu varsayımı ("build ve run
+aynı makinede") yazmış ama sessizce güvendiği ikinci varsayımı ("kaynak yolları
+gerçek yollardır") yazmamış. Onu iki dosya ötedeki determinizm ayarı bozuyor.
+Kapı 21 push'ta `skipped` olduğu için kusur bugüne kadar **hiç görünmedi**;
+ilk gerçek koşumu tag oldu.
+
+**Kapsam (`kusur-giderme`):** `RepositoryRoot()` `[CallerFilePath]`'e
+güvenmemeli. Seçenekler — **A:** bench projesinde
+`<DeterministicSourcePaths>false</DeterministicSourcePaths>` (tek satır; bench
+paketlenmediği için determinizm orada bir şey kazandırmıyor). **B:** yolu
+`kapi.py`'den `--artifacts` ile geçir (çağıran sahibi olur). **C:** çözülen yol
+yoksa `AppContext.BaseDirectory`'den yukarı yürüyen kendini savunan fallback.
+**Öneri: C + A** — C kusuru her ortamda kapatır ve sessizce geri gelmesini
+engeller, A da determinizmin bench'te hiç devreye girmemesini sağlar.
+
+#### 🔴 A-30 — `Kapasite smoke (packed tuketici)` aynı commit'te iki sonuç verdi
+
+`47680acf` koşumunda **success** (3 dk 38 sn), `75478786` `main` koşumunda
+**failure**. İki commit arasındaki tek fark `CHANGELOG.md` + iki doküman
+dosyasıdır ⇒ kod regresyonu **olamaz**. Adım hiçbir süreyi eşiğe bağlamaz
+(K-738) ve kendi PostgreSQL container'ını başlatır; ∴ altyapı kaynaklı.
+Kesin sınıflandırma yine log gerektirir.
+
+🚨 **Aynı commit `75478786` iki koşumda üç FARKLI adımda düştü:** tag'de
+windows `Test et (Docker gerektirmeyenler)` + ubuntu `Performans kapisi`,
+`main`'de ubuntu `Kapasite smoke`. Windows aynı commit'te `main` koşumunda
+**success** verdi. ∴ tag koşumunun windows düşüşü flake'tir; ubuntu'nun iki
+düşüşü A-29 ve A-30'dur.
+
+#### Artifact kanıtı — TEMİZ (`75478786`)
+
+`kapi.py kapanis --taban ce23527b` → **çıkış 0** (10/10 adım; test 693 sn).
+`kapi.py yayin --kuru --surum 1.0.0-preview.1` → **çıkış 0**: 20 paket + 18
+sembol paketi, tek sürüm hattı, `npm publish --dry-run`, 6/6 packed sample,
+Native AOT smoke. `package-manifest.json`: `commit: 75478786`, `dirty: false`;
+**38 dosyanın 38'inin `sha256`'sı bağımsız yeniden hesaplandı ve tuttu**, fazla
+paket yok, eksik paket yok. 20 `.nuspec`'in 20'si de `releaseNotes` olarak
+`https://tracon.dev/reference/changelog/#v1.0.0-preview.1` ve `repository
+commit="75478786…"` taşıyor.
+
+#### 🚨 Kapanış kapısı ilk turda 81 testle KIRMIZI döndü — sebebi üründe değildi
+
+81 düşüşün 81'i tek mesajdı: `UI assets are not embedded`. Guard'ın saydığı iki
+sebebin ikisi de elendi (`* 2.*` → 0 eşleşme; hiçbir build dosyası
+`TraconFrontendEnabled=false` demiyor). Gerçek sebep **bayat çıktı kopyasıdır**:
+`artifacts/bin/Tracon.Ui.E2ETests/release/Tracon.UI.dll` 11:28'de 23.040 B
+(varlıksız), `artifacts/bin/Tracon.UI/release_net10.0/Tracon.UI.dll` 11:32'de
+197.120 B (varlıklı) — tüketici, bağımlılığın varlık taşıyan çıktısı
+üretilmeden **dört dakika önce** kopyayı almış. Kapının build adımı
+`dotnet build Tracon.slnx -c Release` ve **`-m:1` taşımıyor**; frontend hedefi
+bu koşumda hiç çalışmadı (damga ve `wwwroot` güncel). Yalnız E2E projesini
+yeniden derlemek kopyayı tazeledi (23.040 → 197.120 B) ve **81/81 test geçti**.
+Sevk edilen assembly üç TFM'de de varlıkları taşıyor ⇒ **ürün etkilenmedi**.
+
+**A-31 (🟡 GA):** kapı artımlı durumdan yeniden üretilebilir değil ve yanlış
+yönde yanılıyor — düşen testleri izole koşup "izole de düşen test GERÇEK
+regresyondur" diyor, oysa izole koşum da aynı bayat dll'i okuduğu için ayrım
+yapamıyor. A-15 sınıfı.
+
+#### Bu turda kapanan
+
+- **A-12 kapandı.** `nuget` environment'ının tek deployment kuralı
+  `name='v*' type='branch'` idi; `npm`'de aynı kural `type='tag'`. İkisi de
+  `refs/tags/v*` ile tetiklenir ve GitHub dokümanı "Name patterns must be
+  configured for branches or tags individually" der ⇒ tag ref'i branch
+  kuralıyla eşleşmez. Sıra en kötüsüydü: `npm-publish` önce koşup basar,
+  `publish` reddedilir, `@tracon/client` NuGet'siz kalırdı ve npm bir sürüm
+  numarasını unpublish sonrası bile geri vermediği için `1.0.0-preview.1`
+  yanardı — CI'nin kendi RK-011 sözünün ihlali. Kullanıcı düzeltti; yeniden
+  ölçüldü: `name='v*' type='tag'`, `required_reviewers: farukatasoy` korunuyor.
+- **A-11 kullanıcı beyanı 👤:** trusted publishing policy kuruldu ve aktif
+  (7 gün). Anonim doğrulanamaz. Dolaylı kanıt tutarlı: nuget.org'da `Tracon`
+  profili var, 20 kimliğin 20'si boş (⇒ "yeni paket" scope'u şart),
+  `ci.yml` `user: Tracon` yazar.
+- **RK-013 bayatladı (🟢).** "Source Link üçüncü taraf için çözemez — repo
+  private" artık yanlış: repo public (anonim API `visibility: public`) ve
+  `RepositoryUrl` `github.com/farukatasoy/Tracon`'a bakıyor ⇒ Source Link
+  çözer. Kabul edilmiş bir risk kendiliğinden kapandı; §10 satırı düzeltilmeli.
+
+#### A-10 hâlâ AÇIK ve sıra bozuldu
+
+Site deploy tag'den **önce** gelmeliydi; gelmedi.
+`https://tracon.dev/reference/changelog/` canlıda hâlâ "has not been released"
+diyor, `#v1.0.0-preview.1` çapası **yok**. Üretici tarafı hazır:
+`build-changelog.mjs` → çıkış 0 ve `<a id="v1.0.0-preview.1"></a>` basıyor.
+CI düştüğü için paketler **hiç basılmadı** ⇒ sıra hâlâ kurtarılabilir.
+
+#### Kalan yol
+
+1. Düşen üç adımın log'unu aç (yalnız kullanıcı okuyabilir): ubuntu
+   `Performans kapisi (tahsis)` · ubuntu `Kapasite smoke` · windows
+   `Test et (Docker gerektirmeyenler)`
+2. A-29'u kapat — tag push'unda tabanın sıfır olması `triggered=true`
+   üretmemeli; kapının kendi yorumundaki niyet uygulanmalı
+3. A-30'u sınıflandır ve kapat
+4. `scripts/site-deploy.sh` (gerçek) + `curl` ile çapayı doğrula
+5. Tag'i sil, yeniden at: `git push origin :refs/tags/v1.0.0-preview.1`
+6. `CHANGELOG.md` sevk tarihi (`2026-09-20`) gerçek tag gününe çekilmeli
+
+---
+
+### Önceki karar — 2026-09-19 (`nuget-danismani`, üçüncü tur)
 
 **❌ Bugün tag atılmaz — `1.0.0-preview.1`.** Açık bir **ürün** 🔴'si yoktur.
 Kalan üç 🔴 operasyoneldir, üçü de repo dışındadır ve üçü de tag sırasına

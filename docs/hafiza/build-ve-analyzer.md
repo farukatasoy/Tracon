@@ -129,3 +129,23 @@
 - **Bir paketi net10-only birakmanin gizli bedeli**, o agacta net8'de derlenmeyen
   kodun sessizce birikmesidir. Daraltmadan once "bu kisit gercekten kaldirilamaz
   mi?" sorusunu olc; kaldirilamiyorsa gerekceyi csproj'a yaz.
+- **🚨 `[CallerFilePath]` bir DERLEME ARTIFACT'idir ve bu repo onu kendi eliyle
+  yeniden yazar** (2026-09-20, A-29). `Directory.Build.props` `CI` set ise
+  `ContinuousIntegrationBuild=true` yapar; SDK `DeterministicSourcePaths`'i acar
+  ve **her derleme-zamani kaynak yolunu `/_` ile baslatir**.
+  `bench/Tracon.Benchmarks` kokunu `[CallerFilePath]`'ten turetiyordu; CI'da kok
+  `/_` oldu ve BenchmarkDotNet dosya sistemi kokunde dizin acmaya calisti
+  (`exit 134`). Yereldeki her kosum yesildi cunku `CI` set degildi. Repro:
+  `CI=true dotnet build bench/Tracon.Benchmarks/... -c Release` + ayni ortamda
+  `dotnet run`. Cozum: derlenmis yol yalnizca bir **ipucudur** ve kendini
+  kanitlamalidir (`Tracon.slnx` yaninda mi?); otorite
+  `AppContext.BaseDirectory`'den yukari yuruyustur —
+  `tests/Shared/Infrastructure/RepoRoot.cs` bunu zaten boyle yapiyordu.
+  Bulunamazsa **atilir**: var olmayan bir yol acik hatayi opak hataya cevirir.
+- **🚨 Hic kosmayan bir kapi yesil degildir, OLCULMEMISTIR.** Ayni vakanin
+  ikinci yarisi: tahsis kapisi CI gecmisinde **21 push boyunca `skipped`** kaldi.
+  Ilk gercek kosumu ilk `v*` etiketi oldu — etiket push'unda
+  `github.event.before` kirk sifirdir, `git cat-file -e` duser ve "taban
+  cozulemedi" dali kapiyi KAZARA tetikler. Kusur tam olarak yayin yolunda, ilk
+  kez orada patladi. Iki ders: bir kapinin atlanma orani olculmelidir, ve etiket
+  yolu push yolundan **yapisal olarak farklidir**.
