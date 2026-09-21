@@ -25,6 +25,8 @@
       CVE pinning (see Directory.Packages.props). Since transitive pinning is
       off (K-007), a version is forced with a single deliberate PackageReference.
     -->
+    <PackageReference Include="Microsoft.Extensions.AI" />
+    <PackageReference Include="Microsoft.Extensions.AI.Evaluation" />
     <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" />
   </ItemGroup>
 

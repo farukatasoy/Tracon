@@ -61,6 +61,7 @@
     only here per K-057 — Tracon.Mcp (client) stays in `.Core`.
   -->
   <ItemGroup Label="Model Context Protocol - server">
+    <PackageReference Include="Microsoft.Extensions.AI.OpenAI" />
     <PackageReference Include="ModelContextProtocol.AspNetCore" />
     <!-- Phase 117: MCP Tasks extension. Net new transitive weight: zero (Directory.Packages.props). -->
     <PackageReference Include="ModelContextProtocol.Extensions.Tasks" />

@@ -23,6 +23,7 @@
   </PropertyGroup>
 
   <ItemGroup Label="All Tracon components">
+    <PackageReference Include="Microsoft.Extensions.AI.OpenAI" />
     <ProjectReference Include="../Tracon.AspNetCore/Tracon.AspNetCore.csproj" />
     <ProjectReference Include="../Tracon.Mcp/Tracon.Mcp.csproj" />
     <ProjectReference Include="../Tracon.OpenAI/Tracon.OpenAI.csproj" />

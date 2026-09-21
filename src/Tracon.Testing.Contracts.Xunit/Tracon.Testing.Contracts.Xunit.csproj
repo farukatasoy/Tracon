@@ -62,6 +62,7 @@
       [Fact] methods this package's assembly declares. The package name says
       so - a consumer on NUnit or MSTest cannot use this package.
     -->
+    <PackageReference Include="Microsoft.Extensions.AI.Evaluation" />
     <PackageReference Include="xunit.v3.extensibility.core" />
     <!-- Assert.SkipWhen only (see Directory.Packages.props); everything else routes through Shouldly. -->
     <PackageReference Include="xunit.v3.assert" />

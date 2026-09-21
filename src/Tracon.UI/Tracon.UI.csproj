@@ -51,6 +51,7 @@
     build. node_modules and the build output are excluded.
   -->
   <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.AI.OpenAI" />
     <None Include="frontend/**/*"
           Exclude="frontend/node_modules/**;frontend/dist/**"
           Visible="true" />
