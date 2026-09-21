@@ -9,6 +9,8 @@
       not apply here). No Docker/Testcontainers dependency: every check here
       builds a query-set object in memory and never opens a connection.
     -->
+    <PackageReference Include="xunit.v3.assert" />
+    <PackageReference Include="xunit.v3.extensibility.core" />
     <ProjectReference Include="../../src/Tracon.PostgreSql/Tracon.PostgreSql.csproj" />
     <ProjectReference Include="../../src/Tracon.SqlServer/Tracon.SqlServer.csproj" />
     <ProjectReference Include="../../src/Tracon.Sqlite/Tracon.Sqlite.csproj" />

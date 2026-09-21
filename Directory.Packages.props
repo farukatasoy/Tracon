@@ -291,8 +291,8 @@
       gelmez; test fixture'i eksikse kendisi indirir (bkz.
       tests/Tracon.Ui.E2ETests/Infrastructure/PlaywrightFixture.cs).
     -->
-    <PackageVersion Include="Microsoft.Playwright" Version="1.61.0" />
-    <PackageVersion Include="NSubstitute" Version="6.0.0" />
+    <PackageVersion Include="Microsoft.Playwright" Version="1.62.0" />
+    <PackageVersion Include="NSubstitute" Version="6.2.0" />
     <PackageVersion Include="Shouldly" Version="4.3.0" />
     <!--
       Testcontainers.MsSql/PostgreSql 4.13.0'in gecisli bagimliligi SSH.NET
@@ -304,8 +304,8 @@
       surumun onune gecer.
     -->
     <PackageVersion Include="SSH.NET" Version="2026.0.0" />
-    <PackageVersion Include="Testcontainers.MsSql" Version="4.13.0" />
-    <PackageVersion Include="Testcontainers.PostgreSql" Version="4.13.0" />
+    <PackageVersion Include="Testcontainers.MsSql" Version="4.15.0" />
+    <PackageVersion Include="Testcontainers.PostgreSql" Version="4.15.0" />
     <PackageVersion Include="xunit.v3" Version="3.2.2" />
     <!--
       Tracon.Testing.Contracts.Xunit (Phase 98) is a LIBRARY of abstract
@@ -317,7 +317,7 @@
       should include xunit.v3 instead" (its own description); this is not a
       test author, it is the library the test author's project references.
     -->
-    <PackageVersion Include="xunit.v3.extensibility.core" Version="3.2.2" />
+    <PackageVersion Include="xunit.v3.extensibility.core" Version="4.0.1" />
     <!--
       Faz 143. ".extensibility.core" above carries [Fact]/[Theory] and
       IAsyncLifetime but NOT the Assert class (that lives in
@@ -327,7 +327,7 @@
       alone: no buildTransitive props, so it does not force <OutputType>Exe>
       the way plain "xunit.v3" does.
     -->
-    <PackageVersion Include="xunit.v3.assert" Version="3.2.2" />
+    <PackageVersion Include="xunit.v3.assert" Version="4.0.1" />
     <!--
       Faz 79. Tracon.Azure kasitli olarak Azure.Identity'ye bagimli DEGILDIR
       (AzureOpenAIProviderOptions.CredentialFactory'nin gerekcesine bak): kimlik

@@ -7,6 +7,8 @@
   <ItemGroup>
     <!-- In-memory configuration provider for the settings-binding-from-configuration tests. -->
     <PackageReference Include="Microsoft.Extensions.Configuration" />
+    <PackageReference Include="xunit.v3.assert" />
+    <PackageReference Include="xunit.v3.extensibility.core" />
   </ItemGroup>
 
 </Project>

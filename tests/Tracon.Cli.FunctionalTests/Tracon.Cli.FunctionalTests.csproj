@@ -5,6 +5,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="xunit.v3.assert" />
+    <PackageReference Include="xunit.v3.extensibility.core" />
     <ProjectReference Include="../../src/Tracon.Cli/Tracon.Cli.csproj" />
     <!--
       A REAL listening port (Kestrel), not TraconTestHost's in-memory
