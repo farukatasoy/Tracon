@@ -168,7 +168,7 @@
       GHSA-2m69-gcr7-jv3q). K-007 deseniyle ayni: gecisli surum bilincli tek
       bir PackageVersion ile zorlanir.
     -->
-    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.10" />
+    <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.12" />
     <PackageVersion Include="SQLitePCLRaw.bundle_e_sqlite3" Version="2.1.12" />
     <PackageVersion Include="SQLitePCLRaw.core" Version="2.1.12" />
     <PackageVersion Include="SQLitePCLRaw.lib.e_sqlite3" Version="2.1.12" />
@@ -266,8 +266,8 @@
       is a library with none — TestHost above stays the pattern for testing it.
       Same 10.0.10 ASP.NET Core line as TestHost/OpenApi above.
     -->
-    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.10" />
-    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.10" />
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.12" />
+    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
     <!--
       CVE zorlamasi. Microsoft.AspNetCore.OpenApi 10.0.10, Microsoft.OpenApi 2.0.0
       cekiyor; o surumde yuksek onem dereceli bir acik var (NU1903,
@@ -276,7 +276,7 @@
       kosulu tam olarak budur. Yalnizca OpenApi kullanan projeler referans verir;
       yayinlanan paketlerin bagimlilik grafigine girmez.
     -->
-    <PackageVersion Include="Microsoft.OpenApi" Version="2.11.0" />
+    <PackageVersion Include="Microsoft.OpenApi" Version="2.12.0" />
     <!--
       Yalnizca UI paketi (SwaggerGen degil): dokuman zaten Microsoft.AspNetCore.OpenApi
       ile uretiliyor (AddOpenApi/MapOpenApi), bu paket sadece /openapi/v1.json'u
