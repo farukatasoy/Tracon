@@ -17,6 +17,7 @@
   -->
   <ItemGroup>
     <PackageReference Include="Anthropic" />
+    <PackageReference Include="Microsoft.Agents.AI" VersionOverride="1.22.0" />
   </ItemGroup>
 
 </Project>

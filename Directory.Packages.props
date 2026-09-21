@@ -16,7 +16,7 @@
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
     <!-- Tum MAF GA paketleri ayni surumde ilerler. -->
-    <MicrosoftAgentsAIVersion>1.20.0</MicrosoftAgentsAIVersion>
+    <MicrosoftAgentsAIVersion>1.22.0</MicrosoftAgentsAIVersion>
     <!--
       MEAI 10.9.0 Microsoft.Extensions.* >= 10.0.11 ister; 10.0.10'da kalmak
       NU1605 (paket dusurme) verir ve TreatWarningsAsErrors altinda restore'u
@@ -48,7 +48,7 @@
       projeleri referanslar. Katalogu isteyen tuketici paketi kendisi ekler ve
       `AddEvaluatorJudge` ile baglar. Kullanmayanin grafigi buyumez (Faz 155, K-727).
     -->
-    <PackageVersion Include="Microsoft.Extensions.AI.Evaluation" Version="10.9.0" />
+    <PackageVersion Include="Microsoft.Extensions.AI.Evaluation" Version="10.10.0" />
     <PackageVersion Include="Microsoft.Extensions.AI.Evaluation.Quality" Version="10.9.0" />
   </ItemGroup>
 
@@ -71,7 +71,7 @@
   </ItemGroup>
 
   <ItemGroup Label="Microsoft.Extensions.AI">
-    <PackageVersion Include="Microsoft.Extensions.AI" Version="10.9.0" />
+    <PackageVersion Include="Microsoft.Extensions.AI" Version="10.10.0" />
     <PackageVersion Include="Microsoft.Extensions.AI.Abstractions" Version="10.9.0" />
     <PackageVersion Include="Microsoft.Extensions.AI.OpenAI" Version="10.9.0" />
   </ItemGroup>
