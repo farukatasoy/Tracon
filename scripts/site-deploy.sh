@@ -200,5 +200,33 @@ if [[ "$served" != "200 text/markdown"* ]]; then
   exit 1
 fi
 
+# A stale site can still return 200 with the right Content-Type. Release-day
+# publishing exposed this gap: the server served a complete, valid site whose
+# first package pages still said that Tracon had not been published. Compare the
+# public body with the latest release record, not only the serving configuration.
+published_version="$(sed -nE 's/^## \[([^]]+)\] - .*/\1/p' CHANGELOG.md | head -n 1)"
+if [[ -z "$published_version" ]]; then
+  echo "CHANGELOG.md has no dated release section; cannot verify site freshness." >&2
+  exit 1
+fi
+
+for page in / /getting-started/ /packages/ /reference/changelog/; do
+  page_url="https://$(site_host)$page"
+  page_body="$(curl -fsSL --max-time 30 "$page_url")" || {
+    echo "$page_url could not be fetched for the release freshness check." >&2
+    exit 1
+  }
+
+  if [[ "$page_body" != *"$published_version"* ]]; then
+    echo "$page_url does not mention the current release $published_version." >&2
+    exit 1
+  fi
+
+  if [[ "$page_body" =~ [Nn]ot[[:space:]]+(yet[[:space:]]+)?published|In[[:space:]]+development[[:space:]]+·[[:space:]]+\.NET[[:space:]]+package[[:space:]]+family ]]; then
+    echo "$page_url still contains an obsolete unpublished-status message." >&2
+    exit 1
+  fi
+done
+
 printf '\nPublished and verified (%s -> %s).\n' "$probe" "$served"
 printf '  curl -sI https://doayen.web.tr/ | head -1   # the app at the apex, untouched\n'

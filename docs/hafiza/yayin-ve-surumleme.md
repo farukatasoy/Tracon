@@ -147,6 +147,15 @@
 
 ## Ikinci yayin turunda olculenler (2026-09-20, `1.0.0-preview.2`)
 
+- **🚨 Site deploy'u yalnız HTTP 200 ve `Content-Type` ile doğrulanamaz.** Yayın
+  sunucusu geçerli bir HTML/Markdown ağacını servis ederken package sayfaları
+  eski release'in "not published yet" metnini taşıyabiliyordu; iki kanalın da
+  başarılı görünmesi bu drift'i sakladı. `scripts/site-deploy.sh` artık
+  `CHANGELOG.md` içindeki en son dated release version'ını `/`,
+  `/getting-started/`, `/packages/` ve `/reference/changelog/` gövdelerinde
+  arar ve eski unpublished-status metni varsa yayını reddeder. Release sonrası
+  site deploy'u yine ayrı ve zorunlu bir adımdır.
+
 - **🚨 npm `latest` dist-tag'i SILINEMEZ.** `npm dist-tag rm <paket> latest`
   registry'den `403 Forbidden - DELETE .../dist-tags/latest` alir. Buna bagli
   ikinci gercek: bir paketin **ILK** yayini `--tag next` verilse bile `latest`i
