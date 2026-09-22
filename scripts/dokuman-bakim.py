@@ -331,13 +331,17 @@ SITE_KURALLARI: tuple[tuple[str, str, tuple[str, ...], str], ...] = (
      ("concepts/workflows.md",), "workflow yurutmesi degisti"),
     ("kalicilik", r"^src/Tracon\.(PostgreSql|SqlServer|Sqlite|Sql\.Shared)/",
      ("getting-started/persistence.md",), "kalicilik katmani degisti"),
-    ("model-saglayici", r"^src/Tracon\.(OpenAI|Anthropic|Google|Azure|Voice)/",
-     ("getting-started/first-agent.md",), "model saglayicisi degisti"),
+    # Faz 181: Providers.Shared paket degildir ama dort saglayicinin davranisidir.
+    # Saglayici davranisinin asil sayfasi guides/model-providers.md'dir; kurulum
+    # adimi degistiyse first-agent.md. Ikisinden biri yeter.
+    ("model-saglayici", r"^src/Tracon\.(OpenAI|Anthropic|Google|Azure|Voice|Providers\.Shared)/",
+     ("getting-started/first-agent.md", "guides/model-providers.md"), "model saglayicisi degisti"),
     ("proje-sablonu", r"^src/Tracon\.Templates/",
      ("getting-started/index.md",), "proje sablonu degisti"),
     ("paket-tanimi", r"^src/Tracon[^/]*/[^/]*\.csproj$",
      ("packages.md",), "paket tanimi degisti"),
-    ("paket-readme", r"^src/Tracon[^/]*/README\.md$",
+    # `*.Shared` agaclari paket degildir (K-176, K-849); README'leri NuGet'e gitmez.
+    ("paket-readme", r"^src/Tracon(?![^/]*\.Shared/)[^/]*/README\.md$",
      ("packages.md",), "paket README'si degisti"),
 )
 

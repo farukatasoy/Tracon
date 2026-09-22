@@ -43,6 +43,24 @@ class KuralEslesmesiTestleri(unittest.TestCase):
         workflow = next(e for e in eslesme if e[0] == "workflow")
         self.assertTrue(workflow[3])
 
+    def test_paylasimli_kaynak_readme_paket_readme_degildir(self):
+        # Faz 181: src/Tracon.Providers.Shared/README.md NuGet'e gitmez;
+        # packages.md'yi istemek yanlis pozitifti. Gercek paket README'si hala tetikler.
+        for yol in ("src/Tracon.Providers.Shared/README.md", "src/Tracon.Sql.Shared/README.md"):
+            eslesme = dokuman_bakim._kural_eslesmesi([yol])
+            self.assertNotIn("paket-readme", [e[0] for e in eslesme], yol)
+        eslesme = dokuman_bakim._kural_eslesmesi(["src/Tracon.Anthropic/README.md"])
+        self.assertIn("paket-readme", [e[0] for e in eslesme])
+
+    def test_paylasimli_saglayici_kaynagi_saglayici_sayfasiyla_karsilanir(self):
+        degisen = [
+            "src/Tracon.Providers.Shared/ModelProviderCore.cs",
+            "docs-site/src/content/docs/guides/model-providers.md",
+        ]
+        eslesme = dokuman_bakim._kural_eslesmesi(degisen)
+        saglayici = next(e for e in eslesme if e[0] == "model-saglayici")
+        self.assertTrue(saglayici[3])
+
     def test_dizin_hedefi_alt_sayfayla_karsilanir(self):
         degisen = [
             "src/Tracon.Abstractions/IFoo.cs",

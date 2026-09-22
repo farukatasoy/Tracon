@@ -13,148 +13,24 @@
 
 ---
 
-## Bu Faza Başlarken
-
-> `faz-baslangic` skill'ini uygula. Aşağıdaki liste o skill'in 2. adımıdır.
-
-1. Bu doküman
-2. Kararlar — yalnız bu kalemleri grep'le:
-   ```bash
-   grep -n "K-007\|K-008\|K-483\|K-646" docs/KARARLAR.md
-   ```
-   **K-007** (yeni bağımlılık gerekçe ister — bu faz sıfır bağımlılık ekler),
-   **K-008** (ön sürüm MAF yalnız AspNetCore'da — provider paketlerine sızmamalı),
-   **K-483** (elle tekrarlanan ifade sessiz kusur sınıfı üretir — bu fazın varlık sebebi),
-   **K-646** (dört adapter'da birden düzeltilen BYOK-cache kusuru — kopyanın ölçülmüş bedeli)
-3. Alan hafızası: [`hafiza/openai-saglayici.md`](../../hafiza/openai-saglayici.md) ·
-   [`hafiza/icerik-koruma-ve-saglayici-kayit.md`](../../hafiza/icerik-koruma-ve-saglayici-kayit.md)
-4. Emsal: [`src/Tracon.SqlServer/Tracon.SqlServer.csproj`](../../../src/Tracon.SqlServer/Tracon.SqlServer.csproj)
-   satır 50–60 — shared-source mekanizması ve gerekçesi
+> ### ⚗️ Damıtılmış kayıt
+> Bu dosya fazın **planını** değil, fazın bıraktığı **kalıcı bilgiyi**
+> taşır. Plan gövdesi, planlanan/gerçekleşen API, dosya listesi, risk ve
+> açık soru bölümleri kapanışta düştü — **silinmedi, git geçmişindedir.**
+>
+> Tam metin — kopyala, çalıştır:
+>
+> ```bash
+> git show 3c83ae75:docs/arsiv/fazlar/181-PROVIDER-ORTAK-KATMANI.md
+> ```
+>
+> Damıtıldı 2026-09-22 · `scripts/dokuman-bakim.py faz-damit`
 
 ---
 
 ## Amaç
 
-Dört sağlayıcı paketi aynı gövdeyi elle kopyalıyor. K-646 bu kopyanın bedelini
-ölçtü: bir BYOK-cache kusuru **dört yerde ayrı ayrı** düzeltildi. K-483 sınıfı
-(elle tekrarlanan ifadeye terim eklemek) burada dört kat geçerli. Bu faz ortak
-gövdeyi `Tracon.Sql.Shared` emsalindeki gibi tek shared-source ağacına indirir;
-davranış birebir korunur, public yüzey değişmez.
-
-- **F-258** — provider ortak katmanı: health check gövdesi, model provider
-  iskeleti, kayıt (extensions) kalıbı tek kaynağa iner.
-
-### Bugün ne çalışmıyor — doğrulanmış kanıt
-
-Ad normalizasyonu sonrası ölçülen fark (2026-09-22, `sed 's/Anthropic/PROV/'`
-+ `diff`, Anthropic ↔ Google çifti):
-
-| Dosya çifti | Toplam satır | Farklı satır |
-|---|---|---|
-| `*ModelProvider.cs` | 199 | **40** (~%80 aynı) |
-| `*ProviderExtensions.cs` | 216 | **60** (~%72 aynı) |
-| `*ProviderHealthCheck.cs` | 186 | **82** (~%56 aynı; fark auth başlığı + yanıt ayrıştırma) |
-
-Dosya sayıları: OpenAI 19 · Anthropic 9 · Google 12 · Azure 9. Dört pakette de
-`GuardFor(Uri?)` (tenant endpoint → guard), `SecretLeakTests`, health check
-zaman aşımı/hata eşleme gövdesi satır satır aynı desendir.
-[`AnthropicProviderHealthCheck.cs:12`](../../../src/Tracon.Anthropic/AnthropicProviderHealthCheck.cs)
-kopyayı kendisi itiraf eder: "The pattern is identical to
-`OpenAIProviderHealthCheck`".
-
-> Kanıtlar 2026-09-22 tarihinde doğrulandı.
-
----
-
-## 181.1 — Mekanizma: shared-source, paket yok
-
-`src/Tracon.Providers.Shared/` açılır; dört provider csproj'u
-`<Compile Include="../Tracon.Providers.Shared/**/*.cs" LinkBase="Shared"/>`
-ekler. NuGet'e yeni kimlik **çıkmaz**, tüketicinin bağımlılık grafiği
-değişmez, K-007 tartışması doğmaz. `Tracon.Sql.Shared`'ın csproj yorumundaki
-gerekçe buraya da kopyalanmaz — oraya bağlanır.
-
-## 181.2 — Kompozisyon kuralı (CS0060 sınırı)
-
-`AnthropicModelProvider` gibi public sınıflar **internal taban sınıftan
-türeyemez** (CS0060). Bu yüzden ortak gövde kalıtımla değil kompozisyonla
-girer: `internal sealed class ProviderHealthCheckCore` (HTTP çağrısı, zaman
-aşımı, hata eşleme; sağlayıcıya özgü kısımlar delege: endpoint kurucu, auth
-başlık yazıcı, yanıt ayrıştırıcı) ve `internal static class ModelProviderCore`
-(known-model kümesi, `GuardFor` kuralı, configuration diagnostic). Public
-sınıflar ince kabuk kalır; adları, tabanları ve üyeleri değişmez.
-
-## 181.3 — Kapsam sınırı
-
-OpenAI'nin fazlası (live/sideband, compatible-provider yolu) ortak katmana
-**girmez**; yalnız dört pakette ortak olan gövde taşınır. İlk taşıma health
-check + model provider iskeleti + extensions kayıt kalıbıdır; katalog dosyaları
-model VERİSİ taşıdığı için (39 satır fark ölçüldü) veri ayrı kalır, yükleme
-kalıbı ortaklaşır.
-
----
-
-## Planlanan Public API
-
-Yok — tüm yeni tipler `internal` ve shared-source'tur. `PublicAPI.Unshipped.txt`
-dosyalarında satır oynamaz; oynarsa plan ihlal edilmiştir (kapı: public API
-takibi zaten açık, K-421).
-
-### HTTP `endpoint`'leri
-
-Yok.
-
-### Arayüz payı
-
-Yok.
-
----
-
-## Planlanan Dosya Listesi
-
-```
-src/Tracon.Providers.Shared/
-├── ProviderHealthCheckCore.cs
-├── ModelProviderCore.cs
-└── ProviderRegistrationCore.cs
-src/Tracon.OpenAI|Anthropic|Google|Azure/
-└── (mevcut dosyalar inceltilir; ad değişmez)
-```
-
----
-
-## Hata Modları ve Testler
-
-| Ne bozulabilir | Seviye | Test sınıfı |
-|---|---|---|
-| Taşıma bir sağlayıcının davranışını değiştirir | Sözleşme | mevcut `*ModelProviderContractTests` + `*ModelProviderCredentialTests` dört pakette — değişmeden yeşil kalmalı |
-| Hata metnine secret/adres sızar | Birim | mevcut `SecretLeakTests` ×4 — değişmeden yeşil |
-| Auth başlığı yanlış sağlayıcıya gider (delege karışması) | Birim | mevcut health check testleri + `ProviderHealthCheckCore` için yeni birim testleri |
-| Tenant endpoint guard kuralı (`GuardFor`) taşınırken gevşer | Birim | `ModelProviderCore` guard kuralı testi — `null` endpoint → guard yok, tenant endpoint → guard var |
-| Shared-source iki pakette farklı derleniyor (koşullu sembol) | Derleme | dört paketin `dotnet build`'i; koşullu sembol kullanmak yasak (plan kuralı) |
-
-İptal · eşzamanlılık · boş girdi · başka kiracı · alt sistem hatası: mevcut
-sözleşme ve birim testleri bu soruları sağlayıcı başına zaten kapsıyor; faz
-davranış eklemediği için yeni soru doğmaz — kapsam "aynı testler yeşil kalır".
-
----
-
-## Manuel Kabul Case'leri
-
-Yeni case yok; `05-SAGLAYICI-OPENAI` ve `06-SAGLAYICI-DIGER` ailelerinin
-mevcut case'leri regresyon görevi görür. Kapanışta bu ailelerden sağlayıcı
-başına en az bir smoke (gerçek anahtar gerektirmeyenler) koşulur.
-
----
-
-## Açık Sorular
-
-| # | Soru | Seçenekler | Öneri |
-|---|---|---|---|
-| 1 | `ProviderRegistrationCore` kayıt kalıbının kapsamı | A: yalnız options doğrulama + health check kaydı · B: chat factory kurulumu dahil | **A** ile başla — B, OpenAI compatible yolu yüzünden dört pakette simetrik değil; ölçüp karar ver |
-| 2 | Katalog yükleme kalıbı bu fazda mı? | A: evet · B: veri/kalıp ayrımı sonraki dilime | **B** — katalog dosyaları en az farklı olanlardır; kazanç düşük, dokunma riski var |
-
----
+Dört sağlayıcı paketi aynı gövdeyi elle kopyalıyor. K-646 bu kopyanın bedelini ölçtü: bir BYOK-cache kusuru **dört yerde ayrı ayrı** düzeltildi. K-483 sınıfı (elle tekrarlanan ifadeye terim eklemek) burada dört kat geçerli. Bu faz ortak gövdeyi `Tracon.Sql.Shared` emsalindeki gibi tek shared-source ağacına indirir; davranış birebir korunur, public yüzey değişmez.
 
 ## Bitiş Ölçütleri (DoD)
 
@@ -176,21 +52,6 @@ python3 scripts/kapi.py test --proje Tracon.Anthropic.UnitTests --sinif "*Contra
 
 ---
 
-## Riskler
-
-| Risk | Önlem |
-|------|-------|
-| "Birebir davranış" iddiası sessizce bozulur | Mevcut testler değiştirilemez (plan kuralı); değiştirme ihtiyacı çıkarsa o bir plandan sapmadır ve gerekçesiyle yazılır |
-| Shared-source ağacı zamanla ikinci bir "çöp ortak" olur | Kapsam sınırı 181.3'te; her taşınan dosyanın dört pakette de kullanıcısı olmalı |
-| OpenAI'nin fazlası ortak katmanı çarpıtır | OpenAI fazlası kapsam dışı; ortak katman "dördünde ortak" tanımıyla sınırlı |
-
----
-
-<!-- ============================================================
-     AŞAĞISI KAPANIŞTA DOLDURULUR — `faz-tamamlama` skill'i.
-     Plan anında boş kalır. Başlıkları SİLME.
-     ============================================================ -->
-
 ## Plandan Sapmalar
 
 | Plan | Gerçek | Gerekçe |
@@ -211,60 +72,6 @@ python3 scripts/kapi.py test --proje Tracon.Anthropic.UnitTests --sinif "*Contra
 
 Yerel tercihler (defter dışı): Azure kendi deployment log metnini tutar (MODEL/DEPLOYMENT uyarısı sağlayıcı farkıdır) · paylaşılan testler dört test projesine bağlanır, her derlemenin kopyası ayrı koşar.
 
-## Gerçekleşen Public API
-
-Yok. Dört provider paketinde ve `Tracon.Core`'da `PublicAPI.*.txt` net değişimi **0**. Yeni tiplerin hepsi `internal`:
-
-```csharp
-internal sealed class ProviderHealthCheckCore(string providerName, ILogger? logger = null)
-{
-    internal ValueTask<ModelProviderHealth> CheckAsync(Uri modelsEndpoint, TimeSpan? timeout,
-        Func<HttpRequestMessage, CancellationToken, ValueTask> authorize,
-        Func<HttpResponseMessage, CancellationToken, ValueTask<IReadOnlyList<string>>> readModelIds,
-        CancellationToken cancellationToken);
-    internal ModelProviderHealth Unhealthy(DateTimeOffset checkedAt, TimeSpan latency, string detail);
-    internal static Uri JoinEndpoint(Uri baseEndpoint, string relativePath);
-    internal static ValueTask<IReadOnlyList<string>> ReadModelIdsAsync(HttpResponseMessage response,
-        string arrayProperty, string idProperty, string? stripPrefix, CancellationToken cancellationToken);
-}
-internal sealed class ModelProviderCore<TFactory> where TFactory : class
-{
-    internal ModelProviderCore(IReadOnlyList<ModelDescriptor> models, EgressSocketGuard? egressGuard);
-    internal bool IsOutsideCatalog([NotNullWhen(true)] string? model);
-    internal IChatClient GetTenantChatClient(ModelProviderCredential credential, ModelBinding binding,
-        Func<ModelProviderCredential, TFactory> buildFactory, Func<TFactory, ModelBinding, IChatClient> createChatClient);
-    internal EgressSocketGuard? GuardFor(Uri? tenantSuppliedEndpoint);
-}
-internal static class ModelProviderCore   // TenantEndpoint · UnknownHealth · ConfigurationDiagnosticFor · LogOutsideCatalog
-internal static class ProviderRegistrationCore   // AddValidatedOptions · IsRegistered · ReadEndpoint/TimeSpan/Int32/Decimal/Boolean · BindModels
-// Tracon.Core
-public sealed class ModelProviderHealthCache { internal ILogger? Logger { get; init; } }
-```
-
-## Dosya Listesi (gerçekleşen)
-
-```
-src/Tracon.Providers.Shared/            YENİ (paket değil)
-  ProviderHealthCheckCore.cs · ModelProviderCore.cs · ProviderRegistrationCore.cs · README.md
-src/Tracon.{OpenAI,Anthropic,Google,Azure}/
-  Tracon.*.csproj                       <Compile Include="../Tracon.Providers.Shared/**/*.cs" />
-  *ProviderHealthCheck.cs               kabuk: endpoint · auth · gövde biçimi
-  *ModelProvider.cs                     kabuk: BuildCredentialFactory · (Azure) deployment log'u
-  *ProviderExtensions.cs                kabuk: Use* · fabrika kaydı · sağlayıcıya özgü alanların bağlanması
-src/Tracon.Core/Models/ModelProviderHealthCache.cs              istisna → Unhealthy + log (K-848)
-src/Tracon.Core/TraconServiceCollectionExtensions.Registration.Core.cs   logger bağlama
-tests/Shared/Providers/                 YENİ — dört provider test projesine bağlı
-  ProviderHealthCheckCoreTests.cs (14) · ModelProviderCoreTests.cs (12) · ProviderRegistrationCoreTests.cs (7) · StubHttpServer.cs
-tests/Tracon.*.UnitTests/*ProviderHealthCheckWireTests.cs       YENİ ×4 — gerçek soket, sağlayıcının kendi auth başlığı
-tests/Tracon.Azure.UnitTests/AzureOpenAIProviderExtensionsTests.cs   +2 (göreli endpoint · adsız deployment)
-tests/Tracon.OpenAI.UnitTests/OpenAIModelProviderCatalogLogTests.cs  YENİ (+2)
-tests/Tracon.AspNetCore.FunctionalTests/ModelHealthEndpointsTests.cs +2 (Azure kimlik istisnası · üçüncü taraf check istisnası)
-tests/Tracon.Core.UnitTests/Models/ModelProviderHealthCacheThrowingCheckTests.cs  YENİ (+2)
-scripts/kapi.py · scripts/kapi_test.py  PROVIDER_TEST_PROJECTS eşlemesi (+2 test)
-CHANGELOG.md · docs-site/.../guides/model-providers.md · docs-site/public/llms-full.txt
-docs/manuel-test/05 · 06              MT-OAI-021 · MT-PROV-021 beklenen log metni
-```
-
 ## Örnek Uygulama Koşumu
 
 `samples/Tracon.Api`, PostgreSQL, gerçek anahtarlar (2026-09-22):
@@ -280,6 +87,15 @@ docs/manuel-test/05 · 06              MT-OAI-021 · MT-PROV-021 beklenen log me
 | Azure ailesi (`MT-PROV-080…088`) | ⏭ — makinede Azure kimliği yok (2026-09-16 turundaki durum); davranış `AzureOpenAIProviderHealthCheckWireTests` + iki fonksiyonel testle kanıtlı |
 
 Denemede açılan iki agent silindi (`204`).
+
+### Site senkronu gerekçesi (`--site-denetle`)
+
+Değişen sayfa: `guides/model-providers.md` (Azure `Credential error` sorun giderme girdisi) + üretilen `llms-full.txt`. Karşılanmayan iki kural bilinçli:
+
+- **`cekirdek-kavram` → `concepts/`**: tetikleyen `ModelProviderHealthCache.cs`; değişen şey sağlayıcı sağlık listesinin hata davranışıdır, bir kavram değil. Tüketici metni `guides/model-providers.md`'de ve `CHANGELOG.md`'de; HTTP ucu açıklaması ("status Unknown… detail does NOT include…") hâlâ doğru.
+- **`paket-tanimi` → `packages.md`**: dört provider `.csproj`'u yalnız `<Compile Include>` satırı kazandı; paket kimliği, bağımlılık ve açıklama değişmedi.
+
+Bu kapanışta kuralın iki yanlış pozitifi düzeltildi (`dokuman_bakim_test.py` +2): `*.Shared` README'si paket README'si sayılmaz; `model-saglayici` kuralı `Providers.Shared`'ı kapsar ve `guides/model-providers.md` ile de karşılanır.
 
 ## Süreç Ölçümü
 
