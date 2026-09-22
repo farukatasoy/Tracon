@@ -7,7 +7,7 @@ namespace Tracon;
 /// Provides shared logic for preview and actual cleanup runs. <see cref="RetentionJobHandler"/>
 /// and the <c>RetentionEndpoints</c> "run now" and "preview" endpoints use it.
 /// </summary>
-public sealed class RetentionExecutor(
+internal sealed class RetentionExecutor(
     IRetentionPolicyStore policyStore,
     IRetentionStore dataStore,
     RetentionPolicyResolver resolver,

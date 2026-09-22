@@ -226,8 +226,10 @@ public sealed partial class AgentDefinitionCompiler
     /// tools are bound as-is.
     /// </param>
     /// <param name="culture">
-    /// The requested culture, resolved against <see cref="AgentDefinition.InstructionsByCulture"/>
-    /// (see <see cref="InstructionCultureResolver"/>). <see langword="null"/> uses
+    /// The requested culture, resolved against <see cref="AgentDefinition.InstructionsByCulture"/>:
+    /// the exact tag first, then its parent (<c>tr-TR</c> falls back to <c>tr</c>),
+    /// then <see cref="AgentDefinition.Instructions"/>, matching tags case-insensitively.
+    /// An unmatched culture never fails compilation. <see langword="null"/> uses
     /// <see cref="AgentDefinition.Instructions"/> unconditionally.
     /// </param>
     /// <returns>The executable agent.</returns>

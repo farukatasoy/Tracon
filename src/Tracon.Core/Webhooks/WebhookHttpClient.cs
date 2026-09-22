@@ -19,7 +19,7 @@ namespace Tracon;
 /// consumer could reconfigure the factory and remove the protection.
 /// </para>
 /// </remarks>
-public sealed class WebhookHttpClient : IDisposable
+internal sealed class WebhookHttpClient : IDisposable
 {
     private readonly HttpClient _client;
 

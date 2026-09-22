@@ -25,7 +25,7 @@ namespace Tracon;
 /// connection pool itself. Building a new client per chat client fragments that pool.
 /// </para>
 /// </remarks>
-public sealed class OpenAIChatClientFactory
+internal sealed class OpenAIChatClientFactory
 {
     private readonly OpenAIClient _client;
     private readonly string? _defaultModel;
@@ -47,8 +47,7 @@ public sealed class OpenAIChatClientFactory
     /// <param name="loggerFactory">Logger factory handed to the produced clients.</param>
     /// <exception cref="ArgumentNullException"><paramref name="client"/> is <see langword="null"/>.</exception>
     /// <remarks>
-    /// Setups that manage authentication themselves (for example an identity provider
-    /// that refreshes tokens) use <see cref="FromClient"/>, which calls this constructor.
+    /// <see cref="FromClient"/> calls this constructor.
     /// </remarks>
     private OpenAIChatClientFactory(OpenAIClient client, string? defaultModel, ILoggerFactory? loggerFactory)
     {
@@ -66,8 +65,9 @@ public sealed class OpenAIChatClientFactory
     /// <returns>The new factory.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="client"/> is <see langword="null"/>.</exception>
     /// <remarks>
-    /// Setups that manage authentication themselves (for example an identity provider
-    /// that refreshes tokens) use this factory method.
+    /// The model provider builds a tenant's own-credential factory this way: it
+    /// creates the client for that credential (or for a named compatible
+    /// endpoint), then wraps it here.
     /// </remarks>
     public static OpenAIChatClientFactory FromClient(OpenAIClient client, string? defaultModel = null, ILoggerFactory? loggerFactory = null)
         => new(client, defaultModel, loggerFactory);

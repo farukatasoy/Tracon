@@ -63,8 +63,9 @@ Embedded `.sql` files are applied automatically at application startup. They are
 protected with `sp_getapplock`: if multiple replicas start at the same time, only
 one applies them.
 
-In production you can disable auto-apply and run `MigrationRunner` as a separate
-deployment step:
+In production you can disable auto-apply and apply migrations as a separate
+deployment step — with `tracon migrate`, or by calling `ApplyAsync()` on the
+registered `IMigrationApplier`:
 
 ```csharp
 options.AutoApplyMigrations = false;

@@ -12,7 +12,7 @@ namespace Tracon;
 /// <see cref="ProviderRetryDecision.Unknown"/> — it <em>is</em> the rule the
 /// seam falls back to, not a participant deferring to it.
 /// </remarks>
-public sealed class DefaultProviderRetryClassifier : IProviderRetryClassifier
+internal sealed class DefaultProviderRetryClassifier : IProviderRetryClassifier
 {
     /// <inheritdoc />
     public ProviderRetryDecision Classify(Exception exception)

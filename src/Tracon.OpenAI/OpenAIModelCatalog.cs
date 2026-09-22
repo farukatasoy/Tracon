@@ -31,7 +31,7 @@ namespace Tracon;
 /// </code>
 /// </example>
 /// </remarks>
-public static class OpenAIModelCatalog
+internal static class OpenAIModelCatalog
 {
     /// <summary>Builds the catalog from the model definitions in the options.</summary>
     /// <param name="options">Provider options.</param>

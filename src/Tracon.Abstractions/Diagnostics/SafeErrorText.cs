@@ -24,7 +24,7 @@ namespace Tracon;
 /// call site already filters it out before reaching here.
 /// </para>
 /// </remarks>
-public static class SafeErrorText
+internal static class SafeErrorText
 {
     /// <summary>Produces text that is safe to write to a persistent field or an external response.</summary>
     /// <param name="exception">The caught exception. Never <see langword="null"/>.</param>

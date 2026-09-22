@@ -8,7 +8,7 @@ namespace Tracon;
 /// is outside the library boundary.
 /// Consumers can send their own chunks directly.
 /// </remarks>
-public static class TextChunker
+internal static class TextChunker
 {
     /// <summary>Splits text into chunks with overlap.</summary>
     /// <param name="text">The text to split.</param>

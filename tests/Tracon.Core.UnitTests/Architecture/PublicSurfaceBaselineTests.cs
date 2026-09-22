@@ -91,6 +91,64 @@ public sealed class PublicSurfaceBaselineTests
                            "dotnet test tests/Tracon.Core.UnitTests -c Release");
     }
 
+    /// <summary>
+    /// A public type's full name belongs to exactly one package.
+    /// </summary>
+    /// <remarks>
+    /// The same full name in two assemblies is <c>CS0433</c> for every consumer
+    /// that references both, whichever of the two it meant. It happened once:
+    /// <c>Tracon.MigrationRunner</c> sat in the linked-source tree
+    /// (<c>src/Tracon.Sql.Shared/</c>) as a public class, so the three SQL
+    /// provider packages each shipped their own public copy, and a consumer
+    /// with two providers (the <c>tracon</c> tool has all three) could not
+    /// name it at all. The linked-source trees keep every type internal for
+    /// that reason; this checks the outcome rather than the tree, so a clash
+    /// between two ordinary packages is caught too.
+    /// </remarks>
+    [Fact]
+    public void A_public_type_name_is_declared_by_only_one_package()
+    {
+        var packagesByType = new SortedDictionary<string, SortedSet<string>>(StringComparer.Ordinal);
+
+        foreach (var (package, typeName) in EnumerateTypeDeclarations())
+        {
+            if (!packagesByType.TryGetValue(typeName, out var packages))
+            {
+                packages = new SortedSet<string>(StringComparer.Ordinal);
+                packagesByType[typeName] = packages;
+            }
+
+            packages.Add(package);
+        }
+
+        var clashes = packagesByType
+            .Where(static entry => entry.Value.Count > 1)
+            .Select(static entry => $"{entry.Key}: {string.Join(", ", entry.Value)}")
+            .ToList();
+
+        clashes.ShouldBeEmpty(
+            customMessage: $"These public types exist under the same full name in more than one package " +
+                           $"(CS0433 for a consumer that references both):{Environment.NewLine}" +
+                           string.Join(Environment.NewLine, clashes));
+    }
+
+    private static IEnumerable<(string Package, string TypeName)> EnumerateTypeDeclarations()
+    {
+        foreach (var unshippedFile in Directory.EnumerateFiles(
+            Path.Combine(RepositoryRoot, "src"), "PublicAPI.Unshipped.txt", SearchOption.AllDirectories))
+        {
+            var package = Path.GetFileName(Path.GetDirectoryName(unshippedFile))!;
+
+            foreach (var line in File.ReadLines(unshippedFile))
+            {
+                if (line.Length > 0 && line[0] != '#' && !MemberSignaturePattern.IsMatch(line))
+                {
+                    yield return (package, line.Trim());
+                }
+            }
+        }
+    }
+
     private static SortedDictionary<string, int> MeasureAllPackages()
     {
         var results = new SortedDictionary<string, int>(StringComparer.Ordinal);

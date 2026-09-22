@@ -16,8 +16,7 @@ namespace Tracon.Testing.Contracts.Tools;
 /// <para>
 /// <see cref="IToolAuthorizationHandler"/> promises fail-closed behavior: if
 /// the handler throws, the call must still end up denied. Tracon tests
-/// that promise's own wrapper (<c>AuthorizingAIFunction</c>) against
-/// synthetic handlers; this contract tests whether the <strong>consumer's</strong>
+/// its own fail-closed wrapper against synthetic handlers; this contract tests whether the <strong>consumer's</strong>
 /// handler actually reaches a denial for <see cref="DeniedRequest"/> — whether
 /// it returns <see cref="ToolAuthorizationResult.Deny(string)"/> directly, or
 /// throws and lets the fail-closed wrapper deny it.

@@ -9,7 +9,7 @@ namespace Tracon;
 /// evaluation-time matcher (<c>Tracon.Core</c>); both must agree on the same
 /// numbers, so they are declared once, here.
 /// </remarks>
-public static class ToolArgumentConditionLimits
+internal static class ToolArgumentConditionLimits
 {
     /// <summary>The most conditions a single rule can carry.</summary>
     public const int MaxConditions = 10;

@@ -19,7 +19,7 @@ namespace Tracon;
 /// covers every stored row.
 /// </para>
 /// </remarks>
-public sealed record StatePreflightReport
+internal sealed record StatePreflightReport
 {
     /// <summary>The persistence provider the report was read from, for example <c>PostgreSQL</c>.</summary>
     public required string ProviderName { get; init; }
@@ -85,7 +85,7 @@ public sealed record StatePreflightReport
 }
 
 /// <summary>The number of stored rows carrying one schema generation, and whether this build can read them.</summary>
-public sealed record StateGenerationCount
+internal sealed record StateGenerationCount
 {
     /// <summary>Which table the rows belong to.</summary>
     public required StatePreflightTarget Target { get; init; }
@@ -109,7 +109,7 @@ public sealed record StateGenerationCount
 }
 
 /// <summary>One sampled row the running build could not read.</summary>
-public sealed record StateSampleFailure
+internal sealed record StateSampleFailure
 {
     /// <summary>Which table the row belongs to.</summary>
     public required StatePreflightTarget Target { get; init; }

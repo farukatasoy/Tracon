@@ -11,8 +11,9 @@ namespace Tracon;
 /// <remarks>
 /// <para>
 /// If <c>AutoApplyMigrations</c> is off, no migration is applied. In that case
-/// making sure the schema is ready is the consumer's responsibility;
-/// <see cref="MigrationRunner"/> can be run as a separate deployment step.
+/// making sure the schema is ready is the consumer's responsibility: a
+/// deployment step runs <c>tracon migrate</c> or calls
+/// <see cref="IMigrationApplier.ApplyAsync"/>.
 /// </para>
 /// <para>
 /// <strong>A failure does not start the application.</strong> A Tracon

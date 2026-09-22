@@ -11,7 +11,7 @@ namespace Tracon;
 /// <strong>to these addresses</strong>; resolving the name again would reopen
 /// the DNS rebinding window.
 /// </param>
-public readonly record struct EgressAddressVerdict(
+internal readonly record struct EgressAddressVerdict(
     bool IsAllowed,
     string? Reason,
     IPAddress[]? ResolvedAddresses);
@@ -33,7 +33,7 @@ public readonly record struct EgressAddressVerdict(
 /// end the same way: one gets fixed and two go stale.
 /// </para>
 /// </remarks>
-public static class EgressAddressValidator
+internal static class EgressAddressValidator
 {
     /// <summary>Reports whether an address may be connected to under a policy.</summary>
     /// <param name="address">The resolved address.</param>

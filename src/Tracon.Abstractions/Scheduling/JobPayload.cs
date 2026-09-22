@@ -11,7 +11,7 @@ namespace Tracon;
 /// HTTP layer (on manual trigger) must use the same interpretation; this is
 /// why it is defined in a single place.
 /// </remarks>
-public static class JobPayload
+internal static class JobPayload
 {
     /// <summary>
     /// Converts the payload into a job item input list.

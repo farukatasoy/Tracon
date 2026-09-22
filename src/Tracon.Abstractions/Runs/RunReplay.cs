@@ -73,7 +73,7 @@ public sealed record RunReplayRequest
 /// endpoint turns this exception into a <c>422</c> and writes which tool
 /// failed to match with which arguments.
 /// </remarks>
-public sealed class ReplayToolMismatchException : TraconException
+internal sealed class ReplayToolMismatchException : TraconException
 {
     /// <summary>
     /// The stable value written for <see cref="TraconException.ErrorType"/>.

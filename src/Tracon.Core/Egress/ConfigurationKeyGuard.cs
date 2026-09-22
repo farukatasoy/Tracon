@@ -18,7 +18,7 @@ namespace Tracon;
 /// prefix was configured must not silently read an out-of-prefix key.
 /// </para>
 /// </remarks>
-public static class ConfigurationKeyGuard
+internal static class ConfigurationKeyGuard
 {
     /// <summary>Throws unless a configuration key name sits under the allowed prefix.</summary>
     /// <param name="configurationKeyName">The configuration key name the record carries.</param>

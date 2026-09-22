@@ -18,7 +18,7 @@ namespace Tracon;
 /// the base .NET library, not specific to ASP.NET Core.
 /// </para>
 /// </remarks>
-public static class AuditActorContext
+internal static class AuditActorContext
 {
     private static readonly AsyncLocal<ClaimsPrincipal?> CurrentHolder = new();
 

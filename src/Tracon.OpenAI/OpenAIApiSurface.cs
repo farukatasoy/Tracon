@@ -8,7 +8,7 @@ namespace Tracon;
 /// <see cref="OpenAIProviderNames.ChatCompletions"/> or
 /// <see cref="OpenAIProviderNames.Responses"/>. <c>UseOpenAI()</c> registers both.
 /// </remarks>
-public enum OpenAIApiSurface
+internal enum OpenAIApiSurface
 {
     /// <summary>
     /// The Chat Completions API. The conversation history stays on the client and is

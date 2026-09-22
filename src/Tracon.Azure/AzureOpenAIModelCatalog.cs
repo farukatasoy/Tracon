@@ -24,7 +24,7 @@ namespace Tracon;
 /// </code>
 /// </example>
 /// </remarks>
-public static class AzureOpenAIModelCatalog
+internal static class AzureOpenAIModelCatalog
 {
     /// <summary>Builds the catalog from the deployment definitions in the options.</summary>
     /// <param name="options">The provider options.</param>

@@ -17,7 +17,7 @@ namespace Tracon;
 /// the <em>name</em> of the frame, not from its type.
 /// </para>
 /// </remarks>
-public static class VoiceConversationProtocol
+internal static class VoiceConversationProtocol
 {
     /// <summary>The name of the WebSocket sub-protocol. The handshake echoes it back.</summary>
     public const string SubProtocol = "tracon.voice.v1";
@@ -96,7 +96,7 @@ public static class VoiceConversationProtocol
 /// produce it with <c>MediaRecorder</c>, its bandwidth is low, and the concatenated
 /// chunks form a valid file.
 /// </remarks>
-public static class VoiceAudioFormats
+internal static class VoiceAudioFormats
 {
     /// <summary>The <c>MediaRecorder</c> output: Opus in a WebM container.</summary>
     public const string WebmOpus = "webm-opus";

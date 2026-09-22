@@ -25,7 +25,7 @@ namespace Tracon;
 /// <strong>either one</strong> holds (OR), not both at once.
 /// </para>
 /// </remarks>
-public sealed class CronExpression
+internal sealed class CronExpression
 {
     private readonly bool[] _minute;
     private readonly bool[] _hour;

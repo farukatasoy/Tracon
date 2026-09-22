@@ -19,7 +19,7 @@ namespace Tracon;
 /// (<see cref="AgentRunBudget.MaxDepth"/>).
 /// </para>
 /// </remarks>
-public static class AgentCallGraph
+internal static class AgentCallGraph
 {
     /// <summary>
     /// Validates a definition's call graph.
@@ -183,4 +183,4 @@ public static class AgentCallGraph
 /// <summary>The machine-readable result of a call graph validation.</summary>
 /// <param name="Code">Stable code: <c>unknown_agent</c> or <c>cycle</c>.</param>
 /// <param name="Message">Human-readable description.</param>
-public readonly record struct AgentCallGraphProblem(string Code, string Message);
+internal readonly record struct AgentCallGraphProblem(string Code, string Message);

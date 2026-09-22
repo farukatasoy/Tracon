@@ -20,6 +20,15 @@ using System.Runtime.CompilerServices;
 [assembly: InternalsVisibleTo("Tracon.SqlServer")]
 [assembly: InternalsVisibleTo("Tracon.Sqlite")]
 
+// Tracon.Voice validates generated audio with the same attachment guard the
+// upload path uses, Tracon.Workflows validates a definition with the same
+// validator the HTTP layer uses, and the `tracon` tool prints the state
+// preflight report. None of these types is a consumer seam; they were public
+// only so that a sibling package could reach them.
+[assembly: InternalsVisibleTo("Tracon.Voice")]
+[assembly: InternalsVisibleTo("Tracon.Workflows")]
+[assembly: InternalsVisibleTo("Tracon.Cli")]
+
 // Phase 96: the default $(MSBuildProjectName).UnitTests/.IntegrationTests
 // pattern only covers a test project that shares Core's own project name
 // prefix. These seven test projects exercise Core in-memory stores through a
@@ -34,3 +43,13 @@ using System.Runtime.CompilerServices;
 [assembly: InternalsVisibleTo("Tracon.SqlServer.IntegrationTests")]
 [assembly: InternalsVisibleTo("Tracon.Sqlite.IntegrationTests")]
 [assembly: InternalsVisibleTo("Tracon.Core.UnitTests")]
+
+// The voice tests register the attachment guard Tracon.Voice resolves, and the
+// shared provider tests (tests/Shared/Providers) build an egress guard for each
+// of the four adapters - both became internal with the evidence pass over the
+// public surface.
+[assembly: InternalsVisibleTo("Tracon.Voice.UnitTests")]
+[assembly: InternalsVisibleTo("Tracon.Anthropic.UnitTests")]
+[assembly: InternalsVisibleTo("Tracon.Azure.UnitTests")]
+[assembly: InternalsVisibleTo("Tracon.Google.UnitTests")]
+[assembly: InternalsVisibleTo("Tracon.OpenAI.UnitTests")]

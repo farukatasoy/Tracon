@@ -24,8 +24,8 @@ public sealed record SpeechRequest
     /// <remarks>
     /// This is <strong>not</strong> a MIME type. Also, not every format can
     /// be stored as an attachment: <c>pcm_*</c> and <c>ulaw_*</c> outputs are
-    /// headerless, match no magic byte, and are rejected by
-    /// <c>AttachmentTypeGuard</c>.
+    /// headerless, match no file signature, and are rejected by the attachment
+    /// type check.
     /// </remarks>
     public string? OutputFormat { get; init; }
 

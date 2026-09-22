@@ -1,7 +1,7 @@
 namespace Tracon;
 
 /// <summary>The result of one skill script execution.</summary>
-public sealed record SkillScriptExecutionResult
+internal sealed record SkillScriptExecutionResult
 {
     /// <summary>The process exit code, or <see langword="null"/> on timeout.</summary>
     public int? ExitCode { get; init; }

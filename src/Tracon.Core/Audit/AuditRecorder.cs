@@ -22,7 +22,7 @@ namespace Tracon;
 /// rather than only in a log search.
 /// </para>
 /// </remarks>
-public static class AuditRecorder
+internal static class AuditRecorder
 {
     /// <summary>The outcome tag written when a failed audit write did not stop the operation.</summary>
     internal const string SwallowedOutcome = "swallowed";

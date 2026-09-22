@@ -59,9 +59,10 @@ public sealed class TraconSqlServerOptions
     /// Whether pending migrations are applied automatically at application startup.
     /// </summary>
     /// <remarks>
-    /// Can be set to <see langword="false"/> in production and <see cref="MigrationRunner"/>
-    /// run as a separate deployment step, so a long-running migration does not
-    /// block application startup.
+    /// Can be set to <see langword="false"/> in production, with migrations applied
+    /// as a separate deployment step - the <c>tracon migrate</c> command, or
+    /// <see cref="IMigrationApplier.ApplyAsync"/> - so a long-running migration
+    /// does not block application startup.
     /// </remarks>
     public bool AutoApplyMigrations { get; set; } = true;
 

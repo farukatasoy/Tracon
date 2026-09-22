@@ -24,7 +24,7 @@ namespace Tracon;
 /// forever in an in-memory installation.
 /// </para>
 /// </remarks>
-public sealed class SchemaReadyGate
+internal sealed class SchemaReadyGate
 {
     private readonly TaskCompletionSource _ready =
         new(TaskCreationOptions.RunContinuationsAsynchronously);

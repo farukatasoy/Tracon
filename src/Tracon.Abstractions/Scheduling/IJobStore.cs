@@ -28,6 +28,12 @@ public interface IJobStore
     /// <param name="items">The job's input list. Sequence numbers are assigned by list order.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The created job record.</returns>
+    /// <remarks>
+    /// Resolve the stored lane with <see cref="JobLanes.Resolve"/>, passing the
+    /// configured <c>TraconSchedulingOptions.LaneByHandlerKey</c> map. That map is
+    /// applied here and nowhere else, so a store that skips the call silently
+    /// ignores it.
+    /// </remarks>
     ValueTask<JobRecord> EnqueueAsync(
         JobRecord job,
         IReadOnlyList<string> items,

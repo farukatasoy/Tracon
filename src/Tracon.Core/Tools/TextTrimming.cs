@@ -10,7 +10,7 @@ namespace Tracon;
 /// (<see cref="TruncatingAIFunction"/>) and an MCP resource's content
 /// (<c>Tracon.Mcp</c>).
 /// </remarks>
-public static class TextTrimming
+internal static class TextTrimming
 {
     private static readonly UTF8Encoding StrictUtf8 = new(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
 

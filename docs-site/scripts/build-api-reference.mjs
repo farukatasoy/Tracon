@@ -274,7 +274,6 @@ function transform(page, uids, anchorsByUid, uidsByDisplayName, externalSlugs) {
   // repository but meaningless to a NuGet consumer. Keep the reasoning, remove the
   // phase/decision/file identifiers from the public site.
   body = sanitizeInternalHistory(body);
-  body = normalizeSharedProviderDocumentation(page.uid, body);
 
   // 8. DocFX opens a type page with `#### Inheritance` and a namespace page with
   // `### Classes`, both directly under the `#` removed in step 1. Against the h1
@@ -782,35 +781,6 @@ function sanitizeInternalHistory(body) {
   }).join('');
 }
 
-
-
-function normalizeSharedProviderDocumentation(uid, body) {
-  if (uid !== 'Tracon.MigrationRunner') {
-    return body;
-  }
-
-  const remarks = `## Remarks
-
-The runner uses one coordination scope per configured database namespace:
-
-| Provider | Namespace | Migration lock |
-|---|---|---|
-| PostgreSQL | Schema | \`pg_advisory_lock\` on one connection |
-| SQL Server | Schema | \`sp_getapplock\` on one connection |
-| SQLite | Table prefix | Sidecar file lock next to the database |
-
-It creates the namespace and \`__migrations\` ledger when needed, verifies the
-SHA-256 checksum of every applied file, and applies each pending migration in its
-own transaction. A checksum mismatch fails instead of running against an unknown
-schema state.
-
-Some migrations create database-wide objects. PostgreSQL's pgvector extension is
-one example. Concurrent first-time migration of different schemas can race on that
-shared object; the guarded operation is retried safely.
-`;
-
-  return body.replace(/## Remarks[\s\S]*?(?=\n## Properties)/, `${remarks.trimEnd()}\n`);
-}
 
 function extractSummary(raw, fallback, uids) {
   const withoutHeader = raw

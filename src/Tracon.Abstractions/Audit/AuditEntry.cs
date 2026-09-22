@@ -35,10 +35,18 @@ public sealed record AuditEntry
     /// <summary>Gets the affected entity, for example <c>agent:support</c>.</summary>
     public required string Entity { get; init; }
 
-    /// <summary>Gets the state before the change, as JSON text. It has passed the secret filter.</summary>
+    /// <summary>
+    /// Gets the state before the change, as JSON text. Tracon's own write path
+    /// removes secret-named fields first; a caller that writes to
+    /// <see cref="IAuditLog"/> directly must not put a secret value here.
+    /// </summary>
     public string? Before { get; init; }
 
-    /// <summary>Gets the state after the change, as JSON text. It has passed the secret filter.</summary>
+    /// <summary>
+    /// Gets the state after the change, as JSON text. Tracon's own write path
+    /// removes secret-named fields first; a caller that writes to
+    /// <see cref="IAuditLog"/> directly must not put a secret value here.
+    /// </summary>
     public string? After { get; init; }
 
     /// <summary>Gets the time the record was written (UTC).</summary>
@@ -56,9 +64,10 @@ public sealed record AuditEntry
     public string? PreviousHash { get; init; }
 
     /// <summary>
-    /// Gets the hash of this entry, derived from its canonical form
-    /// (see <c>AuditChainHasher</c> in <c>Tracon.Core</c>). The write path
-    /// computes this value; a caller-supplied value is ignored.
+    /// Gets the hash of this entry: a SHA-256 over a canonical form of its
+    /// fields that also includes the previous entry's hash, so changing an
+    /// earlier entry breaks every later link. The write path computes this
+    /// value; a caller-supplied value is ignored.
     /// </summary>
     public string? Hash { get; init; }
 }
