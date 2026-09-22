@@ -58,7 +58,12 @@ internal sealed class ElevenLabsSpeechClient : ISpeechSynthesizer, ISpeechTransc
 
         _options = options;
         _ownsHttpClient = httpClient is null;
-        _http = httpClient ?? new HttpClient();
+
+        // PooledConnectionLifetime bounds how long a resolved address is
+        // reused; two minutes matches EgressSocketGuard.CreateHandler.
+        _http = httpClient ?? new HttpClient(
+            new SocketsHttpHandler { PooledConnectionLifetime = TimeSpan.FromMinutes(2) },
+            disposeHandler: true);
         _http.Timeout = options.Timeout ?? DefaultTimeout;
         _concurrency = new SemaphoreSlim(options.MaxConcurrentRequests, options.MaxConcurrentRequests);
     }

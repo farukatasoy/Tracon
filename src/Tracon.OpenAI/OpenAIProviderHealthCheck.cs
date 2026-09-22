@@ -27,7 +27,13 @@ internal sealed class OpenAIProviderHealthCheck(string providerName, OpenAIProvi
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(10);
     private const int MaxReportedModels = 200;
 
-    private static readonly HttpClient SharedHttpClient = new();
+    // PooledConnectionLifetime bounds how long a resolved address is reused: a
+    // provider that fails over behind DNS would otherwise stay pinned to the old
+    // address for the process lifetime. Two minutes matches
+    // EgressSocketGuard.CreateHandler.
+    private static readonly HttpClient SharedHttpClient = new(
+        new SocketsHttpHandler { PooledConnectionLifetime = TimeSpan.FromMinutes(2) },
+        disposeHandler: true);
 
     /// <inheritdoc />
     public async ValueTask<ModelProviderHealth> CheckHealthAsync(CancellationToken cancellationToken = default)
