@@ -319,7 +319,6 @@ public sealed class JobMetricsTests
     {
         private readonly MeterListener _listener = new();
         private readonly List<(string Name, Measured Measurement)> _measurements = [];
-        private readonly Lock _gate = new();
 
         public TaggedCollector(Meter meter)
         {
@@ -339,7 +338,7 @@ public sealed class JobMetricsTests
 
         public List<Measured> Named(string name)
         {
-            lock (_gate)
+            lock (_measurements)
             {
                 return [.. _measurements
                     .Where(m => string.Equals(m.Name, name, StringComparison.Ordinal))
@@ -358,7 +357,7 @@ public sealed class JobMetricsTests
                 map[tag.Key] = tag.Value;
             }
 
-            lock (_gate)
+            lock (_measurements)
             {
                 _measurements.Add((name, new Measured(value, map)));
             }
