@@ -2,10 +2,10 @@
 
 > **Durum:** ✅ Tamamlandı (2026-09-22)
 > **Plan onayı:** farukatasoy, 2026-09-22 (beş fazlık tur onayı; mimari seçim: shared-source, paket yok)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-258**
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-258**
 > **Önkoşul:** Yok
 > **Paketler:** `Tracon.OpenAI`, `.Anthropic`, `.Google`, `.Azure` (+ yeni shared-source ağacı)
-> **Yeni paket:** **Yok** — `src/Tracon.Providers.Shared/` bir paket değildir; `Tracon.Sql.Shared` emsali ([Tracon.SqlServer.csproj:52](../src/Tracon.SqlServer/Tracon.SqlServer.csproj)) gibi `<Compile Include>` ile derlemeye kopyalanır
+> **Yeni paket:** **Yok** — `src/Tracon.Providers.Shared/` bir paket değildir; `Tracon.Sql.Shared` emsali ([Tracon.SqlServer.csproj:52](../../../src/Tracon.SqlServer/Tracon.SqlServer.csproj)) gibi `<Compile Include>` ile derlemeye kopyalanır
 > **Migration:** Yok
 > **Public API:** Büyümüyor — kural: ortak kod `internal` yardımcı + kompozisyon; public hiyerarşi değişmez
 > **Tüketici yüzeyi:** Plan: yok. Gerçekleşen: dört plan dışı kusur düzeltmesi tüketiciye görünür (bkz. Plandan Sapmalar) → `CHANGELOG.md` `[Unreleased]` · `guides/model-providers.md` sorun giderme girdisi
@@ -26,9 +26,9 @@
    **K-008** (ön sürüm MAF yalnız AspNetCore'da — provider paketlerine sızmamalı),
    **K-483** (elle tekrarlanan ifade sessiz kusur sınıfı üretir — bu fazın varlık sebebi),
    **K-646** (dört adapter'da birden düzeltilen BYOK-cache kusuru — kopyanın ölçülmüş bedeli)
-3. Alan hafızası: [`hafiza/openai-saglayici.md`](hafiza/openai-saglayici.md) ·
-   [`hafiza/icerik-koruma-ve-saglayici-kayit.md`](hafiza/icerik-koruma-ve-saglayici-kayit.md)
-4. Emsal: [`src/Tracon.SqlServer/Tracon.SqlServer.csproj`](../src/Tracon.SqlServer/Tracon.SqlServer.csproj)
+3. Alan hafızası: [`hafiza/openai-saglayici.md`](../../hafiza/openai-saglayici.md) ·
+   [`hafiza/icerik-koruma-ve-saglayici-kayit.md`](../../hafiza/icerik-koruma-ve-saglayici-kayit.md)
+4. Emsal: [`src/Tracon.SqlServer/Tracon.SqlServer.csproj`](../../../src/Tracon.SqlServer/Tracon.SqlServer.csproj)
    satır 50–60 — shared-source mekanizması ve gerekçesi
 
 ---
@@ -58,7 +58,7 @@ Ad normalizasyonu sonrası ölçülen fark (2026-09-22, `sed 's/Anthropic/PROV/'
 Dosya sayıları: OpenAI 19 · Anthropic 9 · Google 12 · Azure 9. Dört pakette de
 `GuardFor(Uri?)` (tenant endpoint → guard), `SecretLeakTests`, health check
 zaman aşımı/hata eşleme gövdesi satır satır aynı desendir.
-[`AnthropicProviderHealthCheck.cs:12`](../src/Tracon.Anthropic/AnthropicProviderHealthCheck.cs)
+[`AnthropicProviderHealthCheck.cs:12`](../../../src/Tracon.Anthropic/AnthropicProviderHealthCheck.cs)
 kopyayı kendisi itiraf eder: "The pattern is identical to
 `OpenAIProviderHealthCheck`".
 

@@ -3,7 +3,7 @@
 > **Durum:** 📋 Planlandı (2026-09-22)
 > **Plan onayı:** farukatasoy, 2026-09-22 (beş fazlık tur onayı)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-259**
-> **Önkoşul:** [Faz 181](181-PROVIDER-ORTAK-KATMANI.md) **önerilir** (zorunlu değil) — provider iç tipleri incelmeden envanter iki kez yapılmasın
+> **Önkoşul:** [Faz 181](arsiv/fazlar/181-PROVIDER-ORTAK-KATMANI.md) **önerilir** (zorunlu değil) — provider iç tipleri incelmeden envanter iki kez yapılmasın
 > **Paketler:** ölçüm tüm paketler; daraltma beklenen ağırlık `Tracon.Abstractions`, `.Core`, `.AspNetCore`
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** **Küçülüyor** — preview'de kırıcı değişiklik kabul edilir; README zaten "surface may still be reduced before 1.0" vaadini taşıyor
