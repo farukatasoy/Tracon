@@ -16,7 +16,13 @@ risk sırasına dizer:
 Ölçüm ayrıca `CapabilityEntryPoints` kuralıyla (K-509) `src/*/PublicAPI.*.txt`
 dosyalarını tarar ve manuel-test setinde hiç anılmayan giriş noktalarını verir.
 
+Betik ikinci bir ölçüm daha taşır: **devir sınıfı** (Faz 180). Bir case ya bir
+teste devredilmiştir (`➜ CI:`), ya insan gerektirir (`👤`), ya da henüz
+yargılanmamıştır. Sayım tabansız da koşar; gösterdiği test artık yoksa
+(`bayat işaret`) çıkış kodu `1` olur.
+
 Kullanım:
+    python3 scripts/manuel-test-tazelik.py                       # yalnız devir ölçümü
     python3 scripts/manuel-test-tazelik.py --taban <onceki turun son commit'i>
     python3 scripts/manuel-test-tazelik.py --taban 12fb6477 --kuru
     python3 scripts/manuel-test-tazelik.py --taban 12fb6477 --kosum docs/manuel-test/kosumlar/2026-09-16
@@ -74,6 +80,34 @@ KAYNAK_UZANTILARI = (
 
 CASE_BASLIK = re.compile(r"^#{2,4} +`?(MT-[A-Z0-9]+-\d+)")
 CASE_TABLO = re.compile(r"^\|\s*\d+\s*\|\s*`?(MT-[A-Z0-9]+-\d+)`?")
+
+# --- Devir işareti (Faz 180) -------------------------------------------------
+#
+# Bir case üç sınıftan birine düşer ve sınıfı spec satırında görünür olur.
+# Biçim `00-INDEKS.md` §9'da tarif edilir; burada YALNIZ tanınması gerekir.
+#
+#   ➜ CI: `TestSınıfı.TestAdı`        — davranış otomatikleşti, kanıt CI'da
+#   👤 insan gerekir — <sebep>        — model kalitesi, görsel yargı, donanım
+#   (işaret yok)                      — henüz yargılanmadı
+#
+# İkisi bir arada yazılırsa `➜ CI:` kazanır: kanıtın CI'da olduğunu söylemek
+# daha güçlü bir iddiadır ve doğrulanabilir (bayat işaret kırmızıdır), "insan
+# gerekir" ise doğrulanamaz.
+DEVIR_CI = re.compile(r"➜\s*CI:(?P<hedefler>[^|\n]+)")
+DEVIR_MANUEL = re.compile(r"👤\s*insan gerekir\s*[—–-]\s*(?P<sebep>[^|\n]+)")
+CI_HEDEF = re.compile(r"`(?P<hedef>[A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*)`")
+
+# Devir işaretinin kendisi case'in DAVRANIŞINI anlatmaz, kanıtının nerede
+# olduğunu anlatır. İmzadan düşmezse bu fazın 43 işareti bir sonraki tazelik
+# ölçümünde 43 sahte "değişti" üretirdi — `YENIDEN_ADLANDIRMALAR`'ın kapattığı
+# sınıfın aynısı.
+DEVIR_SATIRI = re.compile(r"^\|\s*\*\*Devir\*\*\s*\|")
+
+TEST_SINIFI = re.compile(r"\bclass\s+(?P<ad>[A-Za-z_][A-Za-z0-9_]*)")
+# C# `Task X(` / `void X(` ve Python `def test_x(`. Satır değil METİN üzerinde
+# aranır: çok satırlı bir imza satır bazlı bir taramadan kaçar.
+TEST_METODU_CS = re.compile(r"\b(?:Task|void)\s+(?P<ad>[A-Za-z_][A-Za-z0-9_]*)\s*\(")
+TEST_METODU_PY = re.compile(r"\bdef\s+(?P<ad>[A-Za-z_][A-Za-z0-9_]*)\s*\(")
 AILE_SATIRI = re.compile(
     r"^\| (?P<no>\d+) \| \[`(?P<dosya>[^`]+)`\][^|]*\| `(?P<kod>[A-Z]+)` \|"
     r"(?P<fazlar>[^|]*)\|(?P<kaynak>[^|]*)\| \*\*(?P<hedef>\d+)\*\* \|")
@@ -162,28 +196,141 @@ def _imza(satirlar: list[str]) -> str:
     return hashlib.sha1(re.sub(r"\s+", " ", metin).strip().encode()).hexdigest()[:12]
 
 
-def case_imzalari(metin: str) -> dict[str, str]:
-    """Dosyadaki her case'in imzası.
+def _hucreler(satir: str) -> list[str]:
+    return [h.strip() for h in satir.strip().strip("|").split("|")]
+
+
+@dataclasses.dataclass(frozen=True)
+class CaseBloku:
+    """Bir case'in gövdesi, devir işareti AYRILMIŞ hâlde.
+
+    Ayırma bu sınıfın tek varlık sebebidir: `satirlar` imzayı besler ve işareti
+    TAŞIMAZ, `devir` ise yalnız sınıflandırıcıya gider. İkisi karışsaydı bir
+    case'i işaretlemek onu "değişti" kovasına atardı.
+    """
+
+    satirlar: list[str]
+    devir: str
+
+
+def case_bloklari(metin: str) -> dict[str, CaseBloku]:
+    """Dosyadaki her case'in gövdesi ve devir işareti.
 
     İki biçim vardır: aile 01–30 case'i BAŞLIK yazar, aile 31–36 TABLO SATIRI.
     İkincisi `manuel_test_sayim_kaymasi` kapısına Faz 167'ye kadar görünmezdi.
+
+    Hem imza hem devir sınıfı bu TEK ayrıştırıcıdan okunur; ikinci bir kopya
+    iki ölçümün sessizce ayrışması demek olurdu.
+
+    🚨 Devir işaretinin TEK evi vardır: başlık biçiminde `| **Devir** | … |`
+    satırı, tablo biçiminde `Devir` sütunu. Gövdenin başka bir yerinde geçen
+    `👤` bir işaret DEĞİLDİR — ön koşul metninde geçen böyle bir cümle sayımı
+    kirletirdi.
     """
     satirlar = metin.split("\n")
-    imzalar: dict[str, str] = {}
+    bloklar: dict[str, CaseBloku] = {}
 
     basliklar = [i for i, s in enumerate(satirlar) if CASE_BASLIK.match(s)]
     if basliklar:
         sinirlar = basliklar + [len(satirlar)]
         for k in range(len(sinirlar) - 1):
             ad = CASE_BASLIK.match(satirlar[sinirlar[k]]).group(1)
-            imzalar[ad] = _imza(satirlar[sinirlar[k]:sinirlar[k + 1]])
+            govde = satirlar[sinirlar[k]:sinirlar[k + 1]]
+            devir = ""
+            temiz: list[str] = []
+            for satir in govde:
+                if DEVIR_SATIRI.match(satir.strip()):
+                    hucre = _hucreler(satir)
+                    devir = hucre[1] if len(hucre) > 1 else ""
+                    continue
+                temiz.append(satir)
+            bloklar[ad] = CaseBloku(temiz, devir)
 
+    devir_sutunu: int | None = None
     for satir in satirlar:
+        if satir.lstrip().startswith("|"):
+            hucre = _hucreler(satir)
+            if "Devir" in hucre:
+                devir_sutunu = hucre.index("Devir")
         eslesme = CASE_TABLO.match(satir)
-        if eslesme:
-            imzalar[eslesme.group(1)] = _imza([satir])
+        if not eslesme:
+            continue
+        hucre = _hucreler(satir)
+        if devir_sutunu is not None and devir_sutunu < len(hucre):
+            devir = hucre[devir_sutunu]
+            # Hücre boşaltılmaz, DÜŞÜRÜLÜR: boş bırakmak satıra fazladan bir
+            # ayırıcı ekler ve imza yine taban turdakinden ayrılırdı.
+            kalan = [h for i, h in enumerate(hucre) if i != devir_sutunu]
+            bloklar[eslesme.group(1)] = CaseBloku(["| " + " | ".join(kalan) + " |"], devir)
+        else:
+            bloklar[eslesme.group(1)] = CaseBloku([satir], "")
 
-    return imzalar
+    return bloklar
+
+
+def case_imzalari(metin: str) -> dict[str, str]:
+    """Dosyadaki her case'in imzası."""
+    return {ad: _imza(blok.satirlar) for ad, blok in case_bloklari(metin).items()}
+
+
+# --------------------------------------------------------------------------
+# Devir işareti (Faz 180)
+# --------------------------------------------------------------------------
+
+DEVREDILDI = "devredildi"
+MANUEL = "manuel"
+ISARETSIZ = "işaretsiz"
+
+
+def devir_sinifi(blok: CaseBloku) -> tuple[str, list[str]]:
+    """Bir case'in devir sınıfı ve (varsa) gösterdiği test hedefleri.
+
+    🚨 YALNIZ Devir hücresine bakar. Gövde metninde geçen bir `👤` cümlesi
+    işaret değildir; sayılsaydı ön koşul metni sayımı kirletirdi (ölçüldü:
+    devredilmemiş dört ailede yedi sahte `manuel`).
+    """
+    govde = blok.devir
+
+    hedefler = [h.group("hedef")
+                for ci in DEVIR_CI.finditer(govde)
+                for h in CI_HEDEF.finditer(ci.group("hedefler"))]
+    if hedefler:
+        return DEVREDILDI, hedefler
+
+    # 🚨 `➜ CI:` yazıp hedefi backtick'e almamak SESSİZ bir kayıp olurdu: case
+    # devredilmiş görünür, hiçbir hedef doğrulanmaz. İşaret varsa hedef de
+    # olmalıdır; yoksa case işaretsiz sayılır ve sayıda görünür.
+    if DEVIR_MANUEL.search(govde):
+        return MANUEL, []
+
+    return ISARETSIZ, []
+
+
+def test_envanteri() -> set[str]:
+    """Repo'daki `<Sınıf>.<Metot>` çiftleri — devir hedefinin var olma kanıtı.
+
+    🚨 Eşleme DOSYA düzeyindedir: bir dosyadaki her sınıf adı o dosyadaki her
+    metot adıyla eşlenir. Bu bilinçli bir GENİŞ yaklaşımdır — iç içe yardımcı
+    sınıflar yüzünden var olmayan bir çift üretebilir, ama var OLAN bir çifti
+    asla kaçırmaz. Kapının yönü budur: yanlış kırmızı üretmez, gerçek bir
+    silme/yeniden adlandırmayı (ad dosyadan tamamen kaybolur) yakalar.
+    """
+    envanter: set[str] = set()
+
+    kaynaklar = [(p, TEST_METODU_CS) for p in (ROOT / "tests").rglob("*.cs")]
+    kaynaklar += [(p, TEST_METODU_PY) for p in (ROOT / "scripts").glob("*_test.py")]
+
+    for yol, metot_deseni in kaynaklar:
+        if "/obj/" in yol.as_posix() or "/bin/" in yol.as_posix():
+            continue
+        metin = yol.read_text(encoding="utf-8")
+        siniflar = {m.group("ad") for m in TEST_SINIFI.finditer(metin)}
+        if not siniflar:
+            continue
+        metotlar = {m.group("ad") for m in metot_deseni.finditer(metin)}
+        envanter.update(f"{s}.{m}" for s in siniflar for m in metotlar)
+
+    return envanter
 
 
 # --------------------------------------------------------------------------
@@ -357,10 +504,23 @@ class Aile:
     yol_sayisi: int
     cozulemeyen: list[str]
     yeni_dosya: bool
+    devredildi: list[str] = dataclasses.field(default_factory=list)
+    manuel: list[str] = dataclasses.field(default_factory=list)
+    isaretsiz: list[str] = dataclasses.field(default_factory=list)
+    bayat_isaretler: list[tuple[str, str]] = dataclasses.field(default_factory=list)
 
     @property
     def toplam(self) -> int:
         return len(self.yeni) + len(self.degisti) + len(self.sessiz)
+
+    @property
+    def case_sayisi(self) -> int:
+        """Devir sınıflarının toplamı — tazelik ölçümünden BAĞIMSIZ sayım.
+
+        `toplam` taban turla karşılaştırmaya dayanır ve taban yoksa sıfırdır;
+        devir raporu tabansız da koşar.
+        """
+        return len(self.devredildi) + len(self.manuel) + len(self.isaretsiz)
 
     @property
     def risk(self) -> int:
@@ -374,8 +534,10 @@ class Aile:
         return max(1, -(-self.toplam // bolen))
 
 
-def aileleri_olc(taban: str) -> list[Aile]:
+def aileleri_olc(taban: str | None) -> list[Aile]:
+    """Her aileyi ölçer. `taban` yoksa yalnız devir sınıfları doldurulur."""
     aileler: list[Aile] = []
+    envanter = test_envanteri()
 
     for satir in INDEKS.read_text(encoding="utf-8").split("\n"):
         eslesme = AILE_SATIRI.match(satir)
@@ -388,26 +550,49 @@ def aileleri_olc(taban: str) -> list[Aile]:
         if not bugun.exists():
             continue
 
-        simdi = case_imzalari(bugun.read_text(encoding="utf-8"))
-        onceki_metin = _tabanda_oku(taban, yol)
+        bloklar = case_bloklari(bugun.read_text(encoding="utf-8"))
+        simdi = {ad: _imza(blok.satirlar) for ad, blok in bloklar.items()}
+
+        onceki_metin = _tabanda_oku(taban, yol) if taban else None
         onceki = case_imzalari(onceki_metin) if onceki_metin else {}
 
-        cozulen, cozulemeyen = kaynak_yollari(eslesme.group("kaynak"))
+        devredildi: list[str] = []
+        manuel: list[str] = []
+        isaretsiz: list[str] = []
+        bayat: list[tuple[str, str]] = []
+        for ad in sorted(bloklar):
+            sinif, hedefler = devir_sinifi(bloklar[ad])
+            if sinif == DEVREDILDI:
+                devredildi.append(ad)
+                bayat.extend((ad, h) for h in hedefler if h not in envanter)
+            elif sinif == MANUEL:
+                manuel.append(ad)
+            else:
+                isaretsiz.append(ad)
+
+        cozulen, cozulemeyen = ((kaynak_yollari(eslesme.group("kaynak")))
+                                if taban else ([], []))
 
         aileler.append(Aile(
             no=eslesme.group("no"),
             dosya=dosya,
             kod=eslesme.group("kod"),
             fazlar=eslesme.group("fazlar").strip(),
-            yeni=sorted(a for a in simdi if a not in onceki),
+            # Taban yokken üç kova BOŞ kalır; hepsini "yeni" saymak devir
+            # raporunu bir tazelik ölçümü gibi gösterirdi.
+            yeni=sorted(a for a in simdi if a not in onceki) if taban else [],
             degisti=sorted(a for a in simdi
                            if a in onceki and simdi[a] != onceki[a]),
             sessiz=sorted(a for a in simdi
                           if a in onceki and simdi[a] == onceki[a]),
-            kod_kaymasi=commit_sayisi(taban, cozulen),
+            kod_kaymasi=commit_sayisi(taban, cozulen) if taban else 0,
             yol_sayisi=len(cozulen),
             cozulemeyen=cozulemeyen,
-            yeni_dosya=onceki_metin is None,
+            yeni_dosya=taban is not None and onceki_metin is None,
+            devredildi=devredildi,
+            manuel=manuel,
+            isaretsiz=isaretsiz,
+            bayat_isaretler=bayat,
         ))
 
     return aileler
@@ -470,6 +655,71 @@ def kapsanmayanlar() -> dict[str, set[str]]:
 # Rapor
 # --------------------------------------------------------------------------
 
+def bayat_isaretler(aileler: list[Aile]) -> list[tuple[str, str, str]]:
+    """`(aile, case, hedef)` — gösterdiği test artık var olmayan işaretler."""
+    return [(a.no, case, hedef)
+            for a in sorted(aileler, key=lambda x: x.no)
+            for case, hedef in a.bayat_isaretler]
+
+
+def _devir_aciklamasi(aileler: list[Aile]) -> list[str]:
+    """Devir sayımının üç sınıfı ve bayat işaret listesi."""
+    devredildi = sum(len(a.devredildi) for a in aileler)
+    manuel = sum(len(a.manuel) for a in aileler)
+    isaretsiz = sum(len(a.isaretsiz) for a in aileler)
+    bayat = bayat_isaretler(aileler)
+
+    s = [
+        "**Devir sınıfları** (`00-INDEKS.md` §9): **devredildi** "
+        f"{devredildi} · **manuel** {manuel} · **işaretsiz** {isaretsiz}.",
+        "",
+        "`işaretsiz` bir kusur DEĞİLDİR — o case henüz yargılanmamıştır. Sayı",
+        "bir kapı değil, bir dilim planlama girdisidir.",
+        "",
+        "### Bayat devir işaretleri",
+        "",
+    ]
+
+    if bayat:
+        s.append("🔴 Aşağıdaki işaretler var olmayan bir test gösteriyor. Bir")
+        s.append("işaret bayatladığında case kanıtsız kalır ama kanıtlıymış")
+        s.append("**görünür** — sayımın tek yalan söyleyebileceği yer burasıdır.")
+        s.append("")
+        s.append("| Aile | Case | Gösterilen test |")
+        s.append("|---|---|---|")
+        for no, case, hedef in bayat:
+            s.append(f"| {no} | `{case}` | `{hedef}` |")
+    else:
+        s.append("Yok — her `➜ CI:` işareti var olan bir testi gösteriyor.")
+
+    s.append("")
+    return s
+
+
+def devir_raporu(aileler: list[Aile]) -> str:
+    """Tabansız devir raporu: sınıf sayıları ve bayat işaretler."""
+    s = ["# Devir ölçümü — manuel set", ""]
+    s.append("> **Üretilir, elle yazılmaz.** Kaynak:")
+    s.append("> `python3 scripts/manuel-test-tazelik.py`.")
+    s.append(">")
+    s.append("> Tazelik ölçümü (`yeni`/`değişti`/`sessiz`, risk sırası, şerit")
+    s.append("> dağılımı) için `--taban <commit>` ver; o mod bu üç sütunu kendi")
+    s.append("> aile tablosunda da taşır.")
+    s.append("")
+    s.append("## 1. Aile başına devir sınıfı")
+    s.append("")
+    s.append("| # | Aile | case | devredildi | manuel | işaretsiz |")
+    s.append("|---|---|---|---|---|---|")
+    for a in sorted(aileler, key=lambda x: x.no):
+        s.append(f"| {a.no} | `{a.dosya}` | {a.case_sayisi} | {len(a.devredildi)} | "
+                 f"{len(a.manuel)} | {len(a.isaretsiz)} |")
+    s.append("")
+    s.append("## 2. Toplam")
+    s.append("")
+    s.extend(_devir_aciklamasi(aileler))
+    return "\n".join(s)
+
+
 def rapor(taban: str, baslik: str, aileler: list[Aile]) -> str:
     yeni = sum(len(a.yeni) for a in aileler)
     degisti = sum(len(a.degisti) for a in aileler)
@@ -507,15 +757,18 @@ def rapor(taban: str, baslik: str, aileler: list[Aile]) -> str:
     s.append("")
     s.append("## 2. Aile ölçümü")
     s.append("")
-    s.append("| # | Aile | case | yeni | değişti | sessiz | kod kayması | risk |")
-    s.append("|---|---|---|---|---|---|---|---|")
+    s.append("| # | Aile | case | yeni | değişti | sessiz | kod kayması | risk "
+             "| devredildi | manuel | işaretsiz |")
+    s.append("|---|---|---|---|---|---|---|---|---|---|---|")
     for a in sorted(aileler, key=lambda x: x.no):
         isaret = " 🆕" if a.yeni_dosya else ""
         s.append(f"| {a.no} | `{a.dosya}`{isaret} | {a.toplam} | {len(a.yeni)} | "
-                 f"{len(a.degisti)} | {len(a.sessiz)} | {a.kod_kaymasi} | {a.risk} |")
+                 f"{len(a.degisti)} | {len(a.sessiz)} | {a.kod_kaymasi} | {a.risk} | "
+                 f"{len(a.devredildi)} | {len(a.manuel)} | {len(a.isaretsiz)} |")
     s.append("")
     s.append("🆕 = taban turda bu dosya yoktu.")
     s.append("")
+    s.extend(_devir_aciklamasi(aileler))
     s.append("## 3. Koşum sırası")
     s.append("")
     s.append(f"**Zincir kapıdır.** `{' → '.join(ZINCIR)}` kırılırsa sonraki hiçbir")
@@ -592,15 +845,16 @@ def rapor(taban: str, baslik: str, aileler: list[Aile]) -> str:
 def main() -> int:
     ap = argparse.ArgumentParser(
         description="Manuel kabul turunun tazelik ölçümü.")
-    ap.add_argument("--taban", required=True,
-                    help="önceki tam turun son commit'i")
+    ap.add_argument("--taban",
+                    help="önceki tam turun son commit'i; verilmezse YALNIZ "
+                         "devir ölçümü basılır")
     ap.add_argument("--kosum",
                     help="koşum dizini; boşsa kosumlar/ altındaki en yenisi")
     ap.add_argument("--kuru", action="store_true",
                     help="yazma, yalnız bas")
     a = ap.parse_args()
 
-    if _git("rev-parse", "--verify", f"{a.taban}^{{commit}}").returncode != 0:
+    if a.taban and _git("rev-parse", "--verify", f"{a.taban}^{{commit}}").returncode != 0:
         print(f"HATA: taban commit çözülemedi: {a.taban}", file=sys.stderr)
         return 1
 
@@ -610,11 +864,20 @@ def main() -> int:
         print("HATA: 00-INDEKS.md içinden aile satırı okunamadı", file=sys.stderr)
         return 1
 
+    bayat = bayat_isaretler(aileler)
+
+    # Devir ölçümü tabansız da koşar: bir turu açmak için değil, dilimi
+    # planlamak ve bayat işareti görmek için. Bu mod dosya YAZMAZ — turlar
+    # arasında yazacağı bir koşum dizini yoktur.
+    if not a.taban:
+        print(devir_raporu(aileler))
+        return _bayat_bildir(bayat)
+
     metin = rapor(a.taban, baslik, aileler)
 
     if a.kuru:
         print(metin)
-        return 0
+        return _bayat_bildir(bayat)
 
     if a.kosum:
         dizin = pathlib.Path(a.kosum)
@@ -633,12 +896,41 @@ def main() -> int:
     dizin.mkdir(parents=True, exist_ok=True)
     hedef = dizin / "00-KOSUM-PLANI.md"
     hedef.write_text(metin, encoding="utf-8")
-    print(f"yazıldı: {hedef.relative_to(ROOT)}")
+    print(f"yazıldı: {_kisa_yol(hedef)}")
 
     cozulemeyen = sum(len(x.cozulemeyen) for x in aileler)
     if cozulemeyen:
         print(f"uyarı: {cozulemeyen} kaynak yolu çözülemedi — §5")
-    return 0
+    return _bayat_bildir(bayat)
+
+
+def _kisa_yol(yol: pathlib.Path) -> str:
+    """Repo köküne göre kısaltır; kök dışındaysa mutlak yolu verir.
+
+    `--kosum` repo DIŞINDA bir dizin alabilir (denemelik bir koşum, bir geçici
+    dizin). `relative_to` o durumda `ValueError` atıyordu: dosya yazılmış
+    olmasına rağmen komut ham bir traceback ile düşüyordu. Bu betiğin kendi
+    kabul kuralı (`MT-GDK-022`) ham traceback'i yasaklar.
+    """
+    try:
+        return str(yol.relative_to(ROOT))
+    except ValueError:
+        return str(yol)
+
+
+def _bayat_bildir(bayat: list[tuple[str, str, str]]) -> int:
+    """Bayat işaret KIRMIZIDIR; çözülemeyen kaynak yolu yalnız uyarıdır.
+
+    Fark niyetlidir: çözülemeyen bir yol ölçümü kabalaştırır, bayat bir işaret
+    ise kanıtsız bir case'i kanıtlıymış gibi gösterir.
+    """
+    if not bayat:
+        return 0
+    print(f"HATA: {len(bayat)} devir işareti var olmayan bir testi gösteriyor:",
+          file=sys.stderr)
+    for no, case, hedef in bayat:
+        print(f"  {no} · {case} -> {hedef}", file=sys.stderr)
+    return 1
 
 
 if __name__ == "__main__":

@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 
@@ -44,10 +45,18 @@ public sealed class AgentValidateEndpointTests
         var json = await TraconTestHost.ReadJsonAsync(response);
         json.GetProperty("valid").GetBoolean().ShouldBeFalse();
 
-        var codes = json.GetProperty("messages").EnumerateArray()
-            .Select(static message => message.GetProperty("code").GetString())
-            .ToArray();
-        codes.ShouldBe(["unknown_tool"]);
+        var messages = json.GetProperty("messages").EnumerateArray().ToArray();
+
+        messages.Select(static message => message.GetProperty("code").GetString())
+            .ToArray()
+            .ShouldBe(["unknown_tool"]);
+
+        // Severity travels as a NAME, not as an ordinal. An ordinal round-trips
+        // through the generated client and looks green in a serialization test,
+        // but the curl output a human reads would say "1".
+        var severity = messages[0].GetProperty("severity");
+        severity.ValueKind.ShouldBe(JsonValueKind.String);
+        severity.GetString().ShouldBe("Error");
     }
 
     [Fact]

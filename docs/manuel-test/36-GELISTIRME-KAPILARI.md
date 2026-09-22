@@ -1,6 +1,6 @@
 # 36 — Geliştirme Döngüsü Kapıları (`GDK`)
 
-> **Alan kodu:** `GDK` · **Faz:** 91, 92, 116, 166, 167, 168, 169
+> **Alan kodu:** `GDK` · **Faz:** 91, 92, 116, 166, 167, 168, 169, 180
 > **Kaynak:** `scripts/kapi.py` · `scripts/denetim-paketi.py`
 > · `scripts/dokuman-bakim.py` (Faz 169)
 > · `scripts/*_test.py` · `src/Tracon.UI/Tracon.UI.Frontend.targets`
@@ -11,6 +11,7 @@
 > · `.claude/agents/faz-denetcisi.md` · `.claude/settings.json` (Faz 167)
 > · `.agents/ortak/kurtarma.md` (Faz 168)
 > · `scripts/capacity.py` · `bench/capacity/` · `tests/Tracon.Capacity.Tests/` (Faz 166)
+> · `scripts/manuel-test-tazelik.py` · `scripts/manuel_test_tazelik_test.py` (Faz 180)
 
 Bu aile, geliştirme kapılarının komutları sessizce atlamadığını ve tarihsel
 kusur sınıflarını yeniden görebildiğini kanıtlar. Python testleri otomatik
@@ -68,6 +69,9 @@ kapıdır; aşağıdaki case'ler kabul davranışını tarif eder.
 | 46 | `MT-GDK-046` | `sweep` koşumu bitti | Bir hücrenin `cell.json` `storage` bloğunu incele | Tablo kırılımı (`runs`/`run_events`/`jobs`/…), heap–index–TOAST ayrımı ve satır **ile** bayt birlikte; autovacuum penceresine girdiyse hücre `storage/vacuum-interference` uyarısı taşır ve baytları ortalamaya girmez, satır sayıları kalır |
 | 47 | `MT-GDK-047` | Herhangi bir koşum bitti | `grep -rniE 'password=|pwd=|sk-[a-z]+-' artifacts/capacity/<id>` | Hiçbir eşleşme yok. Kabul koşumundaki `CapacityArtifactTests` aynı iddiayı ekilmiş sentetik canary ile ayrıca doğrular — canary'yi yakalayamayan bir tarama her testi boşa çıkarırdı |
 | 48 | `MT-GDK-048` | `soak` koşumu bitti; `production.md` tablosu yazıldı | Yayımlanan tabloyu koşum çıktısıyla karşılaştır | Tablo ortamı, Tracon sürümünü ve commit'i yazar; "not an SLA" çerçevesi var; yarım hücre, tek tekrarın sayısı ve uyarısız düşük örnekli percentile yayımlanmamış; hiçbir yerde "çok node destekleniyor" cümlesi yok |
+| 49 | `MT-GDK-049` | Aile 07 devir işaretli (Faz 180); temiz ağaç | `python3 scripts/manuel-test-tazelik.py` | Çıkış `0`; taban İSTEMEZ ve hiçbir dosya yazmaz. Aile başına `devredildi / manuel / işaretsiz` basılır; `07` satırı `42 / 1 / 0` der. Bayat işaret bölümü "Yok" yazar |
+| 50 | `MT-GDK-050` | Aynı | Aile 07'deki bir `➜ CI:` hedefinin adını boz (ör. sonuna `_RENAMED` ekle), aynı komutu koş, sonra geri al | Çıkış `1`; `stderr` işareti `<aile> · <case> -> <hedef>` biçiminde adıyla yazar. 🚨 Çözülemeyen kaynak yolu yalnız **uyarıdır**, bayat işaret **kırmızıdır** — biri ölçümü kabalaştırır, öteki kanıtsız bir case'i kanıtlıymış gösterir |
+| 51 | `MT-GDK-051` | Aynı | `python3 scripts/manuel-test-tazelik.py --taban HEAD --kuru` | `değişti` kovası `0`'dır. 🚨 Devir işaretini eklemek case'i **değiştirmez**: işaret imzadan düşer, yoksa bu fazın 43 işareti bir sonraki turda 43 sahte `değişti` üretirdi |
 
 ## Otomatik doğrulama
 

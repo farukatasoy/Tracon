@@ -89,6 +89,181 @@ class ImzaTestleri(unittest.TestCase):
                          ["MT-GDK-001", "MT-GDK-002"])
 
 
+CASE_DEVREDILDI = """### MT-API-001 — `POST /api/agents` yeni bir tanım oluşturur
+
+| | |
+|---|---|
+| **Önem** | Yüksek |
+| **İlgili karar** | — |
+| **Devir** | ➜ CI: `AgentCrudTests.Definition_is_created_and_appears_in_the_catalog` |
+
+**Beklenen sonuç**
+- `HTTP: 201`.
+"""
+
+CASE_MANUEL = """### MT-API-040 — Gerçek bir sağlayıcı hatası gruplanarak görünür
+
+| | |
+|---|---|
+| **Önem** | Yüksek |
+| **İlgili karar** | K-296 |
+| **Devir** | 👤 insan gerekir — gerçek sağlayıcı hesabı ister |
+
+**Beklenen sonuç**
+- Dizide en az bir giriş vardır.
+"""
+
+
+class DevirIsaretiTestleri(unittest.TestCase):
+    @staticmethod
+    def _sinif(metin: str):
+        blok = next(iter(tazelik.case_bloklari(metin).values()))
+        return tazelik.devir_sinifi(blok)
+
+    def test_ci_isareti_DEVREDILDI_sayilir_ve_hedefi_okunur(self):
+        sinif, hedefler = self._sinif(CASE_DEVREDILDI)
+        self.assertEqual(sinif, tazelik.DEVREDILDI)
+        self.assertEqual(
+            hedefler,
+            ["AgentCrudTests.Definition_is_created_and_appears_in_the_catalog"])
+
+    def test_insan_isareti_MANUEL_sayilir(self):
+        self.assertEqual(self._sinif(CASE_MANUEL), (tazelik.MANUEL, []))
+
+    def test_isaretsiz_case_ISARETSIZ_sayilir(self):
+        # 🚨 Negatif yön. Sınıflandırıcı fazla geniş olsaydı her case bir
+        # kovaya düşer ve "işaretsiz" sütunu sessizce sıfırlanırdı — devir
+        # turunun ölçmek istediği tek sayı odur.
+        self.assertEqual(self._sinif(CASE_BUGUN), (tazelik.ISARETSIZ, []))
+
+    def test_ikisi_birden_yazilirsa_CI_kazanir(self):
+        ikisi = CASE_DEVREDILDI.replace(
+            "**Beklenen sonuç**",
+            "👤 insan gerekir — eski not\n\n**Beklenen sonuç**")
+        sinif, hedefler = self._sinif(ikisi)
+        self.assertEqual(sinif, tazelik.DEVREDILDI)
+        self.assertEqual(len(hedefler), 1)
+
+    def test_hedefsiz_CI_isareti_DEVREDILDI_SAYILMAZ(self):
+        # 🚨 Hedefi backtick'e alınmamış bir işaret doğrulanamaz. Devredilmiş
+        # sayılsaydı bayat işaret kapısının göremediği bir kaçış yolu açılırdı:
+        # case kanıtlıymış görünür, hiçbir test adı denetlenmez.
+        hedefsiz = CASE_DEVREDILDI.replace(
+            "➜ CI: `AgentCrudTests.Definition_is_created_and_appears_in_the_catalog`",
+            "➜ CI: AgentCrudTests.Definition_is_created_and_appears_in_the_catalog")
+        self.assertEqual(self._sinif(hedefsiz), (tazelik.ISARETSIZ, []))
+
+    def test_tablo_bicimli_case_de_isaret_tasiyabilir(self):
+        # Aile 31–36 case'i başlık değil TABLO SATIRI yazar; işaret bir `Devir`
+        # SÜTUNUNDA yaşar. Sayaç iki biçimi de görmelidir.
+        metin = ("| # | Kod | Ön koşul | Devir |\n"
+                 "|---|---|---|---|\n"
+                 "| 1 | `MT-GDK-001` | Temiz ağaç | ➜ CI: `KapiTestleri.test_tarama` |\n")
+        blok = tazelik.case_bloklari(metin)["MT-GDK-001"]
+        self.assertEqual(tazelik.devir_sinifi(blok),
+                         (tazelik.DEVREDILDI, ["KapiTestleri.test_tarama"]))
+
+    def test_tablo_bicimli_case_de_DEVIR_SUTUNU_imzadan_duser(self):
+        # 🚨 Başlık biçimi için kurulan koruma tablo biçiminde de geçerlidir:
+        # bir aileye `Devir` sütunu eklemek o ailenin HER case'ini "değişti"
+        # kovasına atamamalıdır. Hücre boşaltılmaz, düşürülür — boş bırakmak
+        # satıra fazladan bir ayırıcı ekler ve imza yine ayrışırdı.
+        oncesi = ("| # | Kod | Ön koşul |\n"
+                  "|---|---|---|\n"
+                  "| 1 | `MT-GDK-001` | Temiz ağaç |\n")
+        sonrasi = ("| # | Kod | Ön koşul | Devir |\n"
+                   "|---|---|---|---|\n"
+                   "| 1 | `MT-GDK-001` | Temiz ağaç | ➜ CI: `KapiTestleri.test_tarama` |\n")
+        self.assertEqual(tazelik.case_imzalari(oncesi),
+                         tazelik.case_imzalari(sonrasi))
+
+    def test_govdedeki_insan_cumlesi_ISARET_SAYILMAZ(self):
+        # 🚨 İşaretin TEK evi `Devir` satırı/sütunudur. Ön koşul metninde geçen
+        # bir `👤` cümlesi sayılsaydı, devredilmemiş dört aile sahte `manuel`
+        # üretirdi (ölçüldü: yedi case).
+        metin = ("| # | Kod | Ön koşul |\n"
+                 "|---|---|---|\n"
+                 "| 1 | `MT-GDK-011` | 👤 insan gerekir — skill listesi açık |\n")
+        blok = tazelik.case_bloklari(metin)["MT-GDK-011"]
+        self.assertEqual(tazelik.devir_sinifi(blok), (tazelik.ISARETSIZ, []))
+
+    def test_devir_satiri_case_i_DEGISMIS_saymaz(self):
+        # 🚨 Bir case'i işaretlemek onun DAVRANIŞINI değiştirmez. İmzada
+        # kalsaydı bu fazın 43 işareti bir sonraki tazelik ölçümünde 43 sahte
+        # "değişti" üretir ve turun risk sırasını bozardı (ölçüldü: 0).
+        isaretsiz = "\n".join(
+            s for s in CASE_DEVREDILDI.split("\n")
+            if not s.startswith("| **Devir**"))
+
+        self.assertEqual(tazelik.case_imzalari(CASE_DEVREDILDI),
+                         tazelik.case_imzalari(isaretsiz))
+
+
+class TestEnvanteriTestleri(unittest.TestCase):
+    def test_var_olan_test_envanterde_bulunur(self):
+        envanter = tazelik.test_envanteri()
+        self.assertIn(
+            "ImzaTestleri.test_baslik_bicimli_case_bulunur", envanter)
+
+    def test_var_OLMAYAN_test_envanterde_bulunmaz(self):
+        # İki yönlü: yalnız ilk iddia yazılsaydı envanter her şeyi içeren bir
+        # küme olabilir ve bayat işaret kapısı hiçbir zaman kırmızı olmazdı.
+        self.assertNotIn(
+            "ImzaTestleri.test_hic_boyle_bir_test_yok", tazelik.test_envanteri())
+
+
+class BayatIsaretTestleri(unittest.TestCase):
+    @staticmethod
+    def _aile(bayat: list[tuple[str, str]]) -> tazelik.Aile:
+        return tazelik.Aile(
+            no="07", dosya="07-AILE.md", kod="API", fazlar="", yeni=[],
+            degisti=[], sessiz=[], kod_kaymasi=0, yol_sayisi=1, cozulemeyen=[],
+            yeni_dosya=False, devredildi=["MT-API-013"], manuel=[],
+            isaretsiz=[], bayat_isaretler=bayat)
+
+    def test_bayat_isaret_KIRMIZI_doner(self):
+        bayat = tazelik.bayat_isaretler(
+            [self._aile([("MT-API-013", "AgentCrudTests.Yok")])])
+        self.assertEqual(bayat, [("07", "MT-API-013", "AgentCrudTests.Yok")])
+        self.assertEqual(tazelik._bayat_bildir(bayat), 1)
+
+    def test_temiz_set_YESIL_doner(self):
+        self.assertEqual(tazelik.bayat_isaretler([self._aile([])]), [])
+        self.assertEqual(tazelik._bayat_bildir([]), 0)
+
+
+class TabansizOlcumTestleri(unittest.TestCase):
+    def test_taban_yokken_tazelik_kovalari_BOS_kalir(self):
+        # Tabansız modda karşılaştırılacak bir tur yoktur. Her case'i "yeni"
+        # saymak devir raporunu bir tazelik ölçümü gibi gösterirdi.
+        aileler = tazelik.aileleri_olc(None)
+        self.assertTrue(aileler)
+        self.assertEqual(sum(len(a.yeni) for a in aileler), 0)
+        self.assertEqual(sum(len(a.degisti) for a in aileler), 0)
+
+    def test_taban_yokken_devir_sayilari_DOLU_gelir(self):
+        aileler = tazelik.aileleri_olc(None)
+        yedi = next(a for a in aileler if a.no == "07")
+        self.assertEqual(yedi.case_sayisi, len(yedi.devredildi)
+                         + len(yedi.manuel) + len(yedi.isaretsiz))
+        self.assertGreater(len(yedi.devredildi), 0)
+
+
+class KisaYolTestleri(unittest.TestCase):
+    def test_repo_ici_yol_KISALIR(self):
+        self.assertEqual(
+            tazelik._kisa_yol(ROOT / "docs" / "manuel-test" / "00-INDEKS.md"),
+            "docs/manuel-test/00-INDEKS.md")
+
+    def test_repo_DISI_yol_traceback_yerine_mutlak_yol_verir(self):
+        # 🚨 `--kosum` repo dışında bir dizin alabilir. `relative_to` orada
+        # `ValueError` atıyordu ve komut dosyayı YAZDIKTAN sonra ham bir
+        # traceback ile düşüyordu — betiğin kendi kabul kuralı (`MT-GDK-022`)
+        # ham traceback'i yasaklar.
+        disarisi = pathlib.Path("/tmp/kosum-denemesi/00-KOSUM-PLANI.md")
+        self.assertEqual(tazelik._kisa_yol(disarisi), str(disarisi))
+
+
 class YolCozumuTestleri(unittest.TestCase):
     def test_brace_acilir(self):
         self.assertEqual(

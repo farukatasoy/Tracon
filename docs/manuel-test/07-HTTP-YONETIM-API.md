@@ -12,6 +12,12 @@
 > `TraconEndpointRouteBuilderExtensions.cs` (`MapTracon` giriş noktası).
 >
 > Ortam kurulumu, fixture verisi ve reset yordamı [`00-INDEKS.md`](00-INDEKS.md)'dedir.
+>
+> **Devir satırı (Faz 180).** Her case'in üstbilgi tablosunda bir `Devir`
+> satırı vardır: `➜ CI:` o davranışın kanıtının hangi testte olduğunu,
+> `👤` ise neden elle koşulması gerektiğini söyler. Case **silinmez** —
+> davranışın tarifi burada, kanıtı CI'da durur. Şablon:
+> [`00-INDEKS.md` §9](00-INDEKS.md#9-devir-şablonu--bir-casein-üç-olası-kaderi).
 
 > **Koşum kaydı ayrıdır:** son tur (2026-09-16):
 > [`../arsiv/manuel-test-kosum-2026-09/07-HTTP-YONETIM-API.md`](../arsiv/manuel-test-kosum-2026-09/07-HTTP-YONETIM-API.md)
@@ -99,6 +105,7 @@ tanım hiçbir zaman çözülmezdi.
 | **Önem** | Yüksek |
 | **İlgili faz** | Faz 4 |
 | **İlgili karar** | — |
+| **Devir** | ➜ CI: `AgentCrudTests.Definition_is_created_and_appears_in_the_catalog` |
 
 **Ön koşul**
 - Örnek uygulama çalışıyor.
@@ -131,6 +138,7 @@ curl -s -w "\nHTTP: %{http_code}\nLocation: %{header_json}\n" \
 | **Önem** | Yüksek |
 | **İlgili faz** | Faz 4 |
 | **İlgili karar** | — |
+| **Devir** | ➜ CI: `AgentCrudTests.Same_name_cannot_be_created_a_second_time` |
 
 Negatif senaryo.
 
@@ -164,6 +172,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents" -H "$APB" \
 | **Önem** | Yüksek |
 | **İlgili faz** | Faz 4 |
 | **İlgili karar** | K-003 |
+| **Devir** | ➜ CI: `AgentCrudTests.Definition_cannot_be_written_with_the_same_name_as_a_code_agent` |
 
 Negatif senaryo. MT-API-002 ile aynı durum kodu, **farklı** `detail` metni —
 ayrım koddan kanıtlanır (`AgentEndpoints.CreateAgentAsync`, satır ~259-268).
@@ -202,6 +211,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents" -H "$APB" \
 | **Önem** | Orta |
 | **İlgili faz** | Faz 4 |
 | **İlgili karar** | — |
+| **Devir** | ➜ CI: `AgentCrudTests.Definition_with_an_empty_name_is_rejected` |
 
 Negatif senaryo.
 
@@ -234,6 +244,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents" -H "$APB" \
 | **Önem** | Orta |
 | **İlgili faz** | Faz 4 |
 | **İlgili karar** | — |
+| **Devir** | ➜ CI: `ProblemDetailsTests.Invalid_definition_returns_ProblemDetails` |
 
 Negatif senaryo.
 
@@ -266,6 +277,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents" -H "$APB" \
 | **Önem** | Orta |
 | **İlgili faz** | Faz 4 |
 | **İlgili karar** | — |
+| **Devir** | ➜ CI: `ProblemDetailsTests.Management_errors_return_ProblemDetails` |
 
 Negatif senaryo.
 
@@ -294,6 +306,7 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/agents/hic-boyle-bir-agent" -H "$A
 | **Önem** | Orta |
 | **İlgili faz** | Faz 4 |
 | **İlgili karar** | — |
+| **Devir** | ➜ CI: `AgentCrudTests.Name_in_the_path_must_match_the_name_in_the_body` |
 
 Negatif senaryo. Agent adı değiştirilemez — yeni ad için yeni tanım gerekir.
 
@@ -327,6 +340,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/agents/manuel-crud-01" \
 | **Önem** | Yüksek |
 | **İlgili faz** | Faz 4 |
 | **İlgili karar** | K-003 |
+| **Devir** | ➜ CI: `AgentCrudTests.Code_agent_cannot_be_updated` |
 
 Negatif senaryo.
 
@@ -359,6 +373,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/agents/support" -H "$APB" \
 | **Önem** | Orta |
 | **İlgili faz** | Faz 4 |
 | **İlgili karar** | — |
+| **Devir** | ➜ CI: `AgentCrudTests.Nonexistent_definition_cannot_be_updated` |
 
 Negatif senaryo. `PUT` bir "upsert" **değildir** — önce var olmalıdır.
 
@@ -391,6 +406,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/agents/hic-olusturulmamis" 
 | **Önem** | Yüksek |
 | **İlgili faz** | Faz 4 |
 | **İlgili karar** | — |
+| **Devir** | ➜ CI: `AgentCrudTests.Update_produces_a_new_version` |
 
 **Ön koşul**
 - MT-API-001 geçti.
@@ -431,6 +447,7 @@ curl -s "$APU/api/agents/manuel-crud-01/versions" -H "$APB" | python3 -c "import
 | **Önem** | Yüksek |
 | **İlgili faz** | Faz 4 |
 | **İlgili karar** | K-003 |
+| **Devir** | ➜ CI: `AgentCrudTests.Code_agent_cannot_be_deleted` |
 
 Negatif senaryo.
 
@@ -460,6 +477,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X DELETE "$APU/api/agents/support" -H "$APB
 | **Önem** | Düşük |
 | **İlgili faz** | Faz 4 |
 | **İlgili karar** | — |
+| **Devir** | ➜ CI: `AgentCrudTests.Nonexistent_definition_cannot_be_deleted` |
 
 Negatif senaryo.
 
@@ -487,6 +505,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X DELETE "$APU/api/agents/hic-boyle-bir-age
 | **Önem** | Yüksek |
 | **İlgili faz** | Faz 4 |
 | **İlgili karar** | — |
+| **Devir** | ➜ CI: `AgentCrudTests.Delete_removes_the_definition` |
 
 **Ön koşul**
 - MT-API-001/010 geçti (`manuel-crud-01` var).
@@ -515,6 +534,7 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/agents/manuel-crud-01" -H "$APB"
 | **Önem** | Düşük |
 | **İlgili faz** | Faz 4 |
 | **İlgili karar** | — |
+| **Devir** | ➜ CI: `AgentCrudTests.Diff_of_a_nonexistent_version_returns_404` |
 
 Negatif senaryo.
 
@@ -550,6 +570,7 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/agents/manuel-versiyon-testi/versi
 | **Önem** | Düşük |
 | **İlgili faz** | Faz 4 |
 | **İlgili karar** | — |
+| **Devir** | ➜ CI: `AgentCrudTests.Cannot_roll_back_to_a_nonexistent_version` |
 
 Negatif senaryo.
 
@@ -579,6 +600,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/manuel-versiyon-tes
 | **Önem** | Yüksek |
 | **İlgili faz** | Faz 34 |
 | **İlgili karar** | — |
+| **Devir** | ➜ CI: `AgentValidateEndpointTests.Valid_definition_returns_200_and_valid_true` · `AgentValidateEndpointTests.Unknown_tool_returns_200_and_valid_false` |
 
 **Ön koşul**
 - Örnek uygulama çalışıyor.
@@ -620,6 +642,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/validate" -H "$APB"
 | **Önem** | **Kritik** |
 | **İlgili faz** | Faz 34 |
 | **İlgili karar** | — |
+| **Devir** | ➜ CI: `AgentValidateEndpointTests.Catalog_and_runs_are_unchanged_after_validation` |
 
 `AgentDefinitionValidator.CheckModel` gerçek yolla **aynı**
 `_models.CreateChatClient(binding)` çağrısını yapar ama ne veritabanına yazar
@@ -668,6 +691,7 @@ echo "run:   $oncesi_run -> $sonrasi_run"
 | **Önem** | Düşük |
 | **İlgili faz** | Faz 34 |
 | **İlgili karar** | — |
+| **Devir** | ➜ CI: `JsonBindingProblemMiddlewareTests.Syntactically_broken_body_returns_400_on_the_validate_endpoint` |
 
 Negatif senaryo. Bu, `validate`'in "her zaman `200`" kuralının **tek** istisnasıdır
 — ayrıştırılamayan bir gövde, ağın kendi hatasıdır, doğrulama sonucu değil.
@@ -695,6 +719,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/validate" -H "$APB"
 | **Önem** | **Kritik** |
 | **İlgili faz** | Faz 43 |
 | **İlgili karar** | — |
+| **Devir** | ➜ CI: `IdempotencyTests.Same_key_same_body_does_not_run_the_agent_a_second_time` |
 
 **Ön koşul**
 - Örnek uygulama çalışıyor.
@@ -738,6 +763,7 @@ curl -s "$APU/api/runs?agentName=support&sessionId=api-idem-01" -H "$APB" | pyth
 | **Önem** | Yüksek |
 | **İlgili faz** | Faz 43 |
 | **İlgili karar** | — |
+| **Devir** | ➜ CI: `IdempotencyTests.Same_key_DIFFERENT_body_returns_422` |
 
 Negatif senaryo.
 
@@ -762,7 +788,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/support/run" -H "$A
 ```
 
 **Beklenen sonuç**
-- `HTTP: 422`, `title: "Idempotency-Key farkli bir istek icin kullanilmis"`.
+- `HTTP: 422`, `title: "Idempotency-Key used for a different request"`.
 
 ---
 
@@ -774,6 +800,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/support/run" -H "$A
 | **Önem** | Orta |
 | **İlgili faz** | Faz 43 |
 | **İlgili karar** | — |
+| **Devir** | ➜ CI: `IdempotencyTests.Streaming_request_with_Idempotency_Key_returns_400` |
 
 Negatif senaryo. `AgentRunRequest`'in kendi gövdesinde `stream` alanı yoktur
 (akış/akışsız seçimi `Idempotency-Key` başlığının **varlığıyla** yapılır,
@@ -797,7 +824,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/support/run" -H "$A
 ```
 
 **Beklenen sonuç**
-- `HTTP: 400`, `title: "Akisli istekte Idempotency-Key desteklenmiyor"`.
+- `HTTP: 400`, `title: "Idempotency-Key not supported on streaming requests"`.
 
 ---
 
@@ -809,6 +836,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/support/run" -H "$A
 | **Önem** | Düşük |
 | **İlgili faz** | Faz 43 |
 | **İlgili karar** | — |
+| **Devir** | ➜ CI: `IdempotencyTests.Too_long_key_returns_400` |
 
 Negatif senaryo. Sınır durumu — `TraconIdempotencyOptions.MaxKeyLength`
 varsayılanı `255`'tir.
@@ -828,7 +856,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/support/run" -H "$A
 ```
 
 **Beklenen sonuç**
-- `HTTP: 400`, `title: "Idempotency-Key cok uzun"`, `detail` içinde `255` ve
+- `HTTP: 400`, `title: "Idempotency-Key too long"`, `detail` içinde `255` ve
   `256` sayıları geçer.
 
 ---
@@ -841,6 +869,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/support/run" -H "$A
 | **Önem** | Orta |
 | **İlgili faz** | Faz 43 |
 | **İlgili karar** | — |
+| **Devir** | ➜ CI: `IdempotencyTests.Concurrent_requests_with_the_same_key_run_the_agent_ONLY_ONCE` |
 
 Negatif senaryo, hafif eşzamanlılık testi. `IdempotencyState.InProgress`
 dalının kanıtı — iki istek **aynı anda** aynı anahtarla gönderilir.
@@ -873,7 +902,7 @@ wait $PID1
 
 **Beklenen sonuç**
 - İki yanıttan biri `HTTP: 200` (gerçekten çalıştı), diğeri **muhtemelen**
-  `HTTP: 409` (`title: "Istek zaten isleniyor"`) döner. Zamanlamaya bağlı
+  `HTTP: 409` (`title: "Request already in progress"`) döner. Zamanlamaya bağlı
   olarak ikinci istek birinci bitmeden başlarsa `409` görülür; birinci çok
   hızlı biterse ikinci istek `Idempotency-Replayed: true` ile `200` de
   dönebilir — bu durumda case'in amacı (rezervasyon mekanizmasının varlığı)
@@ -887,6 +916,7 @@ wait $PID1
 | **Önem** | Yüksek |
 | **İlgili faz** | Faz 44 |
 | **İlgili karar** | K-296 |
+| **Devir** | 👤 insan gerekir — sınıfın GERÇEK sağlayıcı istisnasıyla eşleşmesi (K-296) yalnız gerçek hesapla görülür; gruplamanın kendisi `StatsErrorEndpointTests`'tedir |
 
 Küçük ölçüde gerçek para harcar (istek reddedilir ama gönderilir).
 
@@ -931,6 +961,7 @@ curl -s "$APU/api/stats/errors?agentName=manuel-hata-sinifi-testi" -H "$APB" | p
 | **Önem** | Düşük |
 | **İlgili faz** | Faz 44 |
 | **İlgili karar** | — |
+| **Devir** | ➜ CI: `StatsErrorEndpointTests.Narrowing_the_hours_window_drops_older_failures` |
 
 **Ön koşul**
 - MT-API-040 geçti.
@@ -961,6 +992,7 @@ curl -s "$APU/api/stats/errors?agentName=manuel-hata-sinifi-testi&hours=0.01" -H
 | **Önem** | Orta |
 | **İlgili faz** | Faz 4 |
 | **İlgili karar** | — |
+| **Devir** | ➜ CI: `StatsErrorEndpointTests.Stats_counters_add_up_and_the_agent_appears_in_the_breakdown` |
 
 Bu case yalnız sayaç **tutarlılığını** sınar; maliyet alanları
 [`12-GOZLEMLENEBILIRLIK-MALIYET.md`](12-GOZLEMLENEBILIRLIK-MALIYET.md)'in
@@ -997,6 +1029,7 @@ curl -s "$APU/api/stats?agentName=manuel-hata-sinifi-testi" -H "$APB" | python3 
 | **Önem** | Orta |
 | **İlgili faz** | Faz 4 |
 | **İlgili karar** | — |
+| **Devir** | ➜ CI: `ListPagingClampTests.Take_below_the_floor_is_clamped_to_one_row` · `ListPagingClampTests.Take_above_the_ceiling_is_clamped_and_still_returns_the_page` · `ListPagingClampTests.Negative_skip_is_treated_as_zero` |
 
 Sınır senaryosu.
 
@@ -1030,6 +1063,7 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/sessions?skip=-5" -H "$APB" | tail
 | **Önem** | Orta |
 | **İlgili faz** | Faz 4 |
 | **İlgili karar** | — |
+| **Devir** | ➜ CI: `SessionEndpointTests.Missing_session_returns_404` |
 
 Negatif senaryo.
 
@@ -1058,6 +1092,7 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/sessions/hic-boyle-bir-oturum" -H 
 | **Önem** | Orta |
 | **İlgili faz** | Faz 4 |
 | **İlgili karar** | — |
+| **Devir** | ➜ CI: `SessionEndpointTests.Session_is_deleted` |
 
 **Ön koşul**
 - `api-idem-01` oturumu var (MT-API-030'dan).
@@ -1090,6 +1125,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X DELETE "$APU/api/sessions/api-idem-01" -H
 | **Önem** | Orta |
 | **İlgili faz** | Faz 4 |
 | **İlgili karar** | — |
+| **Devir** | ➜ CI: `SessionEndpointTests.Branching_returns_501_in_an_in_memory_setup` |
 
 Sınır senaryosu. PostgreSQL açıkken gerçek dallandırma (`201`) davranışı
 [`03-KALICILIK-POSTGRESQL.md`](03-KALICILIK-POSTGRESQL.md)'in konusudur; bu
@@ -1119,7 +1155,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/sessions/api-branch-01/bra
 
 ---
 
-### MT-API-054 — Var olmayan bir oturumu dallandırmak `404` döner
+### MT-API-054 — Var olmayan bir oturumu dallandırmak: `501` `404`'ten ÖNCE gelir
 
 | | |
 |---|---|
@@ -1127,6 +1163,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/sessions/api-branch-01/bra
 | **Önem** | Düşük |
 | **İlgili faz** | Faz 4 |
 | **İlgili karar** | — |
+| **Devir** | ➜ CI: `SessionEndpointTests.Missing_session_branch_reports_not_supported_BEFORE_not_found` |
 
 Negatif senaryo. Bellek içi kurulumda `501` `404`'ten **önce** kontrol edilir
 mi yoksa sonra mı — bu case gerçek sırayı kaydeder.
@@ -1158,6 +1195,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/sessions/hic-boyle-bir-otu
 | **Önem** | Yüksek |
 | **İlgili faz** | Faz 4 |
 | **İlgili karar** | — |
+| **Devir** | ➜ CI: `AgentCallGraphTests.Runs_list_returns_only_roots_by_default` · `AgentCallGraphTests.Session_filter_with_includeChildren_also_returns_child_runs` |
 
 `router` agent'ı `support`'u çağırır (Faz 12 deseni) — bu, gerçek bir
 ebeveyn-çocuk `runs` çifti üretir.
@@ -1193,6 +1231,7 @@ curl -s "$APU/api/runs?sessionId=api-agac-01&includeChildren=true" -H "$APB" | p
 | **Önem** | Orta |
 | **İlgili faz** | Faz 4 |
 | **İlgili karar** | — |
+| **Devir** | ➜ CI: `ProblemDetailsTests.Management_errors_return_ProblemDetails` · `AgentCallGraphTests.Tree_of_a_nonexistent_run_returns_404` · `StreamingTests.Nonexistent_runs_events_return_404` |
 
 Negatif senaryo, temsilci case: `get`, `tree`, `events` üçü de aynı
 `NotFound(runId)` yardımcısını kullanır.
@@ -1225,6 +1264,7 @@ done
 | **Önem** | Orta |
 | **İlgili faz** | Faz 4 |
 | **İlgili karar** | — |
+| **Devir** | ➜ CI: `AgentCallGraphTests.Tree_endpoint_returns_the_whole_tree_even_from_a_child_run` |
 
 **Ön koşul**
 - MT-API-060 geçti.
@@ -1254,6 +1294,7 @@ curl -s "$APU/api/runs/<support-run-id>/tree" -H "$APB" | python3 -c "import jso
 | **Önem** | Yüksek |
 | **İlgili faz** | Faz 4 |
 | **İlgili karar** | — |
+| **Devir** | ➜ CI: `StreamingTests.Resumes_where_it_left_off_via_Last_Event_ID` |
 
 **Ön koşul**
 - Örnek uygulama çalışıyor.
@@ -1284,6 +1325,7 @@ curl -sN -H "Last-Event-ID: 1" "$APU/api/runs/<runId>/events" -H "$APB" | head -
 | **Önem** | Düşük |
 | **İlgili faz** | Faz 47 |
 | **İlgili karar** | — |
+| **Devir** | ➜ CI: `RunReplayEndpointTests.Run_started_while_input_recording_is_OFF_has_a_row_but_no_input` |
 
 Negatif senaryo. **Geçici `user-secrets` değişikliği.**
 
@@ -1326,6 +1368,7 @@ dotnet user-secrets remove "Tracon:RunRecording:RecordRunInput" --project sample
 | **Önem** | Düşük |
 | **İlgili faz** | Faz 4 |
 | **İlgili karar** | — |
+| **Devir** | ➜ CI: `ListPagingClampTests.Take_below_the_floor_is_clamped_to_one_row` · `ListPagingClampTests.Take_above_the_ceiling_is_clamped_and_still_returns_the_page` |
 
 Sınır senaryosu. `/api/sessions` ile aynı desen (`Math.Clamp`), farklı uç.
 
@@ -1354,6 +1397,7 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/runs?take=99999" -H "$APB" | tail 
 | **Önem** | Orta |
 | **İlgili faz** | Faz 4 |
 | **İlgili karar** | — |
+| **Devir** | ➜ CI: `CatalogEndpointTests.Registered_tools_are_listed_with_their_json_schema` · `CatalogEndpointTests.The_tool_catalog_has_no_write_path` |
 
 **Ön koşul**
 - Örnek uygulama çalışıyor.
@@ -1383,6 +1427,7 @@ curl -s "$APU/api/tools" -H "$APB" | python3 -m json.tool
 | **Önem** | Orta |
 | **İlgili faz** | Faz 4, 8 |
 | **İlgili karar** | — |
+| **Devir** | ➜ CI: `CatalogEndpointTests.Model_status_comes_from_the_cache_and_is_Unknown_before_any_health_check` |
 
 `05-SAGLAYICI-OPENAI.md`/`06-SAGLAYICI-DIGER.md`'nin sağlık denetimi
 uçlarından (`/api/models/health/*`, gerçek ağ çağrısı yapar) **farklı**
@@ -1414,6 +1459,7 @@ curl -s -w "\nSure: %{time_total}s\n" "$APU/api/models" -H "$APB" | tail -1
 | **Önem** | Yüksek |
 | **İlgili faz** | Faz 4 |
 | **İlgili karar** | — |
+| **Devir** | ➜ CI: `MetaEndpointTests.Meta_reports_version_prefix_and_authentication_method` · `MetaEndpointTests.Meta_reports_in_memory_stores_as_non_persistent` · `MetaEndpointTests.Meta_contains_no_secret` · `SecurityTests.Meta_endpoint_is_open_even_when_a_token_is_required` |
 
 **Ön koşul**
 - Örnek uygulama çalışıyor.
@@ -1443,6 +1489,7 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/meta"
 | **Önem** | **Kritik** |
 | **İlgili faz** | Faz 4 |
 | **İlgili karar** | — |
+| **Devir** | ➜ CI: `SecurityTests.Headerless_request_is_rejected_when_a_token_is_required` · `SecurityTests.Wrong_token_is_rejected` |
 
 Negatif senaryo.
 
@@ -1475,6 +1522,7 @@ curl -s -D - -o /dev/null -w "\nHTTP: %{http_code}\n" "$APU/api/agents" -H "Auth
 | **Önem** | Yüksek |
 | **İlgili faz** | Faz 4 |
 | **İlgili karar** | — |
+| **Devir** | ➜ CI: `SecurityTests.Correct_token_passes` |
 
 Bu case pozitif kontrol: MT-API-090'ın olumsuz sonucunun **yalnız** token
 eksikliğinden geldiğini, ucun kendisinin bozuk olmadığını kanıtlar. Sabit
@@ -1504,6 +1552,7 @@ curl -s -w "\nHTTP: %{http_code}\n" "$APU/api/agents" -H "$APB" | tail -1
 | **Önem** | Orta |
 | **İlgili faz** | Faz 4 |
 | **İlgili karar** | — |
+| **Devir** | ➜ CI: `ProblemDetailsTests.Management_errors_return_ProblemDetails` · `ProblemDetailsTests.Invalid_definition_returns_ProblemDetails` · `ProblemDetailsTests.Access_denial_also_returns_ProblemDetails` |
 
 Önceki case'lerin (MT-API-006 `404`, MT-API-004 `400`, MT-API-002 `409`)
 ürettiği gövdeler burada tek tip zarf açısından topluca gözden geçirilir.
@@ -1533,5 +1582,5 @@ python3 -m json.tool < /tmp/ap-pd-404.json
 - Gövde en az `type`, `title`, `status`, `detail` alanlarını taşır; `status`
   alanı HTTP durum koduyla **aynı** sayısal değeri taşır (örnek: `404`
   hatasında `status: 404`).
-- `title` alanı kısa ve sabit bir kategori adıdır (`"Agent bulunamadi"` gibi);
+- `title` alanı kısa ve sabit bir kategori adıdır (`"Agent not found"` gibi);
   değişken veri (`detail` içindeki agent adı gibi) `title`'a **sızmaz**.
