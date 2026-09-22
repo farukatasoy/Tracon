@@ -2,15 +2,14 @@
 
 > **Üretilen, elle düzenlenmez.** Kaynak: `KARARLAR.md` · üretim: `scripts/dokuman-bakim.py`
 
-Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 758 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
+Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 759 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
 
 ---
 
-## En Yeni Kalıcı Kararlar (88 / 846 kalem)
+## En Yeni Kalıcı Kararlar (88 / 847 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
-| K-759 | 806 | Bir `OperationCanceledException`'ın SEBEBİNİ söyleyen her yol, o sebebin KENDİ kaynağını sınar; çağıranın token'ını dışlamak yetmez |
 | K-760 | 807 | `TraconClientOptions` bir `Timeout` alanı taşır; kendi bütçesini kuran çağıran onu SONSUZA çeker |
 | K-761 | 808 | `.claude/settings.json`'daki `deny` bloğu bir KORKULUKTUR, güvenlik sınırı DEĞİLDİR |
 | K-762 | 809 | Denetçinin Bash ile yazması ENGELLENMEZ; `tools` allowlist'i korkuluktur 👤 |
@@ -98,3 +97,4 @@ Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLA
 | K-844 | 891 | Deadline'la duran bir workflow `run`'ı `Canceled` KALIR ve sebebi `RunRecord.Error`'da taşır; sebep her kapıda değil, `run`'ın kapandığı TEK yerde eklenir (A-26) 👤 |
 | K-845 | 892 | Bir workflow `run`'ı çağıran iptal ettiğinde VEYA tüketici akışı okumayı bıraktığında `Canceled` olarak kapanır; `RunGuardedAsync`'in `finally`'si bunu garanti eder (A-32) 👤 |
 | K-846 | 893 | `DbDataSource` adapter'larının `ConnectionString` özelliği parolayı düşürür |
+| K-847 | 894 | "Silinmez, taşınır" kuralına tanımlı istisna: yenilenen kanıt eskisinin yerine geçince ve sıfır canlı referans ölçülünce eski kayıt silinebilir 👤 |

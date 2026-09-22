@@ -15,9 +15,11 @@
 >
 > Ortam kurulumu, fixture verisi ve reset yordamı [`00-INDEKS.md`](00-INDEKS.md)'dedir.
 
-> **Koşum kaydı ayrıdır:** [`kosumlar/2026-08-13/03-KALICILIK-POSTGRESQL.md`](kosumlar/2026-08-13/03-KALICILIK-POSTGRESQL.md)
+> **Koşum kaydı ayrıdır:** son tur (2026-09-16):
+> [`../arsiv/manuel-test-kosum-2026-09/03-KALICILIK-POSTGRESQL.md`](../arsiv/manuel-test-kosum-2026-09/03-KALICILIK-POSTGRESQL.md)
 > — `Gerçek sonuç` ve `Durum` orada. Bu dosya **spesifikasyondur** ve
-> her koşumda yeniden kullanılır.
+> her koşumda yeniden kullanılır. 2026-08-13 turunun kaydı silindi (K-847);
+> tam metin: git show 64c8a103:docs/manuel-test/kosumlar/2026-08-13/03-KALICILIK-POSTGRESQL.md
 
 ---
 

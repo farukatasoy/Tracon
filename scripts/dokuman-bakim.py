@@ -172,6 +172,10 @@ YONETIM_BUTCESI = {
     # deger / 0.85.
     "docs/KARARLAR.md": 496_000,           # YENIDEN KALIBRE 2026-09-15; olculen 421_119
     "docs/ADAYLAR.md": 80_000,  # olculen 67_195
+    # YAYIN-HAZIRLIK: `nuget-danismani`nin calisma dosyasi; her yayin turunda
+    # buyur ve 2026-09-22'ye kadar hicbir freni yoktu (temizlik turu bulgusu).
+    # Ledger gibi "yalniz aramada" okunur. ILK SINIR -- K-214'e girmez.
+    "docs/YAYIN-HAZIRLIK.md": 172_000,  # ILK SINIR 2026-09-22; olculen 145_664 (olculen/0.85=171_369)
 }
 
 # Birleştirilmiş görünüm yalnız büyüme projeksiyonu içindir. Raporlama bu
@@ -270,6 +274,9 @@ DIZIN_BUTCESI = {
     # calistirma bolumu 11-SKILL-SCRIPT-CALISTIRMA.md'ye tasindi). Ayni formul:
     # olculen/(1-%15 bosluk) = 4_815_206, yukari yuvarlandi. Bu bir BUYUTME
     # karari degil, K-214'un ongordugu duzenli faz-basi buyumenin dogal sonucu.
+    # 2026-09-22 temizlik turu (K-847): 2026-08-13 kaydi silindi, olculen 0'a
+    # dustu. Tavan bir SONRAKI turun frenidir (onceki tur 518_817 olcmustu),
+    # dokunulmadi.
     ("docs/manuel-test/kosumlar", True, False): 620_000,  # YENI; olculen 518_817
     # YENIDEN KALIBRE 2026-09-15 (dokuman butcesi mudahale turu): 420_000 ->
     # 461_000; olculen 391_732. Kesif turu kaydi donmus bir tur belgesidir (K-414
@@ -2625,6 +2632,19 @@ def gecmis_isaretci_denetle(kok: pathlib.Path = ROOT) -> list[str]:
 
 _TAM_METIN = re.compile(r"git show ([0-9a-f]{7,40}):(\S+\.md)")
 
+# Damitilmis kayit tasiyan agaclar. `zorunlu=True` bir dizinin YOKLUGU
+# bulgudur: eski `if k.exists()` korumasi yoklugu sessizce yesile ceviriyordu
+# -- sig/bozuk bir klonda ya da yanlis bir tasimada kapi hicbir sey taramadan
+# gecerdi (2026-09-22 temizlik turu bulgusu, K-847). `kosumlar` zorunlu
+# DEGILDIR: kosum dizini tur acilisinda acilir, kapanista arsive tasinir
+# (manuel-test-kosumu SKILL semasi) -- turlar arasinda yoklugu mesrudur.
+# 2026-08 tur arsivi ayni turda silindi (K-847); tam metinleri 64c8a103'te.
+TAM_METIN_KAYNAKLARI: tuple[tuple[str, bool], ...] = (
+    ("docs/arsiv/fazlar", True),
+    ("docs/manuel-test/kosumlar", False),
+    ("docs/arsiv/manuel-test-kosum-2026-09", True),
+)
+
 
 def tam_metin_denetle(kok: pathlib.Path = ROOT) -> list[str]:
     """Damitilmis her kayittaki `git show <sha>:<yol>` gercekten cozuluyor mu.
@@ -2634,11 +2654,16 @@ def tam_metin_denetle(kok: pathlib.Path = ROOT) -> list[str]:
     agresif `gc` veya sig bir klon SHA'yi gecersizleyebilir. `fetch-depth: 0`
     (ci.yml:35) MinVer yuzunden zaten zorunludur -- beklenmedik bir sigorta."""
     bulunan: list[str] = []
-    kaynaklar = [kok / "docs" / "arsiv" / "fazlar",
-                 kok / "docs" / "manuel-test" / "kosumlar",
-                 kok / "docs" / "arsiv" / "manuel-test-kosum-2026-08",
-                 kok / "docs" / "arsiv" / "manuel-test-kosum-2026-09"]
-    for dosya in sorted(d for k in kaynaklar if k.exists() for d in k.rglob("*.md")):
+    kaynaklar: list[pathlib.Path] = []
+    for yol, zorunlu in TAM_METIN_KAYNAKLARI:
+        k = kok.joinpath(*yol.split("/"))
+        if not k.exists():
+            if zorunlu:
+                bulunan.append(f"{yol} — tam metin kaynağı dizini yok "
+                               "(sığ/bozuk klon ya da yanlış taşıma)")
+            continue
+        kaynaklar.append(k)
+    for dosya in sorted(d for k in kaynaklar for d in k.rglob("*.md")):
         try:
             metin = dosya.read_text(encoding="utf-8")
         except (UnicodeDecodeError, OSError):

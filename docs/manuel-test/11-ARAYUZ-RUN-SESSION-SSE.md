@@ -22,9 +22,11 @@
 >
 > Ortam kurulumu, fixture verisi ve reset yordamı [`00-INDEKS.md`](00-INDEKS.md)'dedir.
 
-> **Koşum kaydı ayrıdır:** [`kosumlar/2026-08-13/11-ARAYUZ-RUN-SESSION-SSE.md`](kosumlar/2026-08-13/11-ARAYUZ-RUN-SESSION-SSE.md)
+> **Koşum kaydı ayrıdır:** son tur (2026-09-16):
+> [`../arsiv/manuel-test-kosum-2026-09/11-ARAYUZ-RUN-SESSION-SSE.md`](../arsiv/manuel-test-kosum-2026-09/11-ARAYUZ-RUN-SESSION-SSE.md)
 > — `Gerçek sonuç` ve `Durum` orada. Bu dosya **spesifikasyondur** ve
-> her koşumda yeniden kullanılır.
+> her koşumda yeniden kullanılır. 2026-08-13 turunun kaydı silindi (K-847);
+> tam metin: git show 64c8a103:docs/manuel-test/kosumlar/2026-08-13/11-ARAYUZ-RUN-SESSION-SSE.md
 
 ---
 
@@ -674,7 +676,8 @@ sıra `0`'dan başlar. Bu, veri kaybı değil, bir verimsizliktir; kod okumasıy
 
 ### MT-UIRUN-020 — Aynı çalıştırma iki sekmede aynı anda izlenebilir, ikisi de bağımsız akış açar
 
-Hafif yük senaryosu ([`PROMPT.md`](../arsiv/manuel-test-kosum-2026-08/PROMPT.md) §3).
+Hafif yük senaryosu (2026-08 turu PROMPT §3 — silindi, K-847;
+`git show 64c8a103:docs/arsiv/manuel-test-kosum-2026-08/PROMPT.md`).
 
 | | |
 |---|---|

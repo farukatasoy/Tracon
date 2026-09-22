@@ -511,6 +511,7 @@ class TamMetinDenetleTestleri(unittest.TestCase):
 
     def _faz(self, tmp: pathlib.Path, govde: str) -> None:
         (tmp / "docs" / "arsiv" / "fazlar").mkdir(parents=True)
+        (tmp / "docs" / "arsiv" / "manuel-test-kosum-2026-09").mkdir(parents=True)
         (tmp / "docs" / "arsiv" / "fazlar" / "01-X.md").write_text(govde, encoding="utf-8")
 
     def test_cozulmeyen_sha_yakalanir(self):
@@ -535,9 +536,22 @@ class TamMetinDenetleTestleri(unittest.TestCase):
                 self.assertEqual(dokuman_bakim.tam_metin_denetle(tmp), [])
                 g.assert_not_called()
 
-    def test_arsiv_dizini_yoksa_bos_doner(self):
+    def test_zorunlu_kaynak_dizini_yoksa_bulgu(self):
+        # Eski davranış boş liste döndürürdü: zorunlu kaynak dizini silinse
+        # kapı hiçbir şey taramadan yeşil kalırdı (2026-09-22 bulgusu, K-847).
         with tempfile.TemporaryDirectory() as d:
-            self.assertEqual(dokuman_bakim.tam_metin_denetle(pathlib.Path(d)), [])
+            bulgu = dokuman_bakim.tam_metin_denetle(pathlib.Path(d))
+            self.assertTrue(
+                any("tam metin kaynağı dizini yok" in b for b in bulgu), bulgu)
+
+    def test_kosumlar_dizini_yoksa_bulgu_uretmez(self):
+        # Koşum dizini turlar arasında meşru olarak yoktur: tur açılışında
+        # açılır, kapanışta arşive taşınır (manuel-test-kosumu SKILL şeması).
+        with tempfile.TemporaryDirectory() as d:
+            tmp = pathlib.Path(d)
+            (tmp / "docs" / "arsiv" / "fazlar").mkdir(parents=True)
+            (tmp / "docs" / "arsiv" / "manuel-test-kosum-2026-09").mkdir(parents=True)
+            self.assertEqual(dokuman_bakim.tam_metin_denetle(tmp), [])
 
 
 class Faz91DokumanKapilariTestleri(unittest.TestCase):
@@ -1198,6 +1212,7 @@ class DenetimBulgulariTestleri(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             tmp = pathlib.Path(d)
             (tmp / "docs" / "arsiv" / "fazlar").mkdir(parents=True)
+            (tmp / "docs" / "arsiv" / "manuel-test-kosum-2026-09").mkdir(parents=True)
             (tmp / "docs" / "arsiv" / "fazlar" / "01-X.md").write_text(
                 "> git show deadbee:docs/arsiv/fazlar/01-X.md\n", encoding="utf-8")
             with mock.patch.object(dokuman_bakim, "_git",
@@ -1267,6 +1282,7 @@ class TamMetinKodBloguTestleri(unittest.TestCase):
 
     def _kur(self, tmp):
         (tmp / "docs" / "arsiv" / "fazlar").mkdir(parents=True)
+        (tmp / "docs" / "arsiv" / "manuel-test-kosum-2026-09").mkdir(parents=True)
         (tmp / "docs" / "arsiv" / "fazlar" / "01-X.md").write_text(
             "> git show deadbee:docs/arsiv/fazlar/01-X.md\n", encoding="utf-8")
 
