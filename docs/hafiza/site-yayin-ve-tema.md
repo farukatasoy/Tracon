@@ -51,7 +51,7 @@ hicbir seyi eslemez.
   terim orijinal dilinde kalir (`AIAgent`). Dugum metninde `(`, `)`, `,`, `:` ayristiriciyi
   bozar — tirnak kullan. Tek fikir anlatir; on bes dugumu asiyorsa ikiye bol.
 - **🚨 Arsivleme iki yonlu baglanti kirar; SADECE tasinan dosyanin kendi linklerini
-  duzeltmek YETMEZ** (Faz 77): bir blogu `docs/X.md`'den `docs/arsiv/Y.md`'ye
+  duzeltmek YETMEZ** (Faz 77): bir blogu `docs/X.md`'den `docs/arsiv/Y.md`'ye <!-- yol:ornek -->
   KOPYALADIGINDA o blogun ICINDEKI goreli linkler hâlâ `docs/`'a goredir ve arsiv
   dizininden cozulmez. Faz 77'de 17 baglanti boyle kirildi (`KARARLAR-GECMISI.md`,
   `PLANA-DONUSEN-ADAYLAR.md`). Kural: tasima sonrasi `docs/arsiv/**` icinde

@@ -24,6 +24,7 @@ namespace Tracon;
 internal sealed class SqlServerDataSource : DbDataSource
 {
     private readonly string _connectionString;
+    private string? _redactedConnectionString;
 
     /// <summary>Creates a new data source.</summary>
     /// <param name="connectionString">The SQL Server connection string.</param>
@@ -35,7 +36,29 @@ internal sealed class SqlServerDataSource : DbDataSource
     }
 
     /// <inheritdoc />
-    public override string ConnectionString => _connectionString;
+    /// <remarks>
+    /// The password is removed, matching the <c>NpgsqlDataSource.ConnectionString</c>
+    /// contract: whatever reads this property — a diagnostics page, a log line —
+    /// must not receive a credential. The connections this source creates still
+    /// use the full string.
+    /// </remarks>
+    public override string ConnectionString => _redactedConnectionString ??= Redact(_connectionString);
+
+    private static string Redact(string connectionString)
+    {
+        try
+        {
+            var builder = new SqlConnectionStringBuilder(connectionString);
+            builder.Remove("Password");
+            return builder.ConnectionString;
+        }
+        catch (ArgumentException)
+        {
+            // Not parseable as a SQL Server connection string; SqlConnection
+            // rejects it too, so there is no working credential to protect.
+            return connectionString;
+        }
+    }
 
     /// <inheritdoc />
     protected override DbConnection CreateDbConnection() => new SqlConnection(_connectionString);

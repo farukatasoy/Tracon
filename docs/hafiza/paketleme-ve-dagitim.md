@@ -107,7 +107,7 @@ sonradan `<PackageLicenseFile>LICENSE-MIT.md</PackageLicenseFile>` yazarsa
 `unzip -l` dışında hiçbir şey bunu gösterir.
 
 Çözüm: paket bazlı farkı `MSBuildProjectName` ile **props içinde**, `ItemGroup`'un
-üstünde çöz. `src/Directory.Build.targets` açmak cazip görünür ama köktekini
+üstünde çöz. `src/Directory.Build.targets` açmak cazip görünür ama köktekini <!-- yol:ornek -->
 sessizce devre dışı bırakır (MSBuild yalnızca EN YAKIN dosyayı import eder).
 
 **`requireLicenseAcceptance` `false` iken `.nuspec`'e hiç yazılmaz.** NuGet yalnız

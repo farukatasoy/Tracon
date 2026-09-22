@@ -36,7 +36,13 @@ internal sealed class AnthropicProviderHealthCheck(string providerName, Anthropi
     /// </summary>
     internal const string AnthropicVersion = "2023-06-01";
 
-    private static readonly HttpClient SharedHttpClient = new();
+    // PooledConnectionLifetime bounds how long a resolved address is reused: a
+    // provider that fails over behind DNS would otherwise stay pinned to the old
+    // address for the process lifetime. Two minutes matches
+    // EgressSocketGuard.CreateHandler.
+    private static readonly HttpClient SharedHttpClient = new(
+        new SocketsHttpHandler { PooledConnectionLifetime = TimeSpan.FromMinutes(2) },
+        disposeHandler: true);
 
     /// <inheritdoc />
     public async ValueTask<ModelProviderHealth> CheckHealthAsync(CancellationToken cancellationToken = default)

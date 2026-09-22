@@ -1652,16 +1652,124 @@ def _dar_mi(n: int, sinir: int) -> bool:
     return n <= sinir and (sinir - n) / sinir < BOSLUK_ORANI
 
 
+# --- Bayat kod yolu (2026-09-22) ------------------------------------------
+# `kirik_baglantilar()` yalniz markdown baglantisini dogrular; backtick icindeki
+# kod yolunu goremez. Olculen vaka: `kod-haritasi.md` 2026-08-02'den itibaren
+# var olmayan `src/Tracon.PostgreSql/Internal/SqlQueries.cs` yolunu gosterdi ve
+# hicbir kapi yakalamadi. Kapsam SICAK hafizadir (MEMORY.md, AGENTS.md,
+# docs/hafiza) — arsiv tarihsel kayittir ve taranmaz. Varlik denetimi calisma
+# agacina degil `git ls-files` kumesine bakar: uretilen dosya (wwwroot,
+# Generated) ortama gore var/yok olur ve kapiyi kirilgan yapardi.
+
+BAYAT_YOL_DESENI = re.compile(
+    r"`((?:\.agents|src|tests|scripts|samples|bench|packages|docs-site|docs)/"
+    r"[A-Za-z0-9_.\-/]+)(?::\d+)?`"
+)
+BAYAT_YOL_KAPSAMI = ("MEMORY.md", "AGENTS.md")
+
+
+def _yol_adaylari(yol: str) -> list[str]:
+    """Bir backtick yolunun çözülebileceği kökler (saf).
+
+    Sıcak hafıza notları üç alt ağacın PERSPEKTİFİNDEN yazılır: repo kökü,
+    React uygulamasının kökü (`src/Tracon.UI/frontend/` — notlar `src/lib/...`
+    der) ve docs-site kökü (`docs-site/concepts/...` gerçekte
+    `docs-site/src/content/docs/` altındadır). Aday listesi bu üç perspektifi
+    çözer; hiçbiri tutmuyorsa yol gerçekten bayattır.
+    """
+    adaylar = [yol, f"src/Tracon.UI/frontend/{yol}", f"packages/tracon-client/{yol}"]
+    if yol.startswith("docs-site/"):
+        adaylar.append("docs-site/src/content/docs/" + yol[len("docs-site/"):])
+    else:
+        adaylar.append(f"docs-site/{yol}")
+    return adaylar
+
+
+BAYAT_YOL_UZANTILARI = (
+    ".cs", ".csproj", ".md", ".mdx", ".ts", ".tsx", ".mjs", ".js", ".py",
+    ".json", ".yml", ".yaml", ".sql", ".props", ".targets", ".slnf", ".slnx",
+    ".sh", ".astro", ".txt", ".css",
+)
+
+
+def _bayat_yollar_metinde(metin: str, mevcut_mu) -> list[str]:
+    """Backtick içindeki repo yollarından var olmayanları döndürür (saf).
+
+    Yalnız somut tek yol denetlenir: bilinen bir dosya uzantısı taşımalı veya
+    `/` ile bitmelidir (dizin) — `src/Web` gibi anlatı kısaltmaları böylece
+    dışarıda kalır. Joker (`*`), yer tutucu (`<`) ve boşluk desene zaten
+    eşleşmez; `...` kısaltması atlanır; `:N` satır eki denetimden önce düşer.
+    `docs/arsiv` altını gösteren yol tarihsel kayıttır, atlanır. Kasıtlı
+    var-olmayan örnek yol taşıyan satır `yol:ornek` işaretiyle (HTML yorumu)
+    denetimden çıkar. Bir yol `_yol_adaylari`'nın herhangi bir köküyle
+    çözülüyorsa temizdir.
+    """
+    bulgular = []
+    for satir in metin.split("\n"):
+        if "yol:ornek" in satir:
+            continue
+        for ham in BAYAT_YOL_DESENI.findall(satir):
+            yol = ham.rstrip("/")
+            if "..." in yol:
+                continue
+            if not (ham.endswith("/") or yol.endswith(BAYAT_YOL_UZANTILARI)):
+                continue
+            if yol.startswith("docs/arsiv") or "/wwwroot/" in yol or "/Generated/" in yol:
+                continue
+            if not any(mevcut_mu(aday) for aday in _yol_adaylari(yol)):
+                bulgular.append(ham)
+    return bulgular
+
+
+def bayat_kod_yollari(kok: pathlib.Path = ROOT) -> list[str]:
+    """Sıcak hafızadaki bayat kod yolları, `dosya: yol` biçiminde."""
+    izlenen = set(_git("ls-files"))
+
+    def mevcut_mu(yol: str) -> bool:
+        return yol in izlenen or any(iz.startswith(yol + "/") for iz in izlenen)
+
+    hedefler = [kok / ad for ad in BAYAT_YOL_KAPSAMI]
+    hedefler += sorted((kok / "docs" / "hafiza").glob("*.md"))
+
+    bulgular = []
+    for dosya in hedefler:
+        if not dosya.exists():
+            continue
+        metin = dosya.read_text(encoding="utf-8")
+        for yol in _bayat_yollar_metinde(metin, mevcut_mu):
+            bulgular.append(f"{dosya.relative_to(kok)}: `{yol}`")
+    return bulgular
+
+
 # --- Buyume projeksiyonu (Faz 77) ----------------------------------------
 # Bir sinir ancak ASILDIGINDA fark ediliyordu: DAR bandi "az kaldi" der ama
 # "ne kadar kaldi" demez. Faz 76 kapanisinda docs/**.md %1 bostu ve bir
 # sonraki faz onu kesin asacakti -- bunu kimse onceden soylemedi. Bu islev
 # gecmis faz commit'lerinden bayt/faz turetir ve KALAN FAZ sayisini basar.
 
+FAZ_COMMIT_DESENI = re.compile(r"^(?:phase \d+\b|Archive (?:the )?phase \d+\b)")
+
+
+def _faz_commit_konusu_mu(konu: str) -> bool:
+    """Konu bir fazın kapanış işaretçisi mi? (saf — test edilebilir)
+
+    İki dönem vardır: Faz ~90'a kadar kapanış commit'i `phase N ...` ile
+    başlıyordu; `faz-arsivle` döneminde işaretçi `Archive [the] phase N ...`
+    oldu ve yalnız eski deseni arayan projeksiyon 2026-09-22'de "yeterli
+    commit yok" der olmuştu. Damıtma commit'i (`Distil the phase N record`)
+    SAYILMAZ: aynı fazın ikinci commit'i bayt/faz payını yarıya indirirdi.
+    """
+    return FAZ_COMMIT_DESENI.match(konu) is not None
+
+
 def _faz_commitleri(n: int) -> list[str]:
-    """Konusu `phase <sayi>` olan son n commit, eskiden yeniye."""
+    """Konusu faz kapanışı işaretleyen son n commit, eskiden yeniye."""
     ham = _git("log", "--format=%H\t%s", "-400")
-    bulunan = [s.split("\t", 1)[0] for s in ham if re.match(r"^\S+\tphase \d+", s)]
+    bulunan = [
+        s.split("\t", 1)[0]
+        for s in ham
+        if "\t" in s and _faz_commit_konusu_mu(s.split("\t", 1)[1])
+    ]
     return list(reversed(bulunan[:n]))
 
 
@@ -2724,6 +2832,7 @@ def denetle() -> int:
         ("Üretilen dosya tazeliği", tazelik_denetle()),
         ("Karar gerekçesi işaretçisi", gecmis_isaretci_denetle()),
         ("Damıtılmış kayıt tam metni", tam_metin_denetle()),
+        ("Bayat kod yolu (sıcak hafıza)", bayat_kod_yollari()),
     ):
         print(f"\n{ad}: {'✅ temiz' if not bulgular else f'{len(bulgular)} bulgu'}")
         for b in bulgular[:10]:

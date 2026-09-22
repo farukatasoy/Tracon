@@ -9,11 +9,11 @@
 > ([`kesif/`](kesif/)) · plana dönüşmüş kalemlerin gövdelerini
 > ([`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md)).
 
-**Durum (2026-09-18):** **0 sıralanabilir aday** · 16 bekleyen kalem (12 tek satırlık + 4 gövdeli).
-Son plana dönüşen: **F-239 · F-224 · F-218 · F-213 · F-232 →
-[Faz 174](arsiv/fazlar/174-KAPASITE-DAMGASI-KAPISI.md) · [175](arsiv/fazlar/175-GERI-ALINAMAZ-KARAR-DOGRULAMASI.md) ·
-[176](arsiv/fazlar/176-EVALUATOR-SURUM-DAMGASI.md) · [177](arsiv/fazlar/177-STORE-IPTAL-SOZLESMESI.md) ·
-[178](arsiv/fazlar/178-TUKETICI-KAPI-SKILLI.md)** (📋 Planlandı). Sıralanabilir kuyruk **boştur**;
+**Durum (2026-09-22):** **0 sıralanabilir aday** · 31 bekleyen kalem (25 tek satırlık + 6 gövdeli).
+Son plana dönüşen: **F-165 · F-258 · F-259 · F-260 · F-261 →
+[Faz 180](180-MANUEL-SET-DEVIR-SABLONU.md) · [181](181-PROVIDER-ORTAK-KATMANI.md) ·
+[182](182-PUBLIC-API-YUZEY-DARALTMA.md) · [183](183-COKLU-TFM-TEST-MATRISI.md) ·
+[184](184-TEST-BEKLEME-VE-E2E-YAPISI.md)** (📋 Planlandı). Sıralanabilir kuyruk **boştur**;
 yeni aday üretmek için `aday-kesfi` koşulur.
 
 ---
@@ -106,7 +106,7 @@ dönüşebilmeleri için duruyor. Bir kalemi buradan çıkarmanın tek yolu
 | **F-240** · Kapasite kapısının beş dar açığı | [Faz 174](arsiv/fazlar/174-KAPASITE-DAMGASI-KAPISI.md) denetiminin 🟢 bulguları, beşi de bugün doğru ama sessizce ayrışabilir: (1) `SCHEMAS.storage` ölçülmüş bir tekrar sayısını başlık dizesinde sabitliyor (`'Rows per run (3 repeats)'`); (2) `P95_SAMPLE_FLOOR = 100` ile `LatencyStatistics.P95SampleFloor` elle senkron, uyumu hiçbir şey ölçmüyor; (3) commit damgası regex'i 8+ hex istiyor — `packageVersion`'ın 7 karakterlik biçimi (`e44d89f`) sayfaya girerse **sessizce** denetlenmez; (4) `checkArrivalRow` bir rate'in her `evidence` penceresini `status`'a bakmadan topluyor, `invalid` bir tekrar toplama karışır; (5) 19 işaret `docs-site/public/llms-full.txt`'e düz metin olarak sızıyor (emsal `claim:` zaten 11 tane sızdırıyor) | Kapasite ölçümü yenilendiğinde — o koşum (1) ve (2)'yi zaten elden geçirtir. (3) ve (4) tek satırlık savunma; bir sonraki kapı dokunuşunda birlikte kapanır |
 | **F-250** · Kiracıya duyarlı örnek bir `IAgentSource` yok | `MT-CORE-095` iki turdur koşulamıyor: case bir kiracının kendi agent kaynağını getirdiğini ölçmek istiyor, ama bu depoda kiracıya duyarlı bir `IAgentSource` **örneği** yok — sevk edilen tek uygulama yapılandırmadan okur. K-834 sınıfının **dışındadır**: bir bayrağı çevirmek değil, bir örnek yazmak demektir (hangi kiracının hangi agent kümesini gördüğünü uyduran bir eşleme). Aynı boşluk `samples/`'ın tüketiciye gösterdiği seam envanterinde de bir delik: genişleme noktası sevk ediliyor, örneği yok | Bir tüketici kiracı başına agent kümesi sorarsa, ya da manuel setin `MT-CORE-095`'i üçüncü turda da koşulamazsa — o zaman örnek `samples/Tracon.Api`'ye kalıcı olarak eklenir ve case onunla koşulur |
 | **F-251** · Damıtma, yeniden koşulan bir case'in ESKİ bloğunu geride bırakıyor | `kosum-damit` asimetriktir: temiz `☑ Geçti` bir case tek tablo satırına iner. Ama bir case **iki** blok taşıyorsa (ilk deneme ertelendi, ikincisi geçti) yalnız **ikinci** blok daralır; geriye kalan ilk blok işaretsiz bir `Durum` satırı taşır. Ölçüldü 2026-09-19: 2026-09-16 turunda **19** blok (hepsi `MT-OBS-001…020`, Playwright kilidi yüzünden ertelenmiş ilk denemeler), 2026-08-13 turunda **1**. Bilgi KAYBOLMAZ — nihai işaret tablodadır ve tam metin `git show`'la çözülür — ama damıtılmış kayıt üzerinde sayım koşan biri o case'leri `İŞARETSİZ` görür. 🚨 Turun kendi dersinin aynısı: **bir sayım yalnız gördüğünü sayar** | Bir sonraki tur kapanışında, ya da damıtıcıya dokunan ilk oturumda: daraltılan blok bir case'in SON bloğuysa, kalan bloğun `Durum` satırı nihai işaretle güncellenmeli (ya da kalan blok da daraltılmalı) |
-| **F-251** · `Tracon.Google`'ın görsel yolu deprecated Imagen yüzeyini hedefliyor | 🚨 **`MT-MM-121`'in ölçtüğü ÜRÜN KUSURU; K-835 olarak kodlandı, düzeltme kullanıcı kararına bırakıldı.** `GoogleImageGenerator.GenerateAsync` (`src/Tracon.Google/Internal/GoogleImageGenerator.cs:56`) `Client.Models.GenerateImagesAsync(...)` çağırıyor — Imagen `:predict` ucu. Canlı ölçüldü: `ListModels` bu anahtarda 58 model döndürüyor ve altı görsel modelinin **hiçbiri** `predict` desteklemiyor; altısı da yalnız `generateContent`. `imagen-3.0-generate-002:predict` doğrudan çağrıldığında `404 NOT_FOUND`. Yetenek **var**: aynı anahtarla `gemini-2.5-flash-image:generateContent` 3,2 MB'lık bir PNG üretti. Google SDK'nın kendi uyarısı da bunu söylüyor (*"GenerateImagesAsync … deprecated … use GenerateContentAsync"*). ∴ paket tüketicinin kullanamayacağı bir yol sevk ediyor. ⚠️ Düzeltme **public davranışı değiştirir** ve seçenek eşlemesi birebir değildir: `ImageGenerationOptions.Count` → `candidateCount` (görsel modelleri genelde 1 döndürür) ve `MediaType` hiç kontrol edilemez — model kendi mime türünü seçer | Kullanıcı `GenerateContentAsync` geçişini onaylarsa; o zaman `Count`/`MediaType` sözleşmesi birlikte yeniden yazılır |
+| **F-262** · `Tracon.Google`'ın görsel yolu deprecated Imagen yüzeyini hedefliyor | 🚨 **`MT-MM-121`'in ölçtüğü ÜRÜN KUSURU; K-835 olarak kodlandı, düzeltme kullanıcı kararına bırakıldı.** `GoogleImageGenerator.GenerateAsync` (`src/Tracon.Google/Internal/GoogleImageGenerator.cs:56`) `Client.Models.GenerateImagesAsync(...)` çağırıyor — Imagen `:predict` ucu. Canlı ölçüldü: `ListModels` bu anahtarda 58 model döndürüyor ve altı görsel modelinin **hiçbiri** `predict` desteklemiyor; altısı da yalnız `generateContent`. `imagen-3.0-generate-002:predict` doğrudan çağrıldığında `404 NOT_FOUND`. Yetenek **var**: aynı anahtarla `gemini-2.5-flash-image:generateContent` 3,2 MB'lık bir PNG üretti. Google SDK'nın kendi uyarısı da bunu söylüyor (*"GenerateImagesAsync … deprecated … use GenerateContentAsync"*). ∴ paket tüketicinin kullanamayacağı bir yol sevk ediyor. ⚠️ Düzeltme **public davranışı değiştirir** ve seçenek eşlemesi birebir değildir: `ImageGenerationOptions.Count` → `candidateCount` (görsel modelleri genelde 1 döndürür) ve `MediaType` hiç kontrol edilemez — model kendi mime türünü seçer | Kullanıcı `GenerateContentAsync` geçişini onaylarsa; o zaman `Count`/`MediaType` sözleşmesi birlikte yeniden yazılır |
 | **F-252** · Örnek uygulamanın demo kancaları bir kimlik sağlayıcısıyla değişmeli | K-834 dokuz demo kancası ekledi (`Tracon:Demo:*` + `whoami`/`refund_order` tool'ları) ve 60'tan fazla manuel case'i geçici `Program.cs` düzenlemesi olmadan koşulabilir yaptı. Hepsi `samples/` altındadır ve `src/` paketlerine dokunulmadı; ama örnek uygulama bir gün gerçek bir kimlik sağlayıcısına (OIDC/JWT) bağlanırsa `DemoRoleAuthenticationHandler` · `DemoRunAuthorization` · `DemoDenyAllToolAuthorization` üçü birlikte kaldırılmalı ve bu case'lerin ön koşulları yeniden yazılmalıdır | Örnek uygulama gerçek bir kimlik sağlayıcısına bağlandığında |
 | **F-253** · Konuşma paneli için sentetik ses sürücüsü | Ölçüldü (`MT-MM-086`/`087`): canlı ses yolu WebRTC'ye parça verdiği için sentetik bir `MediaStream` ile **sürülebiliyor** (`MT-MM-110…118` böyle koşuldu), ama konuşma paneli `MediaRecorder` kullanıyor ve aynı akıştan **hiç veri üretmiyor** (giden çerçeve 2, ses parçası 0). ∴ panelin konuşma **içeriği** isteyen iki case'i bugün yalnız gerçek bir insanla koşulabiliyor. Chrome'un `--use-file-for-fake-audio-capture` bayrağı çözerdi ama tarayıcıyı MCP sunucusu başlatıyor ve bayrak geçirilemiyor | E2E paketine ses kapsamı eklenmek istenirse, ya da tarayıcı başlatma bayrakları yapılandırılabilir hale gelirse |
 | **F-254** · Kiracı egress politikası satırı YOKKEN hiçbir kısıt uygulanmıyor (fail-open) | [`ModelProviderRegistry.cs:287`](../src/Tracon.Core/Models/ModelProviderRegistry.cs#L287) `if (policy is not null)`. Faz 179 bu bulgunun ÖLÇÜLMÜŞ tetikleyicisini kapattı (harf durumu kayması artık satırı ıskalamıyor), fakat `policy is null ⇒ kısıt yok` ürünün belgelenmiş varsayılanıdır — politika kurmayan kurulum her sağlayıcıyı çağırabilir. Fail-closed yapmak ayrı bir ürün kararıdır ve `TraconTenantProviderOptions`'a varsayılanı kapalı bir anahtar ister (K1 sıfır-sürpriz). Faz 179 kapsamı dışında bırakıldı (KG-034) |
@@ -177,41 +177,10 @@ karşılıyor ve 2026-08-21'de bu tasarımın **doğru** olduğu kaydedilmişti.
 
 ---
 
-### F-165 · Manuel kabul setinin CI'a kademeli taşınması
+### F-165 · Manuel kabul setinin CI'a kademeli taşınması — 📋 PLANA DÖNÜŞTÜ
 
-**Engel:** Bağımsız faz olarak **hiç** planlanmaz — kuyruğu bitmez. Her fazın
-dokunduğu alanın manuel ailesi **o fazda** otomatikleştirilir
-(`faz-tamamlama` Adım 3).
-
-**Sorun:** Manuel set CI'da koşmaz; regresyon güvencesi bir kişinin koşum
-zamanına bağlıdır.
-
-**Kapsam:** Tek fazda tüm seti taşımak değil, bir aileyi
-[test seviyeleri tablosuna](../.agents/ortak/test-seviyeleri.md) göre
-otomatikleştiren tekrar edilebilir devir şablonu kurmak. Manuel kalması
-gereken model-yanıtı ve insan-yargısı case'leri açıkça ayrılır.
-
-**Değer:** En yüksek riskli kabul davranışları insan zamanı beklemeden
-regresyon kapısına girer; iki ayrı spec/test kaynağı oluşmaz.
-
-**Mercek:** 2, 3, 4, 6.
-
-**Hazırlık — ölçüldü (2026-09-13):** `docs/manuel-test/` kökünde **37 dosya**,
-**1 632** benzersiz `MT-*` case'i (kayıt 1 650 diyordu — bayat).
-`Tracon.Testing` ve Testcontainers altyapısı hazır.
-
-**Maliyet:** Yüksek, fakat ilk dilim kontrollüdür.
-
-**Risk:** Case'leri kör biçimde birim teste çevirmek test tiyatrosu üretir.
-Sınır davranışı functional/integration seviyesinde kalmalıdır.
-
-**Bağımlılık:** Yok.
-
-**Ekosistem:** 2026-08-26 — depo kalite disiplini; dış ekosistem iddiası yok.
-
-**Karşı görüş:** Model kalitesi ve görsel değerlendirme otomasyona uygun
-değildir. Bu aday o case'leri silmeyi değil, otomatikleştirilebilir kısmı
-ayırmayı önerir.
+[Faz 180](180-MANUEL-SET-DEVIR-SABLONU.md) (2026-09-22). Gövde:
+[`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md).
 
 ---
 
@@ -395,7 +364,7 @@ keşif kaydındadır; burada yalnız hangi kanala düştükleri yazar.
 
 | Kanal | ID'ler | Kural |
 |---|---|---|
-| **Plana dönüştü** | 40+ kalem · son turu (2026-09-15): **F-239** → [Faz 174](arsiv/fazlar/174-KAPASITE-DAMGASI-KAPISI.md) · **F-224** → [Faz 175](arsiv/fazlar/175-GERI-ALINAMAZ-KARAR-DOGRULAMASI.md) · **F-218** → [Faz 176](arsiv/fazlar/176-EVALUATOR-SURUM-DAMGASI.md) · **F-213** → [Faz 177](arsiv/fazlar/177-STORE-IPTAL-SOZLESMESI.md) · **F-232** → [Faz 178](arsiv/fazlar/178-TUKETICI-KAPI-SKILLI.md). Ondan öncesi: **F-234** → [Faz 171](arsiv/fazlar/171-DENETIM-IZI-YAZMA-POLITIKASI.md), **F-235** → [Faz 172](arsiv/fazlar/172-TEHDIT-MODELI.md) | Bölümleri bu dosyadan silindi; kanıt ve tasarım **fazın kendi dokümanındadır**. Aday listesine geri dönmezler. Eşleme tabloları ve aday gövdeleri: [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md) |
+| **Plana dönüştü** | 45+ kalem · son turu (2026-09-22): **F-165** → [Faz 180](180-MANUEL-SET-DEVIR-SABLONU.md) · **F-258** → [Faz 181](181-PROVIDER-ORTAK-KATMANI.md) · **F-259** → [Faz 182](182-PUBLIC-API-YUZEY-DARALTMA.md) · **F-260** → [Faz 183](183-COKLU-TFM-TEST-MATRISI.md) · **F-261** → [Faz 184](184-TEST-BEKLEME-VE-E2E-YAPISI.md). 2026-09-15 turu: **F-239** → [Faz 174](arsiv/fazlar/174-KAPASITE-DAMGASI-KAPISI.md) · **F-224** → [Faz 175](arsiv/fazlar/175-GERI-ALINAMAZ-KARAR-DOGRULAMASI.md) · **F-218** → [Faz 176](arsiv/fazlar/176-EVALUATOR-SURUM-DAMGASI.md) · **F-213** → [Faz 177](arsiv/fazlar/177-STORE-IPTAL-SOZLESMESI.md) · **F-232** → [Faz 178](arsiv/fazlar/178-TUKETICI-KAPI-SKILLI.md). Ondan öncesi: **F-234** → [Faz 171](arsiv/fazlar/171-DENETIM-IZI-YAZMA-POLITIKASI.md), **F-235** → [Faz 172](arsiv/fazlar/172-TEHDIT-MODELI.md) | Bölümleri bu dosyadan silindi; kanıt ve tasarım **fazın kendi dokümanındadır**. Aday listesine geri dönmezler. Eşleme tabloları ve aday gövdeleri: [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md) |
 | **Kapatılan kusur kayıtları** | F-106 · F-130 · F-137 · F-138 · F-139 · F-170 · F-180 · F-181 · F-190 · F-197 · F-203 · F-204 · F-206 · F-211 · F-212 · F-214 · F-215 · F-219 · F-220 · F-222 | Gövdeleri [`arsiv/ERTELENEN-ADAYLAR.md`](arsiv/ERTELENEN-ADAYLAR.md)'dedir. Yeniden görülürse **yeni** kusur kaydı açılır. **F-180** özetiyle § *Bekleyen Kalemler*'de kalır: vakası kapandı, **sınıfı açık** |
 | **Karar / uyumluluk eşiği** | F-72 · F-90 · F-91 · F-92 · F-132 · F-169 | Mevcut karar veya dış bağımlılık değişmeden planlanmaz. **F-169** (MAF CodeAct / Hyperlight sandbox) F-72 ile **aynı eşiktedir**: paket GA ve taşınabilir olana kadar planlanmaz — ölçüm [`kesif/2026-08-26-yeni-feature-fikirleri.md`](kesif/2026-08-26-yeni-feature-fikirleri.md) § 9 |
 | **Ölçüm bekliyor — F-ID'leri** | F-51 · F-94 · F-96 · F-97 · F-99 · F-101 · F-123 · F-128 · F-154 · F-156 · F-157 · F-159 · F-160 · F-161 · F-162 | Her biri için gereken somut kanıt keşif kaydında yazılıdır. Kanıt üretmeden aday olmaz |
@@ -405,7 +374,22 @@ keşif kaydındadır; burada yalnız hangi kanala düştükleri yazar.
 ### F-ID tahsis kuralı
 
 Numara **geri dönüştürülmez** ve bir numara **tek kaleme** aittir. Sıradaki
-numara: **F-252**.
+numara: **F-263**.
+
+**F-258 · F-259 · F-260 · F-261** 2026-09-22'de kod tabanı denetim turunda
+tahsis edildi ve **aynı gün plana dönüştü** — [Faz 181](181-PROVIDER-ORTAK-KATMANI.md) ·
+[Faz 182](182-PUBLIC-API-YUZEY-DARALTMA.md) · [Faz 183](183-COKLU-TFM-TEST-MATRISI.md) ·
+[Faz 184](184-TEST-BEKLEME-VE-E2E-YAPISI.md). Gövdeler
+[`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md)'de.
+
+🚨 **F-251 İKİNCİ kez çift tahsis edilmişti; 2026-09-22'de çözüldü.** Numara
+2026-09-19'da damıtma kusuruna tahsis edilip deftere yazılmıştı; aynı günlerde
+`Tracon.Google` görsel yolu kalemi bekleyenler tablosuna **yine F-251** olarak
+girdi ve deftere bakılmadı. Sayaç da bayattı: tablo F-252…F-257'yi tüketmişken
+"Sıradaki numara" hâlâ F-252 diyordu. F-230 emsali uygulandı: damıtma kalemi
+**F-251** kaldı, Google kalemi **F-262** oldu; F-252…F-257 tahsisleri bugün
+kayda geçirildi. Ders F-230'unkiyle aynı ve artık iki vakalık bir sınıftır:
+tabloya numara yazan el bu bölümü de günceller — sayacın tek kaynağı burasıdır.
 
 **F-251** 2026-09-19'da damıtma adımının kendisi ölçülürken tahsis edildi: kusur damıtıcıdadır, turun kaydında değil.
 
