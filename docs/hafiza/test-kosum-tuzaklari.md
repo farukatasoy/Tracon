@@ -217,6 +217,9 @@ derlenir ve koşar. Üç sonuç:
   kökte eski bir 8.0 SDK'sı vardı ve `dotnet new sln --format slnx` 127 verdi.
   `kapi.py`'nin izole koşumu da aynı ortamda koştuğu için "izole de düştü"
   dedi — ortamı regresyon sandırır.
+- **🚨 `dotnet run` çağıranın `DOTNET_ROOT`'unu EZER** — uygulamaya muxer'ın kendi
+  kökünü verir (ölçüldü: yayın provasında net8 tüketicisi `~/.dotnet`'i göremedi).
+  Runtime'ı belli bir kökten istenen bir smoke `dotnet build` + apphost ile koşar.
 - **Roll-forward kanıtı siler.** `DOTNET_ROLL_FORWARD=LatestMajor` ile net8
   bacağı net8 kurulu olsa bile en yeni runtime'da koşar ve her test geçer
   (`Major` yalnız net8 **yoksa** ileri sarar — ölçüldü). `RuntimeMatchesTargetFrameworkTests` (her
