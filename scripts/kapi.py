@@ -868,6 +868,7 @@ def require_test_runtimes(
     system: str | None = None,
     machine: str | None = None,
     install_location_dir: pathlib.Path = DOTNET_INSTALL_LOCATION_DIR,
+    purpose: str = "Çoklu TFM test projeleri",
 ) -> bool:
     found = installed_runtime_majors(
         environ, runner, system=system, machine=machine, install_location_dir=install_location_dir)
@@ -877,7 +878,7 @@ def require_test_runtimes(
     missing = _missing_frameworks(frameworks, majors)
     if not missing:
         return True
-    print(f"❌ Çoklu TFM test projeleri şu runtime'ları ister: {', '.join(missing)} — `{root}` altında yok"
+    print(f"❌ {purpose} şu runtime'ları ister: {', '.join(missing)} — `{root}` altında yok"
           f" (kurulu: {', '.join(str(major) for major in sorted(majors)) or 'hiçbiri'}).")
     print("   Test apphost'u runtime'ı DOTNET_ROOT_<ARCH>/DOTNET_ROOT'tan, yoksa global kurulumdan"
           " çözer — PATH'teki `dotnet`'ten DEĞİL."
@@ -1738,6 +1739,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         if args.komutlari_bas:
             print("$ dotnet pack ...  (bkz. release_rehearsal)")
             return 0
+        # Faz 183: prova bir net8.0 tüketicisini .NET 8 runtime'ında koşturur.
+        # Eksik runtime dakikalarca paketlemeden SONRA değil, şimdi söylenir.
+        sys.path.insert(0, str(ROOT / "scripts"))
+        import release_extension_samples
+
+        if not require_test_runtimes(
+                (release_extension_samples.NET8_CONSUMER_FRAMEWORK,),
+                purpose="Yayın provasının net8.0 tüketicisi"):
+            return 1
         return release_rehearsal(args.surum)
 
     if args.komutlari_bas:

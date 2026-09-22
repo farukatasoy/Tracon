@@ -111,6 +111,12 @@ def _project_assets_json(root: pathlib.Path, project: str) -> pathlib.Path:
     return root / "artifacts" / "obj" / project / "project.assets.json"
 
 
+def _net8_consumer_apphost(root: pathlib.Path) -> pathlib.Path:
+    """Single-framework output under the SDK's <ArtifactsPath>: artifacts/bin/<P>/release/."""
+    name = NET8_CONSUMER_PROJECT + (".exe" if os.name == "nt" else "")
+    return root / "artifacts" / "bin" / NET8_CONSUMER_PROJECT / "release" / name
+
+
 def _current_runtime_identifier(*, root: pathlib.Path, environment: dict[str, str]) -> str:
     """Native AOT publish needs a concrete RID; `--use-current-runtime` does not
     reliably pull the matching runtime pack into an isolated NUGET_PACKAGES
@@ -214,12 +220,21 @@ def verify(root: pathlib.Path, release_dir: pathlib.Path, version: str) -> int:
 
         # The program itself exits non-zero unless it runs on the net8.0
         # runtime; a missing runtime fails here with the host's own message.
+        #
+        # 🚨 Built, then started through its apphost - NOT `dotnet run`.
+        # Measured (Faz 183): `dotnet run` hands the app the MUXER's own root as
+        # DOTNET_ROOT, so a net8.0 runtime installed under the caller's
+        # DOTNET_ROOT is invisible to it. The apphost resolves the runtime the
+        # way a deployed framework-dependent app does, and the way every test
+        # leg of the framework matrix does.
         net8_csproj = root / "samples" / NET8_CONSUMER_PROJECT / f"{NET8_CONSUMER_PROJECT}.csproj"
         restore = ["dotnet", "restore", str(net8_csproj), "--configfile", str(nuget_config), property_arg]
         if _run(restore, root=root, environment=environment):
             return 1
-        run = ["dotnet", "run", "--project", str(net8_csproj), "-c", "Release", "--no-restore", property_arg]
-        if _run(run, root=root, environment=environment):
+        build = ["dotnet", "build", str(net8_csproj), "-c", "Release", "--no-restore", property_arg]
+        if _run(build, root=root, environment=environment):
+            return 1
+        if _run([str(_net8_consumer_apphost(root))], root=root, environment=environment):
             return 1
         net8_assets = _project_assets_json(root, NET8_CONSUMER_PROJECT).read_text(encoding="utf-8")
         if str(package_cache) not in net8_assets:
