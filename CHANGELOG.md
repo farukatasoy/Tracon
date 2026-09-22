@@ -90,6 +90,12 @@ preview line, and the counts below are types, not members.
 
 ### Changed
 
+- `ToolApprovalRuleStoreContract` (in `Tracon.Testing.Contracts.Xunit`) has two
+  new cases. A store of your own must keep two condition sets apart even when a
+  path carries a control character, and must treat a list value that differs
+  only in whitespace between its elements as the same condition. The identity
+  rule is now written on `IToolApprovalRuleStore.AddAsync`. A store that compares
+  a list value's raw JSON text fails the second case.
 - The out-of-catalog log entry of the OpenAI, Anthropic, and Google providers
   now has one shared wording (`Use the <key> setting to add the model to the
   catalog.`). The Gemini health detail for an unparsable model list is now

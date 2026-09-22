@@ -11,8 +11,8 @@ namespace Tracon.Testing.Contracts.Tools;
 /// <see cref="IToolArgumentsValidator"/> promises fail-closed behavior: a
 /// missing required field, a type mismatch, an out-of-range number, or a
 /// pattern violation must be rejected, and a validator that throws must still
-/// end up rejecting the call. Tracon tests that promise's own wrapper
-/// (<c>ValidatingAIFunction</c>) against synthetic validators; this contract
+/// end up rejecting the call. Tracon tests its own fail-closed wrapper against
+/// synthetic validators; this contract
 /// tests whether the <strong>consumer's</strong> validator actually implements
 /// the rule, using arguments generated from <see cref="Tool"/>'s own
 /// <see cref="AIFunctionDeclaration.JsonSchema"/>.

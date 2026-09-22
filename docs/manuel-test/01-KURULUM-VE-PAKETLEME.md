@@ -3508,6 +3508,11 @@ python3 scripts/kapi.py yayin --kuru
 - Altı `samples/Tracon.Samples.*.Tests` projesi paketlenmiş sürüme karşı
   derlenir ve testleri geçer; AOT smoke yayımlanır.
 - Hiçbir sample `CS0122` vermez.
+- Ölçüldü (2026-09-22, `e284868b`, sürüm `1.0.0-preview.2.10`): 20 paket; altı
+  sample 101 · 38 · 11 · 15 · 18 · 10 test geçti; AOT smoke geçti. 🚨 İlk koşum
+  `release feed contains stale Tracon packages` ile durdu — yerel
+  `artifacts/package/release` önceki sürümleri tutuyordu; `rm -rf
+  artifacts/package/release` sonrası temiz geçti (bkz. `hafiza/yayin-ve-surumleme.md`).
 
 ---
 

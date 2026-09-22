@@ -366,6 +366,14 @@ condition fails closed: an unresolved path, a missing argument, or a type mismat
 (text `"100"` does not satisfy a numeric rule) all mean the call still asks for
 approval.
 
+A rule is identified by its agent, its tool, and its hash or condition set. The
+order of the conditions does not count, and neither does whitespace between the
+elements of a list value: `region In ["eu", "us"]` and `region In ["eu","us"]` are
+the same condition. Everything else is compared as written — `"new york"` and
+`"newyork"` are two values.
+`POST /api/approvals/rules` with a rule that already exists answers `409` and keeps
+the stored one.
+
 ```mermaid
 flowchart TD
     accTitle: Approval decision order

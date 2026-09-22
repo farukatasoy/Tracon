@@ -198,6 +198,10 @@ Running it again applies nothing (`0 applied`) and exits `0`; `tracon migrate
 status` lists pending migration names without writing. See the [typed client and
 CLI guide](/guides/cli/) for setup and the rest of the commands.
 
+A deployment step that already runs your own code can apply them in process
+instead: resolve `IMigrationApplier` and call `ApplyAsync()`. Every SQL provider
+registers it, so the same call works whichever provider the application uses.
+
 ## Giving your own data source instead of a connection string
 
 Each provider's `Options.DataSource` field accepts a `DbDataSource` you built

@@ -115,6 +115,7 @@ dönüşebilmeleri için duruyor. Bir kalemi buradan çıkarmanın tek yolu
 | **F-255** · `Tracon.Google` görsel yolu için canlı kanıt yok | Faz 179 turunda `GenerateImagesAsync` → `GenerateContentAsync` geçişi yapıldı (K2, A-2) ve imzalar Google.GenAI 1.16.0 üzerinde reflection ile doğrulandı, ama **canlı anahtarla üretim ölçülmedi**: birim testleri SDK'yı çağırmıyor. `MT-MM-121`'in yeniden koşumu gerekir. `ImageConfig.OutputMimeType`'ın model tarafından onurlandırılıp onurlandırılmadığı da yalnız canlı koşumda görünür |
 | **F-256** · Harf-kayması sözleşme senaryosu yalnız iki store'da | Faz 179 §179.5 senaryoyu paylaşılan `TenantIsolationContract<T>` tabanına koymayı planlıyordu; taban bellek içi store'lar üzerinde de koştuğu ve K-839 gereği onların 30'u normalleştirmediği için senaryo yalnız iki fail-open store'a kondu. Kalan depolama sınırının güvencesi `TenantParameterChokePointTests` metin kapısı + SQL Server/SQLite guard testleridir. Bellek içi aile normalleştirilirse senaryo tabana taşınabilir |
 | **F-257** · İki bilinen yarış testi hâlâ kayıtsız | Tam çözüm koşumunda ikisi birden düştü, ikisi de izole koşumda geçti (biri 5 tekrarda 5 kez). 🚨 İkisinin de geçmişi var ama hiçbiri aday olarak kaydedilmemişti: `WorkflowEventSinkTests.A_registered_sink_sees_the_workflow_s_own_events` olay `Sequence`'ını sıra dışı görüyor (2026-09 manuel koşumunda da düştü, 3 tekrarda geçti) · `LiveVoiceLifecycleTests.The_transcript_is_written_to_the_session_history_when_persistence_is_on` zaman aşımına uğruyor (Faz 163 kapanışında iki tam koşumda düştü, izole geçti). Kapının kuralı "ikinci izole koşumda da düşerse gerçek kusurdur" olduğu için ikisi de geçiyor — ama her tam koşumu gürültülü yapıyorlar ve gerçek bir regresyonu maskeleyebilirler |
+| **F-265** · Birinci taraf `InternalsVisibleTo` sürümsüz bir sözleşmedir | [Faz 182](182-PUBLIC-API-YUZEY-DARALTMA.md) denetimi 🟢-1: K-850 birinci taraf gövde kullanımını IVT ile çözdü (Abstractions → AspNetCore/Mcp/3 SQL; Core → Voice/Workflows/Cli), K-601/K-619 emsallerini genişletti. Paketler ayrı sürümlenir: tüketici `Tracon.Core`'u yükseltip `Tracon.Voice`'u eski bırakırsa ve bir iç üye değişmişse sonuç derleme değil **çalışma anı** `MissingMethodException`'dır. Public API'de aynı risk `PublicAPI` diff'iyle görünür; iç üyede hiçbir kapı yok | Kardeş paket bağımlılığını tam sürüme sabitlemek (`[x.y.z]`) ya da "Tracon paketleri birlikte yükseltilir" kuralını sevk edilen dokümana yazmak — bir paketleme kararıdır; ilk karışık sürüm raporunda ya da GA freeze turunda (UR-003) ele alınır |
 
 ### F-95 · Agent düzeyinde kesinti/devam kancası
 
@@ -376,7 +377,9 @@ keşif kaydındadır; burada yalnız hangi kanala düştükleri yazar.
 ### F-ID tahsis kuralı
 
 Numara **geri dönüştürülmez** ve bir numara **tek kaleme** aittir. Sıradaki
-numara: **F-265**.
+numara: **F-266**.
+
+**F-265** 2026-09-22'de Faz 182 denetiminin 🟢-1 bulgusundan tahsis edildi.
 
 **F-258 · F-259 · F-260 · F-261** 2026-09-22'de kod tabanı denetim turunda
 tahsis edildi ve **aynı gün plana dönüştü** — [Faz 181](arsiv/fazlar/181-PROVIDER-ORTAK-KATMANI.md) ·

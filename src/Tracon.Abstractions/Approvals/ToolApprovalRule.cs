@@ -76,9 +76,20 @@ public interface IToolApprovalRuleStore
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Adds a rule. When the same triple and argument fingerprint is already stored, the
-    /// existing rule is returned and no new record is opened.
+    /// Adds a rule. When a rule with the same identity is already stored, the existing
+    /// rule is returned and no new record is opened.
     /// </summary>
+    /// <remarks>
+    /// A rule's identity is its tenant, agent, tool, <see cref="ToolApprovalRule.ArgumentsHash"/>,
+    /// and condition set. The condition set is compared as a set - the order of the
+    /// conditions does not count. Within a condition, the path and the operator are
+    /// compared exactly and the value as its JSON text, with one exception: a list value
+    /// (<see cref="ToolArgumentOperator.In"/>, <see cref="ToolArgumentOperator.NotIn"/>) is
+    /// compared element by element, so whitespace between its elements does not count.
+    /// Every other value is compared as the exact JSON text it was written with -
+    /// <c>100</c> and <c>100.0</c> are two different conditions, and so are two strings
+    /// that differ only inside the quotes.
+    /// </remarks>
     /// <param name="rule">The rule to add.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The persisted rule.</returns>
