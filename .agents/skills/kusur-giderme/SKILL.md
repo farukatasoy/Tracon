@@ -54,6 +54,9 @@ dotnet test Tracon.slnx -c Release --no-build
 
 # 2. Tek başına koştur (MTP; --filter-query YOKTUR)
 ./artifacts/bin/<Proje>/release/<Proje> --filter-method "*Ad*"
+#    Çok hedefli temsilci projede (tests/Directory.Build.props) klasör
+#    release_<tfm>/'dir; eski release/ BAYAT kalır ve eski kodu koşar:
+python3 scripts/kapi.py test --proje <Proje> --sinif "*Ad*" --tfm net8.0
 
 # 3. Temel sürümde izole koş — test bayat mı, kod mu bozdu?
 git worktree add /tmp/temel HEAD~1

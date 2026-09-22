@@ -203,7 +203,6 @@ public sealed class RunCostMetricTests
     {
         private readonly MeterListener _listener = new();
         private readonly List<(string Name, double Value, Dictionary<string, object?> Tags)> _doubles = [];
-        private readonly Lock _gate = new();
 
         public MetricCollector(Meter meter)
         {
@@ -217,7 +216,7 @@ public sealed class RunCostMetricTests
 
             _listener.SetMeasurementEventCallback<double>((instrument, value, tags, _) =>
             {
-                lock (_gate)
+                lock (_doubles)
                 {
                     _doubles.Add((instrument.Name, value, ToDictionary(tags)));
                 }
@@ -228,7 +227,7 @@ public sealed class RunCostMetricTests
 
         public List<double> DoubleValues(string name)
         {
-            lock (_gate)
+            lock (_doubles)
             {
                 return [.. _doubles.Where(m => string.Equals(m.Name, name, StringComparison.Ordinal)).Select(m => m.Value)];
             }
@@ -236,7 +235,7 @@ public sealed class RunCostMetricTests
 
         public List<Dictionary<string, object?>> Tags(string name)
         {
-            lock (_gate)
+            lock (_doubles)
             {
                 return [.. _doubles.Where(m => string.Equals(m.Name, name, StringComparison.Ordinal)).Select(m => m.Tags)];
             }

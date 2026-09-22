@@ -22,6 +22,14 @@ capability does not apply; it does not mean “probably works.”
 | `Tracon.Templates` | Generates `net10.0` | It is a content package, not a runtime assembly |
 | Embedded source generator | `netstandard2.0` | It ships through `Tracon.Core`; `Tracon.Generators` is not a separate public NuGet package |
 
+The runtime packages and `Tracon.Testing` build for all three targets. Only part of
+that matrix is also run on each target. In Tracon's own CI a representative set of test
+suites runs on `net8.0`, `net9.0`, and `net10.0`: Core, the four model providers, the
+shared SQL layer, SQLite storage, and the extension contract suite. The other suites
+(ASP.NET Core hosting, MCP, Workflows, Voice, the console, and the PostgreSQL and SQL
+Server stores) run on `net10.0` only. Before a release, a `net8.0` console application
+restores the packed `Tracon.Core` package and runs an agent on the .NET 8 runtime.
+
 The packages are still pre-release. Install them with an explicit preview version or
 the CLI's pre-release option. The template package also needs a preview version or
 pre-release selection.

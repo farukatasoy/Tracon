@@ -295,12 +295,14 @@ public sealed class CapabilityExampleTests
     /// <summary>
     /// The build configuration this test run was built in. With
     /// <c>UseArtifactsOutput</c> the test assembly lands in
-    /// <c>artifacts/bin/&lt;project&gt;/&lt;configuration&gt;</c>, so the last
-    /// segment names it; reading the wrong configuration's documentation would
-    /// silently report a stale answer.
+    /// <c>artifacts/bin/&lt;project&gt;/&lt;configuration&gt;</c>, or in
+    /// <c>&lt;configuration&gt;_&lt;tfm&gt;</c> once the project targets more than
+    /// one framework (phase 183), so the last segment up to the first
+    /// underscore names it; reading the wrong configuration's documentation
+    /// would silently report a stale answer.
     /// </summary>
     private static string Configuration { get; } =
-        new DirectoryInfo(AppContext.BaseDirectory).Name;
+        new DirectoryInfo(AppContext.BaseDirectory).Name.Split('_')[0];
 
     private static SortedSet<string> ReadBaseline()
     {

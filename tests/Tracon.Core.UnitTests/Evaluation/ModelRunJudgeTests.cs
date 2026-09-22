@@ -234,11 +234,15 @@ public sealed class ModelRunJudgeContractTests : RunJudgeContract
                 new ChatMessage(ChatRole.Assistant, """{"score":80,"reason":"contract"}""")));
         }
 
-        public IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
+        // System.Linq.AsyncEnumerable is BCL only from net10.0; this project also runs on net8.0/net9.0.
+        public async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
             IEnumerable<ChatMessage> messages,
             ChatOptions? options = null,
-            CancellationToken cancellationToken = default)
-            => AsyncEnumerable.Empty<ChatResponseUpdate>();
+            [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            await Task.Yield();
+            yield break;
+        }
 
         public object? GetService(Type serviceType, object? serviceKey = null) => null;
 

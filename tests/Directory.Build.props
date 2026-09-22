@@ -2,8 +2,42 @@
 
   <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
 
+  <!--
+    Phase 183: the packages ship net8.0;net9.0;net10.0, so a REPRESENTATIVE set
+    of test projects runs on every one of those frameworks. The rest of the tree
+    stays on net10.0 only - the whole tree on three frameworks would triple CI
+    for projects (hosting, E2E, Docker) whose framework-specific behaviour the
+    set below already covers.
+
+    🚨 The list lives HERE, not in the csproj files. A csproj body is read AFTER
+    this file, so a csproj that writes <TargetFrameworks> must also clear the
+    singular <TargetFramework> assigned here; forgetting that builds net10.0
+    only, silently (the mirror image of K-263). One list also gives
+    `scripts/kapi.py` a single place to read the set from.
+
+    TraconTestTargetFrameworks is a build input. The windows-latest CI leg sets it
+    to net10.0 as an ENVIRONMENT VARIABLE (MSBuild reads environment variables as
+    initial properties), so restore, build, format, and test all see the same set
+    and `scripts/kapi.py` - which reads the same variable - looks for the same
+    output folders. A `-p:` on one command line would reach MSBuild but not the
+    script. The framework matrix is the ubuntu leg's job; the platform matrix is
+    the windows leg's.
+  -->
+  <PropertyGroup Label="Target framework">
+    <TraconTestTargetFrameworks Condition=" '$(TraconTestTargetFrameworks)' == '' ">net8.0;net9.0;net10.0</TraconTestTargetFrameworks>
+    <TraconMultiTargetTest Condition=" '$(MSBuildProjectName)' == 'Tracon.Core.UnitTests'
+                                      Or '$(MSBuildProjectName)' == 'Tracon.Sql.Shared.UnitTests'
+                                      Or '$(MSBuildProjectName)' == 'Tracon.OpenAI.UnitTests'
+                                      Or '$(MSBuildProjectName)' == 'Tracon.Anthropic.UnitTests'
+                                      Or '$(MSBuildProjectName)' == 'Tracon.Google.UnitTests'
+                                      Or '$(MSBuildProjectName)' == 'Tracon.Azure.UnitTests'
+                                      Or '$(MSBuildProjectName)' == 'Tracon.Sqlite.IntegrationTests'
+                                      Or '$(MSBuildProjectName)' == 'Tracon.Testing.Contracts.Xunit.UnitTests' ">true</TraconMultiTargetTest>
+    <TargetFrameworks Condition=" '$(TraconMultiTargetTest)' == 'true' ">$(TraconTestTargetFrameworks)</TargetFrameworks>
+    <TargetFramework Condition=" '$(TraconMultiTargetTest)' != 'true' ">net10.0</TargetFramework>
+  </PropertyGroup>
+
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
     <IsPackable>false</IsPackable>
     <!-- Suppress the warning NuGet emits for non-packable projects when `dotnet pack` runs on the solution. -->
     <WarnOnPackingNonPackableProject>false</WarnOnPackingNonPackableProject>
@@ -43,6 +77,15 @@
   <ItemGroup Condition=" '$(IsTestHarnessProject)' != 'true' ">
     <Using Include="Xunit" />
     <Using Include="Shouldly" />
+  </ItemGroup>
+
+  <!--
+    Phase 183: every multi-targeted project proves that each of its legs ran on
+    the runtime it was built for. A net8.0 leg rolled forward onto a newer
+    runtime would pass every other test and prove nothing about net8.0.
+  -->
+  <ItemGroup Condition=" '$(TraconMultiTargetTest)' == 'true' ">
+    <Compile Include="$(MSBuildThisFileDirectory)Shared/TargetFramework/*.cs" LinkBase="Shared/TargetFramework" />
   </ItemGroup>
 
 </Project>

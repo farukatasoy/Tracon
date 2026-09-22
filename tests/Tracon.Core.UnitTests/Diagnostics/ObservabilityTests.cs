@@ -256,8 +256,8 @@ public sealed class ObservabilityTests
 
         foreach (var span in trace.Spans)
         {
-            span.Attributes.ShouldNotContainKey(
-                "error.message",
+            // Shouldly's net8.0 build has no ShouldNotContainKey for IReadOnlyDictionary.
+            span.Attributes.ContainsKey("error.message").ShouldBeFalse(
                 "the exception message can carry personal data and RecordSensitiveData is off.");
         }
     }
@@ -502,7 +502,6 @@ public sealed class ObservabilityTests
         private readonly MeterListener _listener = new();
         private readonly List<(string Name, long Value, Dictionary<string, object?> Tags)> _longs = [];
         private readonly List<(string Name, double Value)> _doubles = [];
-        private readonly Lock _gate = new();
 
         public MetricCollector(Meter meter)
         {
@@ -516,7 +515,7 @@ public sealed class ObservabilityTests
 
             _listener.SetMeasurementEventCallback<long>((instrument, value, tags, _) =>
             {
-                lock (_gate)
+                lock (_longs)
                 {
                     _longs.Add((instrument.Name, value, ToDictionary(tags)));
                 }
@@ -524,7 +523,7 @@ public sealed class ObservabilityTests
 
             _listener.SetMeasurementEventCallback<double>((instrument, value, _, _) =>
             {
-                lock (_gate)
+                lock (_doubles)
                 {
                     _doubles.Add((instrument.Name, value));
                 }
@@ -535,7 +534,7 @@ public sealed class ObservabilityTests
 
         public List<long> LongValues(string name)
         {
-            lock (_gate)
+            lock (_longs)
             {
                 return [.. _longs.Where(m => string.Equals(m.Name, name, StringComparison.Ordinal)).Select(m => m.Value)];
             }
@@ -543,7 +542,7 @@ public sealed class ObservabilityTests
 
         public List<double> DoubleValues(string name)
         {
-            lock (_gate)
+            lock (_doubles)
             {
                 return [.. _doubles.Where(m => string.Equals(m.Name, name, StringComparison.Ordinal)).Select(m => m.Value)];
             }
@@ -551,7 +550,7 @@ public sealed class ObservabilityTests
 
         public List<Dictionary<string, object?>> Tags(string name)
         {
-            lock (_gate)
+            lock (_longs)
             {
                 return [.. _longs.Where(m => string.Equals(m.Name, name, StringComparison.Ordinal)).Select(m => m.Tags)];
             }

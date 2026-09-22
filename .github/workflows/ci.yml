@@ -36,6 +36,19 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
+        # Faz 183: temsilci test projeleri (tests/Directory.Build.props)
+        # net8.0;net9.0;net10.0 derlenir ve kosar. TFM matrisi ubuntu
+        # bacaginin isidir; Windows bacagi PLATFORM farkini olcer ve
+        # net10.0'da kalir. Bos deger = props dosyasinin varsayilani.
+        include:
+          - os: windows-latest
+            test-frameworks: net10.0
+
+    # MSBuild ortam degiskenlerini baslangic ozelligi olarak okur; boylece
+    # restore, build, format ve test AYNI TFM kumesini gorur. `kapi.py` de
+    # ayni degiskeni okur (`test_target_frameworks`).
+    env:
+      TraconTestTargetFrameworks: ${{ matrix.test-frameworks }}
 
     steps:
       - name: Kaynak kodu al
@@ -48,6 +61,18 @@ jobs:
         uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with:
           global-json-file: global.json
+
+      # Faz 183: cok hedefli test bacaklari net8.0/net9.0 RUNTIME'ini ister.
+      # SDK global.json'dan secilir (10.0.x); bu surumler yalniz runtime
+      # icin kurulur. Test apphost'u runtime'i DOTNET_ROOT'tan cozer ve
+      # setup-dotnet ikisini ayni dizine kurar.
+      - name: net8.0/net9.0 runtime'larini kur
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+        with:
+          dotnet-version: |
+            8.0.x
+            9.0.x
 
       # Arayuz derlemesi icin. Vite 7, Node ^20.19 veya >=22.12 ister.
       # npm onbellegi package-lock.json uzerinden anahtarlanir.
@@ -314,10 +339,13 @@ jobs:
         with:
           fetch-depth: 0
 
+      # 8.0.x: Faz 183'un net8.0 tuketici smoke'u (Tracon.Samples.Net8Consumer)
+      # paketleri .NET 8 runtime'inda kosturur. SDK yine global.json'dan secilir.
       - name: .NET SDK kur
         uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
         with:
           global-json-file: global.json
+          dotnet-version: 8.0.x
 
       # Arayuz varliklari pack sirasinda gerekir (TRACON0003).
       - name: Node.js kur

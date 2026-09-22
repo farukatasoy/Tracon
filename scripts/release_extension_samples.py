@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify extension samples against one exact packed Tracon version."""
+"""Verify extension samples, the Native AOT smoke, and the net8.0 consumer against one exact packed Tracon version."""
 
 from __future__ import annotations
 
@@ -28,6 +28,12 @@ SAMPLE_TEST_PROJECTS = (
 SAMPLE_TEST_EXCLUSIONS: dict[str, str] = {}
 
 AOT_PROJECT = "Tracon.Samples.ExtensionAotSmoke"
+
+# Faz 183. Every other sample runs on net10.0 (samples/Directory.Build.props),
+# so without this one no consumer path ever restored the net8.0 dependency group
+# of the packed packages or ran them on the net8.0 runtime.
+NET8_CONSUMER_PROJECT = "Tracon.Samples.Net8Consumer"
+NET8_CONSUMER_FRAMEWORK = "net8.0"
 
 
 def validate_sample_inventory(root: pathlib.Path) -> list[str]:
@@ -68,10 +74,19 @@ def validate_sample_contract(root: pathlib.Path, version: str) -> list[str]:
     if not version or "*" in version:
         errors.append("exact Tracon sample package version is required")
 
-    for project in (*SAMPLE_TEST_PROJECTS, AOT_PROJECT):
+    for project in (*SAMPLE_TEST_PROJECTS, AOT_PROJECT, NET8_CONSUMER_PROJECT):
         csproj = samples / project / f"{project}.csproj"
         if not csproj.exists():
             errors.append(f"missing release sample project: {project}")
+
+    # Without its own <TargetFramework> the consumer inherits net10.0 from
+    # samples/Directory.Build.props and still passes - proving nothing.
+    net8_csproj = samples / NET8_CONSUMER_PROJECT / f"{NET8_CONSUMER_PROJECT}.csproj"
+    if net8_csproj.exists() and (
+        f"<TargetFramework>{NET8_CONSUMER_FRAMEWORK}</TargetFramework>"
+        not in net8_csproj.read_text(encoding="utf-8")
+    ):
+        errors.append(f"{net8_csproj.relative_to(root)} must target {NET8_CONSUMER_FRAMEWORK}")
 
     for csproj in sorted(samples.glob("Tracon.Samples.*/*.csproj")):
         project_text = csproj.read_text(encoding="utf-8")
@@ -197,5 +212,20 @@ def verify(root: pathlib.Path, release_dir: pathlib.Path, version: str) -> int:
         if _run([str(executable)], root=root, environment=environment):
             return 1
 
-    print(f"✅ {len(SAMPLE_TEST_PROJECTS)} exact-version packed sample ve Native AOT smoke: {version}")
+        # The program itself exits non-zero unless it runs on the net8.0
+        # runtime; a missing runtime fails here with the host's own message.
+        net8_csproj = root / "samples" / NET8_CONSUMER_PROJECT / f"{NET8_CONSUMER_PROJECT}.csproj"
+        restore = ["dotnet", "restore", str(net8_csproj), "--configfile", str(nuget_config), property_arg]
+        if _run(restore, root=root, environment=environment):
+            return 1
+        run = ["dotnet", "run", "--project", str(net8_csproj), "-c", "Release", "--no-restore", property_arg]
+        if _run(run, root=root, environment=environment):
+            return 1
+        net8_assets = _project_assets_json(root, NET8_CONSUMER_PROJECT).read_text(encoding="utf-8")
+        if str(package_cache) not in net8_assets:
+            print(f"❌ {NET8_CONSUMER_PROJECT}: restore isolated NUGET_PACKAGES kullanmadı")
+            return 1
+
+    print(f"✅ {len(SAMPLE_TEST_PROJECTS)} exact-version packed sample, Native AOT smoke"
+          f" ve {NET8_CONSUMER_FRAMEWORK} tüketici smoke: {version}")
     return 0

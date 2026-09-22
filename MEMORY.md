@@ -56,6 +56,8 @@ Alana bağlı değildir; her fazda tekrar bedel ödettiler.
 - **Bash'te `cd` kalıcıdır**; doğrulama komutlarında **mutlak yol** kullan.
 - **`dotnet test` MTP'dir, VSTest değil.** `--filter-query` yoktur (`MSB1001`).
   Tek test: `./artifacts/bin/<Proje>/release/<Proje> --filter-method "*Ad*"`.
+  🚨 Çok hedefli temsilci projede (Faz 183) klasör `release_<tfm>/`'dir ve eski
+  `release/` **bayat** kalır — `kapi.py test --proje <P> --sinif … --tfm …` kullan.
   Bir testin **bayat mı kusurlu mu** olduğunu ayırmanın yolu budur — aynı testi
   `git worktree add <dizin> HEAD` ile temel sürümde de izole koş.
 - **🚨 Tool'un gördüğü servis sağlayıcı BOŞTUR.** MAF, `AIFunctionArguments.Services`

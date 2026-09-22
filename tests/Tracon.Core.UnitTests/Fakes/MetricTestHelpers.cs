@@ -17,7 +17,6 @@ internal sealed class MetricCollector : IDisposable
 {
     private readonly MeterListener _listener = new();
     private readonly List<(string Name, long Value, Dictionary<string, object?> Tags)> _longs = [];
-    private readonly Lock _gate = new();
 
     public MetricCollector(Meter meter)
     {
@@ -40,7 +39,7 @@ internal sealed class MetricCollector : IDisposable
                 copied[tag.Key] = tag.Value;
             }
 
-            lock (_gate)
+            lock (_longs)
             {
                 _longs.Add((instrument.Name, value, copied));
             }
@@ -51,7 +50,7 @@ internal sealed class MetricCollector : IDisposable
 
     public List<long> LongValues(string name)
     {
-        lock (_gate)
+        lock (_longs)
         {
             return [.. _longs.Where(m => string.Equals(m.Name, name, StringComparison.Ordinal)).Select(m => m.Value)];
         }
@@ -60,7 +59,7 @@ internal sealed class MetricCollector : IDisposable
     /// <summary>Returns the tags of every measurement published on <paramref name="name"/>.</summary>
     public List<IReadOnlyDictionary<string, object?>> LongTags(string name)
     {
-        lock (_gate)
+        lock (_longs)
         {
             return
             [
