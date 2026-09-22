@@ -360,7 +360,7 @@ Bu eşleme bir başlangıçtır; üretim oturumu grep ile doğrular ve gerekirse
 
 | # | Dosya | Alan kodu | Faz | Kaynak | Hedef case | Üretim | Koşum |
 |---|---|---|---|---|---|---|---|
-| 01 | [`01-KURULUM-VE-PAKETLEME.md`](01-KURULUM-VE-PAKETLEME.md) | `PKG` | 0, 52, 97, 160, 182 | `Directory.Build.props` · `Directory.Build.targets` · `src/Directory.Build.props` · `*.csproj` · `src/Tracon.Generators` · `scripts/kapi.py` (`yayin`) · `scripts/public-yuzey-envanteri.py` (Faz 182) | **84** | ✅ | ✅ 81/81 · Faz 182: `MT-PKG-123` ✅ · `MT-PKG-124` ✅ · `MT-PKG-125` ➜ CI |
+| 01 | [`01-KURULUM-VE-PAKETLEME.md`](01-KURULUM-VE-PAKETLEME.md) | `PKG` | 0, 52, 97, 160, 182, 183 | `Directory.Build.props` · `Directory.Build.targets` · `src/Directory.Build.props` · `*.csproj` · `src/Tracon.Generators` · `scripts/kapi.py` (`yayin`, `test --tfm`) · `scripts/public-yuzey-envanteri.py` (Faz 182) · `tests/Directory.Build.props` · `samples/Tracon.Samples.Net8Consumer` (Faz 183) | **88** | ✅ | ✅ 81/81 · Faz 182: `MT-PKG-123` ✅ · `MT-PKG-124` ✅ · `MT-PKG-125` ➜ CI · Faz 183: `MT-PKG-126`…`129` ✅ |
 | 02 | [`02-CEKIRDEK-VE-KATALOG.md`](02-CEKIRDEK-VE-KATALOG.md) | `CORE` | 1, 3, 72, 86, 101, 127, 130, 135 | `src/Tracon.Core` (`Compilation/` · `Catalog/` · `Tools/` · `Sessions/`) · `src/Tracon.Abstractions` | **97** | ✅ | ✅ 96/97 · 1 ☐ (`MT-CORE-095`) |
 | 03 | [`03-KALICILIK-POSTGRESQL.md`](03-KALICILIK-POSTGRESQL.md) | `PG` | 2, 51, 110 | `src/Tracon.PostgreSql` | **50** | ✅ | ✅ 50/50 |
 | 04 | [`04-KALICILIK-DIGER.md`](04-KALICILIK-DIGER.md) | `SQL` | 23, 24, 110 | `src/Tracon.Sqlite` · `src/Tracon.SqlServer` · `src/Tracon.Sql.Shared` | **45** | ✅ | ✅ 44/45 · 1 ☐ (`MT-SQL-071`) |

@@ -1834,7 +1834,7 @@ psql -c "UPDATE tracon.sessions SET state_schema_version = 999999 WHERE id = '<i
 
 **Adımlar**
 1. `dotnet restore` ile yeni MAF sürümünü çek.
-2. `./artifacts/bin/Tracon.Core.UnitTests/release/Tracon.Core.UnitTests --filter-method "*PersistedPayloadUpgrade*"` koştur.
+2. `./artifacts/bin/Tracon.Core.UnitTests/release_net10.0/Tracon.Core.UnitTests --filter-method "*PersistedPayloadUpgrade*"` koştur.
 3. `./artifacts/bin/Tracon.Workflows.UnitTests/release/Tracon.Workflows.UnitTests --filter-method "*PersistedPayloadUpgrade*"` koştur.
 
 **Beklenen sonuç**

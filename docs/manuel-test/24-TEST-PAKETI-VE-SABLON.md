@@ -2522,8 +2522,8 @@ dotnet test samples/Tracon.Samples.CustomModelProvider.Tests -c Release
 
 **Girilecek veri**
 ```bash
-./artifacts/bin/Tracon.Core.UnitTests/release/Tracon.Core.UnitTests --filter-method "*ContractCoverage*"
-./artifacts/bin/Tracon.Sqlite.IntegrationTests/release/Tracon.Sqlite.IntegrationTests --filter-method "*ContractCoverage*"
+./artifacts/bin/Tracon.Core.UnitTests/release_net10.0/Tracon.Core.UnitTests --filter-method "*ContractCoverage*"
+./artifacts/bin/Tracon.Sqlite.IntegrationTests/release_net10.0/Tracon.Sqlite.IntegrationTests --filter-method "*ContractCoverage*"
 ```
 
 **Beklenen sonuç**
@@ -2554,7 +2554,7 @@ dotnet test samples/Tracon.Samples.CustomModelProvider.Tests -c Release
 
 **Girilecek veri**
 ```bash
-./artifacts/bin/Tracon.Core.UnitTests/release/Tracon.Core.UnitTests --filter-method "*PipelineOwnership*"
+./artifacts/bin/Tracon.Core.UnitTests/release_net10.0/Tracon.Core.UnitTests --filter-method "*PipelineOwnership*"
 ```
 
 **Beklenen sonuç**
@@ -2831,7 +2831,7 @@ dotnet build "$TMP/apg2" -c Release
 **Girilecek veri**
 ```bash
 cd /Users/farukatasoy/Desktop/projects/Tracon
-./artifacts/bin/Tracon.Core.UnitTests/release/Tracon.Core.UnitTests \
+./artifacts/bin/Tracon.Core.UnitTests/release_net10.0/Tracon.Core.UnitTests \
   --filter-method "*ToolArgumentValidationContractTests*"
 ```
 
@@ -2877,7 +2877,7 @@ xunit tarafından ayrı bir test sınıfı olarak keşfedilmez).
 
 **Girilecek veri**
 ```bash
-./artifacts/bin/Tracon.Core.UnitTests/release/Tracon.Core.UnitTests \
+./artifacts/bin/Tracon.Core.UnitTests/release_net10.0/Tracon.Core.UnitTests \
   --filter-method "*ToolContractSelfProofTests*"
 ```
 
@@ -2919,8 +2919,8 @@ Test run summary: Passed!
 
 **Girilecek veri**
 ```bash
-./artifacts/bin/Tracon.Testing.Contracts.Xunit.UnitTests/release/Tracon.Testing.Contracts.Xunit.UnitTests
-./artifacts/bin/Tracon.Testing.Contracts.Xunit.UnitTests/release/Tracon.Testing.Contracts.Xunit.UnitTests
+./artifacts/bin/Tracon.Testing.Contracts.Xunit.UnitTests/release_net10.0/Tracon.Testing.Contracts.Xunit.UnitTests
+./artifacts/bin/Tracon.Testing.Contracts.Xunit.UnitTests/release_net10.0/Tracon.Testing.Contracts.Xunit.UnitTests
 ```
 
 **Gerçek sonuç (2026-09-04)**
@@ -2956,7 +2956,7 @@ Test run summary: Passed!
 
 **Girilecek veri**
 ```bash
-./artifacts/bin/Tracon.Testing.Contracts.Xunit.UnitTests/release/Tracon.Testing.Contracts.Xunit.UnitTests \
+./artifacts/bin/Tracon.Testing.Contracts.Xunit.UnitTests/release_net10.0/Tracon.Testing.Contracts.Xunit.UnitTests \
   --filter-method "*Required_nested_object*"
 ```
 
@@ -2996,7 +2996,7 @@ MT-TEST-073'ün aynı iddiasının Faz 143 sonrası tekrarı — `ToolArgumentVa
 
 **Girilecek veri**
 ```bash
-./artifacts/bin/Tracon.Core.UnitTests/release/Tracon.Core.UnitTests \
+./artifacts/bin/Tracon.Core.UnitTests/release_net10.0/Tracon.Core.UnitTests \
   --filter-method "*DependencyDirectionTests*"
 ```
 

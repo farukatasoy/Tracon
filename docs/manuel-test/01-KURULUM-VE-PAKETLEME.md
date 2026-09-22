@@ -1,9 +1,10 @@
 # 01 — Kurulum ve Paketleme (`PKG`)
 
-> **Alan kodu:** `PKG` · **Faz:** 0, 52, 60, 182
+> **Alan kodu:** `PKG` · **Faz:** 0, 52, 60, 182, 183
 > **Kaynak:** `global.json` · `NuGet.config` · `Directory.Build.props` ·
 > `Directory.Build.targets` · `src/Directory.Build.props` · `src/*/*.csproj` ·
-> `src/Tracon.Generators/`
+> `src/Tracon.Generators/` · `tests/Directory.Build.props` (TFM matrisi) ·
+> `samples/Tracon.Samples.Net8Consumer`
 >
 > Ortam kurulumu, fixture verisi ve reset yordamı [`00-INDEKS.md`](00-INDEKS.md)'dedir.
 
@@ -2498,7 +2499,7 @@ büyüyen bir yüzey bu kapı olmadan fark edilmeden ilerler.
 
 **Girilecek veri**
 ```bash
-./artifacts/bin/Tracon.Core.UnitTests/release/Tracon.Core.UnitTests \
+./artifacts/bin/Tracon.Core.UnitTests/release_net10.0/Tracon.Core.UnitTests \
   --filter-method "*PublicSurfaceBaseline*"
 ```
 
@@ -2532,7 +2533,7 @@ dosyası eklenmeyi unutulan bir paket bu kapı olmadan sessizce izlenmez kalır.
 ```bash
 mv src/Tracon.Core/PublicAPI.Shipped.txt /tmp/Shipped.txt.bak
 mv src/Tracon.Core/PublicAPI.Unshipped.txt /tmp/Unshipped.txt.bak
-./artifacts/bin/Tracon.Core.UnitTests/release/Tracon.Core.UnitTests \
+./artifacts/bin/Tracon.Core.UnitTests/release_net10.0/Tracon.Core.UnitTests \
   --filter-method "*PublicApiTrackingDeclaration*"
 mv /tmp/Shipped.txt.bak src/Tracon.Core/PublicAPI.Shipped.txt
 mv /tmp/Unshipped.txt.bak src/Tracon.Core/PublicAPI.Unshipped.txt
@@ -3542,3 +3543,136 @@ tüketiciye onu çağırmasını söylüyordu.
 - Adım 1 `CS0122` verir (`CS0433` değil — tip artık hiçbir pakette public değil).
 - Adım 2 derlenir.
 
+
+---
+
+### MT-PKG-126 — Paketlenmiş `net8.0` tüketicisi .NET 8 runtime'ında bir agent koşturur
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 183 |
+| **İlgili karar** | — |
+
+Paketler `net8.0` sevk ediyor, ama Faz 183'e kadar hiçbir tüketici yolu `net8.0`
+bağımlılık grubunu restore edip .NET 8 runtime'ında çalıştırmıyordu — her sample
+`net10.0` idi. `samples/Tracon.Samples.Net8Consumer` yalnız `Tracon.Core` +
+`Microsoft.Extensions.Hosting` alır ve bir agent'ı uçtan uca koşturur.
+
+**Ön koşul**
+- Çalışma ağacı temiz (`yayin` kirli ağaçta paketlemez).
+- .NET 8 runtime kurulu (`DOTNET_ROOT` altında ya da global kurulumda).
+- `artifacts/package/release` önceki sürümlerden temiz (`MT-PKG-124` notu).
+
+**Adımlar**
+1. Yayın provasını koş.
+
+**Girilecek veri**
+```bash
+python3 scripts/kapi.py yayin --kuru
+```
+
+**Beklenen sonuç**
+- Çıktıda `net8.0 consumer smoke passed on .NET 8.0.<yama>: reply: ping from net8`
+  satırı; son satır `... Native AOT smoke ve net8.0 tüketici smoke: <sürüm>`.
+- Program başka bir runtime'da koşarsa `1` ile çıkar ve prova durur — başarı satırı
+  .NET 8'in kanıtıdır.
+
+---
+
+### MT-PKG-127 — Temsilci bir test projesi tek TFM bacağında koşar
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 183 |
+| **İlgili karar** | — |
+
+Temsilci küme (`tests/Directory.Build.props`, `TraconMultiTargetTest`) üç TFM'de
+derlenir; çıktı `release_<tfm>/` altındadır. `kapi.py test` bacağı açıkça seçebilmelidir.
+
+**Ön koşul**
+- `dotnet build Tracon.slnx -c Release` yapılmış; .NET 8 runtime kurulu.
+
+**Adımlar**
+1. Runtime nöbetçisini yalnız `net8.0` bacağında koş.
+2. Aynı projeyi `dotnet test` ile yalnız `net8.0` için koş.
+3. Tek hedefli bir projeye `--tfm net8.0` ver.
+
+**Girilecek veri**
+```bash
+python3 scripts/kapi.py test --proje Tracon.Core.UnitTests --sinif "*RuntimeMatchesTargetFrameworkTests*" --tfm net8.0
+dotnet test tests/Tracon.Core.UnitTests -c Release --no-build -f net8.0
+python3 scripts/kapi.py test --proje Tracon.Generators.UnitTests --sinif "*X*" --tfm net8.0
+```
+
+**Beklenen sonuç**
+- Adım 1 `artifacts/bin/Tracon.Core.UnitTests/release_net8.0/...` ikilisini koşar; 1 test geçer.
+- Adım 2 yalnız `(net8.0|arm64)` satırı basar ve bütün testler geçer.
+- Adım 3 hiçbir şey koşmadan `2` ile çıkar: `Tracon.Generators.UnitTests yalnız net10.0 için derlenir`.
+
+---
+
+### MT-PKG-128 — Eksik runtime testten ÖNCE ve adıyla raporlanır
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 183 |
+| **İlgili karar** | — |
+
+Test apphost'u runtime'ı `DOTNET_ROOT`'tan çözer. Runtime yoksa bacak dakikalar sonra
+düşer ve izole yeniden koşum onu "gerçek regresyon" sanır; ön kontrol bunu önler.
+
+**Ön koşul**
+- Yok (sahte bir runtime kökü kurulur).
+
+**Adımlar**
+1. Yalnız 10.0 runtime'ı taşıyan sahte bir kökü `DOTNET_ROOT` yap ve bir temsilci projeyi koş.
+
+**Girilecek veri**
+```bash
+T=$(mktemp -d); mkdir -p "$T/shared/Microsoft.NETCore.App/10.0.0"
+DOTNET_ROOT="$T" python3 scripts/kapi.py test --proje Tracon.Core.UnitTests --sinif "*X*"; echo "rc=$?"
+rm -rf "$T"
+```
+
+**Beklenen sonuç**
+- `❌ Çoklu TFM test projeleri şu runtime'ları ister: net8.0, net9.0 — ... altında yok (kurulu: 10).`
+- `rc=1`; hiçbir test ikilisi başlatılmaz.
+
+---
+
+### MT-PKG-129 — Roll-forward edilen bir bacak kendi kendini düşürür
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 183 |
+| **İlgili karar** | — |
+
+`DOTNET_ROLL_FORWARD=LatestMajor` ile `net8.0` bacağı, net8 kurulu olsa bile en yeni
+runtime'da koşar ve her test geçer — kanıt sessizce kaybolur.
+`RuntimeMatchesTargetFrameworkTests` bunu yakalar. (`Major` yalnız net8 **yoksa** ileri
+sarar; net8 kuruluyken bacak net8'de koşar ve test doğru olarak geçer.)
+
+**Ön koşul**
+- `dotnet build Tracon.slnx -c Release` yapılmış; net10 runtime kurulu.
+
+**Adımlar**
+1. `net8.0` ikilisini roll-forward ile koş.
+
+**Girilecek veri**
+```bash
+DOTNET_ROLL_FORWARD=LatestMajor ./artifacts/bin/Tracon.Testing.Contracts.Xunit.UnitTests/release_net8.0/Tracon.Testing.Contracts.Xunit.UnitTests \
+  --filter-class "*RuntimeMatchesTargetFrameworkTests*"
+```
+
+**Beklenen sonuç**
+- Test düşer: `Built for '.NETCoreApp,Version=v8.0' but running on '.NET 10.0.<yama>'`
+  (makinedeki en yeni runtime).
+- Aynı komut `DOTNET_ROLL_FORWARD` olmadan ve net8 runtime kuruluyken geçer.
