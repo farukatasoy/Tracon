@@ -1443,6 +1443,14 @@ condition fails closed: an unresolved path, a missing argument, or a type mismat
 (text `"100"` does not satisfy a numeric rule) all mean the call still asks for
 approval.
 
+A rule is identified by its agent, its tool, and its hash or condition set. The
+order of the conditions does not count, and neither does whitespace between the
+elements of a list value: `region In ["eu", "us"]` and `region In ["eu","us"]` are
+the same condition. Everything else is compared as written — `"new york"` and
+`"newyork"` are two values.
+`POST /api/approvals/rules` with a rule that already exists answers `409` and keeps
+the stored one.
+
 ```mermaid
 flowchart TD
     accTitle: Approval decision order
@@ -3746,6 +3754,10 @@ tracon migrate --provider postgres --connection "$TRACON_CONNECTION"
 Running it again applies nothing (`0 applied`) and exits `0`; `tracon migrate
 status` lists pending migration names without writing. See the [typed client and
 CLI guide](/guides/cli/) for setup and the rest of the commands.
+
+A deployment step that already runs your own code can apply them in process
+instead: resolve `IMigrationApplier` and call `ApplyAsync()`. Every SQL provider
+registers it, so the same call works whichever provider the application uses.
 
 ## Giving your own data source instead of a connection string
 

@@ -66,7 +66,8 @@ public sealed record JobSchedule
     /// The worker picks a due schedule by this value and computes every later
     /// one itself. A schedule written straight to <see cref="IJobScheduleStore"/>
     /// with a cron expression must therefore carry its first run time here: saved
-    /// with <see langword="null"/>, it never runs. The scheduling API sets it for you.
+    /// with <see langword="null"/>, it never runs. A time at or before now runs it on
+    /// the worker's next pass. The scheduling API sets it for you.
     /// </remarks>
     public DateTimeOffset? NextRunAt { get; init; }
 
