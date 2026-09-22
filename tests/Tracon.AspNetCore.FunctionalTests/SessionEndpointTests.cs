@@ -107,6 +107,14 @@ public sealed class SessionEndpointTests
             new Uri("/tracon/api/sessions/session-to-delete", UriKind.Relative));
 
         missing.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+
+        // Deleting again reports a real "gone", not an idempotent success. A
+        // 204 here would make "delete then verify" unable to tell a session
+        // that was removed from one that never existed.
+        using var again = await host.Client.DeleteAsync(
+            new Uri("/tracon/api/sessions/session-to-delete", UriKind.Relative));
+
+        again.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 
     [Fact]
@@ -175,7 +183,7 @@ public sealed class SessionEndpointTests
     }
 
     [Fact]
-    public async Task Missing_session_cannot_be_branched_returns_404()
+    public async Task Missing_session_branch_reports_not_supported_BEFORE_not_found()
     {
         await using var host = await TraconTestHost.StartAsync(
             static builder => builder.AddAgent(TestData.Definition()));

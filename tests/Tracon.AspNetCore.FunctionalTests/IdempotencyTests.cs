@@ -42,16 +42,25 @@ public sealed class IdempotencyTests
         var key = Guid.NewGuid().ToString("N");
         var body = new AgentRunRequest { Message = "hello" };
 
+        string firstBody;
         using (var first = await PostWithKeyAsync(host, Run, body, key))
         {
             first.StatusCode.ShouldBe(HttpStatusCode.OK);
+            first.Content.Headers.ContentType?.MediaType.ShouldBe("application/json");
             first.Headers.Contains("Idempotency-Replayed").ShouldBeFalse();
+            firstBody = await first.Content.ReadAsStringAsync();
         }
 
         using (var second = await PostWithKeyAsync(host, Run, body, key))
         {
             second.StatusCode.ShouldBe(HttpStatusCode.OK);
             second.Headers.GetValues("Idempotency-Replayed").ShouldContain("true", StringComparer.Ordinal);
+
+            // The replay is the SAME answer, not merely another successful one.
+            // Re-running the agent and returning a fresh (equally valid) body
+            // would keep the header, the status and the call count honest-looking
+            // while breaking the only promise idempotency makes.
+            (await second.Content.ReadAsStringAsync()).ShouldBe(firstBody);
         }
 
         var provider = host.Services.GetServices<IModelProvider>().OfType<FakeModelProvider>().Single();
@@ -99,6 +108,12 @@ public sealed class IdempotencyTests
         using var mismatched = await PostWithKeyAsync(host, Run, new AgentRunRequest { Message = "OTHER" }, key);
 
         mismatched.StatusCode.ShouldBe(HttpStatusCode.UnprocessableEntity);
+
+        // The status code alone does not tell a 422 from a key reuse apart from
+        // a 422 from anything else. The title is the part an operator reads,
+        // and it is what the manual case compares against.
+        (await TraconTestHost.ReadJsonAsync(mismatched)).GetProperty("title").GetString()
+            .ShouldBe("Idempotency-Key used for a different request");
     }
 
     [Fact]
@@ -174,6 +189,8 @@ public sealed class IdempotencyTests
             Guid.NewGuid().ToString("N"));
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        (await TraconTestHost.ReadJsonAsync(response)).GetProperty("title").GetString()
+            .ShouldBe("Idempotency-Key not supported on streaming requests");
     }
 
     [Fact]
@@ -270,6 +287,15 @@ public sealed class IdempotencyTests
             host, Run, new AgentRunRequest { Message = "hello" }, new string('a', 300));
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+
+        var json = await TraconTestHost.ReadJsonAsync(response);
+        json.GetProperty("title").GetString().ShouldBe("Idempotency-Key too long");
+
+        // Both numbers: the limit AND what was received. A detail carrying only
+        // one of them leaves the caller guessing which end to change.
+        var detail = json.GetProperty("detail").GetString() ?? string.Empty;
+        detail.ShouldContain("255", Case.Sensitive);
+        detail.ShouldContain("300", Case.Sensitive);
     }
 
     [Fact]

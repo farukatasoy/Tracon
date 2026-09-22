@@ -395,7 +395,7 @@ Bu eşleme bir başlangıçtır; üretim oturumu grep ile doğrular ve gerekirse
 | 33 | [`33-DOKUMAN-KAPILARI.md`](33-DOKUMAN-KAPILARI.md) | `DKP` | 80, 90, 167, 174 | `scripts/dokuman-bakim.py` · `scripts/dokuman_bakim_test.py` · `.github/workflows/ci.yml` · `docs-site/scripts/check-capacity-stamp.mjs` | **25** | ✅ | ✅ 25/25 |
 | 34 | [`34-ISTEMCI-VE-CLI.md`](34-ISTEMCI-VE-CLI.md) | `CLI` | 83, 115, 153, 156, 159 | `src/Tracon.Client` · `src/Tracon.Cli` · `nswag.json` · `scripts/nswag-*.py` | **46** | ✅ | ✅ 42/46 · 4 ⬜ (`MT-CLI-012` · `022` · `037` · `046` — 👤, kayıt bloğu yok) |
 | 35 | [`35-TYPESCRIPT-ISTEMCISI.md`](35-TYPESCRIPT-ISTEMCISI.md) | `TSC` | 84 | `packages/tracon-client` · `src/Tracon.UI/frontend/src/lib/{api.ts,server-types.ts}` · `src/Tracon.UI/Tracon.UI.Frontend.targets` · `.github/workflows/ci.yml` | **11** | ✅ | ✅ 9/11 · 2 ⬜ (`MT-TSC-008` · `009` — 👤, npm kapsamı rezerve değil) |
-| 36 | [`36-GELISTIRME-KAPILARI.md`](36-GELISTIRME-KAPILARI.md) | `GDK` | 91, 92, 116, 166, 167, 168, 169 | `scripts/kapi.py` · `scripts/capacity.py` · `scripts/denetim-paketi.py` · `scripts/*_test.py` · `src/Tracon.UI/Tracon.UI.Frontend.targets` · `docfx/docfx.json` · `DocfxConfigurationTests.cs` · `CanaryEvaluationServiceTests.cs` · `RunReconciliationTests.cs` · `bench/Tracon.Benchmarks/` · `bench/capacity/` · `.agents/ortak/kurtarma.md` · `scripts/dokuman-bakim.py` | **48** | ✅ | ✅ 47/48 · 1 ☐ (`MT-GDK-024`) |
+| 36 | [`36-GELISTIRME-KAPILARI.md`](36-GELISTIRME-KAPILARI.md) | `GDK` | 91, 92, 116, 166, 167, 168, 169, 180 | `scripts/kapi.py` · `scripts/capacity.py` · `scripts/denetim-paketi.py` · `scripts/*_test.py` · `src/Tracon.UI/Tracon.UI.Frontend.targets` · `docfx/docfx.json` · `DocfxConfigurationTests.cs` · `CanaryEvaluationServiceTests.cs` · `RunReconciliationTests.cs` · `bench/Tracon.Benchmarks/` · `bench/capacity/` · `.agents/ortak/kurtarma.md` · `scripts/dokuman-bakim.py` · `scripts/manuel-test-tazelik.py` (Faz 180) | **51** | ✅ | ✅ 47/48 · 1 ☐ (`MT-GDK-024`) |
 
 ### 7.1 Açık kalemler — 2026-08-13 turundan devreden
 
@@ -1521,3 +1521,87 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
   sayı hiçbir case'e yazılmadı. Gelecekteki bir doküman bakım turu Faz 40'ın
   kendi belgesindeki tarihsel sayıları güncel gibi sunmamalı; onlar 2026-08-07
   tarihli birer ölçümdür.
+
+---
+
+## 9. Devir şablonu — bir case'in üç olası kaderi
+
+> Faz 180. Bu set CI'da koşmaz ve tam bir tur üç gün sürer. Şablon o turu
+> kısaltmaz; **hangi case'in artık elle koşulması gerekmediğini** tek bir
+> okunabilir işarete bağlar.
+
+Şablon uygulanınca her `MT-*` case'i üç sınıftan birine düşer ve sınıfı
+**spec satırında görünür** olur:
+
+| Sınıf | İşaret | Kural |
+|---|---|---|
+| **Devredildi** | ➜ CI: `Sınıf.Test` | Davranış [test seviyeleri tablosuna](../../.agents/ortak/test-seviyeleri.md) göre **doğru seviyede** otomatikleşti. Bir case'in mevcut bir testi göstermesi de bu sınıftır — devir yeni test yazmayı gerektirmez |
+| **Manuel kalır** | `👤 insan gerekir — <sebep>` | Model kalitesi, görsel yargı, fiziksel ortam (ses cihazı, gerçek sağlayıcı hesabı). Sebep **tek cümle** |
+| **İşaretsiz** | (işaret yok) | Henüz yargılanmadı. Bir kusur değildir; dilim planlama girdisidir |
+
+**Case spec'ten SİLİNMEZ.** Davranışın tanımı spec'te, kanıtı CI'da durur;
+işaret tek yönlü gösterir. Silmek, testin adı değiştiğinde davranışın tarifini
+de kaybetmek olurdu.
+
+### İşaretin yeri
+
+Başlık biçimli ailelerde (01–30) işaret, case'in üstbilgi tablosuna **kendi
+satırı** olarak girer — `**İlgili karar**`'dan hemen sonra:
+
+```markdown
+| **İlgili karar** | K-296 |
+| **Devir** | ➜ CI: `AgentCrudTests.Delete_removes_the_definition` |
+```
+
+Bir case birden çok testi gösterebilir; ayırıcı ` · `'dır. Tablo biçimli
+ailelerde (31–36) tabloya bir `Devir` **sütunu** eklenir ve işaret o hücrede
+yaşar.
+
+🚨 **İşaretin TEK evi vardır** — `Devir` satırı ya da `Devir` sütunu. Case
+gövdesinin başka bir yerinde geçen bir `👤` cümlesi (ön koşul metni gibi)
+işaret **değildir** ve sayıma girmez. Tek ev olmasaydı sayım, hiç
+devredilmemiş ailelerde bile "manuel" üretirdi (ölçüldü: dört ailede yedi
+sahte kalem).
+
+🚨 **Hedef backtick içinde yazılır.** Backtick'siz bir hedef doğrulanamaz ve
+sayaç o case'i devredilmiş **saymaz** — kanıtsız bir case'in kanıtlı görünmesi
+bu sayımın tek yalan söyleyebileceği yerdir.
+
+**İşaret imzadan düşer.** Bir case'i işaretlemek onun davranışını
+değiştirmez, bu yüzden tazelik ölçümünde `değişti` üretmez — `Devir` satırı da,
+`Devir` sütunu da imza hesaplanmadan önce çıkarılır. Ölçüldü: bu fazın 43
+işareti `0` sahte `değişti` üretti.
+
+### Seviye kuralı devrin ön koşuludur
+
+Bir davranış **sınır** geçiyorsa (DI · HTTP · kiracı · akış · depo · paket)
+birim testine devredilemez. Yeşil bir birim testi o sınırın çalıştığını
+kanıtlamaz; yanlış seviyeye devretmek, test **yokken** yanlış bir güven üretir.
+Tek kaynak: [`test-seviyeleri.md`](../../.agents/ortak/test-seviyeleri.md).
+
+### Sayaç
+
+```bash
+python3 scripts/manuel-test-tazelik.py            # yalnız devir ölçümü
+python3 scripts/manuel-test-tazelik.py --taban <commit>   # tazelik + devir
+```
+
+Tabansız mod dosya yazmaz, aile başına `devredildi / manuel / işaretsiz` basar.
+Her `➜ CI:` hedefinin gerçekten var olduğu doğrulanır: **bayat işaret
+kırmızıdır** (çıkış `1`). Çözülemeyen bir kaynak yolu yalnız uyarıyken bayat
+işaretin kırmızı olması bilinçlidir — biri ölçümü kabalaştırır, öteki kanıtsız
+bir case'i kanıtlıymış gibi gösterir.
+
+`işaretsiz` sayısı bir **kapı değildir**. "İşaretsiz azalmalı" kuralı ancak
+yeterli dilim ölçüldükten sonra ayrı bir kararla bağlanır; bugün cırcır
+kurmak, yargılanmamış case'leri gelişigüzel işaretlemeye davet ederdi.
+
+### Devredilen dilimler
+
+| Aile | Faz | devredildi | manuel | işaretsiz | yeni/genişletilmiş test | mevcut teste işaret |
+|---|---|---|---|---|---|---|
+| [`07-HTTP-YONETIM-API.md`](07-HTTP-YONETIM-API.md) | 180 | 42 | 1 | 0 | 12 case | 30 case |
+
+Devredilen 42 case **51 benzersiz testi** gösterir ve hepsi
+`Tracon.AspNetCore.FunctionalTests` altındadır — HTTP sınırı geçen hiçbir
+davranış birim testine devredilmedi.

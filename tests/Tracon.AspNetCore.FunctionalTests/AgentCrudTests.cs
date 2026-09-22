@@ -22,6 +22,10 @@ public sealed class AgentCrudTests
         using var created = await host.Client.PostAsJsonAsync(Agents, TestData.Request());
         created.StatusCode.ShouldBe(HttpStatusCode.Created);
 
+        // 201 without a Location header is a half-kept promise: the client is
+        // told a resource was made but not where it is.
+        created.Headers.Location?.ToString().ShouldBe("/tracon/api/agents/db-agent");
+
         using var list = await host.Client.GetAsync(Agents);
         var json = await TraconTestHost.ReadJsonAsync(list);
 
@@ -50,7 +54,16 @@ public sealed class AgentCrudTests
         using var versions = await host.Client.GetAsync(
             new Uri("/tracon/api/agents/db-agent/versions", UriKind.Relative));
 
-        (await TraconTestHost.ReadJsonAsync(versions)).GetArrayLength().ShouldBe(2);
+        var history = await TraconTestHost.ReadJsonAsync(versions);
+        history.GetArrayLength().ShouldBe(2);
+
+        // Newest first. A history served oldest-first still has the right
+        // COUNT, so a count-only assertion cannot tell the two apart — and the
+        // UI shows whatever comes first as "current".
+        history.EnumerateArray()
+            .Select(static version => version.GetProperty("version").GetInt32())
+            .ToArray()
+            .ShouldBe([2, 1]);
     }
 
     [Fact]
@@ -264,6 +277,13 @@ public sealed class AgentCrudTests
             new Uri("/tracon/api/agents/kod-agent", UriKind.Relative));
 
         response.StatusCode.ShouldBe(HttpStatusCode.Conflict);
+
+        // A 409 that deleted the agent anyway would be the worse defect of the
+        // two, and the status code alone cannot see it.
+        using var still = await host.Client.GetAsync(
+            new Uri("/tracon/api/agents/kod-agent", UriKind.Relative));
+
+        still.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
     // --- Validation ---
@@ -278,6 +298,32 @@ public sealed class AgentCrudTests
             TestData.Request(name: "other-name"));
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task Definition_with_an_empty_name_is_rejected()
+    {
+        // The name is the route key. An empty one would produce a row that no
+        // URL can address, so it is rejected at the door rather than stored.
+        await using var host = await TraconTestHost.StartAsync();
+
+        using var response = await host.Client.PostAsJsonAsync(Agents, TestData.Request(name: string.Empty));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        response.Content.Headers.ContentType?.MediaType.ShouldBe("application/problem+json");
+    }
+
+    [Fact]
+    public async Task Nonexistent_definition_cannot_be_deleted()
+    {
+        await using var host = await TraconTestHost.StartAsync();
+
+        using var response = await host.Client.DeleteAsync(
+            new Uri("/tracon/api/agents/no-such-agent", UriKind.Relative));
+
+        // A delete that reports success for a row that never existed makes
+        // "delete then verify" meaningless for every caller.
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 
     [Fact]

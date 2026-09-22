@@ -122,6 +122,12 @@ public sealed class SecurityTests
 
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
         response.Headers.WwwAuthenticate.ToString().ShouldContain("Bearer", Case.Sensitive);
+
+        // The body must not describe the token it wanted. A 401 that helpfully
+        // names the expected secret, or its length, is an oracle.
+        var body = await response.Content.ReadAsStringAsync();
+        body.ShouldNotContain(Token, Case.Sensitive);
+        body.ShouldNotContain(Token.Length.ToString(System.Globalization.CultureInfo.InvariantCulture), Case.Sensitive);
     }
 
     [Fact]

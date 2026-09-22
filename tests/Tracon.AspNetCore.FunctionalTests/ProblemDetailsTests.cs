@@ -36,6 +36,10 @@ public sealed class ProblemDetailsTests
 
         var json = await TraconTestHost.ReadJsonAsync(response);
 
+        // `type` is part of the RFC 7807 envelope and the field a client keys
+        // off to branch on an error class; asserting only title/detail/status
+        // would let it vanish unnoticed.
+        json.GetProperty("type").GetString().ShouldNotBeNullOrWhiteSpace();
         json.GetProperty("title").GetString().ShouldNotBeNullOrWhiteSpace();
         json.GetProperty("detail").GetString().ShouldNotBeNullOrWhiteSpace();
         json.GetProperty("status").GetInt32().ShouldBe((int)expected);
