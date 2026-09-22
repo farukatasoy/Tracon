@@ -621,7 +621,10 @@ def main() -> int:
         if not dizin.is_absolute():
             dizin = ROOT / dizin
     else:
-        adaylar = sorted(d for d in KOSUMLAR.iterdir() if d.is_dir())
+        # `kosumlar/` turlar arasinda hic var olmayabilir (kapanista arsive
+        # tasinir); yoklugu ham traceback degil, ayni temiz hata olmalidir.
+        adaylar = (sorted(d for d in KOSUMLAR.iterdir() if d.is_dir())
+                   if KOSUMLAR.exists() else [])
         if not adaylar:
             print(f"HATA: koşum dizini yok: {KOSUMLAR}", file=sys.stderr)
             return 1

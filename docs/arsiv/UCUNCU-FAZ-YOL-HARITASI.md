@@ -383,7 +383,8 @@ onların aciliyetini **değiştirdi** ve bu bilgi kaybolmamalıdır.
 
 ## Dördüncü Dalga — Faz 53–56 (2026-08-08)
 
-[`DEGERLENDIRME-RAPORU-2026-08.md`](DEGERLENDIRME-RAPORU-2026-08.md) denetimi,
+`DEGERLENDIRME-RAPORU-2026-08.md` denetimi (silindi 2026-09-22, K-847;
+`git show 64c8a103:docs/arsiv/DEGERLENDIRME-RAPORU-2026-08.md`),
 Dalga 3'ün **acil hâle getirdiği dört kalemin** tamamını plana çevirdi.
 Faz 53–56 tamamlandı — dördüncü dalga bitti.
 

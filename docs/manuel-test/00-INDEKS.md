@@ -16,7 +16,7 @@
 |---|---|---|
 | **Spec** — case metni (ön koşul, adımlar, beklenen sonuç) | `docs/manuel-test/<NN>-<ALAN>.md` | Kalıcı; turdan bağımsız |
 | **Protokol** — nasıl koşulur, nasıl kapatılır | [`manuel-test-kosumu`](../../.agents/skills/manuel-test-kosumu/SKILL.md) skill'i | Kalıcı; her tur aynısını uygular |
-| **Koşum kaydı** — `Gerçek sonuç` + `Durum` | [`kosumlar/<tarih>/`](kosumlar/) → kapanınca `docs/arsiv/` | Bir tura ait; donmuş (K-414) |
+| **Koşum kaydı** — `Gerçek sonuç` + `Durum` | `kosumlar/<tarih>/` (tur açılışında açılır) → kapanınca `docs/arsiv/` | Bir tura ait; donmuş (K-414) |
 
 Üçü karışmaz. Spec dosyalarında `Durum:` satırı **yoktur**; ikinci bir tur
 spec'in üzerine yazmaz, `kosumlar/` altında yeni bir tarih dizini açar.
@@ -401,7 +401,8 @@ Bu eşleme bir başlangıçtır; üretim oturumu grep ile doğrular ve gerekirse
 
 Turun kusurları kodlandı ve kapandı (`docs/KARARLAR.md` K-392..K-407). Aşağıdaki
 altı case **kapanmadı** ve bir sonraki tura devreder. Kaynak: turun kapanış
-kaydı, [`../arsiv/manuel-test-kosum-2026-08/KAPANIS-PLANI.md`](../arsiv/manuel-test-kosum-2026-08/KAPANIS-PLANI.md) §6, §10.
+kaydı, 2026-08 turu kapanış planı §6, §10 (silindi 2026-09-22, K-847;
+`git show 64c8a103:docs/arsiv/manuel-test-kosum-2026-08/KAPANIS-PLANI.md`).
 
 | Case | Dosya | Durum | Neden açık |
 |---|---|---|---|
@@ -710,7 +711,9 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
   Ölçüm ve kapsam netleştirmesi `MT-PKG-021`; meta paket üzerinden akış
   `MT-PKG-050`. **Kod değiştirilmedi.**
 - **`EchoModelProvider` izleği yanlış yerde tarif edilmişti (2026-08-09, düzeltildi).**
-  [`PROMPT.md`](../arsiv/manuel-test-kosum-2026-08/PROMPT.md) §3 onu izlek C'nin (`Tracon.Testing`) parçası
+  2026-08 turu PROMPT'u §3 (silindi 2026-09-22, K-847;
+  `git show 64c8a103:docs/arsiv/manuel-test-kosum-2026-08/PROMPT.md`)
+  onu izlek C'nin (`Tracon.Testing`) parçası
   sayıyordu. Ölçüm: paket böyle bir tip taşımıyor; sınıf örnek uygulamanın
   kendisindedir (`samples/Tracon.Api/EchoModelProvider.cs`, sağlayıcı adı
   `echo`, model `echo-1`) ve OpenAI anahtarı yokken kaydedilir. Yani `echo`
