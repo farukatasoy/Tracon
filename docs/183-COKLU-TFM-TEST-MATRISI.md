@@ -28,8 +28,8 @@
    koşum biçimi TFM başına değişir)
 4. [`ci.yml`](../.github/workflows/ci.yml) test job'ı — matrix ve `--no-build`
    akışı
-5. Faz 182 devri (tamamlandı, 2026-09-22) — `awk '/## Sonraki Faza Devir Notu/,0' docs/182-PUBLIC-API-YUZEY-DARALTMA.md`
-   (kapanıştan sonra `docs/arsiv/fazlar/` altında). Özet: 91 tip `internal`
+5. Faz 182 devri (tamamlandı, 2026-09-22) — `awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/182-PUBLIC-API-YUZEY-DARALTMA.md`.
+   Özet: 91 tip `internal`
    oldu; birinci taraf gövde kullanımı `InternalsVisibleTo` ile çözülür ve
    **test projeleri de listededir** (Abstractions → `Tracon.Core/Mcp/Workflows.UnitTests`;
    Core → `Tracon.Voice.UnitTests` + dört provider `UnitTests`). IVT derleme

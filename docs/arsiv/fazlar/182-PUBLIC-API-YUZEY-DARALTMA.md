@@ -2,8 +2,8 @@
 
 > **Durum:** ✅ Tamamlandı (2026-09-22)
 > **Plan onayı:** farukatasoy, 2026-09-22 (beş fazlık tur onayı)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-259**
-> **Önkoşul:** [Faz 181](arsiv/fazlar/181-PROVIDER-ORTAK-KATMANI.md) **önerilir** (zorunlu değil) — provider iç tipleri incelmeden envanter iki kez yapılmasın
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-259**
+> **Önkoşul:** [Faz 181](181-PROVIDER-ORTAK-KATMANI.md) **önerilir** (zorunlu değil) — provider iç tipleri incelmeden envanter iki kez yapılmasın
 > **Paketler:** ölçüm tüm paketler; daraltma beklenen ağırlık `Tracon.Abstractions`, `.Core`, `.AspNetCore`
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** **Küçülüyor** — preview'de kırıcı değişiklik kabul edilir; README zaten "surface may still be reduced before 1.0" vaadini taşıyor
@@ -24,7 +24,7 @@
    ```
    **K-421** (public API takibi açık), **UR-003/KG-016** (freeze taraması GA
    turuna ertelendi — bu faz freeze DEĞİLDİR, freeze'i ucuzlatan daraltmadır)
-3. [`YAYIN-HAZIRLIK.md`](YAYIN-HAZIRLIK.md) §2 ve §13 — sürüm politikası ve
+3. [`YAYIN-HAZIRLIK.md`](../../YAYIN-HAZIRLIK.md) §2 ve §13 — sürüm politikası ve
    GA'ya ertelenenler
 4. Sözleşme dokümantasyon kapısı: `SeamContractDocumentationTests` (küçülen
    taban 174 satır) — daraltılan her arayüz bu tabanı da küçültür
@@ -60,8 +60,8 @@ olmayan public üyeleri `internal`'a çeker ve GA freeze'in faturasını küçü
 |---|---|
 | `wc -l src/*/PublicAPI.Unshipped.txt` | **9.771 toplam**: Abstractions 5.764 · Core 1.475 · AspNetCore 1.236 · Testing.Contracts.Xunit 899 |
 | `wc -l src/*/PublicAPI.Shipped.txt` | Hepsi boş (`#nullable enable` başlığı hariç) — taban çizgisi yok; kapı yalnız *kayıtsız* değişikliği yakalıyor, *kırıcıyı* değil |
-| [`Tracon.Client.csproj`](../src/Tracon.Client/Tracon.Client.csproj) | `TraconPublicApiTrackingEnabled=false` — ~250 üretilmiş DTO takip dışı (OpenAPI drift kapısı gerekçesiyle; bu fazda yeniden değerlendirilir) |
-| [`README.md`](../README.md) durum bloğu | "The public API is **not frozen** … the surface may still be reduced before 1.0" — vaat verilmiş, iş planlanmamıştı |
+| [`Tracon.Client.csproj`](../../../src/Tracon.Client/Tracon.Client.csproj) | `TraconPublicApiTrackingEnabled=false` — ~250 üretilmiş DTO takip dışı (OpenAPI drift kapısı gerekçesiyle; bu fazda yeniden değerlendirilir) |
+| [`README.md`](../../../README.md) durum bloğu | "The public API is **not frozen** … the surface may still be reduced before 1.0" — vaat verilmiş, iş planlanmamıştı |
 
 > Kanıtlar 2026-09-22 tarihinde doğrulandı.
 
