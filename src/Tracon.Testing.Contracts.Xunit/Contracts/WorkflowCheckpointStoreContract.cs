@@ -153,7 +153,9 @@ public abstract class WorkflowCheckpointStoreContract : TenantIsolationContract<
 
         var list = await Store.ListAsync("tenant-a", "s-1");
 
-        WorkflowCheckpointState.IsOmitted(list[0].State).ShouldBeTrue();
+        var state = list[0].State;
+        state.ValueKind.ShouldBe(System.Text.Json.JsonValueKind.Object);
+        state.EnumerateObject().ShouldBeEmpty();
     }
 
     [Fact]

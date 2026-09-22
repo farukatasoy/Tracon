@@ -16,7 +16,7 @@ namespace Tracon;
 /// estimates.
 /// </para>
 /// </remarks>
-public static class GoogleModelCatalog
+internal static class GoogleModelCatalog
 {
     /// <summary>Builds the catalog from the model definitions in settings.</summary>
     /// <param name="options">Provider settings.</param>

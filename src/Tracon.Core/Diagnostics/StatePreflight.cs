@@ -31,7 +31,7 @@ namespace Tracon;
 /// application is not even up.
 /// </para>
 /// </remarks>
-public sealed class StatePreflight
+internal sealed class StatePreflight
 {
     /// <summary>The Microsoft Agent Framework version this process runs.</summary>
     private static readonly string CurrentMafVersion = AssemblyVersionText.Read(typeof(AIAgent).Assembly);

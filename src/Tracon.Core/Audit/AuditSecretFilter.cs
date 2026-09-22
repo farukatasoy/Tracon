@@ -19,7 +19,7 @@ namespace Tracon;
 /// </para>
 /// <para>Does not use reflection; it operates manually with <c>Utf8JsonWriter</c> and <c>JsonDocument</c>.</para>
 /// </remarks>
-public static class AuditSecretFilter
+internal static class AuditSecretFilter
 {
     private static readonly string[] SecretKeyFragments =
     [

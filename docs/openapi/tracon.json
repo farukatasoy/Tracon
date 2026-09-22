@@ -9408,14 +9408,14 @@
               "null",
               "string"
             ],
-            "description": "Gets the state before the change, as JSON text. It has passed the secret filter."
+            "description": "Gets the state before the change, as JSON text. Tracon\u0027s own write path\nremoves secret-named fields first; a caller that writes to\nIAuditLog directly must not put a secret value here."
           },
           "after": {
             "type": [
               "null",
               "string"
             ],
-            "description": "Gets the state after the change, as JSON text. It has passed the secret filter."
+            "description": "Gets the state after the change, as JSON text. Tracon\u0027s own write path\nremoves secret-named fields first; a caller that writes to\nIAuditLog directly must not put a secret value here."
           },
           "createdAt": {
             "type": "string",
@@ -9434,7 +9434,7 @@
               "null",
               "string"
             ],
-            "description": "Gets the hash of this entry, derived from its canonical form\n(see \u0060AuditChainHasher\u0060 in \u0060Tracon.Core\u0060). The write path\ncomputes this value; a caller-supplied value is ignored."
+            "description": "Gets the hash of this entry: a SHA-256 over a canonical form of its\nfields that also includes the previous entry\u0027s hash, so changing an\nearlier entry breaks every later link. The write path computes this\nvalue; a caller-supplied value is ignored."
           }
         },
         "description": "A row in the audit trail that records who changed which entity and when."

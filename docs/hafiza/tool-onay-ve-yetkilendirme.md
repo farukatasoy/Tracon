@@ -146,3 +146,5 @@
   yüzden yanlıştı. Tarayıcıda başlık
   `context.setExtraHTTPHeaders({...})` ile enjekte edilir; konsolun kendi
   `fetch` sarmalayıcısı bu başlığı **göndermez**.
+
+- **🚨 Onay kurali kosul kumesinin parmak izi TEK yerdedir: `ToolArgumentConditionFingerprint`** (2026-09-22, Faz 182, K-851). Once iki elle yazilmis kopya vardi ve iki yonde ayrisiyordu: SQL store'lari yolu U+001F/U+001E tasiyan bir kumeyi baska bir kumeyle AYNI `conditions_hash`'e dusuruyordu (`ON CONFLICT` ikinci kurali yazmadan birinciyi donduruyordu), bellek ici store ise `["eu", "us"]` ile `["eu","us"]`'yi iki kural sayiyordu. Ikisini de `ToolApprovalRuleStoreContract`'in iki yeni case'i yakalar. **Bicim degistirilemez**: `conditions_hash` kalici veridir; ayiricisiz her kume eski bicimle ozetlenir, yalniz ayirici tasiyan yol uzunluk onekli bicime (U+001E ile baslayan) gecer. Bu, argument parmak izinin (`ComputeArgumentsHash`) daha once gectigi uzunluk onekli bicimle AYNI sinif; MEMORY'deki "elle tekrarlanan anahtar ifadesi" (K-525) dersinin ucuncu vakasi.

@@ -137,6 +137,60 @@ public abstract class ToolApprovalRuleStoreContract : TenantIsolationContract<IT
         (await Store.ListAsync("tenant-a")).Count.ShouldBe(2);
     }
 
+    /// <summary>
+    /// Two different condition sets stay two rules even when a path carries the
+    /// characters a store might use to join the fields it compares.
+    /// </summary>
+    /// <remarks>
+    /// A path is free text - a JSON property name may hold any character. A
+    /// store that deduplicates on a joined text of path, operator, and value
+    /// must not let one set's path read as another set's field boundary.
+    /// Otherwise the second rule is merged into the first: the store keeps the
+    /// first rule and hands it back as if the second had been saved.
+    /// </remarks>
+    [Fact]
+    public async Task A_path_carrying_separator_characters_does_not_merge_two_condition_sets()
+    {
+        var single = new[]
+        {
+            new ToolArgumentCondition
+            {
+                Path = "amount\u001F0\u001F1\u001Ecurrency",
+                Operator = ToolArgumentOperator.Equals,
+                Value = TestData.State("2"),
+            },
+        };
+        var pair = new[]
+        {
+            new ToolArgumentCondition { Path = "amount", Operator = ToolArgumentOperator.Equals, Value = TestData.State("1") },
+            new ToolArgumentCondition { Path = "currency", Operator = ToolArgumentOperator.Equals, Value = TestData.State("2") },
+        };
+
+        await Store.AddAsync(Rule("tenant-a", "refund_order") with { AgentName = null, ArgumentConditions = single });
+        var second = await Store.AddAsync(Rule("tenant-a", "refund_order") with { AgentName = null, ArgumentConditions = pair });
+
+        second.ArgumentConditions.Count.ShouldBe(2);
+        (await Store.ListAsync("tenant-a")).Count.ShouldBe(2);
+    }
+
+    /// <summary>
+    /// A list value written with different whitespace is the same condition, so
+    /// the rule is not stored twice.
+    /// </summary>
+    [Fact]
+    public async Task A_list_value_that_differs_only_in_whitespace_is_the_same_condition_set()
+    {
+        static ToolArgumentCondition[] Allowed(string json) =>
+        [
+            new ToolArgumentCondition { Path = "region", Operator = ToolArgumentOperator.In, Value = TestData.State(json) },
+        ];
+
+        await Store.AddAsync(Rule("tenant-a", "refund_order") with { AgentName = null, ArgumentConditions = Allowed("[\"eu\", \"us\"]") });
+        await Store.AddAsync(Rule("tenant-a", "refund_order") with { AgentName = null, ArgumentConditions = Allowed("[\"eu\",\"us\"]") });
+
+        (await Store.ListAsync("tenant-a")).ShouldHaveSingleItem();
+    }
+
     private static ToolApprovalRule Rule(string tenantId, string toolName)
         => new()
         {

@@ -1,7 +1,7 @@
 namespace Tracon;
 
 /// <summary>Represents the experiment variant to which a run request is deterministically assigned.</summary>
-public sealed record ExperimentAssignment
+internal sealed record ExperimentAssignment
 {
     /// <summary>Gets the experiment identifier.</summary>
     public required Guid ExperimentId { get; init; }

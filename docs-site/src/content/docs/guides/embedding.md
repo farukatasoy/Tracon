@@ -345,8 +345,8 @@ connection string moves.
 
 `AutoApplyMigrations` (default `true`) applies to Tracon's own schema only. In
 an embedded setup where your application already owns a controlled migration step
-for its own schema, set it to `false` and call the registered
-`MigrationRunner.ApplyAsync()` from that same step — Tracon's schema then
+for its own schema, set it to `false` and call `ApplyAsync()` on the registered
+`IMigrationApplier` from that same step — Tracon's schema then
 migrates alongside yours instead of at every instance's startup. See
 [Choose a migration strategy](/guides/production/#choose-a-migration-strategy) for
 the fleet-deployment version of this same setting.

@@ -17,7 +17,7 @@ namespace Tracon;
 /// The same rationale applies to rate limiting.
 /// </para>
 /// </remarks>
-public sealed class VoiceConnectionLimiter
+internal sealed class VoiceConnectionLimiter
 {
     private readonly ConcurrentDictionary<string, int> _counts = new(StringComparer.Ordinal);
 
@@ -85,7 +85,7 @@ public sealed class VoiceConnectionLimiter
 /// Disposing it releases the slot. A slot that is not disposed remains consumed,
 /// so connection code uses <c>using</c>.
 /// </remarks>
-public sealed class VoiceConnectionLease : IDisposable
+internal sealed class VoiceConnectionLease : IDisposable
 {
     private readonly VoiceConnectionLimiter _limiter;
     private readonly string _tenantId;

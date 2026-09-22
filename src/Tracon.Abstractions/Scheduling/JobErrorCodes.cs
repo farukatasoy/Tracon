@@ -42,8 +42,8 @@ public static class JobErrorCodes
     /// <summary>Formats the persisted message for <paramref name="code"/>.</summary>
     /// <param name="code">One of this class's constants.</param>
     /// <param name="correlationId">
-    /// The id also written to the log entry carrying the untruncated detail,
-    /// from <see cref="SafeErrorText.NewCorrelationId"/>.
+    /// The id also written to the log entry carrying the untruncated detail
+    /// (Tracon uses a short random hexadecimal id).
     /// </param>
     /// <returns>The message to persist.</returns>
     /// <exception cref="ArgumentException"><paramref name="code"/> is empty.</exception>

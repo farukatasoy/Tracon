@@ -18,10 +18,16 @@ The dialect is the single gateway for all SQL text.
 |-------|-------|
 | `Tracon.PostgreSql` | `<Compile Include="../Tracon.Sql.Shared/**/*.cs" />` |
 | `Tracon.SqlServer` | same |
+| `Tracon.Sqlite` | same |
 
-In both assemblies the types live in the `Tracon` namespace and are `internal`;
-since a type with the same name lives in two **separate** assemblies, there is no
-conflict.
+In all three assemblies the types live in the `Tracon` namespace and are
+`internal`. **Every type here stays `internal`.** A public type would exist
+three times under the same full name, one per provider package: a consumer that
+references two providers (the `tracon` tool references all three) cannot name it
+without `CS0433`, and each package carries its own copy in `PublicAPI.Unshipped.txt`.
+A consumer reaches what these types do through the interfaces in
+`Tracon.Abstractions` instead — `IMigrationApplier` and
+`ISqlPersistenceDiagnostics` resolve to the active provider's migration runner.
 
 ## What belongs here, what doesn't
 

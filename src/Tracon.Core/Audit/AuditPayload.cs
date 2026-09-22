@@ -24,7 +24,7 @@ namespace Tracon;
 // Build audit payloads through this type. Do not interpolate JSON by hand.
 
 /// <summary>Builds a small JSON object for the audit trail.</summary>
-public static class AuditPayload
+internal static class AuditPayload
 {
     /// <summary>Writes a JSON object and returns it as text.</summary>
     /// <param name="writeBody">Writes the object's properties. The braces are supplied.</param>

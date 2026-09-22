@@ -195,19 +195,118 @@ python3 scripts/kapi.py yayin --kuru
 
 ## Plandan Sapmalar
 
-> Kapanışta doldurulur.
+1. **Kanıt tanımı genişledi — dört mekanik kök ve iki kapanış eklendi.** Plan
+   tüketici kanıtını site · sample · şablon · XML `<example>` olarak sayıyordu.
+   Ölçüm dört boşluk gösterdi: (a) **kayıt giriş noktası** (K-509) — tüketici
+   `AddX()` çağırır, uzantı sınıfının adını yazmaz; (b) **OpenAPI şeması** —
+   `XmlCommentGenerator` yalnız public tipin dokümanını belgeye taşır (ölçüldü:
+   önbellekte 604 tip, sıfırı internal), şema tipini daraltmak sevk edilen HTTP
+   sözleşmesinin açıklamasını siler; (c) **imza kapanışı** — kalan bir tipin
+   public imzasında geçen tip kalmak zorundadır (`CS0050`/`CS0051`), aksi hâlde
+   envanter derlenmeyen bir aday listesi üretir; (d) **`<exception cref>`
+   kapanışı** — `IEvalStore.DiffRunsAsync` ve `AgentSessionManager` belgeli
+   istisnalarını adlandırır, derleyici bunu zorlamaz. Dördüncü sınıf
+   `gerekçeli` eklendi: kanıtı olmayan ama bilinçli kalan tip, gerekçesiyle
+   `scripts/public-yuzey-gerekceleri.tsv`'ye yazılır (planda dosya yoktu).
+2. **Başlangıç sayısı 764 değil 766 tip.** Site ölçümü `Tracon.MigrationRunner`'ı
+   bir kez sayıyordu; aynı tam ad üç SQL paketinde public'ti (üç `Unshipped`
+   satırı). Bu bir kusurdu — iki sağlayıcıya bağlı tüketici `CS0433` alıyordu
+   (repro: iki `ProjectReference`'lı scratch proje) — ve daraltma dalgasına girdi.
+3. **Açık Soru 1 (`Tracon.Client`) = B — ama yeni K açılmadı.** İstisna zaten
+   K-566 olarak kayıtlıydı; satıra "yeniden değerlendirildi, korundu" notu düştü.
+4. **Açık Soru 2 (`Testing.Contracts.Xunit`) = B.** Paketin 49 tipi bütünüyle
+   `seam` sayıldı. Yine de iki sözleşme gövdesi iç yardımcıya dayanıyordu
+   (`JobPayload.ExtractItems`, `WorkflowCheckpointState.IsOmitted`); sevk edilen
+   bir sözleşmeye `InternalsVisibleTo` açmak yerine iki assert yapısal kontrole
+   çevrildi. Sözleşmeye dokunulduğu için yayın provası zorunlu oldu.
+5. **Birinci taraf gövde kullanımı `InternalsVisibleTo` ile çözüldü (K-850).**
+   Plan bunu söylemiyordu. Yeni IVT: Abstractions → AspNetCore · Mcp · 3 SQL
+   paketi; Core → Voice · Workflows · Cli; ve sekiz test projesi.
+6. **Adaylar tek kişi tarafından değil, 4 yargıç + 4 bağımsız şüpheci ile
+   elendi.** Şüpheciler iki kararı çevirdi: `AgentParameterValidator` kaldı
+   (public `CompileParameterizedAsync` dokümanı çağırana onu önce çağırmasını
+   söylüyor), `WorkflowCheckpointState` internal oldu (değer `{}`'dir; seam
+   dokümanı artık bunu düz metinle söylüyor).
+7. **Plan dışı kusurlar kapatıldı** (kusur-giderme protokolü, düşen test önce):
+   `ToolArgumentConditionFingerprint` (K-851 — SQL store'ları iki koşul kümesini
+   birleştiriyordu, bellek içi store boşluk farkını iki kural sayıyordu);
+   bellek içi MCP store'unun anahtarındaki ham U+001F → tuple; `IApiKeyStore`,
+   `IJobStore`, `IWorkflowCheckpointStore`, `AuditEntry`, `JobSchedule.NextRunAt`
+   dokümanı eksik/yanlış yükümlülükleri söylüyordu; public dokümandan internal
+   `FreeFormJson`'a giden üç `cref`; bir Türkçe XML açıklaması; artık gereksiz
+   RS0041 `NoWarn`'ı (K-423); site betiğinde `MigrationRunner` için ölü özel durum.
 
 ## Bu Fazda Verilen Kararlar
 
-> Kapanışta doldurulur.
+- **K-850** — Public yüzey dış kanıt ölçütüyle daraltıldı: 91 tip `internal`;
+  birinci taraf gövde kullanımı `InternalsVisibleTo` ile çözülür; OpenAPI şema
+  tipi HTTP sözleşmesi olarak kalır; gerekçeler `scripts/public-yuzey-gerekceleri.tsv`.
+- **K-851** — Koşul kümesi parmak izi tek iç fonksiyonda; ayırıcı taşıyan yol
+  uzunluk önekli biçime geçer, mevcut `conditions_hash` satırları geçerli kalır.
+- Notlar: K-422 (kısmen geçersiz) · K-423 (yerine geçildi) · K-566 (korundu) ·
+  K-568 (tamamlandı) · K-596 (görünürlük değişti).
 
 ## Gerçekleşen Public API
 
-> Kapanışta doldurulur.
+**Net değişim negatif.** Yeni public üye: yalnız iki sözleşme case'i
+(`ToolApprovalRuleStoreContract` — test metotları public API'dir).
+
+| Paket | Tip önce → sonra | `Unshipped` satırı önce → sonra |
+|---|---:|---:|
+| `Tracon.Abstractions` | 418 → 407 | 5.764 → 5.689 |
+| `Tracon.Core` | 164 → 95 | 1.475 → 942 |
+| `Tracon.OpenAI` | 11 → 8 | 62 → 52 |
+| `Tracon.Anthropic` · `.Azure` · `.Google` | 5·6·6 → 3·4·4 | 34·34·40 → 27·27·32 |
+| `Tracon.PostgreSql` · `.SqlServer` · `.Sqlite` | 3·3·3 → 2·2·2 | 26·24·24 → 22·20·20 |
+| `Tracon.Voice` | 3 → 2 | 32 → 30 |
+| `Tracon.Testing.Contracts.Xunit` | 49 → 49 | 899 → 901 |
+| Diğer 6 paket | değişmedi | değişmedi |
+| **Toplam** | **766 → 673** | **9.771 → 9.119** |
+
+`internal` olan 91 tipin tam listesi `CHANGELOG.md` `[Unreleased]` → `Removed`
+bölümündedir. Envanter (2026-09-22, kapanış):
+
+| Paket | Toplam | Tüketici | Seam | Gerekçeli | Kanıtsız |
+|---|---:|---:|---:|---:|---:|
+| `Tracon.Abstractions` | 407 | 355 | 41 | 11 | 0 |
+| `Tracon.AspNetCore` | 81 | 79 | 1 | 1 | 0 |
+| `Tracon.Core` | 95 | 92 | 0 | 3 | 0 |
+| `Tracon.Testing.Contracts.Xunit` | 49 | 0 | 49 | 0 | 0 |
+| Diğer 12 paket | 41 | 41 | 0 | 0 | 0 |
+| **Toplam** | **673** | **567** | **91** | **15** | **0** |
+
+Kalan 15 gerekçeli tip: `AgentParameterValidator` (+ `…Result`/`…Error` imza
+kapanışıyla), `ApiKeyGenerator` (+ `GeneratedApiKey`), `EvalRunDiffBuilder`,
+`JobLanes`, `RetentionTargets`, `RunEventCustomTypes`,
+`TraconGeneratedToolArguments` (kaynak üreteci tüketicinin derlemesine kod
+yazar — IVT orada çalışmaz), `TraconRunBudgetExceededException`,
+`TraconStructuredResponseException`, `TraconToolTimeoutException`,
+`WebhookEvents`, `TraconAgentSessionStore`.
 
 ## Dosya Listesi (gerçekleşen)
 
-> Kapanışta doldurulur.
+```
+scripts/public-yuzey-envanteri.py            (yeni; kalıcı envanter)
+scripts/public_yuzey_envanteri_test.py       (yeni; 29 test)
+scripts/public-yuzey-gerekceleri.tsv         (yeni; 13 kök gerekçe)
+src/*/PublicAPI.Unshipped.txt                (11 paket küçüldü; Contracts +2)
+src/**/*.cs                                  (74 dosyada public → internal)
+src/Tracon.Abstractions/Tracon.Abstractions.csproj   (IVT; RS0041 NoWarn kalktı)
+src/Tracon.Core/Properties/AssemblyInfo.cs   (IVT)
+src/Tracon.Core/Approvals/ToolArgumentConditionFingerprint.cs  (yeni, K-851)
+src/Tracon.Sql.Shared/Stores/SqlApprovalAndMcpStores.cs        (K-851)
+src/Tracon.Core/Storage/InMemoryApprovalAndMcpStores.cs        (K-851; MCP anahtarı)
+src/Tracon.Testing.Contracts.Xunit/Contracts/{ToolApprovalRule,JobSchedule,WorkflowCheckpoint}StoreContract.cs
+tests/Tracon.Core.UnitTests/Architecture/PublicSurfaceBaselineTests.cs  (+ ad tekilliği kapısı)
+tests/Tracon.Package.Tests/ConsumerSurfaceTests.cs            (MigrationRunner çifti)
+docs/openapi/tracon.json · src/Tracon.Client/Generated/TraconApiClient.g.cs ·
+packages/tracon-client/src/schema.ts         (AuditEntry açıklamaları)
+docs-site/.../guides/{embedding,production}.md · src/*/README.md · README.md · CHANGELOG.md
+docs-site/scripts/build-api-reference.mjs    (ölü özel durum silindi)
+docs/manuel-test/{00-INDEKS,01-KURULUM-VE-PAKETLEME,13-KIRACI-VE-GUVENLIK}.md
+docs/hafiza/{analyzer-tanilari,dokumantasyon,http-uc-guvenlik-ve-sozlesme,tool-onay-ve-yetkilendirme,nswag-istemci-uretimi,altyapi-haritasi}.md
+docs/KARARLAR.md                             (K-850, K-851 + beş not)
+```
 
 ## Süreç Ölçümü
 

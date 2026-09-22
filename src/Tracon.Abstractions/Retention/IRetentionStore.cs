@@ -136,8 +136,8 @@ public interface IRetentionStore
 /// <para>
 /// <strong>DI lifetime — singleton, optional.</strong> No default implementation is
 /// registered. A consumer that registers one must register it as a singleton — it is
-/// resolved once, as a constructor parameter of the singleton
-/// <c>RetentionExecutor</c>, via <c>IServiceProvider.GetService&lt;IArchiveSink&gt;()</c>.
+/// resolved once, as a constructor parameter of Tracon's singleton retention
+/// executor, via <c>IServiceProvider.GetService&lt;IArchiveSink&gt;()</c>.
 /// A scoped registration would be a captive dependency.
 /// </para>
 /// </remarks>

@@ -14,7 +14,7 @@ namespace Tracon;
 /// before the prefix was configured must not silently read an out-of-prefix
 /// configuration key.
 /// </remarks>
-public sealed class InboundTriggerSecretResolver
+internal sealed class InboundTriggerSecretResolver
 {
     private readonly IConfiguration? _configuration;
     private readonly IOptionsMonitor<TraconInboundTriggerOptions> _options;

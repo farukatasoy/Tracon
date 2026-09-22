@@ -1,6 +1,6 @@
 # 01 — Kurulum ve Paketleme (`PKG`)
 
-> **Alan kodu:** `PKG` · **Faz:** 0, 52, 60
+> **Alan kodu:** `PKG` · **Faz:** 0, 52, 60, 182
 > **Kaynak:** `global.json` · `NuGet.config` · `Directory.Build.props` ·
 > `Directory.Build.targets` · `src/Directory.Build.props` · `src/*/*.csproj` ·
 > `src/Tracon.Generators/`
@@ -2377,13 +2377,16 @@ dotnet build src/Tracon.Core/Tracon.Core.csproj -c Release 2>&1 | grep "RS0016"
 
 RS0026 düzeltmelerinin (60.2) `ProjectReference` ile değil, gerçek `.nupkg` ile
 tüketildiğinde de çalıştığının kanıtı — iç test bu sınıfı hiç görmez.
+Faz 182 dört `*ChatClientFactory` tipini `internal` yaptı; `FromClient` statik
+fabrikası artık tüketiciye görünmez, bu yüzden case yalnız sadeleşen `UseMcp()`
+aşırı yüklemesini ve `UseAnthropic(apiKey)` kaydını ölçer.
 
 **Ön koşul**
 - `dotnet pack` üretti (`artifacts/package/release/`).
 
 **Adımlar**
 1. Scratch bir konsol projesi aç, yerel besleme (`artifacts/package/release`) ile `Tracon.Anthropic` ve `Tracon.Mcp`'yi ekle.
-2. `AnthropicChatClientFactory.FromClient(...)` (yeni statik fabrika) ve `UseMcp()` (bare, sadeleşmiş aşırı yükleme) çağır.
+2. `UseAnthropic("k")` ve `UseMcp()` (bare, sadeleşmiş aşırı yükleme) çağır.
 3. Derle ve çalıştır.
 
 **Girilecek veri**
@@ -2403,16 +2406,20 @@ cat > NuGet.config <<'EOF'
 EOF
 dotnet add package Tracon.Anthropic --version <surum>
 dotnet add package Tracon.Mcp --version <surum>
-# Program.cs: AnthropicChatClientFactory.FromClient(client, defaultModel: "claude-sonnet", loggerFactory: null)
+# Program.cs: var services = new ServiceCollection();
 #             services.AddTracon().UseAnthropic("k").UseMcp();
+#             Console.WriteLine($"Consumer probe OK: {services.Count} services");
 dotnet build -c Release
 dotnet run -c Release --no-build
 ```
 
 **Beklenen sonuç**
 - Derleme sıfır uyarıyla biter.
-- Çalıştırma `Consumer probe OK: Tracon.AnthropicChatClientFactory` yazdırır.
-- Ölçüldü (2026-08-16): birebir bu çıktı üretildi, sürüm `0.0.0-preview.0.251`.
+- Çalıştırma `Consumer probe OK: <n> services` yazdırır (`n` > 0).
+- `AnthropicChatClientFactory` adı derlenmez (`CS0122`) — tip Faz 182'de
+  `internal` oldu; bu case onu artık çağırmaz.
+- Ölçüldü (2026-08-16, Faz 182 öncesi biçim): `FromClient` ile birebir çıktı
+  üretildi, sürüm `0.0.0-preview.0.251`.
 
 ---
 
@@ -3432,3 +3439,101 @@ for f in sorted(ap.glob("*.nupkg")):
   PolyForm'a geçtikten sonra MIT demeye devam etmişti. README, nuget.org'un ve
   npmjs.com'un render ettiği sayfadır — çeliştiğinde tüketici ona inanır.
 - npm tarafı `MT-PKG-121` ile ayrıca ölçülür.
+
+---
+
+### MT-PKG-123 — Public yüzey envanteri kanıtsız tip bırakmaz
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 182 |
+| **İlgili karar** | K-850 |
+
+GA freeze turu (UR-003) bu envanterle başlar; `kanıtsız` sütunu o turun iş
+listesidir. Faz 182 sütunu sıfıra indirdi.
+
+**Ön koşul**
+- Repo temiz; `docs/openapi/tracon.json` güncel.
+
+**Adımlar**
+1. Paket tablosunu üret.
+2. Bir tipin neden kaldığını sor.
+3. Denetim kipini koş.
+
+**Girilecek veri**
+```bash
+python3 scripts/public-yuzey-envanteri.py
+python3 scripts/public-yuzey-envanteri.py --tip Tracon.RunStatus
+python3 scripts/public-yuzey-envanteri.py --denetle; echo "exit=$?"
+```
+
+**Beklenen sonuç**
+- Tablo 16 paket satırı ve bir **Toplam** satırı basar; her satırda
+  `Toplam = Tüketici + Seam + Gerekçeli + Kanıtsız`.
+- `Kanıtsız` sütunu her pakette `0`.
+- Adım 2 zinciri köke kadar yazar (her `imza:`/`istisna:` adımı bir satır).
+- Adım 3 `exit=0` döner ve stderr'e `bayat gerekçe` basmaz.
+- Ölçüldü (2026-09-22): Toplam **673** · Tüketici 567 · Seam 91 · Gerekçeli 15 ·
+  Kanıtsız **0** (faz öncesi: 766 tip, 108 kanıtsız).
+
+---
+
+### MT-PKG-124 — Daraltılmış yüzey paketlenmiş dış sample'larda derlenir ve koşar
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 182 |
+| **İlgili karar** | K-850 |
+
+Bir tipi `internal` yapmak testleri kırmaz — test projeleri
+`InternalsVisibleTo` alır. Kıracağı tek yer gerçek tüketicidir; altı dış
+sample yalnız `PackageReference` ile derlenir.
+
+**Ön koşul**
+- Çalışma ağacı temiz (`yayin` kirli ağaçta paketlemez).
+
+**Adımlar**
+1. Yayın provasını koş.
+
+**Girilecek veri**
+```bash
+python3 scripts/kapi.py yayin --kuru
+```
+
+**Beklenen sonuç**
+- Altı `samples/Tracon.Samples.*.Tests` projesi paketlenmiş sürüme karşı
+  derlenir ve testleri geçer; AOT smoke yayımlanır.
+- Hiçbir sample `CS0122` vermez.
+
+---
+
+### MT-PKG-125 — `MigrationRunner` tüketiciye görünmez, `IMigrationApplier` görünür
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 182 |
+| **İlgili karar** | K-850 |
+| **Devir** | ➜ CI: `ConsumerSurfaceTests.Internal_type_is_not_visible_to_a_package_consumer` · `ConsumerSurfaceTests.Corresponding_interface_is_visible_to_a_package_consumer` · `PublicSurfaceBaselineTests.A_public_type_name_is_declared_by_only_one_package` |
+
+`MigrationRunner` üç SQL sağlayıcı paketinde aynı tam adla public'ti: iki
+sağlayıcıya bağlı bir tüketici onu adlandıramıyordu (`CS0433`), site ise
+tüketiciye onu çağırmasını söylüyordu.
+
+**Ön koşul**
+- Yerel besleme hazır (`MT-PKG-094` ile aynı); `~/.nuget/packages/tracon*` silinmiş.
+
+**Adımlar**
+1. `Tracon.PostgreSql` ve `Tracon.Sqlite` paketlerine bağlı scratch bir konsol
+   projesinde `MigrationRunner? r = null;` yaz, derle.
+2. Satırı `IMigrationApplier? r = null;` ile değiştir, derle.
+
+**Beklenen sonuç**
+- Adım 1 `CS0122` verir (`CS0433` değil — tip artık hiçbir pakette public değil).
+- Adım 2 derlenir.
+

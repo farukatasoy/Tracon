@@ -31,7 +31,7 @@ namespace Tracon;
 /// would litter plain-text instructions with stray backslashes.
 /// </para>
 /// </remarks>
-public static class InstructionParameterBinder
+internal static class InstructionParameterBinder
 {
     /// <summary>
     /// Matches a placeholder in the form <c>{{name}}</c>, where <c>name</c> is a

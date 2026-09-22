@@ -14,10 +14,6 @@ Tracon.TraconSqlServerOptions.EnableReadViews.get -> bool
 Tracon.TraconSqlServerOptions.EnableReadViews.set -> void
 Tracon.TraconSqlServerOptions.SchemaName.get -> string!
 Tracon.TraconSqlServerOptions.SchemaName.set -> void
-Tracon.MigrationRunner
-Tracon.MigrationRunner.ApplyAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<int>
-Tracon.MigrationRunner.GetSnapshotAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.SqlPersistenceDiagnosticsSnapshot!>
-Tracon.MigrationRunner.ProviderName.get -> string!
 const Tracon.TraconSqlServerOptions.SectionName = "Tracon:SqlServer" -> string!
 static Tracon.TraconSqlServerBuilderExtensions.UseSqlServer(this Tracon.ITraconBuilder! builder, Microsoft.Extensions.Configuration.IConfiguration! configurationSection) -> Tracon.ITraconBuilder!
 static Tracon.TraconSqlServerBuilderExtensions.UseSqlServer(this Tracon.ITraconBuilder! builder, string! connectionString) -> Tracon.ITraconBuilder!

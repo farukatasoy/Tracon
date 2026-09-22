@@ -23,7 +23,7 @@ namespace Tracon;
 /// noisy, and otherwise notifications quickly become ignored.
 /// </para>
 /// </remarks>
-public sealed class OnlineEvalSummaryService(
+internal sealed class OnlineEvalSummaryService(
     IRunStore runStore,
     IOptionsMonitor<OnlineEvaluationOptions> optionsMonitor,
     IWebhookPublisher? webhookPublisher = null,

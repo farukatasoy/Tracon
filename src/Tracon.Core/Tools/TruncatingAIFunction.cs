@@ -33,7 +33,7 @@ namespace Tracon;
 /// envelope every other tool gets.
 /// </para>
 /// </remarks>
-public sealed class TruncatingAIFunction : DelegatingAIFunction
+internal sealed class TruncatingAIFunction : DelegatingAIFunction
 {
     /// <summary>
     /// The largest an empty-content envelope can ever be — the worst case is

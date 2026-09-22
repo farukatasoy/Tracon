@@ -24,7 +24,7 @@ namespace Tracon;
 /// client closes when the container shuts down.
 /// </para>
 /// </remarks>
-public sealed class GoogleChatClientFactory : IDisposable
+internal sealed class GoogleChatClientFactory : IDisposable
 {
     private readonly Client _client;
     private readonly bool _ownsClient;
@@ -48,9 +48,10 @@ public sealed class GoogleChatClientFactory : IDisposable
     /// <returns>The new factory.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="client"/> is <see langword="null"/>.</exception>
     /// <remarks>
-    /// Setups that manage their own authentication (for example, a Vertex AI
-    /// service account) use this factory method. The lifetime of a client passed
-    /// this way belongs to the <em>caller</em>; the factory does not close it.
+    /// The model provider builds a tenant's own-credential factory this way: it
+    /// creates the client for that credential, then wraps it here. The lifetime
+    /// of a client passed this way belongs to the <em>caller</em>; the factory
+    /// does not close it.
     /// </remarks>
     public static GoogleChatClientFactory FromClient(Client client, string? defaultModel = null, ILoggerFactory? loggerFactory = null)
         => new(client, defaultModel, loggerFactory, ownsClient: false);

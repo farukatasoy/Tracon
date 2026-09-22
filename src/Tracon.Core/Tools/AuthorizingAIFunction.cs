@@ -29,7 +29,7 @@ namespace Tracon;
 /// not a gate.
 /// </para>
 /// </remarks>
-public sealed class AuthorizingAIFunction : DelegatingAIFunction
+internal sealed class AuthorizingAIFunction : DelegatingAIFunction
 {
     private readonly IToolAuthorizationHandler _handler;
     private readonly ToolEffect _effect;

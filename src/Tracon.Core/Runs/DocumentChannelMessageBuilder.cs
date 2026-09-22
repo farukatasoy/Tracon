@@ -22,7 +22,7 @@ namespace Tracon;
 /// document's content can never forge the end of the document.
 /// </para>
 /// </remarks>
-public static class DocumentChannelMessageBuilder
+internal static class DocumentChannelMessageBuilder
 {
     /// <summary>The <see cref="AIContent.AdditionalProperties"/> key carrying the document's name.</summary>
     public const string DocumentNameProperty = "tracon.documentName";
@@ -110,4 +110,4 @@ public static class DocumentChannelMessageBuilder
 /// <param name="Name">The document's name.</param>
 /// <param name="SizeBytes">The document's UTF-8 byte size.</param>
 /// <param name="Sha256">The document's SHA-256 hash, as lowercase hex.</param>
-public readonly record struct DocumentAttachmentSummary(string Name, int SizeBytes, string Sha256);
+internal readonly record struct DocumentAttachmentSummary(string Name, int SizeBytes, string Sha256);

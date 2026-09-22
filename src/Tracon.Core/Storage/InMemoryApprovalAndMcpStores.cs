@@ -76,45 +76,10 @@ internal sealed class InMemoryToolApprovalRuleStore : IToolApprovalRuleStore
             && string.Equals(left.AgentName, right.AgentName, StringComparison.Ordinal)
             && string.Equals(left.ToolName, right.ToolName, StringComparison.Ordinal)
             && string.Equals(left.ArgumentsHash, right.ArgumentsHash, StringComparison.Ordinal)
-            && ConditionsEqual(left.ArgumentConditions, right.ArgumentConditions);
-
-    /// <summary>
-    /// Order-independent condition-set equality, mirroring the SQL stores'
-    /// <c>conditions_hash</c> uniqueness key (canonical order, exact JSON text).
-    /// </summary>
-    private static bool ConditionsEqual(IReadOnlyList<ToolArgumentCondition> left, IReadOnlyList<ToolArgumentCondition> right)
-    {
-        if (left.Count != right.Count)
-        {
-            return false;
-        }
-
-        if (left.Count == 0)
-        {
-            return true;
-        }
-
-        var leftSorted = left.OrderBy(static c => c.Path, StringComparer.Ordinal)
-            .ThenBy(static c => (int)c.Operator)
-            .ThenBy(static c => c.Value.GetRawText(), StringComparer.Ordinal)
-            .ToList();
-        var rightSorted = right.OrderBy(static c => c.Path, StringComparer.Ordinal)
-            .ThenBy(static c => (int)c.Operator)
-            .ThenBy(static c => c.Value.GetRawText(), StringComparer.Ordinal)
-            .ToList();
-
-        for (var i = 0; i < leftSorted.Count; i++)
-        {
-            if (!string.Equals(leftSorted[i].Path, rightSorted[i].Path, StringComparison.Ordinal)
-                || leftSorted[i].Operator != rightSorted[i].Operator
-                || !string.Equals(leftSorted[i].Value.GetRawText(), rightSorted[i].Value.GetRawText(), StringComparison.Ordinal))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
+            && string.Equals(
+                ToolArgumentConditionFingerprint.Compute(left.ArgumentConditions),
+                ToolArgumentConditionFingerprint.Compute(right.ArgumentConditions),
+                StringComparison.Ordinal);
 }
 
 /// <summary>
@@ -123,7 +88,9 @@ internal sealed class InMemoryToolApprovalRuleStore : IToolApprovalRuleStore
 /// <remarks>Use <c>Tracon.PostgreSql</c> in production.</remarks>
 internal sealed class InMemoryMcpServerStore : IMcpServerStore
 {
-    private readonly ConcurrentDictionary<string, McpServerDefinition> _servers = new(StringComparer.Ordinal);
+    // A tuple, not a joined string: a joined key needs a separator that no
+    // tenant id or name can contain, and nothing at this layer enforces one.
+    private readonly ConcurrentDictionary<(string TenantId, string Name), McpServerDefinition> _servers = new();
 
     /// <inheritdoc />
     public ValueTask<IReadOnlyList<McpServerDefinition>> ListAsync(
@@ -194,13 +161,13 @@ internal sealed class InMemoryMcpServerStore : IMcpServerStore
         return new ValueTask<bool>(_servers.TryRemove(Key(tenantId, name), out _));
     }
 
-    private static string Key(string tenantId, string name) => $"{tenantId}{name}";
+    private static (string TenantId, string Name) Key(string tenantId, string name) => (tenantId, name);
 }
 
 /// <summary>
 /// A store that keeps tenant records in process memory.
 /// </summary>
-/// <remarks>Uretimde <c>Tracon.PostgreSql</c> kullanin.</remarks>
+/// <remarks>Use <c>Tracon.PostgreSql</c> in production.</remarks>
 internal sealed class InMemoryTenantStore : ITenantStore
 {
     private readonly ConcurrentDictionary<string, TenantDescriptor> _tenants = new(StringComparer.Ordinal);

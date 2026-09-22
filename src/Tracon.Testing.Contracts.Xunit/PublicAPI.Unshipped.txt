@@ -572,6 +572,8 @@ Tracon.Testing.Contracts.Storage.TenantProviderBindingStoreContract.TenantProvid
 Tracon.Testing.Contracts.Storage.TenantProviderBindingStoreContract.Upsert_replaces_the_existing_binding_for_the_same_tenant_and_provider() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.TestData
 Tracon.Testing.Contracts.Storage.ToolApprovalRuleStoreContract
+Tracon.Testing.Contracts.Storage.ToolApprovalRuleStoreContract.A_list_value_that_differs_only_in_whitespace_is_the_same_condition_set() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ToolApprovalRuleStoreContract.A_path_carrying_separator_characters_does_not_merge_two_condition_sets() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.ToolApprovalRuleStoreContract.Added_rule_is_read_back() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.ToolApprovalRuleStoreContract.Argument_conditions_round_trip() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.ToolApprovalRuleStoreContract.Condition_scoped_rule_added_twice_leaves_a_single_record() -> System.Threading.Tasks.Task!

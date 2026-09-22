@@ -34,7 +34,7 @@ namespace Tracon;
 /// </para>
 /// </remarks>
 /// <typeparam name="TFactory">The provider-specific chat client factory type.</typeparam>
-public sealed class ProviderCredentialClientCache<TFactory>
+internal sealed class ProviderCredentialClientCache<TFactory>
     where TFactory : class
 {
     private readonly ConcurrentDictionary<string, TFactory> _factories = new(StringComparer.Ordinal);

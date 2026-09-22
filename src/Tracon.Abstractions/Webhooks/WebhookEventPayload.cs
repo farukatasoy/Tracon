@@ -201,4 +201,4 @@ public sealed record WebhookScoreSummary
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
 [JsonSerializable(typeof(WebhookEventPayload))]
-public partial class WebhookEventPayloadJsonContext : JsonSerializerContext;
+internal partial class WebhookEventPayloadJsonContext : JsonSerializerContext;

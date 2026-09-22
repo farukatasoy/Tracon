@@ -11,7 +11,7 @@ namespace Tracon;
 /// Matching is case-insensitive: BCP-47 tags are conventionally lowercase, but a
 /// definition authored by hand may not be.
 /// </remarks>
-public static class InstructionCultureResolver
+internal static class InstructionCultureResolver
 {
     /// <summary>Resolves the instructions text for a definition and a requested culture.</summary>
     /// <param name="definition">The definition being compiled.</param>

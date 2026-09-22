@@ -5,7 +5,7 @@ namespace Tracon;
 /// Shared by <see cref="InMemoryAuditLog"/> and the SQL providers so the two
 /// verify algorithms can never drift apart.
 /// </summary>
-public static class AuditChainWalker
+internal static class AuditChainWalker
 {
     /// <summary>Verifies an ordered (oldest first) list of entries belonging to one tenant.</summary>
     /// <param name="entries">The entries, ordered oldest to newest (<c>created_at</c>, then <c>id</c>).</param>

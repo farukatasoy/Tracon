@@ -39,7 +39,9 @@
     ortaya cikar. Duzeltme KAYNAK `.WithDescription(...)` metnindedir, uretilen
     dosyada degil (o zaten yeniden uretilir).
 - **🚨 Linked-source (K-176) bir tipi UC saglayiciyi BIRLIKTE referanslayan
-  bir tuketici derlemesinde `CS0433` (belirsiz referans) verir** (Faz 83,
+  bir tuketici derlemesinde `CS0433` (belirsiz referans) verir** (Faz 83;
+  Faz 182'de `MigrationRunner` `internal` oldu ve sinif kapandi — kapi
+  `PublicSurfaceBaselineTests.A_public_type_name_is_declared_by_only_one_package`,
   K-568): `MigrationRunner` her SQL saglayici paketine AYRI derlenir (K-247'nin
   ayni tuzagi, burada "sayim" degil "unqualified referans" baglaminda);
   `tracon` CLI'si `--provider`'a gore calisma aninda secim yaptigi icin

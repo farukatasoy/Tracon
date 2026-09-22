@@ -210,7 +210,7 @@ internal sealed class RunToCasePromoter
 }
 
 /// <summary>Defines the outcome of <see cref="RunToCasePromoter.PromoteAsync"/>.</summary>
-public enum RunPromotionStatus
+internal enum RunPromotionStatus
 {
     /// <summary>The run does not exist or belongs to another tenant.</summary>
     RunNotFound,
@@ -238,4 +238,4 @@ public enum RunPromotionStatus
 }
 
 /// <summary>Represents the <see cref="RunToCasePromoter.PromoteAsync"/> outcome and its case, when present.</summary>
-public sealed record RunPromotionOutcome(RunPromotionStatus Status, EvalCase? Case);
+internal sealed record RunPromotionOutcome(RunPromotionStatus Status, EvalCase? Case);

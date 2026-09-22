@@ -15,7 +15,7 @@ namespace Tracon;
 /// session value that arrives inside a frame is not accepted: to change the tenant
 /// on a long-lived connection is to move authorization after the handshake.
 /// </remarks>
-public sealed record VoiceConversationRequest
+internal sealed record VoiceConversationRequest
 {
     /// <summary>Gets the tenant that was resolved while the connection was established.</summary>
     public required string TenantId { get; init; }
