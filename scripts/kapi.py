@@ -14,6 +14,7 @@ import hashlib
 import json
 import os
 import pathlib
+import platform
 import re
 import shlex
 import shutil
@@ -653,12 +654,258 @@ SAMPLE_TEST_PROJECTS: dict[str, str] = {
 RELEASE_ONLY_SAMPLE_PREFIX = "samples/Tracon.Samples."
 
 
+# -----------------------------------------------------------------------------
+# Test framework matrix (Faz 183)
+#
+# A representative set of test projects runs on every framework the packages
+# ship; the rest stays on net10.0. The set and the framework list live in ONE
+# place, tests/Directory.Build.props, and are read from there - a second copy
+# here would drift the first time the set changes. A multi-targeted project's
+# output moves from artifacts/bin/<P>/release/ to release_<tfm>/, so every path
+# this script builds to a test executable or a TRX goes through these helpers.
+# -----------------------------------------------------------------------------
+
+TESTS_BUILD_PROPS = pathlib.PurePath("tests", "Directory.Build.props")
+TEST_FRAMEWORKS_ENV = "TraconTestTargetFrameworks"
+_TEST_FRAMEWORKS_PROPERTY = re.compile(
+    r"<TraconTestTargetFrameworks\b[^>]*>(?P<value>[^<]+)</TraconTestTargetFrameworks>")
+_SINGLE_TEST_FRAMEWORK_PROPERTY = re.compile(r"<TargetFramework\b[^>]*>(?P<value>[^<]+)</TargetFramework>")
+_MULTI_TARGET_PROPERTY = re.compile(
+    r"<TraconMultiTargetTest\b(?P<condition>[^>]*)>true</TraconMultiTargetTest>", re.DOTALL)
+_PROJECT_NAME_CONDITION = re.compile(r"'\$\(MSBuildProjectName\)'\s*==\s*'(?P<name>[^']+)'")
+
+
+def _tests_build_props(root: pathlib.Path) -> str:
+    return (root / TESTS_BUILD_PROPS).read_text(encoding="utf-8")
+
+
+def test_target_frameworks(
+    root: pathlib.Path = ROOT, environ: Mapping[str, str] = os.environ,
+) -> tuple[str, ...]:
+    """The frameworks a multi-targeted test project builds for.
+
+    An environment variable of the same name wins, exactly as it does for
+    MSBuild (environment variables are initial properties) - the windows-latest
+    CI leg narrows the matrix to net10.0 that way, and this script must then
+    look for the same output directories MSBuild produced."""
+    override = environ.get(TEST_FRAMEWORKS_ENV, "").strip()
+    if override:
+        value = override
+    else:
+        match = _TEST_FRAMEWORKS_PROPERTY.search(_tests_build_props(root))
+        if match is None:
+            raise ValueError(f"{TESTS_BUILD_PROPS}: TraconTestTargetFrameworks bulunamadı")
+        value = match.group("value")
+    return tuple(part.strip() for part in value.split(";") if part.strip())
+
+
+def single_test_target_framework(root: pathlib.Path = ROOT) -> str:
+    match = _SINGLE_TEST_FRAMEWORK_PROPERTY.search(_tests_build_props(root))
+    if match is None:
+        raise ValueError(f"{TESTS_BUILD_PROPS}: tekil TargetFramework bulunamadı")
+    return match.group("value").strip()
+
+
+def multi_target_test_projects(root: pathlib.Path = ROOT) -> tuple[str, ...]:
+    match = _MULTI_TARGET_PROPERTY.search(_tests_build_props(root))
+    if match is None:
+        return ()
+    return tuple(found.group("name") for found in _PROJECT_NAME_CONDITION.finditer(match.group("condition")))
+
+
+def test_output_directories(
+    project: str,
+    framework: str | None = None,
+    *,
+    root: pathlib.Path = ROOT,
+    environ: Mapping[str, str] = os.environ,
+) -> list[pathlib.Path]:
+    """Every output directory a test project's executable lands in.
+
+    🚨 Resolved from the DECLARED frameworks, never from what exists on disk: a
+    project that just became multi-targeted still has a stale release/ folder
+    from its last single-framework build, and running that binary would report
+    on code that no longer exists."""
+    project_bin = root / "artifacts" / "bin" / project
+    if project in multi_target_test_projects(root):
+        frameworks = test_target_frameworks(root, environ)
+        if framework is not None:
+            if framework not in frameworks:
+                raise ValueError(f"{project} {framework} için derlenmiyor (derlenen: {', '.join(frameworks)})")
+            frameworks = (framework,)
+        return [project_bin / f"release_{name}" for name in frameworks]
+
+    only = single_test_target_framework(root)
+    if framework is not None and framework != only:
+        raise ValueError(f"{project} yalnız {only} için derlenir; çoklu TFM kümesi {TESTS_BUILD_PROPS} içindedir")
+    return [project_bin / "release"]
+
+
+def _runtime_majors_in(directory: pathlib.Path) -> set[int]:
+    majors: set[int] = set()
+    if directory.is_dir():
+        for child in directory.iterdir():
+            head = child.name.split(".", 1)[0]
+            if child.is_dir() and head.isdigit():
+                majors.add(int(head))
+    return majors
+
+
+_APPHOST_ARCHITECTURES = {"arm64": "arm64", "aarch64": "arm64", "x86_64": "x64", "amd64": "x64"}
+DOTNET_INSTALL_LOCATION_DIR = pathlib.Path("/etc/dotnet")
+_DEFAULT_GLOBAL_DOTNET_ROOT = {"Darwin": "/usr/local/share/dotnet", "Linux": "/usr/share/dotnet"}
+
+
+def _apphost_architecture(machine: str | None = None) -> str | None:
+    return _APPHOST_ARCHITECTURES.get((machine or platform.machine()).lower())
+
+
+def _apphost_dotnet_root(environ: Mapping[str, str], machine: str | None = None) -> str:
+    """The root the apphost reads first: DOTNET_ROOT_<ARCH> wins over DOTNET_ROOT."""
+    architecture = _apphost_architecture(machine)
+    keys = ((f"DOTNET_ROOT_{architecture.upper()}",) if architecture else ()) + ("DOTNET_ROOT",)
+    for key in keys:
+        value = environ.get(key, "").strip()
+        if value:
+            return value
+    return ""
+
+
+def _global_dotnet_root(
+    system: str | None = None,
+    machine: str | None = None,
+    install_location_dir: pathlib.Path = DOTNET_INSTALL_LOCATION_DIR,
+) -> str | None:
+    """Where a Unix apphost looks when no DOTNET_ROOT is set.
+
+    Measured (Faz 183, this machine): /etc/dotnet/install_location_arm64 names
+    /usr/local/share/dotnet while the plain install_location names .../x64 -
+    the architecture-specific file wins. None on Windows (registry-based):
+    the caller then falls back to the muxer on PATH."""
+    system = system or platform.system()
+    if system not in _DEFAULT_GLOBAL_DOTNET_ROOT:
+        return None
+    architecture = _apphost_architecture(machine)
+    names = ((f"install_location_{architecture}",) if architecture else ()) + ("install_location",)
+    for name in names:
+        try:
+            lines = (install_location_dir / name).read_text(encoding="utf-8").splitlines()
+        except OSError:
+            continue
+        if lines and lines[0].strip():
+            return lines[0].strip()
+    return _DEFAULT_GLOBAL_DOTNET_ROOT[system]
+
+
+def installed_runtime_majors(
+    environ: Mapping[str, str] = os.environ,
+    runner: Runner = subprocess.run,
+    *,
+    system: str | None = None,
+    machine: str | None = None,
+    install_location_dir: pathlib.Path = DOTNET_INSTALL_LOCATION_DIR,
+) -> tuple[str, set[int]] | None:
+    """(root, majors) of the Microsoft.NETCore.App runtimes a test apphost can load.
+
+    Measured (Faz 183): `dotnet test` starts each MTP test through its apphost,
+    and the apphost resolves the runtime from DOTNET_ROOT_<ARCH> or DOTNET_ROOT,
+    then from the GLOBAL install location - never from the `dotnet` muxer that
+    happens to be on PATH. A private SDK put first on PATH without DOTNET_ROOT
+    would otherwise pass this check while every net8.0 leg fails."""
+    dotnet_root = _apphost_dotnet_root(environ, machine) or _global_dotnet_root(
+        system, machine, install_location_dir)
+    if dotnet_root:
+        shared = pathlib.Path(dotnet_root) / "shared" / "Microsoft.NETCore.App"
+        return (dotnet_root, _runtime_majors_in(shared)) if shared.is_dir() else None
+    try:
+        result = runner(["dotnet", "--list-runtimes"], capture_output=True, text=True, check=False)
+    except OSError:
+        return None
+    if int(result.returncode) != 0:
+        return None
+    majors: set[int] = set()
+    root = "dotnet"
+    for line in str(result.stdout).splitlines():
+        match = re.match(r"Microsoft\.NETCore\.App (?P<major>\d+)\.\S+ \[(?P<path>[^\]]+)\]", line.strip())
+        if match:
+            majors.add(int(match.group("major")))
+            root = str(pathlib.PurePath(match.group("path")).parent.parent)
+    return root, majors
+
+
+def _missing_frameworks(frameworks: Iterable[str], majors: set[int]) -> list[str]:
+    return [
+        framework for framework in frameworks
+        if int(framework.removeprefix("net").split(".", 1)[0]) not in majors
+    ]
+
+
+def missing_test_runtimes(
+    frameworks: Iterable[str],
+    *,
+    environ: Mapping[str, str] = os.environ,
+    runner: Runner = subprocess.run,
+    system: str | None = None,
+    machine: str | None = None,
+    install_location_dir: pathlib.Path = DOTNET_INSTALL_LOCATION_DIR,
+) -> list[str]:
+    """Frameworks whose runtime the test apphost cannot find.
+
+    Without this a missing net8.0 runtime surfaces minutes later as a failed
+    test leg, and the isolated re-run then calls it a REAL regression. An
+    unreadable runtime list blocks nothing: the real command then fails on its
+    own, with its own message."""
+    found = installed_runtime_majors(
+        environ, runner, system=system, machine=machine, install_location_dir=install_location_dir)
+    return [] if found is None else _missing_frameworks(frameworks, found[1])
+
+
+def require_test_runtimes(
+    frameworks: Iterable[str],
+    *,
+    environ: Mapping[str, str] = os.environ,
+    runner: Runner = subprocess.run,
+    system: str | None = None,
+    machine: str | None = None,
+    install_location_dir: pathlib.Path = DOTNET_INSTALL_LOCATION_DIR,
+) -> bool:
+    found = installed_runtime_majors(
+        environ, runner, system=system, machine=machine, install_location_dir=install_location_dir)
+    if found is None:
+        return True
+    root, majors = found
+    missing = _missing_frameworks(frameworks, majors)
+    if not missing:
+        return True
+    print(f"❌ Çoklu TFM test projeleri şu runtime'ları ister: {', '.join(missing)} — `{root}` altında yok"
+          f" (kurulu: {', '.join(str(major) for major in sorted(majors)) or 'hiçbiri'}).")
+    print("   Test apphost'u runtime'ı DOTNET_ROOT_<ARCH>/DOTNET_ROOT'tan, yoksa global kurulumdan"
+          " çözer — PATH'teki `dotnet`'ten DEĞİL."
+          " Kurulum: docs/hafiza/test-kosum-tuzaklari.md — 'Çoklu TFM test runtime'ları'.")
+    return False
+
+
+def runs_multi_target_tests(commands: Iterable[Command], root: pathlib.Path = ROOT) -> bool:
+    """True if a `dotnet test` in `commands` reaches a multi-targeted project."""
+    multi = set(multi_target_test_projects(root))
+    for command in commands:
+        if command.args[:2] != ("dotnet", "test") or len(command.args) < 3:
+            continue
+        target = pathlib.PurePath(command.args[2])
+        if target.suffix in (".slnx", ".slnf", ".sln") or target.stem in multi or target.name in multi:
+            return True
+    return False
+
+
 def affected_test_projects(paths: Iterable[str]) -> tuple[list[str], bool]:
     projects: set[str] = set()
     needs_full = False
     for path in paths:
         if path.startswith("tests/Shared/Providers/"):
             projects.update(PROVIDER_TEST_PROJECTS)
+            continue
+        if path.startswith("tests/Shared/TargetFramework/"):
+            projects.update(multi_target_test_projects())
             continue
         if path.startswith("tests/Shared/"):
             needs_full = True
@@ -667,6 +914,10 @@ def affected_test_projects(paths: Iterable[str]) -> tuple[list[str], bool]:
             match = re.match(r"tests/([^/]+)/", path)
             if match:
                 projects.add(match.group(1))
+            else:
+                # tests/Directory.Build.props and friends reach every test
+                # project. Before Faz 183 this branch selected NOTHING, silently.
+                needs_full = True
             continue
         if path.startswith("src/"):
             projects.add(EXAMPLE_COMPILING_TEST_PROJECT)
@@ -717,29 +968,50 @@ def full_solution_test_command() -> Command:
 TRX_NS = "{http://microsoft.com/schemas/VisualStudio/TeamTest/2010}"
 
 
-def failed_tests_from_trx(since: float, root: pathlib.Path = ROOT) -> list[tuple[str, str]]:
-    """(proje, tam test adi) — `since`'ten sonra yazilmis her TRX'teki dusen test."""
+@dataclasses.dataclass(frozen=True)
+class FailedTest:
+    """A failed test and the output directory whose executable produced it."""
+
+    project: str
+    output: str
+    name: str
+
+    @property
+    def label(self) -> str:
+        """`Proje` for a single-framework project, `Proje (net8.0)` for one leg of a multi-targeted one."""
+        framework = self.output.removeprefix("release").removeprefix("_")
+        return f"{self.project} ({framework})" if framework else self.project
+
+
+def failed_tests_from_trx(since: float, root: pathlib.Path = ROOT) -> list[FailedTest]:
+    """`since`'ten sonra yazilmis her TRX'teki dusen test.
+
+    Faz 183: cok hedefli bir projenin TRX'i `release_<tfm>/TestResults/`
+    altindadir; yalniz `release/` taramak o projelerin dusen testini SESSIZCE
+    kaybederdi ve izole yeniden kosum hic tetiklenmezdi."""
     import xml.etree.ElementTree as elementtree
 
-    failures: list[tuple[str, str]] = []
-    for trx in sorted((root / "artifacts" / "bin").glob("*/release/TestResults/*.trx")):
+    failures: list[FailedTest] = []
+    for trx in sorted((root / "artifacts" / "bin").glob("*/release*/TestResults/*.trx")):
+        project, output = trx.relative_to(root / "artifacts" / "bin").parts[:2]
+        if output != "release" and not output.startswith("release_"):
+            continue
         try:
             if trx.stat().st_mtime < since:
                 continue
             tree = elementtree.parse(trx)
         except (OSError, elementtree.ParseError):
             continue
-        project = trx.relative_to(root / "artifacts" / "bin").parts[0]
         for result in tree.getroot().iter(TRX_NS + "UnitTestResult"):
             if result.get("outcome") not in (None, "Passed", "NotExecuted"):
                 name = result.get("testName")
                 if name:
-                    failures.append((project, name))
+                    failures.append(FailedTest(project, output, name))
     return failures
 
 
 def isolate_failed_tests(
-    failures: Sequence[tuple[str, str]],
+    failures: Sequence[FailedTest],
     *,
     runner: Runner = subprocess.run,
     root: pathlib.Path = ROOT,
@@ -758,15 +1030,15 @@ def isolate_failed_tests(
     kirmizi kirmizi kalir. Verdigi tek sey, bir sonraki adimin ne oldugudur.
     """
     verdicts: list[tuple[str, str, bool]] = []
-    for project, name in failures:
-        executable = root / "artifacts" / "bin" / project / "release" / project
+    for failure in failures:
+        executable = root / "artifacts" / "bin" / failure.project / failure.output / failure.project
         # Bir `[Theory]`'nin TRX adi argumanlari da tasir ve onlar NOKTA
         # icerebilir: `...A_provider_name_is_matched(savedAs: "a.b")`. Once
         # arguman kuyrugu atilir, SONRA son parca alinir - ters sira metot
         # adi yerine bir argumani filtreye koyardi.
-        method = name.split("(", 1)[0].rsplit(".", 1)[-1]
+        method = failure.name.split("(", 1)[0].rsplit(".", 1)[-1]
         if not executable.exists():
-            print(f"   ⚠️ {project}: derlenmis ikili yok, izole kosum atlandi")
+            print(f"   ⚠️ {failure.label}: derlenmis ikili yok, izole kosum atlandi")
             continue
         environment = os.environ.copy()
         environment["MSBUILDDISABLENODEREUSE"] = "1"
@@ -774,13 +1046,13 @@ def isolate_failed_tests(
             [str(executable), "--filter-method", f"*{method}*"],
             cwd=str(root), env=environment, check=False,
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        verdicts.append((project, name, int(result.returncode) == 0))
+        verdicts.append((failure.label, failure.name, int(result.returncode) == 0))
 
     if not verdicts:
         return verdicts
     print("\n🔬 İzole yeniden koşum (teşhis — çıkış kodunu DEĞİŞTİRMEZ):")
-    for project, name, passed in verdicts:
-        print(f"   {'✅ izole GEÇTİ' if passed else '❌ izole de DÜŞTÜ'}  {project} · {name}")
+    for label, name, passed in verdicts:
+        print(f"   {'✅ izole GEÇTİ' if passed else '❌ izole de DÜŞTÜ'}  {label} · {name}")
     if all(passed for _, _, passed in verdicts):
         print("   → Hepsi izole geçti: tam koşum kaynak çekişmesi sınıfı"
               " (docs/hafiza/test-altyapisi.md). Tam paketi TEKRAR koş;"
@@ -842,9 +1114,19 @@ def closing_commands(base: str, *, site: bool = True, performance: bool = True) 
     return commands
 
 
-def test_command(project: str, patterns: Sequence[str]) -> Command:
-    executable = ROOT / "artifacts" / "bin" / project / "release" / project
-    return Command((str(executable), "--filter-class", *patterns))
+def test_commands(
+    project: str,
+    patterns: Sequence[str],
+    framework: str | None = None,
+    *,
+    root: pathlib.Path = ROOT,
+    environ: Mapping[str, str] = os.environ,
+) -> list[Command]:
+    """One filtered run per framework leg; `framework` narrows a multi-targeted project to one."""
+    return [
+        Command((str(output / project), "--filter-class", *patterns))
+        for output in test_output_directories(project, framework, root=root, environ=environ)
+    ]
 
 
 # -----------------------------------------------------------------------------
@@ -1386,6 +1668,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     test = subparsers.add_parser("test", help="MTP filtresiyle tek test alt kümesi")
     test.add_argument("--sinif", nargs="+", required=True, help="sınıf desenleri")
     test.add_argument("--proje", default="Tracon.Core.UnitTests", help="test proje adı")
+    test.add_argument(
+        "--tfm",
+        help="çoklu TFM projesinde tek bacak (ör. net8.0); verilmezse her bacak koşar (Faz 183)")
     yayin = subparsers.add_parser("yayin", help="yayın provası - ağa hiçbir şey yazmaz")
     yayin.add_argument(
         "--kuru", action="store_true", required=True,
@@ -1415,7 +1700,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         if paths is None:
             print("❌ git çağrısı başarısız; etkilenen proje seçilemedi.")
             return 1
-        return run_commands("ic-dongu", inner_loop_commands(paths), dry_run=args.komutlari_bas)
+        commands = inner_loop_commands(paths)
+        if not args.komutlari_bas and runs_multi_target_tests(commands) \
+                and not require_test_runtimes(test_target_frameworks()):
+            return 1
+        return run_commands("ic-dongu", commands, dry_run=args.komutlari_bas)
     if args.stage == "kapanis":
         # The performance gate is path-triggered against the WHOLE phase's
         # changes (--taban..working tree), not just what is uncommitted right
@@ -1424,18 +1713,27 @@ def main(argv: Sequence[str] | None = None) -> int:
         # A failed git call runs it anyway rather than silently skipping.
         paths = changed_paths(args.taban)
         performance = paths is None or performance_gate_triggered(paths)
-        return run_commands(
-            "kapanis",
-            closing_commands(args.taban, site=not args.site_atla, performance=performance),
-            dry_run=args.komutlari_bas,
-        )
+        commands = closing_commands(args.taban, site=not args.site_atla, performance=performance)
+        if not args.komutlari_bas and runs_multi_target_tests(commands) \
+                and not require_test_runtimes(test_target_frameworks()):
+            return 1
+        return run_commands("kapanis", commands, dry_run=args.komutlari_bas)
     if args.stage == "performans":
         if args.komutlari_bas:
             print("$ dotnet run -c Release --project bench/Tracon.Benchmarks -- --filter * --exporters json")
             return 0
         return performance_gate(update=args.guncelle)
     if args.stage == "test":
-        return run_commands("test", [test_command(args.proje, args.sinif)], dry_run=args.komutlari_bas)
+        try:
+            commands = test_commands(args.proje, args.sinif, args.tfm)
+        except ValueError as error:
+            print(f"❌ {error}")
+            return 2
+        if not args.komutlari_bas and args.proje in multi_target_test_projects():
+            frameworks = (args.tfm,) if args.tfm else test_target_frameworks()
+            if not require_test_runtimes(frameworks):
+                return 1
+        return run_commands("test", commands, dry_run=args.komutlari_bas)
     if args.stage == "yayin":
         if args.komutlari_bas:
             print("$ dotnet pack ...  (bkz. release_rehearsal)")

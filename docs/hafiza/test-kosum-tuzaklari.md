@@ -48,6 +48,7 @@ supheli bir derlemeden HEMEN sonra calistirmadan once bu adimi atlama.
   hangi testin gectigini bilmezsin.
   **Dogru bicim derlenmis ikiliyi DOGRUDAN cagirmaktir:**
   `./artifacts/bin/<Proje>/release/<Proje> --filter-class "*Ad*" "*Ad2*"`
+  (çok hedefli projede `release_<tfm>/` — aşağıdaki Faz 183 bölümü)
   (birden cok desen bosluk ile ayrilir). Secenekler: `--filter-class`,
   `--filter-method`, `--filter-namespace`, `--filter-uid` ve `--filter-not-*`.
   Olcum: 1004 test → **15 test / ~2 sn**.
@@ -194,3 +195,34 @@ gecmesi "sira bagimliligi degil, zamanlama" dedi.
   açtığı span'ler yüzünden düşer — ölçüldü: bir yerine **on** span geldi. Span'i
   kendi etiketiyle (ör. script adı) seç ve o adı başka hiçbir test kullanmasın.
   Filtreli koşum bunu göstermez; süreçteki tek listener odur.
+
+## Çoklu TFM test runtime'ları (Faz 183)
+
+Temsilci küme (`tests/Directory.Build.props`, `TraconMultiTargetTest`) üç TFM'de
+derlenir ve koşar. Üç sonuç:
+
+- **Çıktı `release/` değil `release_<tfm>/`'dir.** Yol kuran her şey
+  `kapi.test_output_directories`'ten geçer; `release/` klasörü proje çok
+  hedefli olunca **bayat** kalır ve diskte durur — yol diskten değil beyandan
+  çözülür. Test kodunda yapılandırma adı `Name.Split('_')[0]`'dır.
+- **🚨 Test apphost'u runtime'ı `DOTNET_ROOT`'tan (önce `DOTNET_ROOT_<ARCH>`)
+  çözer, PATH'teki muxer'dan DEĞİL** (ölçüldü). Makinede net8 runtime'ı yoksa bacak "You must install or
+  update .NET" ile düşer; `kapi.py` bunu komuttan önce yakalar. Global kurulum
+  `sudo` ister. Kullanıcı düzeyi yol: `dotnet-install.sh --install-dir
+  ~/.dotnet` ile SDK 10.0.100 + `--runtime dotnet --channel 8.0` / `9.0`, sonra
+  **yalnız** `DOTNET_ROOT=~/.dotnet` — PATH'teki `dotnet` sistemin kalsın.
+  🚨 `DOTNET_ROOT` o kökü **tek** kök yapar: fonksiyonel/E2E testleri için
+  ASP.NET Core 10 runtime'ı da orada olmalıdır (SDK getirir). 🚨 Özel kökü
+  PATH'e de koymak ölçüldü ve 3 `Tracon.Package.Tests` case'ini düşürdü:
+  kökte eski bir 8.0 SDK'sı vardı ve `dotnet new sln --format slnx` 127 verdi.
+  `kapi.py`'nin izole koşumu da aynı ortamda koştuğu için "izole de düştü"
+  dedi — ortamı regresyon sandırır.
+- **Roll-forward kanıtı siler.** `DOTNET_ROLL_FORWARD=LatestMajor` ile net8
+  bacağı net8 kurulu olsa bile en yeni runtime'da koşar ve her test geçer
+  (`Major` yalnız net8 **yoksa** ileri sarar — ölçüldü). `RuntimeMatchesTargetFrameworkTests` (her
+  temsilci projeye bağlanır) bunu düşürür.
+
+Test kodunda net8/net9'da olmayan üç şey derlemeyi kırdı: `System.Threading.Lock`
+(koleksiyonun kendisine kilitlen), `System.Linq.AsyncEnumerable` (`await foreach`
+yaz) ve Shouldly'nin net8 derlemesindeki
+`IReadOnlyDictionary.ShouldNotContainKey` (`ContainsKey(...).ShouldBeFalse()`).

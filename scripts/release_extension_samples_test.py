@@ -21,11 +21,18 @@ EXACT_VERSION = "1.0.0-preview.1"
 
 def _write_clean_tree(root: pathlib.Path) -> None:
     samples = root / "samples"
-    for project in (*release_extension_samples.SAMPLE_TEST_PROJECTS, release_extension_samples.AOT_PROJECT):
+    for project in (
+        *release_extension_samples.SAMPLE_TEST_PROJECTS,
+        release_extension_samples.AOT_PROJECT,
+        release_extension_samples.NET8_CONSUMER_PROJECT,
+    ):
         project_dir = samples / project
         project_dir.mkdir(parents=True)
+        framework = (
+            "<PropertyGroup><TargetFramework>net8.0</TargetFramework></PropertyGroup>"
+            if project == release_extension_samples.NET8_CONSUMER_PROJECT else "")
         (project_dir / f"{project}.csproj").write_text(
-            f'<Project Sdk="Microsoft.NET.Sdk">'
+            f'<Project Sdk="Microsoft.NET.Sdk">{framework}'
             f'<ItemGroup><PackageReference Include="Tracon" VersionOverride="$(TraconSamplePackageVersion)" /></ItemGroup>'
             f'</Project>',
             encoding="utf-8",
@@ -41,6 +48,26 @@ class ReleaseExtensionSamplesTestleri(unittest.TestCase):
             errors = release_extension_samples.validate_sample_contract(root, EXACT_VERSION)
 
         self.assertEqual(errors, [])
+
+    def test_net8_tuketicisi_net8_hedeflemezse_reddedilir(self):
+        # Faz 183: <TargetFramework> satiri silinirse ornek net10.0'i
+        # samples/Directory.Build.props'tan miras alir ve yine GECER.
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            _write_clean_tree(root)
+            project = release_extension_samples.NET8_CONSUMER_PROJECT
+            csproj = root / "samples" / project / f"{project}.csproj"
+            csproj.write_text(
+                csproj.read_text(encoding="utf-8").replace("net8.0", "net10.0"), encoding="utf-8")
+
+            errors = release_extension_samples.validate_sample_contract(root, EXACT_VERSION)
+
+        self.assertTrue(any("must target net8.0" in error for error in errors), errors)
+
+    def test_gercek_net8_tuketicisi_net8_hedefler(self):
+        errors = release_extension_samples.validate_sample_contract(ROOT, EXACT_VERSION)
+
+        self.assertFalse(any("net8" in error for error in errors), errors)
 
     def test_bos_surum_reddedilir(self):
         with tempfile.TemporaryDirectory() as directory:

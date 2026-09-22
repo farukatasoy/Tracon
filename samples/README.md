@@ -19,10 +19,13 @@ third-party consumer can compile and pass the same public contract suites withou
 access to Tracon source projects.
 
 The release gate packs Tracon, restores every sample into an isolated NuGet cache,
-runs all six test projects, and publishes the AOT smoke sample. See
+runs all six test projects, publishes the AOT smoke sample, and runs the `net8.0`
+consumer on the .NET 8 runtime. See
 [`CONTRIBUTING.md`](../CONTRIBUTING.md) for the current release-gate command.
 
 ## Other hosts
 
 - [`Tracon.Api`](Tracon.Api/) is the main ASP.NET Core sample.
 - [`Tracon.Embedded`](Tracon.Embedded/) shows the embedded deployment shape.
+- [`Tracon.Samples.Net8Consumer`](Tracon.Samples.Net8Consumer/) is a `net8.0` console
+  application that takes `Tracon.Core` from the packed feed and runs one agent.

@@ -7,7 +7,6 @@ namespace Tracon.Core.UnitTests.Fakes;
 /// </remarks>
 internal sealed class TriggerableTimeProvider : TimeProvider
 {
-    private readonly Lock _gate = new();
     private readonly List<TriggerableTimer> _timers = [];
 
     /// <inheritdoc />
@@ -15,7 +14,7 @@ internal sealed class TriggerableTimeProvider : TimeProvider
     {
         var timer = new TriggerableTimer(this, callback, state);
 
-        lock (_gate)
+        lock (_timers)
         {
             _timers.Add(timer);
         }
@@ -28,7 +27,7 @@ internal sealed class TriggerableTimeProvider : TimeProvider
     {
         TriggerableTimer[] timers;
 
-        lock (_gate)
+        lock (_timers)
         {
             timers = [.. _timers];
         }
@@ -41,7 +40,7 @@ internal sealed class TriggerableTimeProvider : TimeProvider
 
     private void Remove(TriggerableTimer timer)
     {
-        lock (_gate)
+        lock (_timers)
         {
             _timers.Remove(timer);
         }

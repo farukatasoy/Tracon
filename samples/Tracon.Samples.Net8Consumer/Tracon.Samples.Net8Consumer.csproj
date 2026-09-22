@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <!--
+      The whole point of this sample: samples/Directory.Build.props assigns
+      net10.0, and the packages also ship net8.0. This consumer restores the
+      net8.0 dependency group of the packed packages and runs on the net8.0
+      runtime. Program.cs refuses to report success on any other runtime, and
+      scripts/release_extension_samples.py rejects this file if the line below
+      changes.
+    -->
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>Tracon.Samples.Net8Consumer</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Tracon.Core alone, the smallest package a console consumer starts from. -->
+    <PackageReference Include="Tracon.Core" VersionOverride="$(TraconSamplePackageVersion)" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+  </ItemGroup>
+
+</Project>

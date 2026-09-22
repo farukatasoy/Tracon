@@ -189,7 +189,6 @@ public sealed class TelemetryTagTests
     {
         private readonly MeterListener _listener = new();
         private readonly List<(string Instrument, Dictionary<string, object?> Tags)> _measurements = [];
-        private readonly Lock _gate = new();
 
         public TagCollector(Meter meter)
         {
@@ -210,7 +209,7 @@ public sealed class TelemetryTagTests
         {
             get
             {
-                lock (_gate)
+                lock (_measurements)
                 {
                     return [.. _measurements.Select(static m => (m.Instrument, (IReadOnlyCollection<string>)m.Tags.Keys))];
                 }
@@ -219,7 +218,7 @@ public sealed class TelemetryTagTests
 
         public HashSet<string> KeysOf(string instrument)
         {
-            lock (_gate)
+            lock (_measurements)
             {
                 var keys = new HashSet<string>(StringComparer.Ordinal);
 
@@ -234,7 +233,7 @@ public sealed class TelemetryTagTests
 
         public IReadOnlyCollection<string> ValuesOf(string instrument, string tag)
         {
-            lock (_gate)
+            lock (_measurements)
             {
                 return [.. _measurements
                     .Where(m => string.Equals(m.Instrument, instrument, StringComparison.Ordinal) && m.Tags.ContainsKey(tag))
@@ -254,7 +253,7 @@ public sealed class TelemetryTagTests
                 map[tag.Key] = tag.Value;
             }
 
-            lock (_gate)
+            lock (_measurements)
             {
                 _measurements.Add((instrument, map));
             }

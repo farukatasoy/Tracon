@@ -197,7 +197,10 @@ for production use."* Tracon does not replace DevUI — it continues where DevUI
 app on .NET 8 LTS is tested on .NET 8. Three differ: `Tracon.Templates` generates a
 `net10.0` project, `Tracon.Cli` is a `net10.0` global tool, and the source generator in
 `Tracon.Core` targets `netstandard2.0`. Detail: [compatibility
-matrix](https://tracon.dev/reference/compatibility/)
+matrix](https://tracon.dev/reference/compatibility/). What runs on each framework: a
+representative set of this repository's test projects (Core, the four providers, the
+shared SQL layer, SQLite, the contract suite) on all three; the rest of the suite on
+`net10.0`; and the release gate runs a packed `net8.0` console consumer.
 
 **Licence:** the `Licence` column above; three packages are MIT so that writing and
 testing an extension, and owning what `dotnet new` generates, never needs a licence.
@@ -318,9 +321,10 @@ dotnet format Tracon.slnx --verify-no-changes
 
 `TreatWarningsAsErrors` is on — there are no warnings, only errors.
 
-Requirements: .NET SDK 10.0.100+, **Node.js 20.19+** (the console build), and **Docker**
-(integration tests bring up a real database with Testcontainers). The end-to-end tests
-download Chromium themselves on first run.
+Requirements: .NET SDK 10.0.100+ plus the **.NET 8 and .NET 9 runtimes** (a representative
+set of test projects runs on every shipped framework), **Node.js 20.19+** (the console
+build), and **Docker** (integration tests bring up a real database with Testcontainers).
+The end-to-end tests download Chromium themselves on first run.
 
 `dotnet build` builds the console too: `npm ci` → type check → Vitest → Vite → Brotli
 → bundle budget gate. The steps are incremental. For a fast inner loop, use
