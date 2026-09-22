@@ -24,7 +24,7 @@ namespace Tracon;
 /// production security for development convenience.
 /// </para>
 /// </remarks>
-public readonly record struct EgressAddressPolicy(bool AllowPrivateNetworkTargets, bool AllowLoopback)
+internal readonly record struct EgressAddressPolicy(bool AllowPrivateNetworkTargets, bool AllowLoopback)
 {
     /// <summary>Gets the policy that rejects every private network address.</summary>
     public static EgressAddressPolicy Deny => new(AllowPrivateNetworkTargets: false, AllowLoopback: false);

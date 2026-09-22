@@ -18,7 +18,7 @@ namespace Tracon;
 /// would give a false guarantee.
 /// </para>
 /// </remarks>
-public static class WorkflowDefinitionValidator
+internal static class WorkflowDefinitionValidator
 {
     /// <summary>Validates the definition.</summary>
     /// <param name="definition">The definition to validate.</param>

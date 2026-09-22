@@ -7,19 +7,17 @@ namespace Tracon;
 /// <para>
 /// Each <c>Use*()</c> extension (<c>UsePostgreSql</c>, <c>UseSqlServer</c>, and
 /// <c>UseSqlite</c>) registers this interface with <c>Replace</c>, resolving to
-/// the same instance as <c>MigrationRunner</c>.
+/// the provider's migration runner - the same instance
+/// <see cref="ISqlPersistenceDiagnostics"/> resolves to.
 /// </para>
 /// <para>
-/// This exists as its own interface, separate from
-/// <see cref="ISqlPersistenceDiagnostics"/>, because <c>MigrationRunner</c> is
-/// compiled from source SHARED across the three SQL provider packages
-/// (<c>Tracon.Sql.Shared</c>): a consumer that references more than one
-/// provider - the <c>tracon</c> global tool does, for its <c>migrate</c>
-/// command - sees three DIFFERENT <c>MigrationRunner</c> types with the same
-/// name, and an unqualified reference to it does not compile (<c>CS0433</c>).
-/// This interface lives in <c>Tracon.Abstractions</c>, referenced
-/// identically by all three, so <c>IServiceProvider.GetRequiredService&lt;IMigrationApplier&gt;()</c>
-/// resolves without needing to know which provider is active.
+/// This is the public way to apply migrations from your own code, for example
+/// from a deployment step when <c>AutoApplyMigrations</c> is off. The runner
+/// itself is not public: each SQL provider package compiles its own copy, and
+/// this interface, which lives in <c>Tracon.Abstractions</c>, is the one type
+/// all three share. <c>IServiceProvider.GetRequiredService&lt;IMigrationApplier&gt;()</c>
+/// therefore resolves without knowing which provider is active, even in an
+/// application that references more than one of them.
 /// </para>
 /// <para>
 /// <strong>DI lifetime — singleton.</strong> Registered as a singleton with

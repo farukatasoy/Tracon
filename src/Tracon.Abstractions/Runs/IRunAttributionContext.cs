@@ -81,7 +81,7 @@ public interface IRunAttributionContext
 /// ENTERS (the HTTP endpoint answers 400,
 /// <see cref="AmbientRunAttributionScope.Begin"/> throws).
 /// </remarks>
-public static class RunAttributionReader
+internal static class RunAttributionReader
 {
     /// <summary>Reads the current attribution, surviving a faulty implementation.</summary>
     /// <param name="context">The attribution context, or <see langword="null"/> when none is registered.</param>

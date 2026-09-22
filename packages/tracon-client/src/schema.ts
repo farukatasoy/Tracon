@@ -3566,9 +3566,17 @@ export interface components {
             action: string;
             /** @description Gets the affected entity, for example `agent:support`. */
             entity: string;
-            /** @description Gets the state before the change, as JSON text. It has passed the secret filter. */
+            /**
+             * @description Gets the state before the change, as JSON text. Tracon's own write path
+             *     removes secret-named fields first; a caller that writes to
+             *     IAuditLog directly must not put a secret value here.
+             */
             before?: null | string;
-            /** @description Gets the state after the change, as JSON text. It has passed the secret filter. */
+            /**
+             * @description Gets the state after the change, as JSON text. Tracon's own write path
+             *     removes secret-named fields first; a caller that writes to
+             *     IAuditLog directly must not put a secret value here.
+             */
             after?: null | string;
             /**
              * Format: date-time
@@ -3581,9 +3589,10 @@ export interface components {
              */
             previousHash?: null | string;
             /**
-             * @description Gets the hash of this entry, derived from its canonical form
-             *     (see `AuditChainHasher` in `Tracon.Core`). The write path
-             *     computes this value; a caller-supplied value is ignored.
+             * @description Gets the hash of this entry: a SHA-256 over a canonical form of its
+             *     fields that also includes the previous entry's hash, so changing an
+             *     earlier entry breaks every later link. The write path computes this
+             *     value; a caller-supplied value is ignored.
              */
             hash?: null | string;
         };

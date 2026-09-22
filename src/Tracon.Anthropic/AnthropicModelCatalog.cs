@@ -24,7 +24,7 @@ namespace Tracon;
 /// </code>
 /// </example>
 /// </remarks>
-public static class AnthropicModelCatalog
+internal static class AnthropicModelCatalog
 {
     /// <summary>Builds the catalog from the model definitions in settings.</summary>
     /// <param name="options">Provider settings.</param>

@@ -385,8 +385,8 @@ public sealed class TraconSkillScriptOptions
 /// </summary>
 /// <remarks>
 /// Binary content lives in <c>attachments</c> and messages carry only a reference.
-/// These options apply only during upload. Type validation uses magic bytes, not
-/// the client-supplied <c>Content-Type</c>; see <see cref="AttachmentTypeGuard"/>.
+/// These options apply only during upload. Type validation reads the content's
+/// leading bytes (its file signature), not the client-supplied <c>Content-Type</c>.
 /// </remarks>
 public sealed class TraconAttachmentOptions
 {

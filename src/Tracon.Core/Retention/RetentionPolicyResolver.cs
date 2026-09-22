@@ -9,7 +9,7 @@ namespace Tracon;
 /// consulted at all. If there is no record, <see cref="TraconRetentionOptions"/>
 /// takes over, but only while <see cref="TraconRetentionOptions.Enabled"/> is on.
 /// </remarks>
-public sealed class RetentionPolicyResolver(
+internal sealed class RetentionPolicyResolver(
     IRetentionPolicyStore policyStore,
     IOptionsMonitor<TraconRetentionOptions> optionsMonitor)
 {
@@ -67,4 +67,4 @@ public sealed class RetentionPolicyResolver(
 /// volume-based threshold.
 /// </param>
 /// <param name="Archive">Whether to archive rows before deleting them.</param>
-public sealed record ResolvedRetentionPolicy(string Target, int? MaxAgeDays, long? MaxRows, bool Archive);
+internal sealed record ResolvedRetentionPolicy(string Target, int? MaxAgeDays, long? MaxRows, bool Archive);

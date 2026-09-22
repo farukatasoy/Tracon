@@ -7,4 +7,4 @@ namespace Tracon;
 /// </summary>
 /// <param name="Kind">The check type name in <see cref="EvalSuite.Checks"/>.</param>
 /// <param name="Check">A code-defined check that does not call a model.</param>
-public sealed record TraconEvalCheckRegistration(string Kind, EvalCheck Check);
+internal sealed record TraconEvalCheckRegistration(string Kind, EvalCheck Check);

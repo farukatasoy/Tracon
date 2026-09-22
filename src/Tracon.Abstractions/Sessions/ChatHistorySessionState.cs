@@ -7,7 +7,7 @@ namespace Tracon;
 /// These values are <strong>stable</strong>; changing them breaks existing
 /// sessions' history.
 /// </remarks>
-public static class TraconSessionStateKeys
+internal static class TraconSessionStateKeys
 {
     /// <summary>
     /// The key the chat history provider stores the conversation identifier under.
@@ -24,12 +24,12 @@ public static class TraconSessionStateKeys
 /// The state the chat history provider stores within a session.
 /// </summary>
 /// <remarks>
-/// The type is <strong>public</strong> because two separate layers read it:
-/// the SQL provider (the writer) and conversation branching (the side that
-/// links the new conversation opened by <see cref="IConversationBranchStore"/>
-/// to a new session).
+/// Two separate layers read it: the SQL provider (the writer) and conversation
+/// branching (the side that links the new conversation opened by
+/// <see cref="IConversationBranchStore"/> to a new session). Both are Tracon
+/// packages and reach it through <c>InternalsVisibleTo</c>.
 /// </remarks>
-public sealed class ChatHistoryState
+internal sealed class ChatHistoryState
 {
     /// <summary>The identifier of the conversation record holding this session's messages.</summary>
     public Guid ConversationId { get; set; }

@@ -15,7 +15,7 @@ namespace Tracon;
 // actually writes the file.
 
 /// <summary>Validates the file name a stored script is written under.</summary>
-public static class SkillScriptNaming
+internal static class SkillScriptNaming
 {
     /// <summary>Returns the name when it is a plain file name.</summary>
     /// <param name="scriptName">The script name as stored.</param>

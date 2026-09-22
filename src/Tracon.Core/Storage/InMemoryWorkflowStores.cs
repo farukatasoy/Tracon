@@ -100,7 +100,7 @@ internal sealed class InMemoryWorkflowDefinitionStore : IWorkflowDefinitionStore
 /// checkpoints held per session and discards the oldest one.
 /// </para>
 /// </remarks>
-public sealed class InMemoryWorkflowCheckpointStore : IWorkflowCheckpointStore
+internal sealed class InMemoryWorkflowCheckpointStore : IWorkflowCheckpointStore
 {
     /// <summary>Gets the maximum checkpoints held in memory for a session.</summary>
     public const int MaxCheckpointsPerSession = 50;

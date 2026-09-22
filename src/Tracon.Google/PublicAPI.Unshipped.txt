@@ -1,10 +1,5 @@
 #nullable enable
-Tracon.GoogleChatClientFactory
 Tracon.GoogleImageBuilderExtensions
-Tracon.GoogleChatClientFactory.CreateChatClient(Tracon.ModelBinding! binding) -> Microsoft.Extensions.AI.IChatClient!
-Tracon.GoogleChatClientFactory.Dispose() -> void
-Tracon.GoogleChatClientFactory.GoogleChatClientFactory(Tracon.GoogleProviderOptions! options, Microsoft.Extensions.Logging.ILoggerFactory? loggerFactory = null) -> void
-Tracon.GoogleModelCatalog
 Tracon.GoogleProviderExtensions
 Tracon.GoogleProviderNames
 Tracon.GoogleProviderOptions
@@ -30,11 +25,8 @@ const Tracon.GoogleProviderNames.SettingsPrefix = "google" -> string!
 const Tracon.GoogleProviderNames.ThinkingBudgetTokensSetting = "google.thinking.budgetTokens" -> string!
 const Tracon.GoogleProviderNames.ThinkingIncludeThoughtsSetting = "google.thinking.includeThoughts" -> string!
 const Tracon.GoogleProviderOptions.SectionName = "Tracon:Providers:Google" -> string!
-static Tracon.GoogleChatClientFactory.FromClient(Google.GenAI.Client! client, string? defaultModel = null, Microsoft.Extensions.Logging.ILoggerFactory? loggerFactory = null) -> Tracon.GoogleChatClientFactory!
 static Tracon.GoogleImageBuilderExtensions.UseGoogleImages(this Tracon.ITraconBuilder! builder, System.Action<Tracon.TraconImageOptions!>? configure = null) -> Tracon.ITraconBuilder!
-static Tracon.GoogleModelCatalog.Build(Tracon.GoogleProviderOptions! options) -> System.Collections.Generic.IReadOnlyList<Tracon.ModelDescriptor!>!
 static Tracon.GoogleProviderExtensions.UseGoogle(this Tracon.ITraconBuilder! builder, Microsoft.Extensions.Configuration.IConfiguration! configurationSection) -> Tracon.ITraconBuilder!
 static Tracon.GoogleProviderExtensions.UseGoogle(this Tracon.ITraconBuilder! builder, string! apiKey, System.Action<Tracon.GoogleProviderOptions!>? configure = null) -> Tracon.ITraconBuilder!
 static Tracon.GoogleProviderExtensions.UseGoogle(this Tracon.ITraconBuilder! builder, System.Action<Tracon.GoogleProviderOptions!>! configure) -> Tracon.ITraconBuilder!
 static Tracon.GoogleProviderNames.SupportedSettings.get -> System.Collections.Generic.IReadOnlyList<string!>!
-static Tracon.GoogleChatClientFactory.CreateClient(Tracon.GoogleProviderOptions! options, Tracon.EgressSocketGuard? egressGuard = null) -> Google.GenAI.Client!

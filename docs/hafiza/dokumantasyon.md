@@ -168,3 +168,19 @@ denetlenebilir yarısıdır. Ölçüm:
 - **🚨 Kapı sapmayı YAKALAR; sapmayı ÜRETEN protokol düzeltilmezse sınıf kapanmaz** (2026-09-08): `00-INDEKS.md` 1488 case yazıyordu, gerçek 1597'ydi — 36 ailenin **17'si** bayat. Sebep tek bir cümleydi: `faz-tamamlama` Adım 3 indeksi yalnız "alan dosyası yoksa" güncelletiyordu, yani mevcut bir aileye case eklemek sayacı hiç güncellemiyordu. Faz 157 bir aile dosyasına 170 satır ekledi ve indekse dokunmadı. **İki düzeltme birlikte gerekir:** kapı (`manuel_test_sayim_kaymasi`) unutulanı yakalar, protokol adımı unutulmayı önler. Yalnız kapı eklemek her fazda bir kırmızı üretir ve insanları onu susturmaya eğitir.
 - **🚨 Bir kapı İLK koşumunda kırmızı yanarsa, önce KAPIYI doğrula** (2026-09-08, `bagimlilik_surum_damgasi` yazılırken): kapı `IVectorSearchStore.cs:16`'daki `10.8.0` damgasını `Microsoft.Extensions.AI` pini `10.9.0` ile karşılaştırıp sapma bildirdi. Sapma **yoktu** — damga `Microsoft.Extensions.VectorData` hakkındaydı ve repo o paketi hiç almıyor; hatalı olan kapının eşleme kaydıydı. Kod "düzeltilseydi" doğru bir cümle yanlışla değiştirilecekti. Kural: yeni kapının ilk bulgusu bir kanıttır, bir emir değil. Pinlenmeyen paket için kayıt `None` taşır — bu bir atlama değil, yazılı karardır.
 - **🚨 Üretilen dosyayı `Edit`'ten korumak ÜRETECİ kilitlemez — ama `ask` bir kilit de değildir** (Faz 167, `claude 2.1.269`): `Edit(<yol>)` deny'ı `Edit` + `Write` **ve** `rm <yol>` Bash komutunu kapsar; `dokuman-bakim.py` **Python ile** yazdığı için üretim modu kuralı hiç tetiklemez (`MT-GDK-029`). Ama `ask` (`docs/arsiv/fazlar/*.md`) oturumun izin moduna tabidir: auto mode'da sınıflandırıcı **sessizce onaylar**, aynı oturumda `deny` sertçe durur. Her iddia kontrol koşumuyla ayırt edildi — kural yokken aynı `rm` dosyayı sildi. Ölçümler ve sınırlar: K-761 · K-763. Doküman kuralını araca taşırken sorulacak soru "kural kondu mu" değil, **"hangi yazma yolunu gerçekten kapatıyor"**.
+
+## 🚨 Internal tipin XML dokumani da sevk edilir (2026-09-22, Faz 182)
+
+Derleyici `GenerateDocumentationFile` ciktisina internal tiplerin dokumanini da
+yazar (olculdu: `T:Tracon.FreeFormJson` `Tracon.Abstractions.xml` icinde). Bir
+tip `internal`'a cekilince uc sey bayatlar ve hicbiri derlemeyi kirmaz:
+
+- tipin kendi dokumanindaki "This class is **public** because ..." cumleleri
+  (uc vaka: `CanaryEvaluator`, `ChildRunApproval`, `ChatHistoryState`);
+- public bir tipin `<see cref>`'i — ayni derlemede sessizce derlenir, docfx onu
+  baglantisiz koda cevirir (site kirilmaz ama okuyucu gorunmeyen bir tipe gider);
+- public bir seam'in tuketiciye o tipi kullanmasini soyleyen cumlesi
+  (`IMigrationApplier`, `IStatePreflightReader`).
+
+Tarama: daraltilan her ad icin `git grep -n 'cref="<Ad>' -- src` ve
+`git grep -n '<c><Ad>' -- src`; public tipte olanlar duz metne cevrilir.

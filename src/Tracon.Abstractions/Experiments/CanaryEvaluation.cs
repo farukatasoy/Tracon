@@ -6,8 +6,8 @@ namespace Tracon;
 /// </summary>
 /// <remarks>
 /// This type is <strong>not persisted</strong>. Each
-/// <c>GET /api/experiments/{name}/canary</c> call runs <c>CanaryEvaluator</c>
-/// again with current <see cref="ExperimentVariantResult"/> data. Canary run
+/// <c>GET /api/experiments/{name}/canary</c> call evaluates the policy again
+/// with current <see cref="ExperimentVariantResult"/> data. Canary run
 /// results already accumulate from the start of the experiment; an evaluation
 /// history table would store the same information twice.
 /// </remarks>

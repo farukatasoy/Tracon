@@ -79,8 +79,9 @@ public sealed class AzureOpenAIProviderOptions
     /// <remarks>
     /// What Azure calls is not a model name, it is a <strong>deployment
     /// name</strong>. The same model can be deployed under different names, and
-    /// the person who sets up the resource chooses the deployment name. Detail:
-    /// <see cref="AzureOpenAIChatClientFactory"/>.
+    /// the person who sets up the resource chooses the deployment name. A
+    /// binding's <see cref="ModelBinding.Model"/> is therefore a deployment name
+    /// too, and the model catalog lists deployments, not models.
     /// </remarks>
     public string? DefaultDeployment { get; set; }
 

@@ -80,7 +80,9 @@ public sealed record JobRequest
     /// <summary>The input set or parameters, interpreted by the handler.</summary>
     /// <remarks>
     /// An unset payload is queued as the empty JSON array, never as
-    /// <see cref="JsonValueKind.Undefined"/> - see <see cref="FreeFormJson"/>.
+    /// <see cref="JsonValueKind.Undefined"/> or JSON <c>null</c>: an undefined
+    /// value cannot be written as JSON, and SQL Server rejects a <c>null</c>
+    /// literal in a JSON column. Every reader treats the empty array as "no payload".
     /// </remarks>
     public JsonElement Payload
     {

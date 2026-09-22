@@ -31,7 +31,7 @@ namespace Tracon;
 /// exception is not a gate.
 /// </para>
 /// </remarks>
-public sealed class ValidatingAIFunction : DelegatingAIFunction
+internal sealed class ValidatingAIFunction : DelegatingAIFunction
 {
     private readonly ToolDescriptor _descriptor;
     private readonly IToolArgumentsValidator _validator;

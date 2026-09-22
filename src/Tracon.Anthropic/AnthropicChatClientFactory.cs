@@ -28,7 +28,7 @@ namespace Tracon;
 /// used instead.
 /// </para>
 /// </remarks>
-public sealed class AnthropicChatClientFactory
+internal sealed class AnthropicChatClientFactory
 {
     private readonly IAnthropicClient _client;
     private readonly string? _defaultModel;
@@ -55,9 +55,7 @@ public sealed class AnthropicChatClientFactory
     /// <exception cref="ArgumentNullException"><paramref name="client"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="defaultMaxOutputTokens"/> is not positive.</exception>
     /// <remarks>
-    /// Setups that manage their own authentication (for example Bedrock/Vertex
-    /// identity, or a provider that refreshes tokens) use <see cref="FromClient"/>,
-    /// which calls this constructor.
+    /// <see cref="FromClient"/> calls this constructor.
     /// </remarks>
     private AnthropicChatClientFactory(
         IAnthropicClient client,
@@ -85,8 +83,8 @@ public sealed class AnthropicChatClientFactory
     /// <exception cref="ArgumentNullException"><paramref name="client"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="defaultMaxOutputTokens"/> is not positive.</exception>
     /// <remarks>
-    /// Setups that manage their own authentication (for example Bedrock/Vertex
-    /// identity, or a provider that refreshes tokens) use this factory method.
+    /// The model provider builds a tenant's own-credential factory this way: it
+    /// creates the client for that credential, then wraps it here.
     /// </remarks>
     public static AnthropicChatClientFactory FromClient(
         IAnthropicClient client,

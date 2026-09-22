@@ -15,8 +15,8 @@ public static class OpenAIImageBuilderExtensions
     /// <remarks>
     /// <para>
     /// Call <see cref="OpenAIProviderExtensions.UseOpenAI(ITraconBuilder, string, Action{OpenAIProviderOptions}?)"/>
-    /// first. This call shares its authenticated <see cref="OpenAIChatClientFactory"/>
-    /// and does not add a package or a second connection pool.
+    /// first. This call shares the authenticated OpenAI client that <c>UseOpenAI</c>
+    /// registers and does not add a package or a second connection pool.
     /// </para>
     /// <para>
     /// The <c>generate_image</c> tool stays absent until

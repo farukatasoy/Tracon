@@ -33,7 +33,7 @@ namespace Tracon;
 /// a uniqueness violation; <see cref="ApplyOneAsync"/> retries this safely.
 /// </para>
 /// </remarks>
-public sealed class MigrationRunner : ISqlPersistenceDiagnostics, IMigrationApplier
+internal sealed class MigrationRunner : ISqlPersistenceDiagnostics, IMigrationApplier
 {
     private readonly SqlStoreContext _context;
     private readonly ILogger<MigrationRunner> _logger;

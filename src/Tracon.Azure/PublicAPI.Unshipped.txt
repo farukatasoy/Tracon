@@ -1,9 +1,5 @@
 #nullable enable
-Tracon.AzureOpenAIChatClientFactory
 Tracon.AzureOpenAIImageBuilderExtensions
-Tracon.AzureOpenAIChatClientFactory.AzureOpenAIChatClientFactory(Tracon.AzureOpenAIProviderOptions! options, Microsoft.Extensions.Logging.ILoggerFactory? loggerFactory = null) -> void
-Tracon.AzureOpenAIChatClientFactory.CreateChatClient(Tracon.ModelBinding! binding) -> Microsoft.Extensions.AI.IChatClient!
-Tracon.AzureOpenAIModelCatalog
 Tracon.AzureOpenAIProviderExtensions
 Tracon.AzureOpenAIProviderNames
 Tracon.AzureOpenAIProviderOptions
@@ -24,11 +20,8 @@ Tracon.AzureOpenAIProviderOptions.Timeout.set -> void
 const Tracon.AzureOpenAIProviderNames.AzureOpenAI = "azure-openai" -> string!
 const Tracon.AzureOpenAIProviderNames.SettingsPrefix = "azure-openai" -> string!
 const Tracon.AzureOpenAIProviderOptions.SectionName = "Tracon:Providers:AzureOpenAI" -> string!
-static Tracon.AzureOpenAIModelCatalog.Build(Tracon.AzureOpenAIProviderOptions! options) -> System.Collections.Generic.IReadOnlyList<Tracon.ModelDescriptor!>!
 static Tracon.AzureOpenAIImageBuilderExtensions.UseAzureOpenAIImages(this Tracon.ITraconBuilder! builder, System.Action<Tracon.TraconImageOptions!>? configure = null) -> Tracon.ITraconBuilder!
-static Tracon.AzureOpenAIChatClientFactory.FromClient(Azure.AI.OpenAI.AzureOpenAIClient! client, string? defaultDeployment = null, Microsoft.Extensions.Logging.ILoggerFactory? loggerFactory = null) -> Tracon.AzureOpenAIChatClientFactory!
 static Tracon.AzureOpenAIProviderExtensions.UseAzureOpenAI(this Tracon.ITraconBuilder! builder, Microsoft.Extensions.Configuration.IConfiguration! configurationSection) -> Tracon.ITraconBuilder!
 static Tracon.AzureOpenAIProviderExtensions.UseAzureOpenAI(this Tracon.ITraconBuilder! builder, System.Action<Tracon.AzureOpenAIProviderOptions!>! configure) -> Tracon.ITraconBuilder!
 static Tracon.AzureOpenAIProviderExtensions.UseAzureOpenAI(this Tracon.ITraconBuilder! builder, System.Uri! endpoint, string! apiKey, System.Action<Tracon.AzureOpenAIProviderOptions!>? configure = null) -> Tracon.ITraconBuilder!
 static Tracon.AzureOpenAIProviderNames.SupportedSettings.get -> System.Collections.Generic.IReadOnlyList<string!>!
-static Tracon.AzureOpenAIChatClientFactory.CreateClient(Tracon.AzureOpenAIProviderOptions! options, Tracon.EgressSocketGuard? egressGuard = null) -> Azure.AI.OpenAI.AzureOpenAIClient!

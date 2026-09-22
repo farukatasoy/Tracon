@@ -12,7 +12,7 @@ namespace Tracon;
 /// <c>TryAdd</c>; a consumer's own registration wins. The default
 /// implementation is safe as a singleton because it does not capture any
 /// per-request state itself — it reads <see cref="Resolve"/>'s caller on each
-/// call from <c>AuditActorContext.Current</c>, an <see cref="System.Threading.AsyncLocal{T}"/>
+/// call from an internal <see cref="System.Threading.AsyncLocal{T}"/>
 /// ambient scope that <c>Tracon.AspNetCore</c> populates per request (the
 /// same mechanism as <see cref="System.Diagnostics.Activity.Current"/>). A
 /// replacement implementation that instead captured a scoped dependency in

@@ -78,7 +78,7 @@ public sealed class VoiceOptions
 }
 
 /// <summary>Names of known voice providers.</summary>
-public static class VoiceProviderNames
+internal static class VoiceProviderNames
 {
     /// <summary>ElevenLabs. STABLE name: stored in usage records.</summary>
     public const string ElevenLabs = "elevenlabs";

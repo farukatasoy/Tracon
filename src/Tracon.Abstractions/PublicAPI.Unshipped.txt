@@ -451,10 +451,6 @@ Tracon.CanaryPolicy.RampInterval.get -> System.TimeSpan
 Tracon.CanaryPolicy.RampInterval.init -> void
 Tracon.CanaryPolicy.RampSteps.get -> System.Collections.Generic.IReadOnlyList<int>!
 Tracon.CanaryPolicy.RampSteps.init -> void
-Tracon.ChatHistoryState
-Tracon.ChatHistoryState.ChatHistoryState() -> void
-Tracon.ChatHistoryState.ConversationId.get -> System.Guid
-Tracon.ChatHistoryState.ConversationId.set -> void
 Tracon.CompactionSettings
 Tracon.CompactionSettings.<Clone>$() -> Tracon.CompactionSettings!
 Tracon.CompactionSettings.CompactionSettings() -> void
@@ -859,16 +855,6 @@ Tracon.Experiment.UpdatedAt.get -> System.DateTimeOffset?
 Tracon.Experiment.UpdatedAt.init -> void
 Tracon.Experiment.Variants.get -> System.Collections.Generic.IReadOnlyList<Tracon.ExperimentVariant!>!
 Tracon.Experiment.Variants.init -> void
-Tracon.ExperimentAssignment
-Tracon.ExperimentAssignment.<Clone>$() -> Tracon.ExperimentAssignment!
-Tracon.ExperimentAssignment.Equals(Tracon.ExperimentAssignment? other) -> bool
-Tracon.ExperimentAssignment.ExperimentAssignment() -> void
-Tracon.ExperimentAssignment.ExperimentId.get -> System.Guid
-Tracon.ExperimentAssignment.ExperimentId.init -> void
-Tracon.ExperimentAssignment.Variant.get -> string!
-Tracon.ExperimentAssignment.Variant.init -> void
-Tracon.ExperimentAssignment.Version.get -> int
-Tracon.ExperimentAssignment.Version.init -> void
 Tracon.ExperimentResultsQuery
 Tracon.ExperimentResultsQuery.<Clone>$() -> Tracon.ExperimentResultsQuery!
 Tracon.ExperimentResultsQuery.Equals(Tracon.ExperimentResultsQuery? other) -> bool
@@ -1497,7 +1483,6 @@ Tracon.JobItemStatus.Completed = 1 -> Tracon.JobItemStatus
 Tracon.JobItemStatus.Failed = 2 -> Tracon.JobItemStatus
 Tracon.JobItemStatus.Pending = 0 -> Tracon.JobItemStatus
 Tracon.JobLanes
-Tracon.JobPayload
 Tracon.JobQuery
 Tracon.JobQuery.<Clone>$() -> Tracon.JobQuery!
 Tracon.JobQuery.Equals(Tracon.JobQuery? other) -> bool
@@ -2270,14 +2255,6 @@ Tracon.QuotaUsageRecord.Tokens.get -> long
 Tracon.QuotaUsageRecord.Tokens.init -> void
 Tracon.QuotaUsageRecord.UpdatedAt.get -> System.DateTimeOffset
 Tracon.QuotaUsageRecord.UpdatedAt.init -> void
-Tracon.ReplayToolMismatchException
-Tracon.ReplayToolMismatchException.Arguments.get -> string?
-Tracon.ReplayToolMismatchException.Arguments.init -> void
-Tracon.ReplayToolMismatchException.ReplayToolMismatchException() -> void
-Tracon.ReplayToolMismatchException.ReplayToolMismatchException(string! message) -> void
-Tracon.ReplayToolMismatchException.ReplayToolMismatchException(string! message, System.Exception! innerException) -> void
-Tracon.ReplayToolMismatchException.ToolName.get -> string?
-Tracon.ReplayToolMismatchException.ToolName.init -> void
 Tracon.ReplayToolMode
 Tracon.ReplayToolMode.LiveTools = 2 -> Tracon.ReplayToolMode
 Tracon.ReplayToolMode.NoTools = 0 -> Tracon.ReplayToolMode
@@ -2366,7 +2343,6 @@ Tracon.RunAgentStatistics.TotalRuns.get -> long
 Tracon.RunAgentStatistics.TotalRuns.init -> void
 Tracon.RunAgentStatistics.TotalTokens.get -> long
 Tracon.RunAgentStatistics.TotalTokens.init -> void
-Tracon.RunAttributionReader
 Tracon.RunAuthorizationRequest
 Tracon.RunAuthorizationRequest.<Clone>$() -> Tracon.RunAuthorizationRequest!
 Tracon.RunAuthorizationRequest.Access.get -> Tracon.RunAccess
@@ -3109,12 +3085,6 @@ Tracon.RunVersionStatistics.TotalTokens.get -> long
 Tracon.RunVersionStatistics.TotalTokens.init -> void
 Tracon.RunVersionStatistics.Version.get -> int
 Tracon.RunVersionStatistics.Version.init -> void
-Tracon.SafeErrorText
-Tracon.SchemaReadyGate
-Tracon.SchemaReadyGate.IsReady.get -> bool
-Tracon.SchemaReadyGate.MarkReady() -> void
-Tracon.SchemaReadyGate.SchemaReadyGate(System.Collections.Generic.IEnumerable<Tracon.SqlPersistenceRegistrationMarker!>! registrations) -> void
-Tracon.SchemaReadyGate.WaitAsync(System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task!
 Tracon.SessionAccess
 Tracon.SessionAccess.Branch = 3 -> Tracon.SessionAccess
 Tracon.SessionAccess.Delete = 2 -> Tracon.SessionAccess
@@ -3504,7 +3474,6 @@ Tracon.ToolArgumentCondition.Path.init -> void
 Tracon.ToolArgumentCondition.ToolArgumentCondition() -> void
 Tracon.ToolArgumentCondition.Value.get -> System.Text.Json.JsonElement
 Tracon.ToolArgumentCondition.Value.init -> void
-Tracon.ToolArgumentConditionLimits
 Tracon.ToolArgumentOperator
 Tracon.ToolArgumentOperator.Equals = 0 -> Tracon.ToolArgumentOperator
 Tracon.ToolArgumentOperator.GreaterThan = 2 -> Tracon.ToolArgumentOperator
@@ -3903,7 +3872,6 @@ Tracon.TraconSessionOwnershipOptions.RefuseUnownedSessions.set -> void
 Tracon.TraconSessionOwnershipOptions.RequireAuthenticatedOwner.get -> bool
 Tracon.TraconSessionOwnershipOptions.RequireAuthenticatedOwner.set -> void
 Tracon.TraconSessionOwnershipOptions.TraconSessionOwnershipOptions() -> void
-Tracon.TraconSessionStateKeys
 Tracon.TraconStructuredResponseException
 Tracon.TraconStructuredResponseException.TraconStructuredResponseException() -> void
 Tracon.TraconStructuredResponseException.TraconStructuredResponseException(string! message) -> void
@@ -4197,9 +4165,6 @@ Tracon.WebhookEventPayload.Score.init -> void
 Tracon.WebhookEventPayload.TenantId.get -> string?
 Tracon.WebhookEventPayload.TenantId.init -> void
 Tracon.WebhookEventPayload.WebhookEventPayload() -> void
-Tracon.WebhookEventPayloadJsonContext
-Tracon.WebhookEventPayloadJsonContext.WebhookEventPayloadJsonContext() -> void
-Tracon.WebhookEventPayloadJsonContext.WebhookEventPayloadJsonContext(System.Text.Json.JsonSerializerOptions! options) -> void
 Tracon.WebhookEvents
 Tracon.WebhookJobSummary
 Tracon.WebhookJobSummary.<Clone>$() -> Tracon.WebhookJobSummary!
@@ -4335,7 +4300,6 @@ Tracon.WorkflowCheckpointRecord.StateSchemaVersion.init -> void
 Tracon.WorkflowCheckpointRecord.TenantId.get -> string!
 Tracon.WorkflowCheckpointRecord.TenantId.init -> void
 Tracon.WorkflowCheckpointRecord.WorkflowCheckpointRecord() -> void
-Tracon.WorkflowCheckpointState
 Tracon.WorkflowDefinition
 Tracon.WorkflowDefinition.<Clone>$() -> Tracon.WorkflowDefinition!
 Tracon.WorkflowDefinition.AgentNames.get -> System.Collections.Generic.IReadOnlyList<string!>!
@@ -4546,7 +4510,6 @@ const Tracon.JobHandlerKeys.Workflow = "tracon.workflow" -> string!
 const Tracon.JobLanes.Default = "default" -> string!
 const Tracon.JobRetryException.JobRetryErrorType = "job_retry" -> string!
 const Tracon.LoopSettings.DefaultMaxIterations = 10 -> int
-const Tracon.ReplayToolMismatchException.ReplayToolMismatchErrorType = "replay_tool_mismatch" -> string!
 const Tracon.RetentionTargets.Attachments = "attachments" -> string!
 const Tracon.RetentionTargets.Conversations = "conversations" -> string!
 const Tracon.RetentionTargets.DocumentEmbeddings = "document_embeddings" -> string!
@@ -4578,10 +4541,6 @@ const Tracon.RunScoreRules.MaxTextValueLength = 256 -> int
 const Tracon.RunScoreRules.NameDescription = "A run score name must match [A-Za-z0-9._-]{1,64}." -> string!
 const Tracon.RunTimeSeriesBucketing.MaxBuckets = 500 -> int
 const Tracon.SingletonExecutionOptions.SectionName = "Tracon:SingletonExecution" -> string!
-const Tracon.ToolArgumentConditionLimits.MaxConditions = 10 -> int
-const Tracon.ToolArgumentConditionLimits.MaxListLength = 50 -> int
-const Tracon.ToolArgumentConditionLimits.MaxPathLength = 200 -> int
-const Tracon.ToolArgumentConditionLimits.MaxPathSegments = 10 -> int
 const Tracon.ToolUsageUnits.Characters = "characters" -> string!
 const Tracon.ToolUsageUnits.Images = "images" -> string!
 const Tracon.ToolUsageUnits.Seconds = "seconds" -> string!
@@ -4600,7 +4559,6 @@ const Tracon.TraconSchedulingOptions.SectionName = "Tracon:Scheduling" -> string
 const Tracon.TraconSessionConflictException.SessionConflictErrorType = "session_conflict" -> string!
 const Tracon.TraconSessionOwnerRequiredException.SessionOwnerRequiredErrorType = "session_owner_required" -> string!
 const Tracon.TraconSessionOwnershipOptions.SectionName = "Tracon:SessionOwnership" -> string!
-const Tracon.TraconSessionStateKeys.ChatHistory = "Tracon.ChatHistory" -> string!
 const Tracon.TraconStructuredResponseException.StructuredResponseInvalidErrorType = "structured_response_invalid" -> string!
 const Tracon.TraconToolTimeoutException.ToolTimeoutErrorType = "tool_timeout" -> string!
 const Tracon.VoiceAttributeNames.Accent = "accent" -> string!
@@ -4746,9 +4704,6 @@ override Tracon.EvalSuite.ToString() -> string!
 override Tracon.Experiment.Equals(object? obj) -> bool
 override Tracon.Experiment.GetHashCode() -> int
 override Tracon.Experiment.ToString() -> string!
-override Tracon.ExperimentAssignment.Equals(object? obj) -> bool
-override Tracon.ExperimentAssignment.GetHashCode() -> int
-override Tracon.ExperimentAssignment.ToString() -> string!
 override Tracon.ExperimentResultsQuery.Equals(object? obj) -> bool
 override Tracon.ExperimentResultsQuery.GetHashCode() -> int
 override Tracon.ExperimentResultsQuery.ToString() -> string!
@@ -4922,7 +4877,6 @@ override Tracon.QuotaUsageQuery.ToString() -> string!
 override Tracon.QuotaUsageRecord.Equals(object? obj) -> bool
 override Tracon.QuotaUsageRecord.GetHashCode() -> int
 override Tracon.QuotaUsageRecord.ToString() -> string!
-override Tracon.ReplayToolMismatchException.ErrorType.get -> string!
 override Tracon.ResponseCacheSettings.Equals(object? obj) -> bool
 override Tracon.ResponseCacheSettings.GetHashCode() -> int
 override Tracon.ResponseCacheSettings.ToString() -> string!
@@ -5202,8 +5156,6 @@ override Tracon.WebhookDeliveryResult.ToString() -> string!
 override Tracon.WebhookEventPayload.Equals(object? obj) -> bool
 override Tracon.WebhookEventPayload.GetHashCode() -> int
 override Tracon.WebhookEventPayload.ToString() -> string!
-override Tracon.WebhookEventPayloadJsonContext.GeneratedSerializerOptions.get -> System.Text.Json.JsonSerializerOptions?
-override Tracon.WebhookEventPayloadJsonContext.GetTypeInfo(System.Type! type) -> System.Text.Json.Serialization.Metadata.JsonTypeInfo?
 override Tracon.WebhookJobSummary.Equals(object? obj) -> bool
 override Tracon.WebhookJobSummary.GetHashCode() -> int
 override Tracon.WebhookJobSummary.ToString() -> string!
@@ -5355,8 +5307,6 @@ static Tracon.EvalSuite.operator !=(Tracon.EvalSuite? left, Tracon.EvalSuite? ri
 static Tracon.EvalSuite.operator ==(Tracon.EvalSuite? left, Tracon.EvalSuite? right) -> bool
 static Tracon.Experiment.operator !=(Tracon.Experiment? left, Tracon.Experiment? right) -> bool
 static Tracon.Experiment.operator ==(Tracon.Experiment? left, Tracon.Experiment? right) -> bool
-static Tracon.ExperimentAssignment.operator !=(Tracon.ExperimentAssignment? left, Tracon.ExperimentAssignment? right) -> bool
-static Tracon.ExperimentAssignment.operator ==(Tracon.ExperimentAssignment? left, Tracon.ExperimentAssignment? right) -> bool
 static Tracon.ExperimentResultsQuery.operator !=(Tracon.ExperimentResultsQuery? left, Tracon.ExperimentResultsQuery? right) -> bool
 static Tracon.ExperimentResultsQuery.operator ==(Tracon.ExperimentResultsQuery? left, Tracon.ExperimentResultsQuery? right) -> bool
 static Tracon.ExperimentVariant.operator !=(Tracon.ExperimentVariant? left, Tracon.ExperimentVariant? right) -> bool
@@ -5393,7 +5343,6 @@ static Tracon.JobItemResult.operator !=(Tracon.JobItemResult? left, Tracon.JobIt
 static Tracon.JobItemResult.operator ==(Tracon.JobItemResult? left, Tracon.JobItemResult? right) -> bool
 static Tracon.JobLanes.IsValidName(string? name) -> bool
 static Tracon.JobLanes.Resolve(string! lane, string! handlerKey, System.Collections.Generic.IDictionary<string!, string!>? laneByHandlerKey) -> string!
-static Tracon.JobPayload.ExtractItems(System.Text.Json.JsonElement payload) -> System.Collections.Generic.IReadOnlyList<string!>!
 static Tracon.JobQuery.operator !=(Tracon.JobQuery? left, Tracon.JobQuery? right) -> bool
 static Tracon.JobQuery.operator ==(Tracon.JobQuery? left, Tracon.JobQuery? right) -> bool
 static Tracon.JobQueueDepth.operator !=(Tracon.JobQueueDepth? left, Tracon.JobQueueDepth? right) -> bool
@@ -5488,7 +5437,6 @@ static Tracon.QuotaUsageQuery.operator !=(Tracon.QuotaUsageQuery? left, Tracon.Q
 static Tracon.QuotaUsageQuery.operator ==(Tracon.QuotaUsageQuery? left, Tracon.QuotaUsageQuery? right) -> bool
 static Tracon.QuotaUsageRecord.operator !=(Tracon.QuotaUsageRecord? left, Tracon.QuotaUsageRecord? right) -> bool
 static Tracon.QuotaUsageRecord.operator ==(Tracon.QuotaUsageRecord? left, Tracon.QuotaUsageRecord? right) -> bool
-static Tracon.ReplayToolMismatchException.For(string! toolName, string? arguments) -> Tracon.ReplayToolMismatchException!
 static Tracon.ResponseCacheSettings.operator !=(Tracon.ResponseCacheSettings? left, Tracon.ResponseCacheSettings? right) -> bool
 static Tracon.ResponseCacheSettings.operator ==(Tracon.ResponseCacheSettings? left, Tracon.ResponseCacheSettings? right) -> bool
 static Tracon.RetentionPolicy.operator !=(Tracon.RetentionPolicy? left, Tracon.RetentionPolicy? right) -> bool
@@ -5502,7 +5450,6 @@ static Tracon.RetentionTargets.IsKnown(string? target) -> bool
 static Tracon.RetentionTargets.UserDataTargets.get -> System.Collections.Generic.IReadOnlyList<string!>!
 static Tracon.RunAgentStatistics.operator !=(Tracon.RunAgentStatistics? left, Tracon.RunAgentStatistics? right) -> bool
 static Tracon.RunAgentStatistics.operator ==(Tracon.RunAgentStatistics? left, Tracon.RunAgentStatistics? right) -> bool
-static Tracon.RunAttributionReader.Read(Tracon.IRunAttributionContext? context, System.Action<string!, System.Exception?>? onFault = null) -> (string? UserId, System.Collections.Generic.IReadOnlyDictionary<string!, string!>? Labels)
 static Tracon.RunAuthorizationRequest.operator !=(Tracon.RunAuthorizationRequest? left, Tracon.RunAuthorizationRequest? right) -> bool
 static Tracon.RunAuthorizationRequest.operator ==(Tracon.RunAuthorizationRequest? left, Tracon.RunAuthorizationRequest? right) -> bool
 static Tracon.RunAuthorizationResult.Allow() -> Tracon.RunAuthorizationResult!
@@ -5583,8 +5530,6 @@ static Tracon.RunUserStatistics.operator !=(Tracon.RunUserStatistics? left, Trac
 static Tracon.RunUserStatistics.operator ==(Tracon.RunUserStatistics? left, Tracon.RunUserStatistics? right) -> bool
 static Tracon.RunVersionStatistics.operator !=(Tracon.RunVersionStatistics? left, Tracon.RunVersionStatistics? right) -> bool
 static Tracon.RunVersionStatistics.operator ==(Tracon.RunVersionStatistics? left, Tracon.RunVersionStatistics? right) -> bool
-static Tracon.SafeErrorText.ForPersistence(System.Exception! exception, string! correlationId) -> string!
-static Tracon.SafeErrorText.NewCorrelationId() -> string!
 static Tracon.SessionAuthorizationRequest.operator !=(Tracon.SessionAuthorizationRequest? left, Tracon.SessionAuthorizationRequest? right) -> bool
 static Tracon.SessionAuthorizationRequest.operator ==(Tracon.SessionAuthorizationRequest? left, Tracon.SessionAuthorizationRequest? right) -> bool
 static Tracon.SessionBranchRequest.operator !=(Tracon.SessionBranchRequest? left, Tracon.SessionBranchRequest? right) -> bool
@@ -5701,7 +5646,6 @@ static Tracon.WebhookDeliveryResult.operator !=(Tracon.WebhookDeliveryResult? le
 static Tracon.WebhookDeliveryResult.operator ==(Tracon.WebhookDeliveryResult? left, Tracon.WebhookDeliveryResult? right) -> bool
 static Tracon.WebhookEventPayload.operator !=(Tracon.WebhookEventPayload? left, Tracon.WebhookEventPayload? right) -> bool
 static Tracon.WebhookEventPayload.operator ==(Tracon.WebhookEventPayload? left, Tracon.WebhookEventPayload? right) -> bool
-static Tracon.WebhookEventPayloadJsonContext.Default.get -> Tracon.WebhookEventPayloadJsonContext!
 static Tracon.WebhookEvents.All.get -> System.Collections.Generic.IReadOnlyList<string!>!
 static Tracon.WebhookEvents.IsKnown(string? eventType) -> bool
 static Tracon.WebhookJobSummary.operator !=(Tracon.WebhookJobSummary? left, Tracon.WebhookJobSummary? right) -> bool
@@ -5716,8 +5660,6 @@ static Tracon.WebhookSubscription.operator !=(Tracon.WebhookSubscription? left, 
 static Tracon.WebhookSubscription.operator ==(Tracon.WebhookSubscription? left, Tracon.WebhookSubscription? right) -> bool
 static Tracon.WorkflowCheckpointRecord.operator !=(Tracon.WorkflowCheckpointRecord? left, Tracon.WorkflowCheckpointRecord? right) -> bool
 static Tracon.WorkflowCheckpointRecord.operator ==(Tracon.WorkflowCheckpointRecord? left, Tracon.WorkflowCheckpointRecord? right) -> bool
-static Tracon.WorkflowCheckpointState.IsOmitted(System.Text.Json.JsonElement state) -> bool
-static Tracon.WorkflowCheckpointState.Omitted.get -> System.Text.Json.JsonElement
 static Tracon.WorkflowDefinition.operator !=(Tracon.WorkflowDefinition? left, Tracon.WorkflowDefinition? right) -> bool
 static Tracon.WorkflowDefinition.operator ==(Tracon.WorkflowDefinition? left, Tracon.WorkflowDefinition? right) -> bool
 static Tracon.WorkflowDescriptor.operator !=(Tracon.WorkflowDescriptor? left, Tracon.WorkflowDescriptor? right) -> bool
@@ -5741,23 +5683,6 @@ static Tracon.WorkflowResumeRequest.operator ==(Tracon.WorkflowResumeRequest? le
 static Tracon.WorkflowRunRequest.operator !=(Tracon.WorkflowRunRequest? left, Tracon.WorkflowRunRequest? right) -> bool
 static Tracon.WorkflowRunRequest.operator ==(Tracon.WorkflowRunRequest? left, Tracon.WorkflowRunRequest? right) -> bool
 virtual Tracon.TraconException.ErrorType.get -> string!
-~Tracon.WebhookEventPayloadJsonContext.DateTimeOffset.get -> System.Text.Json.Serialization.Metadata.JsonTypeInfo<System.DateTimeOffset>
-~Tracon.WebhookEventPayloadJsonContext.Decimal.get -> System.Text.Json.Serialization.Metadata.JsonTypeInfo<decimal>
-~Tracon.WebhookEventPayloadJsonContext.Double.get -> System.Text.Json.Serialization.Metadata.JsonTypeInfo<double>
-~Tracon.WebhookEventPayloadJsonContext.Int32.get -> System.Text.Json.Serialization.Metadata.JsonTypeInfo<int>
-~Tracon.WebhookEventPayloadJsonContext.Int64.get -> System.Text.Json.Serialization.Metadata.JsonTypeInfo<long>
-~Tracon.WebhookEventPayloadJsonContext.NullableDateTimeOffset.get -> System.Text.Json.Serialization.Metadata.JsonTypeInfo<System.DateTimeOffset?>
-~Tracon.WebhookEventPayloadJsonContext.NullableDecimal.get -> System.Text.Json.Serialization.Metadata.JsonTypeInfo<decimal?>
-~Tracon.WebhookEventPayloadJsonContext.NullableInt64.get -> System.Text.Json.Serialization.Metadata.JsonTypeInfo<long?>
-~Tracon.WebhookEventPayloadJsonContext.QuotaMetric.get -> System.Text.Json.Serialization.Metadata.JsonTypeInfo<Tracon.QuotaMetric>
-~Tracon.WebhookEventPayloadJsonContext.QuotaPeriod.get -> System.Text.Json.Serialization.Metadata.JsonTypeInfo<Tracon.QuotaPeriod>
-~Tracon.WebhookEventPayloadJsonContext.String.get -> System.Text.Json.Serialization.Metadata.JsonTypeInfo<string>
-~Tracon.WebhookEventPayloadJsonContext.WebhookApprovalSummary.get -> System.Text.Json.Serialization.Metadata.JsonTypeInfo<Tracon.WebhookApprovalSummary>
-~Tracon.WebhookEventPayloadJsonContext.WebhookEventPayload.get -> System.Text.Json.Serialization.Metadata.JsonTypeInfo<Tracon.WebhookEventPayload>
-~Tracon.WebhookEventPayloadJsonContext.WebhookJobSummary.get -> System.Text.Json.Serialization.Metadata.JsonTypeInfo<Tracon.WebhookJobSummary>
-~Tracon.WebhookEventPayloadJsonContext.WebhookQuotaSummary.get -> System.Text.Json.Serialization.Metadata.JsonTypeInfo<Tracon.WebhookQuotaSummary>
-~Tracon.WebhookEventPayloadJsonContext.WebhookRunSummary.get -> System.Text.Json.Serialization.Metadata.JsonTypeInfo<Tracon.WebhookRunSummary>
-~Tracon.WebhookEventPayloadJsonContext.WebhookScoreSummary.get -> System.Text.Json.Serialization.Metadata.JsonTypeInfo<Tracon.WebhookScoreSummary>
 ~override Tracon.ConversationBranch.Equals(object obj) -> bool
 ~override Tracon.ConversationBranch.ToString() -> string
 ~override Tracon.McpRefreshOutcome.Equals(object obj) -> bool

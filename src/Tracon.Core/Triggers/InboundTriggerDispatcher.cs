@@ -5,7 +5,7 @@ using Microsoft.Extensions.Options;
 namespace Tracon;
 
 /// <summary>The outcome of validating an inbound trigger request.</summary>
-public enum InboundTriggerOutcome
+internal enum InboundTriggerOutcome
 {
     /// <summary>The request is valid; <see cref="InboundTriggerValidationResult.Validated"/> is populated.</summary>
     Valid = 0,
@@ -37,7 +37,7 @@ public enum InboundTriggerOutcome
 }
 
 /// <summary>The result of <see cref="InboundTriggerDispatcher.ValidateAsync"/>.</summary>
-public sealed record InboundTriggerValidationResult
+internal sealed record InboundTriggerValidationResult
 {
     /// <summary>The validation outcome.</summary>
     public required InboundTriggerOutcome Outcome { get; init; }
@@ -53,7 +53,7 @@ public sealed record InboundTriggerValidationResult
 }
 
 /// <summary>A request that passed every check and is ready to be queued.</summary>
-public sealed record InboundTriggerValidatedRequest
+internal sealed record InboundTriggerValidatedRequest
 {
     /// <summary>The trigger definition the request matched.</summary>
     public required InboundTrigger Trigger { get; init; }
@@ -66,7 +66,7 @@ public sealed record InboundTriggerValidatedRequest
 }
 
 /// <summary>The result of <see cref="InboundTriggerDispatcher.EnqueueAsync"/>.</summary>
-public sealed record InboundTriggerDispatchResult
+internal sealed record InboundTriggerDispatchResult
 {
     /// <summary>
     /// The identifier of the <c>runs</c> row, when the target is an agent —

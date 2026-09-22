@@ -10,7 +10,7 @@ namespace Tracon;
 /// address</strong>; the address cannot change between resolution and
 /// connection (a DNS rebinding defense).
 /// </param>
-public readonly record struct WebhookUrlVerdict(bool IsAllowed, string? Reason, IPAddress? ResolvedAddress);
+internal readonly record struct WebhookUrlVerdict(bool IsAllowed, string? Reason, IPAddress? ResolvedAddress);
 
 /// <summary>
 /// Validates webhook target addresses against SSRF.
@@ -36,7 +36,7 @@ public readonly record struct WebhookUrlVerdict(bool IsAllowed, string? Reason, 
 ///   <item><description>Redirects: not followed — a redirect is an escape route into a private network.</description></item>
 /// </list>
 /// </remarks>
-public static class WebhookUrlValidator
+internal static class WebhookUrlValidator
 {
     /// <summary>Validates an address by its scheme, without resolving DNS.</summary>
     /// <param name="url">The address to validate.</param>

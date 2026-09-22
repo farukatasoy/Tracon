@@ -14,7 +14,7 @@ namespace Tracon;
 /// making the field nullable would mean silently accepting an empty payload
 /// from a genuine read as well.
 /// </remarks>
-public static class WorkflowCheckpointState
+internal static class WorkflowCheckpointState
 {
     /// <summary>Gets the value that marks a listing query as not having read the state payload.</summary>
     public static JsonElement Omitted { get; } = JsonDocument.Parse("{}").RootElement.Clone();

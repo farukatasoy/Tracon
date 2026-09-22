@@ -18091,14 +18091,18 @@ namespace Tracon.Client.Generated
         public string Entity { get; set; } = default!;
 
         /// <summary>
-        /// Gets the state before the change, as JSON text. It has passed the secret filter.
+        /// Gets the state before the change, as JSON text. Tracon's own write path
+        /// <br/>removes secret-named fields first; a caller that writes to
+        /// <br/>IAuditLog directly must not put a secret value here.
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("before")]
         public string? Before { get; set; } = default!;
 
         /// <summary>
-        /// Gets the state after the change, as JSON text. It has passed the secret filter.
+        /// Gets the state after the change, as JSON text. Tracon's own write path
+        /// <br/>removes secret-named fields first; a caller that writes to
+        /// <br/>IAuditLog directly must not put a secret value here.
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("after")]
@@ -18120,9 +18124,10 @@ namespace Tracon.Client.Generated
         public string? PreviousHash { get; set; } = default!;
 
         /// <summary>
-        /// Gets the hash of this entry, derived from its canonical form
-        /// <br/>(see `AuditChainHasher` in `Tracon.Core`). The write path
-        /// <br/>computes this value; a caller-supplied value is ignored.
+        /// Gets the hash of this entry: a SHA-256 over a canonical form of its
+        /// <br/>fields that also includes the previous entry's hash, so changing an
+        /// <br/>earlier entry breaks every later link. The write path computes this
+        /// <br/>value; a caller-supplied value is ignored.
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("hash")]

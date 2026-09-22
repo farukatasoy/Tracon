@@ -19,8 +19,8 @@ namespace Tracon;
 /// The session state is Microsoft Agent Framework's <c>SerializeSessionAsync</c>
 /// output and is treated as <strong>opaque</strong>. Tracon does not
 /// interpret its content. The identity is stamped onto the session's state
-/// bag with <see cref="AgentSessionIdentity"/>, so that <c>RunRecordingAgent</c>
-/// can write the real session identity to the run record.
+/// bag, so that <see cref="RunRecordingAgent"/> can write the real session
+/// identity to the run record.
 /// </para>
 /// <para>
 /// Microsoft Agent Framework's pre-release <c>AgentSessionStore</c> abstraction

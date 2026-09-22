@@ -1,6 +1,6 @@
 # 13 — Kiracı ve Güvenlik (`SEC`)
 
-> **Alan kodu:** `SEC` · **Faz:** 6, 9, 41, 50, 53, 63, 65, 69, 82, 139, 147, 148, 149
+> **Alan kodu:** `SEC` · **Faz:** 6, 9, 41, 50, 53, 63, 65, 69, 82, 139, 147, 148, 149, 182
 > **Kaynak:** `src/Tracon.AspNetCore/Security/` (tümü: `TraconEndpointFilter`,
 > `LoopbackGuard`, `BearerTokenValidator`, `ApiKeyAuthenticator`, `ApiKeyRequestContext`,
 > `ApiKeyScopeRequirement`, `ExternalSurfaceGuard`, `ExternalCallAudit`, `TraconPolicies`,
@@ -4312,3 +4312,43 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST "$APU/../v1/chat/completions" \
   değeri içerir.
 - Adım 2 sorunsuz açılır.
 - Otomatikleştirilmiş karşılığı: `TenantIdNormalizationTests`.
+
+### MT-SEC-199 — Ayırıcı karakter taşıyan koşul yolu iki kuralı birleştirmez
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 182 (plan dışı kusur) |
+| **İnsan gerekir** | Hayır |
+| **Devir** | ➜ CI: `ToolApprovalRuleStoreContract.A_path_carrying_separator_characters_does_not_merge_two_condition_sets` · `ToolApprovalRuleStoreContract.A_list_value_that_differs_only_in_whitespace_is_the_same_condition_set` |
+
+SQL store'ları koşul kümesini `conditions_hash` ile tekilleştirir. Parmak izi
+alanları U+001F/U+001E ile birleştiriyordu ve yol serbest metindir: bir yol bu
+karakterleri taşıyınca iki farklı küme aynı izi alıyor, ikinci kural sessizce
+birinciye katlanıyordu. Bellek içi store ise aynı listenin boşluk farkını iki
+kural sayıyordu. İkisi tek bir iç fonksiyona (`ToolArgumentConditionFingerprint`)
+toplandı.
+
+**Ön koşul**
+- Migration'ları uygulanmış bir SQLite veritabanıyla `samples/Tracon.Api`.
+
+**Adımlar**
+1. `refund_order` için tek koşullu bir kural yaz: yol
+   `"amount\u001F0\u001F1\u001Ecurrency"`, operatör `Equals`, değer `2`.
+2. Aynı tool için iki koşullu bir kural yaz: `amount Equals 1` ve
+   `currency Equals 2`.
+3. Kuralları listele.
+4. `region In ["eu", "us"]` ve `region In ["eu","us"]` ile iki kural yaz,
+   yeniden listele.
+
+**Beklenen sonuç**
+- Adım 2'nin yanıtı **iki** koşul taşır (birinci kural geri dönmez).
+- Adım 3 iki ayrı kural listeler.
+- Adım 4'ün ikinci isteği `409` döner ve liste yalnız **bir** `region` kuralı
+  taşır — boşluk farkı aynı koşuldur.
+- Ölçüldü (2026-09-22, SQLite, `samples/Tracon.Api` Staging): 201 · 201 (iki
+  koşul) · 201 · 409; liste 3 kural.
+- Faz öncesi yazılmış kuralların `conditions_hash` değeri değişmez: ayırıcı
+  taşımayan her küme eski biçimle özetlenir, migration gerekmez.
+

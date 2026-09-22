@@ -8,7 +8,7 @@ namespace Tracon;
 /// a configuration mistake, not a "last one wins" situation — a security policy the
 /// consumer expected to be active must not be silently dropped.
 /// </remarks>
-public sealed class ToolApprovalPolicyRegistry
+internal sealed class ToolApprovalPolicyRegistry
 {
     private readonly Dictionary<string, Func<ToolApprovalContext, ToolApprovalPolicyDecision>> _policies;
 

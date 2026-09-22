@@ -20,7 +20,7 @@ namespace Tracon;
 /// field.
 /// </para>
 /// </remarks>
-public static class AgentSessionIdentity
+internal static class AgentSessionIdentity
 {
     /// <summary>
     /// The state key under which the session identity is stored. This value

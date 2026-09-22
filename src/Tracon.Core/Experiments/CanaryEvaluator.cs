@@ -14,12 +14,12 @@ namespace Tracon;
 /// rationale as <c>ExperimentAssignmentResolver.SelectVariant</c>: tests run without a database.
 /// </para>
 /// <para>
-/// This class is <c>public</c> because <c>GET /api/experiments/{name}/canary</c> in
-/// <c>Tracon.AspNetCore</c> calculates the "latest evaluation" live with this
-/// method. This has the same rationale as public <see cref="ExperimentAssignmentResolver"/>.
+/// <c>GET /api/experiments/{name}/canary</c> in <c>Tracon.AspNetCore</c>
+/// calculates the "latest evaluation" live with this method; that package
+/// reaches it through <c>InternalsVisibleTo</c>.
 /// </para>
 /// </remarks>
-public static class CanaryEvaluator
+internal static class CanaryEvaluator
 {
     /// <summary>
     /// Evaluates the canary policy against the current results of the canary and control arms.

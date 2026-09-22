@@ -1,8 +1,4 @@
 #nullable enable
-Tracon.AnthropicChatClientFactory
-Tracon.AnthropicChatClientFactory.AnthropicChatClientFactory(Tracon.AnthropicProviderOptions! options, Microsoft.Extensions.Logging.ILoggerFactory? loggerFactory = null) -> void
-Tracon.AnthropicChatClientFactory.CreateChatClient(Tracon.ModelBinding! binding) -> Microsoft.Extensions.AI.IChatClient!
-Tracon.AnthropicModelCatalog
 Tracon.AnthropicProviderExtensions
 Tracon.AnthropicProviderNames
 Tracon.AnthropicProviderOptions
@@ -25,10 +21,7 @@ const Tracon.AnthropicProviderNames.PromptCachingSetting = "anthropic.promptCach
 const Tracon.AnthropicProviderNames.SettingsPrefix = "anthropic" -> string!
 const Tracon.AnthropicProviderNames.ThinkingBudgetTokensSetting = "anthropic.thinking.budgetTokens" -> string!
 const Tracon.AnthropicProviderOptions.SectionName = "Tracon:Providers:Anthropic" -> string!
-static Tracon.AnthropicChatClientFactory.FromClient(Anthropic.IAnthropicClient! client, string? defaultModel = null, int defaultMaxOutputTokens = 4096, Microsoft.Extensions.Logging.ILoggerFactory? loggerFactory = null) -> Tracon.AnthropicChatClientFactory!
-static Tracon.AnthropicModelCatalog.Build(Tracon.AnthropicProviderOptions! options) -> System.Collections.Generic.IReadOnlyList<Tracon.ModelDescriptor!>!
 static Tracon.AnthropicProviderExtensions.UseAnthropic(this Tracon.ITraconBuilder! builder, Microsoft.Extensions.Configuration.IConfiguration! configurationSection) -> Tracon.ITraconBuilder!
 static Tracon.AnthropicProviderExtensions.UseAnthropic(this Tracon.ITraconBuilder! builder, string! apiKey, System.Action<Tracon.AnthropicProviderOptions!>? configure = null) -> Tracon.ITraconBuilder!
 static Tracon.AnthropicProviderExtensions.UseAnthropic(this Tracon.ITraconBuilder! builder, System.Action<Tracon.AnthropicProviderOptions!>! configure) -> Tracon.ITraconBuilder!
 static Tracon.AnthropicProviderNames.SupportedSettings.get -> System.Collections.Generic.IReadOnlyList<string!>!
-static Tracon.AnthropicChatClientFactory.CreateClient(Tracon.AnthropicProviderOptions! options, Tracon.EgressSocketGuard? egressGuard = null) -> Anthropic.AnthropicClient!

@@ -96,7 +96,8 @@ public sealed class CompiledAgentCache
     /// See <see cref="GetOrAdd(string, string, string, string, Func{AIAgent})"/>.
     /// </param>
     /// <param name="culture">
-    /// The culture the definition was compiled with (see <see cref="InstructionCultureResolver"/>).
+    /// The culture the definition was compiled with (resolved against
+    /// <see cref="AgentDefinition.InstructionsByCulture"/>).
     /// An empty string when the run requested no culture. Part of the key: two runs of the
     /// same definition in different cultures must not share a compiled agent - the requested
     /// instructions text is baked into <see cref="Microsoft.Extensions.AI.ChatOptions"/> at

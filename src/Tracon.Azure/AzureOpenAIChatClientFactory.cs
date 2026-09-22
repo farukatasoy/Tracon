@@ -41,7 +41,7 @@ namespace Tracon;
 /// explicit error.
 /// </para>
 /// </remarks>
-public sealed class AzureOpenAIChatClientFactory
+internal sealed class AzureOpenAIChatClientFactory
 {
     private readonly AzureOpenAIClient _client;
     private readonly string? _defaultDeployment;
@@ -66,10 +66,7 @@ public sealed class AzureOpenAIChatClientFactory
     /// <param name="loggerFactory">The logger factory passed to produced clients.</param>
     /// <exception cref="ArgumentNullException"><paramref name="client"/> is <see langword="null"/>.</exception>
     /// <remarks>
-    /// Setups that build the client themselves use <see cref="FromClient"/>, which
-    /// calls this constructor: it is the only escape hatch when a custom
-    /// <c>AzureOpenAIClientOptions</c>, a sovereign cloud, or a hand-managed HTTP
-    /// pipeline is needed.
+    /// <see cref="FromClient"/> calls this constructor.
     /// </remarks>
     private AzureOpenAIChatClientFactory(
         AzureOpenAIClient client,
@@ -90,9 +87,8 @@ public sealed class AzureOpenAIChatClientFactory
     /// <returns>The new factory.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="client"/> is <see langword="null"/>.</exception>
     /// <remarks>
-    /// Setups that build the client themselves use this factory method: it is the
-    /// only escape hatch when a custom <c>AzureOpenAIClientOptions</c>, a
-    /// sovereign cloud, or a hand-managed HTTP pipeline is needed.
+    /// The model provider builds a tenant's own-credential factory this way: it
+    /// creates the client for that credential, then wraps it here.
     /// </remarks>
     public static AzureOpenAIChatClientFactory FromClient(
         AzureOpenAIClient client,

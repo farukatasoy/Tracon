@@ -15,6 +15,12 @@ public interface IApiKeyStore
     /// The saved record and the raw key value. The raw value cannot be
     /// produced again after this call.
     /// </returns>
+    /// <remarks>
+    /// Produce the raw value, its digest, and its display prefix with
+    /// <see cref="ApiKeyGenerator.Generate"/>. A presented key is looked up by
+    /// <see cref="ApiKeyGenerator.ComputeHash"/>, so a key made any other way
+    /// never authenticates.
+    /// </remarks>
     ValueTask<ApiKeyCreationResult> CreateAsync(ApiKeyDraft draft, CancellationToken cancellationToken = default);
 
     /// <summary>Lists a tenant's keys. The raw value and digest are NOT returned.</summary>
@@ -24,7 +30,10 @@ public interface IApiKeyStore
     ValueTask<IReadOnlyList<ApiKeyRecord>> ListAsync(string tenantId, CancellationToken cancellationToken = default);
 
     /// <summary>Looks up a key by its SHA-256 digest.</summary>
-    /// <param name="keyHash">The digest of the presented raw value.</param>
+    /// <param name="keyHash">
+    /// The digest of the presented raw value, as <see cref="ApiKeyGenerator.ComputeHash"/>
+    /// computes it.
+    /// </param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The record; <see langword="null"/> if it does not exist.</returns>
     /// <remarks>

@@ -9,7 +9,7 @@ namespace Tracon;
 /// to know the path prefix, <c>{prefix}</c>, and recognizes relative and absolute URIs.
 /// This keeps <c>Tracon.Core</c> fully independent from endpoint configuration.
 /// </remarks>
-public static class AttachmentUriReference
+internal static class AttachmentUriReference
 {
     private const string Marker = "/api/attachments/";
 

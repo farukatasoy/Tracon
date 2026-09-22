@@ -373,7 +373,7 @@ internal sealed class RunReplayService
 }
 
 /// <summary>Represents the outcome of a replay preparation.</summary>
-public enum RunReplayOutcome
+internal enum RunReplayOutcome
 {
     /// <summary>The plan is ready.</summary>
     Ready = 0,
@@ -399,7 +399,7 @@ public enum RunReplayOutcome
 }
 
 /// <summary>Represents a prepared replay plan.</summary>
-public sealed record RunReplayPreparation
+internal sealed record RunReplayPreparation
 {
     private RunReplayPreparation()
     {

@@ -241,7 +241,7 @@ internal sealed class ConversationBranchService
 }
 
 /// <summary>The outcome of a branching attempt.</summary>
-public enum SessionBranchStatus
+internal enum SessionBranchStatus
 {
     /// <summary>The branch was opened.</summary>
     Branched = 0,
@@ -266,7 +266,7 @@ public enum SessionBranchStatus
 }
 
 /// <summary>The result of a branching attempt.</summary>
-public sealed record SessionBranchOutcome
+internal sealed record SessionBranchOutcome
 {
     private SessionBranchOutcome()
     {

@@ -59,11 +59,11 @@ public abstract class JobScheduleStoreContract : TenantIsolationContract<IJobSch
         var saved = await Store.SaveAsync(TestData.Schedule() with { Payload = default });
 
         saved.Payload.ValueKind.ShouldBe(System.Text.Json.JsonValueKind.Array);
-        JobPayload.ExtractItems(saved.Payload).ShouldBeEmpty();
+        saved.Payload.GetArrayLength().ShouldBe(0);
 
         var fetched = await Store.GetAsync("default", "night-report");
         fetched!.Payload.ValueKind.ShouldBe(System.Text.Json.JsonValueKind.Array);
-        JobPayload.ExtractItems(fetched.Payload).ShouldBeEmpty();
+        fetched.Payload.GetArrayLength().ShouldBe(0);
     }
 
     [Fact]

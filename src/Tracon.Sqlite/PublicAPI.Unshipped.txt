@@ -14,10 +14,6 @@ Tracon.TraconSqliteOptions.EnableReadViews.get -> bool
 Tracon.TraconSqliteOptions.EnableReadViews.set -> void
 Tracon.TraconSqliteOptions.TablePrefix.get -> string!
 Tracon.TraconSqliteOptions.TablePrefix.set -> void
-Tracon.MigrationRunner
-Tracon.MigrationRunner.ApplyAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<int>
-Tracon.MigrationRunner.GetSnapshotAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.SqlPersistenceDiagnosticsSnapshot!>
-Tracon.MigrationRunner.ProviderName.get -> string!
 const Tracon.TraconSqliteOptions.SectionName = "Tracon:Sqlite" -> string!
 static Tracon.TraconSqliteBuilderExtensions.UseSqlite(this Tracon.ITraconBuilder! builder, Microsoft.Extensions.Configuration.IConfiguration! configurationSection) -> Tracon.ITraconBuilder!
 static Tracon.TraconSqliteBuilderExtensions.UseSqlite(this Tracon.ITraconBuilder! builder, string! connectionString) -> Tracon.ITraconBuilder!

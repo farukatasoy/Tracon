@@ -10,44 +10,51 @@ namespace Tracon.Package.Tests;
 /// implementation type does not.
 /// </summary>
 /// <remarks>
-/// Measured case: <c>Tracon.IRunStore</c> stays public, its default
+/// Measured cases: <c>Tracon.IRunStore</c> stays public, its default
 /// implementation <c>Tracon.InMemoryRunStore</c> became <c>internal</c>
-/// (Phase 96, item 96.6). Neither <see cref="ConsumerRunTests"/> nor
+/// (Phase 96, item 96.6); <c>Tracon.IMigrationApplier</c> stays public, the
+/// SQL providers' <c>Tracon.MigrationRunner</c> became <c>internal</c>
+/// (Phase 182) - it had been public in all three provider packages under the
+/// same name. Neither <see cref="ConsumerRunTests"/> nor
 /// <see cref="LocalReferenceTests"/> covers this: they prove the SDK-level
 /// consumer surface still works, not that a narrowed type actually stopped
 /// being visible.
 /// </remarks>
 public sealed class ConsumerSurfaceTests(TemplateFixture fixture)
 {
-    [Fact]
-    public async Task Internal_type_is_not_visible_to_a_package_consumer()
+    [Theory]
+    [InlineData("InMemoryRunStore")]
+    [InlineData("MigrationRunner")]
+    public async Task Internal_type_is_not_visible_to_a_package_consumer(string typeName)
     {
         using var dir = new TempDirectory();
 
-        await SurfaceProbeProject.WriteAsync(fixture.Version, dir.Path, """
+        await SurfaceProbeProject.WriteAsync(fixture.Version, dir.Path, $$"""
             using Tracon;
 
-            var store = new InMemoryRunStore();
-            Console.WriteLine(store);
+            {{typeName}}? narrowed = null;
+            Console.WriteLine(narrowed);
             """);
 
         var buildResult = await ProcessRunner.RunAsync("dotnet", "build -c Release", dir.Path, TimeSpan.FromMinutes(2));
 
         buildResult.ExitCode.ShouldNotBe(0, buildResult.Combined);
         buildResult.Combined.ShouldContain("CS0122");
-        buildResult.Combined.ShouldContain("InMemoryRunStore");
+        buildResult.Combined.ShouldContain(typeName);
     }
 
-    [Fact]
-    public async Task Corresponding_interface_is_visible_to_a_package_consumer()
+    [Theory]
+    [InlineData("IRunStore")]
+    [InlineData("IMigrationApplier")]
+    public async Task Corresponding_interface_is_visible_to_a_package_consumer(string interfaceName)
     {
         using var dir = new TempDirectory();
 
-        await SurfaceProbeProject.WriteAsync(fixture.Version, dir.Path, """
+        await SurfaceProbeProject.WriteAsync(fixture.Version, dir.Path, $$"""
             using Tracon;
 
-            IRunStore? store = null;
-            Console.WriteLine(store is null);
+            {{interfaceName}}? seam = null;
+            Console.WriteLine(seam is null);
             """);
 
         var buildResult = await ProcessRunner.RunAsync("dotnet", "build -c Release", dir.Path, TimeSpan.FromMinutes(2));

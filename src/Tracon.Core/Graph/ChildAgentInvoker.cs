@@ -612,10 +612,10 @@ internal sealed record ChildRunTimedOutEventPayload
 /// The MCP and A2A external call handlers in
 /// <c>Tracon.AspNetCore</c> use the same detection too (the second
 /// application of the same rule: it is not an external caller, it cannot give
-/// approval). This is why the type is <strong>public</strong>.
+/// approval); that package reaches it through <c>InternalsVisibleTo</c>.
 /// </para>
 /// </remarks>
-public static class ChildRunApproval
+internal static class ChildRunApproval
 {
     /// <summary>Searches the messages for a tool call pending approval.</summary>
     /// <param name="messages">Response messages.</param>

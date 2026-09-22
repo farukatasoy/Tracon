@@ -6,7 +6,7 @@ namespace Tracon;
 /// A code-defined agent registration. Use one of two forms: declarative
 /// <see cref="Definition"/> or <see cref="Factory"/>, which gives full control.
 /// </summary>
-public sealed class CodeAgentRegistration
+internal sealed class CodeAgentRegistration
 {
     private CodeAgentRegistration(string name)
     {

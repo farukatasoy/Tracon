@@ -17,7 +17,7 @@ dotnet add package Tracon.Abstractions --prerelease
 
 ## What is in here
 
-85 public interfaces among 418 exported public types. The ones a consumer actually implements
+85 public interfaces among 407 exported public types. The ones a consumer actually implements
 fall into four groups.
 
 ### Storage seams

@@ -38,13 +38,13 @@ namespace Tracon;
 /// <para>
 /// The values returned are RAW: this reader reports what is stored, never
 /// whether the running build understands it. That comparison belongs to
-/// <c>StatePreflight</c> in <c>Tracon.Core</c>, the only layer that knows
-/// which generation the current code writes.
+/// Tracon's state preflight (the <c>tracon state-check</c> command), the only
+/// layer that knows which generation the current code writes.
 /// </para>
 /// <para>
 /// <strong>DI lifetime — singleton.</strong> Registered with <c>Replace</c> by
 /// whichever SQL provider is active. No implementation is registered when
-/// persistence is in memory; resolve it as optional.
+/// persistence is in memory, so the preflight resolves it as optional.
 /// </para>
 /// </remarks>
 public interface IStatePreflightReader

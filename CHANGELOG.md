@@ -25,6 +25,68 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - The out-of-catalog log entry of an `UseOpenAICompatible()` provider now names
   `OpenAIProviderOptions.Models` instead of the `Tracon:Providers:OpenAI`
   section, which that provider does not read.
+- Two approval rules whose argument conditions differ are no longer merged
+  into one by the SQL stores when a condition path carries the U+001E or
+  U+001F control character. Before, saving the second rule returned the first
+  one unchanged. Existing rules keep their stored fingerprint; no migration
+  runs.
+- The in-memory approval rule store now treats a list value that differs only
+  in whitespace (`["eu", "us"]` and `["eu","us"]`) as the same condition, the
+  same as the SQL stores. Before, it kept two rules.
+
+### Removed
+
+These public types are now `internal`. None is part of a seam you implement
+or a call you make: the same behavior is reached through the public
+registration methods, options, and interfaces. The API is not frozen in the
+preview line, and the counts below are types, not members.
+
+- `Tracon.PostgreSql`, `Tracon.SqlServer`, `Tracon.Sqlite`: `MigrationRunner`.
+  It existed once in each provider package under the same name, so an
+  application that referenced two providers could not name it (`CS0433`).
+  Resolve `IMigrationApplier` to apply migrations and
+  `ISqlPersistenceDiagnostics` for the migration snapshot; both resolve to the
+  same runner. The `tracon migrate` command is unchanged.
+- `Tracon.Anthropic`, `Tracon.Azure`, `Tracon.Google`, `Tracon.OpenAI`: the
+  `*ChatClientFactory` and `*ModelCatalog` types, and `OpenAIApiSurface`. The
+  `Use*` registration methods and the `*ProviderOptions` types are the
+  configuration surface; a factory created through `FromClient` could not be
+  plugged into a registered provider anyway.
+- `Tracon.Abstractions` (11): `ChatHistoryState`, `ExperimentAssignment`,
+  `JobPayload`, `ReplayToolMismatchException`, `RunAttributionReader`,
+  `SafeErrorText`, `SchemaReadyGate`, `ToolArgumentConditionLimits`,
+  `TraconSessionStateKeys`, `WebhookEventPayloadJsonContext`, and
+  `WorkflowCheckpointState`. A store's checkpoint listing still returns an empty
+  JSON object (`{}`) as `State`; the documentation of `IWorkflowCheckpointStore`
+  now says so.
+- `Tracon.Core` (69): `AgentCallGraph`, `AgentCallGraphProblem`,
+  `AgentSessionIdentity`, `AttachmentTypeGuard`, `AttachmentUriReference`,
+  `AttachmentValidationResult`, `AuditActorContext`, `AuditChainHasher`,
+  `AuditChainWalker`, `AuditPayload`, `AuditRecorder`, `AuditSecretFilter`,
+  `AuthorizingAIFunction`, `CanaryEvaluator`, `ChildRunApproval`,
+  `CodeAgentRegistration`, `ConfigurationKeyGuard`, `CronExpression`,
+  `DefaultProviderRetryClassifier`, `DocumentAttachmentSummary`,
+  `DocumentChannelMessageBuilder`, `EgressAddressPolicy`,
+  `EgressAddressValidator`, `EgressAddressVerdict`, `EgressSocketGuard`,
+  `InMemoryWorkflowCheckpointStore`, `InboundTriggerDispatchResult`,
+  `InboundTriggerOutcome`, `InboundTriggerRateLimiter`,
+  `InboundTriggerSecretResolver`, `InboundTriggerValidatedRequest`,
+  `InboundTriggerValidationResult`, `InstructionCultureResolver`,
+  `InstructionParameterBinder`, `OnlineEvalSummaryService`,
+  `ProviderCredentialClientCache`, `QuotaPeriodCalculator`,
+  `ResolvedRetentionPolicy`, `RetentionExecutor`, `RetentionPolicyResolver`,
+  `RunPromotionOutcome`, `RunPromotionStatus`, `RunReplayOutcome`,
+  `RunReplayPreparation`, `SessionBranchOutcome`, `SessionBranchStatus`,
+  `SkillScriptExecutionResult`, `SkillScriptNaming`, `StateGenerationCount`,
+  `StatePreflight`, `StatePreflightReport`, `StateSampleFailure`, `TextChunker`,
+  `TextTrimming`, `ToolApprovalPolicyRegistration`,
+  `ToolApprovalPolicyRegistry`, `ToolApprovalRuleEvaluator`,
+  `TraconEvalCheckRegistration`, `TruncatingAIFunction`, `ValidatingAIFunction`,
+  `VoiceAudioFormats`, `VoiceConnectionLease`, `VoiceConnectionLimiter`,
+  `VoiceConversationProtocol`, `VoiceConversationRequest`, `WebhookHttpClient`,
+  `WebhookUrlValidator`, `WebhookUrlVerdict`, `WorkflowDefinitionValidator`.
+- `Tracon.Voice`: `VoiceProviderNames`. The provider value stays the plain
+  string `elevenlabs`.
 
 ### Changed
 

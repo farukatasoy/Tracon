@@ -48,7 +48,9 @@ public sealed record JobSchedule
     /// <summary>The input set or parameters. Interpreted by the job's handler.</summary>
     /// <remarks>
     /// An unset payload is stored as the empty JSON array, never as
-    /// <see cref="JsonValueKind.Undefined"/> - see <see cref="FreeFormJson"/>.
+    /// <see cref="JsonValueKind.Undefined"/> or JSON <c>null</c>: an undefined
+    /// value cannot be written as JSON, and SQL Server rejects a <c>null</c>
+    /// literal in a JSON column. Every reader treats the empty array as "no payload".
     /// </remarks>
     public JsonElement Payload
     {
@@ -60,6 +62,12 @@ public sealed record JobSchedule
     public bool Enabled { get; init; } = true;
 
     /// <summary>The next automatic run time (UTC). <see langword="null"/> if there is no cron.</summary>
+    /// <remarks>
+    /// The worker picks a due schedule by this value and computes every later
+    /// one itself. A schedule written straight to <see cref="IJobScheduleStore"/>
+    /// with a cron expression must therefore carry its first run time here: saved
+    /// with <see langword="null"/>, it never runs. The scheduling API sets it for you.
+    /// </remarks>
     public DateTimeOffset? NextRunAt { get; init; }
 
     /// <summary>The last run time (UTC). <see langword="null"/> if it never ran.</summary>

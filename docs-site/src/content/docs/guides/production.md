@@ -170,8 +170,9 @@ Tracon schema, validates checksums for applied migrations, and applies each
 pending migration in a transaction. A migration failure stops startup.
 
 For a small service, automatic migration is simple and safe. For a fleet, set it to
-false and run the registered `MigrationRunner.ApplyAsync()` from one controlled
-deployment step before new application instances become ready. With automatic
+false and apply migrations from one controlled deployment step before new
+application instances become ready: run `tracon migrate`, or call `ApplyAsync()` on
+the registered `IMigrationApplier`. With automatic
 migration disabled, Tracon opens its schema-ready gate on the assumption that the
 external step completed. The health check still reports pending migrations as
 unhealthy.

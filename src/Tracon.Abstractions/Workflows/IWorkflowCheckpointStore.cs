@@ -60,7 +60,11 @@ public interface IWorkflowCheckpointStore
     /// <param name="tenantId">The tenant identifier.</param>
     /// <param name="sessionId">The execution session identifier.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The records.</returns>
+    /// <returns>
+    /// The records. Each record's <see cref="WorkflowCheckpointRecord.State"/> is an
+    /// empty JSON object (<c>{}</c>), which marks the payload as not read; use
+    /// <see cref="ReadAsync"/> for the payload itself.
+    /// </returns>
     ValueTask<IReadOnlyList<WorkflowCheckpointRecord>> ListAsync(
         string tenantId,
         string sessionId,
@@ -73,7 +77,10 @@ public interface IWorkflowCheckpointStore
     /// <param name="tenantId">The tenant identifier.</param>
     /// <param name="runId">The run identifier.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The records.</returns>
+    /// <returns>
+    /// The records, each with an empty JSON object (<c>{}</c>) as its
+    /// <see cref="WorkflowCheckpointRecord.State"/>.
+    /// </returns>
     /// <remarks>
     /// Separate from the session-based list: a session can carry multiple
     /// runs (resuming opens a new run each time), and the UI asks "where can

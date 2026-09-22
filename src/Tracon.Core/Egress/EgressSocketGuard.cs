@@ -28,7 +28,7 @@ namespace Tracon;
 /// <c>HttpClient</c>; TLS validation is also performed against the original name.
 /// </para>
 /// </remarks>
-public sealed class EgressSocketGuard
+internal sealed class EgressSocketGuard
 {
     private readonly Func<EgressAddressPolicy> _policyAccessor;
 

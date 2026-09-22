@@ -1,0 +1,23 @@
+# Kanıtı olmayan ama bilinçli olarak public kalan tipler (Faz 182, F-259).
+#
+# `scripts/public-yuzey-envanteri.py` bu dosyayı okur: burada adı geçen tip
+# "kanıtsız" değil "gerekçeli" sayılır ve imza kapanışı ondan da yayılır.
+# Biçim: <tam ad><TAB><gerekçe — somut kanıtı adlandıran tek cümle>.
+# Gerekçesiz satır hatadır; artık public olmayan ya da kendi kanıtını bulan
+# tipin satırı "bayat gerekçe" olarak raporlanır ve silinir.
+#
+# Kalma gerekçesi SAYILMAYANLAR: başka bir birinci taraf paketin GÖVDESİNDE
+# kullanılmak (InternalsVisibleTo ile çözülür), test projesinde kullanılmak,
+# "ileride bir tüketici isteyebilir" spekülasyonu.
+Tracon.AgentParameterValidator	Public AgentDefinitionCompiler.CompileParameterizedAsync'in dokümanı doğrulamayı yapmamış çağırana önce AgentParameterValidator.ValidateValues'u çağırmasını söyler; site katalog dışında derlenen parametreli bir run'ı anlatır (write-your-own-agent-decorator).
+Tracon.ApiKeyGenerator	IApiKeyStore seam'ini uygulayan üçüncü taraf store anahtarı ApiKeyGenerator.Generate ile üretir ve ApiKeyAuthenticator sunulan token'ı ApiKeyGenerator.ComputeHash ile arar; sevk edilen ApiKeyStoreContract `ap_` biçimini ve bu hash ile bulunmayı doğrular.
+Tracon.EvalRunDiffBuilder	IEvalStore.DiffRunsAsync'in XML dokümanı uygulayıcıya karşılaştırma kurallarını yeniden yazmak yerine EvalRunDiffBuilder.Build'e delege etmesini söyler.
+Tracon.JobLanes	JobLanes.Resolve her IJobStore.EnqueueAsync uygulamasından çağrılır (TraconSchedulingOptions.LaneByHandlerKey onun içinde uygulanır); lane sözlüğü yedi public tipin dokümanında bu tipe bağlıdır.
+Tracon.RetentionTargets	IRetentionStore dokümanı hedef adının bu izin listesinden geldiğini ve bilinmeyen hedefte ArgumentException beklendiğini söyler; sevk edilen RetentionStoreContract uygulayıcıdan RetentionTargets.VoiceSessions altında satır yazmasını ister.
+Tracon.RunEventCustomTypes	RunEventType.Custom dokümanı tüketicinin yazdığı CustomType kurallarını ve ayrılmış öneki bu tipe bağlar; TraconQuotaOptions.PublishThresholdToRunStream açan tüketici bildirimi RunEventCustomTypes.QuotaThreshold ile tanır.
+Tracon.TraconGeneratedToolArguments	[TraconTool] kaynak üretecinin ürettiği sarmalayıcı bu tipi çağırır ve o kod tüketicinin kendi derlemesine girer; InternalsVisibleTo orada çalışmaz.
+Tracon.TraconRunBudgetExceededException	TraconRunOptions.Budget ile in-process koşan bir agent'ta bu istisna AIAgent.RunAsync/RunStreamingAsync'ten dönüştürülmeden tüketici koduna çıkar.
+Tracon.TraconStructuredResponseException	Tüketicinin kaydettiği IStructuredResponseValidator bir yanıtı reddettiğinde bu istisna RunRecordingAgent'tan dönüştürülmeden in-process AIAgent.RunAsync çağıranına ulaşır.
+Tracon.TraconToolTimeoutException	Public TimeoutAIFunction'ın dokümanı sarılan çağrının bu istisnayla bittiğini söyler; tool'u doğrudan çağıran veya kendi function-invocation katmanıyla saran tüketici onu tipiyle görür.
+Tracon.WebhookEvents	Olay adları sözleşmedir (abone bu dizeleri saklar); IWebhookPublisher.PublishAsync'in eventType parametresi ile WebhookSubscription.Events dokümanı geçerli adlar sözlüğü olarak bu tipe bağlanır.
+Tracon.TraconAgentSessionStore	Tipin dokümanı çok kiracılı kurulumda örneğin MAF'ın IsolationKeyScopedAgentSessionStore'u ile sarılmasını anlatır; köprü DI'a kaydedilmediği için tüketici onu ancak bu tipi adlandırıp oluşturarak sarar.

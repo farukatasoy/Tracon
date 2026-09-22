@@ -16,10 +16,6 @@ Tracon.TraconPostgreSqlOptions.EnableReadViews.get -> bool
 Tracon.TraconPostgreSqlOptions.EnableReadViews.set -> void
 Tracon.TraconPostgreSqlOptions.SchemaName.get -> string!
 Tracon.TraconPostgreSqlOptions.SchemaName.set -> void
-Tracon.MigrationRunner
-Tracon.MigrationRunner.ApplyAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<int>
-Tracon.MigrationRunner.GetSnapshotAsync(System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.SqlPersistenceDiagnosticsSnapshot!>
-Tracon.MigrationRunner.ProviderName.get -> string!
 const Tracon.TraconPostgreSqlOptions.SectionName = "Tracon:PostgreSql" -> string!
 static Tracon.TraconPostgreSqlBuilderExtensions.UsePostgreSql(this Tracon.ITraconBuilder! builder, Microsoft.Extensions.Configuration.IConfiguration! configurationSection) -> Tracon.ITraconBuilder!
 static Tracon.TraconPostgreSqlBuilderExtensions.UsePostgreSql(this Tracon.ITraconBuilder! builder, string! connectionString) -> Tracon.ITraconBuilder!

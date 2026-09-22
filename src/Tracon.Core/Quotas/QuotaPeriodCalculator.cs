@@ -16,7 +16,7 @@ namespace Tracon;
 /// early, before noon.
 /// </para>
 /// </remarks>
-public static class QuotaPeriodCalculator
+internal static class QuotaPeriodCalculator
 {
     /// <summary>Finds the first day of the period an instant falls into.</summary>
     /// <param name="instant">The instant (UTC or another offset).</param>

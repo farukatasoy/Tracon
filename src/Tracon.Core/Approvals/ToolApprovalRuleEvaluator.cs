@@ -30,7 +30,7 @@ namespace Tracon;
 /// <c>ITraconBuilder.AddToolApprovalPolicy(...)</c>.
 /// </para>
 /// </remarks>
-public sealed class ToolApprovalRuleEvaluator
+internal sealed class ToolApprovalRuleEvaluator
 {
     private readonly IToolApprovalRuleStore _rules;
     private readonly ToolApprovalPolicyRegistry _policies;

@@ -78,3 +78,21 @@
   `string.Create(CultureInfo.InvariantCulture, $"...")` ile kurulur. Guard
   davranissaldir (`InvariantShippedTextTests`), analyzer kurali yoktur. Ayrinti:
   [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
+
+### Public yuzey daraltma tarifi (Faz 182, K-850)
+
+- **Tip `internal` olunca `PublicAPI.Unshipped.txt`'ten TIP satiri ile birlikte
+  HER uye satiri silinmeli — `~` onekliler dahil.** Nullable-oblivious uyeler
+  `~Tracon.X.Y` (bosluksuz) ve `~override Tracon.X.Equals(object obj)`
+  biciminde yazilir; `^[a-z]+\s` ile onek soyan bir ayristirici bunlari kacirir
+  ve derleme `RS0017` (beyanli ama public degil) ile kirilir. Olculdu: ilk
+  deneme 17 `~` + 10 `~override` satiri biraktı. `scripts/public-yuzey-envanteri.py`
+  ayristiricisi (`DEGISTIRICI`) bu bicimi bilir; elle silerken ayni satirlari ara.
+- **Kaynak uretecin (`System.Text.Json`) public bir `JsonSerializerContext` icin
+  urettigi uyeler `RS0041` verir; baglam `internal` olunca tani kendiliginden
+  kaybolur** (K-423 bu yuzden yerine gecildi, `NoWarn` kaldirildi).
+- **Birinci taraf gövde kullanimi kalma gerekcesi DEGILDIR** — derleme `CS0122`
+  ile hangi derlemenin IVT istedigini tek tek soyler; o listeyi `InternalsVisibleTo`
+  ile kapat, gerekcesini `ItemGroup`/`AssemblyInfo.cs` yorumuna yaz. Test projeleri
+  varsayilan `$(MSBuildProjectName).UnitTests` kalibina uymuyorsa (ornek:
+  `Tracon.Abstractions` ic tipini `Tracon.Core.UnitTests` kullanir) ayrica eklenir.

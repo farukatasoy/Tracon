@@ -16,7 +16,7 @@ namespace Tracon;
 /// them. Such a file is always rejected.
 /// </para>
 /// </remarks>
-public sealed class AttachmentTypeGuard
+internal sealed class AttachmentTypeGuard
 {
     private readonly TraconAttachmentOptions _options;
 
@@ -199,7 +199,7 @@ public sealed class AttachmentTypeGuard
 }
 
 /// <summary>The result of validating an attachment.</summary>
-public readonly struct AttachmentValidationResult
+internal readonly struct AttachmentValidationResult
 {
     private AttachmentValidationResult(bool isValid, string? mediaType, string? error)
     {

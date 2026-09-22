@@ -25,9 +25,8 @@ public sealed record ExperimentResultsResponse
 /// current evaluation together.
 /// </summary>
 /// <remarks>
-/// <see cref="Evaluation"/> is NOT PERSISTENT: it is computed LIVE by
-/// <c>CanaryEvaluator</c> on every call (see the <see cref="CanaryEvaluation"/>
-/// class documentation).
+/// <see cref="Evaluation"/> is NOT PERSISTENT: it is computed LIVE on every
+/// call (see the <see cref="CanaryEvaluation"/> class documentation).
 /// </remarks>
 public sealed record ExperimentCanaryResponse
 {

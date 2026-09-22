@@ -20,7 +20,7 @@ namespace Tracon;
 /// queues a job has no reason to depend on a web framework.
 /// </para>
 /// </remarks>
-public sealed class InboundTriggerRateLimiter
+internal sealed class InboundTriggerRateLimiter
 {
     private readonly ConcurrentDictionary<Guid, Window> _windows = new();
     private readonly IOptionsMonitor<TraconInboundTriggerOptions> _optionsMonitor;

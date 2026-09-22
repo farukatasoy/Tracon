@@ -28,7 +28,7 @@ namespace Tracon;
 /// unconditionally so the same canonical form works on all three providers.
 /// </para>
 /// </remarks>
-public static class AuditChainHasher
+internal static class AuditChainHasher
 {
     private const long TicksPerMicrosecond = 10;
 

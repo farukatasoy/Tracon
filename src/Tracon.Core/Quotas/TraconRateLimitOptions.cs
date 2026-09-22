@@ -23,7 +23,7 @@ namespace Tracon;
 /// <see cref="PermitLimit"/> of 100 together admit 200 requests per window, and
 /// <see cref="RateLimitPartitionKind.Tenant"/> partitions that per-instance
 /// window per tenant rather than across the deployment.
-/// <see cref="InboundTriggerRateLimiter"/> has the same scope. A ceiling that
+/// The inbound trigger rate limit has the same scope. A ceiling that
 /// must hold for the deployment as a whole is a total-consumption question, so
 /// it belongs to <see cref="TraconQuotaOptions"/>.
 /// </para>

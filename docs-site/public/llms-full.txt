@@ -6273,8 +6273,8 @@ connection string moves.
 
 `AutoApplyMigrations` (default `true`) applies to Tracon's own schema only. In
 an embedded setup where your application already owns a controlled migration step
-for its own schema, set it to `false` and call the registered
-`MigrationRunner.ApplyAsync()` from that same step — Tracon's schema then
+for its own schema, set it to `false` and call `ApplyAsync()` on the registered
+`IMigrationApplier` from that same step — Tracon's schema then
 migrates alongside yours instead of at every instance's startup. See
 [Choose a migration strategy](/guides/production/#choose-a-migration-strategy) for
 the fleet-deployment version of this same setting.
@@ -8978,8 +8978,9 @@ Tracon schema, validates checksums for applied migrations, and applies each
 pending migration in a transaction. A migration failure stops startup.
 
 For a small service, automatic migration is simple and safe. For a fleet, set it to
-false and run the registered `MigrationRunner.ApplyAsync()` from one controlled
-deployment step before new application instances become ready. With automatic
+false and apply migrations from one controlled deployment step before new
+application instances become ready: run `tracon migrate`, or call `ApplyAsync()` on
+the registered `IMigrationApplier`. With automatic
 migration disabled, Tracon opens its schema-ready gate on the assumption that the
 external step completed. The health check still reports pending migrations as
 unhealthy.
