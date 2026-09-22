@@ -5882,3 +5882,17 @@ Tracon içinde aktif sızıntı yoktu; risk tüketici davranışıdır — "cach
 
 Joker "en yenisi" okunur, restore "zaten BİLİNEN en yenisi" cevabını verir. MinVer sürümü git tag'inden verdiği için değer paketleme anında damgalanır.
 
+## Faz 90 damıtmasında taşınan gerekçeler
+
+### K-844
+
+`Failed` seçeneği reddedildi: deadline bir `run`'ı durdurur, arızalandırmaz; ayırt edici olan sebeptir, durum değil. Sebep yalnız `timeout` kaynağına bakar — `linked` kaynağı çağıran ve `POST /api/runs/{id}/cancel` tarafından da tetiklenir ve onlara deadline'ı yazmak doğru bir duruşa yanlış sebep koyardı. Kapı: `WorkflowRunTimeoutReasonTests` (iki yarım — deadline sebebi yazar, çağıran iptali yazmaz).
+
+### K-845
+
+`RunReconciliationService` yetimi sonunda **`Failed`** olarak kapatıyordu: kullanıcının iptali, dakikalar sonra, hiç olmamış bir başarısızlık olarak raporlanıyordu. `Failed` seçeneği reddedildi — iptal de terk de "biri durdurdu" demektir, arıza değildir; ikisini ayırmak için durum değil sebep kullanılır (K-844 ile aynı duruş). Kapı: `A_consumer_that_stops_reading_still_closes_the_run` — terk yolu deterministiktir (218 ms), yarışa dayanan kardeşi `Cancellation_requested_inside_a_function_node_still_records_Canceled` yerelde 40/40 geçerken CI'da iki kez düşmüştü. 🚨 Sınıf: `run` açan tam iki yüzey var; `RunRecordingAgent` bu `finally`'yi HATA-S4-012 ve HATA-S4-003 ile zaten kazanmıştı, workflow yoluna taşınmamıştı.
+
+### K-846
+
+Düşürme connection-string builder round-trip'iyle yapılır (biçim normalize olur, yalnız `Password` düşer); bağlantı üretimi ham dizeyle sürer. Kapı: `SqlServerDataSourceTests` · `SqliteDataSourceTests` — düzeltme öncesi kırmızı görüldü
+
