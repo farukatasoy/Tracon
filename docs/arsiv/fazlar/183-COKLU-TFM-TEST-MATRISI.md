@@ -94,7 +94,7 @@ Yerel kararlar yukarıda ve kodda: küme tek yerde, Windows net10, yol beyandan.
 ## Süre Ölçümü
 
 Tam kapanış test adımı (`dotnet test Tracon.slnx -maxcpucount:1`, yerel, 2026-09-23):
-**910 sn** (Faz 182'nin aynı adımı: 782 sn). Ek TFM bacaklarının payı ~105 sn —
+**910 sn** ve son kapanışta **901 sn** (Faz 182'nin aynı adımı: 782 sn). Ek TFM bacaklarının payı ~105 sn —
 bacak başına: Core 5,2/4,5 sn · Sqlite 43,1/42,0 sn · dört provider ~1–1,5 sn ·
 Sql.Shared ve Contracts.Xunit <0,3 sn (net8/net9). `-maxcpucount:1` bacakları
 sıralı koşturur; tek proje koşumunda (`dotnet test tests/<P>`) üçü paralel koşar
@@ -120,16 +120,30 @@ provasındaki koşum "Kapanış Kapısı" bölümünde.
 
 ## Kapanış Kapısı
 
-Doldurulacak: son `kapi.py kapanis` ve `kapi.py yayin --kuru` koşumu.
+`DOTNET_ROOT=~/.dotnet` (PATH'teki `dotnet` sistemin), 2026-09-23:
+
+- `kapi.py yayin --kuru` → **EXIT 0**, sürüm `1.0.0-preview.2.18`: 20 paket; altı
+  sample 101 · 38 · 11 · 15 · 18 · 10 test geçti; AOT smoke geçti; `net8.0 consumer
+  smoke passed on .NET 8.0.31: reply: ping from net8`. 🚨 İlk prova net8 tüketicisinde
+  düştü: `dotnet run` uygulamaya muxer'ın kendi kökünü `DOTNET_ROOT` olarak verir ve
+  `~/.dotnet`'teki net8'i görmedi. Tüketici artık `dotnet build` + apphost ile koşar;
+  prova paketlemeden önce net8 runtime'ını da denetler. CI'da muxer kökü ile
+  `DOTNET_ROOT` aynıdır, orada düşmezdi — kusur yalnız yerelde görünürdü.
+- `kapi.py kapanis --taban 02234602` → **EXIT 0**: tarama · doküman denetimi · 446
+  betik testi · agent haritası · denetim paketi · build 126 sn · test 901 sn (38 bacak,
+  hepsi yeşil) · pack · format · `npm run check`. İlk koşumda üç `Tracon.Package.Tests`
+  case'i ortamdan düştü (özel kök PATH'teydi, "Faz Dışı" altında); ikinci koşum
+  `llms-full.txt`'in site değişikliğinden sonra yeniden üretilmediğini yakaladı
+  (`build-agent-map.mjs`).
 
 ## Süreç Ölçümü
 
 | Metrik | Değer |
 |---|---|
 | Plan revizyonu sayısı | 0 — plan değişmedi; sapmalar yukarıda |
-| Düzeltme turu sayısı | 1 — denetimin iki 🔴 + dört 🟡 + bir 🟢 bulgusu tek turda kapandı |
+| Düzeltme turu sayısı | 3 — denetimin iki 🔴 + dört 🟡 + bir 🟢 bulgusu tek turda; yayın provasının `dotnet run` kusuru; üretilmeyen `llms-full.txt` |
 | 🔴 bulgu: gerçek / gürültü / araştırılacak | 2 / 0 / 0 |
-| Fazın ürettiği regresyon | 1 — `kapi_test`'in yeni bir iddiası Windows'ta yol ayracına takılırdı (denetim 🔴-1, CI'a ulaşmadan kapandı) |
+| Fazın ürettiği regresyon | 2 — `kapi_test`'in yeni bir iddiası Windows'ta yol ayracına takılırdı (denetim 🔴-1) · net8 tüketicisi `dotnet run` yüzünden yerel provada düştü; ikisi de CI'a ulaşmadan kapandı |
 | Faz kapandıktan sonra bulunan kusur | ölçülmedi — faz yeni kapandı |
 
 ## Denetim Bulguları
