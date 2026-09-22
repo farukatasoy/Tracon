@@ -1,5 +1,4 @@
-using System.Diagnostics;
-using System.Text.Json;
+using Microsoft.Extensions.Logging;
 
 namespace Tracon;
 
@@ -9,7 +8,9 @@ namespace Tracon;
 /// <remarks>
 /// <para>
 /// This endpoint returns model names and <strong>incurs no cost</strong> — no model
-/// call is made. The pattern is identical to <c>OpenAIProviderHealthCheck</c>
+/// call is made. The shared body (timeout, failure mapping, body parsing) is
+/// <c>ProviderHealthCheckCore</c>; this type supplies only the endpoint, the
+/// auth headers and the body shape.
 /// </para>
 /// <para>
 /// <see cref="HttpClient"/> is used directly instead of the SDK: this lets the
@@ -23,12 +24,10 @@ namespace Tracon;
 /// <strong>required</strong>; the endpoint returns <c>HTTP 400</c> when it is missing.
 /// </para>
 /// </remarks>
-internal sealed class AnthropicProviderHealthCheck(string providerName, AnthropicProviderOptions options)
+internal sealed class AnthropicProviderHealthCheck(string providerName, AnthropicProviderOptions options, ILogger? logger = null)
     : IModelProviderHealthCheck
 {
     private static readonly Uri DefaultAnthropicEndpoint = new("https://api.anthropic.com/v1/");
-    private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(10);
-    private const int MaxReportedModels = 200;
 
     /// <summary>
     /// The API version header Anthropic requires. It is a dated version id, not
@@ -36,151 +35,43 @@ internal sealed class AnthropicProviderHealthCheck(string providerName, Anthropi
     /// </summary>
     internal const string AnthropicVersion = "2023-06-01";
 
-    // PooledConnectionLifetime bounds how long a resolved address is reused: a
-    // provider that fails over behind DNS would otherwise stay pinned to the old
-    // address for the process lifetime. Two minutes matches
-    // EgressSocketGuard.CreateHandler.
-    private static readonly HttpClient SharedHttpClient = new(
-        new SocketsHttpHandler { PooledConnectionLifetime = TimeSpan.FromMinutes(2) },
-        disposeHandler: true);
+    private readonly ProviderHealthCheckCore _core = new(providerName, logger);
 
     /// <inheritdoc />
-    public async ValueTask<ModelProviderHealth> CheckHealthAsync(CancellationToken cancellationToken = default)
+    public ValueTask<ModelProviderHealth> CheckHealthAsync(CancellationToken cancellationToken = default)
+        => _core.CheckAsync(
+            BuildModelsEndpoint(options.Endpoint),
+            options.Timeout,
+            Authorize,
+            ReadModelIdsAsync,
+            cancellationToken);
+
+    private ValueTask Authorize(HttpRequestMessage request, CancellationToken cancellationToken)
     {
-        var stopwatch = Stopwatch.StartNew();
-        var checkedAt = DateTimeOffset.UtcNow;
+        request.Headers.Add("anthropic-version", AnthropicVersion);
 
-        using var timeoutSource = new CancellationTokenSource(options.Timeout ?? DefaultTimeout);
-        using var linkedSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutSource.Token);
-
-        try
+        if (!string.IsNullOrWhiteSpace(options.ApiKey))
         {
-            using var request = new HttpRequestMessage(HttpMethod.Get, BuildModelsEndpoint(options.Endpoint));
-            request.Headers.Add("anthropic-version", AnthropicVersion);
-
-            if (!string.IsNullOrWhiteSpace(options.ApiKey))
-            {
-                request.Headers.Add("x-api-key", options.ApiKey);
-            }
-
-            using var response = await SharedHttpClient
-                .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, linkedSource.Token)
-                .ConfigureAwait(false);
-
-            stopwatch.Stop();
-
-            if (!response.IsSuccessStatusCode)
-            {
-                return Unhealthy(checkedAt, stopwatch.Elapsed, $"HTTP {(int)response.StatusCode} {response.ReasonPhrase}");
-            }
-
-            var models = await ReadModelIdsAsync(response, linkedSource.Token).ConfigureAwait(false);
-
-            return new ModelProviderHealth
-            {
-                ProviderName = providerName,
-                Status = ModelProviderHealthStatus.Healthy,
-                Latency = stopwatch.Elapsed,
-                CheckedAt = checkedAt,
-                Models = models,
-            };
+            request.Headers.Add("x-api-key", options.ApiKey);
         }
-        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
-        {
-            stopwatch.Stop();
-            return Unhealthy(checkedAt, stopwatch.Elapsed, "Timed out.");
-        }
-        catch (HttpRequestException exception)
-        {
-            stopwatch.Stop();
 
-            // exception.Message embeds the target address (host:port) in the body in
-            // cases such as a refused connection. HttpRequestError is a category name
-            // that carries no address (.NET 8+).
-            return Unhealthy(checkedAt, stopwatch.Elapsed, $"Connection error ({exception.HttpRequestError}).");
-        }
-        catch (JsonException)
-        {
-            stopwatch.Stop();
-            return new ModelProviderHealth
-            {
-                ProviderName = providerName,
-                Status = ModelProviderHealthStatus.Degraded,
-                Detail = "The response is not valid JSON.",
-                Latency = stopwatch.Elapsed,
-                CheckedAt = checkedAt,
-            };
-        }
+        return ValueTask.CompletedTask;
     }
 
-    private ModelProviderHealth Unhealthy(DateTimeOffset checkedAt, TimeSpan latency, string detail)
-        => new()
-        {
-            ProviderName = providerName,
-            Status = ModelProviderHealthStatus.Unhealthy,
-            Detail = detail,
-            Latency = latency,
-            CheckedAt = checkedAt,
-        };
-
     /// <summary>
-    /// Joins the base address with <c>/models</c>. When the base address does not
-    /// end with a slash, <see cref="Uri"/> REPLACES its last segment (treating it
-    /// like a file); the address is therefore normalized before joining.
+    /// Joins the base address with <c>/models</c>; the official endpoint is used
+    /// when no address is given.
     /// </summary>
     /// <remarks><c>internal</c>: unit tests verify this join without a network call.</remarks>
     internal static Uri BuildModelsEndpoint(Uri? baseEndpoint)
-    {
-        var effective = baseEndpoint ?? DefaultAnthropicEndpoint;
-        var text = effective.ToString();
-
-        if (!text.EndsWith('/'))
-        {
-            text += "/";
-        }
-
-        return new Uri(new Uri(text, UriKind.Absolute), "models");
-    }
+        => ProviderHealthCheckCore.JoinEndpoint(baseEndpoint ?? DefaultAnthropicEndpoint, "models");
 
     /// <summary>
     /// Reads model ids from a <c>{"data":[{"id":"claude-..."}]}</c> body.
     /// </summary>
     /// <remarks><c>internal</c>: unit tests verify parsing against a canned response body.</remarks>
-    internal static async ValueTask<IReadOnlyList<string>> ReadModelIdsAsync(
+    internal static ValueTask<IReadOnlyList<string>> ReadModelIdsAsync(
         HttpResponseMessage response,
         CancellationToken cancellationToken)
-    {
-        var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-
-        await using (stream.ConfigureAwait(false))
-        {
-            using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
-
-            if (!document.RootElement.TryGetProperty("data", out var data) || data.ValueKind != JsonValueKind.Array)
-            {
-                return [];
-            }
-
-            var models = new List<string>();
-
-            foreach (var entry in data.EnumerateArray())
-            {
-                if (models.Count >= MaxReportedModels)
-                {
-                    break;
-                }
-
-                if (entry.ValueKind == JsonValueKind.Object
-                    && entry.TryGetProperty("id", out var id)
-                    && id.ValueKind == JsonValueKind.String
-                    && id.GetString() is { Length: > 0 } modelId)
-                {
-                    models.Add(modelId);
-                }
-            }
-
-            models.Sort(StringComparer.Ordinal);
-            return models;
-        }
-    }
+        => ProviderHealthCheckCore.ReadModelIdsAsync(response, "data", "id", stripPrefix: null, cancellationToken);
 }

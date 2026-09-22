@@ -19,4 +19,13 @@
     <PackageReference Include="Anthropic" />
   </ItemGroup>
 
+  <!--
+    Shared source (Phase 181). Tracon.Providers.Shared is NOT a package; the same
+    files also compile into the other three provider adapters. Rationale and
+    rules: src/Tracon.Providers.Shared/README.md.
+  -->
+  <ItemGroup Label="Shared provider source (Phase 181)">
+    <Compile Include="../Tracon.Providers.Shared/**/*.cs" LinkBase="Shared" />
+  </ItemGroup>
+
 </Project>

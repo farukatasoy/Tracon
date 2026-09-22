@@ -202,7 +202,10 @@ public static partial class TraconServiceCollectionExtensions
             provider.GetServices<IModelProvider>(),
             provider.GetRequiredService<IOptionsMonitor<TraconOptions>>(),
             provider.GetService<ModelProviderCircuitBreaker>(),
-            provider.GetService<TimeProvider>()));
+            provider.GetService<TimeProvider>())
+        {
+            Logger = provider.GetService<ILogger<ModelProviderHealthCache>>(),
+        });
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IHostedService, ModelProviderHealthBackgroundService>());
 

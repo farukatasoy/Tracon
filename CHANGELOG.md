@@ -6,7 +6,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-Nothing here yet. Entries land as changes are made on `main`.
+### Fixed
+
+- `GET /api/models/health` no longer fails for every provider when one
+  provider's health check throws. The failing provider is reported `Unhealthy`
+  with the exception type in `detail` (`The health check failed (...)`), and the
+  exception is logged at Warning level. The background health refresh also
+  continues past that provider.
+- An Azure OpenAI `CredentialFactory` credential that throws while it gets a
+  token (for example `DefaultAzureCredential` without an Azure sign-in) now
+  reports `Unhealthy` with `Credential error (<exception type>)` and logs the
+  exception, instead of escaping the health check.
+- `UseAzureOpenAI(IConfiguration)` now binds a relative `Endpoint` and a
+  `Models` entry without a `Name`, so start-up validation rejects them with the
+  specific message, the same as the other three providers. Before, a relative
+  endpoint was reported as missing and a nameless entry was silently dropped.
+  An application that relied on the silent drop now fails at start-up.
+- The out-of-catalog log entry of an `UseOpenAICompatible()` provider now names
+  `OpenAIProviderOptions.Models` instead of the `Tracon:Providers:OpenAI`
+  section, which that provider does not read.
+
+### Changed
+
+- The out-of-catalog log entry of the OpenAI, Anthropic, and Google providers
+  now has one shared wording (`Use the <key> setting to add the model to the
+  catalog.`). The Gemini health detail for an unparsable model list is now
+  `The response is not valid JSON.`, the same as the other providers.
 
 A version section is not written ahead of time. At tag time this heading is
 renamed to the version and the date it shipped on, and a fresh empty

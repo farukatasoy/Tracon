@@ -28,6 +28,18 @@
    GA'ya ertelenenler
 4. Sözleşme dokümantasyon kapısı: `SeamContractDocumentationTests` (küçülen
    taban 174 satır) — daraltılan her arayüz bu tabanı da küçültür
+5. Faz 181 devri (önkoşul tamamlandı, 2026-09-22) — `awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/181-PROVIDER-ORTAK-KATMANI.md`.
+   Özet: provider iç tipleri inceldi, **public yüzey değişmedi** (OpenAI 61 ·
+   Anthropic 33 · Google 39 · Azure 33 satır `PublicAPI.Unshipped.txt`, net
+   değişim 0). 🚨 `src/Tracon.Providers.Shared/` altındaki her tip `internal`
+   kalmak **zorundadır** — oraya bir public tip taşımak dört derlemede aynı adlı
+   tip üretir (`CS0433`). Provider paketlerinde daraltma adayı ararken kabuk
+   sınıflar (`*ModelProvider`, `*ProviderHealthCheck`) zaten `internal`'dır;
+   public olanlar `*ProviderExtensions`, `*ProviderOptions`, `*ProviderNames`,
+   `*ChatClientFactory`, `*ModelCatalog`, `*ImageBuilderExtensions` ve OpenAI'nin
+   fazlasıdır (live, compatible). `*ChatClientFactory` ile `*ModelCatalog`'un
+   dış kanıtı envanterde ilk sorulacak soru olmalı — kabuk bunları yalnız
+   içeriden kullanır.
 
 ---
 

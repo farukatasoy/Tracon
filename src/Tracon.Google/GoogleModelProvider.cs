@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 
@@ -23,21 +22,15 @@ internal sealed class GoogleModelProvider : ITenantCredentialModelProvider, IMod
 {
     private readonly GoogleChatClientFactory _chatClientFactory;
     private readonly ILogger<GoogleModelProvider>? _logger;
-    private readonly HashSet<string> _knownModels;
     private readonly GoogleProviderHealthCheck? _healthCheck;
     private readonly ConfigurationDiagnostic? _configurationDiagnostic;
     private readonly GoogleProviderOptions? _baseOptions;
 
-    // Phase 65 (BYOK). See OpenAIModelProvider's remark on _credentialFactories.
+    // Known-model set, BYOK caches and the tenant endpoint guard rule (shared source).
     // 🚨 GoogleChatClientFactory is IDisposable (owns an HttpClient); cached
-    // entries here are never disposed, the same bounded, admin-controlled
+    // entries in _core are never disposed, the same bounded, admin-controlled
     // trade-off ProviderCredentialClientCache documents.
-    private readonly EgressSocketGuard? _egressGuard;
-    private readonly ProviderCredentialClientCache<GoogleChatClientFactory> _credentialFactories = new();
-
-    // The chat client produced for a tenant credential must stay stable across
-    // calls, the same as the setup-time client below (see TenantChatClientCacheKey).
-    private readonly ConcurrentDictionary<string, IChatClient> _tenantChatClients = new(StringComparer.Ordinal);
+    private readonly ModelProviderCore<GoogleChatClientFactory> _core;
 
     /// <summary>Creates a new provider.</summary>
     /// <param name="name">Provider name. Matches <see cref="ModelBinding.Provider"/> in agent definitions.</param>
@@ -73,11 +66,14 @@ internal sealed class GoogleModelProvider : ITenantCredentialModelProvider, IMod
 
         _chatClientFactory = chatClientFactory;
         _logger = logger;
-        _knownModels = new HashSet<string>(models.Select(static model => model.Name), StringComparer.OrdinalIgnoreCase);
-        _healthCheck = healthCheckOptions is null ? null : new GoogleProviderHealthCheck(name, healthCheckOptions);
-        _configurationDiagnostic = BuildConfigurationDiagnostic(healthCheckOptions);
+        _healthCheck = healthCheckOptions is null ? null : new GoogleProviderHealthCheck(name, healthCheckOptions, logger);
+        _configurationDiagnostic = healthCheckOptions is null
+            ? null
+            : ModelProviderCore.ConfigurationDiagnosticFor(
+                GoogleProviderOptions.SectionName,
+                resolved: !string.IsNullOrWhiteSpace(healthCheckOptions.ApiKey));
         _baseOptions = healthCheckOptions;
-        _egressGuard = egressGuard;
+        _core = new ModelProviderCore<GoogleChatClientFactory>(models, egressGuard);
     }
 
     /// <inheritdoc />
@@ -98,22 +94,19 @@ internal sealed class GoogleModelProvider : ITenantCredentialModelProvider, IMod
     {
         ArgumentNullException.ThrowIfNull(binding);
 
-        if (_knownModels.Count > 0
-            && !string.IsNullOrWhiteSpace(binding.Model)
-            && !_knownModels.Contains(binding.Model))
+        if (_core.IsOutsideCatalog(binding.Model))
         {
-            LogUnknownModel(binding.Model);
+            ModelProviderCore.LogOutsideCatalog(
+                _logger, binding.Model, Name, $"{GoogleProviderOptions.SectionName}:Models");
         }
 
-        if (credential is null)
-        {
-            return _chatClientFactory.CreateChatClient(binding);
-        }
-
-        var factory = _credentialFactories.GetOrAdd(credential, BuildCredentialFactory);
-        var cacheKey = TenantChatClientCacheKey.For(credential, binding);
-
-        return _tenantChatClients.GetOrAdd(cacheKey, _ => factory.CreateChatClient(binding));
+        return credential is null
+            ? _chatClientFactory.CreateChatClient(binding)
+            : _core.GetTenantChatClient(
+                credential,
+                binding,
+                BuildCredentialFactory,
+                static (factory, tenantBinding) => factory.CreateChatClient(tenantBinding));
     }
 
     /// <summary>Builds a per-tenant client factory from a resolved credential (BYOK).</summary>
@@ -128,72 +121,20 @@ internal sealed class GoogleModelProvider : ITenantCredentialModelProvider, IMod
             Timeout = _baseOptions?.Timeout,
         };
 
-        var overrideEndpoint = credential.Endpoint is { Length: > 0 } endpoint
-            && Uri.TryCreate(endpoint, UriKind.Absolute, out var endpointUri)
-                ? endpointUri
-                : null;
+        var overrideEndpoint = ModelProviderCore.TenantEndpoint(credential);
 
         options.Endpoint = overrideEndpoint ?? _baseOptions?.Endpoint;
 
-        return GoogleChatClientFactory.FromClient(
-            GoogleChatClientFactory.CreateClient(options, GuardFor(overrideEndpoint)),
-            options.DefaultModel);
+        var client = GoogleChatClientFactory.CreateClient(options, _core.GuardFor(overrideEndpoint));
+
+        return GoogleChatClientFactory.FromClient(client, options.DefaultModel);
     }
 
     /// <inheritdoc />
     public ValueTask<ModelProviderHealth> CheckHealthAsync(CancellationToken cancellationToken = default)
         => _healthCheck?.CheckHealthAsync(cancellationToken)
-            ?? ValueTask.FromResult(new ModelProviderHealth
-            {
-                ProviderName = Name,
-                Status = ModelProviderHealthStatus.Unknown,
-                CheckedAt = DateTimeOffset.UtcNow,
-            });
+            ?? ValueTask.FromResult(ModelProviderCore.UnknownHealth(Name));
 
     /// <inheritdoc />
     public ConfigurationDiagnostic? GetConfigurationDiagnostic() => _configurationDiagnostic;
-
-    private static ConfigurationDiagnostic? BuildConfigurationDiagnostic(GoogleProviderOptions? options)
-    {
-        if (options is null)
-        {
-            return null;
-        }
-
-        var key = $"{GoogleProviderOptions.SectionName}:ApiKey";
-        var resolved = !string.IsNullOrWhiteSpace(options.ApiKey);
-
-        return new ConfigurationDiagnostic
-        {
-            Key = key,
-            Resolved = resolved,
-            Hint = resolved ? null : $"dotnet user-secrets set \"{key}\" \"<key>\"",
-        };
-    }
-
-    private void LogUnknownModel(string model)
-    {
-        if (_logger is not null && _logger.IsEnabled(LogLevel.Information))
-        {
-            _logger.LogInformation(
-                "Model '{Model}' is not in the '{Provider}' catalog; sending the request anyway. " +
-                "Use the Tracon:Providers:Google:Models setting to add model info to the catalog.",
-                model,
-                Name);
-        }
-    }
-
-    /// <summary>
-    /// Returns the guard to attach to a per-tenant client, or
-    /// <see langword="null"/> when none is needed.
-    /// </summary>
-    /// <remarks>
-    /// The guard is attached <strong>only</strong> when the endpoint came
-    /// from the tenant's binding. A setup-time endpoint is the operator's own
-    /// decision and is written in code — guarding it would break sovereign
-    /// cloud and internal-proxy setups that are deliberately private. A
-    /// tenant-supplied override is outside input and is guarded.
-    /// </remarks>
-    private EgressSocketGuard? GuardFor(Uri? tenantSuppliedEndpoint)
-        => tenantSuppliedEndpoint is null ? null : _egressGuard;
 }

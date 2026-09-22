@@ -501,8 +501,12 @@ curl -s -X POST "$APU/api/agents/manuel-katalog-disi-model/run" -H "$APB" \
   dışı olmak isteği reddettirmez.
 - Uygulama konsolunda (Information seviyesinde, kaynak `Tracon.OpenAIModelProvider`)
   `Model 'gpt-4o-mini' is not in the 'openai' catalog; the request is sent anyway.
-  Use the Tracon:Providers:OpenAI:Models option to add the model to the catalog.`
-  günlük satırı görünür (K-228 — sevk edilen metin İngilizce'dir).
+  Use the Tracon:Providers:OpenAI:Models setting to add the model to the catalog.`
+  günlük satırı görünür (K-228 — sevk edilen metin İngilizce'dir). Faz 181'den
+  beri metin OpenAI, Anthropic ve Google'da ortaktır (Azure kendi deployment
+  metnini tutar) (`option` → `setting`); `UseOpenAICompatible()`
+  ile kaydedilmiş bir sağlayıcıda son cümle `Use the OpenAIProviderOptions.Models
+  setting ...` der — sabit bir yapılandırma bölümü yoktur.
 
 > 🚨 **Model seçimi hesaba bağlıdır.** `gpt-4o-mini` bu hesapta `HTTP 403
 > model_not_found` verir; o zaman günlük satırı yine çıkar ama akış `error`

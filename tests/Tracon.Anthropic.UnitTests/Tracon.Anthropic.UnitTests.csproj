@@ -10,4 +10,13 @@
     <PackageReference Include="Microsoft.Extensions.Configuration" />
   </ItemGroup>
 
+  <!--
+    Phase 181: the tests of src/Tracon.Providers.Shared are linked into all four
+    provider test projects, so each assembly's compiled copy of the shared
+    source is tested.
+  -->
+  <ItemGroup Label="Shared provider source tests (Phase 181)">
+    <Compile Include="../Shared/Providers/**/*.cs" LinkBase="Shared/Providers" />
+  </ItemGroup>
+
 </Project>

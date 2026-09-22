@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Net;
+using Azure.Core;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
@@ -203,5 +204,83 @@ public sealed class ModelHealthEndpointsTests
         var circuitDetail = body.GetProperty("detail").GetString();
         circuitDetail.ShouldNotBeNull();
         circuitDetail.ShouldContain("Circuit breaker");
+    }
+
+    [Fact]
+    public async Task Azure_credential_that_throws_is_Unhealthy_and_does_not_fail_the_whole_list()
+    {
+        // Phase 181 defect: a TokenCredential that THROWS (Azure.Identity's
+        // CredentialUnavailableException on a machine without `az login`) used to
+        // escape CheckHealthAsync; ModelProviderHealthCache.GetAllAsync did not
+        // catch it, so /api/models/health failed for EVERY provider.
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: builder => builder.UseAzureOpenAI(options =>
+            {
+                options.Endpoint = new Uri("http://127.0.0.1:1/");
+                options.CredentialFactory = static () => new ThrowingTokenCredential();
+            }));
+
+        using var response = await host.Client.GetAsync(new Uri("/tracon/api/models/health?refresh=true", UriKind.Relative));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var raw = await response.Content.ReadAsStringAsync();
+        raw.ShouldNotContain(ThrowingTokenCredential.Leak);
+
+        var providers = (await TraconTestHost.ReadJsonAsync(response)).EnumerateArray().ToList();
+        providers.ShouldContain(static p => string.Equals(p.GetProperty("providerName").GetString(), "echo", StringComparison.Ordinal));
+
+        var azure = providers.Single(static p => string.Equals(
+            p.GetProperty("providerName").GetString(), AzureOpenAIProviderNames.AzureOpenAI, StringComparison.Ordinal));
+        azure.GetProperty("status").GetString().ShouldBe("Unhealthy");
+        azure.GetProperty("detail").GetString().ShouldBe("Credential error (InvalidOperationException).");
+    }
+
+    [Fact]
+    public async Task Third_party_health_check_that_throws_does_not_fail_the_whole_list()
+    {
+        // IModelProviderHealthCheck is a shipped extension seam: a consumer's
+        // check can throw. One provider's failure is that provider's status,
+        // not a 500 for the list.
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: builder => builder.AddModelProvider(static _ => new ThrowingHealthProvider()));
+
+        using var response = await host.Client.GetAsync(new Uri("/tracon/api/models/health?refresh=true", UriKind.Relative));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        (await response.Content.ReadAsStringAsync()).ShouldNotContain(ThrowingTokenCredential.Leak);
+
+        var providers = (await TraconTestHost.ReadJsonAsync(response)).EnumerateArray().ToList();
+        providers.ShouldContain(static p => string.Equals(p.GetProperty("providerName").GetString(), "echo", StringComparison.Ordinal));
+
+        var failing = providers.Single(static p => string.Equals(
+            p.GetProperty("providerName").GetString(), ThrowingHealthProvider.ProviderName, StringComparison.Ordinal));
+        failing.GetProperty("status").GetString().ShouldBe("Unhealthy");
+        failing.GetProperty("detail").GetString().ShouldBe("The health check failed (InvalidOperationException).");
+    }
+
+    private sealed class ThrowingTokenCredential : TokenCredential
+    {
+        public const string Leak = "tenant 7f3c-internal-detail";
+
+        public override AccessToken GetToken(TokenRequestContext requestContext, CancellationToken cancellationToken)
+            => throw new InvalidOperationException(Leak);
+
+        public override ValueTask<AccessToken> GetTokenAsync(TokenRequestContext requestContext, CancellationToken cancellationToken)
+            => throw new InvalidOperationException(Leak);
+    }
+
+    private sealed class ThrowingHealthProvider : IModelProvider, IModelProviderHealthCheck
+    {
+        public const string ProviderName = "throwing-health";
+
+        public string Name => ProviderName;
+
+        public IReadOnlyList<ModelDescriptor> Models => [];
+
+        public IChatClient CreateChatClient(ModelBinding binding) => throw new NotSupportedException();
+
+        public ValueTask<ModelProviderHealth> CheckHealthAsync(CancellationToken cancellationToken = default)
+            => throw new InvalidOperationException(ThrowingTokenCredential.Leak);
     }
 }
