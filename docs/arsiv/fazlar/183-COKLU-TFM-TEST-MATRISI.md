@@ -2,7 +2,7 @@
 
 > **Durum:** ✅ Tamamlandı (2026-09-23)
 > **Plan onayı:** farukatasoy, 2026-09-22 (beş fazlık tur onayı; strateji seçimi: temsilci projeler multi-target)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-260**
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-260**
 > **Önkoşul:** Yok
 > **Paketler:** yalnız `tests/` csproj'ları ve `ci.yml` — sevk edilen paket değişmez
 > **Yeni paket:** Yok · **Migration:** Yok
@@ -23,10 +23,10 @@
    ```
    **K-263** (`TargetFrameworks` çoğul/tekil tuzağı — pack orkestrasyonu çoğul
    okur; test projelerinde tersi yönde aynı dikkat gerekir)
-3. Alan hafızası: [`hafiza/test-altyapisi.md`](hafiza/test-altyapisi.md) ·
-   [`hafiza/test-kosum-tuzaklari.md`](hafiza/test-kosum-tuzaklari.md) (MTP
+3. Alan hafızası: [`hafiza/test-altyapisi.md`](../../hafiza/test-altyapisi.md) ·
+   [`hafiza/test-kosum-tuzaklari.md`](../../hafiza/test-kosum-tuzaklari.md) (MTP
    koşum biçimi TFM başına değişir)
-4. [`ci.yml`](../.github/workflows/ci.yml) test job'ı — matrix ve `--no-build`
+4. [`ci.yml`](../../../.github/workflows/ci.yml) test job'ı — matrix ve `--no-build`
    akışı
 5. Faz 182 devri (tamamlandı, 2026-09-22) — `awk '/## Sonraki Faza Devir Notu/,0' docs/arsiv/fazlar/182-PUBLIC-API-YUZEY-DARALTMA.md`.
    Özet: 91 tip `internal`
@@ -56,9 +56,9 @@ net10'da kalır.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`src/Directory.Build.props:13`](../src/Directory.Build.props) | Kütüphaneler `net8.0;net9.0;net10.0` |
-| [`tests/Directory.Build.props:6`](../tests/Directory.Build.props) | Test ağacı `net10.0` **tekil** — net8/net9 hiçbir testte koşmuyor |
-| [`ci.yml:211`](../.github/workflows/ci.yml) | `dotnet test Tracon.slnx` — testler tek TFM ürettiği için matris yok |
+| [`src/Directory.Build.props:13`](../../../src/Directory.Build.props) | Kütüphaneler `net8.0;net9.0;net10.0` |
+| [`tests/Directory.Build.props:6`](../../../tests/Directory.Build.props) | Test ağacı `net10.0` **tekil** — net8/net9 hiçbir testte koşmuyor |
+| [`ci.yml:211`](../../../.github/workflows/ci.yml) | `dotnet test Tracon.slnx` — testler tek TFM ürettiği için matris yok |
 | `samples/`, `bench/` | Tamamı net10 — sevk edilen net8/net9 bacaklarını hiçbir tüketici yolu çalıştırmıyor |
 
 > Kanıtlar 2026-09-22 tarihinde doğrulandı.
