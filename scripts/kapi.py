@@ -595,6 +595,15 @@ def performance_gate(
     return exit_code
 
 
+# Faz 181: src/Tracon.Providers.Shared ve tests/Shared/Providers dort saglayici
+# test projesine birden baglanir (<Compile Include>); etki alani tam bu dortlu.
+PROVIDER_TEST_PROJECTS: tuple[str, ...] = (
+    "Tracon.OpenAI.UnitTests",
+    "Tracon.Anthropic.UnitTests",
+    "Tracon.Google.UnitTests",
+    "Tracon.Azure.UnitTests",
+)
+
 TEST_PROJECTS: dict[str, tuple[str, ...]] = {
     "Tracon.Abstractions": ("Tracon.Core.UnitTests",),
     "Tracon.Core": ("Tracon.Core.UnitTests", "Tracon.AspNetCore.FunctionalTests"),
@@ -606,6 +615,9 @@ TEST_PROJECTS: dict[str, tuple[str, ...]] = {
     "Tracon.Anthropic": ("Tracon.Anthropic.UnitTests",),
     "Tracon.Google": ("Tracon.Google.UnitTests",),
     "Tracon.Azure": ("Tracon.Azure.UnitTests",),
+    # Faz 181: paket DEGIL, dort saglayici paketine derlenen paylasimli kaynak.
+    # Haritada olmasa tam kosuma duserdi; oysa tam etki alani bu dort projedir.
+    "Tracon.Providers.Shared": PROVIDER_TEST_PROJECTS,
     "Tracon.Voice": ("Tracon.Voice.UnitTests",),
     "Tracon.Mcp": ("Tracon.Mcp.UnitTests",),
     "Tracon.Workflows": ("Tracon.Workflows.UnitTests",),
@@ -645,6 +657,9 @@ def affected_test_projects(paths: Iterable[str]) -> tuple[list[str], bool]:
     projects: set[str] = set()
     needs_full = False
     for path in paths:
+        if path.startswith("tests/Shared/Providers/"):
+            projects.update(PROVIDER_TEST_PROJECTS)
+            continue
         if path.startswith("tests/Shared/"):
             needs_full = True
             continue

@@ -1,4 +1,3 @@
-using System.Globalization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -85,17 +84,9 @@ public static class GoogleProviderExtensions
 
         var services = builder.Services;
 
-        services.AddOptions<GoogleProviderOptions>().ValidateOnStart();
-        services.Configure(configure);
-        services.TryAddEnumerable(ServiceDescriptor.Singleton<
-            IValidateOptions<GoogleProviderOptions>,
-            GoogleProviderOptionsValidator>());
+        ProviderRegistrationCore.AddValidatedOptions<GoogleProviderOptions, GoogleProviderOptionsValidator>(services, configure);
 
-        // A second call merges settings but does not register the provider again;
-        // otherwise ModelProviderRegistry would raise a "name registered more than
-        // once" error.
-        var alreadyRegistered = services.Any(
-            static descriptor => descriptor.ServiceType == typeof(GoogleChatClientFactory));
+        var alreadyRegistered = ProviderRegistrationCore.IsRegistered<GoogleChatClientFactory>(services);
 
         // A single client, a single HTTP connection pool. The factory implements
         // IDisposable, so the client closes when the container shuts down.
@@ -142,14 +133,9 @@ public static class GoogleProviderExtensions
             options.DefaultModel = defaultModel;
         }
 
-        if (section[nameof(GoogleProviderOptions.Endpoint)] is { Length: > 0 } endpoint
-            && Uri.TryCreate(endpoint, UriKind.RelativeOrAbsolute, out var endpointUri))
+        if (ProviderRegistrationCore.ReadEndpoint(section, nameof(GoogleProviderOptions.Endpoint)) is { } endpoint)
         {
-            // Relative addresses are also assigned: the validator rejects them via
-            // its IsAbsoluteUri check. Parsing only with UriKind.Absolute and
-            // silently skipping a relative value would make that validator branch
-            // unreachable.
-            options.Endpoint = endpointUri;
+            options.Endpoint = endpoint;
         }
 
         if (section[nameof(GoogleProviderOptions.ApiVersion)] is { Length: > 0 } apiVersion)
@@ -157,56 +143,11 @@ public static class GoogleProviderExtensions
             options.ApiVersion = apiVersion;
         }
 
-        if (TimeSpan.TryParse(
-                section[nameof(GoogleProviderOptions.Timeout)],
-                CultureInfo.InvariantCulture,
-                out var timeout))
+        if (ProviderRegistrationCore.ReadTimeSpan(section, nameof(GoogleProviderOptions.Timeout)) is { } timeout)
         {
             options.Timeout = timeout;
         }
 
-        BindModels(section.GetSection(nameof(GoogleProviderOptions.Models)), options);
+        ProviderRegistrationCore.BindModels(section.GetSection(nameof(GoogleProviderOptions.Models)), options.Models);
     }
-
-    private static void BindModels(IConfiguration section, GoogleProviderOptions options)
-    {
-        foreach (var child in section.GetChildren())
-        {
-            // An empty/missing name is also added: the validator rejects it with a
-            // loop over Models[i]. Skipping it here would make that validator branch
-            // unreachable.
-            options.Models.Add(new ModelDescriptor
-            {
-                Name = child[nameof(ModelDescriptor.Name)] ?? string.Empty,
-                DisplayName = child[nameof(ModelDescriptor.DisplayName)],
-                ContextWindowTokens = ReadInt32(child, nameof(ModelDescriptor.ContextWindowTokens)),
-                MaxOutputTokens = ReadInt32(child, nameof(ModelDescriptor.MaxOutputTokens)),
-                SupportsStreaming = ReadBoolean(child, nameof(ModelDescriptor.SupportsStreaming)) ?? true,
-                SupportsTools = ReadBoolean(child, nameof(ModelDescriptor.SupportsTools)) ?? true,
-                SupportsReasoning = ReadBoolean(child, nameof(ModelDescriptor.SupportsReasoning)) ?? false,
-                SupportsStructuredOutput = ReadBoolean(child, nameof(ModelDescriptor.SupportsStructuredOutput)) ?? false,
-                InputCostPerMillionTokens = ReadDecimal(child, nameof(ModelDescriptor.InputCostPerMillionTokens)),
-                OutputCostPerMillionTokens = ReadDecimal(child, nameof(ModelDescriptor.OutputCostPerMillionTokens)),
-
-                // 🚨 Without this line the catalog can never carry a cache rate, and
-                // Tracon:Pricing cannot supply one either: the catalog price WINS
-                // over the configured one, so a model priced here would silently fall
-                // back to charging every cached token at the full input rate.
-                CachedInputCostPerMillionTokens = ReadDecimal(child, nameof(ModelDescriptor.CachedInputCostPerMillionTokens)),
-            });
-        }
-    }
-
-    private static int? ReadInt32(IConfiguration section, string key)
-        => int.TryParse(section[key], NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)
-            ? value
-            : null;
-
-    private static decimal? ReadDecimal(IConfiguration section, string key)
-        => decimal.TryParse(section[key], NumberStyles.Number, CultureInfo.InvariantCulture, out var value)
-            ? value
-            : null;
-
-    private static bool? ReadBoolean(IConfiguration section, string key)
-        => bool.TryParse(section[key], out var value) ? value : null;
 }

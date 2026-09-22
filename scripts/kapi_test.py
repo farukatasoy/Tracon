@@ -140,6 +140,22 @@ class KapiTestleri(unittest.TestCase):
         self.assertIn("Tracon.Generators.UnitTests", projects)
         self.assertFalse(full)
 
+    def test_paylasimli_saglayici_kaynagi_dort_saglayici_projesini_secer(self):
+        # Faz 181: src/Tracon.Providers.Shared bir paket degildir; haritada
+        # olmasa her degisiklik tam kosuma duserdi. Etki alani dort projedir.
+        for path in ("src/Tracon.Providers.Shared/ModelProviderCore.cs",
+                     "tests/Shared/Providers/ModelProviderCoreTests.cs"):
+            projects, full = kapi.affected_test_projects([path])
+
+            for project in kapi.PROVIDER_TEST_PROJECTS:
+                self.assertIn(project, projects, path)
+            self.assertFalse(full, path)
+
+    def test_diger_paylasimli_test_kaynagi_hala_tam_kosum_ister(self):
+        projects, full = kapi.affected_test_projects(["tests/Shared/Infrastructure/ProcessRunner.cs"])
+
+        self.assertTrue(full)
+
     def test_embedded_ornegi_kendi_test_projesini_secer(self):
         # KACIS a377106e: Faz 139 altinci genisleme noktasini ekledi,
         # samples/Tracon.Embedded geride kaldi. O gun bir samples/

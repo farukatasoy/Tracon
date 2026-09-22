@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 
@@ -25,18 +24,12 @@ internal sealed class AzureOpenAIModelProvider : ITenantCredentialModelProvider,
 {
     private readonly AzureOpenAIChatClientFactory _chatClientFactory;
     private readonly ILogger<AzureOpenAIModelProvider>? _logger;
-    private readonly HashSet<string> _knownDeployments;
     private readonly AzureOpenAIProviderHealthCheck? _healthCheck;
     private readonly ConfigurationDiagnostic? _configurationDiagnostic;
     private readonly AzureOpenAIProviderOptions? _baseOptions;
 
-    // Phase 65 (BYOK). See OpenAIModelProvider's remark on _credentialFactories.
-    private readonly EgressSocketGuard? _egressGuard;
-    private readonly ProviderCredentialClientCache<AzureOpenAIChatClientFactory> _credentialFactories = new();
-
-    // The chat client produced for a tenant credential must stay stable across
-    // calls, the same as the setup-time client below (see TenantChatClientCacheKey).
-    private readonly ConcurrentDictionary<string, IChatClient> _tenantChatClients = new(StringComparer.Ordinal);
+    // Known-model set, BYOK caches and the tenant endpoint guard rule (shared source).
+    private readonly ModelProviderCore<AzureOpenAIChatClientFactory> _core;
 
     /// <summary>Creates a new provider.</summary>
     /// <param name="name">The provider name. <see cref="ModelBinding.Provider"/> in agent definitions matches this value.</param>
@@ -73,11 +66,15 @@ internal sealed class AzureOpenAIModelProvider : ITenantCredentialModelProvider,
 
         _chatClientFactory = chatClientFactory;
         _logger = logger;
-        _knownDeployments = new HashSet<string>(models.Select(static model => model.Name), StringComparer.OrdinalIgnoreCase);
-        _healthCheck = healthCheckOptions is null ? null : new AzureOpenAIProviderHealthCheck(name, healthCheckOptions);
-        _configurationDiagnostic = BuildConfigurationDiagnostic(healthCheckOptions);
+        _healthCheck = healthCheckOptions is null ? null : new AzureOpenAIProviderHealthCheck(name, healthCheckOptions, logger);
+        _configurationDiagnostic = healthCheckOptions is null
+            ? null
+            : ModelProviderCore.ConfigurationDiagnosticFor(
+                AzureOpenAIProviderOptions.SectionName,
+                resolved: !string.IsNullOrWhiteSpace(healthCheckOptions.ApiKey) || healthCheckOptions.CredentialFactory is not null,
+                alternative: $"assign {nameof(AzureOpenAIProviderOptions)}.{nameof(AzureOpenAIProviderOptions.CredentialFactory)}");
         _baseOptions = healthCheckOptions;
-        _egressGuard = egressGuard;
+        _core = new ModelProviderCore<AzureOpenAIChatClientFactory>(models, egressGuard);
     }
 
     /// <inheritdoc />
@@ -98,24 +95,18 @@ internal sealed class AzureOpenAIModelProvider : ITenantCredentialModelProvider,
     {
         ArgumentNullException.ThrowIfNull(binding);
 
-        // When the catalog is empty there is nothing to compare against; logging
-        // on every call would be noise (decision K-032).
-        if (_knownDeployments.Count > 0
-            && !string.IsNullOrWhiteSpace(binding.Model)
-            && !_knownDeployments.Contains(binding.Model))
+        if (_core.IsOutsideCatalog(binding.Model))
         {
             LogUnknownDeployment(binding.Model);
         }
 
-        if (credential is null)
-        {
-            return _chatClientFactory.CreateChatClient(binding);
-        }
-
-        var factory = _credentialFactories.GetOrAdd(credential, BuildCredentialFactory);
-        var cacheKey = TenantChatClientCacheKey.For(credential, binding);
-
-        return _tenantChatClients.GetOrAdd(cacheKey, _ => factory.CreateChatClient(binding));
+        return credential is null
+            ? _chatClientFactory.CreateChatClient(binding)
+            : _core.GetTenantChatClient(
+                credential,
+                binding,
+                BuildCredentialFactory,
+                static (factory, tenantBinding) => factory.CreateChatClient(tenantBinding));
     }
 
     /// <summary>Builds a per-tenant client factory from a resolved credential (BYOK).</summary>
@@ -137,14 +128,11 @@ internal sealed class AzureOpenAIModelProvider : ITenantCredentialModelProvider,
             Timeout = _baseOptions?.Timeout,
         };
 
-        var overrideEndpoint = credential.Endpoint is { Length: > 0 } endpoint
-            && Uri.TryCreate(endpoint, UriKind.Absolute, out var endpointUri)
-                ? endpointUri
-                : null;
+        var overrideEndpoint = ModelProviderCore.TenantEndpoint(credential);
 
         options.Endpoint = overrideEndpoint ?? _baseOptions?.Endpoint;
 
-        var client = AzureOpenAIChatClientFactory.CreateClient(options, GuardFor(overrideEndpoint));
+        var client = AzureOpenAIChatClientFactory.CreateClient(options, _core.GuardFor(overrideEndpoint));
 
         return AzureOpenAIChatClientFactory.FromClient(client, options.DefaultDeployment);
     }
@@ -152,35 +140,10 @@ internal sealed class AzureOpenAIModelProvider : ITenantCredentialModelProvider,
     /// <inheritdoc />
     public ValueTask<ModelProviderHealth> CheckHealthAsync(CancellationToken cancellationToken = default)
         => _healthCheck?.CheckHealthAsync(cancellationToken)
-            ?? ValueTask.FromResult(new ModelProviderHealth
-            {
-                ProviderName = Name,
-                Status = ModelProviderHealthStatus.Unknown,
-                CheckedAt = DateTimeOffset.UtcNow,
-            });
+            ?? ValueTask.FromResult(ModelProviderCore.UnknownHealth(Name));
 
     /// <inheritdoc />
     public ConfigurationDiagnostic? GetConfigurationDiagnostic() => _configurationDiagnostic;
-
-    private static ConfigurationDiagnostic? BuildConfigurationDiagnostic(AzureOpenAIProviderOptions? options)
-    {
-        if (options is null)
-        {
-            return null;
-        }
-
-        var key = $"{AzureOpenAIProviderOptions.SectionName}:ApiKey";
-        var resolved = !string.IsNullOrWhiteSpace(options.ApiKey) || options.CredentialFactory is not null;
-
-        return new ConfigurationDiagnostic
-        {
-            Key = key,
-            Resolved = resolved,
-            Hint = resolved
-                ? null
-                : $"dotnet user-secrets set \"{key}\" \"<key>\" or assign AzureOpenAIProviderOptions.CredentialFactory",
-        };
-    }
 
     private void LogUnknownDeployment(string deployment)
     {
@@ -194,18 +157,4 @@ internal sealed class AzureOpenAIModelProvider : ITenantCredentialModelProvider,
                 Name);
         }
     }
-
-    /// <summary>
-    /// Returns the guard to attach to a per-tenant client, or
-    /// <see langword="null"/> when none is needed.
-    /// </summary>
-    /// <remarks>
-    /// The guard is attached <strong>only</strong> when the endpoint came
-    /// from the tenant's binding. A setup-time endpoint is the operator's own
-    /// decision and is written in code — guarding it would break sovereign
-    /// cloud and internal-proxy setups that are deliberately private. A
-    /// tenant-supplied override is outside input and is guarded.
-    /// </remarks>
-    private EgressSocketGuard? GuardFor(Uri? tenantSuppliedEndpoint)
-        => tenantSuppliedEndpoint is null ? null : _egressGuard;
 }

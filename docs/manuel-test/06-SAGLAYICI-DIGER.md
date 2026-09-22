@@ -528,9 +528,12 @@ curl -s -X POST "$APU/api/agents/manuel-claude-katalog-disi/run" -H "$APB" \
 
 **Beklenen sonuç**
 - Çalıştırma **başarıyla tamamlanır** — katalog dışı olmak isteği reddettirmez.
-- Uygulama konsolunda (Information seviyesinde) `'claude-3-5-haiku-20241022'
-  modeli 'anthropic' katalogunda yok; istek yine de gonderiliyor.` günlük
-  satırı görünür.
+- Uygulama konsolunda (Information seviyesinde) `Model 'claude-3-5-haiku-20241022'
+  is not in the 'anthropic' catalog; the request is sent anyway. Use the
+  Tracon:Providers:Anthropic:Models setting to add the model to the catalog.`
+  günlük satırı görünür (K-228 — sevk edilen metin İngilizce'dir; metin Faz
+  181'den beri OpenAI, Anthropic ve Google'da ortaktır; Azure kendi deployment
+  metnini tutar).
 
 ### MT-PROV-030 — Yabancı sağlayıcının ayarı reddedilir (`google.*` anahtarı `anthropic` binding'inde)
 

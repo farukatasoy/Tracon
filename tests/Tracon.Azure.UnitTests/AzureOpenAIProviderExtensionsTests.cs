@@ -115,6 +115,54 @@ public sealed class AzureOpenAIProviderExtensionsTests
     }
 
     [Fact]
+    public void Relative_address_from_configuration_is_rejected_as_relative_not_as_missing()
+    {
+        // Phase 181: the other three providers fixed this in HATA-S3-003; the
+        // Azure copy kept UriKind.Absolute, so a relative value was silently
+        // dropped and the operator was told the endpoint was MISSING.
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)
+            {
+                ["ApiKey"] = TestData.ApiKey,
+                ["Endpoint"] = "just-a-path",
+            })
+            .Build();
+
+        using var provider = Build(builder => builder.UseAzureOpenAI(configuration));
+
+        var message = Should.Throw<OptionsValidationException>(
+                () => provider.GetRequiredService<IOptions<AzureOpenAIProviderOptions>>().Value)
+            .Message;
+
+        message.ShouldContain("must be an absolute address");
+        message.ShouldNotContain("cannot be empty");
+        message.ShouldNotContain("just-a-path");
+    }
+
+    [Fact]
+    public void Nameless_deployment_from_configuration_is_rejected()
+    {
+        // Phase 181: the Azure copy of BindModels skipped an empty Name
+        // (HATA-S3-002/004 fixed the other three), which left the validator's
+        // Models[i] branch unreachable from configuration.
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>(StringComparer.Ordinal)
+            {
+                ["Endpoint"] = TestData.EndpointText,
+                ["ApiKey"] = TestData.ApiKey,
+                ["Models:0:Name"] = TestData.Deployment,
+                ["Models:1:Name"] = "",
+            })
+            .Build();
+
+        using var provider = Build(builder => builder.UseAzureOpenAI(configuration));
+
+        Should.Throw<OptionsValidationException>(
+                () => provider.GetRequiredService<IOptions<AzureOpenAIProviderOptions>>().Value)
+            .Message.ShouldContain($"{nameof(AzureOpenAIProviderOptions.Models)}[1]");
+    }
+
+    [Fact]
     public void Registration_without_credentials_fails_at_startup()
     {
         var services = new ServiceCollection();

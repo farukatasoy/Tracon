@@ -1,4 +1,3 @@
-using System.Globalization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -95,17 +94,9 @@ public static class OpenAIProviderExtensions
 
         var services = builder.Services;
 
-        services.AddOptions<OpenAIProviderOptions>().ValidateOnStart();
-        services.Configure(configure);
-        services.TryAddEnumerable(ServiceDescriptor.Singleton<
-            IValidateOptions<OpenAIProviderOptions>,
-            OpenAIProviderOptionsValidator>());
+        ProviderRegistrationCore.AddValidatedOptions<OpenAIProviderOptions, OpenAIProviderOptionsValidator>(services, configure);
 
-        // A second call merges the options but does not register the providers again;
-        // otherwise ModelProviderRegistry would fail with "the same name is registered
-        // more than once" and the reason would stay hidden from the user.
-        var alreadyRegistered = services.Any(
-            static descriptor => descriptor.ServiceType == typeof(OpenAIChatClientFactory));
+        var alreadyRegistered = ProviderRegistrationCore.IsRegistered<OpenAIChatClientFactory>(services);
 
         // One client, one HTTP connection pool. Both providers share it.
         services.TryAddSingleton(static provider => new OpenAIChatClientFactory(
@@ -172,13 +163,9 @@ public static class OpenAIProviderExtensions
             options.DefaultModel = defaultModel;
         }
 
-        if (section[nameof(OpenAIProviderOptions.Endpoint)] is { Length: > 0 } endpoint
-            && Uri.TryCreate(endpoint, UriKind.RelativeOrAbsolute, out var endpointUri))
+        if (ProviderRegistrationCore.ReadEndpoint(section, nameof(OpenAIProviderOptions.Endpoint)) is { } endpoint)
         {
-            // Relative addresses are assigned too: the validator rejects them with its
-            // IsAbsoluteUri check. Parsing with UriKind.Absolute only, and silently
-            // skipping a relative address, would leave that validator branch unreachable.
-            options.Endpoint = endpointUri;
+            options.Endpoint = endpoint;
         }
 
         if (section[nameof(OpenAIProviderOptions.Organization)] is { Length: > 0 } organization)
@@ -186,10 +173,7 @@ public static class OpenAIProviderExtensions
             options.Organization = organization;
         }
 
-        if (TimeSpan.TryParse(
-                section[nameof(OpenAIProviderOptions.Timeout)],
-                CultureInfo.InvariantCulture,
-                out var timeout))
+        if (ProviderRegistrationCore.ReadTimeSpan(section, nameof(OpenAIProviderOptions.Timeout)) is { } timeout)
         {
             options.Timeout = timeout;
         }
@@ -199,47 +183,6 @@ public static class OpenAIProviderExtensions
             options.EnableResponsesSurface = enableResponses;
         }
 
-        BindModels(section.GetSection(nameof(OpenAIProviderOptions.Models)), options);
+        ProviderRegistrationCore.BindModels(section.GetSection(nameof(OpenAIProviderOptions.Models)), options.Models);
     }
-
-    private static void BindModels(IConfiguration section, OpenAIProviderOptions options)
-    {
-        foreach (var child in section.GetChildren())
-        {
-            // An empty or missing name is added too: the validator rejects it in its
-            // Models[i] loop. Skipping it here would leave that validator branch unreachable.
-            options.Models.Add(new ModelDescriptor
-            {
-                Name = child[nameof(ModelDescriptor.Name)] ?? string.Empty,
-                DisplayName = child[nameof(ModelDescriptor.DisplayName)],
-                ContextWindowTokens = ReadInt32(child, nameof(ModelDescriptor.ContextWindowTokens)),
-                MaxOutputTokens = ReadInt32(child, nameof(ModelDescriptor.MaxOutputTokens)),
-                SupportsStreaming = ReadBoolean(child, nameof(ModelDescriptor.SupportsStreaming)) ?? true,
-                SupportsTools = ReadBoolean(child, nameof(ModelDescriptor.SupportsTools)) ?? true,
-                SupportsReasoning = ReadBoolean(child, nameof(ModelDescriptor.SupportsReasoning)) ?? false,
-                SupportsStructuredOutput = ReadBoolean(child, nameof(ModelDescriptor.SupportsStructuredOutput)) ?? false,
-                InputCostPerMillionTokens = ReadDecimal(child, nameof(ModelDescriptor.InputCostPerMillionTokens)),
-                OutputCostPerMillionTokens = ReadDecimal(child, nameof(ModelDescriptor.OutputCostPerMillionTokens)),
-
-                // 🚨 Without this line the catalog can never carry a cache rate, and
-                // Tracon:Pricing cannot supply one either: the catalog price WINS
-                // over the configured one, so a model priced here would silently fall
-                // back to charging every cached token at the full input rate.
-                CachedInputCostPerMillionTokens = ReadDecimal(child, nameof(ModelDescriptor.CachedInputCostPerMillionTokens)),
-            });
-        }
-    }
-
-    private static int? ReadInt32(IConfiguration section, string key)
-        => int.TryParse(section[key], NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)
-            ? value
-            : null;
-
-    private static decimal? ReadDecimal(IConfiguration section, string key)
-        => decimal.TryParse(section[key], NumberStyles.Number, CultureInfo.InvariantCulture, out var value)
-            ? value
-            : null;
-
-    private static bool? ReadBoolean(IConfiguration section, string key)
-        => bool.TryParse(section[key], out var value) ? value : null;
 }

@@ -611,6 +611,12 @@ collection. The absence does not stop a definition from using it.
 **Azure health is good, but a run returns `404`.** Health verifies the resource and
 credential, not a deployment. Check the deployment name in `ModelBinding.Model`.
 
+**Azure health reports `Credential error (...)`.** The `CredentialFactory` credential
+could not return a token. A common cause is `DefaultAzureCredential` on a machine
+without an Azure sign-in. The detail shows only the exception type; the credential
+library's message stays out of the response. The other providers' health is not
+affected.
+
 **A compatible run has no token count or cost.** The upstream server probably omitted
 streaming usage. Configure no estimate unless you can label it as an estimate.
 

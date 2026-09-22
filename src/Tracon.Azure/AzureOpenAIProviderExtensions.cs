@@ -1,4 +1,3 @@
-using System.Globalization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -109,18 +108,9 @@ public static class AzureOpenAIProviderExtensions
 
         var services = builder.Services;
 
-        services.AddOptions<AzureOpenAIProviderOptions>().ValidateOnStart();
-        services.Configure(configure);
-        services.TryAddEnumerable(ServiceDescriptor.Singleton<
-            IValidateOptions<AzureOpenAIProviderOptions>,
-            AzureOpenAIProviderOptionsValidator>());
+        ProviderRegistrationCore.AddValidatedOptions<AzureOpenAIProviderOptions, AzureOpenAIProviderOptionsValidator>(services, configure);
 
-        // A second call merges options but does not register the provider
-        // again; otherwise ModelProviderRegistry would throw an "already
-        // registered under this name" error and the cause would stay hidden
-        // from the user.
-        var alreadyRegistered = services.Any(
-            static descriptor => descriptor.ServiceType == typeof(AzureOpenAIChatClientFactory));
+        var alreadyRegistered = ProviderRegistrationCore.IsRegistered<AzureOpenAIChatClientFactory>(services);
 
         // One client, one HTTP connection pool.
         services.TryAddSingleton(static provider => new AzureOpenAIChatClientFactory(
@@ -163,10 +153,9 @@ public static class AzureOpenAIProviderExtensions
     /// </remarks>
     internal static void Bind(IConfiguration section, AzureOpenAIProviderOptions options)
     {
-        if (section[nameof(AzureOpenAIProviderOptions.Endpoint)] is { Length: > 0 } endpoint
-            && Uri.TryCreate(endpoint, UriKind.Absolute, out var endpointUri))
+        if (ProviderRegistrationCore.ReadEndpoint(section, nameof(AzureOpenAIProviderOptions.Endpoint)) is { } endpoint)
         {
-            options.Endpoint = endpointUri;
+            options.Endpoint = endpoint;
         }
 
         if (section[nameof(AzureOpenAIProviderOptions.ApiKey)] is { Length: > 0 } apiKey)
@@ -184,58 +173,11 @@ public static class AzureOpenAIProviderExtensions
             options.Audience = audience;
         }
 
-        if (TimeSpan.TryParse(
-                section[nameof(AzureOpenAIProviderOptions.Timeout)],
-                CultureInfo.InvariantCulture,
-                out var timeout))
+        if (ProviderRegistrationCore.ReadTimeSpan(section, nameof(AzureOpenAIProviderOptions.Timeout)) is { } timeout)
         {
             options.Timeout = timeout;
         }
 
-        BindModels(section.GetSection(nameof(AzureOpenAIProviderOptions.Models)), options);
+        ProviderRegistrationCore.BindModels(section.GetSection(nameof(AzureOpenAIProviderOptions.Models)), options.Models);
     }
-
-    private static void BindModels(IConfiguration section, AzureOpenAIProviderOptions options)
-    {
-        foreach (var child in section.GetChildren())
-        {
-            if (child[nameof(ModelDescriptor.Name)] is not { Length: > 0 } name)
-            {
-                continue;
-            }
-
-            options.Models.Add(new ModelDescriptor
-            {
-                Name = name,
-                DisplayName = child[nameof(ModelDescriptor.DisplayName)],
-                ContextWindowTokens = ReadInt32(child, nameof(ModelDescriptor.ContextWindowTokens)),
-                MaxOutputTokens = ReadInt32(child, nameof(ModelDescriptor.MaxOutputTokens)),
-                SupportsStreaming = ReadBoolean(child, nameof(ModelDescriptor.SupportsStreaming)) ?? true,
-                SupportsTools = ReadBoolean(child, nameof(ModelDescriptor.SupportsTools)) ?? true,
-                SupportsReasoning = ReadBoolean(child, nameof(ModelDescriptor.SupportsReasoning)) ?? false,
-                SupportsStructuredOutput = ReadBoolean(child, nameof(ModelDescriptor.SupportsStructuredOutput)) ?? false,
-                InputCostPerMillionTokens = ReadDecimal(child, nameof(ModelDescriptor.InputCostPerMillionTokens)),
-                OutputCostPerMillionTokens = ReadDecimal(child, nameof(ModelDescriptor.OutputCostPerMillionTokens)),
-
-                // 🚨 Without this line the catalog can never carry a cache rate, and
-                // Tracon:Pricing cannot supply one either: the catalog price WINS
-                // over the configured one, so a model priced here would silently fall
-                // back to charging every cached token at the full input rate.
-                CachedInputCostPerMillionTokens = ReadDecimal(child, nameof(ModelDescriptor.CachedInputCostPerMillionTokens)),
-            });
-        }
-    }
-
-    private static int? ReadInt32(IConfiguration section, string key)
-        => int.TryParse(section[key], NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)
-            ? value
-            : null;
-
-    private static decimal? ReadDecimal(IConfiguration section, string key)
-        => decimal.TryParse(section[key], NumberStyles.Number, CultureInfo.InvariantCulture, out var value)
-            ? value
-            : null;
-
-    private static bool? ReadBoolean(IConfiguration section, string key)
-        => bool.TryParse(section[key], out var value) ? value : null;
 }
