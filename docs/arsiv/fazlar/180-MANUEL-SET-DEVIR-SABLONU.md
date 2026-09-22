@@ -2,7 +2,7 @@
 
 > **Durum:** ✅ Tamamlandı (2026-09-22)
 > **Plan onayı:** farukatasoy, 2026-09-22 (beş fazlık tur onayı)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-165**
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-165**
 > **Önkoşul:** Yok
 > **Paketler:** yalnız `tests/` ve `docs/manuel-test/` — sevk edilen paket değişmez
 > **Yeni paket:** Yok · **Migration:** Yok
@@ -25,12 +25,12 @@
    **K-166/K-167** (birim testleri gerçek hataları kaçırdı; kanıt örnek
    uygulamadan gelir), **K-738** (yük ölçümü rapordur, kapı değildir — devir
    sırasında süre eşiği yazılmaz)
-3. [`.agents/ortak/test-seviyeleri.md`](../.agents/ortak/test-seviyeleri.md) —
+3. [`.agents/ortak/test-seviyeleri.md`](../../../.agents/ortak/test-seviyeleri.md) —
    seviye seçim tablosunun tamamı; bu fazın ana aracıdır
-4. [`docs/manuel-test/00-INDEKS.md`](manuel-test/00-INDEKS.md) — §1 (set
+4. [`docs/manuel-test/00-INDEKS.md`](../../manuel-test/00-INDEKS.md) — §1 (set
    yapısı) ve §tally (son koşumun sonucu); 36 aile dosyasını **okuma**
-5. Alan hafızası: [`hafiza/test-altyapisi.md`](hafiza/test-altyapisi.md) ·
-   [`hafiza/test-kosum-tuzaklari.md`](hafiza/test-kosum-tuzaklari.md)
+5. Alan hafızası: [`hafiza/test-altyapisi.md`](../../hafiza/test-altyapisi.md) ·
+   [`hafiza/test-kosum-tuzaklari.md`](../../hafiza/test-kosum-tuzaklari.md)
 
 ---
 
@@ -50,9 +50,9 @@ tek şablona bağlar ve şablonu ilk aile üzerinde uçtan uca kanıtlar.
 | Kanıt | Gözlem |
 |---|---|
 | `docs/manuel-test/` sayımı | **37 dosya, 1.872 benzersiz `MT-*` case** (aday gövdesindeki 1.632 sayısı bayatlamıştı — büyüme sürüyor) |
-| [`00-INDEKS.md`](manuel-test/00-INDEKS.md) tally | Son tam koşum 2026-09-16→19: 1.813 ☑ · 26 ☐ · 19 ⏭ · 1 ☒; 43 kusur çıktı; yalnız **iki** tam koşum var |
-| [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) | `docs/manuel-test/` hiçbir job'da geçmiyor — set CI'a görünmez |
-| [`scripts/manuel-test-tazelik.py`](../scripts/manuel-test-tazelik.py) | Tazelik kapısı var ama yalnız spec bayatlamasını ölçer; devir kavramı yok |
+| [`00-INDEKS.md`](../../manuel-test/00-INDEKS.md) tally | Son tam koşum 2026-09-16→19: 1.813 ☑ · 26 ☐ · 19 ⏭ · 1 ☒; 43 kusur çıktı; yalnız **iki** tam koşum var |
+| [`.github/workflows/ci.yml`](../../../.github/workflows/ci.yml) | `docs/manuel-test/` hiçbir job'da geçmiyor — set CI'a görünmez |
+| [`scripts/manuel-test-tazelik.py`](../../../scripts/manuel-test-tazelik.py) | Tazelik kapısı var ama yalnız spec bayatlamasını ölçer; devir kavramı yok |
 
 > Kanıtlar 2026-09-22 tarihinde doğrulandı.
 
@@ -65,7 +65,7 @@ satırında görünür kılınır:
 
 | Sınıf | İşaret | Kural |
 |---|---|---|
-| Devredildi | `➜ CI: <TestSınıfı.TestAdı>` | Davranış [test seviyeleri tablosuna](../.agents/ortak/test-seviyeleri.md) göre doğru seviyede otomatikleşti. Case spec'ten **silinmez** — koşum talimatı düşer, işaret kalır (tek kaynak: davranış tanımı spec'te, kanıt CI'da) |
+| Devredildi | `➜ CI: <TestSınıfı.TestAdı>` | Davranış [test seviyeleri tablosuna](../../../.agents/ortak/test-seviyeleri.md) göre doğru seviyede otomatikleşti. Case spec'ten **silinmez** — koşum talimatı düşer, işaret kalır (tek kaynak: davranış tanımı spec'te, kanıt CI'da) |
 | Manuel kalır | `👤 insan gerekir — <sebep>` | Model kalitesi, görsel yargı, fiziksel ortam (ses cihazı, gerçek sağlayıcı hesabı). Sebep tek cümle |
 | Zaten kapsanıyor | `➜ CI: <mevcut test>` | Devir yeni test yazmaz; mevcut testi işaret eder. İlk dilimde beklenen en kalabalık sınıf budur |
 

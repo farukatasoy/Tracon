@@ -192,7 +192,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [177](arsiv/fazlar/177-STORE-IPTAL-SOZLESMESI.md) | Store İptal Sözleşmesi | ✅ Tamamlandı |
 | [178](arsiv/fazlar/178-TUKETICI-KAPI-SKILLI.md) | Tüketici Kapı Skill'i | ✅ Tamamlandı |
 | [179](arsiv/fazlar/179-KIRACI-KIMLIGI-NORMALLESTIRME.md) | Kiracı Kimliğinin Normalleştirilmesi | ✅ Tamamlandı |
-| [180](180-MANUEL-SET-DEVIR-SABLONU.md) | Manuel Set Devir Şablonu | ✅ Tamamlandı |
+| [180](arsiv/fazlar/180-MANUEL-SET-DEVIR-SABLONU.md) | Manuel Set Devir Şablonu | ✅ Tamamlandı |
 | [181](181-PROVIDER-ORTAK-KATMANI.md) | Provider Ortak Katmanı | 📋 Planlandı |
 | [182](182-PUBLIC-API-YUZEY-DARALTMA.md) | Public API Yüzey Daraltma | 📋 Planlandı |
 | [183](183-COKLU-TFM-TEST-MATRISI.md) | Çoklu TFM Test Matrisi | 📋 Planlandı |
