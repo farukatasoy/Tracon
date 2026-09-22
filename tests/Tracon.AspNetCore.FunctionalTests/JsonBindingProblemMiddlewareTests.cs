@@ -97,6 +97,29 @@ public sealed class JsonBindingProblemMiddlewareTests
         json.GetProperty("title").GetString().ShouldBe("Invalid request body");
     }
 
+    [Fact]
+    public async Task Syntactically_broken_body_returns_400_on_the_validate_endpoint()
+    {
+        // The validate endpoint answers 200 for an INVALID definition — an
+        // invalid definition is a result, not an error. A body that does not
+        // parse is the one exception: there is no definition to report on, so
+        // the failure belongs to HTTP, not to validation. A 200 carrying
+        // "valid: false" here would be a lie about a request nobody could read.
+        await using var host = await TraconTestHost.StartAsync();
+
+        using var content = new StringContent(
+            "{ broken json here",
+            Encoding.UTF8,
+            "application/json");
+
+        using var response = await host.Client.PostAsync(
+            new Uri("/tracon/api/agents/validate", UriKind.Relative),
+            content);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+        response.Content.Headers.ContentType?.MediaType.ShouldBe("application/problem+json");
+    }
+
     /// <summary>
     /// A miscased (or otherwise unparseable) query-string enum value is a
     /// DIFFERENT binding path than the three tests above: minimal API throws

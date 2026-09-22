@@ -35,6 +35,13 @@ public sealed class MetaEndpointTests
         auth.GetProperty("allowRemoteAccess").GetBoolean().ShouldBeFalse();
         auth.GetProperty("requiresBearerToken").GetBoolean().ShouldBeTrue();
         auth.GetProperty("requiresAuthorizationPolicy").GetBoolean().ShouldBeTrue();
+
+        // The UI decides which screens to offer from this block; a meta
+        // response missing it leaves the shell guessing.
+        var roles = json.GetProperty("roles");
+        roles.GetProperty("canRead").ValueKind.ShouldBe(JsonValueKind.True);
+        roles.GetProperty("canOperate").ValueKind.ShouldBe(JsonValueKind.True);
+        roles.GetProperty("canAdminister").ValueKind.ShouldBe(JsonValueKind.True);
     }
 
     [Fact]

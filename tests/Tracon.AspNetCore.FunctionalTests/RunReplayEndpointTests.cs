@@ -72,6 +72,40 @@ public sealed class RunReplayEndpointTests
     }
 
     [Fact]
+    public async Task Run_started_while_input_recording_is_OFF_has_a_row_but_no_input()
+    {
+        // 🚨 The sibling test above writes the run row BY HAND, which is a
+        // different code path: it never asks RunRecordingAgent whether to record
+        // the input. Only turning the real option off proves that the switch
+        // consumers actually flip reaches the input store — and that turning it
+        // off costs the input alone, not the run row.
+        await using var host = await TraconTestHost.StartAsync(
+            ConfigureAgent,
+            configureServices: static services => services.Configure<TraconOptions>(
+                static o => o.RunRecording.RecordRunInput = false));
+
+        await SeedDefinitionsAsync(host);
+
+        using (var run = await host.Client.PostAsJsonAsync(
+            new Uri($"/tracon/api/agents/{AgentName}/run", UriKind.Relative),
+            new AgentRunRequest { Message = "hello" }))
+        {
+            run.EnsureSuccessStatusCode();
+            await SseReader.ReadAllAsync(await run.Content.ReadAsStreamAsync());
+        }
+
+        var runs = host.Services.GetRequiredService<IRunStore>();
+        var runId = (await runs.QueryRunsAsync(new RunQuery())).ShouldHaveSingleItem().Id;
+
+        using var record = await host.Client.GetAsync(
+            new Uri($"/tracon/api/runs/{runId}", UriKind.Relative));
+        using var input = await host.Client.GetAsync(InputUri(runId));
+
+        record.StatusCode.ShouldBe(HttpStatusCode.OK);
+        input.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+    }
+
+    [Fact]
     public async Task Replay_opens_a_new_run_and_carries_lineage()
     {
         await using var host = await TraconTestHost.StartAsync(ConfigureAgent);
