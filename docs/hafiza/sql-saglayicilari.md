@@ -98,3 +98,5 @@ ayrildi, `sqlite.md`'nin Faz 36'daki emsaliyle.
   `EvalStoreContract.ReplaceCasesAsync_keeps_the_promotion_fields_it_was_given`
   düzeltmeden önce bellek içinde YEŞİL, iki SQL sağlayıcısında KIRMIZI idi ve
   sapmayı tek koşumda gösterdi.
+
+- **`DbDataSource` adapter'ının `ConnectionString`'i parolayı DÜŞÜRÜR** (2026-09-22, K-846): `NpgsqlDataSource` sözleşmesi budur; `SqlServerDataSource`/`SqliteDataSource` ham dizeyi döndürüyordu ve özelliği okuyan her diagnostic parolayı görürdü. Builder round-trip biçimi normalize eder — dizeyi metin karşılaştıran test yazma. Yeni adapter aynı sözleşmeyi uygular; kapı: `SqlServerDataSourceTests` · `SqliteDataSourceTests`.

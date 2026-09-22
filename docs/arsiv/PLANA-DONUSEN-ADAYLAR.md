@@ -1799,3 +1799,85 @@ dört format sevk etmek, kanıtsız bir bakım yüzeyi satın almaktır.
 ---
 
 ---
+
+---
+
+## 2026-09-22 — Kod tabanı denetim turu (F-165 · F-258…F-261)
+
+Beş kalem, repo genelindeki denetim turundan ("10 problem") doğdu ve aynı gün
+beş faza dönüştü. Dört yeni kalem tahsis edildiği gün plana dönüştüğü için
+gövdeleri kısadır; kanıt ve tasarım fazın kendi dokümanındadır.
+
+| Kalem | Faz |
+|---|---|
+| F-165 | [Faz 180](../180-MANUEL-SET-DEVIR-SABLONU.md) |
+| F-258 | [Faz 181](../181-PROVIDER-ORTAK-KATMANI.md) |
+| F-259 | [Faz 182](../182-PUBLIC-API-YUZEY-DARALTMA.md) |
+| F-260 | [Faz 183](../183-COKLU-TFM-TEST-MATRISI.md) |
+| F-261 | [Faz 184](../184-TEST-BEKLEME-VE-E2E-YAPISI.md) |
+
+### F-165 · Manuel kabul setinin CI'a kademeli taşınması (taşındı: 2026-09-22)
+
+**Engel:** Bağımsız faz olarak **hiç** planlanmaz — kuyruğu bitmez. Her fazın
+dokunduğu alanın manuel ailesi **o fazda** otomatikleştirilir
+(`faz-tamamlama` Adım 3).
+
+**Sorun:** Manuel set CI'da koşmaz; regresyon güvencesi bir kişinin koşum
+zamanına bağlıdır.
+
+**Kapsam:** Tek fazda tüm seti taşımak değil, bir aileyi
+[test seviyeleri tablosuna](../../.agents/ortak/test-seviyeleri.md) göre
+otomatikleştiren tekrar edilebilir devir şablonu kurmak. Manuel kalması
+gereken model-yanıtı ve insan-yargısı case'leri açıkça ayrılır.
+
+**Değer:** En yüksek riskli kabul davranışları insan zamanı beklemeden
+regresyon kapısına girer; iki ayrı spec/test kaynağı oluşmaz.
+
+**Mercek:** 2, 3, 4, 6.
+
+**Hazırlık — ölçüldü (2026-09-13):** `docs/manuel-test/` kökünde **37 dosya**,
+**1 632** benzersiz `MT-*` case'i (kayıt 1 650 diyordu — bayat).
+`Tracon.Testing` ve Testcontainers altyapısı hazır.
+
+**Maliyet:** Yüksek, fakat ilk dilim kontrollüdür.
+
+**Risk:** Case'leri kör biçimde birim teste çevirmek test tiyatrosu üretir.
+Sınır davranışı functional/integration seviyesinde kalmalıdır.
+
+**Bağımlılık:** Yok.
+
+**Ekosistem:** 2026-08-26 — depo kalite disiplini; dış ekosistem iddiası yok.
+
+**Karşı görüş:** Model kalitesi ve görsel değerlendirme otomasyona uygun
+değildir. Bu aday o case'leri silmeyi değil, otomatikleştirilebilir kısmı
+ayırmayı önerir.
+
+### F-258 · Provider paketlerinde ortak katman (tahsis: 2026-09-22)
+
+Dört provider paketi aynı gövdeyi elle taşıyor; ad-normalize `diff` ölçümü
+(2026-09-22): `*ModelProvider.cs` 199 satır/40 farklı · `*ProviderExtensions.cs`
+216/60 · `*ProviderHealthCheck.cs` 186/82. K-646 kopyanın bedelini dört yerde
+ayrı düzeltme olarak ölçmüştü. Mimari kullanıcı kararı: shared-source, paket
+yok (`Tracon.Sql.Shared` emsali).
+
+### F-259 · Public API yüzeyinin GA öncesi daraltılması (tahsis: 2026-09-22)
+
+17 pakette 9.771 satır `PublicAPI.Unshipped.txt`, `Shipped` dosyaları boş;
+README "surface may still be reduced before 1.0" vaadini taşıyor. Preview
+penceresi kırıcı değişikliğin ucuz olduğu son dönemdir: envanter + kanıtsız
+public üyelerin `internal`'a çekilmesi. `Shipped` doldurma UR-003'tür, kapsam
+dışı.
+
+### F-260 · net8/net9 için temsilci test matrisi (tahsis: 2026-09-22)
+
+Kütüphaneler `net8.0;net9.0;net10.0` sevk ediyor; `tests/Directory.Build.props:6`
+tüm testleri `net10.0` tekil kılıyor — iki TFM'in davranış kanıtı sıfır.
+Kullanıcı kararı: temsilci projeler multi-target (ubuntu bacağı) + packed net8
+tüketici smoke'u.
+
+### F-261 · Sabit beklemelerin sökümü ve E2E bölünmesi (tahsis: 2026-09-22)
+
+`tests/` altında 121 `Task.Delay(` satırı; `UiTests.cs` 144.937 bayt / 80 test /
+7 `Expect(`; koşum `-maxcpucount:1` + `maxParallelThreads: 4` ile serileştirilmiş
+(tam koşum ~557 sn). Koşul-bekleme yardımcıları + ekran başına E2E dosyası +
+web-first `Expect`; paralellik gevşetme yalnız ölçümle ve en sonda.

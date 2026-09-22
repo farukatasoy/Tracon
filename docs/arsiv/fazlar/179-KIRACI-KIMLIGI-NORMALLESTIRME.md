@@ -184,7 +184,7 @@ case'ler (MT-SEC-194…198) doğru adı taşıyor.
 | Düzeltme turu sayısı | 2 (biri denetim öncesi kapı düzeltmeleri, biri denetim bulguları) |
 | 🔴 bulgu: gerçek / gürültü / araştırılacak | 2 / 0 / 0 — ikisi de gerçekti ve ikisi de düzeltildi |
 | Fazın ürettiği regresyon | 0 ölçülen. Kapılar üç kez kızardı ve üçü de fazın kendi eksiğiydi: Turkish karakteri sevk edilen metinde, 🚨 sevk edilen XML'de, `public-surface-baseline` bir eksik |
-| Faz kapandıktan sonra bulunan kusur | ölçülmedi — faz bugün kapandı |
+| Faz kapandıktan sonra bulunan kusur | 1 — kapanış turunun bekleyen-kalem tahsisleri F-251'i ikinci kez kullandı ve tahsis sayacını güncellemedi; 2026-09-22'de bulundu, F-230 emsaliyle çözüldü (ADAYLAR § F-ID tahsis kuralı) |
 
 ## Denetim Bulguları
 

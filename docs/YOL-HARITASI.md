@@ -8,7 +8,7 @@
 Bir fazın durumu yanlış görünüyorsa **o fazın dokümanını** düzelt;
 bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 
-## Fazlar (180 kalem)
+## Fazlar (185 kalem)
 
 | Faz | Konu | Durum |
 |-----|------|-------|
@@ -192,5 +192,10 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [177](arsiv/fazlar/177-STORE-IPTAL-SOZLESMESI.md) | Store İptal Sözleşmesi | ✅ Tamamlandı |
 | [178](arsiv/fazlar/178-TUKETICI-KAPI-SKILLI.md) | Tüketici Kapı Skill'i | ✅ Tamamlandı |
 | [179](arsiv/fazlar/179-KIRACI-KIMLIGI-NORMALLESTIRME.md) | Kiracı Kimliğinin Normalleştirilmesi | ✅ Tamamlandı |
+| [180](180-MANUEL-SET-DEVIR-SABLONU.md) | Manuel Set Devir Şablonu | 📋 Planlandı |
+| [181](181-PROVIDER-ORTAK-KATMANI.md) | Provider Ortak Katmanı | 📋 Planlandı |
+| [182](182-PUBLIC-API-YUZEY-DARALTMA.md) | Public API Yüzey Daraltma | 📋 Planlandı |
+| [183](183-COKLU-TFM-TEST-MATRISI.md) | Çoklu TFM Test Matrisi | 📋 Planlandı |
+| [184](184-TEST-BEKLEME-VE-E2E-YAPISI.md) | Test Bekleme ve E2E Yapısı | 📋 Planlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).

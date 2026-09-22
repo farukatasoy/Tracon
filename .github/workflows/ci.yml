@@ -197,9 +197,12 @@ jobs:
       # runner'inin Docker kurulumu Windows container icindir - Linux image
       # baslatamaz; tum solution tek `dotnet test` cagrisiyla kosulursa bu iki
       # proje Windows'ta ya sessizce atlanir ya da kirilir (Kesif 2026-08-23,
-      # kalem 6). Tracon.no-docker.slnf ayni 41 projeden bu ikisini
-      # cikarir - geri kalan her sey (Sqlite entegrasyonu dahil, o Docker
-      # istemez) Windows'ta da gercekten kosar.
+      # kalem 6). Tracon.no-docker.slnf, slnx'teki 47 projeden yalniz bu iki
+      # Docker projesini ve Tracon.WorkerHarness yardimci exe'sini cikarir -
+      # geri kalan her sey (Sqlite entegrasyonu ve Docker istemeyen
+      # Tracon.Testing.Contracts.Xunit.UnitTests dahil) Windows'ta da gercekten
+      # kosar. Not: sandbox script testleri /bin/bash yoklugunda Windows'ta
+      # SKIPPED olarak gorunur (Assert.SkipWhen); ubuntu ayagi onlari kosar.
       - name: Test et (tum projeler)
         if: matrix.os == 'ubuntu-latest'
         # xunit.v3 Microsoft Testing Platform kullanir; rapor bayraklari VSTest'ten farklidir.

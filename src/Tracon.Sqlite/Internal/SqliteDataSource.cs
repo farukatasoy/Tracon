@@ -24,6 +24,7 @@ namespace Tracon;
 internal sealed class SqliteDataSource : DbDataSource
 {
     private readonly string _connectionString;
+    private string? _redactedConnectionString;
 
     /// <summary>Creates a new data source.</summary>
     /// <param name="connectionString">The SQLite connection string.</param>
@@ -35,7 +36,29 @@ internal sealed class SqliteDataSource : DbDataSource
     }
 
     /// <inheritdoc />
-    public override string ConnectionString => _connectionString;
+    /// <remarks>
+    /// The password (SQLCipher) is removed, matching the
+    /// <c>NpgsqlDataSource.ConnectionString</c> contract: whatever reads this
+    /// property — a diagnostics page, a log line — must not receive a
+    /// credential. The connections this source creates still use the full string.
+    /// </remarks>
+    public override string ConnectionString => _redactedConnectionString ??= Redact(_connectionString);
+
+    private static string Redact(string connectionString)
+    {
+        try
+        {
+            var builder = new SqliteConnectionStringBuilder(connectionString);
+            builder.Remove("Password");
+            return builder.ConnectionString;
+        }
+        catch (ArgumentException)
+        {
+            // Not parseable as a SQLite connection string; SqliteConnection
+            // rejects it too, so there is no working credential to protect.
+            return connectionString;
+        }
+    }
 
     /// <inheritdoc />
     /// <remarks>

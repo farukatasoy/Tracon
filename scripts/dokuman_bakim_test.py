@@ -1835,3 +1835,111 @@ class KesikKararBasligiTestleri(unittest.TestCase):
         karar_satiri = sum(1 for _, s in satirlar if s.startswith("| **"))
         self.assertGreater(karar_satiri, len(kalici),
                            "uretec §2 disinda da kalem uretiyor olmali")
+
+
+class FazCommitKonusuTestleri(unittest.TestCase):
+    """`_faz_commit_konusu_mu` saf fonksiyonu — git istemez.
+
+    Projeksiyon 2026-09-22'de "yeterli `phase N` commit'i bulunamadı" diyordu:
+    kapanış commit'i konvansiyonu `phase N ...`'den `Archive [the] phase N ...`'e
+    kaymıştı ve desen eski dönemde kalmıştı. Bu sınıf iki dönemi de sabitler.
+    """
+
+    def test_eski_donem_phase_n_sayilir(self):
+        self.assertTrue(dokuman_bakim._faz_commit_konusu_mu("phase 42 quota ve webhook"))
+
+    def test_arsiv_donemi_iki_bicimiyle_sayilir(self):
+        self.assertTrue(dokuman_bakim._faz_commit_konusu_mu(
+            "Archive phase 179 and close its definition of done"))
+        self.assertTrue(dokuman_bakim._faz_commit_konusu_mu(
+            "Archive the phase 178 record"))
+
+    def test_damitma_commiti_sayilmaz(self):
+        # Aynı fazın ikinci commit'i bayt/faz payını yarıya indirirdi.
+        self.assertFalse(dokuman_bakim._faz_commit_konusu_mu(
+            "Distil the phase 178 record"))
+
+    def test_faz_disi_konular_sayilmaz(self):
+        self.assertFalse(dokuman_bakim._faz_commit_konusu_mu(
+            "fix: enhance site deployment verification"))
+        self.assertFalse(dokuman_bakim._faz_commit_konusu_mu(
+            "Archive the 2026-09-16 round and close its record"))
+
+
+class BayatKodYoluTestleri(unittest.TestCase):
+    """`_bayat_yollar_metinde` saf fonksiyonu — dosya sistemi istemez.
+
+    Vaka: `kod-haritasi.md` 2026-08-02'den 2026-09-22'ye kadar var olmayan
+    `src/Tracon.PostgreSql/Internal/SqlQueries.cs` yolunu gösterdi;
+    `kirik_baglantilar()` yalnız markdown bağlantısını doğrular, backtick
+    içindeki kod yolunu göremez. Bu kapı o sınıfı kapatır.
+    """
+
+    IZLENEN = {
+        "src/Tracon.Sql.Shared/Internal/SqlQueriesBase.cs",
+        "docs/hafiza/kod-haritasi.md",
+        "src/Klasor/A.cs",
+    }
+
+    def _mevcut(self, yol):
+        return yol in self.IZLENEN or any(
+            izlenen.startswith(yol + "/") for izlenen in self.IZLENEN)
+
+    def test_var_olmayan_yol_bulgudur(self):
+        metin = "SQL tek dosyada: `src/Tracon.PostgreSql/Internal/SqlQueries.cs` durur."
+        self.assertEqual(
+            ["src/Tracon.PostgreSql/Internal/SqlQueries.cs"],
+            dokuman_bakim._bayat_yollar_metinde(metin, self._mevcut))
+
+    def test_var_olan_yol_ve_satir_eki_temizdir(self):
+        metin = ("Taban `src/Tracon.Sql.Shared/Internal/SqlQueriesBase.cs:15` "
+                 "ve `docs/hafiza/kod-haritasi.md` bak.")
+        self.assertEqual([], dokuman_bakim._bayat_yollar_metinde(metin, self._mevcut))
+
+    def test_arsiv_yolu_tarihsel_kayittir_atlanir(self):
+        # Gerçek bir arşiv yolu kullanılır: `kapi.py tarama`nın arşiv referans
+        # denetimi bu dosyayı da tarar ve uydurma bir yol onu kırmızı yapar.
+        metin = "Eski anlatı `docs/arsiv/fazlar/07-SAGLAMLASTIRMA-VE-YAYIN.md` içindedir."
+        self.assertEqual([], dokuman_bakim._bayat_yollar_metinde(metin, self._mevcut))
+
+    def test_joker_ve_yer_tutucu_eslesmez(self):
+        metin = ("Fazlar `docs/NN-*.md` biçimindedir; koşum "
+                 "`tests/Tracon.<Sağlayıcı>.IntegrationTests/Contracts/` altındadır.")
+        self.assertEqual([], dokuman_bakim._bayat_yollar_metinde(metin, self._mevcut))
+
+    def test_dizin_referansi_izlenen_onekiyle_vardir(self):
+        metin = "Yardımcılar `src/Klasor/` altındadır; `src/YokKlasor/` bulgudur."
+        self.assertEqual(
+            ["src/YokKlasor/"],
+            dokuman_bakim._bayat_yollar_metinde(metin, self._mevcut))
+
+    def test_uc_nokta_kisaltmasi_atlanir(self):
+        metin = "Belge `tests/.../Infrastructure/ProductOpenApiDocument.cs` der."
+        self.assertEqual([], dokuman_bakim._bayat_yollar_metinde(metin, lambda y: False))
+
+    def test_frontend_ve_site_perspektifleri_cozulur(self):
+        # Notlar React kökünden (`src/lib/...`) ve site kökünden
+        # (`docs-site/concepts/...`) yazılır; adaylar iki kökü de dener.
+        izlenen = {
+            "src/Tracon.UI/frontend/src/lib/i18n.tsx",
+            "docs-site/src/content/docs/concepts/tools.md",
+        }
+
+        def mevcut(yol):
+            return yol in izlenen
+
+        metin = "Bkz. `src/lib/i18n.tsx` ve `docs-site/concepts/tools.md`."
+        self.assertEqual([], dokuman_bakim._bayat_yollar_metinde(metin, mevcut))
+
+    def test_uzantisiz_anlatim_kisaltmasi_denetlenmez(self):
+        metin = "İki proje: `src/Web` meta paket, `src/Worker` yalnız Core; `docs/73` bayat."
+        self.assertEqual([], dokuman_bakim._bayat_yollar_metinde(metin, lambda y: False))
+
+    def test_yol_ornek_isareti_satiri_denetimden_cikarir(self):
+        metin = "`src/Directory.Build.targets` açmak cazip görünür <!-- yol:ornek -->"
+        self.assertEqual([], dokuman_bakim._bayat_yollar_metinde(metin, lambda y: False))
+
+    def test_npm_paketi_perspektifi_cozulur(self):
+        izlenen = {"packages/tracon-client/src/schema.ts"}
+        metin = "Şema `src/schema.ts` içindedir."
+        self.assertEqual([], dokuman_bakim._bayat_yollar_metinde(metin, izlenen.__contains__))

@@ -299,8 +299,11 @@ boundary is the hosting environment's job. Full behavior and the guard decision 
 
 `Microsoft.Agents.AI.Hosting` (preview) and `Microsoft.Agents.AI.Hosting.OpenAI`
 (alpha) are still pre-release, so Tracon publishes as `1.0.0-preview.N` until both
-reach GA. That dependency lives only in `Tracon.AspNetCore`; every other package
-depends on GA packages only.
+reach GA. Only `Tracon.AspNetCore` references them directly — but `Tracon`,
+`Tracon.UI` and `Tracon.Testing` depend on `Tracon.AspNetCore`, so installing any
+of those brings the pre-release chain in transitively. Packages outside that
+chain (`Tracon.Abstractions`, `Tracon.Core`, the store and provider packages)
+depend on GA packages only.
 
 ---
 
