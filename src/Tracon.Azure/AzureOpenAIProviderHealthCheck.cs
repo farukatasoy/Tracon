@@ -1,6 +1,5 @@
-using System.Diagnostics;
-using System.Text.Json;
 using Azure.Core;
+using Microsoft.Extensions.Logging;
 
 namespace Tracon;
 
@@ -11,8 +10,9 @@ namespace Tracon;
 /// <remarks>
 /// <para>
 /// This endpoint returns the models the resource can reach and <strong>incurs
-/// no cost</strong> — no model call is made. The pattern is identical to
-/// <c>OpenAIProviderHealthCheck</c> and <c>AnthropicProviderHealthCheck</c>.
+/// no cost</strong> — no model call is made. The shared body (timeout,
+/// failure mapping, body parsing) is <c>ProviderHealthCheckCore</c>; this type
+/// supplies only the endpoint, the credential and the body shape.
 /// </para>
 /// <para>
 /// <strong>The returned list is a model list, not a deployment list.</strong>
@@ -48,190 +48,73 @@ internal sealed class AzureOpenAIProviderHealthCheck : IModelProviderHealthCheck
     /// <summary>The Entra token scope on the Azure public cloud.</summary>
     internal const string DefaultAudience = "https://cognitiveservices.azure.com/.default";
 
-    private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(10);
-    private const int MaxReportedModels = 200;
-
-    // PooledConnectionLifetime bounds how long a resolved address is reused: a
-    // provider that fails over behind DNS would otherwise stay pinned to the old
-    // address for the process lifetime. Two minutes matches
-    // EgressSocketGuard.CreateHandler.
-    private static readonly HttpClient SharedHttpClient = new(
-        new SocketsHttpHandler { PooledConnectionLifetime = TimeSpan.FromMinutes(2) },
-        disposeHandler: true);
-
-    private readonly string _providerName;
+    private readonly ProviderHealthCheckCore _core;
     private readonly AzureOpenAIProviderOptions _options;
     private readonly TokenCredential? _credential;
 
     /// <summary>Builds a new health check.</summary>
     /// <param name="providerName">The provider name.</param>
     /// <param name="options">The provider options.</param>
+    /// <param name="logger">Receives a credential failure; the health result carries only its type name.</param>
     /// <remarks>
     /// The credential factory is called <strong>once</strong> here; building a
     /// new credential object on every check would waste the token cache.
     /// </remarks>
-    public AzureOpenAIProviderHealthCheck(string providerName, AzureOpenAIProviderOptions options)
+    public AzureOpenAIProviderHealthCheck(string providerName, AzureOpenAIProviderOptions options, ILogger? logger = null)
     {
-        _providerName = providerName;
+        _core = new ProviderHealthCheckCore(providerName, logger);
         _options = options;
         _credential = options.CredentialFactory?.Invoke();
     }
 
     /// <inheritdoc />
-    public async ValueTask<ModelProviderHealth> CheckHealthAsync(CancellationToken cancellationToken = default)
+    public ValueTask<ModelProviderHealth> CheckHealthAsync(CancellationToken cancellationToken = default)
     {
-        var stopwatch = Stopwatch.StartNew();
-        var checkedAt = DateTimeOffset.UtcNow;
-
         if (_options.Endpoint is null)
         {
-            return Unhealthy(checkedAt, TimeSpan.Zero, "The resource address is not defined.");
+            return ValueTask.FromResult(
+                _core.Unhealthy(DateTimeOffset.UtcNow, TimeSpan.Zero, "The resource address is not defined."));
         }
 
-        using var timeoutSource = new CancellationTokenSource(_options.Timeout ?? DefaultTimeout);
-        using var linkedSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutSource.Token);
-
-        try
-        {
-            using var request = new HttpRequestMessage(HttpMethod.Get, BuildModelsEndpoint(_options.Endpoint));
-
-            if (_credential is not null)
-            {
-                var scope = string.IsNullOrWhiteSpace(_options.Audience) ? DefaultAudience : _options.Audience;
-                var token = await _credential
-                    .GetTokenAsync(new TokenRequestContext([scope]), linkedSource.Token)
-                    .ConfigureAwait(false);
-
-                request.Headers.Add("Authorization", $"Bearer {token.Token}");
-            }
-            else if (!string.IsNullOrWhiteSpace(_options.ApiKey))
-            {
-                // Azure OpenAI authenticates a key through the `api-key` header.
-                request.Headers.Add("api-key", _options.ApiKey);
-            }
-
-            using var response = await SharedHttpClient
-                .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, linkedSource.Token)
-                .ConfigureAwait(false);
-
-            stopwatch.Stop();
-
-            if (!response.IsSuccessStatusCode)
-            {
-                return Unhealthy(checkedAt, stopwatch.Elapsed, $"HTTP {(int)response.StatusCode} {response.ReasonPhrase}");
-            }
-
-            var models = await ReadModelIdsAsync(response, linkedSource.Token).ConfigureAwait(false);
-
-            return new ModelProviderHealth
-            {
-                ProviderName = _providerName,
-                Status = ModelProviderHealthStatus.Healthy,
-                Latency = stopwatch.Elapsed,
-                CheckedAt = checkedAt,
-                Models = models,
-            };
-        }
-        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
-        {
-            stopwatch.Stop();
-            return Unhealthy(checkedAt, stopwatch.Elapsed, "Timed out.");
-        }
-        catch (HttpRequestException exception)
-        {
-            stopwatch.Stop();
-
-            // exception.Message embeds the target address (host:port) into the
-            // body in cases like connection refused. HttpRequestError is a
-            // category name that carries no address (.NET 8+).
-            return Unhealthy(checkedAt, stopwatch.Elapsed, $"Connection error ({exception.HttpRequestError}).");
-        }
-        catch (JsonException)
-        {
-            stopwatch.Stop();
-            return new ModelProviderHealth
-            {
-                ProviderName = _providerName,
-                Status = ModelProviderHealthStatus.Degraded,
-                Detail = "The response is not valid JSON.",
-                Latency = stopwatch.Elapsed,
-                CheckedAt = checkedAt,
-            };
-        }
+        return _core.CheckAsync(
+            BuildModelsEndpoint(_options.Endpoint),
+            _options.Timeout,
+            AuthorizeAsync,
+            ReadModelIdsAsync,
+            cancellationToken);
     }
 
-    private ModelProviderHealth Unhealthy(DateTimeOffset checkedAt, TimeSpan latency, string detail)
-        => new()
+    private async ValueTask AuthorizeAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        if (_credential is not null)
         {
-            ProviderName = _providerName,
-            Status = ModelProviderHealthStatus.Unhealthy,
-            Detail = detail,
-            Latency = latency,
-            CheckedAt = checkedAt,
-        };
+            var scope = string.IsNullOrWhiteSpace(_options.Audience) ? DefaultAudience : _options.Audience;
+            var token = await _credential
+                .GetTokenAsync(new TokenRequestContext([scope]), cancellationToken)
+                .ConfigureAwait(false);
+
+            request.Headers.Add("Authorization", $"Bearer {token.Token}");
+        }
+        else if (!string.IsNullOrWhiteSpace(_options.ApiKey))
+        {
+            // Azure OpenAI authenticates a key through the `api-key` header.
+            request.Headers.Add("api-key", _options.ApiKey);
+        }
+    }
 
     /// <summary>
     /// Combines the resource address with <c>openai/models?api-version=...</c>.
     /// </summary>
-    /// <remarks>
-    /// <para>
-    /// When the base address does not end with a slash, <see cref="Uri"/>
-    /// REPLACES the last segment (it behaves like a file); it is therefore
-    /// normalized before combining.
-    /// </para>
-    /// <para><c>internal</c>: unit tests verify this combination without a network call.</para>
-    /// </remarks>
+    /// <remarks><c>internal</c>: unit tests verify this combination without a network call.</remarks>
     internal static Uri BuildModelsEndpoint(Uri baseEndpoint)
-    {
-        var text = baseEndpoint.ToString();
-
-        if (!text.EndsWith('/'))
-        {
-            text += "/";
-        }
-
-        return new Uri(new Uri(text, UriKind.Absolute), $"openai/models?api-version={ApiVersion}");
-    }
+        => ProviderHealthCheckCore.JoinEndpoint(baseEndpoint, $"openai/models?api-version={ApiVersion}");
 
     /// <summary>
     /// Reads model ids from a <c>{"data":[{"id":"gpt-..."}]}</c> body.
     /// </summary>
     /// <remarks><c>internal</c>: unit tests verify parsing against a prepared response body.</remarks>
-    internal static async ValueTask<IReadOnlyList<string>> ReadModelIdsAsync(
+    internal static ValueTask<IReadOnlyList<string>> ReadModelIdsAsync(
         HttpResponseMessage response,
         CancellationToken cancellationToken)
-    {
-        var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-
-        await using (stream.ConfigureAwait(false))
-        {
-            using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
-
-            if (!document.RootElement.TryGetProperty("data", out var data) || data.ValueKind != JsonValueKind.Array)
-            {
-                return [];
-            }
-
-            var models = new List<string>();
-
-            foreach (var entry in data.EnumerateArray())
-            {
-                if (models.Count >= MaxReportedModels)
-                {
-                    break;
-                }
-
-                if (entry.ValueKind == JsonValueKind.Object
-                    && entry.TryGetProperty("id", out var id)
-                    && id.ValueKind == JsonValueKind.String
-                    && id.GetString() is { Length: > 0 } modelId)
-                {
-                    models.Add(modelId);
-                }
-            }
-
-            models.Sort(StringComparer.Ordinal);
-            return models;
-        }
-    }
+        => ProviderHealthCheckCore.ReadModelIdsAsync(response, "data", "id", stripPrefix: null, cancellationToken);
 }

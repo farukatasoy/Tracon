@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Tracon;
@@ -36,6 +37,12 @@ public sealed class ModelProviderHealthCache
     private readonly ModelProviderCircuitBreaker? _circuitBreaker;
     private readonly TimeProvider _timeProvider;
     private readonly ConcurrentDictionary<string, CacheEntry> _cache = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Receives the exception of a health check that throws. Internal and set by
+    /// the DI factory: the public constructor stays unchanged.
+    /// </summary>
+    internal ILogger? Logger { get; init; }
 
     /// <summary>Creates a new health cache.</summary>
     /// <param name="providers">The registered model providers.</param>
@@ -143,7 +150,7 @@ public sealed class ModelProviderHealthCache
         }
 
         var health = provider is IModelProviderHealthCheck check
-            ? await check.CheckHealthAsync(cancellationToken).ConfigureAwait(false)
+            ? await CheckOrReportAsync(check, provider.Name, now, cancellationToken).ConfigureAwait(false)
             : new ModelProviderHealth
             {
                 ProviderName = provider.Name,
@@ -155,6 +162,50 @@ public sealed class ModelProviderHealthCache
         _cache[provider.Name] = new CacheEntry(health, now + ttl);
 
         return health;
+    }
+
+    /// <summary>
+    /// Runs one provider's check; a check that throws is reported as that
+    /// provider's <see cref="ModelProviderHealthStatus.Unhealthy"/> status.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="IModelProviderHealthCheck"/> is a shipped extension seam, so a
+    /// consumer's check can throw. Without this, one throwing check would fail
+    /// <c>/api/models/health</c> for every provider and stop the background
+    /// refresh of the providers after it. Only the exception type is reported:
+    /// its message can carry an address or an identifier. The caller's own
+    /// cancellation still propagates.
+    /// </remarks>
+    private async ValueTask<ModelProviderHealth> CheckOrReportAsync(
+        IModelProviderHealthCheck check,
+        string providerName,
+        DateTimeOffset checkedAt,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await check.CheckHealthAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
+        {
+            // The response carries only the type name; the operator gets the
+            // message and the stack trace here.
+            if (Logger is not null && Logger.IsEnabled(LogLevel.Warning))
+            {
+                Logger.LogWarning(
+                    exception,
+                    "The '{Provider}' health check threw; the provider is reported Unhealthy.",
+                    providerName);
+            }
+
+            return new ModelProviderHealth
+            {
+                ProviderName = providerName,
+                Status = ModelProviderHealthStatus.Unhealthy,
+                Detail = $"The health check failed ({exception.GetType().Name}).",
+                CheckedAt = checkedAt,
+            };
+        }
     }
 
     private ModelProviderHealth ApplyCircuitBreakerOverlay(string providerName, ModelProviderHealth health)

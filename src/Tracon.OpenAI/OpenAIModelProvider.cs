@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
 
@@ -27,21 +26,15 @@ internal sealed class OpenAIModelProvider : ITenantCredentialModelProvider, IMod
 {
     private readonly OpenAIChatClientFactory _chatClientFactory;
     private readonly ILogger<OpenAIModelProvider>? _logger;
-    private readonly HashSet<string> _knownModels;
     private readonly OpenAIProviderHealthCheck? _healthCheck;
     private readonly ConfigurationDiagnostic? _configurationDiagnostic;
     private readonly OpenAIProviderOptions? _baseOptions;
 
-    // Phase 65 (BYOK). Measured: OpenAIClient is built once and shared, so a
-    // tenant credential cannot reuse it — a second client is built and cached
-    // per distinct credential, the same pattern OpenAINamedChatClientFactoryCache
-    // already uses for named OpenAI-compatible providers.
-    private readonly EgressSocketGuard? _egressGuard;
-    private readonly ProviderCredentialClientCache<OpenAIChatClientFactory> _credentialFactories = new();
+    // Where the operator edits the catalog; named in the out-of-catalog log entry.
+    private readonly string _modelsSetting;
 
-    // The chat client produced for a tenant credential must stay stable across
-    // calls, the same as the setup-time client below (see TenantChatClientCacheKey).
-    private readonly ConcurrentDictionary<string, IChatClient> _tenantChatClients = new(StringComparer.Ordinal);
+    // Known-model set, BYOK caches and the tenant endpoint guard rule (shared source).
+    private readonly ModelProviderCore<OpenAIChatClientFactory> _core;
 
     /// <summary>Initializes a new provider.</summary>
     /// <param name="name">
@@ -91,11 +84,20 @@ internal sealed class OpenAIModelProvider : ITenantCredentialModelProvider, IMod
 
         _chatClientFactory = chatClientFactory;
         _logger = logger;
-        _knownModels = new HashSet<string>(models.Select(static model => model.Name), StringComparer.OrdinalIgnoreCase);
-        _healthCheck = healthCheckOptions is null ? null : new OpenAIProviderHealthCheck(name, healthCheckOptions);
-        _configurationDiagnostic = BuildConfigurationDiagnostic(healthCheckOptions, configurationSectionKey);
+        _healthCheck = healthCheckOptions is null ? null : new OpenAIProviderHealthCheck(name, healthCheckOptions, logger);
+        _configurationDiagnostic = healthCheckOptions is null || configurationSectionKey is null
+            ? null
+            : ModelProviderCore.ConfigurationDiagnosticFor(
+                configurationSectionKey,
+                resolved: !string.IsNullOrWhiteSpace(healthCheckOptions.ApiKey));
+
+        // UseOpenAICompatible() has no fixed section: its catalog is the Models
+        // list of the options it was given in code.
+        _modelsSetting = configurationSectionKey is null
+            ? $"{nameof(OpenAIProviderOptions)}.{nameof(OpenAIProviderOptions.Models)}"
+            : $"{configurationSectionKey}:{nameof(OpenAIProviderOptions.Models)}";
         _baseOptions = healthCheckOptions;
-        _egressGuard = egressGuard;
+        _core = new ModelProviderCore<OpenAIChatClientFactory>(models, egressGuard);
     }
 
     /// <inheritdoc />
@@ -119,25 +121,18 @@ internal sealed class OpenAIModelProvider : ITenantCredentialModelProvider, IMod
     {
         ArgumentNullException.ThrowIfNull(binding);
 
-        // When the catalog is empty there is nothing to compare against, and logging on
-        // every call would be noise. Tracon carries no built-in model list
-        // (decision K-032), so an empty catalog is the normal case.
-        if (_knownModels.Count > 0
-            && !string.IsNullOrWhiteSpace(binding.Model)
-            && !_knownModels.Contains(binding.Model))
+        if (_core.IsOutsideCatalog(binding.Model))
         {
-            LogUnknownModel(binding.Model);
+            ModelProviderCore.LogOutsideCatalog(_logger, binding.Model, Name, _modelsSetting);
         }
 
-        if (credential is null)
-        {
-            return _chatClientFactory.CreateChatClient(binding, ApiSurface);
-        }
-
-        var factory = _credentialFactories.GetOrAdd(credential, BuildCredentialFactory);
-        var cacheKey = TenantChatClientCacheKey.For(credential, binding);
-
-        return _tenantChatClients.GetOrAdd(cacheKey, _ => factory.CreateChatClient(binding, ApiSurface));
+        return credential is null
+            ? _chatClientFactory.CreateChatClient(binding, ApiSurface)
+            : _core.GetTenantChatClient(
+                credential,
+                binding,
+                BuildCredentialFactory,
+                (factory, tenantBinding) => factory.CreateChatClient(tenantBinding, ApiSurface));
     }
 
     /// <summary>Builds a per-tenant client factory from a resolved credential (BYOK).</summary>
@@ -157,14 +152,11 @@ internal sealed class OpenAIModelProvider : ITenantCredentialModelProvider, IMod
             Timeout = _baseOptions?.Timeout,
         };
 
-        var overrideEndpoint = credential.Endpoint is { Length: > 0 } endpoint
-            && Uri.TryCreate(endpoint, UriKind.Absolute, out var endpointUri)
-                ? endpointUri
-                : null;
+        var overrideEndpoint = ModelProviderCore.TenantEndpoint(credential);
 
         options.Endpoint = overrideEndpoint ?? _baseOptions?.Endpoint;
 
-        var client = OpenAIChatClientFactory.CreateClient(options, GuardFor(overrideEndpoint));
+        var client = OpenAIChatClientFactory.CreateClient(options, _core.GuardFor(overrideEndpoint));
 
         return OpenAIChatClientFactory.FromClient(client, options.DefaultModel);
     }
@@ -176,57 +168,8 @@ internal sealed class OpenAIModelProvider : ITenantCredentialModelProvider, IMod
     /// </remarks>
     public ValueTask<ModelProviderHealth> CheckHealthAsync(CancellationToken cancellationToken = default)
         => _healthCheck?.CheckHealthAsync(cancellationToken)
-            ?? ValueTask.FromResult(new ModelProviderHealth
-            {
-                ProviderName = Name,
-                Status = ModelProviderHealthStatus.Unknown,
-                CheckedAt = DateTimeOffset.UtcNow,
-            });
+            ?? ValueTask.FromResult(ModelProviderCore.UnknownHealth(Name));
 
     /// <inheritdoc />
     public ConfigurationDiagnostic? GetConfigurationDiagnostic() => _configurationDiagnostic;
-
-    private static ConfigurationDiagnostic? BuildConfigurationDiagnostic(OpenAIProviderOptions? options, string? sectionKey)
-    {
-        if (options is null || sectionKey is null)
-        {
-            return null;
-        }
-
-        var key = $"{sectionKey}:ApiKey";
-        var resolved = !string.IsNullOrWhiteSpace(options.ApiKey);
-
-        return new ConfigurationDiagnostic
-        {
-            Key = key,
-            Resolved = resolved,
-            Hint = resolved ? null : $"dotnet user-secrets set \"{key}\" \"<key>\"",
-        };
-    }
-
-    private void LogUnknownModel(string model)
-    {
-        if (_logger is not null && _logger.IsEnabled(LogLevel.Information))
-        {
-            _logger.LogInformation(
-                "Model '{Model}' is not in the '{Provider}' catalog; the request is sent anyway. " +
-                "Use the Tracon:Providers:OpenAI:Models option to add the model to the catalog.",
-                model,
-                Name);
-        }
-    }
-
-    /// <summary>
-    /// Returns the guard to attach to a per-tenant client, or
-    /// <see langword="null"/> when none is needed.
-    /// </summary>
-    /// <remarks>
-    /// The guard is attached <strong>only</strong> when the endpoint came
-    /// from the tenant's binding. A setup-time endpoint is the operator's own
-    /// decision and is written in code — guarding it would break sovereign
-    /// cloud and internal-proxy setups that are deliberately private. A
-    /// tenant-supplied override is outside input and is guarded.
-    /// </remarks>
-    private EgressSocketGuard? GuardFor(Uri? tenantSuppliedEndpoint)
-        => tenantSuppliedEndpoint is null ? null : _egressGuard;
 }

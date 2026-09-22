@@ -1,5 +1,4 @@
-using System.Diagnostics;
-using System.Text.Json;
+using Microsoft.Extensions.Logging;
 
 namespace Tracon;
 
@@ -10,7 +9,9 @@ namespace Tracon;
 /// <remarks>
 /// <para>
 /// This endpoint returns model names and <strong>incurs no cost</strong> — no
-/// model call is made. The pattern matches <c>OpenAIProviderHealthCheck</c>
+/// model call is made. The shared body (timeout, failure mapping, body parsing)
+/// is <c>ProviderHealthCheckCore</c>; this type supplies only the endpoint, the
+/// auth header and the body shape.
 /// </para>
 /// <para>
 /// Authentication uses the <c>x-goog-api-key</c> header. Putting the key in the
@@ -25,104 +26,35 @@ namespace Tracon;
 /// not carry it.
 /// </para>
 /// </remarks>
-internal sealed class GoogleProviderHealthCheck(string providerName, GoogleProviderOptions options)
+internal sealed class GoogleProviderHealthCheck(string providerName, GoogleProviderOptions options, ILogger? logger = null)
     : IModelProviderHealthCheck
 {
     private static readonly Uri DefaultGoogleEndpoint = new("https://generativelanguage.googleapis.com/");
-    private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(10);
-    private const int MaxReportedModels = 200;
     private const string ModelResourcePrefix = "models/";
 
     /// <summary>API version used when no address is given.</summary>
     internal const string DefaultApiVersion = "v1beta";
 
-    // PooledConnectionLifetime bounds how long a resolved address is reused: a
-    // provider that fails over behind DNS would otherwise stay pinned to the old
-    // address for the process lifetime. Two minutes matches
-    // EgressSocketGuard.CreateHandler.
-    private static readonly HttpClient SharedHttpClient = new(
-        new SocketsHttpHandler { PooledConnectionLifetime = TimeSpan.FromMinutes(2) },
-        disposeHandler: true);
+    private readonly ProviderHealthCheckCore _core = new(providerName, logger);
 
     /// <inheritdoc />
-    public async ValueTask<ModelProviderHealth> CheckHealthAsync(CancellationToken cancellationToken = default)
+    public ValueTask<ModelProviderHealth> CheckHealthAsync(CancellationToken cancellationToken = default)
+        => _core.CheckAsync(
+            BuildModelsEndpoint(options.Endpoint, options.ApiVersion),
+            options.Timeout,
+            Authorize,
+            ReadModelIdsAsync,
+            cancellationToken);
+
+    private ValueTask Authorize(HttpRequestMessage request, CancellationToken cancellationToken)
     {
-        var stopwatch = Stopwatch.StartNew();
-        var checkedAt = DateTimeOffset.UtcNow;
-
-        using var timeoutSource = new CancellationTokenSource(options.Timeout ?? DefaultTimeout);
-        using var linkedSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutSource.Token);
-
-        try
+        if (!string.IsNullOrWhiteSpace(options.ApiKey))
         {
-            using var request = new HttpRequestMessage(
-                HttpMethod.Get,
-                BuildModelsEndpoint(options.Endpoint, options.ApiVersion));
-
-            if (!string.IsNullOrWhiteSpace(options.ApiKey))
-            {
-                request.Headers.Add("x-goog-api-key", options.ApiKey);
-            }
-
-            using var response = await SharedHttpClient
-                .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, linkedSource.Token)
-                .ConfigureAwait(false);
-
-            stopwatch.Stop();
-
-            if (!response.IsSuccessStatusCode)
-            {
-                return Unhealthy(checkedAt, stopwatch.Elapsed, $"HTTP {(int)response.StatusCode} {response.ReasonPhrase}");
-            }
-
-            var models = await ReadModelIdsAsync(response, linkedSource.Token).ConfigureAwait(false);
-
-            return new ModelProviderHealth
-            {
-                ProviderName = providerName,
-                Status = ModelProviderHealthStatus.Healthy,
-                Latency = stopwatch.Elapsed,
-                CheckedAt = checkedAt,
-                Models = models,
-            };
+            request.Headers.Add("x-goog-api-key", options.ApiKey);
         }
-        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
-        {
-            stopwatch.Stop();
-            return Unhealthy(checkedAt, stopwatch.Elapsed, "Timed out.");
-        }
-        catch (HttpRequestException exception)
-        {
-            stopwatch.Stop();
 
-            // exception.Message embeds the target address (host:port) in the body in
-            // cases like a connection refusal. HttpRequestError is a category name
-            // that carries no address (.NET 8+).
-            return Unhealthy(checkedAt, stopwatch.Elapsed, $"Connection error ({exception.HttpRequestError}).");
-        }
-        catch (JsonException)
-        {
-            stopwatch.Stop();
-            return new ModelProviderHealth
-            {
-                ProviderName = providerName,
-                Status = ModelProviderHealthStatus.Degraded,
-                Detail = "Response is not valid JSON.",
-                Latency = stopwatch.Elapsed,
-                CheckedAt = checkedAt,
-            };
-        }
+        return ValueTask.CompletedTask;
     }
-
-    private ModelProviderHealth Unhealthy(DateTimeOffset checkedAt, TimeSpan latency, string detail)
-        => new()
-        {
-            ProviderName = providerName,
-            Status = ModelProviderHealthStatus.Unhealthy,
-            Detail = detail,
-            Latency = latency,
-            CheckedAt = checkedAt,
-        };
 
     /// <summary>
     /// Joins the base address, API version, and the <c>models</c> segment.
@@ -130,17 +62,9 @@ internal sealed class GoogleProviderHealthCheck(string providerName, GoogleProvi
     /// <remarks><c>internal</c>: unit tests verify this join without making a network call.</remarks>
     internal static Uri BuildModelsEndpoint(Uri? baseEndpoint, string? apiVersion)
     {
-        var effective = baseEndpoint ?? DefaultGoogleEndpoint;
-        var text = effective.ToString();
-
-        if (!text.EndsWith('/'))
-        {
-            text += "/";
-        }
-
         var version = string.IsNullOrWhiteSpace(apiVersion) ? DefaultApiVersion : apiVersion.Trim('/');
 
-        return new Uri(new Uri(text, UriKind.Absolute), $"{version}/models");
+        return ProviderHealthCheckCore.JoinEndpoint(baseEndpoint ?? DefaultGoogleEndpoint, $"{version}/models");
     }
 
     /// <summary>
@@ -148,43 +72,8 @@ internal sealed class GoogleProviderHealthCheck(string providerName, GoogleProvi
     /// and strips the <c>models/</c> prefix.
     /// </summary>
     /// <remarks><c>internal</c>: unit tests verify parsing against a fixed response body.</remarks>
-    internal static async ValueTask<IReadOnlyList<string>> ReadModelIdsAsync(
+    internal static ValueTask<IReadOnlyList<string>> ReadModelIdsAsync(
         HttpResponseMessage response,
         CancellationToken cancellationToken)
-    {
-        var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-
-        await using (stream.ConfigureAwait(false))
-        {
-            using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken).ConfigureAwait(false);
-
-            if (!document.RootElement.TryGetProperty("models", out var models) || models.ValueKind != JsonValueKind.Array)
-            {
-                return [];
-            }
-
-            var result = new List<string>();
-
-            foreach (var entry in models.EnumerateArray())
-            {
-                if (result.Count >= MaxReportedModels)
-                {
-                    break;
-                }
-
-                if (entry.ValueKind == JsonValueKind.Object
-                    && entry.TryGetProperty("name", out var name)
-                    && name.ValueKind == JsonValueKind.String
-                    && name.GetString() is { Length: > 0 } resourceName)
-                {
-                    result.Add(resourceName.StartsWith(ModelResourcePrefix, StringComparison.Ordinal)
-                        ? resourceName[ModelResourcePrefix.Length..]
-                        : resourceName);
-                }
-            }
-
-            result.Sort(StringComparer.Ordinal);
-            return result;
-        }
-    }
+        => ProviderHealthCheckCore.ReadModelIdsAsync(response, "models", "name", ModelResourcePrefix, cancellationToken);
 }
