@@ -205,6 +205,14 @@ class TestEnvanteriTestleri(unittest.TestCase):
         self.assertIn(
             "ImzaTestleri.test_baslik_bicimli_case_bulunur", envanter)
 
+    def test_sevk_edilen_sozlesme_testi_envanterde_bulunur(self):
+        # Sözleşme testleri `src/Tracon.Testing.Contracts.Xunit` altındadır;
+        # yalnız `tests/` taranınca bunlara giden işaret bayat görünüyordu.
+        self.assertIn(
+            "ToolApprovalRuleStoreContract."
+            "A_path_carrying_separator_characters_does_not_merge_two_condition_sets",
+            tazelik.test_envanteri())
+
     def test_var_OLMAYAN_test_envanterde_bulunmaz(self):
         # İki yönlü: yalnız ilk iddia yazılsaydı envanter her şeyi içeren bir
         # küme olabilir ve bayat işaret kapısı hiçbir zaman kırmızı olmazdı.
