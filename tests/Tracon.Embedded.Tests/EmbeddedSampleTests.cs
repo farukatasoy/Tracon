@@ -83,13 +83,13 @@ public sealed class EmbeddedSampleTests
 
         response.StatusCode.ShouldBe(System.Net.HttpStatusCode.Accepted);
 
-        var run = await PollForRunAsync(host, "acme", timeout: TimeSpan.FromSeconds(10));
+        var run = await PollForRunAsync(host, "acme");
 
         run.TenantId.ShouldBe("acme");
         run.UserId.ShouldBe("user-42");
         run.Status.ShouldBe(RunStatus.Completed);
 
-        var probe = await PollForToolInvocationAsync(host, "acme", run.Id, timeout: TimeSpan.FromSeconds(10));
+        var probe = await PollForToolInvocationAsync(host, "acme", run.Id);
 
         probe.ToolName.ShouldBe("current_account");
         probe.Result.ShouldBe($"tenant=acme run={run.Id} session=(none)");
@@ -115,7 +115,7 @@ public sealed class EmbeddedSampleTests
             response.StatusCode.ShouldBe(System.Net.HttpStatusCode.Accepted);
         }
 
-        var dropped = await PollForDropAsync(client, timeout: TimeSpan.FromSeconds(10));
+        var dropped = await PollForDropAsync(client);
         dropped.ShouldBeGreaterThan(0);
 
         var runStore = host.Services.GetRequiredService<IRunStore>();
@@ -126,24 +126,16 @@ public sealed class EmbeddedSampleTests
             run.CompletedAt.HasValue && run.CompletedAt.Value - run.StartedAt < TimeSpan.FromSeconds(1));
     }
 
-    private static async Task<RunRecord> PollForRunAsync(EmbeddedSampleHost host, string tenantId, TimeSpan timeout)
+    private static async Task<RunRecord> PollForRunAsync(EmbeddedSampleHost host, string tenantId)
     {
         var runStore = host.Services.GetRequiredService<IRunStore>();
-        var deadline = DateTimeOffset.UtcNow + timeout;
 
-        while (DateTimeOffset.UtcNow < deadline)
-        {
-            var runs = await runStore.QueryRunsAsync(new RunQuery { TenantId = tenantId, Status = RunStatus.Completed });
+        var runs = await WaitUntil.ValueAsync(
+            () => runStore.QueryRunsAsync(new RunQuery { TenantId = tenantId, Status = RunStatus.Completed }).AsTask(),
+            static runs => runs.Count > 0,
+            $"a completed run for tenant '{tenantId}'");
 
-            if (runs.Count > 0)
-            {
-                return runs[0];
-            }
-
-            await Task.Delay(TimeSpan.FromMilliseconds(100));
-        }
-
-        throw new TimeoutException($"No completed run for tenant '{tenantId}' within {timeout}.");
+        return runs[0];
     }
 
     /// <summary>
@@ -155,50 +147,29 @@ public sealed class EmbeddedSampleTests
     /// "acme". <see cref="AmbientTenantScope.Begin"/> is the same seam
     /// <c>Jobs/EmbeddedJobWorker.cs</c> itself uses for the same reason.
     /// </summary>
-    private static async Task<ToolInvocationRecord> PollForToolInvocationAsync(EmbeddedSampleHost host, string tenantId, Guid runId, TimeSpan timeout)
+    private static async Task<ToolInvocationRecord> PollForToolInvocationAsync(EmbeddedSampleHost host, string tenantId, Guid runId)
     {
         var runStore = host.Services.GetRequiredService<IRunStore>();
-        var deadline = DateTimeOffset.UtcNow + timeout;
 
-        while (DateTimeOffset.UtcNow < deadline)
-        {
-            IReadOnlyList<ToolInvocationRecord> invocations;
-
-            using (AmbientTenantScope.Begin(tenantId))
+        var invocations = await WaitUntil.ValueAsync(
+            async () =>
             {
-                invocations = await runStore.ListToolInvocationsAsync(runId);
-            }
+                using (AmbientTenantScope.Begin(tenantId))
+                {
+                    return await runStore.ListToolInvocationsAsync(runId);
+                }
+            },
+            static invocations => invocations.Count > 0,
+            $"a tool invocation recorded for run '{runId}'");
 
-            if (invocations.Count > 0)
-            {
-                return invocations[0];
-            }
-
-            await Task.Delay(TimeSpan.FromMilliseconds(100));
-        }
-
-        throw new TimeoutException($"No tool invocation recorded for run '{runId}' within {timeout}.");
+        return invocations[0];
     }
 
-    private static async Task<int> PollForDropAsync(HttpClient client, TimeSpan timeout)
-    {
-        var deadline = DateTimeOffset.UtcNow + timeout;
-
-        while (DateTimeOffset.UtcNow < deadline)
-        {
-            var body = JsonDocument.Parse(
-                await client.GetStringAsync(new Uri("jobs/bridge-state", UriKind.Relative))).RootElement;
-
-            var dropped = body.GetProperty("dropped").GetInt32();
-
-            if (dropped > 0)
-            {
-                return dropped;
-            }
-
-            await Task.Delay(TimeSpan.FromMilliseconds(100));
-        }
-
-        return 0;
-    }
+    private static Task<int> PollForDropAsync(HttpClient client)
+        => WaitUntil.ValueAsync(
+            async () => JsonDocument.Parse(
+                    await client.GetStringAsync(new Uri("jobs/bridge-state", UriKind.Relative))).RootElement
+                .GetProperty("dropped").GetInt32(),
+            static dropped => dropped > 0,
+            "the event bridge to drop an event");
 }

@@ -80,7 +80,7 @@ internal sealed class StubVoiceProvider : ISpeechTranscriber, ISpeechSynthesizer
     {
         if (SynthesisDelay > TimeSpan.Zero)
         {
-            await Task.Delay(SynthesisDelay, cancellationToken);
+            await Task.Delay(SynthesisDelay, cancellationToken); // delay: simulated
         }
 
         lock (Spoken)

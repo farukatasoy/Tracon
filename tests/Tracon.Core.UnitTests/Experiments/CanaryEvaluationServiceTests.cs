@@ -49,10 +49,9 @@ public sealed class CanaryEvaluationServiceTests
         var service = CreateService(experiments, runs, auditLog, new InMemorySingletonLeaseStore(), autoRollbackEnabled: true, scanInterval: TimeSpan.FromMilliseconds(20));
 
         await service.StartAsync(TestContext.Current.CancellationToken);
-        await WaitUntilAsync(
+        await WaitUntil.TrueAsync(
             async () => (await experiments.GetAsync(TenantId, experiment.Name))?.Status == ExperimentStatus.Stopped,
-            "the unhealthy canary to roll back",
-            TestContext.Current.CancellationToken);
+            "the unhealthy canary to roll back");
         await service.StopAsync(TestContext.Current.CancellationToken);
 
         var rolledBack = await experiments.GetAsync(TenantId, experiment.Name);
@@ -80,10 +79,9 @@ public sealed class CanaryEvaluationServiceTests
         var service = CreateService(experiments, runs, auditLog, new InMemorySingletonLeaseStore(), autoRollbackEnabled: true, scanInterval: TimeSpan.FromMilliseconds(20));
 
         await service.StartAsync(TestContext.Current.CancellationToken);
-        await WaitUntilAsync(
+        await WaitUntil.TrueAsync(
             () => Task.FromResult(auditLog.WriteCalls > 0),
-            "the failed audit write",
-            TestContext.Current.CancellationToken);
+            "the failed audit write");
         await service.StopAsync(TestContext.Current.CancellationToken);
 
         var stillRunning = await experiments.GetAsync(TenantId, experiment.Name);
@@ -138,15 +136,14 @@ public sealed class CanaryEvaluationServiceTests
             rampInterval: TimeSpan.Zero);
 
         await service.StartAsync(TestContext.Current.CancellationToken);
-        await WaitUntilAsync(
+        await WaitUntil.TrueAsync(
             async () =>
             {
                 var current = await experiments.GetAsync(TenantId, experiment.Name);
                 return current is not null && current.Variants.Single(static variant =>
                     string.Equals(variant.Name, "canary", StringComparison.Ordinal)).Weight == rampedCanaryWeight;
             },
-            "the healthy canary to advance",
-            TestContext.Current.CancellationToken);
+            "the healthy canary to advance");
         await service.StopAsync(TestContext.Current.CancellationToken);
 
         var advanced = await experiments.GetAsync(TenantId, experiment.Name);
@@ -188,10 +185,9 @@ public sealed class CanaryEvaluationServiceTests
         await serviceA.StartAsync(TestContext.Current.CancellationToken);
         await serviceB.StartAsync(TestContext.Current.CancellationToken);
 
-        await WaitUntilAsync(
+        await WaitUntil.TrueAsync(
             () => Task.FromResult(storeA.ListCalls > 0 ^ storeB.ListCalls > 0),
-            "exactly one evaluator to acquire the singleton lease",
-            TestContext.Current.CancellationToken);
+            "exactly one evaluator to acquire the singleton lease");
 
         // Stop the non-holder first. Otherwise it can acquire the lease while
         // the original holder is stopping and make this concurrency assertion
@@ -341,24 +337,6 @@ public sealed class CanaryEvaluationServiceTests
     }
 
     private static StaticOptionsMonitor<T> Options<T>(T value) where T : class => new(value);
-
-    private static async Task WaitUntilAsync(
-        Func<Task<bool>> condition,
-        string description,
-        CancellationToken cancellationToken)
-    {
-        var deadline = DateTimeOffset.UtcNow + TimeSpan.FromSeconds(5);
-
-        while (!await condition())
-        {
-            if (DateTimeOffset.UtcNow >= deadline)
-            {
-                throw new TimeoutException($"Timed out waiting for {description}.");
-            }
-
-            await Task.Delay(TimeSpan.FromMilliseconds(10), cancellationToken);
-        }
-    }
 
     /// <summary>Fake <see cref="IOptionsMonitor{T}"/> that returns a fixed value and never watches for changes.</summary>
     private sealed class StaticOptionsMonitor<T>(T value) : IOptionsMonitor<T>

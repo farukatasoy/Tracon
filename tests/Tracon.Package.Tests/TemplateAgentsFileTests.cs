@@ -620,7 +620,7 @@ public sealed class TemplateAgentsFileTests(TemplateFixture fixture)
                         }
                         catch (InvalidOperationException)
                         {
-                            await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
+                            await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken); // delay: fixture
                         }
                     }
 

@@ -67,26 +67,17 @@ public sealed class AsyncRunTests
         var runId = (await TraconTestHost.ReadJsonAsync(accepted)).GetProperty("runId").GetGuid();
 
         var uri = new Uri($"/tracon/api/runs/{runId}", UriKind.Relative);
-        // The timeout is kept generous under load: 5 sec was not enough with
-        // 16 test projects running in parallel (the same pattern was measured
-        // in ApprovalEndpointTests). Under a healthy run, the loop still
-        // exits within milliseconds.
-        var deadline = DateTime.UtcNow.AddSeconds(30);
-        string? status = null;
 
-        while (DateTime.UtcNow < deadline)
-        {
-            using var poll = await host.Client.GetAsync(uri);
-            status = (await TraconTestHost.ReadJsonAsync(poll)).GetProperty("status").GetString();
-
-            if (!string.Equals(status, "Queued", StringComparison.Ordinal) &&
-                !string.Equals(status, "Running", StringComparison.Ordinal))
+        var status = await WaitUntil.ValueAsync(
+            async () =>
             {
-                break;
-            }
+                using var poll = await host.Client.GetAsync(uri);
 
-            await Task.Delay(20);
-        }
+                return (await TraconTestHost.ReadJsonAsync(poll)).GetProperty("status").GetString();
+            },
+            static status => !string.Equals(status, "Queued", StringComparison.Ordinal) &&
+                             !string.Equals(status, "Running", StringComparison.Ordinal),
+            $"run {runId} to leave Queued and Running");
 
         status.ShouldBe("Completed");
     }

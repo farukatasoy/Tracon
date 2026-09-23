@@ -92,7 +92,7 @@ public sealed class BoundedSqlLoadTests(PostgresFixture fixture)
                 // The external call. Timed on its own so the report can
                 // subtract it rather than claim it.
                 model.Start();
-                await Task.Delay(ModelLatency);
+                await Task.Delay(ModelLatency); // delay: simulated
                 model.Stop();
 
                 controlPlane.Start();

@@ -65,7 +65,7 @@ public sealed class ToolApprovalPresenterTests
     {
         var presenter = new SpyPresenter(async token =>
         {
-            await Task.Delay(Timeout.InfiniteTimeSpan, token);
+            await Task.Delay(Timeout.InfiniteTimeSpan, token); // delay: simulated
 
             return null;
         });
@@ -88,7 +88,7 @@ public sealed class ToolApprovalPresenterTests
     {
         var presenter = new SpyPresenter(async token =>
         {
-            await Task.Delay(Timeout.InfiniteTimeSpan, token);
+            await Task.Delay(Timeout.InfiniteTimeSpan, token); // delay: simulated
 
             return null;
         });

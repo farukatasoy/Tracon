@@ -34,30 +34,6 @@ public sealed class ToolGovernanceEndpointTests
         return await host.Client.SendAsync(request).ConfigureAwait(false);
     }
 
-    /// <summary>Polls a run until it reaches the expected status. See ApprovalEndpointTests.cs for the 30s rationale.</summary>
-    private static async Task<string> WaitForStatusAsync(TraconTestHost host, Guid runId, string expected)
-    {
-        var uri = new Uri($"/tracon/api/runs/{runId}", UriKind.Relative);
-        var deadline = DateTime.UtcNow.AddSeconds(30);
-        string? status = null;
-
-        while (DateTime.UtcNow < deadline)
-        {
-            using var poll = await host.Client.GetAsync(uri);
-            status = (await TraconTestHost.ReadJsonAsync(poll)).GetProperty("status").GetString();
-
-            if (string.Equals(status, expected, StringComparison.Ordinal))
-            {
-                return status!;
-            }
-
-            await Task.Delay(20);
-        }
-
-        throw new InvalidOperationException(
-            $"Run {runId} did not reach status '{expected}' within 30 seconds; last seen status: '{status}'.");
-    }
-
     private sealed class DenyingHandler(string reason) : IToolAuthorizationHandler
     {
         public ValueTask<ToolAuthorizationResult> AuthorizeAsync(
@@ -105,7 +81,7 @@ public sealed class ToolGovernanceEndpointTests
 
         // The rejection does NOT fail the run: the model receives the reason
         // as its tool result and finishes its turn, same as a denial.
-        (await WaitForStatusAsync(host, runId, "Completed")).ShouldBe("Completed");
+        (await host.WaitForRunStatusAsync(runId, "Completed")).ShouldBe("Completed");
 
         var invocations = await host.Client.GetFromJsonAsync<List<ToolInvocationRecord>>(
             new Uri($"/tracon/api/runs/{runId}/tools", UriKind.Relative));
@@ -161,7 +137,7 @@ public sealed class ToolGovernanceEndpointTests
 
         // The denial does NOT fail the run: the model receives the reason as
         // an ordinary tool result and finishes its turn (docs/69, 69.2).
-        (await WaitForStatusAsync(host, runId, "Completed")).ShouldBe("Completed");
+        (await host.WaitForRunStatusAsync(runId, "Completed")).ShouldBe("Completed");
 
         var invocations = await host.Client.GetFromJsonAsync<List<ToolInvocationRecord>>(
             new Uri($"/tracon/api/runs/{runId}/tools", UriKind.Relative));
@@ -202,7 +178,7 @@ public sealed class ToolGovernanceEndpointTests
                         {
                             // Deliberately does NOT accept a CancellationToken:
                             // the non-cooperative case docs/69 Manual Case 8 covers.
-                            await Task.Delay(TimeSpan.FromSeconds(30));
+                            await Task.Delay(TimeSpan.FromSeconds(30)); // delay: simulated
                             return "too late";
                         },
                         "slow_report"),
@@ -218,7 +194,7 @@ public sealed class ToolGovernanceEndpointTests
         // The timeout does NOT fail the run: the model receives a tool error
         // and finishes its turn. The wait is bounded by the tool's OWN
         // 300ms timeout, not by its real 30-second body.
-        (await WaitForStatusAsync(host, runId, "Completed")).ShouldBe("Completed");
+        (await host.WaitForRunStatusAsync(runId, "Completed")).ShouldBe("Completed");
 
         stopwatch.Stop();
         stopwatch.Elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(10));
@@ -264,7 +240,7 @@ public sealed class ToolGovernanceEndpointTests
                     Microsoft.Extensions.AI.AIFunctionFactory.Create(
                         async () =>
                         {
-                            await Task.Delay(TimeSpan.FromSeconds(30));
+                            await Task.Delay(TimeSpan.FromSeconds(30)); // delay: simulated
                             return "too late";
                         },
                         "slow_report"),
@@ -281,7 +257,7 @@ public sealed class ToolGovernanceEndpointTests
             var runId = (await TraconTestHost.ReadJsonAsync(accepted)).GetProperty("runId").GetGuid();
 
             // An open circuit would make the run fail instead of completing.
-            (await WaitForStatusAsync(host, runId, "Completed")).ShouldBe("Completed");
+            (await host.WaitForRunStatusAsync(runId, "Completed")).ShouldBe("Completed");
         }
     }
 
@@ -320,10 +296,11 @@ public sealed class ToolGovernanceEndpointTests
         using var accepted = await PostQueuedAsync(host, new AgentRunRequest { Message = "cancel the order", SessionId = "s-approval-timeout" });
         var originalRunId = (await TraconTestHost.ReadJsonAsync(accepted)).GetProperty("runId").GetGuid();
 
-        (await WaitForStatusAsync(host, originalRunId, "AwaitingApproval")).ShouldBe("AwaitingApproval");
+        (await host.WaitForRunStatusAsync(originalRunId, "AwaitingApproval")).ShouldBe("AwaitingApproval");
 
-        // Wait well past the tool's own 200ms timeout before deciding.
-        await Task.Delay(TimeSpan.FromSeconds(1));
+        // Wait well past the tool's own 200ms timeout before deciding. The
+        // elapsed time IS the premise - no signal can stand in for it.
+        await Task.Delay(TimeSpan.FromSeconds(1)); // delay: product
 
         using var pendingResponse = await host.Client.GetAsync(new Uri("/tracon/api/approvals/pending", UriKind.Relative));
         var approvalId = (await TraconTestHost.ReadJsonAsync(pendingResponse))
@@ -343,7 +320,7 @@ public sealed class ToolGovernanceEndpointTests
 
         // Approved AFTER the 200ms window elapsed: if timeout wrapped the
         // approval wait, this run would carry a ToolTimeout error instead.
-        (await WaitForStatusAsync(host, resumedRunId, "Completed")).ShouldBe("Completed");
+        (await host.WaitForRunStatusAsync(resumedRunId, "Completed")).ShouldBe("Completed");
 
         var invocations = await host.Client.GetFromJsonAsync<List<ToolInvocationRecord>>(
             new Uri($"/tracon/api/runs/{resumedRunId}/tools", UriKind.Relative));

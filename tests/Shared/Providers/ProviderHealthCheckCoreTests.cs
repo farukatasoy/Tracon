@@ -80,7 +80,7 @@ public sealed class ProviderHealthCheckCoreTests
         var health = await new ProviderHealthCheckCore(ProviderName).CheckAsync(
             new Uri("http://127.0.0.1:1/models"),
             TimeSpan.FromMilliseconds(300),
-            static async (_, token) => await Task.Delay(Timeout.Infinite, token),
+            static async (_, token) => await Task.Delay(Timeout.Infinite, token), // delay: simulated
             static (_, _) => throw new InvalidOperationException("The request must not be sent."),
             TestContext.Current.CancellationToken);
 

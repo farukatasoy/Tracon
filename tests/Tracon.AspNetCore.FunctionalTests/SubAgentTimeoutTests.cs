@@ -73,9 +73,15 @@ public sealed class SubAgentTimeoutTests
 
             // The late result is discarded silently: releasing it produces no
             // further event on the root run.
+            // Phase 184: a fixed 200 ms stood here, and under load the late
+            // result might not have arrived inside it. The abandoned call's
+            // observer logs once the call has settled - anything the late
+            // result could write happens before that line.
             var eventCountBeforeRelease = types.Count;
             hanging.Release("late result");
-            await Task.Delay(TimeSpan.FromMilliseconds(200));
+            await WaitUntil.TrueAsync(
+                () => host.Logs.AllText.Contains("finished after its wait limit was reported", StringComparison.Ordinal),
+                "the abandoned child call to settle");
 
             var (typesAfterRelease, _) = await ReadRootEventsAsync(host);
             typesAfterRelease.Count.ShouldBe(eventCountBeforeRelease);

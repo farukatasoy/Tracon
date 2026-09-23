@@ -250,7 +250,7 @@ public sealed class AgentDefinitionValidatorTests
         {
             if (hang)
             {
-                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken).ConfigureAwait(false);
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken).ConfigureAwait(false); // delay: simulated
             }
 
             onRefresh?.Invoke();

@@ -89,13 +89,12 @@ public sealed class JobHandlerScopeTests
 
         await worker.StartAsync(TestContext.Current.CancellationToken);
 
-        JobRecord? record = null;
-
-        for (var attempt = 0; attempt < 100 && record?.Status is not JobStatus.Failed; attempt++)
-        {
-            await Task.Delay(TimeSpan.FromMilliseconds(20), TestContext.Current.CancellationToken);
-            record = await jobs.GetAsync("tenant-a", jobId, TestContext.Current.CancellationToken);
-        }
+        // Phase 184: this loop gave up after 100 x 20 ms - a two-second claim
+        // about the machine.
+        var record = await WaitUntil.ValueAsync(
+            () => jobs.GetAsync("tenant-a", jobId, TestContext.Current.CancellationToken).AsTask(),
+            static job => job?.Status is JobStatus.Failed,
+            "the job whose handler cannot be activated to fail");
 
         await worker.StopAsync(TestContext.Current.CancellationToken);
 

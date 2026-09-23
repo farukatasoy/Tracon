@@ -128,25 +128,6 @@ public sealed class McpTaskTenantIsolationTests
         await Poll(() => clientA.GetTaskAsync(taskId), r => r is not WorkingTaskResult);
     }
 
-    private static async Task<T> Poll<T>(Func<ValueTask<T>> read, Func<T, bool> isDone)
-    {
-        var deadline = DateTime.UtcNow.AddSeconds(10);
-
-        while (true)
-        {
-            var value = await read();
-
-            if (isDone(value))
-            {
-                return value;
-            }
-
-            if (DateTime.UtcNow > deadline)
-            {
-                throw new TimeoutException("Timed out waiting for the task to reach the expected state.");
-            }
-
-            await Task.Delay(20);
-        }
-    }
+    private static Task<T> Poll<T>(Func<ValueTask<T>> read, Func<T, bool> isDone)
+        => WaitUntil.ValueAsync(async () => await read(), isDone, "the task to reach the expected state");
 }

@@ -290,7 +290,7 @@ public sealed class OnlineEvalJobHandlerTests
             scores,
             [new AsyncJudge("slow", static async (_, token) =>
             {
-                await Task.Delay(Timeout.InfiniteTimeSpan, token);
+                await Task.Delay(Timeout.InfiniteTimeSpan, token); // delay: simulated
                 return new RunJudgment();
             })],
             new OnlineEvaluationOptions { JudgeTimeout = TimeSpan.FromMilliseconds(10) });
@@ -323,14 +323,15 @@ public sealed class OnlineEvalJobHandlerTests
         var run = await runs.GetRunAsync(runId);
 
         var judging = handler.JudgeRunAsync(run!).AsTask();
-        await started.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        await started.Task.WaitAsync(WaitUntil.DefaultTimeout);
 
         try
         {
-            var winner = await Task.WhenAny(judging, Task.Delay(TimeSpan.FromSeconds(1)));
-
-            winner.ShouldBe(judging);
-            var result = await judging;
+            // The judge is released only in the finally block below: a handler
+            // that waited for it instead of its 20 ms timeout never completes
+            // here. Phase 184: this raced a one-second timer, a claim about the
+            // machine rather than a bound on the failure.
+            var result = await judging.WaitAsync(WaitUntil.DefaultTimeout);
             result.Scores.ShouldBeEmpty();
             result.Failures.ShouldHaveSingleItem().ErrorType.ShouldBe("judge_timeout");
         }
@@ -355,7 +356,7 @@ public sealed class OnlineEvalJobHandlerTests
             new InMemoryRunScoreStore(),
             [new AsyncJudge("slow", static async (_, token) =>
             {
-                await Task.Delay(Timeout.InfiniteTimeSpan, token);
+                await Task.Delay(Timeout.InfiniteTimeSpan, token); // delay: simulated
                 return new RunJudgment();
             })]);
         var run = await runs.GetRunAsync(runId);

@@ -59,7 +59,7 @@ public sealed class ApprovalResumeHandoffTests
 
         var originalRunId = (await TraconTestHost.ReadJsonAsync(accepted)).GetProperty("runId").GetGuid();
 
-        await WaitForStatusAsync(host, originalRunId, "AwaitingApproval");
+        await host.WaitForRunStatusAsync(originalRunId, "AwaitingApproval");
 
         using var pendingResponse = await host.Client.GetAsync(PendingApprovals);
         var approvalId = (await TraconTestHost.ReadJsonAsync(pendingResponse))
@@ -97,7 +97,7 @@ public sealed class ApprovalResumeHandoffTests
         // abandoned first run behind as well.
         resumed.Count.ShouldBe(1);
 
-        (await WaitForStatusAsync(host, resumed[0], "Completed")).ShouldBe("Completed");
+        (await host.WaitForRunStatusAsync(resumed[0], "Completed")).ShouldBe("Completed");
     }
 
     private static async Task<HttpResponseMessage> PostQueuedAsync(TraconTestHost host, object body)
@@ -125,28 +125,6 @@ public sealed class ApprovalResumeHandoffTests
                 Model = new ModelBinding { Provider = "handoff-model", Model = "handoff-1" },
                 ToolNames = ["cancel_order"],
             });
-
-    private static async Task<string> WaitForStatusAsync(TraconTestHost host, Guid runId, string expected)
-    {
-        var uri = new Uri($"/tracon/api/runs/{runId}", UriKind.Relative);
-        var deadline = DateTime.UtcNow.AddSeconds(30);
-        string? status = null;
-
-        while (DateTime.UtcNow < deadline)
-        {
-            using var poll = await host.Client.GetAsync(uri);
-            status = (await TraconTestHost.ReadJsonAsync(poll)).GetProperty("status").GetString();
-
-            if (string.Equals(status, expected, StringComparison.Ordinal))
-            {
-                return expected;
-            }
-
-            await Task.Delay(25);
-        }
-
-        throw new TimeoutException($"Run {runId} was '{status}', not '{expected}', within 30 seconds.");
-    }
 
     /// <summary>
     /// Fails the first attempt to queue an approval-resume job, then behaves

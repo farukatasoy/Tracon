@@ -32,7 +32,7 @@ public sealed class TimeoutAIFunctionTests
         var inner = AIFunctionFactory.Create(
             async () =>
             {
-                await Task.Delay(TimeSpan.FromSeconds(30), CancellationToken.None);
+                await Task.Delay(TimeSpan.FromSeconds(30), CancellationToken.None); // delay: simulated
                 return "too late";
             },
             "slow_tool");
@@ -68,7 +68,7 @@ public sealed class TimeoutAIFunctionTests
             {
                 try
                 {
-                    await Task.Delay(TimeSpan.FromSeconds(30), cancellationToken);
+                    await Task.Delay(TimeSpan.FromSeconds(30), cancellationToken); // delay: simulated
                     outcome.TrySetResult("ran to completion");
 
                     return "too late";
@@ -101,7 +101,7 @@ public sealed class TimeoutAIFunctionTests
         var inner = AIFunctionFactory.Create(
             async () =>
             {
-                await Task.Delay(TimeSpan.FromSeconds(30), CancellationToken.None);
+                await Task.Delay(TimeSpan.FromSeconds(30), CancellationToken.None); // delay: simulated
 
                 return "too late";
             },
@@ -122,7 +122,7 @@ public sealed class TimeoutAIFunctionTests
         var inner = AIFunctionFactory.Create(
             async () =>
             {
-                await Task.Delay(TimeSpan.FromSeconds(30), CancellationToken.None);
+                await Task.Delay(TimeSpan.FromSeconds(30), CancellationToken.None); // delay: simulated
 
                 return "too late";
             },
@@ -142,7 +142,7 @@ public sealed class TimeoutAIFunctionTests
         var inner = AIFunctionFactory.Create(
             async (CancellationToken cancellationToken) =>
             {
-                await Task.Delay(TimeSpan.FromSeconds(30), cancellationToken);
+                await Task.Delay(TimeSpan.FromSeconds(30), cancellationToken); // delay: simulated
                 return "unreachable";
             },
             "cooperative_tool");

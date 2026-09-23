@@ -1519,19 +1519,10 @@ public sealed class SessionOwnershipTests
     private static async Task RunQueuedJobsAsync(TraconTestHost host, string sessionId)
     {
         var store = StoreAsync(host);
-        var deadline = DateTime.UtcNow.AddSeconds(30);
 
-        while (DateTime.UtcNow < deadline)
-        {
-            if (await store.GetAsync(sessionId) is not null)
-            {
-                return;
-            }
-
-            await Task.Delay(20);
-        }
-
-        throw new InvalidOperationException($"The queued run never wrote session '{sessionId}'.");
+        await WaitUntil.TrueAsync(
+            async () => await store.GetAsync(sessionId) is not null,
+            $"the queued run to write session '{sessionId}'");
     }
 
     private static async Task<SessionRecord[]> ListAsync(TraconTestHost host, string query = "")

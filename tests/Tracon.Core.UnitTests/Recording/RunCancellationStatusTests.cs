@@ -12,8 +12,6 @@ namespace Tracon.Core.UnitTests.Recording;
 /// </summary>
 public sealed class RunCancellationStatusTests
 {
-    private static readonly TimeSpan WaitTimeout = TimeSpan.FromSeconds(5);
-
     [Fact]
     public async Task External_cancellation_writes_Canceled_for_a_non_streaming_run()
     {
@@ -23,7 +21,12 @@ public sealed class RunCancellationStatusTests
 
         var runTask = agent.RunAsync("write a long piece of text");
 
-        await WaitUntilAsync(() => registry.ActiveCount == 1);
+        // The registry entry is written BEFORE the run row - RunRecordingAgent
+        // registers first so a cancel can land during the start write. Waiting
+        // for the entry alone raced the read below (measured: net10.0 leg,
+        // Phase 184). Wait for what the next line reads.
+        await WaitUntil.TrueAsync(async () =>
+            registry.ActiveCount == 1 && (await store.QueryRunsAsync(new RunQuery())).Count == 1);
 
         var run = (await store.QueryRunsAsync(new RunQuery())).ShouldHaveSingleItem();
 
@@ -52,7 +55,12 @@ public sealed class RunCancellationStatusTests
             }
         });
 
-        await WaitUntilAsync(() => registry.ActiveCount == 1);
+        // The registry entry is written BEFORE the run row - RunRecordingAgent
+        // registers first so a cancel can land during the start write. Waiting
+        // for the entry alone raced the read below (measured: net10.0 leg,
+        // Phase 184). Wait for what the next line reads.
+        await WaitUntil.TrueAsync(async () =>
+            registry.ActiveCount == 1 && (await store.QueryRunsAsync(new RunQuery())).Count == 1);
 
         var run = (await store.QueryRunsAsync(new RunQuery())).ShouldHaveSingleItem();
 
@@ -99,17 +107,6 @@ public sealed class RunCancellationStatusTests
         run.Status.ShouldBe(RunStatus.Failed);
         run.Error.ShouldNotBeNull();
         registry.ActiveCount.ShouldBe(0);
-    }
-
-    private static async Task WaitUntilAsync(Func<bool> condition)
-    {
-        using var timeout = new CancellationTokenSource(WaitTimeout);
-
-        while (!condition())
-        {
-            timeout.Token.ThrowIfCancellationRequested();
-            await Task.Delay(10, CancellationToken.None).ConfigureAwait(false);
-        }
     }
 
     private static RunRecordingAgent CreateAgent(IRunStore store, IChatClient client, IRunCancellationRegistry registry)

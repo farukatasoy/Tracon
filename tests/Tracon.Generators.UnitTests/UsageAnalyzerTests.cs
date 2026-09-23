@@ -241,7 +241,7 @@ public sealed class UsageAnalyzerTests
                         }
                         catch (InvalidOperationException)
                         {
-                            await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken);
+                            await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken); // delay: fixture
                         }
                     }
 
@@ -307,7 +307,7 @@ public sealed class UsageAnalyzerTests
                 {
                     while (DateTimeOffset.UtcNow < _next)
                     {
-                        await Task.Delay(TimeSpan.FromMilliseconds(50), cancellationToken);
+                        await Task.Delay(TimeSpan.FromMilliseconds(50), cancellationToken); // delay: fixture
                     }
 
                     _next = DateTimeOffset.UtcNow.AddSeconds(1);

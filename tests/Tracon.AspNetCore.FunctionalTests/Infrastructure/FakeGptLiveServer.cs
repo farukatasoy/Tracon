@@ -171,25 +171,11 @@ internal sealed class FakeGptLiveServer : IAsyncDisposable
     /// <summary>Waits until the sideband has attached to a session.</summary>
     /// <param name="timeout">How long to wait.</param>
     /// <returns>The completion task.</returns>
-    public async Task WaitForAttachAsync(TimeSpan timeout)
-    {
-        var deadline = DateTime.UtcNow + timeout;
-
-        while (DateTime.UtcNow < deadline)
-        {
-            foreach (var signal in _attached.Values)
-            {
-                if (signal.Task.IsCompleted)
-                {
-                    return;
-                }
-            }
-
-            await Task.Delay(20).ConfigureAwait(false);
-        }
-
-        throw new TimeoutException("The sideband never attached.");
-    }
+    public Task WaitForAttachAsync(TimeSpan timeout)
+        => WaitUntil.TrueAsync(
+            () => _attached.Values.Any(static signal => signal.Task.IsCompleted),
+            "the sideband to attach",
+            timeout);
 
     /// <summary>Sends a transcript delta from the user.</summary>
     /// <param name="text">The text.</param>
@@ -260,14 +246,18 @@ internal sealed class FakeGptLiveServer : IAsyncDisposable
 
     /// <summary>Drops the sideband socket without a close handshake.</summary>
     /// <returns>The completion task.</returns>
-    public async Task KillSidebandAsync()
+    /// <remarks>
+    /// Phase 184: a fixed 50 ms followed the abort. Nothing depended on it - the
+    /// caller waits for the session record the drop produces.
+    /// </remarks>
+    public Task KillSidebandAsync()
     {
         if (_socket is { State: WebSocketState.Open } socket)
         {
             socket.Abort();
         }
 
-        await Task.Delay(50).ConfigureAwait(false);
+        return Task.CompletedTask;
     }
 
     /// <summary>Reads the appends this server received.</summary>

@@ -100,7 +100,7 @@ public sealed class OnlineEvalCheckpointTests
         var scores = new InMemoryRunScoreStore();
         var judge = new CountingAsyncJudge("slow", static async (_, token) =>
         {
-            await Task.Delay(Timeout.InfiniteTimeSpan, token);
+            await Task.Delay(Timeout.InfiniteTimeSpan, token); // delay: simulated
             return new RunJudgment();
         });
         var handler = BuildHandler(

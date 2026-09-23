@@ -160,7 +160,7 @@ public sealed class SlowSinkTests(PostgresFixture fixture)
 
             if (delay > TimeSpan.Zero)
             {
-                await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
+                await Task.Delay(delay, cancellationToken).ConfigureAwait(false); // delay: simulated
             }
         }
     }

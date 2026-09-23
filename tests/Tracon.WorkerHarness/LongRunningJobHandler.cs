@@ -36,7 +36,7 @@ internal sealed class LongRunningJobHandler(IOptions<WorkerHarnessSettingsHolder
                 continue;
             }
 
-            await Task.Delay(harness.WorkDuration, cancellationToken).ConfigureAwait(false);
+            await Task.Delay(harness.WorkDuration, cancellationToken).ConfigureAwait(false); // delay: simulated
 
             await context.ReportItemAsync(
                 new JobItemResult

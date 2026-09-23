@@ -15,7 +15,7 @@ internal sealed class BlockingChatClient : IChatClient
         ChatOptions? options = null,
         CancellationToken cancellationToken = default)
     {
-        await Task.Delay(Timeout.Infinite, cancellationToken).ConfigureAwait(false);
+        await Task.Delay(Timeout.Infinite, cancellationToken).ConfigureAwait(false); // delay: simulated
 
         throw new InvalidOperationException("BlockingChatClient must never complete.");
     }
@@ -27,7 +27,7 @@ internal sealed class BlockingChatClient : IChatClient
     {
         yield return new ChatResponseUpdate(ChatRole.Assistant, "start");
 
-        await Task.Delay(Timeout.Infinite, cancellationToken).ConfigureAwait(false);
+        await Task.Delay(Timeout.Infinite, cancellationToken).ConfigureAwait(false); // delay: simulated
     }
 
     public object? GetService(Type serviceType, object? serviceKey = null) => null;

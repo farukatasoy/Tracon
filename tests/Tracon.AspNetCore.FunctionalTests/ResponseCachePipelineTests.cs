@@ -30,37 +30,6 @@ public sealed class ResponseCachePipelineTests
         return await host.Client.SendAsync(request);
     }
 
-    /// <summary>Polls a run until it reaches the expected status. See ApprovalEndpointTests.cs for the 30s rationale.</summary>
-    private static async Task<string> WaitForStatusAsync(TraconTestHost host, Guid runId, string expected, string? tenant = null)
-    {
-        var uri = new Uri($"/tracon/api/runs/{runId}", UriKind.Relative);
-        var deadline = DateTime.UtcNow.AddSeconds(30);
-        string? status = null;
-
-        while (DateTime.UtcNow < deadline)
-        {
-            using var request = new HttpRequestMessage(HttpMethod.Get, uri);
-
-            if (tenant is not null)
-            {
-                request.Headers.Add("X-Tracon-Tenant", tenant);
-            }
-
-            using var poll = await host.Client.SendAsync(request);
-            status = (await TraconTestHost.ReadJsonAsync(poll)).GetProperty("status").GetString();
-
-            if (string.Equals(status, expected, StringComparison.Ordinal))
-            {
-                return status!;
-            }
-
-            await Task.Delay(20);
-        }
-
-        throw new InvalidOperationException(
-            $"Run {runId} did not reach status '{expected}' within 30 seconds; last seen status: '{status}'.");
-    }
-
     [Fact]
     public async Task Second_identical_run_is_a_cache_hit_and_the_tool_still_runs()
     {
@@ -101,7 +70,7 @@ public sealed class ResponseCachePipelineTests
 
         using var first = await PostQueuedAsync(host, new AgentRunRequest { Message = "what time is it?", SessionId = "s-cache-1" });
         var firstRunId = (await TraconTestHost.ReadJsonAsync(first)).GetProperty("runId").GetGuid();
-        (await WaitForStatusAsync(host, firstRunId, "Completed")).ShouldBe("Completed");
+        (await host.WaitForRunStatusAsync(firstRunId, "Completed")).ShouldBe("Completed");
 
         var requestsAfterFirstRun = provider.Requests.Count;
         requestsAfterFirstRun.ShouldBe(2); // turn 1 (asks -> tool call), turn 2 (with the tool result -> final text)
@@ -109,7 +78,7 @@ public sealed class ResponseCachePipelineTests
 
         using var second = await PostQueuedAsync(host, new AgentRunRequest { Message = "what time is it?", SessionId = "s-cache-2" });
         var secondRunId = (await TraconTestHost.ReadJsonAsync(second)).GetProperty("runId").GetGuid();
-        (await WaitForStatusAsync(host, secondRunId, "Completed")).ShouldBe("Completed");
+        (await host.WaitForRunStatusAsync(secondRunId, "Completed")).ShouldBe("Completed");
 
         // Both turns hit the cache: no NEW real model call.
         provider.Requests.Count.ShouldBe(requestsAfterFirstRun);
@@ -156,7 +125,7 @@ public sealed class ResponseCachePipelineTests
 
         using var first = await PostQueuedAsync(host, new AgentRunRequest { Message = "what is 2+2?", SessionId = "s-usage-1" });
         var firstRunId = (await TraconTestHost.ReadJsonAsync(first)).GetProperty("runId").GetGuid();
-        (await WaitForStatusAsync(host, firstRunId, "Completed")).ShouldBe("Completed");
+        (await host.WaitForRunStatusAsync(firstRunId, "Completed")).ShouldBe("Completed");
 
         using var firstRecord = await host.Client.GetAsync(new Uri($"/tracon/api/runs/{firstRunId}", UriKind.Relative));
         var firstUsage = (await TraconTestHost.ReadJsonAsync(firstRecord)).GetProperty("usage");
@@ -165,7 +134,7 @@ public sealed class ResponseCachePipelineTests
 
         using var second = await PostQueuedAsync(host, new AgentRunRequest { Message = "what is 2+2?", SessionId = "s-usage-2" });
         var secondRunId = (await TraconTestHost.ReadJsonAsync(second)).GetProperty("runId").GetGuid();
-        (await WaitForStatusAsync(host, secondRunId, "Completed")).ShouldBe("Completed");
+        (await host.WaitForRunStatusAsync(secondRunId, "Completed")).ShouldBe("Completed");
 
         provider.Requests.Count.ShouldBe(1); // the second run never reached the model
 
@@ -209,7 +178,7 @@ public sealed class ResponseCachePipelineTests
 
         // A read failure is a miss, a write failure is dropped: the model call
         // itself still succeeds and the run completes normally.
-        (await WaitForStatusAsync(host, runId, "Completed")).ShouldBe("Completed");
+        (await host.WaitForRunStatusAsync(runId, "Completed")).ShouldBe("Completed");
     }
 
     [Fact]
@@ -232,11 +201,11 @@ public sealed class ResponseCachePipelineTests
 
         using var first = await PostQueuedAsync(host, new AgentRunRequest { Message = "hi", SessionId = "s-nocache-1" });
         var firstRunId = (await TraconTestHost.ReadJsonAsync(first)).GetProperty("runId").GetGuid();
-        (await WaitForStatusAsync(host, firstRunId, "Completed")).ShouldBe("Completed");
+        (await host.WaitForRunStatusAsync(firstRunId, "Completed")).ShouldBe("Completed");
 
         using var second = await PostQueuedAsync(host, new AgentRunRequest { Message = "hi", SessionId = "s-nocache-2" });
         var secondRunId = (await TraconTestHost.ReadJsonAsync(second)).GetProperty("runId").GetGuid();
-        (await WaitForStatusAsync(host, secondRunId, "Completed")).ShouldBe("Completed");
+        (await host.WaitForRunStatusAsync(secondRunId, "Completed")).ShouldBe("Completed");
 
         // K1: with ResponseCache left null, today's behavior is unchanged -
         // every identical request still reaches the model.
@@ -334,17 +303,17 @@ public sealed class ResponseCachePipelineTests
         }
 
         var tenantARun1 = await RunAsAsync("tenant-a", "s-tenant-a-1");
-        (await WaitForStatusAsync(host, tenantARun1, "Completed", tenant: "tenant-a")).ShouldBe("Completed");
+        (await host.WaitForRunStatusAsync(tenantARun1, "Completed", tenant: "tenant-a")).ShouldBe("Completed");
         provider.Requests.Count.ShouldBe(1);
 
         // Same tenant, same prompt: a hit, no new real call.
         var tenantARun2 = await RunAsAsync("tenant-a", "s-tenant-a-2");
-        (await WaitForStatusAsync(host, tenantARun2, "Completed", tenant: "tenant-a")).ShouldBe("Completed");
+        (await host.WaitForRunStatusAsync(tenantARun2, "Completed", tenant: "tenant-a")).ShouldBe("Completed");
         provider.Requests.Count.ShouldBe(1);
 
         // Different tenant, same prompt: MUST NOT reuse tenant-a's entry.
         var tenantBRun1 = await RunAsAsync("tenant-b", "s-tenant-b-1");
-        (await WaitForStatusAsync(host, tenantBRun1, "Completed", tenant: "tenant-b")).ShouldBe("Completed");
+        (await host.WaitForRunStatusAsync(tenantBRun1, "Completed", tenant: "tenant-b")).ShouldBe("Completed");
         provider.Requests.Count.ShouldBe(2);
     }
 }

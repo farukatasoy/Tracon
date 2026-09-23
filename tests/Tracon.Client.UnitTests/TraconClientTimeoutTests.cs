@@ -103,7 +103,7 @@ public sealed class TraconClientTimeoutTests
                 // to, so only a timeout can end the caller's wait.
                 using var connection = await _listener.AcceptTcpClientAsync(_stopping.Token).ConfigureAwait(false);
 
-                await Task.Delay(Timeout.InfiniteTimeSpan, _stopping.Token).ConfigureAwait(false);
+                await Task.Delay(Timeout.InfiniteTimeSpan, _stopping.Token).ConfigureAwait(false); // delay: simulated
             }
             catch (Exception exception) when (exception is OperationCanceledException or SocketException or ObjectDisposedException)
             {

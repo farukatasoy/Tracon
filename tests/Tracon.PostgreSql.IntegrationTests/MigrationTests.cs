@@ -180,10 +180,13 @@ public sealed class MigrationRunnerTests(PostgresFixture fixture)
             await using var connectionB = new NpgsqlConnection(fixture.ConnectionString);
             await connectionB.OpenAsync();
 
-            var acquireB = dialectB.AcquireMigrationLockAsync(connectionB, 30, CancellationToken.None).AsTask();
-            var winner = await Task.WhenAny(acquireB, Task.Delay(TimeSpan.FromSeconds(5)));
+            // A lock shared across schemas would keep B waiting until A's release
+            // in the finally block below, so B's own lock wait is set far past the
+            // test's bound. Phase 184: the bound was five seconds, a claim about
+            // the machine - under a full run a healthy acquire could miss it.
+            var acquireB = dialectB.AcquireMigrationLockAsync(connectionB, 300, CancellationToken.None).AsTask();
 
-            winner.ShouldBe(acquireB);
+            await acquireB.WaitAsync(WaitUntil.DefaultTimeout);
 
             await dialectB.ReleaseMigrationLockAsync(connectionB, 30, CancellationToken.None);
         }

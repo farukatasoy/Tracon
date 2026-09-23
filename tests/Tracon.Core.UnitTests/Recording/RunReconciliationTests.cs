@@ -92,10 +92,9 @@ public sealed class RunReconciliationTests
             logger: NullLogger<RunReconciliationService>.Instance);
 
         await service.StartAsync(TestContext.Current.CancellationToken);
-        await WaitUntilAsync(
+        await WaitUntil.TrueAsync(
             async () => (await store.GetRunAsync(runId))?.Status == RunStatus.Failed,
-            "the orphaned run to close",
-            TestContext.Current.CancellationToken);
+            "the orphaned run to close");
         await service.StopAsync(TestContext.Current.CancellationToken);
 
         var record = await store.GetRunAsync(runId);
@@ -143,14 +142,13 @@ public sealed class RunReconciliationTests
             logger: NullLogger<RunReconciliationService>.Instance);
 
         await service.StartAsync(TestContext.Current.CancellationToken);
-        await WaitUntilAsync(
+        await WaitUntil.TrueAsync(
             async () =>
             {
                 var current = await store.QueryRunsAsync(new RunQuery { SessionId = "session-x", OnlyRootRuns = false });
                 return current.Count == 2 && current.All(static record => record.Status == RunStatus.Failed);
             },
-            "the source run and failed continuation placeholder to close",
-            TestContext.Current.CancellationToken);
+            "the source run and failed continuation placeholder to close");
         await service.StopAsync(TestContext.Current.CancellationToken);
 
         // The pass did not crash (StopAsync returned normally, above). The
@@ -217,10 +215,9 @@ public sealed class RunReconciliationTests
         await serviceA.StartAsync(TestContext.Current.CancellationToken);
         await serviceB.StartAsync(TestContext.Current.CancellationToken);
 
-        await WaitUntilAsync(
+        await WaitUntil.TrueAsync(
             () => Task.FromResult(storeA.ClaimCalls > 0 ^ storeB.ClaimCalls > 0),
-            "exactly one reconciler to acquire the singleton lease",
-            TestContext.Current.CancellationToken);
+            "exactly one reconciler to acquire the singleton lease");
 
         if (storeA.ClaimCalls > 0)
         {
@@ -280,15 +277,14 @@ public sealed class RunReconciliationTests
         await serviceA.StartAsync(TestContext.Current.CancellationToken);
         await serviceB.StartAsync(TestContext.Current.CancellationToken);
 
-        await WaitUntilAsync(
+        await WaitUntil.TrueAsync(
             async () =>
             {
                 var jobs = await jobStore.QueryAsync(new JobQuery { HandlerKey = JobHandlerKeys.RunContinuation });
                 var runs = await runStore.QueryRunsAsync(new RunQuery { SessionId = "session-race", OnlyRootRuns = false });
                 return jobs.Count == 1 && runs.Count == 2;
             },
-            "one continuation to be enqueued",
-            TestContext.Current.CancellationToken);
+            "one continuation to be enqueued");
 
         await serviceA.StopAsync(TestContext.Current.CancellationToken);
         await serviceB.StopAsync(TestContext.Current.CancellationToken);
@@ -328,10 +324,9 @@ public sealed class RunReconciliationTests
             logger: NullLogger<RunHeartbeatWriter>.Instance);
 
         await writer.StartAsync(TestContext.Current.CancellationToken);
-        await WaitUntilAsync(
+        await WaitUntil.TrueAsync(
             () => Task.FromResult(store.TouchCalls > 0),
-            "the active run heartbeat to be written",
-            TestContext.Current.CancellationToken);
+            "the active run heartbeat to be written");
         await writer.StopAsync(TestContext.Current.CancellationToken);
 
         // Even though the threshold has passed AFTER the record leaves the
@@ -345,24 +340,6 @@ public sealed class RunReconciliationTests
     }
 
     private static StaticOptionsMonitor<T> Options<T>(T value) where T : class => new(value);
-
-    private static async Task WaitUntilAsync(
-        Func<Task<bool>> condition,
-        string description,
-        CancellationToken cancellationToken)
-    {
-        var deadline = DateTimeOffset.UtcNow + TimeSpan.FromSeconds(5);
-
-        while (!await condition())
-        {
-            if (DateTimeOffset.UtcNow >= deadline)
-            {
-                throw new TimeoutException($"Timed out waiting for {description}.");
-            }
-
-            await Task.Delay(TimeSpan.FromMilliseconds(10), cancellationToken);
-        }
-    }
 
     /// <summary>Fake <see cref="IToolRegistry"/> carrying no tools.</summary>
     private sealed class EmptyToolRegistry : IToolRegistry

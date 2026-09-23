@@ -308,24 +308,18 @@ public sealed class FailClosedAuditTests
 
         accepted.StatusCode.ShouldBe(HttpStatusCode.Accepted);
 
-        var deadline = DateTimeOffset.UtcNow.AddSeconds(30);
-
-        while (DateTimeOffset.UtcNow < deadline)
-        {
-            using var pending = await host.Client.GetAsync(
-                new Uri("/tracon/api/approvals/pending", UriKind.Relative));
-
-            var body = await TraconTestHost.ReadJsonAsync(pending);
-
-            if (body.EnumerateArray().FirstOrDefault() is { ValueKind: System.Text.Json.JsonValueKind.Object } first)
+        var first = await WaitUntil.ValueAsync(
+            async () =>
             {
-                return first.GetProperty("id").GetGuid();
-            }
+                using var pending = await host.Client.GetAsync(
+                    new Uri("/tracon/api/approvals/pending", UriKind.Relative));
 
-            await Task.Delay(20, TestContext.Current.CancellationToken);
-        }
+                return (await TraconTestHost.ReadJsonAsync(pending)).EnumerateArray().FirstOrDefault();
+            },
+            static first => first.ValueKind == System.Text.Json.JsonValueKind.Object,
+            "the run to produce a pending approval");
 
-        throw new InvalidOperationException("The run did not produce a pending approval within the timeout.");
+        return first.GetProperty("id").GetGuid();
     }
 
     /// <summary>

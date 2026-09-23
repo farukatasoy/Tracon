@@ -60,7 +60,7 @@ internal sealed class ManagedProcess(Process process, string description) : IAsy
         var completed = await Task.WhenAny(
             _ready.Task,
             _exited.Task,
-            Task.Delay(readyTimeout));
+            Task.Delay(readyTimeout)); // delay: bound
 
         if (completed == _ready.Task)
         {
@@ -81,20 +81,18 @@ internal sealed class ManagedProcess(Process process, string description) : IAsy
     /// <returns>The completion task.</returns>
     public async Task WaitForOutputAsync(string line, TimeSpan timeout)
     {
-        var deadline = Stopwatch.StartNew();
-
-        while (deadline.Elapsed < timeout)
+        try
         {
-            if (_output.Any(l => l.Contains(line, StringComparison.Ordinal)))
-            {
-                return;
-            }
-
-            await Task.Delay(TimeSpan.FromMilliseconds(25));
+            await WaitUntil.TrueAsync(
+                () => _output.Any(l => l.Contains(line, StringComparison.Ordinal)),
+                $"'{description}' to write '{line}'",
+                timeout);
         }
-
-        throw new TimeoutException(
-            $"'{description}' did not write '{line}' within {timeout}.{Environment.NewLine}{Output}");
+        catch (TimeoutException exception)
+        {
+            // The process's own words are the diagnosis; the bare timeout is not.
+            throw new TimeoutException($"{exception.Message}{Environment.NewLine}{Output}", exception);
+        }
     }
 
     /// <summary>

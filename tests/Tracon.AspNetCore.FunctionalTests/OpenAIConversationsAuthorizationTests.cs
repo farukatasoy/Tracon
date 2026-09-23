@@ -511,7 +511,7 @@ public sealed class OpenAIConversationsAuthorizationTests
 
             try
             {
-                await Task.Delay(Timeout.Infinite, cancellationToken);
+                await Task.Delay(Timeout.Infinite, cancellationToken); // delay: simulated
             }
             catch (OperationCanceledException)
             {

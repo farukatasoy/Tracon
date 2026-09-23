@@ -117,7 +117,7 @@ public sealed class WebhookDeliveryTimeoutTests
             Memory<byte> buffer,
             CancellationToken cancellationToken = default)
         {
-            await Task.Delay(Timeout.Infinite, cancellationToken).ConfigureAwait(false);
+            await Task.Delay(Timeout.Infinite, cancellationToken).ConfigureAwait(false); // delay: simulated
 
             return 0;
         }

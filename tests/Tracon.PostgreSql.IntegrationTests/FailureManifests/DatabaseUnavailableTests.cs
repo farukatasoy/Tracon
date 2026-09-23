@@ -178,10 +178,18 @@ public sealed class DatabaseUnavailableTests : IAsyncLifetime
             WorkDuration = TimeSpan.FromMinutes(5),
         });
 
+        var failedTicksBefore = FailedTicks(worker.Output);
+
         await _container.StopAsync();
 
         // Several poll intervals with no database at all. Every tick fails.
-        await Task.Delay(TimeSpan.FromSeconds(3));
+        // Phase 184: a fixed three seconds stood here, and a stalled worker
+        // could spend them without a single tick - the claim below would then
+        // pass untested. The worker logs every failed tick; three of them
+        // after the stop are the several intervals the claim is about.
+        await WaitUntil.TrueAsync(
+            () => worker.HasExited || FailedTicks(worker.Output) >= failedTicksBefore + 3,
+            "three queue ticks to fail against the stopped database");
 
         worker.HasExited.ShouldBeFalse(
             $"a failed queue tick must not take the process down.{Environment.NewLine}{worker.Output}");
@@ -220,6 +228,19 @@ public sealed class DatabaseUnavailableTests : IAsyncLifetime
         }
     }
 
+    private static int FailedTicks(string output)
+    {
+        const string FailedTick = "The schedule-dispatch tick failed.";
+        var count = 0;
+
+        for (var at = output.IndexOf(FailedTick, StringComparison.Ordinal); at >= 0; at = output.IndexOf(FailedTick, at + FailedTick.Length, StringComparison.Ordinal))
+        {
+            count++;
+        }
+
+        return count;
+    }
+
     private static async Task<JobRecord?> WaitForAsync(PostgresTestContext context, JobRecord job, TimeSpan timeout)
     {
         var deadline = DateTimeOffset.UtcNow + timeout;
@@ -235,7 +256,7 @@ public sealed class DatabaseUnavailableTests : IAsyncLifetime
             {
                 // The container is up but PostgreSQL may still be starting.
                 last = exception;
-                await Task.Delay(200);
+                await Task.Delay(200); // delay: retry
             }
         }
 

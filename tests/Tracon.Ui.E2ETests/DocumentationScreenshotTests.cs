@@ -274,36 +274,21 @@ public sealed class DocumentationScreenshotTests(BrowserFixture browsers)
     /// noticed. Failing here is better than publishing whichever the race produced.
     /// </remarks>
     private static async Task WaitForJobToSettleAsync(HttpClient client, UiHost host)
-    {
-        var deadline = DateTimeOffset.UtcNow.AddMinutes(2);
-        string? status = null;
-
-        while (DateTimeOffset.UtcNow < deadline)
-        {
-            using var document = JsonDocument.Parse(
-                await client.GetStringAsync($"{host.Prefix}/api/jobs?limit=1"));
-
-            var rows = document.RootElement.ValueKind == JsonValueKind.Array
-                ? document.RootElement
-                : document.RootElement.GetProperty("items");
-
-            if (rows.GetArrayLength() > 0)
+        => await WaitUntil.ValueAsync(
+            async () =>
             {
-                status = rows[0].GetProperty("status").GetString();
+                using var document = JsonDocument.Parse(
+                    await client.GetStringAsync($"{host.Prefix}/api/jobs?limit=1"));
 
-                if (status is "Completed" or "Failed" or "Cancelled" or "Canceled")
-                {
-                    return;
-                }
-            }
+                var rows = document.RootElement.ValueKind == JsonValueKind.Array
+                    ? document.RootElement
+                    : document.RootElement.GetProperty("items");
 
-            await Task.Delay(TimeSpan.FromSeconds(1));
-        }
-
-        throw new InvalidOperationException(
-            $"The seeded job did not settle within two minutes; last status was '{status ?? "none"}'. " +
-            "The screenshot would capture whichever state the race produced.");
-    }
+                return rows.GetArrayLength() > 0 ? rows[0].GetProperty("status").GetString() : null;
+            },
+            static status => status is "Completed" or "Failed" or "Cancelled" or "Canceled",
+            "the seeded job to settle (otherwise the screenshot captures whichever state the race produced)",
+            TimeSpan.FromMinutes(2));
 
     /// <summary>
     /// Queues a run that stops at <c>AwaitingApproval</c>, so the approvals screen shows
@@ -333,27 +318,17 @@ public sealed class DocumentationScreenshotTests(BrowserFixture browsers)
         using var accepted = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
         var runId = accepted.RootElement.GetProperty("runId").GetString();
 
-        var deadline = DateTimeOffset.UtcNow.AddMinutes(2);
-        string? status = null;
-
-        while (DateTimeOffset.UtcNow < deadline)
-        {
-            using var document = JsonDocument.Parse(
-                await client.GetStringAsync($"{host.Prefix}/api/runs/{runId}"));
-
-            status = document.RootElement.GetProperty("status").GetString();
-
-            if (string.Equals(status, "AwaitingApproval", StringComparison.Ordinal))
+        await WaitUntil.ValueAsync(
+            async () =>
             {
-                return;
-            }
+                using var document = JsonDocument.Parse(
+                    await client.GetStringAsync($"{host.Prefix}/api/runs/{runId}"));
 
-            await Task.Delay(TimeSpan.FromSeconds(1));
-        }
-
-        throw new InvalidOperationException(
-            $"The seeded approval did not reach AwaitingApproval within two minutes; " +
-            $"last status was '{status ?? "none"}'.");
+                return document.RootElement.GetProperty("status").GetString();
+            },
+            static status => string.Equals(status, "AwaitingApproval", StringComparison.Ordinal),
+            "the seeded approval to reach AwaitingApproval",
+            TimeSpan.FromMinutes(2));
     }
 
     private static async Task EnsureSuccessAsync(Task<HttpResponseMessage> call)

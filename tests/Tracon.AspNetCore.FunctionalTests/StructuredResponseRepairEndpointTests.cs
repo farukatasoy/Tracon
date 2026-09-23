@@ -290,7 +290,7 @@ public sealed class StructuredResponseRepairEndpointTests
 
         provider.Release.TrySetResult();
 
-        var run = await WaitForTerminalStatusAsync(host, runId);
+        var run = await host.WaitForTerminalRunAsync(runId);
 
         run.Status.ShouldBe(RunStatus.Canceled);
         run.Error?.Class.ShouldNotBe(RunErrorClass.StructuredResponseInvalid);
@@ -362,27 +362,6 @@ public sealed class StructuredResponseRepairEndpointTests
         await using var stream = await response.Content.ReadAsStreamAsync(TestContext.Current.CancellationToken);
 
         return await SseReader.ReadAllAsync(stream);
-    }
-
-    /// <summary>Polls a run until it reaches a terminal status.</summary>
-    private static async Task<RunRecord> WaitForTerminalStatusAsync(TraconTestHost host, Guid runId)
-    {
-        var deadline = DateTime.UtcNow.AddSeconds(30);
-
-        while (DateTime.UtcNow < deadline)
-        {
-            var run = await host.Client.GetFromJsonAsync<RunRecord>(
-                new Uri($"/tracon/api/runs/{runId}", UriKind.Relative), TestContext.Current.CancellationToken);
-
-            if (run is { Status: RunStatus.Completed or RunStatus.Failed or RunStatus.Canceled })
-            {
-                return run;
-            }
-
-            await Task.Delay(20, TestContext.Current.CancellationToken);
-        }
-
-        throw new InvalidOperationException($"Run {runId} did not reach a terminal status within 30 seconds.");
     }
 
     /// <summary>

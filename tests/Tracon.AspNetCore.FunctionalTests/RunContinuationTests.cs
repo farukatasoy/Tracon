@@ -89,7 +89,7 @@ public sealed class RunContinuationTests
 
         var sourceRunId = await SeedCrashedRunAsync(host);
 
-        await Task.Delay(TimeSpan.FromMilliseconds(500), TestContext.Current.CancellationToken);
+        await WaitForReconciliationPassAsync(host, sourceRunId);
 
         var runs = host.Services.GetRequiredService<IRunStore>();
         var source = await runs.GetRunAsync(sourceRunId);
@@ -121,27 +121,24 @@ public sealed class RunContinuationTests
         });
 
         var runs = host.Services.GetRequiredService<IRunStore>();
-        var deadline = DateTime.UtcNow.AddSeconds(5);
-        var blocked = false;
 
-        while (DateTime.UtcNow < deadline && !blocked)
-        {
-            await foreach (var runEvent in runs.ReadEventsAsync(sourceRunId))
+        var blocked = await WaitUntil.ValueAsync<RunEvent?>(
+            async () =>
             {
-                if (runEvent.Type == RunEventType.RunContinuationBlocked)
+                await foreach (var runEvent in runs.ReadEventsAsync(sourceRunId))
                 {
-                    blocked = true;
-                    runEvent.Text.ShouldNotBeNull().ShouldContain("delete_order");
+                    if (runEvent.Type == RunEventType.RunContinuationBlocked)
+                    {
+                        return runEvent;
+                    }
                 }
-            }
 
-            if (!blocked)
-            {
-                await Task.Delay(20, TestContext.Current.CancellationToken);
-            }
-        }
+                return null;
+            },
+            static runEvent => runEvent is not null,
+            "a RunContinuationBlocked event on the source run");
 
-        blocked.ShouldBeTrue("expected a RunContinuationBlocked event");
+        blocked.ShouldNotBeNull().Text.ShouldNotBeNull().ShouldContain("delete_order");
 
         var all = await runs.QueryRunsAsync(new RunQuery { SessionId = SessionId, OnlyRootRuns = false });
         all.Count.ShouldBe(1);
@@ -192,7 +189,7 @@ public sealed class RunContinuationTests
             // No SessionId: nothing to continue.
         });
 
-        await Task.Delay(TimeSpan.FromMilliseconds(500), TestContext.Current.CancellationToken);
+        await WaitForReconciliationPassAsync(host, runId);
 
         (await runs.GetRunAsync(runId)).ShouldNotBeNull().Status.ShouldBe(RunStatus.Failed);
 
@@ -241,7 +238,7 @@ public sealed class RunContinuationTests
             ContinuedFromRunId = ancestorId,
         });
 
-        await Task.Delay(TimeSpan.FromMilliseconds(500), TestContext.Current.CancellationToken);
+        await WaitForReconciliationPassAsync(host, sourceRunId);
 
         (await runs.GetRunAsync(sourceRunId)).ShouldNotBeNull().Status.ShouldBe(RunStatus.Failed);
 
@@ -323,22 +320,54 @@ public sealed class RunContinuationTests
     private static async Task<Guid> WaitForContinuationAsync(TraconTestHost host, Guid sourceRunId)
     {
         var runs = host.Services.GetRequiredService<IRunStore>();
-        var deadline = DateTime.UtcNow.AddSeconds(10);
 
-        while (DateTime.UtcNow < deadline)
+        var continuation = await WaitUntil.ValueAsync(
+            async () => (await runs.QueryRunsAsync(new RunQuery { SessionId = SessionId, OnlyRootRuns = false }))
+                .FirstOrDefault(record => record.Id != sourceRunId),
+            static record => record is { Status: RunStatus.Completed or RunStatus.Failed },
+            $"a continuation of run '{sourceRunId}' to settle");
+
+        return continuation!.Id;
+    }
+
+    /// <summary>
+    /// Waits until the reconciler has closed <paramref name="runId"/> AND
+    /// finished the pass that decided whether to continue it.
+    /// </summary>
+    /// <remarks>
+    /// Phase 184: these tests used to sleep 500 ms and then assert both halves.
+    /// Under load the scanner might not have run at all - "the run is Failed"
+    /// then failed, and "no continuation was opened" passed without proof. A
+    /// pass first closes a run and then decides its continuation, and passes
+    /// run one at a time. A second, sessionless orphan seeded only after the
+    /// first run is closed is claimed by a LATER pass, so once it is closed
+    /// too, the decision about the first run is complete. Being sessionless,
+    /// it can never be continued itself, and the session filters below never
+    /// see it.
+    /// </remarks>
+    private static async Task WaitForReconciliationPassAsync(TraconTestHost host, Guid runId)
+    {
+        var runs = host.Services.GetRequiredService<IRunStore>();
+        var tenants = host.Services.GetRequiredService<ITenantContext>();
+
+        await WaitUntil.TrueAsync(
+            async () => (await runs.GetRunAsync(runId))?.Status == RunStatus.Failed,
+            $"the reconciler to close run {runId}");
+
+        var sentinelId = TraconId.NewId();
+
+        await runs.StartRunAsync(new RunStartInfo
         {
-            var all = await runs.QueryRunsAsync(new RunQuery { SessionId = SessionId, OnlyRootRuns = false });
-            var continuation = all.FirstOrDefault(record => record.Id != sourceRunId);
+            RunId = sentinelId,
+            AgentName = AgentName,
+            Status = RunStatus.Running,
+            StartedAt = DateTimeOffset.UtcNow.AddMinutes(-10),
+            TenantId = tenants.TenantId,
+        });
 
-            if (continuation is { Status: RunStatus.Completed or RunStatus.Failed })
-            {
-                return continuation.Id;
-            }
-
-            await Task.Delay(20, TestContext.Current.CancellationToken);
-        }
-
-        throw new TimeoutException($"No continuation of run '{sourceRunId}' settled within the deadline.");
+        await WaitUntil.TrueAsync(
+            async () => (await runs.GetRunAsync(sentinelId))?.Status == RunStatus.Failed,
+            "a later reconciliation pass to close the sentinel run");
     }
 
     /// <summary>Marker interface carrying definitions to be saved during startup.</summary>

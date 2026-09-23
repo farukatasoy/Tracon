@@ -157,20 +157,10 @@ public sealed class JobMetricsTests
 
         await worker.StartAsync(TestContext.Current.CancellationToken);
 
-        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(10);
-        JobRecord? current = null;
-
-        while (DateTime.UtcNow < deadline)
-        {
-            current = await jobs.GetAsync(job.TenantId, job.Id);
-
-            if (current is { Status: JobStatus.Completed })
-            {
-                break;
-            }
-
-            await Task.Delay(10, TestContext.Current.CancellationToken);
-        }
+        var current = await WaitUntil.ValueAsync(
+            () => jobs.GetAsync(job.TenantId, job.Id).AsTask(),
+            static record => record is { Status: JobStatus.Completed },
+            "the job to complete although every measurement write throws");
 
         await worker.StopAsync(TestContext.Current.CancellationToken);
 
@@ -291,16 +281,9 @@ public sealed class JobMetricsTests
         {
             await _worker.StartAsync(TestContext.Current.CancellationToken);
 
-            var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(10);
-
-            while (DateTime.UtcNow < deadline && !until(Counter))
-            {
-                await Task.Delay(10, TestContext.Current.CancellationToken);
-            }
+            await WaitUntil.TrueAsync(() => until(Counter), "the worker to publish the expected measurement");
 
             await _worker.StopAsync(TestContext.Current.CancellationToken);
-
-            until(Counter).ShouldBeTrue("the worker did not publish the expected measurement in time");
         }
 
         public void Dispose()

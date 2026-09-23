@@ -68,7 +68,7 @@ internal sealed class HangingModelProvider(string name, bool respectsCancellatio
 
         private static async Task<string> WaitForCancellationAsync(CancellationToken cancellationToken)
         {
-            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken).ConfigureAwait(false);
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken).ConfigureAwait(false); // delay: simulated
 
             return "unreachable";
         }

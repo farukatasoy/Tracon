@@ -167,6 +167,56 @@ internal sealed class TraconTestHost : IAsyncDisposable
     public static async Task<JsonElement> ReadJsonAsync(HttpResponseMessage response)
         => await response.Content.ReadFromJsonAsync<JsonElement>();
 
+    /// <summary>Polls <c>GET /runs/{id}</c> until the run reports <paramref name="expected"/>.</summary>
+    /// <param name="runId">The run to watch.</param>
+    /// <param name="expected">The status to wait for.</param>
+    /// <param name="tenant">The <c>X-Tracon-Tenant</c> header to send, when the run belongs to one.</param>
+    /// <returns><paramref name="expected"/>.</returns>
+    /// <remarks>
+    /// A background run settles on its own schedule. Seven test classes carried a
+    /// private copy of this loop until Phase 184. The generous bound is measured:
+    /// 5 seconds failed once in a parallel run of 16 test projects, while a healthy
+    /// run leaves the wait in milliseconds (<see cref="WaitUntil"/>).
+    /// </remarks>
+    public async Task<string> WaitForRunStatusAsync(Guid runId, string expected, string? tenant = null)
+    {
+        var uri = new Uri($"/tracon/api/runs/{runId}", UriKind.Relative);
+
+        await WaitUntil.ValueAsync(
+            async () =>
+            {
+                using var request = new HttpRequestMessage(HttpMethod.Get, uri);
+
+                if (tenant is not null)
+                {
+                    request.Headers.Add("X-Tracon-Tenant", tenant);
+                }
+
+                using var poll = await Client.SendAsync(request);
+
+                return (await ReadJsonAsync(poll)).GetProperty("status").GetString();
+            },
+            status => string.Equals(status, expected, StringComparison.Ordinal),
+            $"run {runId} to reach status '{expected}'");
+
+        return expected;
+    }
+
+    /// <summary>Polls <c>GET /runs/{id}</c> until the run reaches a terminal status.</summary>
+    /// <param name="runId">The run to watch.</param>
+    /// <returns>The run as it was when it settled.</returns>
+    public async Task<RunRecord> WaitForTerminalRunAsync(Guid runId)
+    {
+        var uri = new Uri($"/tracon/api/runs/{runId}", UriKind.Relative);
+
+        var run = await WaitUntil.ValueAsync(
+            () => Client.GetFromJsonAsync<RunRecord>(uri),
+            static run => run is { Status: RunStatus.Completed or RunStatus.Failed or RunStatus.Canceled },
+            $"run {runId} to reach a terminal status");
+
+        return run!;
+    }
+
     /// <inheritdoc />
     public async ValueTask DisposeAsync()
     {

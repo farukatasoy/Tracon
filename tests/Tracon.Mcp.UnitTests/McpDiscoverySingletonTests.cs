@@ -16,6 +16,8 @@ namespace Tracon.Mcp.UnitTests;
 /// </summary>
 public sealed class McpDiscoverySingletonTests
 {
+    private const string DiscoveryCompleted = "MCP discovery completed";
+
     [Fact]
     public async Task Discovery_runs_on_only_one_instance()
     {
@@ -43,13 +45,20 @@ public sealed class McpDiscoverySingletonTests
         await serviceA.StartAsync(CancellationToken.None);
         await serviceB.StartAsync(CancellationToken.None);
 
-        await Task.Delay(TimeSpan.FromMilliseconds(500));
+        // Phase 184: a fixed 500 ms stood here - the shape Phase 173 removed from
+        // ModelHealthSingletonTests. Under load neither 60 ms tick fit into it
+        // and the XOR below failed on 0/0, a question the test was not asking.
+        // Three passes in total give the losing instance at least two refresh
+        // intervals in which it could have (wrongly) run as well.
+        await WaitUntil.TrueAsync(
+            () => loggerA.CountContaining(DiscoveryCompleted) + loggerB.CountContaining(DiscoveryCompleted) >= 3,
+            "three MCP discovery passes");
 
         await serviceA.StopAsync(CancellationToken.None);
         await serviceB.StopAsync(CancellationToken.None);
 
-        var completedA = loggerA.Messages.Count(m => m.Contains("MCP discovery completed", StringComparison.Ordinal));
-        var completedB = loggerB.Messages.Count(m => m.Contains("MCP discovery completed", StringComparison.Ordinal));
+        var completedA = loggerA.CountContaining(DiscoveryCompleted);
+        var completedB = loggerB.CountContaining(DiscoveryCompleted);
 
         (completedA > 0 ^ completedB > 0).ShouldBeTrue($"completedA={completedA}, completedB={completedB}");
     }
@@ -140,7 +149,14 @@ public sealed class McpDiscoverySingletonTests
     {
         private readonly List<string> _messages = [];
 
-        public IReadOnlyList<string> Messages => _messages;
+        /// <summary>Counts the messages containing <paramref name="fragment"/>, safely while the service still logs.</summary>
+        public int CountContaining(string fragment)
+        {
+            lock (_messages)
+            {
+                return _messages.Count(message => message.Contains(fragment, StringComparison.Ordinal));
+            }
+        }
 
         public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
 

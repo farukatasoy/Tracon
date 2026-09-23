@@ -510,25 +510,17 @@ public sealed class VoiceConversationTests
     /// The record is written when the socket closes; the client's
     /// <c>Dispose</c> does not wait for the server's closing work.
     /// </remarks>
-    private static async Task<System.Text.Json.JsonElement> WaitForRecordsAsync(TraconTestHost host)
-    {
-        for (var attempt = 0; attempt < 100; attempt++)
-        {
-            using var response = await host.Client.GetAsync(
-                new Uri("/tracon/api/voice/sessions", UriKind.Relative));
-
-            response.EnsureSuccessStatusCode();
-
-            var body = await TraconTestHost.ReadJsonAsync(response);
-
-            if (body.GetArrayLength() > 0)
+    private static Task<System.Text.Json.JsonElement> WaitForRecordsAsync(TraconTestHost host)
+        => WaitUntil.ValueAsync(
+            async () =>
             {
-                return body;
-            }
+                using var response = await host.Client.GetAsync(
+                    new Uri("/tracon/api/voice/sessions", UriKind.Relative));
 
-            await Task.Delay(20, TestContext.Current.CancellationToken);
-        }
+                response.EnsureSuccessStatusCode();
 
-        throw new InvalidOperationException("Conversation record was not written.");
-    }
+                return await TraconTestHost.ReadJsonAsync(response);
+            },
+            static body => body.GetArrayLength() > 0,
+            "the conversation record to be written");
 }

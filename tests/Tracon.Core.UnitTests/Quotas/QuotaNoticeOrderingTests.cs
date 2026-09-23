@@ -114,7 +114,11 @@ public sealed class QuotaNoticeOrderingTests
 
         var runTask = agent.RunAsync([new ChatMessage(ChatRole.User, "write a long piece of text")]);
 
-        await WaitUntilAsync(() => harness.Registry.ActiveCount == 1);
+        // The registry entry is written BEFORE the run row - RunRecordingAgent
+        // registers first so a cancel can land during the start write. Waiting
+        // for the entry alone raced the read below (Phase 184).
+        await WaitUntil.TrueAsync(async () =>
+            harness.Registry.ActiveCount == 1 && (await harness.Store.QueryRunsAsync(new RunQuery())).Count == 1);
 
         var started = (await harness.Store.QueryRunsAsync(new RunQuery())).ShouldHaveSingleItem();
         harness.Registry.TryCancel(started.Id, QuotaHarness.Tenant).ShouldBeTrue();
@@ -127,17 +131,6 @@ public sealed class QuotaNoticeOrderingTests
         var usage = await harness.QuotaStore.GetUsageAsync(new QuotaUsageQuery { TenantId = QuotaHarness.Tenant });
         usage.ShouldNotBeEmpty();
         usage.ShouldAllBe(static record => record.Runs == 1);
-    }
-
-    private static async Task WaitUntilAsync(Func<bool> condition)
-    {
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-
-        while (!condition())
-        {
-            timeout.Token.ThrowIfCancellationRequested();
-            await Task.Delay(10, CancellationToken.None).ConfigureAwait(false);
-        }
     }
 
     private static async Task<List<RunEvent>> ReadEventsAsync(InMemoryRunStore store, Guid runId)
