@@ -414,7 +414,7 @@ internal static class WorkflowEndpoints
         // consume the tenant's quota - phase 139, F-185, same ordering as
         // the agent run endpoint (AgentEndpoints.cs).
         if (await RunAuthorizationGate
-                .CheckRunAsync(runAuthorizationHandler, tenantContext, name, request?.SessionId, attributionContext, cancellationToken)
+                .CheckRunAsync(runAuthorizationHandler, tenantContext, name, request?.SessionId, attributionContext, httpContext, cancellationToken)
                 .ConfigureAwait(false) is { } authorizationProblem)
         {
             return authorizationProblem;
@@ -423,7 +423,7 @@ internal static class WorkflowEndpoints
         // 🚨 Ownership guards the run surface too (phase 148); see
         // AgentEndpoints for why the session endpoints alone are not enough.
         if (await SessionOwnershipGate
-                .CheckRunSessionAsync(sessionOwnershipOptions, attributionContext, sessionStore, request?.SessionId, cancellationToken)
+                .CheckRunSessionAsync(sessionOwnershipOptions, attributionContext, sessionStore, request?.SessionId, httpContext, cancellationToken)
                 .ConfigureAwait(false) is { } ownershipProblem)
         {
             return ownershipProblem;
@@ -463,6 +463,7 @@ internal static class WorkflowEndpoints
             [FromServices] ITenantContext tenants,
             [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
             [FromServices] IRunAttributionContext? attributionContext,
+            HttpContext httpContext,
             CancellationToken cancellationToken)
     {
         var record = await runs.GetRunAsync(runId, cancellationToken).ConfigureAwait(false);
@@ -479,7 +480,7 @@ internal static class WorkflowEndpoints
         if (await RunAuthorizationGate
                 .CheckRunResourceAsync(
                     runAuthorizationHandler, tenants, runId, record.AgentName, record.SessionId,
-                    attributionContext, RunAccess.Read, RunNotFound(runId), cancellationToken)
+                    attributionContext, RunAccess.Read, RunNotFound(runId), httpContext, cancellationToken)
                 .ConfigureAwait(false) is { } authorizationProblem)
         {
             return authorizationProblem;
@@ -521,7 +522,7 @@ internal static class WorkflowEndpoints
         // The request carries the SOURCE run's id, the same shape replay uses.
         if (await AuthorizeWorkflowRunAsync(
                 runId, runs, tenants, runAuthorizationHandler, attributionContext,
-                RunAccess.Start, NotAuthorized(), cancellationToken)
+                RunAccess.Start, NotAuthorized(), httpContext, cancellationToken)
             .ConfigureAwait(false) is { } authorizationProblem)
         {
             return authorizationProblem;
@@ -549,6 +550,7 @@ internal static class WorkflowEndpoints
             [FromServices] ITenantContext tenants,
             [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
             [FromServices] IRunAttributionContext? attributionContext,
+            HttpContext httpContext,
             CancellationToken cancellationToken)
     {
         if (runner is null)
@@ -558,7 +560,7 @@ internal static class WorkflowEndpoints
 
         if (await AuthorizeWorkflowRunAsync(
                 runId, runs, tenants, runAuthorizationHandler, attributionContext,
-                RunAccess.Read, RunNotFound(runId), cancellationToken)
+                RunAccess.Read, RunNotFound(runId), httpContext, cancellationToken)
             .ConfigureAwait(false) is { } authorizationProblem)
         {
             return authorizationProblem;
@@ -618,7 +620,7 @@ internal static class WorkflowEndpoints
         // run row, so this is a run-starting surface too.
         if (await AuthorizeWorkflowRunAsync(
                 runId, runs, tenants, runAuthorizationHandler, attributionContext,
-                RunAccess.Start, NotAuthorized(), cancellationToken)
+                RunAccess.Start, NotAuthorized(), httpContext, cancellationToken)
             .ConfigureAwait(false) is { } authorizationProblem)
         {
             return authorizationProblem;
@@ -691,6 +693,7 @@ internal static class WorkflowEndpoints
         IRunAttributionContext? attributionContext,
         RunAccess access,
         ProblemHttpResult denied,
+        HttpContext httpContext,
         CancellationToken cancellationToken)
     {
         if (runAuthorizationHandler is null)
@@ -707,7 +710,7 @@ internal static class WorkflowEndpoints
         return await RunAuthorizationGate
             .CheckRunResourceAsync(
                 runAuthorizationHandler, tenants, runId, record.AgentName, record.SessionId,
-                attributionContext, access, denied, cancellationToken)
+                attributionContext, access, denied, httpContext, cancellationToken)
             .ConfigureAwait(false);
     }
 

@@ -279,6 +279,24 @@ open on an exception is not a gate. When it denies a single resource, the
 `Reason` you supply is deliberately **not** returned — the response has to
 stay identical to a missing resource's.
 
+A throw is a failed check, not a decision, and Tracon reports it that way:
+
+- It writes one `Error` log line in the `Tracon.RunAuthorization` category.
+  The line names your handler type, the access kind and the tenant, agent, run
+  and session ids, and carries the exception. The exception text never goes
+  into the HTTP response.
+- A `403` (a run start, a list, a replay, a workflow resume or respond) says
+  *The run authorization check failed. Retry the request.* instead of claiming
+  that your handler denied the call. A `404` does not change: it stays
+  identical to a missing resource's.
+- An `OperationCanceledException` that the request itself did not cause (for
+  example, an `HttpClient` timeout inside your handler) is a failure like any
+  other and is denied. Only the caller's own cancellation travels on.
+
+If your `IRunAttributionContext` throws while a request is authorized, the
+caller is treated as having no identity, and one `Error` line per request is
+written in the same category.
+
 ## Reading identity inside a tool body
 
 A tool cannot reach `AgentSession`, so it cannot read `ITenantContext` or

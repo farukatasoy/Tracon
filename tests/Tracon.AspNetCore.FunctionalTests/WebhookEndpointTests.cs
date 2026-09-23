@@ -213,6 +213,68 @@ public sealed class WebhookEndpointTests
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
+    [Fact]
+    public async Task Header_values_are_masked_in_every_response_and_kept_in_the_store()
+    {
+        const string ApiKey = "receiver-api-key-value";
+
+        await using var host = await TraconTestHost.StartAsync();
+
+        using var saved = await host.Client.PutAsJsonAsync(
+            Orders,
+            Request() with
+            {
+                Headers = new Dictionary<string, string>(StringComparer.Ordinal) { ["X-Api-Key"] = ApiKey, ["X-Team"] = "team-blue-value" },
+            });
+
+        saved.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        using var read = await host.Client.GetAsync(Orders);
+        using var listed = await host.Client.GetAsync(Webhooks);
+
+        foreach (var response in new[] { saved, read, listed })
+        {
+            var body = await response.Content.ReadAsStringAsync();
+
+            body.ShouldNotContain(ApiKey);
+            body.ShouldNotContain("team-blue-value");
+        }
+
+        var subscription = (await read.Content.ReadFromJsonAsync<WebhookSubscription>())!;
+        subscription.Headers.ShouldBe(
+            new Dictionary<string, string>(StringComparer.Ordinal) { ["X-Api-Key"] = "***", ["X-Team"] = "***" },
+            ignoreOrder: true);
+
+        // The receiver still gets the real value: the mask is a response rule.
+        var stored = await host.Services.GetRequiredService<IWebhookStore>().GetSubscriptionAsync("default", "orders");
+        stored!.Headers["X-Api-Key"].ShouldBe(ApiKey);
+
+        // The audit trail records no header value either.
+        var entries = await host.Services.GetRequiredService<IAuditLog>()
+            .QueryAsync(new AuditQuery { Entity = "webhook:orders" });
+
+        entries.ShouldNotBeEmpty();
+        entries.ShouldAllBe(static entry => !$"{entry.Before}{entry.After}".Contains(ApiKey, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Save_that_sends_the_mask_back_is_rejected()
+    {
+        await using var host = await TraconTestHost.StartAsync();
+
+        using var response = await host.Client.PutAsJsonAsync(
+            Orders,
+            Request() with { Headers = new Dictionary<string, string>(StringComparer.Ordinal) { ["X-Api-Key"] = "***" } });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+
+        var detail = (await TraconTestHost.ReadJsonAsync(response)).GetProperty("detail").GetString();
+        detail.ShouldNotBeNull().ShouldContain("X-Api-Key");
+        detail.ShouldContain("real value");
+
+        (await host.Services.GetRequiredService<IWebhookStore>().GetSubscriptionAsync("default", "orders")).ShouldBeNull();
+    }
+
     private static WebhookSaveRequest Request(
         string url = "https://example.com/hook",
         IReadOnlyList<string>? events = null)

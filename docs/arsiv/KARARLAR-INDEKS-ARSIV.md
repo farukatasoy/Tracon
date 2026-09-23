@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](../KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (766 kalem)
+## Arşivlenen Kararlar (768 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
@@ -264,7 +264,7 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-253 | 300 | `TraconValidationOptions.McpTimeout` Core'a eklendi, AspNetCore'a değil |
 | K-254 | 301 | Kota ölçerine `quota.metric` eklendi 👤 |
 | K-255 | 302 | Kota ölçeri `usage`+`limit` için AYRI iki `ObservableGauge`'dur 👤 |
-| K-256 | 303 | `QuotaUsageObserver` senkron kapılı önbellektir, zamanlayıcı değil |
+| K-256 | 303 | `QuotaUsageObserver` senkron kapılı önbellektir, zamanlayıcı değil 👤 |
 | K-257 | 304 | Kota ölçeri yalnız KAYITLI kiracıları tarar |
 | K-258 | 305 | `MaxRows` sıra, silme adımından çıkarılarak uygulandı (K-201 kapandı) |
 | K-259 | 306 | Saklama korelasyonları BARE hedef adı değil, TAM NİTELENDİRİLMİŞ ad kullanır (Faz 25 hatası düzeltildi) |
@@ -775,3 +775,5 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-764 | 811 | Bir kapı bir girdi BİÇİMİNİ tanımıyorsa "kapsam dışı" demek onu SESSİZ yapar; kapı her biçimi sayar ya da saymadığını BİLDİRİR |
 | K-765 | 812 | Kurtarma rampalarının öneki `KR-`'dir ve bir rampanın GÖVDESİ TEK YERDE yaşar; katalog on ikiden yedisini yalnız BAĞLAR, kopyalamaz |
 | K-766 | 813 | Süreç ölçümü kapısı bölümün VARLIĞINI denetler, DOĞRULUĞUNU denetlemez |
+| K-767 | 814 | Süreç ölçümü eşiği sabit sayı `167`'dir (kullanıcı kararı); geriye dönük 166 faz DOLDURULMAZ 👤 |
+| K-768 | 815 | 🔴 denetim bulgusunun triyajını KULLANICI yapar; denetçi yalnız ÖNERİR |

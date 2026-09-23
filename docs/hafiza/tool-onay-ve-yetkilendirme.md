@@ -75,8 +75,19 @@
 - **Yetkilendirme kapısı ile SAHİPLİK kapısı ayrı sorular sorar ve ikisi de
   gerekir** (Faz 148 · 149): handler tüketicinin politikasıdır, sahiplik
   Tracon'in kendi verisidir. Sıra: kiracı → handler → sahiplik → gövde.
-  Sahiplik kapısı `HttpContext` ister (yönetim politikası istek başına
-  değerlendirilir); handler kapısı istemez.
+  İki kapı da `HttpContext` alır: sahiplik yönetim politikasını istek başına
+  değerlendirir, ikisi de hatayı istek servislerinden aldığı logger'a yazar.
+- **🚨 Fail-closed bir `catch` log yazmazsa ret operatöre görünmez; "kayıtsız"
+  ile "attı" aynı dala düşmemeli** (2026-09-23, C12): iki kapı tüketici
+  handler'ının istisnasını reddetti, ama log yazmadı; 403 gövdesi olmayan bir
+  "denied" kararı bildirdi. `SatisfiesManagementPolicyAsync` kayıtsız policy'yi
+  (belgelenmiş geri düşüş) ve atan handler'ı tek `catch`'e koyuyordu. Log
+  eklemeden önce ikisini ayır, yoksa her liste isteği Error yazar. Policy'yi
+  adla çözmek de tüketicinin provider'ını çağırır: `GetPolicyAsync` `try`
+  içinde kalır, yoksa daraltma 500 olur. 404 dalı metin değiştirmez (K-684);
+  yalnız 403 "check failed" der. Filtre K-840'tır: eski filtreyle handler'ın
+  `HttpClient` timeout'u kaçıyordu; var olan kaynak 500, eksik kaynak 404
+  veriyordu (varlık oracle'ı).
 - **Yönetim muafiyeti ASİMETRİKTİR ve öyle kalmalıdır** (Faz 149, K-694):
   `ManagementPolicy` sahipsiz bir satırı **okutur** (`DeniesAsync`), ama o
   satıra `run` başlatmaz (`CheckRunSessionAsync`). Okumak ile konuşmaya eklemek

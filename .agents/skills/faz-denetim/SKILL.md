@@ -143,7 +143,8 @@ içindedir; denetçi onu okur ve şunları arar:
 - 🔴 **Bir muafiyet listesi veya taban çizgisi büyüdü mü?** `DIAGRAM_EXEMPT`,
   `CLOSING_EXEMPT`, `SourceLanguageTests` taban çizgisi ve kontrast tabanları
   **yalnız iyileşir**. Büyüten bir değişiklik gerekçeli olsa bile 🔴'dır —
-  gerekçe kararı `docs/KARARLAR.md`'ye taşır, denetimi kapatmaz.
+  gerekçe kararı faz dokümanına (dört kategoriden birine giriyorsa
+  `docs/KARARLAR.md`'ye de) taşır, denetimi kapatmaz.
 - 🔴 **Ağırlık tavanı veya kontrast tabanı ölçümsüz mü değiştirildi?** Sayı
   uydurulmaz; tavanı yükseltmek ölçüm ister.
 - Yeni elle yazılan sayfa sözleşmeyi taşıyor mu: `## Read next` (1–3 bağlantı),

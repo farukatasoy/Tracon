@@ -118,6 +118,7 @@ internal static class AttachmentEndpoints
                     attributionContext,
                     RunAccess.Attachment,
                     NotAuthorized(),
+                    httpContext,
                     cancellationToken)
                 .ConfigureAwait(false) is { } authorizationProblem)
         {
@@ -178,6 +179,7 @@ internal static class AttachmentEndpoints
         ITenantContext tenantContext,
         [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
         [FromServices] IRunAttributionContext? attributionContext,
+        HttpContext httpContext,
         CancellationToken cancellationToken)
     {
         var descriptor = await store.GetAsync(tenantContext.TenantId, id, cancellationToken).ConfigureAwait(false);
@@ -197,6 +199,7 @@ internal static class AttachmentEndpoints
                     attributionContext,
                     RunAccess.Attachment,
                     NotFound(id),
+                    httpContext,
                     cancellationToken)
                 .ConfigureAwait(false) is { } authorizationProblem)
         {
@@ -216,6 +219,7 @@ internal static class AttachmentEndpoints
         ITenantContext tenantContext,
         [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
         [FromServices] IRunAttributionContext? attributionContext,
+        HttpContext httpContext,
         CancellationToken cancellationToken)
     {
         // A denied list is REJECTED (403), never silently filtered: filtering
@@ -230,6 +234,7 @@ internal static class AttachmentEndpoints
                     attributionContext,
                     RunAccess.Attachment,
                     NotAuthorized(),
+                    httpContext,
                     cancellationToken)
                 .ConfigureAwait(false) is { } authorizationProblem)
         {
@@ -255,6 +260,7 @@ internal static class AttachmentEndpoints
         ITenantContext tenantContext,
         [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
         [FromServices] IRunAttributionContext? attributionContext,
+        HttpContext httpContext,
         CancellationToken cancellationToken)
     {
         // The descriptor is read first so the handler learns WHICH attachment
@@ -277,6 +283,7 @@ internal static class AttachmentEndpoints
                     attributionContext,
                     RunAccess.Attachment,
                     NotFound(id),
+                    httpContext,
                     cancellationToken)
                 .ConfigureAwait(false) is { } authorizationProblem)
         {

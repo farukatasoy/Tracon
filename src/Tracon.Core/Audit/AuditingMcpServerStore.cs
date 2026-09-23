@@ -8,8 +8,9 @@ namespace Tracon;
 /// </summary>
 /// <remarks>
 /// Adding an MCP server accepts an external tool definition, so every
-/// write to this store must enter the audit trail. <see cref="McpServerDefinition"/>
-/// never carries a secret, but the secret filter still applies.
+/// write to this store must enter the audit trail. The trail records the
+/// header NAMES of a definition but never their values, and the secret filter
+/// still applies to the rest.
 /// </remarks>
 internal sealed class AuditingMcpServerStore : IMcpServerStore, IAuditDecorated
 {
@@ -109,6 +110,15 @@ internal sealed class AuditingMcpServerStore : IMcpServerStore, IAuditDecorated
         return deleted;
     }
 
+    /// <summary>Serializes a definition for the audit trail.</summary>
+    /// <remarks>
+    /// Header VALUES are masked before serialization: the audit trail is
+    /// kept as plain text, and the secret filter only recognizes credential
+    /// NAMES (<c>Cookie</c> and <c>Ocp-Apim-Subscription-Key</c> pass it).
+    /// The names stay, so the trail still shows which headers changed.
+    /// </remarks>
     private static string Serialize(McpServerDefinition server)
-        => JsonSerializer.Serialize(server, TraconCoreJsonContext.Default.McpServerDefinition);
+        => JsonSerializer.Serialize(
+            server with { Headers = HeaderValueMask.Apply(server.Headers) },
+            TraconCoreJsonContext.Default.McpServerDefinition);
 }

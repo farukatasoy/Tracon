@@ -22,6 +22,7 @@ internal static class ObservabilityEndpoints
                 [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
                 [FromServices] IRunAttributionContext? attributionContext,
                 ITenantContext tenants,
+                HttpContext httpContext,
                 CancellationToken cancellationToken) =>
             {
                 // The trace store is scoped to the ambient tenant, so a trace
@@ -42,6 +43,7 @@ internal static class ObservabilityEndpoints
                             attributionContext,
                             RunAccess.Read,
                             TraceNotFound(runId),
+                            httpContext,
                             cancellationToken)
                         .ConfigureAwait(false) is { } authorizationProblem)
                 {
@@ -65,6 +67,7 @@ internal static class ObservabilityEndpoints
                 [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
                 [FromServices] IRunAttributionContext? attributionContext,
                 ITenantContext tenants,
+                HttpContext httpContext,
                 CancellationToken cancellationToken) =>
             {
                 // 🚨 The run is looked up FIRST, which this endpoint did not do
@@ -89,6 +92,7 @@ internal static class ObservabilityEndpoints
                             attributionContext,
                             RunAccess.Read,
                             RunNotFound(runId),
+                            httpContext,
                             cancellationToken)
                         .ConfigureAwait(false) is { } authorizationProblem)
                 {

@@ -8,8 +8,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Security
 
-These three changes can refuse a request or a record that a running setup
-accepted before. Each refusal names what to change.
+Every change below except the audit trail one can refuse a request or a
+record that a running setup accepted before. Each refusal names what to
+change.
 
 - A stored record may name only a configuration key inside its own tenant.
   The allowed prefix is one per installation, so a record of one tenant could
@@ -36,9 +37,37 @@ accepted before. Each refusal names what to change.
   makes every caller look local. Without a token or a policy, an anonymous
   request with a non-loopback `Host` or `Origin` returns `403`, which blocks DNS
   rebinding and cross-site requests; the voice WebSocket follows the same rule.
+- Creating an API key that carries the `PlatformAdmin` scope now needs the same
+  platform authority as acting on another tenant. Before, a claims-based Admin
+  of one tenant, without the `TraconPolicies.PlatformAdmin` policy, could create
+  such a key and use it to reach other tenants. An API key can still only
+  create scopes it carries itself.
+- `GET /api/mcp-servers` and the `PUT /api/mcp-servers/{name}` response no
+  longer return stored extra header values: every header keeps its name and
+  carries the value `***`. Before, any `Reader` or `AgentsRead` API key could
+  read a header value such as an API key and call the MCP server directly, past
+  the tool approval gate. Webhook subscriptions (`GET /api/webhooks`,
+  `GET /api/webhooks/{name}` and the `PUT` response) follow the same rule. The
+  stored value does not change and is still sent to the target.
+- The MCP server audit trail records header names only. The values of headers
+  whose names the secret filter does not recognize, such as `Cookie` or
+  `Ocp-Apim-Subscription-Key`, no longer enter the audit log as plain text.
+- An `OperationCanceledException` that an `IRunAuthorizationHandler` throws,
+  but that the request itself did not cause (for example, an `HttpClient`
+  timeout inside the handler), is now a failed check. A single resource answers
+  the same `404` as a missing one. Before, it answered `500`, which revealed
+  that the resource exists.
 
 ### Fixed
 
+- A slow or unresponsive database no longer blocks the metrics collection
+  thread while the quota or queue-depth gauge refreshes. Before, this delayed
+  the export of every other instrument of the meter provider.
+- The quota threshold notification cache in `QuotaEnforcer` no longer grows for
+  the life of the process. Entries of closed quota periods are now dropped.
+- A failed or cancelled durable threshold claim no longer keeps a quota
+  threshold notification silent until the end of the period. The next run in
+  the same period retries the claim.
 - `GET /api/models/health` no longer fails for every provider when one
   provider's health check throws. The failing provider is reported `Unhealthy`
   with the exception type in `detail` (`The health check failed (...)`), and the
@@ -121,6 +150,42 @@ preview line, and the counts below are types, not members.
 
 ### Changed
 
+- The `tracon.quota.usage`, `tracon.quota.limit` and `tracon.job.queue.depth`
+  gauges no longer read the database inside the metrics collection callback.
+  When a gauge is enabled, a background service reads the values once at
+  startup and then every `QuotaUsageRefreshInterval` /
+  `JobQueueDepthRefreshInterval`. A collection only reads the last result. The
+  first collection after startup can be empty, and a value can be up to one
+  interval old.
+- `EnableQuotaUsageGauge`, `EnableJobQueueDepthGauge` and their refresh
+  intervals are now read at host start. Turning a gauge on, or changing its
+  interval, takes effect at the next start.
+- An enabled gauge whose refresh interval is outside 1 millisecond to about
+  49.7 days now fails startup validation. Before, zero was accepted and meant
+  a refresh on every collection.
+- A `PUT /api/mcp-servers/{name}` or `PUT /api/webhooks/{name}` with a header
+  value of `***` is rejected with `400`. A client that reads, edits and saves a
+  record must send the real value of every header again.
+- When an `IRunAuthorizationHandler` throws, the request is still denied
+  (fail-closed), and Tracon now writes one `Error` log line in the
+  `Tracon.RunAuthorization` category. The line holds the handler type, the
+  access kind, the tenant, agent, run and session ids, and the exception. A
+  `403` now says `The run authorization check failed. Retry the request.`
+  instead of claiming that the handler denied the call. This covers run starts,
+  the session list, the run, attachment and approval lists, replay, and
+  workflow resume and respond. A `404` does not change. The exception text
+  never enters the response.
+- A session management policy (`TraconSessionOwnershipOptions.ManagementPolicy`)
+  whose policy provider or requirement handler throws is now logged as an
+  `Error` in the `Tracon.SessionOwnership` category, and the caller still gets
+  the narrowed result. An unregistered policy writes no log line. An
+  `IRunAttributionContext` that throws during an authorization check is logged
+  once per request, and the caller is treated as having no identity.
+- An `IAuthorizationPolicyProvider` that throws while `MapTracon` resolves a
+  role policy is now logged as a `Warning` in the `Tracon.RolePolicies`
+  category. The role is still treated as not registered. With
+  `RequireRolePolicies` on, the startup exception carries the provider's
+  exception as `InnerException`.
 - `TenantProviderCredentialResolver` takes `IOptions<TraconOptions>` as a third
   constructor argument, and `ValidatePrefix(string)` is replaced by
   `ValidateKeyName(string tenantId, string configurationKeyName)`. The old
@@ -142,6 +207,14 @@ renamed to the version and the date it shipped on, and a fresh empty
 `## [Unreleased]` is opened above it, so a section always names artifacts that
 actually exist. Until then the release rehearsal and the GitHub release body
 both read the notes from here.
+
+### Deprecated
+
+- The `net8.0` and `net9.0` targets. Microsoft support for .NET 8 and .NET 9
+  ends on 2026-11-10, and the first Tracon release after that date drops both
+  targets from every package; `net10.0` stays. An urgent security release may
+  still carry them. Move an application that targets `net8.0` or `net9.0` to
+  `net10.0` before you take that release.
 
 ## [1.0.0-preview.2] - 2026-09-20
 

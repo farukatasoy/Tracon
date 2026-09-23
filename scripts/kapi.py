@@ -613,12 +613,20 @@ PROVIDER_TEST_PROJECTS: tuple[str, ...] = (
 )
 
 TEST_PROJECTS: dict[str, tuple[str, ...]] = {
-    "Tracon.Abstractions": ("Tracon.Core.UnitTests",),
-    "Tracon.Core": ("Tracon.Core.UnitTests", "Tracon.AspNetCore.FunctionalTests"),
+    # Tracon.Sql.Shared.UnitTests burada da secilir: kayit paritesi kapisinin
+    # (SqlProviderRegistrationParityTests) yakaladigi iki vaka -- uc
+    # saglayicida birden unutulan yeni store ve yalniz AddTracon'a eklenen
+    # Auditing* dekoratoru -- yalniz Core/Abstractions degisikliginde dogar.
+    "Tracon.Abstractions": ("Tracon.Core.UnitTests", "Tracon.Sql.Shared.UnitTests"),
+    "Tracon.Core": ("Tracon.Core.UnitTests", "Tracon.AspNetCore.FunctionalTests", "Tracon.Sql.Shared.UnitTests"),
     "Tracon.Generators": ("Tracon.Generators.UnitTests",),
-    "Tracon.PostgreSql": ("Tracon.PostgreSql.IntegrationTests",),
-    "Tracon.SqlServer": ("Tracon.SqlServer.IntegrationTests",),
-    "Tracon.Sqlite": ("Tracon.Sqlite.IntegrationTests",),
+    # Uc SQL saglayicisinin ortak kapilari (kayit paritesi, migration paritesi,
+    # SQL metni snapshot'i) Tracon.Sql.Shared.UnitTests'te yasar. Tek bir Use*
+    # dosyasina dokunan degisiklik onlari da secmezse kayma yalniz tam kosumda
+    # gorunur.
+    "Tracon.PostgreSql": ("Tracon.PostgreSql.IntegrationTests", "Tracon.Sql.Shared.UnitTests"),
+    "Tracon.SqlServer": ("Tracon.SqlServer.IntegrationTests", "Tracon.Sql.Shared.UnitTests"),
+    "Tracon.Sqlite": ("Tracon.Sqlite.IntegrationTests", "Tracon.Sql.Shared.UnitTests"),
     "Tracon.OpenAI": ("Tracon.OpenAI.UnitTests", "Tracon.Generators.UnitTests"),
     "Tracon.Anthropic": ("Tracon.Anthropic.UnitTests",),
     "Tracon.Google": ("Tracon.Google.UnitTests",),
@@ -964,7 +972,7 @@ def full_solution_test_command() -> Command:
     three starved each other, two ran green three times once the tests stopped
     sleeping fixed times (Phase 184).
     """
-    # `-- --report-trx` ci.yml:183 ile AYNI: dusen testin adi makine
+    # `-- --report-trx` ci.yml "Test et" adimlariyla AYNI: dusen testin adi makine
     # okunur hale gelir ve `isolate_failed_tests` onu izole tekrar kosar.
     # Olculdu 2026-09-04: TRX yazimi kosum suresini olcum gurultusunun
     # altinda etkiler (557 sn TRX'li, 561 sn TRX'siz).

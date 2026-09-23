@@ -34,7 +34,10 @@ internal static class WebhookEndpoints
             .WithName("TraconListWebhooks")
             .WithTags("Tracon", "Webhooks")
             .WithSummary("Lists a tenant's webhook subscriptions.")
-            .WithDescription("The response carries no secret; only the NAME of the signing key is returned.");
+            .WithDescription(
+                "The response carries no signing secret; only the NAME of the signing key is " +
+                "returned. Extra headers are returned with their NAMES only: every header value " +
+                "is replaced with '***'.");
 
         builder.MapGet("/api/webhooks/{name}", GetAsync)
             .RequireRole(roles.Admin)
@@ -45,7 +48,8 @@ internal static class WebhookEndpoints
             .WithDescription(
                 "As in the list, no signing secret is returned — only the configuration key its " +
                 "value is read from at delivery time. A secret is never stored in the database " +
-                "and never leaves through this API. An unknown name returns 404.");
+                "and never leaves through this API. Extra header values are replaced with '***'. " +
+                "An unknown name returns 404.");
 
         builder.MapPut("/api/webhooks/{name}", SaveAsync)
             .RequireRole(roles.Admin)
@@ -60,7 +64,10 @@ internal static class WebhookEndpoints
                 "addresses are re-checked again at delivery time. 'secretConfigurationKey' " +
                 "must be under the configured allowed prefix and inside the tenant's own key " +
                 "space — '{prefix}{tenantId}:...'; a flat name directly under the prefix belongs " +
-                "to the default tenant (400 otherwise).");
+                "to the default tenant (400 otherwise). Header values are stored and sent as " +
+                "given, but the saved subscription comes back with every header value replaced " +
+                "by '***'. The save replaces the whole subscription, so send every header with " +
+                "its real value; a header whose value is '***' is rejected with 400.");
 
         builder.MapDelete("/api/webhooks/{name}", DeleteAsync)
             .RequireRole(roles.Admin)
@@ -107,7 +114,7 @@ internal static class WebhookEndpoints
         var subscriptions = await store.ListSubscriptionsAsync(tenants.TenantId, cancellationToken)
             .ConfigureAwait(false);
 
-        return TypedResults.Ok(subscriptions);
+        return TypedResults.Ok<IReadOnlyList<WebhookSubscription>>([.. subscriptions.Select(MaskHeaders)]);
     }
 
     private static async Task<Results<Ok<WebhookSubscription>, ProblemHttpResult>> GetAsync(
@@ -119,7 +126,7 @@ internal static class WebhookEndpoints
         var subscription = await store.GetSubscriptionAsync(tenants.TenantId, name, cancellationToken)
             .ConfigureAwait(false);
 
-        return subscription is null ? NotFound(name) : TypedResults.Ok(subscription);
+        return subscription is null ? NotFound(name) : TypedResults.Ok(MaskHeaders(subscription));
     }
 
     private static async Task<Results<Ok<WebhookSubscription>, ProblemHttpResult>> SaveAsync(
@@ -188,6 +195,14 @@ internal static class WebhookEndpoints
             return Invalid("At least one event ('events') must be selected.");
         }
 
+        // 🚨 A read masks every header value, so a client doing read-modify-
+        // write would otherwise store the mask over the real value and the
+        // receiver would reject every delivery.
+        if (HeaderValueMask.FindMaskedHeader(request.Headers) is { } maskedHeader)
+        {
+            return Invalid(HeaderValueMask.DescribeRejection(maskedHeader));
+        }
+
         var unknown = request.Events.Where(eventType => !WebhookEvents.IsKnown(eventType)).ToList();
 
         if (unknown.Count > 0)
@@ -235,8 +250,14 @@ internal static class WebhookEndpoints
             after: Describe(saved),
             cancellationToken).ConfigureAwait(false);
 
-        return TypedResults.Ok(saved);
+        return TypedResults.Ok(MaskHeaders(saved));
     }
+
+    /// <summary>Returns a subscription the way every response carries it: header names only.</summary>
+    /// <param name="subscription">The stored subscription.</param>
+    /// <returns>A copy whose header values are all masked; the stored record is not changed.</returns>
+    private static WebhookSubscription MaskHeaders(WebhookSubscription subscription)
+        => subscription with { Headers = HeaderValueMask.Apply(subscription.Headers) };
 
     private static async Task<Results<NoContent, ProblemHttpResult>> DeleteAsync(
         string name,
@@ -457,7 +478,11 @@ public sealed record WebhookSaveRequest
     /// </summary>
     public string? SecretConfigurationKey { get; init; }
 
-    /// <summary>Additional headers to add to every request.</summary>
+    /// <summary>
+    /// Additional headers to add to every request. Send every header with its
+    /// real value on each save: a response masks the values as <c>***</c>,
+    /// and a value of <c>***</c> is rejected with <c>400</c>.
+    /// </summary>
     public IReadOnlyDictionary<string, string>? Headers { get; init; }
 
     /// <summary>Whether the subscription is enabled.</summary>

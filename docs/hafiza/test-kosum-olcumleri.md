@@ -257,3 +257,22 @@ katlanması gereken  : ToLowerInvariant 48,0 B/call · hızlı yol 48,0 B/call
 ve geri alındı. Ölçüm `GC.GetAllocatedBytesForCurrentThread()` ile yapıldı;
 🚨 sonucu tüketmezsen (`sink += ...Length`) JIT çağrıyı tamamen eler ve her iki
 taraf da yanıltıcı biçimde `0 B` görünür.
+
+## CI iş süreleri ve `timeout-minutes` — 2026-09-23
+
+Kaynak: GitHub Actions API (anonim, public repo), 16 koşum (09-06…09-21).
+Sınır = en uzun × ~2, 5 dk'ya yukarı; 1 dk altındaki işte taban 10 dk.
+
+| İş / adım | En uzun (dk) | Sınır |
+|---|---:|---:|
+| `build` windows · ubuntu | 49,1 · 37,9 | 100 |
+| Test adımı ubuntu (Faz 183 öncesi) | 24,6 | 60 |
+| Test adımı windows | 30,9 | 65 |
+| Kapasite smoke | 4,2 | 10 |
+| `pack` · `release-dryrun` · `site` | 7,4 · 5,7 · 7,9 | 15 · 15 · 20 |
+| `publish` · `npm-publish` · `github-release` | 0,5 · 0,3 · 0,1 | 10 |
+
+🚨 `ci.yml` iş iş büyüdü ve hiçbir kapı sınır istemedi: 233 koşum boyunca her iş
+GitHub'ın 360 dk varsayılanını taşıdı. Kapı artık `zaman_siniri_olmayan_isler`
+(`dokuman-bakim.py --denetle`). Ubuntu test sınırı Faz 183'ün üç TFM bacağını
+tahminle kapsar (yerel 782 → 910 sn); bacaklı ilk CI koşumunda yeniden ölç.

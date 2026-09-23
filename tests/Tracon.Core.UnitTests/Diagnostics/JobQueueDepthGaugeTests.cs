@@ -7,23 +7,37 @@ namespace Tracon.Core.UnitTests.Diagnostics;
 /// <summary>
 /// Phase 133.4: the <c>tracon.job.queue.depth</c> gauge is off by default,
 /// caches its reads, carries no tenant tag, and never breaks the worker when
-/// the store fails.
+/// the store fails. A scrape only reads the cache; a background refresh on a
+/// timer queries the store.
 /// </summary>
+/// <remarks>
+/// Every enabled test waits for the first refresh before it scrapes. Before
+/// that refresh the gauge publishes nothing by design, so a test that scraped
+/// at once would prove nothing about the depth.
+/// </remarks>
 public sealed class JobQueueDepthGaugeTests
 {
     [Fact]
-    public void No_measurement_is_produced_and_the_store_is_not_queried_while_disabled()
+    public async Task No_measurement_is_produced_and_the_store_is_not_queried_while_disabled()
     {
+        var clock = new TriggerableTimeProvider();
         var store = new CountingJobStore();
+        await EnqueueAsync(store, lane: "default", count: 1);
 
         using var meterFactory = new TestMeterFactory();
-        using var observer = Observer(store, enabled: false, meterFactory);
+        using var observer = Observer(store, enabled: false, meterFactory, clock);
         using var collector = new GaugeCollector(meterFactory.Meter);
 
-        collector.Trigger(TraconDiagnostics.JobQueueDepthGaugeName).ShouldBeEmpty();
+        await observer.StartAsync(TestContext.Current.CancellationToken);
 
-        // Default off means DEFAULT OFF: not one query reaches the store.
+        // Default off means DEFAULT OFF: the refresher returns at once, creates
+        // no timer, and not one query reaches the store.
+        await observer.ExecuteTask!.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
+        clock.ActiveTimerCount.ShouldBe(0);
+
+        collector.Trigger(TraconDiagnostics.JobQueueDepthGaugeName).ShouldBeEmpty();
         store.DepthCalls.ShouldBe(0);
+        observer.CompletedRefreshes.ShouldBe(0);
     }
 
     [Fact]
@@ -36,6 +50,8 @@ public sealed class JobQueueDepthGaugeTests
         using var meterFactory = new TestMeterFactory();
         using var observer = Observer(store, enabled: true, meterFactory);
         using var collector = new GaugeCollector(meterFactory.Meter);
+
+        await StartAndWaitForRefreshAsync(observer);
 
         var measurements = collector.Trigger(TraconDiagnostics.JobQueueDepthGaugeName);
 
@@ -54,6 +70,8 @@ public sealed class JobQueueDepthGaugeTests
         using var observer = Observer(store, enabled: true, meterFactory);
         using var collector = new GaugeCollector(meterFactory.Meter);
 
+        await StartAndWaitForRefreshAsync(observer);
+
         var measurements = collector.Trigger(TraconDiagnostics.JobQueueDepthGaugeName);
 
         // Queue depth is an operator signal about a pool that leases across
@@ -65,30 +83,31 @@ public sealed class JobQueueDepthGaugeTests
     }
 
     [Fact]
-    public async Task A_second_scrape_inside_the_refresh_interval_does_not_query_the_store()
+    public async Task Scrapes_read_the_cache_and_only_a_timer_tick_queries_the_store()
     {
-        var clock = new ManualTimeProvider(new DateTimeOffset(2026, 9, 2, 12, 0, 0, TimeSpan.Zero));
+        var clock = new TriggerableTimeProvider();
         var store = new CountingJobStore();
         await EnqueueAsync(store, lane: "default", count: 1);
 
         using var meterFactory = new TestMeterFactory();
-        using var observer = Observer(store, enabled: true, meterFactory, clock: clock);
+        using var observer = Observer(store, enabled: true, meterFactory, clock);
         using var collector = new GaugeCollector(meterFactory.Meter);
 
-        collector.Trigger(TraconDiagnostics.JobQueueDepthGaugeName);
-        store.DepthCalls.ShouldBe(1);
+        await StartAndWaitForRefreshAsync(observer);
+        store.DepthCalls.ShouldBe(1, "the refresher reads once at start");
 
-        clock.Advance(TimeSpan.FromSeconds(10));
         collector.Trigger(TraconDiagnostics.JobQueueDepthGaugeName);
-        store.DepthCalls.ShouldBe(1, "the 30 s cache window has not elapsed");
+        collector.Trigger(TraconDiagnostics.JobQueueDepthGaugeName);
+        store.DepthCalls.ShouldBe(1, "a scrape only reads the cache");
 
-        clock.Advance(TimeSpan.FromSeconds(25));
-        collector.Trigger(TraconDiagnostics.JobQueueDepthGaugeName);
-        store.DepthCalls.ShouldBe(2, "the cache went stale, so exactly one refresh happened");
+        clock.TriggerAll();
+        await WaitUntil.TrueAsync(() => observer.CompletedRefreshes >= 2);
+
+        store.DepthCalls.ShouldBe(2, "one timer tick is exactly one refresh");
     }
 
     [Fact]
-    public void A_failing_depth_query_is_swallowed_and_the_gauge_stays_readable()
+    public async Task A_failing_depth_query_is_swallowed_and_the_gauge_stays_readable()
     {
         var store = new ThrowingJobStore();
 
@@ -96,8 +115,12 @@ public sealed class JobQueueDepthGaugeTests
         using var observer = Observer(store, enabled: true, meterFactory);
         using var collector = new GaugeCollector(meterFactory.Meter);
 
-        // Observability must not break functionality: the scrape returns empty
-        // rather than propagating the store's failure to the collector.
+        await StartAndWaitForRefreshAsync(observer);
+
+        // Observability must not break functionality: the refresher survives
+        // the store's failure, and the scrape returns empty rather than
+        // propagating it to the collector.
+        observer.ExecuteTask!.IsCompleted.ShouldBeFalse("a failed refresh must not end the refresher");
         Should.NotThrow(() => collector.Trigger(TraconDiagnostics.JobQueueDepthGaugeName))
             .ShouldBeEmpty();
     }
@@ -105,23 +128,56 @@ public sealed class JobQueueDepthGaugeTests
     [Fact]
     public async Task A_transient_failure_keeps_the_previous_value_instead_of_dropping_to_zero()
     {
-        var clock = new ManualTimeProvider(new DateTimeOffset(2026, 9, 2, 12, 0, 0, TimeSpan.Zero));
+        var clock = new TriggerableTimeProvider();
         var store = new CountingJobStore();
         await EnqueueAsync(store, lane: "default", count: 4);
 
         using var meterFactory = new TestMeterFactory();
-        using var observer = Observer(store, enabled: true, meterFactory, clock: clock);
+        using var observer = Observer(store, enabled: true, meterFactory, clock);
         using var collector = new GaugeCollector(meterFactory.Meter);
+
+        await StartAndWaitForRefreshAsync(observer);
 
         collector.Trigger(TraconDiagnostics.JobQueueDepthGaugeName)
             .ShouldHaveSingleItem().Value.ShouldBe(4);
 
-        store.FailNextRefresh = true;
-        clock.Advance(TimeSpan.FromMinutes(1));
+        store.NextFailure = new TraconException("simulated store outage");
+        clock.TriggerAll();
+        await WaitUntil.TrueAsync(() => observer.CompletedRefreshes >= 2);
 
         // A blip must not read as "the queue drained" on a dashboard.
         collector.Trigger(TraconDiagnostics.JobQueueDepthGaugeName)
             .ShouldHaveSingleItem().Value.ShouldBe(4);
+    }
+
+    [Fact]
+    public async Task A_cancellation_that_is_not_the_hosts_is_a_failure_and_the_refresher_keeps_running()
+    {
+        var clock = new TriggerableTimeProvider();
+        var store = new CountingJobStore();
+        await EnqueueAsync(store, lane: "default", count: 2);
+
+        using var meterFactory = new TestMeterFactory();
+        using var observer = Observer(store, enabled: true, meterFactory, clock);
+        using var collector = new GaugeCollector(meterFactory.Meter);
+
+        await StartAndWaitForRefreshAsync(observer);
+
+        // A store written over HTTP reports its client timeout as a
+        // TaskCanceledException. The host is not stopping, so this is an
+        // ordinary failure: the refresher must log it and keep going, not end.
+        store.NextFailure = new TaskCanceledException("simulated client timeout");
+        clock.TriggerAll();
+        await WaitUntil.TrueAsync(() => observer.CompletedRefreshes >= 2);
+
+        observer.ExecuteTask!.IsCompleted.ShouldBeFalse("a foreign cancellation must not end the refresher");
+
+        await EnqueueAsync(store, lane: "default", count: 1);
+        clock.TriggerAll();
+        await WaitUntil.TrueAsync(() => observer.CompletedRefreshes >= 3);
+
+        collector.Trigger(TraconDiagnostics.JobQueueDepthGaugeName)
+            .ShouldHaveSingleItem().Value.ShouldBe(3);
     }
 
     [Fact]
@@ -152,11 +208,15 @@ public sealed class JobQueueDepthGaugeTests
         using var observer = new JobQueueDepthObserver(
             store,
             options,
+            new SchemaReadyGate([]),
             meterFactory,
+            timeProvider: new TriggerableTimeProvider(),
             logger: NullLogger<JobQueueDepthObserver>.Instance,
             metrics: metrics);
 
         using var collector = new GaugeCollector(meterFactory.Meter);
+
+        await StartAndWaitForRefreshAsync(observer);
 
         var lanes = collector.Trigger(TraconDiagnostics.JobQueueDepthGaugeName)
             .Select(static m => (string?)m.Tags.GetValueOrDefault(TraconDiagnostics.Tags.Lane))
@@ -170,11 +230,81 @@ public sealed class JobQueueDepthGaugeTests
         lanes.ShouldBe(["alpha", "beta", "other"]);
     }
 
+    [Fact]
+    public async Task A_scrape_never_waits_for_the_store()
+    {
+        var clock = new TriggerableTimeProvider();
+        var store = new CountingJobStore { Stall = new(TaskCreationOptions.RunContinuationsAsynchronously) };
+        await EnqueueAsync(store, lane: "default", count: 1);
+
+        using var meterFactory = new TestMeterFactory();
+        using var observer = Observer(store, enabled: true, meterFactory, clock: clock);
+        using var collector = new GaugeCollector(meterFactory.Meter);
+
+        await observer.StartAsync(TestContext.Current.CancellationToken);
+
+        try
+        {
+            // The scrape thread serves every instrument of the MeterProvider. A
+            // depth query that never answers must not hold it: the scrape reads
+            // the cache only, and no refresh has finished yet.
+            var scrape = Task.Run(
+                () => collector.Trigger(TraconDiagnostics.JobQueueDepthGaugeName),
+                TestContext.Current.CancellationToken);
+
+            (await scrape.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken))
+                .ShouldBeEmpty();
+
+            // The stopping token reaches the store, so a stuck refresh does not
+            // hold the host's shutdown either.
+            await WaitUntil.TrueAsync(() => store.DepthCalls >= 1);
+            await observer.StopAsync(TestContext.Current.CancellationToken);
+
+            observer.ExecuteTask!.IsCompletedSuccessfully.ShouldBeTrue();
+        }
+        finally
+        {
+            store.Stall.TrySetResult();
+        }
+    }
+
+    [Fact]
+    public async Task The_first_query_waits_until_the_schema_is_ready()
+    {
+        var clock = new TriggerableTimeProvider();
+        var store = new CountingJobStore();
+        await EnqueueAsync(store, lane: "default", count: 1);
+
+        // A SQL provider is registered, so the gate stays closed until the
+        // migration runner marks the schema ready.
+        var gate = new SchemaReadyGate([new SqlPersistenceRegistrationMarker("SQLite")]);
+
+        using var meterFactory = new TestMeterFactory();
+        using var observer = Observer(store, enabled: true, meterFactory, clock, gate);
+        using var collector = new GaugeCollector(meterFactory.Meter);
+
+        await observer.StartAsync(TestContext.Current.CancellationToken);
+
+        // 🚨 The host starts this refresher BEFORE a persistence provider
+        // registered later in the chain has migrated. No query and no timer
+        // may exist until the gate opens.
+        await Task.Delay(TimeSpan.FromMilliseconds(200), TestContext.Current.CancellationToken); // delay: negative
+        store.DepthCalls.ShouldBe(0);
+        clock.ActiveTimerCount.ShouldBe(0);
+
+        gate.MarkReady();
+        await WaitUntil.TrueAsync(() => observer.CompletedRefreshes >= 1);
+
+        store.DepthCalls.ShouldBe(1);
+        collector.Trigger(TraconDiagnostics.JobQueueDepthGaugeName).ShouldHaveSingleItem().Value.ShouldBe(1);
+    }
+
     private static JobQueueDepthObserver Observer(
         IJobStore store,
         bool enabled,
         IMeterFactory meterFactory,
-        ManualTimeProvider? clock = null)
+        TimeProvider? clock = null,
+        SchemaReadyGate? gate = null)
         => new(
             store,
             new StaticOptionsMonitor<TraconOptions>(new TraconOptions
@@ -185,9 +315,18 @@ public sealed class JobQueueDepthGaugeTests
                     JobQueueDepthRefreshInterval = TimeSpan.FromSeconds(30),
                 },
             }),
+            gate ?? new SchemaReadyGate([]),
             meterFactory,
-            timeProvider: clock,
+            // A timer that fires only on request: no real 30 s tick can add a
+            // refresh the test did not ask for.
+            timeProvider: clock ?? new TriggerableTimeProvider(),
             logger: NullLogger<JobQueueDepthObserver>.Instance);
+
+    private static async Task StartAndWaitForRefreshAsync(JobQueueDepthObserver observer)
+    {
+        await observer.StartAsync(TestContext.Current.CancellationToken);
+        await WaitUntil.TrueAsync(() => observer.CompletedRefreshes >= 1);
+    }
 
     private static async Task EnqueueAsync(IJobStore store, string lane, int count, string tenantId = "tenant-a")
     {
@@ -221,24 +360,49 @@ public sealed class JobQueueDepthGaugeTests
                 && Equals(m.Tags.GetValueOrDefault(TraconDiagnostics.Tags.JobStatus), status.ToString()))
             .Sum(static m => m.Value);
 
-    /// <summary>Wraps the in-memory store and counts the depth queries it receives.</summary>
+    /// <summary>
+    /// Wraps the in-memory store and counts the depth queries it receives. The
+    /// refresh runs on a background task, so the counter is read and written
+    /// atomically. <see cref="NextFailure"/> fails the next query once; when
+    /// <see cref="Stall"/> is set, a depth query waits for it.
+    /// </summary>
     private sealed class CountingJobStore : DelegatingJobStore
     {
-        public int DepthCalls { get; private set; }
+        private int _depthCalls;
+        private Exception? _nextFailure;
 
-        public bool FailNextRefresh { get; set; }
+        public int DepthCalls => Volatile.Read(ref _depthCalls);
+
+        public Exception? NextFailure
+        {
+            get => Volatile.Read(ref _nextFailure);
+            set => Volatile.Write(ref _nextFailure, value);
+        }
+
+        public TaskCompletionSource? Stall { get; init; }
 
         public override ValueTask<IReadOnlyList<JobQueueDepth>> GetQueueDepthAsync(
             CancellationToken cancellationToken = default)
         {
-            DepthCalls++;
+            Interlocked.Increment(ref _depthCalls);
 
-            if (FailNextRefresh)
+            if (Interlocked.Exchange(ref _nextFailure, null) is { } failure)
             {
-                throw new TraconException("simulated store outage");
+                throw failure;
             }
 
-            return Inner.GetQueueDepthAsync(cancellationToken);
+            return Stall is { } stall
+                ? StalledDepthAsync(stall, cancellationToken)
+                : Inner.GetQueueDepthAsync(cancellationToken);
+        }
+
+        private async ValueTask<IReadOnlyList<JobQueueDepth>> StalledDepthAsync(
+            TaskCompletionSource stall,
+            CancellationToken cancellationToken)
+        {
+            await stall.Task.WaitAsync(cancellationToken);
+
+            return await Inner.GetQueueDepthAsync(cancellationToken);
         }
     }
 

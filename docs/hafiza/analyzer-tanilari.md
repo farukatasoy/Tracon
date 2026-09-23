@@ -63,6 +63,17 @@
   icine al; nullable logger icin `logger?.IsEnabled(...) is true` kullan.
   Ayni tani her target framework icin tekrarlandigi icin 10 vaka 30 hata
   gorunur.
+- **🚨 Tanı seviyesi yorumundaki "Faz N'de açılır" vaadi hiçbir kapanış
+  listesine girmez** (2026-09-23): `.editorconfig` CA1848 yorumu Faz 0'dan beri
+  "Faz 6'da sıcak yollar için açılır" diyordu; Faz 6 planı bunu hiç kapsamadı ve
+  vaat 184 faz boyunca bayat kaldı. Aynı sınıf: xUnit1051 yorumunun "uzun test
+  eklenirse açılır" koşulu gerçekleşti ve kimse açmadı; kök `Directory.Build.props`
+  "Faz 7'de Shipped'e taşınır" diyordu (K-603: `1.0.0` GA). Yorum artık ölçümü
+  ve yeniden açılma koşulunu taşır, vaat taşımaz. CA1848 ölçümü:
+  `git grep -nE '\.Log(Trace|Debug|Information|Warning|Error|Critical)\(|[lL]ogger\.Log\(' -- 'src/*.cs' | wc -l`
+  → 212. "Başarı yolunda log yok" DEME: run/session/metric başına koşullu
+  Information/Debug vardır (katalog dışı model BYOK'ta her run); per-token ve
+  per-event döngüde yoktur. Argüman maliyetini CA1873 zorlar (yukarıdaki vaka).
 - **`CA1875` için `Regex.Matches(...).Count` kullanma.** Yalnız eşleşme sayısı
   gerekiyorsa `Regex.Count(...)` kullan; `MatchCollection` üretme. Analyzer
   sürümü veya işletim sistemi farkı nedeniyle yerel incremental build tanıyı

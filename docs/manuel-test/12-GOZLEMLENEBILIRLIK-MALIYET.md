@@ -1046,7 +1046,8 @@ AKSİNE, bu ek bir kaynak tüketimidir ve açıkça istenmelidir).
 **Beklenen sonuç**
 - İkisi de listede İSİM olarak GÖRÜNEBİLİR (enstrüman her zaman kayıtlıdır)
   ama HİÇBİR ölçüm/etiket YAYMAZ — `Snapshot()` bayrak kapalıyken boş liste
-  döner, veritabanına hiç gidilmez.
+  döner. Arka plan tazeleyicisi başlangıçta hemen döner: zamanlayıcı kurulmaz,
+  veritabanına hiç gidilmez.
 
 ---
 
@@ -1069,15 +1070,22 @@ az bir çalıştırma yapılmış olmalı.
 
 **Adımlar**
 1. `dotnet-counters monitor -p <pid> --counters Tracon` çalıştır, en az
-   10 saniye bekle (önbellek tazelenmesi için).
+   10 saniye bekle (arka plan tazelemesi için).
 2. `tracon.quota.usage`/`tracon.quota.limit` satırlarını oku.
+3. `playground/support` ile bir çalıştırma daha yap, 10 saniye bekle,
+   `usage` satırını tekrar oku.
 
 **Beklenen sonuç**
-- İkisi de artık SIFIRDAN FARKLI değer(ler) taşır; etiketler arasında
+- Uygulama açıldıktan hemen sonraki İLK okuma boş olabilir: ölçer yalnız
+  önbelleği okur ve ilk tazeleme henüz bitmemiş olabilir. Bu bir hata
+  DEĞİLDİR.
+- Adım 2'de ikisi de SIFIRDAN FARKLI değer(ler) taşır; etiketler arasında
   `quota_scope` (boş = kiracı geneli), `quota_period` (`Daily`),
   `quota_metric` (`Runs`) görünür.
 - `usage`'ın değeri o ana kadarki run sayısına, `limit`'in değeri `1000`'e
   eşittir (`MT-OBS-035`'in tanımladığı kural).
+- Adım 3'te `usage` bir artar. Değer en çok bir `QuotaUsageRefreshInterval`
+  (burada 5 sn) gecikir; okuma veritabanını hiç beklemez.
 
 ---
 

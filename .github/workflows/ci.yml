@@ -28,10 +28,32 @@ env:
   # Linux'ta da patlar (16 test hatası).
   PYTHONUTF8: 1
 
+# ---------------------------------------------------------------------------
+# Zaman sinirlari (2026-09-23, kusur-giderme). Her is `timeout-minutes`
+# tasir. Sinir yoksa GitHub'in 360 dk varsayilani gecerlidir: asilan bir test
+# uygulamasi iki runner'i alti saat yakar ve log hangi uygulamanin asildigini
+# soylemez. Kapi: `dokuman-bakim.py --denetle` ("Workflow is zaman siniri")
+# siniri olmayan her isi kirmizi sayar.
+#
+# Kural: sinir = olculen en uzun surenin ~2 kati, 5 dk'ya yukari yuvarlanir.
+# Bir dakikanin altindaki islerde taban 10 dk'dir: kurulum adimlarinin ag
+# gecikmesi yanlis bir kirmizi uretmesin. Olcum: GitHub Actions API, 16 kosum
+# (2026-09-06..21), is ve adim sureleri; tablo
+# `docs/hafiza/test-kosum-olcumleri.md` icindedir. Bir is sinirinin yarisini
+# gecerse once yeniden olc, sonra yukselt. `-maxcpucount:1` -> 2 gecisi
+# (F-267) sureyi kisaltir; sinirlar iki ayari da kapsar.
+#
+# Adim siniri yalniz test ve kapasite adimlarindadir. Adim siniri yalniz o
+# adimi kirar; sonraki `if: always()` yukleme adimlari yine kosar ve biten test
+# uygulamalarinin TRX'i artifact'ta kalir. Is siniri ise isin tamamini iptal
+# eder.
+# ---------------------------------------------------------------------------
 jobs:
   build:
     name: Derle ve test et (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    # Olculen en uzun: 49,1 dk (windows, 2026-09-09); ubuntu 37,9 dk.
+    timeout-minutes: 100
     strategy:
       fail-fast: false
       matrix:
@@ -230,6 +252,9 @@ jobs:
       # SKIPPED olarak gorunur (Assert.SkipWhen); ubuntu ayagi onlari kosar.
       - name: Test et (tum projeler)
         if: matrix.os == 'ubuntu-latest'
+        # Olculen en uzun 24,6 dk, ama Faz 183'un uc TFM bacagindan ONCE.
+        # Bacaklar yerel tam kosumu 782 -> 910 sn uzatti (%16): 24,6 x 1,16 x 2 = 57.
+        timeout-minutes: 60
         # xunit.v3 Microsoft Testing Platform kullanir; rapor bayraklari VSTest'ten farklidir.
         # `--` sonrasi gelen argumanlar dogrudan test uygulamasina gecer.
         # TRX ciktisi test ikilisinin yanindaki TestResults klasorune yazilir.
@@ -240,6 +265,8 @@ jobs:
 
       - name: Test et (Docker gerektirmeyenler)
         if: matrix.os == 'windows-latest'
+        # Olculen en uzun 30,9 dk (2026-09-06, kirmizi kosum); yesil kosumda 29,0.
+        timeout-minutes: 65
         run: dotnet test Tracon.no-docker.slnf -c Release --no-build -maxcpucount:1 -- --report-trx
 
       # Faz 166. Kapasite APARATININ kisa dogruluk kosumu - bir yuk olcumu
@@ -256,6 +283,8 @@ jobs:
       # kontrolden ayirt edilemez.
       - name: Kapasite smoke (packed tuketici)
         if: matrix.os == 'ubuntu-latest'
+        # Olculen en uzun 4,2 dk.
+        timeout-minutes: 10
         run: |
           python3 scripts/kapi.py kapasite \
             --profil smoke \
@@ -281,6 +310,8 @@ jobs:
     name: Paketle
     runs-on: ubuntu-latest
     needs: build
+    # Olculen en uzun 7,4 dk.
+    timeout-minutes: 15
 
     steps:
       - name: Kaynak kodu al
@@ -335,6 +366,8 @@ jobs:
     name: Yayin provasi (kapi.py yayin --kuru)
     runs-on: ubuntu-latest
     needs: build
+    # Olculen en uzun 5,7 dk.
+    timeout-minutes: 15
 
     steps:
       - name: Kaynak kodu al
@@ -387,6 +420,9 @@ jobs:
     name: NuGet.org'a yayinla
     runs-on: ubuntu-latest
     needs: [pack, release-dryrun, npm-publish]
+    # Olculen en uzun 0,5 dk; taban 10 dk. Sinir push'un ortasinda keserse bir
+    # kisim paket yayinda kalir; `--skip-duplicate` isi yeniden kosmayi guvenli yapar.
+    timeout-minutes: 10
     permissions:
       contents: read
       id-token: write
@@ -448,6 +484,9 @@ jobs:
     name: npm.org'a yayinla
     runs-on: ubuntu-latest
     needs: [build, release-dryrun]
+    # Olculen en uzun 0,3 dk; taban 10 dk. Yeniden kosum guvenlidir: var olan
+    # surum atlanir ("Surum zaten yayinlanmis mi").
+    timeout-minutes: 10
     if: startsWith(github.ref, 'refs/tags/v')
     environment: npm
 
@@ -568,6 +607,8 @@ jobs:
     name: GitHub release olustur
     runs-on: ubuntu-latest
     needs: [publish, npm-publish]
+    # Olculen en uzun 0,1 dk; taban 10 dk.
+    timeout-minutes: 10
     if: startsWith(github.ref, 'refs/tags/v')
 
     permissions:
@@ -662,6 +703,8 @@ jobs:
     name: Dokuman sitesi kapilari
     runs-on: ubuntu-latest
     needs: build
+    # Olculen en uzun 7,9 dk.
+    timeout-minutes: 20
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
 
     permissions:

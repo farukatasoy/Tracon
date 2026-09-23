@@ -66,6 +66,7 @@ Parametre sayisi, sorgu yazimi, sema farklari (`NULL` benzersizligi,
 
 - **SQL Server'i yerelde ayaga kaldirma** (imaj secimi, tekrar dene, sinif basina paylasilan sema): [`sql-server-yerel-test.md`](sql-server-yerel-test.md).
 - **Yeni saglayici eklerken sozlesme testi YAZILMAZ**, yalnizca kosucu sinif turetilir: [`test-altyapisi.md`](test-altyapisi.md).
+- **🚨 Yeni store ÜÇ `Use*` metoduna da kaydedilir; unutulan satır SESSİZDİR** (2026-09-23): `AddTracon()` bellek içi varsayılanı önceden kaydeder, eksik `ReplaceTraconDefault` hata vermez ve veri süreçle kaybolur. Ölçüldü: `UseSqlite`'tan `IRunScoreStore` satırı silindi, SQLite'ın 862 testi yeşil kaldı; `Auditing*` yerine çıplak `Sql*Store` da öyle. Kapı: `SqlProviderRegistrationParityTests`. Adı `Store` ile bitmeyen sözleşme testin `ContractsNotNamedStore` listesine girer; sağlayıcının kaydettiği her `Abstractions`/`Core`/MAF tipi ya o listede ya `NotPersistenceContracts`'ta olmalıdır, yoksa sınıflama testi düşer (mutasyonla ölçüldü: `IAuditLog` listeden çıkınca YALNIZ o test kırmızı — diğer dördü onu görmez).
 
 
 ## SQLite'a ozgu tuzaklar

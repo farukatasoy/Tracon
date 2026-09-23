@@ -83,7 +83,12 @@ fazdan sonra dokümanlar gözden geçirilir.
   onunla tek başına çalışabilmeli
 - Karar defterine yalnız public API/compatibility, güvenlik veya kiracı sınırı,
   kalıcı veri/migration ya da geri dönüşü pahalı sistem kararı girer. Yerel
-  tercih faz dokümanında veya kod yorumunda kalır; `K-*` açılmaz.
+  tercih faz dokümanında veya kod yorumunda kalır; `K-*` açılmaz. `K-855`'ten
+  itibaren her satır başlıktan sonra `*(kategori: <değer>)*` taşır — değer
+  `public-api` · `güvenlik` (kiracı sınırı dahil) · `kalıcı-veri` (migration
+  dahil) · `geri-dönüşü-pahalı`; `dokuman-bakim.py --denetle` zorlar. §1'deki
+  numarasız "reddedilen iş" satırları kategori almaz. Kategori dışı kaydın yeri:
+  `faz-tamamlama` Adım 8.
 - Keşfedilen tuzak **alan dosyasına** (`docs/hafiza/`) yazılır, `MEMORY.md`'ye değil
 - Birikimli anlatı `docs/arsiv/`'e gider — sıcak yol büyümezse her oturum ucuz başlar
 

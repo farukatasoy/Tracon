@@ -1,5 +1,4 @@
 using System.Diagnostics.Metrics;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -10,19 +9,19 @@ namespace Tracon;
 /// </summary>
 /// <remarks>
 /// <para>
-/// The <c>ObservableGauge</c> callback is synchronous; a database read CANNOT
-/// be done directly inside it. This class compares the cache's age against
-/// <see cref="TraconObservabilityOptions.JobQueueDepthRefreshInterval"/> on
-/// every callback: if the cache is fresh it returns directly, if it is stale it
-/// refreshes ONCE (blocking). Consecutive scrapes inside that interval issue no
-/// second query. The same shape as <see cref="QuotaUsageObserver"/>.
+/// The gauge callback only reads the last snapshot; a background refresh reads
+/// the database every
+/// <see cref="TraconObservabilityOptions.JobQueueDepthRefreshInterval"/>. A
+/// scrape never waits for the database, and consecutive scrapes issue no query.
+/// The published depth is therefore at most one interval old, and the first
+/// scrape after start can be empty. The same shape as
+/// <see cref="QuotaUsageObserver"/>; see <see cref="CachedGaugeSource{TSample}"/>.
 /// </para>
 /// <para>
 /// As long as <see cref="TraconObservabilityOptions.EnableJobQueueDepthGauge"/>
-/// is <see langword="false"/> — the default — the cache is NEVER touched. The
+/// is <see langword="false"/> — the default — the database is never queried. The
 /// instrument name still exists, so the gauge can be turned on without changing
-/// the consumer's OTel configuration, but no measurement is published and the
-/// database is never queried.
+/// the consumer's OTel configuration, but no measurement is published.
 /// </para>
 /// <para>
 /// <strong>No tenant tag.</strong> Queue depth is an operator signal about the
@@ -37,38 +36,30 @@ namespace Tracon;
 /// under its own name while the other reported it as <c>other</c>.
 /// </para>
 /// </remarks>
-internal sealed class JobQueueDepthObserver : IHostedService, IDisposable
+internal sealed class JobQueueDepthObserver : CachedGaugeSource<JobQueueDepth>
 {
     private readonly IJobStore _jobStore;
-    private readonly IOptionsMonitor<TraconOptions> _options;
     private readonly TraconMetrics? _metrics;
-    private readonly TimeProvider _clock;
     private readonly ILogger<JobQueueDepthObserver>? _logger;
     private readonly Meter _meter;
     private readonly bool _ownsMeter;
-    // SemaphoreSlim: System.Threading.Lock cannot be used because net8.0 is
-    // also a target (MA0158 also forbids a separate object field); used with
-    // Wait()/Release() on the synchronous code path.
-    private readonly SemaphoreSlim _gate = new(1, 1);
-
-    private IReadOnlyList<JobQueueDepth> _snapshot = [];
-    private DateTimeOffset? _lastRefreshedAt;
 
     /// <summary>Creates a new queue-depth gauge.</summary>
     /// <param name="jobStore">The job store the depth is counted from.</param>
     /// <param name="options">
     /// The root type that <see cref="TraconOptions.Observability"/>, which
-    /// carries the gauge on/off and cache interval settings, hangs off.
+    /// carries the gauge on/off and refresh interval settings, hangs off.
     /// <see cref="TraconObservabilityOptions"/> is NOT registered standalone
     /// anywhere with <c>services.Configure&lt;TraconObservabilityOptions&gt;</c>
     /// — it is only reached through <see cref="TraconOptions.Observability"/>.
     /// </param>
+    /// <param name="schemaReadyGate">The gate the first database read waits on.</param>
     /// <param name="meterFactory">
     /// The meter factory. If <see langword="null"/>, a private <see cref="Meter"/>
     /// instance is created and owned by this object.
     /// </param>
     /// <param name="timeProvider">The time source. If <see langword="null"/>, <see cref="TimeProvider.System"/>.</param>
-    /// <param name="logger">The logger that cache-refresh errors are logged to.</param>
+    /// <param name="logger">The logger that refresh errors are logged to.</param>
     /// <param name="metrics">
     /// The metric set whose lane-cardinality guard this gauge shares. When
     /// <see langword="null"/>, lane names are published unguarded — acceptable
@@ -79,17 +70,16 @@ internal sealed class JobQueueDepthObserver : IHostedService, IDisposable
     public JobQueueDepthObserver(
         IJobStore jobStore,
         IOptionsMonitor<TraconOptions> options,
+        SchemaReadyGate schemaReadyGate,
         IMeterFactory? meterFactory = null,
         TimeProvider? timeProvider = null,
         ILogger<JobQueueDepthObserver>? logger = null,
         TraconMetrics? metrics = null)
+        : base(options, schemaReadyGate, timeProvider)
     {
         ArgumentNullException.ThrowIfNull(jobStore);
-        ArgumentNullException.ThrowIfNull(options);
 
         _jobStore = jobStore;
-        _options = options;
-        _clock = timeProvider ?? TimeProvider.System;
         _logger = logger;
         _metrics = metrics;
 
@@ -110,29 +100,38 @@ internal sealed class JobQueueDepthObserver : IHostedService, IDisposable
             description: "Outstanding jobs per lane and open status.");
     }
 
-    /// <summary>
-    /// Does nothing extra — the constructor already creates the instrument at
-    /// REGISTRATION time. The only purpose of adding this type as an
-    /// <see cref="IHostedService"/> is to make the container resolve and
-    /// construct this object EARLY (while the host is starting); otherwise the
-    /// instrument would never be created unless some consumer happens to resolve it.
-    /// </summary>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>A completed task.</returns>
-    public Task StartAsync(CancellationToken cancellationToken) => Task.CompletedTask;
-
-    /// <inheritdoc cref="IHostedService.StopAsync(CancellationToken)" />
-    public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
-
     /// <inheritdoc />
-    public void Dispose()
+    public override void Dispose()
     {
         if (_ownsMeter)
         {
             _meter.Dispose();
         }
 
-        _gate.Dispose();
+        base.Dispose();
+    }
+
+    /// <inheritdoc />
+    protected override bool IsEnabled(TraconObservabilityOptions options)
+        => options.EnableJobQueueDepthGauge;
+
+    /// <inheritdoc />
+    protected override TimeSpan GetRefreshInterval(TraconObservabilityOptions options)
+        => options.JobQueueDepthRefreshInterval;
+
+    /// <inheritdoc />
+    protected override ValueTask<IReadOnlyList<JobQueueDepth>> ReadAsync(CancellationToken cancellationToken)
+        => _jobStore.GetQueueDepthAsync(cancellationToken);
+
+    /// <inheritdoc />
+    protected override void LogRefreshFailure(Exception exception)
+    {
+        // 🚨 A failed depth query leaves the worker and every run untouched;
+        // the previous snapshot stays so a blip does not read as "the queue drained".
+        if (_logger is not null && _logger.IsEnabled(LogLevel.Warning))
+        {
+            _logger.LogWarning(exception, "Could not refresh the job queue-depth gauge cache; keeping the previous value.");
+        }
     }
 
     private IEnumerable<Measurement<long>> ObserveDepth()
@@ -142,58 +141,4 @@ internal sealed class JobQueueDepthObserver : IHostedService, IDisposable
                 TraconDiagnostics.Tags.Lane,
                 _metrics?.ResolveLaneTag(depth.Lane) ?? depth.Lane),
             new KeyValuePair<string, object?>(TraconDiagnostics.Tags.JobStatus, depth.Status.ToString())));
-
-    private IReadOnlyList<JobQueueDepth> Snapshot()
-    {
-        if (!_options.CurrentValue.Observability.EnableJobQueueDepthGauge)
-        {
-            return [];
-        }
-
-        _gate.Wait();
-
-        try
-        {
-            var interval = _options.CurrentValue.Observability.JobQueueDepthRefreshInterval;
-            var now = _clock.GetUtcNow();
-
-            if (_lastRefreshedAt is null || now - _lastRefreshedAt.Value >= interval)
-            {
-                // 🚨 The database is reached in a BLOCKING way from a
-                // synchronous callback. This is the cost QuotaUsageObserver
-                // already accepts and documents: call frequency is at worst
-                // JobQueueDepthRefreshInterval, and gauge collection typically
-                // runs in a separate, low-frequency background task.
-                _snapshot = RefreshAsync().GetAwaiter().GetResult();
-                _lastRefreshedAt = now;
-            }
-
-            return _snapshot;
-        }
-        finally
-        {
-            _gate.Release();
-        }
-    }
-
-    private async Task<IReadOnlyList<JobQueueDepth>> RefreshAsync()
-    {
-        try
-        {
-            return await _jobStore.GetQueueDepthAsync().ConfigureAwait(false);
-        }
-        catch (Exception exception) when (OperationCancellation.IsFailure(exception, CancellationToken.None))
-        {
-            if (_logger is not null && _logger.IsEnabled(LogLevel.Warning))
-            {
-                _logger.LogWarning(exception, "Could not refresh the job queue-depth gauge cache; keeping the previous value.");
-            }
-
-            // 🚨 Observability must not break functionality. A failed depth
-            // query leaves the worker and every run untouched; the previous
-            // valid cache is kept so a transient failure does not drop the
-            // gauge to zero and read as "the queue drained".
-            return _snapshot;
-        }
-    }
 }

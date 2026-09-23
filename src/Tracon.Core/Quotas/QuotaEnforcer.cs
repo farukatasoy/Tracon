@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Globalization;
+using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -34,9 +35,19 @@ public sealed class QuotaEnforcer(
 
     // A threshold is published only ONCE per period. Since the counter
     // increases on every run, every run above the threshold would otherwise
-    // produce a new event. The key includes the period start; once the period
-    // rolls over, a new key forms automatically and the old entries become stale.
-    private readonly ConcurrentDictionary<ThresholdKey, byte> _firedThresholds = new();
+    // produce a new event. This in-process set is only the fast path: the
+    // durable claim (IQuotaStore.TryClaimThresholdNotificationAsync, K-682) is
+    // the single source of truth, so dropping an entry can never publish twice;
+    // at worst it costs one more store round-trip.
+    //
+    // The keys are bucketed by (period, period start). A period that has
+    // closed is never written again, so its bucket is dropped on the next
+    // call (SweepClosedPeriods). Without it the singleton grew by one key set
+    // per tenant scope per day for the life of the process.
+    private readonly ConcurrentDictionary<PeriodBucket, ConcurrentDictionary<ThresholdKey, byte>> _firedThresholds = new();
+
+    /// <summary>Gets how many thresholds the in-process fast path holds. Test seam.</summary>
+    internal int FiredThresholdCount => _firedThresholds.Values.Sum(static bucket => bucket.Count);
 
     /// <summary>
     /// Checks whether a new run is allowed.
@@ -272,6 +283,8 @@ public sealed class QuotaEnforcer(
         TimeZoneInfo timeZone,
         CancellationToken cancellationToken)
     {
+        SweepClosedPeriods(consumption.OccurredAt, timeZone);
+
         if (options.ThresholdPercents.Count == 0)
         {
             return [];
@@ -327,11 +340,14 @@ public sealed class QuotaEnforcer(
                         continue;
                     }
 
-                    var key = new ThresholdKey(consumption.TenantId, scope, definition.Period, periodStart, metric, threshold);
+                    var key = new ThresholdKey(consumption.TenantId, scope, metric, threshold);
+                    var bucket = _firedThresholds.GetOrAdd(
+                        new PeriodBucket(definition.Period, periodStart),
+                        static _ => new ConcurrentDictionary<ThresholdKey, byte>());
 
                     // Fast path: already handled by THIS process in this period —
-                    // no store round-trip needed, whichever way the first call resolved.
-                    if (!_firedThresholds.TryAdd(key, 0))
+                    // no store round-trip needed, whichever way the claim resolved.
+                    if (!bucket.TryAdd(key, 0))
                     {
                         break;
                     }
@@ -340,9 +356,23 @@ public sealed class QuotaEnforcer(
                     // process restart or a concurrent worker. Only the caller that
                     // wins this atomic claim publishes; a loss is not an error, it
                     // means another run already reported this crossing.
-                    var claimed = await store.TryClaimThresholdNotificationAsync(
-                        consumption.TenantId, scope, definition.Period, periodStart, metric, threshold, cancellationToken)
-                        .ConfigureAwait(false);
+                    bool claimed;
+
+                    try
+                    {
+                        claimed = await store.TryClaimThresholdNotificationAsync(
+                            consumption.TenantId, scope, definition.Period, periodStart, metric, threshold, cancellationToken)
+                            .ConfigureAwait(false);
+                    }
+                    catch
+                    {
+                        // The claim did not resolve, so the fast path must not
+                        // remember it. A kept key would silence this threshold
+                        // in this process until the period ends, although the
+                        // store never recorded it. Cancellation counts too.
+                        bucket.TryRemove(key, out _);
+                        throw;
+                    }
 
                     if (!claimed)
                     {
@@ -378,6 +408,37 @@ public sealed class QuotaEnforcer(
         }
 
         return (IReadOnlyList<QuotaThresholdCrossing>?)crossings ?? [];
+    }
+
+    /// <summary>
+    /// Drops the fast-path buckets of every period that has closed. A bucket is
+    /// dropped only when its start is STRICTLY before the period start that
+    /// <paramref name="now"/> falls into for its period type, so a consumption
+    /// stamped slightly in the past never removes the open period's keys.
+    /// </summary>
+    /// <param name="now">
+    /// The consumption's own instant — the same clock the keys are derived from,
+    /// so the sweep and the keys can never disagree about which period is open.
+    /// </param>
+    /// <param name="timeZone">The time zone the period boundary is calculated in.</param>
+    private void SweepClosedPeriods(DateTimeOffset now, TimeZoneInfo timeZone)
+    {
+        // A handful of buckets at most: one per period type for the open
+        // period, plus the ones that closed since the last call.
+        if (_firedThresholds.IsEmpty)
+        {
+            return;
+        }
+
+        // Enumerating the dictionary itself takes no lock and tolerates the
+        // removal; Keys would lock every segment to build a snapshot.
+        foreach (var (bucket, _) in _firedThresholds)
+        {
+            if (bucket.PeriodStart < QuotaPeriodCalculator.GetPeriodStart(now, bucket.Period, timeZone))
+            {
+                _firedThresholds.TryRemove(bucket, out _);
+            }
+        }
     }
 
     /// <summary>Returns, in order, the limits (metric, limit, consumption) defined on a rule.</summary>
@@ -441,11 +502,12 @@ public sealed class QuotaEnforcer(
             cancellationToken).ConfigureAwait(false);
     }
 
+    [StructLayout(LayoutKind.Auto)]
+    private readonly record struct PeriodBucket(QuotaPeriod Period, DateOnly PeriodStart);
+
     private readonly record struct ThresholdKey(
         string TenantId,
         string AgentName,
-        QuotaPeriod Period,
-        DateOnly PeriodStart,
         QuotaMetric Metric,
         int Threshold);
 }

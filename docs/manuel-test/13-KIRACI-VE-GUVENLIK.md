@@ -1672,6 +1672,9 @@ curl -s "$APU/api/audit/mcp:manuel-sir-testi" -H "$APB" | python3 -m json.tool
   (`cok-gizli-deger`) gövdenin hiçbir yerinde YOKTUR
   (`AuditSecretFilter.cs:24-31`, anahtar adı `"authorization"` fragmanını
   içerir).
+- 2026-09-23'ten beri MCP audit'i her başlık değerini adından bağımsız
+  maskeler (`HeaderValueMask`); ad filtresi ikinci katmandır. Ad filtresinin
+  kaçırdığı başlıklar için: MT-MCP-069.
 
 ---
 
@@ -2828,6 +2831,8 @@ Negatif senaryo.
 **Beklenen sonuç**
 - `HTTP: 403` (`500` DEĞİL) — bir gate hatada açık kalırsa gate değildir.
   `runs` satırı açılmaz.
+- `detail` "denied" DEMEZ: `The run authorization check failed. Retry the
+  request.` Log satırı: MT-SEC-205.
 - Otomatikleştirilmiş karşılığı: `Throwing_handler_denies_the_run_fail_closed`.
 
 ---
@@ -3274,6 +3279,8 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST "$APU/../v1/chat/completions" \
 
 **Beklenen sonuç**
 - Tekil kaynaklar `404`, listeler `403`. Hiçbiri açılmaz.
+- Liste `403` gövdesinin `detail` alanı "check failed" der; `404` gövdesi eksik
+  kaynağınkiyle aynıdır. Log ve gövde ayrıntısı: MT-SEC-205.
 - Otomatikleştirilmiş karşılığı:
   `Throwing_handler_denies_every_resource_fail_closed`.
 
@@ -4523,3 +4530,92 @@ curl -s -o /dev/null -w "host 127.0.0.1 -> %{http_code}\n" "http://127.0.0.1:508
 - `origin localhost -> 200`, `host 127.0.0.1 -> 200`.
 - Aynı saldırgan `Host`'lu istek geçerli token ile `200` döner: başka sitenin
   sayfası token'ı sunamaz.
+
+---
+
+### MT-SEC-205 — `throw` eden yetki kancası loglanır; `403` "check failed" der, `404` değişmez
+
+Regresyon senaryosu.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Kusur giderme (2026-09-23, C12) |
+| **İlgili karar** | — (K-488 fail-closed korunur · K-684 · K-840) |
+| **İnsan gerekir** | Hayır |
+| **Devir** | koşulmadı; ➜ CI: `RunAuthorizationEndpointTests.Throwing_handler_is_logged_and_the_body_reports_a_failed_check_not_a_denial` · `…Throwing_handler_on_the_session_list_reports_a_failed_check_and_is_logged` · `…Throwing_handler_on_a_single_session_keeps_the_missing_session_body_and_is_logged` · `…Throwing_attribution_is_logged_once_per_request_and_the_caller_has_no_identity` · `RunResourceAuthorizationTests.Throwing_handler_on_a_403_surface_reports_a_failed_check_not_a_denial` · `…Throwing_handler_on_a_single_run_keeps_the_missing_run_body_and_is_logged` · `…Throwing_handler_on_a_workflow_continuation_reports_a_failed_check` · `…A_cancellation_the_request_did_not_cause_is_a_failed_check` · `…A_request_the_caller_cancels_is_not_swallowed_into_a_denial` · `SessionOwnershipTests.A_throwing_management_policy_narrows_the_list_and_is_logged` · `…A_throwing_management_policy_refuses_the_unowned_row_and_is_logged` · `…A_throwing_policy_provider_narrows_the_list_instead_of_failing_the_request` · `…An_unregistered_management_policy_writes_no_error_line` · `RoleAndAuditTests.A_policy_provider_that_throws_at_startup_is_logged_and_keeps_the_fallback` · `…RequireRolePolicies_startup_failure_carries_the_provider_exception` |
+
+Kural öncesinde kapı istisnayı reddediyordu ama log yazmıyordu. `403` gövdesi
+olmayan bir "denied" kararını bildiriyordu; operatör hatayı hiç görmüyordu.
+
+**Ön koşul**
+- Örnek uygulama `Tracon__Demo__RunAuthorization__Mode=throw` ile çalışır. Kod
+  değişikliği gerekmez.
+- Uygulamanın konsol logu görünür.
+
+**Adımlar**
+```bash
+curl -s -X POST "$APU/api/agents/support/run" -H "$APB" \
+  -H 'Content-Type: application/json' -d '{"message":"merhaba"}' | jq '{status, title, detail}'
+curl -s "$APU/api/sessions" -H "$APB" | jq '{status, detail}'
+curl -s "$APU/api/runs" -H "$APB" | jq '{status, detail}'
+curl -s "$APU/api/sessions/var-olmayan-oturum" -H "$APB" | jq '{status, title}'
+```
+
+**Beklenen sonuç**
+- İlk üç istek `403` döner. `detail`:
+  `The run authorization check failed. Retry the request.` Gövde istisna
+  metnini (`fails on purpose`) TAŞIMAZ.
+- Dördüncü istek `404` döner; gövde, handler hiç atmasa da var olmayan bir
+  oturumun alacağı gövdedir.
+- Konsolda her istek için bir `fail: Tracon.RunAuthorization` satırı çıkar.
+  Satır `DemoRunAuthorization` tip adını, erişim türünü (`Start`, `List`,
+  `Read`) ve istisnayı taşır.
+
+---
+
+### MT-SEC-206 — Platform yetkisi olmayan claims kullanıcısı `PlatformAdmin` anahtarı basamaz
+
+Regresyon senaryosu.
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Kritik |
+| **İlgili faz** | Kusur giderme (2026-09-23, Faz 186 plan denetimi) |
+| **İlgili karar** | K-853 (genişletildi: anahtar basma) |
+| **İnsan gerekir** | Hayır |
+| **Devir** | koşulmadı; ➜ CI: `CrossTenantAuthorityTests.Claims_user_without_platform_authority_cannot_mint_a_platform_key` · `…Claims_user_that_passes_the_platform_policy_mints_a_platform_key` · `…Claims_user_still_mints_a_key_for_its_own_tenant_without_platform_scope` · `…Static_token_mints_a_platform_key` · `…Platform_key_mints_another_platform_key` |
+
+Düzeltmeden önce kapsam daraltma yalnız API anahtarıyla gelen isteğe
+uygulanıyordu. Claims tabanlı bir kiracı Admin'i platform policy'si olmadan
+`PlatformAdmin` anahtarı basıyordu. O anahtar her kiracının bağlamasına
+yazabiliyordu; K-853'ün kapattığı yol böyle yeniden açılıyordu.
+
+**Ön koşul**
+- MT-SEC-201'in ön koşulu.
+- Host claims tabanlı kimlik doğrulama kullanır (`RequireAuthorization`
+  policy'si kayıtlı). `acme` kiracısının Admin rolündeki kullanıcı
+  `TraconPolicies.PlatformAdmin` policy'sini GEÇMEZ; bu kullanıcının
+  bearer değeri `$ACME_ADMIN` olarak kaydedilir.
+
+**Adımlar**
+```bash
+for s in '["SecurityAdmin"]' '["SecurityAdmin","PlatformAdmin"]'; do
+  curl -s -o /dev/null -w "$s -> %{http_code}\n" -X POST "$APU/api/api-keys" \
+    -H "Authorization: Bearer $ACME_ADMIN" -H 'X-Tracon-Tenant: acme' \
+    -H 'Content-Type: application/json' -d "{\"name\":\"mint\",\"scopes\":$s}"
+done
+curl -s -o /dev/null -w "token -> %{http_code}\n" -X POST "$APU/api/api-keys" -H "$APB" \
+  -H 'X-Tracon-Tenant: acme' -H 'Content-Type: application/json' \
+  -d '{"name":"mint-token","scopes":["PlatformAdmin"]}'
+```
+
+**Beklenen sonuç**
+- `["SecurityAdmin"]` → `200`: kendi kiracısı için kapsamı dar anahtar
+  değişmez.
+- `["SecurityAdmin","PlatformAdmin"]` → `403`. Gövdenin başlığı
+  `Platform authority required`'dır. Anahtar oluşmaz: `GET /api/api-keys`
+  listesinde `mint` adlı ikinci bir satır yoktur.
+- Statik token (`$APB`) → `200` — token kurulumun kimliğidir.

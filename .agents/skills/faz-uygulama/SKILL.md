@@ -131,5 +131,5 @@ Biçim ve nereye ekleneceği `faz-tamamlama` Adım 3'tedir.
 - **`TODO` yorumu.** Açık iş kalemi koda değil dokümana yazılır.
 - **Sahte nesne, yer tutucu, `NotImplementedException`.** Başladıysan bitir.
 - **Atlanmış veya devre dışı bırakılmış test.** Düşen test bir bilgidir; sustur­mak o bilgiyi siler.
-- **Bastırılmış analyzer tanısı** — gerekçesi koda ve `docs/KARARLAR.md`'ye yazılmadan.
+- **Bastırılmış analyzer tanısı** — gerekçesi koda ve faz dokümanına yazılmadan (bastırma bir kategoriye, çoğunlukla uyumluluğa giriyorsa `docs/KARARLAR.md`'ye de; `faz-tamamlama` Adım 8).
 - **Planda olmayan public API büyümesi** — gerekçesi faz dokümanına yazılmadan.

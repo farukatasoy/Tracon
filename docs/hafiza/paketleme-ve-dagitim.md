@@ -132,3 +132,20 @@ Lisans dosyaları her pakette sevk edildiği için `SourceLanguageTests` ve
 yazılıdır — `src/Directory.Build.props`, `scripts/kapi.py` (`PACKAGE_LICENSES`) ve
 npm `package.json` — üçünü `PackageLicenseTests` birbirine kilitler; npm beklentisi
 sabit dizge değil, `Tracon.Client`'ın tablodaki lisansından **türetilir**.
+
+## Kararlı sürüm pack'i ve ön sürüm bağımlılığı (`NU5104`, 2026-09-23)
+
+- **🚨 Kararlı bir sürüm `Tracon.AspNetCore`'da beş `NU5104` hatasıyla durur.**
+  Ölçüm: `dotnet pack src/Tracon.AspNetCore -p:MinVerVersionOverride=1.0.0` →
+  çıkış 1; `error NU5104: Warning As Error: A stable release of a package should
+  not have a prerelease dependency` beş kez: `A2A.AspNetCore`,
+  `Microsoft.Agents.AI.Hosting`, `.Hosting.A2A`, `.Hosting.AspNetCore`
+  (preview) ve `.Hosting.OpenAI` (alpha). `TreatWarningsAsErrors` uyarıyı
+  hataya çevirir. Bu K-602/K-008'in bilinen GA koşuludur: önce `Hosting*` ve
+  `A2A.AspNetCore` GA olmalıdır. Kilit kasıtlıdır; `NoWarn` ile açma.
+- **`NU5104` yalnız DOĞRUDAN bağımlılığa bakar.** Aynı override ile
+  `Tracon.UI`, `Tracon.Testing` ve `Tracon` (meta) çıkış 0 verir. Üçünün
+  nuspec'lerinde doğrudan ön sürüm bağımlılığı yoktur; ön sürüm paketler
+  `Tracon.AspNetCore 1.0.0` üzerinden geçişli gelir. Yani bir paketin temiz
+  pack'i grafiğinde ön sürüm olmadığını kanıtlamaz. Kararlı hattı `Tracon.AspNetCore`'un pack'i
+  durdurur, çünkü tek sürüm hattı (K-602) 20 paketi birlikte keser.

@@ -216,16 +216,18 @@ internal static class GovernanceEndpoints
                 IMcpServerStore servers,
                 ITenantContext tenants,
                 CancellationToken cancellationToken)
-                => TypedResults.Ok(
-                    await servers.ListAsync(tenants.TenantId, cancellationToken).ConfigureAwait(false)))
+                => TypedResults.Ok<IReadOnlyList<McpServerDefinition>>(
+                    [.. (await servers.ListAsync(tenants.TenantId, cancellationToken).ConfigureAwait(false))
+                        .Select(MaskHeaders)]))
             .RequireRole(roles.Reader)
             .RequireApiKeyScope(ApiKeyScope.AgentsRead)
             .WithName("TraconListMcpServers")
             .WithTags("Tracon", "Governance")
             .WithSummary("Lists registered remote MCP servers.")
             .WithDescription(
-                "The response CARRIES NO SECRETS: the authentication value is not stored; " +
-                "only the name of the configuration key from which the value will be read is returned.");
+                "The authentication value is not stored; only the name of the configuration key " +
+                "it is read from is returned. Extra request headers are stored as sent and are " +
+                "returned with their NAMES only: every header value is replaced with '***'.");
 
         builder.MapPut("/api/mcp-servers/{name}", async Task<Results<Ok<McpServerDefinition>, ProblemHttpResult>> (
                 string name,
@@ -280,7 +282,7 @@ internal static class GovernanceEndpoints
                     },
                     cancellationToken).ConfigureAwait(false);
 
-                return TypedResults.Ok(saved);
+                return TypedResults.Ok(MaskHeaders(saved));
             })
             .RequireRole(roles.Admin)
             .RequireApiKeyScope(ApiKeyScope.AgentsAdmin)
@@ -294,7 +296,11 @@ internal static class GovernanceEndpoints
                 "(stdio) transport is not supported. Tools require approval by default. A " +
                 "configuration key name must be under the configured allowed prefix and inside " +
                 "the tenant's own key space — '{prefix}{tenantId}:...'; a flat name directly " +
-                "under the prefix belongs to the default tenant (400 otherwise).");
+                "under the prefix belongs to the default tenant (400 otherwise). Header values " +
+                "are stored and sent as given, but no response returns them: the saved record " +
+                "comes back with every header value replaced by '***'. The save replaces the " +
+                "whole record, so send every header with its real value; a header whose value " +
+                "is '***' is rejected with 400.");
 
         builder.MapDelete("/api/mcp-servers/{name}", async Task<Results<NoContent, ProblemHttpResult>> (
                 string name,
@@ -801,6 +807,12 @@ internal static class GovernanceEndpoints
             detail: $"Operator '{op}' expects {expected}.",
             statusCode: StatusCodes.Status400BadRequest);
 
+    /// <summary>Returns a definition the way every response carries it: header names only.</summary>
+    /// <param name="server">The stored definition.</param>
+    /// <returns>A copy whose header values are all masked; the stored record is not changed.</returns>
+    private static McpServerDefinition MaskHeaders(McpServerDefinition server)
+        => server with { Headers = HeaderValueMask.Apply(server.Headers) };
+
     private static ProblemHttpResult? Validate(
         string name,
         McpServerRequest request,
@@ -835,6 +847,17 @@ internal static class GovernanceEndpoints
                 detail: "Only http and https are accepted. Local process (stdio) transport is " +
                         "deliberately unsupported; starting a process on the server would break " +
                         "the rule that tools are defined in code only.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        // 🚨 A read masks every header value, so a client doing read-modify-
+        // write would otherwise store the mask over the real value and break
+        // the server's authentication without a single error.
+        if (HeaderValueMask.FindMaskedHeader(request.Headers) is { } maskedHeader)
+        {
+            return TypedResults.Problem(
+                title: "Header value masked",
+                detail: HeaderValueMask.DescribeRejection(maskedHeader),
                 statusCode: StatusCodes.Status400BadRequest);
         }
 

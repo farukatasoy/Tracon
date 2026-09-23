@@ -130,6 +130,153 @@ public sealed class RunAuthorizationEndpointTests
         (await runs.QueryRunsAsync(new RunQuery())).ShouldBeEmpty();
     }
 
+    // --- A throwing handler is a FAILED check, not a decision: logged, and said so ---
+
+    [Fact]
+    public async Task Throwing_handler_is_logged_and_the_body_reports_a_failed_check_not_a_denial()
+    {
+        var handler = new ConfigurableRunAuthorizationHandler
+        {
+            OnRun = static _ => throw new InvalidOperationException("the consumer's own policy store is down"),
+        };
+
+        await using var host = await StartAsync(handler);
+
+        using var response = await host.Client.PostAsJsonAsync(Run, new AgentRunRequest { Message = "hello" });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+
+        var body = await response.Content.ReadAsStringAsync();
+        var problem = await TraconTestHost.ReadJsonAsync(response);
+
+        // 🚨 The handler never DECIDED anything. A body that says "denied"
+        // sends the client and the support desk after a policy rule that does
+        // not exist, while the real fault stays invisible.
+        problem.GetProperty("title").GetString().ShouldBe("Run not authorized");
+        problem.GetProperty("detail").GetString().ShouldBe(FailedCheckDetail);
+        body.ShouldNotContain("policy store is down");
+
+        var error = GateErrors(host).ShouldHaveSingleItem();
+        error.ShouldContain(nameof(ConfigurableRunAuthorizationHandler));
+        error.ShouldContain(nameof(RunAccess.Start));
+        error.ShouldContain("kod-agent");
+        error.ShouldContain("policy store is down");
+    }
+
+    [Fact]
+    public async Task Throwing_handler_on_the_session_list_reports_a_failed_check_and_is_logged()
+    {
+        var handler = new ConfigurableRunAuthorizationHandler
+        {
+            OnSession = static _ => throw new InvalidOperationException("the consumer's own policy store is down"),
+        };
+
+        await using var host = await StartAsync(handler);
+
+        using var response = await host.Client.GetAsync(Sessions);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        (await TraconTestHost.ReadJsonAsync(response)).GetProperty("detail").GetString().ShouldBe(FailedCheckDetail);
+
+        GateErrors(host).ShouldHaveSingleItem().ShouldContain(nameof(SessionAccess.List));
+    }
+
+    [Fact]
+    public async Task Throwing_handler_on_a_single_session_keeps_the_missing_session_body_and_is_logged()
+    {
+        var (host, handler, sessionId) = await StartWithSessionAsync();
+        await using var _ = host;
+
+        handler.OnSession = static _ => throw new InvalidOperationException("the consumer's own policy store is down");
+
+        using var denied = await host.Client.GetAsync(new Uri($"/tracon/api/sessions/{sessionId}", UriKind.Relative));
+        using var missing = await host.Client.GetAsync(new Uri("/tracon/api/sessions/does-not-exist-at-all", UriKind.Relative));
+
+        denied.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+
+        // 🚨 The identity-hiding 404 does not change: a body that said "the
+        // check failed" would confirm the session exists.
+        (await denied.Content.ReadAsStringAsync()).Replace(sessionId, "{id}", StringComparison.Ordinal)
+            .ShouldBe((await missing.Content.ReadAsStringAsync()).Replace("does-not-exist-at-all", "{id}", StringComparison.Ordinal));
+
+        // The session gate asks the handler before the store lookup, so the
+        // missing session's request wrote its own line as well.
+        var error = GateErrors(host).Where(line => line.Contains(sessionId, StringComparison.Ordinal)).ShouldHaveSingleItem();
+        error.ShouldContain(nameof(SessionAccess.Read));
+    }
+
+    [Fact]
+    public async Task Throwing_attribution_is_logged_once_per_request_and_the_caller_has_no_identity()
+    {
+        var handler = new ConfigurableRunAuthorizationHandler();
+
+        await using var host = await TraconTestHost.StartAsync(
+            static builder => builder.AddAgent(TestData.Definition()),
+            configureServices: services =>
+            {
+                Register(services, handler);
+                services.Replace(ServiceDescriptor.Singleton<IRunAttributionContext>(new ThrowingAttribution()));
+            });
+
+        using var response = await host.Client.GetAsync(Sessions);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        // Fail-closed direction: an identity that cannot be read is NO
+        // identity, never a guessed one.
+        handler.SessionRequests.ShouldHaveSingleItem().UserId.ShouldBeNull();
+
+        GateErrors(host).ShouldHaveSingleItem().ShouldContain(nameof(IRunAttributionContext));
+    }
+
+    /// <summary>
+    /// With session ownership on, one list request reads the identity in two
+    /// gates. The failure is one fault, so it is one log line.
+    /// </summary>
+    [Fact]
+    public async Task Throwing_attribution_is_logged_once_even_when_two_gates_read_it()
+    {
+        var handler = new ConfigurableRunAuthorizationHandler();
+
+        await using var host = await TraconTestHost.StartAsync(
+            static builder => builder.AddAgent(TestData.Definition()),
+            configureServices: services =>
+            {
+                Register(services, handler);
+                services.Replace(ServiceDescriptor.Singleton<IRunAttributionContext>(new ThrowingAttribution()));
+                services.Configure<TraconSessionOwnershipOptions>(static options => options.Enabled = true);
+            });
+
+        using var response = await host.Client.GetAsync(Sessions);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        GateErrors(host).ShouldHaveSingleItem().ShouldContain(nameof(IRunAttributionContext));
+    }
+
+    /// <summary>
+    /// A consumer attribution whose own call timed out throws a cancellation
+    /// the request did not ask for. That is a failed identity, not a 500.
+    /// </summary>
+    [Fact]
+    public async Task Attribution_that_times_out_is_a_failed_identity_not_a_server_error()
+    {
+        var handler = new ConfigurableRunAuthorizationHandler();
+
+        await using var host = await TraconTestHost.StartAsync(
+            static builder => builder.AddAgent(TestData.Definition()),
+            configureServices: services =>
+            {
+                Register(services, handler);
+                services.Replace(ServiceDescriptor.Singleton<IRunAttributionContext>(new TimingOutAttribution()));
+            });
+
+        using var response = await host.Client.GetAsync(Sessions);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+        handler.SessionRequests.ShouldHaveSingleItem().UserId.ShouldBeNull();
+        GateErrors(host).ShouldHaveSingleItem().ShouldContain(nameof(IRunAttributionContext));
+    }
+
     // --- Order: authorization runs BEFORE the quota check ---
 
     [Fact]
@@ -481,9 +628,32 @@ public sealed class RunAuthorizationEndpointTests
         }
     }
 
+    /// <summary>The fixed detail a 403 carries when the handler threw instead of deciding.</summary>
+    private const string FailedCheckDetail = "The run authorization check failed. Retry the request.";
+
+    /// <summary>The Error lines the authorization gates wrote, in order.</summary>
+    private static List<string> GateErrors(TraconTestHost host)
+        => host.Logs.Entries
+            .Where(static line => line.StartsWith("Error Tracon.RunAuthorization ", StringComparison.Ordinal))
+            .ToList();
+
     private sealed class FixedAttribution(string userId) : IRunAttributionContext
     {
         public string? UserId => userId;
+
+        public IReadOnlyDictionary<string, string>? Labels => null;
+    }
+
+    private sealed class ThrowingAttribution : IRunAttributionContext
+    {
+        public string? UserId => throw new InvalidOperationException("the identity pipeline is down");
+
+        public IReadOnlyDictionary<string, string>? Labels => null;
+    }
+
+    private sealed class TimingOutAttribution : IRunAttributionContext
+    {
+        public string? UserId => throw new TaskCanceledException("the identity service timed out");
 
         public IReadOnlyDictionary<string, string>? Labels => null;
     }

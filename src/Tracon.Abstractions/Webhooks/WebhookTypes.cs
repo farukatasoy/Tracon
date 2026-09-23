@@ -126,11 +126,21 @@ public sealed record WebhookSubscription
     /// </remarks>
     public string? SecretConfigurationKey { get; init; }
 
-    /// <summary>Extra headers added to every request.</summary>
+    /// <summary>
+    /// Extra headers added to every request. An HTTP response never returns a
+    /// stored value: it carries every header name with the value <c>***</c>.
+    /// </summary>
     /// <remarks>
+    /// <para>
     /// An authentication header is <strong>not written here</strong>: the
     /// value would be stored in the database. Use
     /// <see cref="SecretConfigurationKey"/> for signing instead.
+    /// </para>
+    /// <para>
+    /// The read, list and save responses mask every value. A save whose
+    /// header value is <c>***</c> is rejected, so a client that reads, edits
+    /// and saves a subscription must send every header value again.
+    /// </para>
     /// </remarks>
     public IReadOnlyDictionary<string, string> Headers { get; init; } =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);

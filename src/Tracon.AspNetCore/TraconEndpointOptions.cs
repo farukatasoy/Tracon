@@ -126,6 +126,13 @@ public sealed class TraconEndpointOptions
     /// A production setup should turn this on; a door left silently open is
     /// worse than a door believed to be closed.
     /// </para>
+    /// <para>
+    /// A policy provider that THROWS while a role name is resolved is treated
+    /// as "not registered" in both modes. It is written to the log as a
+    /// warning (category <c>Tracon.RolePolicies</c>); when this option is on,
+    /// the startup exception carries the provider's exception as its inner
+    /// exception.
+    /// </para>
     /// </remarks>
     public bool RequireRolePolicies { get; set; }
 

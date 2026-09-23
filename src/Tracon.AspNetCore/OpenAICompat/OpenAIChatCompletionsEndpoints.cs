@@ -145,7 +145,7 @@ internal static class OpenAIChatCompletionsEndpoints
         //
         // Chat Completions is stateless, so there is no session to name.
         if (await RunAuthorizationGate
-                .CheckRunAsync(runAuthorizationHandler, tenantContext, agentName, sessionId: null, attributionContext, cancellationToken)
+                .CheckRunAsync(runAuthorizationHandler, tenantContext, agentName, sessionId: null, attributionContext, httpContext, cancellationToken)
                 .ConfigureAwait(false) is { } authorizationProblem)
         {
             return OpenAICompatSupport.Error(

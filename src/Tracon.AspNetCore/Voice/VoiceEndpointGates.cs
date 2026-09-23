@@ -83,6 +83,7 @@ internal static class VoiceEndpointGates
                     sessionId,
                     services.GetService<IRunAttributionContext>(),
                     SessionAccess.Voice,
+                    context,
                     context.RequestAborted)
                 .ConfigureAwait(false) is not null)
         {

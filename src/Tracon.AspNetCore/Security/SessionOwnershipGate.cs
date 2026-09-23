@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Tracon;
@@ -55,9 +56,18 @@ namespace Tracon;
 /// </description>
 /// </item>
 /// </list>
+/// <para>
+/// A management policy that is not registered is the documented fallback and
+/// is silent. A policy provider or requirement handler that THROWS is a
+/// failure: it lands on the same refusing side, and it is written to the log
+/// as an error (category <c>Tracon.SessionOwnership</c>).
+/// </para>
 /// </remarks>
 internal static class SessionOwnershipGate
 {
+    /// <summary>The log category a failed management-policy evaluation is written under.</summary>
+    internal const string LoggerCategory = "Tracon.SessionOwnership";
+
     /// <summary>
     /// Resolves the owner a session listing must be narrowed to.
     /// </summary>
@@ -92,14 +102,14 @@ internal static class SessionOwnershipGate
             return null;
         }
 
-        if (await SatisfiesManagementPolicyAsync(settings, httpContext).ConfigureAwait(false))
+        if (await SatisfiesManagementPolicyAsync(settings, httpContext, sessionId: null).ConfigureAwait(false))
         {
             return null;
         }
 
         cancellationToken.ThrowIfCancellationRequested();
 
-        var (userId, _) = RunAttributionReader.Read(attribution);
+        var userId = AuthorizationGateDiagnostics.ReadUserId(attribution, httpContext);
 
         // A caller with no resolvable identity owns nothing, so they see
         // nothing. The sentinel is an id no session can carry: RunLabels caps
@@ -195,10 +205,10 @@ internal static class SessionOwnershipGate
             // it cannot open. Every failure of that evaluation lands on the
             // refusing side, the same fail-closed direction as the listing.
             return settings.RefuseUnownedSessions &&
-                   !await SatisfiesManagementPolicyAsync(settings, httpContext).ConfigureAwait(false);
+                   !await SatisfiesManagementPolicyAsync(settings, httpContext, sessionId).ConfigureAwait(false);
         }
 
-        var (userId, _) = RunAttributionReader.Read(attribution);
+        var userId = AuthorizationGateDiagnostics.ReadUserId(attribution, httpContext);
 
         return !string.Equals(ownerId, userId, StringComparison.Ordinal);
     }
@@ -210,6 +220,7 @@ internal static class SessionOwnershipGate
     /// <param name="attribution">The identity pipeline the caller is read from.</param>
     /// <param name="store">The session store the stored owner is read from.</param>
     /// <param name="sessionId">The session the run would continue, or <see langword="null"/> for a sessionless run.</param>
+    /// <param name="httpContext">The request, used to log an identity that cannot be read.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The <c>403</c> to return if the run may not start; otherwise <see langword="null"/>.</returns>
     /// <remarks>
@@ -254,9 +265,11 @@ internal static class SessionOwnershipGate
         IRunAttributionContext? attribution,
         ISessionStore store,
         string? sessionId,
+        HttpContext httpContext,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(store);
+        ArgumentNullException.ThrowIfNull(httpContext);
 
         if (options?.CurrentValue is not { Enabled: true } settings ||
             string.IsNullOrWhiteSpace(sessionId))
@@ -265,7 +278,7 @@ internal static class SessionOwnershipGate
         }
 
         var record = await store.GetAsync(sessionId, cancellationToken).ConfigureAwait(false);
-        var (userId, _) = RunAttributionReader.Read(attribution);
+        var userId = AuthorizationGateDiagnostics.ReadUserId(attribution, httpContext);
 
         if (record is null)
         {
@@ -372,36 +385,65 @@ internal static class SessionOwnershipGate
     /// </summary>
     /// <param name="settings">The ownership settings.</param>
     /// <param name="httpContext">The request.</param>
+    /// <param name="sessionId">The session being reached, or <see langword="null"/> for a listing.</param>
     /// <returns><see langword="true"/> only when the policy is registered AND succeeds.</returns>
+    /// <remarks>
+    /// Two different answers used to share one silent <c>catch</c>: a policy
+    /// that is not registered (the documented fallback, common in a setup that
+    /// registers no role policies) and a consumer's provider or requirement
+    /// handler that threw. The name is therefore resolved first, so the
+    /// fallback stays silent and only a real failure is logged. The lookup
+    /// stays INSIDE the <c>try</c>: resolving the name runs the consumer's
+    /// provider too, and a lookup that escaped would turn the fail-closed
+    /// narrowing into a <c>500</c>.
+    /// </remarks>
     private static async ValueTask<bool> SatisfiesManagementPolicyAsync(
         TraconSessionOwnershipOptions settings,
-        HttpContext httpContext)
+        HttpContext httpContext,
+        string? sessionId)
     {
         if (string.IsNullOrWhiteSpace(settings.ManagementPolicy))
         {
             return false;
         }
 
-        var authorization = httpContext.RequestServices.GetService<IAuthorizationService>();
+        var services = httpContext.RequestServices;
+        var provider = services.GetService<IAuthorizationPolicyProvider>();
+        var authorization = services.GetService<IAuthorizationService>();
 
-        if (authorization is null)
+        if (provider is null || authorization is null)
         {
             return false;
         }
 
         try
         {
+            var policy = await provider.GetPolicyAsync(settings.ManagementPolicy).ConfigureAwait(false);
+
+            if (policy is null)
+            {
+                // Not registered: the caller is an ordinary user. Documented,
+                // and not a fault — no log line.
+                return false;
+            }
+
             var result = await authorization
-                .AuthorizeAsync(httpContext.User, resource: null, settings.ManagementPolicy)
+                .AuthorizeAsync(httpContext.User, resource: null, policy)
                 .ConfigureAwait(false);
 
             return result.Succeeded;
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, httpContext.RequestAborted))
         {
-            // An unregistered policy name throws InvalidOperationException, and
-            // a consumer's own requirement handler can throw anything. Neither
-            // may hand out an unfiltered listing.
+            // A consumer's provider or requirement handler failed. It may not
+            // hand out an unfiltered listing, and it may not stay invisible.
+            AuthorizationGateDiagnostics.CreateLogger(httpContext, LoggerCategory).LogError(
+                exception,
+                "Evaluating the session management policy '{PolicyName}' threw (session '{SessionId}'). " +
+                "The caller is treated as not satisfying it (fail-closed).",
+                settings.ManagementPolicy,
+                sessionId);
+
             return false;
         }
     }

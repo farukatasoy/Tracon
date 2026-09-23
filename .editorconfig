@@ -152,9 +152,20 @@ dotnet_naming_style.camel_case.capitalization = camel_case
 # Tani seviyeleri
 # ---------------------------------------------------------------------------
 
-# CA1848: LoggerMessage delegeleri kullan. Sicak yollarda dogru, ancak her yerde
-# zorunlu kilmak okunabilirligi dusurur. Faz 6'da gozlemlenebilirlik calismasinda
-# sicak yollar icin acilir.
+# CA1848: LoggerMessage delegeleri kullan. `suggestion` kalir: IDE onerir,
+# build'i kirmaz. Olcum 2026-09-23: src altinda 212 dogrudan log cagrisi var
+# (96 dosya; 132 Warning, 40 Error, 22 Debug, 15 Information, 2 Critical,
+# 1 Log(level)) ve 2 [LoggerMessage]. Cogu catch veya hata dalindadir ya da
+# acilista bir kez kosar. Hata olmayan kosullu cagrilar da vardir: run, session
+# veya metric basina Information/Debug (katalog disi model - BYOK kiracisinda
+# her run; canli ses session'inin kapanisi; degerlendirme metric dongusu).
+# Hepsi IsEnabled korumalidir. Per-token veya per-event dongude (akisli uclar,
+# RunEventWriter.AppendAsync basari yolu) log cagrisi YOKTUR. Arguman maliyetini
+# CA1873 (hata) ve 78 IsEnabled guard'i zorlar. Yeni kodda sabit mesaj icin
+# [LoggerMessage] tercih edilir (ornek: UnpricedModelWarningService).
+# Yeniden acilma kosulu: per-token veya per-event basari yoluna bir log cagrisi
+# eklenirse o dosya icin CA1848 = warning yapilir ve cagri [LoggerMessage]'a
+# cevrilir.
 dotnet_diagnostic.CA1848.severity = suggestion
 
 # CA1062: Public metotlarda null kontrolu. Nullable reference types acik oldugu
@@ -181,9 +192,15 @@ dotnet_diagnostic.IDE0055.severity = warning
 # ---------------------------------------------------------------------------
 [tests/**/*.cs]
 # xUnit1051: her cagriya TestContext.Current.CancellationToken gecirilmesini ister.
-# Testlerimiz bellek ici ve milisaniyeler surer; token gecirmek okunabilirligi
-# dusurur, karsiliginda bir sey kazandirmaz. Uzun suren test eklenirse
-# (Testcontainers, Playwright) o proje icin yeniden acilir.
+# Eski yorum "uzun suren test eklenirse (Testcontainers, Playwright) o proje icin
+# yeniden acilir" diyordu. Kosul gerceklesti, kural acilmadi; `none` BILEREK
+# kalir. Olcum 2026-09-23 (kural `warning` yapilip derlendi, tekil cagri/dosya):
+# PostgreSql entegrasyon 286/32, SqlServer entegrasyon 92/10, Ui.E2ETests 12/5,
+# Core.UnitTests 1032/93. Uzun testlerde asilma siniri token'da degil diger
+# katmanlardadir: ProcessRunner cagrilarinin 48'de 47'si kendi timeout'unu, Playwright
+# `Expect` kendi bekleme sinirini, CI test adimi ve isi `timeout-minutes`'i tasir.
+# Token yalniz iptal gecikmesini kisaltir. Yeniden acilma kosulu: uzun bir testte
+# iptalin asili kaldigi olculurse o proje icin `warning` yapilir.
 dotnet_diagnostic.xUnit1051.severity = none
 dotnet_diagnostic.CA1707.severity = none      # Test adlarinda alt cizgi serbest
 dotnet_diagnostic.CA2007.severity = none      # Testlerde ConfigureAwait gerekmez

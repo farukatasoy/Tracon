@@ -302,10 +302,10 @@ curl -s "$APU/api/mcp-servers" -H "$APB" | python3 -m json.tool
 - Her sunucu satırında `authorizationConfigurationKey` yalnız bir
   yapılandırma **anahtarı adı** (ör. `"Tracon:Mcp:TestSecret"`)
   taşır — hiçbir gerçek secret DEĞERİ (token, şifre) gövdede yer almaz
-  (K-059). `headers` alanındaki değerler ise OLDUĞU GİBİ döner — bir
-  sunucu kaydı `headers` içine yanlışlıkla bir secret koyarsa, şema bunu
-  ENGELLEMEZ; bu, formun kendi UI notunda da belirtilen bir sorumluluk
-  sınırıdır (§8 MT-MCP-049 ile karşılaştır).
+  (K-059). `headers` alanı yalnız başlık **adlarını** taşır; her değer
+  `"***"` döner (2026-09-23 kusur giderme, MT-MCP-069). Değer `store`'da
+  düz metin durur ve MCP sunucusuna aynen gider; bu yüzden `headers` içine
+  secret yazılmaz (§8 MT-MCP-049 ile karşılaştır).
 
 ---
 
@@ -1725,3 +1725,54 @@ yan etkisi vardı).
 > bir MCP sunucusuna karşı elle koşulmadı — `18-MCP-VE-A2A.md`'nin genelinde
 > §5'in kendi notu geçerlidir: repo'da dokümante edilmiş bir yerel MCP
 > sunucusu yoktur, tester kendi sunucusunu getirir.
+
+---
+
+### MT-MCP-069 — `headers` değerleri hiçbir yanıtta ve audit'te görünmez; `"***"` geri yazılamaz
+
+Regresyon senaryosu.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Kusur giderme (2026-09-23, d-mask) |
+| **İlgili karar** | — (K-059 korunur) |
+| **İnsan gerekir** | Hayır |
+| **Devir** | koşulmadı; ➜ CI: `GovernanceEndpointTests.Mcp_header_values_are_masked_in_every_response_and_kept_in_the_store` · `…Mcp_audit_trail_records_header_names_but_no_values` · `…Mcp_save_that_sends_the_mask_back_is_rejected` · `WebhookEndpointTests.Header_values_are_masked_in_every_response_and_kept_in_the_store` · `…Save_that_sends_the_mask_back_is_rejected` |
+
+Düzeltme öncesinde `GET /api/mcp-servers` her başlık değerini düz döndürüyordu.
+Liste `Reader` rolüne ve `AgentsRead` scope'una açıktır. Değer bir API key ise
+okuyan taraf MCP sunucusunu onay kapısının dışından doğrudan çağırabilirdi.
+Audit, `Cookie` ve `Ocp-Apim-Subscription-Key` gibi adların değerini düz
+yazıyordu.
+
+**Adımlar**
+```bash
+curl -s -X PUT "$APU/api/mcp-servers/manuel-maske" -H "$APB" \
+  -H 'Content-Type: application/json' -d '{
+  "endpoint": "https://ornek.invalid/mcp",
+  "headers": { "Ocp-Apim-Subscription-Key": "gizli-deger-1", "X-Trace": "duz-deger" }
+}' | jq '.headers'
+curl -s "$APU/api/mcp-servers" -H "$APB" | jq '.[] | select(.name=="manuel-maske") | .headers'
+curl -s "$APU/api/audit/mcp:manuel-maske" -H "$APB" | grep -c 'gizli-deger-1'
+curl -s -o /dev/null -w '%{http_code}\n' -X PUT "$APU/api/mcp-servers/manuel-maske" -H "$APB" \
+  -H 'Content-Type: application/json' -d '{
+  "endpoint": "https://ornek.invalid/mcp",
+  "headers": { "Ocp-Apim-Subscription-Key": "***" }
+}'
+```
+
+**Beklenen sonuç**
+- İlk iki istek aynı sözlüğü döner:
+  `{"Ocp-Apim-Subscription-Key":"***","X-Trace":"***"}`. Maske ada bakmaz;
+  sıradan `X-Trace` değeri de gizlenir.
+- Audit sorgusu `0` yazar. Kayıt başlık **adını** taşır, değeri taşımaz.
+- Son istek `400` döner. `detail`, `Ocp-Apim-Subscription-Key` adını ve
+  gerçek değerin yeniden gönderilmesi gerektiğini söyler. Kayıt değişmez.
+- Webhook ek başlıkları aynı kuralı izler: `GET /api/webhooks`,
+  `GET /api/webhooks/{name}` ve `PUT` yanıtı her değeri `"***"` döner;
+  `"***"` değerli `PUT` `400` alır.
+- ⚠️ Arayüz formları tam `PUT` yapar ve `headers` göndermez. Arayüzden aynı
+  adla kaydetmek API ile girilmiş başlıkları siler. Bu davranış bu
+  düzeltmeden öncesine aittir ve değişmedi.

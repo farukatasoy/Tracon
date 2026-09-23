@@ -191,7 +191,10 @@ Three properties are worth knowing before you turn it on:
   `Tracon:SessionOwnership:ManagementPolicy` (default: the `Operator` role
   policy) gets the unfiltered tenant listing, including those unowned rows. If
   the policy is not registered, *nobody* gets the unfiltered list — the failure
-  direction is deliberate. Set it to `""` to state that outright.
+  direction is deliberate. Set it to `""` to state that outright. If your
+  policy provider or requirement handler throws, the caller also gets the
+  narrow list, and Tracon writes an `Error` line in the
+  `Tracon.SessionOwnership` category; an unregistered policy writes nothing.
 - **Ownership is drawn under the tenant, never across it.** The same person in
   two tenants still has two independent data spaces.
 

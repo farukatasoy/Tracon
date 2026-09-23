@@ -225,6 +225,32 @@ class KapiTestleri(unittest.TestCase):
                 self.assertIn(project, projects, path)
             self.assertFalse(full, path)
 
+    def test_sql_saglayicisi_ortak_parite_kapilarini_secer(self):
+        # Kayit paritesi (SqlProviderRegistrationParityTests), migration
+        # paritesi ve SQL metni snapshot'i Tracon.Sql.Shared.UnitTests'te
+        # yasar. Yalniz bir Use* dosyasina dokunan degisiklikte ic dongu
+        # bugune kadar yalniz o saglayicinin IntegrationTests projesini
+        # seciyordu; unutulan bir kayit satiri orada sessiz kalir.
+        for package in ("Tracon.PostgreSql", "Tracon.SqlServer", "Tracon.Sqlite"):
+            path = f"src/{package}/{package.replace('.', '')}BuilderExtensions.cs"
+            projects, full = kapi.affected_test_projects([path])
+
+            self.assertIn("Tracon.Sql.Shared.UnitTests", projects, path)
+            self.assertIn(f"{package}.IntegrationTests", projects, path)
+            self.assertFalse(full, path)
+
+    def test_cekirdek_degisikligi_sql_kayit_kapisini_da_secer(self):
+        # Kayit kapisinin yakaladigi iki vaka yalniz Core/Abstractions'ta
+        # dogar: uc saglayicida birden unutulan yeni bir store sozlesmesi ve
+        # yalniz AddTracon'a eklenen bir Auditing* dekoratoru. Ic dongu o
+        # degisiklikte kapiyi kosmazsa bulgu ancak tam kosumda gorunur.
+        for path in ("src/Tracon.Core/TraconServiceCollectionExtensions.Registration.Storage.cs",
+                     "src/Tracon.Abstractions/Runs/IRunStore.cs"):
+            projects, full = kapi.affected_test_projects([path])
+
+            self.assertIn("Tracon.Sql.Shared.UnitTests", projects, path)
+            self.assertFalse(full, path)
+
     def test_test_agaci_kok_dosyasi_tam_kosum_ister(self):
         # tests/Directory.Build.props HER test projesine ulasir. Faz 183'e
         # kadar bu yol HICBIR proje secmiyordu ve ic dongu sessizce bos kalirdi.
@@ -358,7 +384,7 @@ class KapiTestleri(unittest.TestCase):
         self.assertIn("kapi.py yayin", output.getvalue())
 
     def test_tam_kosum_komutu_trx_uretir(self):
-        # ci.yml:183 ile AYNI kuyruk: dusen testin adi makine okunur olmadan
+        # ci.yml "Test et" adimlariyla AYNI kuyruk: dusen testin adi makine okunur olmadan
         # izole yeniden kosum yazilamaz.
         command = kapi.full_solution_test_command()
 

@@ -50,9 +50,11 @@
   </PropertyGroup>
 
   <!--
-    Public API takibi Faz 60'ta acildi (K-016/K-068'i gunceller). Yuzeyi
-    degistiren her faz PublicAPI.Unshipped.txt'nin diff'ini uretir; Faz 7
-    (yayin) geldiginde Unshipped -> Shipped tek seferlik tasinir.
+    Public API takibi Faz 60'ta acildi (K-421; K-016/K-068'i gunceller). Yuzeyi
+    degistiren her faz PublicAPI.Unshipped.txt'nin diff'ini uretir.
+    PublicAPI.Shipped.txt preview hatti boyunca bos kalir; Unshipped -> Shipped
+    tasimasi 1.0.0 GA'da tek seferde yapilir (K-603). Yayinlanan preview'lar
+    (1.0.0-preview.1/.2) bu tasimayi tetiklemez.
   -->
   <PropertyGroup Label="Public API takibi">
     <EnablePublicApiTracking>true</EnablePublicApiTracking>

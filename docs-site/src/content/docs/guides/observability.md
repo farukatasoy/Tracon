@@ -201,9 +201,12 @@ the job's whole lifetime. For a job that failed twice before succeeding, the
 single recorded measurement covers the last attempt. It is taken from a monotonic
 clock, so a clock correction during the job cannot produce a negative duration.
 
-`tracon.job.queue.depth` is **off by default**, because it reads the database
-on every scrape. Turn it on with `Observability:EnableJobQueueDepthGauge`, and the
-reads are cached for `Observability:JobQueueDepthRefreshInterval`. It reports only
+`tracon.job.queue.depth` is **off by default**, because it reads the database.
+Turn it on with `Observability:EnableJobQueueDepthGauge`: a background refresh
+then reads the depth once at startup and again every
+`Observability:JobQueueDepthRefreshInterval`, and a scrape only reads the last
+result. A scrape never waits for the database, so a reported value can be up to
+one interval old, and the first scrape after startup can be empty. It reports only
 the open statuses — `Pending`, `Leased`, and `Running` — so its cost tracks the
 work still outstanding rather than the queue's whole history. A lane with no open
 jobs is absent rather than reported as zero. The gauge carries **no tenant tag**:
@@ -333,7 +336,7 @@ Other useful views are `GET /api/runs/{runId}/tools` and
 | `RecordSensitiveData` | `false` | Excludes prompt, message, and completion text from span tags |
 | `IncludeAgentVersionTag` | `true` | Adds agent version to run spans and run metrics |
 | `EnableQuotaUsageGauge` | `false` | Avoids background database reads until explicitly enabled |
-| `QuotaUsageRefreshInterval` | 30 seconds | Caches database-backed gauge samples between collections |
+| `QuotaUsageRefreshInterval` | 30 seconds | How often a background refresh reads the quota gauge samples; a collection only reads the last result and never waits for the database |
 
 `PersistSpans=false` only disables the internal store. Spans can still reach the
 consumer's configured exporter.
@@ -472,7 +475,7 @@ operational information.
 | A registered `IRunEventSink` stops receiving events partway through a run | Check the warning log for that sink's exception; it is disabled for the rest of that run only, other sinks and the store are unaffected |
 | Readiness says no provider has been probed | Nothing probes on its own: call `/api/models/health?refresh=true` or set `Tracon:Health:BackgroundInterval` |
 | Health is `Unhealthy` after deployment | Check database reachability and pending migrations before investigating providers |
-| Quota gauges never appear | Enable `Observability.EnableQuotaUsageGauge` and confirm the meter is collected |
+| Quota gauges never appear | Enable `Observability.EnableQuotaUsageGauge` and confirm the meter is collected; the first collection after startup can be empty until the first background refresh completes |
 
 ## Read next
 

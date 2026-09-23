@@ -166,8 +166,8 @@ tests/Tracon.SqlServer.IntegrationTests -c Release`):
    yukarıdaki "Çözüldü" bölümünde).
 3. Güncelleme sonrası da başarısızsa `azure-sql-edge` + yukarıdaki özel
    `IWaitUntil` ile geçici olarak `SqlServerFixture`'ı değiştir, testleri
-   koştur, sonucu bu dosyaya ve `docs/KARARLAR.md`'ye kaydet, fixture'ı
-   geri al.
+   koştur, sonucu bu dosyaya kaydet, fixture'ı geri al. Test ortamı kararı
+   `K-*` olmaz (`faz-tamamlama` Adım 8).
 
 - **`mcr.microsoft.com/mssql/server` bu makinede artık koşuyor** (K-386). `azure-sql-edge` ikamesi (K-317) yedek kalır. Kurulum, tekrar dene ve **performans** (K-387..K-391, ayri sema yerine sinif basina paylasilan sema + `ResetDataAsync`): [`sql-server-yerel-test.md`](sql-server-yerel-test.md).  
   *(2026-09-07'de `sql-saglayicilari.md`'den butce icin tasindi.)*

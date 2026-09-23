@@ -8968,7 +8968,7 @@ namespace Tracon.Client.Generated
         /// Lists a tenant's webhook subscriptions.
         /// </summary>
         /// <remarks>
-        /// The response carries no secret; only the NAME of the signing key is returned.
+        /// The response carries no signing secret; only the NAME of the signing key is returned. Extra headers are returned with their NAMES only: every header value is replaced with '***'.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -9045,7 +9045,7 @@ namespace Tracon.Client.Generated
         /// Gets a single subscription.
         /// </summary>
         /// <remarks>
-        /// As in the list, no signing secret is returned — only the configuration key its value is read from at delivery time. A secret is never stored in the database and never leaves through this API. An unknown name returns 404.
+        /// As in the list, no signing secret is returned — only the configuration key its value is read from at delivery time. A secret is never stored in the database and never leaves through this API. Extra header values are replaced with '***'. An unknown name returns 404.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -9126,7 +9126,7 @@ namespace Tracon.Client.Generated
         /// Creates or updates a webhook subscription.
         /// </summary>
         /// <remarks>
-        /// The address passes an SSRF check: only https is accepted (http only when AllowInsecureHttp is enabled and only to loopback targets). Private network addresses are re-checked again at delivery time. 'secretConfigurationKey' must be under the configured allowed prefix and inside the tenant's own key space — '{prefix}{tenantId}:...'; a flat name directly under the prefix belongs to the default tenant (400 otherwise).
+        /// The address passes an SSRF check: only https is accepted (http only when AllowInsecureHttp is enabled and only to loopback targets). Private network addresses are re-checked again at delivery time. 'secretConfigurationKey' must be under the configured allowed prefix and inside the tenant's own key space — '{prefix}{tenantId}:...'; a flat name directly under the prefix belongs to the default tenant (400 otherwise). Header values are stored and sent as given, but the saved subscription comes back with every header value replaced by '***'. The save replaces the whole subscription, so send every header with its real value; a header whose value is '***' is rejected with 400.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -9545,7 +9545,7 @@ namespace Tracon.Client.Generated
         /// Generates a new API key.
         /// </summary>
         /// <remarks>
-        /// The raw value is returned in the response ONLY ON THIS CALL and cannot be produced again. The scope list is closed; an unknown scope is rejected. If the request was authenticated with an API key, a scope that key does NOT ITSELF CARRY cannot be requested (privilege extension/attenuation).
+        /// The raw value is returned in the response ONLY ON THIS CALL and cannot be produced again. The scope list is closed; an unknown scope is rejected. If the request was authenticated with an API key, a scope that key does NOT ITSELF CARRY cannot be requested (privilege extension/attenuation). A key with the PlatformAdmin scope reaches every tenant, so requesting it needs platform authority (403 otherwise).
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -13248,7 +13248,7 @@ namespace Tracon.Client.Generated
         /// Lists registered remote MCP servers.
         /// </summary>
         /// <remarks>
-        /// The response CARRIES NO SECRETS: the authentication value is not stored; only the name of the configuration key from which the value will be read is returned.
+        /// The authentication value is not stored; only the name of the configuration key it is read from is returned. Extra request headers are stored as sent and are returned with their NAMES only: every header value is replaced with '***'.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -13325,7 +13325,7 @@ namespace Tracon.Client.Generated
         /// Adds or updates a remote MCP server.
         /// </summary>
         /// <remarks>
-        /// SECURITY BOUNDARY. Adding an MCP server means accepting tool definitions from an external source. Only http/https addresses are accepted; local process (stdio) transport is not supported. Tools require approval by default. A configuration key name must be under the configured allowed prefix and inside the tenant's own key space — '{prefix}{tenantId}:...'; a flat name directly under the prefix belongs to the default tenant (400 otherwise).
+        /// SECURITY BOUNDARY. Adding an MCP server means accepting tool definitions from an external source. Only http/https addresses are accepted; local process (stdio) transport is not supported. Tools require approval by default. A configuration key name must be under the configured allowed prefix and inside the tenant's own key space — '{prefix}{tenantId}:...'; a flat name directly under the prefix belongs to the default tenant (400 otherwise). Header values are stored and sent as given, but no response returns them: the saved record comes back with every header value replaced by '***'. The save replaces the whole record, so send every header with its real value; a header whose value is '***' is rejected with 400.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -21121,8 +21121,9 @@ namespace Tracon.Client.Generated
         public string? AuthorizationConfigurationKey { get; set; } = default!;
 
         /// <summary>
-        /// Extra request headers. &lt;strong&gt;Must not carry a secret&lt;/strong&gt; — these
-        /// <br/>values are stored as-is and shown in the UI.
+        /// Extra request headers, sent as given with every request to the server.
+        /// <br/>An HTTP response never returns a stored value: it carries every header
+        /// <br/>name with the value `***`.
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("headers")]
@@ -21235,8 +21236,12 @@ namespace Tracon.Client.Generated
         public string? AuthorizationConfigurationKey { get; set; } = default!;
 
         /// <summary>
-        /// Extra request headers. &lt;strong&gt;Must not carry secrets&lt;/strong&gt; — these
-        /// <br/>values are stored as-is and appear in the listing endpoint.
+        /// Extra request headers, sent as given with every request to the server.
+        /// <br/>The values are stored as plain text, so do not put a secret here; use
+        /// <br/>`AuthorizationConfigurationKey` for the `Authorization` header.
+        /// <br/>Send every header with its real value on each save: a response masks
+        /// <br/>the values as `***`, and a value of `***` is rejected with
+        /// <br/>`400`.
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("headers")]
@@ -26652,7 +26657,9 @@ namespace Tracon.Client.Generated
         public string? SecretConfigurationKey { get; set; } = default!;
 
         /// <summary>
-        /// Additional headers to add to every request.
+        /// Additional headers to add to every request. Send every header with its
+        /// <br/>real value on each save: a response masks the values as `***`,
+        /// <br/>and a value of `***` is rejected with `400`.
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("headers")]
@@ -26717,7 +26724,8 @@ namespace Tracon.Client.Generated
         public string? SecretConfigurationKey { get; set; } = default!;
 
         /// <summary>
-        /// Extra headers added to every request.
+        /// Extra headers added to every request. An HTTP response never returns a
+        /// <br/>stored value: it carries every header name with the value `***`.
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("headers")]

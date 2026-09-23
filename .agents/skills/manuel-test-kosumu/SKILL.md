@@ -307,7 +307,9 @@ Tur **bitti** sayılır:
 - [ ] Dört doğrulama kapısı sıfır uyarı verir
 - [ ] `python3 scripts/dokuman-bakim.py` çıkış kodu 0
 - [ ] `secret` taraması temiz (`faz-tamamlama` komutu)
-- [ ] Her kusur `docs/KARARLAR.md`'ye gerekçesiyle yazıldı, indeks üretildi
+- [ ] Her kusurun gerekçesi koşum kaydında; dört kategoriden birine giren karar
+      ayrıca `docs/KARARLAR.md`'de K-NNN ve kategori etiketiyle, indeks üretildi
+      (`faz-tamamlama` Adım 8)
 - [ ] Tuzaklar `docs/hafiza/<alan>.md` dosyalarına yazıldı — **bu adım
       atlanırsa ders kaybolur**; 2026-08 turunda bir ders bu yüzden yalnız kod
       yorumunda kaldı
@@ -347,7 +349,7 @@ Spesifikasyon dosyalarına (`docs/manuel-test/*.md`) **dokunulmaz**.
 | Açık kalemler (kalıcı `Kaldı`, ortam bekleyen) | `docs/manuel-test/00-INDEKS.md` |
 | Bir turun `Gerçek sonuç` + `Durum` kaydı | `docs/manuel-test/kosumlar/<tarih>/` |
 | Kapanmış turun tam kaydı | `docs/arsiv/manuel-test-kosum-<YYYY-AA>/` |
-| Kusurun karar gerekçesi | `docs/KARARLAR.md` |
+| Kusurun karar gerekçesi | Koşum kaydı; dört kategoriden birine giren karar ayrıca `docs/KARARLAR.md` (`faz-tamamlama` Adım 8) |
 | Tekrar bedel ödeten teknik tuzak | `docs/hafiza/<alan>.md` |
 | Yetenek isteyen bulgu | `docs/ADAYLAR.md` — F-NN |
 | Koşum ve kapanış protokolü | **bu dosya** |

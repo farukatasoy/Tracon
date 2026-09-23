@@ -116,7 +116,11 @@ Three policy names — `Reader`, `Operator`, `Admin` — that you bind to your o
 Tracon stores no users and no roles. If a policy is not registered in your
 application, that endpoint group simply falls back to the layers above — so upgrading
 never breaks a working deployment. Turn on `RequireRolePolicies` and a missing policy
-becomes a **startup** error instead of a silent gap.
+becomes a **startup** error instead of a silent gap. If your
+`IAuthorizationPolicyProvider` throws while `MapTracon` resolves a role name, that
+role is treated as not registered and a `Warning` is logged in the
+`Tracon.RolePolicies` category; with `RequireRolePolicies` on, the startup error
+carries the provider's exception as its inner exception.
 
 ### Acting on another tenant
 
@@ -236,6 +240,13 @@ matches the tenant id without regard to case, like configuration keys themselves
 Each prefix is configurable through the matching options section, and both rules are
 enforced twice: where the record is saved, and again where the value is resolved — so
 a record written before a rule existed cannot quietly read outside it.
+
+The extra `headers` of an MCP server or a webhook subscription are the one free-text
+exception: they are stored in plain text and sent as given, so do not put a credential
+there. No response returns a stored header value — every read and save response
+carries the header names with the value `***`, and the audit trail records the names
+only. A save that sends `***` back as a value is rejected with `400`: a client that
+reads, edits and saves a record must send the real value of every header again.
 
 ## What is stored in the clear
 

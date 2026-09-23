@@ -264,18 +264,20 @@ public static partial class TraconServiceCollectionExtensions
             provider.GetService<TimeProvider>(),
             provider.GetService<Microsoft.Extensions.Logging.ILogger<QuotaEnforcer>>()));
 
-        // Quota gauge (Phase 35). The sole purpose of adding it as an
-        // IHostedService is to have the container resolve this object EARLY
-        // while the host starts; otherwise the ObservableGauges would never be
-        // created unless some consumer resolved it. While
-        // EnableQuotaUsageGauge is off (the default) the gauge is still
-        // created but never touches the cache - see the class documentation.
+        // Quota gauge (Phase 35). A BackgroundService: the gauge callback reads
+        // only the cached snapshot and this service refreshes it on a timer.
+        // Registered unconditionally, because the on/off flag is not known
+        // here - the consumer may configure TraconOptions after AddTracon
+        // (K-251). Hosting it also makes the container build the object EARLY,
+        // so the ObservableGauges exist. While EnableQuotaUsageGauge is off
+        // (the default) ExecuteAsync returns at once: no timer, no query (K1).
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, QuotaUsageObserver>(
             static provider => new QuotaUsageObserver(
                 provider.GetRequiredService<IQuotaStore>(),
                 provider.GetRequiredService<ITenantStore>(),
                 provider.GetRequiredService<IOptionsMonitor<TraconOptions>>(),
                 provider.GetRequiredService<IOptionsMonitor<TraconQuotaOptions>>(),
+                provider.GetRequiredService<SchemaReadyGate>(),
                 provider.GetService<System.Diagnostics.Metrics.IMeterFactory>(),
                 provider.GetService<TimeProvider>(),
                 provider.GetService<Microsoft.Extensions.Logging.ILogger<QuotaUsageObserver>>())));
@@ -358,15 +360,16 @@ public static partial class TraconServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IHostedService, JobWorkerBackgroundService>());
 
-        // Queue-depth gauge (Phase 133). Registered as an IHostedService for
-        // the same single reason as QuotaUsageObserver: so the container builds
-        // this object EARLY and its ObservableGauge exists. While
-        // EnableJobQueueDepthGauge is off (the default) the gauge is created
-        // but never touches the store - see the class documentation.
+        // Queue-depth gauge (Phase 133). The same shape and the same reasons as
+        // QuotaUsageObserver above: a background refresh behind a cache-only
+        // callback, registered unconditionally (K-251). While
+        // EnableJobQueueDepthGauge is off (the default) ExecuteAsync returns
+        // at once and the store is never queried.
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, JobQueueDepthObserver>(
             static provider => new JobQueueDepthObserver(
                 provider.GetRequiredService<IJobStore>(),
                 provider.GetRequiredService<IOptionsMonitor<TraconOptions>>(),
+                provider.GetRequiredService<SchemaReadyGate>(),
                 provider.GetService<System.Diagnostics.Metrics.IMeterFactory>(),
                 provider.GetService<TimeProvider>(),
                 provider.GetService<Microsoft.Extensions.Logging.ILogger<JobQueueDepthObserver>>(),

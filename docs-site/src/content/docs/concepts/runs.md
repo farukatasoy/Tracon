@@ -317,7 +317,9 @@ builder.Services.AddSingleton<IRunAuthorizationHandler, YourRunAuthorizationHand
 
 Register nothing and nothing changes: every run starts and every run stays
 readable, exactly as before this binding existed. If the handler throws, the
-call is denied (fail-closed). A denied single resource answers `404`, with a
+call is denied (fail-closed), an `Error` line naming your handler type is
+logged in the `Tracon.RunAuthorization` category, and a `403` says that the
+check failed and can be retried. A denied single resource answers `404`, with a
 body identical to a run that does not exist — a `403` there would confirm
 the run exists; a denied list answers `403`. See
 [Embedding: run and session authorization](/guides/embedding/#6--run-and-session-authorization)

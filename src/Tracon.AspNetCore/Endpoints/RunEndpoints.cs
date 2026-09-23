@@ -58,6 +58,7 @@ internal static class RunEndpoints
                 [FromQuery] Guid? rootRunId,
                 [FromQuery] int? skip,
                 [FromQuery] int? take,
+                HttpContext httpContext,
                 CancellationToken cancellationToken) =>
             {
                 // 🚨 A denied list is REJECTED (403), never silently filtered:
@@ -74,6 +75,7 @@ internal static class RunEndpoints
                             attributionContext,
                             RunAccess.Read,
                             NotAuthorized(),
+                            httpContext,
                             cancellationToken)
                         .ConfigureAwait(false) is { } authorizationProblem)
                 {
@@ -129,6 +131,7 @@ internal static class RunEndpoints
                 [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
                 [FromServices] IRunAttributionContext? attributionContext,
                 ITenantContext tenants,
+                HttpContext httpContext,
                 CancellationToken cancellationToken) =>
             {
                 if (await runs.GetRunAsync(runId, cancellationToken).ConfigureAwait(false) is not { } record)
@@ -146,6 +149,7 @@ internal static class RunEndpoints
                             attributionContext,
                             RunAccess.Read,
                             NotFound(runId),
+                            httpContext,
                             cancellationToken)
                         .ConfigureAwait(false) is { } authorizationProblem)
                 {
@@ -186,6 +190,7 @@ internal static class RunEndpoints
                 [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
                 [FromServices] IRunAttributionContext? attributionContext,
                 ITenantContext tenants,
+                HttpContext httpContext,
                 CancellationToken cancellationToken) =>
             {
                 if (await runs.GetRunAsync(runId, cancellationToken).ConfigureAwait(false) is not { } record)
@@ -203,6 +208,7 @@ internal static class RunEndpoints
                             attributionContext,
                             RunAccess.Read,
                             NotFound(runId),
+                            httpContext,
                             cancellationToken)
                         .ConfigureAwait(false) is { } authorizationProblem)
                 {
@@ -252,6 +258,7 @@ internal static class RunEndpoints
                             attributionContext,
                             RunAccess.Read,
                             NotFound(runId),
+                            httpContext,
                             cancellationToken)
                         .ConfigureAwait(false) is { } authorizationProblem)
                 {
@@ -408,6 +415,7 @@ internal static class RunEndpoints
         [FromServices] ITenantContext tenants,
         [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
         [FromServices] IRunAttributionContext? attributionContext,
+        HttpContext httpContext,
         CancellationToken cancellationToken)
     {
         var run = await runs.GetRunAsync(runId, cancellationToken).ConfigureAwait(false);
@@ -427,6 +435,7 @@ internal static class RunEndpoints
                     attributionContext,
                     RunAccess.Read,
                     NotFound(runId),
+                    httpContext,
                     cancellationToken)
                 .ConfigureAwait(false) is { } authorizationProblem)
         {
@@ -462,6 +471,7 @@ internal static class RunEndpoints
         [FromServices] ITenantContext tenants,
         [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
         [FromServices] IRunAttributionContext? attributionContext,
+        HttpContext httpContext,
         CancellationToken cancellationToken)
     {
         var left = await runs.GetRunAsync(a, cancellationToken).ConfigureAwait(false);
@@ -485,7 +495,7 @@ internal static class RunEndpoints
         if (await RunAuthorizationGate
                 .CheckRunResourceAsync(
                     runAuthorizationHandler, tenants, a, left.AgentName, left.SessionId,
-                    attributionContext, RunAccess.Read, NotFound(a), cancellationToken)
+                    attributionContext, RunAccess.Read, NotFound(a), httpContext, cancellationToken)
                 .ConfigureAwait(false) is { } leftProblem)
         {
             return leftProblem;
@@ -494,7 +504,7 @@ internal static class RunEndpoints
         if (await RunAuthorizationGate
                 .CheckRunResourceAsync(
                     runAuthorizationHandler, tenants, b, right.AgentName, right.SessionId,
-                    attributionContext, RunAccess.Read, NotFound(b), cancellationToken)
+                    attributionContext, RunAccess.Read, NotFound(b), httpContext, cancellationToken)
                 .ConfigureAwait(false) is { } rightProblem)
         {
             return rightProblem;
@@ -695,6 +705,7 @@ internal static class RunEndpoints
                     attributionContext,
                     RunAccess.Start,
                     NotAuthorized(),
+                    httpContext,
                     cancellationToken)
                 .ConfigureAwait(false) is { } authorizationProblem)
         {
@@ -879,7 +890,7 @@ internal static class RunEndpoints
         if (await RunAuthorizationGate
                 .CheckRunResourceAsync(
                     runAuthorizationHandler, tenants, runId, run.AgentName, run.SessionId,
-                    attributionContext, RunAccess.Feedback, NotFoundFeedback(runId), cancellationToken)
+                    attributionContext, RunAccess.Feedback, NotFoundFeedback(runId), httpContext, cancellationToken)
                 .ConfigureAwait(false) is { } authorizationProblem)
         {
             return authorizationProblem;
@@ -978,6 +989,7 @@ internal static class RunEndpoints
         [FromServices] IRunAttributionContext? attributionContext,
         [FromServices] TimeProvider? timeProvider,
         [FromServices] TraconMetrics metrics,
+        HttpContext httpContext,
         CancellationToken cancellationToken)
     {
         var run = await runs.GetRunAsync(runId, cancellationToken).ConfigureAwait(false);
@@ -995,7 +1007,7 @@ internal static class RunEndpoints
         if (await RunAuthorizationGate
                 .CheckRunResourceAsync(
                     runAuthorizationHandler, tenants, runId, run.AgentName, run.SessionId,
-                    attributionContext, RunAccess.Cancel, NotFound(runId), cancellationToken)
+                    attributionContext, RunAccess.Cancel, NotFound(runId), httpContext, cancellationToken)
                 .ConfigureAwait(false) is { } authorizationProblem)
         {
             return authorizationProblem;
@@ -1079,6 +1091,7 @@ internal static class RunEndpoints
         [FromServices] ITenantContext tenants,
         [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
         [FromServices] IRunAttributionContext? attributionContext,
+        HttpContext httpContext,
         CancellationToken cancellationToken)
     {
         var run = await runs.GetRunAsync(runId, cancellationToken).ConfigureAwait(false);
@@ -1093,7 +1106,7 @@ internal static class RunEndpoints
         if (await RunAuthorizationGate
                 .CheckRunResourceAsync(
                     runAuthorizationHandler, tenants, runId, run.AgentName, run.SessionId,
-                    attributionContext, RunAccess.Read, NotFoundFeedback(runId), cancellationToken)
+                    attributionContext, RunAccess.Read, NotFoundFeedback(runId), httpContext, cancellationToken)
                 .ConfigureAwait(false) is { } authorizationProblem)
         {
             return authorizationProblem;
@@ -1116,6 +1129,7 @@ internal static class RunEndpoints
         [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
         [FromServices] IRunAttributionContext? attributionContext,
         [FromServices] TraconMetrics metrics,
+        HttpContext httpContext,
         CancellationToken cancellationToken)
     {
         var run = await runs.GetRunAsync(runId, cancellationToken).ConfigureAwait(false);
@@ -1128,7 +1142,7 @@ internal static class RunEndpoints
         if (await RunAuthorizationGate
                 .CheckRunResourceAsync(
                     runAuthorizationHandler, tenants, runId, run.AgentName, run.SessionId,
-                    attributionContext, RunAccess.Feedback, NotFoundFeedback(runId), cancellationToken)
+                    attributionContext, RunAccess.Feedback, NotFoundFeedback(runId), httpContext, cancellationToken)
                 .ConfigureAwait(false) is { } authorizationProblem)
         {
             return authorizationProblem;

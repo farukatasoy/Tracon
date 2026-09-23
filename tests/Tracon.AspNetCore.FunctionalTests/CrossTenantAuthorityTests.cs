@@ -357,6 +357,75 @@ public sealed class CrossTenantAuthorityTests
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
+    // ---- Minting a key that carries platform authority -------------------------
+
+    private static HttpRequestMessage CreateKeyRequest(params string[] scopes)
+        => Request(HttpMethod.Post, "/tracon/api/api-keys", new { name = "minted", scopes });
+
+    /// <summary>
+    /// 🚨 A key that carries PlatformAdmin reaches every tenant. If a
+    /// claims-based Admin of one tenant could create one, the policy
+    /// requirement above would be one request away from meaningless.
+    /// </summary>
+    [Fact]
+    public async Task Claims_user_without_platform_authority_cannot_mint_a_platform_key()
+    {
+        await using var host = await StartWithClaimsTenancyAsync(registerPlatformPolicy: false);
+
+        using var request = AsClaimsUser(CreateKeyRequest("SecurityAdmin", "PlatformAdmin"), "acme");
+        using var response = await host.Client.SendAsync(request);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        (await response.Content.ReadAsStringAsync()).ShouldContain(TraconPolicies.PlatformAdmin);
+    }
+
+    [Fact]
+    public async Task Claims_user_that_passes_the_platform_policy_mints_a_platform_key()
+    {
+        await using var host = await StartWithClaimsTenancyAsync(registerPlatformPolicy: true);
+
+        using var request = AsClaimsUser(CreateKeyRequest("SecurityAdmin", "PlatformAdmin"), "acme", platform: true);
+        using var response = await host.Client.SendAsync(request);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task Claims_user_still_mints_a_key_for_its_own_tenant_without_platform_scope()
+    {
+        await using var host = await StartWithClaimsTenancyAsync(registerPlatformPolicy: false);
+
+        using var request = AsClaimsUser(CreateKeyRequest("SecurityAdmin", "AgentsAdmin"), "acme");
+        using var response = await host.Client.SendAsync(request);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task Static_token_mints_a_platform_key()
+    {
+        await using var host = await StartWithHeaderTenancyAsync(static options => options.AuthToken = StaticToken);
+
+        using var request = WithKey(CreateKeyRequest("PlatformAdmin"), StaticToken);
+        request.Headers.Add(TenantHeader, "acme");
+
+        using var response = await host.Client.SendAsync(request);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task Platform_key_mints_another_platform_key()
+    {
+        await using var host = await StartWithHeaderTenancyAsync();
+        var key = await CreateKeyAsync(host, "acme", "SecurityAdmin", "PlatformAdmin");
+
+        using var request = WithKey(CreateKeyRequest("PlatformAdmin"), key);
+        using var response = await host.Client.SendAsync(request);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
     /// <summary>
     /// Authenticates every request; the tenant and the platform marker come
     /// from test headers, so one host can play several callers.

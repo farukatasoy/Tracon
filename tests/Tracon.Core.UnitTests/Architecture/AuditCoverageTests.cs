@@ -23,6 +23,9 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// <c>services.Replace</c> silently drops one otherwise). <c>IAuditDecorated</c>
 /// is the marker each decorator already implements for
 /// <c>StorePersistence</c>, so no new surface is introduced to test this.
+/// This container is built from <c>AddTracon()</c> alone, so it does not see
+/// the providers' re-application; <c>SqlProviderRegistrationParityTests</c>
+/// (Tracon.Sql.Shared.UnitTests) checks that side against this baseline.
 /// </para>
 /// <para>
 /// 🚨 The exclusion list below is the judgment half and is NOT mechanical: a

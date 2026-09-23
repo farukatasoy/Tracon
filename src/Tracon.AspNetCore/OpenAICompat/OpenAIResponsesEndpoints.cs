@@ -199,7 +199,7 @@ internal static class OpenAIResponsesEndpoints
         // as every other run-starting endpoint (phase 139, F-185): an
         // unauthorized call must not learn whether 'loadId' exists.
         if (await RunAuthorizationGate
-                .CheckRunAsync(runAuthorizationHandler, tenantContext, agentName, loadId, attributionContext, cancellationToken)
+                .CheckRunAsync(runAuthorizationHandler, tenantContext, agentName, loadId, attributionContext, httpContext, cancellationToken)
                 .ConfigureAwait(false) is { } authorizationProblem)
         {
             return OpenAICompatSupport.Error(
@@ -212,7 +212,7 @@ internal static class OpenAIResponsesEndpoints
         // call that names another user's conversation would otherwise replay
         // its whole history into the model. Inert while ownership is off.
         if (await SessionOwnershipGate
-                .CheckRunSessionAsync(sessionOwnershipOptions, attributionContext, sessions, loadId, cancellationToken)
+                .CheckRunSessionAsync(sessionOwnershipOptions, attributionContext, sessions, loadId, httpContext, cancellationToken)
                 .ConfigureAwait(false) is { } ownershipProblem)
         {
             return OpenAICompatSupport.Error(

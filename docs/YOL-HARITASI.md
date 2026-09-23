@@ -8,7 +8,7 @@
 Bir fazın durumu yanlış görünüyorsa **o fazın dokümanını** düzelt;
 bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 
-## Fazlar (185 kalem)
+## Fazlar (192 kalem)
 
 | Faz | Konu | Durum |
 |-----|------|-------|
@@ -197,5 +197,12 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [182](arsiv/fazlar/182-PUBLIC-API-YUZEY-DARALTMA.md) | Public API Yüzey Daraltma | ✅ Tamamlandı |
 | [183](arsiv/fazlar/183-COKLU-TFM-TEST-MATRISI.md) | Çoklu TFM Test Matrisi | ✅ Tamamlandı |
 | [184](arsiv/fazlar/184-TEST-BEKLEME-VE-E2E-YAPISI.md) | Test Bekleme ve E2E Yapısı | ✅ Tamamlandı |
+| [185](185-KARDES-PAKET-SURUM-SABITLEME.md) | Kardeş Paket Sürüm Sabitleme ve Karışık Graf Koruması | 📋 Planlandı |
+| [186](186-SCRIPT-IZNI-ICERIK-PINI.md) | Script İzninin İçeriğe Bağlanması ve Tehdit Modeli Düzeltmesi | 📋 Planlandı |
+| [187](187-KIRICI-DEGISIKLIK-KAPISI.md) | Yayınlanmış Sürüme Karşı Kırıcı Değişiklik Kapısı | 📋 Planlandı |
+| [188](188-DI-KURUCU-DARALTMA.md) | DI ile Kurulan Servis Tiplerinde Kurucu Daraltması | 📋 Planlandı |
+| [189](189-TUKETICI-YUZEYI-VE-BUILDER.md) | Tüketici Yüzeyi: TraconToolRegistration ve ITraconBuilder | 📋 Planlandı |
+| [190](190-KIMLIK-BASLIKLARI-ANAHTAR-REFERANSI.md) | Kimlik Taşıyan Başlıklar İçin Yapılandırma Anahtarı Referansı | 📋 Planlandı |
+| [191](191-TEK-DERLEME-ZINCIRI.md) | Tek Derleme Zinciri | 📋 Planlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).

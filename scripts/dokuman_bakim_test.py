@@ -1977,3 +1977,216 @@ class BayatKodYoluTestleri(unittest.TestCase):
         izlenen = {"packages/tracon-client/src/schema.ts"}
         metin = "Şema `src/schema.ts` içindedir."
         self.assertEqual([], dokuman_bakim._bayat_yollar_metinde(metin, izlenen.__contains__))
+
+
+class IsZamanSiniriTestleri(unittest.TestCase):
+    """Her workflow işi `timeout-minutes` taşır (2026-09-23, kusur-giderme).
+
+    `ci.yml`'de hiçbir iş sınır taşımıyordu ve her iş GitHub'ın 360 dakikalık
+    varsayılanını alıyordu. Asılan bir test uygulaması iki runner'ı altı saat
+    yakar; log hangi uygulamanın asıldığını söylemez. Sınır adım adım büyüyen
+    bir dosyada ancak bir kapıyla kalıcı olur."""
+
+    def _workflow(self, tmp: pathlib.Path, ad: str, metin: str) -> None:
+        dizin = tmp / ".github" / "workflows"
+        dizin.mkdir(parents=True, exist_ok=True)
+        (dizin / ad).write_text(metin, encoding="utf-8")
+
+    def test_sinirsiz_is_bulgudur(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = pathlib.Path(d)
+            self._workflow(tmp, "ci.yml", (
+                "name: CI\n"
+                "on: push\n"
+                "jobs:\n"
+                "  build:\n"
+                "    runs-on: ubuntu-latest\n"
+                "    timeout-minutes: 30\n"
+                "    steps:\n"
+                "      - run: echo\n"
+                "  pack:\n"
+                "    name: Paketle\n"
+                "    runs-on: ubuntu-latest\n"
+                "    steps:\n"
+                "      - run: echo\n"))
+
+            bulgular = dokuman_bakim.zaman_siniri_olmayan_isler(tmp)
+
+            self.assertEqual(1, len(bulgular), bulgular)
+            self.assertIn("ci.yml:9", bulgular[0])
+            self.assertIn("pack", bulgular[0])
+
+    def test_her_is_sinirliysa_temizdir(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = pathlib.Path(d)
+            self._workflow(tmp, "ci.yml", (
+                "jobs:\n"
+                "  build:\n"
+                "    # yorum satiri\n"
+                "    runs-on: ubuntu-latest\n"
+                "    timeout-minutes: 100\n"
+                "\n"
+                "  site:\n"
+                "    runs-on: ubuntu-latest\n"
+                "    timeout-minutes: ${{ inputs.sure }}\n"))
+
+            self.assertEqual([], dokuman_bakim.zaman_siniri_olmayan_isler(tmp))
+
+    def test_adim_duzeyindeki_sinir_isi_KAPSAMAZ(self):
+        # Adim siniri yalniz o adimi keser; isin geri kalani yine 360 dk kosar.
+        with tempfile.TemporaryDirectory() as d:
+            tmp = pathlib.Path(d)
+            self._workflow(tmp, "ci.yml", (
+                "jobs:\n"
+                "  build:\n"
+                "    runs-on: ubuntu-latest\n"
+                "    steps:\n"
+                "      - name: Test et\n"
+                "        timeout-minutes: 60\n"
+                "        run: |\n"
+                "          timeout-minutes: 5\n"))
+
+            bulgular = dokuman_bakim.zaman_siniri_olmayan_isler(tmp)
+
+            self.assertEqual(1, len(bulgular), bulgular)
+            self.assertIn("build", bulgular[0])
+
+    def test_yorumdaki_sinir_SAYILMAZ(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = pathlib.Path(d)
+            self._workflow(tmp, "ci.yml", (
+                "jobs:\n"
+                "  build:\n"
+                "    # timeout-minutes: 30\n"
+                "    runs-on: ubuntu-latest\n"))
+
+            self.assertEqual(1, len(dokuman_bakim.zaman_siniri_olmayan_isler(tmp)))
+
+    def test_yeniden_kullanilan_workflow_cagrisi_muaftir(self):
+        # GitHub, `uses:` ile workflow cagiran iste `timeout-minutes` kabul etmez;
+        # sinir cagrilan workflow'un kendi islerinde durur.
+        with tempfile.TemporaryDirectory() as d:
+            tmp = pathlib.Path(d)
+            self._workflow(tmp, "ci.yml", (
+                "jobs:\n"
+                "  release:\n"
+                "    uses: ./.github/workflows/release.yml\n"
+                "    secrets: inherit\n"))
+
+            self.assertEqual([], dokuman_bakim.zaman_siniri_olmayan_isler(tmp))
+
+    def test_her_workflow_dosyasi_taranir(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = pathlib.Path(d)
+            self._workflow(tmp, "ci.yml", (
+                "jobs:\n"
+                "  build:\n"
+                "    runs-on: ubuntu-latest\n"
+                "    timeout-minutes: 10\n"))
+            self._workflow(tmp, "nightly.yaml", (
+                "on:\n"
+                "  schedule:\n"
+                "    - cron: '0 3 * * *'\n"
+                "jobs:\n"
+                "    soak:\n"
+                "        runs-on: ubuntu-latest\n"))
+
+            bulgular = dokuman_bakim.zaman_siniri_olmayan_isler(tmp)
+
+            self.assertEqual(1, len(bulgular), bulgular)
+            self.assertIn("nightly.yaml:5", bulgular[0])
+            self.assertIn("soak", bulgular[0])
+
+    def test_jobs_sonrasindaki_ust_anahtar_isi_bitirir(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = pathlib.Path(d)
+            self._workflow(tmp, "ci.yml", (
+                "jobs:\n"
+                "  build:\n"
+                "    runs-on: ubuntu-latest\n"
+                "env:\n"
+                "  timeout-minutes: 5\n"))
+
+            self.assertEqual(1, len(dokuman_bakim.zaman_siniri_olmayan_isler(tmp)))
+
+    def test_workflow_dizini_yoksa_bulgu_uretmez(self):
+        # Eksik ci.yml'i registry kapisi zaten bildirir; iki kez sayilmaz.
+        with tempfile.TemporaryDirectory() as d:
+            self.assertEqual([], dokuman_bakim.zaman_siniri_olmayan_isler(pathlib.Path(d)))
+
+    def test_GERCEK_workflowlarda_sinirsiz_is_YOK(self):
+        self.assertEqual([], dokuman_bakim.zaman_siniri_olmayan_isler(ROOT))
+
+    def test_denetle_zaman_siniri_bulgusunda_kirmizidir(self):
+        with mock.patch.object(dokuman_bakim, "zaman_siniri_olmayan_isler",
+                               return_value=[".github/workflows/ci.yml:1: `x`"]):
+            self.assertEqual(1, dokuman_bakim.denetle())
+
+
+class KararKategorisiTestleri(unittest.TestCase):
+    """AGENTS.md kabul kuralı: `K-*` yalnız dört kategoriden birine açılır.
+
+    Kural 2026-08-23'te yazıldı, ama hiçbir kapı onu zorlamadı. Sonraki 32
+    günde 272 karar açıldı ve skill'ler kaydı koşulsuz deftere yolluyordu.
+    K-855'ten itibaren her satır bir kategori etiketi taşır; K-854 ve öncesi
+    muaftır (K-767 emsali: geriye dönük doldurma yok)."""
+
+    def _satir(self, no: int, kuyruk: str = "") -> str:
+        return f"| **K-{no} — bir karar**{kuyruk} | 2026-09-24 | gerekçe | koşul |"
+
+    def test_esik_USTU_etiketsiz_satir_bulgudur(self):
+        bulgular = dokuman_bakim._kategorisiz_karar_satirlari([(910, self._satir(855))])
+
+        self.assertEqual(1, len(bulgular), bulgular)
+        self.assertIn("KARARLAR.md:910", bulgular[0])
+        self.assertIn("K-855", bulgular[0])
+
+    def test_etiketli_satir_gecer(self):
+        govde = [
+            (1, self._satir(855, " *(kategori: public-api)*")),
+            (2, self._satir(856, " *(kategori: güvenlik)* *(kullanıcı kararı)*")),
+            (3, self._satir(857, " **(Faz 185)** *(kategori: kalıcı-veri)*")),
+            (4, self._satir(858, " *(kategori: geri-dönüşü-pahalı)*")),
+            (5, self._satir(859, " *(kategori: güvenlik, kalıcı-veri)*")),
+        ]
+        self.assertEqual([], dokuman_bakim._kategorisiz_karar_satirlari(govde))
+
+    def test_esik_ALTI_satir_muaftir(self):
+        self.assertEqual([], dokuman_bakim._kategorisiz_karar_satirlari(
+            [(1, self._satir(854)), (2, self._satir(1))]))
+
+    def test_bilinmeyen_kategori_bulgudur(self):
+        bulgular = dokuman_bakim._kategorisiz_karar_satirlari(
+            [(1, self._satir(855, " *(kategori: yerel-tercih)*"))])
+        self.assertEqual(1, len(bulgular), bulgular)
+
+    def test_baslik_ICINDEKI_etiket_sayilmaz(self):
+        # Tek bicim: etiket basligi kapatan `**`den sonra gelir.
+        satir = "| **K-855 — bir karar *(kategori: public-api)*** | 2026-09-24 | g | k |"
+        self.assertEqual(1, len(dokuman_bakim._kategorisiz_karar_satirlari([(1, satir)])))
+
+    def test_gerekcedeki_etiket_sayilmaz(self):
+        satir = "| **K-855 — bir karar** | 2026-09-24 | *(kategori: public-api)* | k |"
+        self.assertEqual(1, len(dokuman_bakim._kategorisiz_karar_satirlari([(1, satir)])))
+
+    def test_GERCEK_defterde_bulgu_YOK(self):
+        _bas, govde = dokuman_bakim._kararlar_tablosu()
+        self.assertEqual([], dokuman_bakim._kategorisiz_karar_satirlari(govde))
+
+    def test_kararlar_denetle_etiketsiz_satiri_bildirir(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = pathlib.Path(d)
+            (tmp / "docs").mkdir()
+            (tmp / "docs" / "KARARLAR.md").write_text(
+                "## 2. Kalıcı\n\n"
+                "| Karar | Tarih | Gerekçe | Yeniden açılma koşulu |\n"
+                "|---|---|---|---|\n"
+                + self._satir(854) + "\n"
+                + self._satir(855) + "\n"
+                + self._satir(856, " *(kategori: public-api)*") + "\n",
+                encoding="utf-8")
+            with mock.patch.object(dokuman_bakim, "ROOT", tmp):
+                _sayi, bulgular = dokuman_bakim.kararlar_denetle(tmp)
+
+        self.assertEqual(1, len(bulgular), bulgular)
+        self.assertIn("K-855", bulgular[0])

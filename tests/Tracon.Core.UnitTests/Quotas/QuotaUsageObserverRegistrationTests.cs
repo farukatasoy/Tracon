@@ -1,8 +1,6 @@
-using System.Reflection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Options;
 
 namespace Tracon.Core.UnitTests.Quotas;
 
@@ -19,15 +17,20 @@ namespace Tracon.Core.UnitTests.Quotas;
 /// always produced a default (disabled) instance for that type even when it was
 /// genuinely configured. <see cref="QuotaUsageObserverTests"/> does NOT catch
 /// this because it calls the constructor directly and never triggers DI
-/// resolution. Fix: the observer now injects
-/// <c>IOptionsMonitor&lt;TraconOptions&gt;</c> (the type that is already
-/// correctly wired via <c>Configure&lt;TraconOptions&gt;</c>) and reads the
-/// <c>Observability</c> sub-property.
+/// resolution. Fix: the observer injects <c>IOptionsMonitor&lt;TraconOptions&gt;</c>
+/// (the type that is already correctly wired via <c>Configure&lt;TraconOptions&gt;</c>)
+/// and reads the <c>Observability</c> sub-property.
+/// <para>
+/// The observer is a background refresher now, so the flag is proven by what
+/// the resolved service DOES: enabled, it completes a refresh; disabled, it
+/// returns at once and never refreshes. The earlier version read a private
+/// field by reflection, which a refactor could move without the test noticing.
+/// </para>
 /// </remarks>
 public sealed class QuotaUsageObserverRegistrationTests
 {
     [Fact]
-    public void Observer_resolved_via_DI_sees_the_configured_flag()
+    public async Task Observer_resolved_via_DI_sees_the_configured_flag()
     {
         var configValues = new Dictionary<string, string?>(StringComparer.Ordinal)
         {
@@ -38,31 +41,28 @@ public sealed class QuotaUsageObserverRegistrationTests
         var services = new ServiceCollection();
         services.AddTracon(configuration.GetSection(TraconOptions.SectionName));
 
-        using var provider = services.BuildServiceProvider();
+        await using var provider = services.BuildServiceProvider();
 
         var observer = provider.GetServices<IHostedService>().OfType<QuotaUsageObserver>().Single();
 
-        var field = typeof(QuotaUsageObserver).GetField("_options", BindingFlags.NonPublic | BindingFlags.Instance)
-            ?? throw new InvalidOperationException("QuotaUsageObserver._options not found — did the field name change?");
-
-        var monitor = (IOptionsMonitor<TraconOptions>)field.GetValue(observer)!;
-
-        monitor.CurrentValue.Observability.EnableQuotaUsageGauge.ShouldBeTrue();
+        await observer.StartAsync(TestContext.Current.CancellationToken);
+        await WaitUntil.TrueAsync(() => observer.CompletedRefreshes >= 1);
+        await observer.StopAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
-    public void Observer_resolved_via_DI_sees_the_disabled_default()
+    public async Task Observer_resolved_via_DI_sees_the_disabled_default()
     {
         var services = new ServiceCollection();
         services.AddTracon();
 
-        using var provider = services.BuildServiceProvider();
+        await using var provider = services.BuildServiceProvider();
 
         var observer = provider.GetServices<IHostedService>().OfType<QuotaUsageObserver>().Single();
 
-        var field = typeof(QuotaUsageObserver).GetField("_options", BindingFlags.NonPublic | BindingFlags.Instance)!;
-        var monitor = (IOptionsMonitor<TraconOptions>)field.GetValue(observer)!;
+        await observer.StartAsync(TestContext.Current.CancellationToken);
+        await observer.ExecuteTask!.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
 
-        monitor.CurrentValue.Observability.EnableQuotaUsageGauge.ShouldBeFalse();
+        observer.CompletedRefreshes.ShouldBe(0);
     }
 }

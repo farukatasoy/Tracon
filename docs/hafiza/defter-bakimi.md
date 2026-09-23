@@ -140,3 +140,45 @@ indeks satırı cümlenin yarısında biter ve kalem **aranamaz** hâle gelir.
 Kapı: `_kesik_karar_basliklari()` (`kararlar_denetle` içinde). İmza, başlığı
 kapatan `**`den sonraki kuyruğun **boşlukla başlamamasıdır** — meşru kuyruklar
 (`**(Faz 168)**`, `*(kullanıcı kararı)*`, `🚨`) her zaman boşlukla başlar.
+
+## 🚨 Kabul kuralı kapısız kaldı ve defter kuralın tersine büyüdü (2026-09-23)
+
+AGENTS.md'nin `K-*` kabul kuralı (dört kategori) 2026-08-23'te yazıldı ama hiçbir
+kapı onu zorlamadı. Agent'ların izlediği skill'ler ise kaydı **koşulsuz**
+deftere yolluyordu (`faz-tamamlama` Adım 7/8, `kusur-giderme` Adım 6/7,
+`manuel-test-kosumu` bitti listesi ve altı yer daha). Sonuç: kuraldan sonraki 32
+günde 272 karar açıldı; kusur kapanışları, test kuralları ve arayüz ayrıntıları
+`K-*` oldu. Bir kural ile onu uygulayan skill ayrışırsa **skill kazanır**.
+
+Kapı: `_kategorisiz_karar_satirlari()` (`kararlar_denetle` içinde). `K-855`'ten
+itibaren her §2 satırı `*(kategori: <değer>)*` taşır; eşik sabittir ve geriye
+dönük doldurma yapılmaz (K-767 emsali). Kategori dışı kaydın yeri
+`faz-tamamlama` Adım 8'dedir.
+
+### Süreç maliyeti — elle ölçülür, kapı değildir
+
+Kapının etkisini görmek için üç sayıyı ölç ve tabanla karşılaştır:
+
+```bash
+# 1. Yalnız dokümana dokunan commit oranı (docs/, docs-site/, .agents/, *.md)
+git log --format='@%h' --name-only | awk '
+  /^@/ { if (n) { t++; if (d == n) k++ } n = 0; d = 0; next }
+  NF { n++; if ($0 ~ /^(docs\/|docs-site\/|\.agents\/)|\.md$/) d++ }
+  END { if (n) { t++; if (d == n) k++ } print k "/" t }'
+# 2. Tarih başına yeni K satırı (son 14 tarih)
+python3 -c 'import re,collections; c=collections.Counter(m.group(1) for s in open("docs/KARARLAR.md",encoding="utf-8") if s.startswith("| **K-") and (m:=re.search(r"\|\s*(\d{4}-\d{2}-\d{2})\s*\|",s))); print(sorted(c.items())[-14:])'
+# 3. Defter boyutu ve bütçesi
+wc -c docs/KARARLAR.md; grep -n '"docs/KARARLAR.md":' scripts/dokuman-bakim.py
+```
+
+| Ölçü (2026-09-23, `bb9953e3`) | Taban |
+|---|---|
+| Yalnız doküman commit'i | 608/1135 (%54; dosya değiştiren commit) · 2026-09-02'den beri 376/581 (%65) |
+| Yeni K / gün | tüm dönem 15,8 (853/54 gün) · kural sonrası 8,5 (272/32) · son 7 gün 8,1 |
+| `KARARLAR.md` | 468.280 B / bütçe 496.000 B (%94) |
+
+**Defter bütçesi dar.** Büyüme son 7 günde ~5,0 KB/gün (433.271 → 468.280),
+son 4 günde ~3,3 KB/gün; kalan 27.720 B yaklaşık 6–8 gün yeter. Aşımda K-781
+kuralı geçerlidir: önce `karar-damit` koşulur (bugün kuru koşum 8 satırda
+4.419 B taşır), taşıma tükenmişse sınır damıtma sonrası ölçülen değer / 0,85
+ile yükselir. Bu turda bütçe değişmedi.

@@ -188,8 +188,12 @@ on the model binding, not a global setting. See
 These settings control Tracon span creation and its own trace store. They do not
 replace the application's OpenTelemetry exporter.
 
-Both gauges are off by default because each one reads the database on a scrape;
-the matching refresh interval caches those reads.
+Both gauges are off by default because each one reads the database. When a gauge
+is on, a background refresh reads it at startup and then once per matching
+refresh interval, and a collection only reads the last result. Turning a gauge on,
+or changing its interval, takes effect at the next start. An enabled gauge needs a
+refresh interval from one millisecond to about 49.7 days, or startup validation
+fails.
 `MaxJobLaneCardinality` bounds how many distinct job lanes get a metric series of
 their own before the rest are folded into a single `other` series — see
 [observability](/guides/observability/#what-the-job-metrics-count).
