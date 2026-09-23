@@ -32,6 +32,7 @@ internal sealed class FakeGptLiveServer : IAsyncDisposable
     private readonly WebApplication _app;
     private readonly ConcurrentDictionary<string, TaskCompletionSource> _attached = new(StringComparer.Ordinal);
     private readonly ConcurrentQueue<string> _received = [];
+    private readonly TaskCompletionSource _sidebandClosed = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     private WebSocket? _socket;
 
@@ -46,6 +47,12 @@ internal sealed class FakeGptLiveServer : IAsyncDisposable
 
     /// <summary>The frames the sideband sent to this server, in order.</summary>
     public IReadOnlyCollection<string> Received => _received;
+
+    /// <summary>
+    /// Completes once the sideband socket has closed. Frames arrive in order, so
+    /// every frame sent before the close is in <see cref="Received"/> by then.
+    /// </summary>
+    public Task SidebandClosed => _sidebandClosed.Task;
 
     /// <summary>The Authorization header values seen on the create call.</summary>
     public List<string?> CreateAuthorizationHeaders { get; } = [];
@@ -158,6 +165,8 @@ internal sealed class FakeGptLiveServer : IAsyncDisposable
                 server._received.Enqueue(builderText.ToString());
                 builderText.Clear();
             }
+
+            server._sidebandClosed.TrySetResult();
         });
 
         await app.StartAsync().ConfigureAwait(false);
