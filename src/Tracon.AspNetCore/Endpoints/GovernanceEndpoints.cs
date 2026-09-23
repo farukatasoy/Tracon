@@ -124,13 +124,16 @@ internal static class GovernanceEndpoints
             // Admin; only the listing had slipped.
             .RequireRole(roles.Admin)
             .RequireApiKeyScope(ApiKeyScope.PlatformAdmin)
+            .RequirePlatformAuthority()
             .WithName("TraconListTenants")
             .WithTags("Tracon", "Governance")
             .WithSummary("Lists registered tenants.")
             .WithDescription(
                 "A tenant record is NOT REQUIRED. The tenant_id in other tables is the same " +
                 "text as this record's slug value, but it is not connected by a foreign key; " +
-                "a tenant with no record does not produce an error at runtime.");
+                "a tenant with no record does not produce an error at runtime. The list names " +
+                "every tenant of the installation, so it requires platform authority (403 " +
+                "otherwise).");
 
         builder.MapPut("/api/tenants/{slug}", async Task<Results<Ok<TenantDescriptor>, ProblemHttpResult>> (
                 string slug,
@@ -171,6 +174,7 @@ internal static class GovernanceEndpoints
             })
             .RequireRole(roles.Admin)
             .RequireApiKeyScope(ApiKeyScope.PlatformAdmin)
+            .RequirePlatformAuthorityForOtherTenant("slug")
             .WithName("TraconSaveTenant")
             .WithTags("Tracon", "Governance")
             .WithSummary("Adds or updates a tenant record.")
@@ -181,7 +185,8 @@ internal static class GovernanceEndpoints
                 "letters, digits, dots, underscores, and hyphens (400 otherwise) — it is the " +
                 "same text stored as 'tenant_id' on every other row, and it is folded to " +
                 "lower case for the same reason, so 'Acme' and 'acme' name one record. " +
-                "An empty display name falls back to the slug.")
+                "An empty display name falls back to the slug. A tenant other than the " +
+                "caller's own requires platform authority (403 otherwise).")
             .Accepts<TenantRequest>("application/json");
 
         builder.MapDelete("/api/tenants/{slug}", async Task<Results<NoContent, ProblemHttpResult>> (
@@ -196,10 +201,13 @@ internal static class GovernanceEndpoints
                         statusCode: StatusCodes.Status404NotFound))
             .RequireRole(roles.Admin)
             .RequireApiKeyScope(ApiKeyScope.PlatformAdmin)
+            .RequirePlatformAuthorityForOtherTenant("slug")
             .WithName("TraconDeleteTenant")
             .WithTags("Tracon", "Governance")
             .WithSummary("Deletes a tenant record.")
-            .WithDescription("Only the record is deleted; the tenant's agents, sessions, and runs remain.");
+            .WithDescription(
+                "Only the record is deleted; the tenant's agents, sessions, and runs remain. " +
+                "A tenant other than the caller's own requires platform authority (403 otherwise).");
     }
 
     private static void MapMcpServers(IEndpointRouteBuilder builder, TraconRolePolicies roles)
@@ -226,6 +234,7 @@ internal static class GovernanceEndpoints
                 ITenantContext tenants,
                 IOptionsMonitor<TraconEgressOptions> egressOptions,
                 IOptionsMonitor<TraconMcpSecurityOptions> mcpSecurityOptions,
+                IOptions<TraconOptions> coreOptions,
                 CancellationToken cancellationToken) =>
             {
                 var (bound, bindError) = await RequestBodyBinding
@@ -239,7 +248,13 @@ internal static class GovernanceEndpoints
 
                 var request = bound!;
 
-                if (Validate(name, request, egressOptions.CurrentValue, mcpSecurityOptions.CurrentValue) is { } invalid)
+                if (Validate(
+                        name,
+                        request,
+                        tenants.TenantId,
+                        coreOptions.Value.DefaultTenantId,
+                        egressOptions.CurrentValue,
+                        mcpSecurityOptions.CurrentValue) is { } invalid)
                 {
                     return invalid;
                 }
@@ -276,7 +291,10 @@ internal static class GovernanceEndpoints
             .WithDescription(
                 "SECURITY BOUNDARY. Adding an MCP server means accepting tool definitions " +
                 "from an external source. Only http/https addresses are accepted; local process " +
-                "(stdio) transport is not supported. Tools require approval by default.");
+                "(stdio) transport is not supported. Tools require approval by default. A " +
+                "configuration key name must be under the configured allowed prefix and inside " +
+                "the tenant's own key space — '{prefix}{tenantId}:...'; a flat name directly " +
+                "under the prefix belongs to the default tenant (400 otherwise).");
 
         builder.MapDelete("/api/mcp-servers/{name}", async Task<Results<NoContent, ProblemHttpResult>> (
                 string name,
@@ -786,6 +804,8 @@ internal static class GovernanceEndpoints
     private static ProblemHttpResult? Validate(
         string name,
         McpServerRequest request,
+        string tenantId,
+        string defaultTenantId,
         TraconEgressOptions egress,
         TraconMcpSecurityOptions mcpSecurity)
     {
@@ -834,18 +854,23 @@ internal static class GovernanceEndpoints
 
         // 🚨 The definition carries no secret, only the NAME of the key its
         // value is read from (K-059). Without a prefix restriction that name
-        // could point at any configuration key in the application.
-        if (RequirePrefix(
+        // could point at any configuration key in the application; without
+        // the tenant segment it could point at another tenant's key.
+        if (RequireTenantKey(
                 request.AuthorizationConfigurationKey,
                 mcpSecurity.AllowedConfigurationPrefix,
+                tenantId,
+                defaultTenantId,
                 "authorizationConfigurationKey") is { } authKeyProblem)
         {
             return authKeyProblem;
         }
 
-        if (RequirePrefix(
+        if (RequireTenantKey(
                 request.OAuthClientSecretConfigurationKey,
                 mcpSecurity.AllowedConfigurationPrefix,
+                tenantId,
+                defaultTenantId,
                 "oauthClientSecretConfigurationKey") is { } secretKeyProblem)
         {
             return secretKeyProblem;
@@ -875,10 +900,16 @@ internal static class GovernanceEndpoints
     }
 
     /// <summary>
-    /// Rejects a configuration key name that sits outside the allowed prefix.
-    /// An empty name is allowed: the field itself is optional.
+    /// Rejects a configuration key name that sits outside the allowed prefix
+    /// or outside the caller's tenant. An empty name is allowed: the field
+    /// itself is optional.
     /// </summary>
-    private static ProblemHttpResult? RequirePrefix(string? configurationKeyName, string allowedPrefix, string fieldName)
+    private static ProblemHttpResult? RequireTenantKey(
+        string? configurationKeyName,
+        string allowedPrefix,
+        string tenantId,
+        string defaultTenantId,
+        string fieldName)
     {
         if (string.IsNullOrWhiteSpace(configurationKeyName))
         {
@@ -887,7 +918,12 @@ internal static class GovernanceEndpoints
 
         try
         {
-            ConfigurationKeyGuard.RequirePrefix(configurationKeyName, allowedPrefix, fieldName);
+            ConfigurationKeyGuard.RequireTenantKey(
+                configurationKeyName,
+                allowedPrefix,
+                tenantId,
+                defaultTenantId,
+                fieldName);
 
             return null;
         }

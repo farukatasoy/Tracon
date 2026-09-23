@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 using Tracon.Core.UnitTests.Fakes;
 
 namespace Tracon.Core.UnitTests.Triggers;
@@ -10,7 +11,7 @@ public sealed class InboundTriggerSecretResolverTests
     public void Name_outside_the_allowed_prefix_is_rejected()
     {
         var exception = Should.Throw<TraconException>(
-            () => CreateResolver().ValidatePrefix("ConnectionStrings:Default"));
+            () => CreateResolver().ValidateKeyName("default", "ConnectionStrings:Default"));
 
         exception.Message.ShouldContain("ConnectionStrings:Default");
         exception.Message.ShouldContain("Tracon:TriggerSecrets:");
@@ -18,11 +19,11 @@ public sealed class InboundTriggerSecretResolverTests
 
     [Fact]
     public void Empty_name_is_rejected()
-        => Should.Throw<TraconException>(() => CreateResolver().ValidatePrefix(""));
+        => Should.Throw<TraconException>(() => CreateResolver().ValidateKeyName("default", ""));
 
     [Fact]
     public void Name_under_the_prefix_is_accepted()
-        => Should.NotThrow(() => CreateResolver().ValidatePrefix("Tracon:TriggerSecrets:Slack"));
+        => Should.NotThrow(() => CreateResolver().ValidateKeyName("default", "Tracon:TriggerSecrets:Slack"));
 
     [Fact]
     public void A_custom_prefix_is_honored()
@@ -31,8 +32,8 @@ public sealed class InboundTriggerSecretResolverTests
             configuration: BuildConfiguration(),
             options: new TraconInboundTriggerOptions { AllowedConfigurationPrefix = "Custom:Prefix:" });
 
-        Should.Throw<TraconException>(() => resolver.ValidatePrefix("Tracon:TriggerSecrets:Slack"));
-        Should.NotThrow(() => resolver.ValidatePrefix("Custom:Prefix:Slack"));
+        Should.Throw<TraconException>(() => resolver.ValidateKeyName("default", "Tracon:TriggerSecrets:Slack"));
+        Should.NotThrow(() => resolver.ValidateKeyName("default", "Custom:Prefix:Slack"));
     }
 
     [Fact]
@@ -57,12 +58,38 @@ public sealed class InboundTriggerSecretResolverTests
         Should.Throw<TraconException>(() => resolver.Resolve(Trigger("Legacy:Key")));
     }
 
+    /// <summary>
+    /// A flat name belongs to the default tenant. Another tenant's trigger
+    /// that names it would verify signatures with a secret it does not own.
+    /// </summary>
+    [Theory]
+    [InlineData("Tracon:TriggerSecrets:Slack")]
+    [InlineData("Tracon:TriggerSecrets:globex:Slack")]
+    public void Resolve_rejects_a_trigger_that_names_a_key_outside_its_tenant(string configurationName)
+    {
+        var resolver = CreateResolver(BuildConfiguration((configurationName, "whsec_other")));
+
+        Should.Throw<TraconException>(
+                () => resolver.Resolve(Trigger(configurationName) with { TenantId = "acme" }))
+            .Message.ShouldContain("Tracon:TriggerSecrets:acme:");
+    }
+
+    [Fact]
+    public void Resolve_reads_a_key_under_the_triggers_own_tenant()
+    {
+        var resolver = CreateResolver(BuildConfiguration(("Tracon:TriggerSecrets:acme:Slack", "whsec_test")));
+
+        resolver.Resolve(Trigger("Tracon:TriggerSecrets:acme:Slack") with { TenantId = "acme" })
+            .ShouldBe("whsec_test");
+    }
+
     [Fact]
     public void No_configuration_registered_resolves_to_null()
     {
         var resolver = new InboundTriggerSecretResolver(
             configuration: null,
-            new StaticOptionsMonitor<TraconInboundTriggerOptions>(new TraconInboundTriggerOptions()));
+            new StaticOptionsMonitor<TraconInboundTriggerOptions>(new TraconInboundTriggerOptions()),
+            Options.Create(new TraconOptions()));
 
         resolver.Resolve(Trigger("Tracon:TriggerSecrets:Slack")).ShouldBeNull();
     }
@@ -84,7 +111,8 @@ public sealed class InboundTriggerSecretResolverTests
         TraconInboundTriggerOptions? options = null)
         => new(
             configuration ?? BuildConfiguration(),
-            new StaticOptionsMonitor<TraconInboundTriggerOptions>(options ?? new TraconInboundTriggerOptions()));
+            new StaticOptionsMonitor<TraconInboundTriggerOptions>(options ?? new TraconInboundTriggerOptions()),
+            Options.Create(new TraconOptions()));
 
     private static IConfiguration BuildConfiguration(params (string Key, string Value)[] values)
         => new ConfigurationBuilder()

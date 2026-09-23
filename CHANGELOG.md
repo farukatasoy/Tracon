@@ -6,6 +6,37 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Security
+
+These three changes can refuse a request or a record that a running setup
+accepted before. Each refusal names what to change.
+
+- A stored record may name only a configuration key inside its own tenant.
+  The allowed prefix is one per installation, so a record of one tenant could
+  name another tenant's key and point it at an address it controls. A
+  non-default tenant now names keys under `{prefix}{tenant}:` (for tenant
+  `acme`, `Tracon:McpSecrets:acme:GithubToken`); a flat name directly under the
+  prefix belongs to the default tenant, so a single-tenant installation changes
+  nothing. The rule covers MCP servers, tenant provider bindings, webhook
+  subscriptions and inbound triggers, where the record is saved (`400`) and
+  where its value is resolved. Move an out-of-tenant name under the tenant's
+  segment.
+- `/api/tenants/{tenantId}/providers`, `/api/tenants/{tenantId}/egress` and the
+  tenant records (`/api/tenants`) act on a tenant other than the caller's own
+  only with platform authority: an API key that also carries `PlatformAdmin`,
+  the static `AuthToken`, or — for a claims principal while multi-tenancy is
+  on — the new `TraconPolicies.PlatformAdmin` policy. A missing registration of
+  that policy denies (`403`). Before, a key bound to one tenant with
+  `SecurityAdmin`, or a claims-based Admin of one tenant, could rewrite another
+  tenant's provider binding.
+- With `AllowRemoteAccess` on and neither `AuthToken` nor an authorization
+  policy configured, an anonymous remote request now returns `401`; API keys
+  keep working. A request that still carries `X-Forwarded-For`, `Forwarded` or
+  `X-Real-IP` counts as remote, so a reverse proxy on the same machine no longer
+  makes every caller look local. Without a token or a policy, an anonymous
+  request with a non-loopback `Host` or `Origin` returns `403`, which blocks DNS
+  rebinding and cross-site requests; the voice WebSocket follows the same rule.
+
 ### Fixed
 
 - `GET /api/models/health` no longer fails for every provider when one
@@ -90,6 +121,11 @@ preview line, and the counts below are types, not members.
 
 ### Changed
 
+- `TenantProviderCredentialResolver` takes `IOptions<TraconOptions>` as a third
+  constructor argument, and `ValidatePrefix(string)` is replaced by
+  `ValidateKeyName(string tenantId, string configurationKeyName)`. The old
+  name checked only the prefix; the rename keeps a caller from compiling
+  against the weaker rule unchanged.
 - `ToolApprovalRuleStoreContract` (in `Tracon.Testing.Contracts.Xunit`) has two
   new cases. A store of your own must keep two condition sets apart even when a
   path carries a control character, and must treat a list value that differs

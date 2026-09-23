@@ -1526,7 +1526,7 @@ export interface paths {
         get: operations["TraconGetWebhook"];
         /**
          * Creates or updates a webhook subscription.
-         * @description The address passes an SSRF check: only https is accepted (http only when AllowInsecureHttp is enabled and only to loopback targets). Private network addresses are re-checked again at delivery time.
+         * @description The address passes an SSRF check: only https is accepted (http only when AllowInsecureHttp is enabled and only to loopback targets). Private network addresses are re-checked again at delivery time. 'secretConfigurationKey' must be under the configured allowed prefix and inside the tenant's own key space — '{prefix}{tenantId}:...'; a flat name directly under the prefix belongs to the default tenant (400 otherwise).
          */
         put: operations["TraconSaveWebhook"];
         post?: never;
@@ -1633,7 +1633,7 @@ export interface paths {
         };
         /**
          * Lists a tenant's model provider bindings.
-         * @description The response carries neither the credential value nor its configuration key's value — only the key's NAME and whether it currently resolves ('resolved'). This is the diagnosis path for 'I set the key but it does not work'. The 'tenantId' route value is matched case-insensitively: it is folded to lower case before it reaches the store, so 'Acme' and 'acme' are one tenant on every storage engine.
+         * @description The response carries neither the credential value nor its configuration key's value — only the key's NAME and whether it currently resolves ('resolved'). This is the diagnosis path for 'I set the key but it does not work'. The 'tenantId' route value is matched case-insensitively: it is folded to lower case before it reaches the store, so 'Acme' and 'acme' are one tenant on every storage engine. A tenant other than the caller's own requires platform authority (403 otherwise).
          */
         get: operations["TraconListTenantProviderBindings"];
         put?: never;
@@ -1654,13 +1654,13 @@ export interface paths {
         get?: never;
         /**
          * Creates or replaces a tenant's binding for a provider.
-         * @description The body carries only the configuration key's NAME the value is read from at call time, never the value itself. The name must be under the configured allowed prefix (400 otherwise), and the provider must be allowed by the tenant's egress policy, if one is defined (400 otherwise).
+         * @description The body carries only the configuration key's NAME the value is read from at call time, never the value itself. The name must be under the configured allowed prefix and inside the tenant's own key space — '{prefix}{tenantId}:...'; a flat name directly under the prefix belongs to the default tenant (400 otherwise). The provider must be allowed by the tenant's egress policy, if one is defined (400 otherwise). A tenant other than the caller's own requires platform authority (403 otherwise).
          */
         put: operations["TraconSaveTenantProviderBinding"];
         post?: never;
         /**
          * Deletes a tenant's binding for a provider.
-         * @description After deletion, calls for that provider use the setup-time global credential again.
+         * @description After deletion, calls for that provider use the setup-time global credential again. A tenant other than the caller's own requires platform authority (403 otherwise).
          */
         delete: operations["TraconDeleteTenantProviderBinding"];
         options?: never;
@@ -1677,18 +1677,18 @@ export interface paths {
         };
         /**
          * Returns a tenant's model provider egress policy.
-         * @description 'allowedProviders: null' means the tenant is UNRESTRICTED (no policy saved); an empty or populated array means the tenant may call only those providers.
+         * @description 'allowedProviders: null' means the tenant is UNRESTRICTED (no policy saved); an empty or populated array means the tenant may call only those providers. A tenant other than the caller's own requires platform authority (403 otherwise).
          */
         get: operations["TraconGetTenantEgressPolicy"];
         /**
          * Creates or replaces a tenant's egress policy.
-         * @description Saving a policy is an ADDITIVE restriction: a tenant with no policy is unrestricted, and this call is the only way that changes. An agent definition naming a provider outside the saved list is rejected at compile time, not only at call time. An empty 'allowedProviders' array allows NO provider — it is not the same as having no policy; use DELETE to return to unrestricted. The 'tenantId' route value is folded to lower case before the policy is saved, so a policy written for 'Acme' is the policy the runtime finds for 'acme'.
+         * @description Saving a policy is an ADDITIVE restriction: a tenant with no policy is unrestricted, and this call is the only way that changes. An agent definition naming a provider outside the saved list is rejected at compile time, not only at call time. An empty 'allowedProviders' array allows NO provider — it is not the same as having no policy; use DELETE to return to unrestricted. The 'tenantId' route value is folded to lower case before the policy is saved, so a policy written for 'Acme' is the policy the runtime finds for 'acme'. A tenant other than the caller's own requires platform authority (403 otherwise).
          */
         put: operations["TraconSaveTenantEgressPolicy"];
         post?: never;
         /**
          * Deletes a tenant's egress policy.
-         * @description After deletion the tenant is unrestricted again — the same state as before any policy was ever saved.
+         * @description After deletion the tenant is unrestricted again — the same state as before any policy was ever saved. A tenant other than the caller's own requires platform authority (403 otherwise).
          */
         delete: operations["TraconDeleteTenantEgressPolicy"];
         options?: never;
@@ -1730,7 +1730,7 @@ export interface paths {
         get: operations["TraconGetInboundTrigger"];
         /**
          * Creates or updates an inbound trigger.
-         * @description 'signingSecretConfigurationName' carries only the configuration key's NAME, never its value; the name must be under the configured allowed prefix (400 otherwise). 'payloadPath' is required when 'payloadMode' is 'path'.
+         * @description 'signingSecretConfigurationName' carries only the configuration key's NAME, never its value; the name must be under the configured allowed prefix and inside the tenant's own key space — '{prefix}{tenantId}:...'; a flat name directly under the prefix belongs to the default tenant (400 otherwise). 'payloadPath' is required when 'payloadMode' is 'path'.
          */
         put: operations["TraconSaveInboundTrigger"];
         post?: never;
@@ -2249,7 +2249,7 @@ export interface paths {
         };
         /**
          * Lists registered tenants.
-         * @description A tenant record is NOT REQUIRED. The tenant_id in other tables is the same text as this record's slug value, but it is not connected by a foreign key; a tenant with no record does not produce an error at runtime.
+         * @description A tenant record is NOT REQUIRED. The tenant_id in other tables is the same text as this record's slug value, but it is not connected by a foreign key; a tenant with no record does not produce an error at runtime. The list names every tenant of the installation, so it requires platform authority (403 otherwise).
          */
         get: operations["TraconListTenants"];
         put?: never;
@@ -2270,13 +2270,13 @@ export interface paths {
         get?: never;
         /**
          * Adds or updates a tenant record.
-         * @description The record is a display name for a tenant key that already works without it; creating one does not create the tenant and deleting one does not remove its data. The slug comes from the path and must be at most 64 characters of letters, digits, dots, underscores, and hyphens (400 otherwise) — it is the same text stored as 'tenant_id' on every other row, and it is folded to lower case for the same reason, so 'Acme' and 'acme' name one record. An empty display name falls back to the slug.
+         * @description The record is a display name for a tenant key that already works without it; creating one does not create the tenant and deleting one does not remove its data. The slug comes from the path and must be at most 64 characters of letters, digits, dots, underscores, and hyphens (400 otherwise) — it is the same text stored as 'tenant_id' on every other row, and it is folded to lower case for the same reason, so 'Acme' and 'acme' name one record. An empty display name falls back to the slug. A tenant other than the caller's own requires platform authority (403 otherwise).
          */
         put: operations["TraconSaveTenant"];
         post?: never;
         /**
          * Deletes a tenant record.
-         * @description Only the record is deleted; the tenant's agents, sessions, and runs remain.
+         * @description Only the record is deleted; the tenant's agents, sessions, and runs remain. A tenant other than the caller's own requires platform authority (403 otherwise).
          */
         delete: operations["TraconDeleteTenant"];
         options?: never;
@@ -2314,7 +2314,7 @@ export interface paths {
         get?: never;
         /**
          * Adds or updates a remote MCP server.
-         * @description SECURITY BOUNDARY. Adding an MCP server means accepting tool definitions from an external source. Only http/https addresses are accepted; local process (stdio) transport is not supported. Tools require approval by default.
+         * @description SECURITY BOUNDARY. Adding an MCP server means accepting tool definitions from an external source. Only http/https addresses are accepted; local process (stdio) transport is not supported. Tools require approval by default. A configuration key name must be under the configured allowed prefix and inside the tenant's own key space — '{prefix}{tenantId}:...'; a flat name directly under the prefix belongs to the default tenant (400 otherwise).
          */
         put: operations["TraconSaveMcpServer"];
         post?: never;

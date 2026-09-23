@@ -15,9 +15,11 @@ namespace Tracon;
 /// No response here ever carries a credential value — only the
 /// configuration key's <strong>name</strong> and whether it currently
 /// resolves. Unlike <see cref="ApiKeyEndpoints"/>, the tenant is taken from
-/// the ROUTE, not the ambient <see cref="ITenantContext"/>: these are
-/// platform-administrator endpoints that manage any tenant's bindings, the
-/// same shape as <c>GovernanceEndpoints</c>'s <c>PUT /api/tenants/{slug}</c>.
+/// the ROUTE, not the ambient <see cref="ITenantContext"/>: an operator of the
+/// installation manages any tenant's bindings through them, the same shape as
+/// <c>GovernanceEndpoints</c>'s <c>PUT /api/tenants/{slug}</c>. A route tenant
+/// other than the caller's own requires platform authority
+/// (<see cref="CrossTenantAuthority"/>).
 /// </remarks>
 internal static class TenantProviderEndpoints
 {
@@ -29,6 +31,7 @@ internal static class TenantProviderEndpoints
         builder.MapGet("/api/tenants/{tenantId}/providers", ListAsync)
             .RequireRole(roles.Admin)
             .RequireApiKeyScope(ApiKeyScope.SecurityAdmin)
+            .RequirePlatformAuthorityForOtherTenant("tenantId")
             .WithName("TraconListTenantProviderBindings")
             .WithTags("Tracon", "TenantProviders")
             .WithSummary("Lists a tenant's model provider bindings.")
@@ -38,11 +41,13 @@ internal static class TenantProviderEndpoints
                 "('resolved'). This is the diagnosis path for 'I set the key but it does not work'. " +
                 "The 'tenantId' route value is matched case-insensitively: it is folded to " +
                 "lower case before it reaches the store, so 'Acme' and 'acme' are one tenant on " +
-                "every storage engine.");
+                "every storage engine. A tenant other than the caller's own requires platform " +
+                "authority (403 otherwise).");
 
         builder.MapPut("/api/tenants/{tenantId}/providers/{provider}", SaveBindingAsync)
             .RequireRole(roles.Admin)
             .RequireApiKeyScope(ApiKeyScope.SecurityAdmin)
+            .RequirePlatformAuthorityForOtherTenant("tenantId")
             .WithName("TraconSaveTenantProviderBinding")
             .WithTags("Tracon", "TenantProviders")
             .WithSummary("Creates or replaces a tenant's binding for a provider.")
@@ -50,30 +55,39 @@ internal static class TenantProviderEndpoints
             .WithDescription(
                 "The body carries only the configuration key's NAME the value is read from " +
                 "at call time, never the value itself. The name must be under the configured " +
-                "allowed prefix (400 otherwise), and the provider must be allowed by the " +
-                "tenant's egress policy, if one is defined (400 otherwise).");
+                "allowed prefix and inside the tenant's own key space — '{prefix}{tenantId}:...'; " +
+                "a flat name directly under the prefix belongs to the default tenant (400 " +
+                "otherwise). The provider must be allowed by the tenant's egress policy, if one " +
+                "is defined (400 otherwise). A tenant other than the caller's own requires " +
+                "platform authority (403 otherwise).");
 
         builder.MapDelete("/api/tenants/{tenantId}/providers/{provider}", DeleteBindingAsync)
             .RequireRole(roles.Admin)
             .RequireApiKeyScope(ApiKeyScope.SecurityAdmin)
+            .RequirePlatformAuthorityForOtherTenant("tenantId")
             .WithName("TraconDeleteTenantProviderBinding")
             .WithTags("Tracon", "TenantProviders")
             .WithSummary("Deletes a tenant's binding for a provider.")
-            .WithDescription("After deletion, calls for that provider use the setup-time global credential again.");
+            .WithDescription(
+                "After deletion, calls for that provider use the setup-time global credential again. " +
+                "A tenant other than the caller's own requires platform authority (403 otherwise).");
 
         builder.MapGet("/api/tenants/{tenantId}/egress", GetEgressPolicyAsync)
             .RequireRole(roles.Admin)
             .RequireApiKeyScope(ApiKeyScope.SecurityAdmin)
+            .RequirePlatformAuthorityForOtherTenant("tenantId")
             .WithName("TraconGetTenantEgressPolicy")
             .WithTags("Tracon", "TenantProviders")
             .WithSummary("Returns a tenant's model provider egress policy.")
             .WithDescription(
                 "'allowedProviders: null' means the tenant is UNRESTRICTED (no policy saved); " +
-                "an empty or populated array means the tenant may call only those providers.");
+                "an empty or populated array means the tenant may call only those providers. " +
+                "A tenant other than the caller's own requires platform authority (403 otherwise).");
 
         builder.MapPut("/api/tenants/{tenantId}/egress", SaveEgressPolicyAsync)
             .RequireRole(roles.Admin)
             .RequireApiKeyScope(ApiKeyScope.SecurityAdmin)
+            .RequirePlatformAuthorityForOtherTenant("tenantId")
             .WithName("TraconSaveTenantEgressPolicy")
             .WithTags("Tracon", "TenantProviders")
             .WithSummary("Creates or replaces a tenant's egress policy.")
@@ -85,15 +99,20 @@ internal static class TenantProviderEndpoints
                 "at call time. An empty 'allowedProviders' array allows NO provider — it is not " +
                 "the same as having no policy; use DELETE to return to unrestricted. " +
                 "The 'tenantId' route value is folded to lower case before the policy is saved, " +
-                "so a policy written for 'Acme' is the policy the runtime finds for 'acme'.");
+                "so a policy written for 'Acme' is the policy the runtime finds for 'acme'. " +
+                "A tenant other than the caller's own requires platform authority (403 otherwise).");
 
         builder.MapDelete("/api/tenants/{tenantId}/egress", DeleteEgressPolicyAsync)
             .RequireRole(roles.Admin)
             .RequireApiKeyScope(ApiKeyScope.SecurityAdmin)
+            .RequirePlatformAuthorityForOtherTenant("tenantId")
             .WithName("TraconDeleteTenantEgressPolicy")
             .WithTags("Tracon", "TenantProviders")
             .WithSummary("Deletes a tenant's egress policy.")
-            .WithDescription("After deletion the tenant is unrestricted again — the same state as before any policy was ever saved.");
+            .WithDescription(
+                "After deletion the tenant is unrestricted again — the same state as before any " +
+                "policy was ever saved. A tenant other than the caller's own requires platform " +
+                "authority (403 otherwise).");
     }
 
     private static async Task<Ok<IReadOnlyList<TenantProviderBindingResponse>>> ListAsync(
@@ -150,8 +169,9 @@ internal static class TenantProviderEndpoints
         try
         {
             // Defense in two layers (section 65.2): the resolver validates the
-            // SAME prefix rule again while resolving at call time.
-            resolver.ValidatePrefix(request.ApiKeyConfigurationName);
+            // SAME prefix and tenant rule again while resolving at call time.
+            // The tenant is the binding's own (the route), not the caller's.
+            resolver.ValidateKeyName(tenantId, request.ApiKeyConfigurationName);
         }
         catch (TraconException ex)
         {

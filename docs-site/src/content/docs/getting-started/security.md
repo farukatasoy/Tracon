@@ -27,7 +27,10 @@ flowchart TD
     LB -->|no| HDR{"Authorization header present?"}
     HDR -->|no| TOKU{"AuthToken configured?"}
     TOKU -->|yes| F401["401 Unauthorized"]
-    TOKU -->|no| OK
+    TOKU -->|no| ANON{"No policy, and the caller is remote<br/>or a web page of another site?"}
+    ANON -->|"remote"| F401
+    ANON -->|"foreign Host or Origin"| F403d["403 Forbidden"]
+    ANON -->|no| OK
     HDR -->|yes| TOK{"Matches the static token?"}
     TOK -->|yes| OK
     TOK -->|no| KEY{"Valid API key?"}
@@ -39,18 +42,30 @@ flowchart TD
 
 ### 1. The loopback restriction
 
-On protected routes, non-loopback requests receive `403` by default. Review the
-host and proxy boundary before allowing remote access:
+On protected routes, non-loopback requests receive `403` by default. A request that a
+reverse proxy forwarded counts as remote too: if it still carries `X-Forwarded-For`,
+`Forwarded`, or `X-Real-IP`, nothing consumed the header, so the connection address is
+the proxy's and not the caller's. Review the host and proxy boundary before allowing
+remote access:
 
 ```csharp
 app.MapTracon("/tracon", options => options.AllowRemoteAccess = true);
 ```
 
 :::danger
-Never turn this on without a token, an API key, or a policy behind it. On its own it
-publishes your agents — and the ability to run them — to anyone who can reach the
-port.
+Never turn this on without a token, an API key, or a policy behind it. With remote
+access on and no authentication method configured, Tracon refuses an anonymous remote
+request with `401`; an API key still works. Anonymous access stays a same-machine
+convenience.
 :::
+
+With no token and no policy, an anonymous caller counts as the local operator only
+when it is not a web page of another site. The request's `Host` must be a loopback
+name (`localhost`, `*.localhost`, `127.0.0.1`, `[::1]`), and an `Origin` header, when
+present, must name one too. Otherwise the request receives `403`: another name that
+resolves to this machine (DNS rebinding) or a page on another site is how a browser
+takes over a local service. A request with a token or a key is not judged by its host
+or origin.
 
 ### 2. A bearer token
 
@@ -103,11 +118,33 @@ application, that endpoint group simply falls back to the layers above — so up
 never breaks a working deployment. Turn on `RequireRolePolicies` and a missing policy
 becomes a **startup** error instead of a silent gap.
 
+### Acting on another tenant
+
+A few endpoints take the tenant from the request instead of the caller: another
+tenant's model provider bindings and egress policy (`/api/tenants/{tenantId}/providers`,
+`/api/tenants/{tenantId}/egress`) and the tenant records (`/api/tenants`). The
+caller's own tenant needs only the role and scope the endpoint names. Another tenant
+needs platform authority, and each identity proves it differently:
+
+| Caller | Platform authority |
+|---|---|
+| API key | The key also carries the `PlatformAdmin` scope |
+| Static `AuthToken` | Always — it identifies the installation, not a tenant |
+| Claims principal, multi-tenancy on | The `TraconPolicies.PlatformAdmin` policy (`Tracon.PlatformAdmin`) passes |
+| Anonymous, same machine | Always — the zero-configuration local operator |
+
+Unlike the three role policies, a missing `Tracon.PlatformAdmin` registration
+**denies**: a claims-authenticated Admin of one tenant does not reach another tenant's
+secrets by default. With multi-tenancy off, a claim resolves no tenant, so a
+single-tenant installation needs no new policy.
+
 :::caution[Reverse proxies change the network boundary]
-The loopback rule sees the connection presented to ASP.NET Core. Configure trusted
-forwarded headers and HTTPS at the proxy before you use the apparent client address
-as a boundary. In production, require role policies even when the proxy already
-authenticates users.
+The loopback rule sees the connection presented to ASP.NET Core. A proxy on the same
+machine connects over loopback or a Unix socket, so Tracon also treats a request that
+still carries `X-Forwarded-For`, `Forwarded`, or `X-Real-IP` as remote. Configure the
+`ForwardedHeaders` middleware with your trusted proxies, so it consumes the header and
+the client address becomes the connection address, and HTTPS at the proxy. In
+production, require role policies even when the proxy already authenticates users.
 :::
 
 ## Two deliberate exemptions
@@ -126,7 +163,8 @@ protected.
 The real-time voice WebSocket is not an exemption: a browser cannot set a header on a
 handshake either, so the token travels in the `Sec-WebSocket-Protocol` subprotocol and
 is verified in constant time. A query string was rejected — it would be written to
-server and proxy logs.
+server and proxy logs. A WebSocket is not bound by CORS, so an anonymous socket is held
+to the same host and origin rule as an anonymous request.
 
 ## Outbound requests are guarded too
 
@@ -187,9 +225,17 @@ allowed prefix. Without it, a record could name `ConnectionStrings:Default` as i
 | MCP server | `authorizationConfigurationKey`, `oauthClientSecretConfigurationKey` | `Tracon:McpSecrets:` |
 | Webhook subscription | `secretConfigurationKey` | `Tracon:WebhookSecrets:` |
 
-Each prefix is configurable through the matching options section, and the rule is
+The prefix is one per installation, so a name must also sit inside its record's
+tenant. A tenant names keys under `{prefix}{tenant}:` — for tenant `acme`,
+`Tracon:McpSecrets:acme:GithubToken`. A flat name directly under the prefix, such as
+`Tracon:McpSecrets:GithubToken`, belongs to the default tenant, so a single-tenant
+installation keeps its names unchanged. Without the tenant segment, one tenant could
+name another tenant's key and point the record at an address it controls. The segment
+matches the tenant id without regard to case, like configuration keys themselves.
+
+Each prefix is configurable through the matching options section, and both rules are
 enforced twice: where the record is saved, and again where the value is resolved — so
-a record written before a prefix was configured cannot quietly read outside it.
+a record written before a rule existed cannot quietly read outside it.
 
 ## What is stored in the clear
 
@@ -293,6 +339,7 @@ model](/reference/threat-model/).
 ## A short checklist
 
 - [ ] `AllowRemoteAccess` is on only together with a token, a key, or a policy
+- [ ] A multi-tenant installation registers `Tracon.PlatformAdmin` for its operators, and each tenant's secrets sit under `{prefix}{tenant}:`
 - [ ] Secrets are in user-secrets, the environment, or a secret store — never a file
 - [ ] Roles are bound to your claims, and `RequireRolePolicies` is on
 - [ ] Quotas are set, so one caller cannot spend the whole model budget

@@ -371,7 +371,8 @@ public sealed class ModelProviderRegistryTenantCredentialTests
     private static TenantProviderCredentialResolver CreateResolver(IConfiguration? configuration = null)
         => new(
             configuration ?? BuildConfiguration(),
-            new StaticOptionsMonitor<TraconTenantProviderOptions>(new TraconTenantProviderOptions()));
+            new StaticOptionsMonitor<TraconTenantProviderOptions>(new TraconTenantProviderOptions()),
+            Options.Create(new TraconOptions()));
 
     private static IConfiguration BuildConfiguration(params (string Key, string Value)[] values)
         => new ConfigurationBuilder()

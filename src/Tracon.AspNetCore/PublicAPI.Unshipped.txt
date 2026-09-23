@@ -891,6 +891,7 @@ const Tracon.TraconEndpointRouteBuilderExtensions.DefaultPrefix = "/tracon" -> s
 const Tracon.TraconMcpServerExtensions.DefaultPattern = "/tracon/mcp" -> string!
 const Tracon.TraconPolicies.Admin = "Tracon.Admin" -> string!
 const Tracon.TraconPolicies.Operator = "Tracon.Operator" -> string!
+const Tracon.TraconPolicies.PlatformAdmin = "Tracon.PlatformAdmin" -> string!
 const Tracon.TraconPolicies.Reader = "Tracon.Reader" -> string!
 override Tracon.AcceptedRunResponse.Equals(object? obj) -> bool
 override Tracon.AcceptedRunResponse.GetHashCode() -> int

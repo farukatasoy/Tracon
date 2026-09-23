@@ -117,8 +117,18 @@ builder.Services.AddAuthorization(options =>
 
     options.AddPolicy(TraconPolicies.Admin, policy =>
         policy.RequireRole("tracon-admin"));
+
+    // Multi-tenant only: who may act on a tenant other than their own.
+    options.AddPolicy(TraconPolicies.PlatformAdmin, policy =>
+        policy.RequireRole("tracon-platform"));
 });
 ```
+
+`TraconPolicies.PlatformAdmin` guards the endpoints that take the tenant from the
+request — another tenant's provider bindings, its egress policy, and the tenant
+records. A claims principal without it can manage only its own tenant. Unlike the three
+role policies, leaving it unregistered denies rather than falls back. An API key proves
+the same authority with the `PlatformAdmin` scope.
 
 After `UseAuthentication()` and `UseAuthorization()`, map the surface with both the
 base policy and strict role-policy validation:
@@ -144,9 +154,11 @@ for system clients.
 
 :::caution[Reverse proxies change the network boundary]
 The loopback rule sees the address that connects to ASP.NET Core. A local reverse
-proxy can make every caller look local. Configure trusted forwarded-header handling
-and TLS at the proxy, but use authentication and authorization as the real boundary.
-Do not treat `AllowRemoteAccess=false` as sufficient protection behind a proxy.
+proxy connects over loopback or a Unix socket, so Tracon treats a request that still
+carries `X-Forwarded-For`, `Forwarded`, or `X-Real-IP` as remote. Configure the
+`ForwardedHeaders` middleware with your trusted proxies and TLS at the proxy, but use
+authentication and authorization as the real boundary. Do not treat
+`AllowRemoteAccess=false` as sufficient protection behind a proxy.
 :::
 
 ## Choose a migration strategy
@@ -398,6 +410,38 @@ value. Alternatively, widen the prefix through
 `Tracon:Mcp:AllowedConfigurationPrefix` or
 `Tracon:Webhooks:AllowedConfigurationPrefix` — but a prefix broad enough to cover
 an arbitrary key removes the boundary it exists to provide.
+
+## Upgrading: tenant key space and anonymous access
+
+Three more boundaries tightened. Each one refuses something a running setup accepted
+before, and each refusal names what to change.
+
+**A secret's key name must sit inside its record's tenant.** The prefix is one per
+installation, so a record of one tenant could name another tenant's key. Now a
+non-default tenant names keys under `{prefix}{tenant}:` — for tenant `acme`,
+`Tracon:ProviderKeys:acme:OpenAI` or `Tracon:McpSecrets:acme:GithubToken`. A flat name
+directly under the prefix belongs to the default tenant, so a single-tenant
+installation changes nothing. The rule covers MCP servers, provider bindings, webhook
+subscriptions, and inbound triggers. A record that breaks it can still be read, but
+saving it again returns `400`, and its value no longer resolves: the MCP server does
+not authenticate, the provider call fails, the webhook delivery is dropped, and the
+trigger refuses the signature. Move the value under the tenant's segment in your secret
+store and save the record with the new name.
+
+**Another tenant's settings require platform authority.** The provider binding, egress
+policy, and tenant record endpoints act on the tenant named in the request. A caller
+now reaches another tenant only with an API key that also carries `PlatformAdmin`, the
+static `AuthToken`, or — for a claims principal while multi-tenancy is on — the
+`TraconPolicies.PlatformAdmin` policy. Register that policy for your operators before
+you upgrade; without it, their requests for other tenants return `403`.
+
+**Anonymous access is a same-machine convenience only.** With `AllowRemoteAccess` on
+and neither `AuthToken` nor an authorization policy configured, an anonymous remote
+request now returns `401`; API keys keep working. A request that a local reverse proxy
+forwarded counts as remote. An anonymous request with a non-loopback `Host` or `Origin`
+returns `403`, which blocks DNS rebinding and cross-site requests from a browser. If
+you reach a keyless local installation through a machine name, use `localhost` or
+configure a token.
 
 ## When the state preflight comes back red
 
@@ -726,6 +770,7 @@ scaled without a matching quota.
 - [ ] Load database and provider credentials only from a secret facility.
 - [ ] Run or verify migrations before readiness can pass.
 - [ ] Require a real authentication policy and all three role policies.
+- [ ] In a multi-tenant deployment, register `TraconPolicies.PlatformAdmin` for operators and keep each tenant's secrets under `{prefix}{tenant}:`.
 - [ ] Declare every embedding point the deployment depends on with `RequireCustomBinding<T>()`.
 - [ ] Answer every row of [Production-sensitive defaults](#production-sensitive-defaults) on
       purpose. Multi-tenancy, session ownership, rate limiting, at-rest encryption, and content
@@ -761,7 +806,9 @@ irreversible action. Test the crash boundary, not only the successful path.
 | The application fails during startup | Read the first migration or options-validation error; verify connection-string resolution, database permissions, schema rules, and migration checksums |
 | Readiness is `Unhealthy` | Check SQL reachability and pending migrations before provider status |
 | Readiness is `Degraded` after startup | Refresh model health, inspect open circuits, and verify that only one SQL provider is registered |
-| Remote users get `403` | Confirm `AllowRemoteAccess`, the base policy, role policy, API-key scope, tenant, and trusted proxy configuration |
+| Remote users get `403` | Confirm `AllowRemoteAccess`, the base policy, role policy, API-key scope, tenant, and trusted proxy configuration; a forwarded request that `ForwardedHeaders` did not consume counts as remote |
+| Remote users get `401` with no token configured | Remote access without an authentication method refuses anonymous callers; configure `AuthToken`, a policy, or API keys |
+| An operator gets `403` for another tenant | Register `TraconPolicies.PlatformAdmin` for operators, or give the key the `PlatformAdmin` scope |
 | Startup reports missing role policies | Register all `Tracon.Reader`, `Tracon.Operator`, and `Tracon.Admin` policies or keep strict remote mapping disabled until they exist |
 | A direct run cannot be canceled | Route the request to the owning process or install a distributed `IRunCancellationRegistry`; a restarted owner no longer has the in-process registration |
 | Jobs do not move | Confirm a worker is enabled, shares the same SQL database, and passed the schema-ready gate |

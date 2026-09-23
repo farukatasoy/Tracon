@@ -69,14 +69,24 @@ public sealed class SecurityTests
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
+    /// <summary>
+    /// The loopback layer lifts when remote access is on. The request carries a
+    /// token: an ANONYMOUS remote request is refused when no authentication
+    /// method is configured (<see cref="RemoteExposureTests"/>).
+    /// </summary>
     [Fact]
     public async Task Remote_ip_passes_when_remote_access_is_enabled()
     {
         await using var host = await TraconTestHost.StartAsync(
-            configureEndpoints: static options => options.AllowRemoteAccess = true);
+            configureEndpoints: static options =>
+            {
+                options.AllowRemoteAccess = true;
+                options.AuthToken = Token;
+            });
 
         using var request = new HttpRequestMessage(HttpMethod.Get, "/tracon/api/agents");
         request.Headers.Add(TraconTestHost.RemoteIpHeader, "203.0.113.7");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", Token);
 
         using var response = await host.Client.SendAsync(request);
 

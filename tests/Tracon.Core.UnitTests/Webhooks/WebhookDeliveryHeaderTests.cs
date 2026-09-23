@@ -149,6 +149,7 @@ public sealed class WebhookDeliveryHeaderTests
             store,
             client,
             new StaticOptionsMonitor<TraconWebhookOptions>(options),
+            Options.Create(new TraconOptions()),
             new SecretConfiguration("ConnectionStrings:Default", "s3cret"));
 
         // Neither an escaping exception nor a JobRetryException: the verdict
@@ -241,6 +242,7 @@ public sealed class WebhookDeliveryHeaderTests
             store,
             client,
             new StaticOptionsMonitor<TraconWebhookOptions>(options),
+            Options.Create(new TraconOptions()),
             new SecretConfiguration($"{options.AllowedConfigurationPrefix}orders", "s3cret"));
 
         await handler.ExecuteAsync(new JobContext

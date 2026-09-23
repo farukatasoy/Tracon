@@ -27,6 +27,7 @@ internal sealed class WebhookDeliveryJobHandler(
     IWebhookStore store,
     WebhookHttpClient httpClient,
     IOptionsMonitor<TraconWebhookOptions> optionsMonitor,
+    IOptions<TraconOptions> coreOptions,
     IConfiguration? configuration = null,
     TimeProvider? timeProvider = null,
     ILogger<WebhookDeliveryJobHandler>? logger = null,
@@ -81,17 +82,19 @@ internal sealed class WebhookDeliveryJobHandler(
         }
 
         // Checked here as well as where the subscription is saved: a
-        // subscription written before the prefix was configured must not
-        // silently read an out-of-prefix configuration key. Dropped rather
+        // subscription written before the rule existed must not silently
+        // read a configuration key outside the prefix or outside its tenant. Dropped rather
         // than retried, for the same reason as a rejected address — the
         // verdict cannot change until the record does.
         if (subscription.SecretConfigurationKey is { Length: > 0 } secretKey)
         {
             try
             {
-                ConfigurationKeyGuard.RequirePrefix(
+                ConfigurationKeyGuard.RequireTenantKey(
                     secretKey,
                     options.AllowedConfigurationPrefix,
+                    subscription.TenantId,
+                    coreOptions.Value.DefaultTenantId,
                     "secretConfigurationKey");
             }
             catch (TraconException exception)
@@ -382,9 +385,14 @@ internal sealed class WebhookDeliveryJobHandler(
             return null;
         }
 
-        // Already dropped in ExecuteAsync if the key sits outside the prefix;
+        // Already dropped in ExecuteAsync if the key sits outside the prefix or the tenant;
         // repeated here so that no future caller of this method can bypass it.
-        ConfigurationKeyGuard.RequirePrefix(key, options.AllowedConfigurationPrefix, "secretConfigurationKey");
+        ConfigurationKeyGuard.RequireTenantKey(
+            key,
+            options.AllowedConfigurationPrefix,
+            subscription.TenantId,
+            coreOptions.Value.DefaultTenantId,
+            "secretConfigurationKey");
 
         var secret = configuration[key];
 

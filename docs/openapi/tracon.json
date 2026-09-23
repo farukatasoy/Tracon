@@ -4056,7 +4056,7 @@
           "Webhooks"
         ],
         "summary": "Creates or updates a webhook subscription.",
-        "description": "The address passes an SSRF check: only https is accepted (http only when AllowInsecureHttp is enabled and only to loopback targets). Private network addresses are re-checked again at delivery time.",
+        "description": "The address passes an SSRF check: only https is accepted (http only when AllowInsecureHttp is enabled and only to loopback targets). Private network addresses are re-checked again at delivery time. \u0027secretConfigurationKey\u0027 must be under the configured allowed prefix and inside the tenant\u0027s own key space \u2014 \u0027{prefix}{tenantId}:...\u0027; a flat name directly under the prefix belongs to the default tenant (400 otherwise).",
         "operationId": "TraconSaveWebhook",
         "parameters": [
           {
@@ -4307,7 +4307,7 @@
           "TenantProviders"
         ],
         "summary": "Lists a tenant\u0027s model provider bindings.",
-        "description": "The response carries neither the credential value nor its configuration key\u0027s value \u2014 only the key\u0027s NAME and whether it currently resolves (\u0027resolved\u0027). This is the diagnosis path for \u0027I set the key but it does not work\u0027. The \u0027tenantId\u0027 route value is matched case-insensitively: it is folded to lower case before it reaches the store, so \u0027Acme\u0027 and \u0027acme\u0027 are one tenant on every storage engine.",
+        "description": "The response carries neither the credential value nor its configuration key\u0027s value \u2014 only the key\u0027s NAME and whether it currently resolves (\u0027resolved\u0027). This is the diagnosis path for \u0027I set the key but it does not work\u0027. The \u0027tenantId\u0027 route value is matched case-insensitively: it is folded to lower case before it reaches the store, so \u0027Acme\u0027 and \u0027acme\u0027 are one tenant on every storage engine. A tenant other than the caller\u0027s own requires platform authority (403 otherwise).",
         "operationId": "TraconListTenantProviderBindings",
         "parameters": [
           {
@@ -4343,7 +4343,7 @@
           "TenantProviders"
         ],
         "summary": "Creates or replaces a tenant\u0027s binding for a provider.",
-        "description": "The body carries only the configuration key\u0027s NAME the value is read from at call time, never the value itself. The name must be under the configured allowed prefix (400 otherwise), and the provider must be allowed by the tenant\u0027s egress policy, if one is defined (400 otherwise).",
+        "description": "The body carries only the configuration key\u0027s NAME the value is read from at call time, never the value itself. The name must be under the configured allowed prefix and inside the tenant\u0027s own key space \u2014 \u0027{prefix}{tenantId}:...\u0027; a flat name directly under the prefix belongs to the default tenant (400 otherwise). The provider must be allowed by the tenant\u0027s egress policy, if one is defined (400 otherwise). A tenant other than the caller\u0027s own requires platform authority (403 otherwise).",
         "operationId": "TraconSaveTenantProviderBinding",
         "parameters": [
           {
@@ -4392,7 +4392,7 @@
           "TenantProviders"
         ],
         "summary": "Deletes a tenant\u0027s binding for a provider.",
-        "description": "After deletion, calls for that provider use the setup-time global credential again.",
+        "description": "After deletion, calls for that provider use the setup-time global credential again. A tenant other than the caller\u0027s own requires platform authority (403 otherwise).",
         "operationId": "TraconDeleteTenantProviderBinding",
         "parameters": [
           {
@@ -4426,7 +4426,7 @@
           "TenantProviders"
         ],
         "summary": "Returns a tenant\u0027s model provider egress policy.",
-        "description": "\u0027allowedProviders: null\u0027 means the tenant is UNRESTRICTED (no policy saved); an empty or populated array means the tenant may call only those providers.",
+        "description": "\u0027allowedProviders: null\u0027 means the tenant is UNRESTRICTED (no policy saved); an empty or populated array means the tenant may call only those providers. A tenant other than the caller\u0027s own requires platform authority (403 otherwise).",
         "operationId": "TraconGetTenantEgressPolicy",
         "parameters": [
           {
@@ -4457,7 +4457,7 @@
           "TenantProviders"
         ],
         "summary": "Creates or replaces a tenant\u0027s egress policy.",
-        "description": "Saving a policy is an ADDITIVE restriction: a tenant with no policy is unrestricted, and this call is the only way that changes. An agent definition naming a provider outside the saved list is rejected at compile time, not only at call time. An empty \u0027allowedProviders\u0027 array allows NO provider \u2014 it is not the same as having no policy; use DELETE to return to unrestricted. The \u0027tenantId\u0027 route value is folded to lower case before the policy is saved, so a policy written for \u0027Acme\u0027 is the policy the runtime finds for \u0027acme\u0027.",
+        "description": "Saving a policy is an ADDITIVE restriction: a tenant with no policy is unrestricted, and this call is the only way that changes. An agent definition naming a provider outside the saved list is rejected at compile time, not only at call time. An empty \u0027allowedProviders\u0027 array allows NO provider \u2014 it is not the same as having no policy; use DELETE to return to unrestricted. The \u0027tenantId\u0027 route value is folded to lower case before the policy is saved, so a policy written for \u0027Acme\u0027 is the policy the runtime finds for \u0027acme\u0027. A tenant other than the caller\u0027s own requires platform authority (403 otherwise).",
         "operationId": "TraconSaveTenantEgressPolicy",
         "parameters": [
           {
@@ -4498,7 +4498,7 @@
           "TenantProviders"
         ],
         "summary": "Deletes a tenant\u0027s egress policy.",
-        "description": "After deletion the tenant is unrestricted again \u2014 the same state as before any policy was ever saved.",
+        "description": "After deletion the tenant is unrestricted again \u2014 the same state as before any policy was ever saved. A tenant other than the caller\u0027s own requires platform authority (403 otherwise).",
         "operationId": "TraconDeleteTenantEgressPolicy",
         "parameters": [
           {
@@ -4581,7 +4581,7 @@
           "Triggers"
         ],
         "summary": "Creates or updates an inbound trigger.",
-        "description": "\u0027signingSecretConfigurationName\u0027 carries only the configuration key\u0027s NAME, never its value; the name must be under the configured allowed prefix (400 otherwise). \u0027payloadPath\u0027 is required when \u0027payloadMode\u0027 is \u0027path\u0027.",
+        "description": "\u0027signingSecretConfigurationName\u0027 carries only the configuration key\u0027s NAME, never its value; the name must be under the configured allowed prefix and inside the tenant\u0027s own key space \u2014 \u0027{prefix}{tenantId}:...\u0027; a flat name directly under the prefix belongs to the default tenant (400 otherwise). \u0027payloadPath\u0027 is required when \u0027payloadMode\u0027 is \u0027path\u0027.",
         "operationId": "TraconSaveInboundTrigger",
         "parameters": [
           {
@@ -5809,7 +5809,7 @@
           "Governance"
         ],
         "summary": "Lists registered tenants.",
-        "description": "A tenant record is NOT REQUIRED. The tenant_id in other tables is the same text as this record\u0027s slug value, but it is not connected by a foreign key; a tenant with no record does not produce an error at runtime.",
+        "description": "A tenant record is NOT REQUIRED. The tenant_id in other tables is the same text as this record\u0027s slug value, but it is not connected by a foreign key; a tenant with no record does not produce an error at runtime. The list names every tenant of the installation, so it requires platform authority (403 otherwise).",
         "operationId": "TraconListTenants",
         "responses": {
           "200": {
@@ -5835,7 +5835,7 @@
           "Governance"
         ],
         "summary": "Adds or updates a tenant record.",
-        "description": "The record is a display name for a tenant key that already works without it; creating one does not create the tenant and deleting one does not remove its data. The slug comes from the path and must be at most 64 characters of letters, digits, dots, underscores, and hyphens (400 otherwise) \u2014 it is the same text stored as \u0027tenant_id\u0027 on every other row, and it is folded to lower case for the same reason, so \u0027Acme\u0027 and \u0027acme\u0027 name one record. An empty display name falls back to the slug.",
+        "description": "The record is a display name for a tenant key that already works without it; creating one does not create the tenant and deleting one does not remove its data. The slug comes from the path and must be at most 64 characters of letters, digits, dots, underscores, and hyphens (400 otherwise) \u2014 it is the same text stored as \u0027tenant_id\u0027 on every other row, and it is folded to lower case for the same reason, so \u0027Acme\u0027 and \u0027acme\u0027 name one record. An empty display name falls back to the slug. A tenant other than the caller\u0027s own requires platform authority (403 otherwise).",
         "operationId": "TraconSaveTenant",
         "parameters": [
           {
@@ -5876,7 +5876,7 @@
           "Governance"
         ],
         "summary": "Deletes a tenant record.",
-        "description": "Only the record is deleted; the tenant\u0027s agents, sessions, and runs remain.",
+        "description": "Only the record is deleted; the tenant\u0027s agents, sessions, and runs remain. A tenant other than the caller\u0027s own requires platform authority (403 otherwise).",
         "operationId": "TraconDeleteTenant",
         "parameters": [
           {
@@ -5928,7 +5928,7 @@
           "Governance"
         ],
         "summary": "Adds or updates a remote MCP server.",
-        "description": "SECURITY BOUNDARY. Adding an MCP server means accepting tool definitions from an external source. Only http/https addresses are accepted; local process (stdio) transport is not supported. Tools require approval by default.",
+        "description": "SECURITY BOUNDARY. Adding an MCP server means accepting tool definitions from an external source. Only http/https addresses are accepted; local process (stdio) transport is not supported. Tools require approval by default. A configuration key name must be under the configured allowed prefix and inside the tenant\u0027s own key space \u2014 \u0027{prefix}{tenantId}:...\u0027; a flat name directly under the prefix belongs to the default tenant (400 otherwise).",
         "operationId": "TraconSaveMcpServer",
         "parameters": [
           {

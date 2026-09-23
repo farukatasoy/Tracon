@@ -118,6 +118,7 @@ dönüşebilmeleri için duruyor. Bir kalemi buradan çıkarmanın tek yolu
 | **F-265** · Birinci taraf `InternalsVisibleTo` sürümsüz bir sözleşmedir | [Faz 182](arsiv/fazlar/182-PUBLIC-API-YUZEY-DARALTMA.md) denetimi 🟢-1: K-850 birinci taraf gövde kullanımını IVT ile çözdü (Abstractions → AspNetCore/Mcp/3 SQL; Core → Voice/Workflows/Cli), K-601/K-619 emsallerini genişletti. Paketler ayrı sürümlenir: tüketici `Tracon.Core`'u yükseltip `Tracon.Voice`'u eski bırakırsa ve bir iç üye değişmişse sonuç derleme değil **çalışma anı** `MissingMethodException`'dır. Public API'de aynı risk `PublicAPI` diff'iyle görünür; iç üyede hiçbir kapı yok | Kardeş paket bağımlılığını tam sürüme sabitlemek (`[x.y.z]`) ya da "Tracon paketleri birlikte yükseltilir" kuralını sevk edilen dokümana yazmak — bir paketleme kararıdır; ilk karışık sürüm raporunda ya da GA freeze turunda (UR-003) ele alınır |
 | **F-266** · `net8.0` ve `net9.0` Microsoft desteği 2026-11-10'da bitiyor | Ölçüldü (2026-09-23, `builds.dotnet.microsoft.com/.../releases.json`): 8.0 → `eol-date 2026-11-10` (son yama 8.0.31), 9.0 → `eol-date 2026-11-10` (9.0.20), 10.0 → 2028-11-14. Site politikası ([`compatibility.md`](../docs-site/src/content/docs/reference/compatibility.md) "How long each target framework stays") desteği biten TFM'in sonraki bir sürümde **düşebileceğini** söylüyor ama tarih kimsenin takviminde değil. Faz 183 iki bacağı yeni ölçülebilir yaptı; düşürmek `src/Directory.Build.props` + `TraconTestTargetFrameworks` + `Tracon.Testing` `VersionOverride`'ları + `Net8Consumer` + CI runtime adımlarını birlikte değiştirir | 2026-11-10'dan sonraki ilk yayın kararında (`nuget-danismani`) — düşürmek mi, bir sürüm daha taşımak mı, kullanıcı kararıdır |
 | **F-267** · CI tam koşumu hâlâ tek test projesiyle koşuyor | [Faz 184](arsiv/fazlar/184-TEST-BEKLEME-VE-E2E-YAPISI.md) yerel kapıyı `-maxcpucount:2`'ye aldı (aynı kod ve makinede 1 işçi 863/879 sn, 2 işçi 607/658/524 sn, beş koşum 0 kırmızı). `ci.yml` bilerek 1'de kaldı: ölçüm geliştirici makinesindeydi, runner donanımı (özel repoda 2 vCPU olabilir) ve Windows ayağı ölçülmedi | Bir CI dalında `-maxcpucount:2` ile en az üç koşum yeşil ve süre kazancı ölçülürse `ci.yml` güncellenir; kırmızı çıkarsa gerekçe hafızaya yazılır |
+| **F-268** · `ExperimentTests` yük altında kırılgan: sürüm alanı `<select>` olmadan seçim yapılıyor | Ölçüldü (2026-09-23, K-852…K-854 kusur-giderme kapanışı, `-maxcpucount:2` tam koşum): `Experiment_is_created_started_and_traffic_reflects_in_results_table` `Element is not a <select> element` ile düştü; tek başına iki kez yeşil. Kök neden: `experiments.tsx` `agentVersions` sorgusu dönene kadar `variant-version-N`'i sayı kutusu olarak çizer, test ajan adını yazar yazmaz `SelectOptionAsync` çağırır — Playwright bu hatayı yeniden denemez | Test seçimden önce `select[data-testid='variant-version-0']` görünürlüğünü web-first beklemeyle beklerse kapanır; aynı desen (`SelectOptionAsync` sorguya bağlı bir alana) diğer ekran testlerinde de taranır |
 
 ### F-95 · Agent düzeyinde kesinti/devam kancası
 
@@ -379,7 +380,9 @@ keşif kaydındadır; burada yalnız hangi kanala düştükleri yazar.
 ### F-ID tahsis kuralı
 
 Numara **geri dönüştürülmez** ve bir numara **tek kaleme** aittir. Sıradaki
-numara: **F-268**.
+numara: **F-269**.
+
+**F-268** 2026-09-23'te K-852…K-854 kusur-giderme kapanış kapısında tahsis edildi (yük altında kırılgan E2E).
 
 **F-267** 2026-09-23'te Faz 184 kapanışında tahsis edildi (CI paralellik ölçümü).
 

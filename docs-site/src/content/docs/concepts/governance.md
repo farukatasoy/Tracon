@@ -171,8 +171,12 @@ request reaches the network — and writing a credential binding for a forbidden
 provider is rejected too, so the two surfaces cannot disagree.
 
 Both are managed under `/api/tenants/{tenantId}/providers` and
-`/api/tenants/{tenantId}/egress`, guarded by the `SecurityAdmin` API key scope. See
-[Per-tenant credentials](/guides/model-providers/#per-tenant-credentials-byok)
+`/api/tenants/{tenantId}/egress`, guarded by the `SecurityAdmin` API key scope. A
+tenant other than the caller's own also requires platform authority: the
+`PlatformAdmin` scope, the static token, or the `TraconPolicies.PlatformAdmin`
+policy. A binding names its key inside the tenant's own segment,
+`Tracon:ProviderKeys:{tenant}:...`, so one tenant cannot bind another tenant's key.
+See [Per-tenant credentials](/guides/model-providers/#per-tenant-credentials-byok)
 for the full HTTP contract.
 
 ## The audit trail

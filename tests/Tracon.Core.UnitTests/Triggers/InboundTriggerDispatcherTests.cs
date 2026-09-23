@@ -1,5 +1,6 @@
 using System.Globalization;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 using Tracon.Core.UnitTests.Fakes;
 
 namespace Tracon.Core.UnitTests.Triggers;
@@ -360,7 +361,8 @@ public sealed class InboundTriggerDispatcherTests
             triggerStore ?? new InMemoryInboundTriggerStore(),
             new InboundTriggerSecretResolver(
                 configuration,
-                new StaticOptionsMonitor<TraconInboundTriggerOptions>(new TraconInboundTriggerOptions())),
+                new StaticOptionsMonitor<TraconInboundTriggerOptions>(new TraconInboundTriggerOptions()),
+                Options.Create(new TraconOptions())),
             new InboundTriggerRateLimiter(
                 new StaticOptionsMonitor<TraconInboundTriggerOptions>(options ?? new TraconInboundTriggerOptions()),
                 clock),

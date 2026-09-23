@@ -213,7 +213,7 @@ public sealed class EgressGuardTests
 
         using var response = await host.Client.PutAsJsonAsync(
             new Uri("/tracon/api/tenants/acme/providers/anthropic", UriKind.Relative),
-            new { apiKeyConfigurationName = "Tracon:ProviderKeys:acme", endpoint });
+            new { apiKeyConfigurationName = "Tracon:ProviderKeys:acme:Anthropic", endpoint });
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
         (await response.Content.ReadAsStringAsync())
@@ -227,7 +227,7 @@ public sealed class EgressGuardTests
 
         using var response = await host.Client.PutAsJsonAsync(
             new Uri("/tracon/api/tenants/acme/providers/anthropic", UriKind.Relative),
-            new { apiKeyConfigurationName = "Tracon:ProviderKeys:acme", endpoint = "http://10.0.0.5/" });
+            new { apiKeyConfigurationName = "Tracon:ProviderKeys:acme:Anthropic", endpoint = "http://10.0.0.5/" });
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
@@ -239,7 +239,7 @@ public sealed class EgressGuardTests
 
         using var response = await host.Client.PutAsJsonAsync(
             new Uri("/tracon/api/tenants/acme/providers/anthropic", UriKind.Relative),
-            new { apiKeyConfigurationName = "Tracon:ProviderKeys:acme", endpoint = "not-an-address" });
+            new { apiKeyConfigurationName = "Tracon:ProviderKeys:acme:Anthropic", endpoint = "not-an-address" });
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
     }
@@ -251,7 +251,7 @@ public sealed class EgressGuardTests
 
         using var response = await host.Client.PutAsJsonAsync(
             new Uri("/tracon/api/tenants/acme/providers/anthropic", UriKind.Relative),
-            new { apiKeyConfigurationName = "Tracon:ProviderKeys:acme" });
+            new { apiKeyConfigurationName = "Tracon:ProviderKeys:acme:Anthropic" });
 
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }

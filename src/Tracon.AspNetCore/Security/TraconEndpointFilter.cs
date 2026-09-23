@@ -37,6 +37,7 @@ internal sealed class TraconEndpointFilter : IEndpointFilter
     private readonly bool _requireBearerToken;
     private readonly string? _authToken;
     private readonly string? _staticAuthToken;
+    private readonly bool _authorizationPolicyConfigured;
 
     /// <summary>Creates a filter from the settings.</summary>
     /// <param name="options">The access settings.</param>
@@ -71,6 +72,7 @@ internal sealed class TraconEndpointFilter : IEndpointFilter
         _requireBearerToken = requireBearerToken;
         _authToken = requireBearerToken ? options.AuthToken : null;
         _staticAuthToken = options.AuthToken;
+        _authorizationPolicyConfigured = options.AuthorizationPolicy is { Length: > 0 };
     }
 
     /// <inheritdoc />
@@ -81,13 +83,18 @@ internal sealed class TraconEndpointFilter : IEndpointFilter
 
         var httpContext = context.HttpContext;
 
-        if (_requireLoopback && !_allowRemoteAccess && !LoopbackGuard.IsLocal(httpContext.Connection.RemoteIpAddress))
+        if (_requireLoopback && !_allowRemoteAccess && !LoopbackGuard.IsLocalRequest(httpContext))
         {
             return Results.Problem(
                 title: "Remote access disabled",
-                detail: "Tracon endpoints are reachable only from the same machine by default. " +
-                        "For remote access, enable the AllowRemoteAccess setting and configure an " +
-                        "authentication method (AuthToken or RequireAuthorization).",
+                detail: LoopbackGuard.HasForwardingHeader(httpContext.Request)
+                    ? "Tracon endpoints are reachable only from the same machine by default, and this " +
+                      "request was forwarded by a reverse proxy. Behind a proxy, configure the " +
+                      "ForwardedHeaders middleware, enable the AllowRemoteAccess setting, and " +
+                      "configure an authentication method (AuthToken or RequireAuthorization)."
+                    : "Tracon endpoints are reachable only from the same machine by default. " +
+                      "For remote access, enable the AllowRemoteAccess setting and configure an " +
+                      "authentication method (AuthToken or RequireAuthorization).",
                 statusCode: StatusCodes.Status403Forbidden);
         }
 
@@ -107,6 +114,17 @@ internal sealed class TraconEndpointFilter : IEndpointFilter
                 return rejectedMissingKey;
             }
 
+            // K1 admits the anonymous caller as the local operator. Only on the
+            // bearer-token groups: the UI shell and the inbound triggers never
+            // promised loopback, the OAuth callback is bound by its state value
+            // and a provider's form_post carries the provider's Origin, and the
+            // voice socket checks its own subprotocol credential first.
+            if (_requireBearerToken
+                && AnonymousAccessGuard.Check(httpContext, _authorizationPolicyConfigured) is { } rejectedAnonymous)
+            {
+                return rejectedAnonymous;
+            }
+
             return CheckTenancyWhitelist(httpContext) is { } rejectedNoAuth
                 ? rejectedNoAuth
                 : await Proceed(httpContext, next, context).ConfigureAwait(false);
@@ -121,6 +139,11 @@ internal sealed class TraconEndpointFilter : IEndpointFilter
             {
                 return rejectedStaticForMandatory;
             }
+
+            // The token sets no principal and no key record; without this mark a
+            // later layer could not tell the installation's own identity from an
+            // anonymous request (CrossTenantAuthority).
+            StaticTokenRequestContext.Set(httpContext);
 
             return CheckTenancyWhitelist(httpContext) is { } rejectedStaticToken
                 ? rejectedStaticToken

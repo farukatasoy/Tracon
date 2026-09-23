@@ -284,9 +284,14 @@ curl -X PUT "http://localhost:5081/tracon/api/tenants/acme/providers/openai" \
   -d '{"apiKeyConfigurationName": "Tracon:ProviderKeys:Acme:OpenAI"}'
 ```
 
-The name must sit under the configured prefix (default `Tracon:ProviderKeys:`); a
-name outside it is rejected with `400` both when it is saved and again when it is
-resolved. `GET /api/tenants/acme/providers` reports whether the name currently
+The name must sit under the configured prefix (default `Tracon:ProviderKeys:`) and
+inside the tenant's own segment — `Tracon:ProviderKeys:acme:` for tenant `acme`; the
+segment matches without regard to case. A flat name directly under the prefix belongs
+to the default tenant. A name outside that space is rejected with `400` both when it is
+saved and again when it is resolved, so one tenant cannot bind another tenant's key.
+Managing a tenant other than your own requires platform authority: an API key with the
+`PlatformAdmin` scope, the static token, or the `TraconPolicies.PlatformAdmin`
+policy. `GET /api/tenants/acme/providers` reports whether the name currently
 resolves to a value (`resolved: true`/`false`) — never the value itself. A tenant with
 no binding for a provider keeps using the global setup-time credential; nothing changes
 until a binding is written. A binding that exists but resolves to no value does not
@@ -582,7 +587,7 @@ as a rejection, since there is nothing to compare the prompt against.
 | Fallback chain | Empty; an unavailable primary throws, same as before this feature existed |
 | Tenant provider binding | None; every tenant uses the global setup-time credential until one is saved |
 | Tenant egress policy | Unrestricted; saving one is an additive restriction, never a default wall |
-| Allowed configuration prefix for a binding | `Tracon:ProviderKeys:`; a name outside it is rejected with `400` |
+| Allowed configuration prefix for a binding | `Tracon:ProviderKeys:{tenant}:`; a flat name belongs to the default tenant, and any other name is rejected with `400` |
 | Response cache | Off; a binding with `ResponseCache.Enabled = true` and no registered `IDistributedCache` fails to compile |
 | Response cache lifetime | 10 minutes, when caching is enabled |
 | Concurrent tool calls | Off; independent tool calls in one turn run one after another |

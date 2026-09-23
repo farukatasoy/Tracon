@@ -136,7 +136,8 @@ public static partial class TraconServiceCollectionExtensions
         services.TryAddTraconDefault<ITenantEgressPolicyStore, InMemoryTenantEgressPolicyStore>();
         services.TryAddSingleton(static provider => new TenantProviderCredentialResolver(
             provider.GetService<IConfiguration>(),
-            provider.GetRequiredService<IOptionsMonitor<TraconTenantProviderOptions>>()));
+            provider.GetRequiredService<IOptionsMonitor<TraconTenantProviderOptions>>(),
+            provider.GetRequiredService<IOptions<TraconOptions>>()));
 
         // Provider retry classifier (Phase 113, F-149). Registered BEFORE
         // IModelProviderRegistry so its constructor can resolve it. The
