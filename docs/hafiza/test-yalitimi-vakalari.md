@@ -126,6 +126,15 @@
   gecer — guard tetiklenemez. Test ayrica `voice-transcript`'i **akistan**
   bekler, store'dan degil. Ders: dokunulmus bir yuzeyde "izole gecti" savunma
   degildir; cagri yolundaki token'in **gercek degeri** okunur.
+- **✅ Ses testinin kök sebebi bulundu (2026-09-23, Faz 184) — TESTİN
+  kendisi.** K-660 sunucuya "ses gelmeden `commit`" için `idle` çerçevesini
+  ekledi; panel dinlemeye döner. Ama test `voice-commit` görünür görünmez
+  **bir kez** basıyordu ve transkripti bekliyordu: kaydedicinin ilk 250 ms'lik
+  dilimi dolmadan basılırsa `idle` gelir, transkript hiç gelmez, test 30/60 sn
+  sonra düşer. E2E sınıfları paralel koşunca 3 koşumda bir tekrarlandı. Test
+  artık ses soketinde giden ikili çerçeveleri sayar ve ilk ses parçası
+  gittikten sonra `commit`'e basar; paralel 5/5, tam koşum yeşil. **Ders:** bir
+  test altı fazda "yavaş makine" sanıldıysa, sınırı değil **ön koşulunu** oku.
 
 - **`ObjectToolAotPackageTests` — ayni desenin Native AOT `publish` hali**
   (2026-09-12, F-219/F-220 kusur turu kapanisi).
