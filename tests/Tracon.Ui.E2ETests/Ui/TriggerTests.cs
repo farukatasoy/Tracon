@@ -19,8 +19,8 @@ public sealed class TriggerTests(BrowserFixture browsers)
 
         await session.Page.GetByRole(AriaRole.Textbox, new() { Name = "Name *", Exact = true })
             .FillAsync("slack-e2e");
-        await session.Page.GetByPlaceholder("demo").FillAsync("support");
-        await session.Page.GetByPlaceholder("Tracon:TriggerSecrets:Slack")
+        await session.Page.GetByPlaceholder("demo", new() { Exact = true }).FillAsync("support");
+        await session.Page.GetByPlaceholder("Tracon:TriggerSecrets:Slack", new() { Exact = true })
             .FillAsync("Tracon:TriggerSecrets:SlackE2E");
         await session.Page.GetByRole(AriaRole.Button, new() { Name = "Save" }).ClickAsync();
 

@@ -91,7 +91,7 @@ public sealed class ToolTests(BrowserFixture browsers)
         await session.Page.GotoAsync($"{host.BaseAddress}/embed-test?key={Uri.EscapeDataString(apiKey!)}");
 
         await session.Page.GetByRole(AriaRole.Button, new() { Name = "Open chat" }).ClickAsync();
-        await session.Page.GetByPlaceholder("Message…").FillAsync("what is the page title?");
+        await session.Page.GetByPlaceholder("Message…", new() { Exact = true }).FillAsync("what is the page title?");
         await session.Page.GetByRole(AriaRole.Button, new() { Name = "Send", Exact = true }).ClickAsync();
 
         // The registered handler runs and the tool result reaches the model —

@@ -17,7 +17,7 @@ public sealed class SkillTests(BrowserFixture browsers)
 
         await session.Page.GotoAsync($"{host.UiAddress}/skills/new");
 
-        await session.Page.GetByPlaceholder("invoice-analysis").FillAsync("invoice-review");
+        await session.Page.GetByPlaceholder("invoice-analysis", new() { Exact = true }).FillAsync("invoice-review");
         await session.Page.GetByRole(AriaRole.Textbox, new() { Name = "Description" })
             .FillAsync("Reviews invoices.");
         await session.Page.GetByRole(AriaRole.Button, new() { Name = "Save" }).ClickAsync();
