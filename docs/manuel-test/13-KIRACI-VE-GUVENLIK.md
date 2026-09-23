@@ -2008,7 +2008,7 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/approvals/rules" -H "$APB"
 **Beklenen sonuç**
 - Yeni kural tabloda `amount ≤ 100` rozetiyle görünür; operatör seçimi yalnız
   sekiz sabit değerden biri olabilir, hiçbir alanda ifade/formül yazılamaz (K2).
-  Otomatikleştirilmiş karşılığı: `UiTests.Approval_rule_with_condition_is_created_and_shown`.
+  Otomatikleştirilmiş karşılığı: `ApprovalTests.Approval_rule_with_condition_is_created_and_shown`.
 
 ---
 

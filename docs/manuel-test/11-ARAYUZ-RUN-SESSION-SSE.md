@@ -1736,7 +1736,7 @@ Gerçek bir OpenAI çağrısıyla ölçüldü (2026-09-04, `support` agent'ı, g
 
 MT-UIRUN-052'nin devamı — aynı `runId` konsolda açılır. Görsel doğrulama
 gerektirir; alan sözleşmesi (satır adının `customType` olması) E2E testiyle
-otomasyonla da koşulur: `Tracon.Ui.E2ETests.UiTests.
+otomasyonla da koşulur: `Tracon.Ui.E2ETests.Ui.RunTests.
 Custom_run_event_renders_as_a_generic_card_named_after_its_CustomType`.
 
 | | |
