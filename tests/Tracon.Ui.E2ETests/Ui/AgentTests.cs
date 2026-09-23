@@ -1,0 +1,172 @@
+using Microsoft.Playwright;
+using Tracon.Ui.E2ETests.Infrastructure;
+using static Tracon.Ui.E2ETests.Infrastructure.UiTestHelpers;
+
+namespace Tracon.Ui.E2ETests.Ui;
+
+/// <summary>
+/// The agents screens: the list, the editor, versions and the diff.
+/// </summary>
+[Collection(ConsoleScreens.Name)]
+public sealed class AgentTests(BrowserFixture browsers)
+{
+    [Fact]
+    public async Task Code_defined_agent_appears_in_list_and_cannot_be_edited()
+    {
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        await session.Page.GotoAsync($"{host.UiAddress}/agents");
+
+        await session.Page.GetByText("Support assistant").WaitForAsync();
+
+        await session.Page.GetByText("Support assistant").ClickAsync();
+
+        // Write endpoints return 409 for a code-defined agent; the UI must
+        // never show the edit button.
+        await session.Page.GetByText("This agent is declared in code").WaitForAsync();
+
+        (await session.Page.GetByRole(AriaRole.Link, new() { Name = "Edit" }).CountAsync()).ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task Navigating_directly_to_code_agent_edit_URL_fills_form_with_name()
+    {
+        // BUG-S4-010: the list screen hides "Edit" (per task K1), but
+        // navigating directly to the edit URL opened the form empty with a
+        // read-only "Name" field — the Validate/Save buttons could never be
+        // enabled, so the expected 409 flow for the case was unreachable.
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        await session.Page.GotoAsync($"{host.UiAddress}/agents/support/edit");
+
+        var name = session.Page.GetByTestId("agent-name");
+
+        await Assertions.Expect(name).ToHaveValueAsync("support", new() { Timeout = 10_000 });
+        (await name.IsEditableAsync()).ShouldBeFalse("The code agent's name must still not be editable.");
+
+        (await session.Page.GetByTestId("agent-validate").IsDisabledAsync())
+            .ShouldBeFalse("The Validate button stayed disabled even though the form is filled.");
+        (await session.Page.GetByTestId("agent-save").IsDisabledAsync())
+            .ShouldBeFalse("The Save button stayed disabled even though the form is filled.");
+    }
+
+    [Fact]
+    public async Task Agent_created_from_UI_can_be_run_immediately()
+    {
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        await session.Page.GotoAsync($"{host.UiAddress}/agents/new");
+        await WaitForDefaultProviderAsync(session.Page);
+
+        await session.Page.GetByTestId("agent-name").FillAsync("ui-agent");
+        await session.Page.GetByTestId("agent-display-name").FillAsync("Console agent");
+        await session.Page.GetByTestId("agent-model").FillAsync(ScriptedModels.Default);
+
+        await session.Page.GetByTestId("agent-save").ClickAsync();
+
+        // After saving, the detail screen opens and the new definition appears.
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Console agent" })
+            .WaitForAsync(new() { Timeout = 15_000 });
+
+        await session.Page.GotoAsync($"{host.UiAddress}/playground/ui-agent");
+        await session.Page.GetByTestId("playground-input").FillAsync("hello");
+        await session.Page.GetByTestId("playground-send").ClickAsync();
+
+        await session.Page.GetByText("Echo: hello").WaitForAsync(new() { Timeout = 20_000 });
+    }
+
+    [Fact]
+    public async Task Fallback_list_is_saved_and_read_back()
+    {
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        await session.Page.GotoAsync($"{host.UiAddress}/agents/new");
+        await WaitForDefaultProviderAsync(session.Page);
+
+        await session.Page.GetByTestId("agent-name").FillAsync("fallback-agent");
+        await session.Page.GetByTestId("agent-model").FillAsync(ScriptedModels.Default);
+
+        await session.Page.GetByTestId("add-fallback").ClickAsync();
+        await session.Page.GetByTestId("fallback-provider-0").SelectOptionAsync(ScriptedModels.ProviderName);
+        await session.Page.GetByTestId("fallback-model-0").FillAsync(ScriptedModels.Support);
+
+        await session.Page.GetByTestId("agent-save").ClickAsync();
+
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "fallback-agent" })
+            .WaitForAsync(new() { Timeout = 15_000 });
+
+        await session.Page.GetByRole(AriaRole.Link, new() { Name = "Edit" }).ClickAsync();
+
+        (await session.Page.GetByTestId("fallback-provider-0").InputValueAsync()).ShouldBe(ScriptedModels.ProviderName);
+        (await session.Page.GetByTestId("fallback-model-0").InputValueAsync()).ShouldBe(ScriptedModels.Support);
+
+        // Removing the only row returns to the empty-list hint, and a save
+        // round trip persists the now-empty list (K1: no lingering fallback).
+        await session.Page.GetByTestId("remove-fallback-0").ClickAsync();
+        (await session.Page.GetByTestId("fallback-provider-0").CountAsync()).ShouldBe(0);
+
+        await session.Page.GetByTestId("agent-save").ClickAsync();
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "fallback-agent" })
+            .WaitForAsync(new() { Timeout = 15_000 });
+
+        await session.Page.GetByRole(AriaRole.Link, new() { Name = "Edit" }).ClickAsync();
+        (await session.Page.GetByTestId("fallback-provider-0").CountAsync()).ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task Context_panel_reflects_selected_strategy_in_request_preview()
+    {
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        await session.Page.GotoAsync($"{host.UiAddress}/agents/new");
+
+        await session.Page.GetByTestId("agent-name").FillAsync("context-agent");
+        await session.Page.GetByTestId("agent-model").FillAsync(ScriptedModels.Default);
+
+        // Conditional fields (trigger, etc.) stay hidden until a strategy is selected.
+        (await session.Page.GetByLabel("Trigger: message count").CountAsync()).ShouldBe(0);
+
+        await session.Page.GetByLabel("Compaction strategy").SelectOptionAsync("SlidingWindow");
+        await session.Page.GetByLabel("Trigger: message count").FillAsync("40");
+        await session.Page.GetByLabel("Enable todo tracking").CheckAsync();
+
+        var preview = await session.Page.Locator("pre").First.TextContentAsync();
+
+        preview.ShouldNotBeNull();
+        preview.ShouldContain("\"strategy\": \"SlidingWindow\"");
+        preview.ShouldContain("\"triggerMessages\": 40");
+        preview.ShouldContain("\"enableTodo\": true");
+    }
+
+    [Fact]
+    public async Task Version_diff_compares_two_versions()
+    {
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+
+        await CreateAgentWithTwoVersionsAsync(host, session, "diff-agent", "first instructions", "second instructions");
+
+        await session.Page.GotoAsync($"{host.UiAddress}/agents/diff-agent");
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "diff-agent" }).WaitForAsync();
+
+        await session.Page.GetByTestId("version-checkbox-1").CheckAsync();
+        await session.Page.GetByTestId("version-checkbox-2").CheckAsync();
+
+        // When two versions are selected, both raw definitions are fetched and
+        // a line-based diff is rendered; both instruction texts (one as "-",
+        // one as "+") must appear.
+        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Comparing v1 → v2" })
+            .WaitForAsync(new() { Timeout = 10_000 });
+
+        // "first instructions"/"second instructions" also appear in the
+        // Instructions panel and the raw Definition JSON; diff lines are
+        // distinguished by the span.break-all class.
+        await session.Page.Locator("span.break-all", new() { HasText = "first instructions" }).First.WaitForAsync();
+        await session.Page.Locator("span.break-all", new() { HasText = "second instructions" }).First.WaitForAsync();
+    }
+}
