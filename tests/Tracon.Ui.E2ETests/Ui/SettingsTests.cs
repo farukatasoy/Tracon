@@ -23,18 +23,21 @@ public sealed class SettingsTests(BrowserFixture browsers)
 
         await session.Page.GetByTestId("theme-toggle").ClickAsync();
 
+        // Phase 184: read once the theme has moved, not the instant the click
+        // returns - the repaint is the page's own work.
+        await Expect(session.Page.Locator("html"), "The theme did not change.")
+            .Not.ToHaveAttributeAsync("data-theme", before ?? string.Empty);
+
         var after = await session.Page.GetAttributeAsync("html", "data-theme");
 
-        string.Equals(after, before, StringComparison.Ordinal)
-            .ShouldBeFalse("The theme did not change.");
         (after is "light" or "dark").ShouldBeTrue($"Unexpected theme: {after}");
 
         // The preference lives in localStorage; a reload must preserve it.
         await session.Page.ReloadAsync();
         await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard" })).ToBeVisibleAsync();
 
-        string.Equals(await session.Page.GetAttributeAsync("html", "data-theme"), after, StringComparison.Ordinal)
-            .ShouldBeTrue("The theme preference was not preserved across reload.");
+        await Expect(session.Page.Locator("html"), "The theme preference was not preserved across reload.")
+            .ToHaveAttributeAsync("data-theme", after!);
     }
 
     [Fact]

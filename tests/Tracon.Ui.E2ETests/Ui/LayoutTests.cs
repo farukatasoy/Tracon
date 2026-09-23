@@ -260,9 +260,14 @@ public sealed class LayoutTests(BrowserFixture browsers)
         // Every described badge on the screen, not just the first: the clamp has
         // to hold wherever the trigger happens to sit.
         var described = session.Page.Locator("span[aria-describedby][tabindex='0']");
-        var count = await described.CountAsync();
 
-        count.ShouldBeGreaterThan(0, "No described badge on this screen to hover.");
+        // Phase 184: the count used to be read the moment the heading appeared.
+        // The badges come with the model list, which loads after the heading;
+        // under a parallel run the read found none. The list renders its rows
+        // together, so once one badge is there, all of them are.
+        await Expect(described.First, "No described badge on this screen to hover.").ToBeVisibleAsync();
+
+        var count = await described.CountAsync();
 
         for (var index = 0; index < count; index++)
         {
