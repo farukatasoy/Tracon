@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using Microsoft.Playwright;
 using Tracon.Ui.E2ETests.Infrastructure;
+using static Microsoft.Playwright.Assertions;
 
 namespace Tracon.Ui.E2ETests.Ui;
 
@@ -32,8 +33,8 @@ public sealed class ApprovalTests(BrowserFixture browsers)
 
         await session.Page.GetByRole(AriaRole.Button, new() { Name = "Save" }).ClickAsync();
 
-        await session.Page.GetByText("refund_order").First.WaitForAsync(new() { Timeout = 10_000 });
-        await session.Page.GetByText("amount ≤ 100").WaitForAsync(new() { Timeout = 10_000 });
+        await Expect(session.Page.GetByText("refund_order").First).ToBeVisibleAsync();
+        await Expect(session.Page.GetByText("amount ≤ 100")).ToBeVisibleAsync();
     }
 
     [Fact]
@@ -63,7 +64,7 @@ public sealed class ApprovalTests(BrowserFixture browsers)
         seedResponse.EnsureSuccessStatusCode();
 
         await session.Page.GotoAsync($"{host.UiAddress}/approvals");
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Approvals", Exact = true }).WaitForAsync();
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Approvals", Exact = true })).ToBeVisibleAsync();
 
         // The worker leases the job from the queue and waits until it reaches
         // the tool call that requires approval; the screen auto-refreshes every 5 seconds.
@@ -71,8 +72,7 @@ public sealed class ApprovalTests(BrowserFixture browsers)
         // reads "Approve cancel_order?", so a substring match resolves to two
         // elements the moment the dialog is up and Playwright's strict mode
         // rejects it. The row's cell is the exact string.
-        await session.Page.GetByText("cancel_order", new() { Exact = true })
-            .WaitForAsync(new() { Timeout = 15_000 });
+        await Expect(session.Page.GetByText("cancel_order", new() { Exact = true })).ToBeVisibleAsync();
 
         // Phase 175: the answer is no longer one click. Approving is the one
         // action in the console that earns a confirmation under criterion (b)
@@ -82,26 +82,24 @@ public sealed class ApprovalTests(BrowserFixture browsers)
         await session.Page.GetByRole(AriaRole.Button, new() { Name = "Approve" }).ClickAsync();
 
         var confirm = session.Page.GetByTestId("confirm-decide");
-        await confirm.WaitForAsync(new() { Timeout = 10_000 });
+        await Expect(confirm).ToBeVisibleAsync();
 
         // The consequence comes from the SAME message key the trigger's own
         // tooltip uses (§175.4 rule 2), so the sentence read before the click
         // and the sentence read inside the dialog cannot drift apart.
-        await confirm.GetByText("queue a new run with the same session to continue.", new() { Exact = false })
-            .WaitForAsync();
+        await Expect(confirm.GetByText("queue a new run with the same session to continue.", new() { Exact = false })).ToBeVisibleAsync();
 
         await session.Page.GetByTestId("confirm-accept").ClickAsync();
 
         // The row disappears from the list: the request is no longer Pending.
-        await session.Page.GetByText("cancel_order", new() { Exact = true })
-            .WaitForAsync(new() { State = WaitForSelectorState.Detached, Timeout = 10_000 });
-        await session.Page.GetByText("Nothing is waiting").WaitForAsync();
+        await Expect(session.Page.GetByText("cancel_order", new() { Exact = true })).ToHaveCountAsync(0);
+        await Expect(session.Page.GetByText("Nothing is waiting")).ToBeVisibleAsync();
 
         // The decision queues a NEW run, which also completes. The Runs list
         // must show both the old row (which STAYS in AwaitingApproval, K-014)
         // and the new (Completed) row.
         await session.Page.GotoAsync($"{host.UiAddress}/runs");
-        await session.Page.GetByText("awaiting approval", new() { Exact = true }).WaitForAsync(new() { Timeout = 10_000 });
-        await session.Page.GetByText("completed", new() { Exact = true }).First.WaitForAsync(new() { Timeout = 10_000 });
+        await Expect(session.Page.GetByText("awaiting approval", new() { Exact = true })).ToBeVisibleAsync();
+        await Expect(session.Page.GetByText("completed", new() { Exact = true }).First).ToBeVisibleAsync();
     }
 }

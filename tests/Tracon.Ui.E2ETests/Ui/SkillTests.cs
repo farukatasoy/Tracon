@@ -1,5 +1,6 @@
 using Microsoft.Playwright;
 using Tracon.Ui.E2ETests.Infrastructure;
+using static Microsoft.Playwright.Assertions;
 
 namespace Tracon.Ui.E2ETests.Ui;
 
@@ -22,7 +23,7 @@ public sealed class SkillTests(BrowserFixture browsers)
             .FillAsync("Reviews invoices.");
         await session.Page.GetByRole(AriaRole.Button, new() { Name = "Save" }).ClickAsync();
 
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Skills" }).WaitForAsync();
-        await session.Page.GetByText("invoice-review", new() { Exact = true }).WaitForAsync();
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Skills" })).ToBeVisibleAsync();
+        await Expect(session.Page.GetByText("invoice-review", new() { Exact = true })).ToBeVisibleAsync();
     }
 }

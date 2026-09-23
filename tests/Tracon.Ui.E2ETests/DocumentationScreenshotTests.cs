@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Playwright;
 using Tracon.Ui.E2ETests.Infrastructure;
+using static Microsoft.Playwright.Assertions;
 
 namespace Tracon.Ui.E2ETests;
 
@@ -181,10 +182,7 @@ public sealed class DocumentationScreenshotTests(BrowserFixture browsers)
             {
                 await page.GotoAsync(host.UiAddress + route);
 
-                await page.GetByText(landmark).First.WaitForAsync(new LocatorWaitForOptions
-                {
-                    Timeout = 15_000,
-                });
+                await Expect(page.GetByText(landmark).First).ToBeVisibleAsync();
 
                 var bytes = await page.ScreenshotAsync(new PageScreenshotOptions
                 {

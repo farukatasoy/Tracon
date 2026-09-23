@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using System.Text.RegularExpressions;
 using Microsoft.Playwright;
+using static Microsoft.Playwright.Assertions;
 
 namespace Tracon.Ui.E2ETests.Infrastructure;
 
@@ -29,7 +30,7 @@ internal static class UiTestHelpers
         // Filling the other fields proves neither that the query settled nor
         // that the form is valid; under CI load the Save button can therefore
         // remain disabled until Playwright's unrelated click timeout expires.
-        await Assertions.Expect(page.GetByTestId("agent-provider"))
+        await Expect(page.GetByTestId("agent-provider"))
             .ToHaveValueAsync(ScriptedModels.ProviderName, new() { Timeout = 60_000 });
     }
 
@@ -46,18 +47,18 @@ internal static class UiTestHelpers
         await session.Page.GetByTestId("agent-instructions").FillAsync(firstInstructions);
         await session.Page.GetByTestId("agent-model").FillAsync(ScriptedModels.Default);
         var save = session.Page.GetByTestId("agent-save");
-        await Assertions.Expect(save).ToBeEnabledAsync();
+        await Expect(save).ToBeEnabledAsync();
         await save.ClickAsync();
 
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = name }).WaitForAsync(new() { Timeout = 15_000 });
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = name })).ToBeVisibleAsync();
 
         await session.Page.GetByRole(AriaRole.Link, new() { Name = "Edit" }).ClickAsync();
         await session.Page.GetByTestId("agent-instructions").FillAsync(secondInstructions);
         save = session.Page.GetByTestId("agent-save");
-        await Assertions.Expect(save).ToBeEnabledAsync();
+        await Expect(save).ToBeEnabledAsync();
         await save.ClickAsync();
 
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = name }).WaitForAsync(new() { Timeout = 15_000 });
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = name })).ToBeVisibleAsync();
     }
 
     /// <summary>

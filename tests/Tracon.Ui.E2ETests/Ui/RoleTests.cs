@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Playwright;
 using Tracon.Ui.E2ETests.Infrastructure;
+using static Microsoft.Playwright.Assertions;
 
 namespace Tracon.Ui.E2ETests.Ui;
 
@@ -24,16 +25,16 @@ public sealed class RoleTests(BrowserFixture browsers)
         await using var session = await Session.OpenAsync(browsers, host);
 
         await session.Page.GotoAsync($"{host.UiAddress}/agents");
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Agents" }).WaitForAsync();
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Agents" })).ToBeVisibleAsync();
 
-        (await session.Page.GetByRole(AriaRole.Link, new() { Name = "New agent" }).CountAsync()).ShouldBe(0);
+        await Expect(session.Page.GetByRole(AriaRole.Link, new() { Name = "New agent" })).ToHaveCountAsync(0);
 
         // Because the Admin role is not satisfied, the Audit tab must also not
         // appear in the navigation bar.
-        (await session.Page.GetByRole(AriaRole.Link, new() { Name = "Audit" }).CountAsync()).ShouldBe(0);
+        await Expect(session.Page.GetByRole(AriaRole.Link, new() { Name = "Audit" })).ToHaveCountAsync(0);
 
         await session.Page.GotoAsync($"{host.UiAddress}/mcp");
-        (await session.Page.GetByRole(AriaRole.Button, new() { Name = "Add server" }).CountAsync()).ShouldBe(0);
+        await Expect(session.Page.GetByRole(AriaRole.Button, new() { Name = "Add server" })).ToHaveCountAsync(0);
     }
 
     [Fact]
@@ -52,11 +53,9 @@ public sealed class RoleTests(BrowserFixture browsers)
         foreach (var path in new[] { "audit", "diagnostics" })
         {
             await session.Page.GotoAsync($"{host.UiAddress}/{path}");
-            await session.Page.GetByTestId("unauthorized").WaitForAsync(new() { Timeout = 30_000 });
+            await Expect(session.Page.GetByTestId("unauthorized")).ToBeVisibleAsync();
 
-            (await session.Page.GetByText("Nothing is recorded yet", new() { Exact = true }).CountAsync()).ShouldBe(
-                0,
-                $"/{path} showed an empty state to a reader instead of refusing.");
+            await Expect(session.Page.GetByText("Nothing is recorded yet", new() { Exact = true }), $"/{path} showed an empty state to a reader instead of refusing.").ToHaveCountAsync(0);
         }
     }
 }

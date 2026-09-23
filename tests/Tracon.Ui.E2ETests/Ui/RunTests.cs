@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.RegularExpressions;
 using Microsoft.Playwright;
 using Tracon.Ui.E2ETests.Infrastructure;
+using static Microsoft.Playwright.Assertions;
 using static Tracon.Ui.E2ETests.Infrastructure.UiTestHelpers;
 
 namespace Tracon.Ui.E2ETests.Ui;
@@ -26,15 +27,14 @@ public sealed class RunTests(BrowserFixture browsers)
         await session.Page.GetByTestId("playground-input").FillAsync("where is ORD-7");
         await session.Page.GetByTestId("playground-send").ClickAsync();
 
-        await session.Page.GetByText("Echo: where is ORD-7").WaitForAsync(new() { Timeout = 20_000 });
+        await Expect(session.Page.GetByText("Echo: where is ORD-7")).ToBeVisibleAsync();
 
         await session.Page.GetByRole(AriaRole.Link, new() { NameRegex = RunLinkPattern }).First.ClickAsync();
 
         // Event names are a stable contract; the screen shows them as-is.
         foreach (var name in new[] { "run.started", "tool.invoking", "tool.invoked", "run.completed" })
         {
-            await session.Page.GetByText(name, new() { Exact = true }).First
-                .WaitForAsync(new() { Timeout = 20_000 });
+            await Expect(session.Page.GetByText(name, new() { Exact = true }).First).ToBeVisibleAsync();
         }
     }
 
@@ -52,12 +52,11 @@ public sealed class RunTests(BrowserFixture browsers)
         await session.Page.GetByTestId("playground-input").FillAsync("prepare ORD-7");
         await session.Page.GetByTestId("playground-send").ClickAsync();
 
-        await session.Page.GetByText("Preview for order ORD-7 is ready.").First.WaitForAsync(new() { Timeout = 20_000 });
+        await Expect(session.Page.GetByText("Preview for order ORD-7 is ready.").First).ToBeVisibleAsync();
 
         await session.Page.GetByRole(AriaRole.Link, new() { NameRegex = RunLinkPattern }).First.ClickAsync();
 
-        await session.Page.GetByText("contoso.preview-ready", new() { Exact = true }).First
-            .WaitForAsync(new() { Timeout = 20_000 });
+        await Expect(session.Page.GetByText("contoso.preview-ready", new() { Exact = true }).First).ToBeVisibleAsync();
     }
 
     [Fact]
@@ -70,21 +69,18 @@ public sealed class RunTests(BrowserFixture browsers)
         await session.Page.GetByTestId("playground-input").FillAsync("where is ORD-7");
         await session.Page.GetByTestId("playground-send").ClickAsync();
 
-        await session.Page.GetByText("Echo:").First.WaitForAsync(new() { Timeout = 30_000 });
+        await Expect(session.Page.GetByText("Echo:").First).ToBeVisibleAsync();
 
         await session.Page.GetByRole(AriaRole.Link, new() { NameRegex = RunLinkPattern }).First.ClickAsync();
 
         // Summary events appear in the root stream; the child run's full
         // stream is not mirrored (event volume would multiply across the tree).
-        await session.Page.GetByText("child.started", new() { Exact = true }).First
-            .WaitForAsync(new() { Timeout = 30_000 });
+        await Expect(session.Page.GetByText("child.started", new() { Exact = true }).First).ToBeVisibleAsync();
 
         // The tree panel must show both the root and the child run.
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Call tree" })
-            .WaitForAsync(new() { Timeout = 30_000 });
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Call tree" })).ToBeVisibleAsync();
 
-        await session.Page.GetByText("this run", new() { Exact = true }).First
-            .WaitForAsync(new() { Timeout = 30_000 });
+        await Expect(session.Page.GetByText("this run", new() { Exact = true }).First).ToBeVisibleAsync();
     }
 
     [Fact]
@@ -102,23 +98,23 @@ public sealed class RunTests(BrowserFixture browsers)
         await session.Page.GetByTestId("playground-input").FillAsync("where is ORD-7");
         await session.Page.GetByTestId("playground-send").ClickAsync();
 
-        await session.Page.GetByText("Echo:").First.WaitForAsync(new() { Timeout = 30_000 });
+        await Expect(session.Page.GetByText("Echo:").First).ToBeVisibleAsync();
 
         await session.Page.GetByRole(AriaRole.Link, new() { NameRegex = RunLinkPattern }).First.ClickAsync();
 
         var callTree = session.Page.Locator(
             "section", new() { Has = session.Page.GetByRole(AriaRole.Heading, new() { Name = "Call tree" }) });
 
-        await callTree.WaitForAsync(new() { Timeout = 30_000 });
+        await Expect(callTree).ToBeVisibleAsync();
 
         // The only link in the tree row is the child run (the root row itself
         // - "this run" - is plain text, not a link).
         await callTree.Locator("a[href*='/runs/']").First.ClickAsync();
 
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Trace" }).WaitForAsync();
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Trace" })).ToBeVisibleAsync();
 
-        await session.Page.GetByText("Spans live on the root run").WaitForAsync(new() { Timeout = 15_000 });
-        await session.Page.GetByRole(AriaRole.Link, new() { Name = "root run" }).WaitForAsync();
+        await Expect(session.Page.GetByText("Spans live on the root run")).ToBeVisibleAsync();
+        await Expect(session.Page.GetByRole(AriaRole.Link, new() { Name = "root run" })).ToBeVisibleAsync();
     }
 
     [Fact]
@@ -131,21 +127,19 @@ public sealed class RunTests(BrowserFixture browsers)
         await session.Page.GetByTestId("playground-input").FillAsync("where is ORD-7");
         await session.Page.GetByTestId("playground-send").ClickAsync();
 
-        await session.Page.GetByText("Echo:").First.WaitForAsync(new() { Timeout = 30_000 });
+        await Expect(session.Page.GetByText("Echo:").First).ToBeVisibleAsync();
 
         await session.Page.GotoAsync($"{host.UiAddress}/runs");
 
         // The default view lists only roots and reports the child run count
         // with a badge.
-        await session.Page.GetByText("1 child run", new() { Exact = true }).First
-            .WaitForAsync(new() { Timeout = 30_000 });
+        await Expect(session.Page.GetByText("1 child run", new() { Exact = true }).First).ToBeVisibleAsync();
 
-        (await session.Page.GetByText("depth 1", new() { Exact = true }).CountAsync()).ShouldBe(0);
+        await Expect(session.Page.GetByText("depth 1", new() { Exact = true })).ToHaveCountAsync(0);
 
         await session.Page.GetByRole(AriaRole.Combobox).Last.SelectOptionAsync("all");
 
-        await session.Page.GetByText("depth 1", new() { Exact = true }).First
-            .WaitForAsync(new() { Timeout = 30_000 });
+        await Expect(session.Page.GetByText("depth 1", new() { Exact = true }).First).ToBeVisibleAsync();
     }
 
     [Fact]
@@ -162,7 +156,7 @@ public sealed class RunTests(BrowserFixture browsers)
         await session.Page.GetByTestId("playground-input").FillAsync("where is ORD-7");
         await session.Page.GetByTestId("playground-send").ClickAsync();
 
-        await session.Page.GetByText("Echo:").First.WaitForAsync(new() { Timeout = 30_000 });
+        await Expect(session.Page.GetByText("Echo:").First).ToBeVisibleAsync();
 
         await session.Page.Locator("a[href*='/sessions/']").First.ClickAsync();
 
@@ -175,7 +169,7 @@ public sealed class RunTests(BrowserFixture browsers)
         // case pins — that clicking it reaches the filtered list — is unchanged.
         var runsButton = session.Page.GetByRole(AriaRole.Link, new() { NameRegex = SessionRunsButtonPattern });
 
-        await runsButton.WaitForAsync(new() { Timeout = 15_000 });
+        await Expect(runsButton).ToBeVisibleAsync();
 
         var label = await runsButton.TextContentAsync();
         var expectedCount = int.Parse(label!.Split(' ')[0], CultureInfo.InvariantCulture);
@@ -191,12 +185,11 @@ public sealed class RunTests(BrowserFixture browsers)
 
         await runsButton.ClickAsync();
 
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Runs" })
-            .WaitForAsync(new() { Timeout = 15_000 });
-        (await session.Page.GetByText("Page not found").CountAsync()).ShouldBe(0);
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Runs" })).ToBeVisibleAsync();
+        await Expect(session.Page.GetByText("Page not found")).ToHaveCountAsync(0);
 
-        await Assertions.Expect(session.Page.Locator("tbody tr"))
-            .ToHaveCountAsync(expectedCount, new() { Timeout = 10_000 });
+        await Expect(session.Page.Locator("tbody tr"))
+            .ToHaveCountAsync(expectedCount);
     }
 
     [Fact]
@@ -213,15 +206,15 @@ public sealed class RunTests(BrowserFixture browsers)
         await session.Page.GotoAsync($"{host.UiAddress}/playground/support");
         await session.Page.GetByTestId("playground-input").FillAsync("hello");
         await session.Page.GetByTestId("playground-send").ClickAsync();
-        await session.Page.GetByText("Echo:").First.WaitForAsync(new() { Timeout = 30_000 });
+        await Expect(session.Page.GetByText("Echo:").First).ToBeVisibleAsync();
 
         await session.Page.GetByRole(AriaRole.Link, new() { NameRegex = RunLinkPattern }).First.ClickAsync();
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Transcript", Exact = true }).WaitForAsync(new() { Timeout = 30_000 });
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Transcript", Exact = true })).ToBeVisibleAsync();
 
         // Scoped to the screen's own header: the top bar carries a monospace
         // ⌘K hint of its own, which is not an identifier.
         var identifier = session.Page.Locator("main header span.font-mono").First;
-        await identifier.WaitForAsync();
+        await Expect(identifier).ToBeVisibleAsync();
 
         var family = await identifier.EvaluateAsync<string>("element => getComputedStyle(element).fontFamily");
         family.ShouldContain("mono", Case.Insensitive);
