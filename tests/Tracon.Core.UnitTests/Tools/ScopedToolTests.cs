@@ -94,23 +94,30 @@ public sealed class ScopedToolTests
     public async Task The_scope_closes_when_the_call_is_canceled()
     {
         var factory = ScopeFactory(services => services.AddScoped<DisposeTracker>());
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         DisposeTracker? tracker = null;
 
         var inner = AIFunctionFactory.Create(
             async (AIFunctionArguments arguments, CancellationToken cancellationToken) =>
             {
                 tracker = arguments.Services!.GetRequiredService<DisposeTracker>();
-                await Task.Delay(TimeSpan.FromSeconds(30), cancellationToken);
+                entered.TrySetResult();
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken); // delay: simulated
                 return "unreachable";
             },
             "tool");
         var wrapped = new ScopedAIFunction(inner, factory);
 
+        // Phase 184: a CancelAfter(20 ms) timer stood here. Under load it could
+        // fire before the body resolved its dependency, and the assertion below
+        // then failed on a null tracker. Cancel once the call is inside.
         using var cts = new CancellationTokenSource();
-        cts.CancelAfter(TimeSpan.FromMilliseconds(20));
+        var call = wrapped.InvokeAsync(new AIFunctionArguments(StringComparer.Ordinal), cts.Token).AsTask();
 
-        await Should.ThrowAsync<OperationCanceledException>(
-            async () => await wrapped.InvokeAsync(new AIFunctionArguments(StringComparer.Ordinal), cts.Token));
+        await entered.Task.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
+        await cts.CancelAsync();
+
+        await Should.ThrowAsync<OperationCanceledException>(async () => await call);
 
         tracker.ShouldNotBeNull();
         tracker!.Disposed.ShouldBeTrue();

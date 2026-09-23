@@ -182,10 +182,17 @@ public sealed class ChildAgentInvokerTests
         SetScope(depth: 0, budget: new AgentRunBudget { MaxDepth = 3 });
 
         using var cts = new CancellationTokenSource();
-        cts.CancelAfter(TimeSpan.FromMilliseconds(50));
+        var running = invoker.RunAsync("run", cancellationToken: cts.Token);
 
-        await Should.ThrowAsync<OperationCanceledException>(
-            async () => await invoker.RunAsync("run", cancellationToken: cts.Token));
+        // Phase 184: a CancelAfter(50 ms) timer stood here. Under load it fired
+        // before the child run had even been recorded, and the read below found
+        // no run at all ("Sequence contains no elements", measured on the
+        // net8.0 leg). Cancel once the child is really running.
+        await WaitUntil.TrueAsync(async () =>
+            (await store.QueryRunsAsync(new RunQuery { OnlyRootRuns = false })).Count == 1);
+        await cts.CancelAsync();
+
+        await Should.ThrowAsync<OperationCanceledException>(async () => await running);
 
         // The refusal-as-tool-result path (used for both wait-limit layers)
         // was NOT taken - a real cancellation propagates as an exception.
