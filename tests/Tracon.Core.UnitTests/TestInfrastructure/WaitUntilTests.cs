@@ -118,6 +118,29 @@ public sealed class WaitUntilTests
     }
 
     [Fact]
+    public async Task A_probe_that_never_returns_is_cut_at_the_bound()
+    {
+        var never = new TaskCompletionSource<bool>();
+
+        var timeout = await Should.ThrowAsync<TimeoutException>(
+            () => WaitUntil.TrueAsync(() => never.Task, "a stuck probe", TimeSpan.FromMilliseconds(100)));
+
+        timeout.Message.ShouldContain("the probe itself never returned");
+    }
+
+    [Fact]
+    public async Task Cancelling_during_a_probe_that_never_returns_ends_the_wait()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var never = new TaskCompletionSource<bool>();
+
+        var wait = WaitUntil.TrueAsync(() => never.Task, "a stuck probe", TimeSpan.FromMinutes(10), cancellation.Token);
+        await cancellation.CancelAsync();
+
+        await Should.ThrowAsync<OperationCanceledException>(() => wait);
+    }
+
+    [Fact]
     public async Task An_exception_from_the_probe_ends_the_wait_instead_of_counting_as_not_yet()
     {
         var failure = await Should.ThrowAsync<InvalidOperationException>(
