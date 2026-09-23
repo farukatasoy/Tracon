@@ -38,7 +38,14 @@ RELEASE_NOTES_PATTERN = re.compile(r"<releaseNotes>(?P<url>[^<]*)</releaseNotes>
 K008_EXEMPT_PACKAGE = "Tracon.AspNetCore"
 APPLIED_MIGRATION_MANIFEST = pathlib.PurePath("scripts", "applied-migrations.json")
 GIT_COMMIT = re.compile(r"^[0-9a-f]{7,40}$")
-TEST_MAX_CPU_COUNT = 1
+# Faz 184: iki test projesi ayni anda. Once 1'di (uc isci dakikalarca sahte
+# timeout uretiyordu, Faz 100). Sabit beklemeler kosul-beklemeye donunce
+# olculdu, ayni makine, ayni kod (f210c797): -maxcpucount:1 863 ve 879 sn,
+# -maxcpucount:2 607 · 658 · 524 sn, uc kosum da 16.962 testte 0 kirmizi.
+# ci.yml 1'de KALIR: runner donanimi olculmedi. Kaynak cekismesi imzali bir
+# kapanis kirmizisi (izole tekrar kosumda gecen) gorulurse 1'e don ve
+# docs/hafiza/test-paralellik-ve-zamanlama.md'ye yaz.
+TEST_MAX_CPU_COUNT = 2
 
 SYNC_ROOTS = ("src", "tests", "samples", "docs", ".agents")
 SCAN_EXCLUDED_DIRS = {
@@ -953,9 +960,9 @@ def full_solution_test_command() -> Command:
     A solution test run otherwise starts every test executable at once. The
     concurrent Docker containers, Playwright browser, functional hosts, and
     package fixture can starve each other and turn healthy short deadlines into
-    timeouts. The resource-heavy test projects must run one at a time because
-    each of them can start additional processes and exhaust the local Docker
-    memory budget.
+    timeouts. Two projects at a time is the measured limit (TEST_MAX_CPU_COUNT):
+    three starved each other, two ran green three times once the tests stopped
+    sleeping fixed times (Phase 184).
     """
     # `-- --report-trx` ci.yml:183 ile AYNI: dusen testin adi makine
     # okunur hale gelir ve `isolate_failed_tests` onu izole tekrar kosar.
