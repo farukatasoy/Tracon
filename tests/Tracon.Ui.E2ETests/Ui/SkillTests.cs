@@ -7,7 +7,6 @@ namespace Tracon.Ui.E2ETests.Ui;
 /// <summary>
 /// The skills screen.
 /// </summary>
-[Collection(ConsoleScreens.Name)]
 public sealed class SkillTests(BrowserFixture browsers)
 {
     [Fact]

@@ -7,7 +7,6 @@ namespace Tracon.Ui.E2ETests.Ui;
 /// <summary>
 /// The dashboard screen.
 /// </summary>
-[Collection(ConsoleScreens.Name)]
 public sealed class DashboardTests(BrowserFixture browsers)
 {
     [Fact]

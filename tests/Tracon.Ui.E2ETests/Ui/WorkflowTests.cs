@@ -7,7 +7,6 @@ namespace Tracon.Ui.E2ETests.Ui;
 /// <summary>
 /// The workflows screens: the graph and human-in-the-loop requests.
 /// </summary>
-[Collection(ConsoleScreens.Name)]
 public sealed class WorkflowTests(BrowserFixture browsers)
 {
     [Fact]

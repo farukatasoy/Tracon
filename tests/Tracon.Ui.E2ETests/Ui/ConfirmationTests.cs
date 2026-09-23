@@ -9,7 +9,6 @@ namespace Tracon.Ui.E2ETests.Ui;
 /// <summary>
 /// The confirmation step in front of an irreversible action.
 /// </summary>
-[Collection(ConsoleScreens.Name)]
 public sealed class ConfirmationTests(BrowserFixture browsers)
 {
     /// <summary>Pattern that matches the MCP server removal control and its tooltip.</summary>

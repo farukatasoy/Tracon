@@ -7,7 +7,6 @@ namespace Tracon.Ui.E2ETests.Ui;
 /// <summary>
 /// The triggers screen.
 /// </summary>
-[Collection(ConsoleScreens.Name)]
 public sealed class TriggerTests(BrowserFixture browsers)
 {
     [Fact]

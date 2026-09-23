@@ -9,7 +9,6 @@ namespace Tracon.Ui.E2ETests.Ui;
 /// <summary>
 /// The playground: streaming, attachments, parameters, speech and voice.
 /// </summary>
-[Collection(ConsoleScreens.Name)]
 public sealed class PlaygroundTests(BrowserFixture browsers)
 {
     [Fact]

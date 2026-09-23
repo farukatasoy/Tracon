@@ -8,7 +8,6 @@ namespace Tracon.Ui.E2ETests.Ui;
 /// <summary>
 /// The command palette and the keyboard shortcuts.
 /// </summary>
-[Collection(ConsoleScreens.Name)]
 public sealed class KeyboardTests(BrowserFixture browsers)
 {
     [Fact]

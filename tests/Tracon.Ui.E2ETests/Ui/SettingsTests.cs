@@ -7,7 +7,6 @@ namespace Tracon.Ui.E2ETests.Ui;
 /// <summary>
 /// The settings screen: theme, quotas and webhooks.
 /// </summary>
-[Collection(ConsoleScreens.Name)]
 public sealed class SettingsTests(BrowserFixture browsers)
 {
     [Fact]

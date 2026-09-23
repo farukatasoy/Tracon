@@ -8,7 +8,6 @@ namespace Tracon.Ui.E2ETests.Ui;
 /// <summary>
 /// What a reader-role user can and cannot see.
 /// </summary>
-[Collection(ConsoleScreens.Name)]
 public sealed class RoleTests(BrowserFixture browsers)
 {
     [Fact]

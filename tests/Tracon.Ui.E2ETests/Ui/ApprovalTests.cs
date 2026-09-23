@@ -8,7 +8,6 @@ namespace Tracon.Ui.E2ETests.Ui;
 /// <summary>
 /// Approval rules and the approvals inbox.
 /// </summary>
-[Collection(ConsoleScreens.Name)]
 public sealed class ApprovalTests(BrowserFixture browsers)
 {
     [Fact]

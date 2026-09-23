@@ -7,7 +7,6 @@ namespace Tracon.Ui.E2ETests.Ui;
 /// <summary>
 /// The audit screen.
 /// </summary>
-[Collection(ConsoleScreens.Name)]
 public sealed class AuditTests(BrowserFixture browsers)
 {
     [Fact]

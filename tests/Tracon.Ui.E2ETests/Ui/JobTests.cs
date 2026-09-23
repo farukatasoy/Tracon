@@ -8,7 +8,6 @@ namespace Tracon.Ui.E2ETests.Ui;
 /// <summary>
 /// The jobs screen: schedules and batch runs.
 /// </summary>
-[Collection(ConsoleScreens.Name)]
 public sealed class JobTests(BrowserFixture browsers)
 {
     /// <summary>Pattern that matches the job detail heading.</summary>

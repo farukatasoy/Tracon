@@ -8,7 +8,6 @@ namespace Tracon.Ui.E2ETests.Ui;
 /// <summary>
 /// The agents screens: the list, the editor, versions and the diff.
 /// </summary>
-[Collection(ConsoleScreens.Name)]
 public sealed class AgentTests(BrowserFixture browsers)
 {
     [Fact]

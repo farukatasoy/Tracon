@@ -10,7 +10,6 @@ namespace Tracon.Ui.E2ETests.Ui;
 /// <summary>
 /// The runs screens: the event trace, the run tree and the runs list.
 /// </summary>
-[Collection(ConsoleScreens.Name)]
 public sealed class RunTests(BrowserFixture browsers)
 {
     /// <summary>Pattern that matches the "N run(s)" button on the session page.</summary>

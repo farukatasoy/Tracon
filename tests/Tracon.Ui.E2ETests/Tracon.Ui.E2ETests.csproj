@@ -28,6 +28,13 @@
     (measured: one test process at a time) but says nothing about the threads
     INSIDE one, and xunit defaults to one per processor. This caps them, so a
     project cannot saturate the machine on its own.
+
+    Phase 184: until then the cap was moot here - all console tests lived in
+    ONE class, and xunit runs the tests of one class one at a time. Split into
+    one class per screen, the classes now run four at a time. Measured before
+    adopting it: 5 of 5 project runs green in 35-48 s against 93-99 s serial,
+    after fixing the two test races the parallel runs exposed (a voice commit
+    sent before any audio, a badge count read before its list loaded).
   -->
   <ItemGroup>
     <Content Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />

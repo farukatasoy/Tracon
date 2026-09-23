@@ -11,7 +11,6 @@ namespace Tracon.Ui.E2ETests.Ui;
 /// <summary>
 /// The tools screen and the embeddable chat's client-side tools.
 /// </summary>
-[Collection(ConsoleScreens.Name)]
 public sealed class ToolTests(BrowserFixture browsers)
 {
     [Fact]
