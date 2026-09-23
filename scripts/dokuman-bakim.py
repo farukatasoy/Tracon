@@ -506,9 +506,48 @@ def _kesik_karar_basliklari(govde: list[tuple[int, str]]) -> list[str]:
     return bulgular
 
 
+# AGENTS.md kabul kurali: `K-*` yalniz dort kategoriden birine acilir. Kural
+# 2026-08-23'te yazildi ama hicbir kapi onu zorlamadi; sonraki 32 gunde 272
+# karar acildi, cunku skill'ler kaydi kosulsuz deftere yolluyordu. Esik SABIT
+# bir sayidir ve geriye donuk doldurma yapilmaz (K-767 emsali): K-854 ve
+# oncesi muaftir, esigi yukseltmek yeni kayitlari sessizce muaf yapar.
+KATEGORI_ESIGI = 855
+KARAR_KATEGORILERI = ("public-api", "güvenlik", "kalıcı-veri", "geri-dönüşü-pahalı")
+_KATEGORI_ETIKETI = re.compile(
+    r"\*\(kategori: (?P<degerler>[^)*]+)\)\*")
+
+
+def _kategorisiz_karar_satirlari(govde: list[tuple[int, str]]) -> list[str]:
+    """`K-855` ve sonrasi her §2 satiri bir kategori etiketi tasir.
+
+    Tek bicim: etiket basligi KAPATAN `**`den sonra, ilk hucrenin icinde durur
+    (`| **K-NNN — baslik** *(kategori: güvenlik)* | tarih | ...`). Birden cok
+    kategori virgulle ayrilir. Basligin ICINDEKI veya gerekce hucresindeki
+    etiket sayilmaz -- ayni kayit iki yerde iki bicimde yazilirsa kapi birini
+    kacirir."""
+    bulgular: list[str] = []
+    for no, satir in govde:
+        m = re.match(r"\|\s*\*\*K-(\d+)", satir)
+        if not m or int(m.group(1)) < KATEGORI_ESIGI:
+            continue
+        bolunme = _karar_basligi(satir)
+        ilk_hucre = bolunme[1].split("|", 1)[0] if bolunme else ""
+        etiketler = [e.group("degerler") for e in _KATEGORI_ETIKETI.finditer(ilk_hucre)]
+        degerler = [d.strip() for e in etiketler for d in e.split(",")]
+        if degerler and all(d in KARAR_KATEGORILERI for d in degerler):
+            continue
+        neden = ("bilinmeyen kategori: " + ", ".join(d for d in degerler if d not in KARAR_KATEGORILERI)
+                 if degerler else "kategori etiketi yok")
+        bulgular.append(
+            f"KARARLAR.md:{no} K-{m.group(1)} {neden} — başlığı kapatan `**`'den sonra "
+            f"`*(kategori: {' | '.join(KARAR_KATEGORILERI)})*` yaz; dört kategoriye "
+            f"girmeyen kayıt K-* olmaz (AGENTS.md, `faz-tamamlama` Adım 8)")
+    return bulgular
+
+
 def kararlar_denetle(kok: pathlib.Path = ROOT) -> tuple[int, list[str]]:
     """§2 karar tablosunun YAPISAL bütünlüğü: yinelenen numara · tabloyu kesen
-    boş satır · sıra dışı numara.
+    boş satır · sıra dışı numara · `K-855` ve sonrasında kategori etiketi.
 
     Faz 77 ve Faz 78 aynı tabandan yazıldı ve İKİSİ de K-535 ile K-536'yı aldı;
     hiçbir kapı görmedi (2026-08-21 keşif turu, kanal 2). Sebep: indeks üreteci
@@ -543,6 +582,8 @@ def kararlar_denetle(kok: pathlib.Path = ROOT) -> tuple[int, list[str]]:
     for (a, _), (b, no) in zip(numaralar, numaralar[1:]):
         if b < a:
             bulgular.append(f"KARARLAR.md:{no} K-{b} sıra dışı — önceki K-{a}")
+
+    bulgular.extend(_kategorisiz_karar_satirlari(govde))
 
     # 🚨 Kesik baslik taramasi §2 ile SINIRLI DEGILDIR: uretec
     # (`_kararlar_kalemleri`) dosyanin TAMAMINDAKI her `| **` satirini indekse
@@ -1268,6 +1309,75 @@ def geri_alinamaz_registry_islemi(kok: pathlib.Path = ROOT) -> list[str]:
             if desen in satir:
                 bulgular.append(
                     f".github/workflows/ci.yml:{no}: «{desen}» — {gerekce}")
+    return bulgular
+
+
+def _yaml_girinti(satir: str) -> int | None:
+    """Anlamli satirin girintisi; bos ve yorum satiri icin `None`."""
+    govde = satir.lstrip(" ")
+    if not govde.strip() or govde.startswith("#"):
+        return None
+    return len(satir) - len(govde)
+
+
+def zaman_siniri_olmayan_isler(kok: pathlib.Path = ROOT) -> list[str]:
+    """Her workflow isi `timeout-minutes` tasir.
+
+    2026-09-23 (kusur-giderme): `ci.yml`'de hicbir is sinir tasimiyordu ve her
+    is GitHub'in 360 dakikalik varsayilanini aliyordu. Asilma sinifi yerelde
+    belgelidir (oksuz MSBuild dugumu, KG-022); CI'da asilan bir test uygulamasi
+    iki runner'i alti saat yakar ve log hangi uygulamanin asildigini soylemez.
+    Dosya is is buyudu ve hicbir kapi siniri istemedi -- bu yuzden kural yazida
+    degil burada durur.
+
+    Ayristirici bilerek dar ve yalniz stdlib'dir (PyYAML yok): `jobs:` ust
+    anahtarinin altindaki her is ID'sinin DOGRUDAN ozelliklerine bakar. Adim
+    duzeyindeki `timeout-minutes` isi KAPSAMAZ (o yalniz adimi keser) ve yorum
+    satiri sayilmaz. `uses:` ile yeniden kullanilan workflow cagiran is muaftir:
+    GitHub orada `timeout-minutes` kabul etmez, sinir cagrilan workflow'un kendi
+    islerinde durur. Eksik `ci.yml`'i registry kapisi zaten bildirir."""
+    dizin = kok / ".github" / "workflows"
+    dosyalar = sorted([*dizin.glob("*.yml"), *dizin.glob("*.yaml")]) if dizin.is_dir() else []
+    bulgular: list[str] = []
+    for dosya in dosyalar:
+        satirlar = dosya.read_text(encoding="utf-8").splitlines()
+        bas = next((i for i, s in enumerate(satirlar)
+                    if re.match(r"jobs:\s*(#.*)?$", s)), None)
+        if bas is None:
+            continue
+        # (is adi, satir no, ozellik girintisi | None, sinir var mi, uses var mi)
+        isler: list[list] = []
+        is_girintisi: int | None = None
+        for i in range(bas + 1, len(satirlar)):
+            s = satirlar[i]
+            girinti = _yaml_girinti(s)
+            if girinti is None:
+                continue
+            if girinti == 0:
+                break  # `jobs:` bolumu bitti; sonraki ust anahtar
+            if is_girintisi is None:
+                is_girintisi = girinti
+            if girinti == is_girintisi:
+                ad = re.match(r"\s*([^\s:#][^:#]*?)\s*:\s*(#.*)?$", s)
+                isler.append([ad.group(1) if ad else s.strip(), i + 1, None, False, False])
+                continue
+            if not isler or girinti < is_girintisi:
+                continue
+            is_ = isler[-1]
+            if is_[2] is None:
+                is_[2] = girinti
+            if girinti != is_[2]:
+                continue  # adim, `env:` alt anahtari veya blok metin
+            if re.match(r"\s*timeout-minutes\s*:", s):
+                is_[3] = True
+            elif re.match(r"\s*uses\s*:", s):
+                is_[4] = True
+        rel = dosya.relative_to(kok).as_posix()
+        for ad, no, _ozellik, sinir, uses in isler:
+            if not sinir and not uses:
+                bulgular.append(
+                    f"{rel}:{no}: `{ad}` işi `timeout-minutes` taşımıyor — "
+                    f"GitHub varsayılanı 360 dk; ölçülen en uzun sürenin ~2 katını yaz")
     return bulgular
 
 
@@ -2079,7 +2189,7 @@ def _faz_damit_metni(metin: str, *, tam_sha: str, yol: str,
 
 # --- Alt komutlar (Faz 90) -----------------------------------------------
 # `add_subparsers(dest=..., required=False)`: bayraksiz cagri ve `--denetle`
-# davranis DEGISTIRMEZ. CI sozlesmesi (`ci.yml:131`) aynen calisir.
+# davranis DEGISTIRMEZ. CI sozlesmesi (`ci.yml` "Dokuman kapilari" adimi) aynen calisir.
 
 def _calisma_agaci_temiz(yollar: list[str]) -> str | None:
     """Hedefler icin `git status --porcelain` bos mu. Bos degilse HATA MESAJI
@@ -2580,8 +2690,9 @@ def tazelik_denetle(kok: pathlib.Path = ROOT) -> list[str]:
     hic kosmuyordu. `YOL-HARITASI.md` veya karar indeksleri bayat commit
     edilebilir ve HICBIR kapi bunu soylemezdi -- "tek kaynak, elle yazilmaz"
     diyen dosyanin bayat olmasi tam da kapinin yalan soylemesidir.
-    `docs-site/scripts/build-agent-map.mjs --check` (ci.yml:118) ayni deseni
-    agent haritasi icin zaten uyguluyordu; dokuman uretecinin esdegeri yoktu."""
+    `docs-site/scripts/build-agent-map.mjs --check` (`ci.yml` "Agent haritasi"
+    adimi) ayni deseni agent haritasi icin zaten uyguluyordu; dokuman
+    uretecinin esdegeri yoktu."""
     bulunan: list[str] = []
     for rel, uret in _URETILEN:
         hedef = kok / rel
@@ -2656,7 +2767,7 @@ def tam_metin_denetle(kok: pathlib.Path = ROOT) -> list[str]:
     Damitma tam metni SILMEZ, git gecmisine birakir. Git gecmisine guvenmek
     ancak bir kapi onu HER kosumda kanitliyorsa mesrudur: `filter-branch`,
     agresif `gc` veya sig bir klon SHA'yi gecersizleyebilir. `fetch-depth: 0`
-    (ci.yml:35) MinVer yuzunden zaten zorunludur -- beklenmedik bir sigorta."""
+    (`ci.yml` checkout adimlari) MinVer yuzunden zaten zorunludur -- beklenmedik bir sigorta."""
     bulunan: list[str] = []
     kaynaklar: list[pathlib.Path] = []
     for yol, zorunlu in TAM_METIN_KAYNAKLARI:
@@ -2830,6 +2941,13 @@ def denetle() -> int:
     for s in registry_bulgulari:
         print(f"  {s}")
     hata |= int(bool(registry_bulgulari))
+
+    sinir_bulgulari = zaman_siniri_olmayan_isler()
+    print(f"\nWorkflow iş zaman sınırı: "
+          f"{'❌ ' + str(len(sinir_bulgulari)) + ' bulgu' if sinir_bulgulari else '✅ temiz'}")
+    for s in sinir_bulgulari:
+        print(f"  {s}")
+    hata |= int(bool(sinir_bulgulari))
 
     kapi_bulgulari = tekrarlanan_kapi_tanimlari()
     print(f"\nTekrarlanan kapı tanımları: "

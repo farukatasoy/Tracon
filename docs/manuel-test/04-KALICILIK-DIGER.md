@@ -1857,3 +1857,40 @@ görünümünü SİLMİYORDU — sarkan görünüm bir SONRAKİ, ilgisiz testin
 art arda 4 bağlam oluşturan sıralı bir döngü ikinci bağlamda her seferinde
 patlıyordu). Düzeltme sonrası tam paket koşumu (600/600) ve üç ardışık koşu
 yeşil kaldı. Ayrıntı: `docs/hafiza/sqlite.md`.
+
+---
+
+### MT-SQL-079 — Kayıt paritesi kapısı: bir `Use*` satırı silinirse ya da denetim dekoratörü düşerse `SqlProviderRegistrationParityTests` düşer
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | — (kusur-giderme, 2026-09-23) |
+| **İlgili karar** | K-025 · K-183 |
+| **Devir** | ➜ CI: `SqlProviderRegistrationParityTests` (`Tracon.Sql.Shared.UnitTests`) |
+
+`AddTracon()` her store için bellek içi varsayılanı önceden kaydeder. Bu yüzden
+bir sağlayıcıda unutulan kayıt satırı hiçbir mevcut testi düşürmez; store
+sessizce bellekte kalır.
+
+**Adımlar**
+1. `src/Tracon.Sqlite/TraconSqliteBuilderExtensions.cs` içinde `IRunScoreStore`
+   satırını geçici olarak sil.
+2. Test projesini derle ve
+   `python3 scripts/kapi.py test --proje Tracon.Sql.Shared.UnitTests --sinif "*SqlProviderRegistrationParityTests"`
+   komutunu koş. Değişikliği geri al.
+3. `AuditingAgentSkillStore` sarmalayıcısını çıplak `SqlAgentSkillStore` ile
+   değiştir, Adım 2'yi tekrarla ve geri al.
+4. Test dosyasındaki `ContractsNotNamedStore` listesinden `IAuditLog` satırını
+   sil, Adım 2'yi tekrarla ve geri al.
+
+**Beklenen sonuç**
+- Adım 2: üç test düşer ve `SQLite does not register Tracon.IRunScoreStore` yazar.
+- Adım 3: yalnız dekoratör testi düşer ve
+  `SQLite: IAgentSkillStore is not decorated, expected audit-decorated` yazar.
+- Adım 4: yalnız `Every_contract_type_a_provider_registers_is_classified`
+  düşer ve `Tracon.IAuditLog` yazar.
+- Geri alınca sınıf 8/8 yeşildir.
+
+**Durum:** koşulmadı; ➜ CI (mutasyon kanıtı kusur-giderme kaydında, 2026-09-23).

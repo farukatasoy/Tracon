@@ -2,6 +2,8 @@ using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -707,6 +709,77 @@ public sealed class RunResourceAuthorizationTests
     }
 
     [Fact]
+    public async Task Throwing_handler_on_a_single_run_keeps_the_missing_run_body_and_is_logged()
+    {
+        var (host, handler, runId) = await StartWithRunAsync();
+        await using var _ = host;
+
+        handler.OnRun = static _ => throw new InvalidOperationException("the consumer's own policy store is down");
+
+        // 🚨 The identity-hiding 404 does not change for a FAILED check either:
+        // a body that said "the check failed" would confirm the run exists.
+        await AssertLooksMissingAsync(host, HttpMethod.Get, $"/tracon/api/runs/{runId}", runId);
+
+        var error = GateErrors(host).ShouldHaveSingleItem();
+        error.ShouldContain(nameof(ConfigurableRunAuthorizationHandler));
+        error.ShouldContain(nameof(RunAccess.Read));
+        error.ShouldContain(runId.ToString());
+        error.ShouldContain("policy store is down");
+    }
+
+    [Fact]
+    public async Task Throwing_handler_on_a_403_surface_reports_a_failed_check_not_a_denial()
+    {
+        var (host, handler, runId) = await StartWithRunAsync();
+        await using var _ = host;
+
+        handler.OnRun = static _ => throw new InvalidOperationException("the consumer's own policy store is down");
+
+        // Every CheckRunResourceAsync surface that answers 403: the three
+        // lists, and a run started FROM another run.
+        using var runList = await host.Client.GetAsync(new Uri("/tracon/api/runs", UriKind.Relative));
+        using var attachmentList = await host.Client.GetAsync(new Uri("/tracon/api/attachments", UriKind.Relative));
+        using var approvalList = await host.Client.GetAsync(new Uri("/tracon/api/approvals/pending", UriKind.Relative));
+        using var replay = await host.Client.PostAsJsonAsync(
+            new Uri($"/tracon/api/runs/{runId}/replay", UriKind.Relative),
+            new { toolMode = "NoTools" });
+
+        foreach (var response in new[] { runList, attachmentList, approvalList, replay })
+        {
+            var uri = response.RequestMessage!.RequestUri!.ToString();
+
+            response.StatusCode.ShouldBe(HttpStatusCode.Forbidden, uri);
+
+            var body = await response.Content.ReadAsStringAsync();
+            body.ShouldNotContain("policy store is down", customMessage: uri);
+
+            var problem = JsonDocument.Parse(body).RootElement;
+            problem.GetProperty("title").GetString().ShouldBe("Run not authorized", uri);
+            problem.GetProperty("detail").GetString().ShouldBe(FailedCheckDetail, uri);
+        }
+
+        GateErrors(host).Count.ShouldBe(4);
+    }
+
+    [Fact]
+    public async Task Throwing_handler_on_a_workflow_continuation_reports_a_failed_check()
+    {
+        var handler = new ConfigurableRunAuthorizationHandler();
+        await using var host = await StartWorkflowAsync(handler);
+        var runId = await RunWorkflowAsync(host);
+
+        handler.OnRun = static _ => throw new InvalidOperationException("the consumer's own policy store is down");
+
+        using var resumed = await host.Client.PostAsJsonAsync(
+            new Uri($"/tracon/api/workflows/runs/{runId}/resume", UriKind.Relative),
+            new WorkflowResumeHttpRequest());
+
+        resumed.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        (await TraconTestHost.ReadJsonAsync(resumed)).GetProperty("detail").GetString().ShouldBe(FailedCheckDetail);
+        GateErrors(host).ShouldHaveSingleItem().ShouldContain(runId.ToString());
+    }
+
+    [Fact]
     public async Task A_missing_run_is_answered_without_asking_the_handler()
     {
         var (host, handler, _) = await StartWithRunAsync();
@@ -762,39 +835,93 @@ public sealed class RunResourceAuthorizationTests
     }
 
     [Fact]
-    public async Task A_cancelled_request_is_not_swallowed_into_a_denial()
+    public async Task A_cancellation_the_request_did_not_cause_is_a_failed_check()
     {
         var (host, handler, runId) = await StartWithRunAsync();
         await using var _ = host;
 
-        // 🚨 OperationCanceledException must TRAVEL, not be caught by the
-        // fail-closed filter: a caller who walked away has not been DENIED, and
-        // turning their cancellation into a 404 would hide a real abort behind
-        // a response that looks like an ordinary refusal.
-        handler.OnRun = static _ => throw new OperationCanceledException();
+        // 🚨 K-840. A handler that calls its policy store over HTTP surfaces
+        // HttpClient.Timeout as TaskCanceledException while the REQUEST is
+        // still alive. Letting that travel answered 500 for a run that exists
+        // and 404 for one that does not - an existence oracle on exactly the
+        // endpoints whose 404 exists to hide it.
+        handler.OnRun = static _ => throw new TaskCanceledException("the policy store timed out");
 
-        var uri = new Uri($"/tracon/api/runs/{runId}", UriKind.Relative);
-        HttpStatusCode? status = null;
+        await AssertLooksMissingAsync(host, HttpMethod.Get, $"/tracon/api/runs/{runId}", runId);
 
-        try
+        GateErrors(host).ShouldHaveSingleItem().ShouldContain("the policy store timed out");
+    }
+
+    [Fact]
+    public async Task A_request_the_caller_cancels_is_not_swallowed_into_a_denial()
+    {
+        var reached = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var finished = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var handler = new ConfigurableRunAuthorizationHandler();
+
+        await using var host = await TraconTestHost.StartAsync(
+            static builder => builder
+                .AddModelProvider(new FakeModelProvider(ModelId).RespondsWith("ok"))
+                .AddAgent(new AgentDefinition
+                {
+                    Name = AgentName,
+                    Instructions = "Reply briefly.",
+                    Model = new ModelBinding { Provider = ModelId, Model = ModelId },
+                }),
+            configureServices: services => services.Replace(ServiceDescriptor.Singleton<IRunAuthorizationHandler>(handler)),
+            configureApp: app => app.Use(async (HttpContext context, RequestDelegate next) =>
+            {
+                try
+                {
+                    await next(context);
+                }
+                catch (OperationCanceledException)
+                {
+                    // The cancellation travelled out of the endpoint - the point of this test.
+                }
+                finally
+                {
+                    finished.TrySetResult();
+                }
+            }));
+
+        var runId = await SeedRunAsync(host);
+
+        // 🚨 A caller who walked away has not been DENIED: turning their own
+        // cancellation into a 404 and an Error line would hide a real abort
+        // behind something that reads like a failed policy check.
+        handler.OnRunAsync = async (_, cancellationToken) =>
         {
-            using var response = await host.Client.GetAsync(uri);
-            status = response.StatusCode;
-        }
-        catch (Exception exception) when (exception is not ShouldAssertException)
-        {
-            // The exception escaped the gate, which is the point.
-        }
+            reached.TrySetResult();
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken); // delay: simulated
 
-        // The discriminating assertion: had the filter swallowed the
-        // cancellation, this would be a clean 404 - indistinguishable from a
-        // genuine denial, and the abort would be invisible. Any other outcome
-        // (an exception, or a 5xx) proves it travelled.
-        status.ShouldNotBe(HttpStatusCode.NotFound);
-        status.ShouldNotBe(HttpStatusCode.OK);
+            return RunAuthorizationResult.Allow();
+        };
+
+        using var cancel = new CancellationTokenSource();
+        var request = host.Client.GetAsync(new Uri($"/tracon/api/runs/{runId}", UriKind.Relative), cancel.Token);
+
+        await reached.Task.WaitAsync(TimeSpan.FromSeconds(30));
+        await cancel.CancelAsync();
+
+        await Should.ThrowAsync<OperationCanceledException>(request);
+        await finished.Task.WaitAsync(TimeSpan.FromSeconds(30));
+
+        // Read only once the endpoint has fully unwound, so an Error line a
+        // swallowing filter would write cannot land after this assertion.
+        GateErrors(host).ShouldBeEmpty();
     }
 
     // --- Helpers ---
+
+    /// <summary>The fixed detail a 403 carries when the handler threw instead of deciding.</summary>
+    private const string FailedCheckDetail = "The run authorization check failed. Retry the request.";
+
+    /// <summary>The Error lines the authorization gates wrote, in order.</summary>
+    private static List<string> GateErrors(TraconTestHost host)
+        => host.Logs.Entries
+            .Where(static line => line.StartsWith("Error Tracon.RunAuthorization ", StringComparison.Ordinal))
+            .ToList();
 
     private static Func<RunAuthorizationRequest, RunAuthorizationResult> Deny(RunAccess access)
         => request => request.Access == access
@@ -1059,6 +1186,9 @@ public sealed class RunResourceAuthorizationTests
 
         public Func<RunAuthorizationRequest, RunAuthorizationResult>? OnRun { get; set; }
 
+        /// <summary>An asynchronous decision that sees the request's token; wins over <see cref="OnRun"/>.</summary>
+        public Func<RunAuthorizationRequest, CancellationToken, Task<RunAuthorizationResult>>? OnRunAsync { get; set; }
+
         public Func<SessionAuthorizationRequest, RunAuthorizationResult>? OnSession { get; set; }
 
         public List<RunAuthorizationRequest> RunRequests { get; } = [];
@@ -1069,6 +1199,11 @@ public sealed class RunResourceAuthorizationTests
             lock (_gate)
             {
                 RunRequests.Add(request);
+            }
+
+            if (OnRunAsync is { } decideAsync)
+            {
+                return new ValueTask<RunAuthorizationResult>(decideAsync(request, cancellationToken));
             }
 
             return ValueTask.FromResult(OnRun?.Invoke(request) ?? RunAuthorizationResult.Allow());

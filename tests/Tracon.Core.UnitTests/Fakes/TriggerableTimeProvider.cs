@@ -2,12 +2,42 @@ namespace Tracon.Core.UnitTests.Fakes;
 
 /// <summary>A test clock that fires registered timers only on explicit request.</summary>
 /// <remarks>
+/// <para>
 /// Timeout tests use this clock to prove the elapsed-time path without asking a
 /// busy CI scheduler to deliver a short wall-clock timer by a fixed deadline.
+/// </para>
+/// <para>
+/// A test that also needs a fixed wall clock (a quota period start, for example)
+/// passes <c>utcNow</c>; the wall clock then stays there until <see cref="Advance"/>
+/// moves it. Without it, <see cref="GetUtcNow"/> is the real clock.
+/// </para>
 /// </remarks>
-internal sealed class TriggerableTimeProvider : TimeProvider
+internal sealed class TriggerableTimeProvider(DateTimeOffset? utcNow = null) : TimeProvider
 {
     private readonly List<TriggerableTimer> _timers = [];
+    private DateTimeOffset? _utcNow = utcNow;
+
+    /// <summary>Gets how many timers are registered and not yet disposed.</summary>
+    public int ActiveTimerCount
+    {
+        get
+        {
+            lock (_timers)
+            {
+                return _timers.Count;
+            }
+        }
+    }
+
+    /// <inheritdoc />
+    public override DateTimeOffset GetUtcNow() => _utcNow ?? base.GetUtcNow();
+
+    /// <summary>Moves the fixed wall clock forward. Fires no timer; see <see cref="TriggerAll"/>.</summary>
+    /// <param name="amount">How far to move.</param>
+    /// <exception cref="InvalidOperationException">The clock was built without a fixed wall clock.</exception>
+    public void Advance(TimeSpan amount)
+        => _utcNow = (_utcNow ?? throw new InvalidOperationException("This clock follows the real wall clock."))
+            + amount;
 
     /// <inheritdoc />
     public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)

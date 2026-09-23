@@ -509,7 +509,7 @@ internal static class EvalEndpoints
             await RunAuthorizationGate
                 .CheckRunResourceAsync(
                     runAuthorizationHandler, tenants, runId, sourceRun.AgentName, sourceRun.SessionId,
-                    attributionContext, RunAccess.Read, RunNotFoundForPromotion(runId), cancellationToken)
+                    attributionContext, RunAccess.Read, RunNotFoundForPromotion(runId), httpContext, cancellationToken)
                 .ConfigureAwait(false) is { } authorizationProblem)
         {
             return authorizationProblem;
@@ -845,6 +845,7 @@ internal static class EvalEndpoints
         [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
         [FromServices] IRunAttributionContext? attributionContext,
         [FromServices] TraconMetrics metrics,
+        HttpContext httpContext,
         CancellationToken cancellationToken)
     {
         var run = await runs.GetRunAsync(runId, cancellationToken).ConfigureAwait(false);
@@ -867,7 +868,7 @@ internal static class EvalEndpoints
             if (await RunAuthorizationGate
                     .CheckRunResourceAsync(
                         runAuthorizationHandler, tenants, runId, run.AgentName, run.SessionId,
-                        attributionContext, access, RunNotFoundForPromotion(runId), cancellationToken)
+                        attributionContext, access, RunNotFoundForPromotion(runId), httpContext, cancellationToken)
                     .ConfigureAwait(false) is { } authorizationProblem)
             {
                 return authorizationProblem;

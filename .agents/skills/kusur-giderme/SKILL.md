@@ -127,7 +127,7 @@ Düzeltme koddadır; **tekrarı önleyen şey** yazıdır.
 |---|---|
 | Alana özgü tuzak | `docs/hafiza/<alan>.md` |
 | Alandan bağımsız, tekrar bedel ödeten ders | `MEMORY.md` "Her Oturumda Geçerli" (nadir) |
-| Bir kural veya tercih değişti | `docs/KARARLAR.md` — K-NNN, gerekçesiyle |
+| Bir kural veya tercih değişti | Dört kategoriden birine giriyorsa (AGENTS.md) `docs/KARARLAR.md` — K-NNN ve kategori etiketiyle; girmiyorsa faz içinde faz dokümanı, faz dışında commit mesajı (`faz-tamamlama` Adım 8) |
 | Kusuru yakalayan senaryo | `docs/manuel-test/<NN>-<ALAN>.md` — regresyon case'i olarak |
 | Kalıcı çalışma kuralı değişti | `AGENTS.md` veya ilgili skill |
 | Kusurun geldiği faz biliniyor | O fazın `## Süreç Ölçümü` tablosuna **bir çentik**: `Faz kapandıktan sonra bulunan kusur` satırını artır. Kayıt `docs/arsiv/fazlar/` altındaysa `ask` kuralı sorar — protokolsüz bırakılan bir satır doldurulmaz |
@@ -152,8 +152,10 @@ python3 scripts/kapi.py kapanis --taban <düzeltme öncesi commit>
 Tam anlatı: [`.agents/ortak/kapilar.md`](../../ortak/kapilar.md).
 
 Kusur bir faz sırasında bulunduysa fazın dokümanına yazılır. Faz dışında
-bulunduysa ve tek başına bir düzeltmeyse: `docs/KARARLAR.md`'ye kararı,
-`docs/hafiza/`'ya tuzağı yaz — yeni faz dokümanı açma.
+bulunduysa ve tek başına bir düzeltmeyse: gerekçeyi commit mesajına,
+tuzağı `docs/hafiza/<alan>.md`'ye yaz — yeni faz dokümanı açma. Manuel kabul
+koşumunda bulunduysa gerekçe koşumun kaydına gider. `K-*` yalnız karar dört
+kategoriden birine giriyorsa açılır (AGENTS.md, `faz-tamamlama` Adım 8).
 
 ---
 

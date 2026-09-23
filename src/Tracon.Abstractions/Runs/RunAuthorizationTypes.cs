@@ -32,6 +32,17 @@ namespace Tracon;
 /// <see cref="IToolAuthorizationHandler"/> follows.
 /// </para>
 /// <para>
+/// A throw is reported as a failed check, not as a decision. Tracon writes
+/// one error log line in the <c>Tracon.RunAuthorization</c> category with
+/// the handler type, the access kind and the tenant, agent, run and session
+/// identifiers, and the exception. The exception text never reaches the HTTP
+/// response. A <c>403</c> then says that the check failed and can be retried;
+/// a <c>404</c> stays identical to the answer for a resource that does not
+/// exist. An <see cref="OperationCanceledException"/> that the request's own
+/// cancellation did not cause (for example, an <c>HttpClient</c> timeout inside
+/// the handler) counts as a failure too.
+/// </para>
+/// <para>
 /// The implementation must be a <strong>singleton</strong>, for the same
 /// reason as <see cref="IRunAttributionContext"/>: singleton services take a
 /// dependency on it, and a scoped registration would be a captive dependency.

@@ -306,8 +306,10 @@ which the jobs list and the Jobs screen can only show if somebody looks:
 
 `tracon.job.queue.depth` then reports outstanding jobs per lane and open status
 (`Pending`, `Leased`, `Running`). It is off by default because it queries the
-database on a scrape; the refresh interval caches those reads, so a scrape more
-often than every 30 seconds costs nothing extra. Terminal jobs are never counted
+database. When it is on, a background refresh reads the depth at startup and
+then once per refresh interval; a scrape only reads that last result, so it
+never waits for the database and costs nothing extra however often it runs. The
+reported depth can be up to one interval old. Terminal jobs are never counted
 here — they are already on the counter — which keeps the query's cost tied to the
 work still outstanding instead of to the queue's history.
 

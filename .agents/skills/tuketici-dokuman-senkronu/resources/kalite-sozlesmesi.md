@@ -204,7 +204,8 @@ Tersine değişim `faz-denetim`'de 🔴 sayılır.
 | `SourceLanguageTests` taban çizgisi | — | yalnız küçülür |
 
 **Bir tavanı yükseltmek bir karardır.** Gerekçesi ölçümdür, tercih değil; karar
-`docs/KARARLAR.md`'ye yazılır.
+faz dokümanına (faz dışında commit mesajına) yazılır. `K-*` yalnız dört
+kategoriden birine giriyorsa açılır (`faz-tamamlama` Adım 8).
 
 **Muafiyet listesi bir kaçış kapısı değildir.** İçinde duran her sayfa için
 **neden** yazılır ve liste sayfayla birlikte temizlenir — artık var olmayan bir

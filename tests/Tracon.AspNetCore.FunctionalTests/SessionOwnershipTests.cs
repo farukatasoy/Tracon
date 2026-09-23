@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Net.WebSockets;
 using System.Text.Json;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -243,6 +244,90 @@ public sealed class SessionOwnershipTests
         identity.UserId = "b";
 
         (await ListAsync(host)).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task An_unregistered_management_policy_writes_no_error_line()
+    {
+        // The documented fallback is not a fault. Logging it would write an
+        // Error on EVERY listing of every installation that registers no role
+        // policies - and that noise would bury the real failure below.
+        await using var host = await StartAsync(enabled: true, out var identity);
+
+        await StoreAsync(host).SaveAsync(Seed("a-1", owner: "a"));
+        identity.UserId = "b";
+
+        (await ListAsync(host)).ShouldBeEmpty();
+        OwnershipErrors(host).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task A_throwing_management_policy_narrows_the_list_and_is_logged()
+    {
+        await using var host = await StartAsync(
+            enabled: true,
+            out var identity,
+            configureServices: static services => RegisterRolePolicies(
+                services,
+                static _ => throw new InvalidOperationException("the consumer's own role store is down")));
+
+        var store = StoreAsync(host);
+        await store.SaveAsync(Seed("a-1", owner: "a"));
+        await store.SaveAsync(Seed("legacy", owner: null));
+
+        identity.UserId = "a";
+
+        (await ListAsync(host)).Select(static session => session.Id).ShouldBe(["a-1"]);
+
+        var error = OwnershipErrors(host).ShouldHaveSingleItem();
+        error.ShouldContain(TraconPolicies.Operator);
+        error.ShouldContain("role store is down");
+    }
+
+    [Fact]
+    public async Task A_throwing_management_policy_refuses_the_unowned_row_and_is_logged()
+    {
+        await using var host = await StartAsync(
+            enabled: true,
+            out var identity,
+            refuseUnownedSessions: true,
+            configureServices: static services => RegisterRolePolicies(
+                services,
+                static _ => throw new InvalidOperationException("the consumer's own role store is down")));
+
+        await StoreAsync(host).SaveAsync(Seed("legacy", owner: null));
+        identity.UserId = "operator";
+
+        using var response = await host.Client.GetAsync(Session("legacy"));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
+
+        var error = OwnershipErrors(host).ShouldHaveSingleItem();
+        error.ShouldContain(TraconPolicies.Operator);
+        error.ShouldContain("legacy");
+    }
+
+    [Fact]
+    public async Task A_throwing_policy_provider_narrows_the_list_instead_of_failing_the_request()
+    {
+        // 🚨 Resolving the policy by NAME is the consumer's provider too. A
+        // lookup outside the try would turn today's fail-closed narrowing into
+        // a 500 - and would still say nothing about why.
+        await using var host = await StartAsync(
+            enabled: true,
+            out var identity,
+            configureServices: static services =>
+            {
+                TestAuthenticationHandler.Add(services).AddAuthorization();
+                services.Replace(ServiceDescriptor.Singleton<IAuthorizationPolicyProvider, ThrowingOperatorPolicyProvider>());
+            });
+
+        await StoreAsync(host).SaveAsync(Seed("a-1", owner: "a"));
+        await StoreAsync(host).SaveAsync(Seed("b-1", owner: "b"));
+        identity.UserId = "a";
+
+        (await ListAsync(host)).Select(static session => session.Id).ShouldBe(["a-1"]);
+        OwnershipErrors(host).ShouldHaveSingleItem().ShouldContain("provider is down");
     }
 
     // ------------------------------------------------------------------
@@ -1433,6 +1518,38 @@ public sealed class SessionOwnershipTests
 
     private static Uri Session(string sessionId)
         => new($"/tracon/api/sessions/{sessionId}", UriKind.Relative);
+
+    /// <summary>The Error lines the ownership gate wrote, in order.</summary>
+    private static List<string> OwnershipErrors(TraconTestHost host)
+        => host.Logs.Entries
+            .Where(static line => line.StartsWith("Error Tracon.SessionOwnership ", StringComparison.Ordinal))
+            .ToList();
+
+    /// <summary>
+    /// Registers the three role policies; Reader and Admin always pass and
+    /// Operator (the default management policy) runs <paramref name="operatorAssertion"/>.
+    /// </summary>
+    private static void RegisterRolePolicies(
+        IServiceCollection services,
+        Func<AuthorizationHandlerContext, bool> operatorAssertion)
+        => TestAuthenticationHandler.Add(services)
+            .AddAuthorizationBuilder()
+            .AddPolicy(TraconPolicies.Reader, static policy => policy.RequireAssertion(static _ => true))
+            .AddPolicy(TraconPolicies.Operator, policy => policy.RequireAssertion(operatorAssertion))
+            .AddPolicy(TraconPolicies.Admin, static policy => policy.RequireAssertion(static _ => true));
+
+    /// <summary>
+    /// A consumer policy provider whose backing store fails for the default
+    /// management policy and answers every other name normally.
+    /// </summary>
+    private sealed class ThrowingOperatorPolicyProvider(IOptions<AuthorizationOptions> options)
+        : DefaultAuthorizationPolicyProvider(options)
+    {
+        public override Task<AuthorizationPolicy?> GetPolicyAsync(string policyName)
+            => string.Equals(policyName, TraconPolicies.Operator, StringComparison.Ordinal)
+                ? throw new InvalidOperationException("the consumer's policy provider is down")
+                : base.GetPolicyAsync(policyName);
+    }
 
     private static Uri Conversation(string conversationId)
         => new($"/tracon/v1/conversations/{conversationId}", UriKind.Relative);

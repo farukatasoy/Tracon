@@ -38,7 +38,9 @@ profili koşar ve hızı değil doğruluğu kontrol eder. Ayrıntı:
 
 `TreatWarningsAsErrors` açıktır — uyarı yoktur, hata vardır. Bir analyzer
 kuralını bastırmadan önce **neden** tetiklendiğini anla; bastırma gerekiyorsa
-gerekçesini koda ve `docs/KARARLAR.md`'ye yaz.
+gerekçesini koda ve faz dokümanına (faz dışında commit mesajına) yaz. Bastırma
+bir kategoriye, çoğunlukla uyumluluğa giriyorsa `docs/KARARLAR.md`'ye de yaz
+(`faz-tamamlama` Adım 8).
 
 ## Hızlı iç döngü
 

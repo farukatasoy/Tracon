@@ -544,16 +544,31 @@ public sealed class TraconObservabilityOptions
     /// <c>tracon.quota.limit</c> observable gauges are enabled.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// <strong>Disabled by default</strong> under the no-surprises rule because the gauge reads the
     /// database. Unlike the cost counter, this consumes additional resources and
     /// must be explicitly requested.
+    /// </para>
+    /// <para>
+    /// When enabled, a background service reads the samples at startup and then
+    /// every <see cref="QuotaUsageRefreshInterval"/>; a metrics collection only
+    /// reads the last result and never waits for the database. The first
+    /// collection after startup can therefore be empty. The setting is read at
+    /// startup: turning the gauge on takes effect at the next start.
+    /// </para>
     /// </remarks>
     public bool EnableQuotaUsageGauge { get; set; }
 
     /// <summary>
-    /// Gets or sets the quota-gauge cache refresh interval. Consecutive polls do
-    /// not reach the database before this interval elapses.
+    /// Gets or sets how often the quota gauges' background refresh reads the
+    /// database. A reported value can be up to one interval old.
     /// </summary>
+    /// <remarks>
+    /// Must be from one millisecond to about 49.7 days while <see cref="EnableQuotaUsageGauge"/>
+    /// is on; startup validation rejects any other value.
+    /// The value is read when the host starts; a later change takes effect at
+    /// the next start.
+    /// </remarks>
     public TimeSpan QuotaUsageRefreshInterval { get; set; } = TimeSpan.FromSeconds(30);
 
     /// <summary>
@@ -561,18 +576,33 @@ public sealed class TraconObservabilityOptions
     /// gauge publishes measurements.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// <strong>Disabled by default</strong> under the no-surprises rule, for the same
     /// reason as <see cref="EnableQuotaUsageGauge"/>: the gauge reads the database.
     /// The <c>tracon.job.executions</c> counter and the
     /// <c>tracon.job.duration</c> histogram are NOT affected by this setting —
     /// they cost no extra query and are always written.
+    /// </para>
+    /// <para>
+    /// When enabled, the depth is refreshed in the background the same way as
+    /// the quota gauges: at startup, then every
+    /// <see cref="JobQueueDepthRefreshInterval"/>. A scrape never waits for the
+    /// database, and the first scrape after startup can be empty. The setting is
+    /// read at startup: turning the gauge on takes effect at the next start.
+    /// </para>
     /// </remarks>
     public bool EnableJobQueueDepthGauge { get; set; }
 
     /// <summary>
-    /// Gets or sets the queue-depth gauge's cache refresh interval. Consecutive
-    /// polls do not reach the database before this interval elapses.
+    /// Gets or sets how often the queue-depth gauge's background refresh reads
+    /// the database. A reported depth can be up to one interval old.
     /// </summary>
+    /// <remarks>
+    /// Must be from one millisecond to about 49.7 days while <see cref="EnableJobQueueDepthGauge"/>
+    /// is on; startup validation rejects any other value.
+    /// The value is read when the host starts; a later change takes effect at
+    /// the next start.
+    /// </remarks>
     public TimeSpan JobQueueDepthRefreshInterval { get; set; } = TimeSpan.FromSeconds(30);
 
     /// <summary>

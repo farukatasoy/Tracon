@@ -258,7 +258,7 @@ Numara: en büyük mevcut F-NN + 1. Numara geri dönüştürülmez.
 
 | Ret türü | Nereye |
 |---|---|
-| **Kalıcı** — bir daha önerilmemeli | Aday dosyası § *Bilerek Önerilmeyenler* tablosuna satır. Mimari bir karara dayanıyorsa kullanıcı onayıyla K-NNN |
+| **Kalıcı** — bir daha önerilmemeli | Aday dosyası § *Bilerek Önerilmeyenler* tablosuna satır. Ret AGENTS.md'nin dört kategorisinden birine giriyorsa kullanıcı onayıyla K-NNN (`faz-tamamlama` Adım 8) |
 | **Bu turda değil** — zamanlama | Yalnız keşif notunda kalır |
 
 ### Kapanış komutu

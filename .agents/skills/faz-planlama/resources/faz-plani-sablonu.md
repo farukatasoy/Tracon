@@ -196,7 +196,10 @@ curl -s http://localhost:5081/tracon/api/<yol>
 
 ## Bu Fazda Verilen Kararlar
 
-> Kapanışta doldurulur. K-NNN numaraları burada alınır; plan numara rezerve etmez.
+> Kapanışta doldurulur. Fazın kararları burada yazılır. Dört kategoriden birine
+> giren karar (AGENTS.md) ayrıca `docs/KARARLAR.md`'ye K-NNN ve kategori
+> etiketiyle girer ve numarası burada anılır; girmeyen karar yalnız burada
+> kalır (`faz-tamamlama` Adım 8). Plan numara rezerve etmez.
 
 ## Gerçekleşen Public API
 

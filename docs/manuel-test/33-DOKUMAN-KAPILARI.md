@@ -119,6 +119,13 @@ cd docs-site && node scripts/check-content.mjs
 | 24 | `MT-DKP-024` | Temiz ağaç | Düz metindeki `1721 ms` sayısını `9999 ms` yap (işareti bırak), komutu koş | ❌ **kırmızı** — `prose latency.p99 publishes '9999', measured '1721'`. Yayımlanan sayı yalnız tabloda olmaz |
 | 25 | `MT-DKP-025` | Temiz ağaç | `about 2%` → `about 1%` yap, komutu koş | ❌ **kırmızı** — `claims within 1%, but the widest measured p50 gap is 1.73% (streaming/32)`. Yayılım iddiası **tavandır**; küçültmek bulgudur |
 
+## Kusur-giderme 2026-09-23 ek case'leri — iş zaman sınırı ve karar kategorisi
+
+| # | Kod | Ön koşul | Adımlar | Beklenen sonuç |
+|---|---|---|---|---|
+| 26 | `MT-DKP-026` | Temiz ağaç | `.github/workflows/ci.yml` içinde `pack` işinin `timeout-minutes` satırını sil, `python3 scripts/dokuman-bakim.py --denetle` koş | ❌ **kırmızı** — `Workflow iş zaman sınırı: ❌ 1 bulgu` · `` `pack` işi `timeout-minutes` taşımıyor ``. Sınırı bir adıma taşımak bulguyu kapatmaz; iş düzeyine geri koyunca ✅. Koşulmadı; ➜ CI (`IsZamanSiniriTestleri`) |
+| 27 | `MT-DKP-027` | Temiz ağaç | `docs/KARARLAR.md` §2'nin son satırından sonra `\| **K-9999 — deneme** \| 2026-09-24 \| g \| k \|` ekle, komutu koş; sonra başlığı kapatan `**`'den sonra ` *(kategori: güvenlik)*` ekleyip yeniden koş | İlk koşum ❌ `K-9999 kategori etiketi yok`; ikinci koşumda bu bulgu yoktur (üretilen indeks tazeliği bulgusu iki koşumda da beklenir). Satırı sil. Koşulmadı; ➜ CI (`KararKategorisiTestleri`) |
+
 ## Bilinen sınırlar — kapasite damgası
 
 - **"Largest contributor" sütunu denetlenmez.** Tablo başına kırılım

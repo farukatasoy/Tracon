@@ -240,7 +240,7 @@ Bu adım en çok atlanan ve en pahalıya mal olan adımdır. Sonraki faz ayrı b
 
 | Ne öğrenildi | Nereye yazılır |
 |---|---|
-| Fazda alınan mimari karar | `docs/KARARLAR.md` — **sona ekle**, K-NNN ile |
+| Fazda alınan karar | Dört kategoriden birine giriyorsa `docs/KARARLAR.md` — **sona ekle**, K-NNN ve kategori etiketiyle; girmiyorsa faz dokümanının "Bu Fazda Verilen Kararlar" bölümü (Adım 8) |
 | Keşfedilen tuzak / codepath | `docs/hafiza/<alan>.md` — **`MEMORY.md`'ye değil** |
 | Alandan bağımsız, tekrar bedel ödeten ders | `MEMORY.md` "Her Oturumda Geçerli" (nadir) |
 | "Faz N sonunda …" anlatı paragrafı | `docs/arsiv/FAZ-GECMISI.md` — **`MIMARI.md`'ye değil** |
@@ -251,7 +251,7 @@ Bu adım en çok atlanan ve en pahalıya mal olan adımdır. Sonraki faz ayrı b
 | Kalıcı bir çalışma kuralı değiştiyse | `AGENTS.md` |
 | **Kullanıcıya dönük davranış değiştiyse** | `docs-site/` — [`tuketici-dokuman-senkronu`](../tuketici-dokuman-senkronu/SKILL.md) skill'i |
 | **Public tip, HTTP ucu veya yeni paket eklendiyse** | Sevk edilen metin ve yerel referans yüzeyi — aynı skill |
-| `arsiv/BEYIN-FIRTINASI.md` kalemi yapıldı/reddedildi | üstünü çiz; gerekçe KARARLAR'a |
+| `arsiv/BEYIN-FIRTINASI.md` kalemi yapıldı/reddedildi | üstünü çiz; ret gerekçesi KARARLAR §1'e (numarasız) |
 
 `AGENTS.md`'de faz durum tablosu **yoktur** — orada yalnız "sıradaki faz" satırı
 vardır. Tam tabloyu yalnız `README.md`'de güncelle.
@@ -342,21 +342,41 @@ grep -rn "KaldirilanTipAdi" docs/ README.md src/
 
 ## Adım 8 — Karar defterine yaz
 
-Fazda alınan her mimari karar `docs/KARARLAR.md` içine gider. İki tablo var:
+`docs/KARARLAR.md`'ye yalnız AGENTS.md **kabul kuralına** giren karar yazılır:
+public API/uyumluluk · güvenlik veya kiracı sınırı · kalıcı veri/migration ·
+geri dönüşü pahalı sistem kararı. İki tablo var:
 
-- **Bölüm 1** — reddedilen işler ("bunu yapmadık, çünkü…")
-- **Bölüm 2** — kalıcı tercihler (K-NNN numarası ile)
+- **Bölüm 1** — reddedilen işler ("bunu yapmadık, çünkü…"); numarasızdır, etiket almaz
+- **Bölüm 2** — kalıcı tercihler (K-NNN numarası ve kategori etiketiyle)
 
 Format:
 
 ```
-| **K-0NN — <karar>** | YYYY-AA-GG | <gerekçe: hangi kanıt, ölçüm veya kısıt> | <yeniden açılma koşulu> |
+| **K-0NN — <karar>** *(kategori: <değer>)* | YYYY-AA-GG | <gerekçe: hangi kanıt, ölçüm veya kısıt> | <yeniden açılma koşulu> |
 ```
+
+Değer: `public-api` (bağımlılık uyumluluğu dahil) · `güvenlik` (kiracı sınırı
+dahil) · `kalıcı-veri` (migration dahil) · `geri-dönüşü-pahalı`; birden çoksa
+virgülle ayır. Başka bir sözcük (`public API/uyumluluk` gibi) kapıdan geçmez. Etiket başlığı kapatan
+`**`'den sonra gelir. `K-855`'ten itibaren `dokuman-bakim.py --denetle`
+etiketsiz veya bilinmeyen değerli satırı hata sayar; K-854 ve öncesi muaftır.
+
+**Dört kategoriye girmeyen kayıt `K-*` olmaz** — kullanıcı kararı da dahil:
+
+| Kayıt nerede doğdu | Nereye yazılır |
+|---|---|
+| Faz içinde | Faz dokümanının `## Bu Fazda Verilen Kararlar` bölümü |
+| Faz dışında (`kusur-giderme`, tek düzeltme) | Commit mesajı; tuzak varsa `docs/hafiza/<alan>.md` |
+| Manuel kabul koşumunda | Koşumun kaydı (`docs/manuel-test/kosumlar/<tarih>/`) |
+
+Analyzer bastırması da aynı kurala uyar. Bir kategoriye giriyorsa (çoğunlukla
+uyumluluk — ör. ön sürüm MAF API'si, `MAAI001`) `K-*` olur; girmiyorsa gerekçe
+bastırmanın yanındaki yorumda ve yukarıdaki yerde kalır.
 
 Kurallar:
 - Gerekçesiz karar yazma. "İstemedik" yeterli değil.
 - Ölçüm varsa sayıyı yaz ("13 bağımlılık → 2").
-- Kullanıcı kararlarını `(kullanıcı kararı)` ile işaretle.
+- Kullanıcı kararlarını `(kullanıcı kararı)` ile işaretle — kayıt `K-*` olmasa da işaret kalır.
 
 ---
 

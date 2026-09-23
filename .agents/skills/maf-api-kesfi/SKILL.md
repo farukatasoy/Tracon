@@ -79,7 +79,8 @@ APIDUMP_PACKAGES="Azure.AI.OpenAI@2.6.0" APIDUMP_PREFIXES="Azure.AI" \
 
 - Kullanımı **tek bir dosyada** topla
 - `#pragma warning disable MAAI001` üstüne gerekçe yaz
-- `docs/KARARLAR.md`'ye kaydet
+- `docs/KARARLAR.md`'ye `*(kategori: public-api)*` etiketiyle kaydet — bastırma
+  ön sürüm bir API'ye bağımlılıktır, yani bir uyumluluk kararıdır (`faz-tamamlama` Adım 8)
 
 Bilinen örnekler: `HarnessAgentOptions` üyeleri, `OpenTelemetryAgent` kurucusu,
 `ChatHistoryProvider.InvokingContext` kurucusu.

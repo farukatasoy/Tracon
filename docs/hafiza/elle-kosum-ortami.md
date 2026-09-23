@@ -58,7 +58,9 @@
 ## Süreç-içi durum: yeniden başlatmadan temizlenmez
 
 - **`QuotaEnforcer._firedThresholds` süreç-içidir**; SQL ile temizlenmez,
-  uygulama **yeniden başlatılmalıdır**.
+  uygulama **yeniden başlatılmalıdır**. Küme yalnız açık dönemin anahtarını
+  tutar; kapanan dönem bir sonraki kayıtta düşer. Yani bu kural **aynı
+  dönem** içindeki sıfırlama için geçerlidir.
 - **Devre kesici de süreç-içidir**; onu sınayan case ayrı bir örnekte koşulur.
 
 ## Bayrak çiftleri ve demo kancaları

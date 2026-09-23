@@ -2482,15 +2482,21 @@ OTel konsol exporter'ı `TraconDiagnostics.MeterName` metre'sini dinliyor.
 
 **Adımlar**
 1. `default` lane'ine üç iş at, çalıştırma.
-2. Metrikleri bir kez scrape et.
-3. **Aynı 30 sn içinde** ikinci kez scrape et ve veritabanı sorgu logunu izle.
-4. `JobQueueDepthRefreshInterval` (30 sn) geçtikten sonra tekrar scrape et.
+2. En az bir `JobQueueDepthRefreshInterval` (30 sn) bekle, sonra metrikleri
+   bir kez scrape et.
+3. **Aynı 30 sn içinde** birkaç kez daha scrape et ve veritabanı sorgu
+   logunu izle.
+4. Hiç scrape etmeden bir aralık daha (30 sn) sorgu logunu izle.
 
 **Beklenen sonuç**
+- Uygulama açıldıktan hemen sonraki ilk scrape boş olabilir: gauge yalnız
+  önbelleği okur ve ilk tazeleme henüz bitmemiş olabilir. Bu bir hata
+  DEĞİLDİR.
 - Adım 2: `tracon.job.queue.depth` `lane=default`, `status=Pending`
   etiketleriyle **3** gösterir. `tracon.tenant.id` etiketi **yoktur**.
-- Adım 3: `jobs` tablosuna **ikinci sorgu gitmez** (önbellek).
-- Adım 4: tam bir sorgu daha gider.
+- Adım 3: scrape'ler `jobs` tablosuna **hiç sorgu göndermez** (önbellek).
+- Adım 4: scrape olmasa da aralık başına **tam bir** sorgu gider — sorguyu
+  arka plan tazeleyicisi atar, scrape değil.
 
 ---
 

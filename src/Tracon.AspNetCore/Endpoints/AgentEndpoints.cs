@@ -229,7 +229,7 @@ internal static class AgentEndpoints
                 // UserId) and BEFORE the quota check (an unauthorized call must
                 // not consume the tenant's quota) - phase 139, F-185.
                 if (await RunAuthorizationGate
-                        .CheckRunAsync(runAuthorizationHandler, tenantContext, name, request!.SessionId, attributionContext, cancellationToken)
+                        .CheckRunAsync(runAuthorizationHandler, tenantContext, name, request!.SessionId, attributionContext, httpContext, cancellationToken)
                         .ConfigureAwait(false) is { } authorizationProblem)
                 {
                     return authorizationProblem;
@@ -241,7 +241,7 @@ internal static class AgentEndpoints
                 // would make gating GET /api/sessions/{id} decorative. Inert
                 // while ownership is off, which is the default.
                 if (await SessionOwnershipGate
-                        .CheckRunSessionAsync(sessionOwnershipOptions, attributionContext, sessionStore, request!.SessionId, cancellationToken)
+                        .CheckRunSessionAsync(sessionOwnershipOptions, attributionContext, sessionStore, request!.SessionId, httpContext, cancellationToken)
                         .ConfigureAwait(false) is { } ownershipProblem)
                 {
                     return ownershipProblem;
