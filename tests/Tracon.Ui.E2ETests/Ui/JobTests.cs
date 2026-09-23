@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using Microsoft.Playwright;
 using Tracon.Ui.E2ETests.Infrastructure;
+using static Microsoft.Playwright.Assertions;
 
 namespace Tracon.Ui.E2ETests.Ui;
 
@@ -27,7 +28,7 @@ public sealed class JobTests(BrowserFixture browsers)
         await using var session = await Session.OpenAsync(browsers, host);
 
         await session.Page.GotoAsync($"{host.UiAddress}/jobs");
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Jobs", Exact = true }).WaitForAsync();
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Jobs", Exact = true })).ToBeVisibleAsync();
 
         await session.Page.GetByRole(AriaRole.Button, new() { Name = "New schedule" }).ClickAsync();
 
@@ -46,23 +47,22 @@ public sealed class JobTests(BrowserFixture browsers)
 
         await session.Page.GetByRole(AriaRole.Button, new() { Name = "Save" }).ClickAsync();
 
-        await session.Page.GetByText("e2e-batch-job").WaitForAsync();
+        await Expect(session.Page.GetByText("e2e-batch-job")).ToBeVisibleAsync();
 
         // The schedule row's lane column shows the value just saved.
-        await session.Page.Locator("table").First.Locator("tbody tr", new() { HasText = "e2e-batch-job" })
-            .GetByText("media", new() { Exact = true }).WaitForAsync();
+        await Expect(session.Page.Locator("table").First.Locator("tbody tr", new() { HasText = "e2e-batch-job" })
+            .GetByText("media", new() { Exact = true })).ToBeVisibleAsync();
 
         await session.Page.GetByRole(AriaRole.Button, new() { Name = "Trigger" }).ClickAsync();
 
         // The worker leases and runs the job on its fast poll interval; the
         // completion badge appears in the "Recent jobs" panel.
-        await session.Page.GetByText("completed", new() { Exact = true }).First
-            .WaitForAsync(new() { Timeout = 15_000 });
+        await Expect(session.Page.GetByText("completed", new() { Exact = true }).First).ToBeVisibleAsync();
 
         // The triggered job's own row also carries the schedule's lane
         // (129.1: a cron/trigger-dispatched job inherits it from the schedule).
-        await session.Page.Locator("table").Last.Locator("tbody tr").First
-            .GetByText("media", new() { Exact = true }).WaitForAsync();
+        await Expect(session.Page.Locator("table").Last.Locator("tbody tr").First
+            .GetByText("media", new() { Exact = true })).ToBeVisibleAsync();
 
         // Navigate to the job detail: the item input and run link appear.
         // "Recent jobs" is the SECOND table on the page (Schedules comes
@@ -70,8 +70,7 @@ public sealed class JobTests(BrowserFixture browsers)
         await session.Page.Locator("table").Last.Locator("tbody tr").First
             .GetByRole(AriaRole.Link).First.ClickAsync();
 
-        await session.Page.GetByRole(AriaRole.Heading, new() { NameRegex = JobHeadingPattern })
-            .WaitForAsync(new() { Timeout = 10_000 });
-        await session.Page.GetByText("hello").WaitForAsync();
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { NameRegex = JobHeadingPattern })).ToBeVisibleAsync();
+        await Expect(session.Page.GetByText("hello")).ToBeVisibleAsync();
     }
 }

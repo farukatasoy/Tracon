@@ -1,5 +1,6 @@
 using Microsoft.Playwright;
 using Tracon.Ui.E2ETests.Infrastructure;
+using static Microsoft.Playwright.Assertions;
 
 namespace Tracon.Ui.E2ETests.Ui;
 
@@ -17,12 +18,12 @@ public sealed class WorkflowTests(BrowserFixture browsers)
 
         await session.Page.GotoAsync($"{host.UiAddress}/workflows");
 
-        await session.Page.GetByText("summarize-and-translate").WaitForAsync();
+        await Expect(session.Page.GetByText("summarize-and-translate")).ToBeVisibleAsync();
         await session.Page.GetByText("summarize-and-translate").ClickAsync();
 
         var graph = session.Page.GetByTestId("workflow-graph");
 
-        await graph.WaitForAsync();
+        await Expect(graph).ToBeVisibleAsync();
 
         // The built-in pattern adds an output node that the user did not
         // write: two agents + OutputMessages. The graph is rendered from the
@@ -41,7 +42,7 @@ public sealed class WorkflowTests(BrowserFixture browsers)
         await session.Page.Context.GrantPermissionsAsync(["clipboard-read", "clipboard-write"]);
         await session.Page.GotoAsync($"{host.UiAddress}/workflows/summarize-and-translate");
 
-        await session.Page.GetByTestId("workflow-graph").WaitForAsync();
+        await Expect(session.Page.GetByTestId("workflow-graph")).ToBeVisibleAsync();
         await session.Page.GetByRole(AriaRole.Button, new() { Name = "Copy" }).First.ClickAsync();
 
         var copied = await session.Page.EvaluateAsync<string>("() => navigator.clipboard.readText()");
@@ -59,7 +60,7 @@ public sealed class WorkflowTests(BrowserFixture browsers)
 
         await session.Page.GotoAsync($"{host.UiAddress}/workflows/approval-flow");
 
-        await session.Page.GetByTestId("workflow-graph").WaitForAsync();
+        await Expect(session.Page.GetByTestId("workflow-graph")).ToBeVisibleAsync();
 
         await session.Page.GetByTestId("workflow-message").FillAsync("publish the report");
         await session.Page.GetByTestId("workflow-run").ClickAsync();
@@ -67,18 +68,18 @@ public sealed class WorkflowTests(BrowserFixture browsers)
         // The run pauses waiting for a human response; the card appears then.
         var card = session.Page.GetByTestId("workflow-pending-request");
 
-        await card.WaitForAsync(new() { Timeout = 20_000 });
+        await Expect(card).ToBeVisibleAsync();
 
-        (await card.InnerTextAsync()).ShouldContain("publish the report", Case.Sensitive);
+        await Expect(card).ToContainTextAsync("publish the report", new() { UseInnerText = true });
 
         await session.Page.GetByTestId("workflow-approve").ClickAsync();
 
         // The response opens a NEW run and produces the graph output.
         var output = session.Page.GetByTestId("workflow-output");
 
-        await output.WaitForAsync(new() { Timeout = 20_000 });
+        await Expect(output).ToBeVisibleAsync();
 
-        (await output.InnerTextAsync()).ShouldContain("approved", Case.Sensitive);
+        await Expect(output).ToContainTextAsync("approved", new() { UseInnerText = true });
     }
 
     [Fact]
@@ -88,11 +89,11 @@ public sealed class WorkflowTests(BrowserFixture browsers)
         await using var session = await Session.OpenAsync(browsers, host);
 
         await session.Page.GotoAsync($"{host.UiAddress}/workflows/approval-flow");
-        await session.Page.GetByTestId("workflow-graph").WaitForAsync();
+        await Expect(session.Page.GetByTestId("workflow-graph")).ToBeVisibleAsync();
 
         await session.Page.GetByTestId("workflow-message").FillAsync("publish the report");
         await session.Page.GetByTestId("workflow-run").ClickAsync();
-        await session.Page.GetByTestId("workflow-pending-request").WaitForAsync(new() { Timeout = 20_000 });
+        await Expect(session.Page.GetByTestId("workflow-pending-request")).ToBeVisibleAsync();
 
         await session.Page.GotoAsync($"{host.UiAddress}/runs");
 
@@ -102,8 +103,7 @@ public sealed class WorkflowTests(BrowserFixture browsers)
         // <option>Awaiting input</option>, and a substring match would find
         // that first and wait for it to be visible. The badge is lowercase,
         // the option is capitalized; Exact tells them apart.
-        await session.Page
-            .GetByText("awaiting input", new() { Exact = true })
-            .WaitForAsync(new() { Timeout = 20_000 });
+        await Expect(session.Page
+            .GetByText("awaiting input", new() { Exact = true })).ToBeVisibleAsync();
     }
 }

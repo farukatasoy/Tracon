@@ -1,6 +1,7 @@
 using System.Net.Http.Json;
 using Microsoft.Playwright;
 using Tracon.Ui.E2ETests.Infrastructure;
+using static Microsoft.Playwright.Assertions;
 using static Tracon.Ui.E2ETests.Infrastructure.UiTestHelpers;
 
 namespace Tracon.Ui.E2ETests.Ui;
@@ -50,11 +51,11 @@ public sealed class PlaygroundTests(BrowserFixture browsers)
         await session.Page.GetByTestId("playground-send").ClickAsync();
 
         var speak = session.Page.GetByTestId("playground-speak").First;
-        await speak.WaitForAsync(new() { Timeout = 20_000 });
+        await Expect(speak).ToBeVisibleAsync();
         await speak.ClickAsync();
 
         var audio = session.Page.GetByTestId("playground-audio").First;
-        await audio.WaitForAsync(new() { Timeout = 20_000 });
+        await Expect(audio).ToBeVisibleAsync();
 
         // The source is an object URL; it must NOT be the endpoint address.
         var source = await audio.GetAttributeAsync("src");
@@ -93,24 +94,24 @@ public sealed class PlaygroundTests(BrowserFixture browsers)
         // CPU. A bound that only holds on an idle machine is a machine assumption.
         //
         // Once the handshake completes the server sends `ready` and the panel starts listening.
-        await session.Page.GetByTestId("voice-meter").WaitForAsync(new() { Timeout = 60_000 });
+        await Expect(session.Page.GetByTestId("voice-meter")).ToBeVisibleAsync(new() { Timeout = 60_000 });
 
         // 🚨 Silence detection CANNOT be used here: Chromium's fake device
         // produces a continuous tone and never goes quiet. The manual commit
         // button is already a real need (noisy environment, push-to-talk) and
         // the test uses it.
         var commit = session.Page.GetByTestId("voice-commit");
-        await commit.WaitForAsync(new() { Timeout = 60_000 });
+        await Expect(commit).ToBeVisibleAsync(new() { Timeout = 60_000 });
         await commit.ClickAsync();
 
         var transcript = session.Page.GetByTestId("voice-transcript");
-        await transcript.WaitForAsync(new() { Timeout = 60_000 });
+        await Expect(transcript).ToBeVisibleAsync(new() { Timeout = 60_000 });
 
         // The resolved text comes from the server; the fake provider returns a fixed response.
-        await transcript.GetByText("where is my order").First.WaitForAsync(new() { Timeout = 60_000 });
+        await Expect(transcript.GetByText("where is my order").First).ToBeVisibleAsync(new() { Timeout = 60_000 });
 
         // Audio is NOT stored by default; the recording notice must not appear.
-        (await session.Page.GetByTestId("voice-recording-notice").CountAsync()).ShouldBe(0);
+        await Expect(session.Page.GetByTestId("voice-recording-notice")).ToHaveCountAsync(0);
     }
 
     [Fact]
@@ -127,16 +128,15 @@ public sealed class PlaygroundTests(BrowserFixture browsers)
         // The tool card is created when a real FunctionCallContent arrives.
         var card = session.Page.GetByTestId("tool-card").First;
 
-        await card.WaitForAsync(new() { Timeout = 20_000 });
-        await card.GetByText("get_order_status").WaitForAsync();
-        await card.GetByText("done").WaitForAsync(new() { Timeout = 20_000 });
+        await Expect(card).ToBeVisibleAsync();
+        await Expect(card.GetByText("get_order_status")).ToBeVisibleAsync();
+        await Expect(card.GetByText("done")).ToBeVisibleAsync();
 
         // The model response streams in after the tool result.
-        await session.Page.GetByText("Echo: where is ORD-7").WaitForAsync(new() { Timeout = 20_000 });
+        await Expect(session.Page.GetByText("Echo: where is ORD-7")).ToBeVisibleAsync();
 
         // Bridge to the run record: the first SSE frame carries the run id.
-        await session.Page.GetByRole(AriaRole.Link, new() { NameRegex = RunLinkPattern }).First
-            .WaitForAsync(new() { Timeout = 20_000 });
+        await Expect(session.Page.GetByRole(AriaRole.Link, new() { NameRegex = RunLinkPattern }).First).ToBeVisibleAsync();
     }
 
     [Fact]
@@ -175,8 +175,8 @@ public sealed class PlaygroundTests(BrowserFixture browsers)
             await session.Page.GetByTestId("attachment-input").SetInputFilesAsync(pngPath);
 
             var chip = session.Page.GetByTestId("attachment-chip").First;
-            await chip.WaitForAsync(new() { Timeout = 10_000 });
-            await chip.GetByText(Path.GetFileName(pngPath)).WaitForAsync();
+            await Expect(chip).ToBeVisibleAsync();
+            await Expect(chip.GetByText(Path.GetFileName(pngPath))).ToBeVisibleAsync();
 
             var hadCspViolation = await session.Page.EvaluateAsync<bool>(
                 """
@@ -191,8 +191,8 @@ public sealed class PlaygroundTests(BrowserFixture browsers)
             await session.Page.GetByTestId("playground-send").ClickAsync();
 
             // The attachment reference also stays in the turn as a small submission preview.
-            await session.Page.GetByTestId("attachment-chip").First.WaitForAsync(new() { Timeout = 20_000 });
-            await session.Page.GetByText("Echo: describe this image").WaitForAsync(new() { Timeout = 20_000 });
+            await Expect(session.Page.GetByTestId("attachment-chip").First).ToBeVisibleAsync();
+            await Expect(session.Page.GetByText("Echo: describe this image")).ToBeVisibleAsync();
         }
         finally
         {
@@ -226,7 +226,7 @@ public sealed class PlaygroundTests(BrowserFixture browsers)
 
         await session.Page.GotoAsync($"{host.UiAddress}/playground/param-e2e");
 
-        await session.Page.GetByTestId("playground-parameters").WaitForAsync();
+        await Expect(session.Page.GetByTestId("playground-parameters")).ToBeVisibleAsync();
 
         var sendButton = session.Page.GetByTestId("playground-send");
 
@@ -234,14 +234,14 @@ public sealed class PlaygroundTests(BrowserFixture browsers)
 
         // The required "customer" value is still empty: send stays blocked
         // even though the message itself is non-empty.
-        (await sendButton.IsDisabledAsync()).ShouldBeTrue();
+        await Expect(sendButton).ToBeDisabledAsync();
 
         await session.Page.GetByLabel("customer").FillAsync("Acme");
 
-        (await sendButton.IsDisabledAsync()).ShouldBeFalse();
+        await Expect(sendButton).ToBeEnabledAsync();
 
         await sendButton.ClickAsync();
 
-        await session.Page.GetByText("Echo: hi there").WaitForAsync(new() { Timeout = 20_000 });
+        await Expect(session.Page.GetByText("Echo: hi there")).ToBeVisibleAsync();
     }
 }

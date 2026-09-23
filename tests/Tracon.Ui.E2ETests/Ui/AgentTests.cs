@@ -1,5 +1,6 @@
 using Microsoft.Playwright;
 using Tracon.Ui.E2ETests.Infrastructure;
+using static Microsoft.Playwright.Assertions;
 using static Tracon.Ui.E2ETests.Infrastructure.UiTestHelpers;
 
 namespace Tracon.Ui.E2ETests.Ui;
@@ -18,15 +19,15 @@ public sealed class AgentTests(BrowserFixture browsers)
 
         await session.Page.GotoAsync($"{host.UiAddress}/agents");
 
-        await session.Page.GetByText("Support assistant").WaitForAsync();
+        await Expect(session.Page.GetByText("Support assistant")).ToBeVisibleAsync();
 
         await session.Page.GetByText("Support assistant").ClickAsync();
 
         // Write endpoints return 409 for a code-defined agent; the UI must
         // never show the edit button.
-        await session.Page.GetByText("This agent is declared in code").WaitForAsync();
+        await Expect(session.Page.GetByText("This agent is declared in code")).ToBeVisibleAsync();
 
-        (await session.Page.GetByRole(AriaRole.Link, new() { Name = "Edit" }).CountAsync()).ShouldBe(0);
+        await Expect(session.Page.GetByRole(AriaRole.Link, new() { Name = "Edit" })).ToHaveCountAsync(0);
     }
 
     [Fact]
@@ -43,13 +44,11 @@ public sealed class AgentTests(BrowserFixture browsers)
 
         var name = session.Page.GetByTestId("agent-name");
 
-        await Assertions.Expect(name).ToHaveValueAsync("support", new() { Timeout = 10_000 });
+        await Expect(name).ToHaveValueAsync("support");
         (await name.IsEditableAsync()).ShouldBeFalse("The code agent's name must still not be editable.");
 
-        (await session.Page.GetByTestId("agent-validate").IsDisabledAsync())
-            .ShouldBeFalse("The Validate button stayed disabled even though the form is filled.");
-        (await session.Page.GetByTestId("agent-save").IsDisabledAsync())
-            .ShouldBeFalse("The Save button stayed disabled even though the form is filled.");
+        await Expect(session.Page.GetByTestId("agent-validate"), "The Validate button stayed disabled even though the form is filled.").ToBeEnabledAsync();
+        await Expect(session.Page.GetByTestId("agent-save"), "The Save button stayed disabled even though the form is filled.").ToBeEnabledAsync();
     }
 
     [Fact]
@@ -68,14 +67,13 @@ public sealed class AgentTests(BrowserFixture browsers)
         await session.Page.GetByTestId("agent-save").ClickAsync();
 
         // After saving, the detail screen opens and the new definition appears.
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Console agent" })
-            .WaitForAsync(new() { Timeout = 15_000 });
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Console agent" })).ToBeVisibleAsync();
 
         await session.Page.GotoAsync($"{host.UiAddress}/playground/ui-agent");
         await session.Page.GetByTestId("playground-input").FillAsync("hello");
         await session.Page.GetByTestId("playground-send").ClickAsync();
 
-        await session.Page.GetByText("Echo: hello").WaitForAsync(new() { Timeout = 20_000 });
+        await Expect(session.Page.GetByText("Echo: hello")).ToBeVisibleAsync();
     }
 
     [Fact]
@@ -96,25 +94,23 @@ public sealed class AgentTests(BrowserFixture browsers)
 
         await session.Page.GetByTestId("agent-save").ClickAsync();
 
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "fallback-agent" })
-            .WaitForAsync(new() { Timeout = 15_000 });
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "fallback-agent" })).ToBeVisibleAsync();
 
         await session.Page.GetByRole(AriaRole.Link, new() { Name = "Edit" }).ClickAsync();
 
-        (await session.Page.GetByTestId("fallback-provider-0").InputValueAsync()).ShouldBe(ScriptedModels.ProviderName);
-        (await session.Page.GetByTestId("fallback-model-0").InputValueAsync()).ShouldBe(ScriptedModels.Support);
+        await Expect(session.Page.GetByTestId("fallback-provider-0")).ToHaveValueAsync(ScriptedModels.ProviderName);
+        await Expect(session.Page.GetByTestId("fallback-model-0")).ToHaveValueAsync(ScriptedModels.Support);
 
         // Removing the only row returns to the empty-list hint, and a save
         // round trip persists the now-empty list (K1: no lingering fallback).
         await session.Page.GetByTestId("remove-fallback-0").ClickAsync();
-        (await session.Page.GetByTestId("fallback-provider-0").CountAsync()).ShouldBe(0);
+        await Expect(session.Page.GetByTestId("fallback-provider-0")).ToHaveCountAsync(0);
 
         await session.Page.GetByTestId("agent-save").ClickAsync();
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "fallback-agent" })
-            .WaitForAsync(new() { Timeout = 15_000 });
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "fallback-agent" })).ToBeVisibleAsync();
 
         await session.Page.GetByRole(AriaRole.Link, new() { Name = "Edit" }).ClickAsync();
-        (await session.Page.GetByTestId("fallback-provider-0").CountAsync()).ShouldBe(0);
+        await Expect(session.Page.GetByTestId("fallback-provider-0")).ToHaveCountAsync(0);
     }
 
     [Fact]
@@ -129,7 +125,7 @@ public sealed class AgentTests(BrowserFixture browsers)
         await session.Page.GetByTestId("agent-model").FillAsync(ScriptedModels.Default);
 
         // Conditional fields (trigger, etc.) stay hidden until a strategy is selected.
-        (await session.Page.GetByLabel("Trigger: message count").CountAsync()).ShouldBe(0);
+        await Expect(session.Page.GetByLabel("Trigger: message count")).ToHaveCountAsync(0);
 
         await session.Page.GetByLabel("Compaction strategy").SelectOptionAsync("SlidingWindow");
         await session.Page.GetByLabel("Trigger: message count").FillAsync("40");
@@ -152,7 +148,7 @@ public sealed class AgentTests(BrowserFixture browsers)
         await CreateAgentWithTwoVersionsAsync(host, session, "diff-agent", "first instructions", "second instructions");
 
         await session.Page.GotoAsync($"{host.UiAddress}/agents/diff-agent");
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "diff-agent" }).WaitForAsync();
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "diff-agent" })).ToBeVisibleAsync();
 
         await session.Page.GetByTestId("version-checkbox-1").CheckAsync();
         await session.Page.GetByTestId("version-checkbox-2").CheckAsync();
@@ -160,13 +156,12 @@ public sealed class AgentTests(BrowserFixture browsers)
         // When two versions are selected, both raw definitions are fetched and
         // a line-based diff is rendered; both instruction texts (one as "-",
         // one as "+") must appear.
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Comparing v1 → v2" })
-            .WaitForAsync(new() { Timeout = 10_000 });
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Comparing v1 → v2" })).ToBeVisibleAsync();
 
         // "first instructions"/"second instructions" also appear in the
         // Instructions panel and the raw Definition JSON; diff lines are
         // distinguished by the span.break-all class.
-        await session.Page.Locator("span.break-all", new() { HasText = "first instructions" }).First.WaitForAsync();
-        await session.Page.Locator("span.break-all", new() { HasText = "second instructions" }).First.WaitForAsync();
+        await Expect(session.Page.Locator("span.break-all", new() { HasText = "first instructions" }).First).ToBeVisibleAsync();
+        await Expect(session.Page.Locator("span.break-all", new() { HasText = "second instructions" }).First).ToBeVisibleAsync();
     }
 }

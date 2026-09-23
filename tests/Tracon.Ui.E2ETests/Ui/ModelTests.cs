@@ -1,5 +1,6 @@
 using Microsoft.Playwright;
 using Tracon.Ui.E2ETests.Infrastructure;
+using static Microsoft.Playwright.Assertions;
 
 namespace Tracon.Ui.E2ETests.Ui;
 
@@ -21,12 +22,12 @@ public sealed class ModelTests(BrowserFixture browsers)
         // is not a bug and the badge must show "unknown". The leftover
         // "provider connectivity checks are still missing" note from Phase 6
         // must no longer appear on screen.
-        await session.Page.GetByText("unknown", new() { Exact = true }).First.WaitForAsync(new() { Timeout = 10_000 });
+        await Expect(session.Page.GetByText("unknown", new() { Exact = true }).First).ToBeVisibleAsync();
 
-        (await session.Page.GetByText("Provider connectivity checks are still missing").CountAsync()).ShouldBe(0);
+        await Expect(session.Page.GetByText("Provider connectivity checks are still missing")).ToHaveCountAsync(0);
 
         await session.Page.GetByRole(AriaRole.Button, new() { Name = "Check now" }).First.ClickAsync();
 
-        await session.Page.GetByText("unknown", new() { Exact = true }).First.WaitForAsync(new() { Timeout = 10_000 });
+        await Expect(session.Page.GetByText("unknown", new() { Exact = true }).First).ToBeVisibleAsync();
     }
 }

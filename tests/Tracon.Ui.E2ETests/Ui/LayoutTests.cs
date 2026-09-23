@@ -1,5 +1,6 @@
 using Microsoft.Playwright;
 using Tracon.Ui.E2ETests.Infrastructure;
+using static Microsoft.Playwright.Assertions;
 using static Tracon.Ui.E2ETests.Infrastructure.UiTestHelpers;
 
 namespace Tracon.Ui.E2ETests.Ui;
@@ -24,11 +25,11 @@ public sealed class LayoutTests(BrowserFixture browsers)
         await session.Page.SetViewportSizeAsync(375, 812);
 
         await session.Page.GotoAsync(host.UiAddress);
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard" }).WaitForAsync();
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard" })).ToBeVisibleAsync();
         await AssertNoHorizontalOverflowAsync(session.Page, "Dashboard");
 
         await session.Page.GotoAsync($"{host.UiAddress}/settings");
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Settings" }).WaitForAsync();
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Settings" })).ToBeVisibleAsync();
         await AssertNoHorizontalOverflowAsync(session.Page, "Settings");
     }
 
@@ -42,7 +43,7 @@ public sealed class LayoutTests(BrowserFixture browsers)
         await using var session = await Session.OpenAsync(browsers, host);
 
         await session.Page.GotoAsync(host.UiAddress);
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard", Exact = true }).WaitForAsync();
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard", Exact = true })).ToBeVisibleAsync();
 
         // Start from the document, not from wherever the load left the caret.
         await session.Page.EvaluateAsync("() => document.body.focus()");
@@ -101,31 +102,31 @@ public sealed class LayoutTests(BrowserFixture browsers)
         await session.Page.GotoAsync($"{host.UiAddress}/playground/support");
         await session.Page.GetByTestId("playground-input").FillAsync("hello");
         await session.Page.GetByTestId("playground-send").ClickAsync();
-        await session.Page.GetByText("Echo:").First.WaitForAsync(new() { Timeout = 30_000 });
+        await Expect(session.Page.GetByText("Echo:").First).ToBeVisibleAsync();
 
         await session.Page.GotoAsync($"{host.UiAddress}/dashboard");
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard", Exact = true }).WaitForAsync();
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard", Exact = true })).ToBeVisibleAsync();
         await AssertNoHorizontalOverflowAsync(session.Page, "Dashboard");
 
         await session.Page.GotoAsync($"{host.UiAddress}/runs");
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Runs", Exact = true }).WaitForAsync();
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Runs", Exact = true })).ToBeVisibleAsync();
 
         // The run list labels its links with the identifier itself, not with
         // the playground's "run <id>" wording.
         var runLink = session.Page.Locator("tbody a[href*='/runs/']").First;
-        await runLink.WaitForAsync(new() { Timeout = 30_000 });
+        await Expect(runLink).ToBeVisibleAsync();
         await AssertNoHorizontalOverflowAsync(session.Page, "Runs");
 
         await runLink.ClickAsync();
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Transcript", Exact = true }).WaitForAsync(new() { Timeout = 30_000 });
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Transcript", Exact = true })).ToBeVisibleAsync();
         await AssertNoHorizontalOverflowAsync(session.Page, "Run detail");
 
         await session.Page.GotoAsync($"{host.UiAddress}/approvals");
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Approvals", Exact = true }).WaitForAsync();
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Approvals", Exact = true })).ToBeVisibleAsync();
         await AssertNoHorizontalOverflowAsync(session.Page, "Approvals");
 
         await session.Page.GotoAsync($"{host.UiAddress}/agents/new");
-        await session.Page.GetByTestId("agent-name").WaitForAsync();
+        await Expect(session.Page.GetByTestId("agent-name")).ToBeVisibleAsync();
         await AssertNoHorizontalOverflowAsync(session.Page, "Agent editor");
     }
 
@@ -191,7 +192,7 @@ public sealed class LayoutTests(BrowserFixture browsers)
         await session.Page.GotoAsync($"{host.UiAddress}/playground/support");
         await session.Page.GetByTestId("playground-input").FillAsync("hello");
         await session.Page.GetByTestId("playground-send").ClickAsync();
-        await session.Page.GetByText("Echo:").First.WaitForAsync(new() { Timeout = 30_000 });
+        await Expect(session.Page.GetByText("Echo:").First).ToBeVisibleAsync();
         await AssertNoHorizontalOverflowAsync(session.Page, "Playground");
 
         // Every screen reachable without creating more data, with the heading
@@ -221,9 +222,9 @@ public sealed class LayoutTests(BrowserFixture browsers)
         foreach (var (path, heading) in screens)
         {
             await session.Page.GotoAsync($"{host.UiAddress}/{path}");
-            await session.Page
+            await Expect(session.Page
                 .GetByRole(AriaRole.Heading, new() { Name = heading, Exact = true })
-                .First.WaitForAsync(new() { Timeout = 30_000 });
+                .First).ToBeVisibleAsync();
 
             await AssertNoHorizontalOverflowAsync(session.Page, heading);
         }
@@ -232,11 +233,10 @@ public sealed class LayoutTests(BrowserFixture browsers)
         // created the session above.
         await session.Page.GotoAsync($"{host.UiAddress}/sessions");
         var sessionLink = session.Page.Locator("tbody a[href*='/sessions/']").First;
-        await sessionLink.WaitForAsync(new() { Timeout = 30_000 });
+        await Expect(sessionLink).ToBeVisibleAsync();
         await sessionLink.ClickAsync();
-        await session.Page
-            .GetByRole(AriaRole.Tab, new() { Name = "Chat history", Exact = true })
-            .WaitForAsync(new() { Timeout = 30_000 });
+        await Expect(session.Page
+            .GetByRole(AriaRole.Tab, new() { Name = "Chat history", Exact = true })).ToBeVisibleAsync();
         await AssertNoHorizontalOverflowAsync(session.Page, "Session detail");
     }
 
@@ -255,7 +255,7 @@ public sealed class LayoutTests(BrowserFixture browsers)
         await session.Page.SetViewportSizeAsync(375, 812);
 
         await session.Page.GotoAsync($"{host.UiAddress}/models");
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Models", Exact = true }).WaitForAsync();
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Models", Exact = true })).ToBeVisibleAsync();
 
         // Every described badge on the screen, not just the first: the clamp has
         // to hold wherever the trigger happens to sit.
@@ -267,7 +267,7 @@ public sealed class LayoutTests(BrowserFixture browsers)
         for (var index = 0; index < count; index++)
         {
             await described.Nth(index).HoverAsync();
-            await session.Page.GetByRole(AriaRole.Tooltip).First.WaitForAsync();
+            await Expect(session.Page.GetByRole(AriaRole.Tooltip).First).ToBeVisibleAsync();
             await AssertNoHorizontalOverflowAsync(session.Page, $"Models (tooltip {index})");
         }
     }
@@ -286,13 +286,13 @@ public sealed class LayoutTests(BrowserFixture browsers)
         await session.Page.GotoAsync($"{host.UiAddress}/playground/support");
         await session.Page.GetByTestId("playground-input").FillAsync("hello");
         await session.Page.GetByTestId("playground-send").ClickAsync();
-        await session.Page.GetByText("Echo:").First.WaitForAsync(new() { Timeout = 30_000 });
+        await Expect(session.Page.GetByText("Echo:").First).ToBeVisibleAsync();
 
         await session.Page.GotoAsync($"{host.UiAddress}/runs");
 
         // Undressed: the run identifier in the first column.
         var bare = session.Page.Locator("tbody a[href*='/runs/']").First;
-        await bare.WaitForAsync(new() { Timeout = 30_000 });
+        await Expect(bare).ToBeVisibleAsync();
         var bareClass = await bare.GetAttributeAsync("class");
         bareClass.ShouldNotBeNull();
         bareClass.ShouldContain("text-accent");
@@ -300,7 +300,7 @@ public sealed class LayoutTests(BrowserFixture browsers)
         // Dressed by its call site: the agent column is deliberately muted so
         // the identifier stays the row's one emphasis.
         var muted = session.Page.Locator("tbody a[href*='/agents/']").First;
-        await muted.WaitForAsync();
+        await Expect(muted).ToBeVisibleAsync();
 
         var mutedClass = await muted.GetAttributeAsync("class");
         mutedClass.ShouldNotBeNull();
@@ -310,13 +310,11 @@ public sealed class LayoutTests(BrowserFixture browsers)
         // Dressed as a button: one anchor, not a <button> nested inside one.
         await session.Page.GotoAsync($"{host.UiAddress}/agents");
         var asButton = session.Page.GetByRole(AriaRole.Link, new() { Name = "New agent", Exact = true });
-        await asButton.WaitForAsync();
+        await Expect(asButton).ToBeVisibleAsync();
 
         var buttonClass = await asButton.GetAttributeAsync("class");
         buttonClass.ShouldNotBeNull();
         buttonClass.ShouldContain("bg-accent");
-        (await asButton.Locator("button").CountAsync()).ShouldBe(
-            0,
-            "A button-shaped link must be one anchor: a <button> inside an <a> is two tab stops for one destination.");
+        await Expect(asButton.Locator("button"), "A button-shaped link must be one anchor: a <button> inside an <a> is two tab stops for one destination.").ToHaveCountAsync(0);
     }
 }
