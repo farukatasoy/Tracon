@@ -196,6 +196,6 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [181](arsiv/fazlar/181-PROVIDER-ORTAK-KATMANI.md) | Provider Ortak Katmanı | ✅ Tamamlandı |
 | [182](arsiv/fazlar/182-PUBLIC-API-YUZEY-DARALTMA.md) | Public API Yüzey Daraltma | ✅ Tamamlandı |
 | [183](arsiv/fazlar/183-COKLU-TFM-TEST-MATRISI.md) | Çoklu TFM Test Matrisi | ✅ Tamamlandı |
-| [184](184-TEST-BEKLEME-VE-E2E-YAPISI.md) | Test Bekleme ve E2E Yapısı | 📋 Planlandı |
+| [184](arsiv/fazlar/184-TEST-BEKLEME-VE-E2E-YAPISI.md) | Test Bekleme ve E2E Yapısı | ✅ Tamamlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).
