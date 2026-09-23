@@ -29,7 +29,9 @@ public sealed class WorkflowTests(BrowserFixture browsers)
         // COMPILED workflow, not the definition, so that node also appears.
         var nodes = session.Page.GetByTestId("workflow-node");
 
-        (await nodes.CountAsync()).ShouldBeGreaterThanOrEqualTo(3);
+        // A retrying check, not a one-shot count: the nodes render after the
+        // graph container does (Phase 184).
+        await Expect(nodes.Nth(2), "The compiled graph shows fewer than three nodes.").ToBeVisibleAsync();
     }
 
     [Fact]

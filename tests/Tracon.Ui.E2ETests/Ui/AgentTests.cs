@@ -109,6 +109,10 @@ public sealed class AgentTests(BrowserFixture browsers)
         await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "fallback-agent" })).ToBeVisibleAsync();
 
         await session.Page.GetByRole(AriaRole.Link, new() { Name = "Edit" }).ClickAsync();
+
+        // The count below is also 0 before the form has loaded; wait for the
+        // loaded form first, or the check proves nothing (Phase 184).
+        await Expect(session.Page.GetByTestId("agent-name")).ToHaveValueAsync("fallback-agent");
         await Expect(session.Page.GetByTestId("fallback-provider-0")).ToHaveCountAsync(0);
     }
 

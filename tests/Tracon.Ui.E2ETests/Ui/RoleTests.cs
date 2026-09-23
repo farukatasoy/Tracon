@@ -33,6 +33,10 @@ public sealed class RoleTests(BrowserFixture browsers)
         await Expect(session.Page.GetByRole(AriaRole.Link, new() { Name = "Audit" })).ToHaveCountAsync(0);
 
         await session.Page.GotoAsync($"{host.UiAddress}/mcp");
+
+        // Anchor on the rendered screen first: the button is absent before the
+        // screen has rendered too (Phase 184).
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "MCP and approvals", Exact = true })).ToBeVisibleAsync();
         await Expect(session.Page.GetByRole(AriaRole.Button, new() { Name = "Add server" })).ToHaveCountAsync(0);
     }
 

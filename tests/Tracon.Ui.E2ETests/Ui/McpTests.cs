@@ -26,7 +26,7 @@ public sealed class McpTests(BrowserFixture browsers)
         // The placeholder "github" also matches "Tracon:McpSecrets:GithubToken";
         // an exact match must be requested.
         await session.Page.GetByPlaceholder("github", new() { Exact = true }).FillAsync("sample");
-        await session.Page.GetByPlaceholder("https://mcp.example.com/mcp")
+        await session.Page.GetByPlaceholder("https://mcp.example.com/mcp", new() { Exact = true })
             .FillAsync("https://mcp.sample.test/mcp");
 
         await session.Page.GetByRole(AriaRole.Button, new() { Name = "Save" }).ClickAsync();
