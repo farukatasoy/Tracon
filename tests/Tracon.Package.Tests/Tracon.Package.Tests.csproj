@@ -38,10 +38,6 @@
     <Compile Include="../../bench/Tracon.Benchmarks/RepositoryLayout.cs" Link="Infrastructure/Bench/RepositoryLayout.cs" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Using Include="Tracon.Tests.Common" />
-  </ItemGroup>
-
   <!--
     🚨 The run profile, not a single flaky test. Six timing failures across four
     projects were measured in full-solution runs and every one of them passed
