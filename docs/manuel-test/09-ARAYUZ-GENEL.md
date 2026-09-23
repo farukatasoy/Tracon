@@ -1229,7 +1229,7 @@ Kontrast tabanı derlemede ölçülür (`frontend/scripts/check-tokens.mjs`); bu
 | **İlgili faz** | Faz 164 |
 | **İlgili karar** | — |
 
-Otomatikleştirilmiş bölümü: `UiTests.Every_one_of_the_first_ten_Tab_stops_has_an_accessible_name_and_a_visible_focus_ring`.
+Otomatikleştirilmiş bölümü: `LayoutTests.Every_one_of_the_first_ten_Tab_stops_has_an_accessible_name_and_a_visible_focus_ring`.
 Bu case ölçülemeyeni kontrol eder — sıranın **görsel** sırayı izlemesi.
 
 **Ön koşul**
@@ -1404,7 +1404,7 @@ Bu case ölçülemeyeni kontrol eder — sıranın **görsel** sırayı izlemesi
 | **İlgili karar** | — |
 
 MT-UI-043'ün tamamlayıcısıdır: o dört genel ekranı gezer, bu beş **yoğun**
-ekranı. Otomatikleştirilmiş: `UiTests.Proof_slice_screens_do_not_overflow_horizontally_at_375px_width`.
+ekranı. Otomatikleştirilmiş: `LayoutTests.Proof_slice_screens_do_not_overflow_horizontally_at_375px_width`.
 
 **Ön koşul**
 - En az bir run ve bir bekleyen onay kayıtlı.
@@ -1451,9 +1451,9 @@ ekranı. Otomatikleştirilmiş: `UiTests.Proof_slice_screens_do_not_overflow_hor
 | **İlgili faz** | Faz 175 |
 | **İlgili karar** | K-368 |
 
-Otomatikleştirilmiş: `UiTests.Confirm_does_not_default_focus_the_destructive_button`,
-`UiTests.Escape_and_cancel_close_the_confirmation_without_any_request`,
-`UiTests.Cancelling_the_confirmation_returns_focus_to_the_trigger`.
+Otomatikleştirilmiş: `ConfirmationTests.Confirm_does_not_default_focus_the_destructive_button`,
+`ConfirmationTests.Escape_and_cancel_close_the_confirmation_without_any_request`,
+`ConfirmationTests.Cancelling_the_confirmation_returns_focus_to_the_trigger`.
 
 **Ön koşul**
 - En az bir agent ve bir bekleyen onay kayıtlı.
@@ -1485,7 +1485,7 @@ Otomatikleştirilmiş: `UiTests.Confirm_does_not_default_focus_the_destructive_b
 
 Onay yorgunluğunun kapısıdır: her şeyi doğrulatmak hiçbirini doğrulatmamakla aynı
 yere çıkar. Otomatikleştirilmiş:
-`UiTests.An_action_that_fails_the_criterion_stays_one_click_and_still_says_what_it_does`.
+`ConfirmationTests.An_action_that_fails_the_criterion_stays_one_click_and_still_says_what_it_does`.
 
 **Ön koşul**
 - Bir MCP sunucusu, bir zamanlama, bir tetikleyici ve bir agent sürümü kayıtlı.
@@ -1511,7 +1511,7 @@ yere çıkar. Otomatikleştirilmiş:
 | **İlgili faz** | Faz 175 |
 | **İlgili karar** | — |
 
-Otomatikleştirilmiş: `UiTests.A_confirmation_fits_a_narrow_screen_in_the_longer_language`
+Otomatikleştirilmiş: `ConfirmationTests.A_confirmation_fits_a_narrow_screen_in_the_longer_language`
 (375px + `tr`). Elle koşum yalnız görsel yargı içindir — taşma ölçümünü test yapar.
 
 **Ön koşul**
