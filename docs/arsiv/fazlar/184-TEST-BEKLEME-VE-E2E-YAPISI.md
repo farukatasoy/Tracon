@@ -40,7 +40,7 @@ Testler duvar saatine yaslanıyor: senkronizasyon yerine sabit `Task.Delay`, ist
 - [x] Dört doğrulama kapısı sıfır uyarı verir — "Kapanış Kapısı" bölümü
 - [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — "Örnek Uygulama Koşumu"
 - [x] `secret` taraması boş döndü — `kapi.py tarama`: temiz (17 işaretli sentetik credential atlandı)
-- [x] Manuel kabul case'leri eklendi ve koşuldu — `MT-GDK-052…055` (aile 36); 052 · 053 · 055 koşuldu, 054 kapanış koşumlarıyla
+- [x] Manuel kabul case'leri eklendi ve koşuldu — `MT-GDK-052…055` (aile 36); dördü koşuldu (054: `-maxcpucount:2` ile arka arkaya iki tam koşum, 658 ve 524 sn, ikisi de 16.962/16.962)
 - [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı — 1 🔴 · 2 🟡 · 2 🟢, hepsi düzeltildi ("Denetim Bulguları")
 
 ### Doğrulama komutları
@@ -265,4 +265,18 @@ Sıradaki iş `aday-kesfi` ile seçilir (yalnız kullanıcı isteğiyle).
 
 ## Kapanış Kapısı
 
-> Kapanış koşumunun sonucu bu bölüme yazılır.
+`DOTNET_ROOT=~/.dotnet python3 scripts/kapi.py kapanis --taban 515fe8c2`,
+`40cb3cd7`, 2026-09-23 → **EXIT 0, 723 sn**:
+
+| Adım | Süre | Sonuç |
+|---|---|---|
+| `kapi.py tarama` | — | ✅ temiz (17 işaretli sentetik credential atlandı) |
+| `dokuman-bakim.py --denetle` · Python testleri (447) · ajan haritası · denetim paketi | ~9 sn | ✅ |
+| `dotnet build Tracon.slnx -c Release` | 70,7 sn | ✅ 0 uyarı |
+| `dotnet test … -maxcpucount:2 -- --report-trx` | **488,4 sn** | ✅ 16.968 test, 0 kırmızı |
+| `dotnet pack` | 7,6 sn | ✅ |
+| `dotnet format --verify-no-changes` | 108,5 sn | ✅ |
+| `docs-site npm run check` | 37,9 sn | ✅ |
+
+Performans kapısı tetiklenmedi (sıcak yol değişmedi). Test adımı yerel kapının
+yeni `-maxcpucount:2` değeriyle koştu; taban koşumu aynı adımda 884 sn idi.
