@@ -47,7 +47,7 @@ internal sealed class McpOAuthAuthorizationCoordinator : IMcpOAuthCoordinator
     private readonly McpOAuthTokenCacheRegistry _tokenCaches;
     private readonly McpToolCatalog _catalog;
     private readonly EgressSocketGuard? _egressGuard;
-    private readonly string _allowedConfigurationPrefix;
+    private readonly McpKeySpace _keySpace;
 
     private readonly ConcurrentDictionary<string, PendingAuthorization> _pending = new(StringComparer.Ordinal);
 
@@ -58,6 +58,7 @@ internal sealed class McpOAuthAuthorizationCoordinator : IMcpOAuthCoordinator
         ILoggerFactory loggerFactory,
         McpOAuthTokenCacheRegistry tokenCaches,
         McpToolCatalog catalog,
+        IOptions<TraconOptions> coreOptions,
         EgressSocketGuard? egressGuard = null,
         IOptions<TraconMcpSecurityOptions>? securityOptions = null)
     {
@@ -65,6 +66,7 @@ internal sealed class McpOAuthAuthorizationCoordinator : IMcpOAuthCoordinator
         ArgumentNullException.ThrowIfNull(configuration);
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(loggerFactory);
+        ArgumentNullException.ThrowIfNull(coreOptions);
         ArgumentNullException.ThrowIfNull(tokenCaches);
         ArgumentNullException.ThrowIfNull(catalog);
 
@@ -76,8 +78,7 @@ internal sealed class McpOAuthAuthorizationCoordinator : IMcpOAuthCoordinator
         _tokenCaches = tokenCaches;
         _catalog = catalog;
         _egressGuard = egressGuard;
-        _allowedConfigurationPrefix = (securityOptions?.Value ?? new TraconMcpSecurityOptions())
-            .AllowedConfigurationPrefix;
+        _keySpace = McpKeySpace.From(securityOptions, coreOptions);
     }
 
     /// <inheritdoc />
@@ -212,7 +213,7 @@ internal sealed class McpOAuthAuthorizationCoordinator : IMcpOAuthCoordinator
                 OAuth = new ClientOAuthOptions
                 {
                     ClientId = server.OAuthClientId,
-                    ClientSecret = McpTransportFactory.ResolveClientSecret(server, _configuration, _allowedConfigurationPrefix, _logger),
+                    ClientSecret = McpTransportFactory.ResolveClientSecret(server, _configuration, _keySpace, _logger),
                     Scopes = McpTransportFactory.ParseScopes(server.OAuthScopes),
                     RedirectUri = McpTransportFactory.BuildCallbackUri(baseUri, server.Name),
                     TokenCache = tokenCache,

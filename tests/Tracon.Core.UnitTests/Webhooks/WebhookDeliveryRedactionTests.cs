@@ -74,7 +74,8 @@ public sealed class WebhookDeliveryRedactionTests
         var handler = new WebhookDeliveryJobHandler(
             store,
             client,
-            new StaticOptionsMonitor<TraconWebhookOptions>(options));
+            new StaticOptionsMonitor<TraconWebhookOptions>(options),
+            Options.Create(new TraconOptions()));
 
         // A retryable outcome throws JobRetryException by design (the queue owns the
         // retry ladder); the delivery record is still written before that happens.

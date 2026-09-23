@@ -104,7 +104,8 @@ public sealed class DefinitionStoreAgentSourceTenantCredentialTests
             tenantEgressPolicies: new InMemoryTenantEgressPolicyStore(),
             credentialResolver: new TenantProviderCredentialResolver(
                 configuration,
-                new StaticOptionsMonitor<TraconTenantProviderOptions>(new TraconTenantProviderOptions())));
+                new StaticOptionsMonitor<TraconTenantProviderOptions>(new TraconTenantProviderOptions()),
+                Options.Create(new TraconOptions())));
 
         var tools = TestData.Registry();
         var store = new InMemoryAgentDefinitionStore(tenantContext);

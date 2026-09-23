@@ -41,9 +41,14 @@ internal static class VoiceConversationEndpoint
         TraconEndpointOptions options,
         TraconRolePolicies roles)
     {
+        // Read once, like every other access setting: a later change must not
+        // loosen the running endpoint.
+        var authorizationPolicyConfigured = options.AuthorizationPolicy is { Length: > 0 };
+
         builder.MapGet(
                 "/api/voice/sessions/{sessionId}/stream",
-                (HttpContext context, string sessionId) => HandleAsync(context, sessionId, options))
+                (HttpContext context, string sessionId) =>
+                    HandleAsync(context, sessionId, options, authorizationPolicyConfigured))
             .RequireRole(roles.Operator)
             .WithName("TraconVoiceStream")
             .WithTags("Tracon", "Voice")
@@ -56,7 +61,11 @@ internal static class VoiceConversationEndpoint
                 "to a session belonging to another tenant, so a denial never confirms the session exists.");
     }
 
-    private static async Task HandleAsync(HttpContext context, string sessionId, TraconEndpointOptions options)
+    private static async Task HandleAsync(
+        HttpContext context,
+        string sessionId,
+        TraconEndpointOptions options,
+        bool authorizationPolicyConfigured)
     {
         var services = context.RequestServices;
 
@@ -87,6 +96,23 @@ internal static class VoiceConversationEndpoint
                 "WebSocket upgrade required",
                 "This endpoint can only be used over WebSocket. This error is returned if the " +
                 "request is not an upgrade request, or the application has no WebSocket middleware.").ConfigureAwait(false);
+
+            return;
+        }
+
+        // The group filter leaves the anonymous caller to this endpoint: the
+        // credential of a socket travels in the subprotocol, which the filter
+        // does not read. A socket is not bound by CORS, so a page of another
+        // site can open one to the local API unless its origin is judged here.
+        if (ExtractPresentedToken(context) is null
+            && options.AuthToken is not { Length: > 0 }
+            && AnonymousAccessGuard.Check(context, authorizationPolicyConfigured) is { } rejected)
+        {
+            await WriteProblemAsync(
+                context,
+                rejected.StatusCode,
+                rejected.ProblemDetails.Title ?? "Access denied",
+                rejected.ProblemDetails.Detail ?? string.Empty).ConfigureAwait(false);
 
             return;
         }

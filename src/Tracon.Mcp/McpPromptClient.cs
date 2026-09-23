@@ -25,7 +25,7 @@ internal sealed class McpPromptClient : IMcpPromptClient
     private readonly McpOAuthTokenCacheRegistry _tokenCaches;
     private readonly ILoggerFactory _loggerFactory;
     private readonly EgressSocketGuard? _egressGuard;
-    private readonly string _allowedConfigurationPrefix;
+    private readonly McpKeySpace _keySpace;
     private readonly ILogger<McpPromptClient> _logger;
 
     public McpPromptClient(
@@ -34,6 +34,7 @@ internal sealed class McpPromptClient : IMcpPromptClient
         IOptions<TraconMcpOptions> options,
         McpOAuthTokenCacheRegistry tokenCaches,
         ILoggerFactory loggerFactory,
+        IOptions<TraconOptions> coreOptions,
         EgressSocketGuard? egressGuard = null,
         IOptions<TraconMcpSecurityOptions>? securityOptions = null)
     {
@@ -42,6 +43,7 @@ internal sealed class McpPromptClient : IMcpPromptClient
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(tokenCaches);
         ArgumentNullException.ThrowIfNull(loggerFactory);
+        ArgumentNullException.ThrowIfNull(coreOptions);
 
         _servers = servers;
         _configuration = configuration;
@@ -50,8 +52,7 @@ internal sealed class McpPromptClient : IMcpPromptClient
         _loggerFactory = loggerFactory;
         _logger = loggerFactory.CreateLogger<McpPromptClient>();
         _egressGuard = egressGuard;
-        _allowedConfigurationPrefix = (securityOptions?.Value ?? new TraconMcpSecurityOptions())
-            .AllowedConfigurationPrefix;
+        _keySpace = McpKeySpace.From(securityOptions, coreOptions);
     }
 
     /// <inheritdoc />
@@ -61,7 +62,7 @@ internal sealed class McpPromptClient : IMcpPromptClient
         CancellationToken cancellationToken = default)
     {
         var (status, client) = await McpShortLivedConnection
-            .ConnectAsync(tenantId, serverName, _servers, _configuration, _options.Value, _tokenCaches, _loggerFactory, _logger, _egressGuard, _allowedConfigurationPrefix, cancellationToken)
+            .ConnectAsync(tenantId, serverName, _servers, _configuration, _options.Value, _tokenCaches, _loggerFactory, _logger, _egressGuard, _keySpace, cancellationToken)
             .ConfigureAwait(false);
 
         if (status != McpOperationStatus.Ok || client is null)
@@ -105,7 +106,7 @@ internal sealed class McpPromptClient : IMcpPromptClient
         CancellationToken cancellationToken = default)
     {
         var (status, client) = await McpShortLivedConnection
-            .ConnectAsync(tenantId, serverName, _servers, _configuration, _options.Value, _tokenCaches, _loggerFactory, _logger, _egressGuard, _allowedConfigurationPrefix, cancellationToken)
+            .ConnectAsync(tenantId, serverName, _servers, _configuration, _options.Value, _tokenCaches, _loggerFactory, _logger, _egressGuard, _keySpace, cancellationToken)
             .ConfigureAwait(false);
 
         if (status != McpOperationStatus.Ok || client is null)

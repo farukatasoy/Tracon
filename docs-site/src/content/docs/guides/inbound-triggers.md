@@ -58,7 +58,10 @@ name** — never the secret value. Tracon reads the value from
 `IConfiguration` at request time, the same rule tenant provider bindings and
 MCP server credentials follow. The name must be under
 `TraconInboundTriggerOptions.AllowedConfigurationPrefix`, which defaults
-to `Tracon:TriggerSecrets:`.
+to `Tracon:TriggerSecrets:`, and inside the trigger's own tenant. The example
+above uses a flat name, which belongs to the default tenant; a trigger of tenant
+`acme` names `Tracon:TriggerSecrets:acme:Slack`. A name in another tenant's space
+is rejected with `400`.
 
 `targetKind` is `agent` or `workflow`. `payloadMode` controls how the request
 body becomes the run's message:
@@ -138,7 +141,7 @@ endpoint follows: a write that cannot be audited is not applied.
 | `TimestampTolerance` | 5 minutes | Requests outside this window are rejected (`401`) regardless of signature validity |
 | `MaxBodyBytes` | 256 KB | A larger body is rejected (`413`) before it is fully read |
 | `MaxRequestsPerMinute` | 60 | Per trigger, per process (`429` beyond the limit) |
-| `AllowedConfigurationPrefix` | `Tracon:TriggerSecrets:` | The only prefix a signing secret's configuration key name may start with |
+| `AllowedConfigurationPrefix` | `Tracon:TriggerSecrets:` | The only prefix a signing secret's configuration key name may start with; inside it, a tenant uses `{prefix}{tenant}:` and a flat name belongs to the default tenant |
 
 ```json
 {

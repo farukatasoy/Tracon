@@ -21,7 +21,7 @@ internal sealed class McpResourceClient : IMcpResourceClient
     private readonly McpOAuthTokenCacheRegistry _tokenCaches;
     private readonly ILoggerFactory _loggerFactory;
     private readonly EgressSocketGuard? _egressGuard;
-    private readonly string _allowedConfigurationPrefix;
+    private readonly McpKeySpace _keySpace;
     private readonly ILogger<McpResourceClient> _logger;
 
     public McpResourceClient(
@@ -30,6 +30,7 @@ internal sealed class McpResourceClient : IMcpResourceClient
         IOptions<TraconMcpOptions> options,
         McpOAuthTokenCacheRegistry tokenCaches,
         ILoggerFactory loggerFactory,
+        IOptions<TraconOptions> coreOptions,
         EgressSocketGuard? egressGuard = null,
         IOptions<TraconMcpSecurityOptions>? securityOptions = null)
     {
@@ -38,6 +39,7 @@ internal sealed class McpResourceClient : IMcpResourceClient
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(tokenCaches);
         ArgumentNullException.ThrowIfNull(loggerFactory);
+        ArgumentNullException.ThrowIfNull(coreOptions);
 
         _servers = servers;
         _configuration = configuration;
@@ -46,8 +48,7 @@ internal sealed class McpResourceClient : IMcpResourceClient
         _loggerFactory = loggerFactory;
         _logger = loggerFactory.CreateLogger<McpResourceClient>();
         _egressGuard = egressGuard;
-        _allowedConfigurationPrefix = (securityOptions?.Value ?? new TraconMcpSecurityOptions())
-            .AllowedConfigurationPrefix;
+        _keySpace = McpKeySpace.From(securityOptions, coreOptions);
     }
 
     /// <inheritdoc />
@@ -152,7 +153,7 @@ internal sealed class McpResourceClient : IMcpResourceClient
             _loggerFactory,
             _logger,
             _egressGuard,
-            _allowedConfigurationPrefix,
+            _keySpace,
             cancellationToken);
 
     private static McpResourceSummary Project(McpClientResource resource)

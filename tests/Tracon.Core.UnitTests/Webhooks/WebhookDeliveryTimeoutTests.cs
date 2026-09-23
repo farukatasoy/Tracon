@@ -59,6 +59,7 @@ public sealed class WebhookDeliveryTimeoutTests
             store,
             client,
             new StaticOptionsMonitor<TraconWebhookOptions>(options),
+            Options.Create(new TraconOptions()),
             new SecretConfiguration("ConnectionStrings:Default", "s3cret"));
 
         // 🚨 A worker token with its own deadline, an order of magnitude longer

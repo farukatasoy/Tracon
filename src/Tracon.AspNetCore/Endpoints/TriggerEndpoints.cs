@@ -68,8 +68,10 @@ internal static class TriggerEndpoints
             .Accepts<InboundTriggerSaveRequest>("application/json")
             .WithDescription(
                 "'signingSecretConfigurationName' carries only the configuration key's NAME, " +
-                "never its value; the name must be under the configured allowed prefix (400 " +
-                "otherwise). 'payloadPath' is required when 'payloadMode' is 'path'.");
+                "never its value; the name must be under the configured allowed prefix and " +
+                "inside the tenant's own key space — '{prefix}{tenantId}:...'; a flat name " +
+                "directly under the prefix belongs to the default tenant (400 otherwise). " +
+                "'payloadPath' is required when 'payloadMode' is 'path'.");
 
         builder.MapDelete("/api/triggers/{name}", DeleteAsync)
             .RequireRole(roles.Admin)
@@ -185,8 +187,8 @@ internal static class TriggerEndpoints
         {
             // Defense in two layers (the same rationale as phase 65's tenant
             // provider bindings, section 65.2): the resolver validates the
-            // SAME prefix rule again while resolving at request time.
-            resolver.ValidatePrefix(request.SigningSecretConfigurationName);
+            // SAME prefix and tenant rule again while resolving at request time.
+            resolver.ValidateKeyName(tenants.TenantId, request.SigningSecretConfigurationName);
         }
         catch (TraconException ex)
         {

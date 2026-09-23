@@ -24,7 +24,7 @@ internal static class McpShortLivedConnection
         ILoggerFactory loggerFactory,
         ILogger logger,
         EgressSocketGuard? egressGuard,
-        string allowedConfigurationPrefix,
+        McpKeySpace keySpace,
         CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
@@ -49,7 +49,7 @@ internal static class McpShortLivedConnection
             server,
             configuration,
             options,
-            allowedConfigurationPrefix,
+            keySpace,
             tokenCache,
             logger);
         var transport = McpTransportFactory.CreateTransport(transportOptions, egressGuard, loggerFactory);

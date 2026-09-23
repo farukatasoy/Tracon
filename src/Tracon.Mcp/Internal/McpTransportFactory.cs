@@ -98,7 +98,7 @@ internal static class McpTransportFactory
         McpServerDefinition server,
         IConfiguration configuration,
         TraconMcpOptions mcpOptions,
-        string allowedConfigurationPrefix,
+        McpKeySpace keySpace,
         ITokenCache tokenCache,
         ILogger logger)
         => new()
@@ -108,12 +108,12 @@ internal static class McpTransportFactory
             TransportMode = server.Transport == McpTransportMode.Sse
                 ? HttpTransportMode.Sse
                 : HttpTransportMode.StreamableHttp,
-            AdditionalHeaders = BuildHeaders(server, configuration, allowedConfigurationPrefix, logger),
+            AdditionalHeaders = BuildHeaders(server, configuration, keySpace, logger),
             OAuth = BuildNonInteractiveOAuthOptions(
                 server,
                 configuration,
                 mcpOptions,
-                allowedConfigurationPrefix,
+                keySpace,
                 tokenCache,
                 logger),
         };
@@ -139,7 +139,7 @@ internal static class McpTransportFactory
     private static Dictionary<string, string> BuildHeaders(
         McpServerDefinition server,
         IConfiguration configuration,
-        string allowedConfigurationPrefix,
+        McpKeySpace keySpace,
         ILogger logger)
     {
         var headers = new Dictionary<string, string>(server.Headers, StringComparer.OrdinalIgnoreCase);
@@ -160,12 +160,9 @@ internal static class McpTransportFactory
         }
 
         // 🚨 Checked here as well as where the server is saved. A definition
-        // written before the prefix was configured must not silently read an
-        // out-of-prefix configuration key.
-        ConfigurationKeyGuard.RequirePrefix(
-            key,
-            allowedConfigurationPrefix,
-            "authorizationConfigurationKey");
+        // written before the rule existed must not silently read a
+        // configuration key outside the prefix or outside its own tenant.
+        keySpace.Require(key, server, "authorizationConfigurationKey");
 
         if (configuration[key] is { Length: > 0 } value)
         {
@@ -187,7 +184,7 @@ internal static class McpTransportFactory
         McpServerDefinition server,
         IConfiguration configuration,
         TraconMcpOptions mcpOptions,
-        string allowedConfigurationPrefix,
+        McpKeySpace keySpace,
         ITokenCache tokenCache,
         ILogger logger)
     {
@@ -199,7 +196,7 @@ internal static class McpTransportFactory
         return new ClientOAuthOptions
         {
             ClientId = server.OAuthClientId,
-            ClientSecret = ResolveClientSecret(server, configuration, allowedConfigurationPrefix, logger),
+            ClientSecret = ResolveClientSecret(server, configuration, keySpace, logger),
             Scopes = ParseScopes(server.OAuthScopes),
             RedirectUri = BuildCallbackUri(baseUri, server.Name),
             TokenCache = tokenCache,
@@ -220,7 +217,7 @@ internal static class McpTransportFactory
     public static string? ResolveClientSecret(
         McpServerDefinition server,
         IConfiguration configuration,
-        string allowedConfigurationPrefix,
+        McpKeySpace keySpace,
         ILogger logger)
     {
         if (server.OAuthClientSecretConfigurationKey is not { Length: > 0 } key)
@@ -229,10 +226,7 @@ internal static class McpTransportFactory
         }
 
         // 🚨 Same second layer as BuildHeaders.
-        ConfigurationKeyGuard.RequirePrefix(
-            key,
-            allowedConfigurationPrefix,
-            "oauthClientSecretConfigurationKey");
+        keySpace.Require(key, server, "oauthClientSecretConfigurationKey");
 
         if (configuration[key] is { Length: > 0 } value)
         {
