@@ -2,17 +2,14 @@
 
 > **Üretilen, elle düzenlenmez.** Kaynak: `KARARLAR.md` · üretim: `scripts/dokuman-bakim.py`
 
-Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 763 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
+Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 766 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
 
 ---
 
-## En Yeni Kalıcı Kararlar (88 / 851 kalem)
+## En Yeni Kalıcı Kararlar (88 / 854 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
-| K-764 | 811 | Bir kapı bir girdi BİÇİMİNİ tanımıyorsa "kapsam dışı" demek onu SESSİZ yapar; kapı her biçimi sayar ya da saymadığını BİLDİRİR |
-| K-765 | 812 | Kurtarma rampalarının öneki `KR-`'dir ve bir rampanın GÖVDESİ TEK YERDE yaşar; katalog on ikiden yedisini yalnız BAĞLAR, kopyalamaz |
-| K-766 | 813 | Süreç ölçümü kapısı bölümün VARLIĞINI denetler, DOĞRULUĞUNU denetlemez |
 | K-767 | 814 | Süreç ölçümü eşiği sabit sayı `167`'dir (kullanıcı kararı); geriye dönük 166 faz DOLDURULMAZ 👤 |
 | K-768 | 815 | 🔴 denetim bulgusunun triyajını KULLANICI yapar; denetçi yalnız ÖNERİR |
 | K-769 | 816 | Bir üretim kararı İKİ kontrol taşıyabilir ve risk başına EN KATI cevap kazanır 👤 |
@@ -98,3 +95,6 @@ Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLA
 | K-849 | 896 | Dört provider adaptörünün ortak gövdesi `src/Tracon.Providers.Shared/` shared-source ağacındadır; paket değildir, her tipi `internal` kalır (Faz 181, F-258) 👤 |
 | K-850 | 897 | Public yüzey dış kanıt ölçütüyle daraltıldı: 91 tip adı (93 paket×tip — `MigrationRunner` üç pakette) `internal` oldu; kalan her tipin kanıtı `scripts/public-yuzey-envanteri.py` ile ölçülür ve kanıtsız kalan tipin gerekçesi `scripts/public-yuzey-gerekceleri.tsv`'ye yazılır (Faz 182, F-259) |
 | K-851 | 898 | Onay kuralı koşul kümesinin parmak izi tek iç fonksiyondadır (`ToolArgumentConditionFingerprint`); ayırıcı taşıyan bir yol kümeyi uzunluk önekli biçime geçirir, diğer her küme eski biçimi korur — migration yok (Faz 182, plan dışı kusur) |
+| K-852 | 899 | Bir kaydın adını taşıdığı `secret` anahtarı KİRACININ anahtar alanında olmalıdır: varsayılan olmayan kiracı `{prefix}{tenant}:...` kullanır, önek altındaki düz ad varsayılan kiracınındır; kural dört yüzeyde (MCP, BYOK, webhook, trigger) hem kaydetmede hem çözmede uygulanır (kusur-giderme, 2026-09-23) 👤 |
+| K-853 | 900 | Kiracıyı İSTEKTEN alan uçlar (`/api/tenants/{tenantId}/providers`, `/egress`, kiracı kayıtları `GET/PUT/DELETE /api/tenants[/{slug}]`) başka kiracıya yalnız PLATFORM YETKİSİYLE dokunur: API anahtarı `PlatformAdmin` kapsamı · statik `AuthToken` · claim tabanlı çağıran için yeni `TraconPolicies.PlatformAdmin` policy'si (çok kiracılık açıkken; kayıtsızsa REDDEDER) · anonim yerel operatör (K1) (kusur-giderme, 2026-09-23; K-469'u daraltır) 👤 |
+| K-854 | 901 | Kimlik bilgisi taşımayan istek yalnız GERÇEKTEN yerelse ve başka bir sitenin tarayıcı sayfası değilse kabul edilir: `AllowRemoteAccess` açık + `AuthToken` ve policy yok → uzak anonim `401`; `X-Forwarded-For`/`Forwarded`/`X-Real-IP` taşıyan loopback bağlantısı UZAK sayılır; anonim yerel istekte `Host` loopback adı, varsa `Origin` loopback olmalı (`403`) (kusur-giderme, 2026-09-23) 👤 |

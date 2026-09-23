@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Options;
 using Tracon.Core.UnitTests.Fakes;
 
 namespace Tracon.Core.UnitTests.Tenancy;
@@ -12,7 +13,7 @@ public sealed class TenantProviderCredentialResolverTests
         var resolver = CreateResolver();
 
         var exception = Should.Throw<TraconException>(
-            () => resolver.ValidatePrefix("ConnectionStrings:Default"));
+            () => resolver.ValidateKeyName("acme", "ConnectionStrings:Default"));
 
         exception.Message.ShouldContain("ConnectionStrings:Default");
         exception.Message.ShouldContain("Tracon:ProviderKeys:");
@@ -20,11 +21,11 @@ public sealed class TenantProviderCredentialResolverTests
 
     [Fact]
     public void Empty_name_is_rejected()
-        => Should.Throw<TraconException>(() => CreateResolver().ValidatePrefix(""));
+        => Should.Throw<TraconException>(() => CreateResolver().ValidateKeyName("acme", ""));
 
     [Fact]
     public void Name_under_the_prefix_is_accepted()
-        => Should.NotThrow(() => CreateResolver().ValidatePrefix("Tracon:ProviderKeys:Acme:OpenAI"));
+        => Should.NotThrow(() => CreateResolver().ValidateKeyName("acme", "Tracon:ProviderKeys:Acme:OpenAI"));
 
     [Fact]
     public void A_custom_prefix_is_honored()
@@ -33,8 +34,8 @@ public sealed class TenantProviderCredentialResolverTests
             configuration: BuildConfiguration(),
             options: new TraconTenantProviderOptions { AllowedConfigurationPrefix = "Custom:Prefix:" });
 
-        Should.Throw<TraconException>(() => resolver.ValidatePrefix("Tracon:ProviderKeys:Acme:OpenAI"));
-        Should.NotThrow(() => resolver.ValidatePrefix("Custom:Prefix:Acme:OpenAI"));
+        Should.Throw<TraconException>(() => resolver.ValidateKeyName("acme", "Tracon:ProviderKeys:Acme:OpenAI"));
+        Should.NotThrow(() => resolver.ValidateKeyName("acme", "Custom:Prefix:Acme:OpenAI"));
     }
 
     [Fact]
@@ -77,12 +78,40 @@ public sealed class TenantProviderCredentialResolverTests
         Should.Throw<TraconException>(() => resolver.Resolve(Binding("Legacy:Key")));
     }
 
+    /// <summary>
+    /// 🚨 The prefix is one per installation. Without the tenant segment a
+    /// binding of tenant A could name tenant B's key; together with an
+    /// endpoint override A controls, every model call would send B's key there.
+    /// </summary>
+    [Theory]
+    [InlineData("Tracon:ProviderKeys:Globex:OpenAI")]
+    [InlineData("Tracon:ProviderKeys:OpenAI")]
+    public void Resolve_rejects_a_binding_that_names_a_key_outside_its_tenant(string configurationName)
+    {
+        var resolver = CreateResolver(BuildConfiguration((configurationName, "sk-other")));
+
+        var exception = Should.Throw<TraconException>(() => resolver.Resolve(Binding(configurationName)));
+
+        exception.Message.ShouldContain("Tracon:ProviderKeys:acme:");
+    }
+
+    [Fact]
+    public void Default_tenant_binding_may_use_a_flat_name()
+    {
+        var resolver = CreateResolver(BuildConfiguration(("Tracon:ProviderKeys:OpenAI", "sk-test")));
+
+        var credential = resolver.Resolve(Binding("Tracon:ProviderKeys:OpenAI") with { TenantId = "default" });
+
+        credential.ShouldNotBeNull().ApiKey.ShouldBe("sk-test");
+    }
+
     [Fact]
     public void No_configuration_registered_resolves_to_null()
     {
         var resolver = new TenantProviderCredentialResolver(
             configuration: null,
-            new StaticOptionsMonitor<TraconTenantProviderOptions>(new TraconTenantProviderOptions()));
+            new StaticOptionsMonitor<TraconTenantProviderOptions>(new TraconTenantProviderOptions()),
+            Options.Create(new TraconOptions()));
 
         resolver.Resolve(Binding("Tracon:ProviderKeys:Acme:OpenAI")).ShouldBeNull();
     }
@@ -102,7 +131,8 @@ public sealed class TenantProviderCredentialResolverTests
         TraconTenantProviderOptions? options = null)
         => new(
             configuration ?? BuildConfiguration(),
-            new StaticOptionsMonitor<TraconTenantProviderOptions>(options ?? new TraconTenantProviderOptions()));
+            new StaticOptionsMonitor<TraconTenantProviderOptions>(options ?? new TraconTenantProviderOptions()),
+            Options.Create(new TraconOptions()));
 
     private static IConfiguration BuildConfiguration(params (string Key, string Value)[] values)
         => new ConfigurationBuilder()

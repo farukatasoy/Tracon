@@ -217,7 +217,9 @@ app.MapTracon("/tracon", options =>
 
 Behind a reverse proxy, configure forwarded headers. The connection address can be
 the proxy's loopback address, so loopback filtering alone is not a production
-boundary.
+boundary. A request that still carries a forwarding header counts as remote. The
+[security page](/getting-started/security/) explains the `Authentication required`,
+`Host not allowed`, and `Platform authority required` answers.
 
 ### The shell opens but every data request returns `401`
 

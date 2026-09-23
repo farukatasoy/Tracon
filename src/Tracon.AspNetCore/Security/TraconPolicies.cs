@@ -41,4 +41,27 @@ public static class TraconPolicies
     /// approval rule, tenant management.
     /// </summary>
     public const string Admin = "Tracon.Admin";
+
+    /// <summary>
+    /// Acting on a tenant other than the caller's own: another tenant's model
+    /// provider bindings and egress policy, and the tenant records of the
+    /// installation.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// <strong>Unlike the three role policies, a missing registration denies.</strong>
+    /// An unregistered role policy falls back to the three-layer protection so
+    /// that an upgrade does not break a setup; a claims-authenticated caller of
+    /// tenant A reaching tenant B's secrets is not a fallback worth keeping.
+    /// Only a claims principal needs this policy: an API key proves platform
+    /// authority with the <see cref="ApiKeyScope.PlatformAdmin"/> scope, and the
+    /// static <see cref="TraconEndpointOptions.AuthToken"/> identifies the
+    /// installation itself.
+    /// </para>
+    /// <para>
+    /// The caller's own tenant never needs it: that stays with
+    /// <see cref="Admin"/>.
+    /// </para>
+    /// </remarks>
+    public const string PlatformAdmin = "Tracon.PlatformAdmin";
 }

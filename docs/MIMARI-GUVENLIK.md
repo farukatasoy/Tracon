@@ -19,7 +19,10 @@ flowchart TD
     LB -->|hayır| HDR{"Authorization var mı?"}
     HDR -->|hayır| TOKU{"AuthToken tanımlı mı?"}
     TOKU -->|evet| F401["401<br/>WWW-Authenticate: Bearer"]
-    TOKU -->|hayır| OK
+    TOKU -->|hayır| ANON{"policy yok ve istek uzak<br/>ya da yabancı Host/Origin mi?"}
+    ANON -->|uzak| F401
+    ANON -->|"yabancı Host/Origin"| F403d["403"]
+    ANON -->|hayır| OK
     HDR -->|evet| TOK{"statik AuthToken eşleşti mi?"}
     TOK -->|evet| OK
     TOK -->|hayır| KEY{"IApiKeyStore'da geçerli mi?"}
@@ -30,14 +33,14 @@ flowchart TD
 
     classDef red fill:#7a1f1f,stroke:#3d0f0f,color:#ffffff
     classDef green fill:#1f6f4a,stroke:#0d3b27,color:#ffffff
-    class F403,F403b,F401,F403c red
+    class F403,F403b,F401,F403c,F403d red
     class OK green
 ```
 
 Üç katman, sırayla uygulanır:
 
-1. **Loopback kısıtı** — `AllowRemoteAccess = false` (varsayılan). Loopback dışı istek `403` alır. Kaza ile açılmaya karşı koruma.
-2. **Bearer token** — statik `AuthToken` sabit zamanlı karşılaştırmayla denetlenir; eşleşmezse **kiracı bazlı API anahtarı** (`IApiKeyStore`, hash `key_hash`, K-356) denenir: iptal/süre denetiminden geçer, kapsamı (uç istiyorsa) uyuşur. `ApiKeyScope` rolü DARALTIR, yerine geçmez — `rol ∩ kapsam` (K-360). Dışa açılan MCP/A2A yüzeyi geçerli bir `external:invoke` anahtarı ister (`ExternalSurfaceGuard`). `Authorization` başlığı YOKSA ve `AuthToken` tanımsızsa katman atlanır (K1); başlık VARSA her zaman doğrulanır (K-359).
+1. **Loopback kısıtı** — `AllowRemoteAccess = false` (varsayılan). Loopback dışı istek `403` alır. Kaza ile açılmaya karşı koruma. Tüketilmemiş vekil başlığı (`X-Forwarded-For`, `Forwarded`, `X-Real-IP`) taşıyan loopback bağlantısı **uzak** sayılır (`LoopbackGuard.IsLocalRequest`, K-854) — aynı makinedeki ters vekil TCP loopback veya Unix socket (`RemoteIpAddress == null`) ile bağlanır.
+2. **Bearer token** — statik `AuthToken` sabit zamanlı karşılaştırmayla denetlenir; eşleşmezse **kiracı bazlı API anahtarı** (`IApiKeyStore`, hash `key_hash`, K-356) denenir: iptal/süre denetiminden geçer, kapsamı (uç istiyorsa) uyuşur. `ApiKeyScope` rolü DARALTIR, yerine geçmez — `rol ∩ kapsam` (K-360). Dışa açılan MCP/A2A yüzeyi geçerli bir `external:invoke` anahtarı ister (`ExternalSurfaceGuard`). `Authorization` başlığı YOKSA ve `AuthToken` tanımsızsa katman atlanır (K1) — ama policy de yoksa anonim istek yalnız GERÇEKTEN yerelse ve loopback `Host`/`Origin` taşıyorsa geçer; uzak anonim `401`, yabancı `Host`/`Origin` `403` alır (`AnonymousAccessGuard`, K-854). Başlık VARSA her zaman doğrulanır (K-359).
 3. **Authorization policy** — `RequireAuthorization("policy")` ile ASP.NET Core kimlik doğrulama boru hattına bağlanır. Üretimde kullanılan yol budur.
 
 `{prefix}/api/meta` kimlik doğrulaması olmadan erişilebilir. Arayüzün hangi kimlik yöntemini kullanacağını öğrenmesi için gereklidir; hiçbir hassas veri döndürmez.
@@ -86,7 +89,8 @@ turun `approvals` alanıyla çözülür (K-372).
 — K2'nin bilinçli istisnası. Beş koruma: yalnız `http`/`https`, **stdio yoktur**
 (K-058; süreç başlatmak K2'yi bozar) · varsayılan `RequiresApproval = true` · kodda
 kayıtlı bir tool'un adını taşıyan MCP tool'u **yok sayılır** (K-060) · kayıt kimlik
-doğrulama **değerini** değil, anahtarın **adını** taşır (K-059) · her çağrı kaynak
+doğrulama **değerini** değil, anahtarın **adını** taşır (K-059) ve o ad kaydın
+kiracısının alanındadır — `{prefix}{tenant}:...`, düz ad varsayılan kiracınındır (K-852) · her çağrı kaynak
 sunucu adıyla `tool_invocations`'a yazılır.
 
 **Kiracı çözümleme.** Varsayılan **kapalıdır**; açıldığında sıra:
@@ -137,7 +141,9 @@ veritabanında sayılır ve örnek sayısından etkilenmez.
 **Kiracı sağlayıcı anahtarları / BYOK ve egress (Faz 65).** Varsayılan
 **kapalıdır**. Açıldığında her model çağrısından önce iki kontrol TEK yerde sırayla çalışır:
 **egress** (`tenant_egress_policies`; politika yoksa kısıtsız) ve **kimlik bilgisi**
-(`tenant_provider_bindings`; kayıtta yalnız anahtarın **adı** durur — K-059). Kayıt
+(`tenant_provider_bindings`; kayıtta yalnız anahtarın **adı** durur — K-059 — ve ad
+bağlamanın kiracısının alanındadır, K-852). Başka kiracının bağlamasına/politikasına
+yalnız platform yetkisi dokunur (K-853). Kayıt
 var ama değer yoksa çağrı global anahtara **düşmez**. Aynı nokta hem `run`
 derlemesini hem ön-uçuşu besler; izinsiz sağlayıcıya işaret eden tanım **derleme
 anında** reddedilir. Gerekçe: K-065 · K-059.
@@ -170,6 +176,14 @@ eksik policy `MapTracon()`'u **açılışta** hataya çevirir.
 | Reader | Agent, çalıştırma, oturum, trace, istatistik **okuma** |
 | Operator | Reader + çalıştırma başlatma, onay verme, oturum silme |
 | Admin | Hepsi: agent tanımı yazma, MCP sunucusu ekleme, kiracı ve onay kuralı yönetimi, denetim izi okuma |
+
+**Platform yetkisi (K-853).** Rol modelinde kiracı/platform ayrımı yoktur; kiracıyı
+**istekten** alan uçlar (`/api/tenants/{tenantId}/providers`, `/egress`, kiracı
+kayıtları) başka kiracıya yalnız platform yetkisiyle dokunur: API anahtarı
+`PlatformAdmin` kapsamı · statik `AuthToken` · claim tabanlı çağıran için
+`TraconPolicies.PlatformAdmin` (çok kiracılık açıkken; üç rol policy'sinin aksine
+**kayıtsızsa reddeder**) · anonim yerel operatör. Kontrol `CrossTenantAuthority`
+uç filtresindedir ve `TraconEndpointFilter`'dan sonra koşar.
 
 `GET {prefix}/api/meta` yanıtı `roles: { canRead, canOperate, canAdminister }` taşır —
 arayüz yetkisiz düğmeleri buna göre gizler. Policy kayıtlı değilse alan `true` döner.

@@ -57,7 +57,10 @@ internal static class WebhookEndpoints
             .WithDescription(
                 "The address passes an SSRF check: only https is accepted (http only when " +
                 "AllowInsecureHttp is enabled and only to loopback targets). Private network " +
-                "addresses are re-checked again at delivery time.");
+                "addresses are re-checked again at delivery time. 'secretConfigurationKey' " +
+                "must be under the configured allowed prefix and inside the tenant's own key " +
+                "space — '{prefix}{tenantId}:...'; a flat name directly under the prefix belongs " +
+                "to the default tenant (400 otherwise).");
 
         builder.MapDelete("/api/webhooks/{name}", DeleteAsync)
             .RequireRole(roles.Admin)
@@ -125,6 +128,7 @@ internal static class WebhookEndpoints
         [FromServices] IWebhookStore store,
         [FromServices] ITenantContext tenants,
         [FromServices] IOptionsMonitor<TraconWebhookOptions> webhookOptions,
+        [FromServices] IOptions<TraconOptions> coreOptions,
         [FromServices] IAuditLog auditLog,
         [FromServices] IAuditActorResolver actorResolver,
         [FromServices] ILoggerFactory loggerFactory,
@@ -160,14 +164,17 @@ internal static class WebhookEndpoints
         // value is read from (K-059). Without a prefix restriction that name
         // could point at any configuration key in the application, and
         // Tracon would sign deliveries with a value that was never meant
-        // to leave the process. The field itself stays optional.
+        // to leave the process; without the tenant segment it could name
+        // another tenant's signing key. The field itself stays optional.
         if (!string.IsNullOrWhiteSpace(request.SecretConfigurationKey))
         {
             try
             {
-                ConfigurationKeyGuard.RequirePrefix(
+                ConfigurationKeyGuard.RequireTenantKey(
                     request.SecretConfigurationKey,
                     options.AllowedConfigurationPrefix,
+                    tenants.TenantId,
+                    coreOptions.Value.DefaultTenantId,
                     "secretConfigurationKey");
             }
             catch (TraconException exception)

@@ -333,8 +333,8 @@ Tracon.SkillScriptSupport
 Tracon.SkillScriptSupport.SkillScriptSupport(Tracon.SandboxedSkillScriptRunner! runner, Microsoft.Extensions.Options.IOptions<Tracon.TraconOptions!>! options, Microsoft.Extensions.Logging.ILoggerFactory? loggerFactory = null) -> void
 Tracon.TenantProviderCredentialResolver
 Tracon.TenantProviderCredentialResolver.Resolve(Tracon.TenantProviderBinding! binding) -> Tracon.ModelProviderCredential?
-Tracon.TenantProviderCredentialResolver.TenantProviderCredentialResolver(Microsoft.Extensions.Configuration.IConfiguration? configuration, Microsoft.Extensions.Options.IOptionsMonitor<Tracon.TraconTenantProviderOptions!>! options) -> void
-Tracon.TenantProviderCredentialResolver.ValidatePrefix(string! configurationKeyName) -> void
+Tracon.TenantProviderCredentialResolver.TenantProviderCredentialResolver(Microsoft.Extensions.Configuration.IConfiguration? configuration, Microsoft.Extensions.Options.IOptionsMonitor<Tracon.TraconTenantProviderOptions!>! options, Microsoft.Extensions.Options.IOptions<Tracon.TraconOptions!>! coreOptions) -> void
+Tracon.TenantProviderCredentialResolver.ValidateKeyName(string! tenantId, string! configurationKeyName) -> void
 Tracon.TimeoutAIFunction
 Tracon.TimeoutAIFunction.TimeoutAIFunction(Microsoft.Extensions.AI.AIFunction! innerFunction, System.TimeSpan timeout, Microsoft.Extensions.Logging.ILogger<Tracon.TimeoutAIFunction!>! logger) -> void
 Tracon.TimeoutAIFunction.TimeoutAIFunction(Microsoft.Extensions.AI.AIFunction! innerFunction, System.TimeSpan timeout, Microsoft.Extensions.Logging.ILogger<Tracon.TimeoutAIFunction!>! logger, System.TimeProvider! timeProvider) -> void

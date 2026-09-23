@@ -145,7 +145,8 @@ public static partial class TraconServiceCollectionExtensions
         services.TryAddTraconDefault<IInboundTriggerStore, InMemoryInboundTriggerStore>();
         services.TryAddSingleton(static provider => new InboundTriggerSecretResolver(
             provider.GetService<IConfiguration>(),
-            provider.GetRequiredService<IOptionsMonitor<TraconInboundTriggerOptions>>()));
+            provider.GetRequiredService<IOptionsMonitor<TraconInboundTriggerOptions>>(),
+            provider.GetRequiredService<IOptions<TraconOptions>>()));
         services.TryAddSingleton(static provider => new InboundTriggerRateLimiter(
             provider.GetRequiredService<IOptionsMonitor<TraconInboundTriggerOptions>>(),
             provider.GetService<TimeProvider>()));
@@ -286,6 +287,7 @@ public static partial class TraconServiceCollectionExtensions
                 provider.GetRequiredService<IWebhookStore>(),
                 provider.GetRequiredService<WebhookHttpClient>(),
                 provider.GetRequiredService<IOptionsMonitor<TraconWebhookOptions>>(),
+                provider.GetRequiredService<IOptions<TraconOptions>>(),
                 provider.GetService<IConfiguration>(),
                 provider.GetService<TimeProvider>(),
                 provider.GetService<Microsoft.Extensions.Logging.ILogger<WebhookDeliveryJobHandler>>()));

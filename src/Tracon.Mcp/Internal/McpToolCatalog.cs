@@ -43,7 +43,7 @@ internal sealed class McpToolCatalog : IAsyncDisposable
     private readonly IToolArgumentsValidator _validator;
     private readonly IRunAttributionContext? _attribution;
     private readonly EgressSocketGuard? _egressGuard;
-    private readonly string _allowedConfigurationPrefix;
+    private readonly McpKeySpace _keySpace;
 
     // The read path is lock-free: every refresh builds a new dictionary and
     // swaps the reference atomically. Readers always see a consistent snapshot.
@@ -93,8 +93,7 @@ internal sealed class McpToolCatalog : IAsyncDisposable
         _validator = validator;
         _attribution = attribution;
         _egressGuard = egressGuard;
-        _allowedConfigurationPrefix = (securityOptions?.Value ?? new TraconMcpSecurityOptions())
-            .AllowedConfigurationPrefix;
+        _keySpace = McpKeySpace.From(securityOptions, coreOptions);
     }
 
     /// <summary>Returns a tenant's discovered tools.</summary>
@@ -264,7 +263,7 @@ internal sealed class McpToolCatalog : IAsyncDisposable
                 _loggerFactory,
                 _logger,
                 _egressGuard,
-                _allowedConfigurationPrefix,
+                _keySpace,
                 cancellationToken)
             .ConfigureAwait(false);
 

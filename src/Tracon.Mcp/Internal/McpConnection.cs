@@ -103,7 +103,7 @@ internal sealed class McpConnection : IAsyncDisposable
         ILoggerFactory loggerFactory,
         ILogger logger,
         EgressSocketGuard? egressGuard,
-        string allowedConfigurationPrefix,
+        McpKeySpace keySpace,
         CancellationToken cancellationToken)
     {
         if (ShouldSkipConnection(server, options, logger))
@@ -120,7 +120,7 @@ internal sealed class McpConnection : IAsyncDisposable
                 server,
                 configuration,
                 options,
-                allowedConfigurationPrefix,
+                keySpace,
                 tokenCache,
                 logger);
             var transport = McpTransportFactory.CreateTransport(transportOptions, egressGuard, loggerFactory);

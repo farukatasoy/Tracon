@@ -9,16 +9,27 @@ namespace Tracon;
 /// key's value.
 /// </summary>
 /// <remarks>
-/// <see cref="TraconTenantProviderOptions.AllowedConfigurationPrefix"/>
-/// is checked here too, not only where a binding is written. A binding
-/// written before the prefix was configured (or through a store the endpoint
-/// layer did not validate) must not silently read an out-of-prefix
-/// configuration key (defense in two layers).
+/// <para>
+/// A binding may name only a key inside its own tenant's key space:
+/// <c>{prefix}{tenant}:...</c>, where the prefix is
+/// <see cref="TraconTenantProviderOptions.AllowedConfigurationPrefix"/>. A
+/// flat name directly under the prefix belongs to the default tenant
+/// (<see cref="TraconOptions.DefaultTenantId"/>). Without the tenant segment,
+/// tenant A could bind tenant B's key together with an endpoint override
+/// that A controls, and every model call would send B's key there.
+/// </para>
+/// <para>
+/// The rule is checked here too, not only where a binding is written. A
+/// binding written before the rule existed (or through a store the endpoint
+/// layer did not validate) must not silently read a key outside its tenant
+/// (defense in two layers).
+/// </para>
 /// </remarks>
 public sealed class TenantProviderCredentialResolver
 {
     private readonly IConfiguration? _configuration;
     private readonly IOptionsMonitor<TraconTenantProviderOptions> _options;
+    private readonly IOptions<TraconOptions> _coreOptions;
 
     /// <summary>Creates a new resolver.</summary>
     /// <param name="configuration">
@@ -27,27 +38,43 @@ public sealed class TenantProviderCredentialResolver
     /// <see cref="Resolve"/> always returns <see langword="null"/>.
     /// </param>
     /// <param name="options">The tenant provider options.</param>
-    /// <exception cref="ArgumentNullException"><paramref name="options"/> is <see langword="null"/>.</exception>
-    public TenantProviderCredentialResolver(IConfiguration? configuration, IOptionsMonitor<TraconTenantProviderOptions> options)
+    /// <param name="coreOptions">
+    /// The core options; <see cref="TraconOptions.DefaultTenantId"/> names the
+    /// tenant that owns the flat key names.
+    /// </param>
+    /// <exception cref="ArgumentNullException">
+    /// <paramref name="options"/> or <paramref name="coreOptions"/> is <see langword="null"/>.
+    /// </exception>
+    public TenantProviderCredentialResolver(
+        IConfiguration? configuration,
+        IOptionsMonitor<TraconTenantProviderOptions> options,
+        IOptions<TraconOptions> coreOptions)
     {
         ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(coreOptions);
 
         _configuration = configuration;
         _options = options;
+        _coreOptions = coreOptions;
     }
 
     /// <summary>
-    /// Validates that a configuration key name is under the allowed prefix.
+    /// Validates that a configuration key name is under the allowed prefix
+    /// and inside the key space of <paramref name="tenantId"/>.
     /// </summary>
+    /// <param name="tenantId">The tenant the binding belongs to.</param>
     /// <param name="configurationKeyName">The configuration key name to check.</param>
     /// <exception cref="TraconException">
-    /// The name is empty, or does not start with
-    /// <see cref="TraconTenantProviderOptions.AllowedConfigurationPrefix"/>.
+    /// The name is empty, does not start with
+    /// <see cref="TraconTenantProviderOptions.AllowedConfigurationPrefix"/>,
+    /// or names a key that belongs to another tenant.
     /// </exception>
-    public void ValidatePrefix(string configurationKeyName)
-        => ConfigurationKeyGuard.RequirePrefix(
+    public void ValidateKeyName(string tenantId, string configurationKeyName)
+        => ConfigurationKeyGuard.RequireTenantKey(
             configurationKeyName,
             _options.CurrentValue.AllowedConfigurationPrefix,
+            tenantId,
+            _coreOptions.Value.DefaultTenantId,
             "apiKeyConfigurationName");
 
     /// <summary>
@@ -60,13 +87,14 @@ public sealed class TenantProviderCredentialResolver
     ///  this must not fall back to the global key silently).
     /// </returns>
     /// <exception cref="TraconException">
-    /// <see cref="TenantProviderBinding.ApiKeyConfigurationName"/> is outside the allowed prefix.
+    /// <see cref="TenantProviderBinding.ApiKeyConfigurationName"/> is outside
+    /// the allowed prefix or outside the binding's tenant.
     /// </exception>
     public ModelProviderCredential? Resolve(TenantProviderBinding binding)
     {
         ArgumentNullException.ThrowIfNull(binding);
 
-        ValidatePrefix(binding.ApiKeyConfigurationName);
+        ValidateKeyName(binding.TenantId, binding.ApiKeyConfigurationName);
 
         var apiKey = _configuration?[binding.ApiKeyConfigurationName];
 

@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](../KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (763 kalem)
+## Arşivlenen Kararlar (766 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
@@ -772,3 +772,6 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-761 | 808 | `.claude/settings.json`'daki `deny` bloğu bir KORKULUKTUR, güvenlik sınırı DEĞİLDİR |
 | K-762 | 809 | Denetçinin Bash ile yazması ENGELLENMEZ; `tools` allowlist'i korkuluktur 👤 |
 | K-763 | 810 | `permissions.ask` bir KİLİT değildir; oturumun izin moduna tabidir ve auto mode onu SESSİZCE onaylayabilir |
+| K-764 | 811 | Bir kapı bir girdi BİÇİMİNİ tanımıyorsa "kapsam dışı" demek onu SESSİZ yapar; kapı her biçimi sayar ya da saymadığını BİLDİRİR |
+| K-765 | 812 | Kurtarma rampalarının öneki `KR-`'dir ve bir rampanın GÖVDESİ TEK YERDE yaşar; katalog on ikiden yedisini yalnız BAĞLAR, kopyalamaz |
+| K-766 | 813 | Süreç ölçümü kapısı bölümün VARLIĞINI denetler, DOĞRULUĞUNU denetlemez |

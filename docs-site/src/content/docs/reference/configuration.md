@@ -444,8 +444,9 @@ No request is sent while no subscription exists. Private targets, insecure HTTP,
 redirects remain blocked by default.
 
 `AllowedConfigurationPrefix` bounds which configuration key a subscription may name as
-its signing secret; a name outside it is refused both when the subscription is saved
-and when the secret is resolved. `MaxExtraHeaders` bounds a subscription's own extra
+its signing secret. Inside it, a tenant's subscription names `{prefix}{tenant}:...`
+and a flat name belongs to the default tenant; any other name is refused both when the
+subscription is saved and when the secret is resolved. `MaxExtraHeaders` bounds a subscription's own extra
 headers — headers whose name Tracon sets itself are always dropped, whatever the
 limit is. `AllowPrivateNetworkTargets` here applies to webhook delivery only; the
 shared `Tracon:Egress` setting covers this surface too, and either one being on is
@@ -543,8 +544,10 @@ identity is required.
 | `Tracon:TenantProviders` | `AllowedConfigurationPrefix="Tracon:ProviderKeys:"` |
 
 A tenant provider binding's configuration key name must start with
-`AllowedConfigurationPrefix`; a name outside it is rejected with `400`, both when the
-binding is saved and again when it is resolved. See
+`AllowedConfigurationPrefix` followed by the tenant's segment
+(`Tracon:ProviderKeys:acme:...`); a flat name belongs to the default tenant. Any other
+name is rejected with `400`, both when the binding is saved and again when it is
+resolved. See
 [Per-tenant credentials](/guides/model-providers/#per-tenant-credentials-byok).
 
 ## MCP, workflows, and voice
@@ -569,7 +572,8 @@ binding is saved and again when it is resolved. See
 both where a server definition is saved and where its key is resolved, and those two
 live in packages that do not reference each other. The section name is the same, so
 it stays one section to configure. It bounds both `authorizationConfigurationKey` and
-`oauthClientSecretConfigurationKey`.
+`oauthClientSecretConfigurationKey`, and inside it a tenant's server names
+`{prefix}{tenant}:...`; a flat name belongs to the default tenant.
 
 The remaining keys belong to `TraconMcpOptions`. `UseMcp()` without arguments uses
 those defaults but does not read `IConfiguration` implicitly. Use the explicit overload when you want the section:
@@ -664,9 +668,12 @@ never calls those routes exposes; it is not a security control, since the
 routes go through the same role policies, API key scopes, session ownership and
 `IRunAuthorizationHandler` gate as `/api/sessions`.
 
-Do not enable remote access without a token, API key, or authorization policy.
-Behind a reverse proxy, configure forwarded headers and do not treat the proxy's
-loopback address as a security boundary. Set `RequireRolePolicies=true` only after
+Do not enable remote access without a token, API key, or authorization policy: with
+none of them configured, an anonymous remote request receives `401`, and an anonymous
+local request with a non-loopback `Host` or `Origin` receives `403`. Behind a reverse
+proxy, configure forwarded headers and do not treat the proxy's loopback address as a
+security boundary; a request that still carries `X-Forwarded-For`, `Forwarded`, or
+`X-Real-IP` counts as remote. Set `RequireRolePolicies=true` only after
 you register the Reader, Operator, and Admin policies; otherwise mapping fails at
 startup by design.
 

@@ -2492,7 +2492,7 @@ tanımlı DEĞİL). Örnek uygulama ayakta.
 ```bash
 curl -s -X PUT "$APU/api/tenants/acme/providers/anthropic" -H "$APB" \
   -H 'Content-Type: application/json' \
-  -d '{"apiKeyConfigurationName":"Tracon:ProviderKeys:acme","endpoint":"http://10.0.0.5/"}' \
+  -d '{"apiKeyConfigurationName":"Tracon:ProviderKeys:acme:Anthropic","endpoint":"http://10.0.0.5/"}' \
   | jq -r '.detail'
 ```
 
@@ -4352,3 +4352,174 @@ toplandı.
 - Faz öncesi yazılmış kuralların `conditions_hash` değeri değişmez: ayırıcı
   taşımayan her küme eski biçimle özetlenir, migration gerekmez.
 
+---
+
+### MT-SEC-200 — Başka kiracının anahtar alanını adlandıran kayıt reddedilir
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Kritik |
+| **İlgili faz** | Kusur giderme (2026-09-23) |
+| **İlgili karar** | K-852 |
+| **İnsan gerekir** | Hayır |
+| **Devir** | ➜ CI: `TenantScopedConfigurationKeyTests` (dört yüzey, kaydetme) · `TenantProviderCredentialResolverTests.Resolve_rejects_a_binding_that_names_a_key_outside_its_tenant` · `InboundTriggerSecretResolverTests.Resolve_rejects_a_trigger_that_names_a_key_outside_its_tenant` (çözme) |
+
+Önek kurulum başınadır. Kural öncesinde kiracı A, B'nin anahtar adını ve kendi
+adresini kaydedebiliyordu; Tracon B'nin değerini o adrese gönderirdi.
+
+**Ön koşul**
+- Örnek uygulama `Tracon__Tenancy__Enabled=true` ve
+  `Tracon__Tenancy__AllowHeaderResolution=true` ile çalışır.
+
+**Adımlar**
+```bash
+for key in "Tracon:McpSecrets:globex:Token" "Tracon:McpSecrets:GithubToken" "Tracon:McpSecrets:acme:Token"; do
+  curl -s -o /dev/null -w "$key -> %{http_code}\n" -X PUT "$APU/api/mcp-servers/probe" -H "$APB" \
+    -H 'X-Tracon-Tenant: acme' -H 'Content-Type: application/json' \
+    -d "{\"endpoint\":\"https://mcp.example.com/\",\"transport\":\"StreamableHttp\",\"authorizationConfigurationKey\":\"$key\"}"
+done
+curl -s -o /dev/null -w "default flat -> %{http_code}\n" -X PUT "$APU/api/mcp-servers/probe" -H "$APB" \
+  -H 'Content-Type: application/json' \
+  -d '{"endpoint":"https://mcp.example.com/","transport":"StreamableHttp","authorizationConfigurationKey":"Tracon:McpSecrets:GithubToken"}'
+```
+
+**Beklenen sonuç**
+- `globex:Token -> 400`, `GithubToken -> 400` (düz ad varsayılan kiracınındır),
+  `acme:Token -> 200`, `default flat -> 200` (tek kiracılı kullanım değişmez).
+- `400` gövdesinin `detail` alanı `Tracon:McpSecrets:acme:` önekini adlandırır.
+
+---
+
+### MT-SEC-201 — Kiracıya bağlı `SecurityAdmin` anahtarı başka kiracının bağlamasına yazamaz
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Kritik |
+| **İlgili faz** | Kusur giderme (2026-09-23) |
+| **İlgili karar** | K-853 (K-469'u daraltır) |
+| **İnsan gerekir** | Hayır |
+| **Devir** | ➜ CI: `CrossTenantAuthorityTests` |
+
+**Ön koşul**
+- MT-SEC-200'ün ön koşulu.
+
+**Adımlar**
+1. `acme` kiracısında yalnız `SecurityAdmin` kapsamlı bir anahtar oluştur ve
+   `$KEY_ACME` olarak kaydet; ikinci bir anahtarı `SecurityAdmin` +
+   `PlatformAdmin` ile oluştur ve `$KEY_PLATFORM` olarak kaydet:
+   ```bash
+   curl -s -X POST "$APU/api/api-keys" -H "$APB" -H 'X-Tracon-Tenant: acme' \
+     -H 'Content-Type: application/json' -d '{"name":"acme-sec","scopes":["SecurityAdmin"]}' | jq -r .plaintextKey
+   curl -s -X POST "$APU/api/api-keys" -H "$APB" -H 'X-Tracon-Tenant: acme' \
+     -H 'Content-Type: application/json' -d '{"name":"acme-plat","scopes":["SecurityAdmin","PlatformAdmin"]}' | jq -r .plaintextKey
+   ```
+2. Her anahtarla `globex`'in ve `acme`'nin bağlamasını yaz:
+   ```bash
+   for k in "$KEY_ACME" "$KEY_PLATFORM"; do for t in globex acme; do
+     curl -s -o /dev/null -w "$t -> %{http_code}\n" -X PUT "$APU/api/tenants/$t/providers/openai" \
+       -H "Authorization: Bearer $k" -H 'Content-Type: application/json' \
+       -d "{\"apiKeyConfigurationName\":\"Tracon:ProviderKeys:$t:OpenAI\"}"
+   done; done
+   ```
+
+**Beklenen sonuç**
+- `$KEY_ACME`: `globex -> 403`, `acme -> 200`. `403` gövdesinin başlığı
+  `Platform authority required`, `detail` alanı `PlatformAdmin` kapsamını adlandırır.
+- `$KEY_PLATFORM`: `globex -> 200`, `acme -> 200`.
+- Statik token (`$APB`) ile `globex` yazımı `200` döner — token kurulumun kimliğidir.
+
+---
+
+### MT-SEC-202 — Uzak erişim açık, kimlik doğrulama yöntemi yok: uzak anonim istek `401`
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Kusur giderme (2026-09-23) |
+| **İlgili karar** | K-854 |
+| **İnsan gerekir** | Hayır |
+| **Devir** | ➜ CI: `RemoteExposureTests.Remote_request_without_a_credential_is_rejected_when_no_authentication_is_configured` · `…_with_an_api_key_passes_when_keys_are_the_only_method` |
+
+**Ön koşul**
+- Örnek uygulama token OLMADAN ve uzak erişim açık çalışır:
+  `Tracon__Ui__AuthToken= Tracon__Ui__AllowRemoteAccess=true dotnet run --urls "http://0.0.0.0:5080"`.
+
+**Adımlar**
+```bash
+curl -s -o /dev/null -w "lan anonim -> %{http_code}\n" "$APULAN/api/agents"
+curl -s -o /dev/null -w "loopback anonim -> %{http_code}\n" "$APU/api/agents"
+```
+
+**Beklenen sonuç**
+- `lan anonim -> 401`; gövde `AuthToken` ve `RequireAuthorization` adlarını yazar.
+- `loopback anonim -> 200` — sıfır yapılandırma yerel kullanım değişmez.
+- LAN adresinden geçerli bir API anahtarıyla istek `200` döner.
+
+---
+
+### MT-SEC-203 — Vekil başlığı taşıyan loopback isteği uzak sayılır
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Kusur giderme (2026-09-23) |
+| **İlgili karar** | K-854 |
+| **İnsan gerekir** | Hayır |
+| **Devir** | ➜ CI: `RemoteExposureTests.Loopback_connection_that_carries_a_forwarded_header_counts_as_remote` · `…Proxied_request_without_a_credential_is_rejected_with_remote_access_on` |
+
+Aynı makinedeki ters vekil (nginx) TCP loopback veya Unix socket ile bağlanır;
+kural öncesinde her internet isteği yerel görünüyordu.
+
+**Ön koşul**
+- Varsayılan ayarlar (`AllowRemoteAccess` kapalı), token tanımlı.
+
+**Adımlar**
+```bash
+for h in "X-Forwarded-For: 203.0.113.5" "Forwarded: for=203.0.113.5" "X-Real-IP: 203.0.113.5"; do
+  curl -s -w " <- $h\n" "$APU/api/agents" -H "$APB" -H "$h" | jq -r '.title? // "200"'
+done
+```
+
+**Beklenen sonuç**
+- Üçü de `Remote access disabled` (`403`) döner; `detail` `ForwardedHeaders`
+  middleware'ini adlandırır.
+- Başlıksız aynı istek `200` döner.
+
+---
+
+### MT-SEC-204 — Yabancı `Host` veya `Origin` taşıyan anonim yerel istek `403`
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Kusur giderme (2026-09-23) |
+| **İlgili karar** | K-854 |
+| **İnsan gerekir** | Hayır |
+| **Devir** | ➜ CI: `RemoteExposureTests.Anonymous_loopback_request_to_a_foreign_host_is_rejected` · `…_from_a_foreign_origin_is_rejected` · `…Cross_site_voice_socket_is_rejected` |
+
+DNS rebinding'de saldırganın adı `127.0.0.1`'e çözülür; soket loopback'tir ama
+tarayıcı `Host` alanına saldırganın adını yazar. Çapraz site isteği kendi
+`Origin`'ini taşır; WebSocket CORS'a bağlı değildir.
+
+**Ön koşul**
+- Örnek uygulama token OLMADAN çalışır: `Tracon__Ui__AuthToken= dotnet run`.
+
+**Adımlar**
+```bash
+curl -s -o /dev/null -w "host saldirgan -> %{http_code}\n" "$APU/api/agents" -H 'Host: attacker.example'
+curl -s -o /dev/null -w "origin saldirgan -> %{http_code}\n" -X POST "$APU/api/retention/run" -H 'Origin: https://attacker.example'
+curl -s -o /dev/null -w "origin localhost -> %{http_code}\n" "$APU/api/agents" -H 'Origin: http://localhost:5173'
+curl -s -o /dev/null -w "host 127.0.0.1 -> %{http_code}\n" "http://127.0.0.1:5080/tracon/api/agents"
+```
+
+**Beklenen sonuç**
+- `host saldirgan -> 403` (`Host not allowed`), `origin saldirgan -> 403`
+  (`Origin not allowed`) — `retention/run` hiç koşmaz.
+- `origin localhost -> 200`, `host 127.0.0.1 -> 200`.
+- Aynı saldırgan `Host`'lu istek geçerli token ile `200` döner: başka sitenin
+  sayfası token'ı sunamaz.
