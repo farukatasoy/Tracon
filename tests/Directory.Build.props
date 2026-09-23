@@ -80,6 +80,18 @@
   </ItemGroup>
 
   <!--
+    Phase 184: the condition wait a test polls with instead of sleeping a fixed
+    time (tests/Shared/Waiting/WaitUntil.cs). Linked into every test project,
+    not copied (K-411) - one copy replaces the private poll loops that used to
+    live in each test class. The namespace is a global using so a test reaches
+    for WaitUntil as readily as it used to reach for Task.Delay.
+  -->
+  <ItemGroup Condition=" '$(IsTestHarnessProject)' != 'true' ">
+    <Compile Include="$(MSBuildThisFileDirectory)Shared/Waiting/*.cs" LinkBase="Shared/Waiting" />
+    <Using Include="Tracon.Tests.Common" />
+  </ItemGroup>
+
+  <!--
     Phase 183: every multi-targeted project proves that each of its legs ran on
     the runtime it was built for. A net8.0 leg rolled forward onto a newer
     runtime would pass every other test and prove nothing about net8.0.
