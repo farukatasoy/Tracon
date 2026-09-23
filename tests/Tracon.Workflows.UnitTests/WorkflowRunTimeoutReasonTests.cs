@@ -43,7 +43,7 @@ public sealed class WorkflowRunTimeoutReasonTests
             async (messages, _, cancellationToken) =>
             {
                 slowStarted.TrySetResult();
-                await Task.Delay(TimeSpan.FromSeconds(30), cancellationToken).ConfigureAwait(false);
+                await Task.Delay(TimeSpan.FromSeconds(30), cancellationToken).ConfigureAwait(false); // delay: simulated
 
                 return messages;
             });
@@ -101,7 +101,7 @@ public sealed class WorkflowRunTimeoutReasonTests
                 // Cancel from inside the graph: the stop has to land while a
                 // node is running, which is where a dropped client lands too.
                 await caller.CancelAsync().ConfigureAwait(false);
-                await Task.Delay(TimeSpan.FromSeconds(30), cancellationToken).ConfigureAwait(false);
+                await Task.Delay(TimeSpan.FromSeconds(30), cancellationToken).ConfigureAwait(false); // delay: simulated
 
                 return messages;
             });

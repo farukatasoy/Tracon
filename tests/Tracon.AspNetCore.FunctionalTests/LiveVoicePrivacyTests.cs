@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Runtime.CompilerServices;
 using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 
@@ -27,7 +28,7 @@ public sealed class LiveVoicePrivacyTests
     private const string Agent = "code-agent";
     private const string Sdp = "v=0\r\no=- 1 1 IN IP4 0.0.0.0\r\ns=-\r\nt=0 0\r\n";
 
-    private static readonly TimeSpan Patience = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan Patience = LiveVoiceTests.Patience;
 
     [Fact]
     public async Task With_PersistTranscript_on_the_answer_says_so()
@@ -121,20 +122,8 @@ public sealed class LiveVoicePrivacyTests
             new LiveVoiceSessionCreateRequest { SessionId = "session-1", Agent = Agent, Sdp = Sdp },
             TestContext.Current.CancellationToken);
 
-    private static async Task WaitForAsync(Func<bool> condition)
-    {
-        var deadline = DateTime.UtcNow + Patience;
-
-        while (DateTime.UtcNow < deadline)
-        {
-            if (condition())
-            {
-                return;
-            }
-
-            await Task.Delay(25, TestContext.Current.CancellationToken);
-        }
-
-        throw new TimeoutException("The condition never became true.");
-    }
+    private static Task WaitForAsync(
+        Func<bool> condition,
+        [CallerArgumentExpression(nameof(condition))] string description = "")
+        => WaitUntil.TrueAsync(condition, description, Patience);
 }

@@ -59,7 +59,7 @@ public sealed class ModelHealthSingletonTests
         // The lease comment above records the first half of this same lesson. This
         // is the second half: the timing dependency moved from the lease to the
         // wait, and only removing the wall clock from BOTH closes it.
-        await WaitUntilAsync(() => providerA.CheckCount > 0 || providerB.CheckCount > 0);
+        await WaitUntil.TrueAsync(() => providerA.CheckCount > 0 || providerB.CheckCount > 0);
 
         await serviceA.StopAsync(CancellationToken.None);
         await serviceB.StopAsync(CancellationToken.None);
@@ -69,31 +69,6 @@ public sealed class ModelHealthSingletonTests
         // failure here is the real claim failing — both instances ran.
         (providerA.CheckCount > 0 ^ providerB.CheckCount > 0).ShouldBeTrue(
             $"providerA={providerA.CheckCount}, providerB={providerB.CheckCount}");
-    }
-
-    /// <summary>Polls until <paramref name="condition"/> holds, or fails the test.</summary>
-    /// <param name="condition">The signal to wait for.</param>
-    /// <remarks>
-    /// The timeout is generous on purpose. It is not a performance budget — it only
-    /// bounds the failure so a broken singleton reports instead of hanging. Waiting
-    /// longer than necessary costs nothing when the condition is already true.
-    /// </remarks>
-    private static async Task WaitUntilAsync(Func<bool> condition)
-    {
-        var deadline = DateTimeOffset.UtcNow + TimeSpan.FromSeconds(30);
-
-        while (DateTimeOffset.UtcNow < deadline)
-        {
-            if (condition())
-            {
-                return;
-            }
-
-            await Task.Delay(TimeSpan.FromMilliseconds(20));
-        }
-
-        throw new TimeoutException(
-            "No health check ran on either instance within 30 seconds; the background service never ticked.");
     }
 
     private static StaticOptionsMonitor<T> Options<T>(T value) => new(value);

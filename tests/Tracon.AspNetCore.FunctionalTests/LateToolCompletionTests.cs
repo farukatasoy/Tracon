@@ -45,30 +45,6 @@ public sealed class LateToolCompletionTests
         return (await TraconTestHost.ReadJsonAsync(accepted)).GetProperty("runId").GetGuid();
     }
 
-    /// <summary>Polls a run until it reaches the expected status. See ApprovalEndpointTests.cs for the 30s rationale.</summary>
-    private static async Task WaitForStatusAsync(TraconTestHost host, Guid runId, string expected)
-    {
-        var uri = new Uri($"/tracon/api/runs/{runId}", UriKind.Relative);
-        var deadline = DateTime.UtcNow.AddSeconds(30);
-        string? status = null;
-
-        while (DateTime.UtcNow < deadline)
-        {
-            using var poll = await host.Client.GetAsync(uri);
-            status = (await TraconTestHost.ReadJsonAsync(poll)).GetProperty("status").GetString();
-
-            if (string.Equals(status, expected, StringComparison.Ordinal))
-            {
-                return;
-            }
-
-            await Task.Delay(20);
-        }
-
-        throw new InvalidOperationException(
-            $"Run {runId} did not reach status '{expected}' within 30 seconds; last seen status: '{status}'.");
-    }
-
     private static async Task<ToolInvocationRecord> ReadSingleInvocationAsync(TraconTestHost host, Guid runId)
     {
         var invocations = await host.Client.GetFromJsonAsync<List<ToolInvocationRecord>>(
@@ -81,27 +57,23 @@ public sealed class LateToolCompletionTests
     /// Polls the call record until the late write lands. The background body
     /// settles on its own schedule; a fixed sleep would be a flake either way.
     /// </summary>
-    private static async Task<ToolInvocationRecord> WaitForLateSettlementAsync(TraconTestHost host, Guid runId)
-    {
-        var deadline = DateTime.UtcNow.AddSeconds(30);
-        ToolInvocationRecord? last = null;
+    private static Task<ToolInvocationRecord> WaitForLateSettlementAsync(TraconTestHost host, Guid runId)
+        => WaitUntil.ValueAsync(
+            () => ReadSingleInvocationAsync(host, runId),
+            static record => record.LateCompletedAt is not null,
+            $"the call record of run {runId} to record a late settlement");
 
-        while (DateTime.UtcNow < deadline)
-        {
-            last = await ReadSingleInvocationAsync(host, runId);
-
-            if (last.LateCompletedAt is not null)
-            {
-                return last;
-            }
-
-            await Task.Delay(20);
-        }
-
-        throw new InvalidOperationException(
-            $"The call record of run {runId} never recorded a late settlement. " +
-            $"Last seen: timedOut={last?.TimedOut}, usage={last?.Usage is not null}, result={last?.Result}.");
-    }
+    /// <summary>
+    /// A body that finishes only when the test says so, and ignores the
+    /// cancellation the timeout requests.
+    /// </summary>
+    /// <remarks>
+    /// Phase 184: these bodies used to sleep 600 ms - 1 s against the 300 ms
+    /// timeout, so each test relied on one timer firing before another. The
+    /// test now releases the body after the run has completed, which is by
+    /// construction after the timeout fired.
+    /// </remarks>
+    private static TaskCompletionSource NewRelease() => new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     private static TraconToolRegistration SlowTool(Func<CancellationToken, Task<string>> body)
         => new(
@@ -130,6 +102,7 @@ public sealed class LateToolCompletionTests
     public async Task A_tool_that_succeeds_after_its_timeout_has_its_spend_recorded_against_the_original_call()
     {
         var finished = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = NewRelease();
 
         await using var host = await TraconTestHost.StartAsync(
             Builder(SlowTool(async _ =>
@@ -137,7 +110,7 @@ public sealed class LateToolCompletionTests
                 // Deliberately ignores the cancellation the timeout requests —
                 // the non-cooperative body that is the whole reason this path
                 // exists. A real one is an HTTP call that does not take a token.
-                await Task.Delay(TimeSpan.FromSeconds(1), CancellationToken.None);
+                await release.Task;
 
                 TraconToolUsage.Report(new ToolCallUsage
                 {
@@ -156,11 +129,12 @@ public sealed class LateToolCompletionTests
         var runId = await StartAsync(host, "s-late-success");
 
         // The model is told the call failed and the run finishes on time.
-        await WaitForStatusAsync(host, runId, "Completed");
+        await host.WaitForRunStatusAsync(runId, "Completed");
 
         var timedOut = await ReadSingleInvocationAsync(host, runId);
         timedOut.TimedOut.ShouldBeTrue();
 
+        release.SetResult();
         await finished.Task.WaitAsync(TimeSpan.FromSeconds(20));
 
         var settled = await WaitForLateSettlementAsync(host, runId);
@@ -188,10 +162,12 @@ public sealed class LateToolCompletionTests
         // 🚨 The reason the outcome lands on the EXISTING row rather than a new
         // one: the tools screen counts rows. A second row would report one call
         // as two and halve the tool's error rate.
+        var release = NewRelease();
+
         await using var host = await TraconTestHost.StartAsync(
             Builder(SlowTool(async _ =>
             {
-                await Task.Delay(TimeSpan.FromMilliseconds(600), CancellationToken.None);
+                await release.Task;
 
                 return "report R-1 produced";
             })),
@@ -199,7 +175,8 @@ public sealed class LateToolCompletionTests
 
         var runId = await StartAsync(host, "s-late-count");
 
-        await WaitForStatusAsync(host, runId, "Completed");
+        await host.WaitForRunStatusAsync(runId, "Completed");
+        release.SetResult();
         await WaitForLateSettlementAsync(host, runId);
 
         var runs = host.Services.GetRequiredService<IRunStore>();
@@ -224,7 +201,9 @@ public sealed class LateToolCompletionTests
             {
                 try
                 {
-                    await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken);
+                    // Finite only so a body that is never cancelled fails with its
+                    // own words below instead of a bare timeout.
+                    await Task.Delay(TimeSpan.FromSeconds(5), cancellationToken); // delay: simulated
                     outcome.TrySetResult("ran to completion");
 
                     return "report R-1 produced";
@@ -240,7 +219,7 @@ public sealed class LateToolCompletionTests
 
         var runId = await StartAsync(host, "s-late-cooperative");
 
-        await WaitForStatusAsync(host, runId, "Completed");
+        await host.WaitForRunStatusAsync(runId, "Completed");
 
         (await outcome.Task.WaitAsync(TimeSpan.FromSeconds(20))).ShouldBe("cancelled");
 
@@ -260,11 +239,12 @@ public sealed class LateToolCompletionTests
         // A late FAILURE costs nothing and changes no accounting: the model was
         // told the call failed, and it did.
         var faulted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = NewRelease();
 
         await using var host = await TraconTestHost.StartAsync(
             Builder(SlowTool(async _ =>
             {
-                await Task.Delay(TimeSpan.FromMilliseconds(600), CancellationToken.None);
+                await release.Task;
                 faulted.TrySetResult(true);
 
                 throw new InvalidOperationException("the provider rejected it");
@@ -273,11 +253,18 @@ public sealed class LateToolCompletionTests
 
         var runId = await StartAsync(host, "s-late-fault");
 
-        await WaitForStatusAsync(host, runId, "Completed");
+        await host.WaitForRunStatusAsync(runId, "Completed");
+        release.SetResult();
         await faulted.Task.WaitAsync(TimeSpan.FromSeconds(20));
 
-        // Give a write that should never happen a fair window to happen.
-        await Task.Delay(TimeSpan.FromSeconds(1));
+        // Phase 184: a fixed one-second "fair window" stood here, and under load
+        // the observer might not have run inside it - a green test that proved
+        // nothing. The observer logs its decision before it returns, and a
+        // faulted body returns without writing, so once the line is there no
+        // write can still follow.
+        await WaitUntil.TrueAsync(
+            () => host.Logs.AllText.Contains("Tool 'slow_report' faulted after", StringComparison.Ordinal),
+            "the late-settlement observer to see the fault");
 
         var record = await ReadSingleInvocationAsync(host, runId);
 

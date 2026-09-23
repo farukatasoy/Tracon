@@ -27,7 +27,7 @@ public sealed class ProviderConcurrencyLimiterTests
 
         // The second caller must be genuinely BLOCKED, not merely slow: give it
         // a short window and confirm it has not completed.
-        var completedEarly = await Task.WhenAny(secondTask, Task.Delay(100, TestContext.Current.CancellationToken));
+        var completedEarly = await Task.WhenAny(secondTask, Task.Delay(100, TestContext.Current.CancellationToken)); // delay: negative
         completedEarly.ShouldNotBe(secondTask);
 
         first!.Dispose();

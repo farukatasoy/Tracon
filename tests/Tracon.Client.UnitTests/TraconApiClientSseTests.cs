@@ -332,7 +332,7 @@ public sealed class TraconApiClientSseTests
                 return bytes.Length;
             }
 
-            await Task.Delay(Timeout.Infinite, cancellationToken);
+            await Task.Delay(Timeout.Infinite, cancellationToken); // delay: simulated
 
             return 0;
         }

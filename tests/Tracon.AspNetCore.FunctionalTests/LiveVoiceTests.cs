@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
@@ -22,7 +23,19 @@ public sealed class LiveVoiceTests
     private const string Agent = "code-agent";
     private const string Sdp = "v=0\r\no=- 1 1 IN IP4 0.0.0.0\r\ns=-\r\nt=0 0\r\nm=audio 9 UDP/TLS/RTP/SAVPF 111\r\n";
 
-    private static readonly TimeSpan Patience = TimeSpan.FromSeconds(10);
+    /// <summary>How long a live voice wait may take before it is reported as a hang.</summary>
+    /// <remarks>
+    /// 🚨 This is NOT a performance budget. It bounds a failure so a broken live
+    /// session reports instead of hanging the suite; when the condition is already
+    /// true, a larger value costs nothing. Ten seconds was a claim about the
+    /// machine, and a loaded full-solution run broke it twice — the fixes before
+    /// Phase 173 both corrected WHAT the test waits for and left the bound alone.
+    /// The live-voice path is the slowest thing in this assembly (a real WebSocket
+    /// handshake, a fake device, and a server round trip), so it gets the room.
+    /// Phase 184: one value for every live voice test class - three of them still
+    /// carried the ten seconds the lifecycle tests had outgrown.
+    /// </remarks>
+    internal static readonly TimeSpan Patience = TimeSpan.FromSeconds(60);
 
     [Fact]
     public async Task A_session_is_created_and_the_sdp_answer_comes_back()
@@ -328,25 +341,15 @@ public sealed class LiveVoiceTests
             new LiveVoiceSessionCreateRequest { SessionId = sessionId, Agent = agent, Sdp = Sdp },
             TestContext.Current.CancellationToken);
 
-    private static async Task WaitForAsync(Func<Task<bool>> condition)
-    {
-        var deadline = DateTime.UtcNow + Patience;
+    private static Task WaitForAsync(
+        Func<Task<bool>> condition,
+        [CallerArgumentExpression(nameof(condition))] string description = "")
+        => WaitUntil.TrueAsync(condition, description, Patience);
 
-        while (DateTime.UtcNow < deadline)
-        {
-            if (await condition())
-            {
-                return;
-            }
-
-            await Task.Delay(25, TestContext.Current.CancellationToken);
-        }
-
-        throw new TimeoutException("The condition never became true.");
-    }
-
-    private static Task WaitForAsync(Func<bool> condition)
-        => WaitForAsync(() => Task.FromResult(condition()));
+    private static Task WaitForAsync(
+        Func<bool> condition,
+        [CallerArgumentExpression(nameof(condition))] string description = "")
+        => WaitUntil.TrueAsync(condition, description, Patience);
 
     internal static Task<TraconTestHost> StartAsync(
         FakeGptLiveServer provider,

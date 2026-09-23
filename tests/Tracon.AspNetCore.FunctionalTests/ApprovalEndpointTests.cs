@@ -47,43 +47,6 @@ public sealed class ApprovalEndpointTests
             });
     }
 
-    /// <summary>
-    /// Polls a run until it reaches the expected status.
-    /// </summary>
-    /// <remarks>
-    /// 🚨 If the timeout expires, it fails HERE. The earlier version silently
-    /// returned the last status it saw; where the caller did not check it (see
-    /// lines 140, 192), the test continued and failed on an UNRELATED assertion
-    /// ("pending approval list is empty"). Measured with the full suite running:
-    /// 5 sec is not enough with 16 test projects running in parallel; the
-    /// package, which passes 447/447 alone, produced 1 failure in the batch run.
-    /// The timeout was raised to 30 sec (still takes only milliseconds under a
-    /// healthy run, generously, even under load).
-    /// </remarks>
-    private static async Task<string> WaitForStatusAsync(TraconTestHost host, Guid runId, string expected)
-    {
-        var uri = new Uri($"/tracon/api/runs/{runId}", UriKind.Relative);
-        var deadline = DateTime.UtcNow.AddSeconds(30);
-        string? status = null;
-
-        while (DateTime.UtcNow < deadline)
-        {
-            using var poll = await host.Client.GetAsync(uri);
-            status = (await TraconTestHost.ReadJsonAsync(poll)).GetProperty("status").GetString();
-
-            if (string.Equals(status, expected, StringComparison.Ordinal))
-            {
-                // `expected` is not null; if equality held, `status` is not null either.
-                return status!;
-            }
-
-            await Task.Delay(20);
-        }
-
-        throw new InvalidOperationException(
-            $"Run {runId} did not reach status '{expected}' within 30 seconds; last seen status: '{status}'.");
-    }
-
     [Fact]
     public async Task Queued_run_requests_approval_is_approved_from_the_console_and_completes()
     {
@@ -97,7 +60,7 @@ public sealed class ApprovalEndpointTests
 
         var originalRunId = (await TraconTestHost.ReadJsonAsync(accepted)).GetProperty("runId").GetGuid();
 
-        (await WaitForStatusAsync(host, originalRunId, "AwaitingApproval")).ShouldBe("AwaitingApproval");
+        (await host.WaitForRunStatusAsync(originalRunId, "AwaitingApproval")).ShouldBe("AwaitingApproval");
 
         using var pendingResponse = await host.Client.GetAsync(PendingApprovals);
         var pending = (await TraconTestHost.ReadJsonAsync(pendingResponse)).EnumerateArray().ShouldHaveSingleItem();
@@ -120,7 +83,7 @@ public sealed class ApprovalEndpointTests
 
         // The old run REMAINS AwaitingApproval (K-014); a new run continues with
         // the same session and becomes Completed.
-        (await WaitForStatusAsync(host, originalRunId, "AwaitingApproval")).ShouldBe("AwaitingApproval");
+        (await host.WaitForRunStatusAsync(originalRunId, "AwaitingApproval")).ShouldBe("AwaitingApproval");
 
         using var runningJobs = await host.Client.GetAsync(new Uri("/tracon/api/runs?sessionId=session-1", UriKind.Relative));
         var runs = (await TraconTestHost.ReadJsonAsync(runningJobs)).EnumerateArray().ToList();
@@ -131,7 +94,7 @@ public sealed class ApprovalEndpointTests
             .Select(static run => run.GetProperty("id").GetGuid())
             .Single(id => id != originalRunId);
 
-        (await WaitForStatusAsync(host, resumedRunId, "Completed")).ShouldBe("Completed");
+        (await host.WaitForRunStatusAsync(resumedRunId, "Completed")).ShouldBe("Completed");
 
         using var finalRun = await host.Client.GetAsync(new Uri($"/tracon/api/runs/{resumedRunId}", UriKind.Relative));
         var finalBody = await TraconTestHost.ReadJsonAsync(finalRun);
@@ -152,7 +115,7 @@ public sealed class ApprovalEndpointTests
         using var accepted = await PostQueuedAsync(host, new AgentRunRequest { Message = "cancel the order", SessionId = "session-2" });
         var runId = (await TraconTestHost.ReadJsonAsync(accepted)).GetProperty("runId").GetGuid();
 
-        await WaitForStatusAsync(host, runId, "AwaitingApproval");
+        await host.WaitForRunStatusAsync(runId, "AwaitingApproval");
 
         using var pendingResponse = await host.Client.GetAsync(PendingApprovals);
         var approvalId = (await TraconTestHost.ReadJsonAsync(pendingResponse))
@@ -204,7 +167,7 @@ public sealed class ApprovalEndpointTests
         using var accepted = await PostQueuedAsync(host, new AgentRunRequest { Message = "cancel the order", SessionId = "session-3" });
         var runId = (await TraconTestHost.ReadJsonAsync(accepted)).GetProperty("runId").GetGuid();
 
-        await WaitForStatusAsync(host, runId, "AwaitingApproval");
+        await host.WaitForRunStatusAsync(runId, "AwaitingApproval");
 
         using var pendingResponse = await host.Client.GetAsync(PendingApprovals);
         var approvalId = (await TraconTestHost.ReadJsonAsync(pendingResponse))
@@ -307,7 +270,7 @@ public sealed class ApprovalEndpointTests
             host, new AgentRunRequest { Message = "cancel the order", SessionId = "session-order" });
         var runId = (await TraconTestHost.ReadJsonAsync(accepted)).GetProperty("runId").GetGuid();
 
-        (await WaitForStatusAsync(host, runId, "AwaitingApproval")).ShouldBe("AwaitingApproval");
+        (await host.WaitForRunStatusAsync(runId, "AwaitingApproval")).ShouldBe("AwaitingApproval");
 
         // The contract a consumer sees: the status and a listable approval arrive
         // together. Measured before the fix, this read answered an EMPTY array —

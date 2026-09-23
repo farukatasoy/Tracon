@@ -41,7 +41,7 @@ public sealed class McpTasksEndpointTests
                 if (context.Request.Path.StartsWithSegments("/tracon/mcp", StringComparison.Ordinal)
                     && Interlocked.Exchange(ref firstRequest, 1) == 0)
                 {
-                    await Task.Delay(TimeSpan.FromSeconds(6));
+                    await Task.Delay(TimeSpan.FromSeconds(6)); // delay: simulated
                 }
 
                 await next();
@@ -201,7 +201,7 @@ public sealed class McpTasksEndpointTests
                     (Func<CancellationToken, Task<string>>)(async ct =>
                     {
                         entered.Release();
-                        await Task.Delay(Timeout.InfiniteTimeSpan, ct);
+                        await Task.Delay(Timeout.InfiniteTimeSpan, ct); // delay: simulated
                         return "unreachable";
                     }),
                     name: "block_forever",
@@ -370,27 +370,8 @@ public sealed class McpTasksEndpointTests
     private static CallToolResult DeserializeResult(CompletedTaskResult result)
         => JsonSerializer.Deserialize<CallToolResult>(result.Result, McpJsonUtilities.DefaultOptions)!;
 
-    private static async Task<T> Poll<T>(Func<Task<T>> read, Func<T, bool> isDone)
-    {
-        var deadline = DateTime.UtcNow.AddSeconds(10);
-
-        while (true)
-        {
-            var value = await read();
-
-            if (isDone(value))
-            {
-                return value;
-            }
-
-            if (DateTime.UtcNow > deadline)
-            {
-                throw new TimeoutException("Timed out waiting for the task to reach the expected state.");
-            }
-
-            await Task.Delay(20);
-        }
-    }
+    private static Task<T> Poll<T>(Func<Task<T>> read, Func<T, bool> isDone)
+        => WaitUntil.ValueAsync(read, isDone, "the task to reach the expected state");
 
     private static async Task<T> Poll<T>(Func<ValueTask<T>> read, Func<T, bool> isDone)
         => await Poll(() => read().AsTask(), isDone);

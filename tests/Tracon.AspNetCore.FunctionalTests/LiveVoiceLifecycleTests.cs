@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Runtime.CompilerServices;
 using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 
@@ -20,17 +21,8 @@ public sealed class LiveVoiceLifecycleTests
     private const string Agent = "code-agent";
     private const string Sdp = "v=0\r\no=- 1 1 IN IP4 0.0.0.0\r\ns=-\r\nt=0 0\r\n";
 
-    /// <summary>How long a wait may take before it is reported as a hang.</summary>
-    /// <remarks>
-    /// 🚨 This is NOT a performance budget. It bounds a failure so a broken live
-    /// session reports instead of hanging the suite; when the condition is already
-    /// true, a larger value costs nothing. Ten seconds was a claim about the
-    /// machine, and a loaded full-solution run broke it twice — the fixes before
-    /// this one both corrected WHAT the test waits for and left the bound alone.
-    /// The live-voice path is the slowest thing in this assembly (a real WebSocket
-    /// handshake, a fake device, and a server round trip), so it gets the room.
-    /// </remarks>
-    private static readonly TimeSpan Patience = TimeSpan.FromSeconds(60);
+    /// <summary>How long a wait may take before it is reported as a hang (see <see cref="LiveVoiceTests.Patience"/>).</summary>
+    private static readonly TimeSpan Patience = LiveVoiceTests.Patience;
 
     [Fact]
     public async Task The_transcript_is_written_to_the_session_history_when_persistence_is_on()
@@ -135,9 +127,14 @@ public sealed class LiveVoiceLifecycleTests
         await provider.SendInputTranscriptAsync(" Look up order 442", 3800, 4200);
         await provider.SendDelegationAsync("item_1", 3800);
 
-        await WaitForAsync(() => guard.Inspected.Count > 0);
-        await Task.Delay(300, TestContext.Current.CancellationToken);
+        // Phase 184: a fixed 300 ms after the inspection stood here. The runner
+        // logs the refusal and returns before anything is sent, so the line
+        // marks the moment the decision is final.
+        await WaitForAsync(() => host.Logs.AllText.Contains(
+            "A content guard blocked an append on live voice session",
+            StringComparison.Ordinal));
 
+        guard.Inspected.ShouldNotBeEmpty();
         provider.AppendsOf("session.commentary.append").ShouldBeEmpty();
 
         await CloseAsync(host, voiceSessionId);
@@ -149,6 +146,8 @@ public sealed class LiveVoiceLifecycleTests
         // The provider decides when to delegate. Without the ceiling it would decide
         // how many agent runs Tracon starts, which is a denial-of-service axis
         // pointing straight at the consumer's own model spend.
+        var slow = new SlowAgentDecorator();
+
         await using var provider = await FakeGptLiveServer.StartAsync();
         await using var host = await LiveVoiceTests.StartAsync(
             provider,
@@ -157,7 +156,7 @@ public sealed class LiveVoiceLifecycleTests
                 options.MaxConcurrentDelegations = 1;
                 options.DelegationTimeout = TimeSpan.FromSeconds(30);
             },
-            configureServices: services => services.AddSingleton<IAgentDecorator>(new SlowAgentDecorator()));
+            configureServices: services => services.AddSingleton<IAgentDecorator>(slow));
 
         var voiceSessionId = await OpenAsync(host, provider, "session-busy");
 
@@ -165,7 +164,7 @@ public sealed class LiveVoiceLifecycleTests
         await provider.SendDelegationAsync("item_first", 3800);
 
         // The first delegation is still running; the second must be refused.
-        await Task.Delay(300, TestContext.Current.CancellationToken);
+        await slow.Entered.WaitAsync(Patience, TestContext.Current.CancellationToken);
         await provider.SendDelegationAsync("item_second", 3800);
 
         await WaitForAsync(() => provider.AppendsOf("session.thinking.append")
@@ -185,18 +184,20 @@ public sealed class LiveVoiceLifecycleTests
     [Fact]
     public async Task Closing_a_session_cancels_a_delegation_that_is_still_running()
     {
+        var slow = new SlowAgentDecorator();
+
         await using var provider = await FakeGptLiveServer.StartAsync();
         await using var host = await LiveVoiceTests.StartAsync(
             provider,
             configureLive: options => options.DelegationTimeout = TimeSpan.FromMinutes(5),
-            configureServices: services => services.AddSingleton<IAgentDecorator>(new SlowAgentDecorator()));
+            configureServices: services => services.AddSingleton<IAgentDecorator>(slow));
 
         var voiceSessionId = await OpenAsync(host, provider, "session-cancel");
 
         await provider.SendInputTranscriptAsync(" Look up order 442", 3800, 4200);
         await provider.SendDelegationAsync("item_1", 3800);
 
-        await Task.Delay(300, TestContext.Current.CancellationToken);
+        await slow.Entered.WaitAsync(Patience, TestContext.Current.CancellationToken);
 
         // The close must return rather than block on the running delegation.
         using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(20));
@@ -273,10 +274,10 @@ public sealed class LiveVoiceLifecycleTests
         await using var provider = await FakeGptLiveServer.StartAsync();
         await using var host = await LiveVoiceTests.StartAsync(provider);
 
-        await OpenAsync(host, provider, "session-provider-close");
+        var voiceSessionId = await OpenAsync(host, provider, "session-provider-close");
 
         await provider.SendInputTranscriptAsync(" Hello", 600, 800);
-        await Task.Delay(200, TestContext.Current.CancellationToken);
+        await WaitUntilActiveAsync(host, voiceSessionId);
         await provider.SendClosedAsync("provider_shutdown", 42m);
 
         var store = host.Services.GetRequiredService<IVoiceSessionStore>();
@@ -307,10 +308,10 @@ public sealed class LiveVoiceLifecycleTests
         await using var provider = await FakeGptLiveServer.StartAsync();
         await using var host = await LiveVoiceTests.StartAsync(provider);
 
-        await OpenAsync(host, provider, "session-dead-socket");
+        var voiceSessionId = await OpenAsync(host, provider, "session-dead-socket");
 
         await provider.SendInputTranscriptAsync(" Hello", 600, 800);
-        await Task.Delay(200, TestContext.Current.CancellationToken);
+        await WaitUntilActiveAsync(host, voiceSessionId);
         await provider.KillSidebandAsync();
 
         var store = host.Services.GetRequiredService<IVoiceSessionStore>();
@@ -366,25 +367,35 @@ public sealed class LiveVoiceLifecycleTests
         return record is null ? [] : [record.State.GetRawText()];
     }
 
-    private static async Task WaitForAsync(Func<Task<bool>> condition)
-    {
-        var deadline = DateTime.UtcNow + Patience;
+    private static Task WaitForAsync(
+        Func<Task<bool>> condition,
+        [CallerArgumentExpression(nameof(condition))] string description = "")
+        => WaitUntil.TrueAsync(condition, description, Patience);
 
-        while (DateTime.UtcNow < deadline)
-        {
-            if (await condition())
+    private static Task WaitForAsync(
+        Func<bool> condition,
+        [CallerArgumentExpression(nameof(condition))] string description = "")
+        => WaitUntil.TrueAsync(condition, description, Patience);
+
+    /// <summary>
+    /// Waits until the session has seen media. Phase 184: a fixed 200 ms after
+    /// the transcript stood here - the end reason depends on whether the host
+    /// had already marked the session active when the provider closed it.
+    /// </summary>
+    private static Task WaitUntilActiveAsync(TraconTestHost host, Guid voiceSessionId)
+        => WaitForAsync(
+            async () =>
             {
-                return;
-            }
+                using var status = await host.Client.GetAsync(
+                    $"/tracon/api/voice/live/sessions/{voiceSessionId:D}",
+                    TestContext.Current.CancellationToken);
 
-            await Task.Delay(25, TestContext.Current.CancellationToken);
-        }
-
-        throw new TimeoutException("The condition never became true.");
-    }
-
-    private static Task WaitForAsync(Func<bool> condition)
-        => WaitForAsync(() => Task.FromResult(condition()));
+                return string.Equals(
+                    (await TraconTestHost.ReadJsonAsync(status)).GetProperty("state").GetString(),
+                    "active",
+                    StringComparison.Ordinal);
+            },
+            $"live voice session {voiceSessionId} to become active");
 
     /// <summary>A guard that records what it saw and can refuse everything.</summary>
     private sealed class RecordingContentGuard : IContentGuard
@@ -412,17 +423,27 @@ public sealed class LiveVoiceLifecycleTests
         }
     }
 
-    /// <summary>Wraps the agent so a delegated run takes long enough to overlap.</summary>
+    /// <summary>Wraps the agent so a delegated run stays running until it is cancelled.</summary>
+    /// <remarks>
+    /// Phase 184: the run used to sleep two seconds and each test slept 300 ms
+    /// and hoped the delegation had started by then. <see cref="Entered"/> says
+    /// when it has; the run then holds until the session cancels it.
+    /// </remarks>
     private sealed class SlowAgentDecorator : IAgentDecorator
     {
+        private readonly TaskCompletionSource _entered = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        /// <summary>Completes once a delegated run has started.</summary>
+        public Task Entered => _entered.Task;
+
         public int Order => 0;
 
         public Microsoft.Agents.AI.AIAgent Decorate(
             Microsoft.Agents.AI.AIAgent agent,
             AgentDescriptor descriptor)
-            => new SlowAgent(agent);
+            => new SlowAgent(agent, _entered);
 
-        private sealed class SlowAgent(Microsoft.Agents.AI.AIAgent inner)
+        private sealed class SlowAgent(Microsoft.Agents.AI.AIAgent inner, TaskCompletionSource entered)
             : Microsoft.Agents.AI.DelegatingAIAgent(inner)
         {
             protected override async IAsyncEnumerable<Microsoft.Agents.AI.AgentResponseUpdate> RunCoreStreamingAsync(
@@ -431,7 +452,8 @@ public sealed class LiveVoiceLifecycleTests
                 Microsoft.Agents.AI.AgentRunOptions? options = null,
                 [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
             {
-                await Task.Delay(TimeSpan.FromSeconds(2), cancellationToken).ConfigureAwait(false);
+                entered.TrySetResult();
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken).ConfigureAwait(false); // delay: simulated
 
                 await foreach (var update in base.RunCoreStreamingAsync(messages, session, options, cancellationToken)
                     .WithCancellation(cancellationToken)

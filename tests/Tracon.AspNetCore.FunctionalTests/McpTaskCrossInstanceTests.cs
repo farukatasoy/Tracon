@@ -148,25 +148,6 @@ public sealed class McpTaskCrossInstanceTests
     private static Dictionary<string, JsonElement> Arguments(string message)
         => new(StringComparer.Ordinal) { ["message"] = JsonSerializer.SerializeToElement(message) };
 
-    private static async Task<T> Poll<T>(Func<ValueTask<T>> read, Func<T, bool> isDone)
-    {
-        var deadline = DateTime.UtcNow.AddSeconds(15);
-
-        while (true)
-        {
-            var value = await read();
-
-            if (isDone(value))
-            {
-                return value;
-            }
-
-            if (DateTime.UtcNow > deadline)
-            {
-                throw new TimeoutException("Timed out waiting for the task to reach the expected state.");
-            }
-
-            await Task.Delay(50);
-        }
-    }
+    private static Task<T> Poll<T>(Func<ValueTask<T>> read, Func<T, bool> isDone)
+        => WaitUntil.ValueAsync(async () => await read(), isDone, "the task to reach the expected state");
 }

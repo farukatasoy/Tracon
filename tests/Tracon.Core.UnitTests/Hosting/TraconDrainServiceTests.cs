@@ -52,26 +52,26 @@ public sealed class TraconDrainServiceTests
         var runCts = new CancellationTokenSource();
         var registration = registry.Register(Guid.NewGuid(), Guid.NewGuid(), tenantId: null, runCts);
 
+        // Phase 184: the run used to end on a 150 ms timer while the test raced
+        // StopAsync against a 4-second one. The drain timeout is now far longer
+        // than the test's own bound, so a drain that returns only on timeout
+        // fails instead of passing late.
         var service = new TraconDrainService(
             registry,
-            Options(new TraconDrainOptions { Enabled = true, Timeout = TimeSpan.FromSeconds(5) }),
+            Options(new TraconDrainOptions { Enabled = true, Timeout = TimeSpan.FromMinutes(5) }),
             logger: NullLogger<TraconDrainService>.Instance);
 
         await service.StartAsync(TestContext.Current.CancellationToken);
 
-        var finishesShortly = Task.Run(async () =>
-        {
-            await Task.Delay(TimeSpan.FromMilliseconds(150), TestContext.Current.CancellationToken);
-            registration.Dispose();
-            runCts.Dispose();
-        }, TestContext.Current.CancellationToken);
-
         var stopped = service.StopAsync(TestContext.Current.CancellationToken);
-        var completedFirst = await Task.WhenAny(stopped, Task.Delay(TimeSpan.FromSeconds(4), TestContext.Current.CancellationToken));
 
-        completedFirst.ShouldBe(stopped);
+        stopped.IsCompleted.ShouldBeFalse("the drain waits while a run is still active");
+
+        registration.Dispose();
+        runCts.Dispose();
+
+        await stopped.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
         registry.ActiveCount.ShouldBe(0);
-        await finishesShortly;
     }
 
     [Fact]

@@ -83,21 +83,13 @@ internal sealed class MeterInstanceCollector : IDisposable
     /// </remarks>
     public async Task<Measurement> WaitForAsync(string name, TimeSpan? timeout = null)
     {
-        var deadline = DateTimeOffset.UtcNow + (timeout ?? TimeSpan.FromSeconds(30));
+        var published = await WaitUntil.ValueAsync(
+            () => Task.FromResult(Snapshot(name)),
+            static measurements => measurements.Count > 0,
+            $"a measurement named '{name}' (the instrument may not be wired into the real DI chain)",
+            timeout);
 
-        while (DateTimeOffset.UtcNow < deadline)
-        {
-            if (Snapshot(name) is [var first, ..])
-            {
-                return first;
-            }
-
-            await Task.Delay(25, TestContext.Current.CancellationToken);
-        }
-
-        throw new InvalidOperationException(
-            $"No measurement named '{name}' was published within the timeout. " +
-            "The instrument may not be wired into the real DI chain.");
+        return published[0];
     }
 
     /// <summary>Polls the observable instruments and returns what <paramref name="name"/> reported.</summary>

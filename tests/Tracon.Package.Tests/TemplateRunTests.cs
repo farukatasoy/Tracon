@@ -64,7 +64,7 @@ public sealed class TemplateRunTests(TemplateFixture fixture)
                             $"The application exited unexpectedly (code {process.ExitCode}).{Environment.NewLine}{stdOut}{Environment.NewLine}{stdErr}");
                     }
 
-                    await Task.Delay(TimeSpan.FromMilliseconds(500));
+                    await Task.Delay(TimeSpan.FromMilliseconds(500)); // delay: retry
                 }
             }
 
