@@ -187,6 +187,70 @@ public sealed class PlaywrightLocatorTests
         }
     }
 
+    /// <summary>
+    /// Phase 184: a <c>//</c> inside a string literal was read as a comment,
+    /// and the scan then stopped counting that locator kind for the rest of
+    /// the file.
+    /// </summary>
+    [Fact]
+    public void Scan_is_not_stopped_by_a_url_inside_a_string()
+    {
+        var directory = Directory.CreateTempSubdirectory("tracon-locator-test");
+
+        try
+        {
+            File.WriteAllText(
+                Path.Combine(directory.FullName, "Sample.cs"),
+                """"
+                public sealed class SampleTest
+                {
+                    public async Task RunAsync(IPage page)
+                    {
+                        await page.GetByPlaceholder("https://mcp.example.com/mcp").FillAsync("https://a.test/");
+                        await page.GetByPlaceholder($"{Url}/mcp", new() { Exact = true }).FillAsync(@"C:\dir\");
+                        await page.GetByText("""a "quoted" // not a comment""").ClickAsync();
+                        await page.GetByPlaceholder("later").FillAsync("x");
+                    }
+                }
+                """");
+
+            Scan(directory.FullName).ShouldContainKeyAndValue("Sample.cs", 3);
+        }
+        finally
+        {
+            directory.Delete(recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Scan_does_not_count_a_locator_named_inside_a_block_comment()
+    {
+        var directory = Directory.CreateTempSubdirectory("tracon-locator-test");
+
+        try
+        {
+            File.WriteAllText(
+                Path.Combine(directory.FullName, "Sample.cs"),
+                """
+                public sealed class SampleTest
+                {
+                    public async Task RunAsync(IPage page)
+                    {
+                        /* GetByText("old") was replaced
+                           by GetByTestId below. */
+                        await page.GetByTestId("new").ClickAsync();
+                    }
+                }
+                """);
+
+            Scan(directory.FullName).ShouldNotContainKey("Sample.cs");
+        }
+        finally
+        {
+            directory.Delete(recursive: true);
+        }
+    }
+
     [Fact]
     public void Scan_does_not_count_a_locator_with_Exact_true()
     {
@@ -235,7 +299,7 @@ public sealed class PlaywrightLocatorTests
                 continue;
             }
 
-            var text = WithoutLineComments(File.ReadAllText(file));
+            var text = WithoutComments(File.ReadAllText(file));
             var risky = CountRiskyCalls(text);
 
             if (risky > 0)
@@ -248,41 +312,207 @@ public sealed class PlaywrightLocatorTests
     }
 
     /// <summary>
-    /// Blanks out <c>//</c> line comments, keeping the line count and every
-    /// other character position intact.
+    /// Blanks out comments, keeping the line count and every other character
+    /// position intact. String and character literals are read, never blanked.
     /// </summary>
     /// <remarks>
     /// A comment that MENTIONS a locator is not a locator call. Counting one
     /// inflates the file's debt by a number nobody can find in the code, and —
     /// worse — it lets a real risky call be added for free whenever a comment
     /// explaining a locator is deleted in the same change. Measured in phase
-    /// 164: `UiTests.cs` carried two such comments.
+    /// 164: <c>UiTests.cs</c> carried two such comments.
     /// <para>
-    /// A <c>//</c> inside a string literal would be blanked too. No locator
-    /// argument in this repository contains one, and the failure mode is the
-    /// safe direction anyway: a missed call is caught by the strict-mode
-    /// failure the ratchet exists to prevent, at the moment it happens.
+    /// 🚨 Phase 184: the first version cut every line at its first <c>//</c>,
+    /// inside a string literal too. <c>GetByPlaceholder("https://mcp.example.com/mcp")</c>
+    /// lost its closing parenthesis, the parenthesis walk below ran off the end
+    /// of the file, and the scan stopped counting <c>GetByPlaceholder</c> for
+    /// the rest of <c>UiTests.cs</c>: eight calls, seven of them risky, never
+    /// reached the ratchet. The file's split into one file per screen is what
+    /// showed it - the same calls counted 119 in one file and 126 in many.
     /// </para>
     /// </remarks>
-    private static string WithoutLineComments(string text)
+    private static string WithoutComments(string text)
     {
-        var builder = new StringBuilder(text.Length);
-        var lines = text.Split('\n');
+        var output = text.ToCharArray();
+        var index = 0;
 
-        for (var index = 0; index < lines.Length; index++)
+        ReadCode(text, output, ref index, insideHole: false);
+
+        return new string(output);
+    }
+
+    /// <summary>
+    /// Reads code, blanking its comments, until the text ends - or, inside an
+    /// interpolation hole, until the <c>}</c> that closes the hole.
+    /// </summary>
+    private static void ReadCode(string text, char[] output, ref int index, bool insideHole)
+    {
+        var braces = 0;
+
+        while (index < text.Length)
         {
-            var line = lines[index];
-            var comment = line.IndexOf("//", StringComparison.Ordinal);
+            var current = text[index];
+            var next = index + 1 < text.Length ? text[index + 1] : '\0';
 
-            builder.Append(comment < 0 ? line : line[..comment]);
-
-            if (index < lines.Length - 1)
+            if (current == '/' && next == '/')
             {
-                builder.Append('\n');
+                while (index < text.Length && text[index] != '\n')
+                {
+                    output[index++] = ' ';
+                }
+            }
+            else if (current == '/' && next == '*')
+            {
+                var close = text.IndexOf("*/", index + 2, StringComparison.Ordinal);
+                var stop = close < 0 ? text.Length : close + 2;
+
+                for (; index < stop; index++)
+                {
+                    output[index] = text[index] == '\n' ? '\n' : ' ';
+                }
+            }
+            else if (current == '\'')
+            {
+                ReadCharacter(text, ref index);
+            }
+            else if (StartsString(text, index))
+            {
+                ReadString(text, output, ref index);
+            }
+            else
+            {
+                if (insideHole && current == '{')
+                {
+                    braces++;
+                }
+                else if (insideHole && current == '}')
+                {
+                    if (braces == 0)
+                    {
+                        return;
+                    }
+
+                    braces--;
+                }
+
+                index++;
             }
         }
+    }
 
-        return builder.ToString();
+    /// <summary>Whether a string literal (with any <c>$</c>/<c>@</c> prefix) starts at <paramref name="index"/>.</summary>
+    private static bool StartsString(string text, int index)
+    {
+        var at = index;
+
+        while (at < text.Length && text[at] is '$' or '@')
+        {
+            at++;
+        }
+
+        return at < text.Length && text[at] == '"';
+    }
+
+    private static void ReadCharacter(string text, ref int index)
+    {
+        index++;
+
+        while (index < text.Length && text[index] != '\'')
+        {
+            index += text[index] == '\\' ? 2 : 1;
+        }
+
+        index++;
+    }
+
+    private static void ReadString(string text, char[] output, ref int index)
+    {
+        var dollars = 0;
+        var verbatim = false;
+
+        while (text[index] is '$' or '@')
+        {
+            dollars += text[index] == '$' ? 1 : 0;
+            verbatim |= text[index] == '@';
+            index++;
+        }
+
+        var quotes = 0;
+
+        while (index + quotes < text.Length && text[index + quotes] == '"')
+        {
+            quotes++;
+        }
+
+        if (quotes == 2)
+        {
+            // An empty string: "" (or @"", $"").
+            index += 2;
+            return;
+        }
+
+        var raw = quotes >= 3;
+        index += raw ? quotes : 1;
+
+        while (index < text.Length)
+        {
+            var current = text[index];
+
+            if (raw && current == '"' && Run(text, index, '"') >= quotes)
+            {
+                index += Run(text, index, '"');
+                return;
+            }
+
+            if (!raw && current == '"')
+            {
+                if (verbatim && index + 1 < text.Length && text[index + 1] == '"')
+                {
+                    index += 2;
+                    continue;
+                }
+
+                index++;
+                return;
+            }
+
+            if (!raw && !verbatim && current == '\\')
+            {
+                index += 2;
+                continue;
+            }
+
+            if (dollars > 0 && current == '{')
+            {
+                var run = Run(text, index, '{');
+                var opens = raw ? run >= dollars : run % 2 == 1;
+
+                index += raw ? dollars : run;
+
+                if (opens)
+                {
+                    ReadCode(text, output, ref index, insideHole: true);
+                    index += raw ? dollars : 1;
+                }
+
+                continue;
+            }
+
+            index++;
+        }
+    }
+
+    /// <summary>How many times <paramref name="character"/> repeats from <paramref name="index"/>.</summary>
+    private static int Run(string text, int index, char character)
+    {
+        var run = 0;
+
+        while (index + run < text.Length && text[index + run] == character)
+        {
+            run++;
+        }
+
+        return run;
     }
 
     /// <summary>
@@ -309,7 +539,12 @@ public sealed class PlaywrightLocatorTests
 
                 if (callEnd < 0)
                 {
-                    break;
+                    // Never true for compiling source. Counted rather than
+                    // skipped: stopping here would hide every later call of
+                    // this kind in the file (Phase 184).
+                    risky++;
+                    index = argumentsStart;
+                    continue;
                 }
 
                 var arguments = text[argumentsStart..callEnd];
