@@ -473,7 +473,7 @@ class KapiTestleri(unittest.TestCase):
 
         self.assertIn("dotnet build Tracon.slnx -c Release", rendered)
         self.assertIn(
-            "dotnet test Tracon.slnx -c Release --no-build -maxcpucount:1 -- --report-trx",
+            "dotnet test Tracon.slnx -c Release --no-build -maxcpucount:2 -- --report-trx",
             rendered)
         # TraconSkipCleanWorkingTreeCheck (Faz 136): this pack validates the
         # packaging CONTRACT during iteration, not a release candidate - it must
@@ -502,7 +502,7 @@ class KapiTestleri(unittest.TestCase):
         rendered = [command.display for command in commands]
 
         self.assertIn(
-            "dotnet test Tracon.slnx -c Release --no-build -maxcpucount:1 -- --report-trx",
+            "dotnet test Tracon.slnx -c Release --no-build -maxcpucount:2 -- --report-trx",
             rendered)
 
     def test_dry_run_komut_calistirmaz(self):

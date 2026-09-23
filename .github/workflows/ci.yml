@@ -233,6 +233,9 @@ jobs:
         # xunit.v3 Microsoft Testing Platform kullanir; rapor bayraklari VSTest'ten farklidir.
         # `--` sonrasi gelen argumanlar dogrudan test uygulamasina gecer.
         # TRX ciktisi test ikilisinin yanindaki TestResults klasorune yazilir.
+        # -maxcpucount:1 BILEREK: yerel kapi (kapi.py) Faz 184'ten beri 2 ile
+        # kosar, ama o olcum gelistirici makinesindeydi; runner donanimi
+        # olculmeden burasi degismez.
         run: dotnet test Tracon.slnx -c Release --no-build -maxcpucount:1 -- --report-trx
 
       - name: Test et (Docker gerektirmeyenler)
