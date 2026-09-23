@@ -135,6 +135,10 @@ sinyali bekliyordu — sorun bekleyisin kendisi degil, **siniriydi**:
 | `LiveVoiceLifecycleTests.The_transcript_is_written_…` | `Patience = 10 sn` | `TimeoutException: The condition never became true` (11,2 sn'de) |
 | `UiTests.Playground_voice_mode_…` | Playwright `Timeout = 30_000` | `waiting for GetByTestId("voice-transcript") to be visible` |
 
+🚨 **Düzeltme (Faz 184):** ikinci satırın sebebi sınır DEĞİLDİ — test `commit`'e
+ses gelmeden basıyordu ve 60 sn de yetmedi. Üçüncü soru: *bekleyiş neden
+başladı?* ([vakalar](test-yalitimi-vakalari.md), "kök sebep bulundu").
+
 Ucu de ayni kural: **bir zaman asimi bir PERFORMANS BUTCESI DEGILDIR.** Isi
 yalnizca bir arizayi sinirlamaktir — kosul zaten saglaniyorsa buyuk bir sinir
 hicbir sey maliyet etmez, kucuk bir sinir ise "bu makine su kadar hizli"

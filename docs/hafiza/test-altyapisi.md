@@ -12,6 +12,10 @@
 > 4.13 ctor'u, Shouldly/Meziantou cakismalari, erken Playwright locator tuzaklari)
 > butce yuzunden [`../arsiv/HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md)'ye
 > tasindi (Faz 76). Kurallar hala gecerli — bir tuzak ararken oraya da grep at.
+>
+> **Bekleme ve E2E düzeni (Faz 184):** duruma bekleyen test `WaitUntil`,
+> konsol testi web-first `Expect` kullanır; kalan `Task.Delay` sınıf etiketi
+> taşır. Kural ve ölçüm: [`test-paralellik-ve-zamanlama.md`](test-paralellik-ve-zamanlama.md).
 
 ## Circir testi ve uretilen dosya okuma (Faz 74)
 

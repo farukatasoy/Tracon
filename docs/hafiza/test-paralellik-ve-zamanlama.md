@@ -41,3 +41,12 @@ cagirir.
   altyapiya bak (tek proje kosumu 558/558 geciyordu).
 - **"failed: 0" ama toplam sayi dusmusse kosum eksiktir.**
   `grep -cE "Test run summary:"` ile proje sayisini da say — beklenen **16**.
+
+## Koşul-bekleme ve E2E paralelliği (Faz 184)
+
+- **Bir duruma bekleyen test `WaitUntil` kullanır** (`tests/Shared/Waiting/WaitUntil.cs`, her test projesine bağlı, `Tracon.Tests.Common` global using). Sınır yalnız arızayı keser, varsayılan 30 sn'dir; zaman aşımı açıklamayı (verilmezse koşulun kaynak metnini) ve son değeri yazar. Kalan her `Task.Delay(` satırı `// delay: <sınıf>` taşır — `simulated · product · negative · bound · retry · fixture`; `poll` yalnız `WaitUntil`'dedir. Kapı: `TestDelayClassificationTests`.
+- **🚨 Negatif iddia önündeki sabit uyku bir KANIT değildir** — yük altında pencerede hiçbir şey olmayabilir ve test yeşil kalır. Pozitif sinyal ara: sürecin okuma sayacı (drain), sonraki geçişte kapanan sessionsız "nöbetçi" `run` (uzlaştırıcı), kararı yazan log satırı (geç tool, terk edilen alt agent), kendi kulvarındaki iş (lane).
+- **🚨 Bekleme, iddiasından DAR olmamalı** (ölçüldü, net10 bacağı): `RunRecordingAgent` iptal kaydını `run` satırından ÖNCE yazar; `ActiveCount == 1`'i bekleyip satırı okuyan dört test yarıştı. Bir sonraki satır neyi okuyorsa onu bekle.
+- **🚨 `CancelAfter(ms)` da bir sabit uykudur**: iptal, gövde daha girmeden gelebilir (`ChildAgentInvokerTests`, `ScopedToolTests`). Gövde girdiğini işaretlesin, test sonra iptal etsin.
+- **E2E sınıfları paralel koşar** (Faz 184): 23 ekran sınıfı, `xunit.runner.json` üst sınırı 4. Ölçüm: tek başına 5/5 yeşil 35-48 sn (seri 93-99 sn); tam koşumda 35 sn (seri 89 sn). Paralel koşum iki gerçek yarış açtı — ikisi de seri yükte de mümkündü: ses testi `commit`'i ses verisinden önce gönderiyordu (sunucu `idle` der, transkript hiç gelmez; altı fazda "yavaş makine" sanıldı) ve rozet sayısı liste yüklenmeden okunuyordu. **Tek atımlık okuma (`CountAsync`, `GetAttributeAsync`…) + Shouldly** bu sınıftır; web-first `Expect` yeniden dener.
+- **Tam koşum süresi E2E kazancını göstermez**: 884 → 863 → 879 sn; koşumdan koşuma `Package.Tests` tek başına 2:30–3:40 oynar. Proje süresine bak, toplam gürültüdür.

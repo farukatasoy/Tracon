@@ -1,6 +1,6 @@
 # 36 — Geliştirme Döngüsü Kapıları (`GDK`)
 
-> **Alan kodu:** `GDK` · **Faz:** 91, 92, 116, 166, 167, 168, 169, 180
+> **Alan kodu:** `GDK` · **Faz:** 91, 92, 116, 166, 167, 168, 169, 180, 184
 > **Kaynak:** `scripts/kapi.py` · `scripts/denetim-paketi.py`
 > · `scripts/dokuman-bakim.py` (Faz 169)
 > · `scripts/*_test.py` · `src/Tracon.UI/Tracon.UI.Frontend.targets`
@@ -12,6 +12,7 @@
 > · `.agents/ortak/kurtarma.md` (Faz 168)
 > · `scripts/capacity.py` · `bench/capacity/` · `tests/Tracon.Capacity.Tests/` (Faz 166)
 > · `scripts/manuel-test-tazelik.py` · `scripts/manuel_test_tazelik_test.py` (Faz 180)
+> · `tests/Shared/Waiting/WaitUntil.cs` · `tests/Tracon.Core.UnitTests/Architecture/TestDelayClassificationTests.cs` · `tests/Tracon.Ui.E2ETests/Ui/` (Faz 184)
 
 Bu aile, geliştirme kapılarının komutları sessizce atlamadığını ve tarihsel
 kusur sınıflarını yeniden görebildiğini kanıtlar. Python testleri otomatik
@@ -72,6 +73,10 @@ kapıdır; aşağıdaki case'ler kabul davranışını tarif eder.
 | 49 | `MT-GDK-049` | Aile 07 devir işaretli (Faz 180); temiz ağaç | `python3 scripts/manuel-test-tazelik.py` | Çıkış `0`; taban İSTEMEZ ve hiçbir dosya yazmaz. Aile başına `devredildi / manuel / işaretsiz` basılır; `07` satırı `42 / 1 / 0` der. Bayat işaret bölümü "Yok" yazar |
 | 50 | `MT-GDK-050` | Aynı | Aile 07'deki bir `➜ CI:` hedefinin adını boz (ör. sonuna `_RENAMED` ekle), aynı komutu koş, sonra geri al | Çıkış `1`; `stderr` işareti `<aile> · <case> -> <hedef>` biçiminde adıyla yazar. 🚨 Çözülemeyen kaynak yolu yalnız **uyarıdır**, bayat işaret **kırmızıdır** — biri ölçümü kabalaştırır, öteki kanıtsız bir case'i kanıtlıymış gösterir |
 | 51 | `MT-GDK-051` | Aynı | `python3 scripts/manuel-test-tazelik.py --taban HEAD --kuru` | `değişti` kovası `0`'dır. 🚨 Devir işaretini eklemek case'i **değiştirmez**: işaret imzadan düşer, yoksa bu fazın 43 işareti bir sonraki turda 43 sahte `değişti` üretirdi |
+| 52 | `MT-GDK-052` | Derlenmiş `Tracon.Core.UnitTests` ikilisi | `tests/` altına etiketsiz bir `Task.Delay(200)` satırı taşıyan geçici bir `.cs` dosyası koy, `./artifacts/bin/Tracon.Core.UnitTests/release_net10.0/Tracon.Core.UnitTests --filter-class "*TestDelayClassificationTests*"` koş, dosyayı sil | `Every_Task_Delay_under_tests_carries_a_known_class` **düşer** ve `<yol>:<satır>: no "// delay: <class>" tag` yazar. Tarayıcı kaynağı çalışma anında okur — yeniden derleme gerekmez. Silince 6/6 yeşil |
+| 53 | `MT-GDK-053` | Aynı | Aynı satıra `// delay: poll` ekle ve koş | Düşer: `only WaitUntil polls - use it instead of a private loop`. `poll` yalnız `tests/Shared/Waiting/WaitUntil.cs`'te geçerlidir |
+| 54 | `MT-GDK-054` | Faz 184 kodu derlenmiş | `DOTNET_ROOT=~/.dotnet dotnet test Tracon.slnx -c Release --no-build -maxcpucount:1` iki kez arka arkaya (çıktıyı dosyaya yaz, `tail` borusu kullanma) | İki koşum da çıkış `0`, aynı test sayısı, `failed: 0`. Süre koşumdan koşuma ±1 dk oynar (`Package.Tests` tek başına 2:30–3:40); iddia süre değil, iki kez yeşildir |
+| 55 | `MT-GDK-055` | Aynı | `python3 scripts/kapi.py test --proje Tracon.Ui.E2ETests --sinif "*Ui.DashboardTests*"` | 1/1 yeşil; ekran sınıfı tek başına, paylaşılan tarayıcı fixture'ıyla koşar. Tüm E2E projesi (`dotnet test tests/Tracon.Ui.E2ETests`) sınıfları dörder dörder paralel koşar ve ~35–50 sn sürer |
 
 ## Otomatik doğrulama
 
