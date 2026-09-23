@@ -127,17 +127,32 @@ public sealed class LiveVoiceLifecycleTests
         await provider.SendInputTranscriptAsync(" Look up order 442", 3800, 4200);
         await provider.SendDelegationAsync("item_1", 3800);
 
-        // Phase 184: a fixed 300 ms after the inspection stood here. The runner
-        // logs the refusal and returns before anything is sent, so the line
-        // marks the moment the decision is final.
+        // Phase 184: a fixed 300 ms after the inspection stood here. Three
+        // signals replace it, each after the one before: the guard refused an
+        // append; the delegation finished, so every append it made was awaited
+        // (a turn is counted only once the runner returns); and the sideband
+        // closed, so every frame it sent has reached the provider in order. A
+        // refusal logged but not honoured would show up in the check below.
         await WaitForAsync(() => host.Logs.AllText.Contains(
             "A content guard blocked an append on live voice session",
             StringComparison.Ordinal));
-
-        guard.Inspected.ShouldNotBeEmpty();
-        provider.AppendsOf("session.commentary.append").ShouldBeEmpty();
+        await WaitForAsync(async () => await TurnsAsync(host, voiceSessionId) >= 1);
 
         await CloseAsync(host, voiceSessionId);
+        await provider.SidebandClosed.WaitAsync(Patience, TestContext.Current.CancellationToken);
+
+        guard.Inspected.ShouldNotBeEmpty();
+
+        // 🚨 Every channel, not only commentary. This guard refuses the model
+        // input too, so the run fails and the only append it makes is its own
+        // error notice on the thinking channel. Checking commentary alone passed
+        // even with the refusal ignored - measured in Phase 184 by removing the
+        // runner's `return` after the refusal: the notice reached the provider
+        // and this test stayed green.
+        foreach (var channel in new[] { "session.thinking.append", "session.commentary.append", "session.instructions.append" })
+        {
+            provider.AppendsOf(channel).ShouldBeEmpty(channel);
+        }
     }
 
     [Fact]
@@ -376,6 +391,15 @@ public sealed class LiveVoiceLifecycleTests
         Func<bool> condition,
         [CallerArgumentExpression(nameof(condition))] string description = "")
         => WaitUntil.TrueAsync(condition, description, Patience);
+
+    private static async Task<int> TurnsAsync(TraconTestHost host, Guid voiceSessionId)
+    {
+        using var status = await host.Client.GetAsync(
+            $"/tracon/api/voice/live/sessions/{voiceSessionId:D}",
+            TestContext.Current.CancellationToken);
+
+        return (await TraconTestHost.ReadJsonAsync(status)).GetProperty("turns").GetInt32();
+    }
 
     /// <summary>
     /// Waits until the session has seen media. Phase 184: a fixed 200 ms after

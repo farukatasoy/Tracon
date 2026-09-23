@@ -259,12 +259,14 @@ public sealed class LateToolCompletionTests
 
         // Phase 184: a fixed one-second "fair window" stood here, and under load
         // the observer might not have run inside it - a green test that proved
-        // nothing. The observer logs its decision before it returns, and a
-        // faulted body returns without writing, so once the line is there no
-        // write can still follow.
+        // nothing. The observer's own line now proves it ran. The line comes
+        // BEFORE the point where a wrong write would happen, though, so a short
+        // window still follows it: the proof that the observer decided, plus
+        // room for a write that should never come.
         await WaitUntil.TrueAsync(
             () => host.Logs.AllText.Contains("Tool 'slow_report' faulted after", StringComparison.Ordinal),
             "the late-settlement observer to see the fault");
+        await Task.Delay(TimeSpan.FromMilliseconds(500)); // delay: negative
 
         var record = await ReadSingleInvocationAsync(host, runId);
 
