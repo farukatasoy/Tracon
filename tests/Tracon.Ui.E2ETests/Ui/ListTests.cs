@@ -8,7 +8,6 @@ namespace Tracon.Ui.E2ETests.Ui;
 /// <summary>
 /// Rules every list screen follows: failures, filters and expanding rows.
 /// </summary>
-[Collection(ConsoleScreens.Name)]
 public sealed class ListTests(BrowserFixture browsers)
 {
     [Fact]

@@ -8,7 +8,6 @@ namespace Tracon.Ui.E2ETests.Ui;
 /// <summary>
 /// The experiments screen.
 /// </summary>
-[Collection(ConsoleScreens.Name)]
 public sealed class ExperimentTests(BrowserFixture browsers)
 {
     [Fact]

@@ -7,7 +7,6 @@ namespace Tracon.Ui.E2ETests.Ui;
 /// <summary>
 /// The MCP screen.
 /// </summary>
-[Collection(ConsoleScreens.Name)]
 public sealed class McpTests(BrowserFixture browsers)
 {
     [Fact]
