@@ -2,7 +2,7 @@
 
 > **Durum:** ✅ Tamamlandı (2026-09-23)
 > **Plan onayı:** farukatasoy, 2026-09-22 (beş fazlık tur onayı)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-261**
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-261**
 > **Önkoşul:** Yok
 > **Paketler:** yalnız `tests/` — sevk edilen paket değişmez
 > **Yeni paket:** Yok · **Migration:** Yok
@@ -18,15 +18,15 @@
 
 1. Bu doküman
 2. Alan hafızası — bu fazın ana okuma kümesi:
-   [`hafiza/test-paralellik-ve-zamanlama.md`](hafiza/test-paralellik-ve-zamanlama.md) ·
-   [`hafiza/test-kosum-tuzaklari.md`](hafiza/test-kosum-tuzaklari.md) ·
-   [`hafiza/test-yalitimi.md`](hafiza/test-yalitimi.md) — ölçülmüş altı zamanlama
+   [`hafiza/test-paralellik-ve-zamanlama.md`](../../hafiza/test-paralellik-ve-zamanlama.md) ·
+   [`hafiza/test-kosum-tuzaklari.md`](../../hafiza/test-kosum-tuzaklari.md) ·
+   [`hafiza/test-yalitimi.md`](../../hafiza/test-yalitimi.md) — ölçülmüş altı zamanlama
    kusuru ve serileştirme kararlarının gerekçesi buradadır; bu faz o kararları
    **geri almadan önce** sebeplerini söker
-3. Kusur protokolü: [`kusur-giderme` SKILL](../.agents/skills/kusur-giderme/SKILL.md)
+3. Kusur protokolü: [`kusur-giderme` SKILL](../../../.agents/skills/kusur-giderme/SKILL.md)
    Adım 2 — kırılgan test ayrıştırma komutları bu fazda yoğun kullanılır
-4. [`tests/Tracon.Ui.E2ETests/xunit.runner.json`](../tests/Tracon.Ui.E2ETests/xunit.runner.json)
-   ve [`ci.yml:211`](../.github/workflows/ci.yml) — bugünkü serileştirme yüzeyi
+4. [`tests/Tracon.Ui.E2ETests/xunit.runner.json`](../../../tests/Tracon.Ui.E2ETests/xunit.runner.json)
+   ve [`ci.yml:211`](../../../.github/workflows/ci.yml) — bugünkü serileştirme yüzeyi
 
 ---
 
@@ -46,11 +46,11 @@ navigation var: düşen test "timeout" der, "hangi element eksikti" demez.
 
 | Kanıt | Gözlem |
 |---|---|
-| `grep -rE "Task\.Delay\(" tests` | **121 satır**; senkronizasyon amaçlı sabit örnekler: [`DrainTests.cs:110`](../tests/Tracon.AspNetCore.FunctionalTests/DrainTests.cs) (200 ms), [`ToolGovernanceEndpointTests.cs:326`](../tests/Tracon.AspNetCore.FunctionalTests/ToolGovernanceEndpointTests.cs) (1 sn) |
+| `grep -rE "Task\.Delay\(" tests` | **121 satır**; senkronizasyon amaçlı sabit örnekler: [`DrainTests.cs:110`](../../../tests/Tracon.AspNetCore.FunctionalTests/DrainTests.cs) (200 ms), [`ToolGovernanceEndpointTests.cs:326`](../../../tests/Tracon.AspNetCore.FunctionalTests/ToolGovernanceEndpointTests.cs) (1 sn) |
 | `tests/Tracon.Ui.E2ETests/UiTests.cs` (bu fazda silindi) | **144.937 bayt, 80 test tek dosyada**; `Expect(` yalnız **7** |
-| [`xunit.runner.json`](../tests/Tracon.Ui.E2ETests/xunit.runner.json) | `maxParallelThreads: 4` + `conservative` |
-| [`ci.yml:211`](../.github/workflows/ci.yml) | `-maxcpucount:1` — çözüm düzeyi serileştirme |
-| [`kapi.py:695`](../scripts/kapi.py) | Tam koşum ölçümü 557 sn (TRX'li) |
+| [`xunit.runner.json`](../../../tests/Tracon.Ui.E2ETests/xunit.runner.json) | `maxParallelThreads: 4` + `conservative` |
+| [`ci.yml:211`](../../../.github/workflows/ci.yml) | `-maxcpucount:1` — çözüm düzeyi serileştirme |
+| [`kapi.py:695`](../../../scripts/kapi.py) | Tam koşum ölçümü 557 sn (TRX'li) |
 
 > Kanıtlar 2026-09-22 tarihinde doğrulandı.
 
