@@ -81,6 +81,22 @@ public sealed class PlaygroundTests(BrowserFixture browsers)
         await using var host = await UiHost.StartAsync();
         await using var session = await Session.OpenAsync(browsers, host);
 
+        // 🚨 Phase 184: the commit below used to be clicked the moment its
+        // button appeared. A commit that reaches the server before any audio
+        // closes nothing: the server answers `idle`, the panel goes back to
+        // listening, and the transcript this test waits for never comes - the
+        // failure this test had in six phases, each time read as a slow
+        // machine. Counting the recorder's binary frames on the voice socket
+        // lets the test commit only once audio is really on its way.
+        var audioFramesSent = 0;
+        session.Page.WebSocket += (_, socket) => socket.FrameSent += (_, frame) =>
+        {
+            if (frame.Binary is { Length: > 0 })
+            {
+                Interlocked.Increment(ref audioFramesSent);
+            }
+        };
+
         await session.Page.GotoAsync($"{host.UiAddress}/playground/support");
 
         await session.Page.GetByTestId("voice-mode").ClickAsync();
@@ -102,6 +118,10 @@ public sealed class PlaygroundTests(BrowserFixture browsers)
         // the test uses it.
         var commit = session.Page.GetByTestId("voice-commit");
         await Expect(commit).ToBeVisibleAsync(new() { Timeout = 60_000 });
+        await WaitUntil.TrueAsync(
+            () => Volatile.Read(ref audioFramesSent) > 0,
+            "the recorder to send its first audio chunk",
+            TimeSpan.FromSeconds(60));
         await commit.ClickAsync();
 
         var transcript = session.Page.GetByTestId("voice-transcript");
