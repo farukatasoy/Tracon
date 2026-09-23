@@ -253,49 +253,21 @@ public sealed class TwoProcessLeaseTakeoverTests(PostgresFixture fixture) : IAsy
         });
 
     private static async Task<JobRecord> WaitForLeaseAsync(PostgresTestContext context, Guid jobId)
-    {
-        var deadline = DateTimeOffset.UtcNow + TimeSpan.FromSeconds(30);
-
-        while (DateTimeOffset.UtcNow < deadline)
-        {
-            var job = await context.Jobs.GetAsync("default", jobId);
-
-            if (job is { LeaseOwner: not null, LeaseUntil: not null })
-            {
-                return job;
-            }
-
-            await Task.Delay(50);
-        }
-
-        throw new TimeoutException($"No worker leased job {jobId} within 30 seconds.");
-    }
+        => (await WaitUntil.ValueAsync(
+            () => context.Jobs.GetAsync("default", jobId).AsTask(),
+            static job => job is { LeaseOwner: not null, LeaseUntil: not null },
+            $"a worker to lease job {jobId}"))!;
 
     private static async Task<JobRecord> WaitForStatusAsync(
         PostgresTestContext context,
         JobRecord job,
         JobStatus status,
         TimeSpan timeout)
-    {
-        var deadline = DateTimeOffset.UtcNow + timeout;
-
-        while (DateTimeOffset.UtcNow < deadline)
-        {
-            var current = await context.Jobs.GetAsync(job.TenantId, job.Id);
-
-            if (current?.Status == status)
-            {
-                return current;
-            }
-
-            await Task.Delay(100);
-        }
-
-        var last = await context.Jobs.GetAsync(job.TenantId, job.Id);
-
-        throw new TimeoutException(
-            $"Job {job.Id} did not reach {status} within {timeout}; it was {last?.Status.ToString() ?? "missing"}.");
-    }
+        => (await WaitUntil.ValueAsync(
+            () => context.Jobs.GetAsync(job.TenantId, job.Id).AsTask(),
+            current => current?.Status == status,
+            $"job {job.Id} to reach {status}",
+            timeout))!;
 
     /// <summary>The name of the worker that entered the handler first.</summary>
     private string FirstStarter()
@@ -303,30 +275,20 @@ public sealed class TwoProcessLeaseTakeoverTests(PostgresFixture fixture) : IAsy
             .First(entry => string.Equals(entry.Stage, HarnessExecutionLog.StartedStage, StringComparison.Ordinal))
             .WorkerName;
 
-    private async Task WaitForExecutionsAsync(string stage, int count, TimeSpan timeout)
-    {
-        var deadline = DateTimeOffset.UtcNow + timeout;
+    private Task WaitForExecutionsAsync(string stage, int count, TimeSpan timeout)
+        => WaitUntil.TrueAsync(
+            () => HarnessExecutionLog.Read(LogPath).Count(entry => string.Equals(entry.Stage, stage, StringComparison.Ordinal)) >= count,
+            $"{count} '{stage}' events",
+            timeout);
 
-        while (DateTimeOffset.UtcNow < deadline)
-        {
-            if (HarnessExecutionLog.Read(LogPath).Count(entry => string.Equals(entry.Stage, stage, StringComparison.Ordinal)) >= count)
-            {
-                return;
-            }
-
-            await Task.Delay(25);
-        }
-
-        throw new TimeoutException($"Fewer than {count} '{stage}' events were written within {timeout}.");
-    }
-
+    /// <summary>Waits for an instant on the lease clock - the elapsed time IS the claim under test.</summary>
     private static async Task WaitUntilAsync(DateTimeOffset instant)
     {
         var remaining = instant - DateTimeOffset.UtcNow;
 
         if (remaining > TimeSpan.Zero)
         {
-            await Task.Delay(remaining);
+            await Task.Delay(remaining); // delay: product
         }
     }
 }

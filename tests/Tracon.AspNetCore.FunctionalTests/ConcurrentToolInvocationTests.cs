@@ -36,30 +36,6 @@ public sealed class ConcurrentToolInvocationTests
         return await host.Client.SendAsync(request);
     }
 
-    /// <summary>Polls a run until it reaches the expected status. See ApprovalEndpointTests.cs for the 30s rationale.</summary>
-    private static async Task<string> WaitForStatusAsync(TraconTestHost host, Guid runId, string expected)
-    {
-        var uri = new Uri($"/tracon/api/runs/{runId}", UriKind.Relative);
-        var deadline = DateTime.UtcNow.AddSeconds(30);
-        string? status = null;
-
-        while (DateTime.UtcNow < deadline)
-        {
-            using var poll = await host.Client.GetAsync(uri);
-            status = (await TraconTestHost.ReadJsonAsync(poll)).GetProperty("status").GetString();
-
-            if (string.Equals(status, expected, StringComparison.Ordinal))
-            {
-                return status!;
-            }
-
-            await Task.Delay(20);
-        }
-
-        throw new InvalidOperationException(
-            $"Run {runId} did not reach status '{expected}' within 30 seconds; last seen status: '{status}'.");
-    }
-
     private static AgentDefinition ConcurrentAgent(bool allowConcurrentToolCalls) => new()
     {
         Name = AgentName,
@@ -118,7 +94,7 @@ public sealed class ConcurrentToolInvocationTests
 
         // If the barrier were never satisfied (the calls did NOT genuinely
         // overlap), this would time out instead of completing.
-        (await WaitForStatusAsync(host, runId, "Completed")).ShouldBe("Completed");
+        (await host.WaitForRunStatusAsync(runId, "Completed")).ShouldBe("Completed");
 
         var invocations = await host.Client.GetFromJsonAsync<List<ToolInvocationRecord>>(
             new Uri($"/tracon/api/runs/{runId}/tools", UriKind.Relative));
@@ -175,7 +151,7 @@ public sealed class ConcurrentToolInvocationTests
         using var accepted = await PostQueuedAsync(host, new AgentRunRequest { Message = "run all three", SessionId = "s-concurrent-2" });
         var runId = (await TraconTestHost.ReadJsonAsync(accepted)).GetProperty("runId").GetGuid();
 
-        (await WaitForStatusAsync(host, runId, "Completed")).ShouldBe("Completed");
+        (await host.WaitForRunStatusAsync(runId, "Completed")).ShouldBe("Completed");
 
         var invocations = await host.Client.GetFromJsonAsync<List<ToolInvocationRecord>>(
             new Uri($"/tracon/api/runs/{runId}/tools", UriKind.Relative));
@@ -221,7 +197,7 @@ public sealed class ConcurrentToolInvocationTests
                         () => Task.Run(async () =>
                         {
                             barrier.SignalAndWait(TimeSpan.FromSeconds(10));
-                            await Task.Delay(TimeSpan.FromSeconds(2));
+                            await Task.Delay(TimeSpan.FromSeconds(2)); // delay: simulated
                             return "result_b";
                         }),
                         "tool_b"),
@@ -233,7 +209,7 @@ public sealed class ConcurrentToolInvocationTests
         using var accepted = await PostQueuedAsync(host, new AgentRunRequest { Message = "run all three", SessionId = "s-concurrent-timeout" });
         var runId = (await TraconTestHost.ReadJsonAsync(accepted)).GetProperty("runId").GetGuid();
 
-        (await WaitForStatusAsync(host, runId, "Completed")).ShouldBe("Completed");
+        (await host.WaitForRunStatusAsync(runId, "Completed")).ShouldBe("Completed");
 
         var invocations = await host.Client.GetFromJsonAsync<List<ToolInvocationRecord>>(
             new Uri($"/tracon/api/runs/{runId}/tools", UriKind.Relative));
@@ -290,7 +266,7 @@ public sealed class ConcurrentToolInvocationTests
         using var accepted = await PostQueuedAsync(host, new AgentRunRequest { Message = "run all three", SessionId = "s-sequential" });
         var runId = (await TraconTestHost.ReadJsonAsync(accepted)).GetProperty("runId").GetGuid();
 
-        (await WaitForStatusAsync(host, runId, "Completed")).ShouldBe("Completed");
+        (await host.WaitForRunStatusAsync(runId, "Completed")).ShouldBe("Completed");
 
         overlapDetected.ShouldBeFalse();
 

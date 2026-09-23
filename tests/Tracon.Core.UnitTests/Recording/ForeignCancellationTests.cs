@@ -97,14 +97,9 @@ public sealed class ForeignCancellationTests
         // Bounded, and it also stops as soon as the service dies: a spin that
         // only waited for the third attempt would HANG on the broken build
         // instead of failing, and a test that hangs teaches nothing.
-        var deadline = DateTime.UtcNow.AddSeconds(5);
-
-        while (store.Attempts < 3
-            && DateTime.UtcNow < deadline
-            && writer.ExecuteTask?.IsCompleted != true)
-        {
-            await Task.Delay(20, TestContext.Current.CancellationToken);
-        }
+        await WaitUntil.TrueAsync(
+            () => store.Attempts >= 3 || writer.ExecuteTask?.IsCompleted == true,
+            "three heartbeat attempts, or the service to die");
 
         // ExecuteTask is the task ExecuteAsync returned. A faulted task here IS
         // the host stopping: the default BackgroundServiceExceptionBehavior is

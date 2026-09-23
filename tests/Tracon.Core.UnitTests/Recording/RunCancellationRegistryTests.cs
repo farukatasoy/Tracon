@@ -1,3 +1,4 @@
+
 namespace Tracon.Core.UnitTests.Recording;
 
 public sealed class RunCancellationRegistryTests
@@ -106,12 +107,12 @@ public sealed class RunCancellationRegistryTests
             while (!stop.IsCancellationRequested)
             {
                 Interlocked.Increment(ref spendCount);
-                await Task.Delay(5, CancellationToken.None).ConfigureAwait(false);
+                await Task.Delay(5, CancellationToken.None).ConfigureAwait(false); // delay: simulated
             }
         });
 
         // Let the body actually start spending before cancelling it.
-        await WaitUntilAsync(() => Volatile.Read(ref spendCount) > 0);
+        await WaitUntil.TrueAsync(() => Volatile.Read(ref spendCount) > 0);
 
         registry.TryCancel(runId, "test").ShouldBeTrue();
         cts.IsCancellationRequested.ShouldBeTrue("TryCancel must still signal the token — the limit is about the BODY, not the signal.");
@@ -120,20 +121,9 @@ public sealed class RunCancellationRegistryTests
 
         // The body keeps running (and "spending") after the signal, because it never
         // reads the token — this is the guarantee limit the interface documents.
-        await WaitUntilAsync(() => Volatile.Read(ref spendCount) > spendAtCancellation);
+        await WaitUntil.TrueAsync(() => Volatile.Read(ref spendCount) > spendAtCancellation);
 
         stop.Cancel();
         await runBody;
-    }
-
-    private static async Task WaitUntilAsync(Func<bool> condition)
-    {
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-
-        while (!condition())
-        {
-            timeout.Token.ThrowIfCancellationRequested();
-            await Task.Delay(5, CancellationToken.None).ConfigureAwait(false);
-        }
     }
 }

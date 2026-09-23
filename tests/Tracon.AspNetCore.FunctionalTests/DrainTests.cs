@@ -106,29 +106,25 @@ public sealed class DrainTests
             },
             []);
 
-        // Give the worker several poll intervals to (wrongly) pick this up.
-        await Task.Delay(200);
+        // Give the worker several ticks to (wrongly) pick this up. Phase 184:
+        // this used to be a fixed 200 ms, which under load could pass without
+        // a single tick - a green test that proved nothing. Every tick reads
+        // the drain state first, so counting reads counts refused ticks.
+        var readsBefore = drainState.Reads;
+        await WaitUntil.TrueAsync(
+            () => drainState.Reads >= readsBefore + 3,
+            "the worker to tick three times while draining");
 
         (await jobStore.GetAsync(tenantContext.TenantId, job.Id)).ShouldNotBeNull().Status.ShouldBe(JobStatus.Pending);
 
         drainState.IsDraining = false;
 
-        var deadline = DateTime.UtcNow.AddSeconds(10);
-        JobStatus status = JobStatus.Pending;
+        var settled = await WaitUntil.ValueAsync(
+            async () => (await jobStore.GetAsync(tenantContext.TenantId, job.Id)).ShouldNotBeNull().Status,
+            static status => status is not (JobStatus.Pending or JobStatus.Leased or JobStatus.Running),
+            "the job to settle once the drain ended");
 
-        while (DateTime.UtcNow < deadline)
-        {
-            status = (await jobStore.GetAsync(tenantContext.TenantId, job.Id)).ShouldNotBeNull().Status;
-
-            if (status is not (JobStatus.Pending or JobStatus.Leased or JobStatus.Running))
-            {
-                break;
-            }
-
-            await Task.Delay(20);
-        }
-
-        status.ShouldBe(JobStatus.Completed);
+        settled.ShouldBe(JobStatus.Completed);
     }
 
     private sealed class FixedDrainState(bool isDraining) : ITraconDrainState
@@ -138,6 +134,22 @@ public sealed class DrainTests
 
     private sealed class MutableDrainState : ITraconDrainState
     {
-        public bool IsDraining { get; set; }
+        private volatile bool _isDraining;
+        private int _reads;
+
+        /// <summary>How many times anything asked whether the process is draining.</summary>
+        public int Reads => Volatile.Read(ref _reads);
+
+        public bool IsDraining
+        {
+            get
+            {
+                Interlocked.Increment(ref _reads);
+
+                return _isDraining;
+            }
+
+            set => _isDraining = value;
+        }
     }
 }

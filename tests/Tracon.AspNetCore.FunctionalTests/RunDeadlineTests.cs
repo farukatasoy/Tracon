@@ -42,26 +42,6 @@ public sealed class RunDeadlineTests
         return payload.GetProperty("runId").GetGuid();
     }
 
-    /// <summary>Polls a run until it reaches a terminal status.</summary>
-    private static async Task<RunRecord> WaitForTerminalStatusAsync(TraconTestHost host, Guid runId)
-    {
-        var deadline = DateTime.UtcNow.AddSeconds(30);
-
-        while (DateTime.UtcNow < deadline)
-        {
-            var run = await host.Client.GetFromJsonAsync<RunRecord>(RunUri(runId));
-
-            if (run is { Status: RunStatus.Completed or RunStatus.Failed or RunStatus.Canceled })
-            {
-                return run;
-            }
-
-            await Task.Delay(20);
-        }
-
-        throw new InvalidOperationException($"Run {runId} did not reach a terminal status within 30 seconds.");
-    }
-
     [Fact]
     public async Task Deadline_cuts_the_run_off_between_two_model_turns_not_mid_tool()
     {
@@ -130,7 +110,7 @@ public sealed class RunDeadlineTests
                     .RespondsWith("final answer"))
                 .AddTool((Func<Task<string>>)(async () =>
                 {
-                    await Task.Delay(TimeSpan.FromMilliseconds(500));
+                    await Task.Delay(TimeSpan.FromMilliseconds(500)); // delay: simulated
                     return "tool result";
                 }), name: ToolName)
                 .AddAgent(DeadlineAgent()),
@@ -146,7 +126,7 @@ public sealed class RunDeadlineTests
         using var accepted = await host.Client.SendAsync(request);
         var runId = (await TraconTestHost.ReadJsonAsync(accepted)).GetProperty("runId").GetGuid();
 
-        var run = await WaitForTerminalStatusAsync(host, runId);
+        var run = await host.WaitForTerminalRunAsync(runId);
 
         run.Status.ShouldBe(RunStatus.Failed);
         run.Error.ShouldNotBeNull();
@@ -243,7 +223,7 @@ public sealed class RunDeadlineTests
 
         releaseTool.TrySetResult();
 
-        var run = await WaitForTerminalStatusAsync(host, runId);
+        var run = await host.WaitForTerminalRunAsync(runId);
 
         run.Status.ShouldBe(RunStatus.Canceled);
     }

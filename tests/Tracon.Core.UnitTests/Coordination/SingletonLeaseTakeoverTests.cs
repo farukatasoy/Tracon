@@ -5,8 +5,8 @@ namespace Tracon.Core.UnitTests.Coordination;
 /// <summary>
 /// End-to-end scenario where two <see cref="SingletonGuard"/> instances share
 /// the SAME lease store (Phase 42): only one holds the lease, and the other
-/// takes over when the owner drops. Uses real time (short lease + short wait)
-/// — same rationale as <c>JobStoreContract</c>'s lease-expiry test.
+/// takes over when the owner drops. The store's clock is a manual one
+/// (Phase 184): the takeover test used to sleep 200 ms past a 20 ms lease.
 /// </summary>
 public sealed class SingletonLeaseTakeoverTests
 {
@@ -31,19 +31,20 @@ public sealed class SingletonLeaseTakeoverTests
     [Fact]
     public async Task Other_instance_takes_over_when_the_owner_stops()
     {
-        var store = new InMemorySingletonLeaseStore();
-        var shortLease = Options(new SingletonExecutionOptions { Enabled = true, LeaseDuration = TimeSpan.FromMilliseconds(20) });
+        var clock = new ManualTimeProvider();
+        var store = new InMemorySingletonLeaseStore(clock);
+        var lease = Options(new SingletonExecutionOptions { Enabled = true, LeaseDuration = TimeSpan.FromSeconds(30) });
 
-        var guardA = new SingletonGuard(store, shortLease, LeaseName);
-        var guardB = new SingletonGuard(store, shortLease, LeaseName);
+        var guardA = new SingletonGuard(store, lease, LeaseName);
+        var guardB = new SingletonGuard(store, lease, LeaseName);
 
         await guardA.TickAsync(CancellationToken.None);
         guardA.IsHeld.ShouldBeTrue();
 
         (await store.TryAcquireAsync(LeaseName, "someone-else", TimeSpan.FromMinutes(5))).ShouldBeFalse();
 
-        // A stops (it never renews again). Wait until the lease expires.
-        await Task.Delay(TimeSpan.FromMilliseconds(200));
+        // A stops (it never renews again). Move past the end of its lease.
+        clock.Advance(TimeSpan.FromSeconds(31));
 
         await guardB.TickAsync(CancellationToken.None);
 

@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -32,7 +33,7 @@ public sealed class LiveVoiceAuthorizationTests
     private const string TenantHeader = "X-Tracon-Tenant";
     private const string Sdp = "v=0\r\no=- 1 1 IN IP4 0.0.0.0\r\ns=-\r\nt=0 0\r\n";
 
-    private static readonly TimeSpan Patience = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan Patience = LiveVoiceTests.Patience;
 
     [Fact]
     public async Task A_delegation_run_is_recorded_under_the_sessions_OWN_tenant()
@@ -287,22 +288,10 @@ public sealed class LiveVoiceAuthorizationTests
         return host.Client.SendAsync(request, TestContext.Current.CancellationToken);
     }
 
-    private static async Task WaitForAsync(Func<bool> condition)
-    {
-        var deadline = DateTime.UtcNow + Patience;
-
-        while (DateTime.UtcNow < deadline)
-        {
-            if (condition())
-            {
-                return;
-            }
-
-            await Task.Delay(25, TestContext.Current.CancellationToken);
-        }
-
-        throw new TimeoutException("The condition never became true.");
-    }
+    private static Task WaitForAsync(
+        Func<bool> condition,
+        [CallerArgumentExpression(nameof(condition))] string description = "")
+        => WaitUntil.TrueAsync(condition, description, Patience);
 
     private static Task<TraconTestHost> StartAsync(
         FakeGptLiveServer provider,

@@ -68,7 +68,7 @@ internal sealed class StubHttpServer : IAsyncDisposable
         if (body is null)
         {
             // Hold the connection open until the test ends.
-            await Task.Delay(Timeout.Infinite, _stop.Token);
+            await Task.Delay(Timeout.Infinite, _stop.Token); // delay: simulated
             return;
         }
 

@@ -32,30 +32,6 @@ public sealed class ScopedToolLifetimeTests
         return await host.Client.SendAsync(request);
     }
 
-    /// <summary>Polls a run until it reaches the expected status. See ApprovalEndpointTests.cs for the 30s rationale.</summary>
-    private static async Task<string> WaitForStatusAsync(TraconTestHost host, Guid runId, string expected)
-    {
-        var uri = new Uri($"/tracon/api/runs/{runId}", UriKind.Relative);
-        var deadline = DateTime.UtcNow.AddSeconds(30);
-        string? status = null;
-
-        while (DateTime.UtcNow < deadline)
-        {
-            using var poll = await host.Client.GetAsync(uri);
-            status = (await TraconTestHost.ReadJsonAsync(poll)).GetProperty("status").GetString();
-
-            if (string.Equals(status, expected, StringComparison.Ordinal))
-            {
-                return status!;
-            }
-
-            await Task.Delay(20);
-        }
-
-        throw new InvalidOperationException(
-            $"Run {runId} did not reach status '{expected}' within 30 seconds; last seen status: '{status}'.");
-    }
-
     /// <summary>A scoped dependency whose identity and disposal are observable from outside the scope.</summary>
     private sealed class ScopedRepository : IDisposable
     {
@@ -117,7 +93,7 @@ public sealed class ScopedToolLifetimeTests
         using var accepted = await PostQueuedAsync(host, new AgentRunRequest { Message = "look up the order", SessionId = "s-scoped-1" });
         var runId = (await TraconTestHost.ReadJsonAsync(accepted)).GetProperty("runId").GetGuid();
 
-        (await WaitForStatusAsync(host, runId, "Completed")).ShouldBe("Completed");
+        (await host.WaitForRunStatusAsync(runId, "Completed")).ShouldBe("Completed");
 
         var repository = observed.Seen.ShouldHaveSingleItem();
 
@@ -169,7 +145,7 @@ public sealed class ScopedToolLifetimeTests
         using var accepted = await PostQueuedAsync(host, new AgentRunRequest { Message = "look up two orders", SessionId = "s-scoped-2" });
         var runId = (await TraconTestHost.ReadJsonAsync(accepted)).GetProperty("runId").GetGuid();
 
-        (await WaitForStatusAsync(host, runId, "Completed")).ShouldBe("Completed");
+        (await host.WaitForRunStatusAsync(runId, "Completed")).ShouldBe("Completed");
 
         observed.Seen.Count.ShouldBe(2);
         observed.Seen[0].Id.ShouldNotBe(observed.Seen[1].Id);
@@ -233,7 +209,7 @@ public sealed class ScopedToolLifetimeTests
         using var accepted = await PostQueuedAsync(host, new AgentRunRequest { Message = "run both", SessionId = "s-scoped-concurrent" });
         var runId = (await TraconTestHost.ReadJsonAsync(accepted)).GetProperty("runId").GetGuid();
 
-        (await WaitForStatusAsync(host, runId, "Completed")).ShouldBe("Completed");
+        (await host.WaitForRunStatusAsync(runId, "Completed")).ShouldBe("Completed");
 
         observed.Seen.Count.ShouldBe(2);
         observed.Seen[0].Id.ShouldNotBe(observed.Seen[1].Id);

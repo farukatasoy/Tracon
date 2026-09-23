@@ -46,16 +46,18 @@ public sealed class JobWorkerBackgroundServiceTests
             logger: NullLogger<JobWorkerBackgroundService>.Instance);
 
         await worker.StartAsync(TestContext.Current.CancellationToken);
-        await handler.Started.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        await handler.Started.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
 
         var stopping = worker.StopAsync(TestContext.Current.CancellationToken);
 
-        await Task.Delay(TimeSpan.FromMilliseconds(100), TestContext.Current.CancellationToken);
+        // No signal can say "has not happened yet"; under load the window only
+        // grows, so the assertion stays true rather than flaking.
+        await Task.Delay(TimeSpan.FromMilliseconds(100), TestContext.Current.CancellationToken); // delay: negative
         stopping.IsCompleted.ShouldBeFalse("the worker owns the semaphore until the running job releases its slot");
 
         handler.Release();
 
-        await stopping.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        await stopping.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -89,15 +91,14 @@ public sealed class JobWorkerBackgroundServiceTests
             logger: NullLogger<JobWorkerBackgroundService>.Instance);
 
         await worker.StartAsync(TestContext.Current.CancellationToken);
-        await handler.MediaStarted.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        await handler.MediaStarted.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
 
-        JobRecord? defaultJob = null;
-
-        for (var attempt = 0; attempt < 100 && defaultJob?.Status is not JobStatus.Completed; attempt++)
-        {
-            await Task.Delay(TimeSpan.FromMilliseconds(20), TestContext.Current.CancellationToken);
-            defaultJob = await jobs.GetAsync("tenant-a", defaultJobId, TestContext.Current.CancellationToken);
-        }
+        // Phase 184: this loop gave up after 100 x 20 ms - a two-second claim
+        // about the machine.
+        var defaultJob = await WaitUntil.ValueAsync(
+            () => jobs.GetAsync("tenant-a", defaultJobId, TestContext.Current.CancellationToken).AsTask(),
+            static job => job?.Status is JobStatus.Completed,
+            "the default lane's job to complete while 'media' is full");
 
         defaultJob.ShouldNotBeNull();
         defaultJob!.Status.ShouldBe(JobStatus.Completed, "the default lane must not wait behind a full 'media' lane");
@@ -116,6 +117,12 @@ public sealed class JobWorkerBackgroundServiceTests
 
         var defaultJobId = await EnqueueAsync(jobs, "default", now);
 
+        // Phase 184: a fixed 200 ms stood here, and under load the worker might
+        // not have leased anything inside it - a green test that proved
+        // nothing. A job in the worker's OWN lane, queued after the default
+        // one, proves a lease pass ran while the default job was eligible.
+        var mediaJobId = await EnqueueAsync(jobs, "media", now);
+
         using var worker = new JobWorkerBackgroundService(
             jobs,
             new InMemoryJobScheduleStore(),
@@ -132,7 +139,10 @@ public sealed class JobWorkerBackgroundServiceTests
             logger: NullLogger<JobWorkerBackgroundService>.Instance);
 
         await worker.StartAsync(TestContext.Current.CancellationToken);
-        await Task.Delay(TimeSpan.FromMilliseconds(200), TestContext.Current.CancellationToken);
+        await WaitUntil.ValueAsync(
+            () => jobs.GetAsync("tenant-a", mediaJobId, TestContext.Current.CancellationToken).AsTask(),
+            static job => job?.Status is JobStatus.Completed,
+            "the worker to complete the job in its own lane");
         await worker.StopAsync(TestContext.Current.CancellationToken);
 
         var current = await jobs.GetAsync("tenant-a", defaultJobId, TestContext.Current.CancellationToken);
@@ -206,13 +216,10 @@ public sealed class JobWorkerBackgroundServiceTests
 
         await worker.StartAsync(TestContext.Current.CancellationToken);
 
-        JobRecord? record = null;
-
-        for (var attempt = 0; attempt < 100 && record?.Status is not JobStatus.Failed; attempt++)
-        {
-            await Task.Delay(TimeSpan.FromMilliseconds(20), TestContext.Current.CancellationToken);
-            record = await jobs.GetAsync("tenant-a", jobId, TestContext.Current.CancellationToken);
-        }
+        var record = await WaitUntil.ValueAsync(
+            () => jobs.GetAsync("tenant-a", jobId, TestContext.Current.CancellationToken).AsTask(),
+            static job => job?.Status is JobStatus.Failed,
+            "the throwing handler's job to fail");
 
         await worker.StopAsync(TestContext.Current.CancellationToken);
 
