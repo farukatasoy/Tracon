@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text.Json;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -160,14 +161,14 @@ public sealed class SandboxedSkillScriptRunnerTests : IDisposable
     {
         Assert.SkipWhen(!File.Exists("/bin/bash"), "bash not found.");
 
-        var stopped = new List<Activity>();
+        var stopped = new ConcurrentQueue<Activity>();
 
         using var listener = new ActivityListener
         {
             ShouldListenTo = static source =>
                 string.Equals(source.Name, TraconDiagnostics.ActivitySourceName, StringComparison.Ordinal),
             Sample = static (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
-            ActivityStopped = stopped.Add,
+            ActivityStopped = stopped.Enqueue,
         };
 
         ActivitySource.AddActivityListener(listener);
@@ -209,14 +210,14 @@ public sealed class SandboxedSkillScriptRunnerTests : IDisposable
     [Fact]
     public async Task A_denied_run_leaves_the_gate_that_stopped_it_on_the_span()
     {
-        var stopped = new List<Activity>();
+        var stopped = new ConcurrentQueue<Activity>();
 
         using var listener = new ActivityListener
         {
             ShouldListenTo = static source =>
                 string.Equals(source.Name, TraconDiagnostics.ActivitySourceName, StringComparison.Ordinal),
             Sample = static (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
-            ActivityStopped = stopped.Add,
+            ActivityStopped = stopped.Enqueue,
         };
 
         ActivitySource.AddActivityListener(listener);
@@ -261,7 +262,10 @@ public sealed class SandboxedSkillScriptRunnerTests : IDisposable
     /// An ActivityListener is process-wide: it receives the spans every other
     /// test in the assembly opens on the same source while it is attached, so
     /// a single-item assertion here fails for a reason that has nothing to do
-    /// with the behavior under test.
+    /// with the behavior under test. The same reason makes the collection a
+    /// concurrent one: another test's span stops on ITS thread while this one
+    /// reads, and a plain list threw "Collection was modified" (measured,
+    /// Phase 184).
     /// </remarks>
     private static Activity SpanFor(IEnumerable<Activity> stopped, string scriptName)
         => stopped.Single(activity =>
