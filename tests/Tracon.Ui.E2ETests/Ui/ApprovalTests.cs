@@ -23,7 +23,7 @@ public sealed class ApprovalTests(BrowserFixture browsers)
 
         await session.Page.GetByRole(AriaRole.Button, new() { Name = "Add rule" }).ClickAsync();
 
-        await session.Page.GetByPlaceholder("refund_order").FillAsync("refund_order");
+        await session.Page.GetByPlaceholder("refund_order", new() { Exact = true }).FillAsync("refund_order");
 
         await session.Page.GetByTestId("add-condition").ClickAsync();
         await session.Page.GetByTestId("condition-path-0").FillAsync("amount");

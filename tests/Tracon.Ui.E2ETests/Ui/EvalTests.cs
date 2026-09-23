@@ -31,11 +31,11 @@ public sealed class EvalTests(BrowserFixture browsers)
 
         await session.Page.GetByRole(AriaRole.Button, new() { Name = "New suite" }).ClickAsync();
 
-        await session.Page.GetByPlaceholder("customer-support-suite").FillAsync("e2e-eval-suite");
+        await session.Page.GetByPlaceholder("customer-support-suite", new() { Exact = true }).FillAsync("e2e-eval-suite");
         // The "support" scripted model runs without a tool and reflects the
         // input verbatim as "Echo: {query}" (FakeModelProvider) — so the
         // default nonEmpty check reliably passes.
-        await session.Page.GetByPlaceholder("customer-support-agent").FillAsync("support");
+        await session.Page.GetByPlaceholder("customer-support-agent", new() { Exact = true }).FillAsync("support");
 
         await session.Page.GetByRole(AriaRole.Button, new() { Name = "Save" }).ClickAsync();
 
@@ -44,7 +44,7 @@ public sealed class EvalTests(BrowserFixture browsers)
         await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "e2e-eval-suite", Exact = true })).ToBeVisibleAsync();
 
         await session.Page.GetByRole(AriaRole.Button, new() { Name = "Add case" }).ClickAsync();
-        var query = session.Page.GetByPlaceholder("What is your return policy?");
+        var query = session.Page.GetByPlaceholder("What is your return policy?", new() { Exact = true });
         await Expect(query).ToBeEditableAsync();
         await query.FillAsync("Where is my order, can you help?");
 
