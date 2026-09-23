@@ -1,5 +1,6 @@
 using Microsoft.Playwright;
 using Tracon.Ui.E2ETests.Infrastructure;
+using static Microsoft.Playwright.Assertions;
 
 namespace Tracon.Ui.E2ETests.Ui;
 
@@ -24,7 +25,7 @@ public sealed class TriggerTests(BrowserFixture browsers)
             .FillAsync("Tracon:TriggerSecrets:SlackE2E");
         await session.Page.GetByRole(AriaRole.Button, new() { Name = "Save" }).ClickAsync();
 
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Triggers" }).WaitForAsync();
-        await session.Page.GetByText("slack-e2e", new() { Exact = true }).WaitForAsync();
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Triggers" })).ToBeVisibleAsync();
+        await Expect(session.Page.GetByText("slack-e2e", new() { Exact = true })).ToBeVisibleAsync();
     }
 }

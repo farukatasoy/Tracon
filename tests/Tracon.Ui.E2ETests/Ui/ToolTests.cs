@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Playwright;
 using Tracon.Ui.E2ETests.Infrastructure;
+using static Microsoft.Playwright.Assertions;
 
 namespace Tracon.Ui.E2ETests.Ui;
 
@@ -24,13 +25,13 @@ public sealed class ToolTests(BrowserFixture browsers)
         await session.Page.GetByTestId("playground-input").FillAsync("where is ORD-9");
         await session.Page.GetByTestId("playground-send").ClickAsync();
 
-        await session.Page.GetByText("Echo: where is ORD-9").WaitForAsync(new() { Timeout = 20_000 });
+        await Expect(session.Page.GetByText("Echo: where is ORD-9")).ToBeVisibleAsync();
 
         await session.Page.GotoAsync($"{host.UiAddress}/tools");
 
         // In Phase 5 this screen carried a "arrives in the observability
         // phase" note (deviation S5); real counts must be shown now.
-        await session.Page.GetByText("calls").First.WaitForAsync(new() { Timeout = 20_000 });
+        await Expect(session.Page.GetByText("calls").First).ToBeVisibleAsync();
     }
 
     [Fact]
@@ -40,14 +41,14 @@ public sealed class ToolTests(BrowserFixture browsers)
         await using var session = await Session.OpenAsync(browsers, host);
 
         await session.Page.GotoAsync($"{host.UiAddress}/tools");
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Tools" }).WaitForAsync();
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Tools" })).ToBeVisibleAsync();
 
         var card = session.Page.GetByText("read_page_title").First;
-        await card.WaitForAsync();
+        await Expect(card).ToBeVisibleAsync();
 
         // The badge appears ONLY on the client-side tool's own card — a
         // server-side tool (e.g. get_order_status) must not carry it.
-        await session.Page.GetByText("client-side").WaitForAsync();
+        await Expect(session.Page.GetByText("client-side")).ToBeVisibleAsync();
     }
 
     [Fact]
@@ -99,7 +100,7 @@ public sealed class ToolTests(BrowserFixture browsers)
         // (regression coverage for the bug the Phase 61 audit found: the
         // widget used to never set a sessionId, so a pending tool call could
         // never be answered and the turn silently stalled).
-        await session.Page.GetByText("Title: Shopping cart").WaitForAsync(new() { Timeout = 15_000 });
+        await Expect(session.Page.GetByText("Title: Shopping cart")).ToBeVisibleAsync();
     }
 
     [Fact]

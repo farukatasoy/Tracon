@@ -1,5 +1,6 @@
 using Microsoft.Playwright;
 using Tracon.Ui.E2ETests.Infrastructure;
+using static Microsoft.Playwright.Assertions;
 using static Tracon.Ui.E2ETests.Infrastructure.UiTestHelpers;
 
 namespace Tracon.Ui.E2ETests.Ui;
@@ -55,9 +56,8 @@ public sealed class ListTests(BrowserFixture browsers)
         // `TraconError` builds it as "<title>: <detail>" from the server's
         // problem+json. Matching only the title would assert less than this
         // case claims — that the server's own words reach the screen.
-        await session.Page
-            .GetByText(ServerFailureText, new() { Exact = true })
-            .WaitForAsync(new() { Timeout = 30_000 });
+        await Expect(session.Page
+            .GetByText(ServerFailureText, new() { Exact = true })).ToBeVisibleAsync();
 
         // Let the store answer, then press the note's own retry.
         Volatile.Write(ref failing, false);
@@ -65,9 +65,8 @@ public sealed class ListTests(BrowserFixture browsers)
         await session.Page.GetByTestId("error-retry").ClickAsync();
 
         // The second attempt reaches the real endpoint, so the error clears.
-        await session.Page
-            .GetByText(ServerFailureText, new() { Exact = true })
-            .WaitForAsync(new() { State = WaitForSelectorState.Detached, Timeout = 30_000 });
+        await Expect(session.Page
+            .GetByText(ServerFailureText, new() { Exact = true })).ToHaveCountAsync(0);
     }
 
     [Fact]
@@ -82,11 +81,9 @@ public sealed class ListTests(BrowserFixture browsers)
         await using var session = await Session.OpenAsync(browsers, host);
 
         await session.Page.GotoAsync($"{host.UiAddress}/skills");
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Skills", Exact = true }).WaitForAsync();
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Skills", Exact = true })).ToBeVisibleAsync();
 
-        (await session.Page.GetByTestId("toolbar-reset").CountAsync()).ShouldBe(
-            0,
-            "Nothing is filtered yet, so there is nothing to clear.");
+        await Expect(session.Page.GetByTestId("toolbar-reset"), "Nothing is filtered yet, so there is nothing to clear.").ToHaveCountAsync(0);
 
         // Named by its visible label, not by whatever its first option says.
         await session.Page
@@ -95,9 +92,7 @@ public sealed class ListTests(BrowserFixture browsers)
 
         await session.Page.GetByTestId("toolbar-reset").ClickAsync();
 
-        (await session.Page.GetByTestId("toolbar-reset").CountAsync()).ShouldBe(
-            0,
-            "The reset cleared the filters but stayed on screen.");
+        await Expect(session.Page.GetByTestId("toolbar-reset"), "The reset cleared the filters but stayed on screen.").ToHaveCountAsync(0);
     }
 
     [Fact]
@@ -116,16 +111,15 @@ public sealed class ListTests(BrowserFixture browsers)
         await session.Page.GetByTestId("agent-name").FillAsync("audited-agent");
         await session.Page.GetByTestId("agent-model").FillAsync(ScriptedModels.Default);
         await session.Page.GetByTestId("agent-save").ClickAsync();
-        await session.Page
-            .GetByRole(AriaRole.Heading, new() { Name = "audited-agent", Exact = true })
-            .WaitForAsync(new() { Timeout = 30_000 });
+        await Expect(session.Page
+            .GetByRole(AriaRole.Heading, new() { Name = "audited-agent", Exact = true })).ToBeVisibleAsync();
 
         await session.Page.GotoAsync($"{host.UiAddress}/audit");
 
         var disclosure = session.Page.GetByRole(AriaRole.Button, new() { Name = "Details", Exact = true }).First;
-        await disclosure.WaitForAsync(new() { Timeout = 30_000 });
+        await Expect(disclosure).ToBeVisibleAsync();
 
-        (await disclosure.GetAttributeAsync("aria-expanded")).ShouldBe("false");
+        await Expect(disclosure).ToHaveAttributeAsync("aria-expanded", "false");
 
         var controls = await disclosure.GetAttributeAsync("aria-controls");
         controls.ShouldNotBeNullOrEmpty("The disclosure does not name the region it opens.");
@@ -133,12 +127,10 @@ public sealed class ListTests(BrowserFixture browsers)
         await disclosure.FocusAsync();
         await session.Page.Keyboard.PressAsync("Enter");
 
-        await session.Page
+        await Expect(session.Page
             .GetByRole(AriaRole.Button, new() { Name = "Hide", Exact = true })
-            .First.WaitForAsync(new() { Timeout = 30_000 });
+            .First).ToBeVisibleAsync();
 
-        (await session.Page.Locator($"#{controls}").CountAsync()).ShouldBe(
-            1,
-            "aria-controls names an element that is not on the page.");
+        await Expect(session.Page.Locator($"#{controls}"), "aria-controls names an element that is not on the page.").ToHaveCountAsync(1);
     }
 }

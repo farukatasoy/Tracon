@@ -1,5 +1,6 @@
 using System.Net.Http.Json;
 using Tracon.Ui.E2ETests.Infrastructure;
+using static Microsoft.Playwright.Assertions;
 
 namespace Tracon.Ui.E2ETests.Ui;
 
@@ -32,7 +33,7 @@ public sealed class AuditTests(BrowserFixture browsers)
 
         await session.Page.GotoAsync($"{host.UiAddress}/audit");
 
-        await session.Page.GetByText("agent.create").First.WaitForAsync(new() { Timeout = 10_000 });
-        await session.Page.GetByText("agent:audit-e2e").First.WaitForAsync();
+        await Expect(session.Page.GetByText("agent.create").First).ToBeVisibleAsync();
+        await Expect(session.Page.GetByText("agent:audit-e2e").First).ToBeVisibleAsync();
     }
 }

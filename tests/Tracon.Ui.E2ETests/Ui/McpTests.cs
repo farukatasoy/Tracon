@@ -1,5 +1,6 @@
 using Microsoft.Playwright;
 using Tracon.Ui.E2ETests.Infrastructure;
+using static Microsoft.Playwright.Assertions;
 
 namespace Tracon.Ui.E2ETests.Ui;
 
@@ -19,7 +20,7 @@ public sealed class McpTests(BrowserFixture browsers)
 
         // The security boundary must be STATED on screen: adding an MCP
         // server means accepting tool definitions from an external source.
-        await session.Page.GetByText("Security boundary").WaitForAsync();
+        await Expect(session.Page.GetByText("Security boundary")).ToBeVisibleAsync();
 
         await session.Page.GetByRole(AriaRole.Button, new() { Name = "Add server" }).ClickAsync();
 
@@ -31,9 +32,9 @@ public sealed class McpTests(BrowserFixture browsers)
 
         await session.Page.GetByRole(AriaRole.Button, new() { Name = "Save" }).ClickAsync();
 
-        await session.Page.GetByText("sample").First.WaitForAsync(new() { Timeout = 10_000 });
+        await Expect(session.Page.GetByText("sample").First).ToBeVisibleAsync();
 
         // The approval badge must appear: MCP tools require approval by default.
-        await session.Page.GetByText("approval", new() { Exact = true }).First.WaitForAsync();
+        await Expect(session.Page.GetByText("approval", new() { Exact = true }).First).ToBeVisibleAsync();
     }
 }

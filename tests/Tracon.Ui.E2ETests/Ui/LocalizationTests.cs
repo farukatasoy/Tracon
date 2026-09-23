@@ -1,5 +1,6 @@
 using Microsoft.Playwright;
 using Tracon.Ui.E2ETests.Infrastructure;
+using static Microsoft.Playwright.Assertions;
 
 namespace Tracon.Ui.E2ETests.Ui;
 
@@ -18,12 +19,11 @@ public sealed class LocalizationTests(BrowserFixture browsers)
         await session.Page.GotoAsync(host.UiAddress);
 
         // With no stored preference, the default language comes from navigator.language.
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Gösterge Paneli" })
-            .WaitForAsync(new() { Timeout = 15_000 });
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Gösterge Paneli" })).ToBeVisibleAsync();
 
         // 🚨 The lang attribute is not decoration: it is what the screen
         // reader picks its voice from.
-        (await session.Page.Locator("html").GetAttributeAsync("lang")).ShouldBe("tr");
+        await Expect(session.Page.Locator("html")).ToHaveAttributeAsync("lang", "tr");
     }
 
     [Fact]
@@ -34,10 +34,9 @@ public sealed class LocalizationTests(BrowserFixture browsers)
 
         await session.Page.GotoAsync(host.UiAddress);
 
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard" })
-            .WaitForAsync(new() { Timeout = 15_000 });
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard" })).ToBeVisibleAsync();
 
-        (await session.Page.Locator("html").GetAttributeAsync("lang")).ShouldBe("en");
+        await Expect(session.Page.Locator("html")).ToHaveAttributeAsync("lang", "en");
     }
 
     [Fact]
@@ -47,26 +46,24 @@ public sealed class LocalizationTests(BrowserFixture browsers)
         await using var session = await Session.OpenAsync(browsers, host, locale: "en-US");
 
         await session.Page.GotoAsync(host.UiAddress);
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard" }).WaitForAsync();
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard" })).ToBeVisibleAsync();
 
         await session.Page.GetByTestId("language-toggle").ClickAsync();
 
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Gösterge Paneli" })
-            .WaitForAsync(new() { Timeout = 10_000 });
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Gösterge Paneli" })).ToBeVisibleAsync();
 
         // Language is not a secret (does not conflict with K-047): it is kept
         // in localStorage and persists across reload — and in a new tab.
         await session.Page.ReloadAsync();
 
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Gösterge Paneli" })
-            .WaitForAsync(new() { Timeout = 10_000 });
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Gösterge Paneli" })).ToBeVisibleAsync();
 
         // The stored preference overrides the browser language.
-        (await session.Page.Locator("html").GetAttributeAsync("lang")).ShouldBe("tr");
+        await Expect(session.Page.Locator("html")).ToHaveAttributeAsync("lang", "tr");
 
         // The selector on the Settings screen also shows the same preference.
         await session.Page.GotoAsync($"{host.UiAddress}/settings");
-        (await session.Page.GetByTestId("language-select").InputValueAsync()).ShouldBe("tr");
+        await Expect(session.Page.GetByTestId("language-select")).ToHaveValueAsync("tr");
     }
 
     [Fact]
@@ -79,6 +76,6 @@ public sealed class LocalizationTests(BrowserFixture browsers)
         // text as-is — the API contract is single-language.
         await session.Page.GotoAsync($"{host.UiAddress}/agents/nonexistent-agent");
 
-        await session.Page.GetByRole(AriaRole.Alert).First.WaitForAsync(new() { Timeout = 15_000 });
+        await Expect(session.Page.GetByRole(AriaRole.Alert).First).ToBeVisibleAsync();
     }
 }

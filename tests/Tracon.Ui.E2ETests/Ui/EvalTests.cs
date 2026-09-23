@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using Microsoft.Playwright;
 using Tracon.Ui.E2ETests.Infrastructure;
+using static Microsoft.Playwright.Assertions;
 
 namespace Tracon.Ui.E2ETests.Ui;
 
@@ -27,7 +28,7 @@ public sealed class EvalTests(BrowserFixture browsers)
         await using var session = await Session.OpenAsync(browsers, host);
 
         await session.Page.GotoAsync($"{host.UiAddress}/evals");
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Evals", Exact = true }).WaitForAsync();
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Evals", Exact = true })).ToBeVisibleAsync();
 
         await session.Page.GetByRole(AriaRole.Button, new() { Name = "New suite" }).ClickAsync();
 
@@ -41,12 +42,11 @@ public sealed class EvalTests(BrowserFixture browsers)
 
         await session.Page.GetByRole(AriaRole.Link, new() { Name = "e2e-eval-suite" }).ClickAsync();
 
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "e2e-eval-suite", Exact = true })
-            .WaitForAsync();
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "e2e-eval-suite", Exact = true })).ToBeVisibleAsync();
 
         await session.Page.GetByRole(AriaRole.Button, new() { Name = "Add case" }).ClickAsync();
         var query = session.Page.GetByPlaceholder("What is your return policy?");
-        await Assertions.Expect(query).ToBeEditableAsync();
+        await Expect(query).ToBeEditableAsync();
         await query.FillAsync("Where is my order, can you help?");
 
         var casesSaved = session.Page.WaitForResponseAsync(response =>
@@ -59,14 +59,12 @@ public sealed class EvalTests(BrowserFixture browsers)
 
         // The worker leases and runs the job on its fast poll interval; the
         // completion badge appears in the "Runs" panel.
-        await session.Page.GetByText("completed", new() { Exact = true })
-            .WaitForAsync(new() { Timeout = 15_000 });
+        await Expect(session.Page.GetByText("completed", new() { Exact = true })).ToBeVisibleAsync();
 
         await session.Page.Locator("table").Last.Locator("tbody tr").First
             .GetByRole(AriaRole.Link).ClickAsync();
 
-        await session.Page.GetByRole(AriaRole.Heading, new() { NameRegex = EvalRunHeadingPattern })
-            .WaitForAsync(new() { Timeout = 10_000 });
-        await session.Page.GetByText("passed", new() { Exact = true }).WaitForAsync();
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { NameRegex = EvalRunHeadingPattern })).ToBeVisibleAsync();
+        await Expect(session.Page.GetByText("passed", new() { Exact = true })).ToBeVisibleAsync();
     }
 }

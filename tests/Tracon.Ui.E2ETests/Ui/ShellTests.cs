@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.Playwright;
 using Tracon.Ui.E2ETests.Infrastructure;
+using static Microsoft.Playwright.Assertions;
 
 namespace Tracon.Ui.E2ETests.Ui;
 
@@ -19,7 +20,7 @@ public sealed class ShellTests(BrowserFixture browsers)
         await session.Page.GotoAsync(host.UiAddress);
 
         // Dashboard is the landing screen (Phase 20); Agents stays first in the side menu.
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard" }).WaitForAsync();
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard" })).ToBeVisibleAsync();
 
         (await session.Page.TitleAsync()).ShouldBe("Tracon");
 
@@ -124,8 +125,7 @@ public sealed class ShellTests(BrowserFixture browsers)
         };
 
         await session.Page.GotoAsync($"{host.UiAddress}/agents");
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Agents", Exact = true })
-            .WaitForAsync();
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Agents", Exact = true })).ToBeVisibleAsync();
 
         lock (errors)
         {
@@ -185,15 +185,15 @@ public sealed class ShellTests(BrowserFixture browsers)
         };
 
         await session.Page.GotoAsync(host.UiAddress);
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard" }).WaitForAsync();
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard" })).ToBeVisibleAsync();
 
         failures.ShouldBeEmpty();
 
         // A deep route must also load the shell; the client performs the redirect.
         await session.Page.GotoAsync($"{host.UiAddress}/settings");
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Settings" }).WaitForAsync();
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Settings" })).ToBeVisibleAsync();
 
-        await session.Page.GetByText("/panel", new() { Exact = false }).First.WaitForAsync();
+        await Expect(session.Page.GetByText("/panel", new() { Exact = false }).First).ToBeVisibleAsync();
     }
 
     [Fact]
@@ -206,8 +206,7 @@ public sealed class ShellTests(BrowserFixture browsers)
 
         // The shell is exempt from the bearer token layer; otherwise the user
         // could never see the screen where the token is entered.
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Access token required" })
-            .WaitForAsync(new() { Timeout = 15_000 });
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Access token required" })).ToBeVisibleAsync();
 
         await session.Page.GetByLabel("Token").FillAsync("secret-token");
         var authenticated = session.Page.WaitForResponseAsync(response =>
@@ -216,7 +215,6 @@ public sealed class ShellTests(BrowserFixture browsers)
         await session.Page.GetByRole(AriaRole.Button, new() { Name = "Continue" }).ClickAsync();
         await authenticated;
 
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard" })
-            .WaitForAsync(new() { Timeout = 15_000 });
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard" })).ToBeVisibleAsync();
     }
 }

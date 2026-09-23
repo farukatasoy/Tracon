@@ -1,5 +1,6 @@
 using Microsoft.Playwright;
 using Tracon.Ui.E2ETests.Infrastructure;
+using static Microsoft.Playwright.Assertions;
 
 namespace Tracon.Ui.E2ETests.Ui;
 
@@ -16,7 +17,7 @@ public sealed class SettingsTests(BrowserFixture browsers)
         await using var session = await Session.OpenAsync(browsers, host);
 
         await session.Page.GotoAsync(host.UiAddress);
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard" }).WaitForAsync();
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard" })).ToBeVisibleAsync();
 
         var before = await session.Page.GetAttributeAsync("html", "data-theme");
 
@@ -30,7 +31,7 @@ public sealed class SettingsTests(BrowserFixture browsers)
 
         // The preference lives in localStorage; a reload must preserve it.
         await session.Page.ReloadAsync();
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard" }).WaitForAsync();
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard" })).ToBeVisibleAsync();
 
         string.Equals(await session.Page.GetAttributeAsync("html", "data-theme"), after, StringComparison.Ordinal)
             .ShouldBeTrue("The theme preference was not preserved across reload.");
@@ -48,7 +49,7 @@ public sealed class SettingsTests(BrowserFixture browsers)
         await using var session = await Session.OpenAsync(browsers, host);
 
         await session.Page.GotoAsync($"{host.UiAddress}/settings");
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Settings" }).WaitForAsync();
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Settings" })).ToBeVisibleAsync();
 
         // First switch to "dark" via the top bar toggle: the "light" selection
         // below is then a real change, independent of this machine's system
@@ -58,7 +59,7 @@ public sealed class SettingsTests(BrowserFixture browsers)
             await session.Page.GetByTestId("theme-toggle").ClickAsync();
         }
 
-        (await session.Page.GetAttributeAsync("html", "data-theme")).ShouldBe("dark");
+        await Expect(session.Page.Locator("html")).ToHaveAttributeAsync("data-theme", "dark");
 
         // The wrapping <label>'s accessible name concatenates the <select>'s
         // own rendered option text ("ThemeFollow systemLightDark"), so
@@ -67,7 +68,7 @@ public sealed class SettingsTests(BrowserFixture browsers)
         await session.Page.Locator("label", new() { HasText = "Theme" }).Locator("select")
             .SelectOptionAsync("light");
 
-        (await session.Page.GetAttributeAsync("html", "data-theme")).ShouldBe("light");
+        await Expect(session.Page.Locator("html")).ToHaveAttributeAsync("data-theme", "light");
 
         // 🚨 Read through the BINDING, not off a `title` attribute. Phase 165
         // moved this description into `Tooltip`, because `title` never showed
@@ -90,17 +91,17 @@ public sealed class SettingsTests(BrowserFixture browsers)
         await using var session = await Session.OpenAsync(browsers, host);
 
         await session.Page.GotoAsync($"{host.UiAddress}/settings");
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Settings" }).WaitForAsync();
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Settings" })).ToBeVisibleAsync();
 
         await session.Page.GetByRole(AriaRole.Button, new() { Name = "Add quota" }).ClickAsync();
         await session.Page.GetByTestId("quota-max-runs").FillAsync("100");
         await session.Page.GetByTestId("quota-save").ClickAsync();
 
         // Once the rule is saved, the row and the usage bar appear.
-        await session.Page.GetByTestId("quota-row").First.WaitForAsync(new() { Timeout = 15_000 });
-        await session.Page.GetByTestId("quota-bar").First.WaitForAsync(new() { Timeout = 15_000 });
+        await Expect(session.Page.GetByTestId("quota-row").First).ToBeVisibleAsync();
+        await Expect(session.Page.GetByTestId("quota-bar").First).ToBeVisibleAsync();
 
-        await session.Page.GetByText("0 / 100", new() { Exact = false }).First.WaitForAsync();
+        await Expect(session.Page.GetByText("0 / 100", new() { Exact = false }).First).ToBeVisibleAsync();
     }
 
     [Fact]
@@ -110,7 +111,7 @@ public sealed class SettingsTests(BrowserFixture browsers)
         await using var session = await Session.OpenAsync(browsers, host);
 
         await session.Page.GotoAsync($"{host.UiAddress}/settings");
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Settings" }).WaitForAsync();
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Settings" })).ToBeVisibleAsync();
 
         await session.Page.GetByRole(AriaRole.Button, new() { Name = "Add webhook" }).ClickAsync();
         await session.Page.GetByTestId("webhook-name").FillAsync("order-service");
@@ -123,14 +124,14 @@ public sealed class SettingsTests(BrowserFixture browsers)
 
         await session.Page.GetByTestId("webhook-save").ClickAsync();
 
-        await session.Page.GetByTestId("webhook-row").First.WaitForAsync(new() { Timeout = 15_000 });
+        await Expect(session.Page.GetByTestId("webhook-row").First).ToBeVisibleAsync();
 
         // The key's name appears on screen; its value never does.
-        await session.Page.GetByText("Tracon:WebhookSecrets:order-service", new() { Exact = false })
-            .First.WaitForAsync();
+        await Expect(session.Page.GetByText("Tracon:WebhookSecrets:order-service", new() { Exact = false })
+            .First).ToBeVisibleAsync();
 
         await session.Page.GetByTestId("webhook-test").First.ClickAsync();
-        await session.Page.GetByTestId("webhook-test-result").WaitForAsync(new() { Timeout = 15_000 });
+        await Expect(session.Page.GetByTestId("webhook-test-result")).ToBeVisibleAsync();
     }
 
     [Fact]
@@ -144,10 +145,9 @@ public sealed class SettingsTests(BrowserFixture browsers)
         await using var session = await Session.OpenAsync(browsers, host, colorScheme: ColorScheme.Light);
 
         await session.Page.GotoAsync($"{host.UiAddress}/settings");
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Settings", Exact = true }).WaitForAsync();
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Settings", Exact = true })).ToBeVisibleAsync();
 
-        (await session.Page.GetAttributeAsync("html", "data-theme"))
-            .ShouldBe("dark", "A console with no stored preference did not open dark.");
+        await Expect(session.Page.Locator("html"), "A console with no stored preference did not open dark.").ToHaveAttributeAsync("data-theme", "dark");
 
         // The wrapping <label>'s accessible name concatenates the <select>'s own
         // rendered option text, so GetByLabel("Theme") never matches exactly;
@@ -155,7 +155,6 @@ public sealed class SettingsTests(BrowserFixture browsers)
         await session.Page.Locator("label", new() { HasText = "Theme" }).Locator("select")
             .SelectOptionAsync("system");
 
-        (await session.Page.GetAttributeAsync("html", "data-theme"))
-            .ShouldBe("light", "Following the system no longer follows the system.");
+        await Expect(session.Page.Locator("html"), "Following the system no longer follows the system.").ToHaveAttributeAsync("data-theme", "light");
     }
 }

@@ -1,5 +1,6 @@
 using Microsoft.Playwright;
 using Tracon.Ui.E2ETests.Infrastructure;
+using static Microsoft.Playwright.Assertions;
 
 namespace Tracon.Ui.E2ETests.Ui;
 
@@ -16,17 +17,17 @@ public sealed class DashboardTests(BrowserFixture browsers)
         await using var session = await Session.OpenAsync(browsers, host);
 
         await session.Page.GotoAsync(host.UiAddress);
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard" }).WaitForAsync();
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard" })).ToBeVisibleAsync();
 
         // Buckets are filled with zeros even for an empty store; charts still render.
-        await session.Page.GetByTestId("timeseries-chart").WaitForAsync();
-        await session.Page.GetByTestId("status-distribution-chart").WaitForAsync();
+        await Expect(session.Page.GetByTestId("timeseries-chart")).ToBeVisibleAsync();
+        await Expect(session.Page.GetByTestId("status-distribution-chart")).ToBeVisibleAsync();
 
         // 🚨 `.First` is REQUIRED: the empty-state text is shared by every chart
         // panel, and an empty dashboard now shows it in two of them (the model
         // breakdown and, since phase 68, the token breakdown). A bare
         // GetByText resolves to both and fails Playwright's strict mode.
-        await session.Page.GetByText("No run in this window").First.WaitForAsync();
+        await Expect(session.Page.GetByText("No run in this window").First).ToBeVisibleAsync();
 
         // Changing the range must trigger a new /api/stats/timeseries request
         // (the 30d range switches from an hour bucket to a day bucket, to stay
@@ -39,6 +40,6 @@ public sealed class DashboardTests(BrowserFixture browsers)
 
         await timeseriesRefetched;
 
-        await session.Page.GetByTestId("timeseries-chart").WaitForAsync();
+        await Expect(session.Page.GetByTestId("timeseries-chart")).ToBeVisibleAsync();
     }
 }

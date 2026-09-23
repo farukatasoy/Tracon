@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
 using Microsoft.Playwright;
 using Tracon.Ui.E2ETests.Infrastructure;
+using static Microsoft.Playwright.Assertions;
 using static Tracon.Ui.E2ETests.Infrastructure.UiTestHelpers;
 
 namespace Tracon.Ui.E2ETests.Ui;
@@ -30,15 +31,14 @@ public sealed class ConfirmationTests(BrowserFixture browsers)
         await session.Page.GotoAsync($"{host.UiAddress}/playground/support");
         await session.Page.GetByTestId("playground-input").FillAsync("hello");
         await session.Page.GetByTestId("playground-send").ClickAsync();
-        await session.Page.GetByText("Echo:").First.WaitForAsync(new() { Timeout = 30_000 });
+        await Expect(session.Page.GetByText("Echo:").First).ToBeVisibleAsync();
 
         await session.Page.GotoAsync($"{host.UiAddress}/sessions");
-        await session.Page
-            .GetByRole(AriaRole.Heading, new() { Name = "Sessions", Exact = true })
-            .WaitForAsync(new() { Timeout = 30_000 });
+        await Expect(session.Page
+            .GetByRole(AriaRole.Heading, new() { Name = "Sessions", Exact = true })).ToBeVisibleAsync();
 
         var trigger = session.Page.GetByRole(AriaRole.Button, new() { Name = "Delete session" }).First;
-        await trigger.WaitForAsync(new() { Timeout = 30_000 });
+        await Expect(trigger).ToBeVisibleAsync();
 
         return trigger;
     }
@@ -69,7 +69,7 @@ public sealed class ConfirmationTests(BrowserFixture browsers)
             });
 
         await trigger.ClickAsync();
-        await session.Page.GetByTestId("confirm-delete-session").WaitForAsync(new() { Timeout = 10_000 });
+        await Expect(session.Page.GetByTestId("confirm-delete-session")).ToBeVisibleAsync();
 
         (await session.Page.GetByTestId("confirm-cancel").EvaluateAsync<bool>(
             "element => element === document.activeElement"))
@@ -78,9 +78,8 @@ public sealed class ConfirmationTests(BrowserFixture browsers)
         // Enter on the focused control activates Cancel, which closes the
         // dialog. The assertion that matters is the request count.
         await session.Page.Keyboard.PressAsync("Enter");
-        await session.Page
-            .GetByTestId("confirm-delete-session")
-            .WaitForAsync(new() { State = WaitForSelectorState.Detached, Timeout = 10_000 });
+        await Expect(session.Page
+            .GetByTestId("confirm-delete-session")).ToHaveCountAsync(0);
 
         Volatile.Read(ref requests).ShouldBe(0, "Enter on a fresh confirmation sent a DELETE.");
     }
@@ -113,14 +112,14 @@ public sealed class ConfirmationTests(BrowserFixture browsers)
         var dialog = session.Page.GetByTestId("confirm-delete-session");
 
         await trigger.ClickAsync();
-        await dialog.WaitForAsync(new() { Timeout = 10_000 });
+        await Expect(dialog).ToBeVisibleAsync();
         await session.Page.Keyboard.PressAsync("Escape");
-        await dialog.WaitForAsync(new() { State = WaitForSelectorState.Detached, Timeout = 10_000 });
+        await Expect(dialog).ToHaveCountAsync(0);
 
         await trigger.ClickAsync();
-        await dialog.WaitForAsync(new() { Timeout = 10_000 });
+        await Expect(dialog).ToBeVisibleAsync();
         await session.Page.GetByTestId("confirm-cancel").ClickAsync();
-        await dialog.WaitForAsync(new() { State = WaitForSelectorState.Detached, Timeout = 10_000 });
+        await Expect(dialog).ToHaveCountAsync(0);
 
         Volatile.Read(ref requests).ShouldBe(0, "Backing out of the confirmation still sent a DELETE.");
 
@@ -145,10 +144,10 @@ public sealed class ConfirmationTests(BrowserFixture browsers)
         await session.Page.Keyboard.PressAsync("Enter");
 
         var dialog = session.Page.GetByTestId("confirm-delete-session");
-        await dialog.WaitForAsync(new() { Timeout = 10_000 });
+        await Expect(dialog).ToBeVisibleAsync();
 
         await session.Page.GetByTestId("confirm-cancel").ClickAsync();
-        await dialog.WaitForAsync(new() { State = WaitForSelectorState.Detached, Timeout = 10_000 });
+        await Expect(dialog).ToHaveCountAsync(0);
 
         (await trigger.EvaluateAsync<bool>("element => element === document.activeElement"))
             .ShouldBeTrue("Focus did not return to the control that opened the confirmation.");
@@ -188,7 +187,7 @@ public sealed class ConfirmationTests(BrowserFixture browsers)
             });
 
         await trigger.ClickAsync();
-        await session.Page.GetByTestId("confirm-delete-session").WaitForAsync(new() { Timeout = 10_000 });
+        await Expect(session.Page.GetByTestId("confirm-delete-session")).ToBeVisibleAsync();
 
         var accept = session.Page.GetByTestId("confirm-accept");
 
@@ -201,9 +200,8 @@ public sealed class ConfirmationTests(BrowserFixture browsers)
         // window a real double click opens.
         await accept.EvaluateAsync("element => { element.click(); element.click(); }");
 
-        await session.Page
-            .GetByTestId("confirm-delete-session")
-            .WaitForAsync(new() { State = WaitForSelectorState.Detached, Timeout = 30_000 });
+        await Expect(session.Page
+            .GetByTestId("confirm-delete-session")).ToHaveCountAsync(0);
 
         Volatile.Read(ref requests).ShouldBe(1, "A double click on the confirmation sent the action twice.");
     }
@@ -248,11 +246,10 @@ public sealed class ConfirmationTests(BrowserFixture browsers)
         await trigger.ClickAsync();
 
         var dialog = session.Page.GetByTestId("confirm-delete-session");
-        await dialog.WaitForAsync(new() { Timeout = 10_000 });
+        await Expect(dialog).ToBeVisibleAsync();
         await session.Page.GetByTestId("confirm-accept").ClickAsync();
 
-        await dialog.GetByText(ServerFailureText, new() { Exact = true })
-            .WaitForAsync(new() { Timeout = 30_000 });
+        await Expect(dialog.GetByText(ServerFailureText, new() { Exact = true })).ToBeVisibleAsync();
 
         // 🚨 Still ANSWERABLE, not merely still visible. The double-click guard
         // is about one action in flight, so it has to be released when the
@@ -262,8 +259,8 @@ public sealed class ConfirmationTests(BrowserFixture browsers)
         // server.
         await session.Page.GetByTestId("confirm-accept").ClickAsync();
 
-        await Assertions.Expect(session.Page.GetByTestId("confirm-accept"))
-            .ToBeEnabledAsync(new() { Timeout = 30_000 });
+        await Expect(session.Page.GetByTestId("confirm-accept"))
+            .ToBeEnabledAsync();
 
         Volatile.Read(ref requests).ShouldBe(
             2,
@@ -271,13 +268,13 @@ public sealed class ConfirmationTests(BrowserFixture browsers)
 
         // And backing out is still possible.
         await session.Page.GetByTestId("confirm-cancel").ClickAsync();
-        await dialog.WaitForAsync(new() { State = WaitForSelectorState.Detached, Timeout = 10_000 });
+        await Expect(dialog).ToHaveCountAsync(0);
 
         // The screen's own note carries the failure once the dialog is gone,
         // and its retry REOPENS the confirmation instead of deleting: an action
         // that earns a second step must not have a one-click door beside it.
         await session.Page.GetByTestId("error-retry").First.ClickAsync();
-        await dialog.WaitForAsync(new() { Timeout = 10_000 });
+        await Expect(dialog).ToBeVisibleAsync();
 
         Volatile.Read(ref requests).ShouldBe(2, "The retry fired the delete instead of re-asking.");
     }
@@ -297,7 +294,7 @@ public sealed class ConfirmationTests(BrowserFixture browsers)
         await session.Page.Keyboard.PressAsync("Enter");
 
         var dialog = session.Page.GetByTestId("confirm-delete-session");
-        await dialog.WaitForAsync(new() { Timeout = 10_000 });
+        await Expect(dialog).ToBeVisibleAsync();
 
         // Cancel -> confirm -> close -> back to Cancel: three Tab stops, and
         // the fourth wraps. Anything that left the dialog would land on the
@@ -319,8 +316,8 @@ public sealed class ConfirmationTests(BrowserFixture browsers)
         await session.Page.GetByTestId("confirm-accept").FocusAsync();
         await session.Page.Keyboard.PressAsync("Enter");
 
-        await dialog.WaitForAsync(new() { State = WaitForSelectorState.Detached, Timeout = 30_000 });
-        await session.Page.GetByText("No session").First.WaitForAsync(new() { Timeout = 30_000 });
+        await Expect(dialog).ToHaveCountAsync(0);
+        await Expect(session.Page.GetByText("No session").First).ToBeVisibleAsync();
     }
 
     [Fact]
@@ -341,15 +338,15 @@ public sealed class ConfirmationTests(BrowserFixture browsers)
         await session.Page.GotoAsync($"{host.UiAddress}/evals");
 
         var trigger = session.Page.GetByRole(AriaRole.Button, new() { Name = "Bu seti sil" }).First;
-        await trigger.WaitForAsync(new() { Timeout = 30_000 });
+        await Expect(trigger).ToBeVisibleAsync();
         await trigger.ClickAsync();
 
         var dialog = session.Page.GetByTestId("confirm-delete-eval");
-        await dialog.WaitForAsync(new() { Timeout = 10_000 });
+        await Expect(dialog).ToBeVisibleAsync();
 
         // Both answers are on screen and pressable, not merely present.
-        await session.Page.GetByTestId("confirm-cancel").WaitForAsync();
-        await session.Page.GetByTestId("confirm-accept").WaitForAsync();
+        await Expect(session.Page.GetByTestId("confirm-cancel")).ToBeVisibleAsync();
+        await Expect(session.Page.GetByTestId("confirm-accept")).ToBeVisibleAsync();
 
         await AssertNoHorizontalOverflowAsync(session.Page, "Eval delete confirmation (tr, 375px)");
     }
@@ -370,31 +367,28 @@ public sealed class ConfirmationTests(BrowserFixture browsers)
         await SeedEveryListAsync(host);
 
         await session.Page.GotoAsync($"{host.UiAddress}/mcp");
-        await session.Page
-            .GetByRole(AriaRole.Heading, new() { Name = "MCP and approvals", Exact = true })
-            .WaitForAsync(new() { Timeout = 30_000 });
+        await Expect(session.Page
+            .GetByRole(AriaRole.Heading, new() { Name = "MCP and approvals", Exact = true })).ToBeVisibleAsync();
 
         var remove = session.Page
             .GetByRole(AriaRole.Button, new() { NameRegex = McpRemovePattern })
             .First;
-        await remove.WaitForAsync(new() { Timeout = 30_000 });
+        await Expect(remove).ToBeVisibleAsync();
 
         // The consequence is readable before the click, on focus rather than
         // only on hover — the tooltip is the layer this action does get.
         await remove.FocusAsync();
-        await session.Page
+        await Expect(session.Page
             .GetByRole(AriaRole.Tooltip)
             .Filter(new() { HasTextRegex = McpRemovePattern })
-            .First.WaitForAsync(new() { Timeout = 10_000 });
+            .First).ToBeVisibleAsync();
 
         await remove.ClickAsync();
 
         // No second step: the row is gone on the one click.
-        (await session.Page.GetByTestId("confirm-accept").CountAsync())
-            .ShouldBe(0, "An action that fails the §175.3 criterion opened a confirmation.");
+        await Expect(session.Page.GetByTestId("confirm-accept"), "An action that fails the §175.3 criterion opened a confirmation.").ToHaveCountAsync(0);
 
-        await session.Page
-            .GetByText("knowledge-base", new() { Exact = true })
-            .WaitForAsync(new() { State = WaitForSelectorState.Detached, Timeout = 30_000 });
+        await Expect(session.Page
+            .GetByText("knowledge-base", new() { Exact = true })).ToHaveCountAsync(0);
     }
 }

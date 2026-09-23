@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Playwright;
 using Tracon.Ui.E2ETests.Infrastructure;
+using static Microsoft.Playwright.Assertions;
 
 namespace Tracon.Ui.E2ETests.Ui;
 
@@ -17,19 +18,18 @@ public sealed class KeyboardTests(BrowserFixture browsers)
         await using var session = await Session.OpenAsync(browsers, host, locale: "en-US");
 
         await session.Page.GotoAsync(host.UiAddress);
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard" }).WaitForAsync();
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard" })).ToBeVisibleAsync();
 
         await session.Page.Keyboard.PressAsync("Control+k");
-        await session.Page.GetByTestId("command-palette").WaitForAsync();
+        await Expect(session.Page.GetByTestId("command-palette")).ToBeVisibleAsync();
 
         await session.Page.Keyboard.TypeAsync("sessions");
         await session.Page.Keyboard.PressAsync("Enter");
 
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Sessions" })
-            .WaitForAsync(new() { Timeout = 10_000 });
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Sessions" })).ToBeVisibleAsync();
 
         // The palette closes after navigating.
-        (await session.Page.GetByTestId("command-palette").CountAsync()).ShouldBe(0);
+        await Expect(session.Page.GetByTestId("command-palette")).ToHaveCountAsync(0);
     }
 
     [Fact]
@@ -39,15 +39,14 @@ public sealed class KeyboardTests(BrowserFixture browsers)
         await using var session = await Session.OpenAsync(browsers, host, locale: "en-US");
 
         await session.Page.GotoAsync(host.UiAddress);
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard" }).WaitForAsync();
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard" })).ToBeVisibleAsync();
 
         await session.Page.Keyboard.PressAsync("Control+k");
-        await session.Page.GetByTestId("command-palette").WaitForAsync();
+        await Expect(session.Page.GetByTestId("command-palette")).ToBeVisibleAsync();
 
         await session.Page.Keyboard.PressAsync("Escape");
 
-        await session.Page.GetByTestId("command-palette").WaitForAsync(
-            new() { State = WaitForSelectorState.Detached, Timeout = 10_000 });
+        await Expect(session.Page.GetByTestId("command-palette")).ToHaveCountAsync(0);
     }
 
     [Fact]
@@ -59,15 +58,14 @@ public sealed class KeyboardTests(BrowserFixture browsers)
         await using var session = await Session.OpenAsync(browsers, host, locale: "en-US");
 
         await session.Page.GotoAsync(host.UiAddress);
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard" }).WaitForAsync();
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard" })).ToBeVisibleAsync();
 
         await session.Page.GetByTestId("palette-open").ClickAsync();
-        await session.Page.GetByTestId("command-palette").WaitForAsync();
+        await Expect(session.Page.GetByTestId("command-palette")).ToBeVisibleAsync();
 
         await session.Page.Keyboard.PressAsync("Escape");
 
-        await session.Page.GetByTestId("command-palette").WaitForAsync(
-            new() { State = WaitForSelectorState.Detached, Timeout = 10_000 });
+        await Expect(session.Page.GetByTestId("command-palette")).ToHaveCountAsync(0);
 
         var focusIsOnTrigger = await session.Page.EvaluateAsync<bool>(
             "() => document.activeElement === document.querySelector('[data-testid=\"palette-open\"]')");
@@ -90,14 +88,14 @@ public sealed class KeyboardTests(BrowserFixture browsers)
         await using var session = await Session.OpenAsync(browsers, host, locale: "en-US");
 
         await session.Page.GotoAsync(host.UiAddress);
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard" }).WaitForAsync();
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard" })).ToBeVisibleAsync();
 
         await session.Page.Keyboard.PressAsync("Control+k");
-        await session.Page.GetByTestId("command-palette").WaitForAsync();
+        await Expect(session.Page.GetByTestId("command-palette")).ToBeVisibleAsync();
 
         await session.Page.Keyboard.TypeAsync("new agent");
 
-        await session.Page.GetByText("Nothing matches that.").WaitForAsync(new() { Timeout = 10_000 });
+        await Expect(session.Page.GetByText("Nothing matches that.")).ToBeVisibleAsync();
     }
 
     [Fact]
@@ -107,13 +105,12 @@ public sealed class KeyboardTests(BrowserFixture browsers)
         await using var session = await Session.OpenAsync(browsers, host, locale: "en-US");
 
         await session.Page.GotoAsync(host.UiAddress);
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard" }).WaitForAsync();
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard" })).ToBeVisibleAsync();
 
         await session.Page.Keyboard.PressAsync("g");
         await session.Page.Keyboard.PressAsync("a");
 
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Agents" })
-            .WaitForAsync(new() { Timeout = 10_000 });
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Agents" })).ToBeVisibleAsync();
     }
 
     [Fact]
@@ -123,14 +120,14 @@ public sealed class KeyboardTests(BrowserFixture browsers)
         await using var session = await Session.OpenAsync(browsers, host, locale: "en-US");
 
         await session.Page.GotoAsync($"{host.UiAddress}/playground");
-        await session.Page.GetByTestId("playground-input").WaitForAsync();
+        await Expect(session.Page.GetByTestId("playground-input")).ToBeVisibleAsync();
 
         // 🚨 A key typed into a text field belongs to that text field. "ga"
         // here is two letters, not a navigation shortcut.
         await session.Page.GetByTestId("playground-input").ClickAsync();
         await session.Page.Keyboard.TypeAsync("gargle");
 
-        (await session.Page.GetByTestId("playground-input").InputValueAsync()).ShouldBe("gargle");
+        await Expect(session.Page.GetByTestId("playground-input")).ToHaveValueAsync("gargle");
 
         // The screen must not have changed.
         session.Page.Url.ShouldContain("/playground");
@@ -143,12 +140,12 @@ public sealed class KeyboardTests(BrowserFixture browsers)
         await using var session = await Session.OpenAsync(browsers, host, locale: "en-US");
 
         await session.Page.GotoAsync(host.UiAddress);
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard" }).WaitForAsync();
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard" })).ToBeVisibleAsync();
 
         await session.Page.Keyboard.PressAsync("?");
 
-        await session.Page.GetByTestId("shortcut-help").WaitForAsync(new() { Timeout = 10_000 });
-        await session.Page.GetByText("Keyboard shortcuts").First.WaitForAsync();
+        await Expect(session.Page.GetByTestId("shortcut-help")).ToBeVisibleAsync();
+        await Expect(session.Page.GetByText("Keyboard shortcuts").First).ToBeVisibleAsync();
     }
 
     [Fact]
@@ -161,10 +158,10 @@ public sealed class KeyboardTests(BrowserFixture browsers)
         await using var session = await Session.OpenAsync(browsers, host);
 
         await session.Page.GotoAsync(host.UiAddress);
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard", Exact = true }).WaitForAsync();
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard", Exact = true })).ToBeVisibleAsync();
 
         await session.Page.GetByTestId("palette-open").ClickAsync();
-        await session.Page.GetByTestId("command-palette").WaitForAsync();
+        await Expect(session.Page.GetByTestId("command-palette")).ToBeVisibleAsync();
 
         // 1. Focus moved INTO the dialog, onto its one control.
         (await session.Page.EvaluateAsync<string>("() => document.activeElement?.getAttribute('role') ?? ''"))
@@ -180,7 +177,7 @@ public sealed class KeyboardTests(BrowserFixture browsers)
 
         // 3. Escape closes it, and 4. focus goes back to the button that opened it.
         await session.Page.Keyboard.PressAsync("Escape");
-        await session.Page.GetByTestId("command-palette").WaitForAsync(new() { State = WaitForSelectorState.Detached });
+        await Expect(session.Page.GetByTestId("command-palette")).ToHaveCountAsync(0);
 
         (await session.Page.EvaluateAsync<string>(
                 "() => document.activeElement?.getAttribute('data-testid') ?? ''"))
@@ -194,14 +191,14 @@ public sealed class KeyboardTests(BrowserFixture browsers)
         await using var session = await Session.OpenAsync(browsers, host);
 
         await session.Page.GotoAsync(host.UiAddress);
-        await session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard", Exact = true }).WaitForAsync();
+        await Expect(session.Page.GetByRole(AriaRole.Heading, new() { Name = "Dashboard", Exact = true })).ToBeVisibleAsync();
 
         await session.Page.Keyboard.PressAsync("?");
 
         var dialog = session.Page.GetByTestId("shortcut-help");
-        await dialog.WaitForAsync();
+        await Expect(dialog).ToBeVisibleAsync();
 
-        (await dialog.GetAttributeAsync("aria-modal")).ShouldBe("true");
+        await Expect(dialog).ToHaveAttributeAsync("aria-modal", "true");
 
         // The dialog names itself through its heading, not a bare aria-label.
         (await dialog.GetAttributeAsync("aria-labelledby")).ShouldNotBeNullOrEmpty();
@@ -211,6 +208,6 @@ public sealed class KeyboardTests(BrowserFixture browsers)
             .ShouldBeTrue("Opening the cheat sheet did not move focus into it.");
 
         await session.Page.Keyboard.PressAsync("Escape");
-        await dialog.WaitForAsync(new() { State = WaitForSelectorState.Detached });
+        await Expect(dialog).ToHaveCountAsync(0);
     }
 }
