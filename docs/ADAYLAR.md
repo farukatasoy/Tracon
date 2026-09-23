@@ -9,11 +9,11 @@
 > ([`kesif/`](kesif/)) · plana dönüşmüş kalemlerin gövdelerini
 > ([`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md)).
 
-**Durum (2026-09-22):** **0 sıralanabilir aday** · 31 bekleyen kalem (25 tek satırlık + 6 gövdeli).
+**Durum (2026-09-23):** **0 sıralanabilir aday** · 32 bekleyen kalem (26 tek satırlık + 6 gövdeli).
 Son plana dönüşen: **F-165 · F-258 · F-259 · F-260 · F-261 →
 [Faz 180](arsiv/fazlar/180-MANUEL-SET-DEVIR-SABLONU.md) · [181](arsiv/fazlar/181-PROVIDER-ORTAK-KATMANI.md) ·
 [182](arsiv/fazlar/182-PUBLIC-API-YUZEY-DARALTMA.md) · [183](arsiv/fazlar/183-COKLU-TFM-TEST-MATRISI.md) ·
-[184](184-TEST-BEKLEME-VE-E2E-YAPISI.md)** (📋 Planlandı). Sıralanabilir kuyruk **boştur**;
+[184](184-TEST-BEKLEME-VE-E2E-YAPISI.md)** (✅ Tamamlandı). Sıralanabilir kuyruk **boştur**;
 yeni aday üretmek için `aday-kesfi` koşulur.
 
 ---
@@ -117,6 +117,7 @@ dönüşebilmeleri için duruyor. Bir kalemi buradan çıkarmanın tek yolu
 | **F-257** · İki bilinen yarış testi hâlâ kayıtsız | Tam çözüm koşumunda ikisi birden düştü, ikisi de izole koşumda geçti (biri 5 tekrarda 5 kez). 🚨 İkisinin de geçmişi var ama hiçbiri aday olarak kaydedilmemişti: `WorkflowEventSinkTests.A_registered_sink_sees_the_workflow_s_own_events` olay `Sequence`'ını sıra dışı görüyor (2026-09 manuel koşumunda da düştü, 3 tekrarda geçti) · `LiveVoiceLifecycleTests.The_transcript_is_written_to_the_session_history_when_persistence_is_on` zaman aşımına uğruyor (Faz 163 kapanışında iki tam koşumda düştü, izole geçti). Kapının kuralı "ikinci izole koşumda da düşerse gerçek kusurdur" olduğu için ikisi de geçiyor — ama her tam koşumu gürültülü yapıyorlar ve gerçek bir regresyonu maskeleyebilirler |
 | **F-265** · Birinci taraf `InternalsVisibleTo` sürümsüz bir sözleşmedir | [Faz 182](arsiv/fazlar/182-PUBLIC-API-YUZEY-DARALTMA.md) denetimi 🟢-1: K-850 birinci taraf gövde kullanımını IVT ile çözdü (Abstractions → AspNetCore/Mcp/3 SQL; Core → Voice/Workflows/Cli), K-601/K-619 emsallerini genişletti. Paketler ayrı sürümlenir: tüketici `Tracon.Core`'u yükseltip `Tracon.Voice`'u eski bırakırsa ve bir iç üye değişmişse sonuç derleme değil **çalışma anı** `MissingMethodException`'dır. Public API'de aynı risk `PublicAPI` diff'iyle görünür; iç üyede hiçbir kapı yok | Kardeş paket bağımlılığını tam sürüme sabitlemek (`[x.y.z]`) ya da "Tracon paketleri birlikte yükseltilir" kuralını sevk edilen dokümana yazmak — bir paketleme kararıdır; ilk karışık sürüm raporunda ya da GA freeze turunda (UR-003) ele alınır |
 | **F-266** · `net8.0` ve `net9.0` Microsoft desteği 2026-11-10'da bitiyor | Ölçüldü (2026-09-23, `builds.dotnet.microsoft.com/.../releases.json`): 8.0 → `eol-date 2026-11-10` (son yama 8.0.31), 9.0 → `eol-date 2026-11-10` (9.0.20), 10.0 → 2028-11-14. Site politikası ([`compatibility.md`](../docs-site/src/content/docs/reference/compatibility.md) "How long each target framework stays") desteği biten TFM'in sonraki bir sürümde **düşebileceğini** söylüyor ama tarih kimsenin takviminde değil. Faz 183 iki bacağı yeni ölçülebilir yaptı; düşürmek `src/Directory.Build.props` + `TraconTestTargetFrameworks` + `Tracon.Testing` `VersionOverride`'ları + `Net8Consumer` + CI runtime adımlarını birlikte değiştirir | 2026-11-10'dan sonraki ilk yayın kararında (`nuget-danismani`) — düşürmek mi, bir sürüm daha taşımak mı, kullanıcı kararıdır |
+| **F-267** · CI tam koşumu hâlâ tek test projesiyle koşuyor | [Faz 184](184-TEST-BEKLEME-VE-E2E-YAPISI.md) yerel kapıyı `-maxcpucount:2`'ye aldı (aynı kod ve makinede 1 işçi 863/879 sn, 2 işçi 607/658/524 sn, beş koşum 0 kırmızı). `ci.yml` bilerek 1'de kaldı: ölçüm geliştirici makinesindeydi, runner donanımı (özel repoda 2 vCPU olabilir) ve Windows ayağı ölçülmedi | Bir CI dalında `-maxcpucount:2` ile en az üç koşum yeşil ve süre kazancı ölçülürse `ci.yml` güncellenir; kırmızı çıkarsa gerekçe hafızaya yazılır |
 
 ### F-95 · Agent düzeyinde kesinti/devam kancası
 
@@ -378,7 +379,9 @@ keşif kaydındadır; burada yalnız hangi kanala düştükleri yazar.
 ### F-ID tahsis kuralı
 
 Numara **geri dönüştürülmez** ve bir numara **tek kaleme** aittir. Sıradaki
-numara: **F-267**.
+numara: **F-268**.
+
+**F-267** 2026-09-23'te Faz 184 kapanışında tahsis edildi (CI paralellik ölçümü).
 
 **F-266** 2026-09-23'te Faz 183 kapanışında tahsis edildi (runtime metadata ölçümü).
 
