@@ -40,6 +40,9 @@ internal static class WaitUntil
     /// <summary>The pause between two probes.</summary>
     public static readonly TimeSpan PollInterval = TimeSpan.FromMilliseconds(20);
 
+    /// <summary>The least time a probe gets, so one started at the bound can still answer.</summary>
+    private static readonly TimeSpan MinimumProbeTime = TimeSpan.FromMilliseconds(50);
+
     /// <summary>Waits until <paramref name="condition"/> returns <see langword="true"/>.</summary>
     /// <param name="condition">The signal to wait for. An exception it throws ends the wait.</param>
     /// <param name="description">What the wait is for, used in the timeout message; the condition's source text when omitted.</param>
@@ -102,7 +105,27 @@ internal static class WaitUntil
         {
             token.ThrowIfCancellationRequested();
 
-            var value = await probe().ConfigureAwait(false);
+            // 🚨 The bound and the token reach the probe too. A probe that never
+            // returns (a stuck store call, an unanswered request) would otherwise
+            // hang the test past both - the one failure a wait exists to report.
+            var remaining = limit - elapsed.Elapsed;
+            var pending = probe();
+            T value;
+
+            try
+            {
+                value = await pending
+                    .WaitAsync(remaining > MinimumProbeTime ? remaining : MinimumProbeTime, token)
+                    .ConfigureAwait(false);
+            }
+            catch (TimeoutException exception) when (!pending.IsCompleted)
+            {
+                throw new TimeoutException(
+                    string.Create(
+                        CultureInfo.InvariantCulture,
+                        $"Waited {limit.TotalSeconds:0.###} s for {description}; the probe itself never returned."),
+                    exception);
+            }
 
             if (accept(value))
             {
