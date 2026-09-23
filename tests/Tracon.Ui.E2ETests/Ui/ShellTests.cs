@@ -8,7 +8,6 @@ namespace Tracon.Ui.E2ETests.Ui;
 /// <summary>
 /// The console shell: it loads, serves its assets and its CSP, and asks for a token when one is required.
 /// </summary>
-[Collection(ConsoleScreens.Name)]
 public sealed class ShellTests(BrowserFixture browsers)
 {
     [Fact]

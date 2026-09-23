@@ -8,7 +8,6 @@ namespace Tracon.Ui.E2ETests.Ui;
 /// <summary>
 /// The evals screen.
 /// </summary>
-[Collection(ConsoleScreens.Name)]
 public sealed class EvalTests(BrowserFixture browsers)
 {
     /// <summary>Pattern that matches the eval run detail heading.</summary>

@@ -8,7 +8,6 @@ namespace Tracon.Ui.E2ETests.Ui;
 /// <summary>
 /// Rules every screen follows: no horizontal overflow at 375px, named and visible focus, tooltips and links.
 /// </summary>
-[Collection(ConsoleScreens.Name)]
 public sealed class LayoutTests(BrowserFixture browsers)
 {
     [Fact]

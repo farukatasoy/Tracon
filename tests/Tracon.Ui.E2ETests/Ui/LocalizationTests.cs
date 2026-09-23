@@ -7,7 +7,6 @@ namespace Tracon.Ui.E2ETests.Ui;
 /// <summary>
 /// The console's language: detection, the switch, and server text left untranslated.
 /// </summary>
-[Collection(ConsoleScreens.Name)]
 public sealed class LocalizationTests(BrowserFixture browsers)
 {
     [Fact]

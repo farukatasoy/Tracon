@@ -7,7 +7,6 @@ namespace Tracon.Ui.E2ETests.Ui;
 /// <summary>
 /// The models screen.
 /// </summary>
-[Collection(ConsoleScreens.Name)]
 public sealed class ModelTests(BrowserFixture browsers)
 {
     [Fact]
