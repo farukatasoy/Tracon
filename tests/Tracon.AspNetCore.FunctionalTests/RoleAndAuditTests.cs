@@ -1,6 +1,9 @@
 using System.Net;
 using System.Net.Http.Json;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 
 namespace Tracon.AspNetCore.FunctionalTests;
@@ -106,6 +109,49 @@ public sealed class RoleAndAuditTests
 
         using var response = await host.Client.GetAsync(Agents);
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task A_policy_provider_that_throws_at_startup_is_logged_and_keeps_the_fallback()
+    {
+        // The documented fallback (a missing role policy adds no role check)
+        // is kept - but a provider that FAILED is not a provider that said
+        // "not registered", and before this the difference was invisible.
+        await using var host = await TraconTestHost.StartAsync(
+            configureServices: static services =>
+            {
+                services.AddAuthorization();
+                services.Replace(ServiceDescriptor.Singleton<IAuthorizationPolicyProvider, ThrowingRolePolicyProvider>());
+            });
+
+        var warnings = host.Logs.Entries
+            .Where(static line => line.StartsWith("Warning Tracon.RolePolicies ", StringComparison.Ordinal))
+            .ToList();
+
+        warnings.Count.ShouldBe(3);
+        warnings.ShouldContain(static line => line.Contains(TraconPolicies.Reader, StringComparison.Ordinal));
+        warnings.ShouldContain(static line => line.Contains(TraconPolicies.Operator, StringComparison.Ordinal));
+        warnings.ShouldContain(static line => line.Contains(TraconPolicies.Admin, StringComparison.Ordinal));
+        warnings.ShouldAllBe(static line => line.Contains("role store is unreachable", StringComparison.Ordinal));
+
+        using var created = await host.Client.PostAsJsonAsync(Agents, TestData.Request());
+        created.StatusCode.ShouldBe(HttpStatusCode.Created);
+    }
+
+    [Fact]
+    public async Task RequireRolePolicies_startup_failure_carries_the_provider_exception()
+    {
+        var exception = await Should.ThrowAsync<InvalidOperationException>(
+            () => TraconTestHost.StartAsync(
+                configureEndpoints: static options => options.RequireRolePolicies = true,
+                configureServices: static services =>
+                {
+                    services.AddAuthorization();
+                    services.Replace(ServiceDescriptor.Singleton<IAuthorizationPolicyProvider, ThrowingRolePolicyProvider>());
+                }));
+
+        exception.Message.ShouldContain(TraconPolicies.Reader);
+        exception.InnerException.ShouldNotBeNull().Message.ShouldContain("role store is unreachable");
     }
 
     // --- /api/audit ---
@@ -338,5 +384,18 @@ public sealed class RoleAndAuditTests
         var body = await TraconTestHost.ReadJsonAsync(response);
         body.GetProperty("status").GetString().ShouldBe("Valid");
         body.GetProperty("entriesChecked").GetInt32().ShouldBe(0);
+    }
+
+    /// <summary>
+    /// A consumer policy provider whose backing store is unreachable for the
+    /// Tracon role names and answers every other name normally.
+    /// </summary>
+    private sealed class ThrowingRolePolicyProvider(IOptions<AuthorizationOptions> options)
+        : DefaultAuthorizationPolicyProvider(options)
+    {
+        public override Task<AuthorizationPolicy?> GetPolicyAsync(string policyName)
+            => policyName is TraconPolicies.Reader or TraconPolicies.Operator or TraconPolicies.Admin
+                ? throw new InvalidOperationException("the consumer's role store is unreachable")
+                : base.GetPolicyAsync(policyName);
     }
 }

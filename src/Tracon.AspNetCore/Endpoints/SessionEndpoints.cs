@@ -38,7 +38,7 @@ internal static class SessionEndpoints
                 // answered a yes/no question and silently downgrading a "no"
                 // to a short list would hide the refusal from the caller.
                 if (await RunAuthorizationGate
-                        .CheckSessionAsync(runAuthorizationHandler, tenants, sessionId: null, attributionContext, SessionAccess.List, cancellationToken)
+                        .CheckSessionAsync(runAuthorizationHandler, tenants, sessionId: null, attributionContext, SessionAccess.List, httpContext, cancellationToken)
                         .ConfigureAwait(false) is { } authorizationProblem)
                 {
                     return authorizationProblem;
@@ -204,7 +204,7 @@ internal static class SessionEndpoints
         // does a few lines below, so a caller cannot tell "denied" from
         // "does not exist" - phase 139, F-185.
         if (await RunAuthorizationGate
-                .CheckSessionAsync(runAuthorizationHandler, tenants, sessionId, attributionContext, SessionAccess.Branch, cancellationToken)
+                .CheckSessionAsync(runAuthorizationHandler, tenants, sessionId, attributionContext, SessionAccess.Branch, httpContext, cancellationToken)
                 .ConfigureAwait(false) is { } authorizationProblem)
         {
             return authorizationProblem;
@@ -284,7 +284,7 @@ internal static class SessionEndpoints
         CancellationToken cancellationToken)
     {
         if (await RunAuthorizationGate
-                .CheckSessionAsync(runAuthorizationHandler, tenants, sessionId, attributionContext, SessionAccess.Read, cancellationToken)
+                .CheckSessionAsync(runAuthorizationHandler, tenants, sessionId, attributionContext, SessionAccess.Read, httpContext, cancellationToken)
                 .ConfigureAwait(false) is { } authorizationProblem)
         {
             return authorizationProblem;
@@ -348,7 +348,7 @@ internal static class SessionEndpoints
         CancellationToken cancellationToken)
     {
         if (await RunAuthorizationGate
-                .CheckSessionAsync(runAuthorizationHandler, tenantContext, sessionId, attributionContext, SessionAccess.Delete, cancellationToken)
+                .CheckSessionAsync(runAuthorizationHandler, tenantContext, sessionId, attributionContext, SessionAccess.Delete, httpContext, cancellationToken)
                 .ConfigureAwait(false) is { } authorizationProblem)
         {
             return authorizationProblem;

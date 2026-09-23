@@ -75,9 +75,23 @@ public sealed record McpServerDefinition
     public string? AuthorizationConfigurationKey { get; init; }
 
     /// <summary>
-    /// Extra request headers. <strong>Must not carry a secret</strong> — these
-    /// values are stored as-is and shown in the UI.
+    /// Extra request headers, sent as given with every request to the server.
+    /// An HTTP response never returns a stored value: it carries every header
+    /// name with the value <c>***</c>.
     /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The values are stored as plain text in the database. Do not put a
+    /// secret here: use <see cref="AuthorizationConfigurationKey"/> for the
+    /// <c>Authorization</c> header.
+    /// </para>
+    /// <para>
+    /// The list and save responses mask every value, and the audit trail
+    /// records the names only. A save whose header value is <c>***</c> is
+    /// rejected, so a client that reads, edits and saves a server must send
+    /// every header value again.
+    /// </para>
+    /// </remarks>
     public IReadOnlyDictionary<string, string> Headers { get; init; } =
         new Dictionary<string, string>(StringComparer.Ordinal);
 

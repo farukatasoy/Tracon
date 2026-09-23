@@ -105,6 +105,13 @@ public sealed class TraconSessionOwnershipOptions
     /// NO caller gets an unfiltered listing over HTTP.
     /// </para>
     /// <para>
+    /// The two failure cases are reported differently. A policy that is not
+    /// registered is the documented fallback and writes no log line. A policy
+    /// provider or requirement handler that throws writes an error log line in
+    /// the <c>Tracon.SessionOwnership</c> category, with the policy name and
+    /// the exception.
+    /// </para>
+    /// <para>
     /// It grants no access to another user's session: reading, deleting and
     /// branching a session that is OWNED by somebody else answers <c>404</c>
     /// regardless of policy, because a management role is not a reason to leak

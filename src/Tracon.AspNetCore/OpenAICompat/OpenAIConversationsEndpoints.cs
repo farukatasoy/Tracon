@@ -189,7 +189,7 @@ internal static class OpenAIConversationsEndpoints
         // identity-hiding 404 of /api/sessions/{id} has no equivalent to
         // preserve here.
         if (await RunAuthorizationGate
-                .CheckSessionAsync(runAuthorizationHandler, tenantContext, conversationId, attributionContext, SessionAccess.Read, cancellationToken)
+                .CheckSessionAsync(runAuthorizationHandler, tenantContext, conversationId, attributionContext, SessionAccess.Read, httpContext, cancellationToken)
                 .ConfigureAwait(false) is not null)
         {
             return NotFound(conversationId);
@@ -243,7 +243,7 @@ internal static class OpenAIConversationsEndpoints
         // endpoint actually performs. Checked BEFORE the delete: a denial must
         // leave the conversation, and the session under it, untouched.
         if (await RunAuthorizationGate
-                .CheckSessionAsync(runAuthorizationHandler, tenantContext, conversationId, attributionContext, SessionAccess.Delete, cancellationToken)
+                .CheckSessionAsync(runAuthorizationHandler, tenantContext, conversationId, attributionContext, SessionAccess.Delete, httpContext, cancellationToken)
                 .ConfigureAwait(false) is not null)
         {
             return NotFound(conversationId);
@@ -292,7 +292,7 @@ internal static class OpenAIConversationsEndpoints
         // Same handler gate as RetrieveAsync above; reading a conversation's
         // items IS reading the session's chat history.
         if (await RunAuthorizationGate
-                .CheckSessionAsync(runAuthorizationHandler, tenantContext, conversationId, attributionContext, SessionAccess.Read, cancellationToken)
+                .CheckSessionAsync(runAuthorizationHandler, tenantContext, conversationId, attributionContext, SessionAccess.Read, httpContext, cancellationToken)
                 .ConfigureAwait(false) is not null)
         {
             return NotFound(conversationId);

@@ -1,65 +1,65 @@
 using System.Diagnostics.Metrics;
-using Microsoft.Extensions.Options;
 using Tracon.Core.UnitTests.Fakes;
 
 namespace Tracon.Core.UnitTests.Quotas;
 
 /// <summary>
-/// Validates the phase 35 contract of the <c>tracon.quota.usage</c>/
-/// <c>tracon.quota.limit</c> observable gauges: disabled by default; when
-/// enabled, the value matches the quota record; and consecutive polls within
-/// the cache interval do not hit the database.
+/// Validates the contract of the <c>tracon.quota.usage</c>/<c>tracon.quota.limit</c>
+/// observable gauges: disabled by default and then silent; when enabled, the
+/// value matches the quota record; a poll only reads the cache and never waits
+/// for the store; and only a refresh-timer tick queries the store.
 /// </summary>
+/// <remarks>
+/// Every enabled test waits for the first refresh before it polls. Before that
+/// refresh the gauge publishes nothing by design, so a test that polled at once
+/// would prove nothing about the value.
+/// </remarks>
 public sealed class QuotaUsageObserverTests
 {
     private const string Tenant = "acme";
     private const string Agent = "support";
 
+    private static readonly DateTimeOffset Start = new(2026, 8, 6, 9, 0, 0, TimeSpan.Zero);
+
     [Fact]
-    public void No_measurement_is_produced_and_the_store_is_not_queried_while_disabled()
+    public async Task No_measurement_is_produced_and_the_store_is_not_queried_while_disabled()
     {
+        var clock = new TriggerableTimeProvider(Start);
         var tenants = new InMemoryTenantStore();
         var store = new CountingQuotaStore(new InMemoryQuotaStore());
 
         using var meterFactory = new TestMeterFactory();
-
-        using var observer = new QuotaUsageObserver(
-            store,
-            tenants,
-            Options(new TraconOptions { Observability = new TraconObservabilityOptions { EnableQuotaUsageGauge = false } }),
-            Options(new TraconQuotaOptions()),
-            meterFactory);
-
+        using var observer = Observer(store, tenants, enabled: false, meterFactory, clock);
         using var collector = new GaugeCollector(meterFactory.Meter);
+
+        await observer.StartAsync(TestContext.Current.CancellationToken);
+
+        // Off means off: the refresher returns at once and creates no timer.
+        await observer.ExecuteTask!.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
+        clock.ActiveTimerCount.ShouldBe(0);
 
         collector.Trigger(TraconDiagnostics.QuotaUsageGaugeName).ShouldBeEmpty();
         collector.Trigger(TraconDiagnostics.QuotaLimitGaugeName).ShouldBeEmpty();
 
-        // While EnableQuotaUsageGauge is disabled, the cache is NEVER touched:
-        // neither the tenant list nor the quota counters are queried.
+        // Neither the tenant list nor the quota counters are queried.
         store.ListCalls.ShouldBe(0);
         store.UsageCalls.ShouldBe(0);
+        observer.CompletedRefreshes.ShouldBe(0);
     }
 
     [Fact]
     public async Task Value_matches_the_quota_record_when_enabled()
     {
-        var clock = new ManualTimeProvider(new DateTimeOffset(2026, 8, 6, 9, 0, 0, TimeSpan.Zero));
+        var clock = new TriggerableTimeProvider(Start);
         var (store, tenants) = await SeedAsync(clock, maxRuns: 100, maxTokens: 5000);
 
         await RecordUsageAsync(store, clock, runs: 3, tokens: 400);
 
         using var meterFactory = new TestMeterFactory();
-
-        using var observer = new QuotaUsageObserver(
-            store,
-            tenants,
-            Options(new TraconOptions { Observability = new TraconObservabilityOptions { EnableQuotaUsageGauge = true } }),
-            Options(new TraconQuotaOptions()),
-            meterFactory,
-            timeProvider: clock);
-
+        using var observer = Observer(store, tenants, enabled: true, meterFactory, clock);
         using var collector = new GaugeCollector(meterFactory.Meter);
+
+        await StartAndWaitForRefreshAsync(observer);
 
         var usage = collector.Trigger(TraconDiagnostics.QuotaUsageGaugeName);
         var limit = collector.Trigger(TraconDiagnostics.QuotaLimitGaugeName);
@@ -85,83 +85,89 @@ public sealed class QuotaUsageObserverTests
     [Fact]
     public async Task Disabled_rule_does_not_appear_in_the_gauge()
     {
-        var clock = new ManualTimeProvider(new DateTimeOffset(2026, 8, 6, 9, 0, 0, TimeSpan.Zero));
+        var clock = new TriggerableTimeProvider(Start);
         var (store, tenants) = await SeedAsync(clock, maxRuns: 10, enabled: false);
+        await SaveRuleAsync(store, clock, agentName: null, maxRuns: 50);
         await RecordUsageAsync(store, clock, runs: 5);
 
         using var meterFactory = new TestMeterFactory();
-
-        using var observer = new QuotaUsageObserver(
-            store,
-            tenants,
-            Options(new TraconOptions { Observability = new TraconObservabilityOptions { EnableQuotaUsageGauge = true } }),
-            Options(new TraconQuotaOptions()),
-            meterFactory,
-            timeProvider: clock);
-
+        using var observer = Observer(store, tenants, enabled: true, meterFactory, clock);
         using var collector = new GaugeCollector(meterFactory.Meter);
 
-        collector.Trigger(TraconDiagnostics.QuotaUsageGaugeName).ShouldBeEmpty();
+        await StartAndWaitForRefreshAsync(observer);
+
+        // The enabled tenant-wide rule proves the refresh ran and published;
+        // the disabled agent rule next to it must not appear.
+        var measurement = collector.Trigger(TraconDiagnostics.QuotaUsageGaugeName).ShouldHaveSingleItem();
+
+        Tag(measurement, TraconDiagnostics.Tags.QuotaScope).ShouldBe(string.Empty);
+        measurement.Value.ShouldBe(5.0);
     }
 
     [Fact]
-    public async Task Ten_consecutive_polls_produce_one_database_query()
+    public async Task Polls_read_the_cache_and_only_a_timer_tick_queries_the_store()
     {
-        var clock = new ManualTimeProvider(new DateTimeOffset(2026, 8, 6, 9, 0, 0, TimeSpan.Zero));
+        var clock = new TriggerableTimeProvider(Start);
         var (inner, tenants) = await SeedAsync(clock, maxRuns: 10);
         var store = new CountingQuotaStore(inner);
 
         using var meterFactory = new TestMeterFactory();
-
-        using var observer = new QuotaUsageObserver(
-            store,
-            tenants,
-            Options(new TraconOptions
-            {
-                Observability = new TraconObservabilityOptions
-                {
-                    EnableQuotaUsageGauge = true,
-                    QuotaUsageRefreshInterval = TimeSpan.FromSeconds(30),
-                },
-            }),
-            Options(new TraconQuotaOptions()),
-            meterFactory,
-            timeProvider: clock);
-
+        using var observer = Observer(store, tenants, enabled: true, meterFactory, clock);
         using var collector = new GaugeCollector(meterFactory.Meter);
+
+        await StartAndWaitForRefreshAsync(observer);
+        store.UsageCalls.ShouldBe(1, "the refresher reads once at start");
 
         for (var i = 0; i < 10; i++)
         {
             collector.Trigger(TraconDiagnostics.QuotaUsageGaugeName);
         }
 
-        store.UsageCalls.ShouldBe(1);
+        store.UsageCalls.ShouldBe(1, "a poll only reads the cache");
 
-        // The cache interval elapsed: the next poll must produce a NEW query.
-        clock.Advance(TimeSpan.FromSeconds(31));
-        collector.Trigger(TraconDiagnostics.QuotaUsageGaugeName);
+        // The refresh interval elapsed: the timer tick produces ONE new query.
+        clock.TriggerAll();
+        await WaitUntil.TrueAsync(() => observer.CompletedRefreshes >= 2);
 
         store.UsageCalls.ShouldBe(2);
     }
 
     [Fact]
-    public async Task Tag_set_does_not_carry_an_unbounded_field()
+    public async Task A_new_value_appears_after_the_next_refresh_and_not_before()
     {
-        var clock = new ManualTimeProvider(new DateTimeOffset(2026, 8, 6, 9, 0, 0, TimeSpan.Zero));
+        var clock = new TriggerableTimeProvider(Start);
         var (store, tenants) = await SeedAsync(clock, maxRuns: 10);
         await RecordUsageAsync(store, clock, runs: 1);
 
         using var meterFactory = new TestMeterFactory();
-
-        using var observer = new QuotaUsageObserver(
-            store,
-            tenants,
-            Options(new TraconOptions { Observability = new TraconObservabilityOptions { EnableQuotaUsageGauge = true } }),
-            Options(new TraconQuotaOptions()),
-            meterFactory,
-            timeProvider: clock);
-
+        using var observer = Observer(store, tenants, enabled: true, meterFactory, clock);
         using var collector = new GaugeCollector(meterFactory.Meter);
+
+        await StartAndWaitForRefreshAsync(observer);
+
+        await RecordUsageAsync(store, clock, runs: 2);
+
+        // The published value is at most one interval old: still the cache.
+        collector.Trigger(TraconDiagnostics.QuotaUsageGaugeName).ShouldHaveSingleItem().Value.ShouldBe(1.0);
+
+        clock.TriggerAll();
+        await WaitUntil.TrueAsync(() => observer.CompletedRefreshes >= 2);
+
+        collector.Trigger(TraconDiagnostics.QuotaUsageGaugeName).ShouldHaveSingleItem().Value.ShouldBe(3.0);
+    }
+
+    [Fact]
+    public async Task Tag_set_does_not_carry_an_unbounded_field()
+    {
+        var clock = new TriggerableTimeProvider(Start);
+        var (store, tenants) = await SeedAsync(clock, maxRuns: 10);
+        await RecordUsageAsync(store, clock, runs: 1);
+
+        using var meterFactory = new TestMeterFactory();
+        using var observer = Observer(store, tenants, enabled: true, meterFactory, clock);
+        using var collector = new GaugeCollector(meterFactory.Meter);
+
+        await StartAndWaitForRefreshAsync(observer);
 
         var measurement = collector.Trigger(TraconDiagnostics.QuotaUsageGaugeName).ShouldHaveSingleItem();
 
@@ -177,7 +183,71 @@ public sealed class QuotaUsageObserverTests
             ignoreOrder: true);
     }
 
-    private static StaticOptionsMonitor<T> Options<T>(T value) => new(value);
+    [Fact]
+    public async Task A_poll_never_waits_for_the_store()
+    {
+        var clock = new TriggerableTimeProvider(Start);
+        var (inner, tenants) = await SeedAsync(clock, maxRuns: 10);
+        var store = new CountingQuotaStore(inner) { Stall = new(TaskCreationOptions.RunContinuationsAsynchronously) };
+
+        using var meterFactory = new TestMeterFactory();
+        using var observer = Observer(store, tenants, enabled: true, meterFactory, clock);
+        using var collector = new GaugeCollector(meterFactory.Meter);
+
+        await observer.StartAsync(TestContext.Current.CancellationToken);
+
+        try
+        {
+            // The collection thread serves every instrument of the MeterProvider.
+            // A store that never answers must not hold it: the poll reads the
+            // cache only, and no refresh has finished yet.
+            var poll = Task.Run(
+                () => collector.Trigger(TraconDiagnostics.QuotaUsageGaugeName),
+                TestContext.Current.CancellationToken);
+
+            (await poll.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken))
+                .ShouldBeEmpty();
+
+            // The stopping token reaches the store, so a stuck refresh does not
+            // hold the host's shutdown either.
+            await WaitUntil.TrueAsync(() => store.UsageCalls >= 1);
+            await observer.StopAsync(TestContext.Current.CancellationToken);
+
+            observer.ExecuteTask!.IsCompletedSuccessfully.ShouldBeTrue();
+        }
+        finally
+        {
+            store.Stall.TrySetResult();
+        }
+    }
+
+    private static QuotaUsageObserver Observer(
+        IQuotaStore store,
+        ITenantStore tenants,
+        bool enabled,
+        IMeterFactory meterFactory,
+        TimeProvider clock)
+        => new(
+            store,
+            tenants,
+            new StaticOptionsMonitor<TraconOptions>(new TraconOptions
+            {
+                Observability = new TraconObservabilityOptions
+                {
+                    EnableQuotaUsageGauge = enabled,
+                    QuotaUsageRefreshInterval = TimeSpan.FromSeconds(30),
+                },
+            }),
+            new StaticOptionsMonitor<TraconQuotaOptions>(new TraconQuotaOptions()),
+            new SchemaReadyGate([]),
+            meterFactory,
+            timeProvider: clock);
+
+    private static async Task StartAndWaitForRefreshAsync(QuotaUsageObserver observer)
+    {
+        await observer.StartAsync(TestContext.Current.CancellationToken);
+        await WaitUntil.TrueAsync(() => observer.CompletedRefreshes >= 1);
+    }
 
     private static QuotaMetric Metric((double Value, Dictionary<string, object?> Tags) measurement)
         => Enum.Parse<QuotaMetric>((string)measurement.Tags[TraconDiagnostics.Tags.QuotaMetric]!);
@@ -186,7 +256,7 @@ public sealed class QuotaUsageObserverTests
         => measurement.Tags.GetValueOrDefault(key) as string;
 
     private static async Task<(IQuotaStore Store, ITenantStore Tenants)> SeedAsync(
-        ManualTimeProvider clock,
+        TimeProvider clock,
         long? maxRuns = null,
         long? maxTokens = null,
         decimal? maxCost = null,
@@ -202,11 +272,24 @@ public sealed class QuotaUsageObserverTests
             DisplayName = "Acme",
         });
 
-        await store.SaveAsync(new QuotaDefinition
+        await SaveRuleAsync(store, clock, Agent, maxRuns, maxTokens, maxCost, enabled);
+
+        return (store, tenants);
+    }
+
+    private static async Task SaveRuleAsync(
+        IQuotaStore store,
+        TimeProvider clock,
+        string? agentName,
+        long? maxRuns = null,
+        long? maxTokens = null,
+        decimal? maxCost = null,
+        bool enabled = true)
+        => await store.SaveAsync(new QuotaDefinition
         {
             Id = Guid.NewGuid(),
             TenantId = Tenant,
-            AgentName = Agent,
+            AgentName = agentName,
             Period = QuotaPeriod.Daily,
             MaxRuns = maxRuns,
             MaxTokens = maxTokens,
@@ -216,12 +299,9 @@ public sealed class QuotaUsageObserverTests
             UpdatedAt = clock.GetUtcNow(),
         });
 
-        return (store, tenants);
-    }
-
     private static async Task RecordUsageAsync(
         IQuotaStore store,
-        ManualTimeProvider clock,
+        TimeProvider clock,
         long runs = 0,
         long tokens = 0,
         decimal? cost = null)
@@ -242,16 +322,25 @@ public sealed class QuotaUsageObserverTests
             periodStarts);
     }
 
-    /// <summary><see cref="IQuotaStore"/> decorator that tracks call counts.</summary>
+    /// <summary>
+    /// <see cref="IQuotaStore"/> decorator that tracks call counts. The refresh
+    /// runs on a background task, so the counters are read and written atomically.
+    /// When <see cref="Stall"/> is set, a counter read waits for it.
+    /// </summary>
     private sealed class CountingQuotaStore(IQuotaStore inner) : IQuotaStore
     {
-        public int ListCalls { get; private set; }
+        private int _listCalls;
+        private int _usageCalls;
 
-        public int UsageCalls { get; private set; }
+        public int ListCalls => Volatile.Read(ref _listCalls);
+
+        public int UsageCalls => Volatile.Read(ref _usageCalls);
+
+        public TaskCompletionSource? Stall { get; init; }
 
         public ValueTask<IReadOnlyList<QuotaDefinition>> ListAsync(string tenantId, CancellationToken cancellationToken = default)
         {
-            ListCalls++;
+            Interlocked.Increment(ref _listCalls);
 
             return inner.ListAsync(tenantId, cancellationToken);
         }
@@ -267,9 +356,11 @@ public sealed class QuotaUsageObserverTests
 
         public ValueTask<IReadOnlyList<QuotaUsageRecord>> GetUsageAsync(QuotaUsageQuery query, CancellationToken cancellationToken = default)
         {
-            UsageCalls++;
+            Interlocked.Increment(ref _usageCalls);
 
-            return inner.GetUsageAsync(query, cancellationToken);
+            return Stall is { } stall
+                ? StalledUsageAsync(stall, query, cancellationToken)
+                : inner.GetUsageAsync(query, cancellationToken);
         }
 
         public ValueTask AddUsageAsync(
@@ -287,6 +378,16 @@ public sealed class QuotaUsageObserverTests
             int thresholdPercent,
             CancellationToken cancellationToken = default)
             => inner.TryClaimThresholdNotificationAsync(tenantId, agentName, period, periodStart, metric, thresholdPercent, cancellationToken);
+
+        private async ValueTask<IReadOnlyList<QuotaUsageRecord>> StalledUsageAsync(
+            TaskCompletionSource stall,
+            QuotaUsageQuery query,
+            CancellationToken cancellationToken)
+        {
+            await stall.Task.WaitAsync(cancellationToken);
+
+            return await inner.GetUsageAsync(query, cancellationToken);
+        }
     }
 
     /// <summary>

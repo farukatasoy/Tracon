@@ -115,6 +115,94 @@ public sealed class QuotaThresholdCrossingTests
         string.Equals(eighty[0].NoticeId, hundred[0].NoticeId, StringComparison.Ordinal).ShouldBeFalse();
     }
 
+    [Fact]
+    public async Task Fired_threshold_entries_of_a_closed_period_are_released()
+    {
+        // The in-process fast path is keyed by period start, so every new day
+        // adds a key. Nothing used to remove the old ones: a singleton enforcer
+        // grew for the whole life of the process.
+        var publisher = new RecordingPublisher();
+        var (enforcer, store, clock) = Build(
+            publisher: publisher,
+            configure: static options =>
+            {
+                options.ThresholdPercents.Clear();
+                options.ThresholdPercents.Add(100);
+            });
+
+        await SaveQuotaAsync(store, maxRuns: 1);
+        await SaveQuotaAsync(store, agentName: null, maxRuns: 1, period: QuotaPeriod.Monthly);
+
+        for (var day = 0; day < 5; day++)
+        {
+            if (day > 0)
+            {
+                clock.Advance(TimeSpan.FromDays(1));
+            }
+
+            await RecordAsync(enforcer, clock, runs: 1);
+        }
+
+        // Five daily crossings (one per day) and one monthly crossing.
+        publisher.Events.Count.ShouldBe(6);
+
+        // Only today's daily key and this month's monthly key are still open.
+        enforcer.FiredThresholdCount.ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task A_failed_durable_claim_is_retried_by_the_next_run_in_the_same_period()
+    {
+        var publisher = new RecordingPublisher();
+        var store = new ClaimFaultQuotaStore(new InMemoryQuotaStore());
+        var clock = new ManualTimeProvider(new DateTimeOffset(2026, 8, 3, 9, 0, 0, TimeSpan.Zero));
+        var enforcer = new QuotaEnforcer(store, Options(new TraconQuotaOptions()), publisher, clock);
+
+        await SaveQuotaAsync(store, maxRuns: 10);
+
+        store.BeforeNextClaim = static _ => throw new TraconException("simulated claim failure");
+
+        // 80 %: the claim throws, RecordAsync swallows it, nothing is published.
+        (await RecordAsync(enforcer, clock, runs: 8)).ShouldBeEmpty();
+        publisher.Events.ShouldBeEmpty();
+
+        // 90 %: the same 80 % threshold, same period. The failed claim must not
+        // leave the key behind and silence the threshold until the period ends.
+        await RecordAsync(enforcer, clock, runs: 1);
+
+        publisher.Events.ShouldHaveSingleItem().EventType.ShouldBe(WebhookEvents.QuotaThreshold);
+    }
+
+    [Fact]
+    public async Task A_cancelled_durable_claim_is_retried_by_the_next_run_in_the_same_period()
+    {
+        var publisher = new RecordingPublisher();
+        var store = new ClaimFaultQuotaStore(new InMemoryQuotaStore());
+        var clock = new ManualTimeProvider(new DateTimeOffset(2026, 8, 3, 9, 0, 0, TimeSpan.Zero));
+        var enforcer = new QuotaEnforcer(store, Options(new TraconQuotaOptions()), publisher, clock);
+
+        await SaveQuotaAsync(store, maxRuns: 10);
+
+        using var cancellation = new CancellationTokenSource();
+
+        store.BeforeNextClaim = _ =>
+        {
+            cancellation.Cancel();
+            cancellation.Token.ThrowIfCancellationRequested();
+        };
+
+        // The caller's own cancellation comes out of RecordAsync.
+        await Should.ThrowAsync<OperationCanceledException>(() => enforcer.RecordAsync(
+            Consumption(clock, runs: 8),
+            cancellation.Token).AsTask());
+
+        publisher.Events.ShouldBeEmpty();
+
+        await RecordAsync(enforcer, clock, runs: 1);
+
+        publisher.Events.ShouldHaveSingleItem().EventType.ShouldBe(WebhookEvents.QuotaThreshold);
+    }
+
     private static (QuotaEnforcer Enforcer, IQuotaStore Store, ManualTimeProvider Clock) Build(
         bool runStreamEnabled = false,
         Action<TraconQuotaOptions>? configure = null,
@@ -137,13 +225,14 @@ public sealed class QuotaThresholdCrossingTests
         string? agentName = Agent,
         long? maxRuns = null,
         long? maxTokens = null,
-        decimal? maxCost = null)
+        decimal? maxCost = null,
+        QuotaPeriod period = QuotaPeriod.Daily)
         => await store.SaveAsync(new QuotaDefinition
         {
             Id = Guid.NewGuid(),
             TenantId = Tenant,
             AgentName = agentName,
-            Period = QuotaPeriod.Daily,
+            Period = period,
             MaxRuns = maxRuns,
             MaxTokens = maxTokens,
             MaxCost = maxCost,
@@ -159,7 +248,15 @@ public sealed class QuotaThresholdCrossingTests
         long tokens = 0,
         decimal? cost = null,
         string agentName = Agent)
-        => await enforcer.RecordAsync(new QuotaConsumption
+        => await enforcer.RecordAsync(Consumption(clock, runs, tokens, cost, agentName));
+
+    private static QuotaConsumption Consumption(
+        ManualTimeProvider clock,
+        long runs = 1,
+        long tokens = 0,
+        decimal? cost = null,
+        string agentName = Agent)
+        => new()
         {
             TenantId = Tenant,
             AgentName = agentName,
@@ -167,7 +264,7 @@ public sealed class QuotaThresholdCrossingTests
             Tokens = tokens,
             Cost = cost,
             OccurredAt = clock.GetUtcNow(),
-        });
+        };
 
     private sealed class RecordingPublisher : IWebhookPublisher
     {
@@ -182,6 +279,53 @@ public sealed class QuotaThresholdCrossingTests
             Events.Add((eventType, payload));
 
             return new ValueTask<int>(1);
+        }
+    }
+
+    /// <summary>
+    /// Forwards to an inner store and runs a one-shot hook before the next
+    /// durable threshold claim, so a test can make exactly one claim fail.
+    /// </summary>
+    private sealed class ClaimFaultQuotaStore(IQuotaStore inner) : IQuotaStore
+    {
+        public Action<CancellationToken>? BeforeNextClaim { get; set; }
+
+        public ValueTask<IReadOnlyList<QuotaDefinition>> ListAsync(string tenantId, CancellationToken cancellationToken = default)
+            => inner.ListAsync(tenantId, cancellationToken);
+
+        public ValueTask<QuotaDefinition?> GetAsync(string tenantId, Guid id, CancellationToken cancellationToken = default)
+            => inner.GetAsync(tenantId, id, cancellationToken);
+
+        public ValueTask<QuotaDefinition> SaveAsync(QuotaDefinition definition, CancellationToken cancellationToken = default)
+            => inner.SaveAsync(definition, cancellationToken);
+
+        public ValueTask<bool> DeleteAsync(string tenantId, Guid id, CancellationToken cancellationToken = default)
+            => inner.DeleteAsync(tenantId, id, cancellationToken);
+
+        public ValueTask<IReadOnlyList<QuotaUsageRecord>> GetUsageAsync(QuotaUsageQuery query, CancellationToken cancellationToken = default)
+            => inner.GetUsageAsync(query, cancellationToken);
+
+        public ValueTask AddUsageAsync(
+            QuotaConsumption consumption,
+            IReadOnlyDictionary<QuotaPeriod, DateOnly> periodStarts,
+            CancellationToken cancellationToken = default)
+            => inner.AddUsageAsync(consumption, periodStarts, cancellationToken);
+
+        public ValueTask<bool> TryClaimThresholdNotificationAsync(
+            string tenantId,
+            string agentName,
+            QuotaPeriod period,
+            DateOnly periodStart,
+            QuotaMetric metric,
+            int thresholdPercent,
+            CancellationToken cancellationToken = default)
+        {
+            var hook = BeforeNextClaim;
+            BeforeNextClaim = null;
+            hook?.Invoke(cancellationToken);
+
+            return inner.TryClaimThresholdNotificationAsync(
+                tenantId, agentName, period, periodStart, metric, thresholdPercent, cancellationToken);
         }
     }
 

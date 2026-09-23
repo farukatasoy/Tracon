@@ -267,7 +267,7 @@ conditional or separately mapped, so they are not all represented by the generat
 | Tenant resolution | Resolves the current tenant from your own identity layer | `ITenantContext`, `ITenantStore` | `AmbientTenantScope` carries the tenant into background work outside an HTTP request |
 | Run attribution | Attributes a run to your own user and job labels | `IRunAttributionContext` | Unset by default; the columns stay `NULL` until you register one |
 | Tool authorization | Decides whether a caller may invoke a specific tool | `IToolAuthorizationHandler` | Allows every call by default; a thrown exception denies the call |
-| Run and session authorization | Decides whether a caller may start a run, reach an existing run's resources, or read/list/delete/branch/speak into a session | `IRunAuthorizationHandler` | Allows every call by default; a thrown exception denies the call. Called explicitly at all six run-starting endpoints and at every run-resource endpoint, not one shared filter |
+| Run and session authorization | Decides whether a caller may start a run, reach an existing run's resources, or read/list/delete/branch/speak into a session | `IRunAuthorizationHandler` | Allows every call by default; a thrown exception denies the call and is logged as an error. Called explicitly at all six run-starting endpoints and at every run-resource endpoint, not one shared filter |
 | Run event bridge | Bridges run events to your own channel or message bus | `IRunEventSink` | Queue the event and return; a slow sink degrades on its own, never the model stream |
 | Attachment storage | Stores attachment content in your own object store | `IAttachmentStorage` | Content stays in the database until you register one |
 | Tool-approval presentation | Turns a pending approval's raw arguments into a resolved entity name | `IToolApprovalPresenter` | Best-effort: not registered, throws, or times out all publish the approval request unchanged |
@@ -2194,7 +2194,9 @@ builder.Services.AddSingleton<IRunAuthorizationHandler, YourRunAuthorizationHand
 
 Register nothing and nothing changes: every run starts and every run stays
 readable, exactly as before this binding existed. If the handler throws, the
-call is denied (fail-closed). A denied single resource answers `404`, with a
+call is denied (fail-closed), an `Error` line naming your handler type is
+logged in the `Tracon.RunAuthorization` category, and a `403` says that the
+check failed and can be retried. A denied single resource answers `404`, with a
 body identical to a run that does not exist — a `403` there would confirm
 the run exists; a denied list answers `403`. See
 [Embedding: run and session authorization](/guides/embedding/#6--run-and-session-authorization)
@@ -2520,7 +2522,10 @@ Three properties are worth knowing before you turn it on:
   `Tracon:SessionOwnership:ManagementPolicy` (default: the `Operator` role
   policy) gets the unfiltered tenant listing, including those unowned rows. If
   the policy is not registered, *nobody* gets the unfiltered list — the failure
-  direction is deliberate. Set it to `""` to state that outright.
+  direction is deliberate. Set it to `""` to state that outright. If your
+  policy provider or requirement handler throws, the caller also gets the
+  narrow list, and Tracon writes an `Error` line in the
+  `Tracon.SessionOwnership` category; an unregistered policy writes nothing.
 - **Ownership is drawn under the tenant, never across it.** The same person in
   two tenants still has two independent data spaces.
 
@@ -3982,7 +3987,11 @@ Three policy names — `Reader`, `Operator`, `Admin` — that you bind to your o
 Tracon stores no users and no roles. If a policy is not registered in your
 application, that endpoint group simply falls back to the layers above — so upgrading
 never breaks a working deployment. Turn on `RequireRolePolicies` and a missing policy
-becomes a **startup** error instead of a silent gap.
+becomes a **startup** error instead of a silent gap. If your
+`IAuthorizationPolicyProvider` throws while `MapTracon` resolves a role name, that
+role is treated as not registered and a `Warning` is logged in the
+`Tracon.RolePolicies` category; with `RequireRolePolicies` on, the startup error
+carries the provider's exception as its inner exception.
 
 ### Acting on another tenant
 
@@ -4102,6 +4111,13 @@ matches the tenant id without regard to case, like configuration keys themselves
 Each prefix is configurable through the matching options section, and both rules are
 enforced twice: where the record is saved, and again where the value is resolved — so
 a record written before a rule existed cannot quietly read outside it.
+
+The extra `headers` of an MCP server or a webhook subscription are the one free-text
+exception: they are stored in plain text and sent as given, so do not put a credential
+there. No response returns a stored header value — every read and save response
+carries the header names with the value `***`, and the audit trail records the names
+only. A save that sends `***` back as a value is rejected with `400`: a client that
+reads, edits and saves a record must send the real value of every header again.
 
 ## What is stored in the clear
 
@@ -4696,8 +4712,10 @@ which the jobs list and the Jobs screen can only show if somebody looks:
 
 `tracon.job.queue.depth` then reports outstanding jobs per lane and open status
 (`Pending`, `Leased`, `Running`). It is off by default because it queries the
-database on a scrape; the refresh interval caches those reads, so a scrape more
-often than every 30 seconds costs nothing extra. Terminal jobs are never counted
+database. When it is on, a background refresh reads the depth at startup and
+then once per refresh interval; a scrape only reads that last result, so it
+never waits for the database and costs nothing extra however often it runs. The
+reported depth can be up to one interval old. Terminal jobs are never counted
 here — they are already on the counter — which keeps the query's cost tied to the
 work still outstanding instead of to the queue's history.
 
@@ -6269,6 +6287,24 @@ If this handler throws, the call is denied (fail-closed); a gate that fails
 open on an exception is not a gate. When it denies a single resource, the
 `Reason` you supply is deliberately **not** returned — the response has to
 stay identical to a missing resource's.
+
+A throw is a failed check, not a decision, and Tracon reports it that way:
+
+- It writes one `Error` log line in the `Tracon.RunAuthorization` category.
+  The line names your handler type, the access kind and the tenant, agent, run
+  and session ids, and carries the exception. The exception text never goes
+  into the HTTP response.
+- A `403` (a run start, a list, a replay, a workflow resume or respond) says
+  *The run authorization check failed. Retry the request.* instead of claiming
+  that your handler denied the call. A `404` does not change: it stays
+  identical to a missing resource's.
+- An `OperationCanceledException` that the request itself did not cause (for
+  example, an `HttpClient` timeout inside your handler) is a failure like any
+  other and is denied. Only the caller's own cancellation travels on.
+
+If your `IRunAttributionContext` throws while a request is authorized, the
+caller is treated as having no identity, and one `Error` line per request is
+written in the same category.
 
 ## Reading identity inside a tool body
 
@@ -8305,9 +8341,12 @@ the job's whole lifetime. For a job that failed twice before succeeding, the
 single recorded measurement covers the last attempt. It is taken from a monotonic
 clock, so a clock correction during the job cannot produce a negative duration.
 
-`tracon.job.queue.depth` is **off by default**, because it reads the database
-on every scrape. Turn it on with `Observability:EnableJobQueueDepthGauge`, and the
-reads are cached for `Observability:JobQueueDepthRefreshInterval`. It reports only
+`tracon.job.queue.depth` is **off by default**, because it reads the database.
+Turn it on with `Observability:EnableJobQueueDepthGauge`: a background refresh
+then reads the depth once at startup and again every
+`Observability:JobQueueDepthRefreshInterval`, and a scrape only reads the last
+result. A scrape never waits for the database, so a reported value can be up to
+one interval old, and the first scrape after startup can be empty. It reports only
 the open statuses — `Pending`, `Leased`, and `Running` — so its cost tracks the
 work still outstanding rather than the queue's whole history. A lane with no open
 jobs is absent rather than reported as zero. The gauge carries **no tenant tag**:
@@ -8437,7 +8476,7 @@ Other useful views are `GET /api/runs/{runId}/tools` and
 | `RecordSensitiveData` | `false` | Excludes prompt, message, and completion text from span tags |
 | `IncludeAgentVersionTag` | `true` | Adds agent version to run spans and run metrics |
 | `EnableQuotaUsageGauge` | `false` | Avoids background database reads until explicitly enabled |
-| `QuotaUsageRefreshInterval` | 30 seconds | Caches database-backed gauge samples between collections |
+| `QuotaUsageRefreshInterval` | 30 seconds | How often a background refresh reads the quota gauge samples; a collection only reads the last result and never waits for the database |
 
 `PersistSpans=false` only disables the internal store. Spans can still reach the
 consumer's configured exporter.
@@ -8576,7 +8615,7 @@ operational information.
 | A registered `IRunEventSink` stops receiving events partway through a run | Check the warning log for that sink's exception; it is disabled for the rest of that run only, other sinks and the store are unaffected |
 | Readiness says no provider has been probed | Nothing probes on its own: call `/api/models/health?refresh=true` or set `Tracon:Health:BackgroundInterval` |
 | Health is `Unhealthy` after deployment | Check database reachability and pending migrations before investigating providers |
-| Quota gauges never appear | Enable `Observability.EnableQuotaUsageGauge` and confirm the meter is collected |
+| Quota gauges never appear | Enable `Observability.EnableQuotaUsageGauge` and confirm the meter is collected; the first collection after startup can be empty until the first background refresh completes |
 
 ## Read next
 
@@ -13410,6 +13449,12 @@ for the current end-of-support date of each version before you pin one. `net10.0
 is the longest-lived target in the matrix today, and a new application should
 start there.
 
+**Scheduled (announced 2026-09-23):** `net8.0` and `net9.0` reach the end of
+Microsoft support on 2026-11-10. The first Tracon release after that date drops
+both targets. An urgent security release may still carry them. Move an
+application that targets `net8.0` or `net9.0` to `net10.0` before you take that
+release.
+
 ## The 20 packages
 
 “Meta” shows whether `dotnet add package Tracon` brings the package into the
@@ -13851,8 +13896,12 @@ on the model binding, not a global setting. See
 These settings control Tracon span creation and its own trace store. They do not
 replace the application's OpenTelemetry exporter.
 
-Both gauges are off by default because each one reads the database on a scrape;
-the matching refresh interval caches those reads.
+Both gauges are off by default because each one reads the database. When a gauge
+is on, a background refresh reads it at startup and then once per matching
+refresh interval, and a collection only reads the last result. Turning a gauge on,
+or changing its interval, takes effect at the next start. An enabled gauge needs a
+refresh interval from one millisecond to about 49.7 days, or startup validation
+fails.
 `MaxJobLaneCardinality` bounds how many distinct job lanes get a metric series of
 their own before the rest are folded into a single `other` series — see
 [observability](/guides/observability/#what-the-job-metrics-count).

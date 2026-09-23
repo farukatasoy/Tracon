@@ -86,6 +86,7 @@ internal static class ApprovalEndpoints
         [FromServices] ITenantContext tenants,
         [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
         [FromServices] IRunAttributionContext? attributionContext,
+        HttpContext httpContext,
         CancellationToken cancellationToken)
     {
         // A denied list is REJECTED (403), never silently filtered: there is no
@@ -100,6 +101,7 @@ internal static class ApprovalEndpoints
                     attributionContext,
                     RunAccess.Approval,
                     NotAuthorized(),
+                    httpContext,
                     cancellationToken)
                 .ConfigureAwait(false) is { } authorizationProblem)
         {
@@ -117,6 +119,7 @@ internal static class ApprovalEndpoints
         [FromServices] ITenantContext tenants,
         [FromServices] IRunAuthorizationHandler? runAuthorizationHandler,
         [FromServices] IRunAttributionContext? attributionContext,
+        HttpContext httpContext,
         CancellationToken cancellationToken)
     {
         var approval = await store.GetAsync(id, cancellationToken).ConfigureAwait(false);
@@ -136,6 +139,7 @@ internal static class ApprovalEndpoints
                     attributionContext,
                     RunAccess.Approval,
                     NotFound(id),
+                    httpContext,
                     cancellationToken)
                 .ConfigureAwait(false) is { } authorizationProblem)
         {
@@ -190,6 +194,7 @@ internal static class ApprovalEndpoints
                     attributionContext,
                     RunAccess.Approval,
                     NotFound(id),
+                    httpContext,
                     cancellationToken)
                 .ConfigureAwait(false) is { } authorizationProblem)
         {

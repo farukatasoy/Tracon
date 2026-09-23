@@ -188,6 +188,117 @@ public sealed class GovernanceEndpointTests
     }
 
     [Fact]
+    public async Task Mcp_header_values_are_masked_in_every_response_and_kept_in_the_store()
+    {
+        // 🚨 A header value is free text an operator typed: nothing stops it
+        // from being an API key. The list is open to every Reader and every
+        // AgentsRead key, who could then call the MCP server directly - past
+        // the approval gate. The mask covers EVERY header, not only the
+        // names that look like credentials: a name heuristic misses X-Auth.
+        const string ApiKey = "sk-live-very-secret";
+        const string PlainValue = "plain-trace-value";
+
+        await using var host = await TraconTestHost.StartAsync();
+
+        using var saved = await host.Client.PutAsJsonAsync(
+            new Uri("/tracon/api/mcp-servers/github", UriKind.Relative),
+            new
+            {
+                endpoint = "https://mcp.example.com/mcp",
+                headers = new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["X-Api-Key"] = ApiKey,
+                    ["X-Trace"] = PlainValue,
+                },
+                enabled = true,
+                requiresApproval = true,
+            });
+
+        saved.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        using var listed = await host.Client.GetAsync(new Uri("/tracon/api/mcp-servers", UriKind.Relative));
+
+        foreach (var body in new[] { await saved.Content.ReadAsStringAsync(), await listed.Content.ReadAsStringAsync() })
+        {
+            body.ShouldNotContain(ApiKey);
+            body.ShouldNotContain(PlainValue);
+        }
+
+        var server = (await listed.Content.ReadFromJsonAsync<List<McpServerDefinition>>())!.ShouldHaveSingleItem();
+        server.Headers.ShouldBe(
+            new Dictionary<string, string>(StringComparer.Ordinal) { ["X-Api-Key"] = "***", ["X-Trace"] = "***" },
+            ignoreOrder: true);
+
+        // The mask is a RESPONSE rule only: the stored row keeps the value the
+        // transport sends to the MCP server.
+        var stored = await host.Services.GetRequiredService<IMcpServerStore>().GetAsync("default", "github");
+        stored!.Headers["X-Api-Key"].ShouldBe(ApiKey);
+    }
+
+    [Fact]
+    public async Task Mcp_audit_trail_records_header_names_but_no_values()
+    {
+        const string ApiKey = "ocp-subscription-value";
+
+        await using var host = await TraconTestHost.StartAsync();
+
+        // Ocp-Apim-Subscription-Key: a credential whose name the audit
+        // secret filter does not recognize.
+        foreach (var value in new[] { ApiKey, ApiKey + "-rotated" })
+        {
+            using var saved = await host.Client.PutAsJsonAsync(
+                new Uri("/tracon/api/mcp-servers/apim", UriKind.Relative),
+                new
+                {
+                    endpoint = "https://mcp.example.com/mcp",
+                    headers = new Dictionary<string, string>(StringComparer.Ordinal) { ["Ocp-Apim-Subscription-Key"] = value },
+                    enabled = true,
+                    requiresApproval = true,
+                });
+
+            saved.StatusCode.ShouldBe(HttpStatusCode.OK);
+        }
+
+        var entries = await host.Services.GetRequiredService<IAuditLog>()
+            .QueryAsync(new AuditQuery { Entity = "mcp:apim" });
+
+        entries.Count.ShouldBe(2);
+
+        foreach (var entry in entries)
+        {
+            $"{entry.Before}{entry.After}".ShouldNotContain(ApiKey);
+            entry.After.ShouldNotBeNull().ShouldContain("Ocp-Apim-Subscription-Key");
+        }
+    }
+
+    [Fact]
+    public async Task Mcp_save_that_sends_the_mask_back_is_rejected()
+    {
+        // A client that reads, edits and writes back would otherwise store
+        // "***" over the real value and silently break the server's
+        // authentication.
+        await using var host = await TraconTestHost.StartAsync();
+
+        using var response = await host.Client.PutAsJsonAsync(
+            new Uri("/tracon/api/mcp-servers/github", UriKind.Relative),
+            new
+            {
+                endpoint = "https://mcp.example.com/mcp",
+                headers = new Dictionary<string, string>(StringComparer.Ordinal) { ["X-Api-Key"] = "***" },
+                enabled = true,
+                requiresApproval = true,
+            });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+
+        var detail = (await TraconTestHost.ReadJsonAsync(response)).GetProperty("detail").GetString();
+        detail.ShouldNotBeNull().ShouldContain("X-Api-Key");
+        detail.ShouldContain("real value");
+
+        (await host.Services.GetRequiredService<IMcpServerStore>().GetAsync("default", "github")).ShouldBeNull();
+    }
+
+    [Fact]
     public async Task Stdio_address_is_rejected()
     {
         // Local process transport is a security boundary: someone with

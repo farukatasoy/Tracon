@@ -12,6 +12,12 @@ namespace Tracon;
 /// </remarks>
 internal sealed class TraconOptionsValidator : IValidateOptions<TraconOptions>
 {
+    /// <summary>
+    /// The longest period a <see cref="PeriodicTimer"/> accepts, in whole
+    /// milliseconds (about 49.7 days).
+    /// </summary>
+    private const long MaxGaugeRefreshMilliseconds = uint.MaxValue - 1L;
+
     /// <inheritdoc />
     public ValidateOptionsResult Validate(string? name, TraconOptions options)
     {
@@ -110,6 +116,8 @@ internal sealed class TraconOptionsValidator : IValidateOptions<TraconOptions>
             }
         }
 
+        ValidateGaugeRefresh(options.Observability, ref failures);
+
         var skills = options.Skills;
 
         if (skills is null)
@@ -198,6 +206,50 @@ internal sealed class TraconOptionsValidator : IValidateOptions<TraconOptions>
             ? ValidateOptionsResult.Success
             : ValidateOptionsResult.Fail(failures);
     }
+
+    /// <summary>Validates the refresh interval of every database-backed gauge that is on.</summary>
+    /// <remarks>
+    /// An enabled gauge refreshes on a <see cref="PeriodicTimer"/>, and that timer
+    /// accepts only a period from one millisecond to
+    /// <see cref="MaxGaugeRefreshMilliseconds"/> milliseconds. Without this
+    /// check the refresher would fail after startup and, under the default
+    /// hosting behavior, stop the host. A gauge that is off creates no timer,
+    /// so its interval is not checked.
+    /// </remarks>
+    private static void ValidateGaugeRefresh(TraconObservabilityOptions? observability, ref List<string>? failures)
+    {
+        if (observability is null)
+        {
+            (failures ??= []).Add(
+                $"{nameof(TraconOptions)}.{nameof(TraconOptions.Observability)} cannot be empty.");
+            return;
+        }
+
+        if (observability.EnableQuotaUsageGauge && !IsTimerPeriod(observability.QuotaUsageRefreshInterval))
+        {
+            (failures ??= []).Add(
+                $"{nameof(TraconObservabilityOptions)}.{nameof(TraconObservabilityOptions.QuotaUsageRefreshInterval)} " +
+                $"must be between 1 and {MaxGaugeRefreshMilliseconds} milliseconds when " +
+                $"{nameof(TraconObservabilityOptions.EnableQuotaUsageGauge)} is on. " +
+                $"Actual value: {observability.QuotaUsageRefreshInterval}.");
+        }
+
+        if (observability.EnableJobQueueDepthGauge && !IsTimerPeriod(observability.JobQueueDepthRefreshInterval))
+        {
+            (failures ??= []).Add(
+                $"{nameof(TraconObservabilityOptions)}.{nameof(TraconObservabilityOptions.JobQueueDepthRefreshInterval)} " +
+                $"must be between 1 and {MaxGaugeRefreshMilliseconds} milliseconds when " +
+                $"{nameof(TraconObservabilityOptions.EnableJobQueueDepthGauge)} is on. " +
+                $"Actual value: {observability.JobQueueDepthRefreshInterval}.");
+        }
+    }
+
+    /// <summary>Reports whether a <see cref="PeriodicTimer"/> accepts the period.</summary>
+    /// <param name="period">The period.</param>
+    /// <returns><see langword="true"/> for a period from one millisecond to about 49.7 days.</returns>
+    private static bool IsTimerPeriod(TimeSpan period)
+        => period >= TimeSpan.FromMilliseconds(1)
+           && period.TotalMilliseconds <= MaxGaugeRefreshMilliseconds;
 
     /// <summary>Validates script-execution options.</summary>
     /// <remarks>

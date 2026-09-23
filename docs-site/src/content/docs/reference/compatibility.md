@@ -56,6 +56,12 @@ for the current end-of-support date of each version before you pin one. `net10.0
 is the longest-lived target in the matrix today, and a new application should
 start there.
 
+**Scheduled (announced 2026-09-23):** `net8.0` and `net9.0` reach the end of
+Microsoft support on 2026-11-10. The first Tracon release after that date drops
+both targets. An urgent security release may still carry them. Move an
+application that targets `net8.0` or `net9.0` to `net10.0` before you take that
+release.
+
 ## The 20 packages
 
 “Meta” shows whether `dotnet add package Tracon` brings the package into the

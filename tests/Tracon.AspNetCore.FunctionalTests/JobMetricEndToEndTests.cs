@@ -2,6 +2,7 @@ using System.Diagnostics.Metrics;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 
 namespace Tracon.AspNetCore.FunctionalTests;
@@ -117,9 +118,69 @@ public sealed class JobMetricEndToEndTests
             new Uri("/tracon/api/schedules/depth-probe/trigger", UriKind.Relative),
             new { });
 
-        // The job is sitting in the queue, yet the gauge stays silent: it is
-        // opt-in, and a default installation issues no depth query at all.
+        // An empty scrape alone proves nothing: an ENABLED gauge is also empty
+        // until its first refresh. What proves "opt-in" is the refresher
+        // itself: it returned at start without a timer and never read the store.
+        var observer = host.Services.GetServices<IHostedService>().OfType<JobQueueDepthObserver>().Single();
+
+        await observer.ExecuteTask!.WaitAsync(WaitUntil.DefaultTimeout, TestContext.Current.CancellationToken);
+        observer.CompletedRefreshes.ShouldBe(0);
+
+        // The job is sitting in the queue, yet the gauge stays silent.
         collector.Scrape(TraconDiagnostics.JobQueueDepthGaugeName).ShouldBeEmpty();
     }
 
+    [Fact]
+    public async Task An_enabled_queue_depth_gauge_waits_for_the_schema_then_publishes_the_depth()
+    {
+        using var database = new TempSqliteDatabase("depth-gauge");
+        using var meterFactory = new TestMeterFactory();
+        using var collector = new MeterInstanceCollector(meterFactory.Meter);
+
+        // 🚨 AddTracon registers the refresher BEFORE UseSqlite registers the
+        // migration runner, and the host starts hosted services in that order.
+        // Without the schema gate the first depth query reaches SQLite before
+        // the tables exist and logs a refresh failure.
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: builder => builder
+                .UseSqlite(options => options.ConnectionString = database.ConnectionString),
+            configureServices: services =>
+            {
+                services.AddSingleton<IMeterFactory>(meterFactory);
+                services.Configure<TraconOptions>(static options =>
+                {
+                    options.Observability.EnableJobQueueDepthGauge = true;
+                    options.Observability.JobQueueDepthRefreshInterval = TimeSpan.FromMilliseconds(100);
+                });
+                services.UseScheduling(static options => options.RunWorker = false);
+            });
+
+        await host.Client.PutAsJsonAsync(
+            new Uri("/tracon/api/schedules/depth-probe", UriKind.Relative),
+            new JobScheduleSaveRequest
+            {
+                HandlerKey = JobHandlerKeys.AgentBatch,
+                TargetName = "no-such-agent",
+                Cron = "0 3 * * *",
+                TimeZone = "UTC",
+                Payload = JsonDocument.Parse("""["a"]""").RootElement,
+                Enabled = true,
+            });
+
+        using var triggered = await host.Client.PostAsJsonAsync(
+            new Uri("/tracon/api/schedules/depth-probe/trigger", UriKind.Relative),
+            new { });
+
+        triggered.EnsureSuccessStatusCode();
+
+        // The worker is off, so the job stays queued. A later refresh of the
+        // real DI-built refresher publishes it; the scrape itself never queries.
+        var depth = await WaitUntil.ValueAsync(
+            () => Task.FromResult(collector.Scrape(TraconDiagnostics.JobQueueDepthGaugeName)),
+            static measurements => measurements.Sum(static m => m.Value) >= 1);
+
+        depth.ShouldAllBe(static m => !m.Tags.ContainsKey(TraconDiagnostics.Tags.TenantId));
+        host.Logs.Entries.ShouldNotContain(
+            static entry => entry.Contains("Could not refresh the job queue-depth gauge cache", StringComparison.Ordinal));
+    }
 }

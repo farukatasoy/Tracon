@@ -44,8 +44,12 @@ public sealed record McpServerRequest
     public string? AuthorizationConfigurationKey { get; init; }
 
     /// <summary>
-    /// Extra request headers. <strong>Must not carry secrets</strong> — these
-    /// values are stored as-is and appear in the listing endpoint.
+    /// Extra request headers, sent as given with every request to the server.
+    /// The values are stored as plain text, so do not put a secret here; use
+    /// <c>AuthorizationConfigurationKey</c> for the <c>Authorization</c> header.
+    /// Send every header with its real value on each save: a response masks
+    /// the values as <c>***</c>, and a value of <c>***</c> is rejected with
+    /// <c>400</c>.
     /// </summary>
     public IReadOnlyDictionary<string, string>? Headers { get; init; }
 

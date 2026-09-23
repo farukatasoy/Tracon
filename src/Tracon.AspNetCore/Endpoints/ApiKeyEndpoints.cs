@@ -40,7 +40,8 @@ internal static class ApiKeyEndpoints
                 "cannot be produced again. The scope list is closed; an unknown scope " +
                 "is rejected. If the request was authenticated with an API key, a scope " +
                 "that key does NOT ITSELF CARRY cannot be requested (privilege " +
-                "extension/attenuation).");
+                "extension/attenuation). A key with the PlatformAdmin scope reaches every " +
+                "tenant, so requesting it needs platform authority (403 otherwise).");
 
         builder.MapDelete("/api/api-keys/{id:guid}", RevokeAsync)
             .RequireRole(roles.Admin)
@@ -106,6 +107,16 @@ internal static class ApiKeyEndpoints
                 return Invalid(
                     $"Cannot request scope(s) this key does not carry: {string.Join(", ", ungranted)}.");
             }
+        }
+
+        // A PlatformAdmin key reaches every tenant (CrossTenantAuthority), so
+        // minting one needs the same platform authority as using it. Without
+        // this, a claims-based Admin of one tenant could create such a key and
+        // step around the TraconPolicies.PlatformAdmin requirement.
+        if (request.Scopes.Contains(ApiKeyScope.PlatformAdmin)
+            && await CrossTenantAuthority.CheckAsync(httpContext, targetTenantId: null).ConfigureAwait(false) is { } denied)
+        {
+            return denied;
         }
 
         var created = await store.CreateAsync(
