@@ -317,7 +317,13 @@ def test_envanteri() -> set[str]:
     """
     envanter: set[str] = set()
 
-    kaynaklar = [(p, TEST_METODU_CS) for p in (ROOT / "tests").rglob("*.cs")]
+    # 🚨 Sözleşme testleri `tests/` altında DEĞİL, sevk edilen paketin
+    # kaynağındadır (`src/Tracon.Testing.Contracts.Xunit`); sağlayıcı test
+    # projeleri onları kalıtarak koşar. Yalnız `tests/` taranınca Faz 182'nin
+    # `MT-SEC-199` işareti var olan iki sözleşme testine rağmen bayat görünüyordu
+    # (Faz 184).
+    cs_kokleri = [ROOT / "tests", ROOT / "src" / "Tracon.Testing.Contracts.Xunit"]
+    kaynaklar = [(p, TEST_METODU_CS) for kok in cs_kokleri for p in kok.rglob("*.cs")]
     kaynaklar += [(p, TEST_METODU_PY) for p in (ROOT / "scripts").glob("*_test.py")]
 
     for yol, metot_deseni in kaynaklar:
