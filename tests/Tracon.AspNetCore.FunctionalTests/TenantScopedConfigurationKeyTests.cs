@@ -227,6 +227,52 @@ public sealed class TenantScopedConfigurationKeyTests
         response.StatusCode.ShouldBe(HttpStatusCode.OK);
     }
 
+    // ---- Header configuration keys (MCP servers and webhooks) --------------------
+
+    /// <summary>
+    /// Every entry of <c>headerConfigurationKeys</c> passes the same rule as the
+    /// single key fields; the detail names the entry and the caller's namespace.
+    /// </summary>
+    [Theory]
+    [InlineData("/tracon/api/mcp-servers/probe", "Tracon:McpSecrets:globex:SearchKey", "Tracon:McpSecrets:acme:")]
+    [InlineData("/tracon/api/mcp-servers/probe", "Tracon:McpSecrets:SearchKey", "Tracon:McpSecrets:acme:")]
+    [InlineData("/tracon/api/mcp-servers/probe", "ConnectionStrings:Default", "Tracon:McpSecrets:")]
+    [InlineData("/tracon/api/webhooks/orders", "Tracon:WebhookSecrets:globex:OrdersKey", "Tracon:WebhookSecrets:acme:")]
+    [InlineData("/tracon/api/webhooks/orders", "Tracon:WebhookSecrets:OrdersKey", "Tracon:WebhookSecrets:acme:")]
+    public async Task Header_key_outside_the_callers_tenant_is_rejected(string path, string key, string expectedSpace)
+    {
+        await using var host = await StartAsync();
+
+        using var response = await PutAsync(host, path, HeaderKeyBody(path, key), "acme");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+
+        var body = await response.Content.ReadAsStringAsync();
+        body.ShouldContain("headerConfigurationKeys[X-API-Key]");
+        body.ShouldContain(expectedSpace);
+    }
+
+    [Theory]
+    [InlineData("/tracon/api/mcp-servers/probe", "Tracon:McpSecrets:acme:SearchKey")]
+    [InlineData("/tracon/api/webhooks/orders", "Tracon:WebhookSecrets:Acme:OrdersKey")]
+    public async Task Header_key_under_the_callers_tenant_is_accepted(string path, string key)
+    {
+        await using var host = await StartAsync();
+
+        using var response = await PutAsync(host, path, HeaderKeyBody(path, key), "acme");
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync());
+    }
+
+    private static object HeaderKeyBody(string path, string key)
+    {
+        var keys = new Dictionary<string, string>(StringComparer.Ordinal) { ["X-API-Key"] = key };
+
+        return path.Contains("webhooks", StringComparison.Ordinal)
+            ? new { url = "https://hooks.example.com/orders", events = new[] { WebhookEvents.RunCompleted }, headerConfigurationKeys = keys }
+            : new { endpoint = "https://mcp.example.com/", transport = "StreamableHttp", headerConfigurationKeys = keys };
+    }
+
     // ---- Inbound triggers --------------------------------------------------------
 
     [Theory]

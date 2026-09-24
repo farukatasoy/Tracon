@@ -47,6 +47,28 @@ const EMPTY_FORM: McpServerRequest & { name: string } = {
   oauthScopes: '',
 };
 
+/**
+ * What the list shows in the authentication column: the configuration key the
+ * `Authorization` header is read from (the deprecated field or its
+ * `headerConfigurationKeys` entry), else the names of the other headers read
+ * from configuration. A server authenticated only by `X-Api-Key` would
+ * otherwise show "none".
+ */
+function credentialSummary(server: McpServerDefinition): string | null {
+  const keyed = Object.entries(server.headerConfigurationKeys);
+  const authorization = keyed.find(([header]) => header.toLowerCase() === 'authorization');
+
+  if (authorization != null) {
+    return authorization[1];
+  }
+
+  if (server.authorizationConfigurationKey != null && server.authorizationConfigurationKey.length > 0) {
+    return server.authorizationConfigurationKey;
+  }
+
+  return keyed.length > 0 ? keyed.map(([header]) => header).join(', ') : null;
+}
+
 /** A condition row as edited in the form; `value` stays raw text until submit. */
 interface ConditionRow {
   path: string;
@@ -519,11 +541,8 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
                           <Mono className="text-xs text-muted">
                             OAuth: {server.oauthClientId}
                           </Mono>
-                        ) : server.authorizationConfigurationKey != null &&
-                          server.authorizationConfigurationKey.length > 0 ? (
-                          <Mono className="text-xs text-muted">
-                            {server.authorizationConfigurationKey}
-                          </Mono>
+                        ) : credentialSummary(server) != null ? (
+                          <Mono className="text-xs text-muted">{credentialSummary(server)}</Mono>
                         ) : (
                           <span className="text-xs text-subtle">{t('common.none')}</span>
                         )}
@@ -561,9 +580,10 @@ export function McpScreen({ meta }: { meta: Meta }): ReactNode {
                           )}
                           {meta.roles.canAdminister && (
                             /* No confirmation step: §175.3 fails on both
-                                counts. The row carries an endpoint, headers
-                                and a configuration KEY NAME (K-059) — every
-                                one of them typed back from this same form. */
+                                counts. The row carries an endpoint and
+                                configuration KEY NAMES (K-059), typed back
+                                from this form or the API; its header maps are
+                                set through the API and sent again from there. */
                             <Tooltip text={t('mcp.removeServerTitle')}>
                               <Button
                                 tone="danger"

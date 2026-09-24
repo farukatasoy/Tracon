@@ -676,7 +676,11 @@ inside the signature so a replay cannot be reused. Your receiver decides the tol
 window.
 
 The secret is never stored: the subscription carries the **name** of the configuration
-key it is read from. Delivery goes through the job queue, so a `test` call reports
+key it is read from. A receiver that wants its own credential header — `X-Api-Key`,
+`Authorization` — gets it the same way: `headerConfigurationKeys` maps the header name
+to a key under `Tracon:WebhookSecrets:`, and the value is read on every delivery. A
+subscription whose key name sits outside its tenant has the delivery dropped. The
+names of both header maps enter the audit trail; no header value does. Delivery goes through the job queue, so a `test` call reports
 that it was queued, not how it went. The delivery history has one entry per event
 carrying the latest status and attempt count — retries update that entry rather than
 adding rows.

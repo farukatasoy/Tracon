@@ -41,7 +41,7 @@ public enum McpTransportMode
 /// </summary>
 /// <remarks>
 /// <para>
-/// <strong>Carries no secret.</strong> The <em>value</em> of the authentication header is not stored in this record; only the name of the configuration key the value is read from (<c>AuthorizationConfigurationKey</c>) is stored. The value is resolved at run time through <c>IConfiguration</c>, so it stays in <c>dotnet user-secrets</c> or an environment variable. It never enters a database backup, an audit trail, or a UI response.
+/// <strong>Carries no secret.</strong> The <em>value</em> of a credential header is not stored in this record; only the name of the configuration key the value is read from (<c>HeaderConfigurationKeys</c>) is stored. The value is resolved at connection time through <c>IConfiguration</c>, so it stays in <c>dotnet user-secrets</c> or an environment variable. It never enters a database backup, an audit trail, or a UI response.
 /// </para>
 /// </remarks>
 public sealed record McpServerDefinition
@@ -70,8 +70,16 @@ public sealed record McpServerDefinition
     /// <summary>
     /// The configuration key the <c>Authorization</c> header's value is read
     /// from. Example: <c>Tracon:McpSecrets:GithubToken</c>. If left empty, the
-    /// header is not sent.
+    /// header is not sent. Deprecated: use <c>HeaderConfigurationKeys["Authorization"]</c>;
+    /// the field is removed in the first stable release.
     /// </summary>
+    /// <remarks>
+    /// Superseded by <c>HeaderConfigurationKeys</c>, which covers every
+    /// credential header and not only <c>Authorization</c>. A record that
+    /// names <c>Authorization</c> in both fields is rejected on save. The
+    /// field is removed in the first stable release.
+    /// </remarks>
+    [Obsolete(ObsoleteMessages.AuthorizationConfigurationKey, UrlFormat = ObsoleteMessages.UrlFormat)]
     public string? AuthorizationConfigurationKey { get; init; }
 
     /// <summary>
@@ -82,8 +90,10 @@ public sealed record McpServerDefinition
     /// <remarks>
     /// <para>
     /// The values are stored as plain text in the database. Do not put a
-    /// secret here: use <see cref="AuthorizationConfigurationKey"/> for the
-    /// <c>Authorization</c> header.
+    /// secret here: declare a credential header in
+    /// <c>HeaderConfigurationKeys</c> instead. The HTTP save rejects a header
+    /// whose name looks like a credential (<c>Authorization</c>,
+    /// <c>X-Api-Key</c>, <c>Cookie</c>, any name ending in <c>-key</c>).
     /// </para>
     /// <para>
     /// The list and save responses mask every value, and the audit trail
@@ -95,13 +105,51 @@ public sealed record McpServerDefinition
     public IReadOnlyDictionary<string, string> Headers { get; init; } =
         new Dictionary<string, string>(StringComparer.Ordinal);
 
+    /// <summary>
+    /// Credential request headers, as a map from the header name to the NAME
+    /// of the configuration key its value is read from. The value is resolved
+    /// through <c>IConfiguration</c> on every connection and is never stored.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Every key name must sit under
+    /// <c>TraconMcpSecurityOptions.AllowedConfigurationPrefix</c>, inside the
+    /// tenant's own key space (<c>{prefix}{tenantId}:...</c>; a flat name
+    /// directly under the prefix belongs to the default tenant). The rule is
+    /// checked on save and again on every connection.
+    /// </para>
+    /// <para>
+    /// A header name may appear only once across <see cref="Headers"/> and
+    /// this map, compared case-insensitively. While OAuth is on, the map may
+    /// not name <c>Authorization</c>.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// var record = new McpServerDefinition
+    /// {
+    ///     Id = Guid.NewGuid(),
+    ///     TenantId = "acme",
+    ///     Name = "search",
+    ///     Endpoint = new Uri("https://mcp.example.com/mcp"),
+    ///     HeaderConfigurationKeys = new Dictionary&lt;string, string&gt;
+    ///     {
+    ///         ["X-Api-Key"] = "Tracon:McpSecrets:acme:SearchKey",
+    ///     },
+    /// };
+    /// </code>
+    /// </example>
+    public IReadOnlyDictionary<string, string> HeaderConfigurationKeys { get; init; } =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>Whether the server is enabled. Its tools are not discovered while disabled.</summary>
     public bool Enabled { get; init; } = true;
 
     /// <summary>
-    /// Whether OAuth authentication is on. When on, it cannot be used at the
-    /// same time as <c>AuthorizationConfigurationKey</c> — both would
-    /// try to manage the <c>Authorization</c> header.
+    /// Whether OAuth authentication is on. When on, neither
+    /// <c>AuthorizationConfigurationKey</c> nor an <c>Authorization</c> entry in
+    /// <c>HeaderConfigurationKeys</c> may be set — both would try to
+    /// manage the <c>Authorization</c> header.
     /// </summary>
     /// <remarks>
     /// <c>[JsonPropertyName]</c> is given DELIBERATELY: System.Text.Json's
@@ -120,7 +168,7 @@ public sealed record McpServerDefinition
     /// <summary>
     /// The configuration key the OAuth client secret's value is read from.
     /// The value is never written to the database, under the same rule
-    ///  as <c>AuthorizationConfigurationKey</c>.
+    /// as <c>HeaderConfigurationKeys</c>.
     /// </summary>
     [JsonPropertyName("oauthClientSecretConfigurationKey")]
     public string? OAuthClientSecretConfigurationKey { get; init; }

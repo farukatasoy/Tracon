@@ -244,7 +244,45 @@ public abstract class McpServerStoreContract : TenantIsolationContract<IMcpServe
         loaded.ShouldNotBeNull();
         loaded.Endpoint.ToString().ShouldBe("https://example.test/mcp");
         loaded.Enabled.ShouldBeTrue();
+
+        // The deprecated field keeps its column until 1.0.0; a store that
+        // stops persisting it breaks every server registered through it.
+#pragma warning disable CS0618 // AuthorizationConfigurationKey is obsolete but still stored.
         loaded.AuthorizationConfigurationKey.ShouldBe("Tracon:McpSecrets:GithubToken");
+#pragma warning restore CS0618
+    }
+
+    [Fact]
+    public async Task Header_configuration_keys_are_preserved()
+    {
+        // The SAVED record is checked as well as the one read back: a store
+        // that returns the written row from its own column list (SQL Server's
+        // OUTPUT clause) can drop the field there while a later read has it.
+        var saved = await Store.SaveAsync(Server("tenant-a", "search") with
+        {
+            Headers = new Dictionary<string, string>(StringComparer.Ordinal) { ["X-Team"] = "platform" },
+            HeaderConfigurationKeys = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["X-Api-Key"] = "Tracon:McpSecrets:SearchKey",
+                ["Cookie"] = "Tracon:McpSecrets:SearchSession",
+            },
+        });
+
+        var loaded = await Store.GetAsync("tenant-a", "search");
+
+        foreach (var server in new[] { saved, loaded.ShouldNotBeNull() })
+        {
+            server.Headers["X-Team"].ShouldBe("platform");
+            server.HeaderConfigurationKeys.Count.ShouldBe(2);
+            server.HeaderConfigurationKeys["X-Api-Key"].ShouldBe("Tracon:McpSecrets:SearchKey");
+            server.HeaderConfigurationKeys["Cookie"].ShouldBe("Tracon:McpSecrets:SearchSession");
+        }
+
+        // An update replaces the map; an upsert that leaves the column out of
+        // its UPDATE list keeps the old names.
+        await Store.SaveAsync(loaded with { HeaderConfigurationKeys = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) });
+
+        (await Store.GetAsync("tenant-a", "search"))!.HeaderConfigurationKeys.ShouldBeEmpty();
     }
 
     [Fact]
@@ -273,7 +311,9 @@ public abstract class McpServerStoreContract : TenantIsolationContract<IMcpServe
             Name = name,
             Description = "Sample server.",
             Endpoint = new Uri("https://example.test/mcp"),
+#pragma warning disable CS0618 // AuthorizationConfigurationKey is obsolete but still stored.
             AuthorizationConfigurationKey = "Tracon:McpSecrets:GithubToken",
+#pragma warning restore CS0618
             Enabled = true,
         };
 }

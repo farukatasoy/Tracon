@@ -20,11 +20,11 @@ public sealed record TenantRequest
 /// Request to create/update an MCP server.
 /// </summary>
 /// <remarks>
-/// <strong>There is no secret field.</strong> The authentication header's
-/// value is not sent; only the name of the configuration key
-/// (<c>AuthorizationConfigurationKey</c>) the value is to be read from
-/// is sent. The value is resolved through <c>IConfiguration</c> at runtime and
-/// is never written to the database.
+/// <strong>There is no secret field.</strong> A credential header's value is
+/// not sent; only the name of the configuration key the value is to be read
+/// from is sent (<c>HeaderConfigurationKeys</c>). The value is resolved
+/// through <c>IConfiguration</c> at runtime and is never written to the
+/// database.
 /// </remarks>
 public sealed record McpServerRequest
 {
@@ -39,19 +39,35 @@ public sealed record McpServerRequest
 
     /// <summary>
     /// Configuration key the <c>Authorization</c> header's value is read from.
-    /// Example: <c>Tracon:McpSecrets:GithubToken</c>.
+    /// Example: <c>Tracon:McpSecrets:GithubToken</c>. Deprecated: use
+    /// <c>headerConfigurationKeys["Authorization"]</c>; the field is removed in
+    /// the first stable release. Naming <c>Authorization</c> in both fields is rejected
+    /// with <c>400</c>.
     /// </summary>
+    [Obsolete(ObsoleteMessages.AuthorizationConfigurationKey, UrlFormat = ObsoleteMessages.UrlFormat)]
     public string? AuthorizationConfigurationKey { get; init; }
 
     /// <summary>
     /// Extra request headers, sent as given with every request to the server.
-    /// The values are stored as plain text, so do not put a secret here; use
-    /// <c>AuthorizationConfigurationKey</c> for the <c>Authorization</c> header.
-    /// Send every header with its real value on each save: a response masks
-    /// the values as <c>***</c>, and a value of <c>***</c> is rejected with
-    /// <c>400</c>.
+    /// The values are stored as plain text, so a header whose name looks like
+    /// a credential (<c>Authorization</c>, <c>X-Api-Key</c>, <c>Cookie</c>, any
+    /// name ending in <c>-key</c>) is rejected with <c>400</c>: declare it in
+    /// <c>HeaderConfigurationKeys</c>. Send every header with its real
+    /// value on each save: a response masks the values as <c>***</c>, and a
+    /// value of <c>***</c> is rejected with <c>400</c>. Absent or
+    /// <see langword="null"/> keeps the stored headers; <c>{}</c> removes them.
     /// </summary>
     public IReadOnlyDictionary<string, string>? Headers { get; init; }
+
+    /// <summary>
+    /// Credential request headers, as a map from the header name to the NAME
+    /// of the configuration key its value is read from, for example
+    /// <c>{"X-Api-Key": "Tracon:McpSecrets:acme:SearchKey"}</c>. Every name must
+    /// sit inside the caller's tenant key space. A response returns the map
+    /// unmasked: it carries no value. Absent or <see langword="null"/> keeps the
+    /// stored map; <c>{}</c> removes it.
+    /// </summary>
+    public IReadOnlyDictionary<string, string>? HeaderConfigurationKeys { get; init; }
 
     /// <summary>Whether the server is enabled.</summary>
     public bool Enabled { get; init; } = true;
@@ -61,7 +77,8 @@ public sealed record McpServerRequest
 
     /// <summary>
     /// Whether OAuth authentication is enabled. While on,
-    /// <c>AuthorizationConfigurationKey</c> must be empty.
+    /// <c>AuthorizationConfigurationKey</c> must be empty and
+    /// <c>HeaderConfigurationKeys</c> may not name <c>Authorization</c>.
     /// </summary>
     /// <remarks>
     /// <c>[JsonPropertyName]</c> is given DELIBERATELY — same rationale as

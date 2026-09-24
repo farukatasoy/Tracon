@@ -226,8 +226,8 @@ allowed prefix. Without it, a record could name `ConnectionStrings:Default` as i
 |---|---|---|
 | Inbound trigger | `signingSecretConfigurationName` | `Tracon:TriggerSecrets:` |
 | Tenant provider binding | `apiKeyConfigurationName` | `Tracon:ProviderKeys:` |
-| MCP server | `authorizationConfigurationKey`, `oauthClientSecretConfigurationKey` | `Tracon:McpSecrets:` |
-| Webhook subscription | `secretConfigurationKey` | `Tracon:WebhookSecrets:` |
+| MCP server | `headerConfigurationKeys`, `oauthClientSecretConfigurationKey`, `authorizationConfigurationKey` (deprecated) | `Tracon:McpSecrets:` |
+| Webhook subscription | `headerConfigurationKeys`, `secretConfigurationKey` | `Tracon:WebhookSecrets:` |
 
 The prefix is one per installation, so a name must also sit inside its record's
 tenant. A tenant names keys under `{prefix}{tenant}:` — for tenant `acme`,
@@ -241,12 +241,49 @@ Each prefix is configurable through the matching options section, and both rules
 enforced twice: where the record is saved, and again where the value is resolved — so
 a record written before a rule existed cannot quietly read outside it.
 
-The extra `headers` of an MCP server or a webhook subscription are the one free-text
-exception: they are stored in plain text and sent as given, so do not put a credential
-there. No response returns a stored header value — every read and save response
-carries the header names with the value `***`, and the audit trail records the names
-only. A save that sends `***` back as a value is rejected with `400`: a client that
-reads, edits and saves a record must send the real value of every header again.
+### Credential headers are declared by key name
+
+An MCP server or a webhook receiver often wants a credential in a header other than
+`Authorization` — `X-Api-Key`, `Ocp-Apim-Subscription-Key`, `Cookie`. Declare it in
+`headerConfigurationKeys`, a map from the header name to the configuration key its
+value is read from:
+
+```json
+{
+  "endpoint": "https://mcp.example.com/mcp",
+  "headerConfigurationKeys": { "X-Api-Key": "Tracon:McpSecrets:acme:SearchKey" }
+}
+```
+
+Every name in the map goes through the same prefix and tenant rules as the fields
+above, on save and again on every connection or delivery. A webhook delivery whose
+subscription names a key outside its tenant is dropped, and an MCP server in that
+state does not connect. A response returns the map as stored: it holds names, not
+values.
+
+The extra plain `headers` of an MCP server or a webhook subscription are the one
+free-text exception: they are stored in plain text and sent as given. A save rejects a
+plain header whose name looks like a credential — `Authorization`, any name containing
+`api-key`, `token`, `password` or `secret`, `Cookie`, or any name ending in `-key` —
+with `400`, and the response names `headerConfigurationKeys` as the place for it. A
+header name may appear only once across both maps, compared without regard to case.
+
+The name rule is a heuristic. It also catches `X-Idempotency-Key`, which is harmless:
+move the value into configuration. It misses names such as `X-Auth`, `X-Signature` or
+`X-Session-Id`, so a credential under such a name would still be stored in plain text.
+That is why no response returns a stored plain header value — every read and save
+response carries the header names with the value `***`, and the audit trail records
+the names only. A save that sends `***` back as a value is rejected with `400`: a
+client that reads, edits and saves a record must send the real value of every header
+again.
+
+A save that leaves `headers` or `headerConfigurationKeys` out, or sends `null`, keeps
+the stored map; `{}` removes it. The admin forms send neither map, so saving a server
+or subscription from the UI keeps its headers. The side effect: changing only the
+address in the form keeps the headers, so the stored plain values and the credential
+values resolved from configuration go to the **new** address. The server logs a
+warning with the header names when that happens. Change the maps in the same save, or
+clear them with `{}`, when an address moves to a party that should not receive them.
 
 ## What is stored in the clear
 
@@ -268,6 +305,13 @@ Secrets are the exception and are handled separately: a credential value is neve
 written to the database. Only the **name** of the configuration key is stored, and the
 value is resolved at call time from your configuration. API keys are stored as a
 SHA-256 hash, never as a recoverable value.
+
+Two columns hold operator text that can still carry a credential: the plain `headers`
+of `mcp_servers` and `webhook_subscriptions`. A save rejects credential-looking names
+there, but a credential under a name the rule misses (`X-Auth`, `X-Signature`) is
+stored in plain text. Declare such a header in `headerConfigurationKeys` instead. Rows
+written before that rule existed keep working; each connection or delivery logs a
+warning that names the header, never its value.
 
 ## At-rest content protection
 

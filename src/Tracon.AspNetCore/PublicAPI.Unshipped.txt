@@ -392,6 +392,8 @@ Tracon.McpServerRequest.Endpoint.init -> void
 Tracon.McpServerRequest.Equals(Tracon.McpServerRequest? other) -> bool
 Tracon.McpServerRequest.Headers.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>?
 Tracon.McpServerRequest.Headers.init -> void
+Tracon.McpServerRequest.HeaderConfigurationKeys.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>?
+Tracon.McpServerRequest.HeaderConfigurationKeys.init -> void
 Tracon.McpServerRequest.McpServerRequest() -> void
 Tracon.McpServerRequest.OAuthAuthorizationMode.get -> Tracon.McpOAuthAuthorizationMode
 Tracon.McpServerRequest.OAuthAuthorizationMode.init -> void
@@ -811,6 +813,8 @@ Tracon.WebhookSaveRequest.Events.get -> System.Collections.Generic.IReadOnlyList
 Tracon.WebhookSaveRequest.Events.init -> void
 Tracon.WebhookSaveRequest.Headers.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>?
 Tracon.WebhookSaveRequest.Headers.init -> void
+Tracon.WebhookSaveRequest.HeaderConfigurationKeys.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>?
+Tracon.WebhookSaveRequest.HeaderConfigurationKeys.init -> void
 Tracon.WebhookSaveRequest.SecretConfigurationKey.get -> string?
 Tracon.WebhookSaveRequest.SecretConfigurationKey.init -> void
 Tracon.WebhookSaveRequest.Url.get -> string?

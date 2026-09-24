@@ -39,9 +39,9 @@ public sealed class TraconWebhookOptions
     public bool AllowInsecureHttp { get; set; }
 
     /// <summary>
-    /// Gets or sets the only prefix under which a configuration key may be
-    /// referenced as a subscription's signing secret. Default is
-    /// <c>"Tracon:WebhookSecrets:"</c>.
+    /// Gets or sets the only prefix under which a subscription may reference a
+    /// configuration key: its signing secret and every entry of its
+    /// <c>headerConfigurationKeys</c>. Default is <c>"Tracon:WebhookSecrets:"</c>.
     /// </summary>
     /// <remarks>
     /// A security boundary, not a convenience default — the same rationale as
@@ -54,10 +54,14 @@ public sealed class TraconWebhookOptions
 
     /// <summary>
     /// Gets or sets how many extra headers a subscription may add to a
-    /// delivery. Default 20.
+    /// delivery, plain <c>headers</c> and <c>headerConfigurationKeys</c>
+    /// together. Default 20.
     /// </summary>
     /// <remarks>
-    /// Extra headers are administrator input and travel on every delivery.
+    /// Extra headers are administrator input and travel on every delivery. A
+    /// save over the limit is rejected with <c>400</c>; a stored subscription
+    /// over it (saved before the rule, or by another store) sends the headers
+    /// read from configuration first, so the limit only cuts plain headers.
     /// Headers whose name Tracon sets itself are always dropped, whatever
     /// this limit is.
     /// </remarks>

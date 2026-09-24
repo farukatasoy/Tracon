@@ -8968,7 +8968,7 @@ namespace Tracon.Client.Generated
         /// Lists a tenant's webhook subscriptions.
         /// </summary>
         /// <remarks>
-        /// The response carries no signing secret; only the NAME of the signing key is returned. Extra headers are returned with their NAMES only: every header value is replaced with '***'.
+        /// The response carries no signing secret; only the NAME of the signing key is returned. 'headerConfigurationKeys' carries configuration key NAMES and is returned as stored. Extra headers are returned with their NAMES only: every header value is replaced with '***'.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -9045,7 +9045,7 @@ namespace Tracon.Client.Generated
         /// Gets a single subscription.
         /// </summary>
         /// <remarks>
-        /// As in the list, no signing secret is returned — only the configuration key its value is read from at delivery time. A secret is never stored in the database and never leaves through this API. Extra header values are replaced with '***'. An unknown name returns 404.
+        /// As in the list, no signing secret is returned — only the configuration key its value is read from at delivery time. A secret is never stored in the database and never leaves through this API. 'headerConfigurationKeys' is returned as stored (key names only). Extra header values are replaced with '***'. An unknown name returns 404.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -9126,7 +9126,7 @@ namespace Tracon.Client.Generated
         /// Creates or updates a webhook subscription.
         /// </summary>
         /// <remarks>
-        /// The address passes an SSRF check: only https is accepted (http only when AllowInsecureHttp is enabled and only to loopback targets). Private network addresses are re-checked again at delivery time. 'secretConfigurationKey' must be under the configured allowed prefix and inside the tenant's own key space — '{prefix}{tenantId}:...'; a flat name directly under the prefix belongs to the default tenant (400 otherwise). Header values are stored and sent as given, but the saved subscription comes back with every header value replaced by '***'. The save replaces the whole subscription, so send every header with its real value; a header whose value is '***' is rejected with 400.
+        /// The address passes an SSRF check: only https is accepted (http only when AllowInsecureHttp is enabled and only to loopback targets). Private network addresses are re-checked again at delivery time. 'secretConfigurationKey' must be under the configured allowed prefix and inside the tenant's own key space — '{prefix}{tenantId}:...'; a flat name directly under the prefix belongs to the default tenant (400 otherwise). A credential header (Authorization, X-Api-Key, Cookie, any name ending in '-key') is declared in 'headerConfigurationKeys' as the NAME of the configuration key its value is read from, under the same key space rule; the same header in plain 'headers' is rejected with 400. Plain header values are stored and sent as given, but the saved subscription comes back with every one replaced by '***', and a header whose value is '***' is rejected with 400. A header name may appear only once across both maps (case-insensitive), may not be one of Tracon's own X-Tracon-* headers in 'headerConfigurationKeys', and both maps together may carry at most MaxExtraHeaders entries (400 otherwise). 'headers' or 'headerConfigurationKeys' left out or null keeps the stored map; '{}' removes it. Every other field is replaced. Changing 'url' without sending the maps keeps them, so the stored headers and the resolved credential values go to the NEW address.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -13248,7 +13248,7 @@ namespace Tracon.Client.Generated
         /// Lists registered remote MCP servers.
         /// </summary>
         /// <remarks>
-        /// The authentication value is not stored; only the name of the configuration key it is read from is returned. Extra request headers are stored as sent and are returned with their NAMES only: every header value is replaced with '***'.
+        /// No credential value is stored: 'headerConfigurationKeys' (and the deprecated 'authorizationConfigurationKey') carry only the NAME of the configuration key each value is read from, and are returned as stored. Plain 'headers' are stored as sent and are returned with their NAMES only: every value is replaced with '***'.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -13325,7 +13325,7 @@ namespace Tracon.Client.Generated
         /// Adds or updates a remote MCP server.
         /// </summary>
         /// <remarks>
-        /// SECURITY BOUNDARY. Adding an MCP server means accepting tool definitions from an external source. Only http/https addresses are accepted; local process (stdio) transport is not supported. Tools require approval by default. A configuration key name must be under the configured allowed prefix and inside the tenant's own key space — '{prefix}{tenantId}:...'; a flat name directly under the prefix belongs to the default tenant (400 otherwise). Header values are stored and sent as given, but no response returns them: the saved record comes back with every header value replaced by '***'. The save replaces the whole record, so send every header with its real value; a header whose value is '***' is rejected with 400.
+        /// SECURITY BOUNDARY. Adding an MCP server means accepting tool definitions from an external source. Only http/https addresses are accepted; local process (stdio) transport is not supported. Tools require approval by default. A configuration key name must be under the configured allowed prefix and inside the tenant's own key space — '{prefix}{tenantId}:...'; a flat name directly under the prefix belongs to the default tenant (400 otherwise). A credential header (Authorization, X-Api-Key, Cookie, any name ending in '-key') is declared in 'headerConfigurationKeys' as the NAME of the configuration key its value is read from; the same header in plain 'headers' is rejected with 400, because plain header values are stored as given. No response returns a plain header value: the saved record comes back with every one replaced by '***', and a header whose value is '***' is rejected with 400. A header name may appear only once across both maps (case-insensitive, 400 otherwise), and 'Authorization' in 'headerConfigurationKeys' cannot be combined with 'authorizationConfigurationKey' or OAuth. 'headers' or 'headerConfigurationKeys' left out or null keeps the stored map; '{}' removes it. Every other field is replaced. Changing 'endpoint' without sending the maps keeps them, so the stored headers and the resolved credential values go to the NEW address.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -21139,7 +21139,8 @@ namespace Tracon.Client.Generated
         /// <summary>
         /// The configuration key the `Authorization` header's value is read
         /// <br/>from. Example: `Tracon:McpSecrets:GithubToken`. If left empty, the
-        /// <br/>header is not sent.
+        /// <br/>header is not sent. Deprecated: use `HeaderConfigurationKeys["Authorization"]`;
+        /// <br/>the field is removed in the first stable release.
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("authorizationConfigurationKey")]
@@ -21155,6 +21156,15 @@ namespace Tracon.Client.Generated
         public System.Collections.Generic.IDictionary<string, string> Headers { get; set; } = new System.Collections.Generic.Dictionary<string, string>();
 
         /// <summary>
+        /// Credential request headers, as a map from the header name to the NAME
+        /// <br/>of the configuration key its value is read from. The value is resolved
+        /// <br/>through `IConfiguration` on every connection and is never stored.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("headerConfigurationKeys")]
+        public System.Collections.Generic.IDictionary<string, string> HeaderConfigurationKeys { get; set; } = new System.Collections.Generic.Dictionary<string, string>();
+
+        /// <summary>
         /// Whether the server is enabled. Its tools are not discovered while disabled.
         /// </summary>
 
@@ -21162,9 +21172,10 @@ namespace Tracon.Client.Generated
         public bool Enabled { get; set; } = default!;
 
         /// <summary>
-        /// Whether OAuth authentication is on. When on, it cannot be used at the
-        /// <br/>same time as `AuthorizationConfigurationKey` — both would
-        /// <br/>try to manage the `Authorization` header.
+        /// Whether OAuth authentication is on. When on, neither
+        /// <br/>`AuthorizationConfigurationKey` nor an `Authorization` entry in
+        /// <br/>`HeaderConfigurationKeys` may be set — both would try to
+        /// <br/>manage the `Authorization` header.
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("oauthEnabled")]
@@ -21180,7 +21191,7 @@ namespace Tracon.Client.Generated
         /// <summary>
         /// The configuration key the OAuth client secret's value is read from.
         /// <br/>The value is never written to the database, under the same rule
-        /// <br/> as `AuthorizationConfigurationKey`.
+        /// <br/>as `HeaderConfigurationKeys`.
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("oauthClientSecretConfigurationKey")]
@@ -21254,7 +21265,10 @@ namespace Tracon.Client.Generated
 
         /// <summary>
         /// Configuration key the `Authorization` header's value is read from.
-        /// <br/>Example: `Tracon:McpSecrets:GithubToken`.
+        /// <br/>Example: `Tracon:McpSecrets:GithubToken`. Deprecated: use
+        /// <br/>`headerConfigurationKeys["Authorization"]`; the field is removed in
+        /// <br/>the first stable release. Naming `Authorization` in both fields is rejected
+        /// <br/>with `400`.
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("authorizationConfigurationKey")]
@@ -21262,15 +21276,29 @@ namespace Tracon.Client.Generated
 
         /// <summary>
         /// Extra request headers, sent as given with every request to the server.
-        /// <br/>The values are stored as plain text, so do not put a secret here; use
-        /// <br/>`AuthorizationConfigurationKey` for the `Authorization` header.
-        /// <br/>Send every header with its real value on each save: a response masks
-        /// <br/>the values as `***`, and a value of `***` is rejected with
-        /// <br/>`400`.
+        /// <br/>The values are stored as plain text, so a header whose name looks like
+        /// <br/>a credential (`Authorization`, `X-Api-Key`, `Cookie`, any
+        /// <br/>name ending in `-key`) is rejected with `400`: declare it in
+        /// <br/>`HeaderConfigurationKeys`. Send every header with its real
+        /// <br/>value on each save: a response masks the values as `***`, and a
+        /// <br/>value of `***` is rejected with `400`. Absent or
+        /// <br/>`null` keeps the stored headers; `{}` removes them.
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("headers")]
         public System.Collections.Generic.IDictionary<string, string>? Headers { get; set; } = default!;
+
+        /// <summary>
+        /// Credential request headers, as a map from the header name to the NAME
+        /// <br/>of the configuration key its value is read from, for example
+        /// <br/>`{"X-Api-Key": "Tracon:McpSecrets:acme:SearchKey"}`. Every name must
+        /// <br/>sit inside the caller's tenant key space. A response returns the map
+        /// <br/>unmasked: it carries no value. Absent or `null` keeps the
+        /// <br/>stored map; `{}` removes it.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("headerConfigurationKeys")]
+        public System.Collections.Generic.IDictionary<string, string>? HeaderConfigurationKeys { get; set; } = default!;
 
         /// <summary>
         /// Whether the server is enabled.
@@ -21288,7 +21316,8 @@ namespace Tracon.Client.Generated
 
         /// <summary>
         /// Whether OAuth authentication is enabled. While on,
-        /// <br/>`AuthorizationConfigurationKey` must be empty.
+        /// <br/>`AuthorizationConfigurationKey` must be empty and
+        /// <br/>`HeaderConfigurationKeys` may not name `Authorization`.
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("oauthEnabled")]
@@ -26699,13 +26728,30 @@ namespace Tracon.Client.Generated
         public string? SecretConfigurationKey { get; set; } = default!;
 
         /// <summary>
-        /// Additional headers to add to every request. Send every header with its
-        /// <br/>real value on each save: a response masks the values as `***`,
-        /// <br/>and a value of `***` is rejected with `400`.
+        /// Additional headers to add to every request. The values are stored as
+        /// <br/>plain text, so a header whose name looks like a credential
+        /// <br/>(`Authorization`, `X-Api-Key`, `Cookie`, any name ending
+        /// <br/>in `-key`) is rejected with `400`: declare it in
+        /// <br/>`HeaderConfigurationKeys`. Send every header with its real
+        /// <br/>value on each save: a response masks the values as `***`, and a
+        /// <br/>value of `***` is rejected with `400`. Absent or
+        /// <br/>`null` keeps the stored headers; `{}` removes them.
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("headers")]
         public System.Collections.Generic.IDictionary<string, string>? Headers { get; set; } = default!;
+
+        /// <summary>
+        /// Credential headers, as a map from the header name to the NAME of the
+        /// <br/>configuration key its value is read from, for example
+        /// <br/>`{"X-Api-Key": "Tracon:WebhookSecrets:acme:OrdersKey"}`. Every name
+        /// <br/>must sit inside the caller's tenant key space. A response returns the
+        /// <br/>map unmasked: it carries no value. Absent or `null` keeps
+        /// <br/>the stored map; `{}` removes it.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("headerConfigurationKeys")]
+        public System.Collections.Generic.IDictionary<string, string>? HeaderConfigurationKeys { get; set; } = default!;
 
         /// <summary>
         /// Whether the subscription is enabled.
@@ -26772,6 +26818,15 @@ namespace Tracon.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("headers")]
         public System.Collections.Generic.IDictionary<string, string> Headers { get; set; } = new System.Collections.Generic.Dictionary<string, string>();
+
+        /// <summary>
+        /// Credential headers, as a map from the header name to the NAME of the
+        /// <br/>configuration key its value is read from. The value is resolved through
+        /// <br/>`IConfiguration` on every delivery and is never stored.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("headerConfigurationKeys")]
+        public System.Collections.Generic.IDictionary<string, string> HeaderConfigurationKeys { get; set; } = new System.Collections.Generic.Dictionary<string, string>();
 
         /// <summary>
         /// Whether the subscription is enabled.

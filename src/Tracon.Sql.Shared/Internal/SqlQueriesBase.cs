@@ -963,7 +963,8 @@ internal abstract class SqlQueriesBase
     protected const string McpServerColumns = """
             id, tenant_id, name, description, endpoint, transport,
             authorization_configuration_key, headers, enabled, requires_approval, created_at, updated_at,
-            oauth_enabled, oauth_client_id, oauth_client_secret_configuration_key, oauth_scopes, oauth_authorization_mode
+            oauth_enabled, oauth_client_id, oauth_client_secret_configuration_key, oauth_scopes, oauth_authorization_mode,
+            header_configuration_keys
             """;
 
     protected const string ScheduleColumns = """
@@ -1029,7 +1030,7 @@ internal abstract class SqlQueriesBase
 
     protected const string WebhookSubscriptionColumns = """
             id, tenant_id, name, url, events, secret_configuration_key, headers, enabled,
-            consecutive_failures, created_at, updated_at
+            consecutive_failures, created_at, updated_at, header_configuration_keys
             """;
 
     protected const string WebhookDeliveryColumns = """

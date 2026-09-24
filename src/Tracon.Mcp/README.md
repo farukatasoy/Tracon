@@ -31,21 +31,34 @@ only in code" rule. It comes with the following safeguards:
 
 ## Authentication
 
-A secret is **never written** to the database. Only the key's name is stored
-in the server record:
+A secret is **never written** to the database. A credential header is declared
+by the **name** of the configuration key its value is read from:
 
 ```json
 {
   "endpoint": "https://mcp.example.com/mcp",
-  "authorizationConfigurationKey": "Tracon:Mcp:ExampleToken"
+  "headerConfigurationKeys": {
+    "Authorization": "Tracon:McpSecrets:ExampleToken",
+    "X-Api-Key": "Tracon:McpSecrets:ExampleKey"
+  }
 }
 ```
 
-The value is resolved at run time through `IConfiguration`:
+The value is resolved on every connection through `IConfiguration`:
 
 ```bash
-dotnet user-secrets set "Tracon:Mcp:ExampleToken" "Bearer ..."
+dotnet user-secrets set "Tracon:McpSecrets:ExampleToken" "Bearer ..."
+dotnet user-secrets set "Tracon:McpSecrets:ExampleKey" "..."
 ```
+
+Every key name must start with `Tracon:McpSecrets:` (the
+`AllowedConfigurationPrefix`). In a multi-tenant installation a tenant other
+than the default one names keys under `Tracon:McpSecrets:<tenant>:`.
+
+Plain `headers` are stored as sent, so a save rejects a header whose name
+looks like a credential (`Authorization`, `X-Api-Key`, `Cookie`, or any name
+ending in `-key`) with `400`. `authorizationConfigurationKey` still works but is
+deprecated and is removed in `1.0.0`; use `headerConfigurationKeys["Authorization"]`.
 
 This way, the database backup, the audit trail, and the UI response never carry a secret.
 

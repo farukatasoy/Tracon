@@ -106,6 +106,29 @@ internal sealed class WebhookDeliveryJobHandler(
             }
         }
 
+        // The same rule for every credential header the subscription declares
+        // by key name (phase 190): a key outside the tenant drops the
+        // delivery before a single value is read.
+        foreach (var (header, keyName) in subscription.HeaderConfigurationKeys)
+        {
+            try
+            {
+                ConfigurationKeyGuard.RequireTenantKey(
+                    keyName,
+                    options.AllowedConfigurationPrefix,
+                    subscription.TenantId,
+                    coreOptions.Value.DefaultTenantId,
+                    $"headerConfigurationKeys[{header}]");
+            }
+            catch (TraconException exception)
+            {
+                await DropAsync(delivery, attempt, exception.Message, context, cancellationToken)
+                    .ConfigureAwait(false);
+
+                return;
+            }
+        }
+
         var outcome = await SendAsync(subscription, delivery, options, cancellationToken).ConfigureAwait(false);
         var now = _clock.GetUtcNow();
 
@@ -191,6 +214,7 @@ internal sealed class WebhookDeliveryJobHandler(
 
     /// <summary>Adds the subscription's extra headers, within the configured limits.</summary>
     /// <remarks>
+    /// <para>
     /// An extra header may not carry the name of one of Tracon's own
     /// headers. <c>TryAddWithoutValidation</c> <em>appends</em> rather than
     /// replaces, so an entry named <c>X-Tracon-Signature</c> produced a
@@ -198,16 +222,40 @@ internal sealed class WebhookDeliveryJobHandler(
     /// recipient sees two values and cannot tell which one to check. Reserved
     /// names are dropped, and the drop is logged so an operator can see why
     /// the header never arrived.
+    /// </para>
+    /// <para>
+    /// The credential headers resolved from configuration go first, so the
+    /// limit can only cut a plain header; a header declared both ways is sent
+    /// once, from its key. A log line names headers and keys,
+    /// never a value.
+    /// </para>
     /// </remarks>
     private void AddExtraHeaders(
         HttpRequestMessage request,
         WebhookSubscription subscription,
         TraconWebhookOptions options)
     {
-        var added = 0;
+        var sent = AddCredentialHeaders(request, subscription, options);
+        var added = sent.Count;
 
         foreach (var (name, value) in subscription.Headers)
         {
+            if (sent.Contains(name))
+            {
+                continue;
+            }
+
+            if (CredentialHeaderNames.IsCredential(name) && logger is not null && logger.IsEnabled(LogLevel.Warning))
+            {
+                // A row written before phase 190 may carry a credential in the
+                // clear. It is still sent, but the operator is told to move it.
+                logger.LogWarning(
+                    "Webhook subscription '{Subscription}' stores the credential header '{Header}' in plain headers, " +
+                    "in the clear. Move it to headerConfigurationKeys.",
+                    subscription.Name,
+                    name);
+            }
+
             if (WebhookSigner.IsReservedHeader(name))
             {
                 logger?.LogWarning(
@@ -228,9 +276,82 @@ internal sealed class WebhookDeliveryJobHandler(
                 break;
             }
 
+            if (value.AsSpan().IndexOfAny('\r', '\n') >= 0)
+            {
+                logger?.LogWarning(
+                    "Header '{Header}' of webhook subscription '{Subscription}' contains a line break; it was not sent.",
+                    name,
+                    subscription.Name);
+
+                continue;
+            }
+
             request.Headers.TryAddWithoutValidation(name, value);
             added++;
         }
+    }
+
+    /// <summary>Resolves and adds the headers the subscription declares by configuration key name.</summary>
+    /// <returns>The names of the headers declared by key, whether or not a value was sent.</returns>
+    /// <remarks>
+    /// The key names were checked against the tenant in
+    /// <see cref="ExecuteAsync"/> and are checked again here, so that no
+    /// future caller of this method can bypass it.
+    /// </remarks>
+    private HashSet<string> AddCredentialHeaders(
+        HttpRequestMessage request,
+        WebhookSubscription subscription,
+        TraconWebhookOptions options)
+    {
+        var declared = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var (name, keyName) in subscription.HeaderConfigurationKeys)
+        {
+            declared.Add(name);
+
+            if (WebhookSigner.IsReservedHeader(name))
+            {
+                logger?.LogWarning(
+                    "Webhook subscription '{Subscription}' declares the reserved header '{Header}'; it was not sent.",
+                    subscription.Name,
+                    name);
+
+                continue;
+            }
+
+            ConfigurationKeyGuard.RequireTenantKey(
+                keyName,
+                options.AllowedConfigurationPrefix,
+                subscription.TenantId,
+                coreOptions.Value.DefaultTenantId,
+                $"headerConfigurationKeys[{name}]");
+
+            var value = configuration?[keyName];
+
+            if (string.IsNullOrWhiteSpace(value) || value.AsSpan().IndexOfAny('\r', '\n') >= 0)
+            {
+                logger?.LogWarning(
+                    "Configuration key '{Key}' for header '{Header}' of webhook subscription '{Subscription}' is empty, " +
+                    "unavailable or holds a line break; the header was not sent.",
+                    keyName,
+                    name,
+                    subscription.Name);
+
+                continue;
+            }
+
+            if (!request.Headers.TryAddWithoutValidation(name, value))
+            {
+                // A content header name (Content-Type) is refused on a
+                // request's own headers; say so instead of dropping it silently.
+                logger?.LogWarning(
+                    "Header '{Header}' of webhook subscription '{Subscription}' is not a request header; it was not sent.",
+                    name,
+                    subscription.Name);
+            }
+        }
+
+        return declared;
     }
 
     private async ValueTask<WebhookSubscription?> FindSubscriptionAsync(

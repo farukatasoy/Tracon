@@ -74,18 +74,34 @@ internal sealed class McpConnection : IAsyncDisposable
     /// the connection to be re-established.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// <c>RequiresApproval</c> and the OAuth fields are <strong>included</strong>
     /// in the fingerprint: when any of them changes, the connection must be
     /// re-established. <c>Description</c> is not included; it does not affect
     /// the connection.
+    /// </para>
+    /// <para>
+    /// <c>HeaderConfigurationKeys</c> enters as sorted <c>header=keyName</c>
+    /// pairs — the key NAMES, never the resolved values, so a credential never
+    /// sits in the fingerprint. The same holds for the deprecated
+    /// <c>AuthorizationConfigurationKey</c>: rotating a value in configuration
+    /// does not reconnect; a manual refresh does.
+    /// </para>
     /// </remarks>
     public static string ComputeFingerprint(McpServerDefinition server)
-        => string.Create(
+    {
+#pragma warning disable CS0618 // The deprecated field still selects the connection until 1.0.0 (phase 190).
+        var legacyKey = server.AuthorizationConfigurationKey;
+#pragma warning restore CS0618
+
+        return string.Create(
             CultureInfo.InvariantCulture,
-            $"{server.Endpoint}|{server.Transport}|{server.AuthorizationConfigurationKey}|" +
+            $"{server.Endpoint}|{server.Transport}|{legacyKey}|" +
             $"{server.RequiresApproval}|{server.OAuthEnabled}|{server.OAuthClientId}|" +
             $"{server.OAuthClientSecretConfigurationKey}|{server.OAuthScopes}|{server.OAuthAuthorizationMode}|" +
-            $"{string.Join(",", server.Headers.OrderBy(static pair => pair.Key, StringComparer.Ordinal).Select(static pair => $"{pair.Key}={pair.Value}"))}");
+            $"{string.Join(",", server.Headers.OrderBy(static pair => pair.Key, StringComparer.Ordinal).Select(static pair => $"{pair.Key}={pair.Value}"))}|" +
+            $"{string.Join(",", server.HeaderConfigurationKeys.OrderBy(static pair => pair.Key, StringComparer.OrdinalIgnoreCase).Select(static pair => $"{pair.Key}={pair.Value}"))}");
+    }
 
     /// <summary>
     /// Connects to the server and discovers its tools.

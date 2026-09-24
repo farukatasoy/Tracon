@@ -1914,6 +1914,8 @@ Tracon.McpServerDefinition.Endpoint.init -> void
 Tracon.McpServerDefinition.Equals(Tracon.McpServerDefinition? other) -> bool
 Tracon.McpServerDefinition.Headers.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>!
 Tracon.McpServerDefinition.Headers.init -> void
+Tracon.McpServerDefinition.HeaderConfigurationKeys.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>!
+Tracon.McpServerDefinition.HeaderConfigurationKeys.init -> void
 Tracon.McpServerDefinition.Id.get -> System.Guid
 Tracon.McpServerDefinition.Id.init -> void
 Tracon.McpServerDefinition.McpServerDefinition() -> void
@@ -4229,6 +4231,8 @@ Tracon.WebhookSubscription.Events.get -> System.Collections.Generic.IReadOnlyLis
 Tracon.WebhookSubscription.Events.init -> void
 Tracon.WebhookSubscription.Headers.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>!
 Tracon.WebhookSubscription.Headers.init -> void
+Tracon.WebhookSubscription.HeaderConfigurationKeys.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>!
+Tracon.WebhookSubscription.HeaderConfigurationKeys.init -> void
 Tracon.WebhookSubscription.Id.get -> System.Guid
 Tracon.WebhookSubscription.Id.init -> void
 Tracon.WebhookSubscription.Name.get -> string!

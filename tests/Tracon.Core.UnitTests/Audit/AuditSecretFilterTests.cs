@@ -183,4 +183,60 @@ public sealed class AuditSecretFilterTests
 
         AuditSecretFilter.Redact(json).ShouldNotBeNull().ShouldContain("4096");
     }
+
+    /// <summary>
+    /// A configuration key map holds key NAMES under credential-looking header
+    /// names; redacting it would erase which key a header reads (phase 190).
+    /// </summary>
+    [Fact]
+    public void A_configuration_key_map_keeps_its_key_names()
+    {
+        const string Json = """
+            {"name":"m1","headerConfigurationKeys":{"Authorization":"Tracon:McpSecrets:Bearer","X-Api-Key":"Tracon:McpSecrets:SearchKey"},"headers":{"X-Api-Key":"live-value"}}
+            """;
+
+        var redacted = AuditSecretFilter.Redact(Json)!;
+
+        redacted.ShouldContain("\"Authorization\":\"Tracon:McpSecrets:Bearer\"");
+        redacted.ShouldContain("\"X-Api-Key\":\"Tracon:McpSecrets:SearchKey\"");
+
+        // The plain map next to it is still judged by name.
+        redacted.ShouldNotContain("live-value");
+    }
+
+    /// <summary>
+    /// The exemption is not a name suffix: free-form agent metadata could name
+    /// any object "...ConfigurationKeys" and pass a live value through.
+    /// </summary>
+    [Theory]
+    [InlineData("""{"metadata":{"upstreamConfigurationKeys":{"apiKey":"sk-live-190"}}}""")]
+    [InlineData("""{"headerConfigurationKeys":{"X-Api-Key":"sk-live-190"}}""")]
+    public void Only_the_header_map_with_key_paths_is_exempt(string json)
+        => AuditSecretFilter.Redact(json)!.ShouldNotContain("sk-live-190");
+
+    [Fact]
+    public void A_nested_value_under_a_configuration_key_map_is_still_judged_by_name()
+    {
+        // Only a string can be a key name; anything else falls back to the rule.
+        const string Json = """
+            {"headerConfigurationKeys":{"Authorization":{"password":"nested-secret"}}}
+            """;
+
+        AuditSecretFilter.Redact(Json)!.ShouldNotContain("nested-secret");
+    }
+
+    /// <summary>
+    /// The filter and the header save rule read one list; two lists would drift
+    /// and a name one of them catches would reach the other in clear text.
+    /// </summary>
+    [Theory]
+    [InlineData("x-api-key")]
+    [InlineData("Private-Token")]
+    [InlineData("Proxy-Authorization")]
+    [InlineData("client_secret")]
+    public void The_filter_and_the_header_rule_agree_on_every_fragment(string name)
+    {
+        CredentialHeaderNames.IsCredential(name).ShouldBeTrue();
+        AuditSecretFilter.Redact($$"""{"{{name}}":"v-190"}""")!.ShouldNotContain("v-190");
+    }
 }

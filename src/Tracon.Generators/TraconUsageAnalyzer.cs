@@ -585,14 +585,34 @@ public sealed class TraconUsageAnalyzer : DiagnosticAnalyzer
 
     private static string DescribeSecretTarget(SyntaxNode literal, INamedTypeSymbol type)
     {
+        string? entry = null;
+
         for (var node = literal.Parent; node is not null; node = node.Parent)
         {
-            if (node is AssignmentExpressionSyntax { Left: IdentifierNameSyntax name })
+            // An entry of a nested dictionary: ["X-Api-Key"] = "sk-...".
+            if (entry is null &&
+                node is AssignmentExpressionSyntax { Left: ImplicitElementAccessSyntax access } &&
+                access.ArgumentList.Arguments.Count == 1 &&
+                access.ArgumentList.Arguments[0].Expression is LiteralExpressionSyntax key)
             {
-                return $"{type.Name}.{name.Identifier.ValueText}";
+                entry = key.Token.ValueText;
+                continue;
             }
 
-            if (node is BaseObjectCreationExpressionSyntax)
+            if (node is AssignmentExpressionSyntax { Left: IdentifierNameSyntax name })
+            {
+                var property = name.Identifier.ValueText;
+
+                // The entry names the header, so the report points at it and
+                // the message's advice ('HeaderConfigurationKeys') applies.
+                return entry is null
+                    ? $"{type.Name}.{property}"
+                    : $"{type.Name}.{property}[\"{entry}\"]";
+            }
+
+            // The creation of the definition itself ends the walk; a nested
+            // creation (the dictionary) does not.
+            if (node is BaseObjectCreationExpressionSyntax && node.Parent is not AssignmentExpressionSyntax)
             {
                 break;
             }
