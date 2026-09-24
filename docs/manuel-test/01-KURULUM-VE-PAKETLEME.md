@@ -4222,6 +4222,9 @@ dotnet list package --deprecated
    `using Tracon;` + `new ServiceCollection().AddTracon().AddTool(fn, o => o.RequiresApproval = true).RequireProductionProfile();`
 2. Aynı dosyaya `new TraconToolRegistration(fn, requiresApproval: true);` ekle ve derle.
 
+**Gerçek sonuç (2026-09-24, `1.0.0-preview.2.70`)**
+- (1) `Build succeeded.` (2) `error CS1739: The best overload for 'TraconToolRegistration' does not have a parameter named 'requiresApproval'`.
+
 **Beklenen sonuç**
 - (1) Derleme temiz: `AddTool` ve `RequireProductionProfile` `TraconBuilderExtensions` üzerinden çözülür.
 - (2) `CS1739`; mesaj `requiresApproval` adını söyler. Doğru biçim `new TraconToolRegistration(fn) { RequiresApproval = true }`.
@@ -4241,12 +4244,19 @@ dotnet list package --deprecated
 - Ağ; nuget.org'da `1.0.0-preview.2`. Fazın paketleri yerel feed'de.
 
 **Adımlar**
-1. `[TraconTool]`'lu bir sınıf kütüphanesi `Tracon.Core@1.0.0-preview.2`'ye karşı derlenir (üreteç kayıt kodunu kütüphaneye yazar).
-2. Host yeni paketlerle koşar, kütüphanenin **derlenmiş** DLL'ini referanslar ve `AddGeneratedTools()` çağırır.
+1. `[TraconTool]`'lu bir sınıf kütüphanesi `Tracon.Core@1.0.0-preview.2`'ye karşı derlenir (üreteç kayıt kodunu kütüphaneye yazar). Kütüphane kendi sarmalayıcısını taşır: `public static ITraconBuilder AddLibTools(this ITraconBuilder b) => b.AddGeneratedTools();`.
+2. Host yeni paketlerle koşar, kütüphanenin **derlenmiş** DLL'ini referanslar ve `AddTracon().AddLibTools()` çağırır.
 3. Kütüphaneyi yeni paketlere karşı yeniden derle, host'u tekrar koş.
 
+> Host `AddGeneratedTools()`'u doğrudan çağıramaz: iki derlemenin üretilmiş
+> uzantısı çakışır (`CS0121` + `TRC0005`) — ayrı kusur, `ADAYLAR.md` F-289.
+
+**Gerçek sonuç (2026-09-24, host `1.0.0-preview.2.70`)**
+- (2) `MissingMethodException: Method not found: 'Void Tracon.TraconToolRegistration..ctor(Microsoft.Extensions.AI.AIFunctionDeclaration, Boolean, System.String, Tracon.ToolEffect, System.String, System.Nullable`1<System.TimeSpan>, Boolean, System.Nullable`1<Int32>)'`.
+- (3) `registered`.
+
 **Beklenen sonuç**
-- (2) `AddGeneratedTools()` çağrısında `MissingMethodException` (`TraconToolRegistration..ctor` yedi opsiyonel parametreli imza).
+- (2) Üretilmiş kaydı çalıştıran çağrıda `MissingMethodException` (`TraconToolRegistration..ctor` yedi opsiyonel parametreli imza).
 - (3) Geçer. Metin `CHANGELOG.md` `[Unreleased]` notuyla aynıdır.
 
 ---
@@ -4265,6 +4275,11 @@ dotnet list package --deprecated
 
 **Adımlar**
 1. `python3 scripts/kapi.py yayin --kuru; echo "çıkış=$?"`
+
+**Gerçek sonuç (2026-09-24, temiz ağaç `b0ee95f2`)**
+- `✅ Kırıcı liste: 121 tip, 0 TFM düşüşü, 10 paket — hepsi 'Unreleased' notunda` · `✅ 20 paket, sürüm '1.0.0-preview.2.70'` ·
+  `provider/source/generated-tool AOT host smoke passed` · `net8.0 consumer smoke passed on .NET 8.0.31` ·
+  `✅ 6 exact-version packed sample` · `çıkış=0`. İlk deneme kapı kusuru yüzünden kırmızıydı (çitli kod bloğu span eşleşmesini kaydırıyordu; düzeltildi, `docs/hafiza/yayin-ve-surumleme.md`).
 
 **Beklenen sonuç**
 - `Tracon.Samples.CustomTool` + testleri ve `Tracon.Samples.ExtensionAotSmoke` (`AddOrderPreviewTools()`, native AOT) paketlenmiş sürüme karşı geçer.
@@ -4288,6 +4303,9 @@ dotnet list package --deprecated
 1. Konsol host: nuget.org `Tracon.OpenAI@1.0.0-preview.2` + yerel `Tracon.Core` (restore'u geçirmek için `NU1608` uyarı kalır).
 2. `AddTracon().UseOpenAI(...)` çağır.
 3. Paketleri hizala (hepsi yerel sürüm), tekrarla.
+
+**Gerçek sonuç (2026-09-24, `Tracon.OpenAI@1.0.0-preview.2` + `Tracon.Core@1.0.0-preview.2.70`)**
+- (2) `MissingMethodException: Method not found: 'Tracon.ITraconBuilder Tracon.ITraconBuilder.AddModelProvider(System.Func`2<System.IServiceProvider,Tracon.IModelProvider>)'` — `BuildServiceProvider` veya host gerekmeden, kayıt anında.
 
 **Beklenen sonuç**
 - (2) `UseOpenAI()` içinde `MissingMethodException` (`ITraconBuilder.AddModelProvider`); başlangıç sürüm kontrolü koşmaz (kayıt anı host'tan önce).

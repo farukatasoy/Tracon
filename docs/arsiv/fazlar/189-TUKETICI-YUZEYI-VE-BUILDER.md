@@ -142,6 +142,8 @@ Uygulama günlüğünde `fail`/`unhandled` satırı yok.
 | 7 | `<exception cref="ArgumentNullException">` her metotta | Yalnız `builder`'ı anar; `AddToolsFrom(Type)` mevcut maddesi "`builder` or `type`" oldu | Diğer argümanların `null` kontrolü önceden de belgelenmemişti; bu faz davranışı değil zinciri değiştirir |
 | 8 | RUC/RDC mesajları "arayüzdeki mesajlarla" | Aynen arayüzün mesajları; `TraconBuilder`'ın farklı sözcüklü mesajları düştü | Plan gereği; tüketici IL2026/IL3050 metninde arayüz metnini görüyordu |
 | 9 | — | `tests/Tracon.Ui.E2ETests/Ui/ExperimentTests.cs` seçimden önce alanın `<select>` olmasını bekler | **Yolda bulunan kırılgan test** (bu fazın kodundan bağımsız): ilk kapanış koşumunda "Element is not a <select> element" ile düştü, izole geçti. Sebep yarış: `variant-version-0` sürüm sorgusu dönene kadar sayı alanıdır. Hafıza: `frontend-test-altyapisi.md` |
+| 10 | — | `scripts/breaking_changes.py` çitli kod bloklarını span okumadan önce siler; iki test (`test_citli_kod_blogu_span_eslesmesini_kaydirmaz`, `test_yalniz_citli_blokta_gecen_ad_kabul_edilmez`) | **Yolda bulunan kapı kusuru (Faz 187):** ilk yayın provası `TraconToolRegistration` ve `ITraconBuilder`'ı "notta yok" dedi; ikisi de code span'deydi. Her çitin üç backtick'i çevredeki metinle eşleşip span sınırlarını kaydırıyordu; Faz 188'in tek bloğu şans eseri geçti. Regresyon testi eski kodda `B, C`'yi kaçırıyor (ölçüldü). Hafıza: `yayin-ve-surumleme.md` |
+| 11 | — | ADAYLAR **F-268** kapandı (Sapma 9); yeni **F-289** | `MT-PKG-150` koşumu ölçtü: `[TraconTool]` kütüphanesini referanslayan host `AddGeneratedTools()` çağıramaz (`CS0121` + `TRC0005`) — iki derlemenin üretilmiş uzantısı çakışır. Bu fazın değişikliği değil (K-350 tasarımı); case kütüphanenin kendi sarmalayıcısıyla koşuldu |
 
 ## Bu Fazda Verilen Kararlar
 
@@ -180,7 +182,7 @@ yüklem; Sapma 4).
 | Metrik | Değer |
 |---|---|
 | Plan revizyonu sayısı | 0 (sapmalar uygulama sırasında yazıldı, plan yeniden açılmadı) |
-| Düzeltme turu sayısı | 4 — `ExampleCompilationTests` (`services` → `builder.Services`, Sapma 1); denetimin üç 🟡'ı tek turda; ilk kapanış koşumu kırılgan E2E testinde durdu (Sapma 9); ikincisi arşivlenmemiş kök faz dokümanında durdu |
+| Düzeltme turu sayısı | 5 — `ExampleCompilationTests` (`services` → `builder.Services`, Sapma 1); denetimin üç 🟡'ı tek turda; ilk kapanış koşumu kırılgan E2E testinde durdu (Sapma 9); ikincisi arşivlenmemiş kök faz dokümanında durdu; ilk yayın provası kapı kusurunda durdu (Sapma 10) |
 | 🔴 bulgu: gerçek / gürültü / araştırılacak | 0 / 0 / 0 |
 | Fazın ürettiği regresyon | 0 — commit'ten önce kırmızı olan yalnız fazın kendi yeni örneğiydi (Sapma 1) |
 | Faz kapandıktan sonra bulunan kusur | ölçülmedi (kapanış anı) |
@@ -230,5 +232,36 @@ bağımlılık yok (190 önkoşulu "yalnız sıra").
 - Tüketicinin aynı imzalı uzantısı yakın ad alanındaysa Tracon'un metodunu
   sessizce gölgeler (ölçüldü); uzantıya taşıma bu riski açar, sürüm notu yazar.
 
-**Açık iş:** `MT-CORE-131`, `MT-PKG-150`, `MT-PKG-152` ağ/elle koşum ister
-(kapanışta koşulmadı, `⏳`). Site yayını (`faz-tamamlama` Adım 10) bakımcı eylemidir.
+**Açık iş:** `MT-CORE-131` örnek uygulamada geçici kod değişikliği ister
+(koşulmadı, `⏳`; otomatik karşılığı `CatalogEndpointTests` yeşil). F-289
+(üretilmiş uzantı çakışması) kusur kanalında. Site yayını (`faz-tamamlama`
+Adım 10) bakımcı eylemidir.
+
+## Kapanış Kapısı
+
+`DOTNET_ROOT=~/.dotnet python3 scripts/kapi.py kapanis --taban 305c2084`, commit'li ağaç
+`2a8a02fa`, 2026-09-24 → **EXIT 0**:
+
+| Adım | Süre | Sonuç |
+|---|---|---|
+| `kapi.py tarama` | 5,4 sn | ✅ temiz |
+| `dokuman-bakim.py --denetle` · Python testleri · ajan haritası · denetim paketi | ~9 sn | ✅ |
+| `dotnet build Tracon.slnx -c Release` | 70,2 sn | ✅ 0 uyarı |
+| `dotnet test … -maxcpucount:2 -- --report-trx` | 474,5 sn | ✅ 17.846 test (38 koşum), 0 kırmızı |
+| `dotnet pack` | 6,9 sn | ✅ |
+| `dotnet format --verify-no-changes` | 113,2 sn | ✅ |
+| `docs-site npm run check` | 29,4 sn | ✅ |
+
+İlk iki deneme kırmızıydı: (1) kırılgan `ExperimentTests` (Sapma 9); (2) faz
+dokümanı arşivlenmeden koşuldu (`kapanmış faz docs/arsiv/fazlar/ altında
+olmalı`). Performans kapısı tetiklenmedi (sıcak yol değişmedi). Kapı
+düzeltmesi (`b0ee95f2`, yalnız Python) sonrası `python3 -m unittest discover -s scripts`
+yeniden yeşil.
+
+**Yayın provası** (`kapi.py yayin --kuru`, temiz ağaç `b0ee95f2`) → **EXIT 0**:
+`Kırıcı liste: 121 tip, 0 TFM düşüşü, 10 paket — hepsi 'Unreleased' notunda` ·
+20 paket `1.0.0-preview.2.70` · `npm publish --dry-run` ✅ ·
+`provider/source/generated-tool AOT host smoke passed` ·
+`net8.0 consumer smoke passed on .NET 8.0.31` · `6 exact-version packed sample`.
+İlk deneme kapı kusurunda durdu (Sapma 10). Paketlenmiş sürüme karşı elle
+koşulan case'ler: `MT-PKG-149`, `150`, `152` ✅ (gerçek çıktı case'lerde).
