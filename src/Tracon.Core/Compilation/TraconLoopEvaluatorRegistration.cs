@@ -19,5 +19,5 @@ namespace Tracon;
 // change in MAF's loop API lands in a known, small set of files. Rationale:
 // docs/KARARLAR.md, decision K-020.
 #pragma warning disable MAAI001
-public sealed record TraconLoopEvaluatorRegistration(string Kind, LoopEvaluator Evaluator);
+internal sealed record TraconLoopEvaluatorRegistration(string Kind, LoopEvaluator Evaluator);
 #pragma warning restore MAAI001

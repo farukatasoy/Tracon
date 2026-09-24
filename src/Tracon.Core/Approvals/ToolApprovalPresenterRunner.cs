@@ -34,7 +34,7 @@ namespace Tracon;
 /// <see cref="TraconRunOptions.BeforePendingApprovalIsPublished"/>.
 /// </para>
 /// </remarks>
-public sealed class ToolApprovalPresenterRunner(
+internal sealed class ToolApprovalPresenterRunner(
     IToolApprovalPresenter presenter,
     IOptionsMonitor<TraconOptions> options,
     ILogger<ToolApprovalPresenterRunner> logger)

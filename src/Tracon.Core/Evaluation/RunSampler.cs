@@ -21,14 +21,25 @@ namespace Tracon;
 /// failure does not affect the run, as required by the observability rule.
 /// </para>
 /// </remarks>
-public sealed class RunSampler(
-    IJobStore jobStore,
-    IOptionsMonitor<OnlineEvaluationOptions> optionsMonitor,
-    TimeProvider? timeProvider = null,
-    ILogger<RunSampler>? logger = null)
+internal sealed class RunSampler
 {
-    private readonly TimeProvider _clock = timeProvider ?? TimeProvider.System;
+    private readonly IJobStore _jobStore;
+    private readonly IOptionsMonitor<OnlineEvaluationOptions> _optionsMonitor;
+    private readonly ILogger<RunSampler>? _logger;
+    private readonly TimeProvider _clock;
     private readonly ConcurrentDictionary<string, HourlyWindow> _windows = new(StringComparer.Ordinal);
+
+    internal RunSampler(
+        IJobStore jobStore,
+        IOptionsMonitor<OnlineEvaluationOptions> optionsMonitor,
+        TimeProvider? timeProvider = null,
+        ILogger<RunSampler>? logger = null)
+    {
+        _jobStore = jobStore;
+        _optionsMonitor = optionsMonitor;
+        _logger = logger;
+        _clock = timeProvider ?? TimeProvider.System;
+    }
 
     /// <summary>Evaluates a run for sampling and queues it when required.</summary>
     /// <param name="request">The summary of the run to sample.</param>
@@ -38,7 +49,7 @@ public sealed class RunSampler(
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        var options = optionsMonitor.CurrentValue;
+        var options = _optionsMonitor.CurrentValue;
 
         if (!options.Enabled || options.SampleRate <= 0.0)
         {
@@ -82,7 +93,7 @@ public sealed class RunSampler(
                 new[] { runIdText },
                 WebhookJobPayloadJsonContext.Default.StringArray);
 
-            await jobStore.EnqueueAsync(
+            await _jobStore.EnqueueAsync(
                 new JobRecord
                 {
                     Id = TraconId.NewId(),
@@ -101,9 +112,9 @@ public sealed class RunSampler(
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
-            if (logger is not null && logger.IsEnabled(LogLevel.Warning))
+            if (_logger is not null && _logger.IsEnabled(LogLevel.Warning))
             {
-                logger.LogWarning(
+                _logger.LogWarning(
                     exception,
                     "The online evaluation job could not be queued: run={RunId} tenant={TenantId}.",
                     request.RunId,
@@ -193,7 +204,7 @@ public sealed class RunSampler(
 }
 
 /// <summary>Represents the run summary required for a sampling decision.</summary>
-public sealed record RunSampleRequest
+internal sealed record RunSampleRequest
 {
     /// <summary>Gets the run identifier.</summary>
     public required Guid RunId { get; init; }

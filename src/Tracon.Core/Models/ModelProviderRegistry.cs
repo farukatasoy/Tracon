@@ -25,6 +25,10 @@ namespace Tracon;
 /// client and the pipeline is assembled in a single place; a third-party
 /// provider inherits every ring for free too.
 /// </para>
+/// <para>
+/// <c>AddTracon()</c> registers the registry as a singleton; resolve it as
+/// <see cref="IModelProviderRegistry"/> with <c>GetRequiredService&lt;IModelProviderRegistry&gt;()</c>.
+/// </para>
 /// </remarks>
 public sealed class ModelProviderRegistry : IModelProviderRegistry
 {
@@ -114,7 +118,7 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
     /// </remarks>
     /// <exception cref="ArgumentNullException"><paramref name="providers"/> is <see langword="null"/>.</exception>
     /// <exception cref="TraconException">The same provider name has been registered more than once.</exception>
-    public ModelProviderRegistry(
+    internal ModelProviderRegistry(
         IEnumerable<IModelProvider> providers,
         ModelProviderCircuitBreaker? circuitBreaker = null,
         IAttachmentStore? attachmentStore = null,

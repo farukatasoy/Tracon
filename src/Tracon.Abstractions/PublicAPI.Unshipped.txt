@@ -2154,28 +2154,6 @@ Tracon.QuotaConsumption.Tokens.get -> long
 Tracon.QuotaConsumption.Tokens.init -> void
 Tracon.QuotaConsumption.UserId.get -> string?
 Tracon.QuotaConsumption.UserId.init -> void
-Tracon.QuotaDecision
-Tracon.QuotaDecision.<Clone>$() -> Tracon.QuotaDecision!
-Tracon.QuotaDecision.AgentName.get -> string?
-Tracon.QuotaDecision.AgentName.init -> void
-Tracon.QuotaDecision.CostFellBackToTokens.get -> bool
-Tracon.QuotaDecision.CostFellBackToTokens.init -> void
-Tracon.QuotaDecision.Equals(Tracon.QuotaDecision? other) -> bool
-Tracon.QuotaDecision.IsAllowed.get -> bool
-Tracon.QuotaDecision.IsAllowed.init -> void
-Tracon.QuotaDecision.Limit.get -> decimal?
-Tracon.QuotaDecision.Limit.init -> void
-Tracon.QuotaDecision.Metric.get -> Tracon.QuotaMetric?
-Tracon.QuotaDecision.Metric.init -> void
-Tracon.QuotaDecision.Period.get -> Tracon.QuotaPeriod?
-Tracon.QuotaDecision.Period.init -> void
-Tracon.QuotaDecision.QuotaDecision() -> void
-Tracon.QuotaDecision.Reason.get -> string?
-Tracon.QuotaDecision.Reason.init -> void
-Tracon.QuotaDecision.ResetsAt.get -> System.DateTimeOffset?
-Tracon.QuotaDecision.ResetsAt.init -> void
-Tracon.QuotaDecision.Used.get -> decimal?
-Tracon.QuotaDecision.Used.init -> void
 Tracon.QuotaDefinition
 Tracon.QuotaDefinition.<Clone>$() -> Tracon.QuotaDefinition!
 Tracon.QuotaDefinition.AgentName.get -> string?
@@ -2207,26 +2185,6 @@ Tracon.QuotaMetric.Tokens = 1 -> Tracon.QuotaMetric
 Tracon.QuotaPeriod
 Tracon.QuotaPeriod.Daily = 0 -> Tracon.QuotaPeriod
 Tracon.QuotaPeriod.Monthly = 1 -> Tracon.QuotaPeriod
-Tracon.QuotaThresholdCrossing
-Tracon.QuotaThresholdCrossing.<Clone>$() -> Tracon.QuotaThresholdCrossing!
-Tracon.QuotaThresholdCrossing.AgentName.get -> string?
-Tracon.QuotaThresholdCrossing.AgentName.init -> void
-Tracon.QuotaThresholdCrossing.Equals(Tracon.QuotaThresholdCrossing? other) -> bool
-Tracon.QuotaThresholdCrossing.Limit.get -> decimal
-Tracon.QuotaThresholdCrossing.Limit.init -> void
-Tracon.QuotaThresholdCrossing.Metric.get -> Tracon.QuotaMetric
-Tracon.QuotaThresholdCrossing.Metric.init -> void
-Tracon.QuotaThresholdCrossing.NoticeId.get -> string!
-Tracon.QuotaThresholdCrossing.NoticeId.init -> void
-Tracon.QuotaThresholdCrossing.Period.get -> Tracon.QuotaPeriod
-Tracon.QuotaThresholdCrossing.Period.init -> void
-Tracon.QuotaThresholdCrossing.QuotaThresholdCrossing() -> void
-Tracon.QuotaThresholdCrossing.ResetsAt.get -> System.DateTimeOffset?
-Tracon.QuotaThresholdCrossing.ResetsAt.init -> void
-Tracon.QuotaThresholdCrossing.ThresholdPercent.get -> int
-Tracon.QuotaThresholdCrossing.ThresholdPercent.init -> void
-Tracon.QuotaThresholdCrossing.Used.get -> decimal
-Tracon.QuotaThresholdCrossing.Used.init -> void
 Tracon.QuotaUsageQuery
 Tracon.QuotaUsageQuery.<Clone>$() -> Tracon.QuotaUsageQuery!
 Tracon.QuotaUsageQuery.AgentName.get -> string?
@@ -3302,13 +3260,6 @@ Tracon.SqlPersistenceDiagnosticsSnapshot.Equals(Tracon.SqlPersistenceDiagnostics
 Tracon.SqlPersistenceDiagnosticsSnapshot.PendingMigrations.get -> System.Collections.Generic.IReadOnlyList<string!>!
 Tracon.SqlPersistenceDiagnosticsSnapshot.PendingMigrations.init -> void
 Tracon.SqlPersistenceDiagnosticsSnapshot.SqlPersistenceDiagnosticsSnapshot() -> void
-Tracon.SqlPersistenceRegistrationMarker
-Tracon.SqlPersistenceRegistrationMarker.<Clone>$() -> Tracon.SqlPersistenceRegistrationMarker!
-Tracon.SqlPersistenceRegistrationMarker.Deconstruct(out string! ProviderName) -> void
-Tracon.SqlPersistenceRegistrationMarker.Equals(Tracon.SqlPersistenceRegistrationMarker? other) -> bool
-Tracon.SqlPersistenceRegistrationMarker.ProviderName.get -> string!
-Tracon.SqlPersistenceRegistrationMarker.ProviderName.init -> void
-Tracon.SqlPersistenceRegistrationMarker.SqlPersistenceRegistrationMarker(string! ProviderName) -> void
 Tracon.StateGenerationTally
 Tracon.StateGenerationTally.<Clone>$() -> Tracon.StateGenerationTally!
 Tracon.StateGenerationTally.Equals(Tracon.StateGenerationTally? other) -> bool
@@ -4870,15 +4821,9 @@ override Tracon.ProviderDiagnostic.ToString() -> string!
 override Tracon.QuotaConsumption.Equals(object? obj) -> bool
 override Tracon.QuotaConsumption.GetHashCode() -> int
 override Tracon.QuotaConsumption.ToString() -> string!
-override Tracon.QuotaDecision.Equals(object? obj) -> bool
-override Tracon.QuotaDecision.GetHashCode() -> int
-override Tracon.QuotaDecision.ToString() -> string!
 override Tracon.QuotaDefinition.Equals(object? obj) -> bool
 override Tracon.QuotaDefinition.GetHashCode() -> int
 override Tracon.QuotaDefinition.ToString() -> string!
-override Tracon.QuotaThresholdCrossing.Equals(object? obj) -> bool
-override Tracon.QuotaThresholdCrossing.GetHashCode() -> int
-override Tracon.QuotaThresholdCrossing.ToString() -> string!
 override Tracon.QuotaUsageQuery.Equals(object? obj) -> bool
 override Tracon.QuotaUsageQuery.GetHashCode() -> int
 override Tracon.QuotaUsageQuery.ToString() -> string!
@@ -5038,9 +4983,6 @@ override Tracon.SpeechTranscriptionOptions.ToString() -> string!
 override Tracon.SqlPersistenceDiagnosticsSnapshot.Equals(object? obj) -> bool
 override Tracon.SqlPersistenceDiagnosticsSnapshot.GetHashCode() -> int
 override Tracon.SqlPersistenceDiagnosticsSnapshot.ToString() -> string!
-override Tracon.SqlPersistenceRegistrationMarker.Equals(object? obj) -> bool
-override Tracon.SqlPersistenceRegistrationMarker.GetHashCode() -> int
-override Tracon.SqlPersistenceRegistrationMarker.ToString() -> string!
 override Tracon.StateGenerationTally.Equals(object? obj) -> bool
 override Tracon.StateGenerationTally.GetHashCode() -> int
 override Tracon.StateGenerationTally.ToString() -> string!
@@ -5434,13 +5376,8 @@ static Tracon.ProviderDiagnostic.operator !=(Tracon.ProviderDiagnostic? left, Tr
 static Tracon.ProviderDiagnostic.operator ==(Tracon.ProviderDiagnostic? left, Tracon.ProviderDiagnostic? right) -> bool
 static Tracon.QuotaConsumption.operator !=(Tracon.QuotaConsumption? left, Tracon.QuotaConsumption? right) -> bool
 static Tracon.QuotaConsumption.operator ==(Tracon.QuotaConsumption? left, Tracon.QuotaConsumption? right) -> bool
-static Tracon.QuotaDecision.Allowed.get -> Tracon.QuotaDecision!
-static Tracon.QuotaDecision.operator !=(Tracon.QuotaDecision? left, Tracon.QuotaDecision? right) -> bool
-static Tracon.QuotaDecision.operator ==(Tracon.QuotaDecision? left, Tracon.QuotaDecision? right) -> bool
 static Tracon.QuotaDefinition.operator !=(Tracon.QuotaDefinition? left, Tracon.QuotaDefinition? right) -> bool
 static Tracon.QuotaDefinition.operator ==(Tracon.QuotaDefinition? left, Tracon.QuotaDefinition? right) -> bool
-static Tracon.QuotaThresholdCrossing.operator !=(Tracon.QuotaThresholdCrossing? left, Tracon.QuotaThresholdCrossing? right) -> bool
-static Tracon.QuotaThresholdCrossing.operator ==(Tracon.QuotaThresholdCrossing? left, Tracon.QuotaThresholdCrossing? right) -> bool
 static Tracon.QuotaUsageQuery.operator !=(Tracon.QuotaUsageQuery? left, Tracon.QuotaUsageQuery? right) -> bool
 static Tracon.QuotaUsageQuery.operator ==(Tracon.QuotaUsageQuery? left, Tracon.QuotaUsageQuery? right) -> bool
 static Tracon.QuotaUsageRecord.operator !=(Tracon.QuotaUsageRecord? left, Tracon.QuotaUsageRecord? right) -> bool
@@ -5564,8 +5501,6 @@ static Tracon.SpeechTranscriptionOptions.operator !=(Tracon.SpeechTranscriptionO
 static Tracon.SpeechTranscriptionOptions.operator ==(Tracon.SpeechTranscriptionOptions? left, Tracon.SpeechTranscriptionOptions? right) -> bool
 static Tracon.SqlPersistenceDiagnosticsSnapshot.operator !=(Tracon.SqlPersistenceDiagnosticsSnapshot? left, Tracon.SqlPersistenceDiagnosticsSnapshot? right) -> bool
 static Tracon.SqlPersistenceDiagnosticsSnapshot.operator ==(Tracon.SqlPersistenceDiagnosticsSnapshot? left, Tracon.SqlPersistenceDiagnosticsSnapshot? right) -> bool
-static Tracon.SqlPersistenceRegistrationMarker.operator !=(Tracon.SqlPersistenceRegistrationMarker? left, Tracon.SqlPersistenceRegistrationMarker? right) -> bool
-static Tracon.SqlPersistenceRegistrationMarker.operator ==(Tracon.SqlPersistenceRegistrationMarker? left, Tracon.SqlPersistenceRegistrationMarker? right) -> bool
 static Tracon.StateGenerationTally.operator !=(Tracon.StateGenerationTally? left, Tracon.StateGenerationTally? right) -> bool
 static Tracon.StateGenerationTally.operator ==(Tracon.StateGenerationTally? left, Tracon.StateGenerationTally? right) -> bool
 static Tracon.StateSample.operator !=(Tracon.StateSample? left, Tracon.StateSample? right) -> bool

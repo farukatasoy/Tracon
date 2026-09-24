@@ -29,7 +29,7 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// <c>TRACON_PUBLIC_SURFACE_REFRESH=1 dotnet test tests/Tracon.Core.UnitTests -c Release</c>.
 /// </para>
 /// </remarks>
-public sealed class PublicSurfaceBaselineTests
+public sealed partial class PublicSurfaceBaselineTests
 {
     private const string RefreshEnvVar = "TRACON_PUBLIC_SURFACE_REFRESH";
 

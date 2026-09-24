@@ -895,7 +895,7 @@ Console.WriteLine("Models.Count: " + provider.Models.Count);
 |---|---|
 | **İzlek** | C |
 | **Önem** | Yüksek |
-| **İlgili faz** | Faz 39 |
+| **İlgili faz** | Faz 39 · Faz 188 (kurucu internal; DI ile çözülür) |
 | **İlgili karar** | K-269 |
 
 🚨 Bu, `FakeModelProvider.CreateChatClient`in HAM istemci döndürdüğü bilgisinin
@@ -903,24 +903,32 @@ Console.WriteLine("Models.Count: " + provider.Models.Count);
 sonucudur — sahte sağlayıcı **tek başına** kullanılırsa tool döngüsü kurulmaz.
 
 **Ön koşul**
-- Test paketi konsol projesi kurulu.
+- Test paketi konsol projesi kurulu (paketlenmiş `Tracon.Testing`; bir DI
+  kabı için `Microsoft.Extensions.DependencyInjection` paketi).
 
 **Adımlar**
 1. Bir tool çağrısı + `EchoesLastToolResult` fallback'i tanımla.
-2. `ModelProviderRegistry` üzerinden (HAM istemci değil, defter üzerinden) çağır.
+2. Sağlayıcıyı `AddTracon().AddModelProvider(...)` ile kaydet; defteri
+   `IModelProviderRegistry` olarak DI'dan çöz (Faz 188'den beri
+   `ModelProviderRegistry` kurucusu `internal`'dır) ve HAM istemci değil,
+   defter üzerinden çağır.
 
 **Girilecek veri**
 ```csharp
 using Tracon;
 using Tracon.Testing;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.DependencyInjection;
 
 var binding = new ModelBinding { Provider = "fake", Model = "fake-model" };
 using var provider = new FakeModelProvider()
     .CallsTool("get_order_status", new { orderId = "ORD-7" })
     .EchoesLastToolResult("Sonuc: ");
 
-using var client = new ModelProviderRegistry([provider]).CreateChatClient(binding);
+var services = new ServiceCollection();
+services.AddTracon().AddModelProvider(provider);
+using var serviceProvider = services.BuildServiceProvider();
+using var client = serviceProvider.GetRequiredService<IModelProviderRegistry>().CreateChatClient(binding);
 
 var response = await client.GetResponseAsync(
     [new ChatMessage(ChatRole.User, "ORD-7 nerede")],
@@ -942,6 +950,8 @@ Console.WriteLine(response.Text);
 - Aynı `FakeModelProvider.CreateChatClient(binding)`i **doğrudan** (defter
   olmadan) çağırıp aynı `ChatOptions`ı verirsen, yanıt yalnızca `FunctionCallContent`
   taşır — tool hiç **çalıştırılmaz**, çünkü ham istemcide döngü yoktur.
+- Kod `ModelProviderRegistry` kurucusunu çağırmaz; kurucuyu çağıran kodda derleme `CS0122`
+  (koruma düzeyi) verir.
 
 ---
 

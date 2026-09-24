@@ -49,4 +49,4 @@ public sealed record SqlPersistenceDiagnosticsSnapshot
 /// a warning and <see cref="TraconDiagnosticsReport.RegisteredPersistenceProviders"/>
 /// returns more than one.
 /// </remarks>
-public sealed record SqlPersistenceRegistrationMarker(string ProviderName);
+internal sealed record SqlPersistenceRegistrationMarker(string ProviderName);

@@ -17,7 +17,7 @@ namespace Tracon;
 /// notice per metric/threshold pair.
 /// </para>
 /// </remarks>
-public sealed record QuotaThresholdCrossing
+internal sealed record QuotaThresholdCrossing
 {
     /// <summary>
     /// The dedup/delivery identifier for this crossing. Stable for the
