@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite';
+import { thirdPartyModules } from './scripts/third-party-notices.mjs';
 
 /**
  * Second, separate build for the embeddable chat widget (Phase 61).
@@ -16,6 +17,7 @@ import { defineConfig } from 'vite';
  * hardcode the URL.
  */
 export default defineConfig({
+  plugins: [thirdPartyModules('embed')],
   build: {
     outDir: '../wwwroot/embed',
     emptyOutDir: true,

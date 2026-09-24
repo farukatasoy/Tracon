@@ -8,6 +8,7 @@
 import { brotliCompressSync, constants, gzipSync } from 'node:zlib';
 import { readFileSync, readdirSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { writeThirdPartyNotices } from './third-party-notices.mjs';
 
 const OUT_DIR = resolve(import.meta.dirname, '..', '..', 'wwwroot', 'embed');
 
@@ -89,6 +90,9 @@ function main() {
       '\n',
     ),
   );
+
+  // The last build step: both Vite builds have recorded what they emitted.
+  writeThirdPartyNotices();
 }
 
 main();

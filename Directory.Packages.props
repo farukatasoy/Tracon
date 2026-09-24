@@ -53,8 +53,18 @@
   </ItemGroup>
 
   <ItemGroup Label="Microsoft Agent Framework - onsurum (yalnizca Tracon.AspNetCore)">
-    <PackageVersion Include="Microsoft.Agents.AI.Hosting" Version="1.20.0-preview.260831.1" />
-    <PackageVersion Include="Microsoft.Agents.AI.Hosting.OpenAI" Version="1.20.0-alpha.260831.1" />
+    <!--
+      A-59 / K-872: on surum ust akisin araligi TAMDIR ([x]). Acik alt sinir
+      (`>= x`) tuketicinin yukseltmesini uyarisiz restore edip calisma aninda
+      dusuruyordu: yayinlanmis 1.0.0-preview.2 + Hosting 1.22.0-preview ->
+      `Microsoft.Agents.AI.Hosting.AgentSessionStore` yok (baska derlemeye
+      forwarder'siz tasindi). Tam aralikta NuGet ayni durumu restore'da soyler
+      (NU1608 dogrudan, NU1107 gecisli). Kararli ucuncu taraf alt sinirda kalir.
+      Kapi: ReleaseArtifactTests.EveryPrereleaseThirdPartyDependencyIsExact ve
+      `kapi.py yayin`. Yukseltme bu bes satiri BIRLIKTE degistirir.
+    -->
+    <PackageVersion Include="Microsoft.Agents.AI.Hosting" Version="[1.20.0-preview.260831.1]" />
+    <PackageVersion Include="Microsoft.Agents.AI.Hosting.OpenAI" Version="[1.20.0-alpha.260831.1]" />
     <!--
       Faz 50: Tracon'i disa acan A2A sunucusu. Ayni surum hatti
       (1.20.0-preview.260831.1), K-008 kapsaminda yalnizca Tracon.AspNetCore.
@@ -65,9 +75,9 @@
       Microsoft.Agents.AI.Hosting.A2A, Microsoft.Agents.AI.Hosting.AspNetCore
       (4 paket, hepsi ayni SDK ailesi; yabanci bagimlilik yok).
     -->
-    <PackageVersion Include="Microsoft.Agents.AI.Hosting.A2A" Version="1.20.0-preview.260831.1" />
-    <PackageVersion Include="Microsoft.Agents.AI.Hosting.AspNetCore" Version="1.20.0-preview.260831.1" />
-    <PackageVersion Include="A2A.AspNetCore" Version="1.0.0-preview2" />
+    <PackageVersion Include="Microsoft.Agents.AI.Hosting.A2A" Version="[1.20.0-preview.260831.1]" />
+    <PackageVersion Include="Microsoft.Agents.AI.Hosting.AspNetCore" Version="[1.20.0-preview.260831.1]" />
+    <PackageVersion Include="A2A.AspNetCore" Version="[1.0.0-preview2]" />
   </ItemGroup>
 
   <ItemGroup Label="Microsoft.Extensions.AI">
