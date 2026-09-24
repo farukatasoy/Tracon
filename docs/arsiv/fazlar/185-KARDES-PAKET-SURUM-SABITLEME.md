@@ -51,7 +51,7 @@ Tracon tek sürüm hattında çıkar (K-602). Ama `dotnet pack` her `ProjectRefe
 - [x] Manuel case'ler `MT-PKG-130…134` ve `MT-TEST-095…097`; 134 👤 dışında hepsi koşuldu
 - [x] `faz-denetim` koşuldu; 🔴 yok, 🟡 1 düzeltildi
 - [x] `docs-site/` güncel; `npm run check` temiz (içerik · derleme · bağlantı · ağırlık)
-- [ ] `python3 scripts/kapi.py yayin --kuru` commit sonrası yeşil (AOT host smoke, net8 tüketici dahil)
+- [x] `python3 scripts/kapi.py yayin --kuru` commit sonrası yeşil (`044fbe42`): 20 paket `1.0.0-preview.2.46`, 6 exact-version örnek, NativeAOT host smoke ve net8 tüketici — "Kapanış Kapısı"
 
 ### Doğrulama komutları
 
@@ -334,3 +334,12 @@ yalnız dokümandır), 2026-09-24 → **EXIT 0, ~600 sn**:
 Performans kapısı tetiklenmedi (sıcak yol değişmedi). İlk kapanış denemesi doküman
 denetiminde durdu: Faz 186 devir notunda anılan bir F-ID sayacı "kullanılmış" saydırdı
 (düzeltme turu 4).
+
+**Yayın provası** (`kapi.py yayin --kuru`, temiz ağaç `044fbe42`, 2026-09-24) → **EXIT 0**:
+20 paket `1.0.0-preview.2.46` · `npm publish --dry-run` ✅ ·
+`provider/source/generated-tool AOT host smoke passed` (gerçek generic host,
+başlangıç kontrolü AOT altında koştu) · `net8.0 consumer smoke passed on .NET 8.0.31`
+· `6 exact-version packed sample`. İlk deneme örnek sözleşmesinde durdu: yerel
+feed'de 26 eski damga vardı (`release feed contains stale Tracon packages`); belgelenmiş
+tarifle `rm -rf artifacts/package/release` sonrası yeniden koşuldu.
+
