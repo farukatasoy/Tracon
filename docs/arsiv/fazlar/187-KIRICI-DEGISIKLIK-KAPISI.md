@@ -2,8 +2,8 @@
 
 > **Durum:** ✅ Tamamlandı (2026-09-24)
 > **Plan onayı:** Bakımcı, 2026-09-23 (engelleyici kararlar sohbette alındı)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-270** (triaj bulgusu `P6P9`, alt bulgu 6)
-> **Önkoşul:** [Faz 185](arsiv/fazlar/185-KARDES-PAKET-SURUM-SABITLEME.md) ve [Faz 186](arsiv/fazlar/186-SCRIPT-IZNI-ICERIK-PINI.md) kapanmış olmalı (sıra kararı) · aynı turun `kusur-giderme` kulvarları ana dalda olmalı. Denetim: "Bu Faza Başlarken" adım 3 · etkileşim: 187.9
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-270** (triaj bulgusu `P6P9`, alt bulgu 6)
+> **Önkoşul:** [Faz 185](185-KARDES-PAKET-SURUM-SABITLEME.md) ve [Faz 186](186-SCRIPT-IZNI-ICERIK-PINI.md) kapanmış olmalı (sıra kararı) · aynı turun `kusur-giderme` kulvarları ana dalda olmalı. Denetim: "Bu Faza Başlarken" adım 3 · etkileşim: 187.9
 > **Paketler:** Kaynak kodu değişen paket yok. 17 `lib` paketinin paketleme davranışı değişir (187.4). Aparat: `scripts/`, `Directory.Build.targets`, `src/Directory.Build.props`, `CHANGELOG.md`
 > **Yeni paket:** Yok — ApiCompat .NET SDK'nın içindedir; yeni NuGet bağımlılığı yok, K-007 gerekmez · **Migration:** Yok
 > **Public API:** Büyümüyor, daralmıyor — C# yüzeyine dokunulmaz. `wc -l src/*/PublicAPI.Shipped.txt` → 17 dosya × 1 satır (`#nullable enable`), toplam 17 (ölçüldü 2026-09-23; K-603 gereği boş). Strict mode bundan sonra TFM'ye özgü public üyeyi reddeder (187.4)
@@ -42,10 +42,10 @@
    git log --oneline -1                                  # faz öncesi commit: kapanış --taban
    ```
 4. Alan hafızası (paketleme ve yayın):
-   - [`hafiza/paketleme-ve-dagitim.md`](hafiza/paketleme-ve-dagitim.md) — yeni tuzaklar buraya; başlıkları tara. Bütçe 16.000 B; bugün 11.895 B, kulvardan sonra 13.091 B, 185 de yazar (ölçüldü 2026-09-23). Yazmadan önce `wc -c`.
-   - [`hafiza/yayin-ve-surumleme.md`](hafiza/yayin-ve-surumleme.md) — yalnız MinVer bölümleri (bugün `sed -n 11,97p`): etiketsiz sürüm `1.0.0-preview.N.<yükseklik>`'tir.
-   - [`hafiza/build-ve-analyzer.md`](hafiza/build-ve-analyzer.md) — yalnız `grep -n IsAotCompatible` satırı: `src/Directory.Build.props` csproj gövdesinden önce yüklenir.
-   - [`hafiza/kod-haritasi.md`](hafiza/kod-haritasi.md) — yalnız satır 14-15; bu faz ikisini düzeltir.
+   - [`hafiza/paketleme-ve-dagitim.md`](../../hafiza/paketleme-ve-dagitim.md) — yeni tuzaklar buraya; başlıkları tara. Bütçe 16.000 B; bugün 11.895 B, kulvardan sonra 13.091 B, 185 de yazar (ölçüldü 2026-09-23). Yazmadan önce `wc -c`.
+   - [`hafiza/yayin-ve-surumleme.md`](../../hafiza/yayin-ve-surumleme.md) — yalnız MinVer bölümleri (bugün `sed -n 11,97p`): etiketsiz sürüm `1.0.0-preview.N.<yükseklik>`'tir.
+   - [`hafiza/build-ve-analyzer.md`](../../hafiza/build-ve-analyzer.md) — yalnız `grep -n IsAotCompatible` satırı: `src/Directory.Build.props` csproj gövdesinden önce yüklenir.
+   - [`hafiza/kod-haritasi.md`](../../hafiza/kod-haritasi.md) — yalnız satır 14-15; bu faz ikisini düzeltir.
 
 ---
 
@@ -652,7 +652,7 @@ satırı düzelir.
 
 Bu fazın sınırı **paket** ve **süreç**tir: MSBuild değerlendirmesi ve gerçek
 `dotnet pack` birim testinde görünmez
-([`test-seviyeleri.md`](../.agents/ortak/test-seviyeleri.md)). **Birim** =
+([`test-seviyeleri.md`](../../../.agents/ortak/test-seviyeleri.md)). **Birim** =
 `scripts/*_test.py` (geçici dizin, geçici git deposu, sahte alt süreç) ·
 **Paket** = `tests/Tracon.Package.Tests` (gerçek `dotnet msbuild -getProperty`
 ve `dotnet pack`, `[Collection(RepositoryTreeGate.Name)]`, emsal
@@ -988,7 +988,7 @@ Plan kaynaklı ek aday: `ReleaseArtifactFixture` gölgesi → **F-288**.
 > Kapanışta doldurulur: devralınan sözleşmeler, bilinen tuzaklar (🚨), yarım
 > kalan işler, sıradaki faz.
 
-**Sıradaki faz: [188](188-DI-KURUCU-DARALTMA.md)** — kırıcı değişiklik kapısının ilk
+**Sıradaki faz: [188](../../188-DI-KURUCU-DARALTMA.md)** — kırıcı değişiklik kapısının ilk
 gerçek tüketicisi. Kapının son biçimi:
 
 - Kurucu daraltması `CP0002` üretir (`M:Ns.Tip.#ctor(...)`); kapı onu **bildiren tipe**
