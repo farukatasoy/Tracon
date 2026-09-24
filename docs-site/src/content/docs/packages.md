@@ -207,7 +207,9 @@ build-time analyzer carried inside the Core package, not a separate NuGet packag
 `Tracon.Templates` is a .NET 10 `dotnet new` content package, not runtime API.
 The project it generates references the Tracon packages at **the template
 package's own version**, so a template and the runtime it writes always come
-from the same release. Pass `--TraconVersion x.y.z` to choose another one.
+from the same release. Pass `--TraconVersion x.y.z` to choose another one. The
+generated project treats `NU1608` as an error, so a reference that moves one Tracon
+package to another version stops at restore.
 
 ## What does not enter your graph
 

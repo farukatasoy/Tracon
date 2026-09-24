@@ -103,10 +103,12 @@
     <PackageVersion Include="Microsoft.Extensions.Diagnostics.Abstractions" Version="$(MicrosoftExtensionsVersion)" />
     <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="$(MicrosoftExtensionsVersion)" />
     <!--
-      Faz 157: yalnizca tests/Tracon.WorkerHarness kullanir. Sevk edilen
-      hicbir paket bu satira bagli DEGILDIR - Tracon kutuphaneleri
-      Hosting.Abstractions ile yetinir; tam generic host yalnizca iki process
-      ariza kanitinin OLDURULEN worker'i icin gerekir.
+      Sevk edilen hicbir paket bu satira bagli DEGILDIR - Tracon kutuphaneleri
+      Hosting.Abstractions ile yetinir. Tam generic host'u uc tuketici kullanir:
+      tests/Tracon.WorkerHarness (Faz 157, iki process ariza kanitinin OLDURULEN
+      worker'i), samples/Tracon.Samples.Net8Consumer (net8 tuketici smoke'u) ve
+      samples/Tracon.Samples.ExtensionAotSmoke (Faz 185, Native AOT altinda
+      gercek host baslatir; paket ailesi hizalama kontrolu orada kosar).
     -->
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="$(MicrosoftExtensionsVersion)" />
     <PackageVersion Include="Microsoft.Extensions.Logging" Version="$(MicrosoftExtensionsVersion)" />

@@ -1,10 +1,16 @@
-namespace Tracon.Package.Tests.Infrastructure;
+namespace Tracon.Tests.Common;
 
 /// <summary>
 /// The package identities every release artifact must account for -
 /// derived from <c>src/*/*.csproj</c>, never hand-written, so a new
 /// packable project enters this list on its own.
 /// </summary>
+/// <remarks>
+/// Linked into <c>Tracon.Package.Tests</c> (the release artifact facts) and
+/// <c>Tracon.Core.UnitTests</c> (the package family list the startup alignment
+/// check carries): both ask the same question of the same files, so the
+/// profile rules live once.
+/// </remarks>
 internal static class PackableProjects
 {
     private static readonly System.Text.RegularExpressions.Regex TargetFrameworksElement = new(
@@ -13,7 +19,7 @@ internal static class PackableProjects
         TimeSpan.FromSeconds(1));
 
     public static IReadOnlyList<string> Ids()
-        => Directory.EnumerateDirectories(Path.Combine(RepoPaths.Root, "src"))
+        => Directory.EnumerateDirectories(Path.Combine(RepoRoot.Path, "src"))
             .Select(directory => new DirectoryInfo(directory).Name)
             .Where(name => name.StartsWith("Tracon", StringComparison.Ordinal))
             .Where(IsPackable)
@@ -67,7 +73,7 @@ internal static class PackableProjects
         // Read the matrix out of src/Directory.Build.props rather than restate it.
         // The build is what decides which licence a package declares and packs, so
         // a copy here could only ever be a second opinion about the same fact.
-        var props = File.ReadAllText(Path.Combine(RepoPaths.Root, "src", "Directory.Build.props"));
+        var props = File.ReadAllText(Path.Combine(RepoRoot.Path, "src", "Directory.Build.props"));
         var start = props.IndexOf("<TraconMitLicensed", StringComparison.Ordinal);
         var end = start < 0 ? -1 : props.IndexOf("</TraconMitLicensed>", start, StringComparison.Ordinal);
 
@@ -95,7 +101,7 @@ internal static class PackableProjects
         return File.Exists(csproj) && !File.ReadAllText(csproj).Contains("<IsPackable>false</IsPackable>", StringComparison.Ordinal);
     }
 
-    private static string CsprojPath(string projectId) => Path.Combine(RepoPaths.Root, "src", projectId, $"{projectId}.csproj");
+    private static string CsprojPath(string projectId) => Path.Combine(RepoRoot.Path, "src", projectId, $"{projectId}.csproj");
 }
 
 internal enum PackageProfile

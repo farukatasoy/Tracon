@@ -17,6 +17,13 @@ public static partial class TraconServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IValidateOptions<TraconOptions>, TraconOptionsValidator>());
 
+        // Refuses to start a host whose Tracon assemblies come from more than one
+        // release. A lifecycle service: its StartingAsync runs before every
+        // StartAsync, including those registered ahead of AddTracon() and the
+        // storage providers' migrations. Always on; the check has no opt-out.
+        services.TryAddSingleton<LoadedPackageFamily>();
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, PackageFamilyAlignmentService>());
+
         // Tenant context. In a multi-tenant setup, the consumer registers
         // their own implementation before this call.
         services.TryAddSingleton<ITenantContext, SingleTenantContext>();
