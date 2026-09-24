@@ -653,6 +653,36 @@ errors.push(...checkCapacityStamp(docsRoot, join(repositoryRoot, 'bench/capacity
 
 const manualProse = manualContent.map((file) => readFileSync(file, 'utf8')).join('\n');
 
+// The coding-agents guide lists the Tracon.Usage diagnostics by hand. Its
+// count drifted twice ("Seven" while there were nine, then "Eight" while there
+// were ten: TRC0501 and TRC0502 were never listed), so the table is now held
+// to the descriptors themselves and the page states no number to drift.
+const usageDiagnosticIds = [
+  ...readFileSync(join(sourceRoot, 'Tracon.Generators/UsageDiagnostics.cs'), 'utf8').matchAll(
+    /new\(\s*"(TRC\d{4})"/g,
+  ),
+].map(([, id]) => id);
+
+if (usageDiagnosticIds.length === 0) {
+  errors.push(
+    'No diagnostic ids found in UsageDiagnostics.cs; refusing to validate zero ids. ' +
+      'Check the `new("TRCnnnn", ...)` shape the collector above matches.',
+  );
+}
+
+const codingAgentsPage = readFileSync(join(docsRoot, 'guides/coding-agents.md'), 'utf8');
+const listedUsageDiagnostics = new Set(
+  [...codingAgentsPage.matchAll(/^\| `(TRC0[1-9]\d{2})` \|/gm)].map(([, id]) => id),
+);
+
+for (const id of usageDiagnosticIds.filter((id) => !listedUsageDiagnostics.has(id))) {
+  errors.push(`guides/coding-agents.md: diagnostic ${id} is shipped but missing from the diagnostics table`);
+}
+
+for (const id of [...listedUsageDiagnostics].filter((id) => !usageDiagnosticIds.includes(id))) {
+  errors.push(`guides/coding-agents.md: the diagnostics table lists ${id}, which UsageDiagnostics.cs does not define`);
+}
+
 const diagnostics = readFileSync(
   join(sourceRoot, 'Tracon.Core/Diagnostics/TraconDiagnostics.cs'),
   'utf8',

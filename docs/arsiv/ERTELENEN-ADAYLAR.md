@@ -621,3 +621,35 @@ türevler tek komutla çıkar.
 **Maliyet:** Küçük (kod), tasarım kararı kullanıcıya ait.
 
 **Risk:** Düşük — hiçbir kapı ikonun içeriğine bakmaz.
+
+---
+
+## Kapanan kalemler
+
+> 2026-09-24'ten itibaren [`../ADAYLAR.md`](../ADAYLAR.md) yalnız yapılacak
+> işi taşır (kullanıcı kararı). Kapanan her kalem o dosyadan silinir ve buraya
+> **tek satırla** (tarih + kanıt) taşınır. Numara burada yaşamaya devam eder:
+> `dokuman-bakim.py`'nin F-ID sayacı bu dosyayı da sayar, bu yüzden kapanan
+> bir numara yeniden tahsis edilemez. Gövdeli bir kalem kapanırsa gövdesi
+> tablonun altına eklenir.
+
+| Kalem | Kapanış | Kanıt |
+|---|---|---|
+| **F-262** · `Tracon.Google`'ın görsel yolu deprecated Imagen `:predict` yüzeyini hedefliyordu | 2026-09-19 (kayıt 2026-09-24'te kapatıldı) | Kod `GenerateContentAsync` kullanıyor — [`GoogleImageGenerator.cs:83`](../../src/Tracon.Google/Internal/GoogleImageGenerator.cs#L83), commit `d1f539fb` (Faz 179). Satır aday dosyasına 2026-09-22'de, düzeltmeden **sonra** ve bayat olarak girmişti (F-251 çift tahsisi yeniden numaralanırken). Canlı kanıt **F-255** ile 2026-09-24'te alındı; K-835'e kapanış notu eklendi |
+| **F-221** · kalan iz: `src/` içindeki `prismOptions`/`prismException` yerel değişken adları | 2026-09-24 ölçümü | `grep -rnoi "prism" src --include='*.cs'` → **0**. Görsel yarısı Faz 163–165'te kapanmıştı |
+| **F-278** · `PeriodicTimer`'a giden aralıklar doğrulanmıyordu; geçersiz değer host'u açılıştan SONRA durduruyordu | 2026-09-24, kusur-giderme | Repro örnek uygulamada canlı: `Tracon__Approvals__ScanInterval=00:00:00` → "Application started" ardından `StopHost`; düzeltmeden sonra aynı komut açılışta `OptionsValidationException` ile adı veriyor. Ortak `TimerPeriod` (`src/Tracon.Core/Hosting/TimerPeriod.cs`); yeni `TraconApprovalOptionsValidator`, `CanaryOptionsValidator`, `TraconMcpOptionsValidator`; zamanlama, singleton, uzlaştırma, sağlık ve saklama doğrulayıcıları sıkılaştırıldı (özellik açıkken). Kanıt: `TimerPeriodOptionValidationTests` (önce 20 kırmızı), `McpRefreshIntervalValidationTests` (önce 4 kırmızı), kapı `PeriodicTimerSiteTests`. Timeout alt sınıfı **F-280**'e ayrıldı |
+| **F-275** · `quota_usage` her run'da tüm geçmişi okuyordu; `AsOf` yok sayılıyordu | 2026-09-24, kusur-giderme | K-857: `QuotaUsageQuery.PeriodStarts` (store süzer, verilmezse tüm geçmiş) · `AsOf` `[Obsolete]`. Dört iç çağıran dönem başlarını geçer. `QuotaStoreContract`'a dört case (in-memory önce 3 kırmızı; SQLite/PostgreSQL/SQL Server yeşil); `QuotaEnforcerTests` ve `QuotaUsageObserverTests` önce kırmızı. Migration yok |
+| **F-244** · `guides/coding-agents.md` diagnostic tablosu eksik sayıyordu | 2026-09-24, doğrudan | `TRC0501`/`TRC0502` satırları eklendi; sayfa artık sayı yazmıyor. Kapı: `check-content.mjs` tabloyu `UsageDiagnostics.cs` tanımlayıcılarıyla iki yönlü karşılaştırır |
+| **F-255** · `Tracon.Google` görsel yolu için canlı kanıt yoktu | 2026-09-24, doğrudan | `MT-MM-121` canlı Google anahtarıyla yeniden koşuldu: `POST /api/images/generate` → `200`, `image/png` 2 063 511 B ek. `size: "1024x1024"` açık hatayla reddedildi (`502`, *"does not accept WIDTHxHEIGHT"*). `OutputMimeType` sorusu ölçüldü ve yeni kusura dönüştü: **F-281** |
+| **F-251** · Damıtma, yeniden koşulan bir case'in eski bloğunu işaretsiz bırakıyordu | 2026-09-24, doğrudan | `_kosum_damit_metni` son bloğun işaretini önceki blokların boş şablon `Durum` satırına taşır; ters yön (ilk deneme geçti, yeniden koşum kaldı) artık `☑` satırına inmez; serbest metinli `Durum` satırına dokunulmaz. Arşivde 19 blok düzeltildi (`12-GOZLEMLENEBILIRLIK-MALIYET.md`). Kanıt: `KosumDamitmaTestleri` (önce 2 kırmızı, 6 yeni test) |
+
+### ADAYLAR.md'den taşınan kanal satırları (2026-09-24)
+
+Aday dosyasının § *Aday Olmayan Açık Kayıtlar* tablosu bu iki satırı
+taşıyordu. Her ID'nin gövdesi bu dosyada veya
+[`PLANA-DONUSEN-ADAYLAR.md`](PLANA-DONUSEN-ADAYLAR.md)'dedir.
+
+| Kanal | ID'ler | Kural |
+|---|---|---|
+| **Kapatılan kusur kayıtları** | F-106 · F-130 · F-137 · F-138 · F-139 · F-170 · F-180 · F-181 · F-190 · F-197 · F-203 · F-204 · F-206 · F-211 · F-212 · F-214 · F-215 · F-219 · F-220 · F-222 | Yeniden görülürse **yeni** kusur kaydı açılır. **F-180**'in vakası kapandı, sınıfı açık — aday dosyasında tetik bekleyen olarak durur |
+| **Arşivlendi / birleştirildi / rutin bakım** | F-48 · F-88 · F-89 · F-98 · F-144 · F-145 · F-146 · F-147 · F-148 · F-155 · F-158 · F-163 · F-221 | Plan değeri yok; rutin bakım olarak kaldı veya aktif adayla aynı tasarım işiydi. F-221'in kalan izi 2026-09-24'te sıfır ölçüldü (yukarıdaki tablo) |

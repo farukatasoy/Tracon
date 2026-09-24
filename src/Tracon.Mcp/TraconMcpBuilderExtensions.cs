@@ -126,7 +126,11 @@ public static class TraconMcpBuilderExtensions
     {
         var services = builder.Services;
 
-        services.AddOptions<TraconMcpOptions>();
+        // Validated at startup: RefreshInterval feeds the discovery loop's
+        // delay, and a value it refuses stopped the host after startup (F-278).
+        services.AddOptions<TraconMcpOptions>().ValidateOnStart();
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IValidateOptions<TraconMcpOptions>, TraconMcpOptionsValidator>());
 
         if (configure is not null)
         {

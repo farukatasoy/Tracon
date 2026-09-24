@@ -60,10 +60,9 @@ dosyanın § *Okuma Sırası* tablosu da seni doğru bölüme yollar.
 |---|---|
 | `docs/YOL-HARITASI.md` | Neyin bittiği. Faz durumu yalnız burada yaşar (K-413) |
 | Aday dosyası § *Sıralanabilir Adaylar* | Bugün masada ne var |
-| Aday dosyası § *Bekleyen Kalemler* | Zaten bilinen ama koşulu oluşmamış işler — aynısını yeniden önerme |
-| Aday dosyası § *Aday Olmayan Açık Kayıtlar* | Bir F-ID'nin hangi kanala düştüğü **ve sıradaki F numarası** |
-| Aday dosyası § *Bilerek Önerilmeyenler* | Bir daha önerilmeyecek işler + "zaten var" listesi |
-| `docs/arsiv/KARARLAR-INDEKS-REDDEDILEN.md` | Kapatılmış tartışmalar |
+| Aday dosyası § *Bekleyen Kalemler* | Zaten bilinen işler — kanalına atanmış olanlar ve tetik bekleyenler; aynısını yeniden önerme |
+| Aday dosyası § *Aday Olmayan Açık Kayıtlar* | Karar veya ölçüm eşiğinde bekleyen ID'ler **ve sıradaki F numarası**. Kapanmış veya plana dönüşmüş bir F-ID orada değildir — `grep -rn "F-NNN" docs/` |
+| `docs/arsiv/KARARLAR-INDEKS-REDDEDILEN.md` | Kapatılmış tartışmalar + "zaten var, eksik diye önerilmez" kalemleri |
 | `MEMORY.md` + dokunulan alanın `docs/hafiza/` dosyası | Tuzaklar |
 | Son üç fazın § *Sonraki Faza Devir Notu* | **Bilerek bırakılmış iş** — en zengin damar |
 | `docs/manuel-test/00-INDEKS.md` | Gerçek koşumların düşürdüğü notlar |

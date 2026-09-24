@@ -129,6 +129,7 @@ Düzeltme koddadır; **tekrarı önleyen şey** yazıdır.
 | Alandan bağımsız, tekrar bedel ödeten ders | `MEMORY.md` "Her Oturumda Geçerli" (nadir) |
 | Bir kural veya tercih değişti | Dört kategoriden birine giriyorsa (AGENTS.md) `docs/KARARLAR.md` — K-NNN ve kategori etiketiyle; girmiyorsa faz içinde faz dokümanı, faz dışında commit mesajı (`faz-tamamlama` Adım 8) |
 | Kusuru yakalayan senaryo | `docs/manuel-test/<NN>-<ALAN>.md` — regresyon case'i olarak |
+| Kapanan kusur bir `F-NN` kaydıydı | Satırı `docs/ADAYLAR.md`'den sil; `docs/arsiv/ERTELENEN-ADAYLAR.md` § *Kapanan kalemler* tablosuna tek satırla (tarih + kanıt) taşı. Aday dosyası yalnız yapılacak işi taşır; F-ID sayacı arşivdeki numarayı da sayar. Kısmen kapandıysa satır yerinde kalır ve yalnız kalan işi anlatır |
 | Kalıcı çalışma kuralı değişti | `AGENTS.md` veya ilgili skill |
 | Kusurun geldiği faz biliniyor | O fazın `## Süreç Ölçümü` tablosuna **bir çentik**: `Faz kapandıktan sonra bulunan kusur` satırını artır. Kayıt `docs/arsiv/fazlar/` altındaysa `ask` kuralı sorar — protokolsüz bırakılan bir satır doldurulmaz |
 

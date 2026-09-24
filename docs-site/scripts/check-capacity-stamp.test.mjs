@@ -136,6 +136,13 @@ test('a commit stamp that matches no stored manifest is a finding', (t) => {
   assert.match(run(f), /commit stamp 'deadbeef' matches no stored manifest/);
 });
 
+test('a seven-character commit stamp is checked too', (t) => {
+  // F-240 (3): packageVersion carries a seven-character SHA; the scan asked
+  // for eight or more, so such a stamp was never compared with anything.
+  const f = fixture(t, { stamp: 'e44d89e' });
+  assert.match(run(f), /commit stamp 'e44d89e' matches no stored manifest/);
+});
+
 test('a stored run the page never names is a finding', (t) => {
   // The other direction: numbers on the page whose provenance a reader cannot
   // attribute, because the page never says that run happened.
@@ -385,6 +392,30 @@ test('an arrival row that mistypes a total is a finding', (t) => {
 test('an arrival row must publish the measured queue-wait spread', (t) => {
   const f = wide(t, { arrival: '| 1 | 60 of 60 | 0 | 60 | 0.09 s ' });
   assert.match(wideRun(f), /Queue wait p95 publishes '0\.09 s', measured '0\.10 s'/);
+});
+
+test('an invalid window does not reach a published arrival total', (t) => {
+  // F-240 (4): the totals summed every window at the rate, whatever its status.
+  const f = wide(t);
+  const summaryPath = join(f.measurements, 'sweep/summary.json');
+  const summary = JSON.parse(readFileSync(summaryPath, 'utf8'));
+  summary.evidence.push({
+    arrivalRatePerSecond: 1,
+    status: 'invalid',
+    arrival: { planned: 60, sent: 60, notSent: 0, completed: 60 },
+    queueWait: { p95: 100 },
+  });
+  writeFileSync(summaryPath, JSON.stringify(summary));
+  assert.doesNotMatch(wideRun(f), /Sent publishes/);
+});
+
+test('a rate whose every window is invalid publishes nothing', (t) => {
+  const f = wide(t);
+  const summaryPath = join(f.measurements, 'sweep/summary.json');
+  const summary = JSON.parse(readFileSync(summaryPath, 'utf8'));
+  summary.evidence = summary.evidence.map((entry) => ({ ...entry, status: 'invalid' }));
+  writeFileSync(summaryPath, JSON.stringify(summary));
+  assert.match(wideRun(f), /every window at 1 request\(s\) per second is invalid/);
 });
 
 test('an arrival marker naming an unmeasured rate is a finding', (t) => {

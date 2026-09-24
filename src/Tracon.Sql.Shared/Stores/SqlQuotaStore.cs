@@ -108,6 +108,11 @@ internal sealed class SqlQuotaStore : IQuotaStore
     {
         ArgumentNullException.ThrowIfNull(query);
 
+        if (query.PeriodStarts is { } periodStarts)
+        {
+            return await GetUsageForPeriodsAsync(query, periodStarts, cancellationToken).ConfigureAwait(false);
+        }
+
         var command = CreateCommand(_sql.SelectQuotaUsage);
         DbHelpers.AddTenant(command, query.TenantId);
 
@@ -119,6 +124,51 @@ internal sealed class SqlQuotaStore : IQuotaStore
         Dialect.AddInt16(command, "period", query.Period is { } period ? (short?)period : null);
 
         return await DbHelpers.ReadListAsync(command, ReadUsage, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Reads only the counters of the named periods, each for its given first
+    /// day. The admission check calls this before every run, so the read stays
+    /// bounded however long the usage history grows.
+    /// </summary>
+    private async ValueTask<IReadOnlyList<QuotaUsageRecord>> GetUsageForPeriodsAsync(
+        QuotaUsageQuery query,
+        IReadOnlyDictionary<QuotaPeriod, DateOnly> periodStarts,
+        CancellationToken cancellationToken)
+    {
+        // F-275: the unfiltered read returned the tenant's whole history twice
+        // per run. The period filter narrows the named periods instead of adding a
+        // third condition to the query.
+        var pairs = periodStarts
+            .Where(pair => query.Period is not { } period || pair.Key == period)
+            .ToList();
+
+        if (pairs.Count == 0)
+        {
+            return [];
+        }
+
+        var result = new List<QuotaUsageRecord>();
+
+        // The query names two periods; QuotaPeriod has two members today. A
+        // third member would be read in a second round trip, not dropped.
+        for (var index = 0; index < pairs.Count; index += 2)
+        {
+            var first = pairs[index];
+            var second = index + 1 < pairs.Count ? pairs[index + 1] : first;
+
+            var command = CreateCommand(_sql.SelectQuotaUsageForPeriods);
+            DbHelpers.AddTenant(command, query.TenantId);
+            Dialect.AddText(command, "agent_name", query.AgentName);
+            DbHelpers.Add(command, "first_period", (short)first.Key);
+            DbHelpers.Add(command, "first_start", first.Value);
+            DbHelpers.Add(command, "second_period", (short)second.Key);
+            DbHelpers.Add(command, "second_start", second.Value);
+
+            result.AddRange(await DbHelpers.ReadListAsync(command, ReadUsage, cancellationToken).ConfigureAwait(false));
+        }
+
+        return result;
     }
 
     /// <inheritdoc />

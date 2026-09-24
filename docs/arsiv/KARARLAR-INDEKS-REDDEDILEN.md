@@ -10,7 +10,7 @@ Kalıcı (K-NNN) kararlar için: [`KARARLAR-INDEKS.md`](../KARARLAR-INDEKS.md).
 sed -n '120,121p' docs/KARARLAR.md   # satır numarasıyla tam gerekçe
 ```
 
-## Reddedilen İşler (26 kalem)
+## Reddedilen İşler (30 kalem)
 
 | KARARLAR.md satırı | Karar |
 |---|---|
@@ -40,3 +40,7 @@ sed -n '120,121p' docs/KARARLAR.md   # satır numarasıyla tam gerekçe
 | L38 | Arayüz i18n altyapısı kurulmadı; dil İngilizce 👤🔁 |
 | L39 | `MigrationRunner`'a deadlock (SQL Server hata 1205) için yeniden deneme eklenmedi (Faz 63) |
 | L40 | Tam test koşumunda `-maxcpucount:1` gevşetilmedi (iki dalgalı koşum) |
+| L41 | Eval suite'i için ayrı bir CI kapısı eklenmedi — yetenek zaten var |
+| L42 | Skor düşüşü için ayrı bir alarm eklenmedi — yetenek zaten var |
+| L43 | Agent sürümüne `production`/`staging` label'ı eklenmedi — ihtiyaç zaten karşılanıyor |
+| L44 | Langfuse'un beş sütunu ayrı bir katman olarak kurulmadı — beşi de zaten var |

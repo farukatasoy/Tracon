@@ -255,7 +255,7 @@ ister: anahtarda `PlatformAdmin` · statik `AuthToken` · claims için
 
 Gerekçe: stored script Tracon'un OS kimliğiyle çalışır (R8); kiracı Admin'i grant'ı
 kendine verir. K-853'ün sınıfıdır: kiracının başka kiracının `secret`'ına ulaşması
-"korunacak bir geri düşüş değildir" (`docs/KARARLAR.md:900`). K-086 yalnız OS
+"korunacak bir geri düşüş değildir" (K-853, `grep -n "K-853" docs/KARARLAR.md`). K-086 yalnız OS
 yalıtımını kapsar; onayı kimin vereceği yetki kararıdır.
 
 Karar 5'in gücü § 186.0 ölçümüne ve `PlatformAdmin` anahtarlarının veriliş biçimine

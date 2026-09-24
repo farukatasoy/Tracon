@@ -1154,6 +1154,75 @@ def manuel_test_sayim_kaymasi(kok: pathlib.Path = ROOT) -> list[str]:
     return bulgular
 
 
+_F_ID = re.compile(r"(?<![\w-])F-(\d+)\b")
+_F_SAYAC = re.compile(r"Sıradaki\s+numara:\s*\*\*F-(\d+)\*\*")
+# Tanim = `### F-NNN ·` basligi ya da ilk/ikinci hucresi kalin `**F-NNN**` ile
+# baslayan tablo satiri. Duz metindeki `F-NNN` anmasi ve kalin anma tanim DEGILDIR.
+_F_TANIM = re.compile(r"^(?:#{2,4}\s+F-(\d+)\b|\|(?:[^|\n]*\|)?\s*\*\*F-(\d+)\*\*)")
+
+
+def f_id_sayaci_bulgulari(kok: pathlib.Path = ROOT) -> list[str]:
+    """ADAYLAR.md'nin F-ID sayaci TURETILEN degere esit olmali ve bir F-ID o
+    dosyada yalniz BIR kalemi tanimlamali.
+
+    Kusur sinifi (iki vaka, ikisi de yaziyla "cozulmustu"): sayac elle
+    tutuluyordu. F-230 (2026-09-13/14) iki kaleme verildi; ikinci tahsis
+    deftere hic girmedi. F-251 (2026-09-19/22) bekleyenler tablosunda IKI
+    satira yazildi ve ayni anda sayac geride kaldi ("Siradaki numara" F-252
+    diyordu, tablo F-257'ye gelmisti). Ucuncu vakayi yazi degil
+    kapi onler (`kusur-giderme` Adim 6).
+
+    Beklenen sayac = `docs/` ve `.agents/` altindaki en buyuk F-ID + 1; sayac
+    satirinin kendisi sayilmaz. Kapanan kalem aday dosyasindan silinir ama
+    `arsiv/ERTELENEN-ADAYLAR.md`'ye TASINIR (2026-09-24 kurali), bu yuzden en
+    buyuk numara geri dusmez. Duserse bir numara izsiz silinmistir ve kapi
+    bunu da soyler.
+    """
+    adaylar = kok / "docs" / "ADAYLAR.md"
+    if not adaylar.exists():
+        return []
+    metin = adaylar.read_text(encoding="utf-8")
+    sayac = _F_SAYAC.search(metin)
+    if sayac is None:
+        return ["ADAYLAR.md: 'Sıradaki numara: **F-NNN**' satırı okunamadı"]
+
+    en_buyuk, kaynak = 0, ""
+    for agac in ("docs", ".agents"):
+        for p in sorted((kok / agac).rglob("*.md")):
+            icerik = p.read_text(encoding="utf-8")
+            if p == adaylar:
+                icerik = icerik.replace(sayac.group(0), "")
+            for m in _F_ID.finditer(icerik):
+                if int(m.group(1)) > en_buyuk:
+                    en_buyuk, kaynak = int(m.group(1)), p.relative_to(kok).as_posix()
+
+    bulgular: list[str] = []
+    yazan, beklenen = int(sayac.group(1)), en_buyuk + 1
+    if yazan <= en_buyuk:
+        bulgular.append(
+            f"ADAYLAR.md: sayaç F-{yazan} yazıyor ama F-{en_buyuk} zaten kullanılıyor "
+            f"({kaynak}) — tahsis eden el sayacı artırmadı; sayaç F-{beklenen} olmalı")
+    elif yazan > beklenen:
+        bulgular.append(
+            f"ADAYLAR.md: sayaç F-{yazan} yazıyor, en büyük kullanılan F-{en_buyuk} — "
+            f"sayaç fazla artırıldı ya da bir kalem arşive taşınmadan silindi; "
+            f"sayaç F-{beklenen} olmalı")
+
+    gorulen: dict[int, int] = {}
+    for no, satir in enumerate(metin.split("\n"), 1):
+        m = _F_TANIM.match(satir)
+        if not m:
+            continue
+        n = int(m.group(1) or m.group(2))
+        if n in gorulen:
+            bulgular.append(
+                f"ADAYLAR.md:{no} F-{n} İKİNCİ kez tanımlanıyor (ilki satır {gorulen[n]}) — "
+                f"bir numara tek kaleme aittir")
+        else:
+            gorulen[n] = no
+    return bulgular
+
+
 def sevk_edilen_olay_anlatisi(kok: pathlib.Path = ROOT) -> list[str]:
     """Her `WebhookEvents` sabiti en az bir ANLATI sayfasinda gecmelidir.
 
@@ -2294,6 +2363,15 @@ KOSUM_ISARETI = "### ⚗️ Damıtılmış koşum kaydı"
 _KOSUM_IZ = ("⚠️", "🚨", "HATA-", "düzelt", "Düzelt", "DÜZELT", "kusur", "Kusur", "KUSUR")
 _KOSUM_CASE = re.compile(r"^## (MT-[A-Z]+-\d+)\s*(?:—\s*(.*))?$")
 _KOSUM_GECTI = re.compile(r"☑\s*Geçti")
+# Sablonun bos secenek satiri (`☐ Beklemede · ☐ Geçti · ...`), hicbiri
+# isaretlenmemis; F-251 yalniz bunu gunceller. Serbest metinli bir `Durum`
+# satiri (olculdu: "Kayıt, düzeltilmedi (kural 1) ...") bir nottur, dokunulmaz.
+_KOSUM_ISARETSIZ_DURUM = re.compile(r"^\*\*Durum:\*\*(?=[^\n]*☐)(?![^\n]*☑)[^\n]*$", re.M)
+_KOSUM_ISARET = re.compile(r"^\*\*Durum:\*\*[^\n]*?☑\s*(\w+)", re.M)
+
+
+def _kosum_nihai_durum(isaret: str) -> str:
+    return f"**Durum:** ☑ {isaret} — nihai sonuç; bu blok case'in önceki denemesidir"
 
 
 def _kosum_damit_metni(metin: str, *, tam_sha: str = "",
@@ -2314,16 +2392,35 @@ def _kosum_damit_metni(metin: str, *, tam_sha: str = "",
         return metin, {"daraltilan": 0, "korunan": 0}
 
     bas = "\n".join(satirlar[: idx[0]]).rstrip("\n")
-    daralt: list[tuple[str, str]] = []
-    koru: list[str] = []
+    bloklar: list[tuple[str, str, str, bool]] = []
     for a, b in zip(idx, idx[1:] + [len(satirlar)]):
         blok = "\n".join(satirlar[a:b]).rstrip("\n")
         m = _KOSUM_CASE.match(satirlar[a])
         kimlik, baslik = m.group(1), (m.group(2) or "").strip()
-        if _KOSUM_GECTI.search(blok) and not any(x in blok for x in _KOSUM_IZ):
+        temiz = bool(_KOSUM_GECTI.search(blok)) and not any(x in blok for x in _KOSUM_IZ)
+        bloklar.append((kimlik, baslik, blok, temiz))
+
+    # F-251: bir case birden cok blok tasiyabilir (ilk deneme ertelendi,
+    # sonraki gecti). Nihai sonuc SON bloktur. Son blok bir isaret tasiyorsa
+    # onceki bloklarin isaretsiz `Durum` satiri o isareti alir -- yoksa
+    # damitilmis kayitta sayim koşan biri case'i ISARETSIZ gorur (olculdu
+    # 2026-09-19: 2026-09-16 turunda 19 blok). Blogun metni AYNEN durur.
+    son_temiz = {kimlik: temiz for kimlik, _, _, temiz in bloklar}
+    son_isaret: dict[str, str | None] = {}
+    for kimlik, _, blok, _ in bloklar:
+        m = _KOSUM_ISARET.search(blok)
+        son_isaret[kimlik] = m.group(1) if m else None
+    daralt: list[tuple[str, str]] = []
+    koru: list[str] = []
+    for kimlik, baslik, blok, temiz in bloklar:
+        # Ayni sinifin ters yonu: sonraki denemesi gecmeyen bir case'in temiz
+        # ilk blogu `| ☑ |` satirina inerse tablo nihai sonucu yanlis soyler.
+        if temiz and son_temiz[kimlik]:
             daralt.append((kimlik, baslik))
-        else:
-            koru.append(blok)
+            continue
+        if (isaret := son_isaret[kimlik]) is not None:
+            blok = _KOSUM_ISARETSIZ_DURUM.sub(_kosum_nihai_durum(isaret), blok)
+        koru.append(blok)
 
     parcalar = [bas, "", (
         f"> {KOSUM_ISARETI}\n"
@@ -2920,6 +3017,13 @@ def denetle() -> int:
     if len(sayim_bulgulari) > 20:
         print(f"  … +{len(sayim_bulgulari) - 20}")
     hata |= int(bool(sayim_bulgulari))
+
+    f_id_bulgulari = f_id_sayaci_bulgulari()
+    print(f"\nAday numarası (F-ID) sayacı: "
+          f"{'❌ ' + str(len(f_id_bulgulari)) + ' bulgu' if f_id_bulgulari else '✅ temiz'}")
+    for s_ in f_id_bulgulari:
+        print(f"  {s_}")
+    hata |= int(bool(f_id_bulgulari))
 
     olay_bulgulari = sevk_edilen_olay_anlatisi()
     print(f"\nSevk edilen olayın anlatısı: "

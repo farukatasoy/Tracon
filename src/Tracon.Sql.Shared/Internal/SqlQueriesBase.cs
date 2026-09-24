@@ -745,6 +745,17 @@ internal abstract class SqlQueriesBase
     public string SelectQuotaUsage { get; protected set; } = string.Empty;
 
     /// <summary>
+    /// Gets the query that reads the quota consumption counters of up to two
+    /// named periods, each for its given first day.
+    /// </summary>
+    /// <remarks>
+    /// Every parameter is non-null: a store passes the same pair twice when it
+    /// names one period. A nullable <c>date</c> parameter would need its type
+    /// set explicitly per driver, which this shape avoids.
+    /// </remarks>
+    public string SelectQuotaUsageForPeriods { get; protected set; } = string.Empty;
+
+    /// <summary>
     /// Gets the query that atomically claims a quota threshold notification —
     /// appends the threshold key to <c>notified_thresholds</c> only if it is
     /// not already present, and only if the usage row exists. The affected
@@ -1722,6 +1733,16 @@ internal abstract class SqlQueriesBase
             WHERE tenant_id = @tenant_id
               AND (@agent_name IS NULL OR agent_name = @agent_name)
               AND (@period     IS NULL OR period     = @period)
+            ORDER BY agent_name, period, period_start DESC;
+            """;
+
+        SelectQuotaUsageForPeriods = $"""
+            SELECT tenant_id, agent_name, period, period_start, runs, tokens, cost, updated_at
+            FROM {Table("quota_usage")}
+            WHERE tenant_id = @tenant_id
+              AND (@agent_name IS NULL OR agent_name = @agent_name)
+              AND ((period = @first_period  AND period_start = @first_start)
+                OR (period = @second_period AND period_start = @second_start))
             ORDER BY agent_name, period, period_start DESC;
             """;
 
