@@ -270,7 +270,7 @@ derlenmez (K-411 sınıfı); commit bunları içerir.
 > Kapanışta doldurulur: devralınan sözleşmeler, bilinen tuzaklar (🚨), yarım
 > kalan işler, sıradaki faz.
 
-**Sıradaki faz:** [186](../../186-SCRIPT-IZNI-ICERIK-PINI.md) (sözleşme devralmaz;
+**Sıradaki faz:** [186](186-SCRIPT-IZNI-ICERIK-PINI.md) (sözleşme devralmaz;
 ortam notları o dokümanın "Bu Faza Başlarken" 4. maddesinde). Sonraki yayın
 (K-852…K-854 güvenlik yayını) artık bu fazı beklemiyor.
 

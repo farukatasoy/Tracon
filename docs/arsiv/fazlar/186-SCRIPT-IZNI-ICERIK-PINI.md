@@ -2,14 +2,14 @@
 
 > **Durum:** ✅ Tamamlandı (2026-09-24)
 > **Plan onayı:** Bakımcı, 2026-09-23 (engelleyici kararlar sohbette alındı)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-269**
-> **Önkoşul:** [Faz 185](arsiv/fazlar/185-KARDES-PAKET-SURUM-SABITLEME.md) — sonraki sürüm (K-852…K-854 güvenlik sürümü) 185'i bekler; 186 ondan sonra başlar (kullanıcı kararı). K-853 `bb9953e3`'tedir. **Anahtar basma açığı kapandı** (kusur-giderme, 2026-09-23; K-853 genişletildi, yeni K açılmadı); bu faz yalnız sonucunu doğrular (§ 186.0).
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-269**
+> **Önkoşul:** [Faz 185](185-KARDES-PAKET-SURUM-SABITLEME.md) — sonraki sürüm (K-852…K-854 güvenlik sürümü) 185'i bekler; 186 ondan sonra başlar (kullanıcı kararı). K-853 `bb9953e3`'tedir. **Anahtar basma açığı kapandı** (kusur-giderme, 2026-09-23; K-853 genişletildi, yeni K açılmadı); bu faz yalnız sonucunu doğrular (§ 186.0).
 > **Paketler:** `Tracon.Abstractions`, `.Core`, `.AspNetCore`, `.Sql.Shared`, `.PostgreSql`, `.SqlServer`, `.Sqlite`, `.Testing.Contracts.Xunit`, `.UI`; üretilen `Tracon.Client`, `@tracon/client`
 > **Yeni paket:** Yok · **Migration:** gerekli — numara uygulama anında alınır (üç sağlayıcı, K-178)
 > **Public API:** büyüyor; bir imza değişiyor. Ölçüldü: `wc -l src/*/PublicAPI.Shipped.txt` → 17 dosya, 17 satır, yalnız `#nullable enable` (K-603). Davranış da kırıcıdır (Karar 3).
 > **Tüketici yüzeyi:** site: `concepts/tools.md`, `reference/{threat-model,security-policy,compatibility}.md`, `getting-started/security.md`, `guides/production.md`, `ui.md`, `capabilities.md`; üretilen `api/`, `http-api/`
 > · sevk edilen: `SECURITY.md` kapsam satırı, `CHANGELOG.md` (`Security` + `Changed`), XML `<example>` (`SkillScriptGrantRequest`), `capabilities.md:98`; paket `README.md`: yok (üç README'de `grep -in "skill script\|UseSkillScripts"` boş)
-> **Manuel test alanı:** [`docs/manuel-test/14-SKILL-VE-SCRIPT.md`](manuel-test/14-SKILL-VE-SCRIPT.md) — case'ler oraya eklenir
+> **Manuel test alanı:** [`docs/manuel-test/14-SKILL-VE-SCRIPT.md`](../../manuel-test/14-SKILL-VE-SCRIPT.md) — case'ler oraya eklenir
 
 ---
 
@@ -557,7 +557,7 @@ SECURITY.md · CHANGELOG.md
 
 > Mutlu yoldan değil, **ne bozulabilir**den türetilir. Seviyeyi plan seçer.
 > Sınır geçen davranış (DI · HTTP · kiracı · akış · depo · paket) birim
-> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../.agents/ortak/test-seviyeleri.md).
+> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../../../.agents/ortak/test-seviyeleri.md).
 
 Kısaltma: **P** `SkillScriptContentPinTests` · **G** `SkillScriptGrantTests` ·
 **R** `SandboxedSkillScriptRunnerTests` · **S** `SkillScriptGrantContract` (dört koşum:
@@ -617,7 +617,7 @@ kiracı (#10-#12, #27, #32) · alt sistem hatası (#30, #31).
 
 ## Manuel Kabul Case'leri
 
-> Kapanışta [`docs/manuel-test/14-SKILL-VE-SCRIPT.md`](manuel-test/14-SKILL-VE-SCRIPT.md)
+> Kapanışta [`docs/manuel-test/14-SKILL-VE-SCRIPT.md`](../../manuel-test/14-SKILL-VE-SCRIPT.md)
 > içine eklenir; kimlik sıradaki boş numaradan (bugün `MT-SKILL-064…069` boş, `070-071`
 > dolu). Ön koşul MT-SKILL-041'in geçici kod değişikliği (`UseSkillScripts` +
 > `AllowStoredScripts` + `Interpreters["sh"]`). 👤 model çağırır, küçük OpenAI ücreti.
