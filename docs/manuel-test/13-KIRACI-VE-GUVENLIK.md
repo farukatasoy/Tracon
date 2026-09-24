@@ -1,6 +1,6 @@
 # 13 — Kiracı ve Güvenlik (`SEC`)
 
-> **Alan kodu:** `SEC` · **Faz:** 6, 9, 41, 50, 53, 63, 65, 69, 82, 139, 147, 148, 149, 182
+> **Alan kodu:** `SEC` · **Faz:** 6, 9, 41, 50, 53, 63, 65, 69, 82, 139, 147, 148, 149, 182, 190
 > **Kaynak:** `src/Tracon.AspNetCore/Security/` (tümü: `TraconEndpointFilter`,
 > `LoopbackGuard`, `BearerTokenValidator`, `ApiKeyAuthenticator`, `ApiKeyRequestContext`,
 > `ApiKeyScopeRequirement`, `ExternalSurfaceGuard`, `ExternalCallAudit`, `TraconPolicies`,
@@ -1645,35 +1645,45 @@ curl -s "$APU/api/audit?entity=agent:manuel-audit" -H "$APB" | python3 -m json.t
 |---|---|
 | **İzlek** | C |
 | **Önem** | Kritik |
-| **İlgili faz** | Faz 9 |
+| **İlgili faz** | Faz 9 · Faz 190 (yeniden yazıldı) |
 | **İlgili karar** | — |
 
 **Ön koşul**
-- Reset sonrası temiz durum. Bir MCP sunucusu kaydı yazılır — `Headers`
-  sözlüğü serbest anahtar/değer taşıdığı için sır adı içeren bir alan
-  üretilebilir.
+- Reset sonrası temiz durum.
+
+> Faz 190'dan beri düz `headers.Authorization` `400` alır; eski adımlar bu
+> filtreye artık ulaşamaz. Filtre kanıtı agent `metadata`'sından gelir:
+> serbest anahtar/değer taşır ve sır adı içeren bir alan üretebilir.
 
 **Adımlar**
-1. `Authorization` başlığı taşıyan bir MCP sunucusu tanımı kaydet.
-2. Denetim izini o varlık için sorgula.
+1. Düz `Authorization` başlıklı MCP kaydını dene — `400` beklenir.
+2. `metadata.authToken` taşıyan bir agent kaydet.
+3. Denetim izini o agent için sorgula.
 
 **Girilecek veri**
 ```bash
-curl -s -X PUT "$APU/api/mcp-servers/manuel-sir-testi" -H "$APB" \
+curl -s -o /dev/null -w '%{http_code}\n' -X PUT "$APU/api/mcp-servers/manuel-sir-testi" -H "$APB" \
      -H "content-type: application/json" -d '{
   "endpoint": "https://ornek.invalid/mcp",
   "headers": { "Authorization": "Bearer cok-gizli-deger" }
-}' -o /dev/null
-curl -s "$APU/api/audit/mcp:manuel-sir-testi" -H "$APB" | python3 -m json.tool
+}'
+curl -s -o /dev/null -X POST "$APU/api/agents" -H "$APB" \
+     -H "content-type: application/json" -d '{
+  "name": "manuel-sir-agent", "instructions": "x",
+  "model": { "provider": "echo", "model": "echo" },
+  "metadata": { "authToken": "cok-gizli-deger" }
+}'
+curl -s "$APU/api/audit/agent:manuel-sir-agent" -H "$APB" | grep -c 'cok-gizli-deger'
 ```
 
 **Beklenen sonuç**
-- `after` alanının JSON'unda `"Authorization":"***"` görünür — ham değer
-  (`cok-gizli-deger`) gövdenin hiçbir yerinde YOKTUR
-  (`AuditSecretFilter.cs:24-31`, anahtar adı `"authorization"` fragmanını
-  içerir).
-- 2026-09-23'ten beri MCP audit'i her başlık değerini adından bağımsız
-  maskeler (`HeaderValueMask`); ad filtresi ikinci katmandır. Ad filtresinin
+- MCP isteği `400` döner. `detail` `Authorization` adını ve
+  `headerConfigurationKeys` alanını adlandırır; `cok-gizli-deger` gövdede YOKTUR.
+- Agent denetim sorgusu `0` yazar: `after` içinde `"authToken":"***"` görünür
+  (`CredentialHeaderNames` parça listesi `"token"`; `AuditSecretFilter` aynı
+  listeyi okur).
+- MCP audit'i her başlık değerini adından bağımsız maskeler
+  (`HeaderValueMask`); ad filtresi ikinci katmandır. Ad filtresinin
   kaçırdığı başlıklar için: MT-MCP-069.
 
 ---
@@ -4619,3 +4629,105 @@ curl -s -o /dev/null -w "token -> %{http_code}\n" -X POST "$APU/api/api-keys" -H
   `Platform authority required`'dır. Anahtar oluşmaz: `GET /api/api-keys`
   listesinde `mint` adlı ikinci bir satır yoktur.
 - Statik token (`$APB`) → `200` — token kurulumun kimliğidir.
+
+---
+
+### MT-SEC-207 — Webhook düz kimlik başlığı `400`; anahtar adı teslimde değeri iletir
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 190 |
+| **İlgili karar** | K-059 · K-868 |
+| **İnsan gerekir** | Hayır |
+| **Devir** | ✅ 2026-09-24 (örnek uygulama, SQLite; gerçek agent `run`'ı ile `run.completed`) · ➜ CI: `CredentialHeaderSaveTests.Webhook_plain_credential_header_is_rejected_without_echoing_the_value` · `CredentialHeaderDeliveryTests.Webhook_delivery_sends_the_resolved_header` |
+
+**Ön koşul** — `18-MCP-VE-A2A.md` "Faz 190" ortak kurulumu (yakalayıcı + ortam
+değişkenleri). `W="$APU/api/webhooks/w1"`.
+
+**Adımlar**
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' -X PUT "$W" -H "$APB" -H "$J" \
+  -d '{"url":"http://127.0.0.1:9099/hook","events":["run.completed"],"headers":{"Authorization":"Bearer x"}}'
+curl -s -X PUT "$W" -H "$APB" -H "$J" \
+  -d '{"url":"http://127.0.0.1:9099/hook","events":["run.completed","test.ping"],"headerConfigurationKeys":{"X-API-Key":"Tracon:WebhookSecrets:DemoKey"}}'
+curl -s -X POST "$W/test" -H "$APB"
+```
+
+**Beklenen sonuç**
+- İlk istek `400`; `detail` `Authorization` ve `headerConfigurationKeys`'i adlandırır,
+  `Bearer x` yoktur.
+- Yakalayıcı `/hook dogrulama-degeri` yazar; `GET $W/deliveries` → `Delivered`.
+- Bir agent `run`'ı sonrası `run.completed` teslimi de aynı değeri taşır.
+- Ölçülen (2026-09-24): `400`; `test.ping` ve `run.completed` → `Delivered 200`,
+  yakalayıcı iki kez `dogrulama-degeri`; uygulama logunda değer yok.
+
+### MT-SEC-208 — Webhook anahtar haritası Tracon'in kendi başlığını adlandıramaz
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 190 |
+| **İlgili karar** | K-535 |
+| **İnsan gerekir** | Hayır |
+| **Devir** | ✅ 2026-09-24 · ➜ CI: `CredentialHeaderSaveTests.Webhook_key_for_a_reserved_header_is_rejected` |
+
+**Adımlar**
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' -X PUT "$APU/api/webhooks/w9" -H "$APB" -H "$J" \
+  -d '{"url":"https://example.com/hook","events":["run.completed"],"headerConfigurationKeys":{"X-Tracon-Signature":"Tracon:WebhookSecrets:DemoKey"}}'
+```
+
+**Beklenen sonuç** — `400`; `detail` `headerConfigurationKeys[X-Tracon-Signature]` der.
+
+### MT-SEC-209 — Denetim izi başlık değeri taşımaz; anahtar adları redakte edilmez
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 190 (karar 6) |
+| **İlgili karar** | K-779 · K-868 |
+| **İnsan gerekir** | Hayır |
+| **Devir** | ✅ 2026-09-24 · ➜ CI: `CredentialHeaderAuditTests.Mcp_and_webhook_audit_carries_names_and_no_header_value` · `AuditSecretFilterTests.A_configuration_key_map_keeps_its_key_names` |
+
+**Ön koşul** — MT-MCP-071 ve MT-SEC-207 sonrası (`m1`, `w1` anahtar haritalı).
+
+**Adımlar**
+```bash
+curl -s -X PUT "$APU/api/mcp-servers/m1" -H "$APB" -H "$J" -d '{"endpoint":"http://127.0.0.1:9099/mcp","headers":{"X-Tenant":"plain-190"}}'
+curl -s -X PUT "$APU/api/webhooks/w1" -H "$APB" -H "$J" -d '{"url":"http://127.0.0.1:9099/hook","events":["run.completed","test.ping"],"headers":{"X-Tenant":"plain-190"}}'
+curl -s "$APU/api/audit/mcp:m1" -H "$APB" | grep -c plain-190
+curl -s "$APU/api/audit/webhook:w1" -H "$APB" | grep -c plain-190
+curl -s "$APU/api/audit/mcp:m1" -H "$APB" | grep -c X-Tenant
+curl -s "$APU/api/audit/webhook:w1" -H "$APB" | grep -o 'headerConfigurationKeys[^}]*}' | head -1
+```
+
+**Beklenen sonuç**
+- `0`, `0`, `1` (ya da daha büyük). `X-Tenant` ne ad filtresinde ne kimlik kuralında
+  vardır; değeri yalnız kaydın kendi maskesi tutar.
+- Son satır `Tracon:WebhookSecrets:DemoKey`'i açık yazar (`***` değil).
+- İki `PUT` anahtar haritasını göndermediği için harita korunur.
+- Ölçülen (2026-09-24): `0` · `0` · `1`; harita anahtar adı maskesiz.
+
+### MT-SEC-210 — Kiracı dışı anahtar adlı webhook teslimi düşer
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 190 |
+| **İlgili karar** | K-852 · K-868 |
+| **İnsan gerekir** | Hayır |
+| **Devir** | koşulmadı (kayıt ucu reddettiği için satır ancak `sqlite3` veya üçüncü taraf store ile oluşur); ➜ CI: `CredentialHeaderDeliveryTests.Webhook_key_outside_the_tenant_drops_the_delivery` |
+
+**Ön koşul** — SQLite; `w1` satırının `header_configuration_keys`'i
+`{"X-API-Key":"Tracon:WebhookSecrets:globex:DemoKey"}` olarak `sqlite3` ile yazılır.
+
+**Adımlar** — `curl -s -X POST "$APU/api/webhooks/w1/test" -H "$APB"`, ardından
+`GET /api/webhooks/w1/deliveries`.
+
+**Beklenen sonuç** — Teslim `Dropped`; `error` `headerConfigurationKeys[X-API-Key]`
+ve `Tracon:WebhookSecrets:` önekini adlandırır; yakalayıcıya istek gelmez.

@@ -122,6 +122,8 @@ yolda da § *Kalemin yaşam döngüsü* uygulanır.
 | Aciliyet | Kalem | Neden | Plan notu |
 |---|---|---|---|
 | 🔴 | **F-266** · `net8.0` ve `net9.0` düşürülmesi | Microsoft desteği **2026-11-10**'da biter (ölçüldü 2026-09-23: 8.0 son yama 8.0.31, 9.0 son yama 9.0.20; 10.0 → 2028-11-14). **Karar alındı (kullanıcı kararı, 2026-09-23):** 2026-11-10'dan sonraki ilk sürüm iki TFM'i düşürür; acil güvenlik sürümü istisnadır. Duyuru `CHANGELOG.md` `### Deprecated` ve [`compatibility.md`](../docs-site/src/content/docs/reference/compatibility.md) tarihli cümlesinde yerinde | Faz 11-10'dan **önce** planlanır, sonra uygulanır. [Faz 187](arsiv/fazlar/187-KIRICI-DEGISIKLIK-KAPISI.md)'nin `PKV006` kapısına bağlıdır: sıra 187 → düşürme fazı. Dokunulan yüzey: `src/Directory.Build.props` · `TraconTestTargetFrameworks` · `Tracon.Testing` `VersionOverride`'ları · `Net8Consumer` · CI runtime adımları |
+| 🟡 | **F-290** · `AuthorizationConfigurationKey`'ın `1.0.0` GA'da kaldırılması: veri taşıma + form geçişi | Faz 190 alanı `[Obsolete]` yaptı ve `1.0.0`'da kalkacağını `CHANGELOG`, XML ve `production.md`'de duyurdu (K-869). Üç iş kaldı: (1) `authorization_configuration_key` dolu satırları `header_configuration_keys["Authorization"]`'a taşıyan migration (üç sağlayıcı; iki alan birlikte doluysa ne olacağı karar ister); (2) MCP formu (`mcp.tsx`) eski alanı yazıyor — yeni alanı yazmalı, yoksa kaldırma formu kırar; (3) sütunu ve public üyeyi kaldırma, `McpTransportFactory`/`McpHeaderBuilder` eski yol, `#pragma warning disable CS0618` blokları (kapanışta 11 adet: `grep -rn "pragma warning disable CS0618" src tests`) | GA tarihine bağlı; GA öncesi son preview fazı olarak planlanır. Form geçişi (2) GA'dan bağımsız erken yapılabilir |
+| 🟢 | **F-291** · Anahtar alanına değer yazan operatörün değeri `400` ve teslim `error`'ında yankılanır | Faz 190 denetimi 🟢2: `ConfigurationKeyGuard` mesajı (`ConfigurationKeyGuard.cs:112-114`) verilen adı olduğu gibi yazar; `{"X-API-Key":"sk-live"}` gibi bir hata değeri yanıta ve `webhook_deliveries.error`'a taşır. Tek alanlı `*ConfigurationKey` alanlarında da faz öncesinden beri aynı | Önek dışı adı yankılamadan reddet (yalnız alan adı + beklenen önek) ya da kimlik biçimli değeri maskele; dört yüzeyin (MCP, BYOK, webhook, trigger) testleri birlikte |
 | 🟡 | F-247 · Yirmi dört yapılandırma bölümü için bağlama kanıtı | Risk yok, iş mekanik ve paralel yürür. Sınıf gerçek bir kusur üretti (`TraconImageOptions.Timeout`) | Gövde: § *F-247* |
 | 🟢 | F-248 · `unwrap(...) as Promise<T>` iddialarının tip düzeyinde kapısı | Bugün tek örnek elle tarandı; sonrakini kimse taramaz | Gövde: § *F-248* |
 | 🟢 | F-249 · docs-site için tarayıcı tabanlı yerleşim kapısı | Elle koşulan case iki turda da kusur buldu | Gövde: § *F-249* |
@@ -419,7 +421,7 @@ kaydındadır; burada yalnız hangi eşikte bekledikleri yazar.
 ### F-ID tahsis kuralı
 
 Numara **geri dönüştürülmez** ve bir numara **tek kaleme** aittir. Sıradaki
-numara: **F-290**.
+numara: **F-292**.
 
 Numarayı tahsis eden el sayacı **aynı değişiklikte** bir artırır.
 `python3 scripts/dokuman-bakim.py --denetle` iki şeyi zorlar:

@@ -1,6 +1,6 @@
 # 18 — MCP İstemcisi/Sunucusu ve A2A Dış Yüzeyi (`MCP`)
 
-> **Alan kodu:** `MCP` · **Faz:** 6, 22, 50, 89 (tool çıktısı boyut sınırı — ikinci sarmalama zinciri), 117 (Tasks uzantısı)
+> **Alan kodu:** `MCP` · **Faz:** 6, 22, 50, 89 (tool çıktısı boyut sınırı — ikinci sarmalama zinciri), 117 (Tasks uzantısı), 190 (kimlik başlıkları anahtar adıyla)
 > **Kaynak:** `src/Tracon.Mcp/` (tümü — istemci tarafı: sunucu keşfi,
 > tool/prompt/resource köprüsü, OAuth) · `src/Tracon.AspNetCore/McpServer/`
 > (tümü — Tracon'i MCP sunucusu olarak dışa açma) ·
@@ -1748,31 +1748,254 @@ Audit, `Cookie` ve `Ocp-Apim-Subscription-Key` gibi adların değerini düz
 yazıyordu.
 
 **Adımlar**
+
+> Faz 190'dan beri kimlik benzeri ad (`Ocp-Apim-Subscription-Key`, `X-Api-Key`,
+> `Cookie`) düz `headers`'ta `400` alır. Maske artık ad kuralının **kaçırdığı**
+> adlar içindir; case bu yüzden `X-Session-Id` (bilinen kalıntı) kullanır.
+
 ```bash
 curl -s -X PUT "$APU/api/mcp-servers/manuel-maske" -H "$APB" \
   -H 'Content-Type: application/json' -d '{
   "endpoint": "https://ornek.invalid/mcp",
-  "headers": { "Ocp-Apim-Subscription-Key": "gizli-deger-1", "X-Trace": "duz-deger" }
+  "headers": { "X-Session-Id": "gizli-deger-1", "X-Trace": "duz-deger" }
 }' | jq '.headers'
 curl -s "$APU/api/mcp-servers" -H "$APB" | jq '.[] | select(.name=="manuel-maske") | .headers'
 curl -s "$APU/api/audit/mcp:manuel-maske" -H "$APB" | grep -c 'gizli-deger-1'
 curl -s -o /dev/null -w '%{http_code}\n' -X PUT "$APU/api/mcp-servers/manuel-maske" -H "$APB" \
   -H 'Content-Type: application/json' -d '{
   "endpoint": "https://ornek.invalid/mcp",
-  "headers": { "Ocp-Apim-Subscription-Key": "***" }
+  "headers": { "X-Session-Id": "***" }
 }'
 ```
 
 **Beklenen sonuç**
 - İlk iki istek aynı sözlüğü döner:
-  `{"Ocp-Apim-Subscription-Key":"***","X-Trace":"***"}`. Maske ada bakmaz;
+  `{"X-Session-Id":"***","X-Trace":"***"}`. Maske ada bakmaz;
   sıradan `X-Trace` değeri de gizlenir.
 - Audit sorgusu `0` yazar. Kayıt başlık **adını** taşır, değeri taşımaz.
-- Son istek `400` döner. `detail`, `Ocp-Apim-Subscription-Key` adını ve
+- Son istek `400` döner. `detail`, `X-Session-Id` adını ve
   gerçek değerin yeniden gönderilmesi gerektiğini söyler. Kayıt değişmez.
 - Webhook ek başlıkları aynı kuralı izler: `GET /api/webhooks`,
   `GET /api/webhooks/{name}` ve `PUT` yanıtı her değeri `"***"` döner;
   `"***"` değerli `PUT` `400` alır.
-- ⚠️ Arayüz formları tam `PUT` yapar ve `headers` göndermez. Arayüzden aynı
-  adla kaydetmek API ile girilmiş başlıkları siler. Bu davranış bu
-  düzeltmeden öncesine aittir ve değişmedi.
+- Faz 190'dan beri arayüz formunun `headers`'sız `PUT`'u saklı başlıkları
+  **korur** (`null` → saklı değer, `{}` → siler); ölçüm MT-MCP-075.
+
+---
+
+## Faz 190 — Kimlik başlıkları anahtar adıyla
+
+> Ortak kurulum (case 070–077): başlık yakalayıcı + örnek uygulama. Değerler
+> yalnız ortam değişkenindedir.
+>
+> ```bash
+> # 1) Yakalayıcı (ayrı terminal): her isteğin X-API-Key değerini yazar
+> python3 -c 'import http.server as h
+> class H(h.BaseHTTPRequestHandler):
+>     def do_POST(s):
+>         print(s.path, s.headers.get("X-API-Key"), flush=True); s.send_response(200); s.end_headers()
+> h.HTTPServer(("127.0.0.1", 9099), H).serve_forever()'
+> # 2) Örnek uygulama
+> Tracon__McpSecrets__DemoKey=dogrulama-degeri Tracon__WebhookSecrets__DemoKey=dogrulama-degeri \
+> Tracon__Egress__AllowPrivateNetworkTargets=true Tracon__Webhooks__AllowInsecureHttp=true \
+> Tracon__Sqlite__ConnectionString="Data Source=$TMPDIR/faz190.db" dotnet run --project samples/Tracon.Api
+> export M="$APU/api/mcp-servers/m1" J='content-type: application/json'
+> ```
+
+### MT-MCP-070 — Düz `headers`'ta kimlik benzeri ad `400` alır; değer yankılanmaz
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 190 |
+| **İlgili karar** | K-868 |
+| **İnsan gerekir** | Hayır |
+| **Devir** | ✅ 2026-09-24 (örnek uygulama, SQLite) · ➜ CI: `CredentialHeaderSaveTests.Mcp_plain_credential_header_is_rejected_without_echoing_the_value` |
+
+**Ön koşul** — Temiz durum.
+
+**Adımlar**
+```bash
+curl -s -w '\n%{http_code}\n' -X PUT "$M" -H "$APB" -H "$J" \
+  -d '{"endpoint":"https://mcp.example.com/mcp","headers":{"X-API-Key":"v"}}'
+for h in '{"Cookie":"a=b"}' '{"Ocp-Apim-Subscription-Key":"x"}'; do
+  curl -s -o /dev/null -w '%{http_code}\n' -X PUT "$M" -H "$APB" -H "$J" \
+    -d "{\"endpoint\":\"https://mcp.example.com/mcp\",\"headers\":$h}"
+done
+```
+
+**Beklenen sonuç**
+- Üç istek `400`. İlk gövdenin `title`'ı `Credential header stored in the clear`;
+  `detail` `X-API-Key` ve `headerConfigurationKeys` adlarını taşır, örnek anahtar
+  adı `Tracon:McpSecrets:<KeyName>`'dir. `"v"` değeri gövdede YOKTUR.
+- Ölçülen (2026-09-24): üçü `400`; gövde beklenen metni taşıdı.
+
+### MT-MCP-071 — `headerConfigurationKeys` değeri bağlantıda çözülür, hiçbir yanıtta görünmez
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 190 |
+| **İlgili karar** | K-059 · K-868 |
+| **İnsan gerekir** | Hayır |
+| **Devir** | ✅ 2026-09-24 · ➜ CI: `CredentialHeaderDeliveryTests.Mcp_connection_sends_the_resolved_header_and_no_response_returns_it` |
+
+**Ön koşul** — Ortak kurulum.
+
+**Adımlar**
+```bash
+curl -s -X PUT "$M" -H "$APB" -H "$J" \
+  -d '{"endpoint":"http://127.0.0.1:9099/mcp","headerConfigurationKeys":{"X-API-Key":"Tracon:McpSecrets:DemoKey"}}'
+curl -s -X POST "$APU/api/mcp-servers/refresh" -H "$APB"
+curl -s "$APU/api/mcp-servers" -H "$APB" | grep -c dogrulama-degeri
+```
+
+**Beklenen sonuç**
+- `PUT` `200`; yanıt `"headerConfigurationKeys":{"X-API-Key":"Tracon:McpSecrets:DemoKey"}`
+  taşır (maskesiz: değer değil ad).
+- Yakalayıcı `/mcp dogrulama-degeri` yazar. Yakalayıcı gerçek bir MCP sunucusu
+  olmadığı için bağlantı sonra "could not connect" logu ile düşer — beklenen.
+- Son komut `0`. Uygulama logunda `dogrulama-degeri` geçmez.
+
+### MT-MCP-072 — Kiracı dışı anahtar adı kaydedilmez
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 190 |
+| **İlgili karar** | K-852 · K-868 |
+| **İnsan gerekir** | Hayır |
+| **Devir** | ✅ 2026-09-24 (tek kiracılı kurulum, `default` → `globex`) · ➜ CI: `CredentialHeaderDeliveryTests.Mcp_key_outside_the_tenant_is_never_resolved` |
+
+**Ön koşul** — Temiz durum. Çok kiracılı kurulumda çağıran `acme` olabilir;
+tek kiracılı kurulumda çağıran `default`'tur.
+
+**Adımlar**
+```bash
+curl -s -w '\n%{http_code}\n' -X PUT "$APU/api/mcp-servers/m3" -H "$APB" -H "$J" \
+  -d '{"endpoint":"https://mcp.example.com/mcp","headerConfigurationKeys":{"X-API-Key":"Tracon:McpSecrets:globex:Key"}}'
+```
+
+**Beklenen sonuç**
+- `400`. `detail` `headerConfigurationKeys[X-API-Key]` alanını ve çağıranın
+  anahtar alanını (`Tracon:McpSecrets:default:` veya düz ad) adlandırır.
+
+### MT-MCP-073 — `Authorization` iki alandan veya OAuth ile birlikte `400`
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 190 |
+| **İlgili karar** | K-869 |
+| **İnsan gerekir** | Hayır |
+| **Devir** | ✅ 2026-09-24 · ➜ CI: `CredentialHeaderSaveTests.Authorization_from_both_fields_or_with_oauth_is_rejected` · `…Authorization_conflict_counts_the_preserved_map` |
+
+**Adımlar**
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' -X PUT "$APU/api/mcp-servers/m4" -H "$APB" -H "$J" \
+  -d '{"endpoint":"https://mcp.example.com/mcp","authorizationConfigurationKey":"Tracon:McpSecrets:A","headerConfigurationKeys":{"Authorization":"Tracon:McpSecrets:B"}}'
+curl -s -o /dev/null -w '%{http_code}\n' -X PUT "$APU/api/mcp-servers/m5" -H "$APB" -H "$J" \
+  -d '{"endpoint":"https://mcp.example.com/mcp","oauthEnabled":true,"oauthClientId":"c","headerConfigurationKeys":{"Authorization":"Tracon:McpSecrets:B"}}'
+```
+
+**Beklenen sonuç** — İkisi `400`; `detail` "'headerConfigurationKeys' names 'Authorization'" der.
+
+### MT-MCP-074 — 👤 Arayüz formundan kayıt iki başlık haritasını korur
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 190 |
+| **İlgili karar** | K-870 |
+| **İnsan gerekir** | Evet (form) — form gövdesi `curl` ile ölçüldü |
+| **Devir** | ◐ 2026-09-24: form gövdesiyle `curl` ✅; tarayıcıdan tıklama koşulmadı · ➜ CI: `HeaderPreservationTests.A_form_save_keeps_both_mcp_maps` |
+
+**Ön koşul** — MT-MCP-071 ve `headers` `{"X-Tenant":"plain-190"}` kaydı.
+
+**Adımlar**
+1. 👤 `/tracon/mcp` ekranında `m1`'i aç, yalnız açıklamayı değiştir, kaydet.
+2. `sqlite3 $TMPDIR/faz190.db "SELECT headers, header_configuration_keys FROM tracon_mcp_servers WHERE name='m1';"`
+3. Listede `m1` satırının kimlik sütununa bak.
+
+**Beklenen sonuç**
+- `200`. Satırda `{"X-Tenant":"plain-190"}` ve `{"X-API-Key":"Tracon:McpSecrets:DemoKey"}` kalır.
+- Liste kimlik sütununda `X-API-Key` görünür (başlık adı; `none` değil).
+- Ölçülen (form gövdesi `curl` ile): `200`; iki harita korundu.
+
+### MT-MCP-075 — `{}` haritayı temizler; `null` korur
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 190 |
+| **İlgili karar** | K-870 |
+| **İnsan gerekir** | Hayır |
+| **Devir** | koşulmadı; ➜ CI: `HeaderPreservationTests.An_empty_map_clears_it` |
+
+**Adımlar**
+```bash
+curl -s -X PUT "$M" -H "$APB" -H "$J" -d '{"endpoint":"http://127.0.0.1:9099/mcp","headers":{}}' | jq '.headers, .headerConfigurationKeys'
+curl -s -X PUT "$M" -H "$APB" -H "$J" -d '{"endpoint":"http://127.0.0.1:9099/mcp","headerConfigurationKeys":{}}' | jq '.headers, .headerConfigurationKeys'
+```
+
+**Beklenen sonuç** — İlki `{}` ve korunan anahtar haritası; ikincisi iki `{}`.
+
+### MT-MCP-076 — Eski düz kimlik başlığı gönderilir; uyarı değeri taşımaz
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 190 |
+| **İlgili karar** | K-868 (karar 7) |
+| **İnsan gerekir** | Hayır |
+| **Devir** | ✅ 2026-09-24 · ➜ CI: `McpHeaderBuilderTests.A_stored_plain_credential_is_sent_with_a_warning_that_carries_no_value` |
+
+**Ön koşul** — Ortak kurulum, SQLite.
+
+**Adımlar**
+```bash
+sqlite3 $TMPDIR/faz190.db "INSERT INTO tracon_mcp_servers (id, tenant_id, name, endpoint, headers, created_at, updated_at) VALUES ('$(uuidgen)', 'default', 'm2', 'http://127.0.0.1:9099/mcp2', '{\"X-API-Key\":\"eski\",\"X-Team\":\"t1\"}', '2026-09-24T00:00:00.0000000Z', '2026-09-24T00:00:00.0000000Z');"
+curl -s -X POST "$APU/api/mcp-servers/refresh" -H "$APB"
+```
+
+**Beklenen sonuç**
+- Yakalayıcı `/mcp2 eski` yazar (satır çalışmaya devam eder).
+- Uygulama logu "MCP server 'm2' stores the credential header 'X-API-Key' in plain
+  headers, in the clear. Move it to headerConfigurationKeys." yazar; `eski` logda YOKTUR.
+
+### MT-MCP-077 — Göç tarifi: düz kimliği anahtar adına tek kayıtla taşımak
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 190 |
+| **İlgili karar** | K-870 |
+| **İnsan gerekir** | Hayır |
+| **Devir** | ✅ 2026-09-24 · ➜ CI: `HeaderPreservationTests.Migrating_a_plain_credential_needs_the_plain_map_in_the_same_save` |
+
+**Ön koşul** — MT-MCP-076'nın `m2` satırı.
+
+**Adımlar**
+```bash
+# (a) yalnız yeni alan
+curl -s -w '\n%{http_code}\n' -X PUT "$APU/api/mcp-servers/m2" -H "$APB" -H "$J" \
+  -d '{"endpoint":"http://127.0.0.1:9099/mcp2","headerConfigurationKeys":{"X-API-Key":"Tracon:McpSecrets:DemoKey"}}'
+# (b) aynı + diğer düz başlıklar
+curl -s -o /dev/null -w '%{http_code}\n' -X PUT "$APU/api/mcp-servers/m2" -H "$APB" -H "$J" \
+  -d '{"endpoint":"http://127.0.0.1:9099/mcp2","headers":{"X-Team":"t1"},"headerConfigurationKeys":{"X-API-Key":"Tracon:McpSecrets:DemoKey"}}'
+curl -s -X POST "$APU/api/mcp-servers/refresh" -H "$APB"
+```
+
+**Beklenen sonuç**
+- (a) `400`; `detail` "Remove 'X-API-Key' from headers" der.
+- (b) `200`; yakalayıcı `/mcp2 dogrulama-degeri` yazar; `m2` için yeni
+  "stores the credential header" uyarısı çıkmaz.
+- Ölçülen (2026-09-24): (a) `400` beklenen metinle, (b) `200`, yakalayıcı değeri aldı.
