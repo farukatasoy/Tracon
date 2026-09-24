@@ -1,6 +1,6 @@
 # 01 — Kurulum ve Paketleme (`PKG`)
 
-> **Alan kodu:** `PKG` · **Faz:** 0, 52, 60, 182, 183, 185
+> **Alan kodu:** `PKG` · **Faz:** 0, 52, 60, 182, 183, 185, 188
 > **Kaynak:** `global.json` · `NuGet.config` · `Directory.Build.props` ·
 > `Directory.Build.targets` · `src/Directory.Build.props` · `src/*/*.csproj` ·
 > `src/Tracon.Generators/` · `tests/Directory.Build.props` (TFM matrisi) ·
@@ -4100,3 +4100,105 @@ dotnet list package --deprecated
 
 **Beklenen sonuç**
 - (a) Kırmızı ve mesaj tek komutla itmeyi söyler; (b) yeşil, taban bir önceki etiket.
+
+---
+
+### MT-PKG-145 — Kurucu daraltması sonrası paketlenmiş sample'lar ve kırıcı değişiklik kapısı yeşil
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 188 |
+| **İlgili karar** | K-866 · K-864 |
+
+**Ön koşul**
+- Temiz ağaç (değişiklik commit edildi); `rm -rf artifacts/package/release`; ağ (nuget.org).
+
+**Adımlar**
+1. `DOTNET_ROOT=~/.dotnet python3 scripts/kapi.py yayin --kuru`
+
+**Gerçek sonuç (2026-09-24)**
+- Çıkış 0 · `Taban: v1.0.0-preview.2` · `✅ Kırıcı liste: 119 tip, 0 TFM düşüşü, 10 paket — hepsi 'Unreleased' notunda` ·
+  `✅ 6 exact-version packed sample, Native AOT smoke ve net8.0 tüketici smoke`.
+
+**Beklenen sonuç**
+- Çıkış 0; kurucusu kalkan ve `internal` olan her tip `CHANGELOG.md` notunda tam adıyla geçer.
+
+---
+
+### MT-PKG-146 — Paketlenmiş `Tracon.Core` DI servis kurucusunu tüketiciye açmaz
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 188 |
+| **İlgili karar** | K-866 |
+
+**Ön koşul**
+- MT-PKG-145'in ürettiği `artifacts/package/release` beslemesi; ona bağlı atılabilir `net10.0` konsol projesi
+  (`Tracon.Testing` paket referansı; `NuGet.config` yerel besleme + nuget.org).
+
+**Adımlar**
+1. Bir dosyaya `new Tracon.ModelProviderRegistry([])` yaz.
+2. `dotnet build`
+
+**Gerçek sonuç (2026-09-24)**
+- `error CS1729: 'ModelProviderRegistry' does not contain a constructor that takes 1 arguments`.
+
+**Beklenen sonuç**
+- Derleme `CS1729` ile düşer (plan `CS0122` bekliyordu; referans derlemesi `internal` kurucuyu taşımaz, kurucu aday bile olmaz).
+
+---
+
+### MT-PKG-147 — Envanterde kanıtsız tip kalmaz (üye düzeyi dalga)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 188 |
+| **İlgili karar** | K-850 · K-866 |
+
+**Ön koşul**
+- Depo kökü.
+
+**Adımlar**
+1. `python3 scripts/public-yuzey-envanteri.py --denetle; echo "çıkış=$?"`
+
+**Gerçek sonuç (2026-09-24)**
+- `| **Toplam** | **654** | **527** | **112** | **15** | **0** |` · `çıkış=0` (Core 79, Abstractions 404 tip).
+
+**Beklenen sonuç**
+- Kanıtsız sütunu 0; toplam tip sayısı `PublicSurfaceBaselineTests` tabanıyla tutarlı.
+
+---
+
+### MT-PKG-148 — DI'ın kurduğu servisler örnek uygulamada gerçek run'da çalışır
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 188 |
+| **İlgili karar** | K-866 |
+
+**Ön koşul**
+- `samples/Tracon.Api` Development'ta ayakta (`docs/hafiza/elle-kosum-ortami.md` tarifi, `--urls http://127.0.0.1:5199`);
+  `Tracon:Ui:AuthToken` user-secrets'ta; bir OpenAI sağlayıcı anahtarı.
+
+**Adımlar**
+1. `curl -H "Authorization: Bearer $T" http://127.0.0.1:5199/tracon/api/diagnostics`
+2. `curl -H "Authorization: Bearer $T" http://127.0.0.1:5199/tracon/api/models/health`
+3. `curl -N -X POST http://127.0.0.1:5199/tracon/api/agents/router/run -H "Authorization: Bearer $T" -H 'Content-Type: application/json' -d '{"message":"Where is order 4182?"}'`
+4. `GET /tracon/api/runs/<runId>` ve `GET /tracon/api/runs?parentRunId=<runId>`
+
+**Gerçek sonuç (2026-09-24)**
+- (1) `200`, `persistenceProvider: PostgreSQL`, `modelProviders` listesi (`TraconDiagnosticsCollector`).
+- (2) `200`, `anthropic`/`google` `Healthy` (`ModelProviderHealthCache`).
+- (3) SSE: `run` · 140 `update` · `done`.
+- (4) Kök run `Completed` (`router`, `openai/gpt-5.4-mini`); alt run `support` `Completed`, `parentRunId` kök run (`ChildAgentInvoker`).
+
+**Beklenen sonuç**
+- Dört çağrı da başarılı; `router` `support`'u çağırır ve iki run da `Completed` biter.

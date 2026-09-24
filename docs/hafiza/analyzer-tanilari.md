@@ -107,3 +107,15 @@
   ile kapat, gerekcesini `ItemGroup`/`AssemblyInfo.cs` yorumuna yaz. Test projeleri
   varsayilan `$(MSBuildProjectName).UnitTests` kalibina uymuyorsa (ornek:
   `Tracon.Abstractions` ic tipini `Tracon.Core.UnitTests` kullanir) ayrica eklenir.
+- **Uye duzeyi adim: DI'in veya boru hattinin kurdugu tipin KURUCUSU `internal`
+  olur, tip public kalabilir** (Faz 188). Kurucu satiri Unshipped'ten silinir;
+  o imza bir tipin TEK kanitiysa envanter tipi `kanitsiz` gosterir ve tip K-850
+  surecine girer (Faz 188'de 15 kurucu 19 tipi dusurdu, 19'u da `internal` oldu).
+  Kapi: `PublicSurfaceBaselineTests.Public_constructors_with_optional_parameters_match_the_checked_in_baseline`
+  opsiyonel parametreli her public kurucuyu `optional-parameter-constructor-baseline.txt`
+  tabanina baglar (anahtar `<paket>:<tip>(<param>/<ops>)`, gerekce >= 40 karakter);
+  `TRACON_OPTIONAL_CTOR_REFRESH=1` yalniz bayat satiri siler, yeni satir elle girer.
+- **Paketlenmis tuketici `internal` kurucuyu `CS0122` ile degil `CS1729` ile
+  gorur** (Faz 188, olculdu): referans derlemesi internal uyeyi tasimaz, kurucu
+  aday bile olmaz. Proje referansli IVT'siz test ise `CS1729` verir (ayni sebep
+  degil, erisilebilirlik elemesi) — iki durumda da hata kodu `CS0122` degildir.

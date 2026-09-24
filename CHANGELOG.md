@@ -176,8 +176,8 @@ preview line, and the counts below are types, not members.
   string `elevenlabs`.
 - `Tracon.Abstractions` (3 more): `QuotaDecision`, `QuotaThresholdCrossing`,
   and `SqlPersistenceRegistrationMarker`. Only the SQL provider packages
-  register the marker; a marker registered by other code made start-up wait
-  for a migration that never ran.
+  register the marker; a marker registered by other code made background
+  services and approval requests wait for a migration that never ran.
 - `Tracon.Core` (16 more): `AgentSkillCatalog`, `CallableAgentResolver`,
   `ContentGuardPipeline`, `ModelProviderCircuitBreaker`,
   `ModelProviderHealthCache`, `ProviderConcurrencyLimiter`, `QuotaEnforcer`,
