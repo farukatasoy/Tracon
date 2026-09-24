@@ -52,6 +52,27 @@ change.
 - The MCP server audit trail records header names only. The values of headers
   whose names the secret filter does not recognize, such as `Cookie` or
   `Ocp-Apim-Subscription-Key`, no longer enter the audit log as plain text.
+- A script grant now pins the content it was given for. A stored script, and a
+  script of a skill registered in code, runs only while its content still has
+  the hash the grant carries; a change stops it until it is granted again. A
+  grant without a script name pins the whole script set, so adding, removing or
+  changing any script stops them all. **An existing grant pins nothing and no
+  longer authorizes a stored or code script: grant each one again.** Read
+  `scripts[].contentHash` or `scriptSetHash` from `GET /api/skills/{name}` and
+  send it as `expectedContentHash` to `POST /api/skill-script-grants` (missing
+  or malformed `400`, unknown script `404`, changed content `409`). Scripts
+  read from disk are not pinned and keep working; keep their directories
+  read-only. Before, an administrator who could write skills could replace a
+  script's content after a security administrator had approved it, and the old
+  grant kept authorizing the new code.
+- In a multi-tenant host, granting a stored script needs platform authority
+  (an API key that also carries `PlatformAdmin`, the static `AuthToken`, or the
+  `TraconPolicies.PlatformAdmin` policy; `403` otherwise). The script runs
+  under the server's own operating-system identity and can read other tenants'
+  data, so the grant is an installation decision, not a tenant's.
+- A store of your own must keep `SkillScriptGrant.ContentHash`. A store that
+  drops it fails the new `SkillScriptGrantContract` cases, and its grants
+  refuse every stored script.
 - An `OperationCanceledException` that an `IRunAuthorizationHandler` throws,
   but that the request itself did not cause (for example, an `HttpClient`
   timeout inside the handler), is now a failed check. A single resource answers
@@ -239,6 +260,26 @@ preview line, and the counts below are types, not members.
   category. The role is still treated as not registered. With
   `RequireRolePolicies` on, the startup exception carries the provider's
   exception as `InnerException`.
+- `SandboxedSkillScriptRunner.RunStoredScriptAsync` takes the skill and the
+  script name (`RunStoredScriptAsync(AgentSkillDefinition skill, string
+  scriptName, JsonElement? arguments, CancellationToken cancellationToken)`),
+  so the runner compares the grant with the content it is about to run. The
+  `(string skillName, AgentSkillScriptDefinition script, ...)` overload is gone.
+- `GET /api/skills/{name}` resolves the name the way the runtime does: a skill
+  registered in code wins over a stored one with the same name, and the new
+  `origin` field says which one was returned. A name that exists only in code
+  now returns the skill instead of `404`. Each script carries the new
+  `contentHash` and the skill the new `scriptSetHash`; both are computed, and a
+  value sent in a request is ignored.
+- `PUT /api/skills/{name}` answers `409` for a name registered in code with
+  `AddSkill`, the same rule as a code-defined agent: the code skill wins the
+  name, so a stored skill under it never ran. Before, the save succeeded and
+  wrote a record that never ran. `DELETE` still removes such a stored copy and
+  answers `409` when the name has none. The console opens a code skill read
+  only.
+- The in-memory script grant store keeps a revoked grant, with `revokedAt`
+  set, the same as the SQL stores. Before, it deleted the row, so
+  `GET /api/skill-script-grants` lost the record of who granted what.
 - `TenantProviderCredentialResolver` takes `IOptions<TraconOptions>` as a third
   constructor argument, and `ValidatePrefix(string)` is replaced by
   `ValidateKeyName(string tenantId, string configurationKeyName)`. The old

@@ -10,13 +10,21 @@ using Microsoft.Extensions.Options;
 namespace Tracon;
 
 /// <summary>
-/// Tracon's single script execution path, which runs skill scripts in an
-/// isolated operating-system process.
+/// Tracon's single script execution path: it decides whether a skill script may
+/// run and starts it as a separate process.
 /// </summary>
 /// <remarks>
 /// <para>
+/// <strong>This is not an operating-system sandbox.</strong> The script process
+/// runs under the same operating-system user as Tracon and can read what that
+/// user can read, reach the network it can reach, and use the CPU and memory it
+/// can use. Isolation is the host's job: a container, an unprivileged user, a
+/// restricted network. What this class adds are execution gates, a timeout that
+/// kills the process tree, output limits, a concurrency limit, and the audit trail.
+/// </para>
+/// <para>
 /// <strong>Microsoft Agent Framework never runs a script on its own.</strong>
-/// <c>AgentFileSkillScriptRunner</c> is a call point; the sandbox, timeout,
+/// <c>AgentFileSkillScriptRunner</c> is a call point; the gates, timeout,
 /// resource limits, and audit trail are entirely Tracon's responsibility.
 /// </para>
 /// <para>
@@ -25,7 +33,11 @@ namespace Tracon;
 /// </para>
 /// <list type="number">
 ///   <item><description>Is the feature enabled (<see cref="TraconSkillScriptOptions.Enabled"/>)</description></item>
-///   <item><description>Is there a valid <see cref="SkillScriptGrant"/> for the tenant</description></item>
+///   <item><description>
+///   Is there a valid <see cref="SkillScriptGrant"/> for the tenant - and, for a
+///   stored or code-defined script, does it pin the content that is about to run
+///   (<see cref="SkillScriptGrant.ContentHash"/>)
+///   </description></item>
 ///   <item><description>Is the extension on the interpreter allow-list</description></item>
 ///   <item><description>Did the arguments pass size and schema validation</description></item>
 ///   <item><description>Was the audit trail entry written</description></item>
@@ -122,8 +134,32 @@ public sealed class SandboxedSkillScriptRunner : IDisposable
 
         _ = serviceProvider;
 
-        var skillName = skill.Frontmatter.Name;
+        return await RunFileScriptAsync(
+                skill.Frontmatter.Name,
+                script.Name,
+                script.FullPath,
+                script.ParametersSchema,
+                arguments,
+                cancellationToken)
+            .ConfigureAwait(false);
+    }
 
+    /// <summary>Runs a script read from disk, from its parts.</summary>
+    /// <remarks>
+    /// The file path takes MAF's file skill types, which cannot be constructed
+    /// outside MAF; this overload is the same path with plain values, so the gate
+    /// order can be tested with a real file. A file script is not content-pinned:
+    /// its content is part of the deployment, and the skill roots must be
+    /// read-only to the process.
+    /// </remarks>
+    internal async Task<object?> RunFileScriptAsync(
+        string skillName,
+        string scriptName,
+        string fullPath,
+        JsonElement? parametersSchema,
+        JsonElement? arguments,
+        CancellationToken cancellationToken)
+    {
         // The span is opened in this method's own body: Activity.Current is
         // an AsyncLocal, and a span opened in a helper method does not flow
         // back to the caller.
@@ -132,57 +168,85 @@ public sealed class SandboxedSkillScriptRunner : IDisposable
             ActivityKind.Internal);
 
         activity?.SetTag(TraconDiagnostics.Tags.SkillName, skillName);
-        activity?.SetTag(TraconDiagnostics.Tags.ScriptName, script.Name);
+        activity?.SetTag(TraconDiagnostics.Tags.ScriptName, scriptName);
 
-        var extension = Path.GetExtension(script.FullPath).TrimStart('.');
-        var workingDirectory = Path.GetDirectoryName(script.FullPath) ?? Environment.CurrentDirectory;
+        var extension = Path.GetExtension(fullPath).TrimStart('.');
+        var workingDirectory = Path.GetDirectoryName(fullPath) ?? Environment.CurrentDirectory;
 
         return await ExecuteAsync(
                 new ScriptRequest(
                     skillName,
-                    script.Name,
+                    scriptName,
                     extension,
-                    script.ParametersSchema,
+                    parametersSchema,
                     arguments,
                     Stored: false,
-                    ScriptPath: script.FullPath,
+                    ScriptPath: fullPath,
                     WorkingDirectory: workingDirectory,
-                    Content: null),
+                    Content: null,
+                    PinnedScriptHash: null,
+                    PinnedSetHash: null),
                 activity,
                 cancellationToken)
             .ConfigureAwait(false);
     }
 
     /// <summary>
-    /// Runs a skill script stored in the database.
+    /// Runs a script of a skill that is stored in the database or registered in code.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// This path is used only when <see cref="TraconSkillScriptOptions.AllowStoredScripts"/>
     /// is enabled. The content is written to a temporary directory accessible
     /// only to its owner, only for the duration of the run, and deleted
     /// afterward.
+    /// </para>
+    /// <para>
+    /// The grant must pin the content: a grant for <paramref name="scriptName"/>
+    /// must carry the script's <see cref="AgentSkillScriptDefinition.ContentHash"/>,
+    /// and a skill-wide grant the skill's <see cref="AgentSkillDefinition.ScriptSetHash"/>.
+    /// A grant that pins nothing, or pins other content, refuses the run. The hash is
+    /// computed from <paramref name="skill"/>, the definition that is about to run -
+    /// the store is not read again between the check and the run.
+    /// </para>
     /// </remarks>
-    /// <param name="skillName">The skill's name.</param>
-    /// <param name="script">The script definition.</param>
+    /// <param name="skill">The skill that carries the script, as it will run.</param>
+    /// <param name="scriptName">The name of the script in <paramref name="skill"/>.</param>
     /// <param name="arguments">The arguments produced by the model.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The text result to return to the model.</returns>
-    /// <exception cref="TraconException">One of the gates is closed.</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="skill"/> is <see langword="null"/>.</exception>
+    /// <exception cref="ArgumentException"><paramref name="scriptName"/> is empty.</exception>
+    /// <exception cref="TraconException">One of the gates is closed, or the skill has no such script.</exception>
     public async Task<object?> RunStoredScriptAsync(
-        string skillName,
-        AgentSkillScriptDefinition script,
+        AgentSkillDefinition skill,
+        string scriptName,
         JsonElement? arguments,
         CancellationToken cancellationToken)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(skillName);
-        ArgumentNullException.ThrowIfNull(script);
+        ArgumentNullException.ThrowIfNull(skill);
+        ArgumentException.ThrowIfNullOrWhiteSpace(scriptName);
+
+        var skillName = skill.Name;
 
         if (!Options.AllowStoredScripts)
         {
             await DenyAsync(
                     skillName,
-                    script.Name,
+                    scriptName,
                     "Running stored scripts is disabled. AllowStoredScripts must be enabled.",
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        var script = skill.Scripts.FirstOrDefault(candidate => string.Equals(candidate.Name, scriptName, StringComparison.Ordinal));
+
+        if (script is null)
+        {
+            await DenyAsync(
+                    skillName,
+                    scriptName,
+                    $"Skill '{skillName}' has no script named '{scriptName}'.",
                     cancellationToken)
                 .ConfigureAwait(false);
         }
@@ -224,7 +288,9 @@ public sealed class SandboxedSkillScriptRunner : IDisposable
                     Stored: true,
                     ScriptPath: null,
                     WorkingDirectory: null,
-                    Content: script.Content),
+                    Content: script.Content,
+                    PinnedScriptHash: script.ContentHash,
+                    PinnedSetHash: skill.ScriptSetHash),
                 activity,
                 cancellationToken)
             .ConfigureAwait(false);
@@ -265,6 +331,39 @@ public sealed class SandboxedSkillScriptRunner : IDisposable
                     cancellationToken,
                     activity)
                 .ConfigureAwait(false);
+        }
+
+        // A stored or code-defined script runs only under a grant that pins the
+        // content about to run. A file script is not pinned: its content is part
+        // of the deployment, and the skill roots must be read-only to the process.
+        if (request.Stored)
+        {
+            if (grant!.ContentHash is not { Length: > 0 } pinned)
+            {
+                await DenyAsync(
+                        request.SkillName,
+                        request.ScriptName,
+                        "The execution grant does not pin the script content. Grant it again with the content hash.",
+                        cancellationToken,
+                        activity)
+                    .ConfigureAwait(false);
+            }
+            else
+            {
+                // A narrow grant pins the script, a skill-wide grant the whole set.
+                var current = grant.ScriptName is null ? request.PinnedSetHash : request.PinnedScriptHash;
+
+                if (!string.Equals(pinned, current, StringComparison.OrdinalIgnoreCase))
+                {
+                    await DenyAsync(
+                            request.SkillName,
+                            request.ScriptName,
+                            "The script content changed since the grant. Review it and grant it again.",
+                            cancellationToken,
+                            activity)
+                        .ConfigureAwait(false);
+                }
+            }
         }
 
         if (!options.Interpreters.TryGetValue(request.Extension, out var interpreter))
@@ -525,5 +624,7 @@ public sealed class SandboxedSkillScriptRunner : IDisposable
         bool Stored,
         string? ScriptPath,
         string? WorkingDirectory,
-        string? Content);
+        string? Content,
+        string? PinnedScriptHash,
+        string? PinnedSetHash);
 }

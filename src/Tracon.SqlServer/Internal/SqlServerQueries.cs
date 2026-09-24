@@ -203,7 +203,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
         // --- Script execution grants ---
 
         const string grantColumns = """
-            id, tenant_id, skill_name, script_name, granted_by, granted_at, expires_at, revoked_at
+            id, tenant_id, skill_name, script_name, granted_by, granted_at, expires_at, revoked_at, content_hash
             """;
 
         SelectSkillScriptGrants = $"""
@@ -231,14 +231,18 @@ internal sealed class SqlServerQueries : SqlQueriesBase
         // COALESCE-based expression index is not needed here (K-184). The
         // match is still written with ISNULL: a plain `= ` comparison would
         // return UNKNOWN when @script_name is NULL.
+        // 🚨 The update branch writes content_hash too: granting the same key again
+        // must pin the content of THIS grant, not keep the previous one's hash.
         UpsertSkillScriptGrant = $"""
             UPDATE {Schema}.skill_script_grants WITH (UPDLOCK, SERIALIZABLE)
                SET granted_by = @granted_by,
                    granted_at = @granted_at,
                    expires_at = @expires_at,
-                   revoked_at = NULL
+                   revoked_at = NULL,
+                   content_hash = @content_hash
              OUTPUT inserted.id, inserted.tenant_id, inserted.skill_name, inserted.script_name,
-                    inserted.granted_by, inserted.granted_at, inserted.expires_at, inserted.revoked_at
+                    inserted.granted_by, inserted.granted_at, inserted.expires_at, inserted.revoked_at,
+                    inserted.content_hash
              WHERE tenant_id = @tenant_id
                AND skill_name = @skill_name
                AND ISNULL(script_name, N'') = ISNULL(@script_name, N'');
@@ -246,8 +250,9 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             IF @@ROWCOUNT = 0
             INSERT INTO {Schema}.skill_script_grants ({grantColumns})
             OUTPUT inserted.id, inserted.tenant_id, inserted.skill_name, inserted.script_name,
-                   inserted.granted_by, inserted.granted_at, inserted.expires_at, inserted.revoked_at
-            VALUES (@id, @tenant_id, @skill_name, @script_name, @granted_by, @granted_at, @expires_at, NULL);
+                   inserted.granted_by, inserted.granted_at, inserted.expires_at, inserted.revoked_at,
+                   inserted.content_hash
+            VALUES (@id, @tenant_id, @skill_name, @script_name, @granted_by, @granted_at, @expires_at, NULL, @content_hash);
             """;
 
         // A grant is NOT DELETED, it is revoked.

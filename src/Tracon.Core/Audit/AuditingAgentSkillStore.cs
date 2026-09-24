@@ -27,9 +27,12 @@ namespace Tracon;
 /// <para>
 /// Unlike <see cref="AuditingSkillScriptGrantStore"/>, this decorator uses the
 /// swallow-and-log <c>AuditRecorder</c> path rather than writing first and
-/// throwing. Granting the right to run a script is irreversible from the
-/// trail's point of view; saving a skill is not — it is versioned, reversible
-/// configuration, and observability may not break functionality.
+/// throwing. The fail-closed record belongs to the act that lets code run: a
+/// grant (<c>script.grant</c>), which pins the exact content it authorizes.
+/// Writing a skill does not run anything by itself — a changed script stops
+/// until it is granted again — so a missed <c>skill.update</c> entry leaves no
+/// code running unrecorded, and observability may not break functionality.
+/// Skills are not versioned; the trail is best-effort.
 /// </para>
 /// </remarks>
 internal sealed class AuditingAgentSkillStore : IAgentSkillStore, IAuditDecorated

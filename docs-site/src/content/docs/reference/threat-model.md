@@ -52,7 +52,7 @@ What an attacker in the table above is after:
 - **The audit trail** — the record of who did what, and the state before and after
 - **Tool call authority** — the right to invoke a specific tool with specific arguments
 - **Model budget** — request rate and spend ceilings
-- **Script execution rights** — running a skill script inside its sandbox
+- **Script execution rights** — running a skill script on the server
 
 ## Boundary mapping
 
@@ -68,7 +68,7 @@ the complementary question — which boundaries exist, and what each one refuses
 | Tool authorization | A tool call the caller is not entitled to make |
 | Tool approval | An unapproved tool call, until a human decides |
 | Tool definition | A tool written from the console — tools exist only in code |
-| Script sandboxing | A skill script escaping its sandbox, when scripts are on at all |
+| Script execution gates | A skill script starting without a grant or with an interpreter off the allowlist, or a stored or code-defined one starting after its content changed since the grant |
 | Outbound egress | A request to a private network target or a disallowed host |
 | Content guards | Input or output a configured guard rejects |
 | Secret handling | A secret value reaching storage, a log, or a response |
@@ -117,6 +117,23 @@ more — the audit trail raises `tracon.audit.write_failures` and a run raises
 `tracon.run.recording_failures`, tagged with the stage the record was lost at. Both
 counters are reporting, not prevention: they tell you evidence is missing, they do not
 keep it.
+:::
+
+:::caution[A granted script runs with the server's operating-system identity]
+Tracon does not isolate a script process. It runs under the same operating-system user
+as Tracon, and the environment allowlist only stops it from inheriting variables: it
+can read what that user can read. On Linux that includes the environment Tracon
+started with, through `/proc`, so a connection string or provider key kept there is
+readable. Tenant isolation and secret handling run in the application layer and do not
+reach inside the script.
+
+Part of this is closed. A stored or code-defined script runs only under a grant pinned
+to its exact content, and in a multi-tenant host granting one needs platform
+authority, so a tenant administrator cannot grant one alone. What stays open: the
+platform administrator who grants a script approves code that can reach every
+tenant's data, and a script read from disk is not pinned — keep its directory
+read-only. Run a host with scripts on in a container, under an unprivileged user, with
+restricted network access — see [skill scripts](/concepts/tools/#skill-scripts--the-strict-exception).
 :::
 
 :::caution[An authorized identity can still exceed what it was meant to do]

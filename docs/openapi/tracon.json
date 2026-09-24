@@ -800,7 +800,7 @@
           "Skills"
         ],
         "summary": "Returns a single skill and its resources.",
-        "description": "The response carries the skill\u0027s instructions together with every resource and script attached to it, including their content. Names are compared exactly, case included; an unknown name returns 404.",
+        "description": "The response carries the skill\u0027s instructions together with every resource and script attached to it, including their content. The name resolves the way the runtime resolves it: a skill registered in code wins over a stored skill with the same name, and \u0027origin\u0027 says which one was returned (Code or Database) - so the content shown is the content that runs. Each script carries \u0027contentHash\u0027 and the skill carries \u0027scriptSetHash\u0027; a script grant pins one of them. A disabled skill is returned too. Names are compared exactly, case included; an unknown name returns 404. The list (GET /api/skills) shows stored skills only.",
         "operationId": "TraconGetSkill",
         "parameters": [
           {
@@ -831,7 +831,7 @@
           "Skills"
         ],
         "summary": "Creates or updates a skill.",
-        "description": "The call replaces the whole skill: resources and scripts that the body omits are removed. A first save answers 201, a later one 200. The path name and the body name must be identical (400 otherwise). Name, description, and compatibility follow the skill frontmatter rules, and instructions, resources, and scripts are each bounded by the configured size limits. A script may be SAVED even when script execution is turned off \u2014 saving and running are separate permissions \u2014 but an extension with no registered interpreter is rejected, because such a script could never run and would leave dead data behind.",
+        "description": "The call replaces the whole skill: resources and scripts that the body omits are removed. A first save answers 201, a later one 200. The path name and the body name must be identical (400 otherwise). Name, description, and compatibility follow the skill frontmatter rules, and instructions, resources, and scripts are each bounded by the configured size limits. A script may be SAVED even when script execution is turned off \u2014 saving and running are separate permissions \u2014 but an extension with no registered interpreter is rejected, because such a script could never run and would leave dead data behind. A name registered in code answers 409: a skill defined in code wins name conflicts, so a stored skill with that name would never run. Changing a stored script\u0027s content stops it from running until its script grant is given again for the new content.",
         "operationId": "TraconSaveSkill",
         "parameters": [
           {
@@ -882,7 +882,7 @@
           "Skills"
         ],
         "summary": "Deletes a skill and its cascading resources.",
-        "description": "Resources and scripts are removed with the skill. Agent definitions that still name the skill are NOT rewritten, and they stop resolving: compiling such an agent fails with \u0027the skill was not found\u0027 until the reference is removed or the skill is recreated. Check the agents that use a skill before deleting it. An unknown name returns 404.",
+        "description": "Resources and scripts are removed with the skill. Agent definitions that still name the skill are NOT rewritten, and they stop resolving: compiling such an agent fails with \u0027the skill was not found\u0027 until the reference is removed or the skill is recreated. Check the agents that use a skill before deleting it. An unknown name returns 404. For a name registered in code only a stored skill with that name is removed (one saved before the name was taken in code, which never ran); the code skill keeps running, and a name with no stored skill answers 409.",
         "operationId": "TraconDeleteSkill",
         "parameters": [
           {
@@ -932,7 +932,7 @@
           "Governance"
         ],
         "summary": "Grants run permission to a skill script.",
-        "description": "Granting while script execution is switched off returns 409 rather than succeeding: a grant that reads as active but never allows a run would be misleading. Omit \u0027scriptName\u0027 to cover every script in the skill. \u0027expiresAt\u0027 is optional but must be in the future when given (400 otherwise); without it the grant does not expire. Every change is written to the audit trail.",
+        "description": "A grant for a skill stored in the database or registered in code pins the content it is given for: send \u0027expectedContentHash\u0027, read from GET /api/skills/{name} (scripts[].contentHash for one script, scriptSetHash when \u0027scriptName\u0027 is omitted and the grant covers every script). A missing or malformed hash returns 400, a \u0027scriptName\u0027 the skill does not carry 404, and a hash that no longer matches the content 409 - read the skill again and review it; the response never carries the current hash. A script whose content changes after the grant does not run until it is granted again. In a multi-tenant host a grant for a stored skill also needs platform authority (an API key with PlatformAdmin, the static token, or the Tracon.PlatformAdmin policy; 403 otherwise), because the script runs under the server\u0027s own operating-system identity. A name no stored or code skill carries is granted without a pin and authorizes scripts read from disk only. A key needs AgentsRead to read the hash and SecurityAdmin to grant. Granting while script execution is switched off returns 409 rather than succeeding: a grant that reads as active but never allows a run would be misleading. \u0027expiresAt\u0027 is optional but must be in the future when given (400 otherwise); without it the grant does not expire. A refused request writes nothing; every grant is written to the audit trail.",
         "operationId": "TraconGrantSkillScript",
         "requestBody": {
           "content": {
@@ -7797,7 +7797,18 @@
             "items": {
               "$ref": "#/components/schemas/AgentSkillScriptDefinition"
             },
-            "description": "The skill\u0027s scripts stored in the database."
+            "description": "The skill\u0027s scripts, stored in the database or registered in code."
+          },
+          "scriptSetHash": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The fingerprint of the whole script set: every script\u0027s name and content\nhash. Computed, never stored; a value sent in a request is ignored."
+          },
+          "origin": {
+            "description": "Where the definition comes from: AgentDefinitionOrigin.Code\nfor a skill registered with \u0060AddSkill\u0060, AgentDefinitionOrigin.Database\nfor a stored one.",
+            "$ref": "#/components/schemas/AgentDefinitionOrigin"
           },
           "createdAt": {
             "type": "string",
@@ -7940,6 +7951,13 @@
               "string"
             ],
             "description": "The argument schema reported to the model. Must be a valid JSON Schema\nobject; if \u0060null\u0060, the script is called with no arguments."
+          },
+          "contentHash": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The hash of what runs: the extension, the content, and the argument schema.\nComputed, never stored; a value sent in a request is ignored."
           }
         },
         "description": "A server-executable script stored together with an AgentSkillDefinition."
@@ -15653,6 +15671,13 @@
             ],
             "description": "The name of the script granted. If \u0060null\u0060, all of the\nskill\u0027s scripts are covered."
           },
+          "contentHash": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The content the grant authorizes: the script\u0027s content hash when a script\nname is set, the fingerprint of the whole script set when it is not."
+          },
           "grantedBy": {
             "type": [
               "null",
@@ -15708,6 +15733,13 @@
             ],
             "description": "Expiration time of the grant. If \u0060null\u0060, it is unlimited.",
             "format": "date-time"
+          },
+          "expectedContentHash": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The content the grant pins, read from \u0060GET /api/skills/{name}\u0060: the\nscript\u0027s \u0060contentHash\u0060 when \u0060scriptName\u0060 is set, the skill\u0027s\n\u0060scriptSetHash\u0060 when it is not."
           }
         },
         "description": "Request to grant script execution permission."

@@ -223,7 +223,15 @@ public interface ITraconBuilder
     /// <param name="skill">The skill to register.</param>
     /// <returns>The chain, for further configuration.</returns>
     /// <remarks>
-    /// A skill is instruction text an agent loads by name; it carries no code.
+    /// <para>
+    /// A skill is instruction text an agent loads by name. When it carries
+    /// <see cref="AgentSkillDefinition.Scripts"/>, those scripts run on the
+    /// server like stored ones: they need <c>AllowStoredScripts</c>, an
+    /// allow-listed interpreter, and a grant pinned to their content. The hash
+    /// to grant is read from <c>GET /api/skills/{name}</c>, which resolves a code
+    /// skill first. A deployment that changes a script changes its hash, so the
+    /// script needs a new grant before it runs again.
+    /// </para>
     /// <example>
     /// <code>
     /// builder.AddTracon()

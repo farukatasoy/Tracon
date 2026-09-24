@@ -1837,7 +1837,7 @@ namespace Tracon.Client.Generated
         /// Returns a single skill and its resources.
         /// </summary>
         /// <remarks>
-        /// The response carries the skill's instructions together with every resource and script attached to it, including their content. Names are compared exactly, case included; an unknown name returns 404.
+        /// The response carries the skill's instructions together with every resource and script attached to it, including their content. The name resolves the way the runtime resolves it: a skill registered in code wins over a stored skill with the same name, and 'origin' says which one was returned (Code or Database) - so the content shown is the content that runs. Each script carries 'contentHash' and the skill carries 'scriptSetHash'; a script grant pins one of them. A disabled skill is returned too. Names are compared exactly, case included; an unknown name returns 404. The list (GET /api/skills) shows stored skills only.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -1918,7 +1918,7 @@ namespace Tracon.Client.Generated
         /// Creates or updates a skill.
         /// </summary>
         /// <remarks>
-        /// The call replaces the whole skill: resources and scripts that the body omits are removed. A first save answers 201, a later one 200. The path name and the body name must be identical (400 otherwise). Name, description, and compatibility follow the skill frontmatter rules, and instructions, resources, and scripts are each bounded by the configured size limits. A script may be SAVED even when script execution is turned off — saving and running are separate permissions — but an extension with no registered interpreter is rejected, because such a script could never run and would leave dead data behind.
+        /// The call replaces the whole skill: resources and scripts that the body omits are removed. A first save answers 201, a later one 200. The path name and the body name must be identical (400 otherwise). Name, description, and compatibility follow the skill frontmatter rules, and instructions, resources, and scripts are each bounded by the configured size limits. A script may be SAVED even when script execution is turned off — saving and running are separate permissions — but an extension with no registered interpreter is rejected, because such a script could never run and would leave dead data behind. A name registered in code answers 409: a skill defined in code wins name conflicts, so a stored skill with that name would never run. Changing a stored script's content stops it from running until its script grant is given again for the new content.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -2016,7 +2016,7 @@ namespace Tracon.Client.Generated
         /// Deletes a skill and its cascading resources.
         /// </summary>
         /// <remarks>
-        /// Resources and scripts are removed with the skill. Agent definitions that still name the skill are NOT rewritten, and they stop resolving: compiling such an agent fails with 'the skill was not found' until the reference is removed or the skill is recreated. Check the agents that use a skill before deleting it. An unknown name returns 404.
+        /// Resources and scripts are removed with the skill. Agent definitions that still name the skill are NOT rewritten, and they stop resolving: compiling such an agent fails with 'the skill was not found' until the reference is removed or the skill is recreated. Check the agents that use a skill before deleting it. An unknown name returns 404. For a name registered in code only a stored skill with that name is removed (one saved before the name was taken in code, which never ran); the code skill keeps running, and a name with no stored skill answers 409.
         /// </remarks>
         /// <returns>No Content</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -2168,7 +2168,7 @@ namespace Tracon.Client.Generated
         /// Grants run permission to a skill script.
         /// </summary>
         /// <remarks>
-        /// Granting while script execution is switched off returns 409 rather than succeeding: a grant that reads as active but never allows a run would be misleading. Omit 'scriptName' to cover every script in the skill. 'expiresAt' is optional but must be in the future when given (400 otherwise); without it the grant does not expire. Every change is written to the audit trail.
+        /// A grant for a skill stored in the database or registered in code pins the content it is given for: send 'expectedContentHash', read from GET /api/skills/{name} (scripts[].contentHash for one script, scriptSetHash when 'scriptName' is omitted and the grant covers every script). A missing or malformed hash returns 400, a 'scriptName' the skill does not carry 404, and a hash that no longer matches the content 409 - read the skill again and review it; the response never carries the current hash. A script whose content changes after the grant does not run until it is granted again. In a multi-tenant host a grant for a stored skill also needs platform authority (an API key with PlatformAdmin, the static token, or the Tracon.PlatformAdmin policy; 403 otherwise), because the script runs under the server's own operating-system identity. A name no stored or code skill carries is granted without a pin and authorizes scripts read from disk only. A key needs AgentsRead to read the hash and SecurityAdmin to grant. Granting while script execution is switched off returns 409 rather than succeeding: a grant that reads as active but never allows a run would be misleading. 'expiresAt' is optional but must be in the future when given (400 otherwise); without it the grant does not expire. A refused request writes nothing; every grant is written to the audit trail.
         /// </remarks>
         /// <returns>Created</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -16779,11 +16779,28 @@ namespace Tracon.Client.Generated
         public System.Collections.Generic.ICollection<AgentSkillResourceDefinition> Resources { get; set; } = new System.Collections.Generic.List<AgentSkillResourceDefinition>();
 
         /// <summary>
-        /// The skill's scripts stored in the database.
+        /// The skill's scripts, stored in the database or registered in code.
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("scripts")]
         public System.Collections.Generic.ICollection<AgentSkillScriptDefinition> Scripts { get; set; } = new System.Collections.Generic.List<AgentSkillScriptDefinition>();
+
+        /// <summary>
+        /// The fingerprint of the whole script set: every script's name and content
+        /// <br/>hash. Computed, never stored; a value sent in a request is ignored.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("scriptSetHash")]
+        public string? ScriptSetHash { get; set; } = default!;
+
+        /// <summary>
+        /// Where the definition comes from: AgentDefinitionOrigin.Code
+        /// <br/>for a skill registered with `AddSkill`, AgentDefinitionOrigin.Database
+        /// <br/>for a stored one.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("origin")]
+        public AgentDefinitionOrigin Origin { get; set; } = default!;
 
         /// <summary>
         /// The skill's creation time.
@@ -16957,6 +16974,14 @@ namespace Tracon.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("parametersSchema")]
         public string? ParametersSchema { get; set; } = default!;
+
+        /// <summary>
+        /// The hash of what runs: the extension, the content, and the argument schema.
+        /// <br/>Computed, never stored; a value sent in a request is ignored.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("contentHash")]
+        public string? ContentHash { get; set; } = default!;
 
     }
 
@@ -24557,6 +24582,14 @@ namespace Tracon.Client.Generated
         public string? ScriptName { get; set; } = default!;
 
         /// <summary>
+        /// The content the grant authorizes: the script's content hash when a script
+        /// <br/>name is set, the fingerprint of the whole script set when it is not.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("contentHash")]
+        public string? ContentHash { get; set; } = default!;
+
+        /// <summary>
         /// The actor who gave the grant.
         /// </summary>
 
@@ -24613,6 +24646,15 @@ namespace Tracon.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("expiresAt")]
         public System.DateTimeOffset? ExpiresAt { get; set; } = default!;
+
+        /// <summary>
+        /// The content the grant pins, read from `GET /api/skills/{name}`: the
+        /// <br/>script's `contentHash` when `scriptName` is set, the skill's
+        /// <br/>`scriptSetHash` when it is not.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("expectedContentHash")]
+        public string? ExpectedContentHash { get; set; } = default!;
 
     }
 

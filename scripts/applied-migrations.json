@@ -3,9 +3,12 @@
   "sourceCommits": {
     "src/Tracon.PostgreSql/Migrations/0051_run_score_evaluator_version.sql": "1dcb4f5f8d0126cb208147275fe450ed0bbf350f",
     "src/Tracon.PostgreSql/Migrations/0052_tool_late_completion.sql": "b513dc872eb54f67ddf3f8e38678da301f34857e",
+    "src/Tracon.PostgreSql/Migrations/0053_skill_script_grant_content_hash.sql": "07c787d95720b73bdb53aa8275c33f4938bbcccf",
     "src/Tracon.SqlServer/Migrations/0039_run_score_evaluator_version.sql": "1dcb4f5f8d0126cb208147275fe450ed0bbf350f",
     "src/Tracon.SqlServer/Migrations/0040_tool_late_completion.sql": "b513dc872eb54f67ddf3f8e38678da301f34857e",
+    "src/Tracon.SqlServer/Migrations/0041_skill_script_grant_content_hash.sql": "07c787d95720b73bdb53aa8275c33f4938bbcccf",
     "src/Tracon.Sqlite/Migrations/0038_run_score_evaluator_version.sql": "1dcb4f5f8d0126cb208147275fe450ed0bbf350f",
-    "src/Tracon.Sqlite/Migrations/0039_tool_late_completion.sql": "b513dc872eb54f67ddf3f8e38678da301f34857e"
+    "src/Tracon.Sqlite/Migrations/0039_tool_late_completion.sql": "b513dc872eb54f67ddf3f8e38678da301f34857e",
+    "src/Tracon.Sqlite/Migrations/0040_skill_script_grant_content_hash.sql": "07c787d95720b73bdb53aa8275c33f4938bbcccf"
   }
 }

@@ -13,6 +13,11 @@ namespace Tracon;
 /// If <see cref="ScriptName"/> is <see langword="null"/>, the grant covers
 /// <em>all</em> of the skill's scripts.
 /// </para>
+/// <para>
+/// A grant for a stored or code-defined skill pins the content it was given for
+/// (<see cref="ContentHash"/>): a script whose content changes afterwards does not
+/// run until it is granted again. A script on disk is not pinned.
+/// </para>
 /// </remarks>
 public sealed record SkillScriptGrant
 {
@@ -30,6 +35,24 @@ public sealed record SkillScriptGrant
     /// skill's scripts are covered.
     /// </summary>
     public string? ScriptName { get; init; }
+
+    /// <summary>
+    /// The content the grant authorizes: the script's content hash when a script
+    /// name is set, the fingerprint of the whole script set when it is not.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The values are <see cref="AgentSkillScriptDefinition.ContentHash"/> and
+    /// <see cref="AgentSkillDefinition.ScriptSetHash"/>.
+    /// </para>
+    /// <para>
+    /// <see langword="null"/> means the grant pins nothing, so it authorizes scripts
+    /// read from disk only: a stored or code-defined script is refused under it.
+    /// A grant written before content pinning existed carries <see langword="null"/>
+    /// and has to be given again. A store implementation must keep this value.
+    /// </para>
+    /// </remarks>
+    public string? ContentHash { get; init; }
 
     /// <summary>The actor who gave the grant.</summary>
     public string? GrantedBy { get; init; }

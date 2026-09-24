@@ -77,6 +77,7 @@ internal sealed class SqlSkillScriptGrantStore : ISkillScriptGrantStore
         Dialect.AddText(command, "granted_by", grant.GrantedBy);
         Dialect.AddTimestamp(command, "granted_at", now);
         Dialect.AddTimestamp(command, "expires_at", grant.ExpiresAt);
+        Dialect.AddText(command, "content_hash", grant.ContentHash);
 
         return await DbHelpers.ReadSingleAsync(command, ReadGrant, cancellationToken).ConfigureAwait(false)
             ?? throw new TraconException(
@@ -111,6 +112,7 @@ internal sealed class SqlSkillScriptGrantStore : ISkillScriptGrantStore
         GrantedAt = DbHelpers.GetTimestamp(reader, 5),
         ExpiresAt = DbHelpers.GetNullableTimestamp(reader, 6),
         RevokedAt = DbHelpers.GetNullableTimestamp(reader, 7),
+        ContentHash = DbHelpers.GetNullableString(reader, 8),
     };
 
     private DbCommand CreateCommand(string sql) => _context.CreateCommand(sql);

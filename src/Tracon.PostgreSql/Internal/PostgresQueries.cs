@@ -119,7 +119,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
         // --- Script execution grants ---
 
         SelectSkillScriptGrants = $"""
-            SELECT id, tenant_id, skill_name, script_name, granted_by, granted_at, expires_at, revoked_at
+            SELECT id, tenant_id, skill_name, script_name, granted_by, granted_at, expires_at, revoked_at, content_hash
             FROM {Schema}.skill_script_grants
             WHERE tenant_id = @tenant_id
             ORDER BY skill_name, COALESCE(script_name, '');
@@ -128,7 +128,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
         // A narrow grant wins over a broad one: rows with script_name IS NOT NULL
         // sort first so the script-specific row comes first, and one row is taken.
         SelectActiveSkillScriptGrant = $"""
-            SELECT id, tenant_id, skill_name, script_name, granted_by, granted_at, expires_at, revoked_at
+            SELECT id, tenant_id, skill_name, script_name, granted_by, granted_at, expires_at, revoked_at, content_hash
             FROM {Schema}.skill_script_grants
             WHERE tenant_id = @tenant_id
               AND skill_name = @skill_name
@@ -139,17 +139,20 @@ internal sealed class PostgresQueries : SqlQueriesBase
             LIMIT 1;
             """;
 
+        // 🚨 The update branch writes content_hash too: granting the same key again
+        // must pin the content of THIS grant, not keep the previous one's hash.
         UpsertSkillScriptGrant = $"""
             INSERT INTO {Schema}.skill_script_grants
-                (id, tenant_id, skill_name, script_name, granted_by, granted_at, expires_at, revoked_at)
+                (id, tenant_id, skill_name, script_name, granted_by, granted_at, expires_at, revoked_at, content_hash)
             VALUES
-                (@id, @tenant_id, @skill_name, @script_name, @granted_by, @granted_at, @expires_at, NULL)
+                (@id, @tenant_id, @skill_name, @script_name, @granted_by, @granted_at, @expires_at, NULL, @content_hash)
             ON CONFLICT (tenant_id, skill_name, COALESCE(script_name, '')) DO UPDATE
                 SET granted_by = EXCLUDED.granted_by,
                     granted_at = EXCLUDED.granted_at,
                     expires_at = EXCLUDED.expires_at,
-                    revoked_at = NULL
-            RETURNING id, tenant_id, skill_name, script_name, granted_by, granted_at, expires_at, revoked_at;
+                    revoked_at = NULL,
+                    content_hash = EXCLUDED.content_hash
+            RETURNING id, tenant_id, skill_name, script_name, granted_by, granted_at, expires_at, revoked_at, content_hash;
             """;
 
         // A grant is NOT DELETED, it is revoked: the question "who granted access

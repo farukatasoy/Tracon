@@ -300,8 +300,8 @@ authority is `role ∩ scopes`.
 | `ExperimentsRead` | Experiments, results, and canary status |
 | `ExperimentsAdmin` | Experiment writes, start and stop, and canary policy |
 | `PlatformRead` | Tenant, quota, retention, scheduling, webhook, diagnostics, and provider-health reads |
-| `PlatformAdmin` | Platform configuration writes and retention execution |
-| `SecurityAdmin` | API keys, skill-script grants, and MCP OAuth start |
+| `PlatformAdmin` | Platform configuration writes and retention execution; with `SecurityAdmin`, granting a stored skill script in a multi-tenant host |
+| `SecurityAdmin` | API keys, skill-script grants (reading the content hash to grant needs `AgentsRead` too), and MCP OAuth start |
 | `AuditRead` | Audit-trail reads |
 
 `SecurityAdmin` can create or extend authority. Grant it rarely. API keys are stored
