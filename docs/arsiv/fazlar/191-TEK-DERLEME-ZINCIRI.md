@@ -214,3 +214,4 @@ Açık iş:
 | Koşum | Ağaç | Sonuç |
 |---|---|---|
 | 1 | denetim düzeltmelerinden önce (commit'siz) | ✅ EXIT 0 — build 130 sn · test 658 sn · pack 14 sn · format 153 sn · site 40 sn |
+| 2 | commit'li ağaç `f52bbfeb` (denetim düzeltmeleri dahil) | ✅ EXIT 0 — build 111 sn · test 752 sn · pack 9 sn · format 127 sn · site 35 sn |
