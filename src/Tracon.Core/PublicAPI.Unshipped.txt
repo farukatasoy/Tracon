@@ -103,33 +103,6 @@ Tracon.FixedTenantContext.TenantId.get -> string!
 Tracon.IEvalEvaluatorFactory
 Tracon.IEvalEvaluatorFactory.Create(System.Collections.Generic.IReadOnlyList<Microsoft.Agents.AI.EvalCheck!>! checks) -> Microsoft.Agents.AI.IAgentEvaluator!
 Tracon.ITraconBuilder
-Tracon.ITraconBuilder.AddAgent(Tracon.AgentDefinition! definition) -> Tracon.ITraconBuilder!
-Tracon.ITraconBuilder.AddAgent(string! name, System.Func<System.IServiceProvider!, Microsoft.Agents.AI.AIAgent!>! factory, string? description = null) -> Tracon.ITraconBuilder!
-Tracon.ITraconBuilder.AddAgentDecorator(System.Func<System.IServiceProvider!, Tracon.IAgentDecorator!>! factory) -> Tracon.ITraconBuilder!
-Tracon.ITraconBuilder.AddAgentDecorator(Tracon.IAgentDecorator! decorator) -> Tracon.ITraconBuilder!
-Tracon.ITraconBuilder.AddAgentDecorator<TDecorator>() -> Tracon.ITraconBuilder!
-Tracon.ITraconBuilder.AddAgentSource(System.Func<System.IServiceProvider!, Tracon.IAgentSource!>! factory) -> Tracon.ITraconBuilder!
-Tracon.ITraconBuilder.AddAgentSource(Tracon.IAgentSource! source) -> Tracon.ITraconBuilder!
-Tracon.ITraconBuilder.AddAgentSource<TSource>() -> Tracon.ITraconBuilder!
-Tracon.ITraconBuilder.AddEvalCheck(string! kind, Microsoft.Agents.AI.EvalCheck! check) -> Tracon.ITraconBuilder!
-Tracon.ITraconBuilder.AddLoopEvaluator(string! kind, Microsoft.Agents.AI.LoopEvaluator! evaluator) -> Tracon.ITraconBuilder!
-Tracon.ITraconBuilder.AddModelProvider(System.Func<System.IServiceProvider!, Tracon.IModelProvider!>! factory) -> Tracon.ITraconBuilder!
-Tracon.ITraconBuilder.AddModelProvider(Tracon.IModelProvider! provider) -> Tracon.ITraconBuilder!
-Tracon.ITraconBuilder.AddModelProvider<TProvider>() -> Tracon.ITraconBuilder!
-Tracon.ITraconBuilder.AddRunJudge(System.Func<System.IServiceProvider!, Tracon.IRunJudge!>! factory) -> Tracon.ITraconBuilder!
-Tracon.ITraconBuilder.AddRunJudge(Tracon.IRunJudge! judge) -> Tracon.ITraconBuilder!
-Tracon.ITraconBuilder.AddRunJudge<TJudge>() -> Tracon.ITraconBuilder!
-Tracon.ITraconBuilder.AddScopedTool(Microsoft.Extensions.AI.AIFunction! tool) -> Tracon.ITraconBuilder!
-Tracon.ITraconBuilder.AddScopedTool(Microsoft.Extensions.AI.AIFunction! tool, System.Action<Tracon.ToolRegistrationOptions!>! configure) -> Tracon.ITraconBuilder!
-Tracon.ITraconBuilder.AddSkill(Tracon.AgentSkillDefinition! skill) -> Tracon.ITraconBuilder!
-Tracon.ITraconBuilder.AddTool(Microsoft.Extensions.AI.AIFunction! tool) -> Tracon.ITraconBuilder!
-Tracon.ITraconBuilder.AddTool(Microsoft.Extensions.AI.AIFunction! tool, System.Action<Tracon.ToolRegistrationOptions!>! configure) -> Tracon.ITraconBuilder!
-Tracon.ITraconBuilder.AddTool(System.Delegate! method, string? name = null, string? description = null, System.Action<Tracon.ToolRegistrationOptions!>? configure = null) -> Tracon.ITraconBuilder!
-Tracon.ITraconBuilder.AddToolsFrom(System.Type! type) -> Tracon.ITraconBuilder!
-Tracon.ITraconBuilder.AddToolsFrom<T>() -> Tracon.ITraconBuilder!
-Tracon.ITraconBuilder.Configure(System.Action<Tracon.TraconOptions!>! configure) -> Tracon.ITraconBuilder!
-Tracon.ITraconBuilder.RequireCustomBinding<T>() -> Tracon.ITraconBuilder!
-Tracon.ITraconBuilder.RequireProductionProfile(System.Action<Tracon.TraconProductionProfileOptions!>? configure = null) -> Tracon.ITraconBuilder!
 Tracon.ITraconBuilder.Services.get -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
 Tracon.ImagePriceOverride
 Tracon.ImagePriceOverride.ImagePriceOverride() -> void
@@ -516,6 +489,7 @@ Tracon.TraconRunRecordingOptions.RecordRunInput.set -> void
 Tracon.TraconRunRecordingOptions.RecordToolPayloads.get -> bool
 Tracon.TraconRunRecordingOptions.RecordToolPayloads.set -> void
 Tracon.TraconRunRecordingOptions.TraconRunRecordingOptions() -> void
+Tracon.TraconBuilderExtensions
 Tracon.TraconServiceCollectionExtensions
 Tracon.TraconSkillOptions
 Tracon.TraconSkillOptions.MaxInstructionsLength.get -> int
@@ -795,6 +769,33 @@ static Tracon.TraconOnlineEvaluationBuilderExtensions.AddModelRunJudge(this Trac
 static Tracon.TraconRunContext.Current.get -> Tracon.AgentRunScope?
 static Tracon.TraconRunContext.CurrentRunId.get -> System.Guid?
 static Tracon.TraconRunContext.SetCurrent(Tracon.AgentRunScope? scope) -> void
+static Tracon.TraconBuilderExtensions.AddAgent(this Tracon.ITraconBuilder! builder, Tracon.AgentDefinition! definition) -> Tracon.ITraconBuilder!
+static Tracon.TraconBuilderExtensions.AddAgent(this Tracon.ITraconBuilder! builder, string! name, System.Func<System.IServiceProvider!, Microsoft.Agents.AI.AIAgent!>! factory, string? description = null) -> Tracon.ITraconBuilder!
+static Tracon.TraconBuilderExtensions.AddAgentDecorator(this Tracon.ITraconBuilder! builder, System.Func<System.IServiceProvider!, Tracon.IAgentDecorator!>! factory) -> Tracon.ITraconBuilder!
+static Tracon.TraconBuilderExtensions.AddAgentDecorator(this Tracon.ITraconBuilder! builder, Tracon.IAgentDecorator! decorator) -> Tracon.ITraconBuilder!
+static Tracon.TraconBuilderExtensions.AddAgentDecorator<TDecorator>(this Tracon.ITraconBuilder! builder) -> Tracon.ITraconBuilder!
+static Tracon.TraconBuilderExtensions.AddAgentSource(this Tracon.ITraconBuilder! builder, System.Func<System.IServiceProvider!, Tracon.IAgentSource!>! factory) -> Tracon.ITraconBuilder!
+static Tracon.TraconBuilderExtensions.AddAgentSource(this Tracon.ITraconBuilder! builder, Tracon.IAgentSource! source) -> Tracon.ITraconBuilder!
+static Tracon.TraconBuilderExtensions.AddAgentSource<TSource>(this Tracon.ITraconBuilder! builder) -> Tracon.ITraconBuilder!
+static Tracon.TraconBuilderExtensions.AddEvalCheck(this Tracon.ITraconBuilder! builder, string! kind, Microsoft.Agents.AI.EvalCheck! check) -> Tracon.ITraconBuilder!
+static Tracon.TraconBuilderExtensions.AddLoopEvaluator(this Tracon.ITraconBuilder! builder, string! kind, Microsoft.Agents.AI.LoopEvaluator! evaluator) -> Tracon.ITraconBuilder!
+static Tracon.TraconBuilderExtensions.AddModelProvider(this Tracon.ITraconBuilder! builder, System.Func<System.IServiceProvider!, Tracon.IModelProvider!>! factory) -> Tracon.ITraconBuilder!
+static Tracon.TraconBuilderExtensions.AddModelProvider(this Tracon.ITraconBuilder! builder, Tracon.IModelProvider! provider) -> Tracon.ITraconBuilder!
+static Tracon.TraconBuilderExtensions.AddModelProvider<TProvider>(this Tracon.ITraconBuilder! builder) -> Tracon.ITraconBuilder!
+static Tracon.TraconBuilderExtensions.AddRunJudge(this Tracon.ITraconBuilder! builder, System.Func<System.IServiceProvider!, Tracon.IRunJudge!>! factory) -> Tracon.ITraconBuilder!
+static Tracon.TraconBuilderExtensions.AddRunJudge(this Tracon.ITraconBuilder! builder, Tracon.IRunJudge! judge) -> Tracon.ITraconBuilder!
+static Tracon.TraconBuilderExtensions.AddRunJudge<TJudge>(this Tracon.ITraconBuilder! builder) -> Tracon.ITraconBuilder!
+static Tracon.TraconBuilderExtensions.AddScopedTool(this Tracon.ITraconBuilder! builder, Microsoft.Extensions.AI.AIFunction! tool) -> Tracon.ITraconBuilder!
+static Tracon.TraconBuilderExtensions.AddScopedTool(this Tracon.ITraconBuilder! builder, Microsoft.Extensions.AI.AIFunction! tool, System.Action<Tracon.ToolRegistrationOptions!>! configure) -> Tracon.ITraconBuilder!
+static Tracon.TraconBuilderExtensions.AddSkill(this Tracon.ITraconBuilder! builder, Tracon.AgentSkillDefinition! skill) -> Tracon.ITraconBuilder!
+static Tracon.TraconBuilderExtensions.AddTool(this Tracon.ITraconBuilder! builder, Microsoft.Extensions.AI.AIFunction! tool) -> Tracon.ITraconBuilder!
+static Tracon.TraconBuilderExtensions.AddTool(this Tracon.ITraconBuilder! builder, Microsoft.Extensions.AI.AIFunction! tool, System.Action<Tracon.ToolRegistrationOptions!>! configure) -> Tracon.ITraconBuilder!
+static Tracon.TraconBuilderExtensions.AddTool(this Tracon.ITraconBuilder! builder, System.Delegate! method, string? name = null, string? description = null, System.Action<Tracon.ToolRegistrationOptions!>? configure = null) -> Tracon.ITraconBuilder!
+static Tracon.TraconBuilderExtensions.AddToolsFrom(this Tracon.ITraconBuilder! builder, System.Type! type) -> Tracon.ITraconBuilder!
+static Tracon.TraconBuilderExtensions.AddToolsFrom<T>(this Tracon.ITraconBuilder! builder) -> Tracon.ITraconBuilder!
+static Tracon.TraconBuilderExtensions.Configure(this Tracon.ITraconBuilder! builder, System.Action<Tracon.TraconOptions!>! configure) -> Tracon.ITraconBuilder!
+static Tracon.TraconBuilderExtensions.RequireCustomBinding<T>(this Tracon.ITraconBuilder! builder) -> Tracon.ITraconBuilder!
+static Tracon.TraconBuilderExtensions.RequireProductionProfile(this Tracon.ITraconBuilder! builder, System.Action<Tracon.TraconProductionProfileOptions!>? configure = null) -> Tracon.ITraconBuilder!
 static Tracon.TraconServiceCollectionExtensions.AddJobHandler<THandler>(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, string! handlerKey) -> Microsoft.Extensions.DependencyInjection.IServiceCollection!
 static Tracon.TraconServiceCollectionExtensions.AddTracon(this Microsoft.Extensions.DependencyInjection.IServiceCollection! services, Microsoft.Extensions.Configuration.IConfiguration? configurationSection = null) -> Tracon.ITraconBuilder!
 static Tracon.TraconServiceCollectionExtensions.AddTracon(this Microsoft.Extensions.Hosting.IHostApplicationBuilder! builder) -> Tracon.ITraconBuilder!

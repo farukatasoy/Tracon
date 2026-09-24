@@ -14,7 +14,7 @@ namespace Tracon;
 /// <see cref="RequiresUnreferencedCodeAttribute"/> and
 /// <see cref="RequiresDynamicCodeAttribute"/>; warnings are propagated rather
 /// than suppressed. Applications targeting AOT should use
-/// <see cref="ITraconBuilder.AddTool(AIFunction, Action{ToolRegistrationOptions})"/>.
+/// <see cref="TraconBuilderExtensions.AddTool(ITraconBuilder, AIFunction, Action{ToolRegistrationOptions})"/>.
 /// </para>
 /// <para>
 /// Only <strong>static</strong> methods are supported. MAF supplies
@@ -57,14 +57,15 @@ internal static class ToolMethodScanner
                 continue;
             }
 
-            registrations.Add(new TraconToolRegistration(
-                CreateFunction(type, method, attribute),
-                attribute.RequiresApproval,
-                effect: attribute.Effect,
-                requiredPermission: attribute.RequiredPermission,
-                timeout: attribute.TimeoutSeconds > 0 ? TimeSpan.FromSeconds(attribute.TimeoutSeconds) : null,
-                safeToRepeat: attribute.SafeToRepeat,
-                maxOutputBytes: attribute.MaxOutputBytes > 0 ? attribute.MaxOutputBytes : null));
+            registrations.Add(new TraconToolRegistration(CreateFunction(type, method, attribute))
+            {
+                RequiresApproval = attribute.RequiresApproval,
+                Effect = attribute.Effect,
+                RequiredPermission = attribute.RequiredPermission,
+                Timeout = attribute.TimeoutSeconds > 0 ? TimeSpan.FromSeconds(attribute.TimeoutSeconds) : null,
+                SafeToRepeat = attribute.SafeToRepeat,
+                MaxOutputBytes = attribute.MaxOutputBytes > 0 ? attribute.MaxOutputBytes : null,
+            });
         }
 
         if (registrations.Count == 0)

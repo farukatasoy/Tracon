@@ -201,6 +201,17 @@ class SiniflandirmaTestleri(unittest.TestCase):
         self.assertEqual(_tip(tipler, "Tracon.WidgetOptions").gerekce, "imza:Tracon.TraconBuilderExtensions")
         self.assertEqual(_tip(tipler, "Tracon.WidgetMode").gerekce, "imza:Tracon.WidgetOptions")
 
+    def test_onek_tasimayan_builder_uzantisi_kayit_giris_noktasidir(self):
+        # Faz 189: `Configure` builder uzantısı oldu; önek kuralı onu kanıtsız bırakırdı.
+        unshipped = (
+            "Tracon.ConfigureOnlyExtensions\n"
+            "static Tracon.ConfigureOnlyExtensions.Configure(this Tracon.ITraconBuilder! builder, "
+            "System.Action<Tracon.TraconOptions!>! configure) -> Tracon.ITraconBuilder!\n")
+        kaynak = "namespace Tracon;\npublic static class ConfigureOnlyExtensions { }\n"
+        tipler = _envanter([], ek_paketler={"Tracon.Extra": (unshipped, kaynak)})
+        tip = _tip(tipler, "Tracon.ConfigureOnlyExtensions", paket="Tracon.Extra")
+        self.assertEqual((tip.sinif, tip.gerekce), ("tüketici", "giris-noktasi:Configure"))
+
     def test_uzanti_sinifi_metot_adiyla_kanit_bulur(self):
         tipler = _envanter([("sample", "samples/A/Program.cs", 'var s = "x".Shorten();')])
         self.assertEqual(_tip(tipler, "Tracon.StringExtensions").gerekce,

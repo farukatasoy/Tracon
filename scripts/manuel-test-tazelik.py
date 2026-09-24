@@ -112,19 +112,12 @@ AILE_SATIRI = re.compile(
     r"^\| (?P<no>\d+) \| \[`(?P<dosya>[^`]+)`\][^|]*\| `(?P<kod>[A-Z]+)` \|"
     r"(?P<fazlar>[^|]*)\|(?P<kaynak>[^|]*)\| \*\*(?P<hedef>\d+)\*\* \|")
 
-# `CapabilityEntryPoints.cs` ile AYNI kural (K-509). İkisi ayrışırsa bu betik
-# kapsanmış bir giriş noktasını eksik sanır.
-KAYIT_ALICILARI = frozenset({
-    "Tracon.ITraconBuilder",
-    "Microsoft.Extensions.DependencyInjection.IServiceCollection",
-    "Microsoft.Extensions.DependencyInjection.IHealthChecksBuilder",
-    "Microsoft.Extensions.Hosting.IHostApplicationBuilder",
-    "Microsoft.AspNetCore.Routing.IEndpointRouteBuilder",
-})
-BUILDER_UYESI = re.compile(r"^Tracon\.ITraconBuilder\.(?P<ad>[A-Za-z0-9_]+)")
-UZANTI_METODU = re.compile(
-    r"^static [A-Za-z0-9_.]+\.(?P<ad>(?:Add|Use|Map)[A-Za-z0-9_]*)"
-    r"(?:<[^(]*>)?\(this (?P<alici>[A-Za-z0-9_.]+)")
+# Kayıt giriş noktası kuralı (K-509) `kayit_giris_noktasi.py`'dedir;
+# `public-yuzey-envanteri.py` aynı modülü kullanır. C# kopyası
+# `CapabilityEntryPoints.cs`'tir; ayrışırsa bu betik kapsanmış bir giriş
+# noktasını eksik sanır.
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from kayit_giris_noktasi import kayit_giris_noktasi  # noqa: E402
 
 
 # --------------------------------------------------------------------------
@@ -638,12 +631,7 @@ def giris_noktalari() -> dict[str, set[str]]:
     for dosya in sorted((ROOT / "src").glob("*/PublicAPI.*.txt")):
         paket = dosya.parent.name
         for satir in dosya.read_text(encoding="utf-8").split("\n"):
-            uye = BUILDER_UYESI.match(satir)
-            ad = uye.group("ad") if uye else None
-            if ad is None:
-                uzanti = UZANTI_METODU.match(satir)
-                if uzanti and uzanti.group("alici") in KAYIT_ALICILARI:
-                    ad = uzanti.group("ad")
+            ad = kayit_giris_noktasi(satir)
             if ad:
                 bulunan.setdefault(ad, set()).add(paket)
     return bulunan

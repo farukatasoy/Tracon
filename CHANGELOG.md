@@ -220,6 +220,54 @@ preview line, and the counts below are types, not members.
 
 ### Changed
 
+- `TraconToolRegistration` takes only the tool in its constructor. Every other
+  setting is an `init` property with the same default as before, so a setting
+  added later does not change the constructor again:
+
+  ```csharp
+  // Before (1.0.0-preview.1 / preview.2)
+  new TraconToolRegistration(fn, requiresApproval: true, maxOutputBytes: 4096);
+
+  // After
+  new TraconToolRegistration(fn) { RequiresApproval = true, MaxOutputBytes = 4096 };
+  ```
+
+  The old named arguments fail to compile with `CS1739`, which names the
+  argument. `AddTool` and `AddScopedTool` with `ToolRegistrationOptions` do not
+  change.
+- `ITraconBuilder` now declares only `Services`. Its 27 registration methods
+  (`Configure`, `AddTool`, `AddScopedTool`, `AddToolsFrom`, `AddAgent`,
+  `AddSkill`, `AddAgentSource`, `AddAgentDecorator`, `AddRunJudge`,
+  `AddModelProvider`, `AddEvalCheck`, `AddLoopEvaluator`,
+  `RequireCustomBinding` and `RequireProductionProfile`) are extension methods
+  on the new `TraconBuilderExtensions` class, in the `Tracon` namespace next to
+  `AddTracon()`. A new registration method therefore never changes the
+  interface. Calling code does not change; `using Tracon;` is enough.
+  - An assembly compiled against an earlier `1.0.0-preview.N` release
+    (`1.0.0-preview.1`, `1.0.0-preview.2`) that creates a
+    `TraconToolRegistration` or calls an `ITraconBuilder` method throws
+    `MissingMethodException` until it is compiled again. This includes the code
+    the `[TraconTool]` source generator wrote into your assembly: the exception
+    comes from the `AddGeneratedTools()` call.
+  - Upgrade every Tracon package together. A provider, MCP, Voice or Testing
+    package from an earlier preview next to the new `Tracon.Core` fails while
+    it registers, for example with `MissingMethodException` inside
+    `UseOpenAI()`, before the start-up version check can run.
+  - An `ITraconBuilder` implementation of your own needs only `Services`. An
+    explicit implementation of a removed method (`ITraconBuilder
+    ITraconBuilder.AddTool(...)`) fails to compile with `CS0539`; delete it. A
+    public method with the same name still compiles, but it runs only when the
+    caller holds your concrete type. Through `ITraconBuilder`, Tracon's
+    extension method runs and writes to your `Services`, so a test double must
+    return a real service collection from it.
+  - Every registration method now throws `ArgumentNullException` for a `null`
+    chain (`NullReferenceException` before).
+  - An extension method of your own with the same signature as one of these
+    no longer loses to the interface member. Declared in a namespace nearer to
+    the call than `Tracon` (for example in your own `namespace MyApp`), it now
+    runs instead of Tracon's method, with no warning. Imported at the same
+    level as `Tracon`, the call is ambiguous (`CS0121`). Rename or remove such
+    an extension.
 - Every Tracon package now depends on its Tracon siblings at exactly its own
   version (`[1.0.0-preview.3]`), not at that version or any later one.
   Upgrading one Tracon package and not the others now fails restore with

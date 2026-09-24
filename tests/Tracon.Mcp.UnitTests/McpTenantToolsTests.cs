@@ -17,8 +17,10 @@ public sealed class McpTenantToolsTests
     public void An_mcp_tool_with_no_declared_effect_defaults_to_External()
     {
         var registration = new TraconToolRegistration(
-            AIFunctionFactory.Create(() => "ok", "remote_tool"),
-            source: "github-mcp");
+            AIFunctionFactory.Create(() => "ok", "remote_tool"))
+        {
+            Source = "github-mcp",
+        };
 
         var tools = McpTenantTools.Create(
             [registration],
@@ -44,8 +46,10 @@ public sealed class McpTenantToolsTests
         // direct TraconToolRegistration), so it must NEVER be
         // misclassified as client-side and wrongly block a replay.
         var registration = new TraconToolRegistration(
-            AIFunctionFactory.Create(() => "ok", "remote_tool"),
-            source: "github-mcp");
+            AIFunctionFactory.Create(() => "ok", "remote_tool"))
+        {
+            Source = "github-mcp",
+        };
 
         var tools = McpTenantTools.Create(
             [registration],
@@ -65,9 +69,11 @@ public sealed class McpTenantToolsTests
     public void An_mcp_tool_with_an_explicitly_declared_effect_keeps_it()
     {
         var registration = new TraconToolRegistration(
-            AIFunctionFactory.Create(() => "ok", "remote_write_tool"),
-            source: "github-mcp",
-            effect: ToolEffect.Write);
+            AIFunctionFactory.Create(() => "ok", "remote_write_tool"))
+        {
+            Source = "github-mcp",
+            Effect = ToolEffect.Write,
+        };
 
         var tools = McpTenantTools.Create(
             [registration],
@@ -89,8 +95,10 @@ public sealed class McpTenantToolsTests
         var ran = false;
 
         var registration = new TraconToolRegistration(
-            AIFunctionFactory.Create(() => { ran = true; return "should never run"; }, "remote_tool"),
-            source: "github-mcp");
+            AIFunctionFactory.Create(() => { ran = true; return "should never run"; }, "remote_tool"))
+        {
+            Source = "github-mcp",
+        };
 
         var tools = McpTenantTools.Create(
             [registration],
@@ -124,9 +132,11 @@ public sealed class McpTenantToolsTests
         // was configured, and 8 KB still reached the model past a 200-byte
         // limit. A fake that cannot produce the real defect proves nothing.
         var registration = new TraconToolRegistration(
-            McpShapedTool("remote_report", new string('a', 10_000)),
-            source: "github-mcp",
-            maxOutputBytes: 100);
+            McpShapedTool("remote_report", new string('a', 10_000)))
+        {
+            Source = "github-mcp",
+            MaxOutputBytes = 100,
+        };
 
         var tools = McpTenantTools.Create(
             [registration],
@@ -150,8 +160,10 @@ public sealed class McpTenantToolsTests
     public async Task The_installation_default_output_limit_applies_to_mcp_tools_too()
     {
         var registration = new TraconToolRegistration(
-            McpShapedTool("remote_report", new string('a', 10_000)),
-            source: "github-mcp");
+            McpShapedTool("remote_report", new string('a', 10_000)))
+        {
+            Source = "github-mcp",
+        };
 
         var tools = McpTenantTools.Create(
             [registration],
@@ -176,8 +188,10 @@ public sealed class McpTenantToolsTests
     public void No_output_limit_anywhere_means_no_truncating_layer_is_installed_for_mcp_tools()
     {
         var registration = new TraconToolRegistration(
-            AIFunctionFactory.Create(() => new string('a', 10_000), "remote_report"),
-            source: "github-mcp");
+            AIFunctionFactory.Create(() => new string('a', 10_000), "remote_report"))
+        {
+            Source = "github-mcp",
+        };
 
         var tools = McpTenantTools.Create(
             [registration],

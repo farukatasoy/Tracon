@@ -55,20 +55,13 @@ OPENAPI_YOLU = pathlib.Path("docs") / "openapi" / "tracon.json"
 # sınıfları tüketicinin TÜRETECEĞİ yüzeydir; tanım gereği "seam" sınıfındadır.
 SOZLESME_PAKETLERI = frozenset({"Tracon.Testing.Contracts.Xunit"})
 
-# `CapabilityEntryPoints.cs` ve `manuel-test-tazelik.py` ile AYNI kural (K-509).
-# Kayıt giriş noktası tüketicinin bir yeteneği açtığı üyedir; kapsama kapısı
-# her birinin site haritasında ve örnekte göründüğünü zaten zorlar.
-KAYIT_ALICILARI = frozenset({
-    "Tracon.ITraconBuilder",
-    "Microsoft.Extensions.DependencyInjection.IServiceCollection",
-    "Microsoft.Extensions.DependencyInjection.IHealthChecksBuilder",
-    "Microsoft.Extensions.Hosting.IHostApplicationBuilder",
-    "Microsoft.AspNetCore.Routing.IEndpointRouteBuilder",
-})
-UZANTI_METODU = re.compile(
-    r"^(?:[a-z]+ )*[A-Za-z0-9_.<>]+?\.(?P<ad>[A-Za-z_][A-Za-z0-9_]*)"
-    r"(?:<[^(]*>)?\(this (?P<alici>[A-Za-z0-9_.]+)")
-KAYIT_METODU = re.compile(r"^(?:Add|Use|Map)")
+# Kayıt giriş noktası kuralı (K-509) `kayit_giris_noktasi.py`'dedir;
+# `manuel-test-tazelik.py` aynı modülü kullanır, C# kopyası
+# `CapabilityEntryPoints.cs`'tir. Kayıt giriş noktası tüketicinin bir yeteneği
+# açtığı üyedir; kapsama kapısı her birinin site haritasında ve örnekte
+# göründüğünü zaten zorlar.
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from kayit_giris_noktasi import UZANTI_METODU, kayit_uzantisi_mi  # noqa: E402
 
 # Bir Unshipped satırı tip bildirimi değilse ya imza `(` ya da tip ` -> ` taşır
 # (`PublicSurfaceBaselineTests` ile aynı süzgeç).
@@ -375,7 +368,7 @@ def _tuketici_kaniti(tip: Tip, korpus: Korpus, openapi_semalari: set[str]) -> st
         uzanti = UZANTI_METODU.match(satir)
         if uzanti is None:
             continue
-        if uzanti.group("alici") in KAYIT_ALICILARI and KAYIT_METODU.match(uzanti.group("ad")):
+        if kayit_uzantisi_mi(uzanti.group("ad"), uzanti.group("alici")):
             return f"giris-noktasi:{uzanti.group('ad')}"
         # Uzantı metodunu çağıran tüketici sınıfın ADINI yazmaz, metodun adını yazar.
         kanit = korpus.bul(uzanti.group("ad"))

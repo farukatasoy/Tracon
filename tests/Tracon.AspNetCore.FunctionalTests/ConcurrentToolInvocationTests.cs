@@ -200,8 +200,10 @@ public sealed class ConcurrentToolInvocationTests
                             await Task.Delay(TimeSpan.FromSeconds(2)); // delay: simulated
                             return "result_b";
                         }),
-                        "tool_b"),
-                    timeout: TimeSpan.FromMilliseconds(200)));
+                        "tool_b"))
+                {
+                    Timeout = TimeSpan.FromMilliseconds(200),
+                });
 
                 builder.Services.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20));
             });

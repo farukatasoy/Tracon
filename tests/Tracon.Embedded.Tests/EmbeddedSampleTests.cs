@@ -59,6 +59,32 @@ public sealed class EmbeddedSampleTests
     }
 
     /// <summary>
+    /// The sample registers its tools through the source generator
+    /// (<c>AddGeneratedTools()</c>), whose registration code is compiled into
+    /// the sample's own assembly. A permission the generator failed to write
+    /// would let anyone call the destructive tool.
+    /// </summary>
+    [Fact]
+    public async Task Generated_tools_keep_the_permission_declared_on_the_attribute()
+    {
+        await using var host = new EmbeddedSampleHost();
+        using var client = host.CreateClient();
+
+        using var response = await client.GetAsync(new Uri("tracon/api/tools", UriKind.Relative));
+        response.EnsureSuccessStatusCode();
+
+        var permissions = JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement
+            .EnumerateArray()
+            .ToDictionary(
+                static tool => tool.GetProperty("name").GetString()!,
+                static tool => tool.GetProperty("requiredPermission").GetString(),
+                StringComparer.Ordinal);
+
+        permissions["delete_account"].ShouldBe("admin");
+        permissions["account_balance"].ShouldBe("read-account");
+    }
+
+    /// <summary>
     /// The mandatory scenario (85.3): a job with no HTTP request behind it
     /// still records the right tenant and user, which only works if
     /// <c>AmbientTenantScope</c>/<c>AmbientRunAttributionScope</c> survive

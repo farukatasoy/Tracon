@@ -3862,14 +3862,21 @@ Tracon.TraconToolAttribute.TraconToolAttribute(string! name) -> void
 Tracon.TraconToolAttribute.TraconToolAttribute(string! name, string! description) -> void
 Tracon.TraconToolRegistration
 Tracon.TraconToolRegistration.Effect.get -> Tracon.ToolEffect
+Tracon.TraconToolRegistration.Effect.init -> void
 Tracon.TraconToolRegistration.Function.get -> Microsoft.Extensions.AI.AIFunctionDeclaration!
 Tracon.TraconToolRegistration.MaxOutputBytes.get -> int?
+Tracon.TraconToolRegistration.MaxOutputBytes.init -> void
 Tracon.TraconToolRegistration.RequiredPermission.get -> string?
+Tracon.TraconToolRegistration.RequiredPermission.init -> void
 Tracon.TraconToolRegistration.RequiresApproval.get -> bool
+Tracon.TraconToolRegistration.RequiresApproval.init -> void
 Tracon.TraconToolRegistration.SafeToRepeat.get -> bool
+Tracon.TraconToolRegistration.SafeToRepeat.init -> void
 Tracon.TraconToolRegistration.Source.get -> string?
+Tracon.TraconToolRegistration.Source.init -> void
 Tracon.TraconToolRegistration.Timeout.get -> System.TimeSpan?
-Tracon.TraconToolRegistration.TraconToolRegistration(Microsoft.Extensions.AI.AIFunctionDeclaration! function, bool requiresApproval = false, string? source = null, Tracon.ToolEffect effect = Tracon.ToolEffect.Read, string? requiredPermission = null, System.TimeSpan? timeout = null, bool safeToRepeat = false, int? maxOutputBytes = null) -> void
+Tracon.TraconToolRegistration.Timeout.init -> void
+Tracon.TraconToolRegistration.TraconToolRegistration(Microsoft.Extensions.AI.AIFunctionDeclaration! function) -> void
 Tracon.TraconToolTimeoutException
 Tracon.TraconToolTimeoutException.Timeout.get -> System.TimeSpan?
 Tracon.TraconToolTimeoutException.Timeout.init -> void

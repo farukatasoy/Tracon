@@ -15,13 +15,15 @@ public sealed class OrderFulfillmentToolContractTests : RepeatableToolContract
 
     protected override ValueTask<TraconToolRegistration> CreateRegistrationAsync()
         => new(new TraconToolRegistration(
-            AIFunctionFactory.Create((Func<string>)(() => "ready"), "submit_order", "Submits an order to fulfillment."),
-            requiresApproval: true,
-            effect: ToolEffect.External,
-            requiredPermission: "orders.submit",
-            timeout: TimeSpan.FromSeconds(30),
-            safeToRepeat: true,
-            maxOutputBytes: 768));
+            AIFunctionFactory.Create((Func<string>)(() => "ready"), "submit_order", "Submits an order to fulfillment."))
+        {
+            RequiresApproval = true,
+            Effect = ToolEffect.External,
+            RequiredPermission = "orders.submit",
+            Timeout = TimeSpan.FromSeconds(30),
+            SafeToRepeat = true,
+            MaxOutputBytes = 768,
+        });
 }
 
 /// <summary>Exercises both custom-tool paths through a real Tracon run.</summary>

@@ -77,8 +77,10 @@ public sealed class LateToolCompletionTests
 
     private static TraconToolRegistration SlowTool(Func<CancellationToken, Task<string>> body)
         => new(
-            Microsoft.Extensions.AI.AIFunctionFactory.Create(body, "slow_report"),
-            timeout: TimeSpan.FromMilliseconds(300));
+            Microsoft.Extensions.AI.AIFunctionFactory.Create(body, "slow_report"))
+        {
+            Timeout = TimeSpan.FromMilliseconds(300),
+        };
 
     private static Action<ITraconBuilder> Builder(TraconToolRegistration registration)
         => builder =>

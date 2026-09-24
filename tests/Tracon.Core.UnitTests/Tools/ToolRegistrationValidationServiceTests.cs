@@ -31,8 +31,10 @@ public sealed class ToolRegistrationValidationServiceTests
     public async Task Invalid_per_tool_timeout_fails_startup()
     {
         var registration = new TraconToolRegistration(
-            AIFunctionFactory.Create((Func<string>)(() => "ok"), "status", "Gets status."),
-            timeout: TimeSpan.Zero);
+            AIFunctionFactory.Create((Func<string>)(() => "ok"), "status", "Gets status."))
+        {
+            Timeout = TimeSpan.Zero,
+        };
         var service = Create(new VerifiedRegistry(), [registration]);
 
         await Should.ThrowAsync<TraconException>(async () => await service.StartAsync(CancellationToken.None));

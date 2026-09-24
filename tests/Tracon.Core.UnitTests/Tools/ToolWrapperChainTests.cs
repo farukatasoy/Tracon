@@ -42,7 +42,7 @@ public sealed class ToolWrapperChainTests
     public void A_code_defined_registration_and_an_mcp_style_registration_produce_the_same_wrapper_layers()
     {
         var codeRegistration = new TraconToolRegistration(TestData.Tool("code_tool"));
-        var mcpRegistration = new TraconToolRegistration(TestData.Tool("mcp_tool"), source: "github-mcp");
+        var mcpRegistration = new TraconToolRegistration(TestData.Tool("mcp_tool")) { Source = "github-mcp" };
 
         // ToolRegistry passes the registration's own effect straight through;
         // McpTenantTools promotes Read -> External before building the
@@ -73,8 +73,8 @@ public sealed class ToolWrapperChainTests
     [Fact]
     public void RequiresApproval_installs_the_approval_wrapper_for_both_call_shapes()
     {
-        var codeRegistration = new TraconToolRegistration(TestData.Tool("code_tool"), requiresApproval: true);
-        var mcpRegistration = new TraconToolRegistration(TestData.Tool("mcp_tool"), requiresApproval: true, source: "github-mcp");
+        var codeRegistration = new TraconToolRegistration(TestData.Tool("code_tool")) { RequiresApproval = true };
+        var mcpRegistration = new TraconToolRegistration(TestData.Tool("mcp_tool")) { RequiresApproval = true, Source = "github-mcp" };
 
         var codeFunction = Compose(codeRegistration, Descriptor("code_tool", requiresApproval: true));
         var mcpFunction = Compose(mcpRegistration, Descriptor("mcp_tool", ToolEffect.External, requiresApproval: true));
@@ -128,7 +128,7 @@ public sealed class ToolWrapperChainTests
         var schema = System.Text.Json.JsonSerializer.Deserialize<System.Text.Json.JsonElement>(
             """{"type":"object","properties":{}}""");
         var declaration = AIFunctionFactory.CreateDeclaration("client_tool", "desc", schema, returnJsonSchema: null);
-        var registration = new TraconToolRegistration(declaration, requiresApproval: true);
+        var registration = new TraconToolRegistration(declaration) { RequiresApproval = true };
 
         var exception = Should.Throw<TraconException>(
             () => Compose(registration, Descriptor("client_tool", requiresApproval: true)));
