@@ -205,7 +205,7 @@ Temiz başlıklar: 3.2, 3.3, 3.5, 3.6, 3.7.
 
 ## Sonraki Faza Devir Notu
 
-**Sıradaki faz: [190](../../190-KIMLIK-BASLIKLARI-ANAHTAR-REFERANSI.md)** — teknik
+**Sıradaki faz: [190](190-KIMLIK-BASLIKLARI-ANAHTAR-REFERANSI.md)** — teknik
 bağımlılık yok (190 önkoşulu "yalnız sıra").
 
 **Devralınan sözleşmeler:**
