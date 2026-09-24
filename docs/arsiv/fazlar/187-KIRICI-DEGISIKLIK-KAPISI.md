@@ -227,7 +227,7 @@ MT-PKG-135…141, 143, 144 koşuldu (sonuçlar case'lerde); 142 ➜ CI.
 | Metrik | Değer |
 |---|---|
 | Plan revizyonu sayısı | 0 (11 sapma yazıldı, plan yeniden yazılmadı) |
-| Düzeltme turu sayısı | 2 (denetim 🟡 turu: 3 düzeltme · CHANGELOG paragraf konumu) |
+| Düzeltme turu sayısı | 4 (denetim 🟡 turu · CHANGELOG paragraf konumu · kapanış: agent haritası · kapanış: iki mimari testi) |
 | 🔴 bulgu: gerçek / gürültü / araştırılacak | 0 / 0 / 0 |
 | Fazın ürettiği regresyon | 0 (`kapi_test.py` git-yok testi davranış değişikliğiyle güncellendi; regresyon değil) |
 | Faz kapandıktan sonra bulunan kusur | ölçülmedi |
@@ -299,3 +299,25 @@ doğrulama" ve `hafiza/yayin-ve-surumleme.md` "Sürüm kesimi ve etiket TEK push
 - `RunPackageValidation` artımlıdır; yeni rapor yolu olmadan ikinci pack doğrulamayı atlar.
 - Rapor yolu boşsa SDK `src/<P>/CompatibilitySuppressions.xml` yazar ve kırılma kalıcı gizlenir.
 - Kesim commit'i etiketsiz itilirse prova kırmızıdır (AS 1 = C).
+
+## Kapanış Kapısı
+
+`DOTNET_ROOT=~/.dotnet python3 scripts/kapi.py kapanis --taban fa34f7ed`, commit'li ağaç
+`50b50444`, 2026-09-24 → **EXIT 0, 810 sn**:
+
+| Adım | Süre | Sonuç |
+|---|---|---|
+| `kapi.py tarama` | 5,6 sn | ✅ temiz |
+| `dokuman-bakim.py --denetle` · Python testleri · ajan haritası · denetim paketi | ~8 sn | ✅ |
+| `dotnet build Tracon.slnx -c Release` | 73,1 sn | ✅ 0 uyarı |
+| `dotnet test … -maxcpucount:2 -- --report-trx` | 548,8 sn | ✅ 17.585 test (38 koşum), 0 kırmızı |
+| `dotnet pack` | 8,6 sn | ✅ |
+| `dotnet format --verify-no-changes` | 132,6 sn | ✅ |
+| `docs-site npm run check` | 33,1 sn | ✅ |
+
+İlk iki deneme kırmızıydı (düzeltme turları): (1) `versioning.md` değişikliği sevk edilen
+agent haritasını (`llms-full.txt`) bayatlattı — yeniden üretildi; (2) iki mimari testi:
+paket testindeki `Task.Delay` `// delay: <class>` etiketi taşımıyordu (`product` eklendi) ve
+`src/Directory.Build.props` yorumunda Türkçe "Faz" kelimesi `SourceLanguageTests` tabanını
+büyütüyordu (İngilizceye çevrildi). 🚨 `kapi.py test --sinif A --sinif B` yalnız sonuncuyu
+koşar; iki sınıf ayrı çağrıyla doğrulandı.
