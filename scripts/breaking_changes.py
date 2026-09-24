@@ -437,13 +437,18 @@ def untagged_cut_hint(changelog: pathlib.Path, baseline: str) -> str | None:
 
 
 _CODE_SPAN = re.compile(r"`([^`]+)`")
+# A fenced code block is code, not a span. Its three backticks would also pair
+# with the prose around it: every fence shifts which text counts as a span, so
+# two fences in one release note made the gate miss names written correctly
+# (measured, phase 189). Fences are removed before spans are read.
+_FENCE = re.compile(r"^[ \t]*(`{3,}|~{3,})[^\n]*\n.*?^[ \t]*\1[ \t]*$", re.MULTILINE | re.DOTALL)
 _ANGLE = re.compile(r"<[^<>]*>")
 _PAREN = re.compile(r"\([^()]*\)")
 _LIST_ITEM = re.compile(r"^\s*(?:[-*+]|\d+[.)])\s+")
 
 
 def _code_spans(text: str) -> list[str]:
-    return [" ".join(span.split()) for span in _CODE_SPAN.findall(text)]
+    return [" ".join(span.split()) for span in _CODE_SPAN.findall(_FENCE.sub("", text))]
 
 
 def _type_parts(span: str) -> set[str]:

@@ -525,6 +525,20 @@ class SurumNotuEslesmeTestleri(unittest.TestCase):
 
         self.assertEqual(bc.unnamed_changes(changes, notes), [])
 
+    def test_citli_kod_blogu_span_eslesmesini_kaydirmaz(self):
+        # Faz 189: iki çitli blok taşıyan not, doğru yazılmış iki adı kaçırıyordu.
+        changes = self._changes(Tracon_Core={"A", "B", "C"})
+        blok = "  ```csharp\n  new A(x, y: 1);\n  ```\n"
+        notes = f"- `A` changed:\n\n{blok}\n- `B` changed:\n\n{blok}\n- `C` changed.\n"
+
+        self.assertEqual(bc.unnamed_changes(changes, notes), [])
+
+    def test_yalniz_citli_blokta_gecen_ad_kabul_edilmez(self):
+        changes = self._changes(Tracon_Core={"Hidden"})
+        notes = "- A type changed:\n\n  ```csharp\n  `Hidden` x;\n  ```\n"
+
+        self.assertEqual(bc.unnamed_changes(changes, notes), ["Tracon.Core: Hidden"])
+
     def test_paket_kimligi_tam_esitlik_ister(self):
         changes = bc.BreakingChanges()
         changes.dropped_frameworks["Tracon"] = {"net8.0"}

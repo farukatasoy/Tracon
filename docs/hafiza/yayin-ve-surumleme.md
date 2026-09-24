@@ -181,3 +181,4 @@
   bölüm yoktur ve `[Unreleased]` boştur. Kırıcı değişiklik varsa kapı notu
   bulamaz. Mesaj komutu söyler: `git push --atomic origin main v<sürüm>`.
   Etiketli koşumda taban **bir önceki** `v*` etiketidir (MT-PKG-144).
+- **🚨 Sürüm notundaki çitli kod bloğu kırıcı değişiklik kapısının span eşleşmesini kaydırır** (2026-09-24, Faz 189): `breaking_changes._code_spans` çiti (```` ``` ````) ayıklamıyordu; her çitin üç backtick'i çevredeki metinle eşleşip hangi metnin span sayıldığını kaydırıyordu. Faz 188'in tek bloğu şans eseri geçti; 189'un ikinci bloğu doğru yazılmış `TraconToolRegistration` ve `ITraconBuilder` adlarını "notta yok" gösterdi. Çitler artık okunmadan önce silinir; yalnız çitin içinde geçen ad **kabul edilmez** (`test_citli_kod_blogu_span_eslesmesini_kaydirmaz`).
