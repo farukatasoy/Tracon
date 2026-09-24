@@ -15233,6 +15233,13 @@ notes](/reference/changelog/) page, grouped as Added, Changed, Deprecated,
 Removed, Fixed, and Security. Each package's `PackageReleaseNotes` metadata
 links to the entry for the exact version you installed.
 
+The entry names, by its exact name, every public type that was removed or
+changed since the previous published version, and every target framework a
+package no longer ships. The release process checks this against a
+machine-made list: it validates each package against the previous published
+package, and it does not publish when the notes leave out a name. A narrowing
+is still allowed before `1.0.0`; an unannounced one is not.
+
 ## Package identity
 
 For packages produced by the official release process, a `<package id, version>`

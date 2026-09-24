@@ -298,12 +298,6 @@ preview line, and the counts below are types, not members.
   catalog.`). The Gemini health detail for an unparsable model list is now
   `The response is not valid JSON.`, the same as the other providers.
 
-A version section is not written ahead of time. At tag time this heading is
-renamed to the version and the date it shipped on, and a fresh empty
-`## [Unreleased]` is opened above it, so a section always names artifacts that
-actually exist. Until then the release rehearsal and the GitHub release body
-both read the notes from here.
-
 ### Deprecated
 
 - `QuotaUsageQuery.AsOf`. No store ever applied it, and a store cannot turn an
@@ -314,6 +308,12 @@ both read the notes from here.
   targets from every package; `net10.0` stays. An urgent security release may
   still carry them. Move an application that targets `net8.0` or `net9.0` to
   `net10.0` before you take that release.
+
+A version section is not written ahead of time. At tag time this heading is
+renamed to the version and the date it shipped on, and a fresh empty
+`## [Unreleased]` is opened above it, so a section always names artifacts that
+actually exist. Until then the release rehearsal and the GitHub release body
+both read the notes from here.
 
 ## [1.0.0-preview.2] - 2026-09-20
 

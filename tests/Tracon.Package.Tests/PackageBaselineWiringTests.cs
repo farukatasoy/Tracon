@@ -72,7 +72,7 @@ public sealed class PackageBaselineWiringTests(PackageBaselineWiringTests.Evalua
     {
         foreach (var (id, properties) in evaluations.WithBaseline)
         {
-            if (PackableProjects.ProfileOf(id) == PackageProfile.Library)
+            if (PackableProjects.ProfileOf(id) == PackageProfile.Library && !HasFirstReleaseFlag(id))
             {
                 var lower = id.ToLowerInvariant();
                 properties["PackageValidationBaselinePath"].ShouldBe(
@@ -82,7 +82,8 @@ public sealed class PackageBaselineWiringTests(PackageBaselineWiringTests.Evalua
             else
             {
                 // Meta and template packages have no lib/; the tool is never validated
-                // (the SDK's PackTool targets set EnablePackageValidation=false).
+                // (the SDK's PackTool targets set EnablePackageValidation=false); a
+                // library flagged TraconPackageFirstRelease has no published baseline.
                 properties["PackageValidationBaselinePath"].ShouldBeEmpty(id);
                 properties["ApiCompatGenerateSuppressionFile"].ShouldBeEmpty(id);
                 properties["ApiCompatSuppressionOutputFile"].ShouldBeEmpty(id);
@@ -106,7 +107,7 @@ public sealed class PackageBaselineWiringTests(PackageBaselineWiringTests.Evalua
         // An empty report path makes the SDK write CompatibilitySuppressions.xml
         // into the project directory, and every later pack reads it back as a
         // suppression input - the break would be hidden for good.
-        foreach (var id in LibraryIds)
+        foreach (var id in LibraryIds.Where(id => !HasFirstReleaseFlag(id)))
         {
             evaluations.WithBaseline[id]["ApiCompatSuppressionOutputFile"]
                 .ShouldBe(Path.Combine(ReportDir, $"{id}.xml"), id);
@@ -116,7 +117,7 @@ public sealed class PackageBaselineWiringTests(PackageBaselineWiringTests.Evalua
     [Fact]
     public void ReportPathsAreDistinct()
     {
-        var paths = LibraryIds.Select(id => evaluations.WithBaseline[id]["ApiCompatSuppressionOutputFile"]).ToList();
+        var paths = LibraryIds.Where(id => !HasFirstReleaseFlag(id)).Select(id => evaluations.WithBaseline[id]["ApiCompatSuppressionOutputFile"]).ToList();
 
         paths.Distinct(StringComparer.Ordinal).Count().ShouldBe(paths.Count);
     }
@@ -190,7 +191,13 @@ public sealed class PackageBaselineWiringTests(PackageBaselineWiringTests.Evalua
         for (var run = 1; run <= 2; run++)
         {
             var reportDir = Path.Combine(work.Path, $"reports-{run}");
-            var started = DateTime.UtcNow.AddSeconds(-1);
+
+            // The previous pack touched the semaphore as its LAST step. Compare with
+            // that touch, not with a clock reading: a skipped validation leaves it
+            // unchanged. The pause keeps a one-second file system from folding the
+            // two touches into one timestamp.
+            var before = File.GetLastWriteTimeUtc(SemaphorePath(ProjectId));
+            await Task.Delay(TimeSpan.FromMilliseconds(1100));
 
             var result = await ProcessRunner.RunAsync(
                 "dotnet",
@@ -201,7 +208,7 @@ public sealed class PackageBaselineWiringTests(PackageBaselineWiringTests.Evalua
                 timeout: Timeout);
 
             result.ExitCode.ShouldBe(0, result.Combined);
-            File.GetLastWriteTimeUtc(SemaphorePath(ProjectId)).ShouldBeGreaterThan(started, $"pack {run} did not validate");
+            File.GetLastWriteTimeUtc(SemaphorePath(ProjectId)).ShouldBeGreaterThan(before, $"pack {run} did not validate");
 
             // Measured (187.0 step 6): with no difference the SDK writes no report.
             // The semaphore, not the report, is the proof that validation ran.
@@ -210,6 +217,11 @@ public sealed class PackageBaselineWiringTests(PackageBaselineWiringTests.Evalua
     }
 
     private static string CsprojPath(string id) => Path.Combine(RepoPaths.Root, "src", id, $"{id}.csproj");
+
+    /// <summary>Same text rule as <c>scripts/breaking_changes.py</c> (<c>FIRST_RELEASE_FLAG</c>).</summary>
+    private static bool HasFirstReleaseFlag(string id)
+        => File.ReadAllText(CsprojPath(id)).Contains(
+            "<TraconPackageFirstRelease>true</TraconPackageFirstRelease>", StringComparison.Ordinal);
 
     /// <summary>The configuration directory is matched case-insensitively: macOS <c>Release</c>, Linux <c>release</c>.</summary>
     private static string SemaphorePath(string id)

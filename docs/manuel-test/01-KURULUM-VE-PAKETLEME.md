@@ -3849,3 +3849,254 @@ dotnet list package --deprecated
 **Beklenen sonuç**
 - Tracon paketleri deprecated görünür; alternatif olarak aynı kimliğin yeni sürümü.
 - `dotnet restore` engellenmez.
+
+---
+
+### MT-PKG-135 — Yayın provası son yayına karşı kırıcı listeyi çıkarır ve yeşil verir
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 187 |
+| **İlgili karar** | K-864 |
+
+**Ön koşul**
+- Temiz ağaç, HEAD etiketsiz; `artifacts/package/release` eski damga taşımaz (taşıyorsa `rm -rf`).
+
+**Adımlar**
+1. `DOTNET_ROOT=~/.dotnet python3 scripts/kapi.py yayin --kuru`
+2. `git status --porcelain` · `find src -name CompatibilitySuppressions.xml` · `ls artifacts/package/api-compat`
+
+**Gerçek sonuç (2026-09-24, `f8f85052`)**
+- Çıkış 0, 112,5 sn. `Taban: v1.0.0-preview.2 (git describe)` · `Taban paketleri izole cache'ten:
+  17 paket, kaynak api.nuget.org` · `✅ Kırıcı liste: 95 tip, 0 TFM düşüşü, 10 paket — hepsi
+  'Unreleased' notunda` · `artifacts/package/breaking-changes.json`. AOT ve net8.0 smoke geçti.
+- Üç komut boş; rapor dizini koşum sonunda silinir.
+
+**Beklenen sonuç**
+- Çıkış 0; çıktı tabanı, "17 paket"i ve `breaking-changes.json` yolunu yazar; ağaç ve `src/` temiz kalır.
+
+---
+
+### MT-PKG-136 — Notta adı geçmeyen kırılmış tip provayı durdurur
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 187 |
+| **İlgili karar** | K-864 |
+
+**Ön koşul**
+- Depo dışı worktree (`git worktree add --detach "$(cd "$TMPDIR" && pwd -P)/wt" HEAD`); `CHANGELOG.md`'den
+  `` `SchemaReadyGate`, `` silinip commit edildi.
+
+**Adımlar**
+1. Worktree'de `DOTNET_ROOT=~/.dotnet python3 scripts/kapi.py yayin --kuru`
+
+**Gerçek sonuç (2026-09-24)**
+- Çıkış 1: `❌ Kırıcı değişiklik sürüm notunda adıyla geçmiyor (taban v1.0.0-preview.2, not
+  'Unreleased'):` + `Tracon.Abstractions: SchemaReadyGate`. `artifacts/package/release` oluşmadı.
+
+**Beklenen sonuç**
+- Çıkış 1; eksik ad paketiyle yazılır; release dizinine paket yazılmaz.
+
+---
+
+### MT-PKG-137 — Joker satırı (`*ModelCatalog`) tip adı sayılmaz
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 187 |
+| **İlgili karar** | K-864 |
+
+**Ön koşul**
+- Worktree; `CHANGELOG.md` Faz 187 öncesi hâline döndü (`git show fa34f7ed:CHANGELOG.md`), commit edildi.
+
+**Adımlar**
+1. `DOTNET_ROOT=~/.dotnet python3 scripts/kapi.py yayin --kuru`
+
+**Gerçek sonuç (2026-09-24)**
+- Çıkış 1; dört satır: `Tracon.Anthropic: AnthropicChatClientFactory, AnthropicModelCatalog` ·
+  `Tracon.Azure: …` · `Tracon.Google: …` · `Tracon.OpenAI: OpenAIChatClientFactory, OpenAIModelCatalog`.
+  Aynı worktree'de ikinci koşumdu; doğrulama yine koştu (semaphore kanıtı kırmızı vermedi).
+
+**Beklenen sonuç**
+- Çıkış 1; dört pakette sekiz ad.
+
+---
+
+### MT-PKG-138 — Taban geliştirici cache'inden okunmaz
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 187 |
+| **İlgili karar** | K-864 |
+
+**Ön koşul**
+- MT-PKG-135 koşumu; öncesinde `ls -laT ~/.nuget/packages/tracon.core/` zamanları not edildi.
+
+**Adımlar**
+1. Koşum sırasında izole cache'i gör: `ls "$TMPDIR" | grep tracon-baseline`; `.nupkg.metadata` kaynağını oku.
+2. Koşumdan sonra aynı `ls -laT` ve `ls "$TMPDIR" | grep tracon-baseline`.
+
+**Gerçek sonuç (2026-09-24)**
+- Çıktı satırı `kaynak api.nuget.org` (kapı her `.nupkg.metadata`'yı okur; başka kaynak kırmızıdır).
+  Geliştirici cache'inde son değişiklik 09:40, koşum 10:2x; `tracon-baseline-*` koşumdan sonra yok.
+
+**Beklenen sonuç**
+- Taban kaynağı `https://api.nuget.org/v3/index.json`; geliştirici cache'i değişmez; geçici dizin silinir.
+
+---
+
+### MT-PKG-139 — Bayat ilk yayın bayrağı pack'ten önce durdurur
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 187 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- Worktree; `src/Tracon.Voice/Tracon.Voice.csproj`'a
+  `<PropertyGroup><TraconPackageFirstRelease>true</TraconPackageFirstRelease></PropertyGroup>`, commit edildi.
+
+**Adımlar**
+1. `DOTNET_ROOT=~/.dotnet python3 scripts/kapi.py yayin --kuru`
+
+**Gerçek sonuç (2026-09-24)**
+- Çıkış 1, saniyeler içinde: `❌ İlk yayın bayrağı bayat - paket v1.0.0-preview.2 etiketinde zaten
+  vardı; TraconPackageFirstRelease'i kaldırın: Tracon.Voice`. `artifacts/package` oluşmadı.
+
+**Beklenen sonuç**
+- Çıkış 1, pack yok; mesaj paketi adlandırır.
+
+---
+
+### MT-PKG-140 — Strict mode yalnız bir TFM'de olan public üyeyi reddeder
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 187 |
+| **İlgili karar** | K-865 |
+
+**Ön koşul**
+- Worktree; `src/Tracon.Voice/StrictProbe.cs`: `public static class StrictProbe` içinde
+  `#if NET10_0_OR_GREATER public static int OnlyOnNet10() => 1; #endif`; commit edildi.
+
+**Adımlar**
+1. `dotnet pack src/Tracon.Voice -c Release -o <depo dışı> -p:TraconPublicApiTrackingEnabled=false`
+2. Kontrol: aynı komut `-p:EnableStrictModeForCompatibleTfms=false -p:EnableStrictModeForCompatibleFrameworksInPackage=false` ile.
+
+**Gerçek sonuç (2026-09-24)**
+- (1) Çıkış 1: `error CP0002: Member 'int Tracon.StrictProbe.OnlyOnNet10()' exists on
+  lib/net10.0/Tracon.Voice.dll but not on lib/net9.0/Tracon.Voice.dll`. (2) Çıkış 0.
+
+**Beklenen sonuç**
+- Strict açıkken çıkış ≠ 0 ve üye adıyla; strict kapalıyken geçer (sebep strict mode'dur).
+
+---
+
+### MT-PKG-141 — Düşen TFM (`PKV006`) paket + TFM ile anılmalı
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 187 |
+| **İlgili karar** | K-864 |
+
+**Ön koşul**
+- Bir dizinde `Tracon.Voice.xml` = `scripts/testdata/breaking-changes/voice-net10-only.xml`
+  (Voice yalnız `net10.0` ile paketlenip preview.2'ye karşı doğrulandı, 187.0 adım 4).
+
+**Adımlar**
+1. `python3 scripts/breaking_changes.py --rapor-dizini <dizin> --taban 1.0.0-preview.2`
+2. Scratch `CHANGELOG.md`: `- `Tracon.Voice`: `VoiceProviderNames`.` ve
+   `- `Tracon.Voice`: the `net8.0` and `net9.0` targets.`; aynı komut `--changelog <scratch>` ile.
+
+**Gerçek sonuç (2026-09-24)**
+- (1) Çıkış 1: `Tracon.Voice: düşen TFM net8.0, net9.0` (depodaki `### Deprecated` maddesi TFM'leri
+  anar ama paketi anmaz). (2) Çıkış 0: `1 tip, 2 TFM düşüşü, 1 paket`.
+
+**Beklenen sonuç**
+- Paket ve TFM aynı maddede code span olarak geçmeden yeşil yoktur.
+
+---
+
+### MT-PKG-142 — ➜ CI: `release-dryrun` gerçek Linux koşumunda yeşil
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 187 |
+| **İlgili karar** | K-864 |
+
+**Ön koşul**
+- Faz 187 commit'leri `origin`'e itildi (bakımcı eylemi).
+
+**Adımlar**
+1. `gh run list --workflow CI --limit 1` → `gh run view <id> --log | grep -E "Taban|Kırıcı liste"`
+
+**Beklenen sonuç**
+- `release-dryrun` yeşil; log `Taban: v1.0.0-preview.2` ve `17 paket` satırlarını taşır
+  (Linux'ta semaphore klasörü `release/`).
+
+---
+
+### MT-PKG-143 — Etiket anında sürüm bölümü okunur (`--surum`)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 187 |
+| **İlgili karar** | K-825 |
+
+**Ön koşul**
+- Worktree; `## [Unreleased]` → `## [1.0.0-preview.3] - <tarih>`, üstüne boş `## [Unreleased]`; commit.
+
+**Adımlar**
+1. `DOTNET_ROOT=~/.dotnet python3 scripts/kapi.py yayin --kuru --surum 1.0.0-preview.3`
+
+**Gerçek sonuç (2026-09-24)**
+- Çıkış 0: `✅ Kırıcı liste: 95 tip, 0 TFM düşüşü, 10 paket — hepsi '1.0.0-preview.3' notunda`;
+  20 paket `1.0.0-preview.3`, örnekler ve smoke geçti.
+
+**Beklenen sonuç**
+- Çıkış 0; not başlığı `1.0.0-preview.3`.
+
+---
+
+### MT-PKG-144 — Kesim commit'i etiketsiz: kırmızı; etiketle: yeşil (Açık Soru 1 = C)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 187 |
+| **İlgili karar** | K-864 |
+
+**Ön koşul**
+- Klon (`git clone "$REPO" <depo dışı>`; worktree etiketleri paylaşır); MT-PKG-143'ün kesimi commit edildi.
+
+**Adımlar**
+1. (a) `DOTNET_ROOT=~/.dotnet python3 scripts/kapi.py yayin --kuru`
+2. (b) `git tag v1.0.0-preview.3`, sonra aynı komut.
+
+**Gerçek sonuç (2026-09-24)**
+- (a) Çıkış 1: `Kırıcı değişiklik var ama '1.0.0-preview.2.54' için sürüm notu yok` +
+  `'## [1.0.0-preview.3]' bölümü var ama etiketi yok: … (git push --atomic origin main v1.0.0-preview.3)`.
+- (b) Çıkış 0: `Taban: v1.0.0-preview.2` (bir önceki etiket), not `1.0.0-preview.3`.
+
+**Beklenen sonuç**
+- (a) Kırmızı ve mesaj tek komutla itmeyi söyler; (b) yeşil, taban bir önceki etiket.
