@@ -8,8 +8,8 @@
 > **Çalışma modu:** `nuget-danismani` — yayın sonrası (`1.0.0-preview.3`)  
 > **GÜNCEL DURUM (2026-09-24, 21:50 UTC):** ✅ **`1.0.0-preview.3` SEVK EDİLDİ.**
 > `v1.0.0-preview.3` → `b0771b3e`, etiket koşumu `36057172063` yeşil (npm ·
-> NuGet · GitHub release). npm `latest` = `next` = preview.3; nuget.org 19/20
-> görünür, `Tracon.Cli` doğrulamada. `MT-PKG-160`: 19/19 paket CI'ın
+> NuGet · GitHub release). npm `latest` = `next` = preview.3; nuget.org 20/20
+> görünür. `MT-PKG-160`: 20/20 paket CI'ın
 > `nuget-verified` artifact'iyle girdi girdi aynı (KN-032). Site yeniden
 > yayımlandı. npm deprecation ✅. Kalan 👤: nuget.org'da preview.1/2 deprecation
 > (OP-008, arayüz) · A-61 advisory. Ayrıntı: §4 "YAYINLANDI — 2026-09-24".
@@ -113,8 +113,8 @@ koşumu: yayınlanan baytlar CI'ın doğruladığı baytlardır.
 | Ne | Kanıt |
 |---|---|
 | npm | `+ @tracon/client@1.0.0-preview.3` 21:27 UTC; registry'de 21:38 UTC (~11 dk önbellek gecikmesi). `latest` = `next` = preview.3 (stable yok → `latest` en yeni preview'e alınır) |
-| nuget.org | 21:36 UTC'den itibaren paket paket görünür; 21:49 UTC'de 19/20, `Tracon.Cli` (28 MB) doğrulamada |
-| `MT-PKG-160` | 19/19 paket: nuget.org dosyası ile `nuget-verified` artifact'i **girdi girdi aynı** (`.signature.p7s` hariç; `[Content_Types].xml` dahil). Ham SHA-256 farklı — depo imzası (KN-032) |
+| nuget.org | 21:36 UTC'den itibaren paket paket görünür; 22:03 UTC'de **20/20** (`Tracon.Cli` en son) |
+| `MT-PKG-160` | **20/20** paket: nuget.org dosyası ile `nuget-verified` artifact'i **girdi girdi aynı** (`.signature.p7s` hariç; `[Content_Types].xml` dahil). Ham SHA-256 farklı — depo imzası (KN-032) |
 | Yeniden koşum | "Re-run failed jobs" önceki denemenin artifact'ini kullandı: ubuntu işi yeniden koşmadı, 2. denemenin `release-dryrun`'u 1. denemenin `nuget-packages`'ını okudu (KN-033) |
 | Site | `site-deploy.sh` etiketten sonra yeniden koştu; Voice bölümü `guides/voice/#troubleshooting`'te, `troubleshooting` 58 149 B |
 
@@ -124,9 +124,9 @@ preview.1 ve preview.2 `deprecated` taşır, preview.3 taşımaz (registry'den
 değişiklik olmadığı içindir). nuget.org 👤 — 20 paket için arayüzden
 (deprecation için herkese açık API yok). A-61: GitHub Security Advisory.
 
-`Tracon.Cli` push'u kabul edildi (`Created`, 21:27 UTC) ama 22:02 UTC'de
-nuget.org'da hâlâ görünmüyor; doğrulama başarısız olursa nuget.org sahibe
-e-posta atar.
+`Tracon.Cli` (28 MB) push'tan ~36 dk sonra, 22:03 UTC'de görünür oldu: önce
+flat container ve paket sayfası; registration ve arama indeksi birkaç dakika
+geriden gelir. `MT-PKG-160` onun için de aynı (124 girdi, fark yok).
 
 ### ✅ KARAR — 2026-09-24 (`nuget-danismani`, `preview.3` yayın kararı)
 
@@ -343,7 +343,7 @@ Kalıcı sonuçlar:
 | KN-029 | UR-008 B sonrası kapanış kapısı | Tamamlandı | `DOTNET_ROOT=~/.dotnet python3 scripts/kapi.py kapanis --taban c45112be` (commit `81134277` + defter) | Çıkış `0`: 38 test projesi, 18.116 test, 0 kırmızı, 1 atlandı; build uyarısız; pack, format, site (`npm run check`, 1042 sayfa, 0 kırık bağlantı) yeşil. İlk koşum `llms-full.txt` bayat diye düştü → yeniden üretildi (`81134277`) | 2026-09-24 |
 | KN-030 | `preview.3` provası — kesim commit'inden | Tamamlandı | `python3 scripts/kapi.py yayin --kuru --surum 1.0.0-preview.3`, **`DOTNET_ROOT` yok** (net8 global kurulumda), temiz ağaç `e0fd4f61` (iki CI koşumunun düzeltmelerinin üstüne yeniden yazılan kesim, KG-043, KG-045); `artifacts/package/release/` bilerek dolu (`preview.1`, `preview.2.84`, `preview.2.87`, eski `preview.3`). Önceki kesimlerin (`2b6c0fb2`, `17ca8dfb`) adayları `yayin/`'den kaldırıldı (MT-PKG-116 kuralı) | Çıkış `0`, 3 dk. `📦 Prova çıktısı: artifacts/package/yayin/1.0.0-preview.3`; kırıcı liste 121 tip, notlar `[1.0.0-preview.3]` bölümünden; altı sample, AOT smoke, net8.0 tüketici smoke global .NET 8.0.31'de yeşil. `release/`'deki eski paketler provayı düşürmedi (MT-PKG-163) | 2026-09-24 |
 | KN-031 | A-59 düzeltmesinin dış tüketici kanıtı (6. seviye) | Tamamlandı | Repo dışı `net10.0` konsol, izole `NUGET_PACKAGES`, `Tracon*` → yerel feed eşlemesi; `Tracon.AspNetCore` + `Microsoft.Agents.AI.Hosting` `1.22.0-preview.260918.1` | **Negatif kontrol:** yayınlanmış `1.0.0-preview.2` ile restore **uyarısız** geçti (kusurun kendisi). **Düzeltme:** preview.3 adayıyla `warning NU1608: ... requires Microsoft.Agents.AI.Hosting (= 1.20.0-preview.260831.1) but version ... 1.22.0-preview.260918.1 was resolved`. Nuspec beş bağımlılığı `[x]` yazar; `Tracon.UI` `THIRD-PARTY-NOTICES.txt`'yi kökte taşır ve repo dosyasıyla aynıdır (MT-PKG-161; 162 adım 1–2) | 2026-09-24 |
-| KN-032 | `MT-PKG-160` — nuget.org baytı = CI'ın doğruladığı bayt | Tamamlandı | `nuget-verified` (koşum `36057172063`, artifact `10834248786`) indirildi; 19 paket `v3-flatcontainer`'dan; `.signature.p7s` hariç girdi kümesi ve her girdinin baytı karşılaştırıldı | 19/19 aynı, 0 fark. `Tracon.Core`: CI 16 girdi, nuget.org 17 (fark yalnız imza); ham SHA-256 farklı (beklenen). `Tracon.Cli` o an nuget.org'da yoktu (doğrulama) | 2026-09-24 |
+| KN-032 | `MT-PKG-160` — nuget.org baytı = CI'ın doğruladığı bayt | Tamamlandı | `nuget-verified` (koşum `36057172063`, artifact `10834248786`) indirildi; 20 paket `v3-flatcontainer`'dan; `.signature.p7s` hariç girdi kümesi ve her girdinin baytı karşılaştırıldı | 20/20 aynı, 0 fark. `Tracon.Core`: CI 16 girdi, nuget.org 17 (fark yalnız imza); ham SHA-256 farklı (beklenen). `Tracon.Cli` 22:03 UTC'de görününce ayrıca karşılaştırıldı: CI 124 girdi, nuget.org 125, fark yok | 2026-09-24 |
 | KN-033 | "Re-run failed jobs" artifact'i yeniden kullanır mı | Tamamlandı | Koşum `36048047050` işleri (`filter=all`) ve artifact listesi | Evet: 2. denemede ubuntu işi yeniden koşmadı (başlangıç 19:25:32Z iki denemede aynı); tek `nuget-packages` 1. denemeden (20:00:04Z); 2. denemenin `release-dryrun`'u onu okuyup `nuget-verified`'ı üretti (20:43:07Z). `test-results-windows-latest` her denemede ayrı yüklendi | 2026-09-24 |
 
 ### Henüz ölçülmeyen alanlar
@@ -608,8 +608,7 @@ operasyon kritik yolunu yeniden açmaz.
 ## 13. Sonraki adım
 
 > **`preview.3` SEVK EDİLDİ (2026-09-24, KG-046).** Kalan 👤: preview.1/2
-> deprecation (OP-008) · A-61 advisory · `Tracon.Cli`'nin nuget.org'da
-> görünmesi ve `MT-PKG-160`'ın o paket için tamamlanması. Sonra GA hattı: A-72
+> deprecation (OP-008, nuget.org) · A-61 advisory. Sonra GA hattı: A-72
 > (`Tracon.Cli` bildirimi) · A-73 (SDK sabitleme) · F-257 (yarış testleri) ·
 > A-71 kapısı. Ayrıntı: §4 "YAYINLANDI — 2026-09-24".
 
