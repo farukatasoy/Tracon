@@ -133,8 +133,11 @@ public sealed record WebhookSubscription
     /// <remarks>
     /// <para>
     /// An authentication header is <strong>not written here</strong>: the
-    /// value would be stored in the database. Use
-    /// <see cref="SecretConfigurationKey"/> for signing instead.
+    /// value would be stored in the database. Declare it in
+    /// <c>HeaderConfigurationKeys</c> instead, and use
+    /// <see cref="SecretConfigurationKey"/> for signing. The HTTP save rejects a
+    /// header whose name looks like a credential (<c>Authorization</c>,
+    /// <c>X-Api-Key</c>, <c>Cookie</c>, any name ending in <c>-key</c>).
     /// </para>
     /// <para>
     /// The read, list and save responses mask every value. A save whose
@@ -143,6 +146,49 @@ public sealed record WebhookSubscription
     /// </para>
     /// </remarks>
     public IReadOnlyDictionary<string, string> Headers { get; init; } =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Credential headers, as a map from the header name to the NAME of the
+    /// configuration key its value is read from. The value is resolved through
+    /// <c>IConfiguration</c> on every delivery and is never stored.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Every key name must sit under
+    /// <c>TraconWebhookOptions.AllowedConfigurationPrefix</c>, inside the
+    /// tenant's own key space (<c>{prefix}{tenantId}:...</c>; a flat name
+    /// directly under the prefix belongs to the default tenant). The rule is
+    /// checked on save and again before every delivery; a delivery whose
+    /// subscription names a key outside the tenant is dropped.
+    /// </para>
+    /// <para>
+    /// A header name may appear only once across <see cref="Headers"/> and
+    /// this map, compared case-insensitively, and may not be one of the
+    /// headers Tracon sets itself (<c>X-Tracon-*</c>). The map counts toward
+    /// <c>TraconWebhookOptions.MaxExtraHeaders</c> together with
+    /// <see cref="Headers"/>.
+    /// </para>
+    /// </remarks>
+    /// <example>
+    /// <code>
+    /// var record = new WebhookSubscription
+    /// {
+    ///     Id = Guid.NewGuid(),
+    ///     TenantId = "acme",
+    ///     Name = "orders",
+    ///     Url = "https://orders.example.com/hook",
+    ///     Events = [WebhookEvents.RunCompleted],
+    ///     CreatedAt = DateTimeOffset.UtcNow,
+    ///     UpdatedAt = DateTimeOffset.UtcNow,
+    ///     HeaderConfigurationKeys = new Dictionary&lt;string, string&gt;
+    ///     {
+    ///         ["X-Api-Key"] = "Tracon:WebhookSecrets:acme:OrdersKey",
+    ///     },
+    /// };
+    /// </code>
+    /// </example>
+    public IReadOnlyDictionary<string, string> HeaderConfigurationKeys { get; init; } =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Whether the subscription is enabled.</summary>

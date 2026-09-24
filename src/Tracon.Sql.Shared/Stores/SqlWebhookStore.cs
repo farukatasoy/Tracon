@@ -89,6 +89,7 @@ internal sealed class SqlWebhookStore : IWebhookStore
         Dialect.AddTextArray(command, "events", subscription.Events);
         Dialect.AddText(command, "secret_configuration_key", subscription.SecretConfigurationKey);
         Dialect.AddJsonb(command, "headers", SerializeHeaders(subscription.Headers));
+        Dialect.AddJsonb(command, "header_configuration_keys", SerializeHeaders(subscription.HeaderConfigurationKeys));
         DbHelpers.Add(command, "enabled", subscription.Enabled);
         DbHelpers.Add(command, "consecutive_failures", subscription.ConsecutiveFailures);
         Dialect.AddTimestamp(command, "created_at", subscription.CreatedAt);
@@ -225,11 +226,21 @@ internal sealed class SqlWebhookStore : IWebhookStore
             return "{}";
         }
 
+        // 🚨 Copied with the indexer, not ToDictionary: an Ordinal source that
+        // carries 'X-A' and 'x-a' made ToDictionary throw ArgumentException and
+        // the save answered 500. The last spelling wins, as it does when the
+        // record is read back; the HTTP save rejects such a pair with 400
+        // before it gets here.
+        var copy = new Dictionary<string, string>(headers.Count, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var (name, value) in headers)
+        {
+            copy[name] = value;
+        }
+
         // Source-generated context: reflection-based serialization is not
         // used, for AOT compatibility.
-        return JsonSerializer.Serialize(
-            headers.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.OrdinalIgnoreCase),
-            TraconJsonContext.Default.DictionaryStringString);
+        return JsonSerializer.Serialize(copy, TraconJsonContext.Default.DictionaryStringString);
     }
 
     private static Dictionary<string, string> DeserializeHeaders(string? json)
@@ -260,6 +271,11 @@ internal sealed class SqlWebhookStore : IWebhookStore
             ConsecutiveFailures = reader.GetInt32(8),
             CreatedAt = DbHelpers.GetTimestamp(reader, 9),
             UpdatedAt = DbHelpers.GetTimestamp(reader, 10),
+
+            // Last in the column list (WebhookSubscriptionColumns): the column
+            // arrived with phase 190's migration, and the reader addresses
+            // columns by position.
+            HeaderConfigurationKeys = DeserializeHeaders(DbHelpers.GetNullableString(reader, 11)),
         };
 
     private static WebhookDelivery ReadDelivery(DbDataReader reader)

@@ -108,7 +108,7 @@ internal static class McpTransportFactory
             TransportMode = server.Transport == McpTransportMode.Sse
                 ? HttpTransportMode.Sse
                 : HttpTransportMode.StreamableHttp,
-            AdditionalHeaders = BuildHeaders(server, configuration, keySpace, logger),
+            AdditionalHeaders = McpHeaderBuilder.Build(server, configuration, keySpace, logger),
             OAuth = BuildNonInteractiveOAuthOptions(
                 server,
                 configuration,
@@ -125,60 +125,6 @@ internal static class McpTransportFactory
     /// </summary>
     public static bool RequiresUnconfiguredCallback(McpServerDefinition server, TraconMcpOptions mcpOptions)
         => server.OAuthEnabled && mcpOptions.OAuthCallbackBaseUri is null;
-
-    /// <summary>
-    /// Resolves the authentication header from configuration and merges it
-    /// with additional headers.
-    /// </summary>
-    /// <remarks>
-    /// The server definition <strong>carries no secret</strong>; it only
-    /// carries the name of the configuration key the value is read from. The
-    /// value is resolved here, at run time, and stays in <c>dotnet
-    /// user-secrets</c> or an environment variable.
-    /// </remarks>
-    private static Dictionary<string, string> BuildHeaders(
-        McpServerDefinition server,
-        IConfiguration configuration,
-        McpKeySpace keySpace,
-        ILogger logger)
-    {
-        var headers = new Dictionary<string, string>(server.Headers, StringComparer.OrdinalIgnoreCase);
-
-        if (server.OAuthEnabled)
-        {
-            // While OAuth is enabled, ClientOAuthOptions manages the
-            // Authorization header; if both tried to write the same header,
-            // which one wins would be an internal detail of the server SDK.
-            // GovernanceEndpoints.Validate already rejects this combination
-            // with 400; this is a last line of defense.
-            return headers;
-        }
-
-        if (server.AuthorizationConfigurationKey is not { Length: > 0 } key)
-        {
-            return headers;
-        }
-
-        // 🚨 Checked here as well as where the server is saved. A definition
-        // written before the rule existed must not silently read a
-        // configuration key outside the prefix or outside its own tenant.
-        keySpace.Require(key, server, "authorizationConfigurationKey");
-
-        if (configuration[key] is { Length: > 0 } value)
-        {
-            headers["Authorization"] = value;
-        }
-        else
-        {
-            logger.LogWarning(
-                "Configuration key '{ConfigurationKey}' for MCP server '{ServerName}' is empty. " +
-                "No authentication header will be sent.",
-                key,
-                server.Name);
-        }
-
-        return headers;
-    }
 
     private static ClientOAuthOptions? BuildNonInteractiveOAuthOptions(
         McpServerDefinition server,

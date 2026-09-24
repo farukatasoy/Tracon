@@ -3999,7 +3999,7 @@
           "Webhooks"
         ],
         "summary": "Lists a tenant\u0027s webhook subscriptions.",
-        "description": "The response carries no signing secret; only the NAME of the signing key is returned. Extra headers are returned with their NAMES only: every header value is replaced with \u0027***\u0027.",
+        "description": "The response carries no signing secret; only the NAME of the signing key is returned. \u0027headerConfigurationKeys\u0027 carries configuration key NAMES and is returned as stored. Extra headers are returned with their NAMES only: every header value is replaced with \u0027***\u0027.",
         "operationId": "TraconListWebhooks",
         "responses": {
           "200": {
@@ -4025,7 +4025,7 @@
           "Webhooks"
         ],
         "summary": "Gets a single subscription.",
-        "description": "As in the list, no signing secret is returned \u2014 only the configuration key its value is read from at delivery time. A secret is never stored in the database and never leaves through this API. Extra header values are replaced with \u0027***\u0027. An unknown name returns 404.",
+        "description": "As in the list, no signing secret is returned \u2014 only the configuration key its value is read from at delivery time. A secret is never stored in the database and never leaves through this API. \u0027headerConfigurationKeys\u0027 is returned as stored (key names only). Extra header values are replaced with \u0027***\u0027. An unknown name returns 404.",
         "operationId": "TraconGetWebhook",
         "parameters": [
           {
@@ -4056,7 +4056,7 @@
           "Webhooks"
         ],
         "summary": "Creates or updates a webhook subscription.",
-        "description": "The address passes an SSRF check: only https is accepted (http only when AllowInsecureHttp is enabled and only to loopback targets). Private network addresses are re-checked again at delivery time. \u0027secretConfigurationKey\u0027 must be under the configured allowed prefix and inside the tenant\u0027s own key space \u2014 \u0027{prefix}{tenantId}:...\u0027; a flat name directly under the prefix belongs to the default tenant (400 otherwise). Header values are stored and sent as given, but the saved subscription comes back with every header value replaced by \u0027***\u0027. The save replaces the whole subscription, so send every header with its real value; a header whose value is \u0027***\u0027 is rejected with 400.",
+        "description": "The address passes an SSRF check: only https is accepted (http only when AllowInsecureHttp is enabled and only to loopback targets). Private network addresses are re-checked again at delivery time. \u0027secretConfigurationKey\u0027 must be under the configured allowed prefix and inside the tenant\u0027s own key space \u2014 \u0027{prefix}{tenantId}:...\u0027; a flat name directly under the prefix belongs to the default tenant (400 otherwise). A credential header (Authorization, X-Api-Key, Cookie, any name ending in \u0027-key\u0027) is declared in \u0027headerConfigurationKeys\u0027 as the NAME of the configuration key its value is read from, under the same key space rule; the same header in plain \u0027headers\u0027 is rejected with 400. Plain header values are stored and sent as given, but the saved subscription comes back with every one replaced by \u0027***\u0027, and a header whose value is \u0027***\u0027 is rejected with 400. A header name may appear only once across both maps (case-insensitive), may not be one of Tracon\u0027s own X-Tracon-* headers in \u0027headerConfigurationKeys\u0027, and both maps together may carry at most MaxExtraHeaders entries (400 otherwise). \u0027headers\u0027 or \u0027headerConfigurationKeys\u0027 left out or null keeps the stored map; \u0027{}\u0027 removes it. Every other field is replaced. Changing \u0027url\u0027 without sending the maps keeps them, so the stored headers and the resolved credential values go to the NEW address.",
         "operationId": "TraconSaveWebhook",
         "parameters": [
           {
@@ -5902,7 +5902,7 @@
           "Governance"
         ],
         "summary": "Lists registered remote MCP servers.",
-        "description": "The authentication value is not stored; only the name of the configuration key it is read from is returned. Extra request headers are stored as sent and are returned with their NAMES only: every header value is replaced with \u0027***\u0027.",
+        "description": "No credential value is stored: \u0027headerConfigurationKeys\u0027 (and the deprecated \u0027authorizationConfigurationKey\u0027) carry only the NAME of the configuration key each value is read from, and are returned as stored. Plain \u0027headers\u0027 are stored as sent and are returned with their NAMES only: every value is replaced with \u0027***\u0027.",
         "operationId": "TraconListMcpServers",
         "responses": {
           "200": {
@@ -5928,7 +5928,7 @@
           "Governance"
         ],
         "summary": "Adds or updates a remote MCP server.",
-        "description": "SECURITY BOUNDARY. Adding an MCP server means accepting tool definitions from an external source. Only http/https addresses are accepted; local process (stdio) transport is not supported. Tools require approval by default. A configuration key name must be under the configured allowed prefix and inside the tenant\u0027s own key space \u2014 \u0027{prefix}{tenantId}:...\u0027; a flat name directly under the prefix belongs to the default tenant (400 otherwise). Header values are stored and sent as given, but no response returns them: the saved record comes back with every header value replaced by \u0027***\u0027. The save replaces the whole record, so send every header with its real value; a header whose value is \u0027***\u0027 is rejected with 400.",
+        "description": "SECURITY BOUNDARY. Adding an MCP server means accepting tool definitions from an external source. Only http/https addresses are accepted; local process (stdio) transport is not supported. Tools require approval by default. A configuration key name must be under the configured allowed prefix and inside the tenant\u0027s own key space \u2014 \u0027{prefix}{tenantId}:...\u0027; a flat name directly under the prefix belongs to the default tenant (400 otherwise). A credential header (Authorization, X-Api-Key, Cookie, any name ending in \u0027-key\u0027) is declared in \u0027headerConfigurationKeys\u0027 as the NAME of the configuration key its value is read from; the same header in plain \u0027headers\u0027 is rejected with 400, because plain header values are stored as given. No response returns a plain header value: the saved record comes back with every one replaced by \u0027***\u0027, and a header whose value is \u0027***\u0027 is rejected with 400. A header name may appear only once across both maps (case-insensitive, 400 otherwise), and \u0027Authorization\u0027 in \u0027headerConfigurationKeys\u0027 cannot be combined with \u0027authorizationConfigurationKey\u0027 or OAuth. \u0027headers\u0027 or \u0027headerConfigurationKeys\u0027 left out or null keeps the stored map; \u0027{}\u0027 removes it. Every other field is replaced. Changing \u0027endpoint\u0027 without sending the maps keeps them, so the stored headers and the resolved credential values go to the NEW address.",
         "operationId": "TraconSaveMcpServer",
         "parameters": [
           {
@@ -12335,7 +12335,7 @@
               "null",
               "string"
             ],
-            "description": "The configuration key the \u0060Authorization\u0060 header\u0027s value is read\nfrom. Example: \u0060Tracon:McpSecrets:GithubToken\u0060. If left empty, the\nheader is not sent."
+            "description": "The configuration key the \u0060Authorization\u0060 header\u0027s value is read\nfrom. Example: \u0060Tracon:McpSecrets:GithubToken\u0060. If left empty, the\nheader is not sent. Deprecated: use \u0060HeaderConfigurationKeys[\u0022Authorization\u0022]\u0060;\nthe field is removed in the first stable release."
           },
           "headers": {
             "type": "object",
@@ -12344,13 +12344,20 @@
             },
             "description": "Extra request headers, sent as given with every request to the server.\nAn HTTP response never returns a stored value: it carries every header\nname with the value \u0060***\u0060."
           },
+          "headerConfigurationKeys": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Credential request headers, as a map from the header name to the NAME\nof the configuration key its value is read from. The value is resolved\nthrough \u0060IConfiguration\u0060 on every connection and is never stored."
+          },
           "enabled": {
             "type": "boolean",
             "description": "Whether the server is enabled. Its tools are not discovered while disabled."
           },
           "oauthEnabled": {
             "type": "boolean",
-            "description": "Whether OAuth authentication is on. When on, it cannot be used at the\nsame time as \u0060AuthorizationConfigurationKey\u0060 \u2014 both would\ntry to manage the \u0060Authorization\u0060 header."
+            "description": "Whether OAuth authentication is on. When on, neither\n\u0060AuthorizationConfigurationKey\u0060 nor an \u0060Authorization\u0060 entry in\n\u0060HeaderConfigurationKeys\u0060 may be set \u2014 both would try to\nmanage the \u0060Authorization\u0060 header."
           },
           "oauthClientId": {
             "type": [
@@ -12364,7 +12371,7 @@
               "null",
               "string"
             ],
-            "description": "The configuration key the OAuth client secret\u0027s value is read from.\nThe value is never written to the database, under the same rule\n as \u0060AuthorizationConfigurationKey\u0060."
+            "description": "The configuration key the OAuth client secret\u0027s value is read from.\nThe value is never written to the database, under the same rule\nas \u0060HeaderConfigurationKeys\u0060."
           },
           "oauthScopes": {
             "type": [
@@ -12420,7 +12427,7 @@
               "null",
               "string"
             ],
-            "description": "Configuration key the \u0060Authorization\u0060 header\u0027s value is read from.\nExample: \u0060Tracon:McpSecrets:GithubToken\u0060."
+            "description": "Configuration key the \u0060Authorization\u0060 header\u0027s value is read from.\nExample: \u0060Tracon:McpSecrets:GithubToken\u0060. Deprecated: use\n\u0060headerConfigurationKeys[\u0022Authorization\u0022]\u0060; the field is removed in\nthe first stable release. Naming \u0060Authorization\u0060 in both fields is rejected\nwith \u0060400\u0060."
           },
           "headers": {
             "type": [
@@ -12430,7 +12437,17 @@
             "additionalProperties": {
               "type": "string"
             },
-            "description": "Extra request headers, sent as given with every request to the server.\nThe values are stored as plain text, so do not put a secret here; use\n\u0060AuthorizationConfigurationKey\u0060 for the \u0060Authorization\u0060 header.\nSend every header with its real value on each save: a response masks\nthe values as \u0060***\u0060, and a value of \u0060***\u0060 is rejected with\n\u0060400\u0060."
+            "description": "Extra request headers, sent as given with every request to the server.\nThe values are stored as plain text, so a header whose name looks like\na credential (\u0060Authorization\u0060, \u0060X-Api-Key\u0060, \u0060Cookie\u0060, any\nname ending in \u0060-key\u0060) is rejected with \u0060400\u0060: declare it in\n\u0060HeaderConfigurationKeys\u0060. Send every header with its real\nvalue on each save: a response masks the values as \u0060***\u0060, and a\nvalue of \u0060***\u0060 is rejected with \u0060400\u0060. Absent or\n\u0060null\u0060 keeps the stored headers; \u0060{}\u0060 removes them."
+          },
+          "headerConfigurationKeys": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Credential request headers, as a map from the header name to the NAME\nof the configuration key its value is read from, for example\n\u0060{\u0022X-Api-Key\u0022: \u0022Tracon:McpSecrets:acme:SearchKey\u0022}\u0060. Every name must\nsit inside the caller\u0027s tenant key space. A response returns the map\nunmasked: it carries no value. Absent or \u0060null\u0060 keeps the\nstored map; \u0060{}\u0060 removes it."
           },
           "enabled": {
             "type": "boolean",
@@ -12442,7 +12459,7 @@
           },
           "oauthEnabled": {
             "type": "boolean",
-            "description": "Whether OAuth authentication is enabled. While on,\n\u0060AuthorizationConfigurationKey\u0060 must be empty."
+            "description": "Whether OAuth authentication is enabled. While on,\n\u0060AuthorizationConfigurationKey\u0060 must be empty and\n\u0060HeaderConfigurationKeys\u0060 may not name \u0060Authorization\u0060."
           },
           "oauthClientId": {
             "type": [
@@ -17726,7 +17743,17 @@
             "additionalProperties": {
               "type": "string"
             },
-            "description": "Additional headers to add to every request. Send every header with its\nreal value on each save: a response masks the values as \u0060***\u0060,\nand a value of \u0060***\u0060 is rejected with \u0060400\u0060."
+            "description": "Additional headers to add to every request. The values are stored as\nplain text, so a header whose name looks like a credential\n(\u0060Authorization\u0060, \u0060X-Api-Key\u0060, \u0060Cookie\u0060, any name ending\nin \u0060-key\u0060) is rejected with \u0060400\u0060: declare it in\n\u0060HeaderConfigurationKeys\u0060. Send every header with its real\nvalue on each save: a response masks the values as \u0060***\u0060, and a\nvalue of \u0060***\u0060 is rejected with \u0060400\u0060. Absent or\n\u0060null\u0060 keeps the stored headers; \u0060{}\u0060 removes them."
+          },
+          "headerConfigurationKeys": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Credential headers, as a map from the header name to the NAME of the\nconfiguration key its value is read from, for example\n\u0060{\u0022X-Api-Key\u0022: \u0022Tracon:WebhookSecrets:acme:OrdersKey\u0022}\u0060. Every name\nmust sit inside the caller\u0027s tenant key space. A response returns the\nmap unmasked: it carries no value. Absent or \u0060null\u0060 keeps\nthe stored map; \u0060{}\u0060 removes it."
           },
           "enabled": {
             "type": "boolean",
@@ -17784,6 +17811,13 @@
               "type": "string"
             },
             "description": "Extra headers added to every request. An HTTP response never returns a\nstored value: it carries every header name with the value \u0060***\u0060."
+          },
+          "headerConfigurationKeys": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Credential headers, as a map from the header name to the NAME of the\nconfiguration key its value is read from. The value is resolved through\n\u0060IConfiguration\u0060 on every delivery and is never stored."
           },
           "enabled": {
             "type": "boolean",

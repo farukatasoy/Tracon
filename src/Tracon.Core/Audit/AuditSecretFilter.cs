@@ -21,18 +21,9 @@ namespace Tracon;
 /// </remarks>
 internal static class AuditSecretFilter
 {
-    private static readonly string[] SecretKeyFragments =
-    [
-        "apikey",
-        "authorization",
-        "token",
-        "password",
-        "secret",
-    ];
-
     /// <summary>
     /// Name endings that mean "this field does not hold the value" even though
-    /// the name carries one of the fragments above.
+    /// the name carries one of the fragments in <see cref="CredentialHeaderNames"/>.
     /// </summary>
     /// <remarks>
     /// Each entry is measured, not assumed - the same standard the singular
@@ -101,7 +92,11 @@ internal static class AuditSecretFilter
                 {
                     writer.WritePropertyName(property.Name);
 
-                    if (IsSecretKey(property.Name) && CanHoldSecret(property.Value))
+                    if (IsConfigurationKeyMap(property.Name, property.Value))
+                    {
+                        WriteConfigurationKeyMap(property.Value, writer);
+                    }
+                    else if (IsSecretKey(property.Name) && CanHoldSecret(property.Value))
                     {
                         writer.WriteStringValue("***");
                     }
@@ -147,14 +142,12 @@ internal static class AuditSecretFilter
 
     private static bool IsSecretKey(string propertyName)
     {
-        // 🚨 Separators are stripped before matching. The fragments are written
-        // without them, so "apiKey" matched but "x-api-key", "xi-api-key" and
-        // "api_key" did not - the separator broke the "apikey" run apart and a
-        // live provider key reached audit_log.after in clear text. Those exact
-        // spellings are real in this code base (Anthropic and ElevenLabs both
-        // use them), and free-form surfaces such as MCP server headers, agent
+        // The fragments and the separator rule live in CredentialHeaderNames,
+        // the same list the MCP and webhook header save rules read: two lists
+        // would drift, and a name one of them catches would reach the other in
+        // clear text. Free-form surfaces such as MCP server headers, agent
         // metadata and skill script arguments carry caller-chosen key names.
-        var normalized = Normalize(propertyName);
+        var normalized = CredentialHeaderNames.Normalize(propertyName);
 
         foreach (var suffix in NonValueKeySuffixes)
         {
@@ -164,67 +157,57 @@ internal static class AuditSecretFilter
             }
         }
 
-        foreach (var fragment in SecretKeyFragments)
-        {
-            if (!normalized.Contains(fragment, StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
-            // A singular "token" is an authentication value, such as authToken
-            // or accessToken, while the plural is a count, such as
-            // maxOutputTokens, maxContextWindowTokens, or totalTokens. Redacting
-            // the latter would make every agent audit record needlessly empty.
-            // This was observed in a real agent.create record from the /tracon sample.
-            if (string.Equals(fragment, "token", StringComparison.Ordinal) &&
-                normalized.Contains("tokens", StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
-            return true;
-        }
-
-        return false;
+        return CredentialHeaderNames.ContainsSecretFragment(normalized);
     }
 
-    /// <summary>Removes the characters that only separate words in a key name.</summary>
+    /// <summary>
+    /// Whether a property is the <c>headerConfigurationKeys</c> map of an MCP
+    /// server or a webhook subscription: a header name to the NAME of the
+    /// configuration key its value is read from.
+    /// </summary>
     /// <remarks>
-    /// Keeps letters and digits, drops everything else, so <c>x-api-key</c>,
-    /// <c>api_key</c> and <c>API.KEY</c> all reduce to the same run of letters
-    /// the fragments are written in.
+    /// <para>
+    /// Each entry is keyed by a credential-looking header name
+    /// (<c>Authorization</c>, <c>X-Api-Key</c>) and would be redacted one level
+    /// down, although no entry holds a value. Redacting them removes the only
+    /// thing the trail can tell a reader: which key a header reads.
+    /// </para>
+    /// <para>
+    /// The exemption is deliberately narrow. The property name must match
+    /// exactly — a free-form surface such as agent metadata could otherwise
+    /// name any object "...ConfigurationKeys" and carry a live value through —
+    /// and only a string that looks like a configuration key path (it
+    /// contains <c>:</c>, which every allowed prefix does) is kept as written.
+    /// </para>
     /// </remarks>
-    private static string Normalize(string propertyName)
+    private static bool IsConfigurationKeyMap(string propertyName, JsonElement value)
+        => value.ValueKind == JsonValueKind.Object
+            && string.Equals(propertyName, "headerConfigurationKeys", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Writes a configuration key map: key paths as they are, anything else redacted as usual.</summary>
+    private static void WriteConfigurationKeyMap(JsonElement map, Utf8JsonWriter writer)
     {
-        var needsWork = false;
+        writer.WriteStartObject();
 
-        foreach (var character in propertyName)
+        foreach (var entry in map.EnumerateObject())
         {
-            if (!char.IsLetterOrDigit(character))
+            writer.WritePropertyName(entry.Name);
+
+            if (entry.Value.ValueKind == JsonValueKind.Null ||
+                (entry.Value.ValueKind == JsonValueKind.String && entry.Value.GetString()!.Contains(':', StringComparison.Ordinal)))
             {
-                needsWork = true;
-                break;
+                entry.Value.WriteTo(writer);
+            }
+            else if (IsSecretKey(entry.Name) && CanHoldSecret(entry.Value))
+            {
+                writer.WriteStringValue("***");
+            }
+            else
+            {
+                WriteRedacted(entry.Value, writer);
             }
         }
 
-        if (!needsWork)
-        {
-            return propertyName;
-        }
-
-        return string.Create(propertyName.Length, propertyName, static (span, source) =>
-        {
-            var length = 0;
-
-            foreach (var character in source)
-            {
-                if (char.IsLetterOrDigit(character))
-                {
-                    span[length++] = character;
-                }
-            }
-
-            span[length..].Fill(' ');
-        }).TrimEnd();
+        writer.WriteEndObject();
     }
 }

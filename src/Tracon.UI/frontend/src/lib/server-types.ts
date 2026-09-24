@@ -107,7 +107,7 @@ export type McpPromptArgumentSummary = Fix<Generated.McpPromptArgumentSummary, '
 export type McpPromptSummary = Omit<Generated.McpPromptSummary, 'arguments'> & { arguments: McpPromptArgumentSummary[] };
 export type McpRefreshResponse = Fix<Generated.McpRefreshResponse, 'toolCount'>;
 export type McpResourceContent = Fix<Generated.McpResourceContent, 'byteSize' | 'isBinary' | 'truncated'>;
-export type McpServerDefinition = Fix<Generated.McpServerDefinition, 'createdAt' | 'enabled' | 'headers' | 'oauthAuthorizationMode' | 'oauthEnabled' | 'requiresApproval' | 'transport' | 'updatedAt'>;
+export type McpServerDefinition = Fix<Generated.McpServerDefinition, 'createdAt' | 'enabled' | 'headerConfigurationKeys' | 'headers' | 'oauthAuthorizationMode' | 'oauthEnabled' | 'requiresApproval' | 'transport' | 'updatedAt'>;
 export type MemorySettings = Fix<Generated.MemorySettings, 'enableFileMemory' | 'enableTextSearch' | 'enableTodo' | 'enableVectorSearch'>;
 export type ModelBinding = Fix<Generated.ModelBinding, 'allowConcurrentToolCalls' | 'fallbacks' | 'maxOutputTokens' | 'providerSettings' | 'temperature' | 'topP'> & { responseCache: ResponseCacheSettings | null };
 export type ModelDescriptor = Fix<Generated.ModelDescriptor, 'cachedInputCostPerMillionTokens' | 'contextWindowTokens' | 'inputCostPerMillionTokens' | 'maxOutputTokens' | 'outputCostPerMillionTokens' | 'supportsReasoning' | 'supportsStreaming' | 'supportsStructuredOutput' | 'supportsTools'>;
@@ -181,7 +181,7 @@ export type UsageDetails = Fix<Generated.UsageDetails, 'cachedInputTokenCount' |
 export type VoiceHealth = Fix<Generated.VoiceHealth, 'voiceCount'>;
 export type VoiceSessionRecord = Fix<Generated.VoiceSessionRecord, 'inputSeconds' | 'outputChars' | 'turns'>;
 export type WebhookDelivery = Fix<Generated.WebhookDelivery, 'attempt' | 'responseCode'>;
-export type WebhookSubscription = Fix<Generated.WebhookSubscription, 'consecutiveFailures' | 'enabled' | 'headers'>;
+export type WebhookSubscription = Fix<Generated.WebhookSubscription, 'consecutiveFailures' | 'enabled' | 'headerConfigurationKeys' | 'headers'>;
 // `Generated.WorkflowKind` carries `| null` because `WorkflowDescriptor.kind`
 // uses it nullably elsewhere in the document — narrowed here for call sites
 // (KIND_HINT lookups, the editor's fixed kind list) that only ever see one of

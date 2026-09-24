@@ -209,7 +209,9 @@ internal sealed class McpOAuthAuthorizationCoordinator : IMcpOAuthCoordinator
                 TransportMode = server.Transport == McpTransportMode.Sse
                     ? HttpTransportMode.Sse
                     : HttpTransportMode.StreamableHttp,
-                AdditionalHeaders = new Dictionary<string, string>(server.Headers, StringComparer.OrdinalIgnoreCase),
+                // The same builder as the background connection: a copy here
+                // missed every header resolved from configuration.
+                AdditionalHeaders = McpHeaderBuilder.Build(server, _configuration, _keySpace, _logger),
                 OAuth = new ClientOAuthOptions
                 {
                     ClientId = server.OAuthClientId,

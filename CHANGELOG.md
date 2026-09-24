@@ -73,14 +73,66 @@ change.
 - A store of your own must keep `SkillScriptGrant.ContentHash`. A store that
   drops it fails the new `SkillScriptGrantContract` cases, and its grants
   refuse every stored script.
+- A credential header of an MCP server or a webhook subscription is declared
+  by configuration key name in the new `headerConfigurationKeys`, and a save
+  whose plain `headers` carry a credential-looking name (`Authorization`,
+  `Cookie`, a name containing `api-key`, `token`, `password` or `secret`, or a
+  name ending in `-key`) returns `400`. The detail names the header and the new
+  field and never repeats the value. Before, `Authorization` was the only
+  header with a key reference, and `X-Api-Key` or `Ocp-Apim-Subscription-Key`
+  was stored in the database as plain text. A stored row keeps working and is
+  still sent; each connection or delivery logs a warning that names the header.
+  Every key name follows the prefix and tenant rules above, on save (`400`) and
+  again before each connection or delivery: an MCP server whose map names
+  another tenant's key does not connect, and such a webhook delivery is dropped.
+- A header name may appear only once across `headers` and
+  `headerConfigurationKeys`, compared without regard to case, and must be a
+  valid HTTP field name (`400` otherwise). Turning OAuth on for an MCP server
+  whose kept plain `headers` still carry `Authorization` returns `400`: the MCP
+  client skips its bearer token while that header is present. A webhook's two maps together may
+  carry at most `Tracon:Webhooks:MaxExtraHeaders` entries (`400` instead of
+  being cut at delivery), and `headerConfigurationKeys` may not name an
+  `X-Tracon-*` header.
+- `PUT /api/mcp-servers/{name}` and `PUT /api/webhooks/{name}` keep a stored
+  header map when the request leaves it out or sends `null`; `{}` removes it.
+  Saving from the admin UI therefore keeps the headers. The side effect: a save
+  that changes only the address sends the kept headers, and the credential
+  values they resolve, to the new address; the server logs a warning with the
+  header names. Send the maps, or `{}`, in the same save when an address moves.
 - An `OperationCanceledException` that an `IRunAuthorizationHandler` throws,
   but that the request itself did not cause (for example, an `HttpClient`
   timeout inside the handler), is now a failed check. A single resource answers
   the same `404` as a missing one. Before, it answered `500`, which revealed
   that the resource exists.
 
+### Added
+
+- `HeaderConfigurationKeys` on `McpServerDefinition`, `McpServerRequest`,
+  `WebhookSubscription` and `WebhookSaveRequest`: a map from a header name to
+  the configuration key its value is read from. The value is resolved on each
+  connection or delivery and never stored; a response returns the map as
+  stored. The `mcp_servers` and `webhook_subscriptions` tables gain a
+  `header_configuration_keys` column (migration `0054` PostgreSQL, `0042` SQL
+  Server, `0041` SQLite); existing rows read an empty map.
+- `McpServerStoreContract.Header_configuration_keys_are_preserved`,
+  `WebhookStoreContract.Header_configuration_keys_are_preserved` and
+  `WebhookStoreContract.Header_names_that_differ_only_in_case_do_not_fail_the_save`.
+  A store of your own must persist the new field and return it from the save
+  as well as from a read.
+
 ### Fixed
 
+- A webhook subscription whose headers differ only in case (`X-A` and `x-a`)
+  no longer fails the SQL save with `500`, and such an MCP server no longer
+  fails to connect.
+- The MCP OAuth authorization flow now sends the same headers as every other
+  connection to the server, including the ones resolved from configuration.
+- A header that the MCP transport cannot add (a content header such as
+  `Content-Type`, or a value with a line break) is left out with a warning.
+  Before, the transport's exception carried the header value into the log.
+- The `TRC0201` analyzer names the header for a literal secret in a header
+  dictionary (`McpServerDefinition.Headers["X-Api-Key"]`) and points at
+  `HeaderConfigurationKeys`.
 - A slow or unresponsive database no longer blocks the metrics collection
   thread while the quota or queue-depth gauge refreshes. Before, this delayed
   the export of every other instrument of the meter provider.
@@ -391,6 +443,13 @@ preview line, and the counts below are types, not members.
 
 ### Deprecated
 
+- `McpServerDefinition.AuthorizationConfigurationKey` and
+  `McpServerRequest.AuthorizationConfigurationKey`
+  (`authorizationConfigurationKey` on the wire). They still save, resolve and
+  read back, and are removed in `1.0.0`. Use
+  `HeaderConfigurationKeys["Authorization"]`; a record that names
+  `Authorization` in both, or in the new map while OAuth is on, returns `400`.
+  Code that sets the field compiles with warning `CS0618`.
 - `QuotaUsageQuery.AsOf`. No store ever applied it, and a store cannot turn an
   instant into a period without the configured time zone. Use
   `QuotaUsageQuery.PeriodStarts`.

@@ -400,8 +400,8 @@ saving it again is refused with a message naming both the field and the prefix.
 
 | Record | Field | Required prefix |
 |---|---|---|
-| MCP server | `authorizationConfigurationKey`, `oauthClientSecretConfigurationKey` | `Tracon:McpSecrets:` |
-| Webhook subscription | `secretConfigurationKey` | `Tracon:WebhookSecrets:` |
+| MCP server | `headerConfigurationKeys`, `oauthClientSecretConfigurationKey`, `authorizationConfigurationKey` (deprecated) | `Tracon:McpSecrets:` |
+| Webhook subscription | `headerConfigurationKeys`, `secretConfigurationKey` | `Tracon:WebhookSecrets:` |
 
 Fix each record by moving the key name under the prefix and re-writing the value under
 the new name in your secret store. There is no migration helper and this is
@@ -442,6 +442,66 @@ forwarded counts as remote. An anonymous request with a non-loopback `Host` or `
 returns `403`, which blocks DNS rebinding and cross-site requests from a browser. If
 you reach a keyless local installation through a machine name, use `localhost` or
 configure a token.
+
+## Upgrading: credential headers
+
+A credential header of an MCP server or a webhook subscription now lives in
+`headerConfigurationKeys`, as the **name** of the configuration key its value is read
+from. Four saves that used to succeed now return `400`, and one field is deprecated.
+
+**A credential-looking plain header is refused.** A save whose `headers` carry
+`Authorization`, `Cookie`, a name containing `api-key`, `token`, `password` or
+`secret`, or a name ending in `-key` returns `400`; the detail names the header and
+`headerConfigurationKeys`, never the value. Only the headers a request sends are
+judged: a stored row keeps working, is still sent, and each connection or delivery
+logs a warning with the header name.
+
+**A header name may appear only once.** `X-A` next to `x-a`, or the same name in
+`headers` and `headerConfigurationKeys`, returns `400`. Before, the webhook save
+answered `500` and the MCP server never connected.
+
+**A header name must be a valid HTTP name.** An empty name, a space, `:`, or a line
+break returns `400`.
+
+**A webhook's two maps share `MaxExtraHeaders`.** Together they may carry at most
+`Tracon:Webhooks:MaxExtraHeaders` entries (20 by default); more returns `400` instead of
+being cut at delivery.
+
+**`authorizationConfigurationKey` is deprecated.** It still saves, resolves and reads
+back, and it is removed in `1.0.0`. Code that sets it on `McpServerDefinition` or
+`McpServerRequest` compiles with warning `CS0618`. Use
+`headerConfigurationKeys["Authorization"]`; a record that names `Authorization` in both,
+or in the new map while OAuth is on, returns `400`. So does turning OAuth on while the
+kept plain `headers` still carry `Authorization`: the MCP client does not send its bearer
+token while that header is present. Send `headers` without it in the same save.
+
+**Saves now keep what they leave out.** `headers` or `headerConfigurationKeys` absent or
+`null` keeps the stored map; `{}` removes it. Before, a save without `headers` removed
+every stored header, which is what the admin forms did on every save.
+
+### Moving a plain credential to a key name
+
+For a record whose plain `headers` hold `X-API-Key` next to `X-Team`:
+
+1. Write the value under a key name in your secret store, inside the tenant's key
+   space: `dotnet user-secrets set "Tracon:McpSecrets:acme:SearchKey" "<value>"`
+   (the default tenant can use `Tracon:McpSecrets:SearchKey`).
+2. Save the record once with **both** maps: `headers` without the credential but with
+   every other plain header, and the new map.
+
+```json
+{
+  "endpoint": "https://mcp.example.com/mcp",
+  "headers": { "X-Team": "t1" },
+  "headerConfigurationKeys": { "X-API-Key": "Tracon:McpSecrets:acme:SearchKey" }
+}
+```
+
+Sending only `headerConfigurationKeys` returns `400` with "remove 'X-API-Key' from
+headers": `headers` left out keeps the stored map, so the name would appear twice. A
+read shows every plain value as `***`, so you have to know the values of the other plain
+headers to send them again. `headers: {}` removes them instead. For an MCP server, call
+`POST {prefix}/api/mcp-servers/refresh` afterwards to reconnect.
 
 ## When the state preflight comes back red
 

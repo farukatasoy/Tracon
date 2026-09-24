@@ -1079,7 +1079,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             inserted.enabled, inserted.requires_approval, inserted.created_at, inserted.updated_at,
             inserted.oauth_enabled, inserted.oauth_client_id,
             inserted.oauth_client_secret_configuration_key, inserted.oauth_scopes,
-            inserted.oauth_authorization_mode
+            inserted.oauth_authorization_mode, inserted.header_configuration_keys
             """;
 
         UpsertMcpServer = $"""
@@ -1096,7 +1096,8 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                    oauth_client_id                       = @oauth_client_id,
                    oauth_client_secret_configuration_key = @oauth_client_secret_configuration_key,
                    oauth_scopes                          = @oauth_scopes,
-                   oauth_authorization_mode              = @oauth_authorization_mode
+                   oauth_authorization_mode              = @oauth_authorization_mode,
+                   header_configuration_keys             = @header_configuration_keys
              OUTPUT {mcpServerOutput}
              WHERE tenant_id = @tenant_id AND name = @name;
 
@@ -1106,7 +1107,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             VALUES (@id, @tenant_id, @name, @description, @endpoint, @transport,
                     @authorization_configuration_key, @headers, @enabled, @requires_approval, @now, @now,
                     @oauth_enabled, @oauth_client_id, @oauth_client_secret_configuration_key,
-                    @oauth_scopes, @oauth_authorization_mode);
+                    @oauth_scopes, @oauth_authorization_mode, @header_configuration_keys);
             """;
 
         // --- Tenants ---
@@ -1473,7 +1474,8 @@ internal sealed class SqlServerQueries : SqlQueriesBase
         const string webhookSubscriptionOutput = """
             inserted.id, inserted.tenant_id, inserted.name, inserted.url, inserted.events,
             inserted.secret_configuration_key, inserted.headers, inserted.enabled,
-            inserted.consecutive_failures, inserted.created_at, inserted.updated_at
+            inserted.consecutive_failures, inserted.created_at, inserted.updated_at,
+            inserted.header_configuration_keys
             """;
 
         UpsertWebhookSubscription = $"""
@@ -1481,9 +1483,10 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                SET url                      = @url,
                    events                   = @events,
                    secret_configuration_key = @secret_configuration_key,
-                   headers                  = @headers,
-                   enabled                  = @enabled,
-                   updated_at               = @updated_at
+                   headers                   = @headers,
+                   enabled                   = @enabled,
+                   updated_at                = @updated_at,
+                   header_configuration_keys = @header_configuration_keys
              OUTPUT {webhookSubscriptionOutput}
              WHERE tenant_id = @tenant_id AND name = @name;
 
@@ -1491,7 +1494,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             INSERT INTO {Schema}.webhook_subscriptions ({WebhookSubscriptionColumns})
             OUTPUT {webhookSubscriptionOutput}
             VALUES (@id, @tenant_id, @name, @url, @events, @secret_configuration_key, @headers, @enabled,
-                    @consecutive_failures, @created_at, @updated_at);
+                    @consecutive_failures, @created_at, @updated_at, @header_configuration_keys);
             """;
 
         // 🚨 `events` is a JSON array; the counterpart of PostgreSQL's
