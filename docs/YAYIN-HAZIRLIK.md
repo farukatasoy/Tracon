@@ -123,7 +123,7 @@ yeşil koşmadan atılmaz (A-64). GA kararı (aşağıdaki blok) değişmedi.
 | A-59 | Beş ön sürüm pini `[x]`; nuspec aynısını yazar | `EveryPrereleaseThirdPartyDependencyIsExact` önce 15 kenarla kırmızı, sonra yeşil · `kapi.py` `EXACT_RANGE_PATTERN` · negatif kontrol: yayınlanmış preview.2 + Hosting `1.22.0-preview` izole cache'te **uyarısız** restore oldu |
 | BL-058 | `THIRD-PARTY-NOTICES.txt` paket kökünde ve `Tracon.UI.dll`'de; 7 paket (React, React DOM, `scheduler`, TanStack ×2, `openapi-fetch`, Tailwind) | `UiPackageCarriesThirdPartyNotices` önce kırmızı, sonra yeşil · derleme kapısının negatif kontrolü: dosyaya satır eklenince `npm run build` düştü |
 | Sınıf taraması | `Tracon.Cli` 54 üçüncü taraf ikili, bildirimsiz → A-72 (vaka kapandı, **sınıf açık**) · `Tracon.Templates` üçüncü taraf kod taşımıyor | `unzip -l` preview.3 adayı |
-| Prova ortamı | Prova artık `artifacts/package/yayin/<sürüm>/`'e yazar; `release/`'deki eski sürüm onu düşürmez · net8 runtime'ı global kuruluma eklenir (👤 `sudo`) | `kapi_test` 8 yeni test, eski kodda 7'si kırmızı |
+| Prova ortamı | Prova artık `artifacts/package/yayin/<sürüm>/`'e yazar; `release/`'deki eski sürüm onu düşürmez · net8 runtime'ı global kuruluma eklendi (👤 `sudo`, 8.0.31; ilk denemede muxer ezildi ve onarıldı — `hafiza/elle-kosum-ortami.md`) | `kapi_test` 8 yeni test, eski kodda 7'si kırmızı · `DOTNET_ROOT` olmadan `missing_test_runtimes` boş, `Tracon.Core.UnitTests` net8.0 bacağı 7/7 |
 
 **Push sırası (Faz 187: kesim etiketsiz itilirse prova kırmızıdır):**
 
