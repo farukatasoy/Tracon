@@ -132,9 +132,11 @@ preview line, and the counts below are types, not members.
   Resolve `IMigrationApplier` to apply migrations and
   `ISqlPersistenceDiagnostics` for the migration snapshot; both resolve to the
   same runner. The `tracon migrate` command is unchanged.
-- `Tracon.Anthropic`, `Tracon.Azure`, `Tracon.Google`, `Tracon.OpenAI`: the
-  `*ChatClientFactory` and `*ModelCatalog` types, and `OpenAIApiSurface`. The
-  `Use*` registration methods and the `*ProviderOptions` types are the
+- `Tracon.Anthropic`, `Tracon.Azure`, `Tracon.Google`, `Tracon.OpenAI`:
+  `AnthropicChatClientFactory`, `AnthropicModelCatalog`,
+  `AzureOpenAIChatClientFactory`, `AzureOpenAIModelCatalog`,
+  `GoogleChatClientFactory`, `GoogleModelCatalog`, `OpenAIChatClientFactory`,
+  `OpenAIModelCatalog`, and `OpenAIApiSurface`. The `Use*` registration methods and the `*ProviderOptions` types are the
   configuration surface; a factory created through `FromClient` could not be
   plugged into a registered provider anyway.
 - `Tracon.Abstractions` (11): `ChatHistoryState`, `ExperimentAssignment`,

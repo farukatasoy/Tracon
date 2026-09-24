@@ -993,17 +993,224 @@ class YayinTestleri(unittest.TestCase):
         self.assertEqual(result, 1)
         run.assert_not_called()
 
-    def test_yayin_git_bulunamazsa_atlar_ve_packi_yine_de_dener(self):
+    def test_yayin_git_bulunamazsa_taban_cozulemez_pack_denenmez(self):
+        """Faz 136: git yoksa temizlik denetimi uyarıyla atlanır (MSBuild kapısı
+        ikinci hattır). Faz 187: taban adımının ikinci hattı yoktur - sessiz
+        atlama yerine kırmızı, pack hiç denenmez."""
         with tempfile.TemporaryDirectory() as directory:
             root = pathlib.Path(directory)
             (root / "src").mkdir()
+            output = io.StringIO()
 
             with mock.patch.object(kapi, "_git", return_value=None):
-                with mock.patch("subprocess.run", return_value=mock.Mock(returncode=1)) as run:
-                    result = kapi.release_rehearsal(None, root=root, release_dir=root / "artifacts" / "package" / "release")
+                with mock.patch("subprocess.run", side_effect=OSError("git yok")) as run:
+                    with contextlib.redirect_stdout(output):
+                        result = kapi.release_rehearsal(None, root=root, release_dir=root / "artifacts" / "package" / "release")
 
         self.assertEqual(result, 1)
-        run.assert_called_once()
+        self.assertIn("Taban çözülemedi", output.getvalue())
+        self.assertFalse(any(call.args[0][0] == "dotnet" for call in run.call_args_list))
+
+    # --- Faz 187: taban, izole restore ve kırıcı kapının sırası -------------
+
+    @staticmethod
+    def _breaking_changes_module():
+        # kapi.py modülü `import breaking_changes` ile alır; testler aynı nesneyi
+        # (sys.modules girdisi) yamalamalı, kopyasını değil.
+        sys.path.insert(0, str(ROOT / "scripts"))
+        return importlib.import_module("breaking_changes")
+
+    def _rehearse(self, root: pathlib.Path, *, finish=None, restore=None, baseline="1.0.0-preview.2"):
+        bc = self._breaking_changes_module()
+        pack_calls: list[list[str]] = []
+
+        def fake_run(command, **kwargs):
+            pack_calls.append(list(command))
+            return mock.Mock(returncode=0)
+
+        output = io.StringIO()
+        resolve = mock.Mock(return_value=baseline) if isinstance(baseline, str) else mock.Mock(side_effect=baseline)
+        with contextlib.ExitStack() as stack:
+            stack.enter_context(mock.patch.object(kapi, "_git", return_value=[]))
+            stack.enter_context(mock.patch.object(bc, "resolve_baseline", resolve))
+            stack.enter_context(mock.patch.object(
+                bc, "restore_baselines", restore or (lambda ids, version, work: work / "packages")))
+            stack.enter_context(mock.patch.object(bc, "baseline_source_violations", return_value=[]))
+            stack.enter_context(mock.patch("subprocess.run", side_effect=fake_run))
+            finish_mock = stack.enter_context(mock.patch.object(
+                kapi, "_finish_release_rehearsal", finish or mock.Mock(return_value=0)))
+            stack.enter_context(contextlib.redirect_stdout(output))
+            result = kapi.release_rehearsal(None, root=root, release_dir=root / "artifacts" / "package" / "release")
+        return result, pack_calls, finish_mock, output.getvalue()
+
+    def _library_root(self, directory: str) -> pathlib.Path:
+        root = pathlib.Path(directory)
+        self._write_csproj(root, "Tracon.Core")
+        self._write_csproj(root, "Tracon", "<PropertyGroup><IncludeBuildOutput>false</IncludeBuildOutput></PropertyGroup>")
+        return root
+
+    def test_taban_cozulemezse_pack_denenmez(self):
+        bc = self._breaking_changes_module()
+        with tempfile.TemporaryDirectory() as directory:
+            root = self._library_root(directory)
+
+            result, pack_calls, finish, output = self._rehearse(
+                root, baseline=bc.BaselineError("HEAD'den erişilen bir 'v*' etiketi yok"))
+
+        self.assertEqual(result, 1)
+        self.assertEqual(pack_calls, [])
+        finish.assert_not_called()
+        self.assertIn("❌ Taban çözülemedi: HEAD'den erişilen bir 'v*' etiketi yok", output)
+
+    def test_restore_hatasi_paketi_adiyla_bildirir_pack_denenmez(self):
+        bc = self._breaking_changes_module()
+
+        def failing_restore(ids, version, work):
+            raise bc.RestoreError(f"taban paketleri nuget.org'dan alınamadı (v{version}; {', '.join(ids)})")
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = self._library_root(directory)
+
+            result, pack_calls, finish, output = self._rehearse(root, restore=failing_restore)
+
+        self.assertEqual(result, 1)
+        self.assertEqual(pack_calls, [])
+        finish.assert_not_called()
+        # Yalnız library paketinin tabanı istenir; meta paketin tabanı yoktur.
+        self.assertIn("(v1.0.0-preview.2; Tracon.Core)", output)
+
+    def test_pack_taban_ozelliklerini_ve_rapor_dizinini_alir(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = self._library_root(directory)
+
+            result, pack_calls, finish, output = self._rehearse(root)
+
+            gate = finish.call_args.kwargs["breaking_gate"]
+            arguments = pack_calls[0]
+            self.assertEqual(result, 0)
+            self.assertEqual(len(pack_calls), 1)
+            self.assertIn("-p:TraconPackageBaselineVersion=1.0.0-preview.2", arguments)
+            self.assertIn(f"-p:TraconApiCompatReportDir={gate.report_dir}", arguments)
+            self.assertTrue(any(argument.startswith("-p:TraconPackageBaselineRoot=") for argument in arguments))
+            self.assertEqual(gate.report_dir.parent, root / "artifacts" / "package" / "api-compat")
+            self.assertEqual(gate.library_ids, ("Tracon.Core",))
+            self.assertEqual(gate.baseline, "1.0.0-preview.2")
+            self.assertIn("Taban: v1.0.0-preview.2 (git describe)", output)
+            self.assertIn("Taban paketleri izole cache'ten: 1 paket, kaynak api.nuget.org", output)
+
+    def test_rapor_dizini_kosum_basina_benzersiz(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = self._library_root(directory)
+
+            _, _, first, _ = self._rehearse(root)
+            _, _, second, _ = self._rehearse(root)
+
+            self.assertNotEqual(first.call_args.kwargs["breaking_gate"].report_dir,
+                                second.call_args.kwargs["breaking_gate"].report_dir)
+
+    def test_istisnada_gecici_dizinler_silinir_promote_yok(self):
+        seen: dict[str, pathlib.Path] = {}
+
+        def exploding_finish(**kwargs):
+            seen["report"] = kwargs["breaking_gate"].report_dir
+            seen["staging"] = kwargs["staging_dir"]
+            raise KeyboardInterrupt
+
+        def restore(ids, version, work):
+            seen["work"] = work
+            return work / "packages"
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = self._library_root(directory)
+
+            with self.assertRaises(KeyboardInterrupt):
+                self._rehearse(root, finish=exploding_finish, restore=restore)
+
+            self.assertFalse(seen["report"].exists())
+            self.assertFalse(seen["staging"].exists())
+            self.assertFalse(seen["work"].exists())
+            self.assertFalse((root / "artifacts" / "package" / "release").exists())
+
+    def test_bayat_ilk_yayin_bayragi_pack_denenmez(self):
+        bc = self._breaking_changes_module()
+        with tempfile.TemporaryDirectory() as directory:
+            root = self._library_root(directory)
+
+            with mock.patch.object(bc, "stale_first_release_flags", return_value=["Tracon.Voice"]):
+                result, pack_calls, _, output = self._rehearse(root)
+
+        self.assertEqual(result, 1)
+        self.assertEqual(pack_calls, [])
+        self.assertIn("TraconPackageFirstRelease'i kaldırın: Tracon.Voice", output)
+
+    @staticmethod
+    def _write_valid_library_nupkg(staging_dir: pathlib.Path, project_id: str, version: str) -> None:
+        """Enough of a real package to pass every metadata check that runs
+        before the breaking-change gate, so the gate is what decides."""
+        nuspec = (
+            f'<package><metadata><id>{project_id}</id><license type="file">LICENSE.md</license>'
+            "<requireLicenseAcceptance>true</requireLicenseAcceptance>"
+            '<repository type="git" url="https://example.invalid" commit="abcdef1234" />'
+            f"<releaseNotes>https://tracon.dev/changelog/{version}</releaseNotes></metadata></package>")
+        with zipfile.ZipFile(staging_dir / f"{project_id}.{version}.nupkg", "w") as archive:
+            for entry in ("icon.png", "README.md", "LICENSE.md"):
+                archive.writestr(entry, "x")
+            archive.writestr(f"{project_id}.nuspec", nuspec)
+            for tfm in ("net8.0", "net9.0", "net10.0"):
+                archive.writestr(f"lib/{tfm}/{project_id}.xml", "<doc />")
+        (staging_dir / f"{project_id}.{version}.snupkg").write_bytes(b"")
+
+    def _finish(self, root: pathlib.Path, gate_result: int):
+        staging_dir = root / "staging"
+        staging_dir.mkdir()
+        release_dir = root / "release"
+        self._write_valid_library_nupkg(staging_dir, "Tracon.Core", "1.0.0-preview.2.47")
+        sys.path.insert(0, str(ROOT / "scripts"))
+        samples = importlib.import_module("release_extension_samples")
+        gate = kapi.BreakingChangeGate(baseline="1.0.0-preview.2", report_dir=root / "reports",
+                                       library_ids=("Tracon.Core",), pack_started=0.0)
+        output = io.StringIO()
+        with mock.patch.object(kapi, "_check_breaking_changes", return_value=gate_result) as checked, \
+                mock.patch.object(kapi, "_npm_dry_run", return_value=0), \
+                mock.patch.object(samples, "verify", return_value=0), \
+                contextlib.redirect_stdout(output):
+            result = kapi._finish_release_rehearsal(
+                root=root, release_dir=release_dir, staging_dir=staging_dir, project_ids=["Tracon.Core"],
+                requested_version=None, commit="abcdef1234", breaking_gate=gate)
+        checked.assert_called_once_with(root, gate, "1.0.0-preview.2.47")
+        return result, release_dir, output.getvalue()
+
+    def test_kirici_kapi_kirmiziyken_promote_yok(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            self._write_csproj(root, "Tracon.Core")
+
+            result, release_dir, output = self._finish(root, gate_result=1)
+
+            self.assertEqual(result, 1, output)
+            self.assertFalse(release_dir.exists())
+
+    def test_kirici_kapi_yesilken_promote_edilir(self):
+        """Kontrol: sahte paket kapıdan önceki her denetimi geçer - yukarıdaki
+        kırmızı sonucu kapı verir, metaveri denetimi değil."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            self._write_csproj(root, "Tracon.Core")
+
+            result, release_dir, output = self._finish(root, gate_result=0)
+
+            self.assertEqual(result, 0, output)
+            self.assertTrue((release_dir / "Tracon.Core.1.0.0-preview.2.47.nupkg").exists())
+
+    def test_surum_tabana_esitse_kapi_kirmizi(self):
+        gate = kapi.BreakingChangeGate(baseline="1.0.0-preview.2", report_dir=pathlib.Path("/yok"),
+                                       library_ids=("Tracon.Core",), pack_started=0.0)
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            result = kapi._check_breaking_changes(ROOT, gate, "1.0.0-preview.2")
+
+        self.assertEqual(result, 1)
+        self.assertIn("tabandan (v1.0.0-preview.2) büyük değil", output.getvalue())
 
 
 # Bu iki sabit PARÇALI yazılır: tam metin kaynakta görünseydi taramanın kendi

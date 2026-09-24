@@ -118,8 +118,8 @@ grep -rn "<Metot>(" src/           # her çağıran
 
 ### 3.6 Plan dışı public API
 Diff public yüzeyi büyütüyorsa, fazın "Planlanan Public API" bölümünde var mı?
-Yoksa gerekçe faz dokümanına yazılmış mı? `EnablePublicApiTracking` açıktır;
-derleyici plan dışı public API'yi **uyarır**.
+Yoksa gerekçe faz dokümanına yazılmış mı? `TraconPublicApiTrackingEnabled` varsayılan
+olarak açıktır; derleyici plan dışı public API'yi **uyarır**.
 
 ### 3.7 Repo kuralları
 - Kod, yorum, XML doküman, `exception`/log metni **İngilizce** mi?

@@ -21,7 +21,7 @@
 > **Önkoşul:** [Faz <N>](<N>-<AD>.md) — <neden gerekli> · <yoksa "Yok">
 > **Paketler:** `Tracon.<X>`, `.<Y>`
 > **Yeni paket:** <Yok · veya ad + K-007 gerekçesi> · **Migration:** <Yok · veya "gerekli — numara uygulama anında alınır">
-> **Public API:** <Büyümüyor · veya "büyüyor — Faz 7'den önce ucuz">
+> **Public API:** <Büyümüyor · veya "büyüyor — `1.0.0` GA'dan (K-603) önce ucuz">
 > **Tüketici yüzeyi:** <Yok · veya site sayfaları: `concepts/runs.md`, `packages.md`, `ui.md` + ekran görüntüsü>
 > · <sevk edilen: Yok · veya XML `<example>`, `src/<Paket>/README.md`, `capabilities.md` satırı>
 > **Manuel test alanı:** <`docs/manuel-test/<NN>-<ALAN>.md` — case'ler oraya eklenir>
