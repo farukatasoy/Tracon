@@ -1344,8 +1344,9 @@ is null ? "SERVICES NULL" : "SERVICES DOLU"`.~~
   `GetService(...)` ile çözülemez, `null` döner. Tool bir DI kaydına bel
   bağlarsa **sessizce** ya da açıkça bozulur.
 - (Karşılaştırma için not: doğru desen bağımlılığı kurucuda alır — `README.md`daki
-  `OrderTools(IOrderRepository repository)` + `services.AddSingleton(provider
-  => new TraconToolRegistration(new OrderTools(...), ...))` deseni; bu case
+  `OrderTools(IOrderRepository repository)` + fabrika içinde
+  `new TraconToolRegistration(AIFunctionFactory.Create(tools.GetOrderStatus, "get_order_status"))`
+  deseni; bu case
   yalnız YANLIŞ deseni ampirik olarak göstermeyi amaçlar.)
 
 ---
