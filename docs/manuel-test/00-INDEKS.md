@@ -360,7 +360,7 @@ Bu eşleme bir başlangıçtır; üretim oturumu grep ile doğrular ve gerekirse
 
 | # | Dosya | Alan kodu | Faz | Kaynak | Hedef case | Üretim | Koşum |
 |---|---|---|---|---|---|---|---|
-| 01 | [`01-KURULUM-VE-PAKETLEME.md`](01-KURULUM-VE-PAKETLEME.md) | `PKG` | 0, 52, 97, 160, 182, 183, 185 | `Directory.Build.props` · `Directory.Build.targets` · `src/Directory.Build.props` · `*.csproj` · `src/Tracon.Generators` · `scripts/kapi.py` (`yayin`, `test --tfm`) · `scripts/public-yuzey-envanteri.py` (Faz 182) · `tests/Directory.Build.props` · `samples/Tracon.Samples.Net8Consumer` (Faz 183) | **93** | ✅ | ✅ 81/81 · Faz 182: `MT-PKG-123` ✅ · `MT-PKG-124` ✅ · `MT-PKG-125` ➜ CI · Faz 183: `MT-PKG-126`…`129` ✅ · Faz 185: `MT-PKG-130`…`133` ✅ · `134` 👤 |
+| 01 | [`01-KURULUM-VE-PAKETLEME.md`](01-KURULUM-VE-PAKETLEME.md) | `PKG` | 0, 52, 97, 160, 182, 183, 185, 187 | `Directory.Build.props` · `Directory.Build.targets` · `src/Directory.Build.props` · `*.csproj` · `src/Tracon.Generators` · `scripts/kapi.py` (`yayin`, `test --tfm`) · `scripts/public-yuzey-envanteri.py` (Faz 182) · `tests/Directory.Build.props` · `samples/Tracon.Samples.Net8Consumer` (Faz 183) | **103** | ✅ | ✅ 81/81 · Faz 182: `MT-PKG-123` ✅ · `MT-PKG-124` ✅ · `MT-PKG-125` ➜ CI · Faz 183: `MT-PKG-126`…`129` ✅ · Faz 185: `MT-PKG-130`…`133` ✅ · `134` 👤 · Faz 187: `MT-PKG-135`…`141` ✅ · `142` ➜ CI · `143`, `144` ✅ |
 | 02 | [`02-CEKIRDEK-VE-KATALOG.md`](02-CEKIRDEK-VE-KATALOG.md) | `CORE` | 1, 3, 72, 86, 101, 127, 130, 135 | `src/Tracon.Core` (`Compilation/` · `Catalog/` · `Tools/` · `Sessions/`) · `src/Tracon.Abstractions` | **97** | ✅ | ✅ 96/97 · 1 ☐ (`MT-CORE-095`) |
 | 03 | [`03-KALICILIK-POSTGRESQL.md`](03-KALICILIK-POSTGRESQL.md) | `PG` | 2, 51, 110 | `src/Tracon.PostgreSql` | **50** | ✅ | ✅ 50/50 |
 | 04 | [`04-KALICILIK-DIGER.md`](04-KALICILIK-DIGER.md) | `SQL` | 23, 24, 110 | `src/Tracon.Sqlite` · `src/Tracon.SqlServer` · `src/Tracon.Sql.Shared` | **46** | ✅ | ✅ 44/46 · 2 ☐ (`MT-SQL-071` · `079` — 079 koşulmadı; ➜ CI) |
@@ -731,12 +731,11 @@ değildir — koşum aşamasında doğrulanacak **şüphelerdir**.
   Yeni bir tüketicinin gördüğü ilk desen, AOT uyarısı üreten desendir.
   Bu bir **kusur değil, eksik**tir — koşumda `MT-PKG-071` ile birlikte
   değerlendirilir.
-- **Faz 7 için iki eksik yüzey (2026-08-09).** `Tracon.Mcp` ve
-  `Tracon.Workflows` yayınlanabilir paketlerdir ama `PublicAPI.Shipped.txt` /
-  `PublicAPI.Unshipped.txt` dosyaları **yoktur** (diğer 12 paketin vardır).
-  Ayrıca `Microsoft.CodeAnalysis.BannedApiAnalyzers` her yayınlanabilir pakette
-  referanslıdır ama repo'da hiç `BannedSymbols.txt` yoktur — analyzer yüklü,
-  kural kümesi boş. İkisi de Faz 7'nin (`EnablePublicApiTracking=true`) işidir.
+- **~~Faz 7 için iki eksik yüzey (2026-08-09)~~ — bayat (Faz 187, 2026-09-24).**
+  `Tracon.Mcp` ve `Tracon.Workflows` bugün `PublicAPI.Shipped.txt` /
+  `PublicAPI.Unshipped.txt` taşır; takip anahtarı `TraconPublicApiTrackingEnabled`'dır
+  (kökteki `EnablePublicApiTracking` silindi). `BannedSymbols.txt` durumu ayrıca
+  ölçülmedi.
 - **Migration sayısı farkı ÇÖZÜLDÜ (2026-08-09, `04-KALICILIK-DIGER.md`
   üretilirken ölçüldü) — eksik yetenek DEĞİL, birleştirilmiş migration seti.**
   PostgreSQL **28**, SQLite **15**, SQL Server **15** migration dosyası taşır,

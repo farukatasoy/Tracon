@@ -152,3 +152,23 @@ sabit dizge değil, `Tracon.Client`'ın tablodaki lisansından **türetilir**.
   `Tracon.AspNetCore 1.0.0` üzerinden geçişli gelir. Yani bir paketin temiz
   pack'i grafiğinde ön sürüm olmadığını kanıtlamaz. Kararlı hattı `Tracon.AspNetCore`'un pack'i
   durdurur, çünkü tek sürüm hattı (K-602) 20 paketi birlikte keser.
+
+## Yayınlanmış sürüme karşı doğrulama (Faz 187, 2026-09-24)
+
+- **🚨 `PackageValidationBaselineVersion` tabanı geliştirici cache'inden okur.**
+  SDK `PackageDownload` ekler; cache'teki yerel bir `1.0.0-preview.1`
+  (`ReleaseArtifactFixture`) ağacı kendisiyle karşılaştırır. Yol:
+  `kapi.py yayin` izole cache + `TraconPackageBaselineRoot` →
+  `PackageValidationBaselinePath` (`scripts/breaking_changes.py`).
+- **🚨 Rapor yolu boşsa SDK `src/<P>/CompatibilitySuppressions.xml` yazar**;
+  sonraki her pack onu bastırma girdisi okur ve kırılma kalıcı gizlenir. Yol
+  bayrakla birlikte türetilir; `breaking_changes_test` dosyayı yasaklar.
+- **🚨 `RunPackageValidation` artımlıdır** (çıktı: semaphore). Değişmeyen
+  paket doğrulamayı atlar. Olmayan bir rapor yolu hedefi yeniden koşturur.
+  Farksız pakette SDK rapor **yazmaz** — kanıt semaphore'un zamanıdır. Klasör
+  macOS'ta eski `Release/`, taze klonda `release/`; harf duyarsız aranır.
+- `PKV006` (düşen TFM) kaydı `Target`=TFM taşır, `IsBaselineSuppression`
+  taşımaz; strict hata da taşımaz — ayrım tanı koduyladır.
+- **🚨 `$TMPDIR` altındaki worktree'de `.editorconfig` uygulanmaz**
+  (`/var` → `/private/var`); MA0048 gibi susturulmuş tanılar hata olur.
+  Worktree'yi `pwd -P` ile gerçek yola aç.

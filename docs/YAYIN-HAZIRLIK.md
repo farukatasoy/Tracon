@@ -504,7 +504,7 @@ operasyon kritik yolunu yeniden açmaz.
 - [x] Tüketiciye dönük paket URL'lerinin gerçekten **çözüldüğü** ölçüldü (BL-056/K-659) — `PackageProjectUrl` ve `PackageReleaseNotes` doküman sitesine bakar.
 - [x] `.snupkg` envanteri ölçüldü: 18 sembol paketi sevk edildi. **RK-013 kendiliğinden kapandı** — repo public yapıldı (`visibility: public`) ve `RepositoryUrl` `github.com/farukatasoy/Tracon`'a bakıyor, ∴ Source Link üçüncü taraf için **çözer**. Kabul edilen risk artık yok.
 - [ ] Deterministic/reproducible release ölçüldü.
-- [ ] Package validation sonucu incelendi.
+- [x] Package validation sonucu incelendi — **Faz 187 (2026-09-24):** her pack strict mode'la (TFM'ler arası aynı yüzey) doğrular; `kapi.py yayin` son `v*` etiketine karşı taban doğrulaması koşar ve kırılan her public tip ile düşen her TFM sürüm notunda adıyla geçmezse kırmızıdır (`publish` koşmaz, K-604). İlk koşum: taban `v1.0.0-preview.2`, 95 tip, 10 paket, hepsi `[Unreleased]`'da.
 
 ### Public contract ve güvenlik
 
@@ -624,8 +624,9 @@ operasyon kritik yolunu yeniden açmaz.
 
 - **UR-003 public API freeze taraması** — 680 tip, `Unshipped → Shipped`
   dolumuyla aynı turda (KG-016).
-- §10'daki Source Link gerçek çözümleme, reproducible build, package validation
-  ve tam artifact-seviyesi contract/güvenlik matrisi.
+- §10'daki Source Link gerçek çözümleme, reproducible build ve tam
+  artifact-seviyesi contract/güvenlik matrisi. Package validation'ın taban
+  kısmı Faz 187'de kapandı (yayın provası); `Shipped` dolumu (K-603) GA'da kalır.
 - KG-019 ile ertelenen contract suite, dış sample ve operasyonel metric kulvarları.
 - **BL-057** — nuget.org `Tracon` organizasyonuna ikinci üye (👤 bakımcı eylemi,
   RK-012). GA bu kalem kapanmadan çıkmaz.

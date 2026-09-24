@@ -172,3 +172,12 @@
   paketler canlida, release sayfasi eksik kaldi. Dist-tag/release gibi
   yayin-sonrasi adimlarin duzeltilmesi etiketi yeniden kosturmakla olur; yayin
   adimi var olan surumu `npm view` ile gorup atlar.
+
+## Sürüm kesimi ve etiket TEK push'ta (Faz 187, Açık Soru 1 = C)
+
+- **🚨 Kesim commit'i etiketsiz itilirse yayın provası kırmızıdır.** Kesim
+  `## [Unreleased]`'i `## [<sürüm>] - <tarih>` yapar ve üstüne boş bir
+  `[Unreleased]` açar. Etiket yokken MinVer `<önceki>.N` üretir; bu sürüm için
+  bölüm yoktur ve `[Unreleased]` boştur. Kırıcı değişiklik varsa kapı notu
+  bulamaz. Mesaj komutu söyler: `git push --atomic origin main v<sürüm>`.
+  Etiketli koşumda taban **bir önceki** `v*` etiketidir (MT-PKG-144).
