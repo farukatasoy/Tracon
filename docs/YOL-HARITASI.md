@@ -200,7 +200,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [185](arsiv/fazlar/185-KARDES-PAKET-SURUM-SABITLEME.md) | Kardeş Paket Sürüm Sabitleme ve Karışık Graf Koruması | ✅ Tamamlandı |
 | [186](arsiv/fazlar/186-SCRIPT-IZNI-ICERIK-PINI.md) | Script İzninin İçeriğe Bağlanması ve Tehdit Modeli Düzeltmesi | ✅ Tamamlandı |
 | [187](arsiv/fazlar/187-KIRICI-DEGISIKLIK-KAPISI.md) | Yayınlanmış Sürüme Karşı Kırıcı Değişiklik Kapısı | ✅ Tamamlandı |
-| [188](188-DI-KURUCU-DARALTMA.md) | DI ile Kurulan Servis Tiplerinde Kurucu Daraltması | ✅ Tamamlandı |
+| [188](arsiv/fazlar/188-DI-KURUCU-DARALTMA.md) | DI ile Kurulan Servis Tiplerinde Kurucu Daraltması | ✅ Tamamlandı |
 | [189](189-TUKETICI-YUZEYI-VE-BUILDER.md) | Tüketici Yüzeyi: TraconToolRegistration ve ITraconBuilder | 📋 Planlandı |
 | [190](190-KIMLIK-BASLIKLARI-ANAHTAR-REFERANSI.md) | Kimlik Taşıyan Başlıklar İçin Yapılandırma Anahtarı Referansı | 📋 Planlandı |
 | [191](191-TEK-DERLEME-ZINCIRI.md) | Tek Derleme Zinciri | 📋 Planlandı |
