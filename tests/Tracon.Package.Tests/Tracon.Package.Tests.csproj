@@ -25,6 +25,7 @@
     <Compile Include="../Shared/Infrastructure/ProcessRunner.cs" Link="Infrastructure/Shared/ProcessRunner.cs" />
     <Compile Include="../Shared/Infrastructure/ManagedProcess.cs" Link="Infrastructure/Shared/ManagedProcess.cs" />
     <Compile Include="../Shared/Infrastructure/RepoRoot.cs" Link="Infrastructure/Shared/RepoRoot.cs" />
+    <Compile Include="../Shared/Infrastructure/PackableProjects.cs" Link="Infrastructure/Shared/PackableProjects.cs" />
   </ItemGroup>
 
   <!--

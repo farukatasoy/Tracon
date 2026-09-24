@@ -11,6 +11,8 @@
     <ProjectReference Include="../Tracon.Samples.CustomAgentSource/Tracon.Samples.CustomAgentSource.csproj" />
     <ProjectReference Include="../Tracon.Samples.CustomTool/Tracon.Samples.CustomTool.csproj" />
     <PackageReference Include="Tracon" VersionOverride="$(TraconSamplePackageVersion)" />
+    <!-- The generic host the smoke starts and stops; the library packages need only its abstractions. -->
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
   </ItemGroup>
 
 </Project>

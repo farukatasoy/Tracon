@@ -154,6 +154,39 @@ preview line, and the counts below are types, not members.
 
 ### Changed
 
+- Every Tracon package now depends on its Tracon siblings at exactly its own
+  version (`[1.0.0-preview.3]`), not at that version or any later one.
+  Upgrading one Tracon package and not the others now fails restore with
+  `NU1107`, or warns `NU1608` when your project references the shared package
+  directly.
+- A host whose loaded Tracon package assemblies come from more than one release
+  no longer starts. It stops before any hosted service starts, with a
+  `TraconException` that lists each Tracon assembly and its version. Before, it
+  started and failed later, at the first call into a member the other release
+  no longer has. Every Tracon library package is compared except
+  `Tracon.Client`, which talks to a server over HTTP and may call another
+  release by design. The check has no setting to turn it off. A process that
+  never starts a host (a bare `BuildServiceProvider()`, or a test project that
+  runs the store contracts) does not run it.
+- A project created with `dotnet new tracon-api` treats `NU1608` as an error, so
+  such a graph stops at restore. The template's project file explains the line;
+  remove it to keep `NU1608` a warning.
+- Upgrade every Tracon package together, `Tracon.Testing.Contracts.Xunit`
+  included. Measured against `1.0.0-preview.2`, these calls fail at run time
+  when a `1.0.0-preview.2` package runs next to a newer sibling:
+  `Tracon.AspNetCore` calls `TenantProviderCredentialResolver.ValidatePrefix`
+  (a tenant provider binding `PUT`) and `InboundTriggerSecretResolver.ValidatePrefix`
+  (a trigger save), which no longer exist (`MissingMethodException`), and
+  `ConfigurationKeyGuard.RequirePrefix` (an MCP server or webhook save), which
+  is no longer reachable (`MethodAccessException`); `Tracon.Mcp` calls
+  `ConfigurationKeyGuard.RequirePrefix` when it opens an MCP transport; and
+  `Tracon.Testing.Contracts.Xunit` calls `JobPayload.ExtractItems` (two
+  `JobScheduleStoreContract` cases) and `WorkflowCheckpointState.IsOmitted` (one
+  `WorkflowCheckpointStoreContract` case), which are now internal
+  (`MethodAccessException`). The published `1.0.0-preview.1` and
+  `1.0.0-preview.2` packages accept any newer sibling, so restore does not stop
+  that graph: a host stops at start-up, and a test project that runs the store
+  contracts without a host fails at those calls.
 - `QuotaUsageQuery` has a new `PeriodStarts` filter: for each period, the first
   day whose counters to return, computed by the caller from the configured time
   zone. Without it, `IQuotaStore.GetUsageAsync` returns every period's counters,

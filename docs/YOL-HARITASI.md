@@ -197,7 +197,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [182](arsiv/fazlar/182-PUBLIC-API-YUZEY-DARALTMA.md) | Public API Yüzey Daraltma | ✅ Tamamlandı |
 | [183](arsiv/fazlar/183-COKLU-TFM-TEST-MATRISI.md) | Çoklu TFM Test Matrisi | ✅ Tamamlandı |
 | [184](arsiv/fazlar/184-TEST-BEKLEME-VE-E2E-YAPISI.md) | Test Bekleme ve E2E Yapısı | ✅ Tamamlandı |
-| [185](185-KARDES-PAKET-SURUM-SABITLEME.md) | Kardeş Paket Sürüm Sabitleme ve Karışık Graf Koruması | 📋 Planlandı |
+| [185](185-KARDES-PAKET-SURUM-SABITLEME.md) | Kardeş Paket Sürüm Sabitleme ve Karışık Graf Koruması | ✅ Tamamlandı |
 | [186](186-SCRIPT-IZNI-ICERIK-PINI.md) | Script İzninin İçeriğe Bağlanması ve Tehdit Modeli Düzeltmesi | 📋 Planlandı |
 | [187](187-KIRICI-DEGISIKLIK-KAPISI.md) | Yayınlanmış Sürüme Karşı Kırıcı Değişiklik Kapısı | 📋 Planlandı |
 | [188](188-DI-KURUCU-DARALTMA.md) | DI ile Kurulan Servis Tiplerinde Kurucu Daraltması | 📋 Planlandı |

@@ -38,6 +38,20 @@
    ```
    Öteki hafıza okumaları § 186.10'da, onları kullanan adımdadır. Önceki fazın devir
    notu ve `MIMARI.md` gerekmez; bu faz önceki fazın sözleşmesini devralmaz.
+4. **Faz 185'ten gelen ortam notları** (2026-09-24; sözleşme devri değil):
+   - 🚨 Bu makinede net8 runtime'ı yalnız `~/.dotnet` altındadır; çok hedefli test
+     projeleri için her komutta `export DOTNET_ROOT=$HOME/.dotnet` (PATH'teki
+     `dotnet` sistemin kalır) — `hafiza/test-kosum-tuzaklari.md` "Çoklu TFM test
+     runtime'ları".
+   - Her host başlangıçta Tracon aile derlemelerinin sürümünü karşılaştırır
+     (`PackageFamilyAlignmentService`, K-859). Bir test karışık derleme yüklerse
+     host `TraconException` ile başlamaz; seam `LoadedPackageFamily`'dir
+     (`AddTracon()`'dan önce kaydedilir).
+   - Karar numarası: son `K-859`; sıradaki **`K-860`**. Listedeki "K-855 kategori
+     etiketi" satırı K-855'in kendisini değil, etiket kuralının başladığı numarayı
+     anlatır (K-855 = `net8.0`/`net9.0` düşürme kararı); kural `AGENTS.md`'dedir.
+   - Aday sayacı `ADAYLAR.md` § *F-ID tahsis kuralı*'ndadır (bir F-ID'yi metinde
+     anmak onu "kullanılmış" sayar; sayaç numarasını buraya yazma).
 
 ---
 

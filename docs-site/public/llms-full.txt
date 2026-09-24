@@ -232,9 +232,12 @@ caller's role and key scopes. See the complete scope table in
 | Health checks | `AddTraconHealthChecks()` | Adds checks to the consumer's health-check system; you choose the route with `MapHealthChecks()` |
 | Diagnostics report | `GET /api/diagnostics` and console | Endpoint is off by default because it reveals deployment shape |
 | Retention preview | HTTP API and console | Shows eligible rows before a cleanup job changes data |
+| Package family alignment | Host start | Always on; a host whose Tracon package assemblies (all but `Tracon.Client`) come from more than one release stops before any hosted service runs, and the error names each assembly and version |
 
 Observability never changes behavior. Every signal here is a side effect of a run, and
 a failure to record one is logged and stepped over rather than raised to the caller.
+Package family alignment is the one start-up guard in this table: it refuses a mixed
+graph instead of reporting it.
 
 ## Integration surfaces
 
@@ -5400,7 +5403,7 @@ every page — three sizes for three questions, published on the documentation s
   what**: one line per hand-written page, with its title, address, and subject. About
   20 KB.
 - [`llms-full.txt`](/llms-full.txt) — every guide, concept, and reference
-  page concatenated, about 700 KB.
+  page concatenated, about 825 KB.
 
 The middle layer is the one to use. The map names a capability but does not explain it;
 the index names the one page that does, and reading that page costs a fraction of the
@@ -13160,7 +13163,9 @@ build-time analyzer carried inside the Core package, not a separate NuGet packag
 `Tracon.Templates` is a .NET 10 `dotnet new` content package, not runtime API.
 The project it generates references the Tracon packages at **the template
 package's own version**, so a template and the runtime it writes always come
-from the same release. Pass `--TraconVersion x.y.z` to choose another one.
+from the same release. Pass `--TraconVersion x.y.z` to choose another one. The
+generated project treats `NU1608` as an error, so a reference that moves one Tracon
+package to another version stops at restore.
 
 ## What does not enter your graph
 
@@ -15237,8 +15242,49 @@ dotnet new tracon-api --TraconVersion "$TRACON_VERSION"
 ## Pin the whole package family
 
 Do not mix Tracon preview versions. The packages share public contracts, DI
-registrations, database migrations, and generated code. A mixed graph can restore but
-fail during startup or at runtime.
+registrations, database migrations, and generated code, and one package can call a
+sibling member that another release removed.
+
+Every Tracon package depends on its Tracon siblings at **exactly its own version**
+(`[1.0.0-preview.N]`), so NuGet and the host stop a mixed graph at three points:
+
+```mermaid
+flowchart TD
+    accTitle: Where a mixed Tracon graph stops
+    accDescr: Two Tracon packages on different versions fail restore with NU1107. A direct reference to a shared Tracon package overrides the exact range, and NuGet only warns NU1608, unless the project treats NU1608 as an error. A graph that restores anyway, or that uses a package published before the exact range, stops when the host starts.
+    G[Your project] --> Q{How does the shared<br/>Tracon package enter?}
+    Q -- through two packages<br/>on different versions --> R1[Restore fails: NU1107]
+    Q -- through a direct reference<br/>on another version --> R2[Restore warns: NU1608]
+    R2 -- NU1608 in WarningsAsErrors --> R3[Restore fails]
+    R2 -- warning only --> S[Host start]
+    OLD[A package published<br/>before the exact range] --> S
+    S -- more than one version --> X[TraconException:<br/>the host does not start]
+    S -- one version --> OK[Normal start]
+```
+
+- **Two packages on different versions** that share a sibling (for example
+  `Tracon.AspNetCore` and `Tracon.Voice`, which both need `Tracon.Core`) fail
+  restore with `NU1107`.
+- **A direct reference wins.** Referencing `Tracon.Core` at another version
+  overrides the exact range; NuGet reports only warning `NU1608`. Add
+  `<WarningsAsErrors>$(WarningsAsErrors);NU1608</WarningsAsErrors>` to stop
+  restore instead. The `dotnet new tracon-api` project already carries that
+  line. It also turns the same warning from any other package into an error;
+  delete it if you want `NU1608` to stay a warning.
+- **A graph that restores anyway does not start.** When the host starts, before
+  any hosted service runs, Tracon compares the versions of the Tracon package
+  assemblies the process loaded. If they differ, the host stops with a
+  `TraconException` that lists each assembly and its version on its own line.
+  `Tracon.Client` is not compared: it talks to a server over HTTP and may call
+  another release by design. The check has no setting to turn it off, and it
+  runs only in a process that starts a host.
+- **`1.0.0-preview.1` and `1.0.0-preview.2` accept any newer sibling.** They
+  were published before the exact range, so restore cannot stop them; the host
+  check does when a host starts.
+- **A store author** who tests with `Tracon.Testing.Contracts.Xunit` sees
+  `NU1608` when `Tracon.Abstractions` is on a newer version than the contract
+  package. Upgrade the contract package with it: an older contract package can
+  call members the newer abstractions package no longer exposes.
 
 With Central Package Management, keep the versions in one place:
 

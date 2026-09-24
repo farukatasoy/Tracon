@@ -1,6 +1,6 @@
 # 01 — Kurulum ve Paketleme (`PKG`)
 
-> **Alan kodu:** `PKG` · **Faz:** 0, 52, 60, 182, 183
+> **Alan kodu:** `PKG` · **Faz:** 0, 52, 60, 182, 183, 185
 > **Kaynak:** `global.json` · `NuGet.config` · `Directory.Build.props` ·
 > `Directory.Build.targets` · `src/Directory.Build.props` · `src/*/*.csproj` ·
 > `src/Tracon.Generators/` · `tests/Directory.Build.props` (TFM matrisi) ·
@@ -3676,3 +3676,176 @@ DOTNET_ROLL_FORWARD=LatestMajor ./artifacts/bin/Tracon.Testing.Contracts.Xunit.U
 - Test düşer: `Built for '.NETCoreApp,Version=v8.0' but running on '.NET 10.0.<yama>'`
   (makinedeki en yeni runtime).
 - Aynı komut `DOTNET_ROLL_FORWARD` olmadan ve net8 runtime kuruluyken geçer.
+
+---
+
+### MT-PKG-130 — Her kardeş bağımlılığı her TFM grubunda tam aralık ve paketin kendi sürümü
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 185 |
+| **İlgili karar** | K-858 |
+
+`dotnet pack` bir `ProjectReference`'ı alt sınır (`>= x`) yazar; `TraconPinSiblingDependencies`
+onu `[x]` yapar. Üçüncü taraf bağımlılıklar alt sınırda kalır.
+
+**Ön koşul**
+- Temiz ağaç; `<V>` = `dotnet msbuild src/Tracon/Tracon.csproj -t:MinVer -getProperty:PackageVersion`.
+
+**Adımlar**
+1. Paketle, sonra her `<V>` paketinin nuspec'indeki Tracon bağımlılıklarını say.
+
+**Girilecek veri**
+```bash
+dotnet pack Tracon.src.slnf -c Release
+for f in artifacts/package/release/*.<V>.nupkg; do unzip -p "$f" '*.nuspec' | grep -o '<dependency id="Tracon[^/]*/>'; done | wc -l
+for f in artifacts/package/release/*.<V>.nupkg; do unzip -p "$f" '*.nuspec' | grep -o '<dependency id="[^"]*" version="\[[^/]*/>' | grep -v 'id="Tracon'; done | wc -l
+```
+
+**Gerçek sonuç (2026-09-24, `<V>` = `1.0.0-preview.2.43`)**
+- 66 satır; 66'sı `version="[1.0.0-preview.2.43]" exclude="Build,Analyzers"`; Tracon dışı `[`: 0.
+
+**Beklenen sonuç**
+- 66 satır (22 kenar × 3 TFM), hepsi `[<V>]` ve `exclude="Build,Analyzers"`.
+- İkinci komut `0` (Tracon dışı tam aralık yok).
+
+---
+
+### MT-PKG-131 — Farklı sürümdeki iki yaprak restore'da `NU1107` ile düşer
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 185 |
+| **İlgili karar** | K-858 |
+
+`Tracon.AspNetCore` ve `Tracon.Voice` ikisi de `Tracon.Core`'a bağlıdır; farklı sürümde
+ortak düğüm iki tam aralığı birden karşılayamaz.
+
+**Ön koşul**
+- Feed'de `1.0.0-preview.1` (`ReleaseArtifactFixture` damgası) ve `<V>` var.
+- 🚨 İzole önbellek: `export NUGET_PACKAGES=$(mktemp -d)` — yerel preview.1 global
+  önbelleği zehirler (nuget.org aynı kimlikte farklı bir preview.1 sunar).
+
+**Adımlar**
+1. Geçici classlib'e iki `PackageReference` yaz; `NuGet.config` `Tracon*`'u yalnız
+   `artifacts/package/release`'e eşlesin (`packageSourceMapping`).
+2. `dotnet restore`.
+
+**Girilecek veri**
+```xml
+<PackageReference Include="Tracon.AspNetCore" Version="1.0.0-preview.1" />
+<PackageReference Include="Tracon.Voice" Version="<V>" />
+```
+
+**Gerçek sonuç (2026-09-24)**
+- `error NU1107: Version conflict detected for Tracon.Core.` · `Tracon.Voice <V> -> Tracon.Core (= <V>)` ·
+  `Tracon.AspNetCore 1.0.0-preview.1 -> Tracon.Core (= 1.0.0-preview.1)`; çıkış ≠ 0.
+
+**Beklenen sonuç**
+- Çıkış ≠ 0; `NU1107` ve `Tracon.Core` adı.
+
+---
+
+### MT-PKG-132 — Doğrudan başvuru aralığı ezer: `NU1608` uyarısı, host başlamaz
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 185 |
+| **İlgili karar** | K-859 |
+
+Doğrudan başvuru kazanır; NuGet yalnız uyarır. Restore'dan geçen karışık graf host
+başlarken durur.
+
+**Ön koşul**
+- MT-PKG-131 ön koşulu (iki damgalı feed, izole önbellek, kaynak eşlemesi).
+
+**Adımlar**
+1. Geçici web projesi: `Tracon.AspNetCore 1.0.0-preview.1` + `Tracon.Core <V>`;
+   `Program.cs` = `builder.AddTracon()` + `app.MapTracon()` + `StartAsync`.
+2. `dotnet build -c Release`, sonra `dotnet run -c Release --no-build`.
+
+**Gerçek sonuç (2026-09-24)**
+- Build: `warning NU1608: Detected package version outside of dependency constraint:
+  Tracon.AspNetCore 1.0.0-preview.1 requires Tracon.Core (= 1.0.0-preview.1) but version
+  Tracon.Core 1.0.0-preview.2.43 was resolved.`
+- Run: `Hosting failed to start` · `Tracon.TraconException: Tracon packages from more than
+  one release are loaded into this process.` ve ayrı satırlarda
+  `Tracon.Abstractions 1.0.0-preview.2.43` · `Tracon.AspNetCore 1.0.0-preview.1` ·
+  `Tracon.Core 1.0.0-preview.2.43`; çıkış ≠ 0.
+
+**Beklenen sonuç**
+- Build geçer, `NU1608` uyarısı görünür.
+- Run sıfır olmayan çıkışla biter; mesaj iki sürümü ayrı satırlarda listeler.
+
+---
+
+### MT-PKG-133 — Yayınlanmış açık aralıklı preview.2 kardeşi host'u durdurur (DLL değişimi)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 185 |
+| **İlgili karar** | K-859 |
+
+nuget.org'daki `1.0.0-preview.2` her yeni kardeşi kabul eder; restore onu durduramaz,
+yalnız başlangıç kontrolü durdurur.
+
+**Ön koşul**
+- `samples/Tracon.Api` release derlemesi; `~/.nuget/packages/tracon.aspnetcore/1.0.0-preview.2/.nupkg.metadata`
+  içinde `"source": "https://api.nuget.org/v3/index.json"`.
+
+**Adımlar**
+1. `artifacts/bin/Tracon.Api/release/Tracon.AspNetCore.dll`'i preview.2 kopyasıyla değiştir.
+2. `hafiza/elle-kosum-ortami.md` tarifiyle başlat.
+3. Geri al: `dotnet build samples/Tracon.Api -c Release`.
+
+**Girilecek veri**
+```bash
+cp ~/.nuget/packages/tracon.aspnetcore/1.0.0-preview.2/lib/net10.0/Tracon.AspNetCore.dll artifacts/bin/Tracon.Api/release/
+dotnet artifacts/bin/Tracon.Api/release/Tracon.Api.dll --contentRoot "$PWD/artifacts/bin/Tracon.Api/release" --urls http://127.0.0.1:5199
+```
+
+**Gerçek sonuç (2026-09-24)**
+- Çıkış 134; `Unhandled exception. Tracon.TraconException: Tracon packages from more than
+  one release ...`; 14 satır, `Tracon.AspNetCore 1.0.0-preview.2` dışındakilerin hepsi
+  `1.0.0-preview.2.43`. `curl` `000` (dinleyen yok).
+
+**Beklenen sonuç**
+- Host başlamaz; mesajda `Tracon.AspNetCore 1.0.0-preview.2` ve `Tracon.Core <V>` satırları.
+- Geri alma sonrası host normal başlar.
+
+---
+
+### MT-PKG-134 — 👤 insan gerekir: yayından sonra eski preview'lar deprecated görünür
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 185 |
+| **İlgili karar** | — |
+
+Bakımcı eylemi: sonraki yayın nuget.org'da görünür olduktan sonra preview.1 ve preview.2'nin
+her paket kimliği deprecated işaretlenir (silme ve unlist bu adım değildir).
+
+**Ön koşul**
+- Sonraki yayın nuget.org'da görünür; deprecation bakımcı tarafından yapılmış.
+
+**Adımlar**
+1. `1.0.0-preview.2`'ye başvuran bir projede listele.
+
+**Girilecek veri**
+```bash
+dotnet list package --deprecated
+```
+
+**Beklenen sonuç**
+- Tracon paketleri deprecated görünür; alternatif olarak aynı kimliğin yeni sürümü.
+- `dotnet restore` engellenmez.

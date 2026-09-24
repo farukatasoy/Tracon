@@ -2,16 +2,17 @@ using System.IO.Compression;
 using System.Reflection.Metadata;
 using System.Reflection.PortableExecutable;
 using System.Text.RegularExpressions;
+using System.Xml.Linq;
 using Tracon.Package.Tests.Infrastructure;
 
 namespace Tracon.Package.Tests;
 
 /// <summary>
 /// The content contract a <c>v*</c> tag push commits to before it is pushed
-/// (Phase 97, 97.2). Scoped to its own <see cref="ReleaseArtifactFixture"/>
-/// (not the shared <see cref="TemplateFixture"/>) because it forces a
-/// specific version onto the pack - a second, separate <c>dotnet pack</c>
-/// only these facts pay for.
+/// (Phase 97, 97.2). Reads the <see cref="ReleaseArtifactFixture"/> packages
+/// (not the shared <see cref="TemplateFixture"/> ones) because that pack forces
+/// a specific version - a second, separate <c>dotnet pack</c>, owned by the
+/// <see cref="RepositoryTreeGate"/> collection so it still runs only once.
 /// </summary>
 /// <remarks>
 /// <c>scripts/kapi.py yayin</c> runs the SAME rehearsal as a CLI command (for
@@ -20,7 +21,7 @@ namespace Tracon.Package.Tests;
 /// same contract.
 /// </remarks>
 [Collection(RepositoryTreeGate.Name)]
-public sealed class ReleaseArtifactTests(ReleaseArtifactFixture fixture) : IClassFixture<ReleaseArtifactFixture>
+public sealed class ReleaseArtifactTests(ReleaseArtifactFixture fixture)
 {
     private static readonly Regex PrereleaseDependency = new(
         "id=\"(?<id>[^\"]+)\" version=\"[^\"]*-[^\"]*\"",
@@ -85,6 +86,122 @@ public sealed class ReleaseArtifactTests(ReleaseArtifactFixture fixture) : IClas
 
         offenders.ShouldBeEmpty(
             $"K-008 boundary violated - only Tracon.AspNetCore may declare a pre-release dependency:\n{string.Join("\n", offenders)}");
+    }
+
+    /// <summary>
+    /// Every Tracon-to-Tracon dependency is an EXACT range on the package's own
+    /// version, in every framework group - the nuspec half of the one-version-line
+    /// rule (K-602).
+    /// </summary>
+    /// <remarks>
+    /// <c>dotnet pack</c> writes a <c>ProjectReference</c> as a LOWER bound
+    /// (<c>version="x"</c> means <c>&gt;= x</c>), so upgrading one package
+    /// restores a mixed graph with zero warnings and fails at run time with
+    /// <see cref="MissingMethodException"/>. The pin is applied by the
+    /// <c>TraconPinSiblingDependencies</c> target in <c>src/Directory.Build.props</c>,
+    /// which edits an SDK-private item; if the SDK renames that item the target
+    /// becomes a silent no-op and this fact is the only thing that notices.
+    /// Violations are listed per group, never de-duplicated, so a red run shows
+    /// exactly which package, framework, and edge regressed.
+    /// </remarks>
+    [Fact]
+    public void EverySiblingDependencyIsExactAndMatchesOwnVersion()
+    {
+        var packageIds = PackableProjects.Ids().ToHashSet(StringComparer.Ordinal);
+        var violations = new List<string>();
+        var siblingEdges = 0;
+
+        foreach (var id in PackableProjects.Ids())
+        {
+            var metadata = XDocument.Parse(ReadNuspec(id)).Root?.Elements().SingleOrDefault(element => IsNamed(element, "metadata"))
+                ?? throw new InvalidOperationException($"'{id}.nuspec' has no <metadata> element.");
+            var version = metadata.Elements().Single(element => IsNamed(element, "version")).Value;
+
+            foreach (var (group, dependency) in Dependencies(metadata))
+            {
+                var dependencyId = dependency.Attribute("id")?.Value ?? string.Empty;
+                var range = dependency.Attribute("version")?.Value ?? string.Empty;
+                var location = $"{id} · {group} · {dependencyId} · {range}";
+
+                if (!IsTraconPackage(dependencyId))
+                {
+                    if (range.StartsWith('['))
+                    {
+                        violations.Add($"{location}: a third-party dependency must keep NuGet's lower bound");
+                    }
+
+                    continue;
+                }
+
+                siblingEdges++;
+
+                if (!packageIds.Contains(dependencyId))
+                {
+                    violations.Add($"{location}: not a packable project under src/");
+                }
+
+                if (!IsExactRangeOn(range, version))
+                {
+                    violations.Add($"{location}: expected [{version}]");
+                }
+
+                if (!string.Equals(dependency.Attribute("exclude")?.Value, "Build,Analyzers", StringComparison.Ordinal))
+                {
+                    violations.Add($"{location}: exclude=\"Build,Analyzers\" was lost");
+                }
+            }
+        }
+
+        siblingEdges.ShouldBeGreaterThan(0, "No Tracon dependency was found in any nuspec; the parser no longer matches the nuspec shape.");
+        violations.ShouldBeEmpty(
+            $"{violations.Count} sibling dependency group(s) are not pinned to the package's own version:\n{string.Join("\n", violations)}");
+    }
+
+    /// <summary>The nuspec namespace changes with the schema version, so elements are matched by local name.</summary>
+    private static bool IsNamed(XElement element, string localName)
+        => string.Equals(element.Name.LocalName, localName, StringComparison.Ordinal);
+
+    private static bool IsTraconPackage(string id)
+        => string.Equals(id, "Tracon", StringComparison.Ordinal) || id.StartsWith("Tracon.", StringComparison.Ordinal);
+
+    /// <summary><c>[v]</c> and <c>[v, v]</c> are the two spellings of an exact NuGet range.</summary>
+    private static bool IsExactRangeOn(string range, string version)
+    {
+        if (range.Length < 3 || range[0] != '[' || range[^1] != ']')
+        {
+            return false;
+        }
+
+        var bounds = range[1..^1].Split(',', StringSplitOptions.TrimEntries);
+
+        return bounds.Length is 1 or 2 && bounds.All(bound => string.Equals(bound, version, StringComparison.Ordinal));
+    }
+
+    private static IEnumerable<(string Group, XElement Dependency)> Dependencies(XElement metadata)
+    {
+        var dependencies = metadata.Elements().SingleOrDefault(element => IsNamed(element, "dependencies"));
+
+        if (dependencies is null)
+        {
+            yield break;
+        }
+
+        foreach (var child in dependencies.Elements())
+        {
+            if (IsNamed(child, "dependency"))
+            {
+                yield return ("(no framework group)", child);
+            }
+            else if (IsNamed(child, "group"))
+            {
+                var framework = child.Attribute("targetFramework")?.Value ?? "(no framework group)";
+
+                foreach (var dependency in child.Elements().Where(element => IsNamed(element, "dependency")))
+                {
+                    yield return (framework, dependency);
+                }
+            }
+        }
     }
 
     [Fact]

@@ -137,6 +137,37 @@
   </Target>
 
   <!--
+    Every Tracon package ships on one version line (docs/KARARLAR.md, K-602), so
+    a sibling dependency is written as an EXACT range on this package's own
+    version: [1.0.0-preview.3], not NuGet's default lower bound. With a lower
+    bound, upgrading ONE Tracon package restores a mixed graph with zero
+    warnings, and the process fails later at run time with a
+    MissingMethodException in whichever sibling still calls a member the other
+    release removed.
+
+    `dotnet pack` turns each ProjectReference into a dependency whose range is
+    the referenced project's ProjectVersion metadata, read by the SDK's
+    _GetProjectReferenceVersions target (a DependsOnTargets of GenerateNuspec,
+    so it has already run when a BeforeTargets hook of GenerateNuspec runs).
+    There is no public property for this range; the item is SDK-private.
+
+    🚨 If the SDK renames _ProjectReferencesWithVersions, this target silently
+    edits nothing: the ranges fall back to lower bounds and the build stays
+    green. The only gate that notices is
+    tests/Tracon.Package.Tests ReleaseArtifactTests.EverySiblingDependencyIsExactAndMatchesOwnVersion.
+    A version that is already an exact range (starts with '[') is left as it is,
+    so the target stays idempotent if the SDK ever pins the range itself.
+  -->
+  <Target Name="TraconPinSiblingDependencies" BeforeTargets="GenerateNuspec">
+    <ItemGroup>
+      <_ProjectReferencesWithVersions Condition=" '%(_ProjectReferencesWithVersions.ProjectVersion)' != ''
+                                                  And !$([System.String]::Copy('%(_ProjectReferencesWithVersions.ProjectVersion)').StartsWith('[')) ">
+        <ProjectVersion>[%(_ProjectReferencesWithVersions.ProjectVersion)]</ProjectVersion>
+      </_ProjectReferencesWithVersions>
+    </ItemGroup>
+  </Target>
+
+  <!--
     🚨 <None Update=...> is a silent no-op in a cross-targeted project: the
     SDK's default None glob applies only in the INNER (TFM-specific) builds,
     while `dotnet pack` collects package files in the OUTER cross-targeting

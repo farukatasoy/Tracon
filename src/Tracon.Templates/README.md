@@ -35,6 +35,11 @@ A running control plane opens at `http://localhost:5081/tracon`.
 dotnet new tracon-api -n My.Agent --persistence postgres --provider anthropic --ui true
 ```
 
+The generated project references every Tracon package at the template's own version
+and treats NuGet warning `NU1608` as an error, so a reference that moves one Tracon
+package to another version stops at restore. Delete that line from the project file to
+keep `NU1608` a warning.
+
 The generated `appsettings.json` carries only empty placeholders — it never contains a `secret`. The connection string and API key are set with `dotnet user-secrets`; the generated `README.md` describes this as the first step.
 
 Details: <https://tracon.dev/getting-started/first-agent/>
