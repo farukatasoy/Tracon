@@ -107,7 +107,7 @@ decisions can be overridden or composed with your own rules — see
 | Pattern guard | `AddPatternContentGuard()` | Denied terms can block; selected PII patterns can mask input or output |
 | Skills | `AddSkill()` or database/file skill sources | Markdown instructions and resources are bounded and validated |
 | Skill scripts | `UseSkillScripts()` | Explicit enablement, platform-isolation acknowledgement, interpreter allowlist, a content-pinned tenant grant (platform authority for a stored script in a multi-tenant host), timeout, output limit, and concurrency limits |
-| Remote MCP tools | `UseMcp()` | Tool discovery, name normalization, resource limits, authentication, refresh, prompts, and OAuth coordination |
+| Remote MCP tools | `UseMcp()` | Tool discovery, name normalization, resource limits, authentication (credential headers by configuration key name), refresh, prompts, and OAuth coordination |
 | MCP resources | `AgentDefinition.McpResourceUris` | A bounded snapshot of selected server resources enters agent context |
 | Knowledge search | PostgreSQL, `IEmbeddingGenerator`, and memory settings | Chunking, embedding, HNSW cosine search, tenant isolation, and result limits |
 
@@ -206,9 +206,9 @@ experiment, and automatic rollback is off until you configure it.
 | Rate limiting | HTTP requests | Off by default; partition by tenant, key, or remote address |
 | Approvals | Tool execution and queued resume | Expiring requests, explicit decisions, and revocable standing rules |
 | Audit trail | Administrative writes | Actor, action, entity, before/after data, secret masking, and a per-tenant hash chain; best-effort except for [six fail-closed operations](/concepts/governance/#what-is-guaranteed-to-be-written) |
-| Webhooks | Signed outbound events | HTTPS, SSRF checks, response limits, reserved-header rejection, retry jobs, and failure disablement |
+| Webhooks | Signed outbound events | HTTPS, SSRF checks, response limits, reserved-header rejection, credential headers by configuration key name, retry jobs, and failure disablement |
 | Outbound network guard | `Tracon:Egress` | One guard for webhook delivery, MCP connections, and provider endpoints; private network targets refused by default, checked inside the socket connect callback |
-| Configuration key prefixes | Stored secret references | A record stores a key **name**, never a value, and each name must sit under an allowed prefix |
+| Configuration key prefixes | Stored secret references | A record stores a key **name**, never a value, and each name must sit under an allowed prefix; a credential-looking plain header is refused |
 | At-rest content protection | `AddContentProtection(...)` | Off by default; AES-256-GCM encrypts session state, chat history, run inputs and events, tool arguments/results, agent files, and attachments before they reach the database |
 | Retention and archive | Stored operational data | Deletion defaults are off (`false`)<!-- claim:option TraconRetentionOptions.Enabled=false -->; preview and jobs make cleanup explicit |
 | Content inspection | Model input and output | No guard cost until a guard is registered |
@@ -1756,7 +1756,11 @@ inside the signature so a replay cannot be reused. Your receiver decides the tol
 window.
 
 The secret is never stored: the subscription carries the **name** of the configuration
-key it is read from. Delivery goes through the job queue, so a `test` call reports
+key it is read from. A receiver that wants its own credential header — `X-Api-Key`,
+`Authorization` — gets it the same way: `headerConfigurationKeys` maps the header name
+to a key under `Tracon:WebhookSecrets:`, and the value is read on every delivery. A
+subscription whose key name sits outside its tenant has the delivery dropped. The
+names of both header maps enter the audit trail; no header value does. Delivery goes through the job queue, so a `test` call reports
 that it was queued, not how it went. The delivery history has one entry per event
 carrying the latest status and attempt count — retries update that entry rather than
 adding rows.
@@ -4120,8 +4124,8 @@ allowed prefix. Without it, a record could name `ConnectionStrings:Default` as i
 |---|---|---|
 | Inbound trigger | `signingSecretConfigurationName` | `Tracon:TriggerSecrets:` |
 | Tenant provider binding | `apiKeyConfigurationName` | `Tracon:ProviderKeys:` |
-| MCP server | `authorizationConfigurationKey`, `oauthClientSecretConfigurationKey` | `Tracon:McpSecrets:` |
-| Webhook subscription | `secretConfigurationKey` | `Tracon:WebhookSecrets:` |
+| MCP server | `headerConfigurationKeys`, `oauthClientSecretConfigurationKey`, `authorizationConfigurationKey` (deprecated) | `Tracon:McpSecrets:` |
+| Webhook subscription | `headerConfigurationKeys`, `secretConfigurationKey` | `Tracon:WebhookSecrets:` |
 
 The prefix is one per installation, so a name must also sit inside its record's
 tenant. A tenant names keys under `{prefix}{tenant}:` — for tenant `acme`,
@@ -4135,12 +4139,49 @@ Each prefix is configurable through the matching options section, and both rules
 enforced twice: where the record is saved, and again where the value is resolved — so
 a record written before a rule existed cannot quietly read outside it.
 
-The extra `headers` of an MCP server or a webhook subscription are the one free-text
-exception: they are stored in plain text and sent as given, so do not put a credential
-there. No response returns a stored header value — every read and save response
-carries the header names with the value `***`, and the audit trail records the names
-only. A save that sends `***` back as a value is rejected with `400`: a client that
-reads, edits and saves a record must send the real value of every header again.
+### Credential headers are declared by key name
+
+An MCP server or a webhook receiver often wants a credential in a header other than
+`Authorization` — `X-Api-Key`, `Ocp-Apim-Subscription-Key`, `Cookie`. Declare it in
+`headerConfigurationKeys`, a map from the header name to the configuration key its
+value is read from:
+
+```json
+{
+  "endpoint": "https://mcp.example.com/mcp",
+  "headerConfigurationKeys": { "X-Api-Key": "Tracon:McpSecrets:acme:SearchKey" }
+}
+```
+
+Every name in the map goes through the same prefix and tenant rules as the fields
+above, on save and again on every connection or delivery. A webhook delivery whose
+subscription names a key outside its tenant is dropped, and an MCP server in that
+state does not connect. A response returns the map as stored: it holds names, not
+values.
+
+The extra plain `headers` of an MCP server or a webhook subscription are the one
+free-text exception: they are stored in plain text and sent as given. A save rejects a
+plain header whose name looks like a credential — `Authorization`, any name containing
+`api-key`, `token`, `password` or `secret`, `Cookie`, or any name ending in `-key` —
+with `400`, and the response names `headerConfigurationKeys` as the place for it. A
+header name may appear only once across both maps, compared without regard to case.
+
+The name rule is a heuristic. It also catches `X-Idempotency-Key`, which is harmless:
+move the value into configuration. It misses names such as `X-Auth`, `X-Signature` or
+`X-Session-Id`, so a credential under such a name would still be stored in plain text.
+That is why no response returns a stored plain header value — every read and save
+response carries the header names with the value `***`, and the audit trail records
+the names only. A save that sends `***` back as a value is rejected with `400`: a
+client that reads, edits and saves a record must send the real value of every header
+again.
+
+A save that leaves `headers` or `headerConfigurationKeys` out, or sends `null`, keeps
+the stored map; `{}` removes it. The admin forms send neither map, so saving a server
+or subscription from the UI keeps its headers. The side effect: changing only the
+address in the form keeps the headers, so the stored plain values and the credential
+values resolved from configuration go to the **new** address. The server logs a
+warning with the header names when that happens. Change the maps in the same save, or
+clear them with `{}`, when an address moves to a party that should not receive them.
 
 ## What is stored in the clear
 
@@ -4162,6 +4203,13 @@ Secrets are the exception and are handled separately: a credential value is neve
 written to the database. Only the **name** of the configuration key is stored, and the
 value is resolved at call time from your configuration. API keys are stored as a
 SHA-256 hash, never as a recoverable value.
+
+Two columns hold operator text that can still carry a credential: the plain `headers`
+of `mcp_servers` and `webhook_subscriptions`. A save rejects credential-looking names
+there, but a credential under a name the rule misses (`X-Auth`, `X-Signature`) is
+stored in plain text. Declare such a header in `headerConfigurationKeys` instead. Rows
+written before that rule existed keep working; each connection or delivery logs a
+warning that names the header, never its value.
 
 ## At-rest content protection
 
@@ -6609,13 +6657,23 @@ key name is persisted; the credential value stays in your secret provider:
 ```json
 {
   "endpoint": "https://mcp.example.com/mcp",
-  "authorizationConfigurationKey": "Tracon:Mcp:ExampleToken"
+  "headerConfigurationKeys": {
+    "Authorization": "Tracon:McpSecrets:ExampleToken",
+    "X-Api-Key": "Tracon:McpSecrets:ExampleKey"
+  }
 }
 ```
 
 ```bash
-dotnet user-secrets set "Tracon:Mcp:ExampleToken" "Bearer ..."
+dotnet user-secrets set "Tracon:McpSecrets:ExampleToken" "Bearer ..."
+dotnet user-secrets set "Tracon:McpSecrets:ExampleKey" "..."
 ```
+
+Each key name sits under `Tracon:McpSecrets:`, and a tenant other than the default one
+uses `Tracon:McpSecrets:<tenant>:`. A credential in plain `headers` is refused with
+`400` — see [credential headers](/getting-started/security/#credential-headers-are-declared-by-key-name).
+The value is read on every connection, but a changed value does not reconnect by
+itself: call the refresh endpoint below after rotating it.
 
 Discovery is asynchronous and does not block startup. Refresh immediately after a
 configuration change with `POST {prefix}/api/mcp-servers/refresh`. An unreachable
@@ -9343,8 +9401,8 @@ saving it again is refused with a message naming both the field and the prefix.
 
 | Record | Field | Required prefix |
 |---|---|---|
-| MCP server | `authorizationConfigurationKey`, `oauthClientSecretConfigurationKey` | `Tracon:McpSecrets:` |
-| Webhook subscription | `secretConfigurationKey` | `Tracon:WebhookSecrets:` |
+| MCP server | `headerConfigurationKeys`, `oauthClientSecretConfigurationKey`, `authorizationConfigurationKey` (deprecated) | `Tracon:McpSecrets:` |
+| Webhook subscription | `headerConfigurationKeys`, `secretConfigurationKey` | `Tracon:WebhookSecrets:` |
 
 Fix each record by moving the key name under the prefix and re-writing the value under
 the new name in your secret store. There is no migration helper and this is
@@ -9385,6 +9443,66 @@ forwarded counts as remote. An anonymous request with a non-loopback `Host` or `
 returns `403`, which blocks DNS rebinding and cross-site requests from a browser. If
 you reach a keyless local installation through a machine name, use `localhost` or
 configure a token.
+
+## Upgrading: credential headers
+
+A credential header of an MCP server or a webhook subscription now lives in
+`headerConfigurationKeys`, as the **name** of the configuration key its value is read
+from. Four saves that used to succeed now return `400`, and one field is deprecated.
+
+**A credential-looking plain header is refused.** A save whose `headers` carry
+`Authorization`, `Cookie`, a name containing `api-key`, `token`, `password` or
+`secret`, or a name ending in `-key` returns `400`; the detail names the header and
+`headerConfigurationKeys`, never the value. Only the headers a request sends are
+judged: a stored row keeps working, is still sent, and each connection or delivery
+logs a warning with the header name.
+
+**A header name may appear only once.** `X-A` next to `x-a`, or the same name in
+`headers` and `headerConfigurationKeys`, returns `400`. Before, the webhook save
+answered `500` and the MCP server never connected.
+
+**A header name must be a valid HTTP name.** An empty name, a space, `:`, or a line
+break returns `400`.
+
+**A webhook's two maps share `MaxExtraHeaders`.** Together they may carry at most
+`Tracon:Webhooks:MaxExtraHeaders` entries (20 by default); more returns `400` instead of
+being cut at delivery.
+
+**`authorizationConfigurationKey` is deprecated.** It still saves, resolves and reads
+back, and it is removed in `1.0.0`. Code that sets it on `McpServerDefinition` or
+`McpServerRequest` compiles with warning `CS0618`. Use
+`headerConfigurationKeys["Authorization"]`; a record that names `Authorization` in both,
+or in the new map while OAuth is on, returns `400`. So does turning OAuth on while the
+kept plain `headers` still carry `Authorization`: the MCP client does not send its bearer
+token while that header is present. Send `headers` without it in the same save.
+
+**Saves now keep what they leave out.** `headers` or `headerConfigurationKeys` absent or
+`null` keeps the stored map; `{}` removes it. Before, a save without `headers` removed
+every stored header, which is what the admin forms did on every save.
+
+### Moving a plain credential to a key name
+
+For a record whose plain `headers` hold `X-API-Key` next to `X-Team`:
+
+1. Write the value under a key name in your secret store, inside the tenant's key
+   space: `dotnet user-secrets set "Tracon:McpSecrets:acme:SearchKey" "<value>"`
+   (the default tenant can use `Tracon:McpSecrets:SearchKey`).
+2. Save the record once with **both** maps: `headers` without the credential but with
+   every other plain header, and the new map.
+
+```json
+{
+  "endpoint": "https://mcp.example.com/mcp",
+  "headers": { "X-Team": "t1" },
+  "headerConfigurationKeys": { "X-API-Key": "Tracon:McpSecrets:acme:SearchKey" }
+}
+```
+
+Sending only `headerConfigurationKeys` returns `400` with "remove 'X-API-Key' from
+headers": `headers` left out keeps the stored map, so the name would appear twice. A
+read shows every plain value as `***`, so you have to know the values of the other plain
+headers to send them again. `headers: {}` removes them instead. For an MCP server, call
+`POST {prefix}/api/mcp-servers/refresh` afterwards to reconnect.
 
 ## When the state preflight comes back red
 
