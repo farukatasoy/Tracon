@@ -203,6 +203,6 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [188](arsiv/fazlar/188-DI-KURUCU-DARALTMA.md) | DI ile Kurulan Servis Tiplerinde Kurucu Daraltması | ✅ Tamamlandı |
 | [189](arsiv/fazlar/189-TUKETICI-YUZEYI-VE-BUILDER.md) | Tüketici Yüzeyi: TraconToolRegistration ve ITraconBuilder | ✅ Tamamlandı |
 | [190](arsiv/fazlar/190-KIMLIK-BASLIKLARI-ANAHTAR-REFERANSI.md) | Kimlik Taşıyan Başlıklar İçin Yapılandırma Anahtarı Referansı | ✅ Tamamlandı |
-| [191](191-TEK-DERLEME-ZINCIRI.md) | Tek Derleme Zinciri | 📋 Planlandı |
+| [191](arsiv/fazlar/191-TEK-DERLEME-ZINCIRI.md) | Tek Derleme Zinciri | ✅ Tamamlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).
