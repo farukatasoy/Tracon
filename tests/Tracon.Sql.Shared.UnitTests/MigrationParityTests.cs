@@ -138,12 +138,12 @@ public sealed class MigrationParityTests
     {
         var upsert = Upserts(table).Single(static pair => string.Equals(pair.Dialect, "SqlServer", StringComparison.Ordinal)).Sql;
 
-        Regex.Matches(
+        Regex.Count(
                 upsert,
                 @"OUTPUT\s+(?<columns>inserted\..*?)\s+(?=WHERE\b|VALUES\b)",
                 RegexOptions.IgnoreCase | RegexOptions.ExplicitCapture | RegexOptions.Singleline,
                 TimeSpan.FromSeconds(5))
-            .Count.ShouldBe(2, "the UPDATE and the INSERT branch each carry one OUTPUT list");
+            .ShouldBe(2, "the UPDATE and the INSERT branch each carry one OUTPUT list");
     }
 
     private static string Select(string table)
