@@ -157,7 +157,9 @@ public sealed class EgressGuardTests
                 TenantId = "default",
                 Name = "legacy",
                 Endpoint = new Uri("https://mcp.example.com/"),
+#pragma warning disable CS0618 // A pre-existing row written through the deprecated field (phase 190).
                 AuthorizationConfigurationKey = "Tracon:Mcp:LegacyToken",
+#pragma warning restore CS0618
             },
             CancellationToken.None);
 

@@ -36,8 +36,9 @@ internal static class WebhookEndpoints
             .WithSummary("Lists a tenant's webhook subscriptions.")
             .WithDescription(
                 "The response carries no signing secret; only the NAME of the signing key is " +
-                "returned. Extra headers are returned with their NAMES only: every header value " +
-                "is replaced with '***'.");
+                "returned. 'headerConfigurationKeys' carries configuration key NAMES and is " +
+                "returned as stored. Extra headers are returned with their NAMES only: every " +
+                "header value is replaced with '***'.");
 
         builder.MapGet("/api/webhooks/{name}", GetAsync)
             .RequireRole(roles.Admin)
@@ -48,7 +49,8 @@ internal static class WebhookEndpoints
             .WithDescription(
                 "As in the list, no signing secret is returned — only the configuration key its " +
                 "value is read from at delivery time. A secret is never stored in the database " +
-                "and never leaves through this API. Extra header values are replaced with '***'. " +
+                "and never leaves through this API. 'headerConfigurationKeys' is returned as " +
+                "stored (key names only). Extra header values are replaced with '***'. " +
                 "An unknown name returns 404.");
 
         builder.MapPut("/api/webhooks/{name}", SaveAsync)
@@ -64,10 +66,19 @@ internal static class WebhookEndpoints
                 "addresses are re-checked again at delivery time. 'secretConfigurationKey' " +
                 "must be under the configured allowed prefix and inside the tenant's own key " +
                 "space — '{prefix}{tenantId}:...'; a flat name directly under the prefix belongs " +
-                "to the default tenant (400 otherwise). Header values are stored and sent as " +
-                "given, but the saved subscription comes back with every header value replaced " +
-                "by '***'. The save replaces the whole subscription, so send every header with " +
-                "its real value; a header whose value is '***' is rejected with 400.");
+                "to the default tenant (400 otherwise). A credential header (Authorization, " +
+                "X-Api-Key, Cookie, any name ending in '-key') is declared in " +
+                "'headerConfigurationKeys' as the NAME of the configuration key its value is read " +
+                "from, under the same key space rule; the same header in plain 'headers' is " +
+                "rejected with 400. Plain header values are stored and sent as given, but the " +
+                "saved subscription comes back with every one replaced by '***', and a header " +
+                "whose value is '***' is rejected with 400. A header name may appear only once " +
+                "across both maps (case-insensitive), may not be one of Tracon's own X-Tracon-* " +
+                "headers in 'headerConfigurationKeys', and both maps together may carry at most " +
+                "MaxExtraHeaders entries (400 otherwise). 'headers' or 'headerConfigurationKeys' " +
+                "left out or null keeps the stored map; '{}' removes it. Every other field is " +
+                "replaced. Changing 'url' without sending the maps keeps them, so the stored " +
+                "headers and the resolved credential values go to the NEW address.");
 
         builder.MapDelete("/api/webhooks/{name}", DeleteAsync)
             .RequireRole(roles.Admin)
@@ -216,6 +227,44 @@ internal static class WebhookEndpoints
         var previous = await store.GetSubscriptionAsync(tenants.TenantId, name, cancellationToken)
             .ConfigureAwait(false);
 
+        // A save that leaves a header map out keeps the stored one: the admin
+        // panel sends neither map, and a read masks the plain values, so it
+        // could not send them back (phase 190).
+        var headers = CredentialHeaderSaveRules.Effective(request.Headers, previous?.Headers, StringComparer.OrdinalIgnoreCase);
+        var headerKeys = CredentialHeaderSaveRules.Effective(
+            request.HeaderConfigurationKeys,
+            previous?.HeaderConfigurationKeys,
+            StringComparer.OrdinalIgnoreCase);
+
+        if (CredentialHeaderSaveRules.Validate(
+                request.Headers,
+                request.HeaderConfigurationKeys,
+                headers,
+                headerKeys,
+                options.AllowedConfigurationPrefix,
+                tenants.TenantId,
+                coreOptions.Value.DefaultTenantId,
+                WebhookSigner.IsReservedHeader) is { } rejection)
+        {
+            return Invalid(rejection.Detail);
+        }
+
+        // Counted at save time: a delivery that ran out of room would have to
+        // drop a header silently, and a dropped credential header fails every
+        // delivery without saying why.
+        if (headers.Count + headerKeys.Count > options.MaxExtraHeaders)
+        {
+            return Invalid(
+                $"'headers' and 'headerConfigurationKeys' together carry {headers.Count + headerKeys.Count} " +
+                $"headers; at most {options.MaxExtraHeaders} are allowed (Tracon:Webhooks:MaxExtraHeaders).");
+        }
+
+        WarnWhenPreservedHeadersMove(
+            loggerFactory.CreateLogger("Tracon.WebhookEndpoints"),
+            name,
+            previous,
+            request);
+
         var saved = await store.SaveSubscriptionAsync(
             new WebhookSubscription
             {
@@ -227,7 +276,8 @@ internal static class WebhookEndpoints
                 SecretConfigurationKey = string.IsNullOrWhiteSpace(request.SecretConfigurationKey)
                     ? null
                     : request.SecretConfigurationKey,
-                Headers = request.Headers ?? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase),
+                Headers = CredentialHeaderSaveRules.Copy(headers, StringComparer.OrdinalIgnoreCase),
+                HeaderConfigurationKeys = CredentialHeaderSaveRules.Copy(headerKeys, StringComparer.OrdinalIgnoreCase),
                 Enabled = request.Enabled,
 
                 // Saving resets the counter: when an admin fixes the address,
@@ -251,6 +301,49 @@ internal static class WebhookEndpoints
             cancellationToken).ConfigureAwait(false);
 
         return TypedResults.Ok(MaskHeaders(saved));
+    }
+
+    /// <summary>
+    /// Logs when a save moves a subscription to another host while keeping its
+    /// stored header maps without the request sending them.
+    /// </summary>
+    /// <remarks>Names only — a value is never logged.</remarks>
+    private static void WarnWhenPreservedHeadersMove(
+        ILogger logger,
+        string name,
+        WebhookSubscription? previous,
+        WebhookSaveRequest request)
+    {
+        if (previous is null
+            || !Uri.TryCreate(previous.Url, UriKind.Absolute, out var before)
+            || !Uri.TryCreate(request.Url, UriKind.Absolute, out var after)
+            || string.Equals(before.Host, after.Host, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var kept = new List<string>();
+
+        if (request.Headers is null)
+        {
+            kept.AddRange(previous.Headers.Keys);
+        }
+
+        if (request.HeaderConfigurationKeys is null)
+        {
+            kept.AddRange(previous.HeaderConfigurationKeys.Keys);
+        }
+
+        if (kept.Count > 0 && logger.IsEnabled(LogLevel.Warning))
+        {
+            logger.LogWarning(
+                "Webhook subscription '{Subscription}' moved from host '{PreviousHost}' to '{Host}' and kept its " +
+                "stored headers ({HeaderNames}); they are now sent to the new host.",
+                name,
+                before.Host,
+                after.Host,
+                string.Join(", ", kept));
+        }
     }
 
     /// <summary>Returns a subscription the way every response carries it: header names only.</summary>
@@ -438,6 +531,29 @@ internal static class WebhookEndpoints
             writer.WriteNull("secretConfigurationKey");
         }
 
+        // Header NAMES only (phase 190): which headers a subscription sends is
+        // part of what changed; a plain value may be a credential the name
+        // rule misses, and the trail is plain text (K-779).
+        writer.WriteStartArray("headers");
+
+        foreach (var header in subscription.Headers.Keys.Order(StringComparer.OrdinalIgnoreCase))
+        {
+            writer.WriteStringValue(header);
+        }
+
+        writer.WriteEndArray();
+
+        // Key NAMES only, never a value (K-059); the audit filter leaves a
+        // '...ConfigurationKeys' map as it is.
+        writer.WriteStartObject("headerConfigurationKeys");
+
+        foreach (var (header, keyName) in subscription.HeaderConfigurationKeys.OrderBy(static pair => pair.Key, StringComparer.OrdinalIgnoreCase))
+        {
+            writer.WriteString(header, keyName);
+        }
+
+        writer.WriteEndObject();
+
         writer.WriteBoolean("enabled", subscription.Enabled);
         writer.WriteEndObject();
         writer.Flush();
@@ -479,11 +595,26 @@ public sealed record WebhookSaveRequest
     public string? SecretConfigurationKey { get; init; }
 
     /// <summary>
-    /// Additional headers to add to every request. Send every header with its
-    /// real value on each save: a response masks the values as <c>***</c>,
-    /// and a value of <c>***</c> is rejected with <c>400</c>.
+    /// Additional headers to add to every request. The values are stored as
+    /// plain text, so a header whose name looks like a credential
+    /// (<c>Authorization</c>, <c>X-Api-Key</c>, <c>Cookie</c>, any name ending
+    /// in <c>-key</c>) is rejected with <c>400</c>: declare it in
+    /// <c>HeaderConfigurationKeys</c>. Send every header with its real
+    /// value on each save: a response masks the values as <c>***</c>, and a
+    /// value of <c>***</c> is rejected with <c>400</c>. Absent or
+    /// <see langword="null"/> keeps the stored headers; <c>{}</c> removes them.
     /// </summary>
     public IReadOnlyDictionary<string, string>? Headers { get; init; }
+
+    /// <summary>
+    /// Credential headers, as a map from the header name to the NAME of the
+    /// configuration key its value is read from, for example
+    /// <c>{"X-Api-Key": "Tracon:WebhookSecrets:acme:OrdersKey"}</c>. Every name
+    /// must sit inside the caller's tenant key space. A response returns the
+    /// map unmasked: it carries no value. Absent or <see langword="null"/> keeps
+    /// the stored map; <c>{}</c> removes it.
+    /// </summary>
+    public IReadOnlyDictionary<string, string>? HeaderConfigurationKeys { get; init; }
 
     /// <summary>Whether the subscription is enabled.</summary>
     public bool Enabled { get; init; } = true;

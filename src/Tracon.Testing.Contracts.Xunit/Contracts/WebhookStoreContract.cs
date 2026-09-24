@@ -87,6 +87,58 @@ public abstract class WebhookStoreContract : TenantIsolationContract<IWebhookSto
     }
 
     [Fact]
+    public async Task Header_configuration_keys_are_preserved()
+    {
+        // The SAVED record is checked as well as the one read back: a store
+        // that returns the written row from its own column list (SQL Server's
+        // OUTPUT clause) can drop the field there while a later read has it.
+        var saved = await Store.SaveSubscriptionAsync(Subscription() with
+        {
+            HeaderConfigurationKeys = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["X-Api-Key"] = "Tracon:WebhookSecrets:OrdersKey",
+                ["Cookie"] = "Tracon:WebhookSecrets:OrdersSession",
+            },
+        });
+
+        var loaded = await Store.GetSubscriptionAsync(Tenant, "orders");
+
+        foreach (var subscription in new[] { saved, loaded.ShouldNotBeNull() })
+        {
+            subscription.HeaderConfigurationKeys.Count.ShouldBe(2);
+            subscription.HeaderConfigurationKeys["X-Api-Key"].ShouldBe("Tracon:WebhookSecrets:OrdersKey");
+            subscription.HeaderConfigurationKeys["Cookie"].ShouldBe("Tracon:WebhookSecrets:OrdersSession");
+        }
+
+        // Event matching reads the same column list as a plain read.
+        (await Store.FindForEventAsync(Tenant, "run.completed")).ShouldHaveSingleItem()
+            .HeaderConfigurationKeys["X-Api-Key"].ShouldBe("Tracon:WebhookSecrets:OrdersKey");
+
+        // An update replaces the map; an upsert that leaves the column out of
+        // its UPDATE list keeps the old names.
+        await Store.SaveSubscriptionAsync(loaded with { HeaderConfigurationKeys = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) });
+
+        (await Store.GetSubscriptionAsync(Tenant, "orders"))!.HeaderConfigurationKeys.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task Header_names_that_differ_only_in_case_do_not_fail_the_save()
+    {
+        // A header name is case-insensitive, but a caller's dictionary may be
+        // case-sensitive. A store that folds the names must not throw on the
+        // pair: the save answered 500 when it did.
+        var saved = await Store.SaveSubscriptionAsync(Subscription(
+            headers: new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["X-Team"] = "one",
+                ["x-team"] = "two",
+            }));
+
+        saved.Headers.Count.ShouldBeInRange(1, 2);
+        (await Store.GetSubscriptionAsync(Tenant, "orders")).ShouldNotBeNull();
+    }
+
+    [Fact]
     public async Task Saving_the_same_name_a_second_time_overwrites_it()
     {
         await Store.SaveSubscriptionAsync(Subscription(url: "https://one.example.com/hook"));

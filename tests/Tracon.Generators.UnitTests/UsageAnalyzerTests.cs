@@ -186,7 +186,14 @@ public sealed class UsageAnalyzerTests
             }
             """);
 
-        diagnostics.ShouldHaveSingleItem().Id.ShouldBe("TRC0201");
+        var reported = diagnostics.ShouldHaveSingleItem();
+        reported.Id.ShouldBe("TRC0201");
+
+        // The report names the header and the field that stores only the key
+        // NAME (phase 190); before, it named the whole record.
+        var message = reported.GetMessage(CultureInfo.InvariantCulture);
+        message.ShouldContain("McpServerDefinition.Headers[\"X-Api-Key\"]");
+        message.ShouldContain("HeaderConfigurationKeys");
     }
 
     [Fact]

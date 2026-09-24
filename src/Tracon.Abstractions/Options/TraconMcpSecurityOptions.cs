@@ -26,9 +26,9 @@ public sealed class TraconMcpSecurityOptions
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Covers both key-name fields a definition carries:
-    /// <c>authorizationConfigurationKey</c> and
-    /// <c>oauthClientSecretConfigurationKey</c>.
+    /// Covers every key name a definition carries: each entry of
+    /// <c>headerConfigurationKeys</c>, <c>oauthClientSecretConfigurationKey</c>
+    /// and the deprecated <c>authorizationConfigurationKey</c>.
     /// </para>
     /// <para>
     /// A security boundary, not a convenience default — the same rationale as

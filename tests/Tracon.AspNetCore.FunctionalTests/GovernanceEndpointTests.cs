@@ -207,7 +207,7 @@ public sealed class GovernanceEndpointTests
                 endpoint = "https://mcp.example.com/mcp",
                 headers = new Dictionary<string, string>(StringComparer.Ordinal)
                 {
-                    ["X-Api-Key"] = ApiKey,
+                    ["X-Session-Id"] = ApiKey,
                     ["X-Trace"] = PlainValue,
                 },
                 enabled = true,
@@ -226,24 +226,25 @@ public sealed class GovernanceEndpointTests
 
         var server = (await listed.Content.ReadFromJsonAsync<List<McpServerDefinition>>())!.ShouldHaveSingleItem();
         server.Headers.ShouldBe(
-            new Dictionary<string, string>(StringComparer.Ordinal) { ["X-Api-Key"] = "***", ["X-Trace"] = "***" },
+            new Dictionary<string, string>(StringComparer.Ordinal) { ["X-Session-Id"] = "***", ["X-Trace"] = "***" },
             ignoreOrder: true);
 
         // The mask is a RESPONSE rule only: the stored row keeps the value the
         // transport sends to the MCP server.
         var stored = await host.Services.GetRequiredService<IMcpServerStore>().GetAsync("default", "github");
-        stored!.Headers["X-Api-Key"].ShouldBe(ApiKey);
+        stored!.Headers["X-Session-Id"].ShouldBe(ApiKey);
     }
 
     [Fact]
     public async Task Mcp_audit_trail_records_header_names_but_no_values()
     {
-        const string ApiKey = "ocp-subscription-value";
+        const string ApiKey = "plain-190";
 
         await using var host = await TraconTestHost.StartAsync();
 
-        // Ocp-Apim-Subscription-Key: a credential whose name the audit
-        // secret filter does not recognize.
+        // X-Tenant: a name neither the audit secret filter nor the credential
+        // header rule recognizes, so its value is stored as sent (phase 190
+        // moved credential names out of plain headers; the mask covers the rest).
         foreach (var value in new[] { ApiKey, ApiKey + "-rotated" })
         {
             using var saved = await host.Client.PutAsJsonAsync(
@@ -251,7 +252,7 @@ public sealed class GovernanceEndpointTests
                 new
                 {
                     endpoint = "https://mcp.example.com/mcp",
-                    headers = new Dictionary<string, string>(StringComparer.Ordinal) { ["Ocp-Apim-Subscription-Key"] = value },
+                    headers = new Dictionary<string, string>(StringComparer.Ordinal) { ["X-Tenant"] = value },
                     enabled = true,
                     requiresApproval = true,
                 });
@@ -267,7 +268,7 @@ public sealed class GovernanceEndpointTests
         foreach (var entry in entries)
         {
             $"{entry.Before}{entry.After}".ShouldNotContain(ApiKey);
-            entry.After.ShouldNotBeNull().ShouldContain("Ocp-Apim-Subscription-Key");
+            entry.After.ShouldNotBeNull().ShouldContain("X-Tenant");
         }
     }
 

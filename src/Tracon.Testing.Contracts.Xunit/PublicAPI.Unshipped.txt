@@ -271,6 +271,7 @@ Tracon.Testing.Contracts.Storage.JobStoreContract.ReportItemAsync_is_idempotent(
 Tracon.Testing.Contracts.Storage.JobStoreContract.Retry_preserves_the_jobs_lane() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.McpServerStoreContract
 Tracon.Testing.Contracts.Storage.McpServerStoreContract.Deleting_a_nonexistent_record_returns_false() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.McpServerStoreContract.Header_configuration_keys_are_preserved() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.McpServerStoreContract.McpServerStoreContract() -> void
 Tracon.Testing.Contracts.Storage.McpServerStoreContract.Nonexistent_server_returns_null() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.McpServerStoreContract.Saved_server_is_read_back() -> System.Threading.Tasks.Task!
@@ -640,6 +641,8 @@ Tracon.Testing.Contracts.Storage.WebhookStoreContract.Disabled_subscription_does
 Tracon.Testing.Contracts.Storage.WebhookStoreContract.Event_name_matches_exactly() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WebhookStoreContract.Failed_delivery_does_not_record_a_delivery_time() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WebhookStoreContract.Failure_counter_increments_and_disables_the_subscription_at_the_threshold() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WebhookStoreContract.Header_configuration_keys_are_preserved() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WebhookStoreContract.Header_names_that_differ_only_in_case_do_not_fail_the_save() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WebhookStoreContract.Headers_are_preserved() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WebhookStoreContract.Saved_subscription_is_read_back() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WebhookStoreContract.Saving_the_same_name_a_second_time_overwrites_it() -> System.Threading.Tasks.Task!

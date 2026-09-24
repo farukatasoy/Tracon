@@ -225,9 +225,10 @@ internal static class GovernanceEndpoints
             .WithTags("Tracon", "Governance")
             .WithSummary("Lists registered remote MCP servers.")
             .WithDescription(
-                "The authentication value is not stored; only the name of the configuration key " +
-                "it is read from is returned. Extra request headers are stored as sent and are " +
-                "returned with their NAMES only: every header value is replaced with '***'.");
+                "No credential value is stored: 'headerConfigurationKeys' (and the deprecated " +
+                "'authorizationConfigurationKey') carry only the NAME of the configuration key " +
+                "each value is read from, and are returned as stored. Plain 'headers' are stored " +
+                "as sent and are returned with their NAMES only: every value is replaced with '***'.");
 
         builder.MapPut("/api/mcp-servers/{name}", async Task<Results<Ok<McpServerDefinition>, ProblemHttpResult>> (
                 string name,
@@ -237,6 +238,7 @@ internal static class GovernanceEndpoints
                 IOptionsMonitor<TraconEgressOptions> egressOptions,
                 IOptionsMonitor<TraconMcpSecurityOptions> mcpSecurityOptions,
                 IOptions<TraconOptions> coreOptions,
+                ILoggerFactory loggerFactory,
                 CancellationToken cancellationToken) =>
             {
                 var (bound, bindError) = await RequestBodyBinding
@@ -261,6 +263,36 @@ internal static class GovernanceEndpoints
                     return invalid;
                 }
 
+                // A save that leaves a header map out keeps the stored one: the
+                // admin form sends neither map, and a read masks the plain
+                // values, so it could not send them back (phase 190).
+                var previous = await servers.GetAsync(tenants.TenantId, name, cancellationToken).ConfigureAwait(false);
+                var headers = CredentialHeaderSaveRules.Effective(request.Headers, previous?.Headers, StringComparer.Ordinal);
+                var headerKeys = CredentialHeaderSaveRules.Effective(
+                    request.HeaderConfigurationKeys,
+                    previous?.HeaderConfigurationKeys,
+                    StringComparer.OrdinalIgnoreCase);
+
+                if (ValidateHeaders(
+                        request,
+                        headers,
+                        headerKeys,
+                        tenants.TenantId,
+                        coreOptions.Value.DefaultTenantId,
+                        mcpSecurityOptions.CurrentValue) is { } invalidHeaders)
+                {
+                    return invalidHeaders;
+                }
+
+                var endpoint = new Uri(request.Endpoint, UriKind.Absolute);
+
+                WarnWhenPreservedHeadersMove(
+                    loggerFactory.CreateLogger("Tracon.GovernanceEndpoints"),
+                    name,
+                    previous,
+                    endpoint,
+                    request);
+
                 var saved = await servers.SaveAsync(
                     new McpServerDefinition
                     {
@@ -268,10 +300,13 @@ internal static class GovernanceEndpoints
                         TenantId = tenants.TenantId,
                         Name = name,
                         Description = request.Description,
-                        Endpoint = new Uri(request.Endpoint, UriKind.Absolute),
+                        Endpoint = endpoint,
                         Transport = request.Transport,
+#pragma warning disable CS0618 // The deprecated field is still accepted and stored until 1.0.0 (phase 190).
                         AuthorizationConfigurationKey = request.AuthorizationConfigurationKey,
-                        Headers = request.Headers ?? new Dictionary<string, string>(StringComparer.Ordinal),
+#pragma warning restore CS0618
+                        Headers = headers,
+                        HeaderConfigurationKeys = CredentialHeaderSaveRules.Copy(headerKeys, StringComparer.OrdinalIgnoreCase),
                         Enabled = request.Enabled,
                         RequiresApproval = request.RequiresApproval,
                         OAuthEnabled = request.OAuthEnabled,
@@ -296,11 +331,19 @@ internal static class GovernanceEndpoints
                 "(stdio) transport is not supported. Tools require approval by default. A " +
                 "configuration key name must be under the configured allowed prefix and inside " +
                 "the tenant's own key space — '{prefix}{tenantId}:...'; a flat name directly " +
-                "under the prefix belongs to the default tenant (400 otherwise). Header values " +
-                "are stored and sent as given, but no response returns them: the saved record " +
-                "comes back with every header value replaced by '***'. The save replaces the " +
-                "whole record, so send every header with its real value; a header whose value " +
-                "is '***' is rejected with 400.");
+                "under the prefix belongs to the default tenant (400 otherwise). A credential " +
+                "header (Authorization, X-Api-Key, Cookie, any name ending in '-key') is declared " +
+                "in 'headerConfigurationKeys' as the NAME of the configuration key its value is " +
+                "read from; the same header in plain 'headers' is rejected with 400, because " +
+                "plain header values are stored as given. No response returns a plain header " +
+                "value: the saved record comes back with every one replaced by '***', and a " +
+                "header whose value is '***' is rejected with 400. A header name may appear only " +
+                "once across both maps (case-insensitive, 400 otherwise), and 'Authorization' in " +
+                "'headerConfigurationKeys' cannot be combined with 'authorizationConfigurationKey' " +
+                "or OAuth. 'headers' or 'headerConfigurationKeys' left out or null keeps the stored " +
+                "map; '{}' removes it. Every other field is replaced. Changing 'endpoint' without " +
+                "sending the maps keeps them, so the stored headers and the resolved credential " +
+                "values go to the NEW address.");
 
         builder.MapDelete("/api/mcp-servers/{name}", async Task<Results<NoContent, ProblemHttpResult>> (
                 string name,
@@ -813,6 +856,132 @@ internal static class GovernanceEndpoints
     private static McpServerDefinition MaskHeaders(McpServerDefinition server)
         => server with { Headers = HeaderValueMask.Apply(server.Headers) };
 
+    /// <summary>Applies the shared header rules and the Authorization conflict rule to an MCP save.</summary>
+    /// <remarks>
+    /// The conflict is judged on the EFFECTIVE map: a form that writes
+    /// <c>authorizationConfigurationKey</c> while the stored record names
+    /// <c>Authorization</c> in <c>headerConfigurationKeys</c> would otherwise
+    /// store both.
+    /// </remarks>
+    private static ProblemHttpResult? ValidateHeaders(
+        McpServerRequest request,
+        IReadOnlyDictionary<string, string> headers,
+        IReadOnlyDictionary<string, string> headerKeys,
+        string tenantId,
+        string defaultTenantId,
+        TraconMcpSecurityOptions mcpSecurity)
+    {
+        if (CredentialHeaderSaveRules.Validate(
+                request.Headers,
+                request.HeaderConfigurationKeys,
+                headers,
+                headerKeys,
+                mcpSecurity.AllowedConfigurationPrefix,
+                tenantId,
+                defaultTenantId,
+                isReserved: null) is { } rejection)
+        {
+            return TypedResults.Problem(
+                title: rejection.Title,
+                detail: rejection.Detail,
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        // A stored row may still carry a plain Authorization header (it was
+        // saveable before the credential rule, and a save that leaves 'headers'
+        // out keeps it). With OAuth on, the MCP client writes its bearer token
+        // only when the request has no Authorization header yet, so the kept
+        // header would silently replace OAuth on every request.
+        if (request.OAuthEnabled &&
+            headers.Keys.Any(static header => string.Equals(header, "Authorization", StringComparison.OrdinalIgnoreCase)))
+        {
+            return TypedResults.Problem(
+                title: "Conflicting authentication",
+                detail: "The stored 'headers' carry 'Authorization' while OAuth is enabled; OAuth manages that " +
+                        "header and would never send its token. Send 'headers' in the same save without " +
+                        "'Authorization' (or '{}').",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        if (!headerKeys.Keys.Any(static header => string.Equals(header, "Authorization", StringComparison.OrdinalIgnoreCase)))
+        {
+            return null;
+        }
+
+#pragma warning disable CS0618 // The deprecated field is judged against its replacement (phase 190).
+        var legacyKey = request.AuthorizationConfigurationKey;
+#pragma warning restore CS0618
+
+        if (!string.IsNullOrEmpty(legacyKey))
+        {
+            return TypedResults.Problem(
+                title: "Conflicting authentication",
+                detail: "'headerConfigurationKeys' names 'Authorization' and 'authorizationConfigurationKey' " +
+                        "is set; both would manage the same header. Keep one — " +
+                        "'authorizationConfigurationKey' is deprecated.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        if (request.OAuthEnabled)
+        {
+            return TypedResults.Problem(
+                title: "Conflicting authentication",
+                detail: "'headerConfigurationKeys' names 'Authorization' while OAuth is enabled; OAuth " +
+                        "manages the Authorization header itself.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Logs when a save moves a server to another host while keeping its stored
+    /// header maps without the request sending them.
+    /// </summary>
+    /// <remarks>
+    /// The admin form edits the address but never shows the maps, so the
+    /// operator cannot see that the headers and the credential values they
+    /// resolve now go to the new host. The tenant key space rule keeps the key names inside the
+    /// tenant, so this is not an escalation; the log makes it visible. Names
+    /// only — a value is never logged.
+    /// </remarks>
+    private static void WarnWhenPreservedHeadersMove(
+        ILogger logger,
+        string name,
+        McpServerDefinition? previous,
+        Uri endpoint,
+        McpServerRequest request)
+    {
+        if (previous is null
+            || string.Equals(previous.Endpoint.Host, endpoint.Host, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var kept = new List<string>();
+
+        if (request.Headers is null)
+        {
+            kept.AddRange(previous.Headers.Keys);
+        }
+
+        if (request.HeaderConfigurationKeys is null)
+        {
+            kept.AddRange(previous.HeaderConfigurationKeys.Keys);
+        }
+
+        if (kept.Count > 0 && logger.IsEnabled(LogLevel.Warning))
+        {
+            logger.LogWarning(
+                "MCP server '{ServerName}' moved from host '{PreviousHost}' to '{Host}' and kept its stored headers " +
+                "({HeaderNames}); they are now sent to the new host.",
+                name,
+                previous.Endpoint.Host,
+                endpoint.Host,
+                string.Join(", ", kept));
+        }
+    }
+
     private static ProblemHttpResult? Validate(
         string name,
         McpServerRequest request,
@@ -879,8 +1048,12 @@ internal static class GovernanceEndpoints
         // value is read from (K-059). Without a prefix restriction that name
         // could point at any configuration key in the application; without
         // the tenant segment it could point at another tenant's key.
+#pragma warning disable CS0618 // The deprecated field keeps its key space rule until 1.0.0 (phase 190).
+        var legacyAuthorizationKey = request.AuthorizationConfigurationKey;
+#pragma warning restore CS0618
+
         if (RequireTenantKey(
-                request.AuthorizationConfigurationKey,
+                legacyAuthorizationKey,
                 mcpSecurity.AllowedConfigurationPrefix,
                 tenantId,
                 defaultTenantId,
@@ -909,7 +1082,7 @@ internal static class GovernanceEndpoints
                     statusCode: StatusCodes.Status400BadRequest);
             }
 
-            if (!string.IsNullOrEmpty(request.AuthorizationConfigurationKey))
+            if (!string.IsNullOrEmpty(legacyAuthorizationKey))
             {
                 return TypedResults.Problem(
                     title: "Conflicting authentication",

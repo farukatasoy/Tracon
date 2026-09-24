@@ -50,13 +50,23 @@ key name is persisted; the credential value stays in your secret provider:
 ```json
 {
   "endpoint": "https://mcp.example.com/mcp",
-  "authorizationConfigurationKey": "Tracon:Mcp:ExampleToken"
+  "headerConfigurationKeys": {
+    "Authorization": "Tracon:McpSecrets:ExampleToken",
+    "X-Api-Key": "Tracon:McpSecrets:ExampleKey"
+  }
 }
 ```
 
 ```bash
-dotnet user-secrets set "Tracon:Mcp:ExampleToken" "Bearer ..."
+dotnet user-secrets set "Tracon:McpSecrets:ExampleToken" "Bearer ..."
+dotnet user-secrets set "Tracon:McpSecrets:ExampleKey" "..."
 ```
+
+Each key name sits under `Tracon:McpSecrets:`, and a tenant other than the default one
+uses `Tracon:McpSecrets:<tenant>:`. A credential in plain `headers` is refused with
+`400` — see [credential headers](/getting-started/security/#credential-headers-are-declared-by-key-name).
+The value is read on every connection, but a changed value does not reconnect by
+itself: call the refresh endpoint below after rotating it.
 
 Discovery is asynchronous and does not block startup. Refresh immediately after a
 configuration change with `POST {prefix}/api/mcp-servers/refresh`. An unreachable

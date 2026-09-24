@@ -967,11 +967,13 @@ internal sealed class PostgresQueries : SqlQueriesBase
             INSERT INTO {Schema}.mcp_servers
                 (id, tenant_id, name, description, endpoint, transport,
                  authorization_configuration_key, headers, enabled, requires_approval, created_at, updated_at,
-                 oauth_enabled, oauth_client_id, oauth_client_secret_configuration_key, oauth_scopes, oauth_authorization_mode)
+                 oauth_enabled, oauth_client_id, oauth_client_secret_configuration_key, oauth_scopes, oauth_authorization_mode,
+                 header_configuration_keys)
             VALUES
                 (@id, @tenant_id, @name, @description, @endpoint, @transport,
                  @authorization_configuration_key, @headers, @enabled, @requires_approval, @now, @now,
-                 @oauth_enabled, @oauth_client_id, @oauth_client_secret_configuration_key, @oauth_scopes, @oauth_authorization_mode)
+                 @oauth_enabled, @oauth_client_id, @oauth_client_secret_configuration_key, @oauth_scopes, @oauth_authorization_mode,
+                 @header_configuration_keys)
             ON CONFLICT (tenant_id, name) DO UPDATE
                 SET description                          = EXCLUDED.description,
                     endpoint                             = EXCLUDED.endpoint,
@@ -985,7 +987,8 @@ internal sealed class PostgresQueries : SqlQueriesBase
                     oauth_client_id                         = EXCLUDED.oauth_client_id,
                     oauth_client_secret_configuration_key   = EXCLUDED.oauth_client_secret_configuration_key,
                     oauth_scopes                            = EXCLUDED.oauth_scopes,
-                    oauth_authorization_mode                = EXCLUDED.oauth_authorization_mode
+                    oauth_authorization_mode                = EXCLUDED.oauth_authorization_mode,
+                    header_configuration_keys               = EXCLUDED.header_configuration_keys
             RETURNING {McpServerColumns};
             """;
 
@@ -1322,14 +1325,15 @@ internal sealed class PostgresQueries : SqlQueriesBase
                 ({WebhookSubscriptionColumns})
             VALUES
                 (@id, @tenant_id, @name, @url, @events, @secret_configuration_key, @headers, @enabled,
-                 @consecutive_failures, @created_at, @updated_at)
+                 @consecutive_failures, @created_at, @updated_at, @header_configuration_keys)
             ON CONFLICT (tenant_id, name) DO UPDATE
-               SET url                      = EXCLUDED.url,
-                   events                   = EXCLUDED.events,
-                   secret_configuration_key = EXCLUDED.secret_configuration_key,
-                   headers                  = EXCLUDED.headers,
-                   enabled                  = EXCLUDED.enabled,
-                   updated_at               = EXCLUDED.updated_at
+               SET url                       = EXCLUDED.url,
+                   events                    = EXCLUDED.events,
+                   secret_configuration_key  = EXCLUDED.secret_configuration_key,
+                   headers                   = EXCLUDED.headers,
+                   enabled                   = EXCLUDED.enabled,
+                   updated_at                = EXCLUDED.updated_at,
+                   header_configuration_keys = EXCLUDED.header_configuration_keys
             RETURNING {WebhookSubscriptionColumns};
             """;
 

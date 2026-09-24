@@ -224,7 +224,7 @@ public sealed class WebhookEndpointTests
             Orders,
             Request() with
             {
-                Headers = new Dictionary<string, string>(StringComparer.Ordinal) { ["X-Api-Key"] = ApiKey, ["X-Team"] = "team-blue-value" },
+                Headers = new Dictionary<string, string>(StringComparer.Ordinal) { ["X-Session-Id"] = ApiKey, ["X-Team"] = "team-blue-value" },
             });
 
         saved.StatusCode.ShouldBe(HttpStatusCode.OK);
@@ -242,12 +242,12 @@ public sealed class WebhookEndpointTests
 
         var subscription = (await read.Content.ReadFromJsonAsync<WebhookSubscription>())!;
         subscription.Headers.ShouldBe(
-            new Dictionary<string, string>(StringComparer.Ordinal) { ["X-Api-Key"] = "***", ["X-Team"] = "***" },
+            new Dictionary<string, string>(StringComparer.Ordinal) { ["X-Session-Id"] = "***", ["X-Team"] = "***" },
             ignoreOrder: true);
 
         // The receiver still gets the real value: the mask is a response rule.
         var stored = await host.Services.GetRequiredService<IWebhookStore>().GetSubscriptionAsync("default", "orders");
-        stored!.Headers["X-Api-Key"].ShouldBe(ApiKey);
+        stored!.Headers["X-Session-Id"].ShouldBe(ApiKey);
 
         // The audit trail records no header value either.
         var entries = await host.Services.GetRequiredService<IAuditLog>()

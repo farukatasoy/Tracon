@@ -45,24 +45,50 @@ public sealed class MigrationParityTests
             SelectedColumns(new PostgresQueries(PostgresAndSqlServerSchema).SelectRunScores));
 
     /// <summary>
-    /// The write side of every dialect names the score columns in the order the
+    /// Every column the MCP server and webhook subscription readers select is
+    /// created by every provider.
+    /// </summary>
+    /// <remarks>
+    /// Both readers address the row by bare ordinal. Phase 190 appended
+    /// <c>header_configuration_keys</c> to both lists; a provider that misses the
+    /// migration fails every read of the table.
+    /// </remarks>
+    [Theory]
+    [InlineData("mcp_servers")]
+    [InlineData("webhook_subscriptions")]
+    public void Every_column_the_mcp_and_webhook_readers_select_exists_in_all_three_migration_sets(string table)
+        => AssertColumnsExistEverywhere(table, SelectedColumns(Select(table)));
+
+    /// <summary>
+    /// The write side of every dialect names the columns in the order the
     /// reader expects.
     /// </summary>
     /// <remarks>
-    /// 🚨 This is the surface that can actually drift. <c>SelectRunScores</c> is
-    /// built once in the shared base, so comparing the three dialects' SELECT
-    /// text would compare a constant with itself. <c>UpsertRunScore</c> is
-    /// written out per dialect — three <c>VALUES</c> lists plus SQL Server's own
-    /// <c>OUTPUT</c> column list — and each one carries the order by hand.
+    /// <para>
+    /// 🚨 This is the surface that can actually drift. The SELECT text is built
+    /// once in the shared base, so comparing the three dialects' SELECT text
+    /// would compare a constant with itself. The upserts are written out per
+    /// dialect — three <c>VALUES</c> lists plus SQL Server's own <c>OUTPUT</c>
+    /// column list — and each one carries the order by hand.
+    /// </para>
+    /// <para>
+    /// The <c>OUTPUT</c> list is read up to the next <c>WHERE</c> or
+    /// <c>VALUES</c>, not to the end of the line: the MCP server and webhook
+    /// lists span several lines, and a one-line read compared only their first
+    /// few columns.
+    /// </para>
     /// </remarks>
-    [Fact]
-    public void Every_dialects_score_WRITE_names_the_columns_in_the_readers_order()
+    [Theory]
+    [InlineData("run_scores")]
+    [InlineData("mcp_servers")]
+    [InlineData("webhook_subscriptions")]
+    public void Every_dialects_WRITE_names_the_columns_in_the_readers_order(string table)
     {
-        var expected = SelectedColumns(new PostgresQueries(PostgresAndSqlServerSchema).SelectRunScores);
+        var expected = SelectedColumns(Select(table));
 
         expected.ShouldNotBeEmpty();
 
-        foreach (var (dialect, upsert) in ScoreUpserts())
+        foreach (var (dialect, upsert) in Upserts(table))
         {
             // The @-parameter list of every VALUES clause in the statement.
             var valueLists = Regex
@@ -72,26 +98,65 @@ public sealed class MigrationParityTests
                 .Select(match => Split(match.Groups["columns"].Value, trimLeading: '@'))
                 .ToList();
 
-            valueLists.ShouldNotBeEmpty($"{dialect} has no VALUES clause for a score");
+            valueLists.ShouldNotBeEmpty($"{dialect} has no VALUES clause for '{table}'");
 
             foreach (var parameters in valueLists)
             {
-                parameters.ShouldBe(expected, $"{dialect}'s VALUES list is out of step with the reader");
+                // The MCP upsert stamps both timestamps from one @now parameter.
+                parameters
+                    .Select((parameter, index) => string.Equals(parameter, "now", StringComparison.Ordinal)
+                        && expected[index] is "created_at" or "updated_at"
+                        ? expected[index]
+                        : parameter)
+                    .ShouldBe(expected, $"{dialect}'s VALUES list for '{table}' is out of step with the reader");
             }
 
             // SQL Server returns the row through OUTPUT inserted.* instead of
             // RETURNING, so that list carries the order by hand as well.
             foreach (Match output in Regex.Matches(
                 upsert,
-                @"OUTPUT\s+(?<columns>inserted\.[^\r\n]+)",
-                RegexOptions.IgnoreCase | RegexOptions.ExplicitCapture,
+                @"OUTPUT\s+(?<columns>inserted\..*?)\s+(?=WHERE\b|VALUES\b)",
+                RegexOptions.IgnoreCase | RegexOptions.ExplicitCapture | RegexOptions.Singleline,
                 TimeSpan.FromSeconds(5)))
             {
                 Split(output.Groups["columns"].Value, trimLeading: default)
                     .Select(static column => column.Replace("inserted.", string.Empty, StringComparison.Ordinal))
-                    .ShouldBe(expected, $"{dialect}'s OUTPUT list is out of step with the reader");
+                    .ShouldBe(expected, $"{dialect}'s OUTPUT list for '{table}' is out of step with the reader");
             }
         }
+    }
+
+    /// <summary>
+    /// The SQL Server upserts carry an <c>OUTPUT</c> list for every table the
+    /// write test covers; a regex that stops matching would pass it vacuously.
+    /// </summary>
+    [Theory]
+    [InlineData("run_scores")]
+    [InlineData("mcp_servers")]
+    [InlineData("webhook_subscriptions")]
+    public void The_SQL_Server_OUTPUT_list_is_found(string table)
+    {
+        var upsert = Upserts(table).Single(static pair => string.Equals(pair.Dialect, "SqlServer", StringComparison.Ordinal)).Sql;
+
+        Regex.Matches(
+                upsert,
+                @"OUTPUT\s+(?<columns>inserted\..*?)\s+(?=WHERE\b|VALUES\b)",
+                RegexOptions.IgnoreCase | RegexOptions.ExplicitCapture | RegexOptions.Singleline,
+                TimeSpan.FromSeconds(5))
+            .Count.ShouldBe(2, "the UPDATE and the INSERT branch each carry one OUTPUT list");
+    }
+
+    private static string Select(string table)
+    {
+        var queries = new PostgresQueries(PostgresAndSqlServerSchema);
+
+        return table switch
+        {
+            "run_scores" => queries.SelectRunScores,
+            "mcp_servers" => queries.SelectMcpServers,
+            "webhook_subscriptions" => queries.SelectWebhookSubscriptions,
+            _ => throw new ArgumentOutOfRangeException(nameof(table), table, "No reader is known for the table."),
+        };
     }
 
     private static void AssertColumnsExistEverywhere(string table, IReadOnlyList<string> columns)
@@ -169,12 +234,39 @@ public sealed class MigrationParityTests
             .Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
             .Select(entry => trimLeading == default ? entry : entry.TrimStart(trimLeading))];
 
-    /// <summary>The per-dialect score upsert text, which carries the order by hand.</summary>
-    private static IEnumerable<(string Dialect, string Sql)> ScoreUpserts()
+    /// <summary>The per-dialect upsert text, which carries the order by hand.</summary>
+    /// <remarks>
+    /// Each provider compiles its own copy of the shared base (linked source,
+    /// K-176), so the three query types share no common type to switch over.
+    /// </remarks>
+    private static IEnumerable<(string Dialect, string Sql)> Upserts(string table)
     {
-        yield return ("PostgreSql", new PostgresQueries(PostgresAndSqlServerSchema).UpsertRunScore);
-        yield return ("SqlServer", new SqlServerQueries(PostgresAndSqlServerSchema).UpsertRunScore);
-        yield return ("Sqlite", new SqliteQueries(SqliteTablePrefix).UpsertRunScore);
+        var postgres = new PostgresQueries(PostgresAndSqlServerSchema);
+        var sqlServer = new SqlServerQueries(PostgresAndSqlServerSchema);
+        var sqlite = new SqliteQueries(SqliteTablePrefix);
+
+        return table switch
+        {
+            "run_scores" =>
+            [
+                ("PostgreSql", postgres.UpsertRunScore),
+                ("SqlServer", sqlServer.UpsertRunScore),
+                ("Sqlite", sqlite.UpsertRunScore),
+            ],
+            "mcp_servers" =>
+            [
+                ("PostgreSql", postgres.UpsertMcpServer),
+                ("SqlServer", sqlServer.UpsertMcpServer),
+                ("Sqlite", sqlite.UpsertMcpServer),
+            ],
+            "webhook_subscriptions" =>
+            [
+                ("PostgreSql", postgres.UpsertWebhookSubscription),
+                ("SqlServer", sqlServer.UpsertWebhookSubscription),
+                ("Sqlite", sqlite.UpsertWebhookSubscription),
+            ],
+            _ => throw new ArgumentOutOfRangeException(nameof(table), table, "No upsert is known for the table."),
+        };
     }
 
     /// <summary>The concatenated migration text each provider embeds.</summary>

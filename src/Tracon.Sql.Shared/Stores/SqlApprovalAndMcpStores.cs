@@ -188,8 +188,11 @@ internal sealed class SqlMcpServerStore : IMcpServerStore
         AddNullableText(command, "description", server.Description);
         DbHelpers.Add(command, "endpoint", server.Endpoint.ToString());
         DbHelpers.Add(command, "transport", (short)server.Transport);
+#pragma warning disable CS0618 // The deprecated field keeps its column until 1.0.0 (phase 190).
         AddNullableText(command, "authorization_configuration_key", server.AuthorizationConfigurationKey);
+#pragma warning restore CS0618
         Dialect.AddJsonb(command, "headers", WriteHeaders(server.Headers));
+        Dialect.AddJsonb(command, "header_configuration_keys", WriteHeaders(server.HeaderConfigurationKeys));
         DbHelpers.Add(command, "enabled", server.Enabled);
         DbHelpers.Add(command, "requires_approval", server.RequiresApproval);
         Dialect.AddTimestamp(command, "now", DateTimeOffset.UtcNow);
@@ -243,9 +246,9 @@ internal sealed class SqlMcpServerStore : IMcpServerStore
         return Encoding.UTF8.GetString(buffer.ToArray());
     }
 
-    private static Dictionary<string, string> ReadHeaders(string? json)
+    private static Dictionary<string, string> ReadHeaders(string? json, StringComparer comparer)
     {
-        var headers = new Dictionary<string, string>(StringComparer.Ordinal);
+        var headers = new Dictionary<string, string>(comparer);
 
         if (string.IsNullOrEmpty(json))
         {
@@ -279,8 +282,10 @@ internal sealed class SqlMcpServerStore : IMcpServerStore
             Description = DbHelpers.GetNullableString(reader, 3),
             Endpoint = new Uri(reader.GetString(4)),
             Transport = (McpTransportMode)reader.GetInt16(5),
+#pragma warning disable CS0618 // The deprecated field keeps its column until 1.0.0 (phase 190).
             AuthorizationConfigurationKey = DbHelpers.GetNullableString(reader, 6),
-            Headers = ReadHeaders(DbHelpers.GetNullableString(reader, 7)),
+#pragma warning restore CS0618
+            Headers = ReadHeaders(DbHelpers.GetNullableString(reader, 7), StringComparer.Ordinal),
             Enabled = reader.GetBoolean(8),
             RequiresApproval = reader.GetBoolean(9),
             CreatedAt = DbHelpers.GetTimestamp(reader, 10),
@@ -290,6 +295,12 @@ internal sealed class SqlMcpServerStore : IMcpServerStore
             OAuthClientSecretConfigurationKey = DbHelpers.GetNullableString(reader, 14),
             OAuthScopes = DbHelpers.GetNullableString(reader, 15),
             OAuthAuthorizationMode = (McpOAuthAuthorizationMode)reader.GetInt16(16),
+
+            // Last in the column list (McpServerColumns): the column arrived with
+            // phase 190's migration, and the reader addresses columns by position.
+            // The indexer keeps the last spelling if a hand-written row repeats a
+            // name in another case; the save path rejects that for new records.
+            HeaderConfigurationKeys = ReadHeaders(DbHelpers.GetNullableString(reader, 17), StringComparer.OrdinalIgnoreCase),
         };
 
     private void AddNullableText(DbCommand command, string name, string? value)

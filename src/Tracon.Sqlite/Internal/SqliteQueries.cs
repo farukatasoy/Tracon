@@ -956,7 +956,8 @@ internal sealed class SqliteQueries : SqlQueriesBase
             VALUES
                 (@id, @tenant_id, @name, @description, @endpoint, @transport,
                  @authorization_configuration_key, @headers, @enabled, @requires_approval, @now, @now,
-                 @oauth_enabled, @oauth_client_id, @oauth_client_secret_configuration_key, @oauth_scopes, @oauth_authorization_mode)
+                 @oauth_enabled, @oauth_client_id, @oauth_client_secret_configuration_key, @oauth_scopes, @oauth_authorization_mode,
+                 @header_configuration_keys)
             ON CONFLICT (tenant_id, name) DO UPDATE
                 SET description                          = excluded.description,
                     endpoint                              = excluded.endpoint,
@@ -970,7 +971,8 @@ internal sealed class SqliteQueries : SqlQueriesBase
                     oauth_client_id                         = excluded.oauth_client_id,
                     oauth_client_secret_configuration_key   = excluded.oauth_client_secret_configuration_key,
                     oauth_scopes                            = excluded.oauth_scopes,
-                    oauth_authorization_mode                = excluded.oauth_authorization_mode
+                    oauth_authorization_mode                = excluded.oauth_authorization_mode,
+                    header_configuration_keys               = excluded.header_configuration_keys
             RETURNING {McpServerColumns};
             """;
 
@@ -1290,14 +1292,15 @@ internal sealed class SqliteQueries : SqlQueriesBase
             INSERT INTO {Schema}webhook_subscriptions ({WebhookSubscriptionColumns})
             VALUES
                 (@id, @tenant_id, @name, @url, @events, @secret_configuration_key, @headers, @enabled,
-                 @consecutive_failures, @created_at, @updated_at)
+                 @consecutive_failures, @created_at, @updated_at, @header_configuration_keys)
             ON CONFLICT (tenant_id, name) DO UPDATE
-               SET url                      = excluded.url,
-                   events                   = excluded.events,
-                   secret_configuration_key = excluded.secret_configuration_key,
-                   headers                  = excluded.headers,
-                   enabled                  = excluded.enabled,
-                   updated_at               = excluded.updated_at
+               SET url                       = excluded.url,
+                   events                    = excluded.events,
+                   secret_configuration_key  = excluded.secret_configuration_key,
+                   headers                   = excluded.headers,
+                   enabled                   = excluded.enabled,
+                   updated_at                = excluded.updated_at,
+                   header_configuration_keys = excluded.header_configuration_keys
             RETURNING {WebhookSubscriptionColumns};
             """;
 
