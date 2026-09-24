@@ -4,7 +4,7 @@ description: Call the management API from a typed client, and apply migrations, 
 ---
 
 :::note[Preview package]
-The CLI is published as `1.0.0-preview.2`. Use `--prerelease` for discovery or
+The CLI is published as `1.0.0-preview.3`. Use `--prerelease` for discovery or
 pin the exact version for a reproducible tool manifest.
 :::
 

@@ -4,7 +4,7 @@ description: Implement IRunStore against your own persistence engine and prove i
 ---
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.2`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.3`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -92,7 +92,7 @@ NUGET_PACKAGES=$(mktemp -d) dotnet test
 ```
 
 A prerelease version string can name different content over time. NuGet caches
-by package id and version, so once `1.0.0-preview.2` is extracted into your
+by package id and version, so once `1.0.0-preview.3` is extracted into your
 global cache, a later build carrying the same version is never re-read — your
 store then compiles against the older contract and the contract suite reports
 failures that do not exist in the package you just built.

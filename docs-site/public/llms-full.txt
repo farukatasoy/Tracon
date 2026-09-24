@@ -3360,7 +3360,7 @@ in the embedded console. MAF executes the agent; Tracon supplies the catalog,
 HTTP endpoints, and default-on recording around it.
 
 :::note[Preview release]
-This guide uses `1.0.0-preview.2`. Preview packages require explicit selection;
+This guide uses `1.0.0-preview.3`. Preview packages require explicit selection;
 pin the exact version when you need a reproducible build.
 :::
 
@@ -3378,7 +3378,7 @@ Install the published template, then create a project. The template pins every
 Tracon package to the same version as the template package.
 
 ```bash
-dotnet new install Tracon.Templates@1.0.0-preview.2
+dotnet new install Tracon.Templates@1.0.0-preview.3
 dotnet new tracon-api -n MyAgents
 cd MyAgents
 ```
@@ -3518,7 +3518,7 @@ persistence, identity integration, and operational policies. Recording is
 best-effort: a recording-store failure is logged while agent execution continues.
 
 :::note[Preview release]
-Packages and templates are published as `1.0.0-preview.2`. The
+Packages and templates are published as `1.0.0-preview.3`. The
 [first-agent guide](/getting-started/first-agent/) starts with the public template;
 pin the exact package version when reproducibility matters.
 :::
@@ -4945,7 +4945,7 @@ idempotent.
 Source: https://tracon.dev/guides/cli/
 
 :::note[Preview package]
-The CLI is published as `1.0.0-preview.2`. Use `--prerelease` for discovery or
+The CLI is published as `1.0.0-preview.3`. Use `--prerelease` for discovery or
 pin the exact version for a reproducible tool manifest.
 :::
 
@@ -5343,7 +5343,7 @@ credential meant for exactly this.
 Source: https://tracon.dev/guides/coding-agents/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.2`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.3`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -10694,7 +10694,7 @@ and still reject a fenced payload at the application boundary.
 Source: https://tracon.dev/guides/testing/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.2`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.3`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -10961,7 +10961,7 @@ mistake instead of hiding it.
 Source: https://tracon.dev/guides/typescript-client/
 
 :::note[Preview package]
-`@tracon/client` is published as `1.0.0-preview.2`. Install the `next` tag or pin
+`@tracon/client` is published as `1.0.0-preview.3`. Install the `next` tag or pin
 the exact version; do not use a floating range in production.
 :::
 
@@ -11155,7 +11155,7 @@ sync.
 Source: https://tracon.dev/guides/voice/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.2`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.3`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -12000,7 +12000,7 @@ class comes from the built-in classifier instead, and the failure is logged.
 Source: https://tracon.dev/guides/write-your-own-job-handler/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.2`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.3`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -12213,7 +12213,7 @@ handler actually receives a queued job.
 Source: https://tracon.dev/guides/write-your-own-judge/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.2`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.3`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -12358,7 +12358,7 @@ timeouts, persistence, or HTTP responses.
 Source: https://tracon.dev/guides/write-your-own-store/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.2`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.3`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -12446,7 +12446,7 @@ NUGET_PACKAGES=$(mktemp -d) dotnet test
 ```
 
 A prerelease version string can name different content over time. NuGet caches
-by package id and version, so once `1.0.0-preview.2` is extracted into your
+by package id and version, so once `1.0.0-preview.3` is extracted into your
 global cache, a later build carrying the same version is never re-read — your
 store then compiles against the older contract and the contract suite reports
 failures that do not exist in the package you just built.
@@ -13157,7 +13157,7 @@ needs a commercial licence. Details and the reasoning: [Licensing](/reference/li
 ## The meta package
 
 :::note[Preview package]
-The current release is `1.0.0-preview.2`. The command below selects it from
+The current release is `1.0.0-preview.3`. The command below selects it from
 NuGet; pin the exact version for reproducible builds.
 :::
 
@@ -13404,6 +13404,487 @@ entries assume.
 
 ## Releases
 
+<a id="v1.0.0-preview.3"></a>
+
+### 1.0.0-preview.3 — 2026-09-24
+
+The first security release. It closes the tenant-boundary and
+credential-exposure defects of the earlier previews listed under Security,
+and it changes the public API: every removed or changed type is named below.
+Read Security and Changed before you upgrade.
+
+#### Security
+
+Every change below except the audit trail one can refuse a request or a
+record that a running setup accepted before. Each refusal names what to
+change.
+
+- A stored record may name only a configuration key inside its own tenant.
+  The allowed prefix is one per installation, so a record of one tenant could
+  name another tenant's key and point it at an address it controls. A
+  non-default tenant now names keys under `{prefix}{tenant}:` (for tenant
+  `acme`, `Tracon:McpSecrets:acme:GithubToken`); a flat name directly under the
+  prefix belongs to the default tenant, so a single-tenant installation changes
+  nothing. The rule covers MCP servers, tenant provider bindings, webhook
+  subscriptions and inbound triggers, where the record is saved (`400`) and
+  where its value is resolved. Move an out-of-tenant name under the tenant's
+  segment.
+- `/api/tenants/{tenantId}/providers`, `/api/tenants/{tenantId}/egress` and the
+  tenant records (`/api/tenants`) act on a tenant other than the caller's own
+  only with platform authority: an API key that also carries `PlatformAdmin`,
+  the static `AuthToken`, or — for a claims principal while multi-tenancy is
+  on — the new `TraconPolicies.PlatformAdmin` policy. A missing registration of
+  that policy denies (`403`). Before, a key bound to one tenant with
+  `SecurityAdmin`, or a claims-based Admin of one tenant, could rewrite another
+  tenant's provider binding.
+- With `AllowRemoteAccess` on and neither `AuthToken` nor an authorization
+  policy configured, an anonymous remote request now returns `401`; API keys
+  keep working. A request that still carries `X-Forwarded-For`, `Forwarded` or
+  `X-Real-IP` counts as remote, so a reverse proxy on the same machine no longer
+  makes every caller look local. Without a token or a policy, an anonymous
+  request with a non-loopback `Host` or `Origin` returns `403`, which blocks DNS
+  rebinding and cross-site requests; the voice WebSocket follows the same rule.
+- Creating an API key that carries the `PlatformAdmin` scope now needs the same
+  platform authority as acting on another tenant. Before, a claims-based Admin
+  of one tenant, without the `TraconPolicies.PlatformAdmin` policy, could create
+  such a key and use it to reach other tenants. An API key can still only
+  create scopes it carries itself.
+- `GET /api/mcp-servers` and the `PUT /api/mcp-servers/{name}` response no
+  longer return stored extra header values: every header keeps its name and
+  carries the value `***`. Before, any `Reader` or `AgentsRead` API key could
+  read a header value such as an API key and call the MCP server directly, past
+  the tool approval gate. Webhook subscriptions (`GET /api/webhooks`,
+  `GET /api/webhooks/{name}` and the `PUT` response) follow the same rule. The
+  stored value does not change and is still sent to the target.
+- The MCP server audit trail records header names only. The values of headers
+  whose names the secret filter does not recognize, such as `Cookie` or
+  `Ocp-Apim-Subscription-Key`, no longer enter the audit log as plain text.
+- A script grant now pins the content it was given for. A stored script, and a
+  script of a skill registered in code, runs only while its content still has
+  the hash the grant carries; a change stops it until it is granted again. A
+  grant without a script name pins the whole script set, so adding, removing or
+  changing any script stops them all. **An existing grant pins nothing and no
+  longer authorizes a stored or code script: grant each one again.** Read
+  `scripts[].contentHash` or `scriptSetHash` from `GET /api/skills/{name}` and
+  send it as `expectedContentHash` to `POST /api/skill-script-grants` (missing
+  or malformed `400`, unknown script `404`, changed content `409`). Scripts
+  read from disk are not pinned and keep working; keep their directories
+  read-only. Before, an administrator who could write skills could replace a
+  script's content after a security administrator had approved it, and the old
+  grant kept authorizing the new code.
+- In a multi-tenant host, granting a stored script needs platform authority
+  (an API key that also carries `PlatformAdmin`, the static `AuthToken`, or the
+  `TraconPolicies.PlatformAdmin` policy; `403` otherwise). The script runs
+  under the server's own operating-system identity and can read other tenants'
+  data, so the grant is an installation decision, not a tenant's.
+- A store of your own must keep `SkillScriptGrant.ContentHash`. A store that
+  drops it fails the new `SkillScriptGrantContract` cases, and its grants
+  refuse every stored script.
+- A credential header of an MCP server or a webhook subscription is declared
+  by configuration key name in the new `headerConfigurationKeys`, and a save
+  whose plain `headers` carry a credential-looking name (`Authorization`,
+  `Cookie`, a name containing `api-key`, `token`, `password` or `secret`, or a
+  name ending in `-key`) returns `400`. The detail names the header and the new
+  field and never repeats the value. Before, `Authorization` was the only
+  header with a key reference, and `X-Api-Key` or `Ocp-Apim-Subscription-Key`
+  was stored in the database as plain text. A stored row keeps working and is
+  still sent; each connection or delivery logs a warning that names the header.
+  Every key name follows the prefix and tenant rules above, on save (`400`) and
+  again before each connection or delivery: an MCP server whose map names
+  another tenant's key does not connect, and such a webhook delivery is dropped.
+- A header name may appear only once across `headers` and
+  `headerConfigurationKeys`, compared without regard to case, and must be a
+  valid HTTP field name (`400` otherwise). Turning OAuth on for an MCP server
+  whose kept plain `headers` still carry `Authorization` returns `400`: the MCP
+  client skips its bearer token while that header is present. A webhook's two maps together may
+  carry at most `Tracon:Webhooks:MaxExtraHeaders` entries (`400` instead of
+  being cut at delivery), and `headerConfigurationKeys` may not name an
+  `X-Tracon-*` header.
+- `PUT /api/mcp-servers/{name}` and `PUT /api/webhooks/{name}` keep a stored
+  header map when the request leaves it out or sends `null`; `{}` removes it.
+  Saving from the admin UI therefore keeps the headers. The side effect: a save
+  that changes only the address sends the kept headers, and the credential
+  values they resolve, to the new address; the server logs a warning with the
+  header names. Send the maps, or `{}`, in the same save when an address moves.
+- An `OperationCanceledException` that an `IRunAuthorizationHandler` throws,
+  but that the request itself did not cause (for example, an `HttpClient`
+  timeout inside the handler), is now a failed check. A single resource answers
+  the same `404` as a missing one. Before, it answered `500`, which revealed
+  that the resource exists.
+
+#### Added
+
+- `HeaderConfigurationKeys` on `McpServerDefinition`, `McpServerRequest`,
+  `WebhookSubscription` and `WebhookSaveRequest`: a map from a header name to
+  the configuration key its value is read from. The value is resolved on each
+  connection or delivery and never stored; a response returns the map as
+  stored. The `mcp_servers` and `webhook_subscriptions` tables gain a
+  `header_configuration_keys` column (migration `0054` PostgreSQL, `0042` SQL
+  Server, `0041` SQLite); existing rows read an empty map.
+- `McpServerStoreContract.Header_configuration_keys_are_preserved`,
+  `WebhookStoreContract.Header_configuration_keys_are_preserved` and
+  `WebhookStoreContract.Header_names_that_differ_only_in_case_do_not_fail_the_save`.
+  A store of your own must persist the new field and return it from the save
+  as well as from a read.
+
+#### Fixed
+
+- `Tracon.UI` now carries the notices of the third-party code in its embedded
+  console: React, React DOM, `scheduler`, TanStack Query, `openapi-fetch`, and
+  Tailwind CSS, all MIT. `THIRD-PARTY-NOTICES.txt` ships at the package root and
+  inside `Tracon.UI.dll`. Before, the package redistributed that code without
+  them.
+- A webhook subscription whose headers differ only in case (`X-A` and `x-a`)
+  no longer fails the SQL save with `500`, and such an MCP server no longer
+  fails to connect.
+- The MCP OAuth authorization flow now sends the same headers as every other
+  connection to the server, including the ones resolved from configuration.
+- A header that the MCP transport cannot add (a content header such as
+  `Content-Type`, or a value with a line break) is left out with a warning.
+  Before, the transport's exception carried the header value into the log.
+- The `TRC0201` analyzer names the header for a literal secret in a header
+  dictionary (`McpServerDefinition.Headers["X-Api-Key"]`) and points at
+  `HeaderConfigurationKeys`.
+- A slow or unresponsive database no longer blocks the metrics collection
+  thread while the quota or queue-depth gauge refreshes. Before, this delayed
+  the export of every other instrument of the meter provider.
+- The quota threshold notification cache in `QuotaEnforcer` no longer grows for
+  the life of the process. Entries of closed quota periods are now dropped.
+- A failed or cancelled durable threshold claim no longer keeps a quota
+  threshold notification silent until the end of the period. The next run in
+  the same period retries the claim.
+- The quota admission check, the threshold accounting, the quota gauge and
+  `GET /api/quotas/usage` now read only the counters of the current periods.
+  Before, every read returned the tenant's whole usage history, twice per run,
+  and that history only grows.
+- `GET /api/models/health` no longer fails for every provider when one
+  provider's health check throws. The failing provider is reported `Unhealthy`
+  with the exception type in `detail` (`The health check failed (...)`), and the
+  exception is logged at Warning level. The background health refresh also
+  continues past that provider.
+- An Azure OpenAI `CredentialFactory` credential that throws while it gets a
+  token (for example `DefaultAzureCredential` without an Azure sign-in) now
+  reports `Unhealthy` with `Credential error (<exception type>)` and logs the
+  exception, instead of escaping the health check.
+- `UseAzureOpenAI(IConfiguration)` now binds a relative `Endpoint` and a
+  `Models` entry without a `Name`, so start-up validation rejects them with the
+  specific message, the same as the other three providers. Before, a relative
+  endpoint was reported as missing and a nameless entry was silently dropped.
+  An application that relied on the silent drop now fails at start-up.
+- The out-of-catalog log entry of an `UseOpenAICompatible()` provider now names
+  `OpenAIProviderOptions.Models` instead of the `Tracon:Providers:OpenAI`
+  section, which that provider does not read.
+- Two approval rules whose argument conditions differ are no longer merged
+  into one by the SQL stores when a condition path carries the U+001E or
+  U+001F control character. Before, saving the second rule returned the first
+  one unchanged. Existing rules keep their stored fingerprint; no migration
+  runs.
+- The in-memory approval rule store now treats a list value that differs only
+  in whitespace (`["eu", "us"]` and `["eu","us"]`) as the same condition, the
+  same as the SQL stores. Before, it kept two rules.
+
+#### Removed
+
+These public types are now `internal`. None is part of a seam you implement
+or a call you make: the same behavior is reached through the public
+registration methods, options, and interfaces. The API is not frozen in the
+preview line, and the counts below are types, not members.
+
+- `Tracon.PostgreSql`, `Tracon.SqlServer`, `Tracon.Sqlite`: `MigrationRunner`.
+  It existed once in each provider package under the same name, so an
+  application that referenced two providers could not name it (`CS0433`).
+  Resolve `IMigrationApplier` to apply migrations and
+  `ISqlPersistenceDiagnostics` for the migration snapshot; both resolve to the
+  same runner. The `tracon migrate` command is unchanged.
+- `Tracon.Anthropic`, `Tracon.Azure`, `Tracon.Google`, `Tracon.OpenAI`:
+  `AnthropicChatClientFactory`, `AnthropicModelCatalog`,
+  `AzureOpenAIChatClientFactory`, `AzureOpenAIModelCatalog`,
+  `GoogleChatClientFactory`, `GoogleModelCatalog`, `OpenAIChatClientFactory`,
+  `OpenAIModelCatalog`, and `OpenAIApiSurface`. The `Use*` registration methods and the `*ProviderOptions` types are the
+  configuration surface; a factory created through `FromClient` could not be
+  plugged into a registered provider anyway.
+- `Tracon.Abstractions` (11): `ChatHistoryState`, `ExperimentAssignment`,
+  `JobPayload`, `ReplayToolMismatchException`, `RunAttributionReader`,
+  `SafeErrorText`, `SchemaReadyGate`, `ToolArgumentConditionLimits`,
+  `TraconSessionStateKeys`, `WebhookEventPayloadJsonContext`, and
+  `WorkflowCheckpointState`. A store's checkpoint listing still returns an empty
+  JSON object (`{}`) as `State`; the documentation of `IWorkflowCheckpointStore`
+  now says so.
+- `Tracon.Core` (69): `AgentCallGraph`, `AgentCallGraphProblem`,
+  `AgentSessionIdentity`, `AttachmentTypeGuard`, `AttachmentUriReference`,
+  `AttachmentValidationResult`, `AuditActorContext`, `AuditChainHasher`,
+  `AuditChainWalker`, `AuditPayload`, `AuditRecorder`, `AuditSecretFilter`,
+  `AuthorizingAIFunction`, `CanaryEvaluator`, `ChildRunApproval`,
+  `CodeAgentRegistration`, `ConfigurationKeyGuard`, `CronExpression`,
+  `DefaultProviderRetryClassifier`, `DocumentAttachmentSummary`,
+  `DocumentChannelMessageBuilder`, `EgressAddressPolicy`,
+  `EgressAddressValidator`, `EgressAddressVerdict`, `EgressSocketGuard`,
+  `InMemoryWorkflowCheckpointStore`, `InboundTriggerDispatchResult`,
+  `InboundTriggerOutcome`, `InboundTriggerRateLimiter`,
+  `InboundTriggerSecretResolver`, `InboundTriggerValidatedRequest`,
+  `InboundTriggerValidationResult`, `InstructionCultureResolver`,
+  `InstructionParameterBinder`, `OnlineEvalSummaryService`,
+  `ProviderCredentialClientCache`, `QuotaPeriodCalculator`,
+  `ResolvedRetentionPolicy`, `RetentionExecutor`, `RetentionPolicyResolver`,
+  `RunPromotionOutcome`, `RunPromotionStatus`, `RunReplayOutcome`,
+  `RunReplayPreparation`, `SessionBranchOutcome`, `SessionBranchStatus`,
+  `SkillScriptExecutionResult`, `SkillScriptNaming`, `StateGenerationCount`,
+  `StatePreflight`, `StatePreflightReport`, `StateSampleFailure`, `TextChunker`,
+  `TextTrimming`, `ToolApprovalPolicyRegistration`,
+  `ToolApprovalPolicyRegistry`, `ToolApprovalRuleEvaluator`,
+  `TraconEvalCheckRegistration`, `TruncatingAIFunction`, `ValidatingAIFunction`,
+  `VoiceAudioFormats`, `VoiceConnectionLease`, `VoiceConnectionLimiter`,
+  `VoiceConversationProtocol`, `VoiceConversationRequest`, `WebhookHttpClient`,
+  `WebhookUrlValidator`, `WebhookUrlVerdict`, `WorkflowDefinitionValidator`.
+- `Tracon.Voice`: `VoiceProviderNames`. The provider value stays the plain
+  string `elevenlabs`.
+- `Tracon.Abstractions` (3 more): `QuotaDecision`, `QuotaThresholdCrossing`,
+  and `SqlPersistenceRegistrationMarker`. Only the SQL provider packages
+  register the marker; a marker registered by other code made background
+  services and approval requests wait for a migration that never ran.
+- `Tracon.Core` (16 more): `AgentSkillCatalog`, `CallableAgentResolver`,
+  `ContentGuardPipeline`, `ModelProviderCircuitBreaker`,
+  `ModelProviderHealthCache`, `ProviderConcurrencyLimiter`, `QuotaEnforcer`,
+  `RunSampleRequest`, `RunSampler`, `RunTraceCollector`,
+  `SandboxedSkillScriptRunner`, `SkillScriptSupport`,
+  `TenantProviderCredentialResolver`, `ToolApprovalPresenterRunner`,
+  `TraconLoopEvaluatorRegistration`, and `TraconMetrics`. Metrics stay
+  available through the `TraconDiagnostics.MeterName` meter, loop evaluators
+  through `AddLoopEvaluator`, and quotas through `TraconQuotaOptions` and the
+  quota endpoints.
+- The public constructors of the service types that the container or the run
+  pipeline builds are now `internal`: `RunRecordingAgent`,
+  `AgentDefinitionCompiler`, `TraconDiagnosticsCollector`,
+  `ModelProviderRegistry`, `SandboxedSkillScriptRunner`, `ChildAgentInvoker`,
+  `ContentGuardPipeline`, `RunEventWriter`, `AgentSessionManager`,
+  `QuotaEnforcer`, `ModelProviderHealthCache`, `RunSampler`,
+  `SkillScriptSupport`, `ModelProviderCircuitBreaker`, and `TraconMetrics`.
+  Each took optional parameters, so a new dependency after `1.0.0` would have
+  needed one more overload. Resolve the service that `AddTracon()` registers:
+
+  ```csharp
+  // Before (1.0.0-preview.1 / preview.2)
+  var registry = new ModelProviderRegistry([provider]);
+
+  // After: resolve the service Tracon registers
+  var services = new ServiceCollection();
+  services.AddTracon().AddModelProvider(provider);
+  using var serviceProvider = services.BuildServiceProvider();
+  var registry = serviceProvider.GetRequiredService<IModelProviderRegistry>();
+  ```
+
+  `RunRecordingAgent` wraps every agent that `IAgentCatalog.ResolveAsync`
+  returns, and `ChildAgentInvoker` wraps each callable agent of a compiled
+  definition. The run writer's lifecycle methods
+  (`RunEventWriter.StartAsync`, `RunEventWriter.CompleteAsync`,
+  `RunEventWriter.RecordToolInvocationAsync` and
+  `RunEventWriter.CompleteLateToolInvocationAsync`) are now `internal` too:
+  code inside a run reads the writer from `TraconRunContext.Current` and keeps
+  `AppendAsync` and the read-only properties.
+
+#### Changed
+
+- `Tracon.AspNetCore` now depends on exact versions of its five pre-release
+  packages: `Microsoft.Agents.AI.Hosting`, `.Hosting.A2A`, `.Hosting.AspNetCore`,
+  `.Hosting.OpenAI`, and `A2A.AspNetCore`. Before, each was a lower bound, so a
+  newer Hosting preview restored without a warning and failed at run time: in
+  `1.22.0-preview`, `Microsoft.Agents.AI.Hosting.AgentSessionStore` moved out of
+  the Hosting assembly (`TypeLoadException`). A direct reference to another
+  version now reports `NU1608` at restore, and a transitive one `NU1107`. Move
+  to a newer Hosting preview together with the Tracon release built against it.
+- `TraconToolRegistration` takes only the tool in its constructor. Every other
+  setting is an `init` property with the same default as before, so a setting
+  added later does not change the constructor again:
+
+  ```csharp
+  // Before (1.0.0-preview.1 / preview.2)
+  new TraconToolRegistration(fn, requiresApproval: true, maxOutputBytes: 4096);
+
+  // After
+  new TraconToolRegistration(fn) { RequiresApproval = true, MaxOutputBytes = 4096 };
+  ```
+
+  The old named arguments fail to compile with `CS1739`, which names the
+  argument. `AddTool` and `AddScopedTool` with `ToolRegistrationOptions` do not
+  change.
+- `ITraconBuilder` now declares only `Services`. Its 27 registration methods
+  (`Configure`, `AddTool`, `AddScopedTool`, `AddToolsFrom`, `AddAgent`,
+  `AddSkill`, `AddAgentSource`, `AddAgentDecorator`, `AddRunJudge`,
+  `AddModelProvider`, `AddEvalCheck`, `AddLoopEvaluator`,
+  `RequireCustomBinding` and `RequireProductionProfile`) are extension methods
+  on the new `TraconBuilderExtensions` class, in the `Tracon` namespace next to
+  `AddTracon()`. A new registration method therefore never changes the
+  interface. Calling code does not change; `using Tracon;` is enough.
+  - An assembly compiled against an earlier `1.0.0-preview.N` release
+    (`1.0.0-preview.1`, `1.0.0-preview.2`) that creates a
+    `TraconToolRegistration` or calls an `ITraconBuilder` method throws
+    `MissingMethodException` until it is compiled again. This includes the code
+    the `[TraconTool]` source generator wrote into your assembly: the exception
+    comes from the `AddGeneratedTools()` call.
+  - Upgrade every Tracon package together. A provider, MCP, Voice or Testing
+    package from an earlier preview next to the new `Tracon.Core` fails while
+    it registers, for example with `MissingMethodException` inside
+    `UseOpenAI()`, before the start-up version check can run.
+  - An `ITraconBuilder` implementation of your own needs only `Services`. An
+    explicit implementation of a removed method (`ITraconBuilder
+    ITraconBuilder.AddTool(...)`) fails to compile with `CS0539`; delete it. A
+    public method with the same name still compiles, but it runs only when the
+    caller holds your concrete type. Through `ITraconBuilder`, Tracon's
+    extension method runs and writes to your `Services`, so a test double must
+    return a real service collection from it.
+  - Every registration method now throws `ArgumentNullException` for a `null`
+    chain (`NullReferenceException` before).
+  - An extension method of your own with the same signature as one of these
+    no longer loses to the interface member. Declared in a namespace nearer to
+    the call than `Tracon` (for example in your own `namespace MyApp`), it now
+    runs instead of Tracon's method, with no warning. Imported at the same
+    level as `Tracon`, the call is ambiguous (`CS0121`). Rename or remove such
+    an extension.
+- Every Tracon package now depends on its Tracon siblings at exactly its own
+  version (`[1.0.0-preview.3]`), not at that version or any later one.
+  Upgrading one Tracon package and not the others now fails restore with
+  `NU1107`, or warns `NU1608` when your project references the shared package
+  directly.
+- A host whose loaded Tracon package assemblies come from more than one release
+  no longer starts. It stops before any hosted service starts, with a
+  `TraconException` that lists each Tracon assembly and its version. Before, it
+  started and failed later, at the first call into a member the other release
+  no longer has. Every Tracon library package is compared except
+  `Tracon.Client`, which talks to a server over HTTP and may call another
+  release by design. The check has no setting to turn it off. A process that
+  never starts a host (a bare `BuildServiceProvider()`, or a test project that
+  runs the store contracts) does not run it.
+- A project created with `dotnet new tracon-api` treats `NU1608` as an error, so
+  such a graph stops at restore. The template's project file explains the line;
+  remove it to keep `NU1608` a warning.
+- Upgrade every Tracon package together, `Tracon.Testing.Contracts.Xunit`
+  included. Measured against `1.0.0-preview.2`, these calls fail at run time
+  when a `1.0.0-preview.2` package runs next to a newer sibling:
+  `Tracon.AspNetCore` calls `TenantProviderCredentialResolver.ValidatePrefix`
+  (a tenant provider binding `PUT`) and `InboundTriggerSecretResolver.ValidatePrefix`
+  (a trigger save), which no longer exist (`MissingMethodException`), and
+  `ConfigurationKeyGuard.RequirePrefix` (an MCP server or webhook save), which
+  is no longer reachable (`MethodAccessException`); `Tracon.Mcp` calls
+  `ConfigurationKeyGuard.RequirePrefix` when it opens an MCP transport; and
+  `Tracon.Testing.Contracts.Xunit` calls `JobPayload.ExtractItems` (two
+  `JobScheduleStoreContract` cases) and `WorkflowCheckpointState.IsOmitted` (one
+  `WorkflowCheckpointStoreContract` case), which are now internal
+  (`MethodAccessException`). The published `1.0.0-preview.1` and
+  `1.0.0-preview.2` packages accept any newer sibling, so restore does not stop
+  that graph: a host stops at start-up, and a test project that runs the store
+  contracts without a host fails at those calls.
+- `QuotaUsageQuery` has a new `PeriodStarts` filter: for each period, the first
+  day whose counters to return, computed by the caller from the configured time
+  zone. Without it, `IQuotaStore.GetUsageAsync` returns every period's counters,
+  and its documentation now says so. A custom `IQuotaStore` must apply the
+  filter; `QuotaStoreContract` has four new scenarios for it.
+- An interval that drives a background timer now fails startup validation when
+  it is outside 1 millisecond to about 49.7 days: `Approvals:ScanInterval`,
+  `Canary:ScanInterval`, `RunReconciliation:HeartbeatInterval` and
+  `ScanInterval`, `Scheduling:PollInterval`, `Health:BackgroundInterval` and
+  `Mcp:RefreshInterval`. `Scheduling:LeaseDuration` may be at most about 99 days
+  and `SingletonExecution:LeaseDuration` about 149 days, because each lease
+  renews at a fraction of its length. Each of these checks applies only while
+  its feature is on. `Retention:BatchDelay` may be zero and is always held to
+  at most about 49.7 days. Before, such a value let the host report that it had started and then
+  stopped it; approval expiration is on by default, so
+  `Approvals:ScanInterval=00:00:00` did this to a default setup.
+- The `tracon.quota.usage`, `tracon.quota.limit` and `tracon.job.queue.depth`
+  gauges no longer read the database inside the metrics collection callback.
+  When a gauge is enabled, a background service reads the values once at
+  startup and then every `QuotaUsageRefreshInterval` /
+  `JobQueueDepthRefreshInterval`. A collection only reads the last result. The
+  first collection after startup can be empty, and a value can be up to one
+  interval old.
+- `EnableQuotaUsageGauge`, `EnableJobQueueDepthGauge` and their refresh
+  intervals are now read at host start. Turning a gauge on, or changing its
+  interval, takes effect at the next start.
+- An enabled gauge whose refresh interval is outside 1 millisecond to about
+  49.7 days now fails startup validation. Before, zero was accepted and meant
+  a refresh on every collection.
+- A `PUT /api/mcp-servers/{name}` or `PUT /api/webhooks/{name}` with a header
+  value of `***` is rejected with `400`. A client that reads, edits and saves a
+  record must send the real value of every header again.
+- When an `IRunAuthorizationHandler` throws, the request is still denied
+  (fail-closed), and Tracon now writes one `Error` log line in the
+  `Tracon.RunAuthorization` category. The line holds the handler type, the
+  access kind, the tenant, agent, run and session ids, and the exception. A
+  `403` now says `The run authorization check failed. Retry the request.`
+  instead of claiming that the handler denied the call. This covers run starts,
+  the session list, the run, attachment and approval lists, replay, and
+  workflow resume and respond. A `404` does not change. The exception text
+  never enters the response.
+- A session management policy (`TraconSessionOwnershipOptions.ManagementPolicy`)
+  whose policy provider or requirement handler throws is now logged as an
+  `Error` in the `Tracon.SessionOwnership` category, and the caller still gets
+  the narrowed result. An unregistered policy writes no log line. An
+  `IRunAttributionContext` that throws during an authorization check is logged
+  once per request, and the caller is treated as having no identity.
+- An `IAuthorizationPolicyProvider` that throws while `MapTracon` resolves a
+  role policy is now logged as a `Warning` in the `Tracon.RolePolicies`
+  category. The role is still treated as not registered. With
+  `RequireRolePolicies` on, the startup exception carries the provider's
+  exception as `InnerException`.
+- `SandboxedSkillScriptRunner.RunStoredScriptAsync` takes the skill and the
+  script name (`RunStoredScriptAsync(AgentSkillDefinition skill, string
+  scriptName, JsonElement? arguments, CancellationToken cancellationToken)`),
+  so the runner compares the grant with the content it is about to run. The
+  `(string skillName, AgentSkillScriptDefinition script, ...)` overload is gone.
+- `GET /api/skills/{name}` resolves the name the way the runtime does: a skill
+  registered in code wins over a stored one with the same name, and the new
+  `origin` field says which one was returned. A name that exists only in code
+  now returns the skill instead of `404`. Each script carries the new
+  `contentHash` and the skill the new `scriptSetHash`; both are computed, and a
+  value sent in a request is ignored.
+- `PUT /api/skills/{name}` answers `409` for a name registered in code with
+  `AddSkill`, the same rule as a code-defined agent: the code skill wins the
+  name, so a stored skill under it never ran. Before, the save succeeded and
+  wrote a record that never ran. `DELETE` still removes such a stored copy and
+  answers `409` when the name has none. The console opens a code skill read
+  only.
+- The in-memory script grant store keeps a revoked grant, with `revokedAt`
+  set, the same as the SQL stores. Before, it deleted the row, so
+  `GET /api/skill-script-grants` lost the record of who granted what.
+- `TenantProviderCredentialResolver` takes `IOptions<TraconOptions>` as a third
+  constructor argument, and `ValidatePrefix(string)` is replaced by
+  `ValidateKeyName(string tenantId, string configurationKeyName)`. The old
+  name checked only the prefix; the rename keeps a caller from compiling
+  against the weaker rule unchanged.
+- `ToolApprovalRuleStoreContract` (in `Tracon.Testing.Contracts.Xunit`) has two
+  new cases. A store of your own must keep two condition sets apart even when a
+  path carries a control character, and must treat a list value that differs
+  only in whitespace between its elements as the same condition. The identity
+  rule is now written on `IToolApprovalRuleStore.AddAsync`. A store that compares
+  a list value's raw JSON text fails the second case.
+- The out-of-catalog log entry of the OpenAI, Anthropic, and Google providers
+  now has one shared wording (`Use the <key> setting to add the model to the
+  catalog.`). The Gemini health detail for an unparsable model list is now
+  `The response is not valid JSON.`, the same as the other providers.
+
+#### Deprecated
+
+- `McpServerDefinition.AuthorizationConfigurationKey` and
+  `McpServerRequest.AuthorizationConfigurationKey`
+  (`authorizationConfigurationKey` on the wire). They still save, resolve and
+  read back, and are removed in `1.0.0`. Use
+  `HeaderConfigurationKeys["Authorization"]`; a record that names
+  `Authorization` in both, or in the new map while OAuth is on, returns `400`.
+  Code that sets the field compiles with warning `CS0618`.
+- `QuotaUsageQuery.AsOf`. No store ever applied it, and a store cannot turn an
+  instant into a period without the configured time zone. Use
+  `QuotaUsageQuery.PeriodStarts`.
+- The `net8.0` and `net9.0` targets. Microsoft support for .NET 8 and .NET 9
+  ends on 2026-11-10, and the first Tracon release after that date drops both
+  targets from every package; `net10.0` stays. An urgent security release may
+  still carry them. Move an application that targets `net8.0` or `net9.0` to
+  `net10.0` before you take that release.
+
+A version section is not written ahead of time. At tag time this heading is
+renamed to the version and the date it shipped on, and a fresh empty
+`## [Unreleased]` is opened above it, so a section always names artifacts that
+actually exist. Until then the release rehearsal and the GitHub release body
+both read the notes from here.
+
 <a id="v1.0.0-preview.2"></a>
 
 ### 1.0.0-preview.2 — 2026-09-20
@@ -13590,7 +14071,7 @@ package, and the surface may still be reduced before 1.0.
 Source: https://tracon.dev/reference/compatibility/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.2`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.3`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -15389,7 +15870,7 @@ unbounded retention.
 Source: https://tracon.dev/reference/versioning/
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.2`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.3`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
@@ -15769,11 +16250,11 @@ Only a preview exists. Select it explicitly:
 dotnet add package Tracon --prerelease
 ```
 
-Pin `1.0.0-preview.2` for reproducible builds. Install the template by exact
+Pin `1.0.0-preview.3` for reproducible builds. Install the template by exact
 version too:
 
 ```bash
-dotnet new install Tracon.Templates@1.0.0-preview.2
+dotnet new install Tracon.Templates@1.0.0-preview.3
 ```
 
 ### The generated project rejects a template option

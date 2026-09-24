@@ -10,7 +10,7 @@ in the embedded console. MAF executes the agent; Tracon supplies the catalog,
 HTTP endpoints, and default-on recording around it.
 
 :::note[Preview release]
-This guide uses `1.0.0-preview.2`. Preview packages require explicit selection;
+This guide uses `1.0.0-preview.3`. Preview packages require explicit selection;
 pin the exact version when you need a reproducible build.
 :::
 
@@ -28,7 +28,7 @@ Install the published template, then create a project. The template pins every
 Tracon package to the same version as the template package.
 
 ```bash
-dotnet new install Tracon.Templates@1.0.0-preview.2
+dotnet new install Tracon.Templates@1.0.0-preview.3
 dotnet new tracon-api -n MyAgents
 cd MyAgents
 ```

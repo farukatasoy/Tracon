@@ -4,7 +4,7 @@ description: Call the Tracon management API from TypeScript or JavaScript with a
 ---
 
 :::note[Preview package]
-`@tracon/client` is published as `1.0.0-preview.2`. Install the `next` tag or pin
+`@tracon/client` is published as `1.0.0-preview.3`. Install the `next` tag or pin
 the exact version; do not use a floating range in production.
 :::
 

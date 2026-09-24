@@ -18,7 +18,7 @@ needs a commercial licence. Details and the reasoning: [Licensing](/reference/li
 ## The meta package
 
 :::note[Preview package]
-The current release is `1.0.0-preview.2`. The command below selects it from
+The current release is `1.0.0-preview.3`. The command below selects it from
 NuGet; pin the exact version for reproducible builds.
 :::
 

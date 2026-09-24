@@ -16,7 +16,7 @@ persistence, identity integration, and operational policies. Recording is
 best-effort: a recording-store failure is logged while agent execution continues.
 
 :::note[Preview release]
-Packages and templates are published as `1.0.0-preview.2`. The
+Packages and templates are published as `1.0.0-preview.3`. The
 [first-agent guide](/getting-started/first-agent/) starts with the public template;
 pin the exact package version when reproducibility matters.
 :::
