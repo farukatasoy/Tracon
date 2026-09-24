@@ -2,8 +2,8 @@
 
 > **Durum:** ✅ Tamamlandı (2026-09-24)
 > **Plan onayı:** Bakımcı, 2026-09-23 (engelleyici kararlar sohbette alındı)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-271** — A bölümü. B bölümü (`TraconToolRegistration`, kaynak üreteci, `ITraconBuilder`): [Faz 189](189-TUKETICI-YUZEYI-VE-BUILDER.md)
-> **Önkoşul:** [Faz 185](arsiv/fazlar/185-KARDES-PAKET-SURUM-SABITLEME.md) — kardeş paketleri tam sürüme sabitler. Bu faz `Tracon.Workflows`'un IVT ile çağırdığı iki kurucuyu (`ChildAgentInvoker`, `RunEventWriter`) internal yapar; karışık sürümlü grafta bu bağ ancak o sabitlemeyle güvenlidir · [Faz 187](arsiv/fazlar/187-KIRICI-DEGISIKLIK-KAPISI.md) — `kapi.py yayin` kırıcı değişiklik kapısı; kaldırılan her imza oradan geçer · [Faz 186](arsiv/fazlar/186-SCRIPT-IZNI-ICERIK-PINI.md) sıra gereği önce kapanır, teknik bağ yok. [Faz 189](189-TUKETICI-YUZEYI-VE-BUILDER.md) bu faza bağlıdır
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-271** — A bölümü. B bölümü (`TraconToolRegistration`, kaynak üreteci, `ITraconBuilder`): [Faz 189](../../189-TUKETICI-YUZEYI-VE-BUILDER.md)
+> **Önkoşul:** [Faz 185](185-KARDES-PAKET-SURUM-SABITLEME.md) — kardeş paketleri tam sürüme sabitler. Bu faz `Tracon.Workflows`'un IVT ile çağırdığı iki kurucuyu (`ChildAgentInvoker`, `RunEventWriter`) internal yapar; karışık sürümlü grafta bu bağ ancak o sabitlemeyle güvenlidir · [Faz 187](187-KIRICI-DEGISIKLIK-KAPISI.md) — `kapi.py yayin` kırıcı değişiklik kapısı; kaldırılan her imza oradan geçer · [Faz 186](186-SCRIPT-IZNI-ICERIK-PINI.md) sıra gereği önce kapanır, teknik bağ yok. [Faz 189](../../189-TUKETICI-YUZEYI-VE-BUILDER.md) bu faza bağlıdır
 > **Paketler:** `Tracon.Core` (15 kurucu); K-850 dalgasında `Tracon.Abstractions` (3 aday tip). Test ve araç: `tests/Tracon.Core.UnitTests`, `tests/Tracon.AspNetCore.FunctionalTests`, `tests/Tracon.Testing.UnitTests`, `bench/Tracon.Benchmarks`
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** **Daralıyor** — 15 kurucu satırı `src/Tracon.Core/PublicAPI.Unshipped.txt`'ten çıkar; K-850 dalgası en çok 19 tip / 172 satır daha çıkarabilir (188.4). `wc -l src/*/PublicAPI.Shipped.txt` → 17 dosyanın her biri 1 satır (`#nullable enable`): `Shipped` boştur (K-603). Dokunulan her tip için: bugün daraltmak ucuzdur (pre-1.0, `Shipped` boş); GA'dan sonra kırıcıdır
@@ -67,7 +67,7 @@ bu bedeli zaten ödedi (logger `internal init` ile bağlandı,
 | Kanıt | Gözlem |
 |---|---|
 | `src/*/PublicAPI.Unshipped.txt` (DoD §1 komutu) | 17 dosyada **482** public kurucu; **19**'u opsiyonel parametre taşır; 15'i tüketicisiz servis tipidir, hepsi `Tracon.Core`'da |
-| [`PublicAPI.Unshipped.txt:300`](../src/Tracon.Core/PublicAPI.Unshipped.txt) | `RunRecordingAgent` 24 parametre, 19 opsiyonel. İmzası `QuotaEnforcer`, `RunSampler`, `RunTraceCollector`, `ContentGuardPipeline`, `ToolApprovalPresenterRunner`'ı public yüzeye çeker |
+| [`PublicAPI.Unshipped.txt:300`](../../../src/Tracon.Core/PublicAPI.Unshipped.txt) | `RunRecordingAgent` 24 parametre, 19 opsiyonel. İmzası `QuotaEnforcer`, `RunSampler`, `RunTraceCollector`, `ContentGuardPipeline`, `ToolApprovalPresenterRunner`'ı public yüzeye çeker |
 | §2 tüketici yüzeyi grep'i | **0** eşleşme. Site yalnız DI çözümü gösterir (`write-your-own-agent-source.md:30`: `GetRequiredService<AgentDefinitionCompiler>()`) |
 | `python3 scripts/public-yuzey-envanteri.py --denetle` | Çıkış 0: 673 tip, kanıtsız 0. 15 kurucu satırı çıkınca 19 tip kanıtsız olur (188.4) |
 
@@ -424,7 +424,7 @@ docs/KARARLAR.md  (yeni K + K-614/K-850 notları)
 
 > Mutlu yoldan değil, **ne bozulabilir**den türetilir. Sınır geçen davranış
 > (DI · HTTP · kiracı · akış · depo · paket) birim testiyle kanıtlanamaz —
-> [`.agents/ortak/test-seviyeleri.md`](../.agents/ortak/test-seviyeleri.md).
+> [`.agents/ortak/test-seviyeleri.md`](../../../.agents/ortak/test-seviyeleri.md).
 
 🚨 `kapi.py yayin --kuru` kirli ağaçta koşmaz (`scripts/kapi.py:1353-1361`,
 `hafiza/test-altyapisi.md:126`). Commit ise kullanıcı istemedikçe atılmaz
@@ -805,7 +805,7 @@ kaydı, `RunRecordingAgentDecorator`, `AgentDefinitionCompiler.Agents.cs:160-171
 
 ## Sonraki Faza Devir Notu
 
-**Sıradaki faz: [189](189-TUKETICI-YUZEYI-VE-BUILDER.md)** — `TraconToolRegistration`
+**Sıradaki faz: [189](../../189-TUKETICI-YUZEYI-VE-BUILDER.md)** — `TraconToolRegistration`
 ve `ITraconBuilder`.
 
 **Devralınan sözleşmeler:**

@@ -257,7 +257,7 @@ Plan kaynaklı ek aday: `ReleaseArtifactFixture` gölgesi → **F-288**.
 > Kapanışta doldurulur: devralınan sözleşmeler, bilinen tuzaklar (🚨), yarım
 > kalan işler, sıradaki faz.
 
-**Sıradaki faz: [188](../../188-DI-KURUCU-DARALTMA.md)** — kırıcı değişiklik kapısının ilk
+**Sıradaki faz: [188](188-DI-KURUCU-DARALTMA.md)** — kırıcı değişiklik kapısının ilk
 gerçek tüketicisi. Kapının son biçimi:
 
 - Kurucu daraltması `CP0002` üretir (`M:Ns.Tip.#ctor(...)`); kapı onu **bildiren tipe**
