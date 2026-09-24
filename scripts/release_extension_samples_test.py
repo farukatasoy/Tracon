@@ -216,3 +216,49 @@ class ReleaseExtensionSamplesTestleri(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TraconBagimlilikKapanisiTestleri(unittest.TestCase):
+    """`release-dryrun` restore etmez; sözleşme paketinin grafiği paketlerden okunur (2026-09-24)."""
+
+    VERSION = "1.0.0-preview.3"
+
+    def _paket(self, directory: pathlib.Path, package_id: str, *dependencies: str) -> None:
+        import zipfile
+        deps = "".join(
+            f'<dependency id="{dependency}" version="[{self.VERSION}]" exclude="Build,Analyzers" />'
+            for dependency in dependencies)
+        nuspec = (f'<package><metadata><id>{package_id}</id><dependencies>'
+                  f'<group targetFramework="net8.0">{deps}<dependency id="xunit.v3.assert" version="3.2.2" /></group>'
+                  f'</dependencies></metadata></package>')
+        with zipfile.ZipFile(directory / f"{package_id}.{self.VERSION}.nupkg", "w") as archive:
+            archive.writestr(f"{package_id}.nuspec", nuspec)
+
+    def test_gecisli_tracon_bagimliligi_bulunur(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            self._paket(root, "Tracon.Testing.Contracts.Xunit", "Tracon.Abstractions")
+            self._paket(root, "Tracon.Abstractions", "Tracon.Core")
+            self._paket(root, "Tracon.Core")
+
+            closure = release_extension_samples.tracon_dependency_closure(
+                root, "Tracon.Testing.Contracts.Xunit", self.VERSION)
+
+        self.assertEqual(closure, {"Tracon.Abstractions", "Tracon.Core"})
+
+    def test_ucuncu_taraf_bagimlilik_kapanisa_girmez(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            self._paket(root, "Tracon.Testing.Contracts.Xunit", "Tracon.Abstractions")
+            self._paket(root, "Tracon.Abstractions")
+
+            closure = release_extension_samples.tracon_dependency_closure(
+                root, "Tracon.Testing.Contracts.Xunit", self.VERSION)
+
+        self.assertEqual(closure, {"Tracon.Abstractions"})
+
+    def test_kaynak_projenin_obj_dizinini_okumaz(self):
+        """Kusurun kendisi: `verify` sözleşme paketi için artifacts/obj'e bakıyordu."""
+        source = pathlib.Path(release_extension_samples.__file__).read_text(encoding="utf-8")
+        self.assertNotIn('_project_assets_json(root, "Tracon.Testing.Contracts.Xunit")', source)
+

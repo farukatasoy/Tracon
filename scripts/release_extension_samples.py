@@ -5,8 +5,10 @@ from __future__ import annotations
 
 import os
 import pathlib
+import re
 import subprocess
 import tempfile
+import zipfile
 
 
 SAMPLE_TEST_PROJECTS = (
@@ -111,6 +113,34 @@ def _project_assets_json(root: pathlib.Path, project: str) -> pathlib.Path:
     return root / "artifacts" / "obj" / project / "project.assets.json"
 
 
+_TRACON_DEPENDENCY = re.compile(r'<dependency\s+id="(Tracon(?:\.[^"]+)?)"')
+
+
+def tracon_dependency_closure(release_dir: pathlib.Path, package_id: str, version: str) -> set[str]:
+    """Every Tracon package `package_id` pulls in, read from the packed nuspecs.
+
+    The contract package's graph used to be read from the SOURCE project's
+    restore output (artifacts/obj/Tracon.Testing.Contracts.Xunit/project.assets.json).
+    Faz 191 made `release-dryrun` a job that restores nothing, so that file does
+    not exist there and the first CI run of the chain failed with
+    FileNotFoundError (2026-09-24). The packed nuspecs are what a consumer
+    restores, and a Tracon package can only arrive through another Tracon
+    package's nuspec, so the closure over them is the same question asked of
+    the artifact instead of the source tree."""
+    seen: set[str] = set()
+    pending = [package_id]
+    while pending:
+        current = pending.pop()
+        nupkg = release_dir / f"{current}.{version}.nupkg"
+        with zipfile.ZipFile(nupkg) as archive:
+            nuspec = archive.read(f"{current}.nuspec").decode("utf-8")
+        for dependency in _TRACON_DEPENDENCY.findall(nuspec):
+            if dependency not in seen:
+                seen.add(dependency)
+                pending.append(dependency)
+    return seen
+
+
 def _net8_consumer_apphost(root: pathlib.Path) -> pathlib.Path:
     """Single-framework output under the SDK's <ArtifactsPath>: artifacts/bin/<P>/release/."""
     name = NET8_CONSUMER_PROJECT + (".exe" if os.name == "nt" else "")
@@ -187,8 +217,7 @@ def verify(root: pathlib.Path, release_dir: pathlib.Path, version: str) -> int:
                 print(f"❌ {project}: restore isolated NUGET_PACKAGES kullanmadı")
                 return 1
 
-        contract_assets = _project_assets_json(root, "Tracon.Testing.Contracts.Xunit").read_text(encoding="utf-8")
-        if '"Tracon.Core/' in contract_assets:
+        if "Tracon.Core" in tracon_dependency_closure(release_dir, "Tracon.Testing.Contracts.Xunit", version):
             print("❌ Testing.Contracts.Xunit graph'ına Tracon.Core sızdı")
             return 1
 
