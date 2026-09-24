@@ -5,8 +5,17 @@
 > ölçülen kanıtı, yayın kararlarını, risk kabulünü ve doğrulama durumunu taşır.
 >
 > **Son güncelleme:** 2026-09-24  
-> **Çalışma modu:** `nuget-danismani` — GA olgunluk denetimi  
-> **GÜNCEL DURUM (2026-09-24):** ❌ **1.0 bugün çıkamaz** — `Tracon.AspNetCore`'un
+> **Çalışma modu:** `nuget-danismani` — yayın kararı (`1.0.0-preview.3`)  
+> **GÜNCEL DURUM — `preview.3` (2026-09-24):** ✅ **Yayınlanabilir; ürün
+> 🔴'si yok.** UR-008 = **B** 👤: A-59 (K-872, tam aralık) ve BL-058 (lisans
+> bildirimi) `de52ecdf`'de kapandı; kapanış kapısı yeşil (KN-029). Açık tek
+> koşul A-64'tür ve **iki push** ister: önce kesim öncesi commit `main`'e,
+> CI yeşil; sonra kesim commit'i + etiket **tek atomik push** (Faz 187 kuralı,
+> `hafiza/yayin-ve-surumleme.md`). preview.3 bir **güvenlik sürümüdür**.
+> Sınıf taraması A-72'yi açtı (`Tracon.Cli`, GA). Ayrıntı: §4 "KARAR —
+> 2026-09-24 (`preview.3`)".
+>
+> **GA durumu (2026-09-24):** ❌ **1.0 bugün çıkamaz** — `Tracon.AspNetCore`'un
 > beş doğrudan ön sürüm bağımlılığının hiçbiri kararlı değil (`NU5104`, K-602,
 > ER-001). 1.0 olgunluk denetimi on iki yeni bulgu açtı (A-59…A-70); biri GA
 > blocker'ıdır (BL-058, lisans bildirimi). Dört ürün sorusu kullanıcı kararı
@@ -20,7 +29,7 @@
 > preview.2 koşumunun "kalan iş" listesi boşaldı. Bu dosyanın taşıdığı karar
 > **duyuru** kararıdır; duyurudan önce kalan tek doğrulama repo dışından
 > `dotnet new tracon-api` restore/build smoke'udur (A-34'ün canlı kanıtı).
-> Ayrıntı: §4 "Canlı durum". Açık `preview.2`/GA kalemleri: §13.
+> Ayrıntı: §4 "Damıtılan yayın kayıtları". Açık `preview.2`/GA kalemleri: §13.
 >
 > **Damıtıldı (2026-09-22).** 2026-08-28 → 2026-09-20 arası sekiz tur
 > anlatısı, §13'ün kapanmış `preview.1` aksiyon tablosu ve §15–16'nın kapanmış
@@ -85,6 +94,53 @@ değerlendirilecektir.
 
 ## 4. Mevcut net yayın kararı
 
+### ✅ KARAR — 2026-09-24 (`nuget-danismani`, `preview.3` yayın kararı)
+
+**✅ `1.0.0-preview.3` yayınlanabilir — ürün 🔴'si yok.** Karar, CI'ın
+görmediği commit'lere dayandığı için **koşulludur**: etiket, `main` CI'da
+yeşil koşmadan atılmaz (A-64). GA kararı (aşağıdaki blok) değişmedi.
+
+| Ne | Nasıl ölçüldü | Sonuç |
+|---|---|---|
+| Yayın provası | `DOTNET_ROOT=~/.dotnet python3 scripts/kapi.py yayin --kuru --surum 1.0.0-preview.3`, **boşaltılmış** `artifacts/package/release`, temiz ağaç | Çıkış `0` (KN-027) |
+| CI'ın gördüğü | `git fetch` · `git rev-list --count origin/main..HEAD` | **84** commit; `origin/main` = `804d94b2` (2026-09-20). `ci.yml` +231 satır, `kapi.py` +1207 satır CI'da hiç koşmadı |
+| Tüketicinin aldığı | nuget.org flat container · `npm view @tracon/client dist-tags` | `1.0.0-preview.2` · `latest` = `next` = `1.0.0-preview.2` |
+| preview.3'ün içeriği | `CHANGELOG.md` `[Unreleased]` · `origin/main`'deki aynı bölüm | 62 not: **13 Security** · 22 Changed · 14 Fixed · 8 Removed · 3 Deprecated · 2 Added. `origin/main`'de bölüm **boş** — notların hepsi yerelde |
+| İleri uyum | `uyum-probu.cs -- ileri --tuketici artifacts/package/release/Tracon*.1.0.0-preview.3.nupkg` | 1.170 üye referansı · 1 eksik tip · 1 eksik üye — preview.2 ile **aynı**, ikisi de `Tracon.AspNetCore` → Hosting `1.22.0-preview.260918.1` (A-59, KN-028) |
+| Zafiyet bildirimi | Anonim `GET /repos/farukatasoy/Tracon/private-vulnerability-reporting` · `/security-advisories` | `enabled: false` · advisory `[]` (A-61) |
+
+**Etiketten önce (sıra önemli):**
+
+1. **Kapsam kararı (UR-008).** A-59 ve BL-058 preview.3'e girecekse `kusur-giderme` ile yerelde kapanır.
+2. **Sürüm kesimi commit'i (A-71).** `## [Unreleased]` → `## [1.0.0-preview.3] - <tarih>`; sevk edilen metindeki 26 `1.0.0-preview.2` (ikisi pakete giren README'de) güncellenir.
+3. **`main`'i it ve CI'ı yeşil gör (A-64).** Bu adım 13 güvenlik düzeltmesini ve açıklamalarını **public** yapar; düzeltilmiş paket yoktur. Bu yüzden 1–2 önce biter ve etiket CI yeşil olunca **aynı gün** atılır. Son `main` koşumu ~35–38 dk sürdü.
+4. `NPM_TOKEN`'ın bitiş tarihini npmjs.com'da oku (A-66; bu oturumda ölçülemedi). Süresi dolduysa `npm-publish` kırmızı olur ve `publish` koşmaz — güvenli yön, ama etiket yeniden itilir.
+
+#### UR-008 = B uygulandı — 2026-09-24 (`kusur-giderme`)
+
+| Kalem | Sonuç | Kanıt |
+|---|---|---|
+| A-59 | Beş ön sürüm pini `[x]`; nuspec aynısını yazar | `EveryPrereleaseThirdPartyDependencyIsExact` önce 15 kenarla kırmızı, sonra yeşil · `kapi.py` `EXACT_RANGE_PATTERN` · negatif kontrol: yayınlanmış preview.2 + Hosting `1.22.0-preview` izole cache'te **uyarısız** restore oldu |
+| BL-058 | `THIRD-PARTY-NOTICES.txt` paket kökünde ve `Tracon.UI.dll`'de; 7 paket (React, React DOM, `scheduler`, TanStack ×2, `openapi-fetch`, Tailwind) | `UiPackageCarriesThirdPartyNotices` önce kırmızı, sonra yeşil · derleme kapısının negatif kontrolü: dosyaya satır eklenince `npm run build` düştü |
+| Sınıf taraması | `Tracon.Cli` 54 üçüncü taraf ikili, bildirimsiz → A-72 (vaka kapandı, **sınıf açık**) · `Tracon.Templates` üçüncü taraf kod taşımıyor | `unzip -l` preview.3 adayı |
+| Prova ortamı | Prova artık `artifacts/package/yayin/<sürüm>/`'e yazar; `release/`'deki eski sürüm onu düşürmez · net8 runtime'ı global kuruluma eklenir (👤 `sudo`) | `kapi_test` 8 yeni test, eski kodda 7'si kırmızı |
+
+**Push sırası (Faz 187: kesim etiketsiz itilirse prova kırmızıdır):**
+
+1. `git push origin <kesim öncesi commit>:main` → CI yeşil (A-64 kapanır).
+2. `git tag v1.0.0-preview.3 <son commit>` → `git push --atomic origin main v1.0.0-preview.3`.
+
+**Etiketten sonra:** `MT-PKG-160` (nuget.org baytı = `nuget-verified`) · OP-008
+gereği `preview.1` ve `preview.2` nuget.org'da deprecate edilir ve preview.3'e
+yönlendirilir · A-61 hattı (GHSA) açıksa advisory yayımlanır.
+
+**Yerel prova notu.** İlk iki koşum ortam yüzünden düştü, ürün yüzünden değil:
+global kurulumda net8 runtime'ı yok (`DOTNET_ROOT=~/.dotnet` gerekir) ve
+`release_dir` bugünkü kapanış koşumlarının `preview.2.78/79/82` paketlerini
+taşıyordu. İkisi de `docs/hafiza/test-kosum-tuzaklari.md` ve
+`docs/hafiza/yayin-ve-surumleme.md`'de yazılıdır; eski paketler silinmedi,
+oturum scratchpad'ine taşındı.
+
 ### 🚨 GÜNCEL KARAR — 2026-09-24 (`nuget-danismani`, 1.0 olgunluk denetimi)
 
 **❌ 1.0 bugün çıkamaz.** Tek sert engel upstream'dedir: `Tracon.AspNetCore`'un
@@ -133,9 +189,9 @@ Nuget.org'daki paketlerin `net10.0` ikililerini metadata seviyesinde okur.
 
 | # | Bulgu | Seviye | Kök sebep | Kanal | GA'dan önce |
 |---|---|---|---|---|---|
-| **A-59** | **Yayınlanmış `Tracon.AspNetCore`, upstream'in yeni ön sürümüyle çalışma anında kırılır.** `1.0.0-preview.2` + MAF Hosting `1.22.0-preview.260918.1`: `Microsoft.Agents.AI.Hosting.AgentSessionStore` yok (Abstractions'a `Microsoft.Agents.AI.AgentSessionStore` olarak taşındı, forwarder yok) ve `AgentRunMode.DisallowBackground` yok. Tüketici Hosting'i yükseltirse restore uyarısız geçer; hata `TypeLoadException`/`MissingMethodException` olarak gelir. Geçici çözüm: Hosting ailesini `1.20.0-preview.260831.1`'de tut | 🟡 | Nuspec ön sürüm upstream'e açık alt sınır (`>=`) yazar; ön sürüm upstream minor'lar arasında kırar | UR-006 → `kusur-giderme` | Hayır — `preview.3`'ten önce |
-| **A-60** | **`Tracon.UI` üçüncü taraf lisans bildirimi taşımıyor.** Derlemeye gömülü 748 KB bundle React, React DOM, `scheduler` ve TanStack Query (MIT) içerir; bundle'da lisans başlığı 0, pakette notice dosyası yok. MIT bildirimin kopyayla gitmesini ister; kurumsal lisans tarayıcısı bunu işaretler | 🔴 | Vite çıktısı lisans yorumlarını atar; notice üreten adım yok | `kusur-giderme` (BL-058) | **Evet — blocker** |
-| **A-61** | **Zafiyet duyurusu tüketicinin restore'una ulaşmaz.** `SECURITY.md` yalnız e-posta kanalı anlatır; yayınlanmış GitHub Security Advisory hattı yok. `dotnet restore` (NuGetAudit) GitHub Advisory Database'den beslenir; `SECURITY.md`'nin vaat ettiği nuget.org deprecation'ı restore'da uyarı üretmez. Repo public olduğu için private vulnerability reporting ve GHSA artık açılabilir | 🟡 | Politika repo private iken yazıldı (A-65 sınıfı) | 👤 repo ayarı + `tuketici-dokuman-senkronu` | Evet |
+| **A-59** | ✅ **KAPANDI (K-872, `de52ecdf`)** — **Yayınlanmış `Tracon.AspNetCore`, upstream'in yeni ön sürümüyle çalışma anında kırılır.** `1.0.0-preview.2` + MAF Hosting `1.22.0-preview.260918.1`: `Microsoft.Agents.AI.Hosting.AgentSessionStore` yok (Abstractions'a `Microsoft.Agents.AI.AgentSessionStore` olarak taşındı, forwarder yok) ve `AgentRunMode.DisallowBackground` yok. Tüketici Hosting'i yükseltirse restore uyarısız geçer; hata `TypeLoadException`/`MissingMethodException` olarak gelir. Geçici çözüm: Hosting ailesini `1.20.0-preview.260831.1`'de tut. **preview.3 artefaktı aynı kusuru taşır** (KN-028: nuspec beş ön sürüm bağımlılığı için açık alt sınır yazar; eksikler birebir aynı) | 🟡 | Nuspec ön sürüm upstream'e açık alt sınır (`>=`) yazar; ön sürüm upstream minor'lar arasında kırar | UR-006 → `kusur-giderme` | Hayır — `preview.3`'ten önce |
+| **A-60** | ✅ **KAPANDI (BL-058, `de52ecdf`)** — **`Tracon.UI` üçüncü taraf lisans bildirimi taşımıyor.** Derlemeye gömülü 748 KB bundle React, React DOM, `scheduler` ve TanStack Query (MIT) içerir; bundle'da lisans başlığı 0, pakette notice dosyası yok. MIT bildirimin kopyayla gitmesini ister; kurumsal lisans tarayıcısı bunu işaretler | 🔴 | Vite çıktısı lisans yorumlarını atar; notice üreten adım yok | `kusur-giderme` (BL-058) | **Evet — blocker** |
+| **A-61** | **Zafiyet duyurusu tüketicinin restore'una ulaşmaz.** `SECURITY.md` yalnız e-posta kanalı anlatır; yayınlanmış GitHub Security Advisory hattı yok. `dotnet restore` (NuGetAudit) GitHub Advisory Database'den beslenir; `SECURITY.md`'nin vaat ettiği nuget.org deprecation'ı restore'da uyarı üretmez. Repo public olduğu için private vulnerability reporting ve GHSA artık açılabilir. Ölçüldü 2026-09-24: `private-vulnerability-reporting` `enabled: false`, advisory yok. **preview.3 ilk güvenlik sürümüdür** (13 `Security` notu): bu hat yoksa preview.2 tüketicisinin restore'u düzeltmeyi haber vermez | 🟡 | Politika repo private iken yazıldı (A-65 sınıfı) | 👤 repo ayarı + `tuketici-dokuman-senkronu` | Evet |
 | **A-62** | **Upstream drift kapısı fiilen kapalı.** Bot MAF, MEAI ve `Microsoft.*` platform paketlerini ayrı gruplarda açıyor; PR #20 #21 #23 #26 #27 `restore` adımında kırmızıydı ve 2026-09-24'te birleştirilmeden kapandı. Mekanizma nuspec'ten ölçüldü (iş logu okunmadı): MEAI `10.10.0` `Microsoft.Extensions.*` `10.0.12` ister; pin `10.0.11` başka grupta. Grup yapısı değişmezse bot her hafta aynı kırmızı PR'ları açar | 🟡 | `dependabot.yml` birlikte yükselmesi gereken kümeyi böler | `kusur-giderme` | Evet |
 | **A-63** | **Public API upstream'in deneysel tipini taşıyor.** `TraconBuilderExtensions.AddLoopEvaluator(…, Microsoft.Agents.AI.LoopEvaluator)` — `LoopEvaluator` `[Experimental("MAAI001")]`. Tracon üyesi işaretsiz; 1.x'te donarsa upstream minor'ı Tracon'un kararlı yüzeyini kırabilir | 🟡 | Tracon'un kendi `[Experimental]` katmanı yok | UR-005 → `faz-planlama` (UR-003 turu) | Evet |
 | **A-64** | **83 commit CI'da hiç koşmadı.** Son `main` push'u 2026-09-20. Faz 187–191 (kırılma kapısı K-864, tek derleme zinciri K-871) yalnız yerelde yeşil. Bu fazlar CI iş akışının kendisini değiştirdi; ilk gerçek koşumları etikette olursa A-29 sınıfı tekrarlar | 🟡 | Push kullanıcı kararıdır; ölçüm ağaçta kaldı | 👤 `git push` + CI gözlemi | Her etiketten önce |
@@ -145,6 +201,8 @@ Nuget.org'daki paketlerin `net10.0` ikililerini metadata seviyesinde okur.
 | **A-68** | **Metrik kardinalitesi GA'da donacak.** `tracon.tenant.id` her `run` metriğine koşulsuz eklenir (`TraconMetrics.RecordRun`); kapatma seçeneği yalnız `tracon.agent.version` için var (`IncludeAgentVersionTag`). `guides/observability.md` etiket adlarını "stable" ilan eder. Çok kiracılı kurulumda seri sayısı kiracı × agent × durum ile büyür | 🟡 | Varsayılan GA'dan sonra değişirse tüketicinin dashboard'u kırılır | `faz-planlama` (varsayılan kararı) | Evet |
 | **A-69** | **Lisans sayfası contract paketinin bağımlılığını dar anlatıyor.** `reference/licensing.md:47` "`Tracon.Abstractions` and nothing else" der; sevk edilen nuspec ayrıca `Microsoft.Agents.AI`, `Microsoft.Extensions.AI`, `Shouldly`, `xunit.v3.assert`, `xunit.v3.extensibility.core` taşır. Cümlenin amacı (PolyForm bağımlılığı yok) doğrudur; cümlenin kendisi değil | 🟢 | Elle yazılan bağımlılık iddiası nuspec'e bağlı değil | `tuketici-dokuman-senkronu` | Hayır |
 | **A-70** | **Contract paketi `xunit.v3` 3.x'e bağlı; 4.x kararlı.** Alt sınır `3.2.2`, nuget.org'da `4.0.1`. İkili metadata uyumu temiz (6 üye referansı); test platformu v2 ile çalışma anı ölçülmedi. `dependabot.yml` `xunit.v3 >= 4.0.0`'ı yok sayar | 🟢 | Repo'nun kendi test platformu kısıtı sevk edilen pakete taşınıyor | Ölçüm → `faz-planlama` | Hayır |
+| **A-71** | **Sevk edilen sürüm metni etikete bağlı değil.** `1.0.0-preview.2` 26 yerde elle yazılı: 24'ü `docs-site/src` (`Footer.astro:16` her sayfada, `versioning.md:7` dahil), ikisi **pakete giren** README (`src/Tracon/README.md:33`, `src/Tracon.Templates/README.md:8` — `dotnet new install Tracon.Templates@1.0.0-preview.2`). Kesim commit'i unutulursa preview.3'ün nuget.org sayfası preview.2 kurulumunu önerir ve bu baytlar geri alınmaz. `grep` ile bu metni etiket sürümüne bağlayan bir kapı bulunamadı. A-35 (preview.1) ve `32fb31ee` (preview.2 kesimi) aynı sınıfın önceki vakalarıdır | 🟢 | Sürüm her turda elle yazılıyor; kapı yalnız CHANGELOG başlığını arıyor | `tuketici-dokuman-senkronu` (kesim) → `kusur-giderme` (kapı) | Her etiketten önce (kesim) |
+| **A-72** | **`Tracon.Cli` 54 üçüncü taraf ikiliyi bildirimsiz taşıyor — BL-058'in sınıf taramasının ikinci vakası.** `dotnet tool` paketi yayın çıktısının tamamını taşır; preview.3 adayında Tracon dışı 54 ikili var (Npgsql — PostgreSQL License, SQLitePCLRaw — Apache-2.0, Google.Protobuf — BSD-3-Clause, `Microsoft.Data.SqlClient`, `Microsoft.IdentityModel.*` — MIT, `e_sqlite3` …). Pakette `LICENSE.md` dışında bildirim dosyası yok. Apache-2.0 ayrıca `NOTICE` ister. Kapı hazır: `THIRD_PARTY_NOTICE_PACKAGES`'e `Tracon.Cli` eklenir; üretim NuGet bağımlılıklarının lisans dosyalarından yapılır (npm yolu değil) | 🟡 preview · 🔴 GA (BL-058 ile aynı gerekçe) | Tool paketi bağımlılık ikililerini **içinde** taşır; kütüphane paketleri taşımaz | `kusur-giderme` | Evet — GA'dan önce |
 
 #### Bu turun sınıfı: **dışarıdaki olgu değişti, içeride kimse ölçmedi**
 
@@ -164,229 +222,26 @@ yeniden açılma, dış olgu tazeliği) ve `uyum-probu.cs`.
 4. **A-62** — bot gruplarını birleştir; ardından MAF `1.22`/MEAI `10.10` yükseltmesi.
 5. Kalanlar GA turunda (§13).
 
-### ✅ YAYINLANDI — 2026-09-20, `1.0.0-preview.1`
+### Damıtılan yayın kayıtları (2026-09-20 → 2026-09-22)
 
-**Tag `v1.0.0-preview.1` → `f14f6309`.** Koşum `35510131648`: sekiz işin
-sekizi de yeşil (`build` ×2 · `pack` · `release-dryrun` · `npm-publish` ·
-`publish` · `github-release`; `site` yalnız `main`'de koşar, etikette atlanır).
-`@tracon/client@1.0.0-preview.1` npm'de `latest` etiketiyle; 20 NuGet paketi
-push edildi; GitHub release oluştu.
+> `preview.1` YAYINLANDI bloğu, duyuru öncesi tüketici denetimi (A-34…A-58),
+> `preview.2` yayın koşumu ve 2026-09-22 canlı ölçümü buradan düşürüldü
+> (2026-09-24, bütçe). Tam metin:
+> `git show c45112be:docs/YAYIN-HAZIRLIK.md` — §4, satır 167–390.
 
-🚨 **"Push başarılı" ile "paket görünür" ayrı anlardır.** İlk kez yayınlanan
-paket kimlikleri nuget.org doğrulamasından geçer; `v3-flatcontainer`,
-registration ucu ve paket sayfası bir süre `404` döner. Yayın kanıtı CI'ın
-`publish` işidir, indeksin o andaki hâli değil.
-
-#### Sevk edilen artifact
-
-Prova `f14f6309`'un içeriğinden koştu (`YAYIN_EXIT=0`): 20 paket + 18 sembol
-paketi, tek sürüm hattı, manifest `dirty: false`, **38/38 `sha256` bağımsız
-yeniden hesaplandı**, fazla/eksik paket yok, 20 `.nuspec`'in 20'si
-`https://tracon.dev/reference/changelog/#v1.0.0-preview.1` ve doğru
-`repository commit` taşıyor. Kapanış kapısı aynı içerikten 10/10 yeşil.
-
-#### Yayın günü bulunan ve kapatılan üç kusur
-
-Üçünün de ortak sınıfı var: **yalnız yayın yolunda koşan, o güne kadar hiç
-gerçek veri görmemiş adımlar.** Üçü de yerel kapılardan geçmişti.
-
-| # | Kusur | Kök sebep | Kapanış |
-|---|---|---|---|
-| **A-29** | Tahsis kapısı her tag'de koşup `exit 134` veriyordu | `CI=true` → `ContinuousIntegrationBuild` → `DeterministicSourcePaths` kaynak yollarını `/_` yapar; bench'in `[CallerFilePath]` tabanlı `RepositoryRoot()`'u `/_` döndürür ve BenchmarkDotNet dosya sistemi kökünde dizin açmaya çalışır. CI geçmişinde kapı **21 push boyunca `skipped`**'ti; ilk gerçek koşumu tag oldu | `4e415098` — çözüm `AppContext.BaseDirectory`'den yukarı yürüyüş (`RepoRoot.cs` deseni); `BenchmarkRepositoryLayoutTests` her CI koşumunda koşar; `ci.yml` etiketi artık **açıkça** ele alır |
-| **A-32** | İptal edilen workflow `run`'ı hiç kapanmıyordu | `RunGuardedAsync` bir async iterator; `writer.StartAsync` ile `CompleteAsync` arasında `try/finally` **yoktu**. Tüketici `break` ederse enumerator dispose edilir ve gövde yalnız `finally` bloklarını koşar. `RunReconciliationService` yetimi sonunda **`Failed`** olarak kapatıyordu ⇒ kullanıcının iptali, dakikalar sonra, olmamış bir başarısızlık olarak raporlanıyordu | `d337d5af` — `finally` hâlâ açıksa `Canceled` yazar. **Sınıf taraması:** `run` açan tam iki yüzey var; `RunRecordingAgent` bu `finally`'yi iki kusurla (HATA-S4-012, HATA-S4-003) zaten kazanmıştı, workflow yoluna taşınmamıştı |
-| **A-33** | `NuGet/login` OIDC takası `HTTP 401` | `user:` policy'yi **oluşturan** hesabın profil adıdır, policy'nin **sahibi** değil. Policy `Tracon` org sahipliğinde olduğu için `user: Tracon` doğru görünüyordu ve `ci.yml` yorumu bunu savunuyordu | `f14f6309` — `user: farukatasoy`. **Hiçbir testle yanlışlanamazdı**: yalnız gerçek bir token takası ölçer, o da yalnız `v*` etiketinde olur |
-
-#### Yayın hesabı tarafında ölçülen iki ayar
-
-- **npm granular token'ında "Bypass two-factor authentication (2FA)" kutusu
-  işaretli olmalı.** Scope'lar (`@tracon` + `tracon` org, read/write) doğru olsa
-  bile kutu kapalıyken `npm error code EOTP`. Org düzeyinde 2FA enforcement
-  açıkken zorunlu.
-- **Trusted publishing policy'nin glob'u `Tracon*`** ve scope'u *"Push new
-  packages and package versions"* — 20 kimliğin 20'si de yeniydi, "yalnız yeni
-  sürüm" seçeneği hiçbirini basamazdı. Glob ölçüldü: **20/20 eşleşiyor**.
-
-#### İki yarım yayın denemesi ve neden bedelsiz kaldı
-
-npm `EOTP`'de düştüğünde `publish` (NuGet) `needs: npm-publish` olduğu için
-**hiç koşmadı**; NuGet OIDC'de düştüğünde `dotnet nuget push` **hiç koşmadı**.
-İkisinde de sürüm numarası yanmadı. `npm-publish` var olan sürümü `npm view`
-ile görüp **atlar ve iş kırılmaz** ⇒ etiketi taşıyıp yeniden denemek bedelsiz.
-Sıralama (geri dönüşü olan kanal önce) tasarlandığı işi yaptı — RK-011.
-
----
-
-
-### KARAR — 2026-09-20 (`nuget-danismani`, duyuru öncesi tüketici denetimi)
-
-**❌ Bugün duyurulmamalı.** Paket artifact'i sağlamdır; **tüketicinin ilk yarım
-saati** kırıktır. İki bağımsız 🔴 var ve ikisi de aynı yerde buluşuyor — duyuruyu
-okuyan kişinin tıkladığı ilk iki yüzey:
-
-1. **`dotnet new tracon-api` restore edilemeyen bir proje üretiyor** (A-34).
-   Sevk edilen şablon `Version="1.0.0"` yazıyor; o sürüm nuget.org'da **yok**.
-2. **Sevk edilen dokümantasyon hâlâ "yayınlanmadı" diyor** (A-35…A-38).
-   `tracon.dev` ana sayfası ilk ekranda *"In development. Not yet published to
-   NuGet or npm."* diyor ve **aynı sayfanın** aşağısında *"The packages are
-   published as `1.0.0-preview.1`"* diyor.
-
-Bu tur **artifact'i yeniden yargılamadı** — 2026-09-20 YAYINLANDI bloğu geçerli.
-Yargılanan şey **tüketicinin gördüğü yüzeydir**: nuget.org · GitHub ·
-tracon.dev · paketten tüketim · npm.
-
-#### Ölçülen kanıtlar
-
-| Ne | Nasıl ölçüldü | Sonuç |
-|---|---|---|
-| Şablondan tüketim | Repo **dışında** temiz dizin, `<clear/>` + yalnız nuget.org, izole `NUGET_PACKAGES` | `dotnet new install Tracon.Templates` ✅ (`--prerelease` gerekmiyor) → `dotnet new tracon-api` **`NU1102`** |
-| Elle kurulum | Aynı izole dizin | `dotnet add package Tracon --prerelease` → `1.0.0-preview.1`, `dotnet build` **0 uyarı** ✅ |
-| Çalışma anı | `dotnet run`, `curl` | `/tracon/api/meta` → `"version":"1.0.0-preview.1"`, bellek içi store fallback ✅ |
-| Konsol | Playwright, temiz `localStorage` | `<html lang="en">`, "Dashboard" — İngilizce ✅ (ilk ölçümdeki Türkçe **yerel makinenin** `tracon.locale=tr` kalıntısıydı) |
-| Anahtarsız hata | `POST /api/agents/support/run` | *"No model provider named 'openai' is registered… call `builder.AddTracon().UseOpenAI(apiKey)`"* — düzeltmeyi **adıyla** söylüyor ✅ |
-| CLI | `dotnet tool install --tool-path … Tracon.Cli --prerelease` | Kuruldu ve koştu ✅ |
-| README kod bloğu | Yayınlanan pakete karşı **derlendi** | `README.md:118` → **`CS1501: No overload for method 'ResolveAsync' takes 1 arguments`** |
-| Konsol ağırlığı | `wwwroot/assets/*.js.br` → brotli aç → gzip -9 (kapının yöntemi) | **193,2 KB** / 250 KB. README **184,1** der, site **192,4** der |
-| Ekran ve rota | `app.tsx` ayrıştırıldı | **30 ekran · 36 rota** — README doğru ✅ |
-| Paket sayısı | `src/*/*.csproj`, `IsPackable=false` hariç | **20** ✅ · nuget.org arama indeksi **21 hit** (yetişti) ✅ |
-| `AgentPrism` | Tüm repo `git grep -i` + canlı HTML | Sevk edilen yüzeyde **0** ✅ (`site.config.mjs:34` kasıtlı **deny-list**) |
-| Dil sınırı (K-228) | `docs-site/src`, canlı HTML, `llms*.txt`, paket README'leri | **0 Türkçe** ✅ |
-| Lisans | 5 `.nupkg` içi + npm + site + README | Dört yüzeyde tutarlı ✅ |
-| `releaseNotes` çapası | `https://tracon.dev/reference/changelog/#v1.0.0-preview.1` | `id="v1.0.0-preview.1"` **var** ✅ |
-| 20 paket sayfası (canlı) | Her biri tek tek açıldı | 20/20 açılıyor · README render ediyor · icon · tag · `projectUrl` · **Prefix Reserved** · ön sürüm bandı ✅ Fazladan sürüm **yok** (flat container 20/20 yalnız `1.0.0-preview.1`) |
-| Sembol paketleri | `globalcdn.nuget.org/symbol-packages/*` | **18/18** `200`. Eksik ikisi (`Tracon`, `Tracon.Templates`) assembly taşımıyor ⇒ doğru ✅ |
-| Source Link | PDB doküman tabloları | `raw.githubusercontent.com/farukatasoy/Tracon/f14f6309…` → `200`; repo public, commit tag'le **eşleşiyor** ✅ |
-| K-008 (ön sürüm yoğunlaşması) | 20 paketin tamamı tarandı | Tracon dışı ön sürüm bağımlılığı **yalnız** `Tracon.AspNetCore`'da, **5 adet** — kural **tutuyor** ✅ |
-| README taşınabilirliği | 20 README, canlı sayfa | **0 göreli link · 0 resim · 0 ham HTML · 0 anchor-only link**; tablolar render ediyor ✅ (tek istisna A-55) |
-| Bağımlılık grupları | Çok-TFM 17 paket | net8/9/10 grupları **birebir aynı**, `lib/` üçünde de dolu ✅ |
-
-#### Bulgular
-
-| # | Bulgu | Seviye | Kök sebep | Kanal | Duyuruyu bloklar |
-|---|---|---|---|---|---|
-| **A-34** | **`dotnet new tracon-api` restore edilemiyor.** Sevk edilen `template.json` `defaultValue: "1.0.0"`; nuget.org'da yalnız `1.0.0-preview.1` var ⇒ `NU1102`. Her seçenek kombinasyonunda, her ek paket referansında tekrarlanır | 🔴 | `TraconStampTemplateVersionDefault` (`Tracon.Templates.csproj:119`) `BeforeTargets="_GetPackageFiles;GenerateNuspec"`; **`_GetPackageFiles` MinVer'den ÖNCE koşar** ⇒ `$(Version)` hâlâ SDK varsayılanı `1.0.0`. Kardeş hedef `TraconSetPackageReleaseNotes` (`src/Directory.Build.props:120`) yalnız `GenerateNuspec` kullanır ve **doğru** çalışır — kendi yorumu "`GenerateNuspec` … son nokta" der. **Kapı neden görmedi:** `<Error>` yalnız yer tutucunun *bulunduğunu* doğrular, ikamenin doğru sürümü ürettiğini değil; `TemplateFixture.cs:135` **her zaman** `--TraconVersion {Version}` + `--skip-restore` geçer ⇒ tüketicinin aldığı **varsayılan hiç koşulmadı**. 🚨 **Ağırlaştırıcı:** `dotnetcli.host.json` `TraconVersion`'ı `isHidden: "true"` yapıyor ⇒ `dotnet new tracon-api -h` **dört** seçenek gösteriyor, `--TraconVersion` **sıfır** kez geçiyor. Tek kurtuluş `NU1102`'nin kendi metnindeki "Nearest version" ipucuyla `.csproj`'u elle düzenlemek | `kusur-giderme` | **EVET** |
-| **A-35** | **Sevk edilen metin "yayınlanmadı" diyor — 18 dosya.** `Hero.astro:14` *"In development. Not yet published to NuGet or npm."* (**ilk ekran**) · `Footer.astro:13` (**1150 sayfanın hepsi**) · `index.mdx:183` · `README.md:219` **"## Installation / Not published yet"** · + 14 sayfa `:::caution`. Ana sayfa **kendi içinde çelişiyor** | 🔴 | Premis üç katmana gömülü (component · sayfa admonition'ı · config flag); `b76351fd` yalnız **düzyazıyı** düzeltti | `tuketici-dokuman-senkronu` | **EVET** |
-| **A-36** | **Kanonik ilk rehber kaynak checkout'u öğretiyor.** `getting-started/first-agent.md`: açıklaması *"Build a Tracon host from an authorized source checkout"*, ön koşulu *"An authorized checkout"*, adımı `dotnet add reference ../Tracon/src/…csproj`. `dotnet add package` / `dotnet new tracon-api` **sıfır kez** geçiyor. Repo **public**, paketler **canlı** — sitenin söylemediği iki çıkış yolu da açık | 🔴 | Rehber yayın öncesi yazıldı, yayın sonrası yeniden yazılmadı | `tuketici-dokuman-senkronu` | **EVET** |
-| **A-37** | **Troubleshooting, sebep olduğu hataya yanlış cevap veriyor.** `troubleshooting.md:64`, *"NuGet says no stable version exists"* başlığı altında: *"Tracon has not been published yet: no version exists on NuGet at all… Build from a clone"*. Doğru tek satırlık çözüm (`--prerelease`) gelecek zamanlı bir ihtimal olarak sunuluyor | 🔴 | A-35 ile aynı premis; ama bu sayfa **zaten takılmış** tüketiciyi yanlış yöne yolluyor | `tuketici-dokuman-senkronu` | **EVET** |
-| **A-38** | **Site'den ürüne hiçbir link yok.** 1150 sayfanın hiçbirinde nuget.org, github.com veya npm linki yok. Kök sebep `site.config.mjs:51` `repositoryIsPublic = false`; `check-content.mjs:1303` repo linkini **derlemeyi kırarak** yasaklıyor, Starlight `editLink`/GitHub ikonu kapalı. Flag'in kendi yorumu "Make the repository public and flip the flag" der; repo 2026-09-19'da public oldu | 🔴 | Flag elle bakımlı, gerçeğe bağlı değil | `kusur-giderme` (flag) + `tuketici-dokuman-senkronu` (linkler) | **EVET** |
-| **A-39** | **README'nin amiral kod bloğu derlenmiyor.** `README.md:118` `await catalog.ResolveAsync("support")` → yayınlanan pakete karşı **`CS1501`**. `IAgentCatalog.ResolveAsync`'in iki aşırı yüklemesi var, ikisi de ≥2 argüman ister | 🟡 | Blok elle yazılmış, derlenen bir örnekten üretilmiyor | `kusur-giderme` | hayır |
-| **A-40** | **GitHub deposu anonim.** `description: null` · `homepage: null` · `topics: []` · Discussions **kapalı**. `og:description` *"Contribute to farukatasoy/Tracon development…"*'a düşüyor ⇒ paylaşılan her duyuru linki jenerik kart olarak önizleniyor. Release `prerelease: false` ⇒ "Latest" rozeti taşıyor | 🟡 | Depo public yapılırken metadata doldurulmadı | Manuel müdahale | hayır (ama duyurunun **bedeli**) |
-| **A-41** | **npm README'si SSE'yi "desteklenmiyor" diyor; paket destekliyor.** README *"call these with your own `EventSource`"* diyor; paket `readSse`/`SseDecoder` **export ediyor** ve `sse.d.ts:8` `EventSource`'un `Authorization` header'ı gönderemediğini ve POST edemediğini yazıyor ⇒ tüketici **imkânsız** bir yola yollanıyor. Ayrıca "Six operations", gerçek **yedi** | 🟡 | `packages/tracon-client/README.md` Faz 159 öncesi sürümde kalmış; site rehberi güncel | `tuketici-dokuman-senkronu` | hayır |
-| **A-42** | **npm `latest` bir ön sürümü gösteriyor.** Çıplak `npm install @tracon/client` sessizce preview kurar ve `^1.0.0-preview.1` **floating** aralık yazar — sitenin kendi `versioning` sayfası floating aralıktan kaçınmayı söyler. NuGet tarafında `--prerelease` **zorunlu**; iki ekosistem zıt davranıyor ve bu hiçbir yerde yazılı değil | 🟡 | Yayın `--tag next` yerine varsayılan `latest` ile yapıldı | Ürün kararı + `tuketici-dokuman-senkronu` | hayır |
-| **A-43** | **npm `package.json`'da `repository`, `bugs`, `keywords` yok.** npm sayfası "Keywords: none" gösteriyor; `npm repo` çalışmıyor; provenance/attestation `repository` olmadan mümkün değil | 🟡 | — | `kusur-giderme` | hayır |
-| **A-44** | **Konsol ekran görüntüleri 10 arayüz commit'i bayat.** `docs-site/public/screenshots/` 40 dosyanın hepsi 2026-09-15 (`ada74d11`); o tarihten sonra `src/Tracon.UI/frontend/` 10 commit aldı (onay adımı, streaming caret, admin panelleri). `check-console-screens.mjs:55` yalnız `existsSync` bakar | 🟡 | Kapı **varlığı** ölçüyor, **tazeliği** değil | `kusur-giderme` (kapı) + yeniden çekim | hayır |
-| **A-45** | **Konsol ağırlığı üç yerde üç farklı.** Ölçülen **193,2 KB** gzip (kapının yöntemi) · `README.md` **184,1** · `ui.md:392` **192,4**. `kalite-sozlesmesi.md:201` 184,1'i "yalnız düşer" diye kaydeder — gerçek **yükseldi** ve kimse görmedi | 🟢 | Sayı üç yerde elle tutuluyor, ölçüme bağlı değil | `tuketici-dokuman-senkronu` + kapı | hayır |
-| **A-46** | **`README.md:183` `Tracon.Voice` için "Zero NuGet dependencies" diyor**; sevk edilen `.nuspec`'te `Tracon.Core` bağımlılığı var. Paketin **kendi** README'si doğru yazıyor ("`Tracon.Core` is the only dependency… no third-party NuGet"). A-25 bu kalemi **kapandı** diye kaydetmişti — site ve paket README'si düzeldi, kök README atlandı | 🟢 | Sınıf taraması kök README'yi kapsamadı | `tuketici-dokuman-senkronu` | hayır |
-| **A-47** | **README'de üç bayat sayı.** `:338` "671 public types" (site: **764**) · `:310` "20 test projects" (çözümde **23**, koşan **22**) · `:192` CLI listesi `agent-skill`'i **atlıyor** (6 komutun 5'i) · `:282` yol haritası "release phase stays open" diyor | 🟢 | Elle tutulan sayılar | `tuketici-dokuman-senkronu` | hayır |
-| **A-48** | **`samples/` giriş noktasından görünmez.** 6 extension sample + 6 test projesi; **hiçbirinde README yok**, **hiçbiri `Tracon.slnx`'te değil**, kök README yalnız `samples/Tracon.Api`'yi linkliyor — onun da README'si yok. README:192 "derive from them to verify your own `IRunStore`…" diye **reklamını yapıyor** | 🟢 | — | `faz-planlama` | hayır |
-| **A-49** | **`SourceLanguageTests` sevk edilen altı yüzeyi görmüyor:** `CHANGELOG.md`, `SECURITY.md`, `.github/**`, `samples/**/*.md`, `docs-site/**`, release notu. Bugün **hepsi temiz** — ama kapı bir regresyonu yakalayamaz | 🟢 | `ScanRoots` + `ScannedRootFiles` dar | `kusur-giderme` (kapı) | hayır |
-| **A-50** | **`check:weight` 277 B boşlukta.** `troubleshooting/index.html` 58 723 B / 59 000 B. 🚨 **A-37'nin düzeltmesi tam bu sayfayı düzenliyor** — tavan önce bilinçli yükseltilmeli | 🟢 | — | `kusur-giderme` | hayır |
-| **A-51** | **Yerel ortam kalıntısı:** `~/.nuget/NuGet/NuGet.Config` hâlâ `agentprism-local` feed'i taşıyor. Sevk edilen hiçbir şeyde değil, ama MEMORY.md'nin "yeniden adlandırma yerel ortamı geride bırakır" sınıfının **beşinci** vakası. Bu denetimin ilk şablon koşumunu da kirletti | 🟢 | — | Manuel müdahale | hayır |
-| **A-52** | **`Tracon.Client` `Description`'ı kendi bağımlılık tablosuyla çelişiyor.** nuspec: *"Takes no Tracon package and **no NuGet package**."* Gerçek: `Microsoft.Extensions.DependencyInjection.Abstractions 10.0.11`. Paketin **kendi README'si doğru** yazıyor ("**One** NuGet package"), kök `README.md:191` de doğru. Yanlış olan yalnız nuspec `Description`'ı — sayfanın en üstünde ve arama sonucunda görünen metin | 🟡 | "one" → "no" düzenleme kayması | `kusur-giderme` (`src/Tracon.Client/*.csproj`) | hayır |
-| **A-53** | **`Tracon.AspNetCore/README.md:20` "143 operations over 112 paths" diyor.** Gerçek **168 operasyon / 130 yol** — ve bunu ispatlayan OpenAPI dokümanı **aynı `.nupkg`'in içinde** (`buildTransitive/tracon.json`). Meta paketin README tablosu da 143'ü tekrarlıyor. Site ve landing sayfası 168 diyor ve kapılı | 🟡 | Sayı elle tutuluyor; `check-content.mjs` yalnız **site** sayfalarını ve landing metriklerini ölçüyor, paket README'lerini değil | `tuketici-dokuman-senkronu` + kapıyı `src/*/README.md`'ye genişlet | hayır |
-| **A-54** | **`Tracon.Abstractions/README.md:20` "64 interfaces and roughly 280 public types" diyor.** Sevk edilen `lib/net10.0/Tracon.Abstractions.xml`'den ölçüldü: **429 dokümante public tip**, **85** `I<Upper>` adlı arayüz (bağımsız reflection ölçümü 418 exported tip / 85 arayüz). Arayüz +%33, tip +%50 eksik sayılmış. Bu paketin **tek işi** "işte uygulayacağın sözleşmeler" demek | 🟡 | A-53 ile aynı sınıf | `tuketici-dokuman-senkronu` | hayır |
-| **A-55** | **nuget.org Mermaid basmıyor — `Tracon.Core` sayfasında diyagram yerine DSL kaynağı görünüyor.** Canlı HTML: `<pre><code class="language-mermaid">flowchart LR … A["Agent sources&lt;br/&gt;code + database"]` — okuyucu düz metin bir blok ve içinde literal `&lt;br/&gt;` görüyor. 20 README'nin **1'i** (`src/Tracon.Core/README.md:37`). GitHub'da doğru render ettiği için fark edilmedi | 🟡 | 🚨 `AGENTS.md`'nin "**her diyagram Mermaid**" kuralının **paket README'si istisnası yok**; nuget.org kısıtlı Markdown'dır | `tuketici-dokuman-senkronu` + kuralı `AGENTS.md`'de daralt | hayır |
-| **A-56** | **İki paket README'sinde kopyalanamayan kurulum komutu:** `dotnet new install Tracon.Templates@1.0.0-preview.N` (`src/Tracon/README.md:33`, `src/Tracon.Templates/README.md:8`). `N` literal yer tutucu; hemen ardından açıklanıyor, ama artık **tek** sürüm var ⇒ yer tutucu hiçbir şey kazandırmıyor, bir başarısız yapıştırma maliyeti getiriyor. `A-19`'un kapısı (`--prerelease`/`--version` varlığı) bunu **geçerli** sayıyor | 🟢 | Kapı bayrağın **varlığını** ölçüyor, sürümün **çözülüp çözülmediğini** değil | `tuketici-dokuman-senkronu` | hayır |
-| **A-57** | **`tracon --version` yok** — `Unknown command '--version'` döner. Kurulumu doğrulamak için ilk yazılan komut budur; `dotnet tool list -g` dolaylı çözüm | 🟢 | — | `kusur-giderme` | hayır |
-| **A-58** | **nuget.org kenar çubuğu 20 pakette de yalnız jenerik "License Info" gösteriyor**, çünkü hepsi SPDX ifadesi yerine `license type="file"` kullanıyor. Tüketici sayfa mobilyasından 17 paketin **gelir tavanlı source-available** olduğunu göremez; yalnız README gövdesinde yazıyor. PolyForm'un SPDX kimliği var (`PolyForm-Small-Business-1.0.0`) ve npm paketi onu **zaten kullanıyor** | 🟢 | İki kanal iki farklı lisans ifade biçimi kullanıyor | Ürün kararı + `kusur-giderme` | hayır |
-
-#### Bu turun sınıfı: **premis bayatladı, metin değil**
-
-A-34 · A-35 · A-36 · A-37 · A-38 tek bir cümlenin çocuklarıdır: *"Tracon henüz
-yayınlanmadı."* O cümle 2026-09-20 12:44'te yanlış oldu. `b76351fd` **iki**
-düzyazı cümlesini düzeltti; premis ise **beş ayrı mekanizmaya** gömülüydü:
-Astro component'i · sayfa admonition'ı · config flag'i · MSBuild hedefi ·
-şablon varsayılanı. Hiçbir kapı bunu göremez çünkü **hiçbir kapı registry'ye
-bakmıyor** — "yayınlandı mı?" sorusunun CI'da bir ölçümü yok.
-
-🚨 **Ders:** yayın gününün üç kusuru (A-29 · A-32 · A-33) "yalnız tag yolunda
-koşan adımlar" sınıfındandı. Bu turun beş kusuru onun **ikizi**: *yalnız yayın
-GERÇEKLEŞTİĞİNDE yanlışlanabilen iddialar.* İkisi de aynı boşluğu gösterir —
-gerçek dünyayla ilk teması yayın anında olan hiçbir iddianın kapısı yok.
-
-#### Doküman drift (bu dosyanın kendisi)
-
-- **Kapandı.** §3 artık `Tracon.Testing` için `net8.0;net9.0;net10.0` yazar.
-  Envanterin 20 satırı da yayımlanan `1.0.0-preview.1` sürümünü gösterir.
-
-#### Kapanış — 2026-09-20
-
-**Source tarafındaki 25 kalemin 25'i sonuçlandı.** 23 kalem tam kapandı. A-34
-ve A-42 için kalıcı source düzeltmesi hazırdır; ancak registry'deki mevcut
-artefact ve dist-tag immutable/live state olduğu için duyuru kararı henüz
-yeşil değildir.
-
-| Aralık | Sonuç | Kanıt |
-|---|---|---|
-| **A-34** | 🟡 **Source kapandı, live açık.** Şablon stamp hedefi artık MinVer'den sonra koşar; gizli `TraconVersion` seçeneği görünürdür. Packed-consumer testi sürümü override etmeden gerçek `.nupkg`'i kurar ve üretilen projeyi restore/build eder. Mevcut `preview.1` paketi değiştirilemez; düzeltme `preview.2` ister | `TemplateInstantiationTests` **3/3**; minimal ve full şablon build'i yeşil |
-| **A-35…A-41** | ✅ Kapandı | Site artık yayını ve public giriş yollarını anlatır; `tracon.dev` yeniden deploy edildi ve canlıdan doğrulandı. README örneği derlenir; GitHub metadata/Discussions/release türü canlıda düzeltildi; npm SSE README'si gerçek API'yi anlatır. Canlı kontrolde bulunan çift source-path'li `Edit page` URL'si de düzeltildi ve rendered URL kalıcı kapıya alındı |
-| **A-42** | 🟡 **CI ve doküman kapandı, live açık.** Preview yayınları `next` alır ve kurulum metni `@next` kullanır. İlk tasarım `latest`i bir preview'den **kaldırıyordu**; npm bunu yapmaz — `DELETE .../dist-tags/latest` **403** döner ve bir paketin ilk yayını `--tag` ne olursa olsun `latest`i o sürüme bağlar. Kural değişti: stable yokken `latest` en yeni preview'e alınır, stable çıkınca preview `latest`e hiç dokunmaz. Canlı `latest` hâlâ `preview.1`; `v1.0.0-preview.2` işi yeniden koşturulunca `preview.2`'ye geçer | `npm view @tracon/client dist-tags --json` → `latest: 1.0.0-preview.1`, `next: 1.0.0-preview.2`; başarısız koşum: `403 Forbidden - DELETE .../dist-tags/latest` |
-| **A-43…A-57** | ✅ Kapandı | npm metadata, screenshot tazelik hash'i, tek ağırlık ölçümü, paket/README sayıları, sample kataloğu, dil ve operation-count kapıları, NuGet-uyumlu diyagram, exact kurulum sürümü ve `tracon --version` eklendi |
-| **A-58** | ✅ **Değişiklik gerektirmiyor.** NuGet license expression yalnız SPDX değil, NuGet'in kabul ettiği OSI/FSF lisansları için kullanılabilir. PolyForm bu kümede değildir. `PackageLicenseFile` doğru ve doğrulanabilir sunumdur | [NuGet nuspec `license` sözleşmesi](https://learn.microsoft.com/nuget/reference/nuspec#license) ve [.NET library guidance](https://learn.microsoft.com/dotnet/standard/library-guidance/nuget) |
-
-Kalıcı kapılar da genişledi: template testi artık packed default'u ölçer;
-`check-content.mjs` README çağrı imzasını ve paket README operation count'larını
-denetler; screenshot kapısı UI source hash'ini doğrular; `SourceLanguageTests`
-sevk edilen ek yüzeyleri tarar; CI preview/stable release ve npm dist-tag
-politikasını birbirinden ayırır.
-
-`dokuman-bakim.py --site-denetle` içindeki `cekirdek-kavram` kuralı
-`Tracon.Abstractions/README.md` değişikliği nedeniyle tetiklendi. Değişiklik
-yalnız ölçülen interface/public type sayısını günceller; kavram, davranış veya
-public contract değiştirmez. Bu nedenle `concepts/` sayfası değişmedi ve
-gerekçeli geçiş kullanıldı.
-
-**Duyuru için kalan sıra:** temiz commit üzerinde `preview.2` yayın dry-run'ı →
-`1.0.0-preview.2` yayını → authenticated npm dist-tag doğrulaması → dışarıdan
-`dotnet new tracon-api` restore/build smoke. Tam kapanış ve site deploy bu turda
-yeşil tamamlandı. `preview.2` dry-run'ı temiz worktree zorunluluğu nedeniyle
-commit öncesinde bilinçli olarak başlamadı; güvenlik kapısı aşılmadı. Canlı
-registry state'ini ölçmeden bu karar ✅ olmaz.
-
-#### `preview.2` yayın koşumu — 2026-09-20
-
-`v1.0.0-preview.2` etiketi koştu. **Paket yayınlandı** (`@tracon/client@1.0.0-preview.2`,
-`next` etiketiyle). **`Dagitim etiketini hizala` adımı kırmızı bitti:**
-
-```
-npm error 403 Forbidden - DELETE https://registry.npmjs.org/-/package/@tracon%2fclient/dist-tags/latest
-```
-
-Kök neden token değil, registry kuralıdır: npm `latest` dist-tag'ini **sildirmez**
-ve bir paketin **ilk** yayını `--tag next` verilse bile `latest`i o sürüme bağlar
-— canlıdaki `latest: 1.0.0-preview.1` böyle oluştu, adım da onu silmeye
-çalışıyordu. Silinemeyen bir etiket için tasarlanmış bir adım her preview turunda
-kırmızı olurdu.
-
-Kural değişti (A-42 satırı güncellendi): stable sürüm **varsa** preview `latest`e
-hiç dokunmaz; stable **yoksa** `latest` en yeni preview'e alınır. Eski bir etiket
-yeniden koşarsa dist-tag geri alınmaz — adım önce daha yeni bir yayın var mı diye
-sorar.
-
-`npm-publish` kırmızı bittiği için `github-release` işi **atlandı**: `preview.2`
-paketleri canlıda, GitHub release sayfası eksik. Kalan iş: düzeltme `main`e
-girdikten sonra `v1.0.0-preview.2` etiketi için workflow yeniden koşturulur;
-beklenen sonuç `latest: 1.0.0-preview.2` ve release sayfasının oluşması.
-
-Kapanış kanıtı: `python3 scripts/kapi.py kapanis --taban b76351fd` çıkış **0**;
-build **0 warning/0 error**, tüm .NET test projeleri yeşil, format ve paket
-kapıları yeşil. Site **1151 sayfa**, **189.663** internal reference, **0** kırık
-link, SEO **0 hata** ve tüm sayfalar 59.000 B gzip tavanının altında. İki
-`scripts/site-deploy.sh` koşumu çıkış **0**; son koşum doğru GitHub edit URL'sini,
-NuGet/npm/GitHub bağlantılarını ve yayın metnini canlıya taşıdı.
-
----
-
-#### Canlı durum — 2026-09-22 (ölçüldü)
-
-- `npm view @tracon/client dist-tags --json` → `latest: 1.0.0-preview.2`,
-  `next: 1.0.0-preview.2` — yukarıdaki "kalan iş" koşumu gerçekleşti,
-  **A-42 canlıda kapandı**.
-- `GET /repos/farukatasoy/Tracon/releases/tags/v1.0.0-preview.2` → `200`,
-  `prerelease: true` — release sayfası oluştu.
-- Duyurudan önce kalan tek doğrulama: repo dışından `dotnet new tracon-api`
-  restore/build smoke. Şablonun sevk edilen varsayılanı artık pack anında
-  MinVer'den damgalanır; nuget.org'da var olan `1.0.0-preview.2`'yi üretmesi
-  beklenir — bu iddia canlıda henüz ölçülmedi.
+- **`preview.1`** — `v1.0.0-preview.1` → `f14f6309`, koşum `35510131648`, sekiz
+  iş yeşil. "Push başarılı" ile "paket görünür" ayrı anlardır: yeni kimlikler
+  bir süre `404` döner; yayın kanıtı CI'ın `publish` işidir.
+- **Duyuru öncesi denetim** — 25 kalemin 25'i sonuçlandı (A-34…A-58). Sınıf:
+  "premis bayatladı, metin değil". A-34 (şablon `Version="1.0.0"`) ve A-42 (npm
+  `latest`) preview.2 ile registry'de kapandı.
+- **`preview.2`** — `v1.0.0-preview.2` → `804d94b2`. `Dagitim etiketini hizala`
+  `403` verdi: npm `latest`'i sildirmez. Kural: stable varsa preview `latest`e
+  dokunmaz, yoksa `latest` en yeni preview'e alınır (`dokuman-bakim.py`
+  `geri_alinamaz_registry_islemi` silme adımını yasaklar). 2026-09-22:
+  `latest` = `next` = preview.2, release sayfası var.
+- **Açık kalan tek doğrulama:** repo dışından `dotnet new tracon-api`
+  restore/build smoke (A-34'ün canlı kanıtı).
 
 ### Damıtılan tur kayıtları (2026-08-28 → 2026-09-20)
 
@@ -445,6 +300,9 @@ Kalıcı sonuçlar:
 | KN-024 | Yayın provası — tag'lenecek commit'ten | Tamamlandı | `kapi.py yayin --kuru --surum 1.0.0-preview.1`, **boşaltılmış** `artifacts/package/release` ve **temiz** ağaç üzerinde. Çıkış `0`. `package-manifest.json` commit `225f1472` — kanıt tag'lenecek ağacın kendisine ait | 20 `.nupkg` + 18 `.snupkg`, tek sürüm hattı; K-008 korunur (Tracon dışı ön sürüm yalnız `Tracon.AspNetCore`); 20/20 README+icon; TFM başına `.dll`+`.xml`; `Tracon.Testing*` sızıntısı **0**; **6/6** dış sample geçti + Native AOT smoke; `npm publish --dry-run` gerçekten koştu (`@tracon/client@0.0.0`, npm 10.9.8 mevcut) | 2026-09-19 |
 | KN-025 | Sağlayıcılar arası capability simetrisi | Tamamlandı | Migration adları farklı (PostgreSQL 51 · SQL Server 40 · SQLite 39) ama tablolar aynı; üç entegrasyon test projesi de **aynı 32 contract**'ı türetiyor, küme farkı **boş** | Sağlayıcı seçimi tüketiciye sessiz bir yetenek kaybı yaşatmıyor. Migration sayısı farkı dosya birleştirmesidir | 2026-09-19 |
 | KN-026 | Yeniden adlandırmanın sevk edilen yüzeydeki izi | Tamamlandı | `grep -rn "AgentPrism" src/ README.md docs-site/src` | **0 eşleşme.** Faz 162'nin bıraktığı dört kalem yerel ortamdaydı (MEMORY.md), sevk edilen yüzeyde değil | 2026-09-19 |
+| KN-027 | `preview.3` yayın provası — HEAD'den | Tamamlandı | `DOTNET_ROOT=~/.dotnet python3 scripts/kapi.py yayin --kuru --surum 1.0.0-preview.3`, boşaltılmış `artifacts/package/release`, temiz ağaç. `package-manifest.json`: commit `c45112be`, `dirty: false`, taban `1.0.0-preview.2` | Çıkış `0`. 20 `.nupkg` + 18 `.snupkg`. Kırıcı liste 121 tip · 0 TFM düşüşü · 10 paket, hepsi `[Unreleased]`'da. `npm publish --dry-run` ✅. Altı sample 193 test geçti (101+38+11+15+18+10), Native AOT smoke ve net8.0 tüketici smoke (.NET 8.0.31) geçti. Sürüm notları `[Unreleased]`'dan okundu — kesimde yeniden adlandırılır | 2026-09-24 |
+| KN-028 | `preview.3` artefaktının ileri uyumu | Tamamlandı | `uyum-probu.cs -- ileri --tuketici artifacts/package/release/Tracon*.1.0.0-preview.3.nupkg` (upstream en yeni: MAF `1.22.0`, Hosting ailesi `1.22.0-preview.260918.1`, MEAI `10.10.0`, MCP `2.2.0`); `unzip -p Tracon.AspNetCore.1.0.0-preview.3.nupkg Tracon.AspNetCore.nuspec` | 1.170 üye referansı · 1 eksik tip (`Microsoft.Agents.AI.Hosting.AgentSessionStore`) · 1 eksik üye (`AgentRunMode.DisallowBackground`). Nuspec beş ön sürüm bağımlılığı için açık alt sınır yazar (`version="1.20.0-preview.260831.1"`). A-59 preview.3'e aynen taşınır | 2026-09-24 |
+| KN-029 | UR-008 B sonrası kapanış kapısı | Tamamlandı | `DOTNET_ROOT=~/.dotnet python3 scripts/kapi.py kapanis --taban c45112be` (commit `81134277` + defter) | Çıkış `0`: 38 test projesi, 18.116 test, 0 kırmızı, 1 atlandı; build uyarısız; pack, format, site (`npm run check`, 1042 sayfa, 0 kırık bağlantı) yeşil. İlk koşum `llms-full.txt` bayat diye düştü → yeniden üretildi (`81134277`) | 2026-09-24 |
 
 ### Henüz ölçülmeyen alanlar
 
@@ -519,7 +377,7 @@ GA'yı bloklar ve bir kod işidir. Aşağıdaki 2026-08-28 maddelerinin
 | BL-054 | **KAPANDI** (2026-09-02) | `CHANGELOG.md`'nin `## [1.0.0-preview.1]` bölümü **2026-08-28 tarihli** ve Faz 129 öncesi ürünü anlatıyor; `## [Unreleased]` boş. Bugün yayınlansa sürüm notları iki kırıcı `IJobStore` değişikliğini (lane filtresi, `GetQueueDepthAsync`), `RunCost`/`RunRecord` alanlarını, yapısal doğrulama seam'ini ve bounded repair'i hiç anmıyor | 🔴 Preview blocker | OP-007 kapısı yalnız bölümün **boş olmadığına** bakıyor (`scripts/changelog.py:44`), bayatlığı göremez | `nuget-danismani` → `tuketici-dokuman-senkronu` | **Tamamlandı.** Dört ürün seviyesi kalem eklendi (cost provenance · named job lanes · structured-response validation + bounded repair · generated tool schema constraints/nested object); tarih 2026-09-02'ye çekildi. `changelog.py` bölümü ayrıştırıyor. 🚨 Tarih tag gününde doğrulanır |
 | BL-056 | **KAPANDI** (2026-09-03, aynı tur) | 20 paketin `PackageProjectUrl` ve `PackageReleaseNotes` alanları private repo'ya bakıyordu; her ikisi de tüketici için **HTTP 404** | 🔴 Preview blocker | Anonim `curl`: repo kökü ve `blob/v1.0.0-preview.1/CHANGELOG.md` → 404; doküman sitesi → 200. Adım 7 filtresinin altı sorusunu geçti (ölçüldü · artifact'ten yeniden üretilebilir · tüketici bugün yaşar · kapıyla kilitlenebilir) | `nuget-danismani` | **Tamamlandı.** İki alan `tracon.dev`'ye çevrildi (K-659); release-notes hedefi kök `CHANGELOG.md`'den üretilen `/reference/changelog/#v<sürüm>` sayfasıdır. `RepositoryUrl` bilinçli olarak repo'da kaldı — provenance alanıdır, paket kapısı `<repository commit>` ister ve bir doküman sitesi git repo'su değildir (RK-013) |
 | BL-057 | **Açık** (2026-09-23) | nuget.org `Tracon` organizasyonunda ikinci bir üye yok. Repo'da ikinci üyenin kaydı yoktur; üye listesi repo'dan ölçülemez. Tek bakımcı erişilemezse 20 paketin hiçbirine güvenlik yaması yayınlanamaz (RK-012) | 🔴 GA blocker | RK-012 · OP-001 (K-755) · `git shortlog -sne HEAD` → 1145 commit'in tek yazarı | 👤 Bakımcı eylemi (nuget.org) | Organizasyonun üye listesinde ikinci bir kişi görünür ve o kişi paket yönetim yetkisini doğrular |
-| BL-058 | **Açık** (2026-09-24) | `Tracon.UI` derlemesine gömülü JS bundle'ı üçüncü taraf lisans bildirimi taşımıyor ve pakette notice dosyası yok (A-60). MIT bildirimin kopyayla gitmesini ister | 🔴 GA blocker | Bundle brotli ile açıldı: 748.550 B, `@license`/`Copyright`/`MIT License` **0**; `unzip -l Tracon.UI.*.nupkg` notice dosyası göstermez | `kusur-giderme` | Paket bir notice dosyası taşır; içeriği `frontend/package-lock.json` runtime bağımlılıklarından üretilir ve bir kapı eksikliğini kırmızı sayar |
+| BL-058 | **Kapandı** (2026-09-24, `de52ecdf`; UR-008 B) | `Tracon.UI` derlemesine gömülü JS bundle'ı üçüncü taraf lisans bildirimi taşımıyor ve pakette notice dosyası yok (A-60). MIT bildirimin kopyayla gitmesini ister | 🔴 GA blocker | Bundle brotli ile açıldı: 748.550 B, `@license`/`Copyright`/`MIT License` **0**; `unzip -l Tracon.UI.*.nupkg` notice dosyası göstermez | `kusur-giderme` | Paket bir notice dosyası taşır; içeriği `frontend/package-lock.json` runtime bağımlılıklarından üretilir ve bir kapı eksikliğini kırmızı sayar |
 | BL-055 | **Açık** | `JobStoreContract` Faz 129 ve 133'te **+110 satır** case kazandı (lane filtresi, `GetQueueDepthAsync`) ama **hiçbir dış sample'ı yoktur** — `CustomJobHandler` `JobHandlerContract`'ı koşar, `JobStoreContract`'ı değil. Yeni case'ler paketlenmiş tüketiciye karşı hiç doğrulanmadı | 🟡 1.0 blocker | `grep -rn JobStoreContract samples/` boş; `git diff --stat` Faz 129–135 aralığında yalnız iki contract dosyası değişti | `nuget-danismani` → faz zinciri | `IJobStore` uygulayan bir dış sample eklenir ve `JobStoreContract`'ı exact sürümle koşar. BL-007/BL-017/BL-030 ile aynı aile |
 
 
@@ -532,8 +390,9 @@ GA'yı bloklar ve bir kod işidir. Aşağıdaki 2026-08-28 maddelerinin
 | UR-003 | Public API freeze | **Tamamlandı — GA'ya ertelendi** | Preview öncesinde hangi yüzey korunmalı veya küçültülmeli? | Ölçüldü 2026-08-27: 17 `PublicAPI.Shipped.txt` **0** satır, unshipped **8417** satır / **680** tip | Preview'dan önce tara / **GA turuna ertele** | **GA turuna ertelendi; seviye 🔴 → 🟡** | Sevk edilen `versioning.md:11-13` preview hattında yüzey daralmasının kırıcı sayılmadığını zaten söylüyor; K-603 `Shipped` dolumunu GA'ya erteledi; K-602 tek sürüm hattını bu gerekçeyle seçti. Faz 96 aynı erişilebilirlik ölçütünü koşup 96 tipi `internal` yapmıştı (K-601) — ikinci turun verimi düşük | Orta — GA'da yüzey büyükse daraltma pahalılaşır; azaltım: tarama `Unshipped → Shipped` dolumuyla aynı turda koşar | `nuget-danismani` (GA turu) | GA kapısında `Shipped.txt` dolumu | 2026-08-27 |
 | UR-004 | 1.0 yolu | **Açık — kullanıcı kararı bekliyor** | Upstream kararlı olmadan 1.0'a nasıl yaklaşılır? | ER-001 · §4 GÜNCEL KARAR 2026-09-24 (Hosting ailesi ve `A2A.AspNetCore` kararlı değil) | A: upstream GA'yı bekle · B: Hosting'e bağlı özellikleri ayrı ön sürüm pakete ayır (K-602'nin reddettiği ayrık hattın türevi; yeniden açma ister) · C: yüzeyi dondur, `1.0.0-rc.N` çık, GA upstream'e bağlı | — | Öneri **C**: RC ön sürümdür, `NU5104` durdurmaz; yüzey sahada donar, GA aynı yüzeyle gelir | Orta | `nuget-danismani` | RC provası `kapi.py yayin --kuru --surum 1.0.0-rc.1` yeşil | 2026-09-24 |
 | UR-005 | Donacak yüzey | **Açık — kullanıcı kararı bekliyor** | ~650 tipin hepsi mi donar, yoksa olgun olmayan kısım ayrı bir katmanda mı kalır? | A-63 · UR-003 · K-850 | A: hepsini dondur · B: kararlı çekirdek + Tracon'un kendi `[Experimental]` katmanı | — | Öneri **B**; önce K-869 emsaliyle STJ kaynak üretecine etkisi ölçülür | Orta | `faz-planlama` | Katmana giren her üye derleyici uyarısı üretir; `Shipped`'e girmez | 2026-09-24 |
-| UR-006 | Ön sürüm upstream aralığı | **Açık — kullanıcı kararı bekliyor** | Ön sürüm bağımlılık alt sınır mı, tam sürüm mü yazılır? | A-59 | A: tam sürüm (`[x]`) — uyumsuzluk restore'da görünür · B: açık alt sınır + doküman | — | Öneri **A**: kırılma çalışma anı yerine restore'da görünür; bedeli tüketicinin Hosting'i bağımsız yükseltememesidir, ki zaten uyumsuzdur | Orta | `kusur-giderme` | `Tracon.AspNetCore` nuspec'i beş ön sürüm bağımlılığı için `[x]` yazar | 2026-09-24 |
+| UR-006 | Ön sürüm upstream aralığı | **Tamamlandı — A (K-872)** | Ön sürüm bağımlılık alt sınır mı, tam sürüm mü yazılır? | A-59 | A: tam sürüm (`[x]`) — uyumsuzluk restore'da görünür · B: açık alt sınır + doküman | **A** (2026-09-24, UR-008 B ile) | Öneri **A**: kırılma çalışma anı yerine restore'da görünür; bedeli tüketicinin Hosting'i bağımsız yükseltememesidir, ki zaten uyumsuzdur | Orta | `kusur-giderme` | `Tracon.AspNetCore` nuspec'i beş ön sürüm bağımlılığı için `[x]` yazar | 2026-09-24 |
 | UR-007 | 1.x destek penceresi | **Açık — kullanıcı kararı bekliyor** | Hangi 1.x sürümü ne kadar güvenlik yaması alır? | `SECURITY.md` yalnız preview sözü taşır | A: yalnız son minor · B: son minor + yeni major çıkınca önceki major N ay güvenlik yaması | — | Öneri **B**; N kullanıcı kararıdır | Orta | `tuketici-dokuman-senkronu` | `SECURITY.md` ve site politikası aynı tabloyu taşır | 2026-09-24 |
+| UR-008 | `preview.3` kapsamı | **Tamamlandı — B** 👤 | preview.3 bugünkü içerikle mi çıkar, yoksa önce A-59 ve BL-058 mi kapanır? | KN-027 · KN-028 · 13 `Security` notu · A-64 (push, düzeltmeleri public yapar) | A: bugünkü içerikle çık; A-59 geçici çözümü sürüm notuna yazılır · B: önce UR-006 A (tam sürüm sınırı) + BL-058 (lisans bildirimi), ikisi `kusur-giderme` · C: önce MAF `1.22` / Hosting `1.22` yükseltmesi (A-62 + taşınan tip) | **B** 👤 (2026-09-24) | Öneri **B**: iki küçük iş preview.3'ün taşıyacağı iki bilinen kusuru kapatır; `main` itilmediği için güvenlik düzeltmeleri bu sürede public olmaz. C upstream ön sürüm çalkantısını güvenlik sürümünün kritik yoluna sokar | Orta | `kusur-giderme` | preview.3 nuspec'i `[x]` yazar; `Tracon.UI` paketi notice dosyası taşır | 2026-09-24 |
 
 ## 8. Operasyonel yayın kararları
 
@@ -569,7 +428,7 @@ GA'yı bloklar ve bir kod işidir. Aşağıdaki 2026-08-28 maddelerinin
 | RK-013 | **KG-028 ile kapanma yolunda** (2026-09-03'te kabul edilmişti, K-659) | `RepositoryUrl` private bir repo'yu gösterir: üçüncü taraf için Source Link kaynak çözemez ve `.snupkg` sembolleri kaynak adımlamasına açılmaz | Orta | Kesin / düşük-orta | Tüketiciye dönük iki URL siteye çevrildi, yani okura sunulan hiçbir bağlantı ölü değil. Sembol paketleri yine yayımlanır (yığın izi satır numarası taşır). Repo public yapılırsa kendiliğinden çözülür | `nuget-danismani` |
 | RK-012 | **Kısmen azaltıldı (2026-09-12, OP-001/K-755); GA blocker BL-057 açık** | Tek bakımcı riski. 20 paketin sahibi artık nuget.org `Tracon` organizasyonudur (OP-001), yani devir paket başına elle yapılmaz. Ama organizasyonda ikinci bir üyenin kaydı yoktur: bakımcı erişilemezse hiçbir güvenlik yaması yayınlanamaz. 2026-08-27'deki "kişisel owner" kabulü artık geçerli değildir | Orta | Düşük / yüksek | Organizasyon sahipliği (yapıldı) · 2FA (OP-002) · organizasyona ikinci üye — GA blocker BL-057, 👤 bakımcı eylemi | Yayın operasyonu |
 | RK-014 | **Kapandı (2026-09-19, KG-030/031)** | Repo public yapıldığında **1065 commit'lik geçmiş** de public olur. Mevcut secret kapısı ([`kapi.py:183-209`](../scripts/kapi.py)) yalnız çalışma ağacını yürür ve `git log`'a hiç bakmaz; bugün temiz olan bir dosya geçmişte bir credential ile commit edilmiş olabilir | 🔴 Public öncesi | Bilinmiyor / **geri dönüşsüz** — public olduktan sonra geçmişi temizlemek pratikte imkânsızdır (fork, cache ve GitHub nesneleri kalır) | Koşuldu: `gitleaks git .` 1065 commit / 53 MB — gerçek credential sıfır, rotate gerekmedi. Kapının iki yapısal boşluğu (desen + kapsam) aynı turda kapatıldı ve mutasyonla doğrulandı (KG-031). 🚨 **Kalan kabul:** redakte edilen `ap_default_*` anahtarı `fc1998c9`'dan itibaren **geçmişte durmaya devam eder** — yerel loopback DB'sine bağlıdır, dışarıdan erişilebilir bir yüzeyi yoktur; hâlâ ayakta bir yerel örnekte kaydı varsa silinir | Kullanıcı + `nuget-danismani` |
-| RK-015 | **Açık** (2026-09-24) | Upstream kırılması Tracon'un yayınlanmış ikilisine çalışma anında ulaşır: nuspec upstream'e alt sınır yazar, tüketici daha yeni upstream alabilir (A-59 ölçülmüş vaka) | Orta | Orta / yüksek | Kapı yoktu; `uyum-probu.cs ileri` her upstream sürümünde ve etiketten önce koşar; ön sürüm aralığı UR-006 | `nuget-danismani` |
+| RK-015 | **Azaltıldı** (2026-09-24, K-872) | Upstream kırılması Tracon'un yayınlanmış ikilisine çalışma anında ulaşır: nuspec upstream'e alt sınır yazar, tüketici daha yeni upstream alabilir (A-59 ölçülmüş vaka) | Orta | Orta / yüksek | Ön sürüm yarısı kapandı: preview.3'ten itibaren ön sürüm üst akış tam aralıktır, kırılma restore'da görünür. Kalan: kararlı üst akış alt sınırda kalır (bilinçli, K-872) — `uyum-probu.cs ileri` her upstream sürümünde ve etiketten önce koşar. preview.1/preview.2 açık aralıkla kalıcıdır | `nuget-danismani` |
 
 ## 10. Yayın checklist'i
 
@@ -689,6 +548,8 @@ operasyon kritik yolunu yeniden açmaz.
 | KG-038 | 2026-09-19 | Tamamlandı | **Site deploy'u tag gününe ERTELENDİ 👤; provası bugün koşuldu ve geçti.** Adım 7'nin `git push origin main` yarısı yeniden açıldı | Sayfayı bugün yayımlamak, NuGet'te var olmayan bir sürümü yayınlanmış gösterirdi — A-11 ve A-12 kullanıcıdadır ve süreleri belirsizdir. Push kalemi bu turun kendi altı commit'i yüzünden yeniden açıldı: bir ölçümü cümleye çevirirken o ölçümün neyi varsaydığını da yazmak gerekiyor | Tag günü: `site-deploy.sh` → push → public → A-11/A-12 → tag; deploy bir kez düşerse tekrar denenir (kopma geçici ölçüldü) |
 | KG-039 | 2026-09-20 | Tamamlandı | **Sevk tarihi `2026-09-19` → `2026-09-20` düzeltildi ve tag commit'i `3ca2f9e9` → yeni kapanış commit'ine taşındı.** A-12 kapandı (ölçüldü: `nuget` ve `npm` environment'ları `required_reviewers` + `branch_policy` taşıyor). A-11 alanları `ci.yml` ile birebir doğrulandı; prefix `Tracon` aynı hesaba rezerve edildi. Kalan tek NuGet adımı policy'nin 7 günlük aktivasyonudur | 🚨 Kesimden SONRA sekiz commit daha indi ve sekizi de **sevk edilen** `src/` dosyalarına dokundu (`OpenAILiveSideband` 183 satır, `LiveVoiceSessionHost`/`Registry` yarış düzeltmeleri, `WorkflowRunner`'ın timeout'u artık `_timeProvider`'ı onurlandırıyor). Kapılar bu yüzden yeniden koşuldu — kesim gününün sarkması tarihi de bayatlattı: sürüm başlığı sevk GÜNÜNÜ söyler, kesim gününü değil | `CHANGELOG.md` ilk yayın olduğu için sürüm bölümü diff değil KAPSAM anlatır; yayınlanmamış koda gelen düzeltmeler ayrı kalem almaz |
 | KG-040 | 2026-09-24 | Tamamlandı | **1.0 olgunluk denetimi: ❌ 1.0 bugün çıkamaz; A-59…A-70, BL-058, RK-015 ve UR-004…UR-007 açıldı.** `nuget-danismani` GA moduyla genişletildi (on dört sözleşme yüzeyi, on bir mercek, GA karnesi) ve ölçüm aracı `uyum-probu.cs` eklendi | Upstream'in yeni sürümüne karşı ve tetiklenen öncüllere karşı hiçbir ölçüm yoktu; iki ölçülmüş kırılma (A-59) ve beş kırmızı bot PR'ı (A-62) bunu gösterdi | §4 GÜNCEL KARAR — 2026-09-24; aracın negatif kontrolü MAF `1.13.0`'a karşı kırılma raporladı |
+| KG-041 | 2026-09-24 | Tamamlandı | **`preview.3` yayın kararı: ✅ yayınlanabilir, ürün 🔴'si yok; etiket A-64 kapanmadan atılmaz.** A-71 açıldı; A-59 ve A-61 preview.3 kanıtıyla güncellendi; UR-008 açıldı | Prova HEAD'den çıkış `0` (KN-027). Açık 🔴'ler (BL-057, BL-058) GA blocker'ıdır ve preview.2'de de vardı; preview.3 onları kötüleştirmez, 13 güvenlik düzeltmesi getirir. Koşul A-64'tür: Faz 187–191'in CI zinciri GitHub'da hiç koşmadı (A-29 emsali) | `main` CI yeşil · kesim commit'i · etiket sonrası `MT-PKG-160` |
+| KG-042 | 2026-09-24 | Tamamlandı | **UR-008 = B 👤: A-59 ve BL-058 preview.3'ten önce kapandı; UR-006 = A (K-872). Prova sürüme özel dizine taşındı; net8 runtime'ı global kuruluma eklenir 👤.** A-72 açıldı | Kullanıcı B'yi seçti. İki iş küçüktü ve `main` itilmediği için güvenlik düzeltmeleri bu sürede public olmadı. Prova dizini kararı Faz 136'yı dizin içinde korur (MT-PKG-116): aynı sürümün yeni commit'i reddedilir, mesaj `rm -rf` yolunu verir. KG-041'in "tek push yeter" ifadesi yanlıştı: Faz 187 kesimi etiketle tek atomik push ister | KN-029 · `MT-PKG-161`…`163` · push sonrası CI |
 
 ## 12. Ertelenen işler ve gerekçeleri
 
@@ -699,6 +560,12 @@ operasyon kritik yolunu yeniden açmaz.
 | ER-003 | Kapsamlı düzeltme fazı | Ertelendi | Henüz doğrulanmış aksiyon kapsamı yok | Audit ölçülmüş bir iş üretir ve kullanıcı faz açılmasını onaylar |
 
 ## 13. Sonraki adım
+
+> **`preview.3` sırası (KG-041, KG-042):** ~~UR-008~~ B · ~~A-59~~ · ~~BL-058~~
+> · sürüm kesimi (A-71) → kesim öncesi commit `main`'e push + CI yeşil (A-64)
+> → kesim + `v1.0.0-preview.3` tek atomik push 👤 → `MT-PKG-160` · preview.1/2
+> deprecation (OP-008) · A-61 advisory. Sonra GA hattı: A-72 (`Tracon.Cli`
+> bildirimi). Ayrıntı: §4 "KARAR — 2026-09-24 (`preview.3`)".
 
 > 🚨 **`preview.1` SEVK EDİLDİ (2026-09-20).** Kapanmış `preview.1`
 > aksiyon tablosu damıtıldı (tam metin: `git show 8634a1e3:docs/YAYIN-HAZIRLIK.md`);
