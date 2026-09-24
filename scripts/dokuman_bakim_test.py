@@ -1977,6 +1977,12 @@ class SurecOlcumuTestleri(unittest.TestCase):
         self.assertIn("Süreç Ölçümü", dokuman_bakim._FAZ_KAL)
         self.assertFalse(dokuman_bakim._duser_mu("Süreç Ölçümü", "Süreç Ölçümü"))
 
+    def test_kapsam_disi_plan_bolumu_damitmada_duser(self):
+        """Faz 191: plan anındaki kapsam sınırı; iki yazımı da düşer."""
+        for ad in ("Kapsam Dışı", "Kapsam dışı"):
+            self.assertTrue(dokuman_bakim._duser_mu(ad, ad), ad)
+        self.assertFalse(dokuman_bakim._duser_mu("Kapsam dışı kalan işler", "Kapsam dışı kalan işler"))
+
 
 class KesikKararBasligiTestleri(unittest.TestCase):
     """İÇ İÇE `**` karar başlığını SESSİZCE keser (faz dışı kusur, Faz 169).
