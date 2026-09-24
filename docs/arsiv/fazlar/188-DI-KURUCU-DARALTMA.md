@@ -199,7 +199,7 @@ Gövde kullanımları mevcut IVT'lerle çözüldü; tip başına tablo tam metin
 | Metrik | Değer |
 |---|---|
 | Plan revizyonu sayısı | 0 (sapmalar uygulama sırasında yazıldı, plan yeniden açılmadı) |
-| Düzeltme turu sayısı | TUR |
+| Düzeltme turu sayısı | 1 — denetimin 🟡 bulgusu (CHANGELOG cümlesi); kapanış kapısı ilk denemede yeşil |
 | 🔴 bulgu: gerçek / gürültü / araştırılacak | 0 / 0 / 0 |
 | Fazın ürettiği regresyon | 1 — `IAgentCatalog.ResolveAsync` cref'i `CS0419` verdi; örnek uygulama derlemesinde yakalandı, commit'ten önce düzeltildi |
 | Faz kapandıktan sonra bulunan kusur | ölçülmedi (kapanış anı) |
@@ -254,3 +254,20 @@ ve `ITraconBuilder`.
   (Faz 187 sonunda 95). 189'un kıracağı her tip notta tam adıyla geçmelidir.
 
 **Açık iş:** yok. Site yayını (`faz-tamamlama` Adım 10) bakımcı eylemidir.
+
+## Kapanış Kapısı
+
+`DOTNET_ROOT=~/.dotnet python3 scripts/kapi.py kapanis --taban 926096d4`, commit'li ağaç
+`80a60a46`, 2026-09-24 → **EXIT 0, 963 sn**:
+
+| Adım | Süre | Sonuç |
+|---|---|---|
+| `kapi.py tarama` | 5,8 sn | ✅ temiz |
+| `dokuman-bakim.py --denetle` · Python testleri · ajan haritası · denetim paketi | ~9 sn | ✅ |
+| `dotnet build Tracon.slnx -c Release` | 95,7 sn | ✅ 0 uyarı |
+| `dotnet test … -maxcpucount:2 -- --report-trx` | 588,5 sn | ✅ 17.644 test (38 koşum), 0 kırmızı |
+| `dotnet pack` | 8,6 sn | ✅ |
+| `dotnet format --verify-no-changes` | 122,3 sn | ✅ |
+| `kapi.py performans` | 99,4 sn | ✅ `RunEventWriterBenchmarks.AppendEvent` 112 B (tahsis kapısı `RunEventWriter.cs` yüzünden tetiklendi) |
+| `docs-site npm run check` | 33,1 sn | ✅ 1041 sayfa, 0 kırık bağlantı |
+
