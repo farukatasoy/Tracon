@@ -138,7 +138,13 @@ internal sealed class QuotaUsageObserver : CachedGaugeSource<QuotaUsageObserver.
             }
 
             var usage = await _quotaStore
-                .GetUsageAsync(new QuotaUsageQuery { TenantId = tenant.Slug }, cancellationToken)
+                .GetUsageAsync(
+                    new QuotaUsageQuery
+                    {
+                        TenantId = tenant.Slug,
+                        PeriodStarts = QuotaPeriodCalculator.GetAllPeriodStarts(now, timeZone),
+                    },
+                    cancellationToken)
                 .ConfigureAwait(false);
 
             foreach (var definition in definitions)

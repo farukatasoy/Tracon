@@ -131,6 +131,12 @@ internal sealed class InMemoryQuotaStore : IQuotaStore
             matches = matches.Where(record => record.Period == period);
         }
 
+        if (query.PeriodStarts is { } periodStarts)
+        {
+            matches = matches.Where(record =>
+                periodStarts.TryGetValue(record.Period, out var periodStart) && record.PeriodStart == periodStart);
+        }
+
         IReadOnlyList<QuotaUsageRecord> result = matches
             .OrderBy(record => record.AgentName, StringComparer.Ordinal)
             .ThenBy(record => record.Period)

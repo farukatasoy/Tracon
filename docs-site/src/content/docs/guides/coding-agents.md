@@ -233,8 +233,8 @@ dotnet build
 
 ## The diagnostics
 
-Eight diagnostics in the `Tracon.Usage` category. They are **warnings**, not
-suggestions, for one measured reason: an `Info` diagnostic never appears in
+The table lists every diagnostic in the `Tracon.Usage` category. They are
+**warnings**, not suggestions, for one measured reason: an `Info` diagnostic never appears in
 `dotnet build` output at any verbosity, and build output is the only channel a coding
 agent reliably reads.
 
@@ -248,6 +248,8 @@ agent reliably reads.
 | `TRC0401` | `AGENTS.md` was generated from an older capability map | Delete it and build again |
 | `TRC0402` | The local reference file is written, and your own `AGENTS.md` never names it | An agent reading it cannot reach the capability map on this machine; add one line |
 | `TRC0403` | The gate skill carries an older capability map revision than the installed packages | Update the tool, delete the file, and write it again |
+| `TRC0501` | A loop in an async iterator advances the enumeration without repeating an ambient write | An assignment in an async iterator body does not cross `yield return`; repeat it inside the loop, right before the call that advances it |
+| `TRC0502` | The scope an ambient `Begin…` call returns is discarded | The previous value is never restored; assign the result to a `using var` |
 
 A separate family, `TRC0001`–`TRC0008`, validates tool registration itself and comes
 from the source generator. Both families carry a help link into the

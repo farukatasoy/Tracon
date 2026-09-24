@@ -362,6 +362,17 @@ registers more than one image provider or a custom keyed generator.
 `UseScheduling()` changes worker settings from code; it does not create a second
 queue. `AddTracon()` already registers the core job contracts.
 
+Every interval that drives a background timer must be between 1 millisecond and about
+49.7 days, the .NET timer range: `Scheduling:PollInterval`,
+`RunReconciliation:HeartbeatInterval`, `RunReconciliation:ScanInterval`,
+`Approvals:ScanInterval`, `Canary:ScanInterval`, `Health:BackgroundInterval`,
+`Mcp:RefreshInterval`, and the two `Observability` gauge intervals. A lease renews at a
+fraction of its length, so `Scheduling:LeaseDuration` may be at most about 99 days and
+`SingletonExecution:LeaseDuration` about 149 days. A value outside its range fails at
+startup and names the option. Each of these is checked only while the feature that owns
+its timer is on. `Retention:BatchDelay` may be zero and is always held to at most about
+49.7 days.
+
 ### Approvals, evaluation, and canaries
 
 | Section and key | Default |

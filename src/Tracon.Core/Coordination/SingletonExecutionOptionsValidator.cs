@@ -42,6 +42,17 @@ internal sealed class SingletonExecutionOptionsValidator : IValidateOptions<Sing
                 $"Actual value: {options.LeaseDuration}.");
         }
 
+        // The renewal loop runs on a PeriodicTimer; a lease longer than three
+        // times the timer's ceiling gives it a period it refuses (F-278).
+        if (options.Enabled && !TimerPeriod.IsValid(SingletonGuard.ComputeRenewInterval(options.LeaseDuration)))
+        {
+            return ValidateOptionsResult.Fail(
+                $"{nameof(SingletonExecutionOptions)}.{nameof(SingletonExecutionOptions.LeaseDuration)} " +
+                $"must be at most {TimerPeriod.MaxMilliseconds * 3} milliseconds while " +
+                $"{nameof(SingletonExecutionOptions.Enabled)} is true: renewal runs at one third of it on a timer. " +
+                $"Actual value: {options.LeaseDuration}.");
+        }
+
         return ValidateOptionsResult.Success;
     }
 }

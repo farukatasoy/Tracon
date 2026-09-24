@@ -73,6 +73,9 @@ public sealed class QuotaEnforcer(
         IReadOnlyList<QuotaDefinition> definitions;
         IReadOnlyList<QuotaUsageRecord> usage;
 
+        var now = _clock.GetUtcNow();
+        var timeZone = options.ResolveTimeZone();
+
         try
         {
             definitions = await store.ListAsync(tenantId, cancellationToken).ConfigureAwait(false);
@@ -84,8 +87,16 @@ public sealed class QuotaEnforcer(
                 return QuotaDecision.Allowed;
             }
 
+            // Only the current periods: without the filter every check read
+            // the tenant's whole usage history, which only grows (F-275).
             usage = await store
-                .GetUsageAsync(new QuotaUsageQuery { TenantId = tenantId }, cancellationToken)
+                .GetUsageAsync(
+                    new QuotaUsageQuery
+                    {
+                        TenantId = tenantId,
+                        PeriodStarts = QuotaPeriodCalculator.GetAllPeriodStarts(now, timeZone),
+                    },
+                    cancellationToken)
                 .ConfigureAwait(false);
         }
         catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
@@ -103,9 +114,6 @@ public sealed class QuotaEnforcer(
                     Reason = "Quota could not be verified.",
                 };
         }
-
-        var now = _clock.GetUtcNow();
-        var timeZone = options.ResolveTimeZone();
 
         foreach (var definition in definitions)
         {
@@ -297,11 +305,18 @@ public sealed class QuotaEnforcer(
             return [];
         }
 
+        var now = consumption.OccurredAt;
+
         var usage = await store
-            .GetUsageAsync(new QuotaUsageQuery { TenantId = consumption.TenantId }, cancellationToken)
+            .GetUsageAsync(
+                new QuotaUsageQuery
+                {
+                    TenantId = consumption.TenantId,
+                    PeriodStarts = QuotaPeriodCalculator.GetAllPeriodStarts(now, timeZone),
+                },
+                cancellationToken)
             .ConfigureAwait(false);
 
-        var now = consumption.OccurredAt;
         List<QuotaThresholdCrossing>? crossings = null;
 
         foreach (var definition in definitions)

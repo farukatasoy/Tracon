@@ -25,11 +25,13 @@ internal sealed class TraconRetentionOptionsValidator : IValidateOptions<TraconR
                 $"must be at least 1. Actual value: {options.BatchSize}.");
         }
 
-        if (options.BatchDelay < TimeSpan.Zero)
+        // Zero means "no pause"; any other value goes to Task.Delay, which has
+        // the same ceiling as a timer (F-278).
+        if (options.BatchDelay < TimeSpan.Zero || options.BatchDelay.TotalMilliseconds > TimerPeriod.MaxMilliseconds)
         {
             (failures ??= []).Add(
                 $"{nameof(TraconRetentionOptions)}.{nameof(TraconRetentionOptions.BatchDelay)} " +
-                $"must not be negative. Actual value: {options.BatchDelay}.");
+                $"must be between 0 and {TimerPeriod.MaxMilliseconds} milliseconds. Actual value: {options.BatchDelay}.");
         }
 
         foreach (var target in RetentionTargets.All)

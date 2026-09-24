@@ -307,10 +307,20 @@ function checkStorageRow(errors, where, cells, attributes, summary) {
 
 function checkArrivalRow(errors, where, cells, attributes, summary) {
   const rate = Number(attributes.rate);
-  const windows = (summary.evidence ?? []).filter((entry) => entry.arrivalRatePerSecond === rate);
+  const measured = (summary.evidence ?? []).filter((entry) => entry.arrivalRatePerSecond === rate);
+
+  if (measured.length === 0) {
+    errors.push(`${where}: no measured window at ${attributes.rate} request(s) per second`);
+    return;
+  }
+
+  // An `invalid` window is one the driver says cannot be trusted
+  // (CellStatus.Invalid). The totals summed every window whatever its status,
+  // so such a window reached the page unnoticed (phase 174 audit, finding 4).
+  const windows = measured.filter((entry) => entry.status !== 'invalid');
 
   if (windows.length === 0) {
-    errors.push(`${where}: no measured window at ${attributes.rate} request(s) per second`);
+    errors.push(`${where}: every window at ${attributes.rate} request(s) per second is invalid; nothing can be published`);
     return;
   }
 
@@ -700,7 +710,9 @@ function checkStamps(text, measurementsRoot, seen, collected) {
   // 1 - every short SHA the page names belongs to a run that is stored.
   const commits = new Set(manifests.map(([, manifest]) => manifest.commit));
 
-  for (const [stamp] of body.matchAll(/(?<![0-9a-zA-Z])[0-9a-f]{8,40}(?![0-9a-zA-Z])/g)) {
+  // Seven characters, not eight: packageVersion carries a seven-character
+  // SHA, and a stamp in that form went unchecked (phase 174 audit, finding 3).
+  for (const [stamp] of body.matchAll(/(?<![0-9a-zA-Z])[0-9a-f]{7,40}(?![0-9a-zA-Z])/g)) {
     if (![...commits].some((commit) => commit.startsWith(stamp))) {
       errors.push(`${PAGE}: commit stamp '${stamp}' matches no stored manifest`);
     }
