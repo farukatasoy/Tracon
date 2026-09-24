@@ -69,4 +69,4 @@ flowchart LR
 | `maf-api-kesfi` | Bir MAF tipini ilk kez kullanmadan önce |
 | `kusur-giderme` | Bir kusur bulunduğunda — her an |
 | `manuel-test-kosumu` | `docs/manuel-test/` setinin **tamamı** koşulurken ve kusurları kapatılırken |
-| `nuget-danismani` | Yayın kararı verilirken ve yayın sonrası olayda — zincirin üstünde, tek faza bağlı değil |
+| `nuget-danismani` | Yayın kararı, 1.0/GA olgunluk denetimi ve yayın sonrası olayda — zincirin üstünde, tek faza bağlı değil; tek yazma yeri `docs/YAYIN-HAZIRLIK.md` |
