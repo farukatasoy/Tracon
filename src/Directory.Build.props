@@ -85,14 +85,21 @@
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
     <!--
-      TFM-vs-TFM API compatibility, checked on every `dotnet pack` (net8.0 vs
-      net9.0 vs net10.0 assemblies of the SAME package). A baseline against the
-      previous PUBLISHED version is deliberately not set here - Tracon has
-      not shipped yet, so there is no previous version to compare against; a
-      future phase adds PackageValidationBaselineVersion after the first
-      release. Rationale: docs/arsiv/fazlar/97-SURUM-POLITIKASI-VE-YAYIN-PROVASI.md, 97.4.
+      Package validation on every `dotnet pack`, in strict mode: a library
+      package has the SAME public surface in net8.0, net9.0 and net10.0. A
+      member that exists in one target only fails the pack.
+      The check against the previous PUBLISHED version runs only in the
+      release rehearsal (`scripts/kapi.py yayin`): it restores the baseline
+      packages into an isolated cache and passes TraconPackageBaselineRoot,
+      which Directory.Build.targets turns into PackageValidationBaselinePath.
+      No other pack reaches the network for a baseline. Strict mode against the
+      baseline (EnableStrictModeForBaselineValidation) stays off: it would also
+      fail an ADDED member, and the preview surface may grow.
+      Rationale: docs/KARARLAR.md (Faz 187, breaking-change gate and strict mode).
     -->
     <EnablePackageValidation>true</EnablePackageValidation>
+    <EnableStrictModeForCompatibleTfms>true</EnableStrictModeForCompatibleTfms>
+    <EnableStrictModeForCompatibleFrameworksInPackage>true</EnableStrictModeForCompatibleFrameworksInPackage>
     <!-- Shared tags; projects use $(CommonPackageTags) inside PackageTags. -->
     <CommonPackageTags>tracon;ai;agents;microsoft-agent-framework;llm;dotnet</CommonPackageTags>
   </PropertyGroup>
@@ -193,6 +200,10 @@
     diagnostic/source output, Templates' is `dotnet new` content), and
     Tracon.Client and Tracon.Cli (their surface is generated from the
     OpenAPI document, which already has its own drift gate). Rationale: docs/KARARLAR.md.
+    This is the ONLY public API tracking switch (K-421, K-424). A phase that
+    changes the surface produces a PublicAPI.Unshipped.txt diff;
+    PublicAPI.Shipped.txt stays empty through the preview line and is filled
+    once, at 1.0.0 GA (K-603).
   -->
   <PropertyGroup Label="Public API takibi katilimi">
     <TraconPublicApiTrackingEnabled Condition=" '$(TraconPublicApiTrackingEnabled)' == '' ">true</TraconPublicApiTrackingEnabled>

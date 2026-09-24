@@ -18,19 +18,49 @@
   </PropertyGroup>
 
   <!--
-    Paket dogrulama Faz 7'de acilir. O zamana kadar yayinlanmis bir taban surum
-    olmadigi icin PackageValidationBaselineVersion cozulmez ve build kirilir.
+    Taban dogrulamasi - yalniz yayin provasi (Faz 187). `scripts/kapi.py yayin`
+    son yayinlanmis surumun paketlerini IZOLE bir cache'e restore eder ve uc
+    ozellik gecirir: TraconPackageBaselineRoot, TraconPackageBaselineVersion,
+    TraconApiCompatReportDir. Kok bossa hicbir sey turetilmez; gunluk pack
+    agdan taban okumaz.
+
+    Turetme BILEREK burada: kosul csproj govdesine bakar (IncludeBuildOutput,
+    PackAsTool, TraconPackageFirstRelease), src/Directory.Build.props ise
+    govdeden once yuklenir. Kimlik $(MSBuildProjectName)'dir: depo sozlesmesi
+    proje adi = paket kimligi.
+
+    PackageValidationBaselinePath dolu oldugu icin SDK PackageDownload
+    eklemez; taban gelistirici cache'inden OKUNMAZ.
+
+    🚨 Rapor yolu hep bayrakla BIRLIKTE ve proje adindan turetilir. Yol bos
+    kalsaydi SDK raporu kaynak agacina (CompatibilitySuppressions.xml) yazar
+    ve sonraki her pack onu bastirma girdisi olarak okurdu - kirilma kalici
+    gizlenirdi. Uretim bayragi strict hatalari da dosyaya cevirir; kapi
+    IsBaselineSuppression tasimayan kaydi hata sayar (scripts/breaking_changes.py).
   -->
-  <PropertyGroup Condition=" '$(IsPackable)' == 'true' AND '$(EnablePackageValidationGate)' == 'true' ">
-    <EnablePackageValidation>true</EnablePackageValidation>
-    <EnableStrictModeForCompatibleTfms>true</EnableStrictModeForCompatibleTfms>
-    <EnableStrictModeForCompatibleFrameworksInPackage>true</EnableStrictModeForCompatibleFrameworksInPackage>
+  <PropertyGroup Condition=" '$(TraconPackageBaselineRoot)' != '' AND '$(TraconPackageBaselineVersion)' != '' AND '$(TraconApiCompatReportDir)' != '' AND '$(IsPackable)' == 'true' AND '$(IncludeBuildOutput)' != 'false' AND '$(PackAsTool)' != 'true' AND '$(TraconPackageFirstRelease)' != 'true' ">
+    <_TraconPackageBaselineId>$(MSBuildProjectName.ToLowerInvariant())</_TraconPackageBaselineId>
+    <_TraconPackageBaselineVersion>$(TraconPackageBaselineVersion.ToLowerInvariant())</_TraconPackageBaselineVersion>
+    <PackageValidationBaselinePath>$([MSBuild]::NormalizePath('$(TraconPackageBaselineRoot)', '$(_TraconPackageBaselineId)', '$(_TraconPackageBaselineVersion)', '$(_TraconPackageBaselineId).$(_TraconPackageBaselineVersion).nupkg'))</PackageValidationBaselinePath>
+    <ApiCompatGenerateSuppressionFile>true</ApiCompatGenerateSuppressionFile>
+    <ApiCompatSuppressionOutputFile>$([MSBuild]::NormalizePath('$(TraconApiCompatReportDir)', '$(MSBuildProjectName).xml'))</ApiCompatSuppressionOutputFile>
   </PropertyGroup>
 
   <!--
+    Uc ozellik birlikte gelir. Yalniz kok verilip rapor dizini unutulursa
+    turetme sessizce atlanirdi ve pack tabansiz "yesil" donerdi.
+  -->
+  <Target Name="TraconValidatePackageBaselineInputs" BeforeTargets="GenerateNuspec"
+          Condition=" '$(IsPackable)' == 'true' AND '$(TraconPackageBaselineRoot)' != '' ">
+    <Error Condition=" '$(TraconPackageBaselineVersion)' == '' OR '$(TraconApiCompatReportDir)' == '' "
+           Code="TRACON0007"
+           Text="TraconPackageBaselineRoot was set for package '$(MSBuildProjectName)' without TraconPackageBaselineVersion and TraconApiCompatReportDir. The three properties come together; scripts/kapi.py yayin passes all of them." />
+  </Target>
+
+  <!--
     Yayinlanabilir her paket icin Public API takip dosyalari. Analyzer bu dosyalari
-    AdditionalFiles olarak bekler. EnablePublicApiTracking false iken analyzer
-    yuklu kalir ama tanilar NoWarn ile susturulur (bkz. Directory.Build.props).
+    AdditionalFiles olarak bekler; analyzer'in kendisi src/Directory.Build.props'ta
+    TraconPublicApiTrackingEnabled ile eklenir (proje basina kapatma, K-424).
   -->
   <ItemGroup Condition=" '$(IsPackable)' == 'true' ">
     <AdditionalFiles Include="PublicAPI.Shipped.txt" Condition="Exists('PublicAPI.Shipped.txt')" />
