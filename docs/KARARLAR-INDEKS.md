@@ -2,17 +2,14 @@
 
 > **Üretilen, elle düzenlenmez.** Kaynak: `KARARLAR.md` · üretim: `scripts/dokuman-bakim.py`
 
-Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 779 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
+Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 782 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
 
 ---
 
-## En Yeni Kalıcı Kararlar (88 / 867 kalem)
+## En Yeni Kalıcı Kararlar (88 / 870 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
-| K-780 | 831 | `Tracon.Testing` çalışma paketleriyle AYNI matrisi hedefler (`net8.0;net9.0;net10.0`); K-270'in tek-TFM daralması KALDIRILDI |
-| K-781 | 832 | `docs/KARARLAR.md` bütçesi 420.000 → 450.000; sınır yine damıtma SONRASI ölçülen değere ~%7 boşluk eklenerek kondu |
-| K-782 | 833 | Best-effort `run` kaydı YAYIMLANMIŞ bir sözleşmedir (K-776'nın kardeşi) ve ihlali SAYILIR; `tracon.recording.stage` KAPALI bir kümedir |
 | K-783 | 834 | Bildirimsel `kind` adları HER İKİ defterde de büyük/küçük harf DUYARSIZ çözülür; yerleşik bir `kind`'in harf varyantını kaydetmek başlangıçta atar 👤 |
 | K-784 | 835 | Bir kapı, iddianın makine okunur bir kaynağı VARSA doğruluğu denetler; yoksa yalnız varlığı (K-766'nın diğer yüzü) |
 | K-785 | 836 | Konsolda `window.confirm` / `alert` / `prompt` KULLANILMAZ; tek bir modal katmanı vardır (`components/dialog.tsx`) ve `frontend/scripts/check-modal-layer.mjs` bunu zorlar |
@@ -98,3 +95,6 @@ Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLA
 | K-865 | 916 | Her library paketinin public yüzeyi TFM'ler arasında aynıdır: `EnableStrictModeForCompatibleTfms` ve `EnableStrictModeForCompatibleFrameworksInPackage` `src/Directory.Build.props`'ta koşulsuz açık; yalnız bir TFM'de derlenen public üye pack'i kırar (Faz 187) (kullanıcı kararı) 👤 |
 | K-866 | 917 | DI'ın veya Tracon boru hattının kurduğu public servis tipinin kurucusu `internal`'dır; tip public kalabilir. Tip tabanlı DI kaydı olan böyle bir tip fabrika kaydı kullanır. Opsiyonel parametreli public kurucu yalnız tüketicinin kurduğu tipte olur ve ratchet tabanına gerekçeyle girer; taban yalnız küçülür (Faz 188, F-271 A) (kullanıcı kararı) 👤 |
 | K-867 | 918 | `ITraconBuilder` yalnız `Services` taşır; Tracon'un bütün kayıt yetenekleri statik uzantı metodudur (`TraconBuilderExtensions`, Core) ve arayüze üye eklenmez. `TraconToolRegistration` tek zorunlu kurucu parametresi (`function`) + yedi `init` ayarı kullanır; yeni tool ayarı `init` özelliğidir. Kaldırılan imzalar `[Obsolete]` geçişi olmadan kalktı, önceki preview ikilisi yeniden derlenir (Faz 189, F-271 B) (kullanıcı kararı) 👤 |
+| K-868 | 919 | Kimlik başlığı yalnız anahtar ADIYLA saklanır (`HeaderConfigurationKeys`, MCP + webhook); her ad kaydetmede ve çözmede K-852'den geçer; düz `headers`'ta kimlik benzeri ad `400`; eski satır gönderilir ve uyarı loglanır (Faz 190, K-059'u genişletir) (kullanıcı kararı) 👤 |
+| K-869 | 920 | `AuthorizationConfigurationKey` `[Obsolete]` (yalnız mesaj + `UrlFormat`, `DiagnosticId` YOK), `1.0.0`'da kalkar; iki alandan veya OAuth ile `Authorization` `400` (Faz 190) (kullanıcı kararı) 👤 |
+| K-870 | 921 | MCP/webhook `PUT`: `headers` veya `headerConfigurationKeys` yok ya da `null` → saklı değer; `{}` temizler (Faz 190) (kullanıcı kararı) 👤 |

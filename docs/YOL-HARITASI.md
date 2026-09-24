@@ -202,7 +202,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [187](arsiv/fazlar/187-KIRICI-DEGISIKLIK-KAPISI.md) | Yayınlanmış Sürüme Karşı Kırıcı Değişiklik Kapısı | ✅ Tamamlandı |
 | [188](arsiv/fazlar/188-DI-KURUCU-DARALTMA.md) | DI ile Kurulan Servis Tiplerinde Kurucu Daraltması | ✅ Tamamlandı |
 | [189](arsiv/fazlar/189-TUKETICI-YUZEYI-VE-BUILDER.md) | Tüketici Yüzeyi: TraconToolRegistration ve ITraconBuilder | ✅ Tamamlandı |
-| [190](190-KIMLIK-BASLIKLARI-ANAHTAR-REFERANSI.md) | Kimlik Taşıyan Başlıklar İçin Yapılandırma Anahtarı Referansı | 📋 Planlandı |
+| [190](190-KIMLIK-BASLIKLARI-ANAHTAR-REFERANSI.md) | Kimlik Taşıyan Başlıklar İçin Yapılandırma Anahtarı Referansı | ✅ Tamamlandı |
 | [191](191-TEK-DERLEME-ZINCIRI.md) | Tek Derleme Zinciri | 📋 Planlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).
