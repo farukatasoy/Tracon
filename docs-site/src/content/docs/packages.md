@@ -181,7 +181,9 @@ is the recommended path — filled in at compile time, no reflection at all.
 
 `Tracon.AspNetCore` depends on `Microsoft.Agents.AI.Hosting` (preview) and
 `.Hosting.OpenAI` (alpha). Every pre-release dependency is deliberately concentrated
-there, so a consumer using only the runtime never takes one.
+there, so a consumer using only the runtime never takes one. Each one is pinned to an
+exact version, because a pre-release makes no promise between its own previews; see
+[Compatibility](/reference/compatibility/#a-pre-release-dependency-is-an-exact-pin).
 
 The same package also carries the OpenAPI document for the endpoints it serves,
 under `buildTransitive/tracon.json`. It is a static file and adds no

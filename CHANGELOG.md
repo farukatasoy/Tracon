@@ -122,6 +122,11 @@ change.
 
 ### Fixed
 
+- `Tracon.UI` now carries the notices of the third-party code in its embedded
+  console: React, React DOM, `scheduler`, TanStack Query, `openapi-fetch`, and
+  Tailwind CSS, all MIT. `THIRD-PARTY-NOTICES.txt` ships at the package root and
+  inside `Tracon.UI.dll`. Before, the package redistributed that code without
+  them.
 - A webhook subscription whose headers differ only in case (`X-A` and `x-a`)
   no longer fails the SQL save with `500`, and such an MCP server no longer
   fails to connect.
@@ -272,6 +277,14 @@ preview line, and the counts below are types, not members.
 
 ### Changed
 
+- `Tracon.AspNetCore` now depends on exact versions of its five pre-release
+  packages: `Microsoft.Agents.AI.Hosting`, `.Hosting.A2A`, `.Hosting.AspNetCore`,
+  `.Hosting.OpenAI`, and `A2A.AspNetCore`. Before, each was a lower bound, so a
+  newer Hosting preview restored without a warning and failed at run time: in
+  `1.22.0-preview`, `Microsoft.Agents.AI.Hosting.AgentSessionStore` moved out of
+  the Hosting assembly (`TypeLoadException`). A direct reference to another
+  version now reports `NU1608` at restore, and a transitive one `NU1107`. Move
+  to a newer Hosting preview together with the Tracon release built against it.
 - `TraconToolRegistration` takes only the tool in its constructor. Every other
   setting is an `init` property with the same default as before, so a setting
   added later does not change the constructor again:

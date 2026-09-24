@@ -1802,6 +1802,21 @@ class BagimlilikSurumDamgasiTestleri(unittest.TestCase):
         kok = self._kok("/// Measured against the real OpenAI 2.12.0 client.", self.DOSYA)
         self.assertEqual([], dokuman_bakim.bagimlilik_surum_damgasi(kok))
 
+    def test_tam_aralikli_pin_surumu_olarak_okunur(self):
+        """K-872: on surum ust akis `[x]` ile pinlenir; ayni damga yesil, sapan kirmizi."""
+        kok = self._kok("/// Measured against Microsoft.Agents.AI.Hosting.OpenAI 1.20.0-alpha.260831.1.",
+                        "src/Tracon.AspNetCore/OpenAICompat/OpenAIResponsesEndpoints.cs")
+        props = kok / "Directory.Packages.props"
+        props.write_text(props.read_text(encoding="utf-8").replace(
+            'Version="1.20.0-alpha.260831.1"', 'Version="[1.20.0-alpha.260831.1]"'), encoding="utf-8")
+        self.assertEqual([], dokuman_bakim.bagimlilik_surum_damgasi(kok))
+
+        props.write_text(props.read_text(encoding="utf-8").replace(
+            "[1.20.0-alpha.260831.1]", "[1.22.0-alpha.260918.1]"), encoding="utf-8")
+        bulgular = dokuman_bakim.bagimlilik_surum_damgasi(kok)
+        self.assertEqual(1, len(bulgular))
+        self.assertIn("pini 1.22.0-alpha.260918.1", bulgular[0])
+
     def test_msbuild_degiskeni_cozulur(self):
         kok = self._kok("/// Measured against MAF 1.19.0 (2026-09-07).",
                         "src/Tracon.Core/Compilation/RecordingLoopEvaluator.cs")

@@ -1048,6 +1048,10 @@ def _pin_surumleri(kok: pathlib.Path) -> dict[str, str]:
             r'<PackageVersion\s+Include="([^"]+)"\s+Version="([^"]+)"', metin):
         if (m := re.fullmatch(r"\$\((\w+)\)", surum.strip())):
             surum = degiskenler.get(m.group(1), surum)
+        # K-872: on surum ust akis tam aralikla pinlenir (`[x]`); damga
+        # araligi degil surumu yazar.
+        if (m := re.fullmatch(r"\[\s*([^,\]\s]+)\s*\]", surum.strip())):
+            surum = m.group(1)
         pinler[ad] = surum
     return pinler
 

@@ -36,6 +36,7 @@
 | Analyzer/üreteç **yazımı** (`APG*`) | [analyzer-yazimi](analyzer-yazimi.md) |
 | `dotnet pack`, `buildTransitive/`, şablon, feed | [paketleme-ve-dagitim](paketleme-ve-dagitim.md) |
 | MinVer sürümleme, repo dışı tüketiciyi bağlama | [yayin-ve-surumleme](yayin-ve-surumleme.md) |
+| Üçüncü taraf lisans bildirimi, ön sürüm üst akış aralığı | [tedarik-zinciri](tedarik-zinciri.md) |
 | NSwag ile üretilen istemci (`Tracon.Client`/`@tracon/client`) | [nswag-istemci-uretimi](nswag-istemci-uretimi.md) |
 | Test **yazımı** (xunit, sözleşme, Playwright) | [test-altyapisi](test-altyapisi.md) |
 | Test **koşumu** asılı/eksik (`dotnet test`) | [komut/MSBuild](test-kosum-tuzaklari.md) · [paralellik/zamanlama](test-paralellik-ve-zamanlama.md) |

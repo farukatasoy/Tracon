@@ -1029,7 +1029,8 @@ class YayinTestleri(unittest.TestCase):
         sys.path.insert(0, str(ROOT / "scripts"))
         return importlib.import_module("breaking_changes")
 
-    def _rehearse(self, root: pathlib.Path, *, finish=None, restore=None, baseline="1.0.0-preview.2", not_run=None):
+    def _rehearse(self, root: pathlib.Path, *, finish=None, restore=None, baseline="1.0.0-preview.2", not_run=None,
+                  default_release_dir=False):
         bc = self._breaking_changes_module()
         pack_calls: list[list[str]] = []
 
@@ -1050,7 +1051,8 @@ class YayinTestleri(unittest.TestCase):
             finish_mock = stack.enter_context(mock.patch.object(
                 kapi, "_finish_release_rehearsal", finish or mock.Mock(return_value=0)))
             stack.enter_context(contextlib.redirect_stdout(output))
-            result = kapi.release_rehearsal(None, root=root, release_dir=root / "artifacts" / "package" / "release")
+            release_dir = None if default_release_dir else root / "artifacts" / "package" / "release"
+            result = kapi.release_rehearsal(None, root=root, release_dir=release_dir)
         return result, pack_calls, finish_mock, output.getvalue()
 
     def _library_root(self, directory: str) -> pathlib.Path:
@@ -1140,6 +1142,37 @@ class YayinTestleri(unittest.TestCase):
             self.assertFalse(seen["work"].exists())
             self.assertFalse((root / "artifacts" / "package" / "release").exists())
 
+    def test_prova_varsayilanda_surum_ve_commit_dizinine_yazar_release_dizinine_dokunmaz(self):
+        """`release/` geliştirme feed'idir; oradaki eski sürümler provanın sample
+        kapısını dakikalarca paketlemeden SONRA düşürüyordu (2026-09-24)."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = self._library_root(directory)
+            package_root = root / "artifacts" / "package"
+            (package_root / "release").mkdir(parents=True)
+            stale = package_root / "release" / "Tracon.Core.1.0.0-preview.2.82.nupkg"
+            stale.write_bytes(b"eski")
+
+            with mock.patch.object(kapi, "PACKAGE_RELEASE_DIR", package_root / "release"), \
+                    mock.patch.object(kapi, "PACKAGE_REHEARSAL_ROOT", package_root / "yayin"), \
+                    mock.patch.object(kapi, "_head_commit", return_value="0123456789abcdef0123"), \
+                    mock.patch.object(kapi, "_resolve_package_set", return_value=({}, "1.0.0-preview.3")):
+                result, _, finish, output = self._rehearse(root, default_release_dir=True)
+
+            self.assertEqual(result, 0, output)
+            self.assertEqual(finish.call_args.kwargs["release_dir"], package_root / "yayin" / "1.0.0-preview.3")
+            self.assertEqual(finish.call_args.kwargs["staging_dir"].parent, package_root / "staging")
+            self.assertEqual(stale.read_bytes(), b"eski")
+            self.assertIn("Prova çıktısı:", output)
+
+    def test_prova_dizini_surum_basinadir(self):
+        """Faz 136 dizinin İÇİNDE geçerli kalır: aynı sürümün yeni commit'i aynı
+        dizine düşer ve farklı içerik reddedilir (MT-PKG-116)."""
+        root = pathlib.Path("/x")
+
+        self.assertEqual(kapi.rehearsal_release_dir("1.0.0-preview.3", root), root / "1.0.0-preview.3")
+        self.assertNotEqual(kapi.rehearsal_release_dir("1.0.0-preview.3", root),
+                            kapi.rehearsal_release_dir("1.0.0-preview.2", root))
+
     def test_bayat_ilk_yayin_bayragi_pack_denenmez(self):
         bc = self._breaking_changes_module()
         with tempfile.TemporaryDirectory() as directory:
@@ -1187,6 +1220,103 @@ class YayinTestleri(unittest.TestCase):
                 requested_version=None, commit="abcdef1234", breaking_gate=gate)
         checked.assert_called_once_with(root, gate, "1.0.0-preview.2.47")
         return result, release_dir, output.getvalue()
+
+    def _finish_packages(self, root: pathlib.Path, packages: dict[str, tuple[str, dict[str, bytes]]]):
+        """`_finish_release_rehearsal` over hand-made packages: id -> (nuspec
+        dependency XML, extra root entries). The breaking gate is green."""
+        staging_dir = root / "staging"
+        staging_dir.mkdir()
+        release_dir = root / "release"
+        # Etiket biçiminde olmayan sürüm: CHANGELOG kapısı bu testlerin konusu değil.
+        version = "1.0.0-preview.2.47"
+        for project_id, (dependencies, extra) in packages.items():
+            project_dir = root / "src" / project_id
+            project_dir.mkdir(parents=True, exist_ok=True)
+            (project_dir / f"{project_id}.csproj").write_text('<Project Sdk="Microsoft.NET.Sdk" />\n', encoding="utf-8")
+            self._write_valid_library_nupkg(staging_dir, project_id, version)
+            nupkg = staging_dir / f"{project_id}.{version}.nupkg"
+            with zipfile.ZipFile(nupkg) as archive:
+                entries = {name: archive.read(name) for name in archive.namelist()}
+            nuspec = entries[f"{project_id}.nuspec"].decode()
+            entries[f"{project_id}.nuspec"] = nuspec.replace(
+                "</metadata>", f"<dependencies>{dependencies}</dependencies></metadata>").encode()
+            entries.update(extra)
+            with zipfile.ZipFile(nupkg, "w") as archive:
+                for name, data in entries.items():
+                    archive.writestr(name, data)
+        sys.path.insert(0, str(ROOT / "scripts"))
+        samples = importlib.import_module("release_extension_samples")
+        gate = kapi.BreakingChangeGate(baseline="1.0.0-preview.2", report_dir=root / "reports")
+        output = io.StringIO()
+        with mock.patch.object(kapi, "_check_breaking_changes", return_value=0), \
+                mock.patch.object(kapi, "_npm_dry_run", return_value=0), \
+                mock.patch.object(samples, "verify", return_value=0), \
+                contextlib.redirect_stdout(output):
+            result = kapi._finish_release_rehearsal(
+                root=root, release_dir=release_dir, staging_dir=staging_dir, project_ids=sorted(packages),
+                requested_version=None, commit="abcdef1234", breaking_gate=gate)
+        return result, output.getvalue()
+
+    HOSTING = '<dependency id="Microsoft.Agents.AI.Hosting" version="{0}" exclude="Build,Analyzers" />'
+
+    def test_on_surum_ucuncu_taraf_bagimlilik_acik_alt_sinirsa_kirmizi(self):
+        """A-59: `version="x"` = `>= x`; yayınlanmış preview.2 Hosting 1.22 ile
+        uyarısız restore olup çalışma anında düştü."""
+        with tempfile.TemporaryDirectory() as directory:
+            result, output = self._finish_packages(pathlib.Path(directory), {
+                "Tracon.AspNetCore": (self.HOSTING.format("1.20.0-preview.260831.1"), {})})
+
+        self.assertEqual(result, 1, output)
+        self.assertIn("tam aralık değil (A-59): Microsoft.Agents.AI.Hosting 1.20.0-preview.260831.1", output)
+
+    def test_on_surum_ucuncu_taraf_bagimlilik_tam_araliksa_gecer(self):
+        with tempfile.TemporaryDirectory() as directory:
+            result, output = self._finish_packages(pathlib.Path(directory), {
+                "Tracon.AspNetCore": (
+                    self.HOSTING.format("[1.20.0-preview.260831.1]")
+                    + self.HOSTING.replace("Hosting", "Hosting.A2A").format(
+                        "[1.20.0-preview.260831.1, 1.20.0-preview.260831.1]"), {})})
+
+        self.assertEqual(result, 0, output)
+
+    def test_on_surum_farkli_iki_sinirli_aralik_tam_sayilmaz(self):
+        self.assertIsNone(kapi.EXACT_RANGE_PATTERN.fullmatch("[1.0.0-preview.1, 1.0.0-preview.2]"))
+        self.assertIsNone(kapi.EXACT_RANGE_PATTERN.fullmatch("[1.0.0-preview.1, )"))
+        self.assertIsNotNone(kapi.EXACT_RANGE_PATTERN.fullmatch("[1.0.0-preview.1]"))
+
+    def _ui_notice(self, root: pathlib.Path, text: bytes) -> None:
+        source = root / kapi.THIRD_PARTY_NOTICE_PACKAGES["Tracon.UI"]
+        source.parent.mkdir(parents=True, exist_ok=True)
+        source.write_bytes(text)
+
+    def test_ui_paketi_lisans_bildirimi_tasimiyorsa_kirmizi(self):
+        """BL-058: gömülü React/TanStack paketlenir, MIT bildirimi kopyayla gider."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            self._ui_notice(root, b"react\n")
+            result, output = self._finish_packages(root, {"Tracon.UI": ("", {})})
+
+        self.assertEqual(result, 1, output)
+        self.assertIn("THIRD-PARTY-NOTICES.txt paket kökünde yok (BL-058)", output)
+
+    def test_ui_bildirimi_kaynaktan_farkliysa_kirmizi(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            self._ui_notice(root, b"react\n")
+            result, output = self._finish_packages(
+                root, {"Tracon.UI": ("", {"THIRD-PARTY-NOTICES.txt": b"eski\n"})})
+
+        self.assertEqual(result, 1, output)
+        self.assertIn("ile aynı değil", output)
+
+    def test_ui_bildirimi_kaynakla_ayniysa_gecer(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            self._ui_notice(root, b"react\n")
+            result, output = self._finish_packages(
+                root, {"Tracon.UI": ("", {"THIRD-PARTY-NOTICES.txt": b"react\n"})})
+
+        self.assertEqual(result, 0, output)
 
     def test_kirici_kapi_kirmiziyken_promote_yok(self):
         with tempfile.TemporaryDirectory() as directory:

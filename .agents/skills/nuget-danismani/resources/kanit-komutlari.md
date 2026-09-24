@@ -47,8 +47,8 @@ publish (v* tag) : kapi.py paket-dogrula → dotnet nuget push   (yalnız doğru
 | Yapar | Yapmaz |
 |---|---|
 | Sürümü zorlar (`MinVerVersionOverride`); `git tag` atmaz | Etiketi **atmaz** — o kullanıcının kararıdır |
-| Koşuma özgü **staging** dizinine paketler, `release_dir`'e promote eder; aynı kimlikte FARKLI içerik varsa hiçbirini taşımaz ve kırmızı döner (Faz 136, `_promote_staged_packages`) | Kaynak ağacındaki davranışı ölçmez |
-| Paket kimlik kümesini, sürüm hattını, ikonu, metaveriyi, K-008 ön sürüm sınırını doğrular | Paket **içeriğinin** doğruluğunu ölçmez (bkz. §2) |
+| Koşuma özgü **staging** dizinine paketler, `artifacts/package/yayin/<sürüm>/`'e promote eder; aynı kimlikte FARKLI içerik varsa hiçbirini taşımaz ve kırmızı döner (Faz 136, `_promote_staged_packages`) | Kaynak ağacındaki davranışı ölçmez |
+| Paket kimlik kümesini, sürüm hattını, ikonu, metaveriyi, K-008 ön sürüm sınırını, ön sürüm bağımlılığın tam aralığını (K-872) ve `Tracon.UI` üçüncü taraf bildirimini (BL-058) doğrular | Paket **içeriğinin** doğruluğunu ölçmez (bkz. §2) |
 | Son `v*` etiketinin paketlerini izole cache'e restore eder ve ApiCompat taban doğrulaması koşar; kırılan her tip sürüm notunda adıyla geçmezse kırmızıdır (K-864). **Ağ ister** | HTTP/OpenAPI, yapılandırma, telemetri ve hata kodu yüzeylerinin kırılmasını ölçmez (`sozlesme-yuzeyleri.md`) |
 | TFM başına XML doküman varlığını doğrular | XML dokümanının **doğruluğunu** ölçmez |
 | `npm publish --dry-run` koşar (npm yoksa **atlar**) | npm yoksa sessizce geçer — çıktıyı oku |

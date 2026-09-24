@@ -125,9 +125,11 @@ public sealed class ReleaseArtifactTests(ReleaseArtifactFixture fixture)
 
                 if (!IsTraconPackage(dependencyId))
                 {
-                    if (range.StartsWith('['))
+                    // A pre-release third-party range is exact on purpose; see
+                    // EveryPrereleaseThirdPartyDependencyIsExact.
+                    if (range.StartsWith('[') && !IsPrereleaseRange(range))
                     {
-                        violations.Add($"{location}: a third-party dependency must keep NuGet's lower bound");
+                        violations.Add($"{location}: a stable third-party dependency must keep NuGet's lower bound");
                     }
 
                     continue;
@@ -157,6 +159,157 @@ public sealed class ReleaseArtifactTests(ReleaseArtifactFixture fixture)
             $"{violations.Count} sibling dependency group(s) are not pinned to the package's own version:\n{string.Join("\n", violations)}");
     }
 
+    /// <summary>
+    /// Every pre-release third-party dependency is an EXACT range (A-59, UR-006).
+    /// </summary>
+    /// <remarks>
+    /// A pre-release upstream breaks between its own previews. Measured
+    /// (2026-09-24): the published <c>Tracon.AspNetCore</c> 1.0.0-preview.2 with
+    /// MAF Hosting 1.22.0-preview restored with zero warnings and then failed at
+    /// run time - <c>Microsoft.Agents.AI.Hosting.AgentSessionStore</c> moved to
+    /// another assembly without a type forwarder. An open lower bound invites
+    /// exactly that upgrade; an exact range makes NuGet report it at restore
+    /// (NU1608 for a direct reference, NU1107 for a transitive one). A stable
+    /// third-party dependency keeps its lower bound.
+    /// </remarks>
+    [Fact]
+    public void EveryPrereleaseThirdPartyDependencyIsExact()
+    {
+        var violations = new List<string>();
+        var prereleaseEdges = 0;
+
+        foreach (var id in PackableProjects.Ids())
+        {
+            var metadata = XDocument.Parse(ReadNuspec(id)).Root?.Elements().SingleOrDefault(element => IsNamed(element, "metadata"))
+                ?? throw new InvalidOperationException($"'{id}.nuspec' has no <metadata> element.");
+
+            foreach (var (group, dependency) in Dependencies(metadata))
+            {
+                var dependencyId = dependency.Attribute("id")?.Value ?? string.Empty;
+                var range = dependency.Attribute("version")?.Value ?? string.Empty;
+
+                if (IsTraconPackage(dependencyId) || !IsPrereleaseRange(range))
+                {
+                    continue;
+                }
+
+                prereleaseEdges++;
+
+                if (ExactRangeVersion(range) is null)
+                {
+                    violations.Add($"{id} · {group} · {dependencyId} · {range}: expected an exact range [x]");
+                }
+            }
+        }
+
+        prereleaseEdges.ShouldBeGreaterThan(
+            0, "Tracon.AspNetCore declares pre-release dependencies (K-008) and none was found; the parser no longer matches the nuspec shape.");
+        violations.ShouldBeEmpty(
+            $"{violations.Count} pre-release third-party dependency group(s) keep an open lower bound:\n{string.Join("\n", violations)}");
+    }
+
+    /// <summary>
+    /// Tracon.UI ships third-party JavaScript, so the package and every assembly
+    /// that embeds it carry the notices those licences require (BL-058).
+    /// </summary>
+    /// <remarks>
+    /// The bundle embeds React, React DOM, <c>scheduler</c>, TanStack Query and
+    /// <c>openapi-fetch</c>. Vite drops their licence comments, so before this
+    /// fact the package carried their code and none of their notices. The
+    /// assembly is what a consumer deploys, so the notice travels inside it;
+    /// the package-root copy is what a licence scanner reads. Both must equal
+    /// the file the frontend build checks against the real module graph.
+    /// </remarks>
+    [Fact]
+    public void UiPackageCarriesThirdPartyNotices()
+    {
+        const string Id = "Tracon.UI";
+        const string Notice = "THIRD-PARTY-NOTICES.txt";
+
+        var noticePath = Path.Combine(RepoPaths.Root, "src", Id, Notice);
+        File.Exists(noticePath).ShouldBeTrue($"src/{Id}/{Notice} does not exist; the frontend build writes it with `node scripts/third-party-notices.mjs --write`.");
+
+        var expected = File.ReadAllText(noticePath);
+        expected.ShouldContain("react-dom", customMessage: $"src/{Id}/{Notice} names no bundled package.");
+
+        using var package = ZipFile.OpenRead(NupkgPath(Id));
+        var rootEntry = package.GetEntry(Notice);
+        rootEntry.ShouldNotBeNull($"{Id} does not carry {Notice} at the package root.");
+        ReadText(rootEntry).ShouldBe(expected, $"The packed {Notice} differs from src/{Id}/{Notice}.");
+
+        var assemblies = package.Entries
+            .Where(entry => entry.FullName.StartsWith("lib/", StringComparison.Ordinal)
+                && entry.FullName.EndsWith($"/{Id}.dll", StringComparison.Ordinal))
+            .ToList();
+        assemblies.ShouldNotBeEmpty($"{Id} carries no assembly.");
+
+        foreach (var assembly in assemblies)
+        {
+            EmbeddedResourceText(assembly, $"Tracon.UI.wwwroot/{Notice}").ShouldBe(
+                expected, $"{assembly.FullName} does not embed the same {Notice}.");
+        }
+    }
+
+    private static string ReadText(ZipArchiveEntry entry)
+    {
+        using var reader = new StreamReader(entry.Open());
+        return reader.ReadToEnd();
+    }
+
+    /// <summary>The text of one manifest resource, or <see langword="null"/> when the assembly lacks it.</summary>
+    private static string? EmbeddedResourceText(ZipArchiveEntry entry, string resourceName)
+    {
+        using var buffer = new MemoryStream();
+
+        using (var stream = entry.Open())
+        {
+            stream.CopyTo(buffer);
+        }
+
+        buffer.Position = 0;
+
+        using var portableExecutable = new PEReader(buffer);
+        var metadata = portableExecutable.GetMetadataReader();
+
+        foreach (var handle in metadata.ManifestResources)
+        {
+            var resource = metadata.GetManifestResource(handle);
+
+            if (!string.Equals(metadata.GetString(resource.Name), resourceName, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            var directory = portableExecutable.PEHeaders.CorHeader?.ResourcesDirectory
+                ?? throw new InvalidOperationException($"{entry.FullName} has no CLI header.");
+            var section = portableExecutable.GetSectionData(directory.RelativeVirtualAddress).GetReader();
+            section.Offset = checked((int)resource.Offset);
+            var length = section.ReadInt32();
+
+            return System.Text.Encoding.UTF8.GetString(section.ReadBytes(length));
+        }
+
+        return null;
+    }
+
+    /// <summary>A NuGet range is pre-release when either bound carries a pre-release label.</summary>
+    private static bool IsPrereleaseRange(string range) => range.Contains('-', StringComparison.Ordinal);
+
+    /// <summary>The version of an exact range (<c>[v]</c> or <c>[v, v]</c>), or <see langword="null"/>.</summary>
+    private static string? ExactRangeVersion(string range)
+    {
+        if (range.Length < 3 || range[0] != '[' || range[^1] != ']')
+        {
+            return null;
+        }
+
+        var bounds = range[1..^1].Split(',', StringSplitOptions.TrimEntries);
+
+        return bounds.Length is 1 or 2 && bounds.All(bound => string.Equals(bound, bounds[0], StringComparison.Ordinal)) && bounds[0].Length > 0
+            ? bounds[0]
+            : null;
+    }
+
     /// <summary>The nuspec namespace changes with the schema version, so elements are matched by local name.</summary>
     private static bool IsNamed(XElement element, string localName)
         => string.Equals(element.Name.LocalName, localName, StringComparison.Ordinal);
@@ -166,16 +319,7 @@ public sealed class ReleaseArtifactTests(ReleaseArtifactFixture fixture)
 
     /// <summary><c>[v]</c> and <c>[v, v]</c> are the two spellings of an exact NuGet range.</summary>
     private static bool IsExactRangeOn(string range, string version)
-    {
-        if (range.Length < 3 || range[0] != '[' || range[^1] != ']')
-        {
-            return false;
-        }
-
-        var bounds = range[1..^1].Split(',', StringSplitOptions.TrimEntries);
-
-        return bounds.Length is 1 or 2 && bounds.All(bound => string.Equals(bound, version, StringComparison.Ordinal));
-    }
+        => string.Equals(ExactRangeVersion(range), version, StringComparison.Ordinal);
 
     private static IEnumerable<(string Group, XElement Dependency)> Dependencies(XElement metadata)
     {

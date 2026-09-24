@@ -137,21 +137,35 @@ These are the versions they declare.
 | `Tracon.OpenAI` | `Microsoft.Agents.AI.OpenAI` 1.20.0 · `Microsoft.Extensions.AI.OpenAI` 10.9.0 |
 | `Tracon.Azure` | `Microsoft.Extensions.AI.OpenAI` 10.9.0 |
 | `Tracon.Testing.Contracts.Xunit` | `Microsoft.Agents.AI` 1.20.0 · `Microsoft.Extensions.AI` 10.9.0 |
-| `Tracon.AspNetCore` | `Microsoft.Agents.AI.Hosting`, `.Hosting.AspNetCore`, and `.Hosting.A2A` at a 1.20.0 pre-release · `.Hosting.OpenAI` at a 1.20.0 alpha |
+| `Tracon.AspNetCore` | `Microsoft.Agents.AI.Hosting`, `.Hosting.AspNetCore`, and `.Hosting.A2A` at exactly a 1.20.0 pre-release · `.Hosting.OpenAI` at exactly a 1.20.0 alpha · `A2A.AspNetCore` at exactly `1.0.0-preview2` |
 
 `Tracon.AspNetCore` is the only package that carries a pre-release Agent Framework
 dependency, and it is the only one permitted to.
 
-### A declared version is a floor, not a pin
+### A pre-release dependency is an exact pin
 
-Each entry above is a minimum. NuGet reads `1.20.0` as `[1.20.0, )` and then resolves
+The five pre-release entries of `Tracon.AspNetCore` are exact ranges, such as
+`[1.20.0-preview.260831.1]`. A pre-release package makes no compatibility promise
+between its own previews, and this one broke: `Microsoft.Agents.AI.Hosting.AgentSessionStore`
+left the Hosting assembly in `1.22.0-preview`, so a project that raised Hosting under
+`1.0.0-preview.2` restored without a warning and failed at run time with a
+`TypeLoadException`.
+
+With an exact range NuGet reports the same situation at restore instead. A direct
+reference to another version gives `NU1608`, and a package that needs another
+version gives `NU1107`. To move to a newer Hosting preview, move to the Tracon release
+that is built against it.
+
+### A stable dependency is a floor, not a pin
+
+Every other entry above is a minimum. NuGet reads `1.20.0` as `[1.20.0, )` and then resolves
 the **lowest** version that satisfies every constraint in the graph, so a project that
 asks for nothing else restores exactly the version listed. You get a different version
 only when something asks for one: a direct `PackageReference` to a higher version, or
 another package whose own floor is higher.
 
-Tracon declares **no upper bound**. A newer Agent Framework is allowed to resolve, and
-Tracon will not stop it.
+For a stable dependency Tracon declares **no upper bound**. A newer Agent Framework is
+allowed to resolve, and Tracon will not stop it.
 
 ### What is tested, and what is promised
 

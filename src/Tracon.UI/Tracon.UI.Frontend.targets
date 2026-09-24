@@ -65,6 +65,9 @@
     <TraconFrontendInput Include="$(TraconFrontendRoot)/package-lock.json" />
     <TraconFrontendInput Include="$(TraconFrontendRoot)/tsconfig.json" />
     <TraconFrontendInput Include="$(TraconFrontendRoot)/vite.config.ts" />
+    <TraconFrontendInput Include="$(TraconFrontendRoot)/vite.embed.config.ts" />
+    <!-- The build compares its notice with this file (BL-058); an edit must re-run it. -->
+    <TraconFrontendInput Include="$(MSBuildProjectDirectory)/THIRD-PARTY-NOTICES.txt" />
 
     <TraconClientInput Include="$(TraconClientPackageRoot)/src/**/*" />
     <TraconClientInput Include="$(TraconClientPackageRoot)/package.json" />

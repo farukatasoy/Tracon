@@ -88,6 +88,13 @@ that point. Get in touch and it will be handled without drama.
 **What if we are already in breach?** The licence gives you 32 days from written
 notice to come into compliance, after which the licences end.
 
+**Does a package contain third-party code?** `Tracon.UI` does. The console it
+embeds is a JavaScript and CSS bundle that contains React, React DOM, `scheduler`,
+TanStack Query, `openapi-fetch`, and Tailwind CSS, all under the MIT licence. Their
+notices ship as `THIRD-PARTY-NOTICES.txt` at the package root and inside
+`Tracon.UI.dll`, next to the bundle. The release build checks that file against the
+modules the bundle actually contains.
+
 ## The full terms
 
 The canonical text is reproduced without modification in `LICENSE.md`, which ships
