@@ -1,0 +1,17 @@
+<Project>
+
+  <!--
+    Bu dizindeki dosya tabanli araclar (dotnet run <dosya>.cs) kokteki
+    Directory.Build.props'u miras alir: ayni analyzer'lar, uyari = hata ve
+    artifacts/ cikti yolu. Dosya tabanli uygulama proje adini artifacts
+    yoluna KOYMAZ; o zaman cikti artifacts/obj/debug gibi sahipsiz bir dizine
+    duser. Asagidaki satir ciktiyi artifacts/{bin,obj}/<arac-adi>/ altina alir.
+    Kok import'tan ONCE atanir: yol props asamasinda hesaplanir.
+  -->
+  <PropertyGroup>
+    <IncludeProjectNameInArtifactsPaths>true</IncludeProjectNameInArtifactsPaths>
+  </PropertyGroup>
+
+  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
+
+</Project>

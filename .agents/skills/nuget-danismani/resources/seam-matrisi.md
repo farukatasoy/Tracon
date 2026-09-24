@@ -56,7 +56,9 @@ cevabı, dokümantasyonun da bilmediği anlamına gelir.
 Sütun 19 için ek not: metric/`span` **adı** ve etiket kümesi de bir public
 sözleşmedir. Yüksek cardinality'li bir etiket (kiracı kimliği, `run` kimliği)
 tüketicinin metric sisteminde maliyet üretir; yayından sonra kaldırmak
-tüketicinin dashboard'unu kırar.
+tüketicinin dashboard'unu kırar. Ölçüldü (2026-09-24): `tracon.tenant.id`
+her `run` metriğinde koşulsuz taşınır; `tracon.agent.version` için bir kapatma
+seçeneği (`IncludeAgentVersionTag`) vardır, kiracı etiketi için yoktur.
 
 ## Yayın-inceleme sezgileri
 
@@ -84,6 +86,9 @@ sırayla sor; cevabı **ölç**, varsayma.
 | 16 | Kayıt ergonomisi seam'ler arasında tutarsız | Sütun 1 ve 2'yi seam'ler arasında **yan yana** oku |
 | 17 | Duplicate mantıksal kimlik davranışı belirsiz | İki kayıt yap; startup mı runtime mı, hangisi kazanıyor — ölç |
 | 18 | Dispose sahipliği belgesiz | XML dokümanında ara; yoksa 🟡, yanlışsa 🔴 |
+| 19 | Seam imzası upstream'in `[Experimental]` tipini taşıyor | `uyum-probu.cs deneysel` — seam'in kayıt metodu public maruziyet listesinde mi? |
+| 20 | Seam'in metriği kiracı veya ad sayısıyla çarpılıyor | Etiket kümesini oku; kiracı/agent/model çarpımını 1.000 kiracıyla hesapla; kapatma seçeneği var mı? |
+| 21 | Seam'in bağımlı olduğu upstream tipi yeni sürümde taşındı | `uyum-probu.cs ileri` — seam'i uygulayan paketin ikilisi en yeni upstream'e karşı temiz mi? |
 
 Sezgi listesi bu depoya **hard-code edilmiş kural değildir**. Bir hipotez
 ölçüldü ve yanlış çıktıysa bunu raporda yaz — "ölçüldü, temiz" bir sonraki
