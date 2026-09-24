@@ -38,6 +38,15 @@ class KapiTestleri(unittest.TestCase):
         self.assertEqual(result, 1)
         self.assertEqual(runner.call_count, 1)
 
+    def test_sinif_bayragi_tekrarlaninca_desenler_birikir(self):
+        """Faz 187: `--sinif A --sinif B` yalnız B'yi koşuyordu (argparse ikinciyi
+        birincinin yerine yazar); iki mimari testinin ikisi de koştu sanıldı."""
+        with mock.patch.object(kapi, "test_commands", side_effect=ValueError("dur")) as commands:
+            with contextlib.redirect_stdout(io.StringIO()):
+                kapi.main(["test", "--proje", "Tracon.Core.UnitTests", "--sinif", "*A*", "--sinif", "*B*", "*C*"])
+
+        self.assertEqual(commands.call_args.args[1], ["*A*", "*B*", "*C*"])
+
     def test_mtp_filtresi_filter_class_uretir(self):
         commands = kapi.test_commands("Tracon.Generators.UnitTests", ["*Capability*"], environ={})
 
