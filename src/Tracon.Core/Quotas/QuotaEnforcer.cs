@@ -24,14 +24,27 @@ namespace Tracon;
 /// worse than a consistent result. Only a new run gets <c>429</c>.
 /// </para>
 /// </remarks>
-public sealed class QuotaEnforcer(
-    IQuotaStore store,
-    IOptionsMonitor<TraconQuotaOptions> optionsMonitor,
-    IWebhookPublisher? webhookPublisher = null,
-    TimeProvider? timeProvider = null,
-    ILogger<QuotaEnforcer>? logger = null)
+internal sealed class QuotaEnforcer
 {
-    private readonly TimeProvider _clock = timeProvider ?? TimeProvider.System;
+    private readonly IQuotaStore _store;
+    private readonly IOptionsMonitor<TraconQuotaOptions> _optionsMonitor;
+    private readonly IWebhookPublisher? _webhookPublisher;
+    private readonly ILogger<QuotaEnforcer>? _logger;
+    private readonly TimeProvider _clock;
+
+    internal QuotaEnforcer(
+        IQuotaStore store,
+        IOptionsMonitor<TraconQuotaOptions> optionsMonitor,
+        IWebhookPublisher? webhookPublisher = null,
+        TimeProvider? timeProvider = null,
+        ILogger<QuotaEnforcer>? logger = null)
+    {
+        _store = store;
+        _optionsMonitor = optionsMonitor;
+        _webhookPublisher = webhookPublisher;
+        _logger = logger;
+        _clock = timeProvider ?? TimeProvider.System;
+    }
 
     // A threshold is published only ONCE per period. Since the counter
     // increases on every run, every run above the threshold would otherwise
@@ -63,7 +76,7 @@ public sealed class QuotaEnforcer(
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(tenantId);
 
-        var options = optionsMonitor.CurrentValue;
+        var options = _optionsMonitor.CurrentValue;
 
         if (!options.Enabled)
         {
@@ -78,7 +91,7 @@ public sealed class QuotaEnforcer(
 
         try
         {
-            definitions = await store.ListAsync(tenantId, cancellationToken).ConfigureAwait(false);
+            definitions = await _store.ListAsync(tenantId, cancellationToken).ConfigureAwait(false);
 
             if (definitions.Count == 0)
             {
@@ -89,7 +102,7 @@ public sealed class QuotaEnforcer(
 
             // Only the current periods: without the filter every check read
             // the tenant's whole usage history, which only grows (F-275).
-            usage = await store
+            usage = await _store
                 .GetUsageAsync(
                     new QuotaUsageQuery
                     {
@@ -101,9 +114,9 @@ public sealed class QuotaEnforcer(
         }
         catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
         {
-            if (logger is not null && logger.IsEnabled(LogLevel.Warning))
+            if (_logger is not null && _logger.IsEnabled(LogLevel.Warning))
             {
-                logger.LogWarning(exception, "Quota check failed; AllowOnStoreFailure={Allow}.", options.AllowOnStoreFailure);
+                _logger.LogWarning(exception, "Quota check failed; AllowOnStoreFailure={Allow}.", options.AllowOnStoreFailure);
             }
 
             return options.AllowOnStoreFailure
@@ -164,7 +177,7 @@ public sealed class QuotaEnforcer(
     {
         ArgumentNullException.ThrowIfNull(consumption);
 
-        var options = optionsMonitor.CurrentValue;
+        var options = _optionsMonitor.CurrentValue;
 
         if (!options.Enabled)
         {
@@ -176,7 +189,7 @@ public sealed class QuotaEnforcer(
             var timeZone = options.ResolveTimeZone();
             var periodStarts = QuotaPeriodCalculator.GetAllPeriodStarts(consumption.OccurredAt, timeZone);
 
-            await store.AddUsageAsync(consumption, periodStarts, cancellationToken).ConfigureAwait(false);
+            await _store.AddUsageAsync(consumption, periodStarts, cancellationToken).ConfigureAwait(false);
 
             return await ClaimThresholdCrossingsAsync(consumption, options, timeZone, cancellationToken).ConfigureAwait(false);
         }
@@ -184,9 +197,9 @@ public sealed class QuotaEnforcer(
         {
             // Observability does not break functionality: if the counter
             // cannot be written, the run is still considered complete.
-            if (logger is not null && logger.IsEnabled(LogLevel.Warning))
+            if (_logger is not null && _logger.IsEnabled(LogLevel.Warning))
             {
-                logger.LogWarning(exception, "Could not write quota consumption: {TenantId}/{AgentName}.", consumption.TenantId, consumption.AgentName);
+                _logger.LogWarning(exception, "Could not write quota consumption: {TenantId}/{AgentName}.", consumption.TenantId, consumption.AgentName);
             }
 
             return [];
@@ -298,7 +311,7 @@ public sealed class QuotaEnforcer(
             return [];
         }
 
-        var definitions = await store.ListAsync(consumption.TenantId, cancellationToken).ConfigureAwait(false);
+        var definitions = await _store.ListAsync(consumption.TenantId, cancellationToken).ConfigureAwait(false);
 
         if (definitions.Count == 0)
         {
@@ -307,7 +320,7 @@ public sealed class QuotaEnforcer(
 
         var now = consumption.OccurredAt;
 
-        var usage = await store
+        var usage = await _store
             .GetUsageAsync(
                 new QuotaUsageQuery
                 {
@@ -375,7 +388,7 @@ public sealed class QuotaEnforcer(
 
                     try
                     {
-                        claimed = await store.TryClaimThresholdNotificationAsync(
+                        claimed = await _store.TryClaimThresholdNotificationAsync(
                             consumption.TenantId, scope, definition.Period, periodStart, metric, threshold, cancellationToken)
                             .ConfigureAwait(false);
                     }
@@ -396,7 +409,7 @@ public sealed class QuotaEnforcer(
 
                     var resetsAt = QuotaPeriodCalculator.GetPeriodEnd(now, definition.Period, timeZone);
 
-                    if (webhookPublisher is not null)
+                    if (_webhookPublisher is not null)
                     {
                         await PublishThresholdAsync(definition, metric, threshold, limit, used, resetsAt, consumption, cancellationToken)
                             .ConfigureAwait(false);
@@ -491,12 +504,12 @@ public sealed class QuotaEnforcer(
         QuotaConsumption consumption,
         CancellationToken cancellationToken)
     {
-        if (webhookPublisher is null)
+        if (_webhookPublisher is null)
         {
             return;
         }
 
-        await webhookPublisher.PublishAsync(
+        await _webhookPublisher.PublishAsync(
             definition.TenantId,
             WebhookEvents.QuotaThreshold,
             new WebhookEventPayload

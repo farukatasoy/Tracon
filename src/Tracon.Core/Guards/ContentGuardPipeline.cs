@@ -28,7 +28,7 @@ namespace Tracon;
 /// decision is still applied. The decision itself is never lost.
 /// </para>
 /// </remarks>
-public sealed class ContentGuardPipeline
+internal sealed class ContentGuardPipeline
 {
     private const string UninspectableGuardName = "Tracon.ContentGuard";
     private const string UninspectableRuleName = "tool-result-not-inspectable";
@@ -50,7 +50,7 @@ public sealed class ContentGuardPipeline
     /// <param name="loggerFactory">The logger factory.</param>
     /// <param name="metrics">The metric set that counts a failed audit write. Optional.</param>
     /// <exception cref="ArgumentNullException">One of the dependencies is <see langword="null"/>.</exception>
-    public ContentGuardPipeline(
+    internal ContentGuardPipeline(
         IEnumerable<IContentGuard> guards,
         IOptionsMonitor<TraconContentGuardOptions> options,
         IAuditLog auditLog,

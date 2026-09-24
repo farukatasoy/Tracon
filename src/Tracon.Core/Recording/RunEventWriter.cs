@@ -25,6 +25,11 @@ namespace Tracon;
 /// run's evidence is something a dashboard shows rather than something a
 /// reader of logs eventually notices.
 /// </para>
+/// <para>
+/// Tracon creates one writer for each run. Code that runs inside a run, such as a
+/// tool, reads it from <see cref="AgentRunScope.Writer"/> of <see cref="TraconRunContext.Current"/>
+/// and appends its own events with <see cref="AppendAsync"/>.
+/// </para>
 /// </remarks>
 public sealed class RunEventWriter
 {
@@ -62,7 +67,7 @@ public sealed class RunEventWriter
     /// extension point existed — no allocation, no branching difference.
     /// </param>
     /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
-    public RunEventWriter(
+    internal RunEventWriter(
         IRunStore store,
         TraconRunRecordingOptions options,
         ILogger logger,
@@ -91,12 +96,11 @@ public sealed class RunEventWriter
     /// as defense in depth.
     /// </summary>
     /// <remarks>
-    /// The value is taken from the <see cref="RunStartInfo.TenantId"/> field in <see
-    /// cref="StartAsync"/> — NOT from the <em>ambient</em> tenant. This is the run's
-    /// own tenant; it can deliberately override the ambient tenant (this is how
-    /// workflows and job queues work). A writer used without calling <see
-    /// cref="StartAsync"/> stays <see langword="null"/> and no tenant check is
-    /// performed.
+    /// The value is the run's own tenant, which Tracon stamps when it starts the
+    /// run (<see cref="RunStartInfo.TenantId"/>) — NOT the <em>ambient</em> tenant.
+    /// It can deliberately override the ambient tenant (this is how workflows and
+    /// job queues work). A writer whose run was never started stays
+    /// <see langword="null"/> and no tenant check is performed.
     /// </remarks>
     public string? TenantId { get; private set; }
 
@@ -121,7 +125,7 @@ public sealed class RunEventWriter
     /// </param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The completion task.</returns>
-    public async ValueTask StartAsync(RunStartInfo info, string? query, CancellationToken cancellationToken = default)
+    internal async ValueTask StartAsync(RunStartInfo info, string? query, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(info);
 
@@ -310,7 +314,7 @@ public sealed class RunEventWriter
     /// invocation, this record <em>measures</em> it. Its failure is swallowed
     /// the same way as an event write.
     /// </remarks>
-    public async ValueTask RecordToolInvocationAsync(
+    internal async ValueTask RecordToolInvocationAsync(
         ToolInvocationRecord invocation,
         CancellationToken cancellationToken = default)
     {
@@ -343,7 +347,7 @@ public sealed class RunEventWriter
     /// settles, and honouring it would throw the measurement away exactly when
     /// it matters. Its failure is swallowed like every other recording write.
     /// </remarks>
-    public async ValueTask<bool> CompleteLateToolInvocationAsync(
+    internal async ValueTask<bool> CompleteLateToolInvocationAsync(
         LateToolCompletion completion,
         CancellationToken cancellationToken = default)
     {
@@ -391,7 +395,7 @@ public sealed class RunEventWriter
     /// </param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The completion task.</returns>
-    public async ValueTask CompleteAsync(
+    internal async ValueTask CompleteAsync(
         RunStatus status,
         RunUsage? usage = null,
         RunError? error = null,

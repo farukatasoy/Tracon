@@ -31,7 +31,7 @@ namespace Tracon;
 ///   </description></item>
 /// </list>
 /// </remarks>
-public sealed class SkillScriptSupport
+internal sealed class SkillScriptSupport
 {
     private readonly SandboxedSkillScriptRunner _runner;
     private readonly IOptions<TraconOptions> _options;
@@ -42,7 +42,7 @@ public sealed class SkillScriptSupport
     /// <param name="options">The Tracon settings.</param>
     /// <param name="loggerFactory">The logger factory.</param>
     /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
-    public SkillScriptSupport(
+    internal SkillScriptSupport(
         SandboxedSkillScriptRunner runner,
         IOptions<TraconOptions> options,
         ILoggerFactory? loggerFactory = null)

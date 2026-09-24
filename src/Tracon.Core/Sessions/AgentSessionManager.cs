@@ -26,6 +26,10 @@ namespace Tracon;
 /// Microsoft Agent Framework's pre-release <c>AgentSessionStore</c> abstraction
 /// (<c>Microsoft.Agents.AI.Hosting</c>) is wired to this class by delegation.
 /// </para>
+/// <para>
+/// <c>AddTracon()</c> registers the manager as a singleton; resolve it with
+/// <c>GetRequiredService&lt;AgentSessionManager&gt;()</c>.
+/// </para>
 /// </remarks>
 public sealed class AgentSessionManager
 {
@@ -117,7 +121,7 @@ public sealed class AgentSessionManager
     /// which is also the default when the options ARE registered.
     /// </param>
     /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
-    public AgentSessionManager(
+    internal AgentSessionManager(
         ISessionStore store,
         ITenantContext tenantContext,
         TimeProvider? timeProvider = null,
