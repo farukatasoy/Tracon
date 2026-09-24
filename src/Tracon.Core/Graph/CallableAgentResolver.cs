@@ -22,7 +22,7 @@ namespace Tracon;
 /// to carry the sub-agent's version into the cache key.
 /// </para>
 /// </remarks>
-public sealed class CallableAgentResolver
+internal sealed class CallableAgentResolver
 {
     private readonly IServiceProvider _services;
     private IAgentCatalog? _catalog;

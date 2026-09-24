@@ -31,6 +31,10 @@ namespace Tracon;
 /// incoming options; the wrapper reads it from the <see cref="TraconRunContext"/>
 /// scope and builds the <see cref="TraconRunOptions"/> object itself.
 /// </para>
+/// <para>
+/// Tracon builds one wrapper for each name in <see cref="AgentDefinition.CallableAgentNames"/>
+/// when it compiles the calling agent; there is no other way to obtain one.
+/// </para>
 /// </remarks>
 public sealed class ChildAgentInvoker : AIAgent
 {
@@ -66,7 +70,7 @@ public sealed class ChildAgentInvoker : AIAgent
     /// <paramref name="childDeadline"/> is not greater than zero, or
     /// <paramref name="waitTimeout"/> is not greater than <paramref name="childDeadline"/>.
     /// </exception>
-    public ChildAgentInvoker(
+    internal ChildAgentInvoker(
         CallableAgentResolver resolver,
         ITenantContext tenantContext,
         ILogger logger,

@@ -5,7 +5,7 @@ using Microsoft.Extensions.Options;
 namespace Tracon;
 
 /// <summary>Combines code and run-time skill sources with a precedence rule.</summary>
-public sealed class AgentSkillCatalog
+internal sealed class AgentSkillCatalog
 {
     private readonly Dictionary<string, AgentSkillDefinition> _codeSkills;
     private readonly IAgentSkillStore _store;

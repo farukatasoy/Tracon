@@ -25,7 +25,7 @@ namespace Tracon;
 /// (defense in two layers).
 /// </para>
 /// </remarks>
-public sealed class TenantProviderCredentialResolver
+internal sealed class TenantProviderCredentialResolver
 {
     private readonly IConfiguration? _configuration;
     private readonly IOptionsMonitor<TraconTenantProviderOptions> _options;

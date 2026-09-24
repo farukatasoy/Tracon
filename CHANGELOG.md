@@ -174,6 +174,49 @@ preview line, and the counts below are types, not members.
   `WebhookUrlValidator`, `WebhookUrlVerdict`, `WorkflowDefinitionValidator`.
 - `Tracon.Voice`: `VoiceProviderNames`. The provider value stays the plain
   string `elevenlabs`.
+- `Tracon.Abstractions` (3 more): `QuotaDecision`, `QuotaThresholdCrossing`,
+  and `SqlPersistenceRegistrationMarker`. Only the SQL provider packages
+  register the marker; a marker registered by other code made start-up wait
+  for a migration that never ran.
+- `Tracon.Core` (16 more): `AgentSkillCatalog`, `CallableAgentResolver`,
+  `ContentGuardPipeline`, `ModelProviderCircuitBreaker`,
+  `ModelProviderHealthCache`, `ProviderConcurrencyLimiter`, `QuotaEnforcer`,
+  `RunSampleRequest`, `RunSampler`, `RunTraceCollector`,
+  `SandboxedSkillScriptRunner`, `SkillScriptSupport`,
+  `TenantProviderCredentialResolver`, `ToolApprovalPresenterRunner`,
+  `TraconLoopEvaluatorRegistration`, and `TraconMetrics`. Metrics stay
+  available through the `TraconDiagnostics.MeterName` meter, loop evaluators
+  through `AddLoopEvaluator`, and quotas through `TraconQuotaOptions` and the
+  quota endpoints.
+- The public constructors of the service types that the container or the run
+  pipeline builds are now `internal`: `RunRecordingAgent`,
+  `AgentDefinitionCompiler`, `TraconDiagnosticsCollector`,
+  `ModelProviderRegistry`, `SandboxedSkillScriptRunner`, `ChildAgentInvoker`,
+  `ContentGuardPipeline`, `RunEventWriter`, `AgentSessionManager`,
+  `QuotaEnforcer`, `ModelProviderHealthCache`, `RunSampler`,
+  `SkillScriptSupport`, `ModelProviderCircuitBreaker`, and `TraconMetrics`.
+  Each took optional parameters, so a new dependency after `1.0.0` would have
+  needed one more overload. Resolve the service that `AddTracon()` registers:
+
+  ```csharp
+  // Before (1.0.0-preview.1 / preview.2)
+  var registry = new ModelProviderRegistry([provider]);
+
+  // After: resolve the service Tracon registers
+  var services = new ServiceCollection();
+  services.AddTracon().AddModelProvider(provider);
+  using var serviceProvider = services.BuildServiceProvider();
+  var registry = serviceProvider.GetRequiredService<IModelProviderRegistry>();
+  ```
+
+  `RunRecordingAgent` wraps every agent that `IAgentCatalog.ResolveAsync`
+  returns, and `ChildAgentInvoker` wraps each callable agent of a compiled
+  definition. The run writer's lifecycle methods
+  (`RunEventWriter.StartAsync`, `RunEventWriter.CompleteAsync`,
+  `RunEventWriter.RecordToolInvocationAsync` and
+  `RunEventWriter.CompleteLateToolInvocationAsync`) are now `internal` too:
+  code inside a run reads the writer from `TraconRunContext.Current` and keeps
+  `AppendAsync` and the read-only properties.
 
 ### Changed
 

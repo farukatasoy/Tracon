@@ -53,7 +53,7 @@ namespace Tracon;
 /// not set, meaning every script call waits for user approval first.
 /// </para>
 /// </remarks>
-public sealed class SandboxedSkillScriptRunner : IDisposable
+internal sealed class SandboxedSkillScriptRunner : IDisposable
 {
     private static readonly ActivitySource ActivitySource = new(TraconDiagnostics.ActivitySourceName);
 
@@ -79,7 +79,7 @@ public sealed class SandboxedSkillScriptRunner : IDisposable
     /// <param name="metrics">The metrics instruments. No metrics are emitted if <see langword="null"/>.</param>
     /// <param name="timeProvider">The time source. The system clock is used if <see langword="null"/>.</param>
     /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
-    public SandboxedSkillScriptRunner(
+    internal SandboxedSkillScriptRunner(
         IOptions<TraconOptions> options,
         ITenantContext tenantContext,
         ISkillScriptGrantStore grantStore,

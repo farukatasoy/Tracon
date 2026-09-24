@@ -30,7 +30,7 @@ namespace Tracon;
 /// every call and is not written to the cache.
 /// </para>
 /// </remarks>
-public sealed class ModelProviderHealthCache
+internal sealed class ModelProviderHealthCache
 {
     private readonly IEnumerable<IModelProvider> _providers;
     private readonly IOptionsMonitor<TraconOptions> _optionsMonitor;
@@ -55,7 +55,7 @@ public sealed class ModelProviderHealthCache
     /// <paramref name="optionsMonitor"/>
     /// is <see langword="null"/>.
     /// </exception>
-    public ModelProviderHealthCache(
+    internal ModelProviderHealthCache(
         IEnumerable<IModelProvider> providers,
         IOptionsMonitor<TraconOptions> optionsMonitor,
         ModelProviderCircuitBreaker? circuitBreaker = null,

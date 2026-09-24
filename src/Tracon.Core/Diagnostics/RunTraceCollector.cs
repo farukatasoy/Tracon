@@ -33,7 +33,7 @@ namespace Tracon;
 /// the same spans to its own exporter.
 /// </para>
 /// </remarks>
-public sealed class RunTraceCollector : IDisposable
+internal sealed class RunTraceCollector : IDisposable
 {
     private readonly ITraceStore _store;
     private readonly IOptions<TraconOptions> _options;

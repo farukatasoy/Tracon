@@ -1,0 +1,11 @@
+# Checked by PublicSurfaceBaselineTests (Public_constructors_with_optional_parameters_match_the_checked_in_baseline).
+# One line per PUBLIC constructor that takes an optional parameter:
+#   <package>:<full type name>(<parameters>/<optional>) | <reason, at least 40 characters>
+# A new line is added BY HAND and names the decision that allows it. The refresh
+#   TRACON_OPTIONAL_CTOR_REFRESH=1 dotnet test tests/Tracon.Core.UnitTests -c Release
+# only removes stale lines, so this file can only shrink through it.
+# A service type the container or the run pipeline builds takes an internal constructor instead.
+Tracon.Abstractions:Tracon.AgentRunBudget(2/2) | A consumer builds the budget itself and passes it to TraconRunOptions.Budget for an in-process run (guides/external-agents.md).
+Tracon.Abstractions:Tracon.TraconAgentSourceException(4/1) | Exception constructor idiom: an agent source implementation throws it with an optional inner exception.
+Tracon.Abstractions:Tracon.TraconToolRegistration(8/7) | A consumer and the [TraconTool] source generator build it; phase 189 reshapes the constructor and removes this line.
+Tracon.Testing:Tracon.Testing.FakeModelProvider(1/1) | Consumer test code builds the fake provider directly (guides/testing.md); the optional name keys the model binding.

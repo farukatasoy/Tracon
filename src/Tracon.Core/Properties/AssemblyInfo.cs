@@ -53,3 +53,8 @@ using System.Runtime.CompilerServices;
 [assembly: InternalsVisibleTo("Tracon.Azure.UnitTests")]
 [assembly: InternalsVisibleTo("Tracon.Google.UnitTests")]
 [assembly: InternalsVisibleTo("Tracon.OpenAI.UnitTests")]
+
+// The RunEventWriter benchmark measures the writer directly. Building it
+// through the run pipeline would change the measured path and move the
+// allocation baseline (bench/baseline.json).
+[assembly: InternalsVisibleTo("Tracon.Benchmarks")]

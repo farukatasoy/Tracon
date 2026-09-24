@@ -38,6 +38,10 @@ namespace Tracon;
 /// <c>AgentDefinitionCompiler.Memory.cs</c>,
 /// <c>AgentDefinitionCompiler.Agents.cs</c>, and
 /// <c>AgentDefinitionCompiler.Skills.cs</c>.
+/// <para>
+/// <c>AddTracon()</c> registers the compiler as a singleton; resolve it with
+/// <c>GetRequiredService&lt;AgentDefinitionCompiler&gt;()</c>.
+/// </para>
 /// </remarks>
 public sealed partial class AgentDefinitionCompiler
 {
@@ -145,7 +149,7 @@ public sealed partial class AgentDefinitionCompiler
     /// </param>
     /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
 #pragma warning disable MAAI001 // AgentFileStore — see the rationale on the _fileStore field.
-    public AgentDefinitionCompiler(
+    internal AgentDefinitionCompiler(
         IModelProviderRegistry models,
         IToolRegistry tools,
         ILoggerFactory? loggerFactory = null,

@@ -1,4 +1,5 @@
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.DependencyInjection;
 using Tracon.Testing;
 
 namespace Tracon.Testing.UnitTests;
@@ -100,8 +101,12 @@ public sealed class FakeModelProviderTests
 
         // 🚨 The tool-call loop moved to ModelProviderRegistry in Phase 48:
         // IModelProvider now returns the RAW client. This test therefore runs
-        // through the real path — over the pipeline.
-        using var client = new ModelProviderRegistry([provider]).CreateChatClient(Binding);
+        // through the real path — the registry Tracon registers, resolved the
+        // way a consumer resolves it (its constructor is internal).
+        var services = new ServiceCollection();
+        services.AddTracon().AddModelProvider(provider);
+        using var serviceProvider = services.BuildServiceProvider();
+        using var client = serviceProvider.GetRequiredService<IModelProviderRegistry>().CreateChatClient(Binding);
 
         var response = await client.GetResponseAsync(
             [new ChatMessage(ChatRole.User, "where is ORD-7")],

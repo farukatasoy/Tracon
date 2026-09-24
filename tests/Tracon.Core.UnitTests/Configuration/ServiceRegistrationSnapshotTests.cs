@@ -208,7 +208,7 @@ public sealed class ServiceRegistrationSnapshotTests
         "Tracon.EvalJobHandler | Scoped | Tracon.EvalJobHandler",
         "Tracon.JobHandlerRegistration | Singleton | Instance:Tracon.JobHandlerRegistration",
         "Tracon.RunToCasePromoter | Singleton | Tracon.RunToCasePromoter",
-        "Tracon.RunSampler | Singleton | Tracon.RunSampler",
+        "Tracon.RunSampler | Singleton | Factory",
         "Tracon.OnlineEvalSummaryService | Singleton | Tracon.OnlineEvalSummaryService",
         "Tracon.RunJudgeSet | Singleton | Tracon.RunJudgeSet",
         "Microsoft.Extensions.Hosting.IHostedService | Singleton | Tracon.RunJudgeValidationService",

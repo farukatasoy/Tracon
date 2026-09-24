@@ -27,6 +27,10 @@ namespace Tracon;
 /// spans of the inner wrappers and of the model calls as children. This is the only way
 /// to link the run identifier and the trace identifier to each other.
 /// </para>
+/// <para>
+/// Tracon builds this wrapper around every agent that <see cref="IAgentCatalog"/> resolves;
+/// resolve the agent through the catalog instead of constructing the wrapper.
+/// </para>
 /// </remarks>
 public sealed partial class RunRecordingAgent : DelegatingAIAgent
 {
@@ -135,7 +139,7 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
     /// <see cref="IToolApprovalPresenter"/> existed.
     /// </param>
     /// <exception cref="ArgumentNullException">When one of the required dependencies is <see langword="null"/>.</exception>
-    public RunRecordingAgent(
+    internal RunRecordingAgent(
         AIAgent innerAgent,
         IRunStore runStore,
         ITenantContext tenantContext,

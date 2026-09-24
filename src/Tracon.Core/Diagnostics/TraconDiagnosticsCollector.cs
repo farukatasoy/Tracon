@@ -9,13 +9,17 @@ namespace Tracon;
 /// <remarks>
 /// <para>
 /// <strong>Has no side effects.</strong> It makes no model calls: model provider
-/// status is read from <see cref="ModelProviderHealthCache"/> without triggering
+/// status is read from the cached health-check results without triggering
 /// a new health check. When SQL persistence is registered, it performs a light
 /// connectivity probe through <see cref="ISqlPersistenceDiagnostics.GetSnapshotAsync"/>;
 /// it does not apply migrations.
 /// </para>
 /// <para>
 /// The generated <see cref="TraconDiagnosticsReport"/> contains no <c>secret</c>.
+/// </para>
+/// <para>
+/// <c>AddTracon()</c> registers the collector as a singleton; resolve it with
+/// <c>GetRequiredService&lt;TraconDiagnosticsCollector&gt;()</c>.
 /// </para>
 /// </remarks>
 public sealed class TraconDiagnosticsCollector
@@ -64,7 +68,7 @@ public sealed class TraconDiagnosticsCollector
     /// leaves <see cref="TraconDiagnosticsReport.AgentCount"/> empty.
     /// </param>
     /// <exception cref="ArgumentNullException">A required dependency is <see langword="null"/>.</exception>
-    public TraconDiagnosticsCollector(
+    internal TraconDiagnosticsCollector(
         IEnumerable<IModelProvider> providers,
         ModelProviderHealthCache healthCache,
         IEnumerable<ISqlPersistenceDiagnostics> sqlDiagnostics,

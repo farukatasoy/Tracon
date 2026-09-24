@@ -213,7 +213,15 @@ public static partial class TraconServiceCollectionExtensions
         // OnlineEvaluationOptions default keeps both gates closed
         // (Enabled=false, SampleRate=0) and no IRunJudge is registered - the
         // way to turn on the built-in judge is the AddModelRunJudge() call.
-        services.TryAddSingleton<RunSampler>();
+        // A factory, not a type-based registration: the constructor is internal
+        // and the container only activates a public one. The two optional
+        // dependencies are passed explicitly, because a factory that omits one
+        // leaves it null without any error.
+        services.TryAddSingleton(static provider => new RunSampler(
+            provider.GetRequiredService<IJobStore>(),
+            provider.GetRequiredService<IOptionsMonitor<OnlineEvaluationOptions>>(),
+            provider.GetService<TimeProvider>(),
+            provider.GetService<Microsoft.Extensions.Logging.ILogger<RunSampler>>()));
         services.TryAddSingleton<OnlineEvalSummaryService>();
         services.TryAddSingleton<RunJudgeSet>();
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, RunJudgeValidationService>());

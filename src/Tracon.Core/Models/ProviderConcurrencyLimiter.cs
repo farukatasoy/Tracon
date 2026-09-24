@@ -29,7 +29,7 @@ namespace Tracon;
 /// not yet been limited.
 /// </para>
 /// </remarks>
-public sealed class ProviderConcurrencyLimiter
+internal sealed class ProviderConcurrencyLimiter
 {
     private readonly ConcurrentDictionary<string, SemaphoreSlim> _semaphores = new(StringComparer.OrdinalIgnoreCase);
     private readonly IOptionsMonitor<TraconOptions> _optionsMonitor;

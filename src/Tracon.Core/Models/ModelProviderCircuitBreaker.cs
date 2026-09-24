@@ -31,7 +31,7 @@ namespace Tracon;
 /// moment on.
 /// </para>
 /// </remarks>
-public sealed class ModelProviderCircuitBreaker
+internal sealed class ModelProviderCircuitBreaker
 {
     private readonly ConcurrentDictionary<CircuitKey, CircuitBreakerState> _states = new();
     private readonly IOptionsMonitor<TraconOptions> _optionsMonitor;
@@ -41,7 +41,7 @@ public sealed class ModelProviderCircuitBreaker
     /// <param name="optionsMonitor">The runtime settings.</param>
     /// <param name="timeProvider">The time source. If <see langword="null"/>, the system clock is used.</param>
     /// <exception cref="ArgumentNullException"><paramref name="optionsMonitor"/> is <see langword="null"/>.</exception>
-    public ModelProviderCircuitBreaker(IOptionsMonitor<TraconOptions> optionsMonitor, TimeProvider? timeProvider = null)
+    internal ModelProviderCircuitBreaker(IOptionsMonitor<TraconOptions> optionsMonitor, TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(optionsMonitor);
 

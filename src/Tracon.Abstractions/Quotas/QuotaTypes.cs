@@ -114,7 +114,7 @@ public sealed record QuotaUsageRecord
 /// written after the run ends. This means concurrent runs can push a quota
 /// slightly over — the quota is <strong>approximate</strong>.
 /// </remarks>
-public sealed record QuotaDecision
+internal sealed record QuotaDecision
 {
     /// <summary>The result reporting that no rule was exceeded.</summary>
     public static QuotaDecision Allowed { get; } = new() { IsAllowed = true };

@@ -22,7 +22,7 @@ namespace Tracon;
 /// would break ready-made dashboards.
 /// </para>
 /// </remarks>
-public sealed class TraconMetrics : IDisposable
+internal sealed class TraconMetrics : IDisposable
 {
     /// <summary>The lane tag written once the cardinality guard has tripped.</summary>
     private const string OtherLane = "other";
@@ -51,7 +51,7 @@ public sealed class TraconMetrics : IDisposable
     /// The nested type is never injected standalone: it is not registered with
     /// <c>services.Configure&lt;TraconObservabilityOptions&gt;</c> anywhere.
     /// </param>
-    public TraconMetrics(IMeterFactory? meterFactory = null, IOptionsMonitor<TraconOptions>? options = null)
+    internal TraconMetrics(IMeterFactory? meterFactory = null, IOptionsMonitor<TraconOptions>? options = null)
     {
         _options = options;
 
