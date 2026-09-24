@@ -455,6 +455,39 @@ For the provider-hosted path:
   single tenant can cause.
 - [ ] Load balancing is sticky: a live session binds to the instance that created it.
 
+## Troubleshooting
+
+### The voice WebSocket route returns `404`
+
+Call `UseVoiceConversation()` before `builder.Build()`. The route is conditional and
+does not exist without that registration. `MapTracon()` maps it; there is no
+separate voice mapping call.
+
+### The WebSocket request returns `400`
+
+The request did not complete a WebSocket upgrade. Use a WebSocket client and the
+mapped route `/api/voice/sessions/{sessionId}/stream`. `MapTracon()` installs the
+required middleware when voice conversation is registered.
+
+### The WebSocket request returns `401`
+
+Browsers cannot add an `Authorization` header to the handshake. Send the token in the
+documented `Sec-WebSocket-Protocol` subprotocol. Do not put it in the query string;
+URLs reach browser, server, and proxy logs.
+
+### Voice conversation reports `501`
+
+The conversation driver exists, but transcription or synthesis does not. Register
+both `ISpeechTranscriber` and `ISpeechSynthesizer`. `Tracon.Voice.UseVoice()`
+provides the built-in ElevenLabs pair when its key and model settings are valid.
+
+### Synthesized audio is rejected as an attachment
+
+The attachment store validates file signatures. The built-in default
+`mp3_44100_128` has a detectable MP3 format. Headerless PCM and µ-law output formats
+cannot pass the default attachment guard without a deliberate custom storage and
+validation design.
+
 ## In the reference
 
 - [Voice HTTP endpoints](/http-api/voice/)

@@ -44,6 +44,12 @@ const dist = resolve(here, '../dist');
 // prose recovered 80 B of the 450. Raised to 59 000 B, which restores about 1% of
 // headroom. This page is the site's largest by a wide margin and grows with every
 // diagnostic; the next raise should split it instead.
+//
+// Split 2026-09-24 instead of raised: CI measured the page at 59 003 B while a
+// local build of the same commit measured 58 993 B - the two environments differ
+// by about ten bytes, so a margin of a few bytes is no margin. The Voice symptoms
+// moved to guides/voice.md (#troubleshooting), next to the feature, and the page
+// dropped to 58 151 B. Ceiling unchanged.
 const CEILING = 59_000;
 
 if (!existsSync(dist)) {
