@@ -2853,8 +2853,10 @@ the same envelope any other oversized result gets.
 
 ```csharp
 services.AddSingleton(new TraconToolRegistration(
-    AIFunctionFactory.Create(GetReport, "get_report", "Fetches a report."),
-    maxOutputBytes: 4096));
+    AIFunctionFactory.Create(GetReport, "get_report", "Fetches a report."))
+{
+    MaxOutputBytes = 4096,
+});
 
 services.Configure<TraconOptions>(o => o.Tools.DefaultMaxOutputBytes = 4096);
 ```

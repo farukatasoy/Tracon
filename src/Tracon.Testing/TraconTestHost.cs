@@ -22,7 +22,7 @@ namespace Tracon.Testing;
 /// dependency your own tool needs is <strong>not resolved from DI</strong>. Take
 /// the dependency in the tool's CONSTRUCTOR and register it through a factory
 /// with <c>services.AddSingleton(provider =&gt; new
-/// TraconToolRegistration(new MyTool(provider), ...))</c>.
+/// TraconToolRegistration(new MyTool(provider)) { ... })</c>.
 /// </para>
 /// </remarks>
 public sealed class TraconTestHost : IAsyncDisposable

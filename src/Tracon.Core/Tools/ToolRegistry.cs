@@ -43,10 +43,11 @@ internal sealed class ToolRegistry : IToolRegistry, IVerifiedToolRegistry
             // 30s default is meant for a tool that queries something; a measured
             // gpt-image-1 request routinely needs 30-35s and was being cut off
             // just before it succeeded.
-            registrations.Add(new TraconToolRegistration(
-                new GenerateImageTool(provider),
-                effect: ToolEffect.External,
-                timeout: images.Timeout));
+            registrations.Add(new TraconToolRegistration(new GenerateImageTool(provider))
+            {
+                Effect = ToolEffect.External,
+                Timeout = images.Timeout,
+            });
         }
 
         return new ToolRegistry(
@@ -74,7 +75,7 @@ internal sealed class ToolRegistry : IToolRegistry, IVerifiedToolRegistry
     /// <exception cref="TraconException">
     /// The same name is registered more than once, or a client-side tool
     /// (one whose body is not an <see cref="AIFunction"/>) is registered
-    /// with <c>requiresApproval: true</c>.
+    /// with <c>RequiresApproval = true</c>.
     /// </exception>
     public ToolRegistry(
         IEnumerable<TraconToolRegistration> registrations,

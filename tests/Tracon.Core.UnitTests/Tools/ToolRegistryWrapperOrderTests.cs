@@ -20,9 +20,11 @@ public sealed class ToolRegistryWrapperOrderTests
         var ran = false;
 
         var registration = new TraconToolRegistration(
-            AIFunctionFactory.Create(() => { ran = true; return "should never run"; }, "cancel_order"),
-            requiresApproval: true,
-            effect: ToolEffect.Destructive);
+            AIFunctionFactory.Create(() => { ran = true; return "should never run"; }, "cancel_order"))
+        {
+            RequiresApproval = true,
+            Effect = ToolEffect.Destructive,
+        };
 
         var registry = new ToolRegistry(
             [registration],
@@ -59,8 +61,10 @@ public sealed class ToolRegistryWrapperOrderTests
         // does), that lookup would fail and approval would silently stop
         // working for every tool wrapped by this registry.
         var registration = new TraconToolRegistration(
-            AIFunctionFactory.Create(() => "result", "dangerous_tool"),
-            requiresApproval: true);
+            AIFunctionFactory.Create(() => "result", "dangerous_tool"))
+        {
+            RequiresApproval = true,
+        };
 
         var registry = new ToolRegistry(
             [registration],
@@ -104,8 +108,10 @@ public sealed class ToolRegistryWrapperOrderTests
     public async Task A_registration_level_output_limit_truncates_the_real_result()
     {
         var registration = new TraconToolRegistration(
-            AIFunctionFactory.Create(() => new string('a', 10_000), "big_report"),
-            maxOutputBytes: 100);
+            AIFunctionFactory.Create(() => new string('a', 10_000), "big_report"))
+        {
+            MaxOutputBytes = 100,
+        };
 
         var registry = new ToolRegistry(
             [registration],
@@ -157,8 +163,10 @@ public sealed class ToolRegistryWrapperOrderTests
     {
         // Same precedence rule as Timeout: the tool's own registration wins.
         var registration = new TraconToolRegistration(
-            AIFunctionFactory.Create(() => new string('a', 10_000), "big_report"),
-            maxOutputBytes: 5_000);
+            AIFunctionFactory.Create(() => new string('a', 10_000), "big_report"))
+        {
+            MaxOutputBytes = 5_000,
+        };
 
         var services = new ServiceCollection();
         services.AddOptions<TraconOptions>().Configure(options => options.Tools.DefaultMaxOutputBytes = 50);
@@ -189,9 +197,11 @@ public sealed class ToolRegistryWrapperOrderTests
         // must not break the existing GetService discoverability the
         // function-invoking client relies on to find the approval layer.
         var registration = new TraconToolRegistration(
-            AIFunctionFactory.Create(() => "result", "dangerous_tool"),
-            requiresApproval: true,
-            maxOutputBytes: 1024);
+            AIFunctionFactory.Create(() => "result", "dangerous_tool"))
+        {
+            RequiresApproval = true,
+            MaxOutputBytes = 1024,
+        };
 
         var registry = new ToolRegistry(
             [registration],

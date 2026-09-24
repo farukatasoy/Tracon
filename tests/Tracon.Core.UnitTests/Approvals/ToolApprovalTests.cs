@@ -25,7 +25,7 @@ public sealed class ToolApprovalTests
         var withApproval = new ToolRegistry(
             [
                 new TraconToolRegistration(Function("safe_tool")),
-                new TraconToolRegistration(Function("dangerous_tool"), requiresApproval: true),
+                new TraconToolRegistration(Function("dangerous_tool")) { RequiresApproval = true },
             ],
             new AllowAllToolAuthorizationHandler(),
             NoOpToolArgumentsValidator.Instance,
@@ -55,7 +55,7 @@ public sealed class ToolApprovalTests
         // the model sees.
         var registry = new ToolRegistry(
             [
-                new TraconToolRegistration(Function("dangerous_tool"), requiresApproval: true),
+                new TraconToolRegistration(Function("dangerous_tool")) { RequiresApproval = true },
             ],
             new AllowAllToolAuthorizationHandler(),
             NoOpToolArgumentsValidator.Instance,
@@ -79,7 +79,7 @@ public sealed class ToolApprovalTests
     {
         var registry = new ToolRegistry(
             [
-                new TraconToolRegistration(Function("remote_tool"), requiresApproval: true, source: "github"),
+                new TraconToolRegistration(Function("remote_tool")) { RequiresApproval = true, Source = "github" },
             ],
             new AllowAllToolAuthorizationHandler(),
             NoOpToolArgumentsValidator.Instance,

@@ -47,6 +47,50 @@ public sealed class CatalogEndpointTests
     }
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Every_configured_tool_setting_reaches_the_listed_descriptor(bool scoped)
+    {
+        // AddScopedTool builds its registration lazily inside a factory, AddTool
+        // eagerly; either path dropping one setting would show a tool with a
+        // weaker contract than the one written in code.
+        var tool = Microsoft.Extensions.AI.AIFunctionFactory.Create(
+            (Func<string, string>)(orderId => $"{orderId} canceled."),
+            "cancel_order",
+            "Cancels an order.");
+
+        static void Configure(ToolRegistrationOptions options)
+        {
+            options.RequiresApproval = true;
+            options.Source = "orders-service";
+            options.Effect = ToolEffect.Destructive;
+            options.RequiredPermission = "orders.cancel";
+            options.Timeout = TimeSpan.FromSeconds(7);
+            options.SafeToRepeat = true;
+            options.MaxOutputBytes = 2048;
+        }
+
+        await using var host = await TraconTestHost.StartAsync(
+            builder => _ = scoped ? builder.AddScopedTool(tool, Configure) : builder.AddTool(tool, Configure));
+
+        using var response = await host.Client.GetAsync(Tools);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var descriptor = (await TraconTestHost.ReadJsonAsync(response)).EnumerateArray()
+            .Single(static entry => string.Equals(
+                entry.GetProperty("name").GetString(), "cancel_order", StringComparison.Ordinal));
+
+        descriptor.GetProperty("requiresApproval").GetBoolean().ShouldBeTrue();
+        descriptor.GetProperty("source").GetString().ShouldBe("orders-service");
+        descriptor.GetProperty("effect").GetString().ShouldBe("Destructive");
+        descriptor.GetProperty("requiredPermission").GetString().ShouldBe("orders.cancel");
+        descriptor.GetProperty("timeout").GetString().ShouldBe("00:00:07");
+        descriptor.GetProperty("safeToRepeat").GetBoolean().ShouldBeTrue();
+        descriptor.GetProperty("maxOutputBytes").GetInt32().ShouldBe(2048);
+    }
+
+    [Theory]
     [InlineData("POST")]
     [InlineData("PUT")]
     [InlineData("DELETE")]

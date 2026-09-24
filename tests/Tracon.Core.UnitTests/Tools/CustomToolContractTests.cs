@@ -11,8 +11,10 @@ public sealed class CustomToolContractTests : CustomToolContract
 
     protected override ValueTask<TraconToolRegistration> CreateRegistrationAsync()
         => new(new TraconToolRegistration(
-            AIFunctionFactory.Create((Func<string>)(() => "ok"), "contract_status", "Returns a status."),
-            effect: ToolEffect.Read));
+            AIFunctionFactory.Create((Func<string>)(() => "ok"), "contract_status", "Returns a status."))
+        {
+            Effect = ToolEffect.Read,
+        });
 }
 
 public sealed class RepeatableToolContractTests : RepeatableToolContract
@@ -21,9 +23,11 @@ public sealed class RepeatableToolContractTests : RepeatableToolContract
 
     protected override ValueTask<TraconToolRegistration> CreateRegistrationAsync()
         => new(new TraconToolRegistration(
-            AIFunctionFactory.Create((Func<string>)(() => "ok"), "contract_retry", "Returns a retry-safe status."),
-            effect: ToolEffect.External,
-            safeToRepeat: true));
+            AIFunctionFactory.Create((Func<string>)(() => "ok"), "contract_retry", "Returns a retry-safe status."))
+        {
+            Effect = ToolEffect.External,
+            SafeToRepeat = true,
+        });
 }
 
 public sealed class ToolContractCoverageTests

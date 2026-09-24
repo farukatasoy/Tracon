@@ -26,6 +26,11 @@ public sealed class ExperimentTests(BrowserFixture browsers)
         await session.Page.GetByTestId("experiment-agent-name").FillAsync("exp-agent");
 
         // The version dropdown fills from the agentVersions query once the agent name is entered.
+        // Until that query answers, the same test id is a number input (the
+        // screen's fallback), and SelectOptionAsync on it fails. Under a loaded
+        // full-suite run the query is slower than the next line, so wait until
+        // the field has become the dropdown.
+        await Expect(session.Page.GetByTestId("variant-version-0")).ToHaveJSPropertyAsync("tagName", "SELECT");
         await session.Page.GetByTestId("variant-name-0").FillAsync("control");
         await session.Page.GetByTestId("variant-version-0").SelectOptionAsync("1");
         await session.Page.GetByTestId("variant-weight-0").FillAsync("50");

@@ -103,16 +103,20 @@ internal static class SourceWriter
 
         foreach (var model in tools)
         {
-            sb.Append("                new(new ").Append(model.GeneratedClassName).Append("(), requiresApproval: ")
-              .Append(model.RequiresApproval ? "true" : "false")
-              .Append(", effect: (global::Tracon.ToolEffect)").Append(model.Effect)
-              .Append(", requiredPermission: ").Append(model.RequiredPermission is null ? "null" : ToStringLiteral(model.RequiredPermission))
-              .Append(", timeout: ").Append(model.TimeoutSeconds > 0
+            // An object initializer, not named constructor arguments: every
+            // setting is an init property, so a registration compiled into the
+            // consumer's assembly stays binary-compatible when a setting is added.
+            // All six settings are written every time to keep the output deterministic.
+            sb.Append("                new(new ").Append(model.GeneratedClassName).Append("())\n                {\n")
+              .Append("                    RequiresApproval = ").Append(model.RequiresApproval ? "true" : "false").Append(",\n")
+              .Append("                    Effect = (global::Tracon.ToolEffect)").Append(model.Effect).Append(",\n")
+              .Append("                    RequiredPermission = ").Append(model.RequiredPermission is null ? "null" : ToStringLiteral(model.RequiredPermission)).Append(",\n")
+              .Append("                    Timeout = ").Append(model.TimeoutSeconds > 0
                   ? $"global::System.TimeSpan.FromSeconds({model.TimeoutSeconds})"
-                  : "null")
-              .Append(", safeToRepeat: ").Append(model.SafeToRepeat ? "true" : "false")
-              .Append(", maxOutputBytes: ").Append(model.MaxOutputBytes > 0 ? model.MaxOutputBytes.ToString(System.Globalization.CultureInfo.InvariantCulture) : "null")
-              .Append("),\n");
+                  : "null").Append(",\n")
+              .Append("                    SafeToRepeat = ").Append(model.SafeToRepeat ? "true" : "false").Append(",\n")
+              .Append("                    MaxOutputBytes = ").Append(model.MaxOutputBytes > 0 ? model.MaxOutputBytes.ToString(System.Globalization.CultureInfo.InvariantCulture) : "null").Append(",\n")
+              .Append("                },\n");
         }
 
         sb.Append("            };\n    }\n}\n\n");

@@ -19,13 +19,15 @@ public static class OrderFulfillmentToolRegistration
 
         services.AddSingleton<OrderFulfillmentTool>();
         services.AddSingleton(static provider => new TraconToolRegistration(
-            provider.GetRequiredService<OrderFulfillmentTool>().CreateFunction(),
-            requiresApproval: true,
-            effect: ToolEffect.External,
-            requiredPermission: "orders.submit",
-            timeout: TimeSpan.FromSeconds(30),
-            safeToRepeat: true,
-            maxOutputBytes: 768));
+            provider.GetRequiredService<OrderFulfillmentTool>().CreateFunction())
+        {
+            RequiresApproval = true,
+            Effect = ToolEffect.External,
+            RequiredPermission = "orders.submit",
+            Timeout = TimeSpan.FromSeconds(30),
+            SafeToRepeat = true,
+            MaxOutputBytes = 768,
+        });
 
         return services;
     }

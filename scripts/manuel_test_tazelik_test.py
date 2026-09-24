@@ -406,5 +406,16 @@ class CommitSayisiTestleri(unittest.TestCase):
         self.assertGreater(tazelik.toplam_commit("HEAD~3"), 0)
 
 
+class GirisNoktasiTestleri(unittest.TestCase):
+    def test_onek_tasimayan_builder_uzantilari_gercek_src_uzerinde_sayilir(self):
+        # Faz 189: üç metot arayüzden uzantıya taşındı; önek kuralı onları
+        # manuel kapsama ölçümünden sessizce düşürürdü (K-509).
+        noktalar = tazelik.giris_noktalari()
+        for ad in ("Configure", "RequireCustomBinding", "RequireProductionProfile", "Services"):
+            with self.subTest(ad=ad):
+                self.assertIn(ad, noktalar)
+        self.assertIn("Tracon.Core", noktalar["Configure"])
+
+
 if __name__ == "__main__":
     unittest.main()
