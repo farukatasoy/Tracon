@@ -11,8 +11,8 @@
 > NuGet · GitHub release). npm `latest` = `next` = preview.3; nuget.org 19/20
 > görünür, `Tracon.Cli` doğrulamada. `MT-PKG-160`: 19/19 paket CI'ın
 > `nuget-verified` artifact'iyle girdi girdi aynı (KN-032). Site yeniden
-> yayımlandı. Kalan 👤: preview.1/2 deprecation (OP-008, nuget.org arayüzü +
-> `npm deprecate`) · A-61 advisory. Ayrıntı: §4 "YAYINLANDI — 2026-09-24".
+> yayımlandı. npm deprecation ✅. Kalan 👤: nuget.org'da preview.1/2 deprecation
+> (OP-008, arayüz) · A-61 advisory. Ayrıntı: §4 "YAYINLANDI — 2026-09-24".
 >
 > **Yayın öncesi karar (2026-09-24):** ✅ **Yayınlanabilir; ürün
 > 🔴'si yok.** UR-008 = **B** 👤: A-59 (K-872, tam aralık) ve BL-058 (lisans
@@ -118,9 +118,15 @@ koşumu: yayınlanan baytlar CI'ın doğruladığı baytlardır.
 | Yeniden koşum | "Re-run failed jobs" önceki denemenin artifact'ini kullandı: ubuntu işi yeniden koşmadı, 2. denemenin `release-dryrun`'u 1. denemenin `nuget-packages`'ını okudu (KN-033) |
 | Site | `site-deploy.sh` etiketten sonra yeniden koştu; Voice bölümü `guides/voice/#troubleshooting`'te, `troubleshooting` 58 149 B |
 
-**Yayın sonrası kalan (👤):** preview.1 ve preview.2 **deprecate** (OP-008:
-güvenlik düzeltmesi) — nuget.org'da 20 paket için arayüzden (deprecation için
-herkese açık API yok), npm'de `npm deprecate`. A-61: GitHub Security Advisory.
+**Deprecation (OP-008, güvenlik düzeltmesi):** npm ✅ — `@tracon/client`
+preview.1 ve preview.2 `deprecated` taşır, preview.3 taşımaz (registry'den
+ölçüldü 2026-09-24 22:02 UTC; ikinci `npm deprecate` denemesinin `E422`'si
+değişiklik olmadığı içindir). nuget.org 👤 — 20 paket için arayüzden
+(deprecation için herkese açık API yok). A-61: GitHub Security Advisory.
+
+`Tracon.Cli` push'u kabul edildi (`Created`, 21:27 UTC) ama 22:02 UTC'de
+nuget.org'da hâlâ görünmüyor; doğrulama başarısız olursa nuget.org sahibe
+e-posta atar.
 
 ### ✅ KARAR — 2026-09-24 (`nuget-danismani`, `preview.3` yayın kararı)
 
