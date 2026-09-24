@@ -95,7 +95,7 @@
       No other pack reaches the network for a baseline. Strict mode against the
       baseline (EnableStrictModeForBaselineValidation) stays off: it would also
       fail an ADDED member, and the preview surface may grow.
-      Rationale: docs/KARARLAR.md (Faz 187, breaking-change gate and strict mode).
+      Rationale: docs/KARARLAR.md, K-864 (breaking-change gate) and K-865 (strict mode).
     -->
     <EnablePackageValidation>true</EnablePackageValidation>
     <EnableStrictModeForCompatibleTfms>true</EnableStrictModeForCompatibleTfms>

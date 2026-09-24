@@ -197,7 +197,7 @@ public sealed class PackageBaselineWiringTests(PackageBaselineWiringTests.Evalua
             // unchanged. The pause keeps a one-second file system from folding the
             // two touches into one timestamp.
             var before = File.GetLastWriteTimeUtc(SemaphorePath(ProjectId));
-            await Task.Delay(TimeSpan.FromMilliseconds(1100));
+            await Task.Delay(TimeSpan.FromMilliseconds(1100)); // delay: product
 
             var result = await ProcessRunner.RunAsync(
                 "dotnet",
