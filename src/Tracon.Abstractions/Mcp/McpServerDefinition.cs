@@ -79,7 +79,7 @@ public sealed record McpServerDefinition
     /// names <c>Authorization</c> in both fields is rejected on save. The
     /// field is removed in the first stable release.
     /// </remarks>
-    [Obsolete(ObsoleteMessages.AuthorizationConfigurationKey, UrlFormat = ObsoleteMessages.UrlFormat)]
+    [Obsolete(ObsoleteMessages.AuthorizationConfigurationKey)]
     public string? AuthorizationConfigurationKey { get; init; }
 
     /// <summary>
