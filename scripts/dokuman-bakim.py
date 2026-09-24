@@ -2402,6 +2402,10 @@ _DUS_DESENLERI = (
     # ikincisi kalır, birincisi kapanışta ölür. Desen "tablosu" sözcüğüne
     # bakar, tek bir faz adına değil.
     re.compile(r"^(Desen|Ekran|Kapsam)\s+tablosu\b", re.I),
+    # Plan anindaki kapsam sinirlari. Kapanista kalici kismi baska yerdedir:
+    # devredilen is "Sonraki Faza Devir Notu"nda veya ADAYLAR'da (F-NN),
+    # sinirin gerekcesi "Bu Fazda Verilen Kararlar"da (Faz 191, `Kapsam Dışı`).
+    re.compile(r"^Kapsam\s+d[ıi]ş[ıi]$", re.I),
 )
 
 
