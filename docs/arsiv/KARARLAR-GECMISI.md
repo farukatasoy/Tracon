@@ -5911,3 +5911,106 @@ Faz 190 (F-272). Ölçüldü (`bb9953e3`): `Authorization` dışındaki her kiml
 ### K-871
 
 Ölçüldü (2026-09-23, HEAD `bb9953e3`): `publish: needs: [pack, release-dryrun, npm-publish]`; `pack` taze runner'da `dotnet build` + `dotnet pack --no-build` koşuyordu, `release-dryrun` kendi `dotnet pack`'ini (`kapi.py yayin --kuru`) doğrulayıp atıyordu ve `package-manifest.json`'ı okuyan kod yoktu. `.psmdcp` adı rastgele olduğu için ayrı bir pack'in dosyası manifest'le hiç kanıtlanamazdı. Seçilen: build işinin ubuntu bacağı `Derle`'nin hemen ardında `kapi.py paketle` (`--no-build`, 187'nin üç taban özelliği, bypass yok) koşar; testlerden sonra `paket-dogrula` + `nuget-packages` yüklemesi; `release-dryrun` `yayin --kuru --paket-dizini` ile paketlemeden doğrular (commit ve taban eşitliği, rapor kaydı, ortak metaveri yolu, atomik kopya, manifest alan alan eşit) ve `nuget-verified`'ı yükler; `publish` checkout + `paket-dogrula` sonra login + push. Sıra gerekçesi ölçüldü (2026-09-24): `ReleaseArtifactFixture` `Tracon.Core.dll`'i yeniden damgalar. Temiz ağaç kapısına bypass eklenmedi (K-661 "Yeniden açılmaz"); taze klonda `Derle`'ye kadarki adımlar ağacı kirletmedi. Yapısal kapı: `dokuman-bakim.py --denetle` "CI tek derleme zinciri" altı değişmezi her push'ta denetler. Reddedilen: yüklemeyi testten önce yapıp `overwrite: true` (düşen deneme de yüklerdi); `publish`'te satır içi `sha256sum -c` (etikette ilk kez koşan mantık, Açık Soru 1 = A).
+
+## Faz 90 damıtmasında taşınan gerekçeler
+
+### K-847
+
+Tam metin `git show 64c8a103:<yol>` ile çözülür.
+
+### K-848
+
+İki katman: `ProviderHealthCheckCore` `authorize` adımını `Credential error (<Tip>).` yapar; `ModelProviderHealthCache` herhangi bir check istisnasını `The health check failed (<Tip>).` yapar (seam tüketiciye açık). Mesaj yanıta girmez — kimlik kütüphanesinin mesajı kiracı/istemci kimliği taşır. Logger `internal init` özelliğiyle bağlandı; public kurucu değişmedi. Çağıranın iptali hâlâ yayılır (K-840). Kapı: `ModelHealthEndpointsTests` (iki fonksiyonel test) · `ModelProviderHealthCacheThrowingCheckTests` · `ProviderHealthCheckCoreTests`
+
+### K-849
+
+K-176 emsali: yeni NuGet kimliği yok, tüketici grafiği değişmez. **`internal` zorunlu:** aynı tam adlı public tip dört derlemede `CS0433` ve dört `PublicAPI` satırı üretir. XML doc id'leri dört dosyada ortaktır ama `Microsoft.AspNetCore.OpenApi` üreteci yalnız public üyeyi emit eder (ölçüldü, `/openapi/v1.json` 200) — K-352 sınıfı tetiklenmez. Kompozisyon seçildi; planın "CS0060 kalıtımı engeller" iddiası yanlış çıktı (kabuklar zaten `internal`) ama kompozisyon kabukların tipini ve tabanını değiştirmediği için korundu
+
+### K-850
+
+Kalan bir tipin public imzası ve XML `<exception cref>`'i kapanışa girer. **Birinci taraf bir paketin gövdesinde kullanılmak kalma gerekçesi sayılmaz** — `InternalsVisibleTo` ile çözülür (emsal K-601/K-619; yeni: Abstractions → AspNetCore/Mcp/3 SQL, Core → Voice/Workflows/Cli). OpenAPI şema tipi kalır: `XmlCommentGenerator` yalnız public tipin dokümanını belgeye taşır (ölçüldü: önbellekte 604 tip, sıfırı internal) — şema tipini daraltmak sevk edilen HTTP sözleşmesinin açıklamasını siler. Ölçüm: 766 → 673 tip, 9.771 → 9.119 `Unshipped` satırı; 108 aday (paket×tip) dört yargıç + dört bağımsız şüpheciyle elendi; 15 tip kaldı — 12 kök gerekçe + 3 imza kapanışı.
+
+### K-851
+
+Her zaman uzunluk önekli biçim mevcut `conditions_hash` satırlarını geçersiz kılardı ve SHA-256'yı üç SQL lehçesinde taşınabilir hesaplayan bir migration yoktur; seçilen biçim yalnız yolunda ayırıcı taşıyan kümelerin izini değiştirir (yükseltme öncesi böyle bir yolla yazılmış bir satır yeniden eklenirse çift kayıt olur — pratikte yok) — U+001E ile başlayan ön görüntü ayırıcıyla birleştirilmiş hiçbir metinle çakışmaz.
+
+### K-852
+
+Ölçüldü (fonksiyonel test önce kırmızı): kiracı A'nın admin'i `Tracon:McpSecrets:<B'nin anahtarı>` adını ve kendi adresini kaydediyordu; Tracon B'nin değerini `Authorization` başlığıyla o adrese gönderirdi — BYOK'ta uç override'ı, webhook'ta imza anahtarı aynı yol. Seçenekler: (a) her kiracıya segment zorunlu — model en temiz, ama her tek kiracılı yapılandırmayı kırar; (b) opt-in bayrak — varsayılan kurulumda açık kalır; (c) SEÇİLEN: düz ad varsayılan kiracınındır. Diğer her kiracının anahtarı `:` taşıdığı için düz ad başka kiracının alanına uzanamaz; tek kiracılı kurulum değişmez. Segment `OrdinalIgnoreCase` eşleşir (IConfiguration anahtarı ve kiracı kimliği büyük/küçük harf duyarsız); önek karşılaştırması `Ordinal` kalır. Public kırılma: `TenantProviderCredentialResolver` kurucusu `IOptions<TraconOptions>` alır, `ValidatePrefix(string)` → `ValidateKeyName(tenantId, name)` — ad bilerek değişti ki eski çağıran zayıf kuralla sessizce derlenmesin.
+
+### K-853
+
+K-469 bu uçları "platform yöneticisi" için kabul etmişti ama kod bunu zorlamıyordu. Rol policy'leri kayıtsızken geri düşer (K1); bu policy DÜŞMEZ — bir kiracının başka kiracının `secret`'ına ulaşması korunacak bir geri düşüş değildir. `RequireRolePolicies` kümesine EKLENMEDİ: eklemek mevcut üretim kurulumlarını açılışta kırardı; reddetmek zaten fail-closed. Kiracılık kapalıyken claim kiracı çözmez, "başka kiracı" kavramı yoktur — tek kiracılı kurulum yeni policy istemez. Kontrol `TraconEndpointFilter`'dan SONRA koşan uç filtresidir (`CrossTenantAuthority`); statik token isteği `StaticTokenRequestContext` ile işaretlenir çünkü token principal veya anahtar kaydı üretmez. Reddedilen: K-469'u tamamen geri almak (yalnız kendi kiracısı) — arayüzün kiracı alanını ve operatör iş akışını kırardı.
+
+### K-854
+
+`null` adresi uzak saymak REDDEDİLDİ: TestServer ve named pipe yerel sayılmazdı, tüketicinin TestServer testleri kırılırdı; vekil başlık kuralı aynı vakayı kapatır. Kural yalnız kimlik bilgisi yokken uygulanır — başka sitenin sayfası token'ı veya anahtarı sunamaz. Kapsam: ana API, MCP ve A2A grupları (filtre) ile ses soketi (uç içinde, çünkü kimlik alt protokoldedir). Dışarıda: UI kabuğu ve trigger'lar loopback sözü vermez; OAuth callback'ini `state` bağlar ve `form_post` sağlayıcının `Origin`'iyle gelir; `/api/meta` veri taşımaz. Reddedilen: açılışta hata — yalnız API anahtarı kullanan kurulumu gereksiz kırardı; `AllowAnonymousRemoteAccess` muafiyet bayrağı — yeni bir güvenlik düğmesi açardı.
+
+### K-855
+
+Duyuru `compatibility.md` "How long each target framework stays" altındaki tarihli paragraf ve `CHANGELOG.md` `[Unreleased]` `### Deprecated` ile sevk edildi; kalıcı politika metni değişmedi. K-005 düşürme uygulanana kadar geçerlidir; K-005'in yeniden açılma notu ile K-780 ve K-349'un yeniden ölçümü düşürme fazının kapanışında yazılır (K-270 emsali). Reddedilen: bir sürüm daha taşımak (CI yamasız runtime'da koşar) · GA ile düşürmek (GA tarihi belirsiz).
+
+### K-856
+
+MCP audit'i `AuditSecretFilter`'ın ad sezgisine dayanıyordu; `Cookie` ve `Ocp-Apim-Subscription-Key` değerleri audit_log'a düz giriyordu (K-779: audit düz metindir). Maske ada bakmaz, çünkü ad sezgisi `X-Auth` gibi adları kaçırır. `***` geri yazımı 400 alır, çünkü read-modify-write maskeyi gerçek değerin üstüne yazar ve hedefin kimlik doğrulaması sessizce bozulur. Değerin DB'de düz durması K-059'un tam kapsamı değildir; yapılandırma anahtarı referansı Faz 190'dadır (F-272).
+
+### K-857
+
+Store saat dilimini bilmez (`AddUsageAsync` emsali); dönem başını çağıran hesaplar ve dört iç çağıran `GetAllPeriodStarts(now, tz)` geçer. SQL tek sorgu, iki (dönem, başlangıç) çifti; NULL `date` parametresi yok. `QuotaStoreContract`'a dört case eklendi. Reddedilen: `AsOf`'u pencereyle uygulamak (üst küme kalır) · belgeyi davranışa uydurmak (okuma maliyeti açık kalır). Migration yok.
+
+### K-858
+
+Tek paketi yükselten tüketicinin grafı sıfır uyarıyla restore olup çalışma anında kırılıyordu; kapanış ölçümü (`System.Reflection.Metadata`, 17 preview.2 derlemesi, ~11.400 kardeş başvurusu) beş kırılma buldu: iki `ValidatePrefix` (`MissingMethodException`), `ConfigurationKeyGuard.RequirePrefix` (AspNetCore ve Mcp, `MethodAccessException`), `JobPayload.ExtractItems` ve `WorkflowCheckpointState.IsOmitted` (Contracts.Xunit → Abstractions, IVT'siz). Public ayar yoktur; `TraconPinSiblingDependencies` (`src/Directory.Build.props`, `BeforeTargets="GenerateNuspec"`) SDK-private `_ProjectReferencesWithVersions` öğesini düzenler. Kapı: `ReleaseArtifactTests.EverySiblingDependencyIsExactAndMatchesOwnVersion` (hedef yokken 66 satırla kırmızı ölçüldü). Doğrudan başvuru aralığı ezer ve NuGet yalnız NU1608 verir — şablon projesi onu hata sayar; yayınlanmış preview.1/preview.2 açık aralıklıdır, onları K-859 yakalar. Emsal: Roslyn paketlerinin kardeş aralığı tamdır.
+
+### K-859
+
+`StartingAsync` bütün `StartAsync`'lerden önce koşar: `AddTracon()`'dan önce kayıtlı tüketici servisi ve SQL migration'ı karışık grafta koşmaz, `ServicesStartConcurrently` iki değerinde de (ölçüldü, `PackageFamilyAlignmentHostTests`). DI işaretçisine dayanan tasarım reddedildi: yayınlanmış preview.2 kardeşleri işaretçi taşımaz; ölçüldü — nuget.org `Tracon.AspNetCore 1.0.0-preview.2` + HEAD Core host'u artık başlamıyor. Opt-out yeni public API olurdu (`TraconOptions` alanı); açılmadı. İki `ValidatePrefix` geri gelmez: eski anlamlı shim K-852'nin daralttığı kiracı kontrolünü geri getirirdi. NativeAOT'de hizalı host yanlış red üretmez (`ExtensionAotSmoke` gerçek host, çıkış 0; AOT'de görülen aile derlemesi: 2). Host başlatmayan süreç (`BuildServiceProvider()`, Contracts.Xunit ile store testi) kontrolü koşturmaz — yükseltme notu kapsar.
+
+### K-860
+
+Hash SHA-256'dır, alan ayırıcılı (`tracon.skill-script.v1` / `tracon.skill-script-set.v1`) ve uzunluk öneklidir: script için uzantı + içerik + argüman şeması, geniş grant için ad sıralı küme izi (ekleme, silme, yeniden adlandırma ve içerik değişikliği dahil). `SkillScriptGrant.ContentHash` (`init`), üç sağlayıcıda nullable `content_hash` (PostgreSQL `0053`, SqlServer `0041`, Sqlite `0040`); doldurma yok — doldurma grant'tan sonra değişmiş içeriği onaylardı. Grant ucu `expectedContentHash` ister (`400` · `404` · `409`; `409` güncel hash'i taşımaz, TOCTOU). Runner her çalıştırmada güncel hash'i hesaplar. Disk script'ini uygulamayı dağıtan yazar; pinlenmez, `SkillRoots` salt okunur olmalıdır. Reddedilen: script taşıyan skill kaydına `SecurityAdmin` şartı — içerik yazımı tek başına kod çalıştırmaz, pin yeter. Kanıt: `SkillScriptContentPinTests` (HTTP → model → MAF → runner → gerçek `/bin/bash`), `SkillScriptHashTests`, `SkillScriptGrantContract` dört koşum, üç migration testi; örnek uygulamada gerçek modelle ölçüldü.
+
+### K-861
+
+B2 script sürecinde geçmez; kiracının `SecurityAdmin`'i tek başına başka kiracıların verisine ulaşan kodu onaylayabiliyordu. Kontrol uçta, tenancy koşuluyla `CrossTenantAuthority.CheckAsync(httpContext, null)`'dır (koşulsuz çağrı tek kiracılıda her anahtarı reddederdi). Reddedilen: `AllowStoredScripts`'i çok kiracılıda açılışta reddetmek (meşru platform kurulumunu kırar) · yalnız R8'i yazmak (riski adlandırır, kapatmaz). `TraconProductionRisk` değişmedi. Kanıt: `SkillScriptContentPinTests` dört kimlik (kiracı anahtarı `403`, `PlatformAdmin` anahtarı ve statik token `201`, claims policy'si) + tek kiracılı `201`, devre dışı skill `403`.
+
+### K-862
+
+Kapsam satırı bir raporlayıcının okuduğu politika sözleşmesidir (K-776 emsali); OS yalıtımı kapsam dışına yazıldı. `check-content.mjs` üç kapı taşır — iki politika dosyasında kapsam satırı, her sayfada (üretilen `api/` ve changelog dahil) ve `SECURITY.md`'de yasak sandbox ifadeleri, `threat-model.md` "Accepted risks"te OS kimliği riski; her biri bir kez kırmızı gösterildi. Sınıf adı kalır (Karar 9): yeniden adlandırma doğrudan kuran tüketiciyi kırar, tek kazanç ad doğruluğudur; XML OS sandbox'ı olmadığını söyler. Reddedilen: adı koruyup tanımı daraltmak — ad vaadi taşımaya devam ederdi.
+
+### K-863
+
+Faz 186'da `GET /api/skills/{name}` katalogdan (önce kod) çözmeye başladı — grant'ı veren kişi çalışacak içeriği görsün diye; `GET` ile okuyup `PUT` ile yazan konsol düzenleyicisi bu yüzden gölgelenen kayıtlı kopyanın üstüne kod içeriğini sessizce yazıyordu (denetim ölçtü). Kod adı altındaki kayıtlı kopya zaten hiç çalışmaz; önceden `PUT` onu yine de yazıyordu. Katalog `IsDefinedInCode(name)` kazandı. Kanıt: `SkillCrudTests` (2), `SkillTests.A_skill_defined_in_code_opens_read_only`.
+
+### K-864
+
+İlk koşum (2026-09-24, taban `v1.0.0-preview.2`): 95 tip, 10 paket; joker satırı sekiz tipi adlandırmıyordu (düzeltildi). K-602 (kırıcı değişiklik serbest) ve K-603 (`Shipped` GA'da) değişmez: kapı reddetmez, duyurusuz sevki reddeder. Taban geliştirici cache'inden okunmaz (yerel `ReleaseArtifactFixture` preview.1 gölgesi). Günlük döngü taban doğrulaması koşmaz. Kesim commit'i ve etiket tek komutla itilir (`git push --atomic`, Açık Soru 1 = C). İlk yayına giden library paketi `TraconPackageFirstRelease` taşır; tabandaki pakette bayrak kırmızıdır
+
+### K-865
+
+Bugün eklemek ucuzdur (pre-1.0, `Shipped` boş); GA'dan sonra TFM'ye özgü bir üyeyi kaldırmak kırıcı olurdu. Taban karşısında strict (`EnableStrictModeForBaselineValidation`) açılmadı: eklemeyi de hata sayar, preview yüzeyi büyüyebilir
+
+### K-866
+
+GA'da (K-603) `Shipped` dolunca bu kurucular donardı; her yeni bağımlılık bir aşırı yükleme ister (RS0026/RS0027, K-848 bu bedeli bir kez ödedi). 15 kurucu `internal`; `QuotaEnforcer`/`RunSampler` primary constructor'dan açık kurucuya döndü, `RunSampler` tip tabanlı kayıttan fabrikaya (tip tabanlı kayıt internal kurucuda çalışma anında düşer — `DiConstructedServiceResolutionTests`). Kapı: `PublicSurfaceBaselineTests` opsiyonel parametreli public kurucu tabanı (`optional-parameter-constructor-baseline.txt`, 4 satır: `AgentRunBudget`, `TraconAgentSourceException`, `TraconToolRegistration` — Faz 189 siler, `FakeModelProvider`); yenileme yalnız bayat satırı siler, yeni satır elle ve bu K'yı anarak girer. `RunEventWriter`'ın yaşam döngüsü metotları da `internal` (Açık Soru 1 = A); tüketiciye `AppendAsync` kalır. Sürüm notu geçiş örneği verir, `[Obsolete]` yok (pre-1.0).
+
+### K-867
+
+Ölçüldü (HEAD `305c2084`): arayüzde 28 üye (1 özellik + 27 metot), 13 pakette 61 uzantı zaten `Add`/`Use`/`Map` uzantısıydı (K-350 emsali); kurucu 1 zorunlu + 7 opsiyonel, çağrı yeri 39 (`src` 8, `samples` 2, `tests` 29). 27 gövde birebir taşındı — `TraconBuilderRegistrationSnapshotTests` taşımadan ÖNCE kaydedildi ve 27 metodun `ServiceDescriptor` biçimini (tip, ömür, örnek/tip/fabrika, iki çağrıda `Add` ↔ `TryAdd*`) kilitler; her uzantı `ArgumentNullException.ThrowIfNull(builder)` ile başlar. Üreteç tüketicinin derlemesine nesne başlatıcı yazar (altı ayar her zaman; `Source` yazılmaz) — `init` eklemek GA'dan sonra da ikili uyumludur. Kapılar: `TraconBuilderInterfaceTests` (arayüz üyeleri tam olarak {`Services`}), `ToolRegistrationParityTests` + `GeneratedRegistrationParityTests` (üç tip yansımayla eşlenir; eşlenmeyen/hariç yazılmayan yeni ayar kırmızı), K-866 ratchet'inden `TraconToolRegistration(8/7)` satırı silindi. Kaldırılan imzalar ApiCompat'ta `CP0002` üretir; `CHANGELOG.md` `[Unreleased]` iki tip adını ve dört geçiş maddesini taşır (Faz 187 kapısı). Bedel: önceki preview'a karşı derlenmiş derleme (üretilmiş tool kodu dahil) ve önceki preview'ın sağlayıcı/MCP/Voice/Testing paketi yeni Core ile `MissingMethodException` alır — sağlayıcıda kayıt anında, K-859 kontrolünden önce; K-858 yeni paketlerde grafı restore'da reddeder. Reddedilen: ratchet'i metotlara genişletmek (Faz 188 karar 4 ile çelişir); 27 metodu alan başına beş sınıfa bölmek (Core +5 tip, aşırı yüklemeler tek tipte kalmalı).
+
+### K-868 — devam (Faz 90 damıtması)
+
+Sınıflandırıcı tek listedir (`CredentialHeaderNames`, audit filtresiyle ortak).
+
+### K-869 — devam (Faz 90 damıtması)
+
+Özel `DiagnosticId` STJ kaynak üretecinin `CS0618` bastırmasını deliyor (ölçüldü).
+
+### K-871 — devam (Faz 90 damıtması)
+
+K-604'ü (artık iteni de prova doğrular) ve K-661'i (tek artifact — CI zincirinde de; K-661'in gerekçesi `pack` işini "TEK yol" diye anar) genişletir. Bayt eşitliği her push'ta (PR dahil) sınanır; etiket yolu yeni mantık taşımaz (A-29/A-33 dersi).
+
+### K-872
+
+Ön sürüm upstream kendi önizlemeleri arasında kırar; açık alt sınır (`>= x`) o yükseltmeyi davet eder. Tam aralıkta NuGet aynı durumu restore'da söyler (doğrudan başvuruda NU1608, geçişlide NU1107). Bedel: tüketici Hosting ailesini Tracon'dan bağımsız yükseltemez — zaten uyumsuzdu. Kararlı upstream (MAF `1.22.0`, MEAI `10.10.0`) karşı ölçümde 0 eksik verdi; o alt sınırda kalır ki tüketici güvenlik yamasını alabilsin. Uygulama `Directory.Packages.props`'ta beş `[x]` sürümüdür (K-858'in hedefi değil — o yalnız Tracon→Tracon kenarını düzenler). Kapı: `ReleaseArtifactTests.EveryPrereleaseThirdPartyDependencyIsExact` (değişiklikten önce 15 kenarla kırmızı ölçüldü) ve `kapi.py yayin` metaveri denetimi (`EXACT_RANGE_PATTERN`)
+
