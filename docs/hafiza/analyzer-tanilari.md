@@ -120,3 +120,17 @@
   aday bile olmaz. Proje referansli IVT'siz test ise `CS1729` verir (ayni sebep
   degil, erisilebilirlik elemesi) — iki durumda da hata kodu `CS0122` degildir.
 - **🚨 `[Obsolete]`'e `DiagnosticId` verme — System.Text.Json kaynak üreteci yalnız `CS0612`/`CS0618`'i bastırır** (2026-09-24, Faz 190, K-869, ölçüldü): `DiagnosticId = "TRC9001"` ile Tracon.Core'un kendi `JsonSerializerContext`'i 30 hatayla kırıldı; aynı tipi kendi context'ine alan tüketici de `TreatWarningsAsErrors` altında kırılırdı. Yalnız mesaj kullan (`ObsoleteMessages`). `UrlFormat` de verme: site adresinin C#'taki tek sahibi `Tracon.Generators/DocumentationLinks.cs`; başka bir `.cs` dosyasında `tracon.dev` `check-content.mjs` §11'de kırmızıdır. `ObsoleteMessagesTests` ikisini de kilitler. İç kullanım `#pragma warning disable CS0618` + gerekçe; sayım `grep -rn "pragma warning disable CS0618" src tests`. Ayrıca: `///` içindeki her `x.y.z` `dokuman-bakim.py`'nin bağımlılık damgası kapısına girer — Tracon'un kendi sürümünü XML'de "first stable release" diye yaz, sürüm dizesi `[Obsolete]` mesajında kalsın.
+
+## Yerel SDK CI'dan geride kalınca kural CI'da doğar (2026-09-24)
+
+- **🚨 Kapanış yerelde yeşil, CI'da `CA1875` ile kırmızı.** `global.json`
+  `10.0.100` + `rollForward: latestFeature`; `setup-dotnet` en yeni bandı kurar
+  (ölçüldü: `10.0.401`), yerel makinede yalnız `10.0.100` vardı. `AnalysisLevel`
+  `latest-recommended` olduğu için yeni SDK'nın yeni kuralı hata olarak gelir
+  (`Regex.Matches(...).Count` → `Regex.Count`, Faz 190'ın test kodu).
+- **CI'ın SDK'sını yerelde koş:** `dotnet-install.sh --version <CI sürümü>
+  --install-dir ~/.dotnet --no-path --skip-non-versioned-files`, sonra
+  `~/.dotnet/dotnet build Tracon.slnx -c Release` ve `format --verify-no-changes`.
+  `~/.dotnet`'i PATH'e koyma (`test-kosum-tuzaklari.md`). Negatif kontrol:
+  düzeltme geri alınınca aynı SDK `CA1875` verdi.
+

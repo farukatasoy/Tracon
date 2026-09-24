@@ -247,12 +247,15 @@ class IzoleRestoreTestleri(unittest.TestCase):
         self.assertIn("Tracon.Voice", violations[1])
 
     def test_pack_ozellikleri_uc_p_tasir(self):
-        properties = bc.pack_properties(pathlib.Path("/c"), "1.0.0-preview.2", pathlib.Path("/r"))
+        cache, report = pathlib.Path("/c"), pathlib.Path("/r")
+        properties = bc.pack_properties(cache, "1.0.0-preview.2", report)
 
+        # Yol `dotnet`'e işletim sisteminin kendi biçimiyle gider (Windows'ta
+        # `\c`); beklenen değer de aynı biçimden kurulur (2026-09-24, CI windows).
         self.assertEqual(properties, [
-            "-p:TraconPackageBaselineRoot=/c",
+            f"-p:TraconPackageBaselineRoot={cache}",
             "-p:TraconPackageBaselineVersion=1.0.0-preview.2",
-            "-p:TraconApiCompatReportDir=/r",
+            f"-p:TraconApiCompatReportDir={report}",
         ])
 
 

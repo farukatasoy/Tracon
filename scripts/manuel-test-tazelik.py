@@ -907,7 +907,9 @@ def _kisa_yol(yol: pathlib.Path) -> str:
     kabul kuralı (`MT-GDK-022`) ham traceback'i yasaklar.
     """
     try:
-        return str(yol.relative_to(ROOT))
+        # Repo yolu her işletim sisteminde `/` ile yazılır: rapor ve kayıt
+        # Windows runner'ında da aynı metni taşır (2026-09-24, CI windows).
+        return yol.relative_to(ROOT).as_posix()
     except ValueError:
         return str(yol)
 
