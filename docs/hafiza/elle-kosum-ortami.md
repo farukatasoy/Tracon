@@ -100,3 +100,19 @@
   gider (`Sec-WebSocket-Protocol: tracon.voice.v1, tracon.token.<token>`).
   Aynı sınıf iki kez daha çıktı — ek uçları kökte `api/attachments`, karar ucu
   `approvals/{id}/decide`.
+
+## Makineye runtime ekleme
+
+- **🚨 `dotnet-install.sh --runtime` global köke `--skip-non-versioned-files`
+  olmadan koşarsa `dotnet` muxer'ını YERİNDE ezer ve macOS onu öldürür.**
+  Ölçüldü (2026-09-24): net8 runtime'ı `/usr/local/share/dotnet`'e eklendi;
+  script sürümsüz dosyaları (`dotnet`, `LICENSE.txt`, `ThirdPartyNotices.txt`)
+  8.0.31'inkilerle değiştirdi. `codesign -v` geçti ama her `dotnet` çağrısı
+  çıkış 137 (`killed`) verdi: çekirdek imzayı eski inode için önbelleğe almıştı.
+  Doğru komut:
+  `sudo bash dotnet-install.sh --runtime dotnet --channel 8.0 --install-dir /usr/local/share/dotnet --no-path --skip-non-versioned-files`
+  (aynısı `--runtime aspnetcore` ile).
+- **Onarım yeni inode ister:** imzalı bir 10.x muxer'ı yanına kopyala, sonra
+  `mv` ile değiştir (`sudo cp ~/.dotnet/dotnet …/dotnet.new && sudo mv -f
+  …/dotnet.new …/dotnet`). Yerinde `cp` aynı kilitlenmeyi yeniden üretir.
+
