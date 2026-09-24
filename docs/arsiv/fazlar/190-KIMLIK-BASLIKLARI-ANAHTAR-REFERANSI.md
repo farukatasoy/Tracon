@@ -233,7 +233,7 @@ Yerel tercihler (K-* değil):
 
 ## Sonraki Faza Devir Notu
 
-**Sıradaki faz: [191](../../191-TEK-DERLEME-ZINCIRI.md)** — Faz 190'la teknik bağı yok.
+**Sıradaki faz: [191](191-TEK-DERLEME-ZINCIRI.md)** — Faz 190'la teknik bağı yok.
 
 Devralınan sözleşmeler:
 

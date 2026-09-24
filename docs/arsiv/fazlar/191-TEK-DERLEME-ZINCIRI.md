@@ -2,14 +2,14 @@
 
 > **Durum:** ✅ Tamamlandı (2026-09-24)
 > **Plan onayı:** Bakımcı, 2026-09-23 (engelleyici kararlar sohbette alındı)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-273** — triaj N12'nin (b) parçası = `YAYIN-HAZIRLIK` açık kalemi **A-15** ("kapı kendi bastığı byte'ları doğrulamıyor"); bu faz A-15'i tamamen kapatır. (a) parçası = **A-8** iş süre sınırları, 2026-09-23 `kusur-giderme` turu.
-> **Önkoşul:** [Faz 187](arsiv/fazlar/187-KIRICI-DEGISIKLIK-KAPISI.md) — iki faz da `kapi.py yayin`'i değiştirir; 187'nin pack anı adımları `paketle`'ye taşınır (191.8) · 2026-09-23 `kusur-giderme` turu: her `ci.yml` işinde `timeout-minutes` ve `zaman_siniri_olmayan_isler` kapısı; sınırlar ve kapı yeşil kalmalı · Faz 185 → 190 bu fazdan önce kapanır
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-273** — triaj N12'nin (b) parçası = `YAYIN-HAZIRLIK` açık kalemi **A-15** ("kapı kendi bastığı byte'ları doğrulamıyor"); bu faz A-15'i tamamen kapatır. (a) parçası = **A-8** iş süre sınırları, 2026-09-23 `kusur-giderme` turu.
+> **Önkoşul:** [Faz 187](187-KIRICI-DEGISIKLIK-KAPISI.md) — iki faz da `kapi.py yayin`'i değiştirir; 187'nin pack anı adımları `paketle`'ye taşınır (191.8) · 2026-09-23 `kusur-giderme` turu: her `ci.yml` işinde `timeout-minutes` ve `zaman_siniri_olmayan_isler` kapısı; sınırlar ve kapı yeşil kalmalı · Faz 185 → 190 bu fazdan önce kapanır
 > **Paketler:** Yok — sevk edilen içerik değişmez. Dokunulan: `ci.yml`, `kapi.py`, `dokuman-bakim.py`, iki script testi, `Directory.Build.targets` (yalnız K-661 yorumu), `WorkflowWorkspacePathsTests.cs` (Açık Soru 2)
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyümüyor, daralmıyor — `src/` altında imza değişmez. Ölçüm (2026-09-23): `wc -l src/*/PublicAPI.Shipped.txt` → 17 dosya, toplam 17 satır; her dosya yalnız `#nullable enable` taşır (Shipped boş, K-603)
 > **Tüketici yüzeyi:** site: Yok — `git grep -in "reproducib\|provenance\|built by CI" -- docs-site/src/content/docs` 18 satır bulur; hepsi sürüm sabitleme veya `run`/skor provenance'ıdır, CI zincirini anlatmaz
 > · sevk edilen: Yok — `.nupkg` içeriği, XML `<example>`, `src/*/README.md` ve `capabilities.md` satırı değişmez; `CHANGELOG.md` satırı Açık Soru 3
-> **Manuel test alanı:** [`docs/manuel-test/01-KURULUM-VE-PAKETLEME.md`](manuel-test/01-KURULUM-VE-PAKETLEME.md) — yeni case'ler oraya; `MT-PKG-100` güncellenir
+> **Manuel test alanı:** [`docs/manuel-test/01-KURULUM-VE-PAKETLEME.md`](../../manuel-test/01-KURULUM-VE-PAKETLEME.md) — yeni case'ler oraya; `MT-PKG-100` güncellenir
 
 ---
 
@@ -28,19 +28,19 @@
    **K-661** (bir `<id, version>` çifti tek bir artifact'ı adlandırır; kirli ağaçta pack reddedilir;
    `TraconSkipCleanWorkingTreeCheck` yeni bir çağırana eklenmez — "Yeniden açılmaz"),
    **K-603** (`PublicAPI.Shipped.txt` preview hattı boyunca boştur)
-3. [Faz 187](arsiv/fazlar/187-KIRICI-DEGISIKLIK-KAPISI.md) — yalnız devir notu. 187 `yayin`'e pack
+3. [Faz 187](187-KIRICI-DEGISIKLIK-KAPISI.md) — yalnız devir notu. 187 `yayin`'e pack
    öncesi adımlar, üç `-p:` özelliği ve pack anı raporları ekler; açtığı K-* de oradadır:
    ```bash
    f=$(find docs -name '187-*.md' | head -1)   # zsh'te eşleşmeyen glob komutu düşürür
    awk '/## Sonraki Faza Devir Notu/,0' "$f"
    ```
 4. Alan hafızası, yalnız şu bölümler:
-   [`hafiza/yayin-ve-surumleme.md`](hafiza/yayin-ve-surumleme.md) "MinVer surumu calisma
+   [`hafiza/yayin-ve-surumleme.md`](../../hafiza/yayin-ve-surumleme.md) "MinVer surumu calisma
    agacinin durumunu GORMEZ (Faz 136)" (`TRACON0004`, CI iş alanı yolları, `.psmdcp`,
    staging/promote, eski sürümlerden temizlenmeyen `release_dir`) ·
-   [`hafiza/test-kosum-tuzaklari.md`](hafiza/test-kosum-tuzaklari.md) "Alt surec ve MSBuild"
+   [`hafiza/test-kosum-tuzaklari.md`](../../hafiza/test-kosum-tuzaklari.md) "Alt surec ve MSBuild"
    (`MSBUILDDISABLENODEREUSE=1`) ·
-   [`hafiza/test-kosum-olcumleri.md`](hafiza/test-kosum-olcumleri.md) "CI iş süreleri ve
+   [`hafiza/test-kosum-olcumleri.md`](../../hafiza/test-kosum-olcumleri.md) "CI iş süreleri ve
    `timeout-minutes` — 2026-09-23" (sınır tabanı ve ölçüm yöntemi; 191.4)
 
 🚨 Her `dosya:satır` HEAD `bb9953e3`'te ölçüldü. Aynı turun `kusur-giderme` değişikliği
@@ -74,14 +74,14 @@ doğrulamayla karşılaşmaz.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`ci.yml:280-319`](../.github/workflows/ci.yml) (`pack`) | Taze runner'da restore + `dotnet build Tracon.slnx` + `dotnet pack Tracon.slnx --no-build` (`:308-310`); `nuget-packages` yükler (`:312-319`). Build işinin test ettiği derleme **değildir** |
-| [`ci.yml:321-333`](../.github/workflows/ci.yml) · `:375` | `release-dryrun` bilerek `pack`'ten bağımsızdır ("PARALEL kosar"); `kapi.py yayin --kuru` kendi paketini üretir |
-| [`kapi.py:1380`](../scripts/kapi.py) (`release_rehearsal`) | Provanın kendi `dotnet pack Tracon.src.slnf -c Release -o <staging>` çağrısı; doğrulanan dosyalar bunun ürünüdür |
-| [`ci.yml:389`](../.github/workflows/ci.yml) | `publish: needs: [pack, release-dryrun, npm-publish]` — prova yalnız **sırada** öndedir |
-| [`ci.yml:398-402`](../.github/workflows/ci.yml) · `:431-436` | `publish` `pack`'in artifact'ını `packages/`'a indirir; denetimsiz `dotnet nuget push "packages/*.nupkg"` |
-| [`kapi.py:1298-1304`](../scripts/kapi.py) (`_write_manifest`) | `package-manifest.json` yazılır; `git grep -n "package-manifest" -- ':!docs'` yalnız bu satırı bulur — okuyan kod yok |
-| [`kapi.py:1238-1268`](../scripts/kapi.py) (`_content_fingerprint`) | `.psmdcp` adı rastgeledir; aynı commit iki kez paketlenince ham SHA-256 değişir. Ayrı bir pack'in dosyası manifest'le **hiç** kanıtlanamaz |
-| `git show 8634a1e3:docs/YAYIN-HAZIRLIK.md` satır 1459 · [`YAYIN-HAZIRLIK.md:608`](YAYIN-HAZIRLIK.md) | **A-15** "Kapı kendi bastığı byte'ları doğrulamıyor"; "Faz adayı, ⚪ GA"; §13'te açık |
+| [`ci.yml:280-319`](../../../.github/workflows/ci.yml) (`pack`) | Taze runner'da restore + `dotnet build Tracon.slnx` + `dotnet pack Tracon.slnx --no-build` (`:308-310`); `nuget-packages` yükler (`:312-319`). Build işinin test ettiği derleme **değildir** |
+| [`ci.yml:321-333`](../../../.github/workflows/ci.yml) · `:375` | `release-dryrun` bilerek `pack`'ten bağımsızdır ("PARALEL kosar"); `kapi.py yayin --kuru` kendi paketini üretir |
+| [`kapi.py:1380`](../../../scripts/kapi.py) (`release_rehearsal`) | Provanın kendi `dotnet pack Tracon.src.slnf -c Release -o <staging>` çağrısı; doğrulanan dosyalar bunun ürünüdür |
+| [`ci.yml:389`](../../../.github/workflows/ci.yml) | `publish: needs: [pack, release-dryrun, npm-publish]` — prova yalnız **sırada** öndedir |
+| [`ci.yml:398-402`](../../../.github/workflows/ci.yml) · `:431-436` | `publish` `pack`'in artifact'ını `packages/`'a indirir; denetimsiz `dotnet nuget push "packages/*.nupkg"` |
+| [`kapi.py:1298-1304`](../../../scripts/kapi.py) (`_write_manifest`) | `package-manifest.json` yazılır; `git grep -n "package-manifest" -- ':!docs'` yalnız bu satırı bulur — okuyan kod yok |
+| [`kapi.py:1238-1268`](../../../scripts/kapi.py) (`_content_fingerprint`) | `.psmdcp` adı rastgeledir; aynı commit iki kez paketlenince ham SHA-256 değişir. Ayrı bir pack'in dosyası manifest'le **hiç** kanıtlanamaz |
+| `git show 8634a1e3:docs/YAYIN-HAZIRLIK.md` satır 1459 · [`YAYIN-HAZIRLIK.md:608`](../../YAYIN-HAZIRLIK.md) | **A-15** "Kapı kendi bastığı byte'ları doğrulamıyor"; "Faz adayı, ⚪ GA"; §13'te açık |
 
 > Kanıtlar 2026-09-23 tarihinde HEAD `bb9953e3` üzerinde doğrulandı.
 
@@ -92,10 +92,10 @@ doğrulamayla karşılaşmaz.
 
 | Çağıran | Komut | Sonuç |
 |---|---|---|
-| [`ReleaseArtifactFixture.cs:31-35`](../tests/Tracon.Package.Tests/Infrastructure/ReleaseArtifactFixture.cs) | `pack Tracon.src.slnf`, `--no-build` yok, `MinVerVersionOverride=1.0.0-preview.1` | src'yi başka sürümle yeniden derler; çıktı `artifacts/package/release` |
-| [`TemplateFixture.cs:32-35`](../tests/Tracon.Package.Tests/Infrastructure/TemplateFixture.cs) | `pack Tracon.src.slnf`, `--no-build` yok | çıktı `artifacts/package/release` |
-| [`PackCleanlinessGateTests.cs`](../tests/Tracon.Package.Tests/PackCleanlinessGateTests.cs) `:30` `:70` `:100` `:115` `:133` | `pack src/Tracon.Abstractions`, `--no-build` yok; `:115` `:133` `0.0.0-dirty.gate-test` | `Tracon.Abstractions`'ı yeniden damgalar; `DirtMarker` ağacı test sırasında **kirletir** |
-| [`capacity.py:308`](../scripts/capacity.py) ("Kapasite smoke") | `pack Tracon.src.slnf -o <feed>`, `0.0.0-ci.N` | src'yi yeniden damgalar |
+| [`ReleaseArtifactFixture.cs:31-35`](../../../tests/Tracon.Package.Tests/Infrastructure/ReleaseArtifactFixture.cs) | `pack Tracon.src.slnf`, `--no-build` yok, `MinVerVersionOverride=1.0.0-preview.1` | src'yi başka sürümle yeniden derler; çıktı `artifacts/package/release` |
+| [`TemplateFixture.cs:32-35`](../../../tests/Tracon.Package.Tests/Infrastructure/TemplateFixture.cs) | `pack Tracon.src.slnf`, `--no-build` yok | çıktı `artifacts/package/release` |
+| [`PackCleanlinessGateTests.cs`](../../../tests/Tracon.Package.Tests/PackCleanlinessGateTests.cs) `:30` `:70` `:100` `:115` `:133` | `pack src/Tracon.Abstractions`, `--no-build` yok; `:115` `:133` `0.0.0-dirty.gate-test` | `Tracon.Abstractions`'ı yeniden damgalar; `DirtMarker` ağacı test sırasında **kirletir** |
+| [`capacity.py:308`](../../../scripts/capacity.py) ("Kapasite smoke") | `pack Tracon.src.slnf -o <feed>`, `0.0.0-ci.N` | src'yi yeniden damgalar |
 
 Test exe'leri src DLL'lerinin kendi kopyalarını yükler; testler etkilenmez. Ama testten
 sonra koşan `pack --no-build` yanlış damgalı DLL'i paketler.
@@ -339,15 +339,15 @@ gerçekleşen tasarımı saparsa fark "Plandan Sapmalar"a yazılır.
 
 | Yer | Bugünkü iddia |
 |---|---|
-| [`Directory.Build.targets:79-81`](../Directory.Build.targets) (K-661 yorumu, `:52-82` bloğu) | "the CI `pack` job that a `v*` tag actually publishes from". 🚨 `:20-28` Faz 187'nindir; bu faz yalnız bu bloğa dokunur |
-| [`kapi.py:1093-1098`](../scripts/kapi.py) (`kapanis` pack adımı yorumu) | Aynı "CI `pack` job" cümlesi (`:1096`) |
+| [`Directory.Build.targets:79-81`](../../../Directory.Build.targets) (K-661 yorumu, `:52-82` bloğu) | "the CI `pack` job that a `v*` tag actually publishes from". 🚨 `:20-28` Faz 187'nindir; bu faz yalnız bu bloğa dokunur |
+| [`kapi.py:1093-1098`](../../../scripts/kapi.py) (`kapanis` pack adımı yorumu) | Aynı "CI `pack` job" cümlesi (`:1096`) |
 | `kapi.py:967` · `kapi_test.py:361` | Yalnız doğrulama: `ci.yml:183` referansını `kusur-giderme` turu 'ci.yml "Test et" adimlariyla' diye düzeltti; DoD grep'i doğrular |
-| [`ci.yml:321-333`](../.github/workflows/ci.yml) · Node adımı yorumu | Provanın bağımsız pack'i; `TRACON0003` gerekçesi |
-| [`YAYIN-HAZIRLIK.md:457`](YAYIN-HAZIRLIK.md) (`OP-010`) | `nuget-publish` (`ci.yml:284`) — iş adı ve satır bayat |
-| [`YAYIN-HAZIRLIK.md:504`](YAYIN-HAZIRLIK.md) ("Deterministic/reproducible") · `:608` (A-15) | Kutu ikiye ayrılır: "CI zinciri yeniden derlemez — itilen bayt = test edilen derleme (Faz 191)" `[x]`; "runner'lar arası / üçüncü taraf yeniden üretim" `[ ]` GA'da kalır. A-15 §13 açık listesinden çıkar |
+| [`ci.yml:321-333`](../../../.github/workflows/ci.yml) · Node adımı yorumu | Provanın bağımsız pack'i; `TRACON0003` gerekçesi |
+| [`YAYIN-HAZIRLIK.md:457`](../../YAYIN-HAZIRLIK.md) (`OP-010`) | `nuget-publish` (`ci.yml:284`) — iş adı ve satır bayat |
+| [`YAYIN-HAZIRLIK.md:504`](../../YAYIN-HAZIRLIK.md) ("Deterministic/reproducible") · `:608` (A-15) | Kutu ikiye ayrılır: "CI zinciri yeniden derlemez — itilen bayt = test edilen derleme (Faz 191)" `[x]`; "runner'lar arası / üçüncü taraf yeniden üretim" `[ ]` GA'da kalır. A-15 §13 açık listesinden çıkar |
 | `MT-PKG-100` (`01-KURULUM-VE-PAKETLEME.md:2662`; komut `:2687`) | "`publish`'i `pack` bittiği an başlatır". `grep -A2` `needs:`'i göstermez (iş anahtarından sonraki üçüncü satır) → case 9'un `awk`'ı |
-| [`hafiza/yayin-ve-surumleme.md`](hafiza/yayin-ve-surumleme.md) `:31-33` | "`pack` ve `yayin provasi` isleri … `TRACON0004` ile dustu" — tarihsel, kalır; yeni bölüm eklenir |
-| [`hafiza/test-kosum-olcumleri.md`](hafiza/test-kosum-olcumleri.md) "CI iş süreleri" | `pack` satırı düşer; yeni süreler girer |
+| [`hafiza/yayin-ve-surumleme.md`](../../hafiza/yayin-ve-surumleme.md) `:31-33` | "`pack` ve `yayin provasi` isleri … `TRACON0004` ile dustu" — tarihsel, kalır; yeni bölüm eklenir |
+| [`hafiza/test-kosum-olcumleri.md`](../../hafiza/test-kosum-olcumleri.md) "CI iş süreleri" | `pack` satırı düşer; yeni süreler girer |
 
 ---
 
@@ -434,7 +434,7 @@ docs/manuel-test/01-KURULUM-VE-PAKETLEME.md   (yeni case'ler · MT-PKG-100)
 
 > **Ne bozulabilir**den türetilir; seviyeyi plan seçer. Sınır geçen davranış (süreç ·
 > paket · işler arası artifact) birim testiyle kanıtlanamaz —
-> [`.agents/ortak/test-seviyeleri.md`](../.agents/ortak/test-seviyeleri.md). Seviyeler:
+> [`.agents/ortak/test-seviyeleri.md`](../../../.agents/ortak/test-seviyeleri.md). Seviyeler:
 > **Birim** (`kapi_test.py`) · **Repo kapısı** (`dokuman-bakim.py` + testi) · **Paket**
 > (gerçek pack + prova) · **CI** (tag'siz push) · **Manuel**.
 
