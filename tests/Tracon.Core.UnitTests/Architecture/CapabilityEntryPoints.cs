@@ -15,9 +15,19 @@ namespace Tracon.Core.UnitTests.Architecture;
 /// them.
 /// </para>
 /// <para>
-/// The scope is decision K-509: every <c>Add</c>, <c>Use</c>, or <c>Map</c>
-/// member whose receiver is one of the registration types, plus every member
-/// declared on the builder interface itself.
+/// The scope is decision K-509: every extension method whose receiver is the
+/// builder interface, whatever its name (<c>Configure</c> and the two
+/// <c>Require*</c> gates are entry points too); every <c>Add</c>, <c>Use</c>, or
+/// <c>Map</c> extension whose receiver is one of the other registration types;
+/// and every member declared on the builder interface itself.
+/// </para>
+/// <para>
+/// The same rule is written twice more, in <c>scripts/manuel-test-tazelik.py</c>
+/// and <c>scripts/public-yuzey-envanteri.py</c> (their shared predicate is
+/// <c>kayit_giris_noktasi</c>). A change here changes those two as well. Each
+/// copy has a test that finds <c>Configure</c>, <c>RequireCustomBinding</c>
+/// and <c>RequireProductionProfile</c>, the three builder entry points without
+/// a registration prefix.
 /// </para>
 /// </remarks>
 internal static class CapabilityEntryPoints
@@ -33,13 +43,20 @@ internal static class CapabilityEntryPoints
     public static string RepositoryRoot => LazyRepositoryRoot.Value;
 
     /// <summary>
-    /// The receivers that make an extension method a capability entry point. A
-    /// consumer turns a capability on through one of these; an extension on any
-    /// other type is a helper, not a registration.
+    /// The builder interface. Every extension on it is a registration, whatever
+    /// its name: the chain exists for nothing else.
+    /// </summary>
+    private const string BuilderReceiver = "Tracon.ITraconBuilder";
+
+    /// <summary>
+    /// The receivers that make an <c>Add</c>/<c>Use</c>/<c>Map</c> extension
+    /// method a capability entry point. A consumer turns a capability on through
+    /// one of these; an extension on any other type is a helper, not a
+    /// registration.
     /// </summary>
     private static readonly HashSet<string> RegistrationReceivers = new(StringComparer.Ordinal)
     {
-        "Tracon.ITraconBuilder",
+        BuilderReceiver,
         "Microsoft.Extensions.DependencyInjection.IServiceCollection",
         "Microsoft.Extensions.DependencyInjection.IHealthChecksBuilder",
         "Microsoft.Extensions.Hosting.IHostApplicationBuilder",
@@ -52,9 +69,9 @@ internal static class CapabilityEntryPoints
         RegexOptions.Compiled | RegexOptions.CultureInvariant,
         TimeSpan.FromSeconds(5));
 
-    /// <summary>An <c>Add</c>, <c>Use</c>, or <c>Map</c> extension method, with its receiver.</summary>
+    /// <summary>An extension method, with its name and its receiver.</summary>
     private static readonly Regex ExtensionMethodPattern = new(
-        @"^static [A-Za-z0-9_.]+\.(?<name>(?:Add|Use|Map)[A-Za-z0-9_]*)(?:<[^(]*>)?\(this (?<receiver>[A-Za-z0-9_.]+)",
+        @"^~?static [A-Za-z0-9_.]+\.(?<name>[A-Za-z_][A-Za-z0-9_]*)(?:<[^(]*>)?\(this (?<receiver>[A-Za-z0-9_.]+)",
         RegexOptions.Compiled | RegexOptions.CultureInvariant,
         TimeSpan.FromSeconds(5));
 
@@ -124,10 +141,26 @@ internal static class CapabilityEntryPoints
 
         var extension = ExtensionMethodPattern.Match(line);
 
-        return extension.Success && RegistrationReceivers.Contains(extension.Groups["receiver"].Value)
-            ? extension.Groups["name"].Value
-            : null;
+        if (!extension.Success)
+        {
+            return null;
+        }
+
+        var name = extension.Groups["name"].Value;
+        var receiver = extension.Groups["receiver"].Value;
+
+        if (string.Equals(receiver, BuilderReceiver, StringComparison.Ordinal))
+        {
+            return name;
+        }
+
+        return RegistrationReceivers.Contains(receiver) && HasRegistrationPrefix(name) ? name : null;
     }
+
+    private static bool HasRegistrationPrefix(string name)
+        => name.StartsWith("Add", StringComparison.Ordinal)
+        || name.StartsWith("Use", StringComparison.Ordinal)
+        || name.StartsWith("Map", StringComparison.Ordinal);
 
     /// <summary>
     /// Every identifier that is declared as a member in the tracked API. The

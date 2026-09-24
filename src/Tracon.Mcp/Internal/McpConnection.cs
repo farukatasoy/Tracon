@@ -447,8 +447,23 @@ internal sealed class McpConnection : IAsyncDisposable
             description: $"Reads a resource declared by the '{_serverName}' MCP server. " +
                           "Only URIs present in the server's resource list are accepted.");
 
-        return new TraconToolRegistration(function, requiresApproval: _requiresApproval, source: _serverName);
+        return CreateRegistration(function, _serverName, _requiresApproval);
     }
+
+    /// <summary>
+    /// Builds the registration for a tool that comes from an MCP server. Every
+    /// MCP-sourced registration goes through here, so the server name and the
+    /// approval setting cannot be dropped on one path and kept on another.
+    /// </summary>
+    /// <param name="function">The tool, already named with its qualified name.</param>
+    /// <param name="serverName">The configured server name; becomes <see cref="TraconToolRegistration.Source"/>.</param>
+    /// <param name="requiresApproval">The server's approval setting.</param>
+    /// <returns>The registration.</returns>
+    internal static TraconToolRegistration CreateRegistration(
+        AIFunctionDeclaration function,
+        string serverName,
+        bool requiresApproval) =>
+        new(function) { RequiresApproval = requiresApproval, Source = serverName };
 
     [Description("Reads a declared MCP resource.")]
     private async Task<string> ReadResourceToolBodyAsync(
@@ -509,13 +524,10 @@ internal sealed class McpConnection : IAsyncDisposable
                 continue;
             }
 
-            registrations.Add(new TraconToolRegistration(
-                tool.WithName(qualified),
-                // The remote tool definition lives on the server, not in code,
-                // and the server can change it at any time. This is why
-                // approval defaults to required.
-                requiresApproval: _requiresApproval,
-                source: _serverName));
+            // The remote tool definition lives on the server, not in code,
+            // and the server can change it at any time. This is why
+            // approval defaults to required.
+            registrations.Add(CreateRegistration(tool.WithName(qualified), _serverName, _requiresApproval));
         }
 
         return registrations;

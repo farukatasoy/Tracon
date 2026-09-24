@@ -181,8 +181,10 @@ public sealed class ToolGovernanceEndpointTests
                             await Task.Delay(TimeSpan.FromSeconds(30)); // delay: simulated
                             return "too late";
                         },
-                        "slow_report"),
-                    timeout: TimeSpan.FromMilliseconds(300)));
+                        "slow_report"))
+                {
+                    Timeout = TimeSpan.FromMilliseconds(300),
+                });
             },
             configureServices: static services => services.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20)));
 
@@ -243,8 +245,10 @@ public sealed class ToolGovernanceEndpointTests
                             await Task.Delay(TimeSpan.FromSeconds(30)); // delay: simulated
                             return "too late";
                         },
-                        "slow_report"),
-                    timeout: TimeSpan.FromMilliseconds(200)));
+                        "slow_report"))
+                {
+                    Timeout = TimeSpan.FromMilliseconds(200),
+                });
             },
             configureServices: static services => services.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20)));
 
@@ -287,9 +291,11 @@ public sealed class ToolGovernanceEndpointTests
                 builder.Services.AddSingleton(new TraconToolRegistration(
                     Microsoft.Extensions.AI.AIFunctionFactory.Create(
                         (string orderId) => $"{orderId} canceled.",
-                        "cancel_order"),
-                    requiresApproval: true,
-                    timeout: TimeSpan.FromMilliseconds(200)));
+                        "cancel_order"))
+                {
+                    RequiresApproval = true,
+                    Timeout = TimeSpan.FromMilliseconds(200),
+                });
             },
             configureServices: static services => services.UseScheduling(o => o.PollInterval = TimeSpan.FromMilliseconds(20)));
 

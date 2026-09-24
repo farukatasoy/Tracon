@@ -98,10 +98,10 @@ public static class VoiceBuilderExtensions
         // at call time is NOT POSSIBLE — Microsoft Agent Framework passes the
         // tool an EmptyServiceProvider (measured, see VoiceToolBase).
         services.AddSingleton(provider =>
-            new TraconToolRegistration(new SpeakTool(provider), requireApproval));
+            new TraconToolRegistration(new SpeakTool(provider)) { RequiresApproval = requireApproval });
 
         services.AddSingleton(provider =>
-            new TraconToolRegistration(new TranscribeTool(provider), requireApproval));
+            new TraconToolRegistration(new TranscribeTool(provider)) { RequiresApproval = requireApproval });
 
         // Listing incurs no cost and has no side effect; the approval setting
         // does not apply to it.

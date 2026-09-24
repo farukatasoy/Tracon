@@ -45,7 +45,7 @@ public sealed class ToolRegistrationTests
     public void Approval_requirement_is_carried_to_the_descriptor()
     {
         var withApproval = new ToolRegistry(
-            [new TraconToolRegistration(TestData.Tool("delete"), requiresApproval: true)],
+            [new TraconToolRegistration(TestData.Tool("delete")) { RequiresApproval = true }],
             new AllowAllToolAuthorizationHandler(),
             NoOpToolArgumentsValidator.Instance,
             TestData.DefaultOptionsMonitor(),
@@ -120,7 +120,7 @@ public sealed class ToolRegistrationTests
 
         var exception = Should.Throw<TraconException>(
             () => new ToolRegistry(
-                [new TraconToolRegistration(declaration, requiresApproval: true)],
+                [new TraconToolRegistration(declaration) { RequiresApproval = true }],
                 new AllowAllToolAuthorizationHandler(),
                 NoOpToolArgumentsValidator.Instance,
                 TestData.DefaultOptionsMonitor(),

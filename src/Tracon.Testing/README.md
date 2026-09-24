@@ -118,12 +118,15 @@ public static class OrderTools
 // registered through a factory.
 public sealed class OrderTools(IOrderRepository repository)
 {
-    [TraconTool]
     public string GetOrderStatus(string orderId) => repository.Find(orderId);
 }
 
 services.AddSingleton(provider =>
-    new TraconToolRegistration(new OrderTools(provider.GetRequiredService<IOrderRepository>()), ...));
+{
+    var tools = new OrderTools(provider.GetRequiredService<IOrderRepository>());
+    return new TraconToolRegistration(
+        AIFunctionFactory.Create(tools.GetOrderStatus, "get_order_status"));
+});
 ```
 
 This trap was measured: an isolated probe program did not

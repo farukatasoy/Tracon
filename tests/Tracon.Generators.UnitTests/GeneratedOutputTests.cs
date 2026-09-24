@@ -25,7 +25,7 @@ public sealed class GeneratedOutputTests
 
         var aggregate = result.GeneratedFiles()["TraconGeneratedTools.g.cs"];
         aggregate.ShouldContain("AddGeneratedTools");
-        aggregate.ShouldNotContain("source:");
+        aggregate.ShouldNotContain("Source =");
 
         var wrapperFile = result.SingleWrapperFile();
         wrapperFile.ShouldContain("public override string Name => \"get_order_status\";");
@@ -72,7 +72,7 @@ public sealed class GeneratedOutputTests
         var result = GeneratorTestHelper.Run(Source);
 
         var aggregate = result.GeneratedFiles()["TraconGeneratedTools.g.cs"];
-        aggregate.ShouldContain("requiresApproval: true");
+        aggregate.ShouldContain("RequiresApproval = true,");
     }
 
     [Fact]
@@ -105,11 +105,11 @@ public sealed class GeneratedOutputTests
 
         var aggregate = result.GeneratedFiles()["TraconGeneratedTools.g.cs"];
 
-        aggregate.ShouldContain("effect: (global::Tracon.ToolEffect)2");
-        aggregate.ShouldContain("requiredPermission: \"orders.cancel\"");
-        aggregate.ShouldContain("timeout: global::System.TimeSpan.FromSeconds(5)");
-        aggregate.ShouldContain("safeToRepeat: true");
-        aggregate.ShouldContain("maxOutputBytes: 768");
+        aggregate.ShouldContain("Effect = (global::Tracon.ToolEffect)2,");
+        aggregate.ShouldContain("RequiredPermission = \"orders.cancel\",");
+        aggregate.ShouldContain("Timeout = global::System.TimeSpan.FromSeconds(5),");
+        aggregate.ShouldContain("SafeToRepeat = true,");
+        aggregate.ShouldContain("MaxOutputBytes = 768,");
     }
 
     [Fact]
@@ -165,9 +165,9 @@ public sealed class GeneratedOutputTests
 
         var aggregate = result.GeneratedFiles()["TraconGeneratedTools.g.cs"];
 
-        aggregate.ShouldContain("effect: (global::Tracon.ToolEffect)0");
-        aggregate.ShouldContain("requiredPermission: null");
-        aggregate.ShouldContain("timeout: null");
+        aggregate.ShouldContain("Effect = (global::Tracon.ToolEffect)0,");
+        aggregate.ShouldContain("RequiredPermission = null,");
+        aggregate.ShouldContain("Timeout = null,");
     }
 
     [Fact]
