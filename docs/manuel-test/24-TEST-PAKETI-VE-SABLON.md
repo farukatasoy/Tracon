@@ -5,7 +5,8 @@
 > 98 (depolama sözleşmesi paketi ve örnek store),
 > 99 (sağlayıcı sözleşmesi paketi ve örnek sağlayıcı),
 > 143 (tool argümanı/yetkilendirme sözleşmesi ve tohumlu fuzz üreteci),
-> 185 (kardeş sürüm sabitleme: şablonun NU1608'i ve fixture sürüm çözümü)
+> 185 (kardeş sürüm sabitleme: şablonun NU1608'i ve fixture sürüm çözümü),
+> 188 (`ModelProviderRegistry` kurucusu `internal`; `MT-TEST-027` DI ile)
 > **Kaynak:** `src/Tracon.Templates/` (tümü — `content/Tracon.Starter/`,
 > `.template.config/template.json`, `dotnetcli.host.json`) ·
 > `src/Tracon.Testing/` (tümü — `FakeModelProvider.cs`, `FakeModelRequest.cs`,
@@ -903,8 +904,9 @@ Console.WriteLine("Models.Count: " + provider.Models.Count);
 sonucudur — sahte sağlayıcı **tek başına** kullanılırsa tool döngüsü kurulmaz.
 
 **Ön koşul**
-- Test paketi konsol projesi kurulu (paketlenmiş `Tracon.Testing`; bir DI
-  kabı için `Microsoft.Extensions.DependencyInjection` paketi).
+- Test paketi konsol projesi kurulu (paketlenmiş `Tracon.Testing`; DI kabı
+  `Microsoft.Extensions.DependencyInjection` onunla geçişli gelir — ayrıca
+  eski bir sürümle referanslamak `NU1605` verir).
 
 **Adımlar**
 1. Bir tool çağrısı + `EchoesLastToolResult` fallback'i tanımla.
@@ -950,8 +952,8 @@ Console.WriteLine(response.Text);
 - Aynı `FakeModelProvider.CreateChatClient(binding)`i **doğrudan** (defter
   olmadan) çağırıp aynı `ChatOptions`ı verirsen, yanıt yalnızca `FunctionCallContent`
   taşır — tool hiç **çalıştırılmaz**, çünkü ham istemcide döngü yoktur.
-- Kod `ModelProviderRegistry` kurucusunu çağırmaz; kurucuyu çağıran kodda derleme `CS0122`
-  (koruma düzeyi) verir.
+- Kod `ModelProviderRegistry` kurucusunu çağırmaz; kurucuyu çağıran kodda derleme
+  `CS1729` verir (kurucu `internal`'dır ve tüketiciye hiç görünmez).
 
 ---
 
