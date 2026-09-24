@@ -319,5 +319,6 @@ doğrulama" ve `hafiza/yayin-ve-surumleme.md` "Sürüm kesimi ve etiket TEK push
 agent haritasını (`llms-full.txt`) bayatlattı — yeniden üretildi; (2) iki mimari testi:
 paket testindeki `Task.Delay` `// delay: <class>` etiketi taşımıyordu (`product` eklendi) ve
 `src/Directory.Build.props` yorumunda Türkçe "Faz" kelimesi `SourceLanguageTests` tabanını
-büyütüyordu (İngilizceye çevrildi). 🚨 `kapi.py test --sinif A --sinif B` yalnız sonuncuyu
-koşar; iki sınıf ayrı çağrıyla doğrulandı.
+büyütüyordu (İngilizceye çevrildi). Kapanışta bulunan araç kusuru: `kapi.py test --sinif A --sinif B` yalnız
+sonuncuyu koşuyordu (argparse `nargs="+"` ikinci bayrakta birinciyi ezer). Düzeltildi
+(`action="extend"`) ve `test_sinif_bayragi_tekrarlaninca_desenler_birikir` kilitler.

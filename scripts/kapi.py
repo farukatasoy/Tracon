@@ -1785,7 +1785,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--guncelle", action="store_true",
         help="bench/baseline.json'ı bu koşumun sonucuyla değiştirir (karşılaştırma yapılmaz)")
     test = subparsers.add_parser("test", help="MTP filtresiyle tek test alt kümesi")
-    test.add_argument("--sinif", nargs="+", required=True, help="sınıf desenleri")
+    # extend: `--sinif A B` ile `--sinif A --sinif B` aynıdır. Varsayılan davranış
+    # ikinci bayrakta birinciyi sessizce ezerdi (Faz 187 kapanışında ölçüldü).
+    test.add_argument("--sinif", nargs="+", action="extend", required=True, help="sınıf desenleri")
     test.add_argument("--proje", default="Tracon.Core.UnitTests", help="test proje adı")
     test.add_argument(
         "--tfm",
