@@ -1,6 +1,6 @@
 # Faz 189 — Tüketici Yüzeyi: TraconToolRegistration ve ITraconBuilder
 
-> **Durum:** 📋 Planlandı (2026-09-23)
+> **Durum:** ✅ Tamamlandı (2026-09-24)
 > **Plan onayı:** Bakımcı, 2026-09-23 (engelleyici kararlar sohbette alındı)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-271** — B yarısı. A yarısı (DI kurucuları + ratchet) [Faz 188](arsiv/fazlar/188-DI-KURUCU-DARALTMA.md)'dir
 > **Önkoşul:** [Faz 188](arsiv/fazlar/188-DI-KURUCU-DARALTMA.md) — **zorunlu**: kurucu ratchet'ini kurar; bu faz onun `TraconToolRegistration` satırını siler · [Faz 187](arsiv/fazlar/187-KIRICI-DEGISIKLIK-KAPISI.md) — `kapi.py yayin` kırıcı değişiklik kapısı; kırılmalar o kapıdan sürüm notuyla geçer · [Faz 186](arsiv/fazlar/186-SCRIPT-IZNI-ICERIK-PINI.md) — numara sırası; `ITraconBuilder.AddSkill` XML'ine (Açık Soru 1'ine göre gövdesine) dokunur (`186-…md:445`) · [Faz 185](arsiv/fazlar/185-KARDES-PAKET-SURUM-SABITLEME.md) — kardeş sabitlemesi; karışık graf riskini daraltır
@@ -459,26 +459,26 @@ Sözleşme testi (`tests/Shared/Contracts/`) gerekmez: depo davranışı değiş
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] `grep -c "^Tracon.ITraconBuilder\." src/Tracon.Core/PublicAPI.Unshipped.txt` → `1`
-- [ ] `grep -c "(this Tracon.ITraconBuilder" src/Tracon.Core/PublicAPI.Unshipped.txt` → faz başı değer + 27 (2026-09-23'te 20 → 47)
-- [ ] Abstractions Unshipped: tek kurucu `TraconToolRegistration(Microsoft.Extensions.AI.AIFunctionDeclaration! function) -> void`; `grep -c "Tracon.TraconToolRegistration\..*\.init -> void"` → `7`; `grep -c "bool requiresApproval = false"` → `0`
-- [ ] `git grep -nE "(requiresApproval|safeToRepeat|maxOutputBytes|requiredPermission):" -- src samples docs-site/src/content/docs ':!docs-site/src/content/docs/api' ':!src/Tracon.UI'` → boş (2026-09-23'te 19 satır)
-- [ ] 189.2 eşleme testleri 1-4 yeşil, yansıma güdümlü; hariç liste testte yazılı
-- [ ] `McpToolRegistrationTests` yeşil; `McpConnection.cs`'te kurulum tek yerde (fabrika)
-- [ ] Descriptor anlık görüntüsü, `builder` `null`, `CapabilityEntryPoints` dört ad ve `TraconBuilderInterfaceTests` yeşil; `capability-coverage-baseline.txt`, `capability-example-baseline.txt` boş
-- [ ] `python3 -m unittest discover -s scripts -p "*_test.py"` yeşil (`kapi.py:1088`); iki betik testinde üç ad iddiası var
-- [ ] `grep -c "TraconToolRegistration" tests/Tracon.Core.UnitTests/Architecture/optional-parameter-constructor-baseline.txt` → `0`; tabanda başka değişiklik yok
-- [ ] `EmbeddedSampleTests` yeni iddiası ve hata modu 5 testi yeşil
-- [ ] `public-surface-baseline.txt`: Core +1 bilinçli; `python3 scripts/public-yuzey-envanteri.py --denetle` → çıkış 0, kanıtsız 0
-- [ ] `python3 scripts/kapi.py yayin --kuru` yeşil; 187 kapısı iki tip adını `[Unreleased]`'de bulur
-- [ ] `CHANGELOG.md` `[Unreleased]` 189.5'in iki girdisini ve dört maddesini taşır; önceki preview'lar ölçülen etiketlerle adlandırılır
-- [ ] Yeni K-* kategori etiketiyle açıldı; K-620 ve K-509'a not düştü; tuzak `hafiza/analyzer-yazimi.md` ve `genisleme-noktalari-ve-denetim.md`'de
-- [ ] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban <faz öncesi commit>`
-- [ ] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye ("Örnek Uygulama Koşumu") yazıldı — komut ve beklenen çıktı aşağıda
-- [ ] `secret` taraması boş döndü (`python3 scripts/kapi.py tarama`)
-- [ ] Manuel kabul case'leri `docs/manuel-test/02-CEKIRDEK-VE-KATALOG.md` ve `docs/manuel-test/01-KURULUM-VE-PAKETLEME.md` içine eklendi; otomatikleştirilebilenler (1, 3, 5) koşuldu
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
-- [ ] `docs-site/` güncellendi (`tools.md`, `write-your-own-tool.md`, `api/` ve `changelog.md` yeniden üretildi); `npm run build` + `check-links.mjs` temiz
+- [x] `grep -c "^Tracon.ITraconBuilder\." src/Tracon.Core/PublicAPI.Unshipped.txt` → `1` (ölçüldü)
+- [x] `grep -c "(this Tracon.ITraconBuilder" src/Tracon.Core/PublicAPI.Unshipped.txt` → faz başı değer + 27 (ölçüldü: 20 → 47)
+- [x] Abstractions Unshipped: tek kurucu `TraconToolRegistration(Microsoft.Extensions.AI.AIFunctionDeclaration! function) -> void`; `grep -c "Tracon.TraconToolRegistration\..*\.init -> void"` → `7`; `grep -c "bool requiresApproval = false"` → `0`
+- [x] `git grep -nE "(requiresApproval|safeToRepeat|maxOutputBytes|requiredPermission):" -- src samples docs-site/src/content/docs ':!docs-site/src/content/docs/api' ':!src/Tracon.UI'` → boş (2026-09-23'te 19 satır)
+- [x] 189.2 eşleme testleri 1-4 yeşil, yansıma güdümlü; hariç liste testte yazılı
+- [x] `McpToolRegistrationTests` yeşil; `McpConnection.cs`'te kurulum tek yerde (fabrika)
+- [x] Descriptor anlık görüntüsü, `builder` `null`, `CapabilityEntryPoints` dört ad ve `TraconBuilderInterfaceTests` yeşil; `capability-coverage-baseline.txt`, `capability-example-baseline.txt` boş
+- [x] `python3 -m unittest discover -s scripts -p "*_test.py"` yeşil (`kapi.py:1088`); iki betik testinde üç ad iddiası var
+- [x] `grep -c "TraconToolRegistration" tests/Tracon.Core.UnitTests/Architecture/optional-parameter-constructor-baseline.txt` → `0`; tabanda başka değişiklik yok
+- [x] `EmbeddedSampleTests` yeni iddiası ve hata modu 5 testi yeşil
+- [x] `public-surface-baseline.txt`: Core +1 bilinçli; `python3 scripts/public-yuzey-envanteri.py --denetle` → çıkış 0, kanıtsız 0
+- [x] `python3 scripts/kapi.py yayin --kuru` yeşil; 187 kapısı iki tip adını `[Unreleased]`'de bulur
+- [x] `CHANGELOG.md` `[Unreleased]` 189.5'in iki girdisini ve dört maddesini taşır; önceki preview'lar ölçülen etiketlerle adlandırılır
+- [x] Yeni K-* kategori etiketiyle açıldı; K-620 ve K-509'a not düştü; tuzak `hafiza/analyzer-yazimi.md` ve `genisleme-noktalari-ve-denetim.md`'de
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban <faz öncesi commit>`
+- [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye ("Örnek Uygulama Koşumu") yazıldı — komut ve beklenen çıktı aşağıda
+- [x] `secret` taraması boş döndü (`python3 scripts/kapi.py tarama`)
+- [x] Manuel kabul case'leri `docs/manuel-test/02-CEKIRDEK-VE-KATALOG.md` ve `docs/manuel-test/01-KURULUM-VE-PAKETLEME.md` içine eklendi; otomatikleştirilebilenler (1, 3, 5) koşuldu
+- [x] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
+- [x] `docs-site/` güncellendi (`tools.md`, `write-your-own-tool.md`, `api/` ve `changelog.md` yeniden üretildi); `npm run build` + `check-links.mjs` temiz
 
 ### Doğrulama komutları
 
@@ -542,50 +542,198 @@ MCP fabrika metodu, K-509'un alıcı tabanlı kuralı.
      Plan anında boş kalır. Başlıkları SİLME.
      ============================================================ -->
 
+## Örnek Uygulama Koşumu
+
+2026-09-24, `samples/Tracon.Api` Development, `--urls http://127.0.0.1:5199`
+(`docs/hafiza/elle-kosum-ortami.md` tarifi), PostgreSQL, gerçek OpenAI anahtarı.
+Token user-secrets'tan okunup yalnız `Authorization` başlığına verildi.
+
+| Çağrı | Sonuç | Kanıtladığı |
+|---|---|---|
+| `GET /tracon/api/tools` | `cancel_order True Destructive orders.cancel None None` · `get_order_status False Read None None None` · `get_slow_report False Read None 00:00:01 None` | Üreteç yolu (`AddGeneratedTools()`) yeni başlatıcı çıktısıyla her ayarı taşır; `source` `null` |
+| `POST /tracon/api/agents/support/run` `{"message":"ORD-1001 siparisim nerede?","sessionId":"faz-189"}` | SSE `done` ile biter; run `01a0d2e5-…` | Uzantı zinciriyle kurulan host gerçek run koşar |
+| `GET /tracon/api/runs/01a0d2e5-…` · `…/tools` | `status: Completed` · tools `['get_order_status']` | Tool çağrısı bir kez, kayıt tamam |
+
+Uygulama günlüğünde `fail`/`unhandled` satırı yok.
+
 ## Plandan Sapmalar
 
-> Kapanışta doldurulur. Plan ile gerçek arasındaki fark **gizlenmez** — sonraki
-> oturumun en değerli bilgisidir.
+| # | Plan | Gerçekleşen | Gerekçe |
+|---|---|---|---|
+| 1 | 189.1 `<example>`: `services.AddSingleton(new TraconToolRegistration(refundTool) {…})` | `builder.Services.AddSingleton(…)` | `ExampleCompilationTests` bloğu `ExamplePrelude` ile derler; prelude `services` tanımlamaz, `builder` (`IHostApplicationBuilder`) tanımlar. İlk hâl `CS0103` ile kırmızıydı |
+| 2 | Test 4 (üreteç): metin iddiası + `OutputCompilation` sıfır hata | Ayrıca çıktı `Emit` edilir, collectible `AssemblyLoadContext`'e yüklenir, `TraconGeneratedTools.Create()` çağrılır ve kaydın **değerleri** özniteliğe karşı iddia edilir (`GeneratedRegistrationParityTests`) | Ad iddiası yanlış değer yazan üreteci kaçırır; değer okumak bunu kapatır |
+| 3 | Descriptor anlık görüntüsü: 27 metot birer kez | Her metot **iki kez** çağrılır | İkinci çağrı `Add` (iki satır) ile `TryAdd*` (tek satır) farkını da kilitler — hata modu 13'ün asıl riski buydu. Case sayısı `TraconBuilderExtensions` metot sayısına yansımayla eşlenir |
+| 4 | Açık Soru 3 = A: "iki betik ortak bir `kayit_giris_noktasi(satir)` yüklemi çıkarır" | Yüklem ayrı modüldedir: `scripts/kayit_giris_noktasi.py` (`kayit_giris_noktasi(satir)` + `kayit_uzantisi_mi(ad, alici)`), kendi fixture testiyle (`kayit_giris_noktasi_test.py`) | Betik adları tireli, birbirini import edemez; modül iki betiğin de import ettiği tek kaynaktır |
+| 5 | — | `src/Tracon.Testing/README.md` "CORRECT" örneği yeniden yazıldı; `docs/manuel-test/24-…md:1346` alıntısı izledi | **Yolda bulunan kusur:** örnek `new TraconToolRegistration(new OrderTools(...), ...)` diyordu; `OrderTools` bir `AIFunctionDeclaration` değildir, kod hiçbir sürümde derlenmezdi. Yeni biçim `AIFunctionFactory.Create(tools.GetOrderStatus, "get_order_status")` |
+| 6 | 189.5 madde: "Aynı imzalı kendi uzantısı CS0121 alır" · "implementasyon derlenir" | Denetimin 🟡 1'i ölçüldü ve iki madde düzeltildi | Scratch derlemesi (2026-09-24): `namespace MyApp` içindeki aynı imzalı tüketici uzantısı **sessizce kazandı** ("consumer extension ran"); açık implementasyon (`ITraconBuilder ITraconBuilder.AddTool`) `CS0539` verdi. `CS0121` yalnız aynı düzeyde içe aktarılan iki uzantıda çıkar (dil kuralı; ölçüm `CS0012` referans eksiğinde kaldı) |
+| 7 | `<exception cref="ArgumentNullException">` her metotta | Yalnız `builder`'ı anar; `AddToolsFrom(Type)` mevcut maddesi "`builder` or `type`" oldu | Diğer argümanların `null` kontrolü önceden de belgelenmemişti; bu faz davranışı değil zinciri değiştirir |
+| 8 | RUC/RDC mesajları "arayüzdeki mesajlarla" | Aynen arayüzün mesajları; `TraconBuilder`'ın farklı sözcüklü mesajları düştü | Plan gereği; tüketici IL2026/IL3050 metninde arayüz metnini görüyordu |
+| 9 | — | `tests/Tracon.Ui.E2ETests/Ui/ExperimentTests.cs` seçimden önce alanın `<select>` olmasını bekler | **Yolda bulunan kırılgan test** (bu fazın kodundan bağımsız): ilk kapanış koşumunda "Element is not a <select> element" ile düştü, izole geçti. Sebep yarış: `variant-version-0` sürüm sorgusu dönene kadar sayı alanıdır. Hafıza: `frontend-test-altyapisi.md` |
 
 ## Bu Fazda Verilen Kararlar
 
-> Kapanışta doldurulur. K-NNN numaraları burada alınır; plan numara rezerve etmez.
+**K-867** *(kategori: public-api)* — `ITraconBuilder` yalnız `Services` taşır;
+kayıt yetenekleri `TraconBuilderExtensions` uzantısıdır, arayüze üye eklenmez.
+`TraconToolRegistration` tek zorunlu parametre + yedi `init` ayarı kullanır.
+Kaldırılan imzalar `[Obsolete]`'suz kalktı (kullanıcı kararı).
+
+**Mevcut satırlara not:** K-620 (kısmen geçersiz — `AddRunJudge` uzantıya
+taşındı) · K-509 (genişletildi — builder alıcısında önek aranmaz; kural üç
+kopyada aynı).
+
+**Açık sorular:** AS 1 = A (tek `TraconBuilderExtensions`, alan başına beş
+`partial` dosya: kök · `Tools` · `Agents` · `Evaluation` · `Models`) · AS 2 = A
+(arayüz XML'i: implementasyon yalnız `Services` sağlar) · AS 3 = A (ortak
+yüklem; Sapma 4).
+
+**K almayan yerel kararlar:**
+
+- Üreteç altı ayarı her kayıtta yazar (belirlenimci çıktı); `Source` yazmaz.
+- Eşleme yardımcısı Core `internal static ToolRegistrationMapping.FromOptions`;
+  yalnız public tip kullanır, yeni IVT bağı yok.
+- MCP fabrikası `McpConnection.CreateRegistration(function, serverName,
+  requiresApproval)` — `internal static`; eski kurucuyla çıkarıldı ve
+  `McpToolRegistrationTests` başlatıcıya geçişten **önce** yeşil koştu.
+- K-509 alıcı tabanlıdır: alıcı `Tracon.ITraconBuilder` ise ad serbest; diğer
+  alıcılarda `Add`/`Use`/`Map` öneki. C# deseni `~?static` kabul eder
+  (Python kopyasıyla eş; denetim 🟢 1).
 
 ## Gerçekleşen Public API
 
-> Kapanışta doldurulur. Koddaki **gerçek** imzalar.
+```csharp
+// Tracon.Abstractions
+public sealed class TraconToolRegistration
+{
+    public TraconToolRegistration(AIFunctionDeclaration function);   // null → ArgumentNullException, geçersiz ad → TraconException
+    public AIFunctionDeclaration Function { get; }
+    public bool RequiresApproval { get; init; }
+    public string? Source { get; init; }
+    public ToolEffect Effect { get; init; }
+    public string? RequiredPermission { get; init; }
+    public TimeSpan? Timeout { get; init; }
+    public bool SafeToRepeat { get; init; }
+    public int? MaxOutputBytes { get; init; }
+}
+
+// Tracon.Core
+public interface ITraconBuilder { IServiceCollection Services { get; } }
+
+public static partial class TraconBuilderExtensions   // 27 metot, hepsi ilk parametre `this ITraconBuilder builder`
+{
+    Configure(Action<TraconOptions>) · RequireCustomBinding<T>() · RequireProductionProfile(Action<TraconProductionProfileOptions>? = null)
+    AddTool(AIFunction, Action<ToolRegistrationOptions>) · AddTool(AIFunction) · AddScopedTool ×2
+    [RUC][RDC] AddTool(Delegate, string? = null, string? = null, Action<ToolRegistrationOptions>? = null) · AddToolsFrom<T>() · AddToolsFrom(Type)
+    AddAgent(AgentDefinition) · AddSkill(AgentSkillDefinition) · AddAgent(string, Func<IServiceProvider, AIAgent>, string? = null)
+    AddAgentSource<[DAM] TSource>() · AddAgentSource(IAgentSource) · AddAgentSource(Func<…>)
+    AddAgentDecorator<[DAM] TDecorator>() · ×2 · AddRunJudge<[DAM] TJudge>() · ×2 · AddModelProvider<[DAM] TProvider>() · ×2
+    AddEvalCheck(string, EvalCheck) · [#pragma MAAI001] AddLoopEvaluator(string, LoopEvaluator)
+}
+```
+
+Unshipped farkı: Abstractions kurucu satırı değişti, `+7` `.init -> void`.
+Core `-27` `Tracon.ITraconBuilder.X`, `+27`
+`static Tracon.TraconBuilderExtensions.X(this Tracon.ITraconBuilder! builder, …)`,
+`+1` tip satırı. Tip tabanı Core 79 → 80; envanter 654 → 655, kanıtsız 0.
 
 ## Dosya Listesi (gerçekleşen)
 
-> Kapanışta doldurulur.
+```
+src/Tracon.Abstractions/Tools/TraconToolRegistration.cs · PublicAPI.Unshipped.txt
+src/Tracon.Core/
+├── ITraconBuilder.cs                     yalnız Services + XML (AS 2)
+├── TraconBuilder.cs                      kurucu + Services
+├── TraconBuilderExtensions.cs            yeni — sınıf XML, Configure, Require*
+├── TraconBuilderExtensions.Tools.cs      yeni — AddTool ×3, AddScopedTool ×2, AddToolsFrom ×2
+├── TraconBuilderExtensions.Agents.cs     yeni — AddAgent ×2, AddSkill, AddAgentSource ×3, AddAgentDecorator ×3
+├── TraconBuilderExtensions.Evaluation.cs yeni — AddRunJudge ×3, AddEvalCheck, AddLoopEvaluator
+├── TraconBuilderExtensions.Models.cs     yeni — AddModelProvider ×3
+├── Tools/ToolRegistrationMapping.cs      yeni — options → kayıt
+├── Tools/ToolMethodScanner.cs · Tools/ToolRegistry.cs
+└── PublicAPI.Unshipped.txt
+src/Tracon.Generators/SourceWriter.cs
+src/Tracon.Mcp/Internal/McpConnection.cs · src/Tracon.Voice/VoiceBuilderExtensions.cs
+src/Tracon.Testing/README.md · TraconTestHost.cs
+samples/Tracon.Samples.CustomTool/OrderFulfillmentToolRegistration.cs · …CustomTool.Tests/OrderFulfillmentToolTests.cs
+scripts/kayit_giris_noktasi.py · kayit_giris_noktasi_test.py (yeni)
+scripts/manuel-test-tazelik.py · manuel_test_tazelik_test.py · public-yuzey-envanteri.py · public_yuzey_envanteri_test.py
+tests/Tracon.Core.UnitTests/
+├── Architecture/CapabilityEntryPoints.cs · TraconBuilderInterfaceTests.cs (yeni)
+├── Architecture/optional-parameter-constructor-baseline.txt · public-surface-baseline.txt
+├── Hosting/TraconBuilderRegistrationSnapshotTests.cs (yeni — 27 anlık görüntü + 27 null zincir)
+└── Tools/ToolRegistrationParityTests.cs (yeni — şekil, init, yardımcı, tarayıcı, kurucu doğrulaması)
+tests/Tracon.Generators.UnitTests/GeneratedRegistrationParityTests.cs (yeni) · GeneratedOutputTests.cs
+tests/Tracon.Mcp.UnitTests/McpToolRegistrationTests.cs (yeni) · McpTenantToolsTests.cs
+tests/Tracon.AspNetCore.FunctionalTests/CatalogEndpointTests.cs (+2 case) · 3 dosya çağrı yeri
+tests/Tracon.Embedded.Tests/EmbeddedSampleTests.cs (+1)
+tests/Tracon.Ui.E2ETests/Ui/ExperimentTests.cs (kırılgan test, Sapma 9)
+tests/Tracon.Core.UnitTests/{Approvals,Tools}/  6 dosya çağrı yeri
+docs-site/src/content/docs/concepts/tools.md · docs-site/public/llms-full.txt (üretilir)
+CHANGELOG.md · docs/KARARLAR.md · docs/hafiza/{analyzer-yazimi,genisleme-noktalari-ve-denetim,frontend-test-altyapisi}.md
+docs/manuel-test/{00-INDEKS,01-KURULUM-VE-PAKETLEME,02-CEKIRDEK-VE-KATALOG,24-TEST-PAKETI-VE-SABLON}.md
+```
+
+Çağrı yeri sayımı plana uydu: `tests` 29 (10 dosya), `src` 8, `samples` 2.
+Test dosyaları derleyicinin `CS1739` listesinden mekanik dönüştürüldü.
 
 ## Süreç Ölçümü
 
 > Kapanışta doldurulur. **Tablo olarak** — onay kutusu DEĞİL: arşivdeki her
-> `- [ ]` satırı `tamamlanmis_faz_isaretsiz_kutular()` kapısında ayrıca hata
+> onay kutusu satırı `tamamlanmis_faz_isaretsiz_kutular()` kapısında ayrıca hata
 > sayılır ve bulgunun kaynağı bulanıklaşır.
->
-> `dokuman-bakim.py --denetle` 14. kapısı (`surec_olcumu_bulgulari`) bu tabloyu
-> **eşik 167**'den itibaren her kapanmış fazda arar. Boş bir değer hücresi
-> kırmızıdır; `ölçülmedi` **geçerli bir değerdir** — kapı bir sayı değil, bir
-> **karar** arar. Kapı bölümün VARLIĞINI denetler, doğruluğunu denetlemez
-> (K-766).
 
 | Metrik | Değer |
 |---|---|
-| Plan revizyonu sayısı | |
-| Düzeltme turu sayısı | |
-| 🔴 bulgu: gerçek / gürültü / araştırılacak | |
-| Fazın ürettiği regresyon | |
-| Faz kapandıktan sonra bulunan kusur | |
+| Plan revizyonu sayısı | 0 (sapmalar uygulama sırasında yazıldı, plan yeniden açılmadı) |
+| Düzeltme turu sayısı | 4 — `ExampleCompilationTests` (`services` → `builder.Services`, Sapma 1); denetimin üç 🟡'ı tek turda; ilk kapanış koşumu kırılgan E2E testinde durdu (Sapma 9); ikincisi arşivlenmemiş kök faz dokümanında durdu |
+| 🔴 bulgu: gerçek / gürültü / araştırılacak | 0 / 0 / 0 |
+| Fazın ürettiği regresyon | 0 — commit'ten önce kırmızı olan yalnız fazın kendi yeni örneğiydi (Sapma 1) |
+| Faz kapandıktan sonra bulunan kusur | ölçülmedi (kapanış anı) |
 
 ## Denetim Bulguları
 
-> Kapanışta doldurulur — `faz-denetim` çıktısı. Her satır: bulgu · seviye
-> (🔴/🟡/🟢) · sonuç (düzeltildi / gerekçelendi / F-NN olarak devredildi).
-> Bulgu yoksa "🔴 ve 🟡 yok" yazılır; boş bırakılmaz.
+`faz-denetcisi`, 2026-09-24, kapsam `305c2084` + çalışma ağacı. **🔴 yok.**
+Denetçi 27 gövdeyi `git show 305c2084:src/Tracon.Core/TraconBuilder.cs` ile satır
+satır karşılaştırdı: tek fark `ThrowIfNull(builder)` ve `builder.Services`;
+`TryAddEnumerable` yalnız dört generic metotta, RUC/RDC/DAM/MAAI001 yerinde.
+Temiz başlıklar: 3.2, 3.3, 3.5, 3.6, 3.7.
+
+| # | Bulgu | Seviye | Triyaj | Sonuç |
+|---|---|---|---|---|
+| 1 | `CHANGELOG.md` iki derleme iddiası fazla genel: yakın ad alanındaki aynı imzalı uzantı `CS0121` değil **sessizce kazanır**; açık implementasyon derlenmez (`CS0539`) | 🟡 | — | **Düzeltildi**: scratch derlemesiyle ölçüldü (Sapma 6), iki madde yeniden yazıldı |
+| 2 | Hata modu 11'in testi yok: kurucunun `null` ve geçersiz ad sözü kilitsiz | 🟡 | — | **Düzeltildi**: `ToolRegistrationParityTests.The_constructor_rejects_a_missing_tool` · `…_an_invalid_tool_name_before_any_setting_is_applied` |
+| 3 | `docs/manuel-test/24-…md:1346` Testing README'nin eski desenini alıntılıyor | 🟡 | — | **Düzeltildi** (Sapma 5) |
+| 4 | C# deseni `^static`, Python `~?` kabul ediyor | 🟢 | — | **Düzeltildi**: C# `^~?static` (bugün `~` önekli uzantı satırı 0) |
+| 5 | `Every_registration_method_has_a_case` yalnız sayı karşılaştırır | 🟢 | — | **Gerekçelendi**: silinen metodun case'i `Invoke` switch'inde derleme hatası verir; ekleme sayıyı bozar. Aday açılmadı |
 
 ## Sonraki Faza Devir Notu
 
-> Kapanışta doldurulur: devralınan sözleşmeler, bilinen tuzaklar (🚨), yarım
-> kalan işler, sıradaki faz.
+**Sıradaki faz: [190](190-KIMLIK-BASLIKLARI-ANAHTAR-REFERANSI.md)** — teknik
+bağımlılık yok (190 önkoşulu "yalnız sıra").
+
+**Devralınan sözleşmeler:**
+
+- **K-867.** `ITraconBuilder`'a üye eklenmez (`TraconBuilderInterfaceTests`).
+  Yeni Core kayıt metodu `TraconBuilderExtensions`'ın ilgili `partial`
+  dosyasına girer, `ThrowIfNull(builder)` ile başlar ve
+  `TraconBuilderRegistrationSnapshotTests.Cases`'e bir satır ister (sayı
+  yansımayla eşlenir). Paket uzantıları kendi sınıflarında kalır.
+- Yeni tool ayarı `TraconToolRegistration`'a `init`, `ToolRegistrationOptions`'a
+  `set` olarak girer; `ToolRegistrationMapping`, `ToolMethodScanner`,
+  `SourceWriter` ve (öznitelikten geliyorsa) `TraconToolAttribute` izler. İki
+  parity testi eksik olanı kırmızı gösterir; hariç liste testte yazılıdır.
+- K-509 alıcı tabanlı; kural `CapabilityEntryPoints.cs` + `scripts/kayit_giris_noktasi.py`.
+- Opsiyonel parametreli public kurucu tabanı artık 3 satır (`AgentRunBudget`,
+  `TraconAgentSourceException`, `Testing.FakeModelProvider`).
+
+**🚨 Tuzaklar:**
+
+- Üretecin yazdığı kayıt **tüketicinin** ikilisidir; imza değişikliği üretilmiş
+  kodu kırar ve yalnız `kapi.py yayin --kuru` (paketlenmiş sample) kanıtlar.
+- `ExampleCompilationTests` prelude'u `services` tanımlamaz — sevk edilen
+  `<example>` `builder.Services` yazar.
+- Tüketicinin aynı imzalı uzantısı yakın ad alanındaysa Tracon'un metodunu
+  sessizce gölgeler (ölçüldü); uzantıya taşıma bu riski açar, sürüm notu yazar.
+
+**Açık iş:** `MT-CORE-131`, `MT-PKG-150`, `MT-PKG-152` ağ/elle koşum ister
+(kapanışta koşulmadı, `⏳`). Site yayını (`faz-tamamlama` Adım 10) bakımcı eylemidir.
+

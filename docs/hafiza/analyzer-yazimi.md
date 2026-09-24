@@ -14,6 +14,7 @@
 - **Çok-hedefli (net8/9/10) projede `@(Analyzer)` yalnız İÇ derlemede doludur**: `dotnet pack`'in dış derlemesinde `BeforeTargets="_GetPackageFiles"` BOŞ döner. Çözüm `TargetsForTfmSpecificContentInPackage` + `TfmSpecificPackageFile`; TFM-bağımsız dosyayı üç kez eklemek `NU5118` verir, `Condition="'$(TargetFramework)'=='netX.0'"` ile tek TFM'e sabitlenir.
 - **`namespace X;` dosya başına TEK ad alanıyla sınırlıdır** (`CS8954`): iki ad alanı gereken üretilmiş dosyada blok biçimi (`namespace X { }`) kullanılır.
 - **3. taraf soyut/sanal üye override ederken NRT imzasını TAHMİN ETME** (`Microsoft.Extensions.AI.AITool.Description`): reflection dökümü nullable ek açıklamasını GÖSTERMEZ; derleyici `CS8764` ile gerçek imzayı söyler. `NullableAttribute` YOKLUĞU genelde NON-nullable demektir.
+- **🚨 Üretecin yazdığı kayıt TÜKETİCİNİN ikilisidir** (Faz 189, K-867): adlandırılmış kurucu argümanı eski preview ikilisini yeni sürümde `MissingMethodException`'a sokar; nesne başlatıcı + `init` ayar eklemeye dayanır. Metin iddiası derlenmeyen çıktıyı kaçırır — `GeneratedRegistrationParityTests` çıktıyı `Emit` + collectible `AssemblyLoadContext` ile yükleyip değeri okur.
 
 ## Tanı yazımı (Faz 73)
 

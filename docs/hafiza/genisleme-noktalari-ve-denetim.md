@@ -39,3 +39,4 @@
   `TraconA2AExtensions`'ın agent kartı süslemesi aynı riski zaten geniş bir
   `catch` + güvenli yedekle çözmüştü — orada güvenlik kontrolü yok, bu yüzden
   yedek meşru. K-814.
+- **🚨 `ITraconBuilder`'a üye EKLENMEZ; kayıt yeteneği `TraconBuilderExtensions` (partial, alan başına dosya) uzantısıdır** (2026-09-24, Faz 189, K-867): `TraconBuilderInterfaceTests` arayüzü {`Services`}'e kilitler. Yeni metot `TraconBuilderRegistrationSnapshotTests.Cases`'e satır ister (sayı yansımayla eşlenir) — satır `ServiceDescriptor` biçimini ve iki çağrıda `Add` ↔ `TryAdd*` farkını kilitler. K-509 artık alıcı tabanlıdır: builder alıcısında önek aranmaz; kural üç yerde yaşar (`CapabilityEntryPoints.cs` + `scripts/kayit_giris_noktasi.py`), birini değiştiren ikisini de değiştirir.

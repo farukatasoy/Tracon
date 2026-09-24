@@ -1,6 +1,6 @@
 # 02 — Çekirdek ve Katalog (`CORE`)
 
-> **Alan kodu:** `CORE` · **Faz:** 1, 3, 72, 101, 106, 127, 130, 135
+> **Alan kodu:** `CORE` · **Faz:** 1, 3, 72, 101, 106, 127, 130, 135, 189
 > **Kaynak:** `src/Tracon.Abstractions` · `src/Tracon.Core`
 > (`Compilation/` · `Catalog/` · `Tools/` · `Sessions/` · `TraconOptions*`)
 >
@@ -3656,3 +3656,60 @@ ile yapılır. Değişiklik case sonunda GERİ ALINIR.
 > decorator'ların davranışı `08-OPENAI-UYUMLU-UCLAR.md` ve
 > `22-GUARDRAIL-VE-YAPISAL-CIKTI.md` içindedir; burada kanıtlanan, **üçüncü
 > tarafın kendi decorator'ını kaydedebilmesidir.**
+
+---
+
+### MT-CORE-130 — Üretilmiş tool kaydı özniteliğin her ayarını taşır (Faz 189)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 189 |
+| **İlgili karar** | K-867 |
+
+**Ön koşul**
+- `samples/Tracon.Api` Development'ta ayakta (`docs/hafiza/elle-kosum-ortami.md` tarifi,
+  `--urls http://127.0.0.1:5199`); `Tracon:Ui:AuthToken` user-secrets'ta (`$APB`).
+
+**Adımlar**
+1. `curl -s http://127.0.0.1:5199/tracon/api/tools -H "$APB" | python3 -c "import sys,json; [print(t['name'], t['requiresApproval'], t['effect'], t.get('requiredPermission'), t.get('timeout'), t.get('source')) for t in json.load(sys.stdin) if t['name'] in ('cancel_order','get_slow_report')]"`
+
+**Gerçek sonuç (2026-09-24)**
+- `cancel_order True Destructive orders.cancel None None` · `get_slow_report False Read None 00:00:01 None`.
+
+**Beklenen sonuç**
+- `cancel_order`: `requiresApproval: true`, `effect: "Destructive"`, `requiredPermission: "orders.cancel"`, `source: null`.
+- `get_slow_report`: `timeout: "00:00:01"`.
+- Değerler **üreteç** yolundan gelir (`AddGeneratedTools()`); kayıt kodu örnek uygulamanın kendi derlemesindedir.
+
+> **Otomatik karşılığı:** `GeneratedRegistrationParityTests` ·
+> `EmbeddedSampleTests.Generated_tools_keep_the_permission_declared_on_the_attribute`.
+
+---
+
+### MT-CORE-131 — `init` ayarlı `TraconToolRegistration` descriptor'a yedi alanı taşır (Faz 189)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 189 |
+| **İlgili karar** | K-867 |
+
+**Ön koşul**
+- `samples/Tracon.Api/Program.cs`'e GEÇİCİ olarak şu kayıt eklenir; case sonunda GERİ ALINIR:
+  `builder.Services.AddSingleton(new TraconToolRegistration(AIFunctionFactory.Create(() => "ok", "probe_tool")) { RequiresApproval = true, Effect = ToolEffect.Write, RequiredPermission = "x.y", Timeout = TimeSpan.FromSeconds(9), SafeToRepeat = true, MaxOutputBytes = 1024 });`
+- Uygulama MT-CORE-130'daki gibi ayakta.
+
+**Adımlar**
+1. `GET /tracon/api/tools` → `probe_tool` satırı.
+2. Aynı kaydı yalnız `new TraconToolRegistration(fn)` ile yaz, uygulamayı yeniden başlat, tekrarla.
+
+**Beklenen sonuç**
+- (1) `requiresApproval: true`, `effect: "Write"`, `requiredPermission: "x.y"`, `timeout: "00:00:09"`,
+  `safeToRepeat: true`, `maxOutputBytes: 1024`, `source: null`.
+- (2) Verilmeyen her alan varsayılanda: `false`, `"Read"`, `null`.
+
+> **Otomatik karşılığı:** `CatalogEndpointTests.Every_configured_tool_setting_reaches_the_listed_descriptor`
+> (`AddTool` ve `AddScopedTool` iki yolu) · `ToolRegistrationParityTests`.

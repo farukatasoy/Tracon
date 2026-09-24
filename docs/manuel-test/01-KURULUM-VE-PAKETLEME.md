@@ -1,6 +1,6 @@
 # 01 — Kurulum ve Paketleme (`PKG`)
 
-> **Alan kodu:** `PKG` · **Faz:** 0, 52, 60, 182, 183, 185, 188
+> **Alan kodu:** `PKG` · **Faz:** 0, 52, 60, 182, 183, 185, 188, 189
 > **Kaynak:** `global.json` · `NuGet.config` · `Directory.Build.props` ·
 > `Directory.Build.targets` · `src/Directory.Build.props` · `src/*/*.csproj` ·
 > `src/Tracon.Generators/` · `tests/Directory.Build.props` (TFM matrisi) ·
@@ -4202,3 +4202,93 @@ dotnet list package --deprecated
 
 **Beklenen sonuç**
 - Dört çağrı da başarılı; `router` `support`'u çağırır ve iki run da `Completed` biter.
+
+---
+
+### MT-PKG-149 — Paketlenmiş tüketici: kayıt metotları uzantıdır, eski kurucu argümanı `CS1739` verir (Faz 189)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 189 |
+| **İlgili karar** | K-867 |
+
+**Ön koşul**
+- Fazın paketleri yerel feed'de (`python3 scripts/kapi.py yayin --kuru` sonrası `artifacts/package/release`).
+
+**Adımlar**
+1. Boş bir konsol projesi: yerel feed'den `Tracon` paketi; `Program.cs`:
+   `using Tracon;` + `new ServiceCollection().AddTracon().AddTool(fn, o => o.RequiresApproval = true).RequireProductionProfile();`
+2. Aynı dosyaya `new TraconToolRegistration(fn, requiresApproval: true);` ekle ve derle.
+
+**Beklenen sonuç**
+- (1) Derleme temiz: `AddTool` ve `RequireProductionProfile` `TraconBuilderExtensions` üzerinden çözülür.
+- (2) `CS1739`; mesaj `requiresApproval` adını söyler. Doğru biçim `new TraconToolRegistration(fn) { RequiresApproval = true }`.
+
+---
+
+### MT-PKG-150 — Önceki preview'a karşı derlenmiş üretilmiş tool'lar yeniden derlenene kadar `MissingMethodException` verir (Faz 189)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 189 |
+| **İlgili karar** | K-867 |
+
+**Ön koşul**
+- Ağ; nuget.org'da `1.0.0-preview.2`. Fazın paketleri yerel feed'de.
+
+**Adımlar**
+1. `[TraconTool]`'lu bir sınıf kütüphanesi `Tracon.Core@1.0.0-preview.2`'ye karşı derlenir (üreteç kayıt kodunu kütüphaneye yazar).
+2. Host yeni paketlerle koşar, kütüphanenin **derlenmiş** DLL'ini referanslar ve `AddGeneratedTools()` çağırır.
+3. Kütüphaneyi yeni paketlere karşı yeniden derle, host'u tekrar koş.
+
+**Beklenen sonuç**
+- (2) `AddGeneratedTools()` çağrısında `MissingMethodException` (`TraconToolRegistration..ctor` yedi opsiyonel parametreli imza).
+- (3) Geçer. Metin `CHANGELOG.md` `[Unreleased]` notuyla aynıdır.
+
+---
+
+### MT-PKG-151 — Yayın provası sample'ları ve kırıcı değişiklik notunu geçer (Faz 189)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 189 |
+| **İlgili karar** | K-867 · K-866 |
+
+**Ön koşul**
+- Temiz ağaç (commit'li), ağ.
+
+**Adımlar**
+1. `python3 scripts/kapi.py yayin --kuru; echo "çıkış=$?"`
+
+**Beklenen sonuç**
+- `Tracon.Samples.CustomTool` + testleri ve `Tracon.Samples.ExtensionAotSmoke` (`AddOrderPreviewTools()`, native AOT) paketlenmiş sürüme karşı geçer.
+- Kırıcı değişiklik kapısı `TraconToolRegistration` ve `ITraconBuilder` adlarını `CHANGELOG.md` `[Unreleased]`'de bulur; `çıkış=0`.
+
+---
+
+### MT-PKG-152 — Karışık graf: önceki preview sağlayıcısı yeni Core ile kayıtta kırılır (Faz 189)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 189 |
+| **İlgili karar** | K-867 · K-858 · K-859 |
+
+**Ön koşul**
+- Ağ; fazın paketleri yerel feed'de.
+
+**Adımlar**
+1. Konsol host: nuget.org `Tracon.OpenAI@1.0.0-preview.2` + yerel `Tracon.Core` (restore'u geçirmek için `NU1608` uyarı kalır).
+2. `AddTracon().UseOpenAI(...)` çağır.
+3. Paketleri hizala (hepsi yerel sürüm), tekrarla.
+
+**Beklenen sonuç**
+- (2) `UseOpenAI()` içinde `MissingMethodException` (`ITraconBuilder.AddModelProvider`); başlangıç sürüm kontrolü koşmaz (kayıt anı host'tan önce).
+- (3) Geçer.
