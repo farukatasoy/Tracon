@@ -14,6 +14,16 @@
     <PackageReference Include="Microsoft.Extensions.Configuration" />
   </ItemGroup>
 
+  <!--
+    The package set, read from src/*/*.csproj by the same helper the release
+    artifact facts use (linked, not copied - K-411): the startup alignment check
+    carries a fixed list of family assembly names and a test keeps it in step.
+  -->
+  <ItemGroup>
+    <Compile Include="../Shared/Infrastructure/RepoRoot.cs" Link="Infrastructure/Shared/RepoRoot.cs" />
+    <Compile Include="../Shared/Infrastructure/PackableProjects.cs" Link="Infrastructure/Shared/PackableProjects.cs" />
+  </ItemGroup>
+
   <ItemGroup>
     <!-- Real Microsoft Agent Framework output, captured from a genuine run (Phase 126). See Fixtures/README.md. -->
     <None Include="Fixtures/**" CopyToOutputDirectory="PreserveNewest" />

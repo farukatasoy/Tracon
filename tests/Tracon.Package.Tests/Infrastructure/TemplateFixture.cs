@@ -1,5 +1,3 @@
-using System.Text.RegularExpressions;
-
 namespace Tracon.Package.Tests.Infrastructure;
 
 /// <summary>
@@ -39,7 +37,7 @@ public sealed class TemplateFixture : IAsyncLifetime
             throw new InvalidOperationException($"'dotnet pack' failed:{Environment.NewLine}{packResult.Combined}");
         }
 
-        Version = ResolveMetaPackageVersion();
+        Version = await ResolvePackedVersionAsync();
         TemplatePackagePath = Path.Combine(
             RepoPaths.PackageReleaseDirectory,
             $"Tracon.Templates.{Version}.nupkg");
@@ -149,32 +147,44 @@ public sealed class TemplateFixture : IAsyncLifetime
             timeout: InstallTimeout);
     }
 
-    private static readonly Regex MetaPackageFileName = new(
-        @"^Tracon\.(?<version>\d[^.]*(?:\.[^.]*)*)\.nupkg$",
-        RegexOptions.None,
-        TimeSpan.FromSeconds(1));
+    private static string MetaProjectPath => Path.Combine(RepoPaths.Root, "src", "Tracon", "Tracon.csproj");
 
+    /// <summary>The version the pack above stamped: MinVer's answer for this commit.</summary>
     /// <remarks>
-    /// 🚨 The order of <c>Directory.EnumerateFiles</c> is filesystem-specific and
-    /// <strong>may not be SORTED by version</strong> (measured). If a stale
-    /// <c>Tracon.&lt;old-version&gt;.nupkg</c> left over from a previous
-    /// phase's closeout sits in the folder, the first matching file could
-    /// randomly pick an OLD version (possibly missing an analyzer, see the
-    /// '--no-build' note in Tracon.Core.csproj). The MOST RECENTLY WRITTEN
-    /// file is picked among the candidates: that is the pack output of the
-    /// <c>InitializeAsync</c> that just completed.
+    /// 🚨 <strong>Asked of MinVer, never read off the newest file in the feed.</strong>
+    /// An incremental pack SKIPS the meta package when nothing it packs changed
+    /// (it has no build output, and the version is not a file input), so its
+    /// <c>.nupkg</c> keeps the timestamp of an older pack. Measured 2026-09-24:
+    /// on the second run in a row the <c>Tracon.1.0.0-preview.1.nupkg</c> left
+    /// by the previous run's <see cref="ReleaseArtifactFixture"/> was the newest
+    /// file, this fixture resolved <c>1.0.0-preview.1</c>, installed that
+    /// template, and every template test restored the LOCAL preview.1 into the
+    /// global package folder - where nuget.org's different preview.1 of the same
+    /// ids belongs. <c>TemplateFixtureVersionTests</c> keeps this closed.
+    /// The query runs in the same environment as the pack, so an ambient
+    /// <c>MinVerVersionOverride</c> reaches both.
     /// </remarks>
-    private static string ResolveMetaPackageVersion()
+    private static async Task<string> ResolvePackedVersionAsync()
     {
-        var match = Directory.EnumerateFiles(RepoPaths.PackageReleaseDirectory, "Tracon.*.nupkg")
-                .Select(path => (Path: path, Match: MetaPackageFileName.Match(Path.GetFileName(path))))
-                .Where(candidate => candidate.Match.Success)
-                .OrderByDescending(candidate => File.GetLastWriteTimeUtc(candidate.Path))
-                .Select(candidate => candidate.Match)
-                .FirstOrDefault()
-            ?? throw new InvalidOperationException(
-                $"No 'Tracon.<version>.nupkg' was found under '{RepoPaths.PackageReleaseDirectory}'.");
+        var result = await ProcessRunner.RunAsync(
+            "dotnet",
+            $"msbuild \"{MetaProjectPath}\" -t:MinVer -getProperty:PackageVersion -p:Configuration=Release -nologo",
+            timeout: InstallTimeout);
 
-        return match.Groups["version"].Value;
+        var version = result.StandardOutput.Trim();
+
+        if (result.ExitCode != 0 || version.Length == 0 || version.Contains(' ', StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                $"MinVer did not report the package version of '{MetaProjectPath}':{Environment.NewLine}{result.Combined}");
+        }
+
+        if (!File.Exists(Path.Combine(RepoPaths.PackageReleaseDirectory, $"Tracon.{version}.nupkg")))
+        {
+            throw new InvalidOperationException(
+                $"The pack reported version {version}, but 'Tracon.{version}.nupkg' is not under '{RepoPaths.PackageReleaseDirectory}'.");
+        }
+
+        return version;
     }
 }

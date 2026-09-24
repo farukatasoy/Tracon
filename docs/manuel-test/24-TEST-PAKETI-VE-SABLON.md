@@ -4,7 +4,8 @@
 > 95 (paket tüketici kapısı ve geçişli bağımlılık taban çizgisi),
 > 98 (depolama sözleşmesi paketi ve örnek store),
 > 99 (sağlayıcı sözleşmesi paketi ve örnek sağlayıcı),
-> 143 (tool argümanı/yetkilendirme sözleşmesi ve tohumlu fuzz üreteci)
+> 143 (tool argümanı/yetkilendirme sözleşmesi ve tohumlu fuzz üreteci),
+> 185 (kardeş sürüm sabitleme: şablonun NU1608'i ve fixture sürüm çözümü)
 > **Kaynak:** `src/Tracon.Templates/` (tümü — `content/Tracon.Starter/`,
 > `.template.config/template.json`, `dotnetcli.host.json`) ·
 > `src/Tracon.Testing/` (tümü — `FakeModelProvider.cs`, `FakeModelRequest.cs`,
@@ -3015,3 +3016,93 @@ Test run summary: Passed!
   proje referansı değildir, bu yüzden bu testin kapsamına hiç girmez.
 
 ---
+
+### MT-TEST-095 — Şablon projesi `NU1608`'i hata sayar: karışık graf restore'da durur (Faz 185)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 185 |
+| **İlgili karar** | K-858 |
+
+`Tracon.Starter.csproj` `<WarningsAsErrors>$(WarningsAsErrors);NU1608</WarningsAsErrors>` taşır.
+
+**Ön koşul**
+- Yerel `Tracon.Templates` kurulu; feed'de `1.0.0-preview.1` ve `<V>`.
+- 🚨 `export NUGET_PACKAGES=$(mktemp -d)`; `NuGet.config` `Tracon*`'u yalnız yerel feed'e eşler.
+
+**Adımlar**
+1. `dotnet new tracon-api -n Mix --TraconVersion 1.0.0-preview.1 --persistence memory --ui false`
+2. Projeye `<PackageReference Include="Tracon.Core" Version="<V>" />` ekle.
+3. `dotnet restore`.
+
+**Gerçek sonuç (2026-09-24)**
+- `MixedVersionGraphTests.The_template_project_turns_NU1608_into_a_restore_error` yeşil:
+  çıkış ≠ 0, `error NU1608`.
+
+**Beklenen sonuç**
+- Çıkış ≠ 0; `error NU1608` (uyarı değil).
+
+---
+
+### MT-TEST-096 — Değiştirilmemiş şablon projesi derlenir ve başlar (Faz 185, regresyon)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 185 |
+| **İlgili karar** | K-859 |
+
+Tek sürümlü grafta ne `NU1608` hatası ne başlangıç reddi olur.
+
+**Ön koşul**
+- Şablon kurulu.
+
+**Adımlar**
+1. `dotnet new tracon-api -n Aligned --persistence memory --ui false`
+2. `dotnet build -c Release`; `dotnet bin/Release/net10.0/Aligned.dll`; `GET /tracon/api/agents`.
+
+**Gerçek sonuç (2026-09-24)**
+- `TemplateRunTests.Default_combination_starts_up_without_setup_and_returns_the_catalog` yeşil
+  (Package.Tests tam koşumu 67/67).
+
+**Beklenen sonuç**
+- Build uyarısız geçer; uygulama başlar; katalog `200` döner.
+
+---
+
+### MT-TEST-097 — Package testleri arka arkaya iki kez koşunca yerel preview.1 global önbelleğe açılmaz (Faz 185)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 185 |
+| **İlgili karar** | — |
+
+`TemplateFixture` eskiden sürümü "en son yazılan meta `.nupkg`" ile seçiyordu; artımlı pack
+meta paketi yeniden yazmadığı için ikinci koşumda `1.0.0-preview.1`'i seçip şablon
+testlerini yerel preview.1 ile global önbelleğe restore ettiriyordu. Sürüm artık MinVer'e sorulur.
+
+**Ön koşul**
+- `ls -d ~/.nuget/packages/tracon*/1.0.0-preview.1` boş (kaynağı yerel feed olanlar silinmiş).
+
+**Adımlar**
+1. `Tracon.Package.Tests`'i iki kez arka arkaya koş (kod değiştirmeden).
+2. Global önbelleği listele.
+
+**Girilecek veri**
+```bash
+./artifacts/bin/Tracon.Package.Tests/release/Tracon.Package.Tests
+./artifacts/bin/Tracon.Package.Tests/release/Tracon.Package.Tests --filter-class '*TemplateFixtureVersionTests*'
+ls -d ~/.nuget/packages/tracon*/1.0.0-preview.1
+```
+
+**Gerçek sonuç (2026-09-24)**
+- Düzeltmeden önce ikinci koşum: `The template fixture resolved 1.0.0-preview.1 ...` (kırmızı).
+- Düzeltmeden sonra: `TemplateFixtureVersionTests` yeşil; `ls` → eşleşme yok.
+
+**Beklenen sonuç**
+- `TemplateFixtureVersionTests` yeşil; `ls` boş.

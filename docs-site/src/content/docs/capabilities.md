@@ -221,9 +221,12 @@ caller's role and key scopes. See the complete scope table in
 | Health checks | `AddTraconHealthChecks()` | Adds checks to the consumer's health-check system; you choose the route with `MapHealthChecks()` |
 | Diagnostics report | `GET /api/diagnostics` and console | Endpoint is off by default because it reveals deployment shape |
 | Retention preview | HTTP API and console | Shows eligible rows before a cleanup job changes data |
+| Package family alignment | Host start | Always on; a host whose Tracon package assemblies (all but `Tracon.Client`) come from more than one release stops before any hosted service runs, and the error names each assembly and version |
 
 Observability never changes behavior. Every signal here is a side effect of a run, and
 a failure to record one is logged and stepped over rather than raised to the caller.
+Package family alignment is the one start-up guard in this table: it refuses a mixed
+graph instead of reporting it.
 
 ## Integration surfaces
 

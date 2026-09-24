@@ -423,6 +423,16 @@ sürümdür. Ön sürüm bağımlılığı **yalnızca** `Tracon.AspNetCore` iç
 toplanır (K-008). Tracon o iki paket GA olana kadar `1.0.0-preview.N`
 yayınlanır — sonra tek pakette sürüm güncellemesi yeterlidir.
 
+**Tek sürüm hattı zorlanır (Faz 185).** Aile tek sürümde çıkar (K-602) ve iki
+yerde korunur: (1) her Tracon→Tracon nuspec bağımlılığı tam aralıktır (`[x]`,
+`TraconPinSiblingDependencies`, `src/Directory.Build.props`; kapı
+`ReleaseArtifactTests.EverySiblingDependencyIsExactAndMatchesOwnVersion`);
+(2) yüklü aile derlemeleri farklı sürümdeyse host **başlamaz**
+(`PackageFamilyAlignmentService`, `IHostedLifecycleService.StartingAsync`,
+opt-out yok). İkinci katman, açık aralıkla yayınlanmış preview.1/preview.2'yi
+ve NU1608 ile geçen doğrudan başvuruyu yakalar. Host başlatmayan süreç
+(`BuildServiceProvider()`) kontrolü koşturmaz.
+
 ---
 
 ## 9. Trim ve AOT

@@ -60,6 +60,11 @@ need them. `Tracon.Testing` carries the fakes for your own tests.
 Reach for the meta package when you want the usual set; reach for the individual ones
 when you care about what enters your dependency graph.
 
+Keep every Tracon package on the same version. Each one depends on its Tracon
+siblings at exactly its own version, and a host whose Tracon package assemblies
+(all but `Tracon.Client`) come from more than one release does not start: the error
+lists each assembly and version.
+
 ## Two things worth knowing early
 
 **Tools are defined in code only.** An agent can be created and edited from the UI or

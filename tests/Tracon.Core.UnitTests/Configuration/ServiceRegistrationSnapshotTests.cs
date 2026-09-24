@@ -121,6 +121,8 @@ public sealed class ServiceRegistrationSnapshotTests
         "Microsoft.Extensions.Logging.ILogger`1[TCategoryName] | Singleton | Microsoft.Extensions.Logging.Logger`1[T]",
         "Microsoft.Extensions.Options.IConfigureOptions`1[Microsoft.Extensions.Logging.LoggerFilterOptions] | Singleton | Instance:Microsoft.Extensions.Logging.DefaultLoggerLevelConfigureOptions",
         "Microsoft.Extensions.Options.IValidateOptions`1[Tracon.TraconOptions] | Singleton | Tracon.TraconOptionsValidator",
+        "Tracon.LoadedPackageFamily | Singleton | Tracon.LoadedPackageFamily",
+        "Microsoft.Extensions.Hosting.IHostedService | Singleton | Tracon.PackageFamilyAlignmentService",
         "Tracon.ITenantContext | Singleton | Tracon.SingleTenantContext",
         "Tracon.IRunAttributionContext | Singleton | Tracon.DefaultRunAttributionContext",
         "Tracon.IToolAuthorizationHandler | Singleton | Tracon.AllowAllToolAuthorizationHandler",

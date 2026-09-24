@@ -78,6 +78,7 @@ supheli bir derlemeden HEMEN sonra calistirmadan once bu adimi atlama.
   komutun kendisine asla `| tail` ekleme.
 
 - **🚨 Tüketici testleri GLOBAL NuGet önbelleğine takılır — değişiklik görünmez olur** (2026-08-19, Faz 73): MinVer sürümü git yüksekliğinden türediği için iki commit arasındaki her `dotnet pack` **aynı** sürüm dizesini üretir (`0.0.0-preview.0.271`). NuGet bir sürümü global paket klasörüne BİR KEZ açar ve sonra hep onu kullanır; yeniden paketlenen `.nupkg` hiç açılmaz. Belirti: kodda yaptığın değişiklik `TemplateFixture` tabanlı testlerde **hiç görünmez** ve teşhis yanlış yere gider (Faz 73'te bir analyzer değişikliği üç koşum boyunca yok sanıldı). Çözüm fixture'a girdi: `TemplateFixture.ClearGlobalPackageCache` paketlenen sürümün `~/.nuget/packages/tracon*/<sürüm>` dizinlerini siler. **Depo dışında elle bir tüketici denerken aynı dizini sen de sil.**
+- **🚨 Yerel `1.0.0-preview.1` global önbelleği ZEHİRLER** (Faz 185): nuget.org aynı kimliklerde FARKLI bir preview.1 sunar; yereli global klasöre açan restore onu kalıcı yerleştirir. Preview.1 restore eden test/case izole `NUGET_PACKAGES` + `Tracon*`→yerel eşleme ile koşar (`MixedVersionConsumerProject`). Kaynak: `TemplateFixture` sürümü zaman damgasıyla seçiyordu (`TemplateFixtureVersionTests`).
 
 ## 🚨 macOS'ta AOT kosumu Xcode'un ESKI linker'iyla CLT'nin YENI SDK'sini birlestirir (Faz 176)
 

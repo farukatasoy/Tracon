@@ -15,9 +15,16 @@ namespace Tracon.Package.Tests.Infrastructure;
 /// in isolated temp directories outside this repository (a <c>dotnet pack</c>
 /// there is not even inside a git work tree, so the gate does not apply) and
 /// does not need this collection.
+/// <para>
+/// The collection owns the one <see cref="ReleaseArtifactFixture"/> pack.
+/// <see cref="ReleaseArtifactTests"/> reads its packages, and
+/// <see cref="MixedVersionGraphTests"/> restores its <c>1.0.0-preview.1</c> next to
+/// the <see cref="TemplateFixture"/> stamp; as a class fixture each of the two
+/// would pack the whole solution again.
+/// </para>
 /// </remarks>
 [CollectionDefinition(Name)]
-public sealed class RepositoryTreeGate
+public sealed class RepositoryTreeGate : ICollectionFixture<ReleaseArtifactFixture>
 {
     public const string Name = "Repository tree";
 }

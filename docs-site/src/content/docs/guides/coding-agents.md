@@ -133,7 +133,7 @@ every page — three sizes for three questions, published on the documentation s
   what**: one line per hand-written page, with its title, address, and subject. About
   20 KB.
 - [`llms-full.txt`](/llms-full.txt) — every guide, concept, and reference
-  page concatenated, about 700 KB.
+  page concatenated, about 825 KB.
 
 The middle layer is the one to use. The map names a capability but does not explain it;
 the index names the one page that does, and reading that page costs a fraction of the

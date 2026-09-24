@@ -22,6 +22,13 @@ Everything is registered with `TryAdd`. Register your own implementation of a se
 registration. Add `.RequireCustomBinding<T>()` for a seam the deployment must not run
 without: the host does not start while Tracon's built-in default is what resolves.
 
+Keep every Tracon package on the same version. Each package depends on its Tracon
+siblings at exactly its own version, and a host whose loaded Tracon package
+assemblies come from more than one release stops before any hosted service starts,
+with an error that lists each assembly and version. `Tracon.Client` is not compared: it
+talks to a server over HTTP. There is no setting that turns this check off, and a
+process that never starts a host does not run it.
+
 Security-sensitive settings come up permissive for the same "no surprises" reason.
 Add `.RequireProductionProfile()` when that is the wrong default: it changes no
 setting, and refuses to start while tenant separation, session ownership, at-rest

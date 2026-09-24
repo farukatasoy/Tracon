@@ -13,6 +13,15 @@
     -->
     <TraconWriteAgentsFile>true</TraconWriteAgentsFile>
     <!--
+      Every Tracon package depends on its siblings at exactly its own version.
+      A reference that pulls one Tracon package to another version overrides
+      that range and NuGet only warns (NU1608); a project that restores anyway
+      does not start. This line stops restore instead. It also turns the same
+      warning from any other package into an error; remove the line to keep
+      NU1608 a warning.
+    -->
+    <WarningsAsErrors>$(WarningsAsErrors);NU1608</WarningsAsErrors>
+    <!--
       InvariantGlobalization is NEVER enabled. `Microsoft.Data.SqlClient` does
       NOT SUPPORT Globalization Invariant Mode; this template offers the
       UseSqlServer option, and a project generated with that option would NEVER
