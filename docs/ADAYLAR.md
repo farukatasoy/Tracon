@@ -1,20 +1,19 @@
 # ADAYLAR — Planlama Kuyruğu
 
-> **Bu dosya ne taşır:** henüz faza dönüşmemiş yetenek adaylarını ve onları
-> bekleten koşulları. Başka hiçbir şeyi.
+> **Bu dosya ne taşır:** yalnız **yapılacak** işi — faza dönüşecek adayları,
+> bekleyen kalemleri, her kalemin kanalını ve aciliyetini, bekleyen kalemin
+> koşulunu. Başka hiçbir şeyi.
 >
-> **Ne taşımaz:** faz durumunu (üretilen [`YOL-HARITASI.md`](YOL-HARITASI.md)) ·
-> kusurları (`kusur-giderme` kanalı) · kapanmış kararları
+> **Ne taşımaz:** yapılmış işin kaydı. Bir kalem plana dönüşünce veya
+> kapanınca bu dosyadan **silinir** ve yerine yönlendirici satır yazılmaz
+> (§ *Kalemin yaşam döngüsü*). Ayrıca taşımaz: faz durumunu (üretilen
+> [`YOL-HARITASI.md`](YOL-HARITASI.md)) · kararları
 > ([`KARARLAR-INDEKS.md`](KARARLAR-INDEKS.md)) · tur anlatılarını
-> ([`kesif/`](kesif/)) · plana dönüşmüş kalemlerin gövdelerini
-> ([`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md)).
+> ([`kesif/`](kesif/)) · "bir daha önerilmez" listesini
+> ([`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md)).
 
-**Durum (2026-09-23):** **0 sıralanabilir aday** · 32 bekleyen kalem (26 tek satırlık + 6 gövdeli).
-Son plana dönüşen: **F-165 · F-258 · F-259 · F-260 · F-261 →
-[Faz 180](arsiv/fazlar/180-MANUEL-SET-DEVIR-SABLONU.md) · [181](arsiv/fazlar/181-PROVIDER-ORTAK-KATMANI.md) ·
-[182](arsiv/fazlar/182-PUBLIC-API-YUZEY-DARALTMA.md) · [183](arsiv/fazlar/183-COKLU-TFM-TEST-MATRISI.md) ·
-[184](arsiv/fazlar/184-TEST-BEKLEME-VE-E2E-YAPISI.md)** (✅ Tamamlandı). Sıralanabilir kuyruk **boştur**;
-yeni aday üretmek için `aday-kesfi` koşulur.
+**Durum (2026-09-24):** sıralanabilir kuyruk boş. Bugün yapılabilecek iş
+§ *Bekleyen Kalemler*'in üç kanal tablosundadır.
 
 ---
 
@@ -22,13 +21,14 @@ yeni aday üretmek için `aday-kesfi` koşulur.
 
 | İhtiyacın | Nereye bak |
 |---|---|
-| Sıradaki fazı seçmek | § *Sıralanabilir Adaylar* — kanıtı ölçülmüş, bugün plana dönüşebilir |
+| Sıradaki işi seçmek | § *Bekleyen Kalemler* — kanal tabloları, aciliyete göre sıralı |
+| Sıradaki fazı seçmek | § *Sıralanabilir Adaylar* ve § *Faz planlama* tablosu |
 | Hangi fazın nerede olduğu | **Buraya değil** — üretilen [`YOL-HARITASI.md`](YOL-HARITASI.md). Planlanmış faz dokümanları `docs/` kökündedir |
-| Bir kalem neden faz değil | § *Bekleyen Kalemler* — her satır engeli ve koşulu söyler |
-| Bir F-ID nereye gitti | § *Aday Olmayan Açık Kayıtlar* |
+| Bir kalem neden bugün iş değil | § *Tetik bekleyenler* — her satır engeli ve koşulu söyler |
+| Bir F-ID nereye gitti | **Buraya değil** — `grep -rn "F-NNN" docs/`. Plana dönüşenin izi faz dokümanının `> **Kaynak:**` satırıdır; kapananınki [`arsiv/ERTELENEN-ADAYLAR.md`](arsiv/ERTELENEN-ADAYLAR.md) |
 | Yeni aday üretmek | `aday-kesfi` skill'i; çıktısı bu dosyaya yazılır |
-| Bir kalem neden reddedildi | § *Bilerek Önerilmeyenler* → [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md) |
-| Geçmiş turda ne olmuştu | [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md) — tur anlatıları, çürütülmüş iddialar, taşınan gövdeler |
+| Bir iş reddedildi mi, zaten var mı | [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md) |
+| Geçmiş turda ne olmuştu | [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md) — tur anlatıları, taşınan gövdeler |
 
 Bu dosya **baştan sona okunmaz.** İhtiyacın olan bölüme git.
 
@@ -60,70 +60,104 @@ Her aday gövdesi şu alanları taşır: **Sorun · Kapsam · Değer · Mercek �
 Hazırlık · Maliyet · Risk · Bağımlılık · Ekosistem · Karşı görüş.** Bir alan
 ölçülmediyse öyle yazılır; boş bırakılmaz.
 
+### Kanal ve aciliyet
+
+| Kanal | Ne zaman | Nasıl |
+|---|---|---|
+| **Kusur giderme** | Kod bugün yanlış davranıyor | `kusur-giderme` skill'i; faz açılmaz |
+| **Faz planlama** | Yeni yetenek, public sözleşme veya geniş dokunuş | `faz-planlama` skill'i; kalem `docs/NN-*.md` olur |
+| **Doğrudan** | Küçük ve kararı verilmiş iş | Tek oturumda yapılır; faz veya kusur kaydı gerekmez |
+| **Tetik bekliyor** | Koşulu oluşmadı | Koşul ölçülünce kalem bir kanala taşınır |
+
+Aciliyet: 🔴 şimdi — kurulumu bozar veya takvimi var · 🟠 bu turda · 🟡
+sıradaki boşlukta · 🟢 fırsat oldukça. Her kanal tablosu aciliyete göre
+sıralıdır.
+
+### Kalemin yaşam döngüsü
+
+- **Yeni kalem** kanalının tablosuna girer; kanalı belli değilse
+  § *Tetik bekleyenler*'e. Numarayı § *F-ID tahsis kuralı* verir.
+- **Plana dönüşen kalem** silinir. İzi faz dokümanının `> **Kaynak:** … F-NN`
+  satırıdır; gövdesi varsa
+  [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md)'ye taşınır.
+- **Kapanan kalem** silinir ve
+  [`arsiv/ERTELENEN-ADAYLAR.md`](arsiv/ERTELENEN-ADAYLAR.md) § *Kapanan
+  kalemler* tablosuna tek satırla (tarih + kanıt) taşınır. Numara orada
+  yaşamaya devam eder; sayaç kapısı onu da sayar.
+- **Kısmen kapanan kalem** yerinde kalır; satırı yalnız **kalan** işi anlatır.
+
 ---
 
 ## Sıralanabilir Adaylar
 
-**Kuyruk boş (2026-09-15).** Beş kalem de aynı gün plana dönüştü; eşleme
-§ *Aday Olmayan Açık Kayıtlar* tablosundadır. Yeni aday üretmek için
-`aday-kesfi` koşulur.
-
----
-
-### F-171 · Sevk edilen davranış iddiaları için kapı — ✅ KAPANDI
-
-Üç yarısı da kapandı (sayı · davranış · sürüm damgası). Kaydın kendi
-ölçümünün neden yanlış olduğu ve kapının 2026-09-14 genişletmesi:
-[`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md).
+**Kuyruk boş.** Bir kalem buraya § *Değerlendirme Ölçütleri*'nin tam
+gövdesiyle girer. Yeni aday üretmek için `aday-kesfi` koşulur.
 
 ---
 
 ## Bekleyen Kalemler
 
-Hiçbiri **bugün faz değildir.** Gövdeleri, koşulları oluştuğunda plana
-dönüşebilmeleri için duruyor. Bir kalemi buradan çıkarmanın tek yolu
-**koşulunun gerçekleştiğini ölçmektir**.
+Bir kalem buradan iki yolla çıkar: iş yapılır (kalem kapanır veya plana
+dönüşür) ya da kalemin artık gerekmediği ölçülür ve kalem kapatılır. İki
+yolda da § *Kalemin yaşam döngüsü* uygulanır.
 
-### Tek satırlık bekleyenler
+### Kusur giderme
+
+| Aciliyet | Kalem | Sorun | Ne yapılır |
+|---|---|---|---|
+| 🟠 | **F-279** · K-840 kalıntısı: dokuz `catch` filtresi hâlâ yalnız `is not OperationCanceledException` kullanıyor | `TriggerEndpoints.cs:352` · `AgentEndpoints.cs:1381` · `RunEndpoints.cs:775` · `ImageEndpoints.cs:162` · `ExternalSurfaceGuard.cs:78` · `ToolApprovalResolver.cs:219` · `RunAttributionGate.cs:56` · `CatalogToolCallHandler.cs:105` · `IRunAttributionContext.cs:115` (`RunAttributionReader.Read`). Tüketici bağımlılığının kendi zaman aşımı (`TaskCanceledException`) iptal sayılıp yayılabilir | Her site için `OperationCancellation.IsFailure(ex, token)` + düşen test |
+| 🟡 | **F-280** · Yapılandırmadan gelen timeout'lar zamanlayıcı aralığında doğrulanmıyor — F-278'in (b) alt sınıfı | `CancelAfter`/`new CancellationTokenSource(TimeSpan)` yalnız -1 ms (sonsuz) ve 0 – 4 294 967 294 ms kabul eder; dışındaki değer o istekte ya da run'da `ArgumentOutOfRangeException` atar (host durmaz). Siteler (2026-09-24 sınıf taraması): `ChildAgentInvoker` `_childDeadline` · `LiveVoiceSessionHost` `DelegationTimeout` · `TraconDrainService` `Drain:Timeout` (yalnız `<= Zero`) · `OnlineEvalJobHandler` `JudgeTimeout` · `SkillScriptProcessRunner` `Timeout` · `ToolApprovalPresenterRunner` · `WebhookDeliveryJobHandler` `Timeout` · `AgentDefinitionValidator` · `WorkflowRunner` `RunTimeout` · MCP `ConnectionTimeout` (üç yer, doğrulayıcı yok) · `ProviderHealthCheckCore` · `TimeoutAIFunction` (`Task.Delay`) · `TraconEndpointOptions.RunEventPollInterval` (setter yalnız `> 0`) | Site site: değer yapılandırmadan mı geliyor, `InfiniteTimeSpan` meşru mu — sonra `TimerPeriod` benzeri ortak bir timeout aralığı kontrolü + `IStartupValidator` üzerinden düşen test (F-278 deseni) |
+| 🟡 | **F-268** · `ExperimentTests` yük altında kırılgan: sürüm alanı `<select>` olmadan seçim yapılıyor | `Experiment_is_created_started_and_traffic_reflects_in_results_table` yük altında `Element is not a <select> element` ile düşer, tek başına geçer. `experiments.tsx` `agentVersions` sorgusu dönene kadar `variant-version-N`'i sayı kutusu olarak çizer; test ([`ExperimentTests.cs:30`](../tests/Tracon.Ui.E2ETests/Ui/ExperimentTests.cs#L30)) beklemeden `SelectOptionAsync` çağırır ve Playwright bu hatayı yeniden denemez | `select[data-testid='variant-version-0']` için web-first bekleme. Aynı desen (sorguya bağlı bir alana `SelectOptionAsync`) diğer ekran testlerinde de taranır |
+| 🟡 | **F-257** · İki bilinen yarış testi | İkisi tam çözüm koşumunda düşer, izole koşumda geçer: `WorkflowEventSinkTests.A_registered_sink_sees_the_workflow_s_own_events` olay `Sequence`'ını sıra dışı görür · `LiveVoiceLifecycleTests.The_transcript_is_written_to_the_session_history_when_persistence_is_on` zaman aşımına uğrar. Her tam koşumu gürültülü yaparlar ve gerçek bir regresyonu maskeleyebilirler | Repro'yu yük altında sabitle (`kusur-giderme` Adım 1–2), kök nedeni kapat |
+| 🟢 | **F-241** · Kırpma bir vekil (surrogate) çiftini ortadan kesebilir — sınıf | `EvaluatorRunJudge.ResolveVersion` sürümü `version[..MaxEvaluatorVersionLength]` ile kırpar. 128. karakter yüksek vekilse yalnız kalan vekil `varchar`/`nvarchar` yazımında kodlama hatası doğurur; hata yazma döngüsünde `retryable` sayılıp tekrarlanır. Aynı desen `TextValue` kırpmasında da var ([`EvaluatorRunJudge.cs`](../src/Tracon.Core/Evaluation/EvaluatorRunJudge.cs)). Olasılık çok düşük — informational version pratikte ASCII'dir | Sınıfı tek bir güvenli kırpma yardımcısına indir. Kırpılan bir alanın ASCII-dışı içerik taşıdığı ölçülürse aciliyet yükselir |
+| 🟢 | **F-281** · `Tracon.Google` görsel yolunda `MediaType` verilirse SDK `NotSupportedException` atar | Canlı ölçüldü (2026-09-24, Google.GenAI 1.16.0, API anahtarı): `ImageConfig.OutputMimeType` her değer için *"outputMimeType parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode"* ile reddedilir. `GoogleImageGenerator` (`src/Tracon.Google/Internal/GoogleImageGenerator.cs:77`) `ImageGenerationOptions.MediaType` verilince onu gönderir; Tracon'un iki sevk edilen yolu (`/api/images/generate`, `generate_image`) `MediaType` vermediği için bugün yalnız `IImageGenerator`'ı doğrudan çağıran tüketiciyi etkiler | Paket yalnız API anahtarı modunu desteklediği sürece `MediaType` istemde reddedilir ya da yok sayılır — hangisi olacağı küçük bir davranış kararıdır; karar sonrası düşen test + site cümlesi |
+
+### Faz planlama
+
+| Aciliyet | Kalem | Neden | Plan notu |
+|---|---|---|---|
+| 🔴 | **F-266** · `net8.0` ve `net9.0` düşürülmesi | Microsoft desteği **2026-11-10**'da biter (ölçüldü 2026-09-23: 8.0 son yama 8.0.31, 9.0 son yama 9.0.20; 10.0 → 2028-11-14). **Karar alındı (kullanıcı kararı, 2026-09-23):** 2026-11-10'dan sonraki ilk sürüm iki TFM'i düşürür; acil güvenlik sürümü istisnadır. Duyuru `CHANGELOG.md` `### Deprecated` ve [`compatibility.md`](../docs-site/src/content/docs/reference/compatibility.md) tarihli cümlesinde yerinde | Faz 11-10'dan **önce** planlanır, sonra uygulanır. [Faz 187](187-KIRICI-DEGISIKLIK-KAPISI.md)'nin `PKV006` kapısına bağlıdır: sıra 187 → düşürme fazı. Dokunulan yüzey: `src/Directory.Build.props` · `TraconTestTargetFrameworks` · `Tracon.Testing` `VersionOverride`'ları · `Net8Consumer` · CI runtime adımları |
+| 🟡 | F-247 · Yirmi dört yapılandırma bölümü için bağlama kanıtı | Risk yok, iş mekanik ve paralel yürür. Sınıf gerçek bir kusur üretti (`TraconImageOptions.Timeout`) | Gövde: § *F-247* |
+| 🟢 | F-248 · `unwrap(...) as Promise<T>` iddialarının tip düzeyinde kapısı | Bugün tek örnek elle tarandı; sonrakini kimse taramaz | Gövde: § *F-248* |
+| 🟢 | F-249 · docs-site için tarayıcı tabanlı yerleşim kapısı | Elle koşulan case iki turda da kusur buldu | Gövde: § *F-249* |
+
+### Doğrudan
+
+| Aciliyet | Kalem | İş |
+|---|---|---|
+| 🟢 | **F-267** · CI tam koşumu hâlâ tek test projesiyle koşuyor | Yerel kapı `-maxcpucount:2`'dedir ([Faz 184](arsiv/fazlar/184-TEST-BEKLEME-VE-E2E-YAPISI.md); aynı makinede 1 işçi 863/879 sn, 2 işçi 607/658/524 sn). `ci.yml` bilerek 1'de: runner donanımı ve Windows ayağı ölçülmedi. İş: bir CI dalında `-maxcpucount:2` ile en az üç koşum. Yeşil ve süre kazancı ölçülürse `ci.yml` güncellenir; kırmızı çıkarsa gerekçe hafızaya yazılır. Dala push gerektirir — kullanıcı onayı |
+
+### Tetik bekleyenler
 
 | Kalem | Engel | Koşul ne zaman oluşur |
 |---|---|---|
-| **F-180** · Tam paket koşumunda E2E zaman aşımı | ⚠️ **Vaka kapandı (2026-09-04), SINIF açık.** Repro "yük altındaki tam paket koşumu"ydu; kapanış onu kendi koşullarında tekrar koşmadı ve test bir gün sonra aynı imzayla düştü | Ders `kusur-giderme` kapanış kontrolüne yazıldı. Sınıf yeniden görülürse **yeni** kusur kaydı açılır. Gövde: [`arsiv/ERTELENEN-ADAYLAR.md`](arsiv/ERTELENEN-ADAYLAR.md) |
-| **F-199** · Kota eşiği bildiriminin kaybı | Eşik claim edildikten SONRA webhook/akış yayını başarısız olursa o eşik dönem sonuna kadar kalıcı kaybolur — düşük risk Claim ÖNCESİ çeşit 2026-09-23'te kapandı: süreç içi anahtar claim atınca (iptal dahil) takılı kalıyordu; artık `QuotaEnforcer` claim hatasında anahtarı `TryRemove` eder ve aynı dönemdeki sonraki run claim'i yeniden dener. Bu satır yalnız claim SONRASI yayın kaybını anlatır. | Kota webhook/notice teslimi için retry/backoff istenirse ([Faz 146](arsiv/fazlar/146-CALISTIRMAYA-BAGLI-KOTA-ESIGI.md) denetim bulgusu) |
+| **F-180** · Tam paket koşumunda E2E zaman aşımı — sınıf açık | Vaka kapandı, **sınıf açık**: repro "yük altındaki tam paket koşumu"ydu ve kapanış onu kendi koşullarında tekrar koşmadı; test bir gün sonra aynı imzayla düştü. Ders `kusur-giderme` kapanış kontrolündedir | Sınıf yeniden görülürse **yeni** kusur kaydı açılır. Gövde: [`arsiv/ERTELENEN-ADAYLAR.md`](arsiv/ERTELENEN-ADAYLAR.md) |
+| **F-199** · Kota eşiği bildiriminin claim SONRASI kaybı | Eşik claim edildikten SONRA webhook/akış yayını başarısız olursa o eşik dönem sonuna kadar kalıcı kaybolur. Düşük risk | Kota webhook/notice teslimi için retry/backoff istenirse ([Faz 146](arsiv/fazlar/146-CALISTIRMAYA-BAGLI-KOTA-ESIGI.md) denetim bulgusu) |
 | **F-200** · Çok kullanıcılı kota izolasyonu regresyon testi | Garanti **yapısaldır** (`RunEventWriter`'ın run başına özel `Guid`'i); eksik olan yalnız ona adanmış test | `RunEventWriter`/`RunRecordingAgent`'ın run izolasyonu yeniden düzenlenirse ([Faz 146](arsiv/fazlar/146-CALISTIRMAYA-BAGLI-KOTA-ESIGI.md) denetim bulgusu) |
-| **F-205** · `/v1/conversations/{id}` varlık asimetrisi | Kullanılmamış kimlik `200`, reddedilen kimlik `404`. Katı modda çağıran hangi id'lerin sahipsiz SATIR olduğunu sayabilir — erişim kapalı, yalnız varlık görünür. Davranış ucun rezervasyon semantiğinden miras (Faz 4); kapatmak OpenAI uyumluluğunu bozar. `/api/sessions/{id}` bu sızıntıyı taşımaz | Tüketici varlık gizliliği talep ederse ([Faz 149](arsiv/fazlar/149-SAHIPSIZ-OTURUMUN-KATI-REDDI.md) denetim bulgusu) |
-| **F-226** · SSE yanıtının şeması JSON şekli ilan ediyor | ASP.NET Core'un üstveri modeli aynı statü kodu için iki şema ifade edemiyor ve K-039 gereği kütüphane `Microsoft.AspNetCore.OpenApi`'ye bağımlı değil — bir `OpenApiOperationTransformer` kütüphanede yaşayamaz. **Ölçüldü (2026-09-13):** `tracon.json`'da 7 `text/event-stream` yanıtı var, **2'si** JSON şekli ilan ediyor (`/tracon/v1/responses` → `JsonElement`, `/tracon/v1/chat/completions` → `ChatCompletion`); kalan 5'i doğru biçimde `type: string`. Üretilen istemci etkilenmiyor — altıncı geçiş içerik tipinin VARLIĞINA bakar | Belgeden kod üreten üçüncü taraf bir üreteç bu yüzden kırılırsa ([Faz 159](arsiv/fazlar/159-TIPLI-ISTEMCIDE-AKISLI-OPENAI-CAGRISI.md) denetim bulgusu 🟢 3) |
-| **F-230** · `kurtarma.md` ↔ `.claude/settings.json` senkron kapısı | `KR-11` rampası `deny` listesinin bugünkü içeriğini **sayarak** tekrarlıyor (`git rebase`, `git clean -fd`, `rm -rf` listede yok). Tekrar Faz 167 devir notunun **açık isteğidir** — yasağın sınırını yazmayan bir rampa yanlış güven üretir (K-761). Ama `settings.json` genişlerse cümle sessizce yalan olur ve bunu sayan kapı yok | `.claude/settings.json` `deny` bloğu ilk kez değiştiğinde ([Faz 168](arsiv/fazlar/168-KURTARMA-RAMPASI-KATALOGU.md) denetim bulgusu 🟢 6) |
-| **F-233** · SQLite'ın yük altındaki `SQLITE_BUSY` davranışı ölçülmedi | Faz 24'ün "Açık Kalan" kaleminin tek geçerli kalanı (2026-09-15'te yeniden ölçüldü; diğer üçü bayat çıktı veya vaat yokluğuydu). `SqliteDialectTests.WAL_and_busy_timeout_are_set_when_the_connection_opens` yalnız ayarların **kurulduğunu** doğrular, çekişme altındaki **davranışı** değil; `BoundedSqlLoadTests` yalnız `PostgresFixture` ile koşar (`tests/Tracon.PostgreSql.IntegrationTests/Load/`). SQLite tek yazarlıdır ve `README.md` onu çok örnekli dağıtım için önermez — yani bugün ölçülmemiş olması yayımlanan bir vaadi yalanlamıyor | SQLite'ı çok yazarlı ya da yük altındaki bir kurulumda desteklemek istenirse, ya da `BoundedSqlLoadTests` deseni ikinci bir sağlayıcıya genişletilirken |
-| **F-236** · Audit yazma politikası ratchet'i değişken adına bağlı | `AuditWritePolicyTests`'in deseni `[Aa]udit[Ll]og\.WriteAsync\s*\(`'dir; `IAuditLog log = …; log.WriteAsync(entry, ct);` şeklini **görmez**. Açık Soru §3'te kaynak taraması "ucuz ama kırılgan" diye bilerek seçildi (emsal `AuditCoverageTests` de kaptan doğrular, analyzer değildir); Roslyn analyzer'a geçmek bir analyzer paketi maliyetidir. Ölçüldü: `src/` altında bu şekli kullanan tek yer `Tracon.Testing.Contracts.Xunit/Contracts/AuditLogContract.cs:25` ve orada **meşru** | Politikayı atlayan bir çağrı yeri gerçekten kaçarsa, ya da başka bir ratchet de analyzer isterse ([Faz 171](arsiv/fazlar/171-DENETIM-IZI-YAZMA-POLITIKASI.md) denetim bulgusu 🟢 7) |
-| **F-237** · Etkiden önceki dar fail-closed `run` kaydı | Genel `RecordingMode.Required` **reddedildi** (2026-09-07 A10; 2026-09-15 turu yeniden ölçtü): model çağrısı ve tool yan etkileri olduktan sonra `run`'ı düşürmek hiçbir şeyi geri almaz. Savunulabilir kalan tek biçim dar bir `seam`'dir — `run` açılışı yazılamazsa `run` başlamaz, yan etkili tool çağrısının kaydı yazılamazsa tool koşmaz. Bugün böyle bir `seam` **yok**: `RunEventWriter` her hatayı yutar ([`RunEventWriter.cs:452`](../src/Tracon.Core/Recording/RunEventWriter.cs#L452) — `Disable`) ve tüketicinin kendi `IRunStore`'u da bunu değiştiremez. Faz 173 kaybı **görünür** kıldı (K-782), fail-closed **yapmadı** | Düzenlemeye tabi bir kurulum kanıtla talep ederse. Faz 173'ün `tracon.run.recording_failures` sayacı önce kaybın gerçek sıklığını ölçer — kanıtsız inşa edilen altyapı yanlış şekli alır |
-| **F-238** · Metrik dinleyici test yardımcısının ÜÇ kopyası | Bir metriği ölçmek isteyen her test projesi kendi `MeterListener` sarmalayıcısını yazıyor: `MetricCollector` ([`tests/Tracon.Core.UnitTests/Fakes/MetricTestHelpers.cs`](../tests/Tracon.Core.UnitTests/Fakes/MetricTestHelpers.cs)), `MetricProbe` ([`tests/Tracon.PostgreSql.IntegrationTests/Infrastructure/MetricProbe.cs`](../tests/Tracon.PostgreSql.IntegrationTests/Infrastructure/MetricProbe.cs)) ve `WorkflowMetricProbe` ([`tests/Tracon.Workflows.UnitTests/WorkflowRecordingFailureTests.cs`](../tests/Tracon.Workflows.UnitTests/WorkflowRecordingFailureTests.cs)). Üçü de meter'ı **referansla** eşleyip `TagList`'i kopyalıyor; üçü de `internal`, dolayısıyla paylaşılamıyor. İlk ikisi Faz 173 denetiminde 🟢 7 olarak görüldü, üçüncüsü aynı fazda eklendi — kopya sayısı K-483'ün "elle tekrarlanan ifade bir kusur SINIFI üretir" eşiğindedir | Dördüncü kopya gerektiğinde, ya da `Tracon.Testing` yüzeyine bir metrik doğrulama yardımcısı eklemek ayrıca istendiğinde. Not: bu bir **test altyapısı** kararıdır ve sevk edilen yüzeyi büyütmek (public bir `MeterProbe`) ayrı bir tartışmadır ([Faz 173](arsiv/fazlar/173-CALISTIRMA-KAYDI-GORUNURLUGU.md) denetim bulgusu 🟢 7) |
-| **F-241** · Sürüm kırpması vekil çiftini ortadan kesebilir | `EvaluatorRunJudge.ResolveVersion` sürümü `version[..MaxEvaluatorVersionLength]` ile kırpar. 128. karakter bir yüksek vekil (high surrogate) ise yalnız kalan vekil üretilir ve `varchar`/`nvarchar` yazımında kodlama hatası doğar; hata yazma döngüsünün içinde olduğu için `retryable` sayılıp tekrarlanır. Olasılık çok düşük — informational version pratikte ASCII'dir. 🚨 Bu tek bir fazın kusuru DEĞİL, bir **sınıftır**: aynı desen `TextValue` kırpması için Faz 155'ten beri duruyor ([`EvaluatorRunJudge.cs`](../src/Tracon.Core/Evaluation/EvaluatorRunJudge.cs)) | Kırpılan bir alan gerçekten ASCII-dışı içerik taşıdığında, ya da sınıfın tamamı (`TextValue` + `EvaluatorVersion` + sonraki kırpmalar) tek bir güvenli kırpma yardımcısına indirilirken ([Faz 176](arsiv/fazlar/176-EVALUATOR-SURUM-DAMGASI.md) denetim bulgusu 🟢 1) |
-| **F-242** · `ResolveVersion`'ın `catch` dalı kanıtlanmadı | Sürüm çözümünde attribute okuması **hata verirse** alan `null` kalır ve skor yine yazılır (K-790). Bugün yalnız "attribute yok" yolu testle kanıtlı; `catch` dalını koşturmak `GetCustomAttribute`'u attıran düşmanca bir tip ister ve kazanç maliyeti karşılamıyor | Assembly attribute okumasının gerçekten attığı bir kurulum (kısıtlı host, bozuk assembly) raporlanırsa ([Faz 176](arsiv/fazlar/176-EVALUATOR-SURUM-DAMGASI.md) denetim bulgusu 🟢 2) |
-| **F-243** · Analitik store yüzeyleri metot bazında iptal kapsamını kaybetti | [Faz 177](arsiv/fazlar/177-STORE-IPTAL-SOZLESMESI.md) iki emsal case'i ortak tabana taşırken `IEvalStore.DiffRunsAsync` ve `IRunScoreStore.SummarizeAsync` **metot bazında** kapsamdan çıktı: yeni hook'lar `ListSuitesAsync`/`ListAsync`'i hedefliyor. §177.1'in "store başına bir okuma + bir yazma" sınırı bilinçlidir ve vaadi kanıtlamaya yeter — ama iptali en pahalı olan yüzeyler bu toplayıcı sorgulardır (store'un İÇİNDE hesaplanırlar, K-483 sınıfı). Aynı kalem `IRunStore.GetStatisticsAsync` ve `GetTimeSeriesAsync` için de geçerli | Bir toplayıcı sorgunun iptal edilmemesi gerçek bir kaynak tüketimi raporlarsa, ya da sözleşme "store başına bir okuma" sınırını gevşetmeye karar verirse ([Faz 177](arsiv/fazlar/177-STORE-IPTAL-SOZLESMESI.md) denetim bulgusu 🟢 6) |
-| **F-245** · Sessiz bir `run` ile ölü bir bağlantı ekranda AYNI görünüyor | 🚨 **`HATA-S3-005`'in ASIL bulgusu; kusur kaydının teşhisi yanlıştı.** Kayıt "bağlantı sessizce koptu" diyor; 2026-09-18'de canlı ölçüldü ki `setOffline(true)` açık bir `chunked` SSE gövdesini **kesmiyor** — çevrimdışıyken yeni bir `fetch` gerçekten `Failed to fetch` atarken aynı akış **beş olay daha teslim etti** ve `run` tamamlandı. Yani turun gördüğü 23 saniyelik donukluk sağlıklı bir bağlantı üzerinde **sessiz bir run**'dı. Sunucu 250 ms'de bir `: waiting` gönderiyor ve bu canlılığı kanıtlıyor, ama `SseDecoder` yorumları düşürüyor ve konsol onları hiç görmüyor: kullanıcı "düşünüyor" ile "öldü"yü ayırt edemiyor. Aile F ölü bağlantıyı kapattı (30 sn bayt eşiği); bu kalem **canlılık göstergesi** sorunudur ve bir arayüz tasarımı kararıdır | Bir kullanıcı sessiz bir run'ı öldü sanıp elle yeniden yüklerse, ya da keep-alive'ı yüzeye çıkarmanın (frame tipi ya da "son sinyal: 2 sn önce" göstergesi) bedeli tartışılırken |
-| **F-246** · Sekiz kararlı hata kimliğinin karşılığı olan bir `RunErrorClass` YOK | 🚨 **`HATA-S1-020`'nin sınıf taramasının kalanı; kodlanamaz çünkü yeni yetenek ister.** Kaynakta 17 kararlı hata kimliği (`const string *ErrorType`) tanımlı; `DefaultRunErrorClassifier.StableIdentities` Aile J'den sonra **9**'unu tanıyor. Kalan 8'i (`session_conflict` · `session_owner_required` · `external_call_rejected` · `agent_source_contract` · `agent_source_failed` · `replay_tool_mismatch` · `job_retry` · `eval_run_diff_unavailable`) bilerek eşlenmedi: **hiçbirinin karşılığı olan bir `RunErrorClass` üyesi yok** ve var olan üyelerin doküman anlamları dar — örneğin `Infrastructure` kendi yorumunda *"yalnız öksüz run uzlaştırması bu sınıfa düşer"* diyor, `ContentBlocked` ise Tracon'un kendi içerik politikasını. Yanlış kovaya koymak `Unknown`'dan **kötüdür**: `Unknown` kendi dokümanında *"hiçbir kurala uymadı; bir kusur değil, bir ölçüm aracı"* olarak tanımlı ve dürüsttür. Yeni enum üyesi eklemek public sözleşme işidir: OpenAPI belgesi, TypeScript şeması, iki arayüz sözlüğü ve `RunErrorClassContractTests` (emekli 9 numaralı boşluk disiplini, K-603) birlikte değişir | Bir operatör bu kimliklerden birini panoda ayırt etmek istediğinde, ya da taksonomi bir sonraki kez elden geçirilirken — o zaman sekizi tek turda ölçülür ve kaç yeni üye gerektiği birlikte kararlaştırılır |
-| **F-240** · Kapasite kapısının beş dar açığı | [Faz 174](arsiv/fazlar/174-KAPASITE-DAMGASI-KAPISI.md) denetiminin 🟢 bulguları, beşi de bugün doğru ama sessizce ayrışabilir: (1) `SCHEMAS.storage` ölçülmüş bir tekrar sayısını başlık dizesinde sabitliyor (`'Rows per run (3 repeats)'`); (2) `P95_SAMPLE_FLOOR = 100` ile `LatencyStatistics.P95SampleFloor` elle senkron, uyumu hiçbir şey ölçmüyor; (3) commit damgası regex'i 8+ hex istiyor — `packageVersion`'ın 7 karakterlik biçimi (`e44d89f`) sayfaya girerse **sessizce** denetlenmez; (4) `checkArrivalRow` bir rate'in her `evidence` penceresini `status`'a bakmadan topluyor, `invalid` bir tekrar toplama karışır; (5) 19 işaret `docs-site/public/llms-full.txt`'e düz metin olarak sızıyor (emsal `claim:` zaten 11 tane sızdırıyor) | Kapasite ölçümü yenilendiğinde — o koşum (1) ve (2)'yi zaten elden geçirtir. (3) ve (4) tek satırlık savunma; bir sonraki kapı dokunuşunda birlikte kapanır |
-| **F-250** · Kiracıya duyarlı örnek bir `IAgentSource` yok | `MT-CORE-095` iki turdur koşulamıyor: case bir kiracının kendi agent kaynağını getirdiğini ölçmek istiyor, ama bu depoda kiracıya duyarlı bir `IAgentSource` **örneği** yok — sevk edilen tek uygulama yapılandırmadan okur. K-834 sınıfının **dışındadır**: bir bayrağı çevirmek değil, bir örnek yazmak demektir (hangi kiracının hangi agent kümesini gördüğünü uyduran bir eşleme). Aynı boşluk `samples/`'ın tüketiciye gösterdiği seam envanterinde de bir delik: genişleme noktası sevk ediliyor, örneği yok | Bir tüketici kiracı başına agent kümesi sorarsa, ya da manuel setin `MT-CORE-095`'i üçüncü turda da koşulamazsa — o zaman örnek `samples/Tracon.Api`'ye kalıcı olarak eklenir ve case onunla koşulur |
-| **F-251** · Damıtma, yeniden koşulan bir case'in ESKİ bloğunu geride bırakıyor | `kosum-damit` asimetriktir: temiz `☑ Geçti` bir case tek tablo satırına iner. Ama bir case **iki** blok taşıyorsa (ilk deneme ertelendi, ikincisi geçti) yalnız **ikinci** blok daralır; geriye kalan ilk blok işaretsiz bir `Durum` satırı taşır. Ölçüldü 2026-09-19: 2026-09-16 turunda **19** blok (hepsi `MT-OBS-001…020`, Playwright kilidi yüzünden ertelenmiş ilk denemeler), 2026-08-13 turunda **1**. Bilgi KAYBOLMAZ — nihai işaret tablodadır ve tam metin `git show`'la çözülür — ama damıtılmış kayıt üzerinde sayım koşan biri o case'leri `İŞARETSİZ` görür. 🚨 Turun kendi dersinin aynısı: **bir sayım yalnız gördüğünü sayar** | Bir sonraki tur kapanışında, ya da damıtıcıya dokunan ilk oturumda: daraltılan blok bir case'in SON bloğuysa, kalan bloğun `Durum` satırı nihai işaretle güncellenmeli (ya da kalan blok da daraltılmalı) |
-| **F-262** · `Tracon.Google`'ın görsel yolu deprecated Imagen yüzeyini hedefliyor | 🚨 **`MT-MM-121`'in ölçtüğü ÜRÜN KUSURU; K-835 olarak kodlandı, düzeltme kullanıcı kararına bırakıldı.** `GoogleImageGenerator.GenerateAsync` (`src/Tracon.Google/Internal/GoogleImageGenerator.cs:56`) `Client.Models.GenerateImagesAsync(...)` çağırıyor — Imagen `:predict` ucu. Canlı ölçüldü: `ListModels` bu anahtarda 58 model döndürüyor ve altı görsel modelinin **hiçbiri** `predict` desteklemiyor; altısı da yalnız `generateContent`. `imagen-3.0-generate-002:predict` doğrudan çağrıldığında `404 NOT_FOUND`. Yetenek **var**: aynı anahtarla `gemini-2.5-flash-image:generateContent` 3,2 MB'lık bir PNG üretti. Google SDK'nın kendi uyarısı da bunu söylüyor (*"GenerateImagesAsync … deprecated … use GenerateContentAsync"*). ∴ paket tüketicinin kullanamayacağı bir yol sevk ediyor. ⚠️ Düzeltme **public davranışı değiştirir** ve seçenek eşlemesi birebir değildir: `ImageGenerationOptions.Count` → `candidateCount` (görsel modelleri genelde 1 döndürür) ve `MediaType` hiç kontrol edilemez — model kendi mime türünü seçer | Kullanıcı `GenerateContentAsync` geçişini onaylarsa; o zaman `Count`/`MediaType` sözleşmesi birlikte yeniden yazılır |
-| **F-252** · Örnek uygulamanın demo kancaları bir kimlik sağlayıcısıyla değişmeli | K-834 dokuz demo kancası ekledi (`Tracon:Demo:*` + `whoami`/`refund_order` tool'ları) ve 60'tan fazla manuel case'i geçici `Program.cs` düzenlemesi olmadan koşulabilir yaptı. Hepsi `samples/` altındadır ve `src/` paketlerine dokunulmadı; ama örnek uygulama bir gün gerçek bir kimlik sağlayıcısına (OIDC/JWT) bağlanırsa `DemoRoleAuthenticationHandler` · `DemoRunAuthorization` · `DemoDenyAllToolAuthorization` üçü birlikte kaldırılmalı ve bu case'lerin ön koşulları yeniden yazılmalıdır | Örnek uygulama gerçek bir kimlik sağlayıcısına bağlandığında |
-| **F-253** · Konuşma paneli için sentetik ses sürücüsü | Ölçüldü (`MT-MM-086`/`087`): canlı ses yolu WebRTC'ye parça verdiği için sentetik bir `MediaStream` ile **sürülebiliyor** (`MT-MM-110…118` böyle koşuldu), ama konuşma paneli `MediaRecorder` kullanıyor ve aynı akıştan **hiç veri üretmiyor** (giden çerçeve 2, ses parçası 0). ∴ panelin konuşma **içeriği** isteyen iki case'i bugün yalnız gerçek bir insanla koşulabiliyor. Chrome'un `--use-file-for-fake-audio-capture` bayrağı çözerdi ama tarayıcıyı MCP sunucusu başlatıyor ve bayrak geçirilemiyor | E2E paketine ses kapsamı eklenmek istenirse, ya da tarayıcı başlatma bayrakları yapılandırılabilir hale gelirse |
-| **F-254** · Kiracı egress politikası satırı YOKKEN hiçbir kısıt uygulanmıyor (fail-open) | [`ModelProviderRegistry.cs:287`](../src/Tracon.Core/Models/ModelProviderRegistry.cs#L287) `if (policy is not null)`. Faz 179 bu bulgunun ÖLÇÜLMÜŞ tetikleyicisini kapattı (harf durumu kayması artık satırı ıskalamıyor), fakat `policy is null ⇒ kısıt yok` ürünün belgelenmiş varsayılanıdır — politika kurmayan kurulum her sağlayıcıyı çağırabilir. Fail-closed yapmak ayrı bir ürün kararıdır ve `TraconTenantProviderOptions`'a varsayılanı kapalı bir anahtar ister (K1 sıfır-sürpriz). Faz 179 kapsamı dışında bırakıldı (KG-034) |
-| **F-263** · `ic-dongu`, paylaşımlı provider kaynağının HTTP kanıtını seçmiyor | [Faz 181](arsiv/fazlar/181-PROVIDER-ORTAK-KATMANI.md) denetimi 🟢-1: `kapi.py` `src/Tracon.Providers.Shared` değişikliğini dört provider birim projesine bağlıyor (`PROVIDER_TEST_PROJECTS`), ama paylaşılan `authorize` yolunun HTTP seviyesindeki tek kanıtı `ModelHealthEndpointsTests` (`Tracon.AspNetCore.FunctionalTests`, ~200 sn). `ProviderHealthCheckCore` değişirse iç döngü onu koşmaz; `kapanis` tam koşum yaptığı için kaçış kapanışta yakalanır | İç döngüde bir provider kaçışı ölçülürse `Tracon.AspNetCore.FunctionalTests` eşlemeye eklenir (bugünkü `Tracon.Azure` eşlemesi de aynı politikayı izliyor) |
-| **F-264** · Azure kimlik hatası için manuel kabul case'i yok | [Faz 181](arsiv/fazlar/181-PROVIDER-ORTAK-KATMANI.md) denetimi 🟢-2: plan dışı düzeltilen `Credential error (...)` davranışı yalnız fonksiyonel testle (`Azure_credential_that_throws_is_Unhealthy_and_does_not_fail_the_whole_list`) kanıtlı. Kimlik gerektirmeyen bir case mümkün (`az login` yok → `DefaultAzureCredential` → `Credential error (CredentialUnavailableException)`, diğer sağlayıcılar etkilenmez) ama örnek uygulama Azure'u yalnız kimlik varken kaydediyor | Örnek uygulamaya bir Azure demo kancası eklenirse (F-252 ile aynı iş) case `06-SAGLAYICI-DIGER`'e yazılır |
-| **F-255** · `Tracon.Google` görsel yolu için canlı kanıt yok | Faz 179 turunda `GenerateImagesAsync` → `GenerateContentAsync` geçişi yapıldı (K2, A-2) ve imzalar Google.GenAI 1.16.0 üzerinde reflection ile doğrulandı, ama **canlı anahtarla üretim ölçülmedi**: birim testleri SDK'yı çağırmıyor. `MT-MM-121`'in yeniden koşumu gerekir. `ImageConfig.OutputMimeType`'ın model tarafından onurlandırılıp onurlandırılmadığı da yalnız canlı koşumda görünür |
-| **F-256** · Harf-kayması sözleşme senaryosu yalnız iki store'da | Faz 179 §179.5 senaryoyu paylaşılan `TenantIsolationContract<T>` tabanına koymayı planlıyordu; taban bellek içi store'lar üzerinde de koştuğu ve K-839 gereği onların 30'u normalleştirmediği için senaryo yalnız iki fail-open store'a kondu. Kalan depolama sınırının güvencesi `TenantParameterChokePointTests` metin kapısı + SQL Server/SQLite guard testleridir. Bellek içi aile normalleştirilirse senaryo tabana taşınabilir |
-| **F-257** · İki bilinen yarış testi hâlâ kayıtsız | Tam çözüm koşumunda ikisi birden düştü, ikisi de izole koşumda geçti (biri 5 tekrarda 5 kez). 🚨 İkisinin de geçmişi var ama hiçbiri aday olarak kaydedilmemişti: `WorkflowEventSinkTests.A_registered_sink_sees_the_workflow_s_own_events` olay `Sequence`'ını sıra dışı görüyor (2026-09 manuel koşumunda da düştü, 3 tekrarda geçti) · `LiveVoiceLifecycleTests.The_transcript_is_written_to_the_session_history_when_persistence_is_on` zaman aşımına uğruyor (Faz 163 kapanışında iki tam koşumda düştü, izole geçti). Kapının kuralı "ikinci izole koşumda da düşerse gerçek kusurdur" olduğu için ikisi de geçiyor — ama her tam koşumu gürültülü yapıyorlar ve gerçek bir regresyonu maskeleyebilirler |
-| **F-266** · `net8.0` ve `net9.0` Microsoft desteği 2026-11-10'da bitiyor | Ölçüldü (2026-09-23, `builds.dotnet.microsoft.com/.../releases.json`): 8.0 → `eol-date 2026-11-10` (son yama 8.0.31), 9.0 → `eol-date 2026-11-10` (9.0.20), 10.0 → 2028-11-14. Site politikası ([`compatibility.md`](../docs-site/src/content/docs/reference/compatibility.md) "How long each target framework stays") desteği biten TFM'in sonraki bir sürümde **düşebileceğini** söylüyor ama tarih kimsenin takviminde değil. Faz 183 iki bacağı yeni ölçülebilir yaptı; düşürmek `src/Directory.Build.props` + `TraconTestTargetFrameworks` + `Tracon.Testing` `VersionOverride`'ları + `Net8Consumer` + CI runtime adımlarını birlikte değiştirir | 2026-11-10'dan sonraki ilk yayın kararında (`nuget-danismani`) — düşürmek mi, bir sürüm daha taşımak mı, kullanıcı kararıdır **Karar alındı (2026-09-23, kullanıcı kararı):** 2026-11-10'dan sonraki ilk sürüm düşürür; acil güvenlik sürümü istisnadır. Duyuru `CHANGELOG.md` `### Deprecated` ve `compatibility.md` tarihli cümlesiyle yapıldı. Düşürme fazı 11-10'dan önce planlanır, sonra uygulanır |
-| **F-267** · CI tam koşumu hâlâ tek test projesiyle koşuyor | [Faz 184](arsiv/fazlar/184-TEST-BEKLEME-VE-E2E-YAPISI.md) yerel kapıyı `-maxcpucount:2`'ye aldı (aynı kod ve makinede 1 işçi 863/879 sn, 2 işçi 607/658/524 sn, beş koşum 0 kırmızı). `ci.yml` bilerek 1'de kaldı: ölçüm geliştirici makinesindeydi, runner donanımı (özel repoda 2 vCPU olabilir) ve Windows ayağı ölçülmedi | Bir CI dalında `-maxcpucount:2` ile en az üç koşum yeşil ve süre kazancı ölçülürse `ci.yml` güncellenir; kırmızı çıkarsa gerekçe hafızaya yazılır |
-| **F-268** · `ExperimentTests` yük altında kırılgan: sürüm alanı `<select>` olmadan seçim yapılıyor | Ölçüldü (2026-09-23, K-852…K-854 kusur-giderme kapanışı, `-maxcpucount:2` tam koşum): `Experiment_is_created_started_and_traffic_reflects_in_results_table` `Element is not a <select> element` ile düştü; tek başına iki kez yeşil. Kök neden: `experiments.tsx` `agentVersions` sorgusu dönene kadar `variant-version-N`'i sayı kutusu olarak çizer, test ajan adını yazar yazmaz `SelectOptionAsync` çağırır — Playwright bu hatayı yeniden denemez | Test seçimden önce `select[data-testid='variant-version-0']` görünürlüğünü web-first beklemeyle beklerse kapanır; aynı desen (`SelectOptionAsync` sorguya bağlı bir alana) diğer ekran testlerinde de taranır |
-| **F-274** · Üç SQL `Use*` metodundaki ~107 aynı kayıt satırı ortak bir iç yardımcıya taşınmadı | Kusur-giderme (2026-09-23) `SqlProviderRegistrationParityTests` kapısını kurdu: unutulan veya dekoratörsüz kayıt artık kırmızıdır. Kopya kalır; `git log` ölçümü üç dosyaya birlikte dokunan 35 commit ve yalnız Eylül'de dört yatay değişiklik gösterdi (her birinde üç dosyada aynı satır sayısı). Hedef: `src/Tracon.Sql.Shared/Internal/` altında internal bir yardımcı; `Use*` sağlayıcıda kalır | Üç sağlayıcıda satır satır tekrarlanan ikinci bir yatay değişiklik — sayım 2026-09-23'ten başlar (kullanıcı kararı; Eylül'deki dört değişiklik sayılmaz, çünkü sessiz sınıfı artık kapı kapatır) — ya da dördüncü bir SQL sağlayıcısı (K-176) |
-| **F-275** · `quota_usage` her run'da tüm geçmişi okuyor; `AsOf` yok sayılıyor | Ölçüldü (2026-09-23 triage, C10/C11 sınıf taraması): `GetUsageAsync` `period_start` ile süzmüyor ve `QuotaUsageQuery.AsOf`'u iki store da yok sayıyor (`SqlQueriesBase.cs:1719-1726`, `InMemoryQuotaStore.cs:113-141`); `quota_usage` için `DELETE` yok; `QuotaEnforcer.cs:77` ve `:288` bu geçmişi her run'da iki kez okuyor. Sözleşme çelişkisi: `IQuotaStore.cs:63` ve `QuotaTypes.cs:205-206` 'içinde bulunulan dönem' der, yayımlanmış `QuotaStoreContract.Separate_period_keeps_a_separate_counter` (`QuotaStoreContract.cs:210-228`) iki günün satırını bekler. Düzeltme public sözleşmeye ve kalıcı veriye dokunur (K-* gerekir) | Bir sonraki `kusur-giderme` oturumu: sözleşme kararı (dönem süzgeci + contract testinin düzeltilmesi) önce kullanıcıya sorulur |
+| **F-205** · `/v1/conversations/{id}` varlık asimetrisi | Kullanılmamış kimlik `200`, reddedilen kimlik `404`. Katı modda çağıran hangi id'lerin sahipsiz SATIR olduğunu sayabilir — erişim kapalı, yalnız varlık görünür. Davranış ucun rezervasyon semantiğinden gelir; kapatmak OpenAI uyumluluğunu bozar. `/api/sessions/{id}` bu sızıntıyı taşımaz | Tüketici varlık gizliliği talep ederse ([Faz 149](arsiv/fazlar/149-SAHIPSIZ-OTURUMUN-KATI-REDDI.md) denetim bulgusu) |
+| **F-226** · SSE yanıtının şeması JSON şekli ilan ediyor | ASP.NET Core'un üstveri modeli aynı statü kodu için iki şema ifade edemiyor ve K-039 gereği kütüphane `Microsoft.AspNetCore.OpenApi`'ye bağımlı değil — bir `OpenApiOperationTransformer` kütüphanede yaşayamaz. Ölçüldü (2026-09-13): `tracon.json`'da 7 `text/event-stream` yanıtının **2'si** JSON şekli ilan ediyor (`/tracon/v1/responses` → `JsonElement`, `/tracon/v1/chat/completions` → `ChatCompletion`). Üretilen istemci etkilenmiyor — altıncı geçiş içerik tipinin VARLIĞINA bakar | Belgeden kod üreten üçüncü taraf bir üreteç bu yüzden kırılırsa ([Faz 159](arsiv/fazlar/159-TIPLI-ISTEMCIDE-AKISLI-OPENAI-CAGRISI.md) denetim bulgusu 🟢 3) |
+| **F-230** · `kurtarma.md` ↔ `.claude/settings.json` senkron kapısı | `KR-11` rampası `deny` listesinin bugünkü içeriğini **sayarak** tekrarlıyor (`git rebase`, `git clean -fd`, `rm -rf` listede yok). Yasağın sınırını yazmayan bir rampa yanlış güven üretir (K-761). Ama `settings.json` genişlerse cümle sessizce yalan olur ve bunu sayan kapı yok | `.claude/settings.json` `deny` bloğu ilk kez değiştiğinde ([Faz 168](arsiv/fazlar/168-KURTARMA-RAMPASI-KATALOGU.md) denetim bulgusu 🟢 6) |
+| **F-233** · SQLite'ın yük altındaki `SQLITE_BUSY` davranışı ölçülmedi | `SqliteDialectTests.WAL_and_busy_timeout_are_set_when_the_connection_opens` yalnız ayarların **kurulduğunu** doğrular, çekişme altındaki **davranışı** değil; `BoundedSqlLoadTests` yalnız `PostgresFixture` ile koşar (`tests/Tracon.PostgreSql.IntegrationTests/Load/`). SQLite tek yazarlıdır ve `README.md` onu çok örnekli dağıtım için önermez — ölçülmemiş olması yayımlanan bir vaadi yalanlamıyor | SQLite'ı çok yazarlı ya da yük altındaki bir kurulumda desteklemek istenirse, ya da `BoundedSqlLoadTests` deseni ikinci bir sağlayıcıya genişletilirken |
+| **F-236** · Audit yazma politikası ratchet'i değişken adına bağlı | `AuditWritePolicyTests`'in deseni `[Aa]udit[Ll]og\.WriteAsync\s*\(`'dir; `IAuditLog log = …; log.WriteAsync(entry, ct);` şeklini **görmez**. Kaynak taraması "ucuz ama kırılgan" diye bilerek seçildi; Roslyn analyzer'a geçmek bir analyzer paketi maliyetidir. Ölçüldü: `src/` altında bu şekli kullanan tek yer `Tracon.Testing.Contracts.Xunit/Contracts/AuditLogContract.cs:25` ve orada **meşru** | Politikayı atlayan bir çağrı yeri gerçekten kaçarsa, ya da başka bir ratchet de analyzer isterse ([Faz 171](arsiv/fazlar/171-DENETIM-IZI-YAZMA-POLITIKASI.md) denetim bulgusu 🟢 7) |
+| **F-240** · Kapasite kapısının kalan üç dar açığı | [Faz 174](arsiv/fazlar/174-KAPASITE-DAMGASI-KAPISI.md) denetiminin 🟢 bulguları; (3) ve (4) 2026-09-24'te kapandı. Kalan: (1) `SCHEMAS.storage` ölçülmüş tekrar sayısını başlık dizesinde sabitliyor (`'Rows per run (3 repeats)'`); (2) `P95_SAMPLE_FLOOR = 100` ile `LatencyStatistics.P95SampleFloor` elle senkron, uyumu hiçbir şey ölçmüyor; (5) 19 işaret `docs-site/public/llms-full.txt`'e düz metin olarak sızıyor (emsal `claim:` zaten 11 tane sızdırıyor) | Kapasite ölçümü yenilendiğinde — o koşum (1) ve (2)'yi zaten elden geçirtir |
+| **F-237** · Etkiden önceki dar fail-closed `run` kaydı | Genel `RecordingMode.Required` **reddedildi** (A10): model çağrısı ve tool yan etkileri olduktan sonra `run`'ı düşürmek hiçbir şeyi geri almaz. Savunulabilir kalan tek biçim dar bir `seam`'dir — `run` açılışı yazılamazsa `run` başlamaz, yan etkili tool çağrısının kaydı yazılamazsa tool koşmaz. Bugün böyle bir `seam` **yok**: `RunEventWriter` her hatayı yutar ([`RunEventWriter.cs:452`](../src/Tracon.Core/Recording/RunEventWriter.cs#L452) — `Disable`) ve tüketicinin kendi `IRunStore`'u bunu değiştiremez. Kayıp **görünür** (K-782), fail-closed değil | Düzenlemeye tabi bir kurulum kanıtla talep ederse. `tracon.run.recording_failures` sayacı önce kaybın gerçek sıklığını ölçer — kanıtsız inşa edilen altyapı yanlış şekli alır |
+| **F-238** · Metrik dinleyici test yardımcısının ÜÇ kopyası | Bir metriği ölçmek isteyen her test projesi kendi `MeterListener` sarmalayıcısını yazıyor: `MetricCollector` ([`tests/Tracon.Core.UnitTests/Fakes/MetricTestHelpers.cs`](../tests/Tracon.Core.UnitTests/Fakes/MetricTestHelpers.cs)), `MetricProbe` ([`tests/Tracon.PostgreSql.IntegrationTests/Infrastructure/MetricProbe.cs`](../tests/Tracon.PostgreSql.IntegrationTests/Infrastructure/MetricProbe.cs)) ve `WorkflowMetricProbe` ([`tests/Tracon.Workflows.UnitTests/WorkflowRecordingFailureTests.cs`](../tests/Tracon.Workflows.UnitTests/WorkflowRecordingFailureTests.cs)). Üçü de meter'ı **referansla** eşleyip `TagList`'i kopyalıyor; üçü de `internal`, paylaşılamıyor. Kopya sayısı K-483'ün "elle tekrarlanan ifade bir kusur SINIFI üretir" eşiğindedir | Dördüncü kopya gerektiğinde, ya da `Tracon.Testing` yüzeyine bir metrik doğrulama yardımcısı eklemek ayrıca istendiğinde. Bu bir **test altyapısı** kararıdır; sevk edilen yüzeyi büyütmek (public bir `MeterProbe`) ayrı bir tartışmadır ([Faz 173](arsiv/fazlar/173-CALISTIRMA-KAYDI-GORUNURLUGU.md) denetim bulgusu 🟢 7) |
+| **F-242** · `ResolveVersion`'ın `catch` dalı kanıtlanmadı | Sürüm çözümünde attribute okuması **hata verirse** alan `null` kalır ve skor yine yazılır (K-790). Yalnız "attribute yok" yolu testle kanıtlı; `catch` dalını koşturmak `GetCustomAttribute`'u attıran düşmanca bir tip ister ve kazanç maliyeti karşılamıyor | Assembly attribute okumasının gerçekten attığı bir kurulum (kısıtlı host, bozuk assembly) raporlanırsa ([Faz 176](arsiv/fazlar/176-EVALUATOR-SURUM-DAMGASI.md) denetim bulgusu 🟢 2) |
+| **F-243** · Analitik store yüzeylerinde metot bazında iptal kapsamı yok | `IEvalStore.DiffRunsAsync` ve `IRunScoreStore.SummarizeAsync` iptal sözleşmesinin **metot bazında** kapsamı dışında: hook'lar `ListSuitesAsync`/`ListAsync`'i hedefliyor. "Store başına bir okuma + bir yazma" sınırı bilinçlidir ve vaadi kanıtlamaya yeter — ama iptali en pahalı olan yüzeyler bu toplayıcı sorgulardır (store'un İÇİNDE hesaplanırlar, K-483 sınıfı). Aynısı `IRunStore.GetStatisticsAsync` ve `GetTimeSeriesAsync` için de geçerli | Bir toplayıcı sorgunun iptal edilmemesi gerçek bir kaynak tüketimi raporlarsa, ya da sözleşme "store başına bir okuma" sınırını gevşetmeye karar verirse ([Faz 177](arsiv/fazlar/177-STORE-IPTAL-SOZLESMESI.md) denetim bulgusu 🟢 6) |
+| **F-245** · Sessiz bir `run` ile ölü bir bağlantı ekranda AYNI görünüyor | Sunucu 250 ms'de bir `: waiting` gönderiyor ve bu canlılığı kanıtlıyor, ama `SseDecoder` yorumları düşürüyor ve konsol onları hiç görmüyor: kullanıcı "düşünüyor" ile "öldü"yü ayırt edemiyor. Ölü bağlantı 30 sn bayt eşiğiyle kapanır; bu kalem **canlılık göstergesi** sorunudur ve bir arayüz tasarımı kararıdır. Ölçüm (2026-09-18): `setOffline(true)` açık bir `chunked` SSE gövdesini kesmiyor — `HATA-S3-005`'in gördüğü donukluk sağlıklı bağlantıda sessiz bir run'dı | Bir kullanıcı sessiz bir run'ı öldü sanıp elle yeniden yüklerse, ya da keep-alive'ı yüzeye çıkarmanın (frame tipi ya da "son sinyal: 2 sn önce" göstergesi) bedeli tartışılırken — **kullanıcı kararı gerekir** |
+| **F-246** · Sekiz kararlı hata kimliğinin karşılığı olan bir `RunErrorClass` YOK | Kaynakta 17 kararlı hata kimliği (`const string *ErrorType`) tanımlı; `DefaultRunErrorClassifier.StableIdentities` **9**'unu tanıyor. Kalan 8'i (`session_conflict` · `session_owner_required` · `external_call_rejected` · `agent_source_contract` · `agent_source_failed` · `replay_tool_mismatch` · `job_retry` · `eval_run_diff_unavailable`) bilerek eşlenmedi: **hiçbirinin karşılığı olan bir `RunErrorClass` üyesi yok** ve var olan üyelerin doküman anlamları dar. Yanlış kovaya koymak `Unknown`'dan **kötüdür** — `Unknown` kendi dokümanında dürüst bir ölçüm aracıdır. Yeni enum üyesi public sözleşme işidir: OpenAPI belgesi, TypeScript şeması, iki arayüz sözlüğü ve `RunErrorClassContractTests` (emekli 9 numaralı boşluk disiplini, K-603) birlikte değişir | Bir operatör bu kimliklerden birini panoda ayırt etmek istediğinde, ya da taksonomi bir sonraki kez elden geçirilirken — o zaman sekizi tek turda ölçülür ve kaç yeni üye gerektiği birlikte kararlaştırılır — **kullanıcı kararı gerekir** |
+| **F-250** · Kiracıya duyarlı örnek bir `IAgentSource` yok | `MT-CORE-095` iki turdur koşulamıyor: case bir kiracının kendi agent kaynağını getirdiğini ölçmek istiyor, ama depoda kiracıya duyarlı bir `IAgentSource` **örneği** yok — sevk edilen tek uygulama yapılandırmadan okur. K-834 sınıfının **dışındadır**: bir bayrağı çevirmek değil, bir örnek yazmak demektir. Aynı boşluk `samples/`'ın seam envanterinde de bir delik: genişleme noktası sevk ediliyor, örneği yok | Bir tüketici kiracı başına agent kümesi sorarsa, ya da `MT-CORE-095` üçüncü turda da koşulamazsa — o zaman örnek `samples/Tracon.Api`'ye kalıcı olarak eklenir ve case onunla koşulur |
+| **F-252** · Örnek uygulamanın demo kancaları bir kimlik sağlayıcısıyla değişmeli | K-834 dokuz demo kancası ekledi (`Tracon:Demo:*` + `whoami`/`refund_order` tool'ları); 60'tan fazla manuel case geçici `Program.cs` düzenlemesi olmadan koşulabiliyor. Hepsi `samples/` altındadır. Örnek uygulama gerçek bir kimlik sağlayıcısına (OIDC/JWT) bağlanırsa `DemoRoleAuthenticationHandler` · `DemoRunAuthorization` · `DemoDenyAllToolAuthorization` üçü birlikte kaldırılmalı ve bu case'lerin ön koşulları yeniden yazılmalıdır | Örnek uygulama gerçek bir kimlik sağlayıcısına bağlandığında |
+| **F-253** · Konuşma paneli için sentetik ses sürücüsü | Canlı ses yolu WebRTC'ye parça verdiği için sentetik bir `MediaStream` ile **sürülebiliyor**, ama konuşma paneli `MediaRecorder` kullanıyor ve aynı akıştan **hiç veri üretmiyor** (giden çerçeve 2, ses parçası 0; `MT-MM-086`/`087`). ∴ panelin konuşma **içeriği** isteyen iki case'i yalnız gerçek bir insanla koşulabiliyor. Chrome'un `--use-file-for-fake-audio-capture` bayrağı çözerdi ama tarayıcıyı MCP sunucusu başlatıyor ve bayrak geçirilemiyor | E2E paketine ses kapsamı eklenmek istenirse, ya da tarayıcı başlatma bayrakları yapılandırılabilir hale gelirse |
+| **F-254** · Kiracı egress politikası satırı YOKKEN hiçbir kısıt uygulanmıyor (fail-open) | [`ModelProviderRegistry.cs:287`](../src/Tracon.Core/Models/ModelProviderRegistry.cs#L287) `if (policy is not null)`. `policy is null ⇒ kısıt yok` ürünün belgelenmiş varsayılanıdır — politika kurmayan kurulum her sağlayıcıyı çağırabilir. Fail-closed yapmak `TraconTenantProviderOptions`'a varsayılanı kapalı bir anahtar ister (K1 sıfır-sürpriz; KG-034) | Kullanıcı fail-closed seçeneğine karar verirse — **kullanıcı kararı gerekir** (güvenlik varsayılanı) |
+| **F-256** · Harf-kayması sözleşme senaryosu yalnız iki store'da | Senaryo paylaşılan `TenantIsolationContract<T>` tabanında değil: taban bellek içi store'lar üzerinde de koşuyor ve K-839 gereği onların 30'u kiracı kimliğini normalleştirmiyor. Senaryo yalnız iki fail-open store'dadır; kalan depolama sınırının güvencesi `TenantParameterChokePointTests` metin kapısı + SQL Server/SQLite guard testleridir | Bellek içi store ailesi kiracı kimliğini normalleştirirse (K-839 genişlerse) — o zaman senaryo tabana taşınır |
+| **F-263** · `ic-dongu`, paylaşımlı provider kaynağının HTTP kanıtını seçmiyor | `kapi.py` `src/Tracon.Providers.Shared` değişikliğini dört provider birim projesine bağlıyor (`PROVIDER_TEST_PROJECTS`), ama paylaşılan `authorize` yolunun HTTP seviyesindeki tek kanıtı `ModelHealthEndpointsTests` (`Tracon.AspNetCore.FunctionalTests`, ~200 sn). `ProviderHealthCheckCore` değişirse iç döngü onu koşmaz; `kapanis` tam koşum yaptığı için kaçış kapanışta yakalanır | İç döngüde bir provider kaçışı ölçülürse `Tracon.AspNetCore.FunctionalTests` eşlemeye eklenir ([Faz 181](arsiv/fazlar/181-PROVIDER-ORTAK-KATMANI.md) denetimi 🟢-1) |
+| **F-264** · Azure kimlik hatası için manuel kabul case'i yok | `Credential error (...)` davranışı yalnız fonksiyonel testle (`Azure_credential_that_throws_is_Unhealthy_and_does_not_fail_the_whole_list`) kanıtlı. Kimlik gerektirmeyen bir case mümkün (`az login` yok → `DefaultAzureCredential` → `Credential error (CredentialUnavailableException)`, diğer sağlayıcılar etkilenmez) ama örnek uygulama Azure'u yalnız kimlik varken kaydediyor | Örnek uygulamaya bir Azure demo kancası eklenirse (F-252 ile aynı iş) case `06-SAGLAYICI-DIGER`'e yazılır ([Faz 181](arsiv/fazlar/181-PROVIDER-ORTAK-KATMANI.md) denetimi 🟢-2) |
+| **F-274** · Üç SQL `Use*` metodundaki ~107 aynı kayıt satırı ortak bir iç yardımcıya taşınmadı | `SqlProviderRegistrationParityTests` unutulan veya dekoratörsüz kaydı kırmızı yapar; kopya kalır. `git log` ölçümü üç dosyaya birlikte dokunan 35 commit gösterdi. Hedef: `src/Tracon.Sql.Shared/Internal/` altında internal bir yardımcı; `Use*` sağlayıcıda kalır | Üç sağlayıcıda satır satır tekrarlanan ikinci bir yatay değişiklik — sayım 2026-09-23'ten başlar (kullanıcı kararı) — ya da dördüncü bir SQL sağlayıcısı (K-176) |
 | **F-276** · npm kanalı test edilen derlemeyi değil kendi `npm run build` çıktısını yayınlıyor | `ci.yml:482-484` (`npm-publish`) kendi derlemesini yayınlar; `npm test` başka bir derlemede, `release-dryrun`'daki `npm publish --dry-run` üçüncü bir derlemede koşar. NuGet kanalındaki aynı sınıf [Faz 191](191-TEK-DERLEME-ZINCIRI.md)'e gitti; `tsc` çıktısı deterministik ve npm'in 72 saatlik geri alma penceresi riski düşürür | `tsc` çıktısında ilk sapma ya da ilk npm yayın kusuru |
 | **F-277** · Dış katkıcı için İngilizce mimari karar özeti yok | `ARCHITECTURE.md:59`, `:137-146` ve `CONTRIBUTING.md:114-116` dört Türkçe dokümana işaret eder; iki dosya da makine çevirisinin yeterli olduğunu söyler. K-408 (`docs/` Türkçe kalır, kullanıcı kararı) korunur | İlk dış PR veya issue mimari kararı Türkçe dokümandan okumak zorunda kalırsa ya da GA freeze turu (UR-003) |
-| **F-278** · `PeriodicTimer` periyodu olan aralıkların doğrulaması eksik — geçersiz değer host'u durdurur | Kusur kaydı (2026-09-23, gauge düzeltmesinin sınıf taraması; ölçüldü: `PeriodicTimer` yalnız 1 ms – 4 294 967 294 ms kabul eder, 0,5 ms ve 50 gün `ArgumentOutOfRangeException` atar ve varsayılan `BackgroundServiceExceptionBehavior` host'u durdurur). Gauge aralıkları düzeltildi. Kalanlar: `TraconSchedulingOptionsValidator.cs:28` (`PollInterval`, yalnız `<= Zero`) ve aynı biçimdeki diğer doğrulayıcılar; `TraconApprovalOptions.ScanInterval` (`ApprovalExpirationService.cs:58`) ve `CanaryOptions.ScanInterval` (`CanaryEvaluationService.cs:69`) hiç doğrulanmaz — onay süresi dolumu varsayılan AÇIKTIR, `Tracon:Approvals:ScanInterval=00:00:00` varsayılan kurulumu durdurur; `SingletonGuard.cs:119` ve lease yenileme aralıkları hesaplanır | Bir sonraki `kusur-giderme` oturumu: ortak bir `IsTimerPeriod` doğrulaması + her sitede düşen test |
-| **F-279** · K-840 kalıntısı: sekiz `catch` filtresi hâlâ yalnız `ex is not OperationCanceledException` kullanıyor | Kusur kaydı (2026-09-23, yetki kapısı düzeltmesinin taraması): `TriggerEndpoints.cs:352`, `AgentEndpoints.cs:1381`, `RunEndpoints.cs:775`, `ImageEndpoints.cs:162`, `ExternalSurfaceGuard.cs:78`, `ToolApprovalResolver.cs:219`, `RunAttributionGate.cs:56`, `CatalogToolCallHandler.cs:105`, ayrıca `RunAttributionReader.Read` (`IRunAttributionContext.cs` ~117). Her biri loglar ya da triage'da dışarıda bırakıldı; ama bir tüketici bağımlılığının kendi zaman aşımı (`TaskCanceledException`) iptal sayılıp yayılabilir | Bir sonraki `kusur-giderme` oturumu: her site için `OperationCancellation.IsFailure(ex, token)` ile düşen test |
+
+Gövdeli tetik bekleyenler aşağıdadır: F-95, F-178 ve F-179.
 
 ### F-95 · Agent düzeyinde kesinti/devam kancası
 
@@ -188,21 +222,10 @@ karşılıyor ve 2026-08-21'de bu tasarımın **doğru** olduğu kaydedilmişti.
 
 ---
 
-### F-165 · Manuel kabul setinin CI'a kademeli taşınması — 📋 PLANA DÖNÜŞTÜ
-
-[Faz 180](arsiv/fazlar/180-MANUEL-SET-DEVIR-SABLONU.md) (2026-09-22). Gövde:
-[`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md).
-
----
-
 ### F-178 · Model deneme (attempt) telemetrisi
 
 **Engel:** Gerçek bir üretim fallback gecikmesi olayı ölçülmedi. Tüketici
 bunu **bilerek** erteledi.
-
-> **Yarısı plana dönüştü.** Job/kuyruk metrikleri
-> [Faz 133](arsiv/fazlar/133-IS-KUYRUGU-METRIKLERI.md)'e gitti. Aşağıdaki gövde
-> yalnız **kalan yarıyı** anlatır.
 
 **Sorun:** Yedek zincirinde hangi linkte ne kadar süre harcandığı ölçülmüyor.
 `FallbackChatClient` döngü indeksini tutuyor ve `ModelFallbackUsed`'ı yazıyor,
@@ -222,8 +245,9 @@ mı?" soruları kanıta dayanır.
 
 **Hazırlık — ölçüldü (2026-09-13):** Boşluk hâlâ tam.
 `grep -c "Stopwatch\|GetTimestamp\|Elapsed" src/Tracon.Core/Models/FallbackChatClient.cs`
-→ **0**. Döngü indeksi zaten tutuluyor; ekleme tamamen additive'dir. Faz 133
-metrik adı ve etiket kurallarını kurdu.
+→ **0**. Döngü indeksi zaten tutuluyor; ekleme tamamen additive'dir.
+[Faz 133](arsiv/fazlar/133-IS-KUYRUGU-METRIKLERI.md) metrik adı ve etiket
+kurallarını kurdu.
 
 **Maliyet:** Ölçülmedi. Yeni tablo ve migration gerekmez.
 
@@ -262,7 +286,7 @@ değerlendirilen adaylar, policy adı).
 
 | Ön koşul | Durum |
 |---|---|
-| `run` satırı sağlayıcıyı saklamalı | ✅ **karşılandı** — [`RunRecord.ModelProvider`](../src/Tracon.Abstractions/Runs/RunRecord.cs#L73) eklendi ([Faz 132](arsiv/fazlar/132-UYGULANAN-FIYAT-SNAPSHOTU.md)) |
+| `run` satırı sağlayıcıyı saklamalı | ✅ **karşılandı** — [`RunRecord.ModelProvider`](../src/Tracon.Abstractions/Runs/RunRecord.cs#L73) |
 | Kayan latency penceresi ölçülmeli | ❌ eksik — F-178 kapatır |
 | Gerçek üretim trafiği | ❌ yok |
 
@@ -283,15 +307,17 @@ diyor.
 
 ### F-247 · Yirmi dört yapılandırma bölümü için bağlama kanıtı
 
+**Kanal:** faz planlama · 🟡
+
 **Sorun:** `TraconOptionsBindingCoverageTests` "alan eklendi ama `Bind()`'a
 yazılmadı" kusurunu yapısal olarak kilitler — ama yalnız `TraconOptions`
-**ağacı** için. Ölçüldü (2026-09-19, `HATA-S1-003` kapanışı): `TraconOptions`
-bu bölümlerin ebeveyni **değildir**. `Tracon:Scheduling`, `Tracon:Quotas`,
-`Tracon:Retention` ve 21 tanesi daha kök seviyede **kardeş** bölümlerdir ve
-tek tek bağlanırlar; tarayıcı hiçbirine ulaşmaz. Bu şeklin ürettiği kusur
-ölçüldü: `TraconImageOptions.Timeout` eklendi, yapılandırılabilir olarak
-belgelendi ve hiçbir yere bağlanmadı — canlı koşum yakaladı, hiçbir test
-yakalamadı (`HATA-S1-010` turu).
+**ağacı** için. Ölçüldü (2026-09-19): `TraconOptions` bu bölümlerin ebeveyni
+**değildir**. `Tracon:Scheduling`, `Tracon:Quotas`, `Tracon:Retention` ve 21
+tanesi daha kök seviyede **kardeş** bölümlerdir ve tek tek bağlanırlar;
+tarayıcı hiçbirine ulaşmaz. Bu şeklin ürettiği kusur ölçüldü:
+`TraconImageOptions.Timeout` eklendi, yapılandırılabilir olarak belgelendi ve
+hiçbir yere bağlanmadı — canlı koşum yakaladı, hiçbir test yakalamadı
+(`HATA-S1-010`).
 
 **Kapsam:** Yirmi dört bölümün her biri için `<TypeName>BindingTests`: her
 skaler alan tek bir yapılandırma kümesiyle doldurulur ve geri okunur. Kapsam
@@ -314,6 +340,8 @@ deseni gösteriyor. İş mekaniktir ve paralelleştirilebilir.
 ---
 
 ### F-248 · `unwrap(...) as Promise<T>` iddialarının tip düzeyinde kapısı
+
+**Kanal:** faz planlama · 🟢
 
 **Sorun:** Konsol her uç çağrısını `unwrap(client.X(...)) as Promise<T>` ile
 daraltır; `T` üretilen şemanın (her alanı opsiyonel) yerine `server-types.ts`'in
@@ -345,6 +373,8 @@ olmalıdır.
 
 ### F-249 · docs-site için tarayıcı tabanlı yerleşim kapısı
 
+**Kanal:** faz planlama · 🟢
+
 **Sorun:** `MT-DKL-026` (dokuz şablon × dört genişlik × iki tema, yatay kayma
 yok) **elle** koşulan bir case'tir ve iki turda da gerçek bir kusur buldu
 (`HATA-S3-002`). `npm run check` içerik, bağlantı ve ağırlık ölçer; yerleşim
@@ -357,9 +387,9 @@ yok) **elle** koşulan bir case'tir ve iki turda da gerçek bir kusur buldu
 **Değer:** Bugün 72 ölçüm noktasını insan koşuyor. Kusur iki turda da oradan
 çıktı.
 
-**Hazırlık — ölçüldü (2026-09-19):** Ölçümün kendisi bu turda Playwright ile
-yapıldı ve mekaniktir (on dört genişlik × iki tema, tek betik). Eksik olan
-yalnız docs-site'ın kendi bağımlılığı ve CI adımı.
+**Hazırlık — ölçüldü (2026-09-19):** Ölçümün kendisi Playwright ile yapıldı ve
+mekaniktir (on dört genişlik × iki tema, tek betik). Eksik olan yalnız
+docs-site'ın kendi bağımlılığı ve CI adımı.
 
 **Maliyet:** Ölçülmedi. Yeni bir npm bağımlılığı ve CI'da tarayıcı kurulumu.
 
@@ -370,156 +400,36 @@ tarayıcısızdır.
 
 ## Aday Olmayan Açık Kayıtlar
 
-Bu kalemler faz sıralamasına **girmez**. Tam kanıt, geçmiş ve sonraki adım
-keşif kaydındadır; burada yalnız hangi kanala düştükleri yazar.
+Bu kalemler faz sıralamasına **girmez**. Tam kanıt ve sonraki adım keşif
+kaydındadır; burada yalnız hangi eşikte bekledikleri yazar.
 
-| Kanal | ID'ler | Kural |
+| Eşik | ID'ler | Kural |
 |---|---|---|
-| **Plana dönüştü** | 45+ kalem · son turu (2026-09-23): **F-265** → [Faz 185](185-KARDES-PAKET-SURUM-SABITLEME.md) · **F-269** → [Faz 186](186-SCRIPT-IZNI-ICERIK-PINI.md) · **F-270** → [Faz 187](187-KIRICI-DEGISIKLIK-KAPISI.md) · **F-271** → [Faz 188](188-DI-KURUCU-DARALTMA.md) + [Faz 189](189-TUKETICI-YUZEYI-VE-BUILDER.md) · **F-272** → [Faz 190](190-KIMLIK-BASLIKLARI-ANAHTAR-REFERANSI.md) · **F-273** → [Faz 191](191-TEK-DERLEME-ZINCIRI.md). 2026-09-22 turu: **F-165** → [Faz 180](arsiv/fazlar/180-MANUEL-SET-DEVIR-SABLONU.md) · **F-258** → [Faz 181](arsiv/fazlar/181-PROVIDER-ORTAK-KATMANI.md) · **F-259** → [Faz 182](arsiv/fazlar/182-PUBLIC-API-YUZEY-DARALTMA.md) · **F-260** → [Faz 183](arsiv/fazlar/183-COKLU-TFM-TEST-MATRISI.md) · **F-261** → [Faz 184](arsiv/fazlar/184-TEST-BEKLEME-VE-E2E-YAPISI.md). 2026-09-15 turu: **F-239** → [Faz 174](arsiv/fazlar/174-KAPASITE-DAMGASI-KAPISI.md) · **F-224** → [Faz 175](arsiv/fazlar/175-GERI-ALINAMAZ-KARAR-DOGRULAMASI.md) · **F-218** → [Faz 176](arsiv/fazlar/176-EVALUATOR-SURUM-DAMGASI.md) · **F-213** → [Faz 177](arsiv/fazlar/177-STORE-IPTAL-SOZLESMESI.md) · **F-232** → [Faz 178](arsiv/fazlar/178-TUKETICI-KAPI-SKILLI.md). Ondan öncesi: **F-234** → [Faz 171](arsiv/fazlar/171-DENETIM-IZI-YAZMA-POLITIKASI.md), **F-235** → [Faz 172](arsiv/fazlar/172-TEHDIT-MODELI.md) | Bölümleri bu dosyadan silindi; kanıt ve tasarım **fazın kendi dokümanındadır**. Aday listesine geri dönmezler. Eşleme tabloları ve aday gövdeleri: [`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md) |
-| **Kapatılan kusur kayıtları** | F-106 · F-130 · F-137 · F-138 · F-139 · F-170 · F-180 · F-181 · F-190 · F-197 · F-203 · F-204 · F-206 · F-211 · F-212 · F-214 · F-215 · F-219 · F-220 · F-222 | Gövdeleri [`arsiv/ERTELENEN-ADAYLAR.md`](arsiv/ERTELENEN-ADAYLAR.md)'dedir. Yeniden görülürse **yeni** kusur kaydı açılır. **F-180** özetiyle § *Bekleyen Kalemler*'de kalır: vakası kapandı, **sınıfı açık** |
 | **Karar / uyumluluk eşiği** | F-72 · F-90 · F-91 · F-92 · F-132 · F-169 | Mevcut karar veya dış bağımlılık değişmeden planlanmaz. **F-169** (MAF CodeAct / Hyperlight sandbox) F-72 ile **aynı eşiktedir**: paket GA ve taşınabilir olana kadar planlanmaz — ölçüm [`kesif/2026-08-26-yeni-feature-fikirleri.md`](kesif/2026-08-26-yeni-feature-fikirleri.md) § 9 |
 | **Ölçüm bekliyor — F-ID'leri** | F-51 · F-94 · F-96 · F-97 · F-99 · F-101 · F-123 · F-128 · F-154 · F-156 · F-157 · F-159 · F-160 · F-161 · F-162 | Her biri için gereken somut kanıt keşif kaydında yazılıdır. Kanıt üretmeden aday olmaz |
-| **Ölçüm bekliyor — A-ID'leri** | A01 (kalan manifest bağlama) · A02 · A03 · A05'in ETag ve provenance dilimleri · A06 · A07 · A08 · A09 · A10 · A11 · A12 · A13 · A14 · A15 · A17 · A18 | 🚨 Bunlar **F-NN değildir** — 2026-09-07 tüketici analizi turunun rapor içi izleme kimliğidir ve F numarası ayrılmadı; biri seçilirse o zaman aday numarası alır. Değer/maliyet/risk yargısı ve gereken kanıt [tam raporun](arsiv/incelemeler/2026-09-07-tuketici-analizi-codebase-olcumu.md) §5'indedir. **A17/A18 mimari ret DEĞİLDİR** — mevcut yetenekle çözülemeyen somut bir vaka çıkarsa yeniden değerlendirilirler |
-| **Arşivlendi / birleştirildi / rutin bakım** | F-48 · F-88 · F-89 · F-98 · F-144 · F-145 · F-146 · F-147 · F-148 · F-155 · F-158 · F-163 · **F-221** | Plan değeri yok; rutin bakım olarak kalır veya aktif adayla aynı tasarım işidir. **F-221** 2026-09-13'te indirildi: görsel yarısı Faz 163'te kapandı, kalan iz `src/` içinde 4 dosyada 27 `internal` yerel değişken adıdır (`prismOptions`/`prismException`) — o dosyalara dokunan ilk oturum düzeltir |
+| **Ölçüm bekliyor — A-ID'leri** | A01 (kalan manifest bağlama) · A02 · A03 · A05'in ETag ve provenance dilimleri · A06 · A07 · A08 · A09 · A10 · A11 · A12 · A13 · A14 · A15 · A17 · A18 | 🚨 Bunlar **F-NN değildir** — 2026-09-07 tüketici analizi turunun rapor içi izleme kimliğidir; biri seçilirse o zaman aday numarası alır. Değer/maliyet/risk yargısı ve gereken kanıt [tam raporun](arsiv/incelemeler/2026-09-07-tuketici-analizi-codebase-olcumu.md) §5'indedir. **A17/A18 mimari ret DEĞİLDİR** — mevcut yetenekle çözülemeyen somut bir vaka çıkarsa yeniden değerlendirilirler |
 
 ### F-ID tahsis kuralı
 
 Numara **geri dönüştürülmez** ve bir numara **tek kaleme** aittir. Sıradaki
-numara: **F-280**.
+numara: **F-282**.
 
-**F-278 · F-279** 2026-09-23'te kusur-giderme şeritlerinin sınıf taramalarından tahsis edildi (kusur kaydı).
+Numarayı tahsis eden el sayacı **aynı değişiklikte** bir artırır.
+`python3 scripts/dokuman-bakim.py --denetle` iki şeyi zorlar:
 
-**F-269 … F-277** 2026-09-23'te kod tabanı triage turunda tahsis edildi (12 bulgu grubu, her biri bağımsız bir şüpheciyle doğrulandı). F-269, F-270, F-271, F-272 ve F-273 aynı gün doğrudan plana dönüştü; gövdeleri faz dokümanlarındadır. F-265 de aynı turda plana dönüştü. F-274 … F-277 bekleyen kalemdir.
-
-**F-268** 2026-09-23'te K-852…K-854 kusur-giderme kapanış kapısında tahsis edildi (yük altında kırılgan E2E).
-
-**F-267** 2026-09-23'te Faz 184 kapanışında tahsis edildi (CI paralellik ölçümü).
-
-**F-266** 2026-09-23'te Faz 183 kapanışında tahsis edildi (runtime metadata ölçümü).
-
-**F-265** 2026-09-22'de Faz 182 denetiminin 🟢-1 bulgusundan tahsis edildi.
-
-**F-258 · F-259 · F-260 · F-261** 2026-09-22'de kod tabanı denetim turunda
-tahsis edildi ve **aynı gün plana dönüştü** — [Faz 181](arsiv/fazlar/181-PROVIDER-ORTAK-KATMANI.md) ·
-[Faz 182](arsiv/fazlar/182-PUBLIC-API-YUZEY-DARALTMA.md) · [Faz 183](arsiv/fazlar/183-COKLU-TFM-TEST-MATRISI.md) ·
-[Faz 184](arsiv/fazlar/184-TEST-BEKLEME-VE-E2E-YAPISI.md). Gövdeler
-[`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md)'de.
-
-🚨 **F-251 İKİNCİ kez çift tahsis edilmişti; 2026-09-22'de çözüldü.** Numara
-2026-09-19'da damıtma kusuruna tahsis edilip deftere yazılmıştı; aynı günlerde
-`Tracon.Google` görsel yolu kalemi bekleyenler tablosuna **yine F-251** olarak
-girdi ve deftere bakılmadı. Sayaç da bayattı: tablo F-252…F-257'yi tüketmişken
-"Sıradaki numara" hâlâ F-252 diyordu. F-230 emsali uygulandı: damıtma kalemi
-**F-251** kaldı, Google kalemi **F-262** oldu; F-252…F-257 tahsisleri bugün
-kayda geçirildi. Ders F-230'unkiyle aynı ve artık iki vakalık bir sınıftır:
-tabloya numara yazan el bu bölümü de günceller — sayacın tek kaynağı burasıdır.
-
-**F-251** 2026-09-19'da damıtma adımının kendisi ölçülürken tahsis edildi: kusur damıtıcıdadır, turun kaydında değil.
-
-**F-250** 2026-09-19'da 2026-09-16 turunun kapanışında tahsis edildi: `MT-CORE-095`'in ön koşulu kodlanabilir bir kusur değil, var olmayan bir **örnek**tir.
-
-**F-247**, **F-248** ve **F-249** 2026-09-19'da 2026-09-16 turunun kapanışında
-tahsis edildi: üçü de bir kusurun **sınıfını** kapatmayı ister ve kusurun
-kendisi kapandı. F-247 yirmi dört yapılandırma bölümünün bağlama kanıtı
-(ratchet yerinde, liste boşaltılacak), F-248 istemci iddialarının tip düzeyinde
-kapısı, F-249 docs-site'ın yerleşim kapısı.
-
-**F-246** 2026-09-18'de `HATA-S1-020`'nin kapanışında tahsis edildi: kusurun
-kendisi (her sağlayıcı hatasının `Unknown` sınıfına ve tek bir parmak izine
-düşmesi) kapandı, ama kaydın sınıf taraması eşlenemeyen sekiz kararlı kimlik
-gösterdi — eşlemek yeni `RunErrorClass` üyeleri ister ve o public sözleşme
-işidir, kusur giderme değil.
-
-**F-245** 2026-09-18'de `HATA-S3-005`'in kapanışında tahsis edildi: kusurun
-kendisi (ölü bağlantıda sonsuz bekleme) kapandı, ama canlı ölçüm kaydın
-teşhisini çürüttü ve altından **ayrı** bir arayüz sorusu çıktı — sessiz bir
-run ile ölü bir bağlantının ekranda aynı görünmesi.
-
-**F-241** ve **F-242** 2026-09-16'da [Faz 176](arsiv/fazlar/176-EVALUATOR-SURUM-DAMGASI.md)
-denetiminin iki 🟢 bulgusuna tahsis edildi (kırpma vekil çifti sınıfı · sürüm
-çözümünün `catch` dalı) ve § *Bekleyen Kalemler* içine yazıldı.
-
-**F-240** 2026-09-15'te [Faz 174](arsiv/fazlar/174-KAPASITE-DAMGASI-KAPISI.md) denetiminin
-beş 🟢 bulgusuna tahsis edildi (kapasite kapısının dar açıkları) ve
-§ *Bekleyen Kalemler* içine yazıldı.
-
-**F-233** 2026-09-15'te Faz 24'ün SQLite yük/eşzamanlılık ölçümüne tahsis edildi
-(açık küçük kalemler turu) ve § *Bekleyen Kalemler* içine yazıldı.
-
-**F-239** 2026-09-15'te Faz 166'dan devreden kapasite sürüm damgası kalemine
-tahsis edildi ve **aynı gün plana dönüştü** — [Faz 174](arsiv/fazlar/174-KAPASITE-DAMGASI-KAPISI.md).
-
-🚨 **F-230 iki kez tahsis edilmişti; 2026-09-15'te çözüldü.** Kapasite damgası
-kalemi `wip(166)` commit'inde (2026-09-**14**) F-230 numarasını aldı, ama o
-numara iki gün önce (2026-09-**13**) Faz 168 denetiminin 🟢 6 bulgusuna
-tahsis edilmiş ve bu deftere yazılmıştı. İkinci tahsis deftere hiç girmedi.
-F-221/F-222 emsali uygulandı: numara **ilk sahibinde** kalır, yanlış tahsis
-yeni numara alır. Kapasite kalemi **F-239** oldu; senkron kapısı **F-230**
-kaldı (§ *Bekleyen Kalemler*).
-
-**F-244** — `guides/coding-agents.md` diagnostic tablosu eksik sayıyor. Sayfa
-"Eight diagnostics in the `Tracon.Usage` category" diyor; kategoride **on** var —
-`TRC0501` ve `TRC0502` tabloda hiç yok ve sayfa onları hiç anlatmıyor. Kusur Faz
-93'ten beri duruyor ("Seven" yazarken de dokuz vardı); Faz 178 denetimi buldu
-(🟢) ve kapsam dışı bıraktı. İş: iki satır tablo + kısa anlatı, ve sayının
-koddan üretilip üretilemeyeceğinin ölçülmesi — elle tutulan bir sayı üçüncü kez
-kaymış olur.
-
-**F-232** 2026-09-15'te kullanıcının tüketici skill'i fikrine tahsis edildi ve
-**aynı gün plana dönüştü** — [Faz 178](arsiv/fazlar/178-TUKETICI-KAPI-SKILLI.md).
-
-**F-231** 2026-09-14'te `nuget-danismani` turunun 4. bulgusuna (options
-düzeyinde production doğrulayıcısı yok) tahsis edildi ve **aynı gün plana
-dönüştü** — [Faz 170](arsiv/fazlar/170-PRODUCTION-PROFIL-KAPISI.md). Gövdesi doğrudan faz
-dokümanına yazıldı; aday listesinde hiç durmadı.
-
-**F-230** 2026-09-13'te Faz 168 denetiminin 🟢 6 bulgusuna tahsis edildi.
-
-**F-227 · F-228 · F-229** 2026-09-13'te tahsis edildi ve **aynı gün plana
-dönüştü** — Faz 167 · 168 · 169. Gövdeleri
-[`arsiv/PLANA-DONUSEN-ADAYLAR.md`](arsiv/PLANA-DONUSEN-ADAYLAR.md) üzerinden
-faz dokümanlarına taşındı.
-
-🚨 **F-221 ve F-222 bu kurala 2026-09-08 ile 2026-09-12 arasında uymadı** —
-ikisi de iki kez tahsis edildi. 2026-09-13'te çözüldü (kullanıcı kararı):
-
-| Numara | Kime ait | Yanlış tahsis nereye gitti |
-|---|---|---|
-| **F-221** | Logo/favicon ve prizma metaforu (Faz 162 · 164 · 165) — bugün rutin bakım | [Faz 159](arsiv/fazlar/159-TIPLI-ISTEMCIDE-AKISLI-OPENAI-CAGRISI.md) denetim bulgusu 🟢 3 (SSE şeması) → **F-226** |
-| **F-222** | `nav.*` ekran kapısı (Faz 163 · 164) — ✅ kapandı | [Faz 159](arsiv/fazlar/159-TIPLI-ISTEMCIDE-AKISLI-OPENAI-CAGRISI.md) denetim bulgusu 🟢 2 (site ağırlık marjı) → **kalem kapatıldı**, [K-756](KARARLAR-INDEKS.md) kapsıyor |
-
-**Site ağırlık kalemi neden kapatıldı:** kayıt bayattı (tavan 57 000 B, sayfa
-56 651 B, taban 49 376 B diyordu). 2026-09-13 ölçümü: tavan **58 000 B**,
-en ağır sayfa **57 367 B**, marj **%1,1**. K-756 bir sonraki adımı zaten
-yazıyor — *"Bir daha dolarsa sayfa BÖLÜNÜR veya içerik kısalır; tavan İKİNCİ
-kez yükseltilmez."* Aynı kuralı ikinci bir yerde bayatlatarak tutmanın değeri
-yok.
+- Sayaç, `docs/` ve `.agents/` altındaki en büyük F-ID'nin **bir fazlasıdır**.
+- Bu dosyada bir F-ID yalnız **bir** kalemi tanımlar (kalın `**F-NNN** ·`
+  satırı veya `### F-NNN ·` başlığı).
 
 ---
 
 ## Bilerek Önerilmeyenler
 
-Reddedilmiş mimari işler için tek kaynak
-[`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md)'dir.
-Özellikle **F-91** (`secret` saklama sınırı) ve **F-92** (dağıtık hız
-sınırı / Redis) kararı değiştirmeden yeniden aday olmaz.
+Tek kaynak
+[`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md)'dir:
+reddedilmiş işler ve "zaten var, eksik diye önerilmez" kalemleri. Özellikle
+**F-91** (`secret` saklama sınırı) ve **F-92** (dağıtık hız sınırı / Redis)
+kararı değiştirmeden yeniden aday olmaz.
 
 **F-95 bu listede değildir** — onu bekleten bir tasarım kararı değil, MAF'ın
-sözleşmesidir; bkz. § *Bekleyen Kalemler* → F-95.
-
-### Zaten var — bir daha "eksik" diye önerilmez
-
-2026-09-07 Langfuse turunda üçü de kod ölçümüyle çürütüldü. Bunlar mimari ret
-değildir; **mevcut yeteneklerdir.**
-
-| Önerilen | Nerede zaten var |
-|---|---|
-| Eval suite'i için CI kapısı | `tracon eval --min-pass-rate --max-failures`, regresyonda çıkış kodu 3 ([`EvalCommand.cs:168`](../src/Tracon.Cli/Commands/EvalCommand.cs#L168)) |
-| Skor düşüşünde alarm | `WebhookEvents.RunScoreLow`, `MinSampleSize` gürültü eşiğiyle ([`OnlineEvalSummaryService.cs`](../src/Tracon.Core/Evaluation/OnlineEvalSummaryService.cs)) |
-| Agent sürümüne `production`/`staging` label'ı | `Experiment` sürüm başına ağırlıklı varyant veriyor, `IAgentDefinitionStore.RollbackAsync` geri alıyor; ortam ayrımını kiracı sınırı çözüyor |
-
-Aynı turun bulgusu şuydu: Langfuse'un **beş sütununun beşi de** bu repo'da
-zaten vardı (prompt sürümleme → `IAgentDefinitionStore` · LLM-as-judge →
-`IRunJudge` · gold dataset → `RunToCasePromoter` · maliyet-gecikme panosu →
-`RunStatistics` · deney → `Experiment` + canary). Tur başlıklara değil
-**kenarlara** yöneldiği için işe yaradı.
+sözleşmesidir; bkz. § *Tetik bekleyenler* → F-95.

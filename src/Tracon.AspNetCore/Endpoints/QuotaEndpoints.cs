@@ -213,12 +213,14 @@ internal static class QuotaEndpoints
                 TenantId = tenants.TenantId,
                 AgentName = agentName,
                 Period = period,
-                AsOf = now,
+                PeriodStarts = QuotaPeriodCalculator.GetAllPeriodStarts(now, timeZone),
             },
             cancellationToken).ConfigureAwait(false);
 
         // Only the counters of the CURRENT period are returned: past periods
-        // are noise for the "usage bar" and would produce a wrong percentage in the UI.
+        // are noise for the "usage bar" and would produce a wrong percentage in
+        // the UI. The store already filters (F-275); this second pass keeps the
+        // answer right behind a custom store written before the filter existed.
         var current = usage
             .Where(record => record.PeriodStart == QuotaPeriodCalculator.GetPeriodStart(now, record.Period, timeZone))
             .ToList();

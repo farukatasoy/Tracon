@@ -2232,6 +2232,8 @@ Tracon.QuotaUsageQuery.AsOf.init -> void
 Tracon.QuotaUsageQuery.Equals(Tracon.QuotaUsageQuery? other) -> bool
 Tracon.QuotaUsageQuery.Period.get -> Tracon.QuotaPeriod?
 Tracon.QuotaUsageQuery.Period.init -> void
+Tracon.QuotaUsageQuery.PeriodStarts.get -> System.Collections.Generic.IReadOnlyDictionary<Tracon.QuotaPeriod, System.DateOnly>?
+Tracon.QuotaUsageQuery.PeriodStarts.init -> void
 Tracon.QuotaUsageQuery.QuotaUsageQuery() -> void
 Tracon.QuotaUsageQuery.TenantId.get -> string!
 Tracon.QuotaUsageQuery.TenantId.init -> void

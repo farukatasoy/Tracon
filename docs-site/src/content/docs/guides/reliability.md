@@ -255,9 +255,9 @@ leases. Heartbeat-write failures are logged, and the next interval tries again.
 | Setting | Default | Validation or effect |
 |---|---:|---|
 | `RunReconciliation.Enabled` | `false` | No heartbeats or scan until enabled |
-| `HeartbeatInterval` | 30 seconds | Must be positive |
+| `HeartbeatInterval` | 30 seconds | 1 ms to about 49.7 days |
 | `OrphanThreshold` | 5 minutes | Must be positive and at least the heartbeat interval |
-| `ScanInterval` | 1 minute | Must be positive |
+| `ScanInterval` | 1 minute | 1 ms to about 49.7 days |
 | `MaxRunsPerScan` | `100` | Must be positive; bounds one pass |
 
 Choose `OrphanThreshold` above the longest expected database pause, runtime stop-the-

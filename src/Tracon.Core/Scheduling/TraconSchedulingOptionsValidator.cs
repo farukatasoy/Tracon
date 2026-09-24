@@ -39,6 +39,29 @@ internal sealed class TraconSchedulingOptionsValidator : IValidateOptions<Tracon
                 $"must be greater than zero. Actual value: {options.LeaseDuration}.");
         }
 
+        // The worker polls on a PeriodicTimer and renews each job's lease on a
+        // second one at half the lease; a period the timer refuses stops the
+        // host (poll) or silently loses the lease (renewal) after startup
+        // (F-278). A process that runs no worker creates neither timer.
+        if (options.Enabled && options.RunWorker)
+        {
+            if (options.PollInterval > TimeSpan.Zero && !TimerPeriod.IsValid(options.PollInterval))
+            {
+                (failures ??= []).Add(TimerPeriod.Failure(
+                    $"{nameof(TraconSchedulingOptions)}.{nameof(TraconSchedulingOptions.PollInterval)}",
+                    options.PollInterval,
+                    " while the worker runs"));
+            }
+
+            if (options.LeaseDuration > TimeSpan.Zero && !TimerPeriod.IsValid(options.LeaseDuration / 2))
+            {
+                (failures ??= []).Add(
+                    $"{nameof(TraconSchedulingOptions)}.{nameof(TraconSchedulingOptions.LeaseDuration)} " +
+                    $"must be between 2 and {TimerPeriod.MaxMilliseconds * 2} milliseconds while the worker " +
+                    $"runs: the lease is renewed at half its duration on a timer. Actual value: {options.LeaseDuration}.");
+            }
+        }
+
         if (options.MaxAttempts < 1)
         {
             (failures ??= []).Add(

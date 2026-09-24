@@ -978,6 +978,87 @@ class KosumDamitmaTestleri(unittest.TestCase):
         yeni, _ = dokuman_bakim._kosum_damit_metni(metin)
         self.assertEqual(yeni, metin)
 
+    # F-251 (2026-09-19 ölçümü): bir case İKİ blok taşıyınca (ilk deneme
+    # ertelendi, ikincisi geçti) yalnız ikinci blok daralıyordu; kalan ilk
+    # blok işaretsiz bir `Durum` satırıyla kalıyor ve damıtılmış kayıtta sayım
+    # koşan biri case'i İŞARETSİZ görüyordu. 2026-09-16 turunda 19 blok.
+    _YENIDEN_KOSULAN = (
+        "# 12 — Gözlem\n\n"
+        "## MT-OBS-001 — Pano boş durumları\n\n"
+        "**Gerçek sonuç**\nPlaywright kilidi nedeniyle ertelendi.\n\n"
+        "**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı\n\n"
+        "## MT-OBS-002 — Maliyet karosu\n\n"
+        "**Gerçek sonuç**\n`500` döndü.\n\n"
+        "**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı\n\n"
+        "## MT-OBS-001 — Pano boş durumları aynı anda görünür\n\n"
+        "**Gerçek sonuç**\nİkinci denemede hepsi göründü.\n\n"
+        "**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı\n"
+    )
+
+    def test_yeniden_kosulan_case_in_ESKI_blogu_nihai_isareti_tasir(self):
+        yeni, _ = dokuman_bakim._kosum_damit_metni(self._YENIDEN_KOSULAN)
+        eski_blok = yeni[yeni.index("## MT-OBS-001 — Pano boş durumları\n"):]
+        eski_blok = eski_blok[: eski_blok.index("## MT-OBS-002")]
+        self.assertIn("Playwright kilidi", eski_blok)
+        self.assertIn("☑ Geçti", eski_blok)
+        self.assertNotIn("☐ Beklemede · ☐ Geçti", eski_blok)
+
+    def test_yeniden_kosulan_case_de_isaretsiz_durum_satiri_kalmaz(self):
+        yeni, _ = dokuman_bakim._kosum_damit_metni(self._YENIDEN_KOSULAN)
+        for satir in yeni.splitlines():
+            if satir.startswith("**Durum:**"):
+                self.assertTrue("☑" in satir, satir)
+
+    def test_sonraki_denemesi_KALAN_case_in_temiz_ilk_blogu_tabloya_inmez(self):
+        # Ters yön: ilk deneme geçti, yeniden koşum kaldı. Tablo `| ☑ |`
+        # derse nihai sonucu yanlış söyler; iki blok da AYNEN durur.
+        metin = (
+            "# 12 — Gözlem\n\n"
+            "## MT-OBS-003 — Karo\n\n**Gerçek sonuç**\nİlk denemede göründü.\n\n"
+            "**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı\n\n"
+            "## MT-OBS-003 — Karo (yeniden)\n\n**Gerçek sonuç**\nİkinci denemede boş.\n\n"
+            "**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı\n")
+        yeni, sayac = dokuman_bakim._kosum_damit_metni(metin)
+        self.assertNotIn("| MT-OBS-003 | ☑ |", yeni)
+        self.assertIn("İlk denemede göründü.", yeni)
+        self.assertEqual(sayac["daraltilan"], 0)
+
+    def test_son_blogu_KALAN_case_in_eski_blogu_nihai_KALDI_isaretini_alir(self):
+        # Nihai sonuç son bloğun işaretidir; geçmek zorunda değildir.
+        metin = self._YENIDEN_KOSULAN.replace(
+            "**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı\n",
+            "**Durum:** ☐ Beklemede · ☐ Geçti · ☑ Kaldı · ☐ Atlandı\n")
+        yeni, _ = dokuman_bakim._kosum_damit_metni(metin)
+        self.assertIn("Playwright kilidi nedeniyle ertelendi.\n\n"
+                      "**Durum:** ☑ Kaldı — nihai sonuç", yeni)
+
+    def test_son_blogu_ISARETLI_gecen_case_in_eski_blogu_de_isaret_alir(self):
+        # Ölçülen altı vaka: ikinci deneme geçti ama bir düzeltme işareti
+        # taşıdığı için o blok da AYNEN duruyor; ilk blok yine işaretsizdi.
+        metin = self._YENIDEN_KOSULAN.replace(
+            "İkinci denemede hepsi göründü.", "⚠️ İkinci denemede göründü; beklenen sonuç düzeltildi.")
+        yeni, _ = dokuman_bakim._kosum_damit_metni(metin)
+        self.assertIn("Playwright kilidi nedeniyle ertelendi.\n\n"
+                      "**Durum:** ☑ Geçti — nihai sonuç", yeni)
+
+    def test_serbest_metinli_durum_satiri_ELLENMEZ(self):
+        # Ölçüldü (14-SKILL, 35-TS): bir blok şablon yerine not taşıyan bir
+        # `Durum` satırı taşıyabilir; üzerine yazmak notu siler.
+        metin = self._YENIDEN_KOSULAN.replace(
+            "Playwright kilidi nedeniyle ertelendi.\n\n**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı",
+            "Playwright kilidi nedeniyle ertelendi.\n\n**Durum:** Kayıt, düzeltilmedi (kural 1).")
+        yeni, _ = dokuman_bakim._kosum_damit_metni(metin)
+        self.assertIn("**Durum:** Kayıt, düzeltilmedi (kural 1).", yeni)
+
+    def test_son_blogu_ISARETSIZ_case_in_eski_blogu_ELLENMEZ(self):
+        # Nihai sonuç bilinmiyorsa uydurulmaz.
+        metin = self._YENIDEN_KOSULAN.replace(
+            "**Durum:** ☐ Beklemede · ☑ Geçti · ☐ Kaldı · ☐ Atlandı\n",
+            "**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı\n")
+        yeni, _ = dokuman_bakim._kosum_damit_metni(metin)
+        self.assertIn("Playwright kilidi nedeniyle ertelendi.\n\n"
+                      "**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı", yeni)
+
 
 class KararSatiriDamitmaTestleri(unittest.TestCase):
     """`_karar_satiri_damit` saf fonksiyonu."""
@@ -1597,6 +1678,80 @@ class ManuelTestSayimKaymasiTestleri(unittest.TestCase):
         # Kalan tek kacis: ne `### MT-` basligi ne de `| n | \`MT-KOD-nnn\` |`
         # satiri olan dosya. Bu bir bicim farki degil, case'siz bir dosyadir.
         self.assertEqual([], dokuman_bakim.manuel_test_sayim_kaymasi(self._kok(yazan=24, case_sayisi=0)))
+
+
+class FIdSayaciTestleri(unittest.TestCase):
+    """ADAYLAR.md F-ID sayaci ve tek tanim kurali (2026-09-24).
+
+    Iki vaka yaziyla kapatilmisti ve ucuncusunu kapi onler: F-230 iki kaleme
+    verildi, F-251 tabloda iki satira yazildi ve sayac geride kaldi."""
+
+    def _kok(self, adaylar: str, arsiv: str = "") -> pathlib.Path:
+        kok = pathlib.Path(tempfile.mkdtemp())
+        (kok / "docs" / "arsiv").mkdir(parents=True)
+        (kok / ".agents").mkdir()
+        (kok / "docs" / "ADAYLAR.md").write_text(adaylar, encoding="utf-8")
+        (kok / "docs" / "arsiv" / "ERTELENEN-ADAYLAR.md").write_text(arsiv, encoding="utf-8")
+        return kok
+
+    @staticmethod
+    def _adaylar(sayac: int, *satirlar: str) -> str:
+        tablo = "| Kalem | Engel | Koşul |\n|---|---|---|\n" + "".join(s + "\n" for s in satirlar)
+        return f"# ADAYLAR\n\n{tablo}\nSıradaki numara: **F-{sayac}**.\n"
+
+    def test_dogru_sayac_yanlis_pozitif_uretmez(self):
+        kok = self._kok(self._adaylar(12, "| **F-11** · bir | e | k |"),
+                        arsiv="| **F-10** · kapandı | 2026-09-24 | kanıt |\n")
+        self.assertEqual([], dokuman_bakim.f_id_sayaci_bulgulari(kok))
+
+    def test_artirilmayan_sayac_KIRMIZIDIR(self):
+        # F-251 vakasi: tablo ilerledi, sayac yerinde kaldi.
+        kok = self._kok(self._adaylar(11, "| **F-11** · yeni | e | k |"))
+        bulgular = dokuman_bakim.f_id_sayaci_bulgulari(kok)
+        self.assertEqual(1, len(bulgular), bulgular)
+        self.assertIn("F-12 olmalı", bulgular[0])
+
+    def test_izsiz_silinen_en_buyuk_numara_KIRMIZIDIR(self):
+        # Kapanan kalem arsive tasinmadan silinirse sayac en buyuk numaranin
+        # iki ustunde kalir -- numara yeniden tahsis edilebilir hale gelir.
+        kok = self._kok(self._adaylar(12, "| **F-10** · eski | e | k |"))
+        bulgular = dokuman_bakim.f_id_sayaci_bulgulari(kok)
+        self.assertEqual(1, len(bulgular), bulgular)
+        self.assertIn("arşive taşınmadan", bulgular[0])
+
+    def test_arsivdeki_numara_da_sayilir(self):
+        kok = self._kok(self._adaylar(12, "| **F-3** · bir | e | k |"),
+                        arsiv="| **F-11** · kapandı | 2026-09-24 | kanıt |\n")
+        self.assertEqual([], dokuman_bakim.f_id_sayaci_bulgulari(kok))
+
+    def test_ayni_numaranin_iki_tanimi_KIRMIZIDIR(self):
+        # F-230 / F-251 vakasi: ayni numara iki ayri kaleme yazildi.
+        kok = self._kok(self._adaylar(
+            12, "| **F-11** · birinci | e | k |", "| 🔴 | **F-11** · ikinci | s | y |"))
+        bulgular = dokuman_bakim.f_id_sayaci_bulgulari(kok)
+        self.assertEqual(1, len(bulgular), bulgular)
+        self.assertIn("F-11 İKİNCİ kez", bulgular[0])
+
+    def test_baslik_ve_satir_ayni_numarayi_tanimlarsa_KIRMIZIDIR(self):
+        metin = self._adaylar(12, "| **F-11** · satır | e | k |") + "\n### F-11 · başlık\n\ngövde\n"
+        bulgular = dokuman_bakim.f_id_sayaci_bulgulari(self._kok(metin))
+        self.assertEqual(1, len(bulgular), bulgular)
+
+    def test_duz_ve_kalin_ANMA_tanim_sayilmaz(self):
+        # Tablo disindaki kalin anma ve satir icindeki duz anma yeni kalem degildir.
+        metin = self._adaylar(
+            12, "| **F-11** · bir | F-11 ile aynı iş | k |", "| F-11 · gövde aşağıda | n | p |"
+        ) + "\nGövdeli kalemler: **F-11** · F-11.\n"
+        self.assertEqual([], dokuman_bakim.f_id_sayaci_bulgulari(self._kok(metin)))
+
+    def test_okunamayan_sayac_satiri_bulgudur(self):
+        kok = self._kok("# ADAYLAR\n\n| **F-1** · bir | e | k |\n")
+        bulgular = dokuman_bakim.f_id_sayaci_bulgulari(kok)
+        self.assertEqual(1, len(bulgular), bulgular)
+        self.assertIn("okunamadı", bulgular[0])
+
+    def test_GERCEK_depoda_bulgu_YOK(self):
+        self.assertEqual([], dokuman_bakim.f_id_sayaci_bulgulari())
 
 
 class BagimlilikSurumDamgasiTestleri(unittest.TestCase):

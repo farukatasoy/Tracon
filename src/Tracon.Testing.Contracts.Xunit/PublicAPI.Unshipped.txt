@@ -314,6 +314,10 @@ Tracon.Testing.Contracts.Storage.QuotaStoreContract.Separate_period_keeps_a_sepa
 Tracon.Testing.Contracts.Storage.QuotaStoreContract.Usage_increments_both_the_agent_and_tenant_counters() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.QuotaStoreContract.Usage_is_filtered_by_agent_name() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.QuotaStoreContract.Usage_is_filtered_by_period() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.QuotaStoreContract.A_period_left_out_of_the_period_starts_is_not_returned() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.QuotaStoreContract.Empty_period_starts_return_no_counters() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.QuotaStoreContract.Period_starts_apply_together_with_the_other_filters() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.QuotaStoreContract.Usage_is_filtered_to_the_given_period_starts() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.QuotaStoreContract.Usage_with_undefined_price_does_not_break_the_cost_total() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.RetentionPolicyStoreContract
 Tracon.Testing.Contracts.Storage.RetentionPolicyStoreContract.Another_tenants_policy_is_not_visible() -> System.Threading.Tasks.Task!

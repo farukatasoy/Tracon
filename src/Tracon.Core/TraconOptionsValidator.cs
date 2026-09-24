@@ -12,11 +12,6 @@ namespace Tracon;
 /// </remarks>
 internal sealed class TraconOptionsValidator : IValidateOptions<TraconOptions>
 {
-    /// <summary>
-    /// The longest period a <see cref="PeriodicTimer"/> accepts, in whole
-    /// milliseconds (about 49.7 days).
-    /// </summary>
-    private const long MaxGaugeRefreshMilliseconds = uint.MaxValue - 1L;
 
     /// <inheritdoc />
     public ValidateOptionsResult Validate(string? name, TraconOptions options)
@@ -108,11 +103,13 @@ internal sealed class TraconOptionsValidator : IValidateOptions<TraconOptions>
                     $"must be greater than zero. Actual value: {health.CacheTtl}.");
             }
 
-            if (health.BackgroundInterval is { } interval && interval <= TimeSpan.Zero)
+            // The background refresher runs on a PeriodicTimer (F-278).
+            if (health.BackgroundInterval is { } interval && !TimerPeriod.IsValid(interval))
             {
-                (failures ??= []).Add(
-                    $"{nameof(TraconHealthOptions)}.{nameof(TraconHealthOptions.BackgroundInterval)} " +
-                    $"must be greater than zero when supplied. Actual value: {interval}.");
+                (failures ??= []).Add(TimerPeriod.Failure(
+                    $"{nameof(TraconHealthOptions)}.{nameof(TraconHealthOptions.BackgroundInterval)}",
+                    interval,
+                    " when supplied"));
             }
         }
 
@@ -211,7 +208,7 @@ internal sealed class TraconOptionsValidator : IValidateOptions<TraconOptions>
     /// <remarks>
     /// An enabled gauge refreshes on a <see cref="PeriodicTimer"/>, and that timer
     /// accepts only a period from one millisecond to
-    /// <see cref="MaxGaugeRefreshMilliseconds"/> milliseconds. Without this
+    /// <see cref="TimerPeriod.MaxMilliseconds"/> milliseconds. Without this
     /// check the refresher would fail after startup and, under the default
     /// hosting behavior, stop the host. A gauge that is off creates no timer,
     /// so its interval is not checked.
@@ -225,31 +222,24 @@ internal sealed class TraconOptionsValidator : IValidateOptions<TraconOptions>
             return;
         }
 
-        if (observability.EnableQuotaUsageGauge && !IsTimerPeriod(observability.QuotaUsageRefreshInterval))
+        if (observability.EnableQuotaUsageGauge && !TimerPeriod.IsValid(observability.QuotaUsageRefreshInterval))
         {
             (failures ??= []).Add(
                 $"{nameof(TraconObservabilityOptions)}.{nameof(TraconObservabilityOptions.QuotaUsageRefreshInterval)} " +
-                $"must be between 1 and {MaxGaugeRefreshMilliseconds} milliseconds when " +
+                $"must be between 1 and {TimerPeriod.MaxMilliseconds} milliseconds when " +
                 $"{nameof(TraconObservabilityOptions.EnableQuotaUsageGauge)} is on. " +
                 $"Actual value: {observability.QuotaUsageRefreshInterval}.");
         }
 
-        if (observability.EnableJobQueueDepthGauge && !IsTimerPeriod(observability.JobQueueDepthRefreshInterval))
+        if (observability.EnableJobQueueDepthGauge && !TimerPeriod.IsValid(observability.JobQueueDepthRefreshInterval))
         {
             (failures ??= []).Add(
                 $"{nameof(TraconObservabilityOptions)}.{nameof(TraconObservabilityOptions.JobQueueDepthRefreshInterval)} " +
-                $"must be between 1 and {MaxGaugeRefreshMilliseconds} milliseconds when " +
+                $"must be between 1 and {TimerPeriod.MaxMilliseconds} milliseconds when " +
                 $"{nameof(TraconObservabilityOptions.EnableJobQueueDepthGauge)} is on. " +
                 $"Actual value: {observability.JobQueueDepthRefreshInterval}.");
         }
     }
-
-    /// <summary>Reports whether a <see cref="PeriodicTimer"/> accepts the period.</summary>
-    /// <param name="period">The period.</param>
-    /// <returns><see langword="true"/> for a period from one millisecond to about 49.7 days.</returns>
-    private static bool IsTimerPeriod(TimeSpan period)
-        => period >= TimeSpan.FromMilliseconds(1)
-           && period.TotalMilliseconds <= MaxGaugeRefreshMilliseconds;
 
     /// <summary>Validates script-execution options.</summary>
     /// <remarks>

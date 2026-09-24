@@ -239,7 +239,7 @@ yerde tekrarlanmaz**.
 |---|---|
 | `docs/NN-*.md` — `> **Durum:**` satırı | `📋 Planlandı (YYYY-AA-GG)`. `docs/YOL-HARITASI.md` bundan **üretilir**; elle satır ekleme (K-413) |
 | Turun yol haritası dosyası | Sıra tablosuna satır: kalem, neden burada, yeni paket, migration |
-| `docs/ADAYLAR.md` | Plana dönüşen kalemin **bölümünü sil**; hangi faza gittiğini tek satırla yaz |
+| `docs/ADAYLAR.md` | Plana dönüşen kalemi **sil** (bölüm veya tablo satırı). Yönlendirici satır **yazma** — iz faz dokümanının `> **Kaynak:** … F-NN` satırıdır. Gövdeli kalemin gövdesi `docs/arsiv/PLANA-DONUSEN-ADAYLAR.md`'ye taşınır |
 | `AGENTS.md` | Yalnız "sıradaki faz" satırı değiştiyse. Tam liste **yalnız üretilen `docs/YOL-HARITASI.md`'dedir** |
 
 Kalemi aday listesinde bırakma. İki yerde tutmak kayma üretir — belge zaten bu

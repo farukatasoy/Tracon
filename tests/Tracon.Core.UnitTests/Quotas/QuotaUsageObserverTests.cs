@@ -47,6 +47,29 @@ public sealed class QuotaUsageObserverTests
         observer.CompletedRefreshes.ShouldBe(0);
     }
 
+    /// <summary>
+    /// A refresh reads only the current periods' counters (F-275), not the
+    /// tenant's whole usage history.
+    /// </summary>
+    [Fact]
+    public async Task A_refresh_reads_only_the_current_periods()
+    {
+        var clock = new TriggerableTimeProvider(Start);
+        var (inner, tenants) = await SeedAsync(clock, maxRuns: 10);
+        var store = new CountingQuotaStore(inner);
+
+        using var meterFactory = new TestMeterFactory();
+        using var observer = Observer(store, tenants, enabled: true, meterFactory, clock);
+
+        await StartAndWaitForRefreshAsync(observer);
+
+        store.UsageQueries.ShouldNotBeEmpty();
+        store.UsageQueries.ShouldAllBe(query =>
+            query.PeriodStarts != null
+            && query.PeriodStarts[QuotaPeriod.Daily] == DateOnly.FromDateTime(Start.UtcDateTime)
+            && query.PeriodStarts[QuotaPeriod.Monthly] == new DateOnly(2026, 8, 1));
+    }
+
     [Fact]
     public async Task Value_matches_the_quota_record_when_enabled()
     {
@@ -327,69 +350,6 @@ public sealed class QuotaUsageObserverTests
     /// runs on a background task, so the counters are read and written atomically.
     /// When <see cref="Stall"/> is set, a counter read waits for it.
     /// </summary>
-    private sealed class CountingQuotaStore(IQuotaStore inner) : IQuotaStore
-    {
-        private int _listCalls;
-        private int _usageCalls;
-
-        public int ListCalls => Volatile.Read(ref _listCalls);
-
-        public int UsageCalls => Volatile.Read(ref _usageCalls);
-
-        public TaskCompletionSource? Stall { get; init; }
-
-        public ValueTask<IReadOnlyList<QuotaDefinition>> ListAsync(string tenantId, CancellationToken cancellationToken = default)
-        {
-            Interlocked.Increment(ref _listCalls);
-
-            return inner.ListAsync(tenantId, cancellationToken);
-        }
-
-        public ValueTask<QuotaDefinition?> GetAsync(string tenantId, Guid id, CancellationToken cancellationToken = default)
-            => inner.GetAsync(tenantId, id, cancellationToken);
-
-        public ValueTask<QuotaDefinition> SaveAsync(QuotaDefinition definition, CancellationToken cancellationToken = default)
-            => inner.SaveAsync(definition, cancellationToken);
-
-        public ValueTask<bool> DeleteAsync(string tenantId, Guid id, CancellationToken cancellationToken = default)
-            => inner.DeleteAsync(tenantId, id, cancellationToken);
-
-        public ValueTask<IReadOnlyList<QuotaUsageRecord>> GetUsageAsync(QuotaUsageQuery query, CancellationToken cancellationToken = default)
-        {
-            Interlocked.Increment(ref _usageCalls);
-
-            return Stall is { } stall
-                ? StalledUsageAsync(stall, query, cancellationToken)
-                : inner.GetUsageAsync(query, cancellationToken);
-        }
-
-        public ValueTask AddUsageAsync(
-            QuotaConsumption consumption,
-            IReadOnlyDictionary<QuotaPeriod, DateOnly> periodStarts,
-            CancellationToken cancellationToken = default)
-            => inner.AddUsageAsync(consumption, periodStarts, cancellationToken);
-
-        public ValueTask<bool> TryClaimThresholdNotificationAsync(
-            string tenantId,
-            string agentName,
-            QuotaPeriod period,
-            DateOnly periodStart,
-            QuotaMetric metric,
-            int thresholdPercent,
-            CancellationToken cancellationToken = default)
-            => inner.TryClaimThresholdNotificationAsync(tenantId, agentName, period, periodStart, metric, thresholdPercent, cancellationToken);
-
-        private async ValueTask<IReadOnlyList<QuotaUsageRecord>> StalledUsageAsync(
-            TaskCompletionSource stall,
-            QuotaUsageQuery query,
-            CancellationToken cancellationToken)
-        {
-            await stall.Task.WaitAsync(cancellationToken);
-
-            return await inner.GetUsageAsync(query, cancellationToken);
-        }
-    }
-
     /// <summary>
     /// Simple listener that collects a given <c>Meter</c>'s ObservableGauge
     /// measurements by calling <c>RecordObservableInstruments</c> on each

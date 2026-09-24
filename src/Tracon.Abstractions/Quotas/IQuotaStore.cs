@@ -60,10 +60,16 @@ public interface IQuotaStore
         Guid id,
         CancellationToken cancellationToken = default);
 
-    /// <summary>Fetches the current period's counters.</summary>
+    /// <summary>Fetches the consumption counters that match the filter.</summary>
     /// <param name="query">The filter.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The counters. An empty list when there is no consumption at all.</returns>
+    /// <returns>The counters. An empty list when nothing matches.</returns>
+    /// <remarks>
+    /// Without <see cref="QuotaUsageQuery.PeriodStarts"/> every period's
+    /// counters are returned — the whole history, which only grows. The
+    /// built-in callers always pass the current periods, so a run check reads
+    /// a bounded set. A store must apply every filter the query carries.
+    /// </remarks>
     ValueTask<IReadOnlyList<QuotaUsageRecord>> GetUsageAsync(
         QuotaUsageQuery query,
         CancellationToken cancellationToken = default);

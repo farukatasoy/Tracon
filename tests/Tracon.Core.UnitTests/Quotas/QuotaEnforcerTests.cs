@@ -253,6 +253,37 @@ public sealed class QuotaEnforcerTests
         }).AsTask());
     }
 
+    /// <summary>
+    /// The admission check and the threshold accounting read only the current
+    /// periods' counters, computed in the configured time zone (F-275). They
+    /// passed no period filter before, so every run read the tenant's whole
+    /// usage history twice, and that history only grows.
+    /// </summary>
+    [Fact]
+    public async Task Admission_and_accounting_read_only_the_current_periods()
+    {
+        var store = new CountingQuotaStore(new InMemoryQuotaStore());
+
+        // 22:30 UTC is already the next day in Istanbul (UTC+3): a filter
+        // computed in UTC would name the wrong daily counter.
+        var clock = new ManualTimeProvider(new DateTimeOffset(2026, 8, 3, 22, 30, 0, TimeSpan.Zero));
+        var enforcer = new QuotaEnforcer(store, Options(new TraconQuotaOptions { TimeZone = "Europe/Istanbul" }), null, clock);
+
+        await SaveQuotaAsync(store, maxRuns: 10);
+
+        await enforcer.CheckAsync(Tenant, Agent);
+        await RecordAsync(enforcer, clock, runs: 1);
+
+        store.UsageQueries.Count.ShouldBe(2);
+        store.UsageQueries.ShouldAllBe(query => query.PeriodStarts != null);
+
+        foreach (var query in store.UsageQueries)
+        {
+            query.PeriodStarts![QuotaPeriod.Daily].ShouldBe(new DateOnly(2026, 8, 4));
+            query.PeriodStarts[QuotaPeriod.Monthly].ShouldBe(new DateOnly(2026, 8, 1));
+        }
+    }
+
     private static (QuotaEnforcer Enforcer, IQuotaStore Store, ManualTimeProvider Clock) Build(
         Action<TraconQuotaOptions>? configure = null,
         IWebhookPublisher? publisher = null)

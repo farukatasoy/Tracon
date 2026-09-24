@@ -202,6 +202,31 @@ public sealed record QuotaUsageQuery
     /// <summary>Fetches only this interval's counters.</summary>
     public QuotaPeriod? Period { get; init; }
 
-    /// <summary>The moment the counters belong to (UTC). The current time is used if not given.</summary>
+    /// <summary>
+    /// Fetches only the counters of the periods named here, each for the given
+    /// first day (local time). <see langword="null"/> applies no period filter:
+    /// every counter of every period is returned — the whole history.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The caller computes the first days from the configured time zone, exactly
+    /// as it does for <see cref="IQuotaStore.AddUsageAsync"/>; a store does not
+    /// know time zones. A period that is not in the map returns no counters, so
+    /// an empty map returns an empty list. The filter applies together with
+    /// <see cref="AgentName"/> and <see cref="Period"/>.
+    /// </para>
+    /// <para>
+    /// The admission check reads usage before every run. Without this filter
+    /// each read returned the tenant's whole history, which only grows.
+    /// </para>
+    /// </remarks>
+    public IReadOnlyDictionary<QuotaPeriod, DateOnly>? PeriodStarts { get; init; }
+
+    /// <summary>Has no effect: no store applies it.</summary>
+    /// <remarks>
+    /// No store ever read this value, and a store cannot turn an instant into
+    /// a period without the configured time zone. Use <see cref="PeriodStarts"/>.
+    /// </remarks>
+    [Obsolete("QuotaUsageQuery.AsOf has no effect because no store applies it. Use PeriodStarts, computed from the configured time zone.")]
     public DateTimeOffset? AsOf { get; init; }
 }

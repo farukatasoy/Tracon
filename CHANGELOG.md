@@ -68,6 +68,10 @@ change.
 - A failed or cancelled durable threshold claim no longer keeps a quota
   threshold notification silent until the end of the period. The next run in
   the same period retries the claim.
+- The quota admission check, the threshold accounting, the quota gauge and
+  `GET /api/quotas/usage` now read only the counters of the current periods.
+  Before, every read returned the tenant's whole usage history, twice per run,
+  and that history only grows.
 - `GET /api/models/health` no longer fails for every provider when one
   provider's health check throws. The failing provider is reported `Unhealthy`
   with the exception type in `detail` (`The health check failed (...)`), and the
@@ -150,6 +154,22 @@ preview line, and the counts below are types, not members.
 
 ### Changed
 
+- `QuotaUsageQuery` has a new `PeriodStarts` filter: for each period, the first
+  day whose counters to return, computed by the caller from the configured time
+  zone. Without it, `IQuotaStore.GetUsageAsync` returns every period's counters,
+  and its documentation now says so. A custom `IQuotaStore` must apply the
+  filter; `QuotaStoreContract` has four new scenarios for it.
+- An interval that drives a background timer now fails startup validation when
+  it is outside 1 millisecond to about 49.7 days: `Approvals:ScanInterval`,
+  `Canary:ScanInterval`, `RunReconciliation:HeartbeatInterval` and
+  `ScanInterval`, `Scheduling:PollInterval`, `Health:BackgroundInterval` and
+  `Mcp:RefreshInterval`. `Scheduling:LeaseDuration` may be at most about 99 days
+  and `SingletonExecution:LeaseDuration` about 149 days, because each lease
+  renews at a fraction of its length. Each of these checks applies only while
+  its feature is on. `Retention:BatchDelay` may be zero and is always held to
+  at most about 49.7 days. Before, such a value let the host report that it had started and then
+  stopped it; approval expiration is on by default, so
+  `Approvals:ScanInterval=00:00:00` did this to a default setup.
 - The `tracon.quota.usage`, `tracon.quota.limit` and `tracon.job.queue.depth`
   gauges no longer read the database inside the metrics collection callback.
   When a gauge is enabled, a background service reads the values once at
@@ -210,6 +230,9 @@ both read the notes from here.
 
 ### Deprecated
 
+- `QuotaUsageQuery.AsOf`. No store ever applied it, and a store cannot turn an
+  instant into a period without the configured time zone. Use
+  `QuotaUsageQuery.PeriodStarts`.
 - The `net8.0` and `net9.0` targets. Microsoft support for .NET 8 and .NET 9
   ends on 2026-11-10, and the first Tracon release after that date drops both
   targets from every package; `net10.0` stays. An urgent security release may

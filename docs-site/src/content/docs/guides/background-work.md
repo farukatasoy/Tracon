@@ -386,8 +386,8 @@ too. A store having lease semantics is not a cluster-support guarantee.
 | `Scheduling.Enabled` | `true` | `false` stops dispatch and worker execution; APIs and stores remain available |
 | `Scheduling.RunWorker` | `true` | `false` disables the worker in this process |
 | `Scheduling.MaxConcurrentJobs` | `2` | Must be at least `1`; applies per process |
-| `Scheduling.PollInterval` | 10 seconds | Must be positive |
-| `Scheduling.LeaseDuration` | 5 minutes | Must be positive; renewal starts halfway through the lease |
+| `Scheduling.PollInterval` | 10 seconds | 1 ms to about 49.7 days; checked at startup |
+| `Scheduling.LeaseDuration` | 5 minutes | Must be positive and at most about 99 days; renewal starts halfway through the lease |
 | `Scheduling.MaxAttempts` | `3` | Must be at least `1`; jobs can override it |
 | `Scheduling.MaxItemsPerJob` | `1,000` | Must be at least `1` |
 | `Scheduling.Lanes` | `null` | `null` leases from every lane; a list scopes the worker to only those lanes |

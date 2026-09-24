@@ -2254,3 +2254,39 @@ tamamında) · `RunStoreContract.Canceled_token_throws_on_the_first_step_of_the_
 **Otomatik karşılığı:** `StoreCancellationContractSelfProofTests` — aynı iki
 kırık uygulamayı (`TokenBlindSkillStore`, `LateCheckSkillStore`) kalıcı olarak
 tutar ve dört case'in hangisinin kırmızıya döndüğünü doğrular.
+
+### MT-RES-093 — Zamanlayıcının alamayacağı bir aralık açılışta adıyla reddedilir (F-278)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | F-278 kusur kaydı |
+| **İlgili karar** | — |
+| **Regresyon** | Evet |
+
+**Ön koşul**
+- Örnek uygulama derlenmiş (`samples/Tracon.Api`). Onay süresi dolumu
+  varsayılan olarak açıktır; ek yapılandırma gerekmez.
+
+**Adımlar**
+1. ```bash
+   cd samples/Tracon.Api
+   Tracon__Approvals__ScanInterval=00:00:00 dotnet run --no-build -c Release
+   ```
+2. Aynısını `Tracon__Approvals__ExpirationEnabled=false` ekleyerek tekrarla.
+3. Aynısını `Tracon__Canary__AutoRollbackEnabled=true Tracon__Canary__ScanInterval=50.00:00:00`
+   ile tekrarla.
+
+**Beklenen sonuç**
+- 1. adım "Application started" YAZMAZ: süreç açılışta
+  `OptionsValidationException` ile çıkar ve mesaj
+  `TraconApprovalOptions.ScanInterval must be between 1 and 4294967294 milliseconds when ExpirationEnabled is on`
+  der. Eski davranış — uygulama başlar, sonra `ArgumentOutOfRangeException (Parameter 'period')`
+  ile durur — görülmez.
+- 2. adımda uygulama başlar: kapalı özelliğin zamanlayıcısı yoktur, aralığı denetlenmez.
+- 3. adımda açılış `CanaryOptions.ScanInterval` adıyla reddedilir.
+
+**Otomatik karşılığı:** `TimerPeriodOptionValidationTests` (her site, `IStartupValidator`
+üzerinden) · `McpRefreshIntervalValidationTests` · yeni zamanlayıcı sitesi için
+`PeriodicTimerSiteTests`.

@@ -28,7 +28,7 @@ public abstract class QuotaStoreContract : TenantIsolationContract<IQuotaStore>
 
         // Counters are also locked to the same tenant; if the rule is not
         // visible, its usage must not be visible either.
-        var usage = await Store.GetUsageAsync(new QuotaUsageQuery { TenantId = tenantId, AsOf = new DateTimeOffset(Today, TimeOnly.MinValue, TimeSpan.Zero) });
+        var usage = await Store.GetUsageAsync(new QuotaUsageQuery { TenantId = tenantId });
 
         (usage.Count > 0).ShouldBe(definition is not null);
 
@@ -250,6 +250,81 @@ public abstract class QuotaStoreContract : TenantIsolationContract<IQuotaStore>
             new QuotaUsageQuery { TenantId = Tenant, Period = QuotaPeriod.Daily });
 
         filtered.ShouldAllBe(record => record.Period == QuotaPeriod.Daily);
+    }
+
+    /// <summary>
+    /// <see cref="QuotaUsageQuery.PeriodStarts"/> returns only the counters of
+    /// the named periods, each for its given first day. The admission check
+    /// reads usage before every run; a store that ignores the filter returns
+    /// the tenant's whole history on each read.
+    /// </summary>
+    [Fact]
+    public async Task Usage_is_filtered_to_the_given_period_starts()
+    {
+        var nextDay = new Dictionary<QuotaPeriod, DateOnly>
+        {
+            [QuotaPeriod.Daily] = Today.AddDays(1),
+            [QuotaPeriod.Monthly] = new(2026, 8, 1),
+        };
+
+        await Store.AddUsageAsync(Consumption(runs: 1), Periods);
+        await Store.AddUsageAsync(Consumption(runs: 2), nextDay);
+
+        var usage = await Store.GetUsageAsync(new QuotaUsageQuery { TenantId = Tenant, PeriodStarts = nextDay });
+
+        // Two periods x two scopes; the earlier day's daily counters are left out.
+        usage.Count.ShouldBe(4);
+        usage.ShouldNotContain(record => record.Period == QuotaPeriod.Daily && record.PeriodStart == Today);
+        Find(usage, "support", QuotaPeriod.Daily, Today.AddDays(1)).Runs.ShouldBe(2);
+        Find(usage, "support", QuotaPeriod.Monthly).Runs.ShouldBe(3);
+    }
+
+    /// <summary>A period missing from <see cref="QuotaUsageQuery.PeriodStarts"/> returns no counters.</summary>
+    [Fact]
+    public async Task A_period_left_out_of_the_period_starts_is_not_returned()
+    {
+        await Store.AddUsageAsync(Consumption(runs: 1), Periods);
+
+        var usage = await Store.GetUsageAsync(new QuotaUsageQuery
+        {
+            TenantId = Tenant,
+            PeriodStarts = new Dictionary<QuotaPeriod, DateOnly> { [QuotaPeriod.Monthly] = new(2026, 8, 1) },
+        });
+
+        usage.Count.ShouldBe(2);
+        usage.ShouldAllBe(record => record.Period == QuotaPeriod.Monthly);
+    }
+
+    /// <summary>An empty <see cref="QuotaUsageQuery.PeriodStarts"/> names no period and returns nothing.</summary>
+    [Fact]
+    public async Task Empty_period_starts_return_no_counters()
+    {
+        await Store.AddUsageAsync(Consumption(runs: 1), Periods);
+
+        (await Store.GetUsageAsync(new QuotaUsageQuery
+        {
+            TenantId = Tenant,
+            PeriodStarts = new Dictionary<QuotaPeriod, DateOnly>(),
+        })).ShouldBeEmpty();
+    }
+
+    /// <summary>The period filter applies together with the agent and period filters.</summary>
+    [Fact]
+    public async Task Period_starts_apply_together_with_the_other_filters()
+    {
+        await Store.AddUsageAsync(Consumption(runs: 1, agentName: "support"), Periods);
+        await Store.AddUsageAsync(Consumption(runs: 1, agentName: "billing"), Periods);
+
+        var usage = await Store.GetUsageAsync(new QuotaUsageQuery
+        {
+            TenantId = Tenant,
+            AgentName = "support",
+            Period = QuotaPeriod.Daily,
+            PeriodStarts = Periods,
+        });
+
+        usage.Count.ShouldBe(1);
+        Find(usage, "support", QuotaPeriod.Daily, Today).Runs.ShouldBe(1);
     }
 
     [Fact]

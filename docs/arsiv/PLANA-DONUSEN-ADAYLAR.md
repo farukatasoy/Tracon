@@ -2,8 +2,10 @@
 
 > **Kapanmış kayıt.** Baştan sona okunmaz — yalnız `grep`'lenir.
 >
-> Bir aday kalem faza dönüştüğünde [`../ADAYLAR.md`](../ADAYLAR.md) içinde tek
-> satırlık bir yönlendirici kalır; kalemin **tam gövdesi** buraya taşınır.
+> Bir aday kalem faza dönüştüğünde [`../ADAYLAR.md`](../ADAYLAR.md)'den
+> silinir; kalemin **tam gövdesi** buraya taşınır. 2026-09-24'ten itibaren
+> aday dosyasında yönlendirici satır da kalmaz — iz faz dokümanının
+> `> **Kaynak:** … F-NN` satırıdır.
 > Gerekçe: aday dosyası 80 KB bütçesindedir ve her oturumda okunur; plana
 > dönüşmüş bir kalemin gerekçesi artık **fazın kendi dokümanındadır**.
 >
@@ -14,7 +16,7 @@
 | Nerede ne yaşar | |
 |---|---|
 | Kalemin uygulanabilir planı | `docs/NN-*.md` |
-| Kalemin tek satırlık izi | [`../ADAYLAR.md`](../ADAYLAR.md) |
+| Kalemin izi | Faz dokümanının `> **Kaynak:**` satırı — `grep -rn "F-NNN" docs/` |
 | Kalemin aday gövdesi (bu dosya) | taşındığı tarihle |
 | Turun tam kaydı | [`../kesif/`](../kesif/) |
 
@@ -1881,3 +1883,21 @@ tüketici smoke'u.
 7 `Expect(`; koşum `-maxcpucount:1` + `maxParallelThreads: 4` ile serileştirilmiş
 (tam koşum ~557 sn). Koşul-bekleme yardımcıları + ekran başına E2E dosyası +
 web-first `Expect`; paralellik gevşetme yalnız ölçümle ve en sonda.
+
+---
+
+## 2026-09-23 — Kod tabanı triaj turu (F-265 · F-269…F-273)
+
+F-265 Faz 182 denetiminin 🟢-1 bulgusudur; F-269…F-273 triaj turunun bulgu
+gruplarıdır (her biri bağımsız bir şüpheciyle doğrulandı). Altısı aynı gün
+plana dönüştü; gövdeleri faz dokümanlarındadır. Eşleme aday dosyasından
+taşındı (2026-09-24).
+
+| Kalem | Faz |
+|---|---|
+| F-265 | [Faz 185](../185-KARDES-PAKET-SURUM-SABITLEME.md) |
+| F-269 | [Faz 186](../186-SCRIPT-IZNI-ICERIK-PINI.md) |
+| F-270 | [Faz 187](../187-KIRICI-DEGISIKLIK-KAPISI.md) |
+| F-271 | [Faz 188](../188-DI-KURUCU-DARALTMA.md) + [Faz 189](../189-TUKETICI-YUZEYI-VE-BUILDER.md) |
+| F-272 | [Faz 190](../190-KIMLIK-BASLIKLARI-ANAHTAR-REFERANSI.md) |
+| F-273 | [Faz 191](../191-TEK-DERLEME-ZINCIRI.md) |

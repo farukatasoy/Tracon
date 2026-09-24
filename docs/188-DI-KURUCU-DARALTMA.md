@@ -25,7 +25,7 @@
    ```
    **K-850** (kanıtsız public tip `internal` olur; birinci taraf gövde kullanımı
    IVT ile çözülür; gerekçe `scripts/public-yuzey-gerekceleri.tsv`'ye yazılır) ·
-   **K-614** (`KARARLAR.md:661`; `IToolRegistry` public kalır; yeniden açılma koşulu "iki ctor'un
+   **K-614** (`grep -n "K-614" docs/KARARLAR.md`; `IToolRegistry` public kalır; yeniden açılma koşulu "iki ctor'un
    public'liği kalkarsa". Bu iki kurucu `AgentDefinitionCompiler`
    (`Core/PublicAPI.Unshipped.txt:4`) ve `TraconDiagnosticsCollector`'dır
    (`:417`); bu faz koşulu gerçekleştirir) · **K-603** (`Shipped` GA'ya kadar boş)

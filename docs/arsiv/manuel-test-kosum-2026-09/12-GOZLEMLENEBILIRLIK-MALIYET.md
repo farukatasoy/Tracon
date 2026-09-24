@@ -173,7 +173,7 @@ oturumun en başında, kayıt dosyası açılmadan önce) zaten bozulmuştu — 
 kendi ön koşulu (hiç çalıştırma yokken) yeniden üretmek için ayrı bir
 reset + Playwright oturumu gerekir.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☑ Geçti — nihai sonuç; bu blok case'in önceki denemesidir
 
 ## MT-OBS-002 — Fiyat tanımsızken "Bugünkü Maliyet" karosu `—`
 
@@ -183,7 +183,7 @@ değilken `GET /api/stats` → `runsWithUnknownPricing: 3` (3 bağlantı-testi
 çalıştırması), `totalCost: null`. Adım 1 (Dashboard karosunun görsel okunuşu)
 Playwright kilidi nedeniyle ertelendi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☑ Geçti — nihai sonuç; bu blok case'in önceki denemesidir
 
 ## MT-OBS-003 — Fiyat tanımlandıktan sonra gerçek maliyet
 
@@ -194,7 +194,7 @@ başlatıldı; `support` ile yeni bir run: `GET /api/runs/{id}` →
 düzeyinde beklenen sonuç doğrulandı; Dashboard karosunun görsel okunuşu
 Playwright kilidi nedeniyle ertelendi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☑ Geçti — nihai sonuç; bu blok case'in önceki denemesidir
 
 ## MT-OBS-004 — 🚨 "Bugünkü Maliyet" para birimi göstermez; Model Kırılımı gösterir
 
@@ -209,7 +209,7 @@ dosyanın kendi iddiasını birebir doğruluyor. API tarafı: `/api/stats` yanı
 çapraz kontrolüyle **dolaylı** doğrulandı, ekranın gerçekten `USD` eksiz/ekli
 render ettiği görsel olarak teyit edilmedi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☑ Geçti — nihai sonuç; bu blok case'in önceki denemesidir
 
 ## MT-OBS-005 — `delta()` sıfıra bölme kaçınması
 
@@ -218,56 +218,56 @@ Playwright kilidi nedeniyle Dashboard'ın delta rozeti görsel olarak
 okunamadı; case zaten "reset sonrası hiç run yokken" ön koşulu ister ve bu
 pencere de bozulmuştu (bkz. MT-OBS-001).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☑ Geçti — nihai sonuç; bu blok case'in önceki denemesidir
 
 ## MT-OBS-006 — Aralık düğmeleri farklı kova boyutuyla istek atar
 
 **Gerçek sonuç**
 Playwright kilidi nedeniyle ertelendi (DevTools ağ sekmesi/tıklama gerekir).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☑ Geçti — nihai sonuç; bu blok case'in önceki denemesidir
 
 ## MT-OBS-007 — Zaman serisi ve durum dağılım çubuğu
 
 **Gerçek sonuç**
 Playwright kilidi nedeniyle ertelendi (SVG inceleme gerekir).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☑ Geçti — nihai sonuç; bu blok case'in önceki denemesidir
 
 ## MT-OBS-008 — Model kırılımı azalan sırada, fiyatsızken `—`
 
 **Gerçek sonuç**
 Playwright kilidi nedeniyle ertelendi (panel görsel okunuşu gerekir).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☑ Geçti — nihai sonuç; bu blok case'in önceki denemesidir
 
 ## MT-OBS-009 — En aktif agent'lar listesinde başarısız run kırmızı metni
 
 **Gerçek sonuç**
 Playwright kilidi nedeniyle ertelendi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☑ Geçti — nihai sonuç; bu blok case'in önceki denemesidir
 
 ## MT-OBS-010 — Hata sınıfı kırılımı gösterimi
 
 **Gerçek sonuç**
 Playwright kilidi nedeniyle ertelendi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☑ Geçti — nihai sonuç; bu blok case'in önceki denemesidir
 
 ## MT-OBS-011 — "Her şey yolunda" metni
 
 **Gerçek sonuç**
 Playwright kilidi nedeniyle ertelendi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☑ Geçti — nihai sonuç; bu blok case'in önceki denemesidir
 
 ## MT-OBS-012 — Fiyatsız run sarı uyarı rozeti
 
 **Gerçek sonuç**
 Playwright kilidi nedeniyle ertelendi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☑ Geçti — nihai sonuç; bu blok case'in önceki denemesidir
 
 ## MT-OBS-013 — Bekleyen girdi mavi uyarı rozeti
 
@@ -276,7 +276,7 @@ Playwright kilidi nedeniyle ertelendi; ayrıca ön koşulu (`11-ARAYUZ-RUN-
 SESSION-SSE.md` `MT-UIRUN-012`'nin `AwaitingInput` run'ı) bu şeritte henüz
 üretilmedi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☑ Geçti — nihai sonuç; bu blok case'in önceki denemesidir
 
 ## MT-OBS-014 — Puanlanmamış run "henüz yok" metni, 30s otomatik yenileme
 
@@ -284,7 +284,7 @@ SESSION-SSE.md` `MT-UIRUN-012`'nin `AwaitingInput` run'ı) bu şeritte henüz
 Playwright kilidi nedeniyle ertelendi (ağ sekmesinde 35s bekleme + istek
 sayımı gerekir).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☑ Geçti — nihai sonuç; bu blok case'in önceki denemesidir
 
 ## MT-OBS-015 — `SuccessSampleRatio=0`: başarılıda trace YOK, başarısızda VAR
 
@@ -301,7 +301,7 @@ varsayılan `true` örnekleme oranını geçersiz kılıyor). API düzeyinde her
 alt sonuç da doğrulandı. Panelin görsel "boş durum" metni (Playwright)
 ertelendi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☑ Geçti — nihai sonuç; bu blok case'in önceki denemesidir
 
 ## MT-OBS-016 — `SuccessSampleRatio=1`: başarılıda trace KESİN VAR
 
@@ -311,7 +311,7 @@ ile `Merhaba` → `GET .../trace` → `200`, span listesi dolu (`tracon.run` kö
 span'i dahil). Waterfall'ın görsel render'ı (başlıkta span sayısı/traceId/
 süre) Playwright kilidi nedeniyle ertelendi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☑ Geçti — nihai sonuç; bu blok case'in önceki denemesidir
 
 ## MT-OBS-017 — Waterfall girinti/kök span
 
@@ -320,14 +320,14 @@ Playwright kilidi nedeniyle ertelendi (girinti/tıklama gerekir); alt yapı
 (`router`→`support` alt-run zinciri, `FIX-PROMPT-01`) bu şeritte henüz
 üretilmedi.
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☑ Geçti — nihai sonuç; bu blok case'in önceki denemesidir
 
 ## MT-OBS-018 — Sıfıra yakın süreli span en az %0,6 genişlik
 
 **Gerçek sonuç**
 Playwright kilidi nedeniyle ertelendi (DevTools `style.width` ölçümü gerekir).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☑ Geçti — nihai sonuç; bu blok case'in önceki denemesidir
 
 ## MT-OBS-019 — 🚨 Hassas öznitelikler varsayılanda ayıklanır
 
@@ -351,7 +351,7 @@ kolunu üretmek için `FIX-PROMPT-01` ile `router` agent'ı koşulmalı — sır
 oturuma bırakıldı (bu oturumun bütçesi dolmadan önce zaman kalırsa
 tamamlanacak).
 
-**Durum:** ☐ Beklemede · ☐ Geçti · ☐ Kaldı · ☐ Atlandı
+**Durum:** ☑ Geçti — nihai sonuç; bu blok case'in önceki denemesidir
 
 ## MT-OBS-023 — Rezerve anahtar `Pricing:Voice:...` sohbet fiyatı olarak okunmaz
 

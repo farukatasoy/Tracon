@@ -240,6 +240,10 @@ public static partial class TraconServiceCollectionExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IValidateOptions<RunReconciliationOptions>, RunReconciliationOptionsValidator>());
         services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IValidateOptions<TraconApprovalOptions>, TraconApprovalOptionsValidator>());
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IValidateOptions<CanaryOptions>, CanaryOptionsValidator>());
+        services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IValidateOptions<TraconContentProtectionOptions>, TraconContentProtectionOptionsValidator>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IValidateOptions<TraconRunContinuationOptions>, TraconRunContinuationOptionsValidator>());
