@@ -297,6 +297,15 @@ Performans kapısı tetiklenmedi (üç sıcak yol değişmedi). İlk kapanış d
 adımında durdu (Sapma 16: locator tabanı, `<example>` derlemesi, `ConfirmationTests`
 yarışı); o sırada denetçi de koşuyordu — denetçiye `dotnet`/`npm` koşturulmadı.
 
+**Yayın provası** (`kapi.py yayin --kuru`, temiz ağaç `dcb7207f`, 2026-09-24) — sevk
+edilen `SkillScriptGrantContract`'a case eklendiği için zorunlu → **EXIT 0**: 20 paket
+`1.0.0-preview.2.51` · `npm publish --dry-run` ✅ · `provider/source/generated-tool AOT
+host smoke passed` · `net8.0 consumer smoke passed on .NET 8.0.31` · `6 exact-version
+packed sample`. İlk deneme örnek sözleşmesinde durdu (`release feed contains stale
+Tracon packages`: `preview.1`, `.2.46`, `.2.48` damgaları); belgelenmiş tarifle
+`rm -rf artifacts/package/release` sonrası yeniden koşuldu. Grant sözleşmesini koşan
+bir örnek store yoktur (`grep` boş); yeni case'ler örnekleri etkilemez.
+
 ## Denetim Bulguları
 
 > Kapanışta doldurulur — `faz-denetim` çıktısı. Her satır: bulgu · seviye
