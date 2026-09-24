@@ -1,8 +1,7 @@
 namespace Tracon;
 
 /// <summary>
-/// The text and help address of every
-/// <see cref="ObsoleteAttribute"/> the packages carry.
+/// The text of every <see cref="ObsoleteAttribute"/> the packages carry.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -15,16 +14,15 @@ namespace Tracon;
 /// <c>TreatWarningsAsErrors</c>.
 /// </para>
 /// <para>
-/// The help address points at the upgrade section of the production guide.
-/// Its anchor is the section heading; <c>ObsoleteMessagesTests</c> fails when
-/// the heading changes and the address does not.
+/// No obsoletion carries a <c>UrlFormat</c> either. The published site address
+/// is declared once for C# (<c>DocumentationLinks</c> in the analyzer package),
+/// which this package cannot reference, and a second hand-written copy is what
+/// the site's content check forbids. The message itself names the replacement
+/// and the release that removes the member.
 /// </para>
 /// </remarks>
 internal static class ObsoleteMessages
 {
-    /// <summary>The help address of every obsoletion.</summary>
-    public const string UrlFormat = "https://tracon.dev/guides/production/#upgrading-credential-headers";
-
     /// <summary>The message of the <c>AuthorizationConfigurationKey</c> obsoletion.</summary>
     public const string AuthorizationConfigurationKey =
         "Use HeaderConfigurationKeys[\"Authorization\"] instead. AuthorizationConfigurationKey is removed in 1.0.0.";
