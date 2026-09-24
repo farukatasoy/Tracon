@@ -197,37 +197,6 @@ SEM=Microsoft.NET.ApiCompat.ValidatePackage.semaphore
 
 Sonra: `git -C "$REPO" worktree remove "$SCRATCH/wt"` ve `rm -rf "$SCRATCH"`.
 
-### 187.0 ölçüm sonuçları (2026-09-24, HEAD `fa34f7ed`, SDK 10.0.100, macOS)
-
-1. **Taban:** `v1.0.0-preview.2` (güvenlik sürümü kesilmedi).
-2. **Strict mode:** `dotnet pack Tracon.src.slnf` + iki strict özelliği → `EXIT=0`, 64 sn, sıfır
-   hata/uyarı. 17 lib: semaphore bu koşumdan · `Tracon` (meta): semaphore yeni, `lib/` yok → boş
-   karşılaştırma · `Tracon.Templates`: aynı · `Tracon.Cli`: semaphore **yok** — SDK
-   `Microsoft.NET.PackTool.targets:47` `PackAsTool` için `EnablePackageValidation=false` yazar
-   (`-getProperty` doğruladı). `-getProperty:IntermediateOutputPath` 20 projede de
-   `artifacts/obj/<P>/release/` verir; diskte 19 semaphore `Release/` altında (APFS'te eski klasör
-   adı kalır), Templates `release/`. Taze worktree'de hepsi `release/` (MT-PKG-136). Lib kırmızı
-   yok → Açık Soru 4 uygulanmadı.
-3. **Taban listesi:** çıkış 1; 279 `CP0001` + **9** `CP0002` (3 üye × 3 TFM). 93 ayrık tip:
-   Abstractions 11 · Anthropic 2 · Azure 2 · Core 69 · Google 2 · OpenAI 3 · PostgreSql 1 ·
-   SqlServer 1 · Sqlite 1 · Voice 1. Üyeler: `TenantProviderCredentialResolver` ctor +
-   `ValidatePrefix` ve Faz 186'nın `SandboxedSkillScriptRunner.RunStoredScriptAsync`'i.
-4. **`PKV006` biçimi:** `DiagnosticId=PKV006`, `Target=net8.0` (TFM), **`Left`/`Right`/
-   `IsBaselineSuppression` yok**. Dosya `scripts/testdata/breaking-changes/voice-net10-only.xml`.
-   Planın komutu (`-p:TargetFrameworks=net10.0`) çalışmadı: global özellik
-   `ProjectReference`'a akar ve `Tracon.Generators` (`netstandard2.0`) `NETSDK1005` verir;
-   TFM worktree'de csproj'a yazıldı.
-5. **Zorlama:** yeni `ApiCompatSuppressionOutputFile` yolu hedefi yeniden koşturur (ikinci
-   koşumda semaphore 10:05:59 → 10:06:03). Kontrol: yol verilmeden üçüncü pack semaphore'a
-   **dokunmadı** — kapatılan sessiz yeşil budur.
-6. **Farksız paket:** SDK rapor dosyasını **hiç yazmaz**. Kanıt semaphore'da kalır (187.5
-   varsayılanı); Faz 191 sözleşmesinin (3) birinci seçeneği geçerlidir.
-7. **Core fikstürü:** çıkış 0; 216 kayıt (207 `CP0001`, 9 `CP0002`), hepsi
-   `IsBaselineSuppression=true`, 59.992 B, UTF-8 BOM, mutlak yol yok; `src/**/CompatibilitySuppressions.xml`
-   yok. İndirgenmiş: 71 tip (69 + 2 üye tipi) → `core-preview2.xml`.
-
-🚨 Ölçüm sırasında: `$TMPDIR` altındaki worktree'de (`/var` → `/private/var`) `.editorconfig`
-uygulanmadı ve MA0048 hata oldu; worktree `pwd -P` yoluna taşınınca geçti.
 
 ---
 
@@ -738,7 +707,7 @@ kiracı (32) · alt sistem hatası (3, 5, 12). Sözleşme testi gerekmez.
 
 ## Bitiş Ölçütleri (DoD)
 
-- [x] 187.0'ın yedi ölçümü yazıldı: taban · 20 projenin her biri ve `IntermediateOutputPath`'i (17 lib: strict `EXIT=0`, semaphore bu koşumdan; `Tracon`, `Tracon.Templates`: doğrulandı veya boş karşılaştırma; `Tracon.Cli`: doğrulanmadı + sebep) · paket paket taban listesi · `PKV006` biçimi · zorlama · farksız pakette rapor · Core raporunun kayıt sayısı — ✅ "187.0 ölçüm sonuçları" bölümü
+- [x] 187.0'ın yedi ölçümü yazıldı: taban · 20 projenin her biri ve `IntermediateOutputPath`'i (17 lib: strict `EXIT=0`, semaphore bu koşumdan; `Tracon`, `Tracon.Templates`: doğrulandı veya boş karşılaştırma; `Tracon.Cli`: doğrulanmadı + sebep) · paket paket taban listesi · `PKV006` biçimi · zorlama · farksız pakette rapor · Core raporunun kayıt sayısı — ✅ "Ölçüm Sonuçları (187.0)" bölümü
 - [x] `scripts/testdata/breaking-changes/core-preview2.xml` 187.0 adım 7'nin tam raporudur; `test_gercek_rapor_fikstur` onu okur — ✅ 216 kayıt; `test_gercek_rapor_fikstur` 71 tip bekler
 - [x] `grep -rn "EnablePackageValidationGate" --exclude-dir=arsiv --exclude-dir=.git --exclude-dir=.claude --exclude-dir=artifacts .` → yalnız bu faz dokümanı — ✅ yalnız bu doküman
 - [x] `grep -n "not shipped yet" src/Directory.Build.props` → boş — ✅ boş
@@ -793,6 +762,38 @@ curl -s -N -X POST http://127.0.0.1:5199/tracon/api/agents/support/run \
      AŞAĞISI KAPANIŞTA DOLDURULUR — `faz-tamamlama` skill'i.
      Plan anında boş kalır. Başlıkları SİLME.
      ============================================================ -->
+
+## Ölçüm Sonuçları (187.0) (2026-09-24, HEAD `fa34f7ed`, SDK 10.0.100, macOS)
+
+1. **Taban:** `v1.0.0-preview.2` (güvenlik sürümü kesilmedi).
+2. **Strict mode:** `dotnet pack Tracon.src.slnf` + iki strict özelliği → `EXIT=0`, 64 sn, sıfır
+   hata/uyarı. 17 lib: semaphore bu koşumdan · `Tracon` (meta): semaphore yeni, `lib/` yok → boş
+   karşılaştırma · `Tracon.Templates`: aynı · `Tracon.Cli`: semaphore **yok** — SDK
+   `Microsoft.NET.PackTool.targets:47` `PackAsTool` için `EnablePackageValidation=false` yazar
+   (`-getProperty` doğruladı). `-getProperty:IntermediateOutputPath` 20 projede de
+   `artifacts/obj/<P>/release/` verir; diskte 19 semaphore `Release/` altında (APFS'te eski klasör
+   adı kalır), Templates `release/`. Taze worktree'de hepsi `release/` (MT-PKG-136). Lib kırmızı
+   yok → Açık Soru 4 uygulanmadı.
+3. **Taban listesi:** çıkış 1; 279 `CP0001` + **9** `CP0002` (3 üye × 3 TFM). 93 ayrık tip:
+   Abstractions 11 · Anthropic 2 · Azure 2 · Core 69 · Google 2 · OpenAI 3 · PostgreSql 1 ·
+   SqlServer 1 · Sqlite 1 · Voice 1. Üyeler: `TenantProviderCredentialResolver` ctor +
+   `ValidatePrefix` ve Faz 186'nın `SandboxedSkillScriptRunner.RunStoredScriptAsync`'i.
+4. **`PKV006` biçimi:** `DiagnosticId=PKV006`, `Target=net8.0` (TFM), **`Left`/`Right`/
+   `IsBaselineSuppression` yok**. Dosya `scripts/testdata/breaking-changes/voice-net10-only.xml`.
+   Planın komutu (`-p:TargetFrameworks=net10.0`) çalışmadı: global özellik
+   `ProjectReference`'a akar ve `Tracon.Generators` (`netstandard2.0`) `NETSDK1005` verir;
+   TFM worktree'de csproj'a yazıldı.
+5. **Zorlama:** yeni `ApiCompatSuppressionOutputFile` yolu hedefi yeniden koşturur (ikinci
+   koşumda semaphore 10:05:59 → 10:06:03). Kontrol: yol verilmeden üçüncü pack semaphore'a
+   **dokunmadı** — kapatılan sessiz yeşil budur.
+6. **Farksız paket:** SDK rapor dosyasını **hiç yazmaz**. Kanıt semaphore'da kalır (187.5
+   varsayılanı); Faz 191 sözleşmesinin (3) birinci seçeneği geçerlidir.
+7. **Core fikstürü:** çıkış 0; 216 kayıt (207 `CP0001`, 9 `CP0002`), hepsi
+   `IsBaselineSuppression=true`, 59.992 B, UTF-8 BOM, mutlak yol yok; `src/**/CompatibilitySuppressions.xml`
+   yok. İndirgenmiş: 71 tip (69 + 2 üye tipi) → `core-preview2.xml`.
+
+🚨 Ölçüm sırasında: `$TMPDIR` altındaki worktree'de (`/var` → `/private/var`) `.editorconfig`
+uygulanmadı ve MA0048 hata oldu; worktree `pwd -P` yoluna taşınınca geçti.
 
 ## Plandan Sapmalar
 
