@@ -18,9 +18,10 @@
   </PropertyGroup>
 
   <!--
-    Taban dogrulamasi - yalniz yayin provasi (Faz 187). `scripts/kapi.py yayin`
-    son yayinlanmis surumun paketlerini IZOLE bir cache'e restore eder ve uc
-    ozellik gecirir: TraconPackageBaselineRoot, TraconPackageBaselineVersion,
+    Taban dogrulamasi - yalniz yayin paketi (Faz 187). `scripts/kapi.py yayin`
+    ve CI build isindeki `scripts/kapi.py paketle` (Faz 191) ayni pack
+    kurucusuyla son yayinlanmis surumun paketlerini IZOLE bir cache'e restore
+    eder ve uc ozellik gecirir: TraconPackageBaselineRoot, TraconPackageBaselineVersion,
     TraconApiCompatReportDir. Kok bossa hicbir sey turetilmez; gunluk pack
     agdan taban okumaz.
 
@@ -107,8 +108,9 @@
     gate could never pass on an uncommitted tree, and this repo's own workflow
     is "commit only when asked", not "commit before every local test run").
     A real release candidate NEVER sets this property: `scripts/kapi.py yayin`
-    (the release rehearsal) and the CI `pack` job that a `v*` tag actually
-    publishes from both leave it unset, so THEY stay fully gated.
+    (the release rehearsal) and `scripts/kapi.py paketle` - the build job's
+    pack whose files a `v*` tag actually publishes (Faz 191) - both leave it
+    unset, so THEY stay fully gated.
   -->
   <Target Name="TraconValidateCleanWorkingTree" BeforeTargets="GenerateNuspec"
           Condition=" '$(IsPackable)' == 'true' AND '$(TraconSkipCleanWorkingTreeCheck)' != 'true' ">

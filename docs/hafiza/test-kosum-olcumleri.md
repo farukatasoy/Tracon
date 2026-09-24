@@ -269,8 +269,14 @@ Sınır = en uzun × ~2, 5 dk'ya yukarı; 1 dk altındaki işte taban 10 dk.
 | Test adımı ubuntu (Faz 183 öncesi) | 24,6 | 60 |
 | Test adımı windows | 30,9 | 65 |
 | Kapasite smoke | 4,2 | 10 |
-| `pack` · `release-dryrun` · `site` | 7,4 · 5,7 · 7,9 | 15 · 15 · 20 |
+| `release-dryrun` · `site` | 5,7 · 7,9 | 15 · 20 |
 | `publish` · `npm-publish` · `github-release` | 0,5 · 0,3 · 0,1 | 10 |
+
+**Faz 191 (2026-09-24):** `pack` işi (7,4 dk, sınır 15) düştü. Build ubuntu'ya
+`paketle` + `paket-dogrula` + yükleme girdi; `release-dryrun` artık paketlemez;
+`publish`'e checkout + doğrulama girdi. Yerel ölçüm (macOS, taze klon):
+`paketle` 15 sn (taban restore'u dahil), `paket-dogrula` <1 sn. Üç sınır
+(100 · 15 · 10) bu yüzden değişmedi; ilk yeni CI koşumunda yeniden ölç (MT-PKG-159).
 
 🚨 `ci.yml` iş iş büyüdü ve hiçbir kapı sınır istemedi: 233 koşum boyunca her iş
 GitHub'ın 360 dk varsayılanını taşıdı. Kapı artık `zaman_siniri_olmayan_isler`

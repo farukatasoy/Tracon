@@ -456,7 +456,7 @@ açıldı ve kapandı; BL-055 açık bir 🟡'dir. BL-057 (2026-09-23) preview'u
 | OP-007 | Release notes | **Tamamlandı (2026-08-28, Faz 123)** | Ölçüldü 2026-08-27: hiçbir artifact yoktu — `CHANGELOG.md` yok, `PackageReleaseNotes` hiçbir `Directory.Build.props`'ta tanımlı değil, `docs-site`'ta changelog sayfası yok. 20 paket sayfası boş release-notes alanıyla çıkıyordu | Kök `CHANGELOG.md` eklendi (Keep a Changelog); `src/Directory.Build.props` her pakete sürüme çapalı `PackageReleaseNotes` URL'i veriyor (`BeforeTargets="GenerateNuspec"` bir hedef içinde atanır — ölçüldü: düz bir `PropertyGroup`'ta `$(Version)` MinVer'in kendi hedefinden ÖNCE boş okunuyordu); `kapi.py yayin` zorlanan sürüm için CHANGELOG'da `[<sürüm>]` bölümünü fail-closed arıyor; `docs-site/reference/versioning.md` köke bağlanıyor (ayna sayfa yok). Kanıt: 20/20 `.nuspec` çözümlenmiş URL taşıyor |
 | OP-008 | Deprecation/yank/hotfix | **Tamamlandı (2026-09-03)** | Repo politikası yoktu | **Yalnız ileri sürüm** — kullanıcı kararı. Yayınlanan sürüm unlist veya yank edilmez; düzeltme `preview.2` ile gelir. Yalnız güvenlik veya veri bütünlüğü kusurunda paket NuGet.org'da deprecate edilir ve düzeltilmiş sürüme yönlendirilir. NuGet.org'un kalıcı artifact mantığıyla tutarlıdır; `SECURITY.md` aynı sözü yazıyor |
 | OP-009 | Dependency/vulnerability takibi | **Tamamlandı (2026-09-03)** | **Ölçüldü:** `.github/dependabot.yml` **dört** ekosistemi kapsıyor (NuGet haftalık · `Tracon.UI/frontend` npm haftalık · `docs-site` npm haftalık · github-actions aylık) ve `Directory.Build.props:23` `TreatWarningsAsErrors=true` altında NuGet Audit'in `NU1903`'ü restore'u zaten kırıyor | **Ek kapı eklenmedi** — kullanıcı kararı. Mevcut iki mekanizma yeterli sayıldı; ayrı bir zamanlanmış `dotnet list package --vulnerable` işi eklenmedi |
-| OP-010 | npm/NuGet asimetrik kısmi yayın | **Tamamlandı (2026-08-28, KG-021/KN-021)** | Aynı `v*` tag'i `nuget-publish` ([`ci.yml:284`](../.github/workflows/ci.yml#L284)) ve `npm-publish` ([`ci.yml:319`](../.github/workflows/ci.yml#L319)) işlerini **paralel** tetikler (farklı `needs`). `tracon` npm scope'u bugün yok; `NPM_TOKEN` durumu repo dışında. Scope hazır değilse 20 NuGet paketi **kalıcı** yayınlanır, npm işi kırılır — ve sevk edilen doküman `npm install @tracon/client` diyor (`docs-site/src/content/docs/packages.md:70`, `guides/typescript-client.md:25`) | **Yol A + C.** **C uygulandı:** `publish` işi artık `needs: [pack, release-dryrun, npm-publish]` ([`ci.yml:293`](../.github/workflows/ci.yml#L293)) — geri dönüşü olmayan kanal (NuGet) EN SON basar; npm kırılırsa 20 paket hiç yayınlanmaz. Zincir kırılmaz: `npm-publish` var olan sürümü atlar, aynı etiket yeniden itilebilir. **A tamamlandı (KN-021):** npm scope ve `NPM_TOKEN` hazırlığını kullanıcı doğruladı; token yetkisi ilk publish işinde ölçülecek |
+| OP-010 | npm/NuGet asimetrik kısmi yayın | **Tamamlandı (2026-08-28, KG-021/KN-021)** | Aynı `v*` tag'i `publish` (o gün `nuget-publish`) ve `npm-publish` işlerini ([`ci.yml`](../.github/workflows/ci.yml)) **paralel** tetikliyordu (farklı `needs`). `tracon` npm scope'u bugün yok; `NPM_TOKEN` durumu repo dışında. Scope hazır değilse 20 NuGet paketi **kalıcı** yayınlanır, npm işi kırılır — ve sevk edilen doküman `npm install @tracon/client` diyor (`docs-site/src/content/docs/packages.md:70`, `guides/typescript-client.md:25`) | **Yol A + C.** **C uygulandı:** `publish` işi `needs: [release-dryrun, npm-publish]` taşır (Faz 191 `pack`'i düşürdü; [`ci.yml`](../.github/workflows/ci.yml)) — geri dönüşü olmayan kanal (NuGet) EN SON basar; npm kırılırsa 20 paket hiç yayınlanmaz. Zincir kırılmaz: `npm-publish` var olan sürümü atlar, aynı etiket yeniden itilebilir. **A tamamlandı (KN-021):** npm scope ve `NPM_TOKEN` hazırlığını kullanıcı doğruladı; token yetkisi ilk publish işinde ölçülecek |
 | OP-011 | GitHub Free/private repo CI koruması | **Tamamlandı (2026-09-03)** | KN-020: GitHub Free private repo'da environment secret, required reviewer ve deployment tag restriction yok. **Ölçüldü 2026-09-03:** CI'da kalıcı secret **tek**tir — `NPM_TOKEN` ([`ci.yml:405`](../.github/workflows/ci.yml#L405)); NuGet tarafı OIDC trusted publishing kullanır ve secret taşımaz (OP-004/005) | **A — GitHub Free'de kal** (kullanıcı kararı). Tek bakımcı riski kabul edilir; tag öncesi §10 checklist'i elle uygulanır. Not: repo public yapılırsa environment protection ve deployment tag restriction Free planda zaten gelir — bu, K-659'un yeniden açılma ölçütüyle aynı kapıdır |
 
 ## 9. Risk kaydı
@@ -503,7 +503,8 @@ operasyon kritik yolunu yeniden açmaz.
 - [x] Paket README, icon, license, repository ve project URL varlığı doğrulandı.
 - [x] Tüketiciye dönük paket URL'lerinin gerçekten **çözüldüğü** ölçüldü (BL-056/K-659) — `PackageProjectUrl` ve `PackageReleaseNotes` doküman sitesine bakar.
 - [x] `.snupkg` envanteri ölçüldü: 18 sembol paketi sevk edildi. **RK-013 kendiliğinden kapandı** — repo public yapıldı (`visibility: public`) ve `RepositoryUrl` `github.com/farukatasoy/Tracon`'a bakıyor, ∴ Source Link üçüncü taraf için **çözer**. Kabul edilen risk artık yok.
-- [ ] Deterministic/reproducible release ölçüldü.
+- [x] CI zinciri yeniden derlemez — itilen bayt = test edilen derleme (Faz 191, K-871): build işinin ubuntu bacağı `--no-build` ile paketler, `release-dryrun` o dosyaları paketlemeden doğrular, `publish` SHA-256 manifest'ini yeniden sınayıp aynı baytları iter. Bayt eşitliği her push'ta (PR dahil) sınanır.
+- [ ] Runner'lar arası / üçüncü taraf yeniden üretim (reproducible build) ölçüldü — GA.
 - [x] Package validation sonucu incelendi — **Faz 187 (2026-09-24):** her pack strict mode'la (TFM'ler arası aynı yüzey) doğrular; `kapi.py yayin` son `v*` etiketine karşı taban doğrulaması koşar ve kırılan her public tip ile düşen her TFM sürüm notunda adıyla geçmezse kırmızıdır (`publish` koşmaz, K-604). İlk koşum: taban `v1.0.0-preview.2`, 95 tip, 10 paket, hepsi `[Unreleased]`'da.
 
 ### Public contract ve güvenlik
@@ -608,8 +609,7 @@ operasyon kritik yolunu yeniden açmaz.
 > 🚨 **`preview.1` SEVK EDİLDİ (2026-09-20).** Kapanmış `preview.1`
 > aksiyon tablosu damıtıldı (tam metin: `git show 8634a1e3:docs/YAYIN-HAZIRLIK.md`);
 > A-10 · A-11 · A-12 dahil tüm tag öncesi kalemler kapandı. **Sıradaki iş `preview.2`/GA hattıdır** ve açık kalemler
-> şunlardır: A-8 (job süre sınırı) · A-15 (kapı kendi bastığı byte'ları
-> doğrulamıyor) · A-16 (`Tracon.Mcp` üç sevk edilen tipi testsiz) · A-17
+> şunlardır: A-8 (job süre sınırı) · A-16 (`Tracon.Mcp` üç sevk edilen tipi testsiz) · A-17
 > (`Tracon.Azure` çağrı yolu kanıtsız) · A-18 (dış sample kanıtı `IRunStore`
 > ile sınırlı) · A-28 (sesli delegasyon timeout ≠ barge-in) · UR-003 (public
 > API freeze taraması) · A-31 (**yeni**: kapanış kapısı artımlı durumdan
@@ -618,7 +618,14 @@ operasyon kritik yolunu yeniden açmaz.
 > contract'ı** (A-21 ölçümü).
 >
 > Yayın günü bulunan A-29 · A-32 · A-33 **kapandı** — üçü de §4'ün başındaki
-> YAYINLANDI bloğundadır.
+> YAYINLANDI bloğundadır. **A-15 kapandı (Faz 191, K-871):** CI tek derleme
+> zinciridir; `pack` işi yoktur, prova itilen dosyaları doğrular.
+>
+> **Faz 191'den sonraki ilk `v*` etiketinde (👤, `MT-PKG-160`):** nuget.org'daki
+> paketi (`v3-flatcontainer`) aynı koşumun `nuget-verified` artifact'iyle girdi
+> bazında karşılaştır (`.signature.p7s` hariç). Ham SHA-256 farkı beklenir (depo
+> imzası); girdi farkı beklenmez. Aynı gün "Re-run failed jobs"un artifact'ları
+> yeniden kullanıp kullanmadığı da ölçülür.
 
 ### GA turuna ertelenenler
 

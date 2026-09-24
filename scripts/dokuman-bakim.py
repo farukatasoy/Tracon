@@ -1399,6 +1399,61 @@ def _yaml_girinti(satir: str) -> int | None:
     return len(satir) - len(govde)
 
 
+class _WorkflowIsi:
+    """`jobs:` altindaki bir is blogu (yalniz stdlib ayristirici).
+
+    Duz sinif, `dataclass` degil: betik test ve denetim paketi tarafindan
+    `sys.modules`'a kaydedilmeden yuklenir ve `dataclass` ertelenmis tip
+    notlarini cozmek icin modulu orada arar."""
+
+    def __init__(self, ad: str, no: int, bas: int, son: int) -> None:
+        self.ad = ad
+        self.no = no                  # is anahtarinin 1 tabanli satir numarasi
+        self.bas = bas                # blogun ilk satiri (0 tabanli, anahtar satiri)
+        self.son = son                # blogun bittigi satir (0 tabanli, haric)
+        self.ozellik_girintisi: int | None = None
+        self.ozellikler: list[int] = []  # dogrudan ozellik satirlari
+
+
+def _workflow_isleri(satirlar: list[str]) -> list[_WorkflowIsi]:
+    """`jobs:` ust anahtarinin altindaki isler ve DOGRUDAN ozellik satirlari.
+
+    Iki kapi paylasir: `zaman_siniri_olmayan_isler` ve
+    `tek_derleme_zinciri_bulgulari` (Faz 191). Yorum ve bos satir sayilmaz."""
+    bas = next((i for i, s in enumerate(satirlar) if re.match(r"jobs:\s*(#.*)?$", s)), None)
+    if bas is None:
+        return []
+    isler: list[_WorkflowIsi] = []
+    is_girintisi: int | None = None
+    bitis = len(satirlar)
+    for i in range(bas + 1, len(satirlar)):
+        s = satirlar[i]
+        girinti = _yaml_girinti(s)
+        if girinti is None:
+            continue
+        if girinti == 0:
+            bitis = i
+            break  # `jobs:` bolumu bitti; sonraki ust anahtar
+        if is_girintisi is None:
+            is_girintisi = girinti
+        if girinti == is_girintisi:
+            if isler:
+                isler[-1].son = i
+            ad = re.match(r"\s*([^\s:#][^:#]*?)\s*:\s*(#.*)?$", s)
+            isler.append(_WorkflowIsi(ad.group(1) if ad else s.strip(), i + 1, i, len(satirlar)))
+            continue
+        if not isler or girinti < is_girintisi:
+            continue
+        is_ = isler[-1]
+        if is_.ozellik_girintisi is None:
+            is_.ozellik_girintisi = girinti
+        if girinti == is_.ozellik_girintisi:
+            is_.ozellikler.append(i)
+    if isler:
+        isler[-1].son = min(isler[-1].son, bitis)
+    return isler
+
+
 def zaman_siniri_olmayan_isler(kok: pathlib.Path = ROOT) -> list[str]:
     """Her workflow isi `timeout-minutes` tasir.
 
@@ -1420,43 +1475,266 @@ def zaman_siniri_olmayan_isler(kok: pathlib.Path = ROOT) -> list[str]:
     bulgular: list[str] = []
     for dosya in dosyalar:
         satirlar = dosya.read_text(encoding="utf-8").splitlines()
-        bas = next((i for i, s in enumerate(satirlar)
-                    if re.match(r"jobs:\s*(#.*)?$", s)), None)
-        if bas is None:
-            continue
-        # (is adi, satir no, ozellik girintisi | None, sinir var mi, uses var mi)
-        isler: list[list] = []
-        is_girintisi: int | None = None
-        for i in range(bas + 1, len(satirlar)):
-            s = satirlar[i]
-            girinti = _yaml_girinti(s)
-            if girinti is None:
-                continue
-            if girinti == 0:
-                break  # `jobs:` bolumu bitti; sonraki ust anahtar
-            if is_girintisi is None:
-                is_girintisi = girinti
-            if girinti == is_girintisi:
-                ad = re.match(r"\s*([^\s:#][^:#]*?)\s*:\s*(#.*)?$", s)
-                isler.append([ad.group(1) if ad else s.strip(), i + 1, None, False, False])
-                continue
-            if not isler or girinti < is_girintisi:
-                continue
-            is_ = isler[-1]
-            if is_[2] is None:
-                is_[2] = girinti
-            if girinti != is_[2]:
-                continue  # adim, `env:` alt anahtari veya blok metin
-            if re.match(r"\s*timeout-minutes\s*:", s):
-                is_[3] = True
-            elif re.match(r"\s*uses\s*:", s):
-                is_[4] = True
         rel = dosya.relative_to(kok).as_posix()
-        for ad, no, _ozellik, sinir, uses in isler:
+        for is_ in _workflow_isleri(satirlar):
+            sinir = any(re.match(r"\s*timeout-minutes\s*:", satirlar[i]) for i in is_.ozellikler)
+            uses = any(re.match(r"\s*uses\s*:", satirlar[i]) for i in is_.ozellikler)
             if not sinir and not uses:
                 bulgular.append(
-                    f"{rel}:{no}: `{ad}` işi `timeout-minutes` taşımıyor — "
+                    f"{rel}:{is_.no}: `{is_.ad}` işi `timeout-minutes` taşımıyor — "
                     f"GitHub varsayılanı 360 dk; ölçülen en uzun sürenin ~2 katını yaz")
+    return bulgular
+
+
+class _WorkflowAdimi:
+    def __init__(self, no: int, metin: str, alanlar: dict[str, str]) -> None:
+        self.no = no            # `- ` satirinin 1 tabanli numarasi
+        self.metin = metin      # yorumsuz satirlar, birlestirilmis
+        self.alanlar = alanlar  # `name`, `if`, `uses`, `with.name`, `with.path` ...
+
+
+def _is_ozelligi(satirlar: list[str], is_: _WorkflowIsi, anahtar: str) -> tuple[int, str] | None:
+    """Isin dogrudan ozelliginin (satir indeksi, satir ici degeri)."""
+    for i in is_.ozellikler:
+        eslesme = re.match(rf"\s*{re.escape(anahtar)}\s*:\s*(?P<deger>.*?)\s*(#.*)?$", satirlar[i])
+        if eslesme:
+            return i, eslesme.group("deger")
+    return None
+
+
+def _workflow_adimlari(satirlar: list[str], is_: _WorkflowIsi) -> list[_WorkflowAdimi]:
+    """Isin `steps:` listesindeki adimlar, sirasiyla. Yorum satiri sayilmaz."""
+    ozellik = _is_ozelligi(satirlar, is_, "steps")
+    if ozellik is None:
+        return []
+    baslangic = ozellik[0]
+    adimlar: list[_WorkflowAdimi] = []
+    oge_girintisi: int | None = None
+    govde: list[str] = []
+    no = 0
+
+    def kapat() -> None:
+        if not govde:
+            return
+        alanlar: dict[str, str] = {}
+        ust = ""
+        alan_girintisi = oge_girintisi + 2 if oge_girintisi is not None else 0
+        for sira_no, satir in enumerate(govde):
+            # Ilk satirin `- ` isareti alan girintisine cevrilir: `- name: X`.
+            yalin = satir.replace("- ", "  ", 1) if sira_no == 0 else satir
+            girinti = _yaml_girinti(yalin)
+            eslesme = re.match(r"\s*([A-Za-z-]+)\s*:\s*(?P<deger>.*?)\s*(#.*)?$", yalin)
+            if girinti is None or eslesme is None:
+                continue
+            if girinti == alan_girintisi:
+                ust = eslesme.group(1)
+                alanlar[ust] = eslesme.group("deger")
+            elif girinti == alan_girintisi + 2 and ust == "with":
+                alanlar[f"with.{eslesme.group(1)}"] = eslesme.group("deger")
+        adimlar.append(_WorkflowAdimi(no, "\n".join(govde), alanlar))
+
+    for i in range(baslangic + 1, is_.son):
+        s = satirlar[i]
+        girinti = _yaml_girinti(s)
+        if girinti is None:
+            continue
+        if is_.ozellik_girintisi is not None and girinti <= is_.ozellik_girintisi:
+            break  # `steps:` bitti; isin sonraki ozelligi
+        if s.lstrip().startswith("- ") and (oge_girintisi is None or girinti == oge_girintisi):
+            kapat()
+            oge_girintisi = girinti
+            govde = [s]
+            no = i + 1
+        elif govde:
+            govde.append(s)
+    kapat()
+    return adimlar
+
+
+def tek_derleme_zinciri_bulgulari(kok: pathlib.Path = ROOT) -> list[str]:
+    """Faz 191 (K-871): bir `v*` etiketinin ittigi baytlar test edilen derlemedir.
+
+    Etiket yolu CI'da simule edilemez; zincirin BICIMI her push'ta burada
+    denetlenir. Alti degismez (her biri ayri bulgu, yorum satiri sayilmaz):
+
+    1. `pack:` isi yoktur.
+    2. Hicbir satir `dotnet pack` tasimaz (tek pack kurucusu `kapi.py`'dedir).
+    3. `kapi.py paketle` tam bir kez, `build` isinde, ubuntu kosuluyla ve
+       `dotnet build Tracon.slnx` adiminin HEMEN ardinda gecer - testler ve
+       fiksturler src'yi yeniden damgalar.
+    4. `nuget-packages`'i tek adim yukler: `build` isinde, ubuntu kosuluyla,
+       `dotnet test Tracon.slnx`'ten sonra; hemen onunde
+       `kapi.py paket-dogrula artifacts/ci-paket` vardir.
+    5. `release-dryrun` `nuget-packages`'i indirir, `kapi.py yayin --kuru
+       --paket-dizini` kosar, `nuget-verified` yukler - bu sirayla.
+    6. `publish` `nuget-verified`'i `artifacts/` altina indirir; `dotnet nuget
+       push`'tan ve `NuGet/login`'den once `kapi.py paket-dogrula` kosar;
+       derlemez, paketlemez; `needs:` `release-dryrun`'i icerir; itilen dizin
+       indirilen ve dogrulanan dizindir.
+
+    Zincir adimlari YUMUSATILAMAZ (Faz 191 denetimi 🟡1): `release-dryrun` isi
+    ve zincirin adimlari `continue-on-error` ve `|| true` tasimaz; build'deki
+    uc adimin `if:`'i yalniz ubuntu kosuludur; `release-dryrun`'da ve
+    `publish`'teki dogrulamada `if:` yoktur. Yalniz etikette kosan bir
+    dogrulama A-29/A-33 sinifidir."""
+    ci = kok / ".github" / "workflows" / "ci.yml"
+    if not ci.exists():
+        return []
+    rel = ci.relative_to(kok).as_posix()
+    satirlar = ci.read_text(encoding="utf-8").splitlines()
+    isler = {is_.ad: is_ for is_ in _workflow_isleri(satirlar)}
+    adimlar = {ad: _workflow_adimlari(satirlar, is_) for ad, is_ in isler.items()}
+    bulgular: list[str] = []
+
+    def bulgu(no: int, metin: str) -> None:
+        bulgular.append(f"{rel}:{no}: {metin}")
+
+    def yorumsuz(adim: _WorkflowAdimi) -> str:
+        return adim.metin
+
+    def ubuntu(adim: _WorkflowAdimi) -> bool:
+        return "ubuntu" in adim.alanlar.get("if", "")
+
+    def artifact(adim: _WorkflowAdimi, yon: str, ad: str) -> bool:
+        return f"actions/{yon}-artifact@" in adim.alanlar.get("uses", "") and adim.alanlar.get("with.name") == ad
+
+    def sira(liste: list[_WorkflowAdimi], kosul) -> int | None:
+        return next((i for i, adim in enumerate(liste) if kosul(adim)), None)
+
+    UBUNTU_KOSULU = "matrix.os == 'ubuntu-latest'"
+
+    def yumusatilmis(adim: _WorkflowAdimi, *, izinli_kosul: str | None) -> None:
+        """Adim kosulla daraltilmis veya hatasi yutulmus mu (🟡1)."""
+        kosul = adim.alanlar.get("if")
+        if kosul is not None and kosul != izinli_kosul:
+            bulgu(adim.no, f"zincir adımı `if: {kosul}` taşıyor — doğrulama her push'ta koşmalı "
+                           + (f"(yalnız `{izinli_kosul}` izinli)" if izinli_kosul else "(koşul yok)"))
+        if "continue-on-error" in adim.alanlar:
+            bulgu(adim.no, "zincir adımı `continue-on-error` taşıyor — kırmızı doğrulama yutulur")
+        if re.search(r"\|\|\s*(true|:|exit 0)\b", adim.metin):
+            bulgu(adim.no, "zincir adımı çıkış kodunu yutuyor (`|| true`)")
+
+    # 1
+    if "pack" in isler:
+        bulgu(isler["pack"].no, "`pack:` işi var — CI ikinci bir yayın derlemesi üretir (tek derleme zinciri)")
+
+    # 2 ve 3 (dosya geneli, yorumsuz satirlar)
+    paketle_satirlari = []
+    for no, satir in enumerate(satirlar, 1):
+        if satir.lstrip().startswith("#"):
+            continue
+        if "dotnet pack" in satir:
+            bulgu(no, "`dotnet pack` — yayın paketinin tek kurucusu `kapi.py paketle`/`yayin`'dir")
+        if "kapi.py paketle" in satir:
+            paketle_satirlari.append(no)
+    build = adimlar.get("build", [])
+    if len(paketle_satirlari) != 1:
+        bulgu(paketle_satirlari[1] if len(paketle_satirlari) > 1 else isler["build"].no if "build" in isler else 1,
+              f"`kapi.py paketle` {len(paketle_satirlari)} kez geçiyor — tam bir kez, `build` işinde olmalı")
+    paketle = sira(build, lambda adim: "kapi.py paketle" in yorumsuz(adim))
+    if paketle is None:
+        if len(paketle_satirlari) == 1:
+            bulgu(paketle_satirlari[0], "`kapi.py paketle` `build` işinde değil")
+    else:
+        adim = build[paketle]
+        if not ubuntu(adim):
+            bulgu(adim.no, "`kapi.py paketle` adımı `ubuntu` koşulu taşımıyor — Windows bacağı paketlemez")
+        else:
+            yumusatilmis(adim, izinli_kosul=UBUNTU_KOSULU)
+        onceki = build[paketle - 1] if paketle > 0 else None
+        if onceki is None or "dotnet build Tracon.slnx" not in onceki.alanlar.get("run", "") + yorumsuz(onceki):
+            bulgu(adim.no, "`kapi.py paketle` `dotnet build Tracon.slnx` adımının HEMEN ardında değil — "
+                           "araya giren adım src'yi yeniden damgalayabilir")
+
+    # 4
+    yukleyiciler = [(ad, adim) for ad, liste in adimlar.items() for adim in liste
+                    if artifact(adim, "upload", "nuget-packages")]
+    if len(yukleyiciler) != 1:
+        bulgu(yukleyiciler[1][1].no if len(yukleyiciler) > 1 else 1,
+              f"`nuget-packages` {len(yukleyiciler)} adımda yükleniyor — tek yükleyici `build` işindedir")
+    for ad, adim in yukleyiciler[:1]:
+        if ad != "build":
+            bulgu(adim.no, "`nuget-packages` `build` işi dışında yükleniyor")
+            continue
+        konum = build.index(adim)
+        if not ubuntu(adim):
+            bulgu(adim.no, "`nuget-packages` yüklemesi `ubuntu` koşulu taşımıyor")
+        test = sira(build, lambda a: "dotnet test Tracon.slnx" in yorumsuz(a))
+        if test is None or test > konum:
+            bulgu(adim.no, "`nuget-packages` yüklemesi `dotnet test Tracon.slnx` adımından önce")
+        else:
+            yumusatilmis(adim, izinli_kosul=UBUNTU_KOSULU)
+        onceki = build[konum - 1] if konum > 0 else None
+        if onceki is None or "kapi.py paket-dogrula artifacts/ci-paket" not in yorumsuz(onceki):
+            bulgu(adim.no, "`nuget-packages` yüklemesinin hemen önünde `kapi.py paket-dogrula artifacts/ci-paket` yok")
+        else:
+            yumusatilmis(onceki, izinli_kosul=UBUNTU_KOSULU)
+
+    # 5
+    prova = adimlar.get("release-dryrun")
+    if prova is None:
+        bulgu(1, "`release-dryrun` işi yok")
+    else:
+        indir = sira(prova, lambda a: artifact(a, "download", "nuget-packages"))
+        kosum = sira(prova, lambda a: "kapi.py yayin --kuru --paket-dizini" in yorumsuz(a))
+        yukle = sira(prova, lambda a: artifact(a, "upload", "nuget-verified"))
+        no = isler["release-dryrun"].no
+        if indir is None:
+            bulgu(no, "`release-dryrun` `nuget-packages`'ı indirmiyor")
+        if kosum is None:
+            bulgu(no, "`release-dryrun` `kapi.py yayin --kuru --paket-dizini` koşmuyor")
+        if yukle is None:
+            bulgu(no, "`release-dryrun` `nuget-verified` yüklemiyor")
+        if None not in (indir, kosum, yukle) and not indir < kosum < yukle:
+            bulgu(no, "`release-dryrun` sırası indir → prova → yükle değil")
+        is_kosulu = _is_ozelligi(satirlar, isler["release-dryrun"], "if")
+        if is_kosulu is not None:
+            bulgu(is_kosulu[0] + 1, f"`release-dryrun` işi `if: {is_kosulu[1]}` taşıyor — prova her push'ta (PR dahil) koşar (K-604)")
+        if _is_ozelligi(satirlar, isler["release-dryrun"], "continue-on-error") is not None:
+            bulgu(no, "`release-dryrun` işi `continue-on-error` taşıyor")
+        for konum in (indir, kosum, yukle):
+            if konum is not None:
+                yumusatilmis(prova[konum], izinli_kosul=None)
+
+    # 6
+    yayin = adimlar.get("publish")
+    if yayin is None:
+        bulgu(1, "`publish` işi yok")
+    else:
+        no = isler["publish"].no
+        indir = sira(yayin, lambda a: artifact(a, "download", "nuget-verified"))
+        dogrula = sira(yayin, lambda a: "kapi.py paket-dogrula" in yorumsuz(a))
+        itme = sira(yayin, lambda a: "dotnet nuget push" in yorumsuz(a))
+        giris = sira(yayin, lambda a: "NuGet/login@" in a.alanlar.get("uses", ""))
+        if indir is None:
+            bulgu(no, "`publish` `nuget-verified`'ı indirmiyor")
+        elif not yayin[indir].alanlar.get("with.path", "").startswith("artifacts/"):
+            bulgu(yayin[indir].no, "`publish` indirmesi `artifacts/` altına değil — izlenen `packages/` ile çakışır")
+        indirilen = yayin[indir].alanlar.get("with.path", "").rstrip("/") if indir is not None else None
+        if dogrula is None:
+            bulgu(no, "`publish` itmeden önce `kapi.py paket-dogrula` koşmuyor")
+        else:
+            yumusatilmis(yayin[dogrula], izinli_kosul=None)
+            if indirilen and f"kapi.py paket-dogrula {indirilen}" not in yorumsuz(yayin[dogrula]):
+                bulgu(yayin[dogrula].no, f"`publish` doğrulaması indirilen dizini (`{indirilen}`) sınamıyor")
+            if indir is not None and dogrula < indir:
+                bulgu(yayin[dogrula].no, "`publish` doğrulaması indirmeden önce")
+            if itme is not None and dogrula > itme:
+                bulgu(yayin[dogrula].no, "`publish` doğrulaması `dotnet nuget push`'tan sonra")
+            if giris is not None and dogrula > giris:
+                bulgu(yayin[dogrula].no, "`publish` doğrulaması `NuGet/login`'den sonra — repo kodu API anahtarıyla koşar")
+        if itme is not None:
+            itilen = re.search(r"dotnet nuget push\s+\"?(?P<yol>[^\s\"]+)", yorumsuz(yayin[itme]))
+            if indirilen and (itilen is None or not itilen.group("yol").startswith(f"{indirilen}/")):
+                bulgu(yayin[itme].no, f"`dotnet nuget push` indirilen ve doğrulanan dizini (`{indirilen}`) itmiyor")
+            yumusatilmis(yayin[itme], izinli_kosul=None)
+        for adim in yayin:
+            for yasak in ("dotnet build", "dotnet pack", "kapi.py paketle"):
+                if yasak in yorumsuz(adim):
+                    bulgu(adim.no, f"`publish` `{yasak}` taşıyor — yalnız doğrulanan kümeyi iter")
+        needs = _is_ozelligi(satirlar, isler["publish"], "needs")
+        if needs is None or "release-dryrun" not in needs[1]:
+            bulgu(no, "`publish` `needs:` `release-dryrun`'ı içermiyor")
     return bulgular
 
 
@@ -3062,6 +3340,13 @@ def denetle() -> int:
     for s in sinir_bulgulari:
         print(f"  {s}")
     hata |= int(bool(sinir_bulgulari))
+
+    zincir_bulgulari = tek_derleme_zinciri_bulgulari()
+    print(f"\nCI tek derleme zinciri: "
+          f"{'❌ ' + str(len(zincir_bulgulari)) + ' bulgu' if zincir_bulgulari else '✅ temiz'}")
+    for s in zincir_bulgulari:
+        print(f"  {s}")
+    hata |= int(bool(zincir_bulgulari))
 
     kapi_bulgulari = tekrarlanan_kapi_tanimlari()
     print(f"\nTekrarlanan kapı tanımları: "

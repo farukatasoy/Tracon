@@ -2665,8 +2665,8 @@ node scripts/check-content.mjs
 |---|---|
 | **İzlek** | 👤 |
 | **Önem** | Yüksek |
-| **İlgili faz** | Faz 97 |
-| **İlgili karar** | — |
+| **İlgili faz** | Faz 97 · Faz 191 |
+| **İlgili karar** | K-604 · K-871 |
 
 `publish` ve `npm-publish` işlerinin `needs:` satırından `release-dryrun`
 çıkarılırsa, prova kırık olsa bile yayının koşacağını **gözle** doğrular —
@@ -2684,13 +2684,21 @@ edilemez, iş grafiği elle okunur.
 
 **Girilecek veri**
 ```bash
-grep -n -A2 "^  publish:\|^  npm-publish:\|^  release-dryrun:" .github/workflows/ci.yml
+# `grep -A2` needs:'i göstermez (iş anahtarından sonraki üçüncü satırdır) - Faz 191.
+awk '/^  [a-z-]+:$/{j=$1} j && /^    needs:/{print j, $0; j=""}' .github/workflows/ci.yml
 ```
 
+**Gerçek sonuç (2026-09-24, Faz 191)**
+- `publish: needs: [release-dryrun, npm-publish]` · `npm-publish: needs: [build, release-dryrun]` ·
+  `release-dryrun: needs: build`; `pack:` satırı yok.
+
 **Beklenen sonuç**
-- `publish` ve `npm-publish` işlerinin `needs:` satırı `release-dryrun`'ı içerir.
-- Satır elle çıkarıldığında iş grafiği `publish`'i `pack` bittiği an başlatır — prova
-  artık yolun üzerinde değildir; bu gözlem geri alma kararını doğrular.
+- `publish:` `release-dryrun` ve `npm-publish` içerir, `pack` içermez; `npm-publish:`
+  `release-dryrun` içerir; `pack:` işi yoktur (Faz 191 — `publish` yalnız `release-dryrun`'ın
+  yüklediği `nuget-verified`'ı iter).
+- Satır elle çıkarıldığında `publish` `nuget-verified` artifact'ini bulamaz ve iş grafiği
+  onu prova beklemeden başlatır — prova artık yolun üzerinde değildir; bu gözlem geri alma
+  kararını doğrular.
 
 ---
 
@@ -4310,3 +4318,208 @@ dotnet list package --deprecated
 **Beklenen sonuç**
 - (2) `UseOpenAI()` içinde `MissingMethodException` (`ITraconBuilder.AddModelProvider`); başlangıç sürüm kontrolü koşmaz (kayıt anı host'tan önce).
 - (3) Geçer.
+
+---
+
+### MT-PKG-153 — Tek derleme zinciri: `paketle` → `yayin --paket-dizini` yeşil, girdi değişmez (Faz 191)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 191 |
+| **İlgili karar** | K-871 · K-864 · K-661 |
+
+**Ön koşul**
+- Temiz, commit'li ağaç; ağ (nuget.org taban restore'u); `DOTNET_ROOT=~/.dotnet` (net8.0 runtime).
+- `rm -rf artifacts/package/release /tmp/ci-paket-191` (Açık Soru 5 = A: eski sürüm reddedilir).
+
+**Adımlar**
+1. `dotnet build Tracon.slnx -c Release`
+2. `python3 scripts/kapi.py paketle --cikti /tmp/ci-paket-191`
+3. Girdinin SHA-256 listesini al: `(cd /tmp/ci-paket-191 && find . -type f -exec shasum -a 256 {} \; | sort) > /tmp/once.txt`
+4. `python3 scripts/kapi.py yayin --kuru --paket-dizini /tmp/ci-paket-191`
+5. Adım 3'ü `/tmp/sonra.txt`'ye tekrarla, `diff`; `git status --porcelain`; `find src -name CompatibilitySuppressions.xml`
+
+**Gerçek sonuç (2026-09-24, taze klon, `1.0.0-preview.2.80`)**
+- (2) 15 sn: `Taban: v1.0.0-preview.2 (git describe)` · `Taban paketleri izole cache'ten: 17 paket` ·
+  `--no-build` pack · `20 paket, 17 api-compat kaydı (10 rapor)`. Dizin 49 dosya.
+- (4) 70 sn, çıkış 0; log'da `dotnet pack` YOK. `Kırıcı liste: 121 tip, 0 TFM düşüşü, 10 paket` ·
+  `Manifest girdiyle aynı` · `artifacts/package/release: 38 dosya` · npm dry-run · 6 sample, AOT ve net8.0 smoke.
+- (5) `diff` boş; `git status` ve `find` boş.
+
+**Beklenen sonuç**
+- İki komut çıkış 0; prova `dotnet pack` basmaz ve `artifacts/package/breaking-changes.json` yazar.
+- İki manifest paket, SHA-256, sürüm, commit ve taban olarak aynı; girdi dizini değişmez.
+
+---
+
+### MT-PKG-154 — `paket-dogrula` ve prova bozulmayı dosya adıyla yakalar (Faz 191)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 191 |
+| **İlgili karar** | K-871 |
+
+**Ön koşul**
+- MT-PKG-153 bitti; dizinin üç kopyası: `cp -R /tmp/ci-paket-191 /tmp/c2a` (b, c aynı).
+
+**Adımlar**
+1. (a) `printf x >> /tmp/c2a/Tracon.Core.<sürüm>.nupkg; python3 scripts/kapi.py paket-dogrula /tmp/c2a`
+2. (b) `/tmp/c2b`'ye fazla bir `.nupkg` kopyala, bir `.snupkg` sil; `paket-dogrula /tmp/c2b`
+3. (c) `/tmp/c2c`'de rapor taşıyan bir `apiCompat` kaydını ve dosyasını sil (manifest'ten de); `yayin --kuru --paket-dizini /tmp/c2c`
+
+**Gerçek sonuç (2026-09-24)**
+- (a) `SHA-256 farklı: Tracon.Core.1.0.0-preview.2.80.nupkg`, çıkış 1.
+- (b) `eksik: Tracon.Voice…snupkg` · `manifest dışı dosya: Tracon.Fazla…nupkg`, çıkış 1.
+- (c) `paket-dogrula` yeşil (47 dosya), sonra `rapor eksik: Tracon.Abstractions`, çıkış 1.
+
+**Beklenen sonuç**
+- Her bozulma çıkış 1, dosya veya paket adıyla. Boş `api-compat/` "kırıcı değişiklik yok" sayılmaz.
+
+---
+
+### MT-PKG-155 — `paketle` kirli ağaçta pack'e girmez, bypass seçeneği yoktur (Faz 191)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 191 |
+| **İlgili karar** | K-661 · K-871 |
+
+**Ön koşul**
+- Temiz ağaç; `touch notlar-191.txt` (untracked).
+
+**Adımlar**
+1. `python3 scripts/kapi.py paketle --cikti /tmp/x`
+2. `rm notlar-191.txt; python3 scripts/kapi.py paketle --help`
+
+**Gerçek sonuç (2026-09-24)**
+- (1) `?? notlar-191.txt` ile çıkış 1; `/tmp/x` oluşmadı. (2) Yalnız `--cikti`.
+
+**Beklenen sonuç**
+- Pack denenmeden çıkış 1, kirli girdi adıyla; yardımda `TraconSkipCleanWorkingTreeCheck`/`TraconAllowDirtyPack` karşılığı yok.
+
+---
+
+### MT-PKG-156 — Başka commit'in paketleri reddedilir (Faz 191)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 191 |
+| **İlgili karar** | K-871 |
+
+**Ön koşul**
+- MT-PKG-153'ün dizini; ardından yeni bir commit (HEAD ilerler).
+
+**Adımlar**
+1. `python3 scripts/kapi.py yayin --kuru --paket-dizini /tmp/ci-paket-191`
+
+**Gerçek sonuç (2026-09-24, klonda bir commit ilerletildi)**
+- `❌ Paketler başka bir commit'ten: manifest '3dc4f119…', HEAD '6cbf13b4…'`, çıkış 1; `artifacts/package/release` oluşmadı.
+
+**Beklenen sonuç**
+- Çıkış 1; release dizinine dosya kopyalanmaz. Manifest commit'i doğru olsa bile `.nuspec`
+  `repository commit`'i HEAD değilse prova kırmızıdır (birim testi `test_nuspec_commit_head_degilse_kirmizi`).
+
+---
+
+### MT-PKG-157 — Paketlenen DLL = test edilen DLL; fikstür src'yi yeniden damgalar (Faz 191)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 191 |
+| **İlgili karar** | K-871 |
+
+**Ön koşul**
+- MT-PKG-153'ün build'i ve dizini; o build'den sonra hiçbir test koşmadı.
+
+**Adımlar**
+1. Her TFM için: `unzip -p <Tracon.Core nupkg> lib/<tfm>/Tracon.Core.dll | shasum -a 256` ile
+   `shasum -a 256 artifacts/bin/Tracon.Core.UnitTests/release_<tfm>/Tracon.Core.dll`
+2. `shasum -a 256 artifacts/bin/Tracon.Core/release_net10.0/Tracon.Core.dll`;
+   `python3 scripts/kapi.py test --proje Tracon.Package.Tests --sinif "*ReleaseArtifact*"`; `shasum` tekrar
+
+**Gerçek sonuç (2026-09-24)**
+- (1) net8.0 `b90ae60d…` · net9.0 `4a2d1c04…` · net10.0 `b9ad7a20…` — üçünde nupkg = test = src.
+- (2) `dbda611e…` → `8abbc1b0…` (7 test yeşil): fikstür src çıktısını yeniden damgalar.
+
+**Beklenen sonuç**
+- (1) Üç TFM'de eşit. (2) SHA-256 değişir — bu yüzden `paketle` `Derle`'nin hemen ardındadır.
+
+---
+
+### MT-PKG-158 — `paketle` dolu dizini reddeder, silmez (Faz 191)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 191 |
+| **İlgili karar** | K-661 |
+
+**Ön koşul**
+- MT-PKG-153'ün dolu dizini.
+
+**Adımlar**
+1. `python3 scripts/kapi.py paketle --cikti /tmp/ci-paket-191`; SHA-256 listesini MT-PKG-153 adım 3 ile karşılaştır.
+
+**Gerçek sonuç (2026-09-24)**
+- `❌ Çıktı dizini boş değil: … - hiçbir şey silinmedi`, çıkış 1; 49 dosyanın SHA-256'sı aynı.
+
+**Beklenen sonuç**
+- Çıkış 1; dosyalar silinmedi ve değişmedi. Yarıda kesilmiş (manifest'siz) bir dizin de aynı yolla reddedilir.
+
+---
+
+### MT-PKG-159 — ➜ CI: tek derleme zinciri gerçek koşumda (Faz 191)
+
+| | |
+|---|---|
+| **İzlek** | 👤 |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 191 |
+| **İlgili karar** | K-871 · K-604 |
+
+**Ön koşul**
+- Faz 191 commit'leri etiketsiz `origin`'e itildi (bakımcı eylemi).
+
+**Adımlar**
+1. Actions iş listesi ve log'lar: build (ubuntu) `Paketle`, `Paketleri dogrula`, `Paketleri yukle`; `release-dryrun`.
+2. `nuget-verified` artifact'ini indir; `python3 scripts/kapi.py paket-dogrula <dizin>`.
+3. İş ve adım sürelerini `hafiza/test-kosum-olcumleri.md` "CI iş süreleri" yöntemiyle oku.
+
+**Beklenen sonuç**
+- `pack` işi yok. `Paketle` `Derle`'nin ardında, `Paketleri dogrula` yüklemenin önünde; `TRACON0004` yok.
+- `release-dryrun` `Manifest girdiyle aynı` ve `Kırıcı liste` yazar, `dotnet pack` basmaz. (2) çıkış 0. `publish` atlandı.
+- Süreler ölçüldü; `build` (100), `release-dryrun` (15), `publish` (10) sınırları gerekirse yeniden hesaplandı.
+
+---
+
+### MT-PKG-160 — 👤 Etiket günü: nuget.org'daki paket = `nuget-verified` (girdi bazında) (Faz 191)
+
+| | |
+|---|---|
+| **İzlek** | 👤 |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 191 |
+| **İlgili karar** | K-871 |
+
+**Ön koşul**
+- Faz 191'den sonraki ilk `v*` etiketi yayınlandı; aynı koşumun `nuget-verified` artifact'i indirildi.
+
+**Adımlar**
+1. `curl -sLo /tmp/nuget.nupkg https://api.nuget.org/v3-flatcontainer/tracon.core/<sürüm>/tracon.core.<sürüm>.nupkg`
+2. İki dosyanın girdi listesini ve girdi baytlarını karşılaştır, `.signature.p7s` hariç
+   (ör. `unzip -Z1` + girdi başına `unzip -p … | shasum`).
+3. Aynı gün "Re-run failed jobs"un artifact'ları yeniden kullanıp kullanmadığını not et.
+
+**Beklenen sonuç**
+- Girdiler aynı; ham SHA-256 farkı beklenir (nuget.org depo imzası `.signature.p7s` ekler).

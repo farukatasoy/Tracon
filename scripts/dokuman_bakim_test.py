@@ -2364,3 +2364,267 @@ class KararKategorisiTestleri(unittest.TestCase):
 
         self.assertEqual(1, len(bulgular), bulgular)
         self.assertIn("K-855", bulgular[0])
+
+
+class TekDerlemeZinciriTestleri(unittest.TestCase):
+    """Faz 191 (K-871): CI zincirinin biçimi. Bir pozitif vaka ve her
+    değişmez için en az bir negatif vaka; sahte `ci.yml` değişmezin kendisini
+    tutan en küçük iskelettir."""
+
+    GECERLI = (
+        "name: CI\n"
+        "jobs:\n"
+        "  build:\n"
+        "    runs-on: ${{ matrix.os }}\n"
+        "    timeout-minutes: 100\n"
+        "    steps:\n"
+        "      - name: Derle\n"
+        "        run: dotnet build Tracon.slnx -c Release --no-restore\n"
+        "\n"
+        "      # dotnet pack burada yorumda gecer; kapi yorumu saymaz.\n"
+        "      - name: Paketle\n"
+        "        if: matrix.os == 'ubuntu-latest'\n"
+        "        run: python3 scripts/kapi.py paketle --cikti artifacts/ci-paket\n"
+        "\n"
+        "      - name: Test et\n"
+        "        if: matrix.os == 'ubuntu-latest'\n"
+        "        run: dotnet test Tracon.slnx -c Release --no-build\n"
+        "\n"
+        "      - name: Paketleri dogrula\n"
+        "        if: matrix.os == 'ubuntu-latest'\n"
+        "        run: python3 scripts/kapi.py paket-dogrula artifacts/ci-paket\n"
+        "\n"
+        "      - name: Paketleri yukle\n"
+        "        if: matrix.os == 'ubuntu-latest'\n"
+        "        uses: actions/upload-artifact@abc # v4\n"
+        "        with:\n"
+        "          name: nuget-packages\n"
+        "          path: |\n"
+        "            artifacts/ci-paket/*.nupkg\n"
+        "\n"
+        "  release-dryrun:\n"
+        "    needs: build\n"
+        "    timeout-minutes: 15\n"
+        "    steps:\n"
+        "      - name: Paketleri indir\n"
+        "        uses: actions/download-artifact@abc # v4\n"
+        "        with:\n"
+        "          name: nuget-packages\n"
+        "          path: artifacts/ci-paket\n"
+        "      - name: Yayin provasi\n"
+        "        run: python3 scripts/kapi.py yayin --kuru --paket-dizini artifacts/ci-paket\n"
+        "      - name: Dogrulanan paketleri yukle\n"
+        "        uses: actions/upload-artifact@abc # v4\n"
+        "        with:\n"
+        "          name: nuget-verified\n"
+        "          path: artifacts/package/release/*.nupkg\n"
+        "\n"
+        "  publish:\n"
+        "    needs: [release-dryrun, npm-publish]\n"
+        "    timeout-minutes: 10\n"
+        "    steps:\n"
+        "      - uses: actions/checkout@abc\n"
+        "      - name: Paketleri indir\n"
+        "        uses: actions/download-artifact@abc # v4\n"
+        "        with:\n"
+        "          name: nuget-verified\n"
+        "          path: artifacts/nuget-verified\n"
+        "      - name: Paketleri dogrula\n"
+        "        run: python3 scripts/kapi.py paket-dogrula artifacts/nuget-verified\n"
+        "      - name: Gir\n"
+        "        uses: NuGet/login@abc # v1\n"
+        "      - name: Yayinla\n"
+        "        run: >\n"
+        "          dotnet nuget push \"artifacts/nuget-verified/*.nupkg\"\n"
+        "\n"
+        "  site:\n"
+        "    timeout-minutes: 20\n"
+        "    steps:\n"
+        "      - run: dotnet build Tracon.slnx -c Release\n"
+    )
+
+    def _bulgular(self, ci: str) -> list[str]:
+        with tempfile.TemporaryDirectory() as d:
+            kok = pathlib.Path(d)
+            (kok / ".github" / "workflows").mkdir(parents=True)
+            (kok / ".github" / "workflows" / "ci.yml").write_text(ci, encoding="utf-8")
+            return dokuman_bakim.tek_derleme_zinciri_bulgulari(kok)
+
+    def _degistir(self, eski: str, yeni: str) -> list[str]:
+        self.assertIn(eski, self.GECERLI)
+        return self._bulgular(self.GECERLI.replace(eski, yeni, 1))
+
+    def _icerir(self, bulgular: list[str], parca: str) -> None:
+        self.assertTrue(any(parca in b for b in bulgular), f"«{parca}» yok: {bulgular}")
+
+    def test_gecerli_zincir_temizdir(self):
+        self.assertEqual(self._bulgular(self.GECERLI), [])
+
+    def test_depodaki_ci_yml_temizdir(self):
+        self.assertEqual(dokuman_bakim.tek_derleme_zinciri_bulgulari(), [])
+
+    # 1
+    def test_pack_isi_kirmizi(self):
+        bulgular = self._bulgular(self.GECERLI + "  pack:\n    timeout-minutes: 15\n    steps:\n      - run: echo\n")
+        self._icerir(bulgular, "`pack:` işi var")
+
+    # 2
+    def test_dotnet_pack_satiri_kirmizi(self):
+        bulgular = self._degistir("      - run: dotnet build Tracon.slnx -c Release\n",
+                                  "      - run: dotnet pack Tracon.slnx -c Release\n")
+        self._icerir(bulgular, "`dotnet pack`")
+
+    # 3
+    def test_paketle_testten_sonra_kirmizi(self):
+        ters = self.GECERLI.replace(
+            "      - name: Paketle\n"
+            "        if: matrix.os == 'ubuntu-latest'\n"
+            "        run: python3 scripts/kapi.py paketle --cikti artifacts/ci-paket\n"
+            "\n"
+            "      - name: Test et\n"
+            "        if: matrix.os == 'ubuntu-latest'\n"
+            "        run: dotnet test Tracon.slnx -c Release --no-build\n",
+            "      - name: Test et\n"
+            "        if: matrix.os == 'ubuntu-latest'\n"
+            "        run: dotnet test Tracon.slnx -c Release --no-build\n"
+            "\n"
+            "      - name: Paketle\n"
+            "        if: matrix.os == 'ubuntu-latest'\n"
+            "        run: python3 scripts/kapi.py paketle --cikti artifacts/ci-paket\n")
+        self.assertNotEqual(ters, self.GECERLI)
+        self._icerir(self._bulgular(ters), "HEMEN ardında değil")
+
+    def test_paketle_ubuntu_kosulsuz_kirmizi(self):
+        bulgular = self._degistir(
+            "      - name: Paketle\n        if: matrix.os == 'ubuntu-latest'\n", "      - name: Paketle\n")
+        self._icerir(bulgular, "`ubuntu` koşulu taşımıyor")
+
+    def test_paketle_iki_kez_kirmizi(self):
+        bulgular = self._degistir(
+            "      - run: dotnet build Tracon.slnx -c Release\n",
+            "      - run: python3 scripts/kapi.py paketle --cikti x\n")
+        self._icerir(bulgular, "`kapi.py paketle` 2 kez")
+
+    def test_paketle_yoksa_kirmizi(self):
+        bulgular = self._degistir("        run: python3 scripts/kapi.py paketle --cikti artifacts/ci-paket\n",
+                                  "        run: echo\n")
+        self._icerir(bulgular, "`kapi.py paketle` 0 kez")
+
+    def test_site_isinin_derlemesi_paketle_onculu_sayilmaz(self):
+        """`site` da `dotnet build Tracon.slnx` koşar; öncül `build` işinde aranır."""
+        bulgular = self._degistir("      - name: Derle\n        run: dotnet build Tracon.slnx -c Release --no-restore\n",
+                                  "      - name: Derle\n        run: echo\n")
+        self._icerir(bulgular, "HEMEN ardında değil")
+
+    # 4
+    def test_yukleme_dogrulamasiz_kirmizi(self):
+        bulgular = self._degistir("        run: python3 scripts/kapi.py paket-dogrula artifacts/ci-paket\n",
+                                  "        run: echo\n")
+        self._icerir(bulgular, "hemen önünde `kapi.py paket-dogrula artifacts/ci-paket` yok")
+
+    def test_windows_da_yuklerse_kirmizi(self):
+        bulgular = self._degistir(
+            "      - name: Paketleri yukle\n        if: matrix.os == 'ubuntu-latest'\n",
+            "      - name: Paketleri yukle\n")
+        self._icerir(bulgular, "yüklemesi `ubuntu` koşulu taşımıyor")
+
+    def test_ikinci_yukleyici_kirmizi(self):
+        bulgular = self._degistir(
+            "          name: nuget-verified\n          path: artifacts/package/release/*.nupkg\n",
+            "          name: nuget-packages\n          path: artifacts/package/release/*.nupkg\n")
+        self._icerir(bulgular, "`nuget-packages` 2 adımda yükleniyor")
+
+    def test_yukleme_testten_once_kirmizi(self):
+        bulgular = self._degistir("        run: dotnet test Tracon.slnx -c Release --no-build\n",
+                                  "        run: echo test\n")
+        self._icerir(bulgular, "`dotnet test Tracon.slnx` adımından önce")
+
+    # 5
+    def test_prova_paket_dizinisiz_kirmizi(self):
+        bulgular = self._degistir("kapi.py yayin --kuru --paket-dizini artifacts/ci-paket",
+                                  "kapi.py yayin --kuru")
+        self._icerir(bulgular, "`kapi.py yayin --kuru --paket-dizini` koşmuyor")
+
+    def test_prova_indirmezse_ve_yuklemezse_kirmizi(self):
+        ci = self.GECERLI.replace(
+            "          name: nuget-packages\n          path: artifacts/ci-paket\n",
+            "          name: baska\n          path: artifacts/ci-paket\n").replace("name: nuget-verified\n          path: artifacts/package",
+                                                                                 "name: baska2\n          path: artifacts/package")
+        bulgular = self._bulgular(ci)
+        self._icerir(bulgular, "`nuget-packages`'ı indirmiyor")
+        self._icerir(bulgular, "`nuget-verified` yüklemiyor")
+
+    # 6
+    def test_publish_dogrulamasiz_kirmizi(self):
+        bulgular = self._degistir("        run: python3 scripts/kapi.py paket-dogrula artifacts/nuget-verified\n",
+                                  "        run: echo\n")
+        self._icerir(bulgular, "itmeden önce `kapi.py paket-dogrula` koşmuyor")
+
+    def test_publish_login_sonrasi_dogrulama_kirmizi(self):
+        ci = self.GECERLI.replace(
+            "      - name: Paketleri dogrula\n        run: python3 scripts/kapi.py paket-dogrula artifacts/nuget-verified\n"
+            "      - name: Gir\n        uses: NuGet/login@abc # v1\n",
+            "      - name: Gir\n        uses: NuGet/login@abc # v1\n"
+            "      - name: Paketleri dogrula\n        run: python3 scripts/kapi.py paket-dogrula artifacts/nuget-verified\n")
+        self.assertNotEqual(ci, self.GECERLI)
+        self._icerir(self._bulgular(ci), "`NuGet/login`'den sonra")
+
+    def test_publish_izlenen_packages_dizinine_indirirse_kirmizi(self):
+        bulgular = self._degistir("          path: artifacts/nuget-verified\n", "          path: packages\n")
+        self._icerir(bulgular, "`artifacts/` altına değil")
+
+    def test_publish_derlerse_kirmizi(self):
+        bulgular = self._degistir("      - uses: actions/checkout@abc\n",
+                                  "      - uses: actions/checkout@abc\n      - run: dotnet build Tracon.slnx\n")
+        self._icerir(bulgular, "`publish` `dotnet build` taşıyor")
+
+    def test_publish_needs_provasiz_kirmizi(self):
+        bulgular = self._degistir("    needs: [release-dryrun, npm-publish]\n", "    needs: [npm-publish]\n")
+        self._icerir(bulgular, "`needs:` `release-dryrun`'ı içermiyor")
+
+    # Yumuşatma (Faz 191 denetimi 🟡1: M1-M6)
+    def test_prova_isi_yalniz_etikette_kosarsa_kirmizi(self):
+        bulgular = self._degistir("  release-dryrun:\n    needs: build\n",
+                                  "  release-dryrun:\n    needs: build\n    if: startsWith(github.ref, 'refs/tags/v')\n")
+        self._icerir(bulgular, "`release-dryrun` işi `if: startsWith(github.ref, 'refs/tags/v')` taşıyor")
+
+    def test_prova_adimi_etiket_kosullu_kirmizi(self):
+        bulgular = self._degistir("      - name: Yayin provasi\n",
+                                  "      - name: Yayin provasi\n        if: startsWith(github.ref, 'refs/tags/v')\n")
+        self._icerir(bulgular, "zincir adımı `if: startsWith")
+
+    def test_build_dogrulamasi_etiket_kosullu_kirmizi(self):
+        bulgular = self._degistir(
+            "      - name: Paketleri dogrula\n        if: matrix.os == 'ubuntu-latest'\n",
+            "      - name: Paketleri dogrula\n        if: matrix.os == 'ubuntu-latest' && startsWith(github.ref, 'refs/tags/v')\n")
+        self._icerir(bulgular, "yalnız `matrix.os == 'ubuntu-latest'` izinli")
+
+    def test_publish_dogrulamasi_continue_on_error_kirmizi(self):
+        bulgular = self._degistir(
+            "        run: python3 scripts/kapi.py paket-dogrula artifacts/nuget-verified\n",
+            "        continue-on-error: true\n        run: python3 scripts/kapi.py paket-dogrula artifacts/nuget-verified\n")
+        self._icerir(bulgular, "`continue-on-error`")
+
+    def test_prova_cikis_kodunu_yutarsa_kirmizi(self):
+        bulgular = self._degistir("--paket-dizini artifacts/ci-paket\n", "--paket-dizini artifacts/ci-paket || true\n")
+        self._icerir(bulgular, "`|| true`")
+
+    def test_baska_dizini_iterse_kirmizi(self):
+        bulgular = self._degistir('dotnet nuget push "artifacts/nuget-verified/*.nupkg"',
+                                  'dotnet nuget push "artifacts/other/*.nupkg"')
+        self._icerir(bulgular, "indirilen ve doğrulanan dizini (`artifacts/nuget-verified`) itmiyor")
+
+    def test_baska_dizini_dogrularsa_kirmizi(self):
+        bulgular = self._degistir("paket-dogrula artifacts/nuget-verified\n", "paket-dogrula artifacts/baska\n")
+        self._icerir(bulgular, "indirilen dizini (`artifacts/nuget-verified`) sınamıyor")
+
+    def test_zaman_siniri_ayristiricisi_ortak_yardimciyla_ayni_kalir(self):
+        """Paylaşılan iş ayrıştırıcısı: sınırsız iş hâlâ bulunur."""
+        with tempfile.TemporaryDirectory() as d:
+            kok = pathlib.Path(d)
+            (kok / ".github" / "workflows").mkdir(parents=True)
+            (kok / ".github" / "workflows" / "ci.yml").write_text(
+                self.GECERLI.replace("    timeout-minutes: 20\n", ""), encoding="utf-8")
+            bulgular = dokuman_bakim.zaman_siniri_olmayan_isler(kok)
+        self.assertEqual(len(bulgular), 1, bulgular)
+        self.assertIn("`site`", bulgular[0])

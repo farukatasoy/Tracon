@@ -182,3 +182,12 @@ son 4 günde ~3,3 KB/gün; kalan 27.720 B yaklaşık 6–8 gün yeter. Aşımda 
 kuralı geçerlidir: önce `karar-damit` koşulur (bugün kuru koşum 8 satırda
 4.419 B taşır), taşıma tükenmişse sınır damıtma sonrası ölçülen değer / 0,85
 ile yükselir. Bu turda bütçe değişmedi.
+
+## 🚨 `dokuman-bakim.py`'de `@dataclass` modülü yükletmez (Faz 191)
+
+Test ve denetim paketi betiği `spec_from_file_location` + `exec_module` ile
+yükler ve `sys.modules`'a **kaydetmez**. `from __future__ import annotations`
+ile `@dataclass` sınıf tanımında `sys.modules[cls.__module__]`'ü arar; Python
+3.14'te `AttributeError: 'NoneType' ... '__dict__'` ile **tüm test dosyası**
+yüklenmez. Betikte düz sınıf kullan (`_WorkflowIsi`, `_WorkflowAdimi`).
+`kapi.py`'nin testi modülü kaydeder; orada `@dataclass` çalışır.
