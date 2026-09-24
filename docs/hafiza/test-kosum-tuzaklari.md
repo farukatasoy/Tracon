@@ -208,8 +208,9 @@ derlenir ve koşar. Üç sonuç:
   çözülür. Test kodunda yapılandırma adı `Name.Split('_')[0]`'dır.
 - **🚨 Test apphost'u runtime'ı `DOTNET_ROOT`'tan (önce `DOTNET_ROOT_<ARCH>`)
   çözer, PATH'teki muxer'dan DEĞİL** (ölçüldü). Makinede net8 runtime'ı yoksa bacak "You must install or
-  update .NET" ile düşer; `kapi.py` bunu komuttan önce yakalar. Global kurulum
-  `sudo` ister. Kullanıcı düzeyi yol: `dotnet-install.sh --install-dir
+  update .NET" ile düşer; `kapi.py` bunu komuttan önce yakalar. **Önce global
+  kurulum** (`sudo`; `dotnet-install.sh --runtime dotnet|aspnetcore --channel 8.0
+  --install-dir /usr/local/share/dotnet`). Kullanıcı düzeyi yol: `dotnet-install.sh --install-dir
   ~/.dotnet` ile SDK 10.0.100 + `--runtime dotnet --channel 8.0` / `9.0`, sonra
   **yalnız** `DOTNET_ROOT=~/.dotnet` — PATH'teki `dotnet` sistemin kalsın.
   🚨 `DOTNET_ROOT` o kökü **tek** kök yapar: fonksiyonel/E2E testleri için

@@ -2,15 +2,14 @@
 
 > **Üretilen, elle düzenlenmez.** Kaynak: `KARARLAR.md` · üretim: `scripts/dokuman-bakim.py`
 
-Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 783 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
+Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 784 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
 
 ---
 
-## En Yeni Kalıcı Kararlar (88 / 871 kalem)
+## En Yeni Kalıcı Kararlar (88 / 872 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
-| K-784 | 835 | Bir kapı, iddianın makine okunur bir kaynağı VARSA doğruluğu denetler; yoksa yalnız varlığı (K-766'nın diğer yüzü) |
 | K-785 | 836 | Konsolda `window.confirm` / `alert` / `prompt` KULLANILMAZ; tek bir modal katmanı vardır (`components/dialog.tsx`) ve `frontend/scripts/check-modal-layer.mjs` bunu zorlar |
 | K-786 | 837 | Bir aksiyon doğrulama adımı alır ancak ve ancak (a) arayüzden aynı girdilerle geri getirilemeyen bir durumu yok ediyorsa VEYA (b) tekrarlanamayan bir kararı kesinleştiriyorsa; ölçüt şema kanıtıyla ÖLÇÜLÜR |
 | K-787 | 838 | Doğrulama dialogu aksiyon uçarken AÇIK KALIR ve sunucu reddini kendi içinde gösterir; `consequence` metni katman 1'in tooltip'iyle AYNI anahtardan gelir |
@@ -98,3 +97,4 @@ Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLA
 | K-869 | 920 | `AuthorizationConfigurationKey` `[Obsolete]` (yalnız mesaj; `DiagnosticId` ve `UrlFormat` YOK), `1.0.0`'da kalkar; iki alandan veya OAuth ile `Authorization` `400` (Faz 190) (kullanıcı kararı) 👤 |
 | K-870 | 921 | MCP/webhook `PUT`: `headers` veya `headerConfigurationKeys` yok ya da `null` → saklı değer; `{}` temizler (Faz 190) (kullanıcı kararı) 👤 |
 | K-871 | 922 | Bir `v*` etiketinin nuget.org'a ittiği her `.nupkg`/`.snupkg`, aynı workflow koşumunda build işinin ubuntu bacağının derleyip test ettiği derlemeden `--no-build` ile üretilen dosyadır; `release-dryrun` onu paketlemeden doğrular, `publish` SHA-256 manifest'ini yeniden sınayıp yalnız onu iter; CI'da ikinci bir yayın `dotnet pack`'i yoktur (Faz 191, F-273) (kullanıcı kararı) 👤 |
+| K-872 | 923 | Bir paketin ön sürüm üçüncü taraf bağımlılığı nuspec'te tam aralıktır (`[x]`); kararlı üçüncü taraf bağımlılık NuGet'in alt sınırında kalır (A-59, UR-006 A, UR-008 B) (kullanıcı kararı) 👤 |

@@ -3176,10 +3176,9 @@ akışının deterministik no-op yolu.
 
 **Ön koşul**
 - `git status --porcelain` boş.
-- `artifacts/package/release/` **yayınlanacak sürümden başka** `Tracon*` paketi
-  taşımaz. Extension sample contract kapısı bayat feed'i reddeder ("release
-  feed contains stale Tracon packages") ve prova terfiden **sonra** sıfır
-  olmayan çıkışla durur — no-op sorusu o zaman ölçülemez. Ölçüldü 2026-09-19.
+- Prova `artifacts/package/yayin/<sürüm>/`'e yazar (2026-09-24); `release/`'deki
+  eski sürümler onu etkilemez. Bu dizin başka sürüm taşımaz — "release feed
+  contains stale Tracon packages" artık yalnız o dizine elle konan pakette çıkar.
 
 **Adımlar**
 1. Yayın provasını koş.
@@ -3210,7 +3209,7 @@ MSBUILDDISABLENODEREUSE=1 python3 scripts/kapi.py yayin --kuru --surum 1.0.0-pre
 Tüketicinin ölçtüğü olayın kendisi: aynı sürüm iddiası, farklı SHA-256.
 
 **Ön koşul**
-- MT-PKG-115 koşuldu (`release_dir`'de `1.0.0-preview.1` paketleri var).
+- MT-PKG-115 koşuldu (`artifacts/package/yayin/1.0.0-preview.1/` dolu).
 
 **Adımlar**
 1. Bir kaynak dosyaya küçük, davranışı etkilemeyen bir yorum ekle ve commit'le.
@@ -3223,15 +3222,16 @@ Tüketicinin ölçtüğü olayın kendisi: aynı sürüm iddiası, farklı SHA-2
 echo "// mt-pkg-116" >> src/Tracon.Abstractions/AssemblyInfo.cs 2>/dev/null || \
   printf '\n// mt-pkg-116\n' >> src/Tracon.Abstractions/Tracon.Abstractions.csproj
 git add -A && git commit -m "test: mt-pkg-116 geçici değişiklik"
-shasum -a 256 artifacts/package/release/Tracon.Abstractions.1.0.0-preview.1.nupkg
+shasum -a 256 artifacts/package/yayin/1.0.0-preview.1/Tracon.Abstractions.1.0.0-preview.1.nupkg
 MSBUILDDISABLENODEREUSE=1 python3 scripts/kapi.py yayin --kuru --surum 1.0.0-preview.1
-shasum -a 256 artifacts/package/release/Tracon.Abstractions.1.0.0-preview.1.nupkg
+shasum -a 256 artifacts/package/yayin/1.0.0-preview.1/Tracon.Abstractions.1.0.0-preview.1.nupkg
 git reset --hard HEAD~1
 ```
 
 **Beklenen sonuç**
 - İkinci koşum sıfır olmayan çıkışla durur; "FARKLI içerikli bir artifact
-  zaten var" mesajı `Tracon.Abstractions`'ı adlandırır.
+  zaten var" mesajı `Tracon.Abstractions`'ı adlandırır ve `rm -rf
+  artifacts/package/yayin/1.0.0-preview.1` yolunu verir (silmez).
 - İki `shasum` çağrısı **aynı** değeri verir (dosya hiç değişmedi).
 
 ---
@@ -3255,7 +3255,7 @@ git reset --hard HEAD~1
 ```bash
 python3 -c "
 import json
-d = json.load(open('artifacts/package/release/package-manifest.json'))
+d = json.load(open('artifacts/package/yayin/1.0.0-preview.1/package-manifest.json'))
 print(len(d['packages']), d['version'], d['dirty'])
 print(d['packages'][0])
 "
@@ -3571,7 +3571,7 @@ bağımlılık grubunu restore edip .NET 8 runtime'ında çalıştırmıyordu �
 **Ön koşul**
 - Çalışma ağacı temiz (`yayin` kirli ağaçta paketlemez).
 - .NET 8 runtime kurulu (`DOTNET_ROOT` altında ya da global kurulumda).
-- `artifacts/package/release` önceki sürümlerden temiz (`MT-PKG-124` notu).
+- Prova çıktısı `artifacts/package/yayin/<sürüm>/`'dir; `release/`'in içeriği önemsizdir (2026-09-24).
 
 **Adımlar**
 1. Yayın provasını koş.
@@ -3870,7 +3870,7 @@ dotnet list package --deprecated
 | **İlgili karar** | K-864 |
 
 **Ön koşul**
-- Temiz ağaç, HEAD etiketsiz; `artifacts/package/release` eski damga taşımaz (taşıyorsa `rm -rf`).
+- Temiz ağaç, HEAD etiketsiz. Prova `artifacts/package/yayin/<sürüm>/`'e yazar; o dizin başka commit'in adayını taşıyorsa kaldır.
 
 **Adımlar**
 1. `DOTNET_ROOT=~/.dotnet python3 scripts/kapi.py yayin --kuru`
@@ -3905,7 +3905,7 @@ dotnet list package --deprecated
 
 **Gerçek sonuç (2026-09-24)**
 - Çıkış 1: `❌ Kırıcı değişiklik sürüm notunda adıyla geçmiyor (taban v1.0.0-preview.2, not
-  'Unreleased'):` + `Tracon.Abstractions: SchemaReadyGate`. `artifacts/package/release` oluşmadı.
+  'Unreleased'):` + `Tracon.Abstractions: SchemaReadyGate`. Prova dizini oluşmadı (o gün yol `artifacts/package/release` idi).
 
 **Beklenen sonuç**
 - Çıkış 1; eksik ad paketiyle yazılır; release dizinine paket yazılmaz.
@@ -4121,7 +4121,7 @@ dotnet list package --deprecated
 | **İlgili karar** | K-866 · K-864 |
 
 **Ön koşul**
-- Temiz ağaç (değişiklik commit edildi); `rm -rf artifacts/package/release`; ağ (nuget.org).
+- Temiz ağaç (değişiklik commit edildi); ağ (nuget.org). Prova `artifacts/package/yayin/<sürüm>/`'e yazar.
 
 **Adımlar**
 1. `DOTNET_ROOT=~/.dotnet python3 scripts/kapi.py yayin --kuru`
@@ -4145,7 +4145,7 @@ dotnet list package --deprecated
 | **İlgili karar** | K-866 |
 
 **Ön koşul**
-- MT-PKG-145'in ürettiği `artifacts/package/release` beslemesi; ona bağlı atılabilir `net10.0` konsol projesi
+- MT-PKG-145'in ürettiği `artifacts/package/yayin/<sürüm>/` beslemesi; ona bağlı atılabilir `net10.0` konsol projesi
   (`Tracon.Testing` paket referansı; `NuGet.config` yerel besleme + nuget.org).
 
 **Adımlar**
@@ -4223,7 +4223,7 @@ dotnet list package --deprecated
 | **İlgili karar** | K-867 |
 
 **Ön koşul**
-- Fazın paketleri yerel feed'de (`python3 scripts/kapi.py yayin --kuru` sonrası `artifacts/package/release`).
+- Fazın paketleri yerel feed'de (`python3 scripts/kapi.py yayin --kuru` sonrası `artifacts/package/yayin/<sürüm>/`).
 
 **Adımlar**
 1. Boş bir konsol projesi: yerel feed'den `Tracon` paketi; `Program.cs`:
@@ -4523,3 +4523,79 @@ dotnet list package --deprecated
 
 **Beklenen sonuç**
 - Girdiler aynı; ham SHA-256 farkı beklenir (nuget.org depo imzası `.signature.p7s` ekler).
+
+---
+
+### MT-PKG-161 — Ön sürüm üst akışın başka sürümü restore'da görünür (A-59)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz dışı — `kusur-giderme` (2026-09-24) |
+| **İlgili karar** | K-872 |
+
+Yayınlanmış preview.2 `Microsoft.Agents.AI.Hosting` `1.22.0-preview` ile uyarısız
+restore olup çalışma anında `TypeLoadException` veriyordu.
+
+**Ön koşul**
+- `python3 scripts/kapi.py yayin --kuru --surum <V>` yeşil; paketler `artifacts/package/yayin/<V>/`.
+
+**Adımlar**
+1. Repo dışında `net10.0` konsol projesi; `NuGet.config` yalnız o dizin + nuget.org,
+   `Tracon*` o dizine map'li; izole `NUGET_PACKAGES`.
+2. `Tracon.AspNetCore` `<V>` ve `Microsoft.Agents.AI.Hosting` `1.22.0-preview.260918.1` ekle; `dotnet restore`.
+3. `unzip -p artifacts/package/yayin/<V>/Tracon.AspNetCore.<V>.nupkg '*.nuspec' | grep -o 'id="[^"]*" version="\[[^"]*"'`
+
+**Beklenen sonuç**
+- (2) `NU1608` Hosting'i ve `[1.20.0-preview.260831.1]` sınırını adlandırır; restore sessiz geçmez.
+- (3) beş ön sürüm bağımlılığı her TFM grubunda `[x]` biçimindedir.
+
+---
+
+### MT-PKG-162 — `Tracon.UI` üçüncü taraf bildirimini paket kökünde ve derlemede taşır (BL-058)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz dışı — `kusur-giderme` (2026-09-24) |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- MT-PKG-161'in ön koşulu.
+
+**Adımlar**
+1. `unzip -l artifacts/package/yayin/<V>/Tracon.UI.<V>.nupkg | grep THIRD-PARTY`
+2. `unzip -p … THIRD-PARTY-NOTICES.txt | cmp - src/Tracon.UI/THIRD-PARTY-NOTICES.txt`
+3. `samples/Tracon.Api`'yi koş; `curl -s http://localhost:<port>/tracon/THIRD-PARTY-NOTICES.txt | head -3`
+4. `frontend/package.json`'a geçici bir çalışma zamanı bağımlılığı ekleyip import et, `npm run build`; geri al.
+
+**Beklenen sonuç**
+- (1) kökte tek girdi; (2) çıkış 0; (3) `text/plain`, ilk satır `Tracon.UI - third-party notices`.
+- (4) derleme `THIRD-PARTY-NOTICES.txt does not match` ile düşer (`postbuild.mjs` bağımlılık kapısı daha önce düşürebilir — ikisi de kabul).
+
+---
+
+### MT-PKG-163 — Prova sürüme özel dizine yazar; `release/`'deki eski paket onu düşürmez
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz dışı — `kusur-giderme` (2026-09-24) |
+| **İlgili karar** | K-661 (Faz 136 dizin içinde geçerli) |
+
+2026-09-24 provası `release/`'deki `preview.2.78/79/82` paketleri yüzünden
+~10 dk paketlemeden sonra "stale Tracon packages" ile düştü.
+
+**Ön koşul**
+- Temiz ağaç; `artifacts/package/release/` başka sürümden en az bir `Tracon*.nupkg` taşır.
+
+**Adımlar**
+1. `python3 scripts/kapi.py yayin --kuru --surum <V>`
+2. Boş bir commit at (`git commit --allow-empty -m tmp`), aynı komutu tekrar koş; sonra `git reset --hard HEAD~1`.
+
+**Beklenen sonuç**
+- (1) çıkış 0; `📦 Prova çıktısı: artifacts/package/yayin/<V>` basar; `release/` dokunulmadan kalır.
+- (2) çıkış 1; "FARKLI içerikli" + `rm -rf artifacts/package/yayin/<V>` ipucu; mevcut dosyalar değişmez.

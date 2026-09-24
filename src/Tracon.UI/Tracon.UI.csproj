@@ -56,6 +56,16 @@
           Visible="true" />
   </ItemGroup>
 
+  <!--
+    BL-058: the embedded bundle carries third-party code (React, TanStack Query,
+    openapi-fetch, Tailwind CSS), so the package carries their notices. The
+    frontend build checks this file against the modules it emitted and embeds
+    the same bytes in the assembly; ReleaseArtifactTests locks all three copies.
+  -->
+  <ItemGroup>
+    <None Include="THIRD-PARTY-NOTICES.txt" Pack="true" PackagePath="" />
+  </ItemGroup>
+
   <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
 
   <Import Project="Tracon.UI.Frontend.targets" />

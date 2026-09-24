@@ -29,16 +29,28 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 ARTIFACTS = ROOT / "artifacts"
 MEASUREMENTS = ARTIFACTS / "kapi-olcum.jsonl"
 PACKAGE_RELEASE_DIR = ARTIFACTS / "package" / "release"
+# `yayin --kuru` (pack modu) çıktısı: sürüm başına AYRI bir dizin. `release/`
+# geliştirme döngüsünün feed'idir (`dotnet pack`, kapanış, paket testleri oraya
+# yazar); prova oraya promote ettiğinde her eski sürüm provanın sample kapısını
+# düşürüyordu ve Faz 136 dosya silmez. Ayrı dizinde farklı sürüm hiç karışmaz.
+PACKAGE_REHEARSAL_ROOT = ARTIFACTS / "package" / "yayin"
 PACKABLE_SOLUTION_FILTER = ROOT / "Tracon.src.slnf"
 PACKAGE_MANIFEST_NAME = "package-manifest.json"
 PACKAGE_REPORT_DIR_NAME = "api-compat"
 PACKAGE_FILE_SUFFIXES = (".nupkg", ".snupkg")
 NPM_CLIENT_PACKAGE_DIR = ROOT / "packages" / "tracon-client"
 RELEASE_VERSION_PATTERN = re.compile(r"^1\.0\.0-preview\.\d+$")
-PRERELEASE_DEPENDENCY_PATTERN = re.compile(r'id="(?P<id>[^"]+)" version="[^"]*-[^"]*"')
+PRERELEASE_DEPENDENCY_PATTERN = re.compile(r'id="(?P<id>[^"]+)" version="(?P<range>[^"]*-[^"]*)"')
+# `[v]` ya da `[v, v]` - NuGet'in iki tam aralık yazımı.
+EXACT_RANGE_PATTERN = re.compile(r"\[(?P<version>[^,\]\s]+)(?:\s*,\s*(?P=version))?\]")
 REPOSITORY_COMMIT_PATTERN = re.compile(r'<repository[^>]+commit="(?P<commit>[0-9a-f]{7,})"[^>]*/>')
 RELEASE_NOTES_PATTERN = re.compile(r"<releaseNotes>(?P<url>[^<]*)</releaseNotes>")
 K008_EXEMPT_PACKAGE = "Tracon.AspNetCore"
+# BL-058: üçüncü taraf kodunu PAKETİN İÇİNDE taşıyan paket, o kodun lisans
+# bildirimini de taşır. Değer repo'daki kaynak dosyadır; paketteki kopya ona
+# bayt bayt eşit olmalı (paketleme kontrol edilen dosyayı mı aldı?).
+THIRD_PARTY_NOTICE_NAME = "THIRD-PARTY-NOTICES.txt"
+THIRD_PARTY_NOTICE_PACKAGES = {"Tracon.UI": pathlib.PurePath("src", "Tracon.UI", THIRD_PARTY_NOTICE_NAME)}
 APPLIED_MIGRATION_MANIFEST = pathlib.PurePath("scripts", "applied-migrations.json")
 GIT_COMMIT = re.compile(r"^[0-9a-f]{7,40}$")
 # Faz 184: iki test projesi ayni anda. Once 1'di (uc isci dakikalarca sahte
@@ -1382,6 +1394,20 @@ def _entry_names(nupkg: pathlib.Path) -> set[str]:
         return set(archive.namelist())
 
 
+def _third_party_notice_error(root: pathlib.Path, nupkg: pathlib.Path, source: pathlib.PurePath) -> str | None:
+    """BL-058: None when the package root carries the checked-in notice byte for byte."""
+    expected_path = root / source
+    if not expected_path.is_file():
+        return f"{source} yok - lisans bildirimi kaynağı eksik"
+    with zipfile.ZipFile(nupkg) as archive:
+        if THIRD_PARTY_NOTICE_NAME not in archive.namelist():
+            return f"{THIRD_PARTY_NOTICE_NAME} paket kökünde yok (BL-058)"
+        packed = archive.read(THIRD_PARTY_NOTICE_NAME)
+    if packed != expected_path.read_bytes():
+        return f"paketteki {THIRD_PARTY_NOTICE_NAME} {source} ile aynı değil"
+    return None
+
+
 def _resolve_package_set(
     directory: pathlib.Path, project_ids: Sequence[str], requested_version: str | None
 ) -> tuple[dict[str, pathlib.Path], str] | None:
@@ -1713,13 +1739,25 @@ def _pack_release(
     return PackedRelease(baseline=baseline, library_ids=tuple(library_ids), baseline_ids=tuple(baseline_ids))
 
 
+def rehearsal_release_dir(version: str, rehearsal_root: pathlib.Path | None = None) -> pathlib.Path:
+    """`yayin --kuru` pack-mode output: one directory per version.
+
+    Never `release/`: that is the development feed every `dotnet pack`, the
+    closing gate and the package tests write into, so a rehearsal promoted
+    there met every older version and its sample gate failed after minutes of
+    packing. Faz 136 deletes nothing; a directory of its own leaves nothing to
+    delete. Inside it Faz 136 still holds: an `<id, version>` pair names one
+    artifact, so a NEW commit rehearsed under the same version is refused and
+    the existing file stays (MT-PKG-116); the same commit twice is a no-op."""
+    return (rehearsal_root or PACKAGE_REHEARSAL_ROOT) / version
+
+
 def release_rehearsal(
     requested_version: str | None,
     *,
     root: pathlib.Path = ROOT,
     release_dir: pathlib.Path | None = None,
 ) -> int:
-    release_dir = release_dir or PACKAGE_RELEASE_DIR
     project_ids = packable_project_ids(root)
 
     # Erken ret (136.3): çalışma ağacı denetlenir ÖNCE dakikalarca süren bir
@@ -1746,10 +1784,11 @@ def release_rehearsal(
     # bir sonraki koşumun kendi "erken ret" denetimini kirletmez. Rapor dizini
     # de aynı sebeple koşum başınadır; ayrıca yok olan bir çıktı dosyası SDK'nın
     # artımlı doğrulama hedefini yeniden koşturur (Faz 187, 187.0 adım 5).
-    staging_root = release_dir.parent / "staging"
+    package_root = release_dir.parent if release_dir else PACKAGE_RELEASE_DIR.parent
+    staging_root = package_root / "staging"
     staging_root.mkdir(parents=True, exist_ok=True)
     staging_dir = pathlib.Path(tempfile.mkdtemp(prefix="run-", dir=staging_root))
-    report_root = release_dir.parent / PACKAGE_REPORT_DIR_NAME
+    report_root = package_root / PACKAGE_REPORT_DIR_NAME
     report_root.mkdir(parents=True, exist_ok=True)
     report_dir = pathlib.Path(tempfile.mkdtemp(prefix="run-", dir=report_root))
 
@@ -1757,6 +1796,13 @@ def release_rehearsal(
         packed = _pack_release(root, staging_dir, report_dir, no_build=False, requested_version=requested_version)
         if isinstance(packed, int):
             return packed
+
+        if release_dir is None:
+            package_set = _resolve_package_set(staging_dir, project_ids, requested_version)
+            if package_set is None:
+                return 1
+            release_dir = rehearsal_release_dir(package_set[1])
+            print(f"📦 Prova çıktısı: {release_dir.relative_to(root) if release_dir.is_relative_to(root) else release_dir}")
 
         return _finish_release_rehearsal(
             root=root,
@@ -2106,14 +2152,32 @@ def _finish_release_rehearsal_unchecked(
             if xml_count != expected_xml_count:
                 errors.append(f"{project_id}: {expected_xml_count} XML doküman dosyası bekleniyordu, {xml_count} bulundu")
 
+        prerelease = [
+            (match.group("id"), match.group("range"))
+            for match in PRERELEASE_DEPENDENCY_PATTERN.finditer(nuspec)
+            if not match.group("id").startswith("Tracon")
+        ]
         if project_id != K008_EXEMPT_PACKAGE:
-            offenders = sorted({
-                match.group("id")
-                for match in PRERELEASE_DEPENDENCY_PATTERN.finditer(nuspec)
-                if not match.group("id").startswith("Tracon")
-            })
+            offenders = sorted({dependency for dependency, _ in prerelease})
             if offenders:
                 errors.append(f"{project_id}: K-008 sınırı ihlal edildi - ön sürüm bağımlılık: {', '.join(offenders)}")
+        # A-59: ön sürüm upstream kendi önizlemeleri arasında kırar. Açık alt
+        # sınır (`version="x"` = `>= x`) tüketicinin yükseltmesini uyarısız
+        # restore edip çalışma anında düşürüyordu; tam aralıkta NuGet onu
+        # restore'da söyler (NU1608 / NU1107).
+        open_ranges = sorted({
+            f"{dependency} {version_range}"
+            for dependency, version_range in prerelease
+            if not EXACT_RANGE_PATTERN.fullmatch(version_range)
+        })
+        if open_ranges:
+            errors.append(f"{project_id}: ön sürüm bağımlılık tam aralık değil (A-59): {', '.join(open_ranges)}")
+
+        notice_source = THIRD_PARTY_NOTICE_PACKAGES.get(project_id)
+        if notice_source is not None:
+            notice_error = _third_party_notice_error(root, nupkg, notice_source)
+            if notice_error:
+                errors.append(f"{project_id}: {notice_error}")
 
     if errors:
         print("❌ Metaveri/K-008 sözleşmesi ihlal edildi:")
@@ -2141,6 +2205,8 @@ def _finish_release_rehearsal_unchecked(
         print("❌ Aynı kimlikte (id+sürüm) FARKLI içerikli bir artifact zaten var - mevcut dosya korundu:")
         for name in conflicts:
             print(f"  {name}")
+        if input_manifest is None:
+            print(f"   Bu sürümü bilerek yeni bir commit'ten prova ediyorsan eski adayı kaldır: rm -rf {release_dir}")
         return 1
 
     packages_manifest = _package_manifest_entries(release_dir, staged_file_names)

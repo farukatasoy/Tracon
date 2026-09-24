@@ -73,10 +73,16 @@
   kirletmez). `_clean_stale_packages`'ın sessiz silmesi KALDIRILDI: aynı
   `<id, sürüm>` çifti `release_dir`'de FARKLI bir içerik parmak iziyle zaten
   varsa hiçbir dosya promote edilmez (`_promote_staged_packages`, hepsi ya da
-  hiçbiri), aynı parmak iziyle deterministik no-op'tur. Sonuç: tekrarlanan
-  yerel `--surum` koşumları artık `release_dir`'i ESKİ sürümlerden OTOMATİK
-  temizlemez - bu bilinçlidir (silme davranışı kaldırıldı, eklenmedi); gerekiyorsa elle
-  `rm -rf artifacts/package/release`.
+  hiçbiri), aynı parmak iziyle deterministik no-op'tur.
+- **`yayin --kuru` (pack modu) `release/`'e DEĞİL, `artifacts/package/yayin/<sürüm>/`'e
+  yazar** (2026-09-24). `release/` geliştirme feed'idir: `dotnet pack`, kapanış
+  ve `ReleaseArtifactFixture` oraya yazar. Prova oraya promote ettiğinde her
+  eski sürüm `release_extension_samples` "stale" kapısını paketlemeden
+  ~10 dk SONRA düşürüyordu. Ayrı dizinde farklı sürüm karışmaz, hiçbir şey
+  silinmez. Faz 136 dizinin içinde geçerlidir: aynı commit'in ikinci koşumu
+  no-op'tur; aynı sürümün YENİ commit'i reddedilir ve mesaj `rm -rf
+  artifacts/package/yayin/<sürüm>` der (MT-PKG-116). `--paket-dizini` (CI)
+  modu `release/`'de kalır.
 
 ## Repo dışı bir tüketiciyi yerel feed'e bağlama (2026-09-04)
 

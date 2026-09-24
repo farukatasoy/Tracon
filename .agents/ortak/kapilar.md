@@ -22,7 +22,8 @@ listeler — ayıklama bilgisi kaybolmaz.
 
 ## Yayın zinciri komutları (Faz 191, K-871)
 
-`kapi.py yayin --kuru [--surum X]` insanın provasıdır: kendi paketini üretir.
+`kapi.py yayin --kuru [--surum X]` insanın provasıdır: kendi paketini üretir ve
+`artifacts/package/yayin/<sürüm>/`'e yazar (geliştirme feed'i `release/`'e değil).
 CI tek derleme zinciri üç komutla koşar; bir `v*` etiketinin ittiği baytlar
 `paketle`'nin ürettiği dosyalardır:
 
