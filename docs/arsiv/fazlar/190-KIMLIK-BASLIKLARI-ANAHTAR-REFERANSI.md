@@ -209,7 +209,7 @@ Yerel tercihler (K-* değil):
 | Metrik | Değer |
 |---|---|
 | Plan revizyonu sayısı | 1 — Açık Soru 4'ün önerisi (A) ölçümle B'ye döndü (Sapma 2); plan metni değişmedi |
-| Düzeltme turu sayısı | 3 — (1) `ic-dongu`: `ShippedDocumentationSelfContainmentTests` (`///` içinde `K-*`/🚨/`phase 190`); (2) `dokuman-bakim.py`: `///` içinde `1.0.0` bağımlılık damgası sanıldı; (3) denetim bulguları (🔴1 + 🟡1–5 + 🟢1) |
+| Düzeltme turu sayısı | 5 — kapanış kapısı iki kez kırmızı (aşağıda "Kapanış Kapısı"); (1) `ic-dongu`: `ShippedDocumentationSelfContainmentTests` (`///` içinde `K-*`/🚨/`phase 190`); (2) `dokuman-bakim.py`: `///` içinde `1.0.0` bağımlılık damgası sanıldı; (3) denetim bulguları (🔴1 + 🟡1–5 + 🟢1) |
 | 🔴 bulgu: gerçek / gürültü / araştırılacak | 1 / 0 / 0 |
 | Fazın ürettiği regresyon | 1 — 🟡3: koruma kuralı, eski satırdaki düz `Authorization` + OAuth'u kaydedilebilir kıldı (denetimde bulundu, kapatıldı); 🟡4 muafiyetin geniş ilk hâli agent `metadata`'sında değer sızdırırdı (commit edilmeden kapatıldı) |
 | Faz kapandıktan sonra bulunan kusur | ölçülmedi (kapanış anı) |
@@ -262,3 +262,30 @@ Açık iş:
 - **F-291** — anahtar alanına yazılan değerin hata metninde yankılanması (faz öncesi, dört yüzey).
 - `MT-MCP-074` 👤 tarayıcıdan form tıklaması koşulmadı (gövde `curl` ile ölçüldü); `MT-MCP-075`, `MT-SEC-210` ➜ CI.
 - Site yayını (`scripts/site-deploy.sh`, `faz-tamamlama` Adım 10) bakımcı onayı bekler.
+
+## Kapanış Kapısı
+
+`DOTNET_ROOT=~/.dotnet python3 scripts/kapi.py kapanis --taban cd985bd7`, commit'li ağaç
+`16256a9c`, 2026-09-24 → **EXIT 0**:
+
+| Adım | Süre | Sonuç |
+|---|---|---|
+| `kapi.py tarama` | 5,4 sn | ✅ temiz (migration'lar `27ccdab0` ile ankrajlı) |
+| `dokuman-bakim.py --denetle` · Python testleri · ajan haritası · denetim paketi | ~8 sn | ✅ |
+| `dotnet build Tracon.slnx -c Release` | 75,0 sn | ✅ 0 uyarı |
+| `dotnet test … -maxcpucount:2 -- --report-trx` | 461,5 sn | ✅ 18.113 test (38 koşum), 0 kırmızı |
+| `dotnet pack` | 6,7 sn | ✅ |
+| `dotnet format --verify-no-changes` | 110,7 sn | ✅ |
+| `docs-site npm run check` | 29,2 sn | ✅ |
+
+İlk iki deneme kırmızıydı (düzeltme turları, Süreç Ölçümü'ne ek): (1) site sayfaları sevk
+edilen agent haritasını (`llms-full.txt`) bayatlattı — yeniden üretildi (`eab1ab52`);
+(2) `check-content.mjs`: `mcp.tsx` değişti, konsol ekran görüntüsü damgası bayattı
+(E2E'den `TRACON_UI_SCREENSHOTS=1` ile yeniden üretildi) ve `ObsoleteMessages.cs` site
+adresini elle yazıyordu (§11) — `UrlFormat` kaldırıldı (`16256a9c`, K-869 güncellendi).
+
+**Yayın provası** (`kapi.py yayin --kuru`, temiz ağaç `16256a9c`) → **EXIT 0**: taban
+`v1.0.0-preview.2` (17 paket, nuget.org izole cache); kırıcı liste 121 tip, 0 TFM düşüşü,
+10 paket — hepsi `[Unreleased]` notunda; 20 paket `1.0.0-preview.2.78`; `npm publish
+--dry-run` ✅; 6 paketlenmiş örnek, Native AOT smoke ve net8.0 tüketici ✅ (sözleşme
+testleri paketlenmiş tüketicide yeşil).
