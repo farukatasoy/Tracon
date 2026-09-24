@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [1.0.0-preview.3] - 2026-09-24
+
+The first security release. It closes the tenant-boundary and
+credential-exposure defects of the earlier previews listed under Security,
+and it changes the public API: every removed or changed type is named below.
+Read Security and Changed before you upgrade.
+
 ### Security
 
 Every change below except the audit trail one can refuse a request or a

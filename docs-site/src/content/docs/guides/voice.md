@@ -4,7 +4,7 @@ description: Add speech tools and an opt-in realtime WebSocket conversation with
 ---
 
 :::note[Preview packages]
-Tracon is published as `1.0.0-preview.2`. Use `--prerelease` for discovery or
+Tracon is published as `1.0.0-preview.3`. Use `--prerelease` for discovery or
 pin the exact version for reproducible builds.
 :::
 
