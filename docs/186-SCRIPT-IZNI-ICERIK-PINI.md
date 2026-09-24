@@ -3,7 +3,7 @@
 > **Durum:** 📋 Planlandı (2026-09-23)
 > **Plan onayı:** Bakımcı, 2026-09-23 (engelleyici kararlar sohbette alındı)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-269**
-> **Önkoşul:** [Faz 185](185-KARDES-PAKET-SURUM-SABITLEME.md) — sonraki sürüm (K-852…K-854 güvenlik sürümü) 185'i bekler; 186 ondan sonra başlar (kullanıcı kararı). K-853 `bb9953e3`'tedir. **Anahtar basma açığı kapandı** (kusur-giderme, 2026-09-23; K-853 genişletildi, yeni K açılmadı); bu faz yalnız sonucunu doğrular (§ 186.0).
+> **Önkoşul:** [Faz 185](arsiv/fazlar/185-KARDES-PAKET-SURUM-SABITLEME.md) — sonraki sürüm (K-852…K-854 güvenlik sürümü) 185'i bekler; 186 ondan sonra başlar (kullanıcı kararı). K-853 `bb9953e3`'tedir. **Anahtar basma açığı kapandı** (kusur-giderme, 2026-09-23; K-853 genişletildi, yeni K açılmadı); bu faz yalnız sonucunu doğrular (§ 186.0).
 > **Paketler:** `Tracon.Abstractions`, `.Core`, `.AspNetCore`, `.Sql.Shared`, `.PostgreSql`, `.SqlServer`, `.Sqlite`, `.Testing.Contracts.Xunit`, `.UI`; üretilen `Tracon.Client`, `@tracon/client`
 > **Yeni paket:** Yok · **Migration:** gerekli — numara uygulama anında alınır (üç sağlayıcı, K-178)
 > **Public API:** büyüyor; bir imza değişiyor. Ölçüldü: `wc -l src/*/PublicAPI.Shipped.txt` → 17 dosya, 17 satır, yalnız `#nullable enable` (K-603). Davranış da kırıcıdır (Karar 3).

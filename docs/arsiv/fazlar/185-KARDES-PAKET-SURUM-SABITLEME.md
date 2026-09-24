@@ -2,7 +2,7 @@
 
 > **Durum:** ✅ Tamamlandı (2026-09-24)
 > **Plan onayı:** Bakımcı, 2026-09-23 (engelleyici kararlar sohbette alındı)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-265**
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-265**
 > **Önkoşul:** Yok — turun ilk fazı. Varsayım: K-852…K-854 (`bb9953e3`) ve bu turun `kusur-giderme` işleri ana dalda. **Sonraki yayın (K-852…K-854 güvenlik yayını) bu fazı bekler** (kullanıcı kararı). Sonra 186…191 sırayla. 187 `src/Directory.Build.props:86-95`'i düzenler; 191 `kapi.py yayin`'in pack çağrısını değiştirir. İkisi de `TraconPinSiblingDependencies`'i adlandırmaz: hedefi nuspec fact'i korur, devir notu ikisini adlandırır
 > **Paketler:** `Tracon.Core` (başlangıç kontrolü) · 16 paketin nuspec'i (`src/Directory.Build.props` hedefi) · `Tracon.Templates` (şablon) · örnek `samples/Tracon.Samples.ExtensionAotSmoke`
 > **Yeni paket:** Yok · **Migration:** Yok
@@ -450,7 +450,7 @@ docs/KARARLAR.md                                             (iki K satırı; in
 
 > Mutlu yoldan değil, **ne bozulabilir**den türetilir. Seviyeyi plan seçer.
 > Sınır geçen davranış (DI · HTTP · kiracı · akış · depo · paket) birim
-> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../.agents/ortak/test-seviyeleri.md).
+> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../../../.agents/ortak/test-seviyeleri.md).
 
 `PFA` = `PackageFamilyAlignmentTests`, `PFAH` = `PackageFamilyAlignmentHostTests`.
 
@@ -848,7 +848,7 @@ derlenmez (K-411 sınıfı); commit bunları içerir.
 > Kapanışta doldurulur: devralınan sözleşmeler, bilinen tuzaklar (🚨), yarım
 > kalan işler, sıradaki faz.
 
-**Sıradaki faz:** [186](186-SCRIPT-IZNI-ICERIK-PINI.md) (sözleşme devralmaz;
+**Sıradaki faz:** [186](../../186-SCRIPT-IZNI-ICERIK-PINI.md) (sözleşme devralmaz;
 ortam notları o dokümanın "Bu Faza Başlarken" 4. maddesinde). Sonraki yayın
 (K-852…K-854 güvenlik yayını) artık bu fazı beklemiyor.
 

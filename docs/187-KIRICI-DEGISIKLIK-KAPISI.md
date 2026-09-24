@@ -3,7 +3,7 @@
 > **Durum:** 📋 Planlandı (2026-09-23)
 > **Plan onayı:** Bakımcı, 2026-09-23 (engelleyici kararlar sohbette alındı)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-270** (triaj bulgusu `P6P9`, alt bulgu 6)
-> **Önkoşul:** [Faz 185](185-KARDES-PAKET-SURUM-SABITLEME.md) ve [Faz 186](186-SCRIPT-IZNI-ICERIK-PINI.md) kapanmış olmalı (sıra kararı) · aynı turun `kusur-giderme` kulvarları ana dalda olmalı. Denetim: "Bu Faza Başlarken" adım 3 · etkileşim: 187.9
+> **Önkoşul:** [Faz 185](arsiv/fazlar/185-KARDES-PAKET-SURUM-SABITLEME.md) ve [Faz 186](186-SCRIPT-IZNI-ICERIK-PINI.md) kapanmış olmalı (sıra kararı) · aynı turun `kusur-giderme` kulvarları ana dalda olmalı. Denetim: "Bu Faza Başlarken" adım 3 · etkileşim: 187.9
 > **Paketler:** Kaynak kodu değişen paket yok. 17 `lib` paketinin paketleme davranışı değişir (187.4). Aparat: `scripts/`, `Directory.Build.targets`, `src/Directory.Build.props`, `CHANGELOG.md`
 > **Yeni paket:** Yok — ApiCompat .NET SDK'nın içindedir; yeni NuGet bağımlılığı yok, K-007 gerekmez · **Migration:** Yok
 > **Public API:** Büyümüyor, daralmıyor — C# yüzeyine dokunulmaz. `wc -l src/*/PublicAPI.Shipped.txt` → 17 dosya × 1 satır (`#nullable enable`), toplam 17 (ölçüldü 2026-09-23; K-603 gereği boş). Strict mode bundan sonra TFM'ye özgü public üyeyi reddeder (187.4)
