@@ -44,7 +44,7 @@ public sealed record McpServerRequest
     /// the first stable release. Naming <c>Authorization</c> in both fields is rejected
     /// with <c>400</c>.
     /// </summary>
-    [Obsolete(ObsoleteMessages.AuthorizationConfigurationKey, UrlFormat = ObsoleteMessages.UrlFormat)]
+    [Obsolete(ObsoleteMessages.AuthorizationConfigurationKey)]
     public string? AuthorizationConfigurationKey { get; init; }
 
     /// <summary>

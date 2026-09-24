@@ -1,34 +1,13 @@
 using System.Reflection;
-using System.Text.RegularExpressions;
 
 namespace Tracon.Core.UnitTests.Architecture;
 
 /// <summary>
-/// Every obsoletion points at a section of the production guide that exists,
-/// and none of them carries a diagnostic identifier (phase 190).
+/// No obsoletion carries a diagnostic identifier or a hand-written help address
+/// (phase 190).
 /// </summary>
-/// <remarks>
-/// The help address ships inside the package and reaches the consumer as the
-/// link of a <c>CS0618</c> warning. The anchor is the section heading's slug,
-/// so a renamed heading breaks it without any build noticing.
-/// </remarks>
 public sealed class ObsoleteMessagesTests
 {
-    [Fact]
-    public void The_help_address_names_a_heading_of_the_production_guide()
-    {
-        var anchor = ObsoleteMessages.UrlFormat[(ObsoleteMessages.UrlFormat.IndexOf('#', StringComparison.Ordinal) + 1)..];
-        var guide = Path.Combine(CapabilityEntryPoints.RepositoryRoot, "docs-site", "src", "content", "docs", "guides", "production.md");
-
-        var slugs = File.ReadAllLines(guide)
-            .Where(static line => line.StartsWith("## ", StringComparison.Ordinal))
-            .Select(static line => Slug(line[3..]))
-            .ToList();
-
-        slugs.ShouldContain(slug => string.Equals(slug, anchor, StringComparison.Ordinal));
-        ObsoleteMessages.UrlFormat.ShouldStartWith("https://tracon.dev/guides/production/#");
-    }
-
     /// <summary>
     /// 🚨 A <c>DiagnosticId</c> escapes the <c>CS0618</c> suppression the
     /// System.Text.Json source generator writes into its output: Tracon.Core's
@@ -66,11 +45,8 @@ public sealed class ObsoleteMessagesTests
             .ShouldNotBeNull();
 
         attribute.Message.ShouldBe(ObsoleteMessages.AuthorizationConfigurationKey);
-        attribute.UrlFormat.ShouldBe(ObsoleteMessages.UrlFormat);
-    }
 
-    /// <summary>The heading slug the site generator produces for plain text headings.</summary>
-    private static string Slug(string heading)
-        => Regex.Replace(heading.Trim().ToLowerInvariant(), "[^a-z0-9 -]", string.Empty, RegexOptions.None, TimeSpan.FromSeconds(1))
-            .Replace(' ', '-');
+        // The site address is declared once for C# and this package cannot see it.
+        attribute.UrlFormat.ShouldBeNull();
+    }
 }

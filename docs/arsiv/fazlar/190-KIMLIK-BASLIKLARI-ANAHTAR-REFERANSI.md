@@ -174,7 +174,7 @@ uca yol `CredentialHeaderDeliveryTests` (loopback `MapMcp`) ile kanıtlı.
 | # | Plan | Gerçekleşen | Gerekçe |
 |---|---|---|---|
 | 1 | Önkoşul: maskeleme `kusur-giderme`'si ayrı commit | `3d79f8bc` (plan commit'i) içinde indi; okuma ve denetim tarafı ikisi de vardı | Başlangıç 4 ölçtü: `HeaderValueMask` + üç test yeşil. 190.6'nın "denetim değer düşürme" işi gerekmedi |
-| 2 | Açık Soru 4 önerisi A (`DiagnosticId` + `UrlFormat`) | **B + `UrlFormat`**: yalnız mesaj, `DiagnosticId` yok | Ölçüldü: `TRC9001` ile Tracon.Core'un STJ context'i 30 hatayla kırıldı; üretilen kod yalnız `CS0612/CS0618` bastırır. Tüketici de kırılırdı (K-869) |
+| 2 | Açık Soru 4 önerisi A (`DiagnosticId` + `UrlFormat`) | **B**: yalnız mesaj; `DiagnosticId` yok. `UrlFormat` de sonradan kaldırıldı — site adresinin C#'taki tek sahibi `DocumentationLinks`; elle kopya `check-content.mjs` §11'de kırmızı (kapanış kapısı) | Ölçüldü: `TRC9001` ile Tracon.Core'un STJ context'i 30 hatayla kırıldı; üretilen kod yalnız `CS0612/CS0618` bastırır. Tüketici de kırılırdı (K-869) |
 | 3 | `maf-api-kesfi` ile `AdditionalHeaders` + OAuth ölçümü | ilspy ile `ModelContextProtocol.Core` 2.2.0 decompile | Soru imza değil davranıştı; reflection davranışı göstermez. Bulgu devir notunda |
 | 4 | 190.4: yalnız boş/CR-LF değer düşer | Ek: transport'un **ekleyemeyeceği** başlık (içerik başlığı) da düşer | Decompile, SDK'nın bu durumda **değeri** exception mesajına koyduğunu ve bağlantı yolunun logladığını gösterdi — plansız bir log sızıntısı yolu |
 | 5 | Webhook ayrılmış ad yalnız yeni alanda `400` | Aynı; ek olarak iki harita birlikte `MaxExtraHeaders`'a sayılır (AS 2 = A) ve teslimde anahtar kaynaklı başlık önce eklenir | Limit düz başlığı keser, kimliği asla |
@@ -183,7 +183,7 @@ uca yol `CredentialHeaderDeliveryTests` (loopback `MapMcp`) ile kanıtlı.
 | 8 | `MigrationParityTests` iki tabloyu kapsar | Kapsar; ayrıca `OUTPUT` regex'i çok satırlı listeyi okuyacak şekilde düzeltildi ve bir "OUTPUT bulundu" testi eklendi | Eski regex yalnız ilk satırı okuyordu; MCP/webhook listeleri çok satırlıdır, test boşuna geçerdi |
 | 9 | Webhook `Describe` yalnız yeni alanın adlarını ekler | Düz `headers`'ın **adları** da eklendi | MCP denetimi zaten adları taşıyor; iki yüzey aynı biçimde |
 | 10 | — | `mcp.tsx:584` yorumu düzeltildi ("headers typed back from this form" artık yanlış) | Silme onayı kararı (§175.3) değişmedi |
-| 11 | Göç tarifi `production.md`'de | `## Upgrading: credential headers` başlığı; `[Obsolete]` `UrlFormat`'ı oraya bağlanır | `ObsoleteMessagesTests` başlık slug'ını kilitler |
+| 11 | Göç tarifi `production.md`'de | `## Upgrading: credential headers` başlığı | Site ve `CHANGELOG` oraya yollar; `[Obsolete]` mesajı yerine geçen alanı söyler |
 | 12 | Düşen testler önce (uygulama sırası 2) | Testler kodla birlikte yazıldı; önce-kırmızı ayrıca koşulmadı | Mevcut dört test (maske, denetim) yeni kural yüzünden kırmızıya döndü ve yeniden yazıldı (`X-Session-Id`, `X-Tenant`); yeni testlerin tabanda düşeceği alan yokluğundan açıktır (alan bağlanmıyordu) |
 
 ## Bu Fazda Verilen Kararlar
