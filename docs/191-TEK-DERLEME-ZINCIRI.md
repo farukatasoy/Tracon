@@ -3,7 +3,7 @@
 > **Durum:** 📋 Planlandı (2026-09-23)
 > **Plan onayı:** Bakımcı, 2026-09-23 (engelleyici kararlar sohbette alındı)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-273** — triaj N12'nin (b) parçası = `YAYIN-HAZIRLIK` açık kalemi **A-15** ("kapı kendi bastığı byte'ları doğrulamıyor"); bu faz A-15'i tamamen kapatır. (a) parçası = **A-8** iş süre sınırları, 2026-09-23 `kusur-giderme` turu.
-> **Önkoşul:** [Faz 187](187-KIRICI-DEGISIKLIK-KAPISI.md) — iki faz da `kapi.py yayin`'i değiştirir; 187'nin pack anı adımları `paketle`'ye taşınır (191.8) · 2026-09-23 `kusur-giderme` turu: her `ci.yml` işinde `timeout-minutes` ve `zaman_siniri_olmayan_isler` kapısı; sınırlar ve kapı yeşil kalmalı · Faz 185 → 190 bu fazdan önce kapanır
+> **Önkoşul:** [Faz 187](arsiv/fazlar/187-KIRICI-DEGISIKLIK-KAPISI.md) — iki faz da `kapi.py yayin`'i değiştirir; 187'nin pack anı adımları `paketle`'ye taşınır (191.8) · 2026-09-23 `kusur-giderme` turu: her `ci.yml` işinde `timeout-minutes` ve `zaman_siniri_olmayan_isler` kapısı; sınırlar ve kapı yeşil kalmalı · Faz 185 → 190 bu fazdan önce kapanır
 > **Paketler:** Yok — sevk edilen içerik değişmez. Dokunulan: `ci.yml`, `kapi.py`, `dokuman-bakim.py`, iki script testi, `Directory.Build.targets` (yalnız K-661 yorumu), `WorkflowWorkspacePathsTests.cs` (Açık Soru 2)
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** Büyümüyor, daralmıyor — `src/` altında imza değişmez. Ölçüm (2026-09-23): `wc -l src/*/PublicAPI.Shipped.txt` → 17 dosya, toplam 17 satır; her dosya yalnız `#nullable enable` taşır (Shipped boş, K-603)
@@ -28,7 +28,7 @@
    **K-661** (bir `<id, version>` çifti tek bir artifact'ı adlandırır; kirli ağaçta pack reddedilir;
    `TraconSkipCleanWorkingTreeCheck` yeni bir çağırana eklenmez — "Yeniden açılmaz"),
    **K-603** (`PublicAPI.Shipped.txt` preview hattı boyunca boştur)
-3. [Faz 187](187-KIRICI-DEGISIKLIK-KAPISI.md) — yalnız devir notu. 187 `yayin`'e pack
+3. [Faz 187](arsiv/fazlar/187-KIRICI-DEGISIKLIK-KAPISI.md) — yalnız devir notu. 187 `yayin`'e pack
    öncesi adımlar, üç `-p:` özelliği ve pack anı raporları ekler; açtığı K-* de oradadır:
    ```bash
    f=$(find docs -name '187-*.md' | head -1)   # zsh'te eşleşmeyen glob komutu düşürür

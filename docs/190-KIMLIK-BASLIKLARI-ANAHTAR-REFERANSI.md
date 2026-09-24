@@ -5,7 +5,7 @@
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-272**
 > **Önkoşul:** K-852 (`RequireTenantKey`, `bb9953e3`) — yeni alanın her anahtar adı ondan geçer ·
 > bu turun maskeleme `kusur-giderme`'si — okuma tarafı (GET `"***"`, PUT `"***"` → `400`) şart; denetim tarafı ölçülür, inmediyse bu fazındır (190.6) ·
-> [Faz 187](187-KIRICI-DEGISIKLIK-KAPISI.md) — **teknik**: `kapi.py yayin --kuru` bu fazın `CHANGELOG` satırlarını denetler ·
+> [Faz 187](arsiv/fazlar/187-KIRICI-DEGISIKLIK-KAPISI.md) — **teknik**: `kapi.py yayin --kuru` bu fazın `CHANGELOG` satırlarını denetler ·
 > turun K-* kategori etiketi kapısı (K-855'ten itibaren) · Faz 185, 186, 188, 189 — yalnız sıra (kullanıcı kararı; teknik bağımlılık yok)
 > **Paketler:** `Tracon.Abstractions`, `.Core`, `.Mcp`, `.AspNetCore`, `.PostgreSql`, `.SqlServer`, `.Sqlite`, `.Testing.Contracts.Xunit`, `.Client` + npm `@tracon/client` (üretilir), `.UI` (`server-types.ts`; Açık Soru 3 → `mcp.tsx`)
 > **Yeni paket:** Yok · **Migration:** gerekli — numara uygulama anında alınır (iki tablo × üç sağlayıcı; K-178)
@@ -31,7 +31,7 @@
    alanındadır; kaydetme ve çözmede denetlenir) · **K-535** (webhook ek başlığı Tracon
    başlık adını taşıyamaz) · **K-779** (denetim `before`/`after` kalıcı düz metin) ·
    **K-603** (`Shipped` GA'ya kadar boş).
-3. [Faz 187](187-KIRICI-DEGISIKLIK-KAPISI.md) devir notu — `CHANGELOG` ve `### Deprecated`
+3. [Faz 187](arsiv/fazlar/187-KIRICI-DEGISIKLIK-KAPISI.md) devir notu — `CHANGELOG` ve `### Deprecated`
    biçimi; `yayin --kuru` bu fazın notlarını onunla denetler:
    ```bash
    awk '/## Sonraki Faza Devir Notu/,0' docs/187-KIRICI-DEGISIKLIK-KAPISI.md
