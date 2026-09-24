@@ -182,3 +182,33 @@
   bulamaz. Mesaj komutu söyler: `git push --atomic origin main v<sürüm>`.
   Etiketli koşumda taban **bir önceki** `v*` etiketidir (MT-PKG-144).
 - **🚨 Sürüm notundaki çitli kod bloğu kırıcı değişiklik kapısının span eşleşmesini kaydırır** (2026-09-24, Faz 189): `breaking_changes._code_spans` çiti (```` ``` ````) ayıklamıyordu; her çitin üç backtick'i çevredeki metinle eşleşip hangi metnin span sayıldığını kaydırıyordu. Faz 188'in tek bloğu şans eseri geçti; 189'un ikinci bloğu doğru yazılmış `TraconToolRegistration` ve `ITraconBuilder` adlarını "notta yok" gösterdi. Çitler artık okunmadan önce silinir; yalnız çitin içinde geçen ad **kabul edilmez** (`test_citli_kod_blogu_span_eslesmesini_kaydirmaz`).
+
+## Tek derleme zinciri (Faz 191, K-871)
+
+- **Zincir:** build (ubuntu) `Derle` → `kapi.py paketle --cikti artifacts/ci-paket`
+  (`--no-build`) → testler → `paket-dogrula` → `nuget-packages` · `release-dryrun`
+  `yayin --kuru --paket-dizini` (pack YOK) → `nuget-verified` · `publish`
+  `paket-dogrula` → login → push. Biçimi `dokuman-bakim.py` "CI tek derleme
+  zinciri" kilitler. Ham SHA-256 doğru ölçüdür: zincir iki kez paketlemez.
+- **🚨 `paketle` `Derle`'nin HEMEN ardındadır.** Ölçüldü (2026-09-24, taze klon):
+  `ReleaseArtifact*` fikstürü src'yi `1.0.0-preview.1` ile yeniden derler ve
+  `Tracon.Core.dll` SHA-256'sı değişir. Testten sonra `--no-build` yanlış damgalı
+  DLL'i paketlerdi. Taze klonda `Derle`'ye kadarki her adımdan sonra `git status`
+  boştu → `TRACON0004` riski yok.
+- **🚨 Pack anı ≠ artifact anı.** Semaphore (`obj/`), taban restore'u ve bayat
+  ilk-yayın bayrağı pack'in yanında koşar (`_pack_release`); sonucu manifest'e
+  girer (`apiCompat[].validationRan`). Rapor okuma, not eşleşmesi, metaveri,
+  K-008 ortak yoldadır (`_finish_release_rehearsal`). `release-dryrun`'da `obj/`
+  yoktur: yeni bir pack anı denetimini ortak yola koymak onu sessizce kırar.
+- **"Rapor yok" meşrudur, "kayıt yok" değildir.** Farksız pakette SDK rapor yazmaz;
+  kayıt `report: null` taşır. Beklenen kimlikler provanın **kendi** checkout'undan
+  hesaplanır; eksik kayıt "rapor eksik: <paket>" verir.
+- **Yerel `release_dir` eski sürüm taşıyorsa `--paket-dizini` reddeder** (Açık
+  Soru 5 = A; dosya silinmez): `rm -rf artifacts/package/release`. Aynı ad + aynı
+  içerik + farklı OPC baytı (eski kopya) → "manifest'i girdiden farklı: packages".
+- **Yeniden koşum sabit adlı artifact'a çarpmaz** (ölçüldü 2026-09-24, Actions API,
+  `farukatasoy/Tracon` koşum 35507188627 deneme 1-3 ve 35524722320 deneme 1-2):
+  `nuget-packages` ve `test-results-<os>` her denemede yeniden yüklendi, hepsi
+  `success`. `upload-artifact@v4` adı denemeye bağlar; `overwrite: true` gerekmez.
+- **Depo imzası:** nuget.org `.signature.p7s` ekler; itilen ile indirilen ham
+  SHA-256 farklıdır. Karşılaştırma girdi bazında yapılır (MT-PKG-160, etiket günü).

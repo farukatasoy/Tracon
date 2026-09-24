@@ -20,6 +20,18 @@ python3 scripts/kapi.py performans                # tahsis kapısı - üç sıca
 `artifacts/kapi-olcum.jsonl`'a ekler. `--komutlari-bas` hiçbirini koşmadan
 listeler — ayıklama bilgisi kaybolmaz.
 
+## Yayın zinciri komutları (Faz 191, K-871)
+
+`kapi.py yayin --kuru [--surum X]` insanın provasıdır: kendi paketini üretir.
+CI tek derleme zinciri üç komutla koşar; bir `v*` etiketinin ittiği baytlar
+`paketle`'nin ürettiği dosyalardır:
+
+```bash
+python3 scripts/kapi.py paketle --cikti <boş dizin>       # test edilen derleme, --no-build + manifest (bypass yok)
+python3 scripts/kapi.py paket-dogrula <dizin>             # her dosya manifest'teki SHA-256 ile aynı mı
+python3 scripts/kapi.py yayin --kuru --paket-dizini <dizin>   # paketlemeden prova; dizin değişmez
+```
+
 ## Kapı OLMAYAN komut: `kapasite`
 
 `python3 scripts/kapi.py kapasite --profil <ad> --surum <exact>` (Faz 166) bir

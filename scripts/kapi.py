@@ -30,10 +30,13 @@ ARTIFACTS = ROOT / "artifacts"
 MEASUREMENTS = ARTIFACTS / "kapi-olcum.jsonl"
 PACKAGE_RELEASE_DIR = ARTIFACTS / "package" / "release"
 PACKABLE_SOLUTION_FILTER = ROOT / "Tracon.src.slnf"
+PACKAGE_MANIFEST_NAME = "package-manifest.json"
+PACKAGE_REPORT_DIR_NAME = "api-compat"
+PACKAGE_FILE_SUFFIXES = (".nupkg", ".snupkg")
 NPM_CLIENT_PACKAGE_DIR = ROOT / "packages" / "tracon-client"
 RELEASE_VERSION_PATTERN = re.compile(r"^1\.0\.0-preview\.\d+$")
 PRERELEASE_DEPENDENCY_PATTERN = re.compile(r'id="(?P<id>[^"]+)" version="[^"]*-[^"]*"')
-REPOSITORY_COMMIT_PATTERN = re.compile(r'<repository[^>]+commit="[0-9a-f]{7,}"[^>]*/>')
+REPOSITORY_COMMIT_PATTERN = re.compile(r'<repository[^>]+commit="(?P<commit>[0-9a-f]{7,})"[^>]*/>')
 RELEASE_NOTES_PATTERN = re.compile(r"<releaseNotes>(?P<url>[^<]*)</releaseNotes>")
 K008_EXEMPT_PACKAGE = "Tracon.AspNetCore"
 APPLIED_MIGRATION_MANIFEST = pathlib.PurePath("scripts", "applied-migrations.json")
@@ -1101,9 +1104,9 @@ def closing_commands(base: str, *, site: bool = True, performance: bool = True) 
         # TraconSkipCleanWorkingTreeCheck (Faz 136): this pack validates the
         # PACKAGING CONTRACT (README, icon, K-008) during iteration - it is not
         # a release candidate, so it must still work on an uncommitted tree.
-        # The real release rehearsal (`kapi.py yayin`) and the CI `pack` job a
-        # `v*` tag actually publishes from both leave this unset and stay fully
-        # gated by TraconValidateCleanWorkingTree.
+        # The real release rehearsal (`kapi.py yayin`) and `kapi.py paketle` -
+        # the build job's pack that a `v*` tag publishes (Faz 191) - both leave
+        # this unset and stay fully gated by TraconValidateCleanWorkingTree.
         Command((
             "dotnet", "pack", "Tracon.slnx", "-c", "Release", "--no-build",
             "-p:TraconSkipCleanWorkingTreeCheck=true")),
@@ -1261,6 +1264,10 @@ def _sha256(path: pathlib.Path) -> str:
 _VOLATILE_OPC_ENTRY = re.compile(r"^_rels/\.rels$|^package/services/metadata/core-properties/[0-9a-f]{32}\.psmdcp$")
 
 
+class PackageFileError(Exception):
+    """A package file that cannot be read as a zip. The message names the file."""
+
+
 def _content_fingerprint(path: pathlib.Path) -> str:
     """A hash of a `.nupkg`/`.snupkg`'s MEANINGFUL content - every entry
     except the random-named OPC metadata NuGet regenerates on every pack.
@@ -1268,15 +1275,24 @@ def _content_fingerprint(path: pathlib.Path) -> str:
     the raw file SHA-256 (`_sha256`, used for the published manifest) is not
     expected to match and is not what decides a promote/conflict."""
     digest = hashlib.sha256()
-    with zipfile.ZipFile(path) as archive:
-        names = sorted(name for name in archive.namelist() if not _VOLATILE_OPC_ENTRY.match(name))
-        for name in names:
-            digest.update(name.encode("utf-8"))
-            digest.update(archive.read(name))
+    try:
+        with zipfile.ZipFile(path) as archive:
+            names = sorted(name for name in archive.namelist() if not _VOLATILE_OPC_ENTRY.match(name))
+            for name in names:
+                digest.update(name.encode("utf-8"))
+                digest.update(archive.read(name))
+    except (zipfile.BadZipFile, OSError) as exception:
+        raise PackageFileError(f"{path.name}: paket okunamadı ({exception})") from exception
     return digest.hexdigest()
 
 
-def _promote_staged_packages(staging_dir: pathlib.Path, release_dir: pathlib.Path, file_names: Iterable[str]) -> list[str]:
+def _promote_staged_packages(
+    staging_dir: pathlib.Path,
+    release_dir: pathlib.Path,
+    file_names: Iterable[str],
+    *,
+    copy: bool = False,
+) -> list[str]:
     """Moves each named file from `staging_dir` into `release_dir` - UNLESS an
     identically named file already lives there with a DIFFERENT content
     fingerprint (`_content_fingerprint`, NOT the raw file hash - see its
@@ -1285,7 +1301,13 @@ def _promote_staged_packages(staging_dir: pathlib.Path, release_dir: pathlib.Pat
     therefore never left half-updated: either every file promotes, or none
     does. A same-fingerprint match is a deterministic no-op - the existing
     file already carries what this run would have produced, so it is left in
-    place as the one true copy."""
+    place as the one true copy.
+
+    `copy=True` (Faz 191, `yayin --paket-dizini`) leaves `staging_dir`
+    untouched: the input is the artifact CI verified and it must not change.
+    Each file is copied under a temporary name that does not end in
+    `.nupkg`/`.snupkg` and then renamed with `os.replace`, so an interrupted
+    copy never leaves a truncated file under a package name."""
     file_names = list(file_names)
     conflicts = [
         name for name in file_names
@@ -1299,15 +1321,34 @@ def _promote_staged_packages(staging_dir: pathlib.Path, release_dir: pathlib.Pat
         destination = release_dir / name
         if destination.exists():
             continue
-        shutil.move(str(staging_dir / name), str(destination))
+        if not copy:
+            shutil.move(str(staging_dir / name), str(destination))
+            continue
+        temporary = release_dir / f".{name}.{os.getpid()}.partial"
+        try:
+            shutil.copyfile(staging_dir / name, temporary)
+            os.replace(temporary, destination)
+        finally:
+            temporary.unlink(missing_ok=True)
     return []
 
 
 def _write_manifest(
-    release_dir: pathlib.Path, *, version: str, commit: str, packages: list[dict[str, str | None]]
+    release_dir: pathlib.Path,
+    *,
+    version: str,
+    commit: str,
+    packages: list[dict[str, str | None]],
+    baseline: str | None = None,
+    api_compat: list[dict[str, object]] | None = None,
 ) -> pathlib.Path:
-    manifest = {"version": version, "commit": commit, "dirty": False, "packages": packages}
-    manifest_path = release_dir / "package-manifest.json"
+    manifest: dict[str, object] = {"version": version, "commit": commit, "dirty": False}
+    if baseline is not None:
+        manifest["baseline"] = baseline
+    manifest["packages"] = packages
+    if api_compat is not None:
+        manifest["apiCompat"] = api_compat
+    manifest_path = release_dir / PACKAGE_MANIFEST_NAME
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
     return manifest_path
 
@@ -1341,43 +1382,278 @@ def _entry_names(nupkg: pathlib.Path) -> set[str]:
         return set(archive.namelist())
 
 
-def release_rehearsal(
-    requested_version: str | None,
-    *,
-    root: pathlib.Path = ROOT,
-    release_dir: pathlib.Path | None = None,
-) -> int:
-    release_dir = release_dir or PACKAGE_RELEASE_DIR
-    project_ids = packable_project_ids(root)
+def _resolve_package_set(
+    directory: pathlib.Path, project_ids: Sequence[str], requested_version: str | None
+) -> tuple[dict[str, pathlib.Path], str] | None:
+    """Every packable project's `.nupkg` in `directory`, on ONE version line.
 
-    # Erken ret (136.3): çalışma ağacı denetlenir ÖNCE dakikalarca süren bir
-    # `dotnet pack`e girilir. MSBuild kapısı (TraconValidateCleanWorkingTree)
-    # zaten aynı sonucu verirdi; bu adım yalnız geri bildirimi öne çeker.
-    # Koşulsuzdur - bir yayın provasının kanıt değeri kirli bir ağaçta yoktur,
-    # burada TraconAllowDirtyPack karşılığı bir override YOKTUR (Faz 136,
-    # Açık Soru 3). git bulunamazsa (kaynak tarball, git PATH'te yok) kapı
-    # ATLANIR - `dotnet pack` kendi MSBuild kapısı üzerinden aynı denetimi
-    # tekrar dener; burası ikinci savunma hattıdır, tek hat değil.
+    Prints the reason and returns None when a package is missing, the set
+    spans two versions, the requested version was not produced, or a package
+    outside `project_ids` sits next to them. The pack stage (`paketle`) and the
+    artifact stage (`_finish_release_rehearsal`) share this identity check."""
+    resolved: dict[str, pathlib.Path] = {}
+    missing: list[str] = []
+    for project_id in project_ids:
+        nupkg = _resolve_nupkg(directory, project_id, requested_version)
+        if nupkg is None:
+            missing.append(project_id)
+        else:
+            resolved[project_id] = nupkg
+
+    if missing:
+        print(f"❌ Paket üretilmedi: {', '.join(missing)}")
+        return None
+
+    versions = {project_id: _nupkg_version(project_id, nupkg) for project_id, nupkg in resolved.items()}
+    distinct_versions = sorted(set(versions.values()))
+    if len(distinct_versions) != 1:
+        print("❌ Paketler tek bir sürüm hattında değil:")
+        for project_id in sorted(versions):
+            print(f"  {project_id}: {versions[project_id]}")
+        return None
+
+    resolved_version = distinct_versions[0]
+    if requested_version and resolved_version != requested_version:
+        print(f"❌ İstenen sürüm '{requested_version}' üretilmedi; üretilen: '{resolved_version}'")
+        return None
+
+    # İki yönlü karşılaştırma: yalnız EKSİK paket değil, beklenmeyen (fazla) bir
+    # paket de yakalanmalı - ör. bir test projesinin yanlışlıkla packable hâle
+    # gelmesi. `resolved` yalnız `project_ids` üstünden dolduğu için kendi
+    # başına bunu göremez; dizindeki `resolved_version`'a ait GERÇEK `.nupkg`
+    # kümesi ayrıca taranır.
+    produced_ids = {
+        path.name[: -len(f".{resolved_version}.nupkg")]
+        for path in directory.glob(f"*.{resolved_version}.nupkg")
+    }
+    unexpected = sorted(produced_ids - set(project_ids))
+    if unexpected:
+        print(f"❌ Beklenmeyen paket üretildi: {', '.join(unexpected)}")
+        return None
+    return resolved, resolved_version
+
+
+def _package_file_names(resolved: Mapping[str, pathlib.Path]) -> dict[str, list[str]]:
+    """`<id>` -> `[<nupkg>]` or `[<nupkg>, <snupkg>]`, in project order."""
+    names: dict[str, list[str]] = {}
+    for project_id in sorted(resolved):
+        nupkg = resolved[project_id]
+        names[project_id] = [nupkg.name]
+        if nupkg.with_suffix(".snupkg").exists():
+            names[project_id].append(nupkg.with_suffix(".snupkg").name)
+    return names
+
+
+def _package_manifest_entries(directory: pathlib.Path, file_names: Mapping[str, list[str]]) -> list[dict[str, str | None]]:
+    entries: list[dict[str, str | None]] = []
+    for project_id in sorted(file_names):
+        names = file_names[project_id]
+        entry: dict[str, str | None] = {
+            "id": project_id,
+            "file": names[0],
+            "sha256": _sha256(directory / names[0]),
+            "symbolsFile": None,
+            "symbolsSha256": None,
+        }
+        if len(names) > 1:
+            entry["symbolsFile"] = names[1]
+            entry["symbolsSha256"] = _sha256(directory / names[1])
+        entries.append(entry)
+    return entries
+
+
+# -----------------------------------------------------------------------------
+# Faz 191 - one build, one pack. `paketle` packs the build CI just tested;
+# `paket-dogrula` proves a directory still holds exactly what its manifest
+# names; `yayin --paket-dizini` rehearses those files without packing again.
+# -----------------------------------------------------------------------------
+
+
+def _is_plain_relative(name: object) -> bool:
+    """A manifest path is a plain relative POSIX path inside its directory."""
+    if not isinstance(name, str) or not name or "\\" in name:
+        return False
+    path = pathlib.PurePosixPath(name)
+    return not path.is_absolute() and ".." not in path.parts and "." not in path.parts
+
+
+def _manifest_files(manifest: object) -> tuple[dict[str, str], list[str]]:
+    """Every file a manifest names -> its SHA-256, and the schema problems."""
+    problems: list[str] = []
+    files: dict[str, str] = {}
+    if not isinstance(manifest, dict):
+        return files, [f"{PACKAGE_MANIFEST_NAME}: kök bir JSON nesnesi değil"]
+    if manifest.get("dirty") is not False:
+        problems.append(f"{PACKAGE_MANIFEST_NAME}: 'dirty' false değil")
+
+    def add(owner: str, name: object, digest: object) -> None:
+        if not _is_plain_relative(name) or not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest):
+            problems.append(f"{PACKAGE_MANIFEST_NAME}: {owner} geçersiz dosya/SHA-256 kaydı taşıyor")
+        elif name in files:
+            problems.append(f"{PACKAGE_MANIFEST_NAME}: {name} iki kez anılıyor")
+        else:
+            files[name] = digest
+
+    packages = manifest.get("packages")
+    if not isinstance(packages, list) or not packages:
+        problems.append(f"{PACKAGE_MANIFEST_NAME}: 'packages' boş veya liste değil")
+        packages = []
+    for entry in packages:
+        if not isinstance(entry, dict):
+            problems.append(f"{PACKAGE_MANIFEST_NAME}: 'packages' nesne olmayan bir öğe taşıyor")
+            continue
+        owner = str(entry.get("id"))
+        add(owner, entry.get("file"), entry.get("sha256"))
+        if entry.get("symbolsFile") is not None or entry.get("symbolsSha256") is not None:
+            add(owner, entry.get("symbolsFile"), entry.get("symbolsSha256"))
+
+    records = manifest.get("apiCompat", [])
+    if not isinstance(records, list):
+        problems.append(f"{PACKAGE_MANIFEST_NAME}: 'apiCompat' liste değil")
+        records = []
+    for record in records:
+        if not isinstance(record, dict):
+            problems.append(f"{PACKAGE_MANIFEST_NAME}: 'apiCompat' nesne olmayan bir öğe taşıyor")
+            continue
+        if record.get("report") is not None or record.get("sha256") is not None:
+            add(f"{record.get('id')} raporu", record.get("report"), record.get("sha256"))
+    return files, problems
+
+
+def _load_manifest(directory: pathlib.Path) -> tuple[object, str | None]:
+    path = directory / PACKAGE_MANIFEST_NAME
+    if not path.is_file():
+        return None, f"{PACKAGE_MANIFEST_NAME} yok"
+    try:
+        return json.loads(path.read_text(encoding="utf-8")), None
+    except (OSError, ValueError) as exception:
+        return None, f"{PACKAGE_MANIFEST_NAME} okunamadı: {exception}"
+
+
+def package_directory_problems(directory: pathlib.Path) -> list[str]:
+    """Why `directory` does NOT hold exactly the files its manifest names.
+
+    Every named file (package, symbols package, api-compat report) must
+    exist with the recorded raw SHA-256, and no `.nupkg`/`.snupkg` or report
+    outside the manifest may sit in the directory. Raw SHA-256 is the right
+    measure here - unlike `_content_fingerprint` - because the chain never
+    packs twice: the bytes that were hashed are the bytes that are pushed."""
+    if not directory.is_dir():
+        return [f"{directory}: dizin yok"]
+    if not any(directory.iterdir()):
+        return [f"{directory}: dizin boş"]
+    manifest, error = _load_manifest(directory)
+    if error:
+        return [error]
+    files, problems = _manifest_files(manifest)
+    for name, digest in sorted(files.items()):
+        path = directory / name
+        if not path.is_file():
+            problems.append(f"eksik: {name}")
+        elif _sha256(path) != digest:
+            problems.append(f"SHA-256 farklı: {name}")
+
+    for path in sorted(directory.rglob("*")):
+        relative = path.relative_to(directory).as_posix()
+        is_package = path.suffix in PACKAGE_FILE_SUFFIXES
+        is_report = path.suffix == ".xml" and path.parent.name == PACKAGE_REPORT_DIR_NAME
+        if path.is_file() and (is_package or is_report) and relative not in files:
+            problems.append(f"manifest dışı dosya: {relative}")
+    return problems
+
+
+def verify_package_directory(directory: pathlib.Path) -> int:
+    problems = package_directory_problems(directory)
+    if problems:
+        print(f"❌ {directory} manifest'iyle eşleşmiyor:")
+        for problem in problems:
+            print(f"  {problem}")
+        return 1
+    manifest, _ = _load_manifest(directory)
+    files, _ = _manifest_files(manifest)
+    print(f"✅ {directory}: {len(files)} dosya manifest'teki SHA-256 ile aynı")
+    return 0
+
+
+def _dirty_tree_rejected(*, require_git: bool) -> bool:
+    """The early git rejection (136.3), shared by every pack entry point.
+
+    Returns True (after printing why) when the working tree is dirty, or when
+    git is unavailable and the caller cannot work without a commit."""
     status_lines = _git("status", "--porcelain")
     if status_lines is None:
+        if require_git:
+            print("❌ git bulunamadı veya bu bir git deposu değil; paket commit'e bağlanamaz")
+            return True
         print("⚠️ git bulunamadı veya bu bir git deposu değil; çalışma ağacı temizliği burada denetlenemedi")
-    elif status_lines:
+        return False
+    if status_lines:
         print("❌ Çalışma ağacı temiz değil ('git status --porcelain'):")
         for line in status_lines:
             print(f"  {line}")
         print("Bir yayın provasının kanıt değeri kirli bir ağaçta yoktur; commit veya stash sonrası tekrar deneyin.")
-        return 1
+        return True
+    return False
 
+
+def _head_commit() -> str:
     commit_lines = _git("rev-parse", "HEAD")
-    commit = commit_lines[0] if commit_lines else "unknown"
+    return commit_lines[0] if commit_lines else "unknown"
 
-    # Faz 187 - taban: son yayınlanmış `v*` sürümü. Pack'ten ÖNCE çözülür,
-    # çünkü pack taban yolunu ister. Git yoksa temizlik denetimi yukarıda
-    # uyarıyla atlanır (MSBuild kapısı ikinci hattır); tabanın ikinci hattı
-    # yoktur, bu yüzden burada sessiz atlama yok.
+
+def _library_ids(root: pathlib.Path, project_ids: Iterable[str]) -> list[str]:
+    return [project_id for project_id in project_ids if _package_profile(root, project_id) == "library"]
+
+
+def pack_command(
+    output_dir: pathlib.Path | str,
+    pack_properties: Sequence[str],
+    *,
+    no_build: bool,
+) -> Command:
+    """The ONE `dotnet pack` a release artifact comes from (Faz 191).
+
+    `--no-build` packs the build the caller already tested (`paketle`, CI);
+    without it the pack builds first (`yayin --kuru`, a human's rehearsal).
+    Neither shape carries `TraconSkipCleanWorkingTreeCheck` or
+    `TraconAllowDirtyPack`: a release candidate stays gated (K-661)."""
+    return Command((
+        "dotnet", "pack", str(PACKABLE_SOLUTION_FILTER), "-c", "Release",
+        *(("--no-build",) if no_build else ()),
+        "-o", str(output_dir), *pack_properties,
+    ))
+
+
+@dataclasses.dataclass(frozen=True)
+class PackedRelease:
+    """What the pack stage hands the artifact stage."""
+
+    baseline: str
+    library_ids: tuple[str, ...]
+    baseline_ids: tuple[str, ...]
+
+
+def _pack_release(
+    root: pathlib.Path,
+    output_dir: pathlib.Path,
+    report_dir: pathlib.Path,
+    *,
+    no_build: bool,
+    requested_version: str | None,
+) -> PackedRelease | int:
+    """The pack stage: every check that needs `obj/`, the pack start time or
+    the temporary baseline cache runs HERE, next to the pack (Faz 191.3).
+
+    Returns an exit code on failure. The artifact stage
+    (`_finish_release_rehearsal`) never repeats these - in `release-dryrun`
+    there is no `obj/` to read."""
     sys.path.insert(0, str(ROOT / "scripts"))
     import breaking_changes
 
+    # Faz 187 - taban: son yayınlanmış `v*` sürümü. Pack'ten ÖNCE çözülür,
+    # çünkü pack taban yolunu ister. Git yoksa temizlik denetimi uyarıyla
+    # atlanır (MSBuild kapısı ikinci hattır); tabanın ikinci hattı yoktur, bu
+    # yüzden burada sessiz atlama yok.
     try:
         baseline = breaking_changes.resolve_baseline(root)
     except breaking_changes.BaselineError as exception:
@@ -1391,26 +1667,10 @@ def release_rehearsal(
               f"TraconPackageFirstRelease'i kaldırın: {', '.join(stale_flags)}")
         return 1
 
-    library_ids = [project_id for project_id in project_ids if _package_profile(root, project_id) == "library"]
+    library_ids = _library_ids(root, packable_project_ids(root))
     baseline_ids = breaking_changes.baseline_package_ids(root, library_ids)
-    # Önceki bir yeşil koşumun sonucu, bu koşum kırmızı biterse yanıltmasın.
-    (root / breaking_changes.RESULT_FILE).unlink(missing_ok=True)
-
-    # Staging dizini koşum başına benzersizdir (Faz 136, Açık Soru 1: paralel
-    # koşumlar desteklenmez, ama bu en azından ikisinin BİRBİRİNİN çıktısını
-    # ezmesini önler). `artifacts/` .gitignore'dadır - staging burada yaşarsa
-    # bir sonraki koşumun kendi "erken ret" denetimini kirletmez. Rapor dizini
-    # de aynı sebeple koşum başınadır; ayrıca yok olan bir çıktı dosyası SDK'nın
-    # artımlı doğrulama hedefini yeniden koşturur (Faz 187, 187.0 adım 5).
-    staging_root = release_dir.parent / "staging"
-    staging_root.mkdir(parents=True, exist_ok=True)
-    staging_dir = pathlib.Path(tempfile.mkdtemp(prefix="run-", dir=staging_root))
-    report_root = release_dir.parent / "api-compat"
-    report_root.mkdir(parents=True, exist_ok=True)
-    report_dir = pathlib.Path(tempfile.mkdtemp(prefix="run-", dir=report_root))
     # Taban cache'i depo DIŞINDA: geliştirici cache'i asla okunmaz (187.3).
     baseline_work = pathlib.Path(tempfile.mkdtemp(prefix="tracon-baseline-"))
-
     try:
         try:
             baseline_cache = breaking_changes.restore_baselines(baseline_ids, baseline, baseline_work)
@@ -1430,16 +1690,73 @@ def release_rehearsal(
         if requested_version:
             environment["MinVerVersionOverride"] = requested_version
 
-        pack_command = Command((
-            "dotnet", "pack", str(PACKABLE_SOLUTION_FILTER), "-c", "Release", "-o", str(staging_dir),
-            *breaking_changes.pack_properties(baseline_cache, baseline, report_dir),
-        ))
-        print(f"$ {pack_command.display}" + (f"  (MinVerVersionOverride={requested_version})" if requested_version else ""), flush=True)
+        command = pack_command(
+            output_dir, breaking_changes.pack_properties(baseline_cache, baseline, report_dir), no_build=no_build)
+        print(f"$ {command.display}" + (f"  (MinVerVersionOverride={requested_version})" if requested_version else ""), flush=True)
         pack_started = time.time()
-        pack_result = subprocess.run(list(pack_command.args), cwd=root, env=environment, check=False)
+        pack_result = subprocess.run(list(command.args), cwd=root, env=environment, check=False)
         if pack_result.returncode:
             print(f"❌ 'dotnet pack' çıkış {pack_result.returncode}")
             return pack_result.returncode
+    finally:
+        shutil.rmtree(baseline_work, ignore_errors=True)
+
+    # Kanıt pack'i koşan süreçte hesaplanır: semaphore bu makinenin
+    # artifacts/obj/'undadır. Artifact aşamasına TAŞINMAZ (Faz 191.8) -
+    # `release-dryrun`'da obj/ yoktur; sonuç `paketle` manifest'ine girer.
+    not_run = breaking_changes.validation_not_run(root, library_ids, pack_started)
+    if not_run:
+        print("❌ Paket doğrulaması bu koşumda koşmadı:")
+        for line in not_run:
+            print(f"  {line}")
+        return 1
+    return PackedRelease(baseline=baseline, library_ids=tuple(library_ids), baseline_ids=tuple(baseline_ids))
+
+
+def release_rehearsal(
+    requested_version: str | None,
+    *,
+    root: pathlib.Path = ROOT,
+    release_dir: pathlib.Path | None = None,
+) -> int:
+    release_dir = release_dir or PACKAGE_RELEASE_DIR
+    project_ids = packable_project_ids(root)
+
+    # Erken ret (136.3): çalışma ağacı denetlenir ÖNCE dakikalarca süren bir
+    # `dotnet pack`e girilir. MSBuild kapısı (TraconValidateCleanWorkingTree)
+    # zaten aynı sonucu verirdi; bu adım yalnız geri bildirimi öne çeker.
+    # Koşulsuzdur - bir yayın provasının kanıt değeri kirli bir ağaçta yoktur,
+    # burada TraconAllowDirtyPack karşılığı bir override YOKTUR (Faz 136,
+    # Açık Soru 3). git bulunamazsa (kaynak tarball, git PATH'te yok) kapı
+    # ATLANIR - `dotnet pack` kendi MSBuild kapısı üzerinden aynı denetimi
+    # tekrar dener; burası ikinci savunma hattıdır, tek hat değil.
+    if _dirty_tree_rejected(require_git=False):
+        return 1
+    commit = _head_commit()
+
+    # Önceki bir yeşil koşumun sonucu, bu koşum kırmızı biterse yanıltmasın.
+    sys.path.insert(0, str(ROOT / "scripts"))
+    import breaking_changes
+
+    (root / breaking_changes.RESULT_FILE).unlink(missing_ok=True)
+
+    # Staging dizini koşum başına benzersizdir (Faz 136, Açık Soru 1: paralel
+    # koşumlar desteklenmez, ama bu en azından ikisinin BİRBİRİNİN çıktısını
+    # ezmesini önler). `artifacts/` .gitignore'dadır - staging burada yaşarsa
+    # bir sonraki koşumun kendi "erken ret" denetimini kirletmez. Rapor dizini
+    # de aynı sebeple koşum başınadır; ayrıca yok olan bir çıktı dosyası SDK'nın
+    # artımlı doğrulama hedefini yeniden koşturur (Faz 187, 187.0 adım 5).
+    staging_root = release_dir.parent / "staging"
+    staging_root.mkdir(parents=True, exist_ok=True)
+    staging_dir = pathlib.Path(tempfile.mkdtemp(prefix="run-", dir=staging_root))
+    report_root = release_dir.parent / PACKAGE_REPORT_DIR_NAME
+    report_root.mkdir(parents=True, exist_ok=True)
+    report_dir = pathlib.Path(tempfile.mkdtemp(prefix="run-", dir=report_root))
+
+    try:
+        packed = _pack_release(root, staging_dir, report_dir, no_build=False, requested_version=requested_version)
+        if isinstance(packed, int):
+            return packed
 
         return _finish_release_rehearsal(
             root=root,
@@ -1448,27 +1765,171 @@ def release_rehearsal(
             project_ids=project_ids,
             requested_version=requested_version,
             commit=commit,
-            breaking_gate=BreakingChangeGate(
-                baseline=baseline,
-                report_dir=report_dir,
-                library_ids=tuple(library_ids),
-                pack_started=pack_started,
-            ),
+            breaking_gate=BreakingChangeGate(baseline=packed.baseline, report_dir=report_dir),
         )
     finally:
         shutil.rmtree(staging_dir, ignore_errors=True)
         shutil.rmtree(report_dir, ignore_errors=True)
-        shutil.rmtree(baseline_work, ignore_errors=True)
+
+
+def pack_for_ci(output_dir: pathlib.Path, *, root: pathlib.Path = ROOT) -> int:
+    """`kapi.py paketle` - packs the build the caller already tested.
+
+    `output_dir` must be missing or empty: an interrupted run leaves a
+    manifest-less directory that the next run REFUSES instead of deleting
+    (a partial set must never be mistaken for a verified one). The manifest
+    is written last and records, besides every package's raw SHA-256, the
+    baseline and one api-compat record per library package with a baseline -
+    the pack-time proof `yayin --paket-dizini` cannot recompute."""
+    if output_dir.exists() and (not output_dir.is_dir() or any(output_dir.iterdir())):
+        print(f"❌ Çıktı dizini boş değil: {output_dir} - hiçbir şey silinmedi; boş veya yeni bir dizin verin")
+        return 1
+    if _dirty_tree_rejected(require_git=True):
+        return 1
+    commit = _head_commit()
+    project_ids = packable_project_ids(root)
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    report_dir = output_dir / PACKAGE_REPORT_DIR_NAME
+    report_dir.mkdir()
+    packed = _pack_release(root, output_dir, report_dir, no_build=True, requested_version=None)
+    if isinstance(packed, int):
+        return packed
+
+    package_set = _resolve_package_set(output_dir, project_ids, None)
+    if package_set is None:
+        return 1
+    resolved, version = package_set
+
+    api_compat: list[dict[str, object]] = []
+    for project_id in sorted(packed.baseline_ids):
+        report = report_dir / f"{project_id}.xml"
+        # 187.0 adım 6: farksız pakette SDK rapor YAZMAZ. "Rapor yok" meşru bir
+        # değerdir; doğrulamanın koştuğunu semaphore kanıtladı (yukarıda).
+        api_compat.append({
+            "id": project_id,
+            "report": report.relative_to(output_dir).as_posix() if report.exists() else None,
+            "sha256": _sha256(report) if report.exists() else None,
+            "validationRan": True,
+        })
+
+    manifest_path = _write_manifest(
+        output_dir,
+        version=version,
+        commit=commit,
+        baseline=packed.baseline,
+        packages=_package_manifest_entries(output_dir, _package_file_names(resolved)),
+        api_compat=api_compat,
+    )
+    reports = sum(1 for record in api_compat if record["report"])
+    print(f"📄 {manifest_path} yazıldı: {len(resolved)} paket, sürüm '{version}', "
+          f"{len(api_compat)} api-compat kaydı ({reports} rapor)")
+    return 0
+
+
+def _report_record_problems(manifest: Mapping[str, object], expected_ids: Iterable[str]) -> list[str]:
+    """Every expected library package carries a record that says validation
+    ran. The expected set comes from the rehearsal's OWN checkout, never from
+    the manifest: an empty `api-compat/` is not "no breaking change"."""
+    records = {
+        record.get("id"): record
+        for record in manifest.get("apiCompat", []) or []
+        if isinstance(record, dict)
+    }
+    problems = []
+    expected = sorted(expected_ids)
+    for project_id in expected:
+        record = records.get(project_id)
+        if record is None:
+            problems.append(f"rapor eksik: {project_id}")
+        elif record.get("validationRan") is not True:
+            problems.append(f"rapor eksik: {project_id} (doğrulama koştu kaydı yok)")
+    for project_id in sorted(set(records) - set(expected), key=str):
+        problems.append(f"beklenmeyen api-compat kaydı: {project_id}")
+    return problems
+
+
+def rehearse_package_directory(
+    package_dir: pathlib.Path,
+    requested_version: str | None,
+    *,
+    root: pathlib.Path = ROOT,
+    release_dir: pathlib.Path | None = None,
+) -> int:
+    """`kapi.py yayin --kuru --paket-dizini` - rehearses packages it did NOT
+    produce. `dotnet pack` never runs; `package_dir` is never modified."""
+    release_dir = release_dir or PACKAGE_RELEASE_DIR
+    if _dirty_tree_rejected(require_git=True):
+        return 1
+    commit = _head_commit()
+
+    if verify_package_directory(package_dir):
+        return 1
+    manifest, _ = _load_manifest(package_dir)
+    assert isinstance(manifest, dict)  # package_directory_problems proved it
+
+    if manifest.get("commit") != commit:
+        print(f"❌ Paketler başka bir commit'ten: manifest '{manifest.get('commit')}', HEAD '{commit}'")
+        return 1
+
+    sys.path.insert(0, str(ROOT / "scripts"))
+    import breaking_changes
+
+    try:
+        baseline = breaking_changes.resolve_baseline(root)
+    except breaking_changes.BaselineError as exception:
+        print(f"❌ Taban çözülemedi: {exception}")
+        return 1
+    print(f"Taban: v{baseline} (git describe)")
+    if manifest.get("baseline") != baseline:
+        print(f"❌ Paketler başka bir tabana karşı doğrulandı: manifest 'v{manifest.get('baseline')}', bu checkout 'v{baseline}'")
+        return 1
+
+    project_ids = packable_project_ids(root)
+    problems = _report_record_problems(
+        manifest, breaking_changes.baseline_package_ids(root, _library_ids(root, project_ids)))
+    if problems:
+        print("❌ Kırıcı değişiklik raporu kanıtı eksik:")
+        for problem in problems:
+            print(f"  {problem}")
+        return 1
+
+    # Açık Soru 5 = A: `release_dir` girdi dışı paket taşıyorsa ret. Kopya
+    # başlamadan söylenir; hiçbir dosya silinmez (K-661).
+    input_files = {entry["file"] for entry in manifest["packages"]} | {
+        entry["symbolsFile"] for entry in manifest["packages"] if entry.get("symbolsFile")}
+    foreign = sorted(
+        path.name for path in release_dir.glob("*")
+        if path.suffix in PACKAGE_FILE_SUFFIXES and path.name not in input_files
+    ) if release_dir.is_dir() else []
+    if foreign:
+        print(f"❌ {release_dir} girdi dışı paket taşıyor ({len(foreign)}): {', '.join(foreign[:5])}"
+              + (" …" if len(foreign) > 5 else ""))
+        print(f"   Yerel eski sürümler temizlenmez (Faz 136); gerekiyorsa: rm -rf {release_dir}")
+        return 1
+
+    (root / breaking_changes.RESULT_FILE).unlink(missing_ok=True)
+    return _finish_release_rehearsal(
+        root=root,
+        release_dir=release_dir,
+        staging_dir=package_dir,
+        project_ids=project_ids,
+        requested_version=requested_version,
+        commit=commit,
+        breaking_gate=BreakingChangeGate(baseline=baseline, report_dir=package_dir / PACKAGE_REPORT_DIR_NAME),
+        input_manifest=manifest,
+    )
 
 
 @dataclasses.dataclass(frozen=True)
 class BreakingChangeGate:
-    """What the breaking-change gate (Faz 187) needs from the pack it follows."""
+    """What the breaking-change gate (Faz 187) needs from the pack it follows.
+
+    Only artifact-time input: the pack-time proof (semaphore) was checked by
+    `_pack_release` and never travels here (Faz 191.3)."""
 
     baseline: str
     report_dir: pathlib.Path
-    library_ids: tuple[str, ...]
-    pack_started: float
 
 
 def _check_breaking_changes(root: pathlib.Path, gate: BreakingChangeGate, resolved_version: str) -> int:
@@ -1480,15 +1941,6 @@ def _check_breaking_changes(root: pathlib.Path, gate: BreakingChangeGate, resolv
               "kendisiyle karşılaştırma sessiz bir 'kırıcı değişiklik yok' üretirdi")
         return 1
 
-    # Kanıt pack'i koşan süreçte hesaplanır: semaphore bu makinenin
-    # artifacts/obj/'undadır (Faz 191 pack'i taşırsa kanıt da onunla gider).
-    not_run = breaking_changes.validation_not_run(root, gate.library_ids, gate.pack_started)
-    if not_run:
-        print("❌ Paket doğrulaması bu koşumda koşmadı:")
-        for line in not_run:
-            print(f"  {line}")
-        return 1
-
     return breaking_changes.check(
         report_dir=gate.report_dir,
         baseline=gate.baseline,
@@ -1496,6 +1948,9 @@ def _check_breaking_changes(root: pathlib.Path, gate: BreakingChangeGate, resolv
         changelog=root / "CHANGELOG.md",
         result_path=root / breaking_changes.RESULT_FILE,
     )
+
+
+_MANIFEST_COMPARED_FIELDS = ("version", "commit", "dirty", "baseline", "packages")
 
 
 def _finish_release_rehearsal(
@@ -1507,32 +1962,41 @@ def _finish_release_rehearsal(
     requested_version: str | None,
     commit: str,
     breaking_gate: BreakingChangeGate,
+    input_manifest: Mapping[str, object] | None = None,
 ) -> int:
-    resolved: dict[str, pathlib.Path] = {}
-    missing: list[str] = []
-    for project_id in project_ids:
-        nupkg = _resolve_nupkg(staging_dir, project_id, requested_version)
-        if nupkg is None:
-            missing.append(project_id)
-        else:
-            resolved[project_id] = nupkg
+    """The artifact stage, shared by both rehearsal modes. It reads only the
+    package directory, git and `CHANGELOG.md`.
 
-    if missing:
-        print(f"❌ Paket üretilmedi: {', '.join(missing)}")
+    `input_manifest` marks the package-directory mode: `staging_dir` is the
+    verified input, so files are COPIED (never moved) and the manifest written
+    to `release_dir` must equal the input's field by field."""
+    try:
+        return _finish_release_rehearsal_unchecked(
+            root=root, release_dir=release_dir, staging_dir=staging_dir, project_ids=project_ids,
+            requested_version=requested_version, commit=commit, breaking_gate=breaking_gate,
+            input_manifest=input_manifest)
+    except PackageFileError as exception:
+        print(f"❌ {exception}")
         return 1
 
+
+def _finish_release_rehearsal_unchecked(
+    *,
+    root: pathlib.Path,
+    release_dir: pathlib.Path,
+    staging_dir: pathlib.Path,
+    project_ids: list[str],
+    requested_version: str | None,
+    commit: str,
+    breaking_gate: BreakingChangeGate,
+    input_manifest: Mapping[str, object] | None,
+) -> int:
+    package_set = _resolve_package_set(staging_dir, project_ids, requested_version)
+    if package_set is None:
+        return 1
+    resolved, resolved_version = package_set
     versions = {project_id: _nupkg_version(project_id, nupkg) for project_id, nupkg in resolved.items()}
-    distinct_versions = sorted(set(versions.values()))
-    if len(distinct_versions) != 1:
-        print("❌ Paketler tek bir sürüm hattında değil:")
-        for project_id in sorted(versions):
-            print(f"  {project_id}: {versions[project_id]}")
-        return 1
 
-    resolved_version = distinct_versions[0]
-    if requested_version and resolved_version != requested_version:
-        print(f"❌ İstenen sürüm '{requested_version}' üretilmedi; üretilen: '{resolved_version}'")
-        return 1
     if not RELEASE_VERSION_PATTERN.fullmatch(resolved_version):
         print(
             f"⚠️ Sürüm '1.0.0-preview.N' desenine uymuyor: '{resolved_version}' "
@@ -1569,25 +2033,15 @@ def _finish_release_rehearsal(
                 "(YAYIN-HAZIRLIK Adım 5)"
             )
 
-    # İki yönlü karşılaştırma: yalnız EKSİK paket değil, beklenmeyen (fazla) bir
-    # paket de yakalanmalı - ör. bir test projesinin yanlışlıkla packable hâle
-    # gelmesi. `resolved` yalnız `project_ids` üstünden dolduğu için kendi
-    # başına bunu göremez; dizindeki `resolved_version`'a ait GERÇEK `.nupkg`
-    # kümesi ayrıca taranır.
-    produced_ids = {
-        path.name[: -len(f".{resolved_version}.nupkg")]
-        for path in staging_dir.glob(f"*.{resolved_version}.nupkg")
-    }
-    unexpected = sorted(produced_ids - set(project_ids))
-    if unexpected:
-        print(f"❌ Beklenmeyen paket üretildi: {', '.join(unexpected)}")
-        return 1
-
     errors: list[str] = []
     for project_id in sorted(resolved):
         nupkg = resolved[project_id]
-        entries = _entry_names(nupkg)
-        nuspec = _read_nuspec(nupkg, project_id)
+        try:
+            entries = _entry_names(nupkg)
+            nuspec = _read_nuspec(nupkg, project_id)
+        except (zipfile.BadZipFile, KeyError, OSError) as exception:
+            errors.append(f"{project_id}: {nupkg.name} okunamadı ({exception})")
+            continue
         profile = _package_profile(root, project_id)
 
         if "icon.png" not in entries:
@@ -1616,8 +2070,15 @@ def _finish_release_rehearsal(
             for other in LICENSE_FILES:
                 if other != expected_license and other in entries:
                     errors.append(f"{project_id}: yanlış lisans dosyası da paketlenmiş: {other}")
-        if not REPOSITORY_COMMIT_PATTERN.search(nuspec):
+        # Faz 191: yalnız VARLIK değil, DEĞER de. PR'de iki iş aynı merge
+        # commit'ini checkout eder; başka bir commit'ten gelen paket burada
+        # düşer. git yoksa (commit 'unknown') yalnız varlık denetlenir.
+        repository_match = REPOSITORY_COMMIT_PATTERN.search(nuspec)
+        if repository_match is None:
             errors.append(f"{project_id}: repository/commit metaverisi eksik")
+        elif commit != "unknown" and repository_match.group("commit") != commit:
+            errors.append(
+                f"{project_id}: repository commit '{repository_match.group('commit')}' HEAD değil ('{commit}')")
 
         release_notes_match = RELEASE_NOTES_PATTERN.search(nuspec)
         if release_notes_match is None:
@@ -1671,43 +2132,33 @@ def _finish_release_rehearsal(
     # 136.3 - overwrite koruması ve manifest. Staging'de doğrulanmış paketler
     # ancak burada release_dir'e taşınır (promote); `_promote_staged_packages`
     # aynı isimde FARKLI bir SHA-256 bulursa HİÇBİR dosyayı taşımaz ve mevcut
-    # release_dir olduğu gibi kalır (hepsi ya da hiçbiri).
-    staged_file_names: dict[str, list[str]] = {}
-    for project_id in sorted(resolved):
-        nupkg = resolved[project_id]
-        names = [nupkg.name]
-        snupkg = nupkg.with_suffix(".snupkg")
-        if snupkg.exists():
-            names.append(snupkg.name)
-        staged_file_names[project_id] = names
-
+    # release_dir olduğu gibi kalır (hepsi ya da hiçbiri). Paket dizini
+    # modunda taşımaz, kopyalar - girdi CI'ın doğruladığı artifact'tır.
+    staged_file_names = _package_file_names(resolved)
     all_file_names = [name for names in staged_file_names.values() for name in names]
-    conflicts = _promote_staged_packages(staging_dir, release_dir, all_file_names)
+    conflicts = _promote_staged_packages(staging_dir, release_dir, all_file_names, copy=input_manifest is not None)
     if conflicts:
         print("❌ Aynı kimlikte (id+sürüm) FARKLI içerikli bir artifact zaten var - mevcut dosya korundu:")
         for name in conflicts:
             print(f"  {name}")
         return 1
 
-    packages_manifest: list[dict[str, str | None]] = []
-    for project_id in sorted(resolved):
-        names = staged_file_names[project_id]
-        nupkg_path = release_dir / names[0]
-        entry: dict[str, str | None] = {
-            "id": project_id,
-            "file": nupkg_path.name,
-            "sha256": _sha256(nupkg_path),
-            "symbolsFile": None,
-            "symbolsSha256": None,
-        }
-        if len(names) > 1:
-            snupkg_path = release_dir / names[1]
-            entry["symbolsFile"] = snupkg_path.name
-            entry["symbolsSha256"] = _sha256(snupkg_path)
-        packages_manifest.append(entry)
+    packages_manifest = _package_manifest_entries(release_dir, staged_file_names)
+    manifest_path = _write_manifest(
+        release_dir, version=resolved_version, commit=commit, baseline=breaking_gate.baseline, packages=packages_manifest)
+    print(f"📄 {manifest_path.relative_to(root) if manifest_path.is_relative_to(root) else manifest_path} "
+          f"yazıldı ({len(packages_manifest)} paket)")
 
-    manifest_path = _write_manifest(release_dir, version=resolved_version, commit=commit, packages=packages_manifest)
-    print(f"📄 {manifest_path.relative_to(root)} yazıldı ({len(packages_manifest)} paket)")
+    if input_manifest is not None:
+        written = json.loads(manifest_path.read_text(encoding="utf-8"))
+        differing = [field for field in _MANIFEST_COMPARED_FIELDS if written.get(field) != input_manifest.get(field)]
+        if differing:
+            print(f"❌ {release_dir} manifest'i girdi manifest'inden farklı: {', '.join(differing)}")
+            print(f"   Aynı adla eski bir kopya kalmış olabilir; gerekiyorsa: rm -rf {release_dir}")
+            return 1
+        print(f"✅ Manifest girdiyle aynı: {len(packages_manifest)} paket, sürüm, commit, taban")
+        if verify_package_directory(release_dir):
+            return 1
 
     print(f"✅ {len(resolved)} paket, sürüm '{resolved_version}':")
     for project_id in sorted(resolved):
@@ -1797,7 +2248,19 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--kuru", action="store_true", required=True,
         help="zorunlu: bu faz yalnız kuru koşumu destekler, canlı yayın yolu yok",
     )
-    yayin.add_argument("--surum", help="zorlanacak sürüm (MinVerVersionOverride); verilmezse MinVer'in bugünkü değeri kullanılır")
+    yayin.add_argument(
+        "--surum",
+        help="zorlanacak sürüm (MinVerVersionOverride); --paket-dizini ile beklenen sürüm; "
+             "verilmezse MinVer'in bugünkü değeri kullanılır")
+    yayin.add_argument(
+        "--paket-dizini",
+        help="paketlemeden doğrula: 'kapi.py paketle' çıktısı (Faz 191); dizin değişmez")
+    # Faz 191: CI'ın tek pack'i. Bypass seçeneği YOKTUR (K-661).
+    paketle = subparsers.add_parser("paketle", help="test edilen derlemeyi --no-build ile paketler + manifest")
+    paketle.add_argument("--cikti", required=True, help="boş veya olmayan çıktı dizini; doluysa ret (silinmez)")
+    paket_dogrula = subparsers.add_parser(
+        "paket-dogrula", help="dizindeki dosyalar manifest'teki SHA-256 ile aynı mı")
+    paket_dogrula.add_argument("dizin", help="package-manifest.json taşıyan dizin")
     # Faz 166. Kapasite ölçümü bir KAPI DEĞİLDİR (K-738: yük ölçümü rapordur).
     # `kapanis` onu asla koşmaz; burada olması yalnız komut yüzeyini tek yerde
     # tutmak içindir. Ağır profiller açık komutla, eli isteyerek koşar.
@@ -1855,9 +2318,24 @@ def main(argv: Sequence[str] | None = None) -> int:
             if not require_test_runtimes(frameworks):
                 return 1
         return run_commands("test", commands, dry_run=args.komutlari_bas)
+    if args.stage == "paket-dogrula":
+        if args.komutlari_bas:
+            print(f"(dotnet çağrısı yok) {args.dizin}/{PACKAGE_MANIFEST_NAME} -> her dosyanın ham SHA-256'sı")
+            return 0
+        return verify_package_directory(pathlib.Path(args.dizin).resolve())
+    if args.stage == "paketle":
+        if args.komutlari_bas:
+            print(f"$ {pack_command(args.cikti, ('<187 taban özellikleri>',), no_build=True).display}")
+            return 0
+        # resolve(): `dotnet pack` köke göre koşar, Python cwd'ye göre çözerdi (denetim 🟢1).
+        return pack_for_ci(pathlib.Path(args.cikti).resolve())
     if args.stage == "yayin":
         if args.komutlari_bas:
-            print("$ dotnet pack ...  (bkz. release_rehearsal)")
+            if args.paket_dizini:
+                print(f"(dotnet pack yok) paket-dogrula {args.paket_dizini} -> ortak yol -> "
+                      f"{PACKAGE_RELEASE_DIR.relative_to(ROOT)}'e kopya -> paket-dogrula")
+            else:
+                print(f"$ {pack_command('<staging>', ('<187 taban özellikleri>',), no_build=False).display}")
             return 0
         # Faz 183: prova bir net8.0 tüketicisini .NET 8 runtime'ında koşturur.
         # Eksik runtime dakikalarca paketlemeden SONRA değil, şimdi söylenir.
@@ -1868,11 +2346,13 @@ def main(argv: Sequence[str] | None = None) -> int:
                 (release_extension_samples.NET8_CONSUMER_FRAMEWORK,),
                 purpose="Yayın provasının net8.0 tüketicisi"):
             return 1
+        if args.paket_dizini:
+            return rehearse_package_directory(pathlib.Path(args.paket_dizini).resolve(), args.surum)
         return release_rehearsal(args.surum)
 
     if args.komutlari_bas:
         return run_commands("kapanis", closing_commands("<taban>"), dry_run=True)
-    parser.error("bir aşama belirtin: tarama, ic-dongu, kapanis, performans, test veya yayin")
+    parser.error("bir aşama belirtin: tarama, ic-dongu, kapanis, performans, test, yayin, paketle veya paket-dogrula")
     return 2
 
 

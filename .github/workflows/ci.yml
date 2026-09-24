@@ -185,6 +185,27 @@ jobs:
       - name: Derle
         run: dotnet build Tracon.slnx -c Release --no-restore
 
+      # ---------------------------------------------------------------------
+      # Faz 191 - tek derleme zinciri. Bir `v*` etiketinin nuget.org'a ittigi
+      # dosyalar BU adimin urettigi dosyalardir: test edilen derleme
+      # `--no-build` ile paketlenir, `release-dryrun` onlari paketlemeden
+      # dogrular, `publish` ayni baytlari iter.
+      #
+      # 🚨 Sira bir sozlesmedir: bu adim `Derle`'nin HEMEN ardindadir.
+      # Performans kapisi, kapasite smoke'u ve Tracon.Package.Tests'in
+      # fiksturleri src'yi yeniden derler (ReleaseArtifactFixture baska bir
+      # surumle; olculdu 2026-09-24: Tracon.Core.dll SHA-256'si degisti).
+      # Testten sonra kosan bir `--no-build` pack yanlis damgali DLL'i
+      # paketlerdi. Kapi: `dokuman-bakim.py --denetle` ("CI tek derleme
+      # zinciri"). Yalniz ubuntu bacagi paketler; Windows platform farkini olcer.
+      #
+      # Taban dogrulamasi (Faz 187) pack aninin isidir: son `v*` etiketinin
+      # paketleri izole bir cache'e nuget.org'dan restore edilir. Ag gerekir.
+      # ---------------------------------------------------------------------
+      - name: Paketle
+        if: matrix.os == 'ubuntu-latest'
+        run: python3 scripts/kapi.py paketle --cikti artifacts/ci-paket
+
       # Faz 116: tahsis kapısı yalnız üç sıcak yoldan biri (veya bench/ kendisi)
       # değiştiyse koşar - `kapi.py performans`'ın kendi mantığı
       # (`performance_gate_triggered`) yeniden kullanılır, CI kendi diff
@@ -290,6 +311,26 @@ jobs:
             --profil smoke \
             --surum "0.0.0-ci.${{ github.run_number }}"
 
+      # Kume `Paketle` aninda manifest SHA-256'lariyla dondu. Bu adim testlerin
+      # ve kapasite smoke'unun kumeyi DEGISTIRMEDIGINI yuklemeden hemen once
+      # kanitlar. Yukleme testlerden SONRADIR: dusen bir test denemesi
+      # yuklemez, "Re-run failed jobs" ayni adla ikinci bir yuklemeye carpmaz.
+      - name: Paketleri dogrula
+        if: matrix.os == 'ubuntu-latest'
+        run: python3 scripts/kapi.py paket-dogrula artifacts/ci-paket
+
+      - name: Paketleri yukle
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: nuget-packages
+          path: |
+            artifacts/ci-paket/*.nupkg
+            artifacts/ci-paket/*.snupkg
+            artifacts/ci-paket/package-manifest.json
+            artifacts/ci-paket/api-compat/*.xml
+          if-no-files-found: error
+
       - name: Kapasite smoke ciktisini yukle
         if: always() && matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -306,56 +347,17 @@ jobs:
           path: artifacts/**/TestResults/*.trx
           if-no-files-found: ignore
 
-  pack:
-    name: Paketle
-    runs-on: ubuntu-latest
-    needs: build
-    # Olculen en uzun 7,4 dk.
-    timeout-minutes: 15
-
-    steps:
-      - name: Kaynak kodu al
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          fetch-depth: 0
-
-      - name: .NET SDK kur
-        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
-        with:
-          global-json-file: global.json
-
-      # Arayuz varliklari pack sirasinda gerekir; yoksa TRACON0003 hatasi verir.
-      - name: Node.js kur
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
-        with:
-          node-version: '22'
-          cache: npm
-          cache-dependency-path: |
-            src/Tracon.UI/frontend/package-lock.json
-            packages/tracon-client/package-lock.json
-
-      - name: Paketleri uret
-        run: |
-          dotnet restore Tracon.slnx
-          dotnet build Tracon.slnx -c Release --no-restore
-          dotnet pack  Tracon.slnx -c Release --no-build
-
-      - name: Paketleri yukle
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: nuget-packages
-          path: |
-            artifacts/package/release/*.nupkg
-            artifacts/package/release/*.snupkg
-          if-no-files-found: error
-
   # ---------------------------------------------------------------------------
   # Yayın provası (docs/arsiv/fazlar/97-SURUM-POLITIKASI-VE-YAYIN-PROVASI.md, 97.2)
   #
-  # `pack` isinden BAGIMSIZ calisir - kendi `dotnet pack`'ini kosar (kapi.py'nin
-  # `yayin` komutunun kendisi bunu yapar, K-008 sinirini ve paket icerik
-  # sozlesmesini o ciktidan olcer). Boylece `pack` ve bu is PARALEL kosar; ikisi
-  # de yalniz `build`e bagimlidir.
+  # Faz 191: kendi `dotnet pack`'ini KOSMAZ. `build` isinin ubuntu bacaginin
+  # paketledigi `nuget-packages` artifact'ini indirir ve `kapi.py yayin --kuru
+  # --paket-dizini` ile dogrular: manifest SHA-256'lari, commit ve taban
+  # esitligi, K-008 siniri, paket icerik sozlesmesi, kirici degisiklik raporu
+  # (Faz 187), dis sample'lar ve AOT smoke. Dogrulanan kume SHA-256
+  # manifest'iyle `nuget-verified` olarak yuklenir; `publish` YALNIZ onu iter.
+  # Bayt esitligi her push'ta (PR dahil) sinanir - etiket yolunda yeni mantik
+  # yoktur.
   #
   # `--surum` GECILMEZ: bu is her push'ta (PR dahil) kosar ve o an bir etiket
   # olmayabilir. Zorlanmis bir surum yalniz INSANIN gercek etiketten ONCE
@@ -363,10 +365,11 @@ jobs:
   # MinVer'in kendi hesapladigi surum zaten hedeftir - zorlamaya gerek yoktur.
   # ---------------------------------------------------------------------------
   release-dryrun:
-    name: Yayin provasi (kapi.py yayin --kuru)
+    name: Yayin provasi (kapi.py yayin --kuru --paket-dizini)
     runs-on: ubuntu-latest
     needs: build
-    # Olculen en uzun 5,7 dk.
+    # Olculen en uzun 5,7 dk (Faz 191 oncesi, kendi pack'iyle). Pack artik
+    # bu iste degil; sinir ilk yeni koşumda yeniden olculur.
     timeout-minutes: 15
 
     steps:
@@ -383,15 +386,14 @@ jobs:
           global-json-file: global.json
           dotnet-version: 8.0.x
 
-      # Arayuz varliklari pack sirasinda gerekir (TRACON0003).
+      # Yalniz `npm publish --dry-run` icin (kapi.py'nin npm adimi). Bu is
+      # paketlemez; arayuz varliklari (TRACON0003) `build` isinde gerekir.
       - name: Node.js kur
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
           cache: npm
-          cache-dependency-path: |
-            src/Tracon.UI/frontend/package-lock.json
-            packages/tracon-client/package-lock.json
+          cache-dependency-path: packages/tracon-client/package-lock.json
 
       # `npm publish --dry-run`'in kendi `prepublishOnly` -> `npm run build`
       # adimi icin gerekir; kapi.py'nin npm adimi bu dizinde kosar.
@@ -404,8 +406,26 @@ jobs:
         with:
           python-version: '3.12'
 
+      # `artifacts/` .gitignore'dadir: indirilen dizin erken git denetimini
+      # kirletmez (WorkflowWorkspacePathsTests).
+      - name: Paketleri indir
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: nuget-packages
+          path: artifacts/ci-paket
+
       - name: Yayin provasi
-        run: python3 scripts/kapi.py yayin --kuru
+        run: python3 scripts/kapi.py yayin --kuru --paket-dizini artifacts/ci-paket
+
+      - name: Dogrulanan paketleri yukle
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: nuget-verified
+          path: |
+            artifacts/package/release/*.nupkg
+            artifacts/package/release/*.snupkg
+            artifacts/package/release/package-manifest.json
+          if-no-files-found: error
 
   # ---------------------------------------------------------------------------
   # `npm-publish`'ten SONRA kosar (RK-011). Iki kanal PARALEL kostugu surece
@@ -419,9 +439,10 @@ jobs:
   publish:
     name: NuGet.org'a yayinla
     runs-on: ubuntu-latest
-    needs: [pack, release-dryrun, npm-publish]
+    needs: [release-dryrun, npm-publish]
     # Olculen en uzun 0,5 dk; taban 10 dk. Sinir push'un ortasinda keserse bir
     # kisim paket yayinda kalir; `--skip-duplicate` isi yeniden kosmayi guvenli yapar.
+    # Faz 191 checkout + Python + dogrulama ekledi (her biri saniyeler).
     timeout-minutes: 10
     permissions:
       contents: read
@@ -430,12 +451,29 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     environment: nuget
 
+    # Faz 191: bu is DERLEMEZ ve PAKETLEMEZ. `release-dryrun`'in dogruladigi
+    # `nuget-verified` kumesini indirir, provanin kullandigi AYNI komutla
+    # (`kapi.py paket-dogrula`) yeniden sinar ve tam o baytlari iter.
+    # Dogrulama login'den ONCE kosar: repo kodu calisirken API anahtari yoktur.
     steps:
+      - name: Kaynak kodu al
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Python kur
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
+
+      # 🚨 `artifacts/` altina: repo izlenen `packages/tracon-client/`'i
+      # tasir; eski indirme yolu `packages` checkout'la cakisirdi.
       - name: Paketleri indir
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          name: nuget-packages
-          path: packages
+          name: nuget-verified
+          path: artifacts/nuget-verified
+
+      - name: Paketleri dogrula
+        run: python3 scripts/kapi.py paket-dogrula artifacts/nuget-verified
 
       - name: .NET SDK kur
         uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
@@ -466,7 +504,7 @@ jobs:
 
       - name: Yayinla
         run: >
-          dotnet nuget push "packages/*.nupkg"
+          dotnet nuget push "artifacts/nuget-verified/*.nupkg"
           --api-key "${{ steps.nuget_login.outputs.NUGET_API_KEY }}"
           --source https://api.nuget.org/v3/index.json
           --skip-duplicate

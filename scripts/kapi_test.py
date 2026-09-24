@@ -1029,7 +1029,7 @@ class YayinTestleri(unittest.TestCase):
         sys.path.insert(0, str(ROOT / "scripts"))
         return importlib.import_module("breaking_changes")
 
-    def _rehearse(self, root: pathlib.Path, *, finish=None, restore=None, baseline="1.0.0-preview.2"):
+    def _rehearse(self, root: pathlib.Path, *, finish=None, restore=None, baseline="1.0.0-preview.2", not_run=None):
         bc = self._breaking_changes_module()
         pack_calls: list[list[str]] = []
 
@@ -1045,6 +1045,7 @@ class YayinTestleri(unittest.TestCase):
             stack.enter_context(mock.patch.object(
                 bc, "restore_baselines", restore or (lambda ids, version, work: work / "packages")))
             stack.enter_context(mock.patch.object(bc, "baseline_source_violations", return_value=[]))
+            stack.enter_context(mock.patch.object(bc, "validation_not_run", not_run or mock.Mock(return_value=[])))
             stack.enter_context(mock.patch("subprocess.run", side_effect=fake_run))
             finish_mock = stack.enter_context(mock.patch.object(
                 kapi, "_finish_release_rehearsal", finish or mock.Mock(return_value=0)))
@@ -1102,7 +1103,6 @@ class YayinTestleri(unittest.TestCase):
             self.assertIn(f"-p:TraconApiCompatReportDir={gate.report_dir}", arguments)
             self.assertTrue(any(argument.startswith("-p:TraconPackageBaselineRoot=") for argument in arguments))
             self.assertEqual(gate.report_dir.parent, root / "artifacts" / "package" / "api-compat")
-            self.assertEqual(gate.library_ids, ("Tracon.Core",))
             self.assertEqual(gate.baseline, "1.0.0-preview.2")
             self.assertIn("Taban: v1.0.0-preview.2 (git describe)", output)
             self.assertIn("Taban paketleri izole cache'ten: 1 paket, kaynak api.nuget.org", output)
@@ -1176,8 +1176,7 @@ class YayinTestleri(unittest.TestCase):
         self._write_valid_library_nupkg(staging_dir, "Tracon.Core", "1.0.0-preview.2.47")
         sys.path.insert(0, str(ROOT / "scripts"))
         samples = importlib.import_module("release_extension_samples")
-        gate = kapi.BreakingChangeGate(baseline="1.0.0-preview.2", report_dir=root / "reports",
-                                       library_ids=("Tracon.Core",), pack_started=0.0)
+        gate = kapi.BreakingChangeGate(baseline="1.0.0-preview.2", report_dir=root / "reports")
         output = io.StringIO()
         with mock.patch.object(kapi, "_check_breaking_changes", return_value=gate_result) as checked, \
                 mock.patch.object(kapi, "_npm_dry_run", return_value=0), \
@@ -1212,14 +1211,560 @@ class YayinTestleri(unittest.TestCase):
             self.assertTrue((release_dir / "Tracon.Core.1.0.0-preview.2.47.nupkg").exists())
 
     def test_surum_tabana_esitse_kapi_kirmizi(self):
-        gate = kapi.BreakingChangeGate(baseline="1.0.0-preview.2", report_dir=pathlib.Path("/yok"),
-                                       library_ids=("Tracon.Core",), pack_started=0.0)
+        gate = kapi.BreakingChangeGate(baseline="1.0.0-preview.2", report_dir=pathlib.Path("/yok"))
         output = io.StringIO()
         with contextlib.redirect_stdout(output):
             result = kapi._check_breaking_changes(ROOT, gate, "1.0.0-preview.2")
 
         self.assertEqual(result, 1)
         self.assertIn("tabandan (v1.0.0-preview.2) büyük değil", output.getvalue())
+
+
+class TekDerlemeZinciriTestleri(unittest.TestCase):
+    """Faz 191: `paketle` · `paket-dogrula` · `yayin --paket-dizini`.
+
+    Sahte bir repo kökü iki paket taşır: `Tracon.Core` (library, taban
+    doğrulaması var) ve `Tracon` (meta, `.snupkg` yok)."""
+
+    COMMIT = "0123456789abcdef0123456789abcdef01234567"
+    VERSION = "1.0.0-preview.2.47"
+    BASELINE = "1.0.0-preview.2"
+
+    @staticmethod
+    def _bc():
+        sys.path.insert(0, str(ROOT / "scripts"))
+        return importlib.import_module("breaking_changes")
+
+    def _root(self, directory: str) -> pathlib.Path:
+        root = pathlib.Path(directory) / "repo"
+        for project_id, body in (
+                ("Tracon.Core", ""),
+                ("Tracon", "<PropertyGroup><IncludeBuildOutput>false</IncludeBuildOutput></PropertyGroup>")):
+            project = root / "src" / project_id
+            project.mkdir(parents=True)
+            (project / f"{project_id}.csproj").write_text(
+                f'<Project Sdk="Microsoft.NET.Sdk">\n{body}\n</Project>\n', encoding="utf-8")
+        return root
+
+    def _write_package(self, directory: pathlib.Path, project_id: str, *, version: str | None = None,
+                       commit: str | None = None) -> None:
+        version = version or self.VERSION
+        commit = commit or self.COMMIT
+        library = project_id == "Tracon.Core"
+        acceptance = "<requireLicenseAcceptance>true</requireLicenseAcceptance>"
+        nuspec = (
+            f'<package><metadata><id>{project_id}</id><license type="file">LICENSE.md</license>{acceptance}'
+            f'<repository type="git" url="https://example.invalid" commit="{commit}" />'
+            f"<releaseNotes>https://tracon.dev/changelog/{version}</releaseNotes></metadata></package>")
+        with zipfile.ZipFile(directory / f"{project_id}.{version}.nupkg", "w") as archive:
+            for entry in ("icon.png", "README.md", "LICENSE.md"):
+                archive.writestr(entry, "x")
+            archive.writestr(f"{project_id}.nuspec", nuspec)
+            if library:
+                for tfm in ("net8.0", "net9.0", "net10.0"):
+                    archive.writestr(f"lib/{tfm}/{project_id}.xml", "<doc />")
+        if library:
+            with zipfile.ZipFile(directory / f"{project_id}.{version}.snupkg", "w") as archive:
+                archive.writestr(f"lib/net10.0/{project_id}.pdb", "pdb")
+
+    def _git(self, *, status=(), commit=None):
+        head = commit or self.COMMIT
+
+        def fake(*args):
+            if args[0] == "status":
+                return list(status)
+            if args[:2] == ("rev-parse", "HEAD"):
+                return [head]
+            return []
+        return fake
+
+    def _pack(self, root: pathlib.Path, output: pathlib.Path, *, report: bool = True, status=(), not_run=()):
+        """`pack_for_ci` with the dotnet pack replaced by a writer of fake packages."""
+        bc = self._bc()
+        calls: list[list[str]] = []
+
+        def fake_run(command, **kwargs):
+            calls.append(list(command))
+            self._write_package(output, "Tracon.Core")
+            self._write_package(output, "Tracon")
+            if report:
+                (output / "api-compat" / "Tracon.Core.xml").write_text("<Suppressions />", encoding="utf-8")
+            return mock.Mock(returncode=0)
+
+        text = io.StringIO()
+        with contextlib.ExitStack() as stack:
+            stack.enter_context(mock.patch.object(kapi, "_git", side_effect=self._git(status=status)))
+            stack.enter_context(mock.patch.object(bc, "resolve_baseline", return_value=self.BASELINE))
+            stack.enter_context(mock.patch.object(bc, "stale_first_release_flags", return_value=[]))
+            stack.enter_context(mock.patch.object(bc, "restore_baselines", lambda ids, version, work: work / "packages"))
+            stack.enter_context(mock.patch.object(bc, "baseline_source_violations", return_value=[]))
+            stack.enter_context(mock.patch.object(bc, "validation_not_run", return_value=list(not_run)))
+            stack.enter_context(mock.patch("subprocess.run", side_effect=fake_run))
+            stack.enter_context(contextlib.redirect_stdout(text))
+            result = kapi.pack_for_ci(output, root=root)
+        return result, calls, text.getvalue()
+
+    def _rehearse(self, root: pathlib.Path, package_dir: pathlib.Path, *, commit=None, version=None,
+                  breaking=0, baseline=None):
+        bc = self._bc()
+        samples = importlib.import_module("release_extension_samples")
+        release_dir = root / "artifacts" / "package" / "release"
+        text = io.StringIO()
+        with contextlib.ExitStack() as stack:
+            stack.enter_context(mock.patch.object(kapi, "_git", side_effect=self._git(commit=commit)))
+            stack.enter_context(mock.patch.object(bc, "resolve_baseline", return_value=baseline or self.BASELINE))
+            not_run = stack.enter_context(mock.patch.object(bc, "validation_not_run", return_value=[]))
+            check = stack.enter_context(mock.patch.object(bc, "check", return_value=breaking))
+            run = stack.enter_context(mock.patch("subprocess.run"))
+            stack.enter_context(mock.patch.object(kapi, "_npm_dry_run", return_value=0))
+            stack.enter_context(mock.patch.object(samples, "verify", return_value=0))
+            stack.enter_context(contextlib.redirect_stdout(text))
+            result = kapi.rehearse_package_directory(package_dir, version, root=root, release_dir=release_dir)
+        return result, release_dir, text.getvalue(), run, not_run, check
+
+    def _packed(self, directory: str, **kwargs) -> tuple[pathlib.Path, pathlib.Path]:
+        root = self._root(directory)
+        output = pathlib.Path(directory) / "ci-paket"
+        result, _, text = self._pack(root, output, **kwargs)
+        self.assertEqual(result, 0, text)
+        return root, output
+
+    @staticmethod
+    def _manifest(directory: pathlib.Path) -> dict:
+        return json.loads((directory / "package-manifest.json").read_text(encoding="utf-8"))
+
+    @staticmethod
+    def _rewrite_manifest(directory: pathlib.Path, change) -> None:
+        path = directory / "package-manifest.json"
+        manifest = json.loads(path.read_text(encoding="utf-8"))
+        change(manifest)
+        path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    @staticmethod
+    def _snapshot(directory: pathlib.Path) -> dict[str, str]:
+        return {path.relative_to(directory).as_posix(): kapi._sha256(path)
+                for path in directory.rglob("*") if path.is_file()}
+
+    # --- paketle ---------------------------------------------------------------
+
+    def test_paketle_no_build_ile_tek_pack_ve_manifest_yazar(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = self._root(directory)
+            output = pathlib.Path(directory) / "ci-paket"
+
+            result, calls, text = self._pack(root, output)
+            manifest = self._manifest(output)
+
+        self.assertEqual(result, 0, text)
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0][:2], ["dotnet", "pack"])
+        self.assertIn("--no-build", calls[0])
+        self.assertIn(f"-p:TraconApiCompatReportDir={output / 'api-compat'}", calls[0])
+        self.assertEqual(manifest["commit"], self.COMMIT)
+        self.assertEqual(manifest["version"], self.VERSION)
+        self.assertEqual(manifest["baseline"], self.BASELINE)
+        self.assertEqual([entry["id"] for entry in manifest["packages"]], ["Tracon", "Tracon.Core"])
+        self.assertIsNone(manifest["packages"][0]["symbolsFile"])
+        self.assertEqual(manifest["apiCompat"], [{
+            "id": "Tracon.Core", "report": "api-compat/Tracon.Core.xml",
+            "sha256": manifest["apiCompat"][0]["sha256"], "validationRan": True}])
+
+    def test_paketle_farksiz_pakette_rapor_yok_mesru_kayittir(self):
+        """187.0 adım 6: farksız pakette SDK rapor yazmaz."""
+        with tempfile.TemporaryDirectory() as directory:
+            _, output = self._packed(directory, report=False)
+
+            records = self._manifest(output)["apiCompat"]
+
+        self.assertEqual(records, [{"id": "Tracon.Core", "report": None, "sha256": None, "validationRan": True}])
+
+    def test_paketle_bypass_bayragi_tasimaz(self):
+        """K-661: `paketle` iç araç listesine girmez."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = self._root(directory)
+            _, calls, _ = self._pack(root, pathlib.Path(directory) / "ci-paket")
+        help_text = io.StringIO()
+        with contextlib.redirect_stdout(help_text), self.assertRaises(SystemExit):
+            kapi.main(["paketle", "--help"])
+
+        for flag in ("TraconSkipCleanWorkingTreeCheck", "TraconAllowDirtyPack"):
+            self.assertFalse(any(flag in argument for argument in calls[0]), flag)
+            self.assertNotIn(flag, help_text.getvalue())
+        self.assertNotIn("--izin", help_text.getvalue())
+
+    def test_paketle_kirli_agacta_pack_denenmez(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = self._root(directory)
+            output = pathlib.Path(directory) / "ci-paket"
+
+            result, calls, text = self._pack(root, output, status=["?? notlar.txt"])
+
+            self.assertFalse(output.exists())
+        self.assertEqual(result, 1)
+        self.assertEqual(calls, [])
+        self.assertIn("?? notlar.txt", text)
+
+    def test_paketle_git_yoksa_reddeder(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = self._root(directory)
+            text = io.StringIO()
+            with mock.patch.object(kapi, "_git", return_value=None), \
+                    mock.patch("subprocess.run") as run, contextlib.redirect_stdout(text):
+                result = kapi.pack_for_ci(pathlib.Path(directory) / "ci-paket", root=root)
+
+        self.assertEqual(result, 1)
+        run.assert_not_called()
+
+    def test_paketle_dolu_dizini_reddeder_silmez(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = self._root(directory)
+            output = pathlib.Path(directory) / "ci-paket"
+            output.mkdir()
+            leftover = output / "Tracon.Core.1.0.0-preview.2.46.nupkg"
+            leftover.write_bytes(b"yarim kalmis")
+
+            result, calls, text = self._pack(root, output)
+
+            self.assertTrue(leftover.exists())
+            self.assertEqual(leftover.read_bytes(), b"yarim kalmis")
+        self.assertEqual(result, 1)
+        self.assertEqual(calls, [])
+        self.assertIn("Çıktı dizini boş değil", text)
+
+    def test_paketle_ikinci_kosum_ayni_dizine_reddedilir(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root, output = self._packed(directory)
+            before = self._snapshot(output)
+
+            result, calls, _ = self._pack(root, output)
+
+            self.assertEqual(self._snapshot(output), before)
+        self.assertEqual(result, 1)
+        self.assertEqual(calls, [])
+
+    def test_paketle_dogrulama_kosmadiysa_manifest_yazilmaz(self):
+        """Semaphore pack aşamasındadır; kırmızıysa yarım dizin manifest'siz kalır
+        ve sonraki koşum onu reddeder."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = self._root(directory)
+            output = pathlib.Path(directory) / "ci-paket"
+
+            result, _, text = self._pack(root, output, not_run=["Tracon.Core: paket doğrulaması bu koşumda koşmadı"])
+
+            self.assertFalse((output / "package-manifest.json").exists())
+            self.assertEqual(kapi.package_directory_problems(output), ["package-manifest.json yok"])
+        self.assertEqual(result, 1)
+        self.assertIn("Paket doğrulaması bu koşumda koşmadı", text)
+
+    # --- paket-dogrula ----------------------------------------------------------
+
+    def test_paket_dogrula_yesil(self):
+        with tempfile.TemporaryDirectory() as directory:
+            _, output = self._packed(directory)
+
+            self.assertEqual(kapi.package_directory_problems(output), [])
+
+    def test_paket_dogrula_tek_bayt_farki_dosya_adiyla(self):
+        with tempfile.TemporaryDirectory() as directory:
+            _, output = self._packed(directory)
+            with (output / f"Tracon.Core.{self.VERSION}.nupkg").open("ab") as handle:
+                handle.write(b"\0")
+
+            problems = kapi.package_directory_problems(output)
+
+        self.assertEqual(problems, [f"SHA-256 farklı: Tracon.Core.{self.VERSION}.nupkg"])
+
+    def test_paket_dogrula_eksik_ve_fazla_dosya(self):
+        with tempfile.TemporaryDirectory() as directory:
+            _, output = self._packed(directory)
+            (output / f"Tracon.Core.{self.VERSION}.snupkg").unlink()
+            (output / "Tracon.Extra.1.0.0.nupkg").write_bytes(b"x")
+            (output / "api-compat" / "Tracon.Extra.xml").write_text("<x />", encoding="utf-8")
+
+            problems = kapi.package_directory_problems(output)
+
+        self.assertIn(f"eksik: Tracon.Core.{self.VERSION}.snupkg", problems)
+        self.assertIn("manifest dışı dosya: Tracon.Extra.1.0.0.nupkg", problems)
+        self.assertIn("manifest dışı dosya: api-compat/Tracon.Extra.xml", problems)
+
+    def test_paket_dogrula_bos_yok_ve_bozuk_manifest(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = pathlib.Path(directory)
+            (base / "bos").mkdir()
+            (base / "manifestsiz").mkdir()
+            (base / "manifestsiz" / "Tracon.Core.1.nupkg").write_bytes(b"x")
+            (base / "bozuk").mkdir()
+            (base / "bozuk" / "package-manifest.json").write_text("{", encoding="utf-8")
+            (base / "sema").mkdir()
+            (base / "sema" / "package-manifest.json").write_text(
+                json.dumps({"dirty": False, "packages": [{"id": "X", "file": "../X.nupkg", "sha256": "0" * 64}]}),
+                encoding="utf-8")
+
+            self.assertEqual(kapi.package_directory_problems(base / "yok"), [f"{base / 'yok'}: dizin yok"])
+            self.assertEqual(kapi.package_directory_problems(base / "bos"), [f"{base / 'bos'}: dizin boş"])
+            self.assertEqual(kapi.package_directory_problems(base / "manifestsiz"), ["package-manifest.json yok"])
+            self.assertTrue(kapi.package_directory_problems(base / "bozuk")[0].startswith("package-manifest.json okunamadı"))
+            self.assertIn("package-manifest.json: X geçersiz dosya/SHA-256 kaydı taşıyor",
+                          kapi.package_directory_problems(base / "sema"))
+
+    def test_paket_dogrula_komutu_cikis_kodu(self):
+        with tempfile.TemporaryDirectory() as directory:
+            _, output = self._packed(directory)
+            text = io.StringIO()
+            with contextlib.redirect_stdout(text):
+                green = kapi.main(["paket-dogrula", str(output)])
+                (output / f"Tracon.{self.VERSION}.nupkg").unlink()
+                red = kapi.main(["paket-dogrula", str(output)])
+
+        self.assertEqual((green, red), (0, 1))
+        self.assertIn(f"eksik: Tracon.{self.VERSION}.nupkg", text.getvalue())
+
+    # --- yayin --kuru --paket-dizini --------------------------------------------
+
+    def test_paket_dizini_modu_pack_ve_semaphore_cagirmaz_ortak_yolu_kosar(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root, output = self._packed(directory)
+
+            with mock.patch.object(kapi, "_finish_release_rehearsal", return_value=0) as finish:
+                result, _, text, run, not_run, _ = self._rehearse(root, output)
+
+        self.assertEqual(result, 0, text)
+        run.assert_not_called()
+        not_run.assert_not_called()
+        finish.assert_called_once()
+        self.assertEqual(finish.call_args.kwargs["staging_dir"], output)
+        self.assertEqual(finish.call_args.kwargs["breaking_gate"].report_dir, output / "api-compat")
+        self.assertIsNotNone(finish.call_args.kwargs["input_manifest"])
+
+    def test_paket_dizini_modu_yesil_girdi_degismez_manifest_esit(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root, output = self._packed(directory)
+            before = self._snapshot(output)
+
+            result, release_dir, text, run, not_run, check = self._rehearse(root, output)
+
+            self.assertEqual(result, 0, text)
+            # Pack anı kanıtı ortak yolda da çağrılmaz (Faz 191.3).
+            not_run.assert_not_called()
+            self.assertEqual(self._snapshot(output), before)
+            written = self._manifest(release_dir)
+            source = self._manifest(output)
+            for field in ("version", "commit", "baseline", "packages"):
+                self.assertEqual(written[field], source[field], field)
+            self.assertEqual(kapi.package_directory_problems(release_dir), [])
+            self.assertEqual(check.call_args.kwargs["report_dir"], output / "api-compat")
+        run.assert_not_called()
+        self.assertIn("Manifest girdiyle aynı", text)
+
+    def test_paket_dizini_modu_kirici_kapi_kirmiziyken_kopya_yok(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root, output = self._packed(directory)
+
+            result, release_dir, _, _, _, _ = self._rehearse(root, output, breaking=1)
+
+            self.assertFalse(release_dir.exists())
+        self.assertEqual(result, 1)
+
+    def test_paket_dizini_modu_rapor_kaydi_yoksa_rapor_eksik(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root, output = self._packed(directory)
+            (output / "api-compat" / "Tracon.Core.xml").unlink()
+            self._rewrite_manifest(output, lambda manifest: manifest.update(apiCompat=[]))
+
+            result, _, text, *_ = self._rehearse(root, output)
+
+        self.assertEqual(result, 1)
+        self.assertIn("rapor eksik: Tracon.Core", text)
+
+    def test_paket_dizini_modu_rapor_dosyasi_yoksa_kirmizi(self):
+        """Kayıt rapor diyor ama `api-compat/` boş: 'kırıcı değişiklik yok' sayılmaz."""
+        with tempfile.TemporaryDirectory() as directory:
+            root, output = self._packed(directory)
+            (output / "api-compat" / "Tracon.Core.xml").unlink()
+
+            result, _, text, *_ = self._rehearse(root, output)
+
+        self.assertEqual(result, 1)
+        self.assertIn("eksik: api-compat/Tracon.Core.xml", text)
+
+    def test_paket_dizini_modu_dogrulama_kostu_kaydi_yoksa_kirmizi(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root, output = self._packed(directory, report=False)
+            self._rewrite_manifest(output, lambda manifest: manifest["apiCompat"][0].update(validationRan=False))
+
+            result, _, text, *_ = self._rehearse(root, output)
+
+        self.assertEqual(result, 1)
+        self.assertIn("rapor eksik: Tracon.Core (doğrulama koştu kaydı yok)", text)
+
+    def test_paket_dizini_modu_baska_commit_reddedilir(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root, output = self._packed(directory)
+
+            result, release_dir, text, *_ = self._rehearse(root, output, commit="f" * 40)
+
+            self.assertFalse(release_dir.exists())
+        self.assertEqual(result, 1)
+        self.assertIn("Paketler başka bir commit'ten", text)
+
+    def test_nuspec_commit_head_degilse_kirmizi(self):
+        """Manifest commit'i doğru ama paketin kendisi başka commit'i adlandırıyor."""
+        with tempfile.TemporaryDirectory() as directory:
+            root, output = self._packed(directory)
+            self._write_package(output, "Tracon.Core", commit="e" * 40)
+            self._rewrite_manifest(output, lambda manifest: [
+                entry.update(sha256=kapi._sha256(output / entry["file"]))
+                for entry in manifest["packages"] if entry["id"] == "Tracon.Core"])
+
+            result, _, text, *_ = self._rehearse(root, output)
+
+        self.assertEqual(result, 1)
+        self.assertIn(f"repository commit '{'e' * 40}' HEAD değil", text)
+
+    def test_paket_dizini_modu_baska_taban_reddedilir(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root, output = self._packed(directory)
+
+            result, _, text, *_ = self._rehearse(root, output, baseline="1.0.0-preview.1")
+
+        self.assertEqual(result, 1)
+        self.assertIn("başka bir tabana karşı doğrulandı", text)
+
+    def test_paket_dizini_modu_iki_surum_hatti_reddedilir(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root, output = self._packed(directory)
+            self._write_package(output, "Tracon", version="1.0.0-preview.2.48")
+            (output / f"Tracon.{self.VERSION}.nupkg").unlink()
+            self._rewrite_manifest(output, lambda manifest: [
+                entry.update(file=f"Tracon.1.0.0-preview.2.48.nupkg",
+                             sha256=kapi._sha256(output / "Tracon.1.0.0-preview.2.48.nupkg"))
+                for entry in manifest["packages"] if entry["id"] == "Tracon"])
+
+            result, _, text, *_ = self._rehearse(root, output)
+
+        self.assertEqual(result, 1)
+        self.assertIn("tek bir sürüm hattında değil", text)
+
+    def test_paket_dizini_modu_surum_beklenen_surum_olarak_denetlenir(self):
+        """Açık Soru 4 = A: --surum ile --paket-dizini birlikte izinlidir."""
+        with tempfile.TemporaryDirectory() as directory:
+            root, output = self._packed(directory)
+
+            result, _, text, *_ = self._rehearse(root, output, version="1.0.0-preview.3")
+
+        self.assertEqual(result, 1)
+        self.assertIn("Paket üretilmedi", text)
+
+    def test_paket_dizini_modu_release_dirde_girdi_disi_paket_reddedilir(self):
+        """Açık Soru 5 = A: ret, dosya silinmez."""
+        with tempfile.TemporaryDirectory() as directory:
+            root, output = self._packed(directory)
+            release_dir = root / "artifacts" / "package" / "release"
+            release_dir.mkdir(parents=True)
+            old = release_dir / "Tracon.Core.1.0.0-preview.2.10.nupkg"
+            old.write_bytes(b"eski")
+
+            result, _, text, *_ = self._rehearse(root, output)
+
+            self.assertTrue(old.exists())
+            self.assertEqual(sorted(path.name for path in release_dir.iterdir()), [old.name])
+        self.assertEqual(result, 1)
+        self.assertIn("girdi dışı paket taşıyor (1): Tracon.Core.1.0.0-preview.2.10.nupkg", text)
+        self.assertIn(f"rm -rf {release_dir}", text)
+
+    def test_paket_dizini_modu_ayni_kimlik_farkli_icerik_korunur(self):
+        """K-661 kopya yolunda da: aynı ad, farklı içerik -> hiçbir dosya kopyalanmaz."""
+        with tempfile.TemporaryDirectory() as directory:
+            root, output = self._packed(directory)
+            release_dir = root / "artifacts" / "package" / "release"
+            release_dir.mkdir(parents=True)
+            name = f"Tracon.Core.{self.VERSION}.nupkg"
+            with zipfile.ZipFile(release_dir / name, "w") as archive:
+                archive.writestr("lib/net10.0/Tracon.Core.dll", "baska")
+
+            result, _, text, *_ = self._rehearse(root, output)
+
+            self.assertEqual(sorted(path.name for path in release_dir.iterdir()), [name])
+        self.assertEqual(result, 1)
+        self.assertIn("FARKLI içerikli bir artifact zaten var", text)
+
+    def test_release_dirde_kesik_paket_dosya_adiyla_cikis_1(self):
+        """`_content_fingerprint` BadZipFile izi değil, dosya adı verir."""
+        with tempfile.TemporaryDirectory() as directory:
+            root, output = self._packed(directory)
+            release_dir = root / "artifacts" / "package" / "release"
+            release_dir.mkdir(parents=True)
+            name = f"Tracon.Core.{self.VERSION}.nupkg"
+            (release_dir / name).write_bytes((output / name).read_bytes()[:40])
+
+            result, _, text, *_ = self._rehearse(root, output)
+
+        self.assertEqual(result, 1)
+        self.assertIn(f"❌ {name}: paket okunamadı", text)
+
+    def test_ayni_parmak_izi_farkli_bayt_manifest_esitsizligi_verir(self):
+        """Eski bir kopya aynı içeriği farklı OPC baytlarıyla taşır: no-op promote
+        ham SHA-256'yı değiştirmez, manifest karşılaştırması yakalar."""
+        with tempfile.TemporaryDirectory() as directory:
+            root, output = self._packed(directory)
+            release_dir = root / "artifacts" / "package" / "release"
+            release_dir.mkdir(parents=True)
+            name = f"Tracon.Core.{self.VERSION}.nupkg"
+            with zipfile.ZipFile(output / name) as source, zipfile.ZipFile(release_dir / name, "w") as target:
+                for entry in source.namelist():
+                    target.writestr(entry, source.read(entry))
+                target.writestr("package/services/metadata/core-properties/" + "a" * 32 + ".psmdcp", "rastgele")
+
+            result, _, text, *_ = self._rehearse(root, output)
+
+        self.assertEqual(result, 1)
+        self.assertIn("manifest'i girdi manifest'inden farklı: packages", text)
+
+    def test_kopya_yarida_kesilirse_asil_adla_dosya_kalmaz(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = pathlib.Path(directory)
+            source = base / "girdi"
+            release_dir = base / "release"
+            source.mkdir()
+            name = "Tracon.Core.1.0.0.nupkg"
+            TekDerlemeZinciriTestleri._zip(source / name)
+
+            with mock.patch("os.replace", side_effect=KeyboardInterrupt), self.assertRaises(KeyboardInterrupt):
+                kapi._promote_staged_packages(source, release_dir, [name], copy=True)
+
+            self.assertEqual(list(release_dir.iterdir()), [])
+            self.assertTrue((source / name).exists())
+
+    def test_kopya_modu_girdiyi_tasimaz(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = pathlib.Path(directory)
+            source = base / "girdi"
+            release_dir = base / "release"
+            source.mkdir()
+            name = "Tracon.Core.1.0.0.nupkg"
+            TekDerlemeZinciriTestleri._zip(source / name)
+
+            conflicts = kapi._promote_staged_packages(source, release_dir, [name], copy=True)
+
+            self.assertEqual(conflicts, [])
+            self.assertEqual(kapi._sha256(source / name), kapi._sha256(release_dir / name))
+            self.assertEqual([path.name for path in release_dir.iterdir()], [name])
+
+    @staticmethod
+    def _zip(path: pathlib.Path) -> None:
+        with zipfile.ZipFile(path, "w") as archive:
+            archive.writestr("lib/net10.0/Tracon.Core.dll", "dll")
+
+    def test_manifest_disi_paketi_girdi_dizininde_reddeder(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root, output = self._packed(directory)
+            (output / "Tracon.Sneaky.1.0.0.nupkg").write_bytes(b"x")
+
+            result, _, text, run, *_ = self._rehearse(root, output)
+
+        self.assertEqual(result, 1)
+        run.assert_not_called()
+        self.assertIn("manifest dışı dosya: Tracon.Sneaky.1.0.0.nupkg", text)
 
 
 # Bu iki sabit PARÇALI yazılır: tam metin kaynakta görünseydi taramanın kendi
