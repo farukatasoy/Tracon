@@ -5,8 +5,16 @@
 > ölçülen kanıtı, yayın kararlarını, risk kabulünü ve doğrulama durumunu taşır.
 >
 > **Son güncelleme:** 2026-09-24  
-> **Çalışma modu:** `nuget-danismani` — yayın kararı (`1.0.0-preview.3`)  
-> **GÜNCEL DURUM — `preview.3` (2026-09-24):** ✅ **Yayınlanabilir; ürün
+> **Çalışma modu:** `nuget-danismani` — yayın sonrası (`1.0.0-preview.3`)  
+> **GÜNCEL DURUM (2026-09-24, 21:50 UTC):** ✅ **`1.0.0-preview.3` SEVK EDİLDİ.**
+> `v1.0.0-preview.3` → `b0771b3e`, etiket koşumu `36057172063` yeşil (npm ·
+> NuGet · GitHub release). npm `latest` = `next` = preview.3; nuget.org 19/20
+> görünür, `Tracon.Cli` doğrulamada. `MT-PKG-160`: 19/19 paket CI'ın
+> `nuget-verified` artifact'iyle girdi girdi aynı (KN-032). Site yeniden
+> yayımlandı. Kalan 👤: preview.1/2 deprecation (OP-008, nuget.org arayüzü +
+> `npm deprecate`) · A-61 advisory. Ayrıntı: §4 "YAYINLANDI — 2026-09-24".
+>
+> **Yayın öncesi karar (2026-09-24):** ✅ **Yayınlanabilir; ürün
 > 🔴'si yok.** UR-008 = **B** 👤: A-59 (K-872, tam aralık) ve BL-058 (lisans
 > bildirimi) `de52ecdf`'de kapandı; kapanış kapısı yeşil (KN-029). Kesim
 > `e0fd4f61`'de; prova ve dış tüketici repro'su yeşil (KN-030, KN-031). Açık
@@ -94,6 +102,25 @@ sayının ürün politikası mı yoksa bayat ölçüm mü olduğu artifact sonra
 değerlendirilecektir.
 
 ## 4. Mevcut net yayın kararı
+
+### ✅ YAYINLANDI — 2026-09-24, `1.0.0-preview.3`
+
+**Etiket `v1.0.0-preview.3` → `b0771b3e`**, tek atomik push (`main` + etiket).
+Koşum `36057172063`: build ×2 · Yayin provasi · npm · NuGet · GitHub release
+yeşil; Dokuman sitesi etikette atlanır. Faz 191 zincirinin ilk gerçek etiket
+koşumu: yayınlanan baytlar CI'ın doğruladığı baytlardır.
+
+| Ne | Kanıt |
+|---|---|
+| npm | `+ @tracon/client@1.0.0-preview.3` 21:27 UTC; registry'de 21:38 UTC (~11 dk önbellek gecikmesi). `latest` = `next` = preview.3 (stable yok → `latest` en yeni preview'e alınır) |
+| nuget.org | 21:36 UTC'den itibaren paket paket görünür; 21:49 UTC'de 19/20, `Tracon.Cli` (28 MB) doğrulamada |
+| `MT-PKG-160` | 19/19 paket: nuget.org dosyası ile `nuget-verified` artifact'i **girdi girdi aynı** (`.signature.p7s` hariç; `[Content_Types].xml` dahil). Ham SHA-256 farklı — depo imzası (KN-032) |
+| Yeniden koşum | "Re-run failed jobs" önceki denemenin artifact'ini kullandı: ubuntu işi yeniden koşmadı, 2. denemenin `release-dryrun`'u 1. denemenin `nuget-packages`'ını okudu (KN-033) |
+| Site | `site-deploy.sh` etiketten sonra yeniden koştu; Voice bölümü `guides/voice/#troubleshooting`'te, `troubleshooting` 58 149 B |
+
+**Yayın sonrası kalan (👤):** preview.1 ve preview.2 **deprecate** (OP-008:
+güvenlik düzeltmesi) — nuget.org'da 20 paket için arayüzden (deprecation için
+herkese açık API yok), npm'de `npm deprecate`. A-61: GitHub Security Advisory.
 
 ### ✅ KARAR — 2026-09-24 (`nuget-danismani`, `preview.3` yayın kararı)
 
@@ -198,7 +225,7 @@ Nuget.org'daki paketlerin `net10.0` ikililerini metadata seviyesinde okur.
 | **A-61** | **Zafiyet duyurusu tüketicinin restore'una ulaşmaz.** `SECURITY.md` yalnız e-posta kanalı anlatır; yayınlanmış GitHub Security Advisory hattı yok. `dotnet restore` (NuGetAudit) GitHub Advisory Database'den beslenir; `SECURITY.md`'nin vaat ettiği nuget.org deprecation'ı restore'da uyarı üretmez. Repo public olduğu için private vulnerability reporting ve GHSA artık açılabilir. Ölçüldü 2026-09-24: `private-vulnerability-reporting` `enabled: false`, advisory yok. **preview.3 ilk güvenlik sürümüdür** (13 `Security` notu): bu hat yoksa preview.2 tüketicisinin restore'u düzeltmeyi haber vermez | 🟡 | Politika repo private iken yazıldı (A-65 sınıfı) | 👤 repo ayarı + `tuketici-dokuman-senkronu` | Evet |
 | **A-62** | **Upstream drift kapısı fiilen kapalı.** Bot MAF, MEAI ve `Microsoft.*` platform paketlerini ayrı gruplarda açıyor; PR #20 #21 #23 #26 #27 `restore` adımında kırmızıydı ve 2026-09-24'te birleştirilmeden kapandı. Mekanizma nuspec'ten ölçüldü (iş logu okunmadı): MEAI `10.10.0` `Microsoft.Extensions.*` `10.0.12` ister; pin `10.0.11` başka grupta. Grup yapısı değişmezse bot her hafta aynı kırmızı PR'ları açar | 🟡 | `dependabot.yml` birlikte yükselmesi gereken kümeyi böler | `kusur-giderme` | Evet |
 | **A-63** | **Public API upstream'in deneysel tipini taşıyor.** `TraconBuilderExtensions.AddLoopEvaluator(…, Microsoft.Agents.AI.LoopEvaluator)` — `LoopEvaluator` `[Experimental("MAAI001")]`. Tracon üyesi işaretsiz; 1.x'te donarsa upstream minor'ı Tracon'un kararlı yüzeyini kırabilir | 🟡 | Tracon'un kendi `[Experimental]` katmanı yok | UR-005 → `faz-planlama` (UR-003 turu) | Evet |
-| **A-64** | 🟡 **İlk koşum 2026-09-24 (`482dd8dd`): iki bacak kırmızı, üç kusur → `276ac42e`. İkinci koşum (`1e77de73`, `36042571931`): iki build bacağı yeşil; `release-dryrun` ve `site` kırmızı, iki kusur → `88f8e4ce`; üçüncü koşum bekleniyor** — **83 commit CI'da hiç koşmadı.** Son `main` push'u 2026-09-20. Faz 187–191 (kırılma kapısı K-864, tek derleme zinciri K-871) yalnız yerelde yeşil. Bu fazlar CI iş akışının kendisini değiştirdi; ilk gerçek koşumları etikette olursa A-29 sınıfı tekrarlar | 🟡 | Push kullanıcı kararıdır; ölçüm ağaçta kaldı | 👤 `git push` + CI gözlemi | Her etiketten önce |
+| **A-64** | ✅ **KAPANDI (KG-046)** — ilk koşum (`482dd8dd`) iki bacak kırmızı, üç kusur → `276ac42e`; ikinci (`1e77de73`) `release-dryrun` + `site` kırmızı, iki kusur → `88f8e4ce`; üçüncü (`6a77957d`) yarış testi → yeniden koşum yeşil; etiket koşumu yeşil — **83 commit CI'da hiç koşmadı.** Son `main` push'u 2026-09-20. Faz 187–191 (kırılma kapısı K-864, tek derleme zinciri K-871) yalnız yerelde yeşil. Bu fazlar CI iş akışının kendisini değiştirdi; ilk gerçek koşumları etikette olursa A-29 sınıfı tekrarlar | 🟡 | Push kullanıcı kararıdır; ölçüm ağaçta kaldı | 👤 `git push` + CI gözlemi | Her etiketten önce |
 | **A-65** | **Repo public oldu; iki kayıt ve sekiz metin hâlâ "private" öncülüyle yazılı.** K-659'un yeniden açılma koşulu 2026-09-19'da sağlandı; karar yeniden değerlendirilmedi. OP-011 satırı ve RK-013 durumu eski: environment koruması A-12 ile kuruldu (KG-039), Source Link 2026-09-20'de çözüldü (§4 KARAR — 2026-09-20). Koşulsuz "private" diyen metin: `src/Directory.Build.props:46,71,80,134` · `docs-site/scripts/build-changelog.mjs:6` · `.github/workflows/ci.yml:721,735` · `docs/manuel-test/01-KURULUM-VE-PAKETLEME.md:2940` | 🟡 | Tetiklenen yeniden açılma ölçütünü izleyen bir mekanizma yoktu | `tuketici-dokuman-senkronu` + 👤 K-659 | Evet |
 | **A-66** | **npm yayını süreli bir token'a bağlı.** `ci.yml` `NODE_AUTH_TOKEN: secrets.NPM_TOKEN` kullanır. npm'de yazma yetkili granular token'ın ömrü en fazla 90 gündür ([GitHub Changelog, 2025-11-05](https://github.blog/changelog/2025-11-05-npm-security-update-classic-token-creation-disabled-and-granular-token-changes/)); KN-021 tarihinden (2026-08-28) hesaplanırsa en geç 2026-11-26'da biter (token'ın gerçek süresi okunmadı). Süre dolunca `npm-publish` kırmızı olur ve `publish` ona bağlı olduğu için (RK-011) NuGet de basmaz. npm trusted publishing (OIDC) token'ı kaldırır ve provenance ekler | 🟡 | KN-021 hazırlığı token modeliyle yapıldı | 👤 npm trusted publisher + `kusur-giderme` (`ci.yml`) | Hayır — token süresinden önce |
 | **A-67** | **1.x sözü yalnız .NET API için yazılı ve kapılı.** `reference/versioning.md` HTTP API, yapılandırma anahtarı, telemetri adı, hata kodu ve CLI için 1.x kuralı vermiyor. HTTP'de `OpenApiSnapshotTests` kod ↔ anlık görüntü kaymasını yakalar, sürümden sürüme kırılmayı değil; K-864 kapısı yalnız library paketlerini karşılaştırır | 🟡 | Kırılma kapısı .NET yüzeyi için kuruldu | `faz-planlama` | Evet |
@@ -310,6 +337,8 @@ Kalıcı sonuçlar:
 | KN-029 | UR-008 B sonrası kapanış kapısı | Tamamlandı | `DOTNET_ROOT=~/.dotnet python3 scripts/kapi.py kapanis --taban c45112be` (commit `81134277` + defter) | Çıkış `0`: 38 test projesi, 18.116 test, 0 kırmızı, 1 atlandı; build uyarısız; pack, format, site (`npm run check`, 1042 sayfa, 0 kırık bağlantı) yeşil. İlk koşum `llms-full.txt` bayat diye düştü → yeniden üretildi (`81134277`) | 2026-09-24 |
 | KN-030 | `preview.3` provası — kesim commit'inden | Tamamlandı | `python3 scripts/kapi.py yayin --kuru --surum 1.0.0-preview.3`, **`DOTNET_ROOT` yok** (net8 global kurulumda), temiz ağaç `e0fd4f61` (iki CI koşumunun düzeltmelerinin üstüne yeniden yazılan kesim, KG-043, KG-045); `artifacts/package/release/` bilerek dolu (`preview.1`, `preview.2.84`, `preview.2.87`, eski `preview.3`). Önceki kesimlerin (`2b6c0fb2`, `17ca8dfb`) adayları `yayin/`'den kaldırıldı (MT-PKG-116 kuralı) | Çıkış `0`, 3 dk. `📦 Prova çıktısı: artifacts/package/yayin/1.0.0-preview.3`; kırıcı liste 121 tip, notlar `[1.0.0-preview.3]` bölümünden; altı sample, AOT smoke, net8.0 tüketici smoke global .NET 8.0.31'de yeşil. `release/`'deki eski paketler provayı düşürmedi (MT-PKG-163) | 2026-09-24 |
 | KN-031 | A-59 düzeltmesinin dış tüketici kanıtı (6. seviye) | Tamamlandı | Repo dışı `net10.0` konsol, izole `NUGET_PACKAGES`, `Tracon*` → yerel feed eşlemesi; `Tracon.AspNetCore` + `Microsoft.Agents.AI.Hosting` `1.22.0-preview.260918.1` | **Negatif kontrol:** yayınlanmış `1.0.0-preview.2` ile restore **uyarısız** geçti (kusurun kendisi). **Düzeltme:** preview.3 adayıyla `warning NU1608: ... requires Microsoft.Agents.AI.Hosting (= 1.20.0-preview.260831.1) but version ... 1.22.0-preview.260918.1 was resolved`. Nuspec beş bağımlılığı `[x]` yazar; `Tracon.UI` `THIRD-PARTY-NOTICES.txt`'yi kökte taşır ve repo dosyasıyla aynıdır (MT-PKG-161; 162 adım 1–2) | 2026-09-24 |
+| KN-032 | `MT-PKG-160` — nuget.org baytı = CI'ın doğruladığı bayt | Tamamlandı | `nuget-verified` (koşum `36057172063`, artifact `10834248786`) indirildi; 19 paket `v3-flatcontainer`'dan; `.signature.p7s` hariç girdi kümesi ve her girdinin baytı karşılaştırıldı | 19/19 aynı, 0 fark. `Tracon.Core`: CI 16 girdi, nuget.org 17 (fark yalnız imza); ham SHA-256 farklı (beklenen). `Tracon.Cli` o an nuget.org'da yoktu (doğrulama) | 2026-09-24 |
+| KN-033 | "Re-run failed jobs" artifact'i yeniden kullanır mı | Tamamlandı | Koşum `36048047050` işleri (`filter=all`) ve artifact listesi | Evet: 2. denemede ubuntu işi yeniden koşmadı (başlangıç 19:25:32Z iki denemede aynı); tek `nuget-packages` 1. denemeden (20:00:04Z); 2. denemenin `release-dryrun`'u onu okuyup `nuget-verified`'ı üretti (20:43:07Z). `test-results-windows-latest` her denemede ayrı yüklendi | 2026-09-24 |
 
 ### Henüz ölçülmeyen alanlar
 
@@ -560,6 +589,7 @@ operasyon kritik yolunu yeniden açmaz.
 | KG-043 | 2026-09-24 | Tamamlandı | **A-64'ün ilk CI koşumu iki bacakta kırmızı: üç kusur `276ac42e`'de kapandı; kesim commit'i düzeltmelerin ÜSTÜNE yeniden yazıldı.** A-73 açıldı | Kesim commit'i yerelde düzeltmelerin altındaydı; etiketsiz itilirse prova kırmızı olur (Faz 187). Yerel, itilmemiş commit'ler yeniden sıralandı; eski sıra `yedek/preview3-kesim-once-1f2e507d` dalında durur. `CA1875` negatif kontrolle CI'ın SDK'sında (10.0.401) yerelde yeniden üretildi; düzeltmeyle çözüm derlemesi ve `format` o SDK'da yeşil | `276ac42e` sonrası CI iki bacakta yeşil |
 | KG-044 | 2026-09-24 | Tamamlandı | **Site etiketten ÖNCE yayımlandı 👤** (`scripts/site-deploy.sh`, o anki HEAD `78dc72bc` — kesim `17ca8dfb` dahil, 21:43; Voice bölümü taşınmadan önce). KG-038 emsalinin tersine kullanıcı kararı | Risk söylendi ve kabul edildi: site `1.0.0-preview.3` der ve 13 `Security` notunu gösterir, paket nuget.org'a etiketin `publish` işiyle gelir; arada `dotnet add package … 1.0.0-preview.3` restore edilemez. Script kendi tazelik denetimini geçti (`/`, `/packages/`, `/reference/changelog/` preview.3 der) | `Published and verified (https://tracon.dev/capabilities/index.md -> 200 text/markdown)`; lisans sayfası `THIRD-PARTY-NOTICES.txt`'yi anlatır |
 | KG-045 | 2026-09-24 | Tamamlandı | **İkinci CI koşumu: build yeşil, `release-dryrun` ve `site` kırmızı; iki kusur `88f8e4ce`'de kapandı, kesim yine düzeltmelerin üstüne yeniden yazıldı** | (1) Sample doğrulaması sözleşme paketinin grafiğini kaynak projenin `artifacts/obj` restore çıktısından okuyordu; Faz 191'den beri `release-dryrun` restore etmez → `FileNotFoundError`. Artık paketlenen nuspec'lerin Tracon kapanışından okunur; o `obj` dizini kaldırılmış hâlde doğrulama yerelde yeşil. Hafızadaki kural ("`release-dryrun`'da `obj/` yoktur") vardı, uygulanmamıştı. (2) `troubleshooting` CI'da 59 003 B (tavan 59 000; yerelde 58 993): kapının kendi notu gereği tavan yükseltilmedi, sayfa bölündü — Voice belirtileri `guides/voice.md#troubleshooting`'e taşındı, 58 151 B. Eski sıra `yedek/preview3-ci2-once-a0c8cbca` dalında | Üçüncü koşum: build ×2 + `release-dryrun` + `site` yeşil |
+| KG-046 | 2026-09-24 | Tamamlandı | **`1.0.0-preview.3` sevk edildi; A-64 kapandı.** Üçüncü `main` koşumu (`36048047050`) Windows'taki yarış testi (F-257) yüzünden kırmızıydı; aynı kod önceki koşumda Windows'ta geçmişti ve aradaki diff `src/`/`tests/`'e dokunmuyordu → "Re-run failed jobs" (API) → yeşil. Etiket bu yeşil koşumun üstüne atıldı | Yarış testi kod kusuru değil ama etiket koşumunu da düşürebilir; F-257 🟠'a çıktı | KN-032 · KN-033 · etiket koşumu `36057172063` |
 
 ## 12. Ertelenen işler ve gerekçeleri
 
@@ -571,11 +601,11 @@ operasyon kritik yolunu yeniden açmaz.
 
 ## 13. Sonraki adım
 
-> **`preview.3` sırası (KG-041, KG-042):** ~~UR-008~~ B · ~~A-59~~ · ~~BL-058~~
-> · sürüm kesimi (A-71) → kesim öncesi commit `main`'e push + CI yeşil (A-64)
-> → kesim + `v1.0.0-preview.3` tek atomik push 👤 → `MT-PKG-160` · preview.1/2
-> deprecation (OP-008) · A-61 advisory. Sonra GA hattı: A-72 (`Tracon.Cli`
-> bildirimi). Ayrıntı: §4 "KARAR — 2026-09-24 (`preview.3`)".
+> **`preview.3` SEVK EDİLDİ (2026-09-24, KG-046).** Kalan 👤: preview.1/2
+> deprecation (OP-008) · A-61 advisory · `Tracon.Cli`'nin nuget.org'da
+> görünmesi ve `MT-PKG-160`'ın o paket için tamamlanması. Sonra GA hattı: A-72
+> (`Tracon.Cli` bildirimi) · A-73 (SDK sabitleme) · F-257 (yarış testleri) ·
+> A-71 kapısı. Ayrıntı: §4 "YAYINLANDI — 2026-09-24".
 
 > 🚨 **`preview.1` SEVK EDİLDİ (2026-09-20).** Kapanmış `preview.1`
 > aksiyon tablosu damıtıldı (tam metin: `git show 8634a1e3:docs/YAYIN-HAZIRLIK.md`);
