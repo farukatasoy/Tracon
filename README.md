@@ -11,7 +11,7 @@ You write the AI harness; you operate it at `/tracon`. Start with
 > version line, plus `@tracon/client` on npm. The install command below resolves; keep
 > `--prerelease`, because there is no stable version yet. The public API is **not
 > frozen**: `PublicAPI.Shipped.txt` is empty in every package and the surface may still
-> be reduced before 1.0. The **public API gate** (`EnablePublicApiTracking`) is on
+> be reduced before 1.0. The **public API gate** (`TraconPublicApiTrackingEnabled`, on by default) is on
 > independently of any release decision — an unrecorded surface change breaks the build.
 > Product documentation is at [tracon.dev](https://tracon.dev); release notes are on the
 > [changelog](https://tracon.dev/reference/changelog/).

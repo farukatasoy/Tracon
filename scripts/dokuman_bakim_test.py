@@ -610,17 +610,36 @@ class Faz91DokumanKapilariTestleri(unittest.TestCase):
     def test_dokuman_iddiasi_gercek_props_degeriyle_karsilastirilir(self):
         with tempfile.TemporaryDirectory() as d:
             tmp = pathlib.Path(d)
-            (tmp / "Directory.Build.props").write_text(
-                "<EnablePublicApiTracking>true</EnablePublicApiTracking>", encoding="utf-8")
+            (tmp / "src").mkdir()
+            (tmp / "src" / "Directory.Build.props").write_text(
+                "<TraconPublicApiTrackingEnabled Condition=\" '$(TraconPublicApiTrackingEnabled)' == '' \">"
+                "true</TraconPublicApiTrackingEnabled>", encoding="utf-8")
             skill = tmp / ".agents" / "skills" / "ornek"
             skill.mkdir(parents=True)
             (skill / "SKILL.md").write_text(
-                "`EnablePublicApiTracking` bugün `false`.", encoding="utf-8")
+                "`TraconPublicApiTrackingEnabled` bugün `false`.\n"
+                "`TraconPublicApiTrackingEnabled` varsayılanı `true`.\n", encoding="utf-8")
 
             bulgular = dokuman_bakim.dokuman_iddia_cakismalari(tmp)
 
             self.assertEqual(len(bulgular), 1)
-            self.assertIn("gerçek değer true", bulgular[0])
+            self.assertIn("SKILL.md:1", bulgular[0])
+            self.assertIn("gerçek varsayılan true", bulgular[0])
+
+    def test_olu_public_api_anahtari_skillde_bulgudur(self):
+        """Faz 187 (Açık Soru 2 = B): kök `EnablePublicApiTracking` silindi; hiçbir
+        şey onu okumuyordu. Skill onu anarsa okuyan etkisiz bir anahtara güvenir."""
+        with tempfile.TemporaryDirectory() as d:
+            tmp = pathlib.Path(d)
+            skill = tmp / ".agents" / "skills" / "ornek"
+            skill.mkdir(parents=True)
+            (skill / "SKILL.md").write_text(
+                "`EnablePublicApiTracking` açıktır.\n`TraconPublicApiTrackingEnabled` açıktır.\n", encoding="utf-8")
+
+            bulgular = dokuman_bakim.dokuman_iddia_cakismalari(tmp)
+
+            self.assertEqual(len(bulgular), 1)
+            self.assertIn("ölü anahtar EnablePublicApiTracking", bulgular[0])
 
     def test_registry_kapisi_temiz_workflowu_gecirir(self):
         with tempfile.TemporaryDirectory() as d:

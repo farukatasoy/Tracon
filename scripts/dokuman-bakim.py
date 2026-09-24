@@ -948,31 +948,41 @@ def surec_olcumu_bulgulari(kok: pathlib.Path = ROOT) -> list[str]:
     return bulgular
 
 
+# Faz 187 (Açık Soru 2 = B): kökteki `EnablePublicApiTracking` hiçbir props/targets
+# tarafından okunmuyordu ve silindi. Tek anahtar `src/Directory.Build.props`'taki
+# `TraconPublicApiTrackingEnabled` varsayılanıdır. Ölü ad skill'de geçerse bulgudur:
+# okuyanı etkisiz bir anahtarla kapıyı kapatabileceğine inandırır.
+OLU_PUBLIC_API_ANAHTARI = "EnablePublicApiTracking"
+PUBLIC_API_ANAHTARI = "TraconPublicApiTrackingEnabled"
+
+
 def dokuman_iddia_cakismalari(kok: pathlib.Path = ROOT) -> list[str]:
     """Compare known MSBuild-property claims in skills with the real props file."""
-    props = kok / "Directory.Build.props"
-    if not props.exists():
-        return []
-    actual_match = re.search(
-        r"<EnablePublicApiTracking>\s*(true|false)\s*</EnablePublicApiTracking>",
-        props.read_text(encoding="utf-8"),
-        re.I,
-    )
-    if not actual_match:
-        return []
-    actual = actual_match.group(1).lower()
-    bulgular: list[str] = []
     skills = kok / ".agents" / "skills"
     if not skills.exists():
         return []
-    claim = re.compile(r"EnablePublicApiTracking[^\n]{0,100}?\b(true|false)\b", re.I)
+    props = kok / "src" / "Directory.Build.props"
+    actual_match = re.search(
+        rf"<{PUBLIC_API_ANAHTARI}\b[^>]*>\s*(true|false)\s*</{PUBLIC_API_ANAHTARI}>",
+        props.read_text(encoding="utf-8"),
+        re.I,
+    ) if props.exists() else None
+    actual = actual_match.group(1).lower() if actual_match else None
+    bulgular: list[str] = []
+    claim = re.compile(rf"{PUBLIC_API_ANAHTARI}[^\n]{{0,100}}?\b(true|false)\b", re.I)
+    dead = re.compile(rf"(?<![A-Za-z]){OLU_PUBLIC_API_ANAHTARI}\b")
     for path in sorted(skills.rglob("*.md")):
         for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
-            match = claim.search(line)
-            if match and match.group(1).lower() != actual:
+            yer = f"{path.relative_to(kok).as_posix()}:{line_number}"
+            if dead.search(line):
                 bulgular.append(
-                    f"{path.relative_to(kok).as_posix()}:{line_number}: "
-                    f"EnablePublicApiTracking={match.group(1).lower()} deniyor, gerçek değer {actual}")
+                    f"{yer}: ölü anahtar {OLU_PUBLIC_API_ANAHTARI} anılıyor; "
+                    f"gerçek anahtar {PUBLIC_API_ANAHTARI} (src/Directory.Build.props)")
+                continue
+            match = claim.search(line)
+            if actual is not None and match and match.group(1).lower() != actual:
+                bulgular.append(
+                    f"{yer}: {PUBLIC_API_ANAHTARI}={match.group(1).lower()} deniyor, gerçek varsayılan {actual}")
     return bulgular
 
 

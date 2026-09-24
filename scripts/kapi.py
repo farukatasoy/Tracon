@@ -1371,22 +1371,71 @@ def release_rehearsal(
     commit_lines = _git("rev-parse", "HEAD")
     commit = commit_lines[0] if commit_lines else "unknown"
 
+    # Faz 187 - taban: son yayınlanmış `v*` sürümü. Pack'ten ÖNCE çözülür,
+    # çünkü pack taban yolunu ister. Git yoksa temizlik denetimi yukarıda
+    # uyarıyla atlanır (MSBuild kapısı ikinci hattır); tabanın ikinci hattı
+    # yoktur, bu yüzden burada sessiz atlama yok.
+    sys.path.insert(0, str(ROOT / "scripts"))
+    import breaking_changes
+
+    try:
+        baseline = breaking_changes.resolve_baseline(root)
+    except breaking_changes.BaselineError as exception:
+        print(f"❌ Taban çözülemedi: {exception}")
+        return 1
+    print(f"Taban: v{baseline} (git describe)")
+
+    stale_flags = breaking_changes.stale_first_release_flags(root, f"{breaking_changes.TAG_PREFIX}{baseline}")
+    if stale_flags:
+        print(f"❌ İlk yayın bayrağı bayat - paket v{baseline} etiketinde zaten vardı; "
+              f"TraconPackageFirstRelease'i kaldırın: {', '.join(stale_flags)}")
+        return 1
+
+    library_ids = [project_id for project_id in project_ids if _package_profile(root, project_id) == "library"]
+    baseline_ids = breaking_changes.baseline_package_ids(root, library_ids)
+    # Önceki bir yeşil koşumun sonucu, bu koşum kırmızı biterse yanıltmasın.
+    (root / breaking_changes.RESULT_FILE).unlink(missing_ok=True)
+
     # Staging dizini koşum başına benzersizdir (Faz 136, Açık Soru 1: paralel
     # koşumlar desteklenmez, ama bu en azından ikisinin BİRBİRİNİN çıktısını
     # ezmesini önler). `artifacts/` .gitignore'dadır - staging burada yaşarsa
-    # bir sonraki koşumun kendi "erken ret" denetimini kirletmez.
+    # bir sonraki koşumun kendi "erken ret" denetimini kirletmez. Rapor dizini
+    # de aynı sebeple koşum başınadır; ayrıca yok olan bir çıktı dosyası SDK'nın
+    # artımlı doğrulama hedefini yeniden koşturur (Faz 187, 187.0 adım 5).
     staging_root = release_dir.parent / "staging"
     staging_root.mkdir(parents=True, exist_ok=True)
     staging_dir = pathlib.Path(tempfile.mkdtemp(prefix="run-", dir=staging_root))
+    report_root = release_dir.parent / "api-compat"
+    report_root.mkdir(parents=True, exist_ok=True)
+    report_dir = pathlib.Path(tempfile.mkdtemp(prefix="run-", dir=report_root))
+    # Taban cache'i depo DIŞINDA: geliştirici cache'i asla okunmaz (187.3).
+    baseline_work = pathlib.Path(tempfile.mkdtemp(prefix="tracon-baseline-"))
 
     try:
+        try:
+            baseline_cache = breaking_changes.restore_baselines(baseline_ids, baseline, baseline_work)
+        except breaking_changes.RestoreError as exception:
+            print(f"❌ Taban restore'u başarısız: {exception}")
+            return 1
+        source_violations = breaking_changes.baseline_source_violations(baseline_ids, baseline, baseline_cache)
+        if source_violations:
+            print("❌ Taban paketi nuget.org'dan gelmedi:")
+            for violation in source_violations:
+                print(f"  {violation}")
+            return 1
+        print(f"Taban paketleri izole cache'ten: {len(baseline_ids)} paket, kaynak api.nuget.org")
+
         environment = os.environ.copy()
         environment["MSBUILDDISABLENODEREUSE"] = "1"
         if requested_version:
             environment["MinVerVersionOverride"] = requested_version
 
-        pack_command = Command(("dotnet", "pack", str(PACKABLE_SOLUTION_FILTER), "-c", "Release", "-o", str(staging_dir)))
+        pack_command = Command((
+            "dotnet", "pack", str(PACKABLE_SOLUTION_FILTER), "-c", "Release", "-o", str(staging_dir),
+            *breaking_changes.pack_properties(baseline_cache, baseline, report_dir),
+        ))
         print(f"$ {pack_command.display}" + (f"  (MinVerVersionOverride={requested_version})" if requested_version else ""), flush=True)
+        pack_started = time.time()
         pack_result = subprocess.run(list(pack_command.args), cwd=root, env=environment, check=False)
         if pack_result.returncode:
             print(f"❌ 'dotnet pack' çıkış {pack_result.returncode}")
@@ -1399,9 +1448,54 @@ def release_rehearsal(
             project_ids=project_ids,
             requested_version=requested_version,
             commit=commit,
+            breaking_gate=BreakingChangeGate(
+                baseline=baseline,
+                report_dir=report_dir,
+                library_ids=tuple(library_ids),
+                pack_started=pack_started,
+            ),
         )
     finally:
         shutil.rmtree(staging_dir, ignore_errors=True)
+        shutil.rmtree(report_dir, ignore_errors=True)
+        shutil.rmtree(baseline_work, ignore_errors=True)
+
+
+@dataclasses.dataclass(frozen=True)
+class BreakingChangeGate:
+    """What the breaking-change gate (Faz 187) needs from the pack it follows."""
+
+    baseline: str
+    report_dir: pathlib.Path
+    library_ids: tuple[str, ...]
+    pack_started: float
+
+
+def _check_breaking_changes(root: pathlib.Path, gate: BreakingChangeGate, resolved_version: str) -> int:
+    sys.path.insert(0, str(ROOT / "scripts"))
+    import breaking_changes
+
+    if not breaking_changes.version_is_above_baseline(resolved_version, gate.baseline):
+        print(f"❌ Çözümlenen sürüm '{resolved_version}' tabandan (v{gate.baseline}) büyük değil; "
+              "kendisiyle karşılaştırma sessiz bir 'kırıcı değişiklik yok' üretirdi")
+        return 1
+
+    # Kanıt pack'i koşan süreçte hesaplanır: semaphore bu makinenin
+    # artifacts/obj/'undadır (Faz 191 pack'i taşırsa kanıt da onunla gider).
+    not_run = breaking_changes.validation_not_run(root, gate.library_ids, gate.pack_started)
+    if not_run:
+        print("❌ Paket doğrulaması bu koşumda koşmadı:")
+        for line in not_run:
+            print(f"  {line}")
+        return 1
+
+    return breaking_changes.check(
+        report_dir=gate.report_dir,
+        baseline=gate.baseline,
+        version=resolved_version,
+        changelog=root / "CHANGELOG.md",
+        result_path=root / breaking_changes.RESULT_FILE,
+    )
 
 
 def _finish_release_rehearsal(
@@ -1412,6 +1506,7 @@ def _finish_release_rehearsal(
     project_ids: list[str],
     requested_version: str | None,
     commit: str,
+    breaking_gate: BreakingChangeGate,
 ) -> int:
     resolved: dict[str, pathlib.Path] = {}
     missing: list[str] = []
@@ -1564,6 +1659,14 @@ def _finish_release_rehearsal(
         for error in errors:
             print(f"  {error}")
         return 1
+
+    # Faz 187 - promote'tan ÖNCE: kırmızı bir kırıcı kapı release dizinine
+    # paket bırakmaz. Not okumak çözümlenen sürümü ister, bu yüzden sürüm
+    # çözümünden SONRA koşar. Her koşumda okur (yalnız sürüm biçimli olanda
+    # değil): K-602 kırıcı değişikliğe izin verir, duyurusuz sevke izin vermez.
+    breaking_result = _check_breaking_changes(root, breaking_gate, resolved_version)
+    if breaking_result:
+        return breaking_result
 
     # 136.3 - overwrite koruması ve manifest. Staging'de doğrulanmış paketler
     # ancak burada release_dir'e taşınır (promote); `_promote_staged_packages`
