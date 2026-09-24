@@ -2,8 +2,8 @@
 
 > **Durum:** ✅ Tamamlandı (2026-09-24)
 > **Plan onayı:** Bakımcı, 2026-09-23 (engelleyici kararlar sohbette alındı)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-271** — B yarısı. A yarısı (DI kurucuları + ratchet) [Faz 188](arsiv/fazlar/188-DI-KURUCU-DARALTMA.md)'dir
-> **Önkoşul:** [Faz 188](arsiv/fazlar/188-DI-KURUCU-DARALTMA.md) — **zorunlu**: kurucu ratchet'ini kurar; bu faz onun `TraconToolRegistration` satırını siler · [Faz 187](arsiv/fazlar/187-KIRICI-DEGISIKLIK-KAPISI.md) — `kapi.py yayin` kırıcı değişiklik kapısı; kırılmalar o kapıdan sürüm notuyla geçer · [Faz 186](arsiv/fazlar/186-SCRIPT-IZNI-ICERIK-PINI.md) — numara sırası; `ITraconBuilder.AddSkill` XML'ine (Açık Soru 1'ine göre gövdesine) dokunur (`186-…md:445`) · [Faz 185](arsiv/fazlar/185-KARDES-PAKET-SURUM-SABITLEME.md) — kardeş sabitlemesi; karışık graf riskini daraltır
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-271** — B yarısı. A yarısı (DI kurucuları + ratchet) [Faz 188](188-DI-KURUCU-DARALTMA.md)'dir
+> **Önkoşul:** [Faz 188](188-DI-KURUCU-DARALTMA.md) — **zorunlu**: kurucu ratchet'ini kurar; bu faz onun `TraconToolRegistration` satırını siler · [Faz 187](187-KIRICI-DEGISIKLIK-KAPISI.md) — `kapi.py yayin` kırıcı değişiklik kapısı; kırılmalar o kapıdan sürüm notuyla geçer · [Faz 186](186-SCRIPT-IZNI-ICERIK-PINI.md) — numara sırası; `ITraconBuilder.AddSkill` XML'ine (Açık Soru 1'ine göre gövdesine) dokunur (`186-…md:445`) · [Faz 185](185-KARDES-PAKET-SURUM-SABITLEME.md) — kardeş sabitlemesi; karışık graf riskini daraltır
 > **Paketler:** `Tracon.Abstractions`, `.Core` (üreteç `Tracon.Generators` dahil — `analyzers/dotnet/cs`), `.Mcp`, `.Voice`, `.Testing` (README + XML)
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** **Daralıyor ve büyüyor (bilinçli kırıcı, pre-1.0).** `TraconToolRegistration` kurucusu 8 → 1 parametre, 7 özellik `init` kazanır. `ITraconBuilder` 28 → 1 üye (`Services`); 27 metot yeni public statik uzantı sınıfına taşınır (Core +1 tip). Ölçüldü: `wc -l src/*/PublicAPI.Shipped.txt` → 17 dosya, her biri 1 satır (`#nullable enable`) — K-603
@@ -40,12 +40,12 @@
    185: karışık graf. 186: `AddSkill`. 187: `CHANGELOG` eşleşme kuralı. 188:
    ratchet taban satırı, kurucu politikasının K-* numarası.
 4. Alan hafızası (yalnız işaret edilen madde):
-   - [`hafiza/analyzer-yazimi.md`](hafiza/analyzer-yazimi.md) — "Core KENDİ
+   - [`hafiza/analyzer-yazimi.md`](../../hafiza/analyzer-yazimi.md) — "Core KENDİ
      analyzer'ını KENDİ ÜZERİNDE koşturur"
-   - [`hafiza/genisleme-noktalari-ve-denetim.md`](hafiza/genisleme-noktalari-ve-denetim.md) —
+   - [`hafiza/genisleme-noktalari-ve-denetim.md`](../../hafiza/genisleme-noktalari-ve-denetim.md) —
      K-667 ve Faz 150 (`Add` ↔ `TryAdd*`)
-   - [`hafiza/aspnetcore-di.md`](hafiza/aspnetcore-di.md) — K-251
-   - [`hafiza/dokumantasyon.md`](hafiza/dokumantasyon.md) — K-517 `<see cref>`
+   - [`hafiza/aspnetcore-di.md`](../../hafiza/aspnetcore-di.md) — K-251
+   - [`hafiza/dokumantasyon.md`](../../hafiza/dokumantasyon.md) — K-517 `<see cref>`
      ve "Internal tipin XML dokümanı da sevk edilir"
 
 ---
@@ -70,20 +70,20 @@ implementer için kırıcıdır.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`TraconToolRegistration.cs:49-57`](../src/Tracon.Abstractions/Tools/TraconToolRegistration.cs), `:76-137` · `Abstractions/PublicAPI.Unshipped.txt:3913`, `:3597-3612` | 1 zorunlu + 7 opsiyonel parametre; 8 özellik yalnız `get`. `ToolRegistrationOptions` aynı 7 alanı `set` ile taşır |
-| [`TraconToolAttribute.cs:53-114`](../src/Tracon.Abstractions/Tools/TraconToolAttribute.cs) | 9 özellik; 6'sı kayda eşlenir. `Name` `:53`, `Description` `:58`, `JsonSerializerContext` `:114` fonksiyon metadata'sıdır. `TimeoutSeconds`, `MaxOutputBytes` `int`'tir (`0` = yok) |
-| [`SourceWriter.cs:104-115`](../src/Tracon.Generators/SourceWriter.cs) | 🚨 Üreteç her `[TraconTool]` için adlandırılmış argümanlı `new(...)` çağrısını **tüketicinin derlemesine** yazar |
-| [`TraconBuilder.cs:33-43`](../src/Tracon.Core/TraconBuilder.cs), `:58-72` · [`ToolMethodScanner.cs:60-67`](../src/Tracon.Core/Tools/ToolMethodScanner.cs) | 7 alan üç kez elle kopyalanır (`AddTool`, `AddScopedTool`, yansıma). `ToolMethodScanner.cs:17` `cref`'i arayüz üyesine bağlıdır. `TraconBuilder.cs:10-18`: tek implementasyon `internal sealed`, yalnız `Services` taşır |
-| [`McpConnection.cs:450`](../src/Tracon.Mcp/Internal/McpConnection.cs), `:512-518` · `git grep -nE "\.Source\b\|RequiresApproval" -- 'tests/Tracon.Mcp*'` · `git grep -l McpConnection -- tests` | `requiresApproval:`, `source:` `private` metotlarda (`:440`, `:481`). İki grep de boş: MCP kaydının iki alanını kilitleyen test ve `McpConnection` düzeneği yoktur |
-| [`VoiceBuilderExtensions.cs:100-104`](../src/Tracon.Voice/VoiceBuilderExtensions.cs) · [`ToolRegistry.cs:46-49`](../src/Tracon.Core/Tools/ToolRegistry.cs), `:77` | Voice: konumsal `requireApproval`; `:109` ve `TraconClientToolExtensions.cs:63` tek argümanlı, değişmez. Görüntü tool'u: `effect:`, `timeout:`; `:77` XML `requiresApproval: true` der |
+| [`TraconToolRegistration.cs:49-57`](../../../src/Tracon.Abstractions/Tools/TraconToolRegistration.cs), `:76-137` · `Abstractions/PublicAPI.Unshipped.txt:3913`, `:3597-3612` | 1 zorunlu + 7 opsiyonel parametre; 8 özellik yalnız `get`. `ToolRegistrationOptions` aynı 7 alanı `set` ile taşır |
+| [`TraconToolAttribute.cs:53-114`](../../../src/Tracon.Abstractions/Tools/TraconToolAttribute.cs) | 9 özellik; 6'sı kayda eşlenir. `Name` `:53`, `Description` `:58`, `JsonSerializerContext` `:114` fonksiyon metadata'sıdır. `TimeoutSeconds`, `MaxOutputBytes` `int`'tir (`0` = yok) |
+| [`SourceWriter.cs:104-115`](../../../src/Tracon.Generators/SourceWriter.cs) | 🚨 Üreteç her `[TraconTool]` için adlandırılmış argümanlı `new(...)` çağrısını **tüketicinin derlemesine** yazar |
+| [`TraconBuilder.cs:33-43`](../../../src/Tracon.Core/TraconBuilder.cs), `:58-72` · [`ToolMethodScanner.cs:60-67`](../../../src/Tracon.Core/Tools/ToolMethodScanner.cs) | 7 alan üç kez elle kopyalanır (`AddTool`, `AddScopedTool`, yansıma). `ToolMethodScanner.cs:17` `cref`'i arayüz üyesine bağlıdır. `TraconBuilder.cs:10-18`: tek implementasyon `internal sealed`, yalnız `Services` taşır |
+| [`McpConnection.cs:450`](../../../src/Tracon.Mcp/Internal/McpConnection.cs), `:512-518` · `git grep -nE "\.Source\b\|RequiresApproval" -- 'tests/Tracon.Mcp*'` · `git grep -l McpConnection -- tests` | `requiresApproval:`, `source:` `private` metotlarda (`:440`, `:481`). İki grep de boş: MCP kaydının iki alanını kilitleyen test ve `McpConnection` düzeneği yoktur |
+| [`VoiceBuilderExtensions.cs:100-104`](../../../src/Tracon.Voice/VoiceBuilderExtensions.cs) · [`ToolRegistry.cs:46-49`](../../../src/Tracon.Core/Tools/ToolRegistry.cs), `:77` | Voice: konumsal `requireApproval`; `:109` ve `TraconClientToolExtensions.cs:63` tek argümanlı, değişmez. Görüntü tool'u: `effect:`, `timeout:`; `:77` XML `requiresApproval: true` der |
 | Çok argümanlı kurulum sayımı | 39 yer: `src` 8, `samples` 2, `tests` 29 (10 dosya; `LateToolCompletionTests.cs:79-81` hedefli `new(`). Düz grep hedefli `new(`'i kaçırır; **tam bulucu derleyicidir** (CS1739) |
-| [`ITraconBuilder.cs:16`](../src/Tracon.Core/ITraconBuilder.cs) · `Core/PublicAPI.Unshipped.txt:120-148` | `grep -c "^Tracon.ITraconBuilder\."` → 28 (1 özellik + 27 metot); 16 `<example>` (15'i metotlarda) |
+| [`ITraconBuilder.cs:16`](../../../src/Tracon.Core/ITraconBuilder.cs) · `Core/PublicAPI.Unshipped.txt:120-148` | `grep -c "^Tracon.ITraconBuilder\."` → 28 (1 özellik + 27 metot); 16 `<example>` (15'i metotlarda) |
 | `ITraconBuilder.cs:132-133`, `:174-175`, `:193-194` · `:266`, `:294`, `:321`, `:358` · `:443-445` | `[RequiresUnreferencedCode]`/`[RequiresDynamicCode]` · `[DynamicallyAccessedMembers(PublicConstructors)]` · `#pragma warning disable MAAI001` |
 | `grep "(this Tracon.ITraconBuilder" src/*/PublicAPI.Unshipped.txt` | 13 pakette 61 uzantı (Core 20); hepsi `Add`/`Use`/`Map` önekli, `namespace Tracon`'da |
-| [`CapabilityEntryPoints.cs:50-53`](../tests/Tracon.Core.UnitTests/Architecture/CapabilityEntryPoints.cs), `:56-59` · [`manuel-test-tazelik.py:115-127`](../scripts/manuel-test-tazelik.py), `:635-647` · [`public-yuzey-envanteri.py:58-71`](../scripts/public-yuzey-envanteri.py), `:378` | K-509 kuralının üç kopyası; hepsi uzantıyı yalnız `Add`/`Use`/`Map` önekiyle sayar, iki betik "AYNI kural (K-509)" der. Aralarında eşlik testi yok (`git grep` boş). Taşınınca `Configure`, `RequireCustomBinding`, `RequireProductionProfile` üçünden de **sessizce** düşer |
-| [`188-…md:108`](arsiv/fazlar/188-DI-KURUCU-DARALTMA.md) (karar 4), `:314-321` | Ratchet yalnız **kurucuları** izler ("Metotlar kapsam dışıdır"). Taban `Tracon.Abstractions:Tracon.TraconToolRegistration(8/7)` satırını taşır |
-| `git grep -n "builder.AddModelProvider(" -- src ':!src/Tracon.Core'` · `TraconTestHost.cs:66` · [`185-…md:334-338`](arsiv/fazlar/185-KARDES-PAKET-SURUM-SABITLEME.md) | OpenAI (2 dosya), Anthropic, Azure, Google `Use*()` ve `Tracon.Testing` kayıt anında kaldırılacak bir arayüz üyesini çağırır. 185: kayıt anında kırılma kontrolü önler |
-| [`kapi.py:657-661`](../scripts/kapi.py) · [`GeneratedOutputTests.cs:276-279`](../tests/Tracon.Generators.UnitTests/GeneratedOutputTests.cs) | `samples/Tracon.Samples.*` yalnız `kapi.py yayin`'de koşar. Üreteç çıktısını derleyen desen vardır; `:75`, `:108-112`, `:168-170` adlandırılmış argüman arar |
+| [`CapabilityEntryPoints.cs:50-53`](../../../tests/Tracon.Core.UnitTests/Architecture/CapabilityEntryPoints.cs), `:56-59` · [`manuel-test-tazelik.py:115-127`](../../../scripts/manuel-test-tazelik.py), `:635-647` · [`public-yuzey-envanteri.py:58-71`](../../../scripts/public-yuzey-envanteri.py), `:378` | K-509 kuralının üç kopyası; hepsi uzantıyı yalnız `Add`/`Use`/`Map` önekiyle sayar, iki betik "AYNI kural (K-509)" der. Aralarında eşlik testi yok (`git grep` boş). Taşınınca `Configure`, `RequireCustomBinding`, `RequireProductionProfile` üçünden de **sessizce** düşer |
+| [`188-…md:108`](188-DI-KURUCU-DARALTMA.md) (karar 4), `:314-321` | Ratchet yalnız **kurucuları** izler ("Metotlar kapsam dışıdır"). Taban `Tracon.Abstractions:Tracon.TraconToolRegistration(8/7)` satırını taşır |
+| `git grep -n "builder.AddModelProvider(" -- src ':!src/Tracon.Core'` · `TraconTestHost.cs:66` · [`185-…md:334-338`](185-KARDES-PAKET-SURUM-SABITLEME.md) | OpenAI (2 dosya), Anthropic, Azure, Google `Use*()` ve `Tracon.Testing` kayıt anında kaldırılacak bir arayüz üyesini çağırır. 185: kayıt anında kırılma kontrolü önler |
+| [`kapi.py:657-661`](../../../scripts/kapi.py) · [`GeneratedOutputTests.cs:276-279`](../../../tests/Tracon.Generators.UnitTests/GeneratedOutputTests.cs) | `samples/Tracon.Samples.*` yalnız `kapi.py yayin`'de koşar. Üreteç çıktısını derleyen desen vardır; `:75`, `:108-112`, `:168-170` adlandırılmış argüman arar |
 | `git log -G` (PublicAPI, `630f3212`'den beri) | `ITraconBuilder` satırları 2, kurucu satırı 1 commit'te değişti |
 
 > Kanıtlar 2026-09-23'te HEAD `bb9953e3` üzerinde doğrulandı. Faz 186
@@ -393,7 +393,7 @@ docs/hafiza/analyzer-yazimi.md · genisleme-noktalari-ve-denetim.md (tuzak)
 
 > Mutlu yoldan değil, **ne bozulabilir**den türetilir. Seviyeyi plan seçer.
 > Sınır geçen davranış (DI · HTTP · kiracı · akış · depo · paket) birim
-> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../.agents/ortak/test-seviyeleri.md).
+> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../../../.agents/ortak/test-seviyeleri.md).
 
 | # | Ne bozulabilir | Seviye | Test |
 |---|---|---|---|
@@ -707,7 +707,7 @@ Temiz başlıklar: 3.2, 3.3, 3.5, 3.6, 3.7.
 
 ## Sonraki Faza Devir Notu
 
-**Sıradaki faz: [190](190-KIMLIK-BASLIKLARI-ANAHTAR-REFERANSI.md)** — teknik
+**Sıradaki faz: [190](../../190-KIMLIK-BASLIKLARI-ANAHTAR-REFERANSI.md)** — teknik
 bağımlılık yok (190 önkoşulu "yalnız sıra").
 
 **Devralınan sözleşmeler:**
