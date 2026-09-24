@@ -29,10 +29,10 @@ data, or unreviewed prompt and tool content.
 | Tenant isolation | Model output quality |
 | Credential handling, including per-tenant bring-your-own-key | Prompt injection that a configured guard is not enabled to stop |
 | The audit trail | Denial of service produced by quotas you configured |
-| Egress policy | |
+| Egress policy | Operating-system isolation of a skill script's process |
 | Tool approval and authorization | |
 | Content guards | |
-| Script sandboxing | |
+| Script execution gates (grant, content pin, interpreter allowlist, audit) | |
 | Any path that writes a secret to storage, a log, or a response | |
 
 The audit trail is in scope as a security boundary, and that boundary has a documented
@@ -41,6 +41,14 @@ audit write is best-effort. [What is guaranteed to be
 written](/concepts/governance/#what-is-guaranteed-to-be-written) is the division. A
 report that a best-effort record was lost on a store failure is expected behaviour, not
 a vulnerability; a report that a fail-closed operation proceeded without its record is.
+
+Script execution gates are in scope; isolating the script process is not. Tracon does
+not provide operating-system isolation, and the threat model lists it as an accepted
+risk: a granted script can read what the server's operating-system user can read. A
+report of that is expected behaviour. A report that a script started without a grant
+or with an interpreter off the allowlist is a vulnerability, and so is a stored or
+code-defined script that started without a grant pinned to its current content. A
+script read from disk is not pinned, by design.
 
 The [threat model](/reference/threat-model/) is why this list draws the line where it
 does: it names the attackers this scope assumes, maps each one against the boundaries

@@ -150,8 +150,9 @@ public sealed record AgentSkillRequest
     /// Content written here <strong>can be executed on the server</strong>.
     /// Writing it is not enough by itself: a script runs only when
     /// <c>TraconSkillScriptOptions</c> has both <c>Enabled</c> and
-    /// <c>AllowStoredScripts</c> turned on, and a valid <c>SkillScriptGrant</c>
-    /// exists for the tenant.
+    /// <c>AllowStoredScripts</c> turned on, and the tenant has a valid
+    /// <c>SkillScriptGrant</c> pinned to this exact content. Changing a granted
+    /// script stops it until it is granted again.
     /// </remarks>
     public IReadOnlyList<AgentSkillScriptDefinition> Scripts { get; init; } = [];
 
@@ -178,8 +179,10 @@ public sealed record AgentSkillRequest
 /// <summary>Request to grant script execution permission.</summary>
 /// <remarks>
 /// Granting permission means authorizing code to run on the server on behalf
-/// of this tenant. Because of this, the corresponding endpoint is open only to
-/// the admin role and every request is written to the audit log.
+/// of this tenant. Because of this, the endpoint is open only to the admin role
+/// (an API key needs <c>SecurityAdmin</c>), and in a multi-tenant host a grant for
+/// a stored script also needs platform authority. Every grant is written to the
+/// audit trail; a refused request writes nothing.
 /// </remarks>
 public sealed record SkillScriptGrantRequest
 {
@@ -194,6 +197,32 @@ public sealed record SkillScriptGrantRequest
 
     /// <summary>Expiration time of the grant. If <see langword="null"/>, it is unlimited.</summary>
     public DateTimeOffset? ExpiresAt { get; init; }
+
+    /// <summary>
+    /// The content the grant pins, read from <c>GET /api/skills/{name}</c>: the
+    /// script's <c>contentHash</c> when <c>scriptName</c> is set, the skill's
+    /// <c>scriptSetHash</c> when it is not.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Required for a skill stored in the database or registered in code (<c>400</c>
+    /// without it). A value that no longer matches the content returns <c>409</c>:
+    /// someone changed the scripts after they were read. Not needed for a skill that
+    /// exists only on disk.
+    /// </para>
+    /// <para>
+    /// A <c>POST /tracon/api/skill-script-grants</c> body, with the hash shortened
+    /// (a real one is 64 hexadecimal characters):
+    /// </para>
+    /// <code language="json">
+    /// {
+    ///   "skillName": "invoice-analysis",
+    ///   "scriptName": "total",
+    ///   "expectedContentHash": "3F1C9A0B"
+    /// }
+    /// </code>
+    /// </remarks>
+    public string? ExpectedContentHash { get; init; }
 }
 
 /// <summary>

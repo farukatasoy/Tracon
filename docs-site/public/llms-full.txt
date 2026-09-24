@@ -106,7 +106,7 @@ decisions can be overridden or composed with your own rules — see
 | Custom content guards | `AddContentGuard<TGuard>()` | Multiple guards run; the strictest result wins |
 | Pattern guard | `AddPatternContentGuard()` | Denied terms can block; selected PII patterns can mask input or output |
 | Skills | `AddSkill()` or database/file skill sources | Markdown instructions and resources are bounded and validated |
-| Skill scripts | `UseSkillScripts()` | Explicit enablement, platform-isolation acknowledgement, interpreter allowlist, tenant grant, timeout, output limit, and concurrency limits |
+| Skill scripts | `UseSkillScripts()` | Explicit enablement, platform-isolation acknowledgement, interpreter allowlist, a content-pinned tenant grant (platform authority for a stored script in a multi-tenant host), timeout, output limit, and concurrency limits |
 | Remote MCP tools | `UseMcp()` | Tool discovery, name normalization, resource limits, authentication, refresh, prompts, and OAuth coordination |
 | MCP resources | `AgentDefinition.McpResourceUris` | A bounded snapshot of selected server resources enters agent context |
 | Knowledge search | PostgreSQL, `IEmbeddingGenerator`, and memory settings | Chunking, embedding, HNSW cosine search, tenant isolation, and result limits |
@@ -2920,6 +2920,10 @@ A skill is markdown with frontmatter, optionally carrying resources — referenc
 the agent can pull in. Skills are tenant-scoped and editable from the console, because
 they are *instructions*, not code.
 
+A skill can also be registered in code with `AddSkill`. The code skill wins its name,
+as a code-defined agent does: the console opens it read only, and the API refuses to
+save a stored skill under that name (`409`), because such a copy would never run.
+
 An agent lists skills by name. Deleting a skill an agent still names is a real break:
 compiling that agent then fails with "the skill was not found" until the reference is
 removed or the skill is recreated. Check which agents use a skill before deleting it.
@@ -2939,13 +2943,13 @@ starts:
 ```mermaid
 flowchart LR
     accTitle: Skill script security gates
-    accDescr: A skill script runs only after enabled, tenant grant, extension allowlist, path, budget, and runner checks all pass in order.
-    G1["1. enabled"] --> G2["2. valid grant<br/>for this tenant"]
+    accDescr: A skill script runs only after the enabled flag, a tenant grant pinned to its content, the interpreter allowlist, argument validation, the audit write, and the concurrency quota all pass in order.
+    G1["1. enabled"] --> G2["2. valid grant<br/>pinned to this content"]
     G2 --> G3["3. extension on the<br/>interpreter allowlist"]
     G3 --> G4["4. argument size<br/>and schema"]
     G4 --> G5["5. written to<br/>the audit trail"]
     G5 --> G6["6. concurrency quota"]
-    G6 --> RUN["separate process<br/>clean environment · stdin args<br/>timeout · output limit"]
+    G6 --> RUN["separate process<br/>allow-listed environment · same OS user<br/>stdin args · timeout · output limit"]
 ```
 
 :::danger[Gate five is an exception to an exception]
@@ -2959,12 +2963,26 @@ Grants are visible and revocable at `GET /api/skill-script-grants`. A grant with
 script name covers every script in a skill; one with a name covers only that script.
 Grants can expire.
 
+A grant for a stored or code-defined skill **pins the content** it was given for. Read
+`scripts[].contentHash` (one script) or `scriptSetHash` (every script) from
+`GET /api/skills/{name}`, review what will run, and send the value as
+`expectedContentHash`. A skill-wide grant pins the whole script set: adding, removing,
+or changing any script stops every script in the skill until it is granted again. A
+hash that no longer matches returns `409` — read the skill again. In a multi-tenant
+host, granting a stored script also needs platform authority: a key with
+`PlatformAdmin`, the static token, or the `Tracon.PlatformAdmin` policy. A script read
+from disk is not pinned, so keep its directory read-only.
+
 :::caution[Tracon does not sandbox]
 It provides **no** filesystem jail, network restriction, memory or CPU quota, or
-privilege dropping. All four belong to the hosting environment — a container, cgroups,
-and an unprivileged user. The acknowledgement flag exists so the feature cannot be
-enabled without seeing this: with execution on and the flag off, the application fails
-at **startup**.
+privilege dropping. The process runs under the same operating-system user as Tracon
+and can read what that user can read — on Linux, the environment Tracon started with
+too, through `/proc`. In a multi-tenant host a granted script can therefore reach every
+tenant's data; the [threat model](/reference/threat-model/) lists this as an accepted
+risk. Isolation belongs to the hosting environment — a container, cgroups, and an
+unprivileged user. The acknowledgement flag exists so the feature cannot be enabled
+without seeing this: with execution on and the flag off, the application fails at
+**startup**.
 :::
 
 ## MCP servers
@@ -4204,7 +4222,7 @@ policy](/reference/security-policy/) for what is in and out of scope.
 | Tool authorization | A tool call the caller is not entitled to make | [Tool authorization](/concepts/governance/#tool-authorization) |
 | Tool approval | An unapproved tool call, until a human decides | [Approvals](/concepts/governance/#approvals) |
 | Tool definition | A tool written from the console — tools exist only in code | [Tools](/concepts/tools/) |
-| Script sandboxing | A skill script escaping its sandbox, when scripts are on at all | [Production defaults](/guides/production/#production-sensitive-defaults) |
+| Script execution gates | A skill script starting without a grant or with an interpreter off the allowlist, or a stored or code-defined one starting after its content changed since the grant | [Skill scripts](/concepts/tools/#skill-scripts--the-strict-exception) |
 | Outbound egress | A request to a private network target or a disallowed host | [Outbound requests](#outbound-requests-are-guarded-too) |
 | Content guards | Input or output a configured guard rejects | [Content guards](/concepts/governance/#content-guards) |
 | Secret handling | A secret value reaching storage, a log, or a response | [What is stored in the clear](#what-is-stored-in-the-clear) |
@@ -9680,7 +9698,19 @@ Native AOT compatible.
 
 Tracon does not provide an operating-system sandbox for skill scripts. If you
 enable them, run the service as an unprivileged identity in an isolated container,
-restrict its filesystem and network, and treat every script as deployed code.
+restrict its filesystem and network, and treat every script as deployed code: a
+script runs with that identity and can read what it can read.
+
+With `AllowStoredScripts` on, anyone who can write skills (`AgentsAdmin`) can store a
+script through the API. It runs only under a grant pinned to its content, so a
+security administrator reviews each version before it runs. In a multi-tenant host
+the grant also needs platform authority. To grant for tenant B, use a key bound to
+tenant B with `SecurityAdmin`, `AgentsRead` and `PlatformAdmin`, the static token with
+the tenant header, or a user the `Tracon.PlatformAdmin` policy admits. A
+`PlatformAdmin` key carries this authority too, so give one only to operators. A grant
+without a script name pins the whole script set: any change to any script needs a new
+grant. Keep every `SkillRoots` directory read-only for the service identity, because
+a script on disk is not pinned.
 
 Capacity planning must include model concurrency, SQL event volume, job polling,
 message-delta recording, trace cardinality, attachment storage, and provider rate
@@ -13700,8 +13730,8 @@ authority is `role ∩ scopes`.
 | `ExperimentsRead` | Experiments, results, and canary status |
 | `ExperimentsAdmin` | Experiment writes, start and stop, and canary policy |
 | `PlatformRead` | Tenant, quota, retention, scheduling, webhook, diagnostics, and provider-health reads |
-| `PlatformAdmin` | Platform configuration writes and retention execution |
-| `SecurityAdmin` | API keys, skill-script grants, and MCP OAuth start |
+| `PlatformAdmin` | Platform configuration writes and retention execution; with `SecurityAdmin`, granting a stored skill script in a multi-tenant host |
+| `SecurityAdmin` | API keys, skill-script grants (reading the content hash to grant needs `AgentsRead` too), and MCP OAuth start |
 | `AuditRead` | Audit-trail reads |
 
 `SecurityAdmin` can create or extend authority. Grant it rarely. API keys are stored
@@ -13842,7 +13872,9 @@ for the exact runtime interpretation.
 | `Skills:Scripts:SearchDepth` | `2` |
 
 `Enabled=true` is invalid until `PlatformIsolationAcknowledged=true`. Tracon
-does not provide a filesystem, network, CPU, memory, or privilege sandbox.
+does not provide a filesystem, network, CPU, memory, or privilege sandbox. The
+environment allowlist only stops a script from inheriting variables: the script
+still runs as the same operating-system user and reads what that user can read.
 
 ### Attachments and audit
 
@@ -14961,10 +14993,10 @@ data, or unreviewed prompt and tool content.
 | Tenant isolation | Model output quality |
 | Credential handling, including per-tenant bring-your-own-key | Prompt injection that a configured guard is not enabled to stop |
 | The audit trail | Denial of service produced by quotas you configured |
-| Egress policy | |
+| Egress policy | Operating-system isolation of a skill script's process |
 | Tool approval and authorization | |
 | Content guards | |
-| Script sandboxing | |
+| Script execution gates (grant, content pin, interpreter allowlist, audit) | |
 | Any path that writes a secret to storage, a log, or a response | |
 
 The audit trail is in scope as a security boundary, and that boundary has a documented
@@ -14973,6 +15005,14 @@ audit write is best-effort. [What is guaranteed to be
 written](/concepts/governance/#what-is-guaranteed-to-be-written) is the division. A
 report that a best-effort record was lost on a store failure is expected behaviour, not
 a vulnerability; a report that a fail-closed operation proceeded without its record is.
+
+Script execution gates are in scope; isolating the script process is not. Tracon does
+not provide operating-system isolation, and the threat model lists it as an accepted
+risk: a granted script can read what the server's operating-system user can read. A
+report of that is expected behaviour. A report that a script started without a grant
+or with an interpreter off the allowlist is a vulnerability, and so is a stored or
+code-defined script that started without a grant pinned to its current content. A
+script read from disk is not pinned, by design.
 
 The [threat model](/reference/threat-model/) is why this list draws the line where it
 does: it names the attackers this scope assumes, maps each one against the boundaries
@@ -15056,7 +15096,7 @@ What an attacker in the table above is after:
 - **The audit trail** — the record of who did what, and the state before and after
 - **Tool call authority** — the right to invoke a specific tool with specific arguments
 - **Model budget** — request rate and spend ceilings
-- **Script execution rights** — running a skill script inside its sandbox
+- **Script execution rights** — running a skill script on the server
 
 ## Boundary mapping
 
@@ -15072,7 +15112,7 @@ the complementary question — which boundaries exist, and what each one refuses
 | Tool authorization | A tool call the caller is not entitled to make |
 | Tool approval | An unapproved tool call, until a human decides |
 | Tool definition | A tool written from the console — tools exist only in code |
-| Script sandboxing | A skill script escaping its sandbox, when scripts are on at all |
+| Script execution gates | A skill script starting without a grant or with an interpreter off the allowlist, or a stored or code-defined one starting after its content changed since the grant |
 | Outbound egress | A request to a private network target or a disallowed host |
 | Content guards | Input or output a configured guard rejects |
 | Secret handling | A secret value reaching storage, a log, or a response |
@@ -15121,6 +15161,23 @@ more — the audit trail raises `tracon.audit.write_failures` and a run raises
 `tracon.run.recording_failures`, tagged with the stage the record was lost at. Both
 counters are reporting, not prevention: they tell you evidence is missing, they do not
 keep it.
+:::
+
+:::caution[A granted script runs with the server's operating-system identity]
+Tracon does not isolate a script process. It runs under the same operating-system user
+as Tracon, and the environment allowlist only stops it from inheriting variables: it
+can read what that user can read. On Linux that includes the environment Tracon
+started with, through `/proc`, so a connection string or provider key kept there is
+readable. Tenant isolation and secret handling run in the application layer and do not
+reach inside the script.
+
+Part of this is closed. A stored or code-defined script runs only under a grant pinned
+to its exact content, and in a multi-tenant host granting one needs platform
+authority, so a tenant administrator cannot grant one alone. What stays open: the
+platform administrator who grants a script approves code that can reach every
+tenant's data, and a script read from disk is not pinned — keep its directory
+read-only. Run a host with scripts on in a container, under an unprivileged user, with
+restricted network access — see [skill scripts](/concepts/tools/#skill-scripts--the-strict-exception).
 :::
 
 :::caution[An authorized identity can still exceed what it was meant to do]
@@ -16692,9 +16749,13 @@ that an agent loads at run time, with approval. The editor shows the frontmatter
 compatibility and license fields, the allowed-tool list, and the resources; the
 markdown is stored as source text and the console does not render it.
 
-This is the second place the code-only boundary is visible: a skill may carry a
-**script**, but the console can only reference a script the application already
-registered and granted. It cannot write one.
+This is the second place the code-only boundary is visible. A skill may carry
+**scripts**, and the editor writes their content, but saving a script never lets it
+run. The script grants panel below the list is where an administrator allows one: the
+form shows the content that will run — the script, its argument schema, and the hash
+— and grants exactly that content. A grant whose content changed afterwards is marked
+stale, and its scripts do not run until it is granted again. A skill registered in code
+opens read only: it is the one that runs, and the console cannot change it.
 
 ### Models
 
@@ -16721,8 +16782,9 @@ without a restart.
 Who changed what, when, and from what to what — filterable by actor, action, entity,
 and date range. Secret-looking fields are masked before anything is stored.
 
-Quotas, retention policies, API keys, tenants, tenant provider bindings and egress
-policy (BYOK), and skill script grants have their own screens in the same area.
+Quotas, retention policies, API keys, tenants, and tenant provider bindings and egress
+policy (BYOK) have their own screens in the same area. Skill script grants sit on the
+Skills screen, next to the content they allow.
 
 ### Triggers
 

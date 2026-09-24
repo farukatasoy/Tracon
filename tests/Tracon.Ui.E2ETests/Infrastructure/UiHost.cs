@@ -86,12 +86,17 @@ internal sealed class UiHost : IAsyncDisposable
     /// <c>MapTracon</c> call (example: a static test page hosting the
     /// embeddable widget's script tag, same origin as this host).
     /// </param>
+    /// <param name="configureTracon">
+    /// Extra Tracon features on top of the shared set (example:
+    /// <c>UseSkillScripts</c>, which the grant screen needs and no other test does).
+    /// </param>
     /// <returns>The running server.</returns>
     public static async Task<UiHost> StartAsync(
         string prefix = "/tracon",
         string? authToken = null,
         Action<IServiceCollection>? configureServices = null,
-        Action<WebApplication>? configureApp = null)
+        Action<WebApplication>? configureApp = null,
+        Action<ITraconBuilder>? configureTracon = null)
     {
         var builder = WebApplication.CreateSlimBuilder();
 
@@ -136,7 +141,7 @@ internal sealed class UiHost : IAsyncDisposable
         builder.Services.AddSingleton<ISpeechTranscriber>(
             static provider => provider.GetRequiredService<StubSpeechSynthesizer>());
 
-        builder.Services.AddTracon()
+        var tracon = builder.Services.AddTracon()
             .AddModelProvider(provider)
             .AddToolsFrom(typeof(OrderTools))
             .AddClientTool(
@@ -247,6 +252,8 @@ internal sealed class UiHost : IAsyncDisposable
                     ]),
                 "Two-step chain.")
             .AddWorkflow("approval-flow", static _ => ApprovalWorkflow.Build(), "Flow that waits for human approval.");
+
+        configureTracon?.Invoke(tracon);
 
         var app = builder.Build();
 

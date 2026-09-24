@@ -1,5 +1,9 @@
 import type { AgentSkillScriptDefinition } from '@tracon/client';
-import type { AgentSkillResourceDefinition } from '../../lib/server-types';
+import type {
+  AgentSkillDefinition,
+  AgentSkillResourceDefinition,
+  SkillScriptGrant,
+} from '../../lib/server-types';
 
 /**
  * The shape the skill editor edits.
@@ -48,3 +52,40 @@ export const emptyRequest = (): SkillForm => ({
   resources: [],
   scripts: [],
 });
+
+/**
+ * The hash a grant pins today: the script's own hash for a script grant, the
+ * fingerprint of the whole script set when the grant covers every script.
+ * `null` when the skill has no script by that name.
+ */
+export function currentHash(skill: AgentSkillDefinition, scriptName: string | null | undefined): string | null {
+  if (scriptName === null || scriptName === undefined || scriptName.length === 0) {
+    return skill.scriptSetHash;
+  }
+
+  return skill.scripts.find((script) => script.name === scriptName)?.contentHash ?? null;
+}
+
+export type Pin = 'current' | 'stale' | 'disk';
+
+/**
+ * Whether a grant still authorizes the content that runs.
+ *
+ * Mirrors the runner: a stored or code script runs only under a grant whose hash
+ * equals the current one (compared without regard to case), and a script read
+ * from disk is not pinned at all. A grant with no hash therefore authorizes disk
+ * scripts only — for a stored or code skill it is as good as none.
+ */
+export function pinOf(grant: SkillScriptGrant, skill: AgentSkillDefinition | null): Pin {
+  if (skill === null) {
+    return 'disk';
+  }
+
+  const current = currentHash(skill, grant.scriptName);
+
+  return grant.contentHash !== null &&
+    current !== null &&
+    grant.contentHash.toUpperCase() === current.toUpperCase()
+    ? 'current'
+    : 'stale';
+}

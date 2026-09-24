@@ -39,6 +39,12 @@
       other tests run with in-memory stores.
     -->
     <ProjectReference Include="../../src/Tracon.Sqlite/Tracon.Sqlite.csproj" />
+    <!--
+      McpApprovalRuleSourceTests: an approval rule and a remote MCP server record
+      are written by two different roles, and only a real MCP client connected to a
+      real server shows which remote tool a rule ends up approving.
+    -->
+    <ProjectReference Include="../../src/Tracon.Mcp/Tracon.Mcp.csproj" />
   </ItemGroup>
 
   <ItemGroup>

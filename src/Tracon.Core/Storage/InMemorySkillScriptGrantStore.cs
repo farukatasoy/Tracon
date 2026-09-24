@@ -93,7 +93,27 @@ internal sealed class InMemorySkillScriptGrantStore : ISkillScriptGrantStore
         ArgumentNullException.ThrowIfNull(skillName);
         cancellationToken.ThrowIfCancellationRequested();
 
-        return new ValueTask<bool>(_grants.TryRemove(new GrantKey(tenantId, skillName, scriptName), out _));
+        // A grant is never deleted: revoking stamps RevokedAt and the row stays
+        // listed, the same as in the SQL stores - "who granted what, and when was
+        // it taken back" must stay answerable without the audit trail. The update
+        // is a compare-and-swap so a concurrent grant is never overwritten with a
+        // stale copy.
+        var key = new GrantKey(tenantId, skillName, scriptName);
+
+        while (_grants.TryGetValue(key, out var current))
+        {
+            if (current.RevokedAt is not null)
+            {
+                return new ValueTask<bool>(false);
+            }
+
+            if (_grants.TryUpdate(key, current with { RevokedAt = DateTimeOffset.UtcNow }, current))
+            {
+                return new ValueTask<bool>(true);
+            }
+        }
+
+        return new ValueTask<bool>(false);
     }
 
     private readonly record struct GrantKey(string TenantId, string SkillName, string? ScriptName);

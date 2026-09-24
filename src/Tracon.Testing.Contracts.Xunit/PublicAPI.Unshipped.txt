@@ -529,11 +529,16 @@ Tracon.Testing.Contracts.Storage.SingletonLeaseStoreContract.Second_owner_cannot
 Tracon.Testing.Contracts.Storage.SingletonLeaseStoreContract.SingletonLeaseStoreContract() -> void
 Tracon.Testing.Contracts.Storage.SingletonLeaseStoreContract.Someone_else_can_acquire_once_the_lease_expires() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.SkillScriptGrantContract
+Tracon.Testing.Contracts.Storage.SkillScriptGrantContract.Content_hash_round_trips() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.SkillScriptGrantContract.Expired_grant_is_not_returned() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.SkillScriptGrantContract.Grant_does_not_leak_across_tenants() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SkillScriptGrantContract.Granting_again_replaces_the_content_hash() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.SkillScriptGrantContract.Granting_the_same_grant_twice_leaves_a_single_record() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SkillScriptGrantContract.Null_content_hash_round_trips() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SkillScriptGrantContract.Racing_grants_and_revocations_leave_one_record_for_the_key() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.SkillScriptGrantContract.Revoked_grant_can_be_granted_again() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.SkillScriptGrantContract.Revoked_grant_is_invalid() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.SkillScriptGrantContract.Revoked_grant_stays_listed() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.SkillScriptGrantContract.Script_specific_grant_wins_over_the_skill_wide_grant() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.SkillScriptGrantContract.SkillScriptGrantContract() -> void
 Tracon.Testing.Contracts.Storage.SkillScriptGrantContract.Skill_wide_grant_covers_every_script() -> System.Threading.Tasks.Task!

@@ -127,7 +127,9 @@ for the exact runtime interpretation.
 | `Skills:Scripts:SearchDepth` | `2` |
 
 `Enabled=true` is invalid until `PlatformIsolationAcknowledged=true`. Tracon
-does not provide a filesystem, network, CPU, memory, or privilege sandbox.
+does not provide a filesystem, network, CPU, memory, or privilege sandbox. The
+environment allowlist only stops a script from inheriting variables: the script
+still runs as the same operating-system user and reads what that user can read.
 
 ### Attachments and audit
 

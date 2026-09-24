@@ -1,3 +1,5 @@
+using System.Net.Http.Json;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using Microsoft.Playwright;
 using Tracon.Ui.E2ETests.Infrastructure;
@@ -31,6 +33,17 @@ public sealed class ConfirmationTests(BrowserFixture browsers)
         await session.Page.GetByTestId("playground-input").FillAsync("hello");
         await session.Page.GetByTestId("playground-send").ClickAsync();
         await Expect(session.Page.GetByText("Echo:").First).ToBeVisibleAsync();
+
+        // 🚨 The echo is streamed before the run ends, and the session row is written
+        // with the run. Under a loaded full run the list was read before the row
+        // existed and stayed empty - the screen does not poll - so the delete button
+        // never appeared. Wait for the row the screen is about to list.
+        using (var api = new HttpClient { BaseAddress = new Uri(host.UiAddress + "/") })
+        {
+            await WaitUntil.TrueAsync(
+                async () => (await api.GetFromJsonAsync<JsonElement>("api/sessions")).GetArrayLength() > 0,
+                "the playground run to write its session");
+        }
 
         await session.Page.GotoAsync($"{host.UiAddress}/sessions");
         await Expect(session.Page

@@ -184,3 +184,4 @@ tip `internal`'a cekilince uc sey bayatlar ve hicbiri derlemeyi kirmaz:
 
 Tarama: daraltilan her ad icin `git grep -n 'cref="<Ad>' -- src` ve
 `git grep -n '<c><Ad>' -- src`; public tipte olanlar duz metne cevrilir.
+- **🚨 Bir `§N` atfı, başlığı silinince sessizce bayatlar** (2026-09-24, Faz 186). `14-SKILL-VE-SCRIPT.md`'nin bölüm başlıkları ve §6'nın ortak kurulumu Faz 58'de silindi (`946a37fb`, 459 satır); case'ler Faz 186'ya kadar `§6'nın 1-5. adımları`'na atıf yapmaya devam etti ve kurulum hiçbir yerde yoktu. Hiçbir kapı `§` atfını çözmez: bir bölüm silinirken ya da taşınırken aynı dosyada `grep -n "§N"` koşulur.

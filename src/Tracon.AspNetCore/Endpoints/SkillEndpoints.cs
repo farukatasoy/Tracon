@@ -37,8 +37,13 @@ internal static class SkillEndpoints
             .WithSummary("Returns a single skill and its resources.")
             .WithDescription(
                 "The response carries the skill's instructions together with every resource and " +
-                "script attached to it, including their content. Names are compared exactly, " +
-                "case included; an unknown name returns 404.");
+                "script attached to it, including their content. The name resolves the way the " +
+                "runtime resolves it: a skill registered in code wins over a stored skill with the " +
+                "same name, and 'origin' says which one was returned (Code or Database) - so the " +
+                "content shown is the content that runs. Each script carries 'contentHash' and the " +
+                "skill carries 'scriptSetHash'; a script grant pins one of them. A disabled skill " +
+                "is returned too. Names are compared exactly, case included; an unknown name " +
+                "returns 404. The list (GET /api/skills) shows stored skills only.");
 
         builder.MapPut("/api/skills/{name}", SaveAsync)
             .RequireRole(roles.Admin)
@@ -54,7 +59,10 @@ internal static class SkillEndpoints
                 "each bounded by the configured size limits. A script may be SAVED even when " +
                 "script execution is turned off — saving and running are separate permissions — " +
                 "but an extension with no registered interpreter is rejected, because such a " +
-                "script could never run and would leave dead data behind.")
+                "script could never run and would leave dead data behind. A name registered in " +
+                "code answers 409: a skill defined in code wins name conflicts, so a stored skill " +
+                "with that name would never run. Changing a stored script's content stops it from " +
+                "running until its script grant is given again for the new content.")
             .Accepts<AgentSkillRequest>("application/json");
 
         builder.MapDelete("/api/skills/{name}", DeleteAsync)
@@ -68,7 +76,9 @@ internal static class SkillEndpoints
                 "name the skill are NOT rewritten, and they stop resolving: compiling such an " +
                 "agent fails with 'the skill was not found' until the reference is removed or the " +
                 "skill is recreated. Check the agents that use a skill before deleting it. An " +
-                "unknown name returns 404.");
+                "unknown name returns 404. For a name registered in code only a stored skill with " +
+                "that name is removed (one saved before the name was taken in code, which never " +
+                "ran); the code skill keeps running, and a name with no stored skill answers 409.");
     }
 
     private static async Task<Ok<IReadOnlyList<AgentSkillDefinition>>> ListAsync(
@@ -79,17 +89,20 @@ internal static class SkillEndpoints
 
     private static async Task<Results<Ok<AgentSkillDefinition>, ProblemHttpResult>> GetAsync(
         string name,
-        IAgentSkillStore store,
-        ITenantContext tenantContext,
+        AgentSkillCatalog catalog,
         CancellationToken cancellationToken)
     {
-        var skill = await store.GetAsync(tenantContext.TenantId, name, cancellationToken).ConfigureAwait(false);
+        // Resolved through the catalog, not the store: a reviewer who reads a hash
+        // here to grant a script must read the content that will run, and a code
+        // skill shadows a stored one with the same name.
+        var skill = await catalog.FindWithOriginAsync(name, cancellationToken).ConfigureAwait(false);
         return skill is { } ? TypedResults.Ok(skill) : NotFound(name);
     }
 
     private static async Task<Results<Ok<AgentSkillDefinition>, Created<AgentSkillDefinition>, ProblemHttpResult>> SaveAsync(
         string name,
         IAgentSkillStore store,
+        AgentSkillCatalog catalog,
         ITenantContext tenantContext,
         IOptions<TraconOptions> options,
         HttpContext httpContext,
@@ -114,6 +127,19 @@ internal static class SkillEndpoints
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
+        // The same rule as a code-defined agent: code wins the name, so a stored
+        // copy would never run, and the console editor - which reads the resolved
+        // skill - would otherwise write the code content over it.
+        if (catalog.IsDefinedInCode(name))
+        {
+            return TypedResults.Problem(
+                title: "Code-defined skill cannot be modified",
+                detail: $"'{name}' is a skill defined in code. A skill defined in code wins name conflicts, " +
+                        "so a stored skill with the same name would never run; update the application code " +
+                        "to change it.",
+                statusCode: StatusCodes.Status409Conflict);
+        }
+
         if (Validate(request, options.Value.Skills) is { } invalid)
         {
             return invalid;
@@ -134,11 +160,23 @@ internal static class SkillEndpoints
     private static async Task<Results<NoContent, ProblemHttpResult>> DeleteAsync(
         string name,
         IAgentSkillStore store,
+        AgentSkillCatalog catalog,
         ITenantContext tenantContext,
         CancellationToken cancellationToken)
-        => await store.DeleteAsync(tenantContext.TenantId, name, cancellationToken).ConfigureAwait(false)
-            ? TypedResults.NoContent()
+    {
+        if (await store.DeleteAsync(tenantContext.TenantId, name, cancellationToken).ConfigureAwait(false))
+        {
+            return TypedResults.NoContent();
+        }
+
+        return catalog.IsDefinedInCode(name)
+            ? TypedResults.Problem(
+                title: "Code-defined skill cannot be modified",
+                detail: $"'{name}' is a skill defined in code and has no stored copy to delete; remove it " +
+                        "from the application code.",
+                statusCode: StatusCodes.Status409Conflict)
             : NotFound(name);
+    }
 
     private static ProblemHttpResult? Validate(AgentSkillRequest request, TraconSkillOptions options)
     {

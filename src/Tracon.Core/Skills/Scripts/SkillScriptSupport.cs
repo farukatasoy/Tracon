@@ -91,9 +91,9 @@ public sealed class SkillScriptSupport
             _loggerFactory);
     }
 
-    /// <summary>Produces the delegate that runs a stored script.</summary>
-    /// <param name="skillName">The skill's name.</param>
-    /// <param name="script">The script definition.</param>
+    /// <summary>Produces the delegate that runs a stored or code-defined script.</summary>
+    /// <param name="skill">The skill definition the agent was compiled with.</param>
+    /// <param name="scriptName">The name of the script in <paramref name="skill"/>.</param>
     /// <returns>The delegate MAF will call.</returns>
     /// <remarks>
     /// The parameter's default value is deliberate: MAF's generator
@@ -103,10 +103,15 @@ public sealed class SkillScriptSupport
     /// — for a script with no arguments, this would COMPLETELY block real
     /// execution. The default empty string lets MAF publish the field as
     /// "not required"; the body already handles empty/null the same way.
+    /// <para>
+    /// The delegate captures the whole skill definition: the runner computes the
+    /// hashes the grant must pin from the definition that will actually run, not
+    /// from a fresh store read that could return other content.
+    /// </para>
     /// </remarks>
     internal Func<string, CancellationToken, Task<object?>> CreateStoredScriptDelegate(
-        string skillName,
-        AgentSkillScriptDefinition script)
+        AgentSkillDefinition skill,
+        string scriptName)
     {
         return RunStoredScript;
 
@@ -124,12 +129,12 @@ public sealed class SkillScriptSupport
                 catch (JsonException ex)
                 {
                     throw new TraconException(
-                        $"Script '{skillName}/{script.Name}' was given an invalid JSON argument.",
+                        $"Script '{skill.Name}/{scriptName}' was given an invalid JSON argument.",
                         ex);
                 }
             }
 
-            return _runner.RunStoredScriptAsync(skillName, script, parsed, cancellationToken);
+            return _runner.RunStoredScriptAsync(skill, scriptName, parsed, cancellationToken);
         }
     }
 

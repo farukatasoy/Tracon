@@ -85,7 +85,7 @@ internal sealed class TraconSkillsSource : AgentSkillsSource
 #pragma warning disable MA0002
                 skill.AddScript(
                     script.Name,
-                    _scripts.CreateStoredScriptDelegate(definition.Name, script),
+                    _scripts.CreateStoredScriptDelegate(definition, script.Name),
                     DescribeScript(script),
                     SerializerOptions);
 #pragma warning restore MA0002

@@ -167,8 +167,11 @@ Tracon.AgentSkillDefinition.Metadata.get -> System.Collections.Generic.IReadOnly
 Tracon.AgentSkillDefinition.Metadata.init -> void
 Tracon.AgentSkillDefinition.Name.get -> string!
 Tracon.AgentSkillDefinition.Name.init -> void
+Tracon.AgentSkillDefinition.Origin.get -> Tracon.AgentDefinitionOrigin
+Tracon.AgentSkillDefinition.Origin.init -> void
 Tracon.AgentSkillDefinition.Resources.get -> System.Collections.Generic.IReadOnlyList<Tracon.AgentSkillResourceDefinition!>!
 Tracon.AgentSkillDefinition.Resources.init -> void
+Tracon.AgentSkillDefinition.ScriptSetHash.get -> string!
 Tracon.AgentSkillDefinition.Scripts.get -> System.Collections.Generic.IReadOnlyList<Tracon.AgentSkillScriptDefinition!>!
 Tracon.AgentSkillDefinition.Scripts.init -> void
 Tracon.AgentSkillDefinition.TenantId.get -> string!
@@ -194,6 +197,7 @@ Tracon.AgentSkillScriptDefinition.<Clone>$() -> Tracon.AgentSkillScriptDefinitio
 Tracon.AgentSkillScriptDefinition.AgentSkillScriptDefinition() -> void
 Tracon.AgentSkillScriptDefinition.Content.get -> string!
 Tracon.AgentSkillScriptDefinition.Content.init -> void
+Tracon.AgentSkillScriptDefinition.ContentHash.get -> string!
 Tracon.AgentSkillScriptDefinition.Description.get -> string?
 Tracon.AgentSkillScriptDefinition.Description.init -> void
 Tracon.AgentSkillScriptDefinition.Equals(Tracon.AgentSkillScriptDefinition? other) -> bool
@@ -3177,6 +3181,8 @@ Tracon.SingletonExecutionOptions.OwnerId.set -> void
 Tracon.SingletonExecutionOptions.SingletonExecutionOptions() -> void
 Tracon.SkillScriptGrant
 Tracon.SkillScriptGrant.<Clone>$() -> Tracon.SkillScriptGrant!
+Tracon.SkillScriptGrant.ContentHash.get -> string?
+Tracon.SkillScriptGrant.ContentHash.init -> void
 Tracon.SkillScriptGrant.Equals(Tracon.SkillScriptGrant? other) -> bool
 Tracon.SkillScriptGrant.ExpiresAt.get -> System.DateTimeOffset?
 Tracon.SkillScriptGrant.ExpiresAt.init -> void

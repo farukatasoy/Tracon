@@ -324,7 +324,7 @@ Tracon.RunTraceCollector.RunTraceCollector(Tracon.ITraceStore! store, Microsoft.
 Tracon.SandboxedSkillScriptRunner
 Tracon.SandboxedSkillScriptRunner.Dispose() -> void
 Tracon.SandboxedSkillScriptRunner.RunFileScriptAsync(Microsoft.Agents.AI.AgentFileSkill! skill, Microsoft.Agents.AI.AgentFileSkillScript! script, System.Text.Json.JsonElement? arguments, System.IServiceProvider? serviceProvider, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<object?>!
-Tracon.SandboxedSkillScriptRunner.RunStoredScriptAsync(string! skillName, Tracon.AgentSkillScriptDefinition! script, System.Text.Json.JsonElement? arguments, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<object?>!
+Tracon.SandboxedSkillScriptRunner.RunStoredScriptAsync(Tracon.AgentSkillDefinition! skill, string! scriptName, System.Text.Json.JsonElement? arguments, System.Threading.CancellationToken cancellationToken) -> System.Threading.Tasks.Task<object?>!
 Tracon.SandboxedSkillScriptRunner.SandboxedSkillScriptRunner(Microsoft.Extensions.Options.IOptions<Tracon.TraconOptions!>! options, Tracon.ITenantContext! tenantContext, Tracon.ISkillScriptGrantStore! grantStore, Tracon.IAuditLog! auditLog, Tracon.IAuditActorResolver! actorResolver, Microsoft.Extensions.Logging.ILogger<Tracon.SandboxedSkillScriptRunner!>! logger, Tracon.IRunStore? runStore = null, Tracon.TraconMetrics? metrics = null, System.TimeProvider? timeProvider = null) -> void
 Tracon.SingleTenantContext
 Tracon.SingleTenantContext.SingleTenantContext(Microsoft.Extensions.Options.IOptions<Tracon.TraconOptions!>! options) -> void

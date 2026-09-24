@@ -7,7 +7,7 @@ using Microsoft.Extensions.Options;
 namespace Tracon.Core.UnitTests.Skills;
 
 /// <summary>
-/// Verifies the sandbox's security gates.
+/// Verifies the script runner's execution gates.
 /// </summary>
 /// <remarks>
 /// These tests measure <strong>denial</strong> behavior more than
@@ -25,7 +25,7 @@ public sealed class SandboxedSkillScriptRunnerTests : IDisposable
         using var runner = CreateRunner(log, configure: options => options.Enabled = false);
 
         var exception = await Should.ThrowAsync<TraconException>(
-            async () => await runner.RunStoredScriptAsync("demo", EchoScript(), null, CancellationToken.None));
+            async () => await runner.RunStoredScriptAsync(Demo(EchoScript()), "echo", null, CancellationToken.None));
 
         exception.Message.ShouldContain("disabled");
     }
@@ -37,7 +37,7 @@ public sealed class SandboxedSkillScriptRunnerTests : IDisposable
         using var runner = CreateRunner(log);
 
         await Should.ThrowAsync<TraconException>(
-            async () => await runner.RunStoredScriptAsync("demo", EchoScript(), null, CancellationToken.None));
+            async () => await runner.RunStoredScriptAsync(Demo(EchoScript()), "echo", null, CancellationToken.None));
 
         var entries = await log.QueryAsync(new AuditQuery { TenantId = "default" });
         var denied = entries.Single(entry => string.Equals(entry.Action, "script.denied", StringComparison.Ordinal));
@@ -65,17 +65,17 @@ public sealed class SandboxedSkillScriptRunnerTests : IDisposable
         using var runner = CreateRunner(log, grants);
 
         await Should.ThrowAsync<TraconException>(
-            async () => await runner.RunStoredScriptAsync("demo", EchoScript(), null, CancellationToken.None));
+            async () => await runner.RunStoredScriptAsync(Demo(EchoScript()), "echo", null, CancellationToken.None));
     }
 
     [Fact]
     public async Task No_script_runs_with_an_empty_interpreter_list()
     {
         var log = new InMemoryAuditLog();
-        using var runner = CreateRunner(log, await GrantAllAsync(), options => options.Interpreters.Clear());
+        using var runner = CreateRunner(log, await GrantAllAsync(Demo(EchoScript())), options => options.Interpreters.Clear());
 
         var exception = await Should.ThrowAsync<TraconException>(
-            async () => await runner.RunStoredScriptAsync("demo", EchoScript(), null, CancellationToken.None));
+            async () => await runner.RunStoredScriptAsync(Demo(EchoScript()), "echo", null, CancellationToken.None));
 
         exception.Message.ShouldContain("interpreter");
     }
@@ -85,10 +85,10 @@ public sealed class SandboxedSkillScriptRunnerTests : IDisposable
     {
         // A deliberate exception to Phase 9's "observability does not break
         // functionality" rule: a run whose record cannot be kept must never happen.
-        using var runner = CreateRunner(new ThrowingAuditLog(), await GrantAllAsync());
+        using var runner = CreateRunner(new ThrowingAuditLog(), await GrantAllAsync(Demo(EchoScript())));
 
         var exception = await Should.ThrowAsync<TraconException>(
-            async () => await runner.RunStoredScriptAsync("demo", EchoScript(), null, CancellationToken.None));
+            async () => await runner.RunStoredScriptAsync(Demo(EchoScript()), "echo", null, CancellationToken.None));
 
         exception.Message.ShouldContain("audit trail");
     }
@@ -98,21 +98,21 @@ public sealed class SandboxedSkillScriptRunnerTests : IDisposable
     {
         using var runner = CreateRunner(
             new InMemoryAuditLog(),
-            await GrantAllAsync(),
+            await GrantAllAsync(Demo(EchoScript())),
             options => options.AllowStoredScripts = false);
 
         await Should.ThrowAsync<TraconException>(
-            async () => await runner.RunStoredScriptAsync("demo", EchoScript(), null, CancellationToken.None));
+            async () => await runner.RunStoredScriptAsync(Demo(EchoScript()), "echo", null, CancellationToken.None));
     }
 
     [Fact]
     public async Task An_oversized_argument_is_rejected()
     {
-        using var runner = CreateRunner(new InMemoryAuditLog(), await GrantAllAsync(), options => options.MaxArgumentBytes = 8);
+        using var runner = CreateRunner(new InMemoryAuditLog(), await GrantAllAsync(Demo(EchoScript())), options => options.MaxArgumentBytes = 8);
         var arguments = JsonDocument.Parse("""{"value":"a very long argument text"}""").RootElement;
 
         await Should.ThrowAsync<TraconException>(
-            async () => await runner.RunStoredScriptAsync("demo", EchoScript(), arguments, CancellationToken.None));
+            async () => await runner.RunStoredScriptAsync(Demo(EchoScript()), "echo", arguments, CancellationToken.None));
     }
 
     [Fact]
@@ -123,20 +123,21 @@ public sealed class SandboxedSkillScriptRunnerTests : IDisposable
         Assert.SkipWhen(!File.Exists("/bin/bash"), "bash not found.");
 
         var log = new InMemoryAuditLog();
-        using var runner = CreateRunner(log, await GrantAllAsync(), options =>
-        {
-            options.Interpreters.Clear();
-            options.Interpreters["sh"] = "/bin/bash";
-        });
-
         var script = new AgentSkillScriptDefinition
         {
             Name = "echo",
             Extension = "sh",
             Content = "echo hello-tracon",
         };
+        var skill = Demo(script);
 
-        var output = await runner.RunStoredScriptAsync("demo", script, null, CancellationToken.None);
+        using var runner = CreateRunner(log, await GrantAllAsync(skill), options =>
+        {
+            options.Interpreters.Clear();
+            options.Interpreters["sh"] = "/bin/bash";
+        });
+
+        var output = await runner.RunStoredScriptAsync(skill, "echo", null, CancellationToken.None);
 
         output?.ToString().ShouldNotBeNull().ShouldContain("hello-tracon");
 
@@ -173,15 +174,17 @@ public sealed class SandboxedSkillScriptRunnerTests : IDisposable
 
         ActivitySource.AddActivityListener(listener);
 
-        using var runner = CreateRunner(new InMemoryAuditLog(), await GrantAllAsync(), options =>
+        var spanSkill = Demo(new AgentSkillScriptDefinition { Name = "echo-ok-span", Extension = "sh", Content = "echo hello-tracon" });
+
+        using var runner = CreateRunner(new InMemoryAuditLog(), await GrantAllAsync(spanSkill), options =>
         {
             options.Interpreters.Clear();
             options.Interpreters["sh"] = "/bin/bash";
         });
 
         await runner.RunStoredScriptAsync(
-            "demo",
-            new AgentSkillScriptDefinition { Name = "echo-ok-span", Extension = "sh", Content = "echo hello-tracon" },
+            spanSkill,
+            "echo-ok-span",
             arguments: null,
             CancellationToken.None);
 
@@ -227,8 +230,8 @@ public sealed class SandboxedSkillScriptRunnerTests : IDisposable
 
         await Should.ThrowAsync<TraconException>(
             async () => await runner.RunStoredScriptAsync(
-                "demo",
-                EchoScript() with { Name = "echo-denied-span" },
+                Demo(EchoScript() with { Name = "echo-denied-span" }),
+                "echo-denied-span",
                 null,
                 CancellationToken.None));
 
@@ -239,6 +242,188 @@ public sealed class SandboxedSkillScriptRunnerTests : IDisposable
             .ShouldBeOfType<string>()
             .ShouldContain("execution grant");
     }
+
+    /// <summary>
+    /// A grant written before content pinning existed (or given for a name no stored
+    /// skill carried) pins nothing. Backfilling it would silently approve content
+    /// that may have changed, so it refuses every stored script instead.
+    /// </summary>
+    [Fact]
+    public async Task A_grant_that_pins_no_content_refuses_a_stored_script()
+    {
+        var log = new InMemoryAuditLog();
+        var grants = new InMemorySkillScriptGrantStore();
+        await grants.GrantAsync(new SkillScriptGrant { TenantId = "default", SkillName = "demo", GrantedAt = DateTimeOffset.UtcNow });
+        using var runner = CreateRunner(log, grants);
+
+        var exception = await Should.ThrowAsync<TraconException>(
+            async () => await runner.RunStoredScriptAsync(Demo(EchoScript()), "echo", null, CancellationToken.None));
+
+        exception.Message.ShouldContain("does not pin the script content");
+        (await DenialReasonsAsync(log)).ShouldContain(reason => reason.Contains("does not pin", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task A_script_grant_refuses_the_script_once_its_content_changes()
+    {
+        var log = new InMemoryAuditLog();
+        var original = EchoScript();
+        var grants = new InMemorySkillScriptGrantStore();
+        await grants.GrantAsync(new SkillScriptGrant
+        {
+            TenantId = "default",
+            SkillName = "demo",
+            ScriptName = "echo",
+            ContentHash = original.ContentHash,
+            GrantedAt = DateTimeOffset.UtcNow,
+        });
+        using var runner = CreateRunner(log, grants);
+
+        var exception = await Should.ThrowAsync<TraconException>(
+            async () => await runner.RunStoredScriptAsync(
+                Demo(original with { Content = "print('changed')" }),
+                "echo",
+                null,
+                CancellationToken.None));
+
+        exception.Message.ShouldContain("content changed since the grant");
+    }
+
+    [Fact]
+    public async Task A_skill_wide_grant_refuses_every_script_once_the_set_changes()
+    {
+        var log = new InMemoryAuditLog();
+        var before = Demo(EchoScript());
+        using var runner = CreateRunner(log, await GrantAllAsync(before));
+
+        var after = Demo(EchoScript(), EchoScript() with { Name = "added" });
+
+        var exception = await Should.ThrowAsync<TraconException>(
+            async () => await runner.RunStoredScriptAsync(after, "echo", null, CancellationToken.None));
+
+        exception.Message.ShouldContain("content changed since the grant");
+    }
+
+    /// <summary>
+    /// The two refusals are different facts - "nobody pinned anything" and "what
+    /// was pinned is not what is here" - and an operator reading the audit trail or
+    /// the span has to tell them apart.
+    /// </summary>
+    [Fact]
+    public async Task The_two_pin_refusals_name_different_reasons_on_the_span_and_in_the_audit_trail()
+    {
+        var stopped = new ConcurrentQueue<Activity>();
+
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = static source =>
+                string.Equals(source.Name, TraconDiagnostics.ActivitySourceName, StringComparison.Ordinal),
+            Sample = static (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
+            ActivityStopped = stopped.Enqueue,
+        };
+
+        ActivitySource.AddActivityListener(listener);
+
+        var log = new InMemoryAuditLog();
+        var unpinned = Demo(EchoScript() with { Name = "unpinned-span" });
+        var unpinnedGrants = new InMemorySkillScriptGrantStore();
+        await unpinnedGrants.GrantAsync(new SkillScriptGrant { TenantId = "default", SkillName = "demo", GrantedAt = DateTimeOffset.UtcNow });
+
+        using (var runner = CreateRunner(log, unpinnedGrants))
+        {
+            await Should.ThrowAsync<TraconException>(
+                async () => await runner.RunStoredScriptAsync(unpinned, "unpinned-span", null, CancellationToken.None));
+        }
+
+        var changed = Demo(EchoScript() with { Name = "changed-span" });
+
+        using (var runner = CreateRunner(log, await GrantAllAsync(Demo(EchoScript() with { Name = "changed-span", Content = "print('v1')" }))))
+        {
+            await Should.ThrowAsync<TraconException>(
+                async () => await runner.RunStoredScriptAsync(changed, "changed-span", null, CancellationToken.None));
+        }
+
+        var unpinnedReason = SpanFor(stopped, "unpinned-span").GetTagItem(TraconDiagnostics.Tags.ScriptDenialReason).ShouldBeOfType<string>();
+        var changedReason = SpanFor(stopped, "changed-span").GetTagItem(TraconDiagnostics.Tags.ScriptDenialReason).ShouldBeOfType<string>();
+
+        unpinnedReason.ShouldContain("does not pin the script content");
+        changedReason.ShouldContain("content changed since the grant");
+        unpinnedReason.ShouldNotBe(changedReason, StringComparer.Ordinal);
+
+        var denials = await DenialReasonsAsync(log);
+        denials.ShouldContain(reason => reason.Contains("does not pin", StringComparison.Ordinal));
+        denials.ShouldContain(reason => reason.Contains("content changed since the grant", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task A_script_name_the_skill_does_not_carry_is_refused()
+    {
+        var log = new InMemoryAuditLog();
+        var skill = Demo(EchoScript());
+        using var runner = CreateRunner(log, await GrantAllAsync(skill));
+
+        var exception = await Should.ThrowAsync<TraconException>(
+            async () => await runner.RunStoredScriptAsync(skill, "not-in-the-skill", null, CancellationToken.None));
+
+        exception.Message.ShouldContain("has no script named 'not-in-the-skill'");
+    }
+
+    /// <summary>
+    /// A file script is not pinned: its content is part of the deployment. It runs
+    /// under a grant with or without a hash; what it needs is the grant itself.
+    /// </summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_file_script_runs_under_a_grant_with_or_without_a_hash(bool hashed)
+    {
+        Assert.SkipWhen(!File.Exists("/bin/bash"), "bash not found.");
+
+        var directory = Directory.CreateTempSubdirectory("tracon-file-script-").FullName;
+        _tempDirectories.Add(directory);
+        var path = Path.Combine(directory, "hello.sh");
+        await File.WriteAllTextAsync(path, "echo from-disk");
+
+        var grants = new InMemorySkillScriptGrantStore();
+        await grants.GrantAsync(new SkillScriptGrant
+        {
+            TenantId = "default",
+            SkillName = "disk-skill",
+            ContentHash = hashed ? new string('A', 64) : null,
+            GrantedAt = DateTimeOffset.UtcNow,
+        });
+
+        using var runner = CreateRunner(new InMemoryAuditLog(), grants, options =>
+        {
+            options.Interpreters.Clear();
+            options.Interpreters["sh"] = "/bin/bash";
+        });
+
+        var output = await runner.RunFileScriptAsync("disk-skill", "hello", path, null, null, CancellationToken.None);
+
+        output?.ToString().ShouldNotBeNull().ShouldContain("from-disk");
+    }
+
+    [Fact]
+    public async Task A_file_script_still_needs_a_grant()
+    {
+        var directory = Directory.CreateTempSubdirectory("tracon-file-script-").FullName;
+        _tempDirectories.Add(directory);
+        var path = Path.Combine(directory, "hello.py");
+        await File.WriteAllTextAsync(path, "print('from-disk')");
+
+        using var runner = CreateRunner(new InMemoryAuditLog());
+
+        var exception = await Should.ThrowAsync<TraconException>(
+            async () => await runner.RunFileScriptAsync("disk-skill", "hello", path, null, null, CancellationToken.None));
+
+        exception.Message.ShouldContain("no valid execution grant");
+    }
+
+    private static async Task<IReadOnlyList<string>> DenialReasonsAsync(InMemoryAuditLog log)
+        => [.. (await log.QueryAsync(new AuditQuery { TenantId = "default" }))
+            .Where(static entry => string.Equals(entry.Action, "script.denied", StringComparison.Ordinal))
+            .Select(static entry => entry.After ?? string.Empty)];
 
     public void Dispose()
     {
@@ -282,13 +467,24 @@ public sealed class SandboxedSkillScriptRunnerTests : IDisposable
         Content = "print('hello')",
     };
 
-    private static async Task<InMemorySkillScriptGrantStore> GrantAllAsync()
+    private static AgentSkillDefinition Demo(params AgentSkillScriptDefinition[] scripts) => new()
+    {
+        TenantId = "default",
+        Name = "demo",
+        Description = "Runner test skill.",
+        Instructions = "Run the script.",
+        Scripts = scripts,
+    };
+
+    /// <summary>A skill-wide grant pinned to the skill's current script set.</summary>
+    private static async Task<InMemorySkillScriptGrantStore> GrantAllAsync(AgentSkillDefinition skill)
     {
         var grants = new InMemorySkillScriptGrantStore();
         await grants.GrantAsync(new SkillScriptGrant
         {
             TenantId = "default",
-            SkillName = "demo",
+            SkillName = skill.Name,
+            ContentHash = skill.ScriptSetHash,
             GrantedAt = DateTimeOffset.UtcNow,
         });
         return grants;

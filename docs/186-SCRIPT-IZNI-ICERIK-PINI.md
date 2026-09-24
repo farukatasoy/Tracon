@@ -1,6 +1,6 @@
 # Faz 186 — Script İzninin İçeriğe Bağlanması ve Tehdit Modeli Düzeltmesi
 
-> **Durum:** 📋 Planlandı (2026-09-23)
+> **Durum:** ✅ Tamamlandı (2026-09-24)
 > **Plan onayı:** Bakımcı, 2026-09-23 (engelleyici kararlar sohbette alındı)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-269**
 > **Önkoşul:** [Faz 185](arsiv/fazlar/185-KARDES-PAKET-SURUM-SABITLEME.md) — sonraki sürüm (K-852…K-854 güvenlik sürümü) 185'i bekler; 186 ondan sonra başlar (kullanıcı kararı). K-853 `bb9953e3`'tedir. **Anahtar basma açığı kapandı** (kusur-giderme, 2026-09-23; K-853 genişletildi, yeni K açılmadı); bu faz yalnız sonucunu doğrular (§ 186.0).
@@ -658,33 +658,33 @@ kiracı (#10-#12, #27, #32) · alt sistem hatası (#30, #31).
 
 ## Bitiş Ölçütleri (DoD)
 
-- [ ] v2 `PUT`'undan sonra v1'e pinli grant ile çağrı reddedilir; `script.denied` `after` "content changed since the grant" taşır (P)
-- [ ] Karar 2: `SkillScriptContentPinTests.Skill_wide_grant_refuses_every_script_after_a_script_is_added` yeşil — geniş grant + `PUT` ile ikinci script → iki script de reddedilir
-- [ ] Stored skill için `POST`: hash yok → `400`, bayat → `409`, `scriptName` yok → `404`; üçünde grant listesi değişmez, `script.grant` yok
-- [ ] Çok kiracılı: `SecurityAdmin` + `AgentsRead` → `403`; `+ PlatformAdmin` → `201`; tek kiracılı → `201`
-- [ ] Devre dışı stored skill'e grant: hash yok → `400`; çok kiracılıda platform yetkisiz → `403` (#27)
-- [ ] Kod/stored ad çakışması Açık Soru 1'in seçtiği yanıtı verir (#26)
-- [ ] Hash'siz grant stored script'i reddeder, file script'i çalıştırır
-- [ ] Yeni sözleşme testleri dört koşumda yeşil
-- [ ] Üç migration uygulanır ve `scripts/applied-migrations.json`'da ankrajlıdır; faz öncesi satır `ContentHash = null` okunur
-- [ ] Karar 6: `grep -c "Script execution gates"` beş dosyanın her birinde ≥ 1 (`SECURITY.md`, `docs/MIMARI-TEHDIT-MODELI.md`, `reference/threat-model.md`, `getting-started/security.md`, `reference/security-policy.md`); `grep -n "^### R8 " docs/MIMARI-TEHDIT-MODELI.md` boş değil; `threat-model.md` "Accepted risks" R8'i taşır
-- [ ] `npm run build` sonrası `grep -rn -i "script sandboxing\|escaping its sandbox\|inside its sandbox\|isolated operating-system process" SECURITY.md docs/MIMARI-TEHDIT-MODELI.md docs-site/src/content/docs docs-site/public/llms-full.txt` → boş
-- [ ] `check-content.mjs` üç yeni kontrolü taşır; her biri bir kez kırmızı gösterildi; `node docs-site/scripts/check-content.mjs` temiz; `python3 scripts/dokuman-bakim.py --denetle` → 0
-- [ ] Karar 7: `git diff <faz öncesi commit> -- src/Tracon.Abstractions/Diagnostics/TraconProductionRisk.cs` boş
-- [ ] Karar 8: `grep -n "versioned, reversible" src/Tracon.Core/Audit/AuditingAgentSkillStore.cs` boş
-- [ ] Karar 9: `grep -rn "isolated operating-system process" src` boş; `grep -n "public sealed class SandboxedSkillScriptRunner" src/Tracon.Core/Skills/Scripts/SandboxedSkillScriptRunner.cs` boş değil
-- [ ] Karar 10: `grep -n "SkillRoots" docs-site/src/content/docs/guides/production.md` salt okunur cümlesini gösterir; `SkillRoots` XML'i aynı şartı söyler
-- [ ] Karar 11: sonuç § 186.8'in üç izinli sonucundan biri; `McpApprovalRuleSourceTests` kalır; `RequiresApproval` doğrudan yol çıkarsa `ADAYLAR.md`'de ayrı kusur satırı var
-- [ ] Linux `/proc` ölçümü kayıtlı (sonuç veya "ölçülmedi" + gerekçe)
-- [ ] `CHANGELOG.md` `[Unreleased]`: `Security` kırıcı davranışı, `Changed` `RunStoredScriptAsync` imzasını yazar
-- [ ] Açılan her K satırı kategori etiketi taşır (K-855 kapısı yeşil)
-- [ ] Dört doğrulama kapısı sıfır uyarı verir: `python3 scripts/kapi.py kapanis --taban <faz öncesi commit>`
-- [ ] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı (komut + beklenen yanıt aşağıda)
-- [ ] `secret` taraması boş döndü (`python3 scripts/kapi.py tarama`)
-- [ ] Manuel kabul case'leri `docs/manuel-test/14-SKILL-VE-SCRIPT.md` içine eklendi; otomatikleştirilebilenler koşuldu
-- [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
-- [ ] `docs-site/` güncellendi; `npm run build` + `check-links.mjs` temiz
-- [ ] `en/agents.ts` ve `tr/agents.ts` eksiksiz; bundle payı ölçüldü ve yazıldı
+- [x] v2 `PUT`'undan sonra v1'e pinli grant ile çağrı reddedilir; `script.denied` `after` "content changed since the grant" taşır — `SkillScriptContentPinTests.A_grant_pins_the_script_content_it_was_given_for`; örnek uygulamada gerçek modelle (MT-SKILL-065)
+- [x] Karar 2: `Skill_wide_grant_refuses_every_script_after_a_script_is_added` yeşil (+ silme varyantı)
+- [x] Stored skill için `POST`: hash yok → `400`, bayat → `409`, `scriptName` yok → `404`; üçünde liste değişmez, `script.grant` yok — `SkillScriptGrantTests` (7 durumlu teori, `404`) · `A_grant_for_content_that_changed_after_it_was_read_is_refused_and_writes_nothing`
+- [x] Çok kiracılı: `SecurityAdmin` + `AgentsRead` → `403`; `+ PlatformAdmin` → `201`; statik token → `201`; claims policy'si; tek kiracılı → `201` — `SkillScriptContentPinTests`
+- [x] Devre dışı stored skill'e grant: hash yok → `400`; çok kiracılıda platform yetkisiz → `403` (#27) — `SkillScriptGrantTests`
+- [x] Kod/stored ad çakışması Açık Soru 1 A'yı verir (#26): kod skill'i pinlenir ve kazanır; gölgelenen kopyanın hash'i `409` — ayrıca kod adı artık yazılamaz (K-863)
+- [x] Hash'siz grant stored script'i reddeder, file script'i çalıştırır — `SandboxedSkillScriptRunnerTests`; örnek uygulamada faz öncesi grant (MT-SKILL-069)
+- [x] Yeni sözleşme testleri dört koşumda yeşil — bellek içi 23, PostgreSQL/SqlServer/Sqlite 20'şer
+- [x] Üç migration uygulanır ve `07c787d9`'a ankrajlıdır (`kapi.py tarama` temiz); faz öncesi satır `ContentHash = null` okunur — `SkillScriptGrantContentHashMigrationTests` ×3
+- [x] Karar 6: "Script execution gates" beş dosyada 1/1/1/1/2; `### R8` satır 224; `threat-model.md` "Accepted risks" R8'i taşır
+- [x] `npm run build` sonrası yasak sandbox ifadesi taraması boş (`SECURITY.md`, `docs/MIMARI-TEHDIT-MODELI.md`, `docs-site/src/content/docs`, `llms-full.txt`)
+- [x] `check-content.mjs` üç yeni kontrolü taşır; her biri bir kez kırmızı gösterildi ("Süreç Ölçümü" § Kırmızı → yeşil); `check-content.mjs` temiz; `dokuman-bakim.py --denetle` → 0
+- [x] Karar 7: `TraconProductionRisk.cs` farkı boş
+- [x] Karar 8: `grep -n "versioned, reversible" src/Tracon.Core/Audit/AuditingAgentSkillStore.cs` boş
+- [x] Karar 9: `grep -rn "isolated operating-system process" src` boş; `public sealed class SandboxedSkillScriptRunner` duruyor
+- [x] Karar 10: `production.md` `SkillRoots` salt okunur cümlesini taşır; `SkillRoots` XML'i aynı şartı söyler
+- [x] Karar 11: sonuç (ii) — doğrulandı, `ADAYLAR.md`'de F-283; `RequiresApproval` doğrudan yolu da doğrulandı, ayrı satır F-284; `McpApprovalRuleSourceTests` kalır
+- [x] Linux `/proc` ölçümü kayıtlı — okunabilir (Sapma 8, R8)
+- [x] `CHANGELOG.md` `[Unreleased]`: `Security` kırıcı davranışı ve platform yetkisini, `Changed` `RunStoredScriptAsync` imzasını, `GET`'in çözümünü, kod adı `409`'unu ve bellek içi iptali yazar
+- [x] Açılan dört K satırı (K-860…K-863) kategori etiketi taşır; `dokuman-bakim.py --denetle` yeşil
+- [x] Dört doğrulama kapısı sıfır uyarı — "Kapanış Kapısı" bölümü
+- [x] `samples/Tracon.Api` ile gerçek `run` — "Örnek Uygulama Koşumu"
+- [x] `secret` taraması boş (`kapi.py tarama`, kapanışın ilk adımı)
+- [x] Manuel case'ler `MT-SKILL-064…069`, `072…077` eklendi; §6 ortak kurulumu ve bölüm başlıkları geri geldi; ➜ CI olanlar koşuldu, altısı örnek uygulamada ölçüldü
+- [x] `faz-denetim` koşuldu; 🔴 2 gerçek, ikisi de düzeltildi — "Denetim Bulguları"
+- [x] `docs-site/` güncellendi; `npm run check` dördü temiz
+- [x] `en/agents.ts` ve `tr/agents.ts` eksiksiz (`tsc`, `i18n.test.ts`); bundle payı 162.542 → 164.676 B (Sapma 5)
 
 ### Doğrulama komutları
 
@@ -730,17 +730,247 @@ grant "{\"skillName\":\"scriptli-skill\",\"scriptName\":\"merhaba\",\"expectedCo
 > Kapanışta doldurulur. Plan ile gerçek arasındaki fark **gizlenmez** — sonraki
 > oturumun en değerli bilgisidir.
 
+1. **Açık Soru 3'ün koşulu tutmadı: OpenAPI `readOnly` ÜRETİLEMİYOR; A korundu.**
+   Plan "A, şema `readOnly` ve istekte zorunsuz çıkarsa; değilse B" diyordu. Ölçüm:
+   `contentHash`/`scriptSetHash` şemaya `["null","string"]` ve `required` DIŞI
+   girer (TS istemcisi derlenir, `emptyScript()` değişmedi) ama `readOnly` yoktur —
+   ve belgenin TAMAMINDA `0` `"readOnly"` vardır: belgeyi tüketicinin
+   `AddOpenApi()`'si üretir, `JsonSchemaExporter` bu anahtarı hiç basmaz
+   (`Microsoft.AspNetCore.OpenApi` 10.0.10 ikilisinde yok). B de `readOnly`
+   üretmezdi; yalnız alanı istek şemasından çıkarırdı, bedeli iki yeni public yanıt
+   tipidir. A'da kalındı: özetler "a value sent in a request is ignored" der,
+   `Hashes_and_origin_sent_with_a_skill_are_ignored` sunucunun gönderilen hash'i ve
+   `origin`'i yok saydığını kanıtlar (konsol `GET` → `PUT` ile tam bunu gönderir).
+   Pre-1.0'da geri dönüşü ucuzdur; kullanıcıya kapanış raporunda bildirildi.
+2. **Migration'lar ayrı commit'e alındı (`07c787d9`).** Ankraj kuralı
+   (`sql-migration.md`) dosyayı içeren commit'i ister; uygulama commit'i en sonda
+   atılacağı için üç `.sql` önce commit'lendi ve `scripts/applied-migrations.json`
+   ona ankrajlandı. Böylece `kapi.py tarama` faz boyunca yeşil kaldı.
+3. **Red SEBEBİ SSE'de yok; fonksiyonel iddialar denetim izinden okunur.** MAF
+   delegenin istisnasını modele `Error: Function failed.` diye geçirir. P testleri
+   `script.denied` kaydının `after` alanını `/api/audit`'ten okur (`DenialsAsync`).
+4. **§ 186.10 adım 1'in ölçümü: tam yol kuruldu, yedek yol gerekmedi.**
+   `FakeModelProvider.CallsTool("run_skill_script", new { skillName, scriptName })`
+   + `run_skill_script` için ayakta onay kuralı + run başına ayrı sağlayıcı/agent
+   (sahte senaryo bir kez tüketilir). Delegeyi DI'dan çözmeye gerek kalmadı.
+5. **Arayüz formu iki adımlı oldu: "Review content" → "Grant".** Plan formun hash'i
+   `GET /api/skills/{name}`'den okuyup göndermesini istiyordu. Hash tıklama anında
+   okunsaydı o an kayıtlı olan — kimsenin okumadığı — içerik pinlenirdi; bu, pinin
+   reddetmek için var olduğu durumdur. Form içeriği gösterir ve yalnız gösterdiğini
+   grant eder; `409`'da inceleme silinir ve yeniden okuma gerekir. Pin durumu
+   (`current`/`stale`/`disk only`) saf fonksiyonlara taşındı
+   (`screens/skills/model.ts`, `model.test.ts`, 6 test); skill kaydı pin okumalarını
+   geçersiz kılar (`SKILL_PIN_QUERY_KEY`). Görsel doğrulama örnek uygulamada
+   yapıldı (EN ve TR). Bundle payı: `index-*.js.br` **162.542 → 164.676 B**
+   (+2.134 B, Brotli), bütçe 250 KB.
+6. **E2E kancası: `UiHost.StartAsync(configureTracon:)`.** Grant ekranı
+   `UseSkillScripts` ister; paylaşılan zincire eklemek her testin host'unu
+   değiştirirdi. İki yeni `SkillTests` bu kancayı kullanır.
+7. **Karar 11'in sonucu (ii): doğrulandı + kusur kaydı; `RequiresApproval` yolu da
+   doğrulandı.** İki gerçek MCP sunucusuyla (`ModelContextProtocol.AspNetCore`,
+   `Tracon.AspNetCore` üzerinden geçişli): `SecurityAdmin`'in `toolName`-yalnız
+   kuralı, `AgentsAdmin` endpoint'i B'ye çevirince B'nin aynı adlı tool'unu onayladı;
+   `AgentsAdmin` `requiresApproval: false` ile onayı kuralsız kapattı. Kayıtlar
+   **F-283** ve **F-284** (`ADAYLAR.md` § Kusur giderme, 🟠). Düzeltme bu fazın
+   kapsamı değildir (kural şeması `kalıcı-veri`, görev ayrımı kararı).
+   `McpApprovalRuleSourceTests` bugünkü davranışı ölçer ve düzeltmede ters çevrilir;
+   fonksiyonel test projesi bunun için `Tracon.Mcp`'ye referans alır.
+8. **§ 186.8 madde 2 ölçüldü: Linux `/proc/<ppid>/environ` okunabilir.**
+   `alpine:3.20`, root ve uid 1000: `env -i` ile temizlenmiş çocuk süreç
+   `TRACON_TEST_SECRET=parent-env-value`'yu okudu. `EnvironmentAllowList` XML'i,
+   R8, `concepts/tools.md`, `reference/threat-model.md` ve
+   `reference/configuration.md` bunu söyler; MT-SKILL-062'nin başlığı "sızmaz"dan
+   "miras alınmaz"a daraltıldı.
+9. **Manuel test dosyasının bölüm yapısı geri kuruldu.** `14-SKILL-VE-SCRIPT.md`'nin
+   bölüm başlıkları ve §6 ortak kurulumu Faz 58'de silinmişti (`946a37fb`, 459
+   satır); case'ler hâlâ `§1`…`§7`'ye atıf yapıyordu (denetim 🟢1 on beşini saydı).
+   Başlıklar §2–§7 geri geldi, §6 kurulumu güncel terimlerle (hash'li grant
+   yardımcısı dahil) bölümün başına yazıldı, Faz 186'nın case'leri yeni §8'de
+   toplandı (`064…069`, `072…077`; 070-071 doluydu). MT-SKILL-023/051/054/062/063
+   güncellendi; 12 case ➜ CI.
+10. **`SECURITY.md` kapsamı listeye çevrildi.** Sınır adı sitedeki tabloyla aynı
+    biçimde ("Script execution gates (grant, content pin, interpreter allowlist,
+    audit)") durur; OS yalıtımı "Out of scope"a girdi. Site politikası aynı iki
+    satırı ve bir kapsam paragrafını taşır.
+11. **`ui.md`'de ikinci bir yanlış düzeltildi.** Sayfa "skill script grants" için
+    yönetişim alanında ayrı ekran olduğunu söylüyordu; grant paneli Skills
+    ekranındadır.
+12. **`SkillScriptGrant.ContentHash` özeti `<see cref>` taşımaz.** OpenAPI açıklaması
+    property cref'ini `string AgentSkillScriptDefinition.ContentHash` diye basıyordu;
+    cref'ler `<remarks>`'a taşındı. `SkillScriptGrantRequest.ExpectedContentHash`
+    için aynı.
+13. **Dokümantasyon ekran görüntüleri yeniden üretildi.** UI kaynağı değişince
+    `check-content.mjs` damgası kırmızı olur; `TRACON_UI_SCREENSHOTS=1` +
+    `refresh-console-screenshot-stamp.mjs` iki kez koşuldu (denetim düzeltmesinden
+    sonra yeniden).
+14. **Denetim 🔴1 — kod skill'inin adı artık yönetim API'sinden yazılamaz
+    (kullanıcı kararı, 2026-09-24).** Açık Soru 1 A'nın yan etkisiydi: `GET
+    /api/skills/{name}` kodu önce çözünce, `GET` ile okuyup `PUT` ile yazan konsol
+    düzenleyicisi gölgelenen kayıtlı kopyanın üstüne kod içeriğini sessizce
+    yazıyordu (faz öncesi form kayıtlı içeriği gösteriyordu). Seçilen düzeltme
+    agent'lardaki K-003 emsalidir: `PUT` kod adına `409`
+    (`Code-defined skill cannot be modified`); `DELETE` gölgelenen kayıtlı kopyayı
+    siler, kopya yoksa `409`; düzenleyici `origin: Code`'da salt okunur açılır
+    (`<fieldset disabled>`, uyarı, yalnız "Delete stored copy"). Katalog
+    `IsDefinedInCode(name)` kazandı. Testler: `SkillCrudTests` (2 yeni),
+    `SkillTests.A_skill_defined_in_code_opens_read_only`; gölgeleme pin testi
+    satırı artık store üzerinden yazar. **K-863.**
+15. **Denetim 🔴2 — bundle ölçüm notu `git stash` öneriyordu.** `kurtarma.md` bunu
+    yasaklar; not worktree yöntemiyle yeniden yazıldı. Aynı sınıftaki
+    `test-yalitimi.md` notu (🟢2) da düzeltildi (worktree; stash yalnız son çare,
+    `Saved working directory` görülmeden `pop` yok).
+16. **Kapanış kapısının üç kırmızısı (ilk koşum).** (a) Yeni E2E locator'ları
+    `Exact`/`.First` taşımıyordu — taban büyütülmedi, çağrılar düzeltildi; (b)
+    `ExpectedContentHash`'in HTTP gövdesi `<example>` içindeydi ve C# diye
+    derlendi — gövde `<example>` dışına, `<code language="json">` olarak taşındı
+    (`AssertValidJson` yapılandırma parçası bekler); (c) fazla ilgisiz
+    `ConfirmationTests` yarışı: playground'da `Echo:` görünür görünmez `/sessions`'a
+    gidiyordu, oturum kaydı ise tur kaydedilince yazılır — yük altında 30 sn
+    `No session`. Yardımcı artık `GET /api/sessions` dolana kadar bekler
+    (`WaitUntil`); vaka `test-yalitimi-vakalari.md`'de.
+17. **İnceleme paneli argüman şemasını da gösterir (denetim 🟡1).** Hash şemayı da
+    pinler; panel yalnız içeriği gösteriyordu. Şema (ya da "No argument schema")
+    gösterilir, E2E bunu iddia eder.
+
 ## Bu Fazda Verilen Kararlar
 
 > Kapanışta doldurulur. K-NNN numaraları burada alınır; plan numara rezerve etmez.
+
+- **K-860** *(güvenlik, kalıcı-veri, public-api)* — script grant'ı içeriği pinler
+  (Karar 1-4, 10): stored/kod script'inin grant'ı hash taşır, hash'siz eski grant
+  onları yetkilendirmez, diskteki script pinlenmez.
+- **K-861** *(güvenlik)* — çok kiracılı host'ta stored script grant'ı platform
+  yetkisi ister (Karar 5, 7).
+- **K-862** *(public-api, güvenlik)* — B7 "Script execution gates", R8 ve kapsam
+  satırı (Karar 6, 9).
+- **K-863** *(public-api)* — kodda kayıtlı skill adı yönetim API'sinden yazılamaz
+  (`PUT`/`DELETE` `409`, gölgelenen kopya silinebilir), konsol salt okunur
+  (denetim 🔴1, kullanıcı kararı).
+
+K-* almayanlar:
+
+| Karar | Gerekçe |
+|---|---|
+| Karar 12 — bellek içi iptal satırı tutar, `TryUpdate` döngüsü (kullanıcı kararı) | K-092'ye uyum; store sözleşmesi zaten "including revoked" diyordu |
+| Karar 8 — skill kaydının denetimi best-effort kalır; gerekçe yeniden yazıldı (kullanıcı kararı) | Kodu çalıştıran izin (`script.grant`, pinli) fail-closed'dır |
+| Açık Soru 3 → **A** korundu, `readOnly` üretilemedi | Sapma 1; özet "ignored in a request" der, test kanıtlar |
+| Açık Soru 4 → **A** (dar grant bayatsa geniş grant'a düşülmez) | Fail-closed; store sözleşmesi değişmez (`FindActiveAsync` dar olanı önce döndürür) |
+| Açık Soru 5 → **A** (arayüz bayat grant'ı işaretler) | "Etkin görünüp çalıştırmayan grant yanıltıcıdır" |
+| Açık Soru 6 → **A** (operatör kimliği ölçüldü, `production.md`'ye yazıldı) | Kiracıya bağlı `PlatformAdmin` anahtarı · statik token + başlık · policy'li claims; yeni rota yok |
+| Arayüzde iki adımlı "Review content" → "Grant" | Sapma 5 |
+| Red metinleri (`Content hash required`, `Content changed`, `does not pin`, `changed since the grant`) | Uç ve runner metni; `409` güncel hash'i taşımaz |
+| Karar 11 sonucu (ii) → F-283, F-284 | Sapma 7 |
+| `UiHost.StartAsync(configureTracon:)` | Sapma 6 |
 
 ## Gerçekleşen Public API
 
 > Kapanışta doldurulur. Koddaki **gerçek** imzalar.
 
+`PublicAPI.Unshipped.txt` farkı (taban `d6153fe1`), plandaki taslakla aynı:
+
+```text
+Tracon.Abstractions
++ Tracon.AgentSkillDefinition.ScriptSetHash.get -> string!            (hesaplanan; kayıt eşitliğine girmez)
++ Tracon.AgentSkillDefinition.Origin.get -> Tracon.AgentDefinitionOrigin
++ Tracon.AgentSkillDefinition.Origin.init -> void                      (varsayılan Database; katalog kökeni kendisi atar)
++ Tracon.AgentSkillScriptDefinition.ContentHash.get -> string!         (hesaplanan)
++ Tracon.SkillScriptGrant.ContentHash.get -> string?
++ Tracon.SkillScriptGrant.ContentHash.init -> void
+Tracon.Core
+- Tracon.SandboxedSkillScriptRunner.RunStoredScriptAsync(string! skillName, Tracon.AgentSkillScriptDefinition! script, JsonElement? arguments, CancellationToken) -> Task<object?>!
++ Tracon.SandboxedSkillScriptRunner.RunStoredScriptAsync(Tracon.AgentSkillDefinition! skill, string! scriptName, JsonElement? arguments, CancellationToken) -> Task<object?>!
+Tracon.AspNetCore
++ Tracon.SkillScriptGrantRequest.ExpectedContentHash.get -> string?
++ Tracon.SkillScriptGrantRequest.ExpectedContentHash.init -> void
+Tracon.Testing.Contracts.Xunit (SkillScriptGrantContract, public virtual test metodları)
++ Content_hash_round_trips · Null_content_hash_round_trips · Granting_again_replaces_the_content_hash
++ Revoked_grant_stays_listed · Racing_grants_and_revocations_leave_one_record_for_the_key
+```
+
+İç (internal): `SkillScriptHashing` (Abstractions; `ScriptDomain`/`SetDomain`
+alan ayırıcıları, uzunluk önekli SHA-256, 64 büyük harf onaltılık) ·
+`AgentSkillCatalog.FindWithOriginAsync` (kod önce; `Enabled` süzmez; kökeni
+kendisi atar) · `SandboxedSkillScriptRunner.RunFileScriptAsync(string skillName,
+string scriptName, string fullPath, …)` (disk yolu, pinsiz) ·
+`SkillScriptSupport.CreateStoredScriptDelegate(AgentSkillDefinition, string)`.
+
+HTTP: `POST /api/skill-script-grants` gövdesi `expectedContentHash` alır; red
+sırası `409` (script çalıştırma kapalı) → `400` (ad/süre) → skill yoksa pinsiz
+`201` → `400 Content hash required` → `404 Script not found` → çok kiracılı +
+stored + platform yetkisi yok `403` → `409 Content changed` (güncel hash
+yanıtta YOK). `GET /api/skills/{name}` katalogdan çözer, `origin`,
+`scriptSetHash`, `scripts[].contentHash` taşır. `GET /api/skill-script-grants`
+satırı `contentHash` taşır; bellek içi iptal satırı `revokedAt` ile kalır.
+Üretilen istemciler: `TraconApiClient.g.cs` (4 özellik), `schema.ts` (5 alan).
+
 ## Dosya Listesi (gerçekleşen)
 
 > Kapanışta doldurulur.
+
+```text
+src/Tracon.Abstractions/Skills/{SkillScriptHashing.cs (YENİ, internal), AgentSkillDefinition.cs, SkillScriptGrant.cs}, PublicAPI.Unshipped.txt
+src/Tracon.Core/Skills/{AgentSkillCatalog.cs, CodeSkillRegistration.cs, TraconSkillsSource.cs,
+    Scripts/SandboxedSkillScriptRunner.cs, Scripts/SkillScriptSupport.cs}
+src/Tracon.Core/{Storage/InMemorySkillScriptGrantStore.cs, Audit/AuditingAgentSkillStore.cs, TraconOptions.cs,
+    ITraconBuilder.cs, PublicAPI.Unshipped.txt}
+src/Tracon.AspNetCore/{Endpoints/SkillScriptGrantEndpoints.cs, Endpoints/SkillEndpoints.cs, Contracts/AgentContracts.cs,
+    PublicAPI.Unshipped.txt}
+src/Tracon.Sql.Shared/Stores/SqlSkillScriptGrantStore.cs
+src/Tracon.{PostgreSql/Internal/PostgresQueries.cs, SqlServer/Internal/SqlServerQueries.cs, Sqlite/Internal/SqliteQueries.cs}
+src/Tracon.PostgreSql/Migrations/0053_skill_script_grant_content_hash.sql      (07c787d9)
+src/Tracon.SqlServer/Migrations/0041_skill_script_grant_content_hash.sql       (07c787d9)
+src/Tracon.Sqlite/Migrations/0040_skill_script_grant_content_hash.sql          (07c787d9)
+scripts/applied-migrations.json                                                (üç ankraj)
+src/Tracon.Testing.Contracts.Xunit/{Contracts/SkillScriptGrantContract.cs, PublicAPI.Unshipped.txt}
+src/Tracon.Client/Generated/TraconApiClient.g.cs · packages/tracon-client/src/schema.ts · docs/openapi/tracon.json   (üretilen)
+src/Tracon.UI/frontend/src/{screens/skills/{script-grants.tsx, skill-editor.tsx, model.ts, model.test.ts (YENİ)},
+    lib/server-types.ts, locales/{en,tr}/agents.ts}
+tests/Tracon.Core.UnitTests/{Skills/SkillScriptHashTests.cs (YENİ), Skills/SandboxedSkillScriptRunnerTests.cs,
+    Audit/AuditingSkillScriptGrantStoreTests.cs}
+tests/Tracon.AspNetCore.FunctionalTests/{SkillScriptContentPinTests.cs (YENİ), McpApprovalRuleSourceTests.cs (YENİ),
+    SkillScriptGrantTests.cs, SkillCrudTests.cs, Tracon.AspNetCore.FunctionalTests.csproj (Tracon.Mcp referansı)}
+tests/Tracon.{PostgreSql,SqlServer,Sqlite}.IntegrationTests/SkillScriptGrantContentHashMigrationTests.cs (YENİ)
+tests/Tracon.Sql.Shared.UnitTests/Baselines/sql-text-baseline.{postgres,sqlserver,sqlite}.txt
+tests/Tracon.Ui.E2ETests/{Infrastructure/UiHost.cs, Ui/SkillTests.cs, Ui/ConfirmationTests.cs}
+docs-site/scripts/check-content.mjs · docs-site/src/content/docs/{concepts/tools.md, reference/{threat-model,security-policy,
+    compatibility,configuration}.md, getting-started/security.md, guides/production.md, ui.md, capabilities.md}
+docs-site/public/{llms-full.txt, screenshots/*.png, screenshots/.ui-source.sha256}
+SECURITY.md · CHANGELOG.md · README.md
+docs/{MIMARI-TEHDIT-MODELI.md, MIMARI-GUVENLIK.md, KARARLAR.md, ADAYLAR.md, manuel-test/{00-INDEKS.md, 14-SKILL-VE-SCRIPT.md}}
+docs/hafiza/{http-uc-guvenlik-ve-sozlesme, maf-api, secenek-baglama-ve-gizlilik, frontend-test-altyapisi,
+    tool-onay-ve-yetkilendirme, dokumantasyon, test-yalitimi, test-yalitimi-vakalari}.md
+```
+
+Testler: `SkillScriptHashTests` 10 · `SandboxedSkillScriptRunnerTests` (R, üç TFM) ·
+`SkillScriptContentPinTests` 15 · `SkillScriptGrantTests` 10 metot (16 koşum) · `SkillCrudTests` +2 ·
+`McpApprovalRuleSourceTests` 2 · `AuditingSkillScriptGrantStoreTests` +1 ·
+`SkillScriptGrantContract` +5 (dört koşum) · migration ×3 · `SkillTests` (E2E) +3 ·
+`model.test.ts` 6.
+
+### Tüketici yüzeyi envanteri (`tuketici-dokuman-senkronu` Adım 1)
+
+1. **`docs-site/` — elle:** `concepts/tools.md` (kapı diyagramı, pin paragrafı,
+   "Tracon does not sandbox" uyarısı) · `reference/threat-model.md` (varlık, B7
+   satırı, R8 uyarısı) · `getting-started/security.md` (B7 satırı ve bağlantısı) ·
+   `reference/security-policy.md` (kapsam tablosu + paragraf) ·
+   `guides/production.md` (stored script, platform yetkisi, `SkillRoots`) ·
+   `ui.md` (Skills + yönetişim düzeltmesi) · `capabilities.md` (Skill scripts
+   satırı) · `reference/compatibility.md` (`PlatformAdmin`, `SecurityAdmin`) ·
+   `reference/configuration.md` (allowlist notu). **Üretilen:** `api/` (XML),
+   `http-api/` (OpenAPI açıklamaları), `reference/changelog` (`CHANGELOG.md`).
+   **Ekran:** 38 PNG + `.ui-source.sha256`.
+2. **Sevk edilen metin:** `///` — `AgentSkillDefinition.cs`, `SkillScriptGrant.cs`,
+   `SandboxedSkillScriptRunner.cs`, `TraconOptions.cs` (`AllowStoredScripts`,
+   `SkillRoots`, `EnvironmentAllowList`), `ITraconBuilder.cs` (`AddSkill`),
+   `AgentContracts.cs` (`SkillScriptGrantRequest`), `AuditingAgentSkillStore.cs`
+   (internal); uç açıklamaları (`SkillEndpoints`, `SkillScriptGrantEndpoints`) →
+   `docs/openapi/tracon.json`; kök `README.md`; `SECURITY.md`; `CHANGELOG.md`.
+3. **Yerel referans / agent haritası:** yalnız `capabilities.md`'nin Skill scripts
+   satırı değişti → `Tracon.AgentMap.md`, `llms.txt`, `llms-full.txt` yeniden
+   üretildi (828.837 B). Yeni giriş noktası yok, yeni `<example>` gerekmedi.
+
+Kapılar: `npm run check` dördü yeşil (1060 sayfa; bağlantı 174.988, kırık 0; en
+ağır sayfa `troubleshooting` 58.994 B, sayfa dokunulmadı).
 
 ## Süreç Ölçümü
 
@@ -756,11 +986,67 @@ grant "{\"skillName\":\"scriptli-skill\",\"scriptName\":\"merhaba\",\"expectedCo
 
 | Metrik | Değer |
 |---|---|
-| Plan revizyonu sayısı | |
-| Düzeltme turu sayısı | |
-| 🔴 bulgu: gerçek / gürültü / araştırılacak | |
-| Fazın ürettiği regresyon | |
-| Faz kapandıktan sonra bulunan kusur | |
+| Plan revizyonu sayısı | 0 (plan metni değişmedi; Açık Soru 3'ün koşulu ölçümle tutmadı — Sapma 1) |
+| Düzeltme turu sayısı | 2 — ilk kapanış kapısı (3 kırmızı, Sapma 16) · denetim (🔴 2, 🟡 4, 🟢 3) |
+| 🔴 bulgu: gerçek / gürültü / araştırılacak | 2 / 0 / 0 |
+| Fazın ürettiği regresyon | 2 — konsol düzenleyicisinin gölgelenen kopyayı ezmesi (denetim 🔴1) ve iki kapı kırmızısı (locator tabanı, `<example>` derlemesi); üçü de commit'ten önce kapandı |
+| Faz kapandıktan sonra bulunan kusur | ölçülmedi (faz yeni kapandı) |
+
+### Kırmızı → yeşil kanıtı
+
+- **Pin fonksiyonel testleri** runner kapısından önce yazıldı ve kırmızıydı
+  (§ 186.10 adım 1); çıktı metni kaydedilmedi.
+- **`check-content.mjs`'nin üç kontrolü**, geçici değişiklikle birer kez:
+  (a) `SECURITY.md no longer states its script execution gates scope;
+  reference/security-policy.md still does` · (b) `concepts/tools.md: "inside its
+  sandbox" promises a script sandbox Tracon does not provide; the boundary is
+  "Script execution gates"` · (c) `reference/threat-model.md: "Accepted risks" no
+  longer names the operating-system identity a granted script runs with`. Geri
+  alınınca çıkış 0.
+- **`AuditingSkillScriptGrantStoreTests.A_grant_cancelled_after_its_audit_entry_leaves_no_permission`**
+  sıra ters çevrilirse (önce grant, sonra kayıt) düşer: grant iptal gelmeden
+  yazılır. Ters çevrilerek koşulmadı; akıl yürütme.
+- **`McpApprovalRuleSourceTests`** kırmızı→yeşil değil, ölçümdür (Karar 11).
+
+## Örnek Uygulama Koşumu
+
+`samples/Tracon.Api` (Debug, PostgreSQL izleği, gerçek `gpt-5.4-mini`), MT-SKILL-041'in
+geçici kod değişikliğiyle; koşumdan sonra geri alındı. Yükseltmeden ÖNCE eski biçimde
+bir grant satırı SQL ile yazıldı (`granted_by = 'pre-phase-seed'`). Onay kartları için
+`load_skill` ve `run_skill_script` kuralları eklendi, run'lar API'den koşuldu:
+
+| Adım | Sonuç |
+|---|---|
+| Açılış | `__migrations` max `53`; tohum satırı `content_hash IS NULL` = `t` |
+| Case 6 (MT-SKILL-069) — faz öncesi grant | run `Completed`, çıktıda `merhaba-tracon` yok; `script.denied`: `The execution grant does not pin the script content. Grant it again with the content hash.` |
+| Case 4 (MT-SKILL-067) — hash'siz `POST` | `400 Content hash required` |
+| Case 1 (MT-SKILL-064) — hash'li `POST` + run | `201`; listedeki `contentHash` okunanla aynı (`origin: Database`); run çıktısı `merhaba-tracon` |
+| Case 2 (MT-SKILL-065) — v2 `PUT` + run | `PUT 200`; run `Completed`, çıktıda `merhaba-tracon` yok; `script.denied`: `The script content changed since the grant. Review it and grant it again.` |
+| Case 3 (MT-SKILL-066) — eski hash'le `POST` | `409 Content changed`; liste aynı; gövde güncel hash'i taşımadı |
+| Case 11 (MT-SKILL-076) — arayüz | satır `stale`; "Review content" `echo degisti` + hash; Grant sonrası `current`; bilinmeyen ad "No stored or code skill…"; TR metinleri |
+
+Koşumdan sonra grant iptal edildi, iki onay kuralı, agent ve skill silindi (iptal
+edilen grant satırları SQL'de kalır — tasarım gereği).
+
+## Kapanış Kapısı
+
+`DOTNET_ROOT=~/.dotnet python3 scripts/kapi.py kapanis --taban d6153fe1`, commit
+öncesi çalışma ağacı (kod bu hâliyle commit edildi; sonraki arşivleme ve damıtma
+yalnız dokümandır), 2026-09-24 → **EXIT 0, ~703 sn**:
+
+| Adım | Süre | Sonuç |
+|---|---|---|
+| `kapi.py tarama` | 5,7 sn | ✅ temiz (migration ankrajları dahil) |
+| `dokuman-bakim.py --denetle` · Python testleri · ajan haritası · denetim paketi | ~8 sn | ✅ |
+| `dotnet build Tracon.slnx -c Release` | 52,1 sn | ✅ 0 uyarı |
+| `dotnet test … -maxcpucount:2 -- --report-trx` | **485,6 sn** | ✅ 17.577 test, 0 kırmızı |
+| `dotnet pack` | 7,9 sn | ✅ |
+| `dotnet format --verify-no-changes` | 112,8 sn | ✅ |
+| `docs-site npm run check` | 31,4 sn | ✅ 1060 sayfa; en ağır `troubleshooting` 58 994 B |
+
+Performans kapısı tetiklenmedi (üç sıcak yol değişmedi). İlk kapanış denemesi test
+adımında durdu (Sapma 16: locator tabanı, `<example>` derlemesi, `ConfirmationTests`
+yarışı); o sırada denetçi de koşuyordu — denetçiye `dotnet`/`npm` koşturulmadı.
 
 ## Denetim Bulguları
 
@@ -768,7 +1054,57 @@ grant "{\"skillName\":\"scriptli-skill\",\"scriptName\":\"merhaba\",\"expectedCo
 > (🔴/🟡/🟢) · sonuç (düzeltildi / gerekçelendi / F-NN olarak devredildi).
 > Bulgu yoksa "🔴 ve 🟡 yok" yazılır; boş bırakılmaz.
 
+Denetçi (`faz-denetcisi`, 2026-09-24) salt okuma yaptı; kapanış kapısı aynı anda
+koşuyordu ve denetçiye `dotnet`/`npm` koşturulmadı.
+
+| # | Bulgu | Seviye | Triyaj | Sonuç |
+|---|---|---|---|---|
+| 🔴1 | `GET /api/skills/{name}` kodu önce çözünce konsol düzenleyicisi gölgelenen kayıtlı kopyanın üstüne kod içeriğini yazıyor | 🔴 | gerçek (kullanıcı) | Düzeltildi — `PUT`/`DELETE` `409`, salt okunur düzenleyici, 3 test (Sapma 14, K-863) |
+| 🔴2 | Hafıza notu taban ölçümü için `git stash` öneriyor (`kurtarma.md` yasaklar) | 🔴 | gerçek (kullanıcı) | Düzeltildi — iki not da (Sapma 15) |
+| 🟡1 | İnceleme paneli `parametersSchema`'yı göstermiyor; hash onu da pinler | 🟡 | — | Düzeltildi — şema gösterilir, E2E iddia eder (Sapma 17) |
+| 🟡2 | "Pinsiz başlayan script açıktır" ifadesi disk script'ini (tasarım gereği pinsiz) kapsıyordu | 🟡 | — | Düzeltildi — `SECURITY.md`, politika, iki sınır tablosu ve B7 "stored or code-defined" ile sınırlandı |
+| 🟡3 | Üç XML metni bayat (`AgentSkillRequest.Scripts`, `SkillScriptGrantRequest`, `AgentSkillDefinition.Scripts`) | 🟡 | — | Düzeltildi |
+| 🟡4 | #20: yarış testi kayıp güncellemeyi yakalamaz · #29: iptal testi yok | 🟡 | — | #20 gerekçelendi: sözleşme tek kaydı ve son grant'ı kanıtlar; kayıp güncelleme kurguyla kapalıdır (bellek içi `TryUpdate` CAS döngüsü, SQL tek satır `UPDATE`) — iddia daraltıldı. #29 düzeltildi: `A_grant_cancelled_after_its_audit_entry_leaves_no_permission` |
+| 🟢1 | `14-SKILL-VE-SCRIPT.md`'de başlıksız 15 bölüm atfı | 🟢 | — | Düzeltildi — §2–§8 başlıkları (Sapma 9) |
+| 🟢2 | `test-yalitimi.md:92` da `git stash … pop` öneriyor | 🟢 | — | Düzeltildi (Sapma 15) |
+| 🟢3 | Hiçbir kaynağın taşımadığı adda gönderilen `expectedContentHash` yok sayılır | 🟢 | — | Gerekçelendi — § 186.3'ün seçimi; runner stored yolu yine reddeder (fail-closed) |
+
+Denetçinin "koşum kanıtı gerekiyor" listesi: kapanış kapısı ve tarama "Kapanış
+Kapısı" bölümünde; `check-content.mjs`'nin kırmızı kaydı "Süreç Ölçümü" § Kırmızı →
+yeşil'de.
+
 ## Sonraki Faza Devir Notu
 
 > Kapanışta doldurulur: devralınan sözleşmeler, bilinen tuzaklar (🚨), yarım
 > kalan işler, sıradaki faz.
+
+**Sıradaki faz: 187** (kırıcı değişiklik kapısı). 187.9'un beklediği:
+
+- `CHANGELOG.md` `### Changed` üyeyi code span içinde tip önekiyle anar:
+  `` `SandboxedSkillScriptRunner.RunStoredScriptAsync` `` — 187.6'nın eşleşme kuralı
+  (`.` ile bölünen parçalardan biri tip adına eşit) bunu kabul eder. Taban
+  `v1.0.0-preview.2` iken `Tracon.Core`'da `SandboxedSkillScriptRunner` için `CP0002`
+  (eski aşırı yükleme kalktı) beklenir.
+- Eklemeler (`ContentHash`, `ScriptSetHash`, `Origin`, `ExpectedContentHash`, beş
+  sözleşme testi) kırıcı değildir; strict baseline kapalıyken raporlanmaz.
+- HTTP davranış değişiklikleri ApiCompat'a görünmez, `### Changed`'dedir: `GET
+  /api/skills/{name}` kodu önce çözer; `PUT`/`DELETE` kod adına `409`.
+
+Açık işler:
+
+- 🟠 **F-283** (onay kuralı MCP kaynağına bağlı değil) ve **F-284** (`AgentsAdmin`
+  `RequiresApproval`'ı kapatır) — güvenlik; birlikte planlanır.
+  `McpApprovalRuleSourceTests` bugünkü davranışı ölçer ve düzeltmede ters çevrilir.
+- Manuel case'ler: `MT-SKILL-064…069`, `072…077` tur kaydında yok (altısı kapanışta
+  örnek uygulamada ölçüldü, 12 case ➜ CI).
+- Site yayını (`faz-tamamlama` Adım 10) kullanıcı onayı bekler.
+
+🚨 Tuzaklar (ayrıntı alan dosyalarında):
+
+- OpenAPI `readOnly` üretilemez — `http-uc-guvenlik-ve-sozlesme.md`.
+- MAF araç hatasını modele `Error: Function failed.` diye geçirir; red sebebi denetim
+  izindedir — `maf-api.md`.
+- `EnvironmentAllowList` yalnız mirası keser; Linux `/proc/<ppid>/environ` okunur —
+  `secenek-baglama-ve-gizlilik.md`.
+- Taban ölçümü worktree'de alınır, `git stash` ile değil — `kurtarma.md`,
+  `frontend-test-altyapisi.md`.

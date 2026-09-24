@@ -321,8 +321,23 @@ public sealed class TraconSkillScriptOptions
     /// <see langword="false"/>.
     /// </summary>
     /// <remarks>
-    /// When enabled, an Admin with UI access can write code that runs on the
-    /// server. Three gates are required: this flag, the Admin role, and a grant record.
+    /// <para>
+    /// When enabled, anyone who can write skills (the Admin role, or an API key
+    /// with <c>AgentsAdmin</c>) can store code that runs on the server. The same
+    /// flag covers the scripts of a skill registered in code with <c>AddSkill</c>.
+    /// </para>
+    /// <para>
+    /// Such a script runs only under a grant pinned to its exact content: a
+    /// security administrator reads the content, grants its hash, and a later
+    /// change stops the script until it is granted again. The interpreter
+    /// allow-list (<see cref="Interpreters"/>) is a further gate.
+    /// </para>
+    /// <para>
+    /// In a multi-tenant host, granting a stored script also needs platform
+    /// authority: the script runs under the server's own operating-system
+    /// identity and can read what that identity reads, including other tenants'
+    /// secrets. A tenant's administrator therefore cannot grant one alone.
+    /// </para>
     /// </remarks>
     public bool AllowStoredScripts { get; set; }
 
@@ -330,8 +345,16 @@ public sealed class TraconSkillScriptOptions
     /// Gets the roots used to search skill directories on disk.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// Roots are supplied <strong>in code or configuration</strong> and cannot be
     /// changed through the UI. The person who writes script content deploys the application.
+    /// </para>
+    /// <para>
+    /// A script read from disk is not pinned to its content: its grant names the
+    /// skill and the script only. Keep the roots read-only for the operating-system
+    /// user Tracon runs as; anyone who can write to them changes what runs under
+    /// an existing grant.
+    /// </para>
     /// </remarks>
     public IList<string> SkillRoots { get; } = [];
 
@@ -350,8 +373,17 @@ public sealed class TraconSkillScriptOptions
     /// Gets the allow list of environment variables passed to the script process.
     /// </summary>
     /// <remarks>
-    /// Variables outside the list are not passed. A connection string and API key
-    /// therefore never reach the process.
+    /// <para>
+    /// Variables outside the list are not inherited from Tracon's environment.
+    /// This is not isolation: the script runs as the same operating-system user
+    /// and can read whatever that user can read. On Linux that includes the
+    /// environment Tracon started with, through <c>/proc/&lt;pid&gt;/environ</c>.
+    /// </para>
+    /// <para>
+    /// A connection string or API key in an environment variable is therefore
+    /// readable by a script. Keep secrets out of the process environment while
+    /// scripts run, or run the scripts under a separate, unprivileged user.
+    /// </para>
     /// </remarks>
     public IList<string> EnvironmentAllowList { get; } = ["PATH", "HOME"];
 

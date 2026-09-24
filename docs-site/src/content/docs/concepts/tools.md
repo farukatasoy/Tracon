@@ -277,6 +277,10 @@ A skill is markdown with frontmatter, optionally carrying resources — referenc
 the agent can pull in. Skills are tenant-scoped and editable from the console, because
 they are *instructions*, not code.
 
+A skill can also be registered in code with `AddSkill`. The code skill wins its name,
+as a code-defined agent does: the console opens it read only, and the API refuses to
+save a stored skill under that name (`409`), because such a copy would never run.
+
 An agent lists skills by name. Deleting a skill an agent still names is a real break:
 compiling that agent then fails with "the skill was not found" until the reference is
 removed or the skill is recreated. Check which agents use a skill before deleting it.
@@ -296,13 +300,13 @@ starts:
 ```mermaid
 flowchart LR
     accTitle: Skill script security gates
-    accDescr: A skill script runs only after enabled, tenant grant, extension allowlist, path, budget, and runner checks all pass in order.
-    G1["1. enabled"] --> G2["2. valid grant<br/>for this tenant"]
+    accDescr: A skill script runs only after the enabled flag, a tenant grant pinned to its content, the interpreter allowlist, argument validation, the audit write, and the concurrency quota all pass in order.
+    G1["1. enabled"] --> G2["2. valid grant<br/>pinned to this content"]
     G2 --> G3["3. extension on the<br/>interpreter allowlist"]
     G3 --> G4["4. argument size<br/>and schema"]
     G4 --> G5["5. written to<br/>the audit trail"]
     G5 --> G6["6. concurrency quota"]
-    G6 --> RUN["separate process<br/>clean environment · stdin args<br/>timeout · output limit"]
+    G6 --> RUN["separate process<br/>allow-listed environment · same OS user<br/>stdin args · timeout · output limit"]
 ```
 
 :::danger[Gate five is an exception to an exception]
@@ -316,12 +320,26 @@ Grants are visible and revocable at `GET /api/skill-script-grants`. A grant with
 script name covers every script in a skill; one with a name covers only that script.
 Grants can expire.
 
+A grant for a stored or code-defined skill **pins the content** it was given for. Read
+`scripts[].contentHash` (one script) or `scriptSetHash` (every script) from
+`GET /api/skills/{name}`, review what will run, and send the value as
+`expectedContentHash`. A skill-wide grant pins the whole script set: adding, removing,
+or changing any script stops every script in the skill until it is granted again. A
+hash that no longer matches returns `409` — read the skill again. In a multi-tenant
+host, granting a stored script also needs platform authority: a key with
+`PlatformAdmin`, the static token, or the `Tracon.PlatformAdmin` policy. A script read
+from disk is not pinned, so keep its directory read-only.
+
 :::caution[Tracon does not sandbox]
 It provides **no** filesystem jail, network restriction, memory or CPU quota, or
-privilege dropping. All four belong to the hosting environment — a container, cgroups,
-and an unprivileged user. The acknowledgement flag exists so the feature cannot be
-enabled without seeing this: with execution on and the flag off, the application fails
-at **startup**.
+privilege dropping. The process runs under the same operating-system user as Tracon
+and can read what that user can read — on Linux, the environment Tracon started with
+too, through `/proc`. In a multi-tenant host a granted script can therefore reach every
+tenant's data; the [threat model](/reference/threat-model/) lists this as an accepted
+risk. Isolation belongs to the hosting environment — a container, cgroups, and an
+unprivileged user. The acknowledgement flag exists so the feature cannot be enabled
+without seeing this: with execution on and the flag off, the application fails at
+**startup**.
 :::
 
 ## MCP servers

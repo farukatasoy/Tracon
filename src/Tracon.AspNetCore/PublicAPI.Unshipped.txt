@@ -587,6 +587,8 @@ Tracon.SkillScriptGrantRequest
 Tracon.SkillScriptGrantRequest.<Clone>$() -> Tracon.SkillScriptGrantRequest!
 Tracon.SkillScriptGrantRequest.Equals(Tracon.SkillScriptGrantRequest? other) -> bool
 Tracon.SkillScriptGrantRequest.ExpiresAt.get -> System.DateTimeOffset?
+Tracon.SkillScriptGrantRequest.ExpectedContentHash.get -> string?
+Tracon.SkillScriptGrantRequest.ExpectedContentHash.init -> void
 Tracon.SkillScriptGrantRequest.ExpiresAt.init -> void
 Tracon.SkillScriptGrantRequest.ScriptName.get -> string?
 Tracon.SkillScriptGrantRequest.ScriptName.init -> void

@@ -39,13 +39,27 @@ deprecated on NuGet.org with a pointer to the fixed version.
 
 ## Scope
 
-In scope: tenant isolation, credential handling (including per-tenant
-bring-your-own-key), the audit trail, egress policy, tool approval and
-authorization, content guards, script sandboxing, and any path that writes a
-secret to storage, a log, or a response.
+In scope:
 
-Out of scope: model output quality, prompt injection that a configured guard is
-not enabled to stop, and denial of service produced by quotas you configured.
+- Tenant isolation
+- Credential handling, including per-tenant bring-your-own-key
+- The audit trail
+- Egress policy
+- Tool approval and authorization
+- Content guards
+- Script execution gates (grant, content pin, interpreter allowlist, audit)
+- Any path that writes a secret to storage, a log, or a response
+
+Out of scope:
+
+- Model output quality
+- Prompt injection that a configured guard is not enabled to stop
+- Denial of service produced by quotas you configured
+- Operating-system isolation of a skill script's process. Tracon does not
+  provide that isolation, so a granted script reading what the server's
+  operating-system user can read is expected behaviour. A stored or
+  code-defined script that starts without a grant pinned to its current content
+  is a vulnerability; a script read from disk is not pinned, by design.
 
 See the [threat model](https://tracon.dev/reference/threat-model/) for who
 this scope assumes as an attacker, which boundary each one hits, and which

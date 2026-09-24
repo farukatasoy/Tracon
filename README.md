@@ -294,7 +294,8 @@ into [docs/YOL-HARITASI.md](docs/YOL-HARITASI.md); unselected candidates are in
 Both are **off by default**, turned on explicitly in code (`.UseSkillScripts(...)`,
 `.AddPatternContentGuard(...)`/`.AddContentGuard<T>()`).
 Skill scripts run on the server with no OS-level isolation from Tracon itself — that
-boundary is the hosting environment's job. Full behavior and the guard decision model:
+boundary is the hosting environment's job. A stored or code-defined script runs only
+under a grant pinned to its exact content. Full behavior and the guard decision model:
 [docs/MIMARI-GUVENLIK.md](docs/MIMARI-GUVENLIK.md) (Turkish) ·
 [product docs](https://tracon.dev).
 

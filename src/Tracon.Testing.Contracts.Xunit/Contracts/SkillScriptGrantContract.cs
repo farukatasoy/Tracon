@@ -109,6 +109,93 @@ public abstract class SkillScriptGrantContract : TenantIsolationContract<ISkillS
         (await Store.FindActiveAsync("tenant-a", "invoice", "total", DateTimeOffset.UtcNow)).ShouldNotBeNull();
     }
 
+    /// <summary>A grant pins the content it authorizes; every read returns the pinned hash.</summary>
+    [Fact]
+    public async Task Content_hash_round_trips()
+    {
+        var hash = new string('A', 63) + "1";
+
+        var saved = await Store.GrantAsync(Grant("tenant-a", "invoice", "total") with { ContentHash = hash });
+
+        saved.ContentHash.ShouldBe(hash);
+        (await Store.FindActiveAsync("tenant-a", "invoice", "total", DateTimeOffset.UtcNow)).ShouldNotBeNull().ContentHash.ShouldBe(hash);
+        (await Store.ListAsync("tenant-a")).ShouldHaveSingleItem().ContentHash.ShouldBe(hash);
+    }
+
+    /// <summary>
+    /// A grant that pins nothing stays that way: it authorizes scripts on disk only,
+    /// and a store must not invent a value for it.
+    /// </summary>
+    [Fact]
+    public async Task Null_content_hash_round_trips()
+    {
+        var saved = await Store.GrantAsync(Grant("tenant-a", "invoice"));
+
+        saved.ContentHash.ShouldBeNull();
+        (await Store.FindActiveAsync("tenant-a", "invoice", "total", DateTimeOffset.UtcNow)).ShouldNotBeNull().ContentHash.ShouldBeNull();
+        (await Store.ListAsync("tenant-a")).ShouldHaveSingleItem().ContentHash.ShouldBeNull();
+    }
+
+    /// <summary>
+    /// Granting the same skill and script again pins the NEW content. An upsert whose
+    /// update branch forgot the hash would keep authorizing the previous content.
+    /// </summary>
+    [Fact]
+    public async Task Granting_again_replaces_the_content_hash()
+    {
+        var first = new string('A', 64);
+        var second = new string('B', 64);
+
+        await Store.GrantAsync(Grant("tenant-a", "invoice", "total") with { ContentHash = first });
+        await Store.GrantAsync(Grant("tenant-a", "invoice", "total") with { ContentHash = second });
+
+        (await Store.FindActiveAsync("tenant-a", "invoice", "total", DateTimeOffset.UtcNow)).ShouldNotBeNull().ContentHash.ShouldBe(second);
+        (await Store.ListAsync("tenant-a")).ShouldHaveSingleItem().ContentHash.ShouldBe(second);
+
+        await Store.GrantAsync(Grant("tenant-a", "invoice", "total"));
+
+        (await Store.FindActiveAsync("tenant-a", "invoice", "total", DateTimeOffset.UtcNow)).ShouldNotBeNull().ContentHash.ShouldBeNull();
+    }
+
+    /// <summary>
+    /// A grant is never deleted: revoking stamps the revocation time and the record
+    /// stays listed, so who granted what and when it was withdrawn stays answerable.
+    /// </summary>
+    [Fact]
+    public async Task Revoked_grant_stays_listed()
+    {
+        await Store.GrantAsync(Grant("tenant-a", "invoice") with { ContentHash = new string('C', 64) });
+
+        (await Store.RevokeAsync("tenant-a", "invoice", null)).ShouldBeTrue();
+
+        var listed = (await Store.ListAsync("tenant-a")).ShouldHaveSingleItem();
+        listed.RevokedAt.ShouldNotBeNull();
+        listed.ContentHash.ShouldBe(new string('C', 64));
+    }
+
+    /// <summary>
+    /// Grants and revocations of one key racing each other never leave two records
+    /// for the key, and a grant written after the race is the one in force.
+    /// </summary>
+    [Fact]
+    public async Task Racing_grants_and_revocations_leave_one_record_for_the_key()
+    {
+        var operations = Enumerable.Range(0, 24).Select(index => index % 2 == 0
+            ? Store.GrantAsync(Grant("tenant-a", "invoice", "total") with { ContentHash = new string((char)('A' + (index % 6)), 64) }).AsTask()
+            : (Task)Store.RevokeAsync("tenant-a", "invoice", "total").AsTask());
+
+        await Task.WhenAll(operations);
+
+        var final = new string('F', 64);
+        await Store.GrantAsync(Grant("tenant-a", "invoice", "total") with { ContentHash = final });
+
+        var listed = (await Store.ListAsync("tenant-a")).Where(static grant => string.Equals(grant.ScriptName, "total", StringComparison.Ordinal)).ToList();
+        var record = listed.ShouldHaveSingleItem();
+        record.RevokedAt.ShouldBeNull();
+        record.ContentHash.ShouldBe(final);
+        (await Store.FindActiveAsync("tenant-a", "invoice", "total", DateTimeOffset.UtcNow)).ShouldNotBeNull().ContentHash.ShouldBe(final);
+    }
+
     private static SkillScriptGrant Grant(string tenantId, string skillName, string? scriptName = null) => new()
     {
         TenantId = tenantId,
