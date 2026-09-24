@@ -239,11 +239,20 @@ K2'nin (**"tool'lar yalnız kodda tanımlanır"**) ikinci bilinçli istisnası �
 birincisi MCP (uzakta çalışır), bu **Tracon'in kendi makinesinde** çalışır.
 Varsayılan **kapalıdır**; yalnız kodda açılır ve yürütülebilir yüzeyi genişleten
 alanlar (`Interpreters`, `SkillRoots`, `AllowStoredScripts`) yapılandırmadan
-OKUNMAZ. Her çalıştırma beş sıralı kapıdan geçer (Enabled · kiracı izni ·
-yorumlayıcı beyaz listesi · argüman doğrulama · denetim izi yazımı); denetim izi
-kapısı Faz 9 kuralının tek istisnasıdır — yazılamazsa çalıştırma durur (K-089).
+OKUNMAZ. Her çalıştırma beş sıralı kapıdan geçer (Enabled · içeriğe pinli kiracı
+izni · yorumlayıcı beyaz listesi · argüman doğrulama · denetim izi yazımı); denetim
+izi kapısı Faz 9 kuralının tek istisnasıdır — yazılamazsa çalıştırma durur (K-089).
 `PlatformIsolationAcknowledged` dosya/ağ/kota/hak düşürme sınırlarının barındırma
 ortamında kurulduğunu KABUL ETTİRİR; Tracon bunları sağlamaz (K-086).
+
+**İçerik pini (Faz 186).** Stored veya kodda tanımlı script'in grant'ı içeriğin
+hash'ini taşır (`SkillScriptGrant.ContentHash`; script grant'ı script'in hash'ini,
+geniş grant bütün kümenin izini). Runner her çalıştırmada güncel hash'i hesaplar ve
+karşılaştırır; hash'siz veya bayat grant stored script'i reddeder, diskteki script
+pinlenmez (`SkillRoots` salt okunur olmalı). Grant ucu beklenen hash'i ister
+(`400`/`404`/`409`) ve çok kiracılı host'ta stored script için platform yetkisi
+arar (`403`), çünkü script Tracon'un OS kimliğiyle çalışır — kabul edilen risk:
+[`MIMARI-TEHDIT-MODELI.md`](MIMARI-TEHDIT-MODELI.md) § R8.
 
 K2 istisnasının tam gerekçesi, beş kapının akış şeması, koruma tablosu (ortam
 temizliği, zaman aşımı, çıktı sınırı, eşzamanlılık, `SkillScriptGrant`, denetim

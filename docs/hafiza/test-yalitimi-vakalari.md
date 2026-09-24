@@ -159,3 +159,4 @@
   ve gerçek bir migration kusuru gibi okunur. Kural: dört kapı **yalnız
   başına** koşar; başka bir `dotnet` ya da container işi paralel çalışıyorsa
   ölçümün kanıt değeri yoktur.
+- **`ConfirmationTests` oturum satırını beklemeden listeye gidiyordu** (2026-09-24, Faz 186 kapanışı). `OpenSessionsWithOneRowAsync` playground'da `Echo:` görünür görünmez `/sessions`'a gidiyordu; yanıt akarken yazılır, oturum kaydı ise tur kaydedilince (`AgentSessionManager.SaveAsync`). Yük altında liste satırdan önce okundu, ekran yoklama yapmadığı için 30 sn `No session` kaldı (izole koşumda geçti). Düzeltme: `WaitUntil.TrueAsync` ile `GET /api/sessions` dolana kadar bekle, sonra git. Ders: akış içeriğini görmek, run'ın yan kaydının yazıldığını kanıtlamaz — iddianın okuduğu kaydı bekle (dosyanın ilk kuralı).

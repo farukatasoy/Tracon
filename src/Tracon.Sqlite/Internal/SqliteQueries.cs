@@ -179,7 +179,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
         // --- Script execution grants ---
 
         const string grantColumns = """
-            id, tenant_id, skill_name, script_name, granted_by, granted_at, expires_at, revoked_at
+            id, tenant_id, skill_name, script_name, granted_by, granted_at, expires_at, revoked_at, content_hash
             """;
 
         SelectSkillScriptGrants = $"""
@@ -201,16 +201,19 @@ internal sealed class SqliteQueries : SqlQueriesBase
             LIMIT 1;
             """;
 
+        // 🚨 The update branch writes content_hash too: granting the same key again
+        // must pin the content of THIS grant, not keep the previous one's hash.
         UpsertSkillScriptGrant = $"""
             INSERT INTO {Schema}skill_script_grants
-                (id, tenant_id, skill_name, script_name, granted_by, granted_at, expires_at, revoked_at)
+                (id, tenant_id, skill_name, script_name, granted_by, granted_at, expires_at, revoked_at, content_hash)
             VALUES
-                (@id, @tenant_id, @skill_name, @script_name, @granted_by, @granted_at, @expires_at, NULL)
+                (@id, @tenant_id, @skill_name, @script_name, @granted_by, @granted_at, @expires_at, NULL, @content_hash)
             ON CONFLICT (tenant_id, skill_name, COALESCE(script_name, '')) DO UPDATE
                 SET granted_by = excluded.granted_by,
                     granted_at = excluded.granted_at,
                     expires_at = excluded.expires_at,
-                    revoked_at = NULL
+                    revoked_at = NULL,
+                    content_hash = excluded.content_hash
             RETURNING {grantColumns};
             """;
 

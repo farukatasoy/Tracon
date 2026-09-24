@@ -269,9 +269,13 @@ that an agent loads at run time, with approval. The editor shows the frontmatter
 compatibility and license fields, the allowed-tool list, and the resources; the
 markdown is stored as source text and the console does not render it.
 
-This is the second place the code-only boundary is visible: a skill may carry a
-**script**, but the console can only reference a script the application already
-registered and granted. It cannot write one.
+This is the second place the code-only boundary is visible. A skill may carry
+**scripts**, and the editor writes their content, but saving a script never lets it
+run. The script grants panel below the list is where an administrator allows one: the
+form shows the content that will run — the script, its argument schema, and the hash
+— and grants exactly that content. A grant whose content changed afterwards is marked
+stale, and its scripts do not run until it is granted again. A skill registered in code
+opens read only: it is the one that runs, and the console cannot change it.
 
 ### Models
 
@@ -298,8 +302,9 @@ without a restart.
 Who changed what, when, and from what to what — filterable by actor, action, entity,
 and date range. Secret-looking fields are masked before anything is stored.
 
-Quotas, retention policies, API keys, tenants, tenant provider bindings and egress
-policy (BYOK), and skill script grants have their own screens in the same area.
+Quotas, retention policies, API keys, tenants, and tenant provider bindings and egress
+policy (BYOK) have their own screens in the same area. Skill script grants sit on the
+Skills screen, next to the content they allow.
 
 ### Triggers
 

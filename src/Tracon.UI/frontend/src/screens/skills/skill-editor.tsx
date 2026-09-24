@@ -17,6 +17,7 @@ import {
 import { Tooltip } from '../../components/tooltip';
 import { ConfirmDialog } from '../../components/confirm-dialog';
 import { emptyRequest, emptyResource, emptyScript, type SkillForm } from './model';
+import { SKILL_PIN_QUERY_KEY } from './script-grants';
 import type { AgentSkillScriptDefinition } from '@tracon/client';
 import type { AgentSkillDefinition, AgentSkillResourceDefinition } from '../../lib/server-types';
 
@@ -66,6 +67,8 @@ export function SkillEditorScreen({ name }: { name?: string }): ReactNode {
       ) as Promise<AgentSkillDefinition>,
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['skills'] });
+      // The grants panel compares each grant with the content it reads per skill.
+      await queryClient.invalidateQueries({ queryKey: [SKILL_PIN_QUERY_KEY] });
       navigate('skills');
     },
   });
@@ -75,6 +78,8 @@ export function SkillEditorScreen({ name }: { name?: string }): ReactNode {
     onSuccess: async () => {
       setConfirmingDelete(false);
       await queryClient.invalidateQueries({ queryKey: ['skills'] });
+      // The grants panel compares each grant with the content it reads per skill.
+      await queryClient.invalidateQueries({ queryKey: [SKILL_PIN_QUERY_KEY] });
       navigate('skills');
     },
   });
@@ -117,6 +122,14 @@ export function SkillEditorScreen({ name }: { name?: string }): ReactNode {
   }
 
   const valid = form.name.trim().length > 0 && form.description.trim().length > 0;
+  /*
+    🚨 The read resolves the name the way the runtime does, so a name registered
+    in code returns the CODE skill. Saving that form would write the code content
+    over the stored row of the same name — the server now refuses the save (409),
+    and the form says why before anyone tries. The only action left is deleting
+    the stored copy, which never runs.
+  */
+  const fromCode = editing && existing.data?.origin === 'Code';
 
   return (
     <>
@@ -127,25 +140,27 @@ export function SkillEditorScreen({ name }: { name?: string }): ReactNode {
           <>
             <Button onClick={() => navigate('skills')}>{t('common.cancel')}</Button>
             {editing && (
-              <Tooltip text={t('skills.deleteEffect')}>
+              <Tooltip text={fromCode ? t('skills.deleteStoredCopyEffect') : t('skills.deleteEffect')}>
                 <Button
                   tone="danger"
                   busy={remove.isPending}
                   testId="skill-delete"
                   onClick={() => setConfirmingDelete(true)}
                 >
-                  {t('common.delete')}
+                  {fromCode ? t('skills.deleteStoredCopy') : t('common.delete')}
                 </Button>
               </Tooltip>
             )}
-            <Button
-              tone="primary"
-              busy={save.isPending}
-              disabled={!valid}
-              onClick={() => save.mutate()}
-            >
-              {t('common.save')}
-            </Button>
+            {!fromCode && (
+              <Button
+                tone="primary"
+                busy={save.isPending}
+                disabled={!valid}
+                onClick={() => save.mutate()}
+              >
+                {t('common.save')}
+              </Button>
+            )}
           </>
         }
       />
@@ -154,9 +169,13 @@ export function SkillEditorScreen({ name }: { name?: string }): ReactNode {
         open={confirmingDelete}
         onClose={() => setConfirmingDelete(false)}
         onConfirm={() => remove.mutate()}
-        title={t('skills.deleteTitle', { name: form.name })}
-        consequence={t('skills.deleteEffect')}
-        confirmLabel={t('common.delete')}
+        title={
+          fromCode
+            ? t('skills.deleteStoredCopyTitle', { name: form.name })
+            : t('skills.deleteTitle', { name: form.name })
+        }
+        consequence={fromCode ? t('skills.deleteStoredCopyEffect') : t('skills.deleteEffect')}
+        confirmLabel={fromCode ? t('skills.deleteStoredCopy') : t('common.delete')}
         busy={remove.isPending}
         error={remove.error}
         testId="confirm-delete-skill"
@@ -174,7 +193,18 @@ export function SkillEditorScreen({ name }: { name?: string }): ReactNode {
         </div>
       )}
 
-      <div className="flex flex-col gap-4">
+      {fromCode && (
+        <div
+          className="mb-4 rounded-md border border-line bg-info-soft px-3 py-2 text-sm text-info"
+          data-testid="skill-code-notice"
+        >
+          {t('skills.codeNotice')}
+        </div>
+      )}
+
+      {/* A disabled fieldset disables every control inside it, the add and
+          remove buttons included, without threading a flag through each one. */}
+      <fieldset disabled={fromCode} className="flex min-w-0 flex-col gap-4">
         <Panel title={t('skills.frontmatter')}>
           <div className="grid gap-4 p-4 sm:grid-cols-2">
             <Field label={t('common.name')} required>
@@ -308,7 +338,7 @@ export function SkillEditorScreen({ name }: { name?: string }): ReactNode {
             </Button>
           </div>
         </Panel>
-      </div>
+      </fieldset>
     </>
   );
 }

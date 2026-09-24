@@ -1,6 +1,6 @@
 # 14 — Skill ve Script Çalıştırma (`SKILL`)
 
-> **Alan kodu:** `SKILL` · **Faz:** 10, 11
+> **Alan kodu:** `SKILL` · **Faz:** 10, 11, 186
 > **Kaynak:** `src/Tracon.Abstractions/Skills/` (tümü) ·
 > `src/Tracon.Core/Skills/` (tümü: `AgentSkillCatalog`, `TraconSkillsSource`,
 > `CodeSkillRegistration`, `TraconSkillScriptBuilderExtensions`,
@@ -15,7 +15,8 @@
 > `SkillScriptGrantEndpoints.cs` · `src/Tracon.AspNetCore/Contracts/AgentContracts.cs`
 > (yalnız `AgentSkillRequest`/`SkillScriptGrantRequest`) ·
 > `src/Tracon.PostgreSql/Migrations/0003_agent_skills.sql`,
-> `0004_skill_scripts.sql` · `src/Tracon.UI/frontend/src/screens/skills.tsx` ·
+> `0004_skill_scripts.sql`, `0053_skill_script_grant_content_hash.sql` ·
+> `src/Tracon.Abstractions/Skills/SkillScriptHashing.cs` · `src/Tracon.UI/frontend/src/screens/skills.tsx`, `skills/script-grants.tsx` ·
 > `src/Tracon.UI/frontend/src/screens/agent-editor.tsx` (yalnız skill seçici bölümü) ·
 > `samples/Tracon.Api/Program.cs` (yalnız `tracon` değişkeni ve builder zinciri).
 >
@@ -105,9 +106,9 @@ export APB="Authorization: Bearer manuel-test-token-2026"
 export APU="http://localhost:5080/tracon"
 ```
 
-> **Gerçek para uyarısı.** Yalnız §3 (gerçek model ile skill yükleme onayı)
-> Playground üzerinden gerçek bir `run` başlatır ve küçük ölçüde OpenAI ücreti
-> doğurur. §1, §2, §4, §5, §6, §7'nin geri kalanı hiçbir model çağırmaz.
+> **Gerçek para uyarısı.** §3'ün case'leri ile §6 ve §8'in Playground adımları
+> (👤) gerçek bir `run` başlatır ve küçük ölçüde OpenAI ücreti doğurur. Diğer
+> case'ler hiçbir model çağırmaz.
 
 ---
 
@@ -538,6 +539,13 @@ curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/skills/cakisan-kaynak" -H "
   bir skill bir agent'a hiç bağlanamaz, yalnız zaten bağlıysa (önceden
   seçilmişse) listede görünmeye devam edebilir ama derlemeye girmez (bkz. §2).
 
+---
+
+# 2 — Skill Kataloğu Çözümleme Kuralları (Faz 10)
+
+Bu bölümün case'leri `AgentSkillCatalog`'un davranışını kanıtlar: kod kaydının
+önceliği, bilinmeyen skill, skill sayısı sınırı ve önbellek parmak izi.
+
 ### MT-SKILL-020 — Bilinmeyen skill adına işaret eden agent → SAVE zamanında `400`
 
 Negatif senaryo.
@@ -663,8 +671,9 @@ HTTP karşılığı yoktur.
 |---|---|
 | **İzlek** | B |
 | **Önem** | Orta |
-| **İlgili faz** | Faz 10 |
+| **İlgili faz** | Faz 10, Faz 186 |
 | **İlgili karar** | K-003 (agent'lardaki aynı kural, skill'lere uygulanmış hali) |
+| **Devir** | ➜ CI: `SkillCrudTests.A_stored_skill_cannot_be_saved_under_a_name_defined_in_code` · `SkillCrudTests.Deleting_a_name_defined_in_code_removes_only_its_stored_copy` · `SkillTests.A_skill_defined_in_code_opens_read_only` |
 
 **Ön koşul**
 1. `FIX-SKILL-FATURA` DB'de kayıtlı (MT-SKILL-001), `instructions` alanı
@@ -692,6 +701,24 @@ HTTP karşılığı yoktur.
   `_codeSkills.TryGetValue` başarılıysa store'a hiç bakmaz
   (`AgentSkillCatalog.cs:104-106`).
 - Model nihai yanıtta `KOD_SKILL_ACTIVE` yazar, `FATURA_SKILL_ACTIVE` DEĞİL.
+
+**Ek adımlar (Faz 186 — kod adı artık yazılamaz, K-003 emsali)**
+2. `PUT /api/skills/fatura-kontrolu` ile DB kaydını yeniden kaydetmeyi dene
+   (MT-SKILL-001'in isteği).
+3. `GET /api/skills/fatura-kontrolu` → `origin`'e bak.
+4. Konsolda Skills → `fatura-kontrolu` → düzenleyiciyi aç.
+5. **Delete stored copy** ile DB kaydını sil; sonra aynı `DELETE`'i yeniden gönder.
+
+**Ek beklenen sonuç**
+- Adım 2: `HTTP: 409`, `title: "Code-defined skill cannot be modified"`; DB
+  kaydı değişmez. (Faz 186'dan önce `200` dönüyor ve hiç çalışmayan bir kayıt
+  yazıyordu.)
+- Adım 3: `origin: "Code"` — uç çalışacak skill'i döndürür.
+- Adım 4: form KOD tanımlı içerikle **salt okunur** açılır; "This name is
+  registered in code…" uyarısı görünür, Save düğmesi yoktur. (Önceden form kod
+  içeriğini gösteriyor ve Save onu DB kaydının üstüne yazıyordu.)
+- Adım 5: ilk `DELETE` `204` (gölgelenen DB kaydı silinir, kod skill'i
+  çalışmaya devam eder); ikinci `DELETE` `409`.
 
 ---
 
@@ -759,6 +786,17 @@ Uygulama yeniden başlatılır. En az 3 etkin skill oluştur.
   MT-SKILL-021), ama agent ÇALIŞTIRILDIĞINDA `400 "Agent derlenemedi"` alınır.
 - Bu, kullanıcıya YANLIŞ bir izin görüntüsü veren bir arayüz/sunucu
   uyuşmazlığıdır; kusur değil, eksik senkronizasyon.
+
+---
+
+# 3 — Gerçek Model ile Onaylı Skill Yükleme (Faz 10 kanıtı)
+
+Bu bölüm `load_skill` onayını gerçek modelle kanıtlar: onaylanan şey bir eylem
+değil, agent'ın talimatının çalışma anında değişmesidir.
+
+**Ön koşul (bölümün tamamı)**
+- `FIX-SKILL-FATURA` ve `FIX-AGENT-SKILL` oluşturulmuş, ikisi de etkin.
+- `playground/manuel-skill-test` açık, yeni sohbet.
 
 ### MT-SKILL-030 — `FIX-SKILL-PROMPT` → `load_skill` onay kartı üretir
 
@@ -857,6 +895,14 @@ Negatif senaryo.
   `cancel_order` için kanıtladığı MEKANİZMANIN AYNISIdır, yalnız tool adı
   `load_skill`'dir.
 - Nihai yanıt yine `FATURA_SKILL_ACTIVE` içerir.
+
+---
+
+# 4 — Skill Script Kaydı ve Doğrulama (Faz 11)
+
+Script KAYDETMEK ile script ÇALIŞTIRMAK ayrı yetkilerdir. Bu bölümün case'leri
+yalnız kayıt ve doğrulama katmanını sınar; MT-SKILL-041 dışında hiçbiri kod
+değişikliği istemez.
 
 ### MT-SKILL-040 — Varsayılan durumda (Interpreters boş) HERHANGİ bir script uzantısı reddedilir
 
@@ -1108,6 +1154,14 @@ curl -s "$APU/api/skills/scriptli-skill" -H "$APB" | python3 -m json.tool
   modele SUNULMAZ (`TraconSkillsSource.CreateSkill`'in
   `_scripts is { StoredScriptsEnabled: true }` koşulu, `TraconSkillsSource.cs:71`).
 
+---
+
+# 5 — Script Çalıştırma İzinleri (Grant, Faz 11)
+
+Grant uçları `UseSkillScripts()` gerektirmez — yalnız `scripts.Enabled`
+bayrağını okur. Stored bir skill'in grant'ı içeriğin hash'ini ister (Faz 186;
+§6 adım 4). Gerçek çalıştırma §6'nın konusudur.
+
 ### MT-SKILL-050 — Script çalıştırma KAPALIYKEN izin vermeye çalışmak → `409`
 
 Negatif senaryo. Sıfır kurulum gerektirir (varsayılan durum).
@@ -1154,16 +1208,20 @@ Uygulama yeniden başlatılır. (🚨 Bu ikisi TEK BAŞINA script'i
 vermeyi mümkün kılar.)
 
 **Adımlar**
-1. MT-SKILL-050'deki isteği tekrarla.
+1. MT-SKILL-050'deki isteği içeriğin hash'iyle tekrarla (Faz 186):
+   `scriptli-skill` stored bir skill'dir ve grant içeriğini pinler.
 
 **Girilecek veri**
 ```bash
+HASH=$(curl -s "$APU/api/skills/scriptli-skill" -H "$APB" | jq -r '.scripts[] | select(.name=="merhaba") | .contentHash')
 curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/skill-script-grants" -H "$APB" \
-     -H "content-type: application/json" -d '{ "skillName": "scriptli-skill", "scriptName": "merhaba" }'
+     -H "content-type: application/json" \
+     -d "{ \"skillName\": \"scriptli-skill\", \"scriptName\": \"merhaba\", \"expectedContentHash\": \"$HASH\" }"
 ```
 
 **Beklenen sonuç**
-- `HTTP: 201`. Gövde `grantedBy: null` (statik bearer token bir
+- `HTTP: 201`, gövdede `contentHash` = `HASH`. Hash'siz aynı istek `400`
+  döner (MT-SKILL-067). Gövde `grantedBy: null` (statik bearer token bir
   `ClaimsPrincipal` üretmez, `AmbientAuditActorResolver.Resolve()`
   `IsAuthenticated != true` olduğu için `null` döner,
   `AmbientAuditActorResolver.cs:32-35`), `expiresAt: null`.
@@ -1241,7 +1299,10 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/skill-script-grants" -H "$
    "Script Çalıştırma İzinleri" panelini incele.
 
 **Beklenen sonuç — CSS sınıfı DÜZELTİLDİ (2026-09-17 koşumunda ölçüldü)**
-- Adım 1: liste `scriptli-skill`/`merhaba` çiftini içerir.
+- Adım 1: liste `scriptli-skill`/`merhaba` çiftini içerir; satır
+  `contentHash` taşır (Faz 186).
+- Adım 2: tablonun **Pin** sütunu satırda `current` rozetini gösterir
+  (içerik grant'tan sonra değişmediyse; değiştiyse `stale` — MT-SKILL-076).
 - Adım 2: panelin üstünde belirgin bir "danger" tonlu uyarı kutusu görünür
   ve grant tablosu aynı kaydı gösterir. `data-testid` hâlâ yok; CSS sınıfı
   artık `border-red-500` DEĞİL — bileşen `src/Tracon.UI/frontend/src/screens/skills/script-grants.tsx`'e
@@ -1302,6 +1363,51 @@ curl -s -w "\nHTTP: %{http_code}\n" -X DELETE "$APU/api/skill-script-grants/hic-
 **Beklenen sonuç**
 - `HTTP: 404`. `title: "Izin bulunamadi"`, `detail`
   `'hic-yok-skill' icin gecerli bir calistirma izni yok.`
+
+---
+
+# 6 — Script Çalıştırma Kapıları ve Gerçek Çalıştırma Kanıtı (Faz 11)
+
+**Bölümün ortak ön koşulu** — MT-SKILL-057…077 bu kurulumu kullanır; MT-SKILL-057
+yalnız 2-5. adımları uygular. Faz 186'da içeriğe pinli grant'a göre yeniden
+yazıldı (K-860).
+
+1. MT-SKILL-041'in geçici kod değişikliğini uygula (`UseSkillScripts` +
+   `AllowStoredScripts` + `Interpreters["sh"]`).
+2. `dotnet build`, uygulamayı yeniden başlat.
+3. `scriptli-skill`/`merhaba`'yı kaydet (MT-SKILL-041'in isteği).
+4. Grant'ı içeriğin hash'iyle ver. Stored script'in grant'ı içeriğe pinlidir:
+   hash'siz istek `400` döner (MT-SKILL-067). Yardımcı fonksiyon:
+   ```bash
+   grant_script() {  # $1 = script adı; boş verilirse bütün skill (küme izi)
+     local body
+     if [ -n "$1" ]; then
+       body=$(curl -s "$APU/api/skills/scriptli-skill" -H "$APB" | jq -c --arg s "$1" \
+         '{skillName: "scriptli-skill", scriptName: $s, expectedContentHash: (.scripts[] | select(.name == $s) | .contentHash)}')
+     else
+       body=$(curl -s "$APU/api/skills/scriptli-skill" -H "$APB" | jq -c \
+         '{skillName: "scriptli-skill", expectedContentHash: .scriptSetHash}')
+     fi
+     curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/skill-script-grants" -H "$APB" \
+          -H "content-type: application/json" -d "$body"
+   }
+   grant_script merhaba   # beklenen: HTTP: 201
+   ```
+   Bir script'in içeriği değişirse, aynı komut yeni hash'le yeniden koşulur.
+5. `manuel-script-test` agent'ını oluştur:
+   ```bash
+   curl -s -X POST "$APU/api/agents" -H "$APB" -H "content-type: application/json" -d '{
+     "name": "manuel-script-test", "instructions": "Sen bir yardimci asistansin.",
+     "model": { "provider": "openai", "model": "gpt-5.4-mini" },
+     "skillNames": ["scriptli-skill"]
+   }'
+   ```
+
+**Bölüm sonu temizliği:** MT-SKILL-041'in kod satırını `Program.cs`'ten
+kaldır; `manuel-script-test`'i ve `scriptli-skill`'i sil; etkin grant'ları
+`DELETE /api/skill-script-grants/{skillName}` ile kaldır.
+
+---
 
 ### MT-SKILL-057 — 🚨 Config-only kurulum (kod değişikliği OLMADAN) script'i modele HİÇ sunmaz
 
@@ -1530,10 +1636,16 @@ WHERE action = 'script.denied' ORDER BY created_at DESC LIMIT 1;
 
 ---
 
-### MT-SKILL-062 — Ortam değişkenleri sızmaz: script yalnız `PATH`/`HOME` (+2 enjekte edilen) görür
+### MT-SKILL-062 — Ortam değişkenleri miras alınmaz: script yalnız `PATH`/`HOME` (+2 enjekte edilen) görür
 
-Bu case Faz 11'in en kritik güvenlik iddiasını sınar: `secret` taşıyan
-ortam değişkenleri (`OpenAI__ApiKey` gibi) script sürecine HİÇ ULAŞMAZ.
+Bu case Faz 11'in güvenlik iddiasını sınar: `secret` taşıyan ortam
+değişkenleri (`OpenAI__ApiKey` gibi) script sürecine **miras geçmez**.
+
+> **Kapsam daraltıldı (Faz 186, ölçüldü 2026-09-24):** bu bir yalıtım
+> değildir. Script Tracon'la aynı OS kullanıcısıyla çalışır; Linux'ta
+> ebeveynin başlangıç ortamını `/proc/<ppid>/environ` üzerinden okur
+> (`alpine:3.20`, root ve uid 1000 ölçüldü). Case yalnız mirası sınar; kabul
+> edilen risk `docs/MIMARI-TEHDIT-MODELI.md` § R8'dedir.
 
 | | |
 |---|---|
@@ -1545,7 +1657,7 @@ ortam değişkenleri (`OpenAI__ApiKey` gibi) script sürecine HİÇ ULAŞMAZ.
 **Ön koşul**
 - MT-SKILL-058'in ön koşulu geçerli.
 - `scriptli-skill`'e `ortam-dokumu` script'i ekle (`content: "env | sort"`),
-  izin ver.
+  `grant_script ortam-dokumu` ile izin ver (§6 adım 4).
 
 **Adımlar**
 1. `manuel-script-test`'e skill'i yükleyip `ortam-dokumu`'nu çalıştırmasını
@@ -1591,8 +1703,8 @@ BEKLETİR (`SkillScriptConcurrencyLimiter.cs:25-42`).
 
 **Ön koşul**
 - MT-SKILL-058'in ön koşulu geçerli (varsayılan `MaxConcurrentPerTenant: 2`).
-- `scriptli-skill`'e `bekleyen` script'i ekle (`content: "sleep 4"`), izin
-  ver.
+- `scriptli-skill`'e `bekleyen` script'i ekle (`content: "sleep 4"`),
+  `grant_script bekleyen` ile izin ver (§6 adım 4).
 
 **Adımlar**
 1. Üç ayrı Playground sohbetinde (aynı kiracı `default`), üçünü de HEMEN
@@ -1604,6 +1716,10 @@ BEKLETİR (`SkillScriptConcurrencyLimiter.cs:25-42`).
 - Üçüncü çağrı ~8 saniye civarında biter (ilk ikisinden biri bitip
   semaforu bırakana kadar bekler) — `exit_code`'u yine `0`'dır, bir hata
   ALMAZ, yalnız GEÇ tamamlanır.
+
+---
+
+# 7 — Gözlemlenebilirlik (Faz 11)
 
 ### MT-SKILL-070 — `execute_skill_script` span'i doğru öznitelikleri taşır
 
@@ -1645,3 +1761,443 @@ garanti eder — ama bunu elle güvenilir biçimde tetiklemek audit deposunun
 gerektirir, bu da o sıradaki HER case'i etkiler. `03-KALICILIK-POSTGRESQL.md`'nin
 migration atomikliği notuyla AYNI gerekçeyle dışarıda bırakıldı — güvence
 otomatik testlere (`SandboxedSkillScriptRunnerTests`) bırakılmıştır.
+
+---
+
+# 8 — İçeriğe Pinli Grant ve Platform Yetkisi (Faz 186)
+
+Grant içeriği pinler (K-860), çok kiracılı host'ta stored script grant'ı
+platform yetkisi ister (K-861), sınırın adı "Script execution gates"tir
+(K-862). Ortak ön koşul §6'dadır.
+
+### MT-SKILL-064 — Grant stored script'in içeriğini pinler: okunan hash'le `201`, gerçek run `merhaba-tracon` döner
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 186 |
+| **İlgili karar** | K-860 |
+| **Devir** | ➜ CI: `SkillScriptContentPinTests.A_grant_pins_the_script_content_it_was_given_for` · `SkillScriptContentPinTests.The_grant_audit_entry_carries_the_pinned_hash` |
+
+**Ön koşul**
+- §6'nın 1-3. ve 5. adımları uygulandı; `scriptli-skill`/`merhaba` için
+  etkin grant yok.
+
+**Adımlar**
+1. Hash'i oku.
+2. Hash'le grant ver.
+3. Grant listesini oku.
+4. Playground'da `manuel-script-test`'e `merhaba scriptini calistir ve
+   ciktisini yaz` gönder; her onayı ver. 👤
+
+**Girilecek veri**
+```bash
+curl -s "$APU/api/skills/scriptli-skill" -H "$APB" | jq '{origin, scriptSetHash, scripts: [.scripts[] | {name, contentHash}]}'
+grant_script merhaba
+curl -s "$APU/api/skill-script-grants" -H "$APB" | jq '.[] | {skillName, scriptName, contentHash, revokedAt}'
+```
+
+**Beklenen sonuç**
+- Adım 1: `origin: "Database"`; `contentHash` 64 büyük harf onaltılık
+  karakterdir.
+- Adım 2: `HTTP: 201`; gövdedeki `contentHash` adım 1'deki değerdir.
+- Adım 3: satır aynı `contentHash`'i taşır.
+- Adım 4: yanıt `merhaba-tracon` içerir.
+
+**Doğrulama sorgusu** *(PostgreSQL izleğinde)*
+```sql
+SELECT content_hash FROM tracon.skill_script_grants
+WHERE skill_name = 'scriptli-skill' AND revoked_at IS NULL;
+-- adım 1'deki hash; script.grant denetim kaydının after alanı da onu taşır.
+```
+
+> **Ölçüldü (2026-09-24, Faz 186, örnek uygulama + `gpt-5.4-mini`):** `201`;
+> listedeki hash okunanla aynı; run çıktısı `merhaba-tracon`.
+
+---
+
+### MT-SKILL-065 — İçerik değişince aynı grant script'i çalıştırmaz; `script.denied` "content changed since the grant" der
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 186 |
+| **İlgili karar** | K-860 |
+| **Devir** | ➜ CI: `SkillScriptContentPinTests.A_grant_pins_the_script_content_it_was_given_for` · `SkillScriptContentPinTests.A_skill_recreated_with_other_content_does_not_run_under_the_old_grant` |
+
+**Ön koşul**
+- MT-SKILL-064 geçti.
+
+**Adımlar**
+1. Script'in içeriğini değiştir (v2).
+2. YENİ bir Playground sohbetinde aynı promptu gönder; her onayı ver. 👤
+
+**Girilecek veri**
+```bash
+curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/skills/scriptli-skill" -H "$APB" \
+     -H "content-type: application/json" -d '{
+  "name": "scriptli-skill", "description": "Script testi.", "instructions": "test", "enabled": true,
+  "resources": [],
+  "scripts": [{ "name": "merhaba", "extension": "sh", "content": "echo degisti", "parametersSchema": null }]
+}'
+```
+
+**Beklenen sonuç**
+- Adım 1: `HTTP: 200`; `scripts[0].contentHash` değişti.
+- Adım 2: script çalışmaz; yanıtta ne `merhaba-tracon` ne `degisti` vardır.
+  Denetim izindeki son `script.denied` kaydının `after` alanı
+  `The script content changed since the grant. Review it and grant it again.`
+  taşır.
+
+> **Ölçüldü (2026-09-24):** run tamamlandı, çıktıda `merhaba-tracon` yok;
+> `script.denied` sebebi yukarıdaki metin.
+
+---
+
+### MT-SKILL-066 — Eski hash'le grant `409` döner, liste değişmez, yanıt güncel hash'i taşımaz
+
+Negatif senaryo — okuma ile grant arasındaki pencere (TOCTOU).
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 186 |
+| **İlgili karar** | K-860 |
+| **Devir** | ➜ CI: `SkillScriptContentPinTests.A_grant_for_content_that_changed_after_it_was_read_is_refused_and_writes_nothing` |
+
+**Ön koşul**
+- MT-SKILL-065 geçti; `HASH` MT-SKILL-064'ün adım 1'inde okunan v1 hash'idir.
+
+**Girilecek veri**
+```bash
+curl -s "$APU/api/skill-script-grants" -H "$APB" > /tmp/once.json
+curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/skill-script-grants" -H "$APB" \
+     -H "content-type: application/json" \
+     -d "{ \"skillName\": \"scriptli-skill\", \"scriptName\": \"merhaba\", \"expectedContentHash\": \"$HASH\" }"
+curl -s "$APU/api/skill-script-grants" -H "$APB" | diff - /tmp/once.json && echo "liste ayni"
+```
+
+**Beklenen sonuç**
+- `HTTP: 409`, `title: "Content changed"`; `detail` skill'i yeniden okuyup
+  gözden geçirmeyi söyler, güncel hash'i **taşımaz**.
+- `liste ayni` basılır; `script.grant` denetim kaydı yazılmaz.
+
+> **Ölçüldü (2026-09-24):** `409 Content changed`; liste aynı; gövde
+> güncel hash'i taşımadı.
+
+---
+
+### MT-SKILL-067 — Stored skill'e hash'siz ya da biçimsiz hash'le grant `400` döner
+
+Negatif senaryo.
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 186 |
+| **İlgili karar** | K-860 |
+| **Devir** | ➜ CI: `SkillScriptGrantTests.A_stored_skill_grant_without_a_well_formed_hash_is_refused_and_writes_nothing` |
+
+**Ön koşul**
+- §6'nın 1-3. adımları uygulandı.
+
+**Girilecek veri**
+```bash
+for body in '{ "skillName": "scriptli-skill", "scriptName": "merhaba" }' \
+            '{ "skillName": "scriptli-skill", "scriptName": "merhaba", "expectedContentHash": "abc" }'; do
+  curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/skill-script-grants" -H "$APB" \
+       -H "content-type: application/json" -d "$body"
+done
+```
+
+**Beklenen sonuç**
+- İki istek de `HTTP: 400`, `title: "Content hash required"`; `detail`
+  `GET /api/skills/scriptli-skill`'i ve `scripts[].contentHash`/`scriptSetHash`
+  alanlarını adlandırır.
+- Grant listesi değişmez; `script.grant` denetim kaydı yazılmaz.
+
+> **Ölçüldü (2026-09-24, örnek uygulama):** hash'siz istek
+> `400 Content hash required`.
+
+---
+
+### MT-SKILL-068 — Skill'in tamamına verilen grant küme izini pinler: yeni script eklenince iki script de çalışmaz
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 186 |
+| **İlgili karar** | K-860 |
+| **Devir** | ➜ CI: `SkillScriptContentPinTests.Skill_wide_grant_refuses_every_script_after_a_script_is_added` · `SkillScriptContentPinTests.Skill_wide_grant_refuses_the_remaining_script_after_a_script_is_removed` |
+
+**Ön koşul**
+- §6'nın 1-3. ve 5. adımları uygulandı; `scriptli-skill` yalnız `merhaba`'yı
+  taşır.
+- Script adı OLMADAN grant verildi: `grant_script ""` → `HTTP: 201`
+  (`expectedContentHash` = `scriptSetHash`).
+
+**Adımlar**
+1. İkinci bir script ekle.
+2. Yeni bir sohbette `ikinci scriptini calistir` gönder; sonra yeni bir
+   sohbette `merhaba scriptini calistir` gönder. 👤
+
+**Girilecek veri**
+```bash
+curl -s -w "\nHTTP: %{http_code}\n" -X PUT "$APU/api/skills/scriptli-skill" -H "$APB" \
+     -H "content-type: application/json" -d '{
+  "name": "scriptli-skill", "description": "Script testi.", "instructions": "test", "enabled": true,
+  "resources": [],
+  "scripts": [
+    { "name": "merhaba", "extension": "sh", "content": "echo merhaba-tracon", "parametersSchema": null },
+    { "name": "ikinci", "extension": "sh", "content": "echo ikinci-script", "parametersSchema": null }
+  ]
+}'
+```
+
+**Beklenen sonuç**
+- Adım 1: `HTTP: 200`; `scriptSetHash` değişti.
+- Adım 2: iki script de çalışmaz — değişmeyen `merhaba` dahil. İki
+  `script.denied` kaydı `The script content changed since the grant.` ile
+  başlar. Küme izi eklemeyi, silmeyi, yeniden adlandırmayı ve içerik
+  değişikliğini birlikte kapsar.
+
+---
+
+### MT-SKILL-069 — Faz öncesi (hash'siz) grant yükseltmeden sonra stored script'i yetkilendirmez
+
+PostgreSQL izleği. Yükseltme, eski satırı `content_hash = NULL` bırakır;
+bilerek doldurulmaz.
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 186 |
+| **İlgili karar** | K-860 |
+| **Devir** | ➜ CI: `SkillScriptGrantContentHashMigrationTests.Existing_grants_survive_with_no_content_hash_and_take_one_when_granted_again` · `SandboxedSkillScriptRunnerTests.A_grant_that_pins_no_content_refuses_a_stored_script` |
+
+**Ön koşul**
+- Yükseltmeden ÖNCE verilmiş bir grant. Elle üretmek için, yeni sürümü
+  başlatmadan önce eski biçimde bir satır yaz:
+  ```sql
+  INSERT INTO tracon.skill_script_grants
+      (id, tenant_id, skill_name, script_name, granted_by, granted_at, expires_at, revoked_at)
+  VALUES (gen_random_uuid(), 'default', 'scriptli-skill', 'merhaba', 'faz-oncesi', now(), NULL, NULL);
+  ```
+
+**Adımlar**
+1. Uygulamayı yeni sürümle başlat (migration `0053` koşar).
+2. Satırı sorgula.
+3. §6'nın 1-3. ve 5. adımlarını uygula (4. adımı ATLA), sonra Playground'da
+   `merhaba scriptini calistir` gönder. 👤
+4. `grant_script merhaba` ile yeniden grant ver, aynı promptu yeni sohbette
+   gönder. 👤
+
+**Doğrulama sorgusu**
+```sql
+SELECT max(id) FROM tracon.__migrations WHERE set_name = 'core';        -- 53
+SELECT content_hash IS NULL FROM tracon.skill_script_grants
+WHERE granted_by = 'faz-oncesi';                                        -- t
+```
+
+**Beklenen sonuç**
+- Adım 2: `53` ve `t`.
+- Adım 3: script çalışmaz; `script.denied` sebebi `The execution grant does
+  not pin the script content. Grant it again with the content hash.`
+- Adım 4: aynı satır güncellenir (`content_hash` dolar), script çalışır ve
+  yanıt `merhaba-tracon` içerir.
+
+> **Ölçüldü (2026-09-24, örnek uygulama + `gpt-5.4-mini`):** adım 2 `53`/`t`;
+> adım 3'te script çalışmadı, sebep yukarıdaki metin.
+
+---
+
+### MT-SKILL-072 — Çok kiracılı host: kiracıya bağlı `SecurityAdmin` + `AgentsRead` anahtarı hash okur, stored grant veremez (`403`)
+
+Negatif senaryo, kiracı sınırı. Script Tracon'un OS kimliğiyle çalışır ve
+başka kiracıların verisine ulaşabilir; bu yüzden grant kurulum düzeyinde bir
+karardır (K-861).
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 186 |
+| **İlgili karar** | K-861 |
+| **Devir** | ➜ CI: `SkillScriptContentPinTests.A_tenant_bound_key_cannot_grant_a_stored_script_in_a_multi_tenant_host` · `SkillScriptGrantTests.A_disabled_stored_skill_still_needs_platform_authority_in_a_multi_tenant_host` |
+
+**Ön koşul**
+- §6'nın 1-2. adımları; çok kiracılı kurulum (`13-KIRACI-VE-GUVENLIK.md`):
+  ```bash
+  dotnet user-secrets set "Tracon:Tenancy:Enabled" "true"
+  dotnet user-secrets set "Tracon:Tenancy:AllowHeaderResolution" "true"
+  ```
+- Kiracı `acme`'de `scriptli-skill`/`merhaba` kayıtlı (§6 adım 3'ün isteği
+  `-H "X-Tracon-Tenant: acme"` ile).
+- `acme`'ye bağlı, yalnız `SecurityAdmin` ve `AgentsRead` taşıyan bir anahtar:
+  ```bash
+  KEY=$(curl -s -X POST "$APU/api/api-keys" -H "$APB" -H "X-Tracon-Tenant: acme" \
+        -H "content-type: application/json" \
+        -d '{ "name": "acme-grant", "scopes": ["SecurityAdmin", "AgentsRead"] }' | jq -r '.plaintextKey')
+  ```
+
+**Girilecek veri**
+```bash
+HASH=$(curl -s -w "" "$APU/api/skills/scriptli-skill" -H "Authorization: Bearer $KEY" | jq -r '.scripts[0].contentHash')
+curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/skill-script-grants" -H "Authorization: Bearer $KEY" \
+     -H "content-type: application/json" \
+     -d "{ \"skillName\": \"scriptli-skill\", \"scriptName\": \"merhaba\", \"expectedContentHash\": \"$HASH\" }"
+curl -s "$APU/api/skill-script-grants" -H "$APB" -H "X-Tracon-Tenant: acme" | jq length
+```
+
+**Beklenen sonuç**
+- Hash okunur (`GET` `200`).
+- Grant `HTTP: 403`; `acme`'nin grant listesi boştur (`0`).
+
+---
+
+### MT-SKILL-073 — Çok kiracılı host: `PlatformAdmin` de taşıyan anahtar stored grant verir (`201`)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 186 |
+| **İlgili karar** | K-861 |
+| **Devir** | ➜ CI: `SkillScriptContentPinTests.A_key_with_platform_authority_grants_a_stored_script_in_a_multi_tenant_host` · `SkillScriptContentPinTests.The_static_token_grants_a_stored_script_in_a_multi_tenant_host` · `SkillScriptContentPinTests.A_claims_admin_needs_the_registered_platform_policy_to_grant_a_stored_script` |
+
+**Ön koşul**
+- MT-SKILL-072'nin kurulumu; anahtar `["SecurityAdmin", "AgentsRead", "PlatformAdmin"]`
+  kapsamlarıyla üretilir. (`PlatformAdmin` taşıyan anahtarı yalnız platform
+  yetkisi olan bir kimlik üretebilir — statik token bu kimliktir.)
+
+**Adımlar**
+1. MT-SKILL-072'nin iki isteğini bu anahtarla tekrarla.
+2. Statik token + `X-Tracon-Tenant: acme` ile aynı grant'ı dene (önce
+   `DELETE` ile kaldır).
+
+**Beklenen sonuç**
+- Adım 1: hash `200`; grant `HTTP: 201`.
+- Adım 2: `HTTP: 201`. Platform operatörü kiracı B adına grant'ı bu iki
+  kimlikten biriyle ya da `Tracon.PlatformAdmin` policy'sinin kabul ettiği
+  bir kullanıcıyla verir.
+
+---
+
+### MT-SKILL-074 — Tek kiracılı host: `SecurityAdmin` + `AgentsRead` anahtarı platform yetkisi olmadan grant verir (`201`)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 186 |
+| **İlgili karar** | K-861 |
+| **Devir** | ➜ CI: `SkillScriptContentPinTests.A_single_tenant_host_needs_no_platform_authority_for_a_stored_script_grant` |
+
+**Ön koşul**
+- §6'nın 1-3. adımları; `Tracon:Tenancy:Enabled` AYARLANMAMIŞ.
+- Anahtar: `["SecurityAdmin", "AgentsRead"]` (kiracı başlığı yok).
+
+**Adımlar**
+1. Anahtarla hash'i oku ve grant ver (MT-SKILL-072'nin istekleri, başlıksız).
+
+**Beklenen sonuç**
+- `HTTP: 201`. Platform kontrolü yalnız çok kiracılı host'ta uygulanır: tek
+  kiracılı kurulumda sunucunun kimliği ile kiracının sınırı aynıdır.
+
+---
+
+### MT-SKILL-075 — Bellek içi mod: iptal edilen grant listede `revokedAt` dolu olarak kalır
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 186 |
+| **İlgili karar** | K-092 |
+| **Devir** | ➜ CI: `SkillScriptGrantTests.A_revoked_grant_stays_listed_with_its_revocation_time` · `SkillScriptGrantContract.Revoked_grant_stays_listed` |
+
+**Ön koşul**
+- Kalıcılık sağlayıcısı YOK (bellek içi); §6'nın 1-4. adımları.
+
+**Girilecek veri**
+```bash
+curl -s -o /dev/null -w "HTTP: %{http_code}\n" -X DELETE "$APU/api/skill-script-grants/scriptli-skill?scriptName=merhaba" -H "$APB"
+curl -s "$APU/api/skill-script-grants" -H "$APB" | jq '.[] | {skillName, scriptName, revokedAt}'
+```
+
+**Beklenen sonuç**
+- `HTTP: 204`; satır listede kalır ve `revokedAt` doludur (SQL
+  sağlayıcılarıyla aynı). Önceden bellek içi store satırı silerdi ve "kim neye
+  izin verdi" kaydı kaybolurdu.
+- Aynı `DELETE` ikinci kez `404` döner.
+
+---
+
+### MT-SKILL-076 — Arayüz: bayat grant `stale` rozeti taşır; form içeriği gösterir ve yalnız okunan içeriği grant eder
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 186 |
+| **İlgili karar** | K-860 |
+| **Devir** | ➜ CI: `SkillTests.A_grant_pins_the_reviewed_content_and_turns_stale_when_it_changes` · `SkillTests.A_grant_for_content_that_changed_after_the_review_is_refused` |
+
+**Ön koşul**
+- MT-SKILL-065 geçti (grant v1'e pinli, içerik v2).
+
+**Adımlar**
+1. `http://localhost:5080/tracon/skills` → "Script execution grants" paneli.
+2. Forma `scriptli-skill` ve `merhaba` yaz, **Review content**'e bas.
+3. **Grant**'a bas.
+4. Forma var olmayan bir ad yaz (`yok-boyle-skill`), **Review content**'e bas.
+
+**Beklenen sonuç**
+- Adım 1: satırın **Pin** sütunu `stale` (sarı) rozetini taşır; rozetin
+  açıklaması script'in bu grant altında çalışmadığını söyler.
+- Adım 2: "What this grant will run" bölümü `merhaba.sh`'nin içeriğini
+  (`echo degisti`), kaynağı ("Read from the database") ve `Content hash`'i
+  gösterir.
+- Adım 3: satır `current` (yeşil) olur; form sıfırlanır.
+- Adım 4: bölüm "No stored or code skill has this name…" der; grant yalnız
+  diskteki script'leri yetkilendirir.
+- `TR` dilinde aynı metinler: `Pin`, `bayat`/`güncel`, `İçeriği incele`.
+
+> **Ölçüldü (2026-09-24, örnek uygulama, tarayıcı):** dört adım ve Türkçe
+> metinler beklendiği gibi.
+
+---
+
+### MT-SKILL-077 — Site: sınır "Script execution gates" adını taşır; hiçbir sayfa script sandbox'ı vaat etmez
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 186 |
+| **İlgili karar** | K-862 |
+
+**Adımlar**
+1. `cd docs-site && npm run build && node scripts/check-content.mjs`.
+2. Metni tara.
+
+**Girilecek veri**
+```bash
+grep -c "Script execution gates" docs-site/src/content/docs/reference/threat-model.md \
+     docs-site/src/content/docs/getting-started/security.md \
+     docs-site/src/content/docs/reference/security-policy.md SECURITY.md
+grep -rn -i "script sandboxing\|escaping its sandbox\|inside its sandbox\|isolated operating-system process" \
+     SECURITY.md docs-site/src/content/docs docs-site/public/llms-full.txt
+```
+
+**Beklenen sonuç**
+- Adım 1 temiz: `check-content.mjs` kapsam satırını iki politika dosyasında,
+  yasak ifadeleri her sayfada ve `threat-model.md`'nin "Accepted risks"
+  bölümündeki işletim sistemi kimliği riskini denetler.
+- Adım 2: dört dosyada sayı ≥ 1; ikinci `grep` boş döner.

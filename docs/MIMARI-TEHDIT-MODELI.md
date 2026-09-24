@@ -1,6 +1,6 @@
 # Tehdit Modeli
 
-> **Ölçüldü:** commit `1fa0c60f`, 2026-09-15. Kaynak sınır kümesi
+> **Ölçüldü:** 2026-09-24, Faz 186 (taban `07c787d9`; ilk ölçüm `1fa0c60f`). Kaynak sınır kümesi
 > [`getting-started/security.md`](../docs-site/src/content/docs/getting-started/security.md)
 > § *The boundaries Tracon enforces* (14 satır). Bu dosya o kümeyle
 > **eşitlenmek zorundadır** — tazelik kapısı `docs-site/scripts/check-content.mjs`
@@ -62,7 +62,7 @@ A6 ve A7 önemlidir: Tracon'un tehdit yüzeyinin bir kısmı kendi API'sinden
 | V4 | Denetim izi | `audit_log` tablosu — `before`/`after` durum, aktör, eylem |
 | V5 | `tool` çağrı yetkisi | Bir `tool`'u belirli argümanlarla çağırma hakkı |
 | V6 | Model bütçesi | İstek hızı ve harcama tavanı |
-| V7 | `script` çalıştırma hakkı | Skill script'inin sandbox içinde çalıştırılma izni |
+| V7 | `script` çalıştırma hakkı | Skill script'inin sunucuda çalıştırılma izni |
 
 ---
 
@@ -80,7 +80,7 @@ kümedir — bir satır o tablodan silinir veya eklenirse burası da değişir.*
 | B4 | Tool authorization | Çağıranın yetkili olmadığı bir `tool` çağrısı |
 | B5 | Tool approval | İnsan onayı beklemeden çalışan bir `tool` çağrısı |
 | B6 | Tool definition | Konsoldan yazılan bir `tool` — `tool`'lar yalnız kodda tanımlanır |
-| B7 | Script sandboxing | `script`'in sandbox'ından kaçması |
+| B7 | Script execution gates | Grant'sız veya yorumlayıcı izin listesi dışındaki bir `script`'in; stored/kod `script`'inde grant'tan sonra değişmiş içeriğin başlaması |
 | B8 | Outbound egress | Özel ağ hedefine veya izinsiz host'a giden istek (SSRF) |
 | B9 | Content guards | Yapılandırılmış bir `guard`'ın reddettiği girdi/çıktı |
 | B10 | Secret handling | `secret` değerinin depoya, log'a veya yanıta ulaşması |
@@ -115,7 +115,7 @@ flowchart LR
 | **V4** Denetim izi | B1 | B1 (rol) | B2 | — | — | 🔴 R2 | 🔴 R5 |
 | **V5** `tool` çağrı yetkisi | B1 | B4 | B2+B4 | B5+B9(opt) | B4+B6 | 🔴 R2 | — |
 | **V6** Model bütçesi | B1 | B13 | B2+B13 | — | — | 🔴 R2 | — |
-| **V7** `script` çalıştırma | B1 | B7 | B2+B7 | B7 | — | 🔴 R2 | — |
+| **V7** `script` çalıştırma | B1 | B7 | B2+B7 | B7 | — | 🔴 R2 · R8 | — |
 
 Notlar:
 
@@ -128,6 +128,9 @@ Notlar:
   (Roller tablosu). Rolün kötüye kullanılması Tracon'un değil, host'un IAM
   sınırıdır — B1 rolü doğru bağladığını garanti eder, rolün doğru kişiye
   verildiğini garanti etmez.
+- **V1–V3 × A3** hücreleri HTTP yolu içindir. Script çalıştırma açık, grant'lı
+  çok kiracılı bir host'ta B2 script sürecinde **geçmez**: süreç Tracon'un OS
+  kimliğiyle çalışır ve uygulama katmanını hiç görmez (🔴 R8).
 - **A7 sütunu** neredeyse tamamen 🔴: ham veritabanı erişimi B1–B9'un
   **hepsini** atlar, çünkü bu sınırlar uygulama katmanındadır (bkz. § 4.7).
   Yalnız B10 (`secret` hiç yazılmaz) ve B11 (opt-in şifreleme) çalışır durumda
@@ -217,6 +220,33 @@ HTML/JS/CSS'i bearer token katmanından muaf, çünkü bir tarayıcı
 taşımaz; loopback kısıtı ve yetkilendirme politikası hâlâ geçerlidir. Bu
 hücre kapanmaz ama zararı sınırlıdır — adlandırılması gereken bir tasarım
 kararıdır, bir kusur değildir.
+
+### R8 — Script, Tracon'un işletim sistemi kimliğiyle çalışır
+
+B7 bir OS sandbox'ı değildir (K-086): süreç Tracon'la aynı OS kullanıcısıyla
+başlar (`SkillScriptProcessRunner.cs` `UserName` atamaz). `EnvironmentAllowList`
+yalnız ortam mirasını keser; süreç kullanıcının okuyabildiği her şeyi okur.
+**Ölçüldü (2026-09-24, `alpine:3.20`, root ve uid 1000):** ortamı `env -i` ile
+temizlenmiş bir çocuk süreç, ebeveynin başlangıç ortamını
+`/proc/<ppid>/environ` üzerinden okudu (`TRACON_TEST_SECRET=parent-env-value`).
+Sonuç: bir script bağlantı dizesini, ortamdaki sağlayıcı anahtarını ve
+diskteki yapılandırmayı okuyabilir. B2, B10 ve B11 uygulama katmanındadır ve
+script sürecinde geçmez.
+
+Kapanan kısım (Faz 186):
+
+- Stored veya kodda tanımlı script yalnız **içeriğine pinli** bir grant'la
+  çalışır (`SkillScriptGrant.ContentHash`); grant'tan sonra değişen içerik,
+  yeniden grant verilene kadar çalışmaz.
+- Çok kiracılı host'ta stored script grant'ı **platform yetkisi** ister
+  (`PlatformAdmin` kapsamlı anahtar, statik token veya `Tracon.PlatformAdmin`
+  policy'si). Kiracı yöneticisi tek başına veremez.
+
+Kalan kısım: grant'ı veren platform yetkilisi içeriği okur ve onaylar;
+onayladığı script bütün kiracıların verisine ulaşabilir. Diskteki script
+pinlenmez — `SkillRoots` süreç kullanıcısına salt okunur olmalıdır. Bu,
+host'un sınırıdır: script çalıştırma açık bir host'u ayrı, yetkisiz bir OS
+kullanıcısıyla ve kısıtlı ağla çalıştırın (`PlatformIsolationAcknowledged`).
 
 ---
 

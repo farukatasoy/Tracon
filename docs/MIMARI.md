@@ -128,8 +128,11 @@ Arayüzden agent oluşturulabilir, ancak tool **kodu** yazılamaz. Arayüz sadec
 **Kuralın bilinçli istisnaları — iki tanedir**, ikisi de §7'de korumalarıyla
 birlikte anlatılır: **MCP tool'ları** (K-058; süreç *uzakta* çalışır, Tracon
 yalnız istemcidir) ve **skill script'leri** (K-066; süreç *bu makinede* çalışır —
-en sıkı istisna). Her ikisinde de arayüz kullanıcısı **yeni kod yazmaz**, var
-olan bir yeteneği etkinleştirir. Bu ayrım kuralın özüdür.
+en sıkı istisna). MCP'de arayüz kullanıcısı **yeni kod yazmaz**, var olan bir
+yeteneği etkinleştirir. Skill script'inde `AllowStoredScripts` açıkken yazar; o
+kod yalnız içeriğine pinli bir grant'la çalışır (K-860) — yazan (`AgentsAdmin`)
+ile izin veren (`SecurityAdmin`, çok kiracılıda platform yetkisi, K-861) iki ayrı
+rol ve iki ayrı kayıttır. Bu ayrım kuralın özüdür.
 
 ### K3 — MAF nesneleri sızdırılır, sarmalanmaz
 `AIAgent`, `AgentSession`, `ChatMessage`, `AIFunction` doğrudan kullanılır. Tracon bunların üzerine kendi paralel tip hiyerarşisini koymaz.

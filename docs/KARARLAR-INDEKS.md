@@ -2,18 +2,14 @@
 
 > **Üretilen, elle düzenlenmez.** Kaynak: `KARARLAR.md` · üretim: `scripts/dokuman-bakim.py`
 
-Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 771 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
+Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 775 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
 
 ---
 
-## En Yeni Kalıcı Kararlar (88 / 859 kalem)
+## En Yeni Kalıcı Kararlar (88 / 863 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
-| K-772 | 823 | `ProductionProfileResult` bir `record` DEĞİLDİR ve üç fabrikayla kurulur |
-| K-773 | 824 | Profil kümesi bir SÜRÜM SÖZLEŞMESİDİR; kümeye anahtar eklemek DAVRANIŞSAL KIRICI değişikliktir 👤 |
-| K-774 | 825 | Kapasite ölçümü bir KAPI DEĞİLDİR; hiçbir profili standart kapanışa, PR yoluna veya release hattına girmez ve CI'da yalnız `smoke` koşar |
-| K-775 | 826 | Yayımlanan kapasite sayısı sürüm ve commit taşır; ölçüm yenilenmeden sürüm satırı güncellenmez 👤 |
 | K-776 | 827 | Denetim izinin garanti AYRIMI yayımlanmış bir sözleşmedir: ALTI işlem fail-closed'dır, kalan her audit yazımı best-effort'tur; kümeye ekleme veya çıkarma yayımlanmış bir güvenlik garantisini değiştirir |
 | K-777 | 828 | SBOM üretimi ve NuGet paket imzalama preview hattında YAPILMAZ; GA turuna ertelenir 👤 |
 | K-778 | 829 | İş kuyruğu MAF'ın durability uzantısının YERİNE GEÇMEZ; sevk ve zamanlama Tracon'un, workflow içi dayanıklılık MAF'ındır 👤 |
@@ -98,3 +94,7 @@ Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLA
 | K-857 | 908 | `QuotaUsageQuery.PeriodStarts` store'un uyguladığı dönem süzgecidir; verilmezse tüm geçmiş döner; `AsOf` `[Obsolete]` olur (kusur-giderme, F-275, 2026-09-24) 👤 |
 | K-858 | 909 | Her Tracon→Tracon nuspec bağımlılığı tam aralıktır (`[x]`) ve paketin kendi sürümüne eşittir; yalnız IVT kenarları değil, 22 kardeş kenarının hepsi (Faz 185, F-265) (kullanıcı kararı) 👤 |
 | K-859 | 910 | Yüklü Tracon aile derlemeleri farklı sürümdeyse host başlamaz; kontrolün opt-out'u yoktur; preview hattında silinen üyeye ikili uyum shim'i yazılmaz (Faz 185, F-265) (kullanıcı kararı) 👤 |
+| K-860 | 911 | Script grant'ı içeriği pinler: stored ve kodda tanımlı script yalnız içeriğinin hash'ini taşıyan grant'la çalışır; hash'siz eski grant onları yetkilendirmez; diskteki script pinlenmez (Faz 186, F-269) (kullanıcı kararı) 👤 |
+| K-861 | 912 | Çok kiracılı host'ta stored script grant'ı platform yetkisi ister (`PlatformAdmin` kapsamlı anahtar, statik token veya `Tracon.PlatformAdmin` policy'si); tek kiracılı host'ta ve kodda tanımlı skill'de gerekmez (Faz 186) (kullanıcı kararı) 👤 |
+| K-862 | 913 | B7'nin adı "Script execution gates"tir ("Script sandboxing" değil); R8 kabul edilen risktir (script sunucunun OS kimliğiyle çalışır); `SECURITY.md` ve site politikasının kapsamı "Script execution gates (grant, content pin, interpreter allowlist, audit)" der (Faz 186) (kullanıcı kararı) 👤 |
+| K-863 | 914 | Kodda kayıtlı bir skill adı yönetim API'sinden yazılamaz: `PUT /api/skills/{name}` `409`; `DELETE` yalnız gölgelenen kayıtlı kopyayı siler, kopya yoksa `409`; konsol kod skill'ini salt okunur açar (Faz 186, denetim 🔴1) (kullanıcı kararı) 👤 |

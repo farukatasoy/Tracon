@@ -57,6 +57,26 @@ public sealed class AuditingSkillScriptGrantStoreTests
         audit.Entries.ShouldAllBe(entry => entry.Entity == "notes/build");
     }
 
+    /// <summary>
+    /// A request cancelled between the two writes keeps the safe half of the order:
+    /// the audit row records an attempt and no permission exists. The reverse - a
+    /// persisted grant with no record - cannot come out of a cancelled request.
+    /// </summary>
+    [Fact]
+    public async Task A_grant_cancelled_after_its_audit_entry_leaves_no_permission()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var inner = new RecordingGrantStore();
+        var audit = new CancellingAuditLog(cancellation);
+        var store = Create(inner, audit);
+
+        await Should.ThrowAsync<OperationCanceledException>(async () =>
+            await store.GrantAsync(Grant(), cancellation.Token));
+
+        audit.Entries.Select(entry => entry.Action).ShouldBe(["script.grant"]);
+        inner.Grants.ShouldBeEmpty();
+    }
+
     private static AuditingSkillScriptGrantStore Create(ISkillScriptGrantStore inner, IAuditLog auditLog)
         => new(
             inner,
@@ -98,6 +118,7 @@ public sealed class AuditingSkillScriptGrantStoreTests
             SkillScriptGrant grant,
             CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             Grants.Add(grant);
 
             return new ValueTask<SkillScriptGrant>(grant);
@@ -127,6 +148,24 @@ public sealed class AuditingSkillScriptGrantStoreTests
 
         public ValueTask<IReadOnlyList<AuditEntry>> QueryAsync(AuditQuery query, CancellationToken cancellationToken = default)
             => new(Array.Empty<AuditEntry>());
+
+        public ValueTask<AuditChainVerification> VerifyChainAsync(AuditChainQuery query, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException("not exercised by these tests");
+    }
+
+    /// <summary>Records the entry, then cancels the request that wrote it.</summary>
+    private sealed class CancellingAuditLog(CancellationTokenSource cancellation) : IAuditLog
+    {
+        public List<AuditEntry> Entries { get; } = [];
+
+        public async ValueTask WriteAsync(AuditEntry entry, CancellationToken cancellationToken = default)
+        {
+            Entries.Add(entry);
+            await cancellation.CancelAsync();
+        }
+
+        public ValueTask<IReadOnlyList<AuditEntry>> QueryAsync(AuditQuery query, CancellationToken cancellationToken = default)
+            => new(Entries);
 
         public ValueTask<AuditChainVerification> VerifyChainAsync(AuditChainQuery query, CancellationToken cancellationToken = default)
             => throw new NotSupportedException("not exercised by these tests");

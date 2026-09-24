@@ -144,6 +144,9 @@ const securityPolicyFacts = [
   ['reporting address', /hfarukatasoy@gmail\.com/],
   ['acknowledgement window', /\b72\s+hours\b/],
   ['assessment window', /\bseven\s+days\b/],
+  // The script boundary is named for what it enforces. Its old name, "sandboxing",
+  // promised an isolation Tracon does not provide, and a reporter reads scope first.
+  ['script execution gates scope', /Script execution gates/i],
 ];
 const rootSecurity = readFileSync(join(repositoryRoot, 'SECURITY.md'), 'utf8');
 const sitePolicy = readFileSync(join(docsRoot, 'reference/security-policy.md'), 'utf8');
@@ -196,6 +199,19 @@ if (!authGuideBoundaries) {
       errors.push(`reference/threat-model.md lists a "${boundary}" boundary that getting-started/security.md no longer does`);
     }
   }
+}
+
+// The accepted risks name the gap scripts leave open: a granted script runs with the
+// server's own operating-system identity. Without that entry the boundary table reads
+// as if the script gates were isolation.
+const acceptedRisks = /\n## Accepted risks\n([\s\S]*?)(?=\n## |$)/.exec(threatModel)?.[1];
+
+if (acceptedRisks === undefined) {
+  errors.push('reference/threat-model.md: "Accepted risks" section not found');
+} else if (!/operating-system identity/i.test(acceptedRisks)) {
+  errors.push(
+    'reference/threat-model.md: "Accepted risks" no longer names the operating-system identity a granted script runs with',
+  );
 }
 
 for (const page of requiredManualPages) {
@@ -1493,6 +1509,28 @@ for (const file of allContent) {
     errors.push(
       `${label}: "${article[0]}" — the product name takes "a", not "an". ` +
         `Context: "${flattened.slice(Math.max(0, article.index - 40), article.index + 40).trim()}".`,
+    );
+  }
+}
+
+// Tracon does not isolate a script process, so a page that says it does promises
+// what the threat model lists as an accepted risk. These are the phrasings the old
+// boundary name left behind. Every page is scanned - the API reference's text comes
+// from XML documentation, and the changelog page from CHANGELOG.md - and so is
+// SECURITY.md, which GitHub shows on its own.
+const sandboxPromise =
+  /script sandboxing|escaping its sandbox|inside its sandbox|isolated operating-system process/i;
+
+for (const [label, text] of [
+  ...allContent.map((file) => [relative(docsRoot, file), readFileSync(file, 'utf8')]),
+  ['SECURITY.md', rootSecurity],
+]) {
+  const promise = sandboxPromise.exec(text);
+
+  if (promise) {
+    errors.push(
+      `${label}: "${promise[0]}" promises a script sandbox Tracon does not provide; ` +
+        'the boundary is "Script execution gates"',
     );
   }
 }

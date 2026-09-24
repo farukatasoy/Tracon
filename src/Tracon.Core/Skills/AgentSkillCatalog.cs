@@ -100,6 +100,47 @@ public sealed class AgentSkillCatalog
         return skills;
     }
 
+    /// <summary>Determines whether a skill with this name is registered in code.</summary>
+    /// <remarks>
+    /// A code skill wins over a stored one with the same name, so a stored skill
+    /// under such a name never runs. The save endpoint refuses to write one.
+    /// </remarks>
+    /// <param name="name">The skill name, compared exactly.</param>
+    /// <returns><see langword="true"/> when <c>AddSkill</c> registered the name.</returns>
+    internal bool IsDefinedInCode(string name) => _codeSkills.ContainsKey(name);
+
+    /// <summary>
+    /// Finds a skill the way the runtime resolves it - code first, then the store -
+    /// and reports where it came from in <see cref="AgentSkillDefinition.Origin"/>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A disabled skill is returned too, unlike <see cref="GetEnabledAsync"/>. The
+    /// script grant endpoint relies on that: filtering here would make a disabled
+    /// stored skill look absent, and a grant for it would be written with no content
+    /// pin and no platform check, and would then refuse every script once the skill
+    /// is enabled again.
+    /// </para>
+    /// <para>
+    /// The origin is set by where the definition was found, never taken from what a
+    /// store returned: a custom store cannot make a stored skill read as code.
+    /// </para>
+    /// </remarks>
+    /// <param name="name">The skill name.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The resolved definition; <see langword="null"/> when neither source has the name.</returns>
+    internal async ValueTask<AgentSkillDefinition?> FindWithOriginAsync(string name, CancellationToken cancellationToken)
+    {
+        if (_codeSkills.TryGetValue(name, out var code))
+        {
+            return code;
+        }
+
+        var stored = await _store.GetAsync(TenantId, name, cancellationToken).ConfigureAwait(false);
+
+        return stored is null ? null : stored with { Origin = AgentDefinitionOrigin.Database };
+    }
+
     private ValueTask<AgentSkillDefinition?> FindAsync(string name, CancellationToken cancellationToken)
         => _codeSkills.TryGetValue(name, out var skill)
             ? ValueTask.FromResult<AgentSkillDefinition?>(skill)

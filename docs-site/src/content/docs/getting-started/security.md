@@ -330,7 +330,7 @@ policy](/reference/security-policy/) for what is in and out of scope.
 | Tool authorization | A tool call the caller is not entitled to make | [Tool authorization](/concepts/governance/#tool-authorization) |
 | Tool approval | An unapproved tool call, until a human decides | [Approvals](/concepts/governance/#approvals) |
 | Tool definition | A tool written from the console — tools exist only in code | [Tools](/concepts/tools/) |
-| Script sandboxing | A skill script escaping its sandbox, when scripts are on at all | [Production defaults](/guides/production/#production-sensitive-defaults) |
+| Script execution gates | A skill script starting without a grant or with an interpreter off the allowlist, or a stored or code-defined one starting after its content changed since the grant | [Skill scripts](/concepts/tools/#skill-scripts--the-strict-exception) |
 | Outbound egress | A request to a private network target or a disallowed host | [Outbound requests](#outbound-requests-are-guarded-too) |
 | Content guards | Input or output a configured guard rejects | [Content guards](/concepts/governance/#content-guards) |
 | Secret handling | A secret value reaching storage, a log, or a response | [What is stored in the clear](#what-is-stored-in-the-clear) |

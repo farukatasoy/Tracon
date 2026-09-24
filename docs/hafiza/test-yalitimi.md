@@ -88,10 +88,16 @@ daha once gorup gormedigini oradan arar, bastan sona okumazsin:
   Sınıf taraması aynı kurgudan üç tane daha buldu — `McpDiscoverySingletonTests` (birebir aynı: 1 sn kira + 500 ms pencere + XOR),
   `CanaryEvaluationServiceTests`, `RunReconciliationTests` — dördü de 5 dk'lık kiraya geçti. Bir XOR iddiası kurulurken sorulacak soru:
   **bu iddiayı yanlışlayabilecek bir zamanlayıcı var mı, ve testin süresi ona ulaşabilir mi?**
-- **Kaynak nedenselliğini ölçme yolu değişmedi.** Bir tam koşum kırılması faz
-  değişikliğinden şüphe ettiriyorsa `git stash push -u` → tabanı derle → tam
-  koşum → `git stash pop` uygula. Worktree kullanma; extension sample'ları yerel
-  NuGet feed'ini ister ve `artifacts/package/release` worktree'de yoktur.
+- **Kaynak nedenselliğini ölçme yolu: worktree; stash yalnız son çare**
+  (düzeltildi 2026-09-24, Faz 186 denetimi — [`kurtarma.md`](../../.agents/ortak/kurtarma.md)
+  § `git stash`). Bir tam koşum kırılması faz değişikliğinden şüphe ettiriyorsa
+  tabanı `git worktree add <depo dışı dizin> <taban>` ile ayrı ağaçta derle ve
+  koş. 🚨 Worktree'de `artifacts/package/release` yoktur ve extension sample'ları
+  o yerel feed'i ister; feed'i worktree içinde üretmenin yolu ölçülmedi — ilk
+  kullanımda ölç ve buraya yaz. Stash kaçınılmazsa: `git stash push -u`
+  çıktısında `Saved working directory` görülmeden `git stash pop` koşulmaz
+  (Faz 178: boş bir `push`'tan sonraki `pop` ilgisiz ilk kaydı açtı, 21 yabancı
+  dosya).
 
 ## 🚨 Sabit `Task.Delay` ile arka plan tikini BEKLEMEK, makine hakkinda bir iddiadir (Faz 173)
 

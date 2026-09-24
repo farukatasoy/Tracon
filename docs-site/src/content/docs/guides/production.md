@@ -757,7 +757,19 @@ Native AOT compatible.
 
 Tracon does not provide an operating-system sandbox for skill scripts. If you
 enable them, run the service as an unprivileged identity in an isolated container,
-restrict its filesystem and network, and treat every script as deployed code.
+restrict its filesystem and network, and treat every script as deployed code: a
+script runs with that identity and can read what it can read.
+
+With `AllowStoredScripts` on, anyone who can write skills (`AgentsAdmin`) can store a
+script through the API. It runs only under a grant pinned to its content, so a
+security administrator reviews each version before it runs. In a multi-tenant host
+the grant also needs platform authority. To grant for tenant B, use a key bound to
+tenant B with `SecurityAdmin`, `AgentsRead` and `PlatformAdmin`, the static token with
+the tenant header, or a user the `Tracon.PlatformAdmin` policy admits. A
+`PlatformAdmin` key carries this authority too, so give one only to operators. A grant
+without a script name pins the whole script set: any change to any script needs a new
+grant. Keep every `SkillRoots` directory read-only for the service identity, because
+a script on disk is not pinned.
 
 Capacity planning must include model concurrency, SQL event volume, job polling,
 message-delta recording, trace cardinality, attachment storage, and provider rate
