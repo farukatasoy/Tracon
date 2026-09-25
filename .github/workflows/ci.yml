@@ -52,6 +52,14 @@ jobs:
   build:
     name: Derle ve test et (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    # CI yalniz kanonik repo'da kosar. Kod ayni dal ve etiketlerle ikinci bir
+    # uzaga da itilir (`intelera` -> StudyZoneInt/Tracon); orada hicbir is
+    # kosmaz. Kosul YALNIZ burada durur: diger her is `needs` ile `build`'e
+    # (dogrudan veya zincirle) baglidir ve atlanan bir bagimlilik onlari da
+    # atlar. `release-dryrun` zaten `if:` tasiyamaz (K-604). `needs: build`
+    # tasimayan yeni bir is eklenirse ayni kosulu kendisi tasir. Izin
+    # listesidir: fork'lar da kosmaz. Repo tasinirsa bu satir guncellenir.
+    if: github.repository == 'farukatasoy/Tracon'
     # Olculen en uzun: 49,1 dk (windows, 2026-09-09); ubuntu 37,9 dk.
     timeout-minutes: 100
     strategy:
