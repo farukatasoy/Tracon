@@ -1,0 +1,14 @@
+---
+// The tamper switch and the verify answer. The checkbox restyles the board
+// through :has(), so it works without the script; the landing script only
+// mirrors the answer into the live region for screen readers.
+import { chain, verify } from './flight';
+
+const valid = `{"status":"${verify.status}",\n "entriesChecked":${verify.entriesChecked},\n "firstFailingEntryId":null}`;
+const broken = `{"status":"Broken",\n "entriesChecked":${verify.entriesChecked},\n "firstFailingEntryId":\n  "${verify.failingId}"}`;
+const count = ['zero', 'one', 'two', 'three', 'four', 'five'][chain.length] ?? String(chain.length);
+---
+<p class="lx-tamper"><input type="checkbox" id="lx-tamper" /><label for="lx-tamper">Edit entry {chain.length} in the database: <span>set "approved" to true</span></label></p>
+<pre class="lx-verify" data-pagefind-ignore><b>GET /tracon/api/audit/verify</b>
+<span class="lx-v-valid">{valid}</span><span class="lx-v-broken">{broken}</span></pre>
+<p class="sr-only" id="lx-verify-say" aria-live="polite" data-valid={`Verify answers ${verify.status}: ${count} entries checked.`} data-broken={`Verify answers Broken: the first failing entry is entry ${chain.length}, the approval decision.`}> </p>

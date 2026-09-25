@@ -1,0 +1,44 @@
+---
+// The hero figure: one sample run, held for clearance.
+//
+// The scope behind the tape is the brand mark drawn as an instrument: the two
+// open range rings, the sweep to the contact, and a bearing ring. The contact
+// carries an ATC data block and a holding pattern, because the run it stands
+// for is holding. On load the sweep turns once, acquires the contact, and
+// stops on the mark's own resting angle; nothing moves after that.
+import { sample, short, tape } from './flight';
+
+const runLabel = short(sample.runId);
+---
+<figure class="lx-held" data-pagefind-ignore>
+  <div class="lx-scope" aria-hidden="true">
+    <svg viewBox="0 0 400 400" focusable="false">
+      <circle class="lx-scope-ring" cx="200" cy="200" r="190" />
+      <circle class="lx-scope-ticks" cx="200" cy="200" r="186" pathLength="360" />
+      <circle class="lx-scope-ticks lx-scope-ticks--major" cx="200" cy="200" r="183" pathLength="360" />
+      <path class="lx-scope-range" d="M320 200A120 120 0 1 1 200 80" />
+      <path class="lx-scope-range" d="M266 200A66 66 0 1 1 200 134" />
+      <circle class="lx-scope-hub" cx="200" cy="200" r="4" />
+      <path class="lx-scope-leader" d="M298 86 276 64H262" />
+      <text class="lx-db lx-db-1" x="258" y="36" text-anchor="end">{sample.agent.toUpperCase()}</text>
+      <text class="lx-db lx-db-2" x="258" y="51" text-anchor="end">{sample.tenant} {sample.session}</text>
+      <text class="lx-db lx-db-3" x="258" y="66" text-anchor="end">HOLD cancel_order</text>
+      <path class="lx-scope-hold" pathLength="1" transform="translate(306 94) rotate(45)" d="M0 -10H30A10 10 0 0 1 30 10H0A10 10 0 0 1 0 -10Z" />
+      <circle class="lx-scope-blip" cx="306" cy="94" r="5.5" />
+    </svg>
+    <i class="lx-sweep"></i>
+  </div>
+  <div class="lx-panel">
+    <p class="lx-panel-head"><span>RUN {runLabel}</span><span>{sample.agent} · {sample.tenant}</span><em class="lx-sample">Sample</em></p>
+    <ol class="lx-tape" aria-label={`Events of run ${runLabel}`}>
+      {tape.map((row) => (
+        <li class:list={{ 'lx-bay': row.held }} style={`--i:${row.seq}`}>
+          <b>{row.seq}</b><code>{row.type}</code><span class="lx-t">{row.t}</span>
+          <span class="lx-d">{row.detail.split(',').map((part, index) => <Fragment>{index > 0 && <Fragment>,<wbr /></Fragment>}{part}</Fragment>)}{row.held && <em class="lx-chip">Holding</em>}</span>
+        </li>
+      ))}
+    </ol>
+    <p class="lx-panel-foot"><code>AwaitingApproval</code> · <code>cancel_order</code> has not run</p>
+  </div>
+  <figcaption>Sample run. Real event names.</figcaption>
+</figure>

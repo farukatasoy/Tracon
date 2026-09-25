@@ -1,0 +1,19 @@
+---
+// A short C# panel. Lines are joined with real newlines so copy and paste keeps
+// them; a marked line carries the call the surrounding text is about.
+import { highlight, snippets } from './flight';
+
+interface Props {
+  name: keyof typeof snippets;
+}
+
+const { file, lines, marks } = snippets[Astro.props.name];
+const html = lines
+  .map((line, index) =>
+    (marks as number[]).includes(index)
+      ? `<mark class="l">${highlight(line)}</mark>`
+      : `<span class="l">${highlight(line)}</span>`,
+  )
+  .join('\n');
+---
+<figure class="lx-code"><figcaption>{file}</figcaption><pre><code set:html={html} /></pre></figure>

@@ -1,186 +1,136 @@
 ---
 title: .NET control plane for Microsoft Agent Framework
-description: A .NET package family that adds a production-oriented control plane to Microsoft Agent Framework, with ownership boundaries, tool policy, durable execution, and recorded runs.
+description: The production-oriented control plane for Microsoft Agent Framework, with recorded runs, tenant isolation, a tamper-evident audit trail, and an embedded console.
 template: splash
 hero:
   title: The .NET control plane for Microsoft Agent Framework.
 ---
 
 import '../../styles/landing.css';
+import { clock, productionProfile, sample, verify } from '../../components/landing/flight';
+import Snippet from '../../components/landing/Snippet.astro';
+import FlightStrip from '../../components/landing/FlightStrip.astro';
+import Separation from '../../components/landing/Separation.astro';
+import Lanes from '../../components/landing/Lanes.astro';
+import Verify from '../../components/landing/Verify.astro';
+import Chain from '../../components/landing/Chain.astro';
+import LandingScript from '../../components/landing/LandingScript.astro';
 
-import { Code } from '@astrojs/starlight/components';
+<section class="lx-proof not-content" aria-labelledby="two-lines" data-tile>
+<div class="lx-proof-main">
+<h2 id="two-lines">Two lines to the tower.</h2>
+<p>Stores start in memory and the host starts without a model key. The console and API live under <code>/tracon</code>, and until you allow remote access, only local callers reach the data endpoints.</p>
+<Snippet name="twoLines" />
+</div>
+<div class="lx-proof-side">
+<p class="lx-readout"><a href="/packages/"><strong>20</strong> modular packages</a><a href="/http-api/"><strong>168</strong> generated HTTP operations</a><a href="/ui/"><strong>30</strong> embedded console screens</a></p>
+<div class="lx-maf">
+<p class="lx-strike">MAF flies the aircraft. Tracon runs the airspace.</p>
+<p><code>AIAgent</code>, <code>AgentSession</code>, <code>ChatMessage</code> and <code>AIFunction</code> pass through unwrapped. There is no parallel type hierarchy to adopt.</p>
+</div>
+</div>
+</section>
 
-<div class="comparison-note">
-  <h2>MAF ships DevUI for development. Tracon is for what comes next.</h2>
-  <p>DevUI's own documentation calls it a sample app for visualising and debugging agents during development. It states that DevUI is not intended for production use, and asks you to build your own interface for production instead. Tracon is one implementation of that production-facing layer, delivered as packages: persisted run records, an authorization policy, versioned definitions with rollback, an optional tenant boundary, and a verifiable audit trail.</p>
-  <a href="/getting-started/devui/">Compare DevUI and Tracon <span aria-hidden="true">→</span></a>
+<div class="lx-story not-content">
+<header class="lx-intro" data-tile>
+<h2 id="one-request">One request, four questions.</h2>
+<p>A customer asks the <code>support</code> agent to cancel order ORD-7. The order has shipped, and the model proposes <code>cancel_order</code> anyway. Follow that one sample request to its filed record.</p>
+</header>
+<div class="lx-flight" data-flight>
+<FlightStrip />
+<section class="lx-ch" id="separate" aria-labelledby="separate-q" data-tile data-mark="1">
+<div class="lx-ch-text">
+<p class="lx-ch-label"><span>01 / Separate</span> {clock.resolved}</p>
+<h3 id="separate-q">Who owns this request?</h3>
+<p class="lx-readback"><code>{sample.tenant}</code> · matched by the API key</p>
+<p>The request carries an API key bound to tenant acme, and the key outranks any claim or header. From here on, tenant-scoped queries keep each tenant's records logically isolated. Your host signs operators in; Tracon reads their <code>tenant_id</code> claim, and once a claim type is set, it never reads the header.</p>
+<Snippet name="tenancy" />
+<p class="lx-more"><a href="/concepts/governance/#multi-tenancy">Set the boundary <span aria-hidden="true">→</span></a></p>
+</div>
+<Separation />
+</section>
+<section class="lx-ch lx-ch--band" id="clear" aria-labelledby="clear-q" data-tile data-mark="2">
+<div class="lx-ch-text">
+<p class="lx-ch-label"><span>02 / Clear</span> {clock.held}</p>
+<h3 id="clear-q">Who may call this tool?</h3>
+<p class="lx-readback">No one yet. <code>AwaitingApproval</code></p>
+<p>The policy is set in code, not by the model. The tool requires approval, so the queued run closes <code>AwaitingApproval</code> and the call waits with its arguments, for 24 hours by default. A tool is a method: the console can select it but never write it.</p>
+<p class="lx-more"><a href="/concepts/tools/">Define the tool policy <span aria-hidden="true">→</span></a></p>
+</div>
+<div class="lx-ch-side">
+<p class="lx-strike lx-strike--big">No clearance, no takeoff.</p>
+<Snippet name="tool" />
+</div>
+<figure class="lx-capture">
+<picture class="lx-shot-light"><source media="(min-width: 56rem)" type="image/avif" srcset="/landing/approvals-wide-light-1112.avif 1112w, /landing/approvals-wide-light-2224.avif 2224w" sizes="(min-width: 72rem) 66rem, calc(100vw - 7rem)" width="1112" height="224" /><source type="image/avif" srcset="/landing/approvals-narrow-light-310.avif 310w, /landing/approvals-narrow-light-620.avif 620w" sizes="(min-width: 30rem) 22rem, calc(100vw - 4rem)" width="310" height="118" /><img src="/landing/approvals-wide-light-1112.webp" alt="The console's Approvals screen holding cancel_order for order ORD-7: Cancel order ORD-7 for Jordan Rivera, with Approve and Reject." width="1112" height="224" loading="lazy" decoding="async" /></picture>
+<picture class="lx-shot-dark"><source media="(min-width: 56rem)" type="image/avif" srcset="/landing/approvals-wide-1112.avif 1112w, /landing/approvals-wide-2224.avif 2224w" sizes="(min-width: 72rem) 66rem, calc(100vw - 7rem)" width="1112" height="224" /><source type="image/avif" srcset="/landing/approvals-narrow-310.avif 310w, /landing/approvals-narrow-620.avif 620w" sizes="(min-width: 30rem) 22rem, calc(100vw - 4rem)" width="310" height="118" /><img src="/landing/approvals-wide-1112.webp" alt="The console's Approvals screen holding cancel_order for order ORD-7: Cancel order ORD-7 for Jordan Rivera, with Approve and Reject." width="1112" height="224" loading="lazy" decoding="async" /></picture>
+<figcaption>The console's Approvals screen with the same call. Captured from a local sample with seeded data. This is sample data, not live telemetry.</figcaption>
+</figure>
+</section>
+<section class="lx-ch lx-ch--wide" id="recover" aria-labelledby="recover-q" data-tile data-mark="3">
+<div class="lx-ch-text">
+<p class="lx-ch-label"><span>03 / Recover</span> {clock.decided}</p>
+<h3 id="recover-q">What survives a restart?</h3>
+<p class="lx-readback">The hold. The decision later opens <code>R2</code>.</p>
+<Snippet name="persistence" />
+</div>
+<div class="lx-ch-side">
+<p>At {clock.restart} the host restarts; the held run and the pending call are rows in PostgreSQL. After the restart, {sample.actor} rejects the call. The audit entry is written first, and the decision applies only if that write succeeds.</p>
+<p>The decision opens R2 in session <code>{sample.session}</code>, where the model reads the refusal. R1 keeps its status: run history is append-only. A client that lost the <code>202</code> retries with the same <code>Idempotency-Key</code> and gets the stored response.</p>
+<p class="lx-more"><a href="/guides/reliability/">Plan the recovery <span aria-hidden="true">→</span></a></p>
+</div>
+<Lanes />
+</section>
+<section class="lx-ch" id="record" aria-labelledby="record-q" data-tile data-mark="4">
+<div class="lx-ch-text">
+<p class="lx-ch-label"><span>04 / Record</span> {clock.completed}</p>
+<h3 id="record-q">What happened, and who changed what?</h3>
+<p class="lx-readback"><code>{verify.status}</code> · audit trail, {verify.entriesChecked} entries checked</p>
+<p>Each run is a numbered event tape: sequence numbers start at 0, leave no gaps, and resume after <code>Last-Event-ID</code> when a stream drops. These are persisted run records. Recording is best-effort, so a store failure costs the record, not the run.</p>
+<p class="lx-more"><a href="/concepts/runs/">Read a recorded run <span aria-hidden="true">→</span></a></p>
+</div>
+<figure class="lx-capture lx-capture--side">
+<picture class="lx-shot-light"><source media="(min-width: 50rem)" type="image/avif" srcset="/landing/run-transcript-wide-light-543.avif 543w, /landing/run-transcript-wide-light-1086.avif 1086w" sizes="34rem" width="543" height="155" /><source type="image/avif" srcset="/landing/run-transcript-narrow-light-436.avif 436w, /landing/run-transcript-narrow-light-872.avif 872w" sizes="calc(100vw - 2rem)" width="436" height="155" /><img src="/landing/run-transcript-wide-light-543.webp" alt="The console's run detail for a seeded run: the reserve_stock call marked failed, with its argument orderId=ORD-9." width="543" height="155" loading="lazy" decoding="async" /></picture>
+<picture class="lx-shot-dark"><source media="(min-width: 50rem)" type="image/avif" srcset="/landing/run-transcript-wide-543.avif 543w, /landing/run-transcript-wide-1086.avif 1086w" sizes="34rem" width="543" height="155" /><source type="image/avif" srcset="/landing/run-transcript-narrow-436.avif 436w, /landing/run-transcript-narrow-872.avif 872w" sizes="calc(100vw - 2rem)" width="436" height="155" /><img src="/landing/run-transcript-wide-543.webp" alt="The console's run detail for a seeded run: the reserve_stock call marked failed, with its argument orderId=ORD-9." width="543" height="155" loading="lazy" decoding="async" /></picture>
+<figcaption>A seeded run in the console: <code>reserve_stock</code> failed, with its arguments.</figcaption>
+</figure>
+</section>
+<div class="lx-slot" aria-hidden="true"><span>Strip board · session {sample.session}</span></div>
+</div>
+<div class="lx-filed" role="group" aria-labelledby="filed-head" data-tile>
+<div class="lx-filed-text">
+<p class="lx-vig-head" id="filed-head"><span>Audit trail · tenant acme</span><em class="lx-sample">Sample</em></p>
+<p>Runs are not audit entries; the run history is the record. The audit trail records who changed what: the tenant, the key, the decision. Each entry stores its SHA-256 and the previous entry's hash.</p>
+<Verify />
+<p class="lx-limit">Verification is an API call; the console does not run it. <a href="/concepts/governance/#tamper-detection">Tamper detection <span aria-hidden="true">→</span></a></p>
+<p class="lx-soak"><a href="/guides/production/#what-one-environment-measured">Thirty minutes, one machine</a>: 12&nbsp;515 runs accepted, 12&nbsp;515 completed, no gap in any event stream, nothing under the wrong tenant. Not an SLA.</p>
+</div>
+<Chain />
+</div>
 </div>
 
-<div class="landing-intro">
-  <h2>Four questions<br />a control plane answers.</h2>
-  <p>Your agent can answer a question. Operating it asks different ones: who owns this session, who may call this tool, how work resumes after a restart, and what happened during a run. Tracon gives each one an answer in your own application.</p>
+<section class="lx-calm not-content" aria-labelledby="autonomy" data-tile>
+<h2 id="autonomy">Autonomy, under clearance.</h2>
+<p class="lx-calm-lede">The model proposed. Your code set the policy. A person decided, and the record kept each step.</p>
+<div class="lx-gate">
+<p>Most governance is off until you turn it on. Before production, make the host refuse to start while a decision is still open.</p>
+<Snippet name="profile" />
+<figure class="lx-out"><figcaption>Host output at startup</figcaption><pre class="lx-output">{productionProfile.firstLine}</pre></figure>
+<p class="lx-more"><a href="/concepts/governance/#requiring-a-production-decision">The production decisions <span aria-hidden="true">→</span></a></p>
 </div>
-
-<div class="operation-strips">
-  <section class="operation-strip">
-    <div><span class="strip-id">01 / Separate</span><h3>Ownership boundaries.</h3></div>
-    <p>One host can serve many callers and several tenants. Tenant-scoped queries keep each tenant's records logically isolated, and authentication decides which scope a request enters. Narrow it once more when a session should belong to the person who opened it.</p>
-    <a href="/getting-started/security/">Set the boundary →</a>
-  </section>
-  <section class="operation-strip">
-    <div><span class="strip-id">02 / Clear</span><h3>Tool policy.</h3></div>
-    <p>A model proposing a tool call does not set its policy. Define tools in code, apply authorization, and require approval for the calls you choose to review.</p>
-    <a href="/concepts/tools/">Define the tool policy →</a>
-  </section>
-  <section class="operation-strip">
-    <div><span class="strip-id">03 / Recover</span><h3>Durable execution.</h3></div>
-    <p>Work does not have to disappear with the process. Queue a run for a worker, checkpoint a workflow, resume after a human decision, and reconcile the runs a crash left behind. Each boundary carries its own control rather than one retry switch.</p>
-    <a href="/guides/reliability/">Plan the recovery →</a>
-  </section>
-  <section class="operation-strip">
-    <div><span class="strip-id">04 / Record</span><h3>Inspectable runs.</h3></div>
-    <p>Inspect run events, tool calls, timing, and configured cost data. Catalog agents record by default. Recording is best-effort: a store failure is logged while the agent continues.</p>
-    <a href="/concepts/runs/">Read a recorded run →</a>
-  </section>
+<div class="lx-calm-side">
+<p>Your host owns the boundary: authentication, model providers, storage and outbound connections. The public API is not frozen, and <code>Tracon.AspNetCore</code> uses preview MAF hosting packages. <a href="/getting-started/">Architecture and limits</a> · <a href="/reference/compatibility/">Compatibility</a> · <a href="/reference/versioning/">Versioning</a> · <a href="/reference/licensing/">Licensing</a></p>
+<p class="lx-devui">Coming from DevUI? Microsoft advises you to "build your own custom interface" for production. Tracon is one implementation of that production-facing layer. <a href="/getting-started/devui/">Compare DevUI and Tracon <span aria-hidden="true">→</span></a></p>
 </div>
-
-<div class="start-steps">
-  <p class="start-lead">Start with one package. Add the rest when you need it.</p>
-  <ol>
-    <li><span class="strip-id">01 / Start</span><p>One package, no database. <code>Tracon.UI</code> brings the runtime and the HTTP surface with it, and every store begins in memory.</p></li>
-    <li><span class="strip-id">02 / Persist</span><p>Add a database when the records must outlive the process: PostgreSQL, SQL Server, or SQLite, one call each.</p></li>
-    <li><span class="strip-id">03 / Extend</span><p>The rest waits. Voice, MCP, A2A, evaluation, and background workers are separate packages you add when the need arrives.</p></li>
-  </ol>
-</div>
-
-<p class="inventory-line"><a href="/packages/"><strong>20</strong> modular packages</a> · <a href="/http-api/"><strong>168</strong> generated HTTP operations</a> · <a href="/ui/"><strong>30</strong> embedded console screens</a></p>
-
-<p class="inventory-note">The integration surfaces a host needs — MCP, A2A, voice, retrieval, scheduling, evaluation — sit under the same control plane, not beside it. <a href="/capabilities/">See the capability map</a>.</p>
-
-## No abstraction over MAF.
-
-Keep MAF's `AIAgent`, `AgentSession`, `ChatMessage`, and `AIFunction`. Tracon adds
-catalogs, policies, persistence, inspection, and HTTP access around those objects.
-There is no parallel agent type hierarchy to adopt. The
-[architecture page](/concepts/) draws the layers and the dependency direction.
-
-## Registration is C#. A tool is a method.
-
-Mark a method and a source generator registers it at build time. There is no
-reflection, no tool manifest, and no AOT warning. The console selects from the tools
-you compiled; it can never write tool code.
-
-<Code lang="csharp" title="Tools/OrderTools.cs" code={`using Tracon;
-
-internal class OrderTools
-{
-    [TraconTool("get_order_status", "Returns the shipping status of an order.")]
-    public static string GetOrderStatus(string orderId)
-        => $"Order {orderId} has shipped. Estimated delivery: 2 days.";
-}`} />
-
-<Code lang="csharp" title="Program.cs" code={`using Tracon;
-
-var builder = WebApplication.CreateBuilder(args);
-
-var tracon = builder.AddTracon()
-    .AddGeneratedTools()
-    .UsePostgreSql(builder.Configuration.GetConnectionString("Tracon")!)
-    .UseOpenAI(builder.Configuration["OpenAI:ApiKey"]!);
-
-tracon.AddAgent(new AgentDefinition
-{
-    Name = "support",
-    Instructions = "Answer order questions. Use a tool for anything about an order.",
-    Model = new ModelBinding
-    {
-        Provider = OpenAIProviderNames.ChatCompletions,
-        Model = builder.Configuration["OpenAI:Model"]!,
-    },
-    ToolNames = ["get_order_status"],
-});
-
-var app = builder.Build();
-app.MapTracon("/tracon");
-app.Run();`} />
-
-An agent is data, so changing one is a write rather than a deployment. Every save
-appends a version, a rollback writes the old content forward as a new version, and
-the rollback is itself audited. See [versions and rollback](/concepts/agents/#versions).
-
-Storage starts in memory and the host still starts without a provider key, so each
-call above is a choice rather than a requirement. The packages are published as
-`1.0.0-preview.3`, so install them with `--prerelease`: there is no stable version
-yet, and a command without the flag ends in `NU1103`.
-
-## The console ships in the assembly.
-
-The control plane above runs without a user interface. Add `Tracon.UI` and one more
-call — `UseUI()` on the same builder — to embed the console in your host. It reads
-the same management API that your own clients can call. The consuming application
-does not need Node.js or a JavaScript build to serve it.
-
-## A tool call failed. Now what?
-
-Which tenant was affected, which arguments were sent, and where did it break? These
-four screens are that answer, in the order you would open them.
-
-<div class="product-tour">
-  <figure class="tour-step console-shot">
-    <figcaption><span class="strip-id">01 / Run</span><strong>Try the agent.</strong> The playground runs a catalog agent against a real model and streams the turn back.</figcaption>
-    <a class="shot-light" href="/screenshots/playground-light.png">
-      <img src="/screenshots/playground-light.png" alt="The Tracon console playground, where an agent is run interactively" width="2880" height="1800" loading="lazy" decoding="async" />
-    </a>
-    <a class="shot-dark" href="/screenshots/playground.png">
-      <img src="/screenshots/playground.png" alt="The Tracon console playground, where an agent is run interactively" width="2880" height="1800" loading="lazy" decoding="async" />
-    </a>
-  </figure>
-  <figure class="tour-step console-shot">
-    <figcaption><span class="strip-id">02 / Approve</span><strong>Release the tool call.</strong> A tool marked for review waits here with the arguments the model proposed.</figcaption>
-    <a class="shot-light" href="/screenshots/approvals-light.png">
-      <img src="/screenshots/approvals-light.png" alt="The Tracon console approvals screen listing a tool call waiting for review" width="2880" height="1800" loading="lazy" decoding="async" />
-    </a>
-    <a class="shot-dark" href="/screenshots/approvals.png">
-      <img src="/screenshots/approvals.png" alt="The Tracon console approvals screen listing a tool call waiting for review" width="2880" height="1800" loading="lazy" decoding="async" />
-    </a>
-  </figure>
-  <figure class="tour-step console-shot">
-    <figcaption><span class="strip-id">03 / Locate</span><strong>Find the run.</strong> Every run is recorded by default, with status, duration, tokens, and cost.</figcaption>
-    <a class="shot-light" href="/screenshots/runs-light.png">
-      <img src="/screenshots/runs-light.png" alt="The Tracon console listing recorded runs with status, duration, tokens, and cost" width="2880" height="1800" loading="lazy" decoding="async" />
-    </a>
-    <a class="shot-dark" href="/screenshots/runs.png">
-      <img src="/screenshots/runs.png" alt="The Tracon console listing recorded runs with status, duration, tokens, and cost" width="2880" height="1800" loading="lazy" decoding="async" />
-    </a>
-  </figure>
-  <figure class="tour-step console-shot">
-    <figcaption><span class="strip-id">04 / Read</span><strong>Read the cause.</strong> The event stream, the failed call, and the arguments it was sent. The record names the exception type rather than repeating a third-party message.</figcaption>
-    <a class="shot-light" href="/screenshots/run-detail-light.png">
-      <img src="/screenshots/run-detail-light.png" alt="The Tracon console run detail screen showing a failed tool call and its arguments" width="2880" height="1800" loading="lazy" decoding="async" />
-    </a>
-    <a class="shot-dark" href="/screenshots/run-detail.png">
-      <img src="/screenshots/run-detail.png" alt="The Tracon console run detail screen showing a failed tool call and its arguments" width="2880" height="1800" loading="lazy" decoding="async" />
-    </a>
-  </figure>
-</div>
-
-Captured from a local sample with seeded data. This is sample data, not live
-telemetry.
+</section>
 
 ## Choose your path
 
-<ul class="route-list">
-  <li><a href="/getting-started/first-agent/"><strong>Build</strong><span>Install the template, run an agent, and inspect the result.</span><span aria-hidden="true">↗</span></a></li>
-  <li><a href="/guides/openai-api/"><strong>Integrate</strong><span>Connect an OpenAI-compatible client to an existing agent.</span><span aria-hidden="true">↗</span></a></li>
-  <li><a href="/guides/production/"><strong>Operate</strong><span>Plan persistence, authorization, workers, telemetry, and recovery.</span><span aria-hidden="true">↗</span></a></li>
-  <li><a href="/capabilities/"><strong>Assess</strong><span>Review capabilities, package choices, defaults, and operating limits.</span><span aria-hidden="true">↗</span></a></li>
+<ul class="lx-routes not-content">
+<li><a href="/getting-started/first-agent/"><strong>Build</strong><span>Install the template, run an agent, and inspect the result.</span><span aria-hidden="true">→</span></a></li>
+<li><a href="/guides/openai-api/"><strong>Integrate</strong><span>Connect an OpenAI-compatible client to an existing agent.</span><span aria-hidden="true">→</span></a></li>
+<li><a href="/guides/production/"><strong>Operate</strong><span>Plan persistence, authorization, workers, telemetry, and recovery.</span><span aria-hidden="true">→</span></a></li>
+<li><a href="/capabilities/"><strong>Assess</strong><span>Review capabilities, package choices, defaults, and operating limits.</span><span aria-hidden="true">→</span></a></li>
 </ul>
 
-<div class="boundary-note">
-  <p><strong>Your host owns the boundary.</strong> Tracon is a .NET package family embedded in your application. You configure authentication, model providers, storage, and outbound connections. Tools are defined in code; the console cannot write tool code. <a href="/getting-started/">Read the architecture and limits</a> before choosing an integration.</p>
-</div>
-
-The packages are available as `1.0.0-preview.3`. The ASP.NET Core integration uses
-preview MAF hosting dependencies. Review [compatibility](/reference/compatibility/),
-[versioning](/reference/versioning/), and [licensing](/reference/licensing/)
-as part of your evaluation.
+<LandingScript />

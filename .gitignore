@@ -114,6 +114,7 @@ docs-site/src/content/docs/http-api/
 docs-site/src/content/docs/reference/changelog.md
 docs-site/src/generated/
 docs-site/public/openapi/
+docs-site/public/landing/
 docfx/api-md/
 docfx/_site/
 

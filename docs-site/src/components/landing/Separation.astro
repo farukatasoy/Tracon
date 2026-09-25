@@ -1,0 +1,30 @@
+---
+// Chapter 01 vignette: the tenant resolution order, first match wins, and the
+// request that matched. Decorative; the chapter prose carries the same facts.
+import { sample } from './flight';
+
+const body = `{"message":"${sample.message}",\n "sessionId":"${sample.session}"}`;
+---
+<figure class="lx-vig lx-sep" aria-hidden="true" data-pagefind-ignore>
+  <p class="lx-vig-head"><span>Tenant resolution · first match wins</span><em class="lx-sample">Sample</em></p>
+  <div class="lx-sieve-wrap">
+    <ol class="lx-sieve">
+      <li><span>Background job scope</span><b>none</b></li>
+      <li class="lx-match"><span>API key</span><b>{sample.tenant}</b></li>
+      <li><span>Claim or header</span><b>not read</b></li>
+      <li><span>Default tenant</span><b>not read</b></li>
+    </ol>
+    <i class="lx-probe"></i>
+  </div>
+  <div class="lx-req">
+    <p class="lx-vig-head"><span>Request</span></p>
+    <pre class="lx-exchange"><b>POST /tracon/api/agents/{sample.agent}/run</b>
+Authorization: Bearer {sample.keyPrefix}…
+Prefer: respond-async
+Idempotency-Key: {sample.idempotencyKey}
+{body}
+
+<b class="lx-ok">202 Accepted</b>
+Location: /tracon/api/runs/{sample.runId}</pre>
+  </div>
+</figure>

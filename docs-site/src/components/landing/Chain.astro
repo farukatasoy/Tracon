@@ -1,0 +1,29 @@
+---
+// The audit chain of tenant acme. Each card shows the previous hash, the act,
+// and its own hash; the first eight characters are in the accent so the eye can
+// match each link. The last card also carries the forged value and the hash a
+// verifier would recompute, shown only while the tamper switch is on.
+import { chain, forged, short } from './flight';
+
+const last = chain.length - 1;
+const head = (hash: string) => ({ lead: hash.slice(0, 8), tail: `…${hash.slice(-4)}` });
+const entityLabel = (entity: string) => {
+  const [kind, value] = entity.split(':');
+  return value && value.length > 20 ? `${kind}:${short(value)}` : entity;
+};
+---
+<ol class="lx-chain" aria-label="Audit entries of tenant acme" data-pagefind-ignore>
+  {chain.map((entry, index) => (
+    <li class:list={{ 'lx-e-last': index === last }} style={`--i:${index}`}>
+      {index > 0 && <i class="lx-link"></i>}
+      <p class="lx-e-prev">prev {entry.previousHash ? <code><b>{head(entry.previousHash).lead}</b>{head(entry.previousHash).tail}</code> : <code>null</code>}</p>
+      <p class="lx-e-act"><b>#{index + 1}</b> <code>{entry.action}</code> <span>{entityLabel(entry.entity)}</span></p>
+      {index === last && (
+        <p class="lx-e-after">after <code><span class="lx-v-valid">{'{"approved":false,…}'}</span><span class="lx-v-broken">{'{"approved":true,…}'}</span></code></p>
+      )}
+      <p class="lx-e-hash">hash <code><b>{head(entry.hash).lead}</b>{head(entry.hash).tail}</code>{index === last && (
+        <span class="lx-v-broken"> ≠ recomputed <code><b>{head(forged.hash).lead}</b>{head(forged.hash).tail}</code></span>
+      )}</p>
+    </li>
+  ))}
+</ol>

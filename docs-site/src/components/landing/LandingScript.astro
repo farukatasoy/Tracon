@@ -1,0 +1,103 @@
+---
+// The landing controller. It holds discrete state only: which chapter the
+// reader is in, whether the strip has landed, the copy button, and the verify
+// announcement. There is no scroll listener, no requestAnimationFrame and no
+// Web Animations call, so it starts no motion of its own; CSS reacts to the
+// attributes it writes, and the global reduced-motion rule reaches all of it.
+// It writes attributes and Text-node data only, never child nodes, because the
+// content wrapper observes child-list changes under <main>.
+---
+<script>
+  const flight = document.querySelector<HTMLElement>('[data-flight]');
+  const strip = flight?.querySelector<HTMLElement>('.lx-strip');
+  const slot = flight?.querySelector<HTMLElement>('.lx-slot');
+
+  if (flight && strip && slot) {
+    const marks = [...flight.querySelectorAll<HTMLElement>('[data-mark]')];
+    let live = false;
+
+    // State comes from ORDINAL position, never from per-entry enter/leave
+    // bookkeeping, so a jump (End, Home, an anchor, a fling) is always right.
+    const update = () => {
+      const line = innerHeight * 0.45;
+      let passed = 0;
+      for (const mark of marks) if (mark.getBoundingClientRect().top < line) passed++;
+      const pinned = getComputedStyle(strip).position === 'sticky';
+      const filed = pinned
+        ? slot.getBoundingClientRect().top - strip.getBoundingClientRect().top < 1
+        : passed === marks.length;
+      flight.dataset.at = String(passed);
+      flight.dataset.passed = marks
+        .slice(0, passed)
+        .map((mark) => mark.dataset.mark)
+        .join(' ');
+      flight.toggleAttribute('data-filed', filed);
+
+      // The first state is committed without transitions (see landing.css):
+      // flush it, then let later changes animate.
+      if (!live) {
+        void strip.offsetWidth;
+        flight.toggleAttribute('data-live', true);
+        live = true;
+      }
+    };
+
+    // The tiles are contiguous, so any jump crosses the reading band of at
+    // least one of them and fires a callback.
+    const band = new IntersectionObserver(update, { rootMargin: '0px 0px -55% 0px' });
+    for (const tile of document.querySelectorAll('[data-tile]')) band.observe(tile);
+
+    // The landing edge. Its line sits 1 px below the strip's pinned top, so the
+    // slot's full-visibility crossing happens exactly where update() switches
+    // "filed", scrolling down and scrolling up. Pinning follows the viewport, so
+    // the line is measured again whenever the pinning query flips.
+    let landing: IntersectionObserver | undefined;
+    const watchLanding = () => {
+      landing?.disconnect();
+      const top = (parseFloat(getComputedStyle(strip).top) || 0) + 1;
+      landing = new IntersectionObserver(update, { rootMargin: `-${top}px 0px 0px 0px`, threshold: [0, 1] });
+      landing.observe(slot);
+    };
+    watchLanding();
+    update();
+    matchMedia('(width >= 64rem) and (height >= 44rem)').addEventListener('change', () => {
+      watchLanding();
+      update();
+    });
+  }
+
+  for (const button of document.querySelectorAll<HTMLButtonElement>('[data-copy]')) {
+    const source = document.getElementById(button.dataset.copy ?? '');
+    const status = button.parentElement?.querySelector('[data-copy-status]')?.firstChild as Text | null;
+    const label = button.firstChild as Text | null;
+    if (!source || !status || !label) continue;
+
+    button.hidden = false;
+    let reset = 0;
+    button.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(source.textContent?.trim() ?? '');
+        label.data = 'Copied';
+        status.data = 'Copied the install command.';
+        button.dataset.done = '';
+      } catch {
+        status.data = 'Copy failed. Select the command instead.';
+      }
+      clearTimeout(reset);
+      reset = window.setTimeout(() => {
+        label.data = 'Copy';
+        status.data = ' ';
+        delete button.dataset.done;
+      }, 2000);
+    });
+  }
+
+  const tamper = document.getElementById('lx-tamper') as HTMLInputElement | null;
+  const say = document.getElementById('lx-verify-say');
+  const sayText = say?.firstChild as Text | null;
+  if (tamper && say && sayText) {
+    tamper.addEventListener('change', () => {
+      sayText.data = (tamper.checked ? say.dataset.broken : say.dataset.valid) ?? ' ';
+    });
+  }
+</script>
