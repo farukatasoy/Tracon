@@ -1,0 +1,18 @@
+---
+// The flight progress strip. It rides under the site header through the four
+// chapters, fills one box per chapter, and comes to rest in its slot on the
+// strip board. Travel and landing are layout (position: sticky); the landing
+// script only flips attributes. Without the script, or without pinning, the
+// strip shows its finished state.
+import { chain, clock, sample, verify } from './flight';
+
+const clockFaces = ['T+00:00.000', clock.resolved, clock.held, clock.decided, clock.completed];
+---
+<div class="lx-strip" aria-hidden="true" data-pagefind-ignore>
+  <div class="lx-s-cs"><em class="lx-sample">Sample</em><b>{sample.agent}</b><span>{sample.session}</span><span class="lx-clk">{clockFaces.map((face) => <i>{face}</i>)}</span></div>
+  <div class="lx-s-box" data-k="1"><em>01 Separate</em><b>{sample.tenant}</b><span>{sample.keyPrefix}</span></div>
+  <div class="lx-s-box" data-k="2"><em>02 Clear</em><b><i class="lx-v-hold">Pending</i><i class="lx-v-deny">Rejected</i></b><span>cancel_order</span></div>
+  <div class="lx-s-box" data-k="3"><em>03 Recover</em><b>R1 → R2</b><span>same session</span></div>
+  <div class="lx-s-box" data-k="4"><em>04 Record</em><b><i class="lx-v-valid">{verify.status}</i><i class="lx-v-broken">Broken</i></b><span>audit · {chain.length} entries</span></div>
+  <p class="lx-stamp">Filed · {clock.completed}</p>
+</div>

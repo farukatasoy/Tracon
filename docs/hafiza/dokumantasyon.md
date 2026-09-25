@@ -80,6 +80,10 @@ mu" diye bir kez kontrol et.
   ile uretilir; liste `DocumentationScreenshotTests.Screens` icindedir ve her
   girdi bir **landmark** tasir — render olmayan ekran testi dusurur, spinner
   fotografi uretmez.
+- **Anasayfa kirpimlari pinlidir.** `approvals*` ve `run-detail*` yeniden
+  uretilirse `check-content` duser: yeni hash'i
+  `docs-site/scripts/landing-captures.mjs` `CAPTURE_PINS`'e yaz, kirpimi
+  (`public/landing/`) gozle dogrula — bolge kaymis olabilir.
 - **🚨 Bos ekran ogretmez.** `SeedCatalogAsync` bir skill, bir schedule,
   tetiklenmis bir job, bir trigger ve bir MCP sunucusu kurar; iki `run` tek bir
   `sessionId` paylasir. Tohumlama iki sozlesmeyi de ortaya cikardi:

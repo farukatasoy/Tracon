@@ -60,7 +60,9 @@ Sitenin omurgası. Her satırın kodda karşılığı vardır; hiçbiri uydurma 
 
 **"The strip" neden birebir:** havacılıkta *flight progress strip*, bir uçağın her
 temasının yazıldığı, oynanamayan fiziksel kayıttır — hash zincirli `audit_log`'un
-karşılığı odur. Zorlanmış benzetme değildir.
+karşılığı odur. Zorlanmış benzetme değildir. Landing'de uçuş şeridi tek bir
+isteğin run geçmişidir ve bu kaydın panosuna (audit zinciri) iner; run'lar audit
+kaydı değildir.
 
 ## 4. Metaforun sınırı
 
@@ -132,10 +134,11 @@ README ile site çelişirse **README doğrudur**.
 
 ## 8. Söylenmeyecekler
 
-🚨 **Yayın durumu.** Bugün hiçbir paket NuGet'te veya npm'de **değildir** ve
-release etiketi yoktur. Site "install from NuGet" adımını gerçekleşmiş gibi
-sunamaz. README'nin dili doğrudur ve korunur: *in development, not yet published
-— build from this repository.* Kurulum sayfaları bu uyarıyı taşır.
+🚨 **Yayın durumu.** Önizleme paketleri NuGet ve npm'dedir (`1.0.0-preview.N`),
+kararlı sürüm yoktur ve public API dondurulmamıştır. Her kurulum komutu
+`--prerelease` taşır. Site, etiket itilmeden yayınlanabilir (KG-044); bu yüzden
+landing gövdesi sürüm numarası yazmaz — sürüm yalnız footer'dadır ve deploy
+tazelik kontrolü onu okur. "Not published" dili geri gelmez.
 
 Ayrıca gizlenemeyecek sınırlar:
 
@@ -166,7 +169,8 @@ Düz konumlandırma (NuGet Description, GitHub About, meta description)
   The production-oriented control plane for Microsoft Agent Framework — recorded
   runs, tenant isolation, tamper-evident audit trail, embedded console.
 
-Dörtlü
+Dörtlü  (landing bölümleri: Separate · Clear · Recover · Record — 3. bölüm
+        yeniden başlatmada neyin kaldığını anlatır; kullanıcı kararı 2026-09-25)
   Separate. Sequence. Clear. Record.
 
 Kısa vuruşlar
@@ -215,8 +219,8 @@ Paket Description kalıbı
 >   tavsiyenin resmi cevabi Tracon'mus gibi okunuyordu.
 >
 > 🚨 **Anasayfa envanter satiri "20 modular packages" der, "20 NuGet packages"
-> DEMEZ** — ayni ekranda paketlerin henuz yayinlanmadigi yaziyor. Kapi bu
-> etiketi zorlar: `docs-site/scripts/check-content.mjs` metrik kontrolu.
+> DEMEZ** — kapi bu etiketi harfiyen arar (`docs-site/scripts/check-content.mjs`
+> metrik kontrolu); ilk gerekce (yayinlanmamis paketler) artik gecerli degil.
 > `reference/versioning.md` ve `SECURITY.md` yayin surecini anlattigi icin
 > orada "NuGet packages" dogru ifadedir.
 
@@ -242,14 +246,26 @@ Metafor **alet diliyle** çalışır, uçak resmiyle değil.
   skeuomorfik kokpit, havacılık kostümü
 - **Renk:** durum renkleri **anlam taşır** (cleared / holding / denied),
   dekorasyon değildir
-- **Hareket:** varsa ölçülü ve periyodik (süpürme gibi), dikkat çekmek için değil
+- **Hareket:** tek açılış dizisi yüklemede bir kez oynar ve ~2,4 sn'de durur
+  (skop bir tur döner, teması yakalar). Gerisi scroll'a veya landing betiğinin
+  yazdığı özniteliğe bağlıdır; döngü yoktur, sayfa dururken hiçbir şey koşmaz.
+  Yalnız `transform`/`opacity`; durağan hâl bitmiş karedir (reduced-motion,
+  scroll-driven desteği olmayan tarayıcı). Kural ve istisnalar `landing.css` başında.
+- **Örnek veri:** landing'deki her id, saat, hash ve olay adı
+  `docs-site/src/components/landing/flight.ts`'ten gelir; hash'ler build anında
+  hesaplanır. Olay adları `flight.events.json` kaydındandır ve
+  `LandingSampleFlightTests` gerçek host'ta aynı akışı koşar — ürün değişirse
+  test düşer, sayfa yalan söylemez.
+- **Diyagram kuralı:** landing'in skop, şerit, zaman çizelgesi ve zincir
+  figürleri gerçek veri taşıyan HTML/SVG illüstrasyondur, doküman diyagramı
+  değildir; Mermaid kuralının dışındadır.
 
 **Kural:** siteye bakan kişi "havacılık teması" değil, **bir operasyon ekranı**
 görmelidir.
 
 ## 12. Teslim öncesi kontrol listesi
 
-- [ ] Hiçbir sayfa paketlerin yayımlandığını ima etmiyor (§8)
+- [ ] Yayın dili §8 ile uyumlu; landing gövdesinde sürüm numarası yok
 - [ ] Metafor `reference/`, `api/`, `http-api/`, `troubleshooting/` içinde yok (§4)
 - [ ] Akronimin "trace"ten türediği hiçbir yerde iddia edilmiyor (§2)
 - [ ] Yasak kelimelerin hiçbiri geçmiyor (§6)

@@ -1,0 +1,24 @@
+---
+// Chapter 03 vignette: what survives the restart, on a time-compressed axis.
+// Positions are percentages of the track; the axis labels carry the real
+// sample times. The figure has a text equivalent in its aria-label.
+import { clock, continuedStatus, sample } from './flight';
+
+const label =
+  `Timeline of the sample. The host stops at ${clock.restart} and starts again. ` +
+  'The store keeps run R1 waiting as AwaitingApproval. ' +
+  `At ${clock.decided} the rejection is written to the audit trail, then applied, ` +
+  `then run R2 is queued in session ${sample.session}. R2 ends ${continuedStatus} at ${clock.completed}.`;
+---
+<figure class="lx-lanes" role="img" aria-label={label} data-pagefind-ignore>
+  <p class="lx-vig-head"><span>Timeline · T+ from the first request</span><em class="lx-sample">Sample</em></p>
+  <div class="lx-lanes-grid">
+    <div class="lx-lane"><span class="lx-lane-name">host</span><span class="lx-track"><i class="lx-seg lx-seg--host" style="--s:0;--e:34"></i><i class="lx-gap" style="--s:34;--e:39"><span>restart</span></i><i class="lx-seg lx-seg--host lx-seg--late" style="--s:39;--e:100"></i></span></div>
+    <div class="lx-lane"><span class="lx-lane-name">store</span><span class="lx-track"><i class="lx-seg lx-seg--store" style="--s:0;--e:100"></i><i class="lx-tag lx-tag--store" style="--s:41">PostgreSQL</i></span></div>
+    <div class="lx-lane"><span class="lx-lane-name">R1</span><span class="lx-track"><i class="lx-seg lx-seg--live" style="--s:1;--e:14"></i><i class="lx-seg lx-seg--hold" style="--s:14;--e:100"></i><i class="lx-tag lx-tag--hold" style="--s:16">AwaitingApproval</i></span></div>
+    <div class="lx-lane"><span class="lx-lane-name">R2</span><span class="lx-track"><i class="lx-seg lx-seg--r2" style="--s:64;--e:86"></i><i class="lx-tag lx-tag--clear" style="--s:87">{continuedStatus}</i></span></div>
+    <i class="lx-tick" style="--s:64"></i>
+  </div>
+  <div class="lx-axis"><span style="--s:0">T+00:00</span><span class="lx-axis-opt" style="--s:14">{clock.held.slice(2)}</span><span style="--s:36">{clock.restart.slice(2)}</span><span class="lx-axis-break" style="--s:50">≈</span><span class="lx-axis-opt" style="--s:64">{clock.decided.slice(2)}</span><span style="--s:86">{clock.completed.slice(2)}</span></div>
+  <p class="lx-order"><span class="lx-order-what">approval.decision "approved":false</span><span>audit written</span><span>decision applied</span><span>R2 queued</span></p>
+</figure>

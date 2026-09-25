@@ -191,7 +191,9 @@ dışında) yayını da sen koşmalısın — yoksa düzelttiğin sayfa canlıda
 
 🚨 **Yeni ekran varsa ekran görüntüsü E2E'den üretilir ve commit edilir:**
 `TRACON_UI_SCREENSHOTS=1`; ardından `docs-site` içinde
-`node scripts/refresh-console-screenshot-stamp.mjs` koşar. Ekran görüntüsünün
+`node scripts/refresh-console-screenshot-stamp.mjs` koşar. Anasayfa kırpımları
+pinlidir: `approvals*`/`run-detail*` değiştiyse `scripts/landing-captures.mjs`
+pin'ini yenile ve kırpımı gözle doğrula. Ekran görüntüsünün
 **dosya olarak var olduğunu**
 `check-content.mjs` denetler; **doğru ekranı gösterdiğini** `DocumentationScreenshotTests`
 kanıtlar. İki kapı iki ayrı şey söyler ve ikisi de gereklidir. Yeni bir ekran

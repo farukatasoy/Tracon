@@ -1,145 +1,462 @@
-/* Landing compositions consume the shared site tokens; only the home route loads them. */
-.approach-hero { display: grid; grid-template-columns: 1.1fr 1fr; gap: 3.5rem; padding-block: 4rem 4.5rem; align-items: center; }
-/* Balanced wrapping keeps the product name whole on a wide column and still lets it
-   break on a narrow one; a hard <br> or &nbsp; did one of those at the cost of the other. */
-.approach-hero h1 { color: var(--tracon-text-strong); font-size: clamp(2.125rem,3.1vw,2.75rem); line-height: 1.12; font-weight: 550; letter-spacing: -.045em; margin: 0 0 1.5rem; text-wrap: balance; }
-.approach-hero h1 span { color: var(--tracon-accent); }
-.hero-description { font-size: 1.125rem; line-height: 1.65; max-width: 48ch; margin: 0; }
-.hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem 1.75rem; margin-block: 2rem 1.25rem; }
-.primary-action { display: inline-flex; align-items: center; justify-content: space-between; gap: 1.25rem; background: var(--tracon-accent); color: var(--tracon-surface); border: 1px solid var(--tracon-accent); padding: .85rem 1.1rem; font-size: .9375rem; font-weight: 600; text-decoration: none; border-radius: 2px; }
-.primary-action:hover { background: var(--tracon-surface); color: var(--tracon-accent); }
-.text-action { color: var(--tracon-text-strong); font-size: .9375rem; text-underline-offset: .3em; }
-.release-status { color: var(--tracon-text-muted); font-size: .875rem; margin: 0; }
-/* The proof of the headline, not decoration: the claim is a control plane, so the
-   first screen shows one. The rings sit behind it on the same isolated layer the
-   aside used, so they never paint over the capture. */
-.hero-figure { position: relative; margin: 0; isolation: isolate; }
-.hero-figure img { inline-size: 100%; block-size: auto; border: 1px solid var(--tracon-border-strong); border-radius: 3px; }
-.hero-figure figcaption { font-size: .875rem; color: var(--tracon-text-muted); margin-top: .65rem; }
-.strip-id { color: var(--tracon-accent); }
-/* 🚨 The bleed is opt-in, not opt-out. The rings used to sit at right:-3rem at
-   every width, and only the widest layouts had enough container margin to
-   absorb those 48px; everything from roughly 800px to 1200px grew the
-   document's scrollWidth instead and put a horizontal scrollbar on the landing
-   page (measured: 32px at 1024px, 24px at 1152px and at 1200px, in both
-   themes). Chasing it with one more max-width breakpoint is what produced the
-   gap in the first place, so the default keeps the decoration inside its own
-   column and the bleed returns only above the width where it was measured to
-   fit. */
-.scope-rings { position: absolute; width: 22rem; height: 22rem; right: 0; top: -4rem; z-index: -1; overflow: hidden; pointer-events: none; }
-.scope-rings i { position: absolute; border: 1px solid var(--tracon-border-strong); border-radius: 50%; inset: 0; }
-.scope-rings i:nth-child(2) { inset: 3rem; }
-.scope-rings i:nth-child(3) { inset: 6rem; }
-.scope-rings b { position: absolute; left: 50%; top: 0; width: 1px; height: 50%; background: var(--tracon-border-strong); transform: rotate(35deg); transform-origin: bottom; }
-/* The reader's first objection, answered before the feature list. The accent edge
-   separates it from .boundary-note, which is a limit rather than a comparison. */
-.comparison-note { margin: 0 0 3rem; padding: 1.75rem 2rem; border-inline-start: 2px solid var(--tracon-accent); background: var(--tracon-surface-raised); }
-.comparison-note h2 { margin: 0 0 .85rem; font-size: 1.5rem; line-height: 1.3; color: var(--tracon-text-strong); letter-spacing: -.025em; }
-.comparison-note p { margin: 0 0 1rem; max-inline-size: var(--tracon-measure); }
-.comparison-note a { font-size: .9375rem; }
-.operation-strips { border-block: 1px solid var(--tracon-border); }
-.operation-strip { display: grid; grid-template-columns: .55fr 1.5fr 1fr; align-items: start; gap: 2rem; padding-block: 2rem; }
-.operation-strip + .operation-strip { border-top: 1px solid var(--tracon-border); }
-.operation-strip h3 { font-size: 1.5rem; margin: 0; }
-.operation-strip p { margin: 0; }
-.operation-strip a { font-size: .9375rem; }
-.operation-strip .strip-id { display: block; margin-bottom: .35rem; }
-.landing-intro { display: grid; grid-template-columns: 1fr 1.8fr; gap: 3rem; margin: 0 0 2.5rem; }
-.landing-intro h2 { margin: 0; font-size: 2rem; }
-.landing-intro p { margin: 0; }
-/* Scale before the counts: a reader who meets "20 packages" with no context reads
-   maintenance cost. This says what the first one is, so the numbers land as reach
-   rather than weight. Deliberately lighter than .operation-strip - that block
-   already carries four controls, and a second one at the same weight reads as more
-   of the same. */
-.start-steps { margin: 2.5rem 0 0; padding-block: 1.75rem 0; }
-.start-lead { color: var(--tracon-text-strong); font-size: 1.25rem; font-weight: 550; letter-spacing: -.02em; margin: 0 0 1.75rem; max-inline-size: var(--tracon-measure); }
-.start-steps ol { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 2rem; }
-/* 🚨 margin:0 is load-bearing. The prose rule that spaces one list item from the
-   next gives every li after the first a top margin, and in a grid that margin
-   offsets the item inside its own cell - the three columns started 4px apart. */
-.start-steps li { display: grid; gap: .35rem; align-content: start; margin: 0; }
-/* The divider separates columns rather than preceding the first, so the first
-   column's text keeps the page's left edge and the lead above it lines up with
-   it. Indenting all three left the lead hanging 17px to their left. */
-.start-steps li + li { padding-inline-start: 2rem; border-inline-start: 1px solid var(--tracon-border); }
-/* 🚨 Scoped to the list on purpose: as `.start-steps p` this also matched the
-   lead, and (0,1,1) beat the lead's own (0,1,0) - which silently removed the
-   space under it and pushed the heading onto the columns. */
-.start-steps li p { margin: 0; font-size: .9375rem; line-height: 1.6; }
+/* The home page only: index.mdx imports this file and no other page loads it.
+   Every colour is a site.css token or a color-mix() of one, so both themes and
+   the live theme switch follow without a rule of their own here.
 
-/* The tour: four captures in the order a reader would open them. Two columns keep
-   each screen large enough to read a row in, which a four-across strip does not. */
-.product-tour { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; margin-block: 2rem; }
-.tour-step { margin: 0; display: grid; gap: .75rem; }
-.tour-step figcaption { font-size: .9375rem; color: var(--tracon-text-muted); line-height: 1.6; }
-.tour-step figcaption .strip-id { display: block; margin-bottom: .35rem; }
-.tour-step figcaption strong { color: var(--tracon-text-strong); font-weight: 550; }
-.tour-step img { inline-size: 100%; block-size: auto; border: 1px solid var(--tracon-border-strong); border-radius: 3px; }
+   Motion contract, kept by every rule below:
+   - The resting style is the finished, readable frame. Reduced motion (the
+     global rule in site.css), a browser without scroll-driven animations, print
+     and a reader who never scrolls all see it. A hidden or partial state lives
+     only in a keyframe's `from`.
+   - One autonomous sequence plays once on load and ends by 2.4 s. Everything
+     else is tied to scroll position or to an attribute the landing script
+     flips, so nothing runs while the page is still.
+   - Only transform and opacity move. The exceptions are small and listed where
+     they occur: an SVG stroke trace, a status colour flip, and the few SVG
+     children of the hero scope (the blip and its data block), which fade and
+     scale on the main thread because SVG descendants get no layer of their own.
+     All of them run once, in the opening. */
 
-/* Scale, kept subordinate to the message above it: the counts are evidence that the
-   control plane is finished, so they read as a measurement strip, not a feature row. */
-/* site.css holds prose to a 70ch measure; this strip is a measurement row, not
-   prose, so the three counts stay on one line. (0,2,0) beats that rule's (0,1,1). */
-.sl-markdown-content > .inventory-line { max-inline-size: none; }
-.inventory-line { display: flex; flex-wrap: wrap; gap: .5rem 1.25rem; font: .875rem var(--sl-font-mono); color: var(--tracon-text-muted); margin: 2rem 0 .75rem; }
-.inventory-line a { color: var(--tracon-text-muted); text-underline-offset: .3em; }
-.inventory-line a:hover { color: var(--tracon-accent); }
-.inventory-line strong { color: var(--tracon-accent); font-weight: 550; }
-.inventory-note { font-size: .875rem; color: var(--tracon-text-muted); max-inline-size: var(--tracon-measure); margin: 0 0 1rem; }
-/* A dark page shows the LIGHT console capture and a light page the DARK one, so the
-   screenshot reads as an object on the page instead of dissolving into its background.
-   Starlight always stamps data-theme (the built HTML ships dark and its script
-   corrects it), so two states are enough and neither image is left without a rule.
-   The hidden one is lazy: a lazy image that is display:none is not fetched. */
-.console-shot .shot-dark { display: none; }
-:root[data-theme='light'] .console-shot .shot-light { display: none; }
-:root[data-theme='light'] .console-shot .shot-dark { display: block; }
-.product-shot { display: block; margin-block: 2rem; }
-.product-shot img { inline-size: 100%; block-size: auto; border: 1px solid var(--tracon-border-strong); border-radius: 3px; }
-.product-shot figcaption { font-size: .875rem; color: var(--tracon-text-muted); margin-top: .65rem; }
-.route-list { list-style: none; padding: 0; margin: 2rem 0; }
-.route-list li + li { border-top: 1px solid var(--tracon-border); }
-.route-list a { display: grid; grid-template-columns: 9rem 1fr 1rem; gap: 1.5rem; padding-block: 1.25rem; text-decoration: none; color: var(--tracon-text); }
-.route-list strong { color: var(--tracon-accent); font-weight: 550; }
-.route-list span:last-child { color: var(--tracon-accent); }
-.boundary-note { margin-block: 2rem; padding: 1.5rem; border-inline-start: 2px solid var(--tracon-border-strong); background: var(--tracon-surface-raised); }
-.boundary-note p { margin: 0; }
+/* One content width in both themes. Starlight narrows splash pages with an
+   (0,1,1) rule that the light theme's (0,2,0) token block used to beat, so the
+   column changed width with the theme. (0,2,1) settles it for this page. */
+html:not([data-has-sidebar])[data-theme] { --sl-content-width: 72rem; }
 
-/* The container's own margin absorbs the 48px bleed only from here up; this is
-   the width the measurement showed a clean document at. */
-@media (min-width: 90rem) {
-  .scope-rings { right: -3rem; }
+:root {
+  --lx-settle: cubic-bezier(.2, .7, .2, 1);
+  --lx-swap: cubic-bezier(.45, 0, .2, 1);
+  --lx-turn: cubic-bezier(.3, .55, .25, 1);
+  --lx-quick: 160ms;
+  --lx-strip-h: 3.5rem;
+  --lx-live: var(--tracon-accent);
+  --lx-clear: var(--tracon-success);
+  --lx-hold: var(--tracon-warning);
+  --lx-deny: var(--tracon-danger);
+  --lx-standby: var(--tracon-text-muted);
+  --lx-grid: color-mix(in oklab, var(--tracon-border) 55%, transparent);
 }
 
-@media (max-width: 71.99rem) {
-  .approach-hero { gap: 2.5rem; padding-block: 3rem; }
-  .approach-hero h1 { font-size: 2.5rem; }
-  .comparison-note { padding: 1.5rem; }
-  .start-steps ol { gap: 1.25rem; }
+/* ---------- shared ---------- */
+.sl-markdown-content > :is(.lx-proof, .lx-story, .lx-calm) { margin-block: 0; }
+.sl-markdown-content > .lx-routes { max-inline-size: none; }
+:where(.lx-proof, .lx-story, .lx-calm) :where(p, figure, pre, ol, ul, h2, h3) { margin: 0; }
+/* site.css styles prose headings, pre and inline code at (0,1,1) and (0,1,3);
+   these rules state the landing's own values at a specificity that wins. */
+.sl-markdown-content :is(.lx-proof, .lx-story, .lx-calm) :is(h2, h3), .sl-markdown-content h2#choose-your-path { color: var(--tracon-text-strong); letter-spacing: -.035em; line-height: 1.1; font-weight: 550; text-wrap: balance; }
+.sl-markdown-content :is(.lx-proof, .lx-story) h2, .sl-markdown-content h2#choose-your-path { font-size: clamp(1.875rem, 2.9vw, 2.5rem); }
+.sl-markdown-content :is(.lx-proof, .lx-story, .lx-calm) p:not([class]) > code { font-size: .875em; white-space: nowrap; overflow-wrap: normal; }
+:where(.lx-proof, .lx-story, .lx-calm, .lx-hero) a:not([class]) { color: var(--tracon-accent); text-underline-offset: .22em; text-decoration-thickness: 1px; }
+:is(.lx-lede, .lx-panel-foot, .lx-ch-text > p, .lx-ch-side > p, .lx-intro p, .lx-proof-main > p) { text-wrap: pretty; }
+.lx-vig-head span, .lx-hero .section-label { text-wrap: balance; }
+
+.lx-sample { font: 600 .625rem/1 var(--sl-font-mono); letter-spacing: .08em; text-transform: uppercase; font-style: normal; color: var(--tracon-text-muted); border: 1px solid var(--tracon-border-strong); border-radius: 2px; padding: .2rem .35rem; }
+.lx-chip { font: 500 .6875rem/1 var(--sl-font-mono); font-style: normal; letter-spacing: .03em; color: var(--lx-hold); background: color-mix(in oklab, var(--lx-hold) 8%, transparent); border: 1px solid color-mix(in oklab, var(--lx-hold) 45%, transparent); border-radius: 2px; padding: .2rem .4rem; white-space: nowrap; }
+.lx-strike { color: var(--tracon-text-strong); font-weight: 550; letter-spacing: -.035em; line-height: 1.1; }
+.lx-more { margin-block-start: 1.25rem; font-size: .9375rem; }
+.lx-more a { display: inline-block; padding-block: .2rem; }
+.lx-vig-head { display: flex; justify-content: space-between; align-items: center; gap: 1rem; margin-block-end: .75rem; font: 500 .75rem/1.4 var(--sl-font-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--tracon-text-muted); }
+
+/* Code panels: raised on the page, surface inside a raised field. A marked
+   line's tint is a pseudo-element, so scroll can draw it with a transform. */
+.lx-code { margin-block-start: 1.5rem; border: 1px solid var(--tracon-border); border-radius: 4px; background: var(--tracon-surface-raised); view-timeline: --lx-code block; }
+:is(.lx-ch--band, .lx-filed) .lx-code { background: var(--tracon-surface); }
+.lx-code figcaption { display: flex; align-items: center; gap: .5rem; font: .75rem/1 var(--sl-font-mono); color: var(--tracon-text-muted); padding: .65rem .9rem; border-block-end: 1px solid var(--tracon-border); }
+.lx-code figcaption::before { content: ''; inline-size: .375rem; block-size: .375rem; border-radius: 50%; background: var(--tracon-border-strong); }
+.lx-code pre { isolation: isolate; margin: 0; padding: .75rem 0; overflow-x: auto; background: none; border: 0; font: .8125rem/1.65 var(--sl-font-mono); color: var(--tracon-code); }
+.lx-code .l { position: relative; display: inline-block; inline-size: 100%; box-sizing: border-box; padding-inline: .9rem; }
+.lx-code mark { background: none; color: var(--tracon-text-strong); }
+.lx-code mark::before { content: ''; position: absolute; inset: 0; z-index: -1; background: var(--tracon-accent-quiet); box-shadow: inset 2px 0 var(--tracon-accent); transform-origin: left center; }
+.lx-code .t { color: var(--tracon-accent); }
+.lx-code :is(.k, .c) { color: var(--tracon-text-muted); }
+.lx-code .s { color: var(--tracon-text); }
+.lx-code mark :is(.k, .c, .s) { color: inherit; }
+
+/* ---------- S0 hero ---------- */
+.lx-hero { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 3.5rem; align-items: center; padding-block: 3.5rem 4rem; }
+.lx-hero h1 { color: var(--tracon-text-strong); font-size: clamp(2.25rem, 3.3vw, 3rem); line-height: 1.05; font-weight: 550; letter-spacing: -.048em; margin: 0 0 1.35rem; text-wrap: balance; }
+.lx-hero h1 span { color: var(--tracon-accent); white-space: nowrap; }
+.lx-lede { font-size: 1.1875rem; line-height: 1.6; max-inline-size: 44ch; margin: 0; }
+.lx-install { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .85rem; margin-block: 2rem 0; padding: .45rem .45rem .45rem 1rem; max-inline-size: 31rem; background: var(--tracon-surface-raised); border: 1px solid var(--tracon-border); border-inline-start: 2px solid var(--tracon-accent); border-radius: 3px; }
+.lx-install-label { font: 600 .625rem/1 var(--sl-font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--tracon-text-muted); }
+.lx-install code { flex: 1 1 auto; font: .875rem/1.5 var(--sl-font-mono); color: var(--tracon-text-strong); }
+.lx-install code span { white-space: nowrap; }
+.lx-copy { flex: none; min-block-size: 2.25rem; padding: 0 .85rem; font: 500 .8125rem var(--sl-font-mono); color: var(--tracon-text-strong); background: var(--tracon-surface); border: 1px solid var(--tracon-border-strong); border-radius: 2px; cursor: pointer; }
+.lx-copy[hidden] { display: block; visibility: hidden; }
+.lx-copy:hover, .lx-copy[data-done] { border-color: var(--tracon-accent); color: var(--tracon-accent); }
+.lx-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem 1.75rem; margin-block: 1.5rem 1.1rem; }
+.lx-primary { display: inline-flex; gap: 1rem; background: var(--tracon-accent); color: var(--tracon-surface); border: 1px solid var(--tracon-accent); padding: .8rem 1.15rem; font-size: .9375rem; font-weight: 600; text-decoration: none; border-radius: 2px; }
+.lx-primary:hover { background: var(--tracon-surface); color: var(--tracon-accent); }
+.lx-primary span { transition: translate var(--lx-quick) var(--lx-settle); }
+.lx-primary:hover span { translate: .2rem 0; }
+.lx-text-action { color: var(--tracon-text-strong); font-size: .9375rem; text-underline-offset: .3em; }
+.lx-status { color: var(--tracon-text-muted); font-size: .875rem; line-height: 1.6; margin: 0; max-inline-size: 46ch; }
+.lx-hero .lx-status a { color: inherit; text-underline-offset: .2em; }
+
+/* The held figure: a scope on a plotting grid, and the tape in front of it. */
+.lx-held { position: relative; isolation: isolate; overflow: clip; margin: 0; padding-block-start: 10.5rem; }
+.lx-scope { position: absolute; inset-block-start: 0; inset-inline-end: 0; inline-size: 25rem; aspect-ratio: 1; z-index: -1; }
+.lx-scope::before { content: ''; position: absolute; inset: 0; background-image: linear-gradient(var(--lx-grid) 1px, transparent 1px), linear-gradient(90deg, var(--lx-grid) 1px, transparent 1px); background-size: 1.5625rem 1.5625rem; background-position: -1px -1px; mask-image: radial-gradient(closest-side, currentColor 30%, transparent); }
+.lx-scope svg { position: absolute; inset: 0; inline-size: 100%; block-size: 100%; overflow: visible; }
+.lx-scope-ring { fill: none; stroke: var(--tracon-border); stroke-width: 1; }
+.lx-scope-ticks { fill: none; stroke: color-mix(in oklab, var(--tracon-border-strong) 55%, transparent); stroke-width: 6; stroke-dasharray: .35 9.65; stroke-dashoffset: .175; }
+.lx-scope-ticks--major { stroke: var(--tracon-border-strong); stroke-width: 12; stroke-dasharray: .5 29.5; stroke-dashoffset: .25; }
+.lx-scope-range { fill: none; stroke: var(--tracon-border-strong); stroke-width: 1.25; stroke-linecap: round; }
+.lx-scope-hub { fill: var(--tracon-text-muted); }
+.lx-scope-leader { fill: none; stroke: var(--tracon-text-muted); stroke-width: 1; }
+.lx-db { font: 500 11px var(--sl-font-mono); letter-spacing: .04em; fill: var(--tracon-text-muted); }
+.lx-db-1 { fill: var(--tracon-text-strong); }
+.lx-db-3 { fill: var(--lx-hold); }
+.lx-scope-hold { fill: none; stroke: var(--lx-hold); stroke-width: 1.5; stroke-dasharray: 1; }
+.lx-scope-blip { fill: var(--lx-hold); transform-box: fill-box; transform-origin: center; }
+/* The sweep is HTML so it turns on the compositor: a hairline to the contact
+   and a conic wake that is visible only while it turns. */
+.lx-sweep { position: absolute; inset: 0; rotate: 45deg; pointer-events: none; }
+.lx-sweep::before { content: ''; position: absolute; inset: 2.5%; border-radius: 50%; opacity: 0; background: conic-gradient(from -80deg, transparent, color-mix(in oklab, var(--tracon-accent) 26%, transparent) 80deg, transparent 80.5deg); }
+.lx-sweep::after { content: ''; position: absolute; inset-inline-start: calc(50% - .75px); inset-block-end: 50%; inline-size: 1.5px; block-size: 36%; border-radius: 1px; background: linear-gradient(to top, color-mix(in oklab, var(--tracon-accent) 15%, transparent), var(--tracon-accent)); }
+
+.lx-panel { position: relative; background: var(--tracon-surface-raised); border: 1px solid var(--tracon-border); border-radius: 4px; padding: .95rem 1.9rem 1rem 1.15rem; margin-inline-end: 3.5rem; font: .8125rem/1.5 var(--sl-font-mono); box-shadow: 0 1.5rem 3rem -1.5rem color-mix(in oklab, var(--tracon-surface-sunken) 80%, transparent); }
+.lx-panel-head { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem 1rem; margin: 0 0 .8rem; color: var(--tracon-text-muted); font-size: .75rem; }
+.lx-panel-head span:first-child { color: var(--tracon-text-strong); }
+.lx-panel-head .lx-sample { margin-inline-start: auto; }
+.lx-tape { list-style: none; margin: 0; padding: 0; display: grid; gap: .5rem; }
+.lx-tape li { display: grid; grid-template-columns: 1.25rem minmax(0, 1fr) auto; column-gap: .6rem; margin: 0; padding-inline-start: .5rem; border-inline-start: 2px solid transparent; }
+.lx-tape b { color: var(--tracon-text-muted); font-weight: 400; font-variant-numeric: tabular-nums; }
+.lx-tape code { color: var(--tracon-accent); font: inherit; }
+.lx-tape .lx-t { color: var(--tracon-text-muted); font-variant-numeric: tabular-nums; }
+.lx-tape .lx-d { grid-column: 2 / -1; color: var(--tracon-text); overflow-wrap: anywhere; }
+.lx-tape .lx-bay { translate: .75rem 0; border-inline-start-color: var(--lx-hold); }
+.lx-tape .lx-bay code { color: var(--lx-hold); }
+.lx-tape .lx-chip { margin-inline-start: .6rem; }
+.lx-panel-foot { margin: .95rem 0 0; padding-block-start: .75rem; border-block-start: 1px solid var(--tracon-border); color: var(--tracon-text-muted); font-size: .75rem; }
+.lx-panel-foot code { font: inherit; color: var(--lx-hold); }
+.lx-held figcaption { margin-block-start: .7rem; font: .75rem/1.5 var(--sl-font-mono); color: var(--tracon-text-muted); }
+
+/* ---------- S1 two lines ---------- */
+.lx-proof { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 2rem 4.5rem; padding-block: 3.5rem 5rem; border-block-start: 1px solid var(--tracon-border); align-items: start; }
+.lx-proof h2 { margin-block-end: 1rem; }
+.lx-proof-main > p { font-size: 1.0625rem; line-height: 1.7; max-inline-size: 52ch; }
+.lx-proof-side { display: grid; gap: 2.75rem; padding-block-start: .5rem; }
+.lx-readout { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-block: 1px solid var(--tracon-border); view-timeline: --lx-readout block; }
+.lx-readout a { display: grid; align-content: start; gap: .45rem; padding: 1.1rem 1rem 1.2rem 0; color: var(--tracon-text-muted); font: .8125rem/1.35 var(--sl-font-mono); text-decoration: none; }
+.lx-readout a + a { padding-inline-start: 1.1rem; border-inline-start: 1px solid var(--tracon-border); }
+.lx-readout strong { font: 500 2.75rem/1 var(--sl-font-mono); color: var(--tracon-accent); letter-spacing: -.05em; font-variant-numeric: tabular-nums; }
+.lx-readout a:hover { color: var(--tracon-text-strong); }
+.lx-maf .lx-strike { font-size: 1.5rem; margin-block-end: .7rem; }
+.lx-maf p:not([class]) { line-height: 1.7; }
+
+/* ---------- S2 the story and its strip ---------- */
+.lx-intro { display: grid; grid-template-columns: minmax(0, 27rem) minmax(0, 1fr); gap: 1rem 4.5rem; align-items: end; padding-block: 4rem 2.25rem; border-block-start: 1px solid var(--tracon-border); }
+.lx-intro p { font-size: 1.1875rem; line-height: 1.6; max-inline-size: 50ch; }
+
+.lx-strip { position: relative; z-index: 2; display: grid; grid-template-columns: 1.45fr repeat(4, minmax(0, 1fr)); block-size: var(--lx-strip-h); box-sizing: border-box; background: var(--tracon-surface); border: 1px solid var(--tracon-border-strong); border-inline-start: 4px solid var(--lx-bar, var(--lx-clear)); border-radius: 3px; font: .8125rem/1.3 var(--sl-font-mono); --lx-p: 1; }
+.lx-strip::after { content: ''; position: absolute; inset-inline: 0; inset-block-end: -1px; block-size: 2px; background: var(--lx-bar, var(--lx-clear)); transform-origin: left center; scale: var(--lx-p) 1; transition: scale 480ms var(--lx-settle); }
+.lx-strip > div { display: grid; align-content: center; min-inline-size: 0; padding: 0 .85rem; }
+.lx-strip > div + div { border-inline-start: 1px solid var(--tracon-border); }
+.lx-strip em:not(.lx-sample) { font: 500 .625rem/1.3 var(--sl-font-mono); font-style: normal; letter-spacing: .08em; text-transform: uppercase; color: var(--tracon-text-muted); }
+.lx-strip b { font-weight: 500; color: var(--tracon-text-strong); }
+.lx-strip :is(b, span) { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lx-strip span { color: var(--tracon-text-muted); font-size: .75rem; }
+.lx-s-cs { grid-template-columns: auto auto minmax(0, 1fr); column-gap: .65rem; }
+.lx-s-cs .lx-sample { grid-row: 1 / 3; align-self: center; justify-self: start; }
+.lx-s-cs b { grid-column: 2 / 4; }
+.lx-s-cs .lx-clk { grid-column: 3; grid-row: 2; display: grid; color: var(--tracon-text); font-variant-numeric: tabular-nums; }
+/* The clock is a counter drum: the past rolls up, the future waits below. */
+.lx-clk i { grid-area: 1 / 1; font-style: normal; opacity: 0; translate: 0 .75em; transition: opacity var(--lx-quick) var(--lx-swap), translate var(--lx-quick) var(--lx-swap); }
+.lx-flight:not([data-at]) .lx-clk i:last-child { opacity: 1; translate: 0 0; }
+.lx-flight[data-at="1"] .lx-clk i:nth-child(-n+1), .lx-flight[data-at="2"] .lx-clk i:nth-child(-n+2), .lx-flight[data-at="3"] .lx-clk i:nth-child(-n+3), .lx-flight[data-at="4"] .lx-clk i:nth-child(-n+4) { translate: 0 -.75em; }
+.lx-flight[data-at="0"] .lx-clk i:nth-child(1), .lx-flight[data-at="1"] .lx-clk i:nth-child(2), .lx-flight[data-at="2"] .lx-clk i:nth-child(3), .lx-flight[data-at="3"] .lx-clk i:nth-child(4), .lx-flight[data-at="4"] .lx-clk i:nth-child(5) { opacity: 1; translate: 0 0; }
+.lx-s-box :is(b, span) { transition: opacity var(--lx-quick) var(--lx-settle), translate var(--lx-quick) var(--lx-settle); }
+.lx-flight[data-passed] .lx-s-box :is(b, span) { opacity: 0; translate: 0 .3rem; }
+.lx-flight[data-passed~="1"] .lx-s-box[data-k="1"] :is(b, span), .lx-flight[data-passed~="2"] .lx-s-box[data-k="2"] :is(b, span), .lx-flight[data-passed~="3"] .lx-s-box[data-k="3"] :is(b, span), .lx-flight[data-passed~="4"] .lx-s-box[data-k="4"] :is(b, span) { opacity: 1; translate: 0 0; transition-delay: 60ms; }
+.lx-s-box b i { font-style: normal; }
+.lx-v-hold { color: var(--lx-hold); display: none; }
+.lx-v-deny { color: var(--lx-deny); }
+.lx-flight[data-at="2"] .lx-v-hold { display: inline; }
+.lx-flight[data-at="2"] .lx-v-deny { display: none; }
+.lx-s-box[data-k="4"] b { color: var(--lx-clear); }
+/* Status bar and progress rule: a colour flip (paint, one per state). */
+.lx-flight[data-at="0"] { --lx-bar: var(--lx-standby); }
+.lx-flight[data-at="1"], .lx-flight[data-at="3"] { --lx-bar: var(--lx-live); }
+.lx-flight[data-at="2"] { --lx-bar: var(--lx-hold); }
+.lx-flight[data-at="0"] .lx-strip { --lx-p: 0; }
+.lx-flight[data-at="1"] .lx-strip { --lx-p: .25; }
+.lx-flight[data-at="2"] .lx-strip { --lx-p: .5; }
+.lx-flight[data-at="3"] .lx-strip { --lx-p: .75; }
+.lx-stamp { position: absolute; z-index: 1; inset-block-start: calc(100% - .4rem); inset-inline-end: 1.25rem; margin: 0; padding: .15rem .5rem; font: 600 .6875rem/1.3 var(--sl-font-mono); letter-spacing: .09em; text-transform: uppercase; color: var(--lx-clear); background: var(--tracon-surface); border: 1px solid currentColor; border-radius: 2px; rotate: -1.5deg; transition: opacity 260ms var(--lx-settle), scale 260ms var(--lx-settle), rotate 260ms var(--lx-settle); }
+.lx-flight[data-at]:not([data-filed]) .lx-stamp { opacity: 0; scale: 1.35; rotate: -6deg; }
+.lx-slot { display: none; block-size: var(--lx-strip-h); box-sizing: border-box; align-items: center; padding-inline: 1.25rem; border: 1px dashed var(--tracon-border-strong); border-block-end: 0; border-radius: 3px 3px 0 0; font: .75rem var(--sl-font-mono); color: var(--tracon-text-muted); background: var(--tracon-surface); }
+.lx-flight[data-filed] .lx-slot { border-color: transparent; }
+/* The first state the script writes must not animate: a deep link or a restored
+   scroll would otherwise watch the strip un-fill from its finished frame. */
+.lx-flight:not([data-live]) :is(.lx-strip, .lx-strip *), .lx-flight:not([data-live]) .lx-strip::after { transition: none; }
+/* Tampering changes what verify answers, so the filed record's box follows. */
+.lx-s-box b .lx-v-broken { color: var(--lx-deny); }
+.lx-story:has(#lx-tamper:checked) .lx-s-box[data-k="4"] b .lx-v-valid { display: none; }
+.lx-story:has(#lx-tamper:checked) .lx-s-box[data-k="4"] b .lx-v-broken { display: inline; }
+
+@media (width >= 64rem) and (height >= 44rem) {
+  html { scroll-padding-top: calc(var(--sl-nav-height) + var(--lx-strip-h) + 1rem); }
+  .lx-strip { position: sticky; inset-block-start: var(--sl-nav-height); }
+  .lx-slot { display: flex; }
+}
+@media (width < 64rem) or (height < 44rem) {
+  .lx-flight { display: flex; flex-direction: column; }
+  .lx-strip { order: 1; margin-block: 1.5rem .5rem; }
 }
 
-@media (max-width: 49.99rem) {
-  .approach-hero { grid-template-columns: 1fr; gap: 2.5rem; padding-block: 2rem 3rem; }
-  .approach-hero h1 { font-size: clamp(2rem,7vw,2.75rem); }
-  .hero-description { font-size: 1.0625rem; }
-  .scope-rings { width: 14rem; height: 14rem; top: -2rem; }
-  .scope-rings i:nth-child(2) { inset: 2rem; }
-  .scope-rings i:nth-child(3) { inset: 4rem; }
-  .hero-actions { align-items: stretch; flex-direction: column; }
-  .primary-action { gap: .75rem; }
-  .comparison-note { margin-bottom: 2rem; padding: 1.25rem; }
-  .comparison-note h2 { font-size: 1.3125rem; }
-  .operation-strip { grid-template-columns: 1fr; gap: .75rem; padding-block: 1.5rem; }
-  .start-steps ol { grid-template-columns: 1fr; gap: 1.25rem; }
-  /* One column: a divider on the left would indent the second and third items
-     away from the first. It becomes the rule between them instead. */
-  .start-steps li + li { padding-inline-start: 0; border-inline-start: 0; padding-block-start: 1.25rem; border-block-start: 1px solid var(--tracon-border); }
-  .start-lead { font-size: 1.125rem; }
-  .product-tour { grid-template-columns: 1fr; gap: 1.75rem; }
-  .landing-intro { grid-template-columns: 1fr; gap: 1rem; }
-  .route-list a { grid-template-columns: 1fr 1rem; gap: .5rem; }
-  .route-list strong { grid-column: 1; }
-  .route-list a > span:first-of-type { grid-column: 1; }
-  .route-list a > span:last-child { grid-column: 2; grid-row: 1; }
+/* chapters */
+.lx-ch { display: grid; grid-template-columns: minmax(0, 27rem) minmax(0, 1fr); gap: 2rem 4.5rem; align-items: start; padding-block: 4.5rem; }
+.lx-ch + .lx-ch { border-block-start: 1px solid var(--tracon-border); }
+.lx-ch-label { display: flex; gap: .75rem; align-items: baseline; font: 500 .8125rem/1.5 var(--sl-font-mono); letter-spacing: .04em; color: var(--tracon-text-muted); margin-block-end: .75rem; font-variant-numeric: tabular-nums; }
+.lx-ch-label span { color: var(--tracon-accent); }
+.sl-markdown-content .lx-ch h3 { font-size: clamp(1.625rem, 2.3vw, 2.125rem); line-height: 1.15; }
+.lx-readback { font: 500 1.0625rem/1.45 var(--sl-font-mono); color: var(--tracon-accent); margin-block: .75rem 1.2rem; }
+.lx-story .lx-readback code { font: inherit; color: inherit; }
+.lx-ch-text > p:not([class]), .lx-ch-side > p:not([class]) { line-height: 1.7; }
+.lx-ch-side > p + p { margin-block-start: 1rem; }
+
+.lx-vig { margin: 0; padding: 1.15rem 1.25rem 1.25rem; background: var(--tracon-surface-raised); border: 1px solid var(--tracon-border); border-radius: 4px; }
+.lx-sep { view-timeline: --lx-sep block; }
+.lx-sep .lx-exchange { margin: 0; padding: 0; background: none; border: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: .75rem/1.65 var(--sl-font-mono); color: var(--tracon-text); }
+.lx-exchange b { color: var(--tracon-text-strong); font-weight: 500; }
+.lx-exchange .lx-ok { color: var(--lx-clear); }
+.lx-sieve-wrap { position: relative; }
+.lx-sieve { list-style: none; margin: 0; padding: 0; font: .8125rem/1.3 var(--sl-font-mono); }
+.lx-sieve li { position: relative; isolation: isolate; display: flex; justify-content: space-between; gap: 1rem; align-items: center; block-size: 2.4rem; padding-inline: .8rem; margin: 0; color: var(--tracon-text-muted); border-block-start: 1px solid var(--tracon-border); }
+.lx-sieve li:first-child { border-block-start: 0; }
+.lx-sieve b { font-weight: 400; }
+.lx-sieve .lx-match { color: var(--tracon-text-strong); }
+.lx-sieve .lx-match::before { content: ''; position: absolute; inset: 0; z-index: -1; background: var(--tracon-accent-quiet); transform-origin: left center; }
+.lx-sieve .lx-match b { color: var(--tracon-accent); font-weight: 600; }
+.lx-probe { position: absolute; inset-inline-start: 0; inset-block-start: 2.4rem; inline-size: 3px; block-size: 2.4rem; background: var(--lx-live); }
+.lx-req { margin-block-start: 1.25rem; padding-block-start: 1rem; border-block-start: 1px solid var(--tracon-border); }
+
+/* 02 is the loud block: a raised colour field, the hold made visible. */
+.lx-ch--band { background: var(--tracon-surface-raised); border-radius: 6px; padding: 4rem 3rem 3rem; border-block-start: 0; box-shadow: inset 0 3px var(--lx-hold); }
+.lx-ch--band + .lx-ch { border-block-start: 0; }
+.lx-strike--big { font-size: clamp(2rem, 3.4vw, 3rem); margin-block-end: 1.75rem; }
+.lx-ch--band .lx-ch-side .lx-code { margin-block-start: 0; }
+.lx-capture { margin: 0; }
+.lx-ch--band .lx-capture { grid-column: 1 / -1; margin-block-start: 1rem; }
+.lx-capture picture { display: block; }
+.lx-capture img { display: block; inline-size: 100%; block-size: auto; border: 1px solid var(--tracon-border-strong); border-radius: 4px; }
+.lx-capture figcaption { margin-block-start: .75rem; font-size: .875rem; line-height: 1.55; color: var(--tracon-text-muted); max-inline-size: 70ch; }
+/* A dark page shows the light capture and a light page the dark one, so the
+   capture reads as an object on the page. The hidden picture is lazy and
+   display:none, so it is never fetched. */
+.lx-capture .lx-shot-dark { display: none; }
+:root[data-theme='light'] .lx-capture .lx-shot-light { display: none; }
+:root[data-theme='light'] .lx-capture .lx-shot-dark { display: block; }
+.lx-capture--side { padding-block-start: 2.25rem; }
+.lx-capture--side picture { max-inline-size: 34rem; }
+
+/* 03: the wide timeline */
+.lx-ch--wide .lx-ch-text .lx-code { max-inline-size: 26rem; }
+.lx-lanes { grid-column: 1 / -1; position: relative; margin: .75rem 0 0; padding: 1.25rem 1.5rem 1.1rem; background: var(--tracon-surface-raised); border: 1px solid var(--tracon-border); border-radius: 4px; font: .75rem/1.3 var(--sl-font-mono); --lx-name: 4rem; view-timeline: --lx-lanes block; }
+.lx-lane, .lx-axis { display: grid; grid-template-columns: var(--lx-name) minmax(0, 1fr); align-items: center; }
+.lx-lane { block-size: 2.4rem; }
+.lx-lane-name { color: var(--tracon-text-muted); }
+.lx-track { position: relative; block-size: 100%; }
+.lx-track > i { position: absolute; inset-inline-start: calc(var(--s) * 1%); font-style: normal; }
+.lx-seg { inline-size: calc((var(--e) - var(--s)) * 1%); inset-block-start: calc(50% - 2px); block-size: 4px; border-radius: 2px; transform-origin: left center; }
+.lx-seg--host { background: var(--tracon-border-strong); }
+.lx-seg--store { background: var(--tracon-border-strong); block-size: 2px; inset-block-start: calc(50% - 1px); }
+.lx-seg--live { background: var(--lx-live); }
+.lx-seg--hold { background: linear-gradient(90deg, var(--lx-hold) 75%, transparent); }
+.lx-seg--r2 { background: linear-gradient(90deg, var(--lx-live), var(--lx-clear)); }
+.lx-gap { inline-size: calc((var(--e) - var(--s)) * 1%); inset-block: .55rem; border-inline: 1px solid var(--tracon-border-strong); }
+.lx-gap span { position: absolute; inset-block-end: calc(100% + .15rem); inset-inline-start: 50%; translate: -50% 0; color: var(--tracon-text-muted); }
+.lx-tag { inset-block-start: .15rem; color: var(--tracon-text-muted); white-space: nowrap; font-size: .6875rem; }
+.lx-tag--hold { color: var(--lx-hold); }
+.lx-track > .lx-tag--clear { color: var(--lx-clear); inset-block-start: calc(50% - .45rem); inset-inline-start: auto; inset-inline-end: 0; }
+.lx-lanes-grid { position: relative; }
+.lx-tick { position: absolute; inset-block: -.35rem 0; inset-inline-start: calc(var(--lx-name) + (100% - var(--lx-name)) * var(--s) / 100); inline-size: 0; border-inline-start: 1px solid var(--lx-deny); }
+.lx-axis { position: relative; block-size: 1.2rem; margin-block-start: .35rem; padding-block-start: .4rem; border-block-start: 1px solid var(--tracon-border); color: var(--tracon-text-muted); }
+.lx-axis span { position: absolute; inset-inline-start: calc(var(--lx-name) + (100% - var(--lx-name)) * var(--s) / 100); translate: -50% 0; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.lx-axis span:first-child { translate: 0 0; }
+.lx-axis span:last-child { translate: -70% 0; }
+.lx-order { margin-block-start: .95rem; display: flex; flex-wrap: wrap; gap: .3rem .5rem; color: var(--tracon-text); }
+.lx-order-what { color: var(--lx-deny); margin-inline-end: .5rem; }
+.lx-order span:nth-child(n+3)::before { content: '→ '; color: var(--tracon-text-muted); }
+
+/* ---------- S7 filed: the strip board ---------- */
+.lx-filed { display: grid; grid-template-columns: minmax(0, 27rem) minmax(0, 1fr); gap: 2rem 4.5rem; align-items: start; padding: 3.25rem 3rem 3rem; background: var(--tracon-surface-raised); border-radius: 0 0 6px 6px; }
+.lx-filed-text > p:not([class]) { line-height: 1.7; }
+.lx-tamper { display: flex; align-items: start; gap: .7rem; min-block-size: 2.75rem; margin-block: 1.5rem .6rem; font: 500 .8125rem/1.4 var(--sl-font-mono); color: var(--tracon-text-strong); }
+.lx-tamper input { inline-size: 1.25rem; block-size: 1.25rem; margin: .05rem 0 0; accent-color: var(--lx-deny); flex: none; }
+.lx-tamper label { cursor: pointer; }
+.lx-tamper label span { white-space: nowrap; }
+.lx-filed .lx-verify { position: relative; margin: 0; padding: .85rem 1rem; white-space: pre-wrap; background: var(--tracon-surface); border: 1px solid var(--tracon-border); border-radius: 3px; overflow-wrap: anywhere; font: .75rem/1.6 var(--sl-font-mono); }
+.lx-verify::after { content: ''; position: absolute; inset: 0; border-radius: inherit; background: color-mix(in oklab, var(--lx-deny) 14%, transparent); opacity: 0; pointer-events: none; }
+.lx-verify b { font-weight: 500; color: var(--tracon-text-strong); }
+.lx-verify .lx-v-valid { color: var(--lx-clear); }
+.lx-verify .lx-v-broken { color: var(--lx-deny); }
+.lx-v-broken { display: none; }
+.lx-filed:has(#lx-tamper:checked) .lx-v-broken { display: inline; }
+.lx-filed:has(#lx-tamper:checked) .lx-v-valid { display: none; }
+.lx-limit { margin-block-start: 1.1rem; font-size: .9375rem; }
+.lx-soak { margin-block-start: 1.35rem; font: .75rem/1.6 var(--sl-font-mono); color: var(--tracon-text-muted); }
+.lx-soak a { color: inherit; }
+.lx-chain { list-style: none; margin: 0; padding: 0; display: grid; gap: 1.5rem; font: .8125rem/1.55 var(--sl-font-mono); view-timeline: --lx-chain block; }
+.lx-chain li { position: relative; margin: 0; padding: .75rem 1rem; background: var(--tracon-surface); border: 1px solid var(--tracon-border); border-inline-start: 3px solid var(--lx-clear); border-radius: 3px; }
+.lx-chain p { margin: 0; color: var(--tracon-text-muted); }
+.sl-markdown-content .lx-chain code { font: inherit; color: var(--tracon-text); white-space: normal; }
+.lx-chain code b { color: var(--tracon-accent); font-weight: 500; }
+.lx-e-act { color: var(--tracon-text-strong); display: flex; flex-wrap: wrap; gap: 0 .6rem; }
+.lx-e-act > b { font-weight: 500; color: var(--tracon-text-muted); }
+.sl-markdown-content .lx-e-act code { color: var(--tracon-text-strong); }
+.lx-e-act span { color: var(--tracon-text-muted); overflow-wrap: anywhere; }
+.lx-link { position: absolute; inset-block-start: calc(-1.5rem - 1px); inset-inline-start: 2.5rem; block-size: 1.5rem; border-inline-start: 1px solid var(--tracon-accent); transform-origin: top; }
+.lx-filed:has(#lx-tamper:checked) .lx-e-last { border-inline-start-color: var(--lx-deny); }
+.lx-e-after .lx-v-broken, .lx-e-hash .lx-v-broken, .lx-e-hash .lx-v-broken code, .lx-e-hash .lx-v-broken code b { color: var(--lx-deny); }
+
+/* ---------- S8 calm ---------- */
+.lx-calm { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1.25rem 4.5rem; padding-block: 7rem 1.5rem; align-items: start; }
+.sl-markdown-content .lx-calm h2 { grid-column: 1 / -1; font-size: clamp(2.5rem, 5.2vw, 4.25rem); line-height: 1.02; letter-spacing: -.05em; }
+.lx-calm-lede { grid-column: 1 / -1; font-size: 1.3125rem; line-height: 1.5; color: var(--tracon-text-strong); max-inline-size: 42ch; margin-block-end: 2rem; }
+.lx-gate { grid-column: 1; }
+.lx-gate > p:first-child { line-height: 1.7; }
+.lx-out { margin-block-start: .85rem; }
+.lx-out figcaption { margin-block-end: .4rem; font: .6875rem/1.4 var(--sl-font-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--tracon-text-muted); }
+.lx-gate .lx-output { margin: 0; padding: .85rem 1rem; white-space: pre-wrap; overflow-wrap: anywhere; font: .75rem/1.6 var(--sl-font-mono); color: var(--tracon-text-strong); background: var(--tracon-surface-raised); border: 1px solid var(--tracon-border); border-inline-start: 3px solid var(--lx-hold); border-radius: 3px; }
+.lx-calm-side { grid-column: 2; display: grid; gap: 1.35rem; line-height: 1.7; }
+.lx-devui { padding-block-start: 1.35rem; border-block-start: 1px solid var(--tracon-border); }
+
+/* routes: the gated closing */
+.lx-routes { list-style: none; margin: 1.5rem 0 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.lx-routes li { margin: 0; }
+.lx-routes a { display: grid; grid-template-columns: 1fr auto; gap: .35rem 1rem; block-size: 100%; box-sizing: border-box; padding: 1.15rem 1.25rem; border: 1px solid var(--tracon-border); border-radius: 4px; text-decoration: none; color: var(--tracon-text); transition: border-color var(--lx-quick) ease; }
+.lx-routes a:hover { border-color: var(--tracon-accent); }
+.lx-routes strong { font: 500 .875rem var(--sl-font-mono); letter-spacing: .05em; color: var(--tracon-accent); }
+.lx-routes span:not([aria-hidden]) { grid-column: 1; font-size: .9375rem; line-height: 1.55; }
+.lx-routes span[aria-hidden] { grid-column: 2; grid-row: 1; color: var(--tracon-accent); transition: translate var(--lx-quick) var(--lx-settle); }
+.lx-routes a:hover span[aria-hidden] { translate: .2rem 0; }
+
+/* ---------- motion: the opening, once ---------- */
+@media (prefers-reduced-motion: no-preference) {
+  .lx-sweep { animation: lx-turn 1150ms var(--lx-turn) 120ms backwards; }
+  .lx-sweep::before { animation: lx-wake 1300ms linear 120ms; }
+  .lx-scope-blip { animation: lx-acquire 320ms var(--lx-settle) 1180ms backwards; }
+  .lx-db-1 { animation: lx-appear 200ms linear 1300ms backwards; }
+  .lx-db-2 { animation: lx-appear 200ms linear 1380ms backwards; }
+  .lx-scope-leader { animation: lx-appear 200ms linear 1240ms backwards; }
+  .lx-tape li { animation: lx-print 240ms var(--lx-settle) calc(420ms + var(--i) * 130ms) backwards; }
+  .lx-tape .lx-bay { animation: lx-bay 1350ms var(--lx-settle) calc(420ms + var(--i) * 130ms) backwards; }
+  .lx-held .lx-chip { animation: lx-chip 260ms var(--lx-settle) 1900ms backwards; }
+  .lx-panel-foot { animation: lx-appear 300ms linear 1500ms backwards; }
+  /* A stroke trace: paint, on a 60-unit path, once. */
+  .lx-scope-hold { animation: lx-trace 650ms var(--lx-settle) 1750ms backwards; }
+  .lx-db-3 { animation: lx-appear 200ms linear 2050ms backwards; }
+  /* Filing the forged entry: the board answers once per change. */
+  .lx-filed:has(#lx-tamper:checked) .lx-verify::after { animation: lx-flash 700ms var(--lx-settle); }
+  .lx-filed:has(#lx-tamper:checked) .lx-e-last { animation: lx-jolt 420ms var(--lx-settle); }
+}
+@keyframes lx-turn { from { rotate: -315deg; } }
+@keyframes lx-wake { 10% { opacity: 1; } 70% { opacity: .8; } 100% { opacity: 0; } }
+@keyframes lx-acquire { from { opacity: 0; transform: scale(.2); } }
+@keyframes lx-appear { from { opacity: 0; } }
+@keyframes lx-print { from { opacity: 0; translate: 0 .3rem; } }
+@keyframes lx-bay { 0% { opacity: 0; translate: 0 .3rem; } 18% { opacity: 1; translate: 0 0; } 48% { translate: 0 0; } }
+@keyframes lx-chip { from { opacity: 0; scale: .8; } }
+@keyframes lx-trace { from { stroke-dashoffset: 1; } }
+@keyframes lx-flash { 15% { opacity: 1; } }
+@keyframes lx-jolt { 35% { translate: .4rem 0; } }
+
+/* ---------- motion: tied to scroll ---------- */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    /* Near the first screen, so every range ends by the time its element is
+       fully in view: a reader who never scrolls still sees finished frames. */
+    .lx-code mark::before { animation: lx-draw 1ms linear both; animation-timeline: --lx-code; animation-range: entry 0% entry 100%; }
+    .lx-readout strong { animation: lx-rise 1ms linear both; animation-timeline: --lx-readout; }
+    .lx-readout a:nth-child(1) strong { animation-range: entry 10% entry 70%; }
+    .lx-readout a:nth-child(2) strong { animation-range: entry 25% entry 85%; }
+    .lx-readout a:nth-child(3) strong { animation-range: entry 40% entry 100%; }
+    .lx-probe { animation: lx-probe 1ms linear both; animation-timeline: --lx-sep; animation-range: entry 40% cover 45%; }
+    .lx-sieve .lx-match::before { animation: lx-draw 1ms linear both; animation-timeline: --lx-sep; animation-range: cover 38% cover 50%; }
+    .lx-capture picture { animation: lx-lift 1ms linear both; animation-timeline: view(); animation-range: entry 0% entry 90%; }
+    /* The shorthand resets animation-range, so each range rule needs the same
+       specificity and must come after it; --late follows --host because the
+       second host segment carries both classes. */
+    .lx-lanes .lx-seg { animation: lx-draw 1ms linear both; animation-timeline: --lx-lanes; }
+    .lx-lanes .lx-seg--host { animation-range: entry 10% cover 25%; }
+    .lx-lanes .lx-seg--late { animation-range: cover 22% cover 36%; }
+    .lx-lanes .lx-seg--store { animation-range: entry 20% cover 32%; }
+    .lx-lanes .lx-seg--live { animation-range: entry 30% cover 20%; }
+    .lx-lanes .lx-seg--hold { animation-range: cover 18% cover 38%; }
+    .lx-lanes .lx-seg--r2 { animation-range: cover 32% cover 42%; }
+    .lx-tick { animation: lx-fade 1ms linear both; animation-timeline: --lx-lanes; animation-range: cover 28% cover 34%; }
+    .lx-tag--clear { animation: lx-appear 1ms linear both; animation-timeline: --lx-lanes; animation-range: cover 42% cover 47%; }
+    .lx-chain li { animation: lx-file 1ms linear both; animation-timeline: --lx-chain; }
+    .lx-chain li:nth-child(1) { animation-range: entry 15% cover 30%; }
+    .lx-chain li:nth-child(2) { animation-range: entry 45% cover 38%; }
+    .lx-chain li:nth-child(3) { animation-range: entry 75% cover 46%; }
+    .lx-link { animation: lx-draw-y 1ms linear both; animation-timeline: view(); animation-range: entry 60% cover 50%; }
+  }
+}
+@keyframes lx-draw { from { scale: 0 1; } }
+@keyframes lx-draw-y { from { scale: 1 0; } }
+@keyframes lx-rise { from { opacity: .35; translate: 0 .2em; } }
+@keyframes lx-probe { from { translate: 0 -100%; } }
+@keyframes lx-lift { from { translate: 0 1.5rem; } }
+@keyframes lx-fade { from { opacity: .2; } }
+@keyframes lx-file { from { opacity: .4; translate: 0 .9rem; } }
+
+/* ---------- widths ---------- */
+@media (width < 72rem) {
+  .lx-install-label { display: none; }
+  .lx-hero { gap: 2.5rem; }
+  .lx-scope { inline-size: 22rem; }
+  .lx-held { padding-block-start: 9rem; }
+  .lx-panel { margin-inline-end: 2rem; }
+  .lx-proof, .lx-ch, .lx-intro, .lx-filed, .lx-calm { column-gap: 2.75rem; }
+  .lx-ch--band, .lx-filed { padding: 3rem 2rem 2.5rem; }
+}
+/* The narrow approvals crop is a detail; above phone widths it keeps close to
+   its own size instead of stretching across the band. */
+@media (width < 56rem) {
+  .lx-ch--band .lx-capture picture { max-inline-size: 22rem; }
+}
+@media (width < 64rem) {
+  .lx-hero { grid-template-columns: minmax(0, 1fr); padding-block: 2.5rem 3rem; }
+  .lx-held { max-inline-size: 40rem; }
+  .lx-proof, .lx-intro, .lx-ch, .lx-filed, .lx-calm { grid-template-columns: minmax(0, 1fr); }
+  .lx-intro { align-items: start; }
+  .lx-gate, .lx-calm-side { grid-column: 1; }
+  .lx-capture--side { padding-block-start: 0; }
+}
+@media (width < 50rem) {
+  .lx-hero h1 { font-size: clamp(2.125rem, 8.4vw, 2.625rem); text-wrap: wrap; }
+  .lx-lede { font-size: 1.0625rem; }
+  .lx-install { max-inline-size: none; }
+  .lx-install code { font-size: .8125rem; }
+  .lx-install-label, .lx-req, .lx-db, .lx-scope-leader { display: none; }
+  .lx-actions { gap: .75rem 1.5rem; }
+  .lx-held { padding-block-start: 6.5rem; }
+  .lx-scope { inline-size: 14rem; }
+  .lx-panel { margin-inline-end: 0; padding: .85rem 1.35rem .9rem .85rem; }
+  .lx-tape { font-size: .75rem; }
+  .lx-tape .lx-d { overflow-wrap: break-word; }
+  .lx-tape .lx-bay { translate: .5rem 0; }
+  .lx-proof { padding-block: 2.75rem 3.25rem; }
+  .lx-readout strong { font-size: 2rem; }
+  .lx-readout a { padding-inline-end: .5rem; }
+  .lx-readout a + a { padding-inline-start: .6rem; }
+  .lx-intro { padding-block: 3rem 1.5rem; }
+  .lx-ch { padding-block: 3.25rem; }
+  .lx-ch--band, .lx-filed { padding: 2.25rem 1rem 2rem; margin-inline: -.5rem; }
+  .lx-code pre { font-size: .75rem; }
+  .lx-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); block-size: auto; }
+  .lx-strip > div { padding-block: .6rem; }
+  .lx-strip > .lx-s-cs { grid-column: 1 / -1; }
+  .lx-strip > div + div { border-inline-start: 0; border-block-start: 1px solid var(--tracon-border); }
+  .lx-strip > .lx-s-box[data-k="2"], .lx-strip > .lx-s-box[data-k="4"] { border-inline-start: 1px solid var(--tracon-border); }
+  .lx-lanes { padding: 1rem .9rem .9rem; --lx-name: 2.75rem; }
+  .lx-axis-opt, .lx-axis-break { display: none; }
+  .lx-track > .lx-tag--clear { inset-block-start: .15rem; }
+  .lx-track > .lx-tag--store { inset-inline-start: 30%; }
+  .lx-tag { font-size: .625rem; }
+  .lx-calm { padding-block: 4.5rem 0; }
+  .lx-routes { grid-template-columns: minmax(0, 1fr); gap: .75rem; }
+  .lx-routes a { padding: .85rem 1rem; gap: .2rem 1rem; }
+  .lx-routes span:not([aria-hidden]) { font-size: .875rem; }
 }
