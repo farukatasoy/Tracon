@@ -190,4 +190,8 @@ body { font-size: 1.0625rem; }
 @media (max-width: 49.999rem) {
   .splash-header .header-theme { display: block; }
   .splash-header { padding-inline-end: 0; }
+  /* A splash page has no menu button to leave room for, and the wordmark must
+     not be the item that shrinks: at 360 px it was clipped to "Tracor". */
+  .splash-header .header-tools { margin-inline-end: 0; }
+  .splash-header .site-title { flex-shrink: 0; }
 }

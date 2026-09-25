@@ -1,0 +1,12 @@
+{
+  "r1": ["run.started", "tool.invoking", "tool.invoked", "message.completed", "run.awaiting-input"],
+  "r1Tools": [null, "get_order_status", "get_order_status", null, null],
+  "r1Status": "AwaitingApproval",
+  "r2Status": "Completed",
+  "sameSession": true,
+  "auditActions": ["tenant.create", "apikey.create", "approval.decision"],
+  "verify": { "status": "Valid", "entriesChecked": 3 },
+  "productionProfileOpen": 6,
+  "productionProfileFirstLine": "RequireProductionProfile() was called, and 6 production decisions are still on the permissive default, so the host does not start.",
+  "canonicalSample": "7f0b896120b641c0dcaf4219815cd27f20602182a5157b29c530eccb4dfc249a"
+}

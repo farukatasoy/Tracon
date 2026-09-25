@@ -1,22 +1,16 @@
 ---
 import DefaultHero from '@astrojs/starlight/components/Hero.astro';
+import HeldTape from './landing/HeldTape.astro';
 const home = Astro.locals.starlightRoute.id === '';
 ---
-{home ? <section class="approach-hero" aria-labelledby="_top">
-  <div class="hero-copy">
+{home ? <section class="lx-hero" aria-labelledby="_top" data-tile>
+  <div class="lx-hero-copy">
     <p class="section-label">Tracon / Approach control for your agents</p>
     <h1 id="_top">The .NET <span>control plane</span> for Microsoft Agent Framework.</h1>
-    <p class="hero-description">A package family that runs inside your own ASP.NET Core host. MAF runs your agents. Tracon records them, scopes them to a tenant, and governs what they may call.</p>
-    <div class="hero-actions">
-      <a class="primary-action" href="/getting-started/">What Tracon is <span aria-hidden="true">↗</span></a>
-      <a class="text-action" href="/capabilities/">Capability map <span aria-hidden="true">→</span></a>
-    </div>
-    <p class="release-status">Preview packages are available on NuGet and npm.</p>
+    <p class="lx-lede">A package family that runs inside your own ASP.NET Core host. MAF runs your agents. Tracon records them, scopes them to a tenant, and governs what they may call.</p>
+    <div class="lx-install"><span class="lx-install-label" aria-hidden="true">Install</span><code id="lx-install-cmd">dotnet add package Tracon <span>--prerelease</span></code><button type="button" class="lx-copy" data-copy="lx-install-cmd" hidden>Copy<span class="sr-only"> the install command</span></button><span class="sr-only" role="status" data-copy-status> </span></div>
+    <div class="lx-actions"><a class="lx-primary" href="/getting-started/">Get started <span aria-hidden="true">→</span></a><a class="lx-text-action" href="/capabilities/">Capability map <span aria-hidden="true">→</span></a></div>
+    <p class="lx-status">Production-oriented preview packages are on <a href="https://www.nuget.org/packages/Tracon">NuGet</a> and <a href="https://www.npmjs.com/package/@tracon/client">npm</a>. No stable version yet. <a href="https://github.com/farukatasoy/Tracon">Source on GitHub<span aria-hidden="true"> ↗</span></a></p>
   </div>
-  <figure class="hero-figure console-shot">
-    <div class="scope-rings" aria-hidden="true"><i></i><i></i><i></i><b></b></div>
-    <img class="shot-light" src="/screenshots/dashboard-light.png" alt="The Tracon console showing recorded runs, token use, and recent activity" width="2880" height="1800" loading="eager" decoding="async" fetchpriority="high" />
-    <img class="shot-dark" src="/screenshots/dashboard.png" alt="The Tracon console showing recorded runs, token use, and recent activity" width="2880" height="1800" loading="lazy" decoding="async" />
-    <figcaption>The embedded console, captured from a local sample with seeded runs.</figcaption>
-  </figure>
+  <HeldTape />
 </section> : <DefaultHero />}

@@ -1,5 +1,6 @@
 import { checkCapacityStamp } from './check-capacity-stamp.mjs';
 import { checkConsoleScreens } from './check-console-screens.mjs';
+import { checkLandingCaptures } from './landing-captures.mjs';
 // Product-documentation invariants that are cheap enough to run on every build.
 //
 // 🚨 This script needs the GENERATED pages on disk. `reference/changelog.md` is
@@ -662,6 +663,11 @@ for (const url of indexed) {
 // ---------------------------------------------------------------------------
 
 errors.push(...checkConsoleScreens(sourceRoot, docsRoot, siteRoot));
+
+// The home page crops are cut from the same screenshots at pinned regions. A
+// recapture could move a crop onto the wrong rows, and a renamed crop would
+// break every srcset candidate, which the link gate does not read.
+errors.push(...checkLandingCaptures(siteRoot, docsRoot));
 
 // A published capacity number is a shipped claim, and phase 166's audit found
 // five of them wrong in the step between the measurement file and the page.
