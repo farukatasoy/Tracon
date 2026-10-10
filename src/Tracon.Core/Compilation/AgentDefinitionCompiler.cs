@@ -63,6 +63,7 @@ public sealed partial class AgentDefinitionCompiler
     private readonly TraconAgentGraphOptions _agentGraph;
     private readonly TimeProvider? _timeProvider;
     private readonly LoopEvaluatorRegistry _loopEvaluators;
+    private readonly ITenantEgressPolicyStore? _tenantEgressPolicies;
 
     // MAAI001: Microsoft.Agents.AI.AgentFileStore is marked "evaluation
     // purposes only". The suppression is kept in a single file (this file,
@@ -147,6 +148,12 @@ public sealed partial class AgentDefinitionCompiler
     /// unconfigured, that criterion gets a compilation error rather than
     /// borrowing the agent's own model.
     /// </param>
+    /// <param name="tenantEgressPolicies">
+    /// The tenant egress policy store. Its policy for the current tenant enters
+    /// the compiled-agent cache key, so a policy saved after an agent was cached
+    /// reaches the next resolve. When <see langword="null"/>, the key carries no
+    /// policy.
+    /// </param>
     /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
 #pragma warning disable MAAI001 // AgentFileStore — see the rationale on the _fileStore field.
     internal AgentDefinitionCompiler(
@@ -169,7 +176,8 @@ public sealed partial class AgentDefinitionCompiler
         TraconAgentGraphOptions? agentGraph = null,
         TimeProvider? timeProvider = null,
         IEnumerable<TraconLoopEvaluatorRegistration>? loopEvaluators = null,
-        ModelRunJudgeOptions? judgeOptions = null)
+        ModelRunJudgeOptions? judgeOptions = null,
+        ITenantEgressPolicyStore? tenantEgressPolicies = null)
 #pragma warning restore MAAI001
     {
         ArgumentNullException.ThrowIfNull(models);
@@ -194,6 +202,7 @@ public sealed partial class AgentDefinitionCompiler
         _agentGraph = agentGraph ?? new TraconAgentGraphOptions();
         _timeProvider = timeProvider;
         _loopEvaluators = new LoopEvaluatorRegistry(loopEvaluators ?? [], models, judgeOptions, loggerFactory);
+        _tenantEgressPolicies = tenantEgressPolicies;
     }
 
     /// <summary>Converts a definition into an executable agent.</summary>

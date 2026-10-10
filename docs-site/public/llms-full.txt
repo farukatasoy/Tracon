@@ -1259,6 +1259,9 @@ summarizer is billed like the agent's own model: it uses the tenant's key when t
 tenant has one for its provider. The loop judge is the host's one judge model, the
 same one the run judge calls, and keeps the shared setup-time key.
 
+A saved policy takes effect on the next run: an agent compiled under the earlier
+policy is not reused, and a run already in progress is not stopped.
+
 Both are managed under `/api/tenants/{tenantId}/providers` and
 `/api/tenants/{tenantId}/egress`, guarded by the `SecurityAdmin` API key scope. A
 tenant other than the caller's own also requires platform authority: the

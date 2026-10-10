@@ -643,6 +643,7 @@ türevler tek komutla çıkar.
 | **F-244** · `guides/coding-agents.md` diagnostic tablosu eksik sayıyordu | 2026-09-24, doğrudan | `TRC0501`/`TRC0502` satırları eklendi; sayfa artık sayı yazmıyor. Kapı: `check-content.mjs` tabloyu `UsageDiagnostics.cs` tanımlayıcılarıyla iki yönlü karşılaştırır |
 | **F-255** · `Tracon.Google` görsel yolu için canlı kanıt yoktu | 2026-09-24, doğrudan | `MT-MM-121` canlı Google anahtarıyla yeniden koşuldu: `POST /api/images/generate` → `200`, `image/png` 2 063 511 B ek. `size: "1024x1024"` açık hatayla reddedildi (`502`, *"does not accept WIDTHxHEIGHT"*). `OutputMimeType` sorusu ölçüldü ve yeni kusura dönüştü: **F-281** |
 | **F-251** · Damıtma, yeniden koşulan bir case'in eski bloğunu işaretsiz bırakıyordu | 2026-09-24, doğrudan | `_kosum_damit_metni` son bloğun işaretini önceki blokların boş şablon `Durum` satırına taşır; ters yön (ilk deneme geçti, yeniden koşum kaldı) artık `☑` satırına inmez; serbest metinli `Durum` satırına dokunulmaz. Arşivde 19 blok düzeltildi (`12-GOZLEMLENEBILIRLIK-MALIYET.md`). Kanıt: `KosumDamitmaTestleri` (önce 2 kırmızı, 6 yeni test) |
+| **F-304** · Önbellekteki derlenmiş agent sonradan kaydedilen egress politikasını görmüyordu | 2026-10-11, kusur-giderme | `EgressPolicyCacheTests` düzeltmeden önce iki kez kırmızı (`200`, sağlayıcı çağrıldı), sonra yeşil. K-875: politika içeriği bağımlılık parmak izinde. Kapı: `CompiledAgentCacheKeyCoverageTests`. Sınıf taramasının açık bulguları F-305 ve F-306 |
 
 ### ADAYLAR.md'den taşınan kanal satırları (2026-09-24)
 

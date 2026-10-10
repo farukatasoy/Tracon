@@ -324,7 +324,11 @@ public static partial class TraconServiceCollectionExtensions
             // The judge binding an aiJudge loop criterion calls. Unconfigured
             // unless AddModelRunJudge was called, in which case that criterion
             // fails to compile instead of borrowing the agent's own model.
-            provider.GetService<IOptions<ModelRunJudgeOptions>>()?.Value));
+            provider.GetService<IOptions<ModelRunJudgeOptions>>()?.Value,
+            // The SAME store the registry checks (F-304): its policy enters the
+            // compiled-agent cache key, so a policy saved after an agent was
+            // cached reaches the next resolve.
+            provider.GetService<ITenantEgressPolicyStore>()));
 #pragma warning restore MAAI001
 
         // Knowledge base management surface (Phase 51): document upload,

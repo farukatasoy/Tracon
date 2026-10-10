@@ -4785,3 +4785,43 @@ curl -s -w "\nHTTP: %{http_code}\n" -X DELETE "$APU/api/tenants/default/egress" 
 - Kiracının `anthropic` için kendi anahtarı (bağlama) varsa özet çağrısı o
   anahtarla yapılır; yargıç kurulum anahtarında kalır (K-613). Otomatik
   karşılığı: `SecondaryModelTenantBoundaryTests`.
+
+---
+
+### MT-SEC-212 — Kaydedilen egress politikası önbellekteki agent'a bir sonraki run'da ulaşır
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 65 (kusur-giderme 2026-10-11, F-304) |
+| **İlgili karar** | K-875 · K-467 |
+| **İnsan gerekir** | Hayır |
+| **Devir** | koşulmadı; ➜ CI: `EgressPolicyCacheTests` (fonksiyonel) · `DefinitionStoreAgentSourceEgressPolicyTests` |
+
+**Ön koşul** — `default` kiracısında egress politikası yok; `openai`
+sağlayıcısına bağlı `support` agent'ı kayıtlı.
+
+**Adımlar**
+1. `support` agent'ını bir kez çalıştır; agent önbelleğe girer.
+2. `default` için politikayı yalnız `["anthropic"]` olarak kaydet.
+3. Aynı agent'ı yeniden çalıştır.
+4. Politikayı sil ve agent'ı yeniden çalıştır.
+
+**Girilecek veri**
+```bash
+run() { curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents/support/run" -H "$APB" \
+  -H "content-type: application/json" -H "Idempotency-Key: $(uuidgen)" -d '{"message":"merhaba"}'; }
+run
+curl -s -X PUT "$APU/api/tenants/default/egress" -H "$APB" -H "content-type: application/json" \
+  -d '{"allowedProviders": ["anthropic"]}'
+run
+curl -s -X DELETE "$APU/api/tenants/default/egress" -H "$APB"
+run
+```
+
+**Beklenen sonuç**
+- Adım 1 ve 4: `HTTP: 200`.
+- Adım 3: `HTTP: 400` (`Agent compilation failed`); ayrıntı
+  `not allowed to call model provider 'openai'` der ve sağlayıcıya istek
+  gitmez. Düzeltmeden önce adım 3 `200` dönüyordu.
