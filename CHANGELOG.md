@@ -6,6 +6,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Security
+
+- A tenant's egress policy and its own provider key now reach every model an
+  agent calls, not only the agent's own model. The model that summarizes the
+  conversation during compaction (`Compaction.SummarizationModel`, or
+  `UtilityModel` when the agent names none) and the judge of an `aiJudge` loop
+  criterion were built without either. A definition that named a provider the
+  tenant may not call compiled and ran, and each compaction sent the tenant's
+  conversation to that provider. Such a definition is now refused when it is
+  compiled or validated, and the refusal names the provider. The summarizer
+  uses the tenant's own key when the tenant has one for its provider, so the
+  tenant pays for it, and such an agent is not cached: a rotated or deleted key
+  takes effect on the next run. The loop judge keeps the setup-time key: it is
+  the host's one judge model, the same one the run judge calls.
+
 ### Fixed
 
 - Editing a workflow that uses function nodes in the console no longer erases

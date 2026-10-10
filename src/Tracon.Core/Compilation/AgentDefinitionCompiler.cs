@@ -203,6 +203,14 @@ public sealed partial class AgentDefinitionCompiler
     /// <exception cref="TraconCompilationException">
     /// The model provider cannot be found, or the definition references a tool name that is not registered.
     /// </exception>
+    /// <remarks>
+    /// The synchronous path resolves <strong>no</strong> tenant state. No model
+    /// client the agent calls — its own model, the compaction summarizer, the
+    /// judge of an <c>aiJudge</c> loop criterion — goes through the current
+    /// tenant's egress policy or its own provider credential, because both need
+    /// an async store read. Compile an agent that runs for a tenant with
+    /// <see cref="CompileAsync(AgentDefinition, CancellationToken)"/>.
+    /// </remarks>
     public AIAgent Compile(AgentDefinition definition) => Compile(definition, ResolvedCallableAgents.Empty);
 
     /// <summary>Converts a definition, together with its resolved sub-agents, into an executable agent.</summary>
@@ -215,6 +223,9 @@ public sealed partial class AgentDefinitionCompiler
     /// <exception cref="TraconCompilationException">
     /// The model provider cannot be found, or the definition references a tool name that is not registered.
     /// </exception>
+    /// <remarks>
+    /// Resolves no tenant state; see <see cref="Compile(AgentDefinition)"/>.
+    /// </remarks>
     public AIAgent Compile(AgentDefinition definition, ResolvedCallableAgents callableAgents)
         => Compile(definition, callableAgents, toolTransform: null, culture: null);
 
@@ -261,6 +272,9 @@ public sealed partial class AgentDefinitionCompiler
     /// <strong>not used</strong> for this path: the transform changes per
     /// call, and caching a replay agent would also break normal runs.
     /// </para>
+    /// <para>
+    /// Resolves no tenant state; see <see cref="Compile(AgentDefinition)"/>.
+    /// </para>
     /// </remarks>
     public AIAgent Compile(
         AgentDefinition definition,
@@ -270,7 +284,14 @@ public sealed partial class AgentDefinitionCompiler
     {
         ArgumentNullException.ThrowIfNull(definition);
 
-        return BuildAgent(definition, callableAgents, toolTransform, culture, CreateChatClient(definition), sharedInstructions: null);
+        return BuildAgent(
+            definition,
+            callableAgents,
+            toolTransform,
+            culture,
+            CreateChatClient(definition),
+            CreateSecondaryChatClients(definition),
+            sharedInstructions: null);
     }
 
     /// <summary>Converts a definition into an executable agent (BYOK).</summary>
@@ -279,16 +300,25 @@ public sealed partial class AgentDefinitionCompiler
     /// <returns>The executable agent.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="definition"/> is <see langword="null"/>.</exception>
     /// <exception cref="TraconCompilationException">
-    /// The model provider cannot be found, the definition references a tool name that is not
-    /// registered, the current tenant's egress policy forbids the provider, or the tenant's
-    /// provider binding cannot be resolved to a credential value.
+    /// A model provider cannot be found, the definition references a tool name that is not
+    /// registered, the current tenant's egress policy forbids a provider the agent calls, or
+    /// the tenant's provider binding cannot be resolved to a credential value.
     /// </exception>
     /// <remarks>
+    /// <para>
     /// The async counterpart of <see cref="Compile(AgentDefinition)"/>: resolves the
-    /// requesting tenant's own provider credential and egress policy
-    /// (<see cref="IModelProviderRegistry.CreateChatClientAsync"/>) before building the client.
+    /// requesting tenant's egress policy before it builds any model client the agent calls,
+    /// and the tenant's own provider credential for the clients the tenant pays for. The
+    /// agent's own model and the compaction summarizer use
+    /// <see cref="IModelProviderRegistry.CreateChatClientAsync"/>. The judge of an
+    /// <c>aiJudge</c> loop criterion uses
+    /// <see cref="IModelProviderRegistry.CreateSetupChatClientAsync"/>: it is the host's one
+    /// judge model and keeps the setup-time credential.
+    /// </para>
+    /// <para>
     /// When no tenant context or provider binding is registered, behavior is identical
     /// to the sync overload.
+    /// </para>
     /// </remarks>
     public ValueTask<AIAgent> CompileAsync(AgentDefinition definition, CancellationToken cancellationToken)
         => CompileAsync(definition, ResolvedCallableAgents.Empty, culture: null, cancellationToken);
@@ -349,9 +379,10 @@ public sealed partial class AgentDefinitionCompiler
         ArgumentNullException.ThrowIfNull(definition);
 
         var chatClient = await CreateChatClientAsync(definition, cancellationToken).ConfigureAwait(false);
+        var secondaryClients = await CreateSecondaryChatClientsAsync(definition, cancellationToken).ConfigureAwait(false);
         var sharedInstructions = await ResolveSharedInstructionsAsync(definition, cancellationToken).ConfigureAwait(false);
 
-        return BuildAgent(definition, callableAgents, toolTransform, culture, chatClient, sharedInstructions.Text);
+        return BuildAgent(definition, callableAgents, toolTransform, culture, chatClient, secondaryClients, sharedInstructions.Text);
     }
 
     /// <summary>
@@ -428,6 +459,12 @@ public sealed partial class AgentDefinitionCompiler
     /// <see cref="IModelProviderRegistry.HasTenantProviderOverrideAsync"/> for
     /// the full rationale.
     /// </returns>
+    /// <remarks>
+    /// A compiled agent can hold a second client the tenant pays for: the
+    /// summarizer of its <see cref="AgentDefinition.Compaction"/>. A caller
+    /// that caches compiled agents itself asks about that binding too;
+    /// <see cref="CompileCachedAsync"/> does.
+    /// </remarks>
     public ValueTask<bool> UsesTenantProviderOverrideAsync(ModelBinding binding, CancellationToken cancellationToken = default)
         => _models.HasTenantProviderOverrideAsync(binding, cancellationToken);
 
@@ -471,6 +508,7 @@ public sealed partial class AgentDefinitionCompiler
         Func<AIFunction, AIFunction>? toolTransform,
         string? culture,
         IChatClient chatClient,
+        SecondaryChatClients secondaryClients,
         string? sharedInstructions)
     {
         // 🚨 The synchronous Compile() overloads never resolve
@@ -517,8 +555,8 @@ public sealed partial class AgentDefinitionCompiler
         var chatOptions = BuildChatOptions(definition, tools, culture, sharedInstructions);
 
         return definition.Harness is null
-            ? CompileChatAgent(definition, chatClient, chatOptions, callableAgents)
-            : CompileHarnessAgent(definition, chatClient, chatOptions, callableAgents);
+            ? CompileChatAgent(definition, chatClient, secondaryClients, chatOptions, callableAgents)
+            : CompileHarnessAgent(definition, chatClient, secondaryClients, chatOptions, callableAgents);
     }
 }
 
@@ -556,3 +594,18 @@ internal readonly record struct ResolvedSharedInstructions(string? Text, string 
     /// <summary>The result for a definition that references no shared instructions block.</summary>
     public static ResolvedSharedInstructions Empty { get; } = new(null, string.Empty);
 }
+
+/// <summary>
+/// The model clients a compiled agent calls besides its own model, built
+/// before the agent so the async compile path can resolve each one for the
+/// current tenant.
+/// </summary>
+/// <param name="Summarization">
+/// The compaction summarizer. <see langword="null"/> when the definition's
+/// compaction strategy does not summarize.
+/// </param>
+/// <param name="LoopJudge">
+/// The judge of an <c>aiJudge</c> loop criterion. <see langword="null"/> when
+/// the definition has no such criterion or no judge model is configured.
+/// </param>
+internal readonly record struct SecondaryChatClients(IChatClient? Summarization, IChatClient? LoopJudge);
