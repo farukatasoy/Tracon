@@ -1485,6 +1485,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                    secret_configuration_key = @secret_configuration_key,
                    headers                   = @headers,
                    enabled                   = @enabled,
+                   consecutive_failures      = @consecutive_failures,
                    updated_at                = @updated_at,
                    header_configuration_keys = @header_configuration_keys
              OUTPUT {webhookSubscriptionOutput}

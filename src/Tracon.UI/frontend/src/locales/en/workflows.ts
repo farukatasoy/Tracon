@@ -72,6 +72,8 @@ export const enWorkflows = {
   "workflowEditor.moveUpAgent": 'Move {agent} up',
   "workflowEditor.moveDownAgent": 'Move {agent} down',
   "workflowEditor.removeAgent": 'Remove {agent}',
+  "workflowEditor.kindLocked": 'Function nodes run only in a Sequential chain.',
+  "workflowEditor.nodesReadOnly": 'This chain includes function nodes. The console cannot change the chain yet; the HTTP API can. Saving here keeps the chain as it is.',
   "jobs.description": 'Run an agent or a workflow over a batch of inputs, on a cron schedule or on demand. A batch item is one ordinary run, linked back here.',
   "jobs.status.pending": 'pending',
   "jobs.status.leased": 'leased',

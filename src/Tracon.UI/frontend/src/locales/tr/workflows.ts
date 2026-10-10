@@ -77,6 +77,8 @@ export const trWorkflows: Pick<Messages, keyof typeof enWorkflows> = {
   "workflowEditor.moveUpAgent": "{agent} agent'ını yukarı taşı",
   "workflowEditor.moveDownAgent": "{agent} agent'ını aşağı taşı",
   "workflowEditor.removeAgent": "{agent} agent'ını kaldır",
+  "workflowEditor.kindLocked": 'Fonksiyon düğümleri yalnız Sequential zincirde çalışır.',
+  "workflowEditor.nodesReadOnly": 'Bu zincir fonksiyon düğümleri içeriyor. Konsol zinciri henüz değiştiremez; HTTP API değiştirebilir. Burada kaydetmek zinciri olduğu gibi korur.',
   "jobs.description": "Bir agent'ı veya workflow'u bir girdi yığını üzerinde, cron ile ya da istek üzerine çalıştırın. Yığındaki her öğe sıradan bir çalıştırmadır ve buraya bağlanır.",
   "jobs.status.pending": 'bekliyor',
   "jobs.status.leased": 'kiralandı',

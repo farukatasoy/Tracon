@@ -39,6 +39,14 @@ public interface IExperimentStore
     /// <param name="experiment">The experiment to save.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The saved experiment.</returns>
+    /// <remarks>
+    /// This method does not write <see cref="Experiment.Canary"/> or
+    /// <see cref="Experiment.RollbackReason"/>: an update keeps the stored values
+    /// and a new experiment starts without them, whatever
+    /// <paramref name="experiment"/> carries. <see cref="SetCanaryPolicyAsync"/>
+    /// and the canary evaluator own both, so a draft edit never turns an
+    /// automatic rollback off.
+    /// </remarks>
     ValueTask<Experiment> SaveAsync(Experiment experiment, CancellationToken cancellationToken = default);
 
     /// <summary>Deletes an experiment. A running experiment must be stopped before deletion.</summary>

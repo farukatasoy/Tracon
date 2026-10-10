@@ -199,6 +199,8 @@ Tracon.Testing.Contracts.Storage.ExperimentStoreContract.Rollback_stops_the_expe
 Tracon.Testing.Contracts.Storage.ExperimentStoreContract.Running_experiment_cannot_be_deleted() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.ExperimentStoreContract.Running_experiment_cannot_be_updated() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.ExperimentStoreContract.Save_and_get_round_trips() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ExperimentStoreContract.Saving_a_draft_again_keeps_its_canary_policy() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ExperimentStoreContract.Saving_never_writes_the_canary_policy() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.ExperimentStoreContract.Second_start_for_same_agent_is_rejected() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.ExperimentStoreContract.Setting_canary_policy_is_EXEMPT_from_the_draft_only_edit_restriction() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.ExperimentStoreContract.Starting_returns_the_running_experiment() -> System.Threading.Tasks.Task!
@@ -645,6 +647,7 @@ Tracon.Testing.Contracts.Storage.WebhookStoreContract.Header_configuration_keys_
 Tracon.Testing.Contracts.Storage.WebhookStoreContract.Header_names_that_differ_only_in_case_do_not_fail_the_save() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WebhookStoreContract.Headers_are_preserved() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WebhookStoreContract.Saved_subscription_is_read_back() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WebhookStoreContract.Saving_a_subscription_again_writes_the_failure_counter_it_carries() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WebhookStoreContract.Saving_the_same_name_a_second_time_overwrites_it() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WebhookStoreContract.Subscribers_for_an_event_are_found() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WebhookStoreContract.Successful_delivery_resets_the_counter() -> System.Threading.Tasks.Task!

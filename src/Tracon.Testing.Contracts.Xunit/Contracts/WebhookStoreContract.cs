@@ -342,6 +342,35 @@ public abstract class WebhookStoreContract : TenantIsolationContract<IWebhookSto
         loaded.Enabled.ShouldBeTrue();
     }
 
+    [Fact]
+    public async Task Saving_a_subscription_again_writes_the_failure_counter_it_carries()
+    {
+        var subscription = await Store.SaveSubscriptionAsync(Subscription());
+        var now = DateTimeOffset.UtcNow;
+
+        // Threshold 2: the second failure disables the subscription.
+        await Store.RecordSubscriptionOutcomeAsync(subscription.Id, false, 2, now);
+        await Store.RecordSubscriptionOutcomeAsync(subscription.Id, false, 2, now);
+
+        var disabled = await Store.GetSubscriptionAsync(Tenant, "orders");
+        disabled.ShouldNotBeNull();
+        disabled.Enabled.ShouldBeFalse();
+        disabled.ConsecutiveFailures.ShouldBe(2);
+
+        // The management API re-enables a subscription by saving it with the
+        // counter at zero. A store that keeps the stored counter undoes that
+        // reset without a trace: the next single failure disables it again.
+        await Store.SaveSubscriptionAsync(disabled with { Enabled = true, ConsecutiveFailures = 0 });
+
+        var saved = await Store.GetSubscriptionAsync(Tenant, "orders");
+        saved.ShouldNotBeNull();
+        saved.Enabled.ShouldBeTrue();
+        saved.ConsecutiveFailures.ShouldBe(0);
+
+        (await Store.RecordSubscriptionOutcomeAsync(subscription.Id, false, 2, now)).ShouldBeFalse();
+        (await Store.GetSubscriptionAsync(Tenant, "orders"))!.Enabled.ShouldBeTrue();
+    }
+
     private static WebhookSubscription Subscription(
         string name = "orders",
         string url = "https://example.com/hook",

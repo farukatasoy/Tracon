@@ -57,6 +57,7 @@ export const enOperations = {
   "quota.periodNoticeBefore": 'Periods are computed in',
   "quota.periodNoticeAfter": 'Counters are approximate: the check runs before a run starts and consumption is written after it ends, so concurrent runs can overshoot a limit slightly.',
   "quota.agentHint": 'Leave it empty to cover every agent of this tenant.',
+  "quota.scopeLocked": 'The agent and the period identify this rule. To change them, delete the rule and add a new one.',
   "quota.period": 'Period',
   "quota.daily": 'Daily',
   "quota.monthly": 'Monthly',
