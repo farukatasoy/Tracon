@@ -45,3 +45,18 @@
   temizdir. Kapı: `DefinitionFingerprintTests
   .Every_field_of_the_record_reaches_the_fingerprint` — record'un kendi
   alanlarını gezer ve her birinin parmak izini değiştirdiğini zorlar.
+- **🚨 Paralel async yolu açmak, o yolda kurulan HER model istemcisini
+  taşımak demektir — yalnız ana istemciyi değil** (2026-10-11,
+  kusur-giderme). Faz 65 ana modeli `CreateChatClientAsync`'e taşıdı;
+  sıkıştırma özetleyicisi (Faz 13) ve Faz 151'in `aiJudge` yargıcı
+  `BuildAgent`'ın İÇİNDE senkron `CreateChatClient` ile kurulmaya devam etti.
+  Kiracının egress politikası özet ve yargıç modelini hiç görmedi, kiracının
+  kendi anahtarı özetleyiciye ulaşmadı, önbellek atlama kararı yalnız
+  `definition.Model`'i sordu. Ana modele bakan her test yeşildi — K-467'nin
+  "tek nokta" ölçümü de yalnız ana istemciyi saymıştı. **Kural:** async yol
+  agent'ın çağıracağı her istemciyi agent'tan ÖNCE kurar
+  (`CreateSecondaryChatClientsAsync`); `BuildAgent` ve altı istemci KURMAZ,
+  yalnız alır. Yeni bir ikincil model oraya ve `HoldsTenantCredentialAsync`'e
+  girer. Kapı: `CompilePathTenantAwarenessTests` — registry'nin senkron üyesi
+  atar ve `AgentDefinition`'a eklenen her `ModelBinding` bir proba bağlanmadan
+  test geçmez. Davranış: `SecondaryModelTenantBoundaryTests`. K-874.

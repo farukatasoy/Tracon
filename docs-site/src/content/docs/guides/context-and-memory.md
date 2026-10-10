@@ -267,6 +267,9 @@ window is not all available to conversation history.
 
 **Summarization costs more than expected.** It is another model call. Set the agent's
 `SummarizationModel`, or configure the application-wide `TraconOptions.UtilityModel`.
+The summarizer reads the tenant's conversation, so it is treated like the agent's own
+model: the tenant's egress policy applies to its provider, and it uses the tenant's
+own key when one is bound.
 
 **File memory disappears after restart.** The default `AgentFileStore` is in memory.
 Register PostgreSQL, SQL Server, or SQLite for a built-in persistent implementation.

@@ -27,6 +27,11 @@ public sealed partial class AgentDefinitionCompiler
     /// Builds an executable <see cref="CompactionStrategy"/> from a
     /// definition's compaction settings.
     /// </summary>
+    /// <param name="definition">The definition being compiled.</param>
+    /// <param name="summarizationClient">
+    /// The client built beforehand for <see cref="ResolveSummarizationBinding"/>.
+    /// Required when the strategy summarizes; ignored otherwise.
+    /// </param>
     /// <returns>
     /// <see langword="null"/> - the definition does not want compaction
     /// (<see cref="AgentDefinition.Compaction"/> is empty or
@@ -40,7 +45,7 @@ public sealed partial class AgentDefinitionCompiler
     // internal (not private): so structural decisions such as the Pipeline's
     // fixed order can be tested directly. CompactionProvider does not leak
     // this strategy outward, so tests cannot reach it another way.
-    internal ObservedCompactionStrategy? BuildCompactionStrategy(AgentDefinition definition)
+    internal ObservedCompactionStrategy? BuildCompactionStrategy(AgentDefinition definition, IChatClient? summarizationClient)
     {
         var settings = definition.Compaction;
 
@@ -74,7 +79,7 @@ public sealed partial class AgentDefinitionCompiler
                 trigger!, settings.MinimumPreservedGroups ?? DefaultMinimumPreservedGroups, target: null),
 
             CompactionStrategyKind.Summarization => new SummarizationCompactionStrategy(
-                ResolveSummarizationChatClient(definition),
+                TrackSummarizationUsage(definition, summarizationClient),
                 trigger!,
                 settings.MinimumPreservedGroups ?? DefaultMinimumPreservedGroups,
                 settings.SummarizationPrompt,
@@ -92,7 +97,7 @@ public sealed partial class AgentDefinitionCompiler
                 new SlidingWindowCompactionStrategy(
                     trigger!, settings.MinimumPreservedTurns ?? DefaultMinimumPreservedTurns, target: null),
                 new SummarizationCompactionStrategy(
-                    ResolveSummarizationChatClient(definition),
+                    TrackSummarizationUsage(definition, summarizationClient),
                     trigger!,
                     settings.MinimumPreservedGroups ?? DefaultMinimumPreservedGroups,
                     settings.SummarizationPrompt,
@@ -183,17 +188,30 @@ public sealed partial class AgentDefinitionCompiler
     }
 
     /// <summary>
-    /// Resolves the model used for the summarization call and wraps it with a token tracker.
+    /// Resolves the model the summarization call runs on.
     /// </summary>
+    /// <returns>
+    /// The binding, or <see langword="null"/> when the definition's compaction
+    /// strategy does not summarize.
+    /// </returns>
     /// <remarks>
     /// Order: the agent's own <see cref="CompactionSettings.SummarizationModel"/>
     /// → the application-wide utility model → the agent's own model.
     /// </remarks>
-    private CompactionUsageTrackingChatClient ResolveSummarizationChatClient(AgentDefinition definition)
-    {
-        var binding = definition.Compaction?.SummarizationModel ?? _utilityModel ?? definition.Model;
+    private ModelBinding? ResolveSummarizationBinding(AgentDefinition definition)
+        => definition.Compaction is { Strategy: CompactionStrategyKind.Summarization or CompactionStrategyKind.Pipeline } settings
+            ? settings.SummarizationModel ?? _utilityModel ?? definition.Model
+            : null;
 
-        return new CompactionUsageTrackingChatClient(CreateChatClient(definition, binding));
-    }
+    /// <summary>Wraps the summarization client with a token tracker.</summary>
+    /// <exception cref="InvalidOperationException">
+    /// The client was not built before the agent: a defect in the compiler, not in the definition.
+    /// </exception>
+    private static CompactionUsageTrackingChatClient TrackSummarizationUsage(
+        AgentDefinition definition,
+        IChatClient? summarizationClient)
+        => new(summarizationClient ?? throw new InvalidOperationException(
+            $"Agent '{definition.Name}' summarizes during compaction, but its summarization client was not " +
+            "built before the agent."));
 }
 #pragma warning restore MAAI001

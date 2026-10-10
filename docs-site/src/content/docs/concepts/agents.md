@@ -313,7 +313,9 @@ Four more rules are worth knowing before you turn the loop on:
   ends as a bounded run, not as an invoice.
 - **`aiJudge` calls a model on every iteration it reaches.** It runs on the
   judge binding configured with `AddModelRunJudge(...)`, never on the agent's own
-  model. Without that binding the definition does not compile.
+  model. Without that binding the definition does not compile. The judge reads
+  each answer, so a tenant's egress policy applies to its provider; it keeps the
+  setup-time key, not the tenant's own.
 - **A criterion that fails to evaluate stops the loop; it does not fail the
   run.** The work already finished is returned, and the iteration event names the
   criterion that failed.

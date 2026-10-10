@@ -4731,3 +4731,57 @@ curl -s "$APU/api/audit/webhook:w1" -H "$APB" | grep -o 'headerConfigurationKeys
 
 **Beklenen sonuç** — Teslim `Dropped`; `error` `headerConfigurationKeys[X-API-Key]`
 ve `Tracon:WebhookSecrets:` önekini adlandırır; yakalayıcıya istek gelmez.
+
+---
+
+### MT-SEC-211 — Özet modeli ve `aiJudge` yargıcı da egress politikasına takılır
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 65 · Faz 151 (kusur-giderme 2026-10-11) |
+| **İlgili karar** | K-874 · K-613 |
+| **İnsan gerekir** | Hayır |
+| **Devir** | koşulmadı; ➜ CI: `SecondaryModelEgressTests` (fonksiyonel) · `SecondaryModelTenantBoundaryTests` · `CompilePathTenantAwarenessTests` |
+
+**Ön koşul** — İki sağlayıcı kayıtlı: agent'ın modeli için `openai`, ikinci
+model için `anthropic`. Anahtar değeri gerekmez; derleme ağa çıkmaz. Adım 3
+için host `AddModelRunJudge(o => o.Model = …)` ile yargıç modelini `anthropic`
+sağlayıcısına bağlar. İkinci sağlayıcı kayıtlı OLMALIDIR: kayıtsız sağlayıcı
+"provider bulunamadı" hatası verir ve politika hiç koşmaz.
+
+**Adımlar**
+1. `default` kiracısı için egress politikasını yalnız `["openai"]` olarak kaydet.
+2. Modeli `openai`, `compaction.summarizationModel`'i `anthropic` olan tanımı
+   `POST /api/agents/validate` ile doğrula.
+3. Özet modeli olmayan, `harness.loop` içinde `aiJudge` ölçütü taşıyan tanımı
+   doğrula.
+4. Politikayı sil.
+
+**Girilecek veri**
+```bash
+curl -s -X PUT "$APU/api/tenants/default/egress" -H "$APB" -H "content-type: application/json" \
+  -d '{"allowedProviders": ["openai"]}'
+curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: application/json" -d '{
+  "name": "ozetleyen", "instructions": "Reply briefly.",
+  "model": {"provider": "openai", "model": "gpt-4o-mini"},
+  "compaction": {"strategy": "Summarization", "triggerMessages": 20,
+    "summarizationModel": {"provider": "anthropic", "model": "claude-haiku-4-5"}}
+}'
+curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: application/json" -d '{
+  "name": "yargilanan", "instructions": "Reply briefly.",
+  "model": {"provider": "openai", "model": "gpt-4o-mini"},
+  "harness": {"loop": {"criteria": [{"kind": "aiJudge", "judgeCriteria": ["Is the answer complete?"]}]}}
+}'
+curl -s -w "\nHTTP: %{http_code}\n" -X DELETE "$APU/api/tenants/default/egress" -H "$APB"
+```
+
+**Beklenen sonuç**
+- Adım 2 ve 3: `valid: false`; `compilation_error` kodlu mesaj
+  `not allowed to call model provider 'anthropic'` der. Düzeltmeden önce iki
+  tanım da `valid: true` dönüyordu ve her sıkıştırma kiracının konuşmasını
+  yasak sağlayıcıya gönderiyordu.
+- Kiracının `anthropic` için kendi anahtarı (bağlama) varsa özet çağrısı o
+  anahtarla yapılır; yargıç kurulum anahtarında kalır (K-613). Otomatik
+  karşılığı: `SecondaryModelTenantBoundaryTests`.

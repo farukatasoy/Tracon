@@ -48,6 +48,34 @@ public sealed partial class AgentDefinitionCompiler
         }
     }
 
+    // 🚨 Every model client the agent calls is built here, BEFORE the agent,
+    // so the async path can put each one through the registry's tenant-aware
+    // members. The summarizer and the aiJudge loop judge were once built
+    // inside BuildAgent with the synchronous CreateChatClient: the tenant's
+    // egress policy and its own key never reached them, and a definition
+    // summarized on a provider the tenant had forbidden (2026-10-11). The
+    // synchronous path stays tenant-blind by design (K-466).
+    private SecondaryChatClients CreateSecondaryChatClients(AgentDefinition definition)
+        => new(
+            ResolveSummarizationBinding(definition) is { } binding ? CreateChatClient(definition, binding) : null,
+            _loopEvaluators.CreateJudgeChatClient(definition));
+
+    private async ValueTask<SecondaryChatClients> CreateSecondaryChatClientsAsync(
+        AgentDefinition definition,
+        CancellationToken cancellationToken)
+    {
+        // The summarizer reads the tenant's conversation on the tenant's
+        // account: egress policy AND the tenant's own key. The judge is the
+        // host's one judge model (K-613, K-706): egress policy only.
+        var summarization = ResolveSummarizationBinding(definition) is { } binding
+            ? await CreateChatClientAsync(definition, binding, cancellationToken).ConfigureAwait(false)
+            : null;
+
+        var loopJudge = await _loopEvaluators.CreateJudgeChatClientAsync(definition, cancellationToken).ConfigureAwait(false);
+
+        return new SecondaryChatClients(summarization, loopJudge);
+    }
+
     private List<AITool> ResolveTools(AgentDefinition definition)
     {
         var tools = new List<AITool>(definition.ToolNames.Count);

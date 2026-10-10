@@ -111,13 +111,92 @@ internal sealed class LoopEvaluatorRegistry
     }
 
     /// <summary>
+    /// Builds the client an <c>aiJudge</c> criterion calls, after the current
+    /// tenant's egress policy allows the judge's provider.
+    /// </summary>
+    /// <param name="definition">The definition being compiled.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>
+    /// The judge client, or <see langword="null"/> when the definition has no
+    /// <c>aiJudge</c> criterion or no judge model is configured. <see cref="Build"/>
+    /// reports the second case together with the definition's other loop errors.
+    /// </returns>
+    /// <exception cref="ArgumentNullException"><paramref name="definition"/> is <see langword="null"/>.</exception>
+    /// <exception cref="TraconCompilationException">
+    /// The judge's provider is not registered, or the tenant's egress policy forbids it.
+    /// </exception>
+    /// <remarks>
+    /// The judge keeps the setup-time credential: it is the host's one judge
+    /// model, the same one the run judge calls.
+    /// </remarks>
+    // K-613 (setup-time credential, egress policy applied) and K-706 (the
+    // aiJudge criterion runs on the AddModelRunJudge binding).
+    public async ValueTask<IChatClient?> CreateJudgeChatClientAsync(
+        AgentDefinition definition,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+
+        if (JudgeModelFor(definition) is not { } judgeModel)
+        {
+            return null;
+        }
+
+        // 🚨 Built here, BEFORE the agent and through the tenant-aware member,
+        // not inside Build: the egress lookup is an async store read. Built
+        // with the synchronous CreateChatClient inside Build, the judge read
+        // every iteration's answer on a provider the tenant had forbidden
+        // (2026-10-11).
+        try
+        {
+            return await _models.CreateSetupChatClientAsync(judgeModel, cancellationToken).ConfigureAwait(false);
+        }
+        catch (TraconException ex)
+        {
+            throw JudgeUnavailable(definition, ex);
+        }
+    }
+
+    /// <summary>
+    /// The synchronous counterpart of <see cref="CreateJudgeChatClientAsync"/>,
+    /// for the synchronous compile path only: it checks no egress policy.
+    /// </summary>
+    /// <param name="definition">The definition being compiled.</param>
+    /// <returns>See <see cref="CreateJudgeChatClientAsync"/>.</returns>
+    /// <exception cref="ArgumentNullException"><paramref name="definition"/> is <see langword="null"/>.</exception>
+    /// <exception cref="TraconCompilationException">The judge's provider is not registered.</exception>
+    public IChatClient? CreateJudgeChatClient(AgentDefinition definition)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+
+        if (JudgeModelFor(definition) is not { } judgeModel)
+        {
+            return null;
+        }
+
+        try
+        {
+            return _models.CreateChatClient(judgeModel);
+        }
+        catch (TraconException ex)
+        {
+            throw JudgeUnavailable(definition, ex);
+        }
+    }
+
+    /// <summary>
     /// Builds the loop the harness runs for <paramref name="definition"/>.
     /// </summary>
     /// <param name="definition">The definition. Its <c>Harness.Loop</c> must not be <see langword="null"/>.</param>
+    /// <param name="judgeClient">
+    /// The client every <c>aiJudge</c> criterion calls, built beforehand with
+    /// <see cref="CreateJudgeChatClientAsync"/>. <see langword="null"/> when the
+    /// definition has no such criterion.
+    /// </param>
     /// <returns>The single evaluator handed to the harness, and the loop options.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="definition"/> is <see langword="null"/>.</exception>
     /// <exception cref="TraconCompilationException">The loop settings are not usable.</exception>
-    public (LoopEvaluator Evaluator, LoopAgentOptions Options) Build(AgentDefinition definition)
+    public (LoopEvaluator Evaluator, LoopAgentOptions Options) Build(AgentDefinition definition, IChatClient? judgeClient)
     {
         ArgumentNullException.ThrowIfNull(definition);
 
@@ -148,7 +227,7 @@ internal sealed class LoopEvaluatorRegistry
 
         foreach (var criterion in loop.Criteria)
         {
-            criteria.Add(new LoopCriterionBinding(criterion.Kind, BuildCriterion(definition, criterion)));
+            criteria.Add(new LoopCriterionBinding(criterion.Kind, BuildCriterion(definition, criterion, judgeClient)));
         }
 
         var evaluator = new RecordingLoopEvaluator(
@@ -172,7 +251,7 @@ internal sealed class LoopEvaluatorRegistry
         return (evaluator, options);
     }
 
-    private LoopEvaluator BuildCriterion(AgentDefinition definition, LoopCriterion criterion)
+    private LoopEvaluator BuildCriterion(AgentDefinition definition, LoopCriterion criterion, IChatClient? judgeClient)
     {
         if (string.IsNullOrWhiteSpace(criterion.Kind))
         {
@@ -204,7 +283,7 @@ internal sealed class LoopEvaluatorRegistry
                 return new TodoCompletionLoopEvaluator(todoOptions);
 
             case AiJudgeKind:
-                return BuildJudgeCriterion(definition, criterion);
+                return BuildJudgeCriterion(definition, criterion, judgeClient);
 
             case BackgroundTaskCompletionKind:
                 return new BackgroundTaskCompletionLoopEvaluator(new BackgroundTaskCompletionLoopEvaluatorOptions());
@@ -223,7 +302,7 @@ internal sealed class LoopEvaluatorRegistry
         }
     }
 
-    private AIJudgeLoopEvaluator BuildJudgeCriterion(AgentDefinition definition, LoopCriterion criterion)
+    private AIJudgeLoopEvaluator BuildJudgeCriterion(AgentDefinition definition, LoopCriterion criterion, IChatClient? judgeClient)
     {
         if (criterion.JudgeCriteria.Count == 0)
         {
@@ -239,7 +318,7 @@ internal sealed class LoopEvaluatorRegistry
         // iteration, and charging that to an expensive agent model multiplies
         // the loop's bill. It is also the same binding the run judge already
         // uses, so a host configures one judge model, not two.
-        if (_judgeOptions?.Model is not { } judgeModel)
+        if (_judgeOptions?.Model is null)
         {
             throw Invalid(
                 definition,
@@ -248,20 +327,11 @@ internal sealed class LoopEvaluatorRegistry
                 "or use a criterion kind that does not call a model.");
         }
 
-        IChatClient judgeClient;
-
-        try
+        if (judgeClient is null)
         {
-            judgeClient = _models.CreateChatClient(judgeModel);
-        }
-        catch (TraconException ex)
-        {
-            throw new TraconCompilationException(
-                $"Agent '{definition.Name}' could not build its '{AiJudgeKind}' loop criterion: {ex.Message}",
-                ex)
-            {
-                AgentName = definition.Name,
-            };
+            throw new InvalidOperationException(
+                $"Agent '{definition.Name}' has an '{AiJudgeKind}' loop criterion, but its judge client was " +
+                $"not built. Call {nameof(CreateJudgeChatClientAsync)} before {nameof(Build)}.");
         }
 
         var judgeOptions = new AIJudgeLoopEvaluatorOptions
@@ -276,6 +346,34 @@ internal sealed class LoopEvaluatorRegistry
 
         return new AIJudgeLoopEvaluator(judgeClient, judgeOptions);
     }
+
+    /// <summary>
+    /// The judge binding, when the definition's loop has an <c>aiJudge</c>
+    /// criterion; otherwise <see langword="null"/>.
+    /// </summary>
+    private ModelBinding? JudgeModelFor(AgentDefinition definition)
+    {
+        if (definition.Harness?.Loop is not { } loop)
+        {
+            return null;
+        }
+
+        foreach (var criterion in loop.Criteria)
+        {
+            if (string.Equals(Canonical(criterion.Kind), AiJudgeKind, StringComparison.Ordinal))
+            {
+                return _judgeOptions?.Model;
+            }
+        }
+
+        return null;
+    }
+
+    private static TraconCompilationException JudgeUnavailable(AgentDefinition definition, TraconException inner)
+        => new($"Agent '{definition.Name}' could not build its '{AiJudgeKind}' loop criterion: {inner.Message}", inner)
+        {
+            AgentName = definition.Name,
+        };
 
     private static TraconCompilationException Invalid(AgentDefinition definition, string detail)
         => new($"Agent '{definition.Name}' has invalid loop settings: {detail}")
