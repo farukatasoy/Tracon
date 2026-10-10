@@ -67,8 +67,29 @@ public sealed partial class AgentDefinitionCompiler
             CacheFingerprint = CompiledAgentCache.CombineFingerprints(
                 CompiledAgentCache.CombineFingerprints(skills.Fingerprint, callable.Fingerprint),
                 shared.Fingerprint),
-            BypassCache = await UsesTenantProviderOverrideAsync(definition.Model, cancellationToken).ConfigureAwait(false),
+            BypassCache = await HoldsTenantCredentialAsync(definition, cancellationToken).ConfigureAwait(false),
         };
+    }
+
+    /// <summary>
+    /// Reports whether a client the compiled agent holds would carry the
+    /// current tenant's own provider credential (BYOK): its own model's, or
+    /// its compaction summarizer's.
+    /// </summary>
+    // 🚨 The summarizer counts as much as the agent's own model. Asking only
+    // about AgentDefinition.Model cached an agent whose summarizer carried the
+    // tenant's key, and rotating or deleting that key never reached it
+    // (2026-10-11). The loop judge is not asked: it keeps the setup-time
+    // credential (K-613).
+    private async ValueTask<bool> HoldsTenantCredentialAsync(AgentDefinition definition, CancellationToken cancellationToken)
+    {
+        if (await UsesTenantProviderOverrideAsync(definition.Model, cancellationToken).ConfigureAwait(false))
+        {
+            return true;
+        }
+
+        return ResolveSummarizationBinding(definition) is { } summarization
+            && await UsesTenantProviderOverrideAsync(summarization, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>Resolves <see cref="AgentDefinition.SharedInstructionsName"/> against <see cref="_definitionStore"/>.</summary>

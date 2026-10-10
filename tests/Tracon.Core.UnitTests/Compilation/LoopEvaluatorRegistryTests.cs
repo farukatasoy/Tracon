@@ -33,7 +33,7 @@ public sealed class LoopEvaluatorRegistryTests
             ],
         });
 
-        var (evaluator, _) = registry.Build(definition);
+        var (evaluator, _) = Build(registry, definition);
 
         var composite = evaluator.ShouldBeOfType<RecordingLoopEvaluator>();
         composite.Criteria.Select(static binding => binding.Kind)
@@ -52,7 +52,7 @@ public sealed class LoopEvaluatorRegistryTests
             Criteria = [new LoopCriterion { Kind = "completionMarker", Marker = "DONE" }],
         });
 
-        var (_, options) = registry.Build(definition);
+        var (_, options) = Build(registry, definition);
 
         // The ceiling is Tracon's own promise, not a value inherited from
         // whatever MAF happens to default to this version.
@@ -70,7 +70,7 @@ public sealed class LoopEvaluatorRegistryTests
             FreshContextPerIteration = true,
         });
 
-        var (_, options) = registry.Build(definition);
+        var (_, options) = Build(registry, definition);
 
         options.MaxIterations.ShouldBe(3);
         options.FreshContextPerIteration.ShouldBeTrue();
@@ -86,7 +86,7 @@ public sealed class LoopEvaluatorRegistryTests
         var registry = BuildRegistry();
         var definition = WithLoop(new LoopSettings { Criteria = [] });
 
-        var exception = Should.Throw<TraconCompilationException>(() => registry.Build(definition));
+        var exception = Should.Throw<TraconCompilationException>(() => Build(registry, definition));
 
         exception.AgentName.ShouldBe(definition.Name);
         exception.Message.ShouldContain(nameof(LoopSettings.Criteria));
@@ -104,7 +104,7 @@ public sealed class LoopEvaluatorRegistryTests
             MaxIterations = maxIterations,
         });
 
-        var exception = Should.Throw<TraconCompilationException>(() => registry.Build(definition));
+        var exception = Should.Throw<TraconCompilationException>(() => Build(registry, definition));
 
         exception.Message.ShouldContain(nameof(LoopSettings.MaxIterations));
     }
@@ -118,7 +118,7 @@ public sealed class LoopEvaluatorRegistryTests
             Criteria = [new LoopCriterion { Kind = "no-such-thing" }],
         });
 
-        var exception = Should.Throw<TraconCompilationException>(() => registry.Build(definition));
+        var exception = Should.Throw<TraconCompilationException>(() => Build(registry, definition));
 
         exception.AgentName.ShouldBe(definition.Name);
         exception.Message.ShouldContain("no-such-thing");
@@ -134,7 +134,7 @@ public sealed class LoopEvaluatorRegistryTests
             Criteria = [new LoopCriterion { Kind = "completionMarker" }],
         });
 
-        var exception = Should.Throw<TraconCompilationException>(() => registry.Build(definition));
+        var exception = Should.Throw<TraconCompilationException>(() => Build(registry, definition));
 
         exception.Message.ShouldContain(nameof(LoopCriterion.Marker));
     }
@@ -148,7 +148,7 @@ public sealed class LoopEvaluatorRegistryTests
             Criteria = [new LoopCriterion { Kind = "aiJudge" }],
         });
 
-        var exception = Should.Throw<TraconCompilationException>(() => registry.Build(definition));
+        var exception = Should.Throw<TraconCompilationException>(() => Build(registry, definition));
 
         exception.Message.ShouldContain(nameof(LoopCriterion.JudgeCriteria));
     }
@@ -165,7 +165,7 @@ public sealed class LoopEvaluatorRegistryTests
             Criteria = [new LoopCriterion { Kind = "aiJudge", JudgeCriteria = ["Is the answer complete?"] }],
         });
 
-        var exception = Should.Throw<TraconCompilationException>(() => registry.Build(definition));
+        var exception = Should.Throw<TraconCompilationException>(() => Build(registry, definition));
 
         exception.Message.ShouldContain("AddModelRunJudge");
     }
@@ -187,7 +187,7 @@ public sealed class LoopEvaluatorRegistryTests
             ],
         });
 
-        var (evaluator, _) = registry.Build(definition);
+        var (evaluator, _) = Build(registry, definition);
 
         var composite = evaluator.ShouldBeOfType<RecordingLoopEvaluator>();
         composite.Criteria[0].Evaluator.ShouldBeOfType<AIJudgeLoopEvaluator>();
@@ -203,7 +203,7 @@ public sealed class LoopEvaluatorRegistryTests
             Criteria = [new LoopCriterion { Kind = "hasCitations" }],
         });
 
-        var (evaluator, _) = registry.Build(definition);
+        var (evaluator, _) = Build(registry, definition);
 
         var composite = evaluator.ShouldBeOfType<RecordingLoopEvaluator>();
         composite.Criteria[0].Evaluator.ShouldBeSameAs(custom);
@@ -255,7 +255,7 @@ public sealed class LoopEvaluatorRegistryTests
             Criteria = [new LoopCriterion { Kind = kind, Marker = "DONE", JudgeCriteria = ["is it done"] }],
         });
 
-        var (evaluator, _) = registry.Build(definition);
+        var (evaluator, _) = Build(registry, definition);
 
         evaluator.ShouldBeOfType<RecordingLoopEvaluator>().Criteria.ShouldHaveSingleItem();
     }
@@ -271,7 +271,7 @@ public sealed class LoopEvaluatorRegistryTests
             Criteria = [new LoopCriterion { Kind = "noSuchThing" }],
         });
 
-        var exception = Should.Throw<TraconCompilationException>(() => registry.Build(definition));
+        var exception = Should.Throw<TraconCompilationException>(() => Build(registry, definition));
 
         exception.Message.ShouldContain("noSuchThing");
         exception.Message.ShouldContain("completionMarker");
@@ -279,6 +279,13 @@ public sealed class LoopEvaluatorRegistryTests
 
     private static LoopEvaluatorRegistry BuildRegistry(params TraconLoopEvaluatorRegistration[] registrations)
         => BuildRegistry(judge: null, registrations);
+
+    // The compiler builds the judge client before the loop; these tests need
+    // no tenant, so they take the synchronous member.
+    private static (LoopEvaluator Evaluator, LoopAgentOptions Options) Build(
+        LoopEvaluatorRegistry registry,
+        AgentDefinition definition)
+        => registry.Build(definition, registry.CreateJudgeChatClient(definition));
 
     private static LoopEvaluatorRegistry BuildRegistry(
         ModelRunJudgeOptions? judge,

@@ -280,7 +280,7 @@ public sealed class AgentDefinitionCompilerTests
         };
 
 #pragma warning disable MAAI001 // Microsoft.Agents.AI.Compaction.* is "evaluation purposes only" — for structural validation.
-        var strategy = compiler.BuildCompactionStrategy(definition);
+        var strategy = compiler.BuildCompactionStrategy(definition, new FakeChatClient());
         var pipeline = strategy!.Inner.ShouldBeOfType<PipelineCompactionStrategy>();
 
         pipeline.Strategies[0].ShouldBeOfType<ToolResultCompactionStrategy>();

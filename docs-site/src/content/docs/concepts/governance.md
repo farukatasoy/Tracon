@@ -170,6 +170,13 @@ forbidden provider in an agent definition is rejected **at compile time** — be
 request reaches the network — and writing a credential binding for a forbidden
 provider is rejected too, so the two surfaces cannot disagree.
 
+The policy covers every model an agent calls, not only its own model: that model's
+fallbacks, the model that summarizes the conversation during compaction, and the
+judge of an `aiJudge` loop criterion. Each of them receives the tenant's data. The
+summarizer is billed like the agent's own model: it uses the tenant's key when the
+tenant has one for its provider. The loop judge is the host's one judge model, the
+same one the run judge calls, and keeps the shared setup-time key.
+
 Both are managed under `/api/tenants/{tenantId}/providers` and
 `/api/tenants/{tenantId}/egress`, guarded by the `SecurityAdmin` API key scope. A
 tenant other than the caller's own also requires platform authority: the

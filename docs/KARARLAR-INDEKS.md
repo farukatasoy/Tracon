@@ -2,15 +2,14 @@
 
 > **Üretilen, elle düzenlenmez.** Kaynak: `KARARLAR.md` · üretim: `scripts/dokuman-bakim.py`
 
-Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 785 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
+Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 786 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
 
 ---
 
-## En Yeni Kalıcı Kararlar (88 / 873 kalem)
+## En Yeni Kalıcı Kararlar (88 / 874 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
-| K-786 | 837 | Bir aksiyon doğrulama adımı alır ancak ve ancak (a) arayüzden aynı girdilerle geri getirilemeyen bir durumu yok ediyorsa VEYA (b) tekrarlanamayan bir kararı kesinleştiriyorsa; ölçüt şema kanıtıyla ÖLÇÜLÜR |
 | K-787 | 838 | Doğrulama dialogu aksiyon uçarken AÇIK KALIR ve sunucu reddini kendi içinde gösterir; `consequence` metni katman 1'in tooltip'iyle AYNI anahtardan gelir |
 | K-788 | 839 | Evaluator sürümü `RunJudgment.EvaluatorVersion` ile taşınır; `IRunJudge` seam'i DEĞİŞMEZ 👤 |
 | K-789 | 840 | `RunScore.EvaluatorVersion` sınırı `RunScoreRules.MaxEvaluatorVersionLength` (128); sütun `varchar(128)` 👤 |
@@ -98,3 +97,4 @@ Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLA
 | K-871 | 922 | Bir `v*` etiketinin nuget.org'a ittiği her `.nupkg`/`.snupkg`, aynı workflow koşumunda build işinin ubuntu bacağının derleyip test ettiği derlemeden `--no-build` ile üretilen dosyadır; `release-dryrun` onu paketlemeden doğrular, `publish` SHA-256 manifest'ini yeniden sınayıp yalnız onu iter; CI'da ikinci bir yayın `dotnet pack`'i yoktur (Faz 191, F-273) (kullanıcı kararı) 👤 |
 | K-872 | 923 | Bir paketin ön sürüm üçüncü taraf bağımlılığı nuspec'te tam aralıktır (`[x]`); kararlı üçüncü taraf bağımlılık NuGet'in alt sınırında kalır (A-59, UR-006 A, UR-008 B) (kullanıcı kararı) 👤 |
 | K-873 | 924 | Store'un kaydetme yolu taşıdığı değeri yazar, sahibi olmadığı alana dokunmaz: `IExperimentStore.SaveAsync` canary kuralını ve rollback sebebini yazmaz (güncellemede saklı değer kalır, yeni kayıtta boş başlar); `IWebhookStore.SaveSubscriptionAsync` `ConsecutiveFailures`'ı taşındığı gibi yazar; sevk edilen sözleşme bunu üç yeni vakayla zorlar (kusur-giderme, 2026-10-10) (kullanıcı kararı) 👤 |
+| K-874 | 925 | Agent'ın kendi modeli dışında çağırdığı model istemcileri (sıkıştırma özetleyicisi, `aiJudge` loop yargıcı) agent'tan ÖNCE kurulur; async derleme yolunda özetleyici kiracı egress politikası + kiracı anahtarı (BYOK), yargıç egress politikası + kurulum anahtarı alır; önbellek atlama kararı özetleyicinin bağlamasını da sayar; senkron `Compile` kiracıdan habersiz kalır (kusur-giderme, 2026-10-11) |

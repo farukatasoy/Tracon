@@ -658,7 +658,9 @@ Four more rules are worth knowing before you turn the loop on:
   ends as a bounded run, not as an invoice.
 - **`aiJudge` calls a model on every iteration it reaches.** It runs on the
   judge binding configured with `AddModelRunJudge(...)`, never on the agent's own
-  model. Without that binding the definition does not compile.
+  model. Without that binding the definition does not compile. The judge reads
+  each answer, so a tenant's egress policy applies to its provider; it keeps the
+  setup-time key, not the tenant's own.
 - **A criterion that fails to evaluate stops the loop; it does not fail the
   run.** The work already finished is returned, and the iteration event names the
   criterion that failed.
@@ -1249,6 +1251,13 @@ with no saved policy is unrestricted; saving one is an additive restriction. Nam
 forbidden provider in an agent definition is rejected **at compile time** — before any
 request reaches the network — and writing a credential binding for a forbidden
 provider is rejected too, so the two surfaces cannot disagree.
+
+The policy covers every model an agent calls, not only its own model: that model's
+fallbacks, the model that summarizes the conversation during compaction, and the
+judge of an `aiJudge` loop criterion. Each of them receives the tenant's data. The
+summarizer is billed like the agent's own model: it uses the tenant's key when the
+tenant has one for its provider. The loop judge is the host's one judge model, the
+same one the run judge calls, and keeps the shared setup-time key.
 
 Both are managed under `/api/tenants/{tenantId}/providers` and
 `/api/tenants/{tenantId}/egress`, guarded by the `SecurityAdmin` API key scope. A
@@ -5913,6 +5922,9 @@ window is not all available to conversation history.
 
 **Summarization costs more than expected.** It is another model call. Set the agent's
 `SummarizationModel`, or configure the application-wide `TraconOptions.UtilityModel`.
+The summarizer reads the tenant's conversation, so it is treated like the agent's own
+model: the tenant's egress policy applies to its provider, and it uses the tenant's
+own key when one is bound.
 
 **File memory disappears after restart.** The default `AgentFileStore` is in memory.
 Register PostgreSQL, SQL Server, or SQLite for a built-in persistent implementation.

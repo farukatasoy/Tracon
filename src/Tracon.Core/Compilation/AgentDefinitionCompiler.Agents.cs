@@ -13,6 +13,7 @@ public sealed partial class AgentDefinitionCompiler
     private ChatClientAgent CompileChatAgent(
         AgentDefinition definition,
         IChatClient chatClient,
+        SecondaryChatClients secondaryClients,
         ChatOptions chatOptions,
         ResolvedCallableAgents callableAgents)
     {
@@ -37,7 +38,7 @@ public sealed partial class AgentDefinitionCompiler
             providers.Add(backgroundAgents);
         }
 
-        if (BuildCompactionStrategy(definition) is { } compactionStrategy)
+        if (BuildCompactionStrategy(definition, secondaryClients.Summarization) is { } compactionStrategy)
         {
             // MAAI001: CompactionProvider is marked "evaluation purposes only" -
             // the rationale is the same as the block above BuildCompactionStrategy.
@@ -222,6 +223,7 @@ public sealed partial class AgentDefinitionCompiler
     private HarnessAgent CompileHarnessAgent(
         AgentDefinition definition,
         IChatClient chatClient,
+        SecondaryChatClients secondaryClients,
         ChatOptions chatOptions,
         ResolvedCallableAgents callableAgents)
     {
@@ -297,7 +299,7 @@ public sealed partial class AgentDefinitionCompiler
                 };
             }
 
-            options.CompactionStrategy = BuildCompactionStrategy(definition);
+            options.CompactionStrategy = BuildCompactionStrategy(definition, secondaryClients.Summarization);
         }
 
         if (definition.Memory is { EnableFileMemory: true })
@@ -357,7 +359,7 @@ public sealed partial class AgentDefinitionCompiler
         // the loop at all.
         if (harness.Loop is not null)
         {
-            var (loopEvaluator, loopOptions) = _loopEvaluators.Build(definition);
+            var (loopEvaluator, loopOptions) = _loopEvaluators.Build(definition, secondaryClients.LoopJudge);
 
             options.LoopEvaluators = [loopEvaluator];
             options.LoopAgentOptions = loopOptions;

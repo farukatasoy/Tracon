@@ -146,7 +146,11 @@ bağlamanın kiracısının alanındadır, K-852). Başka kiracının bağlamas�
 yalnız platform yetkisi dokunur (K-853). Kayıt
 var ama değer yoksa çağrı global anahtara **düşmez**. Aynı nokta hem `run`
 derlemesini hem ön-uçuşu besler; izinsiz sağlayıcıya işaret eden tanım **derleme
-anında** reddedilir. Gerekçe: K-065 · K-059.
+anında** reddedilir. Kapsam agent'ın çağırdığı **her** modeldir: kendi modeli ve
+fallback'leri, sıkıştırma özetleyicisi (kiracı anahtarı) ve `aiJudge` yargıcı
+(kurulum anahtarı) — async yol hepsini agent'tan önce kurar (K-874). Açık
+kusur **F-304**: önbellekteki derlenmiş agent sonradan kaydedilen politikayı
+görmez. Gerekçe: K-065 · K-059.
 
 **Kiracının ALTINDA ikinci bir sınır: oturum sahipliği (Faz 148).**
 Varsayılan **kapalıdır**; kapalıyken `sessions.owner_id` `NULL` kalır ve hiçbir
