@@ -19,7 +19,7 @@ import {
 } from '../components/ui';
 import { Tooltip } from '../components/tooltip';
 import { KIND_HINT } from './workflows';
-import type { WorkflowSaveRequest } from '@tracon/client';
+import type { WorkflowNodeReference, WorkflowSaveRequest } from '@tracon/client';
 import type { AgentDescriptor, WorkflowDefinition, WorkflowKind } from '../lib/server-types';
 
 const KINDS: WorkflowKind[] = ['Sequential', 'Concurrent', 'Handoff', 'GroupChat', 'Magentic'];
@@ -33,6 +33,16 @@ interface Draft {
   description: string;
   kind: WorkflowKind;
   agentNames: string[];
+  /**
+   * The agent/function chain of a `Sequential` workflow that mixes function
+   * nodes in — carried, never edited here.
+   *
+   * 🚨 `PUT /api/workflows/{name}` is a full replace (K-725). Before this field
+   * the editor opened such a workflow with an EMPTY participant list, and
+   * adding an agent so that Save would enable replaced the whole chain with
+   * that one agent: the function nodes were gone, with no warning.
+   */
+  nodes: WorkflowNodeReference[];
   managerAgentName: string;
   maxIterations: string;
   handoffInstructions: string;
@@ -45,6 +55,7 @@ const EMPTY: Draft = {
   description: '',
   kind: 'Sequential',
   agentNames: [],
+  nodes: [],
   managerAgentName: '',
   maxIterations: '',
   handoffInstructions: '',
@@ -57,6 +68,11 @@ const EMPTY: Draft = {
  * The form only wires together agents that already exist — it never defines
  * behaviour. That is the security boundary from decision K2: a workflow built
  * here arranges the catalogue, it cannot add to it.
+ *
+ * A workflow that mixes function nodes in is shown, not edited: its chain is
+ * listed read-only and travels back unchanged, so its name and description can
+ * still be changed here. The kind stays `Sequential`, the only pattern a
+ * function node can run in.
  *
  * Validation is deliberately *not* duplicated from the server. The rules live
  * in `WorkflowDefinitionValidator` and both the save endpoint and the compiler
@@ -98,6 +114,7 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
       description: loaded.description ?? '',
       kind: loaded.kind,
       agentNames: loaded.agentNames,
+      nodes: loaded.nodes,
       managerAgentName: loaded.managerAgentName ?? '',
       maxIterations: loaded.maxIterations == null ? '' : String(loaded.maxIterations),
       handoffInstructions: loaded.handoffInstructions ?? '',
@@ -112,6 +129,7 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
         description: blank(draft.description),
         kind: draft.kind,
         agentNames: draft.agentNames,
+        nodes: draft.nodes,
 
         // Fields that belong to another pattern are sent as null, not as an
         // empty string: the server rejects a value that the chosen pattern does
@@ -169,11 +187,12 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
   }
 
   const available = agents.data ?? [];
+  const mixed = draft.nodes.length > 0;
   const tooFew = NEEDS_TWO.includes(draft.kind) && draft.agentNames.length < 2;
 
   const blocked =
     draft.name.trim().length === 0 ||
-    draft.agentNames.length === 0 ||
+    (mixed ? draft.nodes : draft.agentNames).length === 0 ||
     tooFew ||
     (draft.kind === 'Magentic' && draft.managerAgentName.trim().length === 0);
 
@@ -237,9 +256,14 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
 
         <Panel title={t('workflows.column.pattern')}>
           <div className="flex flex-col gap-4 p-4">
-            <Field label={t('workflowEditor.kind')} required hint={t(KIND_HINT[draft.kind])}>
+            <Field
+              label={t('workflowEditor.kind')}
+              required
+              hint={mixed ? t('workflowEditor.kindLocked') : t(KIND_HINT[draft.kind])}
+            >
               <Select
                 value={draft.kind}
+                disabled={mixed}
                 onChange={(value) => setDraft({ ...draft, kind: value as WorkflowKind })}
               >
                 {KINDS.map((kind) => (
@@ -250,28 +274,32 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
               </Select>
             </Field>
 
-            {/* The render-prop form: "needs two agents" used to be a loose
-                paragraph under the picker, which no screen reader ties to the
-                control and no keyboard user is told about. */}
-            <Field
-              label={t('workflowEditor.participants')}
-              required
-              hint={
-                draft.kind === 'Sequential'
-                  ? t('workflowEditor.orderMatters')
-                  : t('workflowEditor.orderIgnored')
-              }
-              error={tooFew ? t('workflowEditor.needsTwo', { kind: draft.kind }) : undefined}
-            >
-              {(ids) => (
-                <AgentPicker
-                  ids={ids}
-                  available={available.map((agent) => agent.name)}
-                  selected={draft.agentNames}
-                  onChange={(agentNames) => setDraft({ ...draft, agentNames })}
-                />
-              )}
-            </Field>
+            {mixed ? (
+              <NodeChain nodes={draft.nodes} />
+            ) : (
+              /* The render-prop form: "needs two agents" used to be a loose
+                 paragraph under the picker, which no screen reader ties to the
+                 control and no keyboard user is told about. */
+              <Field
+                label={t('workflowEditor.participants')}
+                required
+                hint={
+                  draft.kind === 'Sequential'
+                    ? t('workflowEditor.orderMatters')
+                    : t('workflowEditor.orderIgnored')
+                }
+                error={tooFew ? t('workflowEditor.needsTwo', { kind: draft.kind }) : undefined}
+              >
+                {(ids) => (
+                  <AgentPicker
+                    ids={ids}
+                    available={available.map((agent) => agent.name)}
+                    selected={draft.agentNames}
+                    onChange={(agentNames) => setDraft({ ...draft, agentNames })}
+                  />
+                )}
+              </Field>
+            )}
 
             {draft.kind === 'Magentic' && (
               <Field
@@ -368,6 +396,38 @@ function PlanApproval({
           </span>
         </span>
       </label>
+    </div>
+  );
+}
+
+/**
+ * The agent/function chain of a mixed `Sequential` workflow, read-only.
+ *
+ * Not a `Field`: there is no control to label. The list says what the chain is,
+ * and the note says why it cannot be changed here — phase 71 shipped the read
+ * side of function nodes only, and a node picker is still to come.
+ */
+function NodeChain({ nodes }: { nodes: readonly WorkflowNodeReference[] }): ReactNode {
+  const t = useT();
+
+  return (
+    <div>
+      <p className="mb-1 text-xs font-medium text-muted">{t('workflowEditor.participants')}</p>
+      <ol className="flex flex-col gap-1.5" data-testid="workflow-nodes">
+        {nodes.map((node, index) => (
+          <li
+            key={node.name}
+            className="flex items-center gap-2 rounded-md border border-line bg-panel px-2.5 py-1.5 text-base"
+          >
+            <span className="w-5 text-xs text-subtle">{index + 1}</span>
+            <span className="flex-1">{node.name}</span>
+            <Badge tone={node.kind === 'Function' ? 'info' : 'neutral'}>
+              {node.kind === 'Function' ? t('graph.legend.function') : t('graph.legend.agent')}
+            </Badge>
+          </li>
+        ))}
+      </ol>
+      <p className="mt-1 text-xs text-subtle">{t('workflowEditor.nodesReadOnly')}</p>
     </div>
   );
 }

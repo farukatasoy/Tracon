@@ -6,6 +6,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Editing a workflow that uses function nodes in the console no longer erases
+  them. The editor opened such a workflow with an empty participant list, and
+  saving it after adding an agent replaced the whole chain with that agent. The
+  editor now lists the chain read-only, keeps the kind `Sequential`, and sends
+  the chain back unchanged.
+- Editing a quota in the console keeps a disabled rule disabled. The form sent
+  `enabled: true` on every save. The agent and the period of a rule are now
+  locked while you edit it: they identify the rule, and changing them wrote a
+  second rule.
+- Editing a draft experiment no longer removes its canary policy when the
+  in-memory store is in use. The SQL stores already kept it.
+- Saving a webhook subscription through `PUT /api/webhooks/{name}` now resets
+  its consecutive failure count with the SQL stores too, as the in-memory store
+  already did. Before, a subscription that was disabled for failing and then
+  enabled again went back to disabled on its next single failure.
+
+### Changed
+
+- `Tracon.Testing.Contracts.Xunit` adds three store contract cases.
+  `ExperimentStoreContract` requires that `SaveAsync` keep the canary policy of
+  a draft and never write one itself. `WebhookStoreContract` requires that
+  `SaveSubscriptionAsync` write the failure count the subscription carries. A
+  custom store that does otherwise now fails them.
+
 ## [1.0.0-preview.3] - 2026-09-24
 
 The first security release. It closes the tenant-boundary and

@@ -218,6 +218,11 @@ function QuotaForm({
   const [maxTokens, setMaxTokens] = useState(editing?.maxTokens?.toString() ?? '');
   const [maxCost, setMaxCost] = useState(editing?.maxCost?.toString() ?? '');
 
+  // The agent and the period ARE the rule's identity: `PUT /api/quotas`
+  // upserts by tenant + agent + period, so changing either while editing wrote
+  // a second rule (or overwrote another one) and left the edited rule as it was.
+  const scopeLocked = editing !== null;
+
   const save = useMutation({
     mutationFn: () =>
       unwrap(
@@ -228,7 +233,11 @@ function QuotaForm({
             maxRuns: parseLimit(maxRuns),
             maxTokens: parseLimit(maxTokens),
             maxCost: parseLimit(maxCost),
-            enabled: true,
+            // 🚨 Carried, not assumed. The PUT is a full replace and the form
+            // has no switch for this field; a constant `true` turned a rule
+            // disabled through the API back on the first time its limit was
+            // edited here.
+            enabled: editing?.enabled ?? true,
           },
         }),
       ),
@@ -238,11 +247,12 @@ function QuotaForm({
   return (
     <div className="space-y-3 border-b border-line bg-raised/40 p-4">
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label={t('common.agent')} hint={t('quota.agentHint')}>
+        <Field label={t('common.agent')} hint={scopeLocked ? t('quota.scopeLocked') : t('quota.agentHint')}>
           <TextInput
             value={agentName}
             placeholder={t('runs.allAgents')}
             data-testid="quota-agent"
+            readOnly={scopeLocked}
             onChange={(event) => setAgentName(event.target.value)}
           />
         </Field>
@@ -250,6 +260,7 @@ function QuotaForm({
           <Select
             value={period}
             testId="quota-period"
+            disabled={scopeLocked}
             onChange={(value) => setPeriod(value as QuotaPeriod)}
           >
             <option value="Daily">{t('quota.daily')}</option>

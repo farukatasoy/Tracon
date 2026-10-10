@@ -62,6 +62,7 @@ export const trOperations: Pick<Messages, keyof typeof enOperations> = {
   "quota.periodNoticeBefore": 'Dönemler şu saat diliminde hesaplanır:',
   "quota.periodNoticeAfter": 'Sayaçlar yaklaşıktır: denetim çalıştırma başlamadan önce yapılır, tüketim bittikten sonra yazılır; bu yüzden eşzamanlı çalıştırmalar sınırı biraz aşabilir.',
   "quota.agentHint": "Bu kiracının bütün agent'larını kapsamak için boş bırakın.",
+  "quota.scopeLocked": 'Agent ve dönem bu kuralı tanımlar. Değiştirmek için kuralı silip yenisini ekleyin.',
   "quota.period": 'Dönem',
   "quota.daily": 'Günlük',
   "quota.monthly": 'Aylık',

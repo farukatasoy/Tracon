@@ -2006,3 +2006,39 @@ curl -N -s "$APU/api/agents/router/run" -H "$APB" -H 'content-type: application/
 **Beklenen sonuç**
 - **`1`** — bildirim yalnız kök `run`'da, tam bir kez görünür; alt-agent'ın
   kendi çalıştırması hiç bildirim yazmaz.
+
+---
+
+### MT-RET-077 — Konsolda kotayı düzenlemek devre dışı kuralı devre dışı BIRAKIR; agent ve dönem kilitlidir (kusur-giderme, 2026-10-10)
+
+**Gerçekten koşuldu ve doğrulandı** — örnek uygulamada düzeltmeden önce kural
+yeniden devreye girdi, düzeltmeden sonra devre dışı kaldı. Otomatik karşılığı:
+`SettingsTests.Editing_a_disabled_quota_keeps_it_disabled_and_in_its_scope`
+(E2E), `quota-panel.test.tsx` ve `full-replace-editors.test.tsx` → "disabled
+quota".
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 21 |
+| **İlgili karar** | K-725 |
+
+**Girilecek veri**
+```bash
+curl -s -X PUT "$APU/api/quotas" -H "$APB" -H "content-type: application/json" \
+  -d '{"agentName":"support","period":"Daily","maxRuns":100,"enabled":false}'
+```
+
+**Adımlar**
+1. `Settings → Quotas` içinde `support` satırında **Edit**'e bas.
+2. **Max runs** değerini `150` yap ve **Save quota**'ya bas.
+3. `GET /api/quotas` oku.
+
+**Beklenen sonuç**
+- Düzenleme formunda **Agent** salt okunur, **Period** kapalıdır. İpucu,
+  kuralın bu iki alanla tanımlandığını söyler.
+- Kayıt `maxRuns: 150` ve `enabled: false` taşır. Listede tek kural vardır.
+- 🚨 Eski kusur: form her kayıtta `enabled: true` gönderiyordu ve kural
+  yeniden devreye giriyordu. Agent ya da dönem değiştirilince ikinci bir kural
+  yazılıyordu.

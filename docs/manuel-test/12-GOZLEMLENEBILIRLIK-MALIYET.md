@@ -1957,3 +1957,34 @@ kök/çocuk span hiyerarşisini bozmadığını kanıtlar.
   bu kümeyi **rakamla** kilitler.
 
 ---
+
+### MT-OBS-066 — Aboneliği yeniden kaydetmek ardışık hata sayacını SIFIRLAR — SQL store'da da (kusur-giderme, 2026-10-10, K-873)
+
+Otomatik karşılığı: `WebhookStoreContract.Saving_a_subscription_again_writes_the_failure_counter_it_carries`
+— düzeltmeden önce Sqlite, PostgreSQL ve SQL Server'da kırmızı, bellek içinde
+yeşil ölçüldü. Elle koşum bir SQL sağlayıcı ister; bellek içi store bu kusuru
+hiç taşımadı.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 21 |
+| **İlgili karar** | K-873 |
+
+**Ön koşul**
+- SQL sağlayıcılı örnek uygulama, `Tracon:Webhooks:DisableAfterConsecutiveFailures=2`.
+- MT-OBS-056'daki gibi `500` dönen bir hedef.
+
+**Adımlar**
+1. O hedefe `run.completed` için bir abonelik kaydet.
+2. İki `run` koştur; abonelik iki başarısız teslimden sonra kapanır.
+3. Aboneliği aynı alanlarla ve `"enabled": true` ile yeniden kaydet
+   (`PUT /api/webhooks/{name}`).
+4. `GET /api/webhooks` oku; sonra bir `run` daha koştur.
+
+**Beklenen sonuç**
+- 3. adımdan sonra `consecutiveFailures` `0`'dır.
+- 4. adımdaki tek başarısız teslim aboneliği KAPATMAZ (sayaç `1`, eşik `2`).
+- 🚨 Eski kusur: SQL upsert'i sayacı `SET` listesine almıyordu. Sayaç `2`'de
+  kalıyor, ilk yeni hata aboneliği yeniden kapatıyordu.

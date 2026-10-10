@@ -1,3 +1,5 @@
+using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.Playwright;
 using Tracon.Ui.E2ETests.Infrastructure;
 using static Microsoft.Playwright.Assertions;
@@ -104,6 +106,49 @@ public sealed class SettingsTests(BrowserFixture browsers)
         await Expect(session.Page.GetByTestId("quota-bar").First).ToBeVisibleAsync();
 
         await Expect(session.Page.GetByText("0 / 100", new() { Exact = false }).First).ToBeVisibleAsync();
+    }
+
+    /// <summary>
+    /// Editing a rule's limit keeps the rule disabled, and it cannot move the rule.
+    /// </summary>
+    /// <remarks>
+    /// The form had no switch for <c>enabled</c> and sent a constant <c>true</c>:
+    /// raising the limit of a rule disabled through the API turned it back on.
+    /// It also let the agent and the period change, and the PUT upserts by that
+    /// scope, so an "edit" wrote a second rule. Measured on the sample app on
+    /// 2026-10-10.
+    /// </remarks>
+    [Fact]
+    public async Task Editing_a_disabled_quota_keeps_it_disabled_and_in_its_scope()
+    {
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+        using var api = new HttpClient { BaseAddress = new Uri(host.UiAddress + "/") };
+
+        using (var created = await api.PutAsJsonAsync(
+            "api/quotas",
+            new { agentName = "support", period = "Daily", maxRuns = 100, enabled = false }))
+        {
+            created.EnsureSuccessStatusCode();
+        }
+
+        await session.Page.GotoAsync($"{host.UiAddress}/settings");
+        await session.Page.GetByTestId("quota-row")
+            .GetByRole(AriaRole.Button, new() { Name = "Edit", Exact = true })
+            .ClickAsync();
+
+        await Expect(session.Page.GetByTestId("quota-agent")).Not.ToBeEditableAsync();
+        await Expect(session.Page.GetByTestId("quota-period")).ToBeDisabledAsync();
+
+        await session.Page.GetByTestId("quota-max-runs").FillAsync("150");
+        await session.Page.GetByTestId("quota-save").ClickAsync();
+        await Expect(session.Page.GetByTestId("quota-max-runs")).ToBeHiddenAsync();
+
+        var quotas = await api.GetFromJsonAsync<JsonElement>("api/quotas");
+
+        quotas.GetArrayLength().ShouldBe(1);
+        quotas[0].GetProperty("maxRuns").GetInt64().ShouldBe(150);
+        quotas[0].GetProperty("enabled").GetBoolean().ShouldBeFalse();
     }
 
     [Fact]

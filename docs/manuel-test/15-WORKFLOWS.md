@@ -2285,3 +2285,44 @@ hizalandı.
   be unique." cümlesini taşır.
 - Ham `System.ArgumentException` (`"An item with the same key has already
   been added"` metni) **hiçbir zaman** görünmez.
+
+---
+
+### MT-WF-120 — Konsolda fonksiyon düğümlü workflow'u düzenlemek zinciri KORUR (kusur-giderme, 2026-10-10)
+
+**Gerçekten koşuldu ve doğrulandı** — örnek uygulamada (bellek içi store)
+düzeltmeden önce zincir silindi, düzeltmeden sonra korundu. Otomatik karşılığı:
+`WorkflowTests.Editing_a_function_node_workflow_keeps_its_chain` (E2E) ve
+`src/Tracon.UI/frontend/src/full-replace-editors.test.tsx` → "workflow that
+mixes function nodes in".
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 71 (Sapma #6) |
+| **İlgili karar** | K-725 |
+
+**Ön koşul**
+- Örnek uygulama; `word-count` fonksiyonu kayıtlı (örnekte hazır gelir).
+
+**Girilecek veri**
+```bash
+curl -s -X PUT "$APU/api/workflows/mixed-chain" -H "$APB" -H 'content-type: application/json' \
+  -d '{"description":"Summarize, then count words.","kind":"Sequential","nodes":[{"name":"summarizer","kind":"Agent"},{"name":"word-count","kind":"Function"}]}'
+```
+
+**Adımlar**
+1. Konsolda `Workflows → mixed-chain → Edit` aç.
+2. Açıklamayı değiştir ve **Save**'e bas.
+3. `GET /api/workflows/mixed-chain` ve `GET /api/workflows/mixed-chain/graph` oku.
+
+**Beklenen sonuç**
+- Editör zinciri sırayla ve salt okunur gösterir: `summarizer` (agent),
+  `word-count` (function). Altındaki not, zincirin konsoldan henüz
+  değiştirilemediğini söyler.
+- **Kind** `Sequential`'da kilitlidir. Agent seçici yoktur. **Save** açıktır.
+- Kayıtta açıklama değişmiştir. `nodes` iki düğümü aynı sırayla taşır,
+  `agentNames` boştur. Graf hâlâ bir `Function` düğümü çizer.
+- 🚨 Eski kusur: editör boş katılımcı listesiyle açılıyordu. Agent eklenip
+  kaydedilince `nodes` `[]` oluyor, fonksiyon düğümü uyarısız siliniyordu.

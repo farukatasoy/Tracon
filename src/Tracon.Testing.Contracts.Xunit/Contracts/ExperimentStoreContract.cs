@@ -204,6 +204,46 @@ public abstract class ExperimentStoreContract : TenantIsolationContract<IExperim
     }
 
     [Fact]
+    public async Task Saving_a_draft_again_keeps_its_canary_policy()
+    {
+        await Store.SaveAsync(Experiment("d1"));
+        await Store.SetCanaryPolicyAsync(TenantId, "d1", CanaryPolicy());
+
+        // The management API rebuilds the experiment from the request on every
+        // save, and that request carries no canary policy: the policy belongs to
+        // SetCanaryPolicyAsync. A draft edit that erased it would silently turn
+        // the automatic rollback off.
+        var saved = await Store.SaveAsync(Experiment("d1") with
+        {
+            Variants =
+            [
+                new ExperimentVariant { Name = "control", Version = 1, Weight = 60 },
+                new ExperimentVariant { Name = "v2", Version = 2, Weight = 40 },
+            ],
+        });
+
+        saved.Canary.ShouldNotBeNull();
+        saved.Canary!.CanaryVariant.ShouldBe("v2");
+
+        var fetched = await Store.GetAsync(TenantId, "d1");
+        fetched.ShouldNotBeNull();
+        fetched.Canary.ShouldNotBeNull();
+        fetched.Canary!.RampSteps.ShouldBe([5, 25, 50, 100]);
+        fetched.Variants.Single(static v => string.Equals(v.Name, "v2", StringComparison.Ordinal)).Weight.ShouldBe(40);
+    }
+
+    [Fact]
+    public async Task Saving_never_writes_the_canary_policy()
+    {
+        // SetCanaryPolicyAsync owns the policy. A store that also took it from
+        // SaveAsync would accept a policy no validation ever saw.
+        var saved = await Store.SaveAsync(Experiment("d1") with { Canary = CanaryPolicy() });
+
+        saved.Canary.ShouldBeNull();
+        (await Store.GetAsync(TenantId, "d1"))!.Canary.ShouldBeNull();
+    }
+
+    [Fact]
     public async Task Setting_canary_policy_is_EXEMPT_from_the_draft_only_edit_restriction()
     {
         await Store.SaveAsync(Experiment("d1"));

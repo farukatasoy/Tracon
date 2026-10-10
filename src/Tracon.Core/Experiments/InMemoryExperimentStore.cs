@@ -67,12 +67,20 @@ internal sealed class InMemoryExperimentStore : IExperimentStore
                 $"Experiment '{experiment.Name}' has status '{existing.Status}'; only Draft experiments can be edited.");
         }
 
+        // The canary policy and the rollback reason are NOT this method's: they
+        // belong to SetCanaryPolicyAsync and the canary evaluator, and the SQL
+        // stores leave both columns out of their upsert. Taking them from the
+        // incoming experiment erased a policy on every draft edit, because the
+        // management API rebuilds the experiment from a request that carries
+        // neither.
         var saved = experiment with
         {
             Status = existing?.Status ?? ExperimentStatus.Draft,
             StartedAt = existing?.StartedAt,
             EndedAt = existing?.EndedAt,
             UpdatedAt = DateTimeOffset.UtcNow,
+            Canary = existing?.Canary,
+            RollbackReason = existing?.RollbackReason,
         };
 
         _experiments[key] = saved;

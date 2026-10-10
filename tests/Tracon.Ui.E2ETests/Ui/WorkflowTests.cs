@@ -1,3 +1,6 @@
+using System.Net.Http.Json;
+using System.Text.Json;
+using Microsoft.Extensions.AI;
 using Microsoft.Playwright;
 using Tracon.Ui.E2ETests.Infrastructure;
 using static Microsoft.Playwright.Assertions;
@@ -51,6 +54,65 @@ public sealed class WorkflowTests(BrowserFixture browsers)
         // The copied text is produced by Microsoft Agent Framework; the UI
         // does not render it, it only passes it through (bundle budget, K-002).
         copied.ShouldContain("flowchart", Case.Sensitive);
+    }
+
+    /// <summary>
+    /// The console cannot change a function-node chain yet, so it must carry it.
+    /// </summary>
+    /// <remarks>
+    /// The editor used to open this workflow with an EMPTY participant list and a
+    /// disabled Save. Adding an agent enabled Save, and the full-replace PUT
+    /// (K-725) replaced the chain with that agent: the function node was gone,
+    /// with no warning. Measured on the sample app on 2026-10-10.
+    /// </remarks>
+    [Fact]
+    public async Task Editing_a_function_node_workflow_keeps_its_chain()
+    {
+        await using var host = await UiHost.StartAsync(configureTracon: static tracon => tracon
+            .AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>(
+                "word-count",
+                static _ => static (messages, _, _) => ValueTask.FromResult(messages),
+                "Passes the messages on unchanged."));
+        await using var session = await Session.OpenAsync(browsers, host);
+        using var api = new HttpClient { BaseAddress = new Uri(host.UiAddress + "/") };
+
+        using (var created = await api.PutAsJsonAsync("api/workflows/mixed-chain", new
+        {
+            description = "Answers, then counts words.",
+            kind = "Sequential",
+            nodes = new[]
+            {
+                new { name = "support", kind = "Agent" },
+                new { name = "word-count", kind = "Function" },
+            },
+        }))
+        {
+            created.EnsureSuccessStatusCode();
+        }
+
+        await session.Page.GotoAsync($"{host.UiAddress}/workflows/mixed-chain/edit");
+
+        var chain = session.Page.GetByTestId("workflow-nodes");
+
+        await Expect(chain).ToContainTextAsync("support");
+        await Expect(chain).ToContainTextAsync("word-count");
+
+        await session.Page.GetByLabel("Description", new() { Exact = true }).FillAsync("Edited in the console.");
+        await session.Page.GetByTestId("workflow-save").ClickAsync();
+
+        await Expect(session.Page).ToHaveURLAsync($"{host.UiAddress}/workflows/mixed-chain");
+
+        var saved = await api.GetFromJsonAsync<JsonElement>("api/workflows/mixed-chain");
+
+        saved.GetProperty("description").GetString().ShouldBe("Edited in the console.");
+        saved.GetProperty("agentNames").GetArrayLength().ShouldBe(0);
+
+        var nodes = saved.GetProperty("nodes");
+
+        nodes.GetArrayLength().ShouldBe(2);
+        nodes[0].GetProperty("name").GetString().ShouldBe("support");
+        nodes[1].GetProperty("name").GetString().ShouldBe("word-count");
+        nodes[1].GetProperty("kind").GetString().ShouldBe("Function");
     }
 
     [Fact]
