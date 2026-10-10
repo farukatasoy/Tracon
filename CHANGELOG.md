@@ -20,6 +20,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   tenant pays for it, and such an agent is not cached: a rotated or deleted key
   takes effect on the next run. The loop judge keeps the setup-time key: it is
   the host's one judge model, the same one the run judge calls.
+- A saved egress policy now reaches agents compiled before it. A compiled
+  agent kept the policy decision of the moment it was compiled, so after a
+  tenant forbade a provider, an agent already in memory kept calling that
+  provider until its definition changed or the process restarted. The next run
+  is now compiled under the saved policy and refused before any request
+  leaves; a run already in progress is not stopped. Each run reads the
+  tenant's policy once to build the cache key.
 
 ### Fixed
 

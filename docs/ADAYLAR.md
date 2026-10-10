@@ -13,7 +13,7 @@
 > ([`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md)).
 
 **Durum (2026-10-11):** sıralanabilir kuyrukta on bir aday var (F-293…F-303,
-podcast tüketici turu). Bugün yapılabilecek iş § *Bekleyen Kalemler*'in üç
+podcast turu). Bugün yapılabilecek iş § *Bekleyen Kalemler*'in üç
 kanal tablosundadır.
 
 ---
@@ -91,9 +91,9 @@ sıralıdır.
 
 ## Sıralanabilir Adaylar
 
-Bir kalem buraya § *Değerlendirme Ölçütleri*'nin tam gövdesiyle girer. Yeni
-aday üretmek için `aday-kesfi` koşulur. Bugünkü on bir kalem 2026-10-11
-podcast tüketici turundan gelir
+Bir kalem buraya § *Değerlendirme Ölçütleri*'nin tam gövdesiyle girer; yeni
+aday `aday-kesfi` ile üretilir. Bugünkü on bir kalem 2026-10-11 podcast
+turundan gelir
 ([keşif notu](kesif/2026-10-11-podcast-tuketici.md)); kanal ve aciliyet
 § *Faz planlama* tablosundadır.
 
@@ -305,7 +305,7 @@ podcast tüketici turundan gelir
 
 **Maliyet:** Bir public aşırı yükleme.
 
-**Risk:** Singleton fabrika kiracıyı çalışma anında ambient `ITenantContext`'ten okumalı — belgelenmeli.
+**Risk:** Singleton fabrika kiracıyı çalışma anında ambient `ITenantContext`'ten okumalı.
 
 **Bağımlılık:** Yok.
 
@@ -341,7 +341,7 @@ podcast tüketici turundan gelir
 
 **Kanal:** faz planlama · 🟡
 
-**Sorun:** Bir fonksiyon düğümü sonsuza kadar çalışabilir; yalnız workflow'un genel `RunTimeout`'u (varsayılan 10 dk, `TraconWorkflowOptions.cs:54`) onu keser (K-497). 10–20 dakikalık bölümün TTS ve ses işleme düğümleri dakikalar sürer; genel sınırı büyütmek her düğümün sınırını büyütür. K-497'nin yeniden açılma koşulu ("ihtiyaç ölçülürse") bu tüketicide oluştu.
+**Sorun:** Bir fonksiyon düğümü sonsuza kadar çalışabilir; yalnız workflow'un genel `RunTimeout`'u (varsayılan 10 dk, `TraconWorkflowOptions.cs:54`) onu keser (K-497). 10–20 dakikalık bölümün TTS ve ses işleme düğümleri dakikalar sürer; genel sınırı büyütmek her düğümün sınırını büyütür. K-497'nin koşulu ("ihtiyaç ölçülürse") bu tüketicide oluştu.
 
 **Kapsam:** Düğüm başına zaman aşımı (kayıtta varsayılan, F-295 ayarıyla geçersiz kılma); aşımda düğümü iptal edip run'ı ayırt edilebilir hatayla bitirme (K-497'nin önerdiği `TimeoutAIFunction` deseni).
 
@@ -376,7 +376,8 @@ yolda da § *Kalemin yaşam döngüsü* uygulanır.
 | 🟠 | **F-279** · K-840 kalıntısı: dokuz `catch` filtresi hâlâ yalnız `is not OperationCanceledException` kullanıyor | `TriggerEndpoints.cs:352` · `AgentEndpoints.cs:1381` · `RunEndpoints.cs:775` · `ImageEndpoints.cs:162` · `ExternalSurfaceGuard.cs:78` · `ToolApprovalResolver.cs:219` · `RunAttributionGate.cs:56` · `CatalogToolCallHandler.cs:105` · `IRunAttributionContext.cs:115` (`RunAttributionReader.Read`). Tüketici bağımlılığının kendi zaman aşımı (`TaskCanceledException`) iptal sayılıp yayılabilir | Her site için `OperationCancellation.IsFailure(ex, token)` + düşen test |
 | 🟠 | **F-283** · Onay kuralı MCP kaynağına bağlı değil: `AgentsAdmin` endpoint'i değiştirince `SecurityAdmin`'in kuralı yeni sunucunun tool'unu onaylar | Ölçüldü (2026-09-24, Faz 186 Karar 11, iki gerçek MCP sunucusu): `toolName` = `lookup-srv_lookup` kuralı, `AgentsAdmin` anahtarı `PUT /api/mcp-servers/lookup-srv` ile endpoint'i B'ye çevirince B'nin `lookup` tool'unu da onayladı; `SecurityAdmin` yeniden bir şey yapmadı (`McpApprovalRuleSourceTests.A_standing_rule_approves_the_tool_of_a_new_endpoint_after_an_endpoint_change`). Kural `AgentName`, `ToolName`, `ArgumentsHash`, `ArgumentConditions` taşır (`ToolApprovalRule.cs:37-53`), kaynak taşımaz; MCP tool adı `{server}_{tool}` endpoint değişince aynı kalır | Tasarım kararı (güvenlik): kuralı kaynağa bağla (endpoint parmak izi — `kalıcı-veri`) ya da endpoint değişikliği o sunucunun kurallarını askıya alsın veya `SecurityAdmin` istesin. F-284 ile birlikte tasarlanır; karar sonrası ölçüm testi ters çevrilir |
 | 🟠 | **F-284** · `AgentsAdmin`, MCP sunucusunun `RequiresApproval`'ını kapatarak onayı bütünüyle atlatır | Ölçüldü (2026-09-24, Faz 186 Karar 11): `requiresApproval: false` ile kaydedilen sunucunun tool'u kural olmadan, onay istemeden çalıştı (`McpApprovalRuleSourceTests.An_agents_admin_key_can_switch_off_approval_for_every_tool_of_a_server`). Alan `PUT /api/mcp-servers/{name}` gövdesinden doğrudan yazılır (`GovernanceEndpoints.cs:276`); uç `AgentsAdmin` ister, onay politikası ise `SecurityAdmin`'in alanıdır (`POST /api/approvals/rules`). F-283'ün kısa yoludur: kural bağlansa bile bu yol açık kalır | Görev ayrımı kararı: `RequiresApproval=false` yazımı `SecurityAdmin` istesin (aynı uçta kapsam kontrolü ya da ayrı uç). F-283 ile birlikte; ölçüm testi ters çevrilir |
-| 🟠 | **F-304** · Önbellekteki derlenmiş agent, sonradan kaydedilen egress politikasını görmez | Ölçüldü (2026-10-11, prob testi, silindi): agent çözülüp `CompiledAgentCache`'e girdikten sonra kiracı politikası sağlayıcıyı yasaklasa da sonraki `ResolveAsync` önbellekteki agent'ı döndü ve yasak sağlayıcı çağrılabilir kaldı. Önbellek anahtarında politika yok, açık geçersiz kılma da yok (`CompiledAgentCache.cs:25-27`); atlama kararı yalnız kiracı anahtarını sorar (`AgentDefinitionCompiler.Dependencies.cs:70,84`). `MIMARI-GUVENLIK.md` "her model çağrısından önce" der | Tasarım kararı (güvenlik): politika içeriğini bağımlılık parmak izine katmak (her çözümde bir store okuması) ya da politika varken önbelleği atlamak; süreç içi geçersiz kılma çok örnekli kurulumda yetmez (K-811 deseni). Ölçüm testi düşen test olur |
+| 🟠 | **F-306** · Canlı ses (OpenAI Realtime) kiracının egress politikasını ve kendi anahtarını uygulamaz | Kod okuması (2026-10-11, F-304 taraması): `OpenAILiveProvider` süreç geneli OpenAI anahtarını kullanır (`OpenAILiveProvider.cs:118,169,193-194`); canlı ses yolunda `ITenantEgressPolicyStore` ve kiracı bağlaması hiç okunmaz, ama oturum kiracıya bağlıdır (`LiveVoiceEndpoints.cs:184-185`). `openai`'yi yasaklayan kiracının sesi yine OpenAI'ye gider (`MIMARI-GUVENLIK.md`: "her model çağrısından önce") | Karar ister: canlı ses kiracı politikasına tabi mi (önerilen: evet, `openai`), anahtar kiracı bağlamasından mı gelir. Düzeltme oturumdan önce registry'nin egress/kimlik yolunu kullanır; düşen test fonksiyonel |
+| 🟡 | **F-305** · Önbellekteki agent'ın MCP tool'ları, sunucu değişince kapatılmış bağlantıyı çağırabilir | Kod okuması, çalıştırılmadı (2026-10-11, F-304 taraması): derleyici tool nesnelerini kiracının MCP anlık görüntüsünden alır (`McpToolRegistry.cs:74-75`, `McpTenantTools.cs:9`); sunucu tanımı değişince veya silinince eski bağlantı kapatılır (`McpToolCatalog.cs:236-252`, `:286-288`); anahtarda MCP bileşeni yok (kapı `IToolRegistry`'yi açık sayar). Kaynaklar bağlantıyı her çağrıda çözer (`McpResourceContextProvider.cs:97`), tool'lar çözmez | Önce repro (iki `LookupServer`: çalıştır, sunucuyu değiştir, yenilemeyi bekle, yeniden çalıştır); doğrulanırsa 🟠. Seçenek: anlık görüntü kimliği anahtara ya da tool bağlantıyı çağrıda çözer (kaynak deseni) |
 | 🟡 | **F-280** · Yapılandırmadan gelen timeout'lar zamanlayıcı aralığında doğrulanmıyor — F-278'in (b) alt sınıfı | `CancelAfter`/`new CancellationTokenSource(TimeSpan)` yalnız -1 ms (sonsuz) ve 0 – 4 294 967 294 ms kabul eder; dışındaki değer o istekte ya da run'da `ArgumentOutOfRangeException` atar (host durmaz). Siteler (2026-09-24 sınıf taraması): `ChildAgentInvoker` `_childDeadline` · `LiveVoiceSessionHost` `DelegationTimeout` · `TraconDrainService` `Drain:Timeout` (yalnız `<= Zero`) · `OnlineEvalJobHandler` `JudgeTimeout` · `SkillScriptProcessRunner` `Timeout` · `ToolApprovalPresenterRunner` · `WebhookDeliveryJobHandler` `Timeout` · `AgentDefinitionValidator` · `WorkflowRunner` `RunTimeout` · MCP `ConnectionTimeout` (üç yer, doğrulayıcı yok) · `ProviderHealthCheckCore` · `TimeoutAIFunction` (`Task.Delay`) · `TraconEndpointOptions.RunEventPollInterval` (setter yalnız `> 0`) | Site site: değer yapılandırmadan mı geliyor, `InfiniteTimeSpan` meşru mu — sonra `TimerPeriod` benzeri ortak bir timeout aralığı kontrolü + `IStartupValidator` üzerinden düşen test (F-278 deseni) |
 | 🟠 | **F-257** · Bilinen yarış testleri — `LiveVoiceLifecycleTests` sınıfı CI'ı da düşürüyor | İkisi tam çözüm koşumunda düşer, izole koşumda geçer: `WorkflowEventSinkTests.A_registered_sink_sees_the_workflow_s_own_events` olay `Sequence`'ını sıra dışı görür · `LiveVoiceLifecycleTests.The_transcript_is_written_to_the_session_history_when_persistence_is_on` zaman aşımına uğrar. **Üçüncü vaka, CI'da (2026-09-24, windows-latest, koşum `36048047050`, `6a77957d`):** `LiveVoiceLifecycleTests.A_provider_close_AFTER_media_flowed_is_a_PROVIDER_close` — `FakeGptLiveServer.SendClosedAsync` yazarken yanıt zaten tamamlanmış (`WebSocketException` → `ObjectDisposedException`). Aynı test kodu bir önceki koşumda (`36042571931`, `1e77de73`) Windows'ta geçti; aradaki diff `src/` ve `tests/`'e dokunmaz → yarış. Bir etiket koşumunu da düşürebilir | Repro'yu yük altında sabitle (`kusur-giderme` Adım 1–2), kök nedeni kapat; sahte sunucunun kapanış sırası ile Tracon'un üst akış kapanışı arasındaki sıralamayı ölç | Repro'yu yük altında sabitle (`kusur-giderme` Adım 1–2), kök nedeni kapat |
 | 🟡 | **F-289** · `[TraconTool]` taşıyan bir kütüphaneyi referanslayan host `AddGeneratedTools()` çağıramaz | Ölçüldü (2026-09-24, Faz 189 `MT-PKG-150` koşumu, paketlenmiş `1.0.0-preview.2.70`): üreteç her derlemede `public static class Tracon.TraconGeneratedToolsBuilderExtensions` + `AddGeneratedTools(this ITraconBuilder)` yazar — hostun kendi tool'u olmasa bile. Kütüphaneyi referanslayan hostta `AddGeneratedTools()` `CS0121` (iki derlemenin aynı imzası) ve `TRC0005` verir; kütüphanenin tool'larını kaydetmenin tek yolu kütüphanenin kendi sarmalayıcı uzantısıdır. Üretilen XML "başka derlemedeki tool için `AddToolsFrom`" der, ama o yol yansımadır (AOT dışı) | Üretilen uzantıyı `internal` yapmak veya adını derlemeye özgü kılmak (ör. `Add<Derleme>GeneratedTools`) ve boş derlemede hiç üretmemek değerlendirilir; kırıcı olup olmadığı K-350 ile birlikte ölçülür. Repro: kütüphane + host, host kütüphaneyi referanslar ve `AddGeneratedTools()` çağırır |
@@ -702,7 +703,7 @@ kaydındadır; burada yalnız hangi eşikte bekledikleri yazar.
 ### F-ID tahsis kuralı
 
 Numara **geri dönüştürülmez** ve bir numara **tek kaleme** aittir. Sıradaki
-numara: **F-305**.
+numara: **F-307**.
 
 Numarayı tahsis eden el sayacı **aynı değişiklikte** bir artırır.
 `python3 scripts/dokuman-bakim.py --denetle` iki şeyi zorlar:

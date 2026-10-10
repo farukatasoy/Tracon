@@ -148,9 +148,10 @@ var ama değer yoksa çağrı global anahtara **düşmez**. Aynı nokta hem `run
 derlemesini hem ön-uçuşu besler; izinsiz sağlayıcıya işaret eden tanım **derleme
 anında** reddedilir. Kapsam agent'ın çağırdığı **her** modeldir: kendi modeli ve
 fallback'leri, sıkıştırma özetleyicisi (kiracı anahtarı) ve `aiJudge` yargıcı
-(kurulum anahtarı) — async yol hepsini agent'tan önce kurar (K-874). Açık
-kusur **F-304**: önbellekteki derlenmiş agent sonradan kaydedilen politikayı
-görmez. Gerekçe: K-065 · K-059.
+(kurulum anahtarı) — async yol hepsini agent'tan önce kurar (K-874). Politika
+önbellek anahtarına girer; kaydedilen politika bir sonraki çözümde etki eder
+(K-875). Açık kusur **F-306**: canlı ses politikayı uygulamaz. Gerekçe: K-065 ·
+K-059.
 
 **Kiracının ALTINDA ikinci bir sınır: oturum sahipliği (Faz 148).**
 Varsayılan **kapalıdır**; kapalıyken `sessions.owner_id` `NULL` kalır ve hiçbir

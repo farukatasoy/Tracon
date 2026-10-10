@@ -60,3 +60,15 @@
   girer. Kapı: `CompilePathTenantAwarenessTests` — registry'nin senkron üyesi
   atar ve `AgentDefinition`'a eklenen her `ModelBinding` bir proba bağlanmadan
   test geçmez. Davranış: `SecondaryModelTenantBoundaryTests`. K-874.
+- **🚨 Derlenmiş agent, derlenirken okunan HER kiracı durumunu taşır; anahtar
+  o durumu ölçmezse önbellek atlanmalıdır** (2026-10-11, F-304). Egress
+  politikası yalnız istemci kurulurken denetlenir; anahtar politikayı
+  taşımıyordu. İlk run agent'ı önbelleğe aldıktan sonra kaydedilen yasak
+  politika ikinci run'ı durdurmadı: HTTP `200`, yasak sağlayıcı çağrıldı.
+  Beşinci vaka: kiracı (K-380), kiracı anahtarı (K-471, K-874), sürüm vekili
+  (K-811), shared/callable (K-812). **Kural:** derleyiciye veya registry'ye
+  giren her bağımlılığın durumu ya anahtara girer, ya önbelleği atlatır, ya da
+  yalnız çalışma anında okunur — üçünden biri, testle. Kapı:
+  `CompiledAgentCacheKeyCoverageTests` (iki kurucunun her parametresi
+  sınıflı; yeni parametre sınıflanmadan test geçmez). Açık: F-305 (MCP tool
+  anlık görüntüsü anahtarda yok). K-875.
