@@ -60,15 +60,58 @@ public sealed partial class AgentDefinitionCompiler
         var skills = await ResolveSkillsAsync(definition, cancellationToken).ConfigureAwait(false);
         var callable = await ResolveCallableAgentsAsync(definition, cancellationToken).ConfigureAwait(false);
         var shared = await ResolveSharedInstructionsAsync(definition, cancellationToken).ConfigureAwait(false);
+        var egress = await ResolveEgressPolicyFingerprintAsync(cancellationToken).ConfigureAwait(false);
 
         return new AgentCompilationDependencies
         {
             CallableAgents = callable,
             CacheFingerprint = CompiledAgentCache.CombineFingerprints(
-                CompiledAgentCache.CombineFingerprints(skills.Fingerprint, callable.Fingerprint),
-                shared.Fingerprint),
+                CompiledAgentCache.CombineFingerprints(
+                    CompiledAgentCache.CombineFingerprints(skills.Fingerprint, callable.Fingerprint),
+                    shared.Fingerprint),
+                egress),
             BypassCache = await HoldsTenantCredentialAsync(definition, cancellationToken).ConfigureAwait(false),
         };
+    }
+
+    /// <summary>Produces the cache fingerprint of the current tenant's egress policy.</summary>
+    /// <returns>
+    /// An empty string when no tenant context or policy store is registered, or
+    /// the tenant has no saved policy. The cache key is then the same as before
+    /// the policy took part in it.
+    /// </returns>
+    // 🚨 F-304 (2026-10-11): the registry checks the policy only when it builds
+    // a model client, so a compiled agent carries the decision the policy made
+    // at compile time. Without the policy in the key, an agent cached before a
+    // policy was saved kept calling the provider that policy forbids, until its
+    // definition changed or the process restarted. The policy's CONTENT is
+    // hashed, not its UpdatedAt (K-811's rule: measure what is embedded, not a
+    // proxy), and names compare the way the registry compares them:
+    // case-insensitive and order-free. Re-saving the same list costs nothing.
+    private async ValueTask<string> ResolveEgressPolicyFingerprintAsync(CancellationToken cancellationToken)
+    {
+        if (_tenantContext is null || _tenantEgressPolicies is null)
+        {
+            return string.Empty;
+        }
+
+        var policy = await _tenantEgressPolicies.GetAsync(_tenantContext.TenantId, cancellationToken).ConfigureAwait(false);
+
+        if (policy is null)
+        {
+            return string.Empty;
+        }
+
+        var providers = policy.AllowedProviders
+            .Select(static provider => provider.ToUpperInvariant())
+            .Distinct(StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal);
+
+        // An empty allow-list still gets a fingerprint: "nothing is allowed" and
+        // "no policy" must never share a cache entry.
+        return string.Concat(
+            "egress:",
+            Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(string.Join('\n', providers)))));
     }
 
     /// <summary>

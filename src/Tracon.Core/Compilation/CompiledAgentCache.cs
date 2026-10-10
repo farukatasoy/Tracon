@@ -27,6 +27,13 @@ namespace Tracon;
 /// reached is simply never read again.
 /// </para>
 /// <para>
+/// The same rule covers what the agent depends on outside its definition. The
+/// dependency fingerprint measures skills, callable sub-agents, a shared
+/// instructions block, and the tenant's egress policy: a policy saved after an
+/// agent was cached changes the key, and the next resolve compiles again under
+/// that policy.
+/// </para>
+/// <para>
 /// The <c>tenant</c> component of the key is REQUIRED. Agent names are unique
 /// only within a tenant (see <c>SqlAgentDefinitionStore</c>) - it is common for
 /// two different tenants to have a definition with the same name (e.g.
@@ -73,9 +80,10 @@ public sealed class CompiledAgentCache
     /// <see cref="AgentDefinitionCompiler.CreateDefinitionFingerprint"/>.
     /// </param>
     /// <param name="dependencyFingerprint">
-    /// Current fingerprint of the definition's <em>external</em> dependencies:
-    /// skills and callable sub-agents. These can change without incrementing
-    /// the definition's own version, so they need a separate key component.
+    /// Current fingerprint of what the compiled agent depends on outside its
+    /// definition: skills, callable sub-agents, a shared instructions block, and
+    /// the tenant's egress policy. These can change while the definition stays
+    /// the same, so they need a separate key component.
     /// </param>
     /// <param name="factory">Producer called when absent from the cache.</param>
     /// <returns>The compiled agent.</returns>

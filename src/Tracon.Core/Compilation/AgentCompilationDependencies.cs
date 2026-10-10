@@ -17,7 +17,10 @@ internal sealed record AgentCompilationDependencies
     /// <summary>Gets the resolved callable sub-agents.</summary>
     public required ResolvedCallableAgents CallableAgents { get; init; }
 
-    /// <summary>Gets the combined skill, callable-agent, and shared-instructions fingerprint.</summary>
+    /// <summary>
+    /// Gets the combined skill, callable-agent, shared-instructions, and tenant
+    /// egress policy fingerprint.
+    /// </summary>
     public required string CacheFingerprint { get; init; }
 
     /// <summary>Gets whether this compilation contains a tenant-specific provider credential.</summary>
