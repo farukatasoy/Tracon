@@ -404,11 +404,19 @@ for the full walkthrough, including how the widget runs a client-side tool.
 
 ### Editor boundaries
 
-The editor supports structured output, harness settings, and compaction. Three newer
-definition areas are code/HTTP-only today: provider-specific `ProviderSettings`,
-static `McpResourceUris`, and Knowledge vector bindings. Do not round-trip a
-definition that uses those fields through the current editor; edit it through code or
-the management HTTP API so the fields remain explicit.
+Every editor saves with a full replace, so each one sends back every field it
+loaded, including the fields it has no control for. Saving without a change leaves
+the record as it was.
+
+- The agent editor supports structured output, harness settings, and compaction. It
+  has no control for provider-specific `ProviderSettings`, static `McpResourceUris`,
+  or a Knowledge vector binding. It keeps them as they are; change them through code
+  or the management HTTP API.
+- The workflow editor lists the chain of a workflow that uses function nodes, but it
+  cannot change that chain yet, and the kind stays `Sequential`. Change the chain
+  with `PUT /api/workflows/{name}`.
+- A quota's agent and period identify the rule, so they are locked while you edit
+  it. To move a rule, delete it and add a new one.
 
 ## Read next
 

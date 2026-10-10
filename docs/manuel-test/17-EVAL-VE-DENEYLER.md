@@ -2116,6 +2116,48 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/runs/<RUN_ID>/replay" -H "
 
 ---
 
+### MT-EVAL-102 — Taslak deneyi düzenlemek canary kuralını SİLMEZ — bellek içi store'da da (kusur-giderme, 2026-10-10, K-873)
+
+**Gerçekten koşuldu ve doğrulandı** — örnek uygulamada (bellek içi store)
+düzeltmeden önce kural silindi, düzeltmeden sonra korundu. Otomatik karşılığı:
+`ExperimentStoreContract.Saving_a_draft_again_keeps_its_canary_policy` ve
+`Saving_never_writes_the_canary_policy` (bellek içi + Sqlite + PostgreSQL +
+SQL Server).
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 56 |
+| **İlgili karar** | K-873 |
+
+**Ön koşul**
+- İki saklı sürümü olan bir veritabanı agent'ı (aşağıdaki ilk iki çağrı kurar).
+
+**Girilecek veri**
+```bash
+curl -s -X POST "$APU/api/agents" -H "$APB" -H 'content-type: application/json' \
+  -d '{"name":"exp-agent","instructions":"v1","model":{"provider":"echo","model":"echo-1"}}'
+curl -s -X PUT "$APU/api/agents/exp-agent" -H "$APB" -H 'content-type: application/json' \
+  -d '{"name":"exp-agent","instructions":"v2","model":{"provider":"echo","model":"echo-1"}}'
+curl -s -X PUT "$APU/api/experiments/exp1" -H "$APB" -H 'content-type: application/json' \
+  -d '{"agentName":"exp-agent","variants":[{"name":"control","version":1,"weight":50},{"name":"canary","version":2,"weight":50}]}'
+curl -s -X PUT "$APU/api/experiments/exp1/canary" -H "$APB" -H 'content-type: application/json' \
+  -d '{"canaryVariant":"canary","maxErrorRateDelta":0.05,"minSampleSize":20}'
+```
+
+**Adımlar**
+1. Taslağın ağırlıklarını değiştir (konsolda `Experiments → exp1 → Edit` ya da
+   aynı `PUT /api/experiments/exp1` çağrısı `60`/`40` ile).
+2. `GET /api/experiments/exp1/canary` oku.
+
+**Beklenen sonuç**
+- `policy` `null` değildir; `canaryVariant` `canary`'dir.
+- 🚨 Eski kusur: bellek içi store taslak düzenlemesinde kuralı siliyordu
+  (`policy: null`); SQL store'lar koruyordu.
+
+---
+
 ### EVAL-102 — Geçersiz judge skoru terminal hata üretir
 
 **Ön koşul**

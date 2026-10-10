@@ -49,6 +49,12 @@ public interface IWebhookStore
     /// <param name="subscription">The subscription.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The saved subscription.</returns>
+    /// <remarks>
+    /// <see cref="WebhookSubscription.ConsecutiveFailures"/> is written as the
+    /// subscription carries it, not kept from the stored row. The management API
+    /// saves it as zero, so a subscription disabled for failing gets its whole
+    /// threshold back once it is fixed and enabled again.
+    /// </remarks>
     ValueTask<WebhookSubscription> SaveSubscriptionAsync(
         WebhookSubscription subscription,
         CancellationToken cancellationToken = default);

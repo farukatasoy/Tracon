@@ -85,6 +85,10 @@ new WorkflowDefinition
 other. Only `Sequential` supports function nodes: the ready-made builders for
 the other four patterns accept only agents.
 
+The console lists such a chain in the workflow editor but cannot change it yet.
+Saving there keeps the chain as it is; create or change it with
+`PUT /api/workflows/{name}`.
+
 The factory passed to `AddWorkflowFunction` runs once, when the function
 registry is built — not once per run. Every workflow compile shares the same
 handler closure, so **the handler must be thread-safe**: a captured counter or

@@ -1299,6 +1299,7 @@ internal sealed class SqliteQueries : SqlQueriesBase
                    secret_configuration_key  = excluded.secret_configuration_key,
                    headers                   = excluded.headers,
                    enabled                   = excluded.enabled,
+                   consecutive_failures      = excluded.consecutive_failures,
                    updated_at                = excluded.updated_at,
                    header_configuration_keys = excluded.header_configuration_keys
             RETURNING {WebhookSubscriptionColumns};

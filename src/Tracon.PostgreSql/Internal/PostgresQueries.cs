@@ -1332,6 +1332,7 @@ internal sealed class PostgresQueries : SqlQueriesBase
                    secret_configuration_key  = EXCLUDED.secret_configuration_key,
                    headers                   = EXCLUDED.headers,
                    enabled                   = EXCLUDED.enabled,
+                   consecutive_failures      = EXCLUDED.consecutive_failures,
                    updated_at                = EXCLUDED.updated_at,
                    header_configuration_keys = EXCLUDED.header_configuration_keys
             RETURNING {WebhookSubscriptionColumns};
