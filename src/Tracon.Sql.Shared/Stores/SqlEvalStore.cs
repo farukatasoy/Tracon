@@ -57,16 +57,21 @@ internal sealed class SqlEvalStore : IEvalStore
         ArgumentNullException.ThrowIfNull(suite);
 
         var now = DateTimeOffset.UtcNow;
-        var command = CreateCommand(_sql.UpsertEvalSuite);
-        DbHelpers.Add(command, "id", suite.Id == Guid.Empty ? TraconId.NewId(now) : suite.Id);
-        DbHelpers.AddTenant(command, suite.TenantId);
-        DbHelpers.Add(command, "name", suite.Name);
-        AddNullableText(command, "description", suite.Description);
-        DbHelpers.Add(command, "agent_name", suite.AgentName);
-        Dialect.AddJsonb(command, "checks", RawJson(suite.Checks));
-        Dialect.AddTimestamp(command, "now", now);
 
-        return await DbHelpers.ReadSingleAsync(command, ReadSuite, cancellationToken).ConfigureAwait(false)
+        return await _context.ExecuteUpsertAsync(
+            _sql.UpsertEvalSuite,
+            command =>
+            {
+                DbHelpers.Add(command, "id", suite.Id == Guid.Empty ? TraconId.NewId(now) : suite.Id);
+                DbHelpers.AddTenant(command, suite.TenantId);
+                DbHelpers.Add(command, "name", suite.Name);
+                AddNullableText(command, "description", suite.Description);
+                DbHelpers.Add(command, "agent_name", suite.AgentName);
+                Dialect.AddJsonb(command, "checks", RawJson(suite.Checks));
+                Dialect.AddTimestamp(command, "now", now);
+            },
+            (command, token) => DbHelpers.ReadSingleAsync(command, ReadSuite, token),
+            cancellationToken).ConfigureAwait(false)
             ?? throw new TraconException($"Failed to save eval suite '{suite.Name}'.");
     }
 

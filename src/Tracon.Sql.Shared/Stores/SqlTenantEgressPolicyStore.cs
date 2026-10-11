@@ -43,12 +43,16 @@ internal sealed class SqlTenantEgressPolicyStore : ITenantEgressPolicyStore
 
         var updatedAt = _timeProvider.GetUtcNow();
 
-        var command = CreateCommand(_sql.UpsertTenantEgressPolicy);
-        DbHelpers.AddTenant(command, tenantId);
-        Dialect.AddTextArray(command, "allowed_providers", allowedProviders);
-        Dialect.AddTimestamp(command, "updated_at", updatedAt);
-
-        await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
+        await _context.ExecuteUpsertAsync(
+            _sql.UpsertTenantEgressPolicy,
+            command =>
+            {
+                DbHelpers.AddTenant(command, tenantId);
+                Dialect.AddTextArray(command, "allowed_providers", allowedProviders);
+                Dialect.AddTimestamp(command, "updated_at", updatedAt);
+            },
+            (command, token) => DbHelpers.ExecuteAsync(command, token),
+            cancellationToken).ConfigureAwait(false);
 
         return new TenantEgressPolicy
         {

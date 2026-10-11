@@ -180,12 +180,16 @@ internal sealed class MigrationHostedService : IHostedService
     {
         var tenantId = _traconOptions.DefaultTenantId;
 
-        var command = _storeContext.CreateCommand(_storeContext.Sql.UpsertTenant);
-        DbHelpers.Add(command, "id", TraconId.NewId());
-        DbHelpers.Add(command, "slug", tenantId);
-        DbHelpers.Add(command, "display_name", tenantId);
-        _storeContext.Dialect.AddTimestamp(command, "created_at", DateTimeOffset.UtcNow);
-
-        await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
+        await _storeContext.ExecuteUpsertAsync(
+            _storeContext.Sql.UpsertTenant,
+            command =>
+            {
+                DbHelpers.Add(command, "id", TraconId.NewId());
+                DbHelpers.Add(command, "slug", tenantId);
+                DbHelpers.Add(command, "display_name", tenantId);
+                _storeContext.Dialect.AddTimestamp(command, "created_at", DateTimeOffset.UtcNow);
+            },
+            (command, token) => DbHelpers.ExecuteAsync(command, token),
+            cancellationToken).ConfigureAwait(false);
     }
 }

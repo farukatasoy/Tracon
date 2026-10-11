@@ -102,17 +102,21 @@ internal sealed class SqlWorkflowDefinitionStore : IWorkflowDefinitionStore
 
         var now = DateTimeOffset.UtcNow;
 
-        var command = CreateCommand(_sql.UpsertWorkflow);
-        DbHelpers.Add(command, "id", TraconId.NewId());
-        DbHelpers.AddTenant(command, tenantId);
-        DbHelpers.Add(command, "name", definition.Name);
-        Dialect.AddJsonb(command, "definition", payload);
-        Dialect.AddTimestamp(command, "now", now);
-
-        var written = await DbHelpers.ReadSingleAsync(
+        var written = await _context.ExecuteUpsertAsync(
+            _sql.UpsertWorkflow,
+            command =>
+            {
+                DbHelpers.Add(command, "id", TraconId.NewId());
+                DbHelpers.AddTenant(command, tenantId);
+                DbHelpers.Add(command, "name", definition.Name);
+                Dialect.AddJsonb(command, "definition", payload);
+                Dialect.AddTimestamp(command, "now", now);
+            },
+            (command, token) => DbHelpers.ReadSingleAsync(
                 command,
                 static reader => new WrittenVersion(reader.GetInt32(0), DbHelpers.GetTimestamp(reader, 1)),
-                cancellationToken).ConfigureAwait(false)
+                token),
+            cancellationToken).ConfigureAwait(false)
             ?? throw new TraconException(
                 $"Failed to save workflow definition '{definition.Name}': the database did not return version information.");
 

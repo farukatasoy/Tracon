@@ -74,18 +74,22 @@ internal sealed class SqlRetentionPolicyStore : IRetentionPolicyStore
     {
         ArgumentNullException.ThrowIfNull(policy);
 
-        var command = CreateCommand(_sql.UpsertRetentionPolicy);
-        DbHelpers.Add(command, "id", policy.Id);
-        DbHelpers.AddTenant(command, policy.TenantId);
-        DbHelpers.Add(command, "target", policy.Target);
-        Dialect.AddInt32(command, "max_age_days", policy.MaxAgeDays);
-        Dialect.AddInt64(command, "max_rows", policy.MaxRows);
-        DbHelpers.Add(command, "archive", policy.Archive);
-        DbHelpers.Add(command, "enabled", policy.Enabled);
-        Dialect.AddTimestamp(command, "created_at", policy.CreatedAt);
-        Dialect.AddTimestamp(command, "updated_at", policy.UpdatedAt);
-
-        var saved = await DbHelpers.ReadSingleAsync(command, ReadPolicy, cancellationToken).ConfigureAwait(false);
+        var saved = await _context.ExecuteUpsertAsync(
+            _sql.UpsertRetentionPolicy,
+            command =>
+            {
+                DbHelpers.Add(command, "id", policy.Id);
+                DbHelpers.AddTenant(command, policy.TenantId);
+                DbHelpers.Add(command, "target", policy.Target);
+                Dialect.AddInt32(command, "max_age_days", policy.MaxAgeDays);
+                Dialect.AddInt64(command, "max_rows", policy.MaxRows);
+                DbHelpers.Add(command, "archive", policy.Archive);
+                DbHelpers.Add(command, "enabled", policy.Enabled);
+                Dialect.AddTimestamp(command, "created_at", policy.CreatedAt);
+                Dialect.AddTimestamp(command, "updated_at", policy.UpdatedAt);
+            },
+            (command, token) => DbHelpers.ReadSingleAsync(command, ReadPolicy, token),
+            cancellationToken).ConfigureAwait(false);
 
         return saved ?? policy;
     }

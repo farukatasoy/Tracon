@@ -62,23 +62,27 @@ internal sealed class SqlInboundTriggerStore : IInboundTriggerStore
 
         var id = trigger.Id == Guid.Empty ? TraconId.NewId() : trigger.Id;
 
-        var command = CreateCommand(_sql.UpsertInboundTrigger);
-        DbHelpers.Add(command, "id", id);
-        DbHelpers.AddTenant(command, trigger.TenantId);
-        DbHelpers.Add(command, "name", trigger.Name);
-        DbHelpers.Add(command, "target_kind", (short)trigger.TargetKind);
-        DbHelpers.Add(command, "target_name", trigger.TargetName);
-        DbHelpers.Add(command, "signing_secret_configuration_name", trigger.SigningSecretConfigurationName);
-        DbHelpers.Add(command, "payload_mode", (short)trigger.PayloadMode);
-        Dialect.AddText(command, "payload_path", trigger.PayloadPath);
-        DbHelpers.Add(command, "enabled", trigger.Enabled);
-        Dialect.AddTimestamp(command, "created_at", trigger.CreatedAt);
-        Dialect.AddTimestamp(command, "updated_at", trigger.UpdatedAt);
-
-        var written = await DbHelpers.ReadSingleAsync(
+        var written = await _context.ExecuteUpsertAsync(
+            _sql.UpsertInboundTrigger,
+            command =>
+            {
+                DbHelpers.Add(command, "id", id);
+                DbHelpers.AddTenant(command, trigger.TenantId);
+                DbHelpers.Add(command, "name", trigger.Name);
+                DbHelpers.Add(command, "target_kind", (short)trigger.TargetKind);
+                DbHelpers.Add(command, "target_name", trigger.TargetName);
+                DbHelpers.Add(command, "signing_secret_configuration_name", trigger.SigningSecretConfigurationName);
+                DbHelpers.Add(command, "payload_mode", (short)trigger.PayloadMode);
+                Dialect.AddText(command, "payload_path", trigger.PayloadPath);
+                DbHelpers.Add(command, "enabled", trigger.Enabled);
+                Dialect.AddTimestamp(command, "created_at", trigger.CreatedAt);
+                Dialect.AddTimestamp(command, "updated_at", trigger.UpdatedAt);
+            },
+            (command, token) => DbHelpers.ReadSingleAsync(
                 command,
                 static reader => new WrittenTrigger(reader.GetGuid(0), DbHelpers.GetTimestamp(reader, 1)),
-                cancellationToken).ConfigureAwait(false)
+                token),
+            cancellationToken).ConfigureAwait(false)
             ?? throw new TraconException($"Failed to save the inbound trigger '{trigger.Name}'.");
 
         return trigger with { Id = written.Id, CreatedAt = written.CreatedAt };
