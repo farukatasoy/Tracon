@@ -17,13 +17,22 @@ namespace Tracon;
 /// <para>
 /// The delegation event <strong>cannot choose the agent</strong>. It arrives
 /// from the provider, across the tenant boundary, and is untrusted input; letting it
-/// name an agent would let a prompt injection pick a privileged one. The agent is
-/// resolved once, when the session is created, from what the caller asked for.
+/// name an agent would let a prompt injection pick a privileged one. The agent's
+/// NAME is fixed when the session is created, from what the caller asked for.
+/// </para>
+/// <para>
+/// The agent itself is resolved again for every delegation, under the session's
+/// tenant. A compiled agent embeds its tool objects, and an MCP tool object calls
+/// the connection it was discovered on: an agent held for the whole session kept
+/// calling a closed connection after its server was edited or deleted, and kept
+/// running a tool whose server had switched approval back on. Resolving per
+/// delegation is a cache hit while nothing changed.
 /// </para>
 /// </remarks>
 internal sealed class LiveVoiceDelegationRunner
 {
-    private readonly AIAgent _agent;
+    private readonly Func<CancellationToken, ValueTask<AIAgent?>> _resolveAgent;
+    private readonly string _agentName;
     private readonly AgentSession _session;
     private readonly ILiveVoiceSideband _sideband;
     private readonly LiveTranscriptLedger _ledger;
@@ -34,7 +43,8 @@ internal sealed class LiveVoiceDelegationRunner
     private readonly int _maxAppendCharacters;
 
     /// <summary>Creates a runner.</summary>
-    /// <param name="agent">The agent resolved when the session was created.</param>
+    /// <param name="resolveAgent">Resolves the session's agent from the catalog; called once per delegation.</param>
+    /// <param name="agentName">The session's agent name, for the failure log.</param>
     /// <param name="session">The agent session the conversation runs in.</param>
     /// <param name="sideband">The provider's control connection.</param>
     /// <param name="ledger">The conversation transcript.</param>
@@ -44,7 +54,8 @@ internal sealed class LiveVoiceDelegationRunner
     /// <param name="sessionId">The agent session identifier.</param>
     /// <param name="logger">The logger.</param>
     public LiveVoiceDelegationRunner(
-        AIAgent agent,
+        Func<CancellationToken, ValueTask<AIAgent?>> resolveAgent,
+        string agentName,
         AgentSession session,
         ILiveVoiceSideband sideband,
         LiveTranscriptLedger ledger,
@@ -54,7 +65,8 @@ internal sealed class LiveVoiceDelegationRunner
         string sessionId,
         ILogger logger)
     {
-        _agent = agent;
+        _resolveAgent = resolveAgent;
+        _agentName = agentName;
         _session = session;
         _sideband = sideband;
         _ledger = ledger;
@@ -116,7 +128,13 @@ internal sealed class LiveVoiceDelegationRunner
             // writes ambient state would lose that state: an ExecutionContext write
             // does not cross a `yield return` boundary. This class of defect has
             // cost this repository four times.
-            var updates = _agent.RunStreamingAsync(
+            // F-310: resolved here, per delegation. A definition deleted mid-session or
+            // a tool that is no longer registered fails this delegation the way a new
+            // request would fail, and the caller hears the same reference below.
+            var agent = await _resolveAgent(cancellationToken).ConfigureAwait(false)
+                ?? throw new TraconException($"There is no agent named '{_agentName}'.");
+
+            var updates = agent.RunStreamingAsync(
                 [new ChatMessage(ChatRole.User, LiveTranscriptLedger.RenderPrompt(cut))],
                 _session,
                 new TraconRunOptions { RunId = runId, SessionId = _sessionId },

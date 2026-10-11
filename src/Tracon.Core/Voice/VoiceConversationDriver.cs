@@ -646,7 +646,16 @@ internal sealed class VoiceConversationDriver
 
             using var audio = _options.PersistAudio ? new MemoryStream() : null;
 
-            var updates = _agent!.RunStreamingAsync(
+            // F-310: the agent is resolved again for every turn. A compiled agent embeds
+            // its tool objects, and an MCP tool object calls the connection it was
+            // discovered on: the agent resolved at `start` kept calling a closed
+            // connection for the rest of the connection after its server was edited
+            // or deleted. A cache hit while nothing changed; the name stays the one
+            // `start` named. The newest instance also writes the history.
+            _agent = await driver._catalog.ResolveAsync(_agentName!, culture: null, cancellationToken).ConfigureAwait(false)
+                ?? throw new TraconException($"There is no agent named '{_agentName}'.");
+
+            var updates = _agent.RunStreamingAsync(
                 [new ChatMessage(ChatRole.User, prompt)],
                 _session,
                 new TraconRunOptions { RunId = runId, SessionId = request.SessionId },
