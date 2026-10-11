@@ -100,6 +100,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   its consecutive failure count with the SQL stores too, as the in-memory store
   already did. Before, a subscription that was disabled for failing and then
   enabled again went back to disabled on its next single failure.
+- A live voice session, a voice conversation and an agent batch job now pick up
+  an MCP server change on their next delegation, turn or item. Each resolved
+  its agent once and ran with it until it ended, so after a server was edited
+  or deleted mid-session every later call went to the closed connection (the
+  model heard "Error: Function failed."), and a server switched back to
+  requiring approval ran its tools without asking. They now resolve the agent
+  again each time; nothing is recompiled while nothing changed. A batch item
+  whose agent was deleted meanwhile fails on its own.
 - A cached agent now sees an MCP tool's description and input schema as the
   server last listed them. The compiled agent kept the tool definition of the
   moment it was compiled, so after a server changed a tool on the same

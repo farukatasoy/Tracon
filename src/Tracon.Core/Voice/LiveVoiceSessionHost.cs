@@ -66,6 +66,7 @@ internal sealed class LiveVoiceSessionHost : IAsyncDisposable
     private readonly ILogger _logger;
     private readonly TimeProvider _timeProvider;
     private readonly AIAgent _agent;
+    private readonly Func<CancellationToken, ValueTask<AIAgent?>> _resolveAgent;
     private readonly AgentSession _session;
 
     private readonly ConcurrentDictionary<string, CancellationTokenSource> _delegations = new(StringComparer.Ordinal);
@@ -84,6 +85,7 @@ internal sealed class LiveVoiceSessionHost : IAsyncDisposable
         ILiveVoiceProvider provider,
         LiveVoiceSessionRequest request,
         AIAgent agent,
+        Func<CancellationToken, ValueTask<AIAgent?>> resolveAgent,
         AgentSession session,
         VoiceLiveOptions options,
         IVoiceSessionStore store,
@@ -96,6 +98,7 @@ internal sealed class LiveVoiceSessionHost : IAsyncDisposable
         _provider = provider;
         _request = request;
         _agent = agent;
+        _resolveAgent = resolveAgent;
         _session = session;
         _options = options;
         _store = store;
@@ -490,7 +493,8 @@ internal sealed class LiveVoiceSessionHost : IAsyncDisposable
         CancellationTokenSource cancellation)
     {
         var runner = new LiveVoiceDelegationRunner(
-            _agent,
+            _resolveAgent,
+            _request.AgentName,
             _session,
             _sideband!,
             _ledger,

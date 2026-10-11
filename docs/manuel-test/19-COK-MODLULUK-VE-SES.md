@@ -2740,3 +2740,30 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST "$APU/api/images/generate" \
 - (3) `200`; oturum oluşturma VE sideband attach kiracının anahtarıyla gider; kurulum
   anahtarı hiç görünmez.
 - (4) `403`, mesaj "endpoint override" der; sağlayıcıya çağrı gitmez, oturum kaydı yazılmaz.
+
+---
+
+### MT-MM-124 — Oturum ortasındaki MCP değişikliği sonraki delegasyona ve tura ulaşır
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Kusur giderme 2026-10-11 (F-310) |
+| **İlgili karar** | — |
+| **İnsan gerekir** | Hayır |
+| **Devir** | ➜ CI: `LiveVoiceMcpTests` (canlı ses, sahte GPT-Live sunucusu) · `VoiceConversationMcpTests` (WebSocket konuşma) · `AgentBatchJobHandlerTests` (toplu iş) |
+
+**Ön koşul** — Aynı adlı `lookup` tool'u farklı yanıt veren iki MCP sunucusu (A ve B);
+tool'u çağıran, veritabanında tanımlı TEK bir agent.
+
+**Adımlar**
+1. Sunucuyu A'ya kaydet, refresh. Agent'la canlı ses oturumu aç; bir delegasyon tetikle.
+2. Oturum açıkken sunucuyu B'ye çevir, refresh; ikinci delegasyonu tetikle.
+3. Aynısını WebSocket konuşmasında (`/api/voice/sessions/{id}/stream`) iki turla tekrarla.
+
+**Beklenen sonuç**
+- (1) delegasyon A'nın yanıtını söyler. (2) delegasyon B'nin yanıtını söyler;
+  "Error: Function failed." YOKTUR, A ikinci kez çağrılmaz.
+- (3) ikinci tur B'nin yanıtını akıtır.
+
