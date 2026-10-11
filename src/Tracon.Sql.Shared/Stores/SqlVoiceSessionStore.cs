@@ -30,26 +30,30 @@ internal sealed class SqlVoiceSessionStore : IVoiceSessionStore
     {
         ArgumentNullException.ThrowIfNull(record);
 
-        var command = _context.CreateCommand(_sql.UpsertVoiceSession);
-        DbHelpers.Add(command, "id", record.Id);
-        DbHelpers.AddTenant(command, record.TenantId);
-        DbHelpers.Add(command, "session_id", record.SessionId);
-        DbHelpers.Add(command, "agent_name", record.AgentName);
-        Dialect.AddTimestamp(command, "started_at", record.StartedAt);
-        Dialect.AddTimestamp(command, "ended_at", record.EndedAt);
-        DbHelpers.Add(command, "turns", record.Turns);
-        Dialect.AddDecimal(command, "input_seconds", record.InputSeconds);
-        Dialect.AddInt64(command, "output_chars", record.OutputChars);
-        Dialect.AddInt16(command, "end_reason", (short?)record.EndReason);
-        Dialect.AddText(command, "created_by", record.CreatedBy);
-        Dialect.AddText(command, "provider", record.Provider);
-        Dialect.AddText(command, "model", record.Model);
-        Dialect.AddDecimal(command, "live_seconds", record.LiveSeconds);
-        Dialect.AddDecimal(command, "duration_cost", record.Cost?.DurationCost);
-        Dialect.AddDecimal(command, "character_cost", record.Cost?.CharacterCost);
-        Dialect.AddText(command, "currency", record.Cost?.Currency);
-
-        await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
+        await _context.ExecuteUpsertAsync(
+            _sql.UpsertVoiceSession,
+            command =>
+            {
+                DbHelpers.Add(command, "id", record.Id);
+                DbHelpers.AddTenant(command, record.TenantId);
+                DbHelpers.Add(command, "session_id", record.SessionId);
+                DbHelpers.Add(command, "agent_name", record.AgentName);
+                Dialect.AddTimestamp(command, "started_at", record.StartedAt);
+                Dialect.AddTimestamp(command, "ended_at", record.EndedAt);
+                DbHelpers.Add(command, "turns", record.Turns);
+                Dialect.AddDecimal(command, "input_seconds", record.InputSeconds);
+                Dialect.AddInt64(command, "output_chars", record.OutputChars);
+                Dialect.AddInt16(command, "end_reason", (short?)record.EndReason);
+                Dialect.AddText(command, "created_by", record.CreatedBy);
+                Dialect.AddText(command, "provider", record.Provider);
+                Dialect.AddText(command, "model", record.Model);
+                Dialect.AddDecimal(command, "live_seconds", record.LiveSeconds);
+                Dialect.AddDecimal(command, "duration_cost", record.Cost?.DurationCost);
+                Dialect.AddDecimal(command, "character_cost", record.Cost?.CharacterCost);
+                Dialect.AddText(command, "currency", record.Cost?.Currency);
+            },
+            (command, token) => DbHelpers.ExecuteAsync(command, token),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />

@@ -81,21 +81,25 @@ internal sealed class SqlWebhookStore : IWebhookStore
     {
         ArgumentNullException.ThrowIfNull(subscription);
 
-        var command = CreateCommand(_sql.UpsertWebhookSubscription);
-        DbHelpers.Add(command, "id", subscription.Id);
-        DbHelpers.AddTenant(command, subscription.TenantId);
-        DbHelpers.Add(command, "name", subscription.Name);
-        DbHelpers.Add(command, "url", subscription.Url);
-        Dialect.AddTextArray(command, "events", subscription.Events);
-        Dialect.AddText(command, "secret_configuration_key", subscription.SecretConfigurationKey);
-        Dialect.AddJsonb(command, "headers", SerializeHeaders(subscription.Headers));
-        Dialect.AddJsonb(command, "header_configuration_keys", SerializeHeaders(subscription.HeaderConfigurationKeys));
-        DbHelpers.Add(command, "enabled", subscription.Enabled);
-        DbHelpers.Add(command, "consecutive_failures", subscription.ConsecutiveFailures);
-        Dialect.AddTimestamp(command, "created_at", subscription.CreatedAt);
-        Dialect.AddTimestamp(command, "updated_at", subscription.UpdatedAt);
-
-        var saved = await DbHelpers.ReadSingleAsync(command, ReadSubscription, cancellationToken).ConfigureAwait(false);
+        var saved = await _context.ExecuteUpsertAsync(
+            _sql.UpsertWebhookSubscription,
+            command =>
+            {
+                DbHelpers.Add(command, "id", subscription.Id);
+                DbHelpers.AddTenant(command, subscription.TenantId);
+                DbHelpers.Add(command, "name", subscription.Name);
+                DbHelpers.Add(command, "url", subscription.Url);
+                Dialect.AddTextArray(command, "events", subscription.Events);
+                Dialect.AddText(command, "secret_configuration_key", subscription.SecretConfigurationKey);
+                Dialect.AddJsonb(command, "headers", SerializeHeaders(subscription.Headers));
+                Dialect.AddJsonb(command, "header_configuration_keys", SerializeHeaders(subscription.HeaderConfigurationKeys));
+                DbHelpers.Add(command, "enabled", subscription.Enabled);
+                DbHelpers.Add(command, "consecutive_failures", subscription.ConsecutiveFailures);
+                Dialect.AddTimestamp(command, "created_at", subscription.CreatedAt);
+                Dialect.AddTimestamp(command, "updated_at", subscription.UpdatedAt);
+            },
+            (command, token) => DbHelpers.ReadSingleAsync(command, ReadSubscription, token),
+            cancellationToken).ConfigureAwait(false);
 
         return saved ?? subscription;
     }

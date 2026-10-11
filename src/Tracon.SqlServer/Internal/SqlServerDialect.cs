@@ -202,6 +202,10 @@ internal sealed class SqlServerDialect : SqlDialect
         => exception is SqlException { Number: DeadlockVictim };
 
     /// <inheritdoc />
+    /// <remarks>Every upsert in <see cref="SqlServerQueries"/> is a two-statement text.</remarks>
+    public override bool UpsertRequiresTransaction => true;
+
+    /// <inheritdoc />
     /// <remarks>SQL Server never sends a regular expression to the server; this path is never hit.</remarks>
     public override bool IsInvalidRegexError(Exception exception) => false;
 

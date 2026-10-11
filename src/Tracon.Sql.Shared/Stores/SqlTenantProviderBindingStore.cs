@@ -58,14 +58,18 @@ internal sealed class SqlTenantProviderBindingStore : ITenantProviderBindingStor
     {
         ArgumentNullException.ThrowIfNull(binding);
 
-        var command = CreateCommand(_sql.UpsertTenantProviderBinding);
-        DbHelpers.AddTenant(command, binding.TenantId);
-        DbHelpers.Add(command, "provider_name", TenantProviderBinding.NormalizeProviderName(binding.ProviderName));
-        DbHelpers.Add(command, "api_key_configuration_name", binding.ApiKeyConfigurationName);
-        Dialect.AddText(command, "endpoint", binding.Endpoint);
-        Dialect.AddTimestamp(command, "updated_at", _timeProvider.GetUtcNow());
-
-        await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
+        await _context.ExecuteUpsertAsync(
+            _sql.UpsertTenantProviderBinding,
+            command =>
+            {
+                DbHelpers.AddTenant(command, binding.TenantId);
+                DbHelpers.Add(command, "provider_name", TenantProviderBinding.NormalizeProviderName(binding.ProviderName));
+                DbHelpers.Add(command, "api_key_configuration_name", binding.ApiKeyConfigurationName);
+                Dialect.AddText(command, "endpoint", binding.Endpoint);
+                Dialect.AddTimestamp(command, "updated_at", _timeProvider.GetUtcNow());
+            },
+            (command, token) => DbHelpers.ExecuteAsync(command, token),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />

@@ -71,30 +71,34 @@ internal sealed class SqlJobScheduleStore : IJobScheduleStore
 
         var id = schedule.Id == Guid.Empty ? TraconId.NewId() : schedule.Id;
 
-        var command = CreateCommand(_sql.UpsertJobSchedule);
-        DbHelpers.Add(command, "id", id);
-        DbHelpers.AddTenant(command, schedule.TenantId);
-        DbHelpers.Add(command, "name", schedule.Name);
-        DbHelpers.Add(command, "handler_key", schedule.HandlerKey);
-        DbHelpers.Add(command, "target_name", schedule.TargetName);
-        AddNullableText(command, "cron", schedule.Cron);
-        DbHelpers.Add(command, "time_zone", schedule.TimeZone);
-        Dialect.AddJsonb(command, "payload", RawJson(schedule.Payload));
-        DbHelpers.Add(command, "enabled", schedule.Enabled);
-        AddNullableTimestamp(command, "next_run_at", schedule.NextRunAt);
-        AddNullableTimestamp(command, "last_run_at", schedule.LastRunAt);
-        AddNullableText(command, "created_by", schedule.CreatedBy);
-        Dialect.AddTimestamp(command, "created_at", schedule.CreatedAt);
-        Dialect.AddTimestamp(command, "updated_at", schedule.UpdatedAt);
-        DbHelpers.Add(command, "lane", schedule.Lane);
-
-        var written = await DbHelpers.ReadSingleAsync(
+        var written = await _context.ExecuteUpsertAsync(
+            _sql.UpsertJobSchedule,
+            command =>
+            {
+                DbHelpers.Add(command, "id", id);
+                DbHelpers.AddTenant(command, schedule.TenantId);
+                DbHelpers.Add(command, "name", schedule.Name);
+                DbHelpers.Add(command, "handler_key", schedule.HandlerKey);
+                DbHelpers.Add(command, "target_name", schedule.TargetName);
+                AddNullableText(command, "cron", schedule.Cron);
+                DbHelpers.Add(command, "time_zone", schedule.TimeZone);
+                Dialect.AddJsonb(command, "payload", RawJson(schedule.Payload));
+                DbHelpers.Add(command, "enabled", schedule.Enabled);
+                AddNullableTimestamp(command, "next_run_at", schedule.NextRunAt);
+                AddNullableTimestamp(command, "last_run_at", schedule.LastRunAt);
+                AddNullableText(command, "created_by", schedule.CreatedBy);
+                Dialect.AddTimestamp(command, "created_at", schedule.CreatedAt);
+                Dialect.AddTimestamp(command, "updated_at", schedule.UpdatedAt);
+                DbHelpers.Add(command, "lane", schedule.Lane);
+            },
+            (command, token) => DbHelpers.ReadSingleAsync(
                 command,
                 static reader => new WrittenSchedule(
                     reader.GetGuid(0),
                     DbHelpers.GetNullableString(reader, 1),
                     DbHelpers.GetTimestamp(reader, 2)),
-                cancellationToken).ConfigureAwait(false)
+                token),
+            cancellationToken).ConfigureAwait(false)
             ?? throw new TraconException($"'{schedule.Name}' zamanlamasi kaydedilemedi.");
 
         return schedule with { Id = written.Id, CreatedBy = written.CreatedBy, CreatedAt = written.CreatedAt };
