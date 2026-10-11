@@ -53,8 +53,11 @@ internal static class RunAttributionGate
             userId = attribution.UserId;
             labels = attribution.Labels;
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception)
         {
+            // No filter: the getters take no token, so no OperationCanceledException
+            // they throw is a cancellation of ours (K-840).
+            //
             // A consumer implementation reaches into its own identity pipeline
             // and can fail there. That failure is not the caller's fault and
             // must not turn into a 400; the recording path logs it and records

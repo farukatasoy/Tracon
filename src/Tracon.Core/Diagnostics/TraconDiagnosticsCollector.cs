@@ -192,7 +192,7 @@ public sealed class TraconDiagnosticsCollector
 
             agentCount = agents.Count;
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
         {
             _logger?.LogWarning(
                 ex,

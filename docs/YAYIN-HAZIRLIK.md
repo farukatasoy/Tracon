@@ -609,8 +609,9 @@ operasyon kritik yolunu yeniden açmaz.
 
 > **`preview.3` SEVK EDİLDİ (2026-09-24, KG-046).** Kalan 👤: preview.1/2
 > deprecation (OP-008, nuget.org) · A-61 advisory. Sonra GA hattı: A-72
-> (`Tracon.Cli` bildirimi) · A-73 (SDK sabitleme) · F-257 (yarış testleri) ·
-> A-71 kapısı. Ayrıntı: §4 "YAYINLANDI — 2026-09-24".
+> (`Tracon.Cli` bildirimi) · A-73 (SDK sabitleme) · A-71 kapısı. F-257 (yarış
+> testleri) 2026-10-11'de kapandı (K-879; ürün kusuru + sahte sunucu yarışı).
+> Ayrıntı: §4 "YAYINLANDI — 2026-09-24".
 
 > 🚨 **`preview.1` SEVK EDİLDİ (2026-09-20).** Kapanmış `preview.1`
 > aksiyon tablosu damıtıldı (tam metin: `git show 8634a1e3:docs/YAYIN-HAZIRLIK.md`);

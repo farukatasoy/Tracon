@@ -2712,3 +2712,31 @@ curl -s -o /dev/null -w '%{http_code}\n' -X POST "$APU/api/images/generate" \
 - MT-MM-121 ile **aynı** sözleşme: uygulama başlar, çağrı ek kimliği döndürür.
 - Üç görsel sağlayıcısının kayıt yüzeyi tek biçimlidir; yalnız kayıt çağrısının
   adı ve `Provider` değeri değişir.
+
+### MT-MM-123 — Canlı ses kiracının egress politikasına ve kendi anahtarına uyar
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Kusur giderme 2026-10-11 (F-306) |
+| **İlgili karar** | K-878 |
+| **İnsan gerekir** | Hayır |
+| **Devir** | ➜ CI: `LiveVoiceTenantPolicyTests` (6 case, gerçek loopback sahte sağlayıcı) |
+
+**Ön koşul** — `UseOpenAI` + `UseOpenAILive` + `UseLiveVoice`; `SecurityAdmin` key.
+
+**Adımlar**
+1. `PUT /api/tenants/default/egress` `{"allowedProviders":["anthropic"]}`; `POST /api/voice/live/sessions`.
+2. Politikayı sil; `PUT /api/tenants/default/providers/openai` ile bağlama yaz, anahtar
+   adının **değerini** yapılandırmaya koyma; oturum aç.
+3. Değeri `dotnet user-secrets set` ile ver; oturum aç; sağlayıcıya giden
+   `Authorization` başlığını (yakalayıcı veya sağlayıcı paneli) kontrol et.
+4. Bağlamaya `endpoint` override ekle; oturum aç.
+
+**Beklenen sonuç**
+- (1) `403`, mesaj `'openai'` adını taşır; sağlayıcıya hiç çağrı gitmez.
+- (2) `403`, "does NOT fall back to the global key"; sağlayıcıya çağrı gitmez.
+- (3) `200`; oturum oluşturma VE sideband attach kiracının anahtarıyla gider; kurulum
+  anahtarı hiç görünmez.
+- (4) `403`, mesaj "endpoint override" der; sağlayıcıya çağrı gitmez, oturum kaydı yazılmaz.

@@ -539,7 +539,7 @@ internal sealed class SandboxedSkillScriptRunner : IDisposable
                 },
                 cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
         {
             // The invocation record is observability; a failure here does not
             // break the run. The mandatory part is the audit trail, and that

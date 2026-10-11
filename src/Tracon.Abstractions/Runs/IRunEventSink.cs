@@ -30,6 +30,18 @@ namespace Tracon;
 /// ambient tenant, since the writing thread may not belong to the event's
 /// own tenant.
 /// </para>
+/// <para>
+/// <strong>One event at a time per run.</strong> A run writes from several places
+/// at once (concurrent tool calls, a child run, a workflow's steps); Tracon numbers
+/// an event, stores it and hands it to every sink as one step, and the run's next
+/// event waits for it. A slow sink therefore holds up that run, which is one more
+/// reason to queue and return. A sink must not append to the run whose event it is
+/// handling — directly through <c>TraconRunContext.Current</c> or by starting work
+/// inline that writes into that run, such as running an agent: the append would
+/// wait for the event the sink is still handling, so Tracon throws
+/// <see cref="InvalidOperationException"/> instead and the sink is disabled for the
+/// run.
+/// </para>
 /// </remarks>
 public interface IRunEventSink
 {

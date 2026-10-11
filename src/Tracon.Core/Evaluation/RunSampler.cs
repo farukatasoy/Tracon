@@ -110,7 +110,7 @@ internal sealed class RunSampler
 
             return true;
         }
-        catch (Exception exception) when (exception is not OperationCanceledException)
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
         {
             if (_logger is not null && _logger.IsEnabled(LogLevel.Warning))
             {

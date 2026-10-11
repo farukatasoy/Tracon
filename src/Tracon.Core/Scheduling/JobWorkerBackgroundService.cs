@@ -620,9 +620,10 @@ internal sealed class JobWorkerBackgroundService(
                 await jobStore.RenewLeaseAsync(jobId, _ownerId, leaseDuration, token).ConfigureAwait(false);
             }
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
-            // The job finished, or the worker is shutting down.
+            // The job finished, or the worker is shutting down. Only then: a
+            // store's own timeout is a renewal failure and is logged below (K-840).
         }
         catch (Exception exception)
         {

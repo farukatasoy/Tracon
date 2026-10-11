@@ -73,23 +73,62 @@ public sealed class AgentSourceFaultIsolationTests
         exception.InnerException.ShouldBeOfType<InvalidOperationException>();
     }
 
+    // A "real" cancellation is one whose token the CALLER cancelled. An
+    // OperationCanceledException while the caller's token is intact is the
+    // source's own timeout (an HTTP-backed source reports HttpClient.Timeout as
+    // TaskCanceledException) and is a failure like any other (K-840).
+
     [Fact]
     public async Task A_real_cancellation_during_listing_is_not_normalized()
     {
-        var broken = new ThrowingSource("broken", priority: 0, listException: new OperationCanceledException());
+        using var caller = CancelledSource();
+        var broken = new ThrowingSource("broken", priority: 0, listException: new OperationCanceledException(caller.Token));
         var catalog = new CompositeAgentCatalog([broken], [], NullLogger<CompositeAgentCatalog>.Instance);
 
-        await Should.ThrowAsync<OperationCanceledException>(async () => await catalog.ListAsync());
+        await Should.ThrowAsync<OperationCanceledException>(async () => await catalog.ListAsync(caller.Token));
+    }
+
+    [Fact]
+    public async Task A_source_that_times_out_on_its_own_during_listing_is_skipped_like_any_failure()
+    {
+        var broken = new ThrowingSource("broken", priority: 0, listException: new TaskCanceledException("the source's HTTP call timed out"));
+        var healthy = new HealthySource("healthy", priority: 100, "alpha");
+        var catalog = new CompositeAgentCatalog([broken, healthy], [], NullLogger<CompositeAgentCatalog>.Instance);
+
+        var descriptors = await catalog.ListAsync();
+
+        descriptors.Select(static d => d.Name).ShouldBe(["alpha"]);
     }
 
     [Fact]
     public async Task A_real_cancellation_during_resolve_is_not_normalized()
     {
-        var broken = new ThrowingSource("broken", priority: 0, resolveException: new OperationCanceledException());
+        using var caller = CancelledSource();
+        var broken = new ThrowingSource("broken", priority: 0, resolveException: new OperationCanceledException(caller.Token));
         var catalog = new CompositeAgentCatalog([broken], [], NullLogger<CompositeAgentCatalog>.Instance);
 
         await Should.ThrowAsync<OperationCanceledException>(
+            async () => await catalog.ResolveAsync("shared", culture: null, caller.Token));
+    }
+
+    [Fact]
+    public async Task A_source_that_times_out_on_its_own_during_resolve_is_normalized_like_any_failure()
+    {
+        var broken = new ThrowingSource("broken", priority: 0, resolveException: new TaskCanceledException("the source's HTTP call timed out"));
+        var catalog = new CompositeAgentCatalog([broken], [], NullLogger<CompositeAgentCatalog>.Instance);
+
+        var exception = await Should.ThrowAsync<TraconAgentSourceException>(
             async () => await catalog.ResolveAsync("shared", culture: null, CancellationToken.None));
+
+        exception.InnerException.ShouldBeOfType<TaskCanceledException>();
+    }
+
+    private static CancellationTokenSource CancelledSource()
+    {
+        var source = new CancellationTokenSource();
+        source.Cancel();
+
+        return source;
     }
 
     // --- Decorator failure normalization (BL-033, phase 122) ---
@@ -113,11 +152,23 @@ public sealed class AgentSourceFaultIsolationTests
     [Fact]
     public async Task A_real_cancellation_from_a_decorator_is_not_normalized()
     {
+        using var caller = CancelledSource();
+        var healthy = new HealthySource("code", priority: 0, "alpha");
+        var decorator = new ThrowingDecorator(new OperationCanceledException(caller.Token));
+        var catalog = new CompositeAgentCatalog([healthy], [decorator], NullLogger<CompositeAgentCatalog>.Instance);
+
+        await Should.ThrowAsync<OperationCanceledException>(
+            async () => await catalog.ResolveAsync("alpha", culture: null, caller.Token));
+    }
+
+    [Fact]
+    public async Task A_decorator_cancellation_while_the_caller_is_not_cancelled_is_normalized()
+    {
         var healthy = new HealthySource("code", priority: 0, "alpha");
         var decorator = new ThrowingDecorator(new OperationCanceledException());
         var catalog = new CompositeAgentCatalog([healthy], [decorator], NullLogger<CompositeAgentCatalog>.Instance);
 
-        await Should.ThrowAsync<OperationCanceledException>(
+        await Should.ThrowAsync<TraconAgentSourceException>(
             async () => await catalog.ResolveAsync("alpha", culture: null, CancellationToken.None));
     }
 
@@ -149,12 +200,13 @@ public sealed class AgentSourceFaultIsolationTests
     [Fact]
     public async Task A_real_cancellation_from_a_decorator_on_the_versioned_overload_is_not_normalized()
     {
+        using var caller = CancelledSource();
         var source = new HealthyVersionedSource("database", priority: 100, "beta", 1);
-        var decorator = new ThrowingDecorator(new OperationCanceledException());
+        var decorator = new ThrowingDecorator(new OperationCanceledException(caller.Token));
         var catalog = new CompositeAgentCatalog([source], [decorator], NullLogger<CompositeAgentCatalog>.Instance);
 
         await Should.ThrowAsync<OperationCanceledException>(
-            async () => await catalog.ResolveAsync("beta", 1, culture: null, CancellationToken.None));
+            async () => await catalog.ResolveAsync("beta", 1, culture: null, caller.Token));
     }
 
     private sealed class HealthyVersionedSource(string name, int priority, string agentName, params int[] versions) : IVersionedAgentSource

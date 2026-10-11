@@ -52,8 +52,10 @@ below it at a low value; place one that has to sit close to the model call
 itself at a high value.
 
 A decorator must be thread-safe — the catalog can decorate agents
-concurrently — and must not swallow a genuine `OperationCanceledException`. If
-`Decorate` throws anything else, the catalog normalizes it into a
+concurrently — and must not swallow a genuine `OperationCanceledException` (one
+thrown while the caller's token is cancelled). If `Decorate` throws anything else,
+including an `OperationCanceledException` while the caller has not cancelled, the
+catalog normalizes it into a
 `TraconAgentSourceException` (the same shape a broken `IAgentSource`
 produces) rather than letting a raw, unclassified error reach the caller.
 

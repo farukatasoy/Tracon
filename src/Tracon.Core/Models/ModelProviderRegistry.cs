@@ -284,62 +284,15 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
 
         var tenantId = _tenantContext.TenantId;
 
-        if (_tenantEgressPolicies is not null)
-        {
-            var policy = await _tenantEgressPolicies.GetAsync(tenantId, cancellationToken).ConfigureAwait(false);
+        await EnsureEgressAllowedAsync(binding, tenantId, cancellationToken).ConfigureAwait(false);
 
-            if (policy is not null)
-            {
-                // 🚨 Every link of the fallback chain is checked here too, not
-                // only the primary (independent audit, phase 65): a fallback
-                // is a first-class ModelBinding.Provider in its own right, and
-                // leaving it unchecked would let an agent definition name a
-                // forbidden provider as a fallback and never be rejected at
-                // compile time — only lazily, the first time the primary
-                // actually failed over to it.
-                if (!policy.AllowedProviders.Contains(binding.Provider, StringComparer.OrdinalIgnoreCase))
-                {
-                    throw new TraconException(
-                        $"Tenant '{tenantId}' is not allowed to call model provider '{binding.Provider}'. " +
-                        $"Allowed providers: {string.Join(", ", policy.AllowedProviders)}.");
-                }
-
-                foreach (var fallback in binding.Fallbacks)
-                {
-                    if (!policy.AllowedProviders.Contains(fallback.Provider, StringComparer.OrdinalIgnoreCase))
-                    {
-                        throw new TraconException(
-                            $"Tenant '{tenantId}' is not allowed to call model provider '{fallback.Provider}' " +
-                            $"(used as a fallback for '{binding.Provider}'). " +
-                            $"Allowed providers: {string.Join(", ", policy.AllowedProviders)}.");
-                    }
-                }
-            }
-        }
-
-        if (_tenantProviderBindings is null || _credentialResolver is null)
-        {
-            return null;
-        }
-
-        var tenantBinding = await _tenantProviderBindings.GetAsync(tenantId, binding.Provider, cancellationToken).ConfigureAwait(false);
-
-        if (tenantBinding is null)
-        {
-            // No binding for this tenant/provider: fall back to the global
-            // setup-time credential (K1 — zero surprise when BYOK is not configured).
-            return null;
-        }
-
-        // 🚨 A binding EXISTS but resolves to no value (the configuration key was
-        // never set): this must NOT fall back to the global key silently — that
-        // would bill the wrong tenant. Section 65.4.
-        return _credentialResolver.Resolve(tenantBinding)
-            ?? throw new TraconException(
-                $"Tenant '{tenantId}' has a provider binding for '{binding.Provider}' pointing at configuration key " +
-                $"'{tenantBinding.ApiKeyConfigurationName}', but that key has no value. Set it with " +
-                $"`dotnet user-secrets set \"{tenantBinding.ApiKeyConfigurationName}\" \"<key>\"` " +
-                "or through your configuration provider — the call does NOT fall back to the global key.");
+        // No binding for this tenant/provider: the global setup-time credential is
+        // used (K1 — zero surprise when BYOK is not configured). A binding whose key
+        // has no value does NOT fall back to the global key — that would bill the
+        // wrong tenant (section 65.4).
+        return await TenantProviderAccess
+            .ResolveCredentialAsync(_tenantProviderBindings, _credentialResolver, tenantId, binding.Provider, cancellationToken)
+            .ConfigureAwait(false);
     }
 
     private async ValueTask<ModelProviderCredential?> ResolveSetupCredentialAsync(
@@ -351,39 +304,35 @@ public sealed class ModelProviderRegistry : IModelProviderRegistry
             return null;
         }
 
-        var tenantId = _tenantContext.TenantId;
+        await EnsureEgressAllowedAsync(binding, _tenantContext.TenantId, cancellationToken).ConfigureAwait(false);
 
+        return null;
+    }
+
+    /// <summary>Checks the binding and every fallback against the tenant's egress policy.</summary>
+    /// <remarks>
+    /// Every link of the fallback chain is checked, not only the primary: a fallback
+    /// is a first-class <see cref="ModelBinding.Provider"/> in its own right, and
+    /// leaving it unchecked would let an agent definition name a forbidden provider
+    /// as a fallback and never be rejected at compile time — only lazily, the first
+    /// time the primary actually failed over to it.
+    /// </remarks>
+    private async ValueTask EnsureEgressAllowedAsync(ModelBinding binding, string tenantId, CancellationToken cancellationToken)
+    {
+        // 🚨 Fallback links found by the independent audit of phase 65.
         if (_tenantEgressPolicies is null)
         {
-            return null;
+            return;
         }
 
         var policy = await _tenantEgressPolicies.GetAsync(tenantId, cancellationToken).ConfigureAwait(false);
 
-        if (policy is null)
-        {
-            return null;
-        }
-
-        if (!policy.AllowedProviders.Contains(binding.Provider, StringComparer.OrdinalIgnoreCase))
-        {
-            throw new TraconException(
-                $"Tenant '{tenantId}' is not allowed to call model provider '{binding.Provider}'. " +
-                $"Allowed providers: {string.Join(", ", policy.AllowedProviders)}.");
-        }
+        TenantProviderAccess.EnsureAllowed(policy, tenantId, binding.Provider);
 
         foreach (var fallback in binding.Fallbacks)
         {
-            if (!policy.AllowedProviders.Contains(fallback.Provider, StringComparer.OrdinalIgnoreCase))
-            {
-                throw new TraconException(
-                    $"Tenant '{tenantId}' is not allowed to call model provider '{fallback.Provider}' " +
-                    $"(used as a fallback for '{binding.Provider}'). " +
-                    $"Allowed providers: {string.Join(", ", policy.AllowedProviders)}.");
-            }
+            TenantProviderAccess.EnsureAllowed(policy, tenantId, fallback.Provider, fallbackFor: binding.Provider);
         }
-
-        return null;
     }
 
     private ProviderFailureNormalizingChatClient BuildPipeline(

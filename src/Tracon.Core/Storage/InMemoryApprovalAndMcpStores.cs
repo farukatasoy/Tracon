@@ -76,6 +76,7 @@ internal sealed class InMemoryToolApprovalRuleStore : IToolApprovalRuleStore
             && string.Equals(left.AgentName, right.AgentName, StringComparison.Ordinal)
             && string.Equals(left.ToolName, right.ToolName, StringComparison.Ordinal)
             && string.Equals(left.ArgumentsHash, right.ArgumentsHash, StringComparison.Ordinal)
+            && string.Equals(left.SourceFingerprint, right.SourceFingerprint, StringComparison.Ordinal)
             && string.Equals(
                 ToolArgumentConditionFingerprint.Compute(left.ArgumentConditions),
                 ToolArgumentConditionFingerprint.Compute(right.ArgumentConditions),

@@ -135,7 +135,7 @@ internal sealed class TraconResponseCachingChatClient : DistributedCachingChatCl
                 }
             }
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
         {
             _logger?.LogWarning(ex, "Response-cache read failed for provider '{Provider}'; treated as a miss.", _provider);
         }
@@ -167,7 +167,7 @@ internal sealed class TraconResponseCachingChatClient : DistributedCachingChatCl
                 }
             }
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
         {
             _logger?.LogWarning(ex, "Response-cache read failed for provider '{Provider}'; treated as a miss.", _provider);
         }
@@ -220,7 +220,7 @@ internal sealed class TraconResponseCachingChatClient : DistributedCachingChatCl
 
             await _storage.SetAsync(key, bytes, BuildEntryOptions(), cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
         {
             _logger?.LogWarning(ex, "Response-cache write failed for provider '{Provider}'; the response was still returned.", _provider);
         }
@@ -238,7 +238,7 @@ internal sealed class TraconResponseCachingChatClient : DistributedCachingChatCl
 
             await _storage.SetAsync(key, bytes, BuildEntryOptions(), cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
         {
             _logger?.LogWarning(ex, "Response-cache write failed for provider '{Provider}'; the response was still returned.", _provider);
         }

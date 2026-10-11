@@ -85,8 +85,12 @@ public abstract class ToolAuthorizationContract : IAsyncLifetime
             var result = await Handler.AuthorizeAsync(DeniedRequest, CancellationToken.None).ConfigureAwait(false);
             isAllowed = result.IsAllowed;
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception)
         {
+            // The call runs on CancellationToken.None, so an
+            // OperationCanceledException is not a cancellation of the caller's:
+            // the tool wrapper denies it like any other failure, and so does
+            // this case.
             isAllowed = false;
         }
 

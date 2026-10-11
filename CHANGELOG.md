@@ -27,8 +27,63 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   is now compiled under the saved policy and refused before any request
   leaves; a run already in progress is not stopped. Each run reads the
   tenant's policy once to build the cache key.
+- A standing approval rule for a tool of an MCP server is now bound to the
+  server's endpoint. An MCP tool is named `{server}_{tool}`, so when a key
+  with the `AgentsAdmin` scope pointed a server at another endpoint (or
+  deleted it and added it back under the same name), a rule a security
+  administrator wrote for the old endpoint approved the new endpoint's tool.
+  A rule now records a fingerprint of the endpoint (`sourceFingerprint`, a
+  SHA-256, never the address) when it is written, by an administrator or by
+  the "don't ask again" flow, and approves the tool only while the server
+  keeps that endpoint. While a server's tools are not discovered (its last
+  refresh failed), its tools always ask, and `POST /api/approvals/rules` for
+  one of them answers `409`. Rules stored before this release carry no
+  fingerprint: each standing rule for an MCP tool asks once more after the
+  upgrade. `ToolApprovalRule.SourceFingerprint` is new and part of a rule's
+  identity; a custom `IToolApprovalRuleStore` has to store and compare it
+  (see Changed).
+- Saving an MCP server with `requiresApproval: false` now requires the
+  `SecurityAdmin` scope as well as `AgentsAdmin` when the call uses an API
+  key: for a new server, for a server that required approval, and for a
+  server whose endpoint changes while approval stays off. The flag waives
+  approval for every tool of the server, which is the decision only
+  `SecurityAdmin` could make for a single tool; an `AgentsAdmin` key alone
+  could switch it off and answers `403` now.
+- A provider-hosted live voice session now obeys the tenant's egress policy
+  and its own provider key. The session is bound to a tenant, but the OpenAI
+  live provider used the shared key and read no policy, so a tenant whose
+  policy excluded `openai` still had its audio sent there, and a tenant with
+  its own key was billed to the installation's. `POST
+  /api/voice/live/sessions` now answers `403` when the policy does not allow
+  the live provider, when the tenant's binding for it has no value, or when
+  the provider cannot use the tenant's key; a tenant with its own binding
+  gets its own key on both the session creation and the sideband attach. A
+  binding with an endpoint override is refused for a live session (`403`).
 
 ### Fixed
+
+- A dependency that times out on its own no longer counts as the caller
+  cancelling. An HTTP-backed store, sink, catalog, cache or identity seam
+  reports `HttpClient.Timeout` as `TaskCanceledException`; 58 catch sites let
+  that exception through as if the request had been cancelled, which broke
+  each site's own promise. Among the effects: the MCP and A2A startup check
+  stopped the host when the agent catalog timed out, a run failed because a
+  run store, event sink, response cache or attribution lookup timed out, an
+  approved turn never ran because its "don't ask again" rule could not be
+  written, a trigger delivery whose queueing timed out could never be retried
+  (the retry was refused as a replay), queued runs and evaluation runs stayed
+  `Queued`/`Running` forever, and image generation and replay answered `500`
+  instead of their documented `502`. Every site now tells the two apart by
+  the operation's own token.
+- An `IRunEventSink` now receives a run's events in sequence order, as its
+  contract states. A run writes from several places at once (concurrent tool
+  calls, a child run, a workflow's steps), and an event numbered later could
+  reach the store and the sinks before an earlier one. Numbering, the store
+  write and the sink dispatch of one event are now a single step. A sink must
+  not append to the run it is handling: such an append throws
+  `InvalidOperationException` and the sink is disabled for the run, instead
+  of waiting for itself. The in-memory run store also returns events in
+  sequence order.
 
 - Editing a workflow that uses function nodes in the console no longer erases
   them. The editor opened such a workflow with an empty participant list, and
@@ -46,8 +101,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   already did. Before, a subscription that was disabled for failing and then
   enabled again went back to disabled on its next single failure.
 
+### Added
+
+- `ILiveVoiceProvider.SupportsTenantCredentials` and
+  `ILiveVoiceProvider.AttachSessionAsync(LiveVoiceAttachRequest)`, both with
+  default implementations, plus `LiveVoiceCreateRequest.Credential` and
+  `LiveVoiceAttachRequest`. A live voice provider that sets
+  `SupportsTenantCredentials` receives the tenant's own key on both calls of
+  a session; one that does not is refused for a tenant with its own binding.
+- `ToolApprovalRule.SourceFingerprint`.
+
 ### Changed
 
+- `Tracon.Testing.Contracts.Xunit` adds two `ToolApprovalRuleStoreContract`
+  cases: `SourceFingerprint` round-trips, and two rules that differ only in it
+  are two rules. A custom `IToolApprovalRuleStore` that drops the field or
+  leaves it out of the rule's identity now fails them.
 - `Tracon.Testing.Contracts.Xunit` adds three store contract cases.
   `ExperimentStoreContract` requires that `SaveAsync` keep the canary policy of
   a draft and never write one itself. `WebhookStoreContract` requires that

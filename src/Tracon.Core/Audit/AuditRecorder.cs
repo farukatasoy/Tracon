@@ -66,7 +66,7 @@ internal static class AuditRecorder
                 Entry(tenantId, actorResolver.Resolve(), action, entity, before, after, DateTimeOffset.UtcNow),
                 cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
         {
             logger.LogWarning(
                 ex,
@@ -141,7 +141,7 @@ internal static class AuditRecorder
                     (timeProvider ?? TimeProvider.System).GetUtcNow()),
                 cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
         {
             logger.LogError(
                 ex,

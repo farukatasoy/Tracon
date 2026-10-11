@@ -1378,7 +1378,7 @@ internal static class AgentEndpoints
                         },
                         cancellationToken).ConfigureAwait(false);
                 }
-                catch (Exception ex) when (ex is not OperationCanceledException)
+                catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
                 {
                     httpContext.RequestServices
                         .GetRequiredService<ILoggerFactory>()
@@ -1605,6 +1605,7 @@ internal static class AgentEndpoints
                     services.GetRequiredService<Microsoft.Agents.AI.ChatHistoryProvider>(),
                     services.GetRequiredService<IToolApprovalRuleStore>(),
                     services.GetRequiredService<ITenantContext>(),
+                    services.GetRequiredService<IToolRegistry>(),
                     services.GetRequiredService<IAuditLog>(),
                     services.GetRequiredService<IAuditActorResolver>(),
                     loggerFactory.CreateLogger(typeof(ToolApprovalResolver).FullName!),

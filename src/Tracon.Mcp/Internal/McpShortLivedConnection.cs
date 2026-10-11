@@ -65,7 +65,7 @@ internal static class McpShortLivedConnection
 
             return (McpOperationStatus.Ok, client);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
         {
             logger.LogWarning(ex, "Could not connect to MCP server '{ServerName}'.", server.Name);
 

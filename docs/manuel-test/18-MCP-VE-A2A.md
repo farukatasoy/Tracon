@@ -1999,3 +1999,60 @@ curl -s -X POST "$APU/api/mcp-servers/refresh" -H "$APB"
 - (b) `200`; yakalayıcı `/mcp2 dogrulama-degeri` yazar; `m2` için yeni
   "stores the credential header" uyarısı çıkmaz.
 - Ölçülen (2026-09-24): (a) `400` beklenen metinle, (b) `200`, yakalayıcı değeri aldı.
+
+### MT-MCP-078 — Endpoint değişince kalıcı onay kuralı yeniden sorar
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Kusur giderme 2026-10-11 (F-283) |
+| **İlgili karar** | K-876 |
+| **İnsan gerekir** | Hayır |
+| **Devir** | ➜ CI: `McpApprovalRuleSourceTests.A_standing_rule_asks_again_after_the_endpoint_changes` · `Re_adding_a_server_under_the_same_name_with_another_endpoint_asks_again` · `A_remembered_approval_asks_again_after_the_endpoint_changes` |
+
+**Ön koşul** — Ortak kurulum; iki yerel MCP sunucusu (A ve B, aynı adlı `lookup`
+tool'u, farklı yanıt); `AgentsAdmin` ve `SecurityAdmin` kapsamlı iki ayrı API key.
+
+**Adımlar**
+1. `AgentsAdmin` key ile `PUT /api/mcp-servers/lookup-srv` → endpoint A,
+   `requiresApproval: true`; `POST /api/mcp-servers/refresh`.
+2. `SecurityAdmin` key ile `POST /api/approvals/rules` `{"toolName":"lookup-srv_lookup"}`;
+   `GET /api/approvals/rules` ile `sourceFingerprint` alanını oku.
+3. Tool'u çağıran agent'ı çalıştır → onay sormadan A'nın yanıtı gelir.
+4. `AgentsAdmin` key ile endpoint'i B'ye çevir, refresh; agent'ı yeni oturumla çalıştır.
+5. Aynı kuralı `SecurityAdmin` ile yeniden yaz.
+
+**Beklenen sonuç**
+- (2) `201`; `sourceFingerprint` 64 karakterlik büyük harf onaltılık değerdir, endpoint
+  adresini içermez.
+- (3) run `Completed`. (4) run `AwaitingApproval`; B'nin yanıtı akışta YOKTUR.
+- (5) `201` (yeni kural, `409` değil); sonraki run `Completed` ve B'nin yanıtını taşır.
+- Sunucuyu silip aynı adla B endpoint'iyle yeniden eklemek de (4) ile aynı sonucu verir.
+
+### MT-MCP-079 — `requiresApproval: false` yazımı `SecurityAdmin` ister
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Kusur giderme 2026-10-11 (F-284) |
+| **İlgili karar** | K-877 |
+| **İnsan gerekir** | Hayır |
+| **Devir** | ➜ CI: `McpApprovalRuleSourceTests.Switching_approval_off_for_a_server_requires_the_security_admin_scope` |
+
+**Ön koşul** — MT-MCP-078'in sunucuları; yalnız `AgentsAdmin` (+`AgentsRead`) taşıyan
+bir key ve `AgentsAdmin` + `SecurityAdmin` taşıyan bir key.
+
+**Adımlar**
+1. Yalnız-`AgentsAdmin` key: yeni sunucu `requiresApproval: false` ile `PUT`.
+2. İki kapsamlı key: aynı istek.
+3. Yalnız-`AgentsAdmin` key: endpoint'i B'ye çevir, `requiresApproval: false` kalsın.
+4. Yalnız-`AgentsAdmin` key: endpoint A, `requiresApproval: false`, yalnız `description` değişsin.
+5. Yalnız-`AgentsAdmin` key: endpoint B, `requiresApproval: true`.
+
+**Beklenen sonuç**
+- (1) `403` "Insufficient scope"; (2) `200` ve tool onay sormadan çalışır.
+- (3) `403` — feragat A için verilmişti. (4) `200` — değişmeyen feragat korunur.
+- (5) `200` — onayı yeniden istemek gevşetme değildir.
+- API key'siz (loopback veya rol tabanlı `Admin`) çağrı yalnız rol politikasına tabidir.

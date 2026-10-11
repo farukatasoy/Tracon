@@ -24,6 +24,13 @@ namespace Tracon;
 /// the call is not automatically approved and the system asks the user. This is the safe default.
 /// </para>
 /// <para>
+/// <strong>A rule stays with the source it was given for.</strong> A rule
+/// matches a call only while the tool's current source fingerprint (see
+/// <see cref="ToolSourceFingerprint"/>) equals the one the rule was written
+/// with. A tool of an MCP server whose endpoint has changed asks again; a rule
+/// without a fingerprint never approves a tool of an MCP server.
+/// </para>
+/// <para>
 /// <strong>A code-defined policy runs before the data rules and can
 /// override them.</strong> Code is a security boundary; data — writable from the
 /// UI — is not allowed to loosen it. See <see cref="ToolApprovalContext"/> and
@@ -35,28 +42,33 @@ internal sealed class ToolApprovalRuleEvaluator
     private readonly IToolApprovalRuleStore _rules;
     private readonly ToolApprovalPolicyRegistry _policies;
     private readonly ITenantContext _tenantContext;
+    private readonly IToolRegistry _tools;
     private readonly ILogger<ToolApprovalRuleEvaluator> _logger;
 
     /// <summary>Initializes a new evaluator.</summary>
     /// <param name="rules">The rule store.</param>
     /// <param name="policies">The code-defined policy registry.</param>
     /// <param name="tenantContext">The tenant context.</param>
+    /// <param name="tools">The tool registry, which tells where a tool comes from.</param>
     /// <param name="logger">The logger.</param>
     /// <exception cref="ArgumentNullException">A dependency is <see langword="null"/>.</exception>
     public ToolApprovalRuleEvaluator(
         IToolApprovalRuleStore rules,
         ToolApprovalPolicyRegistry policies,
         ITenantContext tenantContext,
+        IToolRegistry tools,
         ILogger<ToolApprovalRuleEvaluator> logger)
     {
         ArgumentNullException.ThrowIfNull(rules);
         ArgumentNullException.ThrowIfNull(policies);
         ArgumentNullException.ThrowIfNull(tenantContext);
+        ArgumentNullException.ThrowIfNull(tools);
         ArgumentNullException.ThrowIfNull(logger);
 
         _rules = rules;
         _policies = policies;
         _tenantContext = tenantContext;
+        _tools = tools;
         _logger = logger;
     }
 
@@ -107,7 +119,7 @@ internal sealed class ToolApprovalRuleEvaluator
         {
             rules = await _rules.ListAsync(tenantId, cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
         {
             _logger.LogWarning(
                 ex,
@@ -125,6 +137,14 @@ internal sealed class ToolApprovalRuleEvaluator
         string? argumentsHash = null;
         IReadOnlyDictionary<string, object?>? arguments = null;
 
+        // 🚨 Read once, from the registry that serves the tool: an MCP tool keeps
+        // its name when its server moves to another endpoint, so the name alone
+        // let a rule approve a tool of an endpoint it was never given for (F-283).
+        // Strict equality: a rule written for a source matches only that source,
+        // and a rule without one (code tool, or stored before the field existed)
+        // never approves a tool of a remote source.
+        var sourceFingerprint = ToolSourceFingerprint.Of(_tools, tenantId, call.Name);
+
         foreach (var rule in rules)
         {
             if (!string.Equals(rule.ToolName, call.Name, StringComparison.Ordinal))
@@ -134,6 +154,11 @@ internal sealed class ToolApprovalRuleEvaluator
 
             // If AgentName is empty, the rule applies to every agent in the tenant.
             if (rule.AgentName is { } scoped && !string.Equals(scoped, agentName, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            if (!string.Equals(rule.SourceFingerprint, sourceFingerprint, StringComparison.Ordinal))
             {
                 continue;
             }
@@ -185,8 +210,10 @@ internal sealed class ToolApprovalRuleEvaluator
                 Arguments = ToArguments(call.Arguments),
             });
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex)
         {
+            // No filter: the policy delegate is synchronous and takes no token,
+            // so no OperationCanceledException it throws is ours (K-840).
             _logger.LogError(
                 ex,
                 "The approval policy for tool '{ToolName}' threw; the call will require approval.",

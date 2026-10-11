@@ -952,13 +952,16 @@ internal sealed class PostgresQueries : SqlQueriesBase
         // PostgreSQL, and a plain UNIQUE constraint would not prevent the duplicate.
         // conditions_hash (Phase 63) joined the key so a data-rule condition set
         // is bound by the same "no unbounded duplicates" rule as arguments_hash.
+        // source_fingerprint (F-283) joined it too: a rule for the same tool of a
+        // server that moved to another endpoint is a NEW rule, never the old one
+        // returned in its place.
         InsertToolApprovalRule = $"""
             INSERT INTO {Schema}.tool_approval_rules
-                (id, tenant_id, agent_name, tool_name, arguments_hash, argument_conditions, conditions_hash, created_by, created_at)
-            VALUES (@id, @tenant_id, @agent_name, @tool_name, @arguments_hash, @argument_conditions, @conditions_hash, @created_by, @created_at)
-            ON CONFLICT (tenant_id, COALESCE(agent_name, ''), tool_name, COALESCE(arguments_hash, ''), COALESCE(conditions_hash, ''))
+                (id, tenant_id, agent_name, tool_name, arguments_hash, argument_conditions, conditions_hash, source_fingerprint, created_by, created_at)
+            VALUES (@id, @tenant_id, @agent_name, @tool_name, @arguments_hash, @argument_conditions, @conditions_hash, @source_fingerprint, @created_by, @created_at)
+            ON CONFLICT (tenant_id, COALESCE(agent_name, ''), tool_name, COALESCE(arguments_hash, ''), COALESCE(conditions_hash, ''), COALESCE(source_fingerprint, ''))
                 DO UPDATE SET tool_name = {Schema}.tool_approval_rules.tool_name
-            RETURNING id, tenant_id, agent_name, tool_name, arguments_hash, created_by, created_at, argument_conditions;
+            RETURNING id, tenant_id, agent_name, tool_name, arguments_hash, created_by, created_at, argument_conditions, source_fingerprint;
             """;
 
         // --- MCP servers (Phase 6) ---

@@ -55,11 +55,7 @@ internal sealed class CompositeAgentCatalog : IAgentCatalog
             {
                 descriptors = await source.ListAsync(cancellationToken).ConfigureAwait(false);
             }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
-            catch (Exception exception)
+            catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
             {
                 RecordSourceFailure(source, "list", exception, LogLevel.Error);
                 continue;
@@ -110,11 +106,7 @@ internal sealed class CompositeAgentCatalog : IAgentCatalog
             {
                 agent = await source.ResolveAsync(agentName, culture, cancellationToken).ConfigureAwait(false);
             }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
-            catch (Exception exception)
+            catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
             {
                 throw HandleSourceFailure(source, "resolve", exception);
             }
@@ -130,11 +122,7 @@ internal sealed class CompositeAgentCatalog : IAgentCatalog
             {
                 descriptor = await FindDescriptorAsync(source, agentName, cancellationToken).ConfigureAwait(false);
             }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
-            catch (Exception exception)
+            catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
             {
                 throw HandleSourceFailure(source, "resolve", exception);
             }
@@ -145,11 +133,7 @@ internal sealed class CompositeAgentCatalog : IAgentCatalog
                 {
                     agent = decorator.Decorate(agent, descriptor);
                 }
-                catch (OperationCanceledException)
-                {
-                    throw;
-                }
-                catch (Exception exception)
+                catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
                 {
                     throw HandleSourceFailure(source, "decorate", exception);
                 }
@@ -185,11 +169,7 @@ internal sealed class CompositeAgentCatalog : IAgentCatalog
             {
                 descriptor = await FindDescriptorOrNullAsync(source, agentName, cancellationToken).ConfigureAwait(false);
             }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
-            catch (Exception exception)
+            catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
             {
                 throw HandleSourceFailure(source, "resolve", exception);
             }
@@ -215,11 +195,7 @@ internal sealed class CompositeAgentCatalog : IAgentCatalog
                 agent = await versioned.ResolveVersionAsync(agentName, version.Value, culture, cancellationToken).ConfigureAwait(false)
                     ?? throw new TraconException($"Version {version.Value} of agent '{agentName}' was not found.");
             }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
-            catch (Exception exception)
+            catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
             {
                 throw HandleSourceFailure(source, "resolve", exception);
             }
@@ -230,11 +206,7 @@ internal sealed class CompositeAgentCatalog : IAgentCatalog
                 {
                     agent = decorator.Decorate(agent, descriptor);
                 }
-                catch (OperationCanceledException)
-                {
-                    throw;
-                }
-                catch (Exception exception)
+                catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
                 {
                     throw HandleSourceFailure(source, "decorate", exception);
                 }

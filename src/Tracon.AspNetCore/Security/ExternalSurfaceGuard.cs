@@ -75,7 +75,7 @@ internal static class ExternalSurfaceGuard
             {
                 return await catalog.ListAsync(lifetime.ApplicationStopping).ConfigureAwait(false);
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex) when (OperationCancellation.IsFailure(ex, lifetime.ApplicationStopping))
             {
                 logger.LogWarning(
                     ex,

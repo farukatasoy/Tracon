@@ -3420,6 +3420,8 @@ Tracon.ToolApprovalRule.CreatedBy.init -> void
 Tracon.ToolApprovalRule.Equals(Tracon.ToolApprovalRule? other) -> bool
 Tracon.ToolApprovalRule.Id.get -> System.Guid
 Tracon.ToolApprovalRule.Id.init -> void
+Tracon.ToolApprovalRule.SourceFingerprint.get -> string?
+Tracon.ToolApprovalRule.SourceFingerprint.init -> void
 Tracon.ToolApprovalRule.TenantId.get -> string!
 Tracon.ToolApprovalRule.TenantId.init -> void
 Tracon.ToolApprovalRule.ToolApprovalRule() -> void
@@ -5641,3 +5643,20 @@ virtual Tracon.TraconException.ErrorType.get -> string!
 ~override Tracon.ConversationBranch.ToString() -> string
 ~override Tracon.McpRefreshOutcome.Equals(object obj) -> bool
 ~override Tracon.McpRefreshOutcome.ToString() -> string
+Tracon.ILiveVoiceProvider.AttachSessionAsync(Tracon.LiveVoiceAttachRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.ILiveVoiceSideband!>
+Tracon.ILiveVoiceProvider.SupportsTenantCredentials.get -> bool
+Tracon.LiveVoiceAttachRequest
+Tracon.LiveVoiceAttachRequest.<Clone>$() -> Tracon.LiveVoiceAttachRequest!
+Tracon.LiveVoiceAttachRequest.Credential.get -> Tracon.ModelProviderCredential?
+Tracon.LiveVoiceAttachRequest.Credential.init -> void
+Tracon.LiveVoiceAttachRequest.Equals(Tracon.LiveVoiceAttachRequest? other) -> bool
+Tracon.LiveVoiceAttachRequest.LiveVoiceAttachRequest() -> void
+Tracon.LiveVoiceAttachRequest.ProviderSessionId.get -> string!
+Tracon.LiveVoiceAttachRequest.ProviderSessionId.init -> void
+Tracon.LiveVoiceCreateRequest.Credential.get -> Tracon.ModelProviderCredential?
+Tracon.LiveVoiceCreateRequest.Credential.init -> void
+override Tracon.LiveVoiceAttachRequest.Equals(object? obj) -> bool
+override Tracon.LiveVoiceAttachRequest.GetHashCode() -> int
+override Tracon.LiveVoiceAttachRequest.ToString() -> string!
+static Tracon.LiveVoiceAttachRequest.operator !=(Tracon.LiveVoiceAttachRequest? left, Tracon.LiveVoiceAttachRequest? right) -> bool
+static Tracon.LiveVoiceAttachRequest.operator ==(Tracon.LiveVoiceAttachRequest? left, Tracon.LiveVoiceAttachRequest? right) -> bool
