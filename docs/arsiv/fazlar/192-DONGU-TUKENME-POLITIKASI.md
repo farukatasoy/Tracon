@@ -40,7 +40,7 @@ Bir tüketici (2026-10-11 podcast hattı) yazar agent'ına bir revizyon döngüs
 - [x] Akışlı yolda içerik + hata çerçevesi + `Failed` — `FailRun_on_exhaustion_streams_the_last_turn_and_then_fails_the_run` (süreç içi akış); SSE çerçevesi canlı `MT-CORE-134`
 - [x] Workflow sonraki düğümü koşmaz; workflow run sınıfı ölçüldü ve "Plandan Sapmalar"a yazıldı — `A_workflow_stops_at_an_agent_whose_loop_fails_on_exhaustion`; sapma #2, F-314
 - [x] `RunErrorClassContractTests`, `RunEventPayloadContractTests`, OpenAPI tazeliği, iki sözlük yeşil
-- [x] Dört doğrulama kapısı sıfır uyarı verir — `kapi.py kapanis --taban 07afea6b`
+- [x] Dört doğrulama kapısı sıfır uyarı verir — `kapi.py kapanis --taban 07afea6b`, commit'li ağaç `2dfd7826`: ✅ EXIT 0 (build 91 sn · test 437 sn · pack 7 sn · format 107 sn · site 37 sn)
 - [x] `samples/Tracon.Api` ile gerçek `run` yapıldı, çıktı belgeye yazıldı — `MT-CORE-132`…`134`, `136` (`gpt-5.4-mini`)
 - [x] `secret` taraması boş döndü — kapanış kapısının `tarama` adımı
 - [x] Manuel kabul case'leri `docs/manuel-test/02-CEKIRDEK-VE-KATALOG.md` içine eklendi; otomatikleştirilebilenler koşuldu — `MT-CORE-132`…`136` (135 ➜ CI)
