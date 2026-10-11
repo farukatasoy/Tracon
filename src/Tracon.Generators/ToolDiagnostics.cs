@@ -53,7 +53,7 @@ internal static class ToolDiagnostics
     public static readonly DiagnosticDescriptor NoToolsFound = new(
         "TRC0005",
         "No marked tool method",
-        "'AddGeneratedTools()' was called, but this compilation has no method marked with [TraconTool]. Mark tool methods, or remove this call.",
+        "'AddGeneratedTools()' was called, but this compilation has no method marked with [TraconTool]. It registers only this assembly's tools; register a referenced library's tools with the extension that library exposes. Mark tool methods, or remove this call.",
         Category,
         DiagnosticSeverity.Error,
         isEnabledByDefault: true,

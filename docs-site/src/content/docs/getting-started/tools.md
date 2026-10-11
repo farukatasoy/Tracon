@@ -61,6 +61,33 @@ Both work and both carry `[RequiresUnreferencedCode]` and `[RequiresDynamicCode]
 The warning is handed to you rather than suppressed. Use `AddGeneratedTools()` unless
 your tools live in an assembly you do not compile.
 
+### Tools in a class library
+
+`AddGeneratedTools()` is generated into every assembly that has a tool, and it is
+`internal`: it registers that assembly's tools only. A library hands its tools to a
+host through its own extension, which calls the generated one from inside:
+
+```csharp title="ContosoToolsExtensions.cs (in the library)"
+public static class ContosoToolsExtensions
+{
+    public static ITraconBuilder AddContosoTools(this ITraconBuilder builder)
+        => builder.AddGeneratedTools();
+}
+```
+
+The host calls `AddContosoTools()` next to its own `AddGeneratedTools()`. Nothing is
+scanned at run time, so the trimming and AOT guarantee holds across the two
+assemblies.
+
+```mermaid
+flowchart LR
+    accTitle: Each assembly registers its own generated tools
+    accDescr: The host's AddGeneratedTools registers the host's tools. The host also calls the library's public AddContosoTools, which calls the library's own internal AddGeneratedTools from inside the library.
+    HOST["Host Program.cs"] -->|"AddGeneratedTools()"| HT["Host tools<br/>internal, generated in the host"]
+    HOST -->|"AddContosoTools()"| LIB["Library extension<br/>public, written by the library"]
+    LIB -->|"AddGeneratedTools()"| LT["Library tools<br/>internal, generated in the library"]
+```
+
 ## The rule that trips people up
 
 :::danger[A tool sees an empty service provider]

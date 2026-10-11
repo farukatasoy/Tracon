@@ -121,12 +121,18 @@ internal static class SourceWriter
 
         sb.Append("            };\n    }\n}\n\n");
 
+        // 🚨 internal (F-289): every compilation with a tool gets this class. When it
+        // was public, a host that referenced a tool library saw two identical
+        // extensions in one namespace and AddGeneratedTools() was CS0121. A library
+        // hands its tools to a host through its own public extension, which calls
+        // this one inside the library.
         sb.Append("namespace Tracon\n{\n");
         sb.Append("    /// <summary>Adds the tool registrations found by the source generator to <see cref=\"ITraconBuilder\"/>.</summary>\n");
-        sb.Append("    public static class TraconGeneratedToolsBuilderExtensions\n    {\n");
+        sb.Append("    internal static class TraconGeneratedToolsBuilderExtensions\n    {\n");
         sb.Append("        /// <summary>\n");
         sb.Append("        /// Registers every method marked with <c>[TraconTool]</c> in this assembly, WITHOUT\n");
-        sb.Append("        /// using reflection. Use <c>AddToolsFrom</c> for tools in another assembly.\n");
+        sb.Append("        /// using reflection. A library exposes its tools through its own public extension\n");
+        sb.Append("        /// that calls this method; this one is visible only inside its own assembly.\n");
         sb.Append("        /// </summary>\n");
         sb.Append("        /// <param name=\"builder\">The Tracon configuration chain.</param>\n");
         sb.Append("        /// <returns>The chain, for continuation.</returns>\n");
