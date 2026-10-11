@@ -603,10 +603,10 @@ mark that one instead.
 
 ### AddGeneratedTools() finds nothing to register (TRC0005)
 
-`AddGeneratedTools()` was called, but this compilation has no method marked with
-`[TraconTool]`. Either the mark was forgotten on the method meant to become a
-tool, or the call is left over from a tool set that was since removed. Mark a
-method, or remove the call.
+`AddGeneratedTools()` registers only the calling assembly's `[TraconTool]`
+methods, and this one has none. The mark was forgotten, the call outlived its
+tools, or the tools live in a referenced library: call the extension that
+library exposes instead.
 
 ### A tool has no description (TRC0006)
 

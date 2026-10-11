@@ -4256,8 +4256,10 @@ dotnet list package --deprecated
 2. Host yeni paketlerle koşar, kütüphanenin **derlenmiş** DLL'ini referanslar ve `AddTracon().AddLibTools()` çağırır.
 3. Kütüphaneyi yeni paketlere karşı yeniden derle, host'u tekrar koş.
 
-> Host `AddGeneratedTools()`'u doğrudan çağıramaz: iki derlemenin üretilmiş
-> uzantısı çakışır (`CS0121` + `TRC0005`) — ayrı kusur, `ADAYLAR.md` F-289.
+> Koşum anında (2026-09-24) host `AddGeneratedTools()`'u doğrudan
+> çağıramıyordu: iki derlemenin üretilmiş uzantısı çakışıyordu (`CS0121` +
+> `TRC0005`). F-289 (2026-10-11) uzantıyı `internal` yaptı; regresyon case'i
+> `MT-PKG-164`.
 
 **Gerçek sonuç (2026-09-24, host `1.0.0-preview.2.70`)**
 - (2) `MissingMethodException: Method not found: 'Void Tracon.TraconToolRegistration..ctor(Microsoft.Extensions.AI.AIFunctionDeclaration, Boolean, System.String, Tracon.ToolEffect, System.String, System.Nullable`1<System.TimeSpan>, Boolean, System.Nullable`1<Int32>)'`.
@@ -4599,3 +4601,31 @@ restore olup çalışma anında `TypeLoadException` veriyordu.
 **Beklenen sonuç**
 - (1) çıkış 0; `📦 Prova çıktısı: artifacts/package/yayin/<V>` basar; `release/` dokunulmadan kalır.
 - (2) çıkış 1; "FARKLI içerikli" + `rm -rf artifacts/package/yayin/<V>` ipucu; mevcut dosyalar değişmez.
+
+---
+
+### MT-PKG-164 — Tool kütüphanesini referanslayan host kendi `AddGeneratedTools()`'unu çağırır (F-289)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz dışı — `kusur-giderme` (2026-10-11) |
+| **İlgili karar** | K-881 |
+
+Üretilen `AddGeneratedTools()` `public`'ti; kütüphaneyi referanslayan host iki
+özdeş uzantı görüyordu. Derleyici düzeyindeki kanıt
+`CrossAssemblyGeneratedToolsTests`'tir; bu case paket tüketimini ölçer.
+
+**Ön koşul**
+- Fazın paketleri yerel feed'de (`dotnet pack Tracon.slnx -c Release`).
+
+**Adımlar**
+1. Sınıf kütüphanesi `Contoso.Tools`: `Tracon.Core` paketine başvurur, bir `[TraconTool("total_invoice", …)]` statik metodu ve `public static ITraconBuilder AddContosoTools(this ITraconBuilder b) => b.AddGeneratedTools();` taşır.
+2. Konsol host'u: `Tracon` paketine ve `Contoso.Tools`'a başvurur, kendi `[TraconTool("get_order_status", …)]` metodunu taşır ve `services.AddTracon().AddGeneratedTools().AddContosoTools();` çağırır. `dotnet build`; sonra `IToolRegistry.List()` adlarını yazdır.
+3. Host'tan kendi tool'unu sil, `AddGeneratedTools()` çağrısını bırak, `dotnet build`.
+
+**Beklenen sonuç**
+- (2) Derleme `0 Error(s)`; çıktıda `get_order_status` ve `total_invoice`.
+- (3) Derleme `TRC0005` ile düşer; mesaj "register a referenced library's tools with the extension that library exposes" der. `CS0121` YOKTUR.
+
