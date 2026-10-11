@@ -72,6 +72,43 @@ public sealed class AgentBatchJobHandlerTests
         agent.Inputs.ShouldBe(["first"]);
     }
 
+    /// <summary>
+    /// F-310: a batch can run for hours. The handler resolved its agent once, and an
+    /// agent's MCP tools stay bound to the connection they were discovered on: after a
+    /// server edit or delete, every later item called a closed connection. Each item
+    /// now runs the agent the catalog resolves at that moment (a cache hit while
+    /// nothing changed).
+    /// </summary>
+    [Fact]
+    public async Task Each_item_runs_the_agent_the_catalog_resolves_when_the_item_starts()
+    {
+        var before = new ScriptedAgent();
+        var after = new ScriptedAgent();
+
+        // The first resolve checks that the job's agent exists at all.
+        var catalog = new SequenceCatalog(before, before, after);
+        var handler = new AgentBatchJobHandler(catalog, NullLogger<AgentBatchJobHandler>.Instance);
+
+        await handler.ExecuteAsync(BuildContext([Item(0, "first"), Item(1, "second")]));
+
+        before.Inputs.ShouldBe(["first"]);
+        after.Inputs.ShouldBe(["second"]);
+    }
+
+    [Fact]
+    public async Task An_item_whose_agent_no_longer_resolves_fails_on_its_own()
+    {
+        var agent = new ScriptedAgent();
+        var catalog = new SequenceCatalog(agent, null, agent);
+        var handler = new AgentBatchJobHandler(catalog, NullLogger<AgentBatchJobHandler>.Instance);
+        var reported = new List<JobItemResult>();
+
+        await handler.ExecuteAsync(BuildContext([Item(0, "first"), Item(1, "second")], reported));
+
+        reported.Select(static result => result.Status).ShouldBe([JobItemStatus.Failed, JobItemStatus.Completed]);
+        agent.Inputs.ShouldBe(["second"]);
+    }
+
     private static JobItemRecord Item(int seq, string input, JobItemStatus status = JobItemStatus.Pending)
         => new() { Id = Guid.NewGuid(), JobId = Guid.NewGuid(), Seq = seq, Input = input, Status = status };
 
@@ -107,6 +144,21 @@ public sealed class AgentBatchJobHandlerTests
                 return new ValueTask<bool>(cancelAfter is { } limit && calls > limit);
             },
         };
+    }
+
+    /// <summary>Answers each resolve with the next agent of the sequence; the last one repeats.</summary>
+    private sealed class SequenceCatalog(params AIAgent?[] agents) : IAgentCatalog
+    {
+        private int _next;
+
+        public ValueTask<IReadOnlyList<AgentDescriptor>> ListAsync(CancellationToken cancellationToken = default)
+            => new((IReadOnlyList<AgentDescriptor>)[]);
+
+        public ValueTask<AIAgent?> ResolveAsync(string agentName, string? culture, CancellationToken cancellationToken)
+            => new(agents[Math.Min(_next++, agents.Length - 1)]);
+
+        public ValueTask<AIAgent?> ResolveAsync(string agentName, int? version, string? culture = null, CancellationToken cancellationToken = default)
+            => ResolveAsync(agentName, culture, cancellationToken);
     }
 
     private sealed class SingleAgentCatalog(AIAgent? agent) : IAgentCatalog

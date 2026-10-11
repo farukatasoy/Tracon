@@ -101,3 +101,12 @@
   dışı bir kaynağın değiştirebildiği her anahtar bileşeni, eskisini **silen**
   bir yuva ister. K-882. Geçici `tools/list` hatası artık listeyi düşürmez
   (`StaleToolRetention`, K-883): aynı nesneler → aynı bağlama → isabet.
+- **🚨 Anahtar doğru olsa da agent'ı UZUN SÜRE tutan çağıran önbelleği atlar**
+  (2026-10-11, F-310). K-880/K-882 çözümde doğru agent'ı verir; ama canlı ses
+  oturumu, WebSocket konuşması ve toplu iş agent'ı BİR KEZ çözüp oturum/iş boyunca
+  tuttu — sunucu değişince sonraki her delegasyon kapalı bağlantıya gitti (HTTP
+  testleri bunu göremez: her istek yeniden çözer). **Kural:** bir istekten uzun
+  yaşayan tutucu adı tutar, agent'ı her tur/delegasyon/öğe başında çözer (önbellek
+  isabeti ucuz); oturumun `AgentSession` nesnesi korunur. Tarandı: `ChildAgentInvoker`
+  (workflow dahil) ve iş işleyicileri zaten çağrı başına çözüyor. Kapı:
+  `LiveVoiceMcpTests` · `VoiceConversationMcpTests` · `AgentBatchJobHandlerTests`.

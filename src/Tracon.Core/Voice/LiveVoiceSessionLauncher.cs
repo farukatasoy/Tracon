@@ -186,10 +186,16 @@ internal sealed class LiveVoiceSessionLauncher
             return new LiveVoiceLaunchResult(null, null, LiveVoiceLaunchFailure.AgentFailed, exception.Message);
         }
 
+        // F-310: the agent resolved above opens the session and writes its history;
+        // every delegation resolves the same name again (LiveVoiceDelegationRunner).
+        var catalog = _catalog;
+        var agentName = request.AgentName;
+
         var host = new LiveVoiceSessionHost(
             _provider,
             request,
             agent.Agent,
+            cancellationToken => catalog.ResolveAsync(agentName, culture: null, cancellationToken),
             agent.Session,
             options,
             _store,
