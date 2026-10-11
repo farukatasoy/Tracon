@@ -15,6 +15,30 @@ internal static class GeneratorTestHelper
         => RunWithDriver(CreateDriver(), source);
 
     /// <summary>
+    /// Runs the given source through <see cref="ToolRegistrationGenerator"/> as its own
+    /// assembly, referencing other generated assemblies - a host and the tool library it
+    /// references are two compilations, each with its own generator run.
+    /// </summary>
+    /// <param name="source">The compilation's source.</param>
+    /// <param name="assemblyName">The compilation's assembly name.</param>
+    /// <param name="references">The other compilations, usually earlier results' <see cref="GeneratorRunResult.AsReference"/>.</param>
+    /// <returns>The result.</returns>
+    public static GeneratorRunResult Run(string source, string assemblyName, params MetadataReference[] references)
+    {
+        var syntaxTree = CSharpSyntaxTree.ParseText(source, new CSharpParseOptions(LanguageVersion.Latest));
+
+        var compilation = CSharpCompilation.Create(
+            assemblyName,
+            [syntaxTree],
+            References.AddRange(references),
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary, nullableContextOptions: NullableContextOptions.Enable));
+
+        var driver = CreateDriver().RunGeneratorsAndUpdateCompilation(compilation, out var outputCompilation, out var diagnostics);
+
+        return new GeneratorRunResult(compilation, (CSharpCompilation)outputCompilation, diagnostics, driver.GetRunResult());
+    }
+
+    /// <summary>
     /// Runs the generator against <paramref name="firstSource"/>, then against
     /// <paramref name="secondSource"/> with the SAME DRIVER (preserving the cache).
     /// Incrementality (52.5, the <c>IIncrementalGenerator</c> contract) is verified by
@@ -82,6 +106,13 @@ internal sealed record GeneratorRunResult(
         => RunResult.Results
             .SelectMany(r => r.GeneratedSources)
             .ToDictionary(s => s.HintName, s => s.SourceText.ToString(), StringComparer.Ordinal);
+
+    /// <summary>The generated compilation as a reference another compilation can take.</summary>
+    public MetadataReference AsReference() => OutputCompilation.ToMetadataReference();
+
+    /// <summary>The errors of the compilation AFTER the generator ran.</summary>
+    public IReadOnlyList<Diagnostic> OutputErrors()
+        => [.. OutputCompilation.GetDiagnostics().Where(static d => d.Severity == DiagnosticSeverity.Error)];
 
     /// <summary>Returns only the diagnostics with a specific id (example: TRC0001).</summary>
     public IReadOnlyList<Diagnostic> DiagnosticsWithId(string id)

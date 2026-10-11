@@ -50,7 +50,7 @@ curl http://localhost:5081/tracon/api/agents
 
 ## Add a tool
 
-[`Tools/OrderTools.cs`](Tools/OrderTools.cs) has a sample tool. To add a new tool, write a **static** method marked with `[TraconTool]` and register it in `Program.cs` with `AddToolsFrom(typeof(...))`. Tools are defined only in code — this is a security boundary; the UI only lets users pick from registered tools.
+[`Tools/OrderTools.cs`](Tools/OrderTools.cs) has a sample tool. To add a new tool, write a **static** method marked with `[TraconTool]`; the `AddGeneratedTools()` call in `Program.cs` registers it at compile time, without reflection. Tools are defined only in code — this is a security boundary; the UI only lets users pick from registered tools.
 
 ## More
 

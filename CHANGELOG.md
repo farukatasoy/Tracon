@@ -100,6 +100,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   its consecutive failure count with the SQL stores too, as the in-memory store
   already did. Before, a subscription that was disabled for failing and then
   enabled again went back to disabled on its next single failure.
+- On SQL Server, two requests that save the same new record at the same time
+  no longer fail with a unique-key violation. Twenty stores wrote with an
+  update-then-insert pair outside a transaction, so both requests could take
+  the insert branch: among them sessions, runs, quotas, script grants,
+  approval rules, MCP servers, tenants and the singleton lease. Each pair now
+  runs inside a transaction, which costs two round trips on SQL Server and
+  nothing on PostgreSQL or SQLite. A script grant, quota or approval rule saved
+  with an empty string in a nullable key is no longer matched to the record
+  saved with `null` there; the HTTP surfaces already store an empty value as
+  `null`.
 
 ### Added
 
@@ -113,6 +123,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- The `AddGeneratedTools()` extension that the `[TraconTool]` generator writes
+  into your assembly is now `internal`. It was `public`, so a host that
+  referenced a class library with tools saw the library's copy next to its
+  own, and `AddGeneratedTools()` failed with `CS0121` (or with `TRC0005` in a
+  host without tools). A library hands its tools to a host through its own
+  public extension that calls `AddGeneratedTools()` from inside; a host that
+  called a library's generated extension directly calls that library
+  extension instead. The `TRC0005` message now says so.
 - `Tracon.Testing.Contracts.Xunit` adds two `ToolApprovalRuleStoreContract`
   cases: `SourceFingerprint` round-trips, and two rules that differ only in it
   are two rules. A custom `IToolApprovalRuleStore` that drops the field or
