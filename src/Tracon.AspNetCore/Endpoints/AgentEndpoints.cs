@@ -379,7 +379,7 @@ internal static class AgentEndpoints
         // Same gate, same error shape as POST /api/agents/{name}/run - see
         // AgentParameterGate.
         if ((await AgentParameterGate
-                .CheckAsync(optionsMonitor, definitionStore, name, version: null, request!.Parameters, cancellationToken)
+                .CheckAsync(optionsMonitor, definitionStore, httpContext.RequestServices, name, version: null, request!.Parameters, cancellationToken)
                 .ConfigureAwait(false)).Problem is { } parameterProblem)
         {
             return parameterProblem;
@@ -805,7 +805,7 @@ internal static class AgentEndpoints
         // Problem null) for the overwhelming majority of agents that declare
         // no parameter schema at all.
         var parameterGate = await AgentParameterGate
-            .CheckAsync(optionsMonitor, definitionStore, name, assignment?.Version, request.Parameters, cancellationToken)
+            .CheckAsync(optionsMonitor, definitionStore, httpContext.RequestServices, name, assignment?.Version, request.Parameters, cancellationToken)
             .ConfigureAwait(false);
 
         if (parameterGate.Problem is { } parameterProblem)
@@ -838,21 +838,10 @@ internal static class AgentEndpoints
 
                 agent = AgentDecoratorPipeline.Apply(
                     agent,
-                    new AgentDescriptor
-                    {
-                        Name = sourceDefinition.Name,
-                        DisplayName = sourceDefinition.DisplayName,
-                        Description = sourceDefinition.Description,
-                        Origin = AgentDefinitionOrigin.Database,
-                        SourceName = "database",
-                        Version = sourceDefinition.Version,
-                        Model = sourceDefinition.Model,
-                        ToolNames = sourceDefinition.ToolNames,
-                        SkillNames = sourceDefinition.SkillNames,
-                        CallableAgentNames = sourceDefinition.CallableAgentNames,
-                        UsesHarness = sourceDefinition.Harness is not null,
-                        UpdatedAt = sourceDefinition.UpdatedAt,
-                    },
+                    AgentDescriptorProjection.FromDefinition(
+                        sourceDefinition,
+                        parameterGate.Origin,
+                        AgentDefinitionLookup.SourceName(parameterGate.Origin)),
                     decorators);
             }
             else
@@ -1047,6 +1036,14 @@ internal static class AgentEndpoints
                 statusCode: StatusCodes.Status404NotFound);
         }
 
+        // F-330: a queued run carries no parameter values in this version.
+        // An agent whose required parameter has no default is refused with the
+        // same 400 /run gives a missing parameter, before a run row exists.
+        if (agent.GetService<UnboundParameterGuard>() is { RequiresValues: true } unbound)
+        {
+            return AgentParameterGate.Problem(unbound.Missing);
+        }
+
         var runId = TraconId.NewId();
         var now = DateTimeOffset.UtcNow;
 
@@ -1192,6 +1189,8 @@ internal static class AgentEndpoints
         {
             var cancellationToken = httpContext.RequestAborted;
             var writer = await SseWriter.StartAsync(httpContext.Response, cancellationToken).ConfigureAwait(false);
+            // Stops the writer's keep-alive loop before the response ends (F-325).
+            await using var writerScope = writer.ConfigureAwait(false);
 
             Microsoft.Agents.AI.AgentSession? session = null;
             long sequence = 0;

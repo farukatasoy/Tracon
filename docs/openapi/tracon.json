@@ -10597,7 +10597,7 @@
               "null",
               "string"
             ],
-            "description": "Model identifier to record for this run. If not given, the model in\nthe agent\u0027s current definition is used."
+            "description": "Model identifier to record for this run. If not given, the model of\nthe definition version the run measures is used: the pinned version\nwhen one is given, otherwise the current one."
           },
           "numRepetitions": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",

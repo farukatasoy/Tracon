@@ -52,8 +52,10 @@ internal sealed class OpenTelemetryAgentDecorator : IAgentDecorator
         // The suppression is deliberate. This is the only use, so a MAF API change
         // only requires an update here. Rationale: docs/KARARLAR.md, decision K-055.
 #pragma warning disable MAAI001
+        // The guard keeps a summed response (a loop, an auto-approved tool round)
+        // from being rebuilt out of its last call's raw representation (F-317).
         return new OpenTelemetryAgent(
-            agent,
+            new AggregatedResponseGuard(agent),
             TraconDiagnostics.ActivitySourceName,
             autoWireChatClient: false)
         {

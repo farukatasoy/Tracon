@@ -14,8 +14,14 @@ namespace Tracon;
 /// <para>
 /// This is a different fault from <see cref="AgentRunBudget"/> refusing to
 /// reserve a <em>new child run</em> (<see cref="AgentRunBudget.TryReserveRun"/>):
-/// that refusal is returned to the model as an ordinary tool result and the
-/// calling agent can recover; this exception ends the run that hit it.
+/// for agent delegation that refusal is returned to the model as an ordinary
+/// tool result and the calling agent can recover; this exception ends the run
+/// that hit it.
+/// </para>
+/// <para>
+/// A workflow step has no calling model to recover, so there the refused
+/// reservation throws this exception too, and the workflow run ends
+/// <c>Failed</c> with the same class as any other budget exhaustion.
 /// </para>
 /// </remarks>
 public sealed class TraconRunBudgetExceededException : TraconException

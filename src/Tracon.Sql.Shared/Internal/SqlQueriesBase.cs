@@ -1584,11 +1584,16 @@ internal abstract class SqlQueriesBase
             UPDATE {Table("jobs")} SET status = 2 WHERE id = @id AND lease_owner = @owner AND status = 1;
             """;
 
+        // 🚨 Only an open job (Pending, Leased, Running) is finalized or
+        // released (F-326). Without the status filter a cancelled job whose
+        // handler threw on its way out was overwritten: Failed on its last
+        // attempt, Pending — and run again — on an earlier one. A terminal
+        // status is never changed; the same filter CancelJob already carries.
         CompleteJob = $"""
             UPDATE {Table("jobs")}
                SET status = @status, completed_at = @completed_at, error_message = @error_message,
                    lease_owner = NULL, lease_until = NULL
-             WHERE id = @id;
+             WHERE id = @id AND status IN (0, 1, 2);
             """;
 
         // If @retry_at is NULL, scheduled_for is left untouched (the old
@@ -1599,7 +1604,7 @@ internal abstract class SqlQueriesBase
             UPDATE {Table("jobs")}
                SET status = 0, lease_owner = NULL, lease_until = NULL, error_message = @error_message,
                    scheduled_for = COALESCE(@retry_at, scheduled_for)
-             WHERE id = @id;
+             WHERE id = @id AND status IN (0, 1, 2);
             """;
 
         CancelJob = $"""

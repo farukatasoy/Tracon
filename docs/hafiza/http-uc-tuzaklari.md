@@ -103,3 +103,6 @@
   agent'ları eksik gelir (`AgentSourceFaultIsolationTests`). Store'a doğrudan
   bağımlı bir okumayı sınamak isteyen test `GET /api/agents/{ad}/versions`
   kullanmalıdır — ilk yazılan test bu ayrımı bilmediği için yanlış uca bakıyordu.
+
+- **🚨 Sessiz SSE akışı ölü bağlantı sanılır ve kapanan bağlantı run'ı iptal eder** (2026-10-12, F-325, K-885): `SseWriter.StartAsync` keep-alive döngüsünü KENDİSİ başlatır (aralık grup metadata'sından); yazımlar tek kapıdan geçer (ajan akışında kanca run'ın içinden yazar). Yazıcı `IAsyncDisposable`'dır — her uç `await using` ile kapatır, yoksa döngü cevap bittikten sonra yazar. Workflow akışının dar `catch` filtresi K-296 sınıfının kaçan vakasıydı.
+

@@ -3647,6 +3647,14 @@ Tracon.TraceSpanStatus.Unset = 0 -> Tracon.TraceSpanStatus
 Tracon.TraconAgentSourceException
 Tracon.TraconAgentSourceException.SourceName.get -> string!
 Tracon.TraconAgentSourceException.TraconAgentSourceException(string! sourceName, string! errorType, string! message, System.Exception? innerException = null) -> void
+Tracon.TraconChildRunTimeoutException
+Tracon.TraconChildRunTimeoutException.AgentName.get -> string?
+Tracon.TraconChildRunTimeoutException.AgentName.init -> void
+Tracon.TraconChildRunTimeoutException.Timeout.get -> System.TimeSpan?
+Tracon.TraconChildRunTimeoutException.Timeout.init -> void
+Tracon.TraconChildRunTimeoutException.TraconChildRunTimeoutException() -> void
+Tracon.TraconChildRunTimeoutException.TraconChildRunTimeoutException(string! message) -> void
+Tracon.TraconChildRunTimeoutException.TraconChildRunTimeoutException(string! message, System.Exception! innerException) -> void
 Tracon.TraconCompilationException
 Tracon.TraconCompilationException.AgentName.get -> string?
 Tracon.TraconCompilationException.AgentName.init -> void
@@ -4467,6 +4475,7 @@ Tracon.WorkflowRunRequest.WorkflowRunRequest() -> void
 const Tracon.AgentSourcePriority.Code = 0 -> int
 const Tracon.AgentSourcePriority.Database = 100 -> int
 const Tracon.EvalRunDiffUnavailableException.EvalRunDiffUnavailableErrorType = "eval_run_diff_unavailable" -> string!
+const Tracon.JobErrorCodes.AttemptsExhausted = "tracon.job.attempts-exhausted" -> string!
 const Tracon.JobErrorCodes.HandlerActivationFailed = "tracon.job.handler-activation-failed" -> string!
 const Tracon.JobErrorCodes.UnknownHandlerKey = "tracon.job.unknown-handler-key" -> string!
 const Tracon.JobHandlerKeys.AgentBatch = "tracon.agent-batch" -> string!
@@ -4519,6 +4528,7 @@ const Tracon.ToolUsageUnits.Seconds = "seconds" -> string!
 const Tracon.ToolUsageUnits.Tokens = "tokens" -> string!
 const Tracon.TraconAgentSourceException.SourceContractErrorType = "agent_source_contract" -> string!
 const Tracon.TraconAgentSourceException.SourceFailedErrorType = "agent_source_failed" -> string!
+const Tracon.TraconChildRunTimeoutException.ChildRunTimeoutErrorType = "child_run_timeout" -> string!
 const Tracon.TraconCompilationException.CompilationFailedErrorType = "compilation_failed" -> string!
 const Tracon.TraconContentBlockedException.ContentBlockedErrorType = "content_blocked" -> string!
 const Tracon.TraconContentFilteredException.ContentFilteredErrorType = "content_filtered" -> string!
@@ -5063,6 +5073,7 @@ override Tracon.TraceSpanBatch.Equals(object? obj) -> bool
 override Tracon.TraceSpanBatch.GetHashCode() -> int
 override Tracon.TraceSpanBatch.ToString() -> string!
 override Tracon.TraconAgentSourceException.ErrorType.get -> string!
+override Tracon.TraconChildRunTimeoutException.ErrorType.get -> string!
 override Tracon.TraconCompilationException.ErrorType.get -> string!
 override Tracon.TraconContentBlockedException.ErrorType.get -> string!
 override Tracon.TraconContentFilteredException.ErrorType.get -> string!

@@ -686,12 +686,11 @@ public sealed class HarnessLoopTests
         agentRun.Error.ShouldNotBeNull().Class.ShouldBe(RunErrorClass.LoopUnsatisfied);
         workflow.Status.ShouldBe(RunStatus.Failed);
 
-        // Measured (plan 192.5, open question 1): MAF does not wrap the exception - the
-        // workflow row names TraconLoopUnsatisfiedException - but WorkflowRunner writes the
-        // CLR type name and never classifies, for every workflow failure. The participant
-        // run carries the class; classifying the workflow row is candidate F-314.
-        workflow.Error.ShouldNotBeNull().Type.ShouldBe(typeof(TraconLoopUnsatisfiedException).FullName);
-        workflow.Error.Class.ShouldBeNull();
+        // Measured (plan 192.5, open question 1): MAF does not wrap the exception. The
+        // workflow row carries the same stable identity and class as the participant's
+        // own row (F-314); before, it wrote the CLR type name and no class.
+        workflow.Error.ShouldNotBeNull().Type.ShouldBe(TraconLoopUnsatisfiedException.LoopUnsatisfiedErrorType);
+        workflow.Error.Class.ShouldBe(RunErrorClass.LoopUnsatisfied);
     }
 
     /// <summary>A name that is not a LoopOutcome member is refused when the definition is saved.</summary>
@@ -728,6 +727,119 @@ public sealed class HarnessLoopTests
 
         await SaveLoopAgentAsync(host, "policy-agent", "FailRun", create: false);
         (await RunByHttpAsync(host, "policy-agent")).ShouldBe("Failed");
+    }
+
+    /// <summary>
+    /// F-317: a loop that ends well records what EVERY iteration spent. The
+    /// non-streaming run returned, and recorded, only the last iteration's
+    /// usage — MAF's OpenTelemetryAgent rebuilt the response from the last
+    /// call's raw representation — and the streaming run kept only the last
+    /// UsageContent. Cost and the tenant's quota undercounted every loop.
+    /// </summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_loop_that_succeeds_records_the_usage_of_every_iteration(bool streaming)
+    {
+        var loop = new LoopSettings
+        {
+            Criteria = [new LoopCriterion { Kind = "completionMarker", Marker = "ALL DONE" }],
+            MaxIterations = 6,
+        };
+
+        var provider = new FakeModelProvider(ProviderName);
+        provider.ForModel(ModelName, cfg =>
+        {
+            cfg.RespondsWith("still working", inputTokens: 6, outputTokens: 4);
+            cfg.RespondsWith("nearly there", inputTokens: 6, outputTokens: 4);
+            cfg.RespondsWith("ALL DONE", inputTokens: 6, outputTokens: 4);
+        });
+
+        await using var host = await StartAsync(provider, loop);
+
+        if (streaming)
+        {
+            var agent = await ResolveAsync(host);
+            var session = await agent.CreateSessionAsync();
+
+            await foreach (var _ in agent.RunStreamingAsync(
+                [new Microsoft.Extensions.AI.ChatMessage(Microsoft.Extensions.AI.ChatRole.User, "go")], session))
+            {
+            }
+        }
+        else
+        {
+            var response = await RunAsync(host);
+
+            // The caller gets the final iteration's answer and the loop's whole spend.
+            response.Text.ShouldBe("ALL DONE");
+            response.Usage.ShouldNotBeNull().TotalTokenCount.ShouldBe(3 * UsagePerTurn);
+        }
+
+        provider.Requests.Count.ShouldBe(3);
+
+        var root = await RootRunAsync(host);
+        root.Status.ShouldBe(RunStatus.Completed);
+        root.Usage.ShouldNotBeNull().TotalTokens.ShouldBe(3 * UsagePerTurn);
+    }
+
+    /// <summary>
+    /// F-329: with a loop and structured-response validation both on, the
+    /// validator read the joined text of every iteration — a draft followed by
+    /// the final JSON is not JSON — and failed a run whose answer was valid.
+    /// </summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task A_loop_whose_final_answer_is_valid_JSON_passes_structured_validation(bool streaming)
+    {
+        var loop = new LoopSettings
+        {
+            Criteria = [new LoopCriterion { Kind = "completionMarker", Marker = "DONE" }],
+            MaxIterations = 4,
+        };
+
+        var provider = new FakeModelProvider(ProviderName)
+            .WithModel(new ModelDescriptor { Name = ModelName, SupportsStructuredOutput = true });
+        provider.ForModel(ModelName, cfg => cfg.RespondsWith("a first draft", "{\"status\":\"DONE\"}"));
+
+        await using var host = await TraconTestHost.StartAsync(
+            configureTracon: builder => builder
+                .AddModelProvider(provider)
+                .AddAgent(new AgentDefinition
+                {
+                    Name = AgentName,
+                    Description = "Works until it is done, then answers in JSON.",
+                    Instructions = "Work.",
+                    Model = new ModelBinding
+                    {
+                        Provider = ProviderName,
+                        Model = ModelName,
+                        ResponseFormat = new AgentResponseFormat { Kind = AgentResponseFormatKind.Json },
+                    },
+                    Harness = new HarnessSettings { Loop = loop },
+                    Origin = AgentDefinitionOrigin.Code,
+                }),
+            configureServices: services => services.Configure<TraconStructuredResponseOptions>(
+                options => options.Enabled = true));
+
+        var agent = await ResolveAsync(host);
+        var session = await agent.CreateSessionAsync();
+        var messages = new[] { new Microsoft.Extensions.AI.ChatMessage(Microsoft.Extensions.AI.ChatRole.User, "go") };
+
+        if (streaming)
+        {
+            await foreach (var _ in agent.RunStreamingAsync(messages, session))
+            {
+            }
+        }
+        else
+        {
+            (await agent.RunAsync(messages, session)).Text.ShouldBe("{\"status\":\"DONE\"}");
+        }
+
+        provider.Requests.Count.ShouldBe(2);
+        (await RootRunAsync(host)).Status.ShouldBe(RunStatus.Completed);
     }
 
     private static async Task<Microsoft.Agents.AI.AgentResponse> RunAsync(TraconTestHost host)

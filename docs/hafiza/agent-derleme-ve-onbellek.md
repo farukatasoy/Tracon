@@ -110,3 +110,7 @@
   isabeti ucuz); oturumun `AgentSession` nesnesi korunur. Tarandı: `ChildAgentInvoker`
   (workflow dahil) ve iş işleyicileri zaten çağrı başına çözüyor. Kapı:
   `LiveVoiceMcpTests` · `VoiceConversationMcpTests` · `AgentBatchJobHandlerTests`.
+
+- **🚨 Parametreleri yalnız `CompileParameterizedAsync` bağlar ve kopyada `Parameters`'ı temizler** (2026-10-12, F-330, K-890): `BuildAgent`'ta şema görmek "bu derleme değer taşımadı" demektir. Orada varsayılanlar bağlanır ve `UnboundParameterGuard` HER böyle derlemeyi işaretler; yalnız varsayılansız zorunlu parametrede (`RequiresValues`) run'ı düşürür (derlemede ATMAZ — kayıt, doğrulama ve oturum okuması da derler). Giriş uçları `RequiresValues`'a, replay ve devam işaretin kendisine bakar (değer saklanmadığı için varsayılan da yanlıştır). Tanım arama tek yerde: `AgentDefinitionLookup` (kod önce).
+- **🚨 Descriptor, derlenen tanımın KENDİ sürümünü tanımlamalı** (2026-10-12, F-331, K-891): katalog sabit sürümü derleyip güncel sürümün descriptor'ını veriyordu; dekoratörler biçimi, modeli ve sürümü oradan okur. `IDescribingAgentSource` tek okumadan ikisini verir; descriptor üretimi yalnız `AgentDescriptorProjection`'dadır — elle kopyalama yeniden kayar.
+

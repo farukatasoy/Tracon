@@ -164,6 +164,11 @@ internal sealed class RunReplayService
             .CompileAsync(effective, callable, playback is null ? null : playback.Wrap, culture: null, cancellationToken)
             .ConfigureAwait(false);
 
+        if (UnboundParameters(agent, definition.Name) is { } unbound)
+        {
+            return unbound;
+        }
+
         // 🚨 The guard sits INSIDE the decorators; the rationale is in the
         // note on ReplayMismatchGuard (the exception must land in the
         // recording wrapper's catch block).
@@ -258,10 +263,29 @@ internal sealed class RunReplayService
                 "This run cannot be replayed in any tool mode.");
         }
 
+        if (UnboundParameters(agent, source.AgentName) is { } unbound)
+        {
+            return unbound;
+        }
+
         // The catalog applies its own wrappers; wrapping a second time would
         // record the run twice.
         return RunReplayPreparation.Ready(agent, input.Messages, source, agentVersion: null, modelId: source.ModelId);
     }
+
+    /// <summary>
+    /// Refuses a replay of an agent that declares parameters: the recorded
+    /// input carries no parameter values, so a replay would run with the
+    /// defaults — different instructions from the source run's — or fail on a
+    /// required parameter (user decision 2026-10-12).
+    /// </summary>
+    private static RunReplayPreparation? UnboundParameters(AIAgent agent, string agentName)
+        => agent.GetService<UnboundParameterGuard>() is not null
+            ? RunReplayPreparation.Failed(
+                RunReplayOutcome.NotSupported,
+                $"Agent '{agentName}' declares parameters, and a replay does not carry the source run's " +
+                "parameter values; it would run with different instructions. This run cannot be replayed.")
+            : null;
 
     private async ValueTask<AgentDefinition?> ResolveDefinitionAsync(
         string agentName,
@@ -355,21 +379,7 @@ internal sealed class RunReplayService
         => AgentDecoratorPipeline.Apply(agent, descriptor, _decorators);
 
     private static AgentDescriptor ToDescriptor(AgentDefinition definition)
-        => new()
-        {
-            Name = definition.Name,
-            DisplayName = definition.DisplayName,
-            Description = definition.Description,
-            Origin = AgentDefinitionOrigin.Database,
-            SourceName = "replay",
-            Version = definition.Version,
-            Model = definition.Model,
-            ToolNames = definition.ToolNames,
-            SkillNames = definition.SkillNames,
-            CallableAgentNames = definition.CallableAgentNames,
-            UsesHarness = definition.Harness is not null,
-            UpdatedAt = definition.UpdatedAt,
-        };
+        => AgentDescriptorProjection.FromDefinition(definition, AgentDefinitionOrigin.Database, "replay");
 }
 
 /// <summary>Represents the outcome of a replay preparation.</summary>

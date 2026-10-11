@@ -170,7 +170,12 @@ YONETIM_BUTCESI = {
     # "yalniz aramada" katmanindadir ve oturum acilisinda HIC okunmaz; butcesi bir
     # baglam kisiti degil buyume alarmidir. Ayni formul: damitma SONRASI olculen
     # deger / 0.85.
-    "docs/KARARLAR.md": 496_000,           # YENIDEN KALIBRE 2026-09-15; olculen 421_119
+    # 2026-10-12 (oncelikli kusur turu, K-885..K-891): 496_000 -> 586_000. Yedi
+    # yeni satir once ~450-560 B'ye kisaltildi; `karar-damit --kuru` yine yalniz
+    # 852 B tasiyabildi (498_602 -> 497_750; gercek kosum calisma agaci temiz
+    # olmadan reddedilir, commit'ten sonra kosulmalidir). Ayni formul: damitma
+    # SONRASI olculen deger / 0.85.
+    "docs/KARARLAR.md": 586_000,           # YENIDEN KALIBRE 2026-10-12; olculen 497_750 (kuru damitma sonrasi)
     "docs/ADAYLAR.md": 80_000,  # olculen 67_195
     # YAYIN-HAZIRLIK: `nuget-danismani`nin calisma dosyasi; her yayin turunda
     # buyur ve 2026-09-22'ye kadar hicbir freni yoktu (temizlik turu bulgusu).
@@ -1006,6 +1011,7 @@ SURUM_DAMGASI_KAYDI: dict[str, str | None] = {
     "src/Tracon.AspNetCore/OpenAICompat/OpenAIResponsesEndpoints.cs": "Microsoft.Agents.AI.Hosting.OpenAI",
     "src/Tracon.Core/Models/FallbackChatClient.cs": "OpenAI",
     "src/Tracon.Core/Compilation/RecordingLoopEvaluator.cs": "Microsoft.Agents.AI",
+    "src/Tracon.Core/Diagnostics/AggregatedResponseGuard.cs": "Microsoft.Agents.AI",
     # 🚨 Asagidaki dordu 2026-09-14'e kadar kapinin TAMAMEN disindaydi: damga
     # "measured" kelimesini kullanmadigi icin eski `_DAMGA` onlari hic gormedi.
     # Dordu de pinle uyusuyordu, yani canli sapma yoktu — ama bir sonraki

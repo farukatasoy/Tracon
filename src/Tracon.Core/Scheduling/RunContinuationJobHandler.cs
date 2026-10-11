@@ -97,6 +97,18 @@ internal sealed class RunContinuationJobHandler(
                     (agentVersion is { } v ? $" version {v}" : string.Empty) +
                     "; a code-defined or deleted agent cannot be continued.");
 
+            // The recorded input carries no parameter values. Continuing would
+            // run the turn with the defaults (or fail on a required parameter),
+            // not with the values the source run had - a different prompt
+            // halfway through the conversation (user decision 2026-10-12).
+            if (definition.Parameters.Count > 0)
+            {
+                throw new TraconException(
+                    $"Agent '{source.AgentName}' declares parameters, and the recorded input does not carry " +
+                    "the source run's parameter values; continuing it would run with different instructions. " +
+                    "This run cannot be continued.");
+            }
+
             // Skills and callable sub-agents run through an AIContextProvider,
             // not through the tool-calling pipeline RecordedToolPlayback wraps
             // — see the class documentation.
@@ -153,21 +165,13 @@ internal sealed class RunContinuationJobHandler(
     private Microsoft.Agents.AI.AIAgent Decorate(Microsoft.Agents.AI.AIAgent agent, AgentDescriptor descriptor)
         => AgentDecoratorPipeline.Apply(agent, descriptor, _decorators);
 
+    // Skills and callable agents are zeroed on purpose: a continuation
+    // compiles the definition without them.
     private static AgentDescriptor ToDescriptor(AgentDefinition definition)
-        => new()
+        => AgentDescriptorProjection.FromDefinition(definition, AgentDefinitionOrigin.Database, "continuation") with
         {
-            Name = definition.Name,
-            DisplayName = definition.DisplayName,
-            Description = definition.Description,
-            Origin = AgentDefinitionOrigin.Database,
-            SourceName = "continuation",
-            Version = definition.Version,
-            Model = definition.Model,
-            ToolNames = definition.ToolNames,
             SkillNames = [],
             CallableAgentNames = [],
-            UsesHarness = definition.Harness is not null,
-            UpdatedAt = definition.UpdatedAt,
         };
 
     private async ValueTask FailQueuedRunAsync(

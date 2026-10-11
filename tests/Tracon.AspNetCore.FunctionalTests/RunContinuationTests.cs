@@ -83,6 +83,39 @@ public sealed class RunContinuationTests
     }
 
     [Fact]
+    public async Task A_parameterized_agent_is_not_continued_with_values_its_run_never_had()
+    {
+        // The recorded input carries no parameter values; continuing would run
+        // the turn with the defaults, not the source run's values.
+        ContinuationProbeTools.Reset();
+
+        await using var host = await StartHostAsync(o =>
+        {
+            o.Enabled = true;
+            o.MaxAttempts = 1;
+        });
+
+        var sourceRunId = await SeedCrashedRunAsync(
+            host,
+            new AgentDefinition
+            {
+                Name = AgentName,
+                Instructions = "Help {{customer}} with the order.",
+                Parameters = [new AgentParameter { Name = "customer", Kind = AgentParameterKind.Text, DefaultValue = "friend" }],
+                Model = new ModelBinding { Provider = "cont-model", Model = ModelId },
+                ToolNames = ["get_order_status"],
+            });
+
+        var continuationRunId = await WaitForContinuationAsync(host, sourceRunId);
+        var continuation = await host.Services.GetRequiredService<IRunStore>().GetRunAsync(continuationRunId);
+
+        continuation.ShouldNotBeNull();
+        continuation.Status.ShouldBe(RunStatus.Failed);
+        continuation.Error.ShouldNotBeNull().Message.ShouldContain("declares parameters", Case.Sensitive);
+        ContinuationProbeTools.Calls.ShouldBe(0);
+    }
+
+    [Fact]
     public async Task Disabled_by_default_orphaned_run_stays_Failed_with_no_continuation()
     {
         await using var host = await StartHostAsync(static o => o.Enabled = false);
@@ -283,11 +316,18 @@ public sealed class RunContinuationTests
         }));
     }
 
-    private static async ValueTask<Guid> SeedCrashedRunAsync(TraconTestHost host)
+    private static async ValueTask<Guid> SeedCrashedRunAsync(TraconTestHost host, AgentDefinition? definition = null)
     {
-        foreach (var seed in host.Services.GetServices<IStartupSeed>())
+        // A given definition replaces the seed: it has to be the ONLY version
+        // before the crashed run exists, or the reconciler (scanning every
+        // 30 ms) may continue the run against the seed first.
+        var definitions = definition is null
+            ? host.Services.GetServices<IStartupSeed>().Select(static seed => seed.Definition).ToList()
+            : [definition];
+
+        foreach (var seed in definitions)
         {
-            await host.Services.GetRequiredService<IAgentDefinitionStore>().SaveAsync(seed.Definition);
+            await host.Services.GetRequiredService<IAgentDefinitionStore>().SaveAsync(seed);
         }
 
         var runs = host.Services.GetRequiredService<IRunStore>();

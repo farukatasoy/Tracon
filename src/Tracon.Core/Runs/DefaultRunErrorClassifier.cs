@@ -47,6 +47,7 @@ public sealed partial class DefaultRunErrorClassifier : IRunErrorClassifier
         [TraconProviderUnavailableException.ProviderUnavailableErrorType] = RunErrorClass.ProviderUnavailable,
         ["Tracon.TraconProviderUnavailableException"] = RunErrorClass.ProviderUnavailable,
         [TraconToolTimeoutException.ToolTimeoutErrorType] = RunErrorClass.ToolTimeout,
+        [TraconChildRunTimeoutException.ChildRunTimeoutErrorType] = RunErrorClass.Timeout,
         [TraconRunBudgetExceededException.RunBudgetExceededErrorType] = RunErrorClass.QuotaExceeded,
         [TraconStructuredResponseException.StructuredResponseInvalidErrorType] = RunErrorClass.StructuredResponseInvalid,
         [TraconLoopUnsatisfiedException.LoopUnsatisfiedErrorType] = RunErrorClass.LoopUnsatisfied,

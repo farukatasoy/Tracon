@@ -2,21 +2,14 @@
 
 > **Üretilen, elle düzenlenmez.** Kaynak: `KARARLAR.md` · üretim: `scripts/dokuman-bakim.py`
 
-Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 796 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
+Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 803 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
 
 ---
 
-## En Yeni Kalıcı Kararlar (88 / 884 kalem)
+## En Yeni Kalıcı Kararlar (88 / 891 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
-| K-797 | 848 | Kapı skill'inin revizyon damgasını PAKET değil TOOL taşır; bayat skill'in düzeltmesi "önce tool'u güncelle"dir |
-| K-798 | 849 | Bir tool sonucu, sağlayıcı adaptörünün TELE YAZDIĞI metinle ölçülür; `AIContent` protokol sonucu bu ölçümün dışında değildir |
-| K-799 | 850 | `ContentGuard`'ın "incelenemeyen sonuç" fail-closed dalı, okunamayan sonuç içindir; `string` OLMAYAN her sonuç için değil |
-| K-800 | 851 | Uzak bir tool'un davranışını sınayan fake, uzak tool'un DÖNÜŞ ŞEKLİNİ taklit etmelidir |
-| K-801 | 852 | Bir eval case'inin kimliğini istemci AÇIKÇA taşır; sunucu içerikten tahmin etmez 👤 |
-| K-802 | 853 | Bir case'in promosyon kaydı SUNUCUNUN kendi verisidir ve KİMLİKLE taşınır |
-| K-803 | 854 | Bir SSE tüketicisi canlılığı FRAME değil BAYT sayarak ölçer 👤 |
 | K-804 | 855 | `/api/diagnostics` yürürlükteki `RunRecording` ayarlarını bildirir 👤 |
 | K-805 | 856 | Tool zaman aşımı artık gövdeyi İPTAL EDER; bugüne kadar hiçbir şeyi iptal etmiyordu 👤 |
 | K-806 | 857 | Zaman aşımından SONRA başarıyla biten bir tool çağrısının sonucu ve harcaması AYNI `tool_invocations` satırına yazılır; ikinci satır AÇILMAZ 👤 |
@@ -98,3 +91,10 @@ Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLA
 | K-882 | 933 | `CompiledAgentCache` `(kiracı, ad, tanım parmak izi, kültür)` başına TEK girdi tutar; yeni bağımlılık parmak iziyle derleme o girdiyi değiştirir, tanım parmak izi ayrı yuvadır (A/B sürümleri birbirini atmaz); MCP bağlaması bağlantı kimliğine ek olarak uzak tool'un protokol `Tool` JSON'unun SHA-256'sını taşır — K-880'in "açıklama ve şema anahtara girmez" kısmı kalkar (F-308, kusur-giderme 2026-10-11) (kullanıcı kararı) 👤 |
 | K-883 | 934 | `tools/list` başarısız olunca MCP bağlantısı, kayıtlı ve tanımı aynı kaldıkça, son iyi tool/kaynak listesini son başarılı listelemeden itibaren `TraconMcpOptions.StaleToolRetention` (varsayılan 15 dk; `Zero` = eski davranış, negatif açılışta reddedilir) boyunca sunar; refresh sonucu yine "ulaşılamaz" sayılır; süre geçince sonraki başarısız refresh listeyi düşürür ve K-880'in `absent` reddi döner (F-309, kusur-giderme 2026-10-11) (kullanıcı kararı) 👤 |
 | K-884 | 935 | `LoopSettings` iki bağımsız alan taşır (`OnExhausted`, `OnCriterionError`) ve ikisi de tek enum'dur (`LoopOutcome`: `ReturnLastResponse = 0` varsayılan · `FailRun = 1`, JSON'da ad); `OnExhausted = FailRun` iken tavandaki tur DEĞERLENDİRİLİR (MAF'a N+1 verilir, karar N'de); yeni sınıf `RunErrorClass.LoopUnsatisfied = 15` yalnız tükenme içindir, ölçüt hatası orijinal istisnayla ve kendi sınıfıyla düşer (Faz 192, F-293) (kullanıcı kararı) 👤 |
+| K-885 | 936 | Her SSE ucu `SseWriter` içinde kendi keep-alive'ını yazar; aralık yeni public `TraconEndpointOptions.StreamKeepAliveInterval` (15 sn); workflow slot beklemesi run satırı açıldıktan sonradır (F-325) (kullanıcı kararı) 👤 |
+| K-886 | 937 | Terminal job değişmez (`IJobStore` sözleşmesi + iki contract case); kira dolumu denemedir, sınırı aşan job `AttemptsExhausted` ile koşmadan düşer; yenileme tick başına, kiranın üçte birinde; owner fencing ertelendi (F-326) (kullanıcı kararı) 👤 |
+| K-887 | 938 | Workflow katılımcısı cevap veremeyen adımı düşürür (`ChildRefusalMode.Fail`), delegasyon metin döner; süre aşımı yeni public `TraconChildRunTimeoutException`; workflow satırı `ErrorType` + sınıf taşır (F-328 · F-314) (kullanıcı kararı) 👤 |
+| K-888 | 939 | Retention `AwaitingInput` run'ın istek olayını ve checkpoint'lerini tutar; checkpoint temizliği oturumda bekleyen/koşan run varken atlanır; istek kimliği olay `Text`'inden okunur (F-327) (kullanıcı kararı) 👤 |
+| K-889 | 940 | Akışsız döngü son turun cevabını, tüm turların usage toplamıyla döner; `AggregatedResponseGuard` MAF OTel'in bayat `RawRepresentation` kurulumunu keser; akışlı usage çağrıların toplamıdır; doğrulama son asistan mesajını okur (F-317 · F-329) (kullanıcı kararı) 👤 |
+| K-890 | 941 | Parametreli agent her yolda bağlanır ya da düşer: `BuildAgent` varsayılanları bağlar, eksik zorunlu parametrede `UnboundParameterGuard`; giriş uçları erken reddeder; `/run` kapısı ve eval kod tanımını okur; replay ve devam parametreli tanımı reddeder (F-330) (kullanıcı kararı) 👤 |
+| K-891 | 942 | Descriptor, derlenen tanım sürümünü tanımlar: iç `IDescribingAgentSource` seam'i, tek `AgentDescriptorProjection`; üçüncü taraf kaynakta yalnız `Version` değişir (F-331) (kullanıcı kararı) 👤 |

@@ -148,10 +148,12 @@ try {
 ```
 
 The threshold counts **bytes, not frames**. Tracon sends a `: waiting` comment
-every `RunEventPollInterval` (250 ms by default) for as long as a run is going,
-and `readSse` skips comments — so a run that is thinking yields no frames at
-all while it thinks, and a frame-based timeout would cut it off. Set the
-threshold above that interval, with room for a slow link. Leave the option out
+on a run's event stream every `RunEventPollInterval` (250 ms by default), and on
+every other stream - a workflow run, an agent run - whenever it has written
+nothing for `StreamKeepAliveInterval` (15 seconds by default). `readSse` skips
+comments, so a run that is thinking yields no frames at all while it thinks,
+and a frame-based timeout would cut it off. Set the threshold above the
+longer of those intervals, with room for a slow link. Leave the option out
 and the stream waits forever, which is the behavior every existing caller
 already has.
 

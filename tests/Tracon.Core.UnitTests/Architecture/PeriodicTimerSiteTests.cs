@@ -34,7 +34,7 @@ public sealed class PeriodicTimerSiteTests
         ["src/Tracon.Core/Models/ModelProviderHealthBackgroundService.cs"] = "TraconHealthOptions.BackgroundInterval — TraconOptionsValidator",
         ["src/Tracon.Core/Recording/RunHeartbeatWriter.cs"] = "RunReconciliationOptions.HeartbeatInterval — RunReconciliationOptionsValidator",
         ["src/Tracon.Core/Recording/RunReconciliationService.cs"] = "RunReconciliationOptions.ScanInterval — RunReconciliationOptionsValidator",
-        ["src/Tracon.Core/Scheduling/JobWorkerBackgroundService.cs"] = "TraconSchedulingOptions.PollInterval and LeaseDuration / 2 — TraconSchedulingOptionsValidator",
+        ["src/Tracon.Core/Scheduling/JobWorkerBackgroundService.cs"] = "TraconSchedulingOptions.PollInterval and LeaseDuration / 3 — TraconSchedulingOptionsValidator",
     };
 
     [Fact]

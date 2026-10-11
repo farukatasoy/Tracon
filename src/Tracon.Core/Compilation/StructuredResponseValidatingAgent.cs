@@ -166,7 +166,8 @@ internal sealed class StructuredResponseValidatingAgent : DelegatingAIAgent
 
         for (var attempt = 1; ; attempt++)
         {
-            var reason = await ValidationReasonAsync(format, response.Text, cancellationToken).ConfigureAwait(false);
+            var answer = FinalAnswerText(response.Messages);
+            var reason = await ValidationReasonAsync(format, answer, cancellationToken).ConfigureAwait(false);
 
             if (reason is null)
             {
@@ -190,7 +191,7 @@ internal sealed class StructuredResponseValidatingAgent : DelegatingAIAgent
 
             await RepairAttemptedAsync(format, attempt + 1, maxAttempts, cancellationToken).ConfigureAwait(false);
 
-            var repairMessages = BuildRepairMessages(originalMessages, response.Text, reason);
+            var repairMessages = BuildRepairMessages(originalMessages, answer, reason);
 
             // session: null is deliberate - see the class remarks on why the
             // repair exchange must not reach the caller's own session.
@@ -232,7 +233,7 @@ internal sealed class StructuredResponseValidatingAgent : DelegatingAIAgent
         // always the FIRST and ONLY attempt on the streaming path, regardless
         // of MaxRepairAttempts.
         var format = RequestedFormat!;
-        var text = AgentResponseExtensions.ToAgentResponse(updates).Text;
+        var text = FinalAnswerText(AgentResponseExtensions.ToAgentResponse(updates).Messages);
         var reason = await ValidationReasonAsync(format, text, cancellationToken).ConfigureAwait(false);
 
         if (reason is null)
@@ -243,6 +244,38 @@ internal sealed class StructuredResponseValidatingAgent : DelegatingAIAgent
         await RejectedAsync(format, reason, attempt: 1, maxAttempts: 1, repairSuppressed: false, cancellationToken).ConfigureAwait(false);
 
         throw new TraconStructuredResponseException(reason);
+    }
+
+    /// <summary>
+    /// The text to validate: the last assistant message that carries text.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A response is not one message. A tool round leaves the text
+    /// the model wrote before its call ahead of the answer, and a loop leaves
+    /// one reply per iteration (and, on a stream, the loop's own feedback).
+    /// <see cref="AgentResponse.Text"/> joins them all, so a valid final JSON
+    /// was rejected as "not valid JSON" because an earlier draft or a remark
+    /// before a tool call came with it.
+    /// </para>
+    /// <para>
+    /// A response with no assistant text at all falls back to the joined text,
+    /// so it is still judged — empty is rejected as empty.
+    /// </para>
+    /// </remarks>
+    internal static string FinalAnswerText(IList<ChatMessage> messages)
+    {
+        for (var index = messages.Count - 1; index >= 0; index--)
+        {
+            var message = messages[index];
+
+            if (message.Role == ChatRole.Assistant && !string.IsNullOrWhiteSpace(message.Text))
+            {
+                return message.Text;
+            }
+        }
+
+        return string.Concat(messages.Select(static message => message.Text));
     }
 
     /// <summary>

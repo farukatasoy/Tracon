@@ -700,6 +700,8 @@ Tracon.TraconEndpointOptions.RequireRolePolicies.get -> bool
 Tracon.TraconEndpointOptions.RequireRolePolicies.set -> void
 Tracon.TraconEndpointOptions.RunEventPollInterval.get -> System.TimeSpan
 Tracon.TraconEndpointOptions.RunEventPollInterval.set -> void
+Tracon.TraconEndpointOptions.StreamKeepAliveInterval.get -> System.TimeSpan
+Tracon.TraconEndpointOptions.StreamKeepAliveInterval.set -> void
 Tracon.TraconEndpointOptions.TraconEndpointOptions() -> void
 Tracon.TraconEndpointRouteBuilderExtensions
 Tracon.TraconHealthCheckExtensions

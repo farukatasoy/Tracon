@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 namespace Tracon;
@@ -17,11 +18,17 @@ namespace Tracon;
 /// validator; this type only adds the HTTP shape).
 /// </para>
 /// <para>
-/// A code-defined agent, or one with no stored definition, has no schema at
-/// all - <see cref="AgentParameterValidator.ValidateValues"/> then rejects
-/// any supplied value as unknown, and passes when none was supplied. This is
-/// the existing, unchanged behavior for the overwhelming majority of agents
-/// that never opt into this feature.
+/// The schema is read from the definition the catalog would run: a
+/// definition registered in code (<c>AddAgent(AgentDefinition)</c>) wins over
+/// a stored one of the same name, as it does in the catalog. An agent with no
+/// definition at all (a factory agent, an agent source) has no schema -
+/// <see cref="AgentParameterValidator.ValidateValues"/> then rejects any
+/// supplied value as unknown, and passes when none was supplied.
+/// </para>
+/// <para>
+/// The gate used to read the definition store only, so a parameterized
+/// definition registered in code — the shape the site's C# example shows —
+/// refused its own parameters as unknown, and ran unbound without them.
 /// </para>
 /// </remarks>
 internal static class AgentParameterGate
@@ -29,6 +36,7 @@ internal static class AgentParameterGate
     /// <summary>Looks up the schema and checks the supplied values against it.</summary>
     /// <param name="optionsMonitor">The runtime settings, for <see cref="TraconOptions.MaxParameterValueLength"/>.</param>
     /// <param name="definitionStore">The definition store.</param>
+    /// <param name="services">The request's services, for the definitions registered in code.</param>
     /// <param name="agentName">The agent to check parameters for.</param>
     /// <param name="version">
     /// The specific definition version to check against (an A/B experiment
@@ -43,14 +51,15 @@ internal static class AgentParameterGate
     public static async ValueTask<AgentParameterGateResult> CheckAsync(
         IOptionsMonitor<TraconOptions> optionsMonitor,
         IAgentDefinitionStore definitionStore,
+        IServiceProvider services,
         string agentName,
         int? version,
         IReadOnlyDictionary<string, string>? parameters,
         CancellationToken cancellationToken)
     {
-        var definition = version is { } requestedVersion
-            ? await definitionStore.GetVersionAsync(agentName, requestedVersion, cancellationToken).ConfigureAwait(false)
-            : await definitionStore.GetAsync(agentName, cancellationToken).ConfigureAwait(false);
+        var (definition, origin) = await AgentDefinitionLookup
+            .FindAsync(services.GetServices<CodeAgentRegistration>(), definitionStore, agentName, version, cancellationToken)
+            .ConfigureAwait(false);
 
         var schema = definition?.Parameters ?? [];
         var result = AgentParameterValidator.ValidateValues(
@@ -58,10 +67,13 @@ internal static class AgentParameterGate
             parameters,
             optionsMonitor.CurrentValue.MaxParameterValueLength);
 
-        return new AgentParameterGateResult(result.IsValid ? null : BuildProblem(result), definition);
+        return new AgentParameterGateResult(result.IsValid ? null : Problem(result), definition, origin);
     }
 
-    private static IResult BuildProblem(AgentParameterValidationResult result)
+    /// <summary>The <c>400</c> for a failed parameter check, the same shape on every surface.</summary>
+    /// <param name="result">The failed check.</param>
+    /// <returns>The response.</returns>
+    public static IResult Problem(AgentParameterValidationResult result)
     {
         var missing = new List<string>();
         var unknown = new List<string>();
@@ -100,4 +112,8 @@ internal static class AgentParameterGate
 /// <summary>The outcome of <see cref="AgentParameterGate.CheckAsync"/>.</summary>
 /// <param name="Problem">The <c>400</c> response to return; <see langword="null"/> when validation passed.</param>
 /// <param name="Definition">The resolved definition, when one exists.</param>
-internal readonly record struct AgentParameterGateResult(IResult? Problem, AgentDefinition? Definition);
+/// <param name="Origin">Where <paramref name="Definition"/> comes from.</param>
+internal readonly record struct AgentParameterGateResult(
+    IResult? Problem,
+    AgentDefinition? Definition,
+    AgentDefinitionOrigin Origin);

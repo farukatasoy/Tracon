@@ -475,7 +475,15 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
                 {
                     if (content is UsageContent usageContent)
                     {
-                        usage = usageContent.Details;
+                        // 🚨 SUMMED, not overwritten (F-317). A stream carries one
+                        // UsageContent per MODEL CALL — every provider adapter Tracon
+                        // ships emits it once, at the end of its call — so a run with
+                        // a tool round or a loop iteration has several. Keeping the
+                        // last one recorded only the final call: a three-turn loop
+                        // recorded a third of its tokens, cost and quota. Summing is
+                        // what MEAI's own ToChatResponse does. A fresh accumulator,
+                        // so no UsageDetails owned by an inner client is modified.
+                        (usage ??= new UsageDetails()).Add(usageContent.Details);
                     }
                 }
 

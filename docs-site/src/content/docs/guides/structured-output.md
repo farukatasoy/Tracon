@@ -178,6 +178,11 @@ after the model answers and before the run closes, for any agent whose
 }
 ```
 
+The check reads the **answer**: the last assistant message that carries text. A
+response can hold more than that — the text a model wrote before it called a tool,
+or the earlier drafts of a harness loop — and none of it is part of the structured
+answer.
+
 With it on, Tracon first checks well-formedness itself: the response must be
 non-empty and parse as JSON. That check alone catches the two failure modes every
 consumer would otherwise check by hand — an empty response and a response cut off

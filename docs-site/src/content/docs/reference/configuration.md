@@ -369,8 +369,8 @@ Every interval that drives a background timer must be between 1 millisecond and 
 `RunReconciliation:HeartbeatInterval`, `RunReconciliation:ScanInterval`,
 `Approvals:ScanInterval`, `Canary:ScanInterval`, `Health:BackgroundInterval`,
 `Mcp:RefreshInterval`, and the two `Observability` gauge intervals. A lease renews at a
-fraction of its length, so `Scheduling:LeaseDuration` may be at most about 99 days and
-`SingletonExecution:LeaseDuration` about 149 days. A value outside its range fails at
+third of its length, so `Scheduling:LeaseDuration` and `SingletonExecution:LeaseDuration`
+may each be at most about 149 days. A value outside its range fails at
 startup and names the option. Each of these is checked only while the feature that owns
 its timer is on. `Retention:BatchDelay` may be zero and is always held to at most about
 49.7 days.
@@ -496,13 +496,13 @@ only after retention is enabled. A database policy for a target takes precedence
 
 | Child key | Default `MaxAgeDays` | `Archive` default |
 |---|---:|---:|
-| `RunEvents` | 30 days | `false` |
+| `RunEvents` | 30 days; a waiting workflow's request is kept | `false` |
 | `ToolInvocations` | 90 days | `false` |
 | `Spans` | 14 days | `false` |
 | `Jobs` | 30 days; completed jobs only | `false` |
 | `WebhookDeliveries` | 7 days; delivered rows only | `false` |
 | `EvalCaseResults` | 180 days | `false` |
-| `WorkflowCheckpoints` | 7 days after completion | `false` |
+| `WorkflowCheckpoints` | 7 days after completion; a waiting workflow's are kept | `false` |
 | `SkillScriptGrants` | 30 days after expiry or revocation | `false` |
 | `Attachments` | 7 days for orphaned rows | `false` |
 | `Sessions` | Disabled, `null` | `false` |
@@ -512,6 +512,10 @@ only after retention is enabled. A database policy for a target takes precedence
 | `VoiceSessions` | 30 days | `false` |
 | `RunScores` | 180 days | `false` |
 | `DocumentEmbeddings` | Disabled, `null` | `false` |
+
+A workflow run waiting for a human answer (`AwaitingInput`) keeps its pending
+request event and its checkpoints for as long as it waits, whatever their age: the
+request lives only in that event, and the answer resumes from those checkpoints.
 
 `IdempotencyKeys` is not a bindable child section. Its one-day option default still
 applies when configuration defaults are enabled. Change that target through
@@ -666,6 +670,7 @@ configuration section.
 | `EnableDiagnosticsEndpoint` | `false` |
 | `MapOpenAIConversations` | `true` |
 | `RunEventPollInterval` | 250 ms |
+| `StreamKeepAliveInterval` | 15 seconds |
 | `AllowedOrigins` | empty (no CORS header sent) |
 
 ```csharp
@@ -685,6 +690,15 @@ disappear from the OpenAPI document, while `/v1/responses` and
 never calls those routes exposes; it is not a security control, since the
 routes go through the same role policies, API key scopes, session ownership and
 `IRunAuthorizationHandler` gate as `/api/sessions`.
+
+`StreamKeepAliveInterval` is the longest a streaming response (an agent or
+workflow run, a resume or answer, the OpenAI-compatible endpoints) stays
+silent: when nothing else was written for that long, it writes an SSE comment
+line, which SSE readers skip. A reader with an idle limit takes a silent
+stream for a dead connection and closes it, and a closed connection cancels the
+run. Keep the value below the shortest idle timeout between the server and its
+readers - a reverse proxy's read timeout - and below 30 seconds while the
+console is in use.
 
 Do not enable remote access without a token, API key, or authorization policy: with
 none of them configured, an anonymous remote request receives `401`, and an anonymous

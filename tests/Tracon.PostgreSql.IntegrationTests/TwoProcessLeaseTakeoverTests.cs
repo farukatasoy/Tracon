@@ -187,6 +187,46 @@ public sealed class TwoProcessLeaseTakeoverTests(PostgresFixture fixture) : IAsy
     }
 
     [Fact]
+    public async Task A_dead_workers_job_limited_to_one_attempt_is_failed_not_run_again()
+    {
+        // F-326: the takeover above is right for a job with attempts left. A
+        // job limited to ONE attempt - every queued agent run by default - was
+        // taken over the same way and ran a second time; the lease query counts
+        // the attempt but never compared it with the limit.
+        var schemaName = PostgresTestContext.NewSchemaName();
+        await using var observer = await MigratedContextAsync(schemaName);
+
+        await using var workerA = await StartWorkerAsync(schemaName, "worker-a", WorkDuration);
+        await using var workerB = await StartWorkerAsync(schemaName, "worker-b", WorkDuration);
+
+        var job = await observer.Jobs.EnqueueAsync(
+            TestData.Job() with { HandlerKey = WorkerHarnessContract.HandlerKey, MaxAttempts = 1 },
+            ["only-item"]);
+
+        await WaitForLeaseAsync(observer, job.Id);
+        await WaitForExecutionsAsync(HarnessExecutionLog.StartedStage, count: 1, TimeSpan.FromSeconds(30));
+
+        var doomed = string.Equals(FirstStarter(), "worker-a", StringComparison.Ordinal) ? workerA : workerB;
+
+        await doomed.KillAsync();
+
+        var failed = await WaitForStatusAsync(
+            observer,
+            job,
+            JobStatus.Failed,
+            LeaseDuration + WorkDuration + TimeSpan.FromSeconds(60));
+
+        var starts = HarnessExecutionLog.Read(LogPath)
+            .Where(entry => string.Equals(entry.Stage, HarnessExecutionLog.StartedStage, StringComparison.Ordinal))
+            .ToList();
+
+        starts.Count.ShouldBe(1, "a job limited to one attempt entered the handler a second time.");
+        failed.Attempt.ShouldBe(2);
+        failed.ErrorMessage.ShouldNotBeNull();
+        failed.ErrorMessage.ShouldStartWith(JobErrorCodes.AttemptsExhausted);
+    }
+
+    [Fact]
     public async Task An_api_node_leaves_the_queued_job_untouched()
     {
         var schemaName = PostgresTestContext.NewSchemaName();

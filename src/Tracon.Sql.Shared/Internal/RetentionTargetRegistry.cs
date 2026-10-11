@@ -72,11 +72,23 @@ internal static class RetentionTargetRegistry
 
         string Table(string name) => dialect.QualifyTable(name);
 
+        // 🚨 A workflow run waiting for a human keeps what answering it needs
+        // (F-327, K-128, K-130): its pending request lives ONLY in its
+        // WorkflowRequest event, and the answer resumes from its checkpoints.
+        // Both were deleted by age like any other row — the run has a
+        // completed_at once it pauses — and the request became permanently
+        // unanswerable. An answered request leaves its run AwaitingInput too
+        // (a second answer opens a new branch, K-130), so these rows are kept
+        // for as long as the run waits; an expiry for them is F-319's scope.
+        var awaitingInput = (int)RunStatus.AwaitingInput;
+        var workflowRequest = (int)RunEventType.WorkflowRequest;
+
         return target switch
         {
             RetentionTargets.RunEvents => new RetentionTargetDefinition(
                 Table("run_events"),
-                "created_at < @cutoff",
+                $"created_at < @cutoff AND NOT (type = {workflowRequest} AND EXISTS (SELECT 1 FROM {Table("runs")} rw "
+                    + $"WHERE rw.id = {Table("run_events")}.run_id AND rw.status = {awaitingInput}))",
                 $"EXISTS (SELECT 1 FROM {Table("runs")} rt "
                     + $"WHERE rt.id = {Table("run_events")}.run_id AND rt.tenant_id = @tenant_id)",
                 "created_at",
@@ -148,13 +160,19 @@ internal static class RetentionTargetRegistry
             // a correlated subquery over runs.completed_at (the same pattern as
             // eval_case_results). The correlation is the FULLY QUALIFIED name here as
             // well — the 🚨 note above applies.
+            //
+            // A run AwaitingInput keeps its checkpoints (see the note at the top):
+            // the run's status filter is in BOTH expressions, so such a row is
+            // neither deleted nor counted toward MaxRows (its threshold is NULL).
             RetentionTargets.WorkflowCheckpoints => new RetentionTargetDefinition(
                 Table("workflow_checkpoints"),
                 $"EXISTS (SELECT 1 FROM {Table("runs")} r " +
-                $"WHERE r.id = {Table("workflow_checkpoints")}.run_id AND r.completed_at < @cutoff)",
+                $"WHERE r.id = {Table("workflow_checkpoints")}.run_id AND r.completed_at < @cutoff " +
+                $"AND r.status <> {awaitingInput})",
                 "tenant_id = @tenant_id",
                 "created_at",
-                $"(SELECT r.completed_at FROM {Table("runs")} r WHERE r.id = {Table("workflow_checkpoints")}.run_id)"),
+                $"(SELECT r.completed_at FROM {Table("runs")} r WHERE r.id = {Table("workflow_checkpoints")}.run_id " +
+                $"AND r.status <> {awaitingInput})"),
 
             // Expired OR revoked grants. The threshold is whichever of the two
             // columns is filled (COALESCE); when both are NULL the row limit query

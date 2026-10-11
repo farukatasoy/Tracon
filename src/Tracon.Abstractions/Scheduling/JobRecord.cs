@@ -54,7 +54,7 @@ public sealed record JobRecord
     {
         get;
         init => field = FreeFormJson.OrEmpty(value);
-    }
+    } = FreeFormJson.Empty;
 
     /// <summary>The total number of items.</summary>
     public int TotalItems { get; init; }
