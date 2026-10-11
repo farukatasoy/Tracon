@@ -1913,7 +1913,7 @@ aşağıdadır. Engelleyici kararlar aynı gün sohbette alındı.
 
 | Kalem | Faz |
 |---|---|
-| F-293 | [Faz 192](../192-DONGU-TUKENME-POLITIKASI.md) |
+| F-293 | [Faz 192](fazlar/192-DONGU-TUKENME-POLITIKASI.md) |
 | F-266 | [Faz 193](../193-NET8-NET9-DUSURME.md) — uygulama 2026-11-10'dan önce başlamaz |
 
 ### F-293 · Loop tükenince veya ölçüt hata verince run düşebilsin
