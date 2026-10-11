@@ -9,24 +9,33 @@ namespace Tracon;
 /// </summary>
 internal sealed class McpTenantTools
 {
+    /// <summary>The binding reported for a name this snapshot does not serve.</summary>
+    public const string AbsentBinding = "absent";
+
+    /// <summary>The binding reported for a served tool whose connection is not known.</summary>
+    public const string UnboundBinding = "unbound";
+
     private readonly Dictionary<string, AIFunctionDeclaration> _tools;
     private readonly Dictionary<string, string> _sources;
+    private readonly Dictionary<string, string> _bindings;
     private readonly string[] _serverPrefixes;
 
     private McpTenantTools(
         Dictionary<string, AIFunctionDeclaration> tools,
         Dictionary<string, string> sources,
+        Dictionary<string, string> bindings,
         IReadOnlyList<ToolDescriptor> descriptors,
         string[] serverPrefixes)
     {
         _tools = tools;
         _sources = sources;
+        _bindings = bindings;
         Descriptors = descriptors;
         _serverPrefixes = serverPrefixes;
     }
 
     /// <summary>The empty set.</summary>
-    public static McpTenantTools Empty { get; } = new([], [], [], []);
+    public static McpTenantTools Empty { get; } = new([], [], [], [], []);
 
     /// <summary>The tool descriptors shown in the UI; sorted by name.</summary>
     public IReadOnlyList<ToolDescriptor> Descriptors { get; }
@@ -71,6 +80,31 @@ internal sealed class McpTenantTools
         return null;
     }
 
+    // F-305 / K-880: a failed refresh counts as absent by user decision; keeping the
+    // last good list on a transient failure is the catalog's job, not the key's.
+    /// <summary>Gets the binding of the tool with the given name.</summary>
+    /// <param name="name">The tool name.</param>
+    /// <returns>
+    /// The <see cref="McpConnection.Generation"/> of the connection the tool in this
+    /// snapshot calls through; <see cref="UnboundBinding"/> when the tool is served
+    /// but its connection is not known; <see cref="AbsentBinding"/> when the snapshot
+    /// holds no such tool.
+    /// </returns>
+    /// <remarks>
+    /// "Absent" covers a deleted or disabled server and a server whose last refresh
+    /// failed alike: a compiled agent keyed with a live binding is then not served,
+    /// and the next resolve fails the way an uncached compile does.
+    /// </remarks>
+    public string GetBindingFingerprint(string name)
+    {
+        if (_bindings.TryGetValue(name, out var binding))
+        {
+            return binding;
+        }
+
+        return _tools.ContainsKey(name) ? UnboundBinding : AbsentBinding;
+    }
+
     /// <summary>Builds an immutable set from registrations.</summary>
     /// <param name="registrations">The discovered tool registrations.</param>
     /// <param name="logger">The logger name collisions are reported to.</param>
@@ -95,6 +129,11 @@ internal sealed class McpTenantTools
     /// Every server registered for the tenant, reachable or not. A tool named like
     /// one of theirs but missing from the snapshot reports an unresolved source.
     /// </param>
+    /// <param name="connectionGenerations">
+    /// The <see cref="McpConnection.Generation"/> of the connection each registration
+    /// calls through, or <see langword="null"/> when none is known. A served tool
+    /// missing from the map reports <see cref="UnboundBinding"/>.
+    /// </param>
     /// <returns>The set.</returns>
     /// <remarks>
     /// A name collision is <strong>not an error</strong>. In the code
@@ -115,10 +154,12 @@ internal sealed class McpTenantTools
         ILogger<ValidatingAIFunction> validatingLogger,
         int? defaultMaxOutputBytes = null,
         IReadOnlyDictionary<TraconToolRegistration, string>? sourceFingerprints = null,
-        IReadOnlyCollection<string>? serverNames = null)
+        IReadOnlyCollection<string>? serverNames = null,
+        IReadOnlyDictionary<TraconToolRegistration, long>? connectionGenerations = null)
     {
         var tools = new Dictionary<string, AIFunctionDeclaration>(registrations.Count, StringComparer.Ordinal);
         var sources = new Dictionary<string, string>(registrations.Count, StringComparer.Ordinal);
+        var bindings = new Dictionary<string, string>(registrations.Count, StringComparer.Ordinal);
         var descriptors = new List<ToolDescriptor>(registrations.Count);
 
         foreach (var registration in registrations)
@@ -189,6 +230,12 @@ internal sealed class McpTenantTools
                 sources[name] = source;
             }
 
+            // Same rule: the connection behind the name is the winner's.
+            if (connectionGenerations is not null && connectionGenerations.TryGetValue(registration, out var generation))
+            {
+                bindings[name] = generation.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            }
+
             descriptors.Add(descriptor);
         }
 
@@ -196,6 +243,6 @@ internal sealed class McpTenantTools
 
         var prefixes = serverNames is null ? [] : serverNames.Select(static server => server + "_").ToArray();
 
-        return new McpTenantTools(tools, sources, descriptors, prefixes);
+        return new McpTenantTools(tools, sources, bindings, descriptors, prefixes);
     }
 }

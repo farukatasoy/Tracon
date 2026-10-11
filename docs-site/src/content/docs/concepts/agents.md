@@ -169,7 +169,8 @@ error: the response is `200` with a report, because "this definition is invalid"
 answer, not a transport failure.
 
 Compiled agents are cached by name, version, and a fingerprint of their dependencies,
-so changing a skill invalidates the agents that use it.
+so changing a skill, the tenant's egress policy, or an MCP server that serves one of
+the agent's tools invalidates the agents that use it. The next run compiles again.
 
 ## Versions
 

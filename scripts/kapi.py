@@ -539,6 +539,16 @@ def compare_allocations(
         baseline_bytes = baseline[name]["allocatedBytes"]
         current_bytes = current[name]["allocatedBytes"]
 
+        # A benchmark BenchmarkDotNet could not build or run still appears in
+        # the report, with no measurement (2026-10-11: a second project of the
+        # same name under .claude/worktrees). Comparing None crashed the gate.
+        if current_bytes is None:
+            messages.append(
+                f"❌ {name}: ölçüm üretmedi - BenchmarkDotNet çıktısındaki hataya bak "
+                "(ör. aynı adlı ikinci bir Tracon.Benchmarks.csproj)")
+            exit_code = 1
+            continue
+
         if current_bytes > baseline_bytes:
             messages.append(
                 f"❌ {name}: tahsis arttı ({baseline_bytes} B → {current_bytes} B, +{current_bytes - baseline_bytes} B)")

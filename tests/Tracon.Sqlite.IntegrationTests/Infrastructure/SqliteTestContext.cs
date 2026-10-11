@@ -1,4 +1,5 @@
 using System.Globalization;
+using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Tracon.Sqlite.IntegrationTests.Infrastructure;
@@ -11,7 +12,8 @@ namespace Tracon.Sqlite.IntegrationTests.Infrastructure;
 /// <see cref="SqliteSchemaFixture"/>); isolation between tests is provided by
 /// <see cref="ResetDataAsync"/>, not by a separate prefix per test.
 /// <c>MigrationRunnerTests</c> separately verifies that the <c>TablePrefix</c> setting works
-/// correctly with a non-default prefix.
+/// correctly with a non-default prefix. Each prefix lives in its own database
+/// file (<see cref="SqliteFixture.ConnectionStringFor"/>, F-307).
 /// </remarks>
 internal sealed class SqliteTestContext : IAsyncDisposable
 {
@@ -24,6 +26,9 @@ internal sealed class SqliteTestContext : IAsyncDisposable
     // assembly. The deliberate concurrency tests call ApplyAsync directly and still run
     // in parallel.
     private static readonly SemaphoreSlim SchemaCreationLock = new(1, 1);
+
+    /// <summary>Whether this context created its prefix, and so its database file.</summary>
+    private bool _ownsDatabaseFile;
 
     private SqliteTestContext(
         SqliteDataSource dataSource,
@@ -242,6 +247,7 @@ internal sealed class SqliteTestContext : IAsyncDisposable
         ArgumentNullException.ThrowIfNull(fixture);
 
         var context = Create(fixture, NewTablePrefix(), tenantContext, enableReadViews);
+        context._ownsDatabaseFile = true;
 
         if (applyMigrations)
         {
@@ -265,7 +271,7 @@ internal sealed class SqliteTestContext : IAsyncDisposable
     /// and tenant isolation tests.
     /// </summary>
     /// <param name="fixture">The running SQLite database file.</param>
-    /// <param name="tablePrefix">The table prefix to use.</param>
+    /// <param name="tablePrefix">The table prefix to use; the context opens that prefix's database file.</param>
     /// <param name="tenantId">The tenant identifier.</param>
     /// <returns>A new context pointing at the same prefix.</returns>
     public static SqliteTestContext Create(
@@ -291,7 +297,10 @@ internal sealed class SqliteTestContext : IAsyncDisposable
 
         var options = new TraconSqliteOptions
         {
-            ConnectionString = fixture.ConnectionString,
+            // One file per prefix (F-307): a context never shares SQLite's
+            // writer lock with another test class, only with contexts that
+            // name the same prefix on purpose.
+            ConnectionString = fixture.ConnectionStringFor(tablePrefix),
             TablePrefix = tablePrefix,
             AutoApplyMigrations = false,
             CommandTimeoutSeconds = 30,
@@ -334,7 +343,9 @@ internal sealed class SqliteTestContext : IAsyncDisposable
     /// <remarks>
     /// <para>
     /// SQLite has no schema concept; each test prefix drops its own set of
-    /// objects so that hundreds of test tables do not accumulate in a single file.
+    /// objects. The context that CREATED the prefix then deletes the prefix's
+    /// database file as well (F-307: one file per prefix), so the files do not
+    /// pile up in the temporary directory during a run.
     /// </para>
     /// <para>
     /// 🚨 Phase 111: views are dropped FIRST and separately from tables --
@@ -368,6 +379,40 @@ internal sealed class SqliteTestContext : IAsyncDisposable
         }
 
         await DataSource.DisposeAsync().ConfigureAwait(false);
+
+        if (_ownsDatabaseFile)
+        {
+            DeleteDatabaseFile();
+        }
+    }
+
+    /// <summary>Deletes this prefix's database file and its WAL journal, best effort.</summary>
+    /// <remarks>
+    /// Measured without it: about 3 MB per prefix and 330 MB at the peak of one
+    /// test run. The pool is cleared first because Windows refuses to delete a
+    /// file a pooled connection still holds; a file that stays locked is left to
+    /// <see cref="SqliteFixture.DisposeAsync"/>, which removes the whole directory.
+    /// </remarks>
+    private void DeleteDatabaseFile()
+    {
+        using (var connection = new SqliteConnection(Options.ConnectionString))
+        {
+            SqliteConnection.ClearPool(connection);
+        }
+
+        var path = new SqliteConnectionStringBuilder(Options.ConnectionString).DataSource;
+
+        foreach (var file in new[] { path + "-wal", path + "-shm", path })
+        {
+            try
+            {
+                File.Delete(file);
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                // Still open elsewhere; the fixture's directory cleanup takes it.
+            }
+        }
     }
 
     private async ValueTask<List<string>> ReadObjectNamesAsync(string type)

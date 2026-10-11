@@ -16,6 +16,10 @@ namespace Tracon;
 /// </summary>
 internal sealed class McpConnection : IAsyncDisposable
 {
+    // Process-wide: two connections never share a generation, not even the
+    // connection that replaces a deleted server re-added with the same definition.
+    private static long _lastGeneration;
+
     private readonly McpClient _client;
     private readonly string _serverName;
     private readonly bool _requiresApproval;
@@ -53,11 +57,27 @@ internal sealed class McpConnection : IAsyncDisposable
         _logger = logger;
         FingerprintValue = fingerprint;
         SourceFingerprint = sourceFingerprint;
+        Generation = Interlocked.Increment(ref _lastGeneration);
         Tools = [];
     }
 
     /// <summary>The fingerprint of the definition the connection was established from.</summary>
     public string FingerprintValue { get; }
+
+    // F-305 / K-880. The fingerprint would be a proxy for the embedded object, the
+    // exact mistake K-811 recorded for the definition version.
+    /// <summary>
+    /// The identity of this connection instance, unique for the life of the process.
+    /// </summary>
+    /// <remarks>
+    /// Every tool in <see cref="Tools"/> calls the server through this instance, so a
+    /// compiled agent that holds one of them is only valid while this instance is the
+    /// tenant's live connection. The compiled-agent cache key carries it.
+    /// <see cref="FingerprintValue"/> cannot stand in for it: a server deleted and
+    /// re-added with the same definition gets a new connection with the same
+    /// fingerprint, and the old one is closed.
+    /// </remarks>
+    public long Generation { get; }
 
     /// <summary>
     /// The fingerprint of the endpoint this connection's tools come from

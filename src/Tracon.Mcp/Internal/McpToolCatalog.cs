@@ -28,6 +28,14 @@ namespace Tracon;
 /// definition <em>changes</em>. Closing an unchanged server's connection on
 /// every refresh would break a tool call in progress.
 /// </para>
+/// <para>
+/// A compiled agent holds tool objects bound to one connection. Each snapshot
+/// therefore records the <see cref="McpConnection.Generation"/> behind every tool,
+/// and the compiled-agent cache key carries it through
+/// <see cref="McpToolRegistry.GetBindingFingerprint"/>: when a connection is
+/// replaced or closed, the next resolve compiles again instead of serving an agent
+/// whose tools call a closed connection.
+/// </para>
 /// </remarks>
 internal sealed class McpToolCatalog : IAsyncDisposable
 {
@@ -139,6 +147,7 @@ internal sealed class McpToolCatalog : IAsyncDisposable
             {
                 var registrations = new List<TraconToolRegistration>();
                 var sources = new Dictionary<TraconToolRegistration, string>(ReferenceEqualityComparer.Instance);
+                var generations = new Dictionary<TraconToolRegistration, long>(ReferenceEqualityComparer.Instance);
                 var serverNames = new List<string>();
 
                 foreach (var server in await _servers.ListAsync(tenantId, cancellationToken).ConfigureAwait(false))
@@ -167,6 +176,7 @@ internal sealed class McpToolCatalog : IAsyncDisposable
                         foreach (var registration in connection.Tools)
                         {
                             sources[registration] = connection.SourceFingerprint;
+                            generations[registration] = connection.Generation;
                         }
                     }
                 }
@@ -185,7 +195,8 @@ internal sealed class McpToolCatalog : IAsyncDisposable
                         _loggerFactory.CreateLogger<ValidatingAIFunction>(),
                         _coreOptions.Value.Tools.DefaultMaxOutputBytes,
                         sources,
-                        serverNames);
+                        serverNames,
+                        generations);
                     total += registrations.Count;
                 }
             }

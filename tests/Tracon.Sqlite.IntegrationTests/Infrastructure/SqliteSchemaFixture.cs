@@ -7,12 +7,11 @@ namespace Tracon.Sqlite.IntegrationTests.Infrastructure;
 /// created once per class; each test resets its own data with
 /// <see cref="SqliteTestContext.ResetDataAsync"/>.
 /// </summary>
-/// <param name="database">The running SQLite database file.</param>
+/// <param name="database">The directory that holds the per-prefix SQLite files.</param>
 /// <remarks>
-/// 🚨 Because the prefix is one per class, migrations write to SQLite's SINGLE
-/// file in parallel; <see cref="SqliteDialect"/>'s prefix-scoped lock file
-/// (K-389) serializes these concurrent migrations — no separate locking
-/// mechanism is needed here.
+/// The prefix is one per class and so is its database file
+/// (<see cref="SqliteFixture.ConnectionStringFor"/>): classes that xunit runs
+/// in parallel never wait for each other's writer lock (F-307).
 /// </remarks>
 public sealed class SqliteSchemaFixture(SqliteFixture database) : IAsyncLifetime
 {

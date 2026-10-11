@@ -1,11 +1,7 @@
-using System.ComponentModel;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using ModelContextProtocol.Server;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 
 namespace Tracon.AspNetCore.FunctionalTests;
@@ -43,8 +39,8 @@ public sealed class McpApprovalRuleSourceTests
     [Fact]
     public async Task A_standing_rule_asks_again_after_the_endpoint_changes()
     {
-        await using var first = await LookupServer.StartAsync("from-endpoint-a");
-        await using var second = await LookupServer.StartAsync("from-endpoint-b");
+        await using var first = await LookupMcpServer.StartAsync("from-endpoint-a");
+        await using var second = await LookupMcpServer.StartAsync("from-endpoint-b");
         await using var host = await StartAsync(runs: 4);
 
         var agentsAdmin = await CreateKeyAsync(host, "AgentsAdmin", "AgentsRead");
@@ -84,8 +80,8 @@ public sealed class McpApprovalRuleSourceTests
     [Fact]
     public async Task Re_adding_a_server_under_the_same_name_with_another_endpoint_asks_again()
     {
-        await using var first = await LookupServer.StartAsync("from-endpoint-a");
-        await using var second = await LookupServer.StartAsync("from-endpoint-b");
+        await using var first = await LookupMcpServer.StartAsync("from-endpoint-a");
+        await using var second = await LookupMcpServer.StartAsync("from-endpoint-b");
         await using var host = await StartAsync(runs: 2);
 
         var agentsAdmin = await CreateKeyAsync(host, "AgentsAdmin", "AgentsRead");
@@ -123,8 +119,8 @@ public sealed class McpApprovalRuleSourceTests
     public async Task A_remembered_approval_asks_again_after_the_endpoint_changes()
     {
         const string Agent = "mcp-agent-1";
-        await using var first = await LookupServer.StartAsync("from-endpoint-a");
-        await using var second = await LookupServer.StartAsync("from-endpoint-b");
+        await using var first = await LookupMcpServer.StartAsync("from-endpoint-a");
+        await using var second = await LookupMcpServer.StartAsync("from-endpoint-b");
         await using var host = await StartAsync(runs: 3);
 
         var agentsAdmin = await CreateKeyAsync(host, "AgentsAdmin", "AgentsRead");
@@ -208,8 +204,8 @@ public sealed class McpApprovalRuleSourceTests
     [Fact]
     public async Task Switching_approval_off_for_a_server_requires_the_security_admin_scope()
     {
-        await using var first = await LookupServer.StartAsync("from-waived-endpoint");
-        await using var second = await LookupServer.StartAsync("from-moved-endpoint");
+        await using var first = await LookupMcpServer.StartAsync("from-waived-endpoint");
+        await using var second = await LookupMcpServer.StartAsync("from-moved-endpoint");
         await using var host = await StartAsync(runs: 1);
 
         var agentsAdmin = await CreateKeyAsync(host, "AgentsAdmin", "AgentsRead");
@@ -396,45 +392,5 @@ public sealed class McpApprovalRuleSourceTests
         }
 
         throw new ShouldAssertException("The run did not return a pending approval request.");
-    }
-
-    /// <summary>A real MCP server on loopback that exposes one tool, <c>lookup</c>.</summary>
-    private sealed class LookupServer : IAsyncDisposable
-    {
-        private readonly WebApplication _app;
-
-        private LookupServer(WebApplication app, Uri endpoint)
-        {
-            _app = app;
-            Endpoint = endpoint;
-        }
-
-        public Uri Endpoint { get; }
-
-        public static async Task<LookupServer> StartAsync(string answer)
-        {
-            var builder = WebApplication.CreateSlimBuilder();
-            builder.Logging.ClearProviders();
-            builder.Services.AddMcpServer()
-                .WithHttpTransport()
-                .WithTools([McpServerTool.Create(
-                    [Description("Looks the value up.")] () => answer,
-                    new McpServerToolCreateOptions { Name = "lookup" })]);
-
-            var app = builder.Build();
-            app.Urls.Add("http://127.0.0.1:0");
-            app.MapMcp("/mcp");
-            await app.StartAsync();
-
-            var address = app.Urls.First().TrimEnd('/');
-
-            return new LookupServer(app, new Uri($"{address}/mcp"));
-        }
-
-        public async ValueTask DisposeAsync()
-        {
-            await _app.StopAsync();
-            await _app.DisposeAsync();
-        }
     }
 }
