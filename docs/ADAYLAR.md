@@ -119,6 +119,8 @@ aday `aday-kesfi` ile üretilir. Bugünkü kalemler 2026-10-11 podcast
 
 **Explainer turu eki (2026-10-11):** kuyruklu agent run'ı ve batch öğesi de `Parameters` ve `Documents` taşır (bugün 400: `AgentEndpoints.cs:1007-1015`). Bağlanmadan koşma kusuru F-330'dur.
 
+**F-330 kapanışı eki (2026-10-12):** değer taşımayan her yol artık varsayılanları bağlar; varsayılansız zorunlu parametre girişte reddedilir veya sağlayıcı çağrısından önce düşer (`UnboundParameterGuard`). Kalan iş değer TAŞIMAK: kuyruk ve batch payload'ı, replay ve onay-devamı için `run_inputs`'a parametre kaydı (migration) ve replay'de üzerine yazma.
+
 **Değer:** Bölüm başına ton, süre, revizyon sayısı tanım kopyalanmadan verilir; çok kiracılı host tek tanımı parametreyle sürer.
 
 **Mercek:** 1, 3, 5.
@@ -271,7 +273,7 @@ aday `aday-kesfi` ile üretilir. Bugünkü kalemler 2026-10-11 podcast
 
 **Kapsam:** İki store'a sürüm satırı, liste/getir/fark uçları, geri alma (yeni sürüm olarak), konsolda geçmiş paneli.
 
-**Explainer turu eki (2026-10-11):** workflow kök run'ına tanım sürümü damgası ve resume'da sürüm denetimi. Operatör şemayı canlı günceller; üretim boyunca agent sürümü sabit kalmalı (kusur F-331). L43 ilgisiz.
+**Explainer turu eki (2026-10-11):** workflow kök run'ına tanım sürümü damgası ve resume'da sürüm denetimi. Operatör şemayı canlı günceller; üretim boyunca agent sürümü sabit kalmalı (F-331 2026-10-12'de kapandı: sabit sürüm artık kendi tanımıyla tanımlanır; alt çağrıların sürümü F-352). L43 ilgisiz.
 
 **Değer:** "Dünkü düzenleme bozdu" anında geri dönüş.
 
@@ -345,7 +347,7 @@ aday `aday-kesfi` ile üretilir. Bugünkü kalemler 2026-10-11 podcast
 
 **Kapsam:** Düğüm başına zaman aşımı (kayıtta varsayılan, F-295 ayarıyla geçersiz kılma); aşımda düğümü iptal edip run'ı ayırt edilebilir hatayla bitirme (K-497'nin önerdiği `TimeoutAIFunction` deseni).
 
-**Explainer turu eki (2026-10-11):** agent düğümü süresi (`ChildDeadline` kurulum geneli 2 dk) ve workflow başına `RunTimeout`; aşımda run düşer (F-328).
+**Explainer turu eki (2026-10-11):** agent düğümü süresi (`ChildDeadline` kurulum geneli 2 dk) ve workflow başına `RunTimeout`; aşımda run düşer (F-328 ile 2026-10-12'den beri; bu adayın işi düğüm başına süre ayarıdır).
 
 **Değer:** Takılan bir dış servis bütün run'ı tutmaz.
 
@@ -379,9 +381,9 @@ aday `aday-kesfi` ile üretilir. Bugünkü kalemler 2026-10-11 podcast
 
 **Maliyet:** Public HTTP sözleşmesi (OpenAPI, istemci yenilemesi), job yükü şeması; migration beklenmez (ölçülmedi).
 
-**Risk:** At-least-once: kira kaybında öğe iki kez koşar (önce F-326). Kuyruğa giren respond için kota kapısı kararı (K-394).
+**Risk:** At-least-once: kira kaybında öğe iki kez koşar (F-326 2026-10-12'de kapandı: yenileme hatası artık kirayı düşürmez, deneme sınırı kira dolumunda da uygulanır). Kuyruğa giren respond için kota kapısı kararı (K-394).
 
-**Bağımlılık:** F-325 (keep-alive) ayrı kusurdur; F-319 (tek yanıt) respond kuyruğundan önce gelir.
+**Bağımlılık:** F-325 (keep-alive) 2026-10-12'de kapandı; F-319 (tek yanıt) respond kuyruğundan önce gelir.
 
 **Ekosistem:** Taranmadı (Tracon içi simetri boşluğu).
 
@@ -405,7 +407,9 @@ aday `aday-kesfi` ile üretilir. Bugünkü kalemler 2026-10-11 podcast
 
 **Risk:** K-128: kiracı geneli olay taraması pahalı olabilir — önce ölçülür. K-130 varsayılanı korunur.
 
-**Bağımlılık:** F-327 (istek kaybı) ve F-335 (konsol) önce kapanır.
+**F-327 kapanışı eki (2026-10-12):** retention artık `AwaitingInput` run'ın istek olayını ve checkpoint'lerini süresiz tutar (K-888); yanıtlanan istek de K-130 gereği `AwaitingInput` kalır, yani bu satırlar hiç silinmez. Bu adayın "süre" maddesi o büyümenin de sınırıdır: süre dolan istek kapanınca retention onu silebilir.
+
+**Bağımlılık:** F-335 (konsol) önce kapanır; F-327 kapandı.
 
 **Ekosistem:** MCP Tasks `input_required` aynı ihtiyacı protokolde karşılar; Tracon görev deposu onu boş bırakır (`RunBackedMcpTaskStore.cs`, 2026-10-11).
 
@@ -477,7 +481,7 @@ aday `aday-kesfi` ile üretilir. Bugünkü kalemler 2026-10-11 podcast
 
 **Risk:** Süreç içi sınır replika sayısıyla çoğalır; küme geneli sınır dağıtık sayaç ister.
 
-**Bağımlılık:** F-325 (slot beklemesindeki kapanış).
+**Bağımlılık:** Yok. F-325 (2026-10-12) slot bekleyen run'ın satırını beklemenin başında açar ve `Running` gösterir; görünür kuyruk o satıra `Queued` benzeri bir durum ekler.
 
 **Ekosistem:** Taranmadı.
 
@@ -501,7 +505,7 @@ aday `aday-kesfi` ile üretilir. Bugünkü kalemler 2026-10-11 podcast
 
 **Risk:** Token'ı dinlemeyen handler yine takılır — belgelenir.
 
-**Bağımlılık:** F-326 önce kapanır; F-303'ün job eşidir.
+**Bağımlılık:** F-326 kapandı (2026-10-12); F-303'ün job eşidir.
 
 **Ekosistem:** —
 
@@ -613,19 +617,14 @@ yolda da § *Kalemin yaşam döngüsü* uygulanır.
 
 ### Kusur giderme
 
-F-325…F-344 (Explainer-Video turu) satırları kısadır; tam kanıt ve repro fikri [tüketici raporu § 12](arsiv/incelemeler/2026-10-11-explainer-video-tuketici-uyum-raporu.md#12-tracon-kusurları-kanıt-tablosu)'dedir. Onaylanan sıra: F-325 → F-326 → F-328 → F-327 → F-329 → F-330 → F-331, sonra F-332.
+F-332…F-344 (Explainer-Video turu) satırları kısadır; tam kanıt ve repro fikri [tüketici raporu § 12](arsiv/incelemeler/2026-10-11-explainer-video-tuketici-uyum-raporu.md#12-tracon-kusurları-kanıt-tablosu)'dedir. Onaylanan sıranın 🟠 kalemleri (F-325 · F-326 · F-328 · F-327 · F-329 · F-330 · F-331, F-317 ve F-314 ile) 2026-10-12'de kapandı; sıradaki F-332. F-348…F-352 o kapanışın sınıf taramasından gelir.
 
 | Aciliyet | Kalem | Sorun | Ne yapılır |
 |---|---|---|---|
-| 🟠 | **F-317** · Çok turlu harness döngüsünün başarılı run'ı yalnız son turun `usage`'ını kaydeder | Ölçüldü (2026-10-11, Faz 192 denetim düzeltmesi, `HarnessLoopTests` üzerinde katman probu, MAF 1.20.0): üç turlu döngüde (tur başı 10 token) `LoopAgent`, `HarnessAgent` ve dış `ToolApprovalAgent` yanıtı `30 token / 5 mesaj` taşır; en dıştaki MAF `OpenTelemetryAgent` `10 / 1` döner. Sebep: `LoopAgent` toplamı son turun yanıtına yerinde yazar, ama o yanıtın `RawRepresentation`'ı son turun `ChatResponse`'udur; `AsChatResponse` onu tercih eder ve `OpenTelemetryAgent` yanıtı ondan yeniden kurar — toplam `usage` ve transkript düşer. Akışlı yolda da `run.usage` 10 kalır: `RunRecordingAgent` akıştaki `UsageContent`'leri toplamaz, son değeri yazar (`RunRecordingAgent.cs:474-480`). Sonuç: `run.usage`, maliyet ve kiracı kotası döngüyü `(N-1)/N` eksik sayar; ağaç bütçesi `IChatClient` katmanında olduğu için doğrudur. Canlı (örnek uygulama, `gpt-5.4-mini`): iki turlu varsayılan döngü `totalTokens = 6599`, aynı iki tur `FailRun` ile `13142` kaydetti. Ayrıca `aiJudge` ölçütünün model çağrısı hiçbir yolda run `usage`'ına girmez | Önce kırmızı test: üç turlu döngü, akışlı ve akışsız, `root.Usage.TotalTokens == 30`. Akışsız yol: `OpenTelemetryAgent`'in `RawRepresentation` tercihi Tracon tarafında mı aşılır, MAF'a mı bildirilir — karar ister. Akışlı yol: `UsageContent` toplanır; araç çağrılı akışlı run'ın aynı eksikten etkilenip etkilenmediği ölçülür. 🚨 Akışlı istisna yolu `usage` yazmaya başlarsa `RecordingLoopEvaluator`'ın FailRun'da `ExtraUsage`'a eklediği toplam çift sayılır — ikisi birlikte düzeltilir. `aiJudge` `usage`'ı başka modelin fiyatıyla sayılmalıdır; ayrı karar |
-| 🟠 | **F-325** · Workflow SSE akışı keep-alive yazmaz; konsol 30 sn sessiz run'ı keser, run `Canceled` olur | Kod okuması (2026-10-11): keep-alive yalnız `RunEndpoints.cs:1272`'de, workflow akışında yok (`WorkflowEndpoints.cs:738-799`); konsol keser (`workflow-detail.tsx:88`), K-845 iptal eder. Slot beklemesinde `RunTimeout` kapanış çerçevesiz kaçar (`WorkflowRunner.cs:404-418`). | Kırmızı fonksiyonel test (45 sn sessiz düğüm). Keep-alive + kapanış çerçevesi. Kalıcı yol F-318 |
-| 🟠 | **F-326** · Job worker'ın kira, deneme ve iptal sözleşmesi tutmuyor | Kod okuması (2026-10-11): yenileme ilk hatada durur (`JobWorkerBackgroundService.cs:612-635`); kirası dolan job `MaxAttempts`'sız yeniden kiralanır (`:459-461`, `TraconAsyncRunOptions.cs:28-38` vaadi); iptal edilen job hata atınca `Pending` olur (`:446-491`). | Üç kırmızı test (`IJobStore` sarmalayıcı, depo sözleşmesi, `WorkerHarness`); tick başına yakalama, kiralamada deneme sınırı, iptal terminal |
-| 🟠 | **F-328** · Workflow agent adımında deadline/bütçe reddi run'ı düşürmez; ret metni içerik olarak akar | Kod okuması, çalıştırılmadı: ret yanıt olarak döner (`ChildAgentInvoker.cs:493-505`), adım çıktısı olur (`WorkflowAgentStepExecutor.cs:33-43`); `ChildDeadline` 2 dk (`TraconOptions.cs:229`). | Önce repro (yavaş sahte agent). Workflow bağlamında adım düşer. Süre ayarı F-303 |
-| 🟠 | **F-327** · Bekleyen insan isteği kalıcı olarak yanıtlanamaz hâle gelir | Kod okuması (2026-10-11): 8 KB kırpılan istek listeden düşer (`RunEventWriter.cs:278-293`, `WorkflowRequestDescriptor.cs:58-90`); retention `AwaitingInput` checkpoint'ini ve olayını siler (`RetentionTargetRegistry.cs:77-82,151-157`; K-130'a aykırı); `KeepCheckpointsAfterCompletion=false` aynı sonucu verir (`WorkflowRunner.cs:1215-1222`). | Kırmızı birim + üç SQL sözleşme testi; istek kimliği kırpılmadan okunur; retention `AwaitingInput`'u süzer |
-| 🟠 | **F-329** · Loop + yapılandırılmış doğrulama birlikte açıkken birleşik metin doğrulanır | Kod okuması (2026-10-11): doğrulayıcı `LoopAgent`'ın birleşik yanıtını görür (`LoopEvaluatorRegistry.cs:268-272`, `StructuredResponseValidatingAgent.cs:165-169`); son JSON geçerli olsa da `StructuredResponseInvalid`. Tool öncesi ara metin aynı sınıf; kök F-317 ile ortak. | Fonksiyonel kırmızı test (gerçek zincir); doğrulama son asistan mesajını görür; F-317 ile birlikte |
-| 🟠 | **F-330** · Parametreli agent kuyruklu, batch ve replay yollarında bağlanmadan koşar | Kod okuması, çalıştırılmadı: kuyruk dalı parametre kapısından önce ayrılır (`AgentEndpoints.cs:270-284` ↔ `:807-814`); bağlayıcı yalnız `:836` ve `EvalJobHandler.cs:301`'de. Site tersini söyler (`concepts/agents.md:63-67`). | Repro: parametresiz kuyruklu run, sistem metninde `{{`. Bağlama veya açık ret; kuyruğa parametre F-294 |
-| 🟠 | **F-331** · Sabit sürümlü çözümleme güncel sürümün descriptor'ını kullanır | Kod okuması (2026-10-11): `CompositeAgentCatalog.cs:149-214`; sabit sürümlü eval ve deney güncel `ResponseFormat` ile doğrular, eval güncel sürümü yazar (`EvalJobHandler.cs:111-113`). Canlı şema güncellemesinde üretim yanlış şemayla doğrulanır. | Fonksiyonel kırmızı test (v1 `Text`, v2 `JsonSchema`); descriptor sabit sürümden |
-| 🟡 | **F-314** · Workflow run satırı hata türünü CLR adıyla yazar ve hiç sınıflanmaz | Ölçüldü (2026-10-11, Faz 192, `HarnessLoopTests.A_workflow_stops_at_an_agent_whose_loop_fails_on_exhaustion` ve örnek uygulama `MT-CORE` case'i): katılımcı agent `LoopUnsatisfied` ile düşünce workflow satırı `error.type = "Tracon.TraconLoopUnsatisfiedException"`, `error.class = null` taşır. `WorkflowRunner.ToRunError` (`src/Tracon.Workflows/Internal/WorkflowRunner.cs:1315`) `TraconException.ErrorType` yerine `GetType().FullName` yazar ve `IRunErrorClassifier`'ı hiç çağırmaz — bu yalnız döngü değil BÜTÜN workflow hataları içindir; panodaki sınıf dağılımı workflow hatalarını göremez. MAF istisnayı sarmalamıyor (ölçüldü) | `ToRunError` kararlı `ErrorType`'ı yazar ve sınıflandırıcıyla `Class`/`Fingerprint` doldurur (`RunRecordingAgent.Completion` deseni). Etki: workflow `error.type` değeri değişir — tüketici sözleşmesi ve site `concepts/runs.md` birlikte; mevcut workflow testlerinin tür iddiaları taranır |
+| 🟡 | **F-348** · Başarılı handler'dan sonraki depo hatası job'u handler hatası sayar | Kod okuması (2026-10-12, F-326 sınıf taraması): `JobWorkerBackgroundService.ExecuteWithHandlerAsync` handler döndükten sonraki `GetAsync`/`ListItemsAsync`/`CompleteAsync`'ı handler ile aynı `try`'da çalıştırır; bunlardan birinin geçici hatası `catch`'e düşer ve başarılı iş `ReleaseForRetryAsync` ile yeniden kuyruğa girer ya da son denemede `Failed` olur | Önce kırmızı test (`JobWorkerLeaseContractTests` deseni, başarıdan sonra ilk `GetAsync` atar). Başarı sonrası depo yazımı ayrı yakalanır ve yeniden denenir; handler yeniden koşmaz |
+| 🟡 | **F-349** · `aiJudge` döngü ölçütünün model çağrısı run `usage`'ına ve maliyetine girmez | Kod okuması (2026-10-12, F-317 incelemesi): yargıç istemcisi `RunBudgetChatClient`'tan geçer, ağaç bütçesi onu sayar; run `usage`'ı hiçbir yolda görmez. İlgili gizli uyumsuzluk: `RunBudgetChatClient` bir çağrının son `UsageContent`'ini tutar (`RunBudgetChatClient.cs:72`) | Karar ister: yargıç maliyeti ajanın modeliyle mi, kendi modelinin fiyatıyla mı sayılır (K-328 run yargıcını ayrı tutar). Desen `CompactionUsageTrackingChatClient` |
+| 🟡 | **F-351** · Kuyruklu run `culture`'ı ve deney atamasını düşürür | Kod okuması (2026-10-12, F-330 incelemesi): `RunQueuedAsync` payload'ı yalnız runId, mesaj, sessionId ve userId taşır (`AgentEndpoints.cs` kuyruk dalı); worker `catalog.ResolveAsync(..., culture: null)` ile çözer (`AgentRunJobHandler.cs`) | Fonksiyonel kırmızı test (kültürlü talimat, kuyruklu run). Payload'a culture ve atama; değer taşıma F-294 ile birlikte |
+| 🟡 | **F-352** · Onay-devam, varsayılan replay ve sabit sürümlü üst agent'ın alt çağrıları güncel sürümle koşar | Kod okuması (2026-10-12, F-331 sınıf taraması): `ApprovalResumeJobHandler` güncel sürümü çözer ve `AgentVersion`/`ExperimentId`/`Variant` geçmez; sürüm verilmeyen replay kaynak run'ın değil güncel sürümün tanımını kullanır (`RunReplayService`); sabit sürümlü üst agent'ın çağırdığı alt agent ve workflow adımı güncel sürümdedir | Karar ister: replay ve onay-devamı kaynak run'ın sürümüyle mi koşsun; alt agent sürümü üstünkine bağlansın mı |
 | 🟡 | **F-315** · Harness modu OpenAI Chat Completions sağlayıcısında HTTP 400 ile düşer | Canlı ölçüldü (2026-10-11, örnek uygulama, `gpt-5.4-mini`, `provider: "openai"`): harness'lı agent'ın ilk isteği `400 unknown_parameter: web_search_options` alır (MAF harness'ının varsayılan web araması); `disableWebSearch: true` ile ilk tur geçer, model tool çağırdıktan sonraki istek `400 invalid_request_error, Parameter: messages.[1].role` alır. Aynı tanım `provider: "openai-responses"` ile sorunsuz koşar. Run `ProviderError` sınıfıyla düşer; tüketici sebebi göremez | Önce repro'yu fonksiyonel düzeye indir (Chat Completions şekilli sahte sunucu + harness tanımı). Sonra iki yol: harness, Chat Completions sağlayıcısında desteklenmeyen sağlayıcıları (web araması) kapatır ve rol eşlemesini düzeltir — ya da harness tanımı Chat Completions sağlayıcısıyla derlemede açık bir hata verir. Hangisinin doğru olduğu MAF'ın harness sözleşmesine bakılarak kararlaştırılır |
 | 🟡 | **F-332** · Retention ve erasure harici ek baytını silmez; workflow eki 7 günde yetim sayılır | Kod okuması: ham SQL DELETE, `IAttachmentStorage.DeleteAsync` yok (`SqlRetentionStore.cs:30-36`, `SqlDataSubjectStore.cs:63-113`; vaat `IDataSubjectStore.cs:35`); workflow oturumunun `sessions` satırı yok (`RetentionTargetRegistry.cs:170-178`). | SQL sözleşme + fonksiyonel test; commit sonrası harici silme + süpürücü |
 | 🟡 | **F-333** · Belgelenen `workflow.request.pending`, `job.*`, `eval.completed` webhook'ları yayınlanmaz | Ölçüldü (grep): `WebhookTypes.cs:26-87` tanımlar, site vaat eder (`concepts/governance.md:684-694`), `PublishAsync` yok; workflow kökü `run.*` üretmez. Faz 21 kapsam sınırıydı. | Fonksiyonel test; bağlama veya vaadi geri çekme (karar) |
@@ -636,6 +635,7 @@ F-325…F-344 (Explainer-Video turu) satırları kısadır; tam kanıt ve repro 
 | 🟡 | **F-338** · Düğüm retry'ı kalıcı 4xx'i geçici sayar | Kod okuması: `DefaultRunErrorClassifier.cs:222-226` her 4xx'i `ProviderError` yapar, `WorkflowNodeRetry.cs:10-22` dener; sözleşme 5xx der (`RunErrorClass.cs:29-30`) | Birim test; 4xx (408/429 hariç) kalıcı |
 | 🟡 | **F-339** · Skill'siz harness agent MAF ile çalışma dizininden skill keşfeder | Kod + MAF 1.20.0 XML: `AgentDefinitionCompiler.Agents.cs:265,283-286`; vaat `AgentDefinition.cs:52-56`, kök kuralı `TraconOptions.cs:350-364` | Süreç sınırında kırmızı test (CWD'de `skills/probe`); sağlayıcı kapanır |
 | 🟡 | **F-340** · OpenAI sağlayıcısı `ProviderSettings` anahtarlarını sessizce yok sayar | Kod okuması: `OpenAIChatClientFactory.cs:80-92` doğrulamaz, Azure reddeder; sözleşme `ModelBinding.cs:48-53`, K-208 | `ModelProviderSettingsContract` türetilir; kırıcı etki notu |
+| 🟢 | **F-350** · Onay bekleyen yanıt yapılandırılmış doğrulamada "boş" diye reddedilebilir | Kod okuması, doğrulanmadı (2026-10-12, F-329 incelemesi): doğrulayıcı (30) `ToolApprovalAgent`'ın (20) içindedir; onay isteğiyle biten yanıtın asistan metni yoktur ve run `AwaitingApproval`'a geçmeden `StructuredResponseInvalid` ile düşebilir | Önce kırmızı test (Json biçimli agent, onay isteyen tool). Doğrulanırsa onay bekleyen yanıt doğrulamadan geçer |
 | 🟢 | **F-316** · Akışsız run endpoint'i `LoopUnsatisfied` ve `StructuredResponseInvalid` hatasını `502` olarak döner | Faz 192 denetimi (kod okuması): akışsız yolun genel `catch`'i (`AgentEndpoints.cs:1553-1571`) her istisnayı `502 Bad Gateway` ve `errorType`'sız problem olarak yazar. Karşılanmayan döngü ya da geçersiz yapılandırılmış yanıt bir yukarı akış arızası değildir; istemci sebebi yalnız run kaydından okur. Akışlı yol türü `error` çerçevesinde taşır (`MT-CORE-134`) | Doğru durum kodu kararlaştırılır (ör. `422`); problem gövdesine `errorType` eklenir. OpenAPI anlık görüntüsü ve istemci birlikte yenilenir. Etki: public HTTP sözleşmesi |
 | 🟢 | **F-241** · Kırpma bir vekil (surrogate) çiftini ortadan kesebilir — sınıf | `EvaluatorRunJudge.ResolveVersion` sürümü `version[..MaxEvaluatorVersionLength]` ile kırpar. 128. karakter yüksek vekilse yalnız kalan vekil `varchar`/`nvarchar` yazımında kodlama hatası doğurur; hata yazma döngüsünde `retryable` sayılıp tekrarlanır. Aynı desen `TextValue` kırpmasında da var ([`EvaluatorRunJudge.cs`](../src/Tracon.Core/Evaluation/EvaluatorRunJudge.cs)). Olasılık çok düşük — informational version pratikte ASCII'dir | Sınıfı tek bir güvenli kırpma yardımcısına indir. Kırpılan bir alanın ASCII-dışı içerik taşıdığı ölçülürse aciliyet yükselir |
 | 🟢 | **F-281** · `Tracon.Google` görsel yolunda `MediaType` verilirse SDK `NotSupportedException` atar | Canlı ölçüldü (2026-09-24, Google.GenAI 1.16.0, API anahtarı): `ImageConfig.OutputMimeType` her değer için *"outputMimeType parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode"* ile reddedilir. `GoogleImageGenerator` (`src/Tracon.Google/Internal/GoogleImageGenerator.cs:77`) `ImageGenerationOptions.MediaType` verilince onu gönderir; Tracon'un iki sevk edilen yolu (`/api/images/generate`, `generate_image`) `MediaType` vermediği için bugün yalnız `IImageGenerator`'ı doğrudan çağıran tüketiciyi etkiler | Paket yalnız API anahtarı modunu desteklediği sürece `MediaType` istemde reddedilir ya da yok sayılır — hangisi olacağı küçük bir davranış kararıdır; karar sonrası düşen test + site cümlesi |
@@ -644,7 +644,7 @@ F-325…F-344 (Explainer-Video turu) satırları kısadır; tam kanıt ve repro 
 | 🟢 | **F-287** · `dokuman_iddia_cakismalari` proje başına `TraconPublicApiTrackingEnabled=false` cümlesini de çelişki sayar | Faz 187 kapıyı gerçek anahtara çevirdi (`scripts/dokuman-bakim.py`); anahtar artık proje başına kapatmadır (K-424), "`Tracon.Client` `false` yazar" gibi doğru bir skill cümlesi bulgu olur. Bugün tetikleyen satır yok (denetim 🟢4) | İddia desenini varsayılana daralt ("varsayılan"/"default" ya da `src/Directory.Build.props` bağlamı) |
 | 🟢 | **F-311** · Kapalı MCP oturumuna giden çağrı "TaskCanceledException" diye raporlanır | Ölçüldü (2026-10-11, F-305 repro): kapalı oturumdan giden `tools/call` için `ToolFailed` olay metni "Tool failed with TaskCanceledException." idi. Model "Error: Function failed." gördü, run `Completed` döndü; neden iptal değil kapalı bağlantıydı ve operatör onu iptal sanır. `{server}_read_resource` aynı durumda yanıltıcı "not among the resources declared" hatası verir. K-880'den sonra ana yol, F-310'dan sonra uzun ömürlü oturumlar bu duruma girmez; kalan yol derleme ile çağrı arasındaki yarış | MCP tool sarmalı (ya da `ExplainedFailureAIFunction`), çağıranın token'ı iptal değilken dispose edilmiş oturumdan gelen `OperationCanceledException`'ı "MCP connection to server '<ad>' is closed" diye açıklar; `read_resource` gövdesi kapalı bağlantıyı ayrıca söyler |
 | 🟢 | **F-341** · `respond` dönüştürülemeyen yanıtta 400 yerine 200 + `Failed` döner; kayıt komşu tip uyumunu denetlemez | Kod okuması: `WorkflowContracts.cs:103-110` ↔ `WorkflowEndpoints.cs:611-648`; `WorkflowDefinitionValidator.cs:51-92` ↔ `concepts/workflows.md:48-50` | Dönüşüm uçta; kayıtta tip zinciri (F-324 ile) |
-| 🟢 | **F-342** · Belge-kod kaymaları (Explainer turu demeti) | Ölçüldü: site `RunTimeout`/düğüm mesajı, `JobHandlerKeys.Workflow`, `SkillRoots`, `MaxOutputBytes`, resume hatası, konsolda `ToolCallUsage`, fallback `ChatOptions` ↔ K-444, MT-WF-114. | Belge koda göre; konsol gösterimi ve K-444 karar ister |
+| 🟢 | **F-342** · Belge-kod kaymaları (Explainer turu demeti) | Ölçüldü: site düğüm mesajı (`RunTimeout` cümlesi 2026-10-12'de F-325 ile düzeldi), `JobHandlerKeys.Workflow`, `SkillRoots`, `MaxOutputBytes`, resume hatası, konsolda `ToolCallUsage`, fallback `ChatOptions` ↔ K-444, MT-WF-114. | Belge koda göre; konsol gösterimi ve K-444 karar ister |
 | 🟢 | **F-343** · Eval yolunda bağlam kaybı: `EvalCase.Context` agent'a gitmez; terfi belgeyi ve 8 KB üstünü düşürür | Kod okuması: `EvalJobHandler.cs:336-339` ↔ `EvalCase.cs:35-36`; `RunToCasePromoter.cs:83-108` | Belge düzeltilir veya `Context` belge kanalıyla gider (karar); terfi `run_inputs`'tan |
 | 🟢 | **F-344** · Reconciliation yetim workflow kökünü agent turu gibi sürdürür | Kod okuması: `RunReconciliationService.cs:139-174` `RunKind` ayırmaz; girdi kaydı yok (`WorkflowRunner.cs:507-512`); iki ayar varsayılan kapalı | Fonksiyonel test; workflow kökü atlanır (F-321 önkoşulu) |
 
@@ -707,7 +707,7 @@ F-325…F-344 (Explainer-Video turu) satırları kısadır; tam kanıt ve repro 
 | **F-238** · Metrik dinleyici test yardımcısının ÜÇ kopyası | Üç `internal` `MeterListener` sarmalayıcısı; K-483 eşiğinde | Dördüncü kopya gerekirse ya da `Tracon.Testing`'e yardımcı istenirse (Faz 173 denetimi). Tam metin: [`arsiv/ERTELENEN-ADAYLAR.md`](arsiv/ERTELENEN-ADAYLAR.md) § *Tetik bekleyen gövdeler* |
 | **F-242** · `ResolveVersion`'ın `catch` dalı kanıtlanmadı | Sürüm çözümünde attribute okuması **hata verirse** alan `null` kalır ve skor yine yazılır (K-790). Yalnız "attribute yok" yolu testle kanıtlı; `catch` dalını koşturmak `GetCustomAttribute`'u attıran düşmanca bir tip ister ve kazanç maliyeti karşılamıyor | Assembly attribute okumasının gerçekten attığı bir kurulum (kısıtlı host, bozuk assembly) raporlanırsa ([Faz 176](arsiv/fazlar/176-EVALUATOR-SURUM-DAMGASI.md) denetim bulgusu 🟢 2) |
 | **F-243** · Analitik store yüzeylerinde metot bazında iptal kapsamı yok | Toplayıcı sorgular iptal sözleşmesinin metot bazında kapsamı dışında | Gerçek kaynak tüketimi raporlanırsa veya sınır gevşetilirse (Faz 177 denetimi). Tam metin: [`arsiv/ERTELENEN-ADAYLAR.md`](arsiv/ERTELENEN-ADAYLAR.md) § *Tetik bekleyen gövdeler* |
-| **F-245** · Sessiz bir `run` ile ölü bir bağlantı ekranda AYNI görünüyor | `SseDecoder` keep-alive yorumlarını düşürür; canlılık göstergesi bir arayüz kararıdır. Not: workflow akışı keep-alive yazmaz (F-325) | Kullanıcı sessiz run'ı öldü sanarsa — **kullanıcı kararı gerekir**. Tam metin: [`arsiv/ERTELENEN-ADAYLAR.md`](arsiv/ERTELENEN-ADAYLAR.md) § *Tetik bekleyen gövdeler* |
+| **F-245** · Sessiz bir `run` ile ölü bir bağlantı ekranda AYNI görünüyor | `SseDecoder` keep-alive yorumlarını düşürür; canlılık göstergesi bir arayüz kararıdır. Not: workflow akışı 2026-10-12'den beri keep-alive yazar (F-325) | Kullanıcı sessiz run'ı öldü sanarsa — **kullanıcı kararı gerekir**. Tam metin: [`arsiv/ERTELENEN-ADAYLAR.md`](arsiv/ERTELENEN-ADAYLAR.md) § *Tetik bekleyen gövdeler* |
 | **F-246** · Sekiz kararlı hata kimliğinin karşılığı olan bir `RunErrorClass` YOK | 17 kimliğin 8'i bilerek eşlenmedi; yeni enum üyesi public sözleşme işidir | Operatör ayırt etmek isterse ya da taksonomi elden geçirilirken — **kullanıcı kararı gerekir**. Tam metin: [`arsiv/ERTELENEN-ADAYLAR.md`](arsiv/ERTELENEN-ADAYLAR.md) § *Tetik bekleyen gövdeler* |
 | **F-250** · Kiracıya duyarlı örnek bir `IAgentSource` yok | `MT-CORE-095` iki turdur koşulamıyor; genişleme noktası sevk ediliyor, örneği yok | Bir tüketici kiracı başına agent kümesi sorarsa ya da case üçüncü turda da koşulamazsa. Tam metin: [`arsiv/ERTELENEN-ADAYLAR.md`](arsiv/ERTELENEN-ADAYLAR.md) § *Tetik bekleyen gövdeler* |
 | **F-252** · Örnek uygulamanın demo kancaları bir kimlik sağlayıcısıyla değişmeli | K-834'ün dokuz demo kancası `samples/` altında | Örnek uygulama gerçek bir kimlik sağlayıcısına bağlandığında. Tam metin: [`arsiv/ERTELENEN-ADAYLAR.md`](arsiv/ERTELENEN-ADAYLAR.md) § *Tetik bekleyen gövdeler* |
@@ -827,7 +827,7 @@ kaydındadır; burada yalnız hangi eşikte bekledikleri yazar.
 ### F-ID tahsis kuralı
 
 Numara **geri dönüştürülmez** ve bir numara **tek kaleme** aittir. Sıradaki
-numara: **F-348**.
+numara: **F-353**.
 
 Numarayı tahsis eden el sayacı **aynı değişiklikte** bir artırır.
 `python3 scripts/dokuman-bakim.py --denetle` iki şeyi zorlar:

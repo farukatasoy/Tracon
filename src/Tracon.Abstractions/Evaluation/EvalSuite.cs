@@ -39,7 +39,7 @@ public sealed record EvalSuite
     {
         get;
         init => field = FreeFormJson.OrEmpty(value);
-    }
+    } = FreeFormJson.Empty;
 
     /// <summary>The creation time (UTC).</summary>
     public DateTimeOffset CreatedAt { get; init; }

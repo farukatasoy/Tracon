@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Agents.AI.Workflows;
@@ -56,34 +57,33 @@ internal static class WorkflowRequestDescriptor
     /// Converts a <see cref="RunEventType.WorkflowRequest"/> event into a pending request.
     /// </summary>
     /// <param name="runEvent">The event.</param>
-    /// <returns>The pending request; <see langword="null"/> if the payload cannot be read.</returns>
+    /// <returns>The pending request; <see langword="null"/> if the event carries no request id.</returns>
     /// <remarks>
-    /// If the payload cannot be read, the event is <strong>dropped</strong>.
-    /// The payload may have been truncated by the recording settings
-    /// (<c>MaxPayloadLength</c>), and fabricating a request from a partial JSON
-    /// would show the user a card that cannot be answered.
+    /// <para>
+    /// A payload cut short by <c>MaxPayloadLength</c> is still a pending
+    /// request. Answering needs only the request id: the real request
+    /// is republished from the checkpoint and matched by it. The old rule
+    /// dropped any payload that did not parse, and a long prompt — about 1,400
+    /// non-ASCII characters is enough, each one escaped to six — made the
+    /// request vanish from the list, and the respond endpoint refused it as
+    /// "no pending request": the run could never be answered.
+    /// </para>
+    /// <para>
+    /// The id therefore comes from the event's <see cref="RunEvent.Text"/>,
+    /// which carries nothing but the id, and the payload is read as far as it
+    /// goes. The payload writes the prompt LAST, so a cut costs only the
+    /// prompt's tail, and that tail is marked.
+    /// </para>
     /// </remarks>
     public static WorkflowPendingRequest? Parse(RunEvent runEvent)
     {
         ArgumentNullException.ThrowIfNull(runEvent);
 
-        if (runEvent.Payload is not { Length: > 0 } payload)
-        {
-            return null;
-        }
+        var snapshot = runEvent.Payload is { Length: > 0 } payload ? Read(payload) : null;
 
-        Snapshot? snapshot;
+        var requestId = runEvent.Text is { Length: > 0 } text ? text : snapshot?.RequestId;
 
-        try
-        {
-            snapshot = JsonSerializer.Deserialize<Snapshot>(payload, Options);
-        }
-        catch (JsonException)
-        {
-            return null;
-        }
-
-        if (snapshot is null || string.IsNullOrEmpty(snapshot.RequestId))
+        if (string.IsNullOrEmpty(requestId))
         {
             return null;
         }
@@ -91,15 +91,153 @@ internal static class WorkflowRequestDescriptor
         return new WorkflowPendingRequest
         {
             RunId = runEvent.RunId,
-            RequestId = snapshot.RequestId,
-            PortId = snapshot.PortId ?? string.Empty,
-            RequestType = snapshot.RequestType,
-            ResponseType = snapshot.ResponseType,
-            Prompt = snapshot.Prompt,
-            Form = snapshot.Form,
+            RequestId = requestId,
+            PortId = snapshot?.PortId ?? string.Empty,
+            RequestType = snapshot?.RequestType,
+            ResponseType = snapshot?.ResponseType,
+            Prompt = snapshot?.Prompt,
+            Form = snapshot?.Form ?? FormFor(snapshot?.RequestType, snapshot?.ResponseType),
             RequestedAt = runEvent.Timestamp,
         };
     }
+
+    /// <summary>Reads a payload, a complete one or one cut short.</summary>
+    private static Snapshot? Read(string payload)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize<Snapshot>(payload, Options);
+        }
+        catch (JsonException)
+        {
+            return ReadCut(payload);
+        }
+    }
+
+    /// <summary>
+    /// Reads the properties of a payload that <c>MaxPayloadLength</c> cut
+    /// short, up to the cut, and salvages the readable start of a cut prompt.
+    /// </summary>
+    private static Snapshot ReadCut(string payload)
+    {
+        var bytes = Encoding.UTF8.GetBytes(payload);
+        var reader = new Utf8JsonReader(bytes, isFinalBlock: false, state: default);
+        var snapshot = new Snapshot();
+        string? property = null;
+
+        try
+        {
+            while (reader.Read())
+            {
+                if (reader.TokenType == JsonTokenType.PropertyName)
+                {
+                    property = reader.GetString();
+
+                    continue;
+                }
+
+                snapshot = Assign(snapshot, property, ref reader);
+                property = null;
+            }
+        }
+        catch (JsonException)
+        {
+            // The cut can also land between tokens; what was read so far stands.
+        }
+
+        // The reader stops at the first token it cannot finish. When that token
+        // is the prompt's value, its readable start is still worth showing.
+        if (string.Equals(property, "prompt", StringComparison.Ordinal))
+        {
+            snapshot = snapshot with { Prompt = SalvagePrompt(bytes, (int)reader.BytesConsumed) };
+        }
+
+        return snapshot;
+    }
+
+    private static Snapshot Assign(Snapshot snapshot, string? property, ref Utf8JsonReader reader)
+        => property switch
+        {
+            "requestId" when reader.TokenType == JsonTokenType.String => snapshot with { RequestId = reader.GetString() },
+            "portId" when reader.TokenType == JsonTokenType.String => snapshot with { PortId = reader.GetString() },
+            "requestType" when reader.TokenType == JsonTokenType.String => snapshot with { RequestType = reader.GetString() },
+            "responseType" when reader.TokenType == JsonTokenType.String => snapshot with { ResponseType = reader.GetString() },
+            "prompt" when reader.TokenType == JsonTokenType.String => snapshot with { Prompt = reader.GetString() },
+            "form" when reader.TokenType == JsonTokenType.String
+                && Enum.TryParse<WorkflowRequestForm>(reader.GetString(), ignoreCase: false, out var form)
+                && Enum.IsDefined(form) => snapshot with { Form = form },
+            _ => snapshot,
+        };
+
+    /// <summary>
+    /// Decodes the readable start of a string value cut short, and marks it as
+    /// cut. An escape sequence the cut split in half is dropped.
+    /// </summary>
+    private static string? SalvagePrompt(byte[] bytes, int consumed)
+    {
+        var quote = Array.IndexOf(bytes, (byte)'"', consumed);
+
+        if (quote < 0)
+        {
+            return null;
+        }
+
+        var raw = Encoding.UTF8.GetString(bytes, quote + 1, bytes.Length - quote - 1);
+
+        if (raw.EndsWith(TruncationMarker, StringComparison.Ordinal))
+        {
+            raw = raw[..^TruncationMarker.Length];
+        }
+
+        // A cut can split an escape sequence (a lone backslash, or the "\u00" of
+        // "\u00e7"). Trimming at most
+        // the six characters an escape is long finds the last decodable end.
+        for (var trim = 0; trim <= 6 && trim <= raw.Length; trim++)
+        {
+            try
+            {
+                var decoded = JsonSerializer.Deserialize<string>($"\"{raw[..^trim]}\"");
+
+                return decoded is null ? null : decoded + TruncationMarker;
+            }
+            catch (JsonException)
+            {
+                // Still inside the split escape; trim one more character.
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// The form for a request whose payload lost it to the cut — only an event
+    /// written before the form moved ahead of the prompt can lack it.
+    /// </summary>
+    private static WorkflowRequestForm FormFor(string? requestType, string? responseType)
+    {
+        if (requestType?.Contains(nameof(MagenticPlanReviewRequest), StringComparison.Ordinal) == true)
+        {
+            return WorkflowRequestForm.PlanReview;
+        }
+
+        if (responseType is null)
+        {
+            return WorkflowRequestForm.Json;
+        }
+
+        if (responseType.StartsWith(typeof(bool).FullName!, StringComparison.Ordinal))
+        {
+            return WorkflowRequestForm.Boolean;
+        }
+
+        return responseType.StartsWith(typeof(string).FullName!, StringComparison.Ordinal) ||
+               responseType.Contains(typeof(ChatMessage).FullName!, StringComparison.Ordinal)
+            ? WorkflowRequestForm.Text
+            : WorkflowRequestForm.Json;
+    }
+
+    /// <summary>The marker <c>RunEventWriter</c> appends to a value it cut.</summary>
+    private const string TruncationMarker = "…[truncated]";
 
     /// <summary>Chooses the input form the UI should ask for, based on the port's response type.</summary>
     /// <param name="request">The Microsoft Agent Framework request.</param>
@@ -163,18 +301,29 @@ internal static class WorkflowRequestDescriptor
     }
 
     /// <summary>The wire format of the event payload.</summary>
+    /// <remarks>
+    /// The order is part of the format: <see cref="Prompt"/>, the only field
+    /// whose length the request decides, is written LAST, so a payload cut at
+    /// <c>MaxPayloadLength</c> loses nothing but the prompt's tail.
+    /// </remarks>
     private sealed record Snapshot
     {
+        [JsonPropertyOrder(0)]
         public string? RequestId { get; init; }
 
+        [JsonPropertyOrder(1)]
         public string? PortId { get; init; }
 
+        [JsonPropertyOrder(2)]
         public string? RequestType { get; init; }
 
+        [JsonPropertyOrder(3)]
         public string? ResponseType { get; init; }
 
-        public string? Prompt { get; init; }
+        [JsonPropertyOrder(4)]
+        public WorkflowRequestForm? Form { get; init; }
 
-        public WorkflowRequestForm Form { get; init; }
+        [JsonPropertyOrder(5)]
+        public string? Prompt { get; init; }
     }
 }

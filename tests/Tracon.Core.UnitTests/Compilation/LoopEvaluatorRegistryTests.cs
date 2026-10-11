@@ -75,9 +75,10 @@ public sealed class LoopEvaluatorRegistryTests
         options.MaxIterations.ShouldBe(3);
         options.FreshContextPerIteration.ShouldBeTrue();
 
-        // Every iteration's messages stay in the response, so the run record
-        // carries the whole loop and not only its last turn.
-        options.NonStreamingReturnsLastResponseOnly.ShouldBeFalse();
+        // A non-streaming run returns the final iteration's answer, with the
+        // usage of every iteration (K-889); the iterations stay on the run as
+        // LoopIterationCompleted events.
+        options.NonStreamingReturnsLastResponseOnly.ShouldBeTrue();
     }
 
     /// <summary>

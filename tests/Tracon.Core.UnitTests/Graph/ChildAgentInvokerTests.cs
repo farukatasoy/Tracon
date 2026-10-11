@@ -267,6 +267,99 @@ public sealed class ChildAgentInvokerTests
         child.Status.ShouldBe(RunStatus.Failed);
     }
 
+    // --- F-328: a workflow step fails instead of returning the refusal as content ---
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task In_fail_mode_the_wait_limit_throws_a_timeout_naming_the_agent(bool streaming)
+    {
+        var (invoker, _) = CreateInvoker(
+            ChildRefusalMode.Fail,
+            new BlockingChatClient(),
+            childDeadline: TimeSpan.FromMilliseconds(50),
+            waitTimeout: TimeSpan.FromSeconds(5));
+
+        SetScope(depth: 0, budget: new AgentRunBudget { MaxDepth = 3 });
+
+        var exception = await Should.ThrowAsync<TraconChildRunTimeoutException>(
+            async () => await RunAsync(invoker, streaming));
+
+        exception.AgentName.ShouldBe("researcher");
+        exception.Timeout.ShouldBe(TimeSpan.FromMilliseconds(50));
+        exception.ErrorType.ShouldBe(TraconChildRunTimeoutException.ChildRunTimeoutErrorType);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task In_fail_mode_an_exhausted_budget_throws_the_budget_exception(bool streaming)
+    {
+        var (invoker, _) = CreateInvoker(ChildRefusalMode.Fail);
+        var budget = new AgentRunBudget { MaxDepth = 3, MaxTotalRuns = 1 };
+
+        SetScope(depth: 0, budget: budget);
+        await RunAsync(invoker, streaming);
+
+        SetScope(depth: 0, budget: budget);
+        var exception = await Should.ThrowAsync<TraconRunBudgetExceededException>(
+            async () => await RunAsync(invoker, streaming));
+
+        exception.Message.ShouldContain("child-run limit is reached", Case.Sensitive);
+    }
+
+    [Fact]
+    public async Task In_fail_mode_a_tool_waiting_for_approval_throws()
+    {
+        // Non-streaming only: FakeChatClient's stream ignores its responder, so
+        // it cannot produce the approval request; the streaming branch is the
+        // same RefusedUpdate call.
+        var approvalTool = new ApprovalRequiredAIFunction(TestData.Tool("dangerous_task"));
+        var client = new FakeChatClient(_ => new ChatResponse(
+            new ChatMessage(ChatRole.Assistant, [new FunctionCallContent("c1", "dangerous_task", null)])));
+
+        var (invoker, _) = CreateInvoker(ChildRefusalMode.Fail, client, tools: [approvalTool]);
+
+        SetScope(depth: 0, budget: new AgentRunBudget { MaxDepth = 3 });
+
+        var exception = await Should.ThrowAsync<TraconException>(async () => await invoker.RunAsync("run"));
+
+        exception.Message.ShouldContain("A workflow step cannot wait for a tool approval", Case.Sensitive);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task In_fail_mode_a_provider_timeout_fails_with_the_providers_own_exception(bool streaming)
+    {
+        var (invoker, _) = CreateInvoker(
+            ChildRefusalMode.Fail,
+            new TimingOutChatClient(),
+            childDeadline: TimeSpan.FromSeconds(30),
+            waitTimeout: TimeSpan.FromSeconds(60));
+
+        SetScope(depth: 0, budget: new AgentRunBudget { MaxDepth = 3 });
+
+        var exception = await Should.ThrowAsync<OperationCanceledException>(async () => await RunAsync(invoker, streaming));
+
+        exception.ShouldNotBeOfType<TraconChildRunTimeoutException>();
+    }
+
+    [Fact]
+    public async Task In_fail_mode_the_depth_limit_throws()
+    {
+        var (invoker, _) = CreateInvoker(ChildRefusalMode.Fail);
+
+        SetScope(depth: 3, budget: new AgentRunBudget { MaxDepth = 3 });
+
+        var exception = await Should.ThrowAsync<TraconException>(async () => await invoker.RunAsync("run"));
+
+        exception.Message.ShouldContain("call depth limit was exceeded", Case.Sensitive);
+    }
+
+    private static async Task<string> RunAsync(ChildAgentInvoker invoker, bool streaming)
+        => streaming ? await ReadStreamTextAsync(invoker) : (await invoker.RunAsync("run")).Text;
+
     /// <summary>Drains a streaming sub-call into the text the caller would see.</summary>
     private static async Task<string> ReadStreamTextAsync(ChildAgentInvoker invoker)
     {
@@ -311,6 +404,14 @@ public sealed class ChildAgentInvokerTests
         TimeSpan? childDeadline = null,
         TimeSpan? waitTimeout = null,
         params AIFunction[] tools)
+        => CreateInvoker(ChildRefusalMode.ToolResult, client, childDeadline, waitTimeout, tools);
+
+    private static (ChildAgentInvoker Invoker, InMemoryRunStore Store) CreateInvoker(
+        ChildRefusalMode refusalMode,
+        IChatClient? client = null,
+        TimeSpan? childDeadline = null,
+        TimeSpan? waitTimeout = null,
+        params AIFunction[] tools)
     {
         var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());
         var tenantContext = new FixedTenantContext();
@@ -343,7 +444,8 @@ public sealed class ChildAgentInvokerTests
             "router",
             new CallableAgentInfo("researcher", "Performs research.", 1),
             childDeadline: childDeadline ?? TimeSpan.FromSeconds(30),
-            waitTimeout: waitTimeout ?? TimeSpan.FromSeconds(60));
+            waitTimeout: waitTimeout ?? TimeSpan.FromSeconds(60),
+            refusalMode: refusalMode);
 
         return (invoker, store);
     }

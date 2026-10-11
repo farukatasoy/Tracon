@@ -183,6 +183,11 @@ kuralı geçerlidir: önce `karar-damit` koşulur (bugün kuru koşum 8 satırda
 4.419 B taşır), taşıma tükenmişse sınır damıtma sonrası ölçülen değer / 0,85
 ile yükselir. Bu turda bütçe değişmedi.
 
+**2026-10-12:** defter 498.602 B ile 496.000 B tavanı aştı (öncelikli kusur
+turu, K-885…K-891; satırlar önce kısaltıldı). `karar-damit` gerçek koşumda
+çalışma ağacı temiz değilse reddeder; kuru koşum yalnız 852 B taşıyabildi, tavan
+aynı kuralla 586.000 B'ye çıktı. Commit'ten sonra `karar-damit` bir kez koşulur.
+
 ## 🚨 `dokuman-bakim.py`'de `@dataclass` modülü yükletmez (Faz 191)
 
 Test ve denetim paketi betiği `spec_from_file_location` + `exec_module` ile

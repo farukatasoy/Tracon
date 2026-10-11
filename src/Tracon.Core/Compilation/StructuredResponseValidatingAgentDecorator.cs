@@ -16,7 +16,9 @@ namespace Tracon;
 /// client layer sees every tool-call turn, while a structured response only
 /// ever arrives on the LAST one, and guessing "is this the last turn" from
 /// function-call content would be fragile. The <see cref="AIAgent"/> layer
-/// sees the final response directly.
+/// sees the whole response, and the validator checks its last assistant
+/// message that carries text — not the response's joined text, which also
+/// holds a tool round's earlier remarks and a loop's earlier iterations.
 /// </para>
 /// </remarks>
 internal sealed class StructuredResponseValidatingAgentDecorator : IAgentDecorator

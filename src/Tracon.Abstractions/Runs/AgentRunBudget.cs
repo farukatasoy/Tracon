@@ -231,9 +231,11 @@ public sealed class AgentRunBudget
     /// <summary>Produces a user-facing text describing the limit that was exceeded.</summary>
     /// <returns>Text stating which limit was exceeded.</returns>
     /// <remarks>
-    /// The text is returned to the model as a tool result. Saying "budget
-    /// exhausted" is not enough; unless the exceeded limit is named, the user
-    /// cannot see which setting to raise.
+    /// For agent delegation the text is returned to the model as a tool result;
+    /// for a workflow step it is the message of the
+    /// <see cref="TraconRunBudgetExceededException"/> that fails the run. Saying
+    /// "budget exhausted" is not enough; unless the exceeded limit is named, the
+    /// user cannot see which setting to raise.
     /// </remarks>
     public string DescribeExhaustion()
         => $"{DescribeExceededLimit()} A new child run cannot be started.";

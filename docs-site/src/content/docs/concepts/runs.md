@@ -406,6 +406,11 @@ operator response differs: one is a provider setting, the other is your policy.
 `GET /api/stats` aggregates the classes, so a rise in one bucket is visible before
 anyone reports it.
 
+A workflow run is classified the same way. Its `error.type` is the same stable
+identity the failing step's own run records — `loop_unsatisfied`,
+`child_run_timeout`, `run_budget_exceeded` — not the exception's .NET type name,
+and its class is the step's class.
+
 Both the class and the clustering fingerprint come from a classifier you can
 replace or compose with your own rules — see
 [Write your own error classifier](/guides/write-your-own-error-classifier/).
@@ -432,7 +437,9 @@ code instead of prose. A job queued for a handler key nobody registered fails
 with `tracon.job.unknown-handler-key`, and the key itself is written to the
 log rather than to `errorMessage`, for the same reason a foreign exception's
 text is: the key may have come from an untrusted source, and that field is read
-back over HTTP. Match on the code, never on the sentence around it.
+back over HTTP. A job whose worker died and whose attempt limit is used up fails
+with `tracon.job.attempts-exhausted`. Match on the code, never on the sentence
+around it.
 
 ## Replay and comparison
 

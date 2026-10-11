@@ -56,7 +56,7 @@ public sealed record JobSchedule
     {
         get;
         init => field = FreeFormJson.OrEmpty(value);
-    }
+    } = FreeFormJson.Empty;
 
     /// <summary>Whether the schedule is enabled. If disabled, it is not triggered automatically.</summary>
     public bool Enabled { get; init; } = true;

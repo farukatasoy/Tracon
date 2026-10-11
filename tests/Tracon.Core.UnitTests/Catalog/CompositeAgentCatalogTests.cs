@@ -135,6 +135,71 @@ public sealed class CompositeAgentCatalogTests
         await Should.ThrowAsync<TraconException>(async () => await catalog.ResolveAsync("beta", 99, culture: null, CancellationToken.None));
     }
 
+    // --- F-331: a pinned resolve describes the pinned version ---
+
+    [Fact]
+    public async Task A_pinned_resolve_from_the_store_describes_the_version_it_compiled()
+    {
+        // The decorators read the response format, model and version off the
+        // descriptor. The catalog listed the CURRENT definition for it, so a
+        // pinned v1 run was validated against v2's schema and recorded as v2's
+        // model and version.
+        var store = new InMemoryAgentDefinitionStore();
+        await store.SaveAsync(TestData.Definition("gamma") with { Model = TestData.Binding(model: "model-v1") });
+        await store.SaveAsync(TestData.Definition("gamma") with { Model = TestData.Binding(model: "model-v2") });
+
+        var source = new DefinitionStoreAgentSource(
+            store,
+            new AgentDefinitionCompiler(TestData.Providers(new FakeModelProvider()), TestData.Registry()),
+            new CompiledAgentCache(),
+            new DefaultTenantContext());
+        var capture = new CapturingDecorator();
+        var catalog = new CompositeAgentCatalog([source], [capture], NullLogger<CompositeAgentCatalog>.Instance);
+
+        (await catalog.ResolveAsync("gamma", 1, culture: null, CancellationToken.None)).ShouldNotBeNull();
+
+        capture.Last!.Version.ShouldBe(1);
+        capture.Last.Model!.Model.ShouldBe("model-v1");
+
+        (await catalog.ResolveAsync("gamma", culture: null, CancellationToken.None)).ShouldNotBeNull();
+
+        capture.Last!.Version.ShouldBe(2);
+        capture.Last.Model!.Model.ShouldBe("model-v2");
+    }
+
+    [Fact]
+    public async Task A_pinned_resolve_from_a_third_party_source_carries_the_pinned_version_number()
+    {
+        var capture = new CapturingDecorator();
+        var catalog = new CompositeAgentCatalog(
+            [new VersionedStubSource("database", 100, "beta", 1, 2)],
+            [capture],
+            NullLogger<CompositeAgentCatalog>.Instance);
+
+        (await catalog.ResolveAsync("beta", 1, culture: null, CancellationToken.None)).ShouldNotBeNull();
+
+        capture.Last!.Version.ShouldBe(1);
+    }
+
+    private sealed class CapturingDecorator : IAgentDecorator
+    {
+        public int Order => 0;
+
+        public AgentDescriptor? Last { get; private set; }
+
+        public AIAgent Decorate(AIAgent agent, AgentDescriptor descriptor)
+        {
+            Last = descriptor;
+
+            return agent;
+        }
+    }
+
+    private sealed class DefaultTenantContext : ITenantContext
+    {
+        public string TenantId => "default";
+    }
+
     private static CompositeAgentCatalog CreateCatalog(params IAgentSource[] sources)
         => new(sources, [], NullLogger<CompositeAgentCatalog>.Instance);
 

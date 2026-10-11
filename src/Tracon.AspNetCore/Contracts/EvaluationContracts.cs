@@ -73,8 +73,9 @@ public sealed record EvalCaseInput
 public sealed record EvalRunTriggerRequest
 {
     /// <summary>
-    /// Model identifier to record for this run. If not given, the model in
-    /// the agent's current definition is used.
+    /// Model identifier to record for this run. If not given, the model of
+    /// the definition version the run measures is used: the pinned version
+    /// when one is given, otherwise the current one.
     /// </summary>
     public string? ModelId { get; init; }
 

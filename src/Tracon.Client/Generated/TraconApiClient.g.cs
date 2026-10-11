@@ -19234,8 +19234,9 @@ namespace Tracon.Client.Generated
     public partial class EvalRunTriggerRequest
     {
         /// <summary>
-        /// Model identifier to record for this run. If not given, the model in
-        /// <br/>the agent's current definition is used.
+        /// Model identifier to record for this run. If not given, the model of
+        /// <br/>the definition version the run measures is used: the pinned version
+        /// <br/>when one is given, otherwise the current one.
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("modelId")]

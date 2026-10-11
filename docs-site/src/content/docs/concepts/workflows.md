@@ -36,6 +36,14 @@ sub-call does (see [Agents calling agents](/concepts/agents/#agents-calling-agen
 a cooperative deadline, then a hard cutoff for a participant that ignores it. There
 is no per-participant override here — the installation-wide default applies.
 
+A participant that cannot answer **fails the run**, unlike a callable agent, whose
+caller's model reads the refusal and can try another way. No model reads a
+workflow step's answer, so the refusal would reach the next node as its input. The
+run ends `Failed` and no later node runs: past the wait limit with error type
+`child_run_timeout` (class `Timeout`), refused by the call-tree budget with
+`run_budget_exceeded` (class `QuotaExceeded`), when a tool asks for approval, or
+with the provider's own error when the provider never answered.
+
 ```csharp
 new WorkflowDefinition
 {
@@ -186,14 +194,25 @@ as each super-step ends; it does not abandon a node already running. So it
 bounds how long a run keeps taking new steps, not wall-clock time: a node that
 ignores its cancellation token runs to completion and the run stops at the
 next boundary. To bound one step, give that node its own timeout inside the
-handler. A run stopped this way currently records no reason, so pair the alert
-with the run's duration rather than reading its error.
+handler. A run stopped this way ends `Canceled` with a `TimeoutException` error
+that names `Tracon:Workflows:RunTimeout`.
+
+The deadline starts when the run starts, so it also counts the time a run waits
+for a slot when `MaxConcurrentRuns` workflows are already running. A waiting run
+already has its run record and shows `Running`; a run whose deadline passes
+before it gets a slot ends like any other timed-out run.
+
+A workflow stream writes an SSE comment whenever it has sent nothing for
+`StreamKeepAliveInterval` (15 seconds by default), so a node that works quietly
+for minutes does not look like a dead connection. A closed connection still
+cancels the run.
 
 A workflow's root run shares the same call-tree budget every agent run does
 (`AgentGraph.MaxTotalTokens`/`MaxTotalCost`/`MaxDuration` — see [Reliable
 runs](/guides/reliability/#bound-multi-agent-trees)): every agent node the
 workflow invokes spends against the same tree, so a workflow with a long chain
-of agent steps is bounded the same way a single agent's own tool loop is.
+of agent steps is bounded the same way a single agent's own tool loop is. A step
+the budget refuses fails the run (see above).
 
 ## Checkpoints
 
@@ -210,7 +229,15 @@ Checkpoints survive a process restart only with a SQL provider registered
 (`UsePostgreSql()`, `UseSqlServer()`, or `UseSqlite()`). The in-memory store keeps at
 most 50 checkpoints per session and drops the oldest — enough for local development,
 not for a workflow you expect to resume after a restart. They are also a retention
-target, so an old run may have none left even on durable storage.
+target, so an old run may have none left even on durable storage — except a run
+waiting for a human answer, whose checkpoints retention keeps.
+
+With `KeepCheckpointsAfterCompletion = false`, a finished run deletes its session's
+checkpoints only when no other run of the session still needs them — none is
+waiting for an answer and none is running. A run that asked a human keeps waiting
+even after an answer (a second answer opens a new branch), so a session that
+paused for input keeps its checkpoints; retention removes those of its finished
+runs.
 
 Turning off `EnableCheckpointing` does not silently disable resumption: a workflow
 that stops to wait for a human answer fails outright instead of hanging with no way
@@ -246,7 +273,9 @@ flowchart LR
 
 Requests are read from the run's own event stream — there is no separate table — and
 only a run in `AwaitingInput` has any. The answer is matched to the request that is
-re-published with the same id when execution resumes.
+re-published with the same id when execution resumes. A very long prompt is cut at
+the event payload limit (`RunRecording:MaxPayloadLength`) and marked
+`…[truncated]`; the request is still listed and can still be answered.
 
 This is the same append-only shape as tool approvals: the waiting run stays as it was,
 and the response opens a new one.

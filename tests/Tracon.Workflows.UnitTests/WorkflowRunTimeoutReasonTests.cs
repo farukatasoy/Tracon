@@ -130,6 +130,79 @@ public sealed class WorkflowRunTimeoutReasonTests
         workflowRun.Error.ShouldBeNull();
     }
 
+    [Fact]
+    public async Task A_run_that_times_out_waiting_for_a_slot_is_recorded_and_names_the_setting()
+    {
+        // F-325: the slot wait ran BEFORE the run row opened. A run whose
+        // deadline passed while it queued ended with an
+        // OperationCanceledException and no event at all: the stream had no
+        // RunStarted, no closing frame, and the run id the endpoint had already
+        // announced pointed at no row.
+        var host = new WorkflowTestHost("one");
+        var holding = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var queuedStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        host.AddFunction<List<ChatMessage>, List<ChatMessage>>(
+            "slow",
+            async (messages, _, _) =>
+            {
+                // Ignores its token on purpose: the first run must keep the
+                // only slot after the deadline fires for both runs.
+                holding.TrySetResult();
+                await release.Task.ConfigureAwait(false);
+
+                return messages;
+            });
+
+        await SaveChainAsync(host);
+
+        var clock = new TriggerableTimeProvider();
+        var runner = host.CreateRunnerWithTimeProvider(
+            clock,
+            static options =>
+            {
+                options.MaxConcurrentRuns = 1;
+                options.RunTimeout = TimeSpan.FromMinutes(5);
+            });
+
+        var first = Collect(runner, "chain", "hello");
+
+        await holding.Task.WaitAsync(TestContext.Current.CancellationToken);
+
+        var queued = Collect(runner, "chain", "hello", observed: runEvent =>
+        {
+            if (runEvent.Type == RunEventType.RunStarted)
+            {
+                queuedStarted.TrySetResult();
+            }
+        });
+
+        // The queued run says it has started while it still waits for the slot.
+        await queuedStarted.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+        clock.TriggerAll();
+
+        var events = await queued.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+
+        release.TrySetResult();
+        await first.WaitAsync(TestContext.Current.CancellationToken);
+
+        var closing = events[^1];
+
+        events[0].Type.ShouldBe(RunEventType.RunStarted);
+        closing.Type.ShouldBe(RunEventType.RunFailed);
+        closing.Text.ShouldNotBeNull();
+        closing.Text.ShouldContain("Tracon:Workflows:RunTimeout");
+
+        var queuedRun = await host.RunStore.GetRunAsync(events[0].RunId, TestContext.Current.CancellationToken);
+
+        queuedRun.ShouldNotBeNull();
+        queuedRun.Status.ShouldBe(RunStatus.Canceled);
+        queuedRun.Error.ShouldNotBeNull();
+        queuedRun.Error.Type.ShouldBe(nameof(TimeoutException));
+        queuedRun.Error.Message.ShouldContain("Tracon:Workflows:RunTimeout");
+    }
+
     private static async Task SaveChainAsync(WorkflowTestHost host)
         => await host.SaveAsync(new WorkflowDefinition
         {

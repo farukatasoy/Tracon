@@ -743,6 +743,8 @@ internal static class WorkflowEndpoints
 
             var cancellationToken = httpContext.RequestAborted;
             var writer = await SseWriter.StartAsync(httpContext.Response, cancellationToken).ConfigureAwait(false);
+            // Stops the writer's keep-alive loop before the response ends (F-325).
+            await using var writerScope = writer.ConfigureAwait(false);
             long sequence = 0;
 
             try
@@ -778,10 +780,19 @@ internal static class WorkflowEndpoints
             {
                 // The client disconnected. There is no one left to write to.
             }
-            catch (Exception ex) when (ex is TraconException or InvalidOperationException or HttpRequestException)
+            catch (Exception ex)
             {
-                // InvalidOperationException and HttpRequestException are foreign here (the
-                // latter can carry a host:port); only TraconException's own message is ours.
+                // 🚨 K-296, missed here until F-325: the SSE headers (200,
+                // text/event-stream) have ALREADY been sent. The old filter caught
+                // only TraconException, InvalidOperationException and
+                // HttpRequestException, so anything else — the runner's own
+                // OperationCanceledException when RunTimeout fired during the slot
+                // wait, a consumer runner's exception, a store fault — closed the
+                // connection with no 'error' frame, and the client could not tell
+                // it from a dropped connection. Every exception becomes a frame.
+                //
+                // Only TraconException's own message is ours; SafeErrorText keeps
+                // a foreign one (an HttpRequestException can carry a host:port) out.
                 var correlationId = SafeErrorText.NewCorrelationId();
 
                 httpContext.RequestServices.GetRequiredService<ILoggerFactory>()

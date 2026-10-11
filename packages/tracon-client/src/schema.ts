@@ -4142,8 +4142,9 @@ export interface components {
         /** @description Request to trigger an eval run immediately. */
         EvalRunTriggerRequest: {
             /**
-             * @description Model identifier to record for this run. If not given, the model in
-             *     the agent's current definition is used.
+             * @description Model identifier to record for this run. If not given, the model of
+             *     the definition version the run measures is used: the pinned version
+             *     when one is given, otherwise the current one.
              */
             modelId?: null | string;
             /**

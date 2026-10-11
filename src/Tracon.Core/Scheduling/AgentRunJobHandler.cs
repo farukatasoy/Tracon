@@ -21,9 +21,12 @@ namespace Tracon;
 /// promised the client through <c>Location</c> (<see cref="TraconRunOptions.RunId"/>):
 /// this keeps the promise of the <c>202</c> response VALID even after the job
 /// actually runs from the queue. If the lease expires and the job is re-leased
-/// (retry), this method is called a second time with the SAME identity; the
-/// store treats <c>StartRunAsync</c> as an UPSERT (see <c>RunStartInfo.Status</c>)
-/// — no new <c>runs</c> row is OPENED.
+/// within its attempt limit, this method is called a second time with the SAME
+/// identity; the store treats <c>StartRunAsync</c> as an UPSERT (see
+/// <c>RunStartInfo.Status</c>) — no new <c>runs</c> row is OPENED. Past the
+/// limit (the default <c>AsyncRun.MaxAttempts</c> is one), the worker fails the
+/// job without calling this method (<see cref="JobErrorCodes.AttemptsExhausted"/>),
+/// and the run row left <c>Running</c> is closed by run reconciliation.
 /// </para>
 /// <para>
 /// If the response carries a tool call awaiting approval, <see cref="RunRecordingAgent"/>

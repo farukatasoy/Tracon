@@ -6,7 +6,7 @@ namespace Tracon;
 /// A source that exposes definitions from <see cref="IAgentDefinitionStore"/> in the catalog.
 /// Agents created through the UI come from this source.
 /// </summary>
-internal sealed class DefinitionStoreAgentSource : IVersionedAgentSource
+internal sealed class DefinitionStoreAgentSource : IVersionedAgentSource, IDescribingAgentSource
 {
     private readonly IAgentDefinitionStore _store;
     private readonly AgentDefinitionCompiler _compiler;
@@ -54,21 +54,7 @@ internal sealed class DefinitionStoreAgentSource : IVersionedAgentSource
 
         foreach (var definition in definitions)
         {
-            descriptors.Add(new AgentDescriptor
-            {
-                Name = definition.Name,
-                DisplayName = definition.DisplayName,
-                Description = definition.Description,
-                Origin = AgentDefinitionOrigin.Database,
-                SourceName = Name,
-                Version = definition.Version,
-                Model = definition.Model,
-                ToolNames = definition.ToolNames,
-                SkillNames = definition.SkillNames,
-                CallableAgentNames = definition.CallableAgentNames,
-                UsesHarness = definition.Harness is not null,
-                UpdatedAt = definition.UpdatedAt,
-            });
+            descriptors.Add(AgentDescriptorProjection.FromDefinition(definition, AgentDefinitionOrigin.Database, Name));
         }
 
         return descriptors;
@@ -112,5 +98,38 @@ internal sealed class DefinitionStoreAgentSource : IVersionedAgentSource
         return await _compiler
             .CompileCachedAsync(definition, _cache, _tenantContext.TenantId, culture, cancellationToken)
             .ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// One store read serves both the agent and its descriptor: the
+    /// catalog used to read the definition to compile it and then LIST the
+    /// store for the descriptor, so a pinned version got the current
+    /// version's descriptor, and a save between the two reads paired one
+    /// version's agent with the next one's descriptor.
+    /// </remarks>
+    public async ValueTask<DescribedAgent?> ResolveDescribedAsync(
+        string agentName,
+        int? version,
+        string? culture,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(agentName);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var definition = version is { } pinned
+            ? await _store.GetVersionAsync(agentName, pinned, cancellationToken).ConfigureAwait(false)
+            : await _store.GetAsync(agentName, cancellationToken).ConfigureAwait(false);
+
+        if (definition is null)
+        {
+            return null;
+        }
+
+        var agent = await _compiler
+            .CompileCachedAsync(definition, _cache, _tenantContext.TenantId, culture, cancellationToken)
+            .ConfigureAwait(false);
+
+        return new DescribedAgent(agent, AgentDescriptorProjection.FromDefinition(definition, AgentDefinitionOrigin.Database, Name));
     }
 }

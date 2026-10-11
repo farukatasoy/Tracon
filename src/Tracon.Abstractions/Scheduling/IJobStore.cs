@@ -85,6 +85,12 @@ public interface IJobStore
     /// <param name="completion">The finalization information.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The completion task.</returns>
+    /// <remarks>
+    /// Only an open job (<see cref="JobStatus.Pending"/>, <see cref="JobStatus.Leased"/>
+    /// or <see cref="JobStatus.Running"/>) is finalized; the call leaves a job
+    /// that already reached a terminal status unchanged. A cancelled job stays
+    /// <see cref="JobStatus.Cancelled"/> even when its handler throws afterwards.
+    /// </remarks>
     ValueTask CompleteAsync(JobCompletion completion, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -110,6 +116,11 @@ public interface IJobStore
     /// Webhook delivery builds its 1 min / 5 min / 30 min / 2 hr /
     /// 6 hr ladder with this parameter. No second queue or second lease
     /// mechanism is written.
+    /// </para>
+    /// <para>
+    /// Like <see cref="CompleteAsync"/>, the call leaves a job in a terminal
+    /// status unchanged: a cancelled job never returns to
+    /// <see cref="JobStatus.Pending"/>.
     /// </para>
     /// </remarks>
     ValueTask ReleaseForRetryAsync(

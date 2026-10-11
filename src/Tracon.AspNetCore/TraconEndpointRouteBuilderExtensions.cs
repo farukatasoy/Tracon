@@ -131,6 +131,10 @@ public static class TraconEndpointRouteBuilderExtensions
 
         // Protected group: loopback + bearer token filter, optional policy.
         var group = endpoints.MapGroup(normalizedPrefix).WithTags("Tracon");
+
+        // Every SSE stream under the group keeps itself alive at this cadence;
+        // SseWriter reads it from the endpoint (F-325).
+        group.WithMetadata(new SseKeepAliveMetadata(options.StreamKeepAliveInterval));
         group.AddEndpointFilter(new TraconEndpointFilter(options));
 
         // Rate limiting (Phase 21). The filter is always added but is OFF BY

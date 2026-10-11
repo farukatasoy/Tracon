@@ -22,4 +22,4 @@ SuperStepStarted | covered | tests/Tracon.Workflows.UnitTests/WorkflowEventMappe
 ToolInvoked | covered | tests/Tracon.Core.UnitTests/Recording/RunRecordingAgentTests.cs
 ToolInvoking | covered | tests/Tracon.Core.UnitTests/Recording/RunRecordingAgentTests.cs
 ToolOutputTruncated | covered | tests/Tracon.Core.UnitTests/Tools/TruncatingAIFunctionTests.cs
-WorkflowRequest | uncovered | Pending requests are rebuilt FROM this payload at read time, yet no test reads the payload that was written
+WorkflowRequest | covered | tests/Tracon.Workflows.UnitTests/WorkflowRequestDescriptorTests.cs

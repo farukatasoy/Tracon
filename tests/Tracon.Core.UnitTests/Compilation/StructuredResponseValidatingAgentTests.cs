@@ -86,6 +86,62 @@ public sealed class StructuredResponseValidatingAgentTests
         validator.LastContext.Kind.ShouldBe(AgentResponseFormatKind.Json);
     }
 
+    // --- F-329: the answer is the last assistant message, not the joined text ---
+
+    [Fact]
+    public async Task Text_written_before_the_final_answer_is_not_validated_as_part_of_it()
+    {
+        // A tool round, or a loop's earlier iteration, leaves assistant text
+        // ahead of the answer. Joined, "Let me check." + JSON is not JSON.
+        var chatClient = new FakeChatClient(_ => new ChatResponse(
+        [
+            new ChatMessage(ChatRole.Assistant, "Let me check."),
+            new ChatMessage(ChatRole.Tool, [new FunctionResultContent("c1", "42")]),
+            new ChatMessage(ChatRole.Assistant, "{\"ok\":true}"),
+        ]));
+        var validator = new StaticValidator(StructuredResponseValidationResult.Valid);
+        var wrapped = Wrap(chatClient, Json(), validator);
+
+        await wrapped.RunAsync("hello");
+
+        validator.LastContext!.ResponseText.ShouldBe("{\"ok\":true}");
+    }
+
+    [Fact]
+    public async Task A_valid_earlier_message_does_not_excuse_an_invalid_final_answer()
+    {
+        var chatClient = new FakeChatClient(_ => new ChatResponse(
+        [
+            new ChatMessage(ChatRole.Assistant, "{\"ok\":true}"),
+            new ChatMessage(ChatRole.Assistant, "not json"),
+        ]));
+        var wrapped = Wrap(chatClient, Json());
+
+        var exception = await Should.ThrowAsync<TraconStructuredResponseException>(() => wrapped.RunAsync("hello"));
+
+        exception.Message.ShouldBe("The response is not valid JSON.");
+    }
+
+    [Fact]
+    public async Task Streaming_validates_the_last_message_of_the_stream()
+    {
+        var updates = new List<ChatResponseUpdate>
+        {
+            new(ChatRole.Assistant, "Drafting the answer.") { MessageId = "m1" },
+            new(ChatRole.Assistant, "{\"ok\"") { MessageId = "m2" },
+            new(ChatRole.Assistant, ":true}") { MessageId = "m2" },
+        };
+        var chatClient = new FakeChatClient(streamingUpdates: updates);
+        var validator = new StaticValidator(StructuredResponseValidationResult.Valid);
+        var wrapped = Wrap(chatClient, Json(), validator);
+
+        await foreach (var _ in wrapped.RunStreamingAsync("hello"))
+        {
+        }
+
+        validator.LastContext!.ResponseText.ShouldBe("{\"ok\":true}");
+    }
+
     [Fact]
     public async Task Empty_response_is_rejected_without_calling_the_validator()
     {

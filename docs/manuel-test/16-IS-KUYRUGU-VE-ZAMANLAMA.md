@@ -2873,3 +2873,32 @@ satıra iner.
 - Devam run'ı `Completed` olur.
 - Aynı approval'a `{"approved": false}` gönderilirse `409` döner: ters karar
   hâlâ çatışmadır.
+
+---
+
+### MT-JOB-133 — Tek denemelik kuyruklu run'ın worker'ı öldürülünce iş yeniden KOŞMAZ (kusur-giderme, 2026-10-12, F-326)
+
+Regresyon. Kira dolumu denemeyi sayıyor ama sınırla karşılaştırılmıyordu; tek
+denemelik kuyruklu run ikinci worker'da yeniden koşuyordu. Otomatik karşılığı:
+`TwoProcessLeaseTakeoverTests.A_dead_workers_job_limited_to_one_attempt_is_failed_not_run_again`.
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Kritik |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | K-886 |
+
+**Ön koşul**
+- MT-JOB-062'nin iki süreçli kurulumu; `Tracon__Scheduling__LeaseDuration=00:00:12`;
+  uzun süren bir tool'u olan agent.
+
+**Adımlar**
+1. `Prefer: respond-async` ile run başlat; işi kiralayan sürecin PID'ini bul.
+2. O süreci `kill -9` ile öldür; 30 sn bekle.
+3. `GET /api/jobs/{jobId}` oku.
+
+**Beklenen sonuç**
+- İş `Failed`; `errorMessage` `tracon.job.attempts-exhausted` ile başlar; `attempt` 2.
+- Agent ikinci kez çağrılmaz (sağlayıcı günlüğünde tek istek).
+- 🚨 Eski kusur: hayatta kalan süreç işi devraldı ve agent'ı yeniden koştu.

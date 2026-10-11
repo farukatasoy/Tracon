@@ -196,7 +196,9 @@ internal sealed class InMemoryJobStore : IJobStore
 
         lock (_jobs)
         {
-            if (_jobs.TryGetValue(completion.JobId, out var job))
+            // A terminal job is never changed (F-326) — the same rule the SQL
+            // stores apply with their status filter.
+            if (_jobs.TryGetValue(completion.JobId, out var job) && job.Status is (JobStatus.Pending or JobStatus.Leased or JobStatus.Running))
             {
                 _jobs[completion.JobId] = job with
                 {
@@ -223,7 +225,7 @@ internal sealed class InMemoryJobStore : IJobStore
 
         lock (_jobs)
         {
-            if (_jobs.TryGetValue(jobId, out var job))
+            if (_jobs.TryGetValue(jobId, out var job) && job.Status is (JobStatus.Pending or JobStatus.Leased or JobStatus.Running))
             {
                 // Backoff is represented through ScheduledFor, which leasing already
                 // filters. There is no separate "next attempt" field.

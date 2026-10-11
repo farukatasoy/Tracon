@@ -297,6 +297,41 @@ internal sealed class JobWorkerBackgroundService(
             return;
         }
 
+        // 🚨 F-326: the lease query re-leases a job whose lease ran out and
+        // counts the attempt, but only the handler-failure path below compared
+        // the count with the limit. A worker that died mid-job (crash, SIGKILL,
+        // a lost lease) therefore had its job run again with no limit — even
+        // under MaxAttempts = 1, the promise a queued agent run is made with.
+        // The check sits here, in the worker, not in each store's lease query:
+        // the global default is not in the database, and a third-party store
+        // gets the same guarantee.
+        var maxAttempts = job.MaxAttempts ?? options.MaxAttempts;
+
+        if (job.Attempt > maxAttempts)
+        {
+            var exhaustedRef = SafeErrorText.NewCorrelationId();
+
+            if (logger is not null && logger.IsEnabled(LogLevel.Error))
+            {
+                logger.LogError(
+                    "Job {JobId} was leased again after its lease ran out, and attempt {Attempt} is past its limit of {MaxAttempts}; it is failed without running. (ref: {CorrelationId})",
+                    job.Id,
+                    job.Attempt,
+                    maxAttempts,
+                    exhaustedRef);
+            }
+
+            await FailWithoutRunningAsync(
+                job,
+                JobErrorCodes.Format(JobErrorCodes.AttemptsExhausted, exhaustedRef),
+                now,
+                startedAt,
+                job.HandlerKey,
+                stoppingToken).ConfigureAwait(false);
+
+            return;
+        }
+
         // 🚨 The ambient tenant is opened HERE, in the method that owns the
         // whole execution, not inside the helper below: an AsyncLocal write
         // made in an async helper does not flow back to its caller. It also has
@@ -393,7 +428,25 @@ internal sealed class JobWorkerBackgroundService(
         long startedAt,
         CancellationToken stoppingToken)
     {
-        await jobStore.MarkRunningAsync(job.Id, _ownerId, stoppingToken).ConfigureAwait(false);
+        if (!await jobStore.MarkRunningAsync(job.Id, _ownerId, stoppingToken).ConfigureAwait(false))
+        {
+            // The job left Leased between the lease and here: it was cancelled,
+            // or its lease went to another worker. Either way it is not this
+            // worker's to run (F-326; the result used to be ignored, and a job
+            // cancelled in that window ran anyway).
+            var latest = await jobStore.GetAsync(job.TenantId, job.Id, stoppingToken).ConfigureAwait(false);
+
+            if (latest?.Status == JobStatus.Cancelled)
+            {
+                RecordJobMetric(job, JobStatus.Cancelled, startedAt);
+            }
+            else if (logger is not null && logger.IsEnabled(LogLevel.Warning))
+            {
+                logger.LogWarning("Job {JobId} is no longer leased by this worker; it is not run.", job.Id);
+            }
+
+            return;
+        }
 
         var items = await jobStore.ListItemsAsync(job.Id, stoppingToken).ConfigureAwait(false);
 
@@ -453,6 +506,20 @@ internal sealed class JobWorkerBackgroundService(
             }
 
             var safeMessage = SafeErrorText.ForPersistence(exception, correlationId);
+
+            // 🚨 Cancelled is terminal (F-326). A handler that saw the cancel and
+            // threw on its way out used to be treated as a plain failure: with
+            // attempts left the job went back to Pending and ran again, on the
+            // last attempt it became Failed. The store refuses both writes on a
+            // terminal job too; this read is what keeps the metric honest.
+            var latest = await jobStore.GetAsync(job.TenantId, job.Id, stoppingToken).ConfigureAwait(false);
+
+            if (latest?.Status == JobStatus.Cancelled)
+            {
+                RecordJobMetric(job, JobStatus.Cancelled, startedAt);
+
+                return;
+            }
 
             // The job may carry its own attempt limit (webhook delivery uses a
             // different ladder than the global setting); if not, the global setting.
@@ -597,7 +664,12 @@ internal sealed class JobWorkerBackgroundService(
     private CancelOnDispose StartLeaseRenewal(Guid jobId, TimeSpan leaseDuration, CancellationToken stoppingToken)
     {
         var cts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
-        var interval = leaseDuration / 2;
+
+        // A third, not a half (F-326): at half, the renewal after a missed one
+        // lands exactly on the expiry, so one transient store error was enough
+        // to let another worker take the job. A third leaves one miss of margin
+        // — the same reason SingletonGuard renews at a third (K-743).
+        var interval = leaseDuration / 3;
 
         if (interval <= TimeSpan.Zero)
         {
@@ -613,24 +685,32 @@ internal sealed class JobWorkerBackgroundService(
     {
         try
         {
-            using var timer = new PeriodicTimer(interval);
+            using var timer = new PeriodicTimer(interval, _clock);
 
             while (await timer.WaitForNextTickAsync(token).ConfigureAwait(false))
             {
-                await jobStore.RenewLeaseAsync(jobId, _ownerId, leaseDuration, token).ConfigureAwait(false);
+                // 🚨 The catch is PER TICK (F-326). One try around the whole loop
+                // ended renewal for good on the first transient store error: the
+                // handler kept running, the lease ran out, and another worker
+                // leased the job and ran it a second time beside the first.
+                // IJobHandler promises a lease renewed without limit.
+                try
+                {
+                    await jobStore.RenewLeaseAsync(jobId, _ownerId, leaseDuration, token).ConfigureAwait(false);
+                }
+                catch (Exception exception) when (OperationCancellation.IsFailure(exception, token))
+                {
+                    if (logger is not null && logger.IsEnabled(LogLevel.Warning))
+                    {
+                        logger.LogWarning(exception, "Lease renewal failed: {JobId}. The next tick tries again.", jobId);
+                    }
+                }
             }
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
             // The job finished, or the worker is shutting down. Only then: a
-            // store's own timeout is a renewal failure and is logged below (K-840).
-        }
-        catch (Exception exception)
-        {
-            if (logger is not null && logger.IsEnabled(LogLevel.Warning))
-            {
-                logger.LogWarning(exception, "Lease renewal failed: {JobId}.", jobId);
-            }
+            // store's own timeout is a renewal failure and is logged above (K-840).
         }
     }
 

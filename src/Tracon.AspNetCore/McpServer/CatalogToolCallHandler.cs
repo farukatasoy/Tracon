@@ -77,6 +77,12 @@ internal static class CatalogToolCallHandler
             return Error($"There is no agent named '{agentName}' in the catalog.");
         }
 
+        // F-330: an MCP tool call carries only a message, no parameter values.
+        if (agent.GetService<UnboundParameterGuard>() is { RequiresValues: true } unbound)
+        {
+            return Error(unbound.Failure().Message);
+        }
+
         var runOptions = new TraconRunOptions
         {
             // Reuses the id Tracon's task-provisioning filter already

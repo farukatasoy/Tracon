@@ -2326,3 +2326,87 @@ curl -s -X PUT "$APU/api/workflows/mixed-chain" -H "$APB" -H 'content-type: appl
   `agentNames` boştur. Graf hâlâ bir `Function` düğümü çizer.
 - 🚨 Eski kusur: editör boş katılımcı listesiyle açılıyordu. Agent eklenip
   kaydedilince `nodes` `[]` oluyor, fonksiyon düğümü uyarısız siliniyordu.
+
+---
+
+### MT-WF-121 — Sessiz çalışan düğüm konsolda 30 sn'yi aşar, run `Completed` biter (kusur-giderme, 2026-10-12, F-325)
+
+Regresyon. Workflow akışı düğüm çalışırken hiç bayt yazmıyordu; konsol 30 sn
+sessizlikte okumayı bırakıyor, kapanan bağlantı run'ı `Canceled` yapıyordu.
+Otomatik karşılığı: `StreamKeepAliveTests`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | K-885 |
+
+**Ön koşul**
+- Örnek uygulamada 45 sn bekleyen bir fonksiyon düğümü (`Task.Delay(45 s, ct)`)
+  ve onu taşıyan bir workflow.
+
+**Adımlar**
+1. Konsolda workflow'u **Run** ile başlat; 45 sn bekle.
+2. Aynı anda `curl -N` ile akışı izle.
+
+**Beklenen sonuç**
+- Akışta sessizlik sırasında yaklaşık 15 sn'de bir `: waiting` satırı görünür.
+- Konsol "bağlantı koptu" demez; run `Completed` biter.
+- 🚨 Eski kusur: 30 sn'de konsol okumayı bıraktı, run `Canceled` oldu.
+
+---
+
+### MT-WF-122 — Süresi dolan agent adımı workflow'u `Failed` bitirir, sonraki düğüm koşmaz (kusur-giderme, 2026-10-12, F-328)
+
+Regresyon. Süre, bütçe ve onay reddi metin olarak sonraki düğüme akıyor,
+run `Completed` bitiyordu. Otomatik karşılığı: `WorkflowStepRefusalTests`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | K-887 |
+
+**Ön koşul**
+- `Tracon__AgentGraph__ChildDeadline=00:00:02`; ilk düğüm uzun cevap üreten
+  bir agent, ikinci düğüm `word-count`.
+
+**Adımlar**
+1. Workflow'u çalıştır.
+2. `GET /api/runs/{workflowRunId}` ve kök olay akışını oku.
+
+**Beklenen sonuç**
+- Workflow `Failed`; `error.type` `child_run_timeout`, `error.class` `Timeout`.
+- Kök akışta `child.timed-out` vardır; `word-count` için `ExecutorInvoked` yoktur.
+- 🚨 Eski kusur: "did not respond in time" cümlesi `word-count`'a girdi oldu.
+
+---
+
+### MT-WF-123 — Uzun istemli bekleyen istek listelenir ve iki kez cevaplanabilir (kusur-giderme, 2026-10-12, F-327)
+
+Regresyon. 8 KB'ı aşan istem isteği listeden düşürüyordu; cevap run'ı kaynağın
+checkpoint'lerini siliyordu. Otomatik karşılığı: `WorkflowHumanInTheLoopTests`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | K-888 |
+
+**Ön koşul**
+- `Tracon__Workflows__KeepCheckpointsAfterCompletion=false`; istemi ~2.000
+  Türkçe karakterlik bir `RequestPort` workflow'u.
+
+**Adımlar**
+1. Workflow'u çalıştır; `GET /api/workflows/runs/{runId}/requests` oku.
+2. İsteği bir kez yanlış tipte (`{"text":"belki"}`), sonra doğru cevapla.
+3. Aynı isteği ikinci kez cevapla.
+
+**Beklenen sonuç**
+- İstek listelenir; istem `…[truncated]` ile biter, `form` doğrudur.
+- Yanlış cevap run'ı `Failed` biter ama doğru cevap çalışır; ikinci cevap yeni
+  bir dal açar (K-130).
+- 🚨 Eski kusur: istek listede yoktu; yanlış cevaptan sonra "has no checkpoint".

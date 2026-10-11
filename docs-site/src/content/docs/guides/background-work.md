@@ -128,8 +128,11 @@ curl -sS \
   https://agents.example.com/tracon/api/runs/$RUN_ID/events
 ```
 
-Queued runs do not accept `attachmentIds` or an initial `approvals` collection. If a
-tool asks for approval later, the queued request must include a `sessionId`.
+Queued runs do not accept `attachmentIds`, `parameters` or an initial `approvals`
+collection. A queued run of a parameterized agent binds each parameter's default;
+an agent with a required parameter that has no default is refused with `400` and
+`missingParameters`. If a tool asks for approval later, the queued request must
+include a `sessionId`.
 
 **Do not start a second run yourself.** Deciding the approval is enough: the
 decision endpoint creates the continuation run and queues it for the worker in
@@ -150,9 +153,12 @@ run request's `approvals` collection — is answered on the next request instead
 and a workflow's human-in-the-loop step uses its own respond call.
 
 `AsyncRun.MaxAttempts` defaults to one. This is deliberate: an expired lease must not
-silently repeat an agent run that already changed an external system. Raise it only
-when every tool in the run is idempotent and you have tested replay after a worker
-crash.
+silently repeat an agent run that already changed an external system. A lease that
+runs out counts as an attempt, so when the worker running a one-attempt job dies,
+the job fails with `tracon.job.attempts-exhausted` instead of running again; its
+run stays `Running` until [run reconciliation](#singleton-services-and-orphaned-run-recovery) closes it.
+Raise the limit only when every tool in the run is idempotent and you have tested
+replay after a worker crash.
 
 ## Create a recurring schedule
 
@@ -387,7 +393,7 @@ too. A store having lease semantics is not a cluster-support guarantee.
 | `Scheduling.RunWorker` | `true` | `false` disables the worker in this process |
 | `Scheduling.MaxConcurrentJobs` | `2` | Must be at least `1`; applies per process |
 | `Scheduling.PollInterval` | 10 seconds | 1 ms to about 49.7 days; checked at startup |
-| `Scheduling.LeaseDuration` | 5 minutes | Must be positive and at most about 99 days; renewal starts halfway through the lease |
+| `Scheduling.LeaseDuration` | 5 minutes | Must be positive and at most about 149 days; renewal runs at a third of the lease |
 | `Scheduling.MaxAttempts` | `3` | Must be at least `1`; jobs can override it |
 | `Scheduling.MaxItemsPerJob` | `1,000` | Must be at least `1` |
 | `Scheduling.Lanes` | `null` | `null` leases from every lane; a list scopes the worker to only those lanes |
@@ -420,13 +426,18 @@ earlier attempt already completed — so a custom `IJobHandler` must skip any it
 whose status is no longer `Pending`; see
 [Write your own job handler](/guides/write-your-own-job-handler/).
 
-- A handler exception is retried until the job's attempt limit is reached.
+- A handler exception is retried until the job's attempt limit is reached. A lease that
+  runs out (its worker died) counts as an attempt too: past the limit the job fails
+  with `tracon.job.attempts-exhausted` without running again.
 - `JobRetryException.RetryAfter` asks the queue to delay the next attempt. Other
   failures can be retried immediately.
 - A missing handler marks the job as failed.
-- Lease-renewal, polling, and dispatch errors are logged; later polling ticks continue.
+- Lease-renewal, polling, and dispatch errors are logged; later ticks continue. A
+  failed renewal is retried on the next tick, a third of the lease later.
 - Cancellation is cooperative. A running handler sees cancellation between items and
-  must also pass its token to long operations.
+  must also pass its token to long operations. A cancelled job stays `Cancelled`, even
+  when its handler throws on the way out, and a job cancelled before its handler
+  starts does not start.
 - A batch with both successful and failed items finishes as `Completed`. A batch in
   which every item fails finishes as `Failed`. Inspect item counters, not only the job
   status.

@@ -101,6 +101,47 @@ public sealed class TraconEndpointOptions
     } = TimeSpan.FromMilliseconds(250);
 
     /// <summary>
+    /// The longest a server-sent event stream stays silent. When nothing else
+    /// has been written for this long, the stream writes a keep-alive comment.
+    /// Default 15 seconds.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Applies to every streaming endpoint: agent runs, workflow runs, resumes
+    /// and responses, and the OpenAI-compatible endpoints. A run whose producer
+    /// is busy but quiet (a long workflow node, a slow tool call) would otherwise
+    /// send no bytes, and a reader with an idle limit would take the silence for
+    /// a dead connection: the console stops reading after 30 seconds, and a
+    /// reverse proxy after its read timeout. A closed connection cancels the run.
+    /// </para>
+    /// <para>
+    /// Keep the value below the shortest idle timeout between the server and
+    /// its readers, and below 30 seconds while the console is in use. The
+    /// keep-alive is an SSE comment line, which SSE readers ignore.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// The value is outside one millisecond to about 49.7 days, the range the delay accepts.
+    /// </exception>
+    public TimeSpan StreamKeepAliveInterval
+    {
+        get;
+
+        set
+        {
+            if (!TimerPeriod.IsValid(value))
+            {
+                throw new ArgumentOutOfRangeException(nameof(value), value, TimerPeriod.Failure(nameof(StreamKeepAliveInterval), value));
+            }
+
+            field = value;
+        }
+    } = DefaultStreamKeepAliveInterval;
+
+    /// <summary>The default of <see cref="StreamKeepAliveInterval"/>.</summary>
+    internal static readonly TimeSpan DefaultStreamKeepAliveInterval = TimeSpan.FromSeconds(15);
+
+    /// <summary>
     /// Attaches the endpoints to an ASP.NET Core authorization policy.
     /// </summary>
     /// <param name="policyName">Name of the policy to apply.</param>

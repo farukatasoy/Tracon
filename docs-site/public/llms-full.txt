@@ -409,7 +409,21 @@ A run supplies values on the `parameters` field of `POST /api/agents/{name}/run`
 `/estimate`, which checks the same values without calling a model). A required
 parameter with no value and no `DefaultValue` stops the run before it starts, and
 names the missing parameter; a value for a name the schema does not declare is
-rejected too, not silently dropped.
+rejected too, not silently dropped. This holds for a definition saved through the
+API and for one registered in code with `AddAgent`.
+
+Every other way to start a run carries no values: a queued run, a batch or
+schedule, the OpenAI-compatible endpoints, MCP, A2A, a workflow step, an agent
+called by another agent, and voice. Those runs bind each parameter's
+`DefaultValue`. An agent with a required parameter that has no default does not
+run there: the request is refused where it enters (`400` with `missingParameters`
+for a queued run), and where there is no request to refuse, the run fails before
+any model call and names the parameter.
+
+A replay and an automatic continuation after a crash re-run a recorded run, and
+the recorded input does not include its parameter values. Running them with the
+defaults would change the instructions, so both are refused for any agent that
+declares parameters.
 
 This is **value substitution, not a template engine**. There is no expression,
 condition, loop, or field access (`{{a.b}}`) — a template language is a security
@@ -560,7 +574,9 @@ Five rules hold across the tree:
 - A child call has a two-layer wait limit: a cooperative deadline that cancels a
   child reading its token, and a hard cutoff for one that does not. Past the hard
   cutoff the tree keeps going; the child keeps running in the background and its
-  eventual result is discarded. Set `SubAgentSettings` on the calling agent to
+  eventual result is discarded. (A workflow step is the exception: no model reads
+  its answer, so a step past its limit fails the workflow — see
+  [Workflows](/concepts/workflows/).) Set `SubAgentSettings` on the calling agent to
   override the installation-wide default:
 
   ```csharp
@@ -611,6 +627,11 @@ new AgentDefinition
 ```
 
 The loop is off while `Loop` is null, which is the default.
+
+A non-streaming run returns the **final iteration's answer**; its usage and cost
+are the sum of every iteration. A streaming run streams every iteration as it
+happens. Either way each iteration is recorded on the run as a
+`LoopIterationCompleted` event.
 
 **`MaxIterations` is not `MaximumIterationsPerRequest`.** The two bound
 different loops. `MaximumIterationsPerRequest` bounds the harness's *inner*
@@ -2365,6 +2386,11 @@ operator response differs: one is a provider setting, the other is your policy.
 `GET /api/stats` aggregates the classes, so a rise in one bucket is visible before
 anyone reports it.
 
+A workflow run is classified the same way. Its `error.type` is the same stable
+identity the failing step's own run records — `loop_unsatisfied`,
+`child_run_timeout`, `run_budget_exceeded` — not the exception's .NET type name,
+and its class is the step's class.
+
 Both the class and the clustering fingerprint come from a classifier you can
 replace or compose with your own rules — see
 [Write your own error classifier](/guides/write-your-own-error-classifier/).
@@ -2391,7 +2417,9 @@ code instead of prose. A job queued for a handler key nobody registered fails
 with `tracon.job.unknown-handler-key`, and the key itself is written to the
 log rather than to `errorMessage`, for the same reason a foreign exception's
 text is: the key may have come from an untrusted source, and that field is read
-back over HTTP. Match on the code, never on the sentence around it.
+back over HTTP. A job whose worker died and whose attempt limit is used up fails
+with `tracon.job.attempts-exhausted`. Match on the code, never on the sentence
+around it.
 
 ## Replay and comparison
 
@@ -3158,6 +3186,14 @@ sub-call does (see [Agents calling agents](/concepts/agents/#agents-calling-agen
 a cooperative deadline, then a hard cutoff for a participant that ignores it. There
 is no per-participant override here — the installation-wide default applies.
 
+A participant that cannot answer **fails the run**, unlike a callable agent, whose
+caller's model reads the refusal and can try another way. No model reads a
+workflow step's answer, so the refusal would reach the next node as its input. The
+run ends `Failed` and no later node runs: past the wait limit with error type
+`child_run_timeout` (class `Timeout`), refused by the call-tree budget with
+`run_budget_exceeded` (class `QuotaExceeded`), when a tool asks for approval, or
+with the provider's own error when the provider never answered.
+
 ```csharp
 new WorkflowDefinition
 {
@@ -3308,14 +3344,25 @@ as each super-step ends; it does not abandon a node already running. So it
 bounds how long a run keeps taking new steps, not wall-clock time: a node that
 ignores its cancellation token runs to completion and the run stops at the
 next boundary. To bound one step, give that node its own timeout inside the
-handler. A run stopped this way currently records no reason, so pair the alert
-with the run's duration rather than reading its error.
+handler. A run stopped this way ends `Canceled` with a `TimeoutException` error
+that names `Tracon:Workflows:RunTimeout`.
+
+The deadline starts when the run starts, so it also counts the time a run waits
+for a slot when `MaxConcurrentRuns` workflows are already running. A waiting run
+already has its run record and shows `Running`; a run whose deadline passes
+before it gets a slot ends like any other timed-out run.
+
+A workflow stream writes an SSE comment whenever it has sent nothing for
+`StreamKeepAliveInterval` (15 seconds by default), so a node that works quietly
+for minutes does not look like a dead connection. A closed connection still
+cancels the run.
 
 A workflow's root run shares the same call-tree budget every agent run does
 (`AgentGraph.MaxTotalTokens`/`MaxTotalCost`/`MaxDuration` — see [Reliable
 runs](/guides/reliability/#bound-multi-agent-trees)): every agent node the
 workflow invokes spends against the same tree, so a workflow with a long chain
-of agent steps is bounded the same way a single agent's own tool loop is.
+of agent steps is bounded the same way a single agent's own tool loop is. A step
+the budget refuses fails the run (see above).
 
 ## Checkpoints
 
@@ -3332,7 +3379,15 @@ Checkpoints survive a process restart only with a SQL provider registered
 (`UsePostgreSql()`, `UseSqlServer()`, or `UseSqlite()`). The in-memory store keeps at
 most 50 checkpoints per session and drops the oldest — enough for local development,
 not for a workflow you expect to resume after a restart. They are also a retention
-target, so an old run may have none left even on durable storage.
+target, so an old run may have none left even on durable storage — except a run
+waiting for a human answer, whose checkpoints retention keeps.
+
+With `KeepCheckpointsAfterCompletion = false`, a finished run deletes its session's
+checkpoints only when no other run of the session still needs them — none is
+waiting for an answer and none is running. A run that asked a human keeps waiting
+even after an answer (a second answer opens a new branch), so a session that
+paused for input keeps its checkpoints; retention removes those of its finished
+runs.
 
 Turning off `EnableCheckpointing` does not silently disable resumption: a workflow
 that stops to wait for a human answer fails outright instead of hanging with no way
@@ -3368,7 +3423,9 @@ flowchart LR
 
 Requests are read from the run's own event stream — there is no separate table — and
 only a run in `AwaitingInput` has any. The answer is matched to the request that is
-re-published with the same id when execution resumes.
+re-published with the same id when execution resumes. A very long prompt is cut at
+the event payload limit (`RunRecording:MaxPayloadLength`) and marked
+`…[truncated]`; the request is still listed and can still be answered.
 
 This is the same append-only shape as tool approvals: the waiting run stays as it was,
 and the response opens a new one.
@@ -4739,8 +4796,11 @@ curl -sS \
   https://agents.example.com/tracon/api/runs/$RUN_ID/events
 ```
 
-Queued runs do not accept `attachmentIds` or an initial `approvals` collection. If a
-tool asks for approval later, the queued request must include a `sessionId`.
+Queued runs do not accept `attachmentIds`, `parameters` or an initial `approvals`
+collection. A queued run of a parameterized agent binds each parameter's default;
+an agent with a required parameter that has no default is refused with `400` and
+`missingParameters`. If a tool asks for approval later, the queued request must
+include a `sessionId`.
 
 **Do not start a second run yourself.** Deciding the approval is enough: the
 decision endpoint creates the continuation run and queues it for the worker in
@@ -4761,9 +4821,12 @@ run request's `approvals` collection — is answered on the next request instead
 and a workflow's human-in-the-loop step uses its own respond call.
 
 `AsyncRun.MaxAttempts` defaults to one. This is deliberate: an expired lease must not
-silently repeat an agent run that already changed an external system. Raise it only
-when every tool in the run is idempotent and you have tested replay after a worker
-crash.
+silently repeat an agent run that already changed an external system. A lease that
+runs out counts as an attempt, so when the worker running a one-attempt job dies,
+the job fails with `tracon.job.attempts-exhausted` instead of running again; its
+run stays `Running` until [run reconciliation](#singleton-services-and-orphaned-run-recovery) closes it.
+Raise the limit only when every tool in the run is idempotent and you have tested
+replay after a worker crash.
 
 ## Create a recurring schedule
 
@@ -4998,7 +5061,7 @@ too. A store having lease semantics is not a cluster-support guarantee.
 | `Scheduling.RunWorker` | `true` | `false` disables the worker in this process |
 | `Scheduling.MaxConcurrentJobs` | `2` | Must be at least `1`; applies per process |
 | `Scheduling.PollInterval` | 10 seconds | 1 ms to about 49.7 days; checked at startup |
-| `Scheduling.LeaseDuration` | 5 minutes | Must be positive and at most about 99 days; renewal starts halfway through the lease |
+| `Scheduling.LeaseDuration` | 5 minutes | Must be positive and at most about 149 days; renewal runs at a third of the lease |
 | `Scheduling.MaxAttempts` | `3` | Must be at least `1`; jobs can override it |
 | `Scheduling.MaxItemsPerJob` | `1,000` | Must be at least `1` |
 | `Scheduling.Lanes` | `null` | `null` leases from every lane; a list scopes the worker to only those lanes |
@@ -5031,13 +5094,18 @@ earlier attempt already completed — so a custom `IJobHandler` must skip any it
 whose status is no longer `Pending`; see
 [Write your own job handler](/guides/write-your-own-job-handler/).
 
-- A handler exception is retried until the job's attempt limit is reached.
+- A handler exception is retried until the job's attempt limit is reached. A lease that
+  runs out (its worker died) counts as an attempt too: past the limit the job fails
+  with `tracon.job.attempts-exhausted` without running again.
 - `JobRetryException.RetryAfter` asks the queue to delay the next attempt. Other
   failures can be retried immediately.
 - A missing handler marks the job as failed.
-- Lease-renewal, polling, and dispatch errors are logged; later polling ticks continue.
+- Lease-renewal, polling, and dispatch errors are logged; later ticks continue. A
+  failed renewal is retried on the next tick, a third of the lease later.
 - Cancellation is cooperative. A running handler sees cancellation between items and
-  must also pass its token to long operations.
+  must also pass its token to long operations. A cancelled job stays `Cancelled`, even
+  when its handler throws on the way out, and a job cancelled before its handler
+  starts does not start.
 - A batch with both successful and failed items finishes as `Completed`. A batch in
   which every item fails finishes as `Failed`. Inspect item counters, not only the job
   status.
@@ -10659,6 +10727,11 @@ after the model answers and before the run closes, for any agent whose
 }
 ```
 
+The check reads the **answer**: the last assistant message that carries text. A
+response can hold more than that — the text a model wrote before it called a tool,
+or the earlier drafts of a harness loop — and none of it is part of the structured
+answer.
+
 With it on, Tracon first checks well-formedness itself: the response must be
 non-empty and parse as JSON. That check alone catches the two failure modes every
 consumer would otherwise check by hand — an empty response and a response cut off
@@ -11253,10 +11326,12 @@ try {
 ```
 
 The threshold counts **bytes, not frames**. Tracon sends a `: waiting` comment
-every `RunEventPollInterval` (250 ms by default) for as long as a run is going,
-and `readSse` skips comments — so a run that is thinking yields no frames at
-all while it thinks, and a frame-based timeout would cut it off. Set the
-threshold above that interval, with room for a slow link. Leave the option out
+on a run's event stream every `RunEventPollInterval` (250 ms by default), and on
+every other stream - a workflow run, an agent run - whenever it has written
+nothing for `StreamKeepAliveInterval` (15 seconds by default). `readSse` skips
+comments, so a run that is thinking yields no frames at all while it thinks,
+and a frame-based timeout would cut it off. Set the threshold above the
+longer of those intervals, with room for a slow link. Leave the option out
 and the stream waits forever, which is the behavior every existing caller
 already has.
 
@@ -14947,8 +15022,8 @@ Every interval that drives a background timer must be between 1 millisecond and 
 `RunReconciliation:HeartbeatInterval`, `RunReconciliation:ScanInterval`,
 `Approvals:ScanInterval`, `Canary:ScanInterval`, `Health:BackgroundInterval`,
 `Mcp:RefreshInterval`, and the two `Observability` gauge intervals. A lease renews at a
-fraction of its length, so `Scheduling:LeaseDuration` may be at most about 99 days and
-`SingletonExecution:LeaseDuration` about 149 days. A value outside its range fails at
+third of its length, so `Scheduling:LeaseDuration` and `SingletonExecution:LeaseDuration`
+may each be at most about 149 days. A value outside its range fails at
 startup and names the option. Each of these is checked only while the feature that owns
 its timer is on. `Retention:BatchDelay` may be zero and is always held to at most about
 49.7 days.
@@ -15074,13 +15149,13 @@ only after retention is enabled. A database policy for a target takes precedence
 
 | Child key | Default `MaxAgeDays` | `Archive` default |
 |---|---:|---:|
-| `RunEvents` | 30 days | `false` |
+| `RunEvents` | 30 days; a waiting workflow's request is kept | `false` |
 | `ToolInvocations` | 90 days | `false` |
 | `Spans` | 14 days | `false` |
 | `Jobs` | 30 days; completed jobs only | `false` |
 | `WebhookDeliveries` | 7 days; delivered rows only | `false` |
 | `EvalCaseResults` | 180 days | `false` |
-| `WorkflowCheckpoints` | 7 days after completion | `false` |
+| `WorkflowCheckpoints` | 7 days after completion; a waiting workflow's are kept | `false` |
 | `SkillScriptGrants` | 30 days after expiry or revocation | `false` |
 | `Attachments` | 7 days for orphaned rows | `false` |
 | `Sessions` | Disabled, `null` | `false` |
@@ -15090,6 +15165,10 @@ only after retention is enabled. A database policy for a target takes precedence
 | `VoiceSessions` | 30 days | `false` |
 | `RunScores` | 180 days | `false` |
 | `DocumentEmbeddings` | Disabled, `null` | `false` |
+
+A workflow run waiting for a human answer (`AwaitingInput`) keeps its pending
+request event and its checkpoints for as long as it waits, whatever their age: the
+request lives only in that event, and the answer resumes from those checkpoints.
 
 `IdempotencyKeys` is not a bindable child section. Its one-day option default still
 applies when configuration defaults are enabled. Change that target through
@@ -15244,6 +15323,7 @@ configuration section.
 | `EnableDiagnosticsEndpoint` | `false` |
 | `MapOpenAIConversations` | `true` |
 | `RunEventPollInterval` | 250 ms |
+| `StreamKeepAliveInterval` | 15 seconds |
 | `AllowedOrigins` | empty (no CORS header sent) |
 
 ```csharp
@@ -15263,6 +15343,15 @@ disappear from the OpenAPI document, while `/v1/responses` and
 never calls those routes exposes; it is not a security control, since the
 routes go through the same role policies, API key scopes, session ownership and
 `IRunAuthorizationHandler` gate as `/api/sessions`.
+
+`StreamKeepAliveInterval` is the longest a streaming response (an agent or
+workflow run, a resume or answer, the OpenAI-compatible endpoints) stays
+silent: when nothing else was written for that long, it writes an SSE comment
+line, which SSE readers skip. A reader with an idle limit takes a silent
+stream for a dead connection and closes it, and a closed connection cancels the
+run. Keep the value below the shortest idle timeout between the server and its
+readers - a reverse proxy's read timeout - and below 30 seconds while the
+console is in use.
 
 Do not enable remote access without a token, API key, or authorization policy: with
 none of them configured, an anonymous remote request receives `401`, and an anonymous

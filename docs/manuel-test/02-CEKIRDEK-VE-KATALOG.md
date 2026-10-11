@@ -3842,11 +3842,65 @@ bir uca işaret eder; `onCriterionError: "FailRun"`.
 
 **Beklenen sonuç**
 - Workflow `run` `Failed`; akışta `word-count` için `ExecutorInvoked` YOKTUR.
-- Katılımcı agent run'ı `LoopUnsatisfied` taşır. Workflow satırı bugün hata türünü CLR adıyla
-  yazar ve sınıf taşımaz (F-314).
+- Katılımcı agent run'ı `LoopUnsatisfied` taşır. Workflow satırı da aynı kimliği ve sınıfı
+  taşır: `error.type` `loop_unsatisfied`, `error.class` `LoopUnsatisfied` (F-314, 2026-10-12).
 
 **Gerçek sonuç (2026-10-11)** — ✅ Workflow `Failed`, `word-count` hiç çağrılmadı; workflow
-satırı `Tracon.TraconLoopUnsatisfiedException`, sınıf `null`.
+satırı `Tracon.TraconLoopUnsatisfiedException`, sınıf `null` (F-314 öncesi; beklenen sonuç
+2026-10-12'de güncellendi, yeniden koşulmadı).
 
 > **Otomatik karşılığı:** `HarnessLoopTests.A_workflow_stops_at_an_agent_whose_loop_fails_on_exhaustion`.
 
+---
+
+### MT-CORE-137 — Başarılı döngü akışsız yolda son turu döner, usage tüm turların toplamıdır (kusur-giderme, 2026-10-12, F-317)
+
+Regresyon. Üç turlu döngü yalnız son turun usage'ını kaydediyordu. Otomatik
+karşılığı: `HarnessLoopTests.A_loop_that_succeeds_records_the_usage_of_every_iteration`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | K-889 |
+
+**Ön koşul:** MT-CORE-132'nin döngülü agent'ı, `ReturnLastResponse`; gerçek model.
+
+**Adımlar**
+1. `Idempotency-Key` ile (akışsız) run başlat; ölçüt birkaç tur sürsün.
+2. `GET /api/runs/{runId}` ve olayları oku.
+
+**Beklenen sonuç**
+- Yanıt yalnız son turun metnidir.
+- `usage.totalTokens` her `LoopIterationCompleted` turunun toplamına yakındır,
+  son turunkine değil.
+- 🚨 Eski kusur: iki turlu döngü `6599`, aynı iki tur `FailRun` ile `13142` kaydetti.
+
+---
+
+### MT-CORE-138 — Zorunlu parametreli agent kuyrukta reddedilir, varsayılanlı agent bağlanır (kusur-giderme, 2026-10-12, F-330)
+
+Regresyon. Kuyruklu run, OpenAI uçları, MCP ve A2A talimata `{{param}}`'ı olduğu
+gibi gönderiyordu. Otomatik karşılığı: `AgentParameterPathTests`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | K-890 |
+
+**Ön koşul**
+- `billing-agent` (`customer` zorunlu, varsayılansız) ve `greeting-agent`
+  (`customer` varsayılanı `friend`).
+
+**Adımlar**
+1. `Prefer: respond-async` ile iki agent'a da run gönder.
+2. `POST /tracon/v1/chat/completions` ile `billing-agent`'a istek gönder.
+
+**Beklenen sonuç**
+- `billing-agent`: kuyrukta `400` ve `missingParameters: ["customer"]`;
+  OpenAI ucunda `400`.
+- `greeting-agent`: run `Completed`; sağlayıcıya giden talimat `friend`'i taşır.
+- 🚨 Eski kusur: iki agent da `{{customer}}`'ı model'e olduğu gibi gönderdi.

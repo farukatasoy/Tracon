@@ -2158,6 +2158,33 @@ curl -s -X PUT "$APU/api/experiments/exp1/canary" -H "$APB" -H 'content-type: ap
 
 ---
 
+### MT-EVAL-103 — Sabit sürümlü eval o sürümün biçimiyle doğrular, sürümünü ve modelini yazar (kusur-giderme, 2026-10-12, F-331)
+
+Regresyon. Katalog sabit sürümü güncel sürümün descriptor'ıyla tanımlıyordu.
+Otomatik karşılığı: `PinnedVersionDescriptorTests`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | K-891 |
+
+**Ön koşul**
+- `Tracon__StructuredResponse__Enabled=true`; agent v1 düz metin (model A),
+  v2 `JsonSchema` (model B).
+
+**Adımlar**
+1. Bir eval suite'i ve case'i kaydet; `POST /api/evals/{name}/run` `{"agentVersion":1}`.
+2. Eval run detayını ve case run'ını oku.
+
+**Beklenen sonuç**
+- Case geçer; `StructuredResponseRejected` olayı yoktur.
+- Eval run'ı `agentVersion: 1`, `modelId` A; case run'ı `agentVersion: 1`, `modelId` A.
+- 🚨 Eski kusur: v1'in düz metni v2'nin şemasıyla reddedildi; case run'ı v2 ve B yazdı.
+
+---
+
 ### EVAL-102 — Geçersiz judge skoru terminal hata üretir
 
 **Ön koşul**

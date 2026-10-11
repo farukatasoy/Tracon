@@ -53,6 +53,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     private readonly SemaphoreSlim _concurrency;
     private readonly IRunCancellationRegistry? _cancellationRegistry;
     private readonly QuotaEnforcer? _quotaEnforcer;
+    private readonly IRunErrorClassifier? _errorClassifier;
     private readonly IRunAttributionContext? _attributionContext;
     private readonly IReadOnlyList<IRunEventSink> _sinks;
 
@@ -82,6 +83,10 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     /// The run event observers. Empty when none is registered — the identical
     /// hot path as before this extension point existed.
     /// </param>
+    /// <param name="errorClassifier">
+    /// The error classifier. When <see langword="null"/>, a failed workflow row
+    /// carries no class — the same rule the agent run path follows.
+    /// </param>
     /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
     public WorkflowRunner(
         WorkflowCatalog catalog,
@@ -97,7 +102,8 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         IRunCancellationRegistry? cancellationRegistry = null,
         QuotaEnforcer? quotaEnforcer = null,
         IRunAttributionContext? attributionContext = null,
-        IEnumerable<IRunEventSink>? sinks = null)
+        IEnumerable<IRunEventSink>? sinks = null,
+        IRunErrorClassifier? errorClassifier = null)
     {
         ArgumentNullException.ThrowIfNull(catalog);
         ArgumentNullException.ThrowIfNull(runStore);
@@ -122,6 +128,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         _quotaEnforcer = quotaEnforcer;
         _attributionContext = attributionContext;
         _sinks = sinks?.ToArray() ?? [];
+        _errorClassifier = errorClassifier;
     }
 
     /// <inheritdoc />
@@ -415,18 +422,15 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             _tenantContext.TenantId,
             linked);
 
-        await _concurrency.WaitAsync(linked.Token).ConfigureAwait(false);
-
-        try
+        // 🚨 The concurrency slot is taken INSIDE RunGuardedAsync, after the run
+        // row is open, not here. Waiting here made the slot wait the one stretch
+        // of a run with no row: a run whose deadline passed while it queued
+        // ended with an OperationCanceledException before its first event, the
+        // stream closed without a closing frame, and the run id the endpoint had
+        // already announced pointed at nothing (F-325).
+        await foreach (var runEvent in RunGuardedAsync(execution, settings, timeout, linked).ConfigureAwait(false))
         {
-            await foreach (var runEvent in RunGuardedAsync(execution, settings, timeout, linked).ConfigureAwait(false))
-            {
-                yield return runEvent;
-            }
-        }
-        finally
-        {
-            _concurrency.Release();
+            yield return runEvent;
         }
     }
 
@@ -530,27 +534,44 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         // closes orphans as Failed - a run the caller walked away from would
         // be reported, minutes later, as a failure that never happened.
         var closed = false;
+        var holdsSlot = false;
 
         try
         {
             yield return FirstEvent(execution);
 
+            // The wait for a concurrency slot belongs to the run: the deadline
+            // already counts it, so a run that times out here closes like any
+            // other timed-out run — Canceled, naming the setting.
+            try
+            {
+                await _concurrency.WaitAsync(linked.Token).ConfigureAwait(false);
+                holdsSlot = true;
+            }
+            catch (OperationCanceledException) when (linked.IsCancellationRequested)
+            {
+                status = RunStatus.Canceled;
+                error = timeout.IsCancellationRequested ? TimedOut() : null;
+            }
 
             // Graph setup is tried separately: an error here (agent not found,
             // invalid definition) is one the user can fix, and it must not leave
             // the run open.
             Workflow? workflow = null;
 
-            try
+            if (holdsSlot)
             {
-                workflow = await _catalog.ResolveAsync(execution.WorkflowName, linked.Token).ConfigureAwait(false)
-                    ?? throw new TraconException(
-                        $"There is no workflow named '{execution.WorkflowName}'.");
-            }
-            catch (Exception exception) when (OperationCancellation.IsFailure(exception, linked.Token))
-            {
-                status = RunStatus.Failed;
-                error = ToRunError(exception, execution.RunId);
+                try
+                {
+                    workflow = await _catalog.ResolveAsync(execution.WorkflowName, linked.Token).ConfigureAwait(false)
+                        ?? throw new TraconException(
+                            $"There is no workflow named '{execution.WorkflowName}'.");
+                }
+                catch (Exception exception) when (OperationCancellation.IsFailure(exception, linked.Token))
+                {
+                    status = RunStatus.Failed;
+                    error = ToRunError(exception, execution.RunId);
+                }
             }
 
             if (workflow is not null)
@@ -629,6 +650,11 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         }
         finally
         {
+            if (holdsSlot)
+            {
+                _concurrency.Release();
+            }
+
             // Reached only when the body did not close the run itself. The
             // status is Canceled rather than Failed because nothing failed:
             // either the caller cancelled, or it stopped reading, and both
@@ -1108,6 +1134,16 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         Activity? activity,
         long startedAt)
     {
+        // 🚨 Classified HERE, where the row closes, so every error the runner
+        // builds gets a class: a participant's exception, the deadline, the
+        // super-step limit, an undeliverable answer (F-314). Before, none did,
+        // and a workflow failure was invisible on the error-class dashboard
+        // while its own participant's row carried the class.
+        if (error is not null)
+        {
+            error = Classify(error);
+        }
+
         // A workflow row has no model of its own (phase 20): only the agent
         // runs beneath it carry cost, which shows up in the tree total.
         await writer.CompleteAsync(
@@ -1124,7 +1160,9 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         // 🚨 The checkpoints of a run awaiting a human are NEVER deleted: the
         // response resumes from exactly those checkpoints. The cleanup
         // setting is only for runs that have genuinely finished.
-        if (!_options.Value.KeepCheckpointsAfterCompletion && status != RunStatus.AwaitingInput)
+        if (!_options.Value.KeepCheckpointsAfterCompletion &&
+            status != RunStatus.AwaitingInput &&
+            !await SessionHasOpenRunAsync(execution).ConfigureAwait(false))
         {
             await DiscardCheckpointsAsync(execution).ConfigureAwait(false);
         }
@@ -1210,6 +1248,63 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                 OccurredAt = _timeProvider.GetUtcNow(),
             },
             cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Whether another run of the same session still needs the session's
+    /// checkpoints: one waiting for a human, or one still running.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The checkpoint store deletes per SESSION, and an answer run
+    /// shares its source run's session. When the answer run finished — even
+    /// as Failed, after a wrong answer — the cleanup deleted the source run's
+    /// checkpoints, and the request it still listed as pending could never be
+    /// answered again, although a waiting run's checkpoints are meant to be kept.
+    /// </para>
+    /// <para>
+    /// A store that cannot answer counts as "yes": cleanup is optional, a
+    /// deleted checkpoint is not.
+    /// </para>
+    /// </remarks>
+    private static readonly RunStatus[] SessionOpenStatuses = [RunStatus.AwaitingInput, RunStatus.Running];
+
+    private async ValueTask<bool> SessionHasOpenRunAsync(WorkflowExecution execution)
+    {
+        try
+        {
+            foreach (var open in SessionOpenStatuses)
+            {
+                var runs = await _runStore
+                    .QueryRunsAsync(
+                        new RunQuery
+                        {
+                            TenantId = _tenantContext.TenantId,
+                            SessionId = execution.SessionId,
+                            Status = open,
+                            Take = 2,
+                        },
+                        CancellationToken.None)
+                    .ConfigureAwait(false);
+
+                if (runs.Any(run => run.Id != execution.RunId))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+        catch (Exception exception)
+        {
+            // CancellationToken.None again, so no cancellation of ours (K-840).
+            _logger.LogWarning(
+                exception,
+                "Could not check the session of run {RunId} for runs that still need its checkpoints; they are kept.",
+                execution.RunId);
+
+            return true;
+        }
     }
 
     private async ValueTask DiscardCheckpointsAsync(WorkflowExecution execution)
@@ -1324,11 +1419,45 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         var correlationId = SafeErrorText.NewCorrelationId();
         _logger.LogError(unwrapped, "Workflow run {RunId} failed. (ref: {CorrelationId})", runId, correlationId);
 
+        // 🚨 The SAME stable identity the agent run path writes (F-314): a
+        // TraconException's ErrorType, not its CLR name. The class is added
+        // where the row closes (CompleteAsync), for every error, not only this one.
         return new RunError
         {
-            Type = unwrapped.GetType().FullName ?? unwrapped.GetType().Name,
+            Type = unwrapped is TraconException traconException
+                ? traconException.ErrorType
+                : unwrapped.GetType().FullName ?? unwrapped.GetType().Name,
             Message = SafeErrorText.ForPersistence(unwrapped, correlationId),
         };
+    }
+
+    /// <summary>
+    /// Fills <see cref="RunError.Class"/> and <see cref="RunError.Fingerprint"/>,
+    /// falling back to the built-in classifier when a consumer's throws.
+    /// </summary>
+    private RunError Classify(RunError error)
+    {
+        if (_errorClassifier is null)
+        {
+            return error;
+        }
+
+        RunErrorClassification classification;
+
+        try
+        {
+            classification = _errorClassifier.Classify(error);
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(
+                exception,
+                "The registered IRunErrorClassifier threw while classifying a workflow run error; falling back to the built-in classifier.");
+
+            classification = new DefaultRunErrorClassifier().Classify(error);
+        }
+
+        return error with { Class = classification.Class, Fingerprint = classification.Fingerprint };
     }
 
     /// <summary>Converts a graph-level error into a run error.</summary>
