@@ -579,12 +579,16 @@ internal sealed class VoiceConversationDriver
 
                 attachmentId = await RespondAsync(text, spoken, cancellationToken).ConfigureAwait(false);
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
                 cancelled = true;
             }
-            catch (Exception exception) when (exception is TraconException or HttpRequestException or InvalidOperationException)
+            catch (Exception exception) when (exception is TraconException or HttpRequestException or InvalidOperationException or OperationCanceledException)
             {
+                // An OperationCanceledException reaches here only when it is NOT ours:
+                // a model or speech call that timed out on its own is a failed turn,
+                // not a barge-in (K-840).
+                //
                 // HttpRequestException and InvalidOperationException are foreign here (the
                 // former can carry a host:port); only TraconException's own message is ours.
                 var correlationId = SafeErrorText.NewCorrelationId();

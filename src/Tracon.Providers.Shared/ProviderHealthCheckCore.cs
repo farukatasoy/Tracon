@@ -80,7 +80,7 @@ internal sealed class ProviderHealthCheckCore(string providerName, ILogger? logg
             {
                 await authorize(request, linkedSource.Token).ConfigureAwait(false);
             }
-            catch (Exception exception) when (exception is not OperationCanceledException)
+            catch (Exception exception) when (OperationCancellation.IsFailure(exception, linkedSource.Token))
             {
                 // A credential that throws (Azure.Identity's
                 // CredentialUnavailableException without `az login`) is this

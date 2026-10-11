@@ -134,11 +134,13 @@ internal sealed class LiveVoiceSessionHost : IAsyncDisposable
     /// <summary>Creates the provider session and returns the SDP answer for the media peer.</summary>
     /// <param name="sdpOffer">The media peer's offer.</param>
     /// <param name="voice">The requested output voice, when the caller named one.</param>
+    /// <param name="credential">The tenant's own credential, or <see langword="null"/> for the provider's configured one.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The provider's handle.</returns>
     public async Task<LiveVoiceSessionHandle> CreateAsync(
         string sdpOffer,
         string? voice,
+        ModelProviderCredential? credential,
         CancellationToken cancellationToken)
     {
         var handle = await _provider
@@ -146,6 +148,7 @@ internal sealed class LiveVoiceSessionHost : IAsyncDisposable
                 new LiveVoiceCreateRequest
                 {
                     SdpOffer = sdpOffer,
+                    Credential = credential,
                     Options = new LiveVoiceSessionOptions
                     {
                         Voice = voice,
@@ -168,14 +171,17 @@ internal sealed class LiveVoiceSessionHost : IAsyncDisposable
     public string? Model { get; private set; }
 
     /// <summary>Attaches the sideband and starts the pump.</summary>
+    /// <param name="credential">The credential the session was created with; the same one connects the sideband.</param>
     /// <param name="cancellationToken">Cancels only the attach, not the pump.</param>
     /// <returns>The completion task.</returns>
-    public async Task AttachAsync(CancellationToken cancellationToken)
+    public async Task AttachAsync(ModelProviderCredential? credential, CancellationToken cancellationToken)
     {
         var providerSessionId = ProviderSessionId
             ?? throw new InvalidOperationException("The session has not been created yet.");
 
-        _sideband = await _provider.AttachAsync(providerSessionId, cancellationToken).ConfigureAwait(false);
+        _sideband = await _provider
+            .AttachSessionAsync(new LiveVoiceAttachRequest { ProviderSessionId = providerSessionId, Credential = credential }, cancellationToken)
+            .ConfigureAwait(false);
 
         // 🚨 The state deliberately stays Pending. Attaching proves only that
         // Tracon reached the provider; it says nothing about whether the media
@@ -374,8 +380,10 @@ internal sealed class LiveVoiceSessionHost : IAsyncDisposable
                 }
             }
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested)
         {
+            // Only the session's own close is a client end; a transport's own
+            // timeout is a failure of the sideband (K-840).
             reason = VoiceSessionEndReason.Client;
         }
         catch (Exception exception)
@@ -501,8 +509,11 @@ internal sealed class LiveVoiceSessionHost : IAsyncDisposable
                 Interlocked.Increment(ref _turns);
             }
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
         {
+            // Only a delegation WE cancelled is an interruption (K-840); a delegated
+            // run that timed out on its own is logged as a failure below.
+            //
             // A cancelled delegation still contributes what it already said, so the
             // next turn sees its own half sentence rather than a hole.
             if (runner.SpokenText is { Length: > 0 } partial)

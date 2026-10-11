@@ -70,7 +70,10 @@ mutable list with the catalog is still a bug the copy merely contains.
 Honor the `CancellationToken` you are given — Tracon adds no timeout of its own, so
 an uncancellable source blocks its caller indefinitely. A genuine
 `OperationCanceledException` must propagate; do not catch and convert it into anything
-else.
+else. "Genuine" means the token you were given is cancelled: an
+`OperationCanceledException` while it is not — your own HTTP client timing out surfaces
+as `TaskCanceledException` — is a source failure like any other, so listing skips the
+source and resolution fails with `TraconAgentSourceException`.
 
 A source can be global or tenant-aware; when it reads `ITenantContext`, any local cache
 must include the tenant identity. Startup and background calls see the default tenant.

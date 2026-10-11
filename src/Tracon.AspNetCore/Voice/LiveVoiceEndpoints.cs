@@ -112,6 +112,10 @@ internal static class LiveVoiceEndpoints
                 "Relays the media peer's SDP offer to the provider and returns its answer, so the raw API key " +
                 "never reaches the browser. Tracon attaches a server-side control connection to the same " +
                 "session and turns the work the model delegates into ordinary runs. " +
+                "The tenant's egress policy and its own provider binding apply as for a model call: " +
+                "403 when the policy does not allow the live provider, when the tenant's binding for it " +
+                "has no value or sets an endpoint override, or when the provider cannot use the tenant's " +
+                "credential. " +
                 "Returns 501 when no live voice provider is registered.")
             // 🚨 The response type is declared explicitly. These handlers write
             // through HttpContext rather than returning a TypedResults value, so
@@ -121,6 +125,7 @@ internal static class LiveVoiceEndpoints
             // reach the SDP answer at all.
             .Produces<LiveVoiceSessionCreateResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status429TooManyRequests)
             .ProducesProblem(StatusCodes.Status501NotImplemented)
@@ -222,8 +227,12 @@ internal static class LiveVoiceEndpoints
                     context.RequestAborted)
                 .ConfigureAwait(false);
         }
-        catch (Exception exception) when (exception is TraconException or HttpRequestException or TimeoutException)
+        catch (Exception exception) when (exception is TraconException or HttpRequestException or TimeoutException or NotSupportedException)
         {
+            // NotSupportedException: a provider that claims tenant credentials
+            // but does not override AttachSessionAsync refuses the credential on
+            // attach (the contract's own default). A provider answer, not a 500.
+            //
             // 🚨 HttpRequestException belongs here as much as TraconException:
             // the outbound address policy refuses a connection through the socket
             // handler, so its verdict arrives WRAPPED in a transport exception. A
@@ -250,6 +259,11 @@ internal static class LiveVoiceEndpoints
                     => (StatusCodes.Status404NotFound, "Agent not found"),
                 LiveVoiceLaunchFailure.ProviderMissing
                     => (StatusCodes.Status501NotImplemented, "Live voice provider not configured"),
+
+                // The tenant's egress policy or its own provider binding refuses
+                // the session - the same rules as a model call (F-306).
+                LiveVoiceLaunchFailure.TenantPolicyRefused
+                    => (StatusCodes.Status403Forbidden, "Live voice provider not available for this tenant"),
                 _ => (StatusCodes.Status400BadRequest, "The live voice session could not be opened"),
             };
 

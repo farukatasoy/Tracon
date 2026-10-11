@@ -23,6 +23,9 @@ internal sealed class FakeDistributedCache : IDistributedCache
     /// <summary>When set, every <see cref="SetAsync"/> call throws this instead of writing.</summary>
     public Exception? ThrowOnSet { get; set; }
 
+    /// <summary>When set, runs at the start of every <see cref="SetAsync"/> call (for example to cancel the caller mid-write).</summary>
+    public Action? BeforeSet { get; set; }
+
     public byte[]? Get(string key) => _entries.TryGetValue(key, out var value) ? value : null;
 
     public Task<byte[]?> GetAsync(string key, CancellationToken token = default)
@@ -52,6 +55,8 @@ internal sealed class FakeDistributedCache : IDistributedCache
 
     public Task SetAsync(string key, byte[] value, DistributedCacheEntryOptions options, CancellationToken token = default)
     {
+        BeforeSet?.Invoke();
+
         if (ThrowOnSet is { } exception)
         {
             return Task.FromException(exception);

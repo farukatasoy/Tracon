@@ -68,7 +68,7 @@ internal sealed class WorkflowJobHandler(
                     }
                 }
             }
-            catch (Exception exception) when (exception is not OperationCanceledException)
+            catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
             {
                 var correlationId = SafeErrorText.NewCorrelationId();
 

@@ -163,6 +163,12 @@ rewrites the uniqueness index. Existing rows are carried across: a score written
 judge keeps that judge's name, every other row is named `overall`. On SQLite the
 value column is rebuilt in place, so the table is rewritten — size that step against
 your own row count before upgrading a large database.
+
+The `approval_rule_source` migration only adds: a nullable `source_fingerprint`
+column on `tool_approval_rules`, which also joins the rule's uniqueness index.
+Existing rules keep a `NULL` fingerprint on purpose, so a standing rule for a tool
+of an MCP server asks once more after the upgrade
+([approval rules](/concepts/governance/)).
 :::
 
 Most upgrades are not like that one. The latest `run_scores` migration, which adds

@@ -171,8 +171,9 @@ request reaches the network — and writing a credential binding for a forbidden
 provider is rejected too, so the two surfaces cannot disagree.
 
 The policy covers every model an agent calls, not only its own model: that model's
-fallbacks, the model that summarizes the conversation during compaction, and the
-judge of an `aiJudge` loop criterion. Each of them receives the tenant's data. The
+fallbacks, the model that summarizes the conversation during compaction, the
+judge of an `aiJudge` loop criterion, and a
+[provider-hosted live voice](/guides/voice/#tenant-policy-and-credentials) session. Each of them receives the tenant's data. The
 summarizer is billed like the agent's own model: it uses the tenant's key when the
 tenant has one for its provider. The loop judge is the host's one judge model, the
 same one the run judge calls, and keeps the shared setup-time key.
@@ -380,8 +381,21 @@ condition fails closed: an unresolved path, a missing argument, or a type mismat
 (text `"100"` does not satisfy a numeric rule) all mean the call still asks for
 approval.
 
-A rule is identified by its agent, its tool, and its hash or condition set. The
-order of the conditions does not count, and neither does whitespace between the
+A rule for a tool of an MCP server is also bound to that server's endpoint. When the
+rule is written — by an administrator or by the "don't ask again" flow — Tracon
+records a fingerprint of the endpoint the tool was discovered from (`sourceFingerprint`,
+the SHA-256 of the address; never the address itself, which can carry a credential in
+its query string). The rule approves the tool only while the server keeps that
+endpoint. Pointing the server at another endpoint, or deleting it and adding it back
+under the same name with another endpoint, makes its tools ask again; write a new
+rule for the new endpoint. While a server's tools are not discovered (its last
+refresh failed), its tools always ask, and `POST /api/approvals/rules` for one of them
+answers `409` rather than store a rule bound to nothing. Rules stored before this field
+existed carry no fingerprint, so after an upgrade each standing rule for an MCP tool
+asks once more.
+
+A rule is identified by its agent, its tool, its source fingerprint, and its hash or
+condition set. The order of the conditions does not count, and neither does whitespace between the
 elements of a list value: `region In ["eu", "us"]` and `region In ["eu","us"]` are
 the same condition. Everything else is compared as written — `"new york"` and
 `"newyork"` are two values.

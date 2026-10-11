@@ -126,10 +126,13 @@ public sealed class AuditRecorderTests
         // A cancelled write is the caller going away, not the audit store breaking.
         // Counting it would raise a false alarm on every shutdown, and swallowing it
         // on the best-effort path would hide the cancellation from the caller.
+        // "The caller going away" means the caller's token IS cancelled (K-840).
         using var meterFactory = new TestMeterFactory();
         using var collector = new MetricCollector(meterFactory.Meter);
         var metrics = new TraconMetrics(meterFactory);
-        var log = new ThrowingAuditLog(new OperationCanceledException());
+        using var caller = new CancellationTokenSource();
+        await caller.CancelAsync();
+        var log = new ThrowingAuditLog(new OperationCanceledException(caller.Token));
 
         await Should.ThrowAsync<OperationCanceledException>(async () =>
             await AuditRecorder.WriteAsync(
@@ -142,7 +145,7 @@ public sealed class AuditRecorderTests
                 entity: "agent:support",
                 before: null,
                 after: null,
-                CancellationToken.None));
+                caller.Token));
 
         await Should.ThrowAsync<OperationCanceledException>(async () =>
             await AuditRecorder.WriteOrThrowAsync(
@@ -157,9 +160,50 @@ public sealed class AuditRecorderTests
                 after: null,
                 refusal: "Script 'notes/build' was not run",
                 timeProvider: null,
-                CancellationToken.None));
+                caller.Token));
 
         collector.LongValues(TraconDiagnostics.AuditWriteFailureCounterName).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task An_audit_store_that_times_out_on_its_own_is_a_failed_write_on_both_paths()
+    {
+        // The caller is still there; the store's own timeout surfaced as a
+        // TaskCanceledException. The best-effort path swallows and counts it,
+        // the fail-closed path refuses and counts it - it is not a cancellation.
+        using var meterFactory = new TestMeterFactory();
+        using var collector = new MetricCollector(meterFactory.Meter);
+        var metrics = new TraconMetrics(meterFactory);
+        var log = new ThrowingAuditLog(new TaskCanceledException("the audit store timed out"));
+
+        await AuditRecorder.WriteAsync(
+            log,
+            new FixedActorResolver("operator"),
+            NullLogger.Instance,
+            metrics,
+            Tenant,
+            action: "agent.update",
+            entity: "agent:support",
+            before: null,
+            after: null,
+            CancellationToken.None);
+
+        await Should.ThrowAsync<TraconException>(async () =>
+            await AuditRecorder.WriteOrThrowAsync(
+                log,
+                "operator",
+                NullLogger.Instance,
+                metrics,
+                Tenant,
+                action: "script.run",
+                entity: "notes/build",
+                before: null,
+                after: null,
+                refusal: "Script 'notes/build' was not run",
+                timeProvider: null,
+                CancellationToken.None));
+
+        collector.LongValues(TraconDiagnostics.AuditWriteFailureCounterName).ShouldBe([1, 1]);
     }
 
     [Fact]

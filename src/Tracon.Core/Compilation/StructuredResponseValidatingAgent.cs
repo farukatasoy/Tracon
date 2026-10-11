@@ -279,7 +279,7 @@ internal sealed class StructuredResponseValidatingAgent : DelegatingAIAgent
         {
             result = await _validator.ValidateAsync(context, cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
         {
             _logger.LogError(
                 ex,

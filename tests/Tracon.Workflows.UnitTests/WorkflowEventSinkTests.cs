@@ -49,13 +49,33 @@ public sealed class WorkflowEventSinkTests
         sink.Events.ShouldContain(e => e.Type == RunEventType.RunCompleted);
     }
 
+    /// <remarks>
+    /// Thread-safe: the workflow's event pump and its executors (a child agent
+    /// writes ChildRunStarted into the root writer) append at the same time. A
+    /// regression of the writer's ordering must fail on the ORDER, not as a
+    /// corrupted list (F-257).
+    /// </remarks>
     private sealed class SpyRunEventSink : IRunEventSink
     {
-        public List<RunEvent> Events { get; } = [];
+        private readonly List<RunEvent> _events = [];
+
+        public IReadOnlyList<RunEvent> Events
+        {
+            get
+            {
+                lock (_events)
+                {
+                    return [.. _events];
+                }
+            }
+        }
 
         public ValueTask OnEventAsync(RunEvent runEvent, CancellationToken cancellationToken = default)
         {
-            Events.Add(runEvent);
+            lock (_events)
+            {
+                _events.Add(runEvent);
+            }
 
             return ValueTask.CompletedTask;
         }

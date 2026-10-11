@@ -167,26 +167,17 @@ bu dosya bütçeyi aştı). Aktif tuzak değil, tarihsel ölçüm kaydıdır.
 
 - **🚨 `tests/` altındaki test OLMAYAN bir proje `IsTestProject=false` demekle yetinmez** (2026-09-08, Faz 157, ölçüldü). `Tracon.WorkerHarness` yalnız `IsTestProject` koşullandırıldığında `dotnet test Tracon.slnx` onu VSTest'e veriyordu ve TÜM koşum `testhost.dll bulunamadı` ile ABORT oluyordu — tek bir proje yüzünden hiçbir test sonucu alınamaz. Gereken: csproj'da AÇIKÇA `<IsTestProject>false</IsTestProject>` **ve** `<IsTestingPlatformApplication>false</IsTestingPlatformApplication>`.
 
-## 🚨 Bir depoyu TEK KEZ okuyan dogrulama, asenkron yazmayla yaris eder (Faz 163)
+## 🚨 Bekleme "zaman aşımı" ile düşerse önce verinin HİÇ yazılıp yazılmadığını sor (Faz 163 → F-257)
 
-`LiveVoiceLifecycleTests.The_transcript_is_written_to_the_session_history_when_
-persistence_is_on` kapanis kapisini iki kez kirdi. Uc kapsamda olculdu:
+`LiveVoiceLifecycleTests` transkript testinin "okuma yazmayı geçti" teşhisi yanlıştı: veri yavaş değil KAYIPTI (kapanış pompayı erken iptal ediyordu). Bekleme yardımcısı kayıp veriyi gecikme gibi gösterir. Teşhis sırası ucuzdan pahalıya: tek test izole → tek assembly'nin tamamı → tüm çözüm. Tam kayıt: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 
-| Kapsam | Sonuc |
-|---|---|
-| Tek test, izole | gecti |
-| Kendi assembly'si (1046 test) | gecti |
-| Tum cozum (`-maxcpucount:1`) | **iki kez dustu** |
 
-`kapi.py`'nin izole yeniden kosumu "kaynak cekismesi" der ve **hakli goruntu
-verir** — ama bu teshis burada yaniltici oldu. Gercek sebep testteydi: `CloseAsync`
-oturum sokulur sokulmez doner, gecmise yazma ondan SONRA sunucunun kendi isidir.
-Test depoyu bir kez okuyup dogruluyordu. Tam cozum yukunde yazma penceresi
-genisleyince okuma yazmanin onune gecti.
-
-**Kural:** bir HTTP cagrisi doner donmez ARKA PLANDA suren bir yazmayi
-dogruluyorsan, `WaitForAsync` gibi bir bekleme yardimcisi kullan. Ayni dosyadaki
-diger zamanlamaya bagli dogrulamalar zaten onu kullaniyordu; bu biri atlamisti.
+**Sahte sunucuda gonderim ile baglanti sokumu yarisir** (2026-10-11, F-257):
+`SendClosedAsync` yazarken Tracon kapatiyor, attach handler'i `using` ile soketi
+atip yaniti tamamliyordu; suren flush `ObjectDisposedException` aldi (Windows
+CI). Tetikleyen cerceve kendi tepkisiyle yarisir: gonderim ve sokum ayni kapiyi
+alir; esin kapanmasindan sonraki gonderim hatasi BEKLENEN sonuctur. Yukte
+olculdu: CPU stresi + 8 serit, 120 sinif kosumu, 0 dusus.
 
 **Teshis sirasi ucuzdan pahaliya:** once tek test izole, sonra **tek assembly'nin
 tamami**, sonra tum cozum. Ortadaki adim burada belirleyici oldu — 1046 testin

@@ -8,9 +8,21 @@ namespace Tracon;
 /// </summary>
 /// <remarks>
 /// <para>
-/// <strong>The sequence number is produced by a single writer.</strong> This
-/// keeps the event order deterministic and guarantees that live streaming and
-/// replay produce the same result.
+/// <strong>The sequence number is produced by a single writer, one event at a
+/// time.</strong> Numbering an event, writing it to the store and handing it to
+/// every <see cref="IRunEventSink"/> happen as one step, and the next event
+/// waits for it. A run writes from more than one place at once (concurrent tool
+/// calls, a child run writing into its parent's writer, a workflow's executors
+/// next to its event pump), so without that the store and the sinks could see
+/// event 6 before event 5. This keeps the event order deterministic and
+/// guarantees that live streaming and replay produce the same result.
+/// </para>
+/// <para>
+/// A store or a sink therefore must not call <see cref="AppendAsync"/> on the
+/// writer whose event it is handling: that append would wait for the very event
+/// it is part of. From a sink, such an append throws
+/// <see cref="InvalidOperationException"/> instead of waiting, and the sink is
+/// disabled for the run.
 /// </para>
 /// <para>
 /// <strong>Store failures do not interrupt the run.</strong> Observability
@@ -31,6 +43,10 @@ namespace Tracon;
 /// and appends its own events with <see cref="AppendAsync"/>.
 /// </para>
 /// </remarks>
+[System.Diagnostics.CodeAnalysis.SuppressMessage(
+    "Design",
+    "CA1001:Types that own disposable fields should be disposable",
+    Justification = "The append gate is a SemaphoreSlim whose wait handle is never created; it holds no unmanaged resource, and making the per-run writer disposable would put a Dispose obligation on every caller of a public type.")]
 public sealed class RunEventWriter
 {
     private readonly IRunStore _store;
@@ -44,6 +60,25 @@ public sealed class RunEventWriter
     // second thread could keep calling a sink that is already known to be broken.
     private readonly int[] _sinkDisabled;
     private readonly TraconMetrics? _metrics;
+
+    // F-257: numbering, the store write and the sink dispatch of ONE event form
+    // a single step. Without it two writers took 5 and 6, the second one's store
+    // write and dispatch overtook the first one's, and a sink saw 6 before 5 -
+    // against IRunEventSink's documented "in sequence order". Uncontended,
+    // WaitAsync completes synchronously and allocates nothing, so the hot path
+    // (one writer, one event at a time) pays one interlocked operation. No
+    // kernel handle is ever created (AvailableWaitHandle is not read), so the
+    // semaphore needs no disposal.
+    private readonly SemaphoreSlim _appendGate = new(1, 1);
+
+    // The writer whose sinks are being called on this flow. A sink that appends to
+    // the run it is handling - directly, or by running an agent inline that writes
+    // into the ambient run - would wait for itself on _appendGate and hang the run
+    // for good; the append throws instead, and the sink is disabled like any
+    // failing sink. Written only around a sink call (no cost without sinks); it
+    // flows into the awaited sink and never back to the caller.
+    private static readonly AsyncLocal<RunEventWriter?> DispatchingWriter = new();
+
     private long _sequence;
 
     // Backs IsDisabled. An int rather than a bool so that the transition can be
@@ -160,7 +195,7 @@ public sealed class RunEventWriter
                 _sequence = written + 1;
             }
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
         {
             Disable(ex, RunRecordingStages.Start);
             return;
@@ -205,6 +240,31 @@ public sealed class RunEventWriter
     {
         ValidateCustomType(draft, allowReserved);
 
+        if (ReferenceEquals(DispatchingWriter.Value, this))
+        {
+            throw new InvalidOperationException(
+                "An IRunEventSink cannot append to the run whose event it is handling: the run's events are " +
+                "written one at a time, and this append would wait for the event the sink is still handling.");
+        }
+
+        // The caller's token, so a cancelled caller stops waiting just as its store
+        // write would have stopped. A closing event after a cancellation is written
+        // on CancellationToken.None and still takes its turn.
+        await _appendGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+
+        try
+        {
+            return await AppendInOrderAsync(draft, allowReserved, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            _appendGate.Release();
+        }
+    }
+
+    /// <summary>Numbers, stores and dispatches one event; runs under the append gate only.</summary>
+    private async ValueTask<RunEvent> AppendInOrderAsync(RunEventDraft draft, bool allowReserved, CancellationToken cancellationToken)
+    {
         var runEvent = new RunEvent
         {
             RunId = RunId,
@@ -243,7 +303,7 @@ public sealed class RunEventWriter
             {
                 await _store.AppendEventAsync(runEvent, cancellationToken).ConfigureAwait(false);
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
             {
                 Disable(ex, RunRecordingStages.Event);
             }
@@ -266,6 +326,9 @@ public sealed class RunEventWriter
             return;
         }
 
+        // Flows into every awaited sink call below; undone when this method returns.
+        DispatchingWriter.Value = this;
+
         for (var i = 0; i < _sinks.Count; i++)
         {
             if (Volatile.Read(ref _sinkDisabled[i]) != 0)
@@ -277,7 +340,7 @@ public sealed class RunEventWriter
             {
                 await _sinks[i].OnEventAsync(runEvent, cancellationToken).ConfigureAwait(false);
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
             {
                 // Disabled for THIS run only — the sink instance is shared
                 // across every concurrent run, and the field lives on this
@@ -327,7 +390,7 @@ public sealed class RunEventWriter
         {
             await _store.RecordToolInvocationAsync(invocation, cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
         {
             Disable(ex, RunRecordingStages.ToolInvocation);
         }
@@ -362,7 +425,7 @@ public sealed class RunEventWriter
                 .CompleteLateToolInvocationAsync(completion, cancellationToken)
                 .ConfigureAwait(false);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
         {
             Disable(ex, RunRecordingStages.ToolInvocation);
 
@@ -452,7 +515,7 @@ public sealed class RunEventWriter
                 },
                 cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
         {
             Disable(ex, RunRecordingStages.Completion);
         }

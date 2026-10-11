@@ -170,8 +170,12 @@ public sealed class StructuredResponseEndpointTests
 
         run.Status.ShouldBe(RunStatus.Failed);
 
-        // Still not a validation error: the validator never returned a verdict.
-        run.Error?.Class.ShouldNotBe(RunErrorClass.StructuredResponseInvalid);
+        // Since the F-279 class fix (K-840) a cancellation nobody requested is a
+        // validator FAILURE like any other, so it takes the same fail-closed
+        // branch as A_throwing_consumer_validator_rejects_fail_closed: the
+        // response is rejected. Before, the exception slipped past the
+        // validator's catch and failed the run with an unclassified error.
+        run.Error!.Class.ShouldBe(RunErrorClass.StructuredResponseInvalid);
     }
 
     [Fact]

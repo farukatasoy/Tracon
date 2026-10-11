@@ -213,7 +213,7 @@ dosyasına; 9 ve 13–17 burada ertelendi; 18 reddedildi.
 |---|---|---|---|
 | Özet modeli ve `aiJudge` yargıcı kiracı egress'ini ve BYOK'u atlıyor | Önce kod okuma (`LoopEvaluatorRegistry.cs:255`, `AgentDefinitionCompiler.Compaction.cs:196`), sonra düzeltme öncesi kırmızı testler | ✅ | ✅ 2026-10-11 — K-874, kapı `CompilePathTenantAwarenessTests` |
 | Önbellekteki agent sonradan kaydedilen egress politikasını görmez | Prob testi, sonra `EgressPolicyCacheTests` (düzeltmeden önce iki kez kırmızı) | ✅ | ✅ 2026-10-11 — K-875 (seçenek A), F-304 kapandı |
-| Canlı ses kiracı politikasını ve BYOK'u uygulamaz (F-304'ün sınıf taraması) | Kod okuması: `OpenAILiveProvider.cs:118,169,193-194` | ✅ | ☐ kullanıcı kararı bekliyor — **F-306** |
+| Canlı ses kiracı politikasını ve BYOK'u uygulamaz (F-304'ün sınıf taraması) | Kod okuması: `OpenAILiveProvider.cs:118,169,193-194` | ✅ | ✅ 2026-10-11 — K-878 (seçenek A: egress + kiracı anahtarı), F-306 kapandı |
 | Önbellekteki agent'ın MCP tool'ları sunucu değişince bayatlar (aynı tarama) | Kod okuması: `McpToolCatalog.cs:236-252` | ✅ | ☐ önce repro — **F-305** |
 
 ### Kanal 3 — yeniden açılması önerilen karar

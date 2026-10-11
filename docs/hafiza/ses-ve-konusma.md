@@ -119,6 +119,18 @@
 
 ## Saglayici barindirmali canli ses (Faz 161)
 
+- **🚨 Canlı ses de bir sağlayıcı çağrısıdır: kiracı politikası ve kiracı anahtarı
+  ONA da uygulanır** (2026-10-11, F-306, K-878). Oturum kiracıya bağlıydı ama
+  `OpenAILiveProvider` süreç geneli anahtarı kullanıyor, politikayı hiç okumuyordu
+  — model yolundaki K-466/K-874 kuralı ses yoluna hiç taşınmamıştı. Denetim
+  `LiveVoiceSessionLauncher`'da, oturum satırı/slot/sağlayıcı çağrısından ÖNCE;
+  kural `TenantProviderAccess`'te tek yerde (registry ve bağlama ucu da onu
+  çağırır). Sağlayıcıya anahtar İKİ çağrıda gider (`CreateSessionAsync` +
+  `AttachSessionAsync`); opt-in etmeyen (`SupportsTenantCredentials` varsayılan
+  `false`) sağlayıcı ve uç nokta override'lı bağlama `403` — ikisi de launcher'da, kayıttan önce. 🚨 Politika testi kontrol case'inde
+  agent'ın KENDİ model sağlayıcısını (`echo`) da izinliye koymalı: canlı ses
+  delegasyonu agent'ı derler ve politika o modeli de yargılar (yoksa `400`).
+  Aynı sınıfın açık kalan yolu TTS'tir (F-298).
 - **Canli katman `Core/Voice/` altinda, Secenek A'dan TAMAMEN ayri** (2026-09-11,
   Faz 161): `LiveVoiceSessionHost` (sideband pump + delegation sozlugu + kapanis
   sirasi), `LiveVoiceSessionLauncher` (limit → agent coz → yarat → attach → kayit
@@ -181,30 +193,7 @@ tazele.
   kendisini olcer.
 - **`LiveTranscriptLedger` is parcacigi guvenli DEGIL.** Pump yazarken delegation
   gorevi `Cut` cagirir. `MaxConcurrentDelegations` yukseltilecekse once kilit.
-- **🚨 Dis `CloseAsync` `_lifetime`'i pump bitmeden iptal edemez** (2026-09-19,
-  Windows CI): sideband'de alinmis ama pump'in henuz ledger'a yazmadigi transcript
-  frame'leri vardir. Once delegation'lari durdur, sideband'i kapat, pump'i bekle;
-  sonra `FlushHistoryAsync` cagir. Tersi sira session history'yi sessizce eksik
-  yazar.
-  - **Bu "duzeltme" kendisi de eksikti** (2026-09-20, `ubuntu-latest` CI; 8x
-    paralel + CPU yukunde tekrar uretildi, izole 15/15 yesil, yuklu ~4-7/120
-    kirmizi): `DisposeSidebandAsync` `_socket.CloseAsync(...)` cagiriyordu.
-    Bu, yalniz GONDERMEZ — kendi ICINDE de okur (peer'in close frame'ini
-    bekler) — ve pump'in kendi askidaki `ReceiveAsync` cagrisiyla rakip bir
-    okuma yaratir. Olculdu: `CloseAsync` istisnasiz donuyordu ama ledger
-    flush aninda **0** kayit tasiyordu — kendi ic okumasi transcript'i pump
-    hic gormeden tuketmisti. Duzeltme (`OpenAILiveSideband`): (1) `CloseAsync`
-    yerine yalniz-gonderen `CloseOutputAsync`; (2) pump'in `while` kosulu
-    `_socket.State == Open` OLAMAZ — `CloseOutputAsync` state'i ANINDA
-    `CloseSent`'e cevirir ve kosul bunu gorup HENUZ OKUNMAMIS veriyi
-    beklemeden cikar; kosul yalniz cancellation olmali, bitise `ReceiveAsync`
-    kendisi karar verir; (3) `Dispose` pump'in kendi `finally`'sinde
-    tetiklenen bir sinyali sinirli sureyle (10sn) bekler, SONRA soketi kapatir
-    — pump henuz hic ZAMANLANMAMIS olsa bile (bir "baslamadiysa bekleme"
-    kisayolu boş pencere birakti; kosulsuz bekleme, dongu bitmisse
-    maliyetsizdir). Ders: arka plan pump'i okurken kapatan taraf iki yonlu
-    kapatma cagirmaz, yalniz gonderir ve dongunun kendi kendine bitmesini
-    sinirli surede bekler — `ILiveVoiceSideband`'in XML dokumanina eklendi.
+- **🚨 Dış `CloseAsync` `_lifetime`'i pump bitmeden iptal edemez** (2026-09-19; F-257'nin transkript vakasının kök nedeni) — kapanış sırası `CloseCoreAsync`'tedir; tam kayıt: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 
 - **🚨 Sentetik bir ses akışı WebRTC'de çalışır, `MediaRecorder`'da ÇALIŞMAZ**
   (2026-09-19, manuel kapanış §5 turları 8-9): canlı ses (`live-test.html`,

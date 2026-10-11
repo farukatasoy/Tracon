@@ -772,7 +772,7 @@ internal static class RunEndpoints
                     ["runId"] = newRunId,
                 });
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
         {
             // 🚨 The exception type is deliberately NOT caught with a narrow
             // list, a direct consequence of K-296: official provider SDKs do
@@ -1275,9 +1275,11 @@ internal static class RunEndpoints
                     await Task.Delay(pollInterval, cancellationToken).ConfigureAwait(false);
                 }
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
-                // The client disconnected; there is no one left to write to.
+                // The client disconnected; there is no one left to write to. Only
+                // then: a store's own timeout must not end the stream as if the
+                // run had finished (K-840).
             }
         }
 

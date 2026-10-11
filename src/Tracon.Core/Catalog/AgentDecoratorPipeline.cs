@@ -35,12 +35,11 @@ public static class AgentDecoratorPipeline
             {
                 agent = decorator.Decorate(agent, descriptor);
             }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
             catch (Exception exception)
             {
+                // No token governs Decorate, so no OperationCanceledException
+                // thrown here is a cancellation of ours: it is a decorator
+                // failure like any other (K-840).
                 throw Wrap(descriptor, exception);
             }
         }

@@ -112,8 +112,12 @@ internal static class RunAttributionReader
             userId = context.UserId;
             labels = context.Labels;
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex)
         {
+            // No filter: the two getters are synchronous and take no token, so no
+            // OperationCanceledException they throw is a cancellation of ours. A
+            // consumer identity pipeline that times out (TaskCanceledException)
+            // is a fault like any other and must not take the run down (K-840).
             onFault?.Invoke("IRunAttributionContext threw while resolving the attribution.", ex);
 
             return (null, null);

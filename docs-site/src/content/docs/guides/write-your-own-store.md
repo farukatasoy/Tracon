@@ -146,6 +146,14 @@ so no deterministic scenario can assert where the work stopped. And the contract
 exercises one read and one write per store rather than every method; that is enough
 to prove the rule is implemented, not a substitute for applying it everywhere.
 
+Your store's **own** timeout is not a cancellation, even when it arrives as one. An
+HTTP client reports `HttpClient.Timeout` as `TaskCanceledException`; Tracon tells the
+two apart by the token, not by the type. While the token it passed is not cancelled,
+an `OperationCanceledException` from your store is a store failure and gets the same
+treatment as any other: a recording write is dropped and counted, the run continues, a
+job attempt is retried, and an HTTP endpoint answers its documented error. You do not
+need to convert it yourself.
+
 A method returning `IAsyncEnumerable<T>` is lazy: its body does not run until the
 first step. `RunStoreContract` therefore asks that the **first** `MoveNextAsync`
 throws, including on a run with no events at all — the case a store that only checks

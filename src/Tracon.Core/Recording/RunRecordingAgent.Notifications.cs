@@ -137,7 +137,7 @@ public sealed partial class RunRecordingAgent
                 },
                 cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception exception) when (exception is not OperationCanceledException)
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
         {
             if (_logger.IsEnabled(LogLevel.Warning))
             {

@@ -317,7 +317,7 @@ internal sealed class RecordedToolPlayback
             {
                 result = await base.InvokeCoreAsync(arguments, cancellationToken).ConfigureAwait(false);
             }
-            catch (Exception exception) when (exception is not OperationCanceledException)
+            catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
             {
                 // A cancellation is not recorded: it carries no durable
                 // outcome, and the caller (FallbackChatClient) never tries a

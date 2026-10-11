@@ -1028,3 +1028,79 @@ donuldu. `src/Tracon/Tracon.csproj` `<Description>` nuget.org sayfasina gider.
 **DevUI iddialarinin siniri:** DevUI'nin kaliciligi hakkinda iddia **yazilmaz**,
 cunku Microsoft'un yayinlanmis dokumaninda belgelenmemistir. Anasayfa yalniz
 alintiyi ve uretim tavsiyesini tasir.
+
+## `docs/hafiza/` üç dosyadan — 2026-10-11 doküman bütçesi turu (kusur-giderme F-279/F-283/F-284/F-306/F-257)
+
+### K-640'ın bedeli: normalizasyon classifier'ın ÜSTÜNE konunca kümelemeyi yok eder (`docs/hafiza/cekirdek-calistirma.md`)
+
+- **🚨 K-640'ın bedeli: normalizasyon classifier'ın ÜSTÜNE konunca kümelemeyi
+  yok eder** (2026-09-15, yayın denetimi). `ErrorFingerprint.Compute`
+  `RunError.Message`'ı kümeleme anahtarına çevirir, ama yabancı bir exception
+  için o alan artık `SafeErrorText.ForPersistence` metnidir ve içinde **her
+  oluşumda yeni** bir correlation id vardır. `GuidPattern` onu göremez
+  (`NewCorrelationId` `"N"` biçimidir, tire yok), `NumberPattern` yalnız rakam
+  öbeklerini siler: `a1b2c3d4` → `a{n}b{n}c{n}d{n}`. Ölçüldü: **aynı hatanın
+  2000 oluşumu 1368 ayrı kümeye** düştü; Tracon'un kendi exception'ı — mesajı
+  korunduğu için — tek kümeydi. Düzeltme `CorrelationRefPattern()`'i **diğer her
+  desenden ÖNCE** koşturur; sıra zorunludur ve uzunluk kasıtlı olarak sekize
+  sabitlenmedi. Ders: bir metin hem operatöre (izlenebilirlik) hem makineye
+  (kümeleme anahtarı) hizmet ediyorsa, oluşum başına değişen her token ikincisini
+  bozar — normalizasyonun boru hattındaki YERİ, varlığı kadar önemlidir. Sınıf
+  taraması: tek üretim çağıranı `DefaultRunErrorClassifier:62`; `InMemoryRunStore`
+  orphaned sabit fingerprint'i gerekçeli tasarımdır, vaka değil. Regresyon:
+  `ErrorFingerprintTests.The_same_foreign_failure_clusters_together_across_occurrences`.
+
+### Dış `CloseAsync` `_lifetime`'i pump bitmeden iptal edemez (2026-09-19) (`docs/hafiza/ses-ve-konusma.md`)
+
+- **🚨 Dis `CloseAsync` `_lifetime`'i pump bitmeden iptal edemez** (2026-09-19,
+  Windows CI): sideband'de alinmis ama pump'in henuz ledger'a yazmadigi transcript
+  frame'leri vardir. Once delegation'lari durdur, sideband'i kapat, pump'i bekle;
+  sonra `FlushHistoryAsync` cagir. Tersi sira session history'yi sessizce eksik
+  yazar.
+  - **Bu "duzeltme" kendisi de eksikti** (2026-09-20, `ubuntu-latest` CI; 8x
+    paralel + CPU yukunde tekrar uretildi, izole 15/15 yesil, yuklu ~4-7/120
+    kirmizi): `DisposeSidebandAsync` `_socket.CloseAsync(...)` cagiriyordu.
+    Bu, yalniz GONDERMEZ — kendi ICINDE de okur (peer'in close frame'ini
+    bekler) — ve pump'in kendi askidaki `ReceiveAsync` cagrisiyla rakip bir
+    okuma yaratir. Olculdu: `CloseAsync` istisnasiz donuyordu ama ledger
+    flush aninda **0** kayit tasiyordu — kendi ic okumasi transcript'i pump
+    hic gormeden tuketmisti. Duzeltme (`OpenAILiveSideband`): (1) `CloseAsync`
+    yerine yalniz-gonderen `CloseOutputAsync`; (2) pump'in `while` kosulu
+    `_socket.State == Open` OLAMAZ — `CloseOutputAsync` state'i ANINDA
+    `CloseSent`'e cevirir ve kosul bunu gorup HENUZ OKUNMAMIS veriyi
+    beklemeden cikar; kosul yalniz cancellation olmali, bitise `ReceiveAsync`
+    kendisi karar verir; (3) `Dispose` pump'in kendi `finally`'sinde
+    tetiklenen bir sinyali sinirli sureyle (10sn) bekler, SONRA soketi kapatir
+    — pump henuz hic ZAMANLANMAMIS olsa bile (bir "baslamadiysa bekleme"
+    kisayolu boş pencere birakti; kosulsuz bekleme, dongu bitmisse
+    maliyetsizdir). Ders: arka plan pump'i okurken kapatan taraf iki yonlu
+    kapatma cagirmaz, yalniz gonderir ve dongunun kendi kendine bitmesini
+    sinirli surede bekler — `ILiveVoiceSideband`'in XML dokumanina eklendi.
+
+### Bir depoyu TEK KEZ okuyan doğrulama, asenkron yazmayla yarış eder (Faz 163) — ve teşhisin düzeltmesi (`docs/hafiza/test-kosum-tuzaklari.md`)
+
+## 🚨 Bir depoyu TEK KEZ okuyan dogrulama, asenkron yazmayla yaris eder (Faz 163)
+
+`LiveVoiceLifecycleTests.The_transcript_is_written_to_the_session_history_when_
+persistence_is_on` kapanis kapisini iki kez kirdi. Uc kapsamda olculdu:
+
+| Kapsam | Sonuc |
+|---|---|
+| Tek test, izole | gecti |
+| Kendi assembly'si (1046 test) | gecti |
+| Tum cozum (`-maxcpucount:1`) | **iki kez dustu** |
+
+`kapi.py`'nin izole yeniden kosumu "kaynak cekismesi" der ve **hakli goruntu
+verir** — ama bu teshis burada yaniltici oldu. 🚨 **Duzeltme (2026-10-11, F-257):**
+asagidaki "test hatasi" teshisi de YANLISTI. `DELETE` gecmisi yazmadan donmez
+(`CloseCoreAsync`: delegasyonlari durdur → sideband'i kapat → pompayi bekle →
+yaz). 60 sn'lik bekleme bile dolduysa veri YAVAS degil KAYIPTI: kapanis pompayi
+transkript cerceveleri tuketilmeden iptal ediyordu ve gecmis BOS yaziliyordu —
+urun kusuru, 2026-09-19/20'de kapanis sirasi ve sideband bosaltmasiyla kapandi.
+Ders: bir bekleme "zaman asimi" ile duserse once verinin HIC yazilip
+yazilmadigini sor; bekleme yardimcisi kayip veriyi gecikme gibi gosterir.
+
+**Kural:** bir HTTP cagrisi doner donmez ARKA PLANDA suren bir yazmayi
+dogruluyorsan, `WaitForAsync` gibi bir bekleme yardimcisi kullan. Ayni dosyadaki
+diger zamanlamaya bagli dogrulamalar zaten onu kullaniyordu; bu biri atlamisti.
+

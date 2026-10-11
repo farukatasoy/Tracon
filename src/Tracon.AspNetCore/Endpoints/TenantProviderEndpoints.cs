@@ -200,11 +200,9 @@ internal static class TenantProviderEndpoints
 
         var policy = await egressPolicies.GetAsync(tenantId, cancellationToken).ConfigureAwait(false);
 
-        if (policy is not null && !policy.AllowedProviders.Contains(provider, StringComparer.OrdinalIgnoreCase))
+        if (!TenantProviderAccess.IsAllowed(policy, provider))
         {
-            return Invalid(
-                $"Tenant '{tenantId}' is not allowed to call model provider '{provider}'. " +
-                $"Allowed providers: {string.Join(", ", policy.AllowedProviders)}.");
+            return Invalid(TenantProviderAccess.DescribeDenial(policy!, tenantId, provider));
         }
 
         var binding = new TenantProviderBinding

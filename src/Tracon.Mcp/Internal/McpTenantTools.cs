@@ -10,15 +10,23 @@ namespace Tracon;
 internal sealed class McpTenantTools
 {
     private readonly Dictionary<string, AIFunctionDeclaration> _tools;
+    private readonly Dictionary<string, string> _sources;
+    private readonly string[] _serverPrefixes;
 
-    private McpTenantTools(Dictionary<string, AIFunctionDeclaration> tools, IReadOnlyList<ToolDescriptor> descriptors)
+    private McpTenantTools(
+        Dictionary<string, AIFunctionDeclaration> tools,
+        Dictionary<string, string> sources,
+        IReadOnlyList<ToolDescriptor> descriptors,
+        string[] serverPrefixes)
     {
         _tools = tools;
+        _sources = sources;
         Descriptors = descriptors;
+        _serverPrefixes = serverPrefixes;
     }
 
     /// <summary>The empty set.</summary>
-    public static McpTenantTools Empty { get; } = new([], []);
+    public static McpTenantTools Empty { get; } = new([], [], [], []);
 
     /// <summary>The tool descriptors shown in the UI; sorted by name.</summary>
     public IReadOnlyList<ToolDescriptor> Descriptors { get; }
@@ -29,6 +37,39 @@ internal sealed class McpTenantTools
     /// <returns><see langword="true"/> if the tool is registered.</returns>
     public bool TryGet(string name, [NotNullWhen(true)] out AIFunctionDeclaration? tool)
         => _tools.TryGetValue(name, out tool);
+
+    /// <summary>Gets the source fingerprint of the tool with the given name.</summary>
+    /// <param name="name">The tool name.</param>
+    /// <returns>
+    /// The fingerprint of the endpoint the tool in this snapshot came from, or
+    /// <see langword="null"/> when the snapshot holds no such tool.
+    /// </returns>
+    /// <remarks>
+    /// Read from the same snapshot as the tool itself, so the source a rule is
+    /// judged against is the one the tool object was discovered from, not a
+    /// connection a refresh in progress has already replaced.
+    /// </remarks>
+    public string? GetSourceFingerprint(string name)
+    {
+        if (_sources.TryGetValue(name, out var fingerprint))
+        {
+            return fingerprint;
+        }
+
+        // Not in this snapshot, but named like a tool of one of the tenant's
+        // servers: the server's last refresh failed and dropped its tools, while
+        // a compiled agent may still hold one bound to the live connection. Its
+        // source is unknown, not absent - so no rule approves it.
+        foreach (var prefix in _serverPrefixes)
+        {
+            if (name.StartsWith(prefix, StringComparison.Ordinal))
+            {
+                return ToolSourceFingerprint.Unresolved;
+            }
+        }
+
+        return null;
+    }
 
     /// <summary>Builds an immutable set from registrations.</summary>
     /// <param name="registrations">The discovered tool registrations.</param>
@@ -43,6 +84,16 @@ internal sealed class McpTenantTools
     /// <param name="defaultMaxOutputBytes">
     /// The output byte limit applied when a tool's own registration sets
     /// none, or <see langword="null"/> for unlimited.
+    /// </param>
+    /// <param name="sourceFingerprints">
+    /// The source fingerprint of each registration (the endpoint of the server it
+    /// was discovered from), or <see langword="null"/> when none is known. A
+    /// registration missing from the map has no source, and no standing approval
+    /// rule written for a source approves it.
+    /// </param>
+    /// <param name="serverNames">
+    /// Every server registered for the tenant, reachable or not. A tool named like
+    /// one of theirs but missing from the snapshot reports an unresolved source.
     /// </param>
     /// <returns>The set.</returns>
     /// <remarks>
@@ -62,9 +113,12 @@ internal sealed class McpTenantTools
         ILogger<AuthorizingAIFunction> authorizingLogger,
         ILogger<TimeoutAIFunction> timeoutLogger,
         ILogger<ValidatingAIFunction> validatingLogger,
-        int? defaultMaxOutputBytes = null)
+        int? defaultMaxOutputBytes = null,
+        IReadOnlyDictionary<TraconToolRegistration, string>? sourceFingerprints = null,
+        IReadOnlyCollection<string>? serverNames = null)
     {
         var tools = new Dictionary<string, AIFunctionDeclaration>(registrations.Count, StringComparer.Ordinal);
+        var sources = new Dictionary<string, string>(registrations.Count, StringComparer.Ordinal);
         var descriptors = new List<ToolDescriptor>(registrations.Count);
 
         foreach (var registration in registrations)
@@ -127,11 +181,21 @@ internal sealed class McpTenantTools
                 continue;
             }
 
+            // Recorded only for the registration that WON the name above: the
+            // skipped duplicate's server must not lend its endpoint to the tool
+            // that is actually served under this name.
+            if (sourceFingerprints is not null && sourceFingerprints.TryGetValue(registration, out var source))
+            {
+                sources[name] = source;
+            }
+
             descriptors.Add(descriptor);
         }
 
         descriptors.Sort(static (left, right) => string.CompareOrdinal(left.Name, right.Name));
 
-        return new McpTenantTools(tools, descriptors);
+        var prefixes = serverNames is null ? [] : serverNames.Select(static server => server + "_").ToArray();
+
+        return new McpTenantTools(tools, sources, descriptors, prefixes);
     }
 }

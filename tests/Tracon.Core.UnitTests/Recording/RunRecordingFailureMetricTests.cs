@@ -60,16 +60,23 @@ public sealed class RunRecordingFailureMetricTests
         // 🚨 The race is forced, not hoped for. Every caller is held inside the store
         // until all eight have arrived, so all eight pass the IsDisabled check before
         // any of them fails. That is the ONE arrangement in which IsDisabled does not
-        // provide the once-ness, and it is not hypothetical: a child run writes its
-        // summary events into the root run's writer.
+        // provide the once-ness. Since F-257 the EVENT path writes one event at a
+        // time (K-879), so the race lives on the paths that are still concurrent:
+        // concurrent tool calls record their invocations at once.
         var store = new GatedFailingRunStore(Writers);
         var writer = NewWriter(store, metrics);
 
         await writer.StartAsync(Start(writer, "tenant-a"), "the user's question");
 
         await Task.WhenAll(Enumerable.Range(0, Writers).Select(index =>
-            Task.Run(async () =>
-                await writer.AppendAsync(new RunEventDraft(RunEventType.MessageDelta) { Text = $"delta {index}" }))));
+            Task.Run(async () => await writer.RecordToolInvocationAsync(new ToolInvocationRecord
+            {
+                Id = TraconId.NewId(),
+                RunId = writer.RunId,
+                ToolName = $"tool_{index}",
+                CreatedAt = DateTimeOffset.UtcNow,
+                Duration = TimeSpan.FromMilliseconds(12),
+            }))));
 
         collector.LongValues(Counter).Count.ShouldBe(
             1,
@@ -78,7 +85,7 @@ public sealed class RunRecordingFailureMetricTests
 
         collector.LongTags(Counter)
             .ShouldHaveSingleItem()[TraconDiagnostics.Tags.RecordingStage]
-            .ShouldBe(RunRecordingStages.Event);
+            .ShouldBe(RunRecordingStages.ToolInvocation);
     }
 
     [Fact]
@@ -187,11 +194,12 @@ public sealed class RunRecordingFailureMetricTests
         using var collector = new MetricCollector(factory.Meter);
         using var metrics = new TraconMetrics(factory);
 
-        // 🚨 The store side got a forced-race test; this is its sink-side twin, and
-        // the guarantee is the same shape. The published sentence is "counted once
-        // per sink per run", and per-sink concurrency is real: AllowConcurrentToolCalls
-        // fans tool events out at once, and a child run writes into the root writer.
-        var sink = new GatedThrowingRunEventSink(Events);
+        // The published sentence is "counted once per sink per run", and per-run
+        // concurrency is real: AllowConcurrentToolCalls fans tool events out at
+        // once, and a child run writes into the root writer. Since F-257 (K-879)
+        // a writer hands events to its sinks one at a time, so the broken sink is
+        // asked ONCE, disabled, and never asked again by the seven others.
+        var sink = new ThrowingAfterStartRunEventSink();
         var store = new InMemoryRunStore(tenantContext: new FixedTenantContext("tenant-a"));
 
         var writer = new RunEventWriter(
@@ -216,6 +224,8 @@ public sealed class RunRecordingFailureMetricTests
         collector.LongTags(Counter)
             .ShouldHaveSingleItem()[TraconDiagnostics.Tags.RecordingStage]
             .ShouldBe(RunRecordingStages.Sink);
+
+        sink.Failures.ShouldBe(1, "the first delta broke the sink; the seven others were never handed to it");
     }
 
     [Fact]
@@ -283,13 +293,35 @@ public sealed class RunRecordingFailureMetricTests
 
         var writer = NewWriter(new FailingRunStore(FailAt.Cancellation), metrics);
 
+        // The client hung up: the token the write runs on IS cancelled.
+        using var caller = new CancellationTokenSource();
+        await caller.CancelAsync();
+
         await Should.ThrowAsync<OperationCanceledException>(
-            async () => await writer.StartAsync(Start(writer, "tenant-a"), "the user's question"));
+            async () => await writer.StartAsync(Start(writer, "tenant-a"), "the user's question", caller.Token));
 
         // A canceled write lost nothing that was going to be written. Counting it
         // would put a spike on the dashboard every time a client hung up.
         collector.LongValues(Counter).ShouldBeEmpty();
         writer.IsDisabled.ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task A_store_that_times_out_on_its_own_is_a_lost_record_and_does_not_fail_the_run()
+    {
+        using var factory = new TestMeterFactory();
+        using var collector = new MetricCollector(factory.Meter);
+        using var metrics = new TraconMetrics(factory);
+
+        var writer = NewWriter(new FailingRunStore(FailAt.Cancellation), metrics);
+
+        // The caller is still there; the store's own HttpClient.Timeout surfaced
+        // as an OperationCanceledException. That is a store failure, and a store
+        // failure never interrupts the run (K-840).
+        await writer.StartAsync(Start(writer, "tenant-a"), "the user's question");
+
+        collector.LongValues(Counter).ShouldBe([1]);
+        writer.IsDisabled.ShouldBeTrue();
     }
 
     [Fact]
@@ -463,7 +495,7 @@ public sealed class RunRecordingFailureMetricTests
 
             if (failAt is FailAt.Cancellation)
             {
-                throw new OperationCanceledException();
+                throw new OperationCanceledException(cancellationToken);
             }
 
             return failAt is FailAt.StartRun
@@ -575,15 +607,19 @@ public sealed class RunRecordingFailureMetricTests
                 TenantId = info.TenantId,
             });
 
-        public async ValueTask AppendEventAsync(RunEvent runEvent, CancellationToken cancellationToken = default)
-        {
-            // StartAsync writes RunStarted through this same method, and it must not be
-            // held: the gate only counts the concurrent batch the test sends.
-            if (runEvent.Type == RunEventType.RunStarted)
-            {
-                return;
-            }
+        // Events pass: the event path writes one at a time and cannot be held
+        // concurrently (K-879). The gate holds the concurrent tool-invocation batch.
+        public ValueTask AppendEventAsync(RunEvent runEvent, CancellationToken cancellationToken = default)
+            => ValueTask.CompletedTask;
 
+        public ValueTask<long?> GetLastEventSequenceAsync(Guid runId, CancellationToken cancellationToken = default)
+            => ValueTask.FromResult<long?>(null);
+
+        public ValueTask CompleteRunAsync(RunCompletion completion, CancellationToken cancellationToken = default)
+            => ValueTask.CompletedTask;
+
+        public async ValueTask RecordToolInvocationAsync(ToolInvocationRecord invocation, CancellationToken cancellationToken = default)
+        {
             if (Interlocked.Increment(ref _arrived) == arrivals)
             {
                 _allArrived.SetResult();
@@ -593,15 +629,6 @@ public sealed class RunRecordingFailureMetricTests
 
             throw new InvalidOperationException("store unavailable");
         }
-
-        public ValueTask<long?> GetLastEventSequenceAsync(Guid runId, CancellationToken cancellationToken = default)
-            => ValueTask.FromResult<long?>(null);
-
-        public ValueTask CompleteRunAsync(RunCompletion completion, CancellationToken cancellationToken = default)
-            => ValueTask.CompletedTask;
-
-        public ValueTask RecordToolInvocationAsync(ToolInvocationRecord invocation, CancellationToken cancellationToken = default)
-            => throw new NotSupportedException();
 
         public ValueTask<bool> CompleteLateToolInvocationAsync(LateToolCompletion completion, CancellationToken cancellationToken = default)
             => throw new NotSupportedException();
@@ -663,30 +690,21 @@ public sealed class RunRecordingFailureMetricTests
         }
     }
 
-    /// <summary>
-    /// Holds every caller until a fixed number have arrived, then fails all of them
-    /// at once — the sink-side twin of <see cref="GatedFailingRunStore"/>.
-    /// </summary>
-    private sealed class GatedThrowingRunEventSink(int arrivals) : IRunEventSink
+    /// <summary>Accepts RunStarted, then throws on every event and counts the failures.</summary>
+    private sealed class ThrowingAfterStartRunEventSink : IRunEventSink
     {
-        private readonly TaskCompletionSource _allArrived = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        private int _arrived;
+        private int _failures;
 
-        public async ValueTask OnEventAsync(RunEvent runEvent, CancellationToken cancellationToken = default)
+        public int Failures => Volatile.Read(ref _failures);
+
+        public ValueTask OnEventAsync(RunEvent runEvent, CancellationToken cancellationToken = default)
         {
-            // StartAsync's RunStarted event must not consume a slot in the gate;
-            // the gate counts only the concurrent batch the test sends.
             if (runEvent.Type == RunEventType.RunStarted)
             {
-                return;
+                return ValueTask.CompletedTask;
             }
 
-            if (Interlocked.Increment(ref _arrived) == arrivals)
-            {
-                _allArrived.SetResult();
-            }
-
-            await _allArrived.Task.ConfigureAwait(false);
+            Interlocked.Increment(ref _failures);
 
             throw new InvalidOperationException("sink unavailable");
         }

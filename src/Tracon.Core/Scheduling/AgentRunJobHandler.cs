@@ -80,7 +80,7 @@ internal sealed class AgentRunJobHandler(
                 ? null
                 : await sessions.GetOrCreateSessionAsync(agent, sessionId, cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception exception) when (exception is not OperationCanceledException)
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
         {
             // 🚨 The agent never resolved: RunRecordingAgent never engaged, so
             // we must close the 'runs' row (Queued) that the 202 promised HERE,
@@ -276,7 +276,7 @@ internal sealed class AgentRunJobHandler(
                 },
                 cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception storeException) when (storeException is not OperationCanceledException)
+        catch (Exception storeException) when (OperationCancellation.IsFailure(storeException, cancellationToken))
         {
             if (logger is not null && logger.IsEnabled(LogLevel.Warning))
             {

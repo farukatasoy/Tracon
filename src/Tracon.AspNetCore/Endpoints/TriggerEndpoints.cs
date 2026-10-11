@@ -349,7 +349,7 @@ internal static class TriggerEndpoints
         {
             dispatched = await dispatcher.EnqueueAsync(validated, cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception exception) when (exception is not OperationCanceledException)
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
         {
             // The idempotency reservation ValidateAsync made is never
             // completed on success (see InboundTriggerDispatcher's remarks);

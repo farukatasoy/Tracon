@@ -352,7 +352,13 @@ Tracon is only a client. Five guards:
 
 1. **`http` and `https` only — there is no stdio transport.** Starting a local process
    would break the rule outright.
-2. **`RequiresApproval` defaults to true** for tools discovered this way.
+2. **`RequiresApproval` defaults to true** for tools discovered this way. Switching it
+   off waives approval for every tool of the server, which is the decision a standing
+   approval rule makes for one tool. Called with an API key, the save then needs the
+   `SecurityAdmin` scope as well as `AgentsAdmin`: for a new server, for a server that
+   required approval, and for a server whose endpoint changes while approval stays off.
+   A standing rule for one of these tools is bound to the server's endpoint the same way
+   ([approval rules](/concepts/governance/)).
 3. **A remote tool whose name collides with a code-registered tool is ignored.** Your
    code always wins; a remote server cannot shadow a local tool.
 4. **The registration stores no credential.** It stores the *name* of the

@@ -19,8 +19,13 @@ namespace Tracon;
 /// registered per tenant, and a tool coming from one tenant's server is not
 /// visible to another tenant.
 /// </para>
+/// <para>
+/// It also tells where a tool comes from (<see cref="IToolSourceResolver"/>):
+/// a standing approval rule records the endpoint of the server a tool was
+/// discovered from and holds only while that endpoint stays the same.
+/// </para>
 /// </remarks>
-internal sealed class McpToolRegistry : IToolRegistry, IVerifiedToolRegistry
+internal sealed class McpToolRegistry : IToolRegistry, IVerifiedToolRegistry, IToolSourceResolver
 {
     private readonly IToolRegistry _codeTools;
     private readonly McpToolCatalog _catalog;
@@ -73,5 +78,21 @@ internal sealed class McpToolRegistry : IToolRegistry, IVerifiedToolRegistry
 
         return _codeTools.TryGet(name, out tool)
             || _catalog.ForTenant(_tenantContext.TenantId).TryGet(name, out tool);
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// A code tool wins its name here exactly as in <see cref="TryGet"/>: a tool
+    /// served from code has no remote source, even when a server also produced
+    /// the same name.
+    /// </remarks>
+    public string? GetSourceFingerprint(string tenantId, string toolName)
+    {
+        ArgumentNullException.ThrowIfNull(tenantId);
+        ArgumentNullException.ThrowIfNull(toolName);
+
+        return _codeTools.TryGet(toolName, out _)
+            ? null
+            : _catalog.ForTenant(tenantId).GetSourceFingerprint(toolName);
     }
 }

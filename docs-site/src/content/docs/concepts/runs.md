@@ -206,8 +206,19 @@ A sink runs on the hot path — Tracon awaits `OnEventAsync` directly and holds 
 queue of its own in front of it, so the buffer above is yours to own. Queue and
 return; do not publish to a message bus inline. One instance serves every concurrent
 run, so it must be thread-safe. A sink that throws is disabled for the rest of that
-run and logged; neither the store write nor any other registered sink is affected.
-Register none and nothing changes.
+run and logged; neither the store write nor any other registered sink is affected —
+and that includes a sink whose own call times out with an `OperationCanceledException`
+while the run itself is not cancelled. Register none and nothing changes.
+
+Within one run, a sink receives events in sequence order, the same order the store
+holds. A run writes from more than one place at once — concurrent tool calls, a child
+run writing into its parent's stream, a workflow's steps — so Tracon numbers an event,
+stores it and hands it to every sink as one step, and the next event waits for it. Two
+consequences follow: a slow sink holds up that run's next event (another reason to
+queue and return), and a sink must not append an event to the run it is observing —
+directly, or by running work inline that writes into that run. Such an append would
+wait for the event the sink is still handling, so it throws
+`InvalidOperationException` instead, and the sink is disabled for the run.
 
 ## Who ran it, and for what
 

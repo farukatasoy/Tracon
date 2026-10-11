@@ -1401,9 +1401,10 @@ internal abstract class SqlQueriesBase
             """;
 
         // 🚨 New columns are ALWAYS appended at the end: SqlToolApprovalRuleStore.ReadRule
-        // reads argument_conditions by fixed ordinal 7 (docs/hafiza/postgresql.md).
+        // reads argument_conditions by fixed ordinal 7 and source_fingerprint by 8
+        // (docs/hafiza/postgresql.md).
         SelectToolApprovalRules = $"""
-            SELECT id, tenant_id, agent_name, tool_name, arguments_hash, created_by, created_at, argument_conditions
+            SELECT id, tenant_id, agent_name, tool_name, arguments_hash, created_by, created_at, argument_conditions, source_fingerprint
             FROM {Table("tool_approval_rules")}
             WHERE tenant_id = @tenant_id
             ORDER BY created_at DESC;

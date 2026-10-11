@@ -18,6 +18,13 @@ internal enum LiveVoiceLaunchFailure
 
     /// <summary>The agent could not be compiled, or the session could not be opened.</summary>
     AgentFailed = 3,
+
+    /// <summary>
+    /// The tenant's provider policy refuses the session: its egress policy does not
+    /// allow the live provider, its own credential for the provider has no value or
+    /// carries an endpoint override, or the provider cannot use that credential.
+    /// </summary>
+    TenantPolicyRefused = 4,
 }
 
 /// <summary>The outcome of trying to open a live voice session.</summary>
@@ -33,11 +40,22 @@ internal readonly record struct LiveVoiceLaunchResult(
 
 /// <summary>Opens live voice sessions: resolve, create, attach, register.</summary>
 /// <remarks>
+/// <para>
 /// The ordering lives here rather than in the HTTP layer so it is stated once. In
 /// particular the concurrency limit is checked <strong>before</strong> the provider
 /// is called: a session that is created and then refused has already started
 /// billing, so a limit enforced afterwards costs the consumer money on every
 /// rejected request.
+/// </para>
+/// <para>
+/// The tenant's provider policy comes first of all, exactly as before a model call:
+/// the egress policy must allow <see cref="ILiveVoiceProvider.ProviderName"/>, and a
+/// tenant with its own binding for that provider gets its own credential on both
+/// provider calls. A binding whose key has no value, a binding with an endpoint
+/// override, or a provider that cannot use a tenant credential refuses the
+/// session; it never opens on the configured key, which would bill the wrong
+/// account.
+/// </para>
 /// </remarks>
 internal sealed class LiveVoiceSessionLauncher
 {
@@ -51,6 +69,9 @@ internal sealed class LiveVoiceSessionLauncher
     private readonly ILiveVoiceProvider? _provider;
     private readonly ILoggerFactory _loggerFactory;
     private readonly TimeProvider _timeProvider;
+    private readonly ITenantEgressPolicyStore? _egressPolicies;
+    private readonly ITenantProviderBindingStore? _providerBindings;
+    private readonly TenantProviderCredentialResolver? _credentialResolver;
 
     /// <summary>Creates a launcher.</summary>
     public LiveVoiceSessionLauncher(
@@ -64,7 +85,10 @@ internal sealed class LiveVoiceSessionLauncher
         ILoggerFactory loggerFactory,
         ILiveVoiceProvider? provider,
         ContentGuardPipeline? guard,
-        TimeProvider? timeProvider = null)
+        TimeProvider? timeProvider = null,
+        ITenantEgressPolicyStore? egressPolicies = null,
+        ITenantProviderBindingStore? providerBindings = null,
+        TenantProviderCredentialResolver? credentialResolver = null)
     {
         ArgumentNullException.ThrowIfNull(catalog);
         ArgumentNullException.ThrowIfNull(sessions);
@@ -86,6 +110,9 @@ internal sealed class LiveVoiceSessionLauncher
         _provider = provider;
         _guard = guard;
         _timeProvider = timeProvider ?? TimeProvider.System;
+        _egressPolicies = egressPolicies;
+        _providerBindings = providerBindings;
+        _credentialResolver = credentialResolver;
     }
 
     /// <summary>Gets whether a live voice provider is registered.</summary>
@@ -117,6 +144,19 @@ internal sealed class LiveVoiceSessionLauncher
         }
 
         var options = _options.CurrentValue;
+
+        // Before anything else - no session row, no slot, no provider call - for a
+        // tenant whose policy refuses the provider (F-306).
+        ModelProviderCredential? credential;
+
+        try
+        {
+            credential = await ResolveTenantAccessAsync(_provider, request.TenantId, cancellationToken).ConfigureAwait(false);
+        }
+        catch (TraconException exception)
+        {
+            return new LiveVoiceLaunchResult(null, null, LiveVoiceLaunchFailure.TenantPolicyRefused, exception.Message);
+        }
 
         AIAgentHandle agent;
 
@@ -174,9 +214,9 @@ internal sealed class LiveVoiceSessionLauncher
 
         try
         {
-            var handle = await host.CreateAsync(sdpOffer, voice, cancellationToken).ConfigureAwait(false);
+            var handle = await host.CreateAsync(sdpOffer, voice, credential, cancellationToken).ConfigureAwait(false);
 
-            await host.AttachAsync(cancellationToken).ConfigureAwait(false);
+            await host.AttachAsync(credential, cancellationToken).ConfigureAwait(false);
 
             return new LiveVoiceLaunchResult(host, handle, null, null);
         }
@@ -188,6 +228,53 @@ internal sealed class LiveVoiceSessionLauncher
 
             throw;
         }
+    }
+
+    /// <summary>Applies the tenant's egress policy and resolves its own credential for the live provider.</summary>
+    /// <returns>The tenant's credential, or <see langword="null"/> for the provider's configured one.</returns>
+    /// <exception cref="TraconException">The tenant's policy refuses the session.</exception>
+    private async ValueTask<ModelProviderCredential?> ResolveTenantAccessAsync(
+        ILiveVoiceProvider provider,
+        string tenantId,
+        CancellationToken cancellationToken)
+    {
+        var providerName = provider.ProviderName;
+
+        if (_egressPolicies is not null)
+        {
+            var policy = await _egressPolicies.GetAsync(tenantId, cancellationToken).ConfigureAwait(false);
+
+            TenantProviderAccess.EnsureAllowed(policy, tenantId, providerName);
+        }
+
+        var credential = await TenantProviderAccess
+            .ResolveCredentialAsync(_providerBindings, _credentialResolver, tenantId, providerName, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (credential is null)
+        {
+            return null;
+        }
+
+        if (!provider.SupportsTenantCredentials)
+        {
+            throw new TraconException(
+                $"Tenant '{tenantId}' has its own credential for '{providerName}', and the live voice provider " +
+                "cannot use it. The session is not opened on the provider's configured credential.");
+        }
+
+        // A binding's endpoint override names a chat API base, not a live session
+        // surface; no live provider is given one. Refused here, before the slot and
+        // the session record, rather than sent somewhere the tenant did not choose.
+        if (credential.Endpoint is { Length: > 0 })
+        {
+            throw new TraconException(
+                $"Tenant '{tenantId}' has a '{providerName}' binding with an endpoint override. A live voice " +
+                "session uses the provider's configured live endpoint and cannot honour that override, so it is " +
+                "not opened.");
+        }
+
+        return credential;
     }
 
     private readonly record struct AIAgentHandle(AIAgent Agent, AgentSession Session);

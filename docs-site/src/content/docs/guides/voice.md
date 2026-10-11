@@ -343,6 +343,28 @@ The OpenAI provider reads `Tracon:Providers:OpenAI:Live`, bound to
 The API key comes from `Tracon:Providers:OpenAI:ApiKey`; the live provider does
 not take one of its own.
 
+### Tenant policy and credentials
+
+A live session is bound to a tenant, and it obeys the tenant's provider rules exactly
+as a model call does ([egress and per-tenant credentials](/concepts/governance/)).
+Before anything else happens — no session row, no concurrency slot, no provider call:
+
+- The tenant's egress policy must allow the live provider's name (`openai` for
+  `UseOpenAILive()`). Otherwise `POST /api/voice/live/sessions` answers `403` and the
+  tenant's audio never reaches the provider.
+- A tenant with its own binding for that provider gets its own key on **both** calls:
+  the session creation and the sideband attach. A binding whose configuration key has
+  no value answers `403`; the session does not fall back to the shared key.
+- A binding that sets an endpoint override answers `403`: the override names a chat API
+  base, not a live session surface, so the session is not opened rather than sent
+  somewhere the tenant did not choose.
+
+A custom `ILiveVoiceProvider` receives the tenant's key only if it sets
+`SupportsTenantCredentials` to `true` and implements `AttachSessionAsync`; the key then
+arrives in `LiveVoiceCreateRequest.Credential` and `LiveVoiceAttachRequest.Credential`.
+A provider that does not opt in is refused (`403`) for a tenant with its own binding,
+because it would open the session on its own configured key — the wrong account.
+
 ### The endpoints
 
 | Method | Path | Role | Purpose |

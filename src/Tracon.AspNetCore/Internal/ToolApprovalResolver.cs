@@ -39,6 +39,7 @@ internal static class ToolApprovalResolver
     /// <param name="chatHistory">The chat history provider.</param>
     /// <param name="rules">The persisted rule store.</param>
     /// <param name="tenantContext">The tenant context.</param>
+    /// <param name="tools">The tool registry; a persisted rule records the tool's source from it.</param>
     /// <param name="auditLog">The audit log.</param>
     /// <param name="actorResolver">The actor resolver.</param>
     /// <param name="logger">The logger.</param>
@@ -56,6 +57,7 @@ internal static class ToolApprovalResolver
         ChatHistoryProvider chatHistory,
         IToolApprovalRuleStore rules,
         ITenantContext tenantContext,
+        IToolRegistry tools,
         IAuditLog auditLog,
         IAuditActorResolver actorResolver,
         ILogger logger,
@@ -115,7 +117,7 @@ internal static class ToolApprovalResolver
 
             if (decision is { Approved: true, Remember: true })
             {
-                await RememberAsync(decision, request, agentName, rules, tenantContext, logger, cancellationToken)
+                await RememberAsync(decision, request, agentName, rules, tenantContext, tools, logger, cancellationToken)
                     .ConfigureAwait(false);
             }
         }
@@ -188,6 +190,7 @@ internal static class ToolApprovalResolver
         string agentName,
         IToolApprovalRuleStore rules,
         ITenantContext tenantContext,
+        IToolRegistry tools,
         ILogger logger,
         CancellationToken cancellationToken)
     {
@@ -196,6 +199,19 @@ internal static class ToolApprovalResolver
             logger.LogWarning(
                 "Request '{RequestId}' does not carry a function call; the persisted approval rule could not be written.",
                 decision.RequestId);
+
+            return;
+        }
+
+        var sourceFingerprint = ToolSourceFingerprint.Of(tools, tenantContext.TenantId, call.Name);
+
+        if (!ToolSourceFingerprint.IsRecordable(sourceFingerprint))
+        {
+            // The server's tools are not discovered right now, so there is no source
+            // to bind the rule to. This turn's approval stands; the next call asks again.
+            logger.LogWarning(
+                "The source of '{ToolName}' is not discovered right now; the persisted approval rule was not written.",
+                call.Name);
 
             return;
         }
@@ -212,11 +228,15 @@ internal static class ToolApprovalResolver
                     ArgumentsHash = decision.RememberArgumentsOnly || IsScriptDispatcher(call.Name)
                         ? ToolApprovalRuleEvaluator.ComputeArgumentsHash(call.Arguments)
                         : null,
+
+                    // The same source binding as an admin-written rule: "do not ask
+                    // again" holds for this tool of THIS endpoint only.
+                    SourceFingerprint = sourceFingerprint,
                     CreatedAt = DateTimeOffset.UtcNow,
                 },
                 cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
         {
             // Failing to write the rule does not interrupt the run: this turn's
             // approval was already given; only the next turn asks again.

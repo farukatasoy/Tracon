@@ -174,8 +174,11 @@ A workflow run ends `Canceled` only when the run was actually cancelled — the
 caller's request going away, the workflow's own `MaxDuration` elapsing, or
 `Tracon:Workflows:RunTimeout` being reached. A node whose model or tool call
 never came back ends the run `Failed` instead, even though .NET surfaces an
-`HttpClient` timeout as a `TaskCanceledException`. Alert on the two separately:
-one is a person stopping, the other is an outage.
+`HttpClient` timeout as a `TaskCanceledException`. The same holds for the steps
+around the graph: an agent catalog that times out while the workflow resolves, and
+a stop at the super-step limit whose cancellation call times out, both end the run
+`Failed`. Alert on the two separately: one is a person stopping, the other is an
+outage.
 
 `RunTimeout` (10 minutes by default) is **cooperative, and observed between
 super-steps**. It cancels the token the run is given and the runner checks it

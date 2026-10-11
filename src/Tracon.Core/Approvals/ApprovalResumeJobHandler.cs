@@ -79,7 +79,7 @@ internal sealed class ApprovalResumeJobHandler(
                 ChatRole.User,
                 [request.CreateResponse(approval.Status == ApprovalStatus.Approved, reason: string.Empty)]);
         }
-        catch (Exception exception) when (exception is not OperationCanceledException)
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
         {
             // Same rationale as AgentRunJobHandler: RunRecordingAgent did not run,
             // so this handler must change the 'runs' row to Failed.
@@ -181,7 +181,7 @@ internal sealed class ApprovalResumeJobHandler(
                 },
                 cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception storeException) when (storeException is not OperationCanceledException)
+        catch (Exception storeException) when (OperationCancellation.IsFailure(storeException, cancellationToken))
         {
             if (logger is not null && logger.IsEnabled(LogLevel.Warning))
             {

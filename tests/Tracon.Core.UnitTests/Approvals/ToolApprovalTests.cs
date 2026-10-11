@@ -186,6 +186,99 @@ public sealed class ToolApprovalTests
     }
 
     [Fact]
+    public async Task A_rule_approves_a_remote_tool_only_while_its_source_is_unchanged()
+    {
+        // A server that moves to another endpoint keeps its tool names, so the
+        // name alone let a rule written for endpoint A approve the tool of
+        // endpoint B. The rule now names its source, and only that source.
+        var sourceA = ToolSourceFingerprint.ForEndpoint(new Uri("https://a.example/mcp"));
+        var sourceB = ToolSourceFingerprint.ForEndpoint(new Uri("https://b.example/mcp"));
+        var store = new InMemoryToolApprovalRuleStore();
+
+        await store.AddAsync(Rule("crm_lookup", agentName: null, argumentsHash: null) with { SourceFingerprint = sourceA });
+
+        var atA = CreateEvaluator(store, tools: new SourcedToolRegistry(("crm_lookup", sourceA)));
+        var atB = CreateEvaluator(store, tools: new SourcedToolRegistry(("crm_lookup", sourceB)));
+
+        (await atA.IsAutoApprovedAsync("support", Call("crm_lookup"))).ShouldBeTrue();
+        (await atB.IsAutoApprovedAsync("support", Call("crm_lookup"))).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task A_rule_without_a_source_does_not_approve_a_remote_tool()
+    {
+        // Rules stored before the field existed carry no source. They keep
+        // approving code tools and stop approving remote ones: asking once
+        // more is the safe direction.
+        var source = ToolSourceFingerprint.ForEndpoint(new Uri("https://a.example/mcp"));
+        var store = new InMemoryToolApprovalRuleStore();
+
+        await store.AddAsync(Rule("crm_lookup", agentName: null, argumentsHash: null));
+        await store.AddAsync(Rule("cancel_order", agentName: null, argumentsHash: null));
+
+        var evaluator = CreateEvaluator(store, tools: new SourcedToolRegistry(("crm_lookup", source)));
+
+        (await evaluator.IsAutoApprovedAsync("support", Call("crm_lookup"))).ShouldBeFalse();
+        (await evaluator.IsAutoApprovedAsync("support", Call("cancel_order"))).ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task A_rule_with_a_source_does_not_approve_a_tool_without_one()
+    {
+        // Strict equality in both directions: a rule written for a remote
+        // source does not approve a code tool that later takes the same name.
+        var source = ToolSourceFingerprint.ForEndpoint(new Uri("https://a.example/mcp"));
+        var store = new InMemoryToolApprovalRuleStore();
+
+        await store.AddAsync(Rule("crm_lookup", agentName: null, argumentsHash: null) with { SourceFingerprint = source });
+
+        var evaluator = CreateEvaluator(store);
+
+        (await evaluator.IsAutoApprovedAsync("support", Call("crm_lookup"))).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task No_rule_approves_a_remote_tool_whose_source_is_unresolved()
+    {
+        // The server's refresh failed: its tools left the snapshot, but a compiled
+        // agent can still call one. Neither a rule without a source nor a rule
+        // for some source may approve it.
+        var store = new InMemoryToolApprovalRuleStore();
+
+        await store.AddAsync(Rule("crm_lookup", agentName: null, argumentsHash: null));
+        await store.AddAsync(Rule("crm_lookup", agentName: "support", argumentsHash: null) with
+        {
+            SourceFingerprint = ToolSourceFingerprint.ForEndpoint(new Uri("https://a.example/mcp")),
+        });
+
+        var evaluator = CreateEvaluator(store, tools: new SourcedToolRegistry(("crm_lookup", ToolSourceFingerprint.Unresolved)));
+
+        (await evaluator.IsAutoApprovedAsync("support", Call("crm_lookup"))).ShouldBeFalse();
+    }
+
+    [Fact]
+    public void The_source_fingerprint_is_the_upper_case_sha256_of_the_absolute_address()
+    {
+        var fingerprint = ToolSourceFingerprint.ForEndpoint(new Uri("https://A.example/mcp"));
+
+        fingerprint.ShouldBe(Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes("https://a.example/mcp"))));
+        fingerprint.Length.ShouldBe(64);
+    }
+
+    [Fact]
+    public async Task A_rule_store_that_times_out_on_its_own_asks_instead_of_failing_the_run()
+    {
+        // "A store error does not grant approval ... the system asks the user."
+        // The evaluator runs inside MAF's auto-approval callback with no token
+        // of its own, so a store's TaskCanceledException is a store error, not
+        // a cancellation (K-840).
+        var evaluator = CreateEvaluator(new ThrowingRuleStore(new TaskCanceledException("the rule store timed out")));
+
+        (await evaluator.IsAutoApprovedAsync("support", Call("cancel_order"))).ShouldBeFalse();
+    }
+
+    [Fact]
     public void Argument_fingerprint_is_independent_of_key_order()
     {
         // Dictionary order can change between runs; if it did, the
@@ -383,11 +476,13 @@ public sealed class ToolApprovalTests
 
     private static ToolApprovalRuleEvaluator CreateEvaluator(
         IToolApprovalRuleStore store,
-        IEnumerable<ToolApprovalPolicyRegistration>? policies = null)
+        IEnumerable<ToolApprovalPolicyRegistration>? policies = null,
+        IToolRegistry? tools = null)
         => new(
             store,
             new ToolApprovalPolicyRegistry(policies ?? []),
             new FixedTenantContext(),
+            tools ?? new SourcedToolRegistry(),
             NullLogger<ToolApprovalRuleEvaluator>.Instance);
 
     private static ToolApprovalRule Rule(string toolName, string? agentName, string? argumentsHash)
@@ -415,12 +510,28 @@ public sealed class ToolApprovalTests
         public string TenantId => "default";
     }
 
-    private sealed class ThrowingRuleStore : IToolApprovalRuleStore
+    /// <summary>A registry that reports a fixed source fingerprint per tool name.</summary>
+    private sealed class SourcedToolRegistry(params (string Name, string Fingerprint)[] sources)
+        : IToolRegistry, IToolSourceResolver
+    {
+        public IReadOnlyList<ToolDescriptor> List() => [];
+
+        public bool TryGet(string name, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out AIFunctionDeclaration? tool)
+        {
+            tool = null;
+            return false;
+        }
+
+        public string? GetSourceFingerprint(string tenantId, string toolName)
+            => sources.FirstOrDefault(source => string.Equals(source.Name, toolName, StringComparison.Ordinal)).Fingerprint;
+    }
+
+    private sealed class ThrowingRuleStore(Exception? listFailure = null) : IToolApprovalRuleStore
     {
         public ValueTask<IReadOnlyList<ToolApprovalRule>> ListAsync(
             string tenantId,
             CancellationToken cancellationToken = default)
-            => throw new InvalidOperationException("store is unreachable");
+            => throw listFailure ?? new InvalidOperationException("store is unreachable");
 
         public ValueTask<ToolApprovalRule> AddAsync(
             ToolApprovalRule rule,

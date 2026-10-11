@@ -69,7 +69,7 @@ internal sealed class ValidatingAIFunction : DelegatingAIFunction
         {
             result = await _validator.ValidateAsync(_descriptor, arguments, cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
         {
             _logger.LogError(
                 ex,

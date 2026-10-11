@@ -5442,7 +5442,7 @@
           "Voice"
         ],
         "summary": "Creates a provider-hosted live voice session.",
-        "description": "Relays the media peer\u0027s SDP offer to the provider and returns its answer, so the raw API key never reaches the browser. Tracon attaches a server-side control connection to the same session and turns the work the model delegates into ordinary runs. Returns 501 when no live voice provider is registered.",
+        "description": "Relays the media peer\u0027s SDP offer to the provider and returns its answer, so the raw API key never reaches the browser. Tracon attaches a server-side control connection to the same session and turns the work the model delegates into ordinary runs. The tenant\u0027s egress policy and its own provider binding apply as for a model call: 403 when the policy does not allow the live provider, when the tenant\u0027s binding for it has no value or sets an endpoint override, or when the provider cannot use the tenant\u0027s credential. Returns 501 when no live voice provider is registered.",
         "operationId": "TraconLiveVoiceCreate",
         "requestBody": {
           "content": {
@@ -5467,6 +5467,16 @@
           },
           "400": {
             "description": "Bad Request",
+            "content": {
+              "application/problem\u002Bjson": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
             "content": {
               "application/problem\u002Bjson": {
                 "schema": {
@@ -5928,7 +5938,7 @@
           "Governance"
         ],
         "summary": "Adds or updates a remote MCP server.",
-        "description": "SECURITY BOUNDARY. Adding an MCP server means accepting tool definitions from an external source. Only http/https addresses are accepted; local process (stdio) transport is not supported. Tools require approval by default. A configuration key name must be under the configured allowed prefix and inside the tenant\u0027s own key space \u2014 \u0027{prefix}{tenantId}:...\u0027; a flat name directly under the prefix belongs to the default tenant (400 otherwise). A credential header (Authorization, X-Api-Key, Cookie, any name ending in \u0027-key\u0027) is declared in \u0027headerConfigurationKeys\u0027 as the NAME of the configuration key its value is read from; the same header in plain \u0027headers\u0027 is rejected with 400, because plain header values are stored as given. No response returns a plain header value: the saved record comes back with every one replaced by \u0027***\u0027, and a header whose value is \u0027***\u0027 is rejected with 400. A header name may appear only once across both maps (case-insensitive, 400 otherwise), and \u0027Authorization\u0027 in \u0027headerConfigurationKeys\u0027 cannot be combined with \u0027authorizationConfigurationKey\u0027 or OAuth. \u0027headers\u0027 or \u0027headerConfigurationKeys\u0027 left out or null keeps the stored map; \u0027{}\u0027 removes it. Every other field is replaced. Changing \u0027endpoint\u0027 without sending the maps keeps them, so the stored headers and the resolved credential values go to the NEW address.",
+        "description": "SECURITY BOUNDARY. Adding an MCP server means accepting tool definitions from an external source. Only http/https addresses are accepted; local process (stdio) transport is not supported. Tools require approval by default; saving \u0027requiresApproval: false\u0027 for a new server, for a server that required approval, or together with a new \u0027endpoint\u0027 also requires the \u0027SecurityAdmin\u0027 scope when the call uses an API key (403 otherwise). A configuration key name must be under the configured allowed prefix and inside the tenant\u0027s own key space \u2014 \u0027{prefix}{tenantId}:...\u0027; a flat name directly under the prefix belongs to the default tenant (400 otherwise). A credential header (Authorization, X-Api-Key, Cookie, any name ending in \u0027-key\u0027) is declared in \u0027headerConfigurationKeys\u0027 as the NAME of the configuration key its value is read from; the same header in plain \u0027headers\u0027 is rejected with 400, because plain header values are stored as given. No response returns a plain header value: the saved record comes back with every one replaced by \u0027***\u0027, and a header whose value is \u0027***\u0027 is rejected with 400. A header name may appear only once across both maps (case-insensitive, 400 otherwise), and \u0027Authorization\u0027 in \u0027headerConfigurationKeys\u0027 cannot be combined with \u0027authorizationConfigurationKey\u0027 or OAuth. \u0027headers\u0027 or \u0027headerConfigurationKeys\u0027 left out or null keeps the stored map; \u0027{}\u0027 removes it. Every other field is replaced. Changing \u0027endpoint\u0027 without sending the maps keeps them, so the stored headers and the resolved credential values go to the NEW address.",
         "operationId": "TraconSaveMcpServer",
         "parameters": [
           {
@@ -6254,7 +6264,7 @@
           "Governance"
         ],
         "summary": "Creates a persistent, argument-conditioned approval rule.",
-        "description": "Writes a standing \u0027don\u0027t ask again\u0027 rule with an admin-authored comparison (for example \u0022amount \u003C= 100\u0022), evaluated on every call. There is no free-text expression field: the operator is a closed set and conditions combine with AND only. A code-defined policy (ITraconBuilder.AddToolApprovalPolicy) always runs first and can override this rule in both directions.",
+        "description": "Writes a standing \u0027don\u0027t ask again\u0027 rule with an admin-authored comparison (for example \u0022amount \u003C= 100\u0022), evaluated on every call. There is no free-text expression field: the operator is a closed set and conditions combine with AND only. A code-defined policy (ITraconBuilder.AddToolApprovalPolicy) always runs first and can override this rule in both directions. For a tool of an MCP server the rule records the fingerprint of the server\u0027s current endpoint (\u0027sourceFingerprint\u0027) and approves that tool only while the server keeps that endpoint; a tool of a server whose tools are not discovered right now answers 409.",
         "operationId": "TraconCreateApprovalRule",
         "requestBody": {
           "content": {
@@ -16229,6 +16239,13 @@
               "$ref": "#/components/schemas/ToolArgumentCondition"
             },
             "description": "Gets the argument conditions. All conditions must match for the rule to apply\n(\u0060AND\u0060); an empty list matches every call of the tool. Mutually exclusive\nwith \u0060ArgumentsHash\u0060 \u2014 a rule carries one or the other, never both."
+          },
+          "sourceFingerprint": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Gets the fingerprint of the remote source the tool came from when the rule was\nwritten, or \u0060null\u0060 for a tool that does not come from a remote\nsource (a tool defined in code)."
           },
           "createdBy": {
             "type": [

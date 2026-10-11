@@ -2,18 +2,14 @@
 
 > **Üretilen, elle düzenlenmez.** Kaynak: `KARARLAR.md` · üretim: `scripts/dokuman-bakim.py`
 
-Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 787 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
+Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 791 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
 
 ---
 
-## En Yeni Kalıcı Kararlar (88 / 875 kalem)
+## En Yeni Kalıcı Kararlar (88 / 879 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
-| K-788 | 839 | Evaluator sürümü `RunJudgment.EvaluatorVersion` ile taşınır; `IRunJudge` seam'i DEĞİŞMEZ 👤 |
-| K-789 | 840 | `RunScore.EvaluatorVersion` sınırı `RunScoreRules.MaxEvaluatorVersionLength` (128); sütun `varchar(128)` 👤 |
-| K-790 | 841 | `EvaluatorVersion` `null` = SÜRÜM ÇÖZÜLMEDİ, "sürüm sıfır" değil; çözülemezse skor YİNE yazılır |
-| K-791 | 842 | `ModelRunJudge` sürüm damgalamaz |
 | K-792 | 843 | İptal, sevk edilen store sözleşmesinin bir parçasıdır: zaten iptal edilmiş bir token ile çağrılan store metodu `OperationCanceledException` fırlatır ve HİÇBİR satır yazmaz 👤 |
 | K-793 | 844 | `StoreCancellationContract<TStore>` her store sözleşmesinin KÖKÜDÜR; `TenantIsolationContract<TStore>` ondan türer 👤 |
 | K-794 | 845 | Akış dönen bir store okuma metodunun İLK `MoveNextAsync`'i iptal edilmiş token'da fırlatır 👤 |
@@ -98,3 +94,7 @@ Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLA
 | K-873 | 924 | Store'un kaydetme yolu taşıdığı değeri yazar, sahibi olmadığı alana dokunmaz: `IExperimentStore.SaveAsync` canary kuralını ve rollback sebebini yazmaz (güncellemede saklı değer kalır, yeni kayıtta boş başlar); `IWebhookStore.SaveSubscriptionAsync` `ConsecutiveFailures`'ı taşındığı gibi yazar; sevk edilen sözleşme bunu üç yeni vakayla zorlar (kusur-giderme, 2026-10-10) (kullanıcı kararı) 👤 |
 | K-874 | 925 | Agent'ın kendi modeli dışında çağırdığı model istemcileri (sıkıştırma özetleyicisi, `aiJudge` loop yargıcı) agent'tan ÖNCE kurulur; async derleme yolunda özetleyici kiracı egress politikası + kiracı anahtarı (BYOK), yargıç egress politikası + kurulum anahtarı alır; önbellek atlama kararı özetleyicinin bağlamasını da sayar; senkron `Compile` kiracıdan habersiz kalır (kusur-giderme, 2026-10-11) |
 | K-875 | 926 | Kiracı egress politikasının İÇERİĞİ derlenmiş agent önbelleğinin anahtarına girer; kaydedilen politika bir sonraki çözümde etki eder, sürmekte olan run kesilmez; bedeli çözüm başına bir politika okumasıdır (F-304, kusur-giderme 2026-10-11) (kullanıcı kararı) 👤 |
+| K-876 | 927 | Kalıcı onay kuralı tool'un KAYNAĞINA bağlanır: `ToolApprovalRule.SourceFingerprint` (MCP endpoint'inin SHA-256'sı, adres değil) kural yazılırken damgalanır (yönetici ucu ve "bir daha sorma" akışı), kimliğin parçasıdır ve eşleşme KESİN eşitliktir; damgasız kural (kod tool'u ya da eski kayıt) uzak kaynaklı tool'u onaylamaz, eski MCP kuralları yükseltmede bir kez yeniden sorar; tool'ları o an keşfedilmemiş sunucunun tool'u `Unresolved` raporlar — hiçbir kural eşleşmez, kural yazımı `409` (F-283, kusur-giderme 2026-10-11) (kullanıcı kararı) 👤 |
+| K-877 | 928 | `requiresApproval: false` yazımı API key ile çağrıldığında `AgentsAdmin`'e EK olarak `SecurityAdmin` ister: yeni sunucuda, `true`→`false` geçişinde ve feragat sürerken endpoint değiştiğinde; değişmeyen feragatin yeniden kaydı ve onayı yeniden istemek serbesttir; kontrol aynı uçtadır (`CrossTenantAuthority` emsali) (F-284, kusur-giderme 2026-10-11) (kullanıcı kararı) 👤 |
+| K-878 | 929 | Sağlayıcı-barındırmalı canlı ses kiracının egress politikasına ve kendi anahtarına (BYOK) tabidir: denetim oturum satırından, slot'tan ve sağlayıcı çağrısından ÖNCE launcher'da koşar; anahtar `LiveVoiceCreateRequest.Credential` ve yeni `ILiveVoiceProvider.AttachSessionAsync(LiveVoiceAttachRequest)` ile sağlayıcıya geçer; `SupportsTenantCredentials` (varsayılan `false`) olmayan sağlayıcı bağlamalı kiracıya `403` verir; uç nokta override'ı taşıyan bağlama canlı seste launcher'da `403` ile reddedilir; politika ve kimlik kuralı `TenantProviderAccess`'te TEK yerde yaşar (F-306, kusur-giderme 2026-10-11) (kullanıcı kararı) 👤 |
+| K-879 | 930 | Bir run'ın olayları TEK TEK yazılır: numara, `store` yazımı ve sink dağıtımı tek adımdır, sonraki olay bekler (`RunEventWriter` başına `SemaphoreSlim`); sink içinden aynı writer'a append beklemek yerine `InvalidOperationException` atar ve sink devre dışı kalır; bekleme çağıranın token'ını dinler; bellek içi `ReadEventsAsync` sıralı okur (F-257, kusur-giderme 2026-10-11) |

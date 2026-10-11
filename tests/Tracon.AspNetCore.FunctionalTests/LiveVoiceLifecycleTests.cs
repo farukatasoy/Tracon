@@ -41,11 +41,15 @@ public sealed class LiveVoiceLifecycleTests
 
         await CloseAsync(host, voiceSessionId);
 
-        // The close returns as soon as the session is torn down; the history write
-        // that follows it is the server's own work, not the caller's. Reading the
-        // store once raced that write - measured twice in a full-solution run,
-        // while the assembly on its own passed all 1046 times. Wait for the write
-        // the way every other timing-dependent assertion in this file does.
+        // The DELETE returns only after the history was flushed
+        // (LiveVoiceSessionHost.CloseCoreAsync: stop delegations, close the
+        // sideband, wait for the pump, flush, then write the record). The two
+        // full-solution failures this test once had were not a slow write: the
+        // close used to cancel the pump before it had consumed the transcript
+        // frames already on the wire, so the history was flushed EMPTY and no
+        // wait could succeed (fixed by the close-order and sideband-drain
+        // changes of 2026-09-19 and 2026-09-20; F-257). The wait stays as a
+        // guard, not as the fix.
         //
         // 🚨 Wait for BOTH strings the assertions below read. Waiting only for
         // the output transcript let the wait return before the INPUT transcript

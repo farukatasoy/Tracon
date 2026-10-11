@@ -43,6 +43,66 @@ public sealed class RunEventSinkTests
     }
 
     [Fact]
+    public async Task A_second_writer_waits_until_the_first_event_has_reached_the_store_and_every_sink()
+    {
+        // F-257: a run writes from more than one place at once (concurrent tool
+        // calls, a child run writing into its parent's writer, a workflow's
+        // executors next to its event pump). Numbering, the store write and the
+        // sink dispatch used to be three separate steps, so a second writer took
+        // sequence 1, wrote and dispatched it while the first writer was still
+        // inside the store with sequence 0 - and the sink saw 1 before 0,
+        // against IRunEventSink's documented "in sequence order".
+        var store = new FirstAppendHoldingRunStore();
+        var sink = new SpyRunEventSink();
+        var writer = new RunEventWriter(store, new TraconRunRecordingOptions(), NullLogger.Instance, TraconId.NewId(), metrics: null, [sink]);
+
+        var first = writer.AppendAsync(new RunEventDraft(RunEventType.Custom) { CustomType = "contoso.first" }).AsTask();
+        await store.FirstAppendEntered;
+
+        var second = writer.AppendAsync(new RunEventDraft(RunEventType.Custom) { CustomType = "contoso.second" }).AsTask();
+
+        // Deterministic, no timing: the second write's store call and sink call
+        // complete synchronously, so if nothing holds it back it is already done.
+        second.IsCompleted.ShouldBeFalse("the second event overtook the first one");
+        sink.Events.ShouldBeEmpty();
+
+        store.ReleaseFirst();
+        await Task.WhenAll(first, second);
+
+        sink.Events.Select(static e => e.Sequence).ShouldBe([0L, 1L]);
+        sink.Events.Select(static e => e.CustomType).ShouldBe(["contoso.first", "contoso.second"]);
+    }
+
+    [Fact]
+    public async Task A_sink_that_appends_to_the_run_it_handles_is_disabled_instead_of_hanging_the_run()
+    {
+        // Events are written one at a time, so an append from inside a sink would
+        // wait for the event the sink is still handling - for ever, since nothing
+        // cancels it. The append throws instead; the sink is disabled like any
+        // failing sink and the run goes on.
+        var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());
+        var sink = new ReentrantRunEventSink();
+        var writer = new RunEventWriter(store, new TraconRunRecordingOptions(), NullLogger.Instance, TraconId.NewId(), metrics: null, [sink]);
+
+        await writer.StartAsync(
+            new RunStartInfo { RunId = writer.RunId, AgentName = "test-agent", StartedAt = DateTimeOffset.UtcNow },
+            query: "hello");
+
+        // Armed after the run opened: from here on the sink appends to the run.
+        sink.Writer = writer;
+
+        await writer
+            .AppendAsync(new RunEventDraft(RunEventType.Custom) { CustomType = "contoso.first" })
+            .AsTask()
+            .WaitAsync(TimeSpan.FromSeconds(30), TestContext.Current.CancellationToken);
+        await writer.AppendAsync(new RunEventDraft(RunEventType.Custom) { CustomType = "contoso.second" });
+
+        sink.Failure.ShouldBeOfType<InvalidOperationException>();
+        sink.Calls.ShouldBe(1, "a failing sink is disabled for the rest of the run");
+        writer.IsDisabled.ShouldBeFalse();
+    }
+
+    [Fact]
     public async Task A_sink_sees_the_exact_same_sequence_numbers_as_the_store()
     {
         var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());
@@ -197,15 +257,63 @@ public sealed class RunEventSinkTests
     }
 
     /// <summary>Records the exact events it receives, in the order it received them.</summary>
+    /// <remarks>
+    /// Thread-safe: a regression of the writer's ordering must fail on the ORDER,
+    /// not as a corrupted list.
+    /// </remarks>
     private sealed class SpyRunEventSink : IRunEventSink
     {
-        public List<RunEvent> Events { get; } = [];
+        private readonly List<RunEvent> _events = [];
+
+        public IReadOnlyList<RunEvent> Events
+        {
+            get
+            {
+                lock (_events)
+                {
+                    return [.. _events];
+                }
+            }
+        }
 
         public ValueTask OnEventAsync(RunEvent runEvent, CancellationToken cancellationToken = default)
         {
-            Events.Add(runEvent);
+            lock (_events)
+            {
+                _events.Add(runEvent);
+            }
 
             return ValueTask.CompletedTask;
+        }
+    }
+
+    /// <summary>Appends to the run whose event it is handling, then reports what happened.</summary>
+    private sealed class ReentrantRunEventSink : IRunEventSink
+    {
+        public RunEventWriter? Writer { get; set; }
+
+        public Exception? Failure { get; private set; }
+
+        public int Calls { get; private set; }
+
+        public async ValueTask OnEventAsync(RunEvent runEvent, CancellationToken cancellationToken = default)
+        {
+            if (Writer is null)
+            {
+                return;
+            }
+
+            Calls++;
+
+            try
+            {
+                await Writer.AppendAsync(new RunEventDraft(RunEventType.Custom) { CustomType = "contoso.echo" }, cancellationToken);
+            }
+            catch (InvalidOperationException exception)
+            {
+                Failure = exception;
+                throw;
+            }
         }
     }
 
@@ -239,6 +347,114 @@ public sealed class RunEventSinkTests
 
         public ValueTask AppendEventAsync(RunEvent runEvent, CancellationToken cancellationToken = default)
             => throw new InvalidOperationException("store unavailable");
+
+        public ValueTask<long?> GetLastEventSequenceAsync(Guid runId, CancellationToken cancellationToken = default)
+            => ValueTask.FromResult<long?>(null);
+
+        public ValueTask CompleteRunAsync(RunCompletion completion, CancellationToken cancellationToken = default)
+            => throw new InvalidOperationException("store unavailable");
+
+        public ValueTask<RunRecord?> GetRunAsync(Guid runId, CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public ValueTask<IReadOnlyList<RunRecord>> QueryRunsAsync(
+            RunQuery query,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public ValueTask<RunStatistics> GetStatisticsAsync(
+            RunStatisticsQuery query,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public IAsyncEnumerable<RunEvent> ReadEventsAsync(
+            Guid runId,
+            long fromSequence = 0,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public ValueTask RecordToolInvocationAsync(
+            ToolInvocationRecord invocation,
+            CancellationToken cancellationToken = default)
+            => throw new InvalidOperationException("store unavailable");
+
+        public ValueTask<bool> CompleteLateToolInvocationAsync(
+            LateToolCompletion completion,
+            CancellationToken cancellationToken = default)
+            => throw new InvalidOperationException("store unavailable");
+
+        public ValueTask<IReadOnlyList<ToolInvocationRecord>> ListToolInvocationsAsync(
+            Guid runId,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public ValueTask<IReadOnlyList<ToolUsage>> GetToolUsageAsync(
+            ToolUsageQuery query,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public ValueTask<IReadOnlyList<ExperimentVariantResult>> GetExperimentResultsAsync(
+            ExperimentResultsQuery query,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public ValueTask<IReadOnlyList<TimeSeriesPoint>> GetTimeSeriesAsync(
+            RunTimeSeriesQuery query,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public ValueTask UpdateRunCostAsync(
+            Guid runId,
+            RunCost? cost,
+            string? tenantId = null,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public ValueTask TouchHeartbeatAsync(
+            IReadOnlyCollection<Guid> runIds,
+            DateTimeOffset at,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+
+        public ValueTask<IReadOnlyList<RunRecord>> ClaimOrphanedRunsAsync(
+            DateTimeOffset staleBefore,
+            int max,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
+    }
+
+    /// <summary>
+    /// Holds the FIRST event write open until <see cref="ReleaseFirst"/> is called;
+    /// every later write completes at once. That is the moment a second writer
+    /// used to overtake the first.
+    /// </summary>
+    private sealed class FirstAppendHoldingRunStore : IRunStore
+    {
+        private readonly TaskCompletionSource _firstEntered = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource _releaseFirst = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int _appends;
+
+        public Task FirstAppendEntered => _firstEntered.Task;
+
+        public void ReleaseFirst() => _releaseFirst.TrySetResult();
+
+        public ValueTask<RunRecord> StartRunAsync(RunStartInfo info, CancellationToken cancellationToken = default)
+            => ValueTask.FromResult(new RunRecord
+            {
+                Id = info.RunId,
+                AgentName = info.AgentName,
+                Status = info.Status,
+                StartedAt = info.StartedAt,
+            });
+
+        public async ValueTask AppendEventAsync(RunEvent runEvent, CancellationToken cancellationToken = default)
+        {
+            if (Interlocked.Increment(ref _appends) == 1)
+            {
+                _firstEntered.TrySetResult();
+                await _releaseFirst.Task.ConfigureAwait(false);
+            }
+        }
 
         public ValueTask<long?> GetLastEventSequenceAsync(Guid runId, CancellationToken cancellationToken = default)
             => ValueTask.FromResult<long?>(null);

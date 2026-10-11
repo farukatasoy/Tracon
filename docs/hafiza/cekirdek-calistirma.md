@@ -43,25 +43,12 @@
 - **🚨 Kararı uygulayıp sonra handoff yazan uç, hatada kararı ASILI bırakır** (2026-09-07, B03/K-726): çare transaction değil **TEKRAR SÜRÜLEBİLİRLİK** — id'yi approval'dan türet, yazımları "satır yoksa yaz" yap. Vaka: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 - **🚨 `OperationCanceledException` bir IPTAL DEGIL, bir SORUDUR: "gercekten iptal edildi mi?"** (2026-09-08, Faz 157, K-737): **iptal karari istisnanin TIPINDEN degil, o kapsamin KENDI token'indan okunur** — `RunRecordingAgent` `cancellationSource`, HTTP uclari `HttpContext.RequestAborted`, `WorkflowRunner` `linked`. Token'in olmadigi siniflandirma yolunda ayrim zaman asimi sinyaliyle kurulur ve o kontrol `CanceledTypePattern`'den ONCE gelmelidir. Regresyon: `RunCancellationStatusTests.An_uncancelled_OperationCanceledException_writes_Failed_not_Canceled`. Vaka: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 - **🚨 K-737'nin IKINCI yarisi: "iptal degil" demek yetmez, HANGI limitin doldugu ayri bir iddiadir** (2026-09-12, F-219, K-759): **kendi `CancellationTokenSource`'unu tutan her `catch` filtresine O kaynagi da koyar** (`deadline.IsCancellationRequested && !cancellationToken.IsCancellationRequested`); ayiramadigi dalda sebebi soylemez, **ariza** der. Sinif taramasi 13 negatif filtreyi tarayip uc yeri duzeltti. Vaka: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
+- **🚨 K-737/K-840 sınıfının ÜÇÜNCÜ tekrarı KAPIYLA kapandı** (2026-10-11, F-279, `CancellationFilterSiteTests`): `when (ex is not OperationCanceledException)` 58 sitede kalmıştı (K-840 yedi servisi, F-279 dokuz siteyi saydı; sınıf taraması 55'ini daha buldu). Kural tek yazımdır: `OperationCancellation.IsFailure(ex, token)` — token, `try` içindeki işi yöneten token'dır. Token YOKSA (senkron getter, `CancellationToken.None` çağrısı) filtre yazılmaz; her istisna yakalanır, yorum nedenini söyler. Kapı iki biçimi reddeder: tip filtresi (elle `|| !token.IsCancellationRequested` dahil) ve `catch (OCE) { throw; }` + `catch (Exception)`. Kapının GÖRMEDİĞİ biçim: filtresiz `catch (OperationCanceledException) { iptal say }` ve ardından bir hata dalı — elle tarandı (25 site, 7'si düzeltildi: canlı ses pompası ve delegasyonu, konuşma sürücüsü, iş kira yenilemesi, SSE yoklaması, CLI). 🚨 Eski semantiği KODLAYAN testler vardı: token iptal edilmeden `new OperationCanceledException()` fırlatıp "gerçek iptal" diyen 7 test (+1 fonksiyonel) düzeltmeden sonra kırmızıya döndü. Gerçek iptali test etmek için token'ı İPTAL ET ve `new OperationCanceledException(token)` fırlat; yabancı iptal için `TaskCanceledException` + iptal edilmemiş token.
 - **Bir bütçe, altındaki transport tavanı ölçülmeden bütçe değildir** (F-219 sınıf taraması, K-760) — `HttpClient.Timeout`'un 100 sn'lik varsayılanı üstteki her `CancelAfter` bütçesini sessizce kesiyordu. Tam kayıt: [`nswag-istemci-uretimi.md`](nswag-istemci-uretimi.md).
 - **🚨 `IRunEventSink` dağıtımı SICAK YOLDA `await` edilir — yavaş bir `sink` `run`'ı yavaşlatır** (2026-09-08, Faz 157, ölçüldü). "Gözlemlenebilirlik işlevselliği bozmaz" kuralı yalnız ARIZAYI kapsar; GECİKME izole edilmez ve olay başına ödenir. Ağ hedefi olan bir `sink` kendi içinde tamponlamalı ve hemen dönmelidir. Ölçüm: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 - **Ölen worker'ın işi `lease_until` dolana kadar KİMSEYE geçmez; sonra `attempt` artarak devralınır** (2026-09-08, Faz 157, K-739). Ölçülen üç şey: devralma `lease_until`'dan sonra başlar · madde sayaçları idempotenttir · iki worker aynı işte ASLA aynı anda bulunmaz. Yürütme yine de **at-least-once**'tır: çöken denemenin dış yan etkileri geri alınmaz. Bu bir çok node DESTEK beyanı değildir; SQLite tek process tavsiyesi korunur.
-- **🚨 K-640'ın bedeli: normalizasyon classifier'ın ÜSTÜNE konunca kümelemeyi
-  yok eder** (2026-09-15, yayın denetimi). `ErrorFingerprint.Compute`
-  `RunError.Message`'ı kümeleme anahtarına çevirir, ama yabancı bir exception
-  için o alan artık `SafeErrorText.ForPersistence` metnidir ve içinde **her
-  oluşumda yeni** bir correlation id vardır. `GuidPattern` onu göremez
-  (`NewCorrelationId` `"N"` biçimidir, tire yok), `NumberPattern` yalnız rakam
-  öbeklerini siler: `a1b2c3d4` → `a{n}b{n}c{n}d{n}`. Ölçüldü: **aynı hatanın
-  2000 oluşumu 1368 ayrı kümeye** düştü; Tracon'un kendi exception'ı — mesajı
-  korunduğu için — tek kümeydi. Düzeltme `CorrelationRefPattern()`'i **diğer her
-  desenden ÖNCE** koşturur; sıra zorunludur ve uzunluk kasıtlı olarak sekize
-  sabitlenmedi. Ders: bir metin hem operatöre (izlenebilirlik) hem makineye
-  (kümeleme anahtarı) hizmet ediyorsa, oluşum başına değişen her token ikincisini
-  bozar — normalizasyonun boru hattındaki YERİ, varlığı kadar önemlidir. Sınıf
-  taraması: tek üretim çağıranı `DefaultRunErrorClassifier:62`; `InMemoryRunStore`
-  orphaned sabit fingerprint'i gerekçeli tasarımdır, vaka değil. Regresyon:
-  `ErrorFingerprintTests.The_same_foreign_failure_clusters_together_across_occurrences`.
+- **🚨 K-640'ın bedeli: normalizasyon classifier'ın ÜSTÜNE konunca kümelemeyi yok eder** — tam kayıt: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md) (2026-10-11 bütçe turu).
+
 - **🚨 Varsayılanı `true` olan bir kardeş alanın çalışması, yapılandırma
   bağlamasının çalıştığını KANITLAMAZ** (2026-09-18, `HATA-S3-006`). Tur,
   `RecordReasoningDeltas`'ın hiç kaydetmediğini gördü ve "options bağlama

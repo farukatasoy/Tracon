@@ -58,7 +58,7 @@ public sealed partial class RunRecordingAgent
                     .PreviewAsync(guardPipeline, ContentGuardDirection.Input, input, _modelId, cancellationToken)
                     .ConfigureAwait(false);
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
             {
                 // A cancellation is deliberately NOT caught here: the caller's
                 // finally already writes Canceled for it (HATA-S4-012), and that

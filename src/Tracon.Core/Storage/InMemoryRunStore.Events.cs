@@ -197,6 +197,11 @@ internal sealed partial class InMemoryRunStore
             snapshot = [.. log];
         }
 
+        // IRunStore.ReadEventsAsync promises sequence order. The log keeps
+        // arrival order, and two writes can arrive out of order (the SQL stores
+        // sort with ORDER BY seq); the read sorts the same way.
+        Array.Sort(snapshot, static (left, right) => left.Sequence.CompareTo(right.Sequence));
+
         foreach (var runEvent in snapshot)
         {
             if (runEvent.Sequence < fromSequence)
