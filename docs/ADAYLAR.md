@@ -127,7 +127,7 @@ turundan gelir
 
 **Risk:** Parametreli derleme önbelleği atlar — maliyeti ölçülmeli; resume'da kayıp.
 
-**Bağımlılık:** [Faz 192](192-DONGU-TUKENME-POLITIKASI.md) ile (F-293; revizyon sayısı parametre olursa `MaxIterations`'a bağlanır).
+**Bağımlılık:** [Faz 192](arsiv/fazlar/192-DONGU-TUKENME-POLITIKASI.md) ile (F-293; revizyon sayısı parametre olursa `MaxIterations`'a bağlanır).
 
 **Ekosistem:** Taranmadı (Tracon içi boşluk).
 
@@ -319,7 +319,7 @@ turundan gelir
 
 **Risk:** Düşük.
 
-**Bağımlılık:** [Faz 192](192-DONGU-TUKENME-POLITIKASI.md) `OnExhausted` / `OnCriterionError` alanlarını ekler; editör onları da gösterir.
+**Bağımlılık:** [Faz 192](arsiv/fazlar/192-DONGU-TUKENME-POLITIKASI.md) `OnExhausted` / `OnCriterionError` alanlarını ekler; editör onları da gösterir.
 
 **Ekosistem:** —
 

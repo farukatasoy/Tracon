@@ -204,7 +204,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [189](arsiv/fazlar/189-TUKETICI-YUZEYI-VE-BUILDER.md) | Tüketici Yüzeyi: TraconToolRegistration ve ITraconBuilder | ✅ Tamamlandı |
 | [190](arsiv/fazlar/190-KIMLIK-BASLIKLARI-ANAHTAR-REFERANSI.md) | Kimlik Taşıyan Başlıklar İçin Yapılandırma Anahtarı Referansı | ✅ Tamamlandı |
 | [191](arsiv/fazlar/191-TEK-DERLEME-ZINCIRI.md) | Tek Derleme Zinciri | ✅ Tamamlandı |
-| [192](192-DONGU-TUKENME-POLITIKASI.md) | Döngü Tükenme Politikası | 📋 Planlandı |
+| [192](arsiv/fazlar/192-DONGU-TUKENME-POLITIKASI.md) | Döngü Tükenme Politikası | ✅ Tamamlandı |
 | [193](193-NET8-NET9-DUSURME.md) | `net8.0` ve `net9.0` Hedeflerinin Düşürülmesi | 📋 Planlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).

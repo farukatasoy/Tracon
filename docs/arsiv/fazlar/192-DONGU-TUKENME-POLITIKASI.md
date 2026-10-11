@@ -2,8 +2,8 @@
 
 > **Durum:** ✅ Tamamlandı (2026-10-11)
 > **Plan onayı:** Bakımcı, 2026-10-11 (engelleyici kararlar sohbette alındı: API şekli, son turun değerlendirilmesi, hata sınıfı)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-293**
-> **Önkoşul:** Yok. [Faz 151](arsiv/fazlar/151-HARNESSIN-DONGU-YETENEGI.md) döngüyü kurdu; bu faz onun bitiş davranışını seçilebilir yapar
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-293**
+> **Önkoşul:** Yok. [Faz 151](151-HARNESSIN-DONGU-YETENEGI.md) döngüyü kurdu; bu faz onun bitiş davranışını seçilebilir yapar
 > **Paketler:** `Tracon.Abstractions`, `Tracon.Core` · üretilen istemciler (`Tracon.Client`, `@tracon/client`) · `Tracon.UI` (yalnız iki sözlük satırı)
 > **Yeni paket:** Yok · **Migration:** Yok (tanım JSON blob'unda yaşar; `run_errors.class` zaten `smallint`)
 > **Public API:** Büyüyor — bir enum, iki `LoopSettings` alanı, bir istisna tipi, bir `RunErrorClass` üyesi. `1.0.0` GA'dan (K-603) önce ucuz: `wc -l src/*/PublicAPI.Shipped.txt` toplamı **17** satır (2026-10-11), her dosya yalnız başlık taşıyor
@@ -23,15 +23,15 @@
    grep -n "K-020\|K-603\|K-704\|K-705\|K-706\|K-840\|K-874" docs/KARARLAR.md
    ```
    **K-020** (`MAAI001` bastırması tek dosyada), **K-603** (`Shipped` GA'ya kadar boş; enum değerleri yeniden numaralanmaz), **K-704** (MAF'a tek composite evaluator), **K-705** (`MaxIterations` `null` → Tracon'in 10'u), **K-706** (`aiJudge` kendi binding'ini ister), **K-840** (`OperationCancellation.IsFailure`), **K-874** (yargıç istemcisi agent'tan önce kurulur, egress uygular)
-3. Önceki faz devir notu gerekmez; döngünün kendi tasarımı [Faz 151](arsiv/fazlar/151-HARNESSIN-DONGU-YETENEGI.md) kaydındadır — yalnız grep'le:
+3. Önceki faz devir notu gerekmez; döngünün kendi tasarımı [Faz 151](151-HARNESSIN-DONGU-YETENEGI.md) kaydındadır — yalnız grep'le:
    ```bash
    grep -n "ceilingReached\|failedCriterion\|MaxIterations" docs/arsiv/fazlar/151-HARNESSIN-DONGU-YETENEGI.md
    ```
 4. Alan hafızası (üç alan):
-   [`hafiza/maf-harness-ve-loop.md`](hafiza/maf-harness-ve-loop.md) (tavana ulaşan tur değerlendirilmez; evaluator istisnası run'ı düşürür) ·
-   [`hafiza/run-olay-sozlesmesi.md`](hafiza/run-olay-sozlesmesi.md) (olay XML'i payload'da olmayan alan vaat edemez — `RunEventPayloadContractTests`) ·
-   [`hafiza/agent-derleme-ve-onbellek.md`](hafiza/agent-derleme-ve-onbellek.md) (derlenmiş agent önbelleği, parmak izi)
-5. Emsal: [Faz 131](arsiv/fazlar/131-YAPISAL-YANIT-DOGRULAMA-SEAMI.md) — akışlı yolda içerik aktıktan sonra run'ı `Failed` kapatan tek emsal. `grep -n "Akışta" docs/arsiv/fazlar/131-YAPISAL-YANIT-DOGRULAMA-SEAMI.md`
+   [`hafiza/maf-harness-ve-loop.md`](../../hafiza/maf-harness-ve-loop.md) (tavana ulaşan tur değerlendirilmez; evaluator istisnası run'ı düşürür) ·
+   [`hafiza/run-olay-sozlesmesi.md`](../../hafiza/run-olay-sozlesmesi.md) (olay XML'i payload'da olmayan alan vaat edemez — `RunEventPayloadContractTests`) ·
+   [`hafiza/agent-derleme-ve-onbellek.md`](../../hafiza/agent-derleme-ve-onbellek.md) (derlenmiş agent önbelleği, parmak izi)
+5. Emsal: [Faz 131](131-YAPISAL-YANIT-DOGRULAMA-SEAMI.md) — akışlı yolda içerik aktıktan sonra run'ı `Failed` kapatan tek emsal. `grep -n "Akışta" docs/arsiv/fazlar/131-YAPISAL-YANIT-DOGRULAMA-SEAMI.md`
 
 ---
 
@@ -50,13 +50,13 @@ durumda da run'ı düşürme seçeneği verir. Varsayılan bugünkü davranışt
 
 | Kanıt | Gözlem |
 |---|---|
-| [`RecordingLoopEvaluator.cs:116-133`](../src/Tracon.Core/Compilation/RecordingLoopEvaluator.cs#L116-L133) | Ölçüt istisnası yakalanır, loglanır, `break` ile döngü durur; run başarılı biter |
-| [`RecordingLoopEvaluator.cs:143-155`](../src/Tracon.Core/Compilation/RecordingLoopEvaluator.cs#L143-L155) | Tavan yalnız olayda `ceilingReached` olarak işaretlenir; son yanıt döner |
-| [`LoopSettings.cs:72-110`](../src/Tracon.Abstractions/Agents/LoopSettings.cs#L72-L110) | `LoopSettings` yalnız `Criteria`, `MaxIterations`, `FreshContextPerIteration` taşır |
-| [`LoopEvaluatorRegistry.cs:216`](../src/Tracon.Core/Compilation/LoopEvaluatorRegistry.cs#L216), [`:239-249`](../src/Tracon.Core/Compilation/LoopEvaluatorRegistry.cs#L239-L249) | MAF'a verilen `LoopAgentOptions.MaxIterations` tanımdaki tavanın kendisidir |
-| [`hafiza/maf-harness-ve-loop.md`](hafiza/maf-harness-ve-loop.md) — MAF 1.20.0 probu | Tavana ulaşan tur **değerlendirilmez** (`MaxIterations = 10` → 10 model çağrısı, 9 değerlendirme; `= 1` → hiç) |
-| [`HarnessLoopTests.cs:272`](../tests/Tracon.AspNetCore.FunctionalTests/HarnessLoopTests.cs#L272) | `A_criterion_that_throws_stops_the_loop_and_leaves_the_run_successful` bugünkü davranışı kilitler |
-| [`RunErrorClass.cs:120`](../src/Tracon.Abstractions/Runs/RunErrorClass.cs#L120) | Son üye `StructuredResponseInvalid = 14`; döngü için bir sınıf yok |
+| [`RecordingLoopEvaluator.cs:116-133`](../../../src/Tracon.Core/Compilation/RecordingLoopEvaluator.cs#L116-L133) | Ölçüt istisnası yakalanır, loglanır, `break` ile döngü durur; run başarılı biter |
+| [`RecordingLoopEvaluator.cs:143-155`](../../../src/Tracon.Core/Compilation/RecordingLoopEvaluator.cs#L143-L155) | Tavan yalnız olayda `ceilingReached` olarak işaretlenir; son yanıt döner |
+| [`LoopSettings.cs:72-110`](../../../src/Tracon.Abstractions/Agents/LoopSettings.cs#L72-L110) | `LoopSettings` yalnız `Criteria`, `MaxIterations`, `FreshContextPerIteration` taşır |
+| [`LoopEvaluatorRegistry.cs:216`](../../../src/Tracon.Core/Compilation/LoopEvaluatorRegistry.cs#L216), [`:239-249`](../../../src/Tracon.Core/Compilation/LoopEvaluatorRegistry.cs#L239-L249) | MAF'a verilen `LoopAgentOptions.MaxIterations` tanımdaki tavanın kendisidir |
+| [`hafiza/maf-harness-ve-loop.md`](../../hafiza/maf-harness-ve-loop.md) — MAF 1.20.0 probu | Tavana ulaşan tur **değerlendirilmez** (`MaxIterations = 10` → 10 model çağrısı, 9 değerlendirme; `= 1` → hiç) |
+| [`HarnessLoopTests.cs:272`](../../../tests/Tracon.AspNetCore.FunctionalTests/HarnessLoopTests.cs#L272) | `A_criterion_that_throws_stops_the_loop_and_leaves_the_run_successful` bugünkü davranışı kilitler |
+| [`RunErrorClass.cs:120`](../../../src/Tracon.Abstractions/Runs/RunErrorClass.cs#L120) | Son üye `StructuredResponseInvalid = 14`; döngü için bir sınıf yok |
 
 > Kanıtlar 2026-10-11 tarihinde doğrulandı. MAF davranışı 1.20.0'da ölçüldü;
 > depo hâlâ 1.20.0'dadır. Uygulama oturumu MAF sürümü değiştiyse ölçümü tekrarlar.
@@ -163,7 +163,7 @@ bugünkü anlamı "bu olaydan sonra bir tur daha koşar ve değerlendirilmez"dir
   yapısal yanıt doğrulaması aynı sözleşmeyle çalışır. Site sayfası bunu açıkça
   yazar: "streaming clients receive the last turn's text before the failure".
 - **Workflow.** Katılımcı agent'ın istisnası graf düzeyinde hata üretir ve
-  `WorkflowRunner` run'ı düşürür ([`WorkflowRunner.cs:861-869`](../src/Tracon.Workflows/Internal/WorkflowRunner.cs#L861-L869)).
+  `WorkflowRunner` run'ı düşürür ([`WorkflowRunner.cs:861-869`](../../../src/Tracon.Workflows/Internal/WorkflowRunner.cs#L861-L869)).
   Sonraki düğümün **koşmadığı** ve workflow run'ının hata sınıfı
   **Doğrulanmadı — fonksiyonel testle ölçülmeli** (MAF istisnayı
   `WorkflowErrorEvent.Exception` içinde sarmalıyor olabilir; sınıflandırıcı
@@ -251,7 +251,7 @@ tests/Tracon.AspNetCore.FunctionalTests/  (workflow durma testi — WorkflowEndp
 
 > Mutlu yoldan değil, **ne bozulabilir**den türetilir. Seviyeyi plan seçer.
 > Sınır geçen davranış (DI · HTTP · kiracı · akış · depo · paket) birim
-> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../.agents/ortak/test-seviyeleri.md).
+> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../../../.agents/ortak/test-seviyeleri.md).
 
 | Ne bozulabilir | Seviye | Test |
 |---|---|---|
@@ -530,7 +530,7 @@ satırını sınıflandırma), F-315 (harness + Chat Completions), F-316 (akış
 endpoint durum kodu), F-302 (konsolda `Loop` düzenleme — iki yeni
 alan da editörde yok; tam-PUT editörü onları korur, düzenlemez).
 
-**Sıradaki faz:** [Faz 193](193-NET8-NET9-DUSURME.md) — `net8.0`/`net9.0`
+**Sıradaki faz:** [Faz 193](../../193-NET8-NET9-DUSURME.md) — `net8.0`/`net9.0`
 düşürme; K-855 gereği **2026-11-10'dan önce başlamaz**. O tarihe kadar iş
 `ADAYLAR.md`'den seçilir (🟠 F-317 kusur giderme; 🟠 F-294, F-295 faz planlama;
 🟡 F-314, F-315 kusur giderme).
