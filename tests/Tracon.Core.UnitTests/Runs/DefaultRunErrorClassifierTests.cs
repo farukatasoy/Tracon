@@ -44,6 +44,9 @@ public sealed class DefaultRunErrorClassifierTests
     // the message below deliberately carries neither "quota" nor "kota" to
     // prove the mapping does not depend on the regex.
     [InlineData("run_budget_exceeded", "The run tree's token budget is exhausted (200000/200000). No further model calls can be made in this run tree.", RunErrorClass.QuotaExceeded)]
+    // Phase 192: a loop that fails on exhaustion is a quality rejection with its own
+    // class; the message names a criterion, never a provider.
+    [InlineData("loop_unsatisfied", "The loop of agent 'writer' reached its ceiling of 3 iterations while criterion 'aiJudge' still asked for another iteration, and OnExhausted is FailRun.", RunErrorClass.LoopUnsatisfied)]
     public void Every_class_lands_in_the_right_bucket_with_at_least_one_example(string type, string message, RunErrorClass expected)
     {
         var result = _classifier.Classify(new RunError { Type = type, Message = message });

@@ -225,6 +225,7 @@ export const enRuns = {
   "dashboard.errorClass.ToolTimeout": 'Tool timed out',
   "dashboard.errorClass.Infrastructure": 'Infrastructure error',
   "dashboard.errorClass.StructuredResponseInvalid": 'Structured response invalid',
+  "dashboard.errorClass.LoopUnsatisfied": 'Loop unsatisfied',
   "transcript.reasoning": 'Reasoning',
   "transcript.approved": 'approved',
   "transcript.rejected": 'rejected',

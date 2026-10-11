@@ -205,7 +205,21 @@ public abstract class AgentDefinitionStoreContract : TenantIsolationContract<IAg
                 },
             },
             CallableAgentNames = ["researcher"],
-            Harness = new HarnessSettings { MaxContextWindowTokens = 4096, DisableWebSearch = true },
+            Harness = new HarnessSettings
+            {
+                MaxContextWindowTokens = 4096,
+                DisableWebSearch = true,
+
+                // Both outcomes away from their defaults: a store that dropped them
+                // would load a loop that returns an unsatisfied response as success.
+                Loop = new LoopSettings
+                {
+                    Criteria = [new LoopCriterion { Kind = "completionMarker", Marker = "DONE" }],
+                    MaxIterations = 4,
+                    OnExhausted = LoopOutcome.FailRun,
+                    OnCriterionError = LoopOutcome.FailRun,
+                },
+            },
             Compaction = new CompactionSettings
             {
                 Strategy = CompactionStrategyKind.Summarization,
@@ -254,6 +268,11 @@ public abstract class AgentDefinitionStoreContract : TenantIsolationContract<IAg
         loaded.Harness.ShouldNotBeNull();
         loaded.Harness.MaxContextWindowTokens.ShouldBe(4096);
         loaded.Harness.DisableWebSearch.ShouldBeTrue();
+        loaded.Harness.Loop.ShouldNotBeNull();
+        loaded.Harness.Loop.Criteria.ShouldHaveSingleItem().Marker.ShouldBe("DONE");
+        loaded.Harness.Loop.MaxIterations.ShouldBe(4);
+        loaded.Harness.Loop.OnExhausted.ShouldBe(LoopOutcome.FailRun);
+        loaded.Harness.Loop.OnCriterionError.ShouldBe(LoopOutcome.FailRun);
         loaded.Compaction.ShouldNotBeNull();
         loaded.Compaction.Strategy.ShouldBe(CompactionStrategyKind.Summarization);
         loaded.Compaction.TriggerTokens.ShouldBe(8_000);

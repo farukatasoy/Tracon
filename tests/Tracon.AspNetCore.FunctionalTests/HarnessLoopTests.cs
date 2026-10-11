@@ -400,6 +400,336 @@ public sealed class HarnessLoopTests
         provider.Requests.Count.ShouldBe(2);
     }
 
+    // ---- Phase 192: how the loop ends when no criterion is satisfied ------------
+
+    /// <summary>
+    /// FailRun on exhaustion: the run fails with LoopUnsatisfied after exactly
+    /// MaxIterations turns. The framework is given one iteration more so the turn at
+    /// the ceiling is evaluated; it never runs that extra turn.
+    /// </summary>
+    [Fact]
+    public async Task FailRun_on_exhaustion_fails_the_run_after_exactly_MaxIterations_turns()
+    {
+        var loop = new LoopSettings
+        {
+            Criteria = [new LoopCriterion { Kind = "completionMarker", Marker = "NEVER APPEARS" }],
+            MaxIterations = 3,
+            OnExhausted = LoopOutcome.FailRun,
+        };
+
+        // Every turn reports usage: a failed run must still carry what the loop spent.
+        var provider = ProviderWithUsage("working", turns: 3);
+        await using var host = await StartAsync(provider, loop);
+
+        var exception = await Should.ThrowAsync<TraconLoopUnsatisfiedException>(() => RunAsync(host));
+        exception.AgentName.ShouldBe(AgentName);
+        exception.Iterations.ShouldBe(3);
+        exception.UnsatisfiedCriterion.ShouldBe("completionMarker");
+        exception.Message.ShouldNotContain("working", Case.Sensitive);
+
+        provider.Requests.Count.ShouldBe(3, "the framework's extra iteration never runs");
+
+        var root = await RootRunAsync(host);
+        root.Status.ShouldBe(RunStatus.Failed);
+        root.Error.ShouldNotBeNull().Type.ShouldBe(TraconLoopUnsatisfiedException.LoopUnsatisfiedErrorType);
+        root.Error.Class.ShouldBe(RunErrorClass.LoopUnsatisfied);
+
+        // Phase 192 audit: the run's usage is what the three turns spent, not null.
+        // A run that ends in an exception has scope.ExtraUsage as its only usage source.
+        root.Usage.ShouldNotBeNull().TotalTokens.ShouldBe(3 * UsagePerTurn);
+
+        // In this mode the turn at the ceiling is evaluated: as many events as turns.
+        var iterations = (await ReadRootEventsAsync(host))
+            .Where(static runEvent => runEvent.Type == RunEventType.LoopIterationCompleted)
+            .ToList();
+
+        iterations.Count.ShouldBe(3);
+        iterations.SkipLast(1).ShouldAllBe(runEvent => !ReadPayload(runEvent).CeilingReached && !ReadFailsRun(runEvent));
+
+        var last = ReadPayload(iterations[^1]);
+        last.Iteration.ShouldBe(3);
+        last.ContinuedBy.ShouldBe("completionMarker");
+        last.CeilingReached.ShouldBeTrue();
+        ReadFailsRun(iterations[^1]).ShouldBeTrue();
+        iterations[^1].Text.ShouldNotBeNull().ShouldContain("fails the run");
+    }
+
+    [Fact]
+    public async Task FailRun_on_exhaustion_completes_a_run_whose_last_turn_meets_the_criterion()
+    {
+        var loop = new LoopSettings
+        {
+            Criteria = [new LoopCriterion { Kind = "completionMarker", Marker = "ALL DONE" }],
+            MaxIterations = 3,
+            OnExhausted = LoopOutcome.FailRun,
+        };
+
+        var provider = Provider("one", "two", "ALL DONE");
+        await using var host = await StartAsync(provider, loop);
+
+        var response = await RunAsync(host);
+
+        response.Text.ShouldContain("ALL DONE");
+        provider.Requests.Count.ShouldBe(3);
+
+        var root = await RootRunAsync(host);
+        root.Status.ShouldBe(RunStatus.Completed);
+
+        var last = (await ReadRootEventsAsync(host))
+            .Last(static runEvent => runEvent.Type == RunEventType.LoopIterationCompleted);
+        ReadPayload(last).Continued.ShouldBeFalse();
+        ReadFailsRun(last).ShouldBeFalse();
+    }
+
+    /// <summary>
+    /// MaxIterations 1 with FailRun: the single turn is evaluated (by default it is not).
+    /// </summary>
+    [Fact]
+    public async Task FailRun_with_a_single_iteration_evaluates_that_iteration()
+    {
+        var loop = new LoopSettings
+        {
+            Criteria = [new LoopCriterion { Kind = "completionMarker", Marker = "NEVER APPEARS" }],
+            MaxIterations = 1,
+            OnExhausted = LoopOutcome.FailRun,
+        };
+
+        var provider = Provider("working");
+        await using var host = await StartAsync(provider, loop);
+
+        await Should.ThrowAsync<TraconLoopUnsatisfiedException>(() => RunAsync(host));
+
+        provider.Requests.Count.ShouldBe(1);
+        (await ReadRootEventsAsync(host)).Count(static runEvent => runEvent.Type == RunEventType.LoopIterationCompleted)
+            .ShouldBe(1);
+    }
+
+    /// <summary>
+    /// FailRun on a criterion error: the run fails with the criterion's OWN error, so
+    /// an unreachable judge provider stays a provider error, not a rejected response.
+    /// </summary>
+    [Fact]
+    public async Task FailRun_on_criterion_error_fails_the_run_with_the_criterions_own_class()
+    {
+        var thrower = new DelegateLoopEvaluator(static (_, _)
+            => throw new TraconProviderUnavailableException("the judge provider is unreachable"));
+
+        var loop = new LoopSettings
+        {
+            Criteria = [new LoopCriterion { Kind = "explodes" }],
+            MaxIterations = 6,
+            OnCriterionError = LoopOutcome.FailRun,
+        };
+
+        var provider = ProviderWithUsage("first answer", turns: 1);
+        await using var host = await StartAsync(
+            provider,
+            loop,
+            configure: builder => builder.AddLoopEvaluator("explodes", thrower));
+
+        await Should.ThrowAsync<TraconProviderUnavailableException>(() => RunAsync(host));
+
+        provider.Requests.Count.ShouldBe(1);
+
+        var root = await RootRunAsync(host);
+        root.Status.ShouldBe(RunStatus.Failed);
+        root.Error.ShouldNotBeNull().Class.ShouldBe(RunErrorClass.ProviderUnavailable);
+        root.Usage.ShouldNotBeNull().TotalTokens.ShouldBe(UsagePerTurn);
+
+        var iteration = (await ReadRootEventsAsync(host))
+            .Single(static runEvent => runEvent.Type == RunEventType.LoopIterationCompleted);
+        ReadPayload(iteration).FailedCriterion.ShouldBe("explodes");
+        ReadFailsRun(iteration).ShouldBeTrue();
+    }
+
+    /// <summary>The run's own cancellation is never a criterion error, in FailRun mode too.</summary>
+    [Fact]
+    public async Task Cancellation_during_a_FailRun_loop_ends_the_run_as_cancelled()
+    {
+        using var cancellation = new CancellationTokenSource();
+
+        var evaluator = new DelegateLoopEvaluator((context, _) =>
+        {
+            if (context.Iteration >= 2)
+            {
+                cancellation.Cancel();
+            }
+
+            return new ValueTask<LoopEvaluation>(LoopEvaluation.Continue("keep going"));
+        });
+
+        var loop = new LoopSettings
+        {
+            Criteria = [new LoopCriterion { Kind = "custom" }],
+            MaxIterations = 3,
+            OnExhausted = LoopOutcome.FailRun,
+            OnCriterionError = LoopOutcome.FailRun,
+        };
+
+        var provider = Provider("one");
+        await using var host = await StartAsync(
+            provider,
+            loop,
+            configure: builder => builder.AddLoopEvaluator("custom", evaluator));
+
+        var agent = await ResolveAsync(host);
+        var session = await agent.CreateSessionAsync();
+
+        await Should.ThrowAsync<OperationCanceledException>(async () => await agent.RunAsync(
+            [new Microsoft.Extensions.AI.ChatMessage(Microsoft.Extensions.AI.ChatRole.User, "go")],
+            session,
+            cancellationToken: cancellation.Token));
+
+        provider.Requests.Count.ShouldBe(2);
+        (await RootRunAsync(host)).Status.ShouldBe(RunStatus.Canceled);
+    }
+
+    /// <summary>
+    /// Streaming: the last turn's text reaches the caller, then the failure, and the
+    /// run closes as failed.
+    /// </summary>
+    [Fact]
+    public async Task FailRun_on_exhaustion_streams_the_last_turn_and_then_fails_the_run()
+    {
+        var loop = new LoopSettings
+        {
+            Criteria = [new LoopCriterion { Kind = "completionMarker", Marker = "NEVER APPEARS" }],
+            MaxIterations = 2,
+            OnExhausted = LoopOutcome.FailRun,
+        };
+
+        await using var host = await StartAsync(ProviderWithUsage("streamed draft", turns: 2), loop);
+
+        var agent = await ResolveAsync(host);
+        var session = await agent.CreateSessionAsync();
+        var text = new System.Text.StringBuilder();
+
+        await Should.ThrowAsync<TraconLoopUnsatisfiedException>(async () =>
+        {
+            await foreach (var update in agent.RunStreamingAsync([new Microsoft.Extensions.AI.ChatMessage(
+                Microsoft.Extensions.AI.ChatRole.User, "go")], session))
+            {
+                text.Append(update.Text);
+            }
+        });
+
+        text.ToString().ShouldContain("streamed draft");
+
+        var root = await RootRunAsync(host);
+        root.Status.ShouldBe(RunStatus.Failed);
+        root.Error.ShouldNotBeNull().Class.ShouldBe(RunErrorClass.LoopUnsatisfied);
+        root.Usage.ShouldNotBeNull().TotalTokens.ShouldBe(2 * UsagePerTurn);
+    }
+
+    /// <summary>
+    /// The reason this phase exists: in a sequential workflow, an agent whose loop fails
+    /// on exhaustion stops the workflow, and the next node (a TTS step in the podcast
+    /// pipeline) never receives the response no criterion accepted.
+    /// </summary>
+    [Fact]
+    public async Task A_workflow_stops_at_an_agent_whose_loop_fails_on_exhaustion()
+    {
+        var loop = new LoopSettings
+        {
+            Criteria = [new LoopCriterion { Kind = "completionMarker", Marker = "NEVER APPEARS" }],
+            MaxIterations = 2,
+            OnExhausted = LoopOutcome.FailRun,
+        };
+
+        var spoken = 0;
+        var provider = Provider("draft");
+        await using var host = await StartAsync(
+            provider,
+            loop,
+            configure: builder => builder
+                .UseWorkflows()
+                .AddWorkflowFunction<List<Microsoft.Extensions.AI.ChatMessage>, List<Microsoft.Extensions.AI.ChatMessage>>(
+                    "speak",
+                    _ => (messages, _, _) =>
+                    {
+                        Interlocked.Increment(ref spoken);
+
+                        return new ValueTask<List<Microsoft.Extensions.AI.ChatMessage>>(messages);
+                    }));
+
+        using (var saved = await host.Client.PutAsJsonAsync(
+                   "/tracon/api/workflows/podcast",
+                   new WorkflowSaveRequest
+                   {
+                       Kind = WorkflowKind.Sequential,
+                       Nodes =
+                       [
+                           new WorkflowNodeReference { Name = AgentName, Kind = WorkflowNodeKind.Agent },
+                           new WorkflowNodeReference { Name = "speak", Kind = WorkflowNodeKind.Function },
+                       ],
+                   }))
+        {
+            saved.StatusCode.ShouldBe(HttpStatusCode.OK, await saved.Content.ReadAsStringAsync());
+        }
+
+        using (var response = await host.Client.PostAsJsonAsync(
+                   "/tracon/api/workflows/podcast/run",
+                   new WorkflowRunHttpRequest { Message = "write the episode" }))
+        {
+            _ = await response.Content.ReadAsStringAsync();
+        }
+
+        spoken.ShouldBe(0, "the function node after the failed agent never runs");
+        provider.Requests.Count.ShouldBe(2);
+
+        var runs = await host.Services.GetRequiredService<IRunStore>().QueryRunsAsync(new RunQuery { Take = 10, OnlyRootRuns = false });
+        var workflow = runs.Single(static run => run.Kind == RunKind.Workflow);
+        var agentRun = runs.Single(static run => run.Kind == RunKind.Agent);
+
+        agentRun.Status.ShouldBe(RunStatus.Failed);
+        agentRun.ParentRunId.ShouldBe(workflow.Id);
+        agentRun.Error.ShouldNotBeNull().Class.ShouldBe(RunErrorClass.LoopUnsatisfied);
+        workflow.Status.ShouldBe(RunStatus.Failed);
+
+        // Measured (plan 192.5, open question 1): MAF does not wrap the exception - the
+        // workflow row names TraconLoopUnsatisfiedException - but WorkflowRunner writes the
+        // CLR type name and never classifies, for every workflow failure. The participant
+        // run carries the class; classifying the workflow row is candidate F-314.
+        workflow.Error.ShouldNotBeNull().Type.ShouldBe(typeof(TraconLoopUnsatisfiedException).FullName);
+        workflow.Error.Class.ShouldBeNull();
+    }
+
+    /// <summary>A name that is not a LoopOutcome member is refused when the definition is saved.</summary>
+    [Fact]
+    public async Task An_unknown_loop_outcome_name_is_refused_with_400()
+    {
+        await using var host = await StartAsync(Provider("x"), loop: null);
+
+        using var response = await host.Client.PutAsync(
+            new Uri("/tracon/api/agents/outcome-agent", UriKind.Relative),
+            new StringContent(
+                """
+                {"name":"outcome-agent","instructions":"Work.","model":{"provider":"looping","model":"loop-model"},
+                 "harness":{"loop":{"criteria":[{"kind":"completionMarker","marker":"DONE"}],"onExhausted":"Explode"}}}
+                """,
+                System.Text.Encoding.UTF8,
+                "application/json"));
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadRequest, await response.Content.ReadAsStringAsync());
+    }
+
+    /// <summary>
+    /// The policy is part of the definition, so a saved change reaches the next run of
+    /// a cached agent: the first run returns, the second, after the save, fails.
+    /// </summary>
+    [Fact]
+    public async Task A_saved_policy_change_reaches_the_next_run_of_a_cached_agent()
+    {
+        var provider = Provider("working");
+        await using var host = await StartAsync(provider, loop: null);
+
+        await SaveLoopAgentAsync(host, "policy-agent", "ReturnLastResponse", create: true);
+        (await RunByHttpAsync(host, "policy-agent")).ShouldBe("Completed");
+
+        await SaveLoopAgentAsync(host, "policy-agent", "FailRun", create: false);
+        (await RunByHttpAsync(host, "policy-agent")).ShouldBe("Failed");
+    }
+
     private static async Task<Microsoft.Agents.AI.AgentResponse> RunAsync(TraconTestHost host)
     {
         var agent = await ResolveAsync(host);
@@ -456,6 +786,74 @@ public sealed class HarnessLoopTests
                 ? null
                 : root.GetProperty("failedCriterion").GetString(),
             root.GetProperty("ceilingReached").GetBoolean());
+    }
+
+    private static bool ReadFailsRun(RunEvent runEvent)
+    {
+        using var document = JsonDocument.Parse(runEvent.Payload.ShouldNotBeNull());
+
+        return document.RootElement.GetProperty("failsRun").GetBoolean();
+    }
+
+    private static async Task SaveLoopAgentAsync(TraconTestHost host, string name, string onExhausted, bool create)
+    {
+        var body = new
+        {
+            name,
+            instructions = "Work.",
+            model = new { provider = ProviderName, model = ModelName },
+            harness = new
+            {
+                loop = new
+                {
+                    criteria = new[] { new { kind = "completionMarker", marker = "NEVER APPEARS" } },
+                    maxIterations = 2,
+                    onExhausted,
+                },
+            },
+        };
+
+        using var saved = create
+            ? await host.Client.PostAsJsonAsync(new Uri("/tracon/api/agents", UriKind.Relative), body)
+            : await host.Client.PutAsJsonAsync(new Uri($"/tracon/api/agents/{name}", UriKind.Relative), body);
+
+        saved.IsSuccessStatusCode.ShouldBeTrue(await saved.Content.ReadAsStringAsync());
+    }
+
+    /// <summary>Runs a definition over HTTP in a new session and returns the run's status.</summary>
+    private static async Task<string> RunByHttpAsync(TraconTestHost host, string name)
+    {
+        var session = Guid.NewGuid().ToString("N");
+
+        using (var response = await host.Client.PostAsJsonAsync(
+                   new Uri($"/tracon/api/agents/{name}/run", UriKind.Relative),
+                   new AgentRunRequest { Message = "go", SessionId = session }))
+        {
+            _ = await response.Content.ReadAsStringAsync();
+        }
+
+        using var runs = await host.Client.GetAsync(new Uri($"/tracon/api/runs?sessionId={session}", UriKind.Relative));
+        var run = (await TraconTestHost.ReadJsonAsync(runs)).EnumerateArray().ShouldHaveSingleItem();
+
+        return run.GetProperty("status").GetString().ShouldNotBeNull();
+    }
+
+    /// <summary>Tokens one turn of <see cref="ProviderWithUsage"/> reports (input + output).</summary>
+    private const int UsagePerTurn = 10;
+
+    /// <summary>A provider whose first <paramref name="turns"/> responses each report <see cref="UsagePerTurn"/> tokens.</summary>
+    private static FakeModelProvider ProviderWithUsage(string response, int turns)
+    {
+        var provider = new FakeModelProvider(ProviderName);
+        provider.ForModel(ModelName, cfg =>
+        {
+            for (var turn = 0; turn < turns; turn++)
+            {
+                cfg.RespondsWith(response, inputTokens: 6, outputTokens: 4);
+            }
+        });
+
+        return provider;
     }
 
     private static FakeModelProvider Provider(params string[] responses)

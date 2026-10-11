@@ -223,6 +223,23 @@ internal sealed class LoopEvaluatorRegistry
                 $"Actual value: {loop.MaxIterations}.");
         }
 
+        // AOT-safe generic form. A number that is not a member would otherwise act
+        // like the default without a word, and the definition said something else.
+        foreach (var (field, outcome) in new[]
+                 {
+                     (nameof(LoopSettings.OnExhausted), loop.OnExhausted),
+                     (nameof(LoopSettings.OnCriterionError), loop.OnCriterionError),
+                 })
+        {
+            if (!Enum.IsDefined(outcome))
+            {
+                throw Invalid(
+                    definition,
+                    $"{nameof(LoopSettings)}.{field} must be {nameof(LoopOutcome.ReturnLastResponse)} or " +
+                    $"{nameof(LoopOutcome.FailRun)}. Actual value: {(int)outcome}.");
+            }
+        }
+
         var criteria = new List<LoopCriterionBinding>(loop.Criteria.Count);
 
         foreach (var criterion in loop.Criteria)
@@ -234,11 +251,18 @@ internal sealed class LoopEvaluatorRegistry
             definition.Name,
             criteria,
             maxIterations,
+            loop.OnExhausted,
+            loop.OnCriterionError,
             _loggerFactory?.CreateLogger<RecordingLoopEvaluator>() ?? (ILogger)NullLogger.Instance);
 
         var options = new LoopAgentOptions
         {
-            MaxIterations = maxIterations,
+            // Phase 192: the framework does not evaluate the turn that reaches its
+            // ceiling. To fail the run there, that turn has to be evaluated, so the
+            // framework gets one iteration more and RecordingLoopEvaluator decides at
+            // the definition's ceiling: it stops or throws, and turn N+1 never runs.
+            // ReturnLastResponse keeps the ceiling, the events and the cost as they were.
+            MaxIterations = loop.OnExhausted == LoopOutcome.FailRun && maxIterations < int.MaxValue ? maxIterations + 1 : maxIterations,
             FreshContextPerIteration = loop.FreshContextPerIteration,
 
             // Set explicitly rather than left to the framework default (measured

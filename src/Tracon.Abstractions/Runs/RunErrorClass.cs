@@ -118,4 +118,17 @@ public enum RunErrorClass
     /// (<see cref="TraconStructuredResponseException"/>).
     /// </summary>
     StructuredResponseInvalid = 14,
+
+    /// <summary>
+    /// A harness loop reached its iteration ceiling while a criterion still asked for
+    /// another iteration, and its <see cref="LoopSettings.OnExhausted"/> fails the run
+    /// (<see cref="TraconLoopUnsatisfiedException"/>).
+    /// </summary>
+    /// <remarks>
+    /// A quality rejection, not a fault: the agent and its model answered. A criterion
+    /// that THROWS under <see cref="LoopSettings.OnCriterionError"/> keeps its own class
+    /// (for an unreachable judge, <see cref="ProviderUnavailable"/> or
+    /// <see cref="Timeout"/>), so a provider outage is never counted here.
+    /// </remarks>
+    LoopUnsatisfied = 15,
 }
