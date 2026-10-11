@@ -6060,3 +6060,46 @@ Kod okuması (2026-10-11, F-305 kapanışı) düzeltmeden önce fonksiyonel test
 ### K-883
 
 Ölçüldü (2026-10-11, F-305 kapanışı): `McpConnection.RefreshCatalogAsync` hata yolunda `Tools = []` yapıyordu. K-880'den beri önbellekteki agent da önbelleksiz derleme gibi `absent` görüp reddediliyordu (kullanıcı kararı); pencere `RefreshInterval` kadardı. Tek bir ağ hıçkırığı sunucunun bütün agent'larını durduruyordu. Bağlantı nesnesi hâlâ kayıtlı ve tanım parmak izi aynı olduğundan saklanan tool nesneleri canlı istemciye çağrı yapar; gerçekten ölü bir sunucuda çağrı tool hatası olarak döner, refresh aralığında da öyle olurdu. Kural `McpConnection._listedAt` (son başarılı listeleme, kataloğun `TimeProvider`'ı) ile ölçülür; yeni bağlantının saklayacak listesi yoktur, ilk listeleme hatası bağlantıyı düşürür. Saklanan liste aynı nesneleri taşır: bağlama (K-880/K-882) ve kaynak parmak izi (K-876) aynı kalır, kalıcı onay kuralı çözülmeye devam eder. Sunucu düzenlenir, silinir ya da devre dışı bırakılırsa bağlantı kapanır ve liste hemen düşer — saklama yalnız değişmeyen sunucunun başarısız listelemesini kapsar. Seçenek B (N ardışık hata) elle tetiklenen refresh'lerin sayacı hızlandırması yüzünden, C (süresiz) kalıcı ölü sunucuyu sonsuza dek kayıtlı göstereceği için seçilmedi. Süre kontrolü yalnız karşılaştırmadır, zamanlayıcı kurmaz; doğrulayıcı yalnız negatif değeri reddeder.
+
+## Faz 90 damıtmasında taşınan gerekçeler
+
+### K-874 — devam (Faz 90 damıtması)
+
+K-467'nin "tek nokta" ölçümü yalnız ANA istemciyi saymıştı.
+
+### K-875 — devam (Faz 90 damıtması)
+
+Seçenekler: politika içeriği anahtara (A) ya da politika varken önbelleği atlamak (B); A seçildi.
+
+### K-876 — devam (Faz 90 damıtması)
+
+Seçenekler: kaynağa bağla (A) · endpoint değişimi `SecurityAdmin` istesin (B; sil+ekle yolu açık) · endpoint değişince kuralları sil (C; önek çakışması, atomiklik yok); A seçildi. Kaynak `IToolSourceResolver` ile kaydı sunan registry'den okunur.
+
+### K-877 — devam (Faz 90 damıtması)
+
+Ayrı uç (B) istek sözleşmesini ve formu kırardı. Endpoint değişimi koşulu K-876'nın ilkesidir: feragat de bir endpoint için verilir.
+
+### K-878 — devam (Faz 90 damıtması)
+
+Seçenekler: egress + kiracı anahtarı (A) · bağlama varsa reddet (B, geçici) · yalnız egress (C); A seçildi. Yeni arayüz üyeleri varsayılan gövdeli: mevcut uygulayıcı kırılmaz, kimlik verildiğinde `NotSupportedException` ile kapalı başarısız olur.
+
+### K-879 — devam (Faz 90 damıtması)
+
+Düşen deterministik test: `A_second_writer_waits_until_the_first_event_has_reached_the_store_and_every_sink`. Kapı tıkanmasız yolda eşzamanlı tamamlanır, tahsis yoktur.
+
+### K-880 — devam (Faz 90 damıtması)
+
+Seçenekler: bağlantı kimliği anahtara (A) · tool bağlantıyı her çağrıda çözer (B; onay sarmalı bayat kalır, kazara kapalı kalan çağrı onaysız çalışırdı) · MCP agent'ı önbelleği atlar (D) · açık geçersiz kılma (C); A seçildi.
+
+### K-881 — devam (Faz 90 damıtması)
+
+Seçenekler: `internal` (A) · derlemeye özgü public ad (B; belgelenen `AddGeneratedTools()` adını değiştirir) · ikisi (C; her tool'lu kütüphane kayıt yüzeyini kendiliğinden açar); A seçildi — Faz 52 Açık Soru 7'nin ilk cevabıyla aynı.
+
+### K-882 — devam (Faz 90 damıtması)
+
+K-880 hash'i sınırsız büyüme yüzünden dışarıda bırakmıştı (her refresh yeni girdi, hiçbiri silinmez). Seçenekler: yuva + hash (A) · LRU kapasite + hash (B; ayar ister, bayat girdi kapasite dolana kadar kalır) · yalnız yuva (C; belirti açık kalır); A seçildi.
+
+### K-883 — devam (Faz 90 damıtması)
+
+Seçenekler: süre (A) · N ardışık hata (B; elle refresh sayacı hızlandırır) · bağlantı yaşadıkça süresiz (C); A seçildi.
+
