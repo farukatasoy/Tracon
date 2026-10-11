@@ -66,20 +66,24 @@ internal sealed class SqlSessionStore : ISessionStore
     {
         ArgumentNullException.ThrowIfNull(record);
 
-        var command = CreateCommand(_sql.UpsertSession);
-        DbHelpers.Add(command, "id", record.Id);
-        DbHelpers.AddTenant(command, record.TenantId ?? _tenantContext.TenantId);
-        DbHelpers.Add(command, "agent_name", record.AgentName);
-        // The `json` column stores the text AS-IS. `jsonb` would reorder keys
-        // and invalidate System.Text.Json's `$type` discriminator (decision K-027).
-        Dialect.AddJson(command, "state", ProtectedValue.Write(_context, ProtectedColumn.SessionState, record.State.GetRawText()));
-        DbHelpers.Add(command, "state_schema_version", record.StateSchemaVersion);
-        Dialect.AddText(command, "state_maf_version", record.StateMafVersion);
-        Dialect.AddTimestamp(command, "created_at", record.CreatedAt);
-        Dialect.AddTimestamp(command, "updated_at", record.UpdatedAt);
-        Dialect.AddText(command, "owner_id", record.OwnerId);
-
-        await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
+        await _context.ExecuteUpsertAsync(
+            _sql.UpsertSession,
+            command =>
+            {
+                DbHelpers.Add(command, "id", record.Id);
+                DbHelpers.AddTenant(command, record.TenantId ?? _tenantContext.TenantId);
+                DbHelpers.Add(command, "agent_name", record.AgentName);
+                // The `json` column stores the text AS-IS. `jsonb` would reorder keys
+                // and invalidate System.Text.Json's `$type` discriminator (decision K-027).
+                Dialect.AddJson(command, "state", ProtectedValue.Write(_context, ProtectedColumn.SessionState, record.State.GetRawText()));
+                DbHelpers.Add(command, "state_schema_version", record.StateSchemaVersion);
+                Dialect.AddText(command, "state_maf_version", record.StateMafVersion);
+                Dialect.AddTimestamp(command, "created_at", record.CreatedAt);
+                Dialect.AddTimestamp(command, "updated_at", record.UpdatedAt);
+                Dialect.AddText(command, "owner_id", record.OwnerId);
+            },
+            (command, token) => DbHelpers.ExecuteAsync(command, token),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />

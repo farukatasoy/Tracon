@@ -69,19 +69,23 @@ internal sealed class SqlQuotaStore : IQuotaStore
     {
         ArgumentNullException.ThrowIfNull(definition);
 
-        var command = CreateCommand(_sql.UpsertQuota);
-        DbHelpers.Add(command, "id", definition.Id);
-        DbHelpers.AddTenant(command, definition.TenantId);
-        Dialect.AddText(command, "agent_name", definition.AgentName);
-        DbHelpers.Add(command, "period", (short)definition.Period);
-        Dialect.AddInt64(command, "max_runs", definition.MaxRuns);
-        Dialect.AddInt64(command, "max_tokens", definition.MaxTokens);
-        Dialect.AddDecimal(command, "max_cost", definition.MaxCost);
-        DbHelpers.Add(command, "enabled", definition.Enabled);
-        Dialect.AddTimestamp(command, "created_at", definition.CreatedAt);
-        Dialect.AddTimestamp(command, "updated_at", definition.UpdatedAt);
-
-        var saved = await DbHelpers.ReadSingleAsync(command, ReadQuota, cancellationToken).ConfigureAwait(false);
+        var saved = await _context.ExecuteUpsertAsync(
+            _sql.UpsertQuota,
+            command =>
+            {
+                DbHelpers.Add(command, "id", definition.Id);
+                DbHelpers.AddTenant(command, definition.TenantId);
+                Dialect.AddText(command, "agent_name", definition.AgentName);
+                DbHelpers.Add(command, "period", (short)definition.Period);
+                Dialect.AddInt64(command, "max_runs", definition.MaxRuns);
+                Dialect.AddInt64(command, "max_tokens", definition.MaxTokens);
+                Dialect.AddDecimal(command, "max_cost", definition.MaxCost);
+                DbHelpers.Add(command, "enabled", definition.Enabled);
+                Dialect.AddTimestamp(command, "created_at", definition.CreatedAt);
+                Dialect.AddTimestamp(command, "updated_at", definition.UpdatedAt);
+            },
+            (command, token) => DbHelpers.ReadSingleAsync(command, ReadQuota, token),
+            cancellationToken).ConfigureAwait(false);
 
         return saved ?? definition;
     }

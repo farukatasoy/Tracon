@@ -69,17 +69,24 @@ internal sealed class SqlSkillScriptGrantStore : ISkillScriptGrantStore
         ArgumentNullException.ThrowIfNull(grant);
 
         var now = grant.GrantedAt == default ? DateTimeOffset.UtcNow : grant.GrantedAt;
-        var command = CreateCommand(_sql.UpsertSkillScriptGrant);
-        DbHelpers.Add(command, "id", grant.Id == Guid.Empty ? TraconId.NewId(now) : grant.Id);
-        DbHelpers.AddTenant(command, grant.TenantId);
-        DbHelpers.Add(command, "skill_name", grant.SkillName);
-        Dialect.AddText(command, "script_name", grant.ScriptName);
-        Dialect.AddText(command, "granted_by", grant.GrantedBy);
-        Dialect.AddTimestamp(command, "granted_at", now);
-        Dialect.AddTimestamp(command, "expires_at", grant.ExpiresAt);
-        Dialect.AddText(command, "content_hash", grant.ContentHash);
 
-        return await DbHelpers.ReadSingleAsync(command, ReadGrant, cancellationToken).ConfigureAwait(false)
+        var saved = await _context.ExecuteUpsertAsync(
+            _sql.UpsertSkillScriptGrant,
+            command =>
+            {
+                DbHelpers.Add(command, "id", grant.Id == Guid.Empty ? TraconId.NewId(now) : grant.Id);
+                DbHelpers.AddTenant(command, grant.TenantId);
+                DbHelpers.Add(command, "skill_name", grant.SkillName);
+                Dialect.AddText(command, "script_name", grant.ScriptName);
+                Dialect.AddText(command, "granted_by", grant.GrantedBy);
+                Dialect.AddTimestamp(command, "granted_at", now);
+                Dialect.AddTimestamp(command, "expires_at", grant.ExpiresAt);
+                Dialect.AddText(command, "content_hash", grant.ContentHash);
+            },
+            static (command, token) => DbHelpers.ReadSingleAsync(command, ReadGrant, token),
+            cancellationToken).ConfigureAwait(false);
+
+        return saved
             ?? throw new TraconException(
                 $"Could not save the script run grant for skill '{grant.SkillName}'.");
     }

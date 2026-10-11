@@ -196,6 +196,28 @@ internal abstract class SqlDialect
     public abstract bool IsDeadlock(Exception exception);
 
     /// <summary>
+    /// Gets a value indicating whether this provider's upsert texts are more than one
+    /// statement and therefore must run inside a transaction to be atomic.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// PostgreSQL and SQLite write an upsert as one <c>INSERT … ON CONFLICT</c>
+    /// statement (K-194); the statement is atomic on its own, and a transaction around
+    /// it only costs two round trips. SQL Server writes it as
+    /// <c>UPDATE … WITH (UPDLOCK, SERIALIZABLE)</c> followed by
+    /// <c>IF @@ROWCOUNT = 0 INSERT</c> (K-177). The range lock that keeps a second
+    /// session out of the INSERT branch lives as long as the transaction around it; in
+    /// autocommit each statement is its own transaction, so the lock ends with the
+    /// UPDATE and two sessions writing a new key both insert (F-313, measured).
+    /// </para>
+    /// <para>
+    /// <see cref="SqlStoreContext.ExecuteUpsertAsync{T}"/> reads this value; a store
+    /// never branches on the provider itself.
+    /// </para>
+    /// </remarks>
+    public virtual bool UpsertRequiresTransaction => false;
+
+    /// <summary>
     /// Determines whether the exception comes from this provider treating a regular
     /// expression pushed down to the server as invalid.
     /// </summary>

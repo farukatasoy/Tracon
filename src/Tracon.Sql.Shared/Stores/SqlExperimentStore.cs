@@ -92,16 +92,20 @@ internal sealed class SqlExperimentStore : IExperimentStore
         var now = DateTimeOffset.UtcNow;
         var variantsJson = JsonSerializer.Serialize(experiment.Variants, TraconJsonContext.Default.IReadOnlyListExperimentVariant);
 
-        var command = CreateCommand(_sql.UpsertExperiment);
-        DbHelpers.Add(command, "id", experiment.Id);
-        DbHelpers.AddTenant(command, experiment.TenantId);
-        DbHelpers.Add(command, "name", experiment.Name);
-        DbHelpers.Add(command, "agent_name", experiment.AgentName);
-        Dialect.AddJsonb(command, "variants", variantsJson);
-        AddNullableText(command, "assignment_key", experiment.AssignmentKey);
-        Dialect.AddTimestamp(command, "updated_at", now);
-
-        var result = await DbHelpers.ExecuteScalarAsync(command, cancellationToken).ConfigureAwait(false);
+        var result = await _context.ExecuteUpsertAsync(
+            _sql.UpsertExperiment,
+            command =>
+            {
+                DbHelpers.Add(command, "id", experiment.Id);
+                DbHelpers.AddTenant(command, experiment.TenantId);
+                DbHelpers.Add(command, "name", experiment.Name);
+                DbHelpers.Add(command, "agent_name", experiment.AgentName);
+                Dialect.AddJsonb(command, "variants", variantsJson);
+                AddNullableText(command, "assignment_key", experiment.AssignmentKey);
+                Dialect.AddTimestamp(command, "updated_at", now);
+            },
+            (command, token) => DbHelpers.ExecuteScalarAsync(command, token),
+            cancellationToken).ConfigureAwait(false);
 
         if (result is null)
         {

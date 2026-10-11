@@ -83,32 +83,6 @@ internal sealed class SqlRunStore : IRunStore
             ContinuedFromRunId = info.ContinuedFromRunId,
         };
 
-        var command = CreateCommand(_sql.InsertRun);
-        DbHelpers.Add(command, "id", record.Id);
-        DbHelpers.AddTenant(command, record.TenantId!);
-        DbHelpers.Add(command, "agent_name", record.AgentName);
-        AddNullableText(command, "session_id", record.SessionId);
-        AddNullableText(command, "model_id", record.ModelId);
-        AddNullableText(command, "model_provider", record.ModelProvider);
-        DbHelpers.Add(command, "status", (short)record.Status);
-        Dialect.AddTimestamp(command, "started_at", record.StartedAt);
-        DbHelpers.Add(command, "is_streaming", record.IsStreaming);
-        AddNullableUuid(command, "parent_run_id", record.ParentRunId);
-        AddNullableUuid(command, "root_run_id", record.RootRunId);
-        DbHelpers.Add(command, "kind", (short)record.Kind);
-        AddNullableText(command, "workflow_name", record.WorkflowName);
-        AddNullableInt32(command, "agent_version", record.AgentVersion);
-        AddNullableUuid(command, "experiment_id", record.ExperimentId);
-        AddNullableText(command, "variant", record.Variant);
-        AddNullableUuid(command, "replay_of_run_id", record.ReplayOfRunId);
-        AddNullableUuid(command, "continued_from_run_id", record.ContinuedFromRunId);
-        AddNullableText(command, "user_id", record.UserId);
-        Dialect.AddJsonb(command, "labels", JsonStringMapCodec.Serialize(record.Labels));
-
-        // The depth column is smallint; its source is the budget's MaxDepth
-        // value and never comes close to the short limit in any deployment.
-        DbHelpers.Add(command, "depth", (short)Math.Clamp(record.Depth, 0, short.MaxValue));
-
         // The UPSERT's OUTPUT/RETURNING clause reports the COALESCED user_id
         // and labels actually persisted, not the raw values `record` was
         // built from -- on a second StartRunAsync of a queued run, `record`
@@ -116,8 +90,37 @@ internal sealed class SqlRunStore : IRunStore
         // attribution), while the row itself preserved the FIRST call's
         // attribution. The return value must match what GetRunAsync would
         // report immediately after.
-        var coalesced = await DbHelpers.ReadSingleAsync(command, ReadCoalescedAttribution, cancellationToken)
-            .ConfigureAwait(false);
+        var coalesced = await _context.ExecuteUpsertAsync(
+            _sql.InsertRun,
+            command =>
+            {
+                DbHelpers.Add(command, "id", record.Id);
+                DbHelpers.AddTenant(command, record.TenantId!);
+                DbHelpers.Add(command, "agent_name", record.AgentName);
+                AddNullableText(command, "session_id", record.SessionId);
+                AddNullableText(command, "model_id", record.ModelId);
+                AddNullableText(command, "model_provider", record.ModelProvider);
+                DbHelpers.Add(command, "status", (short)record.Status);
+                Dialect.AddTimestamp(command, "started_at", record.StartedAt);
+                DbHelpers.Add(command, "is_streaming", record.IsStreaming);
+                AddNullableUuid(command, "parent_run_id", record.ParentRunId);
+                AddNullableUuid(command, "root_run_id", record.RootRunId);
+                DbHelpers.Add(command, "kind", (short)record.Kind);
+                AddNullableText(command, "workflow_name", record.WorkflowName);
+                AddNullableInt32(command, "agent_version", record.AgentVersion);
+                AddNullableUuid(command, "experiment_id", record.ExperimentId);
+                AddNullableText(command, "variant", record.Variant);
+                AddNullableUuid(command, "replay_of_run_id", record.ReplayOfRunId);
+                AddNullableUuid(command, "continued_from_run_id", record.ContinuedFromRunId);
+                AddNullableText(command, "user_id", record.UserId);
+                Dialect.AddJsonb(command, "labels", JsonStringMapCodec.Serialize(record.Labels));
+
+                // The depth column is smallint; its source is the budget's MaxDepth
+                // value and never comes close to the short limit in any deployment.
+                DbHelpers.Add(command, "depth", (short)Math.Clamp(record.Depth, 0, short.MaxValue));
+            },
+            (command, token) => DbHelpers.ReadSingleAsync(command, ReadCoalescedAttribution, token),
+            cancellationToken).ConfigureAwait(false);
 
         if (coalesced is not null)
         {

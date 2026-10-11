@@ -44,13 +44,17 @@ internal sealed class SqlSingletonLeaseStore : ISingletonLeaseStore
 
         var now = DateTimeOffset.UtcNow;
 
-        var command = CreateCommand(_sql.AcquireSingletonLease);
-        DbHelpers.Add(command, "name", name);
-        DbHelpers.Add(command, "owner_id", ownerId);
-        Dialect.AddTimestamp(command, "expires_at", now + duration);
-        Dialect.AddTimestamp(command, "now", now);
-
-        var result = await DbHelpers.ExecuteScalarAsync(command, cancellationToken).ConfigureAwait(false);
+        var result = await _context.ExecuteUpsertAsync(
+            _sql.AcquireSingletonLease,
+            command =>
+            {
+                DbHelpers.Add(command, "name", name);
+                DbHelpers.Add(command, "owner_id", ownerId);
+                Dialect.AddTimestamp(command, "expires_at", now + duration);
+                Dialect.AddTimestamp(command, "now", now);
+            },
+            (command, token) => DbHelpers.ExecuteScalarAsync(command, token),
+            cancellationToken).ConfigureAwait(false);
 
         return result is not null;
     }

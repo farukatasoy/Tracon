@@ -66,15 +66,20 @@ internal sealed class SqlAgentFileStore : AgentFileStore
         ArgumentNullException.ThrowIfNull(content);
 
         var now = DateTimeOffset.UtcNow;
-        var command = CreateCommand(_sql.UpsertAgentFile);
-        DbHelpers.Add(command, "id", TraconId.NewId(now));
-        DbHelpers.AddTenant(command, _tenantContext.TenantId);
-        DbHelpers.Add(command, "agent_name", RequireAgentName());
-        DbHelpers.Add(command, "path", NormalizePath(path));
-        DbHelpers.Add(command, "content", ProtectedValue.Write(_context, ProtectedColumn.AgentFileContent, content)!);
-        Dialect.AddTimestamp(command, "now", now);
 
-        await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
+        await _context.ExecuteUpsertAsync(
+            _sql.UpsertAgentFile,
+            command =>
+            {
+                DbHelpers.Add(command, "id", TraconId.NewId(now));
+                DbHelpers.AddTenant(command, _tenantContext.TenantId);
+                DbHelpers.Add(command, "agent_name", RequireAgentName());
+                DbHelpers.Add(command, "path", NormalizePath(path));
+                DbHelpers.Add(command, "content", ProtectedValue.Write(_context, ProtectedColumn.AgentFileContent, content)!);
+                Dialect.AddTimestamp(command, "now", now);
+            },
+            (command, token) => DbHelpers.ExecuteAsync(command, token),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />

@@ -33,22 +33,13 @@ internal sealed class SqlRunScoreStore : IRunScoreStore
 
     private SqlDialect Dialect => _context.Dialect;
 
-    /// <summary>The upper bound on retries after a live UPDATE/INSERT race (see <see cref="UpsertAsync"/>).</summary>
-    private const int MaxUpsertAttempts = 5;
-
-    /// <summary>The upper bound (exclusive) of the random retry delay, in milliseconds.</summary>
-    private const int MaxRetryDelayMilliseconds = 15;
-
     /// <inheritdoc />
     /// <remarks>
-    /// The UPDATE-then-INSERT pattern this store's SQL Server dialect uses has
-    /// a narrow window: two concurrent upserts of the SAME target can both
-    /// find zero matching rows and both attempt to INSERT, and the loser trips
-    /// the table's uniqueness index as a live <see cref="DbException"/>, same
-    /// as every other two-branch upsert in this codebase that retries on
-    /// <see cref="SqlDialect.IsUniqueViolation"/>. The retry re-runs the WHOLE
-    /// upsert: its own UPDATE branch now finds the row the other writer just
-    /// committed and updates it instead of inserting a second one.
+    /// The SQL Server text is the UPDATE-then-INSERT pattern; it runs through
+    /// <see cref="SqlStoreContext.ExecuteUpsertAsync{T}"/>, whose transaction holds the
+    /// range lock until the INSERT branch is decided. Before that (F-215) the two
+    /// statements ran in autocommit and the store retried a unique violation five
+    /// times; the retry hid the window, the transaction closes it (F-313).
     /// </remarks>
     public async ValueTask<RunScore> UpsertAsync(RunScore score, CancellationToken cancellationToken = default)
     {
@@ -57,36 +48,28 @@ internal sealed class SqlRunScoreStore : IRunScoreStore
 
         var id = score.Id == Guid.Empty ? TraconId.NewId() : score.Id;
 
-        for (var attempt = 1; ; attempt++)
-        {
-            var command = _context.CreateCommand(_sql.UpsertRunScore);
-            DbHelpers.Add(command, "id", id);
-            DbHelpers.AddTenant(command, score.TenantId);
-            DbHelpers.Add(command, "run_id", score.RunId);
-            Dialect.AddText(command, "message_id", score.MessageId);
-            DbHelpers.Add(command, "kind", (short)score.Kind);
-            Dialect.AddDouble(command, "value", score.Value);
-            DbHelpers.Add(command, "name", score.Name);
-            Dialect.AddText(command, "text_value", score.TextValue);
-            Dialect.AddText(command, "comment", score.Comment);
-            DbHelpers.Add(command, "source", score.Source);
-            Dialect.AddText(command, "author", score.Author);
-            Dialect.AddTimestamp(command, "created_at", score.CreatedAt);
-            Dialect.AddText(command, "evaluator_version", score.EvaluatorVersion);
-
-            try
+        var saved = await _context.ExecuteUpsertAsync(
+            _sql.UpsertRunScore,
+            command =>
             {
-                var saved = await DbHelpers.ReadSingleAsync(command, Read, cancellationToken).ConfigureAwait(false);
+                DbHelpers.Add(command, "id", id);
+                DbHelpers.AddTenant(command, score.TenantId);
+                DbHelpers.Add(command, "run_id", score.RunId);
+                Dialect.AddText(command, "message_id", score.MessageId);
+                DbHelpers.Add(command, "kind", (short)score.Kind);
+                Dialect.AddDouble(command, "value", score.Value);
+                DbHelpers.Add(command, "name", score.Name);
+                Dialect.AddText(command, "text_value", score.TextValue);
+                Dialect.AddText(command, "comment", score.Comment);
+                DbHelpers.Add(command, "source", score.Source);
+                Dialect.AddText(command, "author", score.Author);
+                Dialect.AddTimestamp(command, "created_at", score.CreatedAt);
+                Dialect.AddText(command, "evaluator_version", score.EvaluatorVersion);
+            },
+            (command, token) => DbHelpers.ReadSingleAsync(command, Read, token),
+            cancellationToken).ConfigureAwait(false);
 
-                return saved ?? score;
-            }
-            catch (DbException ex) when (Dialect.IsUniqueViolation(ex) && attempt < MaxUpsertAttempts)
-            {
-                await Task.Delay(
-                    TimeSpan.FromMilliseconds(Random.Shared.Next(1, MaxRetryDelayMilliseconds)),
-                    cancellationToken).ConfigureAwait(false);
-            }
-        }
+        return saved ?? score;
     }
 
     /// <inheritdoc />

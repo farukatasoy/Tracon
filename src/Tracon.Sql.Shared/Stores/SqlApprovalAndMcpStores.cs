@@ -52,27 +52,31 @@ internal sealed class SqlToolApprovalRuleStore : IToolApprovalRuleStore
     {
         ArgumentNullException.ThrowIfNull(rule);
 
-        var command = CreateCommand(_sql.InsertToolApprovalRule);
-        DbHelpers.Add(command, "id", rule.Id == Guid.Empty ? TraconId.NewId() : rule.Id);
-        DbHelpers.AddTenant(command, rule.TenantId);
-        AddNullableText(command, "agent_name", rule.AgentName);
-        DbHelpers.Add(command, "tool_name", rule.ToolName);
-        AddNullableText(command, "arguments_hash", rule.ArgumentsHash);
-        Dialect.AddJsonb(
-            command,
-            "argument_conditions",
-            rule.ArgumentConditions.Count == 0
-                ? null
-                : JsonSerializer.Serialize(rule.ArgumentConditions, TraconJsonContext.Default.IReadOnlyListToolArgumentCondition));
-        AddNullableText(command, "conditions_hash", ToolArgumentConditionFingerprint.Compute(rule.ArgumentConditions));
-        AddNullableText(command, "source_fingerprint", rule.SourceFingerprint);
-        AddNullableText(command, "created_by", rule.CreatedBy);
-        Dialect.AddTimestamp(command, "created_at", rule.CreatedAt);
-
         // Uses ON CONFLICT ... DO UPDATE (with a no-op assignment): DO NOTHING
         // does not return a row, which would require a second query to read
         // the existing rule.
-        var saved = await DbHelpers.ReadSingleAsync(command, ReadRule, cancellationToken).ConfigureAwait(false);
+        var saved = await _context.ExecuteUpsertAsync(
+            _sql.InsertToolApprovalRule,
+            command =>
+            {
+                DbHelpers.Add(command, "id", rule.Id == Guid.Empty ? TraconId.NewId() : rule.Id);
+                DbHelpers.AddTenant(command, rule.TenantId);
+                AddNullableText(command, "agent_name", rule.AgentName);
+                DbHelpers.Add(command, "tool_name", rule.ToolName);
+                AddNullableText(command, "arguments_hash", rule.ArgumentsHash);
+                Dialect.AddJsonb(
+                    command,
+                    "argument_conditions",
+                    rule.ArgumentConditions.Count == 0
+                        ? null
+                        : JsonSerializer.Serialize(rule.ArgumentConditions, TraconJsonContext.Default.IReadOnlyListToolArgumentCondition));
+                AddNullableText(command, "conditions_hash", ToolArgumentConditionFingerprint.Compute(rule.ArgumentConditions));
+                AddNullableText(command, "source_fingerprint", rule.SourceFingerprint);
+                AddNullableText(command, "created_by", rule.CreatedBy);
+                Dialect.AddTimestamp(command, "created_at", rule.CreatedAt);
+            },
+            (command, token) => DbHelpers.ReadSingleAsync(command, ReadRule, token),
+            cancellationToken).ConfigureAwait(false);
 
         return saved ?? rule;
     }
@@ -184,28 +188,32 @@ internal sealed class SqlMcpServerStore : IMcpServerStore
     {
         ArgumentNullException.ThrowIfNull(server);
 
-        var command = CreateCommand(_sql.UpsertMcpServer);
-        DbHelpers.Add(command, "id", server.Id == Guid.Empty ? TraconId.NewId() : server.Id);
-        DbHelpers.AddTenant(command, server.TenantId);
-        DbHelpers.Add(command, "name", server.Name);
-        AddNullableText(command, "description", server.Description);
-        DbHelpers.Add(command, "endpoint", server.Endpoint.ToString());
-        DbHelpers.Add(command, "transport", (short)server.Transport);
+        var saved = await _context.ExecuteUpsertAsync(
+            _sql.UpsertMcpServer,
+            command =>
+            {
+                DbHelpers.Add(command, "id", server.Id == Guid.Empty ? TraconId.NewId() : server.Id);
+                DbHelpers.AddTenant(command, server.TenantId);
+                DbHelpers.Add(command, "name", server.Name);
+                AddNullableText(command, "description", server.Description);
+                DbHelpers.Add(command, "endpoint", server.Endpoint.ToString());
+                DbHelpers.Add(command, "transport", (short)server.Transport);
 #pragma warning disable CS0618 // The deprecated field keeps its column until 1.0.0 (phase 190).
-        AddNullableText(command, "authorization_configuration_key", server.AuthorizationConfigurationKey);
+                AddNullableText(command, "authorization_configuration_key", server.AuthorizationConfigurationKey);
 #pragma warning restore CS0618
-        Dialect.AddJsonb(command, "headers", WriteHeaders(server.Headers));
-        Dialect.AddJsonb(command, "header_configuration_keys", WriteHeaders(server.HeaderConfigurationKeys));
-        DbHelpers.Add(command, "enabled", server.Enabled);
-        DbHelpers.Add(command, "requires_approval", server.RequiresApproval);
-        Dialect.AddTimestamp(command, "now", DateTimeOffset.UtcNow);
-        DbHelpers.Add(command, "oauth_enabled", server.OAuthEnabled);
-        AddNullableText(command, "oauth_client_id", server.OAuthClientId);
-        AddNullableText(command, "oauth_client_secret_configuration_key", server.OAuthClientSecretConfigurationKey);
-        AddNullableText(command, "oauth_scopes", server.OAuthScopes);
-        DbHelpers.Add(command, "oauth_authorization_mode", (short)server.OAuthAuthorizationMode);
-
-        var saved = await DbHelpers.ReadSingleAsync(command, ReadServer, cancellationToken).ConfigureAwait(false);
+                Dialect.AddJsonb(command, "headers", WriteHeaders(server.Headers));
+                Dialect.AddJsonb(command, "header_configuration_keys", WriteHeaders(server.HeaderConfigurationKeys));
+                DbHelpers.Add(command, "enabled", server.Enabled);
+                DbHelpers.Add(command, "requires_approval", server.RequiresApproval);
+                Dialect.AddTimestamp(command, "now", DateTimeOffset.UtcNow);
+                DbHelpers.Add(command, "oauth_enabled", server.OAuthEnabled);
+                AddNullableText(command, "oauth_client_id", server.OAuthClientId);
+                AddNullableText(command, "oauth_client_secret_configuration_key", server.OAuthClientSecretConfigurationKey);
+                AddNullableText(command, "oauth_scopes", server.OAuthScopes);
+                DbHelpers.Add(command, "oauth_authorization_mode", (short)server.OAuthAuthorizationMode);
+            },
+            (command, token) => DbHelpers.ReadSingleAsync(command, ReadServer, token),
+            cancellationToken).ConfigureAwait(false);
 
         return saved ?? server;
     }
@@ -357,17 +365,21 @@ internal sealed class SqlTenantStore : ITenantStore
     {
         ArgumentNullException.ThrowIfNull(tenant);
 
-        var command = CreateCommand(_sql.UpsertTenantDescriptor);
-        DbHelpers.Add(command, "id", tenant.Id == Guid.Empty ? TraconId.NewId() : tenant.Id);
-        // The slug IS the tenant identifier — the same text every other table
-        // stores as tenant_id — so it is folded the same way. Without this a
-        // record saved as 'Acme' would name a tenant the runtime never
-        // resolves, and DELETE with the canonical spelling would answer 404.
-        DbHelpers.Add(command, "slug", AmbientTenantScope.Normalize(tenant.Slug));
-        DbHelpers.Add(command, "display_name", tenant.DisplayName);
-        Dialect.AddTimestamp(command, "created_at", tenant.CreatedAt == default ? DateTimeOffset.UtcNow : tenant.CreatedAt);
-
-        var saved = await DbHelpers.ReadSingleAsync(command, ReadTenant, cancellationToken).ConfigureAwait(false);
+        var saved = await _context.ExecuteUpsertAsync(
+            _sql.UpsertTenantDescriptor,
+            command =>
+            {
+                DbHelpers.Add(command, "id", tenant.Id == Guid.Empty ? TraconId.NewId() : tenant.Id);
+                // The slug IS the tenant identifier — the same text every other table
+                // stores as tenant_id — so it is folded the same way. Without this a
+                // record saved as 'Acme' would name a tenant the runtime never
+                // resolves, and DELETE with the canonical spelling would answer 404.
+                DbHelpers.Add(command, "slug", AmbientTenantScope.Normalize(tenant.Slug));
+                DbHelpers.Add(command, "display_name", tenant.DisplayName);
+                Dialect.AddTimestamp(command, "created_at", tenant.CreatedAt == default ? DateTimeOffset.UtcNow : tenant.CreatedAt);
+            },
+            (command, token) => DbHelpers.ReadSingleAsync(command, ReadTenant, token),
+            cancellationToken).ConfigureAwait(false);
 
         return saved ?? tenant;
     }

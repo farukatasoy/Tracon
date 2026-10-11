@@ -132,6 +132,62 @@ internal sealed class SqlStoreContext : IDisposable, IAsyncDisposable
         return command;
     }
 
+    /// <summary>Runs an upsert so that it is atomic on every provider.</summary>
+    /// <typeparam name="T">The result type.</typeparam>
+    /// <param name="sql">The upsert text, one of the <c>Upsert*</c> members of <see cref="Sql"/>.</param>
+    /// <param name="bind">Adds the parameters to the command.</param>
+    /// <param name="execute">
+    /// Runs the command and reads its result; one of the <see cref="DbHelpers"/>
+    /// methods, which dispose the command.
+    /// </param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The value <paramref name="execute"/> returned.</returns>
+    /// <remarks>
+    /// When <see cref="SqlDialect.UpsertRequiresTransaction"/> is <see langword="false"/>
+    /// this is exactly <see cref="CreateCommand(string)"/> followed by
+    /// <paramref name="execute"/>. Otherwise the command runs on its own connection
+    /// inside an ADO.NET <see cref="DbTransaction"/> (not a <c>BEGIN TRAN</c> in the
+    /// text: the dialects classify errors that flow through the transaction object,
+    /// K-388), which holds the upsert's range lock until the commit (F-313).
+    /// </remarks>
+    public async ValueTask<T> ExecuteUpsertAsync<T>(
+        string sql,
+        Action<DbCommand> bind,
+        Func<DbCommand, CancellationToken, ValueTask<T>> execute,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(sql);
+        ArgumentNullException.ThrowIfNull(bind);
+        ArgumentNullException.ThrowIfNull(execute);
+
+        if (!Dialect.UpsertRequiresTransaction)
+        {
+            var command = CreateCommand(sql);
+            bind(command);
+
+            return await execute(command, cancellationToken).ConfigureAwait(false);
+        }
+
+        var connection = await DataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+
+        await using (connection.ConfigureAwait(false))
+        {
+            var transaction = await connection.BeginTransactionAsync(cancellationToken).ConfigureAwait(false);
+
+            await using (transaction.ConfigureAwait(false))
+            {
+                var command = CreateCommand(sql, connection, transaction);
+                bind(command);
+
+                var result = await execute(command, cancellationToken).ConfigureAwait(false);
+
+                await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+
+                return result;
+            }
+        }
+    }
+
     /// <summary>
     /// Disposes <see cref="DataSource"/>, but only when <see cref="OwnsDataSource"/>
     /// is <see langword="true"/>.

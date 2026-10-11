@@ -17,7 +17,19 @@ namespace Tracon;
 /// <c>UPDATE ... WITH (UPDLOCK, SERIALIZABLE) ... OUTPUT</c> followed by
 /// <c>IF @@ROWCOUNT = 0 INSERT ... OUTPUT</c>. The <c>SERIALIZABLE</c> hint
 /// takes a range lock, so two sessions cannot insert the same key at the
-/// same time.
+/// same time - but only while the lock lives: the store runs the text inside
+/// a transaction (<c>SqlStoreContext.ExecuteUpsertAsync</c>). In autocommit
+/// the lock ends with the UPDATE and both sessions insert (F-313).
+/// </description></item>
+/// <item><description>
+/// <strong>An upsert's WHERE compares each key column BARE.</strong> A wrapped
+/// column (<c>ISNULL(col, N'') = ISNULL(@p, N'')</c>) cannot seek: the UPDATE
+/// reads the neighbouring keys, the locks on the rows it rejects drop to
+/// shared range locks, and two sessions that both hold one then wait for each
+/// other's INSERT - a deadlock, measured (F-313). A nullable key column uses
+/// <c>EXISTS (SELECT col INTERSECT SELECT @p)</c>: NULL-safe equality that
+/// still seeks. <c>IS NOT DISTINCT FROM</c> says the same thing but needs SQL
+/// Server 2022; 2019 is supported.
 /// </description></item>
 /// <item><description>
 /// <c>RETURNING</c> -> <c>OUTPUT inserted.*</c> / <c>OUTPUT deleted.*</c>.
@@ -228,9 +240,10 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             """;
 
         // SQL Server treats NULLs as EQUAL in a unique index; PostgreSQL's
-        // COALESCE-based expression index is not needed here (K-184). The
-        // match is still written with ISNULL: a plain `= ` comparison would
-        // return UNKNOWN when @script_name is NULL.
+        // COALESCE-based expression index is not needed here (K-184). A plain
+        // `=` would return UNKNOWN when @script_name is NULL, and ISNULL on the
+        // column cannot seek (deadlock under concurrent first grants, F-313):
+        // the INTERSECT form is the NULL-safe equality that seeks.
         // 🚨 The update branch writes content_hash too: granting the same key again
         // must pin the content of THIS grant, not keep the previous one's hash.
         UpsertSkillScriptGrant = $"""
@@ -245,7 +258,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                     inserted.content_hash
              WHERE tenant_id = @tenant_id
                AND skill_name = @skill_name
-               AND ISNULL(script_name, N'') = ISNULL(@script_name, N'');
+               AND EXISTS (SELECT script_name INTERSECT SELECT @script_name);
 
             IF @@ROWCOUNT = 0
             INSERT INTO {Schema}.skill_script_grants ({grantColumns})
@@ -255,13 +268,15 @@ internal sealed class SqlServerQueries : SqlQueriesBase
             VALUES (@id, @tenant_id, @skill_name, @script_name, @granted_by, @granted_at, @expires_at, NULL, @content_hash);
             """;
 
-        // A grant is NOT DELETED, it is revoked.
+        // A grant is NOT DELETED, it is revoked. The same seekable NULL-safe match
+        // as the upsert: a revoke that scans the neighbouring keys races a grant
+        // in flight for the locks it reads (F-313).
         RevokeSkillScriptGrant = $"""
             UPDATE {Schema}.skill_script_grants
                SET revoked_at = @revoked_at
              WHERE tenant_id = @tenant_id
                AND skill_name = @skill_name
-               AND ISNULL(script_name, N'') = ISNULL(@script_name, N'')
+               AND EXISTS (SELECT script_name INTERSECT SELECT @script_name)
                AND revoked_at IS NULL;
             """;
 
@@ -1062,11 +1077,11 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                     inserted.arguments_hash, inserted.created_by, inserted.created_at, inserted.argument_conditions,
                     inserted.source_fingerprint
              WHERE tenant_id = @tenant_id
-               AND ISNULL(agent_name, N'') = ISNULL(@agent_name, N'')
+               AND EXISTS (SELECT agent_name INTERSECT SELECT @agent_name)
                AND tool_name = @tool_name
-               AND ISNULL(arguments_hash, N'') = ISNULL(@arguments_hash, N'')
-               AND ISNULL(conditions_hash, N'') = ISNULL(@conditions_hash, N'')
-               AND ISNULL(source_fingerprint, N'') = ISNULL(@source_fingerprint, N'');
+               AND EXISTS (SELECT arguments_hash INTERSECT SELECT @arguments_hash)
+               AND EXISTS (SELECT conditions_hash INTERSECT SELECT @conditions_hash)
+               AND EXISTS (SELECT source_fingerprint INTERSECT SELECT @source_fingerprint);
 
             IF @@ROWCOUNT = 0
             INSERT INTO {Schema}.tool_approval_rules ({approvalColumns}, conditions_hash)
@@ -1427,7 +1442,7 @@ internal sealed class SqlServerQueries : SqlQueriesBase
                    updated_at = @updated_at
              OUTPUT {quotaOutput}
              WHERE tenant_id = @tenant_id
-               AND ISNULL(agent_name, N'') = ISNULL(@agent_name, N'')
+               AND EXISTS (SELECT agent_name INTERSECT SELECT @agent_name)
                AND period = @period;
 
             IF @@ROWCOUNT = 0
