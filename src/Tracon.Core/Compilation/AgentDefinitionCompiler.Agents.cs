@@ -183,8 +183,9 @@ public sealed partial class AgentDefinitionCompiler
     /// <see cref="BuildCompactionStrategy"/>.
     /// </summary>
     /// <exception cref="TraconCompilationException">
-    /// The resolved deadline is not positive, or the resolved wait timeout is
-    /// not strictly greater than the resolved deadline.
+    /// A resolved value is outside the timer range (one millisecond to about 49.7
+    /// days), or the resolved wait timeout is not strictly greater than the
+    /// resolved deadline.
     /// </exception>
     // internal (not private): so the resolution order (agent override wins
     // field by field over the tree-wide default) can be tested directly, the
@@ -194,15 +195,25 @@ public sealed partial class AgentDefinitionCompiler
         var childDeadline = definition.SubAgents?.ChildDeadline ?? _agentGraph.ChildDeadline;
         var waitTimeout = definition.SubAgents?.WaitTimeout ?? _agentGraph.WaitTimeout;
 
-        if (childDeadline <= TimeSpan.Zero)
+        // F-280: both values arm CancelAfter in every delegation, which refuses more
+        // than about 49.7 days there - after ChildRunStarted was already written. A
+        // definition saved over HTTP carries its own values, so the check lives here
+        // and not only in the startup validator.
+        foreach (var (field, value) in new[]
+                 {
+                     (nameof(SubAgentSettings.ChildDeadline), childDeadline),
+                     (nameof(SubAgentSettings.WaitTimeout), waitTimeout),
+                 })
         {
-            throw new TraconCompilationException(
-                $"Agent '{definition.Name}' has an invalid sub-agent wait limit: " +
-                $"{nameof(SubAgentSettings.ChildDeadline)} must be greater than zero. " +
-                $"Actual value: {childDeadline}.")
+            if (!TimerPeriod.IsValid(value))
             {
-                AgentName = definition.Name,
-            };
+                throw new TraconCompilationException(
+                    $"Agent '{definition.Name}' has an invalid sub-agent wait limit: " +
+                    TimerPeriod.Failure(field, value))
+                {
+                    AgentName = definition.Name,
+                };
+            }
         }
 
         if (waitTimeout <= childDeadline)

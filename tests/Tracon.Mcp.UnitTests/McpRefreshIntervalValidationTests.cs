@@ -38,6 +38,25 @@ public sealed class McpRefreshIntervalValidationTests
         provider.GetRequiredService<IStartupValidator>().Validate();
     }
 
+    /// <summary>
+    /// F-280: every connect, list and resource read arms the connection timeout with
+    /// <c>CancelAfter</c>. Out of range, the connect threw outside the per-server
+    /// handling and aborted discovery for every tenant. Checked while discovery is
+    /// off too: the definition validator and the test-connection endpoint use it.
+    /// </summary>
+    [Theory]
+    [InlineData("00:00:00", "true")]
+    [InlineData("-00:00:01", "true")]
+    [InlineData("50.00:00:00", "true")]
+    [InlineData("50.00:00:00", "false")]
+    public void Connection_timeout_the_timer_cannot_take_is_checked_at_startup(string value, string enabled)
+    {
+        using var provider = Build(("Tracon:Mcp:Enabled", enabled), ("Tracon:Mcp:ConnectionTimeout", value));
+
+        Should.Throw<OptionsValidationException>(() => provider.GetRequiredService<IStartupValidator>().Validate())
+            .Message.ShouldContain(nameof(TraconMcpOptions.ConnectionTimeout));
+    }
+
     [Fact]
     public void Default_refresh_interval_starts()
     {

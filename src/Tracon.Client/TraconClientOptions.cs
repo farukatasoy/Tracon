@@ -43,7 +43,9 @@ public sealed class TraconClientOptions
     /// <see cref="OperationCanceledException"/> with nothing cancelled, which a
     /// caller then reads as its own limit elapsing. Use
     /// <see cref="System.Threading.Timeout.InfiniteTimeSpan"/> to make the
-    /// caller's cancellation token the single authority.
+    /// caller's cancellation token the single authority. Any other value must be
+    /// from one millisecond to about 24.8 days (<see cref="int.MaxValue"/>
+    /// milliseconds); registration refuses the rest.
     /// </remarks>
     public TimeSpan? Timeout { get; set; }
 }

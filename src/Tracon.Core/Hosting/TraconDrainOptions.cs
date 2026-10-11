@@ -32,6 +32,7 @@ public sealed class TraconDrainOptions
     /// The host's own <c>HostOptions.ShutdownTimeout</c> (default 30 s)
     /// still applies on top of this value and can cut the wait short; a
     /// setup that wants the full wait to take effect raises both together.
+    /// <para>Must be from one millisecond to about 49.7 days; any other value fails at startup.</para>
     /// </remarks>
     public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(30);
 }

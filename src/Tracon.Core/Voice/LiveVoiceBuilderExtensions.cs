@@ -91,6 +91,9 @@ public static class LiveVoiceBuilderExtensions
             services.Configure(configure);
         }
 
+        services.AddOptions<VoiceLiveOptions>().ValidateOnStart();
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<VoiceLiveOptions>, VoiceLiveOptionsValidator>());
+
         services.TryAddTraconDefault<IVoiceSessionStore, InMemoryVoiceSessionStore>();
         services.TryAddSingleton<VoiceDurationPricing>();
 

@@ -48,11 +48,13 @@ public sealed record SubAgentSettings
     /// <summary>
     /// Gets the deadline applied to a single sub-agent run (the cooperative layer).
     /// </summary>
+    /// <remarks>Must be from one millisecond to about 49.7 days; any other value fails to compile.</remarks>
     public TimeSpan? ChildDeadline { get; init; }
 
     /// <summary>
     /// Gets the hard wait cutoff handed to the framework (the hard-cutoff layer).
     /// Must be greater than <c>ChildDeadline</c>.
     /// </summary>
+    /// <remarks>Must be from one millisecond to about 49.7 days; any other value fails to compile.</remarks>
     public TimeSpan? WaitTimeout { get; init; }
 }

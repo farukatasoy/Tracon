@@ -50,6 +50,25 @@ public sealed class TraconClientTimeoutTests
             "the configured timeout, not HttpClient's 100 s default, must bound the request.");
     }
 
+    /// <summary>
+    /// F-280: <c>HttpClient.Timeout</c> refuses more than <see cref="int.MaxValue"/>
+    /// milliseconds; the registration accepted any positive value and the first client
+    /// threw when it was built.
+    /// </summary>
+    [Theory]
+    [InlineData(0)]
+    [InlineData(25)]
+    public void A_timeout_the_http_client_cannot_take_is_refused_at_registration(int days)
+    {
+        var services = new ServiceCollection();
+
+        Should.Throw<ArgumentException>(() => services.AddTraconClient(options =>
+        {
+            options.BaseAddress = new Uri("https://example.com/tracon/");
+            options.Timeout = TimeSpan.FromDays(days);
+        })).Message.ShouldContain(nameof(TraconClientOptions.Timeout));
+    }
+
     [Fact]
     public void An_unset_timeout_leaves_the_client_on_its_own_default()
     {

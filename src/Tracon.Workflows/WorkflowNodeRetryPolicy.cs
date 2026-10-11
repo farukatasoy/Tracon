@@ -29,8 +29,13 @@ public sealed class WorkflowNodeRetryPolicy
     public int MaxAttempts { get; set; } = 1;
 
     /// <summary>The delay before the second attempt.</summary>
+    /// <remarks>
+    /// Must be from zero to about 49.7 days; registration refuses any other value. A
+    /// grown delay is capped at about 49.7 days.
+    /// </remarks>
     public TimeSpan InitialDelay { get; set; } = TimeSpan.FromSeconds(1);
 
     /// <summary>The multiplier applied to the delay after each further attempt.</summary>
+    /// <remarks>Must be a finite, non-negative number; registration refuses any other value.</remarks>
     public double BackoffMultiplier { get; set; } = 2.0;
 }

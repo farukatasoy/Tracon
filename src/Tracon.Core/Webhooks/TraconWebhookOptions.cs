@@ -73,8 +73,8 @@ public sealed class TraconWebhookOptions
     /// sending the payload, and reading the recipient's response body up to
     /// <see cref="MaxResponseBytes"/>. A recipient that answers its headers
     /// quickly and then stalls on the body is cut off at the same deadline.
-    /// Set to <see cref="TimeSpan.Zero"/> or less to impose no deadline of
-    /// Tracon's own; the delivery then ends only when the job worker stops.
+    /// Must be from one millisecond to about 49.7 days; any other value fails at
+    /// startup.
     /// </remarks>
     public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(10);
 

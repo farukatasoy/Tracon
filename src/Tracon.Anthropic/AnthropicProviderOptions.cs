@@ -55,6 +55,7 @@ public sealed class AnthropicProviderOptions
     public int DefaultMaxOutputTokens { get; set; } = 4096;
 
     /// <summary>The upper time limit for a single request. When <see langword="null"/>, the library default is used.</summary>
+    /// <remarks>Must be from one millisecond to about 24.8 days (<see cref="int.MaxValue"/> milliseconds) when set; any other value fails at startup.</remarks>
     public TimeSpan? Timeout { get; set; }
 
     /// <summary>

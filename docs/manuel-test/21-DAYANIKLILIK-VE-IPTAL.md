@@ -2290,3 +2290,36 @@ tutar ve dört case'in hangisinin kırmızıya döndüğünü doğrular.
 **Otomatik karşılığı:** `TimerPeriodOptionValidationTests` (her site, `IStartupValidator`
 üzerinden) · `McpRefreshIntervalValidationTests` · yeni zamanlayıcı sitesi için
 `PeriodicTimerSiteTests`.
+
+---
+
+### MT-RES-094 — Timer'ın alamayacağı bir timeout açılışta adıyla reddedilir (F-280)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | F-280 kusur kaydı |
+| **İlgili karar** | — |
+| **Regresyon** | Evet |
+
+**Ön koşul**
+- Örnek uygulama derlenmiş (`samples/Tracon.Api`); workflow'lar açık (örnek uygulamanın varsayılanı).
+
+**Adımlar**
+1. ```bash
+   cd samples/Tracon.Api
+   Tracon__Workflows__RunTimeout=50.00:00:00 dotnet run --no-build -c Release
+   ```
+2. Aynısını `Tracon__Webhooks__Timeout=50.00:00:00` ile tekrarla.
+3. Aynısını `Tracon__Tools__ApprovalPresentationTimeout=00:00:00` ile tekrarla.
+
+**Beklenen sonuç**
+- 1. adım "Application started" YAZMAZ: süreç açılışta `OptionsValidationException` ile çıkar ve mesaj
+  `TraconWorkflowOptions.RunTimeout must be between 1 and 4294967294 milliseconds when Enabled is on` der.
+  Eski davranış — uygulama başlar, ilk workflow run'ı `ArgumentOutOfRangeException` ile düşer — görülmez.
+- 2. ve 3. adımda açılış `TraconWebhookOptions.Timeout` ve `TraconToolOptions.ApprovalPresentationTimeout` adıyla reddedilir.
+
+**Otomatik karşılığı:** `TimeoutOptionValidationTests` (Core seçenekleri, `IStartupValidator` üzerinden) ·
+`WorkflowRunTimeoutValidationTests` · `McpRefreshIntervalValidationTests` · `ProviderTimeoutValidationTests` (dört sağlayıcı) ·
+yeni timeout sitesi için `TimeoutSiteTests`.

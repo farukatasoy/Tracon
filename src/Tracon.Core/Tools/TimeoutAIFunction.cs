@@ -40,7 +40,10 @@ public sealed class TimeoutAIFunction : DelegatingAIFunction
     /// <param name="innerFunction">The tool to wrap.</param>
     /// <param name="timeout">The longest duration one call may run.</param>
     /// <param name="logger">The logger for a call that outlives its timeout.</param>
-    /// <exception cref="ArgumentOutOfRangeException"><paramref name="timeout"/> is zero or negative.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="timeout"/> is outside one millisecond to about 49.7 days, the range
+    /// the timeout's delay accepts.
+    /// </exception>
     public TimeoutAIFunction(AIFunction innerFunction, TimeSpan timeout, ILogger<TimeoutAIFunction> logger)
         : this(innerFunction, timeout, logger, TimeProvider.System)
     {
@@ -51,7 +54,10 @@ public sealed class TimeoutAIFunction : DelegatingAIFunction
     /// <param name="timeout">The longest duration one call may run.</param>
     /// <param name="logger">The logger for a call that outlives its timeout.</param>
     /// <param name="timeProvider">The time source used for the timeout and for the real duration of a late call.</param>
-    /// <exception cref="ArgumentOutOfRangeException"><paramref name="timeout"/> is zero or negative.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="timeout"/> is outside one millisecond to about 49.7 days, the range
+    /// the timeout's delay accepts.
+    /// </exception>
     /// <exception cref="ArgumentNullException">A dependency is <see langword="null"/>.</exception>
     public TimeoutAIFunction(
         AIFunction innerFunction,
@@ -60,7 +66,14 @@ public sealed class TimeoutAIFunction : DelegatingAIFunction
         TimeProvider timeProvider)
         : base(innerFunction)
     {
-        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(timeout, TimeSpan.Zero);
+        // F-280: checked here, where every per-tool timeout (code registration,
+        // [TraconTool(TimeoutSeconds)], the tools default) meets the timer. Out of range,
+        // the delay threw at call time after the tool body had already started.
+        if (!TimerPeriod.IsValid(timeout))
+        {
+            throw new ArgumentOutOfRangeException(nameof(timeout), timeout, TimerPeriod.Failure("The tool timeout", timeout));
+        }
+
         ArgumentNullException.ThrowIfNull(logger);
         ArgumentNullException.ThrowIfNull(timeProvider);
 

@@ -50,6 +50,10 @@ public sealed class TraconWorkflowOptions
     /// this setting. To bound an individual step instead, give the node its
     /// own timeout inside the handler.
     /// </para>
+    /// <para>
+    /// Must be from one millisecond to about 49.7 days while <see cref="Enabled"/>
+    /// is on; any other value fails at startup.
+    /// </para>
     /// </remarks>
     public TimeSpan RunTimeout { get; set; } = TimeSpan.FromMinutes(10);
 

@@ -32,6 +32,11 @@ public static class TraconWorkflowFunctionExtensions
     /// <returns>The chain, for continued configuration.</returns>
     /// <exception cref="ArgumentNullException">One of the required parameters is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException"><paramref name="name"/> is empty.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <paramref name="retryPolicy"/> has a negative <see cref="WorkflowNodeRetryPolicy.InitialDelay"/> or one
+    /// longer than about 49.7 days, or a negative or non-finite
+    /// <see cref="WorkflowNodeRetryPolicy.BackoffMultiplier"/>.
+    /// </exception>
     /// <remarks>
     /// <para>
     /// <strong>Security boundary.</strong> A workflow definition can only
@@ -96,6 +101,11 @@ public static class TraconWorkflowFunctionExtensions
         ArgumentNullException.ThrowIfNull(builder);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentNullException.ThrowIfNull(factory);
+
+        if (retryPolicy is not null)
+        {
+            WorkflowNodeRetry.Validate(retryPolicy);
+        }
 
         var descriptor = new WorkflowFunctionDescriptor
         {

@@ -67,8 +67,9 @@ public sealed class ChildAgentInvoker : AIAgent
     /// <param name="timeProvider">Time source for the wait race. Defaults to <see cref="TimeProvider.System"/>.</param>
     /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentOutOfRangeException">
-    /// <paramref name="childDeadline"/> is not greater than zero, or
-    /// <paramref name="waitTimeout"/> is not greater than <paramref name="childDeadline"/>.
+    /// <paramref name="childDeadline"/> or <paramref name="waitTimeout"/> is outside one
+    /// millisecond to about 49.7 days, or <paramref name="waitTimeout"/> is not greater
+    /// than <paramref name="childDeadline"/>.
     /// </exception>
     internal ChildAgentInvoker(
         CallableAgentResolver resolver,
@@ -86,10 +87,16 @@ public sealed class ChildAgentInvoker : AIAgent
         ArgumentException.ThrowIfNullOrWhiteSpace(callerName);
         ArgumentException.ThrowIfNullOrWhiteSpace(child.Name, nameof(child));
 
-        if (childDeadline <= TimeSpan.Zero)
+        if (!TimerPeriod.IsValid(childDeadline))
         {
             throw new ArgumentOutOfRangeException(
-                nameof(childDeadline), childDeadline, "The child deadline must be greater than zero.");
+                nameof(childDeadline), childDeadline, TimerPeriod.Failure("The child deadline", childDeadline));
+        }
+
+        if (!TimerPeriod.IsValid(waitTimeout))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(waitTimeout), waitTimeout, TimerPeriod.Failure("The wait timeout", waitTimeout));
         }
 
         if (waitTimeout <= childDeadline)

@@ -19,14 +19,14 @@ namespace Tracon;
 /// takes a range lock, so two sessions cannot insert the same key at the
 /// same time - but only while the lock lives: the store runs the text inside
 /// a transaction (<c>SqlStoreContext.ExecuteUpsertAsync</c>). In autocommit
-/// the lock ends with the UPDATE and both sessions insert (F-313).
+/// the lock ends with the UPDATE and both sessions insert.
 /// </description></item>
 /// <item><description>
 /// <strong>An upsert's WHERE compares each key column BARE.</strong> A wrapped
 /// column (<c>ISNULL(col, N'') = ISNULL(@p, N'')</c>) cannot seek: the UPDATE
 /// reads the neighbouring keys, the locks on the rows it rejects drop to
 /// shared range locks, and two sessions that both hold one then wait for each
-/// other's INSERT - a deadlock, measured (F-313). A nullable key column uses
+/// other's INSERT - a deadlock. A nullable key column uses
 /// <c>EXISTS (SELECT col INTERSECT SELECT @p)</c>: NULL-safe equality that
 /// still seeks. <c>IS NOT DISTINCT FROM</c> says the same thing but needs SQL
 /// Server 2022; 2019 is supported.
