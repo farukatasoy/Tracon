@@ -2066,7 +2066,7 @@ bir key ve `AgentsAdmin` + `SecurityAdmin` taşıyan bir key.
 | **İlgili faz** | Kusur giderme 2026-10-11 (F-305) |
 | **İlgili karar** | K-880 |
 | **İnsan gerekir** | Hayır |
-| **Devir** | ➜ CI: `McpToolCacheTests` (beş case: endpoint taşıma · silme · onayı yeniden açma · refresh hatası · `read_resource`) |
+| **Devir** | ➜ CI: `McpToolCacheTests` (endpoint taşıma · silme · onayı yeniden açma · saklama süresi geçmiş refresh hatası · `read_resource`) |
 
 **Ön koşul** — MT-MCP-078'in iki sunucusu (A ve B, aynı adlı `lookup` tool'u, farklı
 yanıt). Tool'u çağıran TEK bir agent; tanımı bu case boyunca DEĞİŞMEZ (ikinci run
@@ -2078,8 +2078,10 @@ yanıt). Tool'u çağıran TEK bir agent; tanımı bu case boyunca DEĞİŞMEZ (
 2. Endpoint'i B'ye çevir, refresh; agent'ı yeni oturumla çalıştır.
 3. Aynı endpoint'te `requiresApproval: true` kaydet, refresh; agent'ı yeni oturumla çalıştır.
 4. Sunucuyu sil (`DELETE`), refresh; agent'ı yeni oturumla çalıştır.
-5. Sunucuyu yeniden ekle ve agent'ı bir kez çalıştır; sonra sunucu sürecini durdur,
-   refresh; agent'ı yeni oturumla çalıştır.
+5. Uygulamayı `Tracon__Mcp__StaleToolRetention=00:00:00` ile yeniden başlat (F-309'dan
+   beri varsayılan 15 dk son iyi listeyi tutar; bkz. MT-MCP-081). Sunucuyu yeniden ekle
+   ve agent'ı bir kez çalıştır; sonra sunucu sürecini durdur, refresh; agent'ı yeni
+   oturumla çalıştır.
 
 **Beklenen sonuç**
 - (1) run `Completed`, A'nın yanıtı akışta. (2) run `Completed`, B'nin yanıtı akışta;
@@ -2089,3 +2091,54 @@ yanıt). Tool'u çağıran TEK bir agent; tanımı bu case boyunca DEĞİŞMEZ (
   akışında `ToolFailed` YOKTUR.
 - Hiçbir adımda run `Completed` iken tool sonucu "Error: Function failed." değildir
   (eski kusurun imzası: kapalı MCP oturumu, `TaskCanceledException`).
+
+---
+
+### MT-MCP-081 — Geçici bir `tools/list` hatası son iyi listeyi saklama süresi boyunca tutar
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Kusur giderme 2026-10-11 (F-309) |
+| **İlgili karar** | K-883 |
+| **İnsan gerekir** | Hayır |
+| **Devir** | ➜ CI: `McpToolCacheTests.A_cached_agent_keeps_working_through_a_transient_listing_failure` (`tools/list`'i istek üzerine düşüren gerçek MCP sunucusu) |
+
+**Ön koşul** — `tools/list`'i istek üzerine hata verdiren, `tools/call`'u çalışır bırakan
+bir MCP sunucusu (örnek: `LookupMcpServer.FailListing`). Tool'u çağıran TEK bir agent.
+
+**Adımlar**
+1. Sunucuyu kaydet, refresh; agent'ı çalıştır.
+2. `tools/list`'i hataya al, `POST /api/mcp-servers/refresh`; agent'ı yeni oturumla çalıştır.
+3. Uygulamayı `Tracon__Mcp__StaleToolRetention=00:00:00` ile yeniden başlatıp 1–2'yi tekrarla.
+
+**Beklenen sonuç**
+- (2) refresh uyarı loglar ("keeping the list read at … until …"); run `Completed`, tool
+  çağrısı sunucuya ulaşır. `400` "not registered" YOKTUR.
+- (3) ikinci run `400` "not registered" ile reddedilir (eski davranış).
+
+---
+
+### MT-MCP-082 — Sunucunun değiştirdiği tool açıklaması önbellekteki agent'a ulaşır
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Kusur giderme 2026-10-11 (F-308) |
+| **İlgili karar** | K-882 |
+| **İnsan gerekir** | Hayır |
+| **Devir** | ➜ CI: `McpToolCacheTests.A_cached_agent_sees_a_tool_description_the_server_changed` |
+
+**Ön koşul** — Tool açıklamasını çalışırken değiştirebilen bir MCP sunucusu
+(`LookupMcpServer.ToolDescription`); agent tanımı case boyunca DEĞİŞMEZ.
+
+**Adımlar**
+1. Açıklama "eski", sunucuyu kaydet, refresh; agent'ı çalıştır.
+2. Açıklamayı "yeni" yap (bağlantı aynı kalır), refresh; agent'ı yeni oturumla çalıştır.
+
+**Beklenen sonuç**
+- (1) modele giden istekte tool açıklaması "eski"dir; (2) "yeni"dir. İki run da
+  `Completed`; tool iki kez çağrılır.
+

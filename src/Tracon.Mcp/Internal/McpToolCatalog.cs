@@ -52,6 +52,7 @@ internal sealed class McpToolCatalog : IAsyncDisposable
     private readonly IRunAttributionContext? _attribution;
     private readonly EgressSocketGuard? _egressGuard;
     private readonly McpKeySpace _keySpace;
+    private readonly TimeProvider _timeProvider;
 
     // The read path is lock-free: every refresh builds a new dictionary and
     // swaps the reference atomically. Readers always see a consistent snapshot.
@@ -77,7 +78,8 @@ internal sealed class McpToolCatalog : IAsyncDisposable
         IToolArgumentsValidator validator,
         IRunAttributionContext? attribution,
         EgressSocketGuard? egressGuard = null,
-        IOptions<TraconMcpSecurityOptions>? securityOptions = null)
+        IOptions<TraconMcpSecurityOptions>? securityOptions = null,
+        TimeProvider? timeProvider = null)
     {
         ArgumentNullException.ThrowIfNull(servers);
         ArgumentNullException.ThrowIfNull(tenants);
@@ -102,6 +104,7 @@ internal sealed class McpToolCatalog : IAsyncDisposable
         _attribution = attribution;
         _egressGuard = egressGuard;
         _keySpace = McpKeySpace.From(securityOptions, coreOptions);
+        _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     /// <summary>Returns a tenant's discovered tools.</summary>
@@ -266,11 +269,18 @@ internal sealed class McpToolCatalog : IAsyncDisposable
             {
                 // The definition has not changed: the connection stays up,
                 // only the tool list is refreshed. Closing an unchanged
-                // connection would break a tool call in progress.
-                var (refreshed, unreachable) = await existing.RefreshCatalogAsync(_options.Value, _logger, cancellationToken)
+                // connection would break a tool call in progress. A failed
+                // listing that kept the last list still serves this connection's
+                // tools, and still counts as unreachable (F-309).
+                var refresh = await existing.RefreshCatalogAsync(_options.Value, _logger, _timeProvider, cancellationToken)
                     .ConfigureAwait(false);
 
-                return refreshed ? (existing, false) : (null, unreachable);
+                return refresh switch
+                {
+                    McpCatalogRefresh.Listed => (existing, false),
+                    McpCatalogRefresh.Kept => (existing, true),
+                    _ => (null, true),
+                };
             }
 
             await existing.DisposeAsync().ConfigureAwait(false);
@@ -289,6 +299,7 @@ internal sealed class McpToolCatalog : IAsyncDisposable
                 _logger,
                 _egressGuard,
                 _keySpace,
+                _timeProvider,
                 cancellationToken)
             .ConfigureAwait(false);
 

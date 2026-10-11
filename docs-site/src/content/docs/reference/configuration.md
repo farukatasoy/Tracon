@@ -577,6 +577,7 @@ resolved. See
 |---|---:|
 | `Enabled` | `true` |
 | `RefreshInterval` | 5 minutes |
+| `StaleToolRetention` | 15 minutes |
 | `ConnectionTimeout` | 30 seconds |
 | `MaxToolsPerServer` | `100` |
 | `MaxResourceBytesPerResource` | `65536` |

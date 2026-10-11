@@ -100,6 +100,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   its consecutive failure count with the SQL stores too, as the in-memory store
   already did. Before, a subscription that was disabled for failing and then
   enabled again went back to disabled on its next single failure.
+- A cached agent now sees an MCP tool's description and input schema as the
+  server last listed them. The compiled agent kept the tool definition of the
+  moment it was compiled, so after a server changed a tool on the same
+  connection, the model kept getting the old description and schema until the
+  agent's definition changed or the process restarted.
+- One failed `tools/list` call no longer takes an MCP server's tools away. A
+  server whose listing failed once lost all its tools at that refresh, and every
+  agent that used one was refused as "not registered" until the next good
+  refresh (five minutes by default). The last good list is now kept for
+  `Tracon:Mcp:StaleToolRetention` (default 15 minutes) after it was read, while
+  the server stays registered with the same definition. `TimeSpan.Zero` keeps
+  the old behavior.
 - A timeout set beyond what .NET timers accept now fails at startup with the
   option's name. `CancelAfter` refuses more than about 49.7 days, and the
   validators refused only zero and negative values, so such a value threw
@@ -133,6 +145,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `TraconMcpOptions.StaleToolRetention`.
 - `ILiveVoiceProvider.SupportsTenantCredentials` and
   `ILiveVoiceProvider.AttachSessionAsync(LiveVoiceAttachRequest)`, both with
   default implementations, plus `LiveVoiceCreateRequest.Credential` and
@@ -143,6 +156,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- `CompiledAgentCache` holds one entry per tenant, agent name, definition and
+  culture. A compile under a new dependency fingerprint (skills, egress policy,
+  MCP tool bindings) replaces the entry instead of adding one, so the cache no
+  longer grows when a remote server edits its tools; `Count` counts these
+  entries.
 - The `AddGeneratedTools()` extension that the `[TraconTool]` generator writes
   into your assembly is now `internal`. It was `public`, so a host that
   referenced a class library with tools saw the library's copy next to its

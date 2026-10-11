@@ -2,16 +2,14 @@
 
 > **Üretilen, elle düzenlenmez.** Kaynak: `KARARLAR.md` · üretim: `scripts/dokuman-bakim.py`
 
-Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 793 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
+Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 795 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
 
 ---
 
-## En Yeni Kalıcı Kararlar (88 / 881 kalem)
+## En Yeni Kalıcı Kararlar (88 / 883 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
-| K-794 | 845 | Akış dönen bir store okuma metodunun İLK `MoveNextAsync`'i iptal edilmiş token'da fırlatır 👤 |
-| K-795 | 846 | `tracon` komutu tüketicinin ÇALIŞMA AĞACINA yazar; sözleşme "yalnız yokken yaz"dır ve varsayılan hedef REPO KÖKÜDÜR 👤 |
 | K-796 | 847 | Bir agent skill formatı ÖLÇÜLMEDEN sevk edilmez; ölçüm ayırt edici olmak zorundadır 👤 |
 | K-797 | 848 | Kapı skill'inin revizyon damgasını PAKET değil TOOL taşır; bayat skill'in düzeltmesi "önce tool'u güncelle"dir |
 | K-798 | 849 | Bir tool sonucu, sağlayıcı adaptörünün TELE YAZDIĞI metinle ölçülür; `AIContent` protokol sonucu bu ölçümün dışında değildir |
@@ -98,3 +96,5 @@ Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLA
 | K-879 | 930 | Bir run'ın olayları TEK TEK yazılır: numara, `store` yazımı ve sink dağıtımı tek adımdır, sonraki olay bekler (`RunEventWriter` başına `SemaphoreSlim`); sink içinden aynı writer'a append beklemek yerine `InvalidOperationException` atar ve sink devre dışı kalır; bekleme çağıranın token'ını dinler; bellek içi `ReadEventsAsync` sıralı okur (F-257, kusur-giderme 2026-10-11) |
 | K-880 | 931 | Derlenmiş agent önbelleğinin anahtarı, tanımın her MCP tool'unun bağlı olduğu bağlantı ÖRNEĞİNİN kimliğini (`McpConnection.Generation`) taşır; anlık görüntüde olmayan ad `absent` yazar (silme, devre dışı, refresh hatası); aynı adlı kod tool'u bileşen eklemez; uzak tool açıklaması ve şeması anahtara girmez (F-305, kusur-giderme 2026-10-11) (kullanıcı kararı) 👤 |
 | K-881 | 932 | `[TraconTool]` üretecinin her derlemeye yazdığı `TraconGeneratedToolsBuilderExtensions.AddGeneratedTools()` `internal`'dır: yalnız kendi derlemesinin tool'larını kaydeder; bir kütüphane tool'larını host'a kendi public uzantısıyla verir (o uzantı `AddGeneratedTools()`'u kütüphanenin içinden çağırır); `TRC0005` mesajı bu yolu söyler (F-289, kusur-giderme 2026-10-11) (kullanıcı kararı) 👤 |
+| K-882 | 933 | `CompiledAgentCache` `(kiracı, ad, tanım parmak izi, kültür)` başına TEK girdi tutar; yeni bağımlılık parmak iziyle derleme o girdiyi değiştirir, tanım parmak izi ayrı yuvadır (A/B sürümleri birbirini atmaz); MCP bağlaması bağlantı kimliğine ek olarak uzak tool'un protokol `Tool` JSON'unun SHA-256'sını taşır — K-880'in "açıklama ve şema anahtara girmez" kısmı kalkar (F-308, kusur-giderme 2026-10-11) (kullanıcı kararı) 👤 |
+| K-883 | 934 | `tools/list` başarısız olunca MCP bağlantısı, kayıtlı ve tanımı aynı kaldıkça, son iyi tool/kaynak listesini son başarılı listelemeden itibaren `TraconMcpOptions.StaleToolRetention` (varsayılan 15 dk; `Zero` = eski davranış, negatif açılışta reddedilir) boyunca sunar; refresh sonucu yine "ulaşılamaz" sayılır; süre geçince sonraki başarısız refresh listeyi düşürür ve K-880'in `absent` reddi döner (F-309, kusur-giderme 2026-10-11) (kullanıcı kararı) 👤 |

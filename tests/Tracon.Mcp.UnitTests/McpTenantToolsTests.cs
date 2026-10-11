@@ -296,10 +296,44 @@ public sealed class McpTenantToolsTests
             serverNames: ["crm"],
             connectionGenerations: generations);
 
-        tools.GetBindingFingerprint("shared_lookup").ShouldBe("41");
+        tools.GetBindingFingerprint("shared_lookup").ShouldStartWith("41:");
         tools.GetBindingFingerprint("other_lookup").ShouldBe(McpTenantTools.UnboundBinding);
         tools.GetBindingFingerprint("crm_lookup").ShouldBe(McpTenantTools.AbsentBinding, "the server is registered, its tools are not discovered");
         McpTenantTools.Empty.GetBindingFingerprint("shared_lookup").ShouldBe(McpTenantTools.AbsentBinding);
+    }
+
+    /// <summary>
+    /// F-308: a server can change a tool's description or schema while the connection
+    /// stays the same. The compiled agent embeds the tool object with the old
+    /// definition, so the binding carries a hash of the definition too.
+    /// </summary>
+    [Fact]
+    public void The_binding_changes_when_the_tool_definition_changes_on_the_same_connection()
+    {
+        static string BindingOf(string description)
+        {
+            var registration = new TraconToolRegistration(
+                AIFunctionFactory.Create(() => "a", new AIFunctionFactoryOptions { Name = "crm_lookup", Description = description }))
+            {
+                Source = "crm",
+            };
+
+            return McpTenantTools.Create(
+                    [registration],
+                    NullLogger.Instance,
+                    new AllowAllToolAuthorizationHandler(),
+                    NoOpToolArgumentsValidator.Instance,
+                    TimeSpan.FromSeconds(30),
+                    attribution: null,
+                    NullLogger<AuthorizingAIFunction>.Instance,
+                    NullLogger<TimeoutAIFunction>.Instance,
+                    NullLogger<ValidatingAIFunction>.Instance,
+                    connectionGenerations: new Dictionary<TraconToolRegistration, long>(ReferenceEqualityComparer.Instance) { [registration] = 7 })
+                .GetBindingFingerprint("crm_lookup");
+        }
+
+        BindingOf("Looks a customer up.").ShouldBe(BindingOf("Looks a customer up."));
+        BindingOf("Looks a customer up.").ShouldNotBe(BindingOf("Looks a customer up by email."), StringComparer.Ordinal);
     }
 
     /// <summary>
