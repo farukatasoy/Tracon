@@ -61,6 +61,41 @@ public sealed class FreeFormJsonContractTests
     }
 
     /// <summary>
+    /// The same rule for a property that is never set at all: its <c>init</c>
+    /// accessor never runs, so normalizing there does not reach it.
+    /// </summary>
+    /// <remarks>
+    /// 🚨 Measured 2026-10-12 (F-331 work): an eval case whose run threw was
+    /// recorded with no <c>Scores</c>; the in-memory store returned the record
+    /// as it was, and <c>GET /api/evals/runs/{id}</c> failed with the same
+    /// nameless <c>InvalidOperationException</c>. The SQL stores happened to
+    /// guard the write; nothing guarded the object.
+    /// </remarks>
+    [Fact]
+    public void An_optional_free_form_json_property_left_unset_is_never_undefined()
+    {
+        var offenders = new List<string>();
+
+        foreach (var (type, property) in OptionalFreeFormJsonProperties())
+        {
+            // The constructor runs the property initializers; required members
+            // are a compile-time rule, so reflection can leave them unset.
+            var instance = Activator.CreateInstance(type)!;
+            var stored = (JsonElement)property.GetValue(instance)!;
+
+            if (stored.ValueKind == JsonValueKind.Undefined)
+            {
+                offenders.Add($"{type.FullName}.{property.Name}");
+            }
+        }
+
+        offenders.ShouldBeEmpty(
+            "These optional JsonElement properties are Undefined when never set, which " +
+            "JsonSerializer cannot write. Give them the FreeFormJson.Empty initializer: " +
+            string.Join(", ", offenders));
+    }
+
+    /// <summary>
     /// Proves the scan is not vacuous - a scan that finds nothing passes the
     /// test above for the wrong reason.
     /// </summary>

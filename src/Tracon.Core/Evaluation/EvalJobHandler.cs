@@ -36,7 +36,8 @@ internal sealed class EvalJobHandler(
     IEvalEvaluatorFactory evaluatorFactory,
     IOptions<TraconOptions> options,
     IEnumerable<IAgentDecorator> decorators,
-    ILogger<EvalJobHandler>? logger = null) : IJobHandler
+    ILogger<EvalJobHandler>? logger = null,
+    IEnumerable<CodeAgentRegistration>? codeRegistrations = null) : IJobHandler
 {
     /// <inheritdoc />
     public async ValueTask ExecuteAsync(JobContext context, CancellationToken cancellationToken = default)
@@ -98,11 +99,33 @@ internal sealed class EvalJobHandler(
         var descriptor = descriptors.FirstOrDefault(
             candidate => string.Equals(candidate.Name, suite.AgentName, StringComparison.Ordinal));
 
+        // 🚨 Read separately from the resolved AIAgent below: a parameterized
+        // agent cannot be evaluated with ONE shared compiled instance - each
+        // case can carry different AgentParameter values, so each case's
+        // instructions text (after binding) can differ. Null for an agent with
+        // no definition (a factory agent, an agent source's), exactly like
+        // AgentParameterGate on the HTTP side; such an agent has no schema and
+        // every case below runs against the shared `agent`.
+        //
+        // Read BEFORE the row is marked running (F-331): a pinned version's
+        // model is that version's, not the current definition's the catalog
+        // lists.
+        //
+        // The same lookup as the /run gate: a definition registered in code
+        // wins over a stored one, as it does in the catalog.
+        var (sourceDefinition, sourceOrigin) = await AgentDefinitionLookup
+            .FindAsync(codeRegistrations ?? [], definitionStore, suite.AgentName, agentVersion, cancellationToken)
+            .ConfigureAwait(false);
+
         // The version is pinned: an eval run must answer "how good is this
         // version", even if the definition is updated while the run is in
         // progress.
         await evalStore
-            .MarkRunRunningAsync(evalRun.Id, agentVersion ?? descriptor?.Version, modelOverride ?? descriptor?.Model?.Model, cancellationToken)
+            .MarkRunRunningAsync(
+                evalRun.Id,
+                agentVersion ?? descriptor?.Version,
+                modelOverride ?? sourceDefinition?.Model.Model ?? descriptor?.Model?.Model,
+                cancellationToken)
             .ConfigureAwait(false);
 
         // Eval is independent of the concept of an experiment: it runs against
@@ -114,17 +137,6 @@ internal sealed class EvalJobHandler(
             : await catalog.ResolveAsync(suite.AgentName, culture: null, cancellationToken).ConfigureAwait(false)
                 ?? throw new TraconException(
                     $"No agent named '{suite.AgentName}' exists in the catalog. The eval suite's agent may have been deleted.");
-
-        // 🚨 Read separately from the resolved AIAgent above: a parameterized
-        // agent cannot be evaluated with ONE shared compiled instance - each
-        // case can carry different AgentParameter values, so each case's
-        // instructions text (after binding) can differ. Null for a code-only
-        // agent, exactly like AgentParameterGate on the HTTP side; such an
-        // agent has no schema and every case below runs against the shared
-        // `agent`, unchanged from before this feature existed.
-        var sourceDefinition = agentVersion is { } pinnedVersion
-            ? await definitionStore.GetVersionAsync(suite.AgentName, pinnedVersion, cancellationToken).ConfigureAwait(false)
-            : await definitionStore.GetAsync(suite.AgentName, cancellationToken).ConfigureAwait(false);
 
         var cases = await evalStore.ListCasesAsync(suite.Id, cancellationToken).ConfigureAwait(false);
         var casesById = cases.ToDictionary(static evalCase => evalCase.Id);
@@ -194,6 +206,8 @@ internal sealed class EvalJobHandler(
                 evalCase,
                 agent,
                 sourceDefinition,
+                sourceOrigin,
+                agentVersion,
                 evaluator,
                 suite.Name,
                 numRepetitions,
@@ -242,6 +256,8 @@ internal sealed class EvalJobHandler(
         EvalCase evalCase,
         AIAgent agent,
         AgentDefinition? sourceDefinition,
+        AgentDefinitionOrigin sourceOrigin,
+        int? agentVersion,
         IAgentEvaluator evaluator,
         string evalName,
         int numRepetitions,
@@ -303,21 +319,10 @@ internal sealed class EvalJobHandler(
 
             agent = AgentDecoratorPipeline.Apply(
                 agent,
-                new AgentDescriptor
-                {
-                    Name = schemaDefinition.Name,
-                    DisplayName = schemaDefinition.DisplayName,
-                    Description = schemaDefinition.Description,
-                    Origin = AgentDefinitionOrigin.Database,
-                    SourceName = "database",
-                    Version = schemaDefinition.Version,
-                    Model = schemaDefinition.Model,
-                    ToolNames = schemaDefinition.ToolNames,
-                    SkillNames = schemaDefinition.SkillNames,
-                    CallableAgentNames = schemaDefinition.CallableAgentNames,
-                    UsesHarness = schemaDefinition.Harness is not null,
-                    UpdatedAt = schemaDefinition.UpdatedAt,
-                },
+                AgentDescriptorProjection.FromDefinition(
+                    schemaDefinition,
+                    sourceOrigin,
+                    AgentDefinitionLookup.SourceName(sourceOrigin)),
                 decorators);
         }
 
@@ -336,7 +341,15 @@ internal sealed class EvalJobHandler(
                     .RunAsync(
                         evalCase.Query,
                         session: null,
-                        options: new TraconRunOptions { RunId = runId, Kind = RunKind.Eval },
+                        options: new TraconRunOptions
+                        {
+                            RunId = runId,
+                            Kind = RunKind.Eval,
+
+                            // F-331: the case run measures the PINNED version; without
+                            // this its row fell back to the descriptor's version.
+                            AgentVersion = agentVersion,
+                        },
                         cancellationToken)
                     .ConfigureAwait(false);
             }

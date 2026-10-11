@@ -80,8 +80,8 @@ public sealed class TimerPeriodOptionValidationTests
         => ShouldFailAtStartup("PollInterval", ("Tracon:Scheduling:PollInterval", value));
 
     [Theory]
-    [InlineData("00:00:00.0010")]   // renewal every 0.5 ms
-    [InlineData("100.00:00:00")]    // renewal every 50 days
+    [InlineData("00:00:00.0020")]   // renewal every 0.67 ms (a third of the lease, F-326)
+    [InlineData("150.00:00:00")]    // renewal every 50 days
     public void Job_lease_duration_whose_renewal_timer_cannot_run_is_checked_at_startup(string value)
         => ShouldFailAtStartup("LeaseDuration", ("Tracon:Scheduling:LeaseDuration", value));
 

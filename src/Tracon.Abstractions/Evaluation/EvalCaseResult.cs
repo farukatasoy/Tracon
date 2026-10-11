@@ -40,7 +40,7 @@ public sealed record EvalCaseResult
     {
         get;
         init => field = FreeFormJson.OrEmpty(value);
-    }
+    } = FreeFormJson.Empty;
 
     /// <summary>The failure reason. Populated only when <c>Passed</c> is <see langword="false"/>.</summary>
     public string? FailureReason { get; init; }

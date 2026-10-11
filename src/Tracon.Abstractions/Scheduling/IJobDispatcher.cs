@@ -88,7 +88,7 @@ public sealed record JobRequest
     {
         get;
         init => field = FreeFormJson.OrEmpty(value);
-    }
+    } = FreeFormJson.Empty;
 
     /// <summary>
     /// The job's items. Left empty, the items are extracted from

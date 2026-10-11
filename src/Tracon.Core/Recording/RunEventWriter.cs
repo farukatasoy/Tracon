@@ -287,6 +287,11 @@ public sealed class RunEventWriter
             // an observability detail, and it exists only inside this
             // reserved-prefix event's own payload -- suppressing it would
             // leave the client an unlabeled "custom" frame it cannot act on.
+            //
+            // The request payload is still CUT at MaxPayloadLength like any
+            // other, so its reader must not need the whole JSON: the request
+            // id is read from Text, and the prompt - written last - is the only
+            // field a cut can reach (F-327, WorkflowRequestDescriptor.Parse).
             Payload = _options.RecordToolPayloads ||
                       draft.Type == RunEventType.WorkflowRequest ||
                       (allowReserved && draft.Type == RunEventType.Custom)

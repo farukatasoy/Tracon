@@ -379,10 +379,18 @@ public sealed record AgentRunRequest
     /// Values for the target agent's <see cref="AgentDefinition.Parameters"/> schema.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// A value for a name the schema does not declare is rejected, not
     /// silently dropped - a typo in a parameter name would otherwise
     /// disappear without a trace. A required parameter missing both a value
     /// here and a default in the schema keeps the run from starting at all.
+    /// </para>
+    /// <para>
+    /// Only a run that is not queued carries values. A queued run
+    /// (<c>Prefer: respond-async</c>) rejects this field; it binds every
+    /// parameter's default, and an agent with a required parameter that has
+    /// no default is refused with the same <c>400</c>.
+    /// </para>
     /// </remarks>
     public IReadOnlyDictionary<string, string>? Parameters { get; init; }
 

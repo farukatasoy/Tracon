@@ -128,7 +128,42 @@ public sealed class RetentionMaxRowsDataPlaneTests(SqliteFixture fixture) : IAsy
             """);
     }
 
-    private async Task<Guid> SeedRunAsync(DateTimeOffset? completedAt = null)
+    /// <summary>
+    /// 🚨 F-327: a workflow run waiting for a human keeps its pending request
+    /// event and its checkpoints, however old (K-128, K-130). Also proves the
+    /// correlation uses the prefixed table name on SQLite (K-193).
+    /// </summary>
+    [Fact]
+    public async Task A_waiting_workflow_runs_request_and_checkpoints_survive_retention()
+    {
+        var old = DateTimeOffset.UtcNow.AddDays(-60);
+        var cutoff = DateTimeOffset.UtcNow.AddDays(-1);
+        var waiting = await SeedRunAsync(completedAt: old, status: RunStatus.AwaitingInput);
+        var finished = await SeedRunAsync(completedAt: old, status: RunStatus.Completed);
+
+        await SeedRunEventAsync(waiting, seq: 1, createdAt: old, type: RunEventType.WorkflowRequest);
+        await SeedRunEventAsync(waiting, seq: 2, createdAt: old);
+        await SeedRunEventAsync(finished, seq: 1, createdAt: old, type: RunEventType.WorkflowRequest);
+        await SeedWorkflowCheckpointAsync(waiting);
+        await SeedWorkflowCheckpointAsync(finished);
+
+        // Two checkpoints exist; only the finished run's one counts, so a limit
+        // of two is not reached.
+        (await _context.RetentionData.FindRowLimitCutoffAsync(RetentionTargets.WorkflowCheckpoints, tenantId: null, maxRows: 2))
+            .ShouldBeNull("a waiting run's checkpoint is not counted toward the row limit");
+
+        (await _context.RetentionData.DeleteBatchAsync(RetentionTargets.RunEvents, tenantId: null, cutoff, batchSize: 100)).ShouldBe(2);
+        (await _context.RetentionData.DeleteBatchAsync(RetentionTargets.WorkflowCheckpoints, tenantId: null, cutoff, batchSize: 100)).ShouldBe(1);
+
+        (await _context.ScalarAsync<long>(
+            $"SELECT COUNT(*) FROM {_context.TablePrefix}run_events WHERE run_id = '{waiting}' AND type = {(int)RunEventType.WorkflowRequest};"))
+            .ShouldBe(1);
+        (await _context.ScalarAsync<long>(
+            $"SELECT COUNT(*) FROM {_context.TablePrefix}workflow_checkpoints WHERE run_id = '{waiting}';"))
+            .ShouldBe(1);
+    }
+
+    private async Task<Guid> SeedRunAsync(DateTimeOffset? completedAt = null, RunStatus status = RunStatus.Completed)
     {
         var id = Guid.NewGuid();
         var completedSql = completedAt is { } value ? $"'{Iso(value)}'" : "NULL";
@@ -137,16 +172,16 @@ public sealed class RetentionMaxRowsDataPlaneTests(SqliteFixture fixture) : IAsy
             INSERT INTO {_context.TablePrefix}runs
                 (id, tenant_id, agent_name, status, started_at, completed_at, is_streaming, event_count)
             VALUES
-                ('{id}', 'test', 'support', 1, '{Iso(DateTimeOffset.UtcNow.AddHours(-1))}', {completedSql}, 0, 0);
+                ('{id}', 'test', 'support', {(int)status}, '{Iso(DateTimeOffset.UtcNow.AddHours(-1))}', {completedSql}, 0, 0);
             """);
 
         return id;
     }
 
-    private async Task SeedRunEventAsync(Guid runId, int seq, DateTimeOffset createdAt)
+    private async Task SeedRunEventAsync(Guid runId, int seq, DateTimeOffset createdAt, RunEventType type = RunEventType.RunStarted)
         => await _context.ExecuteAsync($"""
             INSERT INTO {_context.TablePrefix}run_events (run_id, seq, type, text, created_at)
-            VALUES ('{runId}', {seq}, 0, 'event', '{Iso(createdAt)}');
+            VALUES ('{runId}', {seq}, {(int)type}, 'event', '{Iso(createdAt)}');
             """);
 
     private async Task SeedWorkflowCheckpointAsync(Guid runId)

@@ -229,6 +229,95 @@ public sealed class WorkflowHumanInTheLoopTests
         (await host.CheckpointStore.ListByRunAsync(host.TenantContext.TenantId, run.Id)).ShouldNotBeEmpty();
     }
 
+    [Fact]
+    public async Task A_request_whose_prompt_outgrows_the_payload_limit_is_still_listed_and_answerable()
+    {
+        // F-327: the request event's payload is cut at MaxPayloadLength (8 KB by
+        // default), and every non-ASCII character is escaped to six. A prompt of
+        // 1,500 such characters left unparseable JSON; the request dropped out
+        // of the list and the respond endpoint refused its id as unknown.
+        var host = new WorkflowTestHost();
+        var runner = host.CreateRunner(configure: null, services: null, ApprovalWorkflow.Registration());
+        var question = new string('\u015F', 1500);
+
+        await Collect(runner, "approval-flow", question);
+
+        var first = (await host.RunStore.QueryRunsAsync(new RunQuery { Take = 10 })).Single();
+        var request = (await runner.ListPendingRequestsAsync(first.Id)).ShouldHaveSingleItem();
+
+        request.PortId.ShouldBe(ApprovalWorkflow.PortId);
+        request.Form.ShouldBe(WorkflowRequestForm.Boolean);
+        request.Prompt.ShouldNotBeNull();
+        request.Prompt.ShouldStartWith("Approval requested: \u015F\u015F\u015F", Case.Sensitive);
+        request.Prompt.ShouldEndWith("…[truncated]", Case.Sensitive);
+
+        var resumed = await CollectResponse(runner, first.Id, request.RequestId, approved: true);
+
+        resumed.Single(runEvent => runEvent.Type == RunEventType.WorkflowOutput).Text.ShouldBe("approved");
+    }
+
+    [Fact]
+    public async Task With_cleanup_on_an_answered_request_can_still_be_answered_a_second_time()
+    {
+        // F-327: the cleanup deletes per SESSION, and the answer run shares the
+        // source run's session. When the answer run completed, the source run's
+        // checkpoints went with it, and the second answer K-130 allows failed
+        // with "no checkpoint".
+        var host = new WorkflowTestHost();
+        var runner = host.CreateRunner(
+            options => options.KeepCheckpointsAfterCompletion = false,
+            services: null,
+            ApprovalWorkflow.Registration());
+
+        await Collect(runner, "approval-flow", "publish the report");
+
+        var first = (await host.RunStore.QueryRunsAsync(new RunQuery { Take = 10 })).Single();
+        var pending = (await runner.ListPendingRequestsAsync(first.Id)).Single();
+
+        await CollectResponse(runner, first.Id, pending.RequestId, approved: true);
+
+        (await host.CheckpointStore.ListByRunAsync(host.TenantContext.TenantId, first.Id)).ShouldNotBeEmpty();
+
+        var second = await CollectResponse(runner, first.Id, pending.RequestId, approved: false);
+
+        second.Single(runEvent => runEvent.Type == RunEventType.WorkflowOutput).Text.ShouldBe("rejected");
+    }
+
+    [Fact]
+    public async Task With_cleanup_on_a_wrong_answer_does_not_cost_the_request()
+    {
+        // F-327: an answer the port cannot take ends its run Failed, and that
+        // run's cleanup deleted the source run's checkpoints — one typo made the
+        // request unanswerable for good.
+        var host = new WorkflowTestHost();
+        var runner = host.CreateRunner(
+            options => options.KeepCheckpointsAfterCompletion = false,
+            services: null,
+            ApprovalWorkflow.Registration());
+
+        await Collect(runner, "approval-flow", "publish the report");
+
+        var first = (await host.RunStore.QueryRunsAsync(new RunQuery { Take = 10 })).Single();
+        var pending = (await runner.ListPendingRequestsAsync(first.Id)).Single();
+
+        await foreach (var _ in runner.RespondStreamingAsync(new WorkflowRespondRequest
+        {
+            RunId = first.Id,
+            RequestId = pending.RequestId,
+            Text = "maybe",
+        }))
+        {
+        }
+
+        var wrong = (await host.RunStore.QueryRunsAsync(new RunQuery { Take = 10 })).Single(run => run.Id != first.Id);
+
+        wrong.Status.ShouldBe(RunStatus.Failed);
+
+        var retried = await CollectResponse(runner, first.Id, pending.RequestId, approved: true);
+
+        retried.Single(runEvent => runEvent.Type == RunEventType.WorkflowOutput).Text.ShouldBe("approved");
+    }
+
     private static async Task<List<RunEvent>> Collect(WorkflowRunner runner, string name, string message)
     {
         var events = new List<RunEvent>();

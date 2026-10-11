@@ -266,10 +266,15 @@ internal sealed class LoopEvaluatorRegistry
             FreshContextPerIteration = loop.FreshContextPerIteration,
 
             // Set explicitly rather than left to the framework default (measured
-            // false on MAF 1.20.0): the run record must carry every iteration's
-            // messages, not only the last one, or the evidence of a loop is the
-            // one thing the loop does not leave behind.
-            NonStreamingReturnsLastResponseOnly = false,
+            // false on MAF 1.20.0). The caller gets the FINAL iteration's answer;
+            // the usage stays the sum of every iteration (F-317, user decision
+            // 2026-10-12). Phase 192 set this to false so the run record would
+            // carry every iteration, but a defect hid that the transcript then
+            // also became the answer every text surface returns: the OpenAI-
+            // compatible endpoints, MCP and a calling agent would have read the
+            // drafts and the loop's feedback as the reply. The evidence of the
+            // loop is its LoopIterationCompleted events, one per iteration.
+            NonStreamingReturnsLastResponseOnly = true,
         };
 
         return (evaluator, options);

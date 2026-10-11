@@ -64,7 +64,21 @@ A run supplies values on the `parameters` field of `POST /api/agents/{name}/run`
 `/estimate`, which checks the same values without calling a model). A required
 parameter with no value and no `DefaultValue` stops the run before it starts, and
 names the missing parameter; a value for a name the schema does not declare is
-rejected too, not silently dropped.
+rejected too, not silently dropped. This holds for a definition saved through the
+API and for one registered in code with `AddAgent`.
+
+Every other way to start a run carries no values: a queued run, a batch or
+schedule, the OpenAI-compatible endpoints, MCP, A2A, a workflow step, an agent
+called by another agent, and voice. Those runs bind each parameter's
+`DefaultValue`. An agent with a required parameter that has no default does not
+run there: the request is refused where it enters (`400` with `missingParameters`
+for a queued run), and where there is no request to refuse, the run fails before
+any model call and names the parameter.
+
+A replay and an automatic continuation after a crash re-run a recorded run, and
+the recorded input does not include its parameter values. Running them with the
+defaults would change the instructions, so both are refused for any agent that
+declares parameters.
 
 This is **value substitution, not a template engine**. There is no expression,
 condition, loop, or field access (`{{a.b}}`) — a template language is a security
@@ -215,7 +229,9 @@ Five rules hold across the tree:
 - A child call has a two-layer wait limit: a cooperative deadline that cancels a
   child reading its token, and a hard cutoff for one that does not. Past the hard
   cutoff the tree keeps going; the child keeps running in the background and its
-  eventual result is discarded. Set `SubAgentSettings` on the calling agent to
+  eventual result is discarded. (A workflow step is the exception: no model reads
+  its answer, so a step past its limit fails the workflow — see
+  [Workflows](/concepts/workflows/).) Set `SubAgentSettings` on the calling agent to
   override the installation-wide default:
 
   ```csharp
@@ -266,6 +282,11 @@ new AgentDefinition
 ```
 
 The loop is off while `Loop` is null, which is the default.
+
+A non-streaming run returns the **final iteration's answer**; its usage and cost
+are the sum of every iteration. A streaming run streams every iteration as it
+happens. Either way each iteration is recorded on the run as a
+`LoopIterationCompleted` event.
 
 **`MaxIterations` is not `MaximumIterationsPerRequest`.** The two bound
 different loops. `MaximumIterationsPerRequest` bounds the harness's *inner*

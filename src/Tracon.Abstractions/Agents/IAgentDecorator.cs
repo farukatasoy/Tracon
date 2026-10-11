@@ -32,7 +32,11 @@ public interface IAgentDecorator
 
     /// <summary>Decorates the agent.</summary>
     /// <param name="agent">The agent to decorate.</param>
-    /// <param name="descriptor">The catalog summary of the agent.</param>
+    /// <param name="descriptor">
+    /// The catalog summary of the agent, describing the definition version
+    /// <paramref name="agent"/> was compiled from — the pinned version on a
+    /// pinned resolve, not the current one.
+    /// </param>
     /// <returns>The decorated agent.</returns>
     AIAgent Decorate(AIAgent agent, AgentDescriptor descriptor);
 }

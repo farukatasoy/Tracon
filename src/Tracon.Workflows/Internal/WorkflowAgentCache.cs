@@ -122,7 +122,12 @@ internal sealed class WorkflowAgentCache
             new CallableAgentInfo(key.AgentName, state.Description, Version: 0),
             state.AgentGraph.ChildDeadline,
             state.AgentGraph.WaitTimeout,
-            state.TimeProvider);
+            state.TimeProvider,
+
+            // 🚨 A workflow step FAILS when it cannot deliver an answer (F-328).
+            // The delegation default returns the refusal as text for the calling
+            // model; here no model reads it, the next node takes it as content.
+            ChildRefusalMode.Fail);
 
         // The identity is written on the instance BEFORE it enters the graph:
         // MAF reads the executor id at binding time, and changing it afterward

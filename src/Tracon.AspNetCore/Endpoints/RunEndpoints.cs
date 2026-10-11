@@ -1233,6 +1233,8 @@ internal static class RunEndpoints
             var cancellationToken = httpContext.RequestAborted;
             var next = SseWriter.ReadResumeSequence(httpContext.Request);
             var writer = await SseWriter.StartAsync(httpContext.Response, cancellationToken).ConfigureAwait(false);
+            // Stops the writer's keep-alive loop before the response ends (F-325).
+            await using var writerScope = writer.ConfigureAwait(false);
 
             try
             {

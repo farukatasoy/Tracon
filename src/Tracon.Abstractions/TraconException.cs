@@ -303,6 +303,62 @@ public sealed class TraconToolTimeoutException : TraconException
 }
 
 /// <summary>
+/// Thrown when an agent step of a workflow does not answer within the
+/// sub-agent wait limit.
+/// </summary>
+/// <remarks>
+/// <para>
+/// The limit is <c>Tracon:AgentGraph:ChildDeadline</c>, with
+/// <c>Tracon:AgentGraph:WaitTimeout</c> as the hard cutoff for an agent that
+/// ignores its cancellation token. The exception fails the step, so the
+/// workflow run ends <c>Failed</c> and no later node runs.
+/// </para>
+/// <para>
+/// An agent called as a TOOL by another agent hits the same limit without this
+/// exception: there the limit comes back as a tool result the calling model
+/// can act on. A workflow step has no model reading its output — the next node
+/// would take the limit's text as the step's content — so a workflow fails
+/// instead.
+/// </para>
+/// </remarks>
+public sealed class TraconChildRunTimeoutException : TraconException
+{
+    /// <summary>
+    /// The stable value written to <see cref="TraconException.ErrorType"/>.
+    /// </summary>
+    public const string ChildRunTimeoutErrorType = "child_run_timeout";
+
+    /// <summary>Creates a new error.</summary>
+    public TraconChildRunTimeoutException()
+    {
+    }
+
+    /// <summary>Creates a new error.</summary>
+    /// <param name="message">The error message.</param>
+    public TraconChildRunTimeoutException(string message)
+        : base(message)
+    {
+    }
+
+    /// <summary>Creates a new error.</summary>
+    /// <param name="message">The error message.</param>
+    /// <param name="innerException">The underlying error.</param>
+    public TraconChildRunTimeoutException(string message, Exception innerException)
+        : base(message, innerException)
+    {
+    }
+
+    /// <summary>Gets the name of the agent that did not answer in time.</summary>
+    public string? AgentName { get; init; }
+
+    /// <summary>Gets the wait limit that elapsed.</summary>
+    public TimeSpan? Timeout { get; init; }
+
+    /// <inheritdoc />
+    public override string ErrorType => ChildRunTimeoutErrorType;
+}
+
+/// <summary>
 /// Thrown for the losing request when two concurrent first requests arrive for the
 /// same NEW session id.
 /// </summary>

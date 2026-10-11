@@ -28,9 +28,17 @@ public sealed class TraconWorkflowOptions
     /// Gets or sets the maximum number of workflows that may run at the same time.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// The limit is <em>shared across all tenants</em>. A single workflow makes
     /// dozens of model calls; leaving it unbounded would let one user consume
     /// an entire provider quota.
+    /// </para>
+    /// <para>
+    /// A run over the limit waits for a slot. Its record already exists while
+    /// it waits and shows <c>Running</c>; the wait counts toward
+    /// <see cref="RunTimeout"/>, and a run whose deadline passes before it gets
+    /// a slot closes like any other timed-out run.
+    /// </para>
     /// </remarks>
     public int MaxConcurrentRuns { get; set; } = 4;
 
@@ -47,8 +55,10 @@ public sealed class TraconWorkflowOptions
     /// </para>
     /// <para>
     /// A run stopped this way reports a <c>TimeoutException</c> error naming
-    /// this setting. To bound an individual step instead, give the node its
-    /// own timeout inside the handler.
+    /// this setting. The deadline starts when the run starts, so the time a
+    /// run waits for a <see cref="MaxConcurrentRuns"/> slot counts too. To
+    /// bound an individual step instead, give the node its own timeout inside
+    /// the handler.
     /// </para>
     /// <para>
     /// Must be from one millisecond to about 49.7 days while <see cref="Enabled"/>
@@ -72,10 +82,22 @@ public sealed class TraconWorkflowOptions
     /// Gets or sets whether the checkpoints of a completed run are kept.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// The default is <see langword="true"/>: being resumable even after a
     /// workflow has finished is the whole point of this feature. Setups that
     /// want to avoid the storage cost can disable it; checkpoints then live
     /// only while the run is in progress.
+    /// </para>
+    /// <para>
+    /// Checkpoints are kept per session. While another run of the same
+    /// session still needs them — one waiting for a human answer, or one still
+    /// running — a finished run leaves them in place, so a pending request
+    /// stays answerable after an earlier answer, even a rejected one. A run that
+    /// asked a human stays waiting even after an answer (a second answer opens a
+    /// new branch), so once a session has paused for input, this setting no
+    /// longer removes that session's checkpoints; retention does, for the runs
+    /// that are not waiting.
+    /// </para>
     /// </remarks>
     public bool KeepCheckpointsAfterCompletion { get; set; } = true;
 }

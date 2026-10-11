@@ -39,6 +39,32 @@ public static class JobErrorCodes
     /// </remarks>
     public const string HandlerActivationFailed = "tracon.job.handler-activation-failed";
 
+    /// <summary>
+    /// The job was leased again after its lease ran out — the worker running
+    /// it stopped renewing, most often because its process died — and the new
+    /// attempt is past the job's attempt limit, so the job failed without
+    /// running again.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The limit is <see cref="JobRecord.MaxAttempts"/>, or the scheduling
+    /// <c>MaxAttempts</c> setting when the job carries none. A lease that runs
+    /// out counts as an attempt, because the work it covered may have had side
+    /// effects; a job limited to one attempt is never run twice.
+    /// </para>
+    /// <para>
+    /// The handler never ran, so a record the handler would have closed — a
+    /// queued agent run, say — keeps the status it had when the earlier attempt
+    /// stopped. Run reconciliation closes such a run.
+    /// </para>
+    /// <para>
+    /// The earlier worker is usually dead, but it may only have lost its lease
+    /// (its renewals kept failing). If it then finishes, its result does not
+    /// change the job: a job that reached a final status keeps it.
+    /// </para>
+    /// </remarks>
+    public const string AttemptsExhausted = "tracon.job.attempts-exhausted";
+
     /// <summary>Formats the persisted message for <paramref name="code"/>.</summary>
     /// <param name="code">One of this class's constants.</param>
     /// <param name="correlationId">

@@ -543,6 +543,36 @@ public sealed partial class AgentDefinitionCompiler
             };
         }
 
+        // 🚨 F-330: only CompileParameterizedAsync binds values, and it clears
+        // Parameters on the copy it compiles. A definition that still carries a
+        // schema here was reached by a path with no values — the catalog, and so
+        // a queued run, a batch, replay, the OpenAI-compatible endpoints, MCP,
+        // A2A, a workflow step, an agent called as a tool. Those runs used to send
+        // the model the literal placeholders. Defaults are bound here, the same
+        // way a value-less /run binds them, and a required parameter with no
+        // default fails the run before any provider call (UnboundParameterGuard,
+        // which also marks the agent as compiled without values).
+        // The result depends only on the definition and the culture, both part
+        // of the compiled-agent cache key, so caching it stays correct.
+        AgentParameterValidationResult? unbound = null;
+
+        if (definition.Parameters.Count > 0)
+        {
+            // The guard marks EVERY such agent: replay refuses any of them,
+            // the other entry points only those it cannot run (RequiresValues).
+            unbound = AgentParameterValidator.ValidateValues(definition.Parameters, values: null);
+
+            definition = definition with
+            {
+                Instructions = InstructionParameterBinder.Bind(
+                    InstructionCultureResolver.Resolve(definition, culture),
+                    definition.Parameters,
+                    values: null),
+                InstructionsByCulture = null,
+                Parameters = [],
+            };
+        }
+
         var tools = ResolveTools(definition);
         AddVectorSearchTool(definition, tools);
 
@@ -563,9 +593,11 @@ public sealed partial class AgentDefinitionCompiler
 
         var chatOptions = BuildChatOptions(definition, tools, culture, sharedInstructions);
 
-        return definition.Harness is null
+        AIAgent agent = definition.Harness is null
             ? CompileChatAgent(definition, chatClient, secondaryClients, chatOptions, callableAgents)
             : CompileHarnessAgent(definition, chatClient, secondaryClients, chatOptions, callableAgents);
+
+        return unbound is null ? agent : new UnboundParameterGuard(agent, definition.Name, unbound);
     }
 }
 

@@ -185,12 +185,24 @@ internal sealed class ExternalAgentProxy : AIAgent
             "The call to MapTraconA2A() may be missing.");
 
         var catalog = services.GetRequiredService<IAgentCatalog>();
-        var agent = await catalog.ResolveAsync(_agentName, culture: null, cancellationToken).ConfigureAwait(false);
+        var agent = await catalog.ResolveAsync(_agentName, culture: null, cancellationToken).ConfigureAwait(false)
+            ?? throw new TraconExternalCallException($"There is no agent named '{_agentName}' in the catalog.")
+            {
+                AgentName = _agentName,
+                Protocol = "a2a",
+            };
 
-        return agent ?? throw new TraconExternalCallException($"There is no agent named '{_agentName}' in the catalog.")
+        // F-330: an A2A message carries no parameter values; refused as a call
+        // error before a run starts, like an unknown agent.
+        if (agent.GetService<UnboundParameterGuard>() is { RequiresValues: true } unbound)
         {
-            AgentName = _agentName,
-            Protocol = "a2a",
-        };
+            throw new TraconExternalCallException(unbound.Failure().Message)
+            {
+                AgentName = _agentName,
+                Protocol = "a2a",
+            };
+        }
+
+        return agent;
     }
 }

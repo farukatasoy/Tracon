@@ -177,6 +177,53 @@ public abstract class JobStoreContract : TenantIsolationContract<IJobStore>
         (await LeaseAsync(Owner(), TimeSpan.FromMinutes(5))).ShouldNotBeNull();
     }
 
+    [Fact]
+    public async Task A_cancelled_job_is_changed_by_neither_completion_nor_release()
+    {
+        // F-326: a handler that throws after its job was cancelled reaches the
+        // worker's failure path. Before the store refused these writes, the
+        // cancelled job became Failed (last attempt) or Pending — and ran again.
+        var job = await Store.EnqueueAsync(TestData.Job(), ["a"]);
+        await LeaseAsync(Owner(), TimeSpan.FromMinutes(5));
+
+        (await Store.CancelAsync(job.TenantId, job.Id)).ShouldBeTrue();
+
+        await Store.CompleteAsync(new JobCompletion
+        {
+            JobId = job.Id,
+            Status = JobStatus.Failed,
+            CompletedAt = DateTimeOffset.UtcNow,
+            ErrorMessage = "thrown after the cancel",
+        });
+
+        await Store.ReleaseForRetryAsync(job.Id, "thrown after the cancel");
+
+        var current = await Store.GetAsync(job.TenantId, job.Id);
+        current!.Status.ShouldBe(JobStatus.Cancelled);
+        current.ErrorMessage.ShouldBeNull();
+        (await LeaseAsync(Owner(), TimeSpan.FromMinutes(5))).ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task A_finished_job_is_not_finalized_a_second_time()
+    {
+        var job = await Store.EnqueueAsync(TestData.Job(), ["a"]);
+        await LeaseAsync(Owner(), TimeSpan.FromMinutes(5));
+
+        await Store.CompleteAsync(new JobCompletion { JobId = job.Id, Status = JobStatus.Completed, CompletedAt = DateTimeOffset.UtcNow });
+        await Store.CompleteAsync(new JobCompletion
+        {
+            JobId = job.Id,
+            Status = JobStatus.Failed,
+            CompletedAt = DateTimeOffset.UtcNow,
+            ErrorMessage = "late",
+        });
+
+        var current = await Store.GetAsync(job.TenantId, job.Id);
+        current!.Status.ShouldBe(JobStatus.Completed);
+        current.ErrorMessage.ShouldBeNull();
+    }
+
     [Theory]
     [InlineData(JobStatus.Pending, true)]
     [InlineData(JobStatus.Completed, false)]

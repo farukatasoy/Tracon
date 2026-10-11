@@ -101,26 +101,35 @@ internal sealed class CompositeAgentCatalog : IAgentCatalog
         foreach (var source in _sources)
         {
             AIAgent? agent;
-
-            try
-            {
-                agent = await source.ResolveAsync(agentName, culture, cancellationToken).ConfigureAwait(false);
-            }
-            catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
-            {
-                throw HandleSourceFailure(source, "resolve", exception);
-            }
-
-            if (agent is null)
-            {
-                continue;
-            }
-
             AgentDescriptor descriptor;
 
             try
             {
-                descriptor = await FindDescriptorAsync(source, agentName, cancellationToken).ConfigureAwait(false);
+                // F-331: a source that can describe what it compiled does so
+                // from the same definition read; the agent and its descriptor
+                // can no longer come from two different versions.
+                if (source is IDescribingAgentSource describing)
+                {
+                    if (await describing.ResolveDescribedAsync(agentName, version: null, culture, cancellationToken)
+                            .ConfigureAwait(false) is not { } described)
+                    {
+                        continue;
+                    }
+
+                    agent = described.Agent;
+                    descriptor = Freeze(described.Descriptor);
+                }
+                else
+                {
+                    agent = await source.ResolveAsync(agentName, culture, cancellationToken).ConfigureAwait(false);
+
+                    if (agent is null)
+                    {
+                        continue;
+                    }
+
+                    descriptor = await FindDescriptorAsync(source, agentName, cancellationToken).ConfigureAwait(false);
+                }
             }
             catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
             {
@@ -192,8 +201,30 @@ internal sealed class CompositeAgentCatalog : IAgentCatalog
 
             try
             {
-                agent = await versioned.ResolveVersionAsync(agentName, version.Value, culture, cancellationToken).ConfigureAwait(false)
-                    ?? throw new TraconException($"Version {version.Value} of agent '{agentName}' was not found.");
+                // 🚨 F-331: the descriptor listed above is the CURRENT version's.
+                // The decorators read the response format, model and version
+                // off it, so a pinned run was validated against the current
+                // schema and recorded with the current model. The pinned
+                // version's own definition describes it; a third-party source
+                // that cannot provide one keeps the listed descriptor with the
+                // pinned version number (user decision 2026-10-12).
+                if (source is IDescribingAgentSource describing)
+                {
+                    var described = await describing
+                        .ResolveDescribedAsync(agentName, version.Value, culture, cancellationToken)
+                        .ConfigureAwait(false)
+                        ?? throw new TraconException($"Version {version.Value} of agent '{agentName}' was not found.");
+
+                    agent = described.Agent;
+                    descriptor = Freeze(described.Descriptor);
+                }
+                else
+                {
+                    agent = await versioned.ResolveVersionAsync(agentName, version.Value, culture, cancellationToken).ConfigureAwait(false)
+                        ?? throw new TraconException($"Version {version.Value} of agent '{agentName}' was not found.");
+
+                    descriptor = descriptor with { Version = version.Value };
+                }
             }
             catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
             {

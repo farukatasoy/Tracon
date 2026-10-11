@@ -175,6 +175,13 @@ internal static class OpenAIResponsesEndpoints
                 type: "model_not_found");
         }
 
+        // F-330: this protocol carries no parameter values; an agent whose
+        // required parameter has no default would fail on its first step.
+        if (agent.GetService<UnboundParameterGuard>() is { RequiresValues: true } unbound)
+        {
+            return OpenAICompatSupport.Error(StatusCodes.Status400BadRequest, unbound.Failure().Message);
+        }
+
         OpenAIResponsesRunRequest runRequest;
 
         try
@@ -449,6 +456,8 @@ internal static class OpenAIResponsesEndpoints
 
             var cancellationToken = httpContext.RequestAborted;
             var writer = await SseWriter.StartAsync(httpContext.Response, cancellationToken).ConfigureAwait(false);
+            // Stops the writer's keep-alive loop before the response ends (F-325).
+            await using var writerScope = writer.ConfigureAwait(false);
 
             try
             {

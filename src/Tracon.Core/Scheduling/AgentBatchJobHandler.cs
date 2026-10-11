@@ -24,9 +24,17 @@ internal sealed class AgentBatchJobHandler(
         ArgumentNullException.ThrowIfNull(context);
 
         // Resolved once up front so a job naming no agent fails as a whole, as before.
-        _ = await catalog.ResolveAsync(context.Job.TargetName, culture: null, cancellationToken).ConfigureAwait(false)
+        var probe = await catalog.ResolveAsync(context.Job.TargetName, culture: null, cancellationToken).ConfigureAwait(false)
             ?? throw new TraconException(
                 $"The agent named '{context.Job.TargetName}' was not found. The job will be marked as failed.");
+
+        // F-330: a batch carries no parameter values. An agent whose required
+        // parameter has no default fails the job once, here, rather than once
+        // per item with the same error.
+        if (probe.GetService<UnboundParameterGuard>() is { RequiresValues: true } unbound)
+        {
+            throw unbound.Failure();
+        }
 
         foreach (var item in context.Items)
         {

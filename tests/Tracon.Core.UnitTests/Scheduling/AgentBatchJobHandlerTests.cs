@@ -18,6 +18,29 @@ public sealed class AgentBatchJobHandlerTests
     }
 
     [Fact]
+    public async Task An_agent_whose_required_parameter_has_no_value_fails_the_job_before_any_item()
+    {
+        // F-330: a batch carries no parameter values. The job fails once, up
+        // front, instead of once per item with the same error.
+        var agent = new ScriptedAgent();
+        var guarded = new UnboundParameterGuard(
+            agent,
+            "billing-agent",
+            AgentParameterValidator.ValidateValues(
+                [new AgentParameter { Name = "customer", Kind = AgentParameterKind.Text, Required = true }],
+                values: null));
+        var handler = new AgentBatchJobHandler(new SingleAgentCatalog(guarded), NullLogger<AgentBatchJobHandler>.Instance);
+        var reported = new List<JobItemResult>();
+
+        var exception = await Should.ThrowAsync<TraconException>(
+            () => handler.ExecuteAsync(BuildContext([Item(0, "first"), Item(1, "second")], reported)).AsTask());
+
+        exception.Message.ShouldContain("'customer'", Case.Sensitive);
+        agent.Inputs.ShouldBeEmpty();
+        reported.ShouldBeEmpty();
+    }
+
+    [Fact]
     public async Task Items_are_processed_in_order_and_results_are_reported()
     {
         var agent = new ScriptedAgent(fail: "boom");

@@ -62,6 +62,86 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- A workflow run whose node works quietly for a while is no longer cancelled
+  by its own silence. The workflow stream wrote nothing between events, the
+  console stops reading a stream after 30 seconds of silence, and a closed
+  connection cancels the run - so any node that took longer ended the run
+  `Canceled`. Every streaming endpoint (agent and workflow runs, resumes and
+  answers, and the OpenAI-compatible endpoints) now writes an SSE comment
+  whenever it has written nothing for `TraconEndpointOptions.StreamKeepAliveInterval`
+  (15 seconds by default; see Added). A workflow run that waits for a
+  `MaxConcurrentRuns` slot now has its run record from the start: a run whose
+  `RunTimeout` passed while it waited closed the stream with no closing frame
+  and left no record behind; it now ends `Canceled` with the timeout error
+  like any other timed-out run. Any other error on the workflow stream now
+  ends it with an `error` frame instead of a dropped connection.
+- The job queue now keeps its lease, attempt and cancel promises. A failed
+  lease renewal stopped renewal for the rest of the job, so the lease ran out
+  under a working handler and a second worker ran the job alongside it;
+  renewal now retries on the next tick and runs at a third of the lease
+  instead of half. A job whose worker died was leased again without checking
+  its attempt limit, so a queued agent run (one attempt by default) ran twice;
+  a job past its limit now fails without running, with the error code
+  `tracon.job.attempts-exhausted`. A cancelled job whose handler then threw
+  went back to `Pending` and ran again, or became `Failed`; a job that reached
+  a final status no longer changes, and a job cancelled between its lease and
+  its start does not start.
+- A workflow step whose agent cannot answer now fails the workflow. A step
+  that ran past `AgentGraph:ChildDeadline`, was refused by the tree budget
+  (`MaxTotalRuns`, tokens, cost or time), asked for a tool approval, or whose
+  provider never answered returned the refusal sentence as its answer: the
+  next node received that sentence as its input and the run ended
+  `Completed`. The run now ends `Failed`: a wait limit with the new
+  `TraconChildRunTimeoutException` (class `Timeout`), the budget with
+  `TraconRunBudgetExceededException` (class `QuotaExceeded`), a provider fault
+  with the provider's own error. An agent called as a tool by another agent
+  still gets the refusal as text, so its model can react.
+- A pending human request of a workflow run can no longer become impossible to
+  answer. A long prompt - about 1,400 non-ASCII characters is enough - was cut
+  at the event payload limit, the request disappeared from the pending list
+  and `respond` refused it; the request is now listed with its prompt cut and
+  marked, and it can be answered. Retention deleted the request event and the
+  checkpoints of a run waiting for an answer; it now keeps them for as long as
+  the run waits. With `KeepCheckpointsAfterCompletion = false`, an answer -
+  even one the port rejected - deleted the checkpoints the waiting run needs;
+  the cleanup now leaves a session's checkpoints in place while another run of
+  the session waits or is running.
+- A harness loop run now records the tokens and cost of every iteration. A
+  non-streaming loop returned and recorded only its last iteration's usage, and
+  a streaming run of any agent recorded only its last model call - a loop, or
+  a run with a tool round, undercounted its cost and the tenant's quota. The
+  usage of a streamed run is now the sum of its model calls.
+- Structured-response validation now checks the agent's answer, not
+  everything the response holds. With a loop, or with text the model wrote
+  before a tool call, the validator received the joined text and rejected a
+  valid final JSON as "not valid JSON". It now validates the last assistant
+  message that carries text.
+- A parameterized agent no longer runs with its placeholders unfilled. Only
+  `POST /api/agents/{name}/run` and evaluations bound parameter values; a
+  queued run, a batch, a replay, the OpenAI-compatible endpoints, MCP, A2A, a
+  workflow step, an agent called as a tool and voice sent the model the
+  literal `{{name}}`, without even the defaults. Every path now binds the
+  defaults. An agent with a required parameter that has no default is refused
+  where the request enters - `400` with `missingParameters` for a queued run,
+  `400` on the OpenAI-compatible endpoints, an error for an MCP or A2A call, a
+  failed job for a batch - and fails before any provider call on a path with no
+  request to refuse. A replay and an automatic continuation are refused for any
+  agent that declares parameters: the recorded input has no parameter values,
+  and the defaults would change the instructions. An evaluation of a
+  parameterized definition registered in code now binds each case's values. A parameterized definition registered in
+  code (`AddAgent(AgentDefinition)`) is now checked and bound on
+  `POST /api/agents/{name}/run`; its parameters were refused there as unknown.
+- A run pinned to an earlier definition version (an evaluation or an
+  experiment) is now validated, priced and recorded as that version. The
+  catalog compiled the pinned version but described it with the current one,
+  so its response was validated against the current response format, and the
+  run recorded the current model, cost and - for an evaluation case - version.
+  An evaluation run now records the pinned version's model.
+- `GET /api/evals/runs/{id}` no longer fails with `500` on the in-memory store
+  when a case's run threw. A free-form JSON field left unset (`Scores`,
+  `Checks`, a job's `Payload`) held no JSON at all and could not be written;
+  it is now the empty array, as when it is set to nothing.
+
 - A dependency that times out on its own no longer counts as the caller
   cancelling. An HTTP-backed store, sink, catalog, cache or identity seam
   reports `HttpClient.Timeout` as `TaskCanceledException`; 58 catch sites let
@@ -153,6 +233,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `TraconEndpointOptions.StreamKeepAliveInterval`: the longest a streaming
+  endpoint stays silent before it writes an SSE comment. Default 15 seconds;
+  keep it below the shortest idle timeout between the server and its readers,
+  and below 30 seconds while the console is in use.
+- `JobErrorCodes.AttemptsExhausted` (`tracon.job.attempts-exhausted`).
+- `TraconChildRunTimeoutException` (error type `child_run_timeout`, class
+  `Timeout`), with `AgentName` and `Timeout`.
+
 - A harness loop can fail the run instead of returning a response no criterion
   accepted. `LoopSettings.OnExhausted` (the ceiling is reached while a
   criterion still asks for another iteration) and
@@ -177,6 +265,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `ToolApprovalRule.SourceFingerprint`.
 
 ### Changed
+
+- A failed workflow run's `error.type` is the same stable identity an agent
+  run records - `loop_unsatisfied`, `run_budget_exceeded`, `upstream_error` -
+  instead of the exception's CLR name, and the run now carries an error class
+  and fingerprint. A consumer that matched a CLR name such as
+  `Tracon.TraconLoopUnsatisfiedException` on a workflow row matches the
+  identity instead.
+- A non-streaming harness loop returns the final iteration's answer; its usage
+  stays the sum of every iteration. A streaming loop still streams every
+  iteration. Each iteration remains on the run as a `LoopIterationCompleted`
+  event.
+- A code workflow built with `GetWorkflowAgent` fails at a step that cannot
+  answer, as the defined workflows do (see Fixed).
+- A job's lease is renewed at a third of `Scheduling:LeaseDuration` instead of
+  half, so the longest accepted lease is about 149 days.
+- `IAgentDecorator.Decorate` receives the descriptor of the definition version
+  the agent was compiled from - the pinned version on a pinned resolve.
+- `Tracon.Testing.Contracts.Xunit` adds two `JobStoreContract` cases:
+  `CompleteAsync` and `ReleaseForRetryAsync` leave a cancelled or finished job
+  unchanged. A custom `IJobStore` that overwrites a final status now fails
+  them.
 
 - `CompiledAgentCache` holds one entry per tenant, agent name, definition and
   culture. A compile under a new dependency fingerprint (skills, egress policy,

@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using System.Runtime.ExceptionServices;
 using System.Text.Json;
 using Microsoft.Agents.AI;
 using Microsoft.Extensions.AI;
@@ -47,6 +48,7 @@ public sealed class ChildAgentInvoker : AIAgent
     private readonly TimeSpan _childDeadline;
     private readonly TimeSpan _waitTimeout;
     private readonly TimeProvider _timeProvider;
+    private readonly ChildRefusalMode _refusalMode;
 
     /// <summary>Creates a new sub-agent wrapper.</summary>
     /// <param name="resolver">Resolver that resolves the sub-agent from the catalog.</param>
@@ -65,6 +67,10 @@ public sealed class ChildAgentInvoker : AIAgent
     /// Must be greater than <paramref name="childDeadline"/>.
     /// </param>
     /// <param name="timeProvider">Time source for the wait race. Defaults to <see cref="TimeProvider.System"/>.</param>
+    /// <param name="refusalMode">
+    /// Whether a call that cannot deliver the sub-agent's answer comes back as
+    /// a tool result (agent delegation, the default) or throws (a workflow step).
+    /// </param>
     /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentOutOfRangeException">
     /// <paramref name="childDeadline"/> or <paramref name="waitTimeout"/> is outside one
@@ -79,7 +85,8 @@ public sealed class ChildAgentInvoker : AIAgent
         CallableAgentInfo child,
         TimeSpan childDeadline,
         TimeSpan waitTimeout,
-        TimeProvider? timeProvider = null)
+        TimeProvider? timeProvider = null,
+        ChildRefusalMode refusalMode = ChildRefusalMode.ToolResult)
     {
         ArgumentNullException.ThrowIfNull(resolver);
         ArgumentNullException.ThrowIfNull(tenantContext);
@@ -114,6 +121,7 @@ public sealed class ChildAgentInvoker : AIAgent
         _childDeadline = childDeadline;
         _waitTimeout = waitTimeout;
         _timeProvider = timeProvider ?? TimeProvider.System;
+        _refusalMode = refusalMode;
     }
 
     /// <inheritdoc />
@@ -167,7 +175,7 @@ public sealed class ChildAgentInvoker : AIAgent
 
         if (Refuse(scope) is { } refusal)
         {
-            return new AgentResponse(new ChatMessage(ChatRole.Assistant, refusal));
+            return Refused(refusal);
         }
 
         var childOptions = CreateChildOptions(scope!);
@@ -205,7 +213,7 @@ public sealed class ChildAgentInvoker : AIAgent
             ObserveAbandonedChild(invocation, deadline);
 
             await WriteTimedOutAsync(scope!, childOptions, hardCutoff: true, CancellationToken.None).ConfigureAwait(false);
-            return new AgentResponse(new ChatMessage(ChatRole.Assistant, TimeoutRefusal()));
+            return Refused(TimeoutRefusal());
         }
 
         try
@@ -213,16 +221,16 @@ public sealed class ChildAgentInvoker : AIAgent
             var response = await invocation.ConfigureAwait(false);
 
             return ChildRunApproval.Describe(response.Messages) is { } pending
-                ? new AgentResponse(new ChatMessage(ChatRole.Assistant, ApprovalRefusal(pending)))
+                ? Refused(ApprovalRefusal(pending))
                 : response;
         }
         catch (OperationCanceledException) when (deadline.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
         {
             // Layer 1: our own deadline fired and the child honored it.
             await WriteTimedOutAsync(scope!, childOptions, hardCutoff: false, CancellationToken.None).ConfigureAwait(false);
-            return new AgentResponse(new ChatMessage(ChatRole.Assistant, TimeoutRefusal()));
+            return Refused(TimeoutRefusal());
         }
-        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested && _refusalMode == ChildRefusalMode.ToolResult)
         {
             // 🚨 K-737: NEITHER token was cancelled, so this is the provider
             // reporting its OWN request timeout - every provider SDK talks over
@@ -230,6 +238,9 @@ public sealed class ChildAgentInvoker : AIAgent
             // sub-agent's wait limit sends the operator to the wrong dial and
             // counts a provider outage on the wait-limit metric, so no
             // ChildRunTimedOut event is written here. Phase 166.
+            //
+            // A workflow step (ChildRefusalMode.Fail) does not reach this catch:
+            // the provider's own exception fails the step as it is (F-328).
             return new AgentResponse(new ChatMessage(ChatRole.Assistant, ProviderFaultRefusal()));
         }
         finally
@@ -250,7 +261,7 @@ public sealed class ChildAgentInvoker : AIAgent
 
         if (Refuse(scope) is { } refusal)
         {
-            yield return new AgentResponseUpdate(ChatRole.Assistant, refusal);
+            yield return RefusedUpdate(refusal);
             yield break;
         }
 
@@ -286,21 +297,27 @@ public sealed class ChildAgentInvoker : AIAgent
                     ObserveAbandonedChild(step.AbandonedMoveNext!, deadline);
 
                     await WriteTimedOutAsync(scope!, childOptions, hardCutoff: true, CancellationToken.None).ConfigureAwait(false);
-                    yield return new AgentResponseUpdate(ChatRole.Assistant, TimeoutRefusal());
+                    yield return RefusedUpdate(TimeoutRefusal());
                     yield break;
                 }
 
                 if (step.Outcome == ChildStepOutcome.CooperativeTimeout)
                 {
                     await WriteTimedOutAsync(scope!, childOptions, hardCutoff: false, CancellationToken.None).ConfigureAwait(false);
-                    yield return new AgentResponseUpdate(ChatRole.Assistant, TimeoutRefusal());
+                    yield return RefusedUpdate(TimeoutRefusal());
                     yield break;
                 }
 
                 if (step.Outcome == ChildStepOutcome.ProviderFault)
                 {
                     // K-737, same distinction as the non-streaming path: no
-                    // wait limit fired, so no ChildRunTimedOut event.
+                    // wait limit fired, so no ChildRunTimedOut event. A
+                    // workflow step fails with the provider's own exception.
+                    if (_refusalMode == ChildRefusalMode.Fail)
+                    {
+                        step.Fault!.Throw();
+                    }
+
                     yield return new AgentResponseUpdate(ChatRole.Assistant, ProviderFaultRefusal());
                     yield break;
                 }
@@ -311,7 +328,7 @@ public sealed class ChildAgentInvoker : AIAgent
                 }
 
                 yield return ChildRunApproval.Describe(step.Update!.Contents) is { } pending
-                    ? new AgentResponseUpdate(ChatRole.Assistant, ApprovalRefusal(pending))
+                    ? RefusedUpdate(ApprovalRefusal(pending))
                     : step.Update;
             }
         }
@@ -356,12 +373,14 @@ public sealed class ChildAgentInvoker : AIAgent
                 ? ChildStep.Next(enumerator.Current)
                 : ChildStep.Done();
         }
-        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException exception) when (!cancellationToken.IsCancellationRequested)
         {
             // 🚨 K-737: only OUR deadline firing makes this a wait limit. An
             // OperationCanceledException raised while neither token was
             // cancelled is the provider's own request timeout. Phase 166.
-            return deadline.IsCancellationRequested ? ChildStep.TimedOut() : ChildStep.Faulted();
+            return deadline.IsCancellationRequested
+                ? ChildStep.TimedOut()
+                : ChildStep.Faulted(ExceptionDispatchInfo.Capture(exception));
         }
     }
 
@@ -370,12 +389,20 @@ public sealed class ChildAgentInvoker : AIAgent
     /// when the call is allowed.
     /// </summary>
     /// <remarks>
-    /// The refusal is returned as a <em>tool result</em>, not an exception.
-    /// Throwing an exception would fail the calling agent's run; whereas
-    /// "I could not make this sub-call" is a normal result the model can
-    /// evaluate and try another approach for.
+    /// <para>
+    /// For agent delegation the refusal is returned as a <em>tool result</em>,
+    /// not an exception. Throwing an exception would fail the calling agent's
+    /// run; whereas "I could not make this sub-call" is a normal result the
+    /// model can evaluate and try another approach for.
+    /// </para>
+    /// <para>
+    /// A workflow step is the opposite case (<see cref="ChildRefusalMode.Fail"/>):
+    /// no model reads the step's answer, a graph edge does. Returned as
+    /// text, the refusal became the next node's input and the run ended
+    /// <c>Completed</c>.
+    /// </para>
     /// </remarks>
-    private string? Refuse(AgentRunScope? scope)
+    private ChildRefusal? Refuse(AgentRunScope? scope)
     {
         if (scope is null)
         {
@@ -385,17 +412,19 @@ public sealed class ChildAgentInvoker : AIAgent
                 _callerName,
                 _childName);
 
-            return $"Could not call agent '{_childName}': sub-agent calls are disabled " +
-                   "because run recording is off.";
+            return new ChildRefusal(
+                $"Could not call agent '{_childName}': sub-agent calls are disabled " +
+                "because run recording is off.");
         }
 
         var maxDepth = scope.Budget?.MaxDepth ?? 0;
 
         if (scope.Depth + 1 > maxDepth)
         {
-            return $"Could not call agent '{_childName}': the call depth limit was exceeded " +
-                   $"(the maximum allowed depth is {maxDepth}). Finish the work yourself, or " +
-                   "build a call chain with fewer layers.";
+            return new ChildRefusal(
+                $"Could not call agent '{_childName}': the call depth limit was exceeded " +
+                $"(the maximum allowed depth is {maxDepth}). Finish the work yourself, or " +
+                "build a call chain with fewer layers.");
         }
 
         // Tenant leakage happens exactly here. The sub-call runs on another
@@ -412,12 +441,14 @@ public sealed class ChildAgentInvoker : AIAgent
                 scope.TenantId,
                 _tenantContext.TenantId);
 
-            return $"Could not call agent '{_childName}': a sub-run cannot leave the caller's tenant.";
+            return new ChildRefusal($"Could not call agent '{_childName}': a sub-run cannot leave the caller's tenant.");
         }
 
         if (scope.Budget is { } budget && !budget.TryReserveRun())
         {
-            return $"Could not call agent '{_childName}': {budget.DescribeExhaustion()}";
+            return new ChildRefusal(
+                $"Could not call agent '{_childName}': {budget.DescribeExhaustion()}",
+                ChildRefusalCause.Budget);
         }
 
         return null;
@@ -484,15 +515,62 @@ public sealed class ChildAgentInvoker : AIAgent
             "may have since been deleted.");
     }
 
-    private string ApprovalRefusal(string toolNames)
-        => $"Agent '{_childName}' could not complete: tool '{toolNames}' requires user approval. " +
-           "A sub-agent cannot request approval; approval is the input of the next turn and " +
-           "cannot be awaited in the middle of the tree. Define an auto-approval rule for this " +
-           "tool, or restrict the sub-agent to tools that do not require approval.";
+    /// <summary>
+    /// The answer for a call that cannot deliver the sub-agent's own: the
+    /// refusal as text in <see cref="ChildRefusalMode.ToolResult"/>, thrown in
+    /// <see cref="ChildRefusalMode.Fail"/>.
+    /// </summary>
+    private AgentResponse Refused(ChildRefusal refusal)
+        => _refusalMode == ChildRefusalMode.Fail
+            ? throw ToException(refusal)
+            : new AgentResponse(new ChatMessage(ChatRole.Assistant, refusal.Text));
 
-    private string TimeoutRefusal()
-        => $"Agent '{_childName}' did not respond in time (limit: {_childDeadline}). The tree " +
-           "continues; the sub-call's eventual result, if any, is discarded.";
+    /// <summary>The streaming form of <see cref="Refused"/>.</summary>
+    private AgentResponseUpdate RefusedUpdate(ChildRefusal refusal)
+        => _refusalMode == ChildRefusalMode.Fail
+            ? throw ToException(refusal)
+            : new AgentResponseUpdate(ChatRole.Assistant, refusal.Text);
+
+    /// <summary>
+    /// The exception a workflow step fails with. The budget keeps the class
+    /// the same exhaustion has everywhere else (QuotaExceeded), the wait limit
+    /// gets its own (Timeout), and the rest are plain Tracon errors.
+    /// </summary>
+    private TraconException ToException(ChildRefusal refusal)
+        => refusal.Cause switch
+        {
+            ChildRefusalCause.Budget => new TraconRunBudgetExceededException(refusal.Text),
+            ChildRefusalCause.Timeout => new TraconChildRunTimeoutException(refusal.Text)
+            {
+                AgentName = _childName,
+                Timeout = _childDeadline,
+            },
+            _ => new TraconException(refusal.Text),
+        };
+
+    private ChildRefusal ApprovalRefusal(string toolNames)
+        => _refusalMode == ChildRefusalMode.Fail
+            ? new(
+                $"Agent '{_childName}' could not complete: tool '{toolNames}' requires user approval. " +
+                "A workflow step cannot wait for a tool approval. Define an auto-approval rule for this " +
+                "tool, or restrict the agent to tools that do not require approval.")
+            : new(
+                $"Agent '{_childName}' could not complete: tool '{toolNames}' requires user approval. " +
+                "A sub-agent cannot request approval; approval is the input of the next turn and " +
+                "cannot be awaited in the middle of the tree. Define an auto-approval rule for this " +
+                "tool, or restrict the sub-agent to tools that do not require approval.");
+
+    private ChildRefusal TimeoutRefusal()
+        => _refusalMode == ChildRefusalMode.Fail
+            ? new(
+                $"Agent '{_childName}' did not respond in time (limit: {_childDeadline}, " +
+                "'Tracon:AgentGraph:ChildDeadline'). The workflow step failed; its eventual result, " +
+                "if any, is discarded.",
+                ChildRefusalCause.Timeout)
+            : new(
+                $"Agent '{_childName}' did not respond in time (limit: {_childDeadline}). The tree " +
+                "continues; the sub-call's eventual result, if any, is discarded.",
+                ChildRefusalCause.Timeout);
 
     /// <summary>
     /// The refusal for a sub-call the provider itself broke off, kept
@@ -571,7 +649,8 @@ public sealed class ChildAgentInvoker : AIAgent
         ChildStepOutcome Outcome,
         bool HasNext,
         AgentResponseUpdate? Update,
-        Task<bool>? AbandonedMoveNext)
+        Task<bool>? AbandonedMoveNext,
+        ExceptionDispatchInfo? Fault = null)
     {
         public static ChildStep Next(AgentResponseUpdate update) => new(ChildStepOutcome.Completed, true, update, null);
 
@@ -579,9 +658,23 @@ public sealed class ChildAgentInvoker : AIAgent
 
         public static ChildStep TimedOut() => new(ChildStepOutcome.CooperativeTimeout, false, null, null);
 
-        public static ChildStep Faulted() => new(ChildStepOutcome.ProviderFault, false, null, null);
+        public static ChildStep Faulted(ExceptionDispatchInfo fault) => new(ChildStepOutcome.ProviderFault, false, null, null, fault);
 
         public static ChildStep Abandoned(Task<bool> moveNext) => new(ChildStepOutcome.HardCutoff, false, null, moveNext);
+    }
+
+    /// <summary>Why a call cannot deliver the sub-agent's answer, and the text that says so.</summary>
+    private sealed record ChildRefusal(string Text, ChildRefusalCause Cause = ChildRefusalCause.Other);
+
+    private enum ChildRefusalCause
+    {
+        Other,
+
+        /// <summary>The tree's run, token, cost or time budget refused the call.</summary>
+        Budget,
+
+        /// <summary>The sub-agent's wait limit fired.</summary>
+        Timeout,
     }
 
     private enum ChildStepOutcome
