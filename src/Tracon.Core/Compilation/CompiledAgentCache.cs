@@ -29,9 +29,11 @@ namespace Tracon;
 /// <para>
 /// The same rule covers what the agent depends on outside its definition. The
 /// dependency fingerprint measures skills, callable sub-agents, a shared
-/// instructions block, and the tenant's egress policy: a policy saved after an
-/// agent was cached changes the key, and the next resolve compiles again under
-/// that policy.
+/// instructions block, the tenant's egress policy, and the connection each remote
+/// (MCP) tool is bound to: a policy saved after an agent was cached changes the
+/// key, and the next resolve compiles again under that policy; a server definition
+/// changed or deleted after an agent was cached changes the key too, and the next
+/// resolve binds the live connection or fails the way an uncached compile does.
 /// </para>
 /// <para>
 /// The <c>tenant</c> component of the key is REQUIRED. Agent names are unique
@@ -81,9 +83,10 @@ public sealed class CompiledAgentCache
     /// </param>
     /// <param name="dependencyFingerprint">
     /// Current fingerprint of what the compiled agent depends on outside its
-    /// definition: skills, callable sub-agents, a shared instructions block, and
-    /// the tenant's egress policy. These can change while the definition stays
-    /// the same, so they need a separate key component.
+    /// definition: skills, callable sub-agents, a shared instructions block, the
+    /// tenant's egress policy, and the connection each remote tool is bound to.
+    /// These can change while the definition stays the same, so they need a
+    /// separate key component.
     /// </param>
     /// <param name="factory">Producer called when absent from the cache.</param>
     /// <returns>The compiled agent.</returns>

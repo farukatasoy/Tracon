@@ -18,8 +18,8 @@ internal sealed record AgentCompilationDependencies
     public required ResolvedCallableAgents CallableAgents { get; init; }
 
     /// <summary>
-    /// Gets the combined skill, callable-agent, shared-instructions, and tenant
-    /// egress policy fingerprint.
+    /// Gets the combined skill, callable-agent, shared-instructions, tenant
+    /// egress policy, and tool binding fingerprint.
     /// </summary>
     public required string CacheFingerprint { get; init; }
 

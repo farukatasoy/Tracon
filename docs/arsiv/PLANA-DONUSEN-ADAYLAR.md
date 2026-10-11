@@ -1901,3 +1901,41 @@ taşındı (2026-09-24).
 | F-271 | [Faz 188](fazlar/188-DI-KURUCU-DARALTMA.md) + [Faz 189](fazlar/189-TUKETICI-YUZEYI-VE-BUILDER.md) |
 | F-272 | [Faz 190](fazlar/190-KIMLIK-BASLIKLARI-ANAHTAR-REFERANSI.md) |
 | F-273 | [Faz 191](fazlar/191-TEK-DERLEME-ZINCIRI.md) |
+
+---
+
+## 2026-10-11 — İki kalem plana dönüştü (F-266 · F-293)
+
+F-266 aday dosyasında gövdesiz bir kanal satırıydı; kanıtı ve dokunulan
+yüzeyin tam envanteri faz dokümanındadır. F-293 2026-10-11 podcast turunun
+([keşif notu](../kesif/2026-10-11-podcast-tuketici.md)) kalemidir; gövdesi
+aşağıdadır. Engelleyici kararlar aynı gün sohbette alındı.
+
+| Kalem | Faz |
+|---|---|
+| F-293 | [Faz 192](../192-DONGU-TUKENME-POLITIKASI.md) |
+| F-266 | [Faz 193](../193-NET8-NET9-DUSURME.md) — uygulama 2026-11-10'dan önce başlamaz |
+
+### F-293 · Loop tükenince veya ölçüt hata verince run düşebilsin
+
+**Kanal:** faz planlama · 🟠
+
+**Sorun:** Tavana ulaşan son tur değerlendirilmez ve son yanıt döner; hata veren ölçüt döngüyü durdurur, run başarılı biter (`RecordingLoopEvaluator.cs:41-58`). `LoopSettings` yalnız `Criteria`, `MaxIterations`, `FreshContextPerIteration` taşır (`LoopSettings.cs:85-109`). Kalite kapısı kuran tüketicide reviewer'ın onaylamadığı metin sonraki adıma (TTS) geçer.
+
+**Kapsam:** `LoopSettings`'e tükenme ve ölçüt hatası politikası (`Return` varsayılan, K1 · `Fail`); `Fail` run'ı ayırt edilebilir hata sınıfıyla bitirir, workflow durur.
+
+**Değer:** Revizyon döngüsü kod grafı olmadan güvenli bir kalite kapısı olur.
+
+**Mercek:** 2, 5, 8.
+
+**Hazırlık:** MAF vermez — 1.24.0 `LoopAgentOptions` yalnız `MaxIterations`, `FreshContextPerIteration`, `OnBehalfOfAuthorName`, `ExcludeOnBehalfOfMessages`, `NonStreamingReturnsLastResponseOnly`, `SessionCreatedCallback`; `LoopEvaluation` yalnız `Stop`/`Continue`/`ContinueWithMessages` (yansıma probu, 2026-10-11). `ceilingReached` bilgisi Tracon'da zaten var.
+
+**Maliyet:** Bir public alan + enum; migration yok (tanım blob'u); `RunErrorClass` eşlemesi.
+
+**Risk:** Akışlı yolda son yanıt akmışken düşürmek tasarım ister.
+
+**Bağımlılık:** F-302 bu alanı konsolda gösterir.
+
+**Ekosistem:** MAF loop API'si `MAAI001` (değerlendirme amaçlı) — 2026-10-11.
+
+**Karşı görüş:** Reviewer kararını okuyup istisna atan bir fonksiyon düğümü bugün de aynı sonucu verir; ama kararı ikinci kez hesaplar ve loop'un kendi bilgisini atar.

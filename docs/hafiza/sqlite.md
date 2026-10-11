@@ -118,17 +118,24 @@
   varsayılan vermek, sütunu atlayan bir insert'in bir sağlayıcıda geçip
   diğerinde patladığı sessiz bir sağlayıcı farkı üretir. `run_scores.name` üçünde
   de `DEFAULT 'overall'` taşır ve bu, HTTP ucunun uyguladığı varsayılanla aynıdır.
-- **`SQLITE_LOCKED` (6) busy handler'a HİÇ ulaşmaz.** `PRAGMA busy_timeout`
-  yalnız `SQLITE_BUSY` için bekler; `SQLITE_LOCKED` için handler çağrılmaz, ∴
-  hiçbir timeout değeri onu kapsamaz. Reddedilen ifadeyi **yeniden göndermek**
-  tek çaredir — `SqliteRetryingCommand` bunu yapar (K-827). Çağıranın yönettiği
-  bir işlemin içindeki ifade yeniden denenmez: yalnız işlemin tamamı denenebilir.
+- **`SQLITE_LOCKED` (6) busy handler'a HİÇ ulaşmaz** — ama Microsoft.Data.Sqlite
+  onu kendisi yeniden gönderir. `SqliteDataReader.NextResult` `SQLITE_BUSY`,
+  `SQLITE_LOCKED` ve `262`'de 150 ms uyur ve ifadeyi yeniden adımlar; her tur
+  `busy_timeout` (5 sn) kadar bekler, **toplam bütçe `CommandTimeout`'tur**
+  (30 sn). ∴ 30–40 sn süren bir `database is locked` `busy_timeout`'un değil
+  `CommandTimeout`'un dolmasıdır (2026-10-11, F-307, decompile + ölçüm).
+- 🚨 **K-827'nin `SqliteRetryingCommand`'ı HİÇ yeniden denemiyordu — 2026-10-11'de silindi (F-312, seçenek c)** (aynı vaka,
+  prob: tek deneme, 5,2 sn). `CanRetry` filtresi `_inner.Transaction` okur; data
+  source komutu `DbCommandWrapper`'dır ve o getter `NotSupportedException` atar.
+  `catch ... when` filtresinde atılan istisna **yutulur**, filtre `false` olur.
+  Bağlantı üstünden açılan komutlar (işlemler, migration) hiç sarmalanmaz. Ders:
+  filtre atabilen bir üyeye dokunmaz; sarmalayıcıyı gerçek iç tiple ölç.
 - 🚨 **Kilit çekişmesini sahneleyen bir test, düzeltme KALDIRILDIĞINDA da
   geçer.** Yazma kilidini bir an tutup "yazma yine ulaştı" demek `busy_timeout`'un
   zaten yuttuğu bir şeyi ölçer — ölçüldü, `CreateDbCommand` override'ı silinmiş
-  hâlde aynı test yeşil kaldı. Retry'ı kanıtlamak için mekanizmayı (sahte bir iç
-  komutla: reddet, reddet, başar) ve kablolamayı (data source'un verdiği her
-  komut sarmalı mı) AYRI AYRI ölç.
+  hâlde aynı test yeşil kaldı. Mekanizma (sahte iç komut) ve kablolama (tip
+  kontrolü) ayrı ayrı ölçüldü — ama ikisi de yeşilken retry hiç koşmadı (üstteki
+  madde): üçüncü ölçüm gerçek iç komutla **birleşimdir**.
 
 - **🚨 `chmod` ÇALIŞAN bir sürecin SQLite yazmalarını durdurmaz** (2026-09-19,
   manuel kapanış `MT-SQL-071`): iki ayrı sebep birlikte ölçüldü. (1) Unix

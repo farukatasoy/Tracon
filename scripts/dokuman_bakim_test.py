@@ -1773,6 +1773,118 @@ class FIdSayaciTestleri(unittest.TestCase):
         self.assertEqual([], dokuman_bakim.f_id_sayaci_bulgulari())
 
 
+class AdaylarHizasiTestleri(unittest.TestCase):
+    """ADAYLAR.md yalniz yapilacak isi tasir ve kendi icinde tutarlidir (2026-10-11).
+
+    Yasam dongusu kurali yaziliydi ama silme adimi bir kapiya bagli degildi;
+    kullanici "aday dosyasi projeyle her zaman hizali kalsin" dedi."""
+
+    @staticmethod
+    def _adaylar(durum: int = 1, *, siralanabilir: str = "### F-20 · aday\n\ngövde\n",
+                 faz_planlama: str = "| 🟠 | F-20 · aday | n | Gövde: § *F-20* |\n",
+                 kusur: str = "| 🟡 | **F-21** · kusur | s | y |\n") -> str:
+        return (
+            "# ADAYLAR\n\n"
+            f"**Durum (2026-10-11):** sıralanabilir kuyrukta **{durum}** aday var.\n\n"
+            f"## Sıralanabilir Adaylar\n\n{siralanabilir}\n"
+            "## Bekleyen Kalemler\n\n"
+            f"### Kusur giderme\n\n| Aciliyet | Kalem | Sorun | Ne yapılır |\n|---|---|---|---|\n{kusur}\n"
+            f"### Faz planlama\n\n| Aciliyet | Kalem | Neden | Plan notu |\n|---|---|---|---|\n{faz_planlama}\n"
+            "### Tetik bekleyenler\n\n| Kalem | Engel | Koşul |\n|---|---|---|\n"
+            "| **F-22** · tetik | e | k |\n\n"
+            "## Aday Olmayan Açık Kayıtlar\n\nSıradaki numara: **F-23**.\n")
+
+    def _kok(self, adaylar: str, *, fazlar: dict[str, str] | None = None,
+             kapanan: str = "") -> pathlib.Path:
+        kok = pathlib.Path(tempfile.mkdtemp())
+        (kok / "docs" / "arsiv" / "fazlar").mkdir(parents=True)
+        (kok / "docs" / "ADAYLAR.md").write_text(adaylar, encoding="utf-8")
+        (kok / "docs" / "arsiv" / "ERTELENEN-ADAYLAR.md").write_text(
+            "# ERTELENEN\n\n## Kapanan kalemler\n\n| Kalem | Kapanış | Kanıt |\n|---|---|---|\n"
+            f"{kapanan}\n### Başka bölüm\n\n| **F-22** · burada değil | x | y |\n", encoding="utf-8")
+        for yol, icerik in (fazlar or {}).items():
+            (kok / yol).write_text(icerik, encoding="utf-8")
+        return kok
+
+    @staticmethod
+    def _faz(kaynak: str) -> str:
+        return f"# Faz\n\n> **Durum:** 📋 Planlandı (2026-10-11)\n> **Kaynak:** {kaynak}\n"
+
+    def test_tutarli_dosya_yanlis_pozitif_uretmez(self):
+        self.assertEqual([], dokuman_bakim.adaylar_hizasi_bulgulari(self._kok(self._adaylar())))
+
+    def test_plana_donusup_silinmeyen_kalem_KIRMIZIDIR(self):
+        kok = self._kok(self._adaylar(), fazlar={
+            "docs/192-X.md": self._faz("[ADAYLAR.md](ADAYLAR.md) · **F-21**")})
+        bulgular = dokuman_bakim.adaylar_hizasi_bulgulari(kok)
+        self.assertEqual(1, len(bulgular), bulgular)
+        self.assertIn("F-21 plana dönüşmüş", bulgular[0])
+        self.assertIn("docs/192-X.md", bulgular[0])
+
+    def test_arsivdeki_faz_da_sayilir(self):
+        kok = self._kok(self._adaylar(), fazlar={
+            "docs/arsiv/fazlar/150-X.md": self._faz("· **F-22** — tetik")})
+        bulgular = dokuman_bakim.adaylar_hizasi_bulgulari(kok)
+        self.assertEqual(1, len(bulgular), bulgular)
+        self.assertIn("F-22 plana dönüşmüş", bulgular[0])
+
+    def test_fazi_anan_KISMEN_acik_kalem_yesildir(self):
+        # F-178 / Faz 133 deseni: kalemin bir yarisi plana donustu, digeri acik.
+        adaylar = self._adaylar(kusur="| 🟡 | **F-21** · kalan yarı — ilk yarı Faz 133'te | s | y |\n")
+        kok = self._kok(adaylar, fazlar={
+            "docs/arsiv/fazlar/133-Y.md": self._faz("· **F-21** (bir yarısı)")})
+        self.assertEqual([], dokuman_bakim.adaylar_hizasi_bulgulari(kok))
+
+    def test_faz_numarasi_onek_eslesmesi_istisna_sayilmaz(self):
+        # "Faz 1330" Faz 133'u anmaz.
+        adaylar = self._adaylar(kusur="| 🟡 | **F-21** · bkz. Faz 1330 | s | y |\n")
+        kok = self._kok(adaylar, fazlar={"docs/arsiv/fazlar/133-Y.md": self._faz("· **F-21**")})
+        self.assertEqual(1, len(dokuman_bakim.adaylar_hizasi_bulgulari(kok)))
+
+    def test_kapanip_silinmeyen_kalem_KIRMIZIDIR(self):
+        kok = self._kok(self._adaylar(), kapanan="| **F-21** · kusur | 2026-10-11 | kanıt |\n")
+        bulgular = dokuman_bakim.adaylar_hizasi_bulgulari(kok)
+        self.assertEqual(1, len(bulgular), bulgular)
+        self.assertIn("F-21 kapanmış", bulgular[0])
+
+    def test_kapanan_tablosunun_disindaki_satir_sayilmaz(self):
+        # F-22 ERTELENEN'in BASKA bir bolumunde geciyor; kapanmis degildir.
+        self.assertEqual([], dokuman_bakim.adaylar_hizasi_bulgulari(self._kok(self._adaylar())))
+
+    def test_govdesi_silinen_kalemin_satiri_KIRMIZIDIR(self):
+        kok = self._kok(self._adaylar(durum=0, siralanabilir=""))
+        bulgular = dokuman_bakim.adaylar_hizasi_bulgulari(kok)
+        self.assertEqual(1, len(bulgular), bulgular)
+        self.assertIn("`### F-20` gövdesi yok", bulgular[0])
+
+    def test_satiri_silinen_govde_KIRMIZIDIR(self):
+        kok = self._kok(self._adaylar(faz_planlama=""))
+        bulgular = dokuman_bakim.adaylar_hizasi_bulgulari(kok)
+        self.assertEqual(1, len(bulgular), bulgular)
+        self.assertIn("hiçbir kanal tablosunda satırı yok", bulgular[0])
+
+    def test_aciliyet_sirasi_bozuk_tablo_KIRMIZIDIR(self):
+        kok = self._kok(self._adaylar(
+            kusur="| 🟢 | **F-21** · düşük | s | y |\n| 🔴 | **F-19** · acil | s | y |\n"))
+        bulgular = dokuman_bakim.adaylar_hizasi_bulgulari(kok)
+        self.assertEqual(1, len(bulgular), bulgular)
+        self.assertIn("§ Kusur giderme tablosu aciliyete göre sıralı değil", bulgular[0])
+
+    def test_durum_satiri_sayimi_kayarsa_KIRMIZIDIR(self):
+        bulgular = dokuman_bakim.adaylar_hizasi_bulgulari(self._kok(self._adaylar(durum=2)))
+        self.assertEqual(1, len(bulgular), bulgular)
+        self.assertIn("2 aday yazıyor ama", bulgular[0])
+
+    def test_okunamayan_durum_satiri_bulgudur(self):
+        metin = self._adaylar().replace("kuyrukta **1** aday", "kuyrukta bir aday")
+        bulgular = dokuman_bakim.adaylar_hizasi_bulgulari(self._kok(metin))
+        self.assertEqual(1, len(bulgular), bulgular)
+        self.assertIn("okunamadı", bulgular[0])
+
+    def test_GERCEK_depoda_bulgu_YOK(self):
+        self.assertEqual([], dokuman_bakim.adaylar_hizasi_bulgulari())
+
+
 class BagimlilikSurumDamgasiTestleri(unittest.TestCase):
     """Sevk edilen XML'deki surum damgasi ile pin (F-171'in ikinci yarisi)."""
 

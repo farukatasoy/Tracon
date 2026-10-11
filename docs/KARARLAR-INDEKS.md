@@ -2,15 +2,14 @@
 
 > **Üretilen, elle düzenlenmez.** Kaynak: `KARARLAR.md` · üretim: `scripts/dokuman-bakim.py`
 
-Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 791 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
+Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 792 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
 
 ---
 
-## En Yeni Kalıcı Kararlar (88 / 879 kalem)
+## En Yeni Kalıcı Kararlar (88 / 880 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
-| K-792 | 843 | İptal, sevk edilen store sözleşmesinin bir parçasıdır: zaten iptal edilmiş bir token ile çağrılan store metodu `OperationCanceledException` fırlatır ve HİÇBİR satır yazmaz 👤 |
 | K-793 | 844 | `StoreCancellationContract<TStore>` her store sözleşmesinin KÖKÜDÜR; `TenantIsolationContract<TStore>` ondan türer 👤 |
 | K-794 | 845 | Akış dönen bir store okuma metodunun İLK `MoveNextAsync`'i iptal edilmiş token'da fırlatır 👤 |
 | K-795 | 846 | `tracon` komutu tüketicinin ÇALIŞMA AĞACINA yazar; sözleşme "yalnız yokken yaz"dır ve varsayılan hedef REPO KÖKÜDÜR 👤 |
@@ -98,3 +97,4 @@ Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLA
 | K-877 | 928 | `requiresApproval: false` yazımı API key ile çağrıldığında `AgentsAdmin`'e EK olarak `SecurityAdmin` ister: yeni sunucuda, `true`→`false` geçişinde ve feragat sürerken endpoint değiştiğinde; değişmeyen feragatin yeniden kaydı ve onayı yeniden istemek serbesttir; kontrol aynı uçtadır (`CrossTenantAuthority` emsali) (F-284, kusur-giderme 2026-10-11) (kullanıcı kararı) 👤 |
 | K-878 | 929 | Sağlayıcı-barındırmalı canlı ses kiracının egress politikasına ve kendi anahtarına (BYOK) tabidir: denetim oturum satırından, slot'tan ve sağlayıcı çağrısından ÖNCE launcher'da koşar; anahtar `LiveVoiceCreateRequest.Credential` ve yeni `ILiveVoiceProvider.AttachSessionAsync(LiveVoiceAttachRequest)` ile sağlayıcıya geçer; `SupportsTenantCredentials` (varsayılan `false`) olmayan sağlayıcı bağlamalı kiracıya `403` verir; uç nokta override'ı taşıyan bağlama canlı seste launcher'da `403` ile reddedilir; politika ve kimlik kuralı `TenantProviderAccess`'te TEK yerde yaşar (F-306, kusur-giderme 2026-10-11) (kullanıcı kararı) 👤 |
 | K-879 | 930 | Bir run'ın olayları TEK TEK yazılır: numara, `store` yazımı ve sink dağıtımı tek adımdır, sonraki olay bekler (`RunEventWriter` başına `SemaphoreSlim`); sink içinden aynı writer'a append beklemek yerine `InvalidOperationException` atar ve sink devre dışı kalır; bekleme çağıranın token'ını dinler; bellek içi `ReadEventsAsync` sıralı okur (F-257, kusur-giderme 2026-10-11) |
+| K-880 | 931 | Derlenmiş agent önbelleğinin anahtarı, tanımın her MCP tool'unun bağlı olduğu bağlantı ÖRNEĞİNİN kimliğini (`McpConnection.Generation`) taşır; anlık görüntüde olmayan ad `absent` yazar (silme, devre dışı, refresh hatası); aynı adlı kod tool'u bileşen eklemez; uzak tool açıklaması ve şeması anahtara girmez (F-305, kusur-giderme 2026-10-11) (kullanıcı kararı) 👤 |

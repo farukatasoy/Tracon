@@ -659,6 +659,20 @@ class PerformansKapisiTestleri(unittest.TestCase):
         self.assertEqual(exit_code, 1)
         self.assertTrue(any("Yeni" in message and "taban çizgisinde yok" in message for message in messages))
 
+    def test_olcum_uretmeyen_benchmark_anlasilir_kirmizi_olur(self):
+        # 2026-10-11: BenchmarkDotNet aynı ada sahip ikinci bir .csproj bulunca
+        # (.claude/worktrees altındaki agent worktree'leri) boilerplate'i
+        # üretemedi; rapor `BytesAllocatedPerOperation: null` taşıdı ve kapı
+        # anlamlı bir mesaj yerine TypeError ile çöktü.
+        report = {"Benchmarks": [{"FullName": "A", "Statistics": None,
+                                  "Memory": {"BytesAllocatedPerOperation": None}}]}
+        current = kapi.parse_benchmark_report(report)
+
+        exit_code, messages = kapi.compare_allocations({"A": {"allocatedBytes": 24, "meanNanoseconds": 1.0}}, current)
+
+        self.assertEqual(exit_code, 1)
+        self.assertTrue(any("A" in message and "ölçüm üretmedi" in message for message in messages))
+
     def test_bu_kosumda_uretilmeyen_benchmark_kirmizi_olur(self):
         exit_code, messages = kapi.compare_allocations({"Eski": {"allocatedBytes": 10, "meanNanoseconds": 1.0}}, {})
 

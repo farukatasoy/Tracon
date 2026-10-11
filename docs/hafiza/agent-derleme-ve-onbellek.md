@@ -70,5 +70,23 @@
   giren her bağımlılığın durumu ya anahtara girer, ya önbelleği atlatır, ya da
   yalnız çalışma anında okunur — üçünden biri, testle. Kapı:
   `CompiledAgentCacheKeyCoverageTests` (iki kurucunun her parametresi
-  sınıflı; yeni parametre sınıflanmadan test geçmez). Açık: F-305 (MCP tool
-  anlık görüntüsü anahtarda yok). K-875.
+  sınıflı; yeni parametre sınıflanmadan test geçmez). Altıncı vaka aşağıda
+  (F-305). K-875.
+- **🚨 Anahtar yalnız gömülen DEĞERİ değil, gömülen NESNENİN bağlı olduğu canlı
+  durumu da ölçmelidir** (2026-10-11, F-305). Derleyici MCP tool nesnesini
+  gömer; o nesne keşfedildiği `McpClient` üzerinden çağırır. Sunucu
+  düzenlenince veya silinince katalog bağlantıyı kapatır, ama anahtar
+  değişmiyordu: önbellekteki agent'ın her sonraki run'ı kapalı oturuma gitti
+  (HTTP `200`, `Completed`, `ToolFailed`/`TaskCanceledException`, model
+  "Error: Function failed." gördü). Onay yeniden açılınca agent onay
+  istemedi; tool'u yalnız kapalı bağlantı durdurdu. Ölçü bağlantı ÖRNEĞİNİN
+  kimliğidir (`McpConnection.Generation`), tanım parmak izi değil: sil +
+  aynı tanımla yeniden ekle aynı parmak izini ama yeni bir bağlantı üretir
+  (K-811 deseni). Anlık görüntüde olmayan ad `absent` yazar; refresh hatası
+  da bunu üretir ve önbellekli yol önbelleksiz derlemeyle aynı reddi verir.
+  **Test tuzağı:** `McpApprovalRuleSourceTests` her run'a ayrı agent veriyor
+  ya da tanımı değiştiriyordu, bu yüzden önbellek isabetini hiç görmedi.
+  Önbellek davranışını kanıtlayan test AYNI agent'ı AYNI tanımla iki kez
+  koşmalıdır; `FakeModelProvider` kuyruğu provider'da yaşar, ikinci run'dan
+  önce `CallsTool` yeniden kuyruğa konur. Kapı: `McpToolCacheTests` (beş case,
+  `{server}_read_resource` dahil). K-880.

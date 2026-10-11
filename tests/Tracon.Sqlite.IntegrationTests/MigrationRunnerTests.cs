@@ -133,16 +133,21 @@ public sealed class MigrationRunnerTests(SqliteFixture fixture)
     [Fact]
     public async Task Migration_locks_for_different_prefixes_do_not_block_each_other()
     {
-        var dialectA = new SqliteDialect(SqliteTestContext.NewTablePrefix());
+        var prefixA = SqliteTestContext.NewTablePrefix();
+        var dialectA = new SqliteDialect(prefixA);
         var dialectB = new SqliteDialect(SqliteTestContext.NewTablePrefix());
 
-        await using var connectionA = new SqliteConnection(fixture.ConnectionString);
+        // Both prefixes in ONE file: the claim is about two installations that
+        // share a database, so the lock files must sit beside the same file.
+        var sharedFile = fixture.ConnectionStringFor(prefixA);
+
+        await using var connectionA = new SqliteConnection(sharedFile);
         await connectionA.OpenAsync();
         await dialectA.AcquireMigrationLockAsync(connectionA, 30, CancellationToken.None);
 
         try
         {
-            await using var connectionB = new SqliteConnection(fixture.ConnectionString);
+            await using var connectionB = new SqliteConnection(sharedFile);
             await connectionB.OpenAsync();
 
             // A lock shared across schemas would keep B waiting until A's release
@@ -159,6 +164,60 @@ public sealed class MigrationRunnerTests(SqliteFixture fixture)
         {
             await dialectA.ReleaseMigrationLockAsync(connectionA, 30, CancellationToken.None);
         }
+    }
+
+    /// <summary>
+    /// K-193: SQLite index names are database-wide, so every index name in the
+    /// migrations carries the table prefix. Two prefixes in ONE file must each
+    /// get the full index set; an unprefixed name would turn the second
+    /// prefix's <c>CREATE INDEX IF NOT EXISTS</c> into a silent no-op.
+    /// </summary>
+    /// <remarks>
+    /// Since F-307 every test prefix has its own file, so this layout no
+    /// longer happens by accident across test classes; it is built here on
+    /// purpose.
+    /// </remarks>
+    [Fact]
+    public async Task Two_prefixes_in_one_file_each_get_the_full_index_set()
+    {
+        var prefixA = SqliteTestContext.NewTablePrefix();
+        var prefixB = SqliteTestContext.NewTablePrefix();
+        await using var sharedFile = new SqliteDataSource(fixture.ConnectionStringFor(prefixA));
+
+        foreach (var prefix in new[] { prefixA, prefixB })
+        {
+            var runner = new MigrationRunner(
+                new SqlStoreContext
+                {
+                    DataSource = sharedFile,
+                    Dialect = new SqliteDialect(prefix),
+                    CommandTimeoutSeconds = 30,
+                    ProviderName = "SQLite",
+                },
+                NullLogger<MigrationRunner>.Instance);
+
+            (await runner.ApplyAsync(TestContext.Current.CancellationToken)).ShouldBe(EmbeddedMigrationCount);
+        }
+
+        var indexes = new List<(string Table, string Name)>();
+
+        await using (var command = sharedFile.CreateCommand(
+            "SELECT tbl_name, name FROM sqlite_master WHERE type = 'index' AND name NOT LIKE 'sqlite_autoindex%';"))
+        await using (var reader = await command.ExecuteReaderAsync(TestContext.Current.CancellationToken))
+        {
+            while (await reader.ReadAsync(TestContext.Current.CancellationToken))
+            {
+                indexes.Add((reader.GetString(0), reader.GetString(1)));
+            }
+        }
+
+        var onA = indexes.Where(index => index.Table.StartsWith(prefixA, StringComparison.Ordinal)).ToList();
+        var onB = indexes.Where(index => index.Table.StartsWith(prefixB, StringComparison.Ordinal)).ToList();
+
+        onA.ShouldNotBeEmpty();
+        onB.Count.ShouldBe(onA.Count, "the second prefix lost indexes to a name the first prefix already took");
+        onA.ShouldAllBe(index => index.Name.StartsWith(prefixA, StringComparison.Ordinal));
+        onB.ShouldAllBe(index => index.Name.StartsWith(prefixB, StringComparison.Ordinal));
     }
 
     [Fact]
@@ -291,7 +350,7 @@ public sealed class MigrationRunnerTests(SqliteFixture fixture)
         var prefix = SqliteTestContext.NewTablePrefix();
 
         await using var owner = SqliteTestContext.Create(fixture, prefix);
-        await using var faults = NewFaultDataSource(target, failures: 3);
+        await using var faults = NewFaultDataSource(prefix, target, failures: 3);
 
         var applied = await NewRunner(faults, prefix).ApplyAsync(TestContext.Current.CancellationToken);
 
@@ -310,7 +369,7 @@ public sealed class MigrationRunnerTests(SqliteFixture fixture)
         var prefix = SqliteTestContext.NewTablePrefix();
 
         await using var owner = SqliteTestContext.Create(fixture, prefix);
-        await using var faults = NewFaultDataSource("__migrations (", failures: 1000);
+        await using var faults = NewFaultDataSource(prefix, "__migrations (", failures: 1000);
 
         var runner = NewRunner(faults, prefix);
 
@@ -324,9 +383,9 @@ public sealed class MigrationRunnerTests(SqliteFixture fixture)
         exception.InnerException.ShouldBeOfType<SqliteException>();
     }
 
-    private TransientFaultDataSource NewFaultDataSource(string target, int failures)
+    private TransientFaultDataSource NewFaultDataSource(string tablePrefix, string target, int failures)
         => new(
-            new SqliteDataSource(fixture.ConnectionString),
+            new SqliteDataSource(fixture.ConnectionStringFor(tablePrefix)),
             sql => sql.Contains(target, StringComparison.Ordinal),
             failures);
 
@@ -432,7 +491,7 @@ public sealed class MigrationRunnerTests(SqliteFixture fixture)
             new MigrationRunner(
                 new SqlStoreContext
                 {
-                    DataSource = new SqliteDataSource(fixture.ConnectionString),
+                    DataSource = new SqliteDataSource(fixture.ConnectionStringFor(SqliteTestContext.NewTablePrefix())),
                     Dialect = new SqliteDialect("PUBLIC"),
                     CommandTimeoutSeconds = 30,
                     ProviderName = "SQLite",

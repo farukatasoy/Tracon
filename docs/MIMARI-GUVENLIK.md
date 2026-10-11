@@ -95,7 +95,9 @@ sunucu adıyla `tool_invocations`'a yazılır. Sunucu kaydı (`AgentsAdmin`) ile
 politikası (`SecurityAdmin`) ayrı rollerdir: kalıcı onay kuralı tool'un endpoint'inin
 parmak izini taşır ve yalnız o endpoint'te eşleşir (K-876); `requiresApproval: false`
 feragati API key ile `SecurityAdmin` ister — yeni kayıtta, `true`→`false`'ta ve
-endpoint değişiminde (K-877).
+endpoint değişiminde (K-877). Sunucu düzenlemesi ve silme önbellekteki agent'a bir
+sonraki çözümde ulaşır: önbellek anahtarı her MCP tool'unun bağlı olduğu bağlantının
+kimliğini taşır, onay yeniden açılınca agent yeniden derlenir ve onay ister (K-880).
 
 **Kiracı çözümleme.** Varsayılan **kapalıdır**; açıldığında sıra:
 

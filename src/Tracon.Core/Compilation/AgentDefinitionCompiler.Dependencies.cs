@@ -61,18 +61,43 @@ public sealed partial class AgentDefinitionCompiler
         var callable = await ResolveCallableAgentsAsync(definition, cancellationToken).ConfigureAwait(false);
         var shared = await ResolveSharedInstructionsAsync(definition, cancellationToken).ConfigureAwait(false);
         var egress = await ResolveEgressPolicyFingerprintAsync(cancellationToken).ConfigureAwait(false);
+        var toolBindings = ResolveToolBindingFingerprint(definition);
 
         return new AgentCompilationDependencies
         {
             CallableAgents = callable,
             CacheFingerprint = CompiledAgentCache.CombineFingerprints(
                 CompiledAgentCache.CombineFingerprints(
-                    CompiledAgentCache.CombineFingerprints(skills.Fingerprint, callable.Fingerprint),
-                    shared.Fingerprint),
-                egress),
+                    CompiledAgentCache.CombineFingerprints(
+                        CompiledAgentCache.CombineFingerprints(skills.Fingerprint, callable.Fingerprint),
+                        shared.Fingerprint),
+                    egress),
+                toolBindings),
             BypassCache = await HoldsTenantCredentialAsync(definition, cancellationToken).ConfigureAwait(false),
         };
     }
+
+    /// <summary>Produces the cache fingerprint of the bindings behind the definition's tools.</summary>
+    /// <returns>
+    /// An empty string when the registry serves only tools defined in code, or none
+    /// of the definition's tools comes from replaceable state. The cache key is then
+    /// the same as before the bindings took part in it.
+    /// </returns>
+    // 🚨 F-305 (2026-10-11): the compiler bakes the tool OBJECT into the agent, and
+    // an MCP tool object calls through the connection it was discovered on. When a
+    // server definition changed or the server was deleted, the catalog closed that
+    // connection but the key stayed the same: every later run of the cached agent
+    // called the closed connection (HTTP 200, "Error: Function failed."), and a
+    // server switched back to requiring approval was called without asking. The
+    // registry reports the identity of each connection a tool is bound to - the
+    // thing that is embedded, not a proxy for it (K-811) - so a replaced connection
+    // changes the key and the next resolve compiles against the live one. A name
+    // missing from the snapshot changes the key too: the cached path then fails the
+    // way an uncached compile does.
+    private string ResolveToolBindingFingerprint(AgentDefinition definition)
+        => definition.ToolNames.Count > 0 && _tools is IToolBindingResolver bindings
+            ? bindings.GetBindingFingerprint(definition.ToolNames)
+            : string.Empty;
 
     /// <summary>Produces the cache fingerprint of the current tenant's egress policy.</summary>
     /// <returns>

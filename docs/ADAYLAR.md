@@ -12,9 +12,10 @@
 > ([`kesif/`](kesif/)) · "bir daha önerilmez" listesini
 > ([`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md)).
 
-**Durum (2026-10-11):** sıralanabilir kuyrukta on bir aday var (F-293…F-303,
+**Durum (2026-10-11):** sıralanabilir kuyrukta **10** aday var (F-294…F-303,
 podcast turu). Bugün yapılabilecek iş § *Bekleyen Kalemler*'in üç
-kanal tablosundadır.
+kanal tablosundadır. Planlanmış fazlar burada değil, üretilen
+[`YOL-HARITASI.md`](YOL-HARITASI.md)'dedir.
 
 ---
 
@@ -86,40 +87,27 @@ sıralıdır.
   kalemler* tablosuna tek satırla (tarih + kanıt) taşınır. Numara orada
   yaşamaya devam eder; sayaç kapısı onu da sayar.
 - **Kısmen kapanan kalem** yerinde kalır; satırı yalnız **kalan** işi anlatır.
+  Bir yarısı plana dönüştüyse kalem metni o fazı `Faz NNN` diye anar.
+
+Bu kurallar yazıyla değil **kapıyla** korunur:
+`python3 scripts/dokuman-bakim.py --denetle` → *Aday dosyasının hizası*
+(`adaylar_hizasi_bulgulari`). Kapı şunları kırmızı yapar: bir faz
+dokümanının `> **Kaynak:**` satırındaki F-ID burada hâlâ kalemse ·
+§ *Kapanan kalemler* tablosundaki F-ID burada hâlâ kalemse · gövdesi
+olmayan `Gövde: § *F-NNN*` atfı · satırı olmayan aday gövdesi · aciliyet
+sırası bozuk kanal tablosu · § *Sıralanabilir Adaylar*'daki gövde sayısıyla
+tutmayan **Durum** satırı. Bir kalemi kapatan ya da plana çeviren oturum bu
+dosyayı **aynı değişiklikte** düzeltir.
 
 ---
 
 ## Sıralanabilir Adaylar
 
 Bir kalem buraya § *Değerlendirme Ölçütleri*'nin tam gövdesiyle girer; yeni
-aday `aday-kesfi` ile üretilir. Bugünkü on bir kalem 2026-10-11 podcast
+aday `aday-kesfi` ile üretilir. Bugünkü kalemler 2026-10-11 podcast
 turundan gelir
 ([keşif notu](kesif/2026-10-11-podcast-tuketici.md)); kanal ve aciliyet
 § *Faz planlama* tablosundadır.
-
-### F-293 · Loop tükenince veya ölçüt hata verince run düşebilsin
-
-**Kanal:** faz planlama · 🟠
-
-**Sorun:** Tavana ulaşan son tur değerlendirilmez ve son yanıt döner; hata veren ölçüt döngüyü durdurur, run başarılı biter (`RecordingLoopEvaluator.cs:41-58`). `LoopSettings` yalnız `Criteria`, `MaxIterations`, `FreshContextPerIteration` taşır (`LoopSettings.cs:85-109`). Kalite kapısı kuran tüketicide reviewer'ın onaylamadığı metin sonraki adıma (TTS) geçer.
-
-**Kapsam:** `LoopSettings`'e tükenme ve ölçüt hatası politikası (`Return` varsayılan, K1 · `Fail`); `Fail` run'ı ayırt edilebilir hata sınıfıyla bitirir, workflow durur.
-
-**Değer:** Revizyon döngüsü kod grafı olmadan güvenli bir kalite kapısı olur.
-
-**Mercek:** 2, 5, 8.
-
-**Hazırlık:** MAF vermez — 1.24.0 `LoopAgentOptions` yalnız `MaxIterations`, `FreshContextPerIteration`, `OnBehalfOfAuthorName`, `ExcludeOnBehalfOfMessages`, `NonStreamingReturnsLastResponseOnly`, `SessionCreatedCallback`; `LoopEvaluation` yalnız `Stop`/`Continue`/`ContinueWithMessages` (yansıma probu, 2026-10-11). `ceilingReached` bilgisi Tracon'da zaten var.
-
-**Maliyet:** Bir public alan + enum; migration yok (tanım blob'u); `RunErrorClass` eşlemesi.
-
-**Risk:** Akışlı yolda son yanıt akmışken düşürmek tasarım ister.
-
-**Bağımlılık:** F-302 bu alanı konsolda gösterir.
-
-**Ekosistem:** MAF loop API'si `MAAI001` (değerlendirme amaçlı) — 2026-10-11.
-
-**Karşı görüş:** Reviewer kararını okuyup istisna atan bir fonksiyon düğümü bugün de aynı sonucu verir; ama kararı ikinci kez hesaplar ve loop'un kendi bilgisini atar.
 
 ### F-294 · Workflow run parametreleri agent `{{param}}`'larına ve fonksiyon düğümlerine ulaşsın
 
@@ -139,7 +127,7 @@ turundan gelir
 
 **Risk:** Parametreli derleme önbelleği atlar — maliyeti ölçülmeli; resume'da kayıp.
 
-**Bağımlılık:** F-293 ile (revizyon sayısı parametre olursa `MaxIterations`'a bağlanır).
+**Bağımlılık:** [Faz 192](192-DONGU-TUKENME-POLITIKASI.md) ile (F-293; revizyon sayısı parametre olursa `MaxIterations`'a bağlanır).
 
 **Ekosistem:** Taranmadı (Tracon içi boşluk).
 
@@ -331,7 +319,7 @@ turundan gelir
 
 **Risk:** Düşük.
 
-**Bağımlılık:** F-293 gelirse politika da burada görünür.
+**Bağımlılık:** [Faz 192](192-DONGU-TUKENME-POLITIKASI.md) `OnExhausted` / `OnCriterionError` alanlarını ekler; editör onları da gösterir.
 
 **Ekosistem:** —
 
@@ -373,30 +361,28 @@ yolda da § *Kalemin yaşam döngüsü* uygulanır.
 
 | Aciliyet | Kalem | Sorun | Ne yapılır |
 |---|---|---|---|
-| 🟡 | **F-307** · SQLite entegrasyon testleri tam çözüm yükünde rastgele `SQLITE_BUSY` ile düşüyor | Ölçüldü (2026-10-11, kusur-giderme turu): tam çözüm koşumunda `Tracon.Sqlite.IntegrationTests` net10.0 bacağında iki test (`SqliteQuotaStoreContractTests.The_write_this_contract_checks_can_be_read_back`, `MigrationRunnerTests.A_modified_migration_throws`) ~35–42 sn bekleyip `SQLite Error 5: 'database is locked'` verdi; aynı koşumda net8.0/net9.0 bacakları yeşildi. Hemen ardından izole koşumda üçüncü bir test düştü (`SqliteEvalStoreContractTests.ReplaceCasesAsync_keeps_the_promotion_fields_it_was_given`, 33 sn); sonraki 4+4 izole koşum hem temel (`ecd732c2`) hem çalışma ağacında yeşil. Düşen testler turun dokunduğu yollara (onay kuralı SQL'i, `RunEventWriter`) girmiyor; desen (rastgele test, `busy_timeout` dolana kadar bekleme) yük altındaki bir yazma kilidi tutucusuna işaret ediyor | Repro'yu yük altında sabitle (`kusur-giderme` Adım 1–2: tam çözüm koşumu veya CPU stresi + paralel TFM bacakları); kilidi 30 sn'den uzun tutan bağlantıyı bul (fixture paylaşımı, açık kalan işlem, WAL checkpoint) |
-| 🟡 | **F-305** · Önbellekteki agent'ın MCP tool'ları, sunucu değişince kapatılmış bağlantıyı çağırabilir | Kod okuması, çalıştırılmadı (2026-10-11, F-304 taraması): derleyici tool nesnelerini kiracının MCP anlık görüntüsünden alır (`McpToolRegistry.cs:74-75`, `McpTenantTools.cs:9`); sunucu tanımı değişince veya silinince eski bağlantı kapatılır (`McpToolCatalog.cs:236-252`, `:286-288`); anahtarda MCP bileşeni yok (kapı `IToolRegistry`'yi açık sayar). Kaynaklar bağlantıyı her çağrıda çözer (`McpResourceContextProvider.cs:97`), tool'lar çözmez | Önce repro (iki `LookupServer`: çalıştır, sunucuyu değiştir, yenilemeyi bekle, yeniden çalıştır); doğrulanırsa 🟠. Seçenek: anlık görüntü kimliği anahtara ya da tool bağlantıyı çağrıda çözer (kaynak deseni) |
 | 🟡 | **F-280** · Yapılandırmadan gelen timeout'lar zamanlayıcı aralığında doğrulanmıyor — F-278'in (b) alt sınıfı | `CancelAfter`/`new CancellationTokenSource(TimeSpan)` yalnız -1 ms (sonsuz) ve 0 – 4 294 967 294 ms kabul eder; dışındaki değer o istekte ya da run'da `ArgumentOutOfRangeException` atar (host durmaz). Siteler (2026-09-24 sınıf taraması): `ChildAgentInvoker` `_childDeadline` · `LiveVoiceSessionHost` `DelegationTimeout` · `TraconDrainService` `Drain:Timeout` (yalnız `<= Zero`) · `OnlineEvalJobHandler` `JudgeTimeout` · `SkillScriptProcessRunner` `Timeout` · `ToolApprovalPresenterRunner` · `WebhookDeliveryJobHandler` `Timeout` · `AgentDefinitionValidator` · `WorkflowRunner` `RunTimeout` · MCP `ConnectionTimeout` (üç yer, doğrulayıcı yok) · `ProviderHealthCheckCore` · `TimeoutAIFunction` (`Task.Delay`) · `TraconEndpointOptions.RunEventPollInterval` (setter yalnız `> 0`) | Site site: değer yapılandırmadan mı geliyor, `InfiniteTimeSpan` meşru mu — sonra `TimerPeriod` benzeri ortak bir timeout aralığı kontrolü + `IStartupValidator` üzerinden düşen test (F-278 deseni) |
 | 🟡 | **F-289** · `[TraconTool]` taşıyan bir kütüphaneyi referanslayan host `AddGeneratedTools()` çağıramaz | Ölçüldü (2026-09-24, Faz 189 `MT-PKG-150` koşumu, paketlenmiş `1.0.0-preview.2.70`): üreteç her derlemede `public static class Tracon.TraconGeneratedToolsBuilderExtensions` + `AddGeneratedTools(this ITraconBuilder)` yazar — hostun kendi tool'u olmasa bile. Kütüphaneyi referanslayan hostta `AddGeneratedTools()` `CS0121` (iki derlemenin aynı imzası) ve `TRC0005` verir; kütüphanenin tool'larını kaydetmenin tek yolu kütüphanenin kendi sarmalayıcı uzantısıdır. Üretilen XML "başka derlemedeki tool için `AddToolsFrom`" der, ama o yol yansımadır (AOT dışı) | Üretilen uzantıyı `internal` yapmak veya adını derlemeye özgü kılmak (ör. `Add<Derleme>GeneratedTools`) ve boş derlemede hiç üretmemek değerlendirilir; kırıcı olup olmadığı K-350 ile birlikte ölçülür. Repro: kütüphane + host, host kütüphaneyi referanslar ve `AddGeneratedTools()` çağırır |
+| 🟡 | **F-308** · Önbellekteki agent uzak MCP tool'unun değişen açıklamasını ve şemasını görmez | Kod okuması (2026-10-11, F-305 kapanışı): K-880 anahtara yalnız bağlantı örneğini koyar (A-min, kullanıcı kararı). Sunucu kaydı aynı kalırken uzak sunucu tool açıklamasını veya `inputSchema`'sını değiştirirse bağlantı ve anahtar aynı kalır; önbellekteki agent modele eski şemayı verir, çağrı aynı canlı istemciyle gider ve argümanlar uyuşmayabilir. Açıklamayı doğrudan anahtara koymak uzak tarafın kontrol ettiği büyüme üretir: `CompiledAgentCache` hiç girdi atmaz, refresh 5 dk, agent başına günde 288'e kadar girdi | Önce önbelleğe sınır (aynı kiracı, ad, tanım ve kültür için yeni bağımlılık parmak izi eski girdiyi değiştirir ya da LRU); sonra uzak tool tanımının (protokol `Tool` JSON) hash'i `McpTenantTools` bağlamasına. Repro: aynı bağlantıda şemasını değiştiren test sunucusu + `McpToolCacheTests` deseni |
+| 🟡 | **F-309** · Geçici `tools/list` hatası sunucunun tool'larını hemen düşürür; agent'lar bir sonraki başarılı refresh'e kadar reddedilir | Ölçüldü (2026-10-11, `McpToolCacheTests.A_cached_agent_is_refused_like_an_uncached_compile_after_a_failed_refresh`): `McpConnection.RefreshCatalogAsync` hatada `Tools = []` yapar. K-880'den beri önbellekteki agent da önbelleksiz derleme gibi `400` "not registered" alır (kullanıcı kararı); pencere `RefreshInterval` kadardır (varsayılan 5 dk). Tek bir ağ hıçkırığı sunucunun tüm agent'larını durdurur | Katalog, bağlantı canlıyken son iyi tool listesini N ardışık hataya ya da bir süreye kadar korur. K-876 `Unresolved` (kural eşleşmez) ve K-880 `absent` semantiğiyle birlikte tasarlanır: korunan listede kaynak çözülür kalır. Açık soru: kaç hata ya da ne kadar süre — **kullanıcı kararı gerekir** |
+| 🟡 | **F-310** · Canlı ses oturumu agent'ı oturum boyunca tutar; oturum ortasındaki MCP değişikliği ona ulaşmaz | Kod okuması, çalıştırılmadı (2026-10-11, F-305 sınıf taraması): `LiveVoiceSessionLauncher.cs:166` ve `VoiceConversationDriver.cs:431` agent'ı oturum başında bir kez çözer. Oturum sürerken sunucu düzenlenir veya silinirse delegasyon tool'u kapalı bağlantıya gider (F-305 belirtisi); onay yeniden açılırsa oturum sonuna kadar onay sarmalı olmayan tool kalır. K-880 yalnız `CompiledAgentCache` yolunu kapatır | Önce repro (canlı ses fonksiyonel testinde oturum ortasında sunucu değiştir); doğrulanırsa onay boyutu yüzünden 🟠. Seçenek: delegasyon başına `IAgentCatalog.ResolveAsync` (önbellek isabeti ucuz) ya da oturum bağlama parmak izi değişince yeniden çözüm |
+| 🟡 | **F-313** · SQL Server'da eşzamanlı `GrantAsync` aynı anahtar için `UNIQUE KEY` ihlali atıyor | Ölçüldü (2026-10-11, kapanış koşumu, tam paket): `SqlServerSkillScriptGrantContractTests.Racing_grants_and_revocations_leave_one_record_for_the_key` → `SqlException: Violation of UNIQUE KEY constraint 'skill_script_grants_uq'` (`SqlSkillScriptGrantStore.GrantAsync:82`, sorgu `SqlServerQueries.cs:236-254`). İzole koşum yeşil; aynı günün önceki tam koşumu da yeşildi. Olası sebep (doğrulanmadı): `UPDATE … WITH (UPDLOCK, SERIALIZABLE)` + `IF @@ROWCOUNT = 0 INSERT` açık bir işlem olmadan koşar; autocommit'te range lock UPDATE ifadesiyle biter ve iki oturum da INSERT dalına girebilir. `hafiza/sql-server-tuzaklari.md` (F-215) aynı pencereyi `run_scores` için ölçmüştü ve `skill_script_grants`'ın 32 denemede yarış üretmediğini yazıyordu — bugün üretti. Kod bu turda değişmedi | `kusur-giderme`: repro'yu yük altında sabitle (sözleşme sınıfını döngüde + paralel şeritlerle); düzeltme seçenekleri iki dalı açık işleme almak (`SET XACT_ABORT ON; BEGIN TRAN … COMMIT`) ya da F-215 emsali gibi benzersizlik ihlalinde yeniden denemek. **Sınıf taraması:** `SqlServerQueries.cs`'teki ~25 iki dallı upsert'ten hangisi işlemsiz ve yakalamasız |
 | 🟢 | **F-241** · Kırpma bir vekil (surrogate) çiftini ortadan kesebilir — sınıf | `EvaluatorRunJudge.ResolveVersion` sürümü `version[..MaxEvaluatorVersionLength]` ile kırpar. 128. karakter yüksek vekilse yalnız kalan vekil `varchar`/`nvarchar` yazımında kodlama hatası doğurur; hata yazma döngüsünde `retryable` sayılıp tekrarlanır. Aynı desen `TextValue` kırpmasında da var ([`EvaluatorRunJudge.cs`](../src/Tracon.Core/Evaluation/EvaluatorRunJudge.cs)). Olasılık çok düşük — informational version pratikte ASCII'dir | Sınıfı tek bir güvenli kırpma yardımcısına indir. Kırpılan bir alanın ASCII-dışı içerik taşıdığı ölçülürse aciliyet yükselir |
 | 🟢 | **F-281** · `Tracon.Google` görsel yolunda `MediaType` verilirse SDK `NotSupportedException` atar | Canlı ölçüldü (2026-09-24, Google.GenAI 1.16.0, API anahtarı): `ImageConfig.OutputMimeType` her değer için *"outputMimeType parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode"* ile reddedilir. `GoogleImageGenerator` (`src/Tracon.Google/Internal/GoogleImageGenerator.cs:77`) `ImageGenerationOptions.MediaType` verilince onu gönderir; Tracon'un iki sevk edilen yolu (`/api/images/generate`, `generate_image`) `MediaType` vermediği için bugün yalnız `IImageGenerator`'ı doğrudan çağıran tüketiciyi etkiler | Paket yalnız API anahtarı modunu desteklediği sürece `MediaType` istemde reddedilir ya da yok sayılır — hangisi olacağı küçük bir davranış kararıdır; karar sonrası düşen test + site cümlesi |
 | 🟢 | **F-285** · Kırıcı kapının iki yanlış-mesaj yolu (Faz 187 denetimi) | (a) `PKV007` gibi taban kaydı gerçekte `IsBaselineSuppression` taşımıyorsa (ölçülen `PKV006` taşımıyor) `read_breaking_changes` onu "strict uyumsuzluk" diye etiketler, "tanınmayan kayıt" değil (`scripts/breaking_changes.py`, kural sırası); test `test_pkv007_kirmizi` ölçülmemiş biçimi kullanır. (b) Düşen TFM iç içe listeyle yazılırsa (üst madde TFM, alt maddeler paket) `_list_items` girintili `-` satırını yeni madde sayar ve eşleşme kaçar. İkisi de güvenli yön (kırmızı), yalnız mesaj yanlış | Gerçek bir `PKV007` raporu ölç ve kuralı ona göre sırala; iç içe maddeyi üst maddenin span'leriyle birleştir. F-266'nın `### Removed` maddesi tek madde biçimindeyse acil değil |
 | 🟢 | **F-286** · Bütünüyle kaldırılan bir paket kırıcı kapıda hiç denetlenmez | Taban kümesi bugünkü `library_ids`'ten gelir (`scripts/kapi.py` `release_rehearsal`); tabanda olup HEAD'de olmayan paket için ne restore ne rapor olur (Faz 187 denetimi 🟢3) | Taban etiketindeki `src/*/*.csproj` kümesiyle HEAD'dekini karşılaştır; düşen paket kimliği notta code span olarak geçmeli |
 | 🟢 | **F-287** · `dokuman_iddia_cakismalari` proje başına `TraconPublicApiTrackingEnabled=false` cümlesini de çelişki sayar | Faz 187 kapıyı gerçek anahtara çevirdi (`scripts/dokuman-bakim.py`); anahtar artık proje başına kapatmadır (K-424), "`Tracon.Client` `false` yazar" gibi doğru bir skill cümlesi bulgu olur. Bugün tetikleyen satır yok (denetim 🟢4) | İddia desenini varsayılana daralt ("varsayılan"/"default" ya da `src/Directory.Build.props` bağlamı) |
+| 🟢 | **F-311** · Kapalı MCP oturumuna giden çağrı "TaskCanceledException" diye raporlanır | Ölçüldü (2026-10-11, F-305 repro): kapalı oturumdan giden `tools/call` için `ToolFailed` olay metni "Tool failed with TaskCanceledException." idi. Model "Error: Function failed." gördü, run `Completed` döndü; neden iptal değil kapalı bağlantıydı ve operatör onu iptal sanır. `{server}_read_resource` aynı durumda yanıltıcı "not among the resources declared" hatası verir. K-880'den sonra ana yol bu duruma girmez; kalan yollar canlı ses oturumu (F-310) ve derleme ile çağrı arasındaki yarış | MCP tool sarmalı (ya da `ExplainedFailureAIFunction`), çağıranın token'ı iptal değilken dispose edilmiş oturumdan gelen `OperationCanceledException`'ı "MCP connection to server '<ad>' is closed" diye açıklar; `read_resource` gövdesi kapalı bağlantıyı ayrıca söyler |
 
 ### Faz planlama
 
 | Aciliyet | Kalem | Neden | Plan notu |
 |---|---|---|---|
-| 🔴 | **F-266** · `net8.0` ve `net9.0` düşürülmesi | Microsoft desteği **2026-11-10**'da biter (ölçüldü 2026-09-23: 8.0 son yama 8.0.31, 9.0 son yama 9.0.20; 10.0 → 2028-11-14). **Karar alındı (kullanıcı kararı, 2026-09-23):** 2026-11-10'dan sonraki ilk sürüm iki TFM'i düşürür; acil güvenlik sürümü istisnadır. Duyuru `CHANGELOG.md` `### Deprecated` ve [`compatibility.md`](../docs-site/src/content/docs/reference/compatibility.md) tarihli cümlesinde yerinde | Faz 11-10'dan **önce** planlanır, sonra uygulanır. [Faz 187](arsiv/fazlar/187-KIRICI-DEGISIKLIK-KAPISI.md)'nin `PKV006` kapısına bağlıdır: sıra 187 → düşürme fazı. Dokunulan yüzey: `src/Directory.Build.props` · `TraconTestTargetFrameworks` · `Tracon.Testing` `VersionOverride`'ları · `Net8Consumer` · CI runtime adımları |
-| 🟡 | **F-290** · `AuthorizationConfigurationKey`'ın `1.0.0` GA'da kaldırılması: veri taşıma + form geçişi | Faz 190 alanı `[Obsolete]` yaptı ve `1.0.0`'da kalkacağını `CHANGELOG`, XML ve `production.md`'de duyurdu (K-869). Üç iş kaldı: (1) `authorization_configuration_key` dolu satırları `header_configuration_keys["Authorization"]`'a taşıyan migration (üç sağlayıcı; iki alan birlikte doluysa ne olacağı karar ister); (2) MCP formu (`mcp.tsx`) eski alanı yazıyor — yeni alanı yazmalı, yoksa kaldırma formu kırar; (3) sütunu ve public üyeyi kaldırma, `McpTransportFactory`/`McpHeaderBuilder` eski yol, `#pragma warning disable CS0618` blokları (kapanışta 11 adet: `grep -rn "pragma warning disable CS0618" src tests`) | GA tarihine bağlı; GA öncesi son preview fazı olarak planlanır. Form geçişi (2) GA'dan bağımsız erken yapılabilir |
-| 🟡 | **F-292** · Konsol workflow editörüne düğüm düzenleme (agent + fonksiyon seçici) | Faz 71 Sapma #6 yalnız okuma tarafını sevk etti ve "sonraki faz için aday" dedi; aday hiç yazılmadı. 2026-10-10 kusur-giderme turu editörün `nodes`'u silmesini kapattı: zincir artık salt okunur görünür ve korunur, ama değiştirmek hâlâ `PUT /api/workflows/{name}` ister. Bir tüketici (podcast hattı, 2026-10-10) iş akışını konsoldan düzenlemek istiyor | Kapsam: düğüm listesi (agent/fonksiyon) ekle-sırala-sil ve `GET /api/workflows/functions` seçicisi. Karar ister: son fonksiyon düğümü silinince `agentNames`'e dönüş kuralı — iki derleme yolu farklı akar (`BuildSequential` ↔ karışık zincir, K-495). Kapı: `full-replace-editors.test.tsx` vakaları |
-| 🟢 | **F-291** · Anahtar alanına değer yazan operatörün değeri `400` ve teslim `error`'ında yankılanır | Faz 190 denetimi 🟢2: `ConfigurationKeyGuard` mesajı (`ConfigurationKeyGuard.cs:112-114`) verilen adı olduğu gibi yazar; `{"X-API-Key":"sk-live"}` gibi bir hata değeri yanıta ve `webhook_deliveries.error`'a taşır. Tek alanlı `*ConfigurationKey` alanlarında da faz öncesinden beri aynı | Önek dışı adı yankılamadan reddet (yalnız alan adı + beklenen önek) ya da kimlik biçimli değeri maskele; dört yüzeyin (MCP, BYOK, webhook, trigger) testleri birlikte |
-| 🟡 | F-247 · Yirmi dört yapılandırma bölümü için bağlama kanıtı | Risk yok, iş mekanik ve paralel yürür. Sınıf gerçek bir kusur üretti (`TraconImageOptions.Timeout`) | Gövde: § *F-247* |
-| 🟢 | F-248 · `unwrap(...) as Promise<T>` iddialarının tip düzeyinde kapısı | Bugün tek örnek elle tarandı; sonrakini kimse taramaz | Gövde: § *F-248* |
-| 🟢 | F-249 · docs-site için tarayıcı tabanlı yerleşim kapısı | Elle koşulan case iki turda da kusur buldu | Gövde: § *F-249* |
-| 🟠 | F-293 · Loop tükenince veya ölçüt hata verince run düşebilsin | Kalite kapısında onaylanmamış metin sonraki adıma geçer | Gövde: § *F-293* |
 | 🟠 | F-294 · Workflow run parametreleri | Workflow run'ı yalnız `Message` taşır; `{{param}}` bağlanmaz | Gövde: § *F-294* |
 | 🟠 | F-295 · Fonksiyon düğümüne veri ayarı | Workflow başına sağlayıcı/ses seçimi bugün kod ister | Gövde: § *F-295* |
+| 🟡 | **F-290** · `AuthorizationConfigurationKey`'ın `1.0.0` GA'da kaldırılması: veri taşıma + form geçişi | Faz 190 alanı `[Obsolete]` yaptı ve `1.0.0`'da kalkacağını `CHANGELOG`, XML ve `production.md`'de duyurdu (K-869). Üç iş kaldı: (1) `authorization_configuration_key` dolu satırları `header_configuration_keys["Authorization"]`'a taşıyan migration (üç sağlayıcı; iki alan birlikte doluysa ne olacağı karar ister); (2) MCP formu (`mcp.tsx`) eski alanı yazıyor — yeni alanı yazmalı, yoksa kaldırma formu kırar; (3) sütunu ve public üyeyi kaldırma, `McpTransportFactory`/`McpHeaderBuilder` eski yol, `#pragma warning disable CS0618` blokları (kapanışta 11 adet: `grep -rn "pragma warning disable CS0618" src tests`) | GA tarihine bağlı; GA öncesi son preview fazı olarak planlanır. Form geçişi (2) GA'dan bağımsız erken yapılabilir |
+| 🟡 | **F-292** · Konsol workflow editörüne düğüm düzenleme (agent + fonksiyon seçici) | Faz 71 Sapma #6 yalnız okuma tarafını sevk etti ve "sonraki faz için aday" dedi; aday hiç yazılmadı. 2026-10-10 kusur-giderme turu editörün `nodes`'u silmesini kapattı: zincir artık salt okunur görünür ve korunur, ama değiştirmek hâlâ `PUT /api/workflows/{name}` ister. Bir tüketici (podcast hattı, 2026-10-10) iş akışını konsoldan düzenlemek istiyor | Kapsam: düğüm listesi (agent/fonksiyon) ekle-sırala-sil ve `GET /api/workflows/functions` seçicisi. Karar ister: son fonksiyon düğümü silinince `agentNames`'e dönüş kuralı — iki derleme yolu farklı akar (`BuildSequential` ↔ karışık zincir, K-495). Kapı: `full-replace-editors.test.tsx` vakaları |
+| 🟡 | F-247 · Yirmi dört yapılandırma bölümü için bağlama kanıtı | Risk yok, iş mekanik ve paralel yürür. Sınıf gerçek bir kusur üretti (`TraconImageOptions.Timeout`) | Gövde: § *F-247* |
 | 🟡 | F-296 · Konuşma sözleşmesi v2 (diyalog) | İki konuşmacılı ses tek sesli sözleşmeyle üretilemez | Gövde: § *F-296* |
 | 🟡 | F-297 · Gemini konuşma adaptörü | Yeni bağımlılık istemez; F-296'ya bağlı | Gövde: § *F-297* |
 | 🟡 | F-298 · Adlı konuşma sağlayıcı kaydı + kiracı ses anahtarı | Ses çağrısı egress ve BYOK dışında | Gövde: § *F-298* |
@@ -404,6 +390,9 @@ yolda da § *Kalemin yaşam döngüsü* uygulanır.
 | 🟡 | F-300 · Workflow ve skill sürüm geçmişi | Operatör düzenlemesi geri alınamaz | Gövde: § *F-300* |
 | 🟡 | F-302 · Konsolda `Loop` düzenleme | Revizyon sayısı yalnız API'den değişir | Gövde: § *F-302* |
 | 🟡 | F-303 · Fonksiyon düğümü zaman aşımı | K-497'nin koşulu oluştu: dakikalar süren düğüm | Gövde: § *F-303* |
+| 🟢 | **F-291** · Anahtar alanına değer yazan operatörün değeri `400` ve teslim `error`'ında yankılanır | Faz 190 denetimi 🟢2: `ConfigurationKeyGuard` mesajı (`ConfigurationKeyGuard.cs:112-114`) verilen adı olduğu gibi yazar; `{"X-API-Key":"sk-live"}` gibi bir hata değeri yanıta ve `webhook_deliveries.error`'a taşır. Tek alanlı `*ConfigurationKey` alanlarında da faz öncesinden beri aynı | Önek dışı adı yankılamadan reddet (yalnız alan adı + beklenen önek) ya da kimlik biçimli değeri maskele; dört yüzeyin (MCP, BYOK, webhook, trigger) testleri birlikte |
+| 🟢 | F-248 · `unwrap(...) as Promise<T>` iddialarının tip düzeyinde kapısı | Bugün tek örnek elle tarandı; sonrakini kimse taramaz | Gövde: § *F-248* |
+| 🟢 | F-249 · docs-site için tarayıcı tabanlı yerleşim kapısı | Elle koşulan case iki turda da kusur buldu | Gövde: § *F-249* |
 | 🟢 | F-301 · `AddLoopEvaluator` fabrika aşırı yüklemesi | Ölçüt DI'a ulaşamaz | Gövde: § *F-301* |
 
 ### Doğrudan
@@ -699,7 +688,7 @@ kaydındadır; burada yalnız hangi eşikte bekledikleri yazar.
 ### F-ID tahsis kuralı
 
 Numara **geri dönüştürülmez** ve bir numara **tek kaleme** aittir. Sıradaki
-numara: **F-308**.
+numara: **F-314**.
 
 Numarayı tahsis eden el sayacı **aynı değişiklikte** bir artırır.
 `python3 scripts/dokuman-bakim.py --denetle` iki şeyi zorlar:

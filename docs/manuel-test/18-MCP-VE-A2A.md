@@ -2056,3 +2056,36 @@ bir key ve `AgentsAdmin` + `SecurityAdmin` taşıyan bir key.
 - (3) `403` — feragat A için verilmişti. (4) `200` — değişmeyen feragat korunur.
 - (5) `200` — onayı yeniden istemek gevşetme değildir.
 - API key'siz (loopback veya rol tabanlı `Admin`) çağrı yalnız rol politikasına tabidir.
+
+### MT-MCP-080 — Sunucu değişikliği önbellekteki agent'a bir sonraki run'da ulaşır
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Kusur giderme 2026-10-11 (F-305) |
+| **İlgili karar** | K-880 |
+| **İnsan gerekir** | Hayır |
+| **Devir** | ➜ CI: `McpToolCacheTests` (beş case: endpoint taşıma · silme · onayı yeniden açma · refresh hatası · `read_resource`) |
+
+**Ön koşul** — MT-MCP-078'in iki sunucusu (A ve B, aynı adlı `lookup` tool'u, farklı
+yanıt). Tool'u çağıran TEK bir agent; tanımı bu case boyunca DEĞİŞMEZ (ikinci run
+önbellekten gelir).
+
+**Adımlar**
+1. `PUT /api/mcp-servers/lookup-srv` → endpoint A, `requiresApproval: false`; refresh.
+   Agent'ı çalıştır.
+2. Endpoint'i B'ye çevir, refresh; agent'ı yeni oturumla çalıştır.
+3. Aynı endpoint'te `requiresApproval: true` kaydet, refresh; agent'ı yeni oturumla çalıştır.
+4. Sunucuyu sil (`DELETE`), refresh; agent'ı yeni oturumla çalıştır.
+5. Sunucuyu yeniden ekle ve agent'ı bir kez çalıştır; sonra sunucu sürecini durdur,
+   refresh; agent'ı yeni oturumla çalıştır.
+
+**Beklenen sonuç**
+- (1) run `Completed`, A'nın yanıtı akışta. (2) run `Completed`, B'nin yanıtı akışta;
+  A'nın yanıtı ve "Error: Function failed." YOKTUR.
+- (3) run `AwaitingApproval`; tool onaydan önce çalışmaz.
+- (4) ve (5) `400`; gövde tool adını ve "not registered" metnini taşır. Run'ın olay
+  akışında `ToolFailed` YOKTUR.
+- Hiçbir adımda run `Completed` iken tool sonucu "Error: Function failed." değildir
+  (eski kusurun imzası: kapalı MCP oturumu, `TaskCanceledException`).

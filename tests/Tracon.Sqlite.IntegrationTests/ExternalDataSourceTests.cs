@@ -22,14 +22,15 @@ public sealed class ExternalDataSourceTests(SqliteFixture fixture)
     [Fact]
     public async Task DataSource_and_ConnectionString_together_is_rejected()
     {
-        await using var external = new SqliteDataSource(fixture.ConnectionString);
+        var tablePrefix = SqliteTestContext.NewTablePrefix();
+        await using var external = new SqliteDataSource(fixture.ConnectionStringFor(tablePrefix));
 
         var services = new ServiceCollection();
         services.AddTracon().UseSqlite(options =>
         {
             options.DataSource = external;
-            options.ConnectionString = fixture.ConnectionString;
-            options.TablePrefix = SqliteTestContext.NewTablePrefix();
+            options.ConnectionString = fixture.ConnectionStringFor(tablePrefix);
+            options.TablePrefix = tablePrefix;
         });
 
         using var provider = services.BuildServiceProvider();
@@ -44,13 +45,14 @@ public sealed class ExternalDataSourceTests(SqliteFixture fixture)
     [Fact]
     public async Task DataSource_alone_does_not_require_a_connection_string()
     {
-        await using var external = new SqliteDataSource(fixture.ConnectionString);
+        var tablePrefix = SqliteTestContext.NewTablePrefix();
+        await using var external = new SqliteDataSource(fixture.ConnectionStringFor(tablePrefix));
 
         var services = new ServiceCollection();
         services.AddTracon().UseSqlite(options =>
         {
             options.DataSource = external;
-            options.TablePrefix = SqliteTestContext.NewTablePrefix();
+            options.TablePrefix = tablePrefix;
             options.AutoApplyMigrations = false;
         });
 
@@ -68,8 +70,8 @@ public sealed class ExternalDataSourceTests(SqliteFixture fixture)
     [Fact]
     public async Task External_data_source_is_not_disposed_when_the_host_stops()
     {
-        await using var external = new SqliteDataSource(fixture.ConnectionString);
         var tablePrefix = SqliteTestContext.NewTablePrefix();
+        await using var external = new SqliteDataSource(fixture.ConnectionStringFor(tablePrefix));
 
         var services = new ServiceCollection();
         services.AddTracon().UseSqlite(options =>
@@ -123,11 +125,12 @@ public sealed class ExternalDataSourceTests(SqliteFixture fixture)
     [Fact]
     public void The_data_source_is_not_registered_as_a_public_DI_service()
     {
+        var tablePrefix = SqliteTestContext.NewTablePrefix();
         var services = new ServiceCollection();
         services.AddTracon().UseSqlite(options =>
         {
-            options.ConnectionString = fixture.ConnectionString;
-            options.TablePrefix = SqliteTestContext.NewTablePrefix();
+            options.ConnectionString = fixture.ConnectionStringFor(tablePrefix);
+            options.TablePrefix = tablePrefix;
             options.AutoApplyMigrations = false;
         });
 
@@ -139,11 +142,12 @@ public sealed class ExternalDataSourceTests(SqliteFixture fixture)
     [Fact]
     public void Own_data_source_is_marked_as_owned()
     {
+        var tablePrefix = SqliteTestContext.NewTablePrefix();
         var services = new ServiceCollection();
         services.AddTracon().UseSqlite(options =>
         {
-            options.ConnectionString = fixture.ConnectionString;
-            options.TablePrefix = SqliteTestContext.NewTablePrefix();
+            options.ConnectionString = fixture.ConnectionStringFor(tablePrefix);
+            options.TablePrefix = tablePrefix;
             options.AutoApplyMigrations = false;
         });
 
