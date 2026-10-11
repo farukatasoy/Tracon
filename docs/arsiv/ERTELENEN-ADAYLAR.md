@@ -624,6 +624,179 @@ türevler tek komutla çıkar.
 
 ---
 
+## Tetik bekleyen gövdeler
+
+> 2026-10-11'de `ADAYLAR.md`'den taşındı (aday dosyası 80 KB bütçesi; Explainer-Video turu).
+> Kalemler **açıktır**; satırları `ADAYLAR.md` § *Tetik bekleyenler* tablosundadır.
+
+### F-95 · Agent düzeyinde kesinti/devam kancası
+
+**Engel:** MAF yolu **kapalı** (aşağıda ölçüldü). Kalem yalnız F-141 üzerinden
+ilerler.
+
+**Sorun:** Kesintiye uğramış bir agent turunu devam ettirmek için Tracon'in
+agent yürütmesinin **içine** girebilmesi gerekir.
+
+**Hazırlık — 🚨 İmza doğrulandı (2026-09-05), MAF yolu KAPALI.**
+`maf-api-kesfi` koşuldu; 1.18.0 → 1.20.0 tam yüzey dump'ı diff'lendi. Kanca
+çekirdek paketlerde **yoktur**: ayrı ve **alpha** bir pakettedir —
+`Microsoft.Agents.AI.AgentHooks` 1.20.0-alpha.260831.1, public yüzeyi iki tip
+(`AgentHooksChatClientExtensions.AsAIAgentWithAgentHooks(...)` ·
+`AgentHooksOptions`). Üç ölçüm bu yolu kapatır:
+
+1. **Sözleşme yanlış ihtiyacı karşılıyor.** Kanca bir *enforcement/interception*
+   sözleşmesidir (AGENT-HOOKS-0.1): allow/deny/transform verdict, approval
+   seam, `InterceptionRecord`. Bu kalemin ihtiyacı olan **kesinti/devam**
+   (turu checkpoint'leyip sonra sürdürme) yüzeyde **yoktur**.
+2. **Bölünemez ve pipeline'ımızla uyumsuz.** Seam decorator'ları `internal`;
+   PR gövdesi "partial installs are impossible by construction" diyor.
+   `AsAIAgentWithAgentHooks`, içinde `FunctionInvokingChatClient` bulunan bir
+   client'ı **reddeder** ("tools would execute below the verdicts") — Tracon'in
+   her provider pipeline'ı `UseFunctionInvocation()` kurar
+   ([`AnthropicChatClientFactory.cs:14`](../../src/Tracon.Anthropic/AnthropicChatClientFactory.cs#L14) ·
+   [`AzureOpenAIChatClientFactory.cs:16`](../../src/Tracon.Azure/AzureOpenAIChatClientFactory.cs#L16) ·
+   [`GoogleChatClientFactory.cs:15`](../../src/Tracon.Google/GoogleChatClientFactory.cs#L15)).
+   Kancayı almak, agent kurulum yolunun tamamını MAF'a devretmek demektir.
+3. **Bağımlılık grafiği kabul edilemez.** `ResponsibleAI.AgentHooks`
+   0.1.0-alpha.4 bir **native FFI** taşır (`libagent_hooks_ffi`, 1,7 MB) ve
+   yalnız dört RID kapsar: linux-x64 · osx-arm64 · osx-x64 · win-x64 —
+   **linux-arm64 yoktur**. Yanında `Microsoft.ML.Tokenizers`,
+   `Microsoft.Extensions.AI.Evaluation`, `VectorData.Abstractions`,
+   `Compliance.Abstractions`, `FileSystemGlobbing` gelir. `Tracon.Core` bugün
+   AOT-uyumludur; bu graf hem onu hem "tüketicinin bağımlılık grafiğini
+   kirletme" kuralını bozar.
+
+**Kapsam:** Kalan kapsam F-141'in kapsamıdır: kesinti/devam'ı MAF'a kanca
+takmadan çözmek. Tracon paralel bir kanca hiyerarşisi kurmaz (K3) — bu kural
+MAF kancası alınmadığı için de geçerli kalır.
+
+**Değer:** Kesintiye uğramış tur, MAF'ı sarmalamadan devam ettirilebilir.
+
+**Mercek:** 2, 5, 6.
+
+**Maliyet:** Ölçüldü, MAF yoluyla **karşılanamaz** (2. ve 3. madde).
+
+**Risk:** Yüzeyin tamamı `[Experimental("MAAI001")]` ve paket alpha kanalında.
+K-008 ön sürüm paketlerini yalnız `Tracon.AspNetCore` içinde tutar; bu kanca
+`Tracon.Core`'un agent kurulum yoluna girer.
+
+**Bağımlılık:** F-141 (MAF-kancasız alternatif tasarım) — rakip değil, **tek
+yol**.
+
+**Ekosistem:** 2026-09-05 — [`dotnet-1.19.0` sürüm notları](https://github.com/microsoft/agent-framework/releases/tag/dotnet-1.19.0) ·
+[PR #7564](https://github.com/microsoft/agent-framework/pull/7564). MAF pin
+2026-09-13 itibarıyla hâlâ **1.20.0**; ölçüm güncel.
+
+**Karşı görüş:** Kalmadı. F-141 aynı ihtiyacı MAF'a hiç kanca takmadan
+karşılıyor ve 2026-08-21'de bu tasarımın **doğru** olduğu kaydedilmişti.
+
+---
+
+### F-178 · Model deneme (attempt) telemetrisi
+
+**Engel:** Gerçek bir üretim fallback gecikmesi olayı ölçülmedi. Tüketici
+bunu **bilerek** erteledi.
+
+**Sorun:** Yedek zincirinde hangi linkte ne kadar süre harcandığı ölçülmüyor.
+`FallbackChatClient` döngü indeksini tutuyor ve `ModelFallbackUsed`'ı yazıyor,
+ama `ModelFallbackUsedEventPayload` süre veya indeks taşımıyor. Birincil model
+28 sn'de timeout olup yedek 2 sn'de yanıtladığında, 30 sn'lik `run`'ın
+gecikmesinin hangi linkten geldiği ayrıştırılamaz.
+
+**Kapsam:** Deneme başına süre (monotonik saat), deneme indeksi, sağlayıcı,
+model ve sonuç kategorisi taşıyan bir `run` olayı veya `span`. Prompt ve yanıt
+içeriği telemetriye **girmez**; sağlayıcıya özel request ID **çıkarılmaz**
+(tüketici bu maliyeti kabul etti). Etiket kardinalitesi sınırlanır.
+
+**Değer:** "Birincil timeout değeri düşürülmeli mi?", "Yedek ilk model olmalı
+mı?" soruları kanıta dayanır.
+
+**Mercek:** 2, 7.
+
+**Hazırlık — ölçüldü (2026-09-13):** Boşluk hâlâ tam.
+`grep -c "Stopwatch\|GetTimestamp\|Elapsed" src/Tracon.Core/Models/FallbackChatClient.cs`
+→ **0**. Döngü indeksi zaten tutuluyor; ekleme tamamen additive'dir.
+[Faz 133](fazlar/133-IS-KUYRUGU-METRIKLERI.md) metrik adı ve etiket
+kurallarını kurdu.
+
+**Maliyet:** Ölçülmedi. Yeni tablo ve migration gerekmez.
+
+**Risk:** Etiket kardinalitesi kontrolsüz büyürse metrik altyapısını boğar.
+
+**Bağımlılık:** Faz 133 (kapandı).
+
+**Ekosistem:** 2026-09-02 — tüketici raporu.
+
+**Karşı görüş:** Tüketici bunu bilerek erteledi — *"Prodigy henüz production
+olmadığı için gerçek incident kaydı sunamıyoruz … İlk fallback latency olayı
+ölçüldüğünde bu talebi incident verisiyle yeniden açacağız."* Tek istediği,
+API tasarımında bunu engelleyecek bir karar alınmamasıdır; bu koşul bugün
+sağlanıyor.
+
+---
+
+### F-179 · Çalışma anı model yönlendirme policy'si
+
+**Engel:** F-178 attempt süresini ölçmeye başlamalı **ve** gerçek üretim
+trafiği oluşmalı.
+
+**Sorun:** Model seçimi bugün statik binding ve hata sonrası yedek zinciriyle
+sınırlı. Çağrı **öncesi** maliyet, gecikme ve capability'ye göre seçim
+yapılamaz; yapılsa bile seçimin nedeni `run` kanıtına girmez.
+
+**Kapsam:** Aday binding kümesinden seçim yapan opt-in bir policy seam'i ve
+seçim kararının `run` kanıtına yazılması (seçilen binding, kararlı reason code,
+değerlendirilen adaylar, policy adı).
+
+**Değer:** Yönlendirme kararı ile `run` kanıtı aynı yerde durur.
+
+**Mercek:** 2, 7, 8.
+
+**Hazırlık — ölçüldü (2026-09-13), ön koşulların BİRİ karşılandı:**
+
+| Ön koşul | Durum |
+|---|---|
+| `run` satırı sağlayıcıyı saklamalı | ✅ **karşılandı** — [`RunRecord.ModelProvider`](../../src/Tracon.Abstractions/Runs/RunRecord.cs#L73) |
+| Kayan latency penceresi ölçülmeli | ❌ eksik — F-178 kapatır |
+| Gerçek üretim trafiği | ❌ yok |
+
+`ModelProviderHealthCache` yalnız sağlık durumu verir, gecikme vermez.
+
+**Maliyet:** Ölçülmedi.
+
+**Risk:** Ölçüm olmadan "en ucuzu seç" kararı yanlış olur.
+
+**Bağımlılık:** F-178.
+
+**Ekosistem:** 2026-09-02 — tüketici raporu.
+
+**Karşı görüş:** Tüketici de *"önce doğru telemetry, sonra dinamik policy"*
+diyor.
+
+
+### Kısaltılan tetik satırlarının tam metni
+
+2026-10-11'de aday dosyası bütçesi için `ADAYLAR.md` § *Tetik bekleyenler* tablosundaki on altı satır kısaltıldı. Satırların özgün metni:
+
+| Kalem | Engel | Koşul ne zaman oluşur |
+|---|---|---|
+| **F-226** · SSE yanıtının şeması JSON şekli ilan ediyor | ASP.NET Core'un üstveri modeli aynı statü kodu için iki şema ifade edemiyor ve K-039 gereği kütüphane `Microsoft.AspNetCore.OpenApi`'ye bağımlı değil — bir `OpenApiOperationTransformer` kütüphanede yaşayamaz. Ölçüldü (2026-09-13): `tracon.json`'da 7 `text/event-stream` yanıtının **2'si** JSON şekli ilan ediyor (`/tracon/v1/responses` → `JsonElement`, `/tracon/v1/chat/completions` → `ChatCompletion`). Üretilen istemci etkilenmiyor — altıncı geçiş içerik tipinin VARLIĞINA bakar | Belgeden kod üreten üçüncü taraf bir üreteç bu yüzden kırılırsa ([Faz 159](fazlar/159-TIPLI-ISTEMCIDE-AKISLI-OPENAI-CAGRISI.md) denetim bulgusu 🟢 3) |
+| **F-237** · Etkiden önceki dar fail-closed `run` kaydı | Genel `RecordingMode.Required` **reddedildi** (A10): model çağrısı ve tool yan etkileri olduktan sonra `run`'ı düşürmek hiçbir şeyi geri almaz. Savunulabilir kalan tek biçim dar bir `seam`'dir — `run` açılışı yazılamazsa `run` başlamaz, yan etkili tool çağrısının kaydı yazılamazsa tool koşmaz. Bugün böyle bir `seam` **yok**: `RunEventWriter` her hatayı yutar ([`RunEventWriter.cs:452`](../../src/Tracon.Core/Recording/RunEventWriter.cs#L452) — `Disable`) ve tüketicinin kendi `IRunStore`'u bunu değiştiremez. Kayıp **görünür** (K-782), fail-closed değil | Düzenlemeye tabi bir kurulum kanıtla talep ederse. `tracon.run.recording_failures` sayacı önce kaybın gerçek sıklığını ölçer — kanıtsız inşa edilen altyapı yanlış şekli alır |
+| **F-238** · Metrik dinleyici test yardımcısının ÜÇ kopyası | Bir metriği ölçmek isteyen her test projesi kendi `MeterListener` sarmalayıcısını yazıyor: `MetricCollector` ([`tests/Tracon.Core.UnitTests/Fakes/MetricTestHelpers.cs`](../../tests/Tracon.Core.UnitTests/Fakes/MetricTestHelpers.cs)), `MetricProbe` ([`tests/Tracon.PostgreSql.IntegrationTests/Infrastructure/MetricProbe.cs`](../../tests/Tracon.PostgreSql.IntegrationTests/Infrastructure/MetricProbe.cs)) ve `WorkflowMetricProbe` ([`tests/Tracon.Workflows.UnitTests/WorkflowRecordingFailureTests.cs`](../../tests/Tracon.Workflows.UnitTests/WorkflowRecordingFailureTests.cs)). Üçü de meter'ı **referansla** eşleyip `TagList`'i kopyalıyor; üçü de `internal`, paylaşılamıyor. Kopya sayısı K-483'ün "elle tekrarlanan ifade bir kusur SINIFI üretir" eşiğindedir | Dördüncü kopya gerektiğinde, ya da `Tracon.Testing` yüzeyine bir metrik doğrulama yardımcısı eklemek ayrıca istendiğinde. Bu bir **test altyapısı** kararıdır; sevk edilen yüzeyi büyütmek (public bir `MeterProbe`) ayrı bir tartışmadır ([Faz 173](fazlar/173-CALISTIRMA-KAYDI-GORUNURLUGU.md) denetim bulgusu 🟢 7) |
+| **F-243** · Analitik store yüzeylerinde metot bazında iptal kapsamı yok | `IEvalStore.DiffRunsAsync` ve `IRunScoreStore.SummarizeAsync` iptal sözleşmesinin **metot bazında** kapsamı dışında: hook'lar `ListSuitesAsync`/`ListAsync`'i hedefliyor. "Store başına bir okuma + bir yazma" sınırı bilinçlidir ve vaadi kanıtlamaya yeter — ama iptali en pahalı olan yüzeyler bu toplayıcı sorgulardır (store'un İÇİNDE hesaplanırlar, K-483 sınıfı). Aynısı `IRunStore.GetStatisticsAsync` ve `GetTimeSeriesAsync` için de geçerli | Bir toplayıcı sorgunun iptal edilmemesi gerçek bir kaynak tüketimi raporlarsa, ya da sözleşme "store başına bir okuma" sınırını gevşetmeye karar verirse ([Faz 177](fazlar/177-STORE-IPTAL-SOZLESMESI.md) denetim bulgusu 🟢 6) |
+| **F-245** · Sessiz bir `run` ile ölü bir bağlantı ekranda AYNI görünüyor | Sunucu 250 ms'de bir `: waiting` gönderiyor ve bu canlılığı kanıtlıyor, ama `SseDecoder` yorumları düşürüyor ve konsol onları hiç görmüyor: kullanıcı "düşünüyor" ile "öldü"yü ayırt edemiyor. Ölü bağlantı 30 sn bayt eşiğiyle kapanır; bu kalem **canlılık göstergesi** sorunudur ve bir arayüz tasarımı kararıdır. Ölçüm (2026-09-18): `setOffline(true)` açık bir `chunked` SSE gövdesini kesmiyor — `HATA-S3-005`'in gördüğü donukluk sağlıklı bağlantıda sessiz bir run'dı | Bir kullanıcı sessiz bir run'ı öldü sanıp elle yeniden yüklerse, ya da keep-alive'ı yüzeye çıkarmanın (frame tipi ya da "son sinyal: 2 sn önce" göstergesi) bedeli tartışılırken — **kullanıcı kararı gerekir** |
+| **F-246** · Sekiz kararlı hata kimliğinin karşılığı olan bir `RunErrorClass` YOK | Kaynakta 17 kararlı hata kimliği (`const string *ErrorType`) tanımlı; `DefaultRunErrorClassifier.StableIdentities` **9**'unu tanıyor. Kalan 8'i (`session_conflict` · `session_owner_required` · `external_call_rejected` · `agent_source_contract` · `agent_source_failed` · `replay_tool_mismatch` · `job_retry` · `eval_run_diff_unavailable`) bilerek eşlenmedi: **hiçbirinin karşılığı olan bir `RunErrorClass` üyesi yok** ve var olan üyelerin doküman anlamları dar. Yanlış kovaya koymak `Unknown`'dan **kötüdür** — `Unknown` kendi dokümanında dürüst bir ölçüm aracıdır. Yeni enum üyesi public sözleşme işidir: OpenAPI belgesi, TypeScript şeması, iki arayüz sözlüğü ve `RunErrorClassContractTests` (emekli 9 numaralı boşluk disiplini, K-603) birlikte değişir | Bir operatör bu kimliklerden birini panoda ayırt etmek istediğinde, ya da taksonomi bir sonraki kez elden geçirilirken — o zaman sekizi tek turda ölçülür ve kaç yeni üye gerektiği birlikte kararlaştırılır — **kullanıcı kararı gerekir** |
+| **F-233** · SQLite'ın yük altındaki `SQLITE_BUSY` davranışı ölçülmedi | `SqliteDialectTests.WAL_and_busy_timeout_are_set_when_the_connection_opens` yalnız ayarların **kurulduğunu** doğrular, çekişme altındaki **davranışı** değil; `BoundedSqlLoadTests` yalnız `PostgresFixture` ile koşar (`tests/Tracon.PostgreSql.IntegrationTests/Load/`). SQLite tek yazarlıdır ve `README.md` onu çok örnekli dağıtım için önermez — ölçülmemiş olması yayımlanan bir vaadi yalanlamıyor | SQLite'ı çok yazarlı ya da yük altındaki bir kurulumda desteklemek istenirse, ya da `BoundedSqlLoadTests` deseni ikinci bir sağlayıcıya genişletilirken |
+| **F-236** · Audit yazma politikası ratchet'i değişken adına bağlı | `AuditWritePolicyTests`'in deseni `[Aa]udit[Ll]og\.WriteAsync\s*\(`'dir; `IAuditLog log = …; log.WriteAsync(entry, ct);` şeklini **görmez**. Kaynak taraması "ucuz ama kırılgan" diye bilerek seçildi; Roslyn analyzer'a geçmek bir analyzer paketi maliyetidir. Ölçüldü: `src/` altında bu şekli kullanan tek yer `Tracon.Testing.Contracts.Xunit/Contracts/AuditLogContract.cs:25` ve orada **meşru** | Politikayı atlayan bir çağrı yeri gerçekten kaçarsa, ya da başka bir ratchet de analyzer isterse ([Faz 171](fazlar/171-DENETIM-IZI-YAZMA-POLITIKASI.md) denetim bulgusu 🟢 7) |
+| **F-252** · Örnek uygulamanın demo kancaları bir kimlik sağlayıcısıyla değişmeli | K-834 dokuz demo kancası ekledi (`Tracon:Demo:*` + `whoami`/`refund_order` tool'ları); 60'tan fazla manuel case geçici `Program.cs` düzenlemesi olmadan koşulabiliyor. Hepsi `samples/` altındadır. Örnek uygulama gerçek bir kimlik sağlayıcısına (OIDC/JWT) bağlanırsa `DemoRoleAuthenticationHandler` · `DemoRunAuthorization` · `DemoDenyAllToolAuthorization` üçü birlikte kaldırılmalı ve bu case'lerin ön koşulları yeniden yazılmalıdır | Örnek uygulama gerçek bir kimlik sağlayıcısına bağlandığında |
+| **F-253** · Konuşma paneli için sentetik ses sürücüsü | Canlı ses yolu WebRTC'ye parça verdiği için sentetik bir `MediaStream` ile **sürülebiliyor**, ama konuşma paneli `MediaRecorder` kullanıyor ve aynı akıştan **hiç veri üretmiyor** (giden çerçeve 2, ses parçası 0; `MT-MM-086`/`087`). ∴ panelin konuşma **içeriği** isteyen iki case'i yalnız gerçek bir insanla koşulabiliyor. Chrome'un `--use-file-for-fake-audio-capture` bayrağı çözerdi ama tarayıcıyı MCP sunucusu başlatıyor ve bayrak geçirilemiyor | E2E paketine ses kapsamı eklenmek istenirse, ya da tarayıcı başlatma bayrakları yapılandırılabilir hale gelirse |
+| **F-264** · Azure kimlik hatası için manuel kabul case'i yok | `Credential error (...)` davranışı yalnız fonksiyonel testle (`Azure_credential_that_throws_is_Unhealthy_and_does_not_fail_the_whole_list`) kanıtlı. Kimlik gerektirmeyen bir case mümkün (`az login` yok → `DefaultAzureCredential` → `Credential error (CredentialUnavailableException)`, diğer sağlayıcılar etkilenmez) ama örnek uygulama Azure'u yalnız kimlik varken kaydediyor | Örnek uygulamaya bir Azure demo kancası eklenirse (F-252 ile aynı iş) case `06-SAGLAYICI-DIGER`'e yazılır ([Faz 181](fazlar/181-PROVIDER-ORTAK-KATMANI.md) denetimi 🟢-2) |
+| **F-250** · Kiracıya duyarlı örnek bir `IAgentSource` yok | `MT-CORE-095` iki turdur koşulamıyor: case bir kiracının kendi agent kaynağını getirdiğini ölçmek istiyor, ama depoda kiracıya duyarlı bir `IAgentSource` **örneği** yok — sevk edilen tek uygulama yapılandırmadan okur. K-834 sınıfının **dışındadır**: bir bayrağı çevirmek değil, bir örnek yazmak demektir. Aynı boşluk `samples/`'ın seam envanterinde de bir delik: genişleme noktası sevk ediliyor, örneği yok | Bir tüketici kiracı başına agent kümesi sorarsa, ya da `MT-CORE-095` üçüncü turda da koşulamazsa — o zaman örnek `samples/Tracon.Api`'ye kalıcı olarak eklenir ve case onunla koşulur |
+| **F-256** · Harf-kayması sözleşme senaryosu yalnız iki store'da | Senaryo paylaşılan `TenantIsolationContract<T>` tabanında değil: taban bellek içi store'lar üzerinde de koşuyor ve K-839 gereği onların 30'u kiracı kimliğini normalleştirmiyor. Senaryo yalnız iki fail-open store'dadır; kalan depolama sınırının güvencesi `TenantParameterChokePointTests` metin kapısı + SQL Server/SQLite guard testleridir | Bellek içi store ailesi kiracı kimliğini normalleştirirse (K-839 genişlerse) — o zaman senaryo tabana taşınır |
+| **F-263** · `ic-dongu`, paylaşımlı provider kaynağının HTTP kanıtını seçmiyor | `kapi.py` `src/Tracon.Providers.Shared` değişikliğini dört provider birim projesine bağlıyor (`PROVIDER_TEST_PROJECTS`), ama paylaşılan `authorize` yolunun HTTP seviyesindeki tek kanıtı `ModelHealthEndpointsTests` (`Tracon.AspNetCore.FunctionalTests`, ~200 sn). `ProviderHealthCheckCore` değişirse iç döngü onu koşmaz; `kapanis` tam koşum yaptığı için kaçış kapanışta yakalanır | İç döngüde bir provider kaçışı ölçülürse `Tracon.AspNetCore.FunctionalTests` eşlemeye eklenir ([Faz 181](fazlar/181-PROVIDER-ORTAK-KATMANI.md) denetimi 🟢-1) |
+| **F-274** · Üç SQL `Use*` metodundaki ~107 aynı kayıt satırı ortak bir iç yardımcıya taşınmadı | `SqlProviderRegistrationParityTests` unutulan veya dekoratörsüz kaydı kırmızı yapar; kopya kalır. `git log` ölçümü üç dosyaya birlikte dokunan 35 commit gösterdi. Hedef: `src/Tracon.Sql.Shared/Internal/` altında internal bir yardımcı; `Use*` sağlayıcıda kalır | Üç sağlayıcıda satır satır tekrarlanan ikinci bir yatay değişiklik — sayım 2026-09-23'ten başlar (kullanıcı kararı) — ya da dördüncü bir SQL sağlayıcısı (K-176) |
+| **F-276** · npm kanalı test edilen derlemeyi değil kendi `npm run build` çıktısını yayınlıyor | `ci.yml` `npm-publish` işinin `Paketle` adımı (`npm run build`) kendi derlemesini yayınlar; `npm test` başka bir derlemede, `release-dryrun`'daki `npm publish --dry-run` üçüncü bir derlemede koşar. NuGet kanalındaki aynı sınıf Faz 191'de kapandı (K-871; yeniden açılma koşulu bu adaydır); `tsc` çıktısı deterministik ve npm'in 72 saatlik geri alma penceresi riski düşürür | `tsc` çıktısında ilk sapma ya da ilk npm yayın kusuru |
+
 ## Kapanan kalemler
 
 > 2026-09-24'ten itibaren [`../ADAYLAR.md`](../ADAYLAR.md) yalnız yapılacak
