@@ -147,11 +147,13 @@ internal sealed class TraconOptionsValidator : IValidateOptions<TraconOptions>
             (failures ??= []).Add(
                 $"{nameof(TraconOptions)}.{nameof(TraconOptions.Validation)} cannot be empty.");
         }
-        else if (validation.McpTimeout <= TimeSpan.Zero)
+        else if (!TimerPeriod.IsValid(validation.McpTimeout))
         {
-            (failures ??= []).Add(
-                $"{nameof(TraconValidationOptions)}.{nameof(TraconValidationOptions.McpTimeout)} " +
-                $"must be greater than zero. Actual value: {validation.McpTimeout}.");
+            // F-280: every timeout below arms CancelAfter, which refuses more than
+            // about 49.7 days at the moment the timeout is armed, not at startup.
+            (failures ??= []).Add(TimerPeriod.Failure(
+                $"{nameof(TraconValidationOptions)}.{nameof(TraconValidationOptions.McpTimeout)}",
+                validation.McpTimeout));
         }
 
         ValidatePricing(options.Pricing, ref failures);
@@ -165,11 +167,18 @@ internal sealed class TraconOptionsValidator : IValidateOptions<TraconOptions>
         }
         else
         {
-            if (tools.DefaultTimeout <= TimeSpan.Zero)
+            if (!TimerPeriod.IsValid(tools.DefaultTimeout))
             {
-                (failures ??= []).Add(
-                    $"{nameof(TraconToolOptions)}.{nameof(TraconToolOptions.DefaultTimeout)} " +
-                    $"must be greater than zero. Actual value: {tools.DefaultTimeout}.");
+                (failures ??= []).Add(TimerPeriod.Failure(
+                    $"{nameof(TraconToolOptions)}.{nameof(TraconToolOptions.DefaultTimeout)}",
+                    tools.DefaultTimeout));
+            }
+
+            if (!TimerPeriod.IsValid(tools.ApprovalPresentationTimeout))
+            {
+                (failures ??= []).Add(TimerPeriod.Failure(
+                    $"{nameof(TraconToolOptions)}.{nameof(TraconToolOptions.ApprovalPresentationTimeout)}",
+                    tools.ApprovalPresentationTimeout));
             }
 
             if (tools.DefaultMaxOutputBytes is { } maxOutputBytes && maxOutputBytes < TruncatingAIFunction.MinimumEnvelopeBytes)
@@ -183,11 +192,18 @@ internal sealed class TraconOptionsValidator : IValidateOptions<TraconOptions>
 
         var agentGraph = options.AgentGraph;
 
-        if (agentGraph.ChildDeadline <= TimeSpan.Zero)
+        if (!TimerPeriod.IsValid(agentGraph.ChildDeadline))
         {
-            (failures ??= []).Add(
-                $"{nameof(TraconAgentGraphOptions)}.{nameof(TraconAgentGraphOptions.ChildDeadline)} " +
-                $"must be greater than zero. Actual value: {agentGraph.ChildDeadline}.");
+            (failures ??= []).Add(TimerPeriod.Failure(
+                $"{nameof(TraconAgentGraphOptions)}.{nameof(TraconAgentGraphOptions.ChildDeadline)}",
+                agentGraph.ChildDeadline));
+        }
+
+        if (!TimerPeriod.IsValid(agentGraph.WaitTimeout))
+        {
+            (failures ??= []).Add(TimerPeriod.Failure(
+                $"{nameof(TraconAgentGraphOptions)}.{nameof(TraconAgentGraphOptions.WaitTimeout)}",
+                agentGraph.WaitTimeout));
         }
 
         if (agentGraph.WaitTimeout <= agentGraph.ChildDeadline)
@@ -270,11 +286,14 @@ internal sealed class TraconOptionsValidator : IValidateOptions<TraconOptions>
                 "script execution only in a container, under an unprivileged user, and with restricted network access.");
         }
 
-        if (scripts.Timeout <= TimeSpan.Zero)
+        if (!TimerPeriod.IsValid(scripts.Timeout))
         {
-            (failures ??= []).Add(
-                $"{nameof(TraconSkillScriptOptions)}.{nameof(TraconSkillScriptOptions.Timeout)} " +
-                $"must be greater than zero. Actual value: {scripts.Timeout}.");
+            // F-280: the runner arms this timeout after the interpreter has started;
+            // an out-of-range value threw there and skipped the kill.
+            (failures ??= []).Add(TimerPeriod.Failure(
+                $"{nameof(TraconSkillScriptOptions)}.{nameof(TraconSkillScriptOptions.Timeout)}",
+                scripts.Timeout,
+                $" when {nameof(TraconSkillScriptOptions.Enabled)} is on"));
         }
 
         if (scripts.MaxOutputBytes < 1 || scripts.MaxArgumentBytes < 1 || scripts.MaxScriptContentLength < 1)

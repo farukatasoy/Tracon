@@ -322,6 +322,23 @@ public sealed class EvalCommandTests
         result.Combined.ShouldContain("--min-pass-rate");
     }
 
+    /// <summary>
+    /// F-280: <c>--timeout</c> arms <c>CancelAfter</c> and <c>--poll-interval</c> a
+    /// <c>Task.Delay</c>; past about 49.7 days both threw (and a large enough number
+    /// overflowed <c>TimeSpan</c>) instead of being refused as a usage error.
+    /// </summary>
+    [Theory]
+    [InlineData("--timeout")]
+    [InlineData("--poll-interval")]
+    public async Task A_duration_no_timer_can_wait_is_a_usage_error(string option)
+    {
+        var result = await CliRunner.RunAsync(
+            "eval", "--url", "http://localhost:1/tracon/", "--suite", "any-suite", option, "5000000");
+
+        result.ExitCode.ShouldBe(1);
+        result.Combined.ShouldContain(option);
+    }
+
     [Fact]
     public async Task A_negative_max_failures_is_a_usage_error()
     {

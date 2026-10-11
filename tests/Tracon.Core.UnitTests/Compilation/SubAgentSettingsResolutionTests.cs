@@ -106,6 +106,32 @@ public sealed class SubAgentSettingsResolutionTests
         exception.Message.ShouldContain(nameof(SubAgentSettings.ChildDeadline));
     }
 
+    /// <summary>
+    /// F-280: both values arm <c>CancelAfter</c> in every delegation, which refuses
+    /// more than about 49.7 days there. A definition saved over HTTP carries its own
+    /// values, so the startup validator cannot see them.
+    /// </summary>
+    [Theory]
+    [InlineData(nameof(SubAgentSettings.ChildDeadline))]
+    [InlineData(nameof(SubAgentSettings.WaitTimeout))]
+    public void A_resolved_wait_limit_longer_than_a_timer_can_wait_is_rejected_at_compile_time(string field)
+    {
+        var compiler = BuildCompiler(new TraconAgentGraphOptions());
+        var tooLong = TimeSpan.FromDays(50);
+        var definition = TestData.Definition() with
+        {
+            SubAgents = string.Equals(field, nameof(SubAgentSettings.ChildDeadline), StringComparison.Ordinal)
+                ? new SubAgentSettings { ChildDeadline = tooLong, WaitTimeout = tooLong + TimeSpan.FromDays(1) }
+                : new SubAgentSettings { ChildDeadline = TimeSpan.FromMinutes(1), WaitTimeout = tooLong },
+        };
+
+        var exception = Should.Throw<TraconCompilationException>(() => compiler.ResolveSubAgentTimeouts(definition));
+
+        exception.AgentName.ShouldBe(definition.Name);
+        exception.Message.ShouldContain(field);
+        exception.Message.ShouldContain(TimerPeriod.MaxMilliseconds.ToString(System.Globalization.CultureInfo.InvariantCulture));
+    }
+
     private static AgentDefinitionCompiler BuildCompiler(TraconAgentGraphOptions graph)
         => new(
             TestData.Providers(new FakeModelProvider()),

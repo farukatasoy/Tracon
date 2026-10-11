@@ -19,6 +19,7 @@ public sealed class TraconMcpOptions
     public TimeSpan RefreshInterval { get; set; } = TimeSpan.FromMinutes(5);
 
     /// <summary>The upper time bound for connecting to a server and listing its tools.</summary>
+    /// <remarks>Must be from one millisecond to about 49.7 days; any other value fails at startup.</remarks>
     public TimeSpan ConnectionTimeout { get; set; } = TimeSpan.FromSeconds(30);
 
     /// <summary>

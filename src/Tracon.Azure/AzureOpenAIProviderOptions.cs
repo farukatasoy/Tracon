@@ -103,6 +103,7 @@ public sealed class AzureOpenAIProviderOptions
     public string? Audience { get; set; }
 
     /// <summary>The upper time limit for a single request. The library default is used when <see langword="null"/>.</summary>
+    /// <remarks>Must be from one millisecond to about 24.8 days (<see cref="int.MaxValue"/> milliseconds) when set; any other value fails at startup.</remarks>
     public TimeSpan? Timeout { get; set; }
 
     /// <summary>

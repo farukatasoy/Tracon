@@ -44,6 +44,7 @@ public sealed class GoogleProviderOptions
     public string? ApiVersion { get; set; }
 
     /// <summary>Upper time limit for a single request. When <see langword="null"/>, the library default is used.</summary>
+    /// <remarks>Must be from one millisecond to about 24.8 days (<see cref="int.MaxValue"/> milliseconds) when set; any other value fails at startup.</remarks>
     public TimeSpan? Timeout { get; set; }
 
     /// <summary>

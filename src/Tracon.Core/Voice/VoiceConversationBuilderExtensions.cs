@@ -105,6 +105,10 @@ public static class VoiceConversationBuilderExtensions
             services.Configure(configure);
         }
 
+        services.AddOptions<VoiceConversationOptions>().ValidateOnStart();
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IValidateOptions<VoiceConversationOptions>, VoiceConversationOptionsValidator>());
+
         services.TryAddTraconDefault<IVoiceSessionStore, InMemoryVoiceSessionStore>();
 
         services.TryAddSingleton(static provider => new VoiceConversationDriver(

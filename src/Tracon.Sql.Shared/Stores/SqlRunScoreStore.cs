@@ -33,13 +33,13 @@ internal sealed class SqlRunScoreStore : IRunScoreStore
 
     private SqlDialect Dialect => _context.Dialect;
 
+    // F-215 retried a unique violation five times while the two statements ran in
+    // autocommit; the retry hid the window, the transaction closes it (F-313).
     /// <inheritdoc />
     /// <remarks>
     /// The SQL Server text is the UPDATE-then-INSERT pattern; it runs through
     /// <see cref="SqlStoreContext.ExecuteUpsertAsync{T}"/>, whose transaction holds the
-    /// range lock until the INSERT branch is decided. Before that (F-215) the two
-    /// statements ran in autocommit and the store retried a unique violation five
-    /// times; the retry hid the window, the transaction closes it (F-313).
+    /// range lock until the INSERT branch is decided.
     /// </remarks>
     public async ValueTask<RunScore> UpsertAsync(RunScore score, CancellationToken cancellationToken = default)
     {

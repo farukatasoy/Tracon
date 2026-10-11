@@ -485,9 +485,13 @@ internal static class EvalCommand
             return null;
         }
 
-        if (seconds <= 0)
+        // F-280: --timeout arms CancelAfter and --poll-interval a Task.Delay; both
+        // refuse more than about 49.7 days, and TimeSpan.FromSeconds overflows long
+        // before a double runs out.
+        if (seconds <= 0 || seconds * 1000 > TimerPeriod.MaxMilliseconds)
         {
-            throw new CliArgumentException($"'{name}' must be a positive number of seconds.");
+            throw new CliArgumentException(
+                $"'{name}' must be a positive number of seconds, at most {TimerPeriod.MaxMilliseconds / 1000}.");
         }
 
         return TimeSpan.FromSeconds(seconds.Value);

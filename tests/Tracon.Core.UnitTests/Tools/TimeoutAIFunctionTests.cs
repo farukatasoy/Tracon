@@ -158,4 +158,29 @@ public sealed class TimeoutAIFunctionTests
         // reinterpreted as TraconToolTimeoutException.
         await Should.ThrowAsync<OperationCanceledException>(async () => await invocation);
     }
+
+    /// <summary>
+    /// F-280: the delay behind the timeout refuses more than about 49.7 days at call
+    /// time, after the tool body has started. Every per-tool timeout (code registration,
+    /// <c>[TraconTool(TimeoutSeconds)]</c>, the tools default) passes through here, so
+    /// the range is checked when the wrapper is built.
+    /// </summary>
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(50 * 24 * 60 * 60)]
+    public void A_timeout_the_delay_cannot_take_is_refused_when_the_wrapper_is_built(int seconds)
+    {
+        var inner = AIFunctionFactory.Create(() => "ok", "any_tool");
+
+        Should.Throw<ArgumentOutOfRangeException>(
+            () => new TimeoutAIFunction(inner, TimeSpan.FromSeconds(seconds), NullLogger<TimeoutAIFunction>.Instance));
+    }
+
+    [Fact]
+    public void The_longest_timeout_the_delay_takes_is_accepted()
+        => Should.NotThrow(() => new TimeoutAIFunction(
+            AIFunctionFactory.Create(() => "ok", "any_tool"),
+            TimeSpan.FromDays(49),
+            NullLogger<TimeoutAIFunction>.Instance));
 }

@@ -74,6 +74,7 @@ public sealed class VoiceOptions
     public bool RequireApproval { get; set; }
 
     /// <summary>Request timeout. 100 seconds when empty.</summary>
+    /// <remarks>Must be from one millisecond to about 24.8 days (<see cref="int.MaxValue"/> milliseconds) when set; any other value fails at startup.</remarks>
     public TimeSpan? Timeout { get; set; }
 }
 

@@ -10,11 +10,13 @@ internal sealed class TraconDrainOptionsValidator : IValidateOptions<TraconDrain
     {
         ArgumentNullException.ThrowIfNull(options);
 
-        if (options.Timeout <= TimeSpan.Zero)
+        // F-280: the drain arms this timeout at shutdown; an out-of-range value threw
+        // there and the drain was skipped.
+        if (!TimerPeriod.IsValid(options.Timeout))
         {
-            return ValidateOptionsResult.Fail(
-                $"{nameof(TraconDrainOptions)}.{nameof(TraconDrainOptions.Timeout)} " +
-                $"must be greater than zero. Actual value: {options.Timeout}.");
+            return ValidateOptionsResult.Fail(TimerPeriod.Failure(
+                $"{nameof(TraconDrainOptions)}.{nameof(TraconDrainOptions.Timeout)}",
+                options.Timeout));
         }
 
         return ValidateOptionsResult.Success;

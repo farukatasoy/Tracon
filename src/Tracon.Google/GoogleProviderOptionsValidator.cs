@@ -40,11 +40,14 @@ internal sealed class GoogleProviderOptionsValidator : IValidateOptions<GooglePr
                 $"Actual value: '{options.Endpoint}'.");
         }
 
-        if (options.Timeout is { } timeout && timeout <= TimeSpan.Zero)
+        // F-280: the request timeout reaches the SDK's HTTP stack and the health
+        // check's CancellationTokenSource; past int.MaxValue ms one refuses it at the
+        // first request and another wraps it into a negative value.
+        if (options.Timeout is { } timeout && !TimerPeriod.IsValidHttpTimeout(timeout))
         {
-            (failures ??= []).Add(
-                $"{nameof(GoogleProviderOptions)}.{nameof(GoogleProviderOptions.Timeout)} must be greater than zero. " +
-                $"Actual value: {timeout}.");
+            (failures ??= []).Add(TimerPeriod.HttpTimeoutFailure(
+                $"{nameof(GoogleProviderOptions)}.{nameof(GoogleProviderOptions.Timeout)}",
+                timeout));
         }
 
         for (var index = 0; index < options.Models.Count; index++)
