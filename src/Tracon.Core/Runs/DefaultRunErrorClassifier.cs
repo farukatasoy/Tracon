@@ -49,6 +49,7 @@ public sealed partial class DefaultRunErrorClassifier : IRunErrorClassifier
         [TraconToolTimeoutException.ToolTimeoutErrorType] = RunErrorClass.ToolTimeout,
         [TraconRunBudgetExceededException.RunBudgetExceededErrorType] = RunErrorClass.QuotaExceeded,
         [TraconStructuredResponseException.StructuredResponseInvalidErrorType] = RunErrorClass.StructuredResponseInvalid,
+        [TraconLoopUnsatisfiedException.LoopUnsatisfiedErrorType] = RunErrorClass.LoopUnsatisfied,
 
         // 🚨 The identity the normalizer stamps on EVERY foreign provider
         // failure. Without this entry it matched nothing: the normalizer

@@ -5660,3 +5660,23 @@ override Tracon.LiveVoiceAttachRequest.GetHashCode() -> int
 override Tracon.LiveVoiceAttachRequest.ToString() -> string!
 static Tracon.LiveVoiceAttachRequest.operator !=(Tracon.LiveVoiceAttachRequest? left, Tracon.LiveVoiceAttachRequest? right) -> bool
 static Tracon.LiveVoiceAttachRequest.operator ==(Tracon.LiveVoiceAttachRequest? left, Tracon.LiveVoiceAttachRequest? right) -> bool
+Tracon.LoopOutcome
+Tracon.LoopOutcome.FailRun = 1 -> Tracon.LoopOutcome
+Tracon.LoopOutcome.ReturnLastResponse = 0 -> Tracon.LoopOutcome
+Tracon.LoopSettings.OnCriterionError.get -> Tracon.LoopOutcome
+Tracon.LoopSettings.OnCriterionError.init -> void
+Tracon.LoopSettings.OnExhausted.get -> Tracon.LoopOutcome
+Tracon.LoopSettings.OnExhausted.init -> void
+Tracon.RunErrorClass.LoopUnsatisfied = 15 -> Tracon.RunErrorClass
+Tracon.TraconLoopUnsatisfiedException
+Tracon.TraconLoopUnsatisfiedException.AgentName.get -> string?
+Tracon.TraconLoopUnsatisfiedException.AgentName.init -> void
+Tracon.TraconLoopUnsatisfiedException.Iterations.get -> int
+Tracon.TraconLoopUnsatisfiedException.Iterations.init -> void
+Tracon.TraconLoopUnsatisfiedException.TraconLoopUnsatisfiedException() -> void
+Tracon.TraconLoopUnsatisfiedException.TraconLoopUnsatisfiedException(string! message) -> void
+Tracon.TraconLoopUnsatisfiedException.TraconLoopUnsatisfiedException(string! message, System.Exception! innerException) -> void
+Tracon.TraconLoopUnsatisfiedException.UnsatisfiedCriterion.get -> string?
+Tracon.TraconLoopUnsatisfiedException.UnsatisfiedCriterion.init -> void
+const Tracon.TraconLoopUnsatisfiedException.LoopUnsatisfiedErrorType = "loop_unsatisfied" -> string!
+override Tracon.TraconLoopUnsatisfiedException.ErrorType.get -> string!

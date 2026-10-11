@@ -55,7 +55,7 @@ workflow, MCP, voice, and external protocol packages add their own explicit call
 | Structured output | Explicit text, JSON, or JSON Schema responses | `ModelBinding.ResponseFormat` | Provider support is validated or translated by that provider; an opt-in, fail-closed `IStructuredResponseValidator` seam can check the response before the run closes; a rejected response can get a bounded number of model-driven repair turns (`MaxRepairAttempts`), non-streaming runs only |
 | Agent graph | One agent can call registered agents as tools | `CallableAgentNames` | Shared limits bound call depth, total child runs, total token/cost spend, and wall-clock time — the token, cost, and time limits cut a run off mid-run, between model turns. Each call also has a two-layer wait limit (`SubAgentSettings`, or the installation-wide default): a cooperative deadline, then a hard cutoff that abandons a child that ignores cancellation |
 | Harness mode | Context and iteration limits plus todo, file-memory, web-search, skill, and mode providers | `AgentDefinition.Harness` | The harness extends the agent; it does not replace MAF types. Its providers are on by default — each has its own `Disable...` flag |
-| Harness loop | The agent is re-invoked until a declared stop criterion says the work is finished | `HarnessSettings.Loop`, plus `AddLoopEvaluator(kind, evaluator)` for a criterion written in code | Off unless the definition sets it. Four built-in criterion kinds take data only; an unknown kind is refused at compile time. The iteration ceiling is never open — an unset `MaxIterations` takes Tracon's own default — and every iteration writes a `LoopIterationCompleted` run event |
+| Harness loop | The agent is re-invoked until a declared stop criterion says the work is finished | `HarnessSettings.Loop`, plus `AddLoopEvaluator(kind, evaluator)` for a criterion written in code | Off unless the definition sets it. Four built-in criterion kinds take data only; an unknown kind is refused at compile time. The iteration ceiling is never open — an unset `MaxIterations` takes Tracon's own default — and every iteration writes a `LoopIterationCompleted` run event. `OnExhausted` / `OnCriterionError` set to `LoopOutcome.FailRun` fail the run instead of returning the last response (`LoopUnsatisfied`) |
 | Context compaction | Trigger-based truncation or summarization with preserved turns and an optional utility model | `AgentDefinition.Compaction` and `Tracon:UtilityModel` | Compaction is per definition and can be disabled by harness settings |
 | Working memory | Todo state, file memory, text search, and vector search tools | `AgentDefinition.Memory` | Vector search also needs PostgreSQL and an embedding generator |
 | Response caching | A tenant-, provider-, and tool-set-aware cache; a hit spends no tokens and opens no new trace span | `ModelBinding.ResponseCache` | Needs a registered `IDistributedCache`, or the agent fails to compile |
@@ -662,9 +662,10 @@ Four more rules are worth knowing before you turn the loop on:
   model. Without that binding the definition does not compile. The judge reads
   each answer, so a tenant's egress policy applies to its provider; it keeps the
   setup-time key, not the tenant's own.
-- **A criterion that fails to evaluate stops the loop; it does not fail the
-  run.** The work already finished is returned, and the iteration event names the
-  criterion that failed.
+- **By default the loop never fails the run.** A criterion that fails to
+  evaluate stops the loop, the work already finished is returned, and the
+  iteration event names the criterion. A loop that reaches its ceiling returns its
+  last response too. The next section makes either case fail the run instead.
 
 Each evaluated iteration writes a `LoopIterationCompleted` run event carrying
 the iteration number, whether a criterion asked for another iteration, and which
@@ -675,6 +676,53 @@ reaches `MaxIterations` is never evaluated — there is nothing left to decide �
 so a loop that ends at its ceiling writes one event fewer than it takes turns.
 Its last event carries `ceilingReached`, which is how the run record tells "the
 criterion was finally satisfied" apart from "we ran out of iterations".
+
+### Fail the run when the loop is not satisfied
+
+A loop that runs out of iterations returns the last response as a success. In a
+workflow, the next node then receives a response no criterion accepted — a
+draft the judge never approved goes on to text-to-speech. Two settings choose
+what happens instead, each `ReturnLastResponse` (the default) or `FailRun`:
+
+| Setting | Applies when | With `FailRun` |
+|---|---|---|
+| `OnExhausted` | The ceiling is reached and a criterion still asks for another iteration | The run fails with error type `loop_unsatisfied`, class `LoopUnsatisfied` |
+| `OnCriterionError` | A criterion throws while it is evaluated | The run fails with the criterion's own error, so an unreachable judge stays a provider error |
+
+```csharp
+Loop = new LoopSettings
+{
+    Criteria = [new LoopCriterion { Kind = "aiJudge", JudgeCriteria = ["Ready to publish"] }],
+    MaxIterations = 3,
+    OnExhausted = LoopOutcome.FailRun,
+},
+```
+
+In JSON the values are names: `"onExhausted": "FailRun"`. An unknown name is
+refused with `400` when the definition is saved.
+
+What `FailRun` changes, besides the outcome:
+
+- **The last iteration is evaluated.** By default the turn at the ceiling is
+  not, because nothing is left to decide. Failing the run without evaluating it
+  would refuse a last response that meets every criterion, so in this mode the
+  criteria run once more after that turn. The agent still takes at most
+  `MaxIterations` turns; the cost is one more evaluation, which for `aiJudge` is
+  one more judge call. With `MaxIterations = 1` the single turn is evaluated too.
+- **The events match the turns.** Every turn is evaluated, and the last event
+  carries `ceilingReached` and `failsRun`. A criterion that throws under
+  `OnCriterionError = FailRun` writes `failedCriterion` and `failsRun`.
+- **A streaming client receives the last turn's text before the failure.** The
+  decision is made after that turn has streamed: the client gets the text, then
+  the error frame, and the run closes as `Failed`.
+- **A failed run keeps its usage.** Its tokens and cost cover every turn the
+  loop ran, so quotas and cost reports count the work.
+- **A workflow stops at that agent.** Its run fails and the next node does not
+  run. The agent's own run carries the `LoopUnsatisfied` class; the workflow's
+  run records the failure without a class.
+
+The run's own cancellation is never a criterion error: a cancelled run ends as
+`Canceled` in both modes.
 
 ## Read next
 
@@ -2307,7 +2355,9 @@ so what you read a week later is what actually happened.
 ## Errors are classified
 
 A failed run carries an error class, not just a message: a provider outage, a content
-filter, a blocked guard decision, a quota, a timeout, a rejected structured response.
+filter, a blocked guard decision, a quota, a timeout, a rejected structured response, a
+harness loop that ran out of iterations unsatisfied (`LoopUnsatisfied`, see
+[failing the run](/concepts/agents/#fail-the-run-when-the-loop-is-not-satisfied)).
 Two of them are deliberately distinct — `ContentFiltered` means the *provider's*
 filter cut the response, while `ContentBlocked` means *your* guard refused it. The
 operator response differs: one is a provider setting, the other is your policy.

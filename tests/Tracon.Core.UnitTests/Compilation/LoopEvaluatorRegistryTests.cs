@@ -80,6 +80,70 @@ public sealed class LoopEvaluatorRegistryTests
         options.NonStreamingReturnsLastResponseOnly.ShouldBeFalse();
     }
 
+    /// <summary>
+    /// Phase 192: the framework does not evaluate the turn that reaches its ceiling.
+    /// Failing the run there without evaluating it would refuse a last response that
+    /// meets every criterion, so in FailRun mode the framework gets one iteration more
+    /// and the composite decides at the definition's own ceiling. The default mode
+    /// keeps today's ceiling, events and cost exactly.
+    /// </summary>
+    [Theory]
+    [InlineData(LoopOutcome.ReturnLastResponse, 3, 3)]
+    [InlineData(LoopOutcome.FailRun, 3, 4)]
+    [InlineData(LoopOutcome.FailRun, 1, 2)]
+    public void FailRun_on_exhaustion_gives_the_framework_one_more_iteration(LoopOutcome onExhausted, int maxIterations, int frameworkCeiling)
+    {
+        var registry = BuildRegistry();
+        var definition = WithLoop(new LoopSettings
+        {
+            Criteria = [new LoopCriterion { Kind = "completionMarker", Marker = "DONE" }],
+            MaxIterations = maxIterations,
+            OnExhausted = onExhausted,
+        });
+
+        var (_, options) = Build(registry, definition);
+
+        options.MaxIterations.ShouldBe(frameworkCeiling);
+    }
+
+    [Fact]
+    public void The_criterion_error_policy_does_not_change_the_framework_ceiling()
+    {
+        var registry = BuildRegistry();
+        var definition = WithLoop(new LoopSettings
+        {
+            Criteria = [new LoopCriterion { Kind = "completionMarker", Marker = "DONE" }],
+            MaxIterations = 3,
+            OnCriterionError = LoopOutcome.FailRun,
+        });
+
+        var (_, options) = Build(registry, definition);
+
+        options.MaxIterations.ShouldBe(3);
+    }
+
+    /// <summary>
+    /// A number that is not a member would otherwise behave like the default in
+    /// silence: the definition said "fail", or something, and the loop returned.
+    /// </summary>
+    [Theory]
+    [InlineData(nameof(LoopSettings.OnExhausted))]
+    [InlineData(nameof(LoopSettings.OnCriterionError))]
+    public void An_undefined_loop_outcome_is_refused(string field)
+    {
+        var registry = BuildRegistry();
+        var undefined = (LoopOutcome)7;
+        var loop = new LoopSettings { Criteria = [new LoopCriterion { Kind = "completionMarker", Marker = "DONE" }] };
+        var definition = WithLoop(string.Equals(field, nameof(LoopSettings.OnExhausted), StringComparison.Ordinal)
+            ? loop with { OnExhausted = undefined }
+            : loop with { OnCriterionError = undefined });
+
+        var exception = Should.Throw<TraconCompilationException>(() => Build(registry, definition));
+
+        exception.AgentName.ShouldBe(definition.Name);
+        exception.Message.ShouldContain(field);
+    }
+
     [Fact]
     public void An_empty_criteria_list_is_refused()
     {

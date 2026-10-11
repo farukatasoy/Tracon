@@ -12062,6 +12062,13 @@
         },
         "description": "One declarative stop criterion of the harness loop (see \u0060LoopSettings\u0060)."
       },
+      "LoopOutcome": {
+        "enum": [
+          "ReturnLastResponse",
+          "FailRun"
+        ],
+        "description": "What a harness loop does when it ends without every criterion satisfied: return\nthe last response, or fail the run."
+      },
       "LoopSettings": {
         "required": [
           "criteria"
@@ -12088,6 +12095,14 @@
           "freshContextPerIteration": {
             "type": "boolean",
             "description": "Gets a value that starts every iteration from a fresh context instead of\ncarrying the previous iterations\u0027 messages forward."
+          },
+          "onExhausted": {
+            "description": "Gets what happens when the iteration ceiling is reached while a criterion still\nasks for another iteration. LoopOutcome.ReturnLastResponse by\ndefault.",
+            "$ref": "#/components/schemas/LoopOutcome"
+          },
+          "onCriterionError": {
+            "description": "Gets what happens when a criterion throws while it is evaluated.\nLoopOutcome.ReturnLastResponse by default.",
+            "$ref": "#/components/schemas/LoopOutcome"
           }
         },
         "description": "Turns the harness loop on: the agent is re-invoked until a stop criterion\nsays the work is finished."
@@ -13970,6 +13985,7 @@
           "Infrastructure",
           "ToolTimeout",
           "StructuredResponseInvalid",
+          "LoopUnsatisfied",
           null
         ]
       },
