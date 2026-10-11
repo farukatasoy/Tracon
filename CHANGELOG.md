@@ -100,6 +100,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   its consecutive failure count with the SQL stores too, as the in-memory store
   already did. Before, a subscription that was disabled for failing and then
   enabled again went back to disabled on its next single failure.
+- A timeout set beyond what .NET timers accept now fails at startup with the
+  option's name. `CancelAfter` refuses more than about 49.7 days, and the
+  validators refused only zero and negative values, so such a value threw
+  where the timeout was armed: on every run of a workflow
+  (`Workflows:RunTimeout`), every webhook delivery (`Webhooks:Timeout`), every
+  live voice delegation (`Voice:Live:DelegationTimeout`), every MCP connect
+  (`Mcp:ConnectionTimeout`, which aborted discovery for every tenant), at
+  shutdown (`Drain:Timeout`), and after a skill script had started, which left
+  the script running (`Skills:Scripts:Timeout`). The same check now covers
+  `Tools:DefaultTimeout`, `Tools:ApprovalPresentationTimeout`,
+  `Validation:McpTimeout`, `AgentGraph:ChildDeadline` and `WaitTimeout` (and an
+  agent definition's `subAgents` values, at compile time), `Images:Timeout`,
+  `Voice:Conversation:IdleTimeout` and `MaxConnectionDuration`, a tool's own
+  timeout, and `RunEventPollInterval`. A provider or voice `Timeout`, which
+  becomes an HTTP request timeout, must be at most about 24.8 days
+  (`int.MaxValue` milliseconds); `TraconClientOptions.Timeout` likewise. A
+  `WorkflowNodeRetryPolicy` with a negative delay or multiplier is refused when
+  the function is registered, and its growing delay is capped. `tracon eval`
+  refuses a `--timeout` or `--poll-interval` it cannot wait for. Values below
+  one millisecond are refused too.
 - On SQL Server, two requests that save the same new record at the same time
   no longer fail with a unique-key violation. Twenty stores wrote with an
   update-then-insert pair outside a transaction, so both requests could take

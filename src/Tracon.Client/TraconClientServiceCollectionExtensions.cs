@@ -56,11 +56,16 @@ public static class TraconClientServiceCollectionExtensions
         var token = options.Token;
         var timeout = options.Timeout;
 
-        if (timeout is { } configured && configured != System.Threading.Timeout.InfiniteTimeSpan && configured <= TimeSpan.Zero)
+        // F-280: HttpClient.Timeout refuses more than int.MaxValue milliseconds (about
+        // 24.8 days); without the upper bound the value was accepted here and threw when
+        // the first client was built.
+        if (timeout is { } configured
+            && configured != System.Threading.Timeout.InfiniteTimeSpan
+            && (configured <= TimeSpan.Zero || configured.TotalMilliseconds > int.MaxValue))
         {
             throw new ArgumentException(
-                $"{nameof(TraconClientOptions.Timeout)} must be greater than zero, or " +
-                $"{nameof(System.Threading.Timeout)}.{nameof(System.Threading.Timeout.InfiniteTimeSpan)} " +
+                $"{nameof(TraconClientOptions.Timeout)} must be greater than zero and at most {int.MaxValue} " +
+                $"milliseconds, or {nameof(System.Threading.Timeout)}.{nameof(System.Threading.Timeout.InfiniteTimeSpan)} " +
                 "to leave the budget entirely to the caller's cancellation token.",
                 nameof(configure));
         }

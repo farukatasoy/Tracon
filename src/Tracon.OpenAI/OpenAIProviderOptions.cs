@@ -37,6 +37,7 @@ public sealed class OpenAIProviderOptions
     /// Gets or sets the upper time limit of a single request. When <see
     /// langword="null"/>, the library default is used.
     /// </summary>
+    /// <remarks>Must be from one millisecond to about 24.8 days (<see cref="int.MaxValue"/> milliseconds) when set; any other value fails at startup.</remarks>
     public TimeSpan? Timeout { get; set; }
 
     /// <summary>

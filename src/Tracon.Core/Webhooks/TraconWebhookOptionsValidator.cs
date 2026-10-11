@@ -18,11 +18,13 @@ internal sealed class TraconWebhookOptionsValidator : IValidateOptions<TraconWeb
 
         List<string>? failures = null;
 
-        if (options.Timeout <= TimeSpan.Zero)
+        // F-280: every delivery attempt arms this timeout; an out-of-range value threw
+        // on every attempt.
+        if (!TimerPeriod.IsValid(options.Timeout))
         {
-            (failures ??= []).Add(
-                $"{nameof(TraconWebhookOptions)}.{nameof(TraconWebhookOptions.Timeout)} " +
-                $"must be greater than zero. Actual value: {options.Timeout}.");
+            (failures ??= []).Add(TimerPeriod.Failure(
+                $"{nameof(TraconWebhookOptions)}.{nameof(TraconWebhookOptions.Timeout)}",
+                options.Timeout));
         }
 
         if (options.MaxResponseBytes < 1)

@@ -54,11 +54,13 @@ internal sealed class OpenAILiveOptionsValidator : IValidateOptions<OpenAILiveOp
                 $"Received value: {options.MaxAppendCharacters}.");
         }
 
-        if (options.Timeout <= TimeSpan.Zero)
+        // F-280: the value becomes HttpClient.Timeout, which refuses more than
+        // int.MaxValue milliseconds when the client is built.
+        if (!TimerPeriod.IsValidHttpTimeout(options.Timeout))
         {
-            (failures ??= []).Add(
-                $"{nameof(OpenAILiveOptions)}.{nameof(OpenAILiveOptions.Timeout)} must be greater than zero. " +
-                $"Received value: {options.Timeout}.");
+            (failures ??= []).Add(TimerPeriod.HttpTimeoutFailure(
+                $"{nameof(OpenAILiveOptions)}.{nameof(OpenAILiveOptions.Timeout)}",
+                options.Timeout));
         }
 
         // 🚨 The message says WHICH CALL is missing. The live provider reuses the

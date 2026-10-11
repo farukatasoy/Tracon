@@ -94,6 +94,7 @@ public sealed class TraconToolOptions
     /// (<see cref="TraconSkillScriptOptions.Timeout"/>); this value was
     /// not measured against production traffic and should be revisited after
     /// the first real run.
+    /// <para>Must be from one millisecond to about 49.7 days; any other value fails at startup.</para>
     /// </remarks>
     public TimeSpan DefaultTimeout { get; set; } = TimeSpan.FromSeconds(30);
 
@@ -119,6 +120,7 @@ public sealed class TraconToolOptions
     /// do a single fast, read-only lookup (a point read by primary key), not real work.
     /// A slow presenter never blocks the approval itself; it only loses its own
     /// presentation, so a short default costs nothing but a resolved entity name.
+    /// <para>Must be from one millisecond to about 49.7 days; any other value fails at startup.</para>
     /// </remarks>
     public TimeSpan ApprovalPresentationTimeout { get; set; } = TimeSpan.FromSeconds(2);
 }
@@ -133,6 +135,7 @@ public sealed class TraconValidationOptions
     /// This is triggered only for a missing tool name when <c>Tracon.Mcp</c>
     /// is registered. A slow MCP server must not overrun the validation endpoint.
     /// On timeout, the result is <c>Inconclusive</c>, not <c>Valid</c>.
+    /// <para>Must be from one millisecond to about 49.7 days; any other value fails at startup.</para>
     /// </remarks>
     public TimeSpan McpTimeout { get; set; } = TimeSpan.FromSeconds(5);
 }
@@ -221,6 +224,7 @@ public sealed class TraconAgentGraphOptions
     /// <em>exists</em> and is non-zero, the same reasoning as <see cref="MaxDepth"/>
     /// and <see cref="MaxTotalTokens"/>: an unlimited installation learns about
     /// its first hanging sub-agent call from a stuck tree, not from a setting.
+    /// <para>Must be from one millisecond to about 49.7 days; any other value fails at startup.</para>
     /// </remarks>
     public TimeSpan ChildDeadline { get; set; } = TimeSpan.FromMinutes(2);
 
@@ -241,6 +245,7 @@ public sealed class TraconAgentGraphOptions
     /// <see cref="TimeSpan.MaxValue"/> rather than overflowing — the same
     /// "an absurd duration behaves as practically unlimited, not a crash"
     /// convention <see cref="AgentRunBudget"/> uses for its own deadline.
+    /// <para>Must be from one millisecond to about 49.7 days; any other value fails at startup.</para>
     /// </remarks>
     public TimeSpan WaitTimeout
     {
@@ -388,6 +393,7 @@ public sealed class TraconSkillScriptOptions
     public IList<string> EnvironmentAllowList { get; } = ["PATH", "HOME"];
 
     /// <summary>Gets or sets the longest duration for one script to run.</summary>
+    /// <remarks>Must be from one millisecond to about 49.7 days while <see cref="Enabled"/> is on; any other value fails at startup.</remarks>
     public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(30);
 
     /// <summary>Gets or sets the largest combined stdout and stderr byte count. Excess output is truncated.</summary>

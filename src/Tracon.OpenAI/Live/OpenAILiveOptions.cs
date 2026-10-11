@@ -55,5 +55,6 @@ public sealed class OpenAILiveOptions
     public int MaxAppendCharacters { get; set; } = ProviderAppendTokenLimit * ConservativeCharactersPerToken;
 
     /// <summary>Gets or sets the timeout of the session-creation call. The default is 30 seconds.</summary>
+    /// <remarks>Must be from one millisecond to about 24.8 days (<see cref="int.MaxValue"/> milliseconds); any other value fails at startup.</remarks>
     public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(30);
 }

@@ -21,6 +21,39 @@ internal static class WorkflowNodeRetry
         RunErrorClass.Timeout,
     ];
 
+    /// <summary>Checks a policy when its node is registered.</summary>
+    /// <param name="policy">The policy.</param>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// <see cref="WorkflowNodeRetryPolicy.InitialDelay"/> is negative or longer than a delay
+    /// can wait, or <see cref="WorkflowNodeRetryPolicy.BackoffMultiplier"/> is negative or
+    /// not a finite number.
+    /// </exception>
+    /// <remarks>
+    /// The policy is code, and it used to meet the timer only on a retry, in the
+    /// middle of a run. A negative multiplier made the second delay negative and the
+    /// retry threw instead of retrying.
+    /// </remarks>
+    public static void Validate(WorkflowNodeRetryPolicy policy)
+    {
+        if (policy.InitialDelay < TimeSpan.Zero || policy.InitialDelay.TotalMilliseconds > TimerPeriod.MaxMilliseconds)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(policy),
+                policy.InitialDelay,
+                $"{nameof(WorkflowNodeRetryPolicy)}.{nameof(WorkflowNodeRetryPolicy.InitialDelay)} must be between 0 and " +
+                $"{TimerPeriod.MaxMilliseconds} milliseconds. Actual value: {policy.InitialDelay}.");
+        }
+
+        if (!double.IsFinite(policy.BackoffMultiplier) || policy.BackoffMultiplier < 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(policy),
+                policy.BackoffMultiplier,
+                $"{nameof(WorkflowNodeRetryPolicy)}.{nameof(WorkflowNodeRetryPolicy.BackoffMultiplier)} must be a finite, " +
+                $"non-negative number. Actual value: {policy.BackoffMultiplier}.");
+        }
+    }
+
     public static Func<TInput, IWorkflowContext, CancellationToken, ValueTask<TOutput>> Wrap<TInput, TOutput>(
         Func<TInput, IWorkflowContext, CancellationToken, ValueTask<TOutput>> handler,
         WorkflowNodeRetryPolicy policy,
@@ -58,7 +91,12 @@ internal static class WorkflowNodeRetry
                     IsTransient(classifier, logger, exception))
                 {
                     await Task.Delay(delay, timeProvider, cancellationToken).ConfigureAwait(false);
-                    delay *= policy.BackoffMultiplier;
+
+                    // F-280: capped where the delay can still wait. Unbounded, the
+                    // default doubling passed the timer's ceiling after about 22
+                    // attempts and the next delay threw.
+                    delay = TimeSpan.FromMilliseconds(
+                        Math.Min(delay.TotalMilliseconds * policy.BackoffMultiplier, TimerPeriod.MaxMilliseconds));
                 }
             }
         };

@@ -36,6 +36,7 @@ public sealed class VoiceConversationOptions
     /// <remarks>
     /// When the time expires the connection closes cleanly and the client reconnects.
     /// An endless connection means that a leaking resource is never noticed.
+    /// <para>Must be from one millisecond to about 49.7 days; any other value fails at startup.</para>
     /// </remarks>
     public TimeSpan MaxConnectionDuration { get; set; } = TimeSpan.FromMinutes(30);
 
@@ -43,6 +44,7 @@ public sealed class VoiceConversationOptions
     /// Gets or sets the longest time that can pass without a frame. The default is
     /// 2 minutes.
     /// </summary>
+    /// <remarks>Must be from one millisecond to about 49.7 days; any other value fails at startup.</remarks>
     public TimeSpan IdleTimeout { get; set; } = TimeSpan.FromMinutes(2);
 
     /// <summary>

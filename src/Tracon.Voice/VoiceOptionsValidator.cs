@@ -70,9 +70,13 @@ internal sealed class VoiceOptionsValidator : IValidateOptions<VoiceOptions>
                 $"(for example '{VoiceOptions.DefaultOutputFormat}').");
         }
 
-        if (options.Timeout is { } timeout && timeout <= TimeSpan.Zero)
+        // F-280: the value becomes HttpClient.Timeout, which refuses more than
+        // int.MaxValue milliseconds when the client is built.
+        if (options.Timeout is { } timeout && !TimerPeriod.IsValidHttpTimeout(timeout))
         {
-            (failures ??= []).Add($"{nameof(VoiceOptions)}: timeout must be greater than zero.");
+            (failures ??= []).Add(TimerPeriod.HttpTimeoutFailure(
+                $"{nameof(VoiceOptions)}.{nameof(VoiceOptions.Timeout)}",
+                timeout));
         }
 
         return failures is null

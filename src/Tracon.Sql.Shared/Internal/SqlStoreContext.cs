@@ -147,8 +147,8 @@ internal sealed class SqlStoreContext : IDisposable, IAsyncDisposable
     /// this is exactly <see cref="CreateCommand(string)"/> followed by
     /// <paramref name="execute"/>. Otherwise the command runs on its own connection
     /// inside an ADO.NET <see cref="DbTransaction"/> (not a <c>BEGIN TRAN</c> in the
-    /// text: the dialects classify errors that flow through the transaction object,
-    /// K-388), which holds the upsert's range lock until the commit (F-313).
+    /// text: the dialects classify the errors that flow through the transaction
+    /// object), which holds the upsert's range lock until the commit.
     /// </remarks>
     public async ValueTask<T> ExecuteUpsertAsync<T>(
         string sql,

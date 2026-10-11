@@ -52,6 +52,7 @@ public sealed class VoiceLiveOptions
     public int MaxLedgerEntriesPerDelegation { get; set; } = 40;
 
     /// <summary>Gets or sets how long one delegation may run. The default is 2 minutes.</summary>
+    /// <remarks>Must be from one millisecond to about 49.7 days; any other value fails at startup.</remarks>
     public TimeSpan DelegationTimeout { get; set; } = TimeSpan.FromMinutes(2);
 
     /// <summary>Gets or sets how the live model hands work back. The default is <c>Client</c>.</summary>

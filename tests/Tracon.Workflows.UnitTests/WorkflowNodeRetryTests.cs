@@ -1,5 +1,6 @@
 using Microsoft.Agents.AI.Workflows;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.DependencyInjection;
 using Tracon.Workflows.UnitTests.Fakes;
 
 namespace Tracon.Workflows.UnitTests;
@@ -292,6 +293,65 @@ public sealed class WorkflowNodeRetryTests
 
         result.ShouldBe("done");
         attempts.ShouldBe(3);
+    }
+
+    /// <summary>
+    /// F-280: the delay doubles on every attempt and used to meet the timer's ceiling
+    /// unchecked; past about 49.7 days the next <c>Task.Delay</c> threw
+    /// <see cref="ArgumentOutOfRangeException"/> in the middle of a run instead of
+    /// retrying. The delay is now capped where a delay can still wait.
+    /// </summary>
+    [Fact]
+    public async Task A_delay_that_outgrows_the_timer_is_capped_instead_of_throwing()
+    {
+        var time = new TriggerableTimeProvider();
+        var attempts = 0;
+
+        var handler = WorkflowNodeRetry.Wrap(
+            (string input, IWorkflowContext _, CancellationToken _) =>
+            {
+                attempts++;
+
+                return ValueTask.FromException<string>(new TraconProviderUnavailableException("still-down"));
+            },
+            new WorkflowNodeRetryPolicy { MaxAttempts = 3, InitialDelay = TimeSpan.FromDays(30), BackoffMultiplier = 2 },
+            new FixedClassifier(RunErrorClass.ProviderUnavailable),
+            time);
+
+        var call = handler("x", null!, TestContext.Current.CancellationToken).AsTask();
+
+        // Each probe fires the retry's pending delay; the call ends after the third attempt.
+        await WaitUntil.TrueAsync(() =>
+        {
+            time.TriggerAll();
+
+            return call.IsCompleted;
+        });
+
+        await Should.ThrowAsync<TraconProviderUnavailableException>(call);
+        attempts.ShouldBe(3);
+    }
+
+    [Theory]
+    [InlineData(-1.0, 2.0)]
+    [InlineData(50 * 24 * 60 * 60.0, 2.0)]
+    [InlineData(1.0, -1.0)]
+    [InlineData(1.0, double.NaN)]
+    [InlineData(1.0, double.PositiveInfinity)]
+    public void A_policy_a_delay_cannot_follow_is_refused_when_the_node_is_registered(double initialSeconds, double multiplier)
+    {
+        var builder = new ServiceCollection().AddTracon();
+        var policy = new WorkflowNodeRetryPolicy
+        {
+            MaxAttempts = 3,
+            InitialDelay = TimeSpan.FromSeconds(initialSeconds),
+            BackoffMultiplier = multiplier,
+        };
+
+        Should.Throw<ArgumentOutOfRangeException>(() => builder.AddWorkflowFunction<string, string>(
+            "fragile",
+            static _ => static (input, _, _) => ValueTask.FromResult(input),
+            retryPolicy: policy));
     }
 
     private sealed class FixedClassifier(RunErrorClass value) : IRunErrorClassifier

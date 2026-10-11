@@ -79,14 +79,23 @@ public sealed class TraconEndpointOptions
     /// achieved by polling the store for new events. A smaller value reduces
     /// latency but increases database load.
     /// </remarks>
-    /// <exception cref="ArgumentOutOfRangeException">The value is not positive.</exception>
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// The value is outside one millisecond to about 49.7 days, the range the poll
+    /// delay accepts.
+    /// </exception>
     public TimeSpan RunEventPollInterval
     {
         get;
 
         set
         {
-            ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(value, TimeSpan.Zero);
+            // F-280: the delay runs inside the SSE loop after the headers are sent;
+            // an out-of-range value threw there.
+            if (!TimerPeriod.IsValid(value))
+            {
+                throw new ArgumentOutOfRangeException(nameof(value), value, TimerPeriod.Failure(nameof(RunEventPollInterval), value));
+            }
+
             field = value;
         }
     } = TimeSpan.FromMilliseconds(250);

@@ -60,7 +60,10 @@ public static class TraconWorkflowsBuilderExtensions
 
         services
             .AddOptions<TraconWorkflowOptions>()
-            .BindConfiguration(TraconWorkflowOptions.SectionName);
+            .BindConfiguration(TraconWorkflowOptions.SectionName)
+            .ValidateOnStart();
+        services.TryAddEnumerable(
+            ServiceDescriptor.Singleton<IValidateOptions<TraconWorkflowOptions>, TraconWorkflowOptionsValidator>());
 
         if (configure is not null)
         {

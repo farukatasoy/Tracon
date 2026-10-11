@@ -50,6 +50,7 @@ public sealed class TraconImageOptions
     /// recorded against the original call
     /// (<see cref="ToolInvocationRecord.LateCompletedAt"/>).
     /// </para>
+    /// <para>Must be from one millisecond to about 49.7 days; any other value fails at startup.</para>
     /// </remarks>
     public TimeSpan Timeout { get; set; } = TimeSpan.FromMinutes(2);
 }
@@ -70,10 +71,11 @@ internal sealed class TraconImageOptionsValidator : Microsoft.Extensions.Options
                 $"{nameof(TraconImageOptions)}.{nameof(TraconImageOptions.MaxImagesPerRequest)} must be at least 1.");
         }
 
-        if (options.Timeout <= TimeSpan.Zero)
+        if (!TimerPeriod.IsValid(options.Timeout))
         {
-            (failures ??= []).Add(
-                $"{nameof(TraconImageOptions)}.{nameof(TraconImageOptions.Timeout)} must be greater than zero.");
+            (failures ??= []).Add(TimerPeriod.Failure(
+                $"{nameof(TraconImageOptions)}.{nameof(TraconImageOptions.Timeout)}",
+                options.Timeout));
         }
 
         if (options.Enabled && string.IsNullOrWhiteSpace(options.Model))
