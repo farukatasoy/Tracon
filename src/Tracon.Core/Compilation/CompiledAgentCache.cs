@@ -5,7 +5,8 @@ namespace Tracon;
 
 /// <summary>
 /// Caches compiled agents keyed by
-/// <c>(tenant, name, definition fingerprint, dependency fingerprint, culture)</c>.
+/// <c>(tenant, name, definition fingerprint, dependency fingerprint, culture)</c>,
+/// holding one entry per <c>(tenant, name, definition fingerprint, culture)</c>.
 /// </summary>
 /// <remarks>
 /// <para>
@@ -36,6 +37,17 @@ namespace Tracon;
 /// resolve binds the live connection or fails the way an uncached compile does.
 /// </para>
 /// <para>
+/// <strong>The cache is bounded by definitions, not by dependency changes.</strong>
+/// The dependency fingerprint changes without any operator action: a remote MCP
+/// server that edits a tool's description or schema changes it at the next refresh.
+/// Each <c>(tenant, name, definition fingerprint, culture)</c> therefore holds ONE
+/// entry, and a compile under a new dependency fingerprint replaces it; the replaced
+/// agent is never read again. The definition fingerprint stays a separate slot: two
+/// versions of one agent served side by side (an experiment's variants) must not
+/// evict each other on every run. A new definition version still adds a slot, which
+/// only an operator's save can produce.
+/// </para>
+/// <para>
 /// The <c>tenant</c> component of the key is REQUIRED. Agent names are unique
 /// only within a tenant (see <c>SqlAgentDefinitionStore</c>) - it is common for
 /// two different tenants to have a definition with the same name (e.g.
@@ -49,9 +61,9 @@ namespace Tracon;
 /// </remarks>
 public sealed class CompiledAgentCache
 {
-    private readonly ConcurrentDictionary<CacheKey, AIAgent> _entries = new();
+    private readonly ConcurrentDictionary<SlotKey, Entry> _entries = new();
 
-    /// <summary>Number of entries in the cache.</summary>
+    /// <summary>Number of entries in the cache: one per tenant, agent name, definition, and culture.</summary>
     public int Count => _entries.Count;
 
     /// <summary>
@@ -131,23 +143,20 @@ public sealed class CompiledAgentCache
         ArgumentNullException.ThrowIfNull(culture);
         ArgumentNullException.ThrowIfNull(factory);
 
-        var key = new CacheKey(tenantId, name, definitionFingerprint, dependencyFingerprint, culture);
+        var key = new SlotKey(tenantId, name, definitionFingerprint, culture);
 
-        // 🚨 Checked separately from the GetOrAdd(key, valueFactory) call below:
-        // that overload allocates its `Func<CacheKey, AIAgent>` closure argument
-        // BEFORE it even looks at the dictionary, on every call - including a
-        // cache HIT, which is the overwhelmingly common case once a definition
-        // is compiled once. TryGetValue first keeps the hit path allocation-free,
-        // matching the async overload below, which was already written this way.
-        if (_entries.TryGetValue(key, out var existing))
+        // 🚨 A plain TryGetValue on the hit path: no closure, no allocation. A hit is
+        // the overwhelmingly common case once a definition is compiled once.
+        if (_entries.TryGetValue(key, out var existing)
+            && string.Equals(existing.DependencyFingerprint, dependencyFingerprint, StringComparison.Ordinal))
         {
-            return existing;
+            return existing.Agent;
         }
 
-        // GetOrAdd(key, valueFactory) can run the factory more than once for the
-        // same key. Agent production is side-effect free, so this is not a
-        // problem; any extra-produced instance is discarded.
-        return _entries.GetOrAdd(key, _ => factory());
+        // The factory can run more than once for the same key when two callers
+        // miss together. Agent production is side-effect free, so this is not a
+        // problem; Store hands both callers the instance that won.
+        return Store(key, dependencyFingerprint, factory());
     }
 
     /// <summary>
@@ -209,16 +218,17 @@ public sealed class CompiledAgentCache
         ArgumentNullException.ThrowIfNull(culture);
         ArgumentNullException.ThrowIfNull(factory);
 
-        var key = new CacheKey(tenantId, name, definitionFingerprint, dependencyFingerprint, culture);
+        var key = new SlotKey(tenantId, name, definitionFingerprint, culture);
 
-        if (_entries.TryGetValue(key, out var existing))
+        if (_entries.TryGetValue(key, out var existing)
+            && string.Equals(existing.DependencyFingerprint, dependencyFingerprint, StringComparison.Ordinal))
         {
-            return existing;
+            return existing.Agent;
         }
 
         var produced = await factory().ConfigureAwait(false);
 
-        return _entries.GetOrAdd(key, produced);
+        return Store(key, dependencyFingerprint, produced);
     }
 
     /// <summary>Combines multiple dependency fingerprints into a single key component.</summary>
@@ -240,5 +250,42 @@ public sealed class CompiledAgentCache
     /// <summary>Empties the cache entirely.</summary>
     public void Clear() => _entries.Clear();
 
-    private readonly record struct CacheKey(string TenantId, string Name, string DefinitionFingerprint, string DependencyFingerprint, string Culture);
+    // F-308: without the slot, a remote tool schema that changed on every refresh
+    // would have added an entry every five minutes, and none was ever removed.
+    /// <summary>
+    /// Stores a freshly compiled agent in its slot, replacing an entry compiled under
+    /// another dependency fingerprint.
+    /// </summary>
+    /// <returns>
+    /// The agent the slot holds for <paramref name="dependencyFingerprint"/> afterwards:
+    /// <paramref name="produced"/>, or the instance a concurrent caller stored first.
+    /// </returns>
+    private AIAgent Store(SlotKey key, string dependencyFingerprint, AIAgent produced)
+    {
+        var candidate = new Entry(dependencyFingerprint, produced);
+
+        while (true)
+        {
+            if (_entries.TryGetValue(key, out var current))
+            {
+                if (string.Equals(current.DependencyFingerprint, dependencyFingerprint, StringComparison.Ordinal))
+                {
+                    return current.Agent;
+                }
+
+                if (_entries.TryUpdate(key, candidate, current))
+                {
+                    return produced;
+                }
+            }
+            else if (_entries.TryAdd(key, candidate))
+            {
+                return produced;
+            }
+        }
+    }
+
+    private readonly record struct SlotKey(string TenantId, string Name, string DefinitionFingerprint, string Culture);
+
+    private sealed record Entry(string DependencyFingerprint, AIAgent Agent);
 }

@@ -1,6 +1,12 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
+using ModelContextProtocol;
+using ModelContextProtocol.Client;
+using ModelContextProtocol.Protocol;
 
 namespace Tracon;
 
@@ -80,20 +86,30 @@ internal sealed class McpTenantTools
         return null;
     }
 
-    // F-305 / K-880: a failed refresh counts as absent by user decision; keeping the
-    // last good list on a transient failure is the catalog's job, not the key's.
+    // F-305 / K-880: a dropped list counts as absent by user decision. The catalog
+    // keeps the last good list through a transient failure (F-309), so a blip reaches
+    // this method as the same binding, not as absent.
     /// <summary>Gets the binding of the tool with the given name.</summary>
     /// <param name="name">The tool name.</param>
     /// <returns>
     /// The <see cref="McpConnection.Generation"/> of the connection the tool in this
-    /// snapshot calls through; <see cref="UnboundBinding"/> when the tool is served
-    /// but its connection is not known; <see cref="AbsentBinding"/> when the snapshot
-    /// holds no such tool.
+    /// snapshot calls through, joined with a hash of the tool's own definition;
+    /// <see cref="UnboundBinding"/> when the tool is served but its connection is not
+    /// known; <see cref="AbsentBinding"/> when the snapshot holds no such tool.
     /// </returns>
     /// <remarks>
-    /// "Absent" covers a deleted or disabled server and a server whose last refresh
-    /// failed alike: a compiled agent keyed with a live binding is then not served,
-    /// and the next resolve fails the way an uncached compile does.
+    /// <para>
+    /// "Absent" covers a deleted or disabled server and a server whose tools were
+    /// dropped after failed refreshes alike: a compiled agent keyed with a live binding
+    /// is then not served, and the next resolve fails the way an uncached compile does.
+    /// </para>
+    /// <para>
+    /// The definition hash covers what the server said about the tool (its
+    /// description and input schema among the rest). A server can change it while the
+    /// connection stays the same; the compiled agent holds the tool object that carries
+    /// the old definition, so the hash makes the next resolve compile against the new
+    /// one.
+    /// </para>
     /// </remarks>
     public string GetBindingFingerprint(string name)
     {
@@ -233,7 +249,10 @@ internal sealed class McpTenantTools
             // Same rule: the connection behind the name is the winner's.
             if (connectionGenerations is not null && connectionGenerations.TryGetValue(registration, out var generation))
             {
-                bindings[name] = generation.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                bindings[name] = string.Concat(
+                    generation.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    ":",
+                    DefinitionHash(registration.Function));
             }
 
             descriptors.Add(descriptor);
@@ -244,5 +263,31 @@ internal sealed class McpTenantTools
         var prefixes = serverNames is null ? [] : serverNames.Select(static server => server + "_").ToArray();
 
         return new McpTenantTools(tools, sources, bindings, descriptors, prefixes);
+    }
+
+    // F-308: K-880 kept the remote definition out of the cache key until the cache had
+    // a bound; CompiledAgentCache now holds one entry per definition slot, so a server
+    // that edits a description on every refresh replaces an entry instead of adding one.
+    /// <summary>Hashes the definition the tool object embeds, as the server sent it.</summary>
+    /// <param name="function">The discovered tool.</param>
+    /// <returns>The uppercase hex SHA-256 of the definition.</returns>
+    /// <remarks>
+    /// A remote tool hashes the server's whole protocol <see cref="Tool"/>, serialized
+    /// with the MCP SDK's own source-generated options: the embedded thing itself, not a
+    /// proxy for it. The generated <c>{server}_read_resource</c>
+    /// tool hashes its name, description and schema; its body reads the resource list
+    /// live, so nothing else of it is embedded.
+    /// </remarks>
+    private static string DefinitionHash(AIFunctionDeclaration function)
+    {
+        var definition = function is McpClientTool remote
+            ? JsonSerializer.SerializeToUtf8Bytes(remote.ProtocolTool, McpJsonUtilities.DefaultOptions.GetTypeInfo(typeof(Tool)))
+            : Encoding.UTF8.GetBytes(string.Join(
+                '\n',
+                function.Name,
+                function.Description,
+                function.JsonSchema.ValueKind == JsonValueKind.Undefined ? string.Empty : function.JsonSchema.GetRawText()));
+
+        return Convert.ToHexString(SHA256.HashData(definition));
     }
 }

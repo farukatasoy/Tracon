@@ -42,6 +42,14 @@ internal sealed class TraconMcpOptionsValidator : IValidateOptions<TraconMcpOpti
                 options.ConnectionTimeout));
         }
 
+        // Compared with the age of the last good listing; it arms no timer.
+        if (options.StaleToolRetention < TimeSpan.Zero)
+        {
+            (failures ??= []).Add(
+                $"{nameof(TraconMcpOptions)}.{nameof(TraconMcpOptions.StaleToolRetention)} must not be negative. " +
+                $"Actual value: {options.StaleToolRetention}.");
+        }
+
         return failures is null ? ValidateOptionsResult.Success : ValidateOptionsResult.Fail(failures);
     }
 }

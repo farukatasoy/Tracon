@@ -16,6 +16,8 @@ Tracon.TraconMcpOptions.OAuthCallbackBaseUri.get -> System.Uri?
 Tracon.TraconMcpOptions.OAuthCallbackBaseUri.set -> void
 Tracon.TraconMcpOptions.RefreshInterval.get -> System.TimeSpan
 Tracon.TraconMcpOptions.RefreshInterval.set -> void
+Tracon.TraconMcpOptions.StaleToolRetention.get -> System.TimeSpan
+Tracon.TraconMcpOptions.StaleToolRetention.set -> void
 const Tracon.TraconMcpOptions.SectionName = "Tracon:Mcp" -> string!
 static Tracon.TraconMcpBuilderExtensions.UseMcp(this Tracon.ITraconBuilder! builder) -> Tracon.ITraconBuilder!
 static Tracon.TraconMcpBuilderExtensions.UseMcp(this Tracon.ITraconBuilder! builder, Microsoft.Extensions.Configuration.IConfiguration! configurationSection, System.Action<Tracon.TraconMcpOptions!>? configure) -> Tracon.ITraconBuilder!

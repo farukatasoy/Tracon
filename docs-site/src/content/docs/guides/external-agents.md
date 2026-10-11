@@ -69,8 +69,17 @@ The value is read on every connection, but a changed value does not reconnect by
 itself: call the refresh endpoint below after rotating it.
 
 Discovery is asynchronous and does not block startup. Refresh immediately after a
-configuration change with `POST {prefix}/api/mcp-servers/refresh`. An unreachable
-server loses its discovered tools and produces a warning; other servers continue.
+configuration change with `POST {prefix}/api/mcp-servers/refresh`. A server that
+cannot be reached produces a warning; other servers continue. If the server was
+listed before and its definition is unchanged, its last tool list is kept for
+`StaleToolRetention` (15 minutes) after that listing, so one network blip does not
+stop the agents that use it. After that the tools drop out, and an agent that names
+one is refused until the server lists them again. A server that is edited, deleted
+or disabled drops its tools at once.
+
+An agent compiled against a tool also follows what the server says about it: when
+a refresh lists a changed description or input schema, the next run compiles again
+and the model sees the new definition.
 
 ### The MCP client security boundary
 

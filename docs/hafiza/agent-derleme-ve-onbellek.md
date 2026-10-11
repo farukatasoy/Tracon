@@ -90,3 +90,14 @@
   koşmalıdır; `FakeModelProvider` kuyruğu provider'da yaşar, ikinci run'dan
   önce `CallsTool` yeniden kuyruğa konur. Kapı: `McpToolCacheTests` (beş case,
   `{server}_read_resource` dahil). K-880.
+- **🚨 Uzaktan değişen bir durumu anahtara koymadan ÖNCE önbelleğe sınır koy**
+  (2026-10-11, F-308). Uzak tool tanımı aynı bağlantıda değişebilir; anahtara
+  girmeyince model eski açıklamayı görüyordu. Ama `CompiledAgentCache` hiç girdi
+  atmıyordu: her refresh'te değişen bir açıklama agent başına günde 288 girdi
+  demekti — K-880 bu yüzden hash'i dışarıda bırakmıştı. Çözüm sıralıdır: önce
+  `(kiracı, ad, tanım, kültür)` başına tek yuva (yeni bağımlılık parmak izi
+  değiştirir; tanım parmak izi yuvada kalır, yoksa A/B sürümleri her run'da
+  birbirini atar), sonra bağlamaya `ProtocolTool` hash'i. **Kural:** operatör
+  dışı bir kaynağın değiştirebildiği her anahtar bileşeni, eskisini **silen**
+  bir yuva ister. K-882. Geçici `tools/list` hatası artık listeyi düşürmez
+  (`StaleToolRetention`, K-883): aynı nesneler → aynı bağlama → isabet.

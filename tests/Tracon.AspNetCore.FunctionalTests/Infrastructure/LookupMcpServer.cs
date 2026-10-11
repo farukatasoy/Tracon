@@ -3,6 +3,7 @@ using System.Runtime.CompilerServices;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using ModelContextProtocol;
 using ModelContextProtocol.Server;
 
 namespace Tracon.AspNetCore.FunctionalTests.Infrastructure;
@@ -20,14 +21,33 @@ internal sealed class LookupMcpServer : IAsyncDisposable
     private readonly WebApplication _app;
     private readonly StrongBox<int> _calls;
     private readonly StrongBox<int> _resourceReads;
+    private readonly ListingControl _listing;
     private int _disposed;
 
-    private LookupMcpServer(WebApplication app, Uri endpoint, StrongBox<int> calls, StrongBox<int> resourceReads)
+    private LookupMcpServer(WebApplication app, Uri endpoint, StrongBox<int> calls, StrongBox<int> resourceReads, ListingControl listing)
     {
         _app = app;
         Endpoint = endpoint;
         _calls = calls;
         _resourceReads = resourceReads;
+        _listing = listing;
+    }
+
+    /// <summary>
+    /// Whether <c>tools/list</c> fails. Calls keep working, so a test can tell a
+    /// failed listing apart from a server that is down.
+    /// </summary>
+    public bool FailListing
+    {
+        get => Volatile.Read(ref _listing.Fail);
+        set => Volatile.Write(ref _listing.Fail, value);
+    }
+
+    /// <summary>The description <c>tools/list</c> reports for <c>lookup</c>; <see langword="null"/> keeps the declared one.</summary>
+    public string? ToolDescription
+    {
+        get => Volatile.Read(ref _listing.Description);
+        set => Volatile.Write(ref _listing.Description, value);
     }
 
     /// <summary>The MCP endpoint address.</summary>
@@ -47,6 +67,7 @@ internal sealed class LookupMcpServer : IAsyncDisposable
     {
         var calls = new StrongBox<int>();
         var resourceReads = new StrongBox<int>();
+        var listing = new ListingControl();
 
         var builder = WebApplication.CreateSlimBuilder();
         builder.Logging.ClearProviders();
@@ -60,7 +81,26 @@ internal sealed class LookupMcpServer : IAsyncDisposable
 
                     return answer;
                 },
-                new McpServerToolCreateOptions { Name = "lookup" })]);
+                new McpServerToolCreateOptions { Name = "lookup" })])
+            .WithRequestFilters(filters => filters.AddListToolsFilter(next => async (request, cancellationToken) =>
+            {
+                if (Volatile.Read(ref listing.Fail))
+                {
+                    throw new McpException("The tool list is unavailable.");
+                }
+
+                var result = await next(request, cancellationToken);
+
+                if (Volatile.Read(ref listing.Description) is { } description)
+                {
+                    foreach (var tool in result.Tools)
+                    {
+                        tool.Description = description;
+                    }
+                }
+
+                return result;
+            }));
 
         if (withResource)
         {
@@ -81,7 +121,7 @@ internal sealed class LookupMcpServer : IAsyncDisposable
 
         var address = app.Urls.First().TrimEnd('/');
 
-        return new LookupMcpServer(app, new Uri($"{address}/mcp"), calls, resourceReads);
+        return new LookupMcpServer(app, new Uri($"{address}/mcp"), calls, resourceReads, listing);
     }
 
     /// <summary>Stops the server. A test may stop it early; the second call does nothing.</summary>
@@ -95,5 +135,13 @@ internal sealed class LookupMcpServer : IAsyncDisposable
 
         await _app.StopAsync();
         await _app.DisposeAsync();
+    }
+
+    /// <summary>What the <c>tools/list</c> filter reads; shared with the running server.</summary>
+    private sealed class ListingControl
+    {
+        public bool Fail;
+
+        public string? Description;
     }
 }
