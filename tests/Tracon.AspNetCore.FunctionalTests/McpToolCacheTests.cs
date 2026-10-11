@@ -129,18 +129,51 @@ public sealed class McpToolCacheTests
     }
 
     /// <summary>
-    /// The server stops answering and the refresh drops its tools; the connection
-    /// itself stays registered. The cached path then behaves like an uncached
-    /// compile: the agent is refused with "not registered" (user decision,
-    /// 2026-10-11 — keeping the last good list on a transient failure is the
-    /// catalog's job, not the cache's).
+    /// F-309: one failed <c>tools/list</c> keeps the last good list while it is younger
+    /// than <see cref="TraconMcpOptions.StaleToolRetention"/>. The connection is the same,
+    /// so the binding is the same: the cached agent keeps running and its call reaches
+    /// the server. Before, a single blip refused every agent of the server until the
+    /// next good refresh.
     /// </summary>
     [Fact]
-    public async Task A_cached_agent_is_refused_like_an_uncached_compile_after_a_failed_refresh()
+    public async Task A_cached_agent_keeps_working_through_a_transient_listing_failure()
+    {
+        await using var server = await LookupMcpServer.StartAsync("from-flaky-listing");
+        var model = NewModel();
+        await using var host = await StartAsync(model);
+
+        await SaveServerAsync(host, server.Endpoint, requiresApproval: false);
+        await SaveAgentAsync(host, ToolName);
+
+        var before = await RunAsync(host, model, "before-blip", ToolName);
+        before.Status.ShouldBe("Completed", before.Stream);
+
+        server.FailListing = true;
+        await RefreshAsync(host);
+
+        var during = await RunAsync(host, model, "during-blip", ToolName);
+        during.Status.ShouldBe("Completed", await DescribeAsync(host, during));
+        during.Stream.ShouldContain("from-flaky-listing");
+        server.Calls.ShouldBe(2, "the kept tool calls the live connection");
+    }
+
+    /// <summary>
+    /// The server stops answering and, once the retention has passed, the refresh
+    /// drops its tools; the connection itself stays registered. The cached path then
+    /// behaves like an uncached compile: the agent is refused with "not registered"
+    /// (K-880, user decision 2026-10-11). A retention of zero drops them at the first
+    /// failed listing; a millisecond has always passed by the next refresh.
+    /// </summary>
+    [Theory]
+    [InlineData("00:00:00")]
+    [InlineData("00:00:00.001")]
+    public async Task A_cached_agent_is_refused_like_an_uncached_compile_once_the_retention_has_passed(string retention)
     {
         await using var server = await LookupMcpServer.StartAsync("from-stopped-server");
         var model = NewModel();
-        await using var host = await StartAsync(model);
+        await using var host = await StartAsync(
+            model,
+            mcp => mcp.StaleToolRetention = TimeSpan.Parse(retention, System.Globalization.CultureInfo.InvariantCulture));
 
         await SaveServerAsync(host, server.Endpoint, requiresApproval: false);
         await SaveAgentAsync(host, ToolName);
@@ -154,6 +187,37 @@ public sealed class McpToolCacheTests
         await RefreshAsync(host);
 
         await AssertRefusedAsNotRegisteredAsync(host, model, "after-failure");
+    }
+
+    /// <summary>
+    /// F-308: the server changes the tool's description while the connection stays
+    /// the same. The cached agent embedded the tool object with the old description;
+    /// the binding carries a hash of the definition, so the next run compiles again and
+    /// the model sees the new one. Before, the model kept seeing the old description and
+    /// schema until the definition changed or the process restarted.
+    /// </summary>
+    [Fact]
+    public async Task A_cached_agent_sees_a_tool_description_the_server_changed()
+    {
+        await using var server = await LookupMcpServer.StartAsync("from-edited-server");
+        var model = NewModel();
+        await using var host = await StartAsync(model);
+
+        server.ToolDescription = "Looks the value up in the old index.";
+        await SaveServerAsync(host, server.Endpoint, requiresApproval: false);
+        await SaveAgentAsync(host, ToolName);
+
+        var before = await RunAsync(host, model, "before-edit", ToolName);
+        before.Status.ShouldBe("Completed", before.Stream);
+        DescriptionSeenByModel(model).ShouldBe("Looks the value up in the old index.");
+
+        server.ToolDescription = "Looks the value up in the new index.";
+        await RefreshAsync(host);
+
+        var after = await RunAsync(host, model, "after-edit", ToolName);
+        after.Status.ShouldBe("Completed", after.Stream);
+        DescriptionSeenByModel(model).ShouldBe("Looks the value up in the new index.");
+        server.Calls.ShouldBe(2);
     }
 
     /// <summary>
@@ -191,15 +255,26 @@ public sealed class McpToolCacheTests
     private static Tracon.Testing.FakeModelProvider NewModel()
         => new Tracon.Testing.FakeModelProvider(ProviderName).EchoesLastToolResult();
 
-    private static Task<TraconTestHost> StartAsync(Tracon.Testing.FakeModelProvider model)
+    private static Task<TraconTestHost> StartAsync(Tracon.Testing.FakeModelProvider model, Action<TraconMcpOptions>? mcp = null)
         => TraconTestHost.StartAsync(
             builder =>
             {
                 builder.UseMcp();
                 builder.AddModelProvider(model);
             },
-            configureServices: static services =>
-                services.Configure<TraconEgressOptions>(static options => options.AllowPrivateNetworkTargets = true));
+            configureServices: services =>
+            {
+                services.Configure<TraconEgressOptions>(static options => options.AllowPrivateNetworkTargets = true);
+
+                if (mcp is not null)
+                {
+                    services.Configure(mcp);
+                }
+            });
+
+    /// <summary>The description of the tool in the newest model request.</summary>
+    private static string? DescriptionSeenByModel(Tracon.Testing.FakeModelProvider model)
+        => model.Requests[^1].Options?.Tools?.Single(tool => string.Equals(tool.Name, ToolName, StringComparison.Ordinal)).Description;
 
     /// <summary>Saves the server and refreshes the discovered tools.</summary>
     private static async Task SaveServerAsync(TraconTestHost host, Uri endpoint, bool requiresApproval)

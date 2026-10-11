@@ -201,6 +201,14 @@ public static class TraconMcpBuilderExtensions
         }
 
         if (TimeSpan.TryParse(
+                section[nameof(TraconMcpOptions.StaleToolRetention)],
+                CultureInfo.InvariantCulture,
+                out var staleToolRetention))
+        {
+            options.StaleToolRetention = staleToolRetention;
+        }
+
+        if (TimeSpan.TryParse(
                 section[nameof(TraconMcpOptions.ConnectionTimeout)],
                 CultureInfo.InvariantCulture,
                 out var connectionTimeout))

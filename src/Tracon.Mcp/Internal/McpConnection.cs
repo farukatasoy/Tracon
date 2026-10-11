@@ -41,6 +41,11 @@ internal sealed class McpConnection : IAsyncDisposable
 
     private List<Resource> DeclaredResourceCache { get; set; } = [];
 
+    // When the tool/resource list was last read successfully; null until the first
+    // listing. A failed refresh keeps the list while it is younger than
+    // TraconMcpOptions.StaleToolRetention (F-309).
+    private DateTimeOffset? _listedAt;
+
     private McpConnection(
         McpClient client,
         string serverName,
@@ -149,6 +154,7 @@ internal sealed class McpConnection : IAsyncDisposable
         ILogger logger,
         EgressSocketGuard? egressGuard,
         McpKeySpace keySpace,
+        TimeProvider timeProvider,
         CancellationToken cancellationToken)
     {
         if (ShouldSkipConnection(server, options, logger))
@@ -182,16 +188,17 @@ internal sealed class McpConnection : IAsyncDisposable
                 options,
                 logger);
 
-            var (refreshed, unreachable) = await connection.RefreshCatalogAsync(options, logger, cancellationToken).ConfigureAwait(false);
+            // A new connection has no earlier list to keep: anything but a listing fails it.
+            var refresh = await connection.RefreshCatalogAsync(options, logger, timeProvider, cancellationToken).ConfigureAwait(false);
 
-            if (refreshed)
+            if (refresh == McpCatalogRefresh.Listed)
             {
                 return (connection, false);
             }
 
             await connection.DisposeAsync().ConfigureAwait(false);
 
-            return (null, unreachable);
+            return (null, true);
         }
         catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
         {
@@ -249,13 +256,20 @@ internal sealed class McpConnection : IAsyncDisposable
     /// <summary>
     /// Re-reads the server's tool list and (if supported) resource list.
     /// </summary>
+    /// <param name="options">The MCP options; <see cref="TraconMcpOptions.StaleToolRetention"/> decides whether a failed read keeps the last list.</param>
+    /// <param name="logger">The logger a failed read is reported to.</param>
+    /// <param name="timeProvider">The clock the age of the last list is measured with.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>
-    /// <see langword="true"/> if the read succeeded; otherwise also reports
-    /// whether this stemmed from a real network error (<c>Unreachable</c>).
+    /// <see cref="McpCatalogRefresh.Listed"/> when the read succeeded;
+    /// <see cref="McpCatalogRefresh.Kept"/> when it failed and the last list is still
+    /// young enough to keep; <see cref="McpCatalogRefresh.Failed"/> when it failed and the
+    /// list was dropped.
     /// </returns>
-    public async ValueTask<(bool Refreshed, bool Unreachable)> RefreshCatalogAsync(
+    public async ValueTask<McpCatalogRefresh> RefreshCatalogAsync(
         TraconMcpOptions options,
         ILogger logger,
+        TimeProvider timeProvider,
         CancellationToken cancellationToken)
     {
         _options = options;
@@ -288,11 +302,31 @@ internal sealed class McpConnection : IAsyncDisposable
             }
 
             Tools = toolRegistrations;
+            _listedAt = timeProvider.GetUtcNow();
 
-            return (true, false);
+            return McpCatalogRefresh.Listed;
         }
         catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
         {
+            // F-309: one failed tools/list used to drop the server's tools at once, and
+            // every agent that used them was refused until the next good refresh. The
+            // connection is still registered with the same definition, so the tool
+            // objects still call a live client; they are kept for a while. The same
+            // objects keep the compiled-agent cache key, and the same endpoint keeps a
+            // standing approval rule resolving.
+            if (_listedAt is { } listedAt && timeProvider.GetUtcNow() - listedAt < options.StaleToolRetention)
+            {
+                logger.LogWarning(
+                    ex,
+                    "Could not read the tool/resource list of MCP server '{ServerName}'; keeping the list read at " +
+                    "{ListedAt} until {KeptUntil} (Tracon:Mcp:StaleToolRetention).",
+                    _serverName,
+                    listedAt,
+                    listedAt + options.StaleToolRetention);
+
+                return McpCatalogRefresh.Kept;
+            }
+
             logger.LogWarning(
                 ex,
                 "Could not read the tool/resource list of MCP server '{ServerName}'; the previous list was dropped.",
@@ -301,7 +335,7 @@ internal sealed class McpConnection : IAsyncDisposable
             Tools = [];
             DeclaredResourceCache = [];
 
-            return (false, true);
+            return McpCatalogRefresh.Failed;
         }
     }
 
@@ -593,4 +627,17 @@ internal sealed class McpConnection : IAsyncDisposable
 
         public bool Invalidated { get; set; }
     }
+}
+
+/// <summary>The outcome of one <see cref="McpConnection.RefreshCatalogAsync"/> call.</summary>
+internal enum McpCatalogRefresh
+{
+    /// <summary>The server listed its tools; the list is fresh.</summary>
+    Listed,
+
+    /// <summary>The listing failed; the last good list is still served (<see cref="TraconMcpOptions.StaleToolRetention"/>).</summary>
+    Kept,
+
+    /// <summary>The listing failed and the list was dropped.</summary>
+    Failed,
 }

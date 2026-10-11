@@ -18,6 +18,29 @@ public sealed class TraconMcpOptions
     /// </summary>
     public TimeSpan RefreshInterval { get; set; } = TimeSpan.FromMinutes(5);
 
+    /// <summary>
+    /// How long a server's last good tool list is kept when a refresh cannot list
+    /// its tools. The default is 15 minutes, three refreshes at the default interval.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A network blip on one <c>tools/list</c> call no longer takes a server's
+    /// tools away: while the server stays registered with the same definition, its
+    /// connection keeps serving the tools it last listed for this long after that
+    /// listing, and agents that use them keep running. A call that reaches a server
+    /// that is really down fails as a tool error, as it would during the next refresh
+    /// interval. Once the time has passed, the next failed refresh drops the tools,
+    /// and an agent that names one is refused because the tool is not registered.
+    /// </para>
+    /// <para>
+    /// A server whose definition changes, or that is deleted or disabled, drops its
+    /// tools at once; this setting only covers a failed listing of an unchanged
+    /// server. <see cref="TimeSpan.Zero"/> drops them at the first failed listing.
+    /// Must not be negative; a negative value fails at startup.
+    /// </para>
+    /// </remarks>
+    public TimeSpan StaleToolRetention { get; set; } = TimeSpan.FromMinutes(15);
+
     /// <summary>The upper time bound for connecting to a server and listing its tools.</summary>
     /// <remarks>Must be from one millisecond to about 49.7 days; any other value fails at startup.</remarks>
     public TimeSpan ConnectionTimeout { get; set; } = TimeSpan.FromSeconds(30);

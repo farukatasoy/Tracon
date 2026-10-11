@@ -64,7 +64,7 @@ public sealed class CompileCachedAsyncTests
         var second = await compiler.CompileCachedAsync(definition, cache, TenantId);
 
         ReferenceEquals(first, second).ShouldBeFalse();
-        cache.Count.ShouldBe(2);
+        cache.Count.ShouldBe(1, "the dependency change replaces the entry (F-308)");
     }
 
     [Fact]
@@ -89,7 +89,7 @@ public sealed class CompileCachedAsyncTests
         var second = await compiler.CompileCachedAsync(definition, cache, TenantId);
 
         ReferenceEquals(first, second).ShouldBeFalse();
-        cache.Count.ShouldBe(2);
+        cache.Count.ShouldBe(1, "the dependency change replaces the entry (F-308)");
     }
 
     [Fact]
@@ -109,7 +109,7 @@ public sealed class CompileCachedAsyncTests
         var second = await compiler.CompileCachedAsync(definition, cache, TenantId);
 
         ReferenceEquals(first, second).ShouldBeFalse();
-        cache.Count.ShouldBe(2);
+        cache.Count.ShouldBe(1, "the dependency change replaces the entry (F-308)");
     }
 
     private static AgentSkillDefinition Skill(string name)
