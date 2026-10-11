@@ -317,9 +317,10 @@ Four more rules are worth knowing before you turn the loop on:
   model. Without that binding the definition does not compile. The judge reads
   each answer, so a tenant's egress policy applies to its provider; it keeps the
   setup-time key, not the tenant's own.
-- **A criterion that fails to evaluate stops the loop; it does not fail the
-  run.** The work already finished is returned, and the iteration event names the
-  criterion that failed.
+- **By default the loop never fails the run.** A criterion that fails to
+  evaluate stops the loop, the work already finished is returned, and the
+  iteration event names the criterion. A loop that reaches its ceiling returns its
+  last response too. The next section makes either case fail the run instead.
 
 Each evaluated iteration writes a `LoopIterationCompleted` run event carrying
 the iteration number, whether a criterion asked for another iteration, and which
@@ -330,6 +331,53 @@ reaches `MaxIterations` is never evaluated — there is nothing left to decide �
 so a loop that ends at its ceiling writes one event fewer than it takes turns.
 Its last event carries `ceilingReached`, which is how the run record tells "the
 criterion was finally satisfied" apart from "we ran out of iterations".
+
+### Fail the run when the loop is not satisfied
+
+A loop that runs out of iterations returns the last response as a success. In a
+workflow, the next node then receives a response no criterion accepted — a
+draft the judge never approved goes on to text-to-speech. Two settings choose
+what happens instead, each `ReturnLastResponse` (the default) or `FailRun`:
+
+| Setting | Applies when | With `FailRun` |
+|---|---|---|
+| `OnExhausted` | The ceiling is reached and a criterion still asks for another iteration | The run fails with error type `loop_unsatisfied`, class `LoopUnsatisfied` |
+| `OnCriterionError` | A criterion throws while it is evaluated | The run fails with the criterion's own error, so an unreachable judge stays a provider error |
+
+```csharp
+Loop = new LoopSettings
+{
+    Criteria = [new LoopCriterion { Kind = "aiJudge", JudgeCriteria = ["Ready to publish"] }],
+    MaxIterations = 3,
+    OnExhausted = LoopOutcome.FailRun,
+},
+```
+
+In JSON the values are names: `"onExhausted": "FailRun"`. An unknown name is
+refused with `400` when the definition is saved.
+
+What `FailRun` changes, besides the outcome:
+
+- **The last iteration is evaluated.** By default the turn at the ceiling is
+  not, because nothing is left to decide. Failing the run without evaluating it
+  would refuse a last response that meets every criterion, so in this mode the
+  criteria run once more after that turn. The agent still takes at most
+  `MaxIterations` turns; the cost is one more evaluation, which for `aiJudge` is
+  one more judge call. With `MaxIterations = 1` the single turn is evaluated too.
+- **The events match the turns.** Every turn is evaluated, and the last event
+  carries `ceilingReached` and `failsRun`. A criterion that throws under
+  `OnCriterionError = FailRun` writes `failedCriterion` and `failsRun`.
+- **A streaming client receives the last turn's text before the failure.** The
+  decision is made after that turn has streamed: the client gets the text, then
+  the error frame, and the run closes as `Failed`.
+- **A failed run keeps its usage.** Its tokens and cost cover every turn the
+  loop ran, so quotas and cost reports count the work.
+- **A workflow stops at that agent.** Its run fails and the next node does not
+  run. The agent's own run carries the `LoopUnsatisfied` class; the workflow's
+  run records the failure without a class.
+
+The run's own cancellation is never a criterion error: a cancelled run ends as
+`Canceled` in both modes.
 
 ## Read next
 

@@ -49,6 +49,13 @@ namespace Tracon;
 /// loop is visible in the run record instead of hidden inside a caller's own
 /// code.
 /// </para>
+/// <para>
+/// <strong>How the loop ends when no criterion is satisfied.</strong> By default
+/// the run returns the last response as a success, whether the ceiling was reached
+/// or a criterion threw. <see cref="OnExhausted"/> and <see cref="OnCriterionError"/>
+/// can make either case fail the run instead, so a workflow does not hand a response
+/// no criterion accepted to its next node.
+/// </para>
 /// </remarks>
 /// <example>
 /// An agent that keeps working until it writes <c>ALL DONE</c>, for at most
@@ -66,6 +73,17 @@ namespace Tracon;
 ///             MaxIterations = 5,
 ///         },
 ///     },
+/// };
+/// </code>
+/// A reviewer loop that fails the run when its judge is still not convinced after
+/// three drafts, and keeps the last draft when the judge itself cannot be reached:
+/// <code language="csharp">
+/// new LoopSettings
+/// {
+///     Criteria = [new LoopCriterion { Kind = "aiJudge", JudgeCriteria = ["The draft is ready to publish"] }],
+///     MaxIterations = 3,
+///     OnExhausted = LoopOutcome.FailRun,
+///     OnCriterionError = LoopOutcome.ReturnLastResponse,
 /// };
 /// </code>
 /// </example>
@@ -107,4 +125,52 @@ public sealed record LoopSettings
     /// builds on the previous iteration.
     /// </remarks>
     public bool FreshContextPerIteration { get; init; }
+
+    /// <summary>
+    /// Gets what happens when the iteration ceiling is reached while a criterion still
+    /// asks for another iteration. <see cref="LoopOutcome.ReturnLastResponse"/> by
+    /// default.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// With <see cref="LoopOutcome.FailRun"/> the run fails with error type
+    /// <c>loop_unsatisfied</c> (<see cref="TraconLoopUnsatisfiedException"/>,
+    /// <see cref="RunErrorClass.LoopUnsatisfied"/>), and the last
+    /// <c>LoopIterationCompleted</c> event carries <c>failsRun</c>.
+    /// </para>
+    /// <para>
+    /// <strong>The last iteration is evaluated in this mode.</strong> By default the
+    /// turn that reaches the ceiling is not evaluated, because nothing is left to
+    /// decide. Failing the run without evaluating it would refuse a last response that
+    /// meets every criterion, so with <see cref="LoopOutcome.FailRun"/> the criteria
+    /// run once more after that turn - one more evaluation, which for an
+    /// <c>aiJudge</c> criterion is one more model call. The number of agent turns stays
+    /// <see cref="MaxIterations"/>. With <see cref="MaxIterations"/> set to 1 the
+    /// single turn is evaluated too; by default it is not.
+    /// </para>
+    /// <para>
+    /// A streaming caller receives the last turn's text before the failure: the
+    /// decision is made after that turn has streamed.
+    /// </para>
+    /// </remarks>
+    public LoopOutcome OnExhausted { get; init; }
+
+    /// <summary>
+    /// Gets what happens when a criterion throws while it is evaluated.
+    /// <see cref="LoopOutcome.ReturnLastResponse"/> by default.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// By default the loop stops and the last response is returned; the
+    /// <c>LoopIterationCompleted</c> event names the criterion in
+    /// <c>failedCriterion</c>. With <see cref="LoopOutcome.FailRun"/> the run fails
+    /// with the criterion's OWN error - an unreachable judge provider stays a provider
+    /// error, not a rejected response - and the event also carries <c>failsRun</c>.
+    /// </para>
+    /// <para>
+    /// The run's own cancellation is never a criterion error: a cancelled run ends as
+    /// cancelled in both modes.
+    /// </para>
+    /// </remarks>
+    public LoopOutcome OnCriterionError { get; init; }
 }

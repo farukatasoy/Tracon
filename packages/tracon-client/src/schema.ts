@@ -4864,6 +4864,12 @@ export interface components {
             modes?: string[];
         };
         /**
+         * @description What a harness loop does when it ends without every criterion satisfied: return
+         *     the last response, or fail the run.
+         * @enum {unknown}
+         */
+        LoopOutcome: "ReturnLastResponse" | "FailRun";
+        /**
          * @description Turns the harness loop on: the agent is re-invoked until a stop criterion
          *     says the work is finished.
          */
@@ -4881,6 +4887,17 @@ export interface components {
              *     carrying the previous iterations' messages forward.
              */
             freshContextPerIteration?: boolean;
+            /**
+             * @description Gets what happens when the iteration ceiling is reached while a criterion still
+             *     asks for another iteration. LoopOutcome.ReturnLastResponse by
+             *     default.
+             */
+            onExhausted?: components["schemas"]["LoopOutcome"];
+            /**
+             * @description Gets what happens when a criterion throws while it is evaluated.
+             *     LoopOutcome.ReturnLastResponse by default.
+             */
+            onCriterionError?: components["schemas"]["LoopOutcome"];
         };
         /**
          * @description The MCP OAuth authorization flow.
@@ -5854,7 +5871,7 @@ export interface components {
             fingerprint?: null | string;
         };
         /** @enum {unknown} */
-        RunErrorClass: "Unknown" | "ProviderError" | "ProviderUnavailable" | "RateLimited" | "QuotaExceeded" | "ContentFiltered" | "ToolError" | "Timeout" | "CompilationFailed" | "Canceled" | "ContentBlocked" | "Infrastructure" | "ToolTimeout" | "StructuredResponseInvalid" | null;
+        RunErrorClass: "Unknown" | "ProviderError" | "ProviderUnavailable" | "RateLimited" | "QuotaExceeded" | "ContentFiltered" | "ToolError" | "Timeout" | "CompilationFailed" | "Canceled" | "ContentBlocked" | "Infrastructure" | "ToolTimeout" | "StructuredResponseInvalid" | "LoopUnsatisfied" | null;
         /** @description The summary of runs sharing the same fingerprint. */
         RunErrorCluster: {
             /** @description The digest of the normalized message. */
@@ -8225,6 +8242,7 @@ export type LiveVoiceSessionCreateRequest = components['schemas']['LiveVoiceSess
 export type LiveVoiceSessionCreateResponse = components['schemas']['LiveVoiceSessionCreateResponse'];
 export type LiveVoiceSessionStatusResponse = components['schemas']['LiveVoiceSessionStatusResponse'];
 export type LoopCriterion = components['schemas']['LoopCriterion'];
+export type LoopOutcome = components['schemas']['LoopOutcome'];
 export type LoopSettings = components['schemas']['LoopSettings'];
 export type McpOAuthAuthorizationMode = components['schemas']['McpOAuthAuthorizationMode'];
 export type McpOAuthStartResponse = components['schemas']['McpOAuthStartResponse'];

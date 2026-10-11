@@ -2,15 +2,14 @@
 
 > **Üretilen, elle düzenlenmez.** Kaynak: `KARARLAR.md` · üretim: `scripts/dokuman-bakim.py`
 
-Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 795 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
+Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 796 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
 
 ---
 
-## En Yeni Kalıcı Kararlar (88 / 883 kalem)
+## En Yeni Kalıcı Kararlar (88 / 884 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
-| K-796 | 847 | Bir agent skill formatı ÖLÇÜLMEDEN sevk edilmez; ölçüm ayırt edici olmak zorundadır 👤 |
 | K-797 | 848 | Kapı skill'inin revizyon damgasını PAKET değil TOOL taşır; bayat skill'in düzeltmesi "önce tool'u güncelle"dir |
 | K-798 | 849 | Bir tool sonucu, sağlayıcı adaptörünün TELE YAZDIĞI metinle ölçülür; `AIContent` protokol sonucu bu ölçümün dışında değildir |
 | K-799 | 850 | `ContentGuard`'ın "incelenemeyen sonuç" fail-closed dalı, okunamayan sonuç içindir; `string` OLMAYAN her sonuç için değil |
@@ -98,3 +97,4 @@ Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLA
 | K-881 | 932 | `[TraconTool]` üretecinin her derlemeye yazdığı `TraconGeneratedToolsBuilderExtensions.AddGeneratedTools()` `internal`'dır: yalnız kendi derlemesinin tool'larını kaydeder; bir kütüphane tool'larını host'a kendi public uzantısıyla verir (o uzantı `AddGeneratedTools()`'u kütüphanenin içinden çağırır); `TRC0005` mesajı bu yolu söyler (F-289, kusur-giderme 2026-10-11) (kullanıcı kararı) 👤 |
 | K-882 | 933 | `CompiledAgentCache` `(kiracı, ad, tanım parmak izi, kültür)` başına TEK girdi tutar; yeni bağımlılık parmak iziyle derleme o girdiyi değiştirir, tanım parmak izi ayrı yuvadır (A/B sürümleri birbirini atmaz); MCP bağlaması bağlantı kimliğine ek olarak uzak tool'un protokol `Tool` JSON'unun SHA-256'sını taşır — K-880'in "açıklama ve şema anahtara girmez" kısmı kalkar (F-308, kusur-giderme 2026-10-11) (kullanıcı kararı) 👤 |
 | K-883 | 934 | `tools/list` başarısız olunca MCP bağlantısı, kayıtlı ve tanımı aynı kaldıkça, son iyi tool/kaynak listesini son başarılı listelemeden itibaren `TraconMcpOptions.StaleToolRetention` (varsayılan 15 dk; `Zero` = eski davranış, negatif açılışta reddedilir) boyunca sunar; refresh sonucu yine "ulaşılamaz" sayılır; süre geçince sonraki başarısız refresh listeyi düşürür ve K-880'in `absent` reddi döner (F-309, kusur-giderme 2026-10-11) (kullanıcı kararı) 👤 |
+| K-884 | 935 | `LoopSettings` iki bağımsız alan taşır (`OnExhausted`, `OnCriterionError`) ve ikisi de tek enum'dur (`LoopOutcome`: `ReturnLastResponse = 0` varsayılan · `FailRun = 1`, JSON'da ad); `OnExhausted = FailRun` iken tavandaki tur DEĞERLENDİRİLİR (MAF'a N+1 verilir, karar N'de); yeni sınıf `RunErrorClass.LoopUnsatisfied = 15` yalnız tükenme içindir, ölçüt hatası orijinal istisnayla ve kendi sınıfıyla düşer (Faz 192, F-293) (kullanıcı kararı) 👤 |

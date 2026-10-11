@@ -128,6 +128,8 @@ const agentRequest: Complete<AgentDefinitionRequest> = {
       ],
       maxIterations: 3,
       freshContextPerIteration: true,
+      onExhausted: 'FailRun',
+      onCriterionError: 'ReturnLastResponse',
     },
   },
   compaction: {

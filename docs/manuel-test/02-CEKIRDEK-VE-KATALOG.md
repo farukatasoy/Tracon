@@ -3713,3 +3713,140 @@ ile yapılır. Değişiklik case sonunda GERİ ALINIR.
 
 > **Otomatik karşılığı:** `CatalogEndpointTests.Every_configured_tool_setting_reaches_the_listed_descriptor`
 > (`AddTool` ve `AddScopedTool` iki yolu) · `ToolRegistrationParityTests`.
+
+---
+
+### MT-CORE-132 — `onExhausted: "FailRun"` tükenen döngüde `run`'ı `LoopUnsatisfied` ile düşürür (Faz 192)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 192 |
+| **İlgili karar** | K-884 |
+
+**Ön koşul:** Örnek uygulama, gerçek model. 🚨 Harness modu `openai` (Chat Completions)
+sağlayıcısında bugün `400` ile düşer (F-315); `openai-responses` kullan.
+
+**Adımlar**
+1. ```json
+   POST /tracon/api/agents
+   {"name":"loop-gate","model":{"provider":"openai-responses","model":"gpt-5.4-mini"},
+    "instructions":"Answer in one short sentence.",
+    "harness":{"loop":{"criteria":[{"kind":"completionMarker","marker":"NEVER-WRITTEN"}],
+               "maxIterations":2,"onExhausted":"FailRun"}}}
+   ```
+2. `POST /tracon/api/agents/loop-gate/run` (`{"message":"Say hello."}`), sonra `GET /api/runs/{id}/events`.
+
+**Beklenen sonuç**
+- `run` `Failed`; `error.type` `loop_unsatisfied`, `error.class` `LoopUnsatisfied`.
+- İki `LoopIterationCompleted` olayı; sonuncusunun metni "…ends the loop and fails the run",
+  payload'ı `ceilingReached: true`, `failsRun: true`.
+- Hata mesajı modelin yanıtını taşımaz (agent adı, tur sayısı, ölçüt türü).
+- `run.usage` ve `run.cost` doludur ve iki turun toplamını taşır (denetim düzeltmesi:
+  istisnayla biten run'ın tek `usage` kaynağı yan kanaldır).
+
+**Gerçek sonuç (2026-10-11, `gpt-5.4-mini`, bellek içi store)** — ✅ `Failed`, `loop_unsatisfied`,
+`LoopUnsatisfied`; iki olay, sonuncusu `failsRun`. Akış 21 `update` çerçevesinden sonra `error`
+çerçevesiyle bitti. Denetim düzeltmesinden sonra yeniden koşuldu: `usage.totalTokens = 13142`
+(iki tur, `cachedInputTokens = 6528`), `cost` dolu. Aynı tanım `onExhausted` olmadan iki tur
+koşunca `totalTokens = 6599` kaydetti — yalnız son tur (F-317).
+
+> **Otomatik karşılığı:** `HarnessLoopTests.FailRun_on_exhaustion_fails_the_run_after_exactly_MaxIterations_turns`.
+
+---
+
+### MT-CORE-133 — Alanlar verilmeyince döngü bugünkü gibi son yanıtı döner (Faz 192)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 192 |
+| **İlgili karar** | K-884 |
+
+**Ön koşul:** MT-CORE-132'nin tanımı, `onExhausted` çıkarılmış (`PUT`).
+
+**Adımlar**
+1. Aynı `run`'ı yeni oturumla at; olayları oku.
+
+**Beklenen sonuç**
+- `run` `Completed`; tek `LoopIterationCompleted` olayı, `ceilingReached: true`, `failsRun: false`.
+
+**Gerçek sonuç (2026-10-11)** — ✅ `Completed`, bir olay, `ceilingReached: true`, `failsRun: false`.
+
+> **Otomatik karşılığı:** `HarnessLoopTests` mevcut on vakası değişmeden yeşil.
+
+---
+
+### MT-CORE-134 — Akışlı istemci son turun metnini, sonra hata çerçevesini alır (Faz 192)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | Faz 192 |
+| **İlgili karar** | K-884 |
+
+**Ön koşul:** MT-CORE-132'nin tanımı (`FailRun`).
+
+**Adımlar**
+1. `curl -N -X POST …/api/agents/loop-gate/run` ile SSE akışını oku.
+
+**Beklenen sonuç**
+- Önce `update` (metin) çerçeveleri, en sonda `event: error` (`TraconLoopUnsatisfiedException`);
+  `run` `Failed`.
+
+**Gerçek sonuç (2026-10-11)** — ✅ MT-CORE-132 koşumunda ölçüldü: 21 `update`, ardından `error`.
+
+> **Otomatik karşılığı:** `HarnessLoopTests.FailRun_on_exhaustion_streams_the_last_turn_and_then_fails_the_run`.
+
+---
+
+### MT-CORE-135 — `onCriterionError: "FailRun"` ölçütün kendi hatasıyla düşer (Faz 192)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 192 |
+| **İlgili karar** | K-884 |
+| **Devir** | ➜ CI: `HarnessLoopTests.FailRun_on_criterion_error_fails_the_run_with_the_criterions_own_class` |
+
+**Ön koşul:** `aiJudge` ölçütlü bir tanım; yargıç binding'i (`AddModelRunJudge`) ulaşılamayan
+bir uca işaret eder; `onCriterionError: "FailRun"`.
+
+**Adımlar**
+1. `run` at.
+
+**Beklenen sonuç**
+- `run` `Failed`; sınıf yargıç hatasının sınıfıdır (`ProviderUnavailable`/`Timeout`), `LoopUnsatisfied` DEĞİL.
+- Olay `failedCriterion: "aiJudge"`, `failsRun: true`.
+
+---
+
+### MT-CORE-136 — Workflow, döngüsü `FailRun` ile düşen agent'ta durur (Faz 192)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 192 |
+| **İlgili karar** | K-884 |
+
+**Ön koşul:** MT-CORE-132'nin tanımı (`FailRun`); örnek uygulamanın `word-count` fonksiyonu.
+
+**Adımlar**
+1. `PUT /tracon/api/workflows/loop-gate-flow` → `{"kind":"Sequential","nodes":[{"name":"loop-gate","kind":"Agent"},{"name":"word-count","kind":"Function"}]}`
+2. `POST /tracon/api/workflows/loop-gate-flow/run` (`{"message":"Say hello."}`).
+
+**Beklenen sonuç**
+- Workflow `run` `Failed`; akışta `word-count` için `ExecutorInvoked` YOKTUR.
+- Katılımcı agent run'ı `LoopUnsatisfied` taşır. Workflow satırı bugün hata türünü CLR adıyla
+  yazar ve sınıf taşımaz (F-314).
+
+**Gerçek sonuç (2026-10-11)** — ✅ Workflow `Failed`, `word-count` hiç çağrılmadı; workflow
+satırı `Tracon.TraconLoopUnsatisfiedException`, sınıf `null`.
+
+> **Otomatik karşılığı:** `HarnessLoopTests.A_workflow_stops_at_an_agent_whose_loop_fails_on_exhaustion`.
+

@@ -20824,6 +20824,23 @@ namespace Tracon.Client.Generated
     }
 
     /// <summary>
+    /// What a harness loop does when it ends without every criterion satisfied: return
+    /// <br/>the last response, or fail the run.
+    /// </summary>
+    [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
+    [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<LoopOutcome>))]
+    public enum LoopOutcome
+    {
+
+        [System.Runtime.Serialization.EnumMember(Value = @"ReturnLastResponse")]
+        ReturnLastResponse = 0,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"FailRun")]
+        FailRun = 1,
+
+    }
+
+    /// <summary>
     /// Turns the harness loop on: the agent is re-invoked until a stop criterion
     /// <br/>says the work is finished.
     /// </summary>
@@ -20852,6 +20869,23 @@ namespace Tracon.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("freshContextPerIteration")]
         public bool FreshContextPerIteration { get; set; } = default!;
+
+        /// <summary>
+        /// Gets what happens when the iteration ceiling is reached while a criterion still
+        /// <br/>asks for another iteration. LoopOutcome.ReturnLastResponse by
+        /// <br/>default.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("onExhausted")]
+        public LoopOutcome OnExhausted { get; set; } = default!;
+
+        /// <summary>
+        /// Gets what happens when a criterion throws while it is evaluated.
+        /// <br/>LoopOutcome.ReturnLastResponse by default.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("onCriterionError")]
+        public LoopOutcome OnCriterionError { get; set; } = default!;
 
     }
 
@@ -22911,6 +22945,9 @@ namespace Tracon.Client.Generated
 
         [System.Runtime.Serialization.EnumMember(Value = @"StructuredResponseInvalid")]
         StructuredResponseInvalid = 13,
+
+        [System.Runtime.Serialization.EnumMember(Value = @"LoopUnsatisfied")]
+        LoopUnsatisfied = 14,
 
     }
 

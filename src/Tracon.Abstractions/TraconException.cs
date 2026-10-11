@@ -450,6 +450,64 @@ public sealed class TraconStructuredResponseException : TraconException
 }
 
 /// <summary>
+/// Thrown when a harness loop reaches its iteration ceiling while a criterion still
+/// asks for another iteration, and its <see cref="LoopSettings.OnExhausted"/> is
+/// <see cref="LoopOutcome.FailRun"/>.
+/// </summary>
+/// <remarks>
+/// <para>
+/// The run fails with error type <c>loop_unsatisfied</c>, classified as
+/// <see cref="RunErrorClass.LoopUnsatisfied"/>. A workflow that runs the agent stops
+/// at that node: the response no criterion accepted does not reach the next one.
+/// </para>
+/// <para>
+/// The message names the agent, the number of iterations and the kind of the
+/// criterion that was not satisfied. It never carries the model's response or the
+/// criterion's feedback: both are free-form text written for the model, and the
+/// error is stored with the run and shown to clients.
+/// </para>
+/// </remarks>
+public sealed class TraconLoopUnsatisfiedException : TraconException
+{
+    /// <summary>
+    /// The stable value written to <see cref="TraconException.ErrorType"/>.
+    /// </summary>
+    public const string LoopUnsatisfiedErrorType = "loop_unsatisfied";
+
+    /// <summary>Creates a new error.</summary>
+    public TraconLoopUnsatisfiedException()
+    {
+    }
+
+    /// <summary>Creates a new error.</summary>
+    /// <param name="message">The error message. Must not carry the response or the feedback text.</param>
+    public TraconLoopUnsatisfiedException(string message)
+        : base(message)
+    {
+    }
+
+    /// <summary>Creates a new error.</summary>
+    /// <param name="message">The error message. Must not carry the response or the feedback text.</param>
+    /// <param name="innerException">The underlying error.</param>
+    public TraconLoopUnsatisfiedException(string message, Exception innerException)
+        : base(message, innerException)
+    {
+    }
+
+    /// <summary>Gets the name of the agent whose loop was not satisfied.</summary>
+    public string? AgentName { get; init; }
+
+    /// <summary>Gets the number of iterations the loop ran.</summary>
+    public int Iterations { get; init; }
+
+    /// <summary>Gets the kind of the criterion that still asked for another iteration.</summary>
+    public string? UnsatisfiedCriterion { get; init; }
+
+    /// <inheritdoc />
+    public override string ErrorType => LoopUnsatisfiedErrorType;
+}
+
+/// <summary>
 /// Thrown when session ownership is on, a session write needs an owner, and no
 /// authenticated identity could be resolved to be that owner.
 /// </summary>

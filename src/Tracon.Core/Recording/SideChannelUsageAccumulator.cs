@@ -7,13 +7,15 @@ namespace Tracon;
 /// agent's normal request/response flow during a run.
 /// </summary>
 /// <remarks>
-/// Two sources feed it today. Context compaction (summarization) issues its own
+/// Three sources feed it today. Context compaction (summarization) issues its own
 /// side-channel <see cref="IChatClient"/> call, fully separate from the agent's
 /// <c>AgentResponse</c> (<see cref="CompactionUsageTrackingChatClient"/>). A
 /// bounded structured-response repair turn issues its own <c>AgentResponse</c>
 /// that is then discarded — either replaced by a further repair attempt or, on
 /// final failure, never returned to the caller at all
-/// (<see cref="StructuredResponseValidatingAgent"/>). Neither source's tokens
+/// (<see cref="StructuredResponseValidatingAgent"/>). A harness loop that fails
+/// its run throws away the response that would have carried every iteration's
+/// usage (<see cref="RecordingLoopEvaluator"/>). None of these sources' tokens
 /// enter the normal flow on their own, so this accumulator is available through
 /// <see cref="TraconRunContext"/>. At run completion, <see cref="RunRecordingAgent"/>
 /// adds its value to the final <see cref="RunUsage"/>, so both cost reports and

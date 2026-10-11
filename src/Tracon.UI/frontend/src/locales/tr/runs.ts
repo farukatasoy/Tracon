@@ -230,6 +230,7 @@ export const trRuns: Pick<Messages, keyof typeof enRuns> = {
   "dashboard.errorClass.ToolTimeout": "Tool zaman aşımına uğradı",
   "dashboard.errorClass.Infrastructure": 'Altyapı hatası',
   "dashboard.errorClass.StructuredResponseInvalid": 'Yapısal yanıt geçersiz',
+  "dashboard.errorClass.LoopUnsatisfied": 'Döngü karşılanmadı',
   "transcript.reasoning": 'Akıl yürütme',
   "transcript.approved": 'onaylandı',
   "transcript.rejected": 'reddedildi',

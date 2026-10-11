@@ -153,6 +153,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- A harness loop can fail the run instead of returning a response no criterion
+  accepted. `LoopSettings.OnExhausted` (the ceiling is reached while a
+  criterion still asks for another iteration) and
+  `LoopSettings.OnCriterionError` (a criterion throws) take a `LoopOutcome`:
+  `ReturnLastResponse`, the default and today's behavior, or `FailRun`.
+  Exhaustion fails with `TraconLoopUnsatisfiedException` (error type
+  `loop_unsatisfied`, new class `RunErrorClass.LoopUnsatisfied = 15`); a
+  criterion error fails with the criterion's own error. A workflow stops at
+  that agent. With `OnExhausted = FailRun` the turn at the ceiling is
+  evaluated before the run is failed - one more evaluation, which for
+  `aiJudge` is one more judge call - and the `LoopIterationCompleted` event
+  gains `failsRun`. JSON takes the names (`"onExhausted": "FailRun"`); an
+  unknown name is refused with `400`. A run the loop fails keeps the usage
+  and cost of every turn it ran.
 - `TraconMcpOptions.StaleToolRetention`.
 - `ILiveVoiceProvider.SupportsTenantCredentials` and
   `ILiveVoiceProvider.AttachSessionAsync(LiveVoiceAttachRequest)`, both with
