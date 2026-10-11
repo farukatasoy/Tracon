@@ -78,6 +78,8 @@ tracon
 
 The provider runs the whole spoken conversation and carries the audio straight to the
 browser; your agents handle the work it delegates. The API key stays on the server.
+The tenant's egress policy and its own `openai` binding apply to a live session as to
+a model call; see [tenant policy and credentials](/guides/voice/#tenant-policy-and-credentials).
 See [provider-hosted live voice](/guides/voice/#provider-hosted-live-voice) for what
 that trade gives up.
 

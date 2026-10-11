@@ -138,9 +138,16 @@ internal sealed class McpToolCatalog : IAsyncDisposable
             foreach (var tenantId in tenantIds)
             {
                 var registrations = new List<TraconToolRegistration>();
+                var sources = new Dictionary<TraconToolRegistration, string>(ReferenceEqualityComparer.Instance);
+                var serverNames = new List<string>();
 
                 foreach (var server in await _servers.ListAsync(tenantId, cancellationToken).ConfigureAwait(false))
                 {
+                    // Every registered server, reachable or not: a tool named like
+                    // one of theirs that is missing from the snapshot then reads as
+                    // an UNRESOLVED remote source, never as a code tool (F-283).
+                    serverNames.Add(server.Name);
+
                     if (!server.Enabled)
                     {
                         continue;
@@ -156,10 +163,15 @@ internal sealed class McpToolCatalog : IAsyncDisposable
                     if (connection is not null)
                     {
                         registrations.AddRange(connection.Tools);
+
+                        foreach (var registration in connection.Tools)
+                        {
+                            sources[registration] = connection.SourceFingerprint;
+                        }
                     }
                 }
 
-                if (registrations.Count > 0)
+                if (registrations.Count > 0 || serverNames.Count > 0)
                 {
                     byTenant[tenantId] = McpTenantTools.Create(
                         registrations,
@@ -171,7 +183,9 @@ internal sealed class McpToolCatalog : IAsyncDisposable
                         _loggerFactory.CreateLogger<AuthorizingAIFunction>(),
                         _loggerFactory.CreateLogger<TimeoutAIFunction>(),
                         _loggerFactory.CreateLogger<ValidatingAIFunction>(),
-                        _coreOptions.Value.Tools.DefaultMaxOutputBytes);
+                        _coreOptions.Value.Tools.DefaultMaxOutputBytes,
+                        sources,
+                        serverNames);
                     total += registrations.Count;
                 }
             }
@@ -219,7 +233,7 @@ internal sealed class McpToolCatalog : IAsyncDisposable
                 ids.Add(tenant.Slug);
             }
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
         {
             _logger.LogWarning(ex, "Could not read the tenant list; MCP discovery will run only for the default tenant.");
         }

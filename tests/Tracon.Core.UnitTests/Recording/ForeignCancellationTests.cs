@@ -115,6 +115,72 @@ public sealed class ForeignCancellationTests
         await writer.StopAsync(TestContext.Current.CancellationToken);
     }
 
+    [Fact]
+    public async Task A_run_event_store_that_times_out_on_its_own_does_not_fail_the_run()
+    {
+        // "Store failures do not interrupt the run": the event write is
+        // observability. An HTTP-backed store's own timeout used to escape
+        // the writer and fail the run it was only recording (K-840, F-279).
+        var store = new CancellingRunStore(new InMemoryRunStore()) { AppendTimesOut = true };
+        var writer = new RunEventWriter(store, new TraconRunRecordingOptions(), NullLogger.Instance, TraconId.NewId(), metrics: null);
+
+        await writer.StartAsync(
+            new RunStartInfo { RunId = writer.RunId, AgentName = "agent", StartedAt = DateTimeOffset.UtcNow },
+            query: "hello");
+        await writer.AppendAsync(new RunEventDraft(RunEventType.Custom) { CustomType = "contoso.step" });
+
+        writer.IsDisabled.ShouldBeTrue();
+    }
+
+    [Fact]
+    public async Task A_sink_that_times_out_on_its_own_does_not_fail_the_run()
+    {
+        // "A sink failure never fails the run" - a sink forwarding over HTTP
+        // reports its own timeout as TaskCanceledException.
+        var writer = new RunEventWriter(
+            new InMemoryRunStore(),
+            new TraconRunRecordingOptions(),
+            NullLogger.Instance,
+            TraconId.NewId(),
+            metrics: null,
+            [new TimingOutSink()]);
+
+        await writer.StartAsync(
+            new RunStartInfo { RunId = writer.RunId, AgentName = "agent", StartedAt = DateTimeOffset.UtcNow },
+            query: "hello");
+        await writer.AppendAsync(new RunEventDraft(RunEventType.Custom) { CustomType = "contoso.step" });
+
+        writer.IsDisabled.ShouldBeFalse("a sink failure disables the sink, never the store");
+    }
+
+    [Fact]
+    public void An_attribution_context_that_times_out_reads_as_no_attribution()
+    {
+        // The getters take no token, so nothing they throw is a cancellation of
+        // ours. A consumer identity call that timed out is a fault: logged by the
+        // caller, never a reason to take the run down.
+        var faults = new List<Exception?>();
+
+        var (userId, labels) = RunAttributionReader.Read(new TimingOutAttribution(), (_, exception) => faults.Add(exception));
+
+        userId.ShouldBeNull();
+        labels.ShouldBeNull();
+        faults.ShouldHaveSingleItem().ShouldBeOfType<TaskCanceledException>();
+    }
+
+    private sealed class TimingOutSink : IRunEventSink
+    {
+        public ValueTask OnEventAsync(RunEvent runEvent, CancellationToken cancellationToken = default)
+            => throw new TaskCanceledException("the sink's HTTP call timed out");
+    }
+
+    private sealed class TimingOutAttribution : IRunAttributionContext
+    {
+        public string? UserId => throw new TaskCanceledException("the identity service timed out");
+
+        public IReadOnlyDictionary<string, string>? Labels => null;
+    }
+
     private sealed class StaticOptionsMonitor<T>(T value) : IOptionsMonitor<T>
     {
         public T CurrentValue => value;
@@ -131,11 +197,16 @@ public sealed class ForeignCancellationTests
 
         public int Attempts => Volatile.Read(ref _touchCalls);
 
+        /// <summary>When set, every event write times out on its own.</summary>
+        public bool AppendTimesOut { get; init; }
+
         public ValueTask<RunRecord> StartRunAsync(RunStartInfo info, CancellationToken cancellationToken = default)
             => inner.StartRunAsync(info, cancellationToken);
 
         public ValueTask AppendEventAsync(RunEvent runEvent, CancellationToken cancellationToken = default)
-            => inner.AppendEventAsync(runEvent, cancellationToken);
+            => AppendTimesOut
+                ? throw new TaskCanceledException("The store timed out.")
+                : inner.AppendEventAsync(runEvent, cancellationToken);
 
         public ValueTask<long?> GetLastEventSequenceAsync(Guid runId, CancellationToken cancellationToken = default)
             => ValueTask.FromResult<long?>(null);

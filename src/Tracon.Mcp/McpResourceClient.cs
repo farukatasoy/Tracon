@@ -79,7 +79,7 @@ internal sealed class McpResourceClient : IMcpResourceClient
                 Resources = resources.Select(Project).ToList(),
             };
         }
-        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
         {
             _logger.LogWarning(ex, "Could not read the resource list from MCP server '{ServerName}'.", serverName);
 
@@ -127,7 +127,7 @@ internal sealed class McpResourceClient : IMcpResourceClient
         {
             return (McpOperationStatus.ItemNotFound, null);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
         {
             _logger.LogWarning(ex, "Could not read resource '{Uri}' from MCP server '{ServerName}'.", serverName, uri);
 

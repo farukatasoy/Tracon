@@ -23,8 +23,14 @@ namespace Tracon;
 /// <para>
 /// <strong>Tenant:</strong> <c>tenant-independent</c>, like
 /// <see cref="ISpeechSynthesizer"/>. The caller has already resolved and gated the
-/// tenant before a session is created; the provider neither reads nor enforces one,
-/// and must not key any cache or credential by tenant.
+/// tenant before a session is created: Tracon applies the tenant's egress policy to
+/// <see cref="ProviderName"/> and resolves the tenant's own credential from its
+/// provider binding, exactly as for a model call. The provider neither reads nor
+/// enforces a tenant, and must not key any cache or credential by tenant; a
+/// tenant credential reaches it only through the request
+/// (<see cref="LiveVoiceCreateRequest.Credential"/>,
+/// <see cref="LiveVoiceAttachRequest.Credential"/>), and only when
+/// <see cref="SupportsTenantCredentials"/> is <see langword="true"/>.
 /// </para>
 /// <para>
 /// <strong>Delivery:</strong> <c>best-effort</c>. Creating a session and attaching to
@@ -72,6 +78,49 @@ public interface ILiveVoiceProvider
     ValueTask<ILiveVoiceSideband> AttachAsync(
         string providerSessionId,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets whether the provider honours a tenant credential passed in
+    /// <see cref="LiveVoiceCreateRequest.Credential"/> and
+    /// <see cref="LiveVoiceAttachRequest.Credential"/>.
+    /// </summary>
+    /// <remarks>
+    /// The default is <see langword="false"/>. Tracon then refuses a session for a
+    /// tenant that has its own binding for <see cref="ProviderName"/> rather than
+    /// open it on the provider's configured credential, which would bill the wrong
+    /// account. An implementation that returns <see langword="true"/> uses the
+    /// credential for both calls of the session and never falls back to its
+    /// configured one.
+    /// </remarks>
+    bool SupportsTenantCredentials => false;
+
+    /// <summary>Opens a server-side control connection to an existing session.</summary>
+    /// <param name="request">The provider's session identifier and the credential to connect with.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The sideband connection.</returns>
+    /// <remarks>
+    /// The default implementation calls <see cref="AttachAsync(string, CancellationToken)"/>
+    /// when no credential is given and throws <see cref="NotSupportedException"/> when
+    /// one is: an implementation that cannot use the tenant's credential must not
+    /// connect with its own instead. Tracon calls this method, the pair of
+    /// <see cref="CreateSessionAsync"/>.
+    /// </remarks>
+    /// <exception cref="NotSupportedException">
+    /// <see cref="LiveVoiceAttachRequest.Credential"/> is set and the implementation does
+    /// not override this method.
+    /// </exception>
+    ValueTask<ILiveVoiceSideband> AttachSessionAsync(
+        LiveVoiceAttachRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        return request.Credential is null
+            ? AttachAsync(request.ProviderSessionId, cancellationToken)
+            : throw new NotSupportedException(
+                $"The live voice provider '{ProviderName}' does not accept a tenant credential; " +
+                "it would connect with its own configured credential instead.");
+    }
 }
 
 /// <summary>The server-side control connection of a live voice session.</summary>
@@ -80,7 +129,7 @@ public interface ILiveVoiceProvider
 /// <strong>Lifetime:</strong> never resolved from dependency injection, so neither
 /// <c>singleton</c>, <c>scoped</c> nor <c>transient</c> describes it. One instance
 /// belongs to one session, is produced by
-/// <see cref="ILiveVoiceProvider.AttachAsync"/>, and is disposed when that session
+/// <see cref="ILiveVoiceProvider.AttachSessionAsync"/>, and is disposed when that session
 /// ends. <see cref="AppendAsync"/> may be called concurrently by several delegations,
 /// so an implementation serializes its writes; <see cref="ReceiveAsync"/> is consumed
 /// by a single pump.
@@ -139,6 +188,33 @@ public sealed record LiveVoiceCreateRequest
 
     /// <summary>Gets the session settings.</summary>
     public LiveVoiceSessionOptions Options { get; init; } = new();
+
+    /// <summary>
+    /// Gets the tenant's own credential for the provider, or <see langword="null"/>
+    /// to use the credential the provider was configured with.
+    /// </summary>
+    /// <remarks>
+    /// Tracon resolves it from the tenant's provider binding for
+    /// <see cref="ILiveVoiceProvider.ProviderName"/> and passes it only to a provider
+    /// whose <see cref="ILiveVoiceProvider.SupportsTenantCredentials"/> is
+    /// <see langword="true"/>. It lives in memory for the call and is never
+    /// persisted; its text form never shows the key.
+    /// </remarks>
+    public ModelProviderCredential? Credential { get; init; }
+}
+
+/// <summary>The request that attaches the server-side control connection to a live voice session.</summary>
+public sealed record LiveVoiceAttachRequest
+{
+    /// <summary>Gets the identifier <see cref="ILiveVoiceProvider.CreateSessionAsync"/> returned.</summary>
+    public required string ProviderSessionId { get; init; }
+
+    /// <summary>
+    /// Gets the credential the session was created with: the tenant's own, or
+    /// <see langword="null"/> for the provider's configured credential.
+    /// </summary>
+    /// <remarks>The same credential as <see cref="LiveVoiceCreateRequest.Credential"/> for the same session.</remarks>
+    public ModelProviderCredential? Credential { get; init; }
 }
 
 /// <summary>The result of creating a live voice session.</summary>

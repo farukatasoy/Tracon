@@ -286,6 +286,11 @@ internal static class GovernanceEndpoints
 
                 var endpoint = new Uri(request.Endpoint, UriKind.Absolute);
 
+                if (RejectApprovalWaiverWithoutSecurityAdmin(httpContext, name, previous, endpoint, request) is { } waiverDenied)
+                {
+                    return waiverDenied;
+                }
+
                 WarnWhenPreservedHeadersMove(
                     loggerFactory.CreateLogger("Tracon.GovernanceEndpoints"),
                     name,
@@ -328,7 +333,10 @@ internal static class GovernanceEndpoints
             .WithDescription(
                 "SECURITY BOUNDARY. Adding an MCP server means accepting tool definitions " +
                 "from an external source. Only http/https addresses are accepted; local process " +
-                "(stdio) transport is not supported. Tools require approval by default. A " +
+                "(stdio) transport is not supported. Tools require approval by default; saving " +
+                "'requiresApproval: false' for a new server, for a server that required approval, " +
+                "or together with a new 'endpoint' also requires the 'SecurityAdmin' scope when " +
+                "the call uses an API key (403 otherwise). A " +
                 "configuration key name must be under the configured allowed prefix and inside " +
                 "the tenant's own key space — '{prefix}{tenantId}:...'; a flat name directly " +
                 "under the prefix belongs to the default tenant (400 otherwise). A credential " +
@@ -656,6 +664,7 @@ internal static class GovernanceEndpoints
                 HttpContext httpContext,
                 IToolApprovalRuleStore rules,
                 ITenantContext tenants,
+                IToolRegistry tools,
                 IAuditActorResolver actorResolver,
                 CancellationToken cancellationToken) =>
             {
@@ -675,6 +684,21 @@ internal static class GovernanceEndpoints
                     return invalid;
                 }
 
+                // The source the rule will be bound to. A tool of a server whose
+                // tools are not discovered right now has no recordable source: a
+                // rule written for it would bind to nothing and never approve the
+                // tool once the server is back, so the request is refused instead.
+                var sourceFingerprint = ToolSourceFingerprint.Of(tools, tenants.TenantId, request.ToolName);
+
+                if (!ToolSourceFingerprint.IsRecordable(sourceFingerprint))
+                {
+                    return TypedResults.Problem(
+                        title: "Tool source not discovered",
+                        detail: $"'{request.ToolName}' belongs to an MCP server whose tools are not discovered right " +
+                                "now. Refresh the server and write the rule once its tools are listed.",
+                        statusCode: StatusCodes.Status409Conflict);
+                }
+
                 var id = TraconId.NewId();
 
                 var saved = await rules.AddAsync(
@@ -685,6 +709,10 @@ internal static class GovernanceEndpoints
                         AgentName = request.AgentName,
                         ToolName = request.ToolName,
                         ArgumentConditions = request.ArgumentConditions,
+
+                        // Stamped here, never taken from the request: the rule
+                        // approves the tool of the source it was given for.
+                        SourceFingerprint = sourceFingerprint,
                         CreatedBy = actorResolver.Resolve(),
                         CreatedAt = DateTimeOffset.UtcNow,
                     },
@@ -717,7 +745,10 @@ internal static class GovernanceEndpoints
                 "(for example \"amount <= 100\"), evaluated on every call. There is no free-text " +
                 "expression field: the operator is a closed set and conditions combine with AND " +
                 "only. A code-defined policy (ITraconBuilder.AddToolApprovalPolicy) always " +
-                "runs first and can override this rule in both directions.");
+                "runs first and can override this rule in both directions. For a tool of an MCP " +
+                "server the rule records the fingerprint of the server's current endpoint " +
+                "('sourceFingerprint') and approves that tool only while the server keeps that " +
+                "endpoint; a tool of a server whose tools are not discovered right now answers 409.");
 
         builder.MapDelete("/api/approvals/rules/{ruleId:guid}", async Task<Results<NoContent, ProblemHttpResult>> (
                 Guid ruleId,
@@ -932,6 +963,57 @@ internal static class GovernanceEndpoints
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Refuses a save that switches approval off for a server's tools when the API
+    /// key does not also carry the <see cref="ApiKeyScope.SecurityAdmin"/> scope.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The endpoint requires <see cref="ApiKeyScope.AgentsAdmin"/>, but approval
+    /// policy belongs to <see cref="ApiKeyScope.SecurityAdmin"/>: a standing
+    /// approval rule can only be written with it. <c>requiresApproval: false</c>
+    /// waives approval for every tool of the server at once, so it is the same
+    /// decision and needs the same scope.
+    /// </para>
+    /// <para>
+    /// The waiver is a decision about ONE endpoint, exactly like a rule: it needs
+    /// the scope when the server is new, when it was requiring approval, and when
+    /// it already waived approval but the save points it at another endpoint.
+    /// Saving an unchanged waiver (another field edited) does not. A caller that
+    /// presented no API key is governed by the role policy alone, as for every
+    /// other scope.
+    /// </para>
+    /// </remarks>
+    private static ProblemHttpResult? RejectApprovalWaiverWithoutSecurityAdmin(
+        HttpContext httpContext,
+        string name,
+        McpServerDefinition? previous,
+        Uri endpoint,
+        McpServerRequest request)
+    {
+        if (request.RequiresApproval)
+        {
+            return null;
+        }
+
+        var unchangedWaiver = previous is { RequiresApproval: false }
+            && string.Equals(previous.Endpoint.AbsoluteUri, endpoint.AbsoluteUri, StringComparison.Ordinal);
+
+        if (unchangedWaiver
+            || ApiKeyRequestContext.Get(httpContext) is not { } key
+            || key.Scopes.Contains(ApiKeyScope.SecurityAdmin))
+        {
+            return null;
+        }
+
+        return TypedResults.Problem(
+            title: "Insufficient scope",
+            detail: $"Saving server '{name}' with 'requiresApproval: false' waives approval for every " +
+                    $"tool of its endpoint and requires the '{ApiKeyScope.SecurityAdmin}' scope as well. " +
+                    "Keep 'requiresApproval: true' or use a key that also carries that scope.",
+            statusCode: StatusCodes.Status403Forbidden);
     }
 
     /// <summary>

@@ -191,6 +191,45 @@ public abstract class ToolApprovalRuleStoreContract : TenantIsolationContract<IT
         (await Store.ListAsync("tenant-a")).ShouldHaveSingleItem();
     }
 
+    /// <summary>
+    /// The source fingerprint of a rule is stored and returned as given, both on
+    /// the record the add returns and on a later read.
+    /// </summary>
+    /// <remarks>
+    /// The rule only approves a tool of the source it names. A store that drops
+    /// the value hands back a rule without a source, which approves no remote
+    /// tool, so every remembered approval for one would ask again forever.
+    /// </remarks>
+    [Fact]
+    public async Task Source_fingerprint_round_trips()
+    {
+        var fingerprint = new string('A', 64);
+
+        var added = await Store.AddAsync(Rule("tenant-a", "crm_lookup") with { SourceFingerprint = fingerprint });
+
+        added.SourceFingerprint.ShouldBe(fingerprint);
+        (await Store.ListAsync("tenant-a")).ShouldHaveSingleItem().SourceFingerprint.ShouldBe(fingerprint);
+    }
+
+    /// <summary>
+    /// Two rules that differ only in their source fingerprint are two rules.
+    /// </summary>
+    /// <remarks>
+    /// A server that moved to another endpoint keeps its tool names. If the
+    /// fingerprint were not part of the identity, a rule for the new endpoint
+    /// would come back as the old rule, which names the old endpoint and never
+    /// approves the new one.
+    /// </remarks>
+    [Fact]
+    public async Task Different_source_fingerprint_becomes_a_separate_rule()
+    {
+        await Store.AddAsync(Rule("tenant-a", "crm_lookup") with { AgentName = null, SourceFingerprint = new string('A', 64) });
+        var second = await Store.AddAsync(Rule("tenant-a", "crm_lookup") with { AgentName = null, SourceFingerprint = new string('B', 64) });
+
+        second.SourceFingerprint.ShouldBe(new string('B', 64));
+        (await Store.ListAsync("tenant-a")).Count.ShouldBe(2);
+    }
+
     private static ToolApprovalRule Rule(string tenantId, string toolName)
         => new()
         {

@@ -85,7 +85,7 @@ internal sealed class McpPromptClient : IMcpPromptClient
                 Prompts = prompts.Select(Project).ToList(),
             };
         }
-        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
         {
             _logger.LogWarning(ex, "Could not read the prompt list of MCP server '{ServerName}'.", serverName);
 
@@ -134,7 +134,7 @@ internal sealed class McpPromptClient : IMcpPromptClient
         {
             return (McpOperationStatus.ItemNotFound, null);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
         {
             _logger.LogWarning(ex, "Could not read prompt '{PromptName}' of MCP server '{ServerName}'.", promptName, serverName);
 

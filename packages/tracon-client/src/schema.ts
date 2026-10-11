@@ -2107,7 +2107,7 @@ export interface paths {
         put?: never;
         /**
          * Creates a provider-hosted live voice session.
-         * @description Relays the media peer's SDP offer to the provider and returns its answer, so the raw API key never reaches the browser. Tracon attaches a server-side control connection to the same session and turns the work the model delegates into ordinary runs. Returns 501 when no live voice provider is registered.
+         * @description Relays the media peer's SDP offer to the provider and returns its answer, so the raw API key never reaches the browser. Tracon attaches a server-side control connection to the same session and turns the work the model delegates into ordinary runs. The tenant's egress policy and its own provider binding apply as for a model call: 403 when the policy does not allow the live provider, when the tenant's binding for it has no value or sets an endpoint override, or when the provider cannot use the tenant's credential. Returns 501 when no live voice provider is registered.
          */
         post: operations["TraconLiveVoiceCreate"];
         delete?: never;
@@ -2314,7 +2314,7 @@ export interface paths {
         get?: never;
         /**
          * Adds or updates a remote MCP server.
-         * @description SECURITY BOUNDARY. Adding an MCP server means accepting tool definitions from an external source. Only http/https addresses are accepted; local process (stdio) transport is not supported. Tools require approval by default. A configuration key name must be under the configured allowed prefix and inside the tenant's own key space — '{prefix}{tenantId}:...'; a flat name directly under the prefix belongs to the default tenant (400 otherwise). A credential header (Authorization, X-Api-Key, Cookie, any name ending in '-key') is declared in 'headerConfigurationKeys' as the NAME of the configuration key its value is read from; the same header in plain 'headers' is rejected with 400, because plain header values are stored as given. No response returns a plain header value: the saved record comes back with every one replaced by '***', and a header whose value is '***' is rejected with 400. A header name may appear only once across both maps (case-insensitive, 400 otherwise), and 'Authorization' in 'headerConfigurationKeys' cannot be combined with 'authorizationConfigurationKey' or OAuth. 'headers' or 'headerConfigurationKeys' left out or null keeps the stored map; '{}' removes it. Every other field is replaced. Changing 'endpoint' without sending the maps keeps them, so the stored headers and the resolved credential values go to the NEW address.
+         * @description SECURITY BOUNDARY. Adding an MCP server means accepting tool definitions from an external source. Only http/https addresses are accepted; local process (stdio) transport is not supported. Tools require approval by default; saving 'requiresApproval: false' for a new server, for a server that required approval, or together with a new 'endpoint' also requires the 'SecurityAdmin' scope when the call uses an API key (403 otherwise). A configuration key name must be under the configured allowed prefix and inside the tenant's own key space — '{prefix}{tenantId}:...'; a flat name directly under the prefix belongs to the default tenant (400 otherwise). A credential header (Authorization, X-Api-Key, Cookie, any name ending in '-key') is declared in 'headerConfigurationKeys' as the NAME of the configuration key its value is read from; the same header in plain 'headers' is rejected with 400, because plain header values are stored as given. No response returns a plain header value: the saved record comes back with every one replaced by '***', and a header whose value is '***' is rejected with 400. A header name may appear only once across both maps (case-insensitive, 400 otherwise), and 'Authorization' in 'headerConfigurationKeys' cannot be combined with 'authorizationConfigurationKey' or OAuth. 'headers' or 'headerConfigurationKeys' left out or null keeps the stored map; '{}' removes it. Every other field is replaced. Changing 'endpoint' without sending the maps keeps them, so the stored headers and the resolved credential values go to the NEW address.
          */
         put: operations["TraconSaveMcpServer"];
         post?: never;
@@ -2463,7 +2463,7 @@ export interface paths {
         put?: never;
         /**
          * Creates a persistent, argument-conditioned approval rule.
-         * @description Writes a standing 'don't ask again' rule with an admin-authored comparison (for example "amount <= 100"), evaluated on every call. There is no free-text expression field: the operator is a closed set and conditions combine with AND only. A code-defined policy (ITraconBuilder.AddToolApprovalPolicy) always runs first and can override this rule in both directions.
+         * @description Writes a standing 'don't ask again' rule with an admin-authored comparison (for example "amount <= 100"), evaluated on every call. There is no free-text expression field: the operator is a closed set and conditions combine with AND only. A code-defined policy (ITraconBuilder.AddToolApprovalPolicy) always runs first and can override this rule in both directions. For a tool of an MCP server the rule records the fingerprint of the server's current endpoint ('sourceFingerprint') and approves that tool only while the server keeps that endpoint; a tool of a server whose tools are not discovered right now answers 409.
          */
         post: operations["TraconCreateApprovalRule"];
         delete?: never;
@@ -7020,6 +7020,12 @@ export interface components {
              *     with `ArgumentsHash` — a rule carries one or the other, never both.
              */
             argumentConditions?: components["schemas"]["ToolArgumentCondition"][];
+            /**
+             * @description Gets the fingerprint of the remote source the tool came from when the rule was
+             *     written, or `null` for a tool that does not come from a remote
+             *     source (a tool defined in code).
+             */
+            sourceFingerprint?: null | string;
             /** @description Gets who created the rule, or `null` when there is no authentication. */
             createdBy?: null | string;
             /**
@@ -11870,6 +11876,15 @@ export interface operations {
             };
             /** @description Bad Request */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

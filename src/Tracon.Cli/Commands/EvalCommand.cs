@@ -318,6 +318,13 @@ internal static class EvalCommand
             Console.Error.WriteLine($"Request failed: HTTP {ex.StatusCode}.");
             return 2;
         }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            // The same split as the other two requests of this command: the
+            // HttpClient's own timeout is not the user pressing Ctrl+C (K-840).
+            Console.Error.WriteLine("The request was broken off by the transport.");
+            return 2;
+        }
         catch (OperationCanceledException)
         {
             Console.Error.WriteLine("Canceled.");

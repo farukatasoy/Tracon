@@ -239,7 +239,7 @@ internal sealed class OnlineEvalJobHandler(
 
             return result;
         }
-        catch (Exception exception) when (exception is not OperationCanceledException)
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
         {
             logger?.LogWarning(exception, "Failed to read existing scores for run {RunId}; no judge will be skipped.", run.Id);
             return new Dictionary<string, List<RunScore>>(StringComparer.Ordinal);
@@ -294,7 +294,7 @@ internal sealed class OnlineEvalJobHandler(
             LogFailure(judge, judgeContext, exception);
             return;
         }
-        catch (Exception exception) when (exception is not OperationCanceledException)
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
         {
             failures.Add(Failure(judge.Name, JudgeFailureTypes.Failed, retryable: true));
             LogFailure(judge, judgeContext, exception);
@@ -355,7 +355,7 @@ internal sealed class OnlineEvalJobHandler(
         {
             throw;
         }
-        catch (Exception exception) when (exception is not OperationCanceledException)
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
         {
             // 🚨 A HALF-WRITTEN set is worse than none, and the retry checkpoint
             // cannot tell the two apart: it asks "does a row with this judge's
@@ -415,8 +415,10 @@ internal sealed class OnlineEvalJobHandler(
             {
                 await scoreStore.DeleteAsync(judgeContext.TenantId, score.Id, CancellationToken.None).ConfigureAwait(false);
             }
-            catch (Exception exception) when (exception is not OperationCanceledException)
+            catch (Exception exception)
             {
+                // No filter: the delete runs on CancellationToken.None, so no
+                // OperationCanceledException here is a cancellation of ours (K-840).
                 logger?.LogWarning(
                     exception,
                     "Judge '{Judge}' failed partway through writing its scores for run {RunId}, and score {ScoreId} could not be removed. That judge is now skipped on a retry and its remaining metrics stay unwritten.",

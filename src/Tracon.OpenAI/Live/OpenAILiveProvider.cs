@@ -25,6 +25,13 @@ namespace Tracon;
 /// Tracon creates the session with its own key and attaches with the same one.
 /// </item>
 /// </list>
+/// <para>
+/// A tenant that has its own OpenAI binding gets its own key on both calls
+/// (<see cref="SupportsTenantCredentials"/>); the configured key is never used for
+/// that tenant. The binding's endpoint override is not: it names a chat API base,
+/// not a live session surface, so a binding that carries one is refused rather than
+/// sent somewhere the tenant did not choose.
+/// </para>
 /// </remarks>
 internal sealed class OpenAILiveProvider : ILiveVoiceProvider, IDisposable
 {
@@ -74,6 +81,9 @@ internal sealed class OpenAILiveProvider : ILiveVoiceProvider, IDisposable
     public int MaxAppendCharacters => _liveOptions.CurrentValue.MaxAppendCharacters;
 
     /// <inheritdoc />
+    public bool SupportsTenantCredentials => true;
+
+    /// <inheritdoc />
     public async ValueTask<LiveVoiceSessionHandle> CreateSessionAsync(
         LiveVoiceCreateRequest request,
         CancellationToken cancellationToken = default)
@@ -115,7 +125,7 @@ internal sealed class OpenAILiveProvider : ILiveVoiceProvider, IDisposable
                 "application/json"),
         };
 
-        message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", RequireApiKey());
+        message.Headers.Authorization = new AuthenticationHeaderValue("Bearer", ApiKeyFor(request.Credential));
 
         using var response = await _http.SendAsync(message, cancellationToken).ConfigureAwait(false);
 
@@ -150,11 +160,26 @@ internal sealed class OpenAILiveProvider : ILiveVoiceProvider, IDisposable
     }
 
     /// <inheritdoc />
-    public async ValueTask<ILiveVoiceSideband> AttachAsync(
+    public ValueTask<ILiveVoiceSideband> AttachAsync(
         string providerSessionId,
         CancellationToken cancellationToken = default)
+        => AttachSessionAsync(new LiveVoiceAttachRequest { ProviderSessionId = providerSessionId }, cancellationToken);
+
+    /// <inheritdoc />
+    public async ValueTask<ILiveVoiceSideband> AttachSessionAsync(
+        LiveVoiceAttachRequest request,
+        CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(providerSessionId);
+        ArgumentNullException.ThrowIfNull(request);
+
+        var providerSessionId = request.ProviderSessionId;
+
+        if (string.IsNullOrWhiteSpace(providerSessionId))
+        {
+            throw new ArgumentException("The provider session identifier is required.", nameof(request));
+        }
+
+        var apiKey = ApiKeyFor(request.Credential);
 
         var options = _liveOptions.CurrentValue;
         var root = options.Endpoint ?? DefaultEndpoint;
@@ -166,7 +191,7 @@ internal sealed class OpenAILiveProvider : ILiveVoiceProvider, IDisposable
         await _egress.ValidateAsync(https, cancellationToken).ConfigureAwait(false);
 
         var socket = new ClientWebSocket();
-        socket.Options.SetRequestHeader("Authorization", "Bearer " + RequireApiKey());
+        socket.Options.SetRequestHeader("Authorization", "Bearer " + apiKey);
 
         var wss = new UriBuilder(https)
         {
@@ -190,9 +215,28 @@ internal sealed class OpenAILiveProvider : ILiveVoiceProvider, IDisposable
     /// <inheritdoc />
     public void Dispose() => _http.Dispose();
 
-    private string RequireApiKey()
-        => _providerOptions.CurrentValue.ApiKey is { Length: > 0 } key
+    /// <summary>Picks the key a call is made with: the tenant's when given, otherwise the configured one.</summary>
+    /// <param name="credential">The tenant's credential, or <see langword="null"/>.</param>
+    /// <returns>The API key.</returns>
+    /// <exception cref="TraconException">
+    /// The tenant credential carries an endpoint override, or no credential is given and
+    /// none is configured.
+    /// </exception>
+    private string ApiKeyFor(ModelProviderCredential? credential)
+    {
+        if (credential is not null)
+        {
+            // The tenant's key and nothing else: no fallback to the configured key.
+            return credential.Endpoint is { Length: > 0 }
+                ? throw new TraconException(
+                    "The tenant's OpenAI binding sets an endpoint override. A live voice session uses the " +
+                    "configured live endpoint and cannot honour that override, so it is not opened.")
+                : credential.ApiKey;
+        }
+
+        return _providerOptions.CurrentValue.ApiKey is { Length: > 0 } key
             ? key
             : throw new TraconException(
                 "The OpenAI live voice provider needs an API key. Call UseOpenAI(...) before UseOpenAILive(...).");
+    }
 }

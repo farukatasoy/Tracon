@@ -113,14 +113,12 @@ internal sealed class RecordingLoopEvaluator : LoopEvaluator
                     .EvaluateAsync(context, cancellationToken)
                     .ConfigureAwait(false);
             }
-            catch (OperationCanceledException)
+            catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
             {
-                // The run itself is ending. Cancellation is not a criterion
-                // failure and must not be reported as one.
-                throw;
-            }
-            catch (Exception ex)
-            {
+                // Our own cancellation passes the filter: the run itself is
+                // ending, and that is not a criterion failure. A criterion's own
+                // timeout (TaskCanceledException with our token intact) is one
+                // (K-840).
                 failedCriterion = criterion.Kind;
 
                 _logger.LogError(

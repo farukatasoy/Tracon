@@ -592,7 +592,9 @@ Tracon.Testing.Contracts.Storage.ToolApprovalRuleStoreContract.Condition_scoped_
 Tracon.Testing.Contracts.Storage.ToolApprovalRuleStoreContract.Deleting_a_nonexistent_rule_returns_false() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.ToolApprovalRuleStoreContract.Different_agent_becomes_a_separate_rule() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.ToolApprovalRuleStoreContract.Different_conditions_become_a_separate_rule() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ToolApprovalRuleStoreContract.Different_source_fingerprint_becomes_a_separate_rule() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.ToolApprovalRuleStoreContract.Same_scope_added_twice_leaves_a_single_record() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.ToolApprovalRuleStoreContract.Source_fingerprint_round_trips() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.ToolApprovalRuleStoreContract.ToolApprovalRuleStoreContract() -> void
 Tracon.Testing.Contracts.Storage.ToolInvocationContract
 Tracon.Testing.Contracts.Storage.ToolInvocationContract.A_late_settlement_does_not_count_as_a_second_call() -> System.Threading.Tasks.Task!

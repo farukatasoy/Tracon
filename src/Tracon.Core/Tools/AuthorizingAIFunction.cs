@@ -91,7 +91,7 @@ internal sealed class AuthorizingAIFunction : DelegatingAIFunction
         {
             result = await _handler.AuthorizeAsync(request, cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
         {
             _logger.LogError(
                 ex,

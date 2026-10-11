@@ -164,7 +164,7 @@ internal sealed class LiveVoiceDelegationRunner
                     cancellationToken).ConfigureAwait(false);
             }
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             // The delegation was cancelled, usually because the session closed. What
             // was said already stays on record; the caller writes it to the history.
@@ -175,8 +175,12 @@ internal sealed class LiveVoiceDelegationRunner
             // string.
             throw;
         }
-        catch (Exception exception) when (exception is TraconException or InvalidOperationException or HttpRequestException or TimeoutException)
+        catch (Exception exception) when (exception is TraconException or InvalidOperationException or HttpRequestException or TimeoutException or OperationCanceledException)
         {
+            // OperationCanceledException reaches here only when it is NOT ours (the
+            // catch above takes our own): a delegated run whose model call timed out
+            // on its own failed, and the caller hears so (K-840).
+            //
             // 🚨 The raw exception is NEVER spoken: it can carry a host:port, a
             // provider URL or a prompt fragment. The caller gets a correlation
             // reference and the detail stays in the log.

@@ -42,6 +42,7 @@ internal sealed class McpConnection : IAsyncDisposable
         string serverName,
         bool requiresApproval,
         string fingerprint,
+        string sourceFingerprint,
         TraconMcpOptions options,
         ILogger logger)
     {
@@ -51,11 +52,19 @@ internal sealed class McpConnection : IAsyncDisposable
         _options = options;
         _logger = logger;
         FingerprintValue = fingerprint;
+        SourceFingerprint = sourceFingerprint;
         Tools = [];
     }
 
     /// <summary>The fingerprint of the definition the connection was established from.</summary>
     public string FingerprintValue { get; }
+
+    /// <summary>
+    /// The fingerprint of the endpoint this connection's tools come from
+    /// (<see cref="ToolSourceFingerprint.ForEndpoint"/>). A standing approval rule
+    /// records it and holds only while it stays the same.
+    /// </summary>
+    public string SourceFingerprint { get; }
 
     /// <summary>The tool registrations discovered from this server (remote tools + <c>read_resource</c> if present).</summary>
     public IReadOnlyList<TraconToolRegistration> Tools { get; private set; }
@@ -149,6 +158,7 @@ internal sealed class McpConnection : IAsyncDisposable
                 server.Name,
                 server.RequiresApproval,
                 ComputeFingerprint(server),
+                ToolSourceFingerprint.ForEndpoint(server.Endpoint),
                 options,
                 logger);
 
@@ -163,7 +173,7 @@ internal sealed class McpConnection : IAsyncDisposable
 
             return (null, unreachable);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
         {
             // A remote server crashing does not stop Tracon: that server's
             // tools drop out of the list, the others keep working. BUT this is
@@ -261,7 +271,7 @@ internal sealed class McpConnection : IAsyncDisposable
 
             return (true, false);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
         {
             logger.LogWarning(
                 ex,
@@ -335,7 +345,7 @@ internal sealed class McpConnection : IAsyncDisposable
         {
             return (McpOperationStatus.ItemNotFound, null);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
         {
             logger.LogWarning(ex, "Could not read resource '{Uri}' of MCP server '{ServerName}'.", uri, _serverName);
 
@@ -387,7 +397,7 @@ internal sealed class McpConnection : IAsyncDisposable
 
             _subscriptions.Add(subscription);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
         {
             // Failing to subscribe does not fail the read: the resource
             // stays in the cache until the next run and is not invalidated.

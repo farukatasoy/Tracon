@@ -65,6 +65,7 @@ internal sealed class SqlToolApprovalRuleStore : IToolApprovalRuleStore
                 ? null
                 : JsonSerializer.Serialize(rule.ArgumentConditions, TraconJsonContext.Default.IReadOnlyListToolArgumentCondition));
         AddNullableText(command, "conditions_hash", ToolArgumentConditionFingerprint.Compute(rule.ArgumentConditions));
+        AddNullableText(command, "source_fingerprint", rule.SourceFingerprint);
         AddNullableText(command, "created_by", rule.CreatedBy);
         Dialect.AddTimestamp(command, "created_at", rule.CreatedAt);
 
@@ -94,7 +95,8 @@ internal sealed class SqlToolApprovalRuleStore : IToolApprovalRuleStore
     private DbCommand CreateCommand(string sql) => _context.CreateCommand(sql);
 
     // 🚨 New columns are ALWAYS appended at the end (docs/hafiza/postgresql.md):
-    // argument_conditions reads by fixed ordinal 7, after the original seven columns.
+    // argument_conditions reads by fixed ordinal 7, after the original seven columns,
+    // and source_fingerprint by ordinal 8 after it.
     private static ToolApprovalRule ReadRule(DbDataReader reader)
         => new()
         {
@@ -106,6 +108,7 @@ internal sealed class SqlToolApprovalRuleStore : IToolApprovalRuleStore
             CreatedBy = DbHelpers.GetNullableString(reader, 5),
             CreatedAt = DbHelpers.GetTimestamp(reader, 6),
             ArgumentConditions = ReadConditions(DbHelpers.GetNullableString(reader, 7)),
+            SourceFingerprint = DbHelpers.GetNullableString(reader, 8),
         };
 
     private static IReadOnlyList<ToolArgumentCondition> ReadConditions(string? json)

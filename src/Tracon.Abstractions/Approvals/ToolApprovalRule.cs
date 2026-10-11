@@ -52,6 +52,29 @@ public sealed record ToolApprovalRule
     /// </summary>
     public IReadOnlyList<ToolArgumentCondition> ArgumentConditions { get; init; } = [];
 
+    /// <summary>
+    /// Gets the fingerprint of the remote source the tool came from when the rule was
+    /// written, or <see langword="null"/> for a tool that does not come from a remote
+    /// source (a tool defined in code).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// For a tool of an MCP server it is the SHA-256 of the server's endpoint
+    /// address, as 64 upper-case hexadecimal characters. Tracon writes it when the
+    /// rule is created; a caller does not supply it. The rule matches a call only
+    /// while the tool's current source has the same fingerprint, so pointing a
+    /// server at another endpoint, or deleting it and adding it again under the
+    /// same name with another endpoint, makes its tools ask again.
+    /// </para>
+    /// <para>
+    /// A rule written while the tool was not discovered, and a rule stored before
+    /// this field existed, carry <see langword="null"/> and do not approve a tool of
+    /// an MCP server. A store keeps the value as given and treats it as part of the
+    /// rule's identity, like <see cref="ArgumentsHash"/>.
+    /// </para>
+    /// </remarks>
+    public string? SourceFingerprint { get; init; }
+
     /// <summary>Gets who created the rule, or <see langword="null"/> when there is no authentication.</summary>
     public string? CreatedBy { get; init; }
 
@@ -81,7 +104,10 @@ public interface IToolApprovalRuleStore
     /// </summary>
     /// <remarks>
     /// A rule's identity is its tenant, agent, tool, <see cref="ToolApprovalRule.ArgumentsHash"/>,
-    /// and condition set. The condition set is compared as a set - the order of the
+    /// <see cref="ToolApprovalRule.SourceFingerprint"/>, and condition set. Two rules that
+    /// differ only in their source fingerprint are two rules: a rule for the same tool of a
+    /// server that has since moved to another endpoint must not come back in place of a
+    /// new one. The condition set is compared as a set - the order of the
     /// conditions does not count. Within a condition, the path and the operator are
     /// compared exactly and the value as its JSON text, with one exception: a list value
     /// (<see cref="ToolArgumentOperator.In"/>, <see cref="ToolArgumentOperator.NotIn"/>) is

@@ -101,6 +101,26 @@ public sealed class ImageEndpointTests
     }
 
     [Fact]
+    public async Task Endpoint_translates_a_provider_that_times_out_on_its_own_to_bad_gateway()
+    {
+        // HttpClient.Timeout surfaces as TaskCanceledException while the caller's
+        // request is still open. That is a provider failure, the documented 502,
+        // not an unhandled exception (K-840, F-279). Image generation is slow, so
+        // this is the likeliest failure of the endpoint.
+        var generator = new StubImageGenerator
+        {
+            Exception = new TaskCanceledException("The request was canceled due to the configured HttpClient.Timeout of 100 seconds elapsing."),
+        };
+        await using var host = await StartWithImagesAsync(generator);
+
+        using var response = await host.Client.PostAsJsonAsync(GenerateUri, new { prompt = "a lighthouse" });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.BadGateway);
+        var detail = (await TraconTestHost.ReadJsonAsync(response)).GetProperty("detail").GetString();
+        detail.ShouldNotBeNull().ShouldContain("TaskCanceledException");
+    }
+
+    [Fact]
     public async Task Agent_tool_stores_the_image_and_records_image_usage()
     {
         var generator = new StubImageGenerator();

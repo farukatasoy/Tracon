@@ -102,7 +102,7 @@ internal static class CatalogToolCallHandler
                 .RunAsync([new ChatMessage(ChatRole.User, message)], null, runOptions, cancellationToken)
                 .ConfigureAwait(false);
         }
-        catch (Exception ex) when (ex is not OperationCanceledException)
+        catch (Exception ex) when (OperationCancellation.IsFailure(ex, cancellationToken))
         {
             var correlationId = SafeErrorText.NewCorrelationId();
 

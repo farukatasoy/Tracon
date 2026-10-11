@@ -210,6 +210,62 @@ public sealed class McpTenantToolsTests
     }
 
     /// <summary>
+    /// The source a standing approval rule is judged against belongs to the
+    /// registration that WON the name, not to a skipped duplicate.
+    /// </summary>
+    [Fact]
+    public void The_source_fingerprint_follows_the_registration_that_won_the_name()
+    {
+        var winner = new TraconToolRegistration(AIFunctionFactory.Create(() => "a", "shared_lookup")) { Source = "server-a" };
+        var skipped = new TraconToolRegistration(AIFunctionFactory.Create(() => "b", "shared_lookup")) { Source = "server-b" };
+        var sources = new Dictionary<TraconToolRegistration, string>(ReferenceEqualityComparer.Instance)
+        {
+            [winner] = ToolSourceFingerprint.ForEndpoint(new Uri("https://a.example/mcp")),
+            [skipped] = ToolSourceFingerprint.ForEndpoint(new Uri("https://b.example/mcp")),
+        };
+
+        var tools = McpTenantTools.Create(
+            [winner, skipped],
+            NullLogger.Instance,
+            new AllowAllToolAuthorizationHandler(),
+            NoOpToolArgumentsValidator.Instance,
+            TimeSpan.FromSeconds(30),
+            attribution: null,
+            NullLogger<AuthorizingAIFunction>.Instance,
+            NullLogger<TimeoutAIFunction>.Instance,
+            NullLogger<ValidatingAIFunction>.Instance,
+            sourceFingerprints: sources);
+
+        tools.GetSourceFingerprint("shared_lookup").ShouldBe(sources[winner]);
+        tools.GetSourceFingerprint("unknown_tool").ShouldBeNull();
+    }
+
+    /// <summary>
+    /// A tool named like one of the tenant's servers but missing from the snapshot
+    /// (the server's refresh failed) has an UNRESOLVED source, not none: a compiled
+    /// agent may still hold the tool, and "none" would let every rule without a
+    /// source approve it.
+    /// </summary>
+    [Fact]
+    public void A_tool_of_a_server_whose_tools_are_not_discovered_has_an_unresolved_source()
+    {
+        var tools = McpTenantTools.Create(
+            [],
+            NullLogger.Instance,
+            new AllowAllToolAuthorizationHandler(),
+            NoOpToolArgumentsValidator.Instance,
+            TimeSpan.FromSeconds(30),
+            attribution: null,
+            NullLogger<AuthorizingAIFunction>.Instance,
+            NullLogger<TimeoutAIFunction>.Instance,
+            NullLogger<ValidatingAIFunction>.Instance,
+            serverNames: ["crm"]);
+
+        tools.GetSourceFingerprint("crm_lookup").ShouldBe(ToolSourceFingerprint.Unresolved);
+        tools.GetSourceFingerprint("cancel_order").ShouldBeNull("a name no server produces is not remote");
+    }
+
+    /// <summary>
     /// A tool answering the way <c>McpClientTool</c> does — one
     /// <see cref="AIContent"/> block for a single-block result — instead of a
     /// bare <see langword="string"/>.

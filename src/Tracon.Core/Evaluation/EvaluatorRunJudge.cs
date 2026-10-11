@@ -152,8 +152,9 @@ internal sealed class EvaluatorRunJudge(
         // 🚨 Swallowed on purpose. A version is observability; losing a tenant's
         // score rows to an unreadable assembly attribute would be far worse than
         // losing the version.
-        catch (Exception exception) when (exception is not OperationCanceledException)
+        catch (Exception exception)
         {
+            // No filter: the read is synchronous and takes no token (K-840).
             if (logger?.IsEnabled(LogLevel.Debug) is true)
             {
                 logger.LogDebug(

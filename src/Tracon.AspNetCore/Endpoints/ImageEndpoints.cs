@@ -159,7 +159,7 @@ internal static class ImageEndpoints
                 detail: "The image provider or generated-image address could not be reached.",
                 statusCode: StatusCodes.Status502BadGateway);
         }
-        catch (Exception exception) when (exception is not OperationCanceledException)
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
         {
             // Provider SDKs do not share one exception base type. OpenAI, Azure,
             // and Google can all report an expected provider rejection with a

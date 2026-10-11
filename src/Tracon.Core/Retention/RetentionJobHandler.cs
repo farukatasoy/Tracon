@@ -23,7 +23,7 @@ internal sealed class RetentionJobHandler(
         {
             await executor.RunAsync(context.Job.TenantId, target, cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception exception) when (exception is not OperationCanceledException)
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
         {
             var correlationId = SafeErrorText.NewCorrelationId();
 

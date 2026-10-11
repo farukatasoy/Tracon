@@ -547,7 +547,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                     ?? throw new TraconException(
                         $"There is no workflow named '{execution.WorkflowName}'.");
             }
-            catch (Exception exception) when (exception is not OperationCanceledException)
+            catch (Exception exception) when (OperationCancellation.IsFailure(exception, linked.Token))
             {
                 status = RunStatus.Failed;
                 error = ToRunError(exception, execution.RunId);
@@ -750,7 +750,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                         // must still close through the framework.
                         if (linked.IsCancellationRequested)
                         {
-                            await CancelAsync(run).ConfigureAwait(false);
+                            await CancelAsync(run, linked.Token).ConfigureAwait(false);
 
                             yield return PumpedEvent.FromCancellation();
 
@@ -796,7 +796,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
 
                         if (workflowEvent is SuperStepStartedEvent && ++superSteps > settings.MaxSuperSteps)
                         {
-                            await CancelAsync(run).ConfigureAwait(false);
+                            await CancelAsync(run, linked.Token).ConfigureAwait(false);
 
                             yield return PumpedEvent.FromFailure(new RunError
                             {
@@ -1220,8 +1220,10 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                 .DeleteAsync(_tenantContext.TenantId, execution.SessionId, CancellationToken.None)
                 .ConfigureAwait(false);
         }
-        catch (Exception exception) when (exception is not OperationCanceledException)
+        catch (Exception exception)
         {
+            // No filter: the delete runs on CancellationToken.None, so no
+            // OperationCanceledException here is a cancellation of ours (K-840).
             // Cleanup is not functional; its failure does not affect the run.
             _logger.LogWarning(
                 exception,
@@ -1230,14 +1232,18 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         }
     }
 
-    private static async ValueTask CancelAsync(StreamingRun run)
+    private static async ValueTask CancelAsync(StreamingRun run, CancellationToken cancellationToken)
     {
         try
         {
             await run.CancelRunAsync().ConfigureAwait(false);
         }
-        catch (Exception exception) when (exception is not OperationCanceledException)
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
         {
+            // The run's own token decides (K-840): after the caller cancelled,
+            // the cancellation propagates as before; on the super-step limit
+            // path nothing of ours is cancelled, so an OperationCanceledException
+            // here is a failure and must not turn the limit into "Canceled".
             // A run that cannot be canceled does not change the fact that the
             // limit was exceeded; the error is swallowed and the run is
             // closed anyway.

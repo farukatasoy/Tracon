@@ -34,6 +34,16 @@ internal sealed class FakeGptLiveServer : IAsyncDisposable
     private readonly ConcurrentQueue<string> _received = [];
     private readonly TaskCompletionSource _sidebandClosed = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
+    // F-257: a frame the test sends and the attach handler's teardown must not
+    // overlap. session.closed makes Tracon hang up; the handler's receive loop
+    // then ends and its `using` disposed the socket and completed the response
+    // while the test's own SendAsync of that frame was still writing - Kestrel
+    // answered with ObjectDisposedException ("the response has completed")
+    // inside a WebSocketException (CI windows-latest, 2026-09-24). Every send and
+    // the teardown take this gate, so the handler cannot end a send in flight
+    // and a send after the teardown is a no-op.
+    private readonly SemaphoreSlim _sendGate = new(1, 1);
+
     private WebSocket? _socket;
 
     private FakeGptLiveServer(WebApplication app, Uri baseAddress)
@@ -166,6 +176,37 @@ internal sealed class FakeGptLiveServer : IAsyncDisposable
                 builderText.Clear();
             }
 
+            await server._sendGate.WaitAsync();
+
+            try
+            {
+                // Only this attach's own socket: a second session may have attached
+                // since, and its sends must keep working.
+                if (ReferenceEquals(server._socket, socket))
+                {
+                    server._socket = null;
+                }
+
+                // Answer Tracon's close like a real server does, so its receive
+                // loop ends on a Close message instead of waiting for the TCP
+                // teardown of the response.
+                if (socket.State == WebSocketState.CloseReceived)
+                {
+                    try
+                    {
+                        await socket.CloseOutputAsync(WebSocketCloseStatus.NormalClosure, null, CancellationToken.None);
+                    }
+                    catch (Exception exception) when (exception is WebSocketException or IOException or ObjectDisposedException)
+                    {
+                        // Tracon already dropped the connection; nothing is left to answer.
+                    }
+                }
+            }
+            finally
+            {
+                server._sendGate.Release();
+            }
+
             server._sidebandClosed.TrySetResult();
         });
 
@@ -244,14 +285,30 @@ internal sealed class FakeGptLiveServer : IAsyncDisposable
     /// <param name="reason">Why the provider closed the session.</param>
     /// <param name="seconds">The final billable duration.</param>
     /// <returns>The completion task.</returns>
-    public Task SendClosedAsync(string reason, decimal seconds)
-        => SendAsync(new
+    /// <remarks>
+    /// Tracon hangs up on this frame, and it may drop the connection while the
+    /// frame's own write is still being flushed. A failure after the peer is gone
+    /// is the expected outcome of this frame, not an error of the test: the
+    /// caller proves the frame arrived through the session record it produces.
+    /// </remarks>
+    public async Task SendClosedAsync(string reason, decimal seconds)
+    {
+        try
         {
-            type = "session.closed",
-            reason,
-            usage = new { seconds },
-            event_id = "event_fake_" + Guid.NewGuid().ToString("N")[..8],
-        });
+            await SendAsync(new
+            {
+                type = "session.closed",
+                reason,
+                usage = new { seconds },
+                event_id = "event_fake_" + Guid.NewGuid().ToString("N")[..8],
+            }).ConfigureAwait(false);
+        }
+        catch (Exception exception) when (exception is WebSocketException or IOException or ObjectDisposedException
+                                          && _socket is not { State: WebSocketState.Open })
+        {
+            // The peer closed in reaction to the frame being sent.
+        }
+    }
 
     /// <summary>Drops the sideband socket without a close handshake.</summary>
     /// <returns>The completion task.</returns>
@@ -259,14 +316,21 @@ internal sealed class FakeGptLiveServer : IAsyncDisposable
     /// Phase 184: a fixed 50 ms followed the abort. Nothing depended on it - the
     /// caller waits for the session record the drop produces.
     /// </remarks>
-    public Task KillSidebandAsync()
+    public async Task KillSidebandAsync()
     {
-        if (_socket is { State: WebSocketState.Open } socket)
-        {
-            socket.Abort();
-        }
+        await _sendGate.WaitAsync().ConfigureAwait(false);
 
-        return Task.CompletedTask;
+        try
+        {
+            if (_socket is { State: WebSocketState.Open } socket)
+            {
+                socket.Abort();
+            }
+        }
+        finally
+        {
+            _sendGate.Release();
+        }
     }
 
     /// <summary>Reads the appends this server received.</summary>
@@ -296,19 +360,29 @@ internal sealed class FakeGptLiveServer : IAsyncDisposable
     {
         await _app.StopAsync().ConfigureAwait(false);
         await _app.DisposeAsync().ConfigureAwait(false);
+        _sendGate.Dispose();
     }
 
     private async Task SendAsync(object payload)
     {
-        if (_socket is not { State: WebSocketState.Open } socket)
-        {
-            return;
-        }
-
         var json = JsonSerializer.Serialize(payload);
 
-        await socket
-            .SendAsync(Encoding.UTF8.GetBytes(json), WebSocketMessageType.Text, endOfMessage: true, CancellationToken.None)
-            .ConfigureAwait(false);
+        await _sendGate.WaitAsync().ConfigureAwait(false);
+
+        try
+        {
+            if (_socket is not { State: WebSocketState.Open } socket)
+            {
+                return;
+            }
+
+            await socket
+                .SendAsync(Encoding.UTF8.GetBytes(json), WebSocketMessageType.Text, endOfMessage: true, CancellationToken.None)
+                .ConfigureAwait(false);
+        }
+        finally
+        {
+            _sendGate.Release();
+        }
     }
 }

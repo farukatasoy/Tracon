@@ -1253,8 +1253,9 @@ request reaches the network — and writing a credential binding for a forbidden
 provider is rejected too, so the two surfaces cannot disagree.
 
 The policy covers every model an agent calls, not only its own model: that model's
-fallbacks, the model that summarizes the conversation during compaction, and the
-judge of an `aiJudge` loop criterion. Each of them receives the tenant's data. The
+fallbacks, the model that summarizes the conversation during compaction, the
+judge of an `aiJudge` loop criterion, and a
+[provider-hosted live voice](/guides/voice/#tenant-policy-and-credentials) session. Each of them receives the tenant's data. The
 summarizer is billed like the agent's own model: it uses the tenant's key when the
 tenant has one for its provider. The loop judge is the host's one judge model, the
 same one the run judge calls, and keeps the shared setup-time key.
@@ -1462,8 +1463,21 @@ condition fails closed: an unresolved path, a missing argument, or a type mismat
 (text `"100"` does not satisfy a numeric rule) all mean the call still asks for
 approval.
 
-A rule is identified by its agent, its tool, and its hash or condition set. The
-order of the conditions does not count, and neither does whitespace between the
+A rule for a tool of an MCP server is also bound to that server's endpoint. When the
+rule is written — by an administrator or by the "don't ask again" flow — Tracon
+records a fingerprint of the endpoint the tool was discovered from (`sourceFingerprint`,
+the SHA-256 of the address; never the address itself, which can carry a credential in
+its query string). The rule approves the tool only while the server keeps that
+endpoint. Pointing the server at another endpoint, or deleting it and adding it back
+under the same name with another endpoint, makes its tools ask again; write a new
+rule for the new endpoint. While a server's tools are not discovered (its last
+refresh failed), its tools always ask, and `POST /api/approvals/rules` for one of them
+answers `409` rather than store a rule bound to nothing. Rules stored before this field
+existed carry no fingerprint, so after an upgrade each standing rule for an MCP tool
+asks once more.
+
+A rule is identified by its agent, its tool, its source fingerprint, and its hash or
+condition set. The order of the conditions does not count, and neither does whitespace between the
 elements of a list value: `region In ["eu", "us"]` and `region In ["eu","us"]` are
 the same condition. Everything else is compared as written — `"new york"` and
 `"newyork"` are two values.
@@ -2102,8 +2116,19 @@ A sink runs on the hot path — Tracon awaits `OnEventAsync` directly and holds 
 queue of its own in front of it, so the buffer above is yours to own. Queue and
 return; do not publish to a message bus inline. One instance serves every concurrent
 run, so it must be thread-safe. A sink that throws is disabled for the rest of that
-run and logged; neither the store write nor any other registered sink is affected.
-Register none and nothing changes.
+run and logged; neither the store write nor any other registered sink is affected —
+and that includes a sink whose own call times out with an `OperationCanceledException`
+while the run itself is not cancelled. Register none and nothing changes.
+
+Within one run, a sink receives events in sequence order, the same order the store
+holds. A run writes from more than one place at once — concurrent tool calls, a child
+run writing into its parent's stream, a workflow's steps — so Tracon numbers an event,
+stores it and hands it to every sink as one step, and the next event waits for it. Two
+consequences follow: a slow sink holds up that run's next event (another reason to
+queue and return), and a sink must not append an event to the run it is observing —
+directly, or by running work inline that writes into that run. Such an append would
+wait for the event the sink is still handling, so it throws
+`InvalidOperationException` instead, and the sink is disabled for the run.
 
 ## Who ran it, and for what
 
@@ -3011,7 +3036,13 @@ Tracon is only a client. Five guards:
 
 1. **`http` and `https` only — there is no stdio transport.** Starting a local process
    would break the rule outright.
-2. **`RequiresApproval` defaults to true** for tools discovered this way.
+2. **`RequiresApproval` defaults to true** for tools discovered this way. Switching it
+   off waives approval for every tool of the server, which is the decision a standing
+   approval rule makes for one tool. Called with an API key, the save then needs the
+   `SecurityAdmin` scope as well as `AgentsAdmin`: for a new server, for a server that
+   required approval, and for a server whose endpoint changes while approval stays off.
+   A standing rule for one of these tools is bound to the server's endpoint the same way
+   ([approval rules](/concepts/governance/)).
 3. **A remote tool whose name collides with a code-registered tool is ignored.** Your
    code always wins; a remote server cannot shadow a local tool.
 4. **The registration stores no credential.** It stores the *name* of the
@@ -3214,8 +3245,11 @@ A workflow run ends `Canceled` only when the run was actually cancelled — the
 caller's request going away, the workflow's own `MaxDuration` elapsing, or
 `Tracon:Workflows:RunTimeout` being reached. A node whose model or tool call
 never came back ends the run `Failed` instead, even though .NET surfaces an
-`HttpClient` timeout as a `TaskCanceledException`. Alert on the two separately:
-one is a person stopping, the other is an outage.
+`HttpClient` timeout as a `TaskCanceledException`. The same holds for the steps
+around the graph: an agent catalog that times out while the workflow resolves, and
+a stop at the super-step limit whose cancellation call times out, both end the run
+`Failed`. Alert on the two separately: one is a person stopping, the other is an
+outage.
 
 `RunTimeout` (10 minutes by default) is **cooperative, and observed between
 super-steps**. It cancels the token the run is given and the runner checks it
@@ -3772,6 +3806,12 @@ rewrites the uniqueness index. Existing rows are carried across: a score written
 judge keeps that judge's name, every other row is named `overall`. On SQLite the
 value column is rebuilt in place, so the table is rewritten — size that step against
 your own row count before upgrading a large database.
+
+The `approval_rule_source` migration only adds: a nullable `source_fingerprint`
+column on `tool_approval_rules`, which also joins the rule's uniqueness index.
+Existing rules keep a `NULL` fingerprint on purpose, so a standing rule for a tool
+of an MCP server asks once more after the upgrade
+([approval rules](/concepts/governance/)).
 :::
 
 Most upgrades are not like that one. The latest `run_scores` migration, which adds
@@ -7419,6 +7459,8 @@ tracon
 
 The provider runs the whole spoken conversation and carries the audio straight to the
 browser; your agents handle the work it delegates. The API key stays on the server.
+The tenant's egress policy and its own `openai` binding apply to a live session as to
+a model call; see [tenant policy and credentials](/guides/voice/#tenant-policy-and-credentials).
 See [provider-hosted live voice](/guides/voice/#provider-hosted-live-voice) for what
 that trade gives up.
 
@@ -11513,6 +11555,28 @@ The OpenAI provider reads `Tracon:Providers:OpenAI:Live`, bound to
 The API key comes from `Tracon:Providers:OpenAI:ApiKey`; the live provider does
 not take one of its own.
 
+### Tenant policy and credentials
+
+A live session is bound to a tenant, and it obeys the tenant's provider rules exactly
+as a model call does ([egress and per-tenant credentials](/concepts/governance/)).
+Before anything else happens — no session row, no concurrency slot, no provider call:
+
+- The tenant's egress policy must allow the live provider's name (`openai` for
+  `UseOpenAILive()`). Otherwise `POST /api/voice/live/sessions` answers `403` and the
+  tenant's audio never reaches the provider.
+- A tenant with its own binding for that provider gets its own key on **both** calls:
+  the session creation and the sideband attach. A binding whose configuration key has
+  no value answers `403`; the session does not fall back to the shared key.
+- A binding that sets an endpoint override answers `403`: the override names a chat API
+  base, not a live session surface, so the session is not opened rather than sent
+  somewhere the tenant did not choose.
+
+A custom `ILiveVoiceProvider` receives the tenant's key only if it sets
+`SupportsTenantCredentials` to `true` and implements `AttachSessionAsync`; the key then
+arrives in `LiveVoiceCreateRequest.Credential` and `LiveVoiceAttachRequest.Credential`.
+A provider that does not opt in is refused (`403`) for a tenant with its own binding,
+because it would open the session on its own configured key — the wrong account.
+
 ### The endpoints
 
 | Method | Path | Role | Purpose |
@@ -11723,8 +11787,10 @@ below it at a low value; place one that has to sit close to the model call
 itself at a high value.
 
 A decorator must be thread-safe — the catalog can decorate agents
-concurrently — and must not swallow a genuine `OperationCanceledException`. If
-`Decorate` throws anything else, the catalog normalizes it into a
+concurrently — and must not swallow a genuine `OperationCanceledException` (one
+thrown while the caller's token is cancelled). If `Decorate` throws anything else,
+including an `OperationCanceledException` while the caller has not cancelled, the
+catalog normalizes it into a
 `TraconAgentSourceException` (the same shape a broken `IAgentSource`
 produces) rather than letting a raw, unclassified error reach the caller.
 
@@ -11858,7 +11924,10 @@ mutable list with the catalog is still a bug the copy merely contains.
 Honor the `CancellationToken` you are given — Tracon adds no timeout of its own, so
 an uncancellable source blocks its caller indefinitely. A genuine
 `OperationCanceledException` must propagate; do not catch and convert it into anything
-else.
+else. "Genuine" means the token you were given is cancelled: an
+`OperationCanceledException` while it is not — your own HTTP client timing out surfaces
+as `TaskCanceledException` — is a source failure like any other, so listing skips the
+source and resolution fails with `TraconAgentSourceException`.
 
 A source can be global or tenant-aware; when it reads `ITenantContext`, any local cache
 must include the tenant identity. Startup and background calls see the default tenant.
@@ -12518,6 +12587,14 @@ Two limits are deliberate. Cancellation **during** a call is not covered — it 
 so no deterministic scenario can assert where the work stopped. And the contract
 exercises one read and one write per store rather than every method; that is enough
 to prove the rule is implemented, not a substitute for applying it everywhere.
+
+Your store's **own** timeout is not a cancellation, even when it arrives as one. An
+HTTP client reports `HttpClient.Timeout` as `TaskCanceledException`; Tracon tells the
+two apart by the token, not by the type. While the token it passed is not cancelled,
+an `OperationCanceledException` from your store is a store failure and gets the same
+treatment as any other: a recording write is dropped and counted, the run continues, a
+job attempt is retried, and an HTTP endpoint answers its documented error. You do not
+need to convert it yourself.
 
 A method returning `IAsyncEnumerable<T>` is lazy: its body does not run until the
 first step. `RunStoreContract` therefore asks that the **first** `MoveNextAsync`

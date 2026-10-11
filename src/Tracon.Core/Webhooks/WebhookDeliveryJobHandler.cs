@@ -555,7 +555,7 @@ internal sealed class WebhookDeliveryJobHandler(
 
             return Encoding.UTF8.GetString(buffer, 0, read);
         }
-        catch (Exception exception) when (exception is not OperationCanceledException)
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
         {
             // The response body is only for diagnostics; failing to read it does not affect delivery.
             return string.Empty;

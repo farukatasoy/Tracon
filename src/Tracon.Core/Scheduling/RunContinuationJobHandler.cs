@@ -124,7 +124,7 @@ internal sealed class RunContinuationJobHandler(
             agent = Decorate(compiled, ToDescriptor(definition));
             session = await sessions.GetOrCreateSessionAsync(agent, sessionId, cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception exception) when (exception is not OperationCanceledException)
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
         {
             // The agent never resolved and RunRecordingAgent never engaged, so
             // the placeholder 'runs' row (Queued) this job's caller opened
@@ -200,7 +200,7 @@ internal sealed class RunContinuationJobHandler(
                 },
                 cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception storeException) when (storeException is not OperationCanceledException)
+        catch (Exception storeException) when (OperationCancellation.IsFailure(storeException, cancellationToken))
         {
             if (logger is not null && logger.IsEnabled(LogLevel.Warning))
             {

@@ -405,10 +405,12 @@ public sealed partial class RunRecordingAgent : DelegatingAIAgent
             {
                 await WriteRunStartAsync(start, messages, cancellationToken).ConfigureAwait(false);
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException) when (cancellationSource.IsCancellationRequested)
             {
                 // Left to the finally, which writes Canceled: that IS the truthful
-                // status here and HATA-S4-012 is the case that proves it.
+                // status here and HATA-S4-012 is the case that proves it. Only OUR
+                // cancellation: a store's own timeout (TaskCanceledException) is a
+                // failure and takes the catch below (K-840).
                 throw;
             }
             catch (Exception ex)
