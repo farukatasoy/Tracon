@@ -1,192 +1,143 @@
-using System.Data;
-using System.Data.Common;
+using System.Diagnostics;
 using Microsoft.Data.Sqlite;
 
 namespace Tracon.Sqlite.IntegrationTests;
 
 /// <summary>
-/// A write SQLite refuses because another writer holds the database is sent
-/// again instead of surfacing as <c>database is locked</c>.
+/// A write SQLite refuses because another writer holds the database waits for
+/// the lock up to the command timeout, and then fails.
 /// </summary>
 /// <remarks>
 /// <para>
-/// 🚨 The measured failure: a full-solution run saturated the machine and
-/// <c>Tracon.Sqlite.IntegrationTests</c> lost a real test plus 39 class
-/// cleanups to <c>SQLite Error 5: 'database is locked'</c>, thrown inside the
-/// product's own store. The same project alone passed 825 of 825. A consumer
-/// writing from more than one place hits the same wall - this is the product's
-/// concurrency limit, not the test harness's.
+/// 🚨 Two layers absorb a held write lock, and neither is Tracon code.
+/// <c>PRAGMA busy_timeout</c> (5 s, <see cref="SqliteDataSource"/>) makes one
+/// attempt wait. Microsoft.Data.Sqlite then sends the statement again on
+/// <c>SQLITE_BUSY</c>, <c>SQLITE_LOCKED</c> and <c>262</c>, 150 ms apart,
+/// until <c>CommandTimeout</c> has passed (measured by decompiling
+/// <c>SqliteDataReader.NextResult</c>, 2026-10-11, F-307).
 /// </para>
 /// <para>
-/// <c>busy_timeout</c> alone does not cover it: when a deferred transaction
-/// upgrades from reading to writing and another writer has already changed the
-/// database, SQLite returns <c>SQLITE_BUSY</c> immediately, whatever the
-/// timeout, because waiting cannot help.
+/// Tracon used to wrap every data source command in a retry decorator of its
+/// own (K-827). It never retried: its filter read <c>DbCommand.Transaction</c>,
+/// the data source's command wrapper throws <c>NotSupportedException</c> from
+/// that getter, and an exception thrown inside a <c>catch … when</c> filter
+/// makes the filter false (F-312). The tests that proved it measured the
+/// mechanism against a fake inner command and the wiring by type, never the
+/// two together. These tests measure the behavior a store actually gets,
+/// against the real data source and a real lock.
 /// </para>
 /// </remarks>
 public sealed class SqliteWriteContentionTests : IDisposable
 {
+    /// <summary>Longer than <c>busy_timeout</c>, shorter than the default <c>CommandTimeout</c>.</summary>
+    private static readonly TimeSpan LockHeldFor = TimeSpan.FromSeconds(7);
+
     private readonly string _path = Path.Combine(
         Path.GetTempPath(),
         $"tracon-contention-{Guid.NewGuid():N}.db");
 
     /// <summary>
-    /// Every command the stores send through the data source carries the
-    /// retry.
+    /// A lock held longer than <c>busy_timeout</c> does not fail the write:
+    /// the statement is sent again until the lock is released.
     /// </summary>
     /// <remarks>
-    /// The wiring is the part an integration test can prove. Staging real
-    /// contention cannot: <c>busy_timeout</c> already absorbs a lock held for
-    /// a short while, so such a test passes with the retry removed - measured,
-    /// and the reason it is not written that way here.
+    /// A lock held for less than <c>busy_timeout</c> would prove nothing - one
+    /// attempt absorbs it. Holding it past 5 s is what makes the resend loop the
+    /// only thing between the store and <c>database is locked</c>.
     /// </remarks>
     [Fact]
-    public async Task Every_command_the_data_source_hands_out_carries_the_retry()
+    public async Task A_write_outlasts_a_lock_held_longer_than_the_busy_timeout()
     {
-        await using var dataSource = new SqliteDataSource($"Data Source={_path}");
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var dataSource = await CreateDataSourceWithTableAsync(cancellationToken);
 
-        await using var command = dataSource.CreateCommand("SELECT 1;");
+        await using var holder = await HoldWriteLockAsync(cancellationToken);
+        var release = ReleaseAfterAsync(holder, LockHeldFor, cancellationToken);
 
-        command.ShouldBeOfType<SqliteRetryingCommand>();
+        var stopwatch = Stopwatch.StartNew();
 
-        Convert.ToInt32(await command.ExecuteScalarAsync(TestContext.Current.CancellationToken), provider: null)
-            .ShouldBe(1);
-    }
-
-    /// <summary>
-    /// A statement refused because the database was busy or locked is sent
-    /// again and lands.
-    /// </summary>
-    /// <remarks>
-    /// <c>SQLITE_LOCKED</c> (6) is the code that makes this layer necessary
-    /// rather than convenient: SQLite does NOT invoke the busy handler for it,
-    /// so <c>busy_timeout</c> - whatever it is set to - never sees it.
-    /// </remarks>
-    [Theory]
-    [InlineData(5)]
-    [InlineData(6)]
-    public async Task A_statement_refused_while_the_database_was_busy_is_sent_again(int errorCode)
-    {
-        var inner = new AlwaysBusyCommand { ErrorCode = errorCode, SucceedFromAttempt = 3 };
-
-        await using var command = new SqliteRetryingCommand(inner);
-
-        (await command.ExecuteNonQueryAsync(TestContext.Current.CancellationToken)).ShouldBe(1);
-        inner.Attempts.ShouldBe(3);
-    }
-
-    /// <summary>
-    /// A refused statement is sent again a BOUNDED number of times.
-    /// </summary>
-    /// <remarks>
-    /// Deterministic on purpose: staging real contention proves the wiring
-    /// (the test above) but cannot prove the bound, and an unbounded retry
-    /// turns a held database into a hang.
-    /// </remarks>
-    [Fact]
-    public async Task A_statement_that_stays_refused_gives_up()
-    {
-        var inner = new AlwaysBusyCommand();
-
-        await using var command = new SqliteRetryingCommand(inner);
-
-        await Should.ThrowAsync<SqliteException>(
-            async () => await command.ExecuteNonQueryAsync(TestContext.Current.CancellationToken));
-
-        inner.Attempts.ShouldBe(6);
-    }
-
-    /// <summary>
-    /// A statement inside a caller-managed transaction is not retried on its
-    /// own: only the whole transaction can be, and resending one statement of
-    /// it would reapply part of a unit of work SQLite may already have rolled
-    /// back.
-    /// </summary>
-    [Fact]
-    public async Task A_statement_inside_a_transaction_is_not_retried()
-    {
-        var inner = new AlwaysBusyCommand { InsideTransaction = true };
-
-        await using var command = new SqliteRetryingCommand(inner);
-
-        await Should.ThrowAsync<SqliteException>(
-            async () => await command.ExecuteNonQueryAsync(TestContext.Current.CancellationToken));
-
-        inner.Attempts.ShouldBe(1);
-    }
-
-    /// <summary>A command that always reports the database as busy.</summary>
-    private sealed class AlwaysBusyCommand : DbCommand
-    {
-        public int Attempts { get; private set; }
-
-        public bool InsideTransaction { get; init; }
-
-        public int ErrorCode { get; init; } = 5;
-
-        /// <summary>The attempt that succeeds; never, when zero.</summary>
-        public int SucceedFromAttempt { get; init; }
-
-        [System.Diagnostics.CodeAnalysis.AllowNull]
-        public override string CommandText { get; set; } = string.Empty;
-
-        public override int CommandTimeout { get; set; }
-
-        public override CommandType CommandType { get; set; }
-
-        public override bool DesignTimeVisible { get; set; }
-
-        public override UpdateRowSource UpdatedRowSource { get; set; }
-
-        protected override DbConnection? DbConnection { get; set; }
-
-        protected override DbParameterCollection DbParameterCollection
-            => throw new NotSupportedException("The retry layer does not read parameters.");
-
-        protected override DbTransaction? DbTransaction
+        await using (var insert = dataSource.CreateCommand("INSERT INTO items (value) VALUES ('written');"))
         {
-            get => InsideTransaction ? new FakeTransaction() : null;
-            set => throw new NotSupportedException("The retry layer does not assign a transaction.");
+            (await insert.ExecuteNonQueryAsync(cancellationToken)).ShouldBe(1);
         }
 
-        public override void Cancel() => throw new NotSupportedException("Not exercised.");
+        stopwatch.Stop();
+        await release;
 
-        public override void Prepare() => throw new NotSupportedException("Not exercised.");
+        // The write did wait past one busy_timeout attempt, so the resend loop
+        // is what carried it - not a lock released early.
+        stopwatch.Elapsed.ShouldBeGreaterThan(TimeSpan.FromSeconds(5));
 
-        public override int ExecuteNonQuery()
-        {
-            Attempts++;
-
-            if (SucceedFromAttempt > 0 && Attempts >= SucceedFromAttempt)
-            {
-                return 1;
-            }
-
-            throw new SqliteException($"SQLite Error {ErrorCode}: 'database is locked'.", ErrorCode);
-        }
-
-        public override object ExecuteScalar() => throw new NotSupportedException("Not exercised.");
-
-        public override Task<int> ExecuteNonQueryAsync(CancellationToken cancellationToken)
-            => Task.FromResult(ExecuteNonQuery());
-
-        protected override DbParameter CreateDbParameter()
-            => throw new NotSupportedException("Not exercised.");
-
-        protected override DbDataReader ExecuteDbDataReader(CommandBehavior behavior)
-            => throw new NotSupportedException("Not exercised.");
+        await using var count = dataSource.CreateCommand("SELECT COUNT(*) FROM items;");
+        Convert.ToInt32(await count.ExecuteScalarAsync(cancellationToken), provider: null).ShouldBe(1);
     }
 
-    /// <summary>Stands in for "this command is inside a transaction".</summary>
-    private sealed class FakeTransaction : DbTransaction
+    /// <summary>
+    /// The wait is bounded: a lock still held when the command timeout has
+    /// passed fails the write with <c>database is locked</c>.
+    /// </summary>
+    /// <remarks>
+    /// An unbounded wait turns a held database into a hang. The bound is the
+    /// command's own <c>CommandTimeout</c>; one attempt still waits a full
+    /// <c>busy_timeout</c> first, so the failure arrives after about 5 s here.
+    /// </remarks>
+    [Fact]
+    public async Task A_lock_still_held_after_the_command_timeout_fails_the_write()
     {
-        public override IsolationLevel IsolationLevel => IsolationLevel.Serializable;
+        var cancellationToken = TestContext.Current.CancellationToken;
+        await using var dataSource = await CreateDataSourceWithTableAsync(cancellationToken);
 
-        protected override DbConnection? DbConnection => null;
+        await using var holder = await HoldWriteLockAsync(cancellationToken);
 
-        public override void Commit() => throw new NotSupportedException("Not exercised.");
+        await using var insert = dataSource.CreateCommand("INSERT INTO items (value) VALUES ('refused');");
+        insert.CommandTimeout = 1;
 
-        public override void Rollback() => throw new NotSupportedException("Not exercised.");
+        var stopwatch = Stopwatch.StartNew();
+
+        var exception = await Should.ThrowAsync<SqliteException>(
+            async () => await insert.ExecuteNonQueryAsync(cancellationToken));
+
+        stopwatch.Stop();
+
+        exception.SqliteErrorCode.ShouldBe(5);
+        stopwatch.Elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(20));
+
+        await holder.DisposeAsync();
+    }
+
+    private async Task<SqliteDataSource> CreateDataSourceWithTableAsync(CancellationToken cancellationToken)
+    {
+        var dataSource = new SqliteDataSource($"Data Source={_path}");
+
+        await using var create = dataSource.CreateCommand(
+            "CREATE TABLE items (id INTEGER PRIMARY KEY, value TEXT NOT NULL);");
+        await create.ExecuteNonQueryAsync(cancellationToken);
+
+        return dataSource;
+    }
+
+    /// <summary>Opens a second connection and takes the database's write lock.</summary>
+    private async Task<SqliteConnection> HoldWriteLockAsync(CancellationToken cancellationToken)
+    {
+        var connection = new SqliteConnection($"Data Source={_path};Pooling=False");
+        await connection.OpenAsync(cancellationToken);
+
+        await using var begin = connection.CreateCommand();
+        begin.CommandText = "BEGIN IMMEDIATE; INSERT INTO items (value) VALUES ('holder');";
+        await begin.ExecuteNonQueryAsync(cancellationToken);
+
+        return connection;
+    }
+
+    private static async Task ReleaseAfterAsync(SqliteConnection holder, TimeSpan delay, CancellationToken cancellationToken)
+    {
+        // The lock must outlast one busy_timeout attempt; that duration is the claim.
+        await Task.Delay(delay, cancellationToken); // delay: product
+
+        // Rolled back, not committed: the holder's row must not count as the write under test.
+        await using var rollback = holder.CreateCommand();
+        rollback.CommandText = "ROLLBACK;";
+        await rollback.ExecuteNonQueryAsync(cancellationToken);
     }
 
     public void Dispose()

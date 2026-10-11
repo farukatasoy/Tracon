@@ -222,7 +222,8 @@ buldu: **`bf319755`** — `SqliteRetryingCommand`. Benchmark SQLite üzerinde
 koşuyor ve dekoratör komut başına bir sarmalayıcı nesne + retry closure'ı +
 async durum makinesi ekliyor. Bu bir kusur değil, bir **doğruluk düzeltmesinin
 kabul edilmiş bedelidir**; taban çizgisi bu yüzden güncellendi, kapı
-gevşetilmedi.
+gevşetilmedi. (Sonradan ölçüldü: dekoratör hiç yeniden denemiyordu ve
+2026-10-11'de silindi — F-312; taban o gün yeniden ölçüldü.)
 
 ### 🚨 Asıl ders: kapı 460 commit boyunca hiç koşmadı
 

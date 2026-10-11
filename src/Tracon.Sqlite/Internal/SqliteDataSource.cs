@@ -61,17 +61,6 @@ internal sealed class SqliteDataSource : DbDataSource
     }
 
     /// <inheritdoc />
-    /// <remarks>
-    /// Every command the stores send through this data source is wrapped, so a
-    /// statement SQLite refuses because another writer holds the database is
-    /// sent again instead of surfacing as <c>database is locked</c>. See
-    /// <see cref="SqliteRetryingCommand"/> for why <c>busy_timeout</c> alone
-    /// does not cover it.
-    /// </remarks>
-    protected override DbCommand CreateDbCommand(string? commandText = null)
-        => new SqliteRetryingCommand(base.CreateDbCommand(commandText));
-
-    /// <inheritdoc />
     protected override DbConnection CreateDbConnection()
     {
         var connection = new SqliteConnection(_connectionString);
@@ -84,8 +73,17 @@ internal sealed class SqliteDataSource : DbDataSource
     /// Sets WAL, <c>busy_timeout</c>, and foreign-key enforcement when a connection opens.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// For <c>:memory:</c> databases, the <c>journal_mode=WAL</c> request silently falls back
     /// to <c>memory</c> mode (no error); the pragma is still run unconditionally.
+    /// </para>
+    /// <para>
+    /// <c>busy_timeout</c> bounds ONE attempt. A statement refused with <c>SQLITE_BUSY</c>,
+    /// <c>SQLITE_LOCKED</c> or <c>262</c> is then sent again by Microsoft.Data.Sqlite itself,
+    /// 150 ms apart, until the command's <c>CommandTimeout</c> has passed, so a held write
+    /// lock surfaces as <c>database is locked</c> only after that. Tracon adds no retry
+    /// layer of its own; the behavior is pinned by <c>SqliteWriteContentionTests</c>.
+    /// </para>
     /// </remarks>
     private static void OnStateChange(object? sender, StateChangeEventArgs eventArgs)
     {

@@ -243,8 +243,13 @@ yerde tekrarlanmaz**.
 | `docs/ADAYLAR.md` | Plana dönüşen kalemi **sil** (bölüm veya tablo satırı). Yönlendirici satır **yazma** — iz faz dokümanının `> **Kaynak:** … F-NN` satırıdır. Gövdeli kalemin gövdesi `docs/arsiv/PLANA-DONUSEN-ADAYLAR.md`'ye taşınır |
 | `AGENTS.md` | Yalnız "sıradaki faz" satırı değiştiyse. Tam liste **yalnız üretilen `docs/YOL-HARITASI.md`'dedir** |
 
-Kalemi aday listesinde bırakma. İki yerde tutmak kayma üretir — belge zaten bu
-kuralı yazıyor.
+Kalemi aday listesinde bırakma. İki yerde tutmak kayma üretir. Kural bir
+kapıdır: `--denetle` → *Aday dosyasının hizası*, `Kaynak` satırındaki F-ID
+aday dosyasında kalem olarak duruyorsa kırmızıdır. `Kaynak` satırına yalnız
+plana dönüşen F-ID'leri yaz — ilgili ama açık kalan kalemi orada anma. Kalemin
+yalnız bir yarısı plana dönüştüyse kalan yarı yerinde kalır ve metni bu fazı
+`Faz NNN` diye anar. **Durum** satırının aday sayısını da aynı değişiklikte
+düzelt.
 
 Sonra bakım komutunu çalıştır:
 

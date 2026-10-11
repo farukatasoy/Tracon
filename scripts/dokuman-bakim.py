@@ -1237,6 +1237,149 @@ def f_id_sayaci_bulgulari(kok: pathlib.Path = ROOT) -> list[str]:
     return bulgular
 
 
+# Kalem anmasi = F-ID tanimi (`_F_TANIM`) ya da ikinci hucresi duz `F-NNN ·`
+# ile baslayan kanal satiri (govdesi asagida olan kalemin tablo satiri).
+_F_KANAL_SATIRI = re.compile(r"^\|[^|\n]*\|\s*F-(\d+)\s*·")
+_F_GOVDE_ATFI = re.compile(r"Gövde:\s*§\s*\*F-(\d+)\*")
+_F_DURUM = re.compile(r"^\*\*Durum \((\d{4}-\d{2}-\d{2})\):\*\*.*?kuyrukta \*\*(\d+)\*\* aday")
+_ACILIYET_SIRASI = {"🔴": 0, "🟠": 1, "🟡": 2, "🟢": 3}
+_FAZ_KAYNAK = re.compile(r"^> \*\*Kaynak:\*\*.*$", re.M)
+
+
+def _bolum(metin: str, baslik: str) -> str:
+    """`## <baslik>` ile bir sonraki `## ` arasindaki metin; bolum yoksa bos."""
+    m = re.search(rf"^## {re.escape(baslik)}\s*$", metin, re.M)
+    if m is None:
+        return ""
+    son = re.search(r"^## ", metin[m.end():], re.M)
+    return metin[m.end(): m.end() + son.start()] if son else metin[m.end():]
+
+
+def adaylar_hizasi_bulgulari(kok: pathlib.Path = ROOT) -> list[str]:
+    """ADAYLAR.md yalniz YAPILACAK isi tasimali ve kendi icinde tutarli olmali.
+
+    Kusur sinifi (kullanici istegi, 2026-10-11): yasam dongusu kurali yaziliydi
+    (`faz-planlama` Adim 6, `kusur-giderme` Adim 6) ama yalniz sayac ve tek
+    tanim bir kapiya bagliydi. Plana donusen ya da kapanan bir kalemin
+    silinmesi, govdesi silinen kalemin tablo satiri ve el yazisi sayim
+    oturumun hafizasina kalmisti. Bes kural:
+
+    1. Bir faz dokumaninin `> **Kaynak:**` satirinda gecen F-ID aday dosyasinda
+       kalem olarak duramaz -- plana donusen kalem silinir. Istisna: kalemin
+       metni o fazi (`Faz NNN`) aniyorsa kalem bilerek KISMEN acik kalmistir
+       (F-178 / Faz 133 deseni).
+    2. `arsiv/ERTELENEN-ADAYLAR.md` § *Kapanan kalemler* tablosundaki F-ID aday
+       dosyasinda kalem olarak duramaz.
+    3. `Gövde: § *F-NNN*` atfi var olan bir `### F-NNN` basligina gitmeli;
+       § *Sıralanabilir Adaylar* altindaki her govde bir kanal satirindan
+       atif almali.
+    4. Kanal tablolarinin satirlari aciliyete gore siralidir (🔴 → 🟢).
+    5. `**Durum (...):**` satirindaki aday sayisi § *Sıralanabilir Adaylar*
+       altindaki govde sayisina esittir.
+    """
+    adaylar = kok / "docs" / "ADAYLAR.md"
+    if not adaylar.exists():
+        return []
+    metin = adaylar.read_text(encoding="utf-8")
+    satirlar = metin.split("\n")
+
+    # Kalem -> (ilk satir no, kalemin tum metni). Baslikli kalemin metni bir
+    # sonraki `#`-`###` basligina kadar suren govdedir; satir kaleminki satirdir.
+    kalemler: dict[int, tuple[int, str]] = {}
+    for no, satir in enumerate(satirlar, 1):
+        m = _F_TANIM.match(satir) or _F_KANAL_SATIRI.match(satir)
+        if not m:
+            continue
+        n = int(next(g for g in m.groups() if g))
+        govde = satir
+        if satir.startswith("#"):
+            son = next((i for i in range(no, len(satirlar))
+                        if re.match(r"^#{1,3} ", satirlar[i])), len(satirlar))
+            govde = "\n".join(satirlar[no - 1:son])
+        ilk, onceki = kalemler.get(n, (no, ""))
+        kalemler[n] = (ilk, onceki + "\n" + govde)
+
+    bulgular: list[str] = []
+
+    fazlar = sorted((kok / "docs").glob("[0-9]*-*.md")) + sorted(
+        (kok / "docs" / "arsiv" / "fazlar").glob("[0-9]*-*.md"))
+    for p in fazlar:
+        kaynak = _FAZ_KAYNAK.search(p.read_text(encoding="utf-8"))
+        if kaynak is None:
+            continue
+        faz_no = int(re.match(r"\d+", p.name).group(0))
+        for m in _F_ID.finditer(kaynak.group(0)):
+            n = int(m.group(1))
+            if n not in kalemler:
+                continue
+            if re.search(rf"(?<!\d)Faz {faz_no}(?!\d)", kalemler[n][1]):
+                continue
+            bulgular.append(
+                f"ADAYLAR.md:{kalemler[n][0]} F-{n} plana dönüşmüş "
+                f"({p.relative_to(kok).as_posix()} `Kaynak` satırı) ama aday dosyasında duruyor — "
+                f"kalemi sil (`faz-planlama` Adım 6); bilerek kısmen açıksa kalem metni "
+                f"'Faz {faz_no}' diye ansın")
+
+    ertelenen = kok / "docs" / "arsiv" / "ERTELENEN-ADAYLAR.md"
+    if ertelenen.exists():
+        kapanan = _bolum(ertelenen.read_text(encoding="utf-8"), "Kapanan kalemler")
+        kapanan = kapanan.split("\n### ")[0]
+        for m in re.finditer(r"^\|\s*\*\*F-(\d+)\*\*", kapanan, re.M):
+            n = int(m.group(1))
+            if n in kalemler:
+                bulgular.append(
+                    f"ADAYLAR.md:{kalemler[n][0]} F-{n} kapanmış (ERTELENEN-ADAYLAR.md "
+                    f"§ Kapanan kalemler) ama aday dosyasında duruyor — kalemi sil "
+                    f"(`kusur-giderme` Adım 6)")
+
+    basliklar = {int(m.group(1)): metin[:m.start()].count("\n") + 1
+                 for m in re.finditer(r"^### F-(\d+)\b", metin, re.M)}
+    atiflar: set[int] = set()
+    for no, satir in enumerate(satirlar, 1):
+        for m in _F_GOVDE_ATFI.finditer(satir):
+            n = int(m.group(1))
+            atiflar.add(n)
+            if n not in basliklar:
+                bulgular.append(
+                    f"ADAYLAR.md:{no} `Gövde: § F-{n}` atfı var ama `### F-{n}` gövdesi yok — "
+                    f"gövde silindiyse satırı da sil")
+        if m := _F_KANAL_SATIRI.match(satir):
+            atiflar.add(int(m.group(1)))
+    siralanabilir = _bolum(metin, "Sıralanabilir Adaylar")
+    govdeler = [int(m.group(1)) for m in re.finditer(r"^### F-(\d+)\b", siralanabilir, re.M)]
+    for n in govdeler:
+        if n not in atiflar:
+            bulgular.append(
+                f"ADAYLAR.md:{basliklar[n]} F-{n} gövdesi § Sıralanabilir Adaylar'da ama hiçbir "
+                f"kanal tablosunda satırı yok — § Bekleyen Kalemler'e aciliyetiyle ekle")
+
+    bekleyen = _bolum(metin, "Bekleyen Kalemler")
+    bekleyen_ofset = metin.find(bekleyen) if bekleyen else 0
+    for kanal in re.finditer(r"^### (.+)$", bekleyen, re.M):
+        son = re.search(r"^### ", bekleyen[kanal.end():], re.M)
+        govde = bekleyen[kanal.end(): kanal.end() + son.start()] if son else bekleyen[kanal.end():]
+        onceki = -1
+        for m in re.finditer(r"^\|\s*(🔴|🟠|🟡|🟢)\s*\|", govde, re.M):
+            derece = _ACILIYET_SIRASI[m.group(1)]
+            if derece < onceki:
+                no = metin[:bekleyen_ofset + kanal.end() + m.start()].count("\n") + 1
+                bulgular.append(
+                    f"ADAYLAR.md:{no} § {kanal.group(1).strip()} tablosu aciliyete göre sıralı değil "
+                    f"({m.group(1)} daha düşük bir aciliyetten sonra geliyor) — 🔴 → 🟢 sırala")
+                break
+            onceki = derece
+
+    durum = next((_F_DURUM.match(s) for s in satirlar if _F_DURUM.match(s)), None)
+    if durum is None:
+        bulgular.append(
+            "ADAYLAR.md: '**Durum (YYYY-AA-GG):** … kuyrukta **N** aday …' satırı okunamadı")
+    elif int(durum.group(2)) != len(govdeler):
+        bulgular.append(
+            f"ADAYLAR.md: Durum satırı {durum.group(2)} aday yazıyor ama § Sıralanabilir "
+            f"Adaylar'da {len(govdeler)} gövde var — satırı ve tarihini güncelle")
+    return bulgular
+
+
 def sevk_edilen_olay_anlatisi(kok: pathlib.Path = ROOT) -> list[str]:
     """Her `WebhookEvents` sabiti en az bir ANLATI sayfasinda gecmelidir.
 
@@ -3320,6 +3463,13 @@ def denetle() -> int:
     for s_ in f_id_bulgulari:
         print(f"  {s_}")
     hata |= int(bool(f_id_bulgulari))
+
+    hiza_bulgulari = adaylar_hizasi_bulgulari()
+    print(f"\nAday dosyasının hizası (ADAYLAR.md ↔ faz/arşiv): "
+          f"{'❌ ' + str(len(hiza_bulgulari)) + ' bulgu' if hiza_bulgulari else '✅ temiz'}")
+    for s_ in hiza_bulgulari:
+        print(f"  {s_}")
+    hata |= int(bool(hiza_bulgulari))
 
     olay_bulgulari = sevk_edilen_olay_anlatisi()
     print(f"\nSevk edilen olayın anlatısı: "

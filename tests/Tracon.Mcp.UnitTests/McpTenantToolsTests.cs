@@ -266,6 +266,43 @@ public sealed class McpTenantToolsTests
     }
 
     /// <summary>
+    /// The binding a compiled-agent cache key carries (F-305): the connection
+    /// behind the registration that WON the name, "absent" for a name the snapshot
+    /// does not serve (also a server whose refresh failed), and "unbound" for a
+    /// served tool whose connection is not known.
+    /// </summary>
+    [Fact]
+    public void The_binding_follows_the_connection_of_the_registration_that_won_the_name()
+    {
+        var winner = new TraconToolRegistration(AIFunctionFactory.Create(() => "a", "shared_lookup")) { Source = "server-a" };
+        var skipped = new TraconToolRegistration(AIFunctionFactory.Create(() => "b", "shared_lookup")) { Source = "server-b" };
+        var unbound = new TraconToolRegistration(AIFunctionFactory.Create(() => "c", "other_lookup")) { Source = "server-c" };
+        var generations = new Dictionary<TraconToolRegistration, long>(ReferenceEqualityComparer.Instance)
+        {
+            [winner] = 41,
+            [skipped] = 42,
+        };
+
+        var tools = McpTenantTools.Create(
+            [winner, skipped, unbound],
+            NullLogger.Instance,
+            new AllowAllToolAuthorizationHandler(),
+            NoOpToolArgumentsValidator.Instance,
+            TimeSpan.FromSeconds(30),
+            attribution: null,
+            NullLogger<AuthorizingAIFunction>.Instance,
+            NullLogger<TimeoutAIFunction>.Instance,
+            NullLogger<ValidatingAIFunction>.Instance,
+            serverNames: ["crm"],
+            connectionGenerations: generations);
+
+        tools.GetBindingFingerprint("shared_lookup").ShouldBe("41");
+        tools.GetBindingFingerprint("other_lookup").ShouldBe(McpTenantTools.UnboundBinding);
+        tools.GetBindingFingerprint("crm_lookup").ShouldBe(McpTenantTools.AbsentBinding, "the server is registered, its tools are not discovered");
+        McpTenantTools.Empty.GetBindingFingerprint("shared_lookup").ShouldBe(McpTenantTools.AbsentBinding);
+    }
+
+    /// <summary>
     /// A tool answering the way <c>McpClientTool</c> does — one
     /// <see cref="AIContent"/> block for a single-block result — instead of a
     /// bare <see langword="string"/>.

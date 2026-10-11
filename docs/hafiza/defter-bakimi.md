@@ -191,3 +191,16 @@ ile `@dataclass` sınıf tanımında `sys.modules[cls.__module__]`'ü arar; Pyth
 3.14'te `AttributeError: 'NoneType' ... '__dict__'` ile **tüm test dosyası**
 yüklenmez. Betikte düz sınıf kullan (`_WorkflowIsi`, `_WorkflowAdimi`).
 `kapi.py`'nin testi modülü kaydeder; orada `@dataclass` çalışır.
+
+## 🚨 Aday dosyasının yaşam döngüsü yazıyla korunmuyordu (2026-10-11)
+
+`ADAYLAR.md`'nin "plana dönüşen ya da kapanan kalem silinir" kuralı iki
+skill'de yazılıydı, ama kapı yalnız F-ID sayacını ve tek tanımı denetliyordu.
+Silmeyi unutan oturum dosyayı bayat bırakırdı ve hiçbir kapı ötmezdi. Aynı gün
+iki sessiz kayma ölçüldü: § *Faz planlama* tablosu aciliyete göre sıralı
+değildi (kural "her kanal tablosu sıralıdır" diyordu) ve **Durum** satırı aday
+sayısını yazıyla taşıyordu ("on bir") — her plan oturumu onu elle güncellemek
+zorundaydı. Kapı: `adaylar_hizasi_bulgulari` (`--denetle` → *Aday dosyasının
+hizası*). Sayım artık rakamla yazılır (`kuyrukta **N** aday`), çünkü kapı
+yazıyla sayıyı okuyamaz. Kısmen plana dönüşen kalem (F-178 / Faz 133) metninde
+fazı `Faz NNN` diye anar; kapı istisnayı yalnız bu anmadan tanır.

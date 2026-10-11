@@ -187,7 +187,8 @@ public sealed class SqliteDialectTests(SqliteFixture fixture)
     [Fact]
     public async Task WAL_and_busy_timeout_are_set_when_the_connection_opens()
     {
-        await using var dataSource = new SqliteDataSource(fixture.ConnectionString);
+        await using var dataSource = new SqliteDataSource(
+            fixture.ConnectionStringFor(SqliteTestContext.NewTablePrefix()));
         await using var connection = (SqliteConnection)await dataSource.OpenConnectionAsync();
 
         using (var command = connection.CreateCommand())

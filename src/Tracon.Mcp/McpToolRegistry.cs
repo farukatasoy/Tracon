@@ -24,8 +24,13 @@ namespace Tracon;
 /// a standing approval rule records the endpoint of the server a tool was
 /// discovered from and holds only while that endpoint stays the same.
 /// </para>
+/// <para>
+/// And it tells which connection a tool is bound to (<see cref="IToolBindingResolver"/>):
+/// the compiled-agent cache key carries it, so an agent whose tools call a replaced
+/// or closed connection is never served again.
+/// </para>
 /// </remarks>
-internal sealed class McpToolRegistry : IToolRegistry, IVerifiedToolRegistry, IToolSourceResolver
+internal sealed class McpToolRegistry : IToolRegistry, IVerifiedToolRegistry, IToolSourceResolver, IToolBindingResolver
 {
     private readonly IToolRegistry _codeTools;
     private readonly McpToolCatalog _catalog;
@@ -94,5 +99,45 @@ internal sealed class McpToolRegistry : IToolRegistry, IVerifiedToolRegistry, IT
         return _codeTools.TryGet(toolName, out _)
             ? null
             : _catalog.ForTenant(tenantId).GetSourceFingerprint(toolName);
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// <para>
+    /// A code tool wins its name here exactly as in <see cref="TryGet"/> and adds
+    /// nothing: it is fixed for the life of the process. Every other name adds its
+    /// <see cref="McpTenantTools.GetBindingFingerprint"/>, read from ONE snapshot of
+    /// the tenant <see cref="TryGet"/> reads.
+    /// </para>
+    /// <para>
+    /// Tool names are part of the definition, and the definition's own fingerprint is
+    /// part of the same key, so the plain <c>name=binding;</c> form cannot make two
+    /// different definitions collide.
+    /// </para>
+    /// </remarks>
+    public string GetBindingFingerprint(IReadOnlyList<string> toolNames)
+    {
+        ArgumentNullException.ThrowIfNull(toolNames);
+
+        McpTenantTools? snapshot = null;
+        System.Text.StringBuilder? fingerprint = null;
+
+        foreach (var name in toolNames)
+        {
+            if (_codeTools.TryGet(name, out _))
+            {
+                continue;
+            }
+
+            snapshot ??= _catalog.ForTenant(_tenantContext.TenantId);
+
+            (fingerprint ??= new System.Text.StringBuilder("mcp:"))
+                .Append(name)
+                .Append('=')
+                .Append(snapshot.GetBindingFingerprint(name))
+                .Append(';');
+        }
+
+        return fingerprint?.ToString() ?? string.Empty;
     }
 }

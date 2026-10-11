@@ -87,6 +87,13 @@ yerel test varsayılanı ve sahte anahtar değerleri vardır). Testlerde sahte
 elle koşuyorsan da eklemen gerekir (öksüz MSBuild düğümleri asılı kalmaya
 yol açar). Ayrıntı: `docs/hafiza/test-altyapisi.md`.
 
+**Agent worktree'leri kapanıştan önce kaldırılır.** `.claude/worktrees/`
+altındaki her worktree depodaki her projenin bir kopyasını taşır.
+BenchmarkDotNet projeyi alt klasörlerde adıyla arar; ikinci bir
+`Tracon.Benchmarks.csproj` bulunca boilerplate'i üretemez ve `performans`
+kırmızı döner (2026-10-11, ölçüldü). Değişiklikleri ana ağaca aldıktan sonra
+`git worktree remove` ile kaldır.
+
 ## CI'ın Windows ayağı
 
 Kapılar iki işletim sisteminde koşar ve ubuntu ayağı **platform varsayımlarını
