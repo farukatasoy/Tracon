@@ -652,44 +652,108 @@ gerçek çıktıyla yeniden yazılır.
 
 ## Plandan Sapmalar
 
-> Kapanışta doldurulur. Plan ile gerçek arasındaki fark **gizlenmez** — sonraki
-> oturumun en değerli bilgisidir.
+Numara `#N` ile verilir; sonraki fazlar bu numarayla atıf yapabilir.
+
+| # | Plan | Gerçek | Neden |
+|---|---|---|---|
+| 1 | §194.1: kayıtta `DefaultValue`'nun `Kind`'a uygunluğu; §194.3: tür uyuşmazlığı adımı düşürür | **Yazılmadı.** `Kind` hiçbir yerde doğrulanmaz | `AgentParameterValidator.ValidateValues` agent şemasında da `Kind`'a bakmıyordu; site `Kind`'ı konsol etiketi diye anlatıyor. Workflow'a daha sıkı kural koymak iki şemayı tutarsız yapardı (K-897) |
+| 2 | §194.3: derlenen agent run başına `(runId, agentName)` anahtarıyla tutulur | **Not yok.** Her çağrıda derlenir | Ölçüldü: derleme + dekorasyon **0,064 ms/çağrı**; katalog önbellek isabeti 0,077 ms. Sağlayıcı çağrısı saniyeler sürer. Açık Soru 7 → B |
+| 3 | §194.5: workflow satırı `messages` = başlangıç mesajı | **`Messages = []`** yazar | Workflow motoru girdiyi içerik koruyucudan geçirmez; ham mesajı `run_inputs`'a yazmak koruyucuyu atlardı. Hiçbir tüketici workflow mesajını geri okumaz (K-898) |
+| 4 | Plan yeni iç tip saymadı | `ParameterizedAgentFactory`, `ParameterValueSet`, `BatchItemInput` | Beş çağıran (`/run`, replay, devam, onay-devamı, workflow adımı) aynı derle + dekoratör sırasını ister. Bu sırayı beş yerde yazmak K-581'i beş kez bozma şansıdır |
+| 5 | §194.9: replay `NULL` iken bugünkü ret | Workflow run'ının replay'i **400** döner ve resume'a yönlendirir | Workflow satırı mesaj taşımadığı için replay'i anlamsızdı; sessiz boş koşum yerine açık ret |
+| 6 | §194.6: workflow resume/respond yeniden doğrular | Yapıldı; ek olarak `RecordRunInput=false` iken ret mesajı **ayarı adlandırır** (Açık Soru 5-A) | Operatör neyi açacağını mesajdan bilir |
+| 7 | Kuyruk işleyicisi değeri yalnız varsa bağlar | Değer yokken de `UnboundParameterGuard` varsa bağlar | K-890: değersiz zorunlu parametre yine düşmeli, sessizce açılmamalı |
+| 8 | `RunReplayService` yalnız değer ekler | Katalog yolunda dekoratörlü fabrika yeniden kurulur | Parametreli derleme önbelleği atlar; dekoratör zinciri yeniden uygulanmazsa bütçe ve onay düşerdi (K-581) |
+| 9 | Retention: "satırı tutar" | Satır sınırı ifadesi `CASE WHEN EXISTS … THEN NULL` ile `AwaitingInput` satırını **saymaz** | K-888 deseni: yoksa sınır tutulan satırı silmeye çalışır. Mutasyon denetimi yapıldı: düzeltme kaldırılınca retention testi kırılıyor |
+| 10 | §194.10: konsol yalnız gösterir | Run düğmesi zorunlu değer eksikken **kapalıdır** | `400`'ü kullanıcıya atmak yerine alan boş kalmasın |
+| 11 | Örnek uygulama gerçek sağlayıcıyla koşar | Yeni `EchoModelProvider` (`echo-instructions-1`) ve yalnız Echo kipinde kayıtlı `podcast-writer`, `podcast-editor` | Anahtarsız koşum talimatı yanıta yazar; değerin modele ulaştığı gözle görülür |
+| 12 | Plan `K-896…` rezerve etmedi | `K-897`, `K-898`, `K-899` | `K-896` F-332'ye aitti. Manuel case'lerde ilk yazılan numara düzeltildi |
+| 13 | Plan `GET /api/runs/{id}/input` için bir şey demedi | Workflow satırı için artık **200 + boş mesaj listesi** döner | Satır var, mesaj yok. 404 "kayıt yok" demek olurdu ve yanlıştır (K-898) |
+
+Açık Sorular: 1-A (`GetRunParameters()` run dışında `InvalidOperationException`) ·
+2-A (yeni `ProtectedColumn.RunInputParameters = 10`) · 3-A (yükseltme anında
+bekleyen parametreli onay-devamı reddedilir) · 4-A (bilinmeyen batch üst alanı
+öğeyi düşürür) · 5-A (kayıt kapalıyken parametreli workflow resume edilmez) ·
+6-A (kuyruk belgesinde boyut sınırı yok, eşzamanlı yolla aynı) · 7 (ölçüldü, B).
 
 ## Bu Fazda Verilen Kararlar
 
-> Kapanışta doldurulur. Dört kategoriden birine giren karar ayrıca
-> `docs/KARARLAR.md`'ye K-NNN ve kategori etiketiyle girer. Beklenen adaylar:
-> workflow parametre şeması ve kapsama kuralı (`public-api`), `run_inputs.parameters`
-> + retention istisnası (`kalıcı-veri`), K-890'ın replay/devam maddesinin
-> değişmesi (`public-api`), kuyruk yükünde korumasız içerik (`güvenlik`).
-> Plan numara rezerve etmez.
+Üç karar `docs/KARARLAR.md`'ye girdi:
+
+- **K-897** *(public-api)* — workflow parametre şeması, kapsama kuralı, `GetRunParameters()`, `Kind` doğrulanmaz
+- **K-898** *(kalıcı-veri, public-api, güvenlik)* — `run_inputs.parameters`, `NULL` ≠ `{}`, `ProtectedColumn.RunInputParameters`, retention istisnası, K-890'ın replay/devam maddesinin değişmesi
+- **K-899** *(güvenlik, public-api)* — kuyruk yükü ve yapılı batch öğesi, `jobs.payload` korumasız (kullanıcı kararı)
+
+Faz içinde kalan yerel tercihler:
+
+- Alt agent çağrısına değer geçirilmez: yalnız workflow'un **doğrudan** adımı alır. Adımın kendi alt agent'ı varsayılanla bağlanır.
+- Magentic yöneticisi ve katılımcıları aynı süzmeyi alır: bağlama `ChildAgentInvoker` seviyesindedir, desene bağlı değildir.
+- Fonksiyon düğümü sözlüğü salt okunurdur ve nihai settir (varsayılanlar uygulanmış).
 
 ## Gerçekleşen Public API
 
-> Kapanışta doldurulur. Koddaki **gerçek** imzalar.
+`PublicAPI.Unshipped.txt` satırları (koddaki gerçek imzalar):
+
+| Paket | Üye |
+|---|---|
+| `Tracon.Abstractions` | `ProtectedColumn.RunInputParameters = 10` |
+| `Tracon.Abstractions` | `RunInputRecord.Parameters` — `IReadOnlyDictionary<string, string>?` |
+| `Tracon.Abstractions` | `RunReplayRequest.Parameters` — `IReadOnlyDictionary<string, string>?` |
+| `Tracon.Abstractions` | `WorkflowDefinition.Parameters`, `WorkflowDescriptor.Parameters` — `IReadOnlyList<AgentParameter>` |
+| `Tracon.Abstractions` | `WorkflowRunRequest.Parameters` — `IReadOnlyDictionary<string, string>?` |
+| `Tracon.AspNetCore` | `WorkflowRunHttpRequest.Parameters`, `WorkflowSaveRequest.Parameters` |
+| `Tracon.Workflows` | `TraconWorkflowContextExtensions.GetRunParameters(this IWorkflowContext)` — `IReadOnlyDictionary<string, string>` |
+| `Tracon.Testing.Contracts.Xunit` | `RunInputStoreContract` +4 case · `WorkflowDefinitionStoreContract` +1 case |
+
+Yeni **internal** tipler: `ParameterizedAgentFactory` (`Tracon.Core/Catalog`),
+`ParameterValueSet` (`Tracon.Core/Compilation`), `BatchItemInput`
+(`Tracon.Abstractions/Scheduling`). `TraconRunOptions.ParameterValues` ve
+`AgentRunScope.ParameterValues` internal'dır. HTTP: `parameters` alanı workflow
+`PUT`, workflow `run`, kuyruklu agent `run`, `POST /api/runs/{id}/replay` gövdelerinde;
+`documents` kuyruklu agent `run` gövdesinde. Batch öğesi yapılı biçimi:
+`{"message", "parameters"?, "documents"?}`.
 
 ## Dosya Listesi (gerçekleşen)
 
-> Kapanışta doldurulur.
+172 dosya, +7637 / −628 (`git diff --stat 12bf0b4c..HEAD`).
+
+- **Kayıt:** `SqlRunInputStore.cs`, üç sağlayıcının sorguları, `RetentionTargetRegistry.cs`, `WorkflowDefinitionPayload.cs`; migration `0056` (PostgreSQL) · `0044` (SQL Server) · `0043` (SQLite); `scripts/applied-migrations.json`
+- **Derleme ve bağlama:** `ParameterValueSet.cs`, `ParameterizedAgentFactory.cs`, `AgentParameterValidator.cs`, `AgentDefinitionCompiler.cs`, `ChildAgentInvoker.cs`, `TraconRunContext.cs`, `RunRecordingAgent.*`
+- **Workflow:** `WorkflowRunner.cs`, `WorkflowCatalog.cs`, `WorkflowAgentCache.cs`, `WorkflowDefinitionValidator.cs`, `TraconWorkflowContextExtensions.cs`
+- **Kuyruk:** `BatchItemInput.cs`, `AgentRunJobHandler.cs`, `AgentBatchJobHandler.cs`, `WorkflowJobHandler.cs`, `RunContinuationJobHandler.cs`, `ApprovalResumeJobHandler.cs`, `RunReplayService.cs`
+- **HTTP:** `WorkflowEndpoints.cs`, `AgentEndpoints.cs`, `SchedulingEndpoints.cs`, `RunEndpoints.cs`, `WorkflowContracts.cs`, `AgentContracts.cs`
+- **Konsol:** `components/parameter-inputs.tsx` (yeni, playground'dan çıkarıldı), `screens/workflow-detail.tsx`, `workflow-editor.tsx`, `playground.tsx`, `use-playground-run.ts`, `locales/{en,tr}/workflows.ts`
+- **Üretilen:** `docs/openapi/tracon.json`, `TraconApiClient.g.cs`, `packages/tracon-client/src/schema.ts`
+- **Örnek uygulama:** `samples/Tracon.Api/EchoModelProvider.cs`, `Program.cs`
+- **Testler:** 32 dosya, +3469 satır (aşağıda)
+- **Doküman:** 10 manuel case (MT-WF-127…131, MT-JOB-136…138, MT-CORE-141…142), 13 site sayfası, `CHANGELOG.md`, `src/Tracon.Workflows/README.md`, K-897…K-899, hafıza girdileri, F-374 ve F-375
+
+### Testler
+
+| Sınıf | Ne kanıtlar |
+|---|---|
+| `RunInputStoreContract` (+4) · `WorkflowDefinitionStoreContract` (+1) | Değerler aynen gider gelir; `NULL` ≠ `{}`; ikinci yazım ilkini değiştirmez; şema gidiş-dönüşte kalır — bellek içi ve üç sağlayıcıda |
+| `RetentionDataPlaneTests` (PostgreSQL) · `RetentionMaxRowsDataPlaneTests` (SQLite) · `RunInputRetentionTests` (SQL Server) | `AwaitingInput` satırı silinmez ve sınıra sayılmaz; içerik koruması sütunu şifreler |
+| `WorkflowParameterBindingTests` | Değer her adımın talimatına ulaşır; adım yalnız kendi şemasını alır; varsayılan uygulanır |
+| `WorkflowRunParameterGateTests` · `WorkflowParticipantCoverageTests` | Geçersiz değer akış açılmadan `400`; eksik katılımcı parametresi run'ı sıfır model çağrısıyla düşürür |
+| `WorkflowFunctionParameterTests` · `TraconWorkflowContextExtensionsTests` | Fonksiyon düğümü değeri okur; run dışında atar |
+| `WorkflowParameterResumeTests` · `WorkflowParameterRespondTests` (Workflows.UnitTests) | Resume ve respond kayıtlı değeri kullanır; kayıt yoksa ret; kayıt kapalıysa mesaj ayarı adlandırır |
+| `QueuedRunParameterTests` · `AgentBatchParameterTests` · `WorkflowBatchParameterTests` · `BatchItemInputTests` | Kuyruk yükü, yapılı öğe, öğe başına düşüş, F-330 ön kontrolü |
+| `RunReplayParameterTests` · `ApprovalResumeParameterTests` · `RunContinuationTests` | Replay, devam, onay-devamı kayıtlı değerle koşar; üzerine yazma yalnız replay'de |
+| `ParameterValueLeakTests` | Değer log'da, span'de, `run_events`'te, ret gövdesinde ve job hatasında görünmez |
+| `WorkflowParameterTenantIsolationTests` | İki kiracı aynı workflow adını eşzamanlı koşar; değer, şema ve kayıt karışmaz |
+| `WorkflowParameterCancellationTests` | İptal bağlanan adımı ve kaydı sızdırmaz |
+| `workflow-detail.test.tsx` · `full-replace-editors.test.tsx` | Konsol değer alanları ve `parameters` korunur |
+| Mimari ratchet'ler | Servis kaydı, public yüzey, SQL metni, sevk edilen doküman kapısı, kaynak dili |
 
 ## Süreç Ölçümü
 
-> Kapanışta doldurulur. **Tablo olarak** — onay kutusu DEĞİL.
-
-| Metrik | Değer |
-|---|---|
-| Plan revizyonu sayısı | |
-| Düzeltme turu sayısı | |
-| 🔴 bulgu: gerçek / gürültü / araştırılacak | |
-| Fazın ürettiği regresyon | |
-| Faz kapandıktan sonra bulunan kusur | |
+> Denetim ve kapanış kapısı sonrası doldurulur.
 
 ## Denetim Bulguları
 
-> Kapanışta doldurulur — `faz-denetim` çıktısı. Bulgu yoksa "🔴 ve 🟡 yok"
-> yazılır; boş bırakılmaz.
+> Denetim sonrası doldurulur.
 
 ## Sonraki Faza Devir Notu
 
-> Kapanışta doldurulur: devralınan sözleşmeler, bilinen tuzaklar (🚨), yarım
-> kalan işler, sıradaki faz.
+> Denetim sonrası doldurulur.
