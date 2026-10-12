@@ -1,9 +1,11 @@
 # Faz 203 — Çok Konuşmacılı Diyalog Sentezi ve Sağlayıcı İstek Ayarları
 
 > **Durum:** 📋 Planlandı (2026-10-13)
-> **Plan onayı:** onaylanmadı — bakımcı 2026-10-13'te F-296'nın planlanmasını ve Faz 201'den önce uygulanmasını istedi; engelleyici kararlar § Açık Sorular'da öneriyle bekler, uygulama onaydan önce başlamaz
+> **Plan onayı:** onaylanmadı — bakımcı 2026-10-13'te F-296'nın planlanmasını istedi; aynı gün kapsam ve sıra yeniden tartıldı (bkz. Genellik ve Karşı görüş); engelleyici kararlar § Açık Sorular'da öneriyle bekler, uygulama onaydan önce başlamaz
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-296**
-> **Önkoşul:** Yok. **Sıra:** Faz 198 ve Faz 201'den önce (bakımcı kararı, 2026-10-13). Faz 198 § 198.6 bu fazın yetenek arayüzünü sarmalar; F-297 (Gemini) bu sözleşmeyi uygular
+> **Genellik:** Ses sözleşmesi Tracon'un kendi sözleşmesidir ve iki büyük sağlayıcının (ElevenLabs Text to Dialogue, Gemini çok konuşmacılı TTS) sunduğu yeteneği ifade edemez; MEAI 10.9.0 `ITextToSpeechClient` de tek ses taşır. İkinci kanıt bu ekosistem boşluğudur, tüketici değil. Bölme, birleştirme ve ses işleme tüketici kodunda kalır
+> **Karşı görüş:** "Ses üretimi çekirdek iş değil; tüketici SDK'yı fonksiyon düğümünde çağırabilir; Tracon'un katkısı kiracı kapısı ve maliyet kaydıdır." Plan bunu kabul eder: faz yalnız sözleşmeyi, yerleşik uygulamayı ve istek ayarlarını taşır; medya yardımcıları çıkarıldı; faz Faz 198'in kiracı kapısından sonra gelir
+> **Önkoşul:** Yok. **Sıra:** [Faz 198](198-ADLI-KONUSMA-SAGLAYICISI.md)'den sonra (2026-10-13, yeniden tartıldı): yetenek o fazın kiracı kapısının arkasına eklenir. F-297 (Gemini) bu sözleşmeyi uygular
 > **Paketler:** `Tracon.Abstractions`, `Tracon.Voice`
 > **Yeni paket:** Yok · **Migration:** Yok
 > **Public API:** büyüyor — `1.0.0` GA'dan (K-603) önce ucuz. Ölçüldü (2026-10-13): `wc -l src/*/PublicAPI.Shipped.txt` → 17 dosya, toplam 17 satır, her biri yalnız `#nullable enable`
@@ -45,8 +47,9 @@ podcast bugün ya her repliği ayrı seslendirip birleştirir (dinleme testinde
 yerleşik ElevenLabs istemcisine uygular ve sağlayıcıya özgü istek
 ayarlarını (ses ayarları, süreklilik) iki sözleşmeye de taşır.
 
-- **F-296** — konuşmacı-tur listesi, yetenek bildirimi, segment zamanları,
-  sağlayıcı istek ayarları, bölme ve PCM birleştirme yardımcıları.
+- **F-296** — konuşmacı-tur listesi, yetenek bildirimi, segment zamanları ve
+  sağlayıcı istek ayarları. Uzun diyaloğu bölmek ve sesi birleştirmek
+  çağıranın işidir.
 
 **Tüketici bağlamı (ölçüldü, 2026-10-13).** Podcast pilotu ElevenLabs
 `POST /v1/text-to-dialogue/with-timestamps` çağırır: `inputs[] {text,
@@ -54,7 +57,8 @@ voice_id}`, `model_id: eleven_v4`, `language_code: tr`, `settings
 {stability, similarity}`, `output_format=pcm_24000`. Episode başına 7–9
 istek, istek başına ≤ 1.900 karakter; yanıtın `voice_segments`'i (giriş
 başına başlangıç/bitiş saniyesi) konuşmacı başına ses seviyesi ölçümüne ve
-bölüm işaretlerine girer. Plan geneldir; bu tüketici ölçüt örneğidir.
+bölüm işaretlerine girer. Plan geneldir; bu tüketici yalnız bir ölçüt
+örneğidir ve sözleşmenin biçimini belirlemez.
 
 ### Kapsam dışı
 
@@ -66,6 +70,7 @@ bölüm işaretlerine girer. Plan geneldir; bu tüketici ölçüt örneğidir.
 | `speak` tool'unun diyalog sürümü | Tool tek replik içindir; diyalog workflow düğümünde çağrılır (Açık Soru 5) |
 | MEAI `ITextToSpeechClient` uyarlaması | MEAI 10.9.0 sözleşmesi tek ses taşır (`TextToSpeechOptions.VoiceId`); diyalog karşılığı yok |
 | Ses seviyesi, tempo, müzik | Tüketicinin medya işidir (ffmpeg) |
+| Uzun diyaloğu bölme ve PCM birleştirme yardımcıları | Medya araç seti işidir, kontrol düzlemi değil; bölme kuralı (bölüm sınırı, cümle) domain'e aittir. 2026-10-13'te plandan çıkarıldı |
 
 ### Bugün ne çalışmıyor — doğrulanmış kanıt
 
@@ -104,8 +109,8 @@ bölüm işaretlerine girer. Plan geneldir; bu tüketici ölçüt örneğidir.
   `IncludeTimestamps = false` iken `Segments` `null`'dır.
 - **Doğrulama ağdan önce:** boş liste, boş metin, boş ses kimliği, farklı ses
   sayısı > `MaxVoices`, toplam karakter > `MaxCharactersPerRequest` →
-  `ArgumentException`. Sessiz bölme yok (K1): bölme açık bir çağrıdır
-  (§ 203.4).
+  `ArgumentException`. Sessiz bölme yok (K1): bölme çağıranın işidir ve
+  `DialogueCapabilities` ona sınırı söyler.
 - **Kayıt:** `UseVoice()` yetenek arayüzünü bağlı sentezleyiciden türetir
   (`as ISpeechDialogueSynthesizer`, sağlık denetimi emsali). Bağlı
   sentezleyici yeteneği taşımıyorsa kayıt, çağrıda sağlayıcıyı adlandıran
@@ -156,16 +161,6 @@ bölüm işaretlerine girer. Plan geneldir; bu tüketici ölçüt örneğidir.
   toplamı, `UsageSource.Estimated`. Fiyat `Tracon:Pricing:Voice` altında
   `ProviderName` ile okunur (F-336); maliyet kaydı Faz 199'dur.
 
-## 203.4 — Bölme ve PCM birleştirme yardımcıları
-
-- `SpeechDialogueChunker.Split(turns, maxCharacters)` (`Tracon.Voice`): tur
-  sınırında böler; sınırı aşan tek repliği cümle sınırında aynı sesle böler;
-  sınırı aşan tek cümle `ArgumentException`. Parça, kaynağın tur
-  indekslerini taşır. Bölüm sınırı gibi domain kuralı çağırandadır.
-- `SpeechPcm.Concatenate(parts, sampleRate, gap)`: yalnız 16-bit mono PCM;
-  segmentleri birleşik zamana kaydırır. MP3 birleştirilmez (kodek işi).
-- İkisi de saf fonksiyondur; ağ, DI ve kiracı yoktur (Açık Soru 3).
-
 ---
 
 ## Planlanan Public API
@@ -197,7 +192,6 @@ ModelProviderSettings.Validate(IReadOnlyDictionary<string, JsonElement>, string 
 // Tracon.Voice
 VoiceOptions { string? DialogueModelId; int MaxDialogueCharactersPerRequest = 2000; }
 ElevenLabsProviderNames { const string SettingsPrefix = "elevenlabs"; SupportedSettings; }   // ad taslak
-static class SpeechDialogueChunker { Split(...) }  ·  static class SpeechPcm { Concatenate(...) }
 ```
 
 ### HTTP `endpoint`'leri
@@ -223,7 +217,6 @@ src/Tracon.Voice/
 ├── Internal/ElevenLabsSpeechClient.cs   (diyalog, ayarlar)
 ├── Internal/ElevenLabsDialogueJson.cs   (yeni, kaynak üretecili JSON)
 ├── ElevenLabsProviderNames.cs           (yeni)
-├── SpeechDialogueChunker.cs · SpeechPcm.cs (yeni)
 ├── VoiceOptions.cs · VoiceOptionsValidator · VoiceBuilderExtensions.cs
 └── README.md
 samples/Tracon.Api/Program.cs            (iki replikli diyalog düğümü)
@@ -246,8 +239,6 @@ tests/Tracon.Voice.UnitTests/…           (sınıflar Hata Modları tablosunda)
 | 8 | **Eşzamanlılık:** diyalog ve tek ses semaforu iki kez sayar | Birim | `ElevenLabsDialogueConcurrencyTests` |
 | 9 | **Alt sistem:** `4xx`/`5xx` anahtarı ya da adresi sızdırır | Birim | `ElevenLabsDialogueErrorTests` |
 | 10 | DI: yetenek kaydı yok; tüketicinin kaydı ezilir; yetenek taşımayan sentezleyici sessiz kalır | Birim (DI, `ValidateOnStart`) | `VoiceDialogueRegistrationTests` |
-| 11 | Bölme tur sınırını bozar; uzun replik sesini kaybeder; tek uzun cümle sessizce kesilir | Birim | `SpeechDialogueChunkerTests` |
-| 12 | PCM birleştirme segmentleri kaydırmaz; tek bayt kaydırması ses bozar | Birim | `SpeechPcmTests` |
 | 13 | **Başka kiracı:** kapsam dışı — bu faz kiracıdan habersizdir; Faz 198 kapısı test eder | — | — |
 | 14 | Sözleşme paket sınırında kırılır (Abstractions ↔ Voice yönü) | Mimari | `DependencyDirectionTests` |
 | 15 | Gerçek sağlayıcıda Türkçe iki sesli istek | Manuel (anahtar gerekir) | case 1 |
@@ -262,7 +253,7 @@ tests/Tracon.Voice.UnitTests/…           (sınıflar Hata Modları tablosunda)
 | 2 | Aynı | `elevenlabs.stability: 0.3` ile koş | İstek gövdesinde `settings.stability` (log) |
 | 3 | Aynı | `elevenlabs.bogus` ile koş | Ağ çağrısı yok; hata anahtarı adlandırır, değeri yazmaz |
 | 4 | Kendi `ISpeechSynthesizer`'ı olan host | Diyalog düğümünü koş | Hata sağlayıcıyı adlandırır; ElevenLabs'e çağrı yok |
-| 5 | 4.500 karakterlik 12 replik | `SpeechDialogueChunker.Split(…, 2000)` + sentez + `SpeechPcm.Concatenate` | Üç parça; birleşik segmentler sıralı ve kesintisiz |
+| 5 | Sınırı aşan 12 replik | Tek istekte gönder | Ağ çağrısı yok; hata sınırı ve gerçek karakter sayısını adlandırır |
 
 ---
 
@@ -272,7 +263,7 @@ tests/Tracon.Voice.UnitTests/…           (sınıflar Hata Modları tablosunda)
 |---|---|---|---|
 | 1 | Sözleşmenin yeri | A: ayrı yetenek arayüzü `ISpeechDialogueSynthesizer` · B: `ISpeechSynthesizer`'a varsayılan gövdeli üye | **A** — Faz 198 § 198.6 bu biçime yer bıraktı; tek sesli sağlayıcıya sahte üye yazdırmaz |
 | 2 | Ayarların biçimi | A: önekli `ProviderSettings` sözlüğü · B: tipli `SpeechVoiceSettings` (stability, similarity, style, speed) | **A** — ortak payda yok (Gemini'de bu alanlar yok); tipli kayıt en küçük paydaya iner (F-296 risk satırı); K-208 deseni |
-| 3 | Bölme ve birleştirme | A: yok · B: yalnız bölme · C: bölme + PCM birleştirme | **C** — ikisi de saf fonksiyon; tüketicinin en hatalı kodu (segment kaydırma) buradadır |
+| 3 | Bölme ve birleştirme | A: yok · B: yalnız bölme · C: bölme + PCM birleştirme | **A — karar verildi** (bakımcı, 2026-10-13): medya araç seti işidir; ilk öneri C tek tüketicinin koduna dayanıyordu ve geri alındı |
 | 4 | Diyalog modeli varsayılanı | A: API varsayılanı · B: `VoiceOptions.DialogueModelId` | **B**, varsayılan `null` = API varsayılanı |
 | 5 | HTTP ucu (`POST /api/voice/dialogue`) | A: bu fazda · B: yok | **B** — kullanım workflow düğümündedir; uç Faz 198'in çözümleyicisiyle birlikte gelir |
 | 6 | `POST /api/voice/speak` `providerSettings` taşısın mı | A: evet · B: hayır | **B** — uç operatör denemesidir; OpenAPI ve iki istemci büyümez |
@@ -285,7 +276,6 @@ tests/Tracon.Voice.UnitTests/…           (sınıflar Hata Modları tablosunda)
 - [ ] Sınır ve ayar ihlali ağdan önce `ArgumentException`; ret değeri yankılamaz (test 3, 4)
 - [ ] Tek ses yolu `voice_settings` ve süreklilik alanlarını gönderir; mevcut istekler değişmez (test 5)
 - [ ] Yetenek kaydı tüketicinin kaydını ezmez; yeteneksiz sentezleyici açık hata verir (test 10)
-- [ ] Bölme ve PCM yardımcıları test 11-12'yi geçer
 - [ ] Dört doğrulama kapısı sıfır uyarı verir — `python3 scripts/kapi.py kapanis --taban <faz öncesi commit>`
 - [ ] `samples/Tracon.Api` ile gerçek diyalog `run`'ı (case 1), çıktı belgeye yazıldı
 - [ ] `secret` taraması boş döndü
@@ -295,7 +285,7 @@ tests/Tracon.Voice.UnitTests/…           (sınıflar Hata Modları tablosunda)
 
 ### Doğrulama komutları
 
-Case 1 ve 5'ten kapanışta gerçek çıktıyla yazılır.
+Case 1 ve 3'ten kapanışta gerçek çıktıyla yazılır.
 
 ---
 
@@ -306,6 +296,7 @@ Case 1 ve 5'ten kapanışta gerçek çıktıyla yazılır.
 | ElevenLabs diyalog API'si değişir (alan, model adı) | Gövde ve yanıt birim testleri sabit JSON'la; canlı case 1 kapanışta koşar |
 | Diyalog `settings` alanları belgesiz kalır | Adım 0 ölçümü; etkisiz alan reddedilir |
 | Gemini sınırı (istekte 2 ses) sözleşmeyi zayıflatır | Yetenek bildirimi (`MaxVoices`); bölme çağıranın kararı |
+| Sözleşme tek tüketicinin ihtiyacına göre biçimlenir | Genellik satırı; her alan iki sağlayıcıda karşılık bulmalı ya da önekli sağlayıcı ayarına gitmeli |
 | Segment indeksleri sağlayıcıda kayar | Doğrulamasız eşleme yok; tutmayan yanıt `null` |
 
 ---

@@ -12,8 +12,8 @@
 > ([`kesif/`](kesif/)) · "bir daha önerilmez" listesini
 > ([`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md)).
 
-**Durum (2026-10-13):** sıralanabilir kuyrukta **5** aday var (F-297 podcast
-turu; F-319, F-322, F-324, F-347 video tüketicisi turu). Aynı turların on kalemi
+**Durum (2026-10-13):** sıralanabilir kuyrukta **6** aday var (F-297, F-420
+podcast turu; F-319, F-322, F-324, F-347 video tüketicisi turu). Aynı turların on kalemi
 2026-10-12'de yedi faza dönüştü (Faz 196…202); 2026-10-13'te F-296 Faz 203'e,
 F-320 ve F-346 Faz 204'e, F-405 Faz 196'ya girdi (planlandı). Bugün
 yapılabilecek iş § *Bekleyen Kalemler*'in üç kanal tablosundadır. Planlanmış fazlar
@@ -43,6 +43,7 @@ Bu dosya **baştan sona okunmaz.** İhtiyacın olan bölüme git.
 | Ölçüt | Soru |
 |---|---|
 | **Değer** | Bu olmadan Tracon'i kim kullanamaz? |
+| **Genellik** | Bu bir uygulamanın kendi sorusu mu, kontrol düzleminin eksiği mi? Hangi tüketici sınıfı etkilenir; iş tüketici kodunda kalabilir mi? |
 | **Maliyet** | Kaç paket, kaç yeni public tip, kaç migration? |
 | **Risk** | Bir tasarım kuralını, AOT veya bundle bütçesini zorluyor mu? |
 | **Hazırlık** | MAF veya .NET ekosisteminde hazır mı, sıfırdan mı? |
@@ -60,9 +61,26 @@ Bir adayın `Mercek` satırı aşağıdaki destekleyen mercekleri numarayla saya
 | 7 | **Ölçme–iyileştirme** | Üretim verisini geliştirmeye geri besler mi? |
 | 8 | **Maliyet (FinOps)** | Tüketicinin model faturasını düşürür mü? |
 
-Her aday gövdesi şu alanları taşır: **Sorun · Kapsam · Değer · Mercek ·
-Hazırlık · Maliyet · Risk · Bağımlılık · Ekosistem · Karşı görüş.** Bir alan
-ölçülmediyse öyle yazılır; boş bırakılmaz.
+Her aday gövdesi şu alanları taşır: **Sorun · Kapsam · Değer · Genellik ·
+Mercek · Hazırlık · Maliyet · Risk · Bağımlılık · Ekosistem · Karşı görüş.** Bir
+alan ölçülmediyse öyle yazılır; boş bırakılmaz. `Genellik` 2026-10-13'te
+eklendi; daha eski kalem onu plan anında doldurur.
+
+### Tüketici geri bildirimi kuralı
+
+Bakımcı kararı (2026-10-13). Tracon binlerce tüketicinin bağımlı olacağı bir
+pakettir; bir tüketicinin isteği Tracon'un eksiğini gösteren bir **sinyaldir**,
+iş emri değildir. Ölçülen sebep: Faz 192 ve 194–204'ün on ikisi aynı tüketici
+projesinin iki raporundan doğdu.
+
+- Tek bir tüketici turundan çıkan **yetenek** adayı ikinci bir kanıt olmadan
+  faz planlama kanalına geçmez. İkinci kanıt başka bir tüketici, bir ekosistem
+  standardı ya da ilk ilkeden türeyen bir eksiktir. Kanıt yoksa kalem
+  § *Tetik bekleyenler*'e gider ya da tüketici kodunda kalır.
+- Sözleşme ihlali bu kuraldan muaftır: belgelenen davranışı ya da kiracı
+  sınırını bozan kusur, kim bulursa bulsun kusur kanalına girer.
+- Plan onayında `Genellik` ve `Karşı görüş` açıkça cevaplanır; cevap plan
+  başlığına yazılır (`faz-planlama` Adım 2).
 
 ### Kanal ve aciliyet
 
@@ -237,6 +255,32 @@ aday `aday-kesfi` ile üretilir. Bugünkü kalemler 2026-10-11 podcast
 
 ---
 
+### F-420 · Önbellek yazma token'ı ve fiyatı run maliyetine girsin
+
+**Kanal:** faz planlama · 🟢 (ölçüm kanalı değiştirebilir, bkz. Genellik)
+
+**Sorun:** Run maliyeti yalnız önbellek **okuma** token'ını ve fiyatını taşır (`UsageBreakdown.cs:36`, `RunSupportTypes.cs:41`, `:148`; `ModelDescriptor` okuma fiyatı `:46`). Anthropic önbellek yazmasını ayrıca faturalar (5 dk TTL 1,25×, 1 sa 2× girdi fiyatı). MEAI uyarlayıcısının `cache_creation_input_tokens`'ı nereye yazdığı ölçülmedi.
+
+**Kapsam:** Adım 0 ölçümü; sonra `RunUsage` ve `RunCost`/`RunTreeCost`'a yazma terimi, `ModelDescriptor`'a TTL başına yazma fiyatı (K-032), `Total()` dört terim (K-483), üç sağlayıcıda migration, kota ve webhook toplamı.
+
+**Değer:** Önbellekli Anthropic kullanan her tüketicinin run maliyeti ve maliyet kotası doğru olur.
+
+**Genellik:** İlk ilke: Tracon run maliyetini sözleşme olarak sunar; önbellekli her Anthropic kullanıcısı etkilenir. Tek tüketici ölçümü yalnız sinyaldir (podcast pilotu, toplamın ~%1'i). Ölçüm token'ın hiç sayılmadığını gösterirse kalem maliyet kaydı kusurudur ve kusur kanalına geçer; girdi fiyatıyla sayılıyorsa fiyat eksiğidir ve burada kalır.
+
+**Mercek:** 2, 8.
+
+**Hazırlık:** Okuma fiyatı deseni hazır (`CachedInputCostPerMillionTokens`); SDK 12.39.0 `Ttl.Ttl1h` taşır.
+
+**Maliyet:** Public alanlar, migration (üç sağlayıcı), ağaç toplamı sorgusu, konsol maliyet satırı, iki istemci.
+
+**Risk:** Toplama ifadesine yeni terim (K-483 sınıfı): kota veya webhook terimi kaçırırsa kiracı tavanı aşılır.
+
+**Bağımlılık:** Faz 204 (`promptCaching.ttl`); F-419 (ağaçta para birimi kuralı) aynı toplamlara dokunur.
+
+**Ekosistem (2026-10-13):** Anthropic önbellek yazmasını TTL'e göre fiyatlar; OpenAI yazma ücreti almaz; Gemini bağlam önbelleği saklama süresine göre ücretlendirir.
+
+**Karşı görüş:** Ölçülen pilotta pay ~%1'dir; migration'ın maliyeti değerden büyük olabilir. Ölçüm "hiç sayılmıyor" demedikçe beklemek savunulabilir.
+
 ## Bekleyen Kalemler
 
 Bir kalem buradan iki yolla çıkar: iş yapılır (kalem kapanır veya plana
@@ -312,6 +356,7 @@ yolda da § *Kalemin yaşam döngüsü* uygulanır.
 | 🟢 | **F-409** · Alt agent ve skill sürüm sabiti | Faz 200 kapsam dışı: agent → skill ve alt agent adımı güncel sürümle koşar (K-895 (c)); agent numarası silmede yeniden kullanılır, sabit bunu miras alır | Faz 200'den sonra; numara yeniden kullanımı önce kapanır |
 | 🟢 | **F-410** · Kod Loop ölçütüne tanım başına tipli ayar | Faz 201 kapsam dışı: özel tür veri almaz (`LoopEvaluatorRegistry.cs:321-323`); Faz 195'in `Settings` deseni emsal | Faz 201'den sonra |
 | 🟢 | **F-417** · Görsel sağlayıcısı kiracının kendi anahtarını kullanabilsin | K-912 (2026-10-13): kiracının görsel sağlayıcısı için bağlaması varsa üretim reddedilir, çünkü sağlayıcı paketleri üreticiyi kurulum anahtarıyla kurar. Canlı ses `SupportsTenantCredentials` ile aynı işi çözdü (K-878) | Faz 198'in konuşma modeliyle birlikte: anahtarlı üretici fabrikası, OpenAI/Azure/Google görsel kaydı |
+| 🟢 | F-420 · Önbellek yazma token'ı ve fiyatı | Faz 204'ten ayrıldı (2026-10-13); önce ölçüm | Gövde: § *F-420* |
 
 ### Doğrudan
 
@@ -473,7 +518,7 @@ kaydındadır; burada yalnız hangi eşikte bekledikleri yazar.
 ### F-ID tahsis kuralı
 
 Numara **geri dönüştürülmez** ve bir numara **tek kaleme** aittir. Sıradaki
-numara: **F-420**.
+numara: **F-421**.
 
 Numarayı tahsis eden el sayacı **aynı değişiklikte** bir artırır.
 `python3 scripts/dokuman-bakim.py --denetle` iki şeyi zorlar:

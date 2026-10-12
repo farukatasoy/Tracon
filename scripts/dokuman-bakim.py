@@ -242,7 +242,13 @@ DIZIN_BUTCESI = {
     # duzeltmesiyle 1_471 B geri ekledi). Bu tur sayaci net DUSURDU (sicak yol
     # dosyalarindan arsive tasima); kalan acigin kaynagi `docs/manuel-test` alt
     # agacidir ve o kendi satirinda ayrica kalibre edildi. olculen/0.85.
-    ("docs", True, True):             4_377_000,    # ONCEKI KALIBRASYON 2026-09-07; olculen 3_579_302
+    # YENIDEN KALIBRE 2026-10-13 (kullanici karari): 4_377_000 -> 5_138_000; olculen
+    # 4_366_933 (iki tuketici turu + Faz 203/204 planlari + bes kusur kaydi sonrasi).
+    # Once tasima denendi: yayin defterinin kapanmis karar gunlugu (KG-001..KG-039,
+    # 31_713 B) arsive indi ve agac %0 bosluga dustu; tasinacak baska birikimli
+    # icerik bulunamadi, sinir bir sonraki fazda yine asilirdi. Ayni formul:
+    # olculen/(1-%15 bosluk), yukari yuvarlandi.
+    ("docs", True, True):             5_138_000,    # ONCEKI KALIBRASYON 2026-09-15; olculen 3_720_365
                                                     # (dokuman butcesi mudahale turu; olculen/0.85=4_210_944)
     # Faz 90 kapanisi: 3_020_000 kapanistan ONCE olculmustu ve fazin KENDI
     # kaydi + denetim duzeltmeleri eklenince %14 bosluga dustu. Sinir fazin

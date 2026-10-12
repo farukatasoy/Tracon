@@ -68,6 +68,9 @@ Kalite eşiğini bu belirler:
 - Her public üye XML dokümanına sahip olmalıdır (build bunu zorlar)
 - Tüketicinin bağımlılık grafiğini kirletme
 - `TryAdd*` ile kaydet; tüketicinin kaydı her zaman kazanmalı
+- Tüketici isteği geri bildirimdir, iş emri değildir: kalem ancak birçok
+  tüketicinin kontrol düzlemi eksiğiyse plana girer
+  ([`ADAYLAR.md`](docs/ADAYLAR.md) § *Tüketici geri bildirimi kuralı*)
 
 ---
 

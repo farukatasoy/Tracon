@@ -115,6 +115,21 @@ plan yanlıştır.
 | **AOT** | `Abstractions`, `Core`, `PostgreSql`, `OpenAI` AOT uyumlu kalır. Yansımaya dayanan tasarım bu paketlere giremez |
 | **Public API** | `TraconPublicApiTrackingEnabled` varsayılanı **`true`**'dur (K-421) ama `PublicAPI.Shipped.txt` dosyaları **boştur** — yüzeyi büyüten kalem `1.0.0` GA'dan (`Shipped` dolumu, K-603) **önce** hâlâ ucuzdur, sonra bir sürüm kararıdır. Plan bunu bir cümleyle söyler ve iddiayı `wc -l src/*/PublicAPI.Shipped.txt` ile **ölçer** |
 
+### Genellik — kalem kontrol düzleminin eksiği mi?
+
+Tracon bir uygulama değil, bir kütüphanedir. Plan başlığı iki satırı
+**cevaplanmış** taşır (ADAYLAR § *Tüketici geri bildirimi kuralı*):
+
+- `> **Genellik:**` — hangi tüketici sınıfı etkilenir, iş tüketici kodunda
+  kalabilir mi, ikinci kanıt nedir. Tek bir tüketiciden gelen ve ikinci kanıtı
+  olmayan yetenek plana çevrilmez; sözleşme ihlali (kusur) muaftır.
+- `> **Karşı görüş:**` — adayın karşı görüşü ve planın ona cevabı. Karşı görüşü
+  tartmadan yazılan plan eksiktir.
+
+🚨 Ölçülen vaka (2026-10-13): F-296'nın karşı görüşü "ses üretimi çekirdek iş
+değil" diyordu; tartılmadan öne alındı ve plana tüketicinin medya yardımcıları
+girdi. Düzeltme kapsamı daralttı (Faz 203).
+
 ### Sözleşme değişikliği kırıcı mıdır?
 
 `ModelBinding` gibi `sealed record` public tiplere alan eklemek `1.0.0` GA'dan

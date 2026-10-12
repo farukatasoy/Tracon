@@ -2317,6 +2317,9 @@ Podcast tüketicisinin reposu 2026-10-13'te ölçüldü (dördüncü değerlendi
 [podcast raporu](incelemeler/2026-10-11-podcast-tuketici-uyum-raporu.md)).
 Bakımcı üç kararı verdi: F-296'nın planı Faz 201'den önce; F-405 Faz 196'ya
 girer; F-320 öne alınır ve F-346'nın kapsamına önbellek yazma fiyatı eklenir.
+Aynı gün tüketici geri bildirimi kuralıyla (ADAYLAR § Değerlendirme Ölçütleri)
+yeniden tartıldı: Faz 203 daraldı ve Faz 198'in arkasına geçti, önbellek yazma
+fiyatı F-420 adayına ayrıldı.
 Kanıt `55272673` zemininde yeniden doğrulandı. Belirgin düzeltmeler: F-296'nın
 "ses ayarları" maddesi önekli sağlayıcı ayarı sözlüğüne döndü (ortak payda
 yok); bölme ve PCM birleştirme yardımcı fonksiyon oldu, sözleşme tek istektir.

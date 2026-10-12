@@ -121,6 +121,7 @@ Ucuz tur. Amaç eleme yapmaktır, kanıtlamak değil.
 | MAF veya .NET yeni sürümü | Elle yazdığımızı çerçeve verdi mi? Ön sürümden çıktı mı? |
 | Var olanın optimizasyonu | Yeni bir API eski çözümümüzü gereksiz kıldı mı? (çoğu zaman Kanal 3) |
 | Persona acısı | İlk agent'a kadar geçen süre · gece 03:00 · satın alma kapısı |
+| Tüketici raporu | Bir tüketicinin acısı Tracon'un eksiğini gösterir. 🚨 Tek tüketiciden gelen yetenek ikinci kanıt olmadan planlamaya geçmez (ADAYLAR § *Tüketici geri bildirimi kuralı*); sözleşme ihlali kusur kanalına girer |
 
 ---
 
@@ -171,7 +172,11 @@ Kurallar:
 burada **tekrarlanmaz**; iki yerde tutmak kayma üretir. Oradan oku, kaleme
 uygula.
 
-- Dört ölçüt: **Değer · Maliyet · Risk · Hazırlık**
+- Beş ölçüt: **Değer · Genellik · Maliyet · Risk · Hazırlık**
+- 🚨 `Genellik` cevabı "yalnız bu tüketici" ya da "tüketici kodunda kalabilir"
+  ise kalem aday olmaz: keşif notunda gerekçesiyle kalır ya da tetik bekler.
+  Medya, domain ve uygulama akışı tüketicinin işidir; Tracon kontrol
+  düzlemidir
 - Sekiz mercek: kalemin `Mercek:` satırı destekleyen mercekleri **numarayla**
   sayar
 - 🚨 Yalnız bir mercekten iyi görünen kalem zayıftır. Ya kapsamını büyüt ya düşür
@@ -242,6 +247,7 @@ Aday dosyasındaki mevcut biçim korunur, sonuna bir alan eklenir:
 **Sorun:** … (kanıt `dosya:satır`)
 **Kapsam:** …
 **Değer:** …
+**Genellik:** … (hangi tüketici sınıfı; tüketici kodunda kalabilir mi; ikinci kanıt)
 **Mercek:** 2, 3, 8.
 **Hazırlık:** …
 **Maliyet:** …
