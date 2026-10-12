@@ -5693,3 +5693,38 @@ Tracon.TraconLoopUnsatisfiedException.UnsatisfiedCriterion.get -> string?
 Tracon.TraconLoopUnsatisfiedException.UnsatisfiedCriterion.init -> void
 const Tracon.TraconLoopUnsatisfiedException.LoopUnsatisfiedErrorType = "loop_unsatisfied" -> string!
 override Tracon.TraconLoopUnsatisfiedException.ErrorType.get -> string!
+Tracon.WebhookEvalSummary
+Tracon.WebhookEvalSummary.AgentName.get -> string?
+Tracon.WebhookEvalSummary.AgentName.init -> void
+Tracon.WebhookEvalSummary.AgentVersion.get -> int?
+Tracon.WebhookEvalSummary.AgentVersion.init -> void
+Tracon.WebhookEvalSummary.EvalRunId.get -> string!
+Tracon.WebhookEvalSummary.EvalRunId.init -> void
+Tracon.WebhookEvalSummary.Failed.get -> int
+Tracon.WebhookEvalSummary.Failed.init -> void
+Tracon.WebhookEvalSummary.InputTokens.get -> long?
+Tracon.WebhookEvalSummary.InputTokens.init -> void
+Tracon.WebhookEvalSummary.ModelId.get -> string?
+Tracon.WebhookEvalSummary.ModelId.init -> void
+Tracon.WebhookEvalSummary.OutputTokens.get -> long?
+Tracon.WebhookEvalSummary.OutputTokens.init -> void
+Tracon.WebhookEvalSummary.Passed.get -> int
+Tracon.WebhookEvalSummary.Passed.init -> void
+Tracon.WebhookEvalSummary.Status.get -> string?
+Tracon.WebhookEvalSummary.Status.init -> void
+Tracon.WebhookEvalSummary.SuiteName.get -> string?
+Tracon.WebhookEvalSummary.SuiteName.init -> void
+Tracon.WebhookEvalSummary.Total.get -> int
+Tracon.WebhookEvalSummary.Total.init -> void
+Tracon.WebhookEvalSummary.WebhookEvalSummary() -> void
+Tracon.WebhookEventPayload.Eval.get -> Tracon.WebhookEvalSummary?
+Tracon.WebhookEventPayload.Eval.init -> void
+Tracon.WebhookRunSummary.Kind.get -> string?
+Tracon.WebhookRunSummary.Kind.init -> void
+Tracon.WebhookEvalSummary.<Clone>$() -> Tracon.WebhookEvalSummary!
+Tracon.WebhookEvalSummary.Equals(Tracon.WebhookEvalSummary? other) -> bool
+override Tracon.WebhookEvalSummary.Equals(object? obj) -> bool
+override Tracon.WebhookEvalSummary.GetHashCode() -> int
+override Tracon.WebhookEvalSummary.ToString() -> string!
+static Tracon.WebhookEvalSummary.operator !=(Tracon.WebhookEvalSummary? left, Tracon.WebhookEvalSummary? right) -> bool
+static Tracon.WebhookEvalSummary.operator ==(Tracon.WebhookEvalSummary? left, Tracon.WebhookEvalSummary? right) -> bool

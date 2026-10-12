@@ -2041,3 +2041,40 @@ Otomatik karşılığı: `HarnessLoopTests.An_aiJudge_loop_records_the_judge_tok
   `usage`'ına, maliyetine ve kotasına girmiyordu (MAF yargıcın yanıtını
   atar). Sıkıştırma özetleyicisinin token'ları ise agent modelinin fiyatıyla
   fiyatlanıyordu.
+
+---
+
+### MT-OBS-068 — Belgelenen her webhook olayı yayınlanır: workflow `run.*` ve isteği, `job.*`, `eval.completed` (kusur-giderme, 2026-10-12, F-333)
+
+Regresyon. Dört olay tanımlıydı, abonelikte kabul ediliyordu ve sitede vaat
+ediliyordu, ama hiçbir kod yolu onları yayınlamıyordu; workflow kökü `run.*`
+de üretmiyordu. Abone sessizlik alıyordu. Otomatik karşılığı:
+`WebhookEventPublishingTests` (yayıncı tohumu kaydeden sahteyle).
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 21 |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- MT-OBS-056'daki gibi gelen istekleri kaydeden bir hedef.
+- `run.completed`, `workflow.request.pending`, `job.completed`, `job.failed` ve
+  `eval.completed` için bir abonelik.
+
+**Adımlar**
+1. Fonksiyon düğümlü bir workflow'u çalıştır.
+2. `RequestPort` taşıyan bir workflow'u (`approval-flow`) çalıştır; istek bekler.
+3. Var olmayan bir agent'a `AgentBatch` job'u tetikle; sonra var olan bir agent'a.
+4. İki case'li bir eval suite'i çalıştır.
+5. Hedefin aldığı gövdeleri oku.
+
+**Beklenen sonuç**
+- Adım 1: `run.completed`, `run.kind = Workflow`, `run.agentName` workflow adı.
+- Adım 2: istek başına bir `workflow.request.pending`; `approval.requestId`
+  `GET /api/workflows/runs/{id}/requests` ile aynıdır; istem metni yoktur.
+- Adım 3: önce `job.failed` (handler hatası, `error` dolu), sonra `job.completed`.
+- Adım 4: `eval.completed`, `eval.total = 2`.
+- Teslim job'larının kendisi için hiçbir `job.*` olayı yoktur.
+- 🚨 Eski kusur: yalnız agent `run.*` geldi; diğer dördü hiç gelmedi.

@@ -31,6 +31,7 @@ const EVENTS = [
   'job.failed',
   'eval.completed',
   'quota.threshold',
+  'run.score.low',
 ] as const;
 
 /**
