@@ -35,12 +35,13 @@ public static class TraconWorkflowContextExtensions
     /// <code>
     /// builder.AddTracon()
     ///        .UseWorkflows()
-    ///        .AddWorkflowFunction&lt;string, string&gt;(
+    ///        .AddWorkflowFunction&lt;List&lt;ChatMessage&gt;, List&lt;ChatMessage&gt;&gt;(
     ///            "narrate",
-    ///            provider => (input, context, cancellationToken) =>
+    ///            provider => (messages, context, cancellationToken) =>
     ///            {
     ///                var voice = context.GetRunParameters()["voice"];
-    ///                return ValueTask.FromResult($"{voice}: {input}");
+    ///                return ValueTask.FromResult&lt;List&lt;ChatMessage&gt;&gt;(
+    ///                    [new ChatMessage(ChatRole.User, $"{voice}: {messages[^1].Text}")]);
     ///            });
     /// </code>
     /// </example>
