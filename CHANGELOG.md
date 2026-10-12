@@ -85,6 +85,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Every documented webhook event is now published. `workflow.request.pending`,
+  `job.completed`, `job.failed` and `eval.completed` were defined, accepted on
+  subscribe and listed on the site, but no code published them, and a workflow
+  run produced no `run.*` event at all (its agent steps are child runs). A
+  workflow root now publishes `run.completed`/`run.failed` with the run tree's
+  tokens and cost, and one `workflow.request.pending` per request it waits on
+  (ids only, no prompt). A job publishes `job.completed` or `job.failed` when it
+  reaches that status (a cancelled job and a webhook delivery job publish
+  nothing). An evaluation run publishes `eval.completed` when it completes, is
+  cancelled, or fails on its last attempt. The console's subscription form now
+  also offers `run.score.low`.
 - Retention and data subject erasure now delete an attachment's bytes in a
   registered `IAttachmentStorage`. Retention's `attachments` target never read
   `external_uri`, so the bytes stayed in object storage for ever; it now deletes
@@ -382,6 +393,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `WebhookEvalSummary` and `WebhookEventPayload.Eval`: the payload of the
+  `eval.completed` webhook.
+- `WebhookRunSummary.Kind`: `Agent` or `Workflow`, on every `run.*` webhook.
 - `OpenAIProviderNames.SettingsPrefix` (`openai`) and
   `OpenAIProviderNames.SupportedSettings` (empty).
 - `HarnessSettings.EnableWebSearch`: turns on the model provider's hosted web

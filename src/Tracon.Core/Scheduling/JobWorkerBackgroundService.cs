@@ -34,7 +34,8 @@ internal sealed class JobWorkerBackgroundService(
     ITraconDrainState drainState,
     TimeProvider? timeProvider = null,
     ILogger<JobWorkerBackgroundService>? logger = null,
-    TraconMetrics? metrics = null) : BackgroundService
+    TraconMetrics? metrics = null,
+    IWebhookPublisher? webhookPublisher = null) : BackgroundService
 {
     /// <summary>
     /// The handler-key metric tag published for a job whose key no handler is
@@ -431,6 +432,7 @@ internal sealed class JobWorkerBackgroundService(
             stoppingToken).ConfigureAwait(false);
 
         RecordJobMetric(job, JobStatus.Failed, startedAt, handlerKeyTag);
+        await PublishJobOutcomeAsync(job, JobStatus.Failed, errorMessage, stoppingToken).ConfigureAwait(false);
     }
 
     private async Task ExecuteWithHandlerAsync(
@@ -574,6 +576,7 @@ internal sealed class JobWorkerBackgroundService(
             : completion.Status;
 
         RecordJobMetric(job, finalStatus, startedAt);
+        await PublishJobOutcomeAsync(job, finalStatus, completion.ErrorMessage, stoppingToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -636,6 +639,7 @@ internal sealed class JobWorkerBackgroundService(
             if (failed)
             {
                 RecordJobMetric(job, JobStatus.Failed, startedAt);
+                await PublishJobOutcomeAsync(job, JobStatus.Failed, safeMessage, stoppingToken).ConfigureAwait(false);
             }
 
             return;
@@ -773,6 +777,75 @@ internal sealed class JobWorkerBackgroundService(
             }
 
             return null;
+        }
+    }
+
+    /// <summary>
+    /// Publishes <c>job.completed</c> or <c>job.failed</c> for a job that just
+    /// reached that status.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A cancelled job publishes nothing, the same as a cancelled run. A
+    /// webhook delivery job publishes nothing either: its own event would queue
+    /// another delivery job for it, without end.
+    /// </para>
+    /// <para>
+    /// The item counts come from a fresh read of the job; when that read fails
+    /// the leased copy's counts are sent. A failure here is logged and changes
+    /// nothing about the job (observability must not break functionality).
+    /// </para>
+    /// </remarks>
+    // F-333: the job.* events were documented and accepted on subscribe, but no
+    // code published them.
+    private async Task PublishJobOutcomeAsync(JobRecord job, JobStatus status, string? errorMessage, CancellationToken stoppingToken)
+    {
+        if (webhookPublisher is null ||
+            status is not (JobStatus.Completed or JobStatus.Failed) ||
+            string.Equals(job.HandlerKey, JobHandlerKeys.WebhookDelivery, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        try
+        {
+            JobRecord latest;
+
+            try
+            {
+                latest = await jobStore.GetAsync(job.TenantId, job.Id, stoppingToken).ConfigureAwait(false) ?? job;
+            }
+            catch (Exception exception) when (OperationCancellation.IsFailure(exception, stoppingToken))
+            {
+                latest = job;
+            }
+
+            await webhookPublisher.PublishAsync(
+                job.TenantId,
+                status == JobStatus.Completed ? WebhookEvents.JobCompleted : WebhookEvents.JobFailed,
+                new WebhookEventPayload
+                {
+                    OccurredAt = _clock.GetUtcNow(),
+                    Job = new WebhookJobSummary
+                    {
+                        JobId = job.Id.ToString(),
+                        Kind = job.HandlerKey,
+                        TargetName = job.TargetName,
+                        Status = status.ToString(),
+                        TotalItems = latest.TotalItems,
+                        DoneItems = latest.DoneItems,
+                        FailedItems = latest.FailedItems,
+                        Error = errorMessage,
+                    },
+                },
+                stoppingToken).ConfigureAwait(false);
+        }
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, stoppingToken))
+        {
+            if (logger is not null && logger.IsEnabled(LogLevel.Warning))
+            {
+                logger.LogWarning(exception, "The webhook of job {JobId} could not be published.", job.Id);
+            }
         }
     }
 

@@ -192,6 +192,7 @@ public sealed partial class RunRecordingAgent
                     RootRunId = scope.RootRunId.ToString(),
                     SessionId = scope.SessionId,
                     AgentName = scope.AgentName,
+                    Kind = scope.Kind.ToString(),
                     ModelId = modelId,
                     Status = status.ToString(),
                     DurationMs = (long)elapsed.TotalMilliseconds,
