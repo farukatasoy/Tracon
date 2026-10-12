@@ -1953,7 +1953,7 @@ Planın kanıtı 2026-10-12 tarihinde yeniden doğrulandı; aday metnindeki
 
 | Kalem | Faz |
 |---|---|
-| F-294 | [Faz 194](../194-WORKFLOW-VE-KUYRUK-PARAMETRELERI.md) |
+| F-294 | [Faz 194](fazlar/194-WORKFLOW-VE-KUYRUK-PARAMETRELERI.md) |
 
 ### F-294 · Workflow run parametreleri agent `{{param}}`'larına ve fonksiyon düğümlerine ulaşsın
 

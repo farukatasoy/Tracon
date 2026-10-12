@@ -656,7 +656,7 @@ kuralını kendi domain'inde zorlar.
 | F-346 | Anthropic güncel API ayarları: önbellek TTL'i ve yerleşimi, adaptive thinking, örnekleme kısıtı | 🟡 | Aday |
 | F-347 | OpenAI strict şema modu ve etkin şemanın görünürlüğü | 🟡 | Aday; F-340 önkoşulu kapandı |
 
-Mevcut kalemler: F-294 → [Faz 194](../../194-WORKFLOW-VE-KUYRUK-PARAMETRELERI.md)
+Mevcut kalemler: F-294 → [Faz 194](../fazlar/194-WORKFLOW-VE-KUYRUK-PARAMETRELERI.md)
 (uygulanıyor; kuyruklu run'a parametre ve belge dahil) · F-292 + F-295 →
 [Faz 195](../../195-WORKFLOW-DUGUM-DUZENLEME-VE-AYAR.md) (planlı) · F-296
 (istek ayarları dilimi önce) · F-298 (🟠) · F-299 (çok birim: TTS karakteri,

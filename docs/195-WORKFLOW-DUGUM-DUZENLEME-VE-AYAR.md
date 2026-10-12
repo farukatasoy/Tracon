@@ -3,7 +3,7 @@
 > **Durum:** 📋 Planlandı (2026-10-12)
 > **Plan onayı:** Bakımcı, 2026-10-12 (engelleyici kararlar sohbette alındı: F-292 + F-295 tek faz; tipli ayar; son fonksiyon düğümü silinince `agentNames`'e dönüş; konsolda JSON alanı + şema yardımı; aynı fonksiyonun zincirde iki kez kullanımı kapsam dışı)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-292**, **F-295**
-> **Önkoşul:** [Faz 194](194-WORKFLOW-VE-KUYRUK-PARAMETRELERI.md) — **işlevsel bağımlılık yok**, ama dört dosyayı paylaşırlar (`workflow-editor.tsx`, `WorkflowContracts.cs`, `WorkflowDefinitionPayload.cs`, `full-replace-editors.test.tsx`). İki yazar aynı dosyaya aynı anda dokunmasın diye uygulama Faz 194 kapandıktan sonra başlar
+> **Önkoşul:** [Faz 194](arsiv/fazlar/194-WORKFLOW-VE-KUYRUK-PARAMETRELERI.md) — **işlevsel bağımlılık yok**, ama dört dosyayı paylaşırlar (`workflow-editor.tsx`, `WorkflowContracts.cs`, `WorkflowDefinitionPayload.cs`, `full-replace-editors.test.tsx`). İki yazar aynı dosyaya aynı anda dokunmasın diye uygulama Faz 194 kapandıktan sonra başlar
 > **Paketler:** `Tracon.Abstractions`, `.Core`, `.Workflows`, `.AspNetCore`, `.Sql.Shared`, `.UI` · üretilen: `Tracon.Client`, `@tracon/client`
 > **Yeni paket:** Yok · **Migration:** Yok — workflow tanımı `workflows.definition` JSON blob'unda durur (`0007_workflows.sql`); yeni alan blob'a girer
 > **Public API:** büyüyor — `1.0.0` GA'dan (K-603) önce ucuz. Ölçüldü (2026-10-12): `wc -l src/*/PublicAPI.Shipped.txt` → 17 dosya, her biri yalnız `#nullable enable` satırı

@@ -2,8 +2,8 @@
 
 > **Durum:** ✅ Tamamlandı (2026-10-12)
 > **Plan onayı:** Bakımcı, 2026-10-12 (engelleyici kararlar sohbette alındı: kalem F-294; tam kapsam; workflow kendi şemasını bildirir; değer `run_inputs`'ta yeni sütunda; kuyruk yükünde alan; batch'te öğe başına nesne)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-294**
-> **Önkoşul:** Yok — F-330 (K-890) ve [Faz 192](arsiv/fazlar/192-DONGU-TUKENME-POLITIKASI.md) kapandı. [Faz 193](193-NET8-NET9-DUSURME.md) konu bakımından bağımsızdır; sıra serbesttir
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-294**
+> **Önkoşul:** Yok — F-330 (K-890) ve [Faz 192](192-DONGU-TUKENME-POLITIKASI.md) kapandı. [Faz 193](../../193-NET8-NET9-DUSURME.md) konu bakımından bağımsızdır; sıra serbesttir
 > **Paketler:** `Tracon.Abstractions`, `.Core`, `.Workflows`, `.AspNetCore`, `.Sql.Shared`, `.PostgreSql`, `.SqlServer`, `.Sqlite`, `.UI` · üretilen: `Tracon.Client`, `@tracon/client`
 > **Yeni paket:** Yok · **Migration:** gerekli — `run_inputs.parameters` sütunu, üç sağlayıcıda; numara uygulama anında alınır (K-178)
 > **Public API:** büyüyor — `1.0.0` GA'dan (K-603) önce ucuz. Ölçüldü (2026-10-12): `wc -l src/*/PublicAPI.Shipped.txt` → 17 dosya, her biri yalnız `#nullable enable` satırı
@@ -41,17 +41,17 @@
    `AgentDecoratorPipeline.Apply`, `AgentDefinitionPayload` tuzağı. Bu faz o yolu
    dört yeni çağırana açar.
 4. Alan hafızası (beş alan):
-   [`hafiza/workflows.md`](hafiza/workflows.md) (executor kimliği, katalogdan
+   [`hafiza/workflows.md`](../../hafiza/workflows.md) (executor kimliği, katalogdan
    doğrudan agent, `ChildAgentInvoker`) ·
-   [`hafiza/agent-derleme-ve-onbellek.md`](hafiza/agent-derleme-ve-onbellek.md)
+   [`hafiza/agent-derleme-ve-onbellek.md`](../../hafiza/agent-derleme-ve-onbellek.md)
    (önbellek atlaması) ·
-   [`hafiza/cekirdek-calistirma.md`](hafiza/cekirdek-calistirma.md)
+   [`hafiza/cekirdek-calistirma.md`](../../hafiza/cekirdek-calistirma.md)
    (`TraconRunContext`, `AsyncLocal` kuralı) ·
-   [`hafiza/postgresql.md`](hafiza/postgresql.md) (sabit sütun indeksi — yeni
+   [`hafiza/postgresql.md`](../../hafiza/postgresql.md) (sabit sütun indeksi — yeni
    sütun **sona**) ·
-   [`hafiza/frontend.md`](hafiza/frontend.md) (tam değiştiren editör kapısı)
+   [`hafiza/frontend.md`](../../hafiza/frontend.md) (tam değiştiren editör kapısı)
 5. Gerektiğinde, tamamı değil ilgili bölümü:
-   [`MIMARI-GUVENLIK.md`](MIMARI-GUVENLIK.md) içerik koruması
+   [`MIMARI-GUVENLIK.md`](../../MIMARI-GUVENLIK.md) içerik koruması
    (`IContentProtector`) ve retention bölümleri
 
 ---
@@ -90,24 +90,24 @@ run'ın değerlerini kullanır.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`AgentEndpoints.cs:825-837`](../src/Tracon.AspNetCore/Endpoints/AgentEndpoints.cs) | Yalnız senkron `/run` değeri taşır: `CompileParameterizedAsync` + elle dekorasyon (K-581) |
-| [`WorkflowContracts.cs:81-91`](../src/Tracon.AspNetCore/Contracts/WorkflowContracts.cs) · [`IWorkflowRunner.cs:121-145`](../src/Tracon.Abstractions/Workflows/IWorkflowRunner.cs) | `WorkflowRunHttpRequest` ve `WorkflowRunRequest` yalnız `Message`, `SessionId`, `RunId` taşır |
-| [`WorkflowDefinition.cs:21`](../src/Tracon.Abstractions/Workflows/WorkflowDefinition.cs) | Tanımda parametre şeması yok |
-| [`WorkflowEndpoints.cs:456-463`](../src/Tracon.AspNetCore/Endpoints/WorkflowEndpoints.cs) | Run ucu runner'a yalnız mesajı geçer |
+| [`AgentEndpoints.cs:825-837`](../../../src/Tracon.AspNetCore/Endpoints/AgentEndpoints.cs) | Yalnız senkron `/run` değeri taşır: `CompileParameterizedAsync` + elle dekorasyon (K-581) |
+| [`WorkflowContracts.cs:81-91`](../../../src/Tracon.AspNetCore/Contracts/WorkflowContracts.cs) · [`IWorkflowRunner.cs:121-145`](../../../src/Tracon.Abstractions/Workflows/IWorkflowRunner.cs) | `WorkflowRunHttpRequest` ve `WorkflowRunRequest` yalnız `Message`, `SessionId`, `RunId` taşır |
+| [`WorkflowDefinition.cs:21`](../../../src/Tracon.Abstractions/Workflows/WorkflowDefinition.cs) | Tanımda parametre şeması yok |
+| [`WorkflowEndpoints.cs:456-463`](../../../src/Tracon.AspNetCore/Endpoints/WorkflowEndpoints.cs) | Run ucu runner'a yalnız mesajı geçer |
 | `grep -rln "Parameter" src/Tracon.Workflows/` → boş | Workflow motoru parametreye hiç dokunmaz |
-| [`ChildAgentInvoker.cs:508-516`](../src/Tracon.Core/Graph/ChildAgentInvoker.cs) · [`WorkflowAgentCache.cs:95-150`](../src/Tracon.Workflows/Internal/WorkflowAgentCache.cs) | Katılımcı her çağrıda katalogdan çözülür; değer yolu yok |
-| [`AgentDefinitionCompiler.cs:546-600`](../src/Tracon.Core/Compilation/AgentDefinitionCompiler.cs) | F-330: değersiz derleme varsayılanı bağlar, eksik zorunluda `UnboundParameterGuard`. Aday metnindeki `AgentDefinitionCompiler.ChatOptions.cs:115-119` atfı **kaymıştı**; doğru yer budur |
-| [`AgentEndpoints.cs:1005-1013`](../src/Tracon.AspNetCore/Endpoints/AgentEndpoints.cs) | Kuyruklu run `parameters` ve `documents`'ı `400` ile reddeder |
-| [`AgentRunJobHandler.cs:424`](../src/Tracon.Core/Scheduling/AgentRunJobHandler.cs) | Yük ayrıştırıcısı `runId`, `message`, `sessionId`, `userId`, `culture` okur; parametre yok |
-| [`JobPayload.cs:34-56`](../src/Tracon.Abstractions/Scheduling/JobPayload.cs) | Nesne biçimli batch öğesi **ham JSON metni** olur ve modele mesaj gider |
-| [`AgentBatchJobHandler.cs:27-37`](../src/Tracon.Core/Scheduling/AgentBatchJobHandler.cs) | Zorunlu parametresi varsayılansız agent'ta **bütün job** düşer |
-| [`WorkflowJobHandler.cs:58`](../src/Tracon.Core/Scheduling/WorkflowJobHandler.cs) | Workflow batch öğesi yalnız `Message` olur |
-| [`0023_replay_and_branching.sql:29-35`](../src/Tracon.PostgreSql/Migrations/0023_replay_and_branching.sql) · [`SqlRunInputStore.cs:37-55`](../src/Tracon.Sql.Shared/Stores/SqlRunInputStore.cs) | `run_inputs` yalnız `messages` taşır |
-| [`RunRecordingAgent.Persistence.cs:165-173`](../src/Tracon.Core/Recording/RunRecordingAgent.Persistence.cs) | Girdi kaydı mesaj yoksa veya `RecordRunInput` kapalıysa yazılmaz; workflow motoru `IRunInputStore`'u hiç kullanmaz |
-| [`RunReplayService.cs:275-287`](../src/Tracon.Core/Replay/RunReplayService.cs) · [`RunContinuationJobHandler.cs:107-117`](../src/Tracon.Core/Scheduling/RunContinuationJobHandler.cs) | Replay ve çökme sonrası devam parametre bildiren her agent'ı reddeder (K-890) |
-| [`ApprovalResumeJobHandler.cs:93-95`](../src/Tracon.Core/Approvals/ApprovalResumeJobHandler.cs) | Onay-devamı agent'ı katalogdan değersiz çözer — kuyruklu kaynak değer taşımaya başlayınca sessizce farklı talimatla sürer |
-| [`RetentionTargetRegistry.cs:266-271`](../src/Tracon.Sql.Shared/Internal/RetentionTargetRegistry.cs) | `RunInputs` yalnız `created_at`'e bakar; `AwaitingInput` istisnası yalnız checkpoint'lerde (`:165-176`, K-888) |
-| [`full-replace-editors.test.tsx:172`](../src/Tracon.UI/frontend/src/full-replace-editors.test.tsx) · [`workflow-detail.tsx:189`](../src/Tracon.UI/frontend/src/screens/workflow-detail.tsx) | Editör `Complete<WorkflowSaveRequest>` ile denetlenir; run paneli yalnız `message` gönderir |
+| [`ChildAgentInvoker.cs:508-516`](../../../src/Tracon.Core/Graph/ChildAgentInvoker.cs) · [`WorkflowAgentCache.cs:95-150`](../../../src/Tracon.Workflows/Internal/WorkflowAgentCache.cs) | Katılımcı her çağrıda katalogdan çözülür; değer yolu yok |
+| [`AgentDefinitionCompiler.cs:546-600`](../../../src/Tracon.Core/Compilation/AgentDefinitionCompiler.cs) | F-330: değersiz derleme varsayılanı bağlar, eksik zorunluda `UnboundParameterGuard`. Aday metnindeki `AgentDefinitionCompiler.ChatOptions.cs:115-119` atfı **kaymıştı**; doğru yer budur |
+| [`AgentEndpoints.cs:1005-1013`](../../../src/Tracon.AspNetCore/Endpoints/AgentEndpoints.cs) | Kuyruklu run `parameters` ve `documents`'ı `400` ile reddeder |
+| [`AgentRunJobHandler.cs:424`](../../../src/Tracon.Core/Scheduling/AgentRunJobHandler.cs) | Yük ayrıştırıcısı `runId`, `message`, `sessionId`, `userId`, `culture` okur; parametre yok |
+| [`JobPayload.cs:34-56`](../../../src/Tracon.Abstractions/Scheduling/JobPayload.cs) | Nesne biçimli batch öğesi **ham JSON metni** olur ve modele mesaj gider |
+| [`AgentBatchJobHandler.cs:27-37`](../../../src/Tracon.Core/Scheduling/AgentBatchJobHandler.cs) | Zorunlu parametresi varsayılansız agent'ta **bütün job** düşer |
+| [`WorkflowJobHandler.cs:58`](../../../src/Tracon.Core/Scheduling/WorkflowJobHandler.cs) | Workflow batch öğesi yalnız `Message` olur |
+| [`0023_replay_and_branching.sql:29-35`](../../../src/Tracon.PostgreSql/Migrations/0023_replay_and_branching.sql) · [`SqlRunInputStore.cs:37-55`](../../../src/Tracon.Sql.Shared/Stores/SqlRunInputStore.cs) | `run_inputs` yalnız `messages` taşır |
+| [`RunRecordingAgent.Persistence.cs:165-173`](../../../src/Tracon.Core/Recording/RunRecordingAgent.Persistence.cs) | Girdi kaydı mesaj yoksa veya `RecordRunInput` kapalıysa yazılmaz; workflow motoru `IRunInputStore`'u hiç kullanmaz |
+| [`RunReplayService.cs:275-287`](../../../src/Tracon.Core/Replay/RunReplayService.cs) · [`RunContinuationJobHandler.cs:107-117`](../../../src/Tracon.Core/Scheduling/RunContinuationJobHandler.cs) | Replay ve çökme sonrası devam parametre bildiren her agent'ı reddeder (K-890) |
+| [`ApprovalResumeJobHandler.cs:93-95`](../../../src/Tracon.Core/Approvals/ApprovalResumeJobHandler.cs) | Onay-devamı agent'ı katalogdan değersiz çözer — kuyruklu kaynak değer taşımaya başlayınca sessizce farklı talimatla sürer |
+| [`RetentionTargetRegistry.cs:266-271`](../../../src/Tracon.Sql.Shared/Internal/RetentionTargetRegistry.cs) | `RunInputs` yalnız `created_at`'e bakar; `AwaitingInput` istisnası yalnız checkpoint'lerde (`:165-176`, K-888) |
+| [`full-replace-editors.test.tsx:172`](../../../src/Tracon.UI/frontend/src/full-replace-editors.test.tsx) · [`workflow-detail.tsx:189`](../../../src/Tracon.UI/frontend/src/screens/workflow-detail.tsx) | Editör `Complete<WorkflowSaveRequest>` ile denetlenir; run paneli yalnız `message` gönderir |
 
 > Kanıtlar 2026-10-12 tarihinde doğrulandı.
 
@@ -502,7 +502,7 @@ Konumlar ölçülmüş dosyalardır; `BatchItemInput`'un paketi (`Abstractions` 
 
 > Mutlu yoldan değil, **ne bozulabilir**den türetilir. Seviyeyi plan seçer.
 > Sınır geçen davranış (DI · HTTP · kiracı · akış · depo · paket) birim
-> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../.agents/ortak/test-seviyeleri.md).
+> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../../../.agents/ortak/test-seviyeleri.md).
 
 | # | Ne bozulabilir | Seviye | Test sınıfı |
 |---|---|---|---|
@@ -812,7 +812,7 @@ Plan test adlarından ayrı sınıf olarak **yazılmayanlar** (içerikleri başk
 
 ## Sonraki Faza Devir Notu
 
-**Sıradaki faz: [Faz 195](195-WORKFLOW-DUGUM-DUZENLEME-VE-AYAR.md).** Önkoşulu (bu faz) karşılandı;
+**Sıradaki faz: [Faz 195](../../195-WORKFLOW-DUGUM-DUZENLEME-VE-AYAR.md).** Önkoşulu (bu faz) karşılandı;
 başlayabilir.
 
 ### Devralınan sözleşmeler
@@ -840,5 +840,5 @@ boş. Faz 195 bunlara ekleme yapmadan **önce** içerik taşır.
 
 ### Açık işler
 
-- `F-374…F-381` adayları ([ADAYLAR.md](ADAYLAR.md)): `jobs.payload` koruması, batch öğe türü işareti, paylaşılan boş sözlükler, `ReplayTools` testi, batch kira devri, bellek içi depo sınırı, OpenAPI açıklaması, HITL kayıt kurtarma.
+- `F-374…F-381` adayları ([ADAYLAR.md](../../ADAYLAR.md)): `jobs.payload` koruması, batch öğe türü işareti, paylaşılan boş sözlükler, `ReplayTools` testi, batch kira devri, bellek içi depo sınırı, OpenAPI açıklaması, HITL kayıt kurtarma.
 - Site **yayınlanmadı** (`./scripts/site-deploy.sh` çalıştırılmadı; Adım 10 dışarıya dönük iştir, istenmedi). Kapı ve derleme yeşil.
