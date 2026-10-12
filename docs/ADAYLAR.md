@@ -671,6 +671,8 @@ F-341…F-344 (Explainer-Video turu) satırları kısadır; tam kanıt ve repro 
 | **F-274** · Üç SQL `Use*` metodundaki ~107 aynı kayıt satırı ortak bir iç yardımcıya taşınmadı | Parite testi kaçışı yakalar; kopya kalır | İkinci yatay değişiklik (sayım 2026-09-23'ten) ya da dördüncü SQL sağlayıcısı (K-176). Tam metin: [`arsiv/ERTELENEN-ADAYLAR.md`](arsiv/ERTELENEN-ADAYLAR.md) § *Tetik bekleyen gövdeler* |
 | **F-276** · npm kanalı test edilen derlemeyi değil kendi `npm run build` çıktısını yayınlıyor | Üç ayrı derleme; NuGet eşi Faz 191'de kapandı (K-871) | `tsc` çıktısında ilk sapma ya da ilk npm yayın kusuru. Tam metin: [`arsiv/ERTELENEN-ADAYLAR.md`](arsiv/ERTELENEN-ADAYLAR.md) § *Tetik bekleyen gövdeler* |
 | **F-277** · Dış katkıcı için İngilizce mimari karar özeti yok | `ARCHITECTURE.md:59`, `:137-146` ve `CONTRIBUTING.md:114-116` dört Türkçe dokümana işaret eder; iki dosya da makine çevirisinin yeterli olduğunu söyler. K-408 (`docs/` Türkçe kalır, kullanıcı kararı) korunur | İlk dış PR veya issue mimari kararı Türkçe dokümandan okumak zorunda kalırsa ya da GA freeze turu (UR-003) |
+| **F-374** · `jobs.payload` ve `job_items.input` korumalı sütun değil; kuyruklu run'ın parametre değeri ve belge metni orada düz durur | [Faz 194](194-WORKFLOW-VE-KUYRUK-PARAMETRELERI.md) (K-899, kullanıcı kararı): kuyruk yükünde mesaj zaten düz duruyordu; sütunu koruma kapsamına almak ayrı bir migration ve anahtar kararıdır (`jobs.payload` serbest metin, `ProtectedColumn` üyesi yok). Site bunu açıkça yazar | Düzenlemeye tabi bir kurulum kuyruk yükünün şifrelenmesini isterse — o zaman `ProtectedColumn` üyesi, iki sütun ve geriye dönük okuma (zarf kendini tanıtır) birlikte tasarlanır |
+| **F-375** · Batch öğesinde düz metin ile `{"message":…}` biçimli nesne ayırt edilemiyor | Faz 194 (K-899): `JobPayload.ExtractItems` string ve nesne öğeyi aynı metne indirir; metin tür taşımadığı için `message` string üyeli bir JSON metni yapılı öğe sayılır (site belgeler). Tür sütunu migration ister ve gerçek çakışma ölçülmedi | Bir tüketici düz metin öğesinin yanlışlıkla yapılı sayıldığını bildirirse — o zaman `job_items`'a tür işareti eklenir |
 
 ### F-247 · Yirmi dört yapılandırma bölümü için bağlama kanıtı
 
@@ -779,7 +781,7 @@ kaydındadır; burada yalnız hangi eşikte bekledikleri yazar.
 ### F-ID tahsis kuralı
 
 Numara **geri dönüştürülmez** ve bir numara **tek kaleme** aittir. Sıradaki
-numara: **F-374**.
+numara: **F-376**.
 
 Numarayı tahsis eden el sayacı **aynı değişiklikte** bir artırır.
 `python3 scripts/dokuman-bakim.py --denetle` iki şeyi zorlar:
