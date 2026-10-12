@@ -140,7 +140,10 @@ once: a thrown exception is retried up to the job's attempt limit
 (`JobRetryException.RetryAfter` controls the delay), and a worker that
 crashes, or whose lease lapses, lets another worker (or the same one, on its
 next poll) re-lease the job and call `ExecuteAsync` again from scratch.
-Neither path resets item progress.
+Neither path resets item progress. A store error after `ExecuteAsync` has
+returned is not a handler failure: the worker tries the write of the outcome
+again while it still holds the lease, and does not call the handler again for
+it.
 
 **A running handler is never interrupted by its own lease, and nothing caps
 how long it may run.** The worker renews the lease on a timer for as long as
@@ -170,7 +173,10 @@ catch and report a job-level failure by hand. Report per-item failures with
 `JobItemStatus.Failed` and continue the loop instead, if a single bad input
 should not stop the rest of the batch — a batch with both successful and
 failed items still completes as `Completed`, and only a batch where every
-item failed completes as `Failed`.
+item failed completes as `Failed`. Keep the `ReportItemAsync` call outside the
+`try` that guards the item's own work: inside it, a store error while reporting
+a finished item is caught as that item's failure, and work that succeeded is
+recorded as `Failed`.
 
 ## Verify your implementation
 

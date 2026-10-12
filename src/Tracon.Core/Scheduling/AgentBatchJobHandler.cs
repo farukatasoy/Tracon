@@ -51,6 +51,7 @@ internal sealed class AgentBatchJobHandler(
             }
 
             var runId = TraconId.NewId();
+            string? error = null;
 
             try
             {
@@ -65,16 +66,6 @@ internal sealed class AgentBatchJobHandler(
                 await agent
                     .RunAsync(item.Input, session: null, options: new TraconRunOptions { RunId = runId }, cancellationToken)
                     .ConfigureAwait(false);
-
-                await context.ReportItemAsync(
-                    new JobItemResult
-                    {
-                        JobId = context.Job.Id,
-                        Seq = item.Seq,
-                        Status = JobItemStatus.Completed,
-                        RunId = runId,
-                    },
-                    cancellationToken).ConfigureAwait(false);
             }
             catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
             {
@@ -91,17 +82,24 @@ internal sealed class AgentBatchJobHandler(
                         correlationId);
                 }
 
-                await context.ReportItemAsync(
-                    new JobItemResult
-                    {
-                        JobId = context.Job.Id,
-                        Seq = item.Seq,
-                        Status = JobItemStatus.Failed,
-                        RunId = runId,
-                        Error = SafeErrorText.ForPersistence(exception, correlationId),
-                    },
-                    cancellationToken).ConfigureAwait(false);
+                error = SafeErrorText.ForPersistence(exception, correlationId);
             }
+
+            // 🚨 F-348: the report sits OUTSIDE the run's try, as in
+            // WorkflowJobHandler. Inside it, a store error while reporting a
+            // completed run was caught as the run's failure, and the item was
+            // recorded as Failed. A report error now ends the attempt, and
+            // the worker decides whether the job is tried again.
+            await context.ReportItemAsync(
+                new JobItemResult
+                {
+                    JobId = context.Job.Id,
+                    Seq = item.Seq,
+                    Status = error is null ? JobItemStatus.Completed : JobItemStatus.Failed,
+                    RunId = runId,
+                    Error = error,
+                },
+                cancellationToken).ConfigureAwait(false);
         }
     }
 }

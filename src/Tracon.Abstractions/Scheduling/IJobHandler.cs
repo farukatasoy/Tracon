@@ -50,7 +50,10 @@ public interface IJobHandler
     /// <see cref="JobStatus.Failed"/>; if the process crashes or its lease
     /// lapses, another worker (or the same one) re-leases the SAME job and
     /// calls <see cref="ExecuteAsync"/> again from scratch. Neither case
-    /// resets item progress.
+    /// resets item progress. A store error after <see cref="ExecuteAsync"/>
+    /// has returned is not a handler failure: the worker tries the write of
+    /// the outcome again while it still holds the lease. Only a write that
+    /// keeps failing until then leaves the job to the lease-lapse case above.
     /// </para>
     /// <para>
     /// <strong>A running handler is never interrupted by its own lease.</strong>
