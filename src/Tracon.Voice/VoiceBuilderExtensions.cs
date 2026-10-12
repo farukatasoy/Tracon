@@ -2,6 +2,7 @@ using System.Globalization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace Tracon;
@@ -50,7 +51,13 @@ public static class VoiceBuilderExtensions
     /// <para>
     /// Registration uses <c>TryAdd*</c>: when the consumer registered its own
     /// <see cref="ISpeechSynthesizer"/> or <see cref="ISpeechTranscriber"/>
-    /// implementation BEFORE this call, theirs is preserved.
+    /// implementation BEFORE this call, theirs is preserved. When both are the
+    /// consumer's, the ElevenLabs settings (provider name, API key, address) are
+    /// not required.
+    /// </para>
+    /// <para>
+    /// The settings are validated when the application starts; an invalid value
+    /// stops the host before the first request.
     /// </para>
     /// <para>
     /// Three tools are registered: <c>speak</c>, <c>transcribe</c>, <c>list_voices</c>.
@@ -64,9 +71,14 @@ public static class VoiceBuilderExtensions
 
         var services = builder.Services;
 
+        // 🚨 Read BEFORE the TryAdd calls below: after them, the built-in
+        // registrations look exactly like the consumer's own (F-336).
+        services.TryAddSingleton(VoiceProviderBinding.Capture(services));
+
         services.Configure(configure);
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IValidateOptions<VoiceOptions>, VoiceOptionsValidator>());
+        services.AddOptions<VoiceOptions>().ValidateOnStart();
 
         // A single client serves synthesis, transcription, and health checks:
         // the same instance is bound to all three interfaces so the
@@ -81,8 +93,17 @@ public static class VoiceBuilderExtensions
         services.TryAddSingleton<ISpeechTranscriber>(static provider =>
             provider.GetRequiredService<ElevenLabsSpeechClient>());
 
+        // The health check follows the BOUND synthesizer, not the built-in
+        // client: a consumer's provider reports its own name and reachability.
         services.TryAddSingleton<IVoiceHealthCheck>(static provider =>
-            provider.GetRequiredService<ElevenLabsSpeechClient>());
+        {
+            var synthesizer = provider.GetRequiredService<ISpeechSynthesizer>();
+
+            return synthesizer as IVoiceHealthCheck
+                   ?? new SynthesizerVoiceHealthCheck(
+                       synthesizer,
+                       provider.GetService<ILoggerFactory>()?.CreateLogger<SynthesizerVoiceHealthCheck>());
+        });
 
         services.TryAddSingleton<VoicePricing>();
 

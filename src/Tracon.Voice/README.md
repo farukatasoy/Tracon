@@ -17,6 +17,9 @@ The API key is a **secret** and is not written to a file:
 dotnet user-secrets set "Tracon:Voice:ApiKey" "..."
 ```
 
+The settings are validated when the application **starts**; a missing key stops
+the host before the first request.
+
 ## Registered tools
 
 | Tool | What it does | Result |
@@ -88,8 +91,18 @@ preserved:
 
 ```csharp
 builder.Services.AddSingleton<ISpeechSynthesizer, MyProvider>();
-builder.AddTracon().UseVoice(...);
+builder.Services.AddSingleton<ISpeechTranscriber, MyProvider>();
+builder.AddTracon().UseVoice(o => o.SynthesisModelId = "my-model");
 ```
+
+With **both** contracts registered first, no API key is needed: `Provider`,
+`ApiKey` and `Endpoint` configure only the built-in client. A registration added
+**after** `UseVoice` is not seen, and startup fails with a message that says so.
+
+Three behaviors follow your implementation, not the settings: the `speak`
+character limit (`ISpeechSynthesizer.MaxCharactersPerRequest`), the price key
+(`Tracon:Pricing:Voice:{ProviderName}:{model}`), and the health check (your own
+`IVoiceHealthCheck`, or a voice-list call that reports your `ProviderName`).
 
 ## Dependencies
 

@@ -2767,3 +2767,53 @@ tool'u çağıran, veritabanında tanımlı TEK bir agent.
   "Error: Function failed." YOKTUR, A ikinci kez çağrılmaz.
 - (3) ikinci tur B'nin yanıtını akıtır.
 
+---
+
+### MT-MM-125 — Kendi ses sağlayıcısıyla `UseVoice` anahtarsız başlar; limit, fiyat, sağlık ve dosya adı o sağlayıcıyı izler (kusur-giderme, 2026-10-12, F-336)
+
+Regresyon. Doğrulayıcı her durumda ElevenLabs adını ve `ApiKey` istiyordu. Sitedeki
+"kendi sağlayıcın" örneği ilk `IOptions<VoiceOptions>.Value` okumasında atıyordu.
+Doğrulama başlangıçta koşmuyordu. Fiyat `Provider` ayarını, `speak` limiti ayarı,
+sağlık hep ElevenLabs istemcisini okuyordu. HTTP ucu her sesi `.mp3` adlandırıyordu.
+Otomatik karşılığı: `CustomVoiceProviderTests` · `VoiceEndpointTests` ·
+`OpenAILiveStartupValidationTests`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | — |
+| **İnsan gerekir** | Hayır |
+| **Devir** | ➜ CI: `CustomVoiceProviderTests` (`UseVoice` DI bileşimi + `IStartupValidator`) · `VoiceEndpointTests.Speak_names_the_attachment_after_the_DETECTED_format` · `OpenAILiveStartupValidationTests` |
+
+**Ön koşul**
+- `Tracon:Voice:ApiKey` boştur.
+- `Program.cs`'te `UseVoice`'tan ÖNCE tek bir test sağlayıcısı hem
+  `ISpeechSynthesizer` hem `ISpeechTranscriber` olarak kaydedilir:
+  `ProviderName = "contoso"`, `MaxCharactersPerRequest = 10`, `SynthesizeAsync`
+  OGG baytı döndürür (`OggS` ile başlar). `UseVoice` koşulsuz çağrılır.
+- `Tracon:Voice:SynthesisModelId=contoso-tts-1` ve
+  `Tracon:Pricing:Voice:contoso:contoso-tts-1:PerMillionCharacters=30`.
+
+**Adımlar**
+1. Uygulamayı başlat.
+2. `GET /api/voice/health`.
+3. `POST /api/voice/speak` `{"text":"hello"}`.
+4. `POST /api/voice/speak` 20 karakterlik bir metinle.
+5. Test sağlayıcısının iki kaydını `UseVoice`'tan SONRAYA taşı; yeniden başlat.
+6. İki kaydı kaldır. Geçerli bir `ApiKey` ve `Tracon:Voice:OutputFormat=pcm_16000`
+   ver; yeniden başlat.
+
+**Beklenen sonuç**
+- (1) Uygulama başlar; anahtar istenmez.
+- (2) `200`; `providerName` `"contoso"`, `isHealthy` `true`.
+- (3) `200`; `attachment.mediaType` `audio/ogg`, `attachment.fileName` `.ogg` ile
+  biter; `cost` `0.00015` (5 × 30 / 1.000.000).
+- (4) `400`; mesaj "the limit is 10" der; sağlayıcıya çağrı gitmez.
+- (5) Uygulama BAŞLAMAZ; mesaj "BEFORE calling UseVoice" der.
+- (6) Uygulama BAŞLAMAZ; mesaj `pcm_16000` der.
+- 🚨 Eski kusur: (1) uygulama başladı, ama (2) ve (3) `500` verdi; (3) eki yazılı
+  bıraktı. Anahtar verilince (2) `elevenlabs` dedi, (3) dosyayı `.mp3` adlandırdı
+  ve `cost` `null` kaldı. (5) ve (6) uygulama başladı; hata ilk istekte çıktı.
+

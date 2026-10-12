@@ -636,6 +636,14 @@ binds this section and then applies its optional code override.
 | `RequireApproval` | `false` |
 | `Timeout` | `null`; implementation uses 100 seconds |
 
+The section is validated when the application starts. `Provider`, `ApiKey` and
+`Endpoint` configure only the built-in ElevenLabs client; `elevenlabs` is the only
+`Provider` value. When your own `ISpeechSynthesizer` and `ISpeechTranscriber` are
+registered before `UseVoice()`, those three are not required. `Provider` is not a
+price key: `Tracon:Pricing:Voice` is keyed by the `ProviderName` of the implementation
+that did the work. `MaxCharactersPerRequest` is the built-in client's limit; your own
+synthesizer reports its limit through `ISpeechSynthesizer.MaxCharactersPerRequest`.
+
 ### Live voice conversation
 
 | Key relative to `Tracon:Voice:Conversation` | Default |

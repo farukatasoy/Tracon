@@ -74,6 +74,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- A consumer's own speech provider now works with `UseVoice()` as documented.
+  With `ISpeechSynthesizer` and `ISpeechTranscriber` registered before
+  `UseVoice()` and no voice key, the first read of the voice settings threw:
+  `POST /api/voice/speak` called the provider, saved the attachment, then
+  answered `500` and left the attachment behind. `Provider`, `ApiKey` and
+  `Endpoint` are now validated only while the built-in ElevenLabs client serves
+  at least one of the two contracts; a registration added after `UseVoice()`
+  fails at startup with a message that says to register first. Three behaviors
+  now follow the bound implementation instead of the ElevenLabs settings:
+  prices are looked up under its `ProviderName`
+  (`Tracon:Pricing:Voice:{ProviderName}:{model}`, and only the built-in client
+  falls back to its default model), the `speak` tool applies
+  `ISpeechSynthesizer.MaxCharactersPerRequest` as the HTTP endpoint already did,
+  and `GET /api/voice/health` uses the synthesizer's own `IVoiceHealthCheck` or a
+  voice-list call that reports its `ProviderName`.
+- Speech audio saved by `POST /api/voice/speak` is now named after its detected
+  type (`.ogg`, `.wav`, `.mp3`) instead of always `.mp3`, and audio a live
+  conversation saves with `PersistAudio` is no longer named `.bin`. Speech,
+  conversation and image attachments now share one naming rule, and their
+  timestamps carry ticks.
 - The console can now answer a workflow request that it did not start. The
   run page sent the operator to "the workflow screen", but that screen showed a
   request card only for a run it had started itself, so a run started over
@@ -328,6 +348,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- `UseVoice()` and `UseOpenAILive()` now validate their settings when the
+  application starts. Both validators already said so, but neither registration
+  asked for it, so an invalid value — a missing ElevenLabs key, a headerless
+  `OutputFormat`, a zero `MaxAppendCharacters`, a missing OpenAI key — surfaced at
+  the first voice request or live session. A host registered with such a value
+  now fails at startup, and the message names the setting.
 - The OpenAI provider now rejects every `ModelBinding.ProviderSettings` key, as
   Azure OpenAI already did. The rule covers `openai`, `openai-responses` and
   every `UseOpenAICompatible()` registration; their settings prefix is `openai`
