@@ -145,12 +145,33 @@ Varsayılan dışı yapılandırma: `Tracon__Providers__OpenAI__ApiKey=` (boş) 
 Denetim sonrası webhook zarfı (`MT-JOB-139`) örnek uygulamada **koşulmadı**; imza `secret`'ı
 gerektirir. Kanıtı `InboundTriggerDispatcherTests` (dispatcher + handler çifti) verir.
 
+## Kapanış Kapıları
+
+`python3 scripts/kapi.py kapanis --taban 12bf0b4c` (denetim düzeltmelerinden **sonra**): **10/10 adım yeşil**,
+çıkış 0. İlk koşum `SourceLanguageTests`'te düştü (yeni test girdimdeki `ü`); girdi değişti,
+baz çizgisi büyütülmedi, kapı baştan koşuldu.
+
+| Adım | Süre |
+|---|---|
+| `kapi.py tarama` (`secret` taraması) · `dokuman-bakim.py --denetle` · script testleri · agent map · `denetim-paketi.py` | 5,97 · 1,67 · 7,24 · 0,18 · 0,53 sn |
+| `dotnet build Tracon.slnx -c Release` | 88,94 sn · 0 uyarı, 0 hata |
+| `dotnet test` (`-maxcpucount:2`) | 474,17 sn · hiçbir proje `Failed` değil |
+| `dotnet pack` · `dotnet format --verify-no-changes` · `docs-site` `npm run check` | 7,97 · 117,88 · 38,84 sn |
+
+Başlıca test sayıları (net10.0): Core.UnitTests 3466 · AspNetCore.FunctionalTests 1493 ·
+PostgreSql.IntegrationTests 959 · Sqlite.IntegrationTests 903 · SqlServer.IntegrationTests 886 ·
+Ui.E2ETests 89 · Workflows.UnitTests 167 · Generators.UnitTests 302.
+
+**Yayın provası** (sevk edilen `RunInputStoreContract` ve `WorkflowDefinitionStoreContract` genişledi):
+`python3 scripts/kapi.py yayin --kuru --surum 1.0.0-preview.4` → çıkış 0; altı exact-version paketlenmiş
+sample testi, Native AOT smoke ve net8.0 tüketici smoke geçti. Hiçbir sample bu iki store'u uygulamıyor.
+
 ## Süreç Ölçümü
 
 | Metrik | Değer |
 |---|---|
 | Plan revizyonu sayısı | 0 — plan tek commit'te kaldı (`12bf0b4c`); sapmalar "Plandan Sapmalar"da |
-| Düzeltme turu sayısı | 5 — mimari ve ratchet kapıları (2: servis kaydı/yüzey/SQL metni; kaynak dili/sevk edilen doküman) · migration bütünlük manifesti (1) · site kapıları: ekran görüntüsü damgası, anasayfa pin'leri, agent map (1) · bağımsız denetim sonrası (1) |
+| Düzeltme turu sayısı | 6 — mimari ve ratchet kapıları (2: servis kaydı/yüzey/SQL metni; kaynak dili/sevk edilen doküman) · migration bütünlük manifesti (1) · site kapıları: ekran görüntüsü damgası, anasayfa pin'leri, agent map (1) · bağımsız denetim sonrası (1) · kapanış koşumunda kaynak dili: denetim testimdeki `ü` (1) |
 | 🔴 bulgu: gerçek / gürültü / araştırılacak | 1 / 0 / 0 |
 | Fazın ürettiği regresyon | 2 — `🔴1` (webhook gövdesi yapılı batch öğesi sayılıyordu, bu fazın ayrıştırıcısı getirdi) ve `🟡4` (parametreli workflow'un boş mesajlı satırı judge'ı kör puanlamaya açtı). İkisini de bağımsız denetim yakaladı, kapanıştan önce düzeltildi |
 | Faz kapandıktan sonra bulunan kusur | 0 — kapanış anı; sonraki `kusur-giderme` koşumunda güncellenir |
