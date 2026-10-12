@@ -3251,3 +3251,30 @@ olarak kuyruğa giriyordu; alt run'lar da kendi başına sürdürülüyordu.
 - Run `Failed` (`orphaned`); bir `RunContinuationBlocked` olayı `POST /api/workflows/runs/$RUN/resume` der.
 - Oturumda yeni run açılmaz; `tracon.run-continuation` işi yoktur.
 - 🚨 Eski kusur: workflow adıyla bir agent devam run'ı açıldı.
+
+### MT-JOB-144 — `appsettings` lane ayarı worker'a ulaşır (kusur-giderme, 2026-10-13, F-385)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | — |
+| **Devir** | ➜ CI: `TraconSchedulingOptionsBindingTests.The_lane_collections_are_bound` · `…A_lane_budget_that_is_not_a_number_fails_at_startup` · `…A_lane_name_is_bound_as_written_and_checked_at_startup` |
+
+Regresyon. Bağlayıcı yalnız yedi skaler anahtarı okuyordu. `Lanes`,
+`MaxConcurrentJobsPerLane`, `LaneByHandlerKey` ve `HttpSchedulableHandlerKeys`
+sitede yapılandırma anahtarı olarak duruyordu ama hiçbir yere bağlanmıyordu;
+worker her lane'i kiralıyordu.
+
+**Ön koşul** — Örnek uygulama; `Tracon__Scheduling__Lanes__0=media`, `Tracon__Scheduling__MaxConcurrentJobsPerLane__media=1`, `Tracon__Scheduling__LaneByHandlerKey__tracon.agent-batch=media`.
+
+**Adımlar**
+1. Uygulamayı başlat; iki `tracon.agent-batch` işini arka arkaya tetikle.
+2. `GET $APU/api/jobs?lane=media` ile işleri izle.
+3. Uygulamayı `Tracon__Scheduling__MaxConcurrentJobsPerLane__media=bir` ile yeniden başlat.
+
+**Beklenen sonuç**
+- İki iş `media` lane'inde durur; aynı anda en çok biri `Running` olur.
+- Adım 3'te uygulama açılmaz; hata `MaxConcurrentJobsPerLane['media'] must be at least 1` der.
+- 🚨 Eski kusur: işler `default` lane'inde kaldı ve bütçe yok sayıldı.

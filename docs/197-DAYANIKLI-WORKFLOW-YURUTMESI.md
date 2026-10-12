@@ -190,6 +190,7 @@ Sınır: kira kaybında eski sahip yaşarsa iki kopya koşar (K-886).
 | 4 | Tek run'lı işin deneme sınırı | A: `1 + MaxResumeAttempts` · B: `AsyncRun.MaxAttempts` | **A** — B'de varsayılan `1` kurtarmayı kapatır |
 | 5 | `Prefer`'siz `Idempotency-Key` | A: `400` · B: yok say · C: akışsız JSON | **A** — B korumayı düşürür; C uzun run'ı bağlar |
 | 6 | F-319'dan önce `respond-async` | A: şimdi · B: bekle | **A** — tekrarı `Idempotency-Key` kapatır |
+| 7 | Çöken run'ın `Loop`'lu agent adımı tur düzeyinde sürsün mü (2026-10-13, podcast ölçümü: üç tur ≈ 14 dk ve ≈ $2,5; tüketicinin `--resume`'u tamamlanan turu korur) | A: kapsam dışı — adım baştan koşar, faz bunu belgeler · B: tur sonu checkpoint'i (harness loop durumu) | **A** — tur durumu MAF `LoopAgent`'ın içindedir; ölçülmeden checkpoint'e alınmaz. Belge maliyeti yazar; ihtiyaç ölçülürse aday |
 
 ---
 

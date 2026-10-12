@@ -69,23 +69,24 @@ public sealed class GenerateImageToolTests
     }
 
     [Fact]
-    public async Task Missing_run_scope_fails_after_generation_but_before_writing_an_attachment()
+    public async Task Missing_run_scope_fails_before_the_provider_is_called()
     {
         var generator = new StubImageGenerator();
         var services = BuildServices(generator);
 
         // No TraconRunContext.SetCurrent call: simulates a tool invoked outside a run.
-        // The provider is still called and billed before the scope is checked, so a
-        // missing scope must not silently discard that spend without surfacing an error.
+        // F-384: the tenant's provider checks need the scope's tenant, so the scope is
+        // read BEFORE the provider call. The provider used to be called (and billed)
+        // first, and the missing scope surfaced only afterwards.
         var exception = await Should.ThrowAsync<TraconException>(
             async () => await InvokeAsync(services, "a lighthouse"));
 
         exception.Message.ShouldContain("run scope");
-        generator.CallCount.ShouldBe(1);
+        generator.CallCount.ShouldBe(0);
     }
 
     [Fact]
-    public async Task Missing_tenant_in_scope_fails_after_generation_but_before_writing_an_attachment()
+    public async Task Missing_tenant_in_scope_fails_before_the_provider_is_called()
     {
         var generator = new StubImageGenerator();
         var services = BuildServices(generator);
@@ -103,6 +104,7 @@ public sealed class GenerateImageToolTests
                 async () => await InvokeAsync(services, "a lighthouse"));
 
             exception.Message.ShouldContain("tenant");
+            generator.CallCount.ShouldBe(0);
         }
         finally
         {

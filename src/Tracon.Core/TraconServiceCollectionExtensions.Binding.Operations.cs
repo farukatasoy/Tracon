@@ -65,6 +65,65 @@ public static partial class TraconServiceCollectionExtensions
         {
             options.MaxItemsPerJob = maxItemsPerJob;
         }
+
+        BindSchedulingCollections(section, options);
+    }
+
+    /// <summary>Binds the four collection keys of the <c>Tracon:Scheduling</c> section.</summary>
+    /// <remarks>
+    /// <para>
+    /// These were listed as configuration keys and once bound nowhere, so a
+    /// worker's lane budget in <c>appsettings.json</c> was silently ignored and
+    /// the worker leased every lane.
+    /// </para>
+    /// <para>
+    /// A list that is present REPLACES the default, the same rule as
+    /// <see cref="BindList"/>. A dictionary entry keeps its key as written:
+    /// lanes and handler keys are matched ordinally. A per-lane budget that is
+    /// not a number is bound as zero rather than skipped, so
+    /// <see cref="TraconSchedulingOptionsValidator"/> names it at startup — a
+    /// skipped budget is exactly the silent failure this method closes.
+    /// </para>
+    /// </remarks>
+    private static void BindSchedulingCollections(IConfigurationSection section, TraconSchedulingOptions options)
+    {
+        var lanes = section.GetSection(nameof(TraconSchedulingOptions.Lanes));
+
+        if (lanes.Exists())
+        {
+            var values = lanes.GetChildren()
+                .Select(static child => child.Value)
+                .Where(static value => value is { Length: > 0 })
+                .Select(static value => value!)
+                .ToArray();
+
+            if (values.Length > 0)
+            {
+                options.Lanes = values;
+            }
+        }
+
+        foreach (var child in section.GetSection(nameof(TraconSchedulingOptions.MaxConcurrentJobsPerLane)).GetChildren())
+        {
+            options.MaxConcurrentJobsPerLane[child.Key] = int.TryParse(
+                child.Value,
+                NumberStyles.Integer,
+                CultureInfo.InvariantCulture,
+                out var max)
+                ? max
+                : 0;
+        }
+
+        foreach (var child in section.GetSection(nameof(TraconSchedulingOptions.LaneByHandlerKey)).GetChildren())
+        {
+            // An empty lane is bound as written, not skipped: the validator
+            // names it at startup instead of the mapping silently vanishing.
+            options.LaneByHandlerKey[child.Key] = child.Value ?? string.Empty;
+        }
+
+        BindList(
+            section.GetSection(nameof(TraconSchedulingOptions.HttpSchedulableHandlerKeys)),
+            options.HttpSchedulableHandlerKeys);
     }
 
     /// <summary>Binds single-executor selection settings from configuration.</summary>

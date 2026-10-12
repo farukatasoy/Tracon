@@ -12616,7 +12616,7 @@ namespace Tracon.Client.Generated
         /// Generates images and saves them as attachments.
         /// </summary>
         /// <remarks>
-        /// This is an operator action outside a run. Generated images are saved as attachments and the response returns their descriptors and configured cost. To record usage in tool_invocations, use the agent's generate_image tool instead.
+        /// This is an operator action outside a run. Generated images are saved as attachments and the response returns their descriptors and configured cost. To record usage in tool_invocations, use the agent's generate_image tool instead. Returns 403 when the tenant's egress policy does not allow the image provider, or when the tenant has its own credential for it: the generator uses the setup credential, and the image is not generated on it.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -12684,6 +12684,16 @@ namespace Tracon.Client.Generated
                                 throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
                             }
                             throw new TraconApiException<ProblemDetails>("Bad Request", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
+                        }
+                        else
+                        if (status_ == 403)
+                        {
+                            var objectResponse_ = await ReadObjectResponseAsync<ProblemDetails>(response_, headers_, cancellationToken).ConfigureAwait(false);
+                            if (objectResponse_.Object == null)
+                            {
+                                throw new TraconApiException("Response was null which was not expected.", status_, objectResponse_.Text, headers_, null);
+                            }
+                            throw new TraconApiException<ProblemDetails>("Forbidden", status_, objectResponse_.Text, headers_, objectResponse_.Object, null);
                         }
                         else
                         if (status_ == 502)
