@@ -39,7 +39,9 @@ public interface IWorkflowFunctionCatalog
     /// missing required member, a value of the wrong type and a <c>null</c> in a
     /// member that does not allow it are all refused. An absent object is read as
     /// <c>{}</c>, so a type with a required member refuses a node that has no
-    /// settings.
+    /// settings. Settings whose JSON text is larger than the limit the workflow
+    /// engine is configured with (<c>MaxNodeSettingsLength</c>) are refused too,
+    /// before they are read.
     /// </returns>
     /// <remarks>
     /// This is the save-time check (<c>PUT /api/workflows/{name}</c>): the function
