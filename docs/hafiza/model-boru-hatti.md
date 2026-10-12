@@ -112,4 +112,4 @@ Yeni bir halka eklerken tek soru sudur: **her model cagrisini gormesi gerekiyor 
   tipini bilmez. Aynı soruya ikinci bir mekanizma (adaptör başına tipli bir seam)
   koymak bu repoda ölçülmüş bir **kayma sınıfı**dır; önce seçildi, sonra bu
   emsal bulununca geri alındı.
-
+- **🚨 Yan kanal model çağrısının token'ı run'a kendiliğinden girmez ve agent fiyatıyla fiyatlanmaz** (2026-10-12, F-349, K-893): MAF `AIJudgeLoopEvaluator` yargıcın yanıtını atar; bütçe halkası sayıyordu, run `usage`'ı, maliyeti ve kotası saymıyordu; özetleyici agent modelinin fiyatıyla fiyatlanıyordu. Agent turu dışındaki her yeni `IChatClient`'ı `SideChannelUsageTrackingChatClient.For…(client, binding)` ile sar; pay `(provider, model)` ile birikir, `RunCostCombiner` onu kendi modeliyle fiyatlar. Karma `RunCost`'ta birim fiyat alanları `null`'dır — fiyat okuyan her okuyucuyu `grep -rn PricePerMillionTokens src/` ile tara.

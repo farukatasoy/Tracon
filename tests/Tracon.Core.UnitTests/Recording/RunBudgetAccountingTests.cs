@@ -237,6 +237,33 @@ public sealed class RunBudgetAccountingTests
             () => rootClient.GetResponseAsync([new ChatMessage(ChatRole.User, "go")], cancellationToken: TestContext.Current.CancellationToken));
     }
 
+    /// <summary>
+    /// F-349 (D3): the ring kept only the LAST <see cref="UsageContent"/> of a
+    /// stream, while the run recorder sums them (F-317). A stream that reports
+    /// usage in two parts charged the tree budget for the second part only.
+    /// </summary>
+    [Fact]
+    public async Task A_stream_with_two_usage_contents_charges_the_budget_with_their_sum()
+    {
+        var budget = new AgentRunBudget();
+
+        var client = new ModelProviderRegistry([new FakeModelProvider(new FakeChatClient(streamingUpdates:
+        [
+            new ChatResponseUpdate(ChatRole.Assistant, [new TextContent("first part"), new UsageContent(Usage(300))]),
+            new ChatResponseUpdate(ChatRole.Assistant, [new TextContent("second part"), new UsageContent(Usage(200))]),
+        ]))]).CreateChatClient(TestData.Binding());
+
+        SetScope(budget);
+
+        await foreach (var _ in client.GetStreamingResponseAsync(
+            [new ChatMessage(ChatRole.User, "go")],
+            cancellationToken: TestContext.Current.CancellationToken))
+        {
+        }
+
+        budget.ConsumedTokens.ShouldBe(500);
+    }
+
     private static void SetScope(AgentRunBudget budget)
         => TraconRunContext.SetCurrent(new AgentRunScope
         {

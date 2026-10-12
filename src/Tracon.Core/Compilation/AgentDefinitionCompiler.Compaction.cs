@@ -203,15 +203,20 @@ public sealed partial class AgentDefinitionCompiler
             ? settings.SummarizationModel ?? _utilityModel ?? definition.Model
             : null;
 
-    /// <summary>Wraps the summarization client with a token tracker.</summary>
+    /// <summary>
+    /// Wraps the summarization client with a token tracker that knows the
+    /// summarizer's model, so the run prices those tokens at that model.
+    /// </summary>
     /// <exception cref="InvalidOperationException">
     /// The client was not built before the agent: a defect in the compiler, not in the definition.
     /// </exception>
-    private static CompactionUsageTrackingChatClient TrackSummarizationUsage(
+    private SideChannelUsageTrackingChatClient TrackSummarizationUsage(
         AgentDefinition definition,
         IChatClient? summarizationClient)
-        => new(summarizationClient ?? throw new InvalidOperationException(
-            $"Agent '{definition.Name}' summarizes during compaction, but its summarization client was not " +
-            "built before the agent."));
+        => summarizationClient is not null && ResolveSummarizationBinding(definition) is { } binding
+            ? SideChannelUsageTrackingChatClient.ForCompaction(summarizationClient, binding)
+            : throw new InvalidOperationException(
+                $"Agent '{definition.Name}' summarizes during compaction, but its summarization client was not " +
+                "built before the agent.");
 }
 #pragma warning restore MAAI001

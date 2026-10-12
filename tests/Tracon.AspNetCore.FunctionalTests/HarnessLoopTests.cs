@@ -27,6 +27,8 @@ public sealed class HarnessLoopTests
     private const string ProviderName = "looping";
     private const string ModelName = "loop-model";
     private const string AgentName = "looper";
+    private const string JudgeProviderName = "judging";
+    private const string JudgeModelName = "judge-model";
 
     [Fact]
     public async Task A_harness_without_loop_settings_writes_no_iteration_event()
@@ -781,6 +783,107 @@ public sealed class HarnessLoopTests
         var root = await RootRunAsync(host);
         root.Status.ShouldBe(RunStatus.Completed);
         root.Usage.ShouldNotBeNull().TotalTokens.ShouldBe(3 * UsagePerTurn);
+    }
+
+    /// <summary>
+    /// F-349: the <c>aiJudge</c> criterion calls its own model on every
+    /// iteration, and MAF drops that response. The tree budget counted the
+    /// judge's tokens, but the run's usage, cost and quota entry did not.
+    /// The judge's share is priced at the judge model, not at the agent's.
+    /// </summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task An_aiJudge_loop_records_the_judge_tokens_and_prices_them_at_the_judge_model(bool streaming)
+    {
+        var loop = new LoopSettings
+        {
+            Criteria = [new LoopCriterion { Kind = "aiJudge", JudgeCriteria = ["The answer is final."] }],
+            MaxIterations = 4,
+        };
+
+        var provider = new FakeModelProvider(ProviderName).WithModel(new ModelDescriptor
+        {
+            Name = ModelName,
+            InputCostPerMillionTokens = 1_000m,
+            OutputCostPerMillionTokens = 2_000m,
+        });
+        provider.ForModel(ModelName, cfg =>
+        {
+            cfg.RespondsWith("draft", inputTokens: 6, outputTokens: 4);
+            cfg.RespondsWith("final", inputTokens: 6, outputTokens: 4);
+        });
+
+        var judge = new FakeModelProvider(JudgeProviderName).WithModel(new ModelDescriptor
+        {
+            Name = JudgeModelName,
+            InputCostPerMillionTokens = 10_000m,
+            OutputCostPerMillionTokens = 50_000m,
+        });
+        judge.ForModel(JudgeModelName, cfg =>
+        {
+            cfg.RespondsWith(AIJudgeLoopEvaluator.MoreVerdictMarker, inputTokens: 30, outputTokens: 2);
+            cfg.RespondsWith(AIJudgeLoopEvaluator.DoneVerdictMarker, inputTokens: 40, outputTokens: 3);
+        });
+
+        await using var host = await StartAsync(provider, loop, builder => builder
+            .AddModelProvider(judge)
+            .AddModelRunJudge(static options => options.Model = new ModelBinding
+            {
+                Provider = JudgeProviderName,
+                Model = JudgeModelName,
+            }));
+
+        var agent = await ResolveAsync(host);
+        var session = await agent.CreateSessionAsync();
+        var messages = new[] { new Microsoft.Extensions.AI.ChatMessage(Microsoft.Extensions.AI.ChatRole.User, "go") };
+
+        if (streaming)
+        {
+            await foreach (var _ in agent.RunStreamingAsync(messages, session))
+            {
+            }
+        }
+        else
+        {
+            (await agent.RunAsync(messages, session)).Text.ShouldBe("final");
+        }
+
+        provider.Requests.Count.ShouldBe(2);
+        judge.Requests.Count.ShouldBe(2);
+
+        var root = await RootRunAsync(host);
+        root.Status.ShouldBe(RunStatus.Completed);
+
+        // Agent: 2 × (6 + 4). Judge: (30 + 2) + (40 + 3).
+        var usage = root.Usage.ShouldNotBeNull();
+        usage.InputTokens.ShouldBe(12 + 70);
+        usage.OutputTokens.ShouldBe(8 + 5);
+        usage.TotalTokens.ShouldBe(20 + 75);
+
+        // Agent: 12 × 1000/M + 8 × 2000/M. Judge: 70 × 10000/M + 5 × 50000/M.
+        var cost = root.Cost.ShouldNotBeNull();
+        cost.Source.ShouldBe(PricingSource.Catalog);
+        cost.InputCost.ShouldBe(0.012m + 0.7m);
+        cost.OutputCost.ShouldBe(0.016m + 0.25m);
+        cost.Total().ShouldBe(0.978m);
+
+        // Two models priced this run: one rate cannot describe the total.
+        cost.InputPricePerMillionTokens.ShouldBeNull();
+        cost.OutputPricePerMillionTokens.ShouldBeNull();
+        cost.CachedInputPricePerMillionTokens.ShouldBeNull();
+
+        // The quota consumes the same total (the agent's own counter).
+        var quotaUsage = await host.Services.GetRequiredService<IQuotaStore>().GetUsageAsync(new QuotaUsageQuery
+        {
+            TenantId = root.TenantId.ShouldNotBeNull(),
+            AgentName = AgentName,
+            Period = QuotaPeriod.Daily,
+        });
+
+        var daily = quotaUsage.ShouldHaveSingleItem();
+        daily.Tokens.ShouldBe(95);
+        daily.Cost.ShouldBe(0.978m);
     }
 
     /// <summary>

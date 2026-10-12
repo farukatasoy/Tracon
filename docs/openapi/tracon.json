@@ -13832,7 +13832,7 @@
               "number",
               "string"
             ],
-            "description": "Gets the input price, per million tokens, that produced\n\u0060InputCost\u0060. \u0060null\u0060 when the price is unknown.",
+            "description": "Gets the input price, per million tokens, that produced\n\u0060InputCost\u0060. \u0060null\u0060 when the price is unknown, or\nwhen the run\u0027s tokens were priced at more than one model.",
             "format": "double"
           },
           "outputCost": {
@@ -13852,7 +13852,7 @@
               "number",
               "string"
             ],
-            "description": "Gets the output price, per million tokens, that produced\n\u0060OutputCost\u0060. \u0060null\u0060 when the price is unknown.",
+            "description": "Gets the output price, per million tokens, that produced\n\u0060OutputCost\u0060. \u0060null\u0060 when the price is unknown, or\nwhen the run\u0027s tokens were priced at more than one model.",
             "format": "double"
           },
           "cachedInputCost": {
@@ -13872,7 +13872,7 @@
               "number",
               "string"
             ],
-            "description": "Gets the cache-read price, per million tokens, that produced\n\u0060CachedInputCost\u0060. \u0060null\u0060 when no cache rate\nwas applied \u2014 either the cache rate is undefined, or the provider\nreported no cache read at all.",
+            "description": "Gets the cache-read price, per million tokens, that produced\n\u0060CachedInputCost\u0060. \u0060null\u0060 when no cache rate\nwas applied \u2014 either the cache rate is undefined, or the provider\nreported no cache read at all \u2014 or when the run\u0027s tokens were priced at\nmore than one model.",
             "format": "double"
           },
           "currency": {

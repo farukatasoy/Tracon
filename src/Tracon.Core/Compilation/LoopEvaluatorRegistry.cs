@@ -373,7 +373,13 @@ internal sealed class LoopEvaluatorRegistry
             judgeOptions.Instructions = criterion.JudgeInstructions;
         }
 
-        return new AIJudgeLoopEvaluator(judgeClient, judgeOptions);
+        // 🚨 MAF drops the judge's response, and with it the usage: without the
+        // tracker the judge's tokens reached the tree budget but not the run's
+        // usage, cost or quota entry (F-349). Wrapped here, once, so the async and
+        // the synchronous compile path both get it.
+        return new AIJudgeLoopEvaluator(
+            SideChannelUsageTrackingChatClient.ForLoopJudge(judgeClient, _judgeOptions.Model),
+            judgeOptions);
     }
 
     /// <summary>

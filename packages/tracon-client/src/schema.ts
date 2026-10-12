@@ -5801,7 +5801,8 @@ export interface components {
             /**
              * Format: double
              * @description Gets the input price, per million tokens, that produced
-             *     `InputCost`. `null` when the price is unknown.
+             *     `InputCost`. `null` when the price is unknown, or
+             *     when the run's tokens were priced at more than one model.
              */
             inputPricePerMillionTokens?: null | number | string;
             /**
@@ -5812,7 +5813,8 @@ export interface components {
             /**
              * Format: double
              * @description Gets the output price, per million tokens, that produced
-             *     `OutputCost`. `null` when the price is unknown.
+             *     `OutputCost`. `null` when the price is unknown, or
+             *     when the run's tokens were priced at more than one model.
              */
             outputPricePerMillionTokens?: null | number | string;
             /**
@@ -5826,7 +5828,8 @@ export interface components {
              * @description Gets the cache-read price, per million tokens, that produced
              *     `CachedInputCost`. `null` when no cache rate
              *     was applied — either the cache rate is undefined, or the provider
-             *     reported no cache read at all.
+             *     reported no cache read at all — or when the run's tokens were priced at
+             *     more than one model.
              */
             cachedInputPricePerMillionTokens?: null | number | string;
             /** @description Gets the currency, taken from `Tracon:Pricing:Currency`. */

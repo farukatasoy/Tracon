@@ -26,8 +26,9 @@ namespace Tracon;
 /// <para>
 /// This decorator owns 100% of the tree's usage accounting: because it sees
 /// every real model call the pipeline makes — the agent's own turns AND the
-/// compaction side-channel call (both are built through the same
-/// <see cref="IModelProviderRegistry.CreateChatClient(ModelBinding)"/> call) —
+/// side-channel calls of the compaction summarizer and the <c>aiJudge</c> loop
+/// judge (each is built through the same <see cref="ModelProviderRegistry"/>
+/// pipeline, priced here at its own binding's model) —
 /// <c>RunRecordingAgent.CompleteAsync</c> no longer records into the budget
 /// itself; doing so would double the count.
 /// </para>
@@ -71,7 +72,12 @@ internal sealed class RunBudgetChatClient(
             {
                 if (content is UsageContent usageContent)
                 {
-                    usage = usageContent.Details;
+                    // 🚨 SUMMED, not overwritten (F-349), the same rule as the
+                    // run recorder (F-317, K-889): a call that reports its usage in
+                    // more than one part charged the tree only for the last part.
+                    // A fresh accumulator, so no UsageDetails owned by an inner
+                    // client is modified.
+                    (usage ??= new UsageDetails()).Add(usageContent.Details);
                 }
             }
 

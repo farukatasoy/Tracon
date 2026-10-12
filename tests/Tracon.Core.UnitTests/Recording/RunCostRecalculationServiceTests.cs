@@ -121,6 +121,40 @@ public sealed class RunCostRecalculationServiceTests
         result.RunsSkipped.ShouldBe(0);
     }
 
+    /// <summary>
+    /// F-349: a run priced at more than one model carries no rate fields and
+    /// its usage includes tokens that another model spent. Re-pricing that
+    /// usage whole at the run's own model would bill the judge's or the
+    /// summarizer's tokens at the agent's rate, so such a row stays untouched.
+    /// </summary>
+    [Fact]
+    public async Task A_run_priced_at_several_models_is_never_repriced_at_its_own_model()
+    {
+        var store = new InMemoryRunStore(tenantContext: new FixedTenantContext(TenantId));
+
+        var runId = await StartAndCompleteAsync(
+            store,
+            provider: "openai",
+            model: "gpt-x",
+            cost: RunCostCombiner.Combine(
+            [
+                new RunCost { InputCost = 1m, InputPricePerMillionTokens = 1_000m, Currency = "USD", Source = PricingSource.Catalog },
+                new RunCost { InputCost = 2m, InputPricePerMillionTokens = 4_000m, Currency = "USD", Source = PricingSource.Catalog },
+            ]));
+
+        var resolver = new FakeRunPricingResolver((_, _, _) =>
+            new RunCost { InputCost = 999m, Currency = "USD", Source = PricingSource.Catalog });
+
+        var result = await new RunCostRecalculationService(store, resolver).RecalculateAsync(TenantId);
+
+        result.RunsSkipped.ShouldBe(1);
+        resolver.CallCount.ShouldBe(0);
+
+        var cost = (await store.GetRunAsync(runId))!.Cost!;
+        cost.InputCost.ShouldBe(3m);
+        cost.InputPricePerMillionTokens.ShouldBeNull();
+    }
+
     private static async Task<Guid> StartAndCompleteAsync(
         InMemoryRunStore store,
         string? provider,
