@@ -450,6 +450,18 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         // (measured in phase 6).
         var activity = ActivitySource.StartActivity(TraconDiagnostics.RunActivityName, ActivityKind.Internal);
 
+        // F-337: read BEFORE the scope is built. The scope promises the same
+        // user and labels the run record carries (AgentRunScope.UserId/Labels),
+        // and every node and tool of the root reads them from it; built first,
+        // it carried neither. The read writes no AsyncLocal.
+        var attribution = RunAttributionReader.Read(
+            _attributionContext,
+            (message, exception) => _logger.LogWarning(
+                exception,
+                "{Message} Workflow run {RunId} continues and is recorded with no user and no labels.",
+                message,
+                execution.RunId));
+
         var scope = new AgentRunScope
         {
             RunId = execution.RunId,
@@ -458,6 +470,8 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             AgentName = execution.WorkflowName,
             TenantId = _tenantContext.TenantId,
             SessionId = execution.SessionId,
+            UserId = attribution.UserId,
+            Labels = attribution.Labels,
             Budget = _traconOptions.Value.AgentGraph.CreateBudget(_timeProvider),
             Writer = writer,
         };
@@ -473,14 +487,6 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         }
 
         TraconRunContext.SetCurrent(scope);
-
-        var attribution = RunAttributionReader.Read(
-            _attributionContext,
-            (message, exception) => _logger.LogWarning(
-                exception,
-                "{Message} Workflow run {RunId} continues and is recorded with no user and no labels.",
-                message,
-                execution.RunId));
 
         await writer.StartAsync(
             new RunStartInfo
@@ -1254,6 +1260,11 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             {
                 TenantId = scope.TenantId ?? _tenantContext.TenantId,
                 AgentName = execution.WorkflowName,
+
+                // F-337: the quota.threshold webhook names the run that crossed
+                // the threshold and its user, as it does for an agent run.
+                RunId = execution.RunId.ToString(),
+                UserId = scope.UserId,
                 Runs = 1,
                 Tokens = record?.TreeUsage?.TotalTokens ?? 0,
                 Cost = record?.TreeCost is { } treeCost

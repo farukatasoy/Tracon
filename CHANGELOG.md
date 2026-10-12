@@ -81,6 +81,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- A workflow run now carries its attribution the way an agent run does. The
+  root built its run scope before it read `IRunAttributionContext`, so every
+  node and tool of a workflow read `TraconRunContext.Current.UserId` and
+  `Labels` as `null` while the run row carried them, and its quota record named
+  no run and no user, so a `quota.threshold` webhook for a workflow carried
+  `runId` and `userId` as `null`.
 - A harness loop with an `aiJudge` criterion now records the judge's tokens in
   the run's `usage`, cost and quota consumption. The judge calls its own model
   on every iteration it reaches, and the framework drops that response: the
@@ -367,6 +373,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Every endpoint that starts a run now refuses an attribution that breaks a
+  label limit with `400` before the run starts, as the agent run endpoint
+  already did: workflow run, resume and respond, run replay, the inbound
+  trigger endpoint, and `/v1/chat/completions` and `/v1/responses` (in the
+  OpenAI error shape, `type: invalid_run_attribution`). These endpoints
+  started the run with no user and no labels, and answered `200`.
 - A run that spends tokens on more than one model (a compaction summarizer or
   an `aiJudge` judge on a model other than the agent's) prices each model's
   share at that model's price, and `cost` is the sum. The three

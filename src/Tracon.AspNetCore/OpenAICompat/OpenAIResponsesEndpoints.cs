@@ -202,6 +202,13 @@ internal static class OpenAIResponsesEndpoints
         var saveId = runRequest.ConversationId ?? responseId;
         var loadId = OpenAIResponses.GetSessionStoreId(runRequest) ?? saveId;
 
+        // F-337: the attribution is checked before the run starts, as on the
+        // agent run endpoint; this protocol's own error shape carries it.
+        if (RunAttributionGate.Validate(attributionContext) is { } attributionError)
+        {
+            return OpenAICompatSupport.Error(StatusCodes.Status400BadRequest, attributionError, type: "invalid_run_attribution");
+        }
+
         // 🚨 Checked BEFORE the tenant-ownership check below, same ordering
         // as every other run-starting endpoint (phase 139, F-185): an
         // unauthorized call must not learn whether 'loadId' exists.

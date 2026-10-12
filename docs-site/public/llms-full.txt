@@ -2282,7 +2282,15 @@ data-subject erasure flow takes, which covers this column too.
 Labels are bounded on purpose: at most **8** per run, keys up to **64**
 characters, values up to **256**. Breaking a limit **rejects the request with
 400**; nothing is trimmed to fit, because a trimmed label set still reads as a
-complete measurement to whoever queries the report later.
+complete measurement to whoever queries the report later. Every endpoint that
+starts a run applies the same check before the run starts: an agent run, a
+workflow run, resume and respond, a replay, an inbound trigger, and the
+OpenAI-compatible `/v1/chat/completions` and `/v1/responses` (which answer in
+their own error shape).
+
+A workflow run carries its attribution the way an agent run does: its row, the
+`TraconRunContext.Current.UserId` and `Labels` every node and tool of the
+workflow reads, and the run and user a `quota.threshold` webhook names.
 
 :::caution
 Labels and user ids are **query** dimensions, not **metric** dimensions. They

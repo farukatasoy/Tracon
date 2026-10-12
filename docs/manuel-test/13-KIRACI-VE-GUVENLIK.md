@@ -4825,3 +4825,41 @@ run
 - Adım 3: `HTTP: 400` (`Agent compilation failed`); ayrıntı
   `not allowed to call model provider 'openai'` der ve sağlayıcıya istek
   gitmez. Düzeltmeden önce adım 3 `200` dönüyordu.
+
+---
+
+### MT-SEC-213 — Workflow ve diğer run başlatan uçlar atıfı agent ucu gibi taşır ve denetler (kusur-giderme, 2026-10-12, F-337)
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | — |
+| **İnsan gerekir** | Hayır |
+| **Devir** | koşulmadı; ➜ CI: `WorkflowAttributionTests` (fonksiyonel) · `RunAuthorizationCoverageTests.Every_known_run_starting_surface_checks_the_attribution` |
+
+Regresyon. Workflow kökü kapsamı atıfı okumadan kuruyordu; düğümler
+`UserId == null` görüyordu. Kota kaydı run ve kullanıcı taşımıyordu.
+`RunAttributionGate` yalnız agent run ucundaydı; diğer uçlar limiti aşan
+etiketi `200` ile kabul edip run'ı atıfsız koşturuyordu.
+
+**Ön koşul** — Örnek uygulamada `IRunAttributionContext` bir başlıktan kullanıcı
+ve etiket okur (MT-SEC-149 düzeni). `whoami` fonksiyon düğümü
+`TraconRunContext.Current.UserId`'yi çıktıya yazar.
+
+**Adımlar**
+1. `whoami` düğümlü workflow'u `X-User: ada` ile çalıştır.
+2. Aynı workflow'a 9 etiketle istek gönder.
+3. 2. adımı `POST /api/workflows/runs/{id}/respond`, `POST /api/runs/{id}/replay`
+   ve `POST /tracon/v1/chat/completions` ile tekrarla.
+4. Workflow adına `MaxRuns = 1` kota kur, workflow'u çalıştır, `quota.threshold`
+   webhook gövdesini oku.
+
+**Beklenen sonuç**
+- Adım 1: çıktı `ada` taşır.
+- Adım 2–3: `HTTP: 400`; mesaj etiket sınırını adlandırır; run satırı açılmaz.
+  OpenAI ucu `400`'ü OpenAI hata şekliyle verir (`error.type:
+  invalid_run_attribution`).
+- Adım 4: webhook `runId` workflow run'ını, `userId` `ada`'yı taşır.
+- 🚨 Eski kusur: adım 1 boş, adım 2–3 `200`, adım 4 `runId`/`userId` `null`.
