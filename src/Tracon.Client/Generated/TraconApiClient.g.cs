@@ -19764,6 +19764,13 @@ namespace Tracon.Client.Generated
         public bool DisableWebSearch { get; set; } = default!;
 
         /// <summary>
+        /// Gets a value that turns on the model provider's hosted web search.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("enableWebSearch")]
+        public bool EnableWebSearch { get; set; } = default!;
+
+        /// <summary>
         /// Gets a value that turns off automatic tool approval. Once turned off, every tool
         /// <br/>call waits for an explicit approval.
         /// </summary>

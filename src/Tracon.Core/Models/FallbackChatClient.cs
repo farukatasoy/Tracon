@@ -466,10 +466,16 @@ internal sealed class FallbackChatClient : DelegatingChatClient
 
         var link = _fallbacks[fallbackIndex];
 
+        // The link runs the same agent's tool loop, so it takes the primary's
+        // loop settings: the tools' thread-safety does not change with the
+        // model, and a harness agent's iteration limit is the agent's, not the
+        // model's (F-315, K-892).
         var binding = new ModelBinding
         {
             Provider = link.Provider,
             Model = link.Model,
+            AllowConcurrentToolCalls = _primaryBinding.AllowConcurrentToolCalls,
+            ToolLoopIterationLimit = _primaryBinding.ToolLoopIterationLimit,
         };
 
         var client = await _buildClient(binding, cancellationToken).ConfigureAwait(false);

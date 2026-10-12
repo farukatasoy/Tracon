@@ -182,6 +182,28 @@ without calling any model — useful in CI. A validation failure there is not an
 error: the response is `200` with a report, because "this definition is invalid" is an
 answer, not a transport failure.
 
+### What a harness agent turns on
+
+A `HarnessSettings` value turns on Microsoft Agent Framework's harness: context
+compaction, todo tracking and the agent mode provider. Three more harness
+features stay off until the definition asks for each one:
+
+| Feature | Turned on by | What it never does |
+|---|---|---|
+| Skills | `SkillNames`, and only the named skills | Read `SKILL.md` files from the server's working directory |
+| File memory | `Memory.EnableFileMemory`, on the registered `AgentFileStore` | Write files under the server's working directory |
+| Web search | `Harness.EnableWebSearch`, the provider's hosted search | Turn on because the harness has it |
+
+A definition that turns a feature on and sets its `Disable*` switch is a
+compilation error. Hosted web search runs at the model provider, which bills it,
+and depends on the provider surface: OpenAI Chat Completions (`openai`) accepts it
+only for search models and answers `400` otherwise, while `openai-responses`
+offers it to every model.
+
+`MaximumIterationsPerRequest` bounds the tool-call loop of one invocation, on a
+fallback model too. At the limit the last model call offers no function tools,
+so the model has to answer.
+
 Compiled agents are cached by name, version, and a fingerprint of their dependencies,
 so changing a skill, the tenant's egress policy, or an MCP server that serves one of
 the agent's tools invalidates the agents that use it. The next run compiles again.

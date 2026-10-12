@@ -11112,6 +11112,10 @@
             "type": "boolean",
             "description": "Gets a value that turns off web search."
           },
+          "enableWebSearch": {
+            "type": "boolean",
+            "description": "Gets a value that turns on the model provider\u0027s hosted web search."
+          },
           "disableToolAutoApproval": {
             "type": "boolean",
             "description": "Gets a value that turns off automatic tool approval. Once turned off, every tool\ncall waits for an explicit approval."

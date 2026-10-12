@@ -9,7 +9,7 @@ namespace Tracon;
 /// </summary>
 public sealed partial class AgentDefinitionCompiler
 {
-    private IChatClient CreateChatClient(AgentDefinition definition) => CreateChatClient(definition, definition.Model);
+    private IChatClient CreateChatClient(AgentDefinition definition) => CreateChatClient(definition, AgentLoopBinding(definition));
 
     private IChatClient CreateChatClient(AgentDefinition definition, ModelBinding binding)
     {
@@ -29,7 +29,32 @@ public sealed partial class AgentDefinitionCompiler
     }
 
     private ValueTask<IChatClient> CreateChatClientAsync(AgentDefinition definition, CancellationToken cancellationToken)
-        => CreateChatClientAsync(definition, definition.Model, cancellationToken);
+        => CreateChatClientAsync(definition, AgentLoopBinding(definition), cancellationToken);
+
+    // F-315 (K-892): a harness agent's MaximumIterationsPerRequest goes to MAF's
+    // own loop, which sits ABOVE the model pipeline and never sees a tool call
+    // - the pipeline's loop runs them all. Measured: a limit of 2 still made 7
+    // model calls. The limit therefore travels on the binding to the loop that
+    // runs the tools, and on to every fallback link.
+    private static ModelBinding AgentLoopBinding(AgentDefinition definition)
+    {
+        if (definition.Harness?.MaximumIterationsPerRequest is not { } limit)
+        {
+            return definition.Model;
+        }
+
+        if (limit < 1)
+        {
+            throw new TraconCompilationException(
+                $"Agent '{definition.Name}' has an invalid {nameof(HarnessSettings)}." +
+                $"{nameof(HarnessSettings.MaximumIterationsPerRequest)} ({limit}); it must be at least 1.")
+            {
+                AgentName = definition.Name,
+            };
+        }
+
+        return definition.Model with { ToolLoopIterationLimit = limit };
+    }
 
     private async ValueTask<IChatClient> CreateChatClientAsync(AgentDefinition definition, ModelBinding binding, CancellationToken cancellationToken)
     {

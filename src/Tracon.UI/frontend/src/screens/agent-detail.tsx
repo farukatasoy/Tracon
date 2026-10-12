@@ -469,6 +469,7 @@ function VersionCompare({ name, a, b }: { name: string; a: number; b: number }):
                     disableTodoProvider: { label: t('fields.disableTodoProvider') },
                     disableFileMemory: { label: t('fields.disableFileMemory') },
                     disableWebSearch: { label: t('fields.disableWebSearch') },
+                    enableWebSearch: { label: t('fields.enableWebSearch') },
                     disableToolAutoApproval: { label: t('fields.disableToolAutoApproval') },
                   }}
                 />

@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](../KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (803 kalem)
+## Arşivlenen Kararlar (804 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
@@ -812,3 +812,4 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-801 | 852 | Bir eval case'inin kimliğini istemci AÇIKÇA taşır; sunucu içerikten tahmin etmez 👤 |
 | K-802 | 853 | Bir case'in promosyon kaydı SUNUCUNUN kendi verisidir ve KİMLİKLE taşınır |
 | K-803 | 854 | Bir SSE tüketicisi canlılığı FRAME değil BAYT sayarak ölçer 👤 |
+| K-804 | 855 | `/api/diagnostics` yürürlükteki `RunRecording` ayarlarını bildirir 👤 |

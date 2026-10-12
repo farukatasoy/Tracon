@@ -3725,8 +3725,9 @@ ile yapılır. Değişiklik case sonunda GERİ ALINIR.
 | **İlgili faz** | Faz 192 |
 | **İlgili karar** | K-884 |
 
-**Ön koşul:** Örnek uygulama, gerçek model. 🚨 Harness modu `openai` (Chat Completions)
-sağlayıcısında bugün `400` ile düşer (F-315); `openai-responses` kullan.
+**Ön koşul:** Örnek uygulama, gerçek model. Harness modu `openai` (Chat Completions)
+sağlayıcısında da koşar (F-315 2026-10-12'de kapandı, MT-OAI-094); case
+`openai-responses` ile yazıldı ve öyle kalır.
 
 **Adımlar**
 1. ```json
@@ -3904,3 +3905,43 @@ gibi gönderiyordu. Otomatik karşılığı: `AgentParameterPathTests`.
   OpenAI ucunda `400`.
 - `greeting-agent`: run `Completed`; sağlayıcıya giden talimat `friend`'i taşır.
 - 🚨 Eski kusur: iki agent da `{{customer}}`'ı model'e olduğu gibi gönderdi.
+
+---
+
+### MT-CORE-139 — Harness agent'ı istenmeyen skill, dosya belleği ve web aramasını açmaz; tur sınırı tutar (kusur-giderme, 2026-10-12, F-339 · F-315)
+
+Regresyon. Skill adı vermeyen harness agent'ı sunucunun çalışma dizinindeki
+`SKILL.md` dosyalarını okuyordu. Dosya belleği açılmayan agent model içeriğini
+`./agent-file-memory` altına yazıyordu. Her harness agent'ı sağlayıcının ücretli
+web aramasını alıyordu. `MaximumIterationsPerRequest` etkisizdi. Otomatik
+karşılığı: `HarnessDefaultsTests`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | K-892 |
+
+**Ön koşul**
+- Örnek uygulama, gerçek model (`openai-responses`).
+- Uygulamanın çalışma dizininde `skills/probe/SKILL.md` var. Açıklamasında
+  `PROBE-SKILL` sözcüğü geçer.
+- `harness-probe` agent'ı: `harness: {}`, `skillNames` boş, `memory` yok.
+
+**Adımlar**
+1. `harness-probe`'a "Hangi skill'lerin ve araçların var? Bir not dosyasına yaz." gönder.
+2. Run olaylarını ve sağlayıcıya giden isteği (span) incele.
+3. Çalışma dizininde `agent-file-memory` klasörünü ara.
+4. Agent'ı `harness: {"enableWebSearch": true, "disableWebSearch": true}` ile kaydet.
+5. Agent'ı `harness: {"maximumIterationsPerRequest": 2}` ve her turda tool çağıran
+   bir istemle koştur.
+
+**Beklenen sonuç**
+- Adım 1–2: istekte `load_skill`, `file_memory_*` ve web arama aracı yoktur;
+  talimat `PROBE-SKILL` içermez.
+- Adım 3: `agent-file-memory` klasörü oluşmaz.
+- Adım 4: kayıt `400` döner; mesaj iki alanı da adlandırır.
+- Adım 5: üçüncü model çağrısı fonksiyon aracı sunmaz; model yanıt verir.
+- 🚨 Eski kusur: skill CWD'den okundu, not `./agent-file-memory/<oturum>/` altına
+  yazıldı, `MaximumIterationsPerRequest = 2` ile 7 model çağrısı yapıldı.

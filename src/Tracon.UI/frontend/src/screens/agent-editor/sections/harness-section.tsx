@@ -7,7 +7,7 @@ const HARNESS_TOGGLES = [
   ['disableCompaction', 'fields.disableCompaction'],
   ['disableTodoProvider', 'fields.disableTodoProvider'],
   ['disableFileMemory', 'fields.disableFileMemory'],
-  ['disableWebSearch', 'fields.disableWebSearch'],
+  ['enableWebSearch', 'fields.enableWebSearch'],
   ['disableToolAutoApproval', 'fields.requireToolApproval'],
 ] as const;
 
@@ -73,7 +73,16 @@ export function HarnessSection({
                     className="accent-[var(--tracon-accent)]"
                     checked={form.harness[key] === true}
                     onChange={(event) =>
-                      setForm({ ...form, harness: { ...form.harness, [key]: event.target.checked } })
+                      setForm({
+                        ...form,
+                        harness: {
+                          ...form.harness,
+                          [key]: event.target.checked,
+                          // A stored definition may still carry the old off switch;
+                          // the server refuses both at once (F-315).
+                          ...(key === 'enableWebSearch' && event.target.checked ? { disableWebSearch: false } : {}),
+                        },
+                      })
                     }
                   />
                   {t(label)}

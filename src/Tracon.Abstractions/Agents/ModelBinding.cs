@@ -136,4 +136,18 @@ public sealed record ModelBinding
     /// itself once this is turned on for its agent.
     /// </remarks>
     public bool AllowConcurrentToolCalls { get; init; }
+
+    /// <summary>
+    /// Gets the iteration limit of the tool-call loop the model pipeline builds
+    /// for this binding; <see langword="null"/> keeps the loop's own default.
+    /// </summary>
+    /// <remarks>
+    /// Not part of the stored or wire shape. The compiler sets it on a copy of
+    /// a harness agent's binding: the harness hands its model client to its
+    /// own tool-call loop, but the loop that runs the tools is the one the
+    /// model pipeline builds under it, so the harness's
+    /// <c>MaximumIterationsPerRequest</c> has to reach that loop — and every
+    /// fallback link's loop — through the binding.
+    /// </remarks>
+    internal int? ToolLoopIterationLimit { get; init; }
 }
