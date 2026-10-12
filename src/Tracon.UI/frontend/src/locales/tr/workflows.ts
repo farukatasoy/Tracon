@@ -36,6 +36,7 @@ export const trWorkflows: Pick<Messages, keyof typeof enWorkflows> = {
   "workflowDetail.graph": 'Grafik',
   "workflowDetail.copyMermaid": 'Mermaid kopyala',
   "workflowDetail.messagePlaceholder": 'Grafiğe gönderilecek mesaj…',
+  "workflowDetail.parameters": 'Parametreler',
   "workflowDetail.stop": 'Durdur',
   "workflowDetail.inspectRun": 'Bu çalıştırmayı olay olay inceleyin',
   "workflowDetail.runId": 'çalıştırma {id}',

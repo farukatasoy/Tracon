@@ -15,9 +15,9 @@ namespace Tracon;
 /// (the cache key has no notion of a value), which means it also bypasses
 /// <see cref="IAgentCatalog.ResolveAsync(string, string, CancellationToken)"/> and the
 /// decorator chain the catalog applies. The caller therefore has to find the
-/// definition (code first, K-890), compile with the values, and apply
+/// definition (code first), compile with the values, and apply
 /// <see cref="AgentDecoratorPipeline"/> by hand or the run goes out with no
-/// recording, no telemetry and no tool-approval gate (K-581). Four more callers
+/// recording, no telemetry and no tool-approval gate. Four more callers
 /// would have been four more copies of that sequence.
 /// </para>
 /// <para>
@@ -101,7 +101,7 @@ internal sealed class ParameterizedAgentFactory
     /// <para>
     /// <strong>Fail closed.</strong> A definition that declares parameters and a
     /// source that recorded none cannot be repeated: running on the defaults
-    /// would change the instructions the source run was given (K-890). A
+    /// would change the instructions the source run was given. A
     /// definition that declares none is unaffected.
     /// </para>
     /// <para>

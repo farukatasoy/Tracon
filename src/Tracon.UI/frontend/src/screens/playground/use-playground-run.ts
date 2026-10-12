@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { client, openStream, unwrap } from '../../lib/api';
+import { hasMissingRequiredParameter } from '../../components/parameter-inputs';
 import { readSse } from '@tracon/client';
 import {
   applyApprovalPresentations,
@@ -293,12 +294,7 @@ export function usePlaygroundRun(
   // A run with a value missing for a required AgentParameter never starts on
   // the server either (AgentParameterGate); blocked here too so the person
   // running the agent sees why before spending a round trip on it.
-  const missingRequiredParameter = parameterSchema.some(
-    (parameter) =>
-      parameter.required &&
-      (paramValues[parameter.name] ?? '').trim().length === 0 &&
-      (parameter.defaultValue ?? '').length === 0,
-  );
+  const missingRequiredParameter = hasMissingRequiredParameter(parameterSchema, paramValues);
 
   const send = useCallback(() => {
     const message = prompt.trim();

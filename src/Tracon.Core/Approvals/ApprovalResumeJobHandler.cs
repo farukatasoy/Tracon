@@ -31,7 +31,7 @@ namespace Tracon;
 /// default instructions.
 /// </para>
 /// <para>
-/// F-294: an agent that declares parameters resumes with the values the source run
+/// An agent that declares parameters resumes with the values the source run
 /// recorded. Resuming it on the defaults would answer the tool call under
 /// different instructions than the ones that asked for it, so a source that
 /// recorded none (input recording off, or a run from before parameter recording)

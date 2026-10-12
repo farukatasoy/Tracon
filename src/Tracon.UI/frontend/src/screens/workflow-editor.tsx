@@ -19,7 +19,7 @@ import {
 } from '../components/ui';
 import { Tooltip } from '../components/tooltip';
 import { KIND_HINT } from './workflows';
-import type { WorkflowNodeReference, WorkflowSaveRequest } from '@tracon/client';
+import type { AgentParameter, WorkflowNodeReference, WorkflowSaveRequest } from '@tracon/client';
 import type { AgentDescriptor, WorkflowDefinition, WorkflowKind } from '../lib/server-types';
 
 const KINDS: WorkflowKind[] = ['Sequential', 'Concurrent', 'Handoff', 'GroupChat', 'Magentic'];
@@ -43,6 +43,16 @@ interface Draft {
    * that one agent: the function nodes were gone, with no warning.
    */
   nodes: WorkflowNodeReference[];
+  /**
+   * The run parameters the workflow declares - carried, never edited here
+   * (F-294). The console has no schema editor yet; the agent editor treats its
+   * own `parameters` the same way.
+   *
+   * 🚨 `PUT /api/workflows/{name}` is a full replace (K-725): a save that did
+   * not send them back would erase the schema, and the next run would be
+   * refused for values the workflow no longer declares.
+   */
+  parameters: AgentParameter[];
   managerAgentName: string;
   maxIterations: string;
   handoffInstructions: string;
@@ -56,6 +66,7 @@ const EMPTY: Draft = {
   kind: 'Sequential',
   agentNames: [],
   nodes: [],
+  parameters: [],
   managerAgentName: '',
   maxIterations: '',
   handoffInstructions: '',
@@ -115,6 +126,7 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
       kind: loaded.kind,
       agentNames: loaded.agentNames,
       nodes: loaded.nodes,
+      parameters: loaded.parameters ?? [],
       managerAgentName: loaded.managerAgentName ?? '',
       maxIterations: loaded.maxIterations == null ? '' : String(loaded.maxIterations),
       handoffInstructions: loaded.handoffInstructions ?? '',
@@ -130,6 +142,7 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
         kind: draft.kind,
         agentNames: draft.agentNames,
         nodes: draft.nodes,
+        parameters: draft.parameters,
 
         // Fields that belong to another pattern are sent as null, not as an
         // empty string: the server rejects a value that the chosen pattern does
