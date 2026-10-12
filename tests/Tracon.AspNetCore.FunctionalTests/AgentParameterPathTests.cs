@@ -73,8 +73,12 @@ public sealed class AgentParameterPathTests
     }
 
     [Fact]
-    public async Task A_replay_of_an_agent_with_a_required_parameter_is_refused_before_it_runs()
+    public async Task A_replay_of_an_agent_with_a_required_parameter_repeats_the_values_its_run_recorded()
     {
+        // F-294 reopened K-890's replay refusal: a run records the values it was
+        // bound with, so a replay no longer has to refuse for want of them. The
+        // refusal that remains - a run that recorded NOTHING - is pinned in
+        // RunReplayParameterTests.
         var provider = Provider();
         await using var host = await StartAsync(provider, queueWorker: false);
 
@@ -94,16 +98,14 @@ public sealed class AgentParameterPathTests
 
         using var replay = await host.Client.PostAsJsonAsync($"/tracon/api/runs/{runId}/replay", new { toolMode = "NoTools" });
 
-        replay.StatusCode.ShouldBe(HttpStatusCode.BadRequest, await replay.Content.ReadAsStringAsync());
-        (await replay.Content.ReadAsStringAsync()).ShouldContain("declares parameters", Case.Sensitive);
-        provider.Requests.Count.ShouldBe(calls);
+        replay.StatusCode.ShouldBe(HttpStatusCode.OK, await replay.Content.ReadAsStringAsync());
+        provider.Requests.Count.ShouldBe(calls + 1);
+        provider.Requests[^1].Options!.Instructions.ShouldBe("Hello Acme, how can I help?");
     }
 
     [Fact]
-    public async Task A_replay_of_an_agent_whose_parameters_all_have_defaults_is_refused_too()
+    public async Task A_replay_of_an_agent_whose_parameters_all_have_defaults_repeats_the_value_it_was_given()
     {
-        // The recorded input has no parameter values: replaying with the
-        // defaults would run different instructions from the source run's.
         var provider = Provider();
         await using var host = await StartAsync(provider, queueWorker: false);
 
@@ -122,8 +124,10 @@ public sealed class AgentParameterPathTests
 
         using var replay = await host.Client.PostAsJsonAsync($"/tracon/api/runs/{runId}/replay", new { toolMode = "NoTools" });
 
-        replay.StatusCode.ShouldBe(HttpStatusCode.BadRequest, await replay.Content.ReadAsStringAsync());
-        (await replay.Content.ReadAsStringAsync()).ShouldContain("declares parameters", Case.Sensitive);
+        // The default ('friend') would have changed the source run's
+        // instructions; the recorded value ('Acme') does not.
+        replay.StatusCode.ShouldBe(HttpStatusCode.OK, await replay.Content.ReadAsStringAsync());
+        provider.Requests[^1].Options!.Instructions.ShouldBe("Hello Acme, how can I help?");
     }
 
     [Fact]

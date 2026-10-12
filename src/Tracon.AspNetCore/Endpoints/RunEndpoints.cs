@@ -398,7 +398,12 @@ internal static class RunEndpoints
                 "Replay is sessionless: if the source run belongs to a session, only that TURN's " +
                 "input is replayed; the conversation history is not carried over. Replay STARTS a " +
                 "run, so a registered IRunAuthorizationHandler is asked with the SOURCE run's id; a " +
-                "denial returns 403 before any run row is opened.")
+                "denial returns 403 before any run row is opened. An agent that declares " +
+                "parameters is replayed with the values the source run was bound with; 'parameters' " +
+                "changes the names it gives and keeps the rest, and a name the replayed version does not " +
+                "declare returns 400. A run that recorded no values (input recording was off, or it " +
+                "predates parameter recording) cannot be replayed when the agent declares parameters, " +
+                "and returns 400. A workflow run is not replayed; it is continued from its checkpoints.")
             .Produces<RunReplayResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden)
@@ -731,6 +736,7 @@ internal static class RunEndpoints
                     RunId = newRunId,
                     AgentVersion = preparation.AgentVersion,
                     ReplayOfRunId = runId,
+                    ParameterValues = preparation.ParameterValues,
                 },
                 cancellationToken).ConfigureAwait(false);
 
