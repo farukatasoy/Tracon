@@ -41,4 +41,10 @@ public enum ProtectedColumn
     /// ever filled in.
     /// </summary>
     ResponsePayload = 9,
+
+    /// <summary>
+    /// The <c>run_inputs.parameters</c> column — the parameter values a run was
+    /// started with. Values are user content like the messages beside them.
+    /// </summary>
+    RunInputParameters = 10,
 }

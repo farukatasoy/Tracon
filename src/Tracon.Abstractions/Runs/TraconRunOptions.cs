@@ -54,6 +54,7 @@ public sealed class TraconRunOptions : AgentRunOptions
         ReplayOfRunId = other.ReplayOfRunId;
         ContinuedFromRunId = other.ContinuedFromRunId;
         BeforePendingApprovalIsPublished = other.BeforePendingApprovalIsPublished;
+        ParameterValues = other.ParameterValues;
     }
 
     /// <summary>
@@ -198,6 +199,26 @@ public sealed class TraconRunOptions : AgentRunOptions
     /// </para>
     /// </remarks>
     public Func<IEnumerable<ChatMessage>, IReadOnlyDictionary<string, ToolApprovalPresentation?>, CancellationToken, ValueTask>? BeforePendingApprovalIsPublished { get; init; }
+
+    /// <summary>
+    /// The parameter values the run's agent was compiled with. <see langword="null"/>
+    /// when the caller bound no values (and so recorded none).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Internal on purpose: the value is not an instruction to the recording
+    /// wrapper, it is the record of an instruction already followed. The caller
+    /// that compiled the agent (the <c>/run</c> endpoint, a job handler, a
+    /// workflow step) passes the SAME dictionary it bound, and the wrapper writes
+    /// it to <see cref="RunInputRecord.Parameters"/> so a replay and a resume run
+    /// with the source run's values (F-294).
+    /// </para>
+    /// <para>
+    /// Setting it on options for an agent that was NOT compiled with those values
+    /// would record a claim the run never followed; there is no validation here.
+    /// </para>
+    /// </remarks>
+    internal IReadOnlyDictionary<string, string>? ParameterValues { get; init; }
 
     /// <inheritdoc />
     /// <remarks>

@@ -132,6 +132,89 @@ public abstract class RunInputStoreContract : StoreCancellationContract<IRunInpu
     }
 
     [Fact]
+    public async Task Parameter_values_round_trip_exactly()
+    {
+        var runId = await NewRunAsync();
+
+        // Values are user content: quotes, a newline, a non-ASCII character and
+        // text that looks like a placeholder must all come back byte for byte.
+        var values = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["tone"] = "formal",
+            ["note"] = "line1\nline2 \"quoted\" {{tone}} \u00e7\u011f\u0131",
+        };
+
+        await Store.SaveAsync(Record(runId, [new ChatMessage(ChatRole.User, "hi")], parameters: values));
+
+        var read = await Store.GetAsync(Tenant, runId);
+
+        read.ShouldNotBeNull();
+        read!.Parameters.ShouldNotBeNull();
+        read.Parameters!.Count.ShouldBe(2);
+        read.Parameters["tone"].ShouldBe("formal");
+        read.Parameters["note"].ShouldBe(values["note"]);
+    }
+
+    [Fact]
+    public async Task Missing_parameters_and_empty_parameters_stay_distinct()
+    {
+        var withoutRecord = await NewRunAsync();
+        var withEmpty = await NewRunAsync();
+
+        await Store.SaveAsync(Record(withoutRecord, [new ChatMessage(ChatRole.User, "a")]));
+        await Store.SaveAsync(
+            Record(withEmpty, [new ChatMessage(ChatRole.User, "b")], parameters: new Dictionary<string, string>(StringComparer.Ordinal)));
+
+        // 🚨 NULL means "nothing was recorded", {} means "recorded, no values".
+        // A resume that reads both as "no values" runs a parameterized
+        // definition on its defaults and changes what the model is told.
+        (await Store.GetAsync(Tenant, withoutRecord))!.Parameters.ShouldBeNull();
+
+        var empty = (await Store.GetAsync(Tenant, withEmpty))!.Parameters;
+
+        empty.ShouldNotBeNull();
+        empty!.Count.ShouldBe(0);
+    }
+
+    [Fact]
+    public async Task A_run_with_values_and_no_messages_still_records_the_values()
+    {
+        var runId = await NewRunAsync();
+
+        // A workflow resume starts from an empty message list.
+        await Store.SaveAsync(
+            Record(runId, [], parameters: new Dictionary<string, string>(StringComparer.Ordinal) { ["voice"] = "alloy" }));
+
+        var read = await Store.GetAsync(Tenant, runId);
+
+        read.ShouldNotBeNull();
+        read!.Messages.Count.ShouldBe(0);
+        read.Parameters!["voice"].ShouldBe("alloy");
+    }
+
+    [Fact]
+    public async Task Second_write_never_changes_the_recorded_parameters()
+    {
+        var runId = await NewRunAsync();
+
+        await Store.SaveAsync(
+            Record(
+                runId,
+                [new ChatMessage(ChatRole.User, "first")],
+                parameters: new Dictionary<string, string>(StringComparer.Ordinal) { ["tone"] = "formal" }));
+
+        // A queued run that loses its lease starts again with the SAME id; the
+        // second start must not rewrite what the first one ran with.
+        await Store.SaveAsync(
+            Record(
+                runId,
+                [new ChatMessage(ChatRole.User, "second")],
+                parameters: new Dictionary<string, string>(StringComparer.Ordinal) { ["tone"] = "casual" }));
+
+        (await Store.GetAsync(Tenant, runId))!.Parameters!["tone"].ShouldBe("formal");
+    }
+
+    [Fact]
     public async Task Another_tenants_input_cannot_be_read()
     {
         var runId = await NewRunAsync("tenant-a");
@@ -157,12 +240,14 @@ public abstract class RunInputStoreContract : StoreCancellationContract<IRunInpu
     private static RunInputRecord Record(
         Guid runId,
         IReadOnlyList<ChatMessage> messages,
-        string tenantId = Tenant)
+        string tenantId = Tenant,
+        IReadOnlyDictionary<string, string>? parameters = null)
         => new()
         {
             RunId = runId,
             TenantId = tenantId,
             Messages = messages,
+            Parameters = parameters,
             CreatedAt = DateTimeOffset.UtcNow,
         };
 }

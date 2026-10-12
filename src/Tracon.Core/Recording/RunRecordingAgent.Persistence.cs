@@ -167,7 +167,12 @@ public sealed partial class RunRecordingAgent
         IReadOnlyList<ChatMessage> messages,
         CancellationToken cancellationToken)
     {
-        if (_runInputStore is null || !_options.RecordRunInput || messages.Count == 0)
+        // A run with values and no message still records its values: a workflow
+        // starts from an empty message list in a resume, and its values must
+        // survive the chain (F-294).
+        if (_runInputStore is null ||
+            !_options.RecordRunInput ||
+            (messages.Count == 0 && start.ParameterValues is null))
         {
             return;
         }
@@ -180,6 +185,7 @@ public sealed partial class RunRecordingAgent
                     RunId = start.Scope.RunId,
                     TenantId = start.Scope.TenantId!,
                     Messages = messages,
+                    Parameters = start.ParameterValues,
                     CreatedAt = _timeProvider.GetUtcNow(),
                 },
                 cancellationToken).ConfigureAwait(false);

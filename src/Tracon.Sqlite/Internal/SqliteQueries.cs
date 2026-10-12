@@ -700,8 +700,8 @@ internal sealed class SqliteQueries : SqlQueriesBase
         // --- Run inputs (Phase 47) ---
 
         InsertRunInput = $"""
-            INSERT INTO {Schema}run_inputs (run_id, tenant_id, messages, created_at)
-            VALUES (@run_id, @tenant_id, @messages, @created_at)
+            INSERT INTO {Schema}run_inputs (run_id, tenant_id, messages, created_at, parameters)
+            VALUES (@run_id, @tenant_id, @messages, @created_at, @parameters)
             ON CONFLICT (run_id) DO NOTHING;
             """;
 

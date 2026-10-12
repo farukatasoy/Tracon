@@ -137,6 +137,45 @@ public sealed class ContentProtectionTests(SqlServerFixture fixture)
     }
 
     [Fact]
+    public async Task Run_input_parameters_are_encrypted_at_rest()
+    {
+        await using var baseContext = await SqlServerTestContext.CreateAsync(fixture);
+
+        // Only the parameters column is in scope: the messages beside it stay
+        // plain, which proves the column is chosen on its own (F-294).
+        var protectingContext = BuildProtectingContext(baseContext, "k1", new HashSet<ProtectedColumn> { ProtectedColumn.RunInputParameters });
+        var runInputs = new SqlRunInputStore(protectingContext);
+        var runs = new SqlRunStore(protectingContext, baseContext.TenantContext);
+        var runId = Guid.NewGuid();
+
+        await runs.StartRunAsync(TestData.Run(runId));
+        await runInputs.SaveAsync(new RunInputRecord
+        {
+            RunId = runId,
+            TenantId = baseContext.TenantContext.TenantId,
+            Messages = [new ChatMessage(ChatRole.User, "hello")],
+            Parameters = new Dictionary<string, string>(StringComparer.Ordinal) { ["customer"] = "Ada Lovelace 4111 1111" },
+            CreatedAt = DateTimeOffset.UtcNow,
+        });
+
+        var rawParameters = await baseContext.ScalarAsync<string>($"SELECT parameters FROM {baseContext.SchemaName}.run_inputs WHERE run_id = '{runId}';");
+        rawParameters.ShouldNotBeNull();
+        rawParameters.ShouldContain("$apEnc");
+        rawParameters.ShouldNotContain("Ada");
+        rawParameters.ShouldNotContain("4111");
+
+        var rawMessages = await baseContext.ScalarAsync<string>($"SELECT messages FROM {baseContext.SchemaName}.run_inputs WHERE run_id = '{runId}';");
+        rawMessages.ShouldNotBeNull();
+        rawMessages.ShouldContain("hello");
+        rawMessages.ShouldNotContain("$apEnc");
+
+        var loaded = await runInputs.GetAsync(baseContext.TenantContext.TenantId, runId);
+        loaded.ShouldNotBeNull();
+        loaded.Parameters.ShouldNotBeNull();
+        loaded.Parameters["customer"].ShouldBe("Ada Lovelace 4111 1111");
+    }
+
+    [Fact]
     public async Task Run_event_text_and_payload_are_encrypted_at_rest()
     {
         await using var baseContext = await SqlServerTestContext.CreateAsync(fixture);
