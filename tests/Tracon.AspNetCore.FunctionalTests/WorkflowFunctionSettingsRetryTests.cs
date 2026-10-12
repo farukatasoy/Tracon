@@ -46,6 +46,10 @@ public sealed class WorkflowFunctionSettingsRetryTests
 
         attempts.Count.ShouldBe(3);
         attempts.Select(static settings => settings.Describe()).Distinct(StringComparer.Ordinal).ShouldBe(["voice=nova;lufs=-20;speed=Normal"]);
-        attempts.Distinct().Count().ShouldBe(1, "every attempt must receive the SAME settings object");
+
+        // A record compares by value, so Distinct() cannot tell one object from three equal ones: identity is the claim.
+        var first = attempts.First();
+
+        attempts.ShouldAllBe(settings => ReferenceEquals(settings, first), "every attempt must receive the SAME settings object");
     }
 }
