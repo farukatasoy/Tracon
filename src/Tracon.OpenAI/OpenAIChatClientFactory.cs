@@ -77,7 +77,16 @@ internal sealed class OpenAIChatClientFactory
     /// <param name="apiSurface">The OpenAI API surface to use.</param>
     /// <returns>A chat client that the pipeline wraps.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="binding"/> is <see langword="null"/>.</exception>
-    /// <exception cref="TraconException">The model name cannot be resolved.</exception>
+    /// <exception cref="TraconException">
+    /// The model name cannot be resolved, or <see cref="ModelBinding.ProviderSettings"/>
+    /// contains any key.
+    /// </exception>
+    /// <remarks>
+    /// Every provider of this package reaches this method: both surfaces of
+    /// <c>UseOpenAI()</c>, every <c>UseOpenAICompatible()</c> registration,
+    /// and the per-tenant credential path. The settings check therefore runs
+    /// here, once, for all of them.
+    /// </remarks>
     public IChatClient CreateChatClient(ModelBinding binding, OpenAIApiSurface apiSurface)
     {
         ArgumentNullException.ThrowIfNull(binding);
@@ -87,6 +96,15 @@ internal sealed class OpenAIChatClientFactory
                 "The model name is empty and no default model is configured. Set the " +
                 $"{nameof(ModelBinding)}.{nameof(ModelBinding.Model)} field of the agent definition, or " +
                 $"configure '{OpenAIProviderOptions.SectionName}:{nameof(OpenAIProviderOptions.DefaultModel)}'.");
+
+        // This provider supports no extra settings; every incoming key is
+        // rejected here and the error is wrapped by AgentDefinitionCompiler into
+        // TraconCompilationException. Silently ignoring it would leave the
+        // user without the behavior they expected (K-208).
+        ModelProviderSettings.Validate(
+            binding,
+            OpenAIProviderNames.SettingsPrefix,
+            OpenAIProviderNames.SupportedSettings);
 
         return CreateInnerChatClient(model, apiSurface);
     }

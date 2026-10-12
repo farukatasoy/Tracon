@@ -231,8 +231,14 @@ Valid safety values are `BLOCK_LOW_AND_ABOVE`, `BLOCK_MEDIUM_AND_ABOVE`,
 `BLOCK_ONLY_HIGH`, `BLOCK_NONE`, and `OFF`. A safety-filtered empty response becomes a
 failed run with error type `content_filtered`.
 
-Azure OpenAI supports no `ProviderSettings` keys. The package deliberately rejects
-them.
+OpenAI and Azure OpenAI support no `ProviderSettings` keys, and both reject every
+key. For OpenAI this covers `openai`, `openai-responses`, and every
+`UseOpenAICompatible()` registration, whatever its name. A key written for another
+provider, such as `anthropic.promptCaching` left over after a provider switch, is
+rejected too. `POST /api/agents/validate` reports it as `invalid_setting` at
+`model.providerSettings`, saving the definition returns `400`, and an agent defined in
+code fails compilation. The console does not edit `providerSettings`; remove a stray
+key through the HTTP API or in code.
 
 ## Azure OpenAI uses deployments
 
@@ -338,10 +344,17 @@ public sealed class ContosoModelProvider(HttpClient httpClient, string setupApiK
         [new ModelDescriptor { Name = "contoso-large", SupportsTools = true }];
 
     public IChatClient CreateChatClient(ModelBinding binding)
-        => new ContosoChatClient(httpClient, binding.Model, setupApiKey);
+        => Create(binding, setupApiKey);
 
     public IChatClient CreateChatClient(ModelBinding binding, ModelProviderCredential credential)
-        => new ContosoChatClient(httpClient, binding.Model, credential.ApiKey);
+        => Create(binding, credential.ApiKey);
+
+    private ContosoChatClient Create(ModelBinding binding, string apiKey)
+    {
+        // Contoso supports no ProviderSettings key, so every key is rejected.
+        ModelProviderSettings.Validate(binding, Name, []);
+        return new ContosoChatClient(httpClient, binding.Model, apiKey);
+    }
 }
 
 services.AddHttpClient();
@@ -370,7 +383,8 @@ If your provider supports BYOK, derive its opt-in
 `ModelProviderCredentialContract` too. Its required assertion must inspect the
 provider request boundary (for example a recording transport), not merely a
 different client object; otherwise a new wrapper can still send the setup-time
-key and bill the wrong tenant.
+key and bill the wrong tenant. Derive `ModelProviderSettingsContract` for every
+provider, including one that supports no settings key.
 
 **Lifetime and threading.** Your provider is a **singleton**. It must not capture
 a scoped service, and the provider set is fixed once the container is built.
@@ -395,6 +409,14 @@ compiled agent and held by it; the compiled agent implements neither
 drops the reference without disposing. You own the lifetime of what you return,
 and it must tolerate never being disposed — which is why the shipped providers
 return clients backed by a long-lived, shared SDK client.
+
+**Provider settings.** Reject every `ModelBinding.ProviderSettings` key you do not
+support. A provider that supports no key rejects them all. Call
+`ModelProviderSettings.Validate(binding, prefix, supportedKeys)` from
+`CreateChatClient`, and pass an empty list when you support none. Its exception is
+the one the registry passes through with the key named. The registry masks the
+message of any other exception thrown while a client is built, so a hand-rolled
+check reaches the author as a generic provider failure.
 
 **Naming.** `Name` is matched against `ModelBinding.Provider` case-insensitively.
 Registering two providers under one name is not last-one-wins: the host fails at

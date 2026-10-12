@@ -211,12 +211,12 @@ calculation; it never rejects an unlisted model or deployment.
 
 | Provider package | Stable name | Default endpoint | Authentication | Compatibility notes |
 |---|---|---|---|---|
-| `Tracon.OpenAI` | `openai` | OpenAI | API key | Chat Completions surface |
-| `Tracon.OpenAI` | `openai-responses` | OpenAI | API key | Responses surface; registered with the official provider |
-| `Tracon.OpenAI` compatible registration | Caller-chosen name | Required or explicitly set by the caller | Optional for a local server | A second `{name}-responses` surface is opt-in because many compatible servers do not implement Responses |
+| `Tracon.OpenAI` | `openai` | OpenAI | API key | Chat Completions surface; rejects every `ModelBinding.ProviderSettings` key |
+| `Tracon.OpenAI` | `openai-responses` | OpenAI | API key | Responses surface; registered with the official provider; rejects every `ProviderSettings` key |
+| `Tracon.OpenAI` compatible registration | Caller-chosen name | Required or explicitly set by the caller | Optional for a local server | A second `{name}-responses` surface is opt-in because many compatible servers do not implement Responses; rejects every `ProviderSettings` key |
 | `Tracon.Anthropic` | `anthropic` | Anthropic | API key | `max_tokens` is mandatory upstream; Tracon defaults the output limit to 4,096 |
 | `Tracon.Google` | `google` | Gemini Developer API | API key | Supports Google-specific safety and thinking settings in `ModelBinding.ProviderSettings` |
-| `Tracon.Azure` | `azure-openai` | No global default; resource endpoint is required | API key or consumer `TokenCredential` factory | `ModelBinding.Model` contains an Azure deployment name, not the underlying model name |
+| `Tracon.Azure` | `azure-openai` | No global default; resource endpoint is required | API key or consumer `TokenCredential` factory | `ModelBinding.Model` contains an Azure deployment name, not the underlying model name; rejects every `ProviderSettings` key |
 
 The OpenAI-compatible path covers services such as OpenRouter and Groq and local
 servers such as Ollama, LM Studio, and vLLM. Compatibility means the selected server

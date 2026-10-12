@@ -1764,3 +1764,107 @@ sonucunu taşıyordu. Otomatik karşılığı:
   web araması yalnız açıkça açılır.
 - 🚨 Eski kusur: adım 1 her harness agent'ında `400` aldı; `disableWebSearch`
   ile ilk tur geçti, tool çağrısından sonra `messages.[1].role` hatası geldi.
+
+---
+
+### MT-OAI-095 — OpenAI sağlayıcısı `providerSettings` anahtarını reddeder, yok saymaz (kusur-giderme, 2026-10-12, F-340)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | — (kusur-giderme, 2026-10-12, F-340) |
+| **İlgili karar** | K-208 |
+| **Devir** | ➜ CI: `MultiProviderTests.Validate_endpoint_rejects_a_setting_on_every_OpenAI_registration` (`Tracon.AspNetCore.FunctionalTests`) · `OpenAIModelProviderSettingsContractTests` (`Tracon.OpenAI.UnitTests`) |
+
+Negatif senaryo. Regresyon case'i. Bu düzeltmeden önce OpenAI sağlayıcısı
+`providerSettings` sözlüğünü hiç okumuyordu. Bir anahtar sessizce yok
+sayılıyordu: agent kaydedilir ve çalışırdı, ama yazar beklediği davranışı
+almazdı. Anthropic, Google ve Azure OpenAI anahtarı reddediyordu; OpenAI
+reddetmiyordu. Artık `OpenAIProviderNames.SupportedSettings` boş bir
+listedir ve önek `openai`'dir. Kural iki yüzeyi (`openai`,
+`openai-responses`) ve her `UseOpenAICompatible()` kaydını kapsar.
+
+**Ön koşul**
+- Örnek uygulama gerçek OpenAI anahtarıyla çalışıyor (Koşmadan önce, adım 3).
+  Doğrulama model çağırmaz ve ücret üretmez.
+- Adım 3 için OpenRouter anahtarı tanımlı (Koşmadan önce, adım 4). Tanımlı
+  değilse Adım 3'ü `⏭ ATLA` olarak işaretle.
+
+**Adımlar**
+1. `openai` binding'ine başka bir sağlayıcının anahtarını koy ve doğrula.
+2. `openai-responses` binding'ine tanınmayan bir `openai.*` anahtarı koy ve
+   doğrula.
+3. `openrouter` binding'ine aynı anahtarı koy ve doğrula.
+4. Adım 1'in tanımını kaydetmeyi dene.
+5. Aynı tanımı `providerSettings` olmadan doğrula (kontrol adımı).
+
+**Girilecek veri**
+```bash
+# 1
+curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: application/json" -d '{
+  "name": "manuel-oai-ayar",
+  "instructions": "Test.",
+  "model": {
+    "provider": "openai",
+    "model": "gpt-5.4-mini",
+    "providerSettings": { "anthropic.promptCaching": true }
+  }
+}'
+
+# 2
+curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: application/json" -d '{
+  "name": "manuel-oai-ayar",
+  "instructions": "Test.",
+  "model": {
+    "provider": "openai-responses",
+    "model": "gpt-5.4-mini",
+    "providerSettings": { "openai.herhangi": true }
+  }
+}'
+
+# 3
+curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: application/json" -d '{
+  "name": "manuel-oai-ayar",
+  "instructions": "Test.",
+  "model": {
+    "provider": "openrouter",
+    "model": "openai/gpt-5.4-mini",
+    "providerSettings": { "openai.herhangi": true }
+  }
+}'
+
+# 4
+curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/agents" -H "$APB" -H "content-type: application/json" -d '{
+  "name": "manuel-oai-ayar",
+  "instructions": "Test.",
+  "model": {
+    "provider": "openai",
+    "model": "gpt-5.4-mini",
+    "providerSettings": { "anthropic.promptCaching": true }
+  }
+}'
+
+# 5
+curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: application/json" -d '{
+  "name": "manuel-oai-ayar",
+  "instructions": "Test.",
+  "model": { "provider": "openai", "model": "gpt-5.4-mini" }
+}'
+```
+
+**Beklenen sonuç**
+- Adım 1: `valid` alanı `false`'tur. Tek mesaj vardır: `code: invalid_setting`,
+  `path: model.providerSettings`. Mesaj `these keys do not belong to the
+  'openai' provider: anthropic.promptCaching` ve `the 'openai' provider
+  supports no extra settings` metinlerini içerir.
+- Adım 2: `code` ve `path` Adım 1 ile aynıdır. Mesaj `these keys are not
+  recognized: openai.herhangi` metnini içerir.
+- Adım 3: sonuç Adım 2 ile aynıdır. Önek `openai`'dir; sağlayıcının kayıt adı
+  (`openrouter`) önek DEĞİLDİR.
+- Adım 4: `HTTP 400`, `title: "Definition invalid"`. `detail` Adım 1'in
+  mesajını taşır. Agent kaydedilmez.
+- Adım 5: `valid` alanı `true`'dur, `messages` boştur.
+- Hiçbir adım model çağırmaz.
+
+**Durum:** koşulmadı; ➜ CI (düşen test kanıtı kusur-giderme kaydında, 2026-10-12).

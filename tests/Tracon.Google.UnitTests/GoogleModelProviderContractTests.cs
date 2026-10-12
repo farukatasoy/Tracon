@@ -75,7 +75,7 @@ public sealed class GoogleModelProviderSettingsContractTests : ModelProviderSett
             new GoogleChatClientFactory(TestData.Options()),
             [new ModelDescriptor { Name = TestData.Model }]));
 
-    protected override KeyValuePair<string, JsonElement> SupportedSetting
+    protected override KeyValuePair<string, JsonElement>? SupportedSetting
         => new(GoogleProviderNames.ThinkingIncludeThoughtsSetting, True);
 }
 

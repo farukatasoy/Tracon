@@ -2885,9 +2885,13 @@ done
 | **İlgili karar** | K-646 |
 
 `Tracon.{Anthropic,Azure,Google,OpenAI}.UnitTests` artık
-`ModelProviderContract` + `ModelProviderCredentialContract`'ı türetir (Anthropic
-ve Google ayrıca `ModelProviderSettingsContract`'ı). Sözleşme bir kusur buldu
+`ModelProviderContract` + `ModelProviderCredentialContract` +
+`ModelProviderSettingsContract`'ı türetir. Sözleşme bir kusur buldu
 (BYOK sarmalayıcısı önbelleğe alınmıyordu, K-646) ve dördünde de düzeltildi.
+Azure ve OpenAI hiçbir `ProviderSettings` anahtarı desteklemez; bu yüzden
+`SupportedSetting` değeri `null` kalır ve kabul edilen anahtar isteyen iki
+senaryo atlanır (2026-10-12, F-340 — önceden ikisi `ContractCoverage`
+muafiyeti taşıyordu).
 
 **Ön koşul**
 - `secret` yok, ağ erişimi gerekmez.
@@ -2899,12 +2903,17 @@ ve Google ayrıca `ModelProviderSettingsContract`'ı). Sözleşme bir kusur buld
 ```bash
 for p in Anthropic Azure Google OpenAI; do
   MSBUILDDISABLENODEREUSE=1 dotnet build tests/Tracon.$p.UnitTests -c Release
-  ./artifacts/bin/Tracon.$p.UnitTests/release/Tracon.$p.UnitTests
+  ./artifacts/bin/Tracon.$p.UnitTests/release_net10.0/Tracon.$p.UnitTests
 done
 ```
 
 **Beklenen sonuç**
-- Dördü de `Test run summary: Passed!`; `Skip` **yok**.
+- Dördü de `Test run summary: Passed!`.
+- Anthropic ve Google'da `Skip` **yok**. Azure ve OpenAI'da tam olarak iki
+  `Skip` vardır: `A_supported_provider_setting_is_accepted` ve
+  `A_supported_setting_is_matched_regardless_of_key_casing`. Başka bir
+  `Skip` kusurdur.
+- `An_unsupported_provider_setting_is_rejected` dördünde de geçer.
 - `Concurrent_resolution_of_one_credential_stays_stable` dahil her sözleşme case'i geçer.
 
 ---

@@ -61,24 +61,33 @@ public sealed class AzureOpenAIModelProviderCredentialContractTests : ModelProvi
 }
 
 /// <summary>
-/// Proves this project derives every provider contract the
-/// Tracon.Testing.Contracts.Xunit package ships, or documents why not.
+/// The Azure OpenAI adapter supports no provider setting key, so it rejects
+/// every key; it owes the settings contract all the same.
 /// </summary>
 /// <remarks>
-/// <see cref="ModelProviderSettingsContract"/> is exempt: the Azure OpenAI
-/// adapter accepts NO <see cref="ModelBinding.ProviderSettings"/> keys at
-/// all (<c>AzureOpenAIChatClientFactory</c>'s own remarks) — Azure's chat
-/// extensions break at run time across OpenAI SDK versions, so this
-/// provider never reads a settings key to validate.
+/// <see cref="ModelProviderSettingsContract.SupportedSetting"/> stays
+/// <see langword="null"/>: the scenarios that need an accepted key are
+/// reported as skipped, and the rejection scenario runs.
 /// </remarks>
+public sealed class AzureOpenAIModelProviderSettingsContractTests : ModelProviderSettingsContract
+{
+    protected override ValueTask<IModelProvider> CreateProviderAsync()
+        => new(new AzureOpenAIModelProvider(
+            AzureOpenAIProviderNames.AzureOpenAI,
+            new AzureOpenAIChatClientFactory(TestData.Options()),
+            [new ModelDescriptor { Name = TestData.Deployment }]));
+}
+
+/// <summary>
+/// Proves this project derives every provider contract the
+/// Tracon.Testing.Contracts.Xunit package ships.
+/// </summary>
 public sealed class AzureOpenAIProviderContractCoverageTests
 {
     [Fact]
-    public void Every_provider_contract_has_a_derived_test_or_a_documented_exemption()
+    public void Every_provider_contract_has_a_derived_test()
         => ContractCoverage.MissingDerivedTypes(
-            Assembly.GetExecutingAssembly(),
-            ContractCoverage.ProviderContracts,
-            except: [nameof(ModelProviderSettingsContract)]).ShouldBeEmpty();
+            Assembly.GetExecutingAssembly(), ContractCoverage.ProviderContracts).ShouldBeEmpty();
 }
 
 /// <summary>
