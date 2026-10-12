@@ -1,6 +1,6 @@
 # Faz 194 — Workflow ve Kuyruk Yollarında Parametre Değerleri
 
-> **Durum:** 📋 Planlandı (2026-10-12)
+> **Durum:** ✅ Tamamlandı (2026-10-12)
 > **Plan onayı:** Bakımcı, 2026-10-12 (engelleyici kararlar sohbette alındı: kalem F-294; tam kapsam; workflow kendi şemasını bildirir; değer `run_inputs`'ta yeni sütunda; kuyruk yükünde alan; batch'te öğe başına nesne)
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-294**
 > **Önkoşul:** Yok — F-330 (K-890) ve [Faz 192](arsiv/fazlar/192-DONGU-TUKENME-POLITIKASI.md) kapandı. [Faz 193](193-NET8-NET9-DUSURME.md) konu bakımından bağımsızdır; sıra serbesttir
@@ -746,14 +746,99 @@ Yeni **internal** tipler: `ParameterizedAgentFactory` (`Tracon.Core/Catalog`),
 | `workflow-detail.test.tsx` · `full-replace-editors.test.tsx` | Konsol değer alanları ve `parameters` korunur |
 | Mimari ratchet'ler | Servis kaydı, public yüzey, SQL metni, sevk edilen doküman kapısı, kaynak dili |
 
+## Örnek Uygulama Koşumu
+
+`samples/Tracon.Api`, **Echo** sağlayıcıyla (`echo-instructions-1`, talimatı yanıta yazar) ve
+SQLite çalışma veritabanıyla koştu. Çıktılar gerçektir; `runId` değerleri kısaltılmadan
+korundu.
+
+| Komut | Çıktı |
+|---|---|
+| `PUT /api/workflows/podcast` (`parameters`: `tone` zorunlu, `voice` varsayılan `alloy`) | `{"name":"podcast","version":1,"parameters":["tone","voice"]}` |
+| `POST /api/workflows/podcast/run` `{"message":"Episode 12","parameters":{"tone":"formal","voice":"nova"}}` | `WorkflowOutput`: `Echo [instructions: Write the script in a formal tone.]: Episode 12` ve `Echo [instructions: Edit for a formal tone, voice nova.]: …` — iki adım da kendi talimatında değeri taşır |
+| Aynı çağrı, `parameters` yok | `HTTP 400` · `{"title":"Invalid run parameters","missingParameters":["tone"],"unknownParameters":[],"tooLongParameters":[]}` |
+| `POST /api/agents/podcast-writer/run` `Prefer: respond-async`, `parameters` + `documents` | kuyruğa girer, worker değeri ve belgeyi kullanır; zorunlu değer yoksa kabulde `400` |
+| `POST /api/runs/{id}/replay` gövdesiz | `Echo [instructions: Edit for a dry tone, voice alloy.]: Episode 14` — kayıtlı değer |
+| Aynı, `{"parameters":{"voice":"onyx"}}` | `… voice onyx.]` — birleşik değer |
+| Aynı, `{"parameters":{"vice":"x"}}` | `Replay not supported` · `Unknown parameter 'vice'` |
+| Agent batch: düz öğe · yapılı öğe (`tone`+`voice`) · bozuk öğe (`tonne`) · düz öğe | `Completed` · `Completed` (`formal … nova`) · `Failed` (`Unknown parameter 'tonne'`) · `Completed` |
+| Zamanlama kaydı, `parameters` string olan öğe | `HTTP 400` |
+| `podcast-narrated` (fonksiyon düğümü `GetRunParameters()["voice"]`) | `[shimmer] Echo [instructions: Write the script in a calm tone.]: Episode 15` |
+
+Varsayılan dışı yapılandırma: `Tracon__Providers__OpenAI__ApiKey=` (boş) ve `ConnectionStrings` SQLite'a
+çevrildi; gerçek sağlayıcı anahtarı ve PostgreSQL bağlantısı bu koşumda kullanılmadı.
+Denetim sonrası webhook zarfı (`MT-JOB-139`) örnek uygulamada **koşulmadı**; imza `secret`'ı
+gerektirir. Kanıtı `InboundTriggerDispatcherTests` (dispatcher + handler çifti) verir.
+
 ## Süreç Ölçümü
 
-> Denetim ve kapanış kapısı sonrası doldurulur.
+| Metrik | Değer |
+|---|---|
+| Plan revizyonu sayısı | 0 — plan tek commit'te kaldı (`12bf0b4c`); sapmalar "Plandan Sapmalar"da |
+| Düzeltme turu sayısı | 5 — mimari ve ratchet kapıları (2: servis kaydı/yüzey/SQL metni; kaynak dili/sevk edilen doküman) · migration bütünlük manifesti (1) · site kapıları: ekran görüntüsü damgası, anasayfa pin'leri, agent map (1) · bağımsız denetim sonrası (1) |
+| 🔴 bulgu: gerçek / gürültü / araştırılacak | 1 / 0 / 0 |
+| Fazın ürettiği regresyon | 2 — `🔴1` (webhook gövdesi yapılı batch öğesi sayılıyordu, bu fazın ayrıştırıcısı getirdi) ve `🟡4` (parametreli workflow'un boş mesajlı satırı judge'ı kör puanlamaya açtı). İkisini de bağımsız denetim yakaladı, kapanıştan önce düzeltildi |
+| Faz kapandıktan sonra bulunan kusur | 0 — kapanış anı; sonraki `kusur-giderme` koşumunda güncellenir |
 
 ## Denetim Bulguları
 
-> Denetim sonrası doldurulur.
+Denetçi: `faz-denetcisi` (taze bağlam, salt-okunur), aralık `12bf0b4c..84b02b3f`. Triyaj
+`faz-tamamlama` Adım 5.1: her bulgunun kanıtı kodda **elle** doğrulandı.
+
+| # | Seviye | Bulgu | Triyaj | Sonuç |
+|---|---|---|---|---|
+| 1 | 🔴 | Workflow hedefli inbound trigger'ın webhook gövdesi `WorkflowJobHandler`'da yapılı batch öğesi olarak okunuyordu; gönderen `parameters` ile workflow'un değerlerini seçebiliyordu, fazladan üyeli gövde de `Failed` oluyordu | **Gerçek** — `InboundTriggerDispatcher` düz metin yazıyor, handler `BatchItemInput.Parse` ile okuyor | **Düzeltildi.** `BatchItemInput.Envelope`: dispatcher metni `{"message": …}` ile sarar. Testler: `InboundTriggerDispatcherTests` (dispatcher+handler çifti, iki gövde), `BatchItemInputTests` (zarf gidiş-dönüş, beş girdi). Mutasyon denetimi: zarf kaldırılınca iki durum da kırılıyor. `MT-JOB-139`, K-899 metni, CHANGELOG |
+| 2 | 🟡 | `run_inputs` yazımı düşerse HITL run kalıcı cevaplanamaz; ret mesajı yanlış nedeni söyler; test cevabı denemiyor | **Gerçek** (dar) | **Kısmen düzeltildi.** Mesaj artık depo hatasını adlandırır; test cevabı dener. Yeniden yazma (kurtarma yolu) **devredildi**: yazım best-effort kalır (K-898), log uyarısı sonucu adlandırır. F-381 |
+| 3 | 🟡 | Kiracı yalıtımı testi kiracıya özgü **saklı** agent tanımını sınamıyor | **Gerçek** (kapsam açığı; kodda kusur yok) | **Düzeltildi.** `WorkflowParameterTenantIsolationTests.Two_tenants_with_a_STORED_agent_of_the_same_name_keep_their_own_instructions` — iki kiracı, aynı adlı saklı agent, farklı talimat, eşzamanlı run; karışma yok |
+| 4 | 🟡 | Parametreli workflow'un `run_inputs` satırı boş mesajlıdır; online eval ve `/judge` "girdi yok" korumasını atlayıp kör puanlıyordu | **Gerçek** — workflow kökü `MessageDelta` yazar | **Düzeltildi.** `OnlineEvalJobHandler`: `Messages.Count == 0` kayıt yok sayılır. Test `A_run_inputs_record_with_no_messages_is_judged_like_a_missing_one`; mutasyon denetimi kırılıyor. CHANGELOG |
+| 5 | 🟢 | Paylaşılan boş sözlükler `Dictionary` tabanlı | Gerçek, düşük | Devredildi: F-376 |
+| 6 | 🟢 | `ReplayTools` + parametreli tanım testi yok | Gerçek, düşük | Devredildi: F-377 |
+| 7 | 🟢 | Replay ret mesajı kayıt dışı giriş yollarını (OpenAI uyumlu, MCP, A2A, voice) anmıyor; test adı 404'ü "ayarı adlandırır" diye gösteriyor | Gerçek | **Düzeltildi** (mesaj eklendi, test yeniden adlandırıldı) |
+| 8 | 🟢 | Agent batch `anyItemCarriesValues` yalnız `Pending` öğeleri sayar | Gerçek, uç durum | Devredildi: F-378 |
+| 9 | 🟢 | `InMemoryRunInputStore` 1000 run'da keser | Gerçek, reddedici | Devredildi: F-379 |
+| 10 | 🟢 | Kayıtlı schedule'larda `{"message":…, başka alan}` öğeleri yükseltmeden sonra tek tek `Failed` olur | Gerçek | **Düzeltildi** (belge): CHANGELOG sonucu adlandırır |
+| 11 | 🟢 | Workflow run ucunun `WithDescription` metni parametre kapısını anmıyor | Gerçek, yalnız metin | Devredildi: F-380 (OpenAPI + istemci yeniden üretimi ister) |
+
+Denetçinin "planı aşan kararlar" notu: `Kind` doğrulanmaması, workflow satırının mesaj saklamaması
+ve `WorkflowDescriptor.Parameters` makul bulundu. **Açık Soru 7'nin ölçümü** repoda yeniden
+üretilebilir bir artefakta bağlı değil, yalnız K-897'deki sayıdır; ölçüm tek seferlik bir test
+koşumuydu ve kapsam dışı bırakıldı.
+
+Plan test adlarından ayrı sınıf olarak **yazılmayanlar** (içerikleri başka sınıflardadır):
+`WorkflowParameterConcurrencyTests` (→ `WorkflowParameterTenantIsolationTests`),
+`WorkflowRunnerParameterValidationTests` (→ `WorkflowParameterRespondTests` içinde),
+`QueuedRunDocumentTests` (→ `QueuedRunParameterTests`), `WorkflowRunInputStoreFailureTests`
+(→ `WorkflowParameterRespondTests.A_failing_input_store_does_not_stop_the_run`).
 
 ## Sonraki Faza Devir Notu
 
-> Denetim sonrası doldurulur.
+**Sıradaki faz: [Faz 195](195-WORKFLOW-DUGUM-DUZENLEME-VE-AYAR.md).** Önkoşulu (bu faz) karşılandı;
+başlayabilir.
+
+### Devralınan sözleşmeler
+
+- `WorkflowDefinition.Parameters` / `WorkflowSaveRequest.Parameters` (`IReadOnlyList<AgentParameter>`) **vardır**; editör onu **korur**, düzenlemez. Faz 195 `workflow-editor.tsx`'te `Draft.parameters`'ı **silmemelidir**: `full-replace-editors.test.tsx` `Complete<WorkflowSaveRequest>` alanı zorunlu kılar.
+- `WorkflowDefinitionPayload` (`Tracon.Sql.Shared`) `Parameters`'ı elle taşır (K-580). Faz 195'in `Settings` alanı aynı sınıfa girer; bellek içi depo bunu maskeler, `WorkflowDefinitionStoreContract` tam alan gidiş-dönüşünü kanıtlar.
+- `context.GetRunParameters()` fonksiyon düğümünde nihai değer setini verir ve run dışında `InvalidOperationException` atar. Faz 195'in `AddWorkflowFunction<TInput, TOutput, TSettings>` aşırı yüklemesi aynı bağlamı kullanır.
+- `WorkflowDescriptor.Parameters` konsol detay ekranına gelir; Faz 195 düğüm listesi kurarken bu alanı bozmaz.
+- Konsol bundle tabanı: **197,7 KB gzip** (bütçe 250 KB).
+
+### 🚨 Bilinen tuzaklar
+
+- **Parametreli derleme tek yerdedir:** `ParameterizedAgentFactory`. Önbelleği ve katalog dekoratör zincirini atlar; yeni bir çağıran kendi derlemesini yazarsa bütçe, onay ve kayıt dekoratörleri **sessizce** düşer.
+- **`NULL` ≠ `{}`** (`run_inputs.parameters`): okuyucu ikisini aynı saymaz, yoksa parametreli tanım varsayılanla sessizce sürer (K-898).
+- **Dış kaynaklı metin zarflanır** (`BatchItemInput.Envelope`): `job_items.input` tür taşımaz, `message` string üyeli her JSON yapılı sayılır. Dışarıdan gelen metinden öğe yazan her yeni yol aynısını yapar (denetim 🔴1, K-899).
+- **`jobs.payload` ve `job_items.input` korumasızdır** (K-899): parametre değeri ve belge metni orada düz durur. F-374.
+- **Workflow satırı mesaj saklamaz** (`Messages = []`); tüketiciler boş mesajlı satırı "girdi yok" sayar (online eval, `/judge`). Yeni bir `run_inputs` tüketicisi aynı kuralı uygular.
+- **`dotnet build`'siz E2E:** `kapi.py test` derlemez; ekran görüntüsü ve E2E için önce UI açık tam `dotnet build Tracon.slnx -c Release` gerekir.
+- **Anasayfa kırpımı pin'i:** `approvals*` ve `run-detail*` yeniden üretilirse `CAPTURE_PINS` güncellenir ve kırpım gözle doğrulanır (bu fazda yapıldı).
+
+### Doküman bütçeleri (dar)
+
+`docs/ADAYLAR.md` %2, `docs/manuel-test/*.md` %2, `hafiza/workflows.md` %2, `hafiza/cekirdek-calistirma.md` %0
+boş. Faz 195 bunlara ekleme yapmadan **önce** içerik taşır.
+
+### Açık işler
+
+- `F-374…F-381` adayları ([ADAYLAR.md](ADAYLAR.md)): `jobs.payload` koruması, batch öğe türü işareti, paylaşılan boş sözlükler, `ReplayTools` testi, batch kira devri, bellek içi depo sınırı, OpenAPI açıklaması, HITL kayıt kurtarma.
+- Site **yayınlanmadı** (`./scripts/site-deploy.sh` çalıştırılmadı; Adım 10 dışarıya dönük iştir, istenmedi). Kapı ve derleme yeşil.
