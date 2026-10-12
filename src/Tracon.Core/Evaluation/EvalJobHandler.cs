@@ -37,7 +37,9 @@ internal sealed class EvalJobHandler(
     IOptions<TraconOptions> options,
     IEnumerable<IAgentDecorator> decorators,
     ILogger<EvalJobHandler>? logger = null,
-    IEnumerable<CodeAgentRegistration>? codeRegistrations = null) : IJobHandler
+    IEnumerable<CodeAgentRegistration>? codeRegistrations = null,
+    IWebhookPublisher? webhookPublisher = null,
+    IOptionsMonitor<TraconSchedulingOptions>? schedulingOptions = null) : IJobHandler
 {
     /// <inheritdoc />
     public async ValueTask ExecuteAsync(JobContext context, CancellationToken cancellationToken = default)
@@ -81,6 +83,18 @@ internal sealed class EvalJobHandler(
                     Failed = evalRun.Total,
                 },
                 CancellationToken.None).ConfigureAwait(false);
+
+            // The job is retried after this throw while attempts remain, and a
+            // retry that completes overwrites the row: only the last attempt's
+            // failure is the eval's outcome.
+            if (context.Job.Attempt >= (context.Job.MaxAttempts ?? schedulingOptions?.CurrentValue.MaxAttempts ?? 1))
+            {
+                await PublishCompletedAsync(
+                    context.Job.TenantId,
+                    evalRun with { Status = EvalRunStatus.Failed, Passed = 0, Failed = evalRun.Total },
+                    suiteName,
+                    suite.AgentName).ConfigureAwait(false);
+            }
 
             throw;
         }
@@ -249,6 +263,69 @@ internal sealed class EvalJobHandler(
                 OutputTokens = outputTokens,
             },
             CancellationToken.None).ConfigureAwait(false);
+
+        await PublishCompletedAsync(
+            context.Job.TenantId,
+            evalRun with
+            {
+                Status = cancelled ? EvalRunStatus.Cancelled : EvalRunStatus.Completed,
+                AgentVersion = agentVersion ?? evalRun.AgentVersion,
+                Total = cases.Count,
+                Passed = passedCases,
+                Failed = failedCases,
+                InputTokens = inputTokens,
+                OutputTokens = outputTokens,
+            },
+            suite.Name,
+            suite.AgentName).ConfigureAwait(false);
+    }
+
+    /// <summary>Publishes <c>eval.completed</c> for an evaluation run that reached its final status.</summary>
+    /// <remarks>
+    /// The payload is a summary (counts and tokens), never a case's input or
+    /// output. A failure here is logged and changes nothing about the run.
+    /// </remarks>
+    // F-333: eval.completed was documented and accepted on subscribe, but no code
+    // published it.
+    private async ValueTask PublishCompletedAsync(string tenantId, EvalRun evalRun, string suiteName, string? agentName)
+    {
+        if (webhookPublisher is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await webhookPublisher.PublishAsync(
+                tenantId,
+                WebhookEvents.EvalCompleted,
+                new WebhookEventPayload
+                {
+                    OccurredAt = DateTimeOffset.UtcNow,
+                    Eval = new WebhookEvalSummary
+                    {
+                        EvalRunId = evalRun.Id.ToString(),
+                        SuiteName = suiteName,
+                        AgentName = agentName,
+                        AgentVersion = evalRun.AgentVersion,
+                        ModelId = evalRun.ModelId,
+                        Status = evalRun.Status.ToString(),
+                        Total = evalRun.Total,
+                        Passed = evalRun.Passed,
+                        Failed = evalRun.Failed,
+                        InputTokens = evalRun.InputTokens,
+                        OutputTokens = evalRun.OutputTokens,
+                    },
+                },
+                CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, CancellationToken.None))
+        {
+            if (logger is not null && logger.IsEnabled(LogLevel.Warning))
+            {
+                logger.LogWarning(exception, "The eval.completed webhook of eval run {EvalRunId} could not be published.", evalRun.Id);
+            }
+        }
     }
 
     private async ValueTask<(bool Passed, long InputTokens, long OutputTokens)> RunCaseAsync(

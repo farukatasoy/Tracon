@@ -1906,16 +1906,26 @@ Subscribe to events and Tracon posts them to your endpoint.
 
 | Event | Fires when |
 |---|---|
-| `run.completed` | A run completed successfully |
-| `run.failed` | A run ended in an error |
+| `run.completed` | A root run completed successfully — an agent run or a workflow run (`run.kind`) |
+| `run.failed` | A root run ended in an error — an agent run or a workflow run (`run.kind`) |
 | `approval.pending` | A tool call is awaiting approval |
-| `workflow.request.pending` | A workflow is awaiting human input |
+| `workflow.request.pending` | A workflow run is waiting for human input — one event per request |
 | `job.completed` | A queued job completed successfully |
-| `job.failed` | A queued job ended in an error |
-| `eval.completed` | An evaluation run completed |
+| `job.failed` | A queued job ended in an error on its last attempt |
+| `eval.completed` | An evaluation run reached its final status: completed, cancelled, or failed on its last attempt |
 | `quota.threshold` | A quota counter crossed a percentage in `Quotas:ThresholdPercents` — once per period |
 | `run.score.low` | The online-evaluation window's average score dropped below `OnlineEvaluation:LowScoreThreshold`, once the minimum sample count is met |
 | `test.ping` | You sent a test delivery to verify the subscription |
+
+A payload is a summary, never content. A workflow's `run.*` event carries the run
+tree's tokens and cost (the workflow row has none of its own); its agent steps are
+child runs and publish nothing. `workflow.request.pending` carries the request id, the
+run id and the workflow name — read the prompt and the form from
+`GET /api/workflows/runs/{runId}/requests`. `job.*` carries the job id, its handler key
+(`kind`), its target, its item counts and a display-safe error; a cancelled job publishes
+nothing, and a webhook delivery job never publishes `job.*` (its own event would queue
+another delivery). `eval.completed` carries the evaluation run id, the suite, the agent
+and its version, the model, the case counts and the tokens.
 
 The signature is `HMAC-SHA256(timestamp + "." + body, secret)`, with the timestamp
 inside the signature so a replay cannot be reused. Your receiver decides the tolerance

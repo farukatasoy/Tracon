@@ -45,6 +45,9 @@ public sealed record WebhookEventPayload
 
     /// <summary>The score window summary. Populated on the <c>run.score.low</c> event.</summary>
     public WebhookScoreSummary? Score { get; init; }
+
+    /// <summary>The evaluation run summary. Populated on the <c>eval.completed</c> event.</summary>
+    public WebhookEvalSummary? Eval { get; init; }
 }
 
 /// <summary>A run's webhook summary.</summary>
@@ -59,8 +62,14 @@ public sealed record WebhookRunSummary
     /// <summary>The session identifier.</summary>
     public string? SessionId { get; init; }
 
-    /// <summary>The name of the agent that ran.</summary>
+    /// <summary>The name of the agent that ran; for a workflow run, the workflow's name.</summary>
     public string? AgentName { get; init; }
+
+    /// <summary>
+    /// The kind of run: <c>Agent</c> or <c>Workflow</c>. A workflow run's tokens
+    /// and cost are the total of every run under it.
+    /// </summary>
+    public string? Kind { get; init; }
 
     /// <summary>The identifier of the model used.</summary>
     public string? ModelId { get; init; }
@@ -188,6 +197,43 @@ public sealed record WebhookScoreSummary
 
     /// <summary>The window's end (UTC).</summary>
     public DateTimeOffset? WindowEnd { get; init; }
+}
+
+/// <summary>An evaluation run's webhook summary.</summary>
+public sealed record WebhookEvalSummary
+{
+    /// <summary>The evaluation run identifier.</summary>
+    public required string EvalRunId { get; init; }
+
+    /// <summary>The name of the suite that ran.</summary>
+    public string? SuiteName { get; init; }
+
+    /// <summary>The name of the agent under evaluation.</summary>
+    public string? AgentName { get; init; }
+
+    /// <summary>The agent version the cases ran on, when one was pinned or recorded.</summary>
+    public int? AgentVersion { get; init; }
+
+    /// <summary>The identifier of the model the cases ran on.</summary>
+    public string? ModelId { get; init; }
+
+    /// <summary>The final status: <c>Completed</c>, <c>Cancelled</c> or <c>Failed</c>.</summary>
+    public string? Status { get; init; }
+
+    /// <summary>The number of cases.</summary>
+    public int Total { get; init; }
+
+    /// <summary>The number of cases that passed.</summary>
+    public int Passed { get; init; }
+
+    /// <summary>The number of cases that failed.</summary>
+    public int Failed { get; init; }
+
+    /// <summary>The input tokens all cases spent.</summary>
+    public long? InputTokens { get; init; }
+
+    /// <summary>The output tokens all cases spent.</summary>
+    public long? OutputTokens { get; init; }
 }
 
 /// <summary>

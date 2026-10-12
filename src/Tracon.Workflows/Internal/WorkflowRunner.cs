@@ -54,6 +54,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     private readonly IRunCancellationRegistry? _cancellationRegistry;
     private readonly QuotaEnforcer? _quotaEnforcer;
     private readonly IRunErrorClassifier? _errorClassifier;
+    private readonly IWebhookPublisher? _webhookPublisher;
     private readonly IRunAttributionContext? _attributionContext;
     private readonly IReadOnlyList<IRunEventSink> _sinks;
 
@@ -87,6 +88,10 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     /// The error classifier. When <see langword="null"/>, a failed workflow row
     /// carries no class — the same rule the agent run path follows.
     /// </param>
+    /// <param name="webhookPublisher">
+    /// The webhook publisher. When <see langword="null"/>, the workflow root
+    /// publishes no <c>run.*</c> and no <c>workflow.request.pending</c> event.
+    /// </param>
     /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
     public WorkflowRunner(
         WorkflowCatalog catalog,
@@ -103,7 +108,8 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         QuotaEnforcer? quotaEnforcer = null,
         IRunAttributionContext? attributionContext = null,
         IEnumerable<IRunEventSink>? sinks = null,
-        IRunErrorClassifier? errorClassifier = null)
+        IRunErrorClassifier? errorClassifier = null,
+        IWebhookPublisher? webhookPublisher = null)
     {
         ArgumentNullException.ThrowIfNull(catalog);
         ArgumentNullException.ThrowIfNull(runStore);
@@ -129,6 +135,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         _attributionContext = attributionContext;
         _sinks = sinks?.ToArray() ?? [];
         _errorClassifier = errorClassifier;
+        _webhookPublisher = webhookPublisher;
     }
 
     /// <inheritdoc />
@@ -1177,6 +1184,8 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
 
         await RecordQuotaAsync(execution, scope, CancellationToken.None).ConfigureAwait(false);
 
+        await PublishWebhooksAsync(execution, scope, status, error, startedAt).ConfigureAwait(false);
+
         // 🚨 The checkpoints of a run awaiting a human are NEVER deleted: the
         // response resumes from exactly those checkpoints. The cleanup
         // setting is only for runs that have genuinely finished.
@@ -1226,6 +1235,112 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         }
 
         activity.Dispose();
+    }
+
+    /// <summary>
+    /// Publishes the workflow root's webhooks: <c>run.completed</c> or
+    /// <c>run.failed</c> when the run ends, and one
+    /// <c>workflow.request.pending</c> per request the run waits on.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The agent steps are child runs and publish nothing (only a root does).
+    /// The run summary carries the tree's tokens and cost: the workflow row has
+    /// none of its own.
+    /// </para>
+    /// <para>
+    /// The request event carries the ids only, never the prompt: the payload is
+    /// a summary that is also stored with the delivery; a receiver reads the
+    /// request from <c>GET /api/workflows/runs/{id}/requests</c>. A failure here
+    /// is logged and never fails the run (observability must not break
+    /// functionality).
+    /// </para>
+    /// </remarks>
+    // F-333: before this a workflow produced no run.* event at all, and the
+    // documented workflow.request.pending was never sent.
+    private async ValueTask PublishWebhooksAsync(
+        WorkflowExecution execution,
+        AgentRunScope scope,
+        RunStatus status,
+        RunError? error,
+        long startedAt)
+    {
+        if (_webhookPublisher is null)
+        {
+            return;
+        }
+
+        var tenantId = scope.TenantId ?? _tenantContext.TenantId;
+
+        try
+        {
+            if (status == RunStatus.AwaitingInput)
+            {
+                var requests = await ListPendingRequestsAsync(execution.RunId, CancellationToken.None).ConfigureAwait(false);
+
+                foreach (var request in requests)
+                {
+                    await _webhookPublisher.PublishAsync(
+                        tenantId,
+                        WebhookEvents.WorkflowRequestPending,
+                        new WebhookEventPayload
+                        {
+                            OccurredAt = _timeProvider.GetUtcNow(),
+                            Approval = new WebhookApprovalSummary
+                            {
+                                RequestId = request.RequestId,
+                                RunId = execution.RunId.ToString(),
+                                WorkflowName = execution.WorkflowName,
+                            },
+                        },
+                        CancellationToken.None).ConfigureAwait(false);
+                }
+
+                return;
+            }
+
+            var eventType = status switch
+            {
+                RunStatus.Completed => WebhookEvents.RunCompleted,
+                RunStatus.Failed => WebhookEvents.RunFailed,
+                _ => null,
+            };
+
+            if (eventType is null)
+            {
+                return;
+            }
+
+            var record = await _runStore.GetRunAsync(execution.RunId, CancellationToken.None).ConfigureAwait(false);
+
+            await _webhookPublisher.PublishAsync(
+                tenantId,
+                eventType,
+                new WebhookEventPayload
+                {
+                    OccurredAt = _timeProvider.GetUtcNow(),
+                    Run = new WebhookRunSummary
+                    {
+                        RunId = execution.RunId.ToString(),
+                        RootRunId = execution.RunId.ToString(),
+                        SessionId = execution.SessionId,
+                        AgentName = execution.WorkflowName,
+                        Kind = nameof(RunKind.Workflow),
+                        Status = status.ToString(),
+                        DurationMs = (long)_timeProvider.GetElapsedTime(startedAt).TotalMilliseconds,
+                        InputTokens = record?.TreeUsage?.InputTokens,
+                        OutputTokens = record?.TreeUsage?.OutputTokens,
+                        Cost = record?.TreeCost?.Total(),
+                        Currency = record?.TreeCost?.Currency,
+                        Error = error?.Message,
+                    },
+                },
+                CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, CancellationToken.None))
+        {
+            _logger.LogWarning(exception, "The webhooks of workflow run {RunId} could not be published.", execution.RunId);
+        }
     }
 
     /// <summary>Writes the ENTIRE workflow (root level, a single "run") to the quota counters.</summary>
