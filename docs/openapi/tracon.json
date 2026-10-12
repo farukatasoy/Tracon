@@ -1840,7 +1840,7 @@
           "Workflows"
         ],
         "summary": "Lists function nodes registered in code.",
-        "description": "Function nodes are defined only in code, with AddWorkflowFunction() - the same code-only boundary AddTool draws for tools. This endpoint does not offer a write path; the UI lets users pick from this list when building a Sequential workflow\u0027s node list. An empty list means no function was registered, or the workflow engine was never turned on with UseWorkflows() - either way, existing agent-only workflows are unaffected.",
+        "description": "Function nodes are defined only in code, with AddWorkflowFunction() - the same code-only boundary AddTool draws for tools. This endpoint does not offer a write path; the console picks from this list when an operator builds a Sequential workflow\u0027s node list. A function that takes settings carries settingsSchema, a JSON schema of the object a node of it may carry in \u0027settings\u0027; a function that takes none has settingsSchema null and its nodes must carry no settings. The schema is for display: saving the workflow does the checking. An empty list means no function was registered, or the workflow engine was never turned on with UseWorkflows() - either way, existing agent-only workflows are unaffected.",
         "operationId": "TraconListWorkflowFunctions",
         "responses": {
           "200": {
@@ -1897,7 +1897,7 @@
           "Workflows"
         ],
         "summary": "Creates or updates a workflow definition.",
-        "description": "The definition is validated at save time with the same rules the compiler applies, so a shape that could not run is rejected with 400 instead of failing on the first run. Which fields are required depends on the kind \u2014 a manager driven workflow needs its manager agent, for example. The call replaces the whole definition: omitted fields are cleared, not merged. The name comes from the path and is not taken from the body.",
+        "description": "The definition is validated at save time with the same rules the compiler applies, so a shape that could not run is rejected with 400 instead of failing on the first run. Which fields are required depends on the kind \u2014 a manager driven workflow needs its manager agent, for example. A function node\u0027s \u0027settings\u0027 must be a JSON object that fits the settings type its function declares (see settingsSchema on GET /api/workflows/functions): an unknown field, a missing required member and a value of the wrong type are all refused with a message that names the node and the member, and so is any settings on an agent node or on a function that declares none. Settings are stored in the definition: never put a secret in them, name its configuration key instead. The call replaces the whole definition: omitted fields are cleared, not merged. The name comes from the path and is not taken from the body.",
         "operationId": "TraconSaveWorkflow",
         "parameters": [
           {
@@ -18227,6 +18227,17 @@
           "outputType": {
             "type": "string",
             "description": "The display name of the CLR type the function returns."
+          },
+          "settingsSchema": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "The JSON schema of the settings a node of this function takes, or\n\u0060null\u0060 when the function takes none (a node of it must carry\nno \u0060settings\u0060).",
+                "$ref": "#/components/schemas/JsonElement"
+              }
+            ]
           }
         },
         "description": "Wire-safe view of a registered function node."
@@ -18363,6 +18374,17 @@
           "kind": {
             "description": "Gets which registry \u0060Name\u0060 is looked up in.",
             "$ref": "#/components/schemas/WorkflowNodeKind"
+          },
+          "settings": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Gets the function node\u0027s settings: a JSON object checked against the\nsettings type the function declares. \u0060null\u0060 means the node\ncarries no settings. Only for WorkflowNodeKind.Function; an\nagent node that carries settings is refused when the definition is saved.",
+                "$ref": "#/components/schemas/JsonElement"
+              }
+            ]
           }
         },
         "description": "Points to a single node entering a workflow\u0027s graph: an agent from the\ncatalog, or a function registered in code."

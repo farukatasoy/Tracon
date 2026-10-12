@@ -63,6 +63,47 @@ the run id. Every agent called inside the workflow opens its own `runs` row
 and attaches under the workflow row — `GET /api/runs/{id}/tree` returns the
 whole tree.
 
+## Function nodes and their settings
+
+A `Sequential` workflow can mix functions registered in code in with its agents. A
+function that takes **settings** serves several workflows with a different
+configuration in each:
+
+```csharp
+builder.AddTracon()
+       .UseWorkflows()
+       .AddWorkflowFunction<string, AudioClip, TtsSettings>(
+           "tts",
+           provider => (text, settings, context, cancellationToken) =>
+               provider.GetRequiredService<ITextToSpeech>()
+                       .SpeakAsync(text, settings.Voice, settings.LoudnessLufs, cancellationToken),
+           options => options.Description = "Text to speech");
+
+public sealed record TtsSettings
+{
+    public required string Voice { get; init; }
+
+    public double LoudnessLufs { get; init; } = -16;
+}
+```
+
+```http
+PUT /tracon/api/workflows/narrated
+{"kind":"Sequential","nodes":[
+  {"name":"writer","kind":"Agent"},
+  {"name":"tts","kind":"Function","settings":{"voice":"alloy","loudnessLufs":-14}}]}
+```
+
+The code declares the shape and an operator fills in values, in the console or over
+HTTP. A save reads the settings into `TtsSettings`: an unknown field, a missing
+`required` member or a value of the wrong type is a `400` that names the node and the
+member. The same read repeats when a run starts, so settings saved against an older
+shape fail the run by name instead of running with a default. A change applies to the
+next run. **Settings are stored in the definition and shown to everyone who can read
+the workflow: never put a secret in them** - name its configuration key instead.
+`GET /tracon/api/workflows/functions` lists each function with the JSON schema of its
+settings.
+
 ## Parameters
 
 A stored workflow can declare run parameters (`WorkflowDefinition.Parameters`, the
@@ -111,6 +152,7 @@ checkpoints are limited to the lifetime of the process.
 | `MaxConcurrentRuns` | 4 | The number of workflows running at the same time |
 | `RunTimeout` | 10 min | The maximum duration of a single run. Cooperative: checked between super-steps, so a node that ignores its cancellation token finishes and the run stops at the next boundary |
 | `MaxSuperSteps` | 100 | Infinite-loop protection |
+| `MaxNodeSettingsLength` | 16384 bytes | The largest JSON a function node's settings may be when a workflow is saved |
 | `EnableCheckpointing` | `true` | Checkpoint writing |
 
 This package is **not AOT compatible**: the execution engine uses reflection.

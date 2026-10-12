@@ -93,6 +93,7 @@ const DEFAULT_COLLECTION_ROUTES = [
   'api/jobs',
   'api/sessions',
   'api/workflows',
+  'api/workflows/functions',
   'api/evals',
   'api/evals/:name/cases',
   'api/evals/:name/runs',

@@ -17,6 +17,11 @@ namespace Tracon;
 /// breaks - only a round-trip test catches it. The same trap was hit once before
 /// with <c>AgentDefinitionPayload</c>.
 /// </para>
+/// <para>
+/// A field of a <em>node</em> (<see cref="WorkflowNodeReference.Settings"/>) is not copied
+/// here: <see cref="Nodes"/> holds the node records themselves, so a new node field is
+/// written and read with them. The round-trip test of the node list covers it.
+/// </para>
 /// </remarks>
 internal sealed record WorkflowDefinitionPayload
 {

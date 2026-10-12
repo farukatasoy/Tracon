@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 namespace Tracon;
 
 /// <summary>
@@ -87,6 +89,29 @@ internal static class WorkflowDefinitionValidator
                 {
                     return $"Node '{node.Name}' appears more than once in workflow '{definition.Name}'. " +
                            "A workflow's node list must have no duplicates.";
+                }
+
+                // Settings belong to a function node (F-295). An agent's behavior
+                // lives in its own definition; letting a node carry a value that
+                // nothing reads would look like a setting that works.
+                if (node.Settings is { } settings)
+                {
+                    if (node.Kind != WorkflowNodeKind.Function)
+                    {
+                        return $"Node '{node.Name}' in workflow '{definition.Name}' is an agent node but carries " +
+                               "'settings'. Settings belong to function nodes only; an agent's behavior is set " +
+                               "in the agent's own definition.";
+                    }
+
+                    // Whether the object fits the function's settings type is checked
+                    // against the function registry (IWorkflowFunctionCatalog), which
+                    // Core cannot see. Only the shape every function shares is here.
+                    if (settings.ValueKind != JsonValueKind.Object)
+                    {
+                        return $"Node '{node.Name}' in workflow '{definition.Name}' has 'settings' that are " +
+                               $"a JSON {settings.ValueKind.ToString().ToLowerInvariant()}. " +
+                               "Settings must be a JSON object, for example {\"voice\": \"alloy\"}.";
+                    }
                 }
             }
         }

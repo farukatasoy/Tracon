@@ -9,6 +9,8 @@ Tracon.TraconWorkflowOptions.KeepCheckpointsAfterCompletion.get -> bool
 Tracon.TraconWorkflowOptions.KeepCheckpointsAfterCompletion.set -> void
 Tracon.TraconWorkflowOptions.MaxConcurrentRuns.get -> int
 Tracon.TraconWorkflowOptions.MaxConcurrentRuns.set -> void
+Tracon.TraconWorkflowOptions.MaxNodeSettingsLength.get -> int
+Tracon.TraconWorkflowOptions.MaxNodeSettingsLength.set -> void
 Tracon.TraconWorkflowOptions.MaxSuperSteps.get -> int
 Tracon.TraconWorkflowOptions.MaxSuperSteps.set -> void
 Tracon.TraconWorkflowOptions.RunTimeout.get -> System.TimeSpan
@@ -18,7 +20,10 @@ Tracon.TraconWorkflowsBuilderExtensions
 Tracon.TraconWorkflowContextExtensions
 static Tracon.TraconWorkflowContextExtensions.GetRunParameters(this Microsoft.Agents.AI.Workflows.IWorkflowContext! context) -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>!
 Tracon.WorkflowAgentBinding
+Tracon.WorkflowFunctionOptions
 const Tracon.TraconWorkflowOptions.SectionName = "Tracon:Workflows" -> string!
+static Tracon.TraconWorkflowFunctionExtensions.AddWorkflowFunction<TInput, TOutput, TSettings>(this Tracon.ITraconBuilder! builder, string! name, System.Func<System.IServiceProvider!, System.Func<TInput, TSettings!, Microsoft.Agents.AI.Workflows.IWorkflowContext!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<TOutput>>!>! factory) -> Tracon.ITraconBuilder!
+static Tracon.TraconWorkflowFunctionExtensions.AddWorkflowFunction<TInput, TOutput, TSettings>(this Tracon.ITraconBuilder! builder, string! name, System.Func<System.IServiceProvider!, System.Func<TInput, TSettings!, Microsoft.Agents.AI.Workflows.IWorkflowContext!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<TOutput>>!>! factory, System.Action<Tracon.WorkflowFunctionOptions!>! configure) -> Tracon.ITraconBuilder!
 static Tracon.TraconWorkflowFunctionExtensions.AddWorkflowFunction<TInput, TOutput>(this Tracon.ITraconBuilder! builder, string! name, System.Func<System.IServiceProvider!, System.Func<TInput, Microsoft.Agents.AI.Workflows.IWorkflowContext!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask<TOutput>>!>! factory, string? description = null, Tracon.WorkflowNodeRetryPolicy? retryPolicy = null) -> Tracon.ITraconBuilder!
 Tracon.WorkflowNodeRetryPolicy
 Tracon.WorkflowNodeRetryPolicy.WorkflowNodeRetryPolicy() -> void
@@ -31,3 +36,8 @@ Tracon.WorkflowNodeRetryPolicy.BackoffMultiplier.set -> void
 static Tracon.TraconWorkflowsBuilderExtensions.AddWorkflow(this Tracon.ITraconBuilder! builder, string! name, System.Func<System.IServiceProvider!, Microsoft.Agents.AI.Workflows.Workflow!>! factory, string? description = null) -> Tracon.ITraconBuilder!
 static Tracon.TraconWorkflowsBuilderExtensions.UseWorkflows(this Tracon.ITraconBuilder! builder, System.Action<Tracon.TraconWorkflowOptions!>? configure = null) -> Tracon.ITraconBuilder!
 static Tracon.WorkflowAgentBinding.GetWorkflowAgent(this System.IServiceProvider! services, string! workflowName, string! agentName, string? description = null) -> Microsoft.Agents.AI.AIAgent!
+Tracon.WorkflowFunctionOptions.Description.get -> string?
+Tracon.WorkflowFunctionOptions.Description.set -> void
+Tracon.WorkflowFunctionOptions.RetryPolicy.get -> Tracon.WorkflowNodeRetryPolicy?
+Tracon.WorkflowFunctionOptions.RetryPolicy.set -> void
+Tracon.WorkflowFunctionOptions.WorkflowFunctionOptions() -> void

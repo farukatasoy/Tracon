@@ -452,9 +452,41 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   the row of a run waiting for a human.
 - `RunReplayRequest.Parameters`: values laid over the ones the source run was
   bound with.
+- A workflow function can take settings, so one function serves several
+  workflows with a different configuration in each.
+  `AddWorkflowFunction<TInput, TOutput, TSettings>` (two overloads: a plain one
+  and one that takes an `Action<WorkflowFunctionOptions>` for the description
+  and the retry policy), `WorkflowNodeReference.Settings` (a JSON object, or
+  `null`), `WorkflowFunctionDescriptor.SettingsType` and `SettingsSchema`,
+  `WorkflowFunctionResponse.SettingsSchema` (`GET /api/workflows/functions`) and
+  `TraconWorkflowOptions.MaxNodeSettingsLength` (16 KiB). A save reads the
+  settings into `TSettings`: an unknown field, a missing `required` member, a
+  value of the wrong type and a `null` where the member does not allow one are a
+  `400` that names the node and the member, as are settings on an agent node, on
+  a function that declares none, or that are not an object. The read repeats when
+  a run starts, so settings saved against an older shape fail the run by name
+  before any node runs. A change applies to the next run, and an older
+  checkpoint stays usable. Settings are stored in the definition and the audit
+  trail: never put a secret in them. The `settings` member of a stored node is
+  also part of the workflow list and the generated clients.
+- The console builds the chain of a `Sequential` workflow: add an agent or a
+  function (from `GET /api/workflows/functions`), reorder, remove, and edit a
+  function step's settings as JSON with the function's fields listed under it.
+  The editor writes `nodes` when the chain holds a function and `agentNames`
+  otherwise, tells you when a save changes that, and warns that a run waiting
+  for input cannot be resumed after a change of pattern, steps or order.
+  The server accepts both forms, so a definition saved over HTTP in the other
+  form keeps loading.
 
 ### Changed
 
+- `IWorkflowFunctionCatalog` gains `ValidateSettings(string name, JsonElement? settings)`,
+  which returns a message that names the function and the problem, or `null`. An
+  implementation of the interface outside Tracon must add it; the registry
+  `AddWorkflowFunction` builds is the only implementation Tracon ships.
+- The generated C# client documents the 39 nullable object properties whose
+  description was lost on the way from the OpenAPI document (for example
+  `AgentDefinition.Harness`).
 - Every endpoint that starts a run now refuses an attribution that breaks a
   label limit with `400` before the run starts, as the agent run endpoint
   already did: workflow run, resume and respond, run replay, the inbound

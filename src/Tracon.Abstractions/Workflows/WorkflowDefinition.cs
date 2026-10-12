@@ -70,6 +70,17 @@ public sealed record WorkflowDefinition
     /// between the two. The function registry cannot: it is fixed for the
     /// lifetime of the process, so checking early gives an honest guarantee.
     /// </para>
+    /// <para>
+    /// A function node may carry <see cref="WorkflowNodeReference.Settings"/>, checked
+    /// the same way against the settings type its function declares
+    /// (<see cref="IWorkflowFunctionCatalog.ValidateSettings"/>) and read again at
+    /// compile time, because that type can change between deployments.
+    /// </para>
+    /// <para>
+    /// A chain of agents only may be stored either way: as <see cref="AgentNames"/>
+    /// or as <see cref="Nodes"/>, and the server accepts both. The console writes
+    /// <see cref="Nodes"/> only when the chain holds at least one function node.
+    /// </para>
     /// </remarks>
     public IReadOnlyList<WorkflowNodeReference> Nodes { get; init; } = [];
 

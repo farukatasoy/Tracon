@@ -148,8 +148,9 @@ internal sealed class WorkflowDefinitionCompiler
                 // The node's NAME is the executor id, unchanged across every
                 // compile of this definition: checkpoint compatibility needs
                 // a stable id, and the validator already guarantees every
-                // node name in the list is unique.
-                bindings.Add(ExecutorBindingExtensions.BindExecutor(_functions.CreateExecutor(node.Name, node.Name)));
+                // node name in the list is unique. The settings are NOT part of
+                // the id, so changing them never makes a checkpoint incompatible.
+                bindings.Add(ExecutorBindingExtensions.BindExecutor(CreateFunctionExecutor(definition, node)));
 
                 continue;
             }
@@ -174,6 +175,34 @@ internal sealed class WorkflowDefinitionCompiler
         }
 
         return builder.Build();
+    }
+
+    /// <summary>
+    /// Builds the executor of a function node, reading its settings into the
+    /// function's settings type.
+    /// </summary>
+    /// <remarks>
+    /// The graph is rebuilt for every run, so the settings are read again for every run:
+    /// a change takes effect on the next run, and a run waiting for input reads the current
+    /// settings when it resumes. The same read ran when the definition was saved, but the
+    /// settings type can change between deployments, so a definition saved against an
+    /// earlier shape fails HERE - before the first node runs, naming the node - instead of
+    /// silently running the function with a default.
+    /// </remarks>
+    private Executor CreateFunctionExecutor(WorkflowDefinition definition, WorkflowNodeReference node)
+    {
+        try
+        {
+            return _functions.CreateExecutor(node.Name, node.Name, node.Settings);
+        }
+        catch (WorkflowFunctionSettingsException exception)
+        {
+            throw new TraconException(
+                $"Workflow '{definition.Name}' cannot run. {exception.Message} " +
+                "The function's settings type may have changed since the workflow was saved; " +
+                "save the workflow again with settings that fit it.",
+                exception);
+        }
     }
 
     private static Workflow BuildConcurrent(WorkflowDefinition definition, IReadOnlyList<AIAgent> participants)

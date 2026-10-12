@@ -3974,7 +3974,7 @@ namespace Tracon.Client.Generated
         /// Lists function nodes registered in code.
         /// </summary>
         /// <remarks>
-        /// Function nodes are defined only in code, with AddWorkflowFunction() - the same code-only boundary AddTool draws for tools. This endpoint does not offer a write path; the UI lets users pick from this list when building a Sequential workflow's node list. An empty list means no function was registered, or the workflow engine was never turned on with UseWorkflows() - either way, existing agent-only workflows are unaffected.
+        /// Function nodes are defined only in code, with AddWorkflowFunction() - the same code-only boundary AddTool draws for tools. This endpoint does not offer a write path; the console picks from this list when an operator builds a Sequential workflow's node list. A function that takes settings carries settingsSchema, a JSON schema of the object a node of it may carry in 'settings'; a function that takes none has settingsSchema null and its nodes must carry no settings. The schema is for display: saving the workflow does the checking. An empty list means no function was registered, or the workflow engine was never turned on with UseWorkflows() - either way, existing agent-only workflows are unaffected.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -4132,7 +4132,7 @@ namespace Tracon.Client.Generated
         /// Creates or updates a workflow definition.
         /// </summary>
         /// <remarks>
-        /// The definition is validated at save time with the same rules the compiler applies, so a shape that could not run is rejected with 400 instead of failing on the first run. Which fields are required depends on the kind — a manager driven workflow needs its manager agent, for example. The call replaces the whole definition: omitted fields are cleared, not merged. The name comes from the path and is not taken from the body.
+        /// The definition is validated at save time with the same rules the compiler applies, so a shape that could not run is rejected with 400 instead of failing on the first run. Which fields are required depends on the kind — a manager driven workflow needs its manager agent, for example. A function node's 'settings' must be a JSON object that fits the settings type its function declares (see settingsSchema on GET /api/workflows/functions): an unknown field, a missing required member and a value of the wrong type are all refused with a message that names the node and the member, and so is any settings on an agent node or on a function that declares none. Settings are stored in the definition: never put a secret in them, name its configuration key instead. The call replaces the whole definition: omitted fields are cleared, not merged. The name comes from the path and is not taken from the body.
         /// </remarks>
         /// <returns>OK</returns>
         /// <exception cref="TraconApiException">A server side error occurred.</exception>
@@ -16169,6 +16169,13 @@ namespace Tracon.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("callableAgentNames")]
         public System.Collections.Generic.ICollection<string> CallableAgentNames { get; set; } = new System.Collections.Generic.List<string>();
 
+        /// <summary>
+        /// Gets how long this agent waits for the agents it calls. When
+        /// <br/>`null`, `TraconAgentGraphOptions.ChildDeadline`
+        /// <br/>and `WaitTimeout` apply instead. Ignored when
+        /// <br/>IReadOnlyList&amp;lt;string&amp;gt; AgentDefinition.CallableAgentNames is empty.
+        /// </summary>
+
         [System.Text.Json.Serialization.JsonPropertyName("subAgents")]
         public SubAgentSettings? SubAgents { get; set; } = default!;
 
@@ -16181,11 +16188,27 @@ namespace Tracon.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("mcpResourceUris")]
         public System.Collections.Generic.ICollection<string> McpResourceUris { get; set; } = new System.Collections.Generic.List<string>();
 
+        /// <summary>
+        /// Gets the harness settings. When `null` a plain chat agent is
+        /// <br/>produced; when populated, harness capabilities such as context compaction and
+        /// <br/>todo tracking are enabled.
+        /// </summary>
+
         [System.Text.Json.Serialization.JsonPropertyName("harness")]
         public HarnessSettings? Harness { get; set; } = default!;
 
+        /// <summary>
+        /// Gets the context compaction settings. When `null` no compaction
+        /// <br/>is applied.
+        /// </summary>
+
         [System.Text.Json.Serialization.JsonPropertyName("compaction")]
         public CompactionSettings? Compaction { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the memory provider settings. When `null` no memory provider
+        /// <br/>is added.
+        /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("memory")]
         public MemorySettings? Memory { get; set; } = default!;
@@ -16333,6 +16356,12 @@ namespace Tracon.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("callableAgentNames")]
         public System.Collections.Generic.ICollection<string> CallableAgentNames { get; set; } = new System.Collections.Generic.List<string>();
 
+        /// <summary>
+        /// How long this agent waits for the agents it calls. See
+        /// <br/>`AgentDefinition.SubAgents`. Ignored when
+        /// <br/>IReadOnlyList&amp;lt;string&amp;gt; AgentDefinitionRequest.CallableAgentNames is empty.
+        /// </summary>
+
         [System.Text.Json.Serialization.JsonPropertyName("subAgents")]
         public SubAgentSettings? SubAgents { get; set; } = default!;
 
@@ -16344,11 +16373,23 @@ namespace Tracon.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("mcpResourceUris")]
         public System.Collections.Generic.ICollection<string> McpResourceUris { get; set; } = new System.Collections.Generic.List<string>();
 
+        /// <summary>
+        /// Harness settings. If left empty, a plain chat agent is compiled.
+        /// </summary>
+
         [System.Text.Json.Serialization.JsonPropertyName("harness")]
         public HarnessSettings? Harness { get; set; } = default!;
 
+        /// <summary>
+        /// Context compaction settings. If left empty, no compaction is applied.
+        /// </summary>
+
         [System.Text.Json.Serialization.JsonPropertyName("compaction")]
         public CompactionSettings? Compaction { get; set; } = default!;
+
+        /// <summary>
+        /// Memory provider settings. If left empty, no memory provider is added.
+        /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("memory")]
         public MemorySettings? Memory { get; set; } = default!;
@@ -16427,6 +16468,10 @@ namespace Tracon.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("version")]
         public int Version { get; set; } = default!;
 
+        /// <summary>
+        /// Gets the bound model. It can be unknown for code agents.
+        /// </summary>
+
         [System.Text.Json.Serialization.JsonPropertyName("model")]
         public ModelBinding? Model { get; set; } = default!;
 
@@ -16479,6 +16524,14 @@ namespace Tracon.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("descriptor")]
         public AgentDescriptor Descriptor { get; set; } = new AgentDescriptor();
+
+        /// <summary>
+        /// The agent's definition. `null` only for a code agent built
+        /// <br/>from a factory (`AddAgent(name, factory)`), which carries no
+        /// <br/>`AgentDefinition` at all. A code agent declared with
+        /// <br/>`AddAgent(AgentDefinition)` returns its in-memory definition here
+        /// <br/>despite never being written to the database.
+        /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("definition")]
         public AgentDefinition? Definition { get; set; } = default!;
@@ -16583,6 +16636,12 @@ namespace Tracon.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("kind")]
         public AgentResponseFormatKind Kind { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the JSON schema. It is populated only for
+        /// <br/>AgentResponseFormatKind.JsonSchema and must be a JSON
+        /// <br/>&lt;strong&gt;object&lt;/strong&gt;.
+        /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("schema")]
         public System.Text.Json.JsonElement? Schema { get; set; } = default!;
@@ -18250,8 +18309,16 @@ namespace Tracon.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("reason")]
         public string Reason { get; set; } = default!;
 
+        /// <summary>
+        /// Gets the current canary variant results. Returns `null` when no runs exist.
+        /// </summary>
+
         [System.Text.Json.Serialization.JsonPropertyName("canary")]
         public ExperimentVariantResult? Canary { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the current control variant results. Returns `null` when no runs exist.
+        /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("control")]
         public ExperimentVariantResult? Control { get; set; } = default!;
@@ -18524,6 +18591,12 @@ namespace Tracon.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("summarizationPrompt")]
         public string? SummarizationPrompt { get; set; } = default!;
 
+        /// <summary>
+        /// Gets the model used for the summarization call. When it is empty the order is
+        /// <br/>followed: the application-wide helper model setting, and the agent's own model
+        /// <br/>when that is missing.
+        /// </summary>
+
         [System.Text.Json.Serialization.JsonPropertyName("summarizationModel")]
         public ModelBinding? SummarizationModel { get; set; } = default!;
 
@@ -18768,6 +18841,10 @@ namespace Tracon.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("sourceRunId")]
         public System.Guid? SourceRunId { get; set; } = default!;
 
+        /// <summary>
+        /// The reason for promotion. `null` when hand-written.
+        /// </summary>
+
         [System.Text.Json.Serialization.JsonPropertyName("sourceKind")]
         public SourceKind? SourceKind { get; set; } = default!;
 
@@ -18941,6 +19018,10 @@ namespace Tracon.Client.Generated
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
     public partial class EvalCasePromotionRequest
     {
+        /// <summary>
+        /// Overrides the promotion reason. If not given, it is derived
+        /// <br/>automatically from the run's status and score.
+        /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("sourceKind")]
         public SourceKind2? SourceKind { get; set; } = default!;
@@ -19476,6 +19557,11 @@ namespace Tracon.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("updatedAt")]
         public System.DateTimeOffset? UpdatedAt { get; set; } = default!;
 
+        /// <summary>
+        /// Gets the canary policy. `null` disables automatic decisions,
+        /// <br/>so no background service evaluates this experiment.
+        /// </summary>
+
         [System.Text.Json.Serialization.JsonPropertyName("canary")]
         public CanaryPolicy? Canary { get; set; } = default!;
 
@@ -19496,9 +19582,16 @@ namespace Tracon.Client.Generated
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
     public partial class ExperimentCanaryResponse
     {
+        /// <summary>
+        /// The defined canary rule. `null` if none has been defined.
+        /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("policy")]
         public CanaryPolicy? Policy { get; set; } = default!;
+
+        /// <summary>
+        /// Current evaluation of the rule. `null` if `Policy` is `null`.
+        /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("evaluation")]
         public CanaryEvaluation? Evaluation { get; set; } = default!;
@@ -19831,6 +19924,11 @@ namespace Tracon.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("disableAgentModeProvider")]
         public bool DisableAgentModeProvider { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the loop (run-until-done) settings. `null`, the
+        /// <br/>default, leaves the loop off.
+        /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("loop")]
         public LoopSettings? Loop { get; set; } = default!;
@@ -20642,6 +20740,10 @@ namespace Tracon.Client.Generated
     [System.CodeDom.Compiler.GeneratedCode("NJsonSchema", "14.2.0.0 (NJsonSchema v11.1.0.0 (Newtonsoft.Json v13.0.0.0))")]
     public partial class JobTriggerRequest
     {
+        /// <summary>
+        /// Payload to use for this run. If left empty, the schedule's own payload
+        /// <br/>is used.
+        /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("payload")]
         public System.Text.Json.JsonElement? Payload { get; set; } = default!;
@@ -21571,6 +21673,11 @@ namespace Tracon.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("providerSettings")]
         public object ProviderSettings { get; set; } = default!;
 
+        /// <summary>
+        /// Gets the requested output format. When it is `null` today's
+        /// <br/>behaviour does not change: no format constraint is sent to the provider.
+        /// </summary>
+
         [System.Text.Json.Serialization.JsonPropertyName("responseFormat")]
         public AgentResponseFormat? ResponseFormat { get; set; } = default!;
 
@@ -21581,6 +21688,10 @@ namespace Tracon.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("fallbacks")]
         public System.Collections.Generic.ICollection<ModelFallback> Fallbacks { get; set; } = new System.Collections.Generic.List<ModelFallback>();
+
+        /// <summary>
+        /// Gets the response caching settings. Disabled when `null`.
+        /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("responseCache")]
         public ResponseCacheSettings? ResponseCache { get; set; } = default!;
@@ -21964,6 +22075,12 @@ namespace Tracon.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("arguments")]
         public string? Arguments { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the human-readable presentation an IToolApprovalPresenter
+        /// <br/>resolved for this request, or `null` when no presenter is
+        /// <br/>registered, none resolved anything, or the resolution failed or timed out.
+        /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("presentation")]
         public ToolApprovalPresentation? Presentation { get; set; } = default!;
@@ -22758,8 +22875,16 @@ namespace Tracon.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("durationMs")]
         public long? DurationMs { get; set; } = default!;
 
+        /// <summary>
+        /// Token usage.
+        /// </summary>
+
         [System.Text.Json.Serialization.JsonPropertyName("usage")]
         public RunUsage? Usage { get; set; } = default!;
+
+        /// <summary>
+        /// Cost.
+        /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("cost")]
         public RunCost? Cost { get; set; } = default!;
@@ -22770,6 +22895,10 @@ namespace Tracon.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("toolCallCount")]
         public int ToolCallCount { get; set; } = default!;
+
+        /// <summary>
+        /// Error class. `null` for a successful run.
+        /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("errorClass")]
         public ErrorClass? ErrorClass { get; set; } = default!;
@@ -22935,6 +23064,12 @@ namespace Tracon.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("message")]
         public string Message { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the class chosen by IRunErrorClassifier. Rows written
+        /// <br/>BEFORE the error class was introduced hold `null`, which
+        /// <br/>the user interface shows in the `Unknown` bucket.
+        /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("class")]
         public Class? Class { get; set; } = default!;
@@ -23389,8 +23524,16 @@ namespace Tracon.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("isStreaming")]
         public bool IsStreaming { get; set; } = default!;
 
+        /// <summary>
+        /// Gets the token usage, or `null` when the provider reported none.
+        /// </summary>
+
         [System.Text.Json.Serialization.JsonPropertyName("usage")]
         public RunUsage? Usage { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the error information. Populated only for RunStatus.Failed.
+        /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("error")]
         public RunError? Error { get; set; } = default!;
@@ -23453,11 +23596,24 @@ namespace Tracon.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("childRunCount")]
         public int ChildRunCount { get; set; } = default!;
 
+        /// <summary>
+        /// Gets the total token usage of this run and every run below it.
+        /// </summary>
+
         [System.Text.Json.Serialization.JsonPropertyName("treeUsage")]
         public RunUsage? TreeUsage { get; set; } = default!;
 
+        /// <summary>
+        /// Gets the run's own cost. `null` when the model is unknown;
+        /// <br/>when the model is known the value is populated even if the price is not.
+        /// </summary>
+
         [System.Text.Json.Serialization.JsonPropertyName("cost")]
         public RunCost? Cost { get; set; } = default!;
+
+        /// <summary>
+        /// Gets the total cost of this run and every run below it.
+        /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("treeCost")]
         public RunTreeCost? TreeCost { get; set; } = default!;
@@ -24587,6 +24743,11 @@ namespace Tracon.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("updatedAt")]
         public System.DateTimeOffset UpdatedAt { get; set; } = default!;
+
+        /// <summary>
+        /// Chat history. Returns `null` if the history could not
+        /// <br/>be read (e.g. the agent is no longer in the catalog).
+        /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("messages")]
         public System.Text.Json.JsonElement? Messages { get; set; } = default!;
@@ -25807,6 +25968,12 @@ namespace Tracon.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("createdAt")]
         public System.DateTimeOffset CreatedAt { get; set; } = default!;
 
+        /// <summary>
+        /// The call's non-token measurement and cost. `null` if
+        /// <br/>the tool reported no measurement — which is empty for the vast
+        /// <br/>majority of calls.
+        /// </summary>
+
         [System.Text.Json.Serialization.JsonPropertyName("usage")]
         public ToolCallUsage? Usage { get; set; } = default!;
 
@@ -26669,6 +26836,10 @@ namespace Tracon.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("outputChars")]
         public long? OutputChars { get; set; } = default!;
 
+        /// <summary>
+        /// Why the connection closed.
+        /// </summary>
+
         [System.Text.Json.Serialization.JsonPropertyName("endReason")]
         public EndReason? EndReason { get; set; } = default!;
 
@@ -26700,6 +26871,10 @@ namespace Tracon.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("liveSeconds")]
         public double? LiveSeconds { get; set; } = default!;
+
+        /// <summary>
+        /// What the conversation cost; `null` when nothing was priced.
+        /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("cost")]
         public VoiceSessionCost? Cost { get; set; } = default!;
@@ -27239,6 +27414,12 @@ namespace Tracon.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("origin")]
         public AgentDefinitionOrigin Origin { get; set; } = default!;
 
+        /// <summary>
+        /// Gets the built-in pattern. `null` for workflows
+        /// <br/>defined by a factory in code: a free-form graph does not correspond
+        /// <br/>to a pattern.
+        /// </summary>
+
         [System.Text.Json.Serialization.JsonPropertyName("kind")]
         public Kind? Kind { get; set; } = default!;
 
@@ -27333,6 +27514,15 @@ namespace Tracon.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("outputType")]
         public string OutputType { get; set; } = default!;
+
+        /// <summary>
+        /// The JSON schema of the settings a node of this function takes, or
+        /// <br/>`null` when the function takes none (a node of it must carry
+        /// <br/>no `settings`).
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("settingsSchema")]
+        public System.Text.Json.JsonElement? SettingsSchema { get; set; } = default!;
 
     }
 
@@ -27527,6 +27717,16 @@ namespace Tracon.Client.Generated
         [System.Text.Json.Serialization.JsonPropertyName("kind")]
         public WorkflowNodeKind Kind { get; set; } = default!;
 
+        /// <summary>
+        /// Gets the function node's settings: a JSON object checked against the
+        /// <br/>settings type the function declares. `null` means the node
+        /// <br/>carries no settings. Only for WorkflowNodeKind.Function; an
+        /// <br/>agent node that carries settings is refused when the definition is saved.
+        /// </summary>
+
+        [System.Text.Json.Serialization.JsonPropertyName("settings")]
+        public System.Text.Json.JsonElement? Settings { get; set; } = default!;
+
     }
 
     /// <summary>
@@ -27644,6 +27844,10 @@ namespace Tracon.Client.Generated
 
         [System.Text.Json.Serialization.JsonPropertyName("text")]
         public string? Text { get; set; } = default!;
+
+        /// <summary>
+        /// Free-form response body. Resolved against the port's response type.
+        /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("data")]
         public System.Text.Json.JsonElement? Data { get; set; } = default!;

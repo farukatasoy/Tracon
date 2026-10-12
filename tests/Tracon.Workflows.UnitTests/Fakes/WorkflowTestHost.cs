@@ -3,6 +3,7 @@ using System.Text.Json;
 using Microsoft.Agents.AI;
 using Microsoft.Agents.AI.Workflows;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 
@@ -73,7 +74,13 @@ internal sealed class WorkflowTestHost
     /// snapshot every time keeps this in step with the production registry,
     /// which is also built once and never mutated after construction.
     /// </summary>
-    public WorkflowFunctionRegistry Functions => new(_functionRegistrations, EmptyServices.Instance);
+    public WorkflowFunctionRegistry Functions => new(_functionRegistrations, FunctionServices);
+
+    /// <summary>
+    /// The container the function registry resolves its collaborators from: the
+    /// retry classifier, the settings cap, the logger. Empty unless a test sets it.
+    /// </summary>
+    public IServiceProvider FunctionServices { get; set; } = EmptyServices.Instance;
 
     public WorkflowDefinitionCompiler Compiler => new(Resolver, AgentCache, Functions);
 
@@ -91,7 +98,40 @@ internal sealed class WorkflowTestHost
                 InputType = typeof(TInput),
                 OutputType = typeof(TOutput),
             },
-            _ => executorId => new FunctionExecutor<TInput, TOutput>(executorId, handler)));
+            _ => (executorId, _) => new FunctionExecutor<TInput, TOutput>(executorId, handler)));
+    }
+
+    /// <summary>
+    /// Registers a function that takes typed settings - through the real
+    /// <c>AddWorkflowFunction</c> extension, so the lambda a consumer's registration
+    /// builds is the one the tests run.
+    /// </summary>
+    public void AddFunction<TInput, TOutput, TSettings>(
+        string name,
+        Func<TInput, TSettings, IWorkflowContext, CancellationToken, ValueTask<TOutput>> handler,
+        Action<WorkflowFunctionOptions>? configure = null)
+        where TSettings : class
+    {
+        var builder = new CollectingBuilder();
+
+        builder.AddWorkflowFunction<TInput, TOutput, TSettings>(name, _ => handler, configure ?? (static _ => { }));
+
+        _functionRegistrations.AddRange(builder.Registrations);
+    }
+
+    /// <summary>Adds a registration exactly as given - for the cases the extension refuses to build.</summary>
+    public void RegisterRaw(WorkflowFunctionRegistration registration)
+        => _functionRegistrations.Add(registration);
+
+    /// <summary>A container with the services a retried node needs, plus the extras a test adds.</summary>
+    public static IServiceProvider ServicesFor(IRunErrorClassifier? classifier = null, Action<IServiceCollection>? configure = null)
+    {
+        var services = new ServiceCollection();
+
+        services.AddSingleton(classifier ?? new DefaultRunErrorClassifier());
+        configure?.Invoke(services);
+
+        return services.BuildServiceProvider();
     }
 
     /// <summary>Builds a runner. Code workflows are optional.</summary>
@@ -243,6 +283,16 @@ internal sealed class WorkflowTestHost
             TenantContext,
             new TraconRunRecordingOptions(),
             NullLogger<RunRecordingAgent>.Instance);
+    }
+
+    private sealed class CollectingBuilder : ITraconBuilder
+    {
+        public IServiceCollection Services { get; } = new ServiceCollection();
+
+        public IEnumerable<WorkflowFunctionRegistration> Registrations
+            => Services
+                .Where(static descriptor => descriptor.ServiceType == typeof(WorkflowFunctionRegistration))
+                .Select(static descriptor => (WorkflowFunctionRegistration)descriptor.ImplementationInstance!);
     }
 
     internal sealed class FixedTenantContext : ITenantContext

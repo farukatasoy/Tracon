@@ -58,13 +58,15 @@ public sealed class WorkflowTests(BrowserFixture browsers)
     }
 
     /// <summary>
-    /// The console cannot change a function-node chain yet, so it must carry it.
+    /// Saving a function-node workflow from the console keeps its chain.
     /// </summary>
     /// <remarks>
     /// The editor used to open this workflow with an EMPTY participant list and a
     /// disabled Save. Adding an agent enabled Save, and the full-replace PUT
     /// (K-725) replaced the chain with that agent: the function node was gone,
-    /// with no warning. Measured on the sample app on 2026-10-10.
+    /// with no warning. Measured on the sample app on 2026-10-10. Since phase 195 the
+    /// editor edits the chain; this case still pins that a change to something else
+    /// (the description) sends the chain back whole.
     /// </remarks>
     [Fact]
     public async Task Editing_a_function_node_workflow_keeps_its_chain()
@@ -93,7 +95,7 @@ public sealed class WorkflowTests(BrowserFixture browsers)
 
         await session.Page.GotoAsync($"{host.UiAddress}/workflows/mixed-chain/edit");
 
-        var chain = session.Page.GetByTestId("workflow-nodes");
+        var chain = session.Page.GetByTestId("workflow-participants");
 
         await Expect(chain).ToContainTextAsync("support");
         await Expect(chain).ToContainTextAsync("word-count");
@@ -114,6 +116,104 @@ public sealed class WorkflowTests(BrowserFixture browsers)
         nodes[0].GetProperty("name").GetString().ShouldBe("support");
         nodes[1].GetProperty("name").GetString().ShouldBe("word-count");
         nodes[1].GetProperty("kind").GetString().ShouldBe("Function");
+    }
+
+    /// <summary>
+    /// Builds a chain with a function that takes settings, saves it and runs it - all in the console.
+    /// </summary>
+    /// <remarks>
+    /// F-292 + F-295. The whole path crosses every layer the unit tests stand apart from: the
+    /// function list from <c>GET /api/workflows/functions</c>, the node list the editor sends, the
+    /// strict read of the settings on save, and the settings the function receives when the run
+    /// compiles the graph.
+    /// </remarks>
+    [Fact]
+    public async Task A_chain_built_in_the_console_with_function_settings_is_saved_and_runs()
+    {
+        await using var host = await UiHost.StartAsync(configureTracon: static tracon => tracon
+            .AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>, SpeakSettings>(
+                "speak",
+                static _ => static (_, settings, _, _) => ValueTask.FromResult(
+                    new List<ChatMessage>([new ChatMessage(ChatRole.User, $"spoken by {settings.Voice} at {settings.LoudnessLufs} LUFS")])),
+                static options => options.Description = "Reads the text aloud."));
+        await using var session = await Session.OpenAsync(browsers, host);
+        using var api = new HttpClient { BaseAddress = new Uri(host.UiAddress + "/") };
+
+        await session.Page.GotoAsync($"{host.UiAddress}/workflows/new");
+
+        await session.Page.GetByTestId("workflow-name").FillAsync("narrated");
+        await session.Page.GetByTestId("workflow-add-agent").SelectOptionAsync("support");
+        await session.Page.GetByTestId("workflow-add-function").SelectOptionAsync("speak");
+
+        var field = session.Page.GetByTestId("workflow-settings-speak");
+
+        await Expect(session.Page.GetByTestId("workflow-settings-fields-speak")).ToContainTextAsync("voice (string, required)");
+
+        await field.FillAsync("""{"voice":"alloy","loudnessLufs":-14}""");
+        await session.Page.GetByTestId("workflow-save").ClickAsync();
+
+        await Expect(session.Page).ToHaveURLAsync($"{host.UiAddress}/workflows/narrated");
+
+        // Stored in the canonical form for a chain that holds a function: nodes, with agentNames empty.
+        var saved = await api.GetFromJsonAsync<JsonElement>("api/workflows/narrated");
+
+        saved.GetProperty("agentNames").GetArrayLength().ShouldBe(0);
+
+        var nodes = saved.GetProperty("nodes");
+
+        nodes.GetArrayLength().ShouldBe(2);
+        nodes[0].GetProperty("kind").GetString().ShouldBe("Agent");
+        nodes[0].GetProperty("settings").ValueKind.ShouldBe(JsonValueKind.Null);
+        nodes[1].GetProperty("settings").GetProperty("voice").GetString().ShouldBe("alloy");
+        nodes[1].GetProperty("settings").GetProperty("loudnessLufs").GetDouble().ShouldBe(-14);
+
+        // And it runs: the function got the settings the operator typed.
+        await session.Page.GetByTestId("workflow-message").FillAsync("hello");
+        await session.Page.GetByTestId("workflow-run").ClickAsync();
+
+        await Expect(session.Page.GetByTestId("workflow-output"))
+            .ToContainTextAsync("spoken by alloy at -14 LUFS", new() { UseInnerText = true });
+    }
+
+    /// <summary>
+    /// Settings the function's type cannot hold are refused on save, and the console shows the server's answer.
+    /// </summary>
+    [Fact]
+    public async Task A_misspelled_settings_member_is_refused_and_the_servers_answer_is_shown()
+    {
+        await using var host = await UiHost.StartAsync(configureTracon: static tracon => tracon
+            .AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>, SpeakSettings>(
+                "speak",
+                static _ => static (messages, _, _, _) => ValueTask.FromResult(messages)));
+        await using var session = await Session.OpenAsync(browsers, host);
+        using var api = new HttpClient { BaseAddress = new Uri(host.UiAddress + "/") };
+
+        await session.Page.GotoAsync($"{host.UiAddress}/workflows/new");
+
+        await session.Page.GetByTestId("workflow-name").FillAsync("narrated");
+        await session.Page.GetByTestId("workflow-add-agent").SelectOptionAsync("support");
+        await session.Page.GetByTestId("workflow-add-function").SelectOptionAsync("speak");
+        await session.Page.GetByTestId("workflow-settings-speak").FillAsync("""{"voise":"alloy"}""");
+        await session.Page.GetByTestId("workflow-save").ClickAsync();
+
+        // The answer names the node and the member; the console shows it as the server wrote it.
+        await Expect(session.Page.GetByText("Function node 'speak' has invalid settings").First).ToBeVisibleAsync();
+        await Expect(session.Page.GetByText("'voise'").First).ToBeVisibleAsync();
+
+        // Refused means not stored, and the editor is still there to fix it.
+        (await api.GetAsync("api/workflows/narrated")).StatusCode.ShouldBe(System.Net.HttpStatusCode.NotFound);
+
+        await session.Page.GetByTestId("workflow-settings-speak").FillAsync("""{"voice":"alloy"}""");
+        await session.Page.GetByTestId("workflow-save").ClickAsync();
+
+        await Expect(session.Page).ToHaveURLAsync($"{host.UiAddress}/workflows/narrated");
+    }
+
+    internal sealed record SpeakSettings
+    {
+        public required string Voice { get; init; }
+
+        public double LoudnessLufs { get; init; } = -16;
     }
 
     [Fact]
