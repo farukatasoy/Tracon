@@ -91,7 +91,12 @@ def _faz_no(p: pathlib.Path) -> int:
 # Faz 195 (2026-10-12): esik 88 -> 84. K-900..K-902 eklenince dosya 26_088 B'ye
 # (butceyi ASTI) cikti; uc basligi kisaltmak yetmedi (25_108 B). Sicak yolda
 # en yeni 84 karar kalir (24_581 B); en eski dort karar arsiv indeksine gecti.
-ARSIV_ESIK = 84
+# Tuketici turu kusurlari (2026-10-12): esik 84 -> 60. K-903..K-911 eklenince
+# dosya 26_417 B'ye cikti (butceyi ASTI); dokuz baslik kisaltildi (25_259 B).
+# Faz 58.0 kurali uygulandi -- butcenin en az %15'i bos: 60 karar 21_129 B.
+# 84 %2 bos birakmisti ve sonraki ilk karar seti tasirdi; esik bu kez kuralin
+# istedigi tamponla secildi.
+ARSIV_ESIK = 60
 
 BASLANGIC_BUTCESI = {
     "AGENTS.md": 12_000,
@@ -1023,6 +1028,9 @@ SURUM_DAMGASI_KAYDI: dict[str, str | None] = {
     "src/Tracon.AspNetCore/A2A/TraconA2AOptions.cs": "Microsoft.Agents.AI.Hosting.A2A",
     "src/Tracon.Core/Recording/UsageBreakdown.cs": "Microsoft.Extensions.AI",
     "src/Tracon.OpenAI/OpenAIChatClientFactory.cs": "Microsoft.Extensions.AI",
+    # F-341: dugum tip zinciri kurali MAF'in mesaji sessizce dusurmesine ve
+    # atanabilirlikle teslim etmesine dayanir; yukseltmede yeniden olculur.
+    "src/Tracon.Core/Workflows/WorkflowDefinitionValidator.cs": "Microsoft.Agents.AI.Workflows",
 }
 
 # Bilerek ESKI bir surumu anan damgalar: "1.18.0'da su hâlâ basarisizdi" gibi

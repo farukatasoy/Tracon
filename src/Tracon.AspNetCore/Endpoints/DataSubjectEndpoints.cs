@@ -41,8 +41,8 @@ internal static class DataSubjectEndpoints
                 "resolver this returns 409, never an empty document. The document holds every " +
                 "column of every matching row, keyed by target table (session state, runs, run " +
                 "inputs, attachment METADATA only — no file bytes, voice session summaries, run " +
-                "scores, conversations, conversation items, and responses); a target with no " +
-                "matching rows is present as an empty array, not omitted.");
+                "scores, workflow checkpoints, conversations, conversation items, and responses); " +
+                "a target with no matching rows is present as an empty array, not omitted.");
 
         builder.MapDelete("/api/data-subjects/{id}", EraseAsync)
             .RequireRole(roles.Admin)

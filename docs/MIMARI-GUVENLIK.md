@@ -243,8 +243,9 @@ zincire dahil edilmez.
 Silme `IDataSubjectStore` üzerinden çalışır: aynı `DELETE` kümesi hem önizleme
 (`dryRun=true`, varsayılan — her zaman `ROLLBACK`) hem gerçek silme (yalnız denetim
 yazımı başarılıysa `COMMIT`) için kullanılır. Silme **içerik** verisinde uygulanır
-(oturum, çalıştırma, konuşma, ek, puan, ses); `audit_log`'a hiç dokunmaz — "kim ne
+(oturum, çalıştırma, konuşma, ek, puan, ses, checkpoint); `audit_log`'a hiç dokunmaz — "kim ne
 yaptı" kişinin kendi verisi değildir, silme eylemi yeni bir denetim kaydıdır.
+FK'sız oturum/run tablosu kendi hedefini ister (F-371); K-888 muafiyeti silmede yok.
 
 ## Skill script çalıştırma
 

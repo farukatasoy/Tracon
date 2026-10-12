@@ -74,9 +74,18 @@ an open circuit do not reach the provider and throw
 `TraconProviderUnavailableException`; its `ProviderName` and `RetryAfter` tell an
 HTTP or job caller when recovery can be tried.
 
-A successful provider call resets the consecutive failure count. Caller cancellation
-and `TraconContentBlockedException` do not count as provider failures. Other
-provider-client failures do. After the break duration, new calls can probe recovery;
+A successful provider call resets the consecutive failure count. Only a failure that
+shows the provider is unhealthy counts: no connection, a timeout, a `5xx`, `408` or
+`429` response, or a `401`/`403`, because a rejected key fails every caller in the
+same way. Any other permanent `4xx`, for example a `400` or a `404`, rejects the
+request and not the provider, so it does not count. On a setup-time key that several
+tenants share, one tenant's bad requests therefore cannot open the circuit for the
+others. A failure that starts inside Tracon does not count either: caller
+cancellation, `TraconContentBlockedException`, an exhausted run budget, a missing
+attachment, or a tool failure. The status is read from
+`HttpRequestException.StatusCode` or from an `HTTP nnn` exception message, the same
+rule the fallback chain uses; a failure whose status cannot be read counts as a
+connection failure does. After the break duration, new calls can probe recovery;
 a successful probe closes the circuit.
 
 | Setting | Default | Validation |
@@ -111,9 +120,13 @@ empty:
 }
 ```
 
-A fallback link carries only a provider and a model name — none of the primary
-binding's temperature, `maxOutputTokens`, or `providerSettings` carry over. Give
-the fallback model its own settings through a separate agent if it needs them.
+A fallback link names only a provider and a model. The fallback call gets the
+same request options as the primary call — `temperature`, `topP`,
+`maxOutputTokens`, `responseFormat` and the tools — with only the model name
+replaced, so a structured-output agent keeps its schema on the fallback model.
+The primary binding's `providerSettings` do not carry over: they configure the
+primary provider's client. If the fallback model needs its own provider settings,
+or rejects one of the primary's sampling settings, give it a separate agent.
 
 The chain tries the next link only for a transient failure: the local circuit
 already open, a `5xx`/`429` response, or a bare connection error. It never falls
@@ -132,6 +145,13 @@ A fallback switch is never silent. The run record gets a `ModelFallbackUsed`
 event naming the primary and fallback bindings, and cost and the `runs.model_id`
 column both reflect the model that actually answered — not the primary
 binding. `RunStatistics.ByModel` groups by the real model too.
+
+This applies to the agent's own model binding. The context compaction summarizer
+and the judge of an `aiJudge` loop criterion call models on bindings of their own,
+and those bindings can have fallbacks too. When one of them falls back, the run
+keeps the agent's model and gets no `ModelFallbackUsed` event; that call's tokens
+are priced at the fallback model that answered, and the switch is logged on the
+`Tracon.ModelProvider` category.
 
 If every link in the chain fails, the error surfaces the **first** failure, not
 the last one — the root cause across a chain of transient errors is more useful
@@ -298,6 +318,14 @@ safe to repeat — typically because it carries its own idempotency key — opts
 one tool back in when registering it. A run with no session, or one whose chain has
 already reached `MaxAttempts`, is never continued.
 
+Only an agent turn at the root of its run tree is continued. A workflow run is resumed
+from its checkpoints instead: it stays `Failed`, and its event stream records a
+`RunContinuationBlocked` event that names `POST /api/workflows/runs/{runId}/resume`
+(see [Checkpoints](/concepts/workflows/#checkpoints)). A sub-run — a workflow step or a
+callable agent's run — is not continued on its own either. It carries its root's
+session and nothing waits for its answer, so it stays `Failed` with the same kind of
+event, and the run at the root of its tree is the one that is continued or resumed.
+
 The new run's record links back to the interrupted one, so an operator reading the
 run tree can see that a run continued another rather than starting fresh.
 
@@ -428,7 +456,7 @@ age, orphaned runs, open circuits, and `409` cancellation responses.
 | Two nodes perform the same periodic scan | Confirm singleton execution is enabled and backed by the same SQL database; in-memory leases are process-local |
 | A cancel request returns `409` | The run is terminal, the live owner restarted, or the request reached another node |
 | A child call is refused | Inspect depth, child-run count, and total-token budget on the root tree |
-| An orphaned run never continues | Confirm `RunContinuation.Enabled` and `RunReconciliation.Enabled` are both on, the run had a session, and its chain has not already reached `MaxAttempts` |
+| An orphaned run never continues | Confirm `RunContinuation.Enabled` and `RunReconciliation.Enabled` are both on, the run had a session, and its chain has not already reached `MaxAttempts`. A workflow run or a sub-run is never continued: read its `RunContinuationBlocked` event, and resume a workflow run with `POST /api/workflows/runs/{runId}/resume` |
 | A continuation stops instead of finishing | A tool it called has no recorded result and no matching arguments in the new turn; check the tool's argument stability, or whether its effect blocks continuation entirely |
 | A run request returns `503` right after a deploy | The process is draining; retry shortly, or lower `Drain.Timeout` if deploys should not wait this long |
 

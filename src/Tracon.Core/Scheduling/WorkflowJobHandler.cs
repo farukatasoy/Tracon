@@ -26,6 +26,12 @@ namespace Tracon;
 /// documents: an item that names one fails with that reason instead of running
 /// without it.
 /// </para>
+/// <para>
+/// The job's payload may carry the attribution of whoever queued it, in the
+/// envelope <see cref="JobPayload"/> describes. Each workflow then runs under
+/// <see cref="AmbientRunAttributionScope"/> with that user and those labels, so
+/// its root run and every node and tool see them, as on a synchronous run.
+/// </para>
 /// </remarks>
 internal sealed class WorkflowJobHandler(
     IWorkflowRunner? runner = null,
@@ -41,6 +47,15 @@ internal sealed class WorkflowJobHandler(
             throw new TraconException(
                 "The workflow engine is not registered. Add the 'Tracon.Workflows' package and call UseWorkflows().");
         }
+
+        // 🚨 F-364: opened in THIS method's own body, before any item's root
+        // starts, and held across every MoveNextAsync of every item's stream.
+        // The runner reads the attribution when it builds the root's scope
+        // (F-337), so a scope opened later, or in a helper, reaches no node.
+        // Without it a workflow queued by a trigger, a schedule or
+        // IJobDispatcher ran with no user and no labels.
+        var queued = QueuedRunAttribution.Read(context.Job, logger);
+        using var attribution = queued is null ? null : AmbientRunAttributionScope.Begin(queued.UserId, queued.Labels);
 
         foreach (var item in context.Items)
         {

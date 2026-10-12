@@ -222,7 +222,9 @@ that takes the JSON for the function's settings type, with the fields it takes l
 under it. Save is disabled while that text is not JSON; whether the object fits the
 function is the server's answer, which names the node and the member and shows above the
 form. Settings are stored with the workflow and shown to everyone who can read it, so
-the field says not to put a secret there.
+the field says not to put a secret there. The server also refuses a chain whose step
+cannot take what the step before it passes on (see
+[Function nodes](/concepts/workflows/#function-nodes)); that answer names both steps.
 
 Before a save that changes the chain, the editor says what it is about to do. It stores a
 chain that holds a function as a node list and a chain without one as a plain agent list,
@@ -236,7 +238,9 @@ resumes execution from the checkpoint as a new run. The card opens for any waiti
 run, wherever it started — over HTTP, from a job, or in another tab: follow the
 **workflow screen** link on its run page, or open `workflows/<name>?runId=<run id>`.
 The answered run keeps its *awaiting input* status and its request, so answering it
-a second time starts a separate branch.
+a second time starts a separate branch. An answer that does not fit the request — a
+`Json` request's text that does not read into the port's type, for example — is refused
+before anything runs, and the screen shows the server's reason.
 
 ## Evals and experiments
 
@@ -440,8 +444,9 @@ the record as it was.
 
 - The agent editor supports structured output, harness settings, and compaction. It
   has no control for provider-specific `ProviderSettings`, static `McpResourceUris`,
-  or a Knowledge vector binding. It keeps them as they are; change them through code
-  or the management HTTP API.
+  a Knowledge vector binding, or the harness `loop` (its criteria, iteration limit
+  and failure policies). It keeps them as they are; change them through code or the
+  management HTTP API.
 - The workflow editor keeps a workflow's run parameter schema as it is and has no control
   for it. Change the schema with `PUT /api/workflows/{name}`.
 - A quota's agent and period identify the rule, so they are locked while you edit

@@ -661,6 +661,8 @@ Tracon.EvalCaseDraft.ExpectedOutput.get -> string?
 Tracon.EvalCaseDraft.ExpectedOutput.init -> void
 Tracon.EvalCaseDraft.ExpectedTools.get -> System.Collections.Generic.IReadOnlyList<string!>!
 Tracon.EvalCaseDraft.ExpectedTools.init -> void
+Tracon.EvalCaseDraft.Parameters.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>?
+Tracon.EvalCaseDraft.Parameters.init -> void
 Tracon.EvalCaseDraft.Query.get -> string!
 Tracon.EvalCaseDraft.Query.init -> void
 Tracon.EvalCaseDraft.SourceKind.get -> Tracon.EvalCaseSource?
@@ -1166,6 +1168,7 @@ Tracon.IRetentionPolicyStore.ListPoliciesAsync(string! tenantId, System.Threadin
 Tracon.IRetentionPolicyStore.ListRunsAsync(string! tenantId, string? target, int skip, int take, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.Collections.Generic.IReadOnlyList<Tracon.RetentionRun!>!>
 Tracon.IRetentionPolicyStore.SavePolicyAsync(Tracon.RetentionPolicy! policy, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<Tracon.RetentionPolicy!>
 Tracon.IRetentionStore
+Tracon.IRetentionStore.ArchiveBatchAsync(string! target, string? tenantId, System.DateTimeOffset cutoff, int batchSize, System.Func<System.Collections.Generic.IReadOnlyList<Tracon.ArchiveRow!>!, System.Threading.CancellationToken, System.Threading.Tasks.ValueTask>! archiveAsync, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<int>
 Tracon.IRetentionStore.CountOlderThanAsync(string! target, string? tenantId, System.DateTimeOffset cutoff, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<long>
 Tracon.IRetentionStore.DeleteBatchAsync(string! target, string? tenantId, System.DateTimeOffset cutoff, int batchSize, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<int>
 Tracon.IRetentionStore.FindRowLimitCutoffAsync(string! target, string? tenantId, long maxRows, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<System.DateTimeOffset?>
@@ -1338,6 +1341,7 @@ Tracon.IWorkflowRunner.ListPendingRequestsAsync(System.Guid runId, System.Thread
 Tracon.IWorkflowRunner.RespondStreamingAsync(Tracon.WorkflowRespondRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<Tracon.RunEvent!>!
 Tracon.IWorkflowRunner.ResumeStreamingAsync(Tracon.WorkflowResumeRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<Tracon.RunEvent!>!
 Tracon.IWorkflowRunner.RunStreamingAsync(Tracon.WorkflowRunRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Collections.Generic.IAsyncEnumerable<Tracon.RunEvent!>!
+Tracon.IWorkflowRunner.ValidateResponseAsync(Tracon.WorkflowRespondRequest! request, System.Threading.CancellationToken cancellationToken = default(System.Threading.CancellationToken)) -> System.Threading.Tasks.ValueTask<string?>
 Tracon.IdempotencyRequest
 Tracon.IdempotencyRequest.<Clone>$() -> Tracon.IdempotencyRequest!
 Tracon.IdempotencyRequest.CreatedAt.get -> System.DateTimeOffset

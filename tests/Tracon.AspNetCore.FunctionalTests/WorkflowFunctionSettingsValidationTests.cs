@@ -97,8 +97,9 @@ public sealed class WorkflowFunctionSettingsValidationTests
     [Fact]
     public async Task Settings_on_a_function_that_declares_none_are_refused()
     {
+        // The function takes the chat message list the agent node before it passes on (F-341).
         await using var host = await StartAsync(static builder => builder
-            .AddWorkflowFunction<string, string>("plain", static _ => static (input, _, _) => new ValueTask<string>(input)));
+            .AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>("plain", static _ => static (messages, _, _) => new ValueTask<List<ChatMessage>>(messages)));
 
         using var refused = await SaveAsync(host, "chain", Chain("""{"voice":"alloy"}""", "plain"));
 

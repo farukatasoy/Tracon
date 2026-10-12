@@ -411,6 +411,32 @@ curl -s "$APU/api/audit?action=data_subject.erase" -H "$APB" | jq 'length'
 
 ---
 
+### MT-DVR-012 — Veri sahibi silmesi ve dışa aktarımı workflow checkpoint'lerini kapsar (kusur-giderme, 2026-10-12, F-371)
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | K-911 |
+| **Devir** | ➜ CI: `DataSubjectStoreTests.Erase_removes_the_workflow_checkpoints_of_the_subjects_sessions_and_runs` · `DataSubjectStoreTests.Export_includes_the_workflow_checkpoints_with_their_state_as_stored` · `DataSubjectCoverageTests.Every_table_tied_to_a_subject_is_reached_or_exempted_with_a_reason` |
+
+Regresyon. `workflow_checkpoints` `runs`'a FK taşımadığı için kapsamın dışındaydı;
+`run_scores` da silme sırası yüzünden hiç silinmiyordu.
+
+**Ön koşul** — PostgreSQL deposu; MT-DVR-008'in geçici `IDataSubjectResolver`'ı `dvr-012`'yi aynı adlı oturuma eşler. `summarize-and-approve`'ı `sessionId: "dvr-012"` ile başlat, run `AwaitingInput` kalsın; run'a bir skor yaz.
+
+**Adımlar**
+1. `GET /api/data-subjects/dvr-012/export` oku.
+2. `DELETE /api/data-subjects/dvr-012?dryRun=false`; sonra `tracon.workflow_checkpoints` ve `tracon.run_scores`'u say.
+
+**Beklenen sonuç**
+- Adım 1: çıktı `workflow_checkpoints` ve `run_scores` bölümlerini taşır; `state` saklandığı JSON metnidir.
+- Adım 2: iki tabloda da oturumun satırı kalmaz; `AwaitingInput` run'ınki de silinir.
+- 🚨 Eski kusur: iki tablo silmeden sonra dolu kaldı.
+
+---
+
 ## Sınır: bu dosya nerede biter
 
 | Konu | Nerede |

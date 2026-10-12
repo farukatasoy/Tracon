@@ -285,6 +285,40 @@ public abstract class EvalStoreContract : TenantIsolationContract<IEvalStore>
         added.Case.PromotedAt.ShouldNotBeNull();
     }
 
+    /// <summary>
+    /// A promoted case carries the parameter values its source run recorded, and
+    /// they survive the read back.
+    /// </summary>
+    /// <returns>The test task.</returns>
+    /// <remarks>
+    /// Without them a promoted case of a parameterized agent fails on a missing
+    /// value, or runs on a default the production run never used.
+    /// </remarks>
+    [Fact]
+    public async Task AddCaseAsync_stores_the_parameter_values_of_a_promoted_run()
+    {
+        var suite = await Store.SaveSuiteAsync(TestData.EvalSuite());
+
+        var added = await Store.AddCaseAsync(
+            suite.Id,
+            new EvalCaseDraft
+            {
+                Query = "question",
+                SourceRunId = TraconId.NewId(),
+                SourceKind = EvalCaseSource.ReferenceRun,
+                Parameters = new Dictionary<string, string>(StringComparer.Ordinal) { ["customer"] = "Acme" },
+            });
+
+        added.Case.Parameters.ShouldNotBeNull();
+        added.Case.Parameters["customer"].ShouldBe("Acme");
+
+        var stored = (await Store.ListCasesAsync(suite.Id)).ShouldHaveSingleItem();
+
+        stored.Parameters.ShouldNotBeNull();
+        stored.Parameters.Count.ShouldBe(1);
+        stored.Parameters["customer"].ShouldBe("Acme");
+    }
+
     [Fact]
     public async Task AddCaseAsync_returns_the_existing_case_the_second_time_for_the_same_source_run_id()
     {

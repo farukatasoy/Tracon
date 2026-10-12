@@ -166,6 +166,39 @@ internal static partial class ProviderFailureNormalizer
 internal sealed class ForeignProviderInvocationException(Exception original) : Exception(original.Message, original)
 {
     internal Exception Original { get; } = original;
+
+    /// <summary>Finds the provider-boundary tag anywhere in an exception graph.</summary>
+    /// <param name="exception">The failure to search.</param>
+    /// <returns>The tag, or <see langword="null"/> when no provider client threw this failure.</returns>
+    /// <remarks>
+    /// Two readers ask this question: the normalizer, which masks only the
+    /// provider's own failures, and the circuit breaker, which counts only them.
+    /// One walk serves both, so they cannot disagree about where a failure came
+    /// from.
+    /// </remarks>
+    internal static ForeignProviderInvocationException? Find(Exception exception)
+    {
+        for (var current = exception; current is not null; current = current.InnerException)
+        {
+            if (current is ForeignProviderInvocationException foreign)
+            {
+                return foreign;
+            }
+
+            if (current is AggregateException aggregate)
+            {
+                foreach (var inner in aggregate.InnerExceptions)
+                {
+                    if (Find(inner) is { } nested)
+                    {
+                        return nested;
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
 }
 
 /// <summary>Tags only failures thrown by the provider client itself.</summary>
@@ -277,7 +310,7 @@ internal sealed class ProviderFailureNormalizingChatClient(
             throw ProviderInvocationException.UpstreamFailure(exception.Original, binding.Provider);
         }
         catch (TraconProviderUnavailableException exception)
-            when (FindForeignFailure(exception) is { } foreign)
+            when (ForeignProviderInvocationException.Find(exception) is { } foreign)
         {
             ProviderFailureNormalizer.Log(loggerFactory, binding, foreign.Original, "invocation");
             throw;
@@ -318,7 +351,7 @@ internal sealed class ProviderFailureNormalizingChatClient(
                     throw ProviderInvocationException.UpstreamFailure(exception.Original, binding.Provider);
                 }
                 catch (TraconProviderUnavailableException exception)
-                    when (FindForeignFailure(exception) is { } foreign)
+                    when (ForeignProviderInvocationException.Find(exception) is { } foreign)
                 {
                     ProviderFailureNormalizer.Log(loggerFactory, binding, foreign.Original, "streaming invocation");
                     throw;
@@ -332,18 +365,5 @@ internal sealed class ProviderFailureNormalizingChatClient(
                 yield return enumerator.Current;
             }
         }
-    }
-
-    private static ForeignProviderInvocationException? FindForeignFailure(Exception exception)
-    {
-        for (var current = exception; current is not null; current = current.InnerException!)
-        {
-            if (current is ForeignProviderInvocationException foreign)
-            {
-                return foreign;
-            }
-        }
-
-        return null;
     }
 }

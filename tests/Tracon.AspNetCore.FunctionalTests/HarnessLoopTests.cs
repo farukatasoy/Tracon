@@ -29,6 +29,8 @@ public sealed class HarnessLoopTests
     private const string AgentName = "looper";
     private const string JudgeProviderName = "judging";
     private const string JudgeModelName = "judge-model";
+    private const string JudgeFallbackProviderName = "judging-fallback";
+    private const string JudgeFallbackModelName = "judge-fallback-model";
 
     [Fact]
     public async Task A_harness_without_loop_settings_writes_no_iteration_event()
@@ -887,6 +889,106 @@ public sealed class HarnessLoopTests
     }
 
     /// <summary>
+    /// F-360: the judge binding has <c>Fallbacks</c> of its own. When the judge's
+    /// primary fails and a fallback answers, the fallback belongs to the judge
+    /// call, not to the run: the run keeps the agent's model and no
+    /// <c>ModelFallbackUsed</c> event is written. The agent's share keeps the
+    /// agent's price; the judge's share is priced at the model that answered.
+    /// </summary>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task An_aiJudge_fallback_does_not_rewrite_the_runs_model_or_its_price(bool streaming)
+    {
+        var loop = new LoopSettings
+        {
+            Criteria = [new LoopCriterion { Kind = "aiJudge", JudgeCriteria = ["The answer is final."] }],
+            MaxIterations = 4,
+        };
+
+        var provider = new FakeModelProvider(ProviderName).WithModel(new ModelDescriptor
+        {
+            Name = ModelName,
+            InputCostPerMillionTokens = 1_000m,
+            OutputCostPerMillionTokens = 2_000m,
+        });
+        provider.ForModel(ModelName, cfg =>
+        {
+            cfg.RespondsWith("draft", inputTokens: 6, outputTokens: 4);
+            cfg.RespondsWith("final", inputTokens: 6, outputTokens: 4);
+        });
+
+        var judgeFallback = new FakeModelProvider(JudgeFallbackProviderName).WithModel(new ModelDescriptor
+        {
+            Name = JudgeFallbackModelName,
+            InputCostPerMillionTokens = 10_000m,
+            OutputCostPerMillionTokens = 50_000m,
+        });
+        judgeFallback.ForModel(JudgeFallbackModelName, cfg =>
+        {
+            cfg.RespondsWith(AIJudgeLoopEvaluator.MoreVerdictMarker, inputTokens: 30, outputTokens: 2);
+            cfg.RespondsWith(AIJudgeLoopEvaluator.DoneVerdictMarker, inputTokens: 40, outputTokens: 3);
+        });
+
+        // The judge's primary has a price of its own, so a share recorded under
+        // the primary instead of the model that answered shows in the cost.
+        var unreachableJudge = new UnreachableModelProvider(JudgeProviderName, new ModelDescriptor
+        {
+            Name = JudgeModelName,
+            InputCostPerMillionTokens = 3_000m,
+            OutputCostPerMillionTokens = 7_000m,
+        });
+
+        await using var host = await StartAsync(provider, loop, builder => builder
+            .AddModelProvider(unreachableJudge)
+            .AddModelProvider(judgeFallback)
+            .AddModelRunJudge(static options => options.Model = new ModelBinding
+            {
+                Provider = JudgeProviderName,
+                Model = JudgeModelName,
+                Fallbacks = [new ModelFallback { Provider = JudgeFallbackProviderName, Model = JudgeFallbackModelName }],
+            }));
+
+        var agent = await ResolveAsync(host);
+        var session = await agent.CreateSessionAsync();
+        var messages = new[] { new Microsoft.Extensions.AI.ChatMessage(Microsoft.Extensions.AI.ChatRole.User, "go") };
+
+        if (streaming)
+        {
+            await foreach (var _ in agent.RunStreamingAsync(messages, session))
+            {
+            }
+        }
+        else
+        {
+            (await agent.RunAsync(messages, session)).Text.ShouldBe("final");
+        }
+
+        provider.Requests.Count.ShouldBe(2);
+        unreachableJudge.Calls.ShouldBe(2);
+        judgeFallback.Requests.Count.ShouldBe(2, "the judge's primary failed both times and its fallback answered.");
+
+        var root = await RootRunAsync(host);
+        root.Status.ShouldBe(RunStatus.Completed);
+
+        // The run ran on the agent's model. The judge's fallback is not the run's.
+        root.ModelProvider.ShouldBe(ProviderName);
+        root.ModelId.ShouldBe(ModelName);
+        (await ReadRootEventsAsync(host)).ShouldNotContain(runEvent => runEvent.Type == RunEventType.ModelFallbackUsed);
+
+        // Agent: 12 × 1000/M + 8 × 2000/M. Judge, priced at the fallback that
+        // answered: 70 × 10000/M + 5 × 50000/M.
+        var usage = root.Usage.ShouldNotBeNull();
+        usage.InputTokens.ShouldBe(12 + 70);
+        usage.OutputTokens.ShouldBe(8 + 5);
+
+        var cost = root.Cost.ShouldNotBeNull();
+        cost.InputCost.ShouldBe(0.012m + 0.7m);
+        cost.OutputCost.ShouldBe(0.016m + 0.25m);
+        cost.Total().ShouldBe(0.978m);
+    }
+
+    /// <summary>
     /// F-329: with a loop and structured-response validation both on, the
     /// validator read the joined text of every iteration — a draft followed by
     /// the final JSON is not JSON — and failed a run whose answer was valid.
@@ -1107,5 +1209,49 @@ public sealed class HarnessLoopTests
         bool HasFeedback,
         string? FailedCriterion,
         bool CeilingReached);
+}
+
+/// <summary>
+/// A provider whose every call fails the way an unreachable endpoint does: a
+/// connection error, which the fallback chain moves past to the next link.
+/// </summary>
+file sealed class UnreachableModelProvider(string name, ModelDescriptor model) : IModelProvider
+{
+    public string Name { get; } = name;
+
+    public IReadOnlyList<ModelDescriptor> Models { get; } = [model];
+
+    /// <summary>The number of calls that reached this provider. A loop calls its judge one turn at a time.</summary>
+    public int Calls { get; private set; }
+
+    public Microsoft.Extensions.AI.IChatClient CreateChatClient(ModelBinding binding) => new UnreachableChatClient(this);
+
+    private sealed class UnreachableChatClient(UnreachableModelProvider owner) : Microsoft.Extensions.AI.IChatClient
+    {
+        public Task<Microsoft.Extensions.AI.ChatResponse> GetResponseAsync(
+            IEnumerable<Microsoft.Extensions.AI.ChatMessage> messages,
+            Microsoft.Extensions.AI.ChatOptions? options = null,
+            CancellationToken cancellationToken = default)
+            => throw Refused();
+
+        public IAsyncEnumerable<Microsoft.Extensions.AI.ChatResponseUpdate> GetStreamingResponseAsync(
+            IEnumerable<Microsoft.Extensions.AI.ChatMessage> messages,
+            Microsoft.Extensions.AI.ChatOptions? options = null,
+            CancellationToken cancellationToken = default)
+            => throw Refused();
+
+        public object? GetService(Type serviceType, object? serviceKey = null) => null;
+
+        public void Dispose()
+        {
+            // The fake client has no resource to release.
+        }
+
+        private HttpRequestException Refused()
+        {
+            owner.Calls++;
+            return new HttpRequestException(HttpRequestError.ConnectionError, "Connection refused.");
+        }
+    }
 }
 #pragma warning restore MAAI001

@@ -162,7 +162,7 @@ export const enWorkflows = {
   "evals.expectedOutputHint": 'Used by the containsExpected check.',
   "evals.expectedTools": 'Expected tools',
   "evals.expectedToolsHint": 'Comma-separated. Used by the toolCalled check.',
-  "evals.contextHint": 'Extra context handed to the agent alongside the query.',
+  "evals.contextHint": 'Sent to the agent as a document, ahead of the query. A promoted case keeps the run’s documents here.',
   "evals.measures": 'Measures {agent}.',
   "evals.runNow": 'Run now',
   "evals.noRuns.title": 'No run yet',

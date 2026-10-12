@@ -296,19 +296,20 @@ It is off by default and can only be turned on in code, with a mandatory
 acknowledgement flag, an interpreter allowlist that starts empty, and skill roots
 given in code.
 
-Every execution passes six gates in order, and if any is closed the process never
-starts:
+Every execution passes five gates in order, and if any is closed the process never
+starts. After the fifth gate the call waits for a free slot under the concurrency
+quota; the quota delays a script, it never refuses one:
 
 ```mermaid
 flowchart LR
     accTitle: Skill script security gates
-    accDescr: A skill script runs only after the enabled flag, a tenant grant pinned to its content, the interpreter allowlist, argument validation, the audit write, and the concurrency quota all pass in order.
+    accDescr: A skill script runs only after the enabled flag, a tenant grant pinned to its content, the interpreter allowlist, argument validation and the audit write all pass in order; it then waits for a free slot under the concurrency quota.
     G1["1. enabled"] --> G2["2. valid grant<br/>pinned to this content"]
     G2 --> G3["3. extension on the<br/>interpreter allowlist"]
     G3 --> G4["4. argument size<br/>and schema"]
     G4 --> G5["5. written to<br/>the audit trail"]
-    G5 --> G6["6. concurrency quota"]
-    G6 --> RUN["separate process<br/>allow-listed environment · same OS user<br/>stdin args · timeout · output limit"]
+    G5 --> Q["waits for a slot<br/>(concurrency quota)"]
+    Q --> RUN["separate process<br/>allow-listed environment · same OS user<br/>stdin args · timeout · output limit"]
 ```
 
 :::danger[Gate five is an exception to an exception]

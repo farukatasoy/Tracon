@@ -465,6 +465,10 @@ internal sealed class JobWorkerBackgroundService(
 
         var items = await jobStore.ListItemsAsync(job.Id, stoppingToken).ConfigureAwait(false);
 
+        // The renewal stays on until the outcome below is written, not only
+        // while the handler runs: a store error is retried under a live lease.
+        using var leaseRenewal = StartLeaseRenewal(job.Id, options.LeaseDuration, leaseRequestedAt, stoppingToken);
+
         var context = new JobContext
         {
             Job = job,
@@ -475,11 +479,11 @@ internal sealed class JobWorkerBackgroundService(
                 var current = await jobStore.GetAsync(job.TenantId, job.Id, ct).ConfigureAwait(false);
                 return current is null || current.Status == JobStatus.Cancelled;
             },
-        };
 
-        // The renewal stays on until the outcome below is written, not only
-        // while the handler runs: a store error is retried under a live lease.
-        using var leaseRenewal = StartLeaseRenewal(job.Id, options.LeaseDuration, leaseRequestedAt, stoppingToken);
+            // F-367: a built-in handler tries a write that belongs to finished
+            // work again (a queued run's session) only while this lease holds.
+            ProvableLeaseRemaining = () => leaseRenewal.ProvableRemaining,
+        };
 
         Exception? failure = null;
 
@@ -589,6 +593,13 @@ internal sealed class JobWorkerBackgroundService(
     /// <param name="window">How long a store error may be retried.</param>
     /// <param name="startedAt">The monotonic timestamp taken when the attempt started.</param>
     /// <param name="stoppingToken">The worker's shutdown token.</param>
+    /// <remarks>
+    /// A <see cref="NonRetryableJobException"/> fails the job on this attempt,
+    /// whatever attempts are left: the handler's work is done, and running it
+    /// again would repeat it. Its message already carries a stable code
+    /// and the reference of the one log entry its thrower wrote, so it is
+    /// persisted as is and not logged a second time.
+    /// </remarks>
     private async Task FinalizeFailedAsync(
         JobRecord job,
         Exception exception,
@@ -597,13 +608,16 @@ internal sealed class JobWorkerBackgroundService(
         long startedAt,
         CancellationToken stoppingToken)
     {
+        var nonRetryable = exception is NonRetryableJobException;
         var correlationId = SafeErrorText.NewCorrelationId();
 
-        if (logger is not null && logger.IsEnabled(LogLevel.Error))
+        if (!nonRetryable && logger is not null && logger.IsEnabled(LogLevel.Error))
         {
             logger.LogError(exception, "Job {JobId} failed. (ref: {CorrelationId})", job.Id, correlationId);
         }
 
+        // A NonRetryableJobException is a TraconException, so its message (the
+        // code and its own reference) is what this produces.
         var safeMessage = SafeErrorText.ForPersistence(exception, correlationId);
 
         // 🚨 Cancelled is terminal (F-326). A handler that saw the cancel and
@@ -619,7 +633,7 @@ internal sealed class JobWorkerBackgroundService(
             return;
         }
 
-        if (job.Attempt >= maxAttempts)
+        if (nonRetryable || job.Attempt >= maxAttempts)
         {
             var completion = new JobCompletion
             {
@@ -947,7 +961,9 @@ internal sealed class JobWorkerBackgroundService(
                     ScheduledFor = nextRunAt,
                     CreatedAt = now,
                 },
-                JobPayload.ExtractItems(schedule.Payload),
+                // The schedule's payload is copied as written; an attribution
+                // envelope in it travels to the handler with the job (F-364).
+                JobPayload.Read(schedule.HandlerKey, schedule.Payload).Items,
                 stoppingToken).ConfigureAwait(false);
         }
     }

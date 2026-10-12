@@ -3131,3 +3131,123 @@ curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/triggers/default/podcast-h
 - Adım 3: öğe `unknown member 'user'` ile **düşmez**; `podcast` yine `tone` eksikliğinden
   `Failed` biter. Gövde modele düz metin gider.
 
+---
+
+### MT-JOB-140 — Kuyruklu turun oturum kaydı bir kez düşerse iş `Failed` OLMAZ, model yeniden ÇAĞRILMAZ (kusur-giderme, 2026-10-12, F-367)
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | K-903 |
+| **Devir** | ➜ CI: `QueuedTurnSessionSaveTests.A_session_save_that_fails_once_neither_fails_the_queued_run_nor_calls_the_model_again` · `QueuedTurnSessionSaveTests.A_session_store_that_keeps_failing_fails_the_job_with_a_code_and_never_calls_the_model_again` |
+
+Regresyon. Model cevap verdikten sonraki oturum kaydı handler'ın hata
+yolundaydı. Tek `store` hatası işi `Failed` yaptı (run `Completed` kaldı) ya da
+modeli ikinci kez çağırdı.
+
+**Ön koşul** — PostgreSQL deposu, tek süreç; `Tracon__Scheduling__LeaseDuration=00:01:30`; sağlayıcı isteklerini gösteren günlük.
+
+**Adımlar**
+1. ```sql
+   CREATE OR REPLACE FUNCTION tracon.block_session() RETURNS trigger AS $$
+   BEGIN RAISE EXCEPTION 'sessions is not writable'; END; $$ LANGUAGE plpgsql;
+   CREATE TRIGGER block_session BEFORE INSERT OR UPDATE ON tracon.sessions
+     FOR EACH ROW EXECUTE FUNCTION tracon.block_session();
+   ```
+2. `Prefer: respond-async` ile `{"message":"merhaba","sessionId":"mt-job-140"}` gönder.
+3. Günlükte `could not save session mt-job-140; trying again` uyarısını bekle; 10 sn içinde `DROP TRIGGER block_session ON tracon.sessions;` çalıştır.
+4. `GET /api/jobs/{jobId}` ve `GET /api/runs/{runId}` oku.
+5. Tetikleyiciyi yeniden kur, 2. adımı başka bir oturumla tekrarla ve kaldırma.
+
+**Beklenen sonuç**
+- Adım 4: iş `Completed`, `attempt` 1; run `Completed`; sağlayıcıya tek istek.
+- Adım 5: kira penceresi bitince iş `Failed`, hata `tracon.job.session-save-failed`; sağlayıcıya yine tek istek; günlükte tek Error ve ref.
+- 🚨 Eski kusur: iş tek denemede `Failed` oldu, run `Completed` kaldı; deneme hakkı varken model ikinci kez çağrıldı.
+- Koşum sonunda tetikleyici ve fonksiyon kaldırılır.
+
+---
+
+### MT-JOB-141 — Onay devamı ikinci onayı isterse istek bekleyen listede görünür ve zincir sürer (kusur-giderme, 2026-10-12, F-370)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | — |
+| **Devir** | ➜ CI: `ApprovalChainTests.A_resumed_run_that_asks_for_a_second_approval_lists_it_and_the_chain_completes` · `RunContinuationTests.A_continuation_that_asks_for_approval_lists_it_and_the_decision_resumes_it` |
+
+Regresyon. Devam run'ı `AwaitingApproval` ile kapanıyordu ama posta kutusu
+satırı yazılmıyordu; `GET /api/approvals/pending` boş dönüyor, zincir takılıyordu.
+
+**Ön koşul** — MT-JOB-135'in `approval-agent`'ı ve `cancel_order` tool'u; talimat:
+"Cancel each order in the message with a separate cancel_order call, one at a time."
+
+**Adımlar**
+1. `Prefer: respond-async` ile `{"message":"cancel ORD-1 and ORD-2","sessionId":"mt-job-141"}` gönder.
+2. `GET /api/approvals/pending` oku; `POST /api/approvals/{id}/decide` `{"approved":true}`.
+3. Devam run'ı `AwaitingApproval` olunca 2. adımı tekrarla.
+4. `GET /api/runs?sessionId=mt-job-141` oku.
+
+**Beklenen sonuç**
+- Adım 3: ikinci istek (`ORD-2`) bekleyen listede görünür ve karar kabul edilir.
+- Adım 4: son run `Completed`; iki tool çağrısı da koşmuştur.
+- 🚨 Eski kusur: adım 3'te liste boştu; ikinci onay cevaplanamadı.
+
+---
+
+### MT-JOB-142 — Zamanlama ve trigger ile başlayan workflow kuyruğa alanın atfını taşır (kusur-giderme, 2026-10-12, F-364)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | K-904 |
+| **Devir** | ➜ CI: `QueuedWorkflowAttributionTests.A_scheduled_workflow_runs_with_the_attribution_its_payload_names` · `QueuedWorkflowAttributionTests.A_schedule_whose_payload_breaks_an_attribution_limit_is_refused` · `QueuedWorkflowAttributionTests.A_workflow_started_by_an_inbound_trigger_runs_with_the_requests_attribution` |
+
+Regresyon. `WorkflowJobHandler` atıf kapsamı açmıyordu; zamanlama, trigger ve
+`IJobDispatcher` ile başlayan workflow kökü ve adımları kullanıcısız ve etiketsiz koşuyordu.
+
+**Ön koşul** — Örnek uygulama, kuyruk açık; Admin kimliği; `summarize-and-translate` kayıtlı.
+
+**Adımlar**
+1. `PUT /api/schedules/mt-job-142`: `{"handlerKey":"tracon.workflow","targetName":"summarize-and-translate","payload":{"items":["Tracon is a control plane."],"userId":"ops-bot","labels":{"source":"cron"}}}`.
+2. `POST /api/schedules/mt-job-142/trigger`; iş bitince kök run'ı ve adım run'larını oku.
+3. 1. adımı 9 etiketle tekrarla.
+
+**Beklenen sonuç**
+- Adım 2: kök ve adım run'ları `userId: "ops-bot"` ve `labels.source: "cron"` taşır.
+- Adım 3: `400`; mesaj etiket sınırını adlandırır, zamanlama kaydedilmez.
+- 🚨 Eski kusur: adım run'larında `userId` ve `labels` boştu.
+
+---
+
+### MT-JOB-143 — Yetim workflow kökü agent devamına girmez, ret resume'u adlandırır (kusur-giderme, 2026-10-12, F-344)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | K-909 |
+| **Devir** | ➜ CI: `RunContinuationTests.An_orphaned_workflow_root_is_not_continued_as_an_agent_turn_and_names_resume` · `RunContinuationTests.An_orphaned_workflow_step_is_not_continued_on_its_own` |
+
+Regresyon. Devam açıkken yetim workflow kökü workflow'un adıyla bir agent turu
+olarak kuyruğa giriyordu; alt run'lar da kendi başına sürdürülüyordu.
+
+**Ön koşul** — SQLite deposu; `Tracon__RunReconciliation__Enabled=true`, `…__OrphanThreshold=00:00:30`, `…__ScanInterval=00:00:05`, `Tracon__RunContinuation__Enabled=true`; tamamlanmış bir workflow run'ı (`$RUN`).
+
+**Adımlar**
+1. ```bash
+   sqlite3 samples/Tracon.Api/tracon-manuel.db "UPDATE tracon_runs SET status=0, completed_at=NULL, heartbeat_at=NULL, started_at=strftime('%Y-%m-%dT%H:%M:%fZ','now','-10 minutes') WHERE id=upper('$RUN');"
+   ```
+2. 10 sn bekle; `GET $APU/api/runs/$RUN/events` oku.
+3. Aynı oturumdaki run'ları listele.
+
+**Beklenen sonuç**
+- Run `Failed` (`orphaned`); bir `RunContinuationBlocked` olayı `POST /api/workflows/runs/$RUN/resume` der.
+- Oturumda yeni run açılmaz; `tracon.run-continuation` işi yoktur.
+- 🚨 Eski kusur: workflow adıyla bir agent devam run'ı açıldı.

@@ -32,10 +32,13 @@
 - **🚨 `TenantCoverageTests` yalniz `Tracon.SqlServer.IntegrationTests`'te yasar, dar `faz-uygulama` kosumlari onu atlar** (2026-09-05, Faz 146 kapanis bulgusu): yeni bir `Sql*Store` metodu `Covered`'a girmeden kaldi, yalniz TAM `kapanis` kosumu yakaladi. `Covered`'a girmek TEK BASINA yetmez — jenerik bes test yalniz Seed/Exists/Count/Delete'e (`Save`/`Get`/`List`/`Delete`) baglanir; bir `Claim`/atomik metot BESPOKE capraz-kiraci testi ister (iki `tenantId`, biri digerini sessizce tuketmesin). Vaka: `QuotaStoreContract.A_different_tenants_identically_shaped_claim_is_independent`.
 
 - **🚨 Bir UPSERT'in dönüş değerini COALESCE edilmiş yapmak için `RETURNING`/`OUTPUT` eklerken SQL Server'ın İKİ DALINA da eklemeyi unutma** (Faz 98, K-608): `UPDATE ... OUTPUT inserted.x ... WHERE ...; IF @@ROWCOUNT = 0 INSERT ... OUTPUT inserted.x ... VALUES ...;` deseninde yalnız bir dala `OUTPUT` eklemek sessiz bir sağlayıcı farkı üretir — ikinci çağrı (UPDATE dalı) çalışırken ilk çağrı (INSERT dalı) hâlâ eski değeri döner veya tersi. `DbHelpers.ReadSingleAsync` iki sonuç kümesini zaten doğru sırayla dener (Faz 65'in deseni), okuma tarafında ek iş gerekmez — yalnız YAZMA tarafında iki `OUTPUT` satırı unutulmamalı. Sözleşme testi bunu dört sağlayıcıda ayrı ayrı koşarak yakalar.
-- **🚨 PAYLASILAN bir sorgunun SONUC SUTUNU her dialektte ayni CLR tipinde DEGILDIR — `COUNT(*)` SQL Server'da `int`, PostgreSQL/SQLite'ta `bigint`** (2026-09-02, Faz 133 yan bulgusu): `SelectConversationBranchPoint` paylasilan katmanda `COUNT(*)` yaziyor, okuyucu `reader.GetInt64(1)` cagiriyordu; SQL Server'da `InvalidCastException: Unable to cast 'System.Int32' to 'System.Int64'` firladi ve **konusma dallandirma (Faz 47) SQL Server'da HIC calismiyordu** — ozellik sevk edildiginden beri. Gorunmedi cunku `ConversationBranchTests` yalniz **SQLite'ta** vardi; gerekce "sorgular paylasilan katmanda, dialektten bagimsiz" idi. O gerekce sorgu **METNI** icin dogru, **OKUYUCU** icin yanlis. Kural: paylasilan bir sorguda toplama fonksiyonu yazarsan tipi `CAST(... AS bigint)` ile SABITLE. `MAX(seq)`/`SUM(kolon)` guvenlidir — sutunun kendi tipini doner ve `seq` uc dialektte de `bigint`. Tarama: 103 paylasilan sorgunun tamami, baska vaka yok. Kapi: `tests/Tracon.SqlServer.IntegrationTests/ConversationBranchTests.cs` (bes case, once KIRMIZI goruldu).
+- **🚨 PAYLASILAN bir sorgunun SONUC SUTUNU her dialektte ayni CLR tipinde DEGILDIR — `COUNT(*)` SQL Server'da `int`, PostgreSQL/SQLite'ta `bigint`** — tam kayıt: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md) (2026-10-12 bütçe turu).
 - **🚨 Yinelenen bir birincil anahtar değerini (`run_events(run_id, seq)` gibi çağıranın ürettiği bir anahtar) REDDETMEK için `SqlDialect.IsUniqueViolation` zaten var — yeniden icat etme** (Faz 98, K-607): `AppendEventAsync` gibi bir metodun ikinci çağrısı aynı anahtarla gelirse ham sürücü istisnası (`DbException`) sızmasın diye `catch (DbException ex) when (Dialect.IsUniqueViolation(ex))` ile yakalanıp `TraconException`'a çevrilir — `IsForeignKeyViolation`'ın yanına ikinci bir `catch` bloğu olarak eklenir, aynı `try` içinde. Bellek içi store aynı kuralı elle uygular (log'da doğrusal tarama, `MaxRuns` sınırlı store'larda ucuz).
+- **🚨 `AdditionalProperties` SQL'den `JsonElement` olarak döner** (2026-10-12, F-343): bellek içi depo mesajı nesne olarak tutar; `is string`/`is int` ile işaret okuyan kod SQL'de sessizce `false` döner. Belge kanalı işareti böyle kayboldu. Kalıcı mesajdan işaret okuyan her yol `JsonElement`'i de okur ve bir SQL sağlayıcısında sınanır.
+- **🚨 "Sıralı oku, ayrı sorguyla sil" iki ayrı küme seçer** (2026-10-12, F-372, K-910): arşiv modu üç sağlayıcıda arşive yazılmamış satır sildi. Silme yalnız okunan anahtarlarla (`KeyColumns`) yapılır; yüklem silmede yeniden denetlenir.
+- **🚨 `DataSubjectTargetRegistry` FK'sız tabloyu görmez** (2026-10-12, F-371, K-911): `workflow_checkpoints` atlanıyordu. Yüklemi `runs`'u okuyan hedef `Runs`'tan önce silinir (`run_scores` hiç silinmiyordu). Kapı: `DataSubjectCoverageTests` migration'ları okur.
 
-- **🚨 "Bos" bir metin sutunu `NULL` ile `''` DEMEKTIR — `IS NULL` tek basina yetmez** (2026-09-07, F-214): `RunScore.MessageId`'nin sevk edilen sozlesmesi *"if empty, the score belongs to the whole run"* der; **empty** ikisini birden kapsar. Faz 154'un skor ozeti dogru yazdi (`ScoreFilter`), `SelectExperimentResults` uc saglayicida da yalniz `IS NULL` kullandi — `MessageId = ""` skoru bir sorguda run, digerinde mesaj seviyesi sayilip arm ortalamasindan **sessizce** dustu. C# karsiligi `is null` ile `is { Length: > 0 }` farkidir. 🚨 Predicate **bes** yerde tekrarlanir, birlikte degisir: uc `*Queries.cs` + `InMemoryRunStore.Analytics.cs` + `samples/.../FileRunStore.cs`; SQL Server'da bos dizge `N''`. Kapi: `RunStoreContract`'ta **iki yonlu** cift test — ikincisi olmadan "her skoru run seviyesi say" diyen asiri duzeltme de yesil gecerdi. Skoru `IRunStore` okur, YAZMAZ; sozlesme kendi store'unu `CreateScoreStoreAsync()` ile ister.
+- **🚨 "Bos" bir metin sutunu `NULL` ile `''` DEMEKTIR — `IS NULL` tek basina yetmez** — tam kayıt: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md) (2026-10-12 bütçe turu).
 
 ## Alt yazma yollarinda BEKLENEN kiraci (K-355)
 
@@ -84,20 +87,6 @@ tipi, migration kilidi, uuid harf buyuklugu) **taşındı**:
 deadlock) ve yeniden deneme kurallari ayri dosyadadir:
 [`sql-migration.md`](sql-migration.md) — Faz 133'te butce asimini gidermek icin
 ayrildi, `sqlite.md`'nin Faz 36'daki emsaliyle.
-- **🚨 `INSERT` metni ile hedef tablonun sütun kümesi ayrı ayrı bayatlar; aynı
-  tabloya yazan İKİ sorgu varsa biri eksik kalabilir ve sözleşme testi yoksa
-  bunu yalnız üretim gösterir** (2026-09-18, `HATA-S3-003` sınıf taraması).
-  `eval_cases`'e iki sorgu yazıyordu: `InsertEvalCaseWithComputedSeq`
-  (promosyon yolu) `source_run_id`/`source_kind`/`promoted_at` sütunlarını
-  yazıyor, `InsertEvalCase` (`ReplaceCasesAsync` yolu) **yazmıyordu**. Sonuç:
-  her tam değiştirme bir case'i sessizce "promosyonsuz" bırakıyor, store'un
-  kendi `eval_cases_source_run_uq` guard'ı o run'ı tanımaz oluyor ve **aynı run
-  ikinci kez yükseltilebiliyordu**. Bellek içi store kaydı olduğu gibi
-  koruduğu için sapma yalnız SQL'deydi. **Kontrol:** bir tabloya yazan her
-  sorguyu birlikte ara (`grep -n "INSERT INTO .*<tablo>" -r src/`) ve sütun
-  listelerini karşılaştır; fark varsa bunu bir sözleşme testine çevir —
-  `EvalStoreContract.ReplaceCasesAsync_keeps_the_promotion_fields_it_was_given`
-  düzeltmeden önce bellek içinde YEŞİL, iki SQL sağlayıcısında KIRMIZI idi ve
-  sapmayı tek koşumda gösterdi.
+- **🚨 `INSERT` metni ile hedef tablonun sütun kümesi ayrı ayrı bayatlar; aynı tabloya yazan İKİ sorgu varsa biri eksik kalabilir ve sözleşme testi yoksa bunu yalnız üretim gösterir** — tam kayıt: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md) (2026-10-12 bütçe turu).
 
 - **`DbDataSource` adapter'ının `ConnectionString`'i parolayı DÜŞÜRÜR** (2026-09-22, K-846): `NpgsqlDataSource` sözleşmesi budur; `SqlServerDataSource`/`SqliteDataSource` ham dizeyi döndürüyordu ve özelliği okuyan her diagnostic parolayı görürdü. Builder round-trip biçimi normalize eder — dizeyi metin karşılaştıran test yazma. Yeni adapter aynı sözleşmeyi uygular; kapı: `SqlServerDataSourceTests` · `SqliteDataSourceTests`.

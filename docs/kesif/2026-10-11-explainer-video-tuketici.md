@@ -281,3 +281,17 @@ Kod yorumu ve test adı K-130 ile çeliştiği için F-335'e girdi.
 | 5 | LLM ve TTS anahtarlarının sahibi | **Host** (podcast turuyla aynı); F-298'de kiracı BYOK ikincil |
 | 6 | OpenAI strict ve Anthropic güncel API aday olsun mu? | Evet → F-347, F-346 |
 | 7 | Ret notu sahne düzeyinde mi, içerik düzeyinde mi? | **İçerik düzeyi**; not isteğe bağlı sahne kimliği taşıyabilir |
+
+**Üçüncü tur (2026-10-12) — kullanıcı cevapları ve sonuç:**
+
+| # | Soru veya istek | Cevap ve sonuç |
+|---|---|---|
+| 1 | Podcast script'ini de operatör mü yazar? | Evet, uygulama ayaktayken canlı günceller; iki hat tek sandbox runner'ını paylaşır |
+| 2 | Makale kuyruk yüküne girsin mi? | **Hayır (ikinci yol).** Host job'una yalnız üretim kimliği girer; handler makaleyi okur ve agent'ı `IAgentCatalog` ile süreç içinde çalıştırır |
+| 3 | İleride agent onayı nasıl gelir? | Harness `Loop` ölçütü olarak; denetim izi yeni aday F-411 |
+| 4 | K2 gevşetilsin mi? | Hayır. Operatör kodu host'un sandbox runner'ında koşar; skill script seam'i Faz 202'ye dönüştü |
+| 5 | Kusurlar ve planlar | Açık kusurların hepsi kapandı (F-341…F-344, F-354, F-360, F-364…F-367, F-369…F-372; K-903…K-911). On aday yedi faza dönüştü (Faz 196…202). Kapanışların sınıf taramaları F-386…F-404'ü, plan kapsam dışları F-405…F-411'i üretti |
+| 6 | Bu turun dört yeni kusuru (F-382…F-385) | Bakımcı ayrı bir oturumda giderecek; bu turda kodlarına dokunulmadı |
+
+Raporun bu tura göre yeniden yazılmış hâli:
+[`arsiv/incelemeler/2026-10-11-explainer-video-tuketici-uyum-raporu.md`](../arsiv/incelemeler/2026-10-11-explainer-video-tuketici-uyum-raporu.md).

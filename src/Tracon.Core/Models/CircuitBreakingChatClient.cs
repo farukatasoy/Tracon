@@ -14,12 +14,16 @@ namespace Tracon;
 /// same protection.
 /// </para>
 /// <para>
-/// <strong>Content blocking is not a failure</strong>. A
-/// <see cref="TraconContentBlockedException"/> shows that the provider is healthy:
-/// the request was blocked locally and never reached the network. Counting it would
-/// open the provider circuit after several blocked requests and turn a policy decision
-/// into an outage. The same rationale keeps <c>ContentFilterDetectingChatClient</c>
-/// outside the circuit breaker. The guard is inside the loop, so it is handled here.
+/// <strong>Only a failure that says the provider is unhealthy counts</strong>
+/// (<see cref="CountsAgainstProvider"/>). The circuit of the setup-time credential
+/// is shared by every tenant, so a failure that belongs to one request or one run
+/// must not count: one tenant could otherwise open the circuit for all the others.
+/// A content block (<see cref="TraconContentBlockedException"/>), an
+/// exhausted run budget, a missing attachment and a tool failure come from rings
+/// inside this one; the request never reached the provider, or the provider
+/// answered it. A permanent 4xx other than 401/403 rejects the request, not the
+/// provider. The same rationale keeps <c>ContentFilterDetectingChatClient</c>
+/// outside the circuit breaker.
 /// </para>
 /// </remarks>
 internal sealed class CircuitBreakingChatClient(
@@ -48,12 +52,7 @@ internal sealed class CircuitBreakingChatClient(
             // Caller cancellation says nothing about provider health.
             throw;
         }
-        catch (TraconContentBlockedException)
-        {
-            // The content guard decision says nothing either. The request did not reach the network.
-            throw;
-        }
-        catch (Exception)
+        catch (Exception exception) when (CountsAgainstProvider(exception))
         {
             breaker.RecordFailure(providerName, credentialScope);
             throw;
@@ -85,11 +84,7 @@ internal sealed class CircuitBreakingChatClient(
                 {
                     throw;
                 }
-                catch (TraconContentBlockedException)
-                {
-                    throw;
-                }
-                catch (Exception)
+                catch (Exception exception) when (CountsAgainstProvider(exception))
                 {
                     breaker.RecordFailure(providerName, credentialScope);
                     throw;
@@ -105,5 +100,61 @@ internal sealed class CircuitBreakingChatClient(
 
             breaker.RecordSuccess(providerName, credentialScope);
         }
+    }
+
+    // 🚨 F-354. This used to be a bare catch (Exception): every exception counted.
+    // The setup-time credential's circuit is shared by every tenant, so one
+    // tenant's repeated 400s opened it for all of them. An exhausted run budget,
+    // a missing attachment and a tool failure the loop rethrows counted too:
+    // those rings sit inside this one. Only K-322's content block was excluded.
+
+    /// <summary>
+    /// Determines whether <paramref name="exception"/> shows that the provider,
+    /// with this credential, is unhealthy.
+    /// </summary>
+    /// <param name="exception">The failure. The caller's own cancellation is filtered out before this is asked.</param>
+    /// <returns>
+    /// <see langword="true"/> for a cancellation nobody requested (the provider
+    /// client's own deadline) and for a failure the provider client threw,
+    /// unless its HTTP status is a permanent 4xx other than 401 and 403.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// The provider client's failures are recognized by the tag
+    /// <c>ProviderFailureTaggingChatClient</c> puts on them at the raw client
+    /// boundary (<see cref="ForeignProviderInvocationException"/>). A failure
+    /// without the tag was thrown by a Tracon ring or a tool, above the provider.
+    /// </para>
+    /// <para>
+    /// 401 and 403 count: the shared credential gets the same answer for every
+    /// caller, so an invalid key still opens the circuit. 408, 429, 5xx
+    /// and a failure without a status (connection refused, DNS) count. Every
+    /// other 4xx rejects the request and gets the same answer on a healthy
+    /// provider, so it does not count. The status is read with
+    /// <see cref="ProviderHttpStatus"/>, the same reader the fallback chain and
+    /// the workflow node retry use.
+    /// </para>
+    /// <para>
+    /// A failure that does not count is neither a failure nor a success: it
+    /// leaves the counter, and a half-open circuit, as they were.
+    /// </para>
+    /// </remarks>
+    internal static bool CountsAgainstProvider(Exception exception)
+    {
+        ArgumentNullException.ThrowIfNull(exception);
+
+        if (exception is OperationCanceledException)
+        {
+            return true;
+        }
+
+        if (ForeignProviderInvocationException.Find(exception) is not { } foreign)
+        {
+            return false;
+        }
+
+        return ProviderHttpStatus.Read(foreign.Original) is not { } status
+            || status is 401 or 403
+            || !ProviderHttpStatus.IsPermanent(status);
     }
 }

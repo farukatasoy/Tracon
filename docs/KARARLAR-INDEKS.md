@@ -2,47 +2,14 @@
 
 > **Üretilen, elle düzenlenmez.** Kaynak: `KARARLAR.md` · üretim: `scripts/dokuman-bakim.py`
 
-Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 818 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
+Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 851 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
 
 ---
 
-## En Yeni Kalıcı Kararlar (84 / 902 kalem)
+## En Yeni Kalıcı Kararlar (60 / 911 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
-| K-819 | 870 | Dil kapısının iki-harfli kelime dışlaması VARSAYIM değil ÖLÇÜMDÜR; yedi bağlaç listeye girdi |
-| K-820 | 871 | Sürüm geçmişi okuması, bir agent'ın tanımının NEREDE yaşadığını söyler; `404` kalır, gerekçe değişir 👤 |
-| K-821 | 872 | Reddedilen bir enum değeri KENDİNİ ve alternatiflerini söyler; converter TİPE DEĞİL istek gövdesi options'ına takılır 👤 |
-| K-822 | 873 | Proplanmamış bir sağlayıcı BOZULMA DEĞİLDİR; `/health` yalnız bilinen arızayı sarıya boyar 👤 |
-| K-823 | 874 | Cevabın yalnız hata olabileceği anda soru sorulmaz; A2A kurulumu şemayı beklemeden kataloğu LİSTELEMEZ |
-| K-824 | 875 | Sevk edilen inline script'e CSP izni HASH ile verilir ve hash SEVK EDİLEN METİNDEN HESAPLANIR, yazılmaz |
-| K-825 | 876 | Yayın provası sürüm bölümünü bulamazsa `## [Unreleased]`'i okur; bölüm ETİKET anında yeniden adlandırmayla doğar 👤 |
-| K-826 | 877 | Serbest biçimli bir `JsonElement` alanının BOŞ değeri JSON `null` değil BOŞ DİZİDİR |
-| K-827 | 878 | SQLite sağlayıcısı reddedilen bir yazmayı YENİDEN GÖNDERİR; `busy_timeout` yetmez 👤 |
-| K-828 | 879 | Şablon yer tutucusu açılışta durdurur, ama YALNIZ bir sağlayıcı yapılandırıldığında 👤 |
-| K-829 | 880 | Denetim filtresi ADI kimlik bilgisi taşıyan alanı değil, DEĞERİ taşıyanı redakte eder |
-| K-830 | 881 | Kapanan bir kapı span'in durumunu KENDİ ADIYLA kapatır |
-| K-831 | 882 | Normalleştirilmiş bir sağlayıcı hatasının `fault` ADI zaman aşımıysa sınıf `ProviderError` değil `Timeout`'tur 👤 |
-| K-832 | 883 | Sınıf taraması İKİ gölgeleme daha ölçtü; ikisi de bilerek KODLANMADI |
-| K-833 | 884 | Rolün reddettiği bir panel isteği HİÇ GÖNDERMEZ; 403'ü çizmek "konsol bozuk" diye okunur |
-| K-834 | 885 | Referans örneğin gösteremediği bir seam için KALICI demo kancası eklenir; "geçici `Program.cs` düzenlemesi" bir mekanizma değildir 👤 |
-| K-835 | 886 | `Tracon.Google`'ın görsel yolu ARTIK SUNULMAYAN Imagen `:predict` yüzeyini hedefliyor; kusur açık, düzeltme kullanıcı kararına bırakıldı 👤 |
-| K-836 | 887 | Kiracı kimliği, karşılaştırıcı değiştirilerek değil DEĞER NORMALLEŞTİRİLEREK case-duyarsız yapılır; kural `AmbientTenantScope.Normalize` olarak public'tir ve hem giriş sınırı hem SQL depolama sınırı uygular (Faz 179, A-1) |
-| K-837 | 888 | Kanonik olmayan `tenant_id` taşıyan veritabanında migration DURUR; satırlar KATLANMAZ (Faz 179) |
-| K-838 | 889 | `tenant_id` case guard'ı üç `.sql` migration'ı olarak değil, `SqlDialect` üzerinden tek bir C# adımı (`TenantIdCaseGuard`) olarak yazılır ve tablo listesi KATALOGDAN okunur (Faz 179, plandan sapma) |
-| K-839 | 890 | Bellek içi store'ların yalnız İKİSİ (`InMemoryTenantEgressPolicyStore`, `InMemoryTenantProviderBindingStore`) kiracı kimliğini normalleştirir; kalan 30'u kanonik girdi BEKLER (Faz 179) 👤 |
-| K-840 | 891 | `exception is not OperationCanceledException` filtresi TEK BAŞINA yanlıştır; kural `OperationCancellation.IsFailure(exception, token)` olarak tek yerde yazılır (A-3 · A-24 sınıf taraması) |
-| K-841 | 892 | Onay parmak izi UZUNLUK-ÖNEKLİ formata geçer; `U+001F` ayırıcı varsayımı terk edilir (A-5) |
-| K-842 | 893 | `TenantChatClientCacheKey` `internal` yapılır (A-4) 👤 |
-| K-843 | 894 | `dotnet new tracon-api`'nin ürettiği projenin paket sürümü, ŞABLON PAKETİNİN KENDİ SÜRÜMÜNE paketleme anında damgalanır (A-9) 👤 |
-| K-844 | 895 | Deadline'la duran bir workflow `run`'ı `Canceled` KALIR ve sebebi `RunRecord.Error`'da taşır; sebep her kapıda değil, `run`'ın kapandığı TEK yerde eklenir (A-26) 👤 |
-| K-845 | 896 | Bir workflow `run`'ı çağıran iptal ettiğinde VEYA tüketici akışı okumayı bıraktığında `Canceled` olarak kapanır; `RunGuardedAsync`'in `finally`'si bunu garanti eder (A-32) 👤 |
-| K-846 | 897 | `DbDataSource` adapter'larının `ConnectionString` özelliği parolayı düşürür |
-| K-847 | 898 | "Silinmez, taşınır" kuralına tanımlı istisna: yenilenen kanıt eskisinin yerine geçince ve sıfır canlı referans ölçülünce eski kayıt silinebilir 👤 |
-| K-848 | 899 | İstisna atan bir `IModelProviderHealthCheck` listeyi düşürmez: o sağlayıcı `Unhealthy` raporlanır, `detail` YALNIZ istisna tipini taşır, istisnanın kendisi Warning log'a gider (Faz 181, plan dışı kusur) |
-| K-849 | 900 | Dört provider adaptörünün ortak gövdesi `src/Tracon.Providers.Shared/` shared-source ağacındadır; paket değildir, her tipi `internal` kalır (Faz 181, F-258) 👤 |
-| K-850 | 901 | Public yüzey dış kanıt ölçütüyle daraltıldı: 91 tip adı (93 paket×tip — `MigrationRunner` üç pakette) `internal` oldu; kalan her tipin kanıtı `scripts/public-yuzey-envanteri.py` ile ölçülür ve kanıtsız kalan tipin gerekçesi `scripts/public-yuzey-gerekceleri.tsv`'ye yazılır (Faz 182, F-259) |
-| K-851 | 902 | Onay kuralı koşul kümesinin parmak izi tek iç fonksiyondadır (`ToolArgumentConditionFingerprint`); ayırıcı taşıyan bir yol kümeyi uzunluk önekli biçime geçirir, diğer her küme eski biçimi korur — migration yok (Faz 182, plan dışı kusur) |
 | K-852 | 903 | Bir kaydın adını taşıdığı `secret` anahtarı KİRACININ anahtar alanında olmalıdır: varsayılan olmayan kiracı `{prefix}{tenant}:...` kullanır, önek altındaki düz ad varsayılan kiracınındır; kural dört yüzeyde (MCP, BYOK, webhook, trigger) hem kaydetmede hem çözmede uygulanır (kusur-giderme, 2026-09-23) 👤 |
 | K-853 | 904 | Kiracıyı İSTEKTEN alan uçlar (`/api/tenants/{tenantId}/providers`, `/egress`, kiracı kayıtları `GET/PUT/DELETE /api/tenants[/{slug}]`) başka kiracıya yalnız PLATFORM YETKİSİYLE dokunur: API anahtarı `PlatformAdmin` kapsamı · statik `AuthToken` · claim tabanlı çağıran için yeni `TraconPolicies.PlatformAdmin` policy'si (çok kiracılık açıkken; kayıtsızsa REDDEDER) · anonim yerel operatör (K1) (kusur-giderme, 2026-09-23; K-469'u daraltır) 👤 |
 | K-854 | 905 | Kimlik bilgisi taşımayan istek yalnız GERÇEKTEN yerelse ve başka bir sitenin tarayıcı sayfası değilse kabul edilir: `AllowRemoteAccess` açık + `AuthToken` ve policy yok → uzak anonim `401`; `X-Forwarded-For`/`Forwarded`/`X-Real-IP` taşıyan loopback bağlantısı UZAK sayılır; anonim yerel istekte `Host` loopback adı, varsa `Origin` loopback olmalı (`403`) (kusur-giderme, 2026-09-23) 👤 |
@@ -94,3 +61,12 @@ Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLA
 | K-900 | 951 | Fonksiyon düğümü ayarı tipli ve KATI OKUMAYLA doğrulanır: `WorkflowNodeReference.Settings` (`JsonElement?`, yalnız nesne), `AddWorkflowFunction<TInput, TOutput, TSettings>`; kayıtta ve her derlemede AYNI okuma (fonksiyon doğrulanan nesneyi alır, ikinci şema doğrulayıcısı yok); agent düğümünde, nesne olmayan değerde ve ayarsız fonksiyonda `400`; ayar `secret` DEĞİLDİR, değişiklik sonraki run'da geçerlidir, boyut sınırı yalnız kayıtta (F-295) (kullanıcı kararı) 👤 |
 | K-901 | 952 | Konsol zinciri TEK kanonik biçimde yazar (fonksiyon varsa `nodes`, yoksa `agentNames`); sunucu iki biçimi de kabul eder; yapısal değişiklik bekleyen run'ı resume edilemez kılar ve editör bunu her zaman söyler; aynı fonksiyon bir zincirde iki kez kullanılamaz (F-292) (kullanıcı kararı) 👤 |
 | K-902 | 953 | Ayarlı fonksiyon kaydı opsiyonel parametre YERİNE `Action<WorkflowFunctionOptions>` alır; `IWorkflowFunctionCatalog` `ValidateSettings` üyesini kazanır (F-295) |
+| K-903 | 954 | Kuyruklu turun oturum kaydı kira penceresinde tekrarlanır; pencere biterse iş `tracon.job.session-save-failed` ile `Failed` olur, model tekrar çağrılmaz (F-367) (ana oturum varsayılanı) |
+| K-904 | 955 | Kuyruktaki run kuyruğa alanın atfını taşır: agent run yükü `userId` + `labels`, workflow ve batch yükü `{items, userId, labels}` zarfı; devam kaynak run'ın atfıyla açılır (F-364, F-369) (ana oturum varsayılanı) |
+| K-905 | 956 | Eval case `Context`'i belge kanalıyla sorgudan önce gider; terfi önce `run_inputs`'u okur ve taşınamayan girdiyi `422` ile reddeder (F-343) (ana oturum varsayılanı) |
+| K-906 | 957 | Devre kesici yalnız sağlayıcının attığı ve sağlığını gösteren hatayı sayar; diğer kalıcı `4xx` ve devrenin içindeki Tracon kararları nötrdür (F-354) (ana oturum varsayılanı) |
+| K-907 | 958 | Fallback atfı (run modeli, `ModelFallbackUsed`) yalnız agent'ın kendi bağlamasında yazılır; yan kanalın fallback'i o çağrınındır (F-360) (ana oturum varsayılanı) |
+| K-908 | 959 | Workflow yanıtı akıştan önce denetlenir (`IWorkflowRunner.ValidateResponseAsync`); kayıt ve derleyici karışık zincirin tip uyumunu atanabilirlikle denetler (F-341) (ana oturum varsayılanı) |
+| K-909 | 960 | Otomatik devam yalnız kök agent run'ıdır; workflow run'ı ve alt run `Failed` kalır ve ret workflow için resume'u adlandırır (F-344) (ana oturum varsayılanı) |
+| K-910 | 961 | Retention arşiv modu yalnız arşive yazdığı satırları anahtarla siler: `IRetentionStore.ArchiveBatchAsync` (varsayılan gövdeli) (F-372) (ana oturum varsayılanı) |
+| K-911 | 962 | Veri sahibi kapsamı `workflow_checkpoints`'i ve oturumla bulunan run'ların `run_scores`'unu içerir; silme `AwaitingInput` muafiyeti tanımaz (F-371) (ana oturum varsayılanı) |

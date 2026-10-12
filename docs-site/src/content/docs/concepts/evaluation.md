@@ -72,11 +72,21 @@ order and does not change which case is which. `expectedOutput` reaches `contain
 a case also carries an `expectedTools` field for record-keeping, but the tool names a
 `toolCalled` check verifies come from the suite's own check definition, shown above.
 
+A case's `context` is reference text for the agent. It reaches the agent through the
+[document channel](/concepts/governance/#the-document-channel), ahead of the query —
+the messages a run with `documents` sends. Plain text goes as one document named
+`context`. Text made only of document blocks (`-----BEGIN TRACON DOCUMENT-----` …
+`-----END TRACON DOCUMENT-----`), which is what a promoted run's documents become, goes
+back as one document per block, unchanged. The evaluator receives the same text as the
+case's context, for checks that judge an answer against reference material.
+
 For an agent that declares [parameters](/concepts/agents/#parameters), a case's own
 `parameters` field supplies the values that run's instructions bind against. A case
 missing a value the agent requires fails outright, with a reason naming which
 parameter is missing — the same check `POST /api/agents/{name}/run` applies, so a
 case that would fail in production fails here too, before any model call is made.
+The case run records the values it was bound with, defaults included, as every other
+run does.
 
 Running a suite queues a job. Each case runs in its own fresh session against the
 agent and produces its own run row, so a failing check can be traced to the exact
@@ -160,11 +170,34 @@ The eval run screen carries the same comparison, with a baseline picker and the
 `Regressed` group open by default.
 
 Cases can also be **promoted from a real run** — a production conversation that went
-wrong becomes a regression case in one request. The query comes from the run's
-`RunStarted` event, so failed and sessionless runs can be promoted. A run from a
-multi-turn session is accepted only when it has no previous turn; otherwise a single
-query cannot represent the conversation that produced the answer. Promoting the same
-run twice returns the existing case rather than duplicating it.
+wrong becomes a regression case in one request:
+
+```bash
+curl -X POST http://localhost:5081/tracon/api/evals/support/cases/from-run/$RUN_ID
+```
+
+Promotion copies the run's recorded input, so the case's run sends the agent the
+messages the production run sent: the request's whole text becomes `query`, the
+documents it carried become `context`, and the parameter values it was bound with become
+`parameters`. Failed and sessionless runs can be promoted too. Promoting the same run
+twice returns the existing case rather than duplicating it.
+
+A promotion refuses rather than build a case that leaves part of the run's input
+behind:
+
+| Answer | When |
+|---|---|
+| `409` | The run's session has an earlier turn — a single query cannot represent the conversation that produced the answer |
+| `422` | The request carried an attachment or other non-text content, or the recorded input holds a message besides the documents and the request |
+| `422` | The input was not recorded and the run carried documents |
+| `422` | No request text can be read, for example a run that sent only documents |
+
+When no input was recorded — `RunRecording:RecordRunInput` was off, or retention
+removed the record — the query comes from the run's `RunStarted` event instead, and
+that is the query only. Its text is cut at `RunRecording:MaxPayloadLength` (8,192
+characters by default); a cut query keeps the `…[truncated]` marker, so the case shows
+it is incomplete and you can correct it in the case list. The promotion's audit entry
+(`eval.case.promoted`) records which source was used and whether the query was cut.
 
 ## Online evaluation
 

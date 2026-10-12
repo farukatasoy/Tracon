@@ -245,3 +245,12 @@ dosyasına; 9 ve 13–17 burada ertelendi; 18 reddedildi.
 | § 0'daki dokuz soru | § 0 tablosu |
 | Konsol `nodes` kaybı (B01 sınıfı) için kusur-giderme | "sorunu kusur gidermeyle gider" — 2026-10-10'da kapandı (K-873, F-292) |
 | Ham listenin elemesi ve Kanal 2 kusuru | "varsayılan, koş" |
+
+**Sonraki turlar (2026-10-12):** Bu tüketici projesinin video hattıyla birlikte
+değerlendirildi; cevaplar [explainer-video keşif kaydı](2026-10-11-explainer-video-tuketici.md)
+§ 7'nin üçüncü tur tablosundadır. Podcast'e dokunan sonuçlar: audio script'ini
+operatör canlı yazar ve host'un sandbox runner'ında koşar (K2 korundu); bu
+turun adaylarından F-298, F-299, F-300, F-301, F-302 ve F-303 sırasıyla Faz 198,
+199, 200, 201 (F-301 + F-302) ve 196'ya dönüştü; F-296 ve F-297 aday kaldı.
+Raporun güncel hâli:
+[`arsiv/incelemeler/2026-10-11-podcast-tuketici-uyum-raporu.md`](../arsiv/incelemeler/2026-10-11-podcast-tuketici-uyum-raporu.md).

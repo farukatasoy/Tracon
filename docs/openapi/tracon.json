@@ -2884,7 +2884,7 @@
           "Evals"
         ],
         "summary": "Promotes a run to an eval case in a single request.",
-        "description": "The query is read from the run\u0027s own session; runs without a session cannot be promoted. If the same run is promoted a second time, the existing case is returned (200, not 201).",
+        "description": "The case copies the run\u0027s recorded input: the query, the documents it carried and the parameter values it was bound with. Without a recorded input the query comes from the RunStarted event. A run whose input a case cannot carry is refused (422). If the same run is promoted a second time, the existing case is returned (200, not 201).",
         "operationId": "TraconPromoteRunToEvalCase",
         "parameters": [
           {
@@ -6510,7 +6510,7 @@
           "Governance"
         ],
         "summary": "Exports a data subject\u0027s content as one JSON document.",
-        "description": "\u0027{id}\u0027 is resolved through IDataSubjectResolver, which is registered by the consumer \u2014 Tracon does not store personal identity. Without a registered resolver this returns 409, never an empty document. The document holds every column of every matching row, keyed by target table (session state, runs, run inputs, attachment METADATA only \u2014 no file bytes, voice session summaries, run scores, conversations, conversation items, and responses); a target with no matching rows is present as an empty array, not omitted.",
+        "description": "\u0027{id}\u0027 is resolved through IDataSubjectResolver, which is registered by the consumer \u2014 Tracon does not store personal identity. Without a registered resolver this returns 409, never an empty document. The document holds every column of every matching row, keyed by target table (session state, runs, run inputs, attachment METADATA only \u2014 no file bytes, voice session summaries, run scores, workflow checkpoints, conversations, conversation items, and responses); a target with no matching rows is present as an empty array, not omitted.",
         "operationId": "TraconExportDataSubject",
         "parameters": [
           {

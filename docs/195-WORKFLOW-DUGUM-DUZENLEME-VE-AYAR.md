@@ -133,10 +133,10 @@ değişmez (K1 — sıfır sürpriz):
 ```csharp
 builder.AddTracon()
        .UseWorkflows()
-       .AddWorkflowFunction<string, AudioClip, TtsSettings>(
+       .AddWorkflowFunction<List<ChatMessage>, AudioClip, TtsSettings>(
            "tts",
-           provider => (text, settings, context, cancellationToken) =>
-               provider.GetRequiredService<ITts>().SpeakAsync(text, settings.Voice, settings.LoudnessLufs, cancellationToken),
+           provider => (messages, settings, context, cancellationToken) =>
+               provider.GetRequiredService<ITts>().SpeakAsync(messages[^1].Text, settings.Voice, settings.LoudnessLufs, cancellationToken),
            description: "Text to speech");
 
 public sealed record TtsSettings

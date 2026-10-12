@@ -54,6 +54,43 @@ public sealed class RunRecordingAgentTests
     }
 
     [Fact]
+    public async Task Document_channel_message_read_back_from_json_is_still_recognized()
+    {
+        // 🚨 F-343 class: a SQL IRunInputStore keeps messages as JSON, and the
+        // marker values come back as JsonElement, not string/int (measured on
+        // SQLite, 2026-10-12). A replay or a continuation that re-sends such a
+        // stored input recorded the DOCUMENT as the run's query and wrote no
+        // DocumentAttached event; promotion read the same marker.
+        var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());
+        var agent = CreateAgent(store, new FakeChatClient());
+
+        List<ChatMessage> sent =
+        [
+            DocumentChannelMessageBuilder.Build(new AgentRunDocument { Name = "policy.md", Content = "Refunds within 30 days." }),
+            new ChatMessage(ChatRole.User, "Summarize the attached policy."),
+        ];
+
+        var json = System.Text.Json.JsonSerializer.Serialize(sent, AIJsonUtilities.DefaultOptions);
+        var readBack = System.Text.Json.JsonSerializer.Deserialize<List<ChatMessage>>(json, AIJsonUtilities.DefaultOptions)!;
+
+        // The precondition this test exists for: the round trip really did turn
+        // the marker into JsonElement values.
+        readBack[0].Contents.Single().AdditionalProperties![DocumentChannelMessageBuilder.DocumentNameProperty]
+            .ShouldBeOfType<System.Text.Json.JsonElement>();
+
+        await agent.RunAsync(readBack);
+
+        var run = (await store.QueryRunsAsync(new RunQuery())).ShouldHaveSingleItem();
+        var events = await ReadEventsAsync(store, run.Id);
+
+        events[0].Type.ShouldBe(RunEventType.RunStarted);
+        events[0].Text.ShouldBe("Summarize the attached policy.");
+
+        var documentEvent = events.Where(static e => e.Type == RunEventType.DocumentAttached).ShouldHaveSingleItem();
+        documentEvent.Text.ShouldBe("policy.md");
+    }
+
+    [Fact]
     public async Task Event_sequence_numbers_increase_without_gaps()
     {
         var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());

@@ -29,12 +29,24 @@ namespace Tracon;
 /// fed straight into the same condition). On targets that look at a related table
 /// (<c>eval_case_results</c>) it is a correlated subquery. See 36.1.
 /// </param>
+/// <param name="KeyColumns">
+/// The unquoted columns of the table's primary key, without its tenant column.
+/// The archive mode deletes by these values: a row is deleted only when its key
+/// was in the batch that was archived. The order is the key's own column order.
+/// </param>
+/// <param name="TenantInKey">
+/// Whether the primary key also holds the tenant column (<c>sessions</c>,
+/// <c>idempotency_keys</c>). Then <see cref="KeyColumns"/> is unique only within
+/// one tenant, and a delete by key always runs with the tenant filter.
+/// </param>
 internal readonly record struct RetentionTargetDefinition(
     string Table,
     string WherePredicate,
     string TenantPredicate,
     string OrderColumn,
-    string RowLimitOrderExpression);
+    string RowLimitOrderExpression,
+    IReadOnlyList<string> KeyColumns,
+    bool TenantInKey = false);
 
 /// <summary>
 /// The constant registry that holds the table/condition mapping of every target in
@@ -57,6 +69,18 @@ internal readonly record struct RetentionTargetDefinition(
 /// </remarks>
 internal static class RetentionTargetRegistry
 {
+    /// <summary>The key of a table whose primary key is a single <c>id</c> column.</summary>
+    private static readonly string[] IdKey = ["id"];
+
+    /// <summary>The key of <c>run_events</c>: <c>(run_id, seq)</c>.</summary>
+    private static readonly string[] RunEventKey = ["run_id", "seq"];
+
+    /// <summary>The key of <c>run_inputs</c>: one row per run.</summary>
+    private static readonly string[] RunInputKey = ["run_id"];
+
+    /// <summary>The key of <c>idempotency_keys</c> within one tenant.</summary>
+    private static readonly string[] IdempotencyKey = ["key"];
+
     /// <summary>Resolves the table/condition definition of a target.</summary>
     /// <param name="dialect">
     /// The provider dialect used to qualify the table names
@@ -93,7 +117,8 @@ internal static class RetentionTargetRegistry
                 $"EXISTS (SELECT 1 FROM {Table("runs")} rt "
                     + $"WHERE rt.id = {Table("run_events")}.run_id AND rt.tenant_id = @tenant_id)",
                 "created_at",
-                "created_at"),
+                "created_at",
+                RunEventKey),
 
             RetentionTargets.ToolInvocations => new RetentionTargetDefinition(
                 Table("tool_invocations"),
@@ -101,7 +126,8 @@ internal static class RetentionTargetRegistry
                 $"EXISTS (SELECT 1 FROM {Table("runs")} rt "
                     + $"WHERE rt.id = {Table("tool_invocations")}.run_id AND rt.tenant_id = @tenant_id)",
                 "created_at",
-                "created_at"),
+                "created_at",
+                IdKey),
 
             // traces is deleted; spans go with it through ON DELETE CASCADE.
             RetentionTargets.Traces => new RetentionTargetDefinition(
@@ -109,7 +135,8 @@ internal static class RetentionTargetRegistry
                 "started_at < @cutoff",
                 "tenant_id = @tenant_id",
                 "started_at",
-                "started_at"),
+                "started_at",
+                IdKey),
 
             // Finished jobs only (Completed=3, Failed=4, Cancelled=5); job_items go
             // with them through ON DELETE CASCADE. The completed_at of an active job
@@ -120,7 +147,8 @@ internal static class RetentionTargetRegistry
                 "status IN (3, 4, 5) AND completed_at < @cutoff",
                 "tenant_id = @tenant_id",
                 "completed_at",
-                "completed_at"),
+                "completed_at",
+                IdKey),
 
             // Delivered records only (Delivered=1).
             RetentionTargets.WebhookDeliveries => new RetentionTargetDefinition(
@@ -128,7 +156,8 @@ internal static class RetentionTargetRegistry
                 "status = 1 AND delivered_at < @cutoff",
                 "tenant_id = @tenant_id",
                 "delivered_at",
-                "delivered_at"),
+                "delivered_at",
+                IdKey),
 
             // eval_case_results has no time column of its own; the completion time
             // of the run is looked at with EXISTS. The uuid v7 identifier is used for
@@ -153,7 +182,8 @@ internal static class RetentionTargetRegistry
                 $"EXISTS (SELECT 1 FROM {Table("eval_runs")} ert " +
                 $"WHERE ert.id = {Table("eval_case_results")}.eval_run_id AND ert.tenant_id = @tenant_id)",
                 "id",
-                $"(SELECT er.completed_at FROM {Table("eval_runs")} er WHERE er.id = {Table("eval_case_results")}.eval_run_id)"),
+                $"(SELECT er.completed_at FROM {Table("eval_runs")} er WHERE er.id = {Table("eval_case_results")}.eval_run_id)",
+                IdKey),
 
             // The basis is not the created_at of the checkpoint itself but the
             // completion time of the ASSOCIATED RUN (25.1: "7 days after the run
@@ -173,7 +203,8 @@ internal static class RetentionTargetRegistry
                 "tenant_id = @tenant_id",
                 "created_at",
                 $"(SELECT r.completed_at FROM {Table("runs")} r WHERE r.id = {Table("workflow_checkpoints")}.run_id " +
-                $"AND r.status <> {awaitingInput})"),
+                $"AND r.status <> {awaitingInput})",
+                IdKey),
 
             // Expired OR revoked grants. The threshold is whichever of the two
             // columns is filled (COALESCE); when both are NULL the row limit query
@@ -184,7 +215,8 @@ internal static class RetentionTargetRegistry
                 "OR (revoked_at IS NOT NULL AND revoked_at < @cutoff)",
                 "tenant_id = @tenant_id",
                 "granted_at",
-                "COALESCE(expires_at, revoked_at)"),
+                "COALESCE(expires_at, revoked_at)",
+                IdKey),
 
             // Orphaned: attachments that have no session at all, OR whose session id
             // has no owner in the SAME tenant. An owner is a sessions row, or a
@@ -210,7 +242,8 @@ internal static class RetentionTargetRegistry
                     + $"AND (wr.status = {awaitingInput} OR wr.completed_at IS NULL OR wr.completed_at >= @cutoff))))",
                 "tenant_id = @tenant_id",
                 "created_at",
-                "created_at"),
+                "created_at",
+                IdKey),
 
             // User data; OFF by default (see TraconRetentionOptions).
             RetentionTargets.Sessions => new RetentionTargetDefinition(
@@ -218,7 +251,9 @@ internal static class RetentionTargetRegistry
                 "updated_at < @cutoff",
                 "tenant_id = @tenant_id",
                 "updated_at",
-                "updated_at"),
+                "updated_at",
+                IdKey,
+                TenantInKey: true),
 
             // conversations is deleted; conversation_items and responses go with it
             // through ON DELETE CASCADE. User data; OFF by default.
@@ -227,7 +262,8 @@ internal static class RetentionTargetRegistry
                 "updated_at < @cutoff",
                 "tenant_id = @tenant_id",
                 "updated_at",
-                "updated_at"),
+                "updated_at",
+                IdKey),
 
             // CLOSED connections only. An open connection (ended_at IS NULL) cannot
             // be deleted; when the server crashes the remaining NULL is the trace of
@@ -239,7 +275,8 @@ internal static class RetentionTargetRegistry
                 "ended_at IS NOT NULL AND ended_at < @cutoff",
                 "tenant_id = @tenant_id",
                 "started_at",
-                "ended_at"),
+                "ended_at",
+                IdKey),
 
             // The basis is the creation time of the score itself; because there is no
             // FK to runs (the same reason as the other event/summary tables) no
@@ -249,7 +286,8 @@ internal static class RetentionTargetRegistry
                 "created_at < @cutoff",
                 "tenant_id = @tenant_id",
                 "created_at",
-                "created_at"),
+                "created_at",
+                IdKey),
 
             // Stored idempotency responses (phase 43). The basis is their own
             // creation time; because there is no FK to runs no EXISTS is needed.
@@ -258,7 +296,9 @@ internal static class RetentionTargetRegistry
                 "created_at < @cutoff",
                 "tenant_id = @tenant_id",
                 "created_at",
-                "created_at"),
+                "created_at",
+                IdempotencyKey,
+                TenantInKey: true),
 
             // Run inputs (phase 47). They carry their own tenant_id and created_at
             // columns; because their FK to runs is CASCADE they already go when the
@@ -278,7 +318,8 @@ internal static class RetentionTargetRegistry
                 "created_at",
                 $"CASE WHEN EXISTS (SELECT 1 FROM {Table("runs")} rr "
                     + $"WHERE rr.id = {Table("run_inputs")}.run_id AND rr.status = {awaitingInput}) "
-                    + "THEN NULL ELSE created_at END"),
+                    + "THEN NULL ELSE created_at END",
+                RunInputKey),
 
             // Knowledge base chunks (phase 51). 🚨 The table exists ONLY in the
             // PostgreSQL migration set; binding this target to a policy on SQL
@@ -289,7 +330,8 @@ internal static class RetentionTargetRegistry
                 "created_at < @cutoff",
                 "tenant_id = @tenant_id",
                 "created_at",
-                "created_at"),
+                "created_at",
+                IdKey),
 
             _ => throw new ArgumentException($"Unknown retention target: '{target}'.", nameof(target)),
         };

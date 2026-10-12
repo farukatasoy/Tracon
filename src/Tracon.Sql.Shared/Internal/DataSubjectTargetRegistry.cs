@@ -12,11 +12,17 @@ namespace Tracon;
 /// unused parameter is harmless and keeps every command's parameter list identical.
 /// </para>
 /// <para>
-/// Export reads NINE targets; erasure deletes only SEVEN of them explicitly. Two
+/// Export reads TEN targets; erasure deletes only EIGHT of them explicitly. Two
 /// (<see cref="RunInputs"/>, <see cref="ConversationItems"/>) are read for export but
 /// never deleted directly — they are removed by <c>ON DELETE CASCADE</c> when their
 /// owning <see cref="Runs"/>/<see cref="Conversations"/> row is deleted, so an
 /// explicit delete of them would always affect zero rows by the time it ran.
+/// </para>
+/// <para>
+/// A table that carries a session, run, or conversation id but no foreign key
+/// that cascades from one of these targets needs its OWN target here, or export
+/// and erasure skip it in silence. <see cref="WorkflowCheckpoints"/> was such a
+/// table.
 /// </para>
 /// </remarks>
 internal static class DataSubjectTargetRegistry
@@ -39,7 +45,11 @@ internal static class DataSubjectTargetRegistry
     /// <summary>Real-time voice connection summaries.</summary>
     public const string VoiceSessions = "voice_sessions";
 
-    /// <summary>Run and message scores.</summary>
+    /// <summary>
+    /// Run and message scores, of the named runs and of the runs of the named
+    /// sessions. No foreign key reaches this table, so no cascade removes it,
+    /// and a score's comment can hold the subject's own words.
+    /// </summary>
     public const string RunScores = "run_scores";
 
     /// <summary>
@@ -54,22 +64,38 @@ internal static class DataSubjectTargetRegistry
     /// <summary>Responses API records, linked by session, by conversation, or both.</summary>
     public const string Responses = "responses";
 
+    /// <summary>
+    /// Workflow checkpoints, linked by session, by run, or both. No foreign key
+    /// reaches this table, so no cascade removes it, and its state is the
+    /// serialized workflow — it can hold the subject's own messages.
+    /// </summary>
+    /// <remarks>
+    /// Erasure also removes the checkpoints of a run that waits for input.
+    /// Retention keeps those so the request stays answerable; an erasure is
+    /// the subject's right and deletes the run row itself, so no request is
+    /// left to answer.
+    /// </remarks>
+    public const string WorkflowCheckpoints = "workflow_checkpoints";
+
     /// <summary>The targets read for an export, in a stable order.</summary>
     public static IReadOnlyList<string> ExportTargets { get; } =
     [
-        Sessions, Runs, RunInputs, Attachments, VoiceSessions, RunScores, Conversations, ConversationItems, Responses,
+        Sessions, Runs, RunInputs, Attachments, VoiceSessions, RunScores, WorkflowCheckpoints, Conversations,
+        ConversationItems, Responses,
     ];
 
     /// <summary>
     /// The targets deleted for an erasure, in the order they must run:
     /// conversations first (so its cascade clears conversation-linked responses
     /// before the leftover, session-linked <see cref="Responses"/> step runs),
-    /// runs next (so its cascade clears events/invocations/inputs/traces), then
-    /// the remaining tenant-scoped tables, sessions last.
+    /// run scores before runs (their condition finds the runs of the named
+    /// sessions in the runs table), runs next (so its cascade clears
+    /// events/invocations/inputs/traces), then the remaining tenant-scoped
+    /// tables, sessions last.
     /// </summary>
     public static IReadOnlyList<string> EraseTargets { get; } =
     [
-        Conversations, Responses, Runs, Attachments, VoiceSessions, RunScores, Sessions,
+        Conversations, Responses, RunScores, Runs, Attachments, VoiceSessions, WorkflowCheckpoints, Sessions,
     ];
 
     /// <summary>
@@ -120,6 +146,7 @@ internal static class DataSubjectTargetRegistry
         var conversationItems = Table("conversation_items");
         var responses = Table("responses");
         var runInputs = Table("run_inputs");
+        var workflowCheckpoints = Table("workflow_checkpoints");
 
         return target switch
         {
@@ -148,7 +175,26 @@ internal static class DataSubjectTargetRegistry
                 $"tenant_id = @tenant_id AND {InSessions($"{voiceSessions}.session_id")}",
                 "*"),
 
-            RunScores => (runScores, $"tenant_id = @tenant_id AND {InRuns($"{runScores}.run_id")}", "*"),
+            // F-371 class sweep: a resolver that named only sessions reached their
+            // runs (and, by cascade, events and inputs) but not their scores — no
+            // foreign key, so no cascade. The runs subquery is why this target is
+            // erased BEFORE Runs.
+            RunScores => (
+                runScores,
+                $"tenant_id = @tenant_id AND ({InRuns($"{runScores}.run_id")} OR run_id IN (SELECT id FROM {runs} " +
+                $"WHERE tenant_id = @tenant_id AND {InSessions($"{runs}.session_id")}))",
+                "*"),
+
+            // F-371: no foreign key reaches this table, so nothing cascaded to it
+            // and export/erasure skipped it. The state is opaque Microsoft Agent
+            // Framework data: export writes it as the stored JSON text, the same
+            // as sessions.state. A waiting run's checkpoints go too: K-888 is a
+            // retention rule, and erasure is a right that deletes the run row.
+            WorkflowCheckpoints => (
+                workflowCheckpoints,
+                $"tenant_id = @tenant_id AND ({InSessions($"{workflowCheckpoints}.session_id")} " +
+                $"OR {InRuns($"{workflowCheckpoints}.run_id")})",
+                "*"),
 
             Conversations => (
                 conversations,

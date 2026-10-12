@@ -2224,6 +2224,61 @@ sayılmadı. Otomatik karşılığı:
 
 ---
 
+### MT-EVAL-105 — Bitmiş eval'in kapanış yazımı bir kez reddedilirse eval `Failed` OLMAZ, vaka yeniden KOŞMAZ (kusur-giderme, 2026-10-12, F-365)
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Orta |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | K-886 |
+| **Devir** | ➜ CI: `EvalJobHandlerFinalWriteTests.A_store_error_on_the_final_write_does_not_fail_a_finished_eval` · `EvalJobHandlerFinalWriteTests.A_final_write_that_keeps_failing_is_left_to_the_next_attempt_without_running_the_cases_again` |
+
+Regresyon. Kapanış yazımı vakaların `try`'ındaydı: tek `store` hatası bitmiş
+eval'i `Failed` yazdı ve iş yeniden denenince vakalar yeniden koştu.
+
+**Ön koşul** — PostgreSQL deposu; iki vakalı bir eval (`mt-eval-105`); `Tracon__Scheduling__LeaseDuration=00:01:30`.
+
+**Adımlar**
+1. `tracon.eval_runs` güncellemesini reddeden bir tetikleyici kur (MT-JOB-134 deseni).
+2. `POST /api/evals/mt-eval-105/run`; günlükte yeniden deneme uyarısını bekle, 10 sn içinde tetikleyiciyi kaldır.
+3. Eval run'ını ve işi oku.
+
+**Beklenen sonuç**
+- Eval run'ı `Completed`, iş `Completed`; sağlayıcıya vaka başına tek istek.
+- 🚨 Eski kusur: eval `Failed` yazıldı; deneme hakkıyla vakalar ikinci kez koştu.
+
+---
+
+### MT-EVAL-106 — Terfi edilen case run'ın girdisini tam taşır; eval aynı mesajları gönderir (kusur-giderme, 2026-10-12, F-343)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | K-905 |
+| **Devir** | ➜ CI: `EvalCaseInputFidelityTests.A_promoted_run_reaches_the_model_in_its_eval_with_the_messages_it_had_in_production` · `EvalCaseInputFidelityTests.A_case_context_reaches_the_model_as_a_document_ahead_of_the_query` · `EvalCaseInputFidelityTests.Without_a_recorded_input_a_run_that_carried_a_document_is_refused` |
+
+Regresyon. `EvalCase.Context` agent'a gitmiyordu; terfi belgeyi, 8 KB üstünü ve
+parametre değerlerini düşürüyordu.
+
+**Ön koşul** — Örnek uygulama, SQLite; `support` agent'ı; sağlayıcı isteklerini gösteren günlük.
+
+**Adımlar**
+1. `support`'u iki belge (`documents`) ve 10 KB'lık bir sorguyla çalıştır.
+2. `POST /api/evals/mt-eval-106/cases/from-run/{runId}`; case'i oku.
+3. Eval'i koştur; sağlayıcıya giden mesajları 1. adımdakiyle karşılaştır.
+4. Konsolda case ayrıntısını aç.
+
+**Beklenen sonuç**
+- Adım 2: `query` tam metin; `context` iki belge bloğunu aynen taşır.
+- Adım 3: mesajlar aynıdır: önce iki belge, sonra sorgu.
+- Adım 4: `Context` çok satırlı alanda görünür.
+- 🚨 Eski kusur: sorgu 8192 karakterde kesildi, belgeler düştü; eval yalnız sorguyu gönderdi.
+
+---
+
 ### EVAL-102 — Geçersiz judge skoru terminal hata üretir
 
 **Ön koşul**

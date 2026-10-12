@@ -22,9 +22,21 @@ namespace Tracon;
 /// </para>
 /// <para>
 /// The usage goes to <see cref="SideChannelUsageAccumulator"/> with the
-/// binding's provider and model, so the run prices it at THAT model.
+/// provider and model that answered, so the run prices it at THAT model.
+/// That is the binding's own model unless one of the binding's
+/// <see cref="ModelBinding.Fallbacks"/> answered instead.
 /// Both paths sum every <see cref="UsageContent"/> of a call: a stream can
 /// report usage in more than one part (the same rule as the run recorder).
+/// </para>
+/// <para>
+/// <strong>A side channel's fallback is not the run's.</strong> For
+/// the duration of the call the wrapper puts a copy of the run's scope in
+/// place, with <see cref="AgentRunScope.SideChannelFallback"/> set, and
+/// <c>FallbackChatClient</c> writes the link that answered there. The run's
+/// model, its fallback event and the agent's price stay with the agent's own
+/// binding. The copy is written in this class's own method bodies, and again
+/// before every step of the streaming loop: an ambient write does not cross a
+/// <c>yield return</c> (TRC0501).
 /// </para>
 /// <para>
 /// The accumulator is read from <see cref="TraconRunContext"/> once, when the
@@ -79,7 +91,16 @@ internal sealed class SideChannelUsageTrackingChatClient : DelegatingChatClient
         ChatOptions? options = null,
         CancellationToken cancellationToken = default)
     {
-        var accumulator = TraconRunContext.Current?.ExtraUsage;
+        var scope = TraconRunContext.Current;
+        var accumulator = scope?.ExtraUsage;
+        var answeredBy = new FallbackModelAttribution();
+
+        // In this method's own body: the write flows down into the call below,
+        // and an async method never hands it back to its caller.
+        if (scope is not null)
+        {
+            TraconRunContext.SetCurrent(scope with { SideChannelFallback = answeredBy });
+        }
 
         using var activity = _tracesCompaction
             ? ActivitySource.StartActivity(TraconDiagnostics.CompactHistoryActivityName)
@@ -87,7 +108,8 @@ internal sealed class SideChannelUsageTrackingChatClient : DelegatingChatClient
 
         var response = await base.GetResponseAsync(messages, options, cancellationToken).ConfigureAwait(false);
 
-        accumulator?.Add(response.Usage, _provider, _model);
+        var (provider, model) = AnsweringModel(answeredBy);
+        accumulator?.Add(response.Usage, provider, model);
 
         if (activity is not null && response.Usage is { } usage)
         {
@@ -104,14 +126,35 @@ internal sealed class SideChannelUsageTrackingChatClient : DelegatingChatClient
         ChatOptions? options = null,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        var accumulator = TraconRunContext.Current?.ExtraUsage;
+        var scope = TraconRunContext.Current;
+        var accumulator = scope?.ExtraUsage;
+        var answeredBy = new FallbackModelAttribution();
+        var callScope = scope is null ? null : scope with { SideChannelFallback = answeredBy };
         UsageDetails? usage = null;
+
+        var enumerator = base.GetStreamingResponseAsync(messages, options, cancellationToken)
+            .GetAsyncEnumerator(cancellationToken);
 
         try
         {
-            await foreach (var update in base.GetStreamingResponseAsync(messages, options, cancellationToken)
-                .ConfigureAwait(false))
+            while (true)
             {
+                // 🚨 Rewritten before EVERY step: an ambient write made in an
+                // async iterator does not cross a yield return, and the next
+                // MoveNextAsync would run the fallback chain with the run's own
+                // scope (RunRecordingAgent.RunCoreStreamingAsync, phase 12).
+                if (callScope is not null)
+                {
+                    TraconRunContext.SetCurrent(callScope);
+                }
+
+                if (!await enumerator.MoveNextAsync().ConfigureAwait(false))
+                {
+                    break;
+                }
+
+                var update = enumerator.Current;
+
                 foreach (var content in update.Contents)
                 {
                     if (content is UsageContent usageContent)
@@ -127,9 +170,16 @@ internal sealed class SideChannelUsageTrackingChatClient : DelegatingChatClient
         }
         finally
         {
+            await enumerator.DisposeAsync().ConfigureAwait(false);
+
             // Also when the caller stops early or the stream fails: the tokens
             // reported so far are already spent.
-            accumulator?.Add(usage, _provider, _model);
+            var (provider, model) = AnsweringModel(answeredBy);
+            accumulator?.Add(usage, provider, model);
         }
     }
+
+    /// <summary>The model that answered the call: a fallback link when one did, otherwise the binding's own.</summary>
+    private (string Provider, string Model) AnsweringModel(FallbackModelAttribution answeredBy)
+        => answeredBy.Current ?? (_provider, _model);
 }

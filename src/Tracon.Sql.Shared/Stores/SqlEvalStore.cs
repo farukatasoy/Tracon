@@ -220,12 +220,11 @@ internal sealed class SqlEvalStore : IEvalStore
             Dialect.AddInt16(command, "source_kind", draft.SourceKind is { } kind ? (short)kind : null);
             Dialect.AddTimestamp(command, "promoted_at", now);
 
-            // A promoted case never carries parameter values in this phase:
-            // the production run that seeded it does not record which
-            // AgentDefinition.Parameters values it used anywhere retrievable.
-            // A hand-written case (ReplaceCasesAsync) is the only source of
-            // Parameters today.
-            Dialect.AddJsonb(command, "parameters", null);
+            // A promoted case carries the values its source run recorded in
+            // run_inputs.parameters (F-294); dropping them here left a promoted
+            // case of a parameterized agent failing on a missing value, or
+            // running on a default production never used (F-343).
+            Dialect.AddJsonb(command, "parameters", JsonStringMapCodec.Serialize(draft.Parameters));
 
             try
             {

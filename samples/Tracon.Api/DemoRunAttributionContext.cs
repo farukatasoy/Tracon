@@ -38,11 +38,23 @@ internal sealed class DemoRunAttributionContext(IHttpContextAccessor accessor) :
     public const string LabelHeader = "X-Demo-Labels";
 
     /// <inheritdoc />
+    /// <remarks>
+    /// Outside a request there is no header to read: a queued run, an approval
+    /// continuation or a run continuation runs on the background worker. Tracon
+    /// replays the user the job recorded through
+    /// <see cref="AmbientRunAttributionScope"/>, and a context that answers there
+    /// must read it, or the run's sub-agents and tools run under no user.
+    /// </remarks>
     public string? UserId
     {
         get
         {
-            var value = accessor.HttpContext?.Request.Headers[UserHeader].ToString();
+            if (accessor.HttpContext is not { } httpContext)
+            {
+                return AmbientRunAttributionScope.CurrentUserId;
+            }
+
+            var value = httpContext.Request.Headers[UserHeader].ToString();
 
             return string.IsNullOrWhiteSpace(value) ? null : value;
         }
@@ -53,13 +65,20 @@ internal sealed class DemoRunAttributionContext(IHttpContextAccessor accessor) :
     /// The limits on <see cref="RunLabels"/> are deliberately NOT enforced here.
     /// Tracon checks them itself before the run starts and answers 400; a
     /// sample that silently trimmed the header first would hide the very
-    /// behaviour it exists to demonstrate.
+    /// behaviour it exists to demonstrate. Outside a request, the labels the job
+    /// recorded come from <see cref="AmbientRunAttributionScope"/>, as the user
+    /// does.
     /// </remarks>
     public IReadOnlyDictionary<string, string>? Labels
     {
         get
         {
-            var raw = accessor.HttpContext?.Request.Headers[LabelHeader].ToString();
+            if (accessor.HttpContext is not { } httpContext)
+            {
+                return AmbientRunAttributionScope.CurrentLabels;
+            }
+
+            var raw = httpContext.Request.Headers[LabelHeader].ToString();
 
             if (string.IsNullOrWhiteSpace(raw))
             {

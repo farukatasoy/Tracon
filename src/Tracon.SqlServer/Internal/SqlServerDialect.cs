@@ -337,6 +337,10 @@ internal sealed class SqlServerDialect : SqlDialect
         => $"SELECT TOP (@batchSize) {columns} FROM {table} WHERE {wherePredicate};";
 
     /// <inheritdoc />
+    /// <remarks>Square brackets: they do not depend on the session's <c>QUOTED_IDENTIFIER</c> setting.</remarks>
+    public override string QuoteIdentifier(string name) => $"[{name}]";
+
+    /// <inheritdoc />
     /// <remarks>
     /// T-SQL has no <c>RETURNING</c>; <c>OUTPUT deleted.column</c> returns the
     /// same rows. <c>OUTPUT</c> without <c>INTO</c> fails on a table with an

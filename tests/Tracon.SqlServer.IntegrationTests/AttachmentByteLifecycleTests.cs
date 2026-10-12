@@ -78,6 +78,42 @@ public sealed class AttachmentByteLifecycleTests(SqlServerSchemaFixture schema)
     }
 
     [Fact]
+    public async Task Archive_mode_deletes_the_bytes_and_rows_of_the_archived_attachments_only()
+    {
+        // F-372: the archive mode deleted another batch than the one it
+        // archived. With bytes in IAttachmentStorage, it deletes the bytes of
+        // the archived rows first, then those rows, and nothing else.
+        for (var i = 0; i < 3; i++)
+        {
+            await SaveAsync(sessionId: null);
+        }
+
+        var archived = new List<ArchiveRow>();
+
+        var deleted = await Retention.ArchiveBatchAsync(
+            RetentionTargets.Attachments,
+            Tenant,
+            DateTimeOffset.UtcNow.AddDays(1),
+            batchSize: 2,
+            (rows, _) =>
+            {
+                archived.AddRange(rows);
+
+                return ValueTask.CompletedTask;
+            });
+
+        archived.Count.ShouldBe(2);
+        deleted.ShouldBe(2);
+        _storage.Stored.Count.ShouldBe(1);
+
+        var archivedLocations = archived
+            .Select(static row => System.Text.Json.JsonDocument.Parse(row.Json).RootElement.GetProperty("external_uri").GetString())
+            .ToList();
+
+        _storage.Deleted.Select(static uri => uri.OriginalString).ShouldBe(archivedLocations, ignoreOrder: true);
+    }
+
+    [Fact]
     public async Task Retention_keeps_the_row_when_the_byte_delete_fails()
     {
         var saved = await SaveAsync(sessionId: null);

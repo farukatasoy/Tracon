@@ -1,13 +1,13 @@
 # Tracon — Podcast üretimi için tüketici uyum raporu
 
-**Tarih:** 12 Ekim 2026. Bu belge 11 Ekim tarihli ilk sürümün yerine geçer;
-dosya adı bağlantılar bozulmasın diye ilk yazım tarihini taşır.
+**Tarih:** 12 Ekim 2026 (üçüncü değerlendirme). Bu belge önceki sürümlerin
+yerine geçer; dosya adı bağlantılar bozulmasın diye ilk yazım tarihini taşır.
 
-**İnceleme zemini:** Tracon `b7c0e173` artı Faz 194'ün commit edilmemiş
-çalışma ağacı (2026-10-12). Faz 192 (döngü tükenme politikası, F-293) kapalı;
-2026-10-12 kusur turu kapalı (K-885…K-896); Faz 194 (F-294, parametreler)
-uygulanıyor; Faz 195 (F-292 + F-295, düğüm düzenleme ve fonksiyon düğümü
-ayarı) planlı.
+**İnceleme zemini:** Tracon `99fe0b13` artı aynı günün commit edilmemiş kusur
+turu (K-903…K-911). Faz 192 (döngü tükenme politikası) ve Faz 194 (run
+parametreleri) kapandı. Faz 195'in (düğüm düzenleme ve fonksiyon düğümü ayarı)
+kodu büyük ölçüde hazır, kapanışı bekliyor. Faz 196…202 planlandı, onay
+bekliyor.
 
 **Yöntem:** Public sözleşme ve uygulama kodu incelemesi; ElevenLabs, Google ve
 Docker'ın resmi dokümanları (2026-10-11); kapanan kusurların durumu
@@ -21,7 +21,11 @@ yapılmadı. Kapasite ve kalite önerileri ölçülmüş sonuç değil tasarım
 önerisidir.
 
 **İlişkili kayıtlar:** [keşif kaydı](../../kesif/2026-10-11-podcast-tuketici.md) ·
-[ADAYLAR](../../ADAYLAR.md) (F-296…F-303) · aynı tüketici projesinin
+planlanan fazlar [196](../../196-UZUN-ADIM-SURE-VE-IPTAL.md) ·
+[197](../../197-DAYANIKLI-WORKFLOW-YURUTMESI.md) · [198](../../198-ADLI-KONUSMA-SAGLAYICISI.md) ·
+[199](../../199-FONKSIYON-DUGUMU-MALIYETI.md) · [200](../../200-WORKFLOW-SURUM-GECMISI-VE-SABITLEME.md) ·
+[201](../../201-LOOP-DUZENLEME-VE-OLCUT-FABRIKASI.md) · [ADAYLAR](../../ADAYLAR.md) (F-296, F-297,
+F-385, F-406, F-407, F-411) · aynı tüketici projesinin
 [explainer video raporu](2026-10-11-explainer-video-tuketici-uyum-raporu.md).
 İki hat aynı host'ta, aynı kiracı ekranından başlar; video raporunun sandbox
 modeli (§ 7.3), kusur tabloları (§ 12) ve yol A/C ayrımı (§ 8) burada
@@ -46,16 +50,16 @@ Bu tüketicide en belirgin Tracon boşlukları şunlardır:
 1. Çok konuşmacılı TTS sözleşmesi ve ElevenLabs dialogue/Gemini TTS adapter'ları
    yoktur (F-296, F-297).
 2. TTS provider ve credential seçimi voice katmanında tenant bazında değildir
-   (F-298, 🟠). Özel sentezleyici kaydı artık ElevenLabs ayarından bağımsızdır
+   (Faz 198, planlandı). Özel sentezleyici kaydı artık ElevenLabs ayarından bağımsızdır
    (F-336 kapalı); yalnız adla seçim ve kiracı bağlaması eksiktir.
-3. Konsol, function içeren workflow zincirinin adımlarını düzenleyemez ve
-   fonksiyon düğümü ayar almaz; Faz 195 planlıdır. Conditional graf kodda
-   kurulur.
+3. Konsolda function içeren zincirin düzenlenmesi ve fonksiyon düğümü ayarı
+   Faz 195 ile gelir (kodu büyük ölçüde hazır, kapanmadı). Conditional graf
+   kodda kurulur.
 4. Background job retry'si workflow checkpoint'inden kendiliğinden devam etmez
-   (F-321). Podcast adımlarının kalıcı ilerlemesi ve idempotency'si tüketiciye
+   (Faz 197, planlandı). Podcast adımlarının kalıcı ilerlemesi ve idempotency'si tüketiciye
    aittir.
 5. Workflow içindeki TTS/Python function çağrıları kendiliğinden podcast
-   maliyet kaydına dönüşmez (F-299).
+   maliyet kaydına dönüşmez (Faz 199, planlandı).
 
 Bunların hepsi aynı tür eksiklik değildir. Provider sözleşmesi ve workflow
 düzenleme yüzeyi genel ürün boşluğudur. `PodcastEpisode` entity'si, MinIO
@@ -89,12 +93,12 @@ konular için kesin değer atamaz.
 | İhtiyaç | Mevcut karşılık | Tüketicinin yazacağı bölüm / sınır |
 |---|---|---|
 | İçerikten senaryo üretmek | Agent definition; instruction, model, skill ve sürüm seçimi; `{{param}}` ile talimata bağlanan parametre | Podcast transcript schema'sı, kaynak referansları ve süre hedefi |
-| Reviewer ile revizyon döngüsü | Harness `Loop` + `aiJudge` ölçütü; `MaxIterations`; tavanda ve ölçüt hatasında run düşer (`OnExhausted`, `OnCriterionError`, Faz 192) | Rubric, structured verdict ve kabul policy'si; ayrı reviewer agent'ı istenirse F-301 |
+| Reviewer ile revizyon döngüsü | Harness `Loop` + `aiJudge` ölçütü; `MaxIterations`; tavanda ve ölçüt hatasında run düşer (`OnExhausted`, `OnCriterionError`, Faz 192) | Rubric, structured verdict ve kabul policy'si; ayrı reviewer agent'ı istenirse ölçüt fabrikası (Faz 201) |
 | Eval ile kaliteyi izlemek | Eval suite, online judge, run score ve experiment | Üretim öncesindeki blocking gate workflow'un kendisidir |
 | Tek voice ile ElevenLabs TTS | `Tracon.Voice`, `ISpeechSynthesizer`, `SpeechRequest` | Segmentleme ve episode assembly hazır değildir |
 | İki konuşmacı | Tek voice çağrılarını sırayla birleştirmek mümkündür | Native dialogue çağrısı mevcut adapter'da yoktur (F-296) |
 | Gemini TTS | `Tracon.Google` model provider'ı vardır; `Google.GenAI` 1.16.0 `MultiSpeakerVoiceConfig` taşır | Gemini TTS adapter'ı yoktur (F-297) |
-| Tenant bazlı TTS/voice seçimi | Tüketici kendi `ISpeechSynthesizer`'ını `UseVoice()`'tan önce kaydeder; ElevenLabs ayarı gerekmez (F-336) | Adla seçim, kiracı bağlaması ve egress denetimi yoktur (F-298); fonksiyon düğümünde keyed servis |
+| Tenant bazlı TTS/voice seçimi | Tüketici kendi `ISpeechSynthesizer`'ını `UseVoice()`'tan önce kaydeder; ElevenLabs ayarı gerekmez (F-336) | Adla seçim, kiracı bağlaması ve egress denetimi yoktur (Faz 198); fonksiyon düğümünde keyed servis |
 | Türkçe ve İngilizce | Agent instruction culture'ı ve `SpeechRequest.LanguageCode` | Her dialogue adapter'ının dil desteği, pronunciation ve iki dilde kalite kabulü doğrulanır |
 | Python | Opt-in skill script runner; ayrı OS process'i | Python image/dependency yönetimi ve OS izolasyonu host'a aittir |
 | Zorunlu audio adımları | `AddWorkflowFunction<TInput,TOutput>`; fonksiyon run parametrelerini `context.GetRunParameters()` ile okur (Faz 194) | Hazır script'i çağıran worker client ve artifact protokolü; düğüm başına ayar Faz 195 |
@@ -103,8 +107,8 @@ konular için kesin değer atamaz.
 | Kalıcı çalıştırma | SQL store, checkpoint, background job lease/retry; kira dolumu deneme sayılır (F-326) | İş adımı recovery'si, side effect ledger'ı ve sürüm snapshot'ı |
 | MinIO | `IAttachmentStorage` ile dış storage; retention baytı siler (F-332) | Hazır MinIO adapter'ı yoktur |
 | Entity ilişkisi | Code function veya custom `IJobHandler` | Tüketicinin domain service'i ve DB transaction'ı |
-| Sonucu kiracı ekranına düşürmek | `run.completed`/`run.failed` (workflow kökü dahil), `job.*` webhook'ları yayınlanır (F-333) | Host'un bildirim ve ekran güncelleme katmanı; alıcı idempotent (F-366) |
-| İzleme | Workflow/agent run tree, node event'leri, score, job durumu; workflow kökü atıf taşır (F-337) | Episode/segment ilerlemesi; dış servis, CPU ve storage maliyeti |
+| Sonucu kiracı ekranına düşürmek | `run.completed`/`run.failed` (workflow kökü dahil), `job.*` webhook'ları yayınlanır (F-333) | Host'un bildirim ve ekran güncelleme katmanı; teslim en az bir kez, alıcı `X-Tracon-Delivery` ile tekilleştirir |
+| İzleme | Workflow/agent run tree, node event'leri, score, job durumu; workflow kökü atıf taşır (F-337) | Episode/segment ilerlemesi; dış servis, CPU ve storage maliyeti (Faz 199) |
 
 Kod kanıtları: [agent catalog](../../../src/Tracon.Abstractions/Agents/IAgentCatalog.cs), [workflow definition](../../../src/Tracon.Abstractions/Workflows/WorkflowDefinition.cs), [function registration](../../../src/Tracon.Workflows/TraconWorkflowFunctionExtensions.cs), [run parametresi okuma](../../../src/Tracon.Workflows/TraconWorkflowContextExtensions.cs), [voice sözleşmesi](../../../src/Tracon.Abstractions/Voice/SpeechContracts.cs), [Google kaydı](../../../src/Tracon.Google/GoogleProviderExtensions.cs), [attachment storage](../../../src/Tracon.Abstractions/Attachments/IAttachmentStore.cs).
 
@@ -157,7 +161,8 @@ Kaynak: [WorkflowNodeReference](../../../src/Tracon.Abstractions/Workflows/Workf
 Agent adımı bir **katılımcıdır** (`ChildAgentInvoker`, `ChildRefusalMode.Fail`):
 `AgentGraph.ChildDeadline` (2 dk) aşımı, ağaç bütçesi reddi veya tool onayı
 isteği run'ı `Failed` bitirir (K-887). Uzun transcript üreten writer için
-`ChildDeadline` kurulum geneli yükseltilir; düğüm başına süre F-303'tür.
+`ChildDeadline` kurulum geneli yükseltilir. Fonksiyon düğümü süresi Faz 196'dır
+(planlandı); agent düğümü süresi F-405.
 
 ## 5. Transcript kalitesi ve eval
 
@@ -203,8 +208,8 @@ içinde bütün üretimlerde çalışır. Kaynak: [evaluation anlatısı](../../
 
 Regression set'i; kısa ve uzun kaynak, eksik kaynak, tekrar eden içerik, özel
 isim, sayı/tarih, teknik terim ve iki speaker senaryolarını kapsamalıdır.
-Rubric değişimi de sürümlenmelidir. `EvalCase.Context` agent'a gitmez (F-343,
-açık); kaynak metin case'in mesajına konur.
+Rubric değişimi de sürümlenmelidir. Kaynak metin case'in `context` alanına
+konur; agent'a belge kanalıyla sorgudan önce gider (F-343 kapandı, K-905).
 
 Türkçe ve İngilizce için ayrı eval case'leri gerekir. Instruction dili ile
 episode dili ayrı alanlardır; episode dili run parametresidir. İki dilde aynı
@@ -258,7 +263,8 @@ speaker eşlemesini alır; host'un credential resolver'ı uygun provider hesabı
 (`AddKeyedSingleton<ISpeechSynthesizer>("gemini", …)`); fonksiyon düğümü
 sağlayıcıyı run parametresinden (Faz 194) ya da düğüm ayarından (Faz 195)
 seçer. Provider'ın iki speaker, dil ve format capability kontrolü ücretli
-çağrıdan önce yapılır. Paket tarafı genelleştirmesi F-298'dir.
+çağrıdan önce yapılır. Paket tarafı genelleştirmesi Faz 198'dir (planlandı);
+agent yolunun sağlayıcıyı adla seçmesi F-406.
 
 **Bütün TTS credential'larını host yönetir.** İlk kapsamda müşteri anahtar
 yükleme ekranı gerekmez. Tenant bazlı provider seçimi yine gerekir; host bir
@@ -293,8 +299,8 @@ Bu process **Tracon'le aynı container ve OS kullanıcı kimliğinde** çalış�
 Env allowlist ve geçici dizin dosya/ağ izolasyonu sağlamaz; runner'ın kendi
 kodu bunun OS sandbox olmadığını belirtir (K-862). Her çalıştırma beş kapıdan
 geçer (Enabled · içeriğe pinli grant · yorumlayıcı listesi · argüman doğrulama
-· denetim izi). Yürütmeyi host'un sandbox'ına taşıyan public seam F-345'tir
-(aday). Kaynak: [SandboxedSkillScriptRunner](../../../src/Tracon.Core/Skills/Scripts/SandboxedSkillScriptRunner.cs),
+· denetim izi). Yürütmeyi host'un sandbox'ına taşıyan public seam
+[Faz 202](../../202-SKILL-SCRIPT-YURUTUCU-SEAM.md)'dir (planlandı). Kaynak: [SandboxedSkillScriptRunner](../../../src/Tracon.Core/Skills/Scripts/SandboxedSkillScriptRunner.cs),
 [güvenlik modeli](../../MIMARI-GUVENLIK.md#skill-script-çalıştırma).
 
 Skill script yolu agent'ın gerektiğinde seçtiği yardımcı işlemler içindir;
@@ -331,8 +337,10 @@ API process'inde `TraconSchedulingOptions.RunWorker = false` kullanılır.
 Orchestration worker ayrı process'te aynı kalıcı queue'yu işler. Workflow
 `tracon.workflow` job'u ile kuyruktan başlatılabilir (bağlantı tutmaz; run
 parametrelerini taşır, Faz 194) ya da host'un kendi `IJobHandler`'ından
-`IWorkflowRunner` ile. Kuyruklu workflow kökü bugün atıf taşımaz (F-364, 🟢);
-`ProductionId` parametre olarak gider. Kaynak: [scheduling options](../../../src/Tracon.Abstractions/Scheduling/TraconSchedulingOptions.cs),
+`IWorkflowRunner` ile. Kuyruklu workflow kuyruğa alanın kullanıcı ve etiketlerini
+taşır (F-364 kapandı, K-904); `ProductionId` parametre olarak gider. 🚨 Lane
+koleksiyonları bugün yapılandırmadan bağlanmaz (F-385); worker'ın lane ayarı
+kodda `UseScheduling(o => …)` ile verilir. Kaynak: [scheduling options](../../../src/Tracon.Abstractions/Scheduling/TraconSchedulingOptions.cs),
 [custom job handler rehberi](../../../docs-site/src/content/docs/guides/write-your-own-job-handler.md).
 
 Audio worker image'ı Python sürümünü, kilitli dependency set'ini ve gereken
@@ -348,7 +356,8 @@ scope'uyla sınırlanır. Ağ erişimi yalnız gereken servislere açılır. Hos
 path'i veya Docker socket'i worker'a verilmez. Kaynak: [Docker resource constraints](https://docs.docker.com/engine/containers/resource_constraints).
 
 Bu runner Tracon'in skill script runner'ını dışarı taşıyan hazır bir
-extension değildir; Tracon arayüzden yazılan kodu çalıştırmaz (K2) ve skill
+extension değildir; Tracon arayüzden yazılan kodu çalıştırmaz (K2,
+2026-10-12'de değerlendirildi ve korundu) ve skill
 runner'ı OS yalıtımı vermez (K-862). Tüketici; script sürümleme, typed
 parametre validation'ı, audit, timeout, process cleanup ve artifact
 doğrulamasını açıkça uygular. Müşteri (kiracı) kod yazamaz; yalnız host
@@ -399,9 +408,9 @@ taşımaz.
 |---|---|---|
 | Writer/reviewer instruction değiştirmek | Stored agent definition'ları, version history, konsol | Host'a özel tenant/profile eşleme ekranı |
 | Modeli değiştirmek | Agent model binding; kiracı egress ve BYOK | Profile sınırları ve regression doğrulaması |
-| Revizyon sayısı ve yargıç ölçütleri | API ile `Harness.Loop` | Konsol editörü F-302 |
+| Revizyon sayısı ve yargıç ölçütleri | API ile `Harness.Loop` | Konsol editörü Faz 201 (planlandı) |
 | Hazır script seçmek ve parametre vermek | Fonksiyon düğümü + run parametresi (Faz 194) | Düğüm ayarı ve JSON alanı Faz 195 |
-| TTS provider/model/voice seçmek | Tek provider voice ayarı; özel sentezleyici kaydı | Dialogue provider catalog'u ve tenant profile alanları (F-296, F-298) |
+| TTS provider/model/voice seçmek | Tek provider voice ayarı; özel sentezleyici kaydı | Dialogue provider catalog'u ve tenant profile alanları (F-296, Faz 198) |
 | Türkçe/İngilizce ve audio preset seçmek | Instruction culture'ı, `LanguageCode`, run parametresi | Dil/voice uyum kontrolü ve preset formu |
 | Sequential function zincirini değiştirmek | API ile `Nodes`; konsol salt okunur | Konsol düğüm listesi Faz 195 |
 | Üretim ilerlemesini görmek | Run tree, node event'leri, job ekranı, webhook'lar | Episode/segment/artifact odaklı görünüm |
@@ -422,9 +431,10 @@ bütün bağımlılıklar için otomatik sağlamaz.
 Agent catalog belirli stored definition sürümünü resolve edebilir ve sabit
 sürüm artık kendi descriptor'ıyla gelir (F-331). Buna rağmen workflow adımı
 agent'ı çağrı sırasında **güncel** catalog'dan resolve eder; bu belgelenmiş
-tasarımdır (K-309). Workflow grafı da run/resume sırasında yeniden çözülür.
-Workflow düğümüne `AgentVersion` bağlamak ve run'a tanım sürümü damgası F-300'ün
-kapsamındadır. Kaynak: [version resolution](../../../src/Tracon.Abstractions/Agents/IAgentCatalog.cs),
+tasarımdır (K-895 (c)). Workflow grafı da run/resume sırasında yeniden çözülür.
+Workflow sürüm geçmişi ve run'ın sürüme sabitlenmesi
+[Faz 200](../../200-WORKFLOW-SURUM-GECMISI-VE-SABITLEME.md)'dür (planlandı); alt
+agent ve skill sürüm sabiti F-409'dur. Kaynak: [version resolution](../../../src/Tracon.Abstractions/Agents/IAgentCatalog.cs),
 [WorkflowAgentCache](../../../src/Tracon.Workflows/Internal/WorkflowAgentCache.cs),
 [ChildAgentInvoker](../../../src/Tracon.Core/Graph/ChildAgentInvoker.cs).
 
@@ -488,7 +498,7 @@ edilince tekrar çalışabilir. Kaynak: [job runtime contract](../../../docs-sit
 | Audio worker öldü | Tamamlanan segmentleri koru; eksik adımı yeni scratch dizininde tekrar çalıştır |
 | MinIO upload bitti; entity transaction'ı başarısız | Mevcut object'ten ilişki adımını yeniden dene |
 | Worker lease'i kayboldu | `MaxAttempts = 1` ise job düşer, yeniden koşmaz; run reconciliation ile kapanır; yeni job tamamlanan adımları atlar |
-| Süreç çöktü; workflow run'ı `Running` kaldı | Reconciliation açıksa `Failed` kapanır; `POST .../resume` elle (F-321 otomatik sürdürme, F-344 önkoşulu) |
+| Süreç çöktü; workflow run'ı `Running` kaldı | Reconciliation açıksa `Failed` kapanır ve ret olayı resume'u adlandırır (F-344 kapandı); `POST .../resume` elle (otomatik sürdürme Faz 197) |
 | Operatör profile'ı değiştirdi | Eski production snapshot'ını koru; yeni production'a yeni sürümü uygula |
 
 Idempotency key; tenant, production, step/segment ve input/parameter hash'ini
@@ -521,7 +531,7 @@ Kaynak: [scheduling](../../../src/Tracon.Abstractions/Scheduling/TraconSchedulin
 
 Audio süresi ile üretim süresi ayrı ölçüdür. Model, revizyon, TTS, queue ve
 audio işlemlerinin gerçek süresi ölçülür; her network/process adımına kendi
-timeout'u konur (düğüm başına süre F-303). Süreç içi concurrency sınırları
+timeout'u konur (fonksiyon düğümü süresi Faz 196). Süreç içi concurrency sınırları
 replica sayısıyla çoğalır; provider hesabının toplam quota'sı ayrıca koordine
 edilir. Tenant bazlı limit ve adil queue policy'si (F-322) bir müşterinin bütün
 kapasiteyi tüketmesini önler; Tracon lane'leri iş türünü ayırır, tenant
@@ -577,19 +587,22 @@ seçer (iletim modu F-324). Kaynak: [WorkflowAgentStepExecutor](../../../src/Tra
 | Öncelik | Genel ürün boşluğu | Tüketiciye etkisi | Durum (2026-10-12) |
 |---|---|---|---|
 | Yüksek | Dialogue/multi-speaker TTS sözleşmesi ve adapter'ları | İki speaker için kendi TTS katmanını yazması gerekir | F-296, F-297 aday |
-| Yüksek | Tenant/profile bazlı TTS routing ve host credential çözümleme | Farklı provider/voice seçimleri hazır karşılanmaz | F-298 🟠 aday; F-336 önkoşulu kapandı |
-| Yüksek | Çalışan production için bütün bağımlılıkların version pinning'i | Instruction değişimi devam eden akışa karışabilir | F-300 aday (düğüme `AgentVersion`); F-331 ve F-352 kapandı |
-| Orta | Workflow UI'da function node düzenleme ve düğüm ayarı | Operatör zinciri API'den düzenler | Faz 195 planlı (F-292 + F-295) |
-| Orta | Run başına parametre | Tenant farkı için tanım kopyalanırdı | Faz 194 uygulanıyor (F-294) |
-| Orta | Workflow function dış maliyet/usage görünürlüğü | TTS ve audio maliyeti LLM toplamından ayrı kalır | F-299 aday |
-| Orta | Job ile workflow checkpoint recovery entegrasyonu | Custom production recovery yazılır | F-321 aday; F-344 önce |
-| Orta | Fonksiyon düğümüne zaman aşımı | Takılan worker bütün run'ı tutar | F-303 aday |
-| Düşük | Konsolda `Loop` düzenleme; `AddLoopEvaluator` fabrika | Revizyon sayısı API'den; ayrı reviewer agent'ı DI'a ulaşamaz | F-302, F-301 aday |
+| Yüksek | Tenant/profile bazlı TTS routing ve host credential çözümleme | Farklı provider/voice seçimleri hazır karşılanmaz | Faz 198 planlandı (F-298) |
+| Yüksek | Çalışan production için bütün bağımlılıkların version pinning'i | Instruction değişimi devam eden akışa karışabilir | Faz 200 planlandı (workflow); alt agent ve skill sabiti F-409 aday |
+| Orta | Lane ayarının yapılandırmadan bağlanması | `appsettings`'teki lane bütçesi yok sayılır | F-385 açık; ayar kodda verilir |
+| Orta | Workflow UI'da function node düzenleme ve düğüm ayarı | Operatör zinciri API'den düzenler | Faz 195 (kodu büyük ölçüde hazır) |
+| Orta | Workflow function dış maliyet/usage görünürlüğü | TTS ve audio maliyeti LLM toplamından ayrı kalır | Faz 199 planlandı (F-299) |
+| Orta | Job ile workflow checkpoint recovery entegrasyonu | Custom production recovery yazılır | Faz 197 planlandı (F-318, F-321) |
+| Orta | Fonksiyon düğümüne zaman aşımı ve iptal token'ı | Takılan worker bütün run'ı tutar | Faz 196 planlandı (F-303, F-323) |
+| Düşük | Konsolda `Loop` düzenleme; `AddLoopEvaluator` fabrika | Revizyon sayısı API'den; ayrı reviewer agent'ı DI'a ulaşamaz | Faz 201 planlandı (F-301, F-302) |
+| Düşük | Onay `Loop` ölçütünün denetim izi | Agent onayına geçişte "kim onayladı" sorusu | F-411 aday |
+
+Run başına parametre Faz 194 ile kapandı.
 
 MinIO adapter'ı, mastering preset'leri ve domain entity'leri tüketiciye ait
 kalır. Operatör canlı kod yazdığı için sandbox tüketicinin runner'ındadır
 (video raporu § 7.3); Tracon'a yeni kod çalıştırma yüzeyi açılmaz. Skill script
-yolunu o sandbox'a yönlendiren seam F-345'tir.
+yolunu o sandbox'a yönlendiren seam Faz 202'dir (planlandı).
 
 ## 13. İhtiyacın genişleyebileceği noktalar
 
@@ -600,12 +613,12 @@ yolunu o sandbox'a yönlendiren seam F-345'tir.
 | Bir cümleyi veya bölümü yeniden üretmek | Stable segment ID, transcript revision ve segment artifact cache'i |
 | Speaker/voice değiştirmek | Provider'a özel eşlemeler; hangi segmentlerin geçersizleştiği açık olur |
 | Subtitle ve chapter üretmek | Alignment kaynağı; final audio işlemleri sonrasında zaman güncellemesi |
-| İnsan onayı eklemek | Writer adımından sonra `RequestPort`; video raporu § 8 yol A koşulları (F-318, F-319) |
-| Üretim maliyet tavanı | Writer/reviewer retry, TTS, regeneration ve compute/storage ayrı maliyetler |
+| İnsan onayı eklemek | Writer adımından sonra `RequestPort`; video raporu § 8 yol A koşulları (Faz 197, F-319) |
+| Üretim maliyet tavanı | Writer/reviewer retry, TTS, regeneration ve compute/storage ayrı maliyetler (Faz 199); tükenen bütçede düğüm başlamaz (F-407) |
 | Provider outage | Explicit retry/fallback policy; aynı episode'da farklı ses kullanımı kararı |
 | İptal ve yeniden başlatma | Kalıcı step state; tamamlanan artifact'i koruma ve scratch cleanup |
 | Otomatik yayın/RSS | `Ready` ile `Published` ayrı state; harici yayın ayrı side effect |
-| Müşteri kendi credential'ını kullanır | Tenant secret resolver ve quota sahipliği; F-298 ikincil kapsamı |
+| Müşteri kendi credential'ını kullanır | Tenant secret resolver ve quota sahipliği; Faz 198'in ikincil kapsamı |
 
 Timestamp ihtiyacında non-streaming `IncludeTimestamps` karakter alignment'ı
 taşıyabilir. `SynthesizeStreamingAsync` yalnız ham audio byte parçaları döner.
@@ -646,7 +659,8 @@ Bu senaryolar önerilen kabul setidir; bu rapor kapsamında çalıştırılmadı
     koşmaz ve hata türü `child_run_timeout` olur.
 
 Function node'u model çağrısı yapmadığı için kendi run row'unu ve cost/token
-toplamını oluşturmaz. Dış TTS/audio usage ayrıca kaydedilir (F-299). Kaynak:
+toplamını oluşturmaz. Dış TTS/audio usage Faz 199 gelene kadar host domain'inde
+kaydedilir. Kaynak:
 [function node görünürlüğü](../../../docs-site/src/content/docs/concepts/workflows.md#function-nodes).
 
 ## 15. Sonraki tasarım için açık kararlar
@@ -663,9 +677,11 @@ toplamını oluşturmaz. Dış TTS/audio usage ayrıca kaydedilir (F-299). Kayna
 | Audio/ham segment saklama süreleri | Retention, storage maliyeti ve partial regeneration |
 | Provider fallback ve audio sonrası ret policy'si | Ses tutarlılığı, ek ücret ve yeniden üretim kapsamı |
 
-2026-10-12'de cevaplananlar: audio script'ini operatör canlı yazar ve
-sandbox'ta koşar (§ 7.2); insan onayı eklenirse `Loop` ölçütü olarak gelir
-(video raporu § 15).
+2026-10-12'de cevaplananlar: audio script'ini operatör canlı yazar ve host'un
+sandbox runner'ında koşar (§ 7.2); K2 gevşetilmez; insan onayı eklenirse `Loop`
+ölçütü olarak gelir (video raporu § 15). Bu hatta dokunan altı faz planlandı
+(Faz 196…201); her planın Açık Soruları onay bekler. Aynı günün kusur turunun
+varsayılan kararları (K-903…K-911) de onay bekler.
 
 Bu açık değerler uygulama tasarımından önce belirlenir. Uyum sonucu bunlara
 rağmen nettir: Tracon kontrol ve çalıştırma altyapısını sağlar; iki

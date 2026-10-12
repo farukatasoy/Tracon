@@ -12,10 +12,11 @@
 > ([`kesif/`](kesif/)) · "bir daha önerilmez" listesini
 > ([`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md)).
 
-**Durum (2026-10-12):** sıralanabilir kuyrukta **18** aday var (F-296…F-303
-podcast turu, F-318…F-324 ve F-345…F-347 Explainer-Video turu). Bugün yapılabilecek iş § *Bekleyen Kalemler*'in üç
-kanal tablosundadır. Planlanmış fazlar burada değil, üretilen
-[`YOL-HARITASI.md`](YOL-HARITASI.md)'dedir.
+**Durum (2026-10-12):** sıralanabilir kuyrukta **8** aday var (F-296, F-297
+podcast turu; F-319, F-320, F-322, F-324, F-346, F-347 Explainer-Video turu). Aynı
+turların on kalemi 2026-10-12'de yedi faza dönüştü (Faz 196…202, planlandı). Bugün
+yapılabilecek iş § *Bekleyen Kalemler*'in üç kanal tablosundadır. Planlanmış fazlar
+burada değil, üretilen [`YOL-HARITASI.md`](YOL-HARITASI.md)'dedir.
 
 ---
 
@@ -129,11 +130,11 @@ aday `aday-kesfi` ile üretilir. Bugünkü kalemler 2026-10-11 podcast
 
 **Risk:** Sınırlar farklı (2 ve 10 konuşmacı); en küçük ortak payda sözleşmeyi zayıflatır — yetenek bildirimi şart.
 
-**Bağımlılık:** F-297, F-298 buna dayanır.
+**Bağımlılık:** F-297 ve Faz 198 (F-298, planlandı) buna dayanır.
 
 **Ekosistem (2026-10-11):** ElevenLabs `POST /v1/text-to-dialogue`: en çok 10 farklı ses, istek başına ≤2.000 karakter, `stability`/`similarity`, varsayılan `eleven_v3`. Gemini TTS: istekte en çok 2 konuşmacı, 24 kHz mono 16-bit PCM/WAV (Google dokümanı, güncelleme 2026-10-01).
 
-**Karşı görüş:** Ses üretimi çekirdek iş değil; tüketici SDK'yı bir fonksiyon düğümünde çağırabilir. Tracon'un asıl katkısı maliyet kaydı ve kiracı anahtarıdır (F-298, F-299) ve sözleşmesiz de verilebilir.
+**Karşı görüş:** Ses üretimi çekirdek iş değil; tüketici SDK'yı bir fonksiyon düğümünde çağırabilir. Tracon'un asıl katkısı maliyet kaydı ve kiracı anahtarıdır (Faz 199, Faz 198) ve sözleşmesiz de verilebilir.
 
 ### F-297 · `Tracon.Google` için Gemini konuşma (TTS) adaptörü
 
@@ -153,189 +154,11 @@ aday `aday-kesfi` ile üretilir. Bugünkü kalemler 2026-10-11 podcast
 
 **Risk:** Model adları önizleme; API anahtarı modu sınırları (F-281 deseni).
 
-**Bağımlılık:** F-296; F-298 olmadan iki sağlayıcı aynı süreçte seçilemez.
+**Bağımlılık:** F-296; Faz 198 (F-298, planlandı) olmadan iki sağlayıcı aynı süreçte seçilemez.
 
 **Ekosistem (2026-10-11):** Modeller `gemini-3.8-flash-tts`, `gemini-3.8-flash-lite-tts`, `gemini-3.1-flash-tts-preview`, `gemini-2.5-pro-preview-tts`; .NET örneği yok.
 
-**Karşı görüş:** F-298 olmadan adaptör ElevenLabs'in yerine geçer, yanına gelmez; tek başına değeri düşük.
-
-### F-298 · Adlı konuşma sağlayıcı kaydı ve kiracı başına ses anahtarı
-
-**Kanal:** faz planlama · 🟠
-
-**Sorun:** `UseVoice` tek bir `ElevenLabsSpeechClient`'ı `ISpeechSynthesizer` olarak kaydeder (`VoiceBuilderExtensions.cs:76-85`); anahtar süreç geneli (`VoiceOptions.cs:35`). Sağlayıcı adla seçilemez; kiracının egress politikası ve kendi anahtarı konuşma çağrısına uygulanmaz.
-
-**Kapsam:** Konuşma sağlayıcıları için adlı kayıt, kiracı bağlaması (`tenant_provider_bindings` deseni) ve egress denetimi; fonksiyon düğümü ve `speak` tool'u sağlayıcıyı adla ister. `UseVoice` korunur (K1).
-
-**Explainer turu eki (2026-10-11):** aynı süreçte yerel GPU ve bulut motoru, kiracı başına seçim; aciliyet 🟠. Anahtar sahibi host'tur (iki turda da); kiracı BYOK ikincil. Önce F-336 kapanır. Emsal: görsel yolunun keyed kaydı (`ImageGeneratorResolver.cs:28-38`).
-
-**Değer:** Çok kiracılı SaaS'ta ses kiracının faturasına gider; yasak sağlayıcıya veri çıkmaz.
-
-**Mercek:** 3, 6, 8.
-
-**Hazırlık:** Model BYOK/egress altyapısı yeniden kullanılır (K-466, K-467, K-874).
-
-**Maliyet:** Yeni public kayıt yüzeyi.
-
-**Risk:** Adlı ve adsız iki kayıt yolu birlikte yaşar; `TryAdd` sırası.
-
-**Bağımlılık:** 2026-08-27 ses turunun B3'üne (kiracı ses politikası) komşu: B3 sesi yetkilendirir, bu kalem sağlayıcıyı ve anahtarı seçer.
-
-**Ekosistem:** Taranmadı (Tracon içi simetri boşluğu).
-
-**Karşı görüş:** Kiracı başına ses anahtarı ihtiyacı ölçülmedi; host kendi anahtarıyla üretip maliyeti dağıtabilir.
-
-### F-299 · Fonksiyon düğümünün token dışı maliyeti kaydedilsin, kotaya girsin
-
-**Kanal:** faz planlama · 🟡
-
-**Sorun:** `TraconToolUsage.Report` çağrı kimliğini `FunctionInvokingChatClient.CurrentContext`'ten okur, yoksa `false` döner (`TraconToolUsage.cs:47-58`). Fonksiyon düğümünde bu bağlam yok: TTS karakter maliyeti yazılmaz, kota ve run bütçesi onu görmez (önceki tüketici turunun A08 ses notu).
-
-**Kapsam:** Fonksiyon düğümü için usage raporlama (birim, miktar, maliyet, tahmini mi) ve `run` maliyetine/kotaya katılma kuralı.
-
-**Explainer turu eki (2026-10-11):** birden çok birim (TTS karakteri, GPU saniyesi, render saniyesi), sağlayıcı/model alanı, ayrı toplam ve konsol gösterimi (F-342).
-
-**Değer:** Bölüm başına gerçek maliyet; kiracı kotası TTS'i de sayar.
-
-**Mercek:** 2, 7, 8.
-
-**Hazırlık:** `ToolCallUsage` modeli var; workflow yolu yok.
-
-**Maliyet:** Public raporlama girişi; kalıcı kayıt gerekirse migration (ölçülmedi).
-
-**Risk:** Para birimi karışımı; tahmini maliyetin kotaya girmesi kararı.
-
-**Bağımlılık:** F-298 ile fiyat kaynağı paylaşılır.
-
-**Ekosistem:** Taranmadı.
-
-**Karşı görüş:** Maliyet tüketicinin domain kaydında tutulabilir; değer yalnız Tracon kotasını kullanan host içindir.
-
-### F-300 · Workflow ve skill tanımlarında sürüm geçmişi ve geri alma
-
-**Kanal:** faz planlama · 🟡
-
-**Sorun:** Agent tanımı sürüm geçmişi ve fark taşır (`IAgentDefinitionStore.cs:42,69`; `AgentEndpoints.cs:138,164`). Workflow ve skill store'ları yalnız `Get`/`List`/`Save`/`Delete` taşır (`IWorkflowDefinitionStore.cs:20-51`, `IAgentSkillStore.cs:18-45`); operatörün düzenlediği bir tanımın önceki hâline dönüş yolu yok.
-
-**Kapsam:** İki store'a sürüm satırı, liste/getir/fark uçları, geri alma (yeni sürüm olarak), konsolda geçmiş paneli.
-
-**Explainer turu eki (2026-10-11):** workflow kök run'ına tanım sürümü damgası ve resume'da sürüm denetimi. Operatör şemayı canlı günceller; üretim boyunca agent sürümü sabit kalmalı (F-331 2026-10-12'de kapandı: sabit sürüm artık kendi tanımıyla tanımlanır). L43 ilgisiz.
-
-**F-352 kapanışı eki (2026-10-12):** sabit sürümlü üst agent'ın alt agent'ı ve workflow adımı güncel sürümü çözer — bu belgelenmiş tasarımdır (`concepts/agents.md`), kusur değil. Alt sürümü üste bağlamak üst tanımın bir sabit taşımasını ister (`CallableAgents: [{name, version?}]`, workflow düğümünde `AgentVersion`); tanım sürüm geçmişiyle aynı tasarım işidir ve bu adayın kapsamına girer.
-
-**Değer:** "Dünkü düzenleme bozdu" anında geri dönüş.
-
-**Mercek:** 2, 3, 7.
-
-**Hazırlık:** Agent sürüm deseni (sözleşme, uçlar, konsol farkı) var.
-
-**Maliyet:** Üç SQL lehçesinde migration (`kalıcı-veri`), sözleşme testleri, store arayüzlerine yeni üyeler (public API).
-
-**Risk:** Üçüncü taraf store'lar yeni üyeleri uygulamalı — ayrı arayüz mü, varsayılan üye mi kararı.
-
-**Bağımlılık:** Yok.
-
-**Ekosistem:** Taranmadı.
-
-**Karşı görüş:** Host tanımları kodla veya IaC ile yönetirse geçmiş git'tedir; değer yalnız konsoldan düzenleyen operatör içindir.
-
-### F-301 · `AddLoopEvaluator` için `IServiceProvider` alan fabrika aşırı yüklemesi
-
-**Kanal:** faz planlama · 🟢
-
-**Sorun:** `AddLoopEvaluator(kind, LoopEvaluator)` yalnız hazır örnek alır (`TraconBuilderExtensions.Evaluation.cs:148`; `TraconLoopEvaluatorRegistration.cs:22`). Katalogdan ayrı bir reviewer agent'ı çağıran veya tüketici servisi kullanan ölçüt DI'a ulaşamaz.
-
-**Kapsam:** `AddLoopEvaluator(kind, Func<IServiceProvider, LoopEvaluator>)`; örnek derleyici kurulurken çözülür.
-
-**Değer:** Reviewer'ı kendi talimatı ve modeliyle ayrı agent olarak çalıştıran kalite kapısı kodla kurulur.
-
-**Mercek:** 5, 6.
-
-**Hazırlık:** Builder deseni hazır.
-
-**Maliyet:** Bir public aşırı yükleme.
-
-**Risk:** Singleton fabrika kiracıyı çalışma anında ambient `ITenantContext`'ten okumalı.
-
-**Bağımlılık:** Yok.
-
-**Ekosistem:** Taranmadı.
-
-**Karşı görüş:** Yerleşik `aiJudge` (operatörün düzenlediği `JudgeCriteria`/`JudgeInstructions`) çoğu kapıyı karşılar; ayrı reviewer yalnız tool kullanan inceleme için gerekir.
-
-### F-302 · Konsolda harness `Loop` düzenleme
-
-**Kanal:** faz planlama · 🟡
-
-**Sorun:** Editör `harness` nesnesini olduğu gibi taşır (`agent-editor/model.ts:201,248`), ama `harness-section.tsx` yalnız `maxContextWindowTokens` ve `maximumIterationsPerRequest` alanlarını düzenler (`harness-section.tsx:42,55`); `loop` için kontrol yok.
-
-**Kapsam:** Ölçüt listesi (yerleşik dört tür + kodla kayıtlı türler), `MaxIterations`, `FreshContextPerIteration`, `aiJudge` alanları; doğrulama raporu. Kod yazdırmaz — K2 ile uyumlu.
-
-**Değer:** Operatör revizyon sayısını ve yargıç ölçütlerini konsoldan ayarlar.
-
-**Mercek:** 1, 2.
-
-**Hazırlık:** Kodla kayıtlı türleri listeleyen bir uç gerekebilir (ölçülmedi).
-
-**Maliyet:** Arayüz bölümü, iki dil sözlüğü, `full-replace-editors.test.tsx` vakası; bundle bütçesi.
-
-**Risk:** Düşük.
-
-**Bağımlılık:** [Faz 192](arsiv/fazlar/192-DONGU-TUKENME-POLITIKASI.md) `OnExhausted` / `OnCriterionError` alanlarını ekler; editör onları da gösterir.
-
-**Ekosistem:** —
-
-**Karşı görüş:** Host tanımları API'den yönetirse konsol editörü ikincildir.
-
-### F-303 · Fonksiyon düğümüne zaman aşımı
-
-**Kanal:** faz planlama · 🟡
-
-**Sorun:** Bir fonksiyon düğümü sonsuza kadar çalışabilir; yalnız workflow'un genel `RunTimeout`'u (varsayılan 10 dk, `TraconWorkflowOptions.cs:54`) onu keser (K-497). 10–20 dakikalık bölümün TTS ve ses işleme düğümleri dakikalar sürer; genel sınırı büyütmek her düğümün sınırını büyütür. K-497'nin koşulu ("ihtiyaç ölçülürse") bu tüketicide oluştu.
-
-**Kapsam:** Düğüm başına zaman aşımı (kayıtta varsayılan, [Faz 195](195-WORKFLOW-DUGUM-DUZENLEME-VE-AYAR.md)'in düğüm ayarıyla geçersiz kılma); aşımda düğümü iptal edip run'ı ayırt edilebilir hatayla bitirme (K-497'nin önerdiği `TimeoutAIFunction` deseni).
-
-**Explainer turu eki (2026-10-11):** agent düğümü süresi (`ChildDeadline` kurulum geneli 2 dk) ve workflow başına `RunTimeout`; aşımda run düşer (F-328 ile 2026-10-12'den beri; bu adayın işi düğüm başına süre ayarıdır).
-
-**Değer:** Takılan bir dış servis bütün run'ı tutmaz.
-
-**Mercek:** 2, 5.
-
-**Hazırlık:** Tool timeout deseni var (Faz 69).
-
-**Maliyet:** Kayıt aşırı yüklemesi; zamanlayıcı aralık doğrulaması şart (F-280 sınıfı).
-
-**Risk:** İptali onurlandırmayan fonksiyon yine takılır — belgelenmeli.
-
-**Bağımlılık:** F-280 ile aynı aralık yardımcısı.
-
-**Ekosistem:** —
-
-**Karşı görüş:** Tüketici fonksiyonunda `CancelAfter` kullanabilir; çerçeve desteği yalnız tek tip davranış ve görünürlük ekler.
-
-### F-318 · Workflow `run`, `resume` ve `respond` bağlantıdan bağımsız koşsun
-
-**Kanal:** faz planlama · 🟠
-
-**Sorun:** Workflow run'ı onu okuyan HTTP akışına bağlıdır; okuyucu düşerse run `Canceled` olur (K-845; `WorkflowEndpoints.cs:443-455,738-799`). Agent yolundaki `Prefer: respond-async` workflow'da yoktur. `tracon.workflow` job'u yalnız yeni run başlatır, bekleyen run'a yanıt veremez (`WorkflowJobHandler.cs:56-60`).
-
-**Kapsam:** Üç uca `Prefer: respond-async`: run id önceden üretilir, `Queued` satırı açılır, 202 + `Location` döner. `WorkflowJobHandler`'a resume ve respond iş türü; job yükünde kullanıcı ve etiket. İzleme `GET /api/runs/{id}/events`.
-
-**Değer:** Saatlik üretim ve makine yanıtı bağlantı tutmaz; konsol uzun run'ı arka planda başlatır.
-
-**Mercek:** 2, 3, 6.
-
-**Hazırlık:** Agent eşi var (`TraconAsyncRunOptions`, `JobHandlerKeys.ApprovalResume`).
-
-**Maliyet:** Public HTTP sözleşmesi (OpenAPI, istemci yenilemesi), job yükü şeması; migration beklenmez (ölçülmedi).
-
-**Risk:** At-least-once: kira kaybında öğe iki kez koşar (F-326 2026-10-12'de kapandı: yenileme hatası artık kirayı düşürmez, deneme sınırı kira dolumunda da uygulanır). Kuyruğa giren respond için kota kapısı kararı (K-394).
-
-**Bağımlılık:** F-325 (keep-alive) 2026-10-12'de kapandı; F-319 (tek yanıt) respond kuyruğundan önce gelir.
-
-**Ekosistem:** Taranmadı (Tracon içi simetri boşluğu).
-
-**Karşı görüş:** Tüketici public `IWorkflowRunner`'ı kendi job handler'ında çağırabilir; ama o yolda `IRunAuthorizationHandler` kapısı çalışmaz (`WorkflowEndpoints.cs:621-627`).
+**Karşı görüş:** Faz 198 olmadan adaptör ElevenLabs'in yerine geçer, yanına gelmez; tek başına değeri düşük.
 
 ### F-319 · Workflow HITL karar sözleşmesi: kiracı geneli liste, opt-in tek yanıt, karar denetimi, süre
 
@@ -357,7 +180,9 @@ aday `aday-kesfi` ile üretilir. Bugünkü kalemler 2026-10-11 podcast
 
 **F-327 kapanışı eki (2026-10-12):** retention artık `AwaitingInput` run'ın istek olayını ve checkpoint'lerini süresiz tutar (K-888); yanıtlanan istek de K-130 gereği `AwaitingInput` kalır, yani bu satırlar hiç silinmez. Bu adayın "süre" maddesi o büyümenin de sınırıdır: süre dolan istek kapanınca retention onu silebilir. F-332 (2026-10-12) sonrası aynı run'ın oturumundaki ekler de run yaşadıkça tutulur; süre maddesi onları da kapsar.
 
-**Bağımlılık:** F-335 (konsol) önce kapanır; F-327 kapandı.
+**Bağımlılık:** Yok (F-327 ve F-335 kapandı). Faz 197'den sonra planlanırsa tek yanıt kuralı arka plan `respond`'una da uygulanır.
+
+**F-341 kapanışı eki (2026-10-12):** uymayan yanıt artık akıştan önce `400` alır ve run açmaz (K-908); bu adayın "zıt cevap `409`" kuralı o denetimin üstüne kurulur. Faz 197 (planlandı) `respond`'a `Idempotency-Key`'i yalnız arka plan kipinde getirir; aynı cevabın aynı devamı sürmesi ve kiracı geneli liste bu adayda kalır.
 
 **Ekosistem:** MCP Tasks `input_required` aynı ihtiyacı protokolde karşılar; Tracon görev deposu onu boş bırakır (`RunBackedMcpTaskStore.cs`, 2026-10-11).
 
@@ -387,30 +212,6 @@ aday `aday-kesfi` ile üretilir. Bugünkü kalemler 2026-10-11 podcast
 
 **Karşı görüş:** Doğrulama açıkken kesik JSON zaten reddedilir; değer sınıflama, onarımı atlama ve uyarıdır.
 
-### F-321 · Çöken workflow run'ı son checkpoint'ten otomatik sürsün (opt-in)
-
-**Kanal:** faz planlama · 🟡
-
-**Sorun:** Süreç ölünce workflow run'ı `Running` kalır; reconciliation açıksa `Failed` kapanır. Sürdürmek için `POST .../resume` gerekir (`IWorkflowRunner.cs:21-31`). Job yeniden kiralanınca öğe checkpoint'ten değil baştan koşar; içerik yeniden üretilir, onay yeniden gerekir (`WorkflowJobHandler.cs:38-60`).
-
-**Kapsam:** `TraconWorkflowOptions` altında opt-in otomatik sürdürme (son checkpoint, deneme sınırı, devam bağı). Job tekrarında aynı run'ın checkpoint'inden devam. Workflow çocuk run'ları agent devamından hariç.
-
-**Değer:** Deploy veya çökme sonrası yalnız yarım kalan düğüm tekrarlanır.
-
-**Mercek:** 2, 3.
-
-**Hazırlık:** SQL checkpoint ve kararlı executor kimliği var (K-127).
-
-**Maliyet:** Public seçenek, reconciliation dalı, job yükü.
-
-**Risk:** Yarım düğüm tekrar koşar (idempotency şart); MAF sürümü değişirse checkpoint okunamaz.
-
-**Bağımlılık:** F-344 önce kapanır.
-
-**Ekosistem:** MAF durable yolu (`Microsoft.Agents.AI.DurableTask` 1.16.0-preview, 2026-10-11) prerelease ve DTS ister; K-008 gereği çekirdeğe girmez.
-
-**Karşı görüş:** Tüketici resume'u kendi bekçisiyle çağırabilir; podcast raporu § 12 aynı boşluğu aday numarasız yazmıştı.
-
 ### F-322 · Kiracı başına workflow eşzamanlılığı, görünür kuyruk ve adil kiralama
 
 **Kanal:** faz planlama · 🟡
@@ -435,37 +236,13 @@ aday `aday-kesfi` ile üretilir. Bugünkü kalemler 2026-10-11 podcast
 
 **Karşı görüş:** Tüketici admission katmanında kiracı başına kabul sınırı koyabilir; Tracon sınırı ikinci katman olur.
 
-### F-323 · Job süre sınırı ve iptalin handler token'ına ulaşması
-
-**Kanal:** faz planlama · 🟡
-
-**Sorun:** Job'un süre sınırı yoktur; `POST /api/jobs/{id}/cancel` handler token'ını iptal etmez, handler `IsCancelledAsync`'i yoklamalıdır (`IJobHandler.cs:38-41,56-65`; `write-your-own-job-handler.md:145-152`). Takılan bir render tek media slot'unu süresiz tutar.
-
-**Kapsam:** `JobRequest` ve `TraconSchedulingOptions` düzeyinde isteğe bağlı `MaxDuration`; lease döngüsü iptal durumunu okur ve bağlı token'ı iptal eder; aşım ayırt edilebilir hatayla kapanır.
-
-**Değer:** İptal çalışan sürece saniyeler içinde ulaşır; takılan iş kendiliğinden kapanır.
-
-**Mercek:** 2, 5.
-
-**Hazırlık:** Tool timeout deseni (Faz 69).
-
-**Maliyet:** Yeni seçenek ve aralık doğrulaması; lease döngüsünde ek depo okuması.
-
-**Risk:** Token'ı dinlemeyen handler yine takılır — belgelenir.
-
-**Bağımlılık:** F-326 kapandı (2026-10-12); F-303'ün job eşidir.
-
-**Ekosistem:** —
-
-**Karşı görüş:** Handler kendi `CancelAfter`'ını kurabilir; çerçeve desteği tek tip davranış ve görünürlük ekler.
-
-### F-324 · Karışık zincirde agent adımının iletim modu ve kayıtta tip uyumu
+### F-324 · Karışık zincirde agent adımının iletim modu
 
 **Kanal:** faz planlama · 🟢
 
-**Sorun:** Agent adımı yanıtın bütün mesajlarını iletir (`WorkflowAgentStepExecutor.cs:33-43`); Loop'ta bu bütün taslaklar demektir (`LoopEvaluatorRegistry.cs:268-272`). Yapılandırılmış nesne kanalı yoktur. Kayıt komşu düğümlerin `InputType`/`OutputType` uyumunu denetlemez (`WorkflowDefinitionValidator.cs:51-92`).
+**Sorun:** Agent adımı yanıtın bütün mesajlarını iletir (`WorkflowAgentStepExecutor.cs:33-43`); Loop'ta bu bütün taslaklar demektir (`LoopEvaluatorRegistry.cs:268-272`). Yapılandırılmış nesne kanalı yoktur. Kayıttaki tip zinciri ve ilk düğüm kuralı F-341 ile kapandı (2026-10-12, K-908: atanabilirlik, kayıt ve derleyici); bu aday yalnız iletim modunu taşır.
 
-**Kapsam:** Agent düğümüne iletim modu (son asistan mesajı · bütün mesajlar · yapılandırılmış JSON); kayıtta tip zinciri ve ilk düğüm kuralı; varsayılan bugünkü davranış.
+**Kapsam:** Agent düğümüne iletim modu (son asistan mesajı · bütün mesajlar · yapılandırılmış JSON); varsayılan bugünkü davranış. Yeni mod tip zinciri kuralına (`WorkflowDefinitionValidator.ValidateNodeTypes`) çıktı tipini bildirir.
 
 **Değer:** Doğrulama veya TTS düğümü yalnız son, geçerli içeriği alır.
 
@@ -477,35 +254,11 @@ aday `aday-kesfi` ile üretilir. Bugünkü kalemler 2026-10-11 podcast
 
 **Risk:** Mevcut zincirlerin davranışı korunmalı.
 
-**Bağımlılık:** Önce podcast ham #14 ölçümü; F-341 ile birlikte.
+**Bağımlılık:** Önce podcast ham #14 ölçümü. F-341 kapandı.
 
 **Ekosistem:** —
 
 **Karşı görüş:** Fonksiyon düğümü son asistan mesajını kendisi seçebilir; değer tek tip davranış ve kayıtta erken hatadır.
-
-### F-345 · Skill script yürütmesini harici sandbox'a yönlendiren public seam
-
-**Kanal:** faz planlama · 🟡
-
-**Sorun:** Beş kapıdan (Enabled · içeriğe pinli grant · yorumlayıcı listesi · argüman doğrulama · denetim) sonra script tek bir çağrıyla yerel süreçte başlar (`SandboxedSkillScriptRunner.cs:447` → internal `SkillScriptProcessRunner`). Süreç Tracon'un OS kimliğiyle koşar; R8 kabul edilen risktir (K-862). Çok kiracılı host stored script için platform yetkisi ister (K-861). Yürütmeyi host'un sandbox'ına taşıyan bir seam yoktur.
-
-**Kapsam:** `Tracon.Abstractions`'ta yürütücü sözleşmesi: girdi yorumlayıcı, script içeriği + hash, stdin JSON, süre ve çıktı sınırı, kiracı, run kimliği; çıktı çıkış kodu, stdout/stderr, kesildi mi, süre aşımı. Varsayılan uygulama bugünkü yerel süreçtir; host kendi uygulamasını (gVisor, mikro-VM, uzak servis) kaydeder. Kapılar, içerik pini, onay ve denetim Tracon'da kalır. Yeni kod yazma yüzeyi açılmaz.
-
-**Değer:** Operatör kodunu çalışma anında koşturan çok kiracılı host (podcast ve Explainer turları) stored script'i gerçek yalıtımla koşar; K-861 ve K-862'nin yeniden açılma koşulu ölçülebilir olur.
-
-**Mercek:** 3, 6.
-
-**Hazırlık:** Tek çağrı noktası belli; sonuç tipi internal `SkillScriptExecutionResult`.
-
-**Maliyet:** Public arayüz ve DTO'lar; `Tracon.Testing.Contracts.Xunit` sözleşme testi; site güvenlik sayfası.
-
-**Risk:** Uzak yürütücü script içeriğini ağda taşır; süre ve iptal ağ üzerinden işler. Yalıtımı host kurar — Tracon yalnız kapıları vaat eder (K-862 dili korunur).
-
-**Bağımlılık:** F-169 eşiği aşılırsa Hyperlight bir uygulama olur. Uygulama kayıtlıyken K-861/K-862 metni karar ister.
-
-**Ekosistem:** Hyperlight 0.7.0 (2026-10-11), eşik aşılmadı. gVisor GPU'yu `nvproxy` ile sınırlı destekler; Firecracker GPU geçirmez (2026-10-11 tarandı).
-
-**Karşı görüş:** Seam yalnız LLM'in çağırdığı skill script yolunu kapsar; Explainer'ın zorunlu medya adımları host job'unda kalır. Operatör kodunu Tracon'un koşturduğu düğüm K2/L20 ile reddedildi (podcast ham #18); bu kalem onu açmaz.
 
 ### F-346 · Anthropic güncel API ayarları: önbellek TTL'i ve yerleşimi, adaptive thinking, örnekleme kısıtı
 
@@ -565,19 +318,34 @@ yolda da § *Kalemin yaşam döngüsü* uygulanır.
 
 ### Kusur giderme
 
-F-341…F-344 (Explainer-Video turu) satırları kısadır; tam kanıt ve repro fikri [tüketici raporu § 12](arsiv/incelemeler/2026-10-11-explainer-video-tuketici-uyum-raporu.md#12-tracon-kusurları-kanıt-tablosu)'dedir. 2026-10-12'de iki tur kapandı: önce 🟠 kalemler (F-325 · F-326 · F-328 · F-327 · F-329 · F-330 · F-331, F-317 ve F-314 ile), sonra bütün 🟡 kalemler (F-315, F-332…F-340, F-348, F-349, F-351, F-352; K-892…K-896). F-353…F-373 ikinci turun sınıf taramalarından gelir; sıradakiler bunların 🟡 olanlarıdır.
+2026-10-12'de üç tur kapandı: önce 🟠 kalemler (F-325 · F-326 · F-328 · F-327 · F-329 · F-330 · F-331, F-317 ve F-314 ile), sonra 🟡 kalemler (F-315, F-332…F-340, F-348, F-349, F-351, F-352; K-892…K-896), sonra tüketici turunun kusurları (F-341…F-344, F-354, F-360, F-364…F-367, F-369…F-372; K-903…K-911). F-382…F-385 bu turun kendi ölçümüdür; F-386…F-404 kapanan kusurların sınıf taramalarından gelir. Kapanan kalemlerin kaydı [`arsiv/ERTELENEN-ADAYLAR.md`](arsiv/ERTELENEN-ADAYLAR.md) § Kapanan kalemler'dedir.
 
 | Aciliyet | Kalem | Sorun | Ne yapılır |
 |---|---|---|---|
-| 🟡 | **F-354** · Devre kesici kalıcı `4xx`'i sağlayıcı arızası sayar | Kod okuması (2026-10-12, F-338): `CircuitBreakingChatClient` her istisnayı sayar; bir kiracının paylaşılan anahtardaki `400`'leri devreyi herkes için açar | Karar: MT-MYU-001/002 `401`'in devreyi açmasına dayanır; `401`/`403` sayılsın, diğer kalıcı `4xx` sayılmasın (`ProviderHttpStatus`) |
-| 🟡 | **F-360** · Yan kanal çağrısının fallback'i run'ın fallback atfını ve modelini yazar | Kod okuması (2026-10-12, F-349): yargıç/özetleyici bağlamasında `Fallbacks` varsa `FallbackChatClient` run'ın atfına ve writer'ına yazar; `runs.model_id` yargıcın fallback modelini adlandırır, agent payı o modelle fiyatlanır | Atıf yalnız agent'ın kendi bağlamasında; yan kanal payı cevap veren modelle. Fonksiyonel kırmızı test |
+| 🟠 | **F-383** · Alt agent harcaması kiracı kotasına girmez | Kod okuması (2026-10-12): kök agent run'ı kotaya yalnız kendi usage'ını ve yan kanal payını yazar (`RunRecordingAgent.Completion.cs:155`); callable alt agent'ların token ve maliyeti eklenmez (`ChildAgentInvoker` `ExtraUsage`'a yazmaz). Workflow kökü ağaç toplamını yazar (`WorkflowRunner.cs:1711`, `TreeUsage`). Site "consumption is counted once at the tree's root" der (`concepts/governance.md`). Kiracı token ve maliyet kotası alt agent'larla aşılır | Kök agent kotaya ağaç toplamını yazar (workflow emsali); fonksiyonel kırmızı test (alt agent token'ı sayaçta) |
+| 🟠 | **F-384** · Görsel üretimi kiracı egress politikasını ve kiracı anahtarını uygulamaz | Kod okuması (2026-10-12): `generate_image` ve `/api/images/generate` kurulum düzeyindeki `ImageGeneratorResolver`'ı çağırır (`GenerateImageTool.cs:86`); `TenantProviderAccess` yalnız model, canlı ses ve kiracı sağlayıcı uçlarındadır. K-467/K-874 "her yol kapıdan geçer" der; K-878 canlı ses için emsaldir | Görsel yolu kiracı egress kapısından ve BYOK bağlamasından geçer (K-878 deseni, Faz 198'in konuşma çözümleyicisiyle aynı model); fonksiyonel kırmızı test |
+| 🟡 | **F-382** · `GET /api/workflows/functions` ve `GET /api/schedules/handler-keys` aynı adlı kaydı gölgeler | Kod okuması (2026-10-12): sabit segment `{name}` rotasından önce eşleşir (`WorkflowEndpoints.cs:53` ↔ `:70`, `SchedulingEndpoints.cs:65` ↔ `:40`); ad kuralında ayrılmış ad yok. `functions` adlı workflow `PUT` ile kaydolur, `GET` fonksiyon listesini döner; konsol editörü ve istemciler yanlış şekil alır | Karar: iki ad ayrılmış olur (`400`) ya da sabit uçlar başka yola taşınır (public HTTP sözleşmesi); önce fonksiyonel kırmızı test |
+| 🟡 | **F-385** · `Scheduling` lane ve handler-key koleksiyonları yapılandırmadan bağlanmaz | Kod okuması (2026-10-12): `BindScheduling` (`TraconServiceCollectionExtensions.Binding.Operations.cs`) yalnız yedi skaler anahtarı okur; `Lanes`, `MaxConcurrentJobsPerLane`, `LaneByHandlerKey`, `HttpSchedulableHandlerKeys` okunmaz. Site dördünü yapılandırma anahtarı diye listeler (`reference/configuration.md:348-351`); `appsettings`'teki `media` lane bütçesi sessizce yok sayılır | Bağlayıcıya dört koleksiyon; F-247 deseninde bağlama testi |
+| 🟡 | **F-386** · İçerik koruyucu maskelenen belgeyi işaretsiz metin yapar | Kod okuması (2026-10-12, F-343 sınıf taraması): `ContentGuardMessageMasker.WriteText` (`:346`) belge mesajını işaretsiz `TextContent` olarak yeniden kurar; `RunStarted.Text` belge metni olur, `DocumentAttached` yazılmaz. İşareti aynen korumak ham belge adını ve özetini kayda sızdırır | Tasarım: maskeli belge için işaret (ad yerine maske). Terfi bugün blok metninden tanıyarak atlatır |
+| 🟡 | **F-387** · Durum okuyucusu System.ClientModel'in `Status: nnn` mesajını görmez | Ölçüldü (2026-10-12, F-354 probu): boş ya da OpenAI dışı gövdede mesaj `Service request failed. Status: 400 (Bad Request)` olur, `ProviderHttpStatus.Read` boş döner. Devre boş gövdeli `400`/`404`'ü sayar; boş gövdeli `401`/`403`/`404`'te zincir yedeğe geçer (K-449, F-338 ihlali); düğüm retry'ı tekrarlar. Ayrıca istenmemiş her `OperationCanceledException` kökenine bakılmadan devreye sayılır | Tek okuyucuya `Status:` biçimi; `FallbackRetryClassifier` `ProviderHttpStatus`'u okur; Azure.Core, Google, Anthropic biçimleri ölçülür. K-817 parmak izi değişir |
+| 🟡 | **F-388** · Webhook teslim ön denetimi kurulumun egress ayarını almaz | Kod okuması (2026-10-12, F-366 sınıf taraması): teslim handler fabrikası `IOptionsMonitor<TraconEgressOptions>` geçirmez (`TraconServiceCollectionExtensions.Registration.Storage.cs:297`), handler `new TraconEgressOptions()` kullanır (`WebhookDeliveryJobHandler.cs:91`). Yalnız `Tracon:Egress:AllowPrivateNetworkTargets` açık host'ta özel ağdaki hedef `Dropped` olur; site iki ayardan birinin yettiğini söyler | Fabrikaya tek satır; özel IP'li fonksiyonel test. Geçici çözüm: `Tracon:Webhooks:AllowPrivateNetworkTargets` |
+| 🟡 | **F-389** · Batch ve eval kök run'ı onay isterse `AwaitingApproval`'da kalır | Kod okuması (2026-10-12, F-370 sınıf taraması): oturumsuz batch öğesi (`AgentBatchJobHandler`) ve eval case run'ı (`EvalJobHandler`) onay isteyen tool'da `AwaitingApproval` ile kapanır; posta kutusu satırı yok, cevaplanamaz; batch öğesi `Completed` raporlanır. AgentRun'ın oturumsuz `Failed` kuralı burada yok | Oturumsuz kök run `Failed` (AgentRun kuralı) ya da `QueuedTurn` kancası; fonksiyonel kırmızı test |
+| 🟡 | **F-396** · Workflow SSE uçları girdi ve durum hatasını akış başladıktan sonra bildirir | Ölçüldü (2026-10-12, F-341 sınıf taraması): geçersiz `sessionId`, olmayan run'ı `resume`, beklemeyen run'a `respond` `200` + SSE hata alır. Olmayan `checkpointId` ile `resume` ayrıca yeni bir `Failed` run satırı açar ("Checkpoint '…' was not found.") | Durum kodu kararı (`404`/`409`/`400`) ve F-341 deseni: akıştan önce denetim |
+| 🟡 | **F-400** · Veri sahibi kapsamı dışında kalanlar: `idempotency_keys`, `job_items`, terfi edilmiş eval vakası | Kod okuması (2026-10-12, F-371 sınıf taraması): `idempotency_keys` run yanıtını (`body`) ve `run_id`'yi, `job_items` öğe mesajını ve `run_id`'yi taşır; ikisi `DataSubjectCoverageTests`'te "Open" muafiyetiyle durur. Terfi edilmiş vaka üretim girdisinin kopyasıdır. Silme commit edildikten sonra koşan run checkpoint ve oturumu geri yazabilir | İki tablo hedef olur; vaka için karar (sil ya da koru); geri yazım için önce test |
+| 🟡 | **F-401** · Dışa aktarım korumalı sütunları şifreli metin olarak verir; checkpoint durumu korunmaz | Kod okuması, ölçülmedi (2026-10-12, F-371): `SqlDataSubjectStore.ExportAsync` sütunları ham yazar, `ProtectedValue.Read` çağırmaz; `AddContentProtection` açıkken `sessions.state`, `run_inputs.*`, `conversation_items.item` şifreli gelir (site "your own code never sees ciphertext" der). `ProtectedColumn` `workflow_checkpoints.state`'i kapsamaz | Önce kırmızı test (koruma açık dışa aktarım); checkpoint için koruma kararı |
 | 🟡 | **F-361** · `EvaluatorRunJudge` harcaması hiçbir yere yazılmıyor | Kod okuması (2026-10-12, F-349): MEAI evaluator'ını kurulum istemcisiyle çağırır; `ModelRunJudge` gibi bir Eval run satırı yazmaz, örneklenen run'a da eklemez. XML (`:29-30`) "maliyeti her örneklenen run'a eklenir" der | K-328 deseni (`judge:{name}` Eval satırı) ya da XML'in düzeltilmesi; karar ister |
-| 🟡 | **F-365** · `EvalJobHandler` son yazımı dış `catch`'e düşer | Kod okuması (2026-10-12, F-348 sınıf taraması): `CompleteRunAsync(Completed)` (`EvalJobHandler.cs` ~`:239`) dış `try` içindedir; `store` hatası bitmiş eval'i `Failed` yazar ve istisnayı yeniden fırlatır, worker işi yeniden dener ya da düşürür | F-348 deseni: son yazım ayrı ve tekrar edilebilir; kırmızı birim testi (ilk `CompleteRunAsync` atar) |
-| 🟡 | **F-366** · `WebhookDeliveryJobHandler` başarılı gönderimden sonraki `store` hatasında yeniden teslim eder | Kod okuması (2026-10-12, F-348): sonuç yazımları başarılı `SendAsync` ile aynı `try`'da; alıcı webhook'u iki kez alır | F-348 deseni |
-| 🟡 | **F-367** · Kuyruklu run'da `SaveSessionAsync` hatası başarılı run'ı handler hatası yapar | Kod okuması (2026-10-12, F-348): `AgentRunJobHandler`, `ApprovalResumeJobHandler`, `RunContinuationJobHandler`; run `Completed` iken iş `Failed` olur ya da model çağrısı tekrarlanır | Oturum kaydı turun parçasıdır (F-133); karar ister |
-| 🟡 | **F-370** · Onay devamı ikinci bir onay isterse posta kutusuna yazılmaz; zincir takılır | Ölçüldü (2026-10-12, F-352 incelemesi, geçici prob): devam run'ı `AwaitingApproval` ile kapanır ama `PendingApproval` satırı yazılmaz; `GET /api/approvals/pending` boş döner. `ApprovalResumeJobHandler` sınıf dokümanı "zincir aynı şekilde devam eder" der | AgentRun'ın `BeforePendingApprovalIsPublished` kancası ve `RecordPendingApprovalsAsync` ortak bir yardımcıya taşınır (oturum önce, onay sonra — F-133 sırası); fonksiyonel kırmızı test |
-| 🟡 | **F-371** · Veri sahibi dışa aktarımı ve silmesi `workflow_checkpoints`'i atlar | Kod okuması (2026-10-12, F-332): tablo `tenant_id`, `session_id`, `run_id` taşır ama `runs`'a FK'sı yok; serileştirilmiş durum kullanıcı mesajı içerebilir | `DataSubjectTargetRegistry`'ye hedef; üç SQL sözleşme testi |
-| 🟡 | **F-372** · Retention arşiv modu arşivlemediği satırı silebilir | Kod okuması, ölçülmedi (2026-10-12, F-332): `ReadForArchiveAsync` sıralı okur, `DeleteBatchAsync` sırasız batch siler; birden çok batch eşleşince kümeler ayrışabilir. Her hedefi etkiler | Kırmızı sözleşme testi; silme arşivlenen id'lerle |
+| 🟢 | **F-390** · Sürdürme yer tutucusu kuyrukta kullanıcı ve etiket taşımaz | Kod okuması (2026-10-12, F-369): `RunReconciliationService` yer tutucu satırı `UserId`/`Labels`'sız açar; işleyici run başlayınca doldurur (test kanıtlı). Boşluk yalnız kuyrukta bekleyen ve başlamadan düşen satırdadır | Yer tutucu kaynak run'ın atfını yazar (`ApprovalEndpoints` emsali) |
+| 🟢 | **F-391** · Onay satırı yazımı tekrar edilemez | Kod okuması (2026-10-12, F-367): `QueuedTurn.RecordPendingApprovalsAsync` → `IPendingApprovalStore.CreateAsync` (`QueuedTurn.cs:258`) oturum kaydından sonra hata verirse run `Failed` olur; deneme hakkı varsa model ikinci kez çağrılır. `CreateAsync` idempotent değil | Id ile önce okuma ya da idempotent ekleme; sonra F-367 penceresi |
+| 🟢 | **F-392** · Yeniden denenen eval token toplamını eksik yazar | Kod okuması (2026-10-12, F-365 sınıf taraması): kira dolumu ya da kapanış yazımı yedeği sonrası deneme yalnız kendi koştuğu vakaların token'ını sayar (`EvalJobHandler`) | Toplam kayıtlı vaka sonuçlarından hesaplanır |
+| 🟢 | **F-393** · Başarısız webhook gönderiminde `store` hatası beklemeyi atlar | Kod okuması (2026-10-12, F-366): başarısız gönderim yolundaki yazım hatası basamaklı beklemeyi atlar, iş hemen yeniden denenir; son denemede teslim `Pending` kalır (`WebhookDeliveryJobHandler`) | Başarısız yol da `JobOutcomeWriteRetry` ile; son denemede teslim `Failed` |
+| 🟢 | **F-394** · Çevrimiçi eval özet yazımı düşerse puan özete hiç girmez | Kod okuması (2026-10-12, F-365 sınıf taraması): puanlar yazıldıktan sonra `RecordScoreAsync` (`OnlineEvalJobHandler.cs:398`) hata verirse deneme düşer; tekrar yargıcı atlar, puan çevrimiçi özete eklenmez | Özet yazımı ayrı ve tekrar edilebilir (F-348 deseni) |
+| 🟢 | **F-395** · Fonksiyon düğümünün kendi model çağrısı kök akışa `ModelFallbackUsed` yazar | Kod okuması (2026-10-12, F-360): düğüm içinden yapılan model çağrısının fallback'i workflow kökünün akışına olay yazar (`FallbackChatClient.RecordFallbackUsedAsync`); `model_id` ve maliyet etkilenmez | Karar: olay yalnız atfı sahiplenen agent run'ında mı, workflow sinyali olarak mı (K-907) |
+| 🟢 | **F-397** · Eval run'ları atıfsız; kök run'ın atfı tüketici bağlamına bağlı | Kod okuması (2026-10-12, F-364): eval case run'ları kullanıcı ve etiket taşımaz (`JobAttributionScopeSiteTests`'te gerekçeli). Kök run'ın atfı yalnız `IRunAttributionContext` ortam kapsamını okursa görünür; okuyucu etkin `AmbientRunAttributionScope`'u önceleyebilir (`AgentSessionManager` emsali) | Karar: eval kuyruğa alanın atfını taşır mı; okuyucu sırası (public davranış) |
+| 🟢 | **F-398** · `object` girdili ilk fonksiyon düğümü iki kez koşar | Ölçüldü (2026-10-12, F-341, MAF 1.20.0): runner yanıtsız başlangıçta `TurnToken`'ı her zaman gönderir; `object` girdili ilk düğüm bir kez `List<ChatMessage>`, bir kez `TurnToken` ile koşar. Tip kuralı bu düğümü reddetmez | Karışık zincirde token gerekliliği ölçülür; gerekmezse gönderilmez, gerekirse ilk düğüm `object` alamaz |
+| 🟢 | **F-399** · Uzlaştırıcı callable alt agent ya da skill taşıyan kök agent için devam kuyruğa koyar | Kod okuması, ölçülmedi (2026-10-12, F-344): işleyici sonra reddeder (`RunContinuationJobHandler` skill ve callable reddi), `Failed` bir yer tutucu satır kalır | `RunContinuationEligibility` bu iki reddi uzlaştırıcıda da uygular |
+| 🟢 | **F-402** · Zamanlama atfı Admin'in yükte yazdığı beyandır | Karar sorusu (2026-10-12, F-364): zamanlama zarfındaki `userId`/`labels` elle yazılır (K-904); agent-run yükü de aynı alanı kabul eder. "Gövde atıf kaynağı değildir" ilkesiyle çelişir | Karar: zamanlamanın kimliği (kaydı yazan Admin · servis kimliği · beyan) |
+| 🟢 | **F-403** · Eval case derlemesi altıncı elle yol; kesme işaretinin kopyası | Kod okuması (2026-10-12, F-343): `EvalJobHandler` parametreli derlemeyi elle yapar ve dekoratörleri uygular ("tek fabrika" notunun dışında); `WorkflowRequestDescriptor.cs:285` `…[truncated]` işaretini tekrarlar (`RunEventWriter.TruncationMarker` var) | `ParameterizedAgentFactory.CompileAsync`'e birleştirme; sabit kullanımı |
+| 🟢 | **F-404** · Yanıt önbelleğinin depo okuma hatası "miss" metriğine yazılır | Kod okuması (2026-10-12, F-354 sınıf taraması): `TraconResponseCachingChatClient` (`:138`, `:170`) iki farklı olayı tek metrikte birleştirir; kapı etkisi yok | Ayrı `error` sonucu (metrik etiketi) |
 | 🟢 | **F-350** · Onay bekleyen yanıt yapılandırılmış doğrulamada "boş" diye reddedilebilir | Kod okuması, doğrulanmadı (2026-10-12, F-329 incelemesi): doğrulayıcı (30) `ToolApprovalAgent`'ın (20) içindedir; onay isteğiyle biten yanıtın asistan metni yoktur ve run `AwaitingApproval`'a geçmeden `StructuredResponseInvalid` ile düşebilir | Önce kırmızı test (Json biçimli agent, onay isteyen tool). Doğrulanırsa onay bekleyen yanıt doğrulamadan geçer |
 | 🟢 | **F-316** · Akışsız run endpoint'i `LoopUnsatisfied` ve `StructuredResponseInvalid` hatasını `502` olarak döner | Faz 192 denetimi (kod okuması): akışsız yolun genel `catch`'i (`AgentEndpoints.cs:1553-1571`) her istisnayı `502 Bad Gateway` ve `errorType`'sız problem olarak yazar. Karşılanmayan döngü ya da geçersiz yapılandırılmış yanıt bir yukarı akış arızası değildir; istemci sebebi yalnız run kaydından okur. Akışlı yol türü `error` çerçevesinde taşır (`MT-CORE-134`) | Doğru durum kodu kararlaştırılır (ör. `422`); problem gövdesine `errorType` eklenir. OpenAPI anlık görüntüsü ve istemci birlikte yenilenir. Etki: public HTTP sözleşmesi |
 | 🟢 | **F-353** · Sınıflandırıcı durum kodunu iki yerde görmez | Kod okuması (2026-10-12, F-338): normalleştirilmiş `429` `RateLimited` değil `ProviderError`; yalnız `HttpRequestException.StatusCode`'da taşınan `5xx` `transport_error`; `ProviderFailureNormalizer.ReadStatus` `StatusCode`'u okumaz | `error_class`'ı değiştirir; K-817 "tek daraltma" ile karar. Durum okuması `ProviderHttpStatus.Read`'den |
@@ -588,9 +356,7 @@ F-341…F-344 (Explainer-Video turu) satırları kısadır; tam kanıt ve repro 
 | 🟢 | **F-359** · `UseOpenAILive` doğrulayıcısı tüketicinin kendi `ILiveVoiceProvider`'ında da OpenAI anahtarı ister | Kod okuması (2026-10-12, F-336): `ValidateOnStart` ile bu yapılandırma başlangıçta düşer; senaryo yapay | Karar: belgele veya `VoiceProviderBinding` benzeri bağlama |
 | 🟢 | **F-362** · Hiçbir modeli fiyatlı olmayan karma run satırı yeniden fiyatlamada agent modeliyle fiyatlanır | Kod okuması (2026-10-12, F-349, K-893 bilinen sınırı): depo model başına usage tutmaz; fiyatlı payı olan karma satır atlanır, fiyatsız karma satır tek model satırından ayırt edilemez | Model başına döküm sütunu veya "karma" işareti (migration + public API) |
 | 🟢 | **F-363** · Embedding token'ları run usage'ına ve maliyetine girmez | Kod okuması (2026-10-12, F-349): `search_knowledge` sorgu embedding'i (`VectorSearchToolFactory.cs:55`) sayılmaz; embedding üreteci fiyatlı bir sağlayıcıya bağlı değildir (K-874 kapsam dışı bıraktı) | Embedding üretecinin sağlayıcı/fiyat kimliği gelince yan kanal payı olarak eklenir |
-| 🟢 | **F-364** · Kuyruklu ve zamanlanmış workflow run'ı atıf taşımaz | Kod okuması (2026-10-12, F-337 sınıf taraması): `WorkflowJobHandler` `AmbientRunAttributionScope` açmaz (`AgentRunJobHandler` açar); trigger/zamanlama ile başlayan workflow kökü ve düğümleri kullanıcısız kalır. Workflow kökü kota eşiklerini akışa yazmaz (kota `CompleteAsync`'ten sonra kaydedilir, `TreeUsage` için) — bilinçli | Job payload'ına `userId` (agent job'u gibi); F-351 sınıfıyla birlikte |
 | 🟢 | **F-368** · Alt agent üst run'ın kültürünü almaz | Kod okuması (2026-10-12, F-351 sınıf taraması): `CallableAgentResolver` çocukları `culture: null` ile çözer; çok dilli bir üst run'ın çocuğu varsayılan talimatla koşar. `AgentRunScope` kültür taşımaz | Karar: `AgentRunScope.Culture` (eklemeli public API) ile miras ya da "çocuk varsayılan kültürle koşar" diye belgele |
-| 🟢 | **F-369** · Kuyruklu run'ın çocukları etiket, onay devamının çocukları kullanıcı taşımaz | Kod okuması (2026-10-12, F-351): `AgentRunJobHandler` kapsamı `labels: null` ile açar; `ApprovalResumeJobHandler` kapsam açmaz. F-364'ün agent karşılığı | Payload etiket taşır; devam kaynak run'ın atfıyla kapsam açar |
 | 🟢 | **F-373** · Kayıtlı `IAttachmentStorage` kalkınca retention `external_uri`'li satırı siler, bayt yetim kalır | Kod okuması (2026-10-12, F-332): depolama yoksa eski tek-ifade yolu | Satırı tut ve logla ya da koşumu düşür (karar) |
 | 🟢 | **F-241** · Kırpma bir vekil (surrogate) çiftini ortadan kesebilir — sınıf | `EvaluatorRunJudge.ResolveVersion` sürümü `version[..MaxEvaluatorVersionLength]` ile kırpar. 128. karakter yüksek vekilse yalnız kalan vekil `varchar`/`nvarchar` yazımında kodlama hatası doğurur; hata yazma döngüsünde `retryable` sayılıp tekrarlanır. Aynı desen `TextValue` kırpmasında da var ([`EvaluatorRunJudge.cs`](../src/Tracon.Core/Evaluation/EvaluatorRunJudge.cs)). Olasılık çok düşük — informational version pratikte ASCII'dir | Sınıfı tek bir güvenli kırpma yardımcısına indir. Kırpılan bir alanın ASCII-dışı içerik taşıdığı ölçülürse aciliyet yükselir |
 | 🟢 | **F-281** · `Tracon.Google` görsel yolunda `MediaType` verilirse SDK `NotSupportedException` atar | Canlı ölçüldü (2026-09-24, Google.GenAI 1.16.0, API anahtarı): `ImageConfig.OutputMimeType` her değer için *"outputMimeType parameter is only supported in Gemini Enterprise Agent Platform mode, not in Gemini Developer API mode"* ile reddedilir. `GoogleImageGenerator` (`src/Tracon.Google/Internal/GoogleImageGenerator.cs:77`) `ImageGenerationOptions.MediaType` verilince onu gönderir; Tracon'un iki sevk edilen yolu (`/api/images/generate`, `generate_image`) `MediaType` vermediği için bugün yalnız `IImageGenerator`'ı doğrudan çağıran tüketiciyi etkiler | Paket yalnız API anahtarı modunu desteklediği sürece `MediaType` istemde reddedilir ya da yok sayılır — hangisi olacağı küçük bir davranış kararıdır; karar sonrası düşen test + site cümlesi |
@@ -598,38 +364,31 @@ F-341…F-344 (Explainer-Video turu) satırları kısadır; tam kanıt ve repro 
 | 🟢 | **F-286** · Bütünüyle kaldırılan bir paket kırıcı kapıda hiç denetlenmez | Taban kümesi bugünkü `library_ids`'ten gelir (`scripts/kapi.py` `release_rehearsal`); tabanda olup HEAD'de olmayan paket için ne restore ne rapor olur (Faz 187 denetimi 🟢3) | Taban etiketindeki `src/*/*.csproj` kümesiyle HEAD'dekini karşılaştır; düşen paket kimliği notta code span olarak geçmeli |
 | 🟢 | **F-287** · `dokuman_iddia_cakismalari` proje başına `TraconPublicApiTrackingEnabled=false` cümlesini de çelişki sayar | Faz 187 kapıyı gerçek anahtara çevirdi (`scripts/dokuman-bakim.py`); anahtar artık proje başına kapatmadır (K-424), "`Tracon.Client` `false` yazar" gibi doğru bir skill cümlesi bulgu olur. Bugün tetikleyen satır yok (denetim 🟢4) | İddia desenini varsayılana daralt ("varsayılan"/"default" ya da `src/Directory.Build.props` bağlamı) |
 | 🟢 | **F-311** · Kapalı MCP oturumuna giden çağrı "TaskCanceledException" diye raporlanır | Ölçüldü (2026-10-11, F-305 repro): kapalı oturumdan giden `tools/call` için `ToolFailed` olay metni "Tool failed with TaskCanceledException." idi. Model "Error: Function failed." gördü, run `Completed` döndü; neden iptal değil kapalı bağlantıydı ve operatör onu iptal sanır. `{server}_read_resource` aynı durumda yanıltıcı "not among the resources declared" hatası verir. K-880'den sonra ana yol, F-310'dan sonra uzun ömürlü oturumlar bu duruma girmez; kalan yol derleme ile çağrı arasındaki yarış | MCP tool sarmalı (ya da `ExplainedFailureAIFunction`), çağıranın token'ı iptal değilken dispose edilmiş oturumdan gelen `OperationCanceledException`'ı "MCP connection to server '<ad>' is closed" diye açıklar; `read_resource` gövdesi kapalı bağlantıyı ayrıca söyler |
-| 🟢 | **F-341** · `respond` dönüştürülemeyen yanıtta 400 yerine 200 + `Failed` döner; kayıt komşu tip uyumunu denetlemez | Kod okuması: `WorkflowContracts.cs:103-110` ↔ `WorkflowEndpoints.cs:611-648`; `WorkflowDefinitionValidator.cs:51-92` ↔ `concepts/workflows.md:48-50` | Dönüşüm uçta; kayıtta tip zinciri (F-324 ile) |
-| 🟢 | **F-342** · Belge-kod kaymaları (Explainer turu demeti) | Ölçüldü: site düğüm mesajı (`RunTimeout` cümlesi 2026-10-12'de F-325 ile düzeldi), `JobHandlerKeys.Workflow`, `SkillRoots`, `MaxOutputBytes`, resume hatası, konsolda `ToolCallUsage`, fallback `ChatOptions` ↔ K-444, MT-WF-114. | Belge koda göre; konsol gösterimi ve K-444 karar ister |
-| 🟢 | **F-343** · Eval yolunda bağlam kaybı: `EvalCase.Context` agent'a gitmez; terfi belgeyi ve 8 KB üstünü düşürür | Kod okuması: `EvalJobHandler.cs:336-339` ↔ `EvalCase.cs:35-36`; `RunToCasePromoter.cs:83-108` | Belge düzeltilir veya `Context` belge kanalıyla gider (karar); terfi `run_inputs`'tan |
-| 🟢 | **F-344** · Reconciliation yetim workflow kökünü agent turu gibi sürdürür | Kod okuması: `RunReconciliationService.cs:139-174` `RunKind` ayırmaz; girdi kaydı yok (`WorkflowRunner.cs:507-512`); iki ayar varsayılan kapalı | Fonksiyonel test; workflow kökü atlanır (F-321 önkoşulu) |
 
 ### Faz planlama
 
 | Aciliyet | Kalem | Neden | Plan notu |
 |---|---|---|---|
-| 🟠 | F-298 · Adlı konuşma sağlayıcı kaydı + kiracı ses anahtarı | Ses çağrısı egress ve BYOK dışında; aynı süreçte yerel ve bulut motor | Gövde: § *F-298* |
-| 🟠 | F-318 · Bağlantıdan bağımsız workflow yürütmesi | Saatlik run HTTP akışına bağlı | Gövde: § *F-318* |
 | 🟠 | F-319 · Workflow HITL karar sözleşmesi | n revizyonlu onay; ikinci yanıt dal açar | Gövde: § *F-319* |
 | 🟡 | **F-290** · `AuthorizationConfigurationKey`'ın `1.0.0` GA'da kaldırılması: veri taşıma + form geçişi | Faz 190 alanı `[Obsolete]` yaptı ve `1.0.0`'da kalkacağını `CHANGELOG`, XML ve `production.md`'de duyurdu (K-869). Üç iş kaldı: (1) `authorization_configuration_key` dolu satırları `header_configuration_keys["Authorization"]`'a taşıyan migration (üç sağlayıcı; iki alan birlikte doluysa ne olacağı karar ister); (2) MCP formu (`mcp.tsx`) eski alanı yazıyor — yeni alanı yazmalı, yoksa kaldırma formu kırar; (3) sütunu ve public üyeyi kaldırma, `McpTransportFactory`/`McpHeaderBuilder` eski yol, `#pragma warning disable CS0618` blokları (kapanışta 11 adet: `grep -rn "pragma warning disable CS0618" src tests`) | GA tarihine bağlı; GA öncesi son preview fazı olarak planlanır. Form geçişi (2) GA'dan bağımsız erken yapılabilir |
 | 🟡 | F-247 · Yirmi dört yapılandırma bölümü için bağlama kanıtı | Risk yok, iş mekanik ve paralel yürür. Sınıf gerçek bir kusur üretti (`TraconImageOptions.Timeout`) | Gövde: § *F-247* |
 | 🟡 | F-296 · Konuşma sözleşmesi v2 (diyalog) | İki konuşmacılı ses tek sesli sözleşmeyle üretilemez | Gövde: § *F-296* |
 | 🟡 | F-297 · Gemini konuşma adaptörü | Yeni bağımlılık istemez; F-296'ya bağlı | Gövde: § *F-297* |
-| 🟡 | F-299 · Fonksiyon düğümünün token dışı maliyeti | TTS maliyeti hiçbir yere yazılmaz | Gövde: § *F-299* |
-| 🟡 | F-300 · Workflow ve skill sürüm geçmişi | Operatör düzenlemesi geri alınamaz | Gövde: § *F-300* |
-| 🟡 | F-302 · Konsolda `Loop` düzenleme | Revizyon sayısı yalnız API'den değişir | Gövde: § *F-302* |
-| 🟡 | F-303 · Fonksiyon düğümü zaman aşımı | K-497'nin koşulu oluştu: dakikalar süren düğüm | Gövde: § *F-303* |
 | 🟡 | F-320 · Kesilen model çıktısı ayrı sonuç | Anthropic 4096 varsayılanı uzun JSON'u keser | Gövde: § *F-320* |
-| 🟡 | F-321 · Workflow'u checkpoint'ten otomatik sürdürme | Çökmede elle resume | Gövde: § *F-321* |
 | 🟡 | F-322 · Kiracı başına workflow eşzamanlılığı | Semafor süreç başına, kiracılara ortak | Gövde: § *F-322* |
-| 🟡 | F-323 · Job süre sınırı ve iptal token'ı | Takılan iş slot'u süresiz tutar | Gövde: § *F-323* |
-| 🟡 | F-345 · Skill script'i harici sandbox'a yönlendiren seam | Operatör kodu iki tüketicide; R8 kabul edilen risk | Gövde: § *F-345* |
 | 🟡 | F-346 · Anthropic güncel API ayarları | `budget_tokens`/örnekleme 400; önbellek öneki paylaşılmaz | Gövde: § *F-346* |
 | 🟡 | F-347 · OpenAI strict şema modu | Kiracı başka model seçer; strict istenemez | Gövde: § *F-347* |
+| 🟡 | **F-411** · Onay Loop ölçütü ve denetim izi | Bakımcı kararı (2026-10-12): video hattındaki insan onayı ileride agent onayına döner ve Loop ölçütüyle yapılır. Faz 201 Açık Soru 7-A bu işi ayırdı: iterasyon olayında ölçüt kararı, yargıç modeli, agent sürümü (`LoopIterationCompleted` bugün bunları taşımaz) | Faz 201'den sonra; tasarım onay ölçütüyle birlikte yapılır |
 | 🟢 | **F-291** · Anahtar alanına değer yazan operatörün değeri `400` ve teslim `error`'ında yankılanır | Faz 190 denetimi 🟢2: `ConfigurationKeyGuard` mesajı (`ConfigurationKeyGuard.cs:112-114`) verilen adı olduğu gibi yazar; `{"X-API-Key":"sk-live"}` gibi bir hata değeri yanıta ve `webhook_deliveries.error`'a taşır. Tek alanlı `*ConfigurationKey` alanlarında da faz öncesinden beri aynı | Önek dışı adı yankılamadan reddet (yalnız alan adı + beklenen önek) ya da kimlik biçimli değeri maskele; dört yüzeyin (MCP, BYOK, webhook, trigger) testleri birlikte |
 | 🟢 | F-248 · `unwrap(...) as Promise<T>` iddialarının tip düzeyinde kapısı | Bugün tek örnek elle tarandı; sonrakini kimse taramaz | Gövde: § *F-248* |
 | 🟢 | F-249 · docs-site için tarayıcı tabanlı yerleşim kapısı | Elle koşulan case iki turda da kusur buldu | Gövde: § *F-249* |
-| 🟢 | F-301 · `AddLoopEvaluator` fabrika aşırı yüklemesi | Ölçüt DI'a ulaşamaz | Gövde: § *F-301* |
-| 🟢 | F-324 · Karışık zincirde iletim modu ve tip uyumu | Loop bütün taslakları iletir | Gövde: § *F-324* |
+| 🟢 | F-324 · Karışık zincirde agent adımının iletim modu | Loop bütün taslakları iletir; tip zinciri F-341 ile kapandı | Gövde: § *F-324* |
+| 🟢 | **F-405** · Agent düğümüne süre ve workflow başına `RunTimeout` | Faz 196 kapsam dışı bıraktı (Açık Soru 9): agent adımı önbellekli invoker'dır, `agentNames`'te alan yok (K-901) | Faz 196'dan sonra; düğüm ayarı yüzeyi (Faz 195) üzerinden |
+| 🟢 | **F-406** · Agent yolları konuşma sağlayıcısını adla seçsin | Faz 198 Açık Soru 5-C: Faz 198 adı yalnız fonksiyon düğümünde ve uçta seçtirir | Faz 198'den sonra; agent tanımına ses bağlaması |
+| 🟢 | **F-407** · Bütçe tükenince fonksiyon düğümü başlamasın | Faz 199 kapsam dışı: davranış değişikliği (K1) | Faz 199'un maliyet kaydından sonra; ağaç bütçesi denetimi düğüm başlangıcına |
+| 🟢 | **F-408** · Skill sürüm geçmişi ve geri alma | Faz 200 Açık Soru 6-B: skill geçmişi K-082'yi (kullanıcı kararı) açar, üç tablo ve özet liste ister (20 × 256 KiB kaynak), K-860 grant'ına dokunmamalı | K-082'nin yeniden açılma kararı; Faz 200'ün workflow deseni |
+| 🟢 | **F-409** · Alt agent ve skill sürüm sabiti | Faz 200 kapsam dışı: agent → skill ve alt agent adımı güncel sürümle koşar (K-895 (c)); agent numarası silmede yeniden kullanılır, sabit bunu miras alır | Faz 200'den sonra; numara yeniden kullanımı önce kapanır |
+| 🟢 | **F-410** · Kod Loop ölçütüne tanım başına tipli ayar | Faz 201 kapsam dışı: özel tür veri almaz (`LoopEvaluatorRegistry.cs:321-323`); Faz 195'in `Settings` deseni emsal | Faz 201'den sonra |
 
 ### Doğrudan
 
@@ -787,7 +546,7 @@ kaydındadır; burada yalnız hangi eşikte bekledikleri yazar.
 ### F-ID tahsis kuralı
 
 Numara **geri dönüştürülmez** ve bir numara **tek kaleme** aittir. Sıradaki
-numara: **F-382**.
+numara: **F-412**.
 
 Numarayı tahsis eden el sayacı **aynı değişiklikte** bir artırır.
 `python3 scripts/dokuman-bakim.py --denetle` iki şeyi zorlar:

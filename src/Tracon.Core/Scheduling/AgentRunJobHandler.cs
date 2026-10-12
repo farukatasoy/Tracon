@@ -32,12 +32,14 @@ namespace Tracon;
 /// If the response carries a tool call awaiting approval, <see cref="RunRecordingAgent"/>
 /// closes the run with <see cref="RunStatus.AwaitingApproval"/> (valid behavior
 /// for ALL root runs, not specific to the queue path alone —
-/// see <c>RunRecordingAgent</c>). This handler additionally, and ONLY this
-/// handler, writes a <see cref="PendingApproval"/> row for each request in that
-/// case (writing to this store REMAINS specific to the queue path, to
-/// avoid the risk of a double-decision race); the decision is made through
-/// <c>POST /api/approvals/{id}/decide</c> and queues a NEW run (see
-/// <c>ApprovalResumeJobHandler</c>).
+/// see <c>RunRecordingAgent</c>). The queue path additionally writes a
+/// <see cref="PendingApproval"/> row for each request in that case, through
+/// <see cref="QueuedTurn"/> (writing to this store REMAINS specific to the
+/// queue path, to avoid the risk of a double-decision race); the decision is
+/// made through <c>POST /api/approvals/{id}/decide</c> and queues a NEW run
+/// (see <c>ApprovalResumeJobHandler</c>). The session is saved before the
+/// approvals are written, and a store error on that save is tried again
+/// rather than running the turn a second time (see <see cref="QueuedTurn"/>).
 /// </para>
 /// <para>
 /// The HTTP layer assigns the experiment arm and captures the culture at
@@ -57,6 +59,13 @@ namespace Tracon;
 /// means none, so a payload an older build wrote runs as it always did; a field
 /// that is malformed fails the run once, naming the field, and closes the
 /// placeholder row.
+/// </para>
+/// <para>
+/// The <c>userId</c> and <c>labels</c> the HTTP layer resolved travel in the
+/// payload too, and the run replays both through
+/// <see cref="AmbientRunAttributionScope"/>: the run's sub-agents and tools read
+/// them from there. Unlike the fields above, a malformed one is dropped, not
+/// thrown on (see <see cref="QueuedRunAttribution"/>).
 /// </para>
 /// </remarks>
 internal sealed class AgentRunJobHandler(
@@ -80,16 +89,19 @@ internal sealed class AgentRunJobHandler(
         ArgumentNullException.ThrowIfNull(context);
 
         var (runId, message, sessionId, userId, culture) = ParsePayload(context.Job.Payload);
+        var labels = ReadOptionalLabels(context.Job.Payload, runId);
 
         // 🚨 Opened in THIS method's own body, wrapping every await that
         // follows. An AsyncLocal write made inside an async helper does not
         // flow back to its caller, so resolving the identity in a helper and
         // returning it here would leave the scope closed by the time the
         // session is saved. Everything the run touches - the session manager's
-        // owner resolution, the run record's attribution - reads from this one
-        // scope, which is why the value has to be replayed rather than passed
-        // as a parameter to one of them.
-        using var attribution = AmbientRunAttributionScope.Begin(userId, labels: null);
+        // owner resolution, the run record's attribution, its sub-agents and
+        // tools - reads from this one scope, which is why the value has to be
+        // replayed rather than passed as a parameter to one of them. F-369: the
+        // labels travel too; opened with the user alone, the run's sub-agents
+        // and tools saw none of the labels its own row carried.
+        using var attribution = AmbientRunAttributionScope.Begin(userId, labels);
 
         Microsoft.Agents.AI.AIAgent agent;
         Microsoft.Agents.AI.AgentSession? session;
@@ -157,14 +169,13 @@ internal sealed class AgentRunJobHandler(
         // synchronous run builds (AgentEndpoints.BuildMessagesAsync).
         List<ChatMessage> messages = [.. documents.Select(DocumentChannelMessageBuilder.Build), new(ChatRole.User, message)];
 
-        // 🚨 Both writes below must be durable BEFORE the run's terminal
-        // AwaitingApproval status is published, and in THIS order:
-        //   session  -> the decision enqueues an ApprovalResume job that reads it
-        //   approval -> the consumer polls the run status and then lists approvals
-        // Closing the run first (which is what agent.RunAsync does internally)
-        // published a status whose approval was not yet listable — measured on
-        // EVERY queued run that asked for approval, not as a race (F-133).
-        var savedInsideTheHook = false;
+        // 🚨 The session and the approvals are written BEFORE the run's terminal
+        // AwaitingApproval status is published, session first (F-133) - see
+        // QueuedTurn. A store error on the save no longer fails the turn or
+        // runs it again (F-367).
+        var turn = new QueuedTurn(
+            sessions, approvalStore, options, approvalOptionsMonitor, webhookPublisher, _clock, logger,
+            context, runId, agent, session);
 
         var response = await agent.RunAsync(
             messages,
@@ -176,30 +187,11 @@ internal sealed class AgentRunJobHandler(
                 ExperimentId = arm.ExperimentId,
                 Variant = arm.Variant,
                 ParameterValues = recordedValues,
-                BeforePendingApprovalIsPublished = async (producedMessages, presentations, hookCancellation) =>
-                {
-                    var requests = ChildRunApproval.CollectRequests(producedMessages);
-
-                    // No session means the request can never be answered; the check
-                    // after this call corrects the run to Failed.
-                    if (requests.Count == 0 || session is null)
-                    {
-                        return;
-                    }
-
-                    await sessions.SaveSessionAsync(agent, session, hookCancellation).ConfigureAwait(false);
-                    savedInsideTheHook = true;
-
-                    await RecordPendingApprovalsAsync(requests, presentations, runId, sessionId!, context, hookCancellation)
-                        .ConfigureAwait(false);
-                },
+                BeforePendingApprovalIsPublished = turn.BeforePendingApprovalIsPublishedAsync,
             },
             cancellationToken).ConfigureAwait(false);
 
-        if (session is not null && !savedInsideTheHook)
-        {
-            await sessions.SaveSessionAsync(agent, session, cancellationToken).ConfigureAwait(false);
-        }
+        await turn.SaveSessionAsync(cancellationToken).ConfigureAwait(false);
 
         var pendingRequests = ChildRunApproval.CollectRequests(response.Messages);
 
@@ -228,85 +220,6 @@ internal sealed class AgentRunJobHandler(
         }
 
         // The approvals themselves were already written inside the hook above.
-    }
-
-    /// <summary>
-    /// Writes one <see cref="PendingApproval"/> per request and announces each.
-    /// Runs from <c>BeforePendingApprovalIsPublished</c>, so every row is visible
-    /// before the run reports <see cref="RunStatus.AwaitingApproval"/>.
-    /// </summary>
-    /// <param name="requests">The pending requests found in the run's response.</param>
-    /// <param name="presentations">
-    /// The presentation already resolved for each request, keyed by <c>RequestId</c> —
-    /// resolved once by <see cref="RunRecordingAgent"/>, not a second time here.
-    /// </param>
-    /// <param name="runId">The run these requests belong to.</param>
-    /// <param name="sessionId">The run's session.</param>
-    /// <param name="context">The job context.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    private async ValueTask RecordPendingApprovalsAsync(
-        IReadOnlyList<ToolApprovalRequestContent> requests,
-        IReadOnlyDictionary<string, ToolApprovalPresentation?> presentations,
-        Guid runId,
-        string sessionId,
-        JobContext context,
-        CancellationToken cancellationToken)
-    {
-        var expiration = approvalOptionsMonitor?.CurrentValue.DefaultExpiration ?? TimeSpan.FromHours(24);
-        var now = _clock.GetUtcNow();
-
-        foreach (var request in requests)
-        {
-            var approval = new PendingApproval
-            {
-                Id = TraconId.NewId(),
-                TenantId = context.Job.TenantId,
-                RunId = runId,
-                SessionId = sessionId,
-                RequestId = request.RequestId,
-                ToolName = request.ToolCall is FunctionCallContent call ? call.Name : "unknown",
-                Arguments = options.Value.RunRecording.RecordToolPayloads && request.ToolCall is FunctionCallContent argsCall
-                    ? FormatArguments(argsCall)
-                    : null,
-                Presentation = presentations.GetValueOrDefault(request.RequestId),
-                Status = ApprovalStatus.Pending,
-                ExpiresAt = now + expiration,
-                CreatedAt = now,
-            };
-
-            await approvalStore.CreateAsync(approval, cancellationToken).ConfigureAwait(false);
-
-            if (webhookPublisher is not null)
-            {
-                await webhookPublisher.PublishAsync(
-                    context.Job.TenantId,
-                    WebhookEvents.ApprovalPending,
-                    new WebhookEventPayload
-                    {
-                        OccurredAt = now,
-                        Approval = new WebhookApprovalSummary
-                        {
-                            RequestId = approval.Id.ToString(),
-                            RunId = approval.RunId.ToString(),
-                            ToolName = approval.ToolName,
-                        },
-                    },
-                    cancellationToken).ConfigureAwait(false);
-            }
-        }
-    }
-
-    private static string? FormatArguments(FunctionCallContent call)
-    {
-        if (call.Arguments is null || call.Arguments.Count == 0)
-        {
-            return null;
-        }
-
-        // SAME rationale as RunRecordingAgent.FormatArguments: formatted by
-        // hand to stay AOT compatible; reflection-based JSON serialization is
-        // not used.
-        return string.Join(", ", call.Arguments.Select(static pair => $"{pair.Key}={pair.Value}"));
     }
 
     private async ValueTask FailQueuedRunAsync(
@@ -415,6 +328,23 @@ internal sealed class AgentRunJobHandler(
         }
 
         return new QueuedRunArm(version, experimentId, variant);
+    }
+
+    /// <summary>
+    /// Reads the optional <c>labels</c> object the HTTP layer captured at
+    /// enqueue time. A malformed value is dropped with a warning: labels only
+    /// describe the run, and a throw would fail the job on every attempt.
+    /// </summary>
+    private IReadOnlyDictionary<string, string>? ReadOptionalLabels(JsonElement payload, Guid runId)
+    {
+        var labels = QueuedRunAttribution.ReadLabels(payload, out var problem);
+
+        if (problem is not null && logger is not null && logger.IsEnabled(LogLevel.Warning))
+        {
+            logger.LogWarning("Queued run {RunId} runs without labels: {Problem}", runId, problem);
+        }
+
+        return labels;
     }
 
     /// <summary>Reads the optional <c>parameters</c> object: every value must be a string.</summary>

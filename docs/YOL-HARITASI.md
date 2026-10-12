@@ -8,7 +8,7 @@
 Bir fazın durumu yanlış görünüyorsa **o fazın dokümanını** düzelt;
 bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 
-## Fazlar (196 kalem)
+## Fazlar (203 kalem)
 
 | Faz | Konu | Durum |
 |-----|------|-------|
@@ -208,5 +208,12 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [193](193-NET8-NET9-DUSURME.md) | `net8.0` ve `net9.0` Hedeflerinin Düşürülmesi | 📋 Planlandı |
 | [194](arsiv/fazlar/194-WORKFLOW-VE-KUYRUK-PARAMETRELERI.md) | Workflow ve Kuyruk Yollarında Parametre Değerleri | ✅ Tamamlandı |
 | [195](195-WORKFLOW-DUGUM-DUZENLEME-VE-AYAR.md) | Workflow Düğüm Düzenleme ve Fonksiyon Düğümü Ayarı | 📋 Planlandı |
+| [196](196-UZUN-ADIM-SURE-VE-IPTAL.md) | Uzun Adımların Süre Sınırı ve İptali | 📋 Planlandı |
+| [197](197-DAYANIKLI-WORKFLOW-YURUTMESI.md) | Dayanıklı Workflow Yürütmesi: Bağlantısız Run ve Otomatik Sürdürme | 📋 Planlandı |
+| [198](198-ADLI-KONUSMA-SAGLAYICISI.md) | Adlı Konuşma Sağlayıcısı ve Kiracı Bağlaması | 📋 Planlandı |
+| [199](199-FONKSIYON-DUGUMU-MALIYETI.md) | Fonksiyon Düğümünün Token Dışı Maliyeti | 📋 Planlandı |
+| [200](200-WORKFLOW-SURUM-GECMISI-VE-SABITLEME.md) | Workflow Sürüm Geçmişi ve Sürüm Sabitleme | 📋 Planlandı |
+| [201](201-LOOP-DUZENLEME-VE-OLCUT-FABRIKASI.md) | Konsolda Loop Düzenleme ve DI'lı Ölçüt Fabrikası | 📋 Planlandı |
+| [202](202-SKILL-SCRIPT-YURUTUCU-SEAM.md) | Skill Script Yürütmesini Harici Sandbox'a Yönlendiren Seam | 📋 Planlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).
