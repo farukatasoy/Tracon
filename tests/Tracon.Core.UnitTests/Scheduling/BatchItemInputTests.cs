@@ -106,7 +106,7 @@ public sealed class BatchItemInputTests
     [InlineData("""{"message":"hi","parameters":{"tone":"injected"}}""")]
     [InlineData("""{"message":"hello","user":"bob"}""")]
     [InlineData("""{"message":"go","documents":[{"name":"a","content":"A"}]}""")]
-    [InlineData("""plain "quoted" text with a \ and <tags> and ünïcode""")]
+    [InlineData("""plain "quoted" text with a \ and <tags> and naïve café""")]
     [InlineData("")]
     public void An_enveloped_text_always_comes_back_as_the_message_alone(string text)
     {
