@@ -294,8 +294,8 @@ Roller bugünkü rollerdir; bu faz rol değiştirmez. Ölçüldü (2026-10-12):
 
 ### Arayüz payı
 
-Ölçüldü (2026-10-12): JS bundle **197,4 KB gzip**, bütçe 250 KB. Faz 194'ün
-payı bu fazdan önce eklenir; taban Faz 194 kapanışında yeniden ölçülür. Bu
+Ölçüldü (2026-10-12, Faz 194 kapanışı): JS bundle **197,7 KB gzip**, bütçe 250 KB
+(Faz 194 öncesi 197,4 KB; payı 0,3 KB). Taban budur. Bu
 fazın payı düğüm listesi, fonksiyon seçici ve JSON alanıdır — şema
 yorumlayıcısı yoktur. Kapanışta ölçülür ve yazılır.
 
