@@ -82,6 +82,35 @@ public sealed class RunContinuationTests
         source.Status.ShouldBe(RunStatus.Failed);
     }
 
+    /// <summary>
+    /// F-352 class scan: the continuation pinned the interrupted run's version
+    /// but dropped its experiment arm, so the second half of the turn counted
+    /// in no arm.
+    /// </summary>
+    [Fact]
+    public async Task Continuation_keeps_the_interrupted_runs_experiment_arm()
+    {
+        ContinuationProbeTools.Reset();
+
+        await using var host = await StartHostAsync(o =>
+        {
+            o.Enabled = true;
+            o.MaxAttempts = 1;
+        });
+
+        var experimentId = Guid.NewGuid();
+        var sourceRunId = await SeedCrashedRunAsync(host, arm: (1, experimentId, "control"));
+
+        var continuationRunId = await WaitForContinuationAsync(host, sourceRunId);
+        var continuation = await host.Services.GetRequiredService<IRunStore>().GetRunAsync(continuationRunId);
+
+        continuation.ShouldNotBeNull();
+        continuation.Status.ShouldBe(RunStatus.Completed);
+        continuation.AgentVersion.ShouldBe(1);
+        continuation.ExperimentId.ShouldBe(experimentId);
+        continuation.Variant.ShouldBe("control");
+    }
+
     [Fact]
     public async Task A_parameterized_agent_is_not_continued_with_values_its_run_never_had()
     {
@@ -316,7 +345,10 @@ public sealed class RunContinuationTests
         }));
     }
 
-    private static async ValueTask<Guid> SeedCrashedRunAsync(TraconTestHost host, AgentDefinition? definition = null)
+    private static async ValueTask<Guid> SeedCrashedRunAsync(
+        TraconTestHost host,
+        AgentDefinition? definition = null,
+        (int Version, Guid ExperimentId, string Variant)? arm = null)
     {
         // A given definition replaces the seed: it has to be the ONLY version
         // before the crashed run exists, or the reconciler (scanning every
@@ -344,6 +376,9 @@ public sealed class RunContinuationTests
             TenantId = tenants.TenantId,
             SessionId = SessionId,
             ModelId = ModelId,
+            AgentVersion = arm?.Version,
+            ExperimentId = arm?.ExperimentId,
+            Variant = arm?.Variant,
         });
 
         await inputs.SaveAsync(new RunInputRecord

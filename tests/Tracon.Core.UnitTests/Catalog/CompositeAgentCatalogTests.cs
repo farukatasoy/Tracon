@@ -135,6 +135,79 @@ public sealed class CompositeAgentCatalogTests
         await Should.ThrowAsync<TraconException>(async () => await catalog.ResolveAsync("beta", 99, culture: null, CancellationToken.None));
     }
 
+    // --- F-352: a run that carries on an earlier run pins its version only where it can ---
+
+    [Fact]
+    public async Task A_recorded_version_is_pinned_when_the_serving_source_keeps_versions()
+    {
+        var source = new VersionedStubSource("database", 100, "beta", 1, 2);
+        var catalog = CreateCatalog(source);
+
+        var (agent, pinned) = await SourceRunAgentResolver.ResolveAsync(catalog, "beta", 1, culture: null, CancellationToken.None);
+
+        agent.ShouldNotBeNull();
+        pinned.ShouldBe(1);
+        source.LastRequestedVersion.ShouldBe(1);
+    }
+
+    /// <summary>
+    /// A declarative code agent is recorded as version 1, and a pinned resolve
+    /// of a source without versions throws; the earlier run's version is
+    /// therefore not pinned there.
+    /// </summary>
+    [Fact]
+    public async Task A_recorded_version_of_a_source_without_versions_resolves_the_current_agent()
+    {
+        var source = new StubSource("code", priority: 0, "alpha");
+        var catalog = CreateCatalog(source);
+
+        var (agent, pinned) = await SourceRunAgentResolver.ResolveAsync(catalog, "alpha", 1, culture: null, CancellationToken.None);
+
+        agent.ShouldNotBeNull();
+        pinned.ShouldBeNull();
+        source.ResolveCalls.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task The_serving_source_decides_when_a_versioned_source_lists_the_same_name_lower()
+    {
+        var versioned = new VersionedStubSource("database", 100, "shared", 1, 2);
+        var catalog = CreateCatalog(new StubSource("code", priority: 0, "shared"), versioned);
+
+        var (agent, pinned) = await SourceRunAgentResolver.ResolveAsync(catalog, "shared", 1, culture: null, CancellationToken.None);
+
+        agent.ShouldNotBeNull();
+        pinned.ShouldBeNull();
+        versioned.LastRequestedVersion.ShouldBeNull();
+    }
+
+    [Fact]
+    public async Task No_recorded_version_resolves_the_current_agent()
+    {
+        var source = new VersionedStubSource("database", 100, "beta", 1, 2);
+        var catalog = CreateCatalog(source);
+
+        var (_, pinned) = await SourceRunAgentResolver.ResolveAsync(catalog, "beta", null, culture: null, CancellationToken.None);
+
+        pinned.ShouldBeNull();
+        source.LastRequestedVersion.ShouldBe(2);
+    }
+
+    /// <summary>A catalog the host replaced names no source; the origin decides.</summary>
+    [Theory]
+    [InlineData(AgentDefinitionOrigin.Database, 3)]
+    [InlineData(AgentDefinitionOrigin.Custom, 3)]
+    [InlineData(AgentDefinitionOrigin.Code, null)]
+    public async Task A_replaced_catalog_pins_unless_the_agent_is_defined_in_code(AgentDefinitionOrigin origin, int? expected)
+    {
+        var catalog = new OriginOnlyCatalog(origin);
+
+        var (_, pinned) = await SourceRunAgentResolver.ResolveAsync(catalog, "gamma", 3, culture: null, CancellationToken.None);
+
+        pinned.ShouldBe(expected);
+        catalog.RequestedVersion.ShouldBe(expected);
+    }
+
     // --- F-331: a pinned resolve describes the pinned version ---
 
     [Fact]
@@ -202,6 +275,28 @@ public sealed class CompositeAgentCatalogTests
 
     private static CompositeAgentCatalog CreateCatalog(params IAgentSource[] sources)
         => new(sources, [], NullLogger<CompositeAgentCatalog>.Instance);
+
+    /// <summary>A replaced catalog: lists one agent of the given origin and records the version it was asked for.</summary>
+    private sealed class OriginOnlyCatalog(AgentDefinitionOrigin origin) : IAgentCatalog
+    {
+        public int? RequestedVersion { get; private set; }
+
+        public ValueTask<IReadOnlyList<AgentDescriptor>> ListAsync(CancellationToken cancellationToken = default)
+            => new((IReadOnlyList<AgentDescriptor>)
+            [
+                new AgentDescriptor { Name = "gamma", Origin = origin, SourceName = "host" },
+            ]);
+
+        public ValueTask<AIAgent?> ResolveAsync(string agentName, string? culture, CancellationToken cancellationToken)
+            => new((AIAgent?)null);
+
+        public ValueTask<AIAgent?> ResolveAsync(string agentName, int? version, string? culture = null, CancellationToken cancellationToken = default)
+        {
+            RequestedVersion = version;
+
+            return new((AIAgent?)null);
+        }
+    }
 
     private sealed class StubSource : IAgentSource
     {
