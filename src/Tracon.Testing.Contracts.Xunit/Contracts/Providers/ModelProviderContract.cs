@@ -32,14 +32,14 @@ namespace Tracon.Testing.Contracts.Providers;
 /// documentation.
 /// </para>
 /// <para>
-/// This class carries only what <em>every</em> provider owes. Behavior that is
-/// a provider's choice lives in its own opt-in class, so that deriving it is
-/// the statement of intent and no scenario has to silently pass:
-/// <see cref="ModelProviderCredentialContract"/> for honoring a per-tenant
-/// credential (BYOK), and <see cref="ModelProviderSettingsContract"/> for
-/// validating <see cref="ModelBinding.ProviderSettings"/>. A provider that
-/// offers neither derives neither, and records that in its
-/// <c>ContractCoverage</c> exemptions.
+/// This class carries the core every provider owes. Two derived classes add
+/// more. <see cref="ModelProviderCredentialContract"/> covers honoring a
+/// per-tenant credential (BYOK); it is opt-in, so deriving it is the
+/// statement of intent and no scenario has to silently pass. A provider that
+/// does not offer BYOK records that in its <c>ContractCoverage</c>
+/// exemptions. <see cref="ModelProviderSettingsContract"/> covers
+/// <see cref="ModelBinding.ProviderSettings"/> and is owed by every provider,
+/// including one that supports no key and so rejects them all.
 /// </para>
 /// </remarks>
 public abstract class ModelProviderContract : IAsyncLifetime

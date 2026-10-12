@@ -5,7 +5,7 @@ namespace Tracon.OpenAI.UnitTests;
 
 /// <summary>
 /// Verifies that provider options carry through correctly to the OpenAI client and the
-/// produced pipeline. No test makes a network call.
+/// produced pipeline, and that provider settings are rejected. No test makes a network call.
 /// </summary>
 public sealed class OpenAIChatClientFactoryTests
 {
@@ -126,6 +126,36 @@ public sealed class OpenAIChatClientFactoryTests
         exception.Message.ShouldContain(nameof(OpenAIProviderOptions.DefaultModel));
     }
 
+    // OpenAIApiSurface is internal, so a public theory cannot take it as a parameter.
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void No_provider_setting_is_supported(bool responsesSurface)
+    {
+        var exception = Should.Throw<TraconException>(() => CreateFactory().CreateChatClient(
+            TestData.Binding(providerSettings: TestData.Settings(("openai.unknown", true))),
+            Surface(responsesSurface)));
+
+        exception.Message.ShouldContain("openai.unknown");
+        exception.Message.ShouldContain("are not recognized");
+        exception.Message.ShouldContain("supports no extra settings");
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Setting_belonging_to_another_provider_gives_a_separate_error_message(bool responsesSurface)
+    {
+        var exception = Should.Throw<TraconException>(() => CreateFactory().CreateChatClient(
+            TestData.Binding(providerSettings: TestData.Settings(("anthropic.promptCaching", true))),
+            Surface(responsesSurface)));
+
+        // A wrong prefix means "you wrote the setting for another provider";
+        // the fix for that differs from an unrecognized key.
+        exception.Message.ShouldContain("do not belong");
+        exception.Message.ShouldContain("anthropic.promptCaching");
+    }
+
     [Fact]
     public void Null_binding_is_rejected()
         => Should.Throw<ArgumentNullException>(
@@ -140,4 +170,7 @@ public sealed class OpenAIChatClientFactoryTests
         => Should.Throw<ArgumentNullException>(() => new OpenAIChatClientFactory(options: null!));
 
     private static OpenAIChatClientFactory CreateFactory() => new(TestData.Options());
+
+    private static OpenAIApiSurface Surface(bool responses)
+        => responses ? OpenAIApiSurface.Responses : OpenAIApiSurface.ChatCompletions;
 }

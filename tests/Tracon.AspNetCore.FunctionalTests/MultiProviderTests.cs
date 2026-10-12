@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
@@ -26,6 +27,7 @@ namespace Tracon.AspNetCore.FunctionalTests;
 public sealed class MultiProviderTests
 {
     private const string TestKey = "functional-test-key";
+    private const string CompatibleProvider = "compatible-test";
 
     [Fact]
     public async Task Four_providers_are_registered_at_the_same_time()
@@ -184,6 +186,53 @@ public sealed class MultiProviderTests
 
         exception.Message.ShouldContain("azure-openai.noSuchSetting");
         exception.Message.ShouldContain("supports no extra settings");
+    }
+
+    [Theory]
+    [InlineData(OpenAIProviderNames.ChatCompletions)]
+    [InlineData(OpenAIProviderNames.Responses)]
+    [InlineData(CompatibleProvider)]
+    [InlineData(CompatibleProvider + "-responses")]
+    public async Task Validate_endpoint_rejects_a_setting_on_every_OpenAI_registration(string provider)
+    {
+        // UseOpenAI() and UseOpenAICompatible() support no provider setting
+        // key. A key there used to be ignored silently: the agent saved, ran,
+        // and never got the behavior the author wrote. Every surface of both
+        // registrations must reject it, as Azure OpenAI already does.
+        await using var host = await TraconTestHost.StartAsync(configureTracon: static builder => builder
+            .UseOpenAI(TestKey)
+            .UseOpenAICompatible(CompatibleProvider, static options =>
+            {
+                options.Endpoint = new Uri("http://127.0.0.1:9/v1");
+                options.EnableResponsesSurface = true;
+            }));
+
+        using var response = await host.Client.PostAsJsonAsync(
+            new Uri("/tracon/api/agents/validate", UriKind.Relative),
+            new
+            {
+                name = "openai-with-foreign-setting",
+                instructions = "You are a support assistant.",
+                model = new
+                {
+                    provider,
+                    model = "gpt-4o-mini",
+                    providerSettings = new Dictionary<string, object>(StringComparer.Ordinal)
+                    {
+                        [AnthropicProviderNames.PromptCachingSetting] = true,
+                    },
+                },
+            });
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK);
+
+        var body = await TraconTestHost.ReadJsonAsync(response);
+        body.GetProperty("valid").GetBoolean().ShouldBeFalse();
+
+        var error = body.GetProperty("messages").EnumerateArray().ShouldHaveSingleItem();
+        error.GetProperty("code").GetString().ShouldBe("invalid_setting");
+        error.GetProperty("path").GetString().ShouldBe("model.providerSettings");
+        error.GetProperty("message").GetString().ShouldNotBeNull().ShouldContain(AnthropicProviderNames.PromptCachingSetting);
     }
 
     private static IEnumerable<string?> Models(IEnumerable<JsonElement> providers, string name)

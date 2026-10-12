@@ -75,7 +75,7 @@ public sealed class AnthropicModelProviderSettingsContractTests : ModelProviderS
             new AnthropicChatClientFactory(TestData.Options()),
             [new ModelDescriptor { Name = TestData.Model }]));
 
-    protected override KeyValuePair<string, JsonElement> SupportedSetting
+    protected override KeyValuePair<string, JsonElement>? SupportedSetting
         => new(AnthropicProviderNames.PromptCachingSetting, True);
 }
 

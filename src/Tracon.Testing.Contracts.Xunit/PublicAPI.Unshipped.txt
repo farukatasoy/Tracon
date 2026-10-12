@@ -722,7 +722,6 @@ abstract Tracon.Testing.Contracts.Judges.RunJudgeContract.CreateJudgeAsync() -> 
 abstract Tracon.Testing.Contracts.Providers.ModelProviderContract.CreateProviderAsync() -> System.Threading.Tasks.ValueTask<Tracon.IModelProvider!>
 abstract Tracon.Testing.Contracts.Providers.ModelProviderCredentialContract.AssertCredentialIsApplied(Microsoft.Extensions.AI.IChatClient! client, Tracon.ModelProviderCredential! credential) -> void
 abstract Tracon.Testing.Contracts.Providers.ModelProviderCredentialContract.Credential.get -> Tracon.ModelProviderCredential!
-abstract Tracon.Testing.Contracts.Providers.ModelProviderSettingsContract.SupportedSetting.get -> System.Collections.Generic.KeyValuePair<string!, System.Text.Json.JsonElement>
 abstract Tracon.Testing.Contracts.Scheduling.JobHandlerContract.CreateHandlerAsync() -> System.Threading.Tasks.ValueTask<Tracon.IJobHandler!>
 abstract Tracon.Testing.Contracts.Scheduling.JobHandlerContract.CreateItem(int sequence, Tracon.JobItemStatus status) -> Tracon.JobItemRecord!
 abstract Tracon.Testing.Contracts.Storage.AgentFileStoreContract.EnterRunScope() -> void
@@ -903,6 +902,7 @@ virtual Tracon.Testing.Contracts.Judges.RunJudgeContract.CreateContext() -> Trac
 virtual Tracon.Testing.Contracts.Providers.ModelProviderContract.OnDisposeAsync() -> System.Threading.Tasks.ValueTask
 virtual Tracon.Testing.Contracts.Providers.ModelProviderContract.UnknownModelName.get -> string!
 virtual Tracon.Testing.Contracts.Providers.ModelProviderCredentialContract.OtherCredential.get -> Tracon.ModelProviderCredential!
+virtual Tracon.Testing.Contracts.Providers.ModelProviderSettingsContract.SupportedSetting.get -> System.Collections.Generic.KeyValuePair<string!, System.Text.Json.JsonElement>?
 virtual Tracon.Testing.Contracts.Providers.ModelProviderSettingsContract.UnsupportedSettingKey.get -> string!
 virtual Tracon.Testing.Contracts.Scheduling.JobHandlerContract.CreateJob(System.Collections.Generic.IReadOnlyList<Tracon.JobItemRecord!>! items) -> Tracon.JobRecord!
 virtual Tracon.Testing.Contracts.Scheduling.JobHandlerContract.HandlerKey.get -> string!

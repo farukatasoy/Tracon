@@ -291,6 +291,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `OpenAIProviderNames.SettingsPrefix` (`openai`) and
+  `OpenAIProviderNames.SupportedSettings` (empty).
 - `HarnessSettings.EnableWebSearch`: turns on the model provider's hosted web
   search for a harness agent.
 - `TraconEndpointOptions.StreamKeepAliveInterval`: the longest a streaming
@@ -326,6 +328,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- The OpenAI provider now rejects every `ModelBinding.ProviderSettings` key, as
+  Azure OpenAI already did. The rule covers `openai`, `openai-responses` and
+  every `UseOpenAICompatible()` registration; their settings prefix is `openai`
+  (`OpenAIProviderNames.SettingsPrefix`) and `OpenAIProviderNames.SupportedSettings`
+  is empty. Before, the provider never read the dictionary, so a key, for example
+  `anthropic.promptCaching` left over after a switch from Anthropic, was ignored
+  silently: the agent saved and ran without the behavior its author wrote. Now
+  `POST /api/agents/validate` reports `invalid_setting` at
+  `model.providerSettings`, saving the definition returns `400`, and a stored or
+  code-defined agent with such a key fails compilation. Remove the key with
+  `PUT /api/agents/{name}` or in code. The console does not edit
+  `providerSettings` and keeps the stored value, so a console save of such an
+  agent fails until the key is removed through the API.
+- `ModelProviderSettingsContract.SupportedSetting` (Tracon.Testing.Contracts.Xunit)
+  is now `virtual` and returns `KeyValuePair<string, JsonElement>?`, default
+  `null`. Derive the contract for every provider; a provider that supports no
+  key leaves it `null`, and the two scenarios that need an accepted key report as
+  skipped. An existing override fails with `CS0508`; add `?` to its return type.
 - A harness agent no longer gets the provider's hosted web search by default.
   Set `HarnessSettings.EnableWebSearch` to turn it on; the search runs at the
   provider and is billed by it, and the Chat Completions surface accepts it

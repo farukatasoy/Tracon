@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.Extensions.AI;
 
 namespace Tracon.OpenAI.UnitTests;
@@ -62,6 +63,26 @@ public sealed class OpenAIModelProviderCredentialTests
         var metadata = chatClient.GetService(typeof(ChatClientMetadata)).ShouldBeOfType<ChatClientMetadata>();
 
         (metadata.ProviderUri?.ToString() ?? string.Empty).ShouldNotContain(secret);
+    }
+
+    [Fact]
+    public void Tenant_credential_path_rejects_a_provider_setting_the_same_way()
+    {
+        // The tenant client is built by a per-credential factory and cached;
+        // the settings check must run on that path too, not only on the
+        // setup-time path.
+        var credential = new ModelProviderCredential { ApiKey = "sk-tenant" };
+        var binding = Binding() with
+        {
+            ProviderSettings = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["anthropic.promptCaching"] = JsonSerializer.SerializeToElement(true),
+            },
+        };
+
+        var exception = Should.Throw<TraconException>(() => CreateProvider().CreateChatClient(binding, credential));
+
+        exception.Message.ShouldContain("anthropic.promptCaching");
     }
 
     private static ModelBinding Binding(string model = "gpt-4o-mini")
