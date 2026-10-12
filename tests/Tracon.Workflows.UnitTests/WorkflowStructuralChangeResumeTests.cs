@@ -87,6 +87,88 @@ public sealed class WorkflowStructuralChangeResumeTests
     }
 
     [Fact]
+    public async Task Reordering_the_agents_of_a_sequential_chain_makes_the_old_checkpoint_unusable()
+    {
+        var host = new WorkflowTestHost("one", "two");
+
+        await host.SaveAsync(AgentOnly("chain", "one", "two"));
+
+        var checkpoint = await RunAndPickFirstCheckpointAsync(host);
+
+        await host.SaveAsync(AgentOnly("chain", "two", "one"));
+
+        (await ResumeFailureAsync(host, checkpoint)).ShouldNotBeNull().ShouldContain("structure differs", Case.Sensitive);
+    }
+
+    [Fact]
+    public async Task Removing_an_agent_from_a_sequential_chain_makes_the_old_checkpoint_unusable()
+    {
+        var host = new WorkflowTestHost("one", "two", "three");
+
+        await host.SaveAsync(AgentOnly("chain", "one", "two", "three"));
+
+        var checkpoint = await RunAndPickFirstCheckpointAsync(host);
+
+        await host.SaveAsync(AgentOnly("chain", "one", "two"));
+
+        (await ResumeFailureAsync(host, checkpoint)).ShouldNotBeNull().ShouldContain("structure differs", Case.Sensitive);
+    }
+
+    [Fact]
+    public async Task Removing_a_node_from_a_node_chain_makes_the_old_checkpoint_unusable()
+    {
+        var host = new WorkflowTestHost("one", "two");
+
+        host.AddFunction<List<ChatMessage>, List<ChatMessage>>(
+            "pass",
+            static (messages, _, _) => new ValueTask<List<ChatMessage>>(messages));
+
+        await host.SaveAsync(NodeChain(
+            "chain",
+            ("one", WorkflowNodeKind.Agent),
+            ("pass", WorkflowNodeKind.Function),
+            ("two", WorkflowNodeKind.Agent)));
+
+        var checkpoint = await RunAndPickFirstCheckpointAsync(host);
+
+        await host.SaveAsync(NodeChain("chain", ("one", WorkflowNodeKind.Agent), ("pass", WorkflowNodeKind.Function)));
+
+        (await ResumeFailureAsync(host, checkpoint)).ShouldNotBeNull().ShouldContain("structure differs", Case.Sensitive);
+    }
+
+    [Fact]
+    public async Task Changing_the_pattern_of_a_chain_makes_the_old_checkpoint_unusable()
+    {
+        var host = new WorkflowTestHost("one", "two");
+
+        await host.SaveAsync(AgentOnly("chain", "one", "two"));
+
+        var checkpoint = await RunAndPickFirstCheckpointAsync(host);
+
+        await host.SaveAsync(new WorkflowDefinition { Name = "chain", Kind = WorkflowKind.Concurrent, AgentNames = ["one", "two"] });
+
+        (await ResumeFailureAsync(host, checkpoint)).ShouldNotBeNull().ShouldContain("structure differs", Case.Sensitive);
+    }
+
+    [Fact]
+    public async Task Reordering_the_agents_of_a_concurrent_workflow_makes_the_old_checkpoint_unusable_too()
+    {
+        // MEASURED, and not what the screen's own "order does not affect this pattern" hint would
+        // suggest: the hint is about the run's result, the checkpoint is about the graph, and the
+        // graph is built in list order. The console therefore warns about an order change in every
+        // pattern, not only in a Sequential chain.
+        var host = new WorkflowTestHost("one", "two");
+
+        await host.SaveAsync(new WorkflowDefinition { Name = "chain", Kind = WorkflowKind.Concurrent, AgentNames = ["one", "two"] });
+
+        var checkpoint = await RunAndPickFirstCheckpointAsync(host);
+
+        await host.SaveAsync(new WorkflowDefinition { Name = "chain", Kind = WorkflowKind.Concurrent, AgentNames = ["two", "one"] });
+
+        (await ResumeFailureAsync(host, checkpoint)).ShouldNotBeNull().ShouldContain("structure differs", Case.Sensitive);
+    }
+
+    [Fact]
     public async Task A_description_change_leaves_the_old_checkpoint_usable()
     {
         var host = new WorkflowTestHost("one", "two");
