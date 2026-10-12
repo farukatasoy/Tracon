@@ -107,7 +107,7 @@ public sealed class WorkflowHumanInTheLoopTests
     }
 
     [Fact]
-    public async Task Answered_run_no_longer_shows_a_pending_request()
+    public async Task The_continuing_run_has_no_pending_request()
     {
         var host = new WorkflowTestHost();
         var runner = host.CreateRunner(configure: null, services: null, ApprovalWorkflow.Registration());
@@ -124,6 +124,34 @@ public sealed class WorkflowHumanInTheLoopTests
             .Single(run => run.Id != first.Id);
 
         (await runner.ListPendingRequestsAsync(second.Id)).ShouldBeEmpty();
+    }
+
+    /// <summary>
+    /// K-130: the answered run keeps its <c>AwaitingInput</c> status and its
+    /// request. Answering it again opens a branch, on purpose.
+    /// </summary>
+    /// <remarks>
+    /// F-335: the runner's comment and this class's old test name both said the
+    /// answered run "no longer has a pending request". The old test asserted on
+    /// the SECOND run, so nothing pinned what the first run really returns.
+    /// </remarks>
+    [Fact]
+    public async Task An_answered_run_still_lists_its_request()
+    {
+        var host = new WorkflowTestHost();
+        var runner = host.CreateRunner(configure: null, services: null, ApprovalWorkflow.Registration());
+
+        await Collect(runner, "approval-flow", "publish the report");
+
+        var first = (await host.RunStore.QueryRunsAsync(new RunQuery { Take = 10 })).Single();
+        var pending = (await runner.ListPendingRequestsAsync(first.Id)).Single();
+
+        await CollectResponse(runner, first.Id, pending.RequestId, approved: true);
+
+        var answered = await host.RunStore.GetRunAsync(first.Id);
+
+        answered.ShouldNotBeNull().Status.ShouldBe(RunStatus.AwaitingInput);
+        (await runner.ListPendingRequestsAsync(first.Id)).ShouldHaveSingleItem().RequestId.ShouldBe(pending.RequestId);
     }
 
     [Fact]

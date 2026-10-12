@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { client, openStream, STREAM_IDLE_TIMEOUT_MS, unwrap } from '../lib/api';
 import { readSse, SseIdleTimeoutError } from '@tracon/client';
-import { Link, useNavigate } from '../lib/router';
+import { Link, useNavigate, useSearchParams } from '../lib/router';
 import { shortId } from '../lib/format';
 import { useT, type MessageKey } from '../lib/i18n';
 import { foldNodeStates } from '../lib/workflow-graph';
@@ -26,7 +26,7 @@ import { WorkflowGraphLegend, WorkflowGraphView } from '../components/workflow-g
 import { KIND_HINT } from './workflows';
 import type { TraconMetaResponse as Meta } from '@tracon/client';
 import type { RunEvent } from '../lib/run-event';
-import type { WorkflowDescriptor, WorkflowGraph, WorkflowPendingRequest } from '../lib/server-types';
+import type { RunRecord, WorkflowDescriptor, WorkflowGraph, WorkflowPendingRequest } from '../lib/server-types';
 
 /**
  * One workflow: its graph, a place to run it, and the human decisions it is
@@ -35,6 +35,12 @@ import type { WorkflowDescriptor, WorkflowGraph, WorkflowPendingRequest } from '
  * The graph is fetched compiled, so its node ids are exactly the executor ids
  * the run events carry. Colouring nodes while a run streams is therefore a map
  * lookup, not guesswork.
+ *
+ * The address names the run the screen is about (`?runId=`). A run page, a
+ * bookmark or a reload can therefore open a run this screen did not start —
+ * F-335: the request card used to show only for a run started right here, so
+ * a run started over HTTP, by a job or in another tab could not be answered
+ * from the console at all.
  */
 export function WorkflowDetailScreen({ name, meta }: { name: string; meta: Meta }): ReactNode {
   const t = useT();
@@ -58,8 +64,12 @@ export function WorkflowDetailScreen({ name, meta }: { name: string; meta: Meta 
       ) as Promise<WorkflowGraph>,
   });
 
+  const linkedRunId = useSearchParams().get('runId');
   const [message, setMessage] = useState('');
-  const [runId, setRunId] = useState<string | null>(null);
+  const [runId, setRunId] = useState<string | null>(linkedRunId);
+  // True once this screen streamed `runId` itself. A run that came only from
+  // the address has no events here and is not yet known to belong here.
+  const [streamed, setStreamed] = useState(false);
   const [events, setEvents] = useState<RunEvent[]>([]);
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState<unknown>(null);
@@ -67,8 +77,43 @@ export function WorkflowDetailScreen({ name, meta }: { name: string; meta: Meta 
 
   useEffect(() => () => abort.current?.abort(), []);
 
+  // Follows the address when something else changes it: a run page link, Back
+  // or Forward. Only the address re-runs this; `runId` is read, not watched,
+  // because the screen's own stream writes the same value there (`consume`)
+  // and must not be pulled back by it.
+  useEffect(() => {
+    if (linkedRunId === runId) {
+      return;
+    }
+
+    abort.current?.abort();
+    setRunId(linkedRunId);
+    setStreamed(false);
+    setEvents([]);
+    setError(null);
+  }, [linkedRunId]);
+
   const states = useMemo(() => foldNodeStates(events), [events]);
   const finished = runId !== null && !streaming;
+  const fromAddress = finished && !streamed;
+
+  // A run that came only from the address is checked before its card shows:
+  // the request list answers for ANY workflow run, and a card for another
+  // workflow's run would send the answer to a graph the operator is not
+  // looking at.
+  const linkedRun = useQuery({
+    queryKey: ['run', runId],
+    queryFn: () =>
+      unwrap(
+        client.GET('/api/runs/{runId}', { params: { path: { runId: runId as string } } }),
+      ) as Promise<RunRecord>,
+    enabled: fromAddress,
+  });
+  const ownsRun =
+    !fromAddress ||
+    (linkedRun.isSuccess &&
+      linkedRun.data.kind === 'Workflow' &&
+      (linkedRun.data.workflowName ?? linkedRun.data.agentName) === name);
 
   // Pending requests are only meaningful once the stream has closed: while it
   // is open the run may still move past the port on its own.
@@ -87,7 +132,16 @@ export function WorkflowDetailScreen({ name, meta }: { name: string; meta: Meta 
     async (response: Response) => {
       for await (const frame of readSse(response, { idleTimeoutMs: STREAM_IDLE_TIMEOUT_MS })) {
         if (frame.event === 'run') {
-          setRunId((JSON.parse(frame.data) as { runId: string }).runId);
+          const next = (JSON.parse(frame.data) as { runId: string }).runId;
+
+          setRunId(next);
+          setStreamed(true);
+          // Written back so a reload, a copied link or Back keeps this run.
+          // Replace, not push: the page is the same; only its run changed.
+          navigate(`workflows/${encodeURIComponent(name)}?runId=${encodeURIComponent(next)}`, {
+            replace: true,
+            scroll: false,
+          });
 
           continue;
         }
@@ -107,7 +161,7 @@ export function WorkflowDetailScreen({ name, meta }: { name: string; meta: Meta 
 
       await queryClient.invalidateQueries({ queryKey: ['runs'] });
     },
-    [queryClient],
+    [name, navigate, queryClient],
   );
 
   const start = useCallback(async () => {
@@ -117,9 +171,16 @@ export function WorkflowDetailScreen({ name, meta }: { name: string; meta: Meta 
 
     abort.current = controller;
     setRunId(null);
+    setStreamed(false);
     setEvents([]);
     setError(null);
     setStreaming(true);
+
+    // The address stops naming the previous run; the new run's first frame
+    // names the new one.
+    if (linkedRunId !== null) {
+      navigate(`workflows/${encodeURIComponent(name)}`, { replace: true, scroll: false });
+    }
 
     try {
       const response = await openStream(`api/workflows/${encodeURIComponent(name)}/run`, {
@@ -139,13 +200,14 @@ export function WorkflowDetailScreen({ name, meta }: { name: string; meta: Meta 
     } finally {
       setStreaming(false);
     }
-  }, [consume, message, name]);
+  }, [consume, linkedRunId, message, name, navigate]);
 
   /**
    * Answers a pending request and follows the run that continues from it.
    *
    * The answer opens a *new* run: history is append-only, so the original row
-   * keeps its `AwaitingInput` status and this screen switches to the new one.
+   * keeps its `AwaitingInput` status — and its request (K-130) — and this
+   * screen, address included, switches to the new one.
    */
   const respond = useCallback(
     async (request: WorkflowPendingRequest, body: Record<string, unknown>) => {
@@ -236,6 +298,17 @@ export function WorkflowDetailScreen({ name, meta }: { name: string; meta: Meta 
     descriptor.kind == null ? 'workflowDetail.codeGraphHint' : KIND_HINT[descriptor.kind];
   const kindHint = t(kindHintKey);
 
+  // Why a run named by the address shows no card. A run this screen streamed
+  // needs no note: its output is on the screen.
+  const notice =
+    !fromAddress || runId === null
+      ? null
+      : linkedRun.isSuccess && !ownsRun
+        ? t('workflowDetail.linkedRun.otherWorkflow', { id: shortId(runId, 8, 4) })
+        : ownsRun && pending.isSuccess && pending.data.length === 0
+          ? t('workflowDetail.linkedRun.notWaiting', { id: shortId(runId, 8, 4) })
+          : null;
+
   return (
     <>
       <PageHeader
@@ -324,7 +397,9 @@ export function WorkflowDetailScreen({ name, meta }: { name: string; meta: Meta 
                       <Mono>{t('workflowDetail.runId', { id: shortId(runId, 8, 4) })}</Mono>
                     </Link>
                   </Tooltip>
-                  <span>{t('workflowDetail.eventCount', { count: events.length })}</span>
+                  {/* A run that came from the address was not streamed here, so
+                      a count of the events seen here would read as zero. */}
+                  {streamed && <span>{t('workflowDetail.eventCount', { count: events.length })}</span>}
                 </p>
               )}
 
@@ -333,7 +408,24 @@ export function WorkflowDetailScreen({ name, meta }: { name: string; meta: Meta 
           </Panel>
         )}
 
-        {finished && pending.isSuccess && pending.data.length > 0 && (
+        {fromAddress && linkedRun.isError && (
+          <ErrorNote error={linkedRun.error} onRetry={() => void linkedRun.refetch()} />
+        )}
+
+        {notice !== null && runId !== null && (
+          <div
+            className="rounded-md border border-line bg-info-soft px-3 py-2 text-sm text-info"
+            data-testid="workflow-run-notice"
+          >
+            {notice} <Link to={`runs/${encodeURIComponent(runId)}`}>{t('workflowDetail.linkedRun.openRun')}</Link>
+          </div>
+        )}
+
+        {finished && ownsRun && pending.isError && (
+          <ErrorNote error={pending.error} onRetry={() => void pending.refetch()} />
+        )}
+
+        {finished && ownsRun && pending.isSuccess && pending.data.length > 0 && (
           <Panel title={t('workflowDetail.waitingOnYou')}>
             <div className="flex flex-col gap-3 p-4">
               {pending.data.map((request) => (

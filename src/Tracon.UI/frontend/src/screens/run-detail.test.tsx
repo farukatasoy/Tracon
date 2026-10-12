@@ -111,4 +111,36 @@ describe('RunDetailScreen', () => {
 
     expect(await screen.findByText('finished late')).toBeTruthy();
   });
+
+  it('sends a waiting workflow run to the workflow screen opened on that run', async () => {
+    // 🚨 F-335: both links carried only the workflow name, and the workflow
+    // screen showed a card only for a run it had started itself. A run started
+    // over HTTP, by a job or in another tab could not be answered at all.
+    restoreFetch = installApiMock([
+      fixture('GET', 'api/runs/:runId', {
+        ...runRecord(),
+        kind: 'Workflow',
+        agentName: 'approval-flow',
+        workflowName: 'approval-flow',
+        status: 'AwaitingInput',
+      }),
+      {
+        method: 'GET',
+        pattern: 'api/runs/:runId/events',
+        handler: () => new Response('', { status: 200, headers: { 'Content-Type': 'text/event-stream' } }),
+      },
+      fixture('GET', 'api/runs/:runId/trace', { spans: [] }),
+      fixture('GET', 'api/runs/:runId/tree', []),
+      fixture('GET', 'api/runs/:runId/tools', []),
+    ]);
+
+    renderScreen(<RunDetailScreen id={runId} />);
+
+    const awaitingLink = await screen.findByRole('link', { name: 'workflow screen' });
+    const headerLink = screen.getByRole('link', { name: 'approval-flow' });
+
+    for (const link of [awaitingLink, headerLink]) {
+      expect(link.getAttribute('href')).toContain(`/workflows/approval-flow?runId=${runId}`);
+    }
+  });
 });

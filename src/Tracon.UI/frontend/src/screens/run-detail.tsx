@@ -262,6 +262,14 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
   ];
   const relatedItems = related.filter((item): item is MenuItem => item !== null);
 
+  // The workflow screen opens on THIS run, so its pending request shows there
+  // even though that screen did not start it (F-335). Without the run id the
+  // screen showed only a run it had started itself, and the link sent the
+  // operator to a page with nothing to answer.
+  const workflowScreen =
+    `workflows/${encodeURIComponent(record.workflowName ?? record.agentName)}` +
+    `?runId=${encodeURIComponent(record.id)}`;
+
   return (
     <>
       <PageHeader
@@ -278,10 +286,7 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
             {record.kind === 'Workflow' ? (
               <>
                 {t('runDetail.forWorkflow')}{' '}
-                <Link
-                  to={`workflows/${encodeURIComponent(record.workflowName ?? record.agentName)}`}
-                  className="text-accent underline"
-                >
+                <Link to={workflowScreen} className="text-accent underline">
                   {record.workflowName ?? record.agentName}
                 </Link>
               </>
@@ -361,10 +366,7 @@ export function RunDetailScreen({ id }: { id: string }): ReactNode {
           <Panel title={t('runDetail.awaiting.title')}>
             <div className="p-4 text-base">
               {t('runDetail.awaiting.before')}{' '}
-              <Link
-                to={`workflows/${encodeURIComponent(record.workflowName ?? record.agentName)}`}
-                className="text-accent underline"
-              >
+              <Link to={workflowScreen} className="text-accent underline">
                 {t('runDetail.awaiting.link')}
               </Link>
               . {t('runDetail.awaiting.after')}

@@ -86,7 +86,7 @@ export const trRuns: Pick<Messages, keyof typeof enRuns> = {
   "runDetail.awaiting.title": 'Bir kişiyi bekliyor',
   "runDetail.awaiting.before": "Bu çalıştırma bir istek kapısında durdu ve durumu bir checkpoint'te saklandı. Şuradan yanıtlayın:",
   "runDetail.awaiting.link": 'workflow ekranı',
-  "runDetail.awaiting.after": 'Yanıtlamak YENİ bir çalıştırma açar; bu satır geçmişini olduğu gibi korur.',
+  "runDetail.awaiting.after": 'Yanıtlamak YENİ bir çalıştırma açar; bu satır geçmişini olduğu gibi korur. Daha önce yanıtlandıysa yeniden yanıtlamak ayrı bir dal açar.',
   "runDetail.failure": 'Hata',
   "runDetail.transcript": 'Döküm',
   "runDetail.waiting": 'Olaylar bekleniyor…',

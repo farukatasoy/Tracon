@@ -1,5 +1,6 @@
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.AI;
 using Microsoft.Playwright;
 using Tracon.Ui.E2ETests.Infrastructure;
@@ -145,6 +146,100 @@ public sealed class WorkflowTests(BrowserFixture browsers)
         await Expect(output).ToContainTextAsync("approved", new() { UseInnerText = true });
     }
 
+    /// <summary>
+    /// A run started outside the console is answered from its own run page.
+    /// </summary>
+    /// <remarks>
+    /// F-335: the run page sent the operator to "the workflow screen", but that
+    /// screen only showed a request for a run it had started itself. A run
+    /// started over HTTP, by a job or in another tab had no card anywhere, so
+    /// the console could not answer it at all.
+    /// </remarks>
+    [Fact]
+    public async Task Pending_request_of_a_run_started_elsewhere_opens_from_its_run_page()
+    {
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+        using var api = new HttpClient { BaseAddress = new Uri(host.UiAddress + "/") };
+
+        var runId = await StartApprovalRunAsync(api);
+
+        await session.Page.GotoAsync($"{host.UiAddress}/runs/{runId}");
+        await session.Page.GetByRole(AriaRole.Link, new() { Name = "workflow screen", Exact = true }).ClickAsync();
+
+        var card = session.Page.GetByTestId("workflow-pending-request");
+
+        await Expect(card).ToBeVisibleAsync();
+        await Expect(card).ToContainTextAsync("publish the report", new() { UseInnerText = true });
+
+        await session.Page.GetByTestId("workflow-approve").ClickAsync();
+
+        var output = session.Page.GetByTestId("workflow-output");
+
+        await Expect(output).ToContainTextAsync("approved", new() { UseInnerText = true });
+
+        // The answer opened a NEW run (K-130), and the address follows it, so a
+        // reload shows the run the screen is now about — not the answered one.
+        await Expect(session.Page).ToHaveURLAsync(new Regex(
+            $@"/workflows/approval-flow\?runId=(?!{runId})[0-9a-f-]{{36}}$",
+            RegexOptions.None,
+            TimeSpan.FromSeconds(1)));
+    }
+
+    /// <summary>
+    /// The address alone is enough to reach the request: a bookmark, a reload or
+    /// a link pasted into a ticket.
+    /// </summary>
+    [Fact]
+    public async Task Pending_request_opens_from_a_link_that_names_its_run()
+    {
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+        using var api = new HttpClient { BaseAddress = new Uri(host.UiAddress + "/") };
+
+        var runId = await StartApprovalRunAsync(api);
+
+        await session.Page.GotoAsync($"{host.UiAddress}/workflows/approval-flow?runId={runId}");
+
+        var card = session.Page.GetByTestId("workflow-pending-request");
+
+        await Expect(card).ToBeVisibleAsync();
+        await Expect(card).ToContainTextAsync("publish the report", new() { UseInnerText = true });
+    }
+
+    /// <summary>
+    /// A run named in the address that this screen cannot answer gets a note,
+    /// never a card.
+    /// </summary>
+    /// <remarks>
+    /// The request list endpoint answers for any workflow run, so a card for
+    /// another workflow's run would send the answer to a graph the operator is
+    /// not looking at.
+    /// </remarks>
+    [Fact]
+    public async Task A_run_this_screen_cannot_answer_shows_a_note_instead_of_a_card()
+    {
+        await using var host = await UiHost.StartAsync();
+        await using var session = await Session.OpenAsync(browsers, host);
+        using var api = new HttpClient { BaseAddress = new Uri(host.UiAddress + "/") };
+
+        var waiting = await StartApprovalRunAsync(api);
+        var completed = await ApproveAsync(api, waiting);
+
+        var notice = session.Page.GetByTestId("workflow-run-notice");
+        var card = session.Page.GetByTestId("workflow-pending-request");
+
+        await session.Page.GotoAsync($"{host.UiAddress}/workflows/summarize-and-translate?runId={waiting}");
+
+        await Expect(notice).ToContainTextAsync("not a run of this workflow", new() { UseInnerText = true });
+        await Expect(card).ToHaveCountAsync(0);
+
+        await session.Page.GotoAsync($"{host.UiAddress}/workflows/approval-flow?runId={completed}");
+
+        await Expect(notice).ToContainTextAsync("not waiting for input", new() { UseInnerText = true });
+        await Expect(card).ToHaveCountAsync(0);
+    }
+
     [Fact]
     public async Task Pending_run_appears_with_distinct_status_in_Runs_list()
     {
@@ -168,5 +263,54 @@ public sealed class WorkflowTests(BrowserFixture browsers)
         // the option is capitalized; Exact tells them apart.
         await Expect(session.Page
             .GetByText("awaiting input", new() { Exact = true })).ToBeVisibleAsync();
+    }
+
+    /// <summary>
+    /// Starts approval-flow over HTTP — outside the console — and returns its run id.
+    /// </summary>
+    /// <remarks>
+    /// The stream closes when the run stops at the request port, so reading it
+    /// to the end is the wait: the run is <c>AwaitingInput</c> afterwards.
+    /// </remarks>
+    private static async Task<string> StartApprovalRunAsync(HttpClient api)
+    {
+        using var response = await api.PostAsJsonAsync(
+            "api/workflows/approval-flow/run",
+            new { message = "publish the report" });
+
+        response.EnsureSuccessStatusCode();
+
+        return ReadRunId(await response.Content.ReadAsStringAsync());
+    }
+
+    /// <summary>Approves the run's request over HTTP and returns the run that continues it.</summary>
+    private static async Task<string> ApproveAsync(HttpClient api, string runId)
+    {
+        var requests = await api.GetFromJsonAsync<JsonElement>($"api/workflows/runs/{runId}/requests");
+        var requestId = requests[0].GetProperty("requestId").GetString();
+
+        using var response = await api.PostAsJsonAsync(
+            $"api/workflows/runs/{runId}/respond",
+            new { requestId, approved = true });
+
+        response.EnsureSuccessStatusCode();
+
+        return ReadRunId(await response.Content.ReadAsStringAsync());
+    }
+
+    /// <summary>Reads the run id from a workflow stream's first frame, <c>event: run</c>.</summary>
+    private static string ReadRunId(string stream)
+    {
+        var frame = stream
+            .Split("\n\n", StringSplitOptions.RemoveEmptyEntries)
+            .First(candidate => candidate.Contains("event: run\n", StringComparison.Ordinal));
+        var data = frame
+            .Split('\n')
+            .First(line => line.StartsWith("data: ", StringComparison.Ordinal))["data: ".Length..];
+
+        using var document = JsonDocument.Parse(data);
+
+        return document.RootElement.GetProperty("runId").GetString()
+            ?? throw new InvalidOperationException("The run frame carries no run id.");
     }
 }

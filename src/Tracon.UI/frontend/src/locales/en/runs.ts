@@ -81,7 +81,7 @@ export const enRuns = {
   "runDetail.awaiting.title": 'Waiting on a person',
   "runDetail.awaiting.before": 'This run stopped at a request port and its state is saved in a checkpoint. Answer it on the',
   "runDetail.awaiting.link": 'workflow screen',
-  "runDetail.awaiting.after": 'Answering opens a NEW run — this row keeps its history exactly as it happened.',
+  "runDetail.awaiting.after": 'Answering opens a NEW run — this row keeps its history exactly as it happened. If it was already answered, answering again opens a separate branch.',
   "runDetail.failure": 'Failure',
   "runDetail.transcript": 'Transcript',
   "runDetail.waiting": 'Waiting for events…',

@@ -25,10 +25,23 @@ export interface RouteMatch {
   params: Record<string, string>;
 }
 
+export interface NavigateOptions {
+  /** Replaces the current history entry instead of adding one. */
+  replace?: boolean;
+  /**
+   * Scrolls to the top of the page afterwards. `true` unless set to `false`.
+   *
+   * A screen that only records its own state in the address (`?runId=`, so a
+   * reload keeps it) passes `false`: the page did not change, so the reader's
+   * place on it must not change either.
+   */
+  scroll?: boolean;
+}
+
 interface RouterValue {
   path: string;
   search: string;
-  navigate: (to: string, options?: { replace?: boolean }) => void;
+  navigate: (to: string, options?: NavigateOptions) => void;
 }
 
 const RouterContext = createContext<RouterValue | null>(null);
@@ -90,7 +103,7 @@ export function RouterProvider({ children }: { children: ReactNode }): ReactNode
     return () => window.removeEventListener('popstate', onPopState);
   }, []);
 
-  const navigate = useCallback((to: string, options?: { replace?: boolean }) => {
+  const navigate = useCallback((to: string, options?: NavigateOptions) => {
     const url = uiBase + to.replace(/^\/+/, '');
 
     if (options?.replace === true) {
@@ -100,7 +113,10 @@ export function RouterProvider({ children }: { children: ReactNode }): ReactNode
     }
 
     setLocation(splitTarget(to));
-    window.scrollTo(0, 0);
+
+    if (options?.scroll !== false) {
+      window.scrollTo(0, 0);
+    }
   }, []);
 
   const value = useMemo<RouterValue>(
@@ -121,7 +137,7 @@ function useRouter(): RouterValue {
   return value;
 }
 
-export function useNavigate(): (to: string, options?: { replace?: boolean }) => void {
+export function useNavigate(): (to: string, options?: NavigateOptions) => void {
   return useRouter().navigate;
 }
 

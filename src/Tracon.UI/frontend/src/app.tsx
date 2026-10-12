@@ -62,7 +62,13 @@ export const routes = (meta: Meta): RouteDefinition[] => [
   { pattern: 'workflows/new', render: () => <WorkflowEditorScreen /> },
   {
     pattern: 'workflows/:name',
-    render: (params) => <WorkflowDetailScreen name={params['name'] ?? ''} meta={meta} />,
+    // Keyed by name: moving to another workflow is a new screen, not this one
+    // with a new title. Without it the previous workflow's stream, run and
+    // output carried over — and its stream could write ITS run into the new
+    // workflow's address (F-335).
+    render: (params) => (
+      <WorkflowDetailScreen key={params['name']} name={params['name'] ?? ''} meta={meta} />
+    ),
   },
   {
     pattern: 'workflows/:name/edit',
