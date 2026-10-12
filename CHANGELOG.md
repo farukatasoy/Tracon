@@ -74,6 +74,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- A harness loop with an `aiJudge` criterion now records the judge's tokens in
+  the run's `usage`, cost and quota consumption. The judge calls its own model
+  on every iteration it reaches, and the framework drops that response: the
+  tree budget counted the judge, but the run record, the run's cost and the
+  tenant's quota did not.
+- The tokens of the context compaction summarizer are now priced at the
+  summarizer's own model. They were priced at the agent's model, while the tree
+  budget priced them at the summarizer's.
+- The tree budget now charges a streamed model call with the sum of its usage
+  reports. It kept only the last report, while the run record sums them, so a
+  call that reports usage in more than one part was undercounted against
+  `MaxTotalTokens` and `MaxTotalCost`.
 - A consumer's own speech provider now works with `UseVoice()` as documented.
   With `ISpeechSynthesizer` and `ISpeechTranscriber` registered before
   `UseVoice()` and no voice key, the first read of the voice settings threw:
@@ -348,6 +360,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- A run that spends tokens on more than one model (a compaction summarizer or
+  an `aiJudge` judge on a model other than the agent's) prices each model's
+  share at that model's price, and `cost` is the sum. The three
+  `*PricePerMillionTokens` fields of such a run are `null`: one rate cannot
+  describe the total. A model with no price adds nothing to the cost and is not
+  priced at the agent's rate. The cost is `Unknown` only when no model of the
+  run has a price. `POST /api/stats/recalculate-costs` does not re-price such a
+  run when any of its models had a price. A run whose summarizer or judge runs
+  on the agent's own model is unchanged.
 - `UseVoice()` and `UseOpenAILive()` now validate their settings when the
   application starts. Both validators already said so, but neither registration
   asked for it, so an invalid value — a missing ElevenLabs key, a headerless

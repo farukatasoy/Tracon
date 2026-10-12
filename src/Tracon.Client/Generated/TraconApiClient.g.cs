@@ -22780,7 +22780,8 @@ namespace Tracon.Client.Generated
 
         /// <summary>
         /// Gets the input price, per million tokens, that produced
-        /// <br/>`InputCost`. `null` when the price is unknown.
+        /// <br/>`InputCost`. `null` when the price is unknown, or
+        /// <br/>when the run's tokens were priced at more than one model.
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("inputPricePerMillionTokens")]
@@ -22795,7 +22796,8 @@ namespace Tracon.Client.Generated
 
         /// <summary>
         /// Gets the output price, per million tokens, that produced
-        /// <br/>`OutputCost`. `null` when the price is unknown.
+        /// <br/>`OutputCost`. `null` when the price is unknown, or
+        /// <br/>when the run's tokens were priced at more than one model.
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("outputPricePerMillionTokens")]
@@ -22813,7 +22815,8 @@ namespace Tracon.Client.Generated
         /// Gets the cache-read price, per million tokens, that produced
         /// <br/>`CachedInputCost`. `null` when no cache rate
         /// <br/>was applied — either the cache rate is undefined, or the provider
-        /// <br/>reported no cache read at all.
+        /// <br/>reported no cache read at all — or when the run's tokens were priced at
+        /// <br/>more than one model.
         /// </summary>
 
         [System.Text.Json.Serialization.JsonPropertyName("cachedInputPricePerMillionTokens")]

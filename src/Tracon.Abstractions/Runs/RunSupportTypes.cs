@@ -88,6 +88,16 @@ public sealed record RunError
 /// Cost of a run. It is computed and written once when the run ends (a price
 /// snapshot) — a later change to the price list does not change past values.
 /// </summary>
+/// <remarks>
+/// A run can spend tokens on more than one model: the context compaction
+/// summarizer and the <c>aiJudge</c> loop criterion's judge can run on models
+/// of their own. Each model's share is then priced at that model and the cost
+/// terms are the sum of the shares. The three <c>*PricePerMillionTokens</c>
+/// rate fields are <see langword="null"/> on such a cost — one rate cannot
+/// describe a total that several rates produced. A share whose model has no
+/// price adds nothing; <see cref="Source"/> is <see cref="PricingSource.Unknown"/>
+/// only when no share is priced.
+/// </remarks>
 public sealed record RunCost
 {
     /// <summary>Gets the input token cost, or <see langword="null"/> when the price is unknown.</summary>
@@ -95,7 +105,8 @@ public sealed record RunCost
 
     /// <summary>
     /// Gets the input price, per million tokens, that produced
-    /// <c>InputCost</c>. <see langword="null"/> when the price is unknown.
+    /// <c>InputCost</c>. <see langword="null"/> when the price is unknown, or
+    /// when the run's tokens were priced at more than one model.
     /// </summary>
     /// <remarks>
     /// This is not a fourth addend of <see cref="Total"/>: it is the rate, not
@@ -110,7 +121,8 @@ public sealed record RunCost
 
     /// <summary>
     /// Gets the output price, per million tokens, that produced
-    /// <c>OutputCost</c>. <see langword="null"/> when the price is unknown.
+    /// <c>OutputCost</c>. <see langword="null"/> when the price is unknown, or
+    /// when the run's tokens were priced at more than one model.
     /// </summary>
     /// <remarks>Not a cost addend — see <see cref="InputPricePerMillionTokens"/>.</remarks>
     public decimal? OutputPricePerMillionTokens { get; init; }
@@ -139,7 +151,8 @@ public sealed record RunCost
     /// Gets the cache-read price, per million tokens, that produced
     /// <c>CachedInputCost</c>. <see langword="null"/> when no cache rate
     /// was applied — either the cache rate is undefined, or the provider
-    /// reported no cache read at all.
+    /// reported no cache read at all — or when the run's tokens were priced at
+    /// more than one model.
     /// </summary>
     /// <remarks>Not a cost addend — see <see cref="InputPricePerMillionTokens"/>.</remarks>
     public decimal? CachedInputPricePerMillionTokens { get; init; }

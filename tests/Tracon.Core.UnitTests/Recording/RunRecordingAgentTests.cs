@@ -407,6 +407,81 @@ public sealed class RunRecordingAgentTests
     }
 
     /// <summary>
+    /// F-349: the summarization call runs on its own model, but the run priced
+    /// its tokens at the agent's model, while the tree budget priced them at the
+    /// summarization model. Each share is now priced at the model that spent it.
+    /// </summary>
+    [Fact]
+    public async Task Summarization_tokens_are_priced_at_the_summarization_model()
+    {
+        var store = new InMemoryRunStore(tenantContext: new FixedTenantContext());
+
+        var mainUsage = new UsageDetails { InputTokenCount = 1_000, OutputTokenCount = 100, TotalTokenCount = 1_100 };
+        var mainClient = new FakeChatClient(_ => new ChatResponse(new ChatMessage(ChatRole.Assistant, "ok")) { Usage = mainUsage });
+        var summarizerUsage = new UsageDetails { InputTokenCount = 400, OutputTokenCount = 40, TotalTokenCount = 440 };
+        var summarizerClient = new FakeChatClient(
+            _ => new ChatResponse(new ChatMessage(ChatRole.Assistant, "summary")) { Usage = summarizerUsage });
+
+        var mainProvider = new FakeModelProvider(mainClient, name: "fake", models:
+        [
+            new ModelDescriptor { Name = "priced-model", InputCostPerMillionTokens = 2m, OutputCostPerMillionTokens = 4m },
+        ]);
+        var summarizerProvider = new FakeModelProvider(summarizerClient, name: "summarizer", models:
+        [
+            new ModelDescriptor { Name = "summarizer-model", InputCostPerMillionTokens = 100m, OutputCostPerMillionTokens = 300m },
+        ]);
+
+        var compiler = new AgentDefinitionCompiler(TestData.Providers(mainProvider, summarizerProvider), TestData.Registry());
+
+        var definition = TestData.Definition() with
+        {
+            Model = new ModelBinding { Provider = "fake", Model = "priced-model" },
+            Compaction = new CompactionSettings
+            {
+                Strategy = CompactionStrategyKind.Summarization,
+                TriggerMessages = 2,
+                MinimumPreservedGroups = 1,
+                SummarizationModel = new ModelBinding { Provider = "summarizer", Model = "summarizer-model" },
+            },
+        };
+
+        var resolver = new RunPricingResolver(
+            new ModelProviderRegistry([mainProvider, summarizerProvider]),
+            Options.Create(new TraconOptions()));
+
+        var agent = new RunRecordingAgent(
+            compiler.Compile(definition),
+            store,
+            new FixedTenantContext(),
+            new TraconRunRecordingOptions(),
+            NullLogger<RunRecordingAgent>.Instance,
+            modelId: "priced-model",
+            modelProvider: "fake",
+            pricingResolver: resolver);
+
+        var longConversation = Enumerable.Range(0, 12)
+            .Select(static i => new ChatMessage(i % 2 == 0 ? ChatRole.User : ChatRole.Assistant, $"message {i}"))
+            .ToList();
+
+        await agent.RunAsync(longConversation);
+
+        mainClient.CallCount.ShouldBe(1);
+        var summaries = summarizerClient.CallCount;
+        summaries.ShouldBeGreaterThan(0);
+
+        var run = (await store.QueryRunsAsync(new RunQuery())).ShouldHaveSingleItem();
+
+        run.Usage.ShouldNotBeNull().InputTokens.ShouldBe(1_000 + (400 * summaries));
+
+        var cost = run.Cost.ShouldNotBeNull();
+        cost.Source.ShouldBe(PricingSource.Catalog);
+        cost.InputCost.ShouldBe((1_000 * 2m / 1_000_000m) + (400 * summaries * 100m / 1_000_000m));
+        cost.OutputCost.ShouldBe((100 * 4m / 1_000_000m) + (40 * summaries * 300m / 1_000_000m));
+        cost.InputPricePerMillionTokens.ShouldBeNull();
+        cost.OutputPricePerMillionTokens.ShouldBeNull();
+    }
+
+    /// <summary>
     /// Phase 20: verifies that the pricing resolver is actually called and its result is
     /// written to the store. Unlike the other tests, this one constructs
     /// <see cref="RunRecordingAgent"/> WITH modelId/modelProvider/pricingResolver — this

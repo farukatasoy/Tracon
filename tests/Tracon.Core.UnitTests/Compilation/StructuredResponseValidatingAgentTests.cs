@@ -452,7 +452,7 @@ public sealed class StructuredResponseValidatingAgentTests
 
         // Only the FIRST (discarded) response's usage was folded in - the second
         // (returned) response's usage is counted through the normal path instead.
-        var usage = extraUsage.ToRunUsage();
+        var usage = extraUsage.ToAgentModelUsage();
         usage.ShouldNotBeNull();
         usage!.InputTokens.ShouldBe(10);
         usage.OutputTokens.ShouldBe(5);

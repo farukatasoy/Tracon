@@ -56,6 +56,17 @@ pricing catalog or configuration never rewrites a run's already-known cost —
 `POST /api/stats/recalculate-costs` only fills in runs whose price was unknown
 at the time, it never re-prices a run that already has one.
 
+A run can spend tokens on more than one model: the context compaction
+summarizer and the judge of an `aiJudge` loop criterion can run on models of
+their own. Their tokens are in the run's `usage`, and the tenant's quota
+consumes the same total. Each model's share is priced at that model's own price,
+and `cost` is the sum of the shares. Such a cost carries no unit price — the
+three per-million fields are `null`, because one rate cannot describe a total
+that several rates produced. A model with no price adds nothing to `cost`; its
+tokens are not priced at the agent's rate. When no model of the run has a price,
+`cost` is unknown, and a later recalculation prices all of the run's tokens at
+the agent's model.
+
 The conversation is the **event stream**, written with gapless sequence numbers by a
 single writer:
 

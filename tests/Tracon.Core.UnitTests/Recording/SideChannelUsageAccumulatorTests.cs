@@ -9,7 +9,7 @@ public sealed class SideChannelUsageAccumulatorTests
     {
         var accumulator = new SideChannelUsageAccumulator();
 
-        accumulator.ToRunUsage().ShouldBeNull();
+        accumulator.ToAgentModelUsage().ShouldBeNull();
     }
 
     [Fact]
@@ -19,7 +19,7 @@ public sealed class SideChannelUsageAccumulatorTests
 
         accumulator.Add(null);
 
-        accumulator.ToRunUsage().ShouldBeNull();
+        accumulator.ToAgentModelUsage().ShouldBeNull();
     }
 
     [Fact]
@@ -30,7 +30,7 @@ public sealed class SideChannelUsageAccumulatorTests
         accumulator.Add(new UsageDetails { InputTokenCount = 10, OutputTokenCount = 2, TotalTokenCount = 12 });
         accumulator.Add(new UsageDetails { InputTokenCount = 5, OutputTokenCount = 1, TotalTokenCount = 6 });
 
-        var usage = accumulator.ToRunUsage();
+        var usage = accumulator.ToAgentModelUsage();
 
         usage.ShouldNotBeNull();
         usage!.InputTokens.ShouldBe(15);
@@ -48,7 +48,7 @@ public sealed class SideChannelUsageAccumulatorTests
 
         accumulator.Add(new UsageDetails { InputTokenCount = 10, OutputTokenCount = 2, TotalTokenCount = 12 });
 
-        var usage = accumulator.ToRunUsage();
+        var usage = accumulator.ToAgentModelUsage();
 
         usage.ShouldNotBeNull();
         usage!.CachedInputTokens.ShouldBeNull();
@@ -75,7 +75,7 @@ public sealed class SideChannelUsageAccumulatorTests
             CachedInputTokenCount = 3,
         });
 
-        var usage = accumulator.ToRunUsage();
+        var usage = accumulator.ToAgentModelUsage();
 
         usage.ShouldNotBeNull();
         usage!.CachedInputTokens.ShouldBe(7);
@@ -94,10 +94,49 @@ public sealed class SideChannelUsageAccumulatorTests
 
         accumulator.Add(new UsageDetails { CachedInputTokenCount = 0 });
 
-        var usage = accumulator.ToRunUsage();
+        var usage = accumulator.ToAgentModelUsage();
 
         usage.ShouldNotBeNull();
         usage!.CachedInputTokens.ShouldBe(0);
         usage.InputTokens.ShouldBeNull();
+    }
+
+    /// <summary>
+    /// F-349: another model's share is kept apart from the agent's share and
+    /// grouped by provider and model, so each share is priced at its own model.
+    /// </summary>
+    [Fact]
+    public void Another_models_usage_is_kept_apart_and_grouped_by_provider_and_model()
+    {
+        var accumulator = new SideChannelUsageAccumulator();
+
+        accumulator.Add(new UsageDetails { InputTokenCount = 10, OutputTokenCount = 2, TotalTokenCount = 12 });
+        accumulator.Add(new UsageDetails { InputTokenCount = 30, OutputTokenCount = 2, TotalTokenCount = 32 }, "judging", "judge-model");
+        accumulator.Add(new UsageDetails { InputTokenCount = 40, OutputTokenCount = 3, TotalTokenCount = 43 }, "JUDGING", "Judge-Model");
+        accumulator.Add(new UsageDetails { InputTokenCount = 5, OutputTokenCount = 1, TotalTokenCount = 6 }, "acme", "summarizer");
+        accumulator.Add(null, "zeta", "ignored");
+
+        accumulator.ToAgentModelUsage().ShouldNotBeNull().TotalTokens.ShouldBe(12);
+
+        var shares = accumulator.ToOtherModelUsages();
+
+        // Case-insensitive grouping, ordered by provider; a null usage adds no share.
+        shares.Count.ShouldBe(2);
+        shares[0].Provider.ShouldBe("acme");
+        shares[0].Usage.TotalTokens.ShouldBe(6);
+        shares[1].Provider.ShouldBe("judging");
+        shares[1].Usage.InputTokens.ShouldBe(70);
+        shares[1].Usage.OutputTokens.ShouldBe(5);
+        shares[1].Usage.TotalTokens.ShouldBe(75);
+    }
+
+    [Fact]
+    public void A_run_with_no_other_model_has_no_other_share()
+    {
+        var accumulator = new SideChannelUsageAccumulator();
+
+        accumulator.Add(new UsageDetails { InputTokenCount = 10, TotalTokenCount = 10 });
+
+        accumulator.ToOtherModelUsages().ShouldBeEmpty();
     }
 }

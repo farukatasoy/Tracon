@@ -8,7 +8,7 @@ src/Tracon.AspNetCore/McpServer/McpTaskRunProvisioning.cs:FilterAsync | Both Set
 src/Tracon.AspNetCore/McpServer/McpTaskRunProvisioning.cs:SetCurrent | This IS the wrapper's own definition, a synchronous setter, not an ambient-write call site itself
 src/Tracon.AspNetCore/McpServer/RunBackedMcpTaskStore.cs:CloseIfStillQueuedAsync | using var tenantScope wraps one orphaned-row cleanup in this method's own body, not a loop; scoped to the run's own recorded owning tenant
 src/Tracon.AspNetCore/McpServer/RunBackedMcpTaskStore.cs:SetCancelledAsync | using var tenantScope wraps this method's own single GetRunAsync/CompleteRunAsync pair, not a loop; no nested async helper involved
-src/Tracon.Core/Compilation/CompactionUsageTrackingChatClient.cs:GetResponseAsync | Not an async iterator; a single non-streaming span opened in the method's own synchronous-continuation body (Faz 93 measured)
+src/Tracon.Core/Compilation/SideChannelUsageTrackingChatClient.cs:GetResponseAsync | Not an async iterator; a single non-streaming compaction span opened in the method's own synchronous-continuation body (Faz 93 measured; the streaming override opens none)
 src/Tracon.Core/Recording/RunReconciliationService.cs:TryContinueAsync | Background reconciliation loop; scope opened with using(...) around one continuation attempt, not a streaming path
 src/Tracon.Core/Recording/RunRecordingAgent.Lifecycle.cs:PrepareRun | Synchronous method (not async); attribution and span resolved here on purpose so the AsyncLocal write stays in the caller's own body
 src/Tracon.Core/Recording/RunRecordingAgent.cs:RunCoreAsync | Non-streaming path; SetCurrent is called in this async method's own body, the documented correct pattern (Faz 6/11)

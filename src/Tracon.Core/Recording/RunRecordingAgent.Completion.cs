@@ -105,11 +105,21 @@ public sealed partial class RunRecordingAgent
             _metrics?.RecordToolInvocation(unfinished.ToolName, succeeded: false, unfinished.Duration);
         }
 
-        // The tokens that context compaction (summarization) produces come from a
-        // side-channel call that is completely separate from the AgentResponse of the agent;
-        // if they are not added to the final usage here, the cost report and the tree budget
-        // stay incomplete.
-        usage = MergeUsage(usage, scope.ExtraUsage?.ToRunUsage());
+        // The tokens a side-channel call spends (the compaction summarizer, the
+        // aiJudge loop judge, a discarded repair turn, the turns of a loop that
+        // failed its run) never reach the AgentResponse; if they are not added here,
+        // the run's usage, cost and quota entry stay incomplete. 🚨 They are kept
+        // apart by model (F-349): the agent's own model share joins the agent's
+        // usage, every other model's share is priced at that model below. The run's
+        // usage is the sum of all of them.
+        var agentUsage = RunUsageSum.Add(usage, scope.ExtraUsage?.ToAgentModelUsage());
+        var otherModels = scope.ExtraUsage?.ToOtherModelUsages() ?? [];
+        usage = agentUsage;
+
+        foreach (var share in otherModels)
+        {
+            usage = RunUsageSum.Add(usage, share.Usage);
+        }
 
         // 🚨 A ModelBinding.Fallbacks link may have answered instead of the
         // primary binding (phase 62). scope.FallbackAttribution is written by
@@ -124,10 +134,14 @@ public sealed partial class RunRecordingAgent
         var modelProvider = fallbackUsed?.Provider ?? _modelProvider;
         var modelId = fallbackUsed?.Model ?? _modelId;
 
-        // The cost is calculated HERE, from the final (merged) usage — the price is a
+        // The cost is calculated HERE, once, when the run ends — the price is a
         // snapshot (see docs/arsiv/fazlar/20-MALIYET-VE-GOSTERGE-PANELI.md section 20.2): if the price
-        // list changes later, the cost of this run does not change.
-        var cost = _pricingResolver?.Resolve(modelProvider, modelId, usage);
+        // list changes later, the cost of this run does not change. Each model's
+        // share is priced at that model; with no other model it is exactly the
+        // resolver's answer for the agent's model (RunCostCombiner).
+        var cost = _pricingResolver is null
+            ? null
+            : RunCostCombiner.Resolve(_pricingResolver, modelProvider, modelId, agentUsage, otherModels);
 
         // 🚨 Quota accounting runs BEFORE the terminal write (phase 146,
         // 146.1). Consumption is real the moment it is spent — the tokens
@@ -160,9 +174,9 @@ public sealed partial class RunRecordingAgent
         // 🚨 The budget is NOT recorded here (phase 114, was: `scope.Budget?.RecordUsage(...)`).
         // RunBudgetChatClient records every real model call the moment it
         // happens, from INSIDE the tool-call loop - including the calls that
-        // make up `usage` above AND the compaction side-channel merged into
-        // it, because both are built through the same
-        // IModelProviderRegistry.CreateChatClient(binding) pipeline that ring
+        // make up `usage` above AND the side-channel calls merged into it (the
+        // compaction summarizer, the aiJudge loop judge), because every one of
+        // them is built through the same ModelProviderRegistry pipeline that ring
         // sits in. Recording the merged total here a second time would double
         // every tree's spend.
         var elapsed = _timeProvider.GetElapsedTime(scope.StartedAt);
@@ -274,40 +288,6 @@ public sealed partial class RunRecordingAgent
             return new DefaultRunErrorClassifier().Classify(error);
         }
     }
-
-    private static RunUsage? MergeUsage(RunUsage? primary, RunUsage? extra)
-    {
-        if (extra is null)
-        {
-            return primary;
-        }
-
-        if (primary is null)
-        {
-            return extra;
-        }
-
-        return new RunUsage
-        {
-            InputTokens = (primary.InputTokens ?? 0) + (extra.InputTokens ?? 0),
-            OutputTokens = (primary.OutputTokens ?? 0) + (extra.OutputTokens ?? 0),
-            TotalTokens = (primary.TotalTokens ?? 0) + (extra.TotalTokens ?? 0),
-
-            // 🚨 The breakdown fields use a NULL-PRESERVING sum, unlike the three
-            // totals above. `(a ?? 0) + (b ?? 0)` would turn "neither side
-            // measured this" into the claim "measured, and it was zero"; on a run
-            // whose provider never reports cache usage that would report a 0%
-            // cache hit rate as if it had been observed.
-            CachedInputTokens = AddOrNull(primary.CachedInputTokens, extra.CachedInputTokens),
-            ReasoningTokens = AddOrNull(primary.ReasoningTokens, extra.ReasoningTokens),
-            AudioInputTokens = AddOrNull(primary.AudioInputTokens, extra.AudioInputTokens),
-            AudioOutputTokens = AddOrNull(primary.AudioOutputTokens, extra.AudioOutputTokens),
-        };
-    }
-
-    /// <summary>Adds two optional counters, staying <see langword="null"/> when NEITHER side reported one.</summary>
-    private static long? AddOrNull(long? left, long? right)
-        => left is null && right is null ? null : (left ?? 0) + (right ?? 0);
 
     private static RunUsage? ToRunUsage(UsageDetails? usage)
         => usage is null
