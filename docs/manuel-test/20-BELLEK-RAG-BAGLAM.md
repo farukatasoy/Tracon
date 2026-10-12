@@ -9,7 +9,7 @@
 > sıkıştırma/bellek/anlamsal-arama bağlama kısmı: `BuildCompactionStrategy`,
 > `CreateMemoryProviders`, `AddVectorSearchTool`, harness çakışma denetimi) ·
 > `src/Tracon.Core/Compilation/ObservedCompactionStrategy.cs`,
-> `CompactionUsageTrackingChatClient.cs` ·
+> `SideChannelUsageTrackingChatClient.cs` ·
 > `src/Tracon.Core/Knowledge/` (tümü: `TraconKnowledgeOptions.cs`,
 > `TextChunker.cs`, `KnowledgeIngestionService.cs`, `VectorSearchToolFactory.cs`) ·
 > `src/Tracon.PostgreSql/Stores/PgVectorSearchStore.cs` ·
@@ -519,8 +519,9 @@ curl -s "$APU/api/runs/<sikistirmali-runId>/events" -H "$APB" | python3 -m json.
   payload.beforeTokens` (Summarization gerçekten bir modele özetletir, salt
   atma değildir — `SlidingWindow`'dan farkı budur).
 - `usage.totalTokens` alanı `NULL` değildir ve pozitiftir — özetleme
-  çağrısının kendi token'ları `CompactionUsageTrackingChatClient` +
-  `MergeUsage` ile çalıştırma toplamına **eklenmiştir** (K-108).
+  çağrısının kendi token'ları `SideChannelUsageTrackingChatClient` +
+  `RunUsageSum` ile çalıştırma toplamına **eklenmiştir** (K-108). Maliyeti
+  özet modelinin fiyatıyla hesaplanır (F-349).
 
 ---
 

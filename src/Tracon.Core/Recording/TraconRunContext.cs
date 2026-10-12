@@ -133,8 +133,10 @@ public sealed record AgentRunScope
     /// <summary>
     /// Gets the accumulator that collects the extra token usage produced by
     /// side-channel model calls during the run — context compaction
-    /// (summarization) and bounded structured-response repair. It is folded
-    /// into the final usage at the end of the run.
+    /// (summarization), the <c>aiJudge</c> loop judge, bounded
+    /// structured-response repair and the turns of a loop that fails its run.
+    /// It keeps each model's share apart and is folded into the final usage and
+    /// cost at the end of the run.
     /// </summary>
     internal SideChannelUsageAccumulator? ExtraUsage { get; init; }
 

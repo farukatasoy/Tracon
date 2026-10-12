@@ -15,6 +15,15 @@ namespace Tracon;
 /// <c>runs.model_provider</c> existed resolves by model name alone, the same
 /// as before this field existed; a row written after carries its own provider
 /// and resolves against it directly.
+/// <para>
+/// A row priced at more than one model (<see cref="RunCostCombiner"/>)
+/// is a known price and so is skipped too: its usage includes tokens another
+/// model spent, and re-pricing it whole at <c>runs.model_id</c> would bill
+/// them at the agent's rate. A row whose models were ALL unpriced is
+/// <see cref="PricingSource.Unknown"/> and cannot be told apart from a
+/// single-model row — the row stores no per-model usage — so this service
+/// prices its whole usage at the run's own model.
+/// </para>
 /// </remarks>
 internal sealed class RunCostRecalculationService
 {

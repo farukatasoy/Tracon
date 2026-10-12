@@ -359,7 +359,9 @@ Four more rules are worth knowing before you turn the loop on:
   judge binding configured with `AddModelRunJudge(...)`, never on the agent's own
   model. Without that binding the definition does not compile. The judge reads
   each answer, so a tenant's egress policy applies to its provider; it keeps the
-  setup-time key, not the tenant's own.
+  setup-time key, not the tenant's own. Its tokens are part of the run's
+  `usage`, cost and quota consumption, and they are priced at the judge model's
+  own price — see [what a run carries](/concepts/runs/#what-a-run-carries).
 - **By default the loop never fails the run.** A criterion that fails to
   evaluate stops the loop, the work already finished is returned, and the
   iteration event names the criterion. A loop that reaches its ceiling returns its

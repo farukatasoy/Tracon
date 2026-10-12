@@ -1988,3 +1988,56 @@ hiç taşımadı.
 - 4. adımdaki tek başarısız teslim aboneliği KAPATMAZ (sayaç `1`, eşik `2`).
 - 🚨 Eski kusur: SQL upsert'i sayacı `SET` listesine almıyordu. Sayaç `2`'de
   kalıyor, ilk yeni hata aboneliği yeniden kapatıyordu.
+
+---
+
+### MT-OBS-067 — `aiJudge` yargıcının token'ları `run`'ın `usage`'ına, maliyetine ve kotasına girer; her pay kendi modelinin fiyatını alır (kusur-giderme, 2026-10-12, F-349)
+
+Otomatik karşılığı: `HarnessLoopTests.An_aiJudge_loop_records_the_judge_tokens_and_prices_them_at_the_judge_model`
+(akışlı ve akışsız) — düzeltmeden önce iki koşumda da kırmızı ölçüldü:
+`usage.InputTokens` `82` yerine `12` idi. Sıkıştırma özetleyicisinin payı:
+`RunRecordingAgentTests.Summarization_tokens_are_priced_at_the_summarization_model`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | Faz 151 · Faz 192 |
+| **İlgili karar** | K-706 · K-889 |
+| **Devir** | koşulmadı; ➜ CI: `HarnessLoopTests` · `RunCostCombinerTests` · `RunBudgetAccountingTests` |
+
+**Ön koşul**
+- Örnek uygulama, gerçek OpenAI anahtarı. Örnek uygulama yargıcı
+  `AddModelRunJudge` ile `openai`/`gpt-5.4-mini`'ye bağlar.
+- Agent başka bir modelde koşar: `openai-responses`/`gpt-5.6-luna`. İki model
+  de katalogda fiyatlıdır (`appsettings.json`). 🚨 Harness modu `openai` (Chat
+  Completions) sağlayıcısında `400` ile düşer (F-315); agent için
+  `openai-responses` kullan.
+
+**Adımlar**
+1. Tanımı kaydet:
+   ```json
+   POST /tracon/api/agents
+   {"name":"judged-loop","model":{"provider":"openai-responses","model":"gpt-5.6-luna"},
+    "instructions":"Answer in one short sentence.",
+    "harness":{"loop":{"criteria":[{"kind":"aiJudge","judgeCriteria":["The answer is one sentence."]}],
+               "maxIterations":3}}}
+   ```
+2. `POST /tracon/api/agents/judged-loop/run` (`{"message":"Say hello."}`).
+3. `GET /tracon/api/runs/{id}` oku. `GET /tracon/api/runs/{id}/trace` içinde
+   `chat` span'lerinin `gen_ai.usage.*` değerlerini model başına topla.
+4. `GET /tracon/api/quotas/usage` oku.
+
+**Beklenen sonuç**
+- `usage.totalTokens`, agent turlarının ve yargıç çağrılarının toplamıdır.
+  Adım 3'teki span toplamına eşittir.
+- `cost`, agent payının `gpt-5.6-luna` fiyatıyla ve yargıç payının
+  `gpt-5.4-mini` fiyatıyla toplamıdır. `inputPricePerMillionTokens`,
+  `outputPricePerMillionTokens` ve `cachedInputPricePerMillionTokens` `null`
+  olur — iki fiyat bir birim fiyatla anlatılamaz. Arayüzün birim fiyat
+  kutuları `—` gösterir.
+- Adım 4: agent'ın günlük sayacı aynı token ve maliyet toplamını taşır.
+- 🚨 Eski kusur: yargıcın token'ları ağaç bütçesine giriyordu ama `run`'ın
+  `usage`'ına, maliyetine ve kotasına girmiyordu (MAF yargıcın yanıtını
+  atar). Sıkıştırma özetleyicisinin token'ları ise agent modelinin fiyatıyla
+  fiyatlanıyordu.
