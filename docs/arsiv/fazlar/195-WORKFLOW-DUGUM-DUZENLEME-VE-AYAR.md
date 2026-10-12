@@ -40,12 +40,12 @@ Bir operatör bugün fonksiyon düğümlü bir workflow'u konsoldan kuramaz ve d
 - [x] Son fonksiyon silinince `agentNames`, ilk fonksiyon eklenince `nodes` (test 13) — ✅ `workflow-editor.test.tsx`; örnek uygulamada `agentNames: ["support"]`, `version: 2`
 - [x] `GET /api/workflows/functions` `settingsSchema` taşır; uç açıklaması koda uyar — ✅ `WorkflowFunctionCatalogSchemaTests`
 - [x] Ayarsız + ayarlı düğüm aynı listede `GET /api/workflows`'u çökertmez (test 5) — ✅ `WorkflowFunctionSettingsTests`
-- [x] Dört doğrulama kapısı sıfır uyarı verir — ✅ ⏳
+- [x] Dört doğrulama kapısı sıfır uyarı verir — ✅ `python3 scripts/kapi.py kapanis --taban b1a771fe`: 11/11 adım yeşil (bkz. *Kapanış kapıları*)
 - [x] `samples/Tracon.Api` ile gerçek `run` (konsoldan kurulan ayarlı zincir) — ✅ bkz. *Örnek Uygulama Koşumu*
 - [x] `secret` taraması boş; site ve XML "anahtar adı yazılır, anahtar yazılmaz" kuralını yazar — ✅ `kapi.py tarama`; site, XML, `<example>`
 - [x] Manuel kabul case'leri eklendi, otomatikleştirilebilenler koşuldu — ✅ `MT-WF-132…137` (+`120`); `132`–`135` ve `137` örnek uygulamada koşuldu
 - [x] `faz-denetim` koşuldu; 🔴 kalmadı — ✅ 1 gerçek (düzeltildi), 1 gürültü (gerekçeli ret); iki triyaj kullanıcı kararı
-- [x] `docs-site/` güncellendi; `npm run check` temiz — ✅ ⏳
+- [x] `docs-site/` güncellendi; `npm run check` temiz — ✅ 1050 sayfa; 173.496 iç referans, kırık yok; SEO 0 hata; ağırlık tavanı altında
 - [x] `en.ts`/`tr.ts` eksiksiz; bundle ölçüldü — ✅ 199,9 KB gzip (bütçe 250; Faz 194 sonrası 197,7, payı +2,2)
 - [x] `CHANGELOG.md` yeni aşırı yüklemeleri ve arayüz üyesini adıyla anar — ✅ iki aşırı yükleme, `ValidateSettings`, `MaxNodeSettingsLength`, iki sözleşme vakası
 
@@ -96,7 +96,7 @@ Yerel tercihler: ayar `JsonElement?`, `init` erişimcisi `Undefined`/`Null`'ı `
 
 | Kova | Yüzey | Durum |
 |---|---|---|
-| `docs-site/` (elle) | `concepts/workflows.md` (§ *Give a function settings*, "Wide numbers" dahil; § *Retry*) · `ui.md` (editör; `workflow-editor{,-light}.png`, `workflows{,-light}.png`) · `reference/configuration.md` · `capabilities.md` | Yazıldı |
+| `docs-site/` (elle) | `concepts/workflows.md` (§ *Give a function settings*, "Wide numbers" dahil; § *Retry*) · `ui.md` (editör; `workflow-editor{,-light}.png`, `workflows{,-light}.png`) · `reference/configuration.md` · `capabilities.md` · `packages.md` (`Tracon.Workflows` satırı; `--site-denetle` `paket-readme` kuralı) | Yazıldı |
 | `docs-site/` (üretilir) | `api/*` · `http-api/workflows.md` · `llms*.txt` (commit edilir) | Yeniden üretildi |
 | Sevk edilen metin | `///` (`Settings`, `SettingsType/SettingsSchema`, `ValidateSettings`, iki aşırı yükleme ve `<example>`'ları, `WorkflowFunctionOptions`, `MaxNodeSettingsLength`, `Nodes` remarks, iki uç açıklaması) · `src/Tracon.Workflows/README.md` · `CHANGELOG.md` | İç referans yok; `ExampleCompilationTests` 81/81 |
 | Agent haritası, yerel referans | `capabilities.md` iki satır → `Tracon.AgentMap.md`, `llms*.txt` | `--check` yeşil |
@@ -123,14 +123,25 @@ Varsayılan dışı yapılandırma: `Tracon__Workflows__MaxNodeSettingsLength=64
 
 ### Kapanış kapıları ve yayın provası
 
-⏳
+`python3 scripts/kapi.py kapanis --taban b1a771fe` (denetim düzeltmelerinden **sonra**, `faa68345` üzerinde, ilk koşumda): **11/11 adım yeşil**, çıkış 0.
+
+| Adım | Süre |
+|---|---|
+| `kapi.py tarama` · `dokuman-bakim.py --denetle` · script testleri (632) · agent map `--check` · `denetim-paketi.py` | 6,83 · 1,82 · 7,95 · 0,20 · 0,48 sn |
+| `dotnet build Tracon.slnx -c Release` | 97,50 sn · 0 uyarı, 0 hata |
+| `dotnet test` (`-maxcpucount:2`) | 562,78 sn · 19.947 test (tüm TFM bacakları), 0 başarısız, 13 atlanmış |
+| `dotnet pack` · `dotnet format --verify-no-changes` · `performans` · `docs-site` `npm run check` | 7,18 · 124,18 · 96,67 · 39,67 sn |
+
+Başlıca test sayıları (net10.0): Core.UnitTests 3552 · AspNetCore.FunctionalTests 1572 · PostgreSql.IntegrationTests 987 (+1 atlanmış, bu fazla ilgisiz) · Sqlite 931 · SqlServer 913 · Ui.E2ETests 91 · Workflows.UnitTests 237 · Generators.UnitTests 304 · Package.Tests 80. `dotnet pack` 19 `nupkg` ve 18 `snupkg` üretti. `performans` yeşil: `CompiledAgentCacheBenchmarks.CacheHit` tahsisi 24 B → 0 B düştü (iyileşme, bu fazın yolu değil); taban `kapi.py performans --guncelle` ile güncellenir, **güncellenmedi**.
+
+**Yayın provası** (sevk edilen `WorkflowDefinitionStoreContract` iki case kazandı): `python3 scripts/kapi.py yayin --kuru --surum 1.0.0-preview.4` → çıkış 0. Kırıcı liste 2 tip, 0 TFM düşüşü, 2 paket ve hepsi `[Unreleased]` notunda; 20 paket; `npm publish --dry-run`; altı exact-version packed sample, Native AOT smoke ve net8.0 tüketici smoke geçti. Hiçbir sample `IWorkflowDefinitionStore` uygulamıyor. İlk deneme iki kez düştü ve ikisi de **kod kusuru değildi**: biri provanın ortasında izlenen bir dosyayı düzenlediğim için (`TRACON0004`, kirli ağaç), diğeri Faz 194'ün `preview.4` çıktısı `artifacts/package/yayin/`'de durduğu için (araç eski adayı korur; gitignore'lu çıktı kaldırılıp prova yeniden koşuldu).
 
 ## Süreç Ölçümü
 
 | Metrik | Değer |
 |---|---|
 | Plan revizyonu sayısı | 1 — aşırı yükleme imzası (RS0026, K-902); öbür sapmalar planın "ölçülmeli" kalemlerinin sonucudur (#7–#9) |
-| Düzeltme turu sayısı | 12 + kapanış kapıları — çözümleyici (3: RS0016 · CA2263/MA0009/MA0023 · test tiplerinde IDE0032/MA0015) · mimari ratchet'ler · taban çizgileri · örnek derleme · sevk edilen `///`'de iç referans · OpenAPI ve üç istemci · agent map · `KARARLAR-INDEKS` bütçesi · kültür duyarlı test dizesi · bağımsız denetim sonrası · kapanış: ⏳ |
+| Düzeltme turu sayısı | 12 + kapanış kapıları — çözümleyici (3: RS0016 · CA2263/MA0009/MA0023 · test tiplerinde IDE0032/MA0015) · mimari ratchet'ler · taban çizgileri · örnek derleme · sevk edilen `///`'de iç referans · OpenAPI ve üç istemci · agent map · `KARARLAR-INDEKS` bütçesi · kültür duyarlı test dizesi · bağımsız denetim sonrası · kapanış kapıları: 0 (ilk koşumda yeşil) |
 | 🔴 bulgu: gerçek / gürültü / araştırılacak | 1 / 1 / 0 — triyajı kullanıcı seçti |
 | Fazın ürettiği regresyon | 2 — `🔴1` (Retry, editörün korumasını aşıp ayarı siliyordu) ve `🟡3` (liste konsolun biçimini göstermiyordu); ikisini de denetim yakaladı, kapanıştan önce düzeltildi |
 | Faz kapandıktan sonra bulunan kusur | 0 — kapanış anı |
@@ -186,7 +197,7 @@ Denetçi "bilinen sapmaları" yargıladı (K-902 biçimi, Açık Sorular, `{"typ
 
 ### Doküman bütçeleri (dar)
 
-⏳
+`docs/manuel-test/*.md` %1 boş (14 KB) · `docs/**.md` %1 · `ADAYLAR.md` %9 · `hafiza/workflows.md` %8 · `hafiza/nswag-istemci-uretimi.md` %6 · `KARARLAR.md` %12. Faz 196 bunlara ekleme yapmadan **önce** içerik taşır.
 
 ### Açık işler
 
