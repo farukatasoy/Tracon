@@ -582,7 +582,8 @@ Attachment file bytes are not included — only their metadata.
 
 ## Content protection
 
-`AddContentProtection(...)` encrypts session state, chat history, run inputs and
+`AddContentProtection(...)` encrypts session state, chat history, run inputs (the
+messages and the parameter values each in its own column) and
 events, tool arguments/results, agent files, and attachments with AES-256-GCM
 before they reach the database, and decrypts them transparently on read. Off by
 default, like the content guards below — turning it on is a deliberate call, and

@@ -298,7 +298,8 @@ Start with an explicit classification:
 |---|---|
 | Run events | Recorded; configuration retention is inactive until retention is enabled |
 | Tool payloads | Recorded, with event payloads capped at 8,192 characters |
-| Run inputs | Recorded without event-payload truncation so replay remains correct |
+| Run inputs | Recorded without event-payload truncation so replay remains correct; the parameter values a run was bound with sit in their own protected column |
+| Job payloads and item inputs | Plain JSON: a queued run's message, parameter values and document text are not content-protected |
 | Persisted traces | Successful runs sampled at 10%; failures retained when enabled |
 | Sessions and conversations | No configuration age limit by default |
 

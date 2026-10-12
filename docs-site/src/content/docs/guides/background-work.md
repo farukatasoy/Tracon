@@ -133,11 +133,34 @@ curl -sS \
   https://agents.example.com/tracon/api/runs/$RUN_ID/events
 ```
 
-Queued runs do not accept `attachmentIds`, `parameters` or an initial `approvals`
-collection. A queued run of a parameterized agent binds each parameter's default;
-an agent with a required parameter that has no default is refused with `400` and
-`missingParameters`. If a tool asks for approval later, the queued request must
-include a `sessionId`.
+Queued runs do not accept `attachmentIds` or an initial `approvals` collection. They
+do accept `parameters` and `documents`, with the same meaning as on a synchronous run:
+
+```bash
+curl -sS -X POST https://agents.example.com/tracon/api/agents/writer/run \
+  -H "Authorization: Bearer $TRACON_API_KEY" \
+  -H 'Prefer: respond-async' -H 'Content-Type: application/json' \
+  -d '{"message":"Draft","parameters":{"tone":"formal"},
+       "documents":[{"name":"brief.txt","content":"Ship on Friday."}]}'
+```
+
+The values are checked when the request arrives, against the schema of the version the
+worker will run, so a missing required value or an undeclared name is a `400` with the
+same body a synchronous run gives. The worker checks them again where the run executes,
+because a payload is stored data and the agent may have changed since the `202`. Each
+document becomes its own message before the request, in order, and leaves a
+`DocumentAttached` event. Without `parameters`, a queued run of a parameterized agent
+binds each parameter's default; an agent with a required parameter that has no default
+is refused with `400` and `missingParameters`. If a tool asks for approval later, the
+queued request must include a `sessionId`; the run that resumes after the decision binds
+the same values.
+
+:::caution[The job payload is not a protected column]
+The payload holds the message, the parameter values and the document text as plain JSON.
+Content protection covers run inputs, run events and the other columns
+`ContentProtection` lists; `jobs.payload` and the item inputs are not among them. Do not
+queue values that must not sit in plain text in your database.
+:::
 
 A queued run uses the request's `culture`, as a synchronous run does. If the agent is
 in a running [experiment](/concepts/evaluation/#experiments), Tracon assigns the arm
@@ -217,6 +240,37 @@ curl -sS -X PUT \
 A JSON array creates one item for each element. Any other JSON value creates one
 item. A missing payload creates no items. Each job accepts at most
 `MaxItemsPerJob` items.
+
+### Give an item its own values
+
+For `tracon.agent-batch` and `tracon.workflow`, an item that is a JSON object with a
+string `message` member is a **structured item**. It may add `parameters` (an object of
+string values) and, for an agent batch, `documents` (an array of `{name, content}`):
+
+```json
+"payload": [
+  "Plain text still works.",
+  { "message": "Review this", "parameters": { "tone": "formal" },
+    "documents": [{ "name": "brief.txt", "content": "Ship on Friday." }] },
+  { "message": "Summarize", "parameters": { "tone": "casual" } }
+]
+```
+
+Saving the schedule, or triggering it with a payload, refuses an item whose shape is
+wrong — `parameters` that is not an object of strings, a `documents` entry without a
+`name` and a `content`, a member the shape does not name — with a `400` that names the
+item's position. The values themselves are checked when each item runs, against the
+agent's or the workflow's schema at that moment. An item with an invalid value fails
+**alone**: the other items run and the batch still finishes `Completed`. When no item in
+an agent batch carries a value, an agent with a required parameter that has no default
+fails the whole job once, up front. A workflow item cannot carry `documents`; it fails
+with that reason instead of running without them.
+
+:::note[A text item that looks like a structured item is one]
+A stored item is text, and a plain-text item whose content happens to be a JSON object
+with a string `message` member is read as structured. Quote or reshape such text if it
+is ever a real input.
+:::
 
 `handlerKey` names the handler that runs the jobs this schedule produces. Only
 the keys the server allows over HTTP are accepted —

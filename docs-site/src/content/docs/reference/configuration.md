@@ -211,7 +211,10 @@ their own before the rest are folded into a single `other` series — see
 | `RunRecording:RecordRunInput` | `true` |
 
 Disable tool payloads when they can contain personal or regulated data. Replay needs
-recorded run input. A store failure is logged and never blocks the agent response, so
+recorded run input, and so does continuing a parameterized run: the parameter values a
+run was bound with are recorded beside its input, and a replay, an automatic continuation,
+a resume after a tool approval or a resume of a workflow that declares parameters is
+refused when `RecordRunInput` was off for the original run. A store failure is logged and never blocks the agent response, so
 recording is best-effort during a storage outage.
 
 ### Structured response validation
@@ -508,14 +511,15 @@ only after retention is enabled. A database policy for a target takes precedence
 | `Sessions` | Disabled, `null` | `false` |
 | `Conversations` | Disabled, `null` | `false` |
 | `IdempotencyKeys` | 1 day | `false` |
-| `RunInputs` | 30 days | `false` |
+| `RunInputs` | 30 days; a waiting workflow's row is kept | `false` |
 | `VoiceSessions` | 30 days | `false` |
 | `RunScores` | 180 days | `false` |
 | `DocumentEmbeddings` | Disabled, `null` | `false` |
 
 A workflow run waiting for a human answer (`AwaitingInput`) keeps its pending
-request event and its checkpoints for as long as it waits, whatever their age: the
-request lives only in that event, and the answer resumes from those checkpoints.
+request event, its checkpoints and its run input row for as long as it waits,
+whatever their age: the request lives only in that event, the answer resumes from those
+checkpoints, and the parameter values it resumes with live only in that row.
 
 `IdempotencyKeys` is not a bindable child section. Its one-day option default still
 applies when configuration defaults are enabled. Change that target through

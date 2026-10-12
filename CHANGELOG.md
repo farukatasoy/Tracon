@@ -430,6 +430,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `SupportsTenantCredentials` receives the tenant's own key on both calls of
   a session; one that does not is refused for a tenant with its own binding.
 - `ToolApprovalRule.SourceFingerprint`.
+- A workflow can declare run parameters, and a run carries values to every
+  agent step. `WorkflowDefinition.Parameters`, `WorkflowDescriptor.Parameters`,
+  `WorkflowSaveRequest.Parameters`, `WorkflowRunRequest.Parameters`,
+  `WorkflowRunHttpRequest.Parameters` and `GetRunParameters()` (an extension on
+  `IWorkflowContext`, for a function node). A step receives the values its own
+  schema names; an invalid value is a `400` before the stream opens, and a
+  participant whose required parameter nothing supplies fails the run before
+  its first model call. A resume or an answer to a waiting run reads the values
+  back, and is refused when the workflow now declares parameters and the run
+  recorded none.
+- A queued agent run (`Prefer: respond-async`) accepts `parameters` and
+  `documents`, and a batch item can be a structured object
+  (`{"message", "parameters", "documents"}`) for `tracon.agent-batch` and
+  `tracon.workflow`. `jobs.payload` and the item inputs are not
+  content-protected and now hold these values in plain text.
+- `RunInputRecord.Parameters`, `ProtectedColumn.RunInputParameters` (`10`) and
+  a nullable `run_inputs.parameters` column on all three storage providers
+  (PostgreSQL `0056`, SQL Server `0044`, SQLite `0043`). `null` means nothing
+  was recorded and `{}` means the run had no values; the retention policy keeps
+  the row of a run waiting for a human.
+- `RunReplayRequest.Parameters`: values laid over the ones the source run was
+  bound with.
 
 ### Changed
 
@@ -521,6 +543,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   a draft and never write one itself. `WebhookStoreContract` requires that
   `SaveSubscriptionAsync` write the failure count the subscription carries. A
   custom store that does otherwise now fails them.
+- **A replay, an automatic continuation and a resume after a tool approval no
+  longer refuse an agent that declares parameters.** They bind the values the
+  source run recorded (a replay request can change some of them) and refuse a
+  source that recorded none. Before, they refused every such agent. If you
+  upgrade with an approval pending on a queued run of a parameterized agent
+  that predates parameter recording, the decision cannot be applied and says so.
+- The batch item rule changed: an item that is a JSON object with a string
+  `message` member is now read as a structured item instead of as plain text.
+  A text item whose content is such an object is the one ambiguity; the stored
+  item keeps no type. A malformed structured item fails alone, and the schedule
+  endpoints refuse it when it is saved or triggered.
+- `GET /api/runs/{id}/input` answers `200` with an empty message list for a
+  workflow run that recorded parameters; it answered `404` before. The values
+  are not returned there. A replay of a workflow run answers `400` and points
+  to resume.
 
 ## [1.0.0-preview.3] - 2026-09-24
 

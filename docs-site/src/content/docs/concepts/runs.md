@@ -481,7 +481,10 @@ around it.
   runs the agent's **current** version, not the version the source run used. To
   repeat the source run's version, send its `agentVersion`. The console's
   "Today's version" option is this default. A replay also uses the default
-  instructions, because the run record does not store the culture
+  instructions, because the run record does not store the culture. It does bind
+  the [parameter values](/concepts/agents/#parameters) the source run recorded;
+  a `parameters` field in the replay request changes the names it gives and keeps
+  the rest. A workflow run is not replayed — it continues from its checkpoints
 - `POST /api/runs/{runId}/judge` — score a run with the registered judges, skipping
   the sampling decision, for calibration
 

@@ -207,6 +207,11 @@ Workflows defined in code and in the database. Opening one draws the compiled gr
 and the node ids are the same executor ids that appear in run events — which is how
 nodes light up live while a workflow runs.
 
+When the workflow declares parameters, the run panel renders the same form the
+playground does — one field per parameter, Run disabled while a required one is empty —
+and sends the values with the message. The editor keeps the schema across a save but does
+not change it yet; create or change it with `PUT /api/workflows/{name}`.
+
 A workflow waiting on human input shows the pending request as a card; answering it
 resumes execution from the checkpoint as a new run. The card opens for any waiting
 run, wherever it started — over HTTP, from a job, or in another tab: follow the

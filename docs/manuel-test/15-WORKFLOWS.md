@@ -2546,7 +2546,7 @@ yalnız **kendi** şemasının adını alır. Otomatik karşılığı:
 | **İzlek** | B |
 | **Önem** | Yüksek |
 | **İlgili faz** | 194 |
-| **İlgili karar** | K-896 |
+| **İlgili karar** | K-897 |
 
 **Ön koşul**
 - Örnek uygulama **Echo** sağlayıcıyla çalışıyor: `Tracon__Providers__OpenAI__ApiKey=`
@@ -2589,7 +2589,7 @@ parametresini workflow karşılamıyor. Otomatik karşılığı:
 | **İzlek** | B |
 | **Önem** | Yüksek |
 | **İlgili faz** | 194 |
-| **İlgili karar** | K-896 |
+| **İlgili karar** | K-897 |
 
 **Ön koşul**
 - MT-WF-127'deki `podcast` workflow'u kayıtlı.
@@ -2622,7 +2622,7 @@ Sınır senaryosu. Otomatik karşılığı: `WorkflowParameterResumeTests` ·
 | **İzlek** | B |
 | **Önem** | Yüksek |
 | **İlgili faz** | 194 |
-| **İlgili karar** | K-896 · K-897 |
+| **İlgili karar** | K-897 · K-898 |
 
 **Ön koşul**
 - MT-WF-127'deki `podcast` workflow'u ve tamamlanmış bir run (`$RID`).
@@ -2654,7 +2654,7 @@ kapsamından gelir. Otomatik karşılığı: `WorkflowFunctionParameterTests`.
 | **İzlek** | B |
 | **Önem** | Orta |
 | **İlgili faz** | 194 |
-| **İlgili karar** | K-896 |
+| **İlgili karar** | K-897 |
 
 **Ön koşul**
 - Örnek uygulama Echo kipinde; `narrate` fonksiyonu kayıtlı.
@@ -2680,7 +2680,7 @@ Konsol. Otomatik karşılığı: `workflow-detail.test.tsx` ·
 | **İzlek** | B |
 | **Önem** | Orta |
 | **İlgili faz** | 194 |
-| **İlgili karar** | K-896 |
+| **İlgili karar** | K-897 |
 
 **Ön koşul**
 - MT-WF-127'deki `podcast` workflow'u.
