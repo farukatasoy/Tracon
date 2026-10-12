@@ -3945,3 +3945,35 @@ karşılığı: `HarnessDefaultsTests`.
 - Adım 5: üçüncü model çağrısı fonksiyon aracı sunmaz; model yanıt verir.
 - 🚨 Eski kusur: skill CWD'den okundu, not `./agent-file-memory/<oturum>/` altına
   yazıldı, `MaximumIterationsPerRequest = 2` ile 7 model çağrısı yapıldı.
+
+---
+
+### MT-CORE-140 — Kuyruklu run isteğin `culture`'ının talimatıyla koşar (kusur-giderme, 2026-10-12, F-351)
+
+Regresyon. Kuyruk worker'ı agent'ı `culture` olmadan çözüyordu; kuyruklu run her
+zaman varsayılan talimatla koştu. Otomatik karşılığı:
+`CultureInstructionEndpointTests.A_queued_run_uses_the_requested_cultures_instructions`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- `polyglot-agent`: `instructions` "Reply briefly.",
+  `instructionsByCulture: {"tr": "Answer using the tr culture text."}`.
+- Kuyruk açık (`UseScheduling`).
+
+**Adımlar**
+1. `Prefer: respond-async` ile `{"message":"hi","culture":"tr"}` gönder.
+2. Run `Completed` olunca sağlayıcıya giden isteği (span) incele.
+3. Aynı isteği `culture` olmadan tekrarla.
+
+**Beklenen sonuç**
+- Adım 1–2: talimat "Answer using the tr culture text." olur.
+- Adım 3: talimat "Reply briefly." olur.
+- Run kaydı `culture` taşımaz. Bu run'ın approval devamı, replay'i ve
+  otomatik devamı varsayılan talimatla koşar (bakımcı kararı).
+- 🚨 Eski kusur: Adım 1 de "Reply briefly." gönderdi.

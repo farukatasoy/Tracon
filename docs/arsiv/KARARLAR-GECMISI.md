@@ -1,3 +1,7 @@
+### K-894
+
+F-351'in kapanışında kullanıcının seçtiği yol (2026-10-12): kol enqueue anında atanır (senkron yolla aynı anahtar, `sessionId ?? runId`, K-144), doğrulama sabit sürüm ve kültürle derler, payload isteğe bağlı `culture`, `agentVersion`, `experimentId`, `variant` taşır (eski job'lar bugünkü gibi koşar). `AgentRun` `JobHandlerKeys.BuiltIn`'dedir ve zamanlama elle payload kabul eder; bu yüzden worker kolu güvenmeden doğrular: deney aynı kiracıda ve agent'ta olmalı, Draft olmamalı (varyantları hâlâ düzenlenebilir), varyant tam o sürümü adlandırmalı; `experimentId`/`variant`'ı `agentVersion`'sız taşıyan yarım kol ve bozuk sürüm reddedilir, iş model çağrısı olmadan `Failed` olur. Durdurulmuş deney kabul edilir (durmadan önce kuyruğa giren run kolunu korur); bozuk `culture` düşürülür, reddedilmez. Yer tutucu `Queued` satırı deney etiketi almaz; yalnız worker'ın run'ı yazar (hiç başlamayan run kola sayılmaz). Kültür run kaydına yazılmaz (kullanıcı kararı): onay devamı, replay ve otomatik devam varsayılan kültürle koşar ve bu belgelenir.
+
 
 
 

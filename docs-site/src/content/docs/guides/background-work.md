@@ -139,6 +139,18 @@ an agent with a required parameter that has no default is refused with `400` and
 `missingParameters`. If a tool asks for approval later, the queued request must
 include a `sessionId`.
 
+A queued run uses the request's `culture`, as a synchronous run does. If the agent is
+in a running [experiment](/concepts/evaluation/#experiments), Tracon assigns the arm
+when it accepts the request, with the same key as a synchronous run, and the worker
+runs that arm's version. The `202` is returned only after Tracon compiles that version,
+so a version that does not compile is a `400`, not a failed job.
+
+The job payload carries the culture and the arm. A schedule can write a payload by
+hand, so the worker checks the arm before it runs. The arm must name a variant of a
+started experiment for this agent in this tenant, with that variant's version. If it
+does not, the job fails before the run starts, and no model call is made. A payload
+with only an `agentVersion` runs that version outside any experiment.
+
 **Do not start a second run yourself.** Deciding the approval is enough: the
 decision endpoint creates the continuation run and queues it for the worker in
 the same request, and the response's approval record is your confirmation that

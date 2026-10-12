@@ -5,7 +5,7 @@
 
 En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek bölünme). Yeni kararlar için: [`KARARLAR-INDEKS.md`](../KARARLAR-INDEKS.md).
 
-## Arşivlenen Kararlar (805 kalem)
+## Arşivlenen Kararlar (806 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
@@ -814,3 +814,4 @@ En eski kalıcı kararlar — sıcak yolun dışında (Karar K-214, gerçek böl
 | K-803 | 854 | Bir SSE tüketicisi canlılığı FRAME değil BAYT sayarak ölçer 👤 |
 | K-804 | 855 | `/api/diagnostics` yürürlükteki `RunRecording` ayarlarını bildirir 👤 |
 | K-805 | 856 | Tool zaman aşımı artık gövdeyi İPTAL EDER; bugüne kadar hiçbir şeyi iptal etmiyordu 👤 |
+| K-806 | 857 | Zaman aşımından SONRA başarıyla biten bir tool çağrısının sonucu ve harcaması AYNI `tool_invocations` satırına yazılır; ikinci satır AÇILMAZ 👤 |

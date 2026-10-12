@@ -43,6 +43,13 @@ explicit field on the request.
 A compiled agent is cached per resolved culture: two runs of the same agent in
 different cultures never share a compiled instance.
 
+A queued run (`Prefer: respond-async`) uses the `culture` of the request that queued
+it. The run record does not store the culture. A run that Tracon starts from an
+earlier run therefore uses the default instructions. This applies to the
+continuation after an approval decision, a replay, and an automatic continuation
+after a crash. A [callable agent](#agents-calling-agents) also resolves without
+the caller's culture.
+
 ## Parameters
 
 `Parameters` declares named placeholders an agent's instructions may reference as
