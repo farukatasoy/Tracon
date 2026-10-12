@@ -87,6 +87,36 @@ public interface IWorkflowRunner
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Checks a response against the pending request it answers, without starting a run.
+    /// </summary>
+    /// <param name="request">The response to check.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>
+    /// A sentence that names the missing or unreadable field when the response cannot be
+    /// translated to the type the request's port expects; otherwise <see langword="null"/>.
+    /// It is also <see langword="null"/> when the check cannot be made before a run starts:
+    /// the run or the request is not found, or the run is not waiting for input.
+    /// <see cref="RespondStreamingAsync"/> reports those.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// The HTTP layer calls this before the event stream opens, so a response of the wrong
+    /// shape is refused with <c>400</c> and no run row is opened.
+    /// <see cref="RespondStreamingAsync"/> applies the same rule when the request is
+    /// republished and fails the run it opened: a caller that skips this check is refused
+    /// too, but only after a run has started.
+    /// </para>
+    /// <para>
+    /// The default implementation returns <see langword="null"/>. An implementation written
+    /// before this member keeps compiling and keeps reporting a wrong response on the stream.
+    /// </para>
+    /// </remarks>
+    ValueTask<string?> ValidateResponseAsync(
+        WorkflowRespondRequest request,
+        CancellationToken cancellationToken = default)
+        => ValueTask.FromResult<string?>(null);
+
+    /// <summary>
     /// Runs a workflow and streams its events.
     /// </summary>
     /// <param name="request">The run request.</param>

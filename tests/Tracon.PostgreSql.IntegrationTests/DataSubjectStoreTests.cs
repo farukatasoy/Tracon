@@ -17,6 +17,9 @@ public sealed class DataSubjectStoreTests(PostgresFixture fixture) : IAsyncLifet
 {
     private PostgresTestContext _context = null!;
 
+    /// <summary>A checkpoint state that carries a subject's own words.</summary>
+    private const string CheckpointState = """{"$type":0,"messages":["my own words"]}""";
+
     /// <inheritdoc />
     public async ValueTask InitializeAsync() => _context = await PostgresTestContext.CreateAsync(fixture);
 
@@ -126,6 +129,78 @@ public sealed class DataSubjectStoreTests(PostgresFixture fixture) : IAsyncLifet
         sessions[0].GetProperty("tenant_id").GetString().ShouldBe("tenant-a");
     }
 
+    [Fact]
+    public async Task Erase_removes_the_workflow_checkpoints_of_the_subjects_sessions_and_runs()
+    {
+        // 🚨 F-371: workflow_checkpoints carries tenant_id, session_id and run_id but
+        // no foreign key to runs, so no cascade reaches it — and its state is the
+        // serialized workflow, which can hold the subject's own messages. The run
+        // waits for input: erasure is a right, not retention, so K-888's "keep the
+        // checkpoints of a waiting run" does not apply — the run row goes too.
+        var waitingRunId = await SeedRunAsync("tenant-a", status: (int)RunStatus.AwaitingInput);
+        await SeedCheckpointAsync("tenant-a", "wf-session-a", runId: null);
+        await SeedCheckpointAsync("tenant-a", "wf-session-b", waitingRunId);
+        await SeedCheckpointAsync("tenant-a", "wf-session-c", Guid.NewGuid());
+        await SeedCheckpointAsync("tenant-b", "wf-session-a", runId: null);
+
+        var deleted = await _context.DataSubjects.EraseAsync(
+            "tenant-a",
+            Scope(sessionIds: ["wf-session-a"], runIds: [waitingRunId]),
+            static (_, _) => ValueTask.CompletedTask);
+
+        (await CheckpointCountAsync("tenant-a", "wf-session-a")).ShouldBe(0);
+        (await CheckpointCountAsync("tenant-a", "wf-session-b")).ShouldBe(0);
+        (await CheckpointCountAsync("tenant-a", "wf-session-c")).ShouldBe(1);
+        (await CheckpointCountAsync("tenant-b", "wf-session-a")).ShouldBe(1);
+        (await RunExistsAsync(waitingRunId)).ShouldBeFalse();
+        deleted["workflow_checkpoints"].ShouldBe(2);
+    }
+
+    [Fact]
+    public async Task Export_includes_the_workflow_checkpoints_with_their_state_as_stored()
+    {
+        await SeedCheckpointAsync("tenant-a", "wf-session-a", runId: null, state: CheckpointState);
+        await SeedCheckpointAsync("tenant-b", "wf-session-a", runId: null);
+
+        var export = await _context.DataSubjects.ExportAsync("tenant-a", Scope(sessionIds: ["wf-session-a"]));
+
+        using var document = System.Text.Json.JsonDocument.Parse(export.Json);
+        var checkpoints = document.RootElement.GetProperty("workflow_checkpoints");
+
+        checkpoints.GetArrayLength().ShouldBe(1);
+        checkpoints[0].GetProperty("tenant_id").GetString().ShouldBe("tenant-a");
+
+        // The state is opaque Microsoft Agent Framework data: it is exported as the
+        // stored JSON text (a string), the same as sessions.state, never parsed.
+        checkpoints[0].GetProperty("state").GetString().ShouldBe(CheckpointState);
+    }
+
+    [Fact]
+    public async Task Erase_and_export_reach_the_scores_of_runs_found_through_a_session()
+    {
+        // F-371 class sweep: run_scores has no foreign key to runs, so no cascade
+        // reaches it. A resolver that named only a session reached the session's
+        // runs but not their scores — and a score's comment can hold the
+        // subject's own words.
+        var runId = await SeedRunAsync("tenant-a", sessionId: "scored-session");
+        await _context.RunScores.UpsertAsync(Score(runId, "tenant-a"));
+
+        var export = await _context.DataSubjects.ExportAsync("tenant-a", Scope(sessionIds: ["scored-session"]));
+
+        using (var document = System.Text.Json.JsonDocument.Parse(export.Json))
+        {
+            document.RootElement.GetProperty("run_scores").GetArrayLength().ShouldBe(1);
+        }
+
+        var deleted = await _context.DataSubjects.EraseAsync(
+            "tenant-a",
+            Scope(sessionIds: ["scored-session"]),
+            static (_, _) => ValueTask.CompletedTask);
+
+        (await _context.RunScores.ListAsync("tenant-a", runId)).ShouldBeEmpty();
+        deleted["run_scores"].ShouldBe(1);
+    }
+
     private static DataSubjectScope Scope(
         IReadOnlyList<string>? sessionIds = null,
         IReadOnlyList<Guid>? runIds = null,
@@ -152,13 +227,14 @@ public sealed class DataSubjectStoreTests(PostgresFixture fixture) : IAsyncLifet
             SELECT COUNT(*) FROM {_context.SchemaName}.sessions WHERE id = '{id}' AND tenant_id = '{tenantId}';
             """) > 0;
 
-    private async Task<Guid> SeedRunAsync(string tenantId)
+    private async Task<Guid> SeedRunAsync(string tenantId, int status = (int)RunStatus.Completed, string? sessionId = null)
     {
         var id = Guid.NewGuid();
+        var session = sessionId is null ? "NULL" : $"'{sessionId}'";
 
         await _context.ExecuteAsync($"""
-            INSERT INTO {_context.SchemaName}.runs (id, tenant_id, agent_name, status, started_at, is_streaming, event_count)
-            VALUES ('{id}', '{tenantId}', 'support', 1, now(), false, 0);
+            INSERT INTO {_context.SchemaName}.runs (id, tenant_id, agent_name, status, started_at, is_streaming, event_count, session_id)
+            VALUES ('{id}', '{tenantId}', 'support', {status}, now(), false, 0, {session});
             """);
 
         return id;
@@ -207,4 +283,37 @@ public sealed class DataSubjectStoreTests(PostgresFixture fixture) : IAsyncLifet
     private async Task<long> ConversationItemCountAsync(Guid conversationId)
         => await _context.ScalarAsync<long>(
             $"SELECT COUNT(*) FROM {_context.SchemaName}.conversation_items WHERE conversation_id = '{conversationId}';");
+
+    private async Task SeedCheckpointAsync(string tenantId, string sessionId, Guid? runId, string state = """{"$type":0}""")
+    {
+        using var parsed = System.Text.Json.JsonDocument.Parse(state);
+
+        await _context.WorkflowCheckpoints.CreateAsync(new WorkflowCheckpointRecord
+        {
+            Id = TraconId.NewId(),
+            TenantId = tenantId,
+            SessionId = sessionId,
+            CheckpointId = Guid.NewGuid().ToString("n"),
+            RunId = runId,
+            CreatedAt = DateTimeOffset.UtcNow,
+            State = parsed.RootElement.Clone(),
+        });
+    }
+
+    private async Task<int> CheckpointCountAsync(string tenantId, string sessionId)
+        => (await _context.WorkflowCheckpoints.ListAsync(tenantId, sessionId)).Count;
+
+    private static RunScore Score(Guid runId, string tenantId)
+        => new()
+        {
+            TenantId = tenantId,
+            RunId = runId,
+            Name = RunScoreRules.DefaultName,
+            Kind = RunScoreKind.Binary,
+            Value = 0,
+            Comment = "my own words",
+            Source = "human",
+            Author = "end-user",
+            CreatedAt = DateTimeOffset.UtcNow,
+        };
 }

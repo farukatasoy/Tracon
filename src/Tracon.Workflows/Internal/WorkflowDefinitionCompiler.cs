@@ -139,6 +139,18 @@ internal sealed class WorkflowDefinitionCompiler
         WorkflowDefinition definition,
         CancellationToken cancellationToken)
     {
+        // F-341: the save checked the type chain too, but a function's types can
+        // change between deployments, and a definition can predate the check.
+        // A chain that does not fit would run "Completed" with no output
+        // (Microsoft Agent Framework drops a message no handler takes), so it
+        // fails here instead - before the first node runs, naming both nodes.
+        if (WorkflowDefinitionValidator.ValidateNodeTypes(definition, _functions) is { } typeProblem)
+        {
+            throw new TraconException(
+                $"Workflow '{definition.Name}' cannot run. {typeProblem} If a function's types changed since " +
+                "the workflow was saved, save the workflow again with a chain that fits.");
+        }
+
         var bindings = new List<ExecutorBinding>(definition.Nodes.Count);
 
         foreach (var node in definition.Nodes)

@@ -58,6 +58,11 @@ public interface IRetentionStore
     /// <param name="batchSize">The maximum number of rows to read.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The rows read; an empty list once no matching rows remain.</returns>
+    /// <remarks>
+    /// The rows come in the target's time order. <see cref="DeleteBatchAsync"/>
+    /// deletes in no order, so the two calls can select different rows: archive
+    /// and delete a batch with <see cref="ArchiveBatchAsync"/> instead.
+    /// </remarks>
     ValueTask<IReadOnlyList<ArchiveRow>> ReadForArchiveAsync(
         string target,
         string? tenantId,
@@ -82,12 +87,18 @@ public interface IRetentionStore
     /// usually none remain, but see the remarks.
     /// </returns>
     /// <remarks>
+    /// <para>
     /// For <see cref="RetentionTargets.Attachments"/> with an
     /// <see cref="IAttachmentStorage"/> registered, each row's external content is
     /// deleted BEFORE the row. A row whose content delete fails is kept and still
     /// matches, so a batch can return fewer rows than
     /// <paramref name="batchSize"/> while matching rows remain. The next run
     /// tries the kept row again.
+    /// </para>
+    /// <para>
+    /// The batch has no order, so this method is for a run that does not
+    /// archive. A run that archives uses <see cref="ArchiveBatchAsync"/>.
+    /// </para>
     /// </remarks>
     ValueTask<int> DeleteBatchAsync(
         string target,
@@ -95,6 +106,71 @@ public interface IRetentionStore
         DateTimeOffset cutoff,
         int batchSize,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Reads one batch of rows older than the cutoff date, hands it to
+    /// <paramref name="archiveAsync"/>, and then deletes exactly the rows of that batch.
+    /// </summary>
+    /// <param name="target">The target name.</param>
+    /// <param name="tenantId">
+    /// Only this tenant's rows; if <see langword="null"/>, runs installation-wide
+    /// (the <c>'*'</c> policy).
+    /// </param>
+    /// <param name="cutoff">The cutoff date (UTC).</param>
+    /// <param name="batchSize">The maximum number of rows to archive and delete.</param>
+    /// <param name="archiveAsync">
+    /// Writes the batch to the archive. It is not called when no row matches.
+    /// When it throws, no row is deleted and the exception propagates.
+    /// </param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>
+    /// The number of rows deleted. It is never more than the number of rows
+    /// handed to <paramref name="archiveAsync"/>; zero when no row matched.
+    /// </returns>
+    /// <remarks>
+    /// <para>
+    /// This is the archive mode of a retention run: a row that was not handed to
+    /// <paramref name="archiveAsync"/> is never deleted. A row that stops matching
+    /// between the read and the delete is kept. It is archived again when it
+    /// matches on a later run, so an <see cref="IArchiveSink"/> can receive the
+    /// same row more than once.
+    /// </para>
+    /// <para>
+    /// For <see cref="RetentionTargets.Attachments"/> with an
+    /// <see cref="IAttachmentStorage"/> registered, the external content of each
+    /// archived row is deleted BEFORE the row, the same as in
+    /// <see cref="DeleteBatchAsync"/>; a row whose content delete fails is kept.
+    /// </para>
+    /// <para>
+    /// The default implementation calls <see cref="ReadForArchiveAsync"/> and then
+    /// <see cref="DeleteBatchAsync"/> with the number of rows read. It is NOT EXACT:
+    /// the two calls can select different rows, and a row that was never archived
+    /// can be deleted. It exists only so a store written before this member keeps
+    /// compiling. The SQL stores override it; the shipped
+    /// <c>RetentionStoreContract</c> checks the rule above.
+    /// </para>
+    /// </remarks>
+    async ValueTask<int> ArchiveBatchAsync(
+        string target,
+        string? tenantId,
+        DateTimeOffset cutoff,
+        int batchSize,
+        Func<IReadOnlyList<ArchiveRow>, CancellationToken, ValueTask> archiveAsync,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(archiveAsync);
+
+        var rows = await ReadForArchiveAsync(target, tenantId, cutoff, batchSize, cancellationToken).ConfigureAwait(false);
+
+        if (rows.Count == 0)
+        {
+            return 0;
+        }
+
+        await archiveAsync(rows, cancellationToken).ConfigureAwait(false);
+
+        return await DeleteBatchAsync(target, tenantId, cutoff, rows.Count, cancellationToken).ConfigureAwait(false);
+    }
 
     /// <summary>
     /// Counting from newest, returns the ordering column's value at row
@@ -164,6 +240,12 @@ public interface IArchiveSink
     /// <param name="rows">The rows to write.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The completion task.</returns>
+    /// <remarks>
+    /// Only the rows written here are deleted, and only after this call returns;
+    /// when it throws, nothing is deleted. A row can arrive more than once: a row
+    /// that is kept after its write (it stopped matching, or its delete failed)
+    /// is written again by a later run.
+    /// </remarks>
     ValueTask WriteAsync(
         string target,
         DateTimeOffset partitionDate,

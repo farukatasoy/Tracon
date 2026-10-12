@@ -60,7 +60,9 @@ A run can spend tokens on more than one model: the context compaction
 summarizer and the judge of an `aiJudge` loop criterion can run on models of
 their own. Their tokens are in the run's `usage`, and the tenant's quota
 consumes the same total. Each model's share is priced at that model's own price,
-and `cost` is the sum of the shares. Such a cost carries no unit price — the
+and `cost` is the sum of the shares. When the summarizer's or the judge's binding
+falls back, its share is priced at the fallback model that answered, and
+`modelId` still names the agent's model. Such a cost carries no unit price — the
 three per-million fields are `null`, because one rate cannot describe a total
 that several rates produced. A model with no price adds nothing to `cost`; its
 tokens are not priced at the agent's rate. When no model of the run has a price,
@@ -247,13 +249,17 @@ pipeline:
 public sealed class ClaimsRunAttributionContext(IHttpContextAccessor accessor)
     : IRunAttributionContext
 {
-    public string? UserId =>
-        accessor.HttpContext?.User.FindFirst("sub")?.Value;
+    // Outside a request there is no HttpContext: read the ambient scope, which
+    // is how a queued or scheduled run gets the identity it was queued with.
+    public string? UserId => accessor.HttpContext is { } http
+        ? http.User.FindFirst("sub")?.Value
+        : AmbientRunAttributionScope.CurrentUserId;
 
-    public IReadOnlyDictionary<string, string>? Labels =>
-        accessor.HttpContext?.Request.Headers.TryGetValue("X-Job", out var job) == true
+    public IReadOnlyDictionary<string, string>? Labels => accessor.HttpContext is { } http
+        ? http.Request.Headers.TryGetValue("X-Job", out var job)
             ? new Dictionary<string, string> { ["job"] = job.ToString() }
-            : null;
+            : null
+        : AmbientRunAttributionScope.CurrentLabels;
 }
 
 // Registered BEFORE AddTracon(); Tracon uses TryAdd, so yours wins.
@@ -262,7 +268,8 @@ builder.Services.AddSingleton<IRunAttributionContext, ClaimsRunAttributionContex
 
 Register nothing and nothing changes: both columns stay `NULL` and no behaviour
 differs. For work that runs outside a request — a queued job, a scheduled run, a
-direct .NET call — use the ambient scope instead:
+direct .NET call — use the ambient scope instead. The built-in context reads it; a
+context of your own reads it only if it falls back to it, as the one above does:
 
 ```csharp
 using (AmbientRunAttributionScope.Begin("user-42", labels: null))
@@ -287,6 +294,20 @@ their own error shape).
 A workflow run carries its attribution the way an agent run does: its row, the
 `TraconRunContext.Current.UserId` and `Labels` every node and tool of the
 workflow reads, and the run and user a `quota.threshold` webhook names.
+
+A queued agent run (`Prefer: respond-async`) reads the user and the labels when
+the request arrives, and both travel with the job, so the run's sub-agents and
+tools see them on the worker. A run that resumes after an approval decision, or
+that continues an interrupted run, runs under the user and labels of the run it
+continues. On the worker, Tracon replays these values through
+`AmbientRunAttributionScope`, which the built-in `IRunAttributionContext` reads.
+A context you register yourself reads them only if it asks: when there is no
+request, return `AmbientRunAttributionScope.CurrentUserId` and `CurrentLabels`.
+
+A run an inbound trigger starts, and a workflow or agent batch queued through
+`IJobDispatcher`, also carry the user and labels resolved when they were queued. A
+schedule has no caller: its runs carry the attribution its payload names, or none
+([schedule payloads](/guides/background-work/#attribute-the-runs-a-schedule-starts)).
 
 :::caution
 Labels and user ids are **query** dimensions, not **metric** dimensions. They
@@ -464,8 +485,9 @@ with `tracon.job.unknown-handler-key`, and the key itself is written to the
 log rather than to `errorMessage`, for the same reason a foreign exception's
 text is: the key may have come from an untrusted source, and that field is read
 back over HTTP. A job whose worker died and whose attempt limit is used up fails
-with `tracon.job.attempts-exhausted`. Match on the code, never on the sentence
-around it.
+with `tracon.job.attempts-exhausted`. A queued run whose turn finished but whose
+session could not be saved fails with `tracon.job.session-save-failed`; the model
+is not called again. Match on the code, never on the sentence around it.
 
 ## Replay and comparison
 

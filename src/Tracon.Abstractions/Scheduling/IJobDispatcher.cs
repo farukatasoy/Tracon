@@ -36,6 +36,17 @@ namespace Tracon;
 /// that is <c>at-least-once</c>: the handler may run more than once for the
 /// job this call created (see <see cref="IJobHandler.ExecuteAsync"/>).
 /// </para>
+/// <para>
+/// <strong>Attribution:</strong> a <see cref="JobHandlerKeys.Workflow"/> or
+/// <see cref="JobHandlerKeys.AgentBatch"/> job carries the user and labels
+/// <see cref="IRunAttributionContext"/> resolves at the time of this call: the
+/// current request, or an open <see cref="AmbientRunAttributionScope"/> with
+/// the built-in context. The worker that runs the job sees neither, so they are
+/// written into the stored payload as the envelope
+/// <c>{"items": [...], "userId": "...", "labels": {...}}</c>, and every run the
+/// job starts is attributed to them. A payload that is already such an
+/// envelope keeps its own attribution. No other handler key is changed.
+/// </para>
 /// </remarks>
 public interface IJobDispatcher
 {
@@ -45,8 +56,10 @@ public interface IJobDispatcher
     /// <returns>The queued job record, with its identifier and counters filled in.</returns>
     /// <exception cref="ArgumentNullException"><paramref name="request"/> is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentException">
-    /// <see cref="JobRequest.HandlerKey"/> is not registered, or the request's
-    /// tenant, target or lane is not valid.
+    /// <see cref="JobRequest.HandlerKey"/> is not registered, the request's
+    /// tenant, target or lane is not valid, or a workflow or agent batch
+    /// payload is an attribution envelope that is malformed or breaks a
+    /// <see cref="RunLabels"/> limit.
     /// </exception>
     ValueTask<JobRecord> EnqueueAsync(JobRequest request, CancellationToken cancellationToken = default);
 }
@@ -79,10 +92,18 @@ public sealed record JobRequest
 
     /// <summary>The input set or parameters, interpreted by the handler.</summary>
     /// <remarks>
+    /// <para>
     /// An unset payload is queued as the empty JSON array, never as
     /// <see cref="JsonValueKind.Undefined"/> or JSON <c>null</c>: an undefined
     /// value cannot be written as JSON, and SQL Server rejects a <c>null</c>
     /// literal in a JSON column. Every reader treats the empty array as "no payload".
+    /// </para>
+    /// <para>
+    /// For <see cref="JobHandlerKeys.Workflow"/> and <see cref="JobHandlerKeys.AgentBatch"/>,
+    /// a JSON object whose members are all among <c>items</c>, <c>userId</c> and
+    /// <c>labels</c> is an attribution envelope: its items are the <c>items</c>
+    /// array, and its runs are attributed to that user and those labels.
+    /// </para>
     /// </remarks>
     public JsonElement Payload
     {

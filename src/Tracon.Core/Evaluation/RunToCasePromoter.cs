@@ -1,20 +1,42 @@
+using Microsoft.Extensions.AI;
+
 namespace Tracon;
+
+// 🚨 F-343: phase 45 read the RunStarted text alone (K-300, decided before phase
+// 47 recorded inputs in run_inputs). A query over MaxPayloadLength came out cut
+// with the writer's marker inside it, and the documents and the parameter values
+// the run carried were dropped - the eval then measured a different input than
+// the run it stood for. The earlier-run check is K-301.
 
 /// <summary>
 /// Promotes a production run to an evaluation case.
 /// </summary>
 /// <remarks>
 /// <para>
-/// The query text is read from the <see cref="RunEventType.RunStarted"/> event in
-/// <c>run_events</c>; see <c>RunRecordingAgent.ExtractQuery</c>. It is the only durable
-/// input location because a session is saved only after successful completion.
-/// Therefore, the query of a failed run can never be read from a session. The original
-/// session-based design always returned 422 for failed-run promotion.
+/// The case is built from the run's <strong>recorded input</strong>
+/// (<see cref="IRunInputStore"/>) when one exists: the request's full text
+/// becomes the query, the document channel messages ahead of it become
+/// <see cref="EvalCaseDraft.Context"/> verbatim, and the recorded parameter
+/// values become <see cref="EvalCaseDraft.Parameters"/>. The eval then sends the
+/// messages the run sent (<see cref="EvalJobHandler.BuildCaseMessages"/>).
 /// </para>
 /// <para>
-/// Multi-turn behavior is detected by checking for an earlier run in this run's
-/// session. When present, this run's <c>query</c> alone cannot reproduce the original
-/// behavior because prior-turn context is missing. which forbids silent context loss.
+/// Without a recorded input - input recording off, the record removed by
+/// retention, or a run recorded before inputs were - the query falls back to
+/// the <see cref="RunEventType.RunStarted"/> text, the one other durable copy (a
+/// session is saved only after successful completion, so a failed run's query
+/// lives nowhere else). That text is cut at <c>MaxPayloadLength</c>; a cut text
+/// keeps <see cref="RunEventWriter.TruncationMarker"/>, so the case shows that it
+/// was cut. A run whose <see cref="RunEventType.DocumentAttached"/> events name
+/// documents no record holds any more is refused.
+/// </para>
+/// <para>
+/// A recorded input that a case cannot carry is refused rather than trimmed: a
+/// non-text content in the request (an attachment), or a message besides the
+/// documents and the request (a conversation sent as one run's input).
+/// Multi-turn behavior across runs is detected by checking for an earlier run
+/// in this run's session. One rule covers all three: a case that silently lost
+/// part of its input measures something the run never did.
 /// </para>
 /// </remarks>
 internal sealed class RunToCasePromoter
@@ -22,17 +44,24 @@ internal sealed class RunToCasePromoter
     private readonly IRunStore _runs;
     private readonly IRunScoreStore _scores;
     private readonly IEvalStore _evalStore;
+    private readonly IRunInputStore _inputs;
 
     /// <summary>Initializes a promotion service.</summary>
-    public RunToCasePromoter(IRunStore runs, IRunScoreStore scores, IEvalStore evalStore)
+    /// <param name="runs">The run store: the run row and its events.</param>
+    /// <param name="scores">The score store, for inferring the promotion reason.</param>
+    /// <param name="evalStore">The eval store the case is added to.</param>
+    /// <param name="inputs">The input store the case's query, context and values are read from.</param>
+    public RunToCasePromoter(IRunStore runs, IRunScoreStore scores, IEvalStore evalStore, IRunInputStore inputs)
     {
         ArgumentNullException.ThrowIfNull(runs);
         ArgumentNullException.ThrowIfNull(scores);
         ArgumentNullException.ThrowIfNull(evalStore);
+        ArgumentNullException.ThrowIfNull(inputs);
 
         _runs = runs;
         _scores = scores;
         _evalStore = evalStore;
+        _inputs = inputs;
     }
 
     /// <summary>Attempts to promote a run to the supplied suite.</summary>
@@ -77,12 +106,18 @@ internal sealed class RunToCasePromoter
         }
 
         var events = await ReadEventsAsync(runId, cancellationToken).ConfigureAwait(false);
+        var record = await _inputs.GetAsync(tenantId, runId, cancellationToken).ConfigureAwait(false);
 
-        var query = events
-            .FirstOrDefault(static runEvent => runEvent.Type == RunEventType.RunStarted)
-            ?.Text;
+        // A record with no message is a workflow's (its values only); an agent
+        // run always records the messages it was sent.
+        var input = record is { Messages.Count: > 0 } ? ReadRecordedInput(record) : ReadRunStartedInput(events);
 
-        if (string.IsNullOrWhiteSpace(query))
+        if (input.Problem is { } problem)
+        {
+            return new RunPromotionOutcome(RunPromotionStatus.UnsupportedInput, null) { Detail = problem };
+        }
+
+        if (string.IsNullOrWhiteSpace(input.Query))
         {
             return new RunPromotionOutcome(RunPromotionStatus.NoQuery, null);
         }
@@ -100,9 +135,11 @@ internal sealed class RunToCasePromoter
 
         var draft = new EvalCaseDraft
         {
-            Query = query,
+            Query = input.Query,
             ExpectedOutput = expectedOutput,
             ExpectedTools = expectedTools,
+            Context = input.Context,
+            Parameters = input.Parameters,
             SourceRunId = runId,
             SourceKind = sourceKind,
         };
@@ -111,7 +148,110 @@ internal sealed class RunToCasePromoter
 
         return new RunPromotionOutcome(
             added.Created ? RunPromotionStatus.Created : RunPromotionStatus.AlreadyExists,
-            added.Case);
+            added.Case)
+        {
+            InputSource = input.Source,
+            QueryTruncated = input.QueryTruncated,
+        };
+    }
+
+    /// <summary>Reads the case's input from the run's recorded messages and values.</summary>
+    /// <remarks>
+    /// Every production path appends the request last, after the documents
+    /// (<c>AgentEndpoints.BuildMessagesAsync</c>, the queued and the batch
+    /// handler), so the request is read as the last message - not as the first
+    /// non-document one: a document whose marker a content guard dropped would
+    /// otherwise pass for the query.
+    /// </remarks>
+    private static PromotedInput ReadRecordedInput(RunInputRecord record)
+    {
+        var messages = record.Messages;
+        var request = messages[^1];
+
+        if (request.Role != ChatRole.User || IsDocument(request, out _))
+        {
+            // Documents with no request, or a turn that ends on something else:
+            // there is no query to read.
+            return new PromotedInput(null, null, null, RunPromotionInputSource.RecordedInput, QueryTruncated: false, Problem: null);
+        }
+
+        var nonText = request.Contents.Count(static content => content is not TextContent);
+
+        if (nonText > 0)
+        {
+            return PromotedInput.Unsupported(
+                $"its request carries {nonText} non-text content item(s), such as an attachment, and an eval case carries text only.");
+        }
+
+        List<string> documents = [];
+        var others = 0;
+
+        for (var index = 0; index < messages.Count - 1; index++)
+        {
+            if (IsDocument(messages[index], out var text))
+            {
+                documents.Add(text);
+            }
+            else
+            {
+                others++;
+            }
+        }
+
+        if (others > 0)
+        {
+            return PromotedInput.Unsupported(
+                $"its recorded input carries {others} message(s) besides its documents and its request, and an eval case carries a single request.");
+        }
+
+        return new PromotedInput(
+            request.Text,
+            documents.Count > 0 ? string.Join('\n', documents) : null,
+            record.Parameters is { Count: > 0 } parameters ? parameters : null,
+            RunPromotionInputSource.RecordedInput,
+            QueryTruncated: false,
+            Problem: null);
+    }
+
+    /// <summary>Reads the case's input from the <c>RunStarted</c> event, for a run with no recorded input.</summary>
+    private static PromotedInput ReadRunStartedInput(IReadOnlyList<RunEvent> events)
+    {
+        var documents = events.Count(static runEvent => runEvent.Type == RunEventType.DocumentAttached);
+
+        if (documents > 0)
+        {
+            return PromotedInput.Unsupported(
+                $"it carried {documents} document(s) and its input was not recorded (input recording is off, or the record was removed), so an eval case cannot include them.");
+        }
+
+        var query = events.FirstOrDefault(static runEvent => runEvent.Type == RunEventType.RunStarted)?.Text;
+
+        return new PromotedInput(
+            query,
+            null,
+            null,
+            RunPromotionInputSource.RunStartedEvent,
+            QueryTruncated: query?.EndsWith(RunEventWriter.TruncationMarker, StringComparison.Ordinal) == true,
+            Problem: null);
+    }
+
+    /// <summary>
+    /// Reports whether a message carries a document: marked by the document
+    /// channel, or - when a content guard rewrote its text and dropped the
+    /// marker - exactly one whole document block.
+    /// </summary>
+    private static bool IsDocument(ChatMessage message, out string text)
+    {
+        if (message.Role == ChatRole.User &&
+            message.Contents is [TextContent { Text: { } content } textContent] &&
+            (DocumentChannelMessageBuilder.TryGetSummary(textContent, out _) || DocumentChannelMessageBuilder.IsSingleBlock(content)))
+        {
+            text = content;
+            return true;
+        }
+
+        text = string.Empty;
+        return false;
     }
 
     private async ValueTask<EvalCaseSource?> ResolveSourceKindAsync(
@@ -222,8 +362,9 @@ internal enum RunPromotionStatus
     AmbiguousSource,
 
     /// <summary>
-    /// The run query could not be read: no <c>RunStarted</c> event exists, or it
-    /// has empty text, such as for an old record or an empty input.
+    /// The run query could not be read: neither the recorded input nor the
+    /// <c>RunStarted</c> event carries a request text, such as for an old record,
+    /// an empty input, or a run that sent only documents.
     /// </summary>
     NoQuery,
 
@@ -235,7 +376,65 @@ internal enum RunPromotionStatus
 
     /// <summary>The same run was already promoted, so the existing case was returned.</summary>
     AlreadyExists,
+
+    /// <summary>
+    /// The run's input holds something an eval case cannot carry, and promoting
+    /// it would drop that part silently; <see cref="RunPromotionOutcome.Detail"/>
+    /// says what.
+    /// </summary>
+    UnsupportedInput,
+}
+
+/// <summary>Where a promoted case's input was read from.</summary>
+internal enum RunPromotionInputSource
+{
+    /// <summary>Nothing was read: the promotion stopped before the input.</summary>
+    None,
+
+    /// <summary>The run's recorded input (<see cref="IRunInputStore"/>): whole, with its documents and values.</summary>
+    RecordedInput,
+
+    /// <summary>The <c>RunStarted</c> event's text: the query only, cut at <c>MaxPayloadLength</c>.</summary>
+    RunStartedEvent,
 }
 
 /// <summary>Represents the <see cref="RunToCasePromoter.PromoteAsync"/> outcome and its case, when present.</summary>
-internal sealed record RunPromotionOutcome(RunPromotionStatus Status, EvalCase? Case);
+/// <param name="Status">The outcome.</param>
+/// <param name="Case">The created or existing case; <see langword="null"/> for a refusal.</param>
+internal sealed record RunPromotionOutcome(RunPromotionStatus Status, EvalCase? Case)
+{
+    /// <summary>For <see cref="RunPromotionStatus.UnsupportedInput"/>: what the case cannot carry. Counts only, never content.</summary>
+    public string? Detail { get; init; }
+
+    /// <summary>Where the case's input was read from.</summary>
+    public RunPromotionInputSource InputSource { get; init; }
+
+    /// <summary>
+    /// Whether the case's query is the <c>RunStarted</c> text cut at
+    /// <c>MaxPayloadLength</c>; the query then ends with
+    /// <see cref="RunEventWriter.TruncationMarker"/>.
+    /// </summary>
+    public bool QueryTruncated { get; init; }
+}
+
+/// <summary>The input a promotion read for a case, or why it cannot make one.</summary>
+/// <param name="Query">The request text; <see langword="null"/> when there is none.</param>
+/// <param name="Context">The run's document blocks, joined by a line break; <see langword="null"/> for none.</param>
+/// <param name="Parameters">The run's recorded parameter values; <see langword="null"/> for none.</param>
+/// <param name="Source">Where it was read from.</param>
+/// <param name="QueryTruncated">Whether <paramref name="Query"/> is a cut event text.</param>
+/// <param name="Problem">What a case cannot carry, if anything.</param>
+internal readonly record struct PromotedInput(
+    string? Query,
+    string? Context,
+    IReadOnlyDictionary<string, string>? Parameters,
+    RunPromotionInputSource Source,
+    bool QueryTruncated,
+    string? Problem)
+{
+    /// <summary>Builds the refusal for an input a case cannot carry.</summary>
+    /// <param name="problem">What the case cannot carry.</param>
+    /// <returns>The refusal.</returns>
+    public static PromotedInput Unsupported(string problem)
+        => new(null, null, null, RunPromotionInputSource.None, QueryTruncated: false, problem);
+}

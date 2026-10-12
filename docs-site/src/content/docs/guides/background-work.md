@@ -183,6 +183,16 @@ The run that asked for approval stays `AwaitingApproval` — it is finished. The
 continuation is a separate run in the same session, so a client watching for a
 result should follow the session rather than the original run id.
 
+The continuation can ask for approval again, for example for the next tool in a
+chain. It then ends `AwaitingApproval` too, and its request appears in
+`GET /api/approvals/pending` like the first one; decide it the same way and the
+chain goes on. A run that [run reconciliation](#singleton-services-and-orphaned-run-recovery)
+continues after a crash puts its requests in the same list.
+
+The continuation runs under the user and labels of the run that asked for
+approval, so its tools and sub-agents see the same attribution. The person who
+decided is recorded in the audit trail, not as the run's user.
+
 The continuation runs on the agent version of the run that asked for approval and
 counts in the same experiment arm. This stays true when someone saves a new version
 while the approval waits: the tool call and its answer are one turn. A code agent
@@ -213,6 +223,19 @@ short database outage neither fails a finished run nor runs it a second time. On
 a write that keeps failing until the lease is about to run out leaves the job to
 lease expiry, and with one attempt that fails it with
 `tracon.job.attempts-exhausted`.
+
+The session the run saves is part of the same turn, and the same rule applies to
+it: a store error on the session save is tried again under the lease, and the model
+is not called again. If the save still fails, the job fails with
+`tracon.job.session-save-failed` on that attempt, whatever its attempt limit, and
+the run keeps the status the turn gave it.
+
+Two built-in handlers apply the same rule to their own last write. An eval run whose
+cases have all run is not marked `Failed` because the write that closes it failed:
+the handler tries that write again for a third of the lease, and if it still fails,
+the next attempt of the job runs no case again and only repeats the write. A webhook
+delivery the receiver accepted is not sent again because its result could not be
+written ([webhooks](/concepts/governance/#webhooks)).
 
 ## Create a recurring schedule
 
@@ -271,6 +294,38 @@ A stored item is text, and a plain-text item whose content happens to be a JSON 
 with a string `message` member is read as structured. Quote or reshape such text if it
 is ever a real input.
 :::
+
+### Attribute the runs a schedule starts
+
+A schedule has no caller when it fires, so its runs carry no
+[user or labels](/concepts/runs/#who-ran-it-and-for-what) unless the payload names
+them. For `tracon.workflow` and `tracon.agent-batch`, wrap the items in an envelope —
+an object whose only members are `items`, `userId`, and `labels`:
+
+```json
+"payload": {
+  "items": [ "Summarize yesterday's escalations." ],
+  "userId": "user-42",
+  "labels": { "job": "nightly-digest" }
+}
+```
+
+The items read exactly as a top-level array does, and every run the job starts carries
+that user and those labels; the workflow's nodes and tools read them from
+`TraconRunContext.Current`. The labels obey the same limits as on every run — at most
+8, keys up to 64 characters, values up to 256 — and saving or triggering a schedule
+whose envelope breaks one, or names a member of the wrong type, is a `400`. An object
+with any other member keeps its old meaning: one item. Only the Admin role can write a
+schedule, so the attribution it names is an administrator's statement; Tracon does not
+check it against your identity pipeline. **Trigger now** runs with the schedule's own
+attribution, or with the one the trigger request's payload names, not the caller's.
+
+Work you queue yourself carries an attribution without an envelope. A workflow or agent
+batch queued through `IJobDispatcher` keeps the user and labels `IRunAttributionContext`
+resolves at the time of the call — your request's, or an open
+`AmbientRunAttributionScope`'s with the built-in context — and Tracon writes them into
+the stored payload as this envelope. A workflow an
+[inbound trigger](/guides/inbound-triggers/) starts keeps the accept request's.
 
 `handlerKey` names the handler that runs the jobs this schedule produces. Only
 the keys the server allows over HTTP are accepted —
@@ -519,15 +574,25 @@ whose status is no longer `Pending`; see
   the handler does not run again for it. The worker stops a third of the lease
   before the lease it can prove runs out, so its write never lands on another
   worker's attempt; it logs an error, and the job takes the lease-expiry path above.
+- A queued agent turn — a queued run, an approval continuation, a run continuation —
+  saves its session after the model answers. A store error on that save is tried
+  again the same way, and the model is not called again. If the save still fails,
+  the job fails with `tracon.job.session-save-failed`, and the reference in the
+  message names the log entry that carries the cause. A turn that asked for
+  approval saves its session before the approval is listed; when that save fails,
+  its run closes `Failed` with the same code, because an approval without its
+  session cannot be answered.
 - `JobRetryException.RetryAfter` asks the queue to delay the next attempt. Other
   failures can be retried immediately.
 - A missing handler marks the job as failed.
 - Lease-renewal, polling, and dispatch errors are logged; later ticks continue. A
   failed renewal is retried on the next tick, a third of the lease later.
-- Cancellation is cooperative. A running handler sees cancellation between items and
-  must also pass its token to long operations. A cancelled job stays `Cancelled`, even
-  when its handler throws on the way out, and a job cancelled before its handler
-  starts does not start.
+- Cancellation is cooperative, and it reaches a running handler only through
+  `JobContext.IsCancelledAsync`: the built-in handlers check it between items, and a
+  long handler must check it itself. The token `ExecuteAsync` receives is cancelled
+  only when the worker shuts down, so passing it on does not make a cancel request
+  arrive sooner. A cancelled job stays `Cancelled`, even when its handler throws on
+  the way out, and a job cancelled before its handler starts does not start.
 - A batch with both successful and failed items finishes as `Completed`. A batch in
   which every item fails finishes as `Failed`. Inspect item counters, not only the job
   status. An item is recorded as failed only when its own run failed; a store error
@@ -553,7 +618,7 @@ idempotent.
 | A job is `Completed` but work is missing | Inspect `failedItems` and the individual item records; mixed-result batches still complete |
 | A schedule never fires | Validate the five-field cron, host time-zone identifier, enabled flag, and next occurrence; remember that daylight-saving gaps are skipped |
 | More jobs run than expected | Multiply `MaxConcurrentJobs` by the number of worker processes |
-| Cancellation takes time | It is a request, not a forced thread abort; pass the cancellation token through every long-running handler operation |
+| Cancellation takes time | It is a request, not a forced thread abort. The handler sees it when it calls `JobContext.IsCancelledAsync`, which the built-in handlers do between items; a long single item runs to its end |
 | A run stays `Running` forever after a crash | Enable `RunReconciliation`; confirm a SQL store is registered and `OrphanThreshold` is not longer than an acceptable outage window |
 | Two instances both act as the singleton service | Confirm `SingletonExecution.Enabled` and that all instances share the same SQL store; the in-memory lease store cannot coordinate across processes |
 | A job never leaves `Pending` even though a worker is running | Check its lane against `Scheduling.Lanes` and `MaxConcurrentJobsPerLane`; a worker only leases the lanes it is scoped to |

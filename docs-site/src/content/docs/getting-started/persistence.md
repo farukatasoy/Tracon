@@ -275,7 +275,9 @@ Database policies take precedence. When no database policy exists and
 `Tracon:Retention:Enabled` is true, configuration falls back to built-in target
 defaults, such as 30 days for run events and 14 days for spans. With retention
 disabled, nothing is deleted. An `archive: true` policy also deletes nothing when no
-`IArchiveSink` is registered; data loss is the failure mode the worker avoids.
+`IArchiveSink` is registered; data loss is the failure mode the worker avoids. With a
+sink, each batch deletes only the rows the sink received — see
+[Retention](/concepts/governance/#retention).
 
 Cleanup runs through the job queue. Preview a policy before you execute it:
 
@@ -288,9 +290,9 @@ curl -X POST 'http://localhost:5081/tracon/api/retention/run'
 
 A durable `audit_log` can be **verified**: `GET /api/audit/verify` walks a
 hash chain and reports whether any entry was altered or deleted after it was
-written. And because sessions, runs, and conversations are real rows now, a data
-subject's content can be found and erased by identity, not just aged out — see
-[Data subject rights](/concepts/governance/#data-subject-rights).
+written. And because sessions, runs, conversations, and workflow checkpoints are real
+rows now, a data subject's content can be found and erased by identity, not just aged
+out — see [Data subject rights](/concepts/governance/#data-subject-rights).
 
 Both endpoints accept an optional `tenantId` filter; leaving it out never means
 "every tenant" — it resolves to the caller's own ambient tenant. A custom

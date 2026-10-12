@@ -389,6 +389,19 @@ internal static class WorkflowEndpoints
             }
         }
 
+        // F-341: each node must take what the node before it passes on.
+        // Microsoft Agent Framework drops a message no handler takes, without an
+        // error, so a chain that breaks this would end every run with no
+        // output. Checked after the names, so an unregistered function is
+        // reported by name first; the compiler repeats the check.
+        if (WorkflowDefinitionValidator.ValidateNodeTypes(definition, functions) is { } typeProblem)
+        {
+            return TypedResults.Problem(
+                title: "Workflow definition invalid",
+                detail: typeProblem,
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
         var saved = await store.SaveAsync(tenants.TenantId, definition, cancellationToken).ConfigureAwait(false);
 
         return TypedResults.Ok(saved);
@@ -695,23 +708,36 @@ internal static class WorkflowEndpoints
 
         var newRunId = TraconId.NewId();
 
-        return new WorkflowEventStream(
-            runner.RespondStreamingAsync(
-                new WorkflowRespondRequest
-                {
-                    RunId = runId,
-                    RequestId = request.RequestId,
-                    Approved = request.Approved,
-                    Text = request.Text,
+        var respondRequest = new WorkflowRespondRequest
+        {
+            RunId = runId,
+            RequestId = request.RequestId,
+            Approved = request.Approved,
+            Text = request.Text,
 
-                    // The raw JSON text is carried: the response type can
-                    // only be resolved at run time, according to the type
-                    // reported by the port.
-                    Json = request.Data?.GetRawText(),
-                    CheckpointId = request.CheckpointId,
-                    NewRunId = newRunId,
-                },
-                cancellationToken),
+            // The raw JSON text is carried: the response type is resolved by
+            // the workflow engine, according to the type the port reports.
+            Json = request.Data?.GetRawText(),
+            CheckpointId = request.CheckpointId,
+            NewRunId = newRunId,
+        };
+
+        // F-341: the response is checked against the pending request BEFORE the
+        // stream opens, so the contract's 400 is possible at all and no run row
+        // is opened for an answer of the wrong shape. Last in the order, like
+        // the parameter check on the run endpoint: attribution, authorization,
+        // then the body. The engine checks again when the request is
+        // republished; it is the authority, this gate only answers early.
+        if (await runner.ValidateResponseAsync(respondRequest, cancellationToken).ConfigureAwait(false) is { } responseProblem)
+        {
+            return TypedResults.Problem(
+                title: "Response invalid",
+                detail: responseProblem,
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        return new WorkflowEventStream(
+            runner.RespondStreamingAsync(respondRequest, cancellationToken),
             newRunId);
     }
 

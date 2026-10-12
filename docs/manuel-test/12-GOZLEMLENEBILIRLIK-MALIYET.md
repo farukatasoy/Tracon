@@ -2078,3 +2078,30 @@ de üretmiyordu. Abone sessizlik alıyordu. Otomatik karşılığı:
 - Adım 4: `eval.completed`, `eval.total = 2`.
 - Teslim job'larının kendisi için hiçbir `job.*` olayı yoktur.
 - 🚨 Eski kusur: yalnız agent `run.*` geldi; diğer dördü hiç gelmedi.
+
+---
+
+### MT-OBS-069 — Alıcının kabul ettiği webhook, sonucu yazılamazsa İKİNCİ KEZ gönderilmez (kusur-giderme, 2026-10-12, F-366)
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Orta |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | K-886 |
+| **Devir** | ➜ CI: `WebhookDeliveryFinalWriteTests.A_store_error_after_a_successful_delivery_does_not_deliver_it_again` · `WebhookDeliveryFinalWriteTests.A_delivery_already_recorded_as_delivered_is_not_sent_again` |
+
+Regresyon. Sonuç yazımları başarılı gönderimle aynı `try`'daydı; tek `store`
+hatası işi yeniden denetti ve alıcı aynı olayı iki kez aldı.
+
+**Ön koşul** — PostgreSQL deposu; istekleri sayan bir alıcı (MT-OBS-068 kurulumu).
+
+**Adımlar**
+1. `tracon.webhook_deliveries` güncellemesini reddeden bir tetikleyici kur (MT-JOB-134 deseni).
+2. Bir `run.completed` olayı üret; günlükte yeniden deneme uyarısını bekle, 10 sn içinde tetikleyiciyi kaldır.
+3. Alıcının istek sayısını ve teslim kaydını oku.
+
+**Beklenen sonuç**
+- Alıcı olayı bir kez alır; teslim `Delivered`.
+- `X-Tracon-Delivery` başlığı her denemede aynıdır; alıcı tekilleştirmeyi ona dayandırır.
+- 🚨 Eski kusur: alıcı aynı olayı iki kez aldı.

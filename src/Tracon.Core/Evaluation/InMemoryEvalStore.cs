@@ -175,6 +175,7 @@ internal sealed class InMemoryEvalStore : IEvalStore
                 SourceRunId = draft.SourceRunId,
                 SourceKind = draft.SourceKind,
                 PromotedAt = now,
+                Parameters = draft.Parameters,
             };
 
             cases.Add(created);

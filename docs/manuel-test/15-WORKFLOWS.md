@@ -2891,3 +2891,31 @@ curl -s "$APU/api/workflows/functions" -H "$APB"
 - `word-count` ve `narrate` için `settingsSchema` `null`'dır.
 - Şema yalnız gösterim içindir: kayıt, şemaya değil ayar tipine okunarak denetlenir (MT-WF-133).
 
+---
+
+### MT-WF-138 — Porta uymayan yanıt `400` alır ve run açmaz (kusur-giderme, 2026-10-12, F-341)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | K-908 |
+| **Devir** | ➜ CI: `WorkflowRespondValidationTests.A_yes_no_port_answered_without_approved_is_refused_with_400` · `WorkflowNodeTypeChainTests.A_node_that_cannot_take_the_previous_nodes_output_is_refused_at_save_naming_both` |
+
+Regresyon. Yanıt yalnız sürdürülen run içinde çevriliyordu: uç `200` dönüyor,
+yeni run `Failed` kapanıyordu. Uyumsuz zincir de kayıttan geçiyor, run çıktısız
+`Completed` bitiyordu.
+
+**Ön koşul** — Örnek uygulama; `summarize-and-approve` kodda kayıtlı (port `bool` bekler).
+
+**Adımlar**
+1. `POST $APU/api/workflows/summarize-and-approve/run` ile başlat; run `AwaitingInput` olsun.
+2. `GET $APU/api/workflows/runs/{runId}/requests` ile `requestId`'yi al (`form: Boolean`).
+3. `POST $APU/api/workflows/runs/{runId}/respond` gövdesi `{"requestId":"<id>","text":"yes"}`; sonra `GET $APU/api/runs` ile run sayısını oku.
+4. Aynı uca `{"requestId":"<id>","approved":true}` gönder.
+
+**Beklenen sonuç**
+- Adım 3: `400 application/problem+json`, `title: "Response invalid"`; detay portu ve beklenen alanı adlandırır. Run sayısı değişmez.
+- Adım 4: `200` SSE; `RunCompleted`, çıktı "Summary published.".
+- 🚨 Eski kusur: adım 3 `200` döndü ve yeni bir `Failed` run açıldı.

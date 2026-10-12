@@ -4,10 +4,10 @@ namespace Tracon;
 /// The sessions, runs, and conversations that belong to one data subject.
 /// </summary>
 /// <remarks>
-/// Everything else erasable (attachments, voice sessions, scores, and the
-/// conversation items and responses that hang off a conversation) is reached
-/// FROM these three lists — the schema already ties them to a session, a run,
-/// or a conversation. There is no separate list for those: adding one would
+/// Everything else erasable (attachments, voice sessions, scores, workflow
+/// checkpoints, and the conversation items and responses that hang off a
+/// conversation) is reached FROM these three lists — the schema already ties
+/// them to a session, a run, or a conversation. There is no separate list for those: adding one would
 /// let a resolver hand back a set the eraser cannot actually act on.
 /// </remarks>
 public sealed record DataSubjectScope

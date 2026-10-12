@@ -33,6 +33,22 @@ public sealed record EvalCase
     public IReadOnlyList<string> ExpectedTools { get; init; } = [];
 
     /// <summary>Text given to the model as extra context.</summary>
+    /// <remarks>
+    /// <para>
+    /// The agent receives it through the document channel, ahead of
+    /// <see cref="Query"/>: the case run builds the messages a production run
+    /// with documents sends (see <see cref="AgentRunDocument"/>). Plain text
+    /// goes as one document named <c>context</c>. Text made only of document
+    /// channel blocks - what promoting a run with documents stores here, one
+    /// <c>-----BEGIN TRACON DOCUMENT-----</c> block per document - goes back as
+    /// one document per block, unchanged, so the case repeats the run's
+    /// messages.
+    /// </para>
+    /// <para>
+    /// The evaluator receives the same text as its context, for checks that
+    /// judge an answer against reference material.
+    /// </para>
+    /// </remarks>
     public string? Context { get; init; }
 
     /// <summary>The run the case was generated from. <see langword="null"/> when hand-written.</summary>

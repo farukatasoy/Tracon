@@ -17,7 +17,9 @@ namespace Tracon;
 /// <see cref="RunErrorClass.ProviderError"/> tells which fault occurred and
 /// holds a permanent 4xx too, so it cannot answer this question. The workflow
 /// node retry and the model fallback chain both read the status here, so the
-/// two retry decisions cannot disagree about a status.
+/// two retry decisions cannot disagree about a status. The circuit breaker
+/// reads it too: a permanent 4xx other than 401/403 does not count against
+/// the provider (<see cref="CircuitBreakingChatClient.CountsAgainstProvider"/>).
 /// </remarks>
 internal static class ProviderHttpStatus
 {

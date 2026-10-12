@@ -2093,3 +2093,28 @@ curl -s "$APU/api/retention/history?target=attachments" -H "$APB" | jq '.[0]'
   `deletedRows: 1` taşır.
 - 🚨 Eski kusur: satır silindi, dosya `/tmp/tracon-ek/` altında kaldı.
 - Koşum sonunda geçici `IAttachmentStorage` geri alınır.
+
+---
+
+### MT-RET-079 — Arşiv modu yalnız arşive yazdığı satırları siler (kusur-giderme, 2026-10-12, F-372)
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | K-910 |
+| **Devir** | ➜ CI: `RetentionStoreContract.Archive_batches_delete_only_the_rows_they_archived` · `RetentionExecutorTests.Archive_mode_deletes_only_the_rows_the_sink_received` · `RetentionArchiveKeyTests.Run_events_are_archived_and_deleted_by_their_composite_key` |
+
+Regresyon. Arşiv modu bir batch'i zaman sırasıyla arşive yazıyor, sonra ayrı
+bir batch'i sırasız siliyordu. Arşive hiç yazılmamış satırlar silindi.
+
+**Ön koşul** — PostgreSQL deposu; `Tracon:Retention:ArchivePath` ayarlı (örnek uygulama dosya `IArchiveSink`'ini kaydeder); `Tracon__Retention__BatchSize=3`; bir hedefte en az 7 eskimiş satır (MT-RET-001 deseni).
+
+**Adımlar**
+1. Retention'ı arşiv moduyla koştur.
+2. Arşiv dosyasındaki kimlikleri silinen satırlarla karşılaştır.
+
+**Beklenen sonuç**
+- Silinen her satır arşivdedir; arşivde olmayan satır tabloda kalır.
+- 🚨 Eski kusur: üç sağlayıcıda 3-4 satır arşive yazılmadan silindi.

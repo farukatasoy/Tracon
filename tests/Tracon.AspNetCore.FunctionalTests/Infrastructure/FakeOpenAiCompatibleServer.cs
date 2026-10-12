@@ -44,6 +44,18 @@ internal sealed class FakeOpenAiCompatibleServer : IAsyncDisposable
     public int ChatCompletionStatusCode { get; set; } = StatusCodes.Status200OK;
 
     /// <summary>
+    /// Whether an error from <c>/v1/chat/completions</c> carries an OpenAI-shaped
+    /// JSON error body. Defaults to <see langword="false"/> (an empty body).
+    /// </summary>
+    /// <remarks>
+    /// The body decides the exception message the OpenAI client writes, measured
+    /// (2026-10-12, F-354): with an OpenAI-shaped body it is
+    /// <c>HTTP 400 (invalid_request_error: ...)</c>; with an empty body it is
+    /// System.ClientModel's default <c>Service request failed. Status: 400 (Bad Request)</c>.
+    /// </remarks>
+    public bool ChatCompletionErrorHasOpenAiBody { get; set; }
+
+    /// <summary>
     /// The HTTP status code to return from <c>/v1/models</c>. Defaults to 200.
     /// </summary>
     public int ModelsStatusCode { get; set; } = StatusCodes.Status200OK;
@@ -75,7 +87,11 @@ internal sealed class FakeOpenAiCompatibleServer : IAsyncDisposable
 
             if (server.ChatCompletionStatusCode != StatusCodes.Status200OK)
             {
-                return Results.StatusCode(server.ChatCompletionStatusCode);
+                return server.ChatCompletionErrorHasOpenAiBody
+                    ? Results.Json(
+                        new { error = new { message = "The request was rejected.", type = "invalid_request_error", param = (string?)null, code = "fake_error" } },
+                        statusCode: server.ChatCompletionStatusCode)
+                    : Results.StatusCode(server.ChatCompletionStatusCode);
             }
 
             return Results.Json(new

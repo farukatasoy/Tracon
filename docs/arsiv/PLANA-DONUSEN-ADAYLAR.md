@@ -2033,3 +2033,278 @@ var (`AgentParameter`)" iddiası düştü.
 **Ekosistem:** Taranmadı.
 
 **Karşı görüş:** Sağlayıcı bugün düğüm adıyla seçilebilir (`tts-elevenlabs`, `tts-gemini`); seçenek azken ayar alanı fazla yüzeydir.
+
+## 2026-10-12 — On kalem yedi faza dönüştü (F-298…F-303 · F-318 · F-321 · F-323 · F-345)
+
+İki tüketici turunun (podcast ve video tüketicisi, 2026-10-11) üçüncü
+değerlendirmesinde bakımcı on kalemin planını istedi. Kanıt 2026-10-12'de
+`99fe0b13` zemininde yeniden doğrulandı; düşen ve düzelen iddialar her planın
+kanıt tablosundadır. Belirgin düzeltmeler: F-301'in "örnek derleyici kurulurken
+çözülür" kapsamı döngüye girer, plan "ilk derlemede, tür başına bir kez" der;
+F-300'ün skill geçmişi ve alt agent sabiti iki yeni adaya ayrıldı (F-408, F-409);
+F-321'in "çocuk run'ları hariç" maddesi F-344 ile kapandı; F-323'ün kira dolumu
+iptali iddiası `JobContext.IsCancelledAsync` ile sınırlıdır. Planların hepsi
+"onaylanmadı" durumundadır; engelleyici kararlar her planın Açık Sorular
+bölümündedir.
+
+| Kalem | Faz |
+|---|---|
+| F-303, F-323 | [Faz 196](../196-UZUN-ADIM-SURE-VE-IPTAL.md) |
+| F-318, F-321 | [Faz 197](../197-DAYANIKLI-WORKFLOW-YURUTMESI.md) |
+| F-298 | [Faz 198](../198-ADLI-KONUSMA-SAGLAYICISI.md) |
+| F-299 | [Faz 199](../199-FONKSIYON-DUGUMU-MALIYETI.md) |
+| F-300 | [Faz 200](../200-WORKFLOW-SURUM-GECMISI-VE-SABITLEME.md) |
+| F-301, F-302 | [Faz 201](../201-LOOP-DUZENLEME-VE-OLCUT-FABRIKASI.md) |
+| F-345 | [Faz 202](../202-SKILL-SCRIPT-YURUTUCU-SEAM.md) |
+
+Gövdeler aday dosyasındaki son hâliyle, aynen:
+
+### F-298 · Adlı konuşma sağlayıcı kaydı ve kiracı başına ses anahtarı
+
+**Kanal:** faz planlama · 🟠
+
+**Sorun:** `UseVoice` tek bir `ElevenLabsSpeechClient`'ı `ISpeechSynthesizer` olarak kaydeder (`VoiceBuilderExtensions.cs:76-85`); anahtar süreç geneli (`VoiceOptions.cs:35`). Sağlayıcı adla seçilemez; kiracının egress politikası ve kendi anahtarı konuşma çağrısına uygulanmaz.
+
+**Kapsam:** Konuşma sağlayıcıları için adlı kayıt, kiracı bağlaması (`tenant_provider_bindings` deseni) ve egress denetimi; fonksiyon düğümü ve `speak` tool'u sağlayıcıyı adla ister. `UseVoice` korunur (K1).
+
+**video tüketicisi turu eki (2026-10-11):** aynı süreçte yerel GPU ve bulut motoru, kiracı başına seçim; aciliyet 🟠. Anahtar sahibi host'tur (iki turda da); kiracı BYOK ikincil. Önce F-336 kapanır. Emsal: görsel yolunun keyed kaydı (`ImageGeneratorResolver.cs:28-38`).
+
+**Değer:** Çok kiracılı SaaS'ta ses kiracının faturasına gider; yasak sağlayıcıya veri çıkmaz.
+
+**Mercek:** 3, 6, 8.
+
+**Hazırlık:** Model BYOK/egress altyapısı yeniden kullanılır (K-466, K-467, K-874).
+
+**Maliyet:** Yeni public kayıt yüzeyi.
+
+**Risk:** Adlı ve adsız iki kayıt yolu birlikte yaşar; `TryAdd` sırası.
+
+**Bağımlılık:** 2026-08-27 ses turunun B3'üne (kiracı ses politikası) komşu: B3 sesi yetkilendirir, bu kalem sağlayıcıyı ve anahtarı seçer.
+
+**Ekosistem:** Taranmadı (Tracon içi simetri boşluğu).
+
+**Karşı görüş:** Kiracı başına ses anahtarı ihtiyacı ölçülmedi; host kendi anahtarıyla üretip maliyeti dağıtabilir.
+
+### F-299 · Fonksiyon düğümünün token dışı maliyeti kaydedilsin, kotaya girsin
+
+**Kanal:** faz planlama · 🟡
+
+**Sorun:** `TraconToolUsage.Report` çağrı kimliğini `FunctionInvokingChatClient.CurrentContext`'ten okur, yoksa `false` döner (`TraconToolUsage.cs:47-58`). Fonksiyon düğümünde bu bağlam yok: TTS karakter maliyeti yazılmaz, kota ve run bütçesi onu görmez (önceki tüketici turunun A08 ses notu).
+
+**Kapsam:** Fonksiyon düğümü için usage raporlama (birim, miktar, maliyet, tahmini mi) ve `run` maliyetine/kotaya katılma kuralı.
+
+**video tüketicisi turu eki (2026-10-11):** birden çok birim (TTS karakteri, GPU saniyesi, render saniyesi), sağlayıcı/model alanı, ayrı toplam ve konsol gösterimi (F-342).
+
+**Değer:** Bölüm başına gerçek maliyet; kiracı kotası TTS'i de sayar.
+
+**Mercek:** 2, 7, 8.
+
+**Hazırlık:** `ToolCallUsage` modeli var; workflow yolu yok.
+
+**Maliyet:** Public raporlama girişi; kalıcı kayıt gerekirse migration (ölçülmedi).
+
+**Risk:** Para birimi karışımı; tahmini maliyetin kotaya girmesi kararı.
+
+**Bağımlılık:** F-298 ile fiyat kaynağı paylaşılır.
+
+**Ekosistem:** Taranmadı.
+
+**Karşı görüş:** Maliyet tüketicinin domain kaydında tutulabilir; değer yalnız Tracon kotasını kullanan host içindir.
+
+### F-300 · Workflow ve skill tanımlarında sürüm geçmişi ve geri alma
+
+**Kanal:** faz planlama · 🟡
+
+**Sorun:** Agent tanımı sürüm geçmişi ve fark taşır (`IAgentDefinitionStore.cs:42,69`; `AgentEndpoints.cs:138,164`). Workflow ve skill store'ları yalnız `Get`/`List`/`Save`/`Delete` taşır (`IWorkflowDefinitionStore.cs:20-51`, `IAgentSkillStore.cs:18-45`); operatörün düzenlediği bir tanımın önceki hâline dönüş yolu yok.
+
+**Kapsam:** İki store'a sürüm satırı, liste/getir/fark uçları, geri alma (yeni sürüm olarak), konsolda geçmiş paneli.
+
+**video tüketicisi turu eki (2026-10-11):** workflow kök run'ına tanım sürümü damgası ve resume'da sürüm denetimi. Operatör şemayı canlı günceller; üretim boyunca agent sürümü sabit kalmalı (F-331 2026-10-12'de kapandı: sabit sürüm artık kendi tanımıyla tanımlanır). L43 ilgisiz.
+
+**F-352 kapanışı eki (2026-10-12):** sabit sürümlü üst agent'ın alt agent'ı ve workflow adımı güncel sürümü çözer — bu belgelenmiş tasarımdır (`concepts/agents.md`), kusur değil. Alt sürümü üste bağlamak üst tanımın bir sabit taşımasını ister (`CallableAgents: [{name, version?}]`, workflow düğümünde `AgentVersion`); tanım sürüm geçmişiyle aynı tasarım işidir ve bu adayın kapsamına girer.
+
+**Değer:** "Dünkü düzenleme bozdu" anında geri dönüş.
+
+**Mercek:** 2, 3, 7.
+
+**Hazırlık:** Agent sürüm deseni (sözleşme, uçlar, konsol farkı) var.
+
+**Maliyet:** Üç SQL lehçesinde migration (`kalıcı-veri`), sözleşme testleri, store arayüzlerine yeni üyeler (public API).
+
+**Risk:** Üçüncü taraf store'lar yeni üyeleri uygulamalı — ayrı arayüz mü, varsayılan üye mi kararı.
+
+**Bağımlılık:** Yok.
+
+**Ekosistem:** Taranmadı.
+
+**Karşı görüş:** Host tanımları kodla veya IaC ile yönetirse geçmiş git'tedir; değer yalnız konsoldan düzenleyen operatör içindir.
+
+### F-301 · `AddLoopEvaluator` için `IServiceProvider` alan fabrika aşırı yüklemesi
+
+**Kanal:** faz planlama · 🟢
+
+**Sorun:** `AddLoopEvaluator(kind, LoopEvaluator)` yalnız hazır örnek alır (`TraconBuilderExtensions.Evaluation.cs:148`; `TraconLoopEvaluatorRegistration.cs:22`). Katalogdan ayrı bir reviewer agent'ı çağıran veya tüketici servisi kullanan ölçüt DI'a ulaşamaz.
+
+**Kapsam:** `AddLoopEvaluator(kind, Func<IServiceProvider, LoopEvaluator>)`; örnek derleyici kurulurken çözülür.
+
+**Değer:** Reviewer'ı kendi talimatı ve modeliyle ayrı agent olarak çalıştıran kalite kapısı kodla kurulur.
+
+**Mercek:** 5, 6.
+
+**Hazırlık:** Builder deseni hazır.
+
+**Maliyet:** Bir public aşırı yükleme.
+
+**Risk:** Singleton fabrika kiracıyı çalışma anında ambient `ITenantContext`'ten okumalı.
+
+**Bağımlılık:** Yok.
+
+**Ekosistem:** Taranmadı.
+
+**Karşı görüş:** Yerleşik `aiJudge` (operatörün düzenlediği `JudgeCriteria`/`JudgeInstructions`) çoğu kapıyı karşılar; ayrı reviewer yalnız tool kullanan inceleme için gerekir.
+
+### F-302 · Konsolda harness `Loop` düzenleme
+
+**Kanal:** faz planlama · 🟡
+
+**Sorun:** Editör `harness` nesnesini olduğu gibi taşır (`agent-editor/model.ts:201,248`), ama `harness-section.tsx` yalnız `maxContextWindowTokens` ve `maximumIterationsPerRequest` alanlarını düzenler (`harness-section.tsx:42,55`); `loop` için kontrol yok.
+
+**Kapsam:** Ölçüt listesi (yerleşik dört tür + kodla kayıtlı türler), `MaxIterations`, `FreshContextPerIteration`, `aiJudge` alanları; doğrulama raporu. Kod yazdırmaz — K2 ile uyumlu.
+
+**Değer:** Operatör revizyon sayısını ve yargıç ölçütlerini konsoldan ayarlar.
+
+**Mercek:** 1, 2.
+
+**Hazırlık:** Kodla kayıtlı türleri listeleyen bir uç gerekebilir (ölçülmedi).
+
+**Maliyet:** Arayüz bölümü, iki dil sözlüğü, `full-replace-editors.test.tsx` vakası; bundle bütçesi.
+
+**Risk:** Düşük.
+
+**Bağımlılık:** [Faz 192](fazlar/192-DONGU-TUKENME-POLITIKASI.md) `OnExhausted` / `OnCriterionError` alanlarını ekler; editör onları da gösterir.
+
+**Ekosistem:** —
+
+**Karşı görüş:** Host tanımları API'den yönetirse konsol editörü ikincildir.
+
+### F-303 · Fonksiyon düğümüne zaman aşımı
+
+**Kanal:** faz planlama · 🟡
+
+**Sorun:** Bir fonksiyon düğümü sonsuza kadar çalışabilir; yalnız workflow'un genel `RunTimeout`'u (varsayılan 10 dk, `TraconWorkflowOptions.cs:54`) onu keser (K-497). 10–20 dakikalık bölümün TTS ve ses işleme düğümleri dakikalar sürer; genel sınırı büyütmek her düğümün sınırını büyütür. K-497'nin koşulu ("ihtiyaç ölçülürse") bu tüketicide oluştu.
+
+**Kapsam:** Düğüm başına zaman aşımı (kayıtta varsayılan, [Faz 195](../195-WORKFLOW-DUGUM-DUZENLEME-VE-AYAR.md)'in düğüm ayarıyla geçersiz kılma); aşımda düğümü iptal edip run'ı ayırt edilebilir hatayla bitirme (K-497'nin önerdiği `TimeoutAIFunction` deseni).
+
+**video tüketicisi turu eki (2026-10-11):** agent düğümü süresi (`ChildDeadline` kurulum geneli 2 dk) ve workflow başına `RunTimeout`; aşımda run düşer (F-328 ile 2026-10-12'den beri; bu adayın işi düğüm başına süre ayarıdır).
+
+**Değer:** Takılan bir dış servis bütün run'ı tutmaz.
+
+**Mercek:** 2, 5.
+
+**Hazırlık:** Tool timeout deseni var (Faz 69).
+
+**Maliyet:** Kayıt aşırı yüklemesi; zamanlayıcı aralık doğrulaması şart (F-280 sınıfı).
+
+**Risk:** İptali onurlandırmayan fonksiyon yine takılır — belgelenmeli.
+
+**Bağımlılık:** F-280 ile aynı aralık yardımcısı.
+
+**Ekosistem:** —
+
+**Karşı görüş:** Tüketici fonksiyonunda `CancelAfter` kullanabilir; çerçeve desteği yalnız tek tip davranış ve görünürlük ekler.
+
+### F-318 · Workflow `run`, `resume` ve `respond` bağlantıdan bağımsız koşsun
+
+**Kanal:** faz planlama · 🟠
+
+**Sorun:** Workflow run'ı onu okuyan HTTP akışına bağlıdır; okuyucu düşerse run `Canceled` olur (K-845; `WorkflowEndpoints.cs:443-455,738-799`). Agent yolundaki `Prefer: respond-async` workflow'da yoktur. `tracon.workflow` job'u yalnız yeni run başlatır, bekleyen run'a yanıt veremez (`WorkflowJobHandler.cs:56-60`).
+
+**Kapsam:** Üç uca `Prefer: respond-async`: run id önceden üretilir, `Queued` satırı açılır, 202 + `Location` döner. `WorkflowJobHandler`'a resume ve respond iş türü; job yükünde kullanıcı ve etiket. İzleme `GET /api/runs/{id}/events`.
+
+**Değer:** Saatlik üretim ve makine yanıtı bağlantı tutmaz; konsol uzun run'ı arka planda başlatır.
+
+**Mercek:** 2, 3, 6.
+
+**Hazırlık:** Agent eşi var (`TraconAsyncRunOptions`, `JobHandlerKeys.ApprovalResume`).
+
+**Maliyet:** Public HTTP sözleşmesi (OpenAPI, istemci yenilemesi), job yükü şeması; migration beklenmez (ölçülmedi).
+
+**Risk:** At-least-once: kira kaybında öğe iki kez koşar (F-326 2026-10-12'de kapandı: yenileme hatası artık kirayı düşürmez, deneme sınırı kira dolumunda da uygulanır). Kuyruğa giren respond için kota kapısı kararı (K-394).
+
+**Bağımlılık:** F-325 (keep-alive) 2026-10-12'de kapandı; F-319 (tek yanıt) respond kuyruğundan önce gelir.
+
+**Ekosistem:** Taranmadı (Tracon içi simetri boşluğu).
+
+**Karşı görüş:** Tüketici public `IWorkflowRunner`'ı kendi job handler'ında çağırabilir; ama o yolda `IRunAuthorizationHandler` kapısı çalışmaz (`WorkflowEndpoints.cs:621-627`).
+
+### F-321 · Çöken workflow run'ı son checkpoint'ten otomatik sürsün (opt-in)
+
+**Kanal:** faz planlama · 🟡
+
+**Sorun:** Süreç ölünce workflow run'ı `Running` kalır; reconciliation açıksa `Failed` kapanır. Sürdürmek için `POST .../resume` gerekir (`IWorkflowRunner.cs:21-31`). Job yeniden kiralanınca öğe checkpoint'ten değil baştan koşar; içerik yeniden üretilir, onay yeniden gerekir (`WorkflowJobHandler.cs:38-60`).
+
+**Kapsam:** `TraconWorkflowOptions` altında opt-in otomatik sürdürme (son checkpoint, deneme sınırı, devam bağı). Job tekrarında aynı run'ın checkpoint'inden devam. Workflow çocuk run'ları agent devamından hariç.
+
+**Değer:** Deploy veya çökme sonrası yalnız yarım kalan düğüm tekrarlanır.
+
+**Mercek:** 2, 3.
+
+**Hazırlık:** SQL checkpoint ve kararlı executor kimliği var (K-127).
+
+**Maliyet:** Public seçenek, reconciliation dalı, job yükü.
+
+**Risk:** Yarım düğüm tekrar koşar (idempotency şart); MAF sürümü değişirse checkpoint okunamaz.
+
+**Bağımlılık:** F-344 önce kapanır.
+
+**Ekosistem:** MAF durable yolu (`Microsoft.Agents.AI.DurableTask` 1.16.0-preview, 2026-10-11) prerelease ve DTS ister; K-008 gereği çekirdeğe girmez.
+
+**Karşı görüş:** Tüketici resume'u kendi bekçisiyle çağırabilir; podcast raporu § 12 aynı boşluğu aday numarasız yazmıştı.
+
+### F-323 · Job süre sınırı ve iptalin handler token'ına ulaşması
+
+**Kanal:** faz planlama · 🟡
+
+**Sorun:** Job'un süre sınırı yoktur; `POST /api/jobs/{id}/cancel` handler token'ını iptal etmez, handler `IsCancelledAsync`'i yoklamalıdır (`IJobHandler.cs:38-41,56-65`; `write-your-own-job-handler.md:145-152`). Takılan bir render tek media slot'unu süresiz tutar.
+
+**Kapsam:** `JobRequest` ve `TraconSchedulingOptions` düzeyinde isteğe bağlı `MaxDuration`; lease döngüsü iptal durumunu okur ve bağlı token'ı iptal eder; aşım ayırt edilebilir hatayla kapanır.
+
+**Değer:** İptal çalışan sürece saniyeler içinde ulaşır; takılan iş kendiliğinden kapanır.
+
+**Mercek:** 2, 5.
+
+**Hazırlık:** Tool timeout deseni (Faz 69).
+
+**Maliyet:** Yeni seçenek ve aralık doğrulaması; lease döngüsünde ek depo okuması.
+
+**Risk:** Token'ı dinlemeyen handler yine takılır — belgelenir.
+
+**Bağımlılık:** F-326 kapandı (2026-10-12); F-303'ün job eşidir.
+
+**Ekosistem:** —
+
+**Karşı görüş:** Handler kendi `CancelAfter`'ını kurabilir; çerçeve desteği tek tip davranış ve görünürlük ekler.
+
+### F-345 · Skill script yürütmesini harici sandbox'a yönlendiren public seam
+
+**Kanal:** faz planlama · 🟡
+
+**Sorun:** Beş kapıdan (Enabled · içeriğe pinli grant · yorumlayıcı listesi · argüman doğrulama · denetim) sonra script tek bir çağrıyla yerel süreçte başlar (`SandboxedSkillScriptRunner.cs:447` → internal `SkillScriptProcessRunner`). Süreç Tracon'un OS kimliğiyle koşar; R8 kabul edilen risktir (K-862). Çok kiracılı host stored script için platform yetkisi ister (K-861). Yürütmeyi host'un sandbox'ına taşıyan bir seam yoktur.
+
+**Kapsam:** `Tracon.Abstractions`'ta yürütücü sözleşmesi: girdi yorumlayıcı, script içeriği + hash, stdin JSON, süre ve çıktı sınırı, kiracı, run kimliği; çıktı çıkış kodu, stdout/stderr, kesildi mi, süre aşımı. Varsayılan uygulama bugünkü yerel süreçtir; host kendi uygulamasını (gVisor, mikro-VM, uzak servis) kaydeder. Kapılar, içerik pini, onay ve denetim Tracon'da kalır. Yeni kod yazma yüzeyi açılmaz.
+
+**Değer:** Operatör kodunu çalışma anında koşturan çok kiracılı host (podcast ve video tüketicisi turları) stored script'i gerçek yalıtımla koşar; K-861 ve K-862'nin yeniden açılma koşulu ölçülebilir olur.
+
+**Mercek:** 3, 6.
+
+**Hazırlık:** Tek çağrı noktası belli; sonuç tipi internal `SkillScriptExecutionResult`.
+
+**Maliyet:** Public arayüz ve DTO'lar; `Tracon.Testing.Contracts.Xunit` sözleşme testi; site güvenlik sayfası.
+
+**Risk:** Uzak yürütücü script içeriğini ağda taşır; süre ve iptal ağ üzerinden işler. Yalıtımı host kurar — Tracon yalnız kapıları vaat eder (K-862 dili korunur).
+
+**Bağımlılık:** F-169 eşiği aşılırsa Hyperlight bir uygulama olur. Uygulama kayıtlıyken K-861/K-862 metni karar ister.
+
+**Ekosistem:** Hyperlight 0.7.0 (2026-10-11), eşik aşılmadı. gVisor GPU'yu `nvproxy` ile sınırlı destekler; Firecracker GPU geçirmez (2026-10-11 tarandı).
+
+**Karşı görüş:** Seam yalnız LLM'in çağırdığı skill script yolunu kapsar; video tüketicisinin zorunlu medya adımları host job'unda kalır. Operatör kodunu Tracon'un koşturduğu düğüm K2/L20 ile reddedildi (podcast ham #18); bu kalem onu açmaz.

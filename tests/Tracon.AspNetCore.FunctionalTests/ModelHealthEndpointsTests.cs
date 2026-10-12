@@ -166,10 +166,12 @@ public sealed class ModelHealthEndpointsTests
     public async Task Consecutive_failures_open_the_circuit_and_the_health_endpoint_reflects_it()
     {
         await using var server = await FakeOpenAiCompatibleServer.StartAsync();
-        // 400 (deliberately NOT 500): System.ClientModel's default retry policy
+        // 401 (deliberately NOT 500): System.ClientModel's default retry policy
         // automatically retries 5xx/408/429, which would make the raw request
-        // count unpredictable. 400 is not retried; the count stays deterministic.
-        server.ChatCompletionStatusCode = StatusCodes.Status400BadRequest;
+        // count unpredictable. 401 is not retried; the count stays deterministic.
+        // Not 400 either: since F-354 a permanent 4xx other than 401/403 rejects
+        // the request, not the provider, and does not count.
+        server.ChatCompletionStatusCode = StatusCodes.Status401Unauthorized;
 
         await using var host = await TraconTestHost.StartAsync(
             configureTracon: builder => builder.UseOpenAICompatible("local-test", o => o.Endpoint = server.BaseAddress),

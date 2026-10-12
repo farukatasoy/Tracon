@@ -117,8 +117,21 @@ internal sealed class InboundTriggerDispatcher
     private readonly IRunStore _runStore;
     private readonly IOptionsMonitor<TraconInboundTriggerOptions> _options;
     private readonly TimeProvider _clock;
+    private readonly IRunAttributionContext? _attributionContext;
 
     /// <summary>Creates a new dispatcher.</summary>
+    /// <param name="triggerStore">The trigger definitions.</param>
+    /// <param name="secretResolver">Resolves a trigger's signing secret.</param>
+    /// <param name="rateLimiter">The per-trigger request limit.</param>
+    /// <param name="idempotencyStore">The replay protection store.</param>
+    /// <param name="jobStore">The queue the run is written to.</param>
+    /// <param name="runStore">The store of the agent run's placeholder row.</param>
+    /// <param name="options">The inbound trigger options.</param>
+    /// <param name="timeProvider">The clock; the system clock when <see langword="null"/>.</param>
+    /// <param name="attributionContext">
+    /// Resolves the accept request's user and labels, which the queued run
+    /// carries; <see langword="null"/> queues it unattributed.
+    /// </param>
     public InboundTriggerDispatcher(
         IInboundTriggerStore triggerStore,
         InboundTriggerSecretResolver secretResolver,
@@ -127,7 +140,8 @@ internal sealed class InboundTriggerDispatcher
         IJobStore jobStore,
         IRunStore runStore,
         IOptionsMonitor<TraconInboundTriggerOptions> options,
-        TimeProvider? timeProvider = null)
+        TimeProvider? timeProvider = null,
+        IRunAttributionContext? attributionContext = null)
     {
         ArgumentNullException.ThrowIfNull(triggerStore);
         ArgumentNullException.ThrowIfNull(secretResolver);
@@ -145,6 +159,7 @@ internal sealed class InboundTriggerDispatcher
         _runStore = runStore;
         _options = options;
         _clock = timeProvider ?? TimeProvider.System;
+        _attributionContext = attributionContext;
     }
 
     /// <summary>
@@ -263,6 +278,12 @@ internal sealed class InboundTriggerDispatcher
     /// <param name="validated">The result of a successful <see cref="ValidateAsync"/> call.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The identifiers of the queued work.</returns>
+    /// <remarks>
+    /// Call it inside the accept request: the run carries the user and labels
+    /// <see cref="IRunAttributionContext"/> resolves now, because the worker
+    /// that runs it sees no request. The accept endpoint has already
+    /// refused an attribution that breaks a limit (<c>RunAttributionGate</c>).
+    /// </remarks>
     public async ValueTask<InboundTriggerDispatchResult> EnqueueAsync(
         InboundTriggerValidatedRequest validated,
         CancellationToken cancellationToken = default)
@@ -271,6 +292,10 @@ internal sealed class InboundTriggerDispatcher
 
         var trigger = validated.Trigger;
         var now = _clock.GetUtcNow();
+
+        // F-364: the endpoint checked this attribution before queuing (F-337)
+        // and then dropped it; the queued run started with no user and no labels.
+        var (userId, labels) = RunAttributionReader.Read(_attributionContext);
 
         if (trigger.TargetKind == InboundTriggerTargetKind.Agent)
         {
@@ -287,6 +312,12 @@ internal sealed class InboundTriggerDispatcher
                     Status = RunStatus.Queued,
                     StartedAt = now,
                     TenantId = trigger.TenantId,
+
+                    // Captured here, as the queued agent run endpoint does: the
+                    // worker's second StartRunAsync carries no user, and the
+                    // store's upsert keeps these.
+                    UserId = userId,
+                    Labels = labels,
                 },
                 cancellationToken).ConfigureAwait(false);
 
@@ -298,7 +329,7 @@ internal sealed class InboundTriggerDispatcher
                     HandlerKey = JobHandlerKeys.AgentRun,
                     TargetName = trigger.TargetName,
                     Status = JobStatus.Pending,
-                    Payload = BuildAgentRunPayload(runId, validated.Message, trigger.Name),
+                    Payload = BuildAgentRunPayload(runId, validated.Message, trigger.Name, userId, labels),
                     ScheduledFor = now,
                     CreatedAt = now,
                 },
@@ -312,6 +343,14 @@ internal sealed class InboundTriggerDispatcher
         // would be read as a structured one when it looks like one, and the sender
         // would then choose the workflow's parameter values. The envelope keeps all
         // of it the message.
+        var item = BatchItemInput.Envelope(validated.Message);
+
+        // The attribution rides in the payload's envelope (JobPayload), which
+        // WorkflowJobHandler replays. Without one the payload stays the message.
+        var workflowPayload = userId is not null || labels is { Count: > 0 }
+            ? JobPayload.Envelope([item], userId, labels)
+            : JsonSerializer.SerializeToElement(validated.Message, TraconCoreJsonContext.Default.String);
+
         var workflowJob = await _jobStore.EnqueueAsync(
             new JobRecord
             {
@@ -320,11 +359,11 @@ internal sealed class InboundTriggerDispatcher
                 HandlerKey = JobHandlerKeys.Workflow,
                 TargetName = trigger.TargetName,
                 Status = JobStatus.Pending,
-                Payload = JsonSerializer.SerializeToElement(validated.Message, TraconCoreJsonContext.Default.String),
+                Payload = workflowPayload,
                 ScheduledFor = now,
                 CreatedAt = now,
             },
-            [BatchItemInput.Envelope(validated.Message)],
+            [item],
             cancellationToken).ConfigureAwait(false);
 
         return new InboundTriggerDispatchResult { RunId = null, JobId = workflowJob.Id };
@@ -401,7 +440,12 @@ internal sealed class InboundTriggerDispatcher
     /// <c>runId</c>/<c>message</c>/<c>sessionId</c>; it exists so
     /// <c>GET /api/jobs/{id}</c> shows which trigger queued the run.
     /// </remarks>
-    private static JsonElement BuildAgentRunPayload(Guid runId, string message, string triggerName)
+    private static JsonElement BuildAgentRunPayload(
+        Guid runId,
+        string message,
+        string triggerName,
+        string? userId,
+        IReadOnlyDictionary<string, string>? labels)
     {
         using var buffer = new MemoryStream();
 
@@ -411,6 +455,27 @@ internal sealed class InboundTriggerDispatcher
             writer.WriteString("runId", runId);
             writer.WriteString("message", message);
             writer.WriteString("trigger", triggerName);
+
+            // The field names the agent run job reads; AgentRunJobHandler
+            // replays the user through AmbientRunAttributionScope for the
+            // run's children.
+            if (userId is not null)
+            {
+                writer.WriteString("userId", userId);
+            }
+
+            if (labels is { Count: > 0 })
+            {
+                writer.WriteStartObject("labels");
+
+                foreach (var (key, value) in labels)
+                {
+                    writer.WriteString(key, value);
+                }
+
+                writer.WriteEndObject();
+            }
+
             writer.WriteEndObject();
         }
 

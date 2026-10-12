@@ -167,7 +167,7 @@ export const trWorkflows: Pick<Messages, keyof typeof enWorkflows> = {
   "evals.expectedOutputHint": 'containsExpected denetimi kullanır.',
   "evals.expectedTools": "Beklenen tool'lar",
   "evals.expectedToolsHint": 'Virgülle ayrılır. toolCalled denetimi kullanır.',
-  "evals.contextHint": "Soru ile birlikte agent'a verilen ek bağlam.",
+  "evals.contextHint": "Agent'a sorudan önce belge olarak gider. Terfi edilen case, run'ın belgelerini burada tutar.",
   "evals.measures": "{agent} agent'ını ölçer.",
   "evals.runNow": 'Şimdi çalıştır',
   "evals.noRuns.title": 'Henüz çalıştırma yok',

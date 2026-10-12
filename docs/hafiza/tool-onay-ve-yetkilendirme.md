@@ -94,25 +94,7 @@
   farklı eylemlerdir. Sahipliği "tek yardımcıda toplamak" isteyen bir
   sadeleştirme bu asimetriyi siler; `The_management_exemption_does_not_extend_to_starting_a_run`
   onu tutar.
-- **🚨 Bir MCP tool'unun sonucu `string` DEĞİL `AIContent`'tir; `ToolResultText`
-  onu okuyamadığında BEŞ tüketici birden sessizce bozulur** (2026-09-18,
-  `HATA-S1-026` ve kapanışta ölçülen iki kusur daha). `McpClientTool
-  .InvokeCoreAsync` tek bloklu sonucu bir `AIContent`, çok bloklu sonucu bir
-  `AIContent[]`, yalnız hata/`StructuredContent`/uygulama meta'sı taşıyan
-  sonucu bir `JsonElement` döndürür (kaynak okundu, `ModelContextProtocol.Core`
-  2.2.0 — ilk ikisi kaydın "protokol sonucu, adaptörün işi" varsayımını
-  yanlışlar). `TryGetText` `AIContent` için `false` dönüyordu ve şunlar bunun
-  üstüne dallanır: `TruncatingAIFunction` (sınır HİÇ uygulanmadı — 200 bayta
-  karşı 8035 bayt ölçüldü; `AIContent[]` ise `AIContent` DEĞİLDİR ve
-  `{"error":"tool_result_unsupported"}` ile değiştirildi, sınır hiç
-  yapılandırılmamış olsa bile — katman her zaman kuruludur) ·
-  `ContentGuardMessageMasker` (her MCP sonucu modele ulaşmadan
-  `[Tool result could not be inspected]` oldu) · `ToolInvocationTracker` ve
-  `RunRecordingAgent` (`Result`/`Payload` `null`) · `RecordedToolPlayback`
-  (replay sonucu kaybetti). **Ders:** ortak bir kanonikleştiriciye yeni bir
-  sonuç şekli eklemek tek bir `switch` satırı değildir —
-  `grep -rn "ToolResultText" src/` ile TÜKETİCİLERİ say; her biri `false`
-  dalında ayrı bir sessiz davranış saklıyor olabilir. K-798 · K-799.
+- **🚨 Bir MCP tool'unun sonucu `string` DEĞİL `AIContent`'tir; `ToolResultText` onu okuyamadığında BEŞ tüketici birden sessizce bozulur** — tam kayıt: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md) (2026-10-12 bütçe turu).
 - **`AIJsonUtilities.DefaultOptions` ile serileştirmek `Tracon.Core`'da AOT
   temizdir** (2026-09-18, ölçüldü: sıfır `IL2026`/`IL3050`). `AIContent`
   tipleri MEAI'nin kendi kaynak-üretilmiş context'inden çözülür ve
@@ -131,23 +113,7 @@
   döndüren bir vekile taşındı ve üstüne gerçek SDK istemcisiyle konuşan bir
   fonksiyonel test (`McpToolResultTruncationTests`) eklendi.
 
-- **🚨 Rolün reddettiği bir panel isteği HİÇ GÖNDERMEMELİDİR — 403'ü çizmek
-  "konsol bozuk" diye okunur** (2026-09-19, manuel kapanış `MT-UIRUN-063`,
-  K-833): reader rolüyle `settings`'in dört paneli ve `mcp`'nin "Remembered
-  approvals" paneli `HTTP 403` metnini bir **`Try again` düğmesiyle**
-  çiziyordu. Düğme çalışması **imkânsız** olan tek eylemi öneriyor — reddin
-  sebebi roldür. `diagnostics.tsx` ve MCP prompt sekmesi bu boşluğu
-  **kendileri için** çoktan kapatmış ve gerekçeyi 🚨 yorumu olarak yazmıştı;
-  beş panel aynı işlemden hiç geçmemişti. Desen: sorgu `enabled: canAdminister`
-  ile hiç koşmaz, gövde `Unauthorized requires="administrator"` çizer, birincil
-  eylem düğmesi gizlenir. **Asıl iddia metin değil, isteğin GÖNDERİLMEMESİDİR**:
-  yalnız `enabled:` guard'ını silmek kusurun tamamını geri getirir ve metne
-  bakan her iddia yeşil kalır, çünkü 403 o zaman gelir ve gerçek bir taşıma
-  hatası için dosyada duran aynı `ErrorNote` dalı onu çizer
-  (`admin-panel-roles.test.tsx` bunu zorlar; düşerliği ölçüldü).
-  ⚠️ Her panel kapsamda değildir: **listesi** reader'a açık olan bir yüzeyde
-  (`skill-script-grants` — reader'a da admin'e de `200 []`) boş durum
-  **gerçek bilgidir**, reddin maskesi değil; orada yalnız form gizlenir.
+- **🚨 Rolün reddettiği bir panel isteği HİÇ GÖNDERMEMELİDİR — 403'ü çizmek "konsol bozuk" diye okunur** — tam kayıt: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md) (2026-10-12 bütçe turu).
 - **Örnek uygulama rol denemesi için hazır bir bayrak taşıyor: `Tracon:Demo:Roles:Enabled`**
   (2026-09-19, aynı vaka): üç politika adını kaydeder ve rolü
   `X-Tracon-Demo-Role: reader|operator|admin` başlığından okuyan bir gösterim
@@ -160,3 +126,4 @@
 
 - **🚨 Onay kurali kosul kumesinin parmak izi TEK yerdedir: `ToolArgumentConditionFingerprint`** (2026-09-22, Faz 182, K-851). Once iki elle yazilmis kopya vardi ve iki yonde ayrisiyordu: SQL store'lari yolu U+001F/U+001E tasiyan bir kumeyi baska bir kumeyle AYNI `conditions_hash`'e dusuruyordu (`ON CONFLICT` ikinci kurali yazmadan birinciyi donduruyordu), bellek ici store ise `["eu", "us"]` ile `["eu","us"]`'yi iki kural sayiyordu. Ikisini de `ToolApprovalRuleStoreContract`'in iki yeni case'i yakalar. **Bicim degistirilemez**: `conditions_hash` kalici veridir; ayiricisiz her kume eski bicimle ozetlenir, yalniz ayirici tasiyan yol uzunluk onekli bicime (U+001E ile baslayan) gecer. Bu, argument parmak izinin (`ComputeArgumentsHash`) daha once gectigi uzunluk onekli bicimle AYNI sinif; MEMORY'deki "elle tekrarlanan anahtar ifadesi" (K-525) dersinin ucuncu vakasi.
 - **🚨 Onay kuralı tool'un KAYNAĞINA bağlıdır; damgayı kuralı SUNAN registry verir** (2026-10-11, F-283/F-284, K-876/K-877; önceki hâl Faz 186 Karar 11'de ölçülmüştü). MCP tool adı `{server}_{tool}` endpoint değişince aynı kalır; sunucu kaydı `AgentsAdmin`'in, onay politikası `SecurityAdmin`'in alanıdır. Kural yazılırken (yönetici ucu ve "bir daha sorma" akışı — İKİ yazma yolu, ikisi de `ToolSourceFingerprint.Of`) endpoint'in SHA-256'sı damgalanır; eşleşme kesin eşitliktir, damga kimliğin parçasıdır. Kaynak bilgisi `McpTenantTools` anlık görüntüsünde tool nesnesiyle birlikte durur — `_connections`'tan okumak yenileme sırasında YENİ endpoint'i eski tool nesnesine yamardı. 🚨 Hatırlanan kural AGENT'a kapsamlıdır: "endpoint değişince yeniden sorar" testi aynı agent'la koşmalı (model betiğini `PUT /api/agents/{name}` ile değiştir); farklı agent'la koşan ilk sürüm eski kodda da YEŞİLDİ — kırmızı-önce kontrolü yakaladı. `requiresApproval: false` feragati de endpoint'e bağlı bir `SecurityAdmin` kararıdır. 🚨 "Kaynak yok" (`null`, kod tool'u) ≠ "kaynak şu an görünmüyor" (yenilemesi başarısız sunucu; derlenmiş agent tool'u tutar): ikincisi `Unresolved`'dır, hiçbir kurala eşit değildir, yazılmaz. Kanıt: `McpApprovalRuleSourceTests` (iki gerçek MCP sunucusu).
+- **🚨 Her kök run `AwaitingApproval` ile kapanabilir; posta kutusu satırını yalnız kancayı veren yol yazar** (2026-10-12, F-370): onay devamının ikinci onayı listede görünmüyordu, çünkü testler zincirin yalnız ilk halkasını sınıyordu. Kök run koşturan her arka plan yolu `QueuedTurn`'ü kullanır (oturum önce, onay sonra). Açık: batch ve eval kök run'ı (F-389).

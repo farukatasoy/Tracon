@@ -468,8 +468,10 @@ was actually cancelled.
 Two consequences are worth stating plainly. A provider-side safety filter is
 **not** an exception here: return an ordinary `ChatResponse` with
 `ChatFinishReason.ContentFilter` and Tracon raises
-`TraconContentFilteredException` itself. Throwing instead makes the circuit
-breaker count a healthy provider as failing. And a `TraconException` thrown
+`TraconContentFilteredException` itself. Throwing instead leaves the decision to
+your exception: one with no readable HTTP status counts against the provider's
+circuit as a connection failure does, so a healthy provider can look like it is
+failing. And a `TraconException` thrown
 from `CreateChatClient` is wrapped as a compilation error naming the agent, while
 every other exception propagates raw — so use it for configuration or binding
 problems the host author can act on.

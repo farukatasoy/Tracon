@@ -224,6 +224,53 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
 
     /// <inheritdoc />
     /// <remarks>
+    /// The request is read as the waiting run recorded it, in its
+    /// <see cref="RunEventType.WorkflowRequest"/> event: the checkpoint is not opened and
+    /// no graph is built. <see cref="WorkflowResponseFactory.Check"/> applies the rule
+    /// <see cref="WorkflowResponseFactory.Create"/> applies to the republished request.
+    /// </remarks>
+    public async ValueTask<string?> ValidateResponseAsync(
+        WorkflowRespondRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (string.IsNullOrWhiteSpace(request.RequestId))
+        {
+            return null;
+        }
+
+        var record = await _runStore.GetRunAsync(request.RunId, cancellationToken).ConfigureAwait(false);
+
+        // Missing, another tenant's, not a workflow, not waiting: RespondStreamingAsync
+        // answers each with the message it always gave. There is no request to judge.
+        if (record is null ||
+            !string.Equals(record.TenantId, _tenantContext.TenantId, StringComparison.Ordinal) ||
+            record.Kind != RunKind.Workflow ||
+            record.Status != RunStatus.AwaitingInput)
+        {
+            return null;
+        }
+
+        await foreach (var runEvent in _runStore
+                           .ReadEventsAsync(request.RunId, 0, cancellationToken)
+                           .ConfigureAwait(false))
+        {
+            if (runEvent.Type == RunEventType.WorkflowRequest &&
+                WorkflowRequestDescriptor.ReadRecorded(runEvent) is { } recorded &&
+                string.Equals(recorded.RequestId, request.RequestId, StringComparison.Ordinal))
+            {
+                return WorkflowResponseFactory.Check(
+                    recorded,
+                    new WorkflowAnswer(request.RequestId, request.Approved, request.Text, request.Json));
+            }
+        }
+
+        return null;
+    }
+
+    /// <inheritdoc />
+    /// <remarks>
     /// This MUST be an <c>async IAsyncEnumerable</c> iterator —
     /// <see cref="WorkflowSessionId.Require"/> throws
     /// <see cref="TraconException"/> for an invalid <c>sessionId</c>. When
@@ -1358,15 +1405,18 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             catch (InvalidDataException exception)
             {
                 // MAF's raw message ("not compatible with the workflow") does
-                // not say what to do about it. The only real cause is that
-                // executor ids have changed: either the workflow definition
-                // was updated, or the application was restarted.
+                // not say what to do about it. The cause is that executor ids
+                // changed. A restart does not change them: WorkflowAgentIdentity
+                // gives every agent step a permanent id (K-127). A change to the
+                // graph does: the pattern, the steps, their order or the
+                // node-list form (K-901), or a code-defined graph whose own
+                // executors take a new id in each process.
                 throw new TraconException(
                     $"Workflow '{execution.WorkflowName}' cannot be resumed from this checkpoint: " +
                     "the graph's structure differs from when the checkpoint was written. " +
-                    "If the workflow definition changed, start a new run. " +
-                    "If the application restarted, old checkpoints cannot be used - " +
-                    "executor ids are generated in process memory.",
+                    "The workflow's pattern, its steps, their order or its node list changed, " +
+                    "or a code-defined graph builds an executor whose id changes between processes. " +
+                    "Start a new run.",
                     exception);
             }
             catch (Exception exception) when (exception is JsonException or InvalidOperationException or NotSupportedException or ArgumentException)

@@ -242,7 +242,17 @@ internal static class SchedulingEndpoints
             nextRunAt = parsed!.GetNextOccurrence(DateTimeOffset.UtcNow, timeZone);
         }
 
-        var scheduleItems = JobPayload.ExtractItems(request.Payload);
+        // F-364: a workflow or agent batch payload may be an attribution
+        // envelope. One that is malformed, or breaks a RunLabels limit, is
+        // refused here rather than run without its attribution.
+        var content = JobPayload.Read(request.HandlerKey, request.Payload);
+
+        if (content.Problem is { } payloadProblem)
+        {
+            return InvalidSchedule(payloadProblem);
+        }
+
+        var scheduleItems = content.Items;
         var itemCount = scheduleItems.Count;
         var maxItems = schedulingOptions.CurrentValue.MaxItemsPerJob;
 
@@ -348,7 +358,17 @@ internal static class SchedulingEndpoints
         }
 
         var payload = request?.Payload ?? schedule.Payload;
-        var items = JobPayload.ExtractItems(payload);
+        var content = JobPayload.Read(schedule.HandlerKey, payload);
+
+        if (content.Problem is { } payloadProblem)
+        {
+            return TypedResults.Problem(
+                title: "Trigger failed",
+                detail: payloadProblem,
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        var items = content.Items;
         var maxItems = schedulingOptions.CurrentValue.MaxItemsPerJob;
 
         if (items.Count > maxItems)

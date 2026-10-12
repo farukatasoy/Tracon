@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Tracon;
 
@@ -20,7 +21,14 @@ namespace Tracon;
 /// Unlike <c>AgentRunJobHandler</c>, this job uses a <strong>new</strong> <c>RunId</c>.
 /// The previous run ended with <see cref="RunStatus.AwaitingApproval"/> and never changes again.
 /// If the model asks approval for another tool after it uses the approved tool, the new
-/// root run also ends with <c>AwaitingApproval</c>. The chain continues in the same way.
+/// root run also ends with <c>AwaitingApproval</c>, and its request goes to the same
+/// mailbox, session first (<see cref="QueuedTurn"/>). The chain continues in the same way.
+/// </para>
+/// <para>
+/// The new run runs under the user and labels of the run that asked for approval, as its
+/// row already says (<c>ApprovalEndpoints</c> copies them): its tools and sub-agents read
+/// them from <see cref="AmbientRunAttributionScope"/>. The approver is recorded in the
+/// audit trail, not as the run's user.
 /// </para>
 /// <para>
 /// The new run runs on the agent version of the run that asked for approval, and
@@ -44,10 +52,13 @@ internal sealed class ApprovalResumeJobHandler(
     IRunStore runStore,
     IPendingApprovalStore approvalStore,
     Microsoft.Agents.AI.ChatHistoryProvider chatHistory,
+    IOptions<TraconOptions> options,
     TimeProvider? timeProvider = null,
     ILogger<ApprovalResumeJobHandler>? logger = null,
     IRunInputStore? inputStore = null,
-    ParameterizedAgentFactory? parameterFactory = null) : IJobHandler
+    ParameterizedAgentFactory? parameterFactory = null,
+    IOptionsMonitor<TraconApprovalOptions>? approvalOptionsMonitor = null,
+    IWebhookPublisher? webhookPublisher = null) : IJobHandler
 {
     private readonly TimeProvider _clock = timeProvider ?? TimeProvider.System;
 
@@ -72,12 +83,7 @@ internal sealed class ApprovalResumeJobHandler(
             return;
         }
 
-        Microsoft.Agents.AI.AIAgent agent;
-        Microsoft.Agents.AI.AgentSession session;
-        ChatMessage approvalMessage;
-        int? pinnedVersion;
         RunRecord source;
-        IReadOnlyDictionary<string, string>? parameterValues;
 
         try
         {
@@ -85,7 +91,31 @@ internal sealed class ApprovalResumeJobHandler(
                 ?? throw new TraconException(
                     $"The run '{approval.RunId}' that asked for this approval was not found; " +
                     "the version it ran on is unknown. The decision cannot be applied.");
+        }
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
+        {
+            await FailQueuedRunAsync(newRunId, context.Job.TenantId, exception, cancellationToken)
+                .ConfigureAwait(false);
 
+            throw;
+        }
+
+        // 🚨 F-369: opened in THIS method's own body, before the session is read
+        // and around the run and its session save; an AsyncLocal write made in
+        // an async helper does not flow back to its caller. Without it the
+        // resumed turn's tools and sub-agents ran under no user and no labels,
+        // although the run's own row carries both.
+        var (userId, labels) = QueuedRunAttribution.FromRecord(source);
+        using var attribution = AmbientRunAttributionScope.Begin(userId, labels);
+
+        Microsoft.Agents.AI.AIAgent agent;
+        Microsoft.Agents.AI.AgentSession session;
+        ChatMessage approvalMessage;
+        int? pinnedVersion;
+        IReadOnlyDictionary<string, string>? parameterValues;
+
+        try
+        {
             // ApprovalResume is a built-in key a schedule can name with a
             // hand-written payload. The source run's version is pinned below,
             // so the payload's agent must be the agent that run ran.
@@ -135,6 +165,14 @@ internal sealed class ApprovalResumeJobHandler(
             throw;
         }
 
+        // F-370: a resumed turn can ask for another approval, and only the
+        // mailbox can answer it. The same bookkeeping as a queued run: session
+        // first, approvals second, both before AwaitingApproval is published;
+        // a store error on the save is tried again, never the turn (F-367).
+        var turn = new QueuedTurn(
+            sessions, approvalStore, options, approvalOptionsMonitor, webhookPublisher, _clock, logger,
+            context, newRunId, agent, session);
+
         await agent.RunAsync(
             [approvalMessage],
             session,
@@ -148,10 +186,11 @@ internal sealed class ApprovalResumeJobHandler(
                 ExperimentId = pinnedVersion is null ? null : source.ExperimentId,
                 Variant = pinnedVersion is null ? null : source.Variant,
                 ParameterValues = parameterValues,
+                BeforePendingApprovalIsPublished = turn.BeforePendingApprovalIsPublishedAsync,
             },
             cancellationToken).ConfigureAwait(false);
 
-        await sessions.SaveSessionAsync(agent, session, cancellationToken).ConfigureAwait(false);
+        await turn.SaveSessionAsync(cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>

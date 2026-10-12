@@ -204,9 +204,16 @@ public enum RunEventType
     /// the primary was skipped.
     /// </summary>
     /// <remarks>
+    /// <para>
     /// A model switch is never silent. This event is written in
     /// addition to a span tag, not instead of it — an operator reading only
     /// the run record must still see which model actually answered.
+    /// </para>
+    /// <para>
+    /// Only the agent's own binding writes it. A fallback on a binding the run
+    /// calls on the side (the compaction summarizer, an <c>aiJudge</c> judge)
+    /// does not change the run's model, so it is logged instead.
+    /// </para>
     /// </remarks>
     ModelFallbackUsed = 22,
 

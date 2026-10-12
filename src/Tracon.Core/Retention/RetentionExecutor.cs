@@ -149,29 +149,31 @@ internal sealed class RetentionExecutor(
         {
             while (!cancellationToken.IsCancellationRequested)
             {
-                if (policy.Archive)
-                {
-                    var rows = await dataStore
-                        .ReadForArchiveAsync(policy.Target, tenantId, cutoffValue, options.BatchSize, cancellationToken)
+                // 🚨 F-372: archive mode deletes ONLY the rows the sink received.
+                // A separate read and an unordered batch delete chose different
+                // rows, and rows that were never archived were deleted.
+                var deleted = policy.Archive
+                    ? await dataStore
+                        .ArchiveBatchAsync(
+                            policy.Target,
+                            tenantId,
+                            cutoffValue,
+                            options.BatchSize,
+                            async (rows, token) =>
+                            {
+                                await archiveSink!.WriteAsync(policy.Target, now, rows, token).ConfigureAwait(false);
+
+                                archivedTotal += rows.Count;
+
+                                await policyStore
+                                    .AppendRunProgressAsync(run.Id, 0, rows.Count, token)
+                                    .ConfigureAwait(false);
+                            },
+                            cancellationToken)
+                        .ConfigureAwait(false)
+                    : await dataStore
+                        .DeleteBatchAsync(policy.Target, tenantId, cutoffValue, options.BatchSize, cancellationToken)
                         .ConfigureAwait(false);
-
-                    if (rows.Count > 0)
-                    {
-                        await archiveSink!
-                            .WriteAsync(policy.Target, now, rows, cancellationToken)
-                            .ConfigureAwait(false);
-
-                        archivedTotal += rows.Count;
-
-                        await policyStore
-                            .AppendRunProgressAsync(run.Id, 0, rows.Count, cancellationToken)
-                            .ConfigureAwait(false);
-                    }
-                }
-
-                var deleted = await dataStore
-                    .DeleteBatchAsync(policy.Target, tenantId, cutoffValue, options.BatchSize, cancellationToken)
-                    .ConfigureAwait(false);
 
                 if (deleted == 0)
                 {

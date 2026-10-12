@@ -569,6 +569,17 @@ public sealed class RunEventWriter
         }
     }
 
+    /// <summary>
+    /// What an event text or payload cut at
+    /// <see cref="TraconRunRecordingOptions.MaxPayloadLength"/> ends with.
+    /// </summary>
+    /// <remarks>
+    /// A reader that takes an event text as content checks for it rather than
+    /// using a cut text as if it were whole: promotion reads the query from the
+    /// <c>RunStarted</c> text when no input was recorded.
+    /// </remarks>
+    internal const string TruncationMarker = "…[truncated]";
+
     private string? Truncate(string? value)
     {
         if (value is null || _options.MaxPayloadLength <= 0 || value.Length <= _options.MaxPayloadLength)
@@ -576,7 +587,7 @@ public sealed class RunEventWriter
             return value;
         }
 
-        return string.Concat(value.AsSpan(0, _options.MaxPayloadLength), "…[truncated]");
+        return string.Concat(value.AsSpan(0, _options.MaxPayloadLength), TruncationMarker);
     }
 
     /// <summary>Gives up on the store for this run and records that the evidence was lost.</summary>

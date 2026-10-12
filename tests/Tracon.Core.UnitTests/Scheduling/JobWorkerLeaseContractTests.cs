@@ -162,6 +162,39 @@ public sealed class JobWorkerLeaseContractTests
         record.Attempt.ShouldBe(1);
     }
 
+    /// <summary>
+    /// F-367: a handler whose work is done but whose last write kept failing
+    /// throws <see cref="NonRetryableJobException"/>. Releasing that job ran
+    /// the work again (a second model call for a queued run).
+    /// </summary>
+    [Theory]
+    [InlineData(1)]
+    [InlineData(3)]
+    public async Task A_handler_whose_finished_work_could_not_be_recorded_fails_at_once_and_does_not_run_again(int maxAttempts)
+    {
+        var jobs = new InMemoryJobStore();
+        var handler = new NonRetryableHandler();
+        using var host = TestJobHandlerHost.For((JobHandlerKeys.AgentBatch, handler));
+
+        var jobId = await EnqueueAsync(jobs, maxAttempts, DateTimeOffset.UtcNow);
+
+        using var worker = CreateWorker(jobs, host, leaseDuration: TimeSpan.FromMinutes(5));
+
+        await worker.StartAsync(TestContext.Current.CancellationToken);
+
+        var record = await WaitUntil.ValueAsync(
+            () => jobs.GetAsync(TenantId, jobId, TestContext.Current.CancellationToken).AsTask(),
+            static job => job?.Status is JobStatus.Completed or JobStatus.Failed,
+            "the job to finish");
+
+        await worker.StopAsync(TestContext.Current.CancellationToken);
+
+        handler.Calls.ShouldBe(1, "a handler whose work was done ran again");
+        record!.Status.ShouldBe(JobStatus.Failed);
+        record.Attempt.ShouldBe(1);
+        record.ErrorMessage.ShouldBe(JobErrorCodes.Format(QueuedTurn.SessionSaveFailedCode, "abcd1234"));
+    }
+
     [Fact]
     public async Task A_store_error_while_releasing_a_failed_attempt_still_releases_the_job()
     {
@@ -399,6 +432,24 @@ public sealed class JobWorkerLeaseContractTests
             return call <= failures
                 ? throw new InvalidOperationException("The handler failed on purpose.")
                 : ValueTask.CompletedTask;
+        }
+    }
+
+    /// <summary>Did its work, then could not record it: what a queued turn throws when its session never saves.</summary>
+    private sealed class NonRetryableHandler : IJobHandler
+    {
+        private int _calls;
+
+        public int Calls => Volatile.Read(ref _calls);
+
+        public ValueTask ExecuteAsync(JobContext context, CancellationToken cancellationToken = default)
+        {
+            Interlocked.Increment(ref _calls);
+
+            throw new NonRetryableJobException(
+                QueuedTurn.SessionSaveFailedCode,
+                "abcd1234",
+                new TimeoutException("The session store did not answer in time."));
         }
     }
 

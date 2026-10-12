@@ -23,6 +23,11 @@ namespace Tracon;
 /// carries a value keeps the earlier rule: an agent whose required parameter has no
 /// default fails the job once, up front, instead of once per item with the same error.
 /// </para>
+/// <para>
+/// The job's payload may carry the attribution of whoever queued it, in the
+/// envelope <see cref="JobPayload"/> describes. Every item then runs under
+/// <see cref="AmbientRunAttributionScope"/> with that user and those labels.
+/// </para>
 /// </remarks>
 internal sealed class AgentBatchJobHandler(
     IAgentCatalog catalog,
@@ -33,6 +38,12 @@ internal sealed class AgentBatchJobHandler(
     public async ValueTask ExecuteAsync(JobContext context, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(context);
+
+        // 🚨 F-364: opened in THIS method's own body and held across every item
+        // run; an AsyncLocal written in a helper would not flow back here.
+        // Without it a batch queued under a user ran every item unattributed.
+        var queued = QueuedRunAttribution.Read(context.Job, logger);
+        using var attribution = queued is null ? null : AmbientRunAttributionScope.Begin(queued.UserId, queued.Labels);
 
         // Resolved once up front so a job naming no agent fails as a whole, as before.
         var probe = await catalog.ResolveAsync(context.Job.TargetName, culture: null, cancellationToken).ConfigureAwait(false)

@@ -189,13 +189,35 @@ public sealed record AgentRunScope
     /// primary binding.
     /// </summary>
     /// <remarks>
-    /// The write surface is <c>FallbackChatClient</c>; the read side is
+    /// The write surface is <c>FallbackChatClient</c>, and only on the agent's
+    /// own model binding: a side-channel call writes to
+    /// <see cref="SideChannelFallback"/> instead. The read side is
     /// <c>RunRecordingAgent.CompleteAsync</c>, which uses it in place of the
     /// primary model for cost resolution, metrics, and the <c>runs.model_id</c>
     /// override — the same ambient-write/scoped-read pattern as
     /// <see cref="ToolUsage"/>.
     /// </remarks>
     internal FallbackModelAttribution? FallbackAttribution { get; init; }
+
+    // 🚨 F-360: before this holder, a judge whose binding had its own fallbacks
+    // wrote the run's fallback. runs.model_id named the judge's fallback model,
+    // the agent's own tokens were priced at it, and the run got a
+    // ModelFallbackUsed event its own model never caused.
+
+    /// <summary>
+    /// Gets the holder that records which fallback link answered the
+    /// side-channel model call in progress (the compaction summarizer, an
+    /// <c>aiJudge</c> loop judge), or <see langword="null"/> on the agent's own turns.
+    /// </summary>
+    /// <remarks>
+    /// <see cref="SideChannelUsageTrackingChatClient"/> sets it for one call, on
+    /// a copy of the run's scope. While it is set, <c>FallbackChatClient</c>
+    /// writes the link that answered here, not to <see cref="FallbackAttribution"/>
+    /// or to the run's event stream, and the side channel's tokens are priced at
+    /// that link's model. The run's model, its fallback event and the price of
+    /// the agent's own tokens stay with the agent's own binding.
+    /// </remarks>
+    internal FallbackModelAttribution? SideChannelFallback { get; init; }
 }
 
 /// <summary>
@@ -203,11 +225,18 @@ public sealed record AgentRunScope
 /// <see cref="ModelBinding.Fallbacks"/> link stood in for the primary binding.
 /// </summary>
 /// <remarks>
+/// <para>
 /// A run can call the model more than once (a multi-turn tool loop); if a
 /// later turn falls back after an earlier turn already answered, the LAST
 /// recorded link wins — that is the model actually in use by the time the run
 /// completes, since a fallback stays selected until the run tries the primary
 /// again from a fresh recompiled agent, not mid-run.
+/// </para>
+/// <para>
+/// A side-channel call gets an instance of its own for exactly one call
+/// (<see cref="AgentRunScope.SideChannelFallback"/>), so it learns which model
+/// answered it without touching the run's.
+/// </para>
 /// </remarks>
 internal sealed class FallbackModelAttribution
 {

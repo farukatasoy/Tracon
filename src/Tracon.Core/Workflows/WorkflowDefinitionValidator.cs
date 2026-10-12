@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.Extensions.AI;
 
 namespace Tracon;
 
@@ -18,6 +19,12 @@ namespace Tracon;
 /// catalog is checked at compile time; the catalog can change between
 /// registration and execution, and moving that check to registration time
 /// would give a false guarantee.
+/// </para>
+/// <para>
+/// <see cref="ValidateNodeTypes"/> adds the one rule that needs the function
+/// registry: each node of a node list must take what the node before it
+/// passes on. The registry is fixed for the process lifetime, so the
+/// save-time check is an honest guarantee, and the compiler repeats it.
 /// </para>
 /// </remarks>
 internal static class WorkflowDefinitionValidator
@@ -226,5 +233,125 @@ internal static class WorkflowDefinitionValidator
         {
             throw new TraconException(message);
         }
+    }
+
+    /// <summary>
+    /// The type of the message a workflow run sends to its first node: the user's
+    /// message as a chat message list (<c>WorkflowRunner</c> builds it).
+    /// </summary>
+    public static Type RunInputType { get; } = typeof(List<ChatMessage>);
+
+    /// <summary>
+    /// The type an agent node of a node list takes and passes on
+    /// (<c>WorkflowAgentStepExecutor</c>).
+    /// </summary>
+    public static Type AgentNodeMessageType { get; } = typeof(List<ChatMessage>);
+
+    /// <summary>
+    /// Validates that every node of a node list can take what the node before it
+    /// passes on, and that the first node can take the run's message.
+    /// </summary>
+    /// <param name="definition">The definition. Only its <see cref="WorkflowDefinition.Nodes"/> are read.</param>
+    /// <param name="functions">The registered functions; <see langword="null"/> when none are registered.</param>
+    /// <returns>
+    /// User-facing error text that names both nodes and both types;
+    /// <see langword="null"/> when the chain fits or the definition lists no nodes.
+    /// </returns>
+    /// <exception cref="ArgumentNullException"><paramref name="definition"/> is <see langword="null"/>.</exception>
+    /// <remarks>
+    /// <para>
+    /// <strong>Microsoft Agent Framework drops a message that no handler of the next
+    /// node takes, with no error</strong> (measured on 1.20.0): the next node
+    /// never runs and the run ends <c>Completed</c> with no output. A first node that
+    /// cannot take <see cref="RunInputType"/> runs nothing at all. Both shapes passed
+    /// every check, so the save said <c>200</c> to a chain that could not run.
+    /// </para>
+    /// <para>
+    /// The rule follows how the framework delivers. A message reaches a node whose input
+    /// type it can be assigned to: a node that takes <c>IEnumerable&lt;ChatMessage&gt;</c>
+    /// or <see cref="object"/> receives a <c>List&lt;ChatMessage&gt;</c>. A node sends
+    /// exactly the type it declares (a function that declares an interface and returns a
+    /// class fails at run time, loudly), except a node that declares <see cref="object"/>:
+    /// it may send any type, so the node after it is not checked.
+    /// </para>
+    /// <para>
+    /// The HTTP save calls this with the function registry, and so does the compiler
+    /// when a run starts: a function's types can change between deployments. A function
+    /// that is not registered is skipped here, because the name check reports it.
+    /// </para>
+    /// </remarks>
+    public static string? ValidateNodeTypes(WorkflowDefinition definition, IWorkflowFunctionCatalog? functions)
+    {
+        ArgumentNullException.ThrowIfNull(definition);
+
+        if (definition.Nodes.Count == 0)
+        {
+            return null;
+        }
+
+        var descriptors = (functions?.List() ?? [])
+            .ToDictionary(static descriptor => descriptor.Name, StringComparer.Ordinal);
+
+        WorkflowNodeReference? previous = null;
+        var passedOn = RunInputType;
+
+        foreach (var node in definition.Nodes)
+        {
+            Type takes;
+            Type sends;
+
+            if (node.Kind == WorkflowNodeKind.Agent)
+            {
+                takes = AgentNodeMessageType;
+                sends = AgentNodeMessageType;
+            }
+            else if (descriptors.TryGetValue(node.Name, out var descriptor))
+            {
+                takes = descriptor.InputType;
+                sends = descriptor.OutputType;
+            }
+            else
+            {
+                // Not registered: the name check reports it, and nothing is known
+                // about what it would pass on.
+                previous = node;
+                passedOn = typeof(object);
+
+                continue;
+            }
+
+            if (passedOn != typeof(object) && !takes.IsAssignableFrom(passedOn))
+            {
+                return previous is null
+                    ? $"Node '{node.Name}' is the first node of workflow '{definition.Name}' and takes " +
+                      $"{Display(takes)}, but a run starts by sending the user's message as {Display(RunInputType)}. " +
+                      "Microsoft Agent Framework drops a message no handler takes, so nothing would run and the " +
+                      $"run would end with no output. The first node must take {Display(RunInputType)}; an agent node does."
+                    : $"Node '{node.Name}' in workflow '{definition.Name}' takes {Display(takes)}, but node " +
+                      $"'{previous.Name}' before it passes on {Display(passedOn)}. Microsoft Agent Framework drops a " +
+                      $"message no handler takes, so '{node.Name}' would never run and the run would end with no " +
+                      $"output. Put a function between them that turns {Display(passedOn)} into {Display(takes)}, " +
+                      "or change one of the two types.";
+            }
+
+            previous = node;
+            passedOn = sends;
+        }
+
+        return null;
+    }
+
+    /// <summary>A type name an operator can read: generic arguments in angle brackets, no assembly names.</summary>
+    private static string Display(Type type)
+    {
+        if (!type.IsGenericType)
+        {
+            return type.FullName ?? type.Name;
+        }
+
+        var name = type.GetGenericTypeDefinition().FullName ?? type.Name;
+        var tick = name.IndexOf('`', StringComparison.Ordinal);
+
+        return $"{(tick < 0 ? name : name[..tick])}<{string.Join(", ", type.GetGenericArguments().Select(Display))}>";
     }
 }

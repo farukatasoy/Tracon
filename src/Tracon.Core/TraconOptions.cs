@@ -351,8 +351,10 @@ public sealed class TraconSkillScriptOptions
     /// </summary>
     /// <remarks>
     /// <para>
-    /// Roots are supplied <strong>in code or configuration</strong> and cannot be
-    /// changed through the UI. The person who writes script content deploys the application.
+    /// Roots are supplied <strong>in code only</strong>. Configuration never binds them:
+    /// a root widens what the server reads and runs, like
+    /// <see cref="Interpreters"/> and <see cref="AllowStoredScripts"/>. The UI cannot
+    /// change them either. The person who writes script content deploys the application.
     /// </para>
     /// <para>
     /// A script read from disk is not pinned to its content: its grant names the
@@ -396,7 +398,11 @@ public sealed class TraconSkillScriptOptions
     /// <remarks>Must be from one millisecond to about 49.7 days while <see cref="Enabled"/> is on; any other value fails at startup.</remarks>
     public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(30);
 
-    /// <summary>Gets or sets the largest combined stdout and stderr byte count. Excess output is truncated.</summary>
+    /// <summary>Gets or sets the largest byte count kept from each output stream of a script.</summary>
+    /// <remarks>
+    /// stdout and stderr are capped separately, each at this count, so one run can return up to
+    /// twice this many bytes in total. Output past the cap is truncated and the result says so.
+    /// </remarks>
     public int MaxOutputBytes { get; set; } = 256 * 1024;
 
     /// <summary>Gets or sets the largest byte count for JSON arguments supplied to a script.</summary>

@@ -1113,3 +1113,106 @@ diger zamanlamaya bagli dogrulamalar zaten onu kullaniyordu; bu biri atlamisti.
 - **🚨 Bozuk bir checkpoint gövdesi MAF'tan `ArgumentNullException` fırlatabilir — `JsonException`/`InvalidOperationException`/`NotSupportedException` listesi YETMEZ** (2026-09-01, Faz 126, `faz-denetim` bulgusu): tahmine dayalı bir catch listesi yazıp "muhtemelen bu tipler" demek yeter sanmak yanlıştı; gerçek bir bozuk `state` (`{"totally":"not a checkpoint"}`) ile TEST edilince `ArgumentNullException` çıktı ve genel `catch (Exception)`'a düşüp tahmin eden bir mesaj üretti. Sessions tarafının `ArgumentException` (üst tip, `ArgumentNullException`'ı da kapsar) zaten listede olan deseni checkpoint tarafına da eklemek düzeltti. Ders: MAF'ın deserileştirme hata tipini KOD OKUYARAK tahmin etme — gerçek bozuk veriyle çalıştır, hangi tip çıkıyor gör.
 
 - **🚨 Bir checkpoint fixture'ı BAŞKA bir süreçte ASLA `ResumeStreamingAsync` ile "tam resume" kanıtlamaz — MAF executor kimliği (`{ad}_{AIAgent.Id}`) süreç başına RASTGELE** (2026-09-01, Faz 126): fixture'ı üreten `dotnet test` çalıştırması ile onu OKUYAN sonraki çalıştırma FARKLI `AIAgent.Id` üretir; `InProcessExecution.ResumeStreamingAsync` her zaman `InvalidDataException` ("not compatible with the workflow") atar — gerçek bir MAF-sürüm uyumsuzluğundan TAMAMEN BAĞIMSIZ olarak, yalnızca süreç değiştiği için. Bir yükseltme-kapısı fixture'ı checkpoint için yazarken bunun yerine round-trip (`IWorkflowCheckpointStore.CreateAsync`/`ReadAsync` bayt-bayt) + `$type` ayracının hâlâ ilk sırada olduğu doğrulanır — gerçek resume DEĞİL. Sessions bu kısıtı TAŞIMAZ: `DeserializeSessionAsync` yalnız ajan ADINA bakar, süreç-yerel bir kimliğe değil.
+
+## `docs/hafiza/` dört dosyadan — 2026-10-12 doküman bütçesi turu (tüketici turu kusurları)
+
+Kural alan dosyasında tek satır olarak kaldı; aşağıdaki tam metin aynen taşındı.
+
+### `docs/hafiza/cekirdek-calistirma.md`'den
+
+- **🚨 K-737/K-840 sınıfının ÜÇÜNCÜ tekrarı KAPIYLA kapandı** (2026-10-11, F-279, `CancellationFilterSiteTests`): `when (ex is not OperationCanceledException)` 58 sitede kalmıştı (K-840 yedi servisi, F-279 dokuz siteyi saydı; sınıf taraması 55'ini daha buldu). Kural tek yazımdır: `OperationCancellation.IsFailure(ex, token)` — token, `try` içindeki işi yöneten token'dır. Token YOKSA (senkron getter, `CancellationToken.None` çağrısı) filtre yazılmaz; her istisna yakalanır, yorum nedenini söyler. Kapı iki biçimi reddeder: tip filtresi (elle `|| !token.IsCancellationRequested` dahil) ve `catch (OCE) { throw; }` + `catch (Exception)`. Kapının GÖRMEDİĞİ biçim: filtresiz `catch (OperationCanceledException) { iptal say }` ve ardından bir hata dalı — elle tarandı (25 site, 7'si düzeltildi: canlı ses pompası ve delegasyonu, konuşma sürücüsü, iş kira yenilemesi, SSE yoklaması, CLI). 🚨 Eski semantiği KODLAYAN testler vardı: token iptal edilmeden `new OperationCanceledException()` fırlatıp "gerçek iptal" diyen 7 test (+1 fonksiyonel) düzeltmeden sonra kırmızıya döndü. Gerçek iptali test etmek için token'ı İPTAL ET ve `new OperationCanceledException(token)` fırlat; yabancı iptal için `TaskCanceledException` + iptal edilmemiş token.
+
+- **🚨 Bir bekleme sınırı beklemeyi bitirir, İŞİ bitirmez — token'ı ayrıca
+  iptal etmiyorsan hiçbir şeyi iptal etmemişsindir** (2026-09-18,
+  `HATA-S1-025`). `TimeoutAIFunction` `Task.WhenAny(invocation, delay)` ile
+  yarışıyor, ama gövdeye **çağıranın kendi** token'ını veriyordu. Ölçüldü:
+  token'ını her beklemede okuyan **tam işbirlikçi** bir tool bile 300 ms'lik
+  sınıra karşı 3 sn'lik gövdesini sonuna kadar koşturdu. Sınıfın XML dokümanı
+  ve `docs-site/concepts/tools.md` bu davranışı bilinçli bir sınır diye
+  **belgeliyordu**; belge doğruydu, tasarım yanlıştı. Kod tabanının kendi
+  emsali zaten doğruydu: `ChildAgentInvoker` (`deadline.CancelAfter`) ve
+  `OnlineEvalJobHandler` (`budget.CancelAfter`) bağlı bir CTS'i zaman aşımında
+  iptal eder. **Kural:** `WhenAny` ile bir bekleme sınırı kuruyorsan, kaybeden
+  tarafa bağlı bir CTS'i iptal et — yoksa yarışı yalnız SEN kaybedersin, iş
+  koşmaya (ve harcamaya) devam eder. K-805.
+
+- **🚨 Bir accumulator'a yazılan değer, onu ALAN kod çoktan koştuysa sessizce
+  düşer** (2026-09-18, aynı vaka). Zaman aşımından sonra arka planda biten
+  tool gövdesi `TraconToolUsage.Report`'u çağırıyor ve çağrı **başarılı
+  oluyor** (`true` döner — `AsyncLocal` gövdeye akmaya devam eder), ama
+  `ToolInvocationTracker.OnResult` accumulator'ı çoktan boşaltmıştı. Sonuç:
+  gerçek bir sağlayıcı harcaması (üretilip faturalanmış bir görsel) hiçbir
+  maliyet raporunda görünmüyordu. **Kural:** ambient-yaz / scoped-oku
+  desenindeki her accumulator için "yazan, okuyandan SONRA gelebilir mi?"
+  sorusunu sor; gelebiliyorsa geç gelen değerin bir sahibi olmalıdır
+  (`IRunStore.CompleteLateToolInvocationAsync`, K-806). Teşhis: `Report`'un
+  dönüş değerini ölç — `false` "bağlam yok" der, `true` + kayıtta boş alan
+  "alıcı kalmadı" der.
+
+### `docs/hafiza/tool-onay-ve-yetkilendirme.md`'den
+
+- **🚨 Bir MCP tool'unun sonucu `string` DEĞİL `AIContent`'tir; `ToolResultText`
+  onu okuyamadığında BEŞ tüketici birden sessizce bozulur** (2026-09-18,
+  `HATA-S1-026` ve kapanışta ölçülen iki kusur daha). `McpClientTool
+  .InvokeCoreAsync` tek bloklu sonucu bir `AIContent`, çok bloklu sonucu bir
+  `AIContent[]`, yalnız hata/`StructuredContent`/uygulama meta'sı taşıyan
+  sonucu bir `JsonElement` döndürür (kaynak okundu, `ModelContextProtocol.Core`
+  2.2.0 — ilk ikisi kaydın "protokol sonucu, adaptörün işi" varsayımını
+  yanlışlar). `TryGetText` `AIContent` için `false` dönüyordu ve şunlar bunun
+  üstüne dallanır: `TruncatingAIFunction` (sınır HİÇ uygulanmadı — 200 bayta
+  karşı 8035 bayt ölçüldü; `AIContent[]` ise `AIContent` DEĞİLDİR ve
+  `{"error":"tool_result_unsupported"}` ile değiştirildi, sınır hiç
+  yapılandırılmamış olsa bile — katman her zaman kuruludur) ·
+  `ContentGuardMessageMasker` (her MCP sonucu modele ulaşmadan
+  `[Tool result could not be inspected]` oldu) · `ToolInvocationTracker` ve
+  `RunRecordingAgent` (`Result`/`Payload` `null`) · `RecordedToolPlayback`
+  (replay sonucu kaybetti). **Ders:** ortak bir kanonikleştiriciye yeni bir
+  sonuç şekli eklemek tek bir `switch` satırı değildir —
+  `grep -rn "ToolResultText" src/` ile TÜKETİCİLERİ say; her biri `false`
+  dalında ayrı bir sessiz davranış saklıyor olabilir. K-798 · K-799.
+
+- **🚨 Rolün reddettiği bir panel isteği HİÇ GÖNDERMEMELİDİR — 403'ü çizmek
+  "konsol bozuk" diye okunur** (2026-09-19, manuel kapanış `MT-UIRUN-063`,
+  K-833): reader rolüyle `settings`'in dört paneli ve `mcp`'nin "Remembered
+  approvals" paneli `HTTP 403` metnini bir **`Try again` düğmesiyle**
+  çiziyordu. Düğme çalışması **imkânsız** olan tek eylemi öneriyor — reddin
+  sebebi roldür. `diagnostics.tsx` ve MCP prompt sekmesi bu boşluğu
+  **kendileri için** çoktan kapatmış ve gerekçeyi 🚨 yorumu olarak yazmıştı;
+  beş panel aynı işlemden hiç geçmemişti. Desen: sorgu `enabled: canAdminister`
+  ile hiç koşmaz, gövde `Unauthorized requires="administrator"` çizer, birincil
+  eylem düğmesi gizlenir. **Asıl iddia metin değil, isteğin GÖNDERİLMEMESİDİR**:
+  yalnız `enabled:` guard'ını silmek kusurun tamamını geri getirir ve metne
+  bakan her iddia yeşil kalır, çünkü 403 o zaman gelir ve gerçek bir taşıma
+  hatası için dosyada duran aynı `ErrorNote` dalı onu çizer
+  (`admin-panel-roles.test.tsx` bunu zorlar; düşerliği ölçüldü).
+  ⚠️ Her panel kapsamda değildir: **listesi** reader'a açık olan bir yüzeyde
+  (`skill-script-grants` — reader'a da admin'e de `200 []`) boş durum
+  **gerçek bilgidir**, reddin maskesi değil; orada yalnız form gizlenir.
+
+### `docs/hafiza/sql-saglayicilari.md`'den
+
+- **🚨 `INSERT` metni ile hedef tablonun sütun kümesi ayrı ayrı bayatlar; aynı
+  tabloya yazan İKİ sorgu varsa biri eksik kalabilir ve sözleşme testi yoksa
+  bunu yalnız üretim gösterir** (2026-09-18, `HATA-S3-003` sınıf taraması).
+  `eval_cases`'e iki sorgu yazıyordu: `InsertEvalCaseWithComputedSeq`
+  (promosyon yolu) `source_run_id`/`source_kind`/`promoted_at` sütunlarını
+  yazıyor, `InsertEvalCase` (`ReplaceCasesAsync` yolu) **yazmıyordu**. Sonuç:
+  her tam değiştirme bir case'i sessizce "promosyonsuz" bırakıyor, store'un
+  kendi `eval_cases_source_run_uq` guard'ı o run'ı tanımaz oluyor ve **aynı run
+  ikinci kez yükseltilebiliyordu**. Bellek içi store kaydı olduğu gibi
+  koruduğu için sapma yalnız SQL'deydi. **Kontrol:** bir tabloya yazan her
+  sorguyu birlikte ara (`grep -n "INSERT INTO .*<tablo>" -r src/`) ve sütun
+  listelerini karşılaştır; fark varsa bunu bir sözleşme testine çevir —
+  `EvalStoreContract.ReplaceCasesAsync_keeps_the_promotion_fields_it_was_given`
+  düzeltmeden önce bellek içinde YEŞİL, iki SQL sağlayıcısında KIRMIZI idi ve
+  sapmayı tek koşumda gösterdi.
+
+- **🚨 PAYLASILAN bir sorgunun SONUC SUTUNU her dialektte ayni CLR tipinde DEGILDIR — `COUNT(*)` SQL Server'da `int`, PostgreSQL/SQLite'ta `bigint`** (2026-09-02, Faz 133 yan bulgusu): `SelectConversationBranchPoint` paylasilan katmanda `COUNT(*)` yaziyor, okuyucu `reader.GetInt64(1)` cagiriyordu; SQL Server'da `InvalidCastException: Unable to cast 'System.Int32' to 'System.Int64'` firladi ve **konusma dallandirma (Faz 47) SQL Server'da HIC calismiyordu** — ozellik sevk edildiginden beri. Gorunmedi cunku `ConversationBranchTests` yalniz **SQLite'ta** vardi; gerekce "sorgular paylasilan katmanda, dialektten bagimsiz" idi. O gerekce sorgu **METNI** icin dogru, **OKUYUCU** icin yanlis. Kural: paylasilan bir sorguda toplama fonksiyonu yazarsan tipi `CAST(... AS bigint)` ile SABITLE. `MAX(seq)`/`SUM(kolon)` guvenlidir — sutunun kendi tipini doner ve `seq` uc dialektte de `bigint`. Tarama: 103 paylasilan sorgunun tamami, baska vaka yok. Kapi: `tests/Tracon.SqlServer.IntegrationTests/ConversationBranchTests.cs` (bes case, once KIRMIZI goruldu).
+
+- **🚨 "Bos" bir metin sutunu `NULL` ile `''` DEMEKTIR — `IS NULL` tek basina yetmez** (2026-09-07, F-214): `RunScore.MessageId`'nin sevk edilen sozlesmesi *"if empty, the score belongs to the whole run"* der; **empty** ikisini birden kapsar. Faz 154'un skor ozeti dogru yazdi (`ScoreFilter`), `SelectExperimentResults` uc saglayicida da yalniz `IS NULL` kullandi — `MessageId = ""` skoru bir sorguda run, digerinde mesaj seviyesi sayilip arm ortalamasindan **sessizce** dustu. C# karsiligi `is null` ile `is { Length: > 0 }` farkidir. 🚨 Predicate **bes** yerde tekrarlanir, birlikte degisir: uc `*Queries.cs` + `InMemoryRunStore.Analytics.cs` + `samples/.../FileRunStore.cs`; SQL Server'da bos dizge `N''`. Kapi: `RunStoreContract`'ta **iki yonlu** cift test — ikincisi olmadan "her skoru run seviyesi say" diyen asiri duzeltme de yesil gecerdi. Skoru `IRunStore` okur, YAZMAZ; sozlesme kendi store'unu `CreateScoreStoreAsync()` ile ister.
+
+### `docs/hafiza/workflows.md`'den
+
+- **🚨 Yonlendirme `AddWorkflow(name, ...)`'in ILK parametresine gore calisir, MAF grafinin KENDI `WithName(...)` degerine gore DEGIL** (2026-08-16, Faz 57): `WorkflowCatalog` kod-tanimli workflow'lari `CodeWorkflowRegistration.Name` (yani `AddWorkflow`'un `name` argumani) ile sozluklerler (`WorkflowCatalog.cs:43-45`); `WorkflowBuilder.WithName(...)` ile grafin KENDI tasidigi ad yalniz MAF'in kendi ic amaclari icindir (ornegin Mermaid basligi), `/api/workflows/{name}` yonlendirmesinde HIC okunmaz. Faz 57'nin cevirisi bu iki bagimsiz stringi (`AddWorkflow("approval-flow", ...)` ile hic degismeyen kayit anahtari, `WithName("onay-akisi")` ile cevrilen graf adi) birbirinden BAGIMSIZ tuttugu icin E2E testindeki URL (`WithName` degeriyle ayni sekilde cevrilmisti) ile gercek yonlendirme anahtari arasindaki tutarsizlik ORTAYA CIKTI — Turkce'de tesadufen degil (`onay-akisi` ile kayit anahtari `approval-flow` zaten ESLESMIYORDU, hep bozuktu ama kimse fark etmemisti). 49 E2E testinden ikisi 30 saniyede zaman asimina ugrayip `workflow-graph` test kimligini hic bulamadi. Cozum: uc yerde de (registration key, `WithName`, test URL'i) AYNI stringi kullan. Yeni bir kod-tanimli workflow eklerken `AddWorkflow`'un `name` parametresi ile `WithName(...)` degerinin AYNI olmasi bir gereklilik degildir ama TUTARLI OLMAMASI sessizce 404/zaman asimi uretir.
+
+- **🚨 Sebebi HER KAPIDA kurmak, sebebi HİÇBİR yerde olmayan bir yol bırakır** (2026-09-19, A-26/K-844): `PumpedEvent.FromCancellation(timedOut)` zaman aşımı `RunError`'ını üç ayrı çıkışta (başlangıç · süper-adım sınırı · iptal edilen `MoveNextAsync`) kuruyordu. Gerçek yol o üçünün hiçbiri değildi — MAF akışını **sessizce** bitirir (F-107 tuzağı), `run` pompa çıkışındaki `status == Completed ⇒ Canceled` yeniden yazımıyla kapanır ve o yazım sebebi taşımıyordu. Sonuç: runner sebebi **üretip düşürüyordu**, operatör çıplak bir `Canceled` görüyordu ve `RunRecord.Error` `null` kalıyordu. Ders: bir sebep, işin **kapandığı tek yerde** eklenir; çıkış başına kurulan sebep yeni bir çıkış eklendiği anda sessizce kaybolur. İkinci kural: sebep yalnız **kendi** kaynağına bakar (`timeout` CTS'i), `linked`'e değil — `linked` çağıran ve `POST /api/runs/{id}/cancel` tarafından da tetiklenir. Kapı: `WorkflowRunTimeoutReasonTests` (iki yarım).

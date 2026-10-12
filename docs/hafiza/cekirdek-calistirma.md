@@ -43,10 +43,13 @@
 - **🚨 Kararı uygulayıp sonra handoff yazan uç, hatada kararı ASILI bırakır** (2026-09-07, B03/K-726): çare transaction değil **TEKRAR SÜRÜLEBİLİRLİK** — id'yi approval'dan türet, yazımları "satır yoksa yaz" yap. Vaka: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 - **🚨 `OperationCanceledException` bir IPTAL DEGIL, bir SORUDUR: "gercekten iptal edildi mi?"** (2026-09-08, Faz 157, K-737): **iptal karari istisnanin TIPINDEN degil, o kapsamin KENDI token'indan okunur** — `RunRecordingAgent` `cancellationSource`, HTTP uclari `HttpContext.RequestAborted`, `WorkflowRunner` `linked`. Token'in olmadigi siniflandirma yolunda ayrim zaman asimi sinyaliyle kurulur ve o kontrol `CanceledTypePattern`'den ONCE gelmelidir. Regresyon: `RunCancellationStatusTests.An_uncancelled_OperationCanceledException_writes_Failed_not_Canceled`. Vaka: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 - **🚨 K-737'nin IKINCI yarisi: "iptal degil" demek yetmez, HANGI limitin doldugu ayri bir iddiadir** (2026-09-12, F-219, K-759): **kendi `CancellationTokenSource`'unu tutan her `catch` filtresine O kaynagi da koyar** (`deadline.IsCancellationRequested && !cancellationToken.IsCancellationRequested`); ayiramadigi dalda sebebi soylemez, **ariza** der. Sinif taramasi 13 negatif filtreyi tarayip uc yeri duzeltti. Vaka: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
-- **🚨 K-737/K-840 sınıfının ÜÇÜNCÜ tekrarı KAPIYLA kapandı** (2026-10-11, F-279, `CancellationFilterSiteTests`): `when (ex is not OperationCanceledException)` 58 sitede kalmıştı (K-840 yedi servisi, F-279 dokuz siteyi saydı; sınıf taraması 55'ini daha buldu). Kural tek yazımdır: `OperationCancellation.IsFailure(ex, token)` — token, `try` içindeki işi yöneten token'dır. Token YOKSA (senkron getter, `CancellationToken.None` çağrısı) filtre yazılmaz; her istisna yakalanır, yorum nedenini söyler. Kapı iki biçimi reddeder: tip filtresi (elle `|| !token.IsCancellationRequested` dahil) ve `catch (OCE) { throw; }` + `catch (Exception)`. Kapının GÖRMEDİĞİ biçim: filtresiz `catch (OperationCanceledException) { iptal say }` ve ardından bir hata dalı — elle tarandı (25 site, 7'si düzeltildi: canlı ses pompası ve delegasyonu, konuşma sürücüsü, iş kira yenilemesi, SSE yoklaması, CLI). 🚨 Eski semantiği KODLAYAN testler vardı: token iptal edilmeden `new OperationCanceledException()` fırlatıp "gerçek iptal" diyen 7 test (+1 fonksiyonel) düzeltmeden sonra kırmızıya döndü. Gerçek iptali test etmek için token'ı İPTAL ET ve `new OperationCanceledException(token)` fırlat; yabancı iptal için `TaskCanceledException` + iptal edilmemiş token.
+- **🚨 K-737/K-840 sınıfının ÜÇÜNCÜ tekrarı KAPIYLA kapandı** — tam kayıt: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md) (2026-10-12 bütçe turu).
 - **Bir bütçe, altındaki transport tavanı ölçülmeden bütçe değildir** (F-219 sınıf taraması, K-760) — `HttpClient.Timeout`'un 100 sn'lik varsayılanı üstteki her `CancelAfter` bütçesini sessizce kesiyordu. Tam kayıt: [`nswag-istemci-uretimi.md`](nswag-istemci-uretimi.md).
 - **🚨 `IRunEventSink` dağıtımı SICAK YOLDA `await` edilir — yavaş bir `sink` `run`'ı yavaşlatır** (2026-09-08, Faz 157, ölçüldü). "Gözlemlenebilirlik işlevselliği bozmaz" kuralı yalnız ARIZAYI kapsar; GECİKME izole edilmez ve olay başına ödenir. Ağ hedefi olan bir `sink` kendi içinde tamponlamalı ve hemen dönmelidir. Ölçüm: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md).
 - **Ölen worker'ın işi `lease_until` dolana kadar KİMSEYE geçmez; sonra `attempt` artarak devralınır — sınırı aşan iş `AttemptsExhausted` ile düşer** (K-739, K-886). Ölçülen: devralma `lease_until`'dan sonra · sayaçlar idempotent · iki worker aynı anda yok (F-326'ya dek tek yenileme hatası bozardı). Yürütme yine de **at-least-once**'tır: çöken denemenin dış yan etkileri geri alınmaz. Bu bir çok node DESTEK beyanı değildir; SQLite tek process tavsiyesi korunur.
+- **🚨 Worker'ın sonuç yazımını ayırmak handler'ın İÇİNDEKİ son yazımı korumaz** (2026-10-12, F-367, K-903): model cevap verdikten sonraki oturum kaydı handler'ın hata yolundaydı; tek `store` hatası bitmiş run'ın işini `Failed` yaptı ya da modeli ikinci kez çağırdı. Dış etkiden sonraki her yazım kanıtlanan kira penceresinde tekrarlanır (`QueuedTurn`); pes edilince `NonRetryableJobException` worker'a "tekrar koşma" der. Kapı: `JobHandlerOutcomeWriteSiteTests`.
+- **🚨 Arka plan run'ının atfı satırda doğru görünür, alt run'da görünmeyebilir** (2026-10-12, F-369, F-364, K-904): yer tutucu satır COALESCE ile korunur, alt agent ve tool ise ortam kapsamından okur. Kapsamı eksik açan yol satır testlerini yeşil bırakır; atıf testi alt run'da ya da tool'da yapılır. Kapsam handler'ın kendi gövdesinde açılır; kapı `JobAttributionScopeSiteTests` (sınıf dördüncü kez).
+- **🚨 Kiracıdan bağımsız arka plan döngüsünde ortam kiracısıyla okuma sessizce boş döner** (2026-10-12, F-344): ret olayı sırayı `ReadEventsAsync` ile arıyordu; başka kiracıda 0 buldu, claim'in `RunFailed`'ıyla çakıştı ve düştü. Sıra için `GetLastEventSequenceAsync`, okuma için `AmbientTenantScope.Begin(run.TenantId)`.
 - **🚨 K-640'ın bedeli: normalizasyon classifier'ın ÜSTÜNE konunca kümelemeyi yok eder** — tam kayıt: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md) (2026-10-11 bütçe turu).
 
 - **🚨 Varsayılanı `true` olan bir kardeş alanın çalışması, yapılandırma
@@ -67,31 +70,8 @@
   kurulumda sessizce yutulmasıydı. Kurucuya isteğe bağlı parametre eklerken
   `grep -n "new <Tip>(" src/` ile fabrikayı da aç: `ActivatorUtilities` değil
   elle yazılmış bir fabrika varsa yeni parametre **kendiliğinden** bağlanmaz.
-- **🚨 Bir bekleme sınırı beklemeyi bitirir, İŞİ bitirmez — token'ı ayrıca
-  iptal etmiyorsan hiçbir şeyi iptal etmemişsindir** (2026-09-18,
-  `HATA-S1-025`). `TimeoutAIFunction` `Task.WhenAny(invocation, delay)` ile
-  yarışıyor, ama gövdeye **çağıranın kendi** token'ını veriyordu. Ölçüldü:
-  token'ını her beklemede okuyan **tam işbirlikçi** bir tool bile 300 ms'lik
-  sınıra karşı 3 sn'lik gövdesini sonuna kadar koşturdu. Sınıfın XML dokümanı
-  ve `docs-site/concepts/tools.md` bu davranışı bilinçli bir sınır diye
-  **belgeliyordu**; belge doğruydu, tasarım yanlıştı. Kod tabanının kendi
-  emsali zaten doğruydu: `ChildAgentInvoker` (`deadline.CancelAfter`) ve
-  `OnlineEvalJobHandler` (`budget.CancelAfter`) bağlı bir CTS'i zaman aşımında
-  iptal eder. **Kural:** `WhenAny` ile bir bekleme sınırı kuruyorsan, kaybeden
-  tarafa bağlı bir CTS'i iptal et — yoksa yarışı yalnız SEN kaybedersin, iş
-  koşmaya (ve harcamaya) devam eder. K-805.
-- **🚨 Bir accumulator'a yazılan değer, onu ALAN kod çoktan koştuysa sessizce
-  düşer** (2026-09-18, aynı vaka). Zaman aşımından sonra arka planda biten
-  tool gövdesi `TraconToolUsage.Report`'u çağırıyor ve çağrı **başarılı
-  oluyor** (`true` döner — `AsyncLocal` gövdeye akmaya devam eder), ama
-  `ToolInvocationTracker.OnResult` accumulator'ı çoktan boşaltmıştı. Sonuç:
-  gerçek bir sağlayıcı harcaması (üretilip faturalanmış bir görsel) hiçbir
-  maliyet raporunda görünmüyordu. **Kural:** ambient-yaz / scoped-oku
-  desenindeki her accumulator için "yazan, okuyandan SONRA gelebilir mi?"
-  sorusunu sor; gelebiliyorsa geç gelen değerin bir sahibi olmalıdır
-  (`IRunStore.CompleteLateToolInvocationAsync`, K-806). Teşhis: `Report`'un
-  dönüş değerini ölç — `false` "bağlam yok" der, `true` + kayıtta boş alan
-  "alıcı kalmadı" der.
+- **🚨 Bir bekleme sınırı beklemeyi bitirir, İŞİ bitirmez — token'ı ayrıca iptal etmiyorsan hiçbir şeyi iptal etmemişsindir** — tam kayıt: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md) (2026-10-12 bütçe turu).
+- **🚨 Bir accumulator'a yazılan değer, onu ALAN kod çoktan koştuysa sessizce düşer** — tam kayıt: [`HAFIZA-GECMISI.md`](../arsiv/HAFIZA-GECMISI.md) (2026-10-12 bütçe turu).
 - **🚨 Bir istisna mesajını modele göstermeye başladığın an, biçimi de bir
   sözleşmedir** (2026-09-18, aynı kapanışta ölçülen ikinci kusur).
   `{TotalSeconds:F0}` 300 ms'lik bir sınırı modele `"did not complete within

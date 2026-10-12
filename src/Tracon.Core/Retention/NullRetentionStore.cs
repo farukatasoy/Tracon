@@ -52,6 +52,22 @@ internal sealed class NullRetentionStore : IRetentionStore
     }
 
     /// <inheritdoc />
+    /// <remarks>Nothing matches, so <paramref name="archiveAsync"/> is never called.</remarks>
+    public ValueTask<int> ArchiveBatchAsync(
+        string target,
+        string? tenantId,
+        DateTimeOffset cutoff,
+        int batchSize,
+        Func<IReadOnlyList<ArchiveRow>, CancellationToken, ValueTask> archiveAsync,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(archiveAsync);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return new(0);
+    }
+
+    /// <inheritdoc />
     public ValueTask<DateTimeOffset?> FindRowLimitCutoffAsync(
         string target,
         string? tenantId,

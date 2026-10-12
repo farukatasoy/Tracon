@@ -416,6 +416,19 @@ public sealed class SqliteRetentionStoreContractTests(SqliteSchemaFixture schema
             EndedAt = new DateTimeOffset(2020, 1, 1, 0, 5, 0, TimeSpan.Zero),
             Turns = 1,
         });
+
+    /// <inheritdoc />
+    protected override async ValueTask SeedOldRowAsync(string tenantId, DateTimeOffset startedAt)
+        => await schema.Context.VoiceSessions.SaveAsync(new VoiceSessionRecord
+        {
+            Id = TraconId.NewId(),
+            TenantId = tenantId,
+            SessionId = $"session-{Guid.NewGuid():N}",
+            AgentName = "support",
+            StartedAt = startedAt,
+            EndedAt = startedAt.AddMinutes(5),
+            Turns = 1,
+        });
 }
 
 /// <inheritdoc cref="SqliteAgentDefinitionStoreContractTests" />

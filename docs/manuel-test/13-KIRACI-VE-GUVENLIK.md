@@ -4863,3 +4863,29 @@ ve etiket okur (MT-SEC-149 düzeni). `whoami` fonksiyon düğümü
   invalid_run_attribution`).
 - Adım 4: webhook `runId` workflow run'ını, `userId` `ada`'yı taşır.
 - 🚨 Eski kusur: adım 1 boş, adım 2–3 `200`, adım 4 `runId`/`userId` `null`.
+
+---
+
+### MT-SEC-214 — Kuyruklu run'ın alt agent'ı ve onay devamının run'ı kullanıcıyı ve etiketi taşır (kusur-giderme, 2026-10-12, F-369)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | K-904 |
+| **Devir** | ➜ CI: `QueuedRunAttributionTests.A_queued_runs_sub_agent_carries_the_user_and_labels_the_request_resolved` · `QueuedRunAttributionTests.An_approval_resume_runs_under_the_user_and_labels_of_the_run_that_asked` · `RunContinuationTests.A_continuation_runs_under_the_interrupted_runs_user_and_labels` |
+
+Regresyon. Worker kapsamı etiketsiz açılıyordu; onay devamı kapsam hiç açmıyordu.
+Run satırı doğru görünüyor, alt agent ve tool ise atıfsız koşuyordu.
+
+**Ön koşul** — Örnek uygulamanın `X-Demo-User`/`X-Demo-Labels` başlıkları; `router` (`support` alt agent'ı) ve MT-JOB-135'in `approval-agent`'ı.
+
+**Adımlar**
+1. `router`'a `Prefer: respond-async`, `X-Demo-User: ada`, `X-Demo-Labels: team=red` ile soru gönder; iş bitince alt run'ı `GET /api/runs?parentRunId={kök}` ile oku.
+2. `approval-agent`'a aynı başlıklarla kuyruklu istek gönder; onayı başlıksız ver; devam run'ını oku.
+
+**Beklenen sonuç**
+- Adım 1: alt run `userId: "ada"`, `labels.team: "red"`.
+- Adım 2: devam run'ı `userId: "ada"`, `labels.team: "red"`; karar isteğindeki başlık yoksa da değişmez.
+- 🚨 Eski kusur: alt run etiketsiz, devam run'ı kullanıcısızdı.

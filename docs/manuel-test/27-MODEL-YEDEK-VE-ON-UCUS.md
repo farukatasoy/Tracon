@@ -718,8 +718,8 @@ hatası sayılıyor ve zincir yedeğe geçiyordu. Otomatik karşılığı:
 - Geçici bir agent (`yedek-404`): birincil gerçek `openai`, modeli var olmayan
   bir ad (`gpt-yok-model`); `Fallbacks` alanında gerçek `openai` +
   `gpt-5.4-mini`.
-- Yalnız İLK çağrı ölçülür: `FailureThreshold=1` iken `404` devreyi açar ve
-  ikinci çağrı yedeğe "devre açık" diye geçer (MT-MYU-002).
+- `404` devreye sayılmaz (K-906): ikinci çağrı da yedeğe geçmez ve aynı
+  sonucu verir.
 
 **Adımlar**
 1. `yedek-404`'e bir mesaj gönder.
@@ -730,6 +730,36 @@ hatası sayılıyor ve zincir yedeğe geçiyordu. Otomatik karşılığı:
 - Olay akışında `ModelFallbackUsed` yoktur; yanıt yedekten gelmez.
 - 🚨 Eski kusur: `404` `transport_error` sayıldı ve yanıt yedekten geldi.
 - Koşum sonunda `yedek-404` geri alınır.
+
+---
+
+### MT-MYU-019 — Yargıcın bağlaması yedeğe düşerse run'ın modeli ve olayı değişmez (kusur-giderme, 2026-10-12, F-360)
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | K-907 |
+| **Devir** | ➜ CI: `HarnessLoopTests.An_aiJudge_fallback_does_not_rewrite_the_runs_model_or_its_price` · `SideChannelFallbackAttributionTests.A_side_channel_fallback_leaves_the_runs_attribution_alone_and_prices_at_the_answering_model` |
+
+Regresyon. Yargıcın yedeği run'ın atfına yazılıyordu: `modelId` yargıcın yedeğini
+adlandırdı, agent payı o modelin fiyatıyla hesaplandı.
+
+**Ön koşul** — MT-MYU-002'nin `flaky` kaydı. `Program.cs`'te geçici
+`AddModelRunJudge(o => o.Model = new ModelBinding { Provider = "flaky", Model = "flaky-model", Fallbacks = [new() { Provider = "openai", Model = "gpt-5.4-mini" }] })`;
+MT-OBS-067'nin `judged-loop` agent'ı.
+
+**Adımlar**
+1. `judged-loop`'u `{"message":"Say hello."}` ile çalıştır.
+2. Run'ı, olaylarını ve uygulama günlüğünü oku.
+
+**Beklenen sonuç**
+- `modelId` agent'ın kendi modelidir; olaylarda `ModelFallbackUsed` yoktur.
+- Maliyet: agent payı agent modelinin, yargıç payı `gpt-5.4-mini`'nin fiyatıyla.
+- Günlükte `A side-channel model call fell back from flaky/flaky-model to openai/gpt-5.4-mini` satırı vardır.
+- 🚨 Eski kusur: `modelId` `gpt-5.4-mini` oldu; her yargıç çağrısı bir `ModelFallbackUsed` yazdı.
+- Koşum sonunda `Program.cs` geri alınır.
 
 ---
 

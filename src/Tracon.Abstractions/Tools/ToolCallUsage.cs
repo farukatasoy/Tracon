@@ -8,8 +8,9 @@ namespace Tracon;
 /// The cost model assumes tokens and writes to the <c>runs</c> table. A tool may spend
 /// no tokens but still incur a charge: text-to-speech is billed by <em>character</em>,
 /// speech-to-text by <em>second</em>. These measurements are <strong>not
-/// summed</strong> with token cost — two different units cannot be added. They are
-/// shown as a separate line item in reports.
+/// summed</strong> with token cost — two different units cannot be added. They
+/// stay on the call's <see cref="ToolInvocationRecord"/>; the console does not
+/// display them yet.
 /// </para>
 /// <para>
 /// The measurement is reported by the tool itself:
@@ -39,7 +40,8 @@ public sealed record ToolCallUsage
     /// <remarks>
     /// If the provider does not report the billed quantity, the tool produces
     /// an estimate (for example, the text's character count). Showing an
-    /// estimate as a measurement fabricates a price; the UI distinguishes the two cases.
+    /// estimate as a measurement fabricates a price, so a reader of the record must
+    /// keep the two cases apart.
     /// </remarks>
     public bool IsEstimated { get; init; }
 }

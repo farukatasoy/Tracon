@@ -304,20 +304,21 @@ public sealed partial class RunRecordingAgent
     private static string? GetSessionId(AgentSession session) => AgentSessionIdentity.GetId(session);
 
     // Phase 45 (F-53): the first user message that triggered this run is written into the
-    // RunEventType.RunStarted event. run_events is the ONLY place where the input text is
-    // PERSISTED — the session is saved only when the run completes SUCCESSFULLY
-    // (AgentEndpoints.AgentRunStream), therefore the query of a failed run cannot be read
-    // through any other path.
+    // RunEventType.RunStarted event, so the run list can show what a run was asked. The
+    // text is cut at MaxPayloadLength like any event text; the full input lives in
+    // IRunInputStore (phase 47), which is where promotion reads it first (F-343).
     //
     // 🚨 A document channel message is ChatRole.User too (it needs to sit
     // beside the actual message in a turn) and, when documents are given,
     // precedes the query in the list - a naive FirstOrDefault(User) would
     // make a document's OWN content look like the query it was attached to.
+    // The check reads the marker even after a JSON round trip: a replay or a
+    // continuation re-sends a stored input whose marker values are JsonElement.
     private static string? ExtractQuery(IReadOnlyList<ChatMessage> messages)
     {
         foreach (var message in messages)
         {
-            if (message.Role == ChatRole.User && !IsDocumentChannelMessage(message))
+            if (message.Role == ChatRole.User && !DocumentChannelMessageBuilder.IsDocumentMessage(message))
             {
                 return message.Text;
             }
@@ -325,7 +326,4 @@ public sealed partial class RunRecordingAgent
 
         return null;
     }
-
-    private static bool IsDocumentChannelMessage(ChatMessage message)
-        => message.Contents is [TextContent content] && DocumentChannelMessageBuilder.TryGetSummary(content, out _);
 }

@@ -1374,17 +1374,20 @@ print([(p['name'], p.get('status')) for p in json.load(sys.stdin)])
 | **İlgili faz** | Faz 8 |
 | **İlgili karar** | K-070 |
 
-Negatif senaryo. Eşik koşum hızını artırmak için `2`'ye düşürülür.
+Negatif senaryo. Eşik koşum hızını artırmak için `2`'ye düşürülür. Devre yalnız
+sağlayıcının sağlığını gösteren hatayı sayar (K-906): bağlantı hatası, zaman
+aşımı, `5xx`, `408`, `429`, `401`/`403`. Bozuk model adının `404`'ü 2026-10-12'den
+beri sayılmaz (MT-OAI-096); case bu yüzden kapalı bir portu kullanır.
 
 **Ön koşul**
-- Örnek uygulama gerçek OpenAI anahtarıyla çalışıyor.
+- `Program.cs`'te geçici `OpenAICompatible("cb-demo", ...)` kaydı
+  `http://127.0.0.1:59999/v1`'e işaret eder (MT-MYU-002'nin `flaky` deseni); port
+  başta kapalıdır. `cb-agent` (`cb-demo`, model `m`) `POST /api/agents` ile kayıtlı.
 
 **Adımlar**
 1. Eşiği `2`'ye, mola süresini `20` saniyeye düşür, uygulamayı yeniden başlat.
-2. Bozuk model adına sahip bir agent tanımı kaydet (MT-OAI-043'teki tanımı
-   yeniden kullan, hâlâ kayıtlıysa atla).
-3. İki kez arka arkaya çalıştır (ikisi de gerçek `404` ile başarısız olur).
-4. Üçüncü kez çalıştır.
+2. `cb-agent`'ı iki kez arka arkaya çalıştır (ikisi de bağlantı hatasıyla düşer).
+3. Üçüncü kez çalıştır.
 
 **Girilecek veri**
 ```bash
@@ -1395,10 +1398,27 @@ cd samples/Tracon.Api && dotnet run
 ```bash
 for i in 1 2 3; do
   echo "--- deneme $i ---"
-  curl -N -s -X POST "$APU/api/agents/manuel-bozuk-model/run" -H "$APB" \
+  curl -N -s -X POST "$APU/api/agents/cb-agent/run" -H "$APB" \
        -H "content-type: application/json" \
        -d '{"message":"merhaba","sessionId":"circuit-test-'"$i"'"}' 2>&1 | grep -E "^event:|^data:"
 done
+```
+MT-OAI-081 ve 082 için portta sahte bir uyumlu sunucu (ayrı terminalde):
+```bash
+python3 - <<'PY'
+import http.server, json
+C = {"id": "c", "object": "chat.completion", "created": 0, "model": "m",
+     "choices": [{"index": 0, "message": {"role": "assistant", "content": "tamam"}, "finish_reason": "stop"}],
+     "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2}}
+class H(http.server.BaseHTTPRequestHandler):
+    def reply(self, body):
+        data = json.dumps(body).encode()
+        self.send_response(200); self.send_header("content-type", "application/json")
+        self.send_header("content-length", str(len(data))); self.end_headers(); self.wfile.write(data)
+    def do_GET(self): self.reply({"object": "list", "data": [{"id": "m", "object": "model"}]})
+    def do_POST(self): self.rfile.read(int(self.headers.get("content-length", 0))); self.reply(C)
+http.server.HTTPServer(("127.0.0.1", 59999), H).serve_forever()
+PY
 ```
 ```bash
 # Temizlik:
@@ -1407,19 +1427,17 @@ dotnet user-secrets remove "Tracon:CircuitBreaker:BreakDuration"
 ```
 
 **Beklenen sonuç**
-- Deneme 1 ve 2: gerçek OpenAI'a gider (birkaç yüz ms–birkaç saniye sürer);
-  başarısız olur (bkz. MT-OAI-043'ün gözlemi).
-- Deneme 3: **anında** başarısız olur (network gecikmesi olmadan, < 100ms) —
+- Deneme 1 ve 2: bağlantı hatasıyla (`transport_error`) başarısız olur.
+- Deneme 3: **anında** başarısız olur (bağlantı denemesi olmadan) —
   `event: error` çerçevesinde `type: TraconProviderUnavailableException`,
-  `message` alanı `The 'openai' provider was temporarily stopped by the circuit
+  `message` alanı `The 'cb-demo' provider was temporarily stopped by the circuit
   breaker (2 consecutive failures). Will retry in 20s.` metnini taşır
   (K-228 — sevk edilen metin İngilizce'dir). ⚠️ Bu mesaj
   **normalleştirilmez**: `TraconProviderUnavailableException` bir
   `TraconException`'dır ve `ProviderFailureNormalizer.IsKnownSafe` listesindedir
   — yabancı sağlayıcı mesajının aksine okunabilir kalır. `AgentRunStream`'in `catch`
   bloğu artık (2026-08-10'dan beri) HER istisnayı yakalar — bu istisna da
-  MT-OAI-043'teki `ClientResultException` de aynı şekilde `error` çerçevesine
-  dönüşür.
+  bağlantı hatası da aynı şekilde `error` çerçevesine dönüşür.
 
 ---
 
@@ -1435,14 +1453,15 @@ dotnet user-secrets remove "Tracon:CircuitBreaker:BreakDuration"
 MT-OAI-080'in devamı — devre **hâlâ açık** durumda (mola süresi dolmadan).
 
 **Ön koşul**
-- MT-OAI-080 az önce tamamlandı, devre `openai` için açık.
+- MT-OAI-080 az önce tamamlandı, devre `cb-demo` için açık.
+- MT-OAI-080'in sahte sunucusu 59999'da çalışıyor (ham denetim başarılı olsun).
 
 **Adımlar**
 1. Sağlığı `refresh=true` ile sorgula.
 
 **Girilecek veri**
 ```bash
-curl -s "$APU/api/models/health/openai?refresh=true" -H "$APB" | python3 -m json.tool
+curl -s "$APU/api/models/health/cb-demo?refresh=true" -H "$APB" | python3 -m json.tool
 ```
 
 **Beklenen sonuç**
@@ -1452,7 +1471,7 @@ curl -s "$APU/api/models/health/openai?refresh=true" -H "$APB" | python3 -m json
 - `detail` alanı `Circuit breaker is open. Will retry in <N>s.` metnini taşır
   (K-228 — sevk edilen metin İngilizce'dir).
 - 🚨 **Case'in gücü burada:** `refresh=true` gerçek ağ çağrısını yapar, `models`
-  dizisi **dolu** döner ve `latency` bir saniye civarıdır — yani ham denetim
+  dizisi **dolu** döner (sahte sunucunun `m` modeli) — yani ham denetim
   BAŞARILIDIR. `Unhealthy` yine de görünür. Bu iki alanı da kontrol et; yalnız
   `status`'e bakmak overlay'in mi yoksa gerçek bir kesintinin mi ölçüldüğünü
   ayırt etmez.
@@ -1471,24 +1490,24 @@ curl -s "$APU/api/models/health/openai?refresh=true" -H "$APB" | python3 -m json
 MT-OAI-080'in devamı (`BreakDuration=00:00:20`).
 
 **Ön koşul**
-- MT-OAI-080 tamamlandı, en az 20 saniye geçti.
+- MT-OAI-080 tamamlandı, en az 20 saniye geçti; sahte sunucu çalışıyor.
 
 **Adımlar**
-1. Geçerli bir modelle (`support` agent'ı) çalıştır.
+1. `cb-agent`'ı tek JSON yanıtla (`Idempotency-Key`, akışsız) çalıştır.
 
 **Girilecek veri**
 ```bash
-curl -s -X POST "$APU/api/agents/support/run" -H "$APB" \
-     -H "content-type: application/json" \
+curl -s -X POST "$APU/api/agents/cb-agent/run" -H "$APB" \
+     -H "content-type: application/json" -H "Idempotency-Key: mt-oai-082" \
      -d '{"message":"Merhaba, sadece \"tamam\" yaz.","sessionId":"circuit-halfopen-01"}'
 ```
 
 **Beklenen sonuç**
-- Çalıştırma **başarıyla** tamamlanır (gerçek OpenAI çağrısı yapılır — mola
-  süresi dolduğu için `EnsureRequestAllowed` devreyi `HalfOpen`'a çevirip
-  tek denemeye izin verir).
-- Ardından `curl -s "$APU/api/models/health/openai" -H "$APB"` çağrısı
+- Çalıştırma **başarıyla** tamamlanır, yanıt "tamam" (mola süresi dolduğu için
+  `EnsureRequestAllowed` devreyi `HalfOpen`'a çevirip tek denemeye izin verir).
+- Ardından `curl -s "$APU/api/models/health/cb-demo" -H "$APB"` çağrısı
   `status: Healthy` döner (`RecordSuccess` devreyi `Closed`'a sıfırladı).
+- Koşum sonunda sahte sunucu durdurulur, `cb-demo` kaydı `Program.cs`'ten geri alınır.
 
 ---
 
@@ -1506,7 +1525,7 @@ curl -s -X POST "$APU/api/agents/support/run" -H "$APB" \
 
 **Adımlar**
 1. Devre kesiciyi kapat, eşiği `1`'e düşür (etkisiz olduğunu kanıtlamak için).
-2. Bozuk modelle **üç kez** arka arkaya çalıştır.
+2. MT-OAI-080'in `cb-agent`'ını (kapalı port) **üç kez** arka arkaya çalıştır.
 
 **Girilecek veri**
 ```bash
@@ -1516,7 +1535,7 @@ cd samples/Tracon.Api && dotnet run
 ```
 ```bash
 for i in 1 2 3; do
-  curl -N -s -X POST "$APU/api/agents/manuel-bozuk-model/run" -H "$APB" \
+  curl -N -s -X POST "$APU/api/agents/cb-agent/run" -H "$APB" \
        -H "content-type: application/json" \
        -d '{"message":"merhaba","sessionId":"circuit-disabled-'"$i"'"}' 2>&1 | grep -E "^event:|^data:"
 done
@@ -1528,11 +1547,11 @@ dotnet user-secrets remove "Tracon:CircuitBreaker:FailureThreshold"
 ```
 
 **Beklenen sonuç**
-- **Üçü de** gerçek OpenAI'a gider (`TraconProviderUnavailableException`
-  hiçbir zaman görünmez) — `FailureThreshold=1` olmasına rağmen devre hiç
+- **Üçü de** bağlantı denemesi yapar ve bağlantı hatasıyla düşer
+  (`TraconProviderUnavailableException` hiçbir zaman görünmez) — `FailureThreshold=1` olmasına rağmen devre hiç
   açılmaz çünkü `IsEnabled` kontrolü `EnsureRequestAllowed`/`RecordFailure`'ı
   baştan devre dışı bırakır.
-- `curl "$APU/api/models/health/openai"` her zaman ham denetim sonucunu
+- `curl "$APU/api/models/health/cb-demo"` her zaman ham denetim sonucunu
   gösterir, devre kesici katmanı hiç eklenmez.
 
 ---
@@ -1584,8 +1603,8 @@ curl -s -X POST "$APU/api/agents/support/run" -H "$APB" \
   boru hattında `CircuitBreaker.Wrap`'ten ÖNCE durur).
 - Altıncı (geçerli) çağrı **normal şekilde başarıyla tamamlanır** — beş
   engellemenin devre kesiciyi açtığına dair hiçbir belirti yoktur
-  (`TraconContentBlockedException` `CircuitBreakingChatClient`'ın özel
-  `catch` bloğunda yakalanıp hata sayılmadan yeniden fırlatılır).
+  (engelleme sağlayıcı sınırında etiketlenmez; devre yalnız sağlayıcının attığı
+  hatayı sayar, K-906).
 
 ### MT-OAI-090 — API anahtarı hiçbir HTTP çıktısında görünmez
 
@@ -1868,3 +1887,30 @@ curl -s -X POST "$APU/api/agents/validate" -H "$APB" -H "content-type: applicati
 - Hiçbir adım model çağırmaz.
 
 **Durum:** koşulmadı; ➜ CI (düşen test kanıtı kusur-giderme kaydında, 2026-10-12).
+
+---
+
+### MT-OAI-096 — Bir kiracının kalıcı `4xx`'i paylaşılan anahtarın devresini açmaz; `401` açar (kusur-giderme, 2026-10-12, F-354)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | K-906 |
+| **Devir** | ➜ CI: `SharedCredentialCircuitTests.One_tenants_rejected_requests_do_not_stop_another_tenants_runs` · `SharedCredentialCircuitTests.A_rejected_shared_credential_still_stops_every_tenant` |
+
+Regresyon. Devre her istisnayı sayıyordu. Kurulum anahtarının devresi kiracılar
+arasında paylaşıldığı için bir kiracının `404`'leri herkesin çağrısını durdurdu.
+
+**Ön koşul** — MT-OAI-080'in eşikleri (`FailureThreshold=2`, `BreakDuration=00:00:20`); `Tracon:Tenancy:AllowHeaderResolution=true`; MT-OAI-043'ün `manuel-bozuk-model` agent'ı.
+
+**Adımlar**
+1. `X-Tracon-Tenant: kiraci-alfa` ile `manuel-bozuk-model`'i üç kez çalıştır.
+2. `X-Tracon-Tenant: kiraci-beta` ile `support`'u çalıştır.
+3. `GET /api/models/health/openai` oku.
+
+**Beklenen sonuç**
+- Adım 1: üçü de OpenAI'a gider ve `(HTTP 404)` ile düşer; üçüncüsü anında düşmez.
+- Adım 2: başarılı. Adım 3: `detail` `Circuit breaker is open` içermez.
+- 🚨 Eski kusur: ikinci `404`'ten sonra devre açıldı; `kiraci-beta` `502` "temporarily stopped by the circuit breaker" aldı.

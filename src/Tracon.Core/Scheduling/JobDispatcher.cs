@@ -7,16 +7,27 @@ namespace Tracon;
 /// the registered handler keys, then writes it to <see cref="IJobStore"/>.
 /// </summary>
 /// <remarks>
+/// <para>
 /// The two things <see cref="IJobStore.EnqueueAsync"/> cannot do on its own —
 /// filling in the persistence fields (identifier, status, timestamps) and
 /// refusing a key no handler serves. The store surface is unchanged; this
 /// type sits in front of it.
+/// </para>
+/// <para>
+/// For the built-in workflow and agent batch keys it also carries the caller's
+/// attribution into the job: the worker sees no request and no ambient
+/// scope of the caller, so the user and labels
+/// <see cref="IRunAttributionContext"/> resolves at the time of the call are
+/// written into the payload's envelope (<see cref="JobPayload"/>). A payload
+/// that already names an attribution keeps it.
+/// </para>
 /// </remarks>
 internal sealed class JobDispatcher(
     IJobStore jobStore,
     JobHandlerRegistry registry,
     IOptionsMonitor<TraconSchedulingOptions> schedulingOptions,
-    TimeProvider? timeProvider = null) : IJobDispatcher
+    TimeProvider? timeProvider = null,
+    IRunAttributionContext? attributionContext = null) : IJobDispatcher
 {
     private readonly TimeProvider _clock = timeProvider ?? TimeProvider.System;
 
@@ -46,9 +57,16 @@ internal sealed class JobDispatcher(
                 nameof(request));
         }
 
+        var content = JobPayload.Read(request.HandlerKey, request.Payload);
+
+        if (content.Problem is { } problem)
+        {
+            throw new ArgumentException(problem, nameof(request));
+        }
+
         var items = request.Items.Count > 0
             ? request.Items
-            : JobPayload.ExtractItems(request.Payload);
+            : content.Items;
 
         var maxItems = schedulingOptions.CurrentValue.MaxItemsPerJob;
 
@@ -57,6 +75,24 @@ internal sealed class JobDispatcher(
             throw new ArgumentException(
                 $"The request has {items.Count} items; at most {maxItems} are supported.",
                 nameof(request));
+        }
+
+        var payload = request.Payload;
+
+        if (JobPayload.CarriesAttribution(request.HandlerKey))
+        {
+            // F-364: read HERE, while the caller's request or ambient scope is
+            // still current; the worker that runs the job has neither. Through
+            // RunAttributionReader, so a faulty consumer implementation drops
+            // the attribution instead of failing the enqueue.
+            var (userId, labels) = content.HasAttribution
+                ? (content.UserId, content.Labels)
+                : RunAttributionReader.Read(attributionContext);
+
+            if (userId is not null || labels is { Count: > 0 })
+            {
+                payload = JobPayload.Envelope(items, userId, labels);
+            }
         }
 
         var now = _clock.GetUtcNow();
@@ -70,7 +106,7 @@ internal sealed class JobDispatcher(
                 Lane = request.Lane,
                 TargetName = request.TargetName,
                 Status = JobStatus.Pending,
-                Payload = request.Payload,
+                Payload = payload,
                 MaxAttempts = request.MaxAttempts,
                 ScheduledFor = request.ScheduledFor ?? now,
                 CreatedAt = now,

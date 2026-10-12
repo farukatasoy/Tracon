@@ -65,18 +65,21 @@ whole tree.
 
 ## Function nodes and their settings
 
-A `Sequential` workflow can mix functions registered in code in with its agents. A
-function that takes **settings** serves several workflows with a different
-configuration in each:
+A `Sequential` workflow can mix functions registered in code in with its agents. Each
+node takes what the node before it passes on: an agent node takes and passes on a
+`List<ChatMessage>`, and a run starts by sending the user's message as one. A save that
+breaks this is a `400` naming both nodes; without the check, Microsoft Agent Framework
+would drop the message and the run would end with no output. A function that takes
+**settings** serves several workflows with a different configuration in each:
 
 ```csharp
 builder.AddTracon()
        .UseWorkflows()
-       .AddWorkflowFunction<string, AudioClip, TtsSettings>(
+       .AddWorkflowFunction<List<ChatMessage>, AudioClip, TtsSettings>(
            "tts",
-           provider => (text, settings, context, cancellationToken) =>
+           provider => (messages, settings, context, cancellationToken) =>
                provider.GetRequiredService<ITextToSpeech>()
-                       .SpeakAsync(text, settings.Voice, settings.LoudnessLufs, cancellationToken),
+                       .SpeakAsync(messages[^1].Text, settings.Voice, settings.LoudnessLufs, cancellationToken),
            options => options.Description = "Text to speech");
 
 public sealed record TtsSettings
@@ -114,12 +117,13 @@ bound with the values **its own schema** names, and a function node reads them w
 ```csharp
 builder.AddTracon()
        .UseWorkflows()
-       .AddWorkflowFunction<string, string>(
+       .AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>(
            "narrate",
-           provider => (input, context, cancellationToken) =>
+           provider => (messages, context, cancellationToken) =>
            {
                var voice = context.GetRunParameters()["voice"];
-               return ValueTask.FromResult($"{voice}: {input}");
+               return ValueTask.FromResult<List<ChatMessage>>(
+                   [new ChatMessage(ChatRole.User, $"{voice}: {messages[^1].Text}")]);
            });
 ```
 

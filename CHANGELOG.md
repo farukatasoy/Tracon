@@ -8,6 +8,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Security
 
+- One tenant can no longer stop a provider for every other tenant on the shared
+  setup-time key. The circuit breaker counted every exception, so a tenant's
+  repeated `400`s, an exhausted run budget, a history that names a deleted
+  attachment, or a tool failure that the tool-call loop rethrows opened the
+  provider's circuit for everyone for the break duration. It now counts only a
+  failure the provider client threw that shows the provider is unhealthy: no
+  connection, a timeout, a `5xx`, `408` or `429`, or a `401`/`403`, because a
+  rejected key fails every caller in the same way. Any other permanent `4xx`
+  does not count, and a failure that does not count leaves the counter and a
+  half-open circuit as they were. A test or runbook that opens the circuit with
+  a `400` or a `404` now needs a `401` or a connection failure.
+- Data subject export and erasure now include workflow checkpoints and the
+  scores of the runs found through a subject's sessions. Neither table has a
+  foreign key to `runs`, so nothing cascaded to them: an erasure left the
+  checkpoint state, which can hold the subject's own messages, and the scores
+  with their comments, and the export did not show them. A checkpoint's `state`
+  is exported as the stored JSON text. Erasure also removes the checkpoints of a
+  run that waits for input: retention keeps them, erasure does not.
 - A job that resumes an approved tool call (`ApprovalResume`, a built-in key a
   schedule can also enqueue) now fails when its payload names a different agent
   than the run that asked for approval, or when that run no longer exists. A
@@ -85,6 +103,111 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- A queued run no longer fails, or runs a second time, when its session cannot
+  be saved once after the model has answered. The handlers that end a queued
+  turn (a queued run, the continuation of an approved tool call, the
+  continuation of an interrupted run) saved the session inside their own
+  failure path: one store error failed the job while its run said `Completed`,
+  or released the job and called the model again. The save is now tried again
+  with a growing pause while the worker holds the lease. If it still fails, the
+  job fails with `tracon.job.session-save-failed`, whatever its attempt limit,
+  and the model is not called again. A run that asked for approval closes
+  `Failed` with the same code, because its approval cannot be answered without
+  the session.
+- A run that resumes after an approval decision and asks for another approval
+  now puts that request in the approval mailbox. Only the queued-run handler
+  wrote pending approvals, so the resumed run closed `AwaitingApproval`,
+  `GET /api/approvals/pending` answered an empty list, and the chain stopped. A
+  run that continues an interrupted run had the same gap. Both now save the
+  session first, list the approval second and announce it with
+  `approval.pending`, as a queued run does.
+- The sub-agents and tools of a queued run now see the run's labels, and those
+  of a resumed or continued run see its user and labels. The job payload now
+  carries `labels` next to `userId`, and a resumed or continued run runs under
+  the user and labels of the run it continues, not the approver's. A workflow or
+  agent batch that runs from the queue now carries the user and labels of
+  whoever queued it: `IJobDispatcher` captures the attribution
+  `IRunAttributionContext` resolves at the time of the call, and an inbound
+  trigger keeps the accept request's (an agent run it starts recorded none
+  either). A schedule's payload can name one in an envelope,
+  `{"items": [...], "userId": "...", "labels": {...}}`; an envelope that breaks a
+  label limit is refused with `400`. A context you register yourself sees the
+  replayed attribution only if it reports `AmbientRunAttributionScope` outside a
+  request; the reference sample's demo context now does.
+- An evaluation run whose cases have all run is no longer marked `Failed` when
+  the write that closes it fails. The handler now tries the write again for a
+  third of the job lease; if the store still refuses it, the next attempt runs
+  no case again and only repeats the write.
+- A webhook delivery the receiver accepted is no longer sent again because
+  Tracon could not record the result. The result writes are now tried again for
+  a third of the job lease, a write that still fails is logged with a
+  reference, and a retry that finds the delivery already settled sends nothing.
+  Delivery stays at-least-once: deduplicate on the `X-Tracon-Delivery` header.
+- An eval case's `context` now reaches the agent, through the document channel
+  ahead of the query, as a run with `documents` sends it. A case ran as its
+  query alone and the context went to the evaluator only. The evaluator still
+  receives it, and the case run now records the parameter values it was bound
+  with.
+- Promoting a run to an eval case now copies the run's recorded input: the whole
+  query, the documents it carried (into `context`, one block per document) and
+  the parameter values it was bound with (into `parameters`). It read only the
+  `RunStarted` event, which is cut at `MaxPayloadLength` (8 KB by default), and
+  dropped the documents and the values. Without a recorded input the query
+  still comes from that event and keeps its `…[truncated]` marker; a run that
+  carried documents with no recorded input, an attachment, or a message besides
+  its documents and its request is now refused with `422`. **Requirement:** an
+  `IEvalStore` stores the new `EvalCaseDraft.Parameters` in `AddCaseAsync`.
+- On a SQL provider, a replay, a continuation or an approval resume of a run
+  that carried documents now records them as documents. The stored document
+  marker came back as JSON values the recorder did not recognize. The console's
+  case editor also keeps the line breaks of a case's context.
+- A fallback on the binding of the compaction summarizer or of an `aiJudge` loop
+  judge no longer rewrites the run. `runs.model_id` named the judge's fallback
+  model, the agent's own tokens were priced at that model, and the run got a
+  `ModelFallbackUsed` event its own model never caused. The run now keeps the
+  agent's model and gets no event, the side call's tokens are priced at the
+  fallback model that answered, and the switch is logged.
+- `POST /api/workflows/runs/{runId}/respond` now refuses an answer that does not
+  fit the pending request's port with `400` before the event stream opens, as
+  its contract said, and opens no run. The answer was translated only inside
+  the resumed run, after the `200`, and the new run ended `Failed`. A request
+  recorded by 1.0.0-preview.3 or earlier does not carry its response type's
+  assembly; for it a `data` value that does not read into the type is still
+  reported on the stream.
+- Saving a `Sequential` node list now checks that each node takes what the node
+  before it passes on, and that the first node takes the run's
+  `List<ChatMessage>`. Microsoft Agent Framework drops a message no handler
+  takes without an error, so such a chain was saved with `200` and every run
+  ended `Completed` with no output. The save answers `400` naming both nodes and
+  both types, and a stored chain that does not fit now fails its run before the
+  first node. The site, the `Tracon.Workflows` README and the
+  `AddWorkflowFunction` examples showed a `string` function after an agent; they
+  now take `List<ChatMessage>`.
+- Automatic run continuation no longer treats a workflow run or a sub-run as an
+  agent turn. An orphaned workflow root was queued as an agent continuation
+  under the workflow's name, and a workflow step or a callable agent's run was
+  continued on its own, repeating its tools in its root's session. Such a run
+  now stays `Failed` with a `RunContinuationBlocked` event; for a workflow run
+  the event names `POST /api/workflows/runs/{runId}/resume`. A continuation
+  queued before the fix is refused the same way. The refusal event is now
+  written for a run of any tenant, and `MaxAttempts` above 1 counts every
+  earlier continuation of another tenant's chain.
+- A retention policy with `archive: true` no longer deletes rows it never
+  archived. Each batch was read in time order for the `IArchiveSink` and then
+  deleted as a separate batch in no order; with more matching rows than one
+  batch, rows that never reached the sink were deleted (measured on PostgreSQL,
+  SQL Server and SQLite). A run now deletes exactly the rows the sink received,
+  by key, after the sink returns. A sink can receive a row more than once.
+- Documentation now matches the code: a failed workflow node's message rule and
+  the causes of a `Canceled` workflow run, the request options a fallback link
+  inherits (temperature, `TopP`, `MaxOutputTokens`, `ResponseFormat` and tools
+  carry over; only provider settings do not), the five gates and the waiting
+  quota of a tool call, the console editor keeping a harness `loop`, and how a
+  job handler learns about cancellation (`JobContext.IsCancelledAsync`). The XML
+  of `JobHandlerKeys.Workflow`, `TraconOptions.SkillRoots`,
+  `MaxOutputBytes` (per stream), `ToolCallUsage`, `ModelFallback` and
+  `ModelBinding` was corrected. A resume from a checkpoint whose graph changed
+  now says the graph's structure differs instead of naming one cause.
 - Every documented webhook event is now published. `workflow.request.pending`,
   `job.completed`, `job.failed` and `eval.completed` were defined, accepted on
   subscribe and listed on the site, but no code published them, and a workflow
@@ -393,6 +516,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- `IWorkflowRunner.ValidateResponseAsync`: checks an answer against the pending
+  request before the stream opens. A default interface member, so an existing
+  implementation keeps compiling.
+- `IRetentionStore.ArchiveBatchAsync` reads one batch, hands it to the archive,
+  and deletes exactly that batch. Its default implementation keeps the old
+  two-call behavior so an existing store compiles, and can delete rows it did not
+  archive — override it. `RetentionStoreContract` adds
+  `Archive_batches_delete_only_the_rows_they_archived`,
+  `A_failed_archive_write_deletes_nothing` and a
+  `SeedOldRowAsync(tenantId, startedAt)` hook.
+- `EvalCaseDraft.Parameters`: the parameter values a promoted run was bound
+  with. `EvalStoreContract` adds
+  `AddCaseAsync_stores_the_parameter_values_of_a_promoted_run`.
+- `RunStoreContract.ClaimOrphanedRunsAsync_reports_the_kind_and_the_tree_position_on_the_claimed_record`:
+  a custom `IRunStore` returns `Kind`, `ParentRunId` and `Depth` on a claimed
+  record, because continuation decides on them.
 - `WebhookEvalSummary` and `WebhookEventPayload.Eval`: the payload of the
   `eval.completed` webhook.
 - `WebhookRunSummary.Kind`: `Agent` or `Workflow`, on every `run.*` webhook.

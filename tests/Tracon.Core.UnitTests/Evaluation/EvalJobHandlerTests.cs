@@ -113,6 +113,105 @@ public sealed class EvalJobHandlerTests
     }
 
     [Fact]
+    public async Task Case_context_reaches_the_agent_as_a_document_message_ahead_of_the_query()
+    {
+        // 🚨 F-343: EvalCase.Context said "text given to the model as extra
+        // context", but the case ran as RunAsync(Query) and the context went to
+        // the evaluator only - the agent under test never saw it, so a case
+        // measured a different input than the production run it stood for.
+        var evalStore = new InMemoryEvalStore();
+        var agent = new MapAgent();
+        var handler = CreateHandler(evalStore, agent);
+
+        var suite = await evalStore.SaveSuiteAsync(Suite(Checks("""[{"kind":"nonEmpty"}]""")));
+        var cases = await evalStore.ReplaceCasesAsync(
+            suite.Id,
+            [CaseInput("What is the refund window?") with { Context = "Refunds within 30 days." }]);
+        var jobId = Guid.NewGuid();
+        await evalStore.CreateRunAsync(Run(suite.Id, jobId));
+
+        await handler.ExecuteAsync(BuildContextForCases(suite, cases, jobId, []));
+
+        var messages = agent.Received.ShouldHaveSingleItem();
+        messages.Count.ShouldBe(2);
+
+        // The production order: the document first, as its own message, then
+        // the request (AgentEndpoints.BuildMessagesAsync).
+        DocumentChannelMessageBuilder.TryGetSummary(messages[0].Contents.ShouldHaveSingleItem(), out var summary).ShouldBeTrue();
+        summary.Name.ShouldBe("context");
+        messages[0].Text.ShouldStartWith("-----BEGIN TRACON DOCUMENT-----");
+        messages[0].Text.ShouldContain("Refunds within 30 days.");
+        messages[1].Role.ShouldBe(ChatRole.User);
+        messages[1].Text.ShouldBe("What is the refund window?");
+    }
+
+    [Fact]
+    public async Task Promoted_context_reaches_the_agent_as_the_documents_the_run_sent()
+    {
+        // A promoted case keeps the run's document channel messages verbatim
+        // in Context; each goes back to the agent as its own document, under
+        // its own name, so the case repeats the run's messages instead of
+        // folding them into one document named "context".
+        var first = DocumentChannelMessageBuilder.Build(new AgentRunDocument { Name = "policy.md", Content = "Refunds within 30 days." });
+        var second = DocumentChannelMessageBuilder.Build(new AgentRunDocument { Name = "faq.md", Content = "Shipping takes 2 days." });
+
+        var evalStore = new InMemoryEvalStore();
+        var agent = new MapAgent();
+        var handler = CreateHandler(evalStore, agent);
+
+        var suite = await evalStore.SaveSuiteAsync(Suite(Checks("""[{"kind":"nonEmpty"}]""")));
+        var cases = await evalStore.ReplaceCasesAsync(
+            suite.Id,
+            [CaseInput("Summarize both.") with { Context = first.Text + "\n" + second.Text }]);
+        var jobId = Guid.NewGuid();
+        await evalStore.CreateRunAsync(Run(suite.Id, jobId));
+
+        await handler.ExecuteAsync(BuildContextForCases(suite, cases, jobId, []));
+
+        var messages = agent.Received.ShouldHaveSingleItem();
+        messages.Select(static message => message.Text).ShouldBe([first.Text, second.Text, "Summarize both."]);
+
+        DocumentChannelMessageBuilder.TryGetSummary(messages[0].Contents.Single(), out var firstSummary).ShouldBeTrue();
+        DocumentChannelMessageBuilder.TryGetSummary(messages[1].Contents.Single(), out var secondSummary).ShouldBeTrue();
+        DocumentChannelMessageBuilder.TryGetSummary(first.Contents.Single(), out var expectedFirst).ShouldBeTrue();
+        DocumentChannelMessageBuilder.TryGetSummary(second.Contents.Single(), out var expectedSecond).ShouldBeTrue();
+        firstSummary.ShouldBe(expectedFirst);
+        secondSummary.ShouldBe(expectedSecond);
+    }
+
+    [Fact]
+    public async Task Case_context_still_reaches_the_evaluator()
+    {
+        // The agent now sees the context, and the evaluator keeps seeing it:
+        // a groundedness-style check needs the reference text it judges against.
+        var evalStore = new InMemoryEvalStore();
+        var evaluatorFactory = new CapturingEvaluatorFactory();
+        var handler = new EvalJobHandler(
+            evalStore,
+            new SingleAgentCatalog(new MapAgent(), version: 7, modelId: "gpt-test"),
+            new InMemoryAgentDefinitionStore(),
+            CreateCompiler(),
+            new EvalCheckRegistry([]),
+            evaluatorFactory,
+            Options.Create(new TraconOptions()),
+            [],
+            NullLogger<EvalJobHandler>.Instance);
+
+        var suite = await evalStore.SaveSuiteAsync(Suite(Checks("""[{"kind":"nonEmpty"}]""")));
+        var cases = await evalStore.ReplaceCasesAsync(
+            suite.Id,
+            [CaseInput("What is the refund window?") with { Context = "Refunds within 30 days." }]);
+        var jobId = Guid.NewGuid();
+        await evalStore.CreateRunAsync(Run(suite.Id, jobId));
+
+        await handler.ExecuteAsync(BuildContextForCases(suite, cases, jobId, []));
+
+        var item = evaluatorFactory.Items.ShouldHaveSingleItem();
+        item.Context.ShouldBe("Refunds within 30 days.");
+        item.Query.ShouldBe("What is the refund window?");
+    }
+
+    [Fact]
     public async Task Cancelled_run_closes_as_cancelled()
     {
         var evalStore = new InMemoryEvalStore();
@@ -311,6 +410,28 @@ public sealed class EvalJobHandlerTests
 
         decorator.DecoratedDescriptor.ShouldNotBeNull();
         decorator.DecoratedDescriptor!.Name.ShouldBe(AgentName);
+    }
+
+    /// <summary>Grades with MAF's own LocalEvaluator and keeps every item it was handed.</summary>
+    private sealed class CapturingEvaluatorFactory : IEvalEvaluatorFactory
+    {
+        public List<EvalItem> Items { get; } = [];
+
+        public IAgentEvaluator Create(IReadOnlyList<EvalCheck> checks) => new CapturingEvaluator(new LocalEvaluator([.. checks]), Items);
+
+        private sealed class CapturingEvaluator(IAgentEvaluator inner, List<EvalItem> items) : IAgentEvaluator
+        {
+            public string Name => inner.Name;
+
+            public Task<AgentEvaluationResults> EvaluateAsync(
+                IReadOnlyList<EvalItem> evalItems,
+                string evalName = "Agent Framework Eval",
+                CancellationToken cancellationToken = default)
+            {
+                items.AddRange(evalItems);
+                return inner.EvaluateAsync(evalItems, evalName, cancellationToken);
+            }
+        }
     }
 
     private sealed class RecordingAgentDecorator : IAgentDecorator
@@ -555,6 +676,9 @@ public sealed class EvalJobHandlerTests
 
         public List<string> Calls { get; } = [];
 
+        /// <summary>Every message list the agent was called with, in call order.</summary>
+        public List<IReadOnlyList<ChatMessage>> Received { get; } = [];
+
         public override string Name => AgentName;
 
         public override string? Description => "for testing";
@@ -565,7 +689,10 @@ public sealed class EvalJobHandlerTests
             AgentRunOptions? options = null,
             CancellationToken cancellationToken = default)
         {
-            var query = messages.LastOrDefault()?.Text ?? string.Empty;
+            List<ChatMessage> received = [.. messages];
+            Received.Add(received);
+
+            var query = received.LastOrDefault()?.Text ?? string.Empty;
             Calls.Add(query);
 
             var text = ResponseFactory?.Invoke(query)

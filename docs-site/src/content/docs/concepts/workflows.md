@@ -93,6 +93,19 @@ new WorkflowDefinition
 other. Only `Sequential` supports function nodes: the ready-made builders for
 the other four patterns accept only agents.
 
+Each node must take what the node before it passes on. An agent node takes and passes
+on a `List<ChatMessage>`, and a run starts by sending the user's message as one, so the
+first node must take a `List<ChatMessage>` too. A function's types are the two type
+arguments of its registration (`inputType` and `outputType` on
+`GET /api/workflows/functions`). A node that takes a wider type, such as
+`IEnumerable<ChatMessage>` or `object`, accepts the narrower one; a function that
+declares `object` as its output is not checked against the next node. Saving a chain
+that breaks this answers `400` and names both nodes and both types: Microsoft Agent
+Framework drops a message that no handler takes, without an error, so the chain would
+end every run `Completed` with no output. A run of a chain stored before this check,
+or after a deployment changed a function's types, fails before its first node runs and
+says the same.
+
 The console builds such a chain too: **Workflows → New workflow**, then *Add an agent*
 and *Add a function*, which picks from the functions registered in code. The arrows
 reorder the steps and ✕ removes one. The function picker appears only for `Sequential`,
@@ -139,14 +152,14 @@ voice, a loudness target, a destination folder. Register it with a settings type
 operator fills in the values on each workflow's node:
 
 ```csharp
-tracon.AddWorkflowFunction<string, AudioClip, TtsSettings>(
+tracon.AddWorkflowFunction<List<ChatMessage>, AudioClip, TtsSettings>(
     "tts",
     services =>
     {
         var speech = services.GetRequiredService<ITextToSpeech>();
 
-        return (text, settings, context, cancellationToken) =>
-            speech.SpeakAsync(text, settings.Voice, settings.LoudnessLufs, cancellationToken);
+        return (messages, settings, context, cancellationToken) =>
+            speech.SpeakAsync(messages[^1].Text, settings.Voice, settings.LoudnessLufs, cancellationToken);
     },
     options => options.Description = "Text to speech");
 
@@ -335,12 +348,16 @@ the workflow progresses. The response also carries MAF's generated Mermaid text.
 
 A workflow run's `error` follows the [same redaction rule as an agent
 run](/concepts/runs/#the-error-message-is-safe-to-display-not-safe-to-debug-from): a
-node failure from your own code keeps its message, a failure from a provider,
-library, or transport carries only its exception type and a correlation id.
+node that throws a `TraconException` keeps its message. Any other exception —
+your own node's included — carries only its exception type and a correlation id,
+and its message goes to the server log under the same id. Throw a
+`TraconException` when a node's message is meant for the person reading the run.
 
 A workflow run ends `Canceled` only when the run was actually cancelled — the
-caller's request going away, the workflow's own `MaxDuration` elapsing, or
-`Tracon:Workflows:RunTimeout` being reached. A node whose model or tool call
+caller's request going away, `POST /api/runs/{id}/cancel`, or
+`Tracon:Workflows:RunTimeout` being reached. The call-tree budget's
+`AgentGraph.MaxDuration` is not one of these: a step it refuses ends the run
+`Failed` with `run_budget_exceeded` (see below). A node whose model or tool call
 never came back ends the run `Failed` instead, even though .NET surfaces an
 `HttpClient` timeout as a `TaskCanceledException`. The same holds for the steps
 around the graph: an agent catalog that times out while the workflow resolves, and
@@ -384,6 +401,15 @@ from the latest.
 
 Resuming opens a **new** run. The original is never rewritten, so "what happened, then
 what we did about it" stays two readable records rather than one edited one.
+
+A workflow run whose process stopped is closed as `Failed` by
+[run reconciliation](/guides/reliability/#reconcile-runs-left-behind-by-a-crash), like
+any other orphaned run. Automatic run continuation does not pick it up, and does not
+pick up any of its steps: continuation repeats an agent turn, and a workflow run is
+not one. With continuation on, the run's event stream records a
+`RunContinuationBlocked` event that names the call to make instead,
+`POST /api/workflows/runs/{runId}/resume`. Resuming from the latest checkpoint repeats
+the step the stop cut short, so the idempotency rule for function nodes above applies.
 
 Checkpoints survive a process restart only with a SQL provider registered
 (`UsePostgreSql()`, `UseSqlServer()`, or `UseSqlite()`). The in-memory store keeps at
@@ -443,6 +469,15 @@ only a run in `AwaitingInput` has any. The answer is matched to the request that
 re-published with the same id when execution resumes. A very long prompt is cut at
 the event payload limit (`RunRecording:MaxPayloadLength`) and marked
 `…[truncated]`; the request is still listed and can still be answered.
+
+The answer must fit the request's `form`: `approved` for `Boolean`, `text` for `Text`,
+`data` that reads into the port's response type for `Json`, and for `PlanReview`
+either an approval or `approved: false` with the revision in `text`. An answer that
+does not fit is refused with `400` before anything runs, and no new run opens. The
+detail names the port and the missing or unreadable field. A request recorded by
+Tracon 1.0.0-preview.3 or earlier does not carry its response type's assembly: for it,
+a `data` value that does not read into the type is still reported on the stream, as a
+failed run.
 
 This is the same append-only shape as tool approvals: the waiting run stays as it was,
 and the response opens a new one.
