@@ -61,6 +61,7 @@ workflow, MCP, voice, and external protocol packages add their own explicit call
 | Response caching | A tenant-, provider-, and tool-set-aware cache; a hit spends no tokens and opens no new trace span | `ModelBinding.ResponseCache` | Needs a registered `IDistributedCache`, or the agent fails to compile |
 | Concurrent tool calls | Independent tool calls in one turn run at the same time instead of one after another | `ModelBinding.AllowConcurrentToolCalls` | Off by default; each call still gets its own authorization, result, and metric |
 | Parameterized instructions | Named `{{name}}` placeholders bound to a run's own values | `AgentDefinition.Parameters` and the run's `parameters` field | Value substitution only — no expression, condition, loop, or field access |
+| Workflow and queued run parameters | A workflow declares a schema; each agent step binds the values its own schema names; queued runs, batch items, replay, continuation and approval resume carry or repeat values | `WorkflowDefinition.Parameters`, `WorkflowRunRequest.Parameters`, `GetRunParameters()`, `RunReplayRequest.Parameters` | A run that recorded no values is not repeated for an agent with parameters; a code-defined workflow declares none; `jobs.payload` is not content-protected |
 | Shared instructions blocks | One definition's instructions prepended to another's at compile time | `AgentDefinition.SharedInstructionsName` | A block cannot reference another block |
 
 Tracon uses `AIAgent`, `AgentSession`, `ChatMessage`, and `AIFunction` directly.
@@ -419,18 +420,31 @@ names the missing parameter; a value for a name the schema does not declare is
 rejected too, not silently dropped. This holds for a definition saved through the
 API and for one registered in code with `AddAgent`.
 
-Every other way to start a run carries no values: a queued run, a batch or
-schedule, the OpenAI-compatible endpoints, MCP, A2A, a workflow step, an agent
-called by another agent, and voice. Those runs bind each parameter's
-`DefaultValue`. An agent with a required parameter that has no default does not
-run there: the request is refused where it enters (`400` with `missingParameters`
-for a queued run), and where there is no request to refuse, the run fails before
-any model call and names the parameter.
+These ways to start a run carry values too:
 
-A replay and an automatic continuation after a crash re-run a recorded run, and
-the recorded input does not include its parameter values. Running them with the
-defaults would change the instructions, so both are refused for any agent that
-declares parameters.
+- a **queued run** (`Prefer: respond-async`) takes the same `parameters` field, checks it
+  the same way, and the worker checks it again against the version it runs
+- a **batch or schedule** item can name its own values, see
+  [Background work](/guides/background-work/#give-an-item-its-own-values)
+- a **workflow step** receives the values its own schema declares from the workflow's
+  run, see [Workflows](/concepts/workflows/#parameters)
+
+A run records the values it was bound with — the supplied ones with the defaults
+applied — beside its input. A **replay**, an **automatic continuation** after a crash
+and the resume after a **tool approval** all repeat a recorded run, so they bind the
+same values instead of the defaults. A replay request can change some of them with its
+own `parameters`; a name the replayed version does not declare is refused.
+
+A run that recorded no values (input recording was off, or the run is older than
+parameter recording) cannot be repeated when the agent declares parameters: running
+it on the defaults would change the instructions. That refusal says so.
+
+Every other entry point carries no values: the OpenAI-compatible endpoints, MCP, A2A,
+an agent called by another agent, and voice. Those runs bind each parameter's
+`DefaultValue`, and an agent with a required parameter that has no default does not
+run there. Where a request enters, it is refused (`400` with `missingParameters`);
+where there is no request to refuse, the run fails before any model call and names
+the parameter. Such a run records no values, so it cannot be replayed.
 
 This is **value substitution, not a template engine**. There is no expression,
 condition, loop, or field access (`{{a.b}}`) — a template language is a security
@@ -1783,7 +1797,8 @@ Attachment file bytes are not included — only their metadata.
 
 ## Content protection
 
-`AddContentProtection(...)` encrypts session state, chat history, run inputs and
+`AddContentProtection(...)` encrypts session state, chat history, run inputs (the
+messages and the parameter values each in its own column) and
 events, tool arguments/results, agent files, and attachments with AES-256-GCM
 before they reach the database, and decrypts them transparently on read. Off by
 default, like the content guards below — turning it on is a deliberate call, and
@@ -2541,7 +2556,10 @@ around it.
   runs the agent's **current** version, not the version the source run used. To
   repeat the source run's version, send its `agentVersion`. The console's
   "Today's version" option is this default. A replay also uses the default
-  instructions, because the run record does not store the culture
+  instructions, because the run record does not store the culture. It does bind
+  the [parameter values](/concepts/agents/#parameters) the source run recorded;
+  a `parameters` field in the replay request changes the names it gives and keeps
+  the rest. A workflow run is not replayed — it continues from its checkpoints
 - `POST /api/runs/{runId}/judge` — score a run with the registered judges, skipping
   the sampling decision, for calibration
 
@@ -3422,6 +3440,73 @@ URL resolves against. A different name passed to the builder's `WithName(…)` i
 cosmetic — and an inconsistency between the two produces a silent `404` or a timeout
 rather than an error. Use the same string in both places.
 :::
+
+## Parameters
+
+A stored workflow can declare run parameters, the same `AgentParameter` an agent
+declares (name, kind, `Required`, `DefaultValue`, `Description`). The values a run
+supplies reach every agent step, so one definition serves many tones, voices or
+customers without being copied:
+
+```bash
+curl -sS -X PUT http://localhost:5081/tracon/api/workflows/podcast \
+     -H 'Content-Type: application/json' -d '{
+       "kind": "Sequential",
+       "agentNames": ["podcast-writer", "podcast-editor"],
+       "parameters": [
+         { "name": "tone",  "kind": "Text", "required": true },
+         { "name": "voice", "kind": "Text", "defaultValue": "alloy" }
+       ]
+     }'
+
+curl -N -X POST http://localhost:5081/tracon/api/workflows/podcast/run \
+     -H 'Content-Type: application/json' \
+     -d '{"message":"Episode 12","parameters":{"tone":"formal","voice":"nova"}}'
+```
+
+- **The workflow's schema is the contract.** A missing required value, a name the
+  workflow does not declare, or a value over `MaxParameterValueLength` is refused with
+  `400` before the stream opens, with the same body an agent run gives
+  (`missingParameters`, `unknownParameters`, `tooLongParameters`). The runner checks
+  again, so a caller that skips HTTP gets the same refusal.
+- **A step receives the values its own schema names.** `podcast-writer` declares only
+  `tone`, so it never sees `voice`; `podcast-editor` declares both. A name the step does
+  not declare is dropped for that step, and a value the workflow supplies wins over the
+  step's own default. The step is bound the way a direct run of that agent would be
+  (its instructions, its recording, its tool-approval gate), and its own run row records
+  the values it was bound with.
+- **Every participant is checked before the first model call.** If an agent in the
+  workflow needs a required parameter that has no default and that the workflow does not
+  supply, the run ends `Failed` without a single model call, and the error names the
+  agent and the parameter. Saving the workflow does not check this, because the agents
+  can change after it is saved.
+- **A function node reads the values** with `context.GetRunParameters()`, a read-only
+  dictionary with the defaults applied:
+
+```csharp
+tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>(
+    "narrate",
+    services => (messages, context, cancellationToken) =>
+    {
+        var voice = context.GetRunParameters().GetValueOrDefault("voice", "plain");
+        return ValueTask.FromResult<List<ChatMessage>>([new(ChatRole.User, $"[{voice}] {messages[^1].Text}")]);
+    });
+```
+
+  Called outside a workflow run it throws `InvalidOperationException` instead of
+  returning an empty set, so a forgotten setup is not read as "no values".
+- **Resume and respond use the same values.** The run records its final values, and a
+  resume from a checkpoint or an answer to a waiting request reads them back and passes
+  them on to the run it opens. If the workflow declares parameters now but the run
+  recorded none, the resume is refused — the agents would otherwise continue under their
+  defaults, halfway through the work. That happens when
+  `RunRecording:RecordRunInput` is off, so a workflow with parameters that waits for a
+  human needs it on. A name the schema no longer declares is dropped; a required name it
+  gained since is refused.
+- **A workflow defined in code declares no parameters** (`AddWorkflow` builds a free graph
+  with no definition), so any value sent to it is refused.
+
+A workflow row stores no message: the values are the only input it records.
 
 ## Running one
 
@@ -4482,6 +4567,7 @@ below, so plan for that before storing regulated data:
 | `sessions.state` | Microsoft Agent Framework's serialized session state |
 | `conversation_items.item` | One stored chat message |
 | `run_inputs.messages` | The prompt a run was started with |
+| `run_inputs.parameters` | The parameter values a run was started with |
 | `run_events.text`, `run_events.payload` | Streamed output and event detail |
 | `tool_invocations.arguments`, `.result` | What a tool was called with, and what it returned |
 | `attachments.content`, `agent_files.content` | Uploaded bytes and agent file contents |
@@ -4501,7 +4587,7 @@ warning that names the header, never its value.
 
 ## At-rest content protection
 
-`AddContentProtection(...)` encrypts the ten columns above with AES-256-GCM before
+`AddContentProtection(...)` encrypts the eleven columns above with AES-256-GCM before
 they reach the database, and decrypts them transparently on read — the rest of
 Tracon, and your own code, never sees ciphertext. It is off by default (no
 surprises); turning it on is a deliberate, explicit call.
@@ -4925,11 +5011,34 @@ curl -sS \
   https://agents.example.com/tracon/api/runs/$RUN_ID/events
 ```
 
-Queued runs do not accept `attachmentIds`, `parameters` or an initial `approvals`
-collection. A queued run of a parameterized agent binds each parameter's default;
-an agent with a required parameter that has no default is refused with `400` and
-`missingParameters`. If a tool asks for approval later, the queued request must
-include a `sessionId`.
+Queued runs do not accept `attachmentIds` or an initial `approvals` collection. They
+do accept `parameters` and `documents`, with the same meaning as on a synchronous run:
+
+```bash
+curl -sS -X POST https://agents.example.com/tracon/api/agents/writer/run \
+  -H "Authorization: Bearer $TRACON_API_KEY" \
+  -H 'Prefer: respond-async' -H 'Content-Type: application/json' \
+  -d '{"message":"Draft","parameters":{"tone":"formal"},
+       "documents":[{"name":"brief.txt","content":"Ship on Friday."}]}'
+```
+
+The values are checked when the request arrives, against the schema of the version the
+worker will run, so a missing required value or an undeclared name is a `400` with the
+same body a synchronous run gives. The worker checks them again where the run executes,
+because a payload is stored data and the agent may have changed since the `202`. Each
+document becomes its own message before the request, in order, and leaves a
+`DocumentAttached` event. Without `parameters`, a queued run of a parameterized agent
+binds each parameter's default; an agent with a required parameter that has no default
+is refused with `400` and `missingParameters`. If a tool asks for approval later, the
+queued request must include a `sessionId`; the run that resumes after the decision binds
+the same values.
+
+:::caution[The job payload is not a protected column]
+The payload holds the message, the parameter values and the document text as plain JSON.
+Content protection covers run inputs, run events and the other columns
+`ContentProtection` lists; `jobs.payload` and the item inputs are not among them. Do not
+queue values that must not sit in plain text in your database.
+:::
 
 A queued run uses the request's `culture`, as a synchronous run does. If the agent is
 in a running [experiment](/concepts/evaluation/#experiments), Tracon assigns the arm
@@ -5009,6 +5118,37 @@ curl -sS -X PUT \
 A JSON array creates one item for each element. Any other JSON value creates one
 item. A missing payload creates no items. Each job accepts at most
 `MaxItemsPerJob` items.
+
+### Give an item its own values
+
+For `tracon.agent-batch` and `tracon.workflow`, an item that is a JSON object with a
+string `message` member is a **structured item**. It may add `parameters` (an object of
+string values) and, for an agent batch, `documents` (an array of `{name, content}`):
+
+```json
+"payload": [
+  "Plain text still works.",
+  { "message": "Review this", "parameters": { "tone": "formal" },
+    "documents": [{ "name": "brief.txt", "content": "Ship on Friday." }] },
+  { "message": "Summarize", "parameters": { "tone": "casual" } }
+]
+```
+
+Saving the schedule, or triggering it with a payload, refuses an item whose shape is
+wrong — `parameters` that is not an object of strings, a `documents` entry without a
+`name` and a `content`, a member the shape does not name — with a `400` that names the
+item's position. The values themselves are checked when each item runs, against the
+agent's or the workflow's schema at that moment. An item with an invalid value fails
+**alone**: the other items run and the batch still finishes `Completed`. When no item in
+an agent batch carries a value, an agent with a required parameter that has no default
+fails the whole job once, up front. A workflow item cannot carry `documents`; it fails
+with that reason instead of running without them.
+
+:::note[A text item that looks like a structured item is one]
+A stored item is text, and a plain-text item whose content happens to be a JSON object
+with a string `message` member is read as structured. Quote or reshape such text if it
+is ever a real input.
+:::
 
 `handlerKey` names the handler that runs the jobs this schedule produces. Only
 the keys the server allows over HTTP are accepted —
@@ -9722,7 +9862,8 @@ Start with an explicit classification:
 |---|---|
 | Run events | Recorded; configuration retention is inactive until retention is enabled |
 | Tool payloads | Recorded, with event payloads capped at 8,192 characters |
-| Run inputs | Recorded without event-payload truncation so replay remains correct |
+| Run inputs | Recorded without event-payload truncation so replay remains correct; the parameter values a run was bound with sit in their own protected column |
+| Job payloads and item inputs | Plain JSON: a queued run's message, parameter values and document text are not content-protected |
 | Persisted traces | Successful runs sampled at 10%; failures retained when enabled |
 | Sessions and conversations | No configuration age limit by default |
 
@@ -10622,6 +10763,11 @@ already reached `MaxAttempts`, is never continued.
 
 The new run's record links back to the interrupted one, so an operator reading the
 run tree can see that a run continued another rather than starting fresh.
+
+An agent that declares [parameters](/concepts/agents/#parameters) continues with the
+values the interrupted run recorded. A run that recorded none — input recording was
+off, or it predates parameter recording — stays `Failed` rather than continue on the
+defaults, and the event stream says why.
 
 | Setting | Default | Effect |
 |---|---:|---|
@@ -15134,7 +15280,10 @@ their own before the rest are folded into a single `other` series — see
 | `RunRecording:RecordRunInput` | `true` |
 
 Disable tool payloads when they can contain personal or regulated data. Replay needs
-recorded run input. A store failure is logged and never blocks the agent response, so
+recorded run input, and so does continuing a parameterized run: the parameter values a
+run was bound with are recorded beside its input, and a replay, an automatic continuation,
+a resume after a tool approval or a resume of a workflow that declares parameters is
+refused when `RecordRunInput` was off for the original run. A store failure is logged and never blocks the agent response, so
 recording is best-effort during a storage outage.
 
 ### Structured response validation
@@ -15399,7 +15548,7 @@ enough.
 | `Enabled` | `false` |
 | `ActiveKeyId` | (none) |
 | `Keys` | Empty |
-| `Columns` | All ten protected columns |
+| `Columns` | All eleven protected columns |
 
 Encryption is off until both `AddContentProtection(...)` is called and `Enabled` is
 `true`. `Keys` maps a key id to the **name** of another configuration key — never to
@@ -15431,14 +15580,15 @@ only after retention is enabled. A database policy for a target takes precedence
 | `Sessions` | Disabled, `null` | `false` |
 | `Conversations` | Disabled, `null` | `false` |
 | `IdempotencyKeys` | 1 day | `false` |
-| `RunInputs` | 30 days | `false` |
+| `RunInputs` | 30 days; a waiting workflow's row is kept | `false` |
 | `VoiceSessions` | 30 days | `false` |
 | `RunScores` | 180 days | `false` |
 | `DocumentEmbeddings` | Disabled, `null` | `false` |
 
 A workflow run waiting for a human answer (`AwaitingInput`) keeps its pending
-request event and its checkpoints for as long as it waits, whatever their age: the
-request lives only in that event, and the answer resumes from those checkpoints.
+request event, its checkpoints and its run input row for as long as it waits,
+whatever their age: the request lives only in that event, the answer resumes from those
+checkpoints, and the parameter values it resumes with live only in that row.
 
 `IdempotencyKeys` is not a bindable child section. Its one-day option default still
 applies when configuration defaults are enabled. Change that target through
@@ -17874,6 +18024,11 @@ that never moves is almost always a deployment where every process sets
 Workflows defined in code and in the database. Opening one draws the compiled graph,
 and the node ids are the same executor ids that appear in run events — which is how
 nodes light up live while a workflow runs.
+
+When the workflow declares parameters, the run panel renders the same form the
+playground does — one field per parameter, Run disabled while a required one is empty —
+and sends the values with the message. The editor keeps the schema across a save but does
+not change it yet; create or change it with `PUT /api/workflows/{name}`.
 
 A workflow waiting on human input shows the pending request as a card; answering it
 resumes execution from the checkpoint as a new run. The card opens for any waiting
