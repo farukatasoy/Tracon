@@ -419,16 +419,18 @@ applies when a tenant overrides only its key.
 Tracon decides whether to move to the next `Fallbacks` link by reading the
 exception's type **name** and message **text** across the whole exception graph,
 because the core holds no compile-time reference to any provider SDK's exception
-types. What that means when you write a provider:
+types. The one typed value it reads is `HttpRequestException.StatusCode`, which
+belongs to .NET itself. What that means when you write a provider:
 
 | Failure | Next fallback link is tried |
 |---|---|
 | A timeout — a `TimeoutException` in the graph, or a message that says it timed out | Yes |
 | `OperationCanceledException` with no timeout signal, while the caller's token is cancelled | No — the caller asked to stop |
 | Message carries `HTTP 401` or `HTTP 403` | No — switching providers would hide a configuration mistake |
+| Any other permanent `4xx` (every `4xx` except `408` and `429`), in an `HTTP nnn` message or in `HttpRequestException.StatusCode` | No — the next provider gets the same request, so a bad body or an unknown model name fails there too |
 | Message carries `429`, `too many requests`, or `rate limit` | Yes |
 | Message carries `HTTP 5xx` | Yes |
-| A transport/SDK-client type with no HTTP status in the message | Yes — treated as a connection failure |
+| A transport/SDK-client type with no permanent `4xx` (usually no status at all) | Yes — treated as a connection failure |
 | Anything else | No — the retry set is closed and positive |
 
 :::caution[A timeout is not a cancellation]

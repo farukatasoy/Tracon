@@ -3313,7 +3313,13 @@ tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>(
 
 Only a transient failure is retried — a provider error, an open circuit breaker, a
 rate limit, or a timeout. Anything else (a bad argument, a permanent downstream
-error) is thrown on the first attempt, exactly as without a policy. The retry loop
+error) is thrown on the first attempt, exactly as without a policy. A failure that
+carries a permanent HTTP status — any `4xx` except `408` and `429`, such as a `401`
+from `EnsureSuccessStatusCode()` or a `404` from a model provider — is also thrown on
+the first attempt: the same request gets the same answer, and a repeated `409` on a
+non-idempotent call can repeat its side effect. Tracon reads the status from
+`HttpRequestException.StatusCode` or from `HTTP nnn` text in the exception chain,
+and a registered `IRunErrorClassifier` cannot make such a failure retry. The retry loop
 runs entirely inside the node's own call: Microsoft Agent Framework invokes the
 node once per routed message either way, so retrying costs nothing against
 `TraconWorkflowOptions.MaxSuperSteps` — a node that succeeds on its third
@@ -7985,16 +7991,18 @@ applies when a tenant overrides only its key.
 Tracon decides whether to move to the next `Fallbacks` link by reading the
 exception's type **name** and message **text** across the whole exception graph,
 because the core holds no compile-time reference to any provider SDK's exception
-types. What that means when you write a provider:
+types. The one typed value it reads is `HttpRequestException.StatusCode`, which
+belongs to .NET itself. What that means when you write a provider:
 
 | Failure | Next fallback link is tried |
 |---|---|
 | A timeout — a `TimeoutException` in the graph, or a message that says it timed out | Yes |
 | `OperationCanceledException` with no timeout signal, while the caller's token is cancelled | No — the caller asked to stop |
 | Message carries `HTTP 401` or `HTTP 403` | No — switching providers would hide a configuration mistake |
+| Any other permanent `4xx` (every `4xx` except `408` and `429`), in an `HTTP nnn` message or in `HttpRequestException.StatusCode` | No — the next provider gets the same request, so a bad body or an unknown model name fails there too |
 | Message carries `429`, `too many requests`, or `rate limit` | Yes |
 | Message carries `HTTP 5xx` | Yes |
-| A transport/SDK-client type with no HTTP status in the message | Yes — treated as a connection failure |
+| A transport/SDK-client type with no permanent `4xx` (usually no status at all) | Yes — treated as a connection failure |
 | Anything else | No — the retry set is closed and positive |
 
 :::caution[A timeout is not a cancellation]
@@ -10262,9 +10270,11 @@ the fallback model its own settings through a separate agent if it needs them.
 
 The chain tries the next link only for a transient failure: the local circuit
 already open, a `5xx`/`429` response, or a bare connection error. It never falls
-back on an authentication error (`401`/`403`) or a canceled request — masking a
-misconfigured key behind a silent provider switch costs more than the switch
-saves. A provider's own content/safety filter is not a fallback trigger either;
+back on an authentication error (`401`/`403`), on any other permanent `4xx` (every
+`4xx` except `408` and `429`, for example a `404` for an unknown model name), or on a
+canceled request — masking a misconfigured key or a bad request behind a silent
+provider switch costs more than the switch saves, and the next provider gets the
+same request. A provider's own content/safety filter is not a fallback trigger either;
 that decision is made once, after whichever link actually answered.
 
 Registering an `IProviderRetryClassifier` overrides this decision for a
@@ -10556,7 +10566,7 @@ age, orphaned runs, open circuits, and `409` cancellation responses.
 |---|---|
 | Every call fails fast with provider unavailable | Inspect the provider circuit and `RetryAfter`; fix upstream health before adding retries |
 | A run's response came from an unexpected model | Check the run's events for `ModelFallbackUsed`; the primary provider was unavailable for that call |
-| A fallback never triggers on a real outage | Confirm the failure is transient (`5xx`/`429`/connection error) — a `401`/`403` or a canceled request never retries by design |
+| A fallback never triggers on a real outage | Confirm the failure is transient (`5xx`/`429`/connection error) — a permanent `4xx` such as `401`, `403`, or `404`, or a canceled request, never retries by design |
 | The same idempotency key returns `422` | Method, path, or raw JSON bytes changed; reuse the original serialization or issue a new key for a new operation |
 | A duplicate request returns `409` | The first reservation is still in progress; wait and query the original operation instead of starting another |
 | An idempotent request returns `400` | Remove streaming or shorten the key to `MaxKeyLength` |
@@ -12266,6 +12276,11 @@ your taxonomy is incomplete, not a failure.
 
 If your classifier throws, the run still reaches its terminal state: the
 class comes from the built-in classifier instead, and the failure is logged.
+
+The same class decides whether a workflow function node with a
+`WorkflowNodeRetryPolicy` is retried. One rule runs before your classifier
+there: a failure that carries a permanent HTTP status (any `4xx` except `408`
+and `429`) is never retried, whatever class you return.
 
 ## Read next
 

@@ -296,7 +296,9 @@ internal sealed class OnlineEvalJobHandler(
         }
         catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
         {
-            failures.Add(Failure(judge.Name, JudgeFailureTypes.Failed, retryable: true));
+            // F-338: a permanent 4xx from the judge's model gets the same answer
+            // on every attempt; retrying it only repeats the rejected request.
+            failures.Add(Failure(judge.Name, JudgeFailureTypes.Failed, retryable: !ProviderHttpStatus.IsPermanentFailure(exception)));
             LogFailure(judge, judgeContext, exception);
             return;
         }

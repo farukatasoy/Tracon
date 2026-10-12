@@ -2200,6 +2200,8 @@ bunu iki gerçek koşumu (`flaky`/`baseline`) karşılaştırarak kanıtlar).
   (üstel geri çekilmeyle) yeniden denenir.
 - Başka bir sınıf (`CompilationFailed`, `ToolError`, …) İLK denemede
   yeniden denenmeden yukarı fırlatılır.
+- Kalıcı bir HTTP durumu (`408` ve `429` dışındaki her `4xx`) taşıyan hata,
+  sınıfı `ProviderError` olsa bile İLK denemede fırlatılır (F-338, MT-WF-124).
 - `TraconWorkflowOptions.MaxSuperSteps` sayacı bu düğümün denemelerinden
   ETKİLENMEZ.
 
@@ -2410,3 +2412,38 @@ checkpoint'lerini siliyordu. Otomatik karşılığı: `WorkflowHumanInTheLoopTes
 - Yanlış cevap run'ı `Failed` biter ama doğru cevap çalışır; ikinci cevap yeni
   bir dal açar (K-130).
 - 🚨 Eski kusur: istek listede yoktu; yanlış cevaptan sonra "has no checkpoint".
+
+---
+
+### MT-WF-124 — `401` alan düğüm bir kez çağrılır (kusur-giderme, 2026-10-12, F-338)
+
+Regresyon. Düğüm retry'ı yalnız hata sınıfına bakıyordu ve `ProviderError`
+kalıcı `4xx`'i de kapsar. `401` alan düğüm `MaxAttempts` kez çağrılıyordu.
+Otomatik karşılığı: `WorkflowNodeRetryTests`, `WorkflowNodeRetryEndpointTests`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- Örnek uygulamada `retryPolicy: new WorkflowNodeRetryPolicy { MaxAttempts = 3,
+  InitialDelay = TimeSpan.FromMilliseconds(200) }` ile kayıtlı bir fonksiyon
+  düğümü. Düğüm her çağrıda günlüğe bir satır yazar, sonra
+  `throw new HttpRequestException(null, null, HttpStatusCode.Unauthorized)`
+  ile `EnsureSuccessStatusCode()`'un `401` istisnasını üretir.
+- Agent → bu fonksiyon zincirini taşıyan bir workflow.
+
+**Adımlar**
+1. Workflow'u çalıştır.
+2. Günlükte düğümün satırını say; `GET /api/runs/{workflowRunId}` oku.
+3. Durumu `HttpStatusCode.ServiceUnavailable` yap, uygulamayı yeniden başlat ve
+   1–2'yi tekrarla.
+
+**Beklenen sonuç**
+- `401` ile düğüm **bir kez** çağrılır; workflow `Failed` biter.
+- `503` ile düğüm **üç kez** çağrılır; geçici hata yine yeniden denenir.
+- 🚨 Eski kusur: `401` ile düğüm üç kez çağrıldı.
+- Koşum sonunda geçici düğüm ve workflow geri alınır.

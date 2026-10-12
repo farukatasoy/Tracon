@@ -26,7 +26,16 @@ public enum RunErrorClass
     /// <summary>Matched no rule. Not a failure, a measurement tool.</summary>
     Unknown = 0,
 
-    /// <summary>The model provider returned an error (5xx, connection, non-timeout).</summary>
+    /// <summary>
+    /// The model provider or an HTTP call failed: a 5xx, a 4xx, or a
+    /// connection failure that is not a timeout.
+    /// </summary>
+    /// <remarks>
+    /// This class tells which fault occurred, not whether a retry helps. A
+    /// permanent 4xx (any 4xx except 408 and 429, for example a 401 or a 404)
+    /// is in this class too, and a workflow node retry and the model fallback
+    /// chain never repeat it.
+    /// </remarks>
     ProviderError = 1,
 
     /// <summary>The circuit breaker is open (<see cref="TraconProviderUnavailableException"/>).</summary>
