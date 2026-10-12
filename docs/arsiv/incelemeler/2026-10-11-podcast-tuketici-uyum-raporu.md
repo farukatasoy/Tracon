@@ -1,30 +1,65 @@
 # Tracon — Podcast üretimi için tüketici uyum raporu
 
-**Tarih:** 11 Ekim 2026
+**Tarih:** 12 Ekim 2026. Bu belge 11 Ekim tarihli ilk sürümün yerine geçer;
+dosya adı bağlantılar bozulmasın diye ilk yazım tarihini taşır.
 
-**İnceleme zemini:** `3a4b4c9c` commit'i üzerindeki mevcut çalışma ağacı. İnceleme sırasında repo'da önceden yapılmış, commit edilmemiş değişiklikler vardı.
+**İnceleme zemini:** Tracon `b7c0e173` artı Faz 194'ün commit edilmemiş
+çalışma ağacı (2026-10-12). Faz 192 (döngü tükenme politikası, F-293) kapalı;
+2026-10-12 kusur turu kapalı (K-885…K-896); Faz 194 (F-294, parametreler)
+uygulanıyor; Faz 195 (F-292 + F-295, düğüm düzenleme ve fonksiyon düğümü
+ayarı) planlı.
 
-**Yöntem:** Public sözleşme ve uygulama kodu incelemesi; ElevenLabs, Google ve Docker'ın güncel resmi dokümanları.
+**Yöntem:** Public sözleşme ve uygulama kodu incelemesi; ElevenLabs, Google ve
+Docker'ın resmi dokümanları (2026-10-11); kapanan kusurların durumu
+`docs/arsiv/ERTELENEN-ADAYLAR.md` ve site metinlerinden ölçüldü.
 
-**Kapsam:** Tüketici mimarisi, mevcut yeteneklerin uyumu ve Tracon için öncelikli geliştirme önerileri. Bu belge bir faz planı değildir.
+**Kapsam:** Tüketici mimarisi, mevcut yeteneklerin uyumu ve Tracon için
+öncelikli geliştirme önerileri. Bu belge bir faz planı değildir. Her yeteneğin
+yayımlanmış belirli bir NuGet sürümünde bulunduğunu doğrulamaz. Gerçek TTS
+çağrısı, MinIO entegrasyonu, crash recovery veya 20 eşzamanlı üretim testi
+yapılmadı. Kapasite ve kalite önerileri ölçülmüş sonuç değil tasarım
+önerisidir.
 
-Bu değerlendirme repo'nun bugünkü davranışını esas alır. Her yeteneğin yayımlanmış belirli bir NuGet sürümünde bulunduğunu doğrulamaz. Gerçek TTS çağrısı, MinIO entegrasyonu, crash recovery veya 20 eşzamanlı üretim testi yapılmadı. Aşağıdaki kapasite ve kalite önerileri, ölçülmüş sonuç değil tasarım önerisidir.
+**İlişkili kayıtlar:** [keşif kaydı](../../kesif/2026-10-11-podcast-tuketici.md) ·
+[ADAYLAR](../../ADAYLAR.md) (F-296…F-303) · aynı tüketici projesinin
+[explainer video raporu](2026-10-11-explainer-video-tuketici-uyum-raporu.md).
+İki hat aynı host'ta, aynı kiracı ekranından başlar; video raporunun sandbox
+modeli (§ 7.3), kusur tabloları (§ 12) ve yol A/C ayrımı (§ 8) burada
+tekrarlanmaz.
 
 ## 1. Sonuç
 
-**Bu senaryo Tracon üzerine kurulabilir. Mevcut paketler bütün podcast hattını hazır olarak sunmaz.** Agent çalıştırma, workflow, checkpoint, background job, eval, ElevenLabs TTS ve attachment genişleme noktaları kullanılabilir. Tüketici; podcast state'ini, kalite kararını, çok konuşmacılı üretimi, provider routing'i, Python worker'ını ve entity ilişkisini yazmalıdır.
+**Bu senaryo Tracon üzerine kurulabilir. Mevcut paketler bütün podcast hattını
+hazır olarak sunmaz.** Agent çalıştırma, workflow, checkpoint, background job,
+eval, ElevenLabs TTS, webhook ve attachment genişleme noktaları kullanılabilir.
+Tüketici; podcast state'ini, kalite kararının policy'sini, çok konuşmacılı
+üretimi, provider routing'i, Python worker'ını ve entity ilişkisini yazmalıdır.
 
-Önerilen yapı, host'un yönettiği **tenant'a göre ayarlanan bir workflow**'dur. Writer ve reviewer agent'ları bu workflow'un adımlarıdır. TTS, audio işleme ve domain kaydı deterministic kod adımlarıdır. Harness, bu adımlardaki agent'ın context ve tool döngüsünü yönetir.
+Önerilen yapı, host'un yönettiği **tenant'a göre ayarlanan bir workflow**'dur.
+Writer agent'ı workflow'un ilk adımıdır; reviewer bu agent'ın harness
+`Loop` ölçütüdür (`aiJudge`). TTS, audio işleme ve domain kaydı deterministic
+fonksiyon düğümleridir. Run başına değişen değerler (dil, ses, süre hedefi)
+workflow parametresidir (Faz 194).
 
 Bu tüketicide en belirgin Tracon boşlukları şunlardır:
 
-1. Çok konuşmacılı TTS sözleşmesi ve ElevenLabs dialogue/Gemini TTS adapter'ları yoktur.
-2. TTS provider ve credential seçimi mevcut voice katmanında tenant bazında değildir.
-3. UI, function içeren workflow zincirinin adımlarını düzenleyemez. Conditional graf ve revizyon döngüsü kodda kurulmalıdır.
-4. Background job retry'si workflow checkpoint'inden kendiliğinden devam etmez. Podcast adımlarının kalıcı ilerlemesi ve idempotency'si tüketiciye aittir.
-5. Workflow içindeki doğrudan TTS/Python function çağrıları, kendiliğinden podcast maliyet kaydına dönüşmez.
+1. Çok konuşmacılı TTS sözleşmesi ve ElevenLabs dialogue/Gemini TTS adapter'ları
+   yoktur (F-296, F-297).
+2. TTS provider ve credential seçimi voice katmanında tenant bazında değildir
+   (F-298, 🟠). Özel sentezleyici kaydı artık ElevenLabs ayarından bağımsızdır
+   (F-336 kapalı); yalnız adla seçim ve kiracı bağlaması eksiktir.
+3. Konsol, function içeren workflow zincirinin adımlarını düzenleyemez ve
+   fonksiyon düğümü ayar almaz; Faz 195 planlıdır. Conditional graf kodda
+   kurulur.
+4. Background job retry'si workflow checkpoint'inden kendiliğinden devam etmez
+   (F-321). Podcast adımlarının kalıcı ilerlemesi ve idempotency'si tüketiciye
+   aittir.
+5. Workflow içindeki TTS/Python function çağrıları kendiliğinden podcast
+   maliyet kaydına dönüşmez (F-299).
 
-Bunların hepsi aynı tür eksiklik değildir. Provider sözleşmesi ve workflow düzenleme yüzeyi genel ürün boşluğudur. `PodcastEpisode` entity'si, MinIO policy'si ve audio mastering mantığı tüketicinin domain sorumluluğudur.
+Bunların hepsi aynı tür eksiklik değildir. Provider sözleşmesi ve workflow
+düzenleme yüzeyi genel ürün boşluğudur. `PodcastEpisode` entity'si, MinIO
+policy'si ve audio mastering mantığı tüketicinin domain sorumluluğudur.
 
 ## 2. Netleşen ihtiyaç ve açık sınırlar
 
@@ -34,280 +69,465 @@ Bunların hepsi aynı tür eksiklik değildir. Provider sözleşmesi ve workflow
 | Kiracılık | Multitenant SaaS |
 | Akışın sahibi | Host yönetir; müşteriler workflow kodunu düzenlemez |
 | Tenant farkları | Her müşterinin akışı veya ayarları farklı olabilir |
-| Düzenleme sınırı | Geliştirici kodu deploy eder; operatör instruction, provider ve hazır script ayarlarını değiştirir |
-| Kalite kararı | Eşik geçilince otomatik TTS; başarısız transcript sınırlı revizyona döner |
+| Düzenleme sınırı | Geliştirici kodu deploy eder; operatör instruction, provider ve hazır script ayarlarını değiştirir (bkz. § 15: aynı operatör video hattında canlı kod yazar) |
+| Kalite kararı | Eşik geçilince otomatik TTS; başarısız transcript sınırlı revizyona döner; insan onayı şimdilik yok |
 | Audio | İki konuşmacı; episode başına 10–20 dakika |
 | Provider ve voice seçimi | Tenant bazında; ElevenLabs ve başka provider'lar, Gemini de değerlendiriliyor |
 | Credential sahipliği | Bütün TTS credential'larını host yönetir; müşteri BYOK ilk kapsamda yoktur |
 | Dil | Türkçe ve İngilizce |
 | Python/audio işlemleri | Segment birleştirme, normalization ve intro/outro |
 | Eşzamanlı üretim | 20'ye kadar |
-| Çıktı | MinIO object'i ve tüketici uygulamasının entity ilişkisi |
+| Çıktı | MinIO object'i ve tüketici uygulamasının entity ilişkisi; sonuç kiracı ekranına düşer |
 
-Kabul kriterleri, revizyon sayısı, completion süresi hedefi ve normalization parametreleri henüz netleşmedi. Bir içerik için iki dilde ayrı episode üretimi ile seçilen tek dilde üretim arasındaki ürün kuralı da açık. Bu belge bu konular için kesin değer atamaz.
+Kabul kriterleri, revizyon sayısı, completion süresi hedefi ve normalization
+parametreleri henüz netleşmedi. Bir içerik için iki dilde ayrı episode üretimi
+ile seçilen tek dilde üretim arasındaki ürün kuralı da açık. Bu belge bu
+konular için kesin değer atamaz.
 
 ## 3. Mevcut yeteneklerin karşılığı
 
 | İhtiyaç | Mevcut karşılık | Tüketicinin yazacağı bölüm / sınır |
 |---|---|---|
-| İçerikten senaryo üretmek | Agent definition; instruction, model, skill ve sürüm seçimi | Podcast transcript schema'sı, kaynak referansları ve süre hedefi |
-| Ayrı agent ile review | Catalog'dan reviewer agent çalıştırmak | Structured verdict, kabul policy'si ve revizyon feedback'i |
-| Eval ile kaliteyi izlemek | Eval suite, online judge, run score ve experiment | Üretim öncesindeki blocking gate ayrıca kurulur |
+| İçerikten senaryo üretmek | Agent definition; instruction, model, skill ve sürüm seçimi; `{{param}}` ile talimata bağlanan parametre | Podcast transcript schema'sı, kaynak referansları ve süre hedefi |
+| Reviewer ile revizyon döngüsü | Harness `Loop` + `aiJudge` ölçütü; `MaxIterations`; tavanda ve ölçüt hatasında run düşer (`OnExhausted`, `OnCriterionError`, Faz 192) | Rubric, structured verdict ve kabul policy'si; ayrı reviewer agent'ı istenirse F-301 |
+| Eval ile kaliteyi izlemek | Eval suite, online judge, run score ve experiment | Üretim öncesindeki blocking gate workflow'un kendisidir |
 | Tek voice ile ElevenLabs TTS | `Tracon.Voice`, `ISpeechSynthesizer`, `SpeechRequest` | Segmentleme ve episode assembly hazır değildir |
-| İki konuşmacı | Tek voice çağrılarını sırayla birleştirmek mümkündür | Native dialogue çağrısı mevcut adapter'da yoktur |
-| Gemini TTS | `Tracon.Google` model provider'ı vardır | Google model kaydı, Gemini TTS adapter'ı sağlamaz |
-| Tenant bazlı TTS/voice seçimi | Tüketici kendi synthesis servisini kaydedebilir | Hazır dialogue provider routing'i yoktur; host credential resolver'ı ve tenant seçim doğrulaması gerekir |
-| Türkçe ve İngilizce | Agent instruction culture'ı ve `SpeechRequest.LanguageCode` alanı vardır | Her dialogue adapter'ının dil desteği, pronunciation ve iki dilde kalite kabulü doğrulanır |
+| İki konuşmacı | Tek voice çağrılarını sırayla birleştirmek mümkündür | Native dialogue çağrısı mevcut adapter'da yoktur (F-296) |
+| Gemini TTS | `Tracon.Google` model provider'ı vardır; `Google.GenAI` 1.16.0 `MultiSpeakerVoiceConfig` taşır | Gemini TTS adapter'ı yoktur (F-297) |
+| Tenant bazlı TTS/voice seçimi | Tüketici kendi `ISpeechSynthesizer`'ını `UseVoice()`'tan önce kaydeder; ElevenLabs ayarı gerekmez (F-336) | Adla seçim, kiracı bağlaması ve egress denetimi yoktur (F-298); fonksiyon düğümünde keyed servis |
+| Türkçe ve İngilizce | Agent instruction culture'ı ve `SpeechRequest.LanguageCode` | Her dialogue adapter'ının dil desteği, pronunciation ve iki dilde kalite kabulü doğrulanır |
 | Python | Opt-in skill script runner; ayrı OS process'i | Python image/dependency yönetimi ve OS izolasyonu host'a aittir |
-| Zorunlu audio adımları | `AddWorkflowFunction<TInput,TOutput>` veya kodda custom graf | Hazır script'i çağıran worker client ve artifact protokolü |
-| Tenant bazlı workflow | Tenant'a göre saklanan workflow definition'ları ve tenant içeren agent cache anahtarı | Host yönetim yetkileri, template/profile sistemi ve tenant provisioning |
-| Workflow'u değiştirmek | Sequential agent/function `Nodes` API'si; beş hazır pattern | Function zincirini UI'dan değiştirmek ve serbest conditional graf düzenlemek yoktur |
-| Kalıcı çalıştırma | SQL store, checkpoint, background job lease/retry | İş adımı recovery'si, side effect ledger'ı ve sürüm snapshot'ı |
-| MinIO | `IAttachmentStorage` ile dış storage implementasyonu | Hazır MinIO adapter'ı yoktur |
+| Zorunlu audio adımları | `AddWorkflowFunction<TInput,TOutput>`; fonksiyon run parametrelerini `context.GetRunParameters()` ile okur (Faz 194) | Hazır script'i çağıran worker client ve artifact protokolü; düğüm başına ayar Faz 195 |
+| Tenant bazlı workflow | Tenant'a göre saklanan workflow definition'ları; run başına parametre; tenant içeren agent cache anahtarı | Host yönetim yetkileri, template/profile sistemi ve tenant provisioning |
+| Workflow'u değiştirmek | Sequential agent/function `Nodes` API'si; beş hazır pattern | Konsol zinciri ve ayarı Faz 195 ile düzenler; serbest conditional graf kodda |
+| Kalıcı çalıştırma | SQL store, checkpoint, background job lease/retry; kira dolumu deneme sayılır (F-326) | İş adımı recovery'si, side effect ledger'ı ve sürüm snapshot'ı |
+| MinIO | `IAttachmentStorage` ile dış storage; retention baytı siler (F-332) | Hazır MinIO adapter'ı yoktur |
 | Entity ilişkisi | Code function veya custom `IJobHandler` | Tüketicinin domain service'i ve DB transaction'ı |
-| İzleme | Workflow/agent run tree, node event'leri, score ve job durumu | Episode/segment ilerlemesi; dış servis, CPU ve storage maliyeti |
+| Sonucu kiracı ekranına düşürmek | `run.completed`/`run.failed` (workflow kökü dahil), `job.*` webhook'ları yayınlanır (F-333) | Host'un bildirim ve ekran güncelleme katmanı; alıcı idempotent (F-366) |
+| İzleme | Workflow/agent run tree, node event'leri, score, job durumu; workflow kökü atıf taşır (F-337) | Episode/segment ilerlemesi; dış servis, CPU ve storage maliyeti |
 
-Kod kanıtları: [agent catalog](../../../src/Tracon.Abstractions/Agents/IAgentCatalog.cs), [workflow definition](../../../src/Tracon.Abstractions/Workflows/WorkflowDefinition.cs), [function registration](../../../src/Tracon.Workflows/TraconWorkflowFunctionExtensions.cs), [voice sözleşmesi](../../../src/Tracon.Abstractions/Voice/SpeechContracts.cs), [Google kaydı](../../../src/Tracon.Google/GoogleProviderExtensions.cs), [attachment storage](../../../src/Tracon.Abstractions/Attachments/IAttachmentStore.cs).
+Kod kanıtları: [agent catalog](../../../src/Tracon.Abstractions/Agents/IAgentCatalog.cs), [workflow definition](../../../src/Tracon.Abstractions/Workflows/WorkflowDefinition.cs), [function registration](../../../src/Tracon.Workflows/TraconWorkflowFunctionExtensions.cs), [run parametresi okuma](../../../src/Tracon.Workflows/TraconWorkflowContextExtensions.cs), [voice sözleşmesi](../../../src/Tracon.Abstractions/Voice/SpeechContracts.cs), [Google kaydı](../../../src/Tracon.Google/GoogleProviderExtensions.cs), [attachment storage](../../../src/Tracon.Abstractions/Attachments/IAttachmentStore.cs).
 
 ## 4. Harness ve workflow ayrımı
 
-**Workflow**, hangi adımın hangi koşulda çalışacağını belirler. Bu işte onaylanan transcript'ten önce TTS çalışmaması ve revizyon sayısının sınırlanması workflow kuralıdır.
+**Workflow**, hangi adımın hangi koşulda çalışacağını belirler. Bu işte
+onaylanan transcript'ten önce TTS çalışmaması ve revizyon sayısının
+sınırlanması workflow kuralıdır.
 
-**Harness**, bir agent invocation'ının çalışma düzenini belirler. Context yönetimi, tool kullanımı, iteration sınırı ve agent'ın tekrar çağrılması harness konusudur. Tracon'in `HarnessSettings.Loop` alanında `aiJudge` gibi stop criterion'ları vardır. Bunlar ayrı writer/reviewer/domain adımlarını içeren bütün üretim hattının yerini almaz. Kaynak: [HarnessSettings](../../../src/Tracon.Abstractions/Agents/HarnessSettings.cs), [LoopSettings](../../../src/Tracon.Abstractions/Agents/LoopSettings.cs), [LoopEvaluatorRegistry](../../../src/Tracon.Core/Compilation/LoopEvaluatorRegistry.cs).
+**Harness**, bir agent invocation'ının çalışma düzenini belirler. Context
+yönetimi, tool kullanımı, iteration sınırı ve agent'ın tekrar çağrılması
+harness konusudur. `HarnessSettings.Loop` revizyon döngüsüdür: reviewer bir
+döngü ölçütüdür (`aiJudge`; ölçüt ve talimatı operatör düzenler), revizyon
+sayısı `LoopSettings.MaxIterations`'tır, geri bildirim sonraki iterasyona
+taşınır. Faz 192'den beri loop tavana ulaşınca ya da ölçüt hata verince run
+**düşer** (`OnExhausted`, `OnCriterionError`); onaylanmamış metin TTS'e
+geçmez. Yapılandırılmış çıktı (`ResponseFormat = JsonSchema`) Loop ile
+birlikte kullanılabilir; doğrulayıcı son asistan mesajını doğrular (F-329).
+Kaynak: [HarnessSettings](../../../src/Tracon.Abstractions/Agents/HarnessSettings.cs),
+[LoopSettings](../../../src/Tracon.Abstractions/Agents/LoopSettings.cs),
+[LoopEvaluatorRegistry](../../../src/Tracon.Core/Compilation/LoopEvaluatorRegistry.cs).
 
-Aşağıdaki diagram önerilen tüketici akışını gösterir. Bugün hazır bir Tracon template'i değildir.
+Aşağıdaki diagram önerilen tüketici akışını gösterir. Hazır bir Tracon
+template'i değildir.
 
 ```mermaid
 flowchart TD
-    INPUT["İçerik ve tenant profili"] --> SNAP["ProductionId ve sürüm snapshot'ı"]
-    SNAP --> WRITE["Writer agent: structured transcript"]
-    WRITE --> VALIDATE["Schema ve deterministic kontroller"]
-    VALIDATE --> REVIEW["Reviewer agent: verdict ve feedback"]
-    REVIEW --> GATE{"Kabul policy'si geçti mi?"}
-    GATE -->|Hayır| LIMIT{"Revizyon hakkı var mı?"}
-    LIMIT -->|Evet| WRITE
-    LIMIT -->|Hayır| REJECT["QualityRejected: TTS çalışmaz"]
-    GATE -->|Evet| PRE["TTS hazırlığı ve varsa pre-processing"]
-    PRE --> SEGMENTS["Dialogue segment planı"]
-    SEGMENTS --> TTS["Seçilen TTS provider'ı"]
-    TTS --> SAVE["Ham segment artifact'larını kalıcılaştır"]
-    SAVE --> PYTHON["Audio worker: Python ve audio araçları"]
-    PYTHON --> AUDIOCHECK["Birleştirme, normalization ve intro/outro doğrulaması"]
-    AUDIOCHECK --> STORE["MinIO final object"]
-    STORE --> LINK["Domain entity ilişkisi"]
-    LINK --> READY["Ready"]
+    INPUT["İçerik + tenant profili + run parametreleri"] --> SNAP["ProductionId ve sürüm snapshot'ı"]
+    SNAP --> WRITE["Writer agent: structured transcript<br/>Loop ölçütü = reviewer (aiJudge)"]
+    WRITE -->|"tavan veya ölçüt hatası"| REJECT["Run Failed: QualityRejected, TTS çalışmaz"]
+    WRITE -->|"ölçüt geçti"| VALIDATE["Fonksiyon: schema ve deterministic kontroller"]
+    VALIDATE --> SEGMENTS["Fonksiyon: dialogue segment planı"]
+    SEGMENTS --> TTS["Fonksiyon: seçilen TTS provider'ı"]
+    TTS --> SAVE["Fonksiyon: ham segment artifact'larını kalıcılaştır"]
+    SAVE --> PYTHON["Fonksiyon: audio worker'ı çağır (ayrı container)"]
+    PYTHON --> AUDIOCHECK["Fonksiyon: birleştirme, normalization, intro/outro doğrulaması"]
+    AUDIOCHECK --> STORE["Fonksiyon: MinIO final object"]
+    STORE --> LINK["Fonksiyon: domain entity ilişkisi"]
+    LINK --> READY["Ready; run.completed webhook'u"]
 ```
 
-Bu grafın revizyon kolu için kodda conditional graf gerekir. Database definition'ındaki mixed `Sequential.Nodes` listesi düz bir zincirdir; condition, tekrar kullanılır node instance'ı ve node parametreleri taşımaz. Alternatif olarak tek bir code-defined üretim function'ı revizyon döngüsünü yönetebilir. Bu yaklaşım daha az graf kodu ister; ayrı adımların checkpoint ve node görünürlüğü azalır. Kaynak: [WorkflowNodeReference](../../../src/Tracon.Abstractions/Workflows/WorkflowNodeReference.cs), [compiler](../../../src/Tracon.Workflows/Internal/WorkflowDefinitionCompiler.cs).
+Bu graf düz bir `Sequential` zincirdir: `Nodes` listesi agent ve fonksiyon
+düğümlerini sırayla taşır; koşul ve geri kenar yoktur. Revizyon kolu agent'ın
+içindedir (Loop); ret kolu run'ın düşmesidir. Yalnız `Sequential` fonksiyon
+düğümü alır. Bir fonksiyonun bir zincirde iki kez kullanımı reddedilir
+(executor kimliği düğüm adıdır); gerekirse kodda ikinci ad kaydedilir.
+Kaynak: [WorkflowNodeReference](../../../src/Tracon.Abstractions/Workflows/WorkflowNodeReference.cs),
+[compiler](../../../src/Tracon.Workflows/Internal/WorkflowDefinitionCompiler.cs).
+
+Agent adımı bir **katılımcıdır** (`ChildAgentInvoker`, `ChildRefusalMode.Fail`):
+`AgentGraph.ChildDeadline` (2 dk) aşımı, ağaç bütçesi reddi veya tool onayı
+isteği run'ı `Failed` bitirir (K-887). Uzun transcript üreten writer için
+`ChildDeadline` kurulum geneli yükseltilir; düğüm başına süre F-303'tür.
 
 ## 5. Transcript kalitesi ve eval
 
 ### 5.1 Üretimdeki blocking gate
 
-Writer, yalnız düz metin üretmemelidir. Tüketicinin transcript modeli en az episode, bölüm, segment sırası, iki speaker kimliği, okunacak metin ve kaynak referanslarını taşımalıdır. Delivery instruction'ları okunacak metinden ayrı tutulmalıdır. Provider adapter'ı bu yapıyı kendi protokolüne çevirir.
+Writer, yalnız düz metin üretmemelidir. Transcript modeli en az episode, bölüm,
+segment sırası, iki speaker kimliği, okunacak metin ve kaynak referanslarını
+taşımalıdır. Delivery instruction'ları okunacak metinden ayrı tutulmalıdır.
+Provider adapter'ı bu yapıyı kendi protokolüne çevirir.
 
-Reviewer'a özgün içerik, transcript ve kalite rubric'i birlikte verilmelidir. Aksi hâlde reviewer, kaynakta olmayan ama akıcı yazılmış bilgiyi iyi puanlayabilir. Writer ve reviewer'a TTS, upload veya DB yazma tool'u vermek gerekmez. Yan etkileri workflow kodu başlatır.
+Reviewer'a özgün içerik, transcript ve kalite rubric'i birlikte verilmelidir.
+Aksi hâlde reviewer, kaynakta olmayan ama akıcı yazılmış bilgiyi iyi
+puanlayabilir. Writer ve reviewer'a TTS, upload veya DB yazma tool'u vermek
+gerekmez. Yan etkileri workflow'un fonksiyon düğümleri başlatır.
 
 | Kontrol | Uygun mekanizma |
 |---|---|
-| Schema, boş segment, bilinmeyen speaker, iki speaker şartı | Deterministic validation |
+| Schema, boş segment, bilinmeyen speaker, iki speaker şartı | `IStructuredResponseValidator` (oturumsuz, akışsız run) ve ilk fonksiyon düğümü |
 | Hedef uzunluk ve segment büyüklüğü | Kelime/karakter kontrolü; audio sonrasında gerçek süre ölçümü |
-| Kaynağa bağlılık ve önemli bilgilerin korunması | Reviewer ve kaynak referansı doğrulaması |
-| Doğallık, tekrar, geçiş ve iki speaker dengesi | Reviewer rubric'i |
-| Kabul, revizyon veya ret | Host'un kodda uyguladığı policy |
+| Kaynağa bağlılık ve önemli bilgilerin korunması | `aiJudge` ölçütü ve kaynak referansı doğrulaması |
+| Doğallık, tekrar, geçiş ve iki speaker dengesi | Reviewer rubric'i (`JudgeCriteria`, `JudgeInstructions`) |
+| Kabul, revizyon veya ret | `Loop.MaxIterations` + `OnExhausted = Fail` |
 
-Verdict; boyutlara göre score, kritik ihlal listesi ve somut revision feedback'i taşımalıdır. Kabul policy'si yalnız ortalama score'a bakmamalıdır. Kaynak uydurma gibi kritik bir ihlal, yüksek doğallık score'uyla kapanmamalıdır. Schema'sı bozuk veya eksik verdict TTS'yi başlatmamalıdır.
+Verdict; boyutlara göre score, kritik ihlal listesi ve somut revision
+feedback'i taşımalıdır. Kabul policy'si yalnız ortalama score'a bakmamalıdır.
+Kaynak uydurma gibi kritik bir ihlal, yüksek doğallık score'uyla kapanmamalıdır.
 
-`MaxRevisions`, minimum score'lar ve kritik ihlaller tenant profiline bağlanabilir. Host alt/üst sınırları kodda belirler. Limit dolunca üretim `QualityRejected` olur. Reviewer veya provider hatası ise ayrı bir teknik failure'dır. Aynı retry policy'si bu iki duruma uygulanmamalıdır.
+`MaxIterations`, minimum score'lar ve kritik ihlaller tenant profiline ve run
+parametresine bağlanabilir; host alt/üst sınırları kodda belirler. Limit
+dolunca run `Failed` biter ve hata sınıfı `LoopUnsatisfied` olur; domain bunu
+`QualityRejected` sayar. Reviewer veya provider hatası ayrı bir teknik
+failure'dır (`OnCriterionError`); aynı retry policy'si iki duruma
+uygulanmamalıdır. Yargıcın model çağrısı run usage'ına kendi modelinin
+fiyatıyla girer (F-349) ve kiracının egress politikasına uyar (K-874).
 
 ### 5.2 Tracon eval'in işi
 
-Eval suite, instruction/model değişimini örnek içeriklerle karşılaştırmak için uygundur. Online judge tamamlanan run'ları örnekleyerek score üretir. Bu mekanizma üretimde TTS'yi başlatma kararını kendiliğinden vermez. Kalite kapısı workflow içinde bütün üretimlerde çalışmalıdır. Kaynak: [evaluation anlatısı](../../../docs-site/src/content/docs/concepts/evaluation.md), [OnlineEvalJobHandler](../../../src/Tracon.Core/Evaluation/OnlineEvalJobHandler.cs).
+Eval suite, instruction/model değişimini örnek içeriklerle karşılaştırmak için
+uygundur. Online judge tamamlanan run'ları örnekleyerek score üretir. Bu
+mekanizma üretimde TTS'yi başlatma kararını vermez; kalite kapısı workflow
+içinde bütün üretimlerde çalışır. Kaynak: [evaluation anlatısı](../../../docs-site/src/content/docs/concepts/evaluation.md),
+[OnlineEvalJobHandler](../../../src/Tracon.Core/Evaluation/OnlineEvalJobHandler.cs).
 
-Regression set'i; kısa ve uzun kaynak, eksik kaynak, tekrar eden içerik, özel isim, sayı/tarih, teknik terim ve iki speaker senaryolarını kapsamalıdır. Rubric değişimi de sürümlenmelidir. Score'ları farklı rubric sürümleri arasında doğrudan karşılaştırmak yanlış kalite sinyali üretebilir.
+Regression set'i; kısa ve uzun kaynak, eksik kaynak, tekrar eden içerik, özel
+isim, sayı/tarih, teknik terim ve iki speaker senaryolarını kapsamalıdır.
+Rubric değişimi de sürümlenmelidir. `EvalCase.Context` agent'a gitmez (F-343,
+açık); kaynak metin case'in mesajına konur.
 
-Türkçe ve İngilizce için ayrı eval case'leri gerekir. Instruction dili ile episode dili ayrı alanlardır. Reviewer, istenen episode dilini ve o dilde iki speaker'ın doğallığını kontrol eder. Özel isim, kısaltma ve sayıların okunması audio kabulüne de girer. İki dilde aynı threshold'un uygun olduğu ölçülmeden kabul edilmemelidir.
+Türkçe ve İngilizce için ayrı eval case'leri gerekir. Instruction dili ile
+episode dili ayrı alanlardır; episode dili run parametresidir. İki dilde aynı
+threshold'un uygun olduğu ölçülmeden kabul edilmemelidir.
 
 ### 5.3 Audio sonrası kalite
 
-İyi transcript, doğru audio'yu garanti etmez. Çıktının açılabildiği, beklenen segmentlerin tamamlandığı, süre ve sessizlik sınırlarının sağlandığı kontrol edilmelidir. Gerekirse STT çıktısı onaylanan transcript'le karşılaştırılır. Loudness ve clipping kontrolleri deterministic audio analizidir. Bu katman da tüketici kodudur.
+İyi transcript, doğru audio'yu garanti etmez. Çıktının açılabildiği, beklenen
+segmentlerin tamamlandığı, süre ve sessizlik sınırlarının sağlandığı kontrol
+edilmelidir. Gerekirse STT çıktısı onaylanan transcript'le karşılaştırılır.
+Loudness ve clipping kontrolleri deterministic audio analizidir. Bu katman da
+tüketici kodudur.
 
 ## 6. İki konuşmacılı TTS ve provider değişimi
 
 ### 6.1 Mevcut voice sınırı
 
-`SpeechRequest` bir `Text`, bir `VoiceId`, `ModelId`, `OutputFormat`, `LanguageCode` ve timestamp isteği taşır. Speaker listesi veya dialogue turn listesi yoktur. ElevenLabs adapter'ı `/v1/text-to-speech/{voiceId}` ailesini çağırır. Mevcut `VoiceOptions.Provider` yalnız ElevenLabs'ı destekler. Kaynak: [SpeechModels](../../../src/Tracon.Abstractions/Voice/SpeechModels.cs), [VoiceOptions](../../../src/Tracon.Voice/VoiceOptions.cs), [ElevenLabsSpeechClient](../../../src/Tracon.Voice/Internal/ElevenLabsSpeechClient.cs).
+`SpeechRequest` bir `Text`, bir `VoiceId`, `ModelId`, `OutputFormat`,
+`LanguageCode` ve timestamp isteği taşır. Speaker listesi veya dialogue turn
+listesi yoktur. ElevenLabs adapter'ı `/v1/text-to-speech/{voiceId}` ailesini
+çağırır. `VoiceOptions.Provider` yalnız `elevenlabs` değerini alır ve yalnız
+yerleşik istemciyi yapılandırır. `ISpeechSynthesizer` artık `ProviderName` ve
+`MaxCharactersPerRequest` bildirir; fiyat `Tracon:Pricing:Voice` altında
+`ProviderName` ile okunur (F-336). Kaynak: [SpeechModels](../../../src/Tracon.Abstractions/Voice/SpeechModels.cs),
+[VoiceOptions](../../../src/Tracon.Voice/VoiceOptions.cs),
+[ElevenLabsSpeechClient](../../../src/Tracon.Voice/Internal/ElevenLabsSpeechClient.cs).
 
-Tüketici speaker başına tek voice çağrısı yapıp sonuçları birleştirebilir. Böylece bugünkü interface kullanılabilir. Ancak karşılıklı konuşmanın prosody'si ve doğal geçişleri ayrıca değerlendirilmelidir.
+Tüketici speaker başına tek voice çağrısı yapıp sonuçları birleştirebilir.
+Ancak karşılıklı konuşmanın prosody'si ve doğal geçişleri ayrıca
+değerlendirilmelidir.
 
-ElevenLabs, text/voice çiftleri alan ayrı bir Text to Dialogue endpoint'i sunuyor. Resmi endpoint dokümanı güvenilir üretim için toplam segment metnini istek başına 2.000 karakter altında tutmayı öneriyor. Bu değer bütün episode'u tek çağrıda üretme varsayımını desteklemiyor. Mevcut Tracon adapter'ı bu endpoint'i kullanmıyor. Kaynak: [ElevenLabs Create dialogue](https://elevenlabs.io/docs/api-reference/text-to-dialogue/convert).
-
-Google'ın TTS API'si tek istekte iki speaker yapılandırmasını destekliyor. Mevcut `Tracon.Google.UseGoogle(...)` kaydı bunu voice katmanına bağlamıyor. Gemini için ayrı TTS adapter'ı gerekir. Provider'ın tek çağrı ve çıktı limitleri seçilen model/API sürümüne göre doğrulanmalıdır. Kaynak: [Gemini TTS](https://ai.google.dev/gemini-api/docs/speech-generation).
+ElevenLabs Text to Dialogue endpoint'i text/voice çiftleri alır; istek başına
+2.000 karakter altı önerilir, en çok 10 ses. Google Gemini TTS tek istekte en
+çok iki speaker alır; 24 kHz mono 16-bit PCM/WAV döner. Mevcut Tracon
+adapter'ları bunları kullanmaz (F-296, F-297). Kaynak:
+[ElevenLabs Create dialogue](https://elevenlabs.io/docs/api-reference/text-to-dialogue/convert),
+[Gemini TTS](https://ai.google.dev/gemini-api/docs/speech-generation).
 
 ### 6.2 Tenant'a göre seçim
 
-Mevcut `ISpeechSynthesizer` singleton'dır. Voice provider ve credential'ları süreç genelinde yapılandırılır. Bu katman text model provider'larının tenant BYOK sistemine bağlı değildir. `SpeechRequest` provider veya credential reference alanı taşımaz. Kaynak: [speech sözleşmesinin tenant açıklaması](../../../src/Tracon.Abstractions/Voice/SpeechContracts.cs), [UseVoice kaydı](../../../src/Tracon.Voice/VoiceBuilderExtensions.cs).
+Yerleşik `ISpeechSynthesizer` singleton'dır; voice provider ve credential'ları
+süreç genelinde yapılandırılır. Bu katman text model provider'larının tenant
+BYOK ve egress sistemine bağlı değildir; `SpeechRequest` provider veya
+credential reference alanı taşımaz. Kaynak: [speech sözleşmesi](../../../src/Tracon.Abstractions/Voice/SpeechContracts.cs),
+[UseVoice kaydı](../../../src/Tracon.Voice/VoiceBuilderExtensions.cs).
 
-Bu tüketici için öneri, kendi uygulamasında dialogue üretim servisi kurmasıdır. Bu servis production snapshot'ından tenant'ın provider, model, episode dili ve iki speaker eşlemesini alır. Host'un yönettiği credential resolver uygun provider hesabını çözer. Tenant profili yalnız host operatörünün tanımladığı seçimleri taşır. Provider'ın iki speaker, dil ve format capability kontrolü ücretli çağrıdan önce yapılır.
+Öneri: tüketici kendi uygulamasında dialogue üretim servisi kurar. Servis
+production snapshot'ından tenant'ın provider, model, episode dili ve iki
+speaker eşlemesini alır; host'un credential resolver'ı uygun provider hesabını
+çözer. Aynı süreçte birden çok sentezleyici keyed servis olarak yaşar
+(`AddKeyedSingleton<ISpeechSynthesizer>("gemini", …)`); fonksiyon düğümü
+sağlayıcıyı run parametresinden (Faz 194) ya da düğüm ayarından (Faz 195)
+seçer. Provider'ın iki speaker, dil ve format capability kontrolü ücretli
+çağrıdan önce yapılır. Paket tarafı genelleştirmesi F-298'dir.
 
-Bu servis Tracon'de bugün bulunan yeni bir API değildir. Tüketici implementasyonudur. Paket tarafında genelleştirilirse mevcut interface'e zorunlu üyeler eklemek yerine compatibility değerlendirmesi yapılmalıdır. Yeni dialogue sözleşmesi tek voice sözleşmesinden ayrı tasarlanabilir.
-
-**Bütün TTS credential'larını host yönetir.** İlk kapsamda müşteri anahtar yükleme ekranı veya voice BYOK entegrasyonu gerekmez. Tenant bazlı provider seçimi yine gerekir; credential sahipliğinin ortak olması routing ihtiyacını kaldırmaz. Host bir provider hesabını birden fazla tenant için kullanabilir. Bu durumda account quota'sı ortak, production attribution ve tenant maliyet kaydı ayrı tutulur.
-
-Kalıcı profile gerekiyorsa yalnız host hesabının kimliği veya secret reference'ı yazılır. Secret değeri tenant'a gösterilmez; transcript'e, script argümanına veya log'a girmez. Host'un tek hesap mı birden fazla hesap mı kullanacağı henüz belirlenmedi.
+**Bütün TTS credential'larını host yönetir.** İlk kapsamda müşteri anahtar
+yükleme ekranı gerekmez. Tenant bazlı provider seçimi yine gerekir; host bir
+provider hesabını birden fazla tenant için kullanabilir, account quota'sı
+ortak, production attribution ve tenant maliyet kaydı ayrı tutulur. Kalıcı
+profile'a yalnız host hesabının kimliği veya secret reference'ı yazılır
+(K-059).
 
 ### 6.3 Provider geçişinin sınırı
 
-Provider değiştirmek voice ID'sini korumaz. Speaker A/B için her provider'a ait ayrı eşleme gerekir. Format, sample rate, delivery kontrolü ve alignment yetenekleri de farklı olabilir. Adapter bunları ortak artifact metadata'sına çevirir.
+Provider değiştirmek voice ID'sini korumaz. Speaker A/B için her provider'a ait
+ayrı eşleme gerekir. Format, sample rate, delivery kontrolü ve alignment
+yetenekleri de farklı olabilir. Adapter bunları ortak artifact metadata'sına
+çevirir.
 
-Bir episode'un ortasında otomatik provider fallback'i ses kimliğini değiştirebilir. Bu davranış varsayılan kabul edilmemelidir. Fallback ile yeniden üretim policy'si ayrıca belirlenir. Tamamlanan segmentler, provider/model ve parametre hash'iyle kaydedilir.
+Bir episode'un ortasında otomatik provider fallback'i ses kimliğini
+değiştirebilir; varsayılan kabul edilmemelidir. Tamamlanan segmentler
+provider/model ve parametre hash'iyle kaydedilir.
 
 ## 7. Python nerede çalışır; sandbox gerekli mi?
 
 ### 7.1 Tracon'in mevcut script yolu
 
-Skill script'leri opt-in'dir. `UseSkillScripts(...)` ile açılır. `SkillScriptProcessRunner`, `ProcessStartInfo` kullanarak interpreter'ı ayrı OS process'inde başlatır. Shell açmaz; JSON argümanını stdin'e yazar; stdout/stderr'i sınırlar ve timeout'ta process tree'yi sonlandırır. Host'ta Python interpreter ve bağımlılıkları bulunmalıdır. Kaynak: [script builder](../../../src/Tracon.Core/Skills/TraconSkillScriptBuilderExtensions.cs), [process runner](../../../src/Tracon.Core/Skills/Scripts/SkillScriptProcessRunner.cs).
+Skill script'leri opt-in'dir. `UseSkillScripts(...)` ile açılır.
+`SkillScriptProcessRunner` interpreter'ı ayrı OS process'inde başlatır: shell
+açmaz; JSON argümanını stdin'e yazar; stdout/stderr'i sınırlar; timeout'ta
+process tree'yi sonlandırır. Host'ta Python interpreter ve bağımlılıkları
+bulunmalıdır. Kaynak: [script builder](../../../src/Tracon.Core/Skills/TraconSkillScriptBuilderExtensions.cs),
+[process runner](../../../src/Tracon.Core/Skills/Scripts/SkillScriptProcessRunner.cs).
 
-Bu process varsayılan olarak **Tracon'le aynı container ve OS kullanıcı kimliğinde** çalışır. Env allowlist veya geçici dizin, dosya/ağ izolasyonu sağlamaz. Script runner'ın kendi kodu da bunun OS sandbox olmadığını açıkça belirtir. Kaynak: [SandboxedSkillScriptRunner](../../../src/Tracon.Core/Skills/Scripts/SandboxedSkillScriptRunner.cs), [güvenlik modeli](../../MIMARI-GUVENLIK.md#skill-script-çalıştırma).
+Bu process **Tracon'le aynı container ve OS kullanıcı kimliğinde** çalışır.
+Env allowlist ve geçici dizin dosya/ağ izolasyonu sağlamaz; runner'ın kendi
+kodu bunun OS sandbox olmadığını belirtir (K-862). Her çalıştırma beş kapıdan
+geçer (Enabled · içeriğe pinli grant · yorumlayıcı listesi · argüman doğrulama
+· denetim izi). Yürütmeyi host'un sandbox'ına taşıyan public seam F-345'tir
+(aday). Kaynak: [SandboxedSkillScriptRunner](../../../src/Tracon.Core/Skills/Scripts/SandboxedSkillScriptRunner.cs),
+[güvenlik modeli](../../MIMARI-GUVENLIK.md#skill-script-çalıştırma).
 
-Skill script yolu grant ve MAF approval akışı taşır. Approval rule ile dispatcher çağrısı otomatik onaylanabilir; her çağrıda insan beklemek zorunlu değildir. Functional test bu yolu açıkça kullanır. Approval rule ile içerik grant'ı ayrı kapılardır: otomatik approval, stored script'in içerik hash'i kontrolünü kaldırmaz. Kaynak: [SkillScriptContentPinTests](../../../tests/Tracon.AspNetCore.FunctionalTests/SkillScriptContentPinTests.cs).
-
-Bu imkân otomatik podcast hattını mümkün kılar; fakat script'i ne zaman çağıracağını hâlâ agent belirliyorsa zorunlu pre/post adım garantisi sağlamaz. Bu nedenle bu tüketicinin zorunlu medya adımları için deterministic workflow/worker çağrısı önerilir. Skill script yolu agent'ın gerektiğinde seçtiği yardımcı işlemlerde ayrıca kullanılabilir.
+Skill script yolu agent'ın gerektiğinde seçtiği yardımcı işlemler içindir;
+script'i ne zaman çağıracağını agent belirler, zorunlu pre/post adım garantisi
+yoktur. Zorunlu medya adımları için fonksiyon düğümü ve ayrı worker önerilir.
 
 ### 7.2 Bu tüketici için önerilen deployment
 
-**Audio işlemleri ayrı worker container'ında çalışmalıdır.** Script kodunu geliştirici image içine deploy eder. Operatör yalnız script kimliği ve doğrulanan parametreleri seçer. Bu sınır, kullanıcının belirttiği yetki modeline uyar.
+**Audio işlemleri ayrı worker container'ında çalışır.** Script kodunu
+geliştirici image içine deploy eder; operatör yalnız script kimliği ve
+doğrulanan parametreleri seçer. Operatör script'i canlı yazacaksa (video
+hattındaki gibi) video raporu § 7.3'ün sandbox modeli burada da geçerlidir ve
+iki hat aynı runner'ı paylaşır (§ 15).
 
 ```mermaid
 flowchart LR
-    OPS["Host operatörü"] --> API["SaaS API ve Tracon kontrol yüzeyi"]
-    API --> DB["Kalıcı job ve production state"]
+    OPS["Host operatörü ve kiracı ekranı"] --> API["SaaS API ve Tracon kontrol yüzeyi"]
+    API --> DB["Kalıcı job, run ve production state"]
     DB --> ORCH[".NET orchestration worker: workflow ve agent'lar"]
     ORCH --> PROVIDERS["LLM ve TTS provider'ları"]
-    ORCH --> AUDIOJOB["Audio görev kaydı"]
-    AUDIOJOB --> AUDIO["Audio worker container: .NET runner ve Python"]
+    ORCH --> AUDIO["Audio worker container: Python + ffmpeg<br/>HTTP ile çağrılır"]
     ORCH --> MINIO["MinIO artifact storage"]
     AUDIO --> MINIO
     ORCH --> DOMAIN["Tüketici domain service'i"]
     DOMAIN --> DB
+    ORCH -->|"run.completed webhook'u"| API
 ```
 
-API process'inde `TraconSchedulingOptions.RunWorker=false` kullanılabilir. Orchestration worker ayrı process'te aynı kalıcı queue'yu işler. Audio görevleri custom `IJobHandler` ve özel lane ile ayrılabilir; worker `Lanes` ile yalnız kendi görevlerini alabilir. Bu, mevcut Tracon scheduling yüzeyidir. Audio görev sonucu ile bekleyen workflow arasındaki koordinasyonu tüketici yazar. Kaynak: [scheduling options](../../../src/Tracon.Abstractions/Scheduling/TraconSchedulingOptions.cs), [custom job handler rehberi](../../../docs-site/src/content/docs/guides/write-your-own-job-handler.md).
+API process'inde `TraconSchedulingOptions.RunWorker = false` kullanılır.
+Orchestration worker ayrı process'te aynı kalıcı queue'yu işler. Workflow
+`tracon.workflow` job'u ile kuyruktan başlatılabilir (bağlantı tutmaz; run
+parametrelerini taşır, Faz 194) ya da host'un kendi `IJobHandler`'ından
+`IWorkflowRunner` ile. Kuyruklu workflow kökü bugün atıf taşımaz (F-364, 🟢);
+`ProductionId` parametre olarak gider. Kaynak: [scheduling options](../../../src/Tracon.Abstractions/Scheduling/TraconSchedulingOptions.cs),
+[custom job handler rehberi](../../../docs-site/src/content/docs/guides/write-your-own-job-handler.md).
 
-Audio worker image'ı Python sürümünü, kilitli dependency set'ini ve gereken audio binary'lerini taşır. .NET workflow node'u worker'a artifact kimliklerini ve küçük JSON parametrelerini gönderir. Audio baytları LLM context'ine veya job JSON'una konmaz.
+Audio worker image'ı Python sürümünü, kilitli dependency set'ini ve gereken
+audio binary'lerini taşır. Fonksiyon düğümü worker'a artifact kimliklerini ve
+küçük JSON parametrelerini gönderir. Audio baytları LLM context'ine, workflow
+mesajına veya job JSON'una konmaz.
 
-Worker non-root kullanıcıyla çalışır. Script dizini read-only olur. Her production için ayrı scratch dizini açılır. CPU, memory, process sayısı ve disk sınırları deployment'ta uygulanır. Worker'a geniş DB/TTS credential'ları verilmez. Storage erişimi gerekli object scope'uyla sınırlanır. Ağ erişimi yalnız gerçekten gereken servislere açılır. Docker'ın varsayılan container ayarları CPU/memory limitlerini kendiliğinden koymaz. Kaynak: [Docker resource constraints](https://docs.docker.com/engine/containers/resource_constraints).
+Worker non-root kullanıcıyla çalışır. Script dizini read-only olur. Her
+production için ayrı scratch dizini açılır. CPU, memory, process sayısı ve
+disk sınırları deployment'ta uygulanır (Docker varsayılanı limit koymaz).
+Worker'a geniş DB/TTS credential'ları verilmez. Storage erişimi gerekli object
+scope'uyla sınırlanır. Ağ erişimi yalnız gereken servislere açılır. Host
+path'i veya Docker socket'i worker'a verilmez. Kaynak: [Docker resource constraints](https://docs.docker.com/engine/containers/resource_constraints).
 
-Güvenilir kod çalıştırıldığı için her işte yeni VM veya tenant'a özel container zorunluluğu bu talepten çıkmaz. Ayrı worker'ın paylaştığı process/disk/cache alanları yine tenant izolasyonu açısından incelenmelidir. Host path'i veya Docker socket'i script container'ına verilmemelidir.
+Güvenilir kod çalıştırıldığı için her işte yeni VM veya tenant'a özel
+container zorunluluğu bu talepten çıkmaz. Ayrı worker'ın paylaştığı
+process/disk/cache alanları tenant izolasyonu açısından yine incelenir.
 
-Bu worker, Tracon'in internal skill runner'ını dışarı taşıyan hazır bir extension değildir. Kendi kodu ile process çalıştırır. Skill grant, audit ve timeout kurallarını otomatik devralmaz. Tüketici; deploy edilmiş script allowlist'i, typed parametre validation'ı, audit, timeout, process cleanup ve artifact doğrulamasını açıkça uygular. Bu yolda müşterinin keyfi kodu çalıştırılmaz.
+Bu worker Tracon'in skill runner'ını dışarı taşıyan hazır bir extension
+değildir. Tüketici; deploy edilmiş script allowlist'i, typed parametre
+validation'ı, audit, timeout, process cleanup ve artifact doğrulamasını
+açıkça uygular. Bu yolda müşterinin keyfi kodu çalıştırılmaz.
 
 ### 7.3 Pre-processing ve post-processing
 
-Kesin kapsam **segment birleştirme, normalization ve intro/outro** işlemleridir. TTS öncesinde henüz yeni podcast audio'su yoktur. Bu adım metni/provider girdisini ve mevcut intro/outro asset'lerini hazırlayabilir. TTS sonrasında worker speech segment'lerini sırayla birleştirir; normalization ve intro/outro adımlarını seçilen preset'in işlem sırasıyla uygular. Asset sürümü ve işlem sırası production snapshot'ına girer.
+Kesin kapsam **segment birleştirme, normalization ve intro/outro**'dur. TTS
+öncesinde metni/provider girdisini ve mevcut intro/outro asset'lerini
+hazırlama; TTS sonrasında segment'leri sırayla birleştirme, normalization ve
+intro/outro'yu seçilen preset'in işlem sırasıyla uygulama. Asset sürümü ve
+işlem sırası production snapshot'ına girer.
 
-Normalization yöntemi ve hedefi, final codec/sample rate, intro/outro asset seçimi ve geçiş biçimi henüz belirlenmedi. Bunlar preset'in doğrulanan parametreleridir. Gereken resampling/encoding adapter veya worker tarafından yapılabilir. Arka plan müziği ve sessizlik düzenleme genişleme seçenekleridir; kesin kapsama eklenmez.
+Normalization yöntemi ve hedefi, final codec/sample rate, intro/outro asset
+seçimi ve geçiş biçimi henüz belirlenmedi; bunlar preset'in doğrulanan
+parametreleridir ve Faz 195 ile düğüm ayarı olarak saklanabilir. Arka plan
+müziği ve sessizlik düzenleme genişleme seçenekleridir.
 
-Zorunlu script adımı agent'ın kararına bırakılmaz. Workflow belirli script sürümünü çalıştırır. Girdi ve çıktı manifest'i, checksum, exit code ve timeout sonucu kaydedilir. Başarısız script sonrasında episode `Ready` olmaz.
+Zorunlu script adımı agent'ın kararına bırakılmaz. Workflow belirli script
+sürümünü çalıştırır. Girdi ve çıktı manifest'i, checksum, exit code ve timeout
+sonucu kaydedilir. Başarısız script sonrasında episode `Ready` olmaz; fonksiyon
+düğümü istisna atar ve run `Failed` biter. Fonksiyon düğümünün retry policy'si
+yalnız geçici hatayı tekrar dener; kalıcı `4xx` ilk denemede atılır (F-338).
 
 ## 8. Operatöre nasıl kolaylık sağlanır?
 
 ### 8.1 Kod ile profile ayrımı
 
-Host bir veya birkaç versioned workflow template'i deploy eder. Her tenant'ın profile'ı template'i, writer/reviewer ayarlarını, kabul policy'sini, episode dilini, iki speaker eşlemesini, TTS provider/model seçimini ve audio preset'ini belirtir. Audio preset'i birleştirme, normalization ve intro/outro ayarlarını taşır. Gerçekten farklı topology gerekiyorsa ayrı code-defined template seçilir.
+Host bir veya birkaç versioned workflow template'i deploy eder. Her tenant'ın
+profile'ı template'i, writer/reviewer ayarlarını, kabul policy'sini, episode
+dilini, iki speaker eşlemesini, TTS provider/model seçimini ve audio preset'ini
+belirtir. Run başına değişenler (dil, süre hedefi, ses) workflow
+parametresidir; tenant başına sabit olanlar düğüm ayarıdır (Faz 195) ya da
+profil verisidir. Gerçekten farklı topology gerekiyorsa ayrı code-defined
+template seçilir.
 
-Her tenant için graf kodunu kopyalamak bakım maliyetini büyütür. Bütün farkları LLM instruction'ına gömmek de kontrolü zayıflatır. Öneri, topology'yi kodda; desteklenen farkları doğrulanan profile verisinde tutmaktır.
+Her tenant için graf kodunu kopyalamak bakım maliyetini büyütür. Bütün
+farkları LLM instruction'ına gömmek kontrolü zayıflatır. Topology kodda;
+desteklenen farklar doğrulanan profile verisinde ve parametrelerde.
 
-`PodcastProductionProfile` gibi bir tip tüketicinin domain modeli olabilir. Bu ad Tracon'de hazır bir public tip değildir. Profile; arbitrary script path'i, shell command veya executable content taşımaz. Yalnız deploy edilmiş script/preset kimlikleri ve parametreler taşır.
+`PodcastProductionProfile` gibi bir tip tüketicinin domain modeli olabilir.
+Profile; arbitrary script path'i, shell command veya executable content
+taşımaz.
 
 ### 8.2 Düzenleme yüzeyi
 
 | Operatör işlemi | Bugünkü Tracon desteği | Ek yüzey |
 |---|---|---|
-| Writer/reviewer instruction değiştirmek | Stored agent definition'ları ve version history | Host'a özel tenant/profile eşleme ekranı |
-| Modeli değiştirmek | Agent model binding | Profile sınırları ve regression doğrulaması |
-| Hazır script seçmek ve parametre vermek | Genel skill/script editor vardır | Otomatik audio worker için preset editor ve parametre formu |
-| TTS provider/model/voice seçmek | Tek provider voice ayarı ve voice listeleme | Dialogue provider catalog'u ve tenant profile alanları |
-| Türkçe/İngilizce ve audio preset seçmek | Genel instruction culture'ı ve tek voice language alanı vardır | Episode dili seçicisi, dil/voice uyum kontrolü ve normalization/intro/outro formu |
-| Sequential function zincirini değiştirmek | API ile `Nodes` düzenlenebilir | UI'da agent/function seçici ve sıralama eksik |
-| Kabul/revizyon kuralı değiştirmek | Code-defined policy içinde uygulanabilir | Rubric, eşik ve revision limit editor'ı |
-| Üretim ilerlemesini görmek | Run tree, node event'leri ve job ekranı | Episode/segment/artifact odaklı görünüm |
-| Ayarı denemek | Agent run, eval ve experiment | Küçük audio preview ve production profile denemesi |
+| Writer/reviewer instruction değiştirmek | Stored agent definition'ları, version history, konsol | Host'a özel tenant/profile eşleme ekranı |
+| Modeli değiştirmek | Agent model binding; kiracı egress ve BYOK | Profile sınırları ve regression doğrulaması |
+| Revizyon sayısı ve yargıç ölçütleri | API ile `Harness.Loop` | Konsol editörü F-302 |
+| Hazır script seçmek ve parametre vermek | Fonksiyon düğümü + run parametresi (Faz 194) | Düğüm ayarı ve JSON alanı Faz 195 |
+| TTS provider/model/voice seçmek | Tek provider voice ayarı; özel sentezleyici kaydı | Dialogue provider catalog'u ve tenant profile alanları (F-296, F-298) |
+| Türkçe/İngilizce ve audio preset seçmek | Instruction culture'ı, `LanguageCode`, run parametresi | Dil/voice uyum kontrolü ve preset formu |
+| Sequential function zincirini değiştirmek | API ile `Nodes`; konsol salt okunur | Konsol düğüm listesi Faz 195 |
+| Üretim ilerlemesini görmek | Run tree, node event'leri, job ekranı, webhook'lar | Episode/segment/artifact odaklı görünüm |
+| Ayarı denemek | Agent run, eval ve experiment | Küçük audio preview ve profile denemesi |
 
-Stored skill editor Python kodunu da taşıyabilir; fakat seçilen ihtiyaçta operatöre bu yetki verilmez. Instruction düzenlenebilsin diye agent'ı yalnız code-defined kaydetmek de doğru olmaz. Code kaydı aynı isimli stored kaydın önüne geçebilir. Düzenlenecek instruction'lar stored definition veya tüketicinin açık configuration mekanizmasıyla sağlanmalıdır. Kaynak: [catalog öncelikleri](../../../src/Tracon.Core/Catalog/CompositeAgentCatalog.cs), [skill editor](../../../src/Tracon.UI/frontend/src/screens/skills/skill-editor.tsx).
+Stored skill editor Python kodunu da taşıyabilir; seçilen ihtiyaçta operatöre
+bu yetki verilmez. Instruction düzenlenebilsin diye agent'ı yalnız
+code-defined kaydetmek doğru olmaz; code kaydı aynı isimli stored kaydın önüne
+geçer. Kaynak: [catalog öncelikleri](../../../src/Tracon.Core/Catalog/CompositeAgentCatalog.cs),
+[skill editor](../../../src/Tracon.UI/frontend/src/screens/skills/skill-editor.tsx).
 
 ### 8.3 Değişiklik ne zaman etkili olur?
 
-Önerilen policy: yeni profile sürümü yeni production'larda kullanılır. Devam eden production, başladığı snapshot'la tamamlanır. Rapor bu policy'yi önerir; mevcut workflow runner bunu bütün bağımlılıklar için otomatik sağlamaz.
+Önerilen policy: yeni profile sürümü yeni production'larda kullanılır. Devam
+eden production başladığı snapshot'la tamamlanır. Mevcut workflow runner bunu
+bütün bağımlılıklar için otomatik sağlamaz.
 
-Agent catalog belirli stored definition sürümünü resolve edebilir. Buna rağmen mevcut workflow wrapper'ı agent'ı çağrı sırasında güncel catalog'dan resolve eder; workflow grafı da run/resume sırasında yeniden çözülür. Bu yüzden version history ile bütün production'ın version pinning'i aynı şey değildir. Kaynak: [version resolution](../../../src/Tracon.Abstractions/Agents/IAgentCatalog.cs), [WorkflowAgentCache](../../../src/Tracon.Workflows/Internal/WorkflowAgentCache.cs), [ChildAgentInvoker](../../../src/Tracon.Core/Graph/ChildAgentInvoker.cs), [WorkflowRunner](../../../src/Tracon.Workflows/Internal/WorkflowRunner.cs).
+Agent catalog belirli stored definition sürümünü resolve edebilir ve sabit
+sürüm artık kendi descriptor'ıyla gelir (F-331). Buna rağmen workflow adımı
+agent'ı çağrı sırasında **güncel** catalog'dan resolve eder; bu belgelenmiş
+tasarımdır (K-309). Workflow grafı da run/resume sırasında yeniden çözülür.
+Workflow düğümüne `AgentVersion` bağlamak ve run'a tanım sürümü damgası F-300'ün
+kapsamındadır. Kaynak: [version resolution](../../../src/Tracon.Abstractions/Agents/IAgentCatalog.cs),
+[WorkflowAgentCache](../../../src/Tracon.Workflows/Internal/WorkflowAgentCache.cs),
+[ChildAgentInvoker](../../../src/Tracon.Core/Graph/ChildAgentInvoker.cs).
 
-Tüketici snapshot'ında workflow template sürümü, agent sürümleri, rubric, episode dili, provider/model, speaker eşlemeleri, host hesap reference'ı, script image/content sürümü, intro/outro asset sürümleri ve audio parametreleri tutulmalıdır. Custom graf veya orchestration katmanı bu snapshot'ı kullanmalıdır. Secret değeri snapshot'a girmez. Kullanılabilir API'lerle run tree bağlamını ve pinned agent resolution'ını birlikte sağlayan entegrasyon ayrıca doğrulanmalıdır.
+Tüketici snapshot'ında workflow template sürümü, agent sürümleri, rubric,
+episode dili, provider/model, speaker eşlemeleri, host hesap reference'ı,
+script image sürümü, intro/outro asset sürümleri ve audio parametreleri
+tutulur. Secret değeri snapshot'a girmez.
 
 ## 9. Kalıcı state, MinIO ve entity ilişkisi
 
 ### 9.1 Üretimin sahibi tüketici domain'idir
 
-`ProductionId` episode üretiminin kalıcı kimliğidir. Workflow run kimliği bununla aynı kabul edilmemelidir. Revizyon, resume veya yeniden deneme birden fazla run kaydı oluşturabilir. Domain; production, tenant, episode ve run ilişkilerini tutar.
+`ProductionId` episode üretiminin kalıcı kimliğidir; workflow run kimliği
+bununla aynı kabul edilmez. Revizyon, resume veya yeniden deneme birden fazla
+run kaydı oluşturabilir. Domain; production, tenant, episode ve run
+ilişkilerini tutar. `ProductionId` run'a etiket (`AmbientRunAttributionScope`,
+F-337) ve parametre olarak girer.
 
-Örnek domain kayıtları; episode, production attempt, transcript revision, audio segment ve artifact olabilir. Bunlar tüketici entity'leridir. Tracon'in kendi store'ları değiştirilmeden ilişkilendirilebilir. EF Core kullanımı da tüketici uygulamasının tercihidir.
+MinIO object key'i tenant/production/segment sürümüyle belirlenir. Bucket ve
+object key kalıcı reference olarak tutulur; süresi dolan presigned URL kalıcı
+anahtar yapılmaz. Her erişimde authenticated tenant ile artifact sahipliği
+doğrulanır.
 
-MinIO object key'i tenant/production/segment sürümüyle belirlenir. Bucket ve object key kalıcı reference olarak tutulur. Süresi dolan presigned URL kalıcı entity anahtarı yapılmaz. Her erişimde authenticated tenant ile artifact sahipliği doğrulanır.
-
-Tracon UI'da audio attachment gösterilecekse `IAttachmentStorage` adapter'ı uygulanabilir. Domain'in uzun ömürlü final media dosyası kendi media storage servisiyle de yönetilebilir. MinIO SDK bağımlılığı tüketici veya ayrı adapter paketinde kalır. Kaynak: [storage sözleşmesi](../../../src/Tracon.Abstractions/Attachments/IAttachmentStore.cs), [resmi MinIO .NET SDK](https://github.com/minio/minio-dotnet).
+Tracon UI'da audio attachment gösterilecekse `IAttachmentStorage` adapter'ı
+uygulanabilir; retention ve erasure artık harici baytı da siler (F-332) ve
+`DeleteAsync` var olmayan konum için başarı dönmelidir. Domain'in uzun ömürlü
+final dosyası kendi media storage servisiyle yönetilir. Kaynak:
+[storage sözleşmesi](../../../src/Tracon.Abstractions/Attachments/IAttachmentStore.cs),
+[resmi MinIO .NET SDK](https://github.com/minio/minio-dotnet).
 
 ### 9.2 Upload ile DB ilişkisi
 
-MinIO upload ve uygulama DB transaction'ı tek atomik işlem değildir. Önerilen sıralama: final artifact'i belirli object key'e yaz; object checksum/metadata'sını doğrula; domain transaction'ında ilişkiyi ve `Ready` durumunu kaydet. Transaction başarısızsa aynı artifact üzerinden ilişki adımı tekrar denenir. TTS yeniden çağrılmaz.
+MinIO upload ve uygulama DB transaction'ı tek atomik işlem değildir. Sıralama:
+final artifact'i belirli object key'e yaz; checksum/metadata'yı doğrula;
+domain transaction'ında ilişkiyi ve `Ready` durumunu kaydet. Transaction
+başarısızsa aynı artifact üzerinden ilişki adımı tekrar denenir; TTS yeniden
+çağrılmaz.
 
-Kalıcı step ledger'ı ve outbox/reconciliation mekanizması eksik veya sahipsiz object'leri bulmalıdır. Final object yalnız upload başarılı diye kullanıcıya hazır gösterilmez. Domain ilişkisinin de tamamlanması gerekir.
+Kalıcı step ledger'ı ve outbox/reconciliation mekanizması eksik veya sahipsiz
+object'leri bulur. Final object yalnız upload başarılı diye kullanıcıya hazır
+gösterilmez.
 
-Tracon run/attachment retention'ı ile müşteri episode retention'ı ayrı policy'lerdir. Bir artifact'i domain entity'sine bağlamak, Tracon'in retention kararını kendiliğinden değiştirmez. Tracon attachment yolu kullanılacaksa session/run ilişkisi ve silme davranışı doğrulanmalıdır. Kaynak: [SpeakTool retention notu](../../../src/Tracon.Voice/Tools/SpeakTool.cs), [SqlAttachmentStore](../../../src/Tracon.Sql.Shared/Stores/SqlAttachmentStore.cs).
+Tracon run/attachment retention'ı ile müşteri episode retention'ı ayrı
+policy'lerdir. Bekleyen (`AwaitingInput`) run'ın olayları, checkpoint'leri ve
+ekleri retention'dan muaftır (K-888, K-896). Kaynak: [SpeakTool retention notu](../../../src/Tracon.Voice/Tools/SpeakTool.cs),
+[SqlAttachmentStore](../../../src/Tracon.Sql.Shared/Stores/SqlAttachmentStore.cs).
 
 ### 9.3 Side effect tekrarları
 
-Tracon job yürütmesi at-least-once davranır. Function node'ları eski checkpoint'ten resume edilince tekrar çalışabilir. Kaynak: [job runtime contract](../../../docs-site/src/content/docs/guides/write-your-own-job-handler.md#runtime-contract), [function replay sözleşmesi](../../../src/Tracon.Workflows/TraconWorkflowFunctionExtensions.cs).
+Tracon job yürütmesi at-least-once davranır; kira dolumu bir deneme sayılır ve
+sınır aşılınca job koşmadan `tracon.job.attempts-exhausted` ile düşer (F-326).
+Handler bittikten sonraki `store` hatası handler hatası sayılmaz; yazım kira
+içinde tekrarlanır (F-348). Function node'ları eski checkpoint'ten resume
+edilince tekrar çalışabilir. Kaynak: [job runtime contract](../../../docs-site/src/content/docs/guides/write-your-own-job-handler.md#runtime-contract),
+[function replay sözleşmesi](../../../src/Tracon.Workflows/TraconWorkflowFunctionExtensions.cs).
 
 | Failure noktası | Beklenen recovery |
 |---|---|
 | TTS sonucu geldi; kalıcı artifact yazımı tamamlandı | Segment kaydını bul; aynı metni yeniden seslendirme |
-| TTS provider çağrıyı işledi; client sonucu alamadı | Sonuç belirsizliğini kaydet; provider'ın recovery/idempotency desteğini değerlendir. Duplicate ücretin önlendiğini iddia etme |
-| Audio worker öldü | Tamamlanan segmentleri koru; eksik audio adımını yeni scratch dizininde tekrar çalıştır |
+| TTS provider çağrıyı işledi; client sonucu alamadı | Sonuç belirsizliğini kaydet; duplicate ücretin önlendiğini iddia etme |
+| Audio worker öldü | Tamamlanan segmentleri koru; eksik adımı yeni scratch dizininde tekrar çalıştır |
 | MinIO upload bitti; entity transaction'ı başarısız | Mevcut object'ten ilişki adımını yeniden dene |
-| Worker lease'i kayboldu; ikinci worker işi aldı | Production/step sahipliği, unique key ve eşzamanlı yazma kontrolüyle yarışan sonucu engelle |
+| Worker lease'i kayboldu | `MaxAttempts = 1` ise job düşer, yeniden koşmaz; run reconciliation ile kapanır; yeni job tamamlanan adımları atlar |
+| Süreç çöktü; workflow run'ı `Running` kaldı | Reconciliation açıksa `Failed` kapanır; `POST .../resume` elle (F-321 otomatik sürdürme, F-344 önkoşulu) |
 | Operatör profile'ı değiştirdi | Eski production snapshot'ını koru; yeni production'a yeni sürümü uygula |
 
-Idempotency key; tenant, production, step/segment ve input/parameter hash'ini içermelidir. Episode dili de input/parameter hash'ine girer. İki dilde ayrı episode üretilecekse transcript ve artifact reference'ları birbirinden ayrılır. Yerel unique key, dış provider'da exactly-once ücret garantisi sağlamaz. TTS yanıtı ile artifact yazımı arasındaki crash penceresi ayrıca ele alınmalıdır.
+Idempotency key; tenant, production, step/segment ve input/parameter hash'ini
+içerir. Episode dili de hash'e girer. Yerel unique key dış provider'da
+exactly-once ücret garantisi sağlamaz.
 
 ## 10. 20 eşzamanlı üretim
 
-**20 active production, 20 sınırsız TTS çağrısı veya 20 eşzamanlı Python process'i demek değildir.** Her aşamanın kapasitesi ayrı yönetilmelidir. Bekleyen production queue'da görünür; pahalı aşamalar mevcut slot ve provider quota'sı ölçüsünde çalışır.
-
-Mevcut varsayılanlar hedefe göre yeniden yapılandırılmalıdır:
+**20 active production, 20 sınırsız TTS çağrısı veya 20 eşzamanlı Python
+process'i demek değildir.** Her aşamanın kapasitesi ayrı yönetilir.
 
 | Ayar | Varsayılan | Etkisi |
 |---|---|---|
-| `TraconSchedulingOptions.MaxConcurrentJobs` | 2 / process | Job worker kapasitesi; lane bütçeleri ek kapasite verebilir |
-| `TraconWorkflowOptions.MaxConcurrentRuns` | 4 | Bir runner'ın tenant'lar arasında paylaşılan workflow limiti |
-| `TraconWorkflowOptions.RunTimeout` | 10 dakika | Cooperative deadline; yeni adımları sınırlar, node'u zorla durdurmaz |
-| `VoiceOptions.MaxConcurrentRequests` | 2 | Mevcut ElevenLabs client'ının request limiti |
-| `VoiceOptions.MaxCharactersPerRequest` | 5.000 | Tek request limiti; otomatik chunking değildir |
-| `TraconSkillScriptOptions.MaxConcurrentTotal` | 8 | Mevcut skill script runner toplam limiti |
-| `TraconSkillScriptOptions.MaxConcurrentPerTenant` | 2 | Skill script runner tenant limiti |
-| `TraconSkillScriptOptions.Timeout` | 30 saniye | Skill script process timeout'u; özel audio worker'a uygulanmaz |
-| `TraconAttachmentOptions.MaxBytes` | 20 MiB | HTTP attachment upload sınırı; doğrudan store yazımına güvenlik garantisi değildir |
+| `TraconSchedulingOptions.MaxConcurrentJobs` | 2 / process | Job worker kapasitesi; lane bütçeleri ek kapasite verir |
+| `TraconSchedulingOptions.LeaseDuration` | 5 dakika | Yenileme kiranın üçte birinde; handler çalışırken yenilenir |
+| `TraconSchedulingOptions.MaxAttempts` | 3 | Kira dolumu deneme sayılır |
+| `TraconWorkflowOptions.MaxConcurrentRuns` | 4 | Tenant'lar arasında paylaşılan limit; bekleyen run `Running` görünür, bekleme `RunTimeout`'a sayılır |
+| `TraconWorkflowOptions.RunTimeout` | 10 dakika | Cooperative deadline; aşımda `Canceled` + `TimeoutException`; node'u zorla durdurmaz |
+| `AgentGraph.ChildDeadline` | 2 dakika | Writer adımının sınırı; aşımda run `Failed` |
+| `TraconEndpointOptions.StreamKeepAliveInterval` | 15 saniye | SSE akışı; proxy boşta kalma süresinin altında |
+| `VoiceOptions.MaxConcurrentRequests` | 2 | Yerleşik ElevenLabs client'ının limiti |
+| `VoiceOptions.MaxCharactersPerRequest` | 5.000 | Yerleşik client'ın limiti; özel sentezleyici kendi limitini bildirir |
+| `TraconSkillScriptOptions.MaxConcurrentTotal` / `PerTenant` / `Timeout` | 8 / 2 / 30 sn | Yalnız skill script runner; audio worker'a uygulanmaz |
+| `TraconAttachmentOptions.MaxBytes` | 20 MiB | HTTP attachment upload sınırı |
 
-Kaynak: [scheduling](../../../src/Tracon.Abstractions/Scheduling/TraconSchedulingOptions.cs), [workflow options](../../../src/Tracon.Workflows/TraconWorkflowOptions.cs), [voice options](../../../src/Tracon.Voice/VoiceOptions.cs), [script/attachment options](../../../src/Tracon.Core/TraconOptions.cs).
+Kaynak: [scheduling](../../../src/Tracon.Abstractions/Scheduling/TraconSchedulingOptions.cs),
+[workflow options](../../../src/Tracon.Workflows/TraconWorkflowOptions.cs),
+[voice options](../../../src/Tracon.Voice/VoiceOptions.cs),
+[script/attachment/graph options](../../../src/Tracon.Core/TraconOptions.cs).
 
-Audio süresi ile üretim süresi ayrı ölçüdür. 20 dakikalık episode için workflow timeout'unun mutlaka 20 dakika olması gerekmez. Model, revizyon, TTS, queue ve audio işlemlerinin gerçek süresi ölçülür. Her network/process adımına kendi timeout'u konur. Job lease süresi de job execution timeout'u değildir; worker çalışırken lease yenilenir.
-
-Süreç içi concurrency sınırları replica sayısıyla çoğalır. İki worker replica'sı aynı host TTS hesabını kullanıyorsa provider hesabına ait toplam quota ayrıca koordine edilmelidir. Tenant admission limiti, provider/account concurrency ve RPM/TPM benzeri limitler ayrı kontrollerdir. Google limitleri tier/proje üzerinden değerlendirilir; bu müşterinin gerçek quota'sı bilinmiyor. Kaynak: [Gemini rate limits](https://ai.google.dev/gemini-api/docs/rate-limits).
-
-Audio worker için tek bir sayı vermek yerine production kabul limiti 20'ye kadar tutulur; TTS ve mastering slot'ları quota ve load test sonucuna göre atanır. Tenant bazlı limit ve adil queue policy'si bir müşterinin bütün kapasiteyi tüketmesini önlemelidir. Tracon lane'leri iş türünü ayırabilir; tek başına tenant fairness garantisi değildir.
+Audio süresi ile üretim süresi ayrı ölçüdür. Model, revizyon, TTS, queue ve
+audio işlemlerinin gerçek süresi ölçülür; her network/process adımına kendi
+timeout'u konur (düğüm başına süre F-303). Süreç içi concurrency sınırları
+replica sayısıyla çoğalır; provider hesabının toplam quota'sı ayrıca koordine
+edilir. Tenant bazlı limit ve adil queue policy'si (F-322) bir müşterinin bütün
+kapasiteyi tüketmesini önler; Tracon lane'leri iş türünü ayırır, tenant
+fairness garantisi değildir.
 
 ### 10.1 Memory ve artifact büyüklüğü
 
-Aşağıdaki değerler codec bitrate/sample format hesabıdır; benchmark değildir:
+Codec bitrate/sample format hesabıdır; benchmark değildir:
 
 | 20 dakikalık tek audio | Yaklaşık payload |
 |---|---|
@@ -315,101 +535,133 @@ Aşağıdaki değerler codec bitrate/sample format hesabıdır; benchmark değil
 | 24 kHz, 16-bit, mono PCM | 57,6 MB; yaklaşık 54,9 MiB |
 | 48 kHz, 16-bit, mono PCM | 115,2 MB; yaklaşık 109,9 MiB |
 
-20 adet 24 kHz PCM çıktısı yalnız payload olarak yaklaşık 1,15 GB tutar. Decode, assembly ve kopyalama bu miktarı büyütür. `SpeechAudio.Data` memory'de bulunur; mevcut attachment store yollarında ayrıca byte array kopyaları vardır. Bu yüzden bütün episode'ları bellekte birleştirmek yerine stream/file tabanlı artifact akışı önerilir. Kaynak: [SpeechAudio](../../../src/Tracon.Abstractions/Voice/SpeechModels.cs), [SQL attachment yazımı](../../../src/Tracon.Sql.Shared/Stores/SqlAttachmentStore.cs), [in-memory attachment yazımı](../../../src/Tracon.Core/Storage/InMemoryAttachmentStore.cs).
-
-20 MiB HTTP upload varsayılanı, özellikle WAV çıktıları için ayrıca gözden geçirilmelidir. Domain artifact yolunda dosya büyüklüğü, MIME/signature, duration ve storage quota kontrolleri tüketici tarafından uygulanır.
+20 adet 24 kHz PCM çıktısı yalnız payload olarak yaklaşık 1,15 GB tutar.
+`SpeechAudio.Data` memory'de bulunur; attachment store yollarında byte array
+kopyaları vardır. Episode'ları bellekte birleştirmek yerine stream/file tabanlı
+artifact akışı önerilir. Kaynak: [SpeechAudio](../../../src/Tracon.Abstractions/Voice/SpeechModels.cs),
+[SQL attachment yazımı](../../../src/Tracon.Sql.Shared/Stores/SqlAttachmentStore.cs).
 
 ## 11. Tüketici implementasyonunun kurulumu
 
-Mevcut .NET 10 hedefi uygundur. Kaynak: [paket target framework'leri](../../../src/Directory.Build.props).
+Mevcut .NET 10 hedefi uygundur. `net8.0` ve `net9.0` 2026-11-10'dan sonra
+düşer (Faz 193). Kaynak: [paket target framework'leri](../../../src/Directory.Build.props).
 
 | Katman | Kullanılacak yüzey |
 |---|---|
 | Agent ve kontrol düzlemi | `Tracon.Core`, `Tracon.AspNetCore`; gerekirse `Tracon.UI` |
-| Workflow | `Tracon.Workflows`, `UseWorkflows()`, code-defined `AddWorkflow(...)` |
+| Workflow | `Tracon.Workflows`, `UseWorkflows()`, stored `Sequential` tanımı veya code-defined `AddWorkflow(...)`; `AddWorkflowFunction<TInput,TOutput>` |
 | Writer/reviewer model provider'ları | Seçilen LLM'e ait Tracon provider paketleri |
 | Kalıcı storage | Desteklenen SQL store paketlerinden biri; DB seçimi henüz verilmedi |
-| Background işler | Scheduling, custom `IJobHandler`, worker lane'leri |
-| Mevcut tek voice ElevenLabs | `Tracon.Voice`; dialogue gereksinimi için ek adapter |
-| Dialogue provider routing | Tüketicinin production/profile-aware TTS servisi |
+| Background işler | Scheduling, `tracon.workflow` job'u veya custom `IJobHandler`, worker lane'leri |
+| Mevcut tek voice ElevenLabs | `Tracon.Voice`; dialogue için ek adapter |
+| Dialogue provider routing | Tüketicinin production/profile-aware TTS servisi (keyed `ISpeechSynthesizer`) |
 | Audio işleme | Ayrı container'da deploy edilmiş Python görevleri |
 | Final artifact | Tüketicinin MinIO storage servisi; gerekirse `IAttachmentStorage` adapter'ı |
 | Domain kaydı | Tüketicinin scoped domain service'i |
+| Bildirim | `run.completed`/`run.failed`, `job.*` webhook'ları; idempotent alıcı |
 
-Workflow function factory'si bir kez çalışır ve handler closure'ı concurrent run'lar arasında paylaşılır. Singleton closure içinde scoped `DbContext` yakalanmamalıdır. Domain kaydı için invocation başına scope veya uygun factory kullanılmalıdır. Mutable production state handler field'ında tutulmamalıdır. Kaynak: [function lifetime/thread-safety sözleşmesi](../../../src/Tracon.Workflows/TraconWorkflowFunctionExtensions.cs).
+Workflow function factory'si bir kez çalışır ve handler closure'ı concurrent
+run'lar arasında paylaşılır. Singleton closure içinde scoped `DbContext`
+yakalanmaz; invocation başına scope açılır. Mutable production state handler
+field'ında tutulmaz. Kaynak: [function lifetime sözleşmesi](../../../src/Tracon.Workflows/TraconWorkflowFunctionExtensions.cs).
 
-Agent node'u ile function node'u arasındaki veri tipi de açık olmalıdır. Mevcut mixed sequential agent executor'ı `List<ChatMessage>` alıp döndürür. Typed domain DTO'ları doğrudan bu node'un yanına koymak otomatik mapping sağlamaz. Code-defined graf adapter'ları veya artifact/production reference'ı taşıyan açık mesaj sözleşmesi gerekir. Kaynak: [WorkflowAgentStepExecutor](../../../src/Tracon.Workflows/Internal/WorkflowAgentStepExecutor.cs).
+Agent node'u ile function node'u arasındaki veri tipi açık olmalıdır. Mixed
+sequential agent executor'ı `List<ChatMessage>` alıp döndürür ve yanıtın
+**bütün** mesajlarını iletir; ilk fonksiyon düğümü son asistan mesajını kendisi
+seçer (iletim modu F-324). Kaynak: [WorkflowAgentStepExecutor](../../../src/Tracon.Workflows/Internal/WorkflowAgentStepExecutor.cs).
 
 ## 12. Tracon ürün boşlukları ve önerilen öncelik
 
-Bu tablo mevcut ihtiyaç için öncelik önerisidir. Yeni aday numarası veya onaylanmış faz planı oluşturmaz.
-
-| Öncelik | Genel ürün boşluğu | Tüketiciye etkisi | Önerilen sınır |
+| Öncelik | Genel ürün boşluğu | Tüketiciye etkisi | Durum (2026-10-12) |
 |---|---|---|---|
-| Yüksek | Dialogue/multi-speaker TTS sözleşmesi ve adapter'ları | İki speaker için kendi TTS katmanını yazması gerekir | Provider-independent turn/speaker modeli; provider capability doğrulaması |
-| Yüksek | Tenant/profile bazlı TTS routing ve host credential çözümleme | Aynı SaaS process'inde farklı provider/voice seçimleri hazır karşılanmaz | Host hesap reference'ı, dil/speaker capability doğrulaması, tenant attribution ve ortak account limitleri |
-| Yüksek | Çalışan production için bütün bağımlılıkların version pinning'i | Instruction/profile değişimi devam eden akışa karışabilir | Mevcut agent version API'sini kullanan açık snapshot sözleşmesi |
-| Orta | Workflow UI'da function node düzenleme | Operatör agent/function zincirini API'den düzenlemek zorunda kalır | Mevcut API'nin UI karşılığı; arbitrary kod editörü açılmaz |
-| Orta | Workflow function dış maliyet/usage görünürlüğü | TTS ve audio maliyeti LLM toplamından ayrı kalır | Function/step attribution; cost source ve ölçüm/estimate ayrımı |
-| Orta | Job ile workflow checkpoint recovery entegrasyonu | Custom production recovery yazılır | Retry'nin restart/resume policy'si açık olur; exactly-once vaadi verilmez |
-| Gereksinime bağlı | Host template + tenant override deneyimi | Çok tenant için profile/provisioning ekranı yazılır | Topology ile parametre ayrımı; host edit yetkisi |
+| Yüksek | Dialogue/multi-speaker TTS sözleşmesi ve adapter'ları | İki speaker için kendi TTS katmanını yazması gerekir | F-296, F-297 aday |
+| Yüksek | Tenant/profile bazlı TTS routing ve host credential çözümleme | Farklı provider/voice seçimleri hazır karşılanmaz | F-298 🟠 aday; F-336 önkoşulu kapandı |
+| Yüksek | Çalışan production için bütün bağımlılıkların version pinning'i | Instruction değişimi devam eden akışa karışabilir | F-300 aday (düğüme `AgentVersion`); F-331 ve F-352 kapandı |
+| Orta | Workflow UI'da function node düzenleme ve düğüm ayarı | Operatör zinciri API'den düzenler | Faz 195 planlı (F-292 + F-295) |
+| Orta | Run başına parametre | Tenant farkı için tanım kopyalanırdı | Faz 194 uygulanıyor (F-294) |
+| Orta | Workflow function dış maliyet/usage görünürlüğü | TTS ve audio maliyeti LLM toplamından ayrı kalır | F-299 aday |
+| Orta | Job ile workflow checkpoint recovery entegrasyonu | Custom production recovery yazılır | F-321 aday; F-344 önce |
+| Orta | Fonksiyon düğümüne zaman aşımı | Takılan worker bütün run'ı tutar | F-303 aday |
+| Düşük | Konsolda `Loop` düzenleme; `AddLoopEvaluator` fabrika | Revizyon sayısı API'den; ayrı reviewer agent'ı DI'a ulaşamaz | F-302, F-301 aday |
 
-Function zincirini UI'dan düzenleme işi mevcut [aday kaydında](../../ADAYLAR.md) zaten bulunuyor. Bu rapor onu ikinci kez adaylaştırmaz. Serbest conditional graf editor'ü bununla aynı kapsam değildir.
-
-MinIO adapter'ı, mastering preset'leri ve domain entity'leri tüketiciye ait kalabilir. Bunları Tracon çekirdeğine koymak podcast domain'ini genel agent kontrol düzlemine bağlar. Mevcut extension'lar bu sorumluluğu tüketicide tutmaya uygundur.
-
-Native OS sandbox, bu ihtiyaç için Tracon'e yeni genel code execution ürünü eklemeyi gerektirmez. Deploy edilmiş güvenilir script'ler ayrı worker'da çalıştırılabilir. Müşteriye arbitrary Python yükleme yetkisi daha sonra verilirse güvenlik modeli yeniden değerlendirilir.
+MinIO adapter'ı, mastering preset'leri ve domain entity'leri tüketiciye ait
+kalır. Native OS sandbox, geliştiricinin deploy ettiği güvenilir script için
+gerekmez; operatör canlı kod yazarsa video raporu § 7.3 ve F-345 geçerlidir.
 
 ## 13. İhtiyacın genişleyebileceği noktalar
 
 | Genişleme | Bugünden korunması gereken sınır |
 |---|---|
-| Türkçe/İngilizce dışındaki diller ve daha ayrıntılı pronunciation kontrolü | İlk kapsamdaki iki dil için kurulan profile, eval ve capability sınırı genişletilir |
-| Arka plan müziği ve ek audio preset'leri | Mevcut birleştirme/normalization/intro/outro preset'ine versioned asset ve işlem parametreleri eklenir |
+| Başka diller ve ayrıntılı pronunciation kontrolü | İki dil için kurulan profile, eval ve capability sınırı genişletilir |
+| Arka plan müziği ve ek audio preset'leri | Preset'e versioned asset ve işlem parametreleri eklenir |
 | Bir cümleyi veya bölümü yeniden üretmek | Stable segment ID, transcript revision ve segment artifact cache'i |
 | Speaker/voice değiştirmek | Provider'a özel eşlemeler; hangi segmentlerin geçersizleştiği açık olur |
-| Subtitle ve chapter üretmek | Alignment kaynağı/granularity; final audio işlemleri sonrasında zamanların güncellenmesi |
+| Subtitle ve chapter üretmek | Alignment kaynağı; final audio işlemleri sonrasında zaman güncellemesi |
+| İnsan onayı eklemek | Writer adımından sonra `RequestPort`; video raporu § 8 yol A koşulları (F-318, F-319) |
 | Üretim maliyet tavanı | Writer/reviewer retry, TTS, regeneration ve compute/storage ayrı maliyetler |
 | Provider outage | Explicit retry/fallback policy; aynı episode'da farklı ses kullanımı kararı |
 | İptal ve yeniden başlatma | Kalıcı step state; tamamlanan artifact'i koruma ve scratch cleanup |
 | Otomatik yayın/RSS | `Ready` ile `Published` ayrı state; harici yayın ayrı side effect |
-| Müşteri kendi credential'ını kullanır | Tenant secret resolver ve quota sahipliği; bugünkü voice katmanı bunu sağlamaz |
+| Müşteri kendi credential'ını kullanır | Tenant secret resolver ve quota sahipliği; F-298 ikincil kapsamı |
 
-Timestamp ihtiyacında mevcut non-streaming `IncludeTimestamps` karakter alignment'ı taşıyabilir. `SynthesizeStreamingAsync` ise yalnız ham audio byte parçaları döndürür; timestamp ile birlikte kullanım desteklenmez. Kesme, ekleme ve hız değişimi gibi post-processing adımları eski alignment'ı geçersiz kılabilir. Kaynak: [SpeechRequest/Alignment](../../../src/Tracon.Abstractions/Voice/SpeechModels.cs).
+Timestamp ihtiyacında non-streaming `IncludeTimestamps` karakter alignment'ı
+taşıyabilir. `SynthesizeStreamingAsync` yalnız ham audio byte parçaları döner.
+Post-processing eski alignment'ı geçersiz kılabilir. Kaynak: [SpeechRequest/Alignment](../../../src/Tracon.Abstractions/Voice/SpeechModels.cs).
 
 ## 14. Uygulama kabulünde doğrulanacak senaryolar
 
-Bu senaryolar önerilen kabul setidir. Bu rapor kapsamında çalıştırılmadılar.
+Bu senaryolar önerilen kabul setidir; bu rapor kapsamında çalıştırılmadılar.
 
-1. Reviewer başarısız verdict verdiğinde TTS provider'ına hiç request gitmez. Revision limit'i dolunca üretim kalite reddiyle kapanır.
-2. Kaynağı eksik veya verdict schema'sı bozuk run, yüksek score metni taşısa bile TTS'ye geçmez.
-3. Farklı provider/voice profile'ları olan iki tenant eşzamanlı üretim yapar. Her production doğru profile ve host provider hesabını kullanır; artifact ve maliyet attribution'ı tenant'lar arasında karışmaz. Aynı host hesabının bilinçli paylaşılması ayrı tenant hesabı şartı değildir.
-4. Tenant B, tenant A'nın episode/artifact kimliğiyle download veya regenerate isteği yapar. Erişim reddedilir.
-5. Provider/model/speaker kombinasyonu desteklenmiyorsa üretim ücretli çağrıdan önce reddedilir.
-6. TTS segmentinden sonra worker öldürülür. Recovery kalıcılaştırılmış segmentleri kullanır; belirsiz provider sonucu ayrıca raporlanır.
-7. MinIO upload sonrası DB hatası oluşur. Retry mevcut object'i ilişkilendirir; yeni TTS üretmez.
-8. Production devam ederken instruction/profile değiştirilir. Eski production kendi snapshot'ıyla, yeni production yeni sürümle ilerler.
-9. 20 production ile çok replica altında load test yapılır. Provider quota, queue fairness, timeout, memory ve scratch disk ölçülür.
-10. Audio worker timeout, bozuk çıktı ve aşırı büyük dosya üretir. Final entity `Ready` olmaz; process/artifact cleanup doğrulanır.
-11. Tracon retention koşumu yapılır. Müşterinin saklaması gereken final episode kaybolmaz.
-12. Operatör desteklenen ayarları değiştirir. İzin verilmeyen script path'i, code content veya provider değeri execution'a ulaşmaz.
-13. Türkçe ve İngilizce case'lerinde episode dili, iki speaker, özel isimler ve sayı/kısaltma telaffuzu doğrulanır. Seçilen provider/voice dil kombinasyonu desteklenmiyorsa ücretli çağrı başlamaz.
-14. Birleştirme sırası, intro/outro asset sürümü ve normalization hedefi doğrulanır. Eksik segment veya yanlış preset ile final episode `Ready` olmaz.
+1. Reviewer ölçütü geçmeyince TTS provider'ına hiç request gitmez. `MaxIterations`
+   dolunca run `Failed` biter ve domain üretimi kalite reddiyle kapatır.
+2. Kaynağı eksik veya verdict schema'sı bozuk run TTS'ye geçmez.
+3. Farklı provider/voice profile'ları olan iki tenant eşzamanlı üretim yapar;
+   artifact ve maliyet attribution'ı karışmaz.
+4. Tenant B, tenant A'nın episode/artifact kimliğiyle download isteği yapar;
+   erişim reddedilir.
+5. Provider/model/speaker kombinasyonu desteklenmiyorsa üretim ücretli
+   çağrıdan önce reddedilir.
+6. TTS segmentinden sonra worker öldürülür. Recovery kalıcılaştırılmış
+   segmentleri kullanır; belirsiz provider sonucu raporlanır.
+7. MinIO upload sonrası DB hatası oluşur. Retry mevcut object'i ilişkilendirir;
+   yeni TTS üretmez.
+8. Production devam ederken instruction/profile değiştirilir. Eski production
+   kendi snapshot'ıyla, yeni production yeni sürümle ilerler.
+9. 20 production ile çok replica altında load test yapılır.
+10. Audio worker timeout, bozuk çıktı ve aşırı büyük dosya üretir. Final entity
+    `Ready` olmaz; cleanup doğrulanır.
+11. Tracon retention koşumu yapılır. Final episode kaybolmaz.
+12. Operatör desteklenen ayarları değiştirir. İzin verilmeyen script path'i,
+    code content veya provider değeri execution'a ulaşmaz.
+13. Türkçe ve İngilizce case'lerinde episode dili, iki speaker, özel isimler
+    ve sayı/kısaltma telaffuzu doğrulanır.
+14. Birleştirme sırası, intro/outro asset sürümü ve normalization hedefi
+    doğrulanır.
+15. Aynı `run.completed` webhook'u iki kez gelir; kiracı ekranı bir kez
+    güncellenir.
+16. Writer adımı `ChildDeadline`'ı aşar; run `Failed` biter, sonraki düğüm
+    koşmaz ve hata türü `child_run_timeout` olur.
 
-Function node'u model çağrısı yapmadığı için kendi run row'unu ve cost/token toplamını kendiliğinden oluşturmaz. Node event'leri görünür; dış TTS/audio usage ayrıca kaydedilmelidir. İlgili maliyet kabul testi yalnız transcript model faturasıyla sınırlandırılmamalıdır. Kaynak: [function node görünürlüğü](../../../docs-site/src/content/docs/concepts/workflows.md#function-nodes).
+Function node'u model çağrısı yapmadığı için kendi run row'unu ve cost/token
+toplamını oluşturmaz. Dış TTS/audio usage ayrıca kaydedilir (F-299). Kaynak:
+[function node görünürlüğü](../../../docs-site/src/content/docs/concepts/workflows.md#function-nodes).
 
 ## 15. Sonraki tasarım için açık kararlar
 
 | Karar | Neyi değiştirir? |
 |---|---|
-| Her provider için tek host hesabı mı, birden fazla host hesabı mı? | Credential routing ve account quota paylaşımı; müşteri BYOK ilk kapsamda yoktur |
-| Bir içerikten iki dilde ayrı episode mu, seçilen tek dilde episode mu? | Production sayısı, maliyet, transcript ve artifact ilişkisi |
-| Normalization yöntemi/hedefi, işlem sırası, final format ve intro/outro preset'i | Worker dependency/image, timeout, disk ve preset schema'sı; işlem türleri artık nettir |
-| Kalite rubric'i, eşikler ve `MaxRevisions` | Kabul davranışı ve üretim başına maliyet sınırı |
+| Podcast script'ini de operatör mü canlı yazar? (video hattında yazıyor) | Evet ise § 7.2 güvenilir worker modeli yerine video raporu § 7.3 sandbox modeli; iki hat tek runner paylaşır |
+| Her provider için tek host hesabı mı, birden fazla mı? | Credential routing ve account quota paylaşımı |
+| Bir içerikten iki dilde ayrı episode mu, tek dilde mi? | Production sayısı, maliyet, transcript ve artifact ilişkisi |
+| Normalization yöntemi/hedefi, işlem sırası, final format ve intro/outro preset'i | Worker image, timeout, disk ve preset schema'sı (Faz 195 düğüm ayarı) |
+| Kalite rubric'i, eşikler ve `MaxIterations` | Kabul davranışı ve üretim başına maliyet sınırı |
 | 20 production için süre hedefi ve provider quota'sı | Worker sayısı, stage slot'ları ve queue planı |
-| Farklı tenant akışı parametre farkı mı, topology farkı mı? | Ortak template ile profile yeterliliği veya birden fazla code template gereksinimi |
+| Farklı tenant akışı parametre farkı mı, topology farkı mı? | Ortak template + parametre/ayar yeterliliği veya birden fazla code template |
 | DB seçimi ve domain transaction sınırı | Store paketi, outbox/reconciliation implementasyonu |
 | Audio/ham segment saklama süreleri | Retention, storage maliyeti ve partial regeneration |
 | Provider fallback ve audio sonrası ret policy'si | Ses tutarlılığı, ek ücret ve yeniden üretim kapsamı |
 
-Bu açık değerler uygulama tasarımından önce belirlenmelidir. Mevcut uyum sonucu bunlara rağmen nettir: Tracon kontrol ve çalıştırma altyapısını sağlar; iki konuşmacılı, tenant'a göre ayarlanan otomatik podcast hattı için tüketici entegrasyonu gerekir.
+Bu açık değerler uygulama tasarımından önce belirlenir. Uyum sonucu bunlara
+rağmen nettir: Tracon kontrol ve çalıştırma altyapısını sağlar; iki
+konuşmacılı, tenant'a göre ayarlanan otomatik podcast hattı için tüketici
+entegrasyonu gerekir.

@@ -63,6 +63,34 @@ the run id. Every agent called inside the workflow opens its own `runs` row
 and attaches under the workflow row — `GET /api/runs/{id}/tree` returns the
 whole tree.
 
+## Parameters
+
+A stored workflow can declare run parameters (`WorkflowDefinition.Parameters`, the
+same `AgentParameter` an agent declares). A run supplies values; each agent step is
+bound with the values **its own schema** names, and a function node reads them with
+`context.GetRunParameters()`:
+
+```csharp
+builder.AddTracon()
+       .UseWorkflows()
+       .AddWorkflowFunction<string, string>(
+           "narrate",
+           provider => (input, context, cancellationToken) =>
+           {
+               var voice = context.GetRunParameters()["voice"];
+               return ValueTask.FromResult($"{voice}: {input}");
+           });
+```
+
+```http
+POST /tracon/api/workflows/podcast/run
+{"message":"Episode 12","parameters":{"tone":"formal"}}
+```
+
+A missing required value, an undeclared name or an over-long value is a `400` before
+the stream opens. The run records its final values, and a resume or an answer to a
+waiting request uses them again. A workflow defined in code declares no parameters.
+
 ## Checkpoints
 
 A checkpoint is written at every super-step. A run that stopped partway

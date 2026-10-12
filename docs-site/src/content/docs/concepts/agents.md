@@ -74,18 +74,31 @@ names the missing parameter; a value for a name the schema does not declare is
 rejected too, not silently dropped. This holds for a definition saved through the
 API and for one registered in code with `AddAgent`.
 
-Every other way to start a run carries no values: a queued run, a batch or
-schedule, the OpenAI-compatible endpoints, MCP, A2A, a workflow step, an agent
-called by another agent, and voice. Those runs bind each parameter's
-`DefaultValue`. An agent with a required parameter that has no default does not
-run there: the request is refused where it enters (`400` with `missingParameters`
-for a queued run), and where there is no request to refuse, the run fails before
-any model call and names the parameter.
+These ways to start a run carry values too:
 
-A replay and an automatic continuation after a crash re-run a recorded run, and
-the recorded input does not include its parameter values. Running them with the
-defaults would change the instructions, so both are refused for any agent that
-declares parameters.
+- a **queued run** (`Prefer: respond-async`) takes the same `parameters` field, checks it
+  the same way, and the worker checks it again against the version it runs
+- a **batch or schedule** item can name its own values, see
+  [Background work](/guides/background-work/#give-an-item-its-own-values)
+- a **workflow step** receives the values its own schema declares from the workflow's
+  run, see [Workflows](/concepts/workflows/#parameters)
+
+A run records the values it was bound with — the supplied ones with the defaults
+applied — beside its input. A **replay**, an **automatic continuation** after a crash
+and the resume after a **tool approval** all repeat a recorded run, so they bind the
+same values instead of the defaults. A replay request can change some of them with its
+own `parameters`; a name the replayed version does not declare is refused.
+
+A run that recorded no values (input recording was off, or the run is older than
+parameter recording) cannot be repeated when the agent declares parameters: running
+it on the defaults would change the instructions. That refusal says so.
+
+Every other entry point carries no values: the OpenAI-compatible endpoints, MCP, A2A,
+an agent called by another agent, and voice. Those runs bind each parameter's
+`DefaultValue`, and an agent with a required parameter that has no default does not
+run there. Where a request enters, it is refused (`400` with `missingParameters`);
+where there is no request to refuse, the run fails before any model call and names
+the parameter. Such a run records no values, so it cannot be replayed.
 
 This is **value substitution, not a template engine**. There is no expression,
 condition, loop, or field access (`{{a.b}}`) — a template language is a security

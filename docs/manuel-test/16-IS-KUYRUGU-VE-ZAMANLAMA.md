@@ -3010,7 +3010,7 @@ Mutlu yol. Kuyruk yolu bu iki alanı `400` ile reddederdi. Otomatik karşılığ
 | **İzlek** | B |
 | **Önem** | Yüksek |
 | **İlgili faz** | 194 |
-| **İlgili karar** | K-898 |
+| **İlgili karar** | K-899 |
 
 **Ön koşul**
 - Örnek uygulama Echo kipinde; `podcast-writer` (`tone` zorunlu) kayıtlı; iş worker'ı açık.
@@ -3041,7 +3041,7 @@ Sınır senaryosu. Otomatik karşılığı: `AgentBatchParameterTests` ·
 | **İzlek** | B |
 | **Önem** | Yüksek |
 | **İlgili faz** | 194 |
-| **İlgili karar** | K-898 |
+| **İlgili karar** | K-899 |
 
 **Ön koşul**
 - `podcast-editor` (`tone`, `voice` varsayılanlı) kayıtlı; iş worker'ı açık.
@@ -3071,7 +3071,7 @@ Sınır senaryosu. Otomatik karşılığı: `WorkflowBatchParameterTests`.
 | **İzlek** | B |
 | **Önem** | Orta |
 | **İlgili faz** | 194 |
-| **İlgili karar** | K-898 |
+| **İlgili karar** | K-899 |
 
 **Ön koşul**
 - MT-WF-127'deki `podcast` workflow'u; iş worker'ı açık.

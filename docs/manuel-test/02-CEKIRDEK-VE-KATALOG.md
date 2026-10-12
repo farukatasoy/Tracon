@@ -3990,7 +3990,7 @@ değişti. Otomatik karşılığı: `RunReplayParameterTests`.
 | **İzlek** | B |
 | **Önem** | Yüksek |
 | **İlgili faz** | 194 |
-| **İlgili karar** | K-897 |
+| **İlgili karar** | K-898 |
 
 **Ön koşul**
 - Örnek uygulama Echo kipinde; `podcast-editor` kayıtlı (kod tanımlı: replay yalnız `LiveTools`).
@@ -4022,7 +4022,7 @@ Sınır senaryosu. Otomatik karşılığı: `RunContinuationTests` ·
 | **İzlek** | B |
 | **Önem** | Yüksek |
 | **İlgili faz** | 194 |
-| **İlgili karar** | K-897 |
+| **İlgili karar** | K-898 |
 
 **Ön koşul**
 - Onay isteyen bir tool'a bağlı, parametreli bir agent; kuyruk açık; `Tracon:RunRecording:RecordRunInput` açık.

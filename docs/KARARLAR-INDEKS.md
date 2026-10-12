@@ -2,17 +2,14 @@
 
 > **Üretilen, elle düzenlenmez.** Kaynak: `KARARLAR.md` · üretim: `scripts/dokuman-bakim.py`
 
-Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 808 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
+Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 811 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
 
 ---
 
-## En Yeni Kalıcı Kararlar (88 / 896 kalem)
+## En Yeni Kalıcı Kararlar (88 / 899 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
-| K-809 | 860 | Örnek uygulamanın katalog fiyatları AÇIKÇA örnektir, bakımı yapılan bir fiyat listesi DEĞİLDİR 👤 |
-| K-810 | 861 | Modele giden zaman aşımı cümlesi saniyenin altını milisaniye olarak söyler |
-| K-811 | 862 | Derlenmiş agent önbelleğinin anahtarı SÜRÜMÜ değil İÇERİĞİ ölçer; `CompiledAgentCache.Evict` kaldırıldı 👤 |
 | K-812 | 863 | Bağımlılık parmak izi de sürümü değil, ÇAĞIRANA GÖMÜLEN içeriği ölçer |
 | K-813 | 864 | Cevap veremeyen bir store `503` döner ve HANGİ tür erişilemezlik olduğunu söyler; şema adı ve SQL metni yine sızmaz 👤 |
 | K-814 | 865 | Anahtar deposunu okuyamayan açılış kapısı KENDİ sonucuna varır: "anahtar kanıtlanamadı" |
@@ -91,10 +88,13 @@ Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLA
 | K-887 | 938 | Workflow katılımcısı cevap veremeyen adımı düşürür (`ChildRefusalMode.Fail`), delegasyon metin döner; süre aşımı yeni public `TraconChildRunTimeoutException`; workflow satırı `ErrorType` + sınıf taşır (F-328 · F-314) (kullanıcı kararı) 👤 |
 | K-888 | 939 | Retention `AwaitingInput` run'ın istek olayını ve checkpoint'lerini tutar; checkpoint temizliği oturumda bekleyen/koşan run varken atlanır; istek kimliği olay `Text`'inden okunur (F-327) (kullanıcı kararı) 👤 |
 | K-889 | 940 | Akışsız döngü son turun cevabını, tüm turların usage toplamıyla döner; `AggregatedResponseGuard` MAF OTel'in bayat `RawRepresentation` kurulumunu keser; akışlı usage çağrıların toplamıdır; doğrulama son asistan mesajını okur (F-317 · F-329) (kullanıcı kararı) 👤 |
-| K-890 | 941 | Parametreli agent her yolda bağlanır ya da düşer: `BuildAgent` varsayılanları bağlar, eksik zorunlu parametrede `UnboundParameterGuard`; giriş uçları erken reddeder; `/run` kapısı ve eval kod tanımını okur; replay ve devam parametreli tanımı reddeder (F-330) (kullanıcı kararı) 👤 |
+| K-890 | 941 | Parametreli agent her yolda bağlanır ya da düşer: `BuildAgent` varsayılanları bağlar, eksik zorunlu parametrede `UnboundParameterGuard`; giriş uçları erken reddeder; `/run` kapısı ve eval kod tanımını okur; replay ve devam parametreli tanımı reddeder (F-330; bu madde K-898 ile değişti: kayıtlı değer varsa kullanılır) (kullanıcı kararı) 👤 |
 | K-891 | 942 | Descriptor, derlenen tanım sürümünü tanımlar: iç `IDescribingAgentSource` seam'i, tek `AgentDescriptorProjection`; üçüncü taraf kaynakta yalnız `Version` değişir (F-331) (kullanıcı kararı) 👤 |
 | K-892 | 943 | Harness skill, dosya belleği ve web aramasını yalnız tanım isteyince açar (`SkillNames`, `Memory.EnableFileMemory`, yeni public `HarnessSettings.EnableWebSearch`); tool döngüsü Tracon'undur: MAF'a giden akış güncellemesi kopyadır, `MaximumIterationsPerRequest` iç döngüye ve fallback halkasına taşınır (F-339 · F-315) (kullanıcı kararı) 👤 |
 | K-893 | 944 | Birden çok modelin harcadığı run her payı kendi modelinin fiyatıyla fiyatlar ve toplar; o run'da `RunCost` birim fiyat alanları `null`; `aiJudge` yargıcının token'ı run `usage`'ına, maliyetine ve kotasına girer; karma satır yeniden fiyatlanmaz (F-349) (kullanıcı kararı) 👤 |
 | K-894 | 945 | Kuyruklu run'ın deney kolu ve kültürü enqueue anında payload'a yazılır; worker kolu `IExperimentStore` ile doğrular (kiracı, agent, başlamış deney, varyant↔sürüm; Draft ve yarım kol reddedilir), uymazsa iş model çağrısı olmadan KAPALI düşer; kültür run kaydına yazılmaz (F-351) (kullanıcı kararı) 👤 |
 | K-895 | 946 | Onay devamı onayı isteyen run'ın agent sürümünde ve deney kolunda koşar (sürüm geçmişi olan kaynakta; kod agent'ı güncel tanımla); payload'daki agent adı kaynak run'ınkiyle aynı değilse ya da kaynak run yoksa iş KAPALI düşer; sürümsüz replay'in güncel sürümle ve alt agent'ın güncel sürümle koşması belgelenmiş tasarımdır (F-352) (kullanıcı kararı) 👤 |
 | K-896 | 947 | Retention, erasure ve ek deposu harici baytı satırdan ÖNCE siler; bayt silinemezse retention satırı tutar, erasure geri alınır; `IAttachmentStorage.DeleteAsync` idempotenttir; workflow run'ı oturumunun eklerine sahiptir (F-332) (kullanıcı kararı) 👤 |
+| K-897 | 948 | Workflow parametre şeması `WorkflowDefinition.Parameters` (aynı `AgentParameter`); değer `WorkflowRunRequest.Parameters` ile gelir, runner doğrular (HTTP yalnız erken 400); agent adımı YALNIZ kendi şemasındaki adları alır, derleme katalog dışı ve her çağrıda yapılır; katılımcı kapsaması run BAŞINDA denetlenir, kayıtta değil; fonksiyon düğümü `GetRunParameters()` ile okur, run dışında atar; kod tanımlı workflow şemasızdır; `Kind` doğrulanmaz (F-294) |
+| K-898 | 949 | `run_inputs.parameters` (üç sağlayıcıda nullable sütun): `NULL` "kayıt yok", `{}` "kayıtlı, değer yok"; kendi `ProtectedColumn.RunInputParameters`'ı var; retention `AwaitingInput` run'ın satırını tutar; run bağlandığı NİHAİ değerleri (varsayılanlar dahil) yazar; replay, çökme sonrası devam, onay-devamı ve workflow resume/respond kaydı kullanır, kaydı olmayan kaynak ve parametreli tanım REDDEDİLİR; replay isteği üzerine yazar; workflow satırı mesaj saklamaz; K-890'ın "replay ve devam parametreli tanımı reddeder" maddesi değişti (F-294) |
+| K-899 | 950 | Kuyruklu run yükü `parameters` ve `documents` taşır; batch öğesi `message` string üyeli JSON nesnesiyse YAPILIdır (bilinmeyen üst alan ve bozuk üye öğeyi tek başına düşürür, zamanlama kaydı ve tetik biçimi reddeder); `jobs.payload` ve `job_items.input` KORUMALI DEĞİLDİR ve değer ile belge metnini düz tutar; worker şemayı yeniden doğrular (F-294) (kullanıcı kararı) 👤 |
