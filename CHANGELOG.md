@@ -623,7 +623,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   which returns a message that names the function and the problem, or `null`. An
   implementation of the interface outside Tracon must add it; the registry
   `AddWorkflowFunction` builds is the only implementation Tracon ships.
-- The generated C# client documents the 39 nullable object properties whose
+- `Tracon.Testing.Contracts.Xunit` adds two `WorkflowDefinitionStoreContract`
+  cases: a function node's `Settings` survive the round trip, and saving the
+  definition again without them clears them. A custom `IWorkflowDefinitionStore`
+  that rebuilds a node from its own columns and drops the field now fails them.
+- The generated C# client documents the 41 nullable object properties whose
   description was lost on the way from the OpenAPI document (for example
   `AgentDefinition.Harness`).
 - Every endpoint that starts a run now refuses an attribution that breaks a

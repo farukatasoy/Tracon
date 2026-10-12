@@ -2729,8 +2729,10 @@ Mutlu yol, baştan sona. Otomatik karşılığı: `WorkflowTests.A_chain_built_i
 - Kayıt: `agentNames` boş, `nodes` iki düğüm; ikincinin `settings`'i yazılan nesnedir,
   birincinin `settings`'i `null`'dır.
 - Run `Completed` olur; çıktı `Echo: Hello \n\n[spoken by alloy at -14 LUFS]`.
-- Ölçüldü (2026-10-12, örnek uygulama, bellek içi): yukarıdaki çıktı HTTP ile alındı; konsol akışı
-  E2E ile kanıtlıdır.
+- Ölçüldü (2026-10-12, örnek uygulama, bellek içi, `support` agent'ı): konsolda (gömülü tarayıcı) `console-narrated`
+  kuruldu; ayar `{"voice":"alloy","loudnessLufs":-12}` ile kaydedilince `nodes` iki düğüm, `version` 1; detay
+  ekranındaki Run `Echo: Hello from the console [spoken by alloy at -12 LUFS]` verdi. Aynı çıktı HTTP ile de
+  alındı (`-14 LUFS`). Konsol akışı E2E ile de kanıtlıdır.
 
 ---
 
@@ -2806,6 +2808,9 @@ Otomatik karşılığı: `workflow-editor.test.tsx` ("the stored form") · `work
 - 3. adımda yanıt `nodes` iki düğüm, `agentNames: []` taşır; biçim notu "node list" der.
 - 4. adımda kayıt `agentNames: ["summarizer"]`, `nodes: []` olur (kanonik biçim).
 - Sunucu iki biçimi de kabul eder: 4. adımın API çağrısı `200` döner.
+- Ölçüldü (2026-10-12, örnek uygulama, konsol, `support` agent'ı): 1. ve 2. adım — `speak` silinince iki not göründü,
+  Save sonrası yanıt `agentNames: ["support"]`, `nodes: []`, `version: 2`; desen seçici yeniden açıldı.
+  3. ve 4. adım otomatik testle kanıtlıdır.
 
 ---
 

@@ -3569,6 +3569,11 @@ with the fields the function takes listed under it.
 - **A chain uses a function once.** A node's name is its identity in the graph, so the
   same function cannot appear twice in one chain; register it under a second name when it
   should run twice.
+- **Wide numbers.** The console reads a JSON number as a double, like any JavaScript
+  client, so an integer beyond 9007199254740991 (2^53 − 1) loses its low digits when an
+  operator opens the workflow and saves it again. Settings are read strictly, so a string
+  cannot fill a numeric member: declare an identifier that wide (a snowflake, a 64-bit
+  database key) as a `string`.
 - **Size.** One node's settings may be at most `MaxNodeSettingsLength` bytes of JSON
   (16 KiB by default) when a workflow is saved.
 
