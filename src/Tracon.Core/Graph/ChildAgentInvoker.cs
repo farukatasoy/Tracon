@@ -49,6 +49,7 @@ public sealed class ChildAgentInvoker : AIAgent
     private readonly TimeSpan _waitTimeout;
     private readonly TimeProvider _timeProvider;
     private readonly ChildRefusalMode _refusalMode;
+    private readonly ParameterizedAgentFactory? _parameterFactory;
 
     /// <summary>Creates a new sub-agent wrapper.</summary>
     /// <param name="resolver">Resolver that resolves the sub-agent from the catalog.</param>
@@ -71,6 +72,15 @@ public sealed class ChildAgentInvoker : AIAgent
     /// Whether a call that cannot deliver the sub-agent's answer comes back as
     /// a tool result (agent delegation, the default) or throws (a workflow step).
     /// </param>
+    /// <param name="parameterFactory">
+    /// Present only for a WORKFLOW STEP. When the running workflow carries
+    /// parameter values (<see cref="AgentRunScope.ParameterValues"/>), the step's
+    /// agent is compiled with the values its own schema declares, instead of
+    /// being resolved from the catalog. An agent called as a tool never gets one:
+    /// a sub-agent receives no values from the agent that calls it, exactly as in
+    /// a direct run. This is a separate flag from <paramref name="refusalMode"/>
+    /// on purpose - the two are different meanings that happen to coincide today.
+    /// </param>
     /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
     /// <exception cref="ArgumentOutOfRangeException">
     /// <paramref name="childDeadline"/> or <paramref name="waitTimeout"/> is outside one
@@ -86,7 +96,8 @@ public sealed class ChildAgentInvoker : AIAgent
         TimeSpan childDeadline,
         TimeSpan waitTimeout,
         TimeProvider? timeProvider = null,
-        ChildRefusalMode refusalMode = ChildRefusalMode.ToolResult)
+        ChildRefusalMode refusalMode = ChildRefusalMode.ToolResult,
+        ParameterizedAgentFactory? parameterFactory = null)
     {
         ArgumentNullException.ThrowIfNull(resolver);
         ArgumentNullException.ThrowIfNull(tenantContext);
@@ -122,6 +133,7 @@ public sealed class ChildAgentInvoker : AIAgent
         _waitTimeout = waitTimeout;
         _timeProvider = timeProvider ?? TimeProvider.System;
         _refusalMode = refusalMode;
+        _parameterFactory = parameterFactory;
     }
 
     /// <inheritdoc />
@@ -178,8 +190,8 @@ public sealed class ChildAgentInvoker : AIAgent
             return Refused(refusal);
         }
 
-        var childOptions = CreateChildOptions(scope!);
-        var agent = await ResolveAsync(cancellationToken).ConfigureAwait(false);
+        var (agent, stepValues) = await ResolveForRunAsync(scope!, cancellationToken).ConfigureAwait(false);
+        var childOptions = CreateChildOptions(scope!, stepValues);
 
         await WriteStartedAsync(scope!, childOptions, cancellationToken).ConfigureAwait(false);
 
@@ -265,8 +277,8 @@ public sealed class ChildAgentInvoker : AIAgent
             yield break;
         }
 
-        var childOptions = CreateChildOptions(scope!);
-        var agent = await ResolveAsync(cancellationToken).ConfigureAwait(false);
+        var (agent, stepValues) = await ResolveForRunAsync(scope!, cancellationToken).ConfigureAwait(false);
+        var childOptions = CreateChildOptions(scope!, stepValues);
 
         await WriteStartedAsync(scope!, childOptions, cancellationToken).ConfigureAwait(false);
 
@@ -454,7 +466,9 @@ public sealed class ChildAgentInvoker : AIAgent
         return null;
     }
 
-    private static TraconRunOptions CreateChildOptions(AgentRunScope scope)
+    private static TraconRunOptions CreateChildOptions(
+        AgentRunScope scope,
+        IReadOnlyDictionary<string, string>? stepValues)
         => new()
         {
             RunId = TraconId.NewId(),
@@ -471,6 +485,11 @@ public sealed class ChildAgentInvoker : AIAgent
             // additional root session, and if written without a session, the
             // retention policy would treat it as orphaned and delete it.
             SessionId = scope.SessionId,
+
+            // What this step was bound with, so its own row records the values
+            // (a replay of the step then repeats them). Null for a step that
+            // bound none.
+            ParameterValues = stepValues,
         };
 
     private ValueTask WriteStartedAsync(
@@ -503,6 +522,82 @@ public sealed class ChildAgentInvoker : AIAgent
                 Payload = childOptions.RunId?.ToString(),
             },
             cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Resolves the agent for one call, binding the running workflow's parameter
+    /// values when this wrapper is a workflow step.
+    /// </summary>
+    /// <param name="scope">The running run's scope.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>
+    /// The agent, and the final values it was bound with (<see langword="null"/>
+    /// when the step bound none).
+    /// </returns>
+    /// <exception cref="TraconException">
+    /// The step's agent requires a parameter the workflow does not supply. The
+    /// start-of-run coverage check normally refuses this first; it can only
+    /// happen here when the agent changed after the run started.
+    /// </exception>
+    /// <remarks>
+    /// <para>
+    /// The step receives only the values its OWN schema declares: the workflow's
+    /// contract is wider than any one step's, and a name the step does not
+    /// declare is dropped for that step. A step whose agent declares no
+    /// parameters, or a run whose workflow carries no values, resolves from the
+    /// catalog as before - the common path pays nothing.
+    /// </para>
+    /// <para>
+    /// A bound step bypasses <see cref="CompiledAgentCache"/> (its key has no
+    /// notion of a value, K-380) and therefore the catalog's decorator chain,
+    /// which <see cref="ParameterizedAgentFactory.CompileAsync"/> applies by hand
+    /// (K-581). The agent is compiled on every call; <c>MAF</c> executor identity
+    /// comes from THIS wrapper, not from the agent it resolves, so checkpoint
+    /// compatibility is unaffected.
+    /// </para>
+    /// </remarks>
+    private async ValueTask<(AIAgent Agent, IReadOnlyDictionary<string, string>? Values)> ResolveForRunAsync(
+        AgentRunScope scope,
+        CancellationToken cancellationToken)
+    {
+        if (_parameterFactory is not { } factory ||
+            scope.ParameterValues is not { Count: > 0 } workflowValues)
+        {
+            return (await ResolveAsync(cancellationToken).ConfigureAwait(false), null);
+        }
+
+        var (definition, origin) = await factory.FindAsync(_childName, version: null, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (definition is not { Parameters.Count: > 0 })
+        {
+            return (await ResolveAsync(cancellationToken).ConfigureAwait(false), null);
+        }
+
+        var stepValues = ParameterValueSet.Intersect(definition.Parameters, workflowValues);
+        var check = factory.Validate(definition.Parameters, stepValues);
+
+        if (!check.IsValid)
+        {
+            throw new TraconException(
+                $"Workflow step '{_childName}' cannot run with the workflow's parameters. " +
+                ParameterValueSet.Describe(check));
+        }
+
+        var final = ParameterValueSet.Resolve(definition.Parameters, stepValues);
+
+        // Nothing of the workflow's values reaches this step: the catalog binds
+        // the step's own defaults and caches the result.
+        if (stepValues.Count == 0)
+        {
+            return (await ResolveAsync(cancellationToken).ConfigureAwait(false), final);
+        }
+
+        var bound = await factory
+            .CompileAsync(definition, origin, culture: null, stepValues, cancellationToken)
+            .ConfigureAwait(false);
+
+        return (bound, final);
     }
 
     private async ValueTask<AIAgent> ResolveAsync(CancellationToken cancellationToken)

@@ -47,6 +47,15 @@ internal sealed class WorkflowTestHost
 
     public FixedTenantContext TenantContext { get; }
 
+    /// <summary>Where a parameterized workflow run records its final values.</summary>
+    public InMemoryRunInputStore RunInputs { get; } = new();
+
+    /// <summary>
+    /// Whether the runners this host builds are given <see cref="RunInputs"/>.
+    /// Turn it off to prove what a resume does when nothing was recorded.
+    /// </summary>
+    public bool RecordsRunInput { get; set; } = true;
+
     public InMemoryRunStore RunStore { get; }
 
     public InMemoryWorkflowDefinitionStore DefinitionStore { get; }
@@ -122,6 +131,26 @@ internal sealed class WorkflowTestHost
         return CreateRunnerCore(configure, services, sinks: null, timeProvider, codeWorkflows);
     }
 
+    /// <summary>Builds a runner over a caller-supplied run input store.</summary>
+    /// <param name="runInputStore">The store the runner records parameter values into.</param>
+    /// <returns>The runner.</returns>
+    public WorkflowRunner CreateRunnerWithRunInputStore(IRunInputStore runInputStore)
+    {
+        ArgumentNullException.ThrowIfNull(runInputStore);
+
+        var catalog = new WorkflowCatalog([], DefinitionStore, Compiler, TenantContext, EmptyServices.Instance);
+
+        return new WorkflowRunner(
+            catalog,
+            RunStore,
+            CheckpointStore,
+            TenantContext,
+            Options.Create(new TraconWorkflowOptions()),
+            Options.Create(new TraconOptions()),
+            NullLogger<WorkflowRunner>.Instance,
+            runInputStore: runInputStore);
+    }
+
     private WorkflowRunner CreateRunnerCore(
         Action<TraconWorkflowOptions>? configure,
         IServiceProvider? services,
@@ -148,7 +177,8 @@ internal sealed class WorkflowTestHost
             Options.Create(new TraconOptions()),
             NullLogger<WorkflowRunner>.Instance,
             timeProvider: timeProvider,
-            sinks: sinks);
+            sinks: sinks,
+            runInputStore: RecordsRunInput ? RunInputs : null);
     }
 
     /// <summary>
@@ -185,7 +215,8 @@ internal sealed class WorkflowTestHost
             Options.Create(new TraconWorkflowOptions()),
             Options.Create(new TraconOptions()),
             NullLogger<WorkflowRunner>.Instance,
-            metrics: metrics);
+            metrics: metrics,
+            runInputStore: RecordsRunInput ? RunInputs : null);
     }
 
     /// <summary>Saves a definition for the tenant.</summary>

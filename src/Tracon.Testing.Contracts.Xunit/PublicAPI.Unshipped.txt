@@ -683,6 +683,7 @@ Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Incoming_versio
 Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Listing_is_sorted_by_name() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Magentic_manager_name_is_preserved() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Node_list_survives_the_round_trip() -> System.Threading.Tasks.Task!
+Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Parameter_schema_survives_the_round_trip() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Same_name_is_independent_across_tenants() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.Saved_definition_is_read_back() -> System.Threading.Tasks.Task!
 Tracon.Testing.Contracts.Storage.WorkflowDefinitionStoreContract.WorkflowDefinitionStoreContract() -> void

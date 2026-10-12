@@ -142,6 +142,27 @@ public sealed record WorkflowRunRequest
     /// before writing the first frame.
     /// </summary>
     public Guid? RunId { get; init; }
+
+    /// <summary>
+    /// Values for the parameters the workflow declares
+    /// (<see cref="WorkflowDefinition.Parameters"/>), by name.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The runner validates them against the workflow's schema and fails the
+    /// run before the first model call when a required value is missing, a name
+    /// is not declared, a value is over the configured <c>MaxParameterValueLength</c>,
+    /// or a participant agent needs a required parameter the workflow cannot
+    /// supply. The HTTP endpoint checks the same rules first only to answer
+    /// <c>400</c> before the stream opens; this runner is the authority, so a
+    /// caller that skips HTTP gets the same refusal.
+    /// </para>
+    /// <para>
+    /// The final values (these, with the schema defaults applied) are recorded
+    /// with the run, and a resume or a response to the run uses them again.
+    /// </para>
+    /// </remarks>
+    public IReadOnlyDictionary<string, string>? Parameters { get; init; }
 }
 
 /// <summary>The information needed to resume a workflow from a checkpoint.</summary>

@@ -440,6 +440,16 @@ public static partial class TraconServiceCollectionExtensions
             provider.GetService<TimeProvider>(),
             provider.GetService<Microsoft.Extensions.Logging.ILogger<ConversationBranchService>>()));
 
+        // The one place a parameterized run is compiled outside the catalog
+        // (F-294): queued runs, batch items, approval resumes and workflow steps
+        // all share it, so the decorator chain (K-581) is applied in one spot.
+        services.TryAddSingleton(static provider => new ParameterizedAgentFactory(
+            provider.GetServices<CodeAgentRegistration>(),
+            provider.GetRequiredService<IAgentDefinitionStore>(),
+            provider.GetRequiredService<AgentDefinitionCompiler>(),
+            provider.GetServices<IAgentDecorator>(),
+            provider.GetRequiredService<Microsoft.Extensions.Options.IOptionsMonitor<TraconOptions>>()));
+
         // Replay (Phase 47). Uses NOT the catalog but the definition store and
         // the compiler: model binding and tool modes require recompiling the
         // definition, and the result does NOT ENTER the cache.

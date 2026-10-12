@@ -47,6 +47,9 @@ internal sealed record WorkflowDefinitionPayload
     /// <summary>Gets a value indicating whether the plan of the manager agent needs human approval.</summary>
     public bool RequirePlanApproval { get; init; }
 
+    /// <summary>Gets the run parameters the workflow accepts.</summary>
+    public IReadOnlyList<AgentParameter> Parameters { get; init; } = [];
+
     /// <summary>Converts the content of a definition into a payload.</summary>
     /// <param name="definition">The source definition.</param>
     /// <returns>The payload to serialize.</returns>
@@ -62,6 +65,7 @@ internal sealed record WorkflowDefinitionPayload
             MaxIterations = definition.MaxIterations,
             HandoffInstructions = definition.HandoffInstructions,
             RequirePlanApproval = definition.RequirePlanApproval,
+            Parameters = definition.Parameters,
         };
 
     /// <summary>Builds the definition by merging the payload with the information from the columns.</summary>
@@ -83,6 +87,7 @@ internal sealed record WorkflowDefinitionPayload
             MaxIterations = MaxIterations,
             HandoffInstructions = HandoffInstructions,
             RequirePlanApproval = RequirePlanApproval,
+            Parameters = Parameters,
             TenantId = tenantId,
             Version = version,
             UpdatedAt = updatedAt,

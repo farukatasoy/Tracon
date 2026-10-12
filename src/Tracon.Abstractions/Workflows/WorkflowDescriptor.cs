@@ -40,6 +40,12 @@ public sealed record WorkflowDescriptor
     /// </summary>
     public IReadOnlyList<WorkflowNodeReference> Nodes { get; init; } = [];
 
+    /// <summary>
+    /// Gets the run parameters the workflow accepts. Empty for a workflow that
+    /// takes none, and always empty for a workflow defined in code.
+    /// </summary>
+    public IReadOnlyList<AgentParameter> Parameters { get; init; } = [];
+
     /// <summary>Gets the definition version. Always 1 for code-defined workflows.</summary>
     public int Version { get; init; } = 1;
 
