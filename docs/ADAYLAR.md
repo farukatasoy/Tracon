@@ -619,7 +619,7 @@ yolda da § *Kalemin yaşam döngüsü* uygulanır.
 
 ### Kusur giderme
 
-F-332…F-344 (video tüketicisi turu) satırları kısadır; tam kanıt ve repro fikri [tüketici raporu § 12](arsiv/incelemeler/2026-10-11-video-tuketici-uyum-raporu.md#12-tracon-kusurları-kanıt-tablosu)'dedir. Onaylanan sıranın 🟠 kalemleri (F-325 · F-326 · F-328 · F-327 · F-329 · F-330 · F-331, F-317 ve F-314 ile) 2026-10-12'de kapandı; sıradaki F-332. F-348…F-352 o kapanışın sınıf taramasından gelir.
+F-341…F-344 (video tüketicisi turu) satırları kısadır; tam kanıt ve repro fikri [tüketici raporu § 12](arsiv/incelemeler/2026-10-11-video-tuketici-uyum-raporu.md#12-tracon-kusurları-kanıt-tablosu)'dedir. 2026-10-12'de iki tur kapandı: önce 🟠 kalemler (F-325 · F-326 · F-328 · F-327 · F-329 · F-330 · F-331, F-317 ve F-314 ile), sonra bütün 🟡 kalemler (F-315, F-332…F-340, F-348, F-349, F-351, F-352; K-892…K-896). F-353…F-373 ikinci turun sınıf taramalarından gelir; sıradakiler bunların 🟡 olanlarıdır.
 
 | Aciliyet | Kalem | Sorun | Ne yapılır |
 |---|---|---|---|
