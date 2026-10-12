@@ -1327,7 +1327,7 @@ internal abstract class SqlQueriesBase
             """;
 
         SelectRunInput = $"""
-            SELECT messages, created_at
+            SELECT messages, created_at, parameters
             FROM {Table("run_inputs")}
             WHERE run_id = @run_id AND tenant_id = @tenant_id;
             """;

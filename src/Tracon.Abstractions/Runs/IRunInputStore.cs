@@ -76,6 +76,27 @@ public sealed record RunInputRecord
     /// </remarks>
     public required IReadOnlyList<ChatMessage> Messages { get; init; }
 
+    /// <summary>
+    /// The run's final parameter values: the values the caller supplied with the
+    /// schema defaults applied. <see langword="null"/> means nothing was
+    /// recorded (a run from before this field existed, or one started while
+    /// input recording was off); an empty map means the run was recorded and
+    /// carried no values.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The two states must stay apart. A replay, a workflow resume and an
+    /// approval resume read this to run with the SAME instructions as the source
+    /// run; a missing record read as "no values" would let a parameterized
+    /// definition run on its defaults and change what the model is told.
+    /// </para>
+    /// <para>
+    /// The values are user content. They are stored in their own column,
+    /// protected by <see cref="ProtectedColumn.RunInputParameters"/>.
+    /// </para>
+    /// </remarks>
+    public IReadOnlyDictionary<string, string>? Parameters { get; init; }
+
     /// <summary>The record's creation time (UTC).</summary>
     public required DateTimeOffset CreatedAt { get; init; }
 }

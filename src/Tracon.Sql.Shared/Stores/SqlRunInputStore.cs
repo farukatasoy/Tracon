@@ -17,6 +17,13 @@ namespace Tracon;
 /// is fixed by the schema, not by <see cref="SqlDialect.AddJson"/>; the only
 /// job here is serializing the text correctly.
 /// </para>
+/// <para>
+/// The parameter values live in their own nullable column. <c>NULL</c> means
+/// "nothing was recorded" and <c>{}</c> means "recorded, no values": the
+/// distinction is the replay and resume paths' fail-closed rule, so the
+/// serializer here deliberately does NOT collapse an empty map to <c>NULL</c>
+/// the way <c>JsonStringMapCodec</c> does for <c>runs.labels</c>.
+/// </para>
 /// </remarks>
 internal sealed class SqlRunInputStore : IRunInputStore
 {
@@ -51,6 +58,17 @@ internal sealed class SqlRunInputStore : IRunInputStore
                 _context,
                 ProtectedColumn.RunInput,
                 JsonSerializer.Serialize(record.Messages, TraconJsonContext.Default.IReadOnlyListChatMessage)));
+        Dialect.AddJson(
+            command,
+            "parameters",
+            record.Parameters is null
+                ? null
+                : ProtectedValue.Write(
+                    _context,
+                    ProtectedColumn.RunInputParameters,
+                    JsonSerializer.Serialize(
+                        new Dictionary<string, string>(record.Parameters, StringComparer.Ordinal),
+                        TraconJsonContext.Default.DictionaryStringString)));
         Dialect.AddTimestamp(command, "created_at", record.CreatedAt);
 
         await DbHelpers.ExecuteAsync(command, cancellationToken).ConfigureAwait(false);
@@ -84,5 +102,11 @@ internal sealed class SqlRunInputStore : IRunInputStore
                 ProtectedValue.Read(_context, reader.GetString(0))!,
                 TraconJsonContext.Default.IReadOnlyListChatMessage) ?? [],
             CreatedAt = DbHelpers.GetTimestamp(reader, 1),
+            Parameters = ReadParameters(DbHelpers.GetNullableString(reader, 2)),
         };
+
+    private Dictionary<string, string>? ReadParameters(string? stored)
+        => ProtectedValue.Read(_context, stored) is { } text
+            ? JsonSerializer.Deserialize(text, TraconJsonContext.Default.DictionaryStringString) ?? []
+            : null;
 }

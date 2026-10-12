@@ -246,6 +246,48 @@ public sealed class RetentionDataPlaneTests(PostgresFixture fixture) : IAsyncLif
             .ShouldBe(1);
     }
 
+    /// <summary>
+    /// 🚨 F-294: the parameter values a workflow was started with live only in
+    /// its <c>run_inputs</c> row, and answering the run resumes with them. The
+    /// row of a run waiting for a human survives retention and is not counted
+    /// toward the row limit; a finished run's row goes by age as before.
+    /// </summary>
+    [Fact]
+    public async Task A_waiting_workflow_runs_input_row_survives_retention()
+    {
+        var old = DateTimeOffset.UtcNow.AddDays(-60);
+        var cutoff = DateTimeOffset.UtcNow.AddDays(-1);
+        var waiting = await SeedRunAsync(completedAt: old, status: RunStatus.AwaitingInput);
+        var finished = await SeedRunAsync(completedAt: old, status: RunStatus.Completed);
+
+        await SeedRunInputAsync(waiting, createdAt: old);
+        await SeedRunInputAsync(finished, createdAt: old);
+
+        // Two rows exist; only the finished run's one counts, so a limit of two
+        // is not reached.
+        (await _context.RetentionData.FindRowLimitCutoffAsync(RetentionTargets.RunInputs, tenantId: null, maxRows: 2))
+            .ShouldBeNull("a waiting run's input is not counted toward the row limit");
+
+        (await _context.RetentionData.CountOlderThanAsync(RetentionTargets.RunInputs, tenantId: null, cutoff)).ShouldBe(1);
+        (await _context.RetentionData.DeleteBatchAsync(RetentionTargets.RunInputs, tenantId: null, cutoff, batchSize: 100)).ShouldBe(1);
+
+        (await _context.ScalarAsync<long>(
+            $"SELECT COUNT(*) FROM {_context.SchemaName}.run_inputs WHERE run_id = '{waiting}';"))
+            .ShouldBe(1);
+        (await _context.ScalarAsync<long>(
+            $"SELECT COUNT(*) FROM {_context.SchemaName}.run_inputs WHERE run_id = '{finished}';"))
+            .ShouldBe(0);
+    }
+
+    /// <summary>A parameter map as JSON. Avoids brace-escaping inside raw SQL.</summary>
+    private const string ParametersJson = "{\"tone\":\"formal\"}";
+
+    private async Task SeedRunInputAsync(Guid runId, DateTimeOffset createdAt)
+        => await _context.ExecuteAsync($"""
+            INSERT INTO {_context.SchemaName}.run_inputs (run_id, tenant_id, messages, created_at, parameters)
+            VALUES ('{runId}', 'test', '[]', '{createdAt.UtcDateTime:O}', '{ParametersJson}');
+            """);
+
     private async Task<Guid> SeedRunAsync(DateTimeOffset? completedAt = null, RunStatus status = RunStatus.Completed)
     {
         var id = Guid.NewGuid();

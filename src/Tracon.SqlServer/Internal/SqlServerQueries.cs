@@ -797,8 +797,8 @@ internal sealed class SqlServerQueries : SqlQueriesBase
         // 🚨 A second write is ignored; T-SQL has no ON CONFLICT, so the
         // condition is written with NOT EXISTS (K-177: MERGE is not used).
         InsertRunInput = $"""
-            INSERT INTO {Schema}.run_inputs (run_id, tenant_id, messages, created_at)
-            SELECT @run_id, @tenant_id, @messages, @created_at
+            INSERT INTO {Schema}.run_inputs (run_id, tenant_id, messages, created_at, parameters)
+            SELECT @run_id, @tenant_id, @messages, @created_at, @parameters
             WHERE NOT EXISTS (SELECT 1 FROM {Schema}.run_inputs WHERE run_id = @run_id);
             """;
 
