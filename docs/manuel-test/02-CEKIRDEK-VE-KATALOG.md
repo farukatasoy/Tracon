@@ -1,6 +1,6 @@
 # 02 — Çekirdek ve Katalog (`CORE`)
 
-> **Alan kodu:** `CORE` · **Faz:** 1, 3, 72, 101, 106, 127, 130, 135, 189
+> **Alan kodu:** `CORE` · **Faz:** 1, 3, 72, 101, 106, 127, 130, 135, 189, 194
 > **Kaynak:** `src/Tracon.Abstractions` · `src/Tracon.Core`
 > (`Compilation/` · `Catalog/` · `Tools/` · `Sessions/` · `TraconOptions*`)
 >
@@ -3977,3 +3977,63 @@ zaman varsayılan talimatla koştu. Otomatik karşılığı:
 - Run kaydı `culture` taşımaz. Bu run'ın approval devamı, replay'i ve
   otomatik devamı varsayılan talimatla koşar (bakımcı kararı).
 - 🚨 Eski kusur: Adım 1 de "Reply briefly." gönderdi.
+
+---
+
+### MT-CORE-141 — Replay kayıtlı değerle koşar, üzerine yazma birleşir, kaydı olmayan run reddedilir (Faz 194, F-294)
+
+Sınır senaryosu. K-890'ın "replay parametreli tanımı reddeder" maddesi bu fazda
+değişti. Otomatik karşılığı: `RunReplayParameterTests`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 194 |
+| **İlgili karar** | K-897 |
+
+**Ön koşul**
+- Örnek uygulama Echo kipinde; `podcast-editor` kayıtlı (kod tanımlı: replay yalnız `LiveTools`).
+
+**Adımlar**
+1. `Idempotency-Key` ile `podcast-editor`'a `{"message":"Episode 14","parameters":{"tone":"dry"}}` gönder (`$RID`).
+2. `POST /api/runs/$RID/replay` `{"toolMode":"LiveTools"}`.
+3. Aynısını `{"toolMode":"LiveTools","parameters":{"voice":"onyx"}}` ile tekrarla.
+4. `{"parameters":{"vice":"x"}}` ile tekrarla.
+5. Bir workflow run'ını (MT-WF-127) replay et.
+
+**Beklenen sonuç**
+- Adım 2: çıktı `Edit for a dry tone, voice alloy.` — kayıtlı değer ve varsayılan.
+- Adım 3: `Edit for a dry tone, voice onyx.` — yalnız adı verilen değişir.
+- Adım 4: `400`; mesaj `Unknown parameter 'vice'` içerir.
+- Adım 5: `400`; mesaj workflow run'ının checkpoint'ten sürdürüldüğünü, replay edilmediğini söyler.
+- `RecordRunInput=false` ile koşmuş bir run'ın replay'i `404` (girdi yok); parametre kaydı olmayan
+  ama mesajı olan eski bir satır `400` ve `did not record the values` ile reddedilir.
+
+---
+
+### MT-CORE-142 — Çökme sonrası devam ve onay-devamı kayıtlı değerleri kullanır; kaydı olmayan kaynak reddedilir (Faz 194, F-294)
+
+Sınır senaryosu. Otomatik karşılığı: `RunContinuationTests` ·
+`ApprovalResumeParameterTests`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 194 |
+| **İlgili karar** | K-897 |
+
+**Ön koşul**
+- Onay isteyen bir tool'a bağlı, parametreli bir agent; kuyruk açık; `Tracon:RunRecording:RecordRunInput` açık.
+
+**Adımlar**
+1. Agent'a `Prefer: respond-async` ile `parameters` vererek bir run gönder; run `AwaitingApproval` olur.
+2. Onayı ver (`POST /api/approvals/{id}/decide`).
+3. Aynı akışı `RecordRunInput=false` ile tekrarla.
+
+**Beklenen sonuç**
+- Adım 2: yeni run `Completed`; talimat, onayı isteyen run'ın değerini taşır (varsayılanı değil) ve yeni run da
+  değerini kaydeder.
+- Adım 3: yeni run `Failed`; hata `did not record the values` ve `RecordRunInput` adını içerir; model çağrısı yoktur.
+- Çökme sonrası devam (otomatik) aynı kuralı izler: kaydı olan run kayıtlı değerle devam eder, kaydı olmayan reddedilir.

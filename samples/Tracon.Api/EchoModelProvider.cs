@@ -32,7 +32,21 @@ internal sealed class EchoModelProvider : IModelProvider
             MaxOutputTokens = 1_024,
             SupportsTools = false,
         },
+
+        // Shows the instructions the agent was given, so a run that binds
+        // parameter values can be seen to carry them (the podcast demo agents).
+        new ModelDescriptor
+        {
+            Name = EchoInstructionsModel,
+            DisplayName = "Echo with instructions (local, no network)",
+            ContextWindowTokens = 8_192,
+            MaxOutputTokens = 1_024,
+            SupportsTools = false,
+        },
     ];
+
+    /// <summary>The model whose reply also names the instructions it received.</summary>
+    public const string EchoInstructionsModel = "echo-instructions-1";
 
     public IChatClient CreateChatClient(ModelBinding binding)
     {
@@ -51,7 +65,7 @@ internal sealed class EchoModelProvider : IModelProvider
             ChatOptions? options = null,
             CancellationToken cancellationToken = default)
         {
-            var reply = BuildReply(messages);
+            var reply = BuildReply(messages, options);
             return Task.FromResult(new ChatResponse(new ChatMessage(ChatRole.Assistant, reply))
             {
                 ModelId = _modelId,
@@ -69,7 +83,7 @@ internal sealed class EchoModelProvider : IModelProvider
             ChatOptions? options = null,
             [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
-            foreach (var word in BuildReply(messages).Split(' '))
+            foreach (var word in BuildReply(messages, options).Split(' '))
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 yield return new ChatResponseUpdate(ChatRole.Assistant, word + ' ') { ModelId = _modelId };
@@ -84,10 +98,14 @@ internal sealed class EchoModelProvider : IModelProvider
             // The local client has no resources to release.
         }
 
-        private static string BuildReply(IEnumerable<ChatMessage> messages)
+        private string BuildReply(IEnumerable<ChatMessage> messages, ChatOptions? options)
         {
             var lastUserMessage = messages.LastOrDefault(static message => message.Role == ChatRole.User);
-            return $"Echo: {lastUserMessage?.Text ?? "(empty request)"}";
+            var text = lastUserMessage?.Text ?? "(empty request)";
+
+            return string.Equals(_modelId, EchoInstructionsModel, StringComparison.Ordinal)
+                ? $"Echo [instructions: {options?.Instructions ?? "(none)"}]: {text}"
+                : $"Echo: {text}";
         }
     }
 }

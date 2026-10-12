@@ -748,6 +748,60 @@ tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>(
     },
     "Appends a word count to the incoming text. Runs no model call.");
 
+// Parameter values reach a workflow's steps. A stored workflow declares a
+// `parameters` schema (PUT /tracon/api/workflows/podcast); a run supplies
+// values, and each agent step binds the ones ITS OWN schema names into its
+// instructions. Code-defined workflows carry no schema.
+//
+//   podcast-writer  - {{tone}}, required
+//   podcast-editor  - {{tone}} (default "plain") and {{voice}} (default "alloy")
+//   narrate         - a function node that reads the run's values with
+//                     context.GetRunParameters() and prefixes the "voice"
+//
+// The two agents answer with the instructions they were bound with, so the
+// effect of a value is visible without a real model. They exist only while the
+// local echo provider is the model (no OpenAI key configured).
+tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>(
+    "narrate",
+    static _ => (messages, context, _) =>
+    {
+        var voice = context.GetRunParameters().GetValueOrDefault("voice", "plain");
+        var text = messages.LastOrDefault(static message => !string.IsNullOrWhiteSpace(message.Text))?.Text
+                   ?? string.Empty;
+
+        return new ValueTask<List<ChatMessage>>([new ChatMessage(ChatRole.User, $"[{voice}] {text}")]);
+    },
+    "Prefixes the text with the run's 'voice' parameter. Runs no model call.");
+
+if (!openAiEnabled)
+{
+    var instructionsModel = new ModelBinding { Provider = "echo", Model = EchoModelProvider.EchoInstructionsModel };
+
+    tracon
+        .AddAgent(new AgentDefinition
+        {
+            Name = "podcast-writer",
+            DisplayName = "Podcast Writer (parameters demo)",
+            Description = "Writes an episode script in the requested tone.",
+            Instructions = "Write the script in a {{tone}} tone.",
+            Parameters = [new AgentParameter { Name = "tone", Kind = AgentParameterKind.Text, Required = true }],
+            Model = instructionsModel,
+        })
+        .AddAgent(new AgentDefinition
+        {
+            Name = "podcast-editor",
+            DisplayName = "Podcast Editor (parameters demo)",
+            Description = "Edits a script for a tone and a voice.",
+            Instructions = "Edit for a {{tone}} tone, voice {{voice}}.",
+            Parameters =
+            [
+                new AgentParameter { Name = "tone", Kind = AgentParameterKind.Text, DefaultValue = "plain" },
+                new AgentParameter { Name = "voice", Kind = AgentParameterKind.Text, DefaultValue = "alloy" },
+            ],
+            Model = instructionsModel,
+        });
+}
+
 if (openRouterEnabled)
 {
     // Same support scenario, different provider. Proof of provider expansion:

@@ -1,6 +1,6 @@
 # 15 — Workflows: Yürütme, Kontrol Noktası, Graf ve Human-in-the-Loop (`WF`)
 
-> **Alan kodu:** `WF` · **Faz:** 15, 16, 71, 87 (yalnız düğüm başına retry)
+> **Alan kodu:** `WF` · **Faz:** 15, 16, 71, 87 (yalnız düğüm başına retry), 194
 > **Kaynak:** `src/Tracon.Workflows/` (tümü: `TraconWorkflowOptions`,
 > `TraconWorkflowsBuilderExtensions`, `WorkflowAgentBinding`, `Internal/*`) ·
 > `src/Tracon.Abstractions/Workflows/` (tümü) ·
@@ -2532,3 +2532,166 @@ curl -s "$APU/api/attachments?sessionId=wf-ek-oturum" -H "$APB" | jq 'length'
 - Cevaplanan bir istek de run'ı `AwaitingInput` bırakır (K-130). Bu yüzden ek,
   o run beklediği sürece durur.
 - 🚨 Eski kusur: 3. adımda ek silindi; cevap geldiğinde görsel yoktu.
+
+---
+
+### MT-WF-127 — Workflow değerleri her agent adımının talimatına ulaşır (Faz 194, F-294)
+
+Mutlu yol. Workflow bir parametre şeması bildirir; run değer verir; her adım
+yalnız **kendi** şemasının adını alır. Otomatik karşılığı:
+`WorkflowParameterBindingTests`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 194 |
+| **İlgili karar** | K-896 |
+
+**Ön koşul**
+- Örnek uygulama **Echo** sağlayıcıyla çalışıyor: `Tracon__Providers__OpenAI__ApiKey=`
+  (boş). `podcast-writer` ve `podcast-editor` yalnız bu kipte kayıtlıdır; ikisi
+  de talimatı yanıta yazar.
+
+**Girilecek veri**
+```bash
+curl -s -X PUT "$APU/api/workflows/podcast" -H 'Content-Type: application/json' -d '{
+  "kind":"Sequential","agentNames":["podcast-writer","podcast-editor"],
+  "parameters":[{"name":"tone","kind":"Text","required":true},
+                {"name":"voice","kind":"Text","defaultValue":"alloy"}]}'
+curl -sN -X POST "$APU/api/workflows/podcast/run" -H 'Content-Type: application/json' \
+  -d '{"message":"Episode 12","parameters":{"tone":"formal","voice":"nova"}}'
+```
+
+**Adımlar**
+1. Workflow'u kaydet. Yanıtın `parameters` dizisini oku.
+2. Run'ı çalıştır. `WorkflowOutput` olayının `text` alanını oku.
+3. `GET /api/runs/{runId}/tree` ile alt satırları listele.
+
+**Beklenen sonuç**
+- `WorkflowOutput` iki talimatı da taşır: `Write the script in a formal tone.`
+  ve `Edit for a formal tone, voice nova.` (writer `voice`'u bildirmez, o ad
+  writer için düşer).
+- Ağaçta `podcast-writer` ve `podcast-editor` `Completed` iki alt satırdır.
+- `voice` verilmeseydi editor'ün talimatı `voice alloy` taşırdı: workflow'un
+  varsayılanı, editor'ün kendi varsayılanını ezer.
+
+---
+
+### MT-WF-128 — Geçersiz değer akış başlamadan `400` olur; eksik katılımcı parametresi run'ı model çağrısız düşürür (Faz 194, F-294)
+
+Sınır senaryosu. Üç ayrı ret: değer eksik, ad bilinmiyor, katılımcının zorunlu
+parametresini workflow karşılamıyor. Otomatik karşılığı:
+`WorkflowRunParameterGateTests` · `WorkflowParticipantCoverageTests`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 194 |
+| **İlgili karar** | K-896 |
+
+**Ön koşul**
+- MT-WF-127'deki `podcast` workflow'u kayıtlı.
+
+**Adımlar**
+1. `parameters` vermeden run çağır.
+2. `{"tone":"formal","tonne":"x"}` ile run çağır.
+3. `podcast2` adlı yeni bir workflow kaydet: `agentNames` `["podcast-writer","podcast-editor"]`
+   ve **yalnız** `tone`'u bildirsin; sonra bir agent ekleyin ki zorunlu, varsayılansız
+   bir parametresi workflow'da olmasın (ör. ayrı bir agent `{{style}}`, `required`).
+   Run'ı `{"tone":"formal"}` ile çağır.
+
+**Beklenen sonuç**
+- Adım 1: `400`, `missingParameters: ["tone"]`; run satırı açılmaz.
+- Adım 2: `400`, `unknownParameters: ["tonne"]`. Gövde, agent `/run`'ın gövdesiyle
+  aynı üç dizi (`missingParameters`, `unknownParameters`, `tooLongParameters`)
+  taşır. Yanıtta `x` değeri geçmez.
+- Adım 3: akış açılır, run `Failed` biter; `error.message` katılımcıyı ve
+  parametreyi adlandırır; **hiçbir adım satırı yoktur** (sıfır model çağrısı).
+
+---
+
+### MT-WF-129 — Resume aynı değerleri kullanır; değeri kayıtlı olmayan run sessizce varsayılanla sürmez (Faz 194, F-294)
+
+Sınır senaryosu. Otomatik karşılığı: `WorkflowParameterResumeTests` ·
+`WorkflowParameterRespondTests`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 194 |
+| **İlgili karar** | K-896 · K-897 |
+
+**Ön koşul**
+- MT-WF-127'deki `podcast` workflow'u ve tamamlanmış bir run (`$RID`).
+
+**Adımlar**
+1. `GET /api/workflows/runs/$RID/checkpoints` ile ilk kontrol noktasını al.
+2. `POST /api/workflows/runs/$RID/resume` gövdesi `{"checkpointId":"<ilk>"}`.
+3. Yeni run'ın `run_inputs` satırını oku (SQLite: `SELECT parameters FROM tracon_run_inputs ...`).
+4. Uygulamayı `Tracon__RunRecording__RecordRunInput=false` ile yeniden başlat,
+   yeni bir run çalıştır ve onu resume et.
+
+**Beklenen sonuç**
+- Adım 2: akış `run` ile açılır, `done` ile kapanır; `error` yoktur. Yeniden
+  koşan adımlar `formal` tonunu taşır.
+- Adım 3: `parameters` sütunu doludur ve `{"$apEnc":1,...}` ile başlar
+  (içerik koruması açıkken): düz metinde `nova` ya da `formal` yoktur.
+- Adım 4: akış `error` çerçevesiyle kapanır; mesaj `did not record the values` ve
+  `RecordRunInput` adını içerir. Yeni `runs` satırı açılmaz.
+
+---
+
+### MT-WF-130 — Fonksiyon düğümü run'ın değerlerini `GetRunParameters()` ile okur (Faz 194, F-294)
+
+Mutlu yol. MAF `IWorkflowContext`'e başlangıç durumu verilemez; değerler run
+kapsamından gelir. Otomatik karşılığı: `WorkflowFunctionParameterTests`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | 194 |
+| **İlgili karar** | K-896 |
+
+**Ön koşul**
+- Örnek uygulama Echo kipinde; `narrate` fonksiyonu kayıtlı.
+
+**Adımlar**
+1. `PUT /api/workflows/podcast-narrated`: `nodes` `[{"name":"podcast-writer","kind":"Agent"},{"name":"narrate","kind":"Function"}]`,
+   `parameters` MT-WF-127'deki gibi.
+2. `{"message":"Episode 15","parameters":{"tone":"calm","voice":"shimmer"}}` ile çalıştır.
+
+**Beklenen sonuç**
+- Çıktı `[shimmer] Echo [instructions: Write the script in a calm tone.]: Episode 15`
+  olur: düğüm `voice`'u okur, agent `tone`'u bağlar.
+
+---
+
+### MT-WF-131 — Konsol: workflow detayında değer alanları görünür, editör kaydı `parameters`'ı korur (Faz 194, F-294) · 👤 görsel
+
+Konsol. Otomatik karşılığı: `workflow-detail.test.tsx` ·
+`full-replace-editors.test.tsx` (yapısal yarı); görünüm 👤 insan gerekir.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | 194 |
+| **İlgili karar** | K-896 |
+
+**Ön koşul**
+- MT-WF-127'deki `podcast` workflow'u.
+
+**Adımlar**
+1. Konsolda `Workflows → podcast` detayını aç.
+2. `tone` alanı boşken Run düğmesine bak. Sonra `tone`'a `formal` yaz ve çalıştır.
+3. Editörü aç, hiçbir şeyi değiştirmeden kaydet. `GET /api/workflows/podcast` ile karşılaştır.
+
+**Beklenen sonuç**
+- Detay ekranında `tone` (zorunlu) ve `voice` alanları görünür; `tone` boşken
+  Run kapalıdır. Ekran başlığı playground'daki alan bölümüyle aynı görünümdedir.
+- Çalıştırma `parameters` gövdesiyle gider; çıktı MT-WF-127'deki gibi olur.
+- Editör kaydından sonra `parameters` dizisi aynen durur.

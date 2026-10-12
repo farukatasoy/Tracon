@@ -1,6 +1,6 @@
 # 16 — İş Kuyruğu, Zamanlama, Tek Yürütücü Seçimi ve Dayanıklı Çalıştırma (`JOB`)
 
-> **Alan kodu:** `JOB` · **Faz:** 17, 42, 46, 66, 120, 129, 137
+> **Alan kodu:** `JOB` · **Faz:** 17, 42, 46, 66, 120, 129, 137, 194
 > **Kaynak:** `src/Tracon.Abstractions/Scheduling/` (tümü) ·
 > `src/Tracon.Abstractions/Coordination/` (tümü — `ISingletonLeaseStore`,
 > `SingletonExecutionOptions`) ·
@@ -2997,3 +2997,90 @@ değiştirdi; devam run'ı deney kolundan düştü. Otomatik karşılığı:
 - Devam run'ı varsayılan talimatla koşar; isteğin `culture`'ı saklanmaz.
 - 🚨 Eski kusur: devam run'ı `agentVersion: 2`, talimat "v2",
   `experimentId: null` idi.
+
+---
+
+### MT-JOB-136 — Kuyruklu agent run'ı `parameters` ve `documents` taşır (Faz 194, F-294)
+
+Mutlu yol. Kuyruk yolu bu iki alanı `400` ile reddederdi. Otomatik karşılığı:
+`QueuedRunParameterTests`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 194 |
+| **İlgili karar** | K-898 |
+
+**Ön koşul**
+- Örnek uygulama Echo kipinde; `podcast-writer` (`tone` zorunlu) kayıtlı; iş worker'ı açık.
+
+**Adımlar**
+1. `Prefer: respond-async` ile `{"message":"Draft episode 13","parameters":{"tone":"warm"},"documents":[{"name":"brief.txt","content":"Ship on Friday."}]}` gönder.
+2. Run `Completed` olunca olayları oku.
+3. `parameters` olmadan aynı isteği gönder.
+4. `{"parameters":{"tonne":"x"}}` ile gönder.
+
+**Beklenen sonuç**
+- Adım 1: `202`. Çıktı `Echo [instructions: Write the script in a warm tone.]: Draft episode 13`;
+  olaylarda `DocumentAttached` (`brief.txt`, boyut ve hash; içerik yok).
+- Adım 3: `400`, `missingParameters: ["customer"]` biçiminde (burada `["tone"]`); satır açılmaz.
+- Adım 4: `400`, `unknownParameters: ["tonne"]`.
+- `jobs.payload` değerleri ve belge içeriğini düz metin taşır (korumalı sütun
+  değildir); site `background-work.md` bunu yazar.
+
+---
+
+### MT-JOB-137 — Agent batch: yapılı öğe değerle, düz öğe varsayılanla koşar, bozuk öğe yalnız kendini düşürür (Faz 194, F-294)
+
+Sınır senaryosu. Otomatik karşılığı: `AgentBatchParameterTests` ·
+`BatchItemInputTests`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 194 |
+| **İlgili karar** | K-898 |
+
+**Ön koşul**
+- `podcast-editor` (`tone`, `voice` varsayılanlı) kayıtlı; iş worker'ı açık.
+
+**Adımlar**
+1. `PUT /api/schedules/batch` `handlerKey: "tracon.agent-batch"`, `targetName: "podcast-editor"`,
+   `payload`: `["plain item", {"message":"structured","parameters":{"tone":"formal","voice":"nova"}}, {"message":"bad","parameters":{"tonne":"x"}}, {"message":"later"}]`.
+2. `POST /api/schedules/batch/trigger`; iş bitince `GET /api/jobs/{id}`.
+3. `payload`'ta `{"message":"x","parameters":"nope"}` olan bir zamanlama kaydetmeyi dene.
+
+**Beklenen sonuç**
+- Adım 2: iş `Completed`; öğe 2 (`bad`) `Failed`, hata metni `Unknown parameter 'tonne'` içerir ve `x`
+  değerini içermez; diğer üçü `Completed`. Talimatlar: öğe 0 `tone plain, voice alloy`,
+  öğe 1 `tone formal, voice nova`, öğe 3 `tone plain, voice alloy`.
+- Adım 3: `400`; metin `Item 0 of the payload` ile başlar.
+- Hiçbir öğe değer taşımasaydı ve agent'ın varsayılansız zorunlu parametresi olsaydı iş **bir kez**
+  düşerdi (F-330 davranışı).
+
+---
+
+### MT-JOB-138 — Workflow batch: yapılı öğe değeri workflow'a geçirir, `documents` taşıyan öğe düşer (Faz 194, F-294)
+
+Sınır senaryosu. Otomatik karşılığı: `WorkflowBatchParameterTests`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | 194 |
+| **İlgili karar** | K-898 |
+
+**Ön koşul**
+- MT-WF-127'deki `podcast` workflow'u; iş worker'ı açık.
+
+**Adımlar**
+1. `handlerKey: "tracon.workflow"`, `targetName: "podcast"`, `payload`:
+   `[{"message":"one","parameters":{"tone":"formal"}}, {"message":"two"}, {"message":"three","documents":[{"name":"a","content":"A"}],"parameters":{"tone":"casual"}}]`.
+2. Tetikle ve işi oku.
+
+**Beklenen sonuç**
+- Öğe 0 `Completed` (`formal`). Öğe 1 `Failed` (zorunlu `tone` yok). Öğe 2 `Failed`,
+  hata `does not accept documents` içerir; model çağrısı yoktur.
