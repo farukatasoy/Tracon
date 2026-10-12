@@ -77,7 +77,18 @@ public interface IRetentionStore
     /// <param name="cutoff">The cutoff date (UTC).</param>
     /// <param name="batchSize">The maximum number of rows to delete.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The number of rows deleted. Zero means no matching rows remain.</returns>
+    /// <returns>
+    /// The number of rows deleted. Zero means no matching row could be deleted:
+    /// usually none remain, but see the remarks.
+    /// </returns>
+    /// <remarks>
+    /// For <see cref="RetentionTargets.Attachments"/> with an
+    /// <see cref="IAttachmentStorage"/> registered, each row's external content is
+    /// deleted BEFORE the row. A row whose content delete fails is kept and still
+    /// matches, so a batch can return fewer rows than
+    /// <paramref name="batchSize"/> while matching rows remain. The next run
+    /// tries the kept row again.
+    /// </remarks>
     ValueTask<int> DeleteBatchAsync(
         string target,
         string? tenantId,

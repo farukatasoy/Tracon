@@ -299,6 +299,18 @@ internal abstract class SqlQueriesBase
     /// <summary>Gets the query that deletes every attachment of a session.</summary>
     public string DeleteAttachmentsBySession { get; protected set; } = string.Empty;
 
+    /// <summary>
+    /// Gets the query that reads where an attachment's external content is,
+    /// before the attachment is deleted.
+    /// </summary>
+    public string SelectAttachmentExternalUri { get; protected set; } = string.Empty;
+
+    /// <summary>
+    /// Gets the query that reads the id and external content location of every
+    /// attachment of a session, before they are deleted.
+    /// </summary>
+    public string SelectAttachmentExternalUrisBySession { get; protected set; } = string.Empty;
+
     /// <summary>Gets the query that reads the content of a persistent agent file.</summary>
     public string SelectAgentFile { get; protected set; } = string.Empty;
 
@@ -1458,6 +1470,20 @@ internal abstract class SqlQueriesBase
             SELECT content, external_uri, media_type
             FROM {Table("attachments")}
             WHERE tenant_id = @tenant_id AND id = @id;
+            """;
+
+        // The external content is deleted BEFORE the row (F-332): the row is the
+        // only record of where the content is, so it is read first.
+        SelectAttachmentExternalUri = $"""
+            SELECT external_uri
+            FROM {Table("attachments")}
+            WHERE tenant_id = @tenant_id AND id = @id;
+            """;
+
+        SelectAttachmentExternalUrisBySession = $"""
+            SELECT id, external_uri
+            FROM {Table("attachments")}
+            WHERE tenant_id = @tenant_id AND session_id = @session_id;
             """;
 
         SelectAgentFile = $"""

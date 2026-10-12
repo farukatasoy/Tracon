@@ -333,6 +333,20 @@ internal sealed class SqlServerDialect : SqlDialect
         => $"DELETE TOP (@batchSize) FROM {table} WHERE {wherePredicate};";
 
     /// <inheritdoc />
+    public override string BuildRetentionSelectBatchSql(string table, string columns, string wherePredicate)
+        => $"SELECT TOP (@batchSize) {columns} FROM {table} WHERE {wherePredicate};";
+
+    /// <inheritdoc />
+    /// <remarks>
+    /// T-SQL has no <c>RETURNING</c>; <c>OUTPUT deleted.column</c> returns the
+    /// same rows. <c>OUTPUT</c> without <c>INTO</c> fails on a table with an
+    /// enabled trigger; the Tracon schema creates none (the same form as
+    /// <c>DeleteAttachment</c>).
+    /// </remarks>
+    public override string BuildDataSubjectDeleteReturningSql(string table, string wherePredicate, string returnedColumn)
+        => $"DELETE FROM {table} OUTPUT deleted.{returnedColumn} WHERE {wherePredicate};";
+
+    /// <inheritdoc />
     /// <remarks>
     /// <c>OFFSET</c>/<c>FETCH</c> errors WITHOUT an <c>ORDER BY</c>
     /// (a known trap); this query always carries an <c>ORDER BY</c>.

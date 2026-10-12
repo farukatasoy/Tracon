@@ -245,6 +245,13 @@ even after an answer (a second answer opens a new branch), so a session that
 paused for input keeps its checkpoints; retention removes those of its finished
 runs.
 
+Attachments that an agent step makes — a generated image, a speech clip — carry
+the workflow's session id. That id never gets a session row, so the workflow run
+owns the attachments instead: retention keeps them while a run with that session id
+waits for input, is still running, or finished after the retention cutoff. After
+that they are orphaned, and the `attachments` retention target removes them
+together with their stored content.
+
 Turning off `EnableCheckpointing` does not silently disable resumption: a workflow
 that stops to wait for a human answer fails outright instead of hanging with no way
 to resume.

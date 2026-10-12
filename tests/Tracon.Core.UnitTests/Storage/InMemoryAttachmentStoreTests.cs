@@ -31,9 +31,45 @@ public sealed class InMemoryAttachmentStoreTests
         storage.Written.ShouldNotContainKey(saved.Id);
     }
 
+    /// <summary>
+    /// F-332: the entry is the only record of where the bytes are. Removing it
+    /// before the byte delete succeeds loses the location for good when the
+    /// storage fails.
+    /// </summary>
+    [Fact]
+    public async Task A_failed_byte_delete_keeps_the_attachment()
+    {
+        var storage = new FakeAttachmentStorage();
+        var store = new InMemoryAttachmentStore(storage);
+        var first = await store.SaveAsync(Content("closing-session"));
+        var second = await store.SaveAsync(Content("closing-session"));
+        storage.FailDeletes = true;
+
+        await Should.ThrowAsync<IOException>(async () => await store.DeleteAsync("tenant-a", first.Id));
+        await Should.ThrowAsync<IOException>(async () => await store.DeleteBySessionAsync("tenant-a", "closing-session"));
+
+        (await store.GetAsync("tenant-a", first.Id)).ShouldNotBeNull();
+        (await store.GetAsync("tenant-a", second.Id)).ShouldNotBeNull();
+
+        storage.FailDeletes = false;
+        (await store.DeleteBySessionAsync("tenant-a", "closing-session")).ShouldBe(2);
+        storage.Written.ShouldBeEmpty();
+    }
+
+    private static AttachmentContent Content(string sessionId) => new()
+    {
+        TenantId = "tenant-a",
+        SessionId = sessionId,
+        FileName = "test.png",
+        MediaType = "image/png",
+        Data = new byte[] { 1, 2, 3, 4 },
+    };
+
     private sealed class FakeAttachmentStorage : IAttachmentStorage
     {
         public Dictionary<Guid, byte[]> Written { get; } = [];
+
+        public bool FailDeletes { get; set; }
 
         public ValueTask<Uri> WriteAsync(
             string tenantId,
@@ -59,6 +95,11 @@ public sealed class InMemoryAttachmentStoreTests
 
         public ValueTask DeleteAsync(Uri uri, CancellationToken cancellationToken = default)
         {
+            if (FailDeletes)
+            {
+                throw new IOException("The attachment storage is unavailable.");
+            }
+
             Written.Remove(Guid.Parse(uri.Segments[^1]));
             return default;
         }

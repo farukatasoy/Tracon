@@ -504,7 +504,7 @@ only after retention is enabled. A database policy for a target takes precedence
 | `EvalCaseResults` | 180 days | `false` |
 | `WorkflowCheckpoints` | 7 days after completion; a waiting workflow's are kept | `false` |
 | `SkillScriptGrants` | 30 days after expiry or revocation | `false` |
-| `Attachments` | 7 days for orphaned rows | `false` |
+| `Attachments` | 7 days for orphaned rows: no session, and no waiting, running, or recently finished workflow run with the session id; stored bytes go first | `false` |
 | `Sessions` | Disabled, `null` | `false` |
 | `Conversations` | Disabled, `null` | `false` |
 | `IdempotencyKeys` | 1 day | `false` |
