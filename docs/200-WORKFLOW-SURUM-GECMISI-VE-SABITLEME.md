@@ -3,7 +3,7 @@
 > **Durum:** 📋 Planlandı (2026-10-12)
 > **Plan onayı:** onaylanmadı — plan 2026-10-12'de bakımcı talebiyle yazıldı; engelleyici kararlar § Açık Sorular'da öneriyle bekler, uygulama onaydan önce başlamaz
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-300**
-> **Önkoşul:** [Faz 195](195-WORKFLOW-DUGUM-DUZENLEME-VE-AYAR.md) kapanmalı (ortak düğüm modeli ve editör); Faz 197 ve 201 ile dosya ortak
+> **Önkoşul:** [Faz 195](arsiv/fazlar/195-WORKFLOW-DUGUM-DUZENLEME-VE-AYAR.md) kapanmalı (ortak düğüm modeli ve editör); Faz 197 ve 201 ile dosya ortak
 > **Paketler:** `Tracon.Abstractions`, `.Core`, `.Workflows`, `.AspNetCore`, SQL katmanı, `.Testing.Contracts.Xunit`, `.UI`
 > **Yeni paket:** Yok · **Migration:** gerekli, üç sağlayıcı; numara uygulama anında alınır
 > **Public API:** büyüyor, GA'dan (K-603) önce ucuz — ölçüldü (2026-10-12): `wc -l src/*/PublicAPI.Shipped.txt` → 17 dosya, her biri yalnız `#nullable enable`

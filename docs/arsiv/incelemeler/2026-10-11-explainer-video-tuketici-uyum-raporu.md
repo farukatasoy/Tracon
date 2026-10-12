@@ -509,7 +509,7 @@ sıra bugün host'un admission katmanındadır; Tracon tarafı F-322'dir.
 
 **Konsol (cevap 18):** Host konsolda agent talimatını sürümlü düzenler,
 run ağacını ve maliyeti görür, bekleyen isteği run sayfasından açar. Düğüm düzenleme ve
-fonksiyon düğümü ayarı [Faz 195](../../195-WORKFLOW-DUGUM-DUZENLEME-VE-AYAR.md)
+fonksiyon düğümü ayarı [Faz 195](../fazlar/195-WORKFLOW-DUGUM-DUZENLEME-VE-AYAR.md)
 ile gelir (kodu büyük ölçüde hazır, kapanmadı). Bugünkü sınırlar: `Loop`
 konsoldan ayarlanmaz ([Faz 201](../../201-LOOP-DUZENLEME-VE-OLCUT-FABRIKASI.md),
 planlandı); workflow için sürüm geçmişi yoktur (Faz 200, planlandı; skill
@@ -703,7 +703,7 @@ planın Açık Sorular bölümündedir.
 
 Mevcut kalemler: F-294 → [Faz 194](../fazlar/194-WORKFLOW-VE-KUYRUK-PARAMETRELERI.md)
 (kapandı; kuyruklu run'a parametre ve belge dahil) · F-292 + F-295 →
-[Faz 195](../../195-WORKFLOW-DUGUM-DUZENLEME-VE-AYAR.md) (kodu büyük ölçüde hazır)
+[Faz 195](../fazlar/195-WORKFLOW-DUGUM-DUZENLEME-VE-AYAR.md) (kodu büyük ölçüde hazır)
 · F-296 (istek ayarları dilimi önce) · F-374 (`jobs.payload` koruması).
 
 Ertelenen fikirler (keşif kaydı § 3): dış işe devret ve bekle düğümü (A17'nin

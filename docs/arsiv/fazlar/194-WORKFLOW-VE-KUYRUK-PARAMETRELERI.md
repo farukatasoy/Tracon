@@ -208,7 +208,7 @@ Plan test adlarından ayrı sınıf olarak **yazılmayanlar** (içerikleri başk
 
 ## Sonraki Faza Devir Notu
 
-**Sıradaki faz: [Faz 195](../../195-WORKFLOW-DUGUM-DUZENLEME-VE-AYAR.md).** Önkoşulu (bu faz) karşılandı;
+**Sıradaki faz: [Faz 195](195-WORKFLOW-DUGUM-DUZENLEME-VE-AYAR.md).** Önkoşulu (bu faz) karşılandı;
 başlayabilir.
 
 ### Devralınan sözleşmeler
