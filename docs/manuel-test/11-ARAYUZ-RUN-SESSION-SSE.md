@@ -461,14 +461,18 @@ curl -N -s -X POST "http://localhost:5080/tracon/api/workflows/summarize-and-app
 ```
 
 2. `runs/{runId}` sayfasını arayüzde aç.
-3. "Çalıştırmalar" listesine dön, istatistik şeridine bak.
+3. Paneldeki **workflow ekranı** bağlantısına tıkla.
+4. "Çalıştırmalar" listesine dön, istatistik şeridine bak.
 
 **Beklenen sonuç**
 - Adım 2: durum rozeti `AwaitingInput` (sarı); başlık altında
   `runDetail.awaiting.title` panelinde ilgili workflow ekranına giden bir
   bağlantı görünür. Başlık açıklaması `workflowName`'i (`summarize-and-approve`)
   agent adı YERİNE gösterir (`record.kind === 'Workflow'`).
-- Adım 3: `stats.data.awaitingInputRuns > 0` olduğu için ÜÇÜNCÜ kutu artık
+- Adım 3: adres `workflows/summarize-and-approve?runId={runId}` olur ve
+  `workflowDetail.waitingOnYou` panelinde istek kartı açılır. Kart curl ile
+  başlayan run'ındır; konsol bu run'ı kendisi başlatmadı (F-335).
+- Adım 4: `stats.data.awaitingInputRuns > 0` olduğu için ÜÇÜNCÜ kutu artık
   `errorRate` DEĞİL, `awaitingInputRuns` sayacını ve `stat.awaitingHint`
   ipucunu gösterir (`errorRate` ile `awaitingInputRuns` AYNI 3. konumu
   paylaşır, ikisi asla birlikte görünmez — `runs.tsx:130-145`).
@@ -2124,3 +2128,56 @@ tabloda ve uzun bir kimlikle doğar.
   kaydırma kutusunda kalır.
 - Açıklama balonu **görünür durumda da** viewport içinde kalır; kenara yakın bir
   tetikleyicide sola kayar. 👤
+
+---
+
+### MT-UIRUN-067 — Başka yerden başlayan workflow run'ının isteği run sayfasından açılır ve yanıtlanır (kusur-giderme, 2026-10-12, F-335)
+
+Regresyon. Run sayfası "workflow ekranında yanıtla" diyordu. Workflow ekranı
+ise yalnız kendi başlattığı run'ın kartını gösteriyordu. HTTP ile, job ile
+veya başka sekmede başlayan run'ın kartı hiçbir yerde açılmıyordu. Otomatik
+karşılığı: `WorkflowTests.Pending_request_of_a_run_started_elsewhere_opens_from_its_run_page`,
+`WorkflowTests.Pending_request_opens_from_a_link_that_names_its_run`,
+`WorkflowTests.A_run_this_screen_cannot_answer_shows_a_note_instead_of_a_card`
+(E2E) ve `WorkflowHumanInTheLoopTests.An_answered_run_still_lists_its_request`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | K-130 |
+
+**Ön koşul**
+- Kabuk açık. Konsol dili İngilizce.
+
+**Girilecek veri**
+```bash
+curl -N -s -X POST "http://localhost:5080/tracon/api/workflows/summarize-and-approve/run" \
+  -H "Authorization: Bearer manuel-test-token-2026" \
+  -H "Content-Type: application/json" \
+  -d '{"message":"Tracon yayin oncesi manuel kabul testi yaziyoruz."}'
+```
+
+**Adımlar**
+1. curl çıktısının ilk çerçevesinden (`event: run`) `runId`'yi not al.
+   Konsolda `runs/{runId}` sayfasını aç.
+2. "Waiting on a person" panelindeki **workflow screen** bağlantısına tıkla.
+3. Kartta **Yes**'e bas. Çıktıyı bekle, sonra sayfayı yenile.
+4. `runs/{runId}` sayfasına dön ve bağlantıya yeniden tıkla.
+5. Adres çubuğuna `workflows/summarize-and-translate?runId={runId}` yaz.
+
+**Beklenen sonuç**
+- Adım 2: adres `workflows/summarize-and-approve?runId={runId}` olur. "Waiting
+  on you" panelinde istek kartı açılır; kart özeti ve "Should this summary be
+  published?" sorusunu taşır.
+- Adım 3: çıktı `Summary published.` olur. Adresteki `runId` YENİ run'ın
+  kimliğine döner. Yenilemeden sonra kart görünmez; "is not waiting for input"
+  notu görünür. Sayfa en üste kaymaz.
+- Adım 4: kart YENİDEN açılır. Yanıtlanan run `AwaitingInput` olarak kalır ve
+  isteğini korur (K-130). Yeniden yanıtlamak ayrı bir dal açar; run
+  sayfasındaki panel metni bunu söyler.
+- Adım 5: kart görünmez; "is not a run of this workflow" notu ve **Open the
+  run** bağlantısı görünür.
+- 🚨 Eski kusur: Adım 2'de ekran boştu. Kart yalnız konsolda **Run** ile
+  başlayan run için görünüyordu.
