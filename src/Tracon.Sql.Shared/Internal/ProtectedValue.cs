@@ -2,7 +2,7 @@ namespace Tracon;
 
 /// <summary>
 /// Applies <see cref="SqlStoreContext.ContentProtector"/> at the specific,
-/// named write/read sites the ten protected columns go through.
+/// named write/read sites the eleven protected columns go through.
 /// </summary>
 /// <remarks>
 /// <para>

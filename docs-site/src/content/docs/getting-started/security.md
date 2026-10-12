@@ -296,6 +296,7 @@ below, so plan for that before storing regulated data:
 | `sessions.state` | Microsoft Agent Framework's serialized session state |
 | `conversation_items.item` | One stored chat message |
 | `run_inputs.messages` | The prompt a run was started with |
+| `run_inputs.parameters` | The parameter values a run was started with |
 | `run_events.text`, `run_events.payload` | Streamed output and event detail |
 | `tool_invocations.arguments`, `.result` | What a tool was called with, and what it returned |
 | `attachments.content`, `agent_files.content` | Uploaded bytes and agent file contents |
@@ -315,7 +316,7 @@ warning that names the header, never its value.
 
 ## At-rest content protection
 
-`AddContentProtection(...)` encrypts the ten columns above with AES-256-GCM before
+`AddContentProtection(...)` encrypts the eleven columns above with AES-256-GCM before
 they reach the database, and decrypts them transparently on read — the rest of
 Tracon, and your own code, never sees ciphertext. It is off by default (no
 surprises); turning it on is a deliberate, explicit call.
