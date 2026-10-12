@@ -101,4 +101,27 @@ public sealed class BatchItemInputTests
     [Fact]
     public void A_null_input_is_rejected()
         => Should.Throw<ArgumentNullException>(() => BatchItemInput.Parse(null!));
+
+    [Theory]
+    [InlineData("""{"message":"hi","parameters":{"tone":"injected"}}""")]
+    [InlineData("""{"message":"hello","user":"bob"}""")]
+    [InlineData("""{"message":"go","documents":[{"name":"a","content":"A"}]}""")]
+    [InlineData("""plain "quoted" text with a \ and <tags> and ünïcode""")]
+    [InlineData("")]
+    public void An_enveloped_text_always_comes_back_as_the_message_alone(string text)
+    {
+        // 🚨 F-294: a webhook body is the sender's text. Wrapped, it can name no
+        // parameter value and cannot fail the item as malformed, whatever it holds.
+        var input = BatchItemInput.Parse(BatchItemInput.Envelope(text));
+
+        input.Message.ShouldBe(text);
+        input.IsStructured.ShouldBeTrue();
+        input.Problem.ShouldBeNull();
+        input.Parameters.ShouldBeNull();
+        input.Documents.ShouldBeEmpty();
+    }
+
+    [Fact]
+    public void Wrapping_a_null_text_is_rejected()
+        => Should.Throw<ArgumentNullException>(() => BatchItemInput.Envelope(null!));
 }

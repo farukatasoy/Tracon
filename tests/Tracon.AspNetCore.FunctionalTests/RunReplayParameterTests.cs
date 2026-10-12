@@ -87,7 +87,7 @@ public sealed class RunReplayParameterTests
     }
 
     [Fact]
-    public async Task A_replay_of_a_run_that_recorded_nothing_is_refused_and_names_the_setting()
+    public async Task A_replay_of_a_run_with_no_recorded_input_at_all_is_not_found_and_calls_no_model()
     {
         var provider = Provider();
         await using var host = await StartAsync(provider, recordRunInput: false);

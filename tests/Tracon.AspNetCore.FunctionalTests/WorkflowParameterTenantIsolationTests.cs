@@ -57,6 +57,33 @@ public sealed class WorkflowParameterTenantIsolationTests
     }
 
     [Fact]
+    public async Task Two_tenants_with_a_STORED_agent_of_the_same_name_keep_their_own_instructions()
+    {
+        // 🚨 F-294: the bound step reads the agent's definition itself (the compiled
+        // agent cache is skipped), and a stored definition is unique only WITHIN a
+        // tenant. The test above uses code-registered agents, which every tenant
+        // shares; here each tenant owns a different definition under one name.
+        var provider = WorkflowParameterBindingTests.Provider();
+        await using var host = await StartAsync(provider);
+
+        await SaveStoredAgentAsync(host, "tenant-a", "Tenant A edits for a {{tone}} tone.");
+        await SaveStoredAgentAsync(host, "tenant-b", "Tenant B edits for a {{tone}} tone.");
+        await SaveStoredWorkflowAsync(host, "tenant-a");
+        await SaveStoredWorkflowAsync(host, "tenant-b");
+
+        await Task.WhenAll(
+            RunAsync(host, "tenant-a", tone: "formal", workflow: "stored-podcast"),
+            RunAsync(host, "tenant-b", tone: "casual", workflow: "stored-podcast"));
+
+        var instructions = provider.Requests.Select(static request => request.Options!.Instructions).ToList();
+
+        instructions.ShouldContain("Tenant A edits for a formal tone.", StringComparer.Ordinal);
+        instructions.ShouldContain("Tenant B edits for a casual tone.", StringComparer.Ordinal);
+        instructions.ShouldNotContain("Tenant A edits for a casual tone.", StringComparer.Ordinal);
+        instructions.ShouldNotContain("Tenant B edits for a formal tone.", StringComparer.Ordinal);
+    }
+
+    [Fact]
     public async Task Another_tenant_cannot_continue_a_run_and_so_cannot_reach_its_values()
     {
         var provider = WorkflowParameterBindingTests.Provider();
@@ -118,9 +145,48 @@ public sealed class WorkflowParameterTenantIsolationTests
         response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync());
     }
 
-    private static async Task<Guid> RunAsync(TraconTestHost host, string tenant, string tone)
+    private static async Task SaveStoredAgentAsync(TraconTestHost host, string tenant, string instructions)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Post, "/tracon/api/workflows/podcast/run")
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/tracon/api/agents")
+        {
+            Content = JsonContent.Create(new AgentDefinitionRequest
+            {
+                Name = "stored-editor",
+                Instructions = instructions,
+                Model = new ModelBinding { Provider = "param-provider", Model = WorkflowParameterBindingTests.ModelName },
+                Parameters = [WorkflowParameterBindingTests.Tone(required: true)],
+            }),
+        };
+
+        request.Headers.Add(TenantHeader, tenant);
+
+        using var response = await host.Client.SendAsync(request);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Created, await response.Content.ReadAsStringAsync());
+    }
+
+    private static async Task SaveStoredWorkflowAsync(TraconTestHost host, string tenant)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Put, "/tracon/api/workflows/stored-podcast")
+        {
+            Content = JsonContent.Create(new WorkflowSaveRequest
+            {
+                Kind = WorkflowKind.Sequential,
+                AgentNames = ["stored-editor"],
+                Parameters = [WorkflowParameterBindingTests.Tone(required: true)],
+            }),
+        };
+
+        request.Headers.Add(TenantHeader, tenant);
+
+        using var response = await host.Client.SendAsync(request);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.OK, await response.Content.ReadAsStringAsync());
+    }
+
+    private static async Task<Guid> RunAsync(TraconTestHost host, string tenant, string tone, string workflow = "podcast")
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"/tracon/api/workflows/{workflow}/run")
         {
             Content = JsonContent.Create(new WorkflowRunHttpRequest
             {

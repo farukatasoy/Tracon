@@ -553,7 +553,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `message` member is now read as a structured item instead of as plain text.
   A text item whose content is such an object is the one ambiguity; the stored
   item keeps no type. A malformed structured item fails alone, and the schedule
-  endpoints refuse it when it is saved or triggered.
+  endpoints refuse it when it is saved or triggered. A schedule you saved
+  before this release that holds such an item with a member the shape does not
+  name (`{"message": "...", "user": "bob"}`) is not checked again; its item
+  fails on the next run instead of running as text.
+- An inbound trigger that targets a workflow now stores the sender's text as
+  `{"message": "<text>"}`. The body of a webhook is not yours: read as a batch
+  item, a body such as `{"message": "...", "parameters": {...}}` would have let
+  the sender choose the workflow's parameter values. The job item's input shows
+  the wrapped text, and the run still gets the body as its message.
+- Online evaluation and `POST /api/runs/{id}/judge` skip a run whose recorded
+  input has no messages, as they skip a run with no recorded input. A workflow
+  run that declares parameters now has such a row (it holds the values).
 - `GET /api/runs/{id}/input` answers `200` with an empty message list for a
   workflow run that recorded parameters; it answered `404` before. The values
   are not returned there. A replay of a workflow run answers `400` and points

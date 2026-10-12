@@ -142,8 +142,10 @@ internal sealed class OnlineEvalJobHandler(
         var input = await runInputStore.GetAsync(tenantContext.TenantId, run.Id, cancellationToken).ConfigureAwait(false);
 
         // When there is no run_inputs record, the judge would run blind; a
-        // silent half-scoring is not performed (Open Question 1).
-        if (input is null)
+        // silent half-scoring is not performed (Open Question 1). A record with no
+        // messages is the same case: a workflow run that declares parameters keeps
+        // its values in such a row (F-294) and has no input text to judge against.
+        if (input is null || input.Messages.Count == 0)
         {
             return ([], []);
         }

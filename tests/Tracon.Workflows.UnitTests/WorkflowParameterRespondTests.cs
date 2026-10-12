@@ -263,6 +263,26 @@ public sealed class WorkflowParameterRespondTests
         var run = (await host.RunStore.QueryRunsAsync(new RunQuery { Take = 10 })).Single();
 
         run.Status.ShouldBe(RunStatus.AwaitingInput, run.Error?.Message);
+
+        // The consequence, tried: the answer is refused, and the message names the
+        // store failure as a possible cause instead of only the two configuration
+        // reasons (an operator reading it must not hunt a setting that is fine).
+        var pending = (await runner.ListPendingRequestsAsync(run.Id)).Single();
+
+        var refusal = await Should.ThrowAsync<TraconException>(async () =>
+        {
+            await foreach (var _ in runner.RespondStreamingAsync(new WorkflowRespondRequest
+            {
+                RunId = run.Id,
+                RequestId = pending.RequestId,
+                Approved = true,
+            }))
+            {
+                // Nothing is expected.
+            }
+        });
+
+        refusal.Message.ShouldContain("run input store failed", Case.Sensitive);
     }
 
     private static async Task SaveAsync(WorkflowTestHost host, params AgentParameter[] parameters)

@@ -3084,3 +3084,50 @@ Sınır senaryosu. Otomatik karşılığı: `WorkflowBatchParameterTests`.
 **Beklenen sonuç**
 - Öğe 0 `Completed` (`formal`). Öğe 1 `Failed` (zorunlu `tone` yok). Öğe 2 `Failed`,
   hata `does not accept documents` içerir; model çağrısı yoktur.
+
+---
+
+### MT-JOB-139 — Workflow hedefli webhook gövdesi mesaj olarak koşar; parametre değeri seçemez (Faz 194, denetim 🔴1)
+
+Güvenlik sınırı. Webhook gövdesi gönderenin metnidir, operatörün değil. Yapılı
+batch öğesi gibi okunsaydı `parameters` workflow'un sistem talimatındaki değeri
+gönderene seçtirirdi. Otomatik karşılığı:
+`InboundTriggerDispatcherTests.A_workflow_trigger_body_runs_as_the_message_and_never_names_parameter_values`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | 194 |
+| **İlgili karar** | K-899 |
+
+**Ön koşul**
+- MT-WF-127'deki `podcast` workflow'u; iş worker'ı açık; `Tracon:TriggerSecrets:Slack` kurulu (`MT-JOB-091`'in üstündeki trigger kurulum bölümü).
+
+**Girilecek veri**
+```bash
+curl -s -X PUT "$APU/api/triggers/podcast-hook" -H "$APB" -H "content-type: application/json" -d '{
+  "targetKind":"workflow","targetName":"podcast",
+  "signingSecretConfigurationName":"Tracon:TriggerSecrets:Slack",
+  "payloadMode":"wholeBody"
+}'
+BODY='{"message":"Episode 20","parameters":{"tone":"injected"}}'
+TS=$(date +%s)
+SIG="sha256=$(printf '%s.%s' "$TS" "$BODY" | openssl dgst -sha256 -hmac "$TRIGSECRET" | sed 's/^.* //')"
+curl -s -w "\nHTTP: %{http_code}\n" -X POST "$APU/api/triggers/default/podcast-hook" \
+  -H "content-type: application/json" \
+  -H "X-Tracon-Timestamp: $TS" -H "X-Tracon-Signature: $SIG" -d "$BODY"
+```
+
+**Adımlar**
+1. Trigger'ı kaydet ve imzalı gövdeyi gönder.
+2. `GET /api/jobs/{jobId}` ile öğeyi oku.
+3. Aynı yordamı `BODY='{"message":"hello","user":"bob"}'` ile tekrarla.
+
+**Beklenen sonuç**
+- Adım 1-2: öğenin girdisi `{"message":"{\"message\":\"Episode 20\"…"}` biçiminde **sarılmış** metindir.
+  Workflow `tone` değeri olmadığı için öğe `Failed` biter (zorunlu `tone` yok);
+  hata gövdedeki `injected` değerini **içermez** ve talimatta `injected` geçmez.
+- Adım 3: öğe `unknown member 'user'` ile **düşmez**; `podcast` yine `tone` eksikliğinden
+  `Failed` biter. Gövde modele düz metin gider.
+

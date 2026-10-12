@@ -308,6 +308,10 @@ internal sealed class InboundTriggerDispatcher
             return new InboundTriggerDispatchResult { RunId = runId, JobId = job.Id };
         }
 
+        // The body, or the field taken from it, is the sender's text. A bare item
+        // would be read as a structured one when it looks like one, and the sender
+        // would then choose the workflow's parameter values. The envelope keeps all
+        // of it the message.
         var workflowJob = await _jobStore.EnqueueAsync(
             new JobRecord
             {
@@ -320,7 +324,7 @@ internal sealed class InboundTriggerDispatcher
                 ScheduledFor = now,
                 CreatedAt = now,
             },
-            [validated.Message],
+            [BatchItemInput.Envelope(validated.Message)],
             cancellationToken).ConfigureAwait(false);
 
         return new InboundTriggerDispatchResult { RunId = null, JobId = workflowJob.Id };
