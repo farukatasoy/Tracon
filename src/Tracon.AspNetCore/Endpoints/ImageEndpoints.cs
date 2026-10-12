@@ -33,11 +33,14 @@ internal static class ImageEndpoints
             .Accepts<ImageGenerationOperatorRequest>("application/json")
             .Produces<ImageGenerationOperatorResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status502BadGateway)
             .WithDescription(
                 "This is an operator action outside a run. Generated images are saved as attachments and " +
                 "the response returns their descriptors and configured cost. To record usage in tool_invocations, " +
-                "use the agent's generate_image tool instead.");
+                "use the agent's generate_image tool instead. Returns 403 when the tenant's egress policy " +
+                "does not allow the image provider, or when the tenant has its own credential for it: the " +
+                "generator uses the setup credential, and the image is not generated on it.");
     }
 
     private static async Task<Results<Ok<ImageGenerationOperatorResponse>, ProblemHttpResult>> GenerateAsync(
@@ -98,8 +101,13 @@ internal static class ImageEndpoints
 
         try
         {
-            var generated = await imageGeneratorResolver
-                .Resolve()
+            // F-384: the tenant's egress policy and its own credential are
+            // checked before the prompt leaves the process.
+            var generator = await imageGeneratorResolver
+                .ResolveForTenantAsync(tenantContext.TenantId, cancellationToken)
+                .ConfigureAwait(false);
+
+            var generated = await generator
                 .GenerateAsync(
                     new ImageGenerationRequest(request.Prompt),
                     new ImageGenerationOptions
@@ -144,6 +152,15 @@ internal static class ImageEndpoints
                     Currency = usage.Currency,
                 },
             });
+        }
+        catch (TenantProviderRefusedException exception)
+        {
+            // The tenant's own rule, not a provider failure: 403, as for live
+            // voice (K-878). The message names the tenant and the provider only.
+            return TypedResults.Problem(
+                title: "Image provider not available for this tenant",
+                detail: exception.Message,
+                statusCode: StatusCodes.Status403Forbidden);
         }
         catch (TraconException exception)
         {

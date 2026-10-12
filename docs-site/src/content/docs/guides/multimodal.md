@@ -216,6 +216,13 @@ It is mapped only when images are enabled. The response has attachment descripto
 and the observed image usage. It does not create a `tool_invocations` row because it
 is not part of a run.
 
+Both paths apply the tenant's provider checks before the prompt leaves the process.
+If the tenant has an egress policy that does not name the image provider
+(`Images:Provider`), the endpoint returns `403` and the tool call fails. If the
+tenant has its own key for the image provider, generation is refused in the same
+way: the provider package builds the generator with the setup key and cannot use
+the tenant's, so Tracon does not generate the tenant's images on the host's account.
+
 ## Troubleshooting
 
 **Upload returns “type rejected.”** Changing the multipart `Content-Type` does not
@@ -231,6 +238,10 @@ check whether the attachment or owning session was deleted.
 **The model ignores the attachment.** Confirm that the exact provider/model surface
 supports the detected MIME type. Upload validation covers transport safety, not model
 capability.
+
+**Image generation returns `403`.** The tenant's egress policy does not allow the
+image provider, or the tenant has its own key for it. Add the provider to the
+policy, or remove the tenant's binding for it.
 
 **A queued run returns `400`.** Attachments are not supported with
 `Prefer: respond-async`. Use the live SSE run endpoint.

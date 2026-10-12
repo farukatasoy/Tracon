@@ -152,9 +152,15 @@ public sealed partial class RunRecordingAgent
         // reading. Only a root run accounts (the same Depth == 0 gate as
         // the block below); RecordQuotaAsync itself never throws
         // (QuotaEnforcer.RecordAsync's contract) so this cannot fail the run.
+        // F-383: a root counts its whole call tree, once, in the quota entry and
+        // in its run.* webhook. Read once here, before the root's row closes.
+        var treeConsumption = scope.Depth == 0
+            ? await ReadTreeConsumptionAsync(scope, usage, cost, cancellationToken).ConfigureAwait(false)
+            : default;
+
         if (scope.Depth == 0)
         {
-            await RecordQuotaAsync(scope, usage, cost, cancellationToken).ConfigureAwait(false);
+            await RecordQuotaAsync(scope, treeConsumption, cancellationToken).ConfigureAwait(false);
         }
 
         await scope.Writer.CompleteAsync(
@@ -187,7 +193,7 @@ public sealed partial class RunRecordingAgent
         // separate run.completed event would be emitted for every node.
         if (scope.Depth == 0)
         {
-            await PublishRunEventAsync(scope, status, usage, cost, error, elapsed, modelId, cancellationToken).ConfigureAwait(false);
+            await PublishRunEventAsync(scope, status, treeConsumption, error, elapsed, modelId, cancellationToken).ConfigureAwait(false);
             await SampleForOnlineEvalAsync(scope, status, cancellationToken).ConfigureAwait(false);
         }
 

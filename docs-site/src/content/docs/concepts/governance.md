@@ -467,7 +467,10 @@ metric/period/limit/consumption fields the webhook carries. A threshold is claim
 for notification **once per period** durably — a restart or a second worker
 process never re-announces one that already fired. Only the root run of a call
 tree ever carries the notice — consumption is counted once at the tree's root,
-the same scope [runs](/concepts/runs/) are already counted and billed at.
+the same scope [runs](/concepts/runs/) are already counted and billed at. An
+agent root counts the tokens and cost of every child agent it called, and a
+workflow root counts its steps. A child run that is still running in the
+background when its root ends is not counted.
 
 :::caution[Counters are approximate]
 The check happens **before** a run starts; consumption is written **after** it
@@ -731,9 +734,10 @@ Subscribe to events and Tracon posts them to your endpoint.
 | `run.score.low` | The online-evaluation window's average score dropped below `OnlineEvaluation:LowScoreThreshold`, once the minimum sample count is met |
 | `test.ping` | You sent a test delivery to verify the subscription |
 
-A payload is a summary, never content. A workflow's `run.*` event carries the run
-tree's tokens and cost (the workflow row has none of its own); its agent steps are
-child runs and publish nothing. `workflow.request.pending` carries the request id, the
+A payload is a summary, never content. A root run's `run.*` event carries the call
+tree's tokens and cost: an agent root adds its child agents to its own, and a
+workflow root (which has none of its own) sums its steps. Child runs publish
+nothing. `workflow.request.pending` carries the request id, the
 run id and the workflow name — read the prompt and the form from
 `GET /api/workflows/runs/{runId}/requests`. `job.*` carries the job id, its handler key
 (`kind`), its target, its item counts and a display-safe error; a cancelled job publishes

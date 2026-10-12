@@ -1715,7 +1715,10 @@ metric/period/limit/consumption fields the webhook carries. A threshold is claim
 for notification **once per period** durably — a restart or a second worker
 process never re-announces one that already fired. Only the root run of a call
 tree ever carries the notice — consumption is counted once at the tree's root,
-the same scope [runs](/concepts/runs/) are already counted and billed at.
+the same scope [runs](/concepts/runs/) are already counted and billed at. An
+agent root counts the tokens and cost of every child agent it called, and a
+workflow root counts its steps. A child run that is still running in the
+background when its root ends is not counted.
 
 :::caution[Counters are approximate]
 The check happens **before** a run starts; consumption is written **after** it
@@ -1979,9 +1982,10 @@ Subscribe to events and Tracon posts them to your endpoint.
 | `run.score.low` | The online-evaluation window's average score dropped below `OnlineEvaluation:LowScoreThreshold`, once the minimum sample count is met |
 | `test.ping` | You sent a test delivery to verify the subscription |
 
-A payload is a summary, never content. A workflow's `run.*` event carries the run
-tree's tokens and cost (the workflow row has none of its own); its agent steps are
-child runs and publish nothing. `workflow.request.pending` carries the request id, the
+A payload is a summary, never content. A root run's `run.*` event carries the call
+tree's tokens and cost: an agent root adds its child agents to its own, and a
+workflow root (which has none of its own) sums its steps. Child runs publish
+nothing. `workflow.request.pending` carries the request id, the
 run id and the workflow name — read the prompt and the form from
 `GET /api/workflows/runs/{runId}/requests`. `job.*` carries the job id, its handler key
 (`kind`), its target, its item counts and a display-safe error; a cancelled job publishes
@@ -9029,6 +9033,13 @@ It is mapped only when images are enabled. The response has attachment descripto
 and the observed image usage. It does not create a `tool_invocations` row because it
 is not part of a run.
 
+Both paths apply the tenant's provider checks before the prompt leaves the process.
+If the tenant has an egress policy that does not name the image provider
+(`Images:Provider`), the endpoint returns `403` and the tool call fails. If the
+tenant has its own key for the image provider, generation is refused in the same
+way: the provider package builds the generator with the setup key and cannot use
+the tenant's, so Tracon does not generate the tenant's images on the host's account.
+
 ## Troubleshooting
 
 **Upload returns “type rejected.”** Changing the multipart `Content-Type` does not
@@ -9044,6 +9055,10 @@ check whether the attachment or owning session was deleted.
 **The model ignores the attachment.** Confirm that the exact provider/model surface
 supports the detected MIME type. Upload validation covers transport safety, not model
 capability.
+
+**Image generation returns `403`.** The tenant's egress policy does not allow the
+image provider, or the tenant has its own key for it. Add the provider to the
+policy, or remove the tenant's binding for it.
 
 **A queued run returns `400`.** Attachments are not supported with
 `Prefer: respond-async`. Use the live SSE run endpoint.
@@ -15729,7 +15744,7 @@ registers more than one image provider or a custom keyed generator.
 | `Scheduling:MaxAttempts` | `3` |
 | `Scheduling:MaxItemsPerJob` | `1000` |
 | `Scheduling:Lanes` | `null`; leases from every lane |
-| `Scheduling:MaxConcurrentJobsPerLane` | empty; a lane not listed shares `MaxConcurrentJobs` |
+| `Scheduling:MaxConcurrentJobsPerLane` | empty; a lane not listed shares `MaxConcurrentJobs`. A value that is not a number fails at startup |
 | `Scheduling:LaneByHandlerKey` | empty; maps a handler key to a lane when the caller left it unset |
 | `Scheduling:HttpSchedulableHandlerKeys` | empty; the handler keys `PUT /api/schedules/{name}` accepts. Empty means the built-in keys; a non-empty list replaces that default rather than extending it |
 | `AsyncRun:Enabled` | `true` |

@@ -83,8 +83,18 @@ internal sealed class GenerateImageTool : AIFunction
                 "Request fewer images or raise the `Tracon:Images:MaxImagesPerRequest` setting.");
         }
 
-        var response = await Resolve<ImageGeneratorResolver>()
-            .Resolve()
+        // The tenant is read BEFORE the provider call: its checks (F-384) run
+        // first, and a scope without a tenant must not reach the provider either.
+        var scope = TraconRunContext.Current
+            ?? throw new TraconException("Image generation requires an active Tracon run scope.");
+        var tenantId = scope.TenantId
+            ?? throw new TraconException("Image generation requires a tenant-bound Tracon run scope.");
+
+        var generator = await Resolve<ImageGeneratorResolver>()
+            .ResolveForTenantAsync(tenantId, cancellationToken)
+            .ConfigureAwait(false);
+
+        var response = await generator
             .GenerateAsync(
                 new ImageGenerationRequest(prompt),
                 new ImageGenerationOptions
@@ -119,10 +129,6 @@ internal sealed class GenerateImageTool : AIFunction
             Currency = usage.Currency,
         });
 
-        var scope = TraconRunContext.Current
-            ?? throw new TraconException("Image generation requires an active Tracon run scope.");
-        var tenantId = scope.TenantId
-            ?? throw new TraconException("Image generation requires a tenant-bound Tracon run scope.");
         var attachments = await Resolve<ImageAttachmentWriter>()
             .WriteAsync(
                 response.Contents,
