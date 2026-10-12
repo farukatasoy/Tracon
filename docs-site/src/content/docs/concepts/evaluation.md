@@ -376,16 +376,24 @@ flowchart LR
 ```
 
 Variant weights must sum to 100, and only one experiment per agent can be `Running` at
-a time. Assignment happens **only** on `POST /api/agents/{name}/run` — the
-OpenAI-compatible endpoints and child-agent calls do not go through it, which keeps
-the comparison to traffic you meant to split.
+a time. Assignment happens **only** on `POST /api/agents/{name}/run`, synchronous or
+queued (`Prefer: respond-async`). The OpenAI-compatible endpoints, inbound triggers
+and child-agent calls do not go through it, which keeps the comparison to traffic
+you meant to split.
+
+The assignment key is the request's `sessionId`, or the run id when there is no
+session. A session therefore lands in the same arm on both paths. A queued run gets
+its arm when Tracon accepts it, and the worker runs that arm's version. The run counts
+in the arm only when the worker starts it: a queued run that never starts adds
+nothing to the results.
 
 The results endpoint gives per-arm counts, error rates, tokens, and durations. It
 makes **no statistical claim about a winner**; it shows the raw numbers and leaves the
 judgement to you.
 
-Stopping affects new runs only. A run already in flight keeps its arm, results stay
-readable, and the agent becomes free for another experiment. Deleting a `Running`
+Stopping affects new runs only. A run already in flight keeps its arm, and so does a
+queued run that Tracon accepted before the stop. Results stay readable, and the agent
+becomes free for another experiment. Deleting a `Running`
 experiment is refused — stop it first, so traffic is never split against a definition
 that no longer exists.
 

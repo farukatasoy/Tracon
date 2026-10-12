@@ -2185,6 +2185,45 @@ Otomatik karşılığı: `PinnedVersionDescriptorTests`.
 
 ---
 
+### MT-EVAL-104 — Kuyruklu run deney koluna atanır; sahte kol taşıyan iş kapalı düşer (kusur-giderme, 2026-10-12, F-351)
+
+Regresyon. Kuyruklu run deneye atanmıyordu: güncel sürümle koştu ve hiçbir kolda
+sayılmadı. Otomatik karşılığı:
+`ExperimentEndpointTests.A_queued_run_runs_and_records_the_experiment_arm_it_was_assigned`,
+`A_queued_run_job_whose_variant_does_not_name_its_version_fails_closed` ve
+`AgentRunJobHandlerTests.A_forged_arm_fails_closed_and_never_runs_the_agent`.
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | K-144 |
+
+**Ön koşul**
+- MT-EVAL-102'deki gibi iki sürümlü `exp-agent` (v1 "v1", v2 "v2").
+- Tek kollu deney başlatılmış:
+  `{"agentName":"exp-agent","variants":[{"name":"control","version":1,"weight":100}]}`.
+- Kuyruk açık (`UseScheduling`).
+
+**Adımlar**
+1. `Prefer: respond-async` ile `exp-agent`'a run gönder; `Completed` bekle.
+2. `GET /api/runs/{runId}` oku; sağlayıcıya giden talimatı incele.
+3. Admin olarak `tracon.agent-run` anahtarlı bir zamanlama kaydet. `targetName`
+   `exp-agent` olsun. `payload` alanı `{"runId":"<yeni guid>","message":"hi",`
+   `"agentVersion":2,"experimentId":"<deney id>","variant":"control"}` olsun.
+4. Zamanlamayı `POST /api/schedules/{name}/trigger` ile tetikle; işi oku.
+
+**Beklenen sonuç**
+- Adım 1–2: run `agentVersion: 1`, `experimentId` deneyin kimliği,
+  `variant: "control"`; talimat "v1".
+- Adım 3–4: iş `Failed`; hata "experiment arm" der; sağlayıcıya istek gitmez.
+- Kuyruktaki `Queued` satırı kol taşımaz; kolu yalnız worker'ın başlattığı run yazar.
+- 🚨 Eski kusur: Adım 2 `agentVersion: 2`, `experimentId: null`,
+  `variant: null` gösterdi; talimat "v2" idi.
+
+---
+
 ### EVAL-102 — Geçersiz judge skoru terminal hata üretir
 
 **Ön koşul**

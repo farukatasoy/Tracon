@@ -1,6 +1,9 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
+using FakeModelProvider = Tracon.Testing.FakeModelProvider;
 
 namespace Tracon.AspNetCore.FunctionalTests;
 
@@ -236,6 +239,104 @@ public sealed class ExperimentEndpointTests
         response.StatusCode.ShouldBe(HttpStatusCode.NotFound);
     }
 
+    /// <summary>
+    /// F-351: a queued run was assigned to no arm and ran the CURRENT version
+    /// (2), so a queued run of an agent under an experiment never counted in
+    /// the arm its key falls in, and ran instructions the arm did not name.
+    /// </summary>
+    [Fact]
+    public async Task A_queued_run_runs_and_records_the_experiment_arm_it_was_assigned()
+    {
+        var provider = ArmProvider();
+        await using var host = await StartQueuedHostAsync(provider);
+        var experimentId = await StartSingleArmExperimentAsync(host);
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, ArmAgentRun)
+        {
+            Content = JsonContent.Create(new AgentRunRequest { Message = "hi" }),
+        };
+        request.Headers.Add("Prefer", "respond-async");
+
+        using var accepted = await host.Client.SendAsync(request);
+        accepted.StatusCode.ShouldBe(HttpStatusCode.Accepted);
+
+        var runId = (await TraconTestHost.ReadJsonAsync(accepted)).GetProperty("runId").GetGuid();
+
+        await host.WaitForRunStatusAsync(runId, "Completed");
+
+        var run = (await host.Services.GetRequiredService<IRunStore>().GetRunAsync(runId)).ShouldNotBeNull();
+
+        run.AgentVersion.ShouldBe(1);
+        run.ExperimentId.ShouldBe(experimentId);
+        run.Variant.ShouldBe("control");
+        provider.Requests[^1].Options!.Instructions.ShouldBe("first");
+    }
+
+    /// <summary>
+    /// F-351: an Admin can schedule an <c>AgentRun</c> job with a hand-written
+    /// payload. A payload naming an arm whose version it does not carry must
+    /// not produce a run recorded under that arm.
+    /// </summary>
+    [Fact]
+    public async Task A_queued_run_job_whose_variant_does_not_name_its_version_fails_closed()
+    {
+        var provider = ArmProvider();
+        await using var host = await StartQueuedHostAsync(provider);
+        var experimentId = await StartSingleArmExperimentAsync(host);
+
+        var runs = host.Services.GetRequiredService<IRunStore>();
+        var jobs = host.Services.GetRequiredService<IJobStore>();
+        var tenantId = host.Services.GetRequiredService<ITenantContext>().TenantId;
+        var runId = TraconId.NewId();
+        var now = DateTimeOffset.UtcNow;
+
+        await runs.StartRunAsync(new RunStartInfo
+        {
+            RunId = runId,
+            AgentName = ArmAgentName,
+            Status = RunStatus.Queued,
+            StartedAt = now,
+            TenantId = tenantId,
+        });
+
+        // "control" is version 1; the forged payload pairs it with version 2.
+        await jobs.EnqueueAsync(
+            new JobRecord
+            {
+                Id = runId,
+                TenantId = tenantId,
+                HandlerKey = JobHandlerKeys.AgentRun,
+                TargetName = ArmAgentName,
+                Status = JobStatus.Pending,
+                Payload = JsonSerializer.SerializeToElement(new
+                {
+                    runId = runId.ToString(),
+                    message = "hi",
+                    agentVersion = 2,
+                    experimentId = experimentId.ToString(),
+                    variant = "control",
+                }),
+                MaxAttempts = 1,
+                ScheduledFor = now,
+                CreatedAt = now,
+            },
+            []);
+
+        var run = await host.WaitForTerminalRunAsync(runId);
+
+        run.Status.ShouldBe(RunStatus.Failed);
+        run.ExperimentId.ShouldBeNull();
+        run.Variant.ShouldBeNull();
+        provider.Requests.ShouldBeEmpty();
+
+        var job = await WaitUntil.ValueAsync(
+            () => jobs.GetAsync(tenantId, runId).AsTask(),
+            static job => job is { Status: JobStatus.Failed or JobStatus.Completed },
+            "the forged job to settle");
+
+        job.ShouldNotBeNull().Status.ShouldBe(JobStatus.Failed);
+    }
+
     private static CanaryPolicy CanaryPolicy()
         => new()
         {
@@ -243,6 +344,57 @@ public sealed class ExperimentEndpointTests
             MaxErrorRateDelta = 0.1,
             MinSampleSize = 20,
         };
+
+    private const string ArmAgentName = "arm-agent";
+
+    private static readonly Uri ArmAgentRun = new($"/tracon/api/agents/{ArmAgentName}/run", UriKind.Relative);
+
+    private static FakeModelProvider ArmProvider()
+        => new FakeModelProvider("arm-provider").EchoesUserMessage();
+
+    /// <summary>
+    /// Starts a host with the queue worker and a database agent with two
+    /// versions: version 1 has the instructions "first", version 2 "second".
+    /// </summary>
+    private static async Task<TraconTestHost> StartQueuedHostAsync(FakeModelProvider provider)
+    {
+        var host = await TraconTestHost.StartAsync(
+            builder => builder.AddModelProvider(provider),
+            configureServices: static services => services.UseScheduling(
+                static options => options.PollInterval = TimeSpan.FromMilliseconds(20)));
+
+        var model = new ModelBinding { Provider = "arm-provider", Model = "arm-1" };
+
+        using var created = await host.Client.PostAsJsonAsync(
+            new Uri("/tracon/api/agents", UriKind.Relative),
+            TestData.Request(name: ArmAgentName, instructions: "first") with { Model = model });
+        created.EnsureSuccessStatusCode();
+
+        using var updated = await host.Client.PutAsJsonAsync(
+            new Uri($"/tracon/api/agents/{ArmAgentName}", UriKind.Relative),
+            TestData.Request(name: ArmAgentName, instructions: "second") with { Model = model });
+        updated.EnsureSuccessStatusCode();
+
+        return host;
+    }
+
+    /// <summary>Starts a one-arm experiment: every key falls in "control", version 1.</summary>
+    private static async Task<Guid> StartSingleArmExperimentAsync(TraconTestHost host)
+    {
+        using var created = await host.Client.PutAsJsonAsync(
+            Experiment,
+            new ExperimentSaveRequest
+            {
+                AgentName = ArmAgentName,
+                Variants = [new ExperimentVariant { Name = "control", Version = 1, Weight = 100 }],
+            });
+        created.EnsureSuccessStatusCode();
+
+        using var started = await host.Client.PostAsJsonAsync(Start, new { });
+        started.EnsureSuccessStatusCode();
+
+        return (await TraconTestHost.ReadJsonAsync(started)).GetProperty("id").GetGuid();
+    }
 
     /// <summary>Creates a database agent named "customer-support-agent" with two versions.</summary>
     private static async Task CreateVersionedAgentAsync(TraconTestHost host)

@@ -39,12 +39,22 @@ namespace Tracon;
 /// <c>POST /api/approvals/{id}/decide</c> and queues a NEW run (see
 /// <c>ApprovalResumeJobHandler</c>).
 /// </para>
+/// <para>
+/// The HTTP layer assigns the experiment arm and captures the culture at
+/// enqueue time and writes both into the payload; this handler resolves the
+/// agent with that version and culture and records the arm on the run, as the
+/// synchronous path does. A payload is durable data an administrator can also
+/// write by hand through a schedule, so an arm is honored only when it matches
+/// a started experiment of this tenant for this agent, and the run is refused
+/// otherwise.
+/// </para>
 /// </remarks>
 internal sealed class AgentRunJobHandler(
     IAgentCatalog catalog,
     AgentSessionManager sessions,
     IRunStore runStore,
     IPendingApprovalStore approvalStore,
+    IExperimentStore experimentStore,
     IOptions<TraconOptions> options,
     IOptionsMonitor<TraconApprovalOptions>? approvalOptionsMonitor = null,
     IWebhookPublisher? webhookPublisher = null,
@@ -58,7 +68,7 @@ internal sealed class AgentRunJobHandler(
     {
         ArgumentNullException.ThrowIfNull(context);
 
-        var (runId, message, sessionId, userId) = ParsePayload(context.Job.Payload);
+        var (runId, message, sessionId, userId, culture) = ParsePayload(context.Job.Payload);
 
         // 🚨 Opened in THIS method's own body, wrapping every await that
         // follows. An AsyncLocal write made inside an async helper does not
@@ -72,10 +82,16 @@ internal sealed class AgentRunJobHandler(
 
         Microsoft.Agents.AI.AIAgent agent;
         Microsoft.Agents.AI.AgentSession? session;
+        QueuedRunArm arm;
 
         try
         {
-            agent = await catalog.ResolveAsync(context.Job.TargetName, culture: null, cancellationToken).ConfigureAwait(false)
+            // F-351: the version, the arm and the culture were fixed at enqueue
+            // time. Resolving without them ran the current version with the
+            // default instructions, and the run counted in no arm.
+            arm = await VerifyArmAsync(context.Job, cancellationToken).ConfigureAwait(false);
+
+            agent = await catalog.ResolveAsync(context.Job.TargetName, arm.Version, culture, cancellationToken).ConfigureAwait(false)
                 ?? throw new TraconException(
                     $"No agent named '{context.Job.TargetName}' was found. The job will be marked as failed.");
 
@@ -114,6 +130,9 @@ internal sealed class AgentRunJobHandler(
             new TraconRunOptions
             {
                 RunId = runId,
+                AgentVersion = arm.Version,
+                ExperimentId = arm.ExperimentId,
+                Variant = arm.Variant,
                 BeforePendingApprovalIsPublished = async (producedMessages, presentations, hookCancellation) =>
                 {
                     var requests = ChildRunApproval.CollectRequests(producedMessages);
@@ -291,7 +310,118 @@ internal sealed class AgentRunJobHandler(
         }
     }
 
-    private static (Guid RunId, string Message, string? SessionId, string? UserId) ParsePayload(JsonElement payload)
+    /// <summary>
+    /// Reads the version and experiment arm the payload carries, and checks the
+    /// arm against the experiment store.
+    /// </summary>
+    /// <param name="job">The job, which names the tenant, the agent, and the payload.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>
+    /// The version to resolve and the arm to record. All three are
+    /// <see langword="null"/> for a job enqueued before these fields existed,
+    /// which keeps that job's earlier behavior: the current version, no arm.
+    /// </returns>
+    /// <exception cref="TraconException">
+    /// A field is malformed, the arm is only partly given, or the arm does not
+    /// match a started experiment of this tenant for this agent.
+    /// </exception>
+    private async ValueTask<QueuedRunArm> VerifyArmAsync(JobRecord job, CancellationToken cancellationToken)
+    {
+        var payload = job.Payload;
+        var version = ReadOptionalVersion(payload);
+        var experimentId = ReadOptionalExperimentId(payload);
+        var variant = ReadOptionalVariant(payload);
+
+        // A version alone is a pinned run, which a caller outside any
+        // experiment may ask for; only an arm label needs an experiment
+        // behind it.
+        if (experimentId is null && variant is null)
+        {
+            return new QueuedRunArm(version, null, null);
+        }
+
+        if (experimentId is null || variant is null || version is null)
+        {
+            throw new TraconException(
+                "The AgentRun job payload names an experiment arm only in part: 'experimentId', 'variant' " +
+                "and 'agentVersion' go together. The run will not start.");
+        }
+
+        // 🚨 Fail closed (F-351). AgentRun is a built-in handler key an
+        // administrator can schedule with a hand-written payload. Recording a
+        // run under an arm whose version it did not run would corrupt the
+        // experiment's results, so the arm must name a variant of this
+        // tenant's experiment for this agent, with this exact version. A
+        // Draft experiment is refused as well: the HTTP layer only assigns
+        // from a started one, and a draft's variants can still change.
+        var experiments = await experimentStore.ListAsync(job.TenantId, cancellationToken).ConfigureAwait(false);
+        var experiment = experiments.FirstOrDefault(candidate => candidate.Id == experimentId.Value);
+
+        var matches = experiment is not null &&
+            experiment.Status != ExperimentStatus.Draft &&
+            string.Equals(experiment.AgentName, job.TargetName, StringComparison.Ordinal) &&
+            experiment.Variants.Any(candidate =>
+                string.Equals(candidate.Name, variant, StringComparison.Ordinal) &&
+                candidate.Version == version.Value);
+
+        if (!matches)
+        {
+            throw new TraconException(
+                "The AgentRun job payload names an experiment arm that is not a variant of a started experiment " +
+                $"for agent '{job.TargetName}' in this tenant with version {version.Value}. The run will not start.");
+        }
+
+        return new QueuedRunArm(version, experimentId, variant);
+    }
+
+    private static int? ReadOptionalVersion(JsonElement payload)
+    {
+        if (!payload.TryGetProperty("agentVersion", out var element) || element.ValueKind == JsonValueKind.Null)
+        {
+            return null;
+        }
+
+        // Thrown on, unlike a malformed userId: dropping a version would run
+        // the CURRENT one, a different prompt than the caller was promised.
+        if (element.ValueKind != JsonValueKind.Number || !element.TryGetInt32(out var version) || version < 1)
+        {
+            throw new TraconException("The AgentRun job payload's 'agentVersion' field must be a positive integer.");
+        }
+
+        return version;
+    }
+
+    private static Guid? ReadOptionalExperimentId(JsonElement payload)
+    {
+        if (!payload.TryGetProperty("experimentId", out var element) || element.ValueKind == JsonValueKind.Null)
+        {
+            return null;
+        }
+
+        if (element.ValueKind != JsonValueKind.String || !Guid.TryParse(element.GetString(), out var experimentId))
+        {
+            throw new TraconException("The AgentRun job payload's 'experimentId' field must be a valid identifier.");
+        }
+
+        return experimentId;
+    }
+
+    private static string? ReadOptionalVariant(JsonElement payload)
+    {
+        if (!payload.TryGetProperty("variant", out var element) || element.ValueKind == JsonValueKind.Null)
+        {
+            return null;
+        }
+
+        if (element.ValueKind != JsonValueKind.String || element.GetString() is not { Length: > 0 } variant)
+        {
+            throw new TraconException("The AgentRun job payload's 'variant' field must be a non-empty string.");
+        }
+
+        return variant;
+    }
+
+    private static (Guid RunId, string Message, string? SessionId, string? UserId, string? Culture) ParsePayload(JsonElement payload)
     {
         if (payload.ValueKind != JsonValueKind.Object ||
             !payload.TryGetProperty("runId", out var runIdElement) ||
@@ -333,6 +463,22 @@ internal sealed class AgentRunJobHandler(
             userId = null;
         }
 
-        return (runId, message, sessionId, userId);
+        // Absent on a job enqueued before this field existed; that job keeps
+        // the default instructions it always had. A culture only selects among
+        // the agent's own instructions, so a malformed one is dropped, not
+        // thrown on: the worst it does is fall back to the default text.
+        var culture = payload.TryGetProperty("culture", out var cultureElement) &&
+            cultureElement.ValueKind == JsonValueKind.String &&
+            cultureElement.GetString() is { Length: > 0 } cultureValue
+            ? cultureValue
+            : null;
+
+        return (runId, message, sessionId, userId, culture);
     }
+
+    /// <summary>The version and experiment arm a queued run runs and is recorded under.</summary>
+    /// <param name="Version">The pinned definition version; <see langword="null"/> for the current one.</param>
+    /// <param name="ExperimentId">The experiment the run counts in, if any.</param>
+    /// <param name="Variant">The experiment variant the run counts in, if any.</param>
+    private readonly record struct QueuedRunArm(int? Version, Guid? ExperimentId, string? Variant);
 }

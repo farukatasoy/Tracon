@@ -276,6 +276,7 @@ internal static class AgentEndpoints
                         jobStore,
                         runStore,
                         tenantContext,
+                        experimentAssignment,
                         attributionContext,
                         asyncRunOptions.CurrentValue,
                         prefix,
@@ -962,6 +963,13 @@ internal static class AgentEndpoints
     /// <c>GET /api/runs/{id}</c> sees the just-written <see cref="RunStatus.Queued"/>
     /// row instead of a <c>404</c>.
     /// </para>
+    /// <para>
+    /// The experiment arm is assigned HERE, with the same key as the
+    /// synchronous path (session id, else run id), and travels in the payload
+    /// with the culture; the worker resolves that version and culture. The
+    /// placeholder row carries no arm: only a run that actually starts counts
+    /// in one.
+    /// </para>
     /// </remarks>
     private static async Task<IResult> RunQueuedAsync(
         string name,
@@ -970,6 +978,7 @@ internal static class AgentEndpoints
         IJobStore jobStore,
         IRunStore runStore,
         ITenantContext tenantContext,
+        ExperimentAssignmentResolver experimentAssignment,
         IRunAttributionContext? attributionContext,
         TraconAsyncRunOptions options,
         string prefix,
@@ -1014,11 +1023,27 @@ internal static class AgentEndpoints
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
+        // 🚨 F-351: assigned at enqueue time, with the synchronous path's key
+        // (K-144), so a session lands in the same arm whichever way it runs.
+        // The worker has no request to assign from, and resolving without the
+        // arm ran the current version and counted the run in no arm.
+        var runId = TraconId.NewId();
+        var assignmentKey = request.SessionId ?? runId.ToString("D");
+
+        var assignment = await experimentAssignment
+            .ResolveAsync(tenantContext.TenantId, name, assignmentKey, cancellationToken)
+            .ConfigureAwait(false);
+
         Microsoft.Agents.AI.AIAgent? agent;
 
+        // Validated against the version and culture the worker will resolve,
+        // so a compile failure of the assigned version is a 400 here rather
+        // than a failed job after the 202.
         try
         {
-            agent = await catalog.ResolveAsync(name, request.Culture, cancellationToken).ConfigureAwait(false);
+            agent = assignment is null
+                ? await catalog.ResolveAsync(name, request.Culture, cancellationToken).ConfigureAwait(false)
+                : await catalog.ResolveAsync(name, assignment.Version, request.Culture, cancellationToken).ConfigureAwait(false);
         }
         catch (TraconException ex)
         {
@@ -1044,7 +1069,6 @@ internal static class AgentEndpoints
             return AgentParameterGate.Problem(unbound.Missing);
         }
 
-        var runId = TraconId.NewId();
         var now = DateTimeOffset.UtcNow;
 
         // Placeholder row: if the client calls GET /api/runs/{id} with this id
@@ -1088,7 +1112,13 @@ internal static class AgentEndpoints
                 Lane = lane,
                 TargetName = name,
                 Status = JobStatus.Pending,
-                Payload = BuildQueuedRunPayload(runId, request.Message, request.SessionId, attributionContext?.UserId),
+                Payload = BuildQueuedRunPayload(
+                    runId,
+                    request.Message,
+                    request.SessionId,
+                    attributionContext?.UserId,
+                    request.Culture,
+                    assignment),
                 MaxAttempts = options.MaxAttempts,
                 ScheduledFor = now,
                 CreatedAt = now,
@@ -1117,12 +1147,28 @@ internal static class AgentEndpoints
     /// Builds the payload for a <see cref="JobHandlerKeys.AgentRun"/> job. Parsing
     /// happens in <c>AgentRunJobHandler.ParsePayload</c> (hand-written, AOT-compatible).
     /// </summary>
-    private static JsonElement BuildQueuedRunPayload(Guid runId, string message, string? sessionId, string? userId)
+    private static JsonElement BuildQueuedRunPayload(
+        Guid runId,
+        string message,
+        string? sessionId,
+        string? userId,
+        string? culture,
+        ExperimentAssignment? assignment)
         => JsonSerializer.SerializeToElement(new
         {
             runId = runId.ToString(),
             message,
             sessionId,
+
+            // F-351: the worker has no request to read these from. A job
+            // without them (enqueued by an older build) runs the current
+            // version with the default instructions, as it always did. The
+            // worker checks the arm against the experiment store before it
+            // honors it, because a scheduled job's payload is hand-written.
+            culture,
+            agentVersion = assignment?.Version,
+            experimentId = assignment?.ExperimentId.ToString(),
+            variant = assignment?.Variant,
 
             // 🚨 The identity is captured HERE, inside the HTTP request, for
             // the same reason the runs row captures it a few lines above: an

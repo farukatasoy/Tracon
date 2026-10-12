@@ -388,6 +388,13 @@ explicit field on the request.
 A compiled agent is cached per resolved culture: two runs of the same agent in
 different cultures never share a compiled instance.
 
+A queued run (`Prefer: respond-async`) uses the `culture` of the request that queued
+it. The run record does not store the culture. A run that Tracon starts from an
+earlier run therefore uses the default instructions. This applies to the
+continuation after an approval decision, a replay, and an automatic continuation
+after a crash. A [callable agent](#agents-calling-agents) also resolves without
+the caller's culture.
+
 ## Parameters
 
 `Parameters` declares named placeholders an agent's instructions may reference as
@@ -1151,16 +1158,24 @@ flowchart LR
 ```
 
 Variant weights must sum to 100, and only one experiment per agent can be `Running` at
-a time. Assignment happens **only** on `POST /api/agents/{name}/run` — the
-OpenAI-compatible endpoints and child-agent calls do not go through it, which keeps
-the comparison to traffic you meant to split.
+a time. Assignment happens **only** on `POST /api/agents/{name}/run`, synchronous or
+queued (`Prefer: respond-async`). The OpenAI-compatible endpoints, inbound triggers
+and child-agent calls do not go through it, which keeps the comparison to traffic
+you meant to split.
+
+The assignment key is the request's `sessionId`, or the run id when there is no
+session. A session therefore lands in the same arm on both paths. A queued run gets
+its arm when Tracon accepts it, and the worker runs that arm's version. The run counts
+in the arm only when the worker starts it: a queued run that never starts adds
+nothing to the results.
 
 The results endpoint gives per-arm counts, error rates, tokens, and durations. It
 makes **no statistical claim about a winner**; it shows the raw numbers and leaves the
 judgement to you.
 
-Stopping affects new runs only. A run already in flight keeps its arm, results stay
-readable, and the agent becomes free for another experiment. Deleting a `Running`
+Stopping affects new runs only. A run already in flight keeps its arm, and so does a
+queued run that Tracon accepted before the stop. Results stay readable, and the agent
+becomes free for another experiment. Deleting a `Running`
 experiment is refused — stop it first, so traffic is never split against a definition
 that no longer exists.
 
@@ -4858,6 +4873,18 @@ collection. A queued run of a parameterized agent binds each parameter's default
 an agent with a required parameter that has no default is refused with `400` and
 `missingParameters`. If a tool asks for approval later, the queued request must
 include a `sessionId`.
+
+A queued run uses the request's `culture`, as a synchronous run does. If the agent is
+in a running [experiment](/concepts/evaluation/#experiments), Tracon assigns the arm
+when it accepts the request, with the same key as a synchronous run, and the worker
+runs that arm's version. The `202` is returned only after Tracon compiles that version,
+so a version that does not compile is a `400`, not a failed job.
+
+The job payload carries the culture and the arm. A schedule can write a payload by
+hand, so the worker checks the arm before it runs. The arm must name a variant of a
+started experiment for this agent in this tenant, with that variant's version. If it
+does not, the job fails before the run starts, and no model call is made. A payload
+with only an `agentVersion` runs that version outside any experiment.
 
 **Do not start a second run yourself.** Deciding the approval is enough: the
 decision endpoint creates the continuation run and queues it for the worker in
