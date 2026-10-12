@@ -34,6 +34,7 @@ internal sealed class RunReplayService
     private readonly IToolRegistry _tools;
     private readonly IAgentDecorator[] _decorators;
     private readonly ITenantContext _tenantContext;
+    private readonly ParameterizedAgentFactory? _parameterFactory;
 
     /// <summary>Creates a new replay service.</summary>
     /// <param name="runs">The run store.</param>
@@ -44,6 +45,10 @@ internal sealed class RunReplayService
     /// <param name="tools">The tool registry. The approval-required tool check is read from here.</param>
     /// <param name="decorators">The wrappers to apply to the resolved agent.</param>
     /// <param name="tenantContext">The tenant context.</param>
+    /// <param name="parameterFactory">
+    /// Decides the values a replay is bound with. When <see langword="null"/>, an
+    /// agent that declares parameters cannot be replayed.
+    /// </param>
     /// <exception cref="ArgumentNullException">One of the dependencies is <see langword="null"/>.</exception>
     public RunReplayService(
         IRunStore runs,
@@ -53,7 +58,8 @@ internal sealed class RunReplayService
         AgentDefinitionCompiler compiler,
         IToolRegistry tools,
         IEnumerable<IAgentDecorator> decorators,
-        ITenantContext tenantContext)
+        ITenantContext tenantContext,
+        ParameterizedAgentFactory? parameterFactory = null)
     {
         ArgumentNullException.ThrowIfNull(runs);
         ArgumentNullException.ThrowIfNull(inputs);
@@ -76,6 +82,7 @@ internal sealed class RunReplayService
         // (Order = 0) ends up outermost.
         _decorators = [.. decorators.OrderByDescending(static decorator => decorator.Order)];
         _tenantContext = tenantContext;
+        _parameterFactory = parameterFactory;
     }
 
     /// <summary>Prepares a replay.</summary>
@@ -100,6 +107,17 @@ internal sealed class RunReplayService
             return RunReplayPreparation.Failed(
                 RunReplayOutcome.RunNotFound,
                 $"There is no run with id '{runId}'.");
+        }
+
+        // A workflow run is continued from its checkpoints, never replayed. Its
+        // run_inputs row (parameter values only, no message) would otherwise
+        // read as "no recorded input" below, which points at the wrong cause.
+        if (source.Kind == RunKind.Workflow)
+        {
+            return RunReplayPreparation.Failed(
+                RunReplayOutcome.NotSupported,
+                $"Run '{runId}' is a workflow run. A workflow run is continued from its checkpoints " +
+                "(POST /api/workflows/runs/{runId}/resume), not replayed.");
         }
 
         var input = await _inputs
@@ -144,14 +162,21 @@ internal sealed class RunReplayService
         }
 
         var effective = ApplyOverrides(definition, request);
+
+        // F-294: the replay is bound with the values the source run recorded, the
+        // request's overrides laid over them, checked against the schema of the
+        // version the replay runs.
+        var values = DecideValues(definition, source.Id, input, request);
+
+        if (values.Failure is { } valuesFailure)
+        {
+            return valuesFailure;
+        }
+
         var playback = request.ToolMode == ReplayToolMode.ReplayTools
             ? new RecordedToolPlayback(
                 await _runs.ListToolInvocationsAsync(runId, cancellationToken).ConfigureAwait(false))
             : null;
-
-        var callable = await _compiler
-            .ResolveCallableAgentsAsync(effective, cancellationToken)
-            .ConfigureAwait(false);
 
         // 🚨 The cache (CompiledAgentCache) is DELIBERATELY skipped: the
         // overridden model and played-back tools are specific to this call;
@@ -160,9 +185,29 @@ internal sealed class RunReplayService
         // tenant's provider credential and egress policy (phase 65) the same
         // way the original run did, instead of silently falling back to the
         // global setup-time credential.
-        var agent = await _compiler
-            .CompileAsync(effective, callable, playback is null ? null : playback.Wrap, culture: null, cancellationToken)
-            .ConfigureAwait(false);
+        AIAgent agent;
+
+        if (values.Values is not null)
+        {
+            agent = await _compiler
+                .CompileParameterizedAsync(
+                    effective,
+                    culture: null,
+                    values.Values,
+                    playback is null ? null : playback.Wrap,
+                    cancellationToken)
+                .ConfigureAwait(false);
+        }
+        else
+        {
+            var callable = await _compiler
+                .ResolveCallableAgentsAsync(effective, cancellationToken)
+                .ConfigureAwait(false);
+
+            agent = await _compiler
+                .CompileAsync(effective, callable, playback is null ? null : playback.Wrap, culture: null, cancellationToken)
+                .ConfigureAwait(false);
+        }
 
         if (UnboundParameters(agent, definition.Name) is { } unbound)
         {
@@ -182,7 +227,42 @@ internal sealed class RunReplayService
             input.Messages,
             source,
             effective.Version,
-            effective.Model.Model);
+            effective.Model.Model,
+            values.Values);
+    }
+
+    /// <summary>
+    /// Decides the values a replay is bound with, or the refusal that says why
+    /// it cannot be.
+    /// </summary>
+    private (IReadOnlyDictionary<string, string>? Values, RunReplayPreparation? Failure) DecideValues(
+        AgentDefinition definition,
+        Guid sourceRunId,
+        RunInputRecord input,
+        RunReplayRequest request)
+    {
+        if (definition.Parameters.Count == 0 && request.Parameters is not { Count: > 0 })
+        {
+            return (null, null);
+        }
+
+        var decided = _parameterFactory?.ResolveRecorded(definition.Parameters, input.Parameters, request.Parameters)
+            ?? new RecordedValues(null, RecordedValuesProblem.NotRecorded, null);
+
+        return decided.Problem switch
+        {
+            RecordedValuesProblem.None => (decided.Values, null),
+            RecordedValuesProblem.NotRecorded => (null, RunReplayPreparation.Failed(
+                RunReplayOutcome.NotSupported,
+                $"Agent '{definition.Name}' declares parameters, and run '{sourceRunId}' did not record the values " +
+                "it was bound with ('Tracon:RunRecording:RecordRunInput' was off, or the run predates parameter " +
+                "recording). A replay on the defaults would run with different instructions from the source run's, " +
+                "so this run cannot be replayed.")),
+            _ => (null, RunReplayPreparation.Failed(
+                RunReplayOutcome.NotSupported,
+                $"The parameter values for the replay of run '{sourceRunId}' are not valid for agent " +
+                $"'{definition.Name}' version {definition.Version}. {decided.Detail}")),
+        };
     }
 
     /// <summary>
@@ -263,6 +343,36 @@ internal sealed class RunReplayService
                 "This run cannot be replayed in any tool mode.");
         }
 
+        IReadOnlyDictionary<string, string>? catalogValues = null;
+
+        // F-294: a code-defined agent that declares parameters replays with the
+        // recorded values too. The catalog's own copy bound the defaults, so the
+        // agent is rebuilt with the recorded ones - through the same factory, which
+        // applies the decorator chain the catalog would have.
+        if (agent.GetService<UnboundParameterGuard>() is not null && _parameterFactory is { } factory)
+        {
+            var (codeDefinition, origin) = await factory
+                .FindAsync(source.AgentName, version: null, cancellationToken)
+                .ConfigureAwait(false);
+
+            if (codeDefinition is { Parameters.Count: > 0 })
+            {
+                var decided = DecideValues(codeDefinition, source.Id, input, request);
+
+                if (decided.Failure is { } failure)
+                {
+                    return failure;
+                }
+
+                agent = await factory
+                    .CompileAsync(codeDefinition, origin, culture: null, decided.Values, cancellationToken)
+                    .ConfigureAwait(false);
+                catalogValues = decided.Values;
+
+                return RunReplayPreparation.Ready(agent, input.Messages, source, agentVersion: null, modelId: source.ModelId, catalogValues);
+            }
+        }
+
         if (UnboundParameters(agent, source.AgentName) is { } unbound)
         {
             return unbound;
@@ -274,10 +384,10 @@ internal sealed class RunReplayService
     }
 
     /// <summary>
-    /// Refuses a replay of an agent that declares parameters: the recorded
-    /// input carries no parameter values, so a replay would run with the
-    /// defaults — different instructions from the source run's — or fail on a
-    /// required parameter (user decision 2026-10-12).
+    /// Refuses a replay of an agent that declares parameters when no values could
+    /// be decided for it (F-330, user decision 2026-10-12). Reached only by a
+    /// path that never decided any: a host without the parameter factory, or a
+    /// catalog agent the lookup cannot see a definition for.
     /// </summary>
     private static RunReplayPreparation? UnboundParameters(AIAgent agent, string agentName)
         => agent.GetService<UnboundParameterGuard>() is not null
@@ -436,6 +546,12 @@ internal sealed record RunReplayPreparation
     /// <summary>Gets the model to use in the replay. <see langword="null"/> if unknown.</summary>
     public string? ModelId { get; init; }
 
+    /// <summary>
+    /// Gets the parameter values the replay is bound with.
+    /// <see langword="null"/> when the agent declares none.
+    /// </summary>
+    public IReadOnlyDictionary<string, string>? ParameterValues { get; init; }
+
     /// <summary>Produces a failed preparation.</summary>
     /// <param name="outcome">The outcome.</param>
     /// <param name="detail">The reason.</param>
@@ -449,13 +565,15 @@ internal sealed record RunReplayPreparation
     /// <param name="sourceRun">The source run.</param>
     /// <param name="agentVersion">The definition version to use.</param>
     /// <param name="modelId">The model to use.</param>
+    /// <param name="parameterValues">The values the replay is bound with, if its agent declares parameters.</param>
     /// <returns>The preparation.</returns>
     public static RunReplayPreparation Ready(
         AIAgent agent,
         IReadOnlyList<ChatMessage> messages,
         RunRecord sourceRun,
         int? agentVersion,
-        string? modelId)
+        string? modelId,
+        IReadOnlyDictionary<string, string>? parameterValues = null)
         => new()
         {
             Outcome = RunReplayOutcome.Ready,
@@ -464,5 +582,6 @@ internal sealed record RunReplayPreparation
             SourceRun = sourceRun,
             AgentVersion = agentVersion,
             ModelId = modelId,
+            ParameterValues = parameterValues,
         };
 }

@@ -86,6 +86,70 @@ internal sealed class ParameterizedAgentFactory
         => AgentParameterValidator.ValidateValues(schema, values, _options.CurrentValue.MaxParameterValueLength);
 
     /// <summary>
+    /// Decides which values a run that repeats or carries on an earlier run is
+    /// bound with: the source run's recorded values, with the caller's overrides
+    /// laid over them.
+    /// </summary>
+    /// <param name="schema">The schema of the definition the new run will use.</param>
+    /// <param name="recorded">
+    /// The source run's recorded values. <see langword="null"/> means nothing was
+    /// recorded, which is NOT the same as an empty set.
+    /// </param>
+    /// <param name="overrides">Values the caller supplies over the recorded ones; <see langword="null"/> for none.</param>
+    /// <returns>The final values, or why none can be decided.</returns>
+    /// <remarks>
+    /// <para>
+    /// <strong>Fail closed.</strong> A definition that declares parameters and a
+    /// source that recorded none cannot be repeated: running on the defaults
+    /// would change the instructions the source run was given (K-890). A
+    /// definition that declares none is unaffected.
+    /// </para>
+    /// <para>
+    /// A recorded name the schema no longer declares is dropped (removing a
+    /// parameter is the operator's change to make, and a value no instruction
+    /// can reach is harmless); a required name the recorded values lack is
+    /// refused; an <em>override</em> the schema does not declare is refused, so
+    /// a typo does not vanish.
+    /// </para>
+    /// </remarks>
+    public RecordedValues ResolveRecorded(
+        IReadOnlyList<AgentParameter> schema,
+        IReadOnlyDictionary<string, string>? recorded,
+        IReadOnlyDictionary<string, string>? overrides)
+    {
+        ArgumentNullException.ThrowIfNull(schema);
+
+        if (schema.Count == 0)
+        {
+            // Nothing to bind; an override has nowhere to go.
+            return overrides is { Count: > 0 }
+                ? RecordedValues.Invalid(ParameterValueSet.Describe(Validate(schema, overrides)))
+                : new RecordedValues(null, RecordedValuesProblem.None, null);
+        }
+
+        if (recorded is null)
+        {
+            return new RecordedValues(null, RecordedValuesProblem.NotRecorded, null);
+        }
+
+        var merged = new Dictionary<string, string>(ParameterValueSet.Intersect(schema, recorded), StringComparer.Ordinal);
+
+        if (overrides is not null)
+        {
+            foreach (var (name, value) in overrides)
+            {
+                merged[name] = value;
+            }
+        }
+
+        var check = Validate(schema, merged);
+
+        return check.IsValid
+            ? new RecordedValues(ParameterValueSet.Resolve(schema, merged), RecordedValuesProblem.None, null)
+            : RecordedValues.Invalid(ParameterValueSet.Describe(check));
+    }
+
+    /// <summary>
     /// Compiles a definition with values and applies the decorator chain.
     /// </summary>
     /// <param name="definition">The source definition.</param>
@@ -169,6 +233,37 @@ internal sealed class ParameterizedAgentFactory
 
         return new ParameterBinding(agent, final);
     }
+}
+
+/// <summary>Why <see cref="ParameterizedAgentFactory.ResolveRecorded"/> could not decide the values.</summary>
+internal enum RecordedValuesProblem
+{
+    /// <summary>The values are decided (or the definition takes none).</summary>
+    None = 0,
+
+    /// <summary>The definition declares parameters and the source run recorded none.</summary>
+    NotRecorded = 1,
+
+    /// <summary>The values do not satisfy the definition's schema.</summary>
+    Invalid = 2,
+}
+
+/// <summary>The outcome of <see cref="ParameterizedAgentFactory.ResolveRecorded"/>.</summary>
+/// <param name="Values">
+/// The final values to bind; <see langword="null"/> when the definition declares
+/// no parameters or no decision could be made.
+/// </param>
+/// <param name="Problem">Why no decision could be made, if it could not.</param>
+/// <param name="Detail">For <see cref="RecordedValuesProblem.Invalid"/>: names only, never a value.</param>
+internal readonly record struct RecordedValues(
+    IReadOnlyDictionary<string, string>? Values,
+    RecordedValuesProblem Problem,
+    string? Detail)
+{
+    /// <summary>Builds the invalid outcome.</summary>
+    /// <param name="detail">The violations, by name.</param>
+    /// <returns>The outcome.</returns>
+    public static RecordedValues Invalid(string detail) => new(null, RecordedValuesProblem.Invalid, detail);
 }
 
 /// <summary>The outcome of <see cref="ParameterizedAgentFactory.BindAsync"/>.</summary>

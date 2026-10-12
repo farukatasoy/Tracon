@@ -145,6 +145,54 @@ public sealed class RunContinuationTests
     }
 
     [Fact]
+    public async Task A_parameterized_agent_is_continued_with_the_values_its_run_recorded()
+    {
+        // F-294: the interrupted run recorded the values it was bound with, and
+        // the turn continues under the SAME instructions - not the defaults.
+        ContinuationProbeTools.Reset();
+
+        var provider = new FakeModelProvider("cont-model")
+            .CallsTool("get_order_status", new { orderId = "ORD-7" })
+            .CallsTool("get_order_status", new { orderId = "ORD-8" })
+            .EchoesLastToolResult();
+
+        await using var host = await StartHostAsync(
+            o =>
+            {
+                o.Enabled = true;
+                o.MaxAttempts = 1;
+            },
+            provider);
+
+        var sourceRunId = await SeedCrashedRunAsync(
+            host,
+            new AgentDefinition
+            {
+                Name = AgentName,
+                Instructions = "Help {{customer}} with the order.",
+                Parameters = [new AgentParameter { Name = "customer", Kind = AgentParameterKind.Text, DefaultValue = "friend" }],
+                Model = new ModelBinding { Provider = "cont-model", Model = ModelId },
+                ToolNames = ["get_order_status"],
+            },
+            recordedParameters: new Dictionary<string, string>(StringComparer.Ordinal) { ["customer"] = "Ada" });
+
+        var continuationRunId = await WaitForContinuationAsync(host, sourceRunId);
+        var continuation = await host.Services.GetRequiredService<IRunStore>().GetRunAsync(continuationRunId);
+
+        continuation.ShouldNotBeNull();
+        continuation.Status.ShouldBe(RunStatus.Completed, continuation.Error?.Message);
+        provider.Requests.ShouldNotBeEmpty();
+        provider.Requests.ShouldAllBe(static request => string.Equals(request.Options!.Instructions, "Help Ada with the order.", StringComparison.Ordinal));
+
+        // The continuation recorded the values it was bound with, so the chain goes on.
+        var tenant = host.Services.GetRequiredService<ITenantContext>().TenantId;
+        var record = await host.Services.GetRequiredService<IRunInputStore>().GetAsync(tenant, continuationRunId);
+
+        record.ShouldNotBeNull();
+        record.Parameters.ShouldNotBeNull().ShouldContainKeyAndValue("customer", "Ada");
+    }
+
+    [Fact]
     public async Task Disabled_by_default_orphaned_run_stays_Failed_with_no_continuation()
     {
         await using var host = await StartHostAsync(static o => o.Enabled = false);
@@ -309,9 +357,11 @@ public sealed class RunContinuationTests
         all.Count.ShouldBe(2);
     }
 
-    private static async Task<TraconTestHost> StartHostAsync(Action<TraconRunContinuationOptions> configureContinuation)
+    private static async Task<TraconTestHost> StartHostAsync(
+        Action<TraconRunContinuationOptions> configureContinuation,
+        FakeModelProvider? provider = null)
         => await TraconTestHost.StartAsync(
-            ConfigureAgent,
+            builder => ConfigureAgent(builder, provider),
             configureServices: services =>
             {
                 services.UseScheduling(static options => options.PollInterval = TimeSpan.FromMilliseconds(20));
@@ -325,10 +375,10 @@ public sealed class RunContinuationTests
                 services.Configure(configureContinuation);
             });
 
-    private static void ConfigureAgent(ITraconBuilder builder)
+    private static void ConfigureAgent(ITraconBuilder builder, FakeModelProvider? provider = null)
     {
         builder
-            .AddModelProvider(new FakeModelProvider("cont-model")
+            .AddModelProvider(provider ?? new FakeModelProvider("cont-model")
                 .CallsTool("get_order_status", new { orderId = "ORD-7" })
                 .CallsTool("get_order_status", new { orderId = "ORD-8" })
                 .EchoesLastToolResult())
@@ -348,7 +398,8 @@ public sealed class RunContinuationTests
     private static async ValueTask<Guid> SeedCrashedRunAsync(
         TraconTestHost host,
         AgentDefinition? definition = null,
-        (int Version, Guid ExperimentId, string Variant)? arm = null)
+        (int Version, Guid ExperimentId, string Variant)? arm = null,
+        IReadOnlyDictionary<string, string>? recordedParameters = null)
     {
         // A given definition replaces the seed: it has to be the ONLY version
         // before the crashed run exists, or the reconciler (scanning every
@@ -386,6 +437,7 @@ public sealed class RunContinuationTests
             RunId = runId,
             TenantId = tenants.TenantId,
             Messages = [new ChatMessage(ChatRole.User, "where is ORD-7, and check ORD-8 too")],
+            Parameters = recordedParameters,
             CreatedAt = DateTimeOffset.UtcNow,
         });
 

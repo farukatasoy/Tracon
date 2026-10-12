@@ -61,6 +61,26 @@ public sealed record RunReplayRequest
 
     /// <summary>The tool behavior. Defaults to <see cref="ReplayToolMode.ReplayTools"/>.</summary>
     public ReplayToolMode ToolMode { get; init; } = ReplayToolMode.ReplayTools;
+
+    /// <summary>
+    /// Parameter values laid over the ones the source run was bound with.
+    /// Left empty, the replay runs with exactly the source run's values.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A replay repeats a run, so it uses the source run's recorded values;
+    /// this field changes the ones it names and keeps the rest. The result is
+    /// checked against the schema of the version the replay runs
+    /// (<see cref="AgentVersion"/>): a name that version does not declare is
+    /// refused, not dropped, so a typo cannot go unnoticed.
+    /// </para>
+    /// <para>
+    /// A run that recorded no values (input recording was off, or it predates
+    /// parameter recording) cannot be replayed when the agent declares
+    /// parameters: running it on the defaults would change the instructions.
+    /// </para>
+    /// </remarks>
+    public IReadOnlyDictionary<string, string>? Parameters { get; init; }
 }
 
 /// <summary>

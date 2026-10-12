@@ -45,7 +45,8 @@ internal sealed class RunContinuationJobHandler(
     AgentSessionManager sessions,
     IEnumerable<IAgentDecorator> decorators,
     TimeProvider? timeProvider = null,
-    ILogger<RunContinuationJobHandler>? logger = null) : IJobHandler
+    ILogger<RunContinuationJobHandler>? logger = null,
+    ParameterizedAgentFactory? parameterFactory = null) : IJobHandler
 {
     private readonly TimeProvider _clock = timeProvider ?? TimeProvider.System;
 
@@ -68,6 +69,7 @@ internal sealed class RunContinuationJobHandler(
         int? agentVersion;
         Guid? experimentId;
         string? variant;
+        IReadOnlyDictionary<string, string>? parameterValues = null;
 
         try
         {
@@ -104,16 +106,34 @@ internal sealed class RunContinuationJobHandler(
                     (agentVersion is { } v ? $" version {v}" : string.Empty) +
                     "; a code-defined or deleted agent cannot be continued.");
 
-            // The recorded input carries no parameter values. Continuing would
-            // run the turn with the defaults (or fail on a required parameter),
-            // not with the values the source run had - a different prompt
-            // halfway through the conversation (user decision 2026-10-12).
+            // F-294: the source run recorded the values it was bound with, and
+            // the turn continues with the SAME ones. Without a record the turn
+            // would run on the defaults (or fail on a required parameter) - a
+            // different prompt halfway through the conversation (K-890, user
+            // decision 2026-10-12) - so a definition that declares parameters
+            // and a run that recorded none stays refused.
             if (definition.Parameters.Count > 0)
             {
-                throw new TraconException(
-                    $"Agent '{source.AgentName}' declares parameters, and the recorded input does not carry " +
-                    "the source run's parameter values; continuing it would run with different instructions. " +
-                    "This run cannot be continued.");
+                var recorded = parameterFactory?.ResolveRecorded(definition.Parameters, input.Parameters, overrides: null)
+                    ?? new RecordedValues(null, RecordedValuesProblem.NotRecorded, null);
+
+                if (recorded.Problem == RecordedValuesProblem.NotRecorded)
+                {
+                    throw new TraconException(
+                        $"Agent '{source.AgentName}' declares parameters, and run '{sourceRunId}' did not record the " +
+                        "values it was bound with ('Tracon:RunRecording:RecordRunInput' was off, or the run predates " +
+                        "parameter recording); continuing it would run with different instructions. " +
+                        "This run cannot be continued.");
+                }
+
+                if (recorded.Problem == RecordedValuesProblem.Invalid)
+                {
+                    throw new TraconException(
+                        $"Run '{sourceRunId}' cannot be continued: agent '{source.AgentName}' no longer accepts the " +
+                        $"values it was bound with. {recorded.Detail}");
+                }
+
+                parameterValues = recorded.Values;
             }
 
             // Skills and callable sub-agents run through an AIContextProvider,
@@ -130,15 +150,26 @@ internal sealed class RunContinuationJobHandler(
             var invocations = await runStore.ListToolInvocationsAsync(sourceRunId, cancellationToken).ConfigureAwait(false);
             var playback = new RecordedToolPlayback(invocations, ToolPlaybackMismatchPolicy.RunLive);
 
-            var callable = await compiler.ResolveCallableAgentsAsync(definition, cancellationToken).ConfigureAwait(false);
-
             // 🚨 The cache (CompiledAgentCache) is DELIBERATELY skipped, the
             // same reason as RunReplayService: the played-back tools are
             // specific to this call, and caching them would corrupt later
             // normal runs of the same agent.
-            var compiled = await compiler
-                .CompileAsync(definition, callable, playback.Wrap, culture: null, cancellationToken)
-                .ConfigureAwait(false);
+            Microsoft.Agents.AI.AIAgent compiled;
+
+            if (parameterValues is not null)
+            {
+                compiled = await compiler
+                    .CompileParameterizedAsync(definition, culture: null, parameterValues, playback.Wrap, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            else
+            {
+                var callable = await compiler.ResolveCallableAgentsAsync(definition, cancellationToken).ConfigureAwait(false);
+
+                compiled = await compiler
+                    .CompileAsync(definition, callable, playback.Wrap, culture: null, cancellationToken)
+                    .ConfigureAwait(false);
+            }
 
             agent = Decorate(compiled, ToDescriptor(definition));
             session = await sessions.GetOrCreateSessionAsync(agent, sessionId, cancellationToken).ConfigureAwait(false);
@@ -165,6 +196,7 @@ internal sealed class RunContinuationJobHandler(
                 ExperimentId = experimentId,
                 Variant = variant,
                 ContinuedFromRunId = sourceRunId,
+                ParameterValues = parameterValues,
             },
             cancellationToken).ConfigureAwait(false);
 

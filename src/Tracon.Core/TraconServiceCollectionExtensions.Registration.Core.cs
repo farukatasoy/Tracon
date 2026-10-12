@@ -461,7 +461,8 @@ public static partial class TraconServiceCollectionExtensions
             provider.GetRequiredService<AgentDefinitionCompiler>(),
             provider.GetRequiredService<IToolRegistry>(),
             provider.GetServices<IAgentDecorator>(),
-            provider.GetRequiredService<ITenantContext>()));
+            provider.GetRequiredService<ITenantContext>(),
+            provider.GetRequiredService<ParameterizedAgentFactory>()));
 
         // Catalog sources. TryAddEnumerable prevents the same type from being added twice.
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IAgentSource, CodeAgentSource>());
