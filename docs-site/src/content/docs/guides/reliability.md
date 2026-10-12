@@ -301,6 +301,11 @@ already reached `MaxAttempts`, is never continued.
 The new run's record links back to the interrupted one, so an operator reading the
 run tree can see that a run continued another rather than starting fresh.
 
+An agent that declares [parameters](/concepts/agents/#parameters) continues with the
+values the interrupted run recorded. A run that recorded none — input recording was
+off, or it predates parameter recording — stays `Failed` rather than continue on the
+defaults, and the event stream says why.
+
 | Setting | Default | Effect |
 |---|---:|---|
 | `RunContinuation.Enabled` | `false` | No continuation is attempted until `RunReconciliation` is also enabled |
