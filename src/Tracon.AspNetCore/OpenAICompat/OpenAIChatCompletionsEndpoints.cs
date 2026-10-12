@@ -143,6 +143,13 @@ internal static class OpenAIChatCompletionsEndpoints
             return OpenAICompatSupport.Error(StatusCodes.Status400BadRequest, unbound.Failure().Message);
         }
 
+        // F-337: the attribution is checked before the run starts, as on the
+        // agent run endpoint; this protocol's own error shape carries it.
+        if (RunAttributionGate.Validate(attributionContext) is { } attributionError)
+        {
+            return OpenAICompatSupport.Error(StatusCodes.Status400BadRequest, attributionError, type: "invalid_run_attribution");
+        }
+
         // 🚨 This is the SIXTH run-starting surface and phase 139 missed it:
         // the endpoint resolves an agent from the catalog and calls RunAsync /
         // RunStreamingAsync a few lines below. The gate is asked BEFORE the

@@ -132,6 +132,7 @@ internal static class WorkflowEndpoints
                 "identity can be resolved to own it.")
             // The success response is always SSE; if the engine is not registered, it returns 501.
             .Produces<string>(StatusCodes.Status200OK, contentType: "text/event-stream")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status429TooManyRequests)
@@ -169,6 +170,7 @@ internal static class WorkflowEndpoints
                 "id; a denial returns 403 before any run row is opened.")
             .Accepts<WorkflowResumeHttpRequest>(true, "application/json")
             .Produces<string>(StatusCodes.Status200OK, contentType: "text/event-stream")
+            .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status403Forbidden)
             .ProducesProblem(StatusCodes.Status501NotImplemented);
 
@@ -405,6 +407,14 @@ internal static class WorkflowEndpoints
             return bindError;
         }
 
+        // F-337: attribution is checked BEFORE the run starts, the same order
+        // as the agent run endpoint (attribution → authorization → quota):
+        // an oversized label set is refused, never trimmed.
+        if (RunAttributionGate.Check(attributionContext) is { } attributionProblem)
+        {
+            return attributionProblem;
+        }
+
         if (await runner.GetAsync(name, cancellationToken).ConfigureAwait(false) is null)
         {
             return NotFound(name);
@@ -517,6 +527,14 @@ internal static class WorkflowEndpoints
             return bindError;
         }
 
+        // F-337: attribution is checked BEFORE the run starts, the same order
+        // as the agent run endpoint (attribution → authorization → quota):
+        // an oversized label set is refused, never trimmed.
+        if (RunAttributionGate.Check(attributionContext) is { } attributionProblem)
+        {
+            return attributionProblem;
+        }
+
         // 🚨 Resume opens a NEW run row from somebody's checkpoint, so it is a
         // run-STARTING surface and its denial is a 403 like every other one.
         // The request carries the SOURCE run's id, the same shape replay uses.
@@ -614,6 +632,14 @@ internal static class WorkflowEndpoints
                 title: "Response invalid",
                 detail: "'requestId' is required.",
                 statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        // F-337: attribution is checked BEFORE the run starts, the same order
+        // as the agent run endpoint (attribution → authorization → quota):
+        // an oversized label set is refused, never trimmed.
+        if (RunAttributionGate.Check(attributionContext) is { } attributionProblem)
+        {
+            return attributionProblem;
         }
 
         // Answering a human-in-the-loop request continues the workflow on a NEW

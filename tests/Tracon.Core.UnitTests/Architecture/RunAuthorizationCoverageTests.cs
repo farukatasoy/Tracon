@@ -78,6 +78,11 @@ public sealed class RunAuthorizationCoverageTests
     /// calls for the same reason the authorization gate is — these endpoints
     /// share no route shape.
     /// </summary>
+    private static readonly Regex AttributionMarker = new(
+        @"RunAttributionGate\s*\.\s*(Check|Validate)\s*\(",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture,
+        TimeSpan.FromSeconds(5));
+
     private static readonly Regex OwnershipRunMarker = new(
         @"SessionOwnershipGate\s*\.\s*CheckRunSessionAsync\s*\(",
         RegexOptions.Compiled | RegexOptions.CultureInvariant,
@@ -198,6 +203,26 @@ public sealed class RunAuthorizationCoverageTests
             "'RunAuthorizationGate.CheckRunResourceAsync(' or '.CheckSessionAsync(' — another user's run, " +
             "attachments, approvals, or session can be reached there WITHOUT going through the " +
             "installation's own IRunAuthorizationHandler (phase 147, F-195)");
+
+    /// <summary>
+    /// F-337: every run-starting surface checks the run's attribution BEFORE the
+    /// run starts, as many times as it starts a run. Only the agent run
+    /// endpoint did; the workflow, replay, OpenAI-compatible and trigger
+    /// endpoints started an unattributed run with <c>200</c> where the agent
+    /// endpoint answered <c>400</c>. The count per file is the number of
+    /// run-start gates that file carries in <see cref="ExpectedRunStartingFiles"/>,
+    /// so a surface added there without its attribution check fails here too.
+    /// </summary>
+    [Fact]
+    public void Every_known_run_starting_surface_checks_the_attribution()
+        => AssertEveryFileMatches(
+            [
+                .. ExpectedRunStartingFiles
+                    .GroupBy(static file => file.Path, StringComparer.Ordinal)
+                    .Select(static group => (group.Key, AttributionMarker, group.Sum(static file => file.Calls))),
+            ],
+            "'RunAttributionGate.Check(' or '.Validate(' — a run can start there with an attribution " +
+            "that breaks a limit, unattributed, where the agent run endpoint answers 400 (F-337)");
 
     /// <summary>Regression coverage for the scan itself, isolated from the real repository tree.</summary>
     /// <remarks>
