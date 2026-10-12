@@ -49,7 +49,7 @@ namespace Tracon;
 /// otherwise.
 /// </para>
 /// <para>
-/// F-294: the payload also carries the run's parameter <c>values</c> and its
+/// The payload also carries the run's parameter <c>values</c> and its
 /// reference <c>documents</c>. The values are checked against the schema of the
 /// version being run (a payload is durable data, and the agent may have changed
 /// since the 202), bound with the same compile-outside-the-catalog sequence the

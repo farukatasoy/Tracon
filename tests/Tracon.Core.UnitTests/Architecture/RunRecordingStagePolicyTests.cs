@@ -32,12 +32,14 @@ public sealed partial class RunRecordingStagePolicyTests
     /// <c>ToolInvocation</c> stage because it writes to the same row through the same
     /// store), the sink site that records directly, and <c>Disable</c>'s own forward of
     /// the value to the counter. The input stage is recorded where it happens, outside
-    /// the writer.
+    /// the writer: by the agent recorder, and by the workflow runner, which records a
+    /// parameterized run's final values through the same store.
     /// </remarks>
     private static readonly (string File, int CallSites)[] AllowedCallSites =
     [
         ("src/Tracon.Core/Recording/RunEventWriter.cs", 7),
         ("src/Tracon.Core/Recording/RunRecordingAgent.Persistence.cs", 1),
+        ("src/Tracon.Workflows/Internal/WorkflowRunner.cs", 1),
     ];
 
     /// <summary>

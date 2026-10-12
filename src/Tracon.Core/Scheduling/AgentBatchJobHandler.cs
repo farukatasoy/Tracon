@@ -17,10 +17,10 @@ namespace Tracon;
 /// is already provided by <see cref="TraconSchedulingOptions.MaxConcurrentJobs"/>.
 /// </para>
 /// <para>
-/// F-294: a structured item (<see cref="BatchItemInput"/>) carries its own parameter
+/// A structured item (<see cref="BatchItemInput"/>) carries its own parameter
 /// values and documents. The values are checked per item against the agent's schema, so
 /// one invalid item fails ALONE and the rest of the batch runs. A batch in which no item
-/// carries a value keeps the F-330 rule: an agent whose required parameter has no
+/// carries a value keeps the earlier rule: an agent whose required parameter has no
 /// default fails the job once, up front, instead of once per item with the same error.
 /// </para>
 /// </remarks>

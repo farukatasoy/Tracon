@@ -367,7 +367,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     /// <para>
     /// <strong>Fail closed.</strong> A continued run that found no recorded values
     /// and ran on the defaults would change the instructions its agents were
-    /// given halfway through the work (K-890). NULL ("nothing was recorded") is
+    /// given halfway through the work. NULL ("nothing was recorded") is
     /// therefore refused whenever the workflow declares parameters now; a
     /// workflow that declares none keeps working exactly as before.
     /// </para>
@@ -842,7 +842,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     /// Participants resolve lazily, one step at a time. Without this check the
     /// third step's missing parameter surfaced only after the first two steps had
     /// spent their tokens. The definitions are read here in the order code first,
-    /// then the store (the same lookup <c>/run</c> uses, K-890); this check is
+    /// then the store (the same lookup <c>/run</c> uses); this check is
     /// skipped for a workflow that declares no parameters, which is the common
     /// case and pays nothing.
     /// </remarks>
@@ -922,7 +922,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     /// <remarks>
     /// <para>
     /// The workflow row stores NO messages: the agent path masks its input
-    /// through the content guard before it records it (HATA-S3-006), and this
+    /// through the content guard before it records it, and this
     /// path never sees a guarded copy. Nothing reads a workflow's message back;
     /// a workflow resumes from its checkpoints, and only the values it was
     /// started with are needed.

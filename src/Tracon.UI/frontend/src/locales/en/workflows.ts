@@ -31,6 +31,7 @@ export const enWorkflows = {
   "workflowDetail.graph": 'Graph',
   "workflowDetail.copyMermaid": 'Copy Mermaid',
   "workflowDetail.messagePlaceholder": 'Message to send into the graph…',
+  "workflowDetail.parameters": 'Parameters',
   "workflowDetail.stop": 'Stop',
   "workflowDetail.inspectRun": 'Inspect this run event by event',
   "workflowDetail.runId": 'run {id}',

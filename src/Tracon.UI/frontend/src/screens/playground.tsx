@@ -7,15 +7,14 @@ import {
   Button,
   Empty,
   ErrorNote,
-  Field,
   LinkButton,
   Loading,
   Mono,
   PageHeader,
   Panel,
   Select,
-  TextInput,
 } from '../components/ui';
+import { ParameterInputs } from '../components/parameter-inputs';
 import { Tooltip } from '../components/tooltip';
 import { MicIcon, PaperclipIcon, PlusIcon, SendIcon, SpinnerIcon } from '../components/icons';
 import { TranscriptView } from '../components/transcript';
@@ -213,39 +212,13 @@ export function PlaygroundScreen({ name }: { name?: string }): ReactNode {
               only honest recovery is to attach the file again. */}
           {attachments.error !== null && <ErrorNote error={attachments.error} />}
 
-          {play.parameterSchema.length > 0 && (
-            <div data-testid="playground-parameters" className="flex flex-col gap-2">
-              <p className="text-xs font-medium text-subtle uppercase">{t('playground.parameters')}</p>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                {play.parameterSchema.map((parameter) => (
-                  <Field key={parameter.name} label={parameter.name} required={parameter.required} hint={parameter.description}>
-                    {parameter.kind === 'Boolean' ? (
-                      <input
-                        type="checkbox"
-                        checked={(play.paramValues[parameter.name] ?? parameter.defaultValue ?? 'false') === 'true'}
-                        onChange={(event) =>
-                          play.setParamValues((current) => ({
-                            ...current,
-                            [parameter.name]: event.target.checked ? 'true' : 'false',
-                          }))
-                        }
-                        className="size-4"
-                      />
-                    ) : (
-                      <TextInput
-                        type={parameter.kind === 'Number' ? 'number' : 'text'}
-                        value={play.paramValues[parameter.name] ?? parameter.defaultValue ?? ''}
-                        placeholder={parameter.defaultValue ?? undefined}
-                        onChange={(event) =>
-                          play.setParamValues((current) => ({ ...current, [parameter.name]: event.target.value }))
-                        }
-                      />
-                    )}
-                  </Field>
-                ))}
-              </div>
-            </div>
-          )}
+          <ParameterInputs
+            schema={play.parameterSchema}
+            values={play.paramValues}
+            onChange={play.setParamValues}
+            title={t('playground.parameters')}
+            testId="playground-parameters"
+          />
 
           {attachments.pending.length > 0 && (
             <div className="flex flex-wrap gap-1.5">

@@ -20,7 +20,7 @@ namespace Tracon;
 /// graph as it produces events. The workflow does not run if the stream is not consumed.
 /// </para>
 /// <para>
-/// F-294: a structured item (<see cref="BatchItemInput"/>) carries parameter
+/// A structured item (<see cref="BatchItemInput"/>) carries parameter
 /// values for the workflow's schema; the runner checks them, so an item with a
 /// bad value fails alone and the rest of the batch runs. A workflow run takes no
 /// documents: an item that names one fails with that reason instead of running

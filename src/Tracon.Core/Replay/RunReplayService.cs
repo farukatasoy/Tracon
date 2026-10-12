@@ -385,7 +385,7 @@ internal sealed class RunReplayService
 
     /// <summary>
     /// Refuses a replay of an agent that declares parameters when no values could
-    /// be decided for it (F-330, user decision 2026-10-12). Reached only by a
+    /// be decided for it. Reached only by a
     /// path that never decided any: a host without the parameter factory, or a
     /// catalog agent the lookup cannot see a definition for.
     /// </summary>

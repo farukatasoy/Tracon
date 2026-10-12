@@ -549,9 +549,9 @@ public sealed class ChildAgentInvoker : AIAgent
     /// </para>
     /// <para>
     /// A bound step bypasses <see cref="CompiledAgentCache"/> (its key has no
-    /// notion of a value, K-380) and therefore the catalog's decorator chain,
-    /// which <see cref="ParameterizedAgentFactory.CompileAsync"/> applies by hand
-    /// (K-581). The agent is compiled on every call; <c>MAF</c> executor identity
+    /// notion of a value) and therefore the catalog's decorator chain,
+    /// which <see cref="ParameterizedAgentFactory.CompileAsync"/> applies by hand.
+    /// The agent is compiled on every call; <c>MAF</c> executor identity
     /// comes from THIS wrapper, not from the agent it resolves, so checkpoint
     /// compatibility is unaffected.
     /// </para>
