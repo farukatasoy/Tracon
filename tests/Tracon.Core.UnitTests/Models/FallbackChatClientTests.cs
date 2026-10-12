@@ -138,6 +138,35 @@ public sealed class FallbackChatClientTests
         fallbackClient.CallCount.ShouldBe(0);
     }
 
+    /// <summary>
+    /// F-338: wrapped the way the real OpenAI client wraps it, a permanent 4xx used to
+    /// fall through to the transport rule and switch provider. Measured on a real OpenAI
+    /// call (MT-MYU-015): an unknown model name returns <c>HTTP 404 (model_not_found)</c>.
+    /// </summary>
+    [Theory]
+    [InlineData("HTTP 400 (invalid_request_error)")]
+    [InlineData("HTTP 404 (invalid_request_error: model_not_found)")]
+    [InlineData("HTTP 409 (conflict)")]
+    [InlineData("HTTP 422 (unprocessable_entity)")]
+    public async Task A_permanent_client_error_on_an_SDK_wrapper_does_not_fall_over(string message)
+    {
+        var clientError = new AggregateException(
+            $"Retry failed after 4 tries. ({message})",
+            new FakeClientResultException(message));
+
+        var primaryClient = new FakeChatClient(_ => throw clientError);
+        var fallbackClient = new FakeChatClient(_ => new ChatResponse(new ChatMessage(ChatRole.Assistant, "fallback answer")));
+
+        using var chatClient = RegistryWithFallback(primaryClient, fallbackClient);
+
+        var exception = await Should.ThrowAsync<TraconException>(
+            () => chatClient.GetResponseAsync(Messages, cancellationToken: TestContext.Current.CancellationToken));
+
+        exception.ErrorType.ShouldBe("upstream_error");
+        exception.InnerException.ShouldBeSameAs(clientError);
+        fallbackClient.CallCount.ShouldBe(0);
+    }
+
     [Theory]
     [InlineData("HTTP 401 (invalid_api_key)")]
     [InlineData("HTTP 403 (forbidden)")]

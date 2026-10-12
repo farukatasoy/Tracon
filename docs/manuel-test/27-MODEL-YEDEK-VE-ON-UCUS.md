@@ -33,7 +33,7 @@ flowchart TD
     B -- "devre acik / 5xx / 429 / baglanti hatasi" --> D["Fallbacks 0 cagirilir"]
     D -- "basarili" --> E["Yanit yedekten<br/>ModelFallbackUsed olayi + span etiketi<br/>run.model_id yedegi yazar"]
     D -- "de dusuyor" --> F["Zincir tukendi<br/>ILK hata firlatilir, mesaj denenen saglayicilari sayar"]
-    B -- "401/403 veya iptal" --> G["ANINDA firlatilir<br/>yedek HIC denenmez"]
+    B -- "401/403, diger kalici 4xx veya iptal" --> G["ANINDA firlatilir<br/>yedek HIC denenmez"]
 
     H["POST /api/agents/name/estimate"] --> I["Sayim yapilir<br/>saglayiciya HIC istek gitmez"]
 
@@ -698,6 +698,38 @@ GERÇEKTEN geçtiğini doğrulamaktır:
   çalıştırmada kalıcı olarak sarmalanmadığını; üçüncüsü `AllowConcurrentToolCalls`
   açıkken iki eşzamanlı çağrının defterini bozmadan ikisinin de doğru
   cevaplandığını doğrular.
+
+---
+
+### MT-MYU-018 — Birincil `404 (model_not_found)` dönerse yedeğe geçilmez (kusur-giderme, 2026-10-12, F-338)
+
+Regresyon. `401`/`403` dışındaki kalıcı `4xx`, SDK sarmalayıcı tipinde bağlantı
+hatası sayılıyor ve zincir yedeğe geçiyordu. Otomatik karşılığı:
+`FallbackRetryRegressionTests`, `FallbackChatClientTests`.
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | K-449 |
+
+**Ön koşul**
+- Geçici bir agent (`yedek-404`): birincil gerçek `openai`, modeli var olmayan
+  bir ad (`gpt-yok-model`); `Fallbacks` alanında gerçek `openai` +
+  `gpt-5.4-mini`.
+- Yalnız İLK çağrı ölçülür: `FailureThreshold=1` iken `404` devreyi açar ve
+  ikinci çağrı yedeğe "devre açık" diye geçer (MT-MYU-002).
+
+**Adımlar**
+1. `yedek-404`'e bir mesaj gönder.
+2. `GET /api/runs/{runId}` ve run olay akışını oku.
+
+**Beklenen sonuç**
+- Run `Failed`; `error.type` `upstream_error`, mesaj `(HTTP 404)` taşır.
+- Olay akışında `ModelFallbackUsed` yoktur; yanıt yedekten gelmez.
+- 🚨 Eski kusur: `404` `transport_error` sayıldı ve yanıt yedekten geldi.
+- Koşum sonunda `yedek-404` geri alınır.
 
 ---
 

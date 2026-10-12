@@ -13,6 +13,11 @@ internal static class WorkflowNodeRetry
     /// class (a compilation failure, a blocked tool, a budget being
     /// exceeded, …) describes a condition retrying does not change.
     /// </summary>
+    /// <remarks>
+    /// <see cref="RunErrorClass.ProviderError"/> also holds a permanent 4xx,
+    /// so the class is read only after <see cref="IsTransient"/> has ruled
+    /// one out.
+    /// </remarks>
     private static readonly HashSet<RunErrorClass> TransientClasses =
     [
         RunErrorClass.ProviderError,
@@ -111,6 +116,16 @@ internal static class WorkflowNodeRetry
     /// <param name="exception">The failure being classified.</param>
     /// <returns><see langword="true"/> when a retry can plausibly fix it.</returns>
     /// <remarks>
+    /// <para>
+    /// A permanent 4xx is never retried, and it is checked BEFORE any
+    /// classifier runs. <see cref="RunErrorClass.ProviderError"/> holds every
+    /// provider HTTP error, 4xx included, and it is in
+    /// <see cref="TransientClasses"/>. A registered classifier cannot override
+    /// the status, in the same way that no classifier can make a cancellation
+    /// retry in the fallback chain: the status is a fact about the request,
+    /// not an opinion about the fault.
+    /// </para>
+    /// <para>
     /// This runs INSIDE an exception filter, and C# swallows an exception
     /// thrown in a filter: the filter simply evaluates to false. Without this
     /// try/catch a throwing classifier meant the node was silently NOT
@@ -119,9 +134,19 @@ internal static class WorkflowNodeRetry
     /// logged. RunRecordingAgent.ClassifyOrFallback already did this on the
     /// run path; the workflow path is the second, undocumented consumer and it
     /// did not.
+    /// </para>
     /// </remarks>
     private static bool IsTransient(IRunErrorClassifier classifier, ILogger logger, Exception exception)
     {
+        // 🚨 F-338: the class alone decided this, and ProviderError holds every
+        // provider HTTP error (K-817). A node that got a 401 ran MaxAttempts
+        // times, and a retried 409 on a non-idempotent call repeated its side
+        // effect.
+        if (ProviderHttpStatus.IsPermanentFailure(exception))
+        {
+            return false;
+        }
+
         var error = ToRunError(exception);
         RunErrorClassification classification;
 

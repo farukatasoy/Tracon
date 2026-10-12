@@ -1,3 +1,4 @@
+using System.Net;
 using Microsoft.Agents.AI.Workflows;
 using Microsoft.Extensions.AI;
 using Microsoft.Extensions.DependencyInjection;
@@ -147,6 +148,123 @@ public sealed class WorkflowNodeRetryTests
 
         attempts.ShouldBe(1);
     }
+
+    /// <summary>
+    /// F-338: <see cref="RunErrorClass.ProviderError"/> also holds a permanent 4xx (K-817
+    /// widened it on purpose), so the class alone cannot say whether a retry helps. A node
+    /// that calls <c>EnsureSuccessStatusCode()</c> and gets a 401 used to run
+    /// <c>MaxAttempts</c> times; a retried 409 on a non-idempotent call repeats its side
+    /// effect. The status is read from <see cref="HttpRequestException.StatusCode"/>, because
+    /// the message .NET writes for it carries no "HTTP nnn" text.
+    /// </summary>
+    [Theory]
+    [InlineData(HttpStatusCode.BadRequest)]
+    [InlineData(HttpStatusCode.Unauthorized)]
+    [InlineData(HttpStatusCode.NotFound)]
+    [InlineData(HttpStatusCode.Conflict)]
+    [InlineData(HttpStatusCode.UnprocessableEntity)]
+    public async Task A_permanent_http_status_is_never_retried(HttpStatusCode status)
+    {
+        var attempts = await CountAttemptsAsync(EnsureSuccessStatusCodeFailure(status), new DefaultRunErrorClassifier());
+
+        attempts.ShouldBe(1);
+    }
+
+    /// <summary>
+    /// F-338: the same status when only the message carries it — a provider failure that
+    /// Tracon's chat client normalized to <c>upstream_error</c>, and an SDK exception that a
+    /// node let escape without normalizing.
+    /// </summary>
+    [Theory]
+    [InlineData("HTTP 401 (invalid_api_key)", true)]
+    [InlineData("HTTP 404 (invalid_request_error: model_not_found)", true)]
+    [InlineData("HTTP 400 (invalid_request_error)", false)]
+    [InlineData("HTTP 409 (conflict)", false)]
+    public async Task A_permanent_status_in_the_message_is_never_retried(string providerMessage, bool normalized)
+    {
+        var attempts = await CountAttemptsAsync(ProviderFailure(providerMessage, normalized), new DefaultRunErrorClassifier());
+
+        attempts.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task A_consumer_classifier_cannot_make_a_permanent_status_transient()
+    {
+        // The same rule as cancellation in the fallback chain: the status is a fact about
+        // the request, so no classifier can turn it into a retry.
+        var attempts = await CountAttemptsAsync(
+            EnsureSuccessStatusCodeFailure(HttpStatusCode.Unauthorized),
+            new FixedClassifier(RunErrorClass.ProviderError));
+
+        attempts.ShouldBe(1);
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.ServiceUnavailable)]
+    [InlineData(HttpStatusCode.TooManyRequests)]
+    [InlineData(HttpStatusCode.RequestTimeout)]
+    public async Task A_transient_http_status_is_still_retried(HttpStatusCode status)
+    {
+        var attempts = await CountAttemptsAsync(EnsureSuccessStatusCodeFailure(status), new DefaultRunErrorClassifier());
+
+        attempts.ShouldBe(3);
+    }
+
+    [Theory]
+    [InlineData("HTTP 503 (service_unavailable)", true)]
+    [InlineData("HTTP 429 (rate_limit_exceeded)", true)]
+    [InlineData("Connection refused (127.0.0.1:1)", false)]
+    public async Task A_transient_status_in_the_message_or_no_status_is_still_retried(string providerMessage, bool normalized)
+    {
+        var attempts = await CountAttemptsAsync(ProviderFailure(providerMessage, normalized), new DefaultRunErrorClassifier());
+
+        attempts.ShouldBe(3);
+    }
+
+    [Fact]
+    public async Task A_connection_failure_with_no_status_is_still_retried()
+    {
+        var attempts = await CountAttemptsAsync(
+            new HttpRequestException("Connection refused (127.0.0.1:1)"),
+            new DefaultRunErrorClassifier());
+
+        attempts.ShouldBe(3);
+    }
+
+    private static async Task<int> CountAttemptsAsync(Exception failure, IRunErrorClassifier classifier)
+    {
+        var attempts = 0;
+
+        var wrapped = WorkflowNodeRetry.Wrap(
+            (string _, IWorkflowContext _, CancellationToken _) =>
+            {
+                attempts++;
+
+                return ValueTask.FromException<string>(failure);
+            },
+            new WorkflowNodeRetryPolicy { MaxAttempts = 3, InitialDelay = TimeSpan.FromMilliseconds(1) },
+            classifier,
+            TimeProvider.System);
+
+        var thrown = await Should.ThrowAsync<Exception>(
+            () => wrapped("hello", null!, TestContext.Current.CancellationToken).AsTask());
+
+        thrown.ShouldBeSameAs(failure);
+
+        return attempts;
+    }
+
+    // Exactly what HttpResponseMessage.EnsureSuccessStatusCode() throws.
+    private static HttpRequestException EnsureSuccessStatusCodeFailure(HttpStatusCode status)
+        => new(
+            $"Response status code does not indicate success: {(int)status} ({status}).",
+            inner: null,
+            status);
+
+    private static Exception ProviderFailure(string providerMessage, bool normalized)
+        => normalized
+            ? ProviderInvocationException.UpstreamFailure(new InvalidOperationException(providerMessage), "openai")
+            : new FakeClientResultException(providerMessage);
 
     [Fact]
     public async Task MaxAttempts_bounds_a_persistently_transient_error()
@@ -364,4 +482,7 @@ public sealed class WorkflowNodeRetryTests
         public RunErrorClassification Classify(RunError runError)
             => throw new InvalidOperationException("the consumer's classifier has a bug");
     }
+
+    /// <summary>Mimics <c>System.ClientModel.ClientResultException</c> BY NAME; the workflow tests cannot reference the real SDK type.</summary>
+    private sealed class FakeClientResultException(string message) : Exception(message);
 }

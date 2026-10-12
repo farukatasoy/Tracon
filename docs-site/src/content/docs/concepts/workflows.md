@@ -141,7 +141,13 @@ tracon.AddWorkflowFunction<List<ChatMessage>, List<ChatMessage>>(
 
 Only a transient failure is retried — a provider error, an open circuit breaker, a
 rate limit, or a timeout. Anything else (a bad argument, a permanent downstream
-error) is thrown on the first attempt, exactly as without a policy. The retry loop
+error) is thrown on the first attempt, exactly as without a policy. A failure that
+carries a permanent HTTP status — any `4xx` except `408` and `429`, such as a `401`
+from `EnsureSuccessStatusCode()` or a `404` from a model provider — is also thrown on
+the first attempt: the same request gets the same answer, and a repeated `409` on a
+non-idempotent call can repeat its side effect. Tracon reads the status from
+`HttpRequestException.StatusCode` or from `HTTP nnn` text in the exception chain,
+and a registered `IRunErrorClassifier` cannot make such a failure retry. The retry loop
 runs entirely inside the node's own call: Microsoft Agent Framework invokes the
 node once per routed message either way, so retrying costs nothing against
 `TraconWorkflowOptions.MaxSuperSteps` — a node that succeeds on its third

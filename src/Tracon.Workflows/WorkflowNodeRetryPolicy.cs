@@ -16,6 +16,16 @@ namespace Tracon;
 /// those cannot change the outcome.
 /// </para>
 /// <para>
+/// A failure that carries a permanent HTTP status — any 4xx except 408
+/// (request timeout) and 429 (rate limit) — is never retried, whatever its
+/// class. A provider error can be a 4xx (for example a 401 or a 404), and the
+/// same request gets the same answer again; a retried 409 on a
+/// non-idempotent call can also repeat its side effect. The status is read
+/// from <see cref="System.Net.Http.HttpRequestException.StatusCode"/> or from
+/// an <c>HTTP nnn</c> text in the exception chain, and a registered
+/// <c>IRunErrorClassifier</c> cannot override this rule.
+/// </para>
+/// <para>
 /// The retry loop runs entirely INSIDE the node's own call — Microsoft
 /// Agent Framework calls the node's handler once per routed message and
 /// sees only its final outcome. A retried attempt is therefore invisible to
