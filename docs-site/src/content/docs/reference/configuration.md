@@ -479,7 +479,7 @@ enough.
 | `Enabled` | `false` |
 | `ActiveKeyId` | (none) |
 | `Keys` | Empty |
-| `Columns` | All ten protected columns |
+| `Columns` | All eleven protected columns |
 
 Encryption is off until both `AddContentProtection(...)` is called and `Enabled` is
 `true`. `Keys` maps a key id to the **name** of another configuration key — never to
