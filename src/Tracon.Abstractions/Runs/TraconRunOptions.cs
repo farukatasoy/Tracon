@@ -211,7 +211,7 @@ public sealed class TraconRunOptions : AgentRunOptions
     /// that compiled the agent (the <c>/run</c> endpoint, a job handler, a
     /// workflow step) passes the SAME dictionary it bound, and the wrapper writes
     /// it to <see cref="RunInputRecord.Parameters"/> so a replay and a resume run
-    /// with the source run's values (F-294).
+    /// with the source run's values.
     /// </para>
     /// <para>
     /// Setting it on options for an agent that was NOT compiled with those values

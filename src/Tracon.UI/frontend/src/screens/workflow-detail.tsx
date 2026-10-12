@@ -21,6 +21,7 @@ import {
   TextInput,
 } from '../components/ui';
 import { Tooltip } from '../components/tooltip';
+import { hasMissingRequiredParameter, ParameterInputs } from '../components/parameter-inputs';
 import { SpinnerIcon } from '../components/icons';
 import { WorkflowGraphLegend, WorkflowGraphView } from '../components/workflow-graph';
 import { KIND_HINT } from './workflows';
@@ -66,6 +67,9 @@ export function WorkflowDetailScreen({ name, meta }: { name: string; meta: Meta 
 
   const linkedRunId = useSearchParams().get('runId');
   const [message, setMessage] = useState('');
+  // The values for the workflow's own parameters (F-294); empty for a workflow
+  // that declares none, in which case no `parameters` member is sent at all.
+  const [paramValues, setParamValues] = useState<Record<string, string>>({});
   const [runId, setRunId] = useState<string | null>(linkedRunId);
   // True once this screen streamed `runId` itself. A run that came only from
   // the address has no events here and is not yet known to belong here.
@@ -164,7 +168,16 @@ export function WorkflowDetailScreen({ name, meta }: { name: string; meta: Meta 
     [name, navigate, queryClient],
   );
 
+  const parameterSchema = workflow.data?.parameters ?? [];
+  const missingRequiredParameter = hasMissingRequiredParameter(parameterSchema, paramValues);
+
   const start = useCallback(async () => {
+    // A run with a required value missing never starts on the server either
+    // (the endpoint answers 400 before the stream opens); blocked here first.
+    if (missingRequiredParameter) {
+      return;
+    }
+
     abort.current?.abort();
 
     const controller = new AbortController();
@@ -186,7 +199,10 @@ export function WorkflowDetailScreen({ name, meta }: { name: string; meta: Meta 
       const response = await openStream(`api/workflows/${encodeURIComponent(name)}/run`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: message.trim().length === 0 ? null : message }),
+        body: JSON.stringify({
+          message: message.trim().length === 0 ? null : message,
+          parameters: parameterSchema.length > 0 ? paramValues : undefined,
+        }),
         signal: controller.signal,
       });
 
@@ -200,7 +216,7 @@ export function WorkflowDetailScreen({ name, meta }: { name: string; meta: Meta 
     } finally {
       setStreaming(false);
     }
-  }, [consume, linkedRunId, message, name, navigate]);
+  }, [consume, linkedRunId, message, missingRequiredParameter, name, navigate, paramValues, parameterSchema.length]);
 
   /**
    * Answers a pending request and follows the run that continues from it.
@@ -371,6 +387,15 @@ export function WorkflowDetailScreen({ name, meta }: { name: string; meta: Meta 
         {meta.roles.canOperate && (
           <Panel title={t('common.run')}>
             <div className="flex flex-col gap-3 p-4">
+              <ParameterInputs
+                schema={parameterSchema}
+                values={paramValues}
+                onChange={setParamValues}
+                title={t('workflowDetail.parameters')}
+                testId="workflow-parameters"
+                disabled={streaming}
+              />
+
               <div className="flex items-end gap-2">
                 <TextInput
                   value={message}
@@ -383,7 +408,12 @@ export function WorkflowDetailScreen({ name, meta }: { name: string; meta: Meta 
                 {streaming ? (
                   <Button onClick={() => abort.current?.abort()}>{t('workflowDetail.stop')}</Button>
                 ) : (
-                  <Button tone="primary" testId="workflow-run" onClick={() => void start()}>
+                  <Button
+                    tone="primary"
+                    testId="workflow-run"
+                    disabled={missingRequiredParameter}
+                    onClick={() => void start()}
+                  >
                     {t('common.run')}
                   </Button>
                 )}

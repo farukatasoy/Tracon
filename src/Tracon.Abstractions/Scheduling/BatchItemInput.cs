@@ -14,7 +14,7 @@ namespace Tracon;
 /// Every other item is plain text, exactly as before.
 /// </para>
 /// <para>
-/// 🚨 <strong>The ambiguity is real and documented.</strong> A job item is stored
+/// <strong>The ambiguity is real and documented.</strong> A job item is stored
 /// as text: <see cref="JobPayload.ExtractItems"/> turns a JSON string element and
 /// a JSON object element into the same kind of text, and <c>job_items.input</c>
 /// keeps no type. A plain-text item whose own content happens to be a JSON object
