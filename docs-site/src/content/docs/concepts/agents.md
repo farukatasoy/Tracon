@@ -288,6 +288,12 @@ Five rules hold across the tree:
 
 The whole tree is readable with `GET /api/runs/{runId}/tree`, from any member.
 
+A child resolves the callable agent's **current** version. This is deliberate: a
+version or an [experiment](/concepts/evaluation/#experiments) arm applies to the agent
+it was set on, not to the agents it calls. A workflow step resolves its agent the same
+way. A parent run pinned to version 1 can therefore call a child that runs version 3.
+To compare a child agent's versions, run an experiment on that agent directly.
+
 ## Run until the work is done
 
 A single agent invocation answers once. `HarnessSettings.Loop` re-invokes the

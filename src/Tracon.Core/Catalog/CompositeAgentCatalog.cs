@@ -249,6 +249,45 @@ internal sealed class CompositeAgentCatalog : IAgentCatalog
         return null;
     }
 
+    /// <summary>
+    /// Finds whether the source that serves <paramref name="agentName"/> keeps
+    /// version history, which a pinned resolution needs.
+    /// </summary>
+    /// <param name="agentName">The agent's name.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>
+    /// <see langword="true"/> when the first source in priority order that
+    /// lists the name is an <see cref="IVersionedAgentSource"/> — the same
+    /// source <see cref="ResolveAsync(string, int?, string?, CancellationToken)"/>
+    /// pins against; <see langword="false"/> when it is not, or when no source
+    /// lists the name.
+    /// </returns>
+    internal async ValueTask<bool> ServesFromVersionedSourceAsync(string agentName, CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(agentName);
+
+        foreach (var source in _sources)
+        {
+            AgentDescriptor? descriptor;
+
+            try
+            {
+                descriptor = await FindDescriptorOrNullAsync(source, agentName, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
+            {
+                throw HandleSourceFailure(source, "resolve", exception);
+            }
+
+            if (descriptor is not null)
+            {
+                return source is IVersionedAgentSource;
+            }
+        }
+
+        return false;
+    }
+
     private async ValueTask<AgentDescriptor> FindDescriptorAsync(
         IAgentSource source,
         string agentName,

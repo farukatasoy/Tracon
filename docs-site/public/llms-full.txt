@@ -633,6 +633,12 @@ Five rules hold across the tree:
 
 The whole tree is readable with `GET /api/runs/{runId}/tree`, from any member.
 
+A child resolves the callable agent's **current** version. This is deliberate: a
+version or an [experiment](/concepts/evaluation/#experiments) arm applies to the agent
+it was set on, not to the agents it calls. A workflow step resolves its agent the same
+way. A parent run pinned to version 1 can therefore call a child that runs version 3.
+To compare a child agent's versions, run an experiment on that agent directly.
+
 ## Run until the work is done
 
 A single agent invocation answers once. `HarnessSettings.Loop` re-invokes the
@@ -1168,6 +1174,10 @@ session. A session therefore lands in the same arm on both paths. A queued run g
 its arm when Tracon accepts it, and the worker runs that arm's version. The run counts
 in the arm only when the worker starts it: a queued run that never starts adds
 nothing to the results.
+
+A run that carries on an earlier run keeps that run's version and arm. This applies
+to the continuation after an approval decision and to the automatic continuation
+after a crash. A replay is not part of the experiment.
 
 The results endpoint gives per-arm counts, error rates, tokens, and durations. It
 makes **no statistical claim about a winner**; it shows the raw numbers and leaves the
@@ -2431,6 +2441,10 @@ opens a **new** run with the same session and a new run id. History is append-on
 so what you read a week later is what actually happened.
 :::
 
+The new run uses the agent version and the experiment arm of the run that asked for
+approval. A version saved while the approval waited does not change the turn. A code
+agent keeps no version history, so its new run uses the current definition.
+
 ## Errors are classified
 
 A failed run carries an error class, not just a message: a provider outage, a content
@@ -2491,7 +2505,12 @@ around it.
   default `ReplayTools` mode reuses recorded tool results; `NoTools` produces only
   the model response; `LiveTools` can repeat real side effects and therefore
   requires Admin. An agent carrying a [client-side tool](/guides/client-side-tools/)
-  cannot be replayed in any mode — its call was never recorded on the server
+  cannot be replayed in any mode — its call was never recorded on the server.
+  A replay keeps the input and changes the conditions. Without `agentVersion` it
+  runs the agent's **current** version, not the version the source run used. To
+  repeat the source run's version, send its `agentVersion`. The console's
+  "Today's version" option is this default. A replay also uses the default
+  instructions, because the run record does not store the culture
 - `POST /api/runs/{runId}/judge` — score a run with the registered judges, skipping
   the sampling decision, for calibration
 
@@ -4894,6 +4913,13 @@ it did. Starting another run in that session on top of it duplicates the work.
 The run that asked for approval stays `AwaitingApproval` — it is finished. The
 continuation is a separate run in the same session, so a client watching for a
 result should follow the session rather than the original run id.
+
+The continuation runs on the agent version of the run that asked for approval and
+counts in the same experiment arm. This stays true when someone saves a new version
+while the approval waits: the tool call and its answer are one turn. A code agent
+keeps no version history, so its continuation uses the current definition. The
+original request's `culture` is not kept: the continuation uses the default
+instructions.
 
 If the decision request fails partway, repeat exactly the same decision. The
 continuation run's identity is derived from the approval, so a repeat completes

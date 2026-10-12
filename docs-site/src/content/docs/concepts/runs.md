@@ -412,6 +412,10 @@ opens a **new** run with the same session and a new run id. History is append-on
 so what you read a week later is what actually happened.
 :::
 
+The new run uses the agent version and the experiment arm of the run that asked for
+approval. A version saved while the approval waited does not change the turn. A code
+agent keeps no version history, so its new run uses the current definition.
+
 ## Errors are classified
 
 A failed run carries an error class, not just a message: a provider outage, a content
@@ -472,7 +476,12 @@ around it.
   default `ReplayTools` mode reuses recorded tool results; `NoTools` produces only
   the model response; `LiveTools` can repeat real side effects and therefore
   requires Admin. An agent carrying a [client-side tool](/guides/client-side-tools/)
-  cannot be replayed in any mode — its call was never recorded on the server
+  cannot be replayed in any mode — its call was never recorded on the server.
+  A replay keeps the input and changes the conditions. Without `agentVersion` it
+  runs the agent's **current** version, not the version the source run used. To
+  repeat the source run's version, send its `agentVersion`. The console's
+  "Today's version" option is this default. A replay also uses the default
+  instructions, because the run record does not store the culture
 - `POST /api/runs/{runId}/judge` — score a run with the registered judges, skipping
   the sampling decision, for calibration
 

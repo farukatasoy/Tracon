@@ -2,15 +2,14 @@
 
 > **Üretilen, elle düzenlenmez.** Kaynak: `KARARLAR.md` · üretim: `scripts/dokuman-bakim.py`
 
-Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 806 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
+Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 807 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
 
 ---
 
-## En Yeni Kalıcı Kararlar (88 / 894 kalem)
+## En Yeni Kalıcı Kararlar (88 / 895 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
-| K-807 | 858 | Sevk edilen `generate_image` kaydı kendi timeout'unu taşır (varsayılan 2 dk), genel 30 sn'yi miras almaz 👤 |
 | K-808 | 859 | Fiyatsız katalog modeli AÇILIŞTA adıyla bildirilir ve `/api/diagnostics` aynı listeyi taşır 👤 |
 | K-809 | 860 | Örnek uygulamanın katalog fiyatları AÇIKÇA örnektir, bakımı yapılan bir fiyat listesi DEĞİLDİR 👤 |
 | K-810 | 861 | Modele giden zaman aşımı cümlesi saniyenin altını milisaniye olarak söyler |
@@ -98,3 +97,4 @@ Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLA
 | K-892 | 943 | Harness skill, dosya belleği ve web aramasını yalnız tanım isteyince açar (`SkillNames`, `Memory.EnableFileMemory`, yeni public `HarnessSettings.EnableWebSearch`); tool döngüsü Tracon'undur: MAF'a giden akış güncellemesi kopyadır, `MaximumIterationsPerRequest` iç döngüye ve fallback halkasına taşınır (F-339 · F-315) (kullanıcı kararı) 👤 |
 | K-893 | 944 | Birden çok modelin harcadığı run her payı kendi modelinin fiyatıyla fiyatlar ve toplar; o run'da `RunCost` birim fiyat alanları `null`; `aiJudge` yargıcının token'ı run `usage`'ına, maliyetine ve kotasına girer; karma satır yeniden fiyatlanmaz (F-349) (kullanıcı kararı) 👤 |
 | K-894 | 945 | Kuyruklu run'ın deney kolu ve kültürü enqueue anında payload'a yazılır; worker kolu `IExperimentStore` ile doğrular (kiracı, agent, başlamış deney, varyant↔sürüm; Draft ve yarım kol reddedilir), uymazsa iş model çağrısı olmadan KAPALI düşer; kültür run kaydına yazılmaz (F-351) (kullanıcı kararı) 👤 |
+| K-895 | 946 | Onay devamı onayı isteyen run'ın agent sürümünde ve deney kolunda koşar (sürüm geçmişi olan kaynakta; kod agent'ı güncel tanımla); payload'daki agent adı kaynak run'ınkiyle aynı değilse ya da kaynak run yoksa iş KAPALI düşer; sürümsüz replay'in güncel sürümle ve alt agent'ın güncel sürümle koşması belgelenmiş tasarımdır (F-352) (kullanıcı kararı) 👤 |

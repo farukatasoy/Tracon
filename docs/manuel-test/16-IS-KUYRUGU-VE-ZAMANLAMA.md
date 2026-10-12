@@ -2952,3 +2952,48 @@ iş yeniden koşuyordu (ikinci model çağrısı).
   `Job <id> failed` hatası yoktur.
 - 🚨 Eski kusur: iş tek denemede `Failed` oldu ve run `Completed` kaldı;
   `MaxAttempts` 1'den büyükken agent ikinci kez koştu.
+
+---
+
+### MT-JOB-135 — Onaylanan tool çağrısı, onayı isteyen run'ın sürümünde ve deney kolunda devam eder (kusur-giderme, 2026-10-12, F-352)
+
+Regresyon. Onay devamı agent'ın GÜNCEL sürümünü çözüyordu ve sürüm/kol
+geçirmiyordu. Onay beklerken kaydedilen bir sürüm turun yarısında talimatı
+değiştirdi; devam run'ı deney kolundan düştü. Otomatik karşılığı:
+`ApprovalResumeVersionTests` ve
+`RunContinuationTests.Continuation_keeps_the_interrupted_runs_experiment_arm`.
+
+| | |
+|---|---|
+| **İzlek** | A |
+| **Önem** | Yüksek |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | K-368 |
+
+**Ön koşul**
+- Kuyruk açık (`UseScheduling`).
+- `cancel_order` tool'u kodda `RequiresApproval = true` ile kayıtlı.
+- `approval-agent` HTTP ile oluşturulmuş (veritabanı agent'ı):
+  `instructions` "v1", `toolNames: ["cancel_order"]`.
+
+**Adımlar**
+1. `Prefer: respond-async` ile `{"message":"cancel the order","sessionId":"s1"}`
+   gönder; run `AwaitingApproval` olsun.
+2. `PUT /api/agents/approval-agent` ile `instructions` "v2" kaydet.
+3. `GET /api/approvals/pending` oku; `POST /api/approvals/{id}/decide`
+   `{"approved":true}` gönder.
+4. `GET /api/runs?sessionId=s1` ile devam run'ını bul; `Completed` bekle.
+5. Aynı akışı tek kollu bir deneyle (`control` → sürüm 1, ağırlık 100) tekrarla.
+6. Admin olarak `tracon.approval-resume` anahtarlı bir zamanlama kaydet. `payload`
+   kararı verilmiş bir approval'ın kimliğini ve başka bir agent'ın adını taşısın.
+   Zamanlamayı tetikle.
+
+**Beklenen sonuç**
+- Adım 4: devam run'ı `agentVersion: 1`; sağlayıcıya giden talimat "v1".
+- Adım 5: devam run'ı onayı isteyen run ile aynı `experimentId` ve
+  `variant: "control"` değerini taşır.
+- Adım 6: iş `Failed`; hata "ran a different agent" der; tool çalışmaz.
+- Kodda tanımlı agent'ta devam run'ı güncel tanımla koşar; hata vermez.
+- Devam run'ı varsayılan talimatla koşar; isteğin `culture`'ı saklanmaz.
+- 🚨 Eski kusur: devam run'ı `agentVersion: 2`, talimat "v2",
+  `experimentId: null` idi.
