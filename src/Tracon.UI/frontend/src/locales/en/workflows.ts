@@ -15,6 +15,7 @@ export const enWorkflows = {
   "workflows.empty.body": 'A workflow connects agents you already have. Define one here, or register one in code with',
   "workflows.column.workflow": 'Workflow',
   "workflows.column.pattern": 'Pattern',
+  "workflows.column.participants": 'Participants',
   "workflows.codeGraph": 'code graph',
   "workflows.codeGraphTitle": 'Built by a factory in code; see its graph.',
   "workflows.originCode": 'code',

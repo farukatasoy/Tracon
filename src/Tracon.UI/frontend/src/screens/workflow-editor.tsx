@@ -261,7 +261,9 @@ export function WorkflowEditorScreen({ name }: { name?: string }): ReactNode {
 
       {save.isError && (
         <div className="mb-3">
-          <ErrorNote error={save.error} onRetry={() => save.mutate()} />
+          {/* Retry is Save again, so it holds back whenever Save does: it used to send a draft
+              whose settings text had stopped being JSON (full replace would have cleared them). */}
+          <ErrorNote error={save.error} onRetry={blocked ? undefined : () => save.mutate()} />
         </div>
       )}
 

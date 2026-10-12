@@ -79,6 +79,10 @@ describe('chainBody', () => {
     expect(chainBody('Magentic', [agent('a'), agent('b')])).toEqual({ agentNames: ['a', 'b'], nodes: [] });
   });
 
+  it('builds no request from settings text that is not JSON: null would stand for "no settings" and erase them', () => {
+    expect(() => chainBody('Sequential', [agent('a'), fn('tts', '{ nope')])).toThrow('not valid JSON');
+  });
+
   it('keeps every JSON kind a settings object can hold', () => {
     const text = '{"n":3,"f":-12.5,"b":true,"s":"x","a":[1,"2"],"o":{"k":null},"z":null}';
     const body = chainBody('Sequential', [fn('tts', text)]);
