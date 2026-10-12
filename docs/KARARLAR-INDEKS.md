@@ -2,15 +2,14 @@
 
 > **Üretilen, elle düzenlenmez.** Kaynak: `KARARLAR.md` · üretim: `scripts/dokuman-bakim.py`
 
-Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 807 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
+Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLAR.md`. Tarih yok (K-214). Reddedilenler: [`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md). En eski 808 karar: [`arsiv/KARARLAR-INDEKS-ARSIV.md`](arsiv/KARARLAR-INDEKS-ARSIV.md). 👤 kullanıcı kararı · 🔁 yeniden açılmış.
 
 ---
 
-## En Yeni Kalıcı Kararlar (88 / 895 kalem)
+## En Yeni Kalıcı Kararlar (88 / 896 kalem)
 
 | K | Satır | Karar |
 |---|---|---|
-| K-808 | 859 | Fiyatsız katalog modeli AÇILIŞTA adıyla bildirilir ve `/api/diagnostics` aynı listeyi taşır 👤 |
 | K-809 | 860 | Örnek uygulamanın katalog fiyatları AÇIKÇA örnektir, bakımı yapılan bir fiyat listesi DEĞİLDİR 👤 |
 | K-810 | 861 | Modele giden zaman aşımı cümlesi saniyenin altını milisaniye olarak söyler |
 | K-811 | 862 | Derlenmiş agent önbelleğinin anahtarı SÜRÜMÜ değil İÇERİĞİ ölçer; `CompiledAgentCache.Evict` kaldırıldı 👤 |
@@ -98,3 +97,4 @@ Bul: `grep -n 'K-059\|jsonb' docs/KARARLAR.md`; oku: `sed -n 'N,Np' docs/KARARLA
 | K-893 | 944 | Birden çok modelin harcadığı run her payı kendi modelinin fiyatıyla fiyatlar ve toplar; o run'da `RunCost` birim fiyat alanları `null`; `aiJudge` yargıcının token'ı run `usage`'ına, maliyetine ve kotasına girer; karma satır yeniden fiyatlanmaz (F-349) (kullanıcı kararı) 👤 |
 | K-894 | 945 | Kuyruklu run'ın deney kolu ve kültürü enqueue anında payload'a yazılır; worker kolu `IExperimentStore` ile doğrular (kiracı, agent, başlamış deney, varyant↔sürüm; Draft ve yarım kol reddedilir), uymazsa iş model çağrısı olmadan KAPALI düşer; kültür run kaydına yazılmaz (F-351) (kullanıcı kararı) 👤 |
 | K-895 | 946 | Onay devamı onayı isteyen run'ın agent sürümünde ve deney kolunda koşar (sürüm geçmişi olan kaynakta; kod agent'ı güncel tanımla); payload'daki agent adı kaynak run'ınkiyle aynı değilse ya da kaynak run yoksa iş KAPALI düşer; sürümsüz replay'in güncel sürümle ve alt agent'ın güncel sürümle koşması belgelenmiş tasarımdır (F-352) (kullanıcı kararı) 👤 |
+| K-896 | 947 | Retention, erasure ve ek deposu harici baytı satırdan ÖNCE siler; bayt silinemezse retention satırı tutar, erasure geri alınır; `IAttachmentStorage.DeleteAsync` idempotenttir; workflow run'ı oturumunun eklerine sahiptir (F-332) (kullanıcı kararı) 👤 |

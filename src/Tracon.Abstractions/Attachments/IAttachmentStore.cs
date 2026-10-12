@@ -53,6 +53,12 @@ public interface IAttachmentStore
     /// <param name="id">The attachment id.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns><see langword="true"/> when a record was deleted.</returns>
+    /// <remarks>
+    /// When the content lives in <see cref="IAttachmentStorage"/>, the content is
+    /// deleted FIRST and the record second. If the content delete throws, the
+    /// record stays and the exception propagates: the record is the only place
+    /// that says where the content is, so a retry can still find it.
+    /// </remarks>
     ValueTask<bool> DeleteAsync(string tenantId, Guid id, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -63,8 +69,15 @@ public interface IAttachmentStore
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The number of records deleted.</returns>
     /// <remarks>
+    /// <para>
     /// It is called when a session is deleted; it keeps orphaned attachments from piling
     /// up.
+    /// </para>
+    /// <para>
+    /// Each attachment follows the order of <see cref="DeleteAsync"/>: content first,
+    /// record second. The first content delete that throws stops the call; that
+    /// record and every record not yet reached stay, so a retry deletes the rest.
+    /// </para>
     /// </remarks>
     ValueTask<int> DeleteBySessionAsync(string tenantId, string sessionId, CancellationToken cancellationToken = default);
 }
@@ -120,5 +133,20 @@ public interface IAttachmentStorage
     /// <summary>Deletes the content in the external store.</summary>
     /// <param name="uri">The location returned by <see cref="WriteAsync"/>.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>A task that completes when the content is gone.</returns>
+    /// <remarks>
+    /// <para>
+    /// <strong>Must be idempotent.</strong> Deleting a location that no longer
+    /// exists succeeds and does not throw. Tracon deletes the content BEFORE the
+    /// metadata row, so a retry after a partial failure — or two deletes that
+    /// race — calls this method again for content that is already gone.
+    /// </para>
+    /// <para>
+    /// Throw only when the content may still exist. The attachment store, the
+    /// retention policy, and data subject erasure then keep the metadata row,
+    /// because it is the only record of where the content is: a single delete
+    /// and an erasure fail, and retention retries the row on its next run.
+    /// </para>
+    /// </remarks>
     ValueTask DeleteAsync(Uri uri, CancellationToken cancellationToken = default);
 }

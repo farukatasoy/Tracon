@@ -124,6 +124,11 @@ internal sealed class InMemoryAttachmentStore : IAttachmentStore
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// The external content is deleted BEFORE the entry: the entry is the only
+    /// record of where the content is, so a storage failure propagates and
+    /// leaves the entry in place.
+    /// </remarks>
     public async ValueTask<bool> DeleteAsync(
         string tenantId,
         Guid id,
@@ -137,17 +142,12 @@ internal sealed class InMemoryAttachmentStore : IAttachmentStore
             return false;
         }
 
-        if (!_entries.TryRemove(id, out _))
-        {
-            return false;
-        }
-
         if (entry.ExternalUri is { } uri && _storage is not null)
         {
             await _storage.DeleteAsync(uri, cancellationToken).ConfigureAwait(false);
         }
 
-        return true;
+        return _entries.TryRemove(id, out _);
     }
 
     /// <inheritdoc />

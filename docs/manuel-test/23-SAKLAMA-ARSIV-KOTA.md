@@ -2042,3 +2042,54 @@ curl -s -X PUT "$APU/api/quotas" -H "$APB" -H "content-type: application/json" \
 - 🚨 Eski kusur: form her kayıtta `enabled: true` gönderiyordu ve kural
   yeniden devreye giriyordu. Agent ya da dönem değiştirilince ikinci bir kural
   yazılıyordu.
+
+---
+
+### MT-RET-078 — Yetim ekin harici baytı satırdan ÖNCE silinir; depolama hatasında satır kalır (kusur-giderme, 2026-10-12, F-332)
+
+Regresyon. Saklama `attachments` hedefini düz bir `DELETE` ile siliyordu ve
+`external_uri`'yi hiç okumuyordu. Harici depodaki bayt sonsuza kadar kalıyordu.
+Otomatik karşılığı: `AttachmentByteLifecycleTests` (üç SQL sağlayıcısı).
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | — |
+
+**Ön koşul**
+- 👤 Geliştirici — `samples/Tracon.Api`'ye geçici, dosya tabanlı bir
+  `IAttachmentStorage` eklenir. `WriteAsync` baytı `/tmp/tracon-ek/<id>`
+  dosyasına yazar ve `file:///tmp/tracon-ek/<id>` döner. `DeleteAsync` dosyayı
+  siler; dosya yoksa hata vermez. `TRACON_EK_HATA=1` tanımlıysa `DeleteAsync`
+  `IOException` fırlatır.
+- SQLite ile çalışıyor; `Tracon__Retention__Enabled=true`.
+
+**Girilecek veri**
+```bash
+ID=$(curl -s -X POST "$APU/api/attachments" -H "$APB" \
+     -F "file=@/tmp/fix-mm.png;type=image/png" | jq -r '.id')
+sqlite3 samples/Tracon.Api/tracon-manuel.db \
+  "UPDATE tracon_attachments SET created_at = strftime('%Y-%m-%dT%H:%M:%fZ','now','-30 days') WHERE id = upper('$ID');"
+ls /tmp/tracon-ek/
+curl -s -X POST "$APU/api/retention/run?target=attachments" -H "$APB" | jq
+sleep 2
+curl -s "$APU/api/retention/history?target=attachments" -H "$APB" | jq '.[0]'
+```
+
+**Adımlar**
+1. Oturumsuz bir ek yükle. Satırı SQL ile 30 gün geriye çek.
+2. Uygulamayı `TRACON_EK_HATA=1` ile yeniden başlat. Saklamayı çalıştır.
+   Günlüğü oku.
+3. `TRACON_EK_HATA`'yı kaldır ve uygulamayı yeniden başlat. Saklamayı yine
+   çalıştır.
+
+**Beklenen sonuç**
+- 2. adımda satır kalır. `/tmp/tracon-ek/` altındaki dosya da kalır. Günlükte
+  `Retention could not delete the external content of attachment <id>`
+  uyarısı vardır. Uyarı dosya adresini YAZMAZ.
+- 3. adımda dosya silinir, sonra satır silinir. `history` kaydı
+  `deletedRows: 1` taşır.
+- 🚨 Eski kusur: satır silindi, dosya `/tmp/tracon-ek/` altında kaldı.
+- Koşum sonunda geçici `IAttachmentStorage` geri alınır.

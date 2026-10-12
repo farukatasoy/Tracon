@@ -82,6 +82,7 @@ internal static class RetentionTargetRegistry
         // for as long as the run waits; an expiry for them is F-319's scope.
         var awaitingInput = (int)RunStatus.AwaitingInput;
         var workflowRequest = (int)RunEventType.WorkflowRequest;
+        var workflowKind = (int)RunKind.Workflow;
 
         return target switch
         {
@@ -185,13 +186,28 @@ internal static class RetentionTargetRegistry
                 "granted_at",
                 "COALESCE(expires_at, revoked_at)"),
 
-            // Orphaned: attachments that have no session at all OR whose session no
-            // longer exists. The correlation is the FULLY QUALIFIED name here as well
-            // — the 🚨 note above applies.
+            // Orphaned: attachments that have no session at all, OR whose session id
+            // has no owner in the SAME tenant. An owner is a sessions row, or a
+            // workflow run with that session id that can still use the attachment:
+            // it waits for a human, it has not finished, or it finished after the
+            // cutoff. A workflow's session id never gets a sessions row (F-332):
+            // without the run branch, an image an agent step made was deleted after
+            // seven days while the run waited in AwaitingInput. The tenant is in
+            // both lookups because the session key is (tenant_id, id) (K-278): a
+            // session id another tenant uses owns nothing here.
+            //
+            // The correlation is the FULLY QUALIFIED name here as well — the 🚨
+            // note above applies. The row limit expression stays created_at: an
+            // owned attachment counts toward MaxRows but is never deleted by it.
             RetentionTargets.Attachments => new RetentionTargetDefinition(
                 Table("attachments"),
-                "created_at < @cutoff AND (session_id IS NULL " +
-                $"OR NOT EXISTS (SELECT 1 FROM {Table("sessions")} s WHERE s.id = {Table("attachments")}.session_id))",
+                "created_at < @cutoff AND (session_id IS NULL OR ("
+                    + $"NOT EXISTS (SELECT 1 FROM {Table("sessions")} s "
+                    + $"WHERE s.tenant_id = {Table("attachments")}.tenant_id AND s.id = {Table("attachments")}.session_id) "
+                    + $"AND NOT EXISTS (SELECT 1 FROM {Table("runs")} wr "
+                    + $"WHERE wr.tenant_id = {Table("attachments")}.tenant_id AND wr.session_id = {Table("attachments")}.session_id "
+                    + $"AND wr.kind = {workflowKind} "
+                    + $"AND (wr.status = {awaitingInput} OR wr.completed_at IS NULL OR wr.completed_at >= @cutoff))))",
                 "tenant_id = @tenant_id",
                 "created_at",
                 "created_at"),

@@ -38,7 +38,15 @@ public static class RetentionTargets
     /// <summary>Expired or cancelled skill script execution grants.</summary>
     public const string SkillScriptGrants = "skill_script_grants";
 
-    /// <summary>Orphaned (sessionless) uploaded attachments.</summary>
+    /// <summary>Orphaned attachments and, when they are stored externally, their bytes.</summary>
+    /// <remarks>
+    /// An attachment is orphaned when it has no session id, or when nothing in
+    /// the same tenant owns its session id. An owner is a session, or a workflow
+    /// run with that session id that waits for input, has not finished, or
+    /// finished after the cutoff. With <see cref="IAttachmentStorage"/>
+    /// registered, the bytes are deleted before the row; a row whose bytes
+    /// cannot be deleted is kept for the next run.
+    /// </remarks>
     public const string Attachments = "attachments";
 
     /// <summary>Serialized session state. User data; OFF by default.</summary>

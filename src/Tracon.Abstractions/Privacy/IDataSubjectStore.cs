@@ -45,6 +45,15 @@ public interface IDataSubjectStore
     /// </param>
     /// <param name="cancellationToken">The cancellation token.</param>
     /// <returns>The row count actually deleted per target.</returns>
+    /// <remarks>
+    /// The content includes the bytes of the scope's attachments. When they live
+    /// in <see cref="IAttachmentStorage"/>, they are deleted after the rows and
+    /// BEFORE <paramref name="beforeCommitAsync"/> runs. A byte delete that throws
+    /// rolls every delete back and propagates, so the audit trail never records
+    /// an erasure that did not happen. If the commit fails after the bytes are
+    /// gone, a repeat call finishes the erasure: the storage treats a repeat
+    /// delete as success.
+    /// </remarks>
     ValueTask<IReadOnlyDictionary<string, int>> EraseAsync(
         string tenantId,
         DataSubjectScope scope,

@@ -2485,3 +2485,50 @@ her sink'e yazıyordu. Otomatik karşılığı:
   taşır; iki yerdeki `ref` aynıdır.
 - Günlükte aynı `ref` ile tek bir hata girdisi istisnanın tamamını taşır.
 - 🚨 Eski kusur: `ExecutorFailed` yükü `connect to media-worker:8080 failed` idi.
+
+---
+
+### MT-WF-126 — Bekleyen workflow'un oturumundaki ek 7 günden sonra da durur (kusur-giderme, 2026-10-12, F-332)
+
+Regresyon. Workflow oturum kimliği hiçbir zaman `sessions` satırı almaz.
+Saklama bu yüzden agent adımının ürettiği görseli yetim sayıyordu. Run
+`AwaitingInput`'ta beklerken ek 7 gün sonra siliniyordu. Otomatik karşılığı:
+`AttachmentByteLifecycleTests.A_workflow_runs_attachment_is_an_orphan_only_after_the_run_is_done`
+(üç SQL sağlayıcısı).
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Yüksek |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | K-888 |
+
+**Ön koşul**
+- SQLite ile çalışıyor; `Tracon__Retention__Enabled=true`.
+- İnsan cevabı bekleyen bir `RequestPort` workflow'u (MT-WF-123'teki gibi).
+
+**Girilecek veri**
+```bash
+ID=$(curl -s -X POST "$APU/api/attachments?sessionId=wf-ek-oturum" -H "$APB" \
+     -F "file=@/tmp/fix-mm.png;type=image/png" | jq -r '.id')
+sqlite3 samples/Tracon.Api/tracon-manuel.db \
+  "UPDATE tracon_attachments SET created_at = strftime('%Y-%m-%dT%H:%M:%fZ','now','-30 days') WHERE id = upper('$ID');"
+curl -s -X POST "$APU/api/retention/run?target=attachments" -H "$APB" | jq
+sleep 2
+curl -s "$APU/api/attachments?sessionId=wf-ek-oturum" -H "$APB" | jq 'length'
+```
+
+**Adımlar**
+1. Workflow'u `"sessionId":"wf-ek-oturum"` ile çalıştır. Run `AwaitingInput`
+   olur.
+2. Bu oturuma bir ek yükle. Satırı SQL ile 30 gün geriye çek.
+3. Saklamayı çalıştır ve oturumun eklerini listele.
+4. Run'ı SQL ile `Completed` (`status = 1`) yap ve `completed_at`'i 30 gün
+   geriye çek. 3. adımı tekrarla.
+
+**Beklenen sonuç**
+- 3. adımda liste `1` döner; ek durur.
+- 4. adımda liste `0` döner; run bitmiş ve kesim tarihinden eskidir.
+- Cevaplanan bir istek de run'ı `AwaitingInput` bırakır (K-130). Bu yüzden ek,
+  o run beklediği sürece durur.
+- 🚨 Eski kusur: 3. adımda ek silindi; cevap geldiğinde görsel yoktu.

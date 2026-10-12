@@ -139,6 +139,19 @@ attachment metadata and content. If the host registers an external
 `IAttachmentStorage`, the SQL store keeps metadata while object storage holds the
 bytes.
 
+Every delete removes the bytes first and the metadata row second: a single
+delete, a session delete, retention, and data subject erasure. If the byte
+delete throws, the row stays, because it is the only record of where the bytes
+are. A single or session delete then fails, erasure rolls back, and retention
+logs a warning and tries the row again on its next run. Two rules follow for
+your `IAttachmentStorage.DeleteAsync`:
+
+- **Make it idempotent.** Deleting a location that is already gone must
+  succeed. A retry, or two deletes that race, calls it again for bytes that
+  are gone.
+- **Throw only when the bytes may still exist.** A throw keeps the row, so the
+  delete can be repeated later.
+
 Attachments are tenant-scoped. Listing, download, use in a run, and deletion all
 resolve through the current tenant. A caller cannot use an id to cross that boundary.
 

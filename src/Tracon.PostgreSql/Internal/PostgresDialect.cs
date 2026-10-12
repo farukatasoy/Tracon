@@ -197,6 +197,15 @@ internal sealed class PostgresDialect : SqlDialect
             """;
 
     /// <inheritdoc />
+    public override string BuildRetentionSelectBatchSql(string table, string columns, string wherePredicate)
+        => $"""
+            SELECT {columns}
+            FROM {table}
+            WHERE {wherePredicate}
+            LIMIT @batchSize;
+            """;
+
+    /// <inheritdoc />
     public override string BuildRetentionFindNthRowCutoffSql(
         string table,
         string orderExpression,
