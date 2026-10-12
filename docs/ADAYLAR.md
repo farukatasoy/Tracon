@@ -12,7 +12,7 @@
 > ([`kesif/`](kesif/)) · "bir daha önerilmez" listesini
 > ([`arsiv/KARARLAR-INDEKS-REDDEDILEN.md`](arsiv/KARARLAR-INDEKS-REDDEDILEN.md)).
 
-**Durum (2026-10-11):** sıralanabilir kuyrukta **20** aday var (F-294…F-303
+**Durum (2026-10-12):** sıralanabilir kuyrukta **18** aday var (F-296…F-303
 podcast turu, F-318…F-324 ve F-345…F-347 Explainer-Video turu). Bugün yapılabilecek iş § *Bekleyen Kalemler*'in üç
 kanal tablosundadır. Planlanmış fazlar burada değil, üretilen
 [`YOL-HARITASI.md`](YOL-HARITASI.md)'dedir.
@@ -108,60 +108,6 @@ aday `aday-kesfi` ile üretilir. Bugünkü kalemler 2026-10-11 podcast
 ([keşif notu](kesif/2026-10-11-podcast-tuketici.md)) ve Explainer-Video
 ([keşif notu](kesif/2026-10-11-explainer-video-tuketici.md)) turlarından gelir; kanal ve aciliyet
 § *Faz planlama* tablosundadır.
-
-### F-294 · Workflow run parametreleri agent `{{param}}`'larına ve fonksiyon düğümlerine ulaşsın
-
-**Kanal:** faz planlama · 🟠
-
-**Sorun:** Agent run'ı `Parameters` taşır ve önbelleksiz bağlar (`AgentEndpoints.cs:823-836`). Workflow run'ı yalnız `Message` ve `SessionId` taşır (`WorkflowContracts.cs:81-90`, `IWorkflowRunner.cs:121-144`); `src/Tracon.Workflows/Internal/` parametreye dokunmaz. Katılımcı katalogdan, talimatı bağlanmadan derlenir (`AgentDefinitionCompiler.ChatOptions.cs:115-119`).
-
-**Kapsam:** Run isteğine `Parameters`; agent adımlarına bağlama; fonksiyon düğümüne `IWorkflowContext` üzerinden okuma; resume aynı değerleri görür. Şema kaynağı (workflow mu, katılımcılar mı) karar ister.
-
-**Explainer turu eki (2026-10-11):** kuyruklu agent run'ı ve batch öğesi de `Parameters` ve `Documents` taşır (bugün 400: `AgentEndpoints.cs:1007-1015`). Bağlanmadan koşma kusuru F-330'dur.
-
-**F-330 kapanışı eki (2026-10-12):** değer taşımayan her yol artık varsayılanları bağlar; varsayılansız zorunlu parametre girişte reddedilir veya sağlayıcı çağrısından önce düşer (`UnboundParameterGuard`). Kalan iş değer TAŞIMAK: kuyruk ve batch payload'ı, replay ve onay-devamı için `run_inputs`'a parametre kaydı (migration) ve replay'de üzerine yazma.
-
-**Değer:** Bölüm başına ton, süre, revizyon sayısı tanım kopyalanmadan verilir; çok kiracılı host tek tanımı parametreyle sürer.
-
-**Mercek:** 1, 3, 5.
-
-**Hazırlık:** Agent tarafı hazır (`InstructionParameterBinder`, `AgentParameterValidator`); workflow tarafı sıfırdan.
-
-**Maliyet:** İki public istek alanı; checkpoint'e parametre yazımı (olası migration).
-
-**Risk:** Parametreli derleme önbelleği atlar — maliyeti ölçülmeli; resume'da kayıp.
-
-**Bağımlılık:** [Faz 192](arsiv/fazlar/192-DONGU-TUKENME-POLITIKASI.md) ile (F-293; revizyon sayısı parametre olursa `MaxIterations`'a bağlanır).
-
-**Ekosistem:** Taranmadı (Tracon içi boşluk).
-
-**Karşı görüş:** Değerler mesaja JSON olarak gömülebilir; ama talimat şablon olmaktan çıkar ve doğrulanmaz.
-
-### F-295 · Fonksiyon düğümüne veri ayarı (JSON + şema)
-
-**Kanal:** faz planlama · 🟠
-
-**Sorun:** `WorkflowNodeReference` yalnız `Name` ve `Kind` taşır (`WorkflowNodeReference.cs:22-33`); fonksiyon yalnız girdi ve `IWorkflowContext` alır (`TraconWorkflowFunctionExtensions.cs:89`). Aynı fonksiyonu iki workflow'da farklı ses, LUFS hedefi veya TTS sağlayıcısıyla kullanmak kodda ayrı kayıt ister.
-
-**Kapsam:** Düğüm başına `Settings` (JSON), kod kaydında isteğe bağlı şema, kaydetmede doğrulama, fonksiyonda tipli okuma. Ayar veridir, ifade değildir — K2 ile uyumlu.
-
-**Değer:** Workflow başına sağlayıcı ve ses seçimi operatörün düzenlediği veri olur.
-
-**Explainer turu eki (2026-10-11):** operatör template'i ve motoru canlı günceller; değer artar.
-
-**Mercek:** 1, 5, 6.
-
-**Hazırlık:** JSON şema doğrulama deseni var (`AgentParameter`).
-
-**Maliyet:** Public alan (blob, migration yok) + kayıt aşırı yüklemesi; editör F-292 ile.
-
-**Risk:** Ayar bir mini dile dönüşürse K2 aşınır — yalnız değer, ifade yok.
-
-**Bağımlılık:** F-292 (konsol düğüm düzenleme).
-
-**Ekosistem:** Taranmadı.
-
-**Karşı görüş:** Sağlayıcı bugün düğüm adıyla seçilebilir (`tts-elevenlabs`, `tts-gemini`); seçenek azken ayar alanı fazla yüzeydir.
 
 ### F-296 · Konuşma sözleşmesi v2: çok konuşmacılı diyalog, ses ayarları, uzun metin
 
@@ -347,7 +293,7 @@ aday `aday-kesfi` ile üretilir. Bugünkü kalemler 2026-10-11 podcast
 
 **Sorun:** Bir fonksiyon düğümü sonsuza kadar çalışabilir; yalnız workflow'un genel `RunTimeout`'u (varsayılan 10 dk, `TraconWorkflowOptions.cs:54`) onu keser (K-497). 10–20 dakikalık bölümün TTS ve ses işleme düğümleri dakikalar sürer; genel sınırı büyütmek her düğümün sınırını büyütür. K-497'nin koşulu ("ihtiyaç ölçülürse") bu tüketicide oluştu.
 
-**Kapsam:** Düğüm başına zaman aşımı (kayıtta varsayılan, F-295 ayarıyla geçersiz kılma); aşımda düğümü iptal edip run'ı ayırt edilebilir hatayla bitirme (K-497'nin önerdiği `TimeoutAIFunction` deseni).
+**Kapsam:** Düğüm başına zaman aşımı (kayıtta varsayılan, [Faz 195](195-WORKFLOW-DUGUM-DUZENLEME-VE-AYAR.md)'in düğüm ayarıyla geçersiz kılma); aşımda düğümü iptal edip run'ı ayırt edilebilir hatayla bitirme (K-497'nin önerdiği `TimeoutAIFunction` deseni).
 
 **Explainer turu eki (2026-10-11):** agent düğümü süresi (`ChildDeadline` kurulum geneli 2 dk) ve workflow başına `RunTimeout`; aşımda run düşer (F-328 ile 2026-10-12'den beri; bu adayın işi düğüm başına süre ayarıdır).
 
@@ -661,13 +607,10 @@ F-341…F-344 (Explainer-Video turu) satırları kısadır; tam kanıt ve repro 
 
 | Aciliyet | Kalem | Neden | Plan notu |
 |---|---|---|---|
-| 🟠 | F-294 · Workflow run parametreleri | Workflow run'ı yalnız `Message` taşır; `{{param}}` bağlanmaz | Gövde: § *F-294* |
-| 🟠 | F-295 · Fonksiyon düğümüne veri ayarı | Workflow başına sağlayıcı/ses seçimi bugün kod ister | Gövde: § *F-295* |
 | 🟠 | F-298 · Adlı konuşma sağlayıcı kaydı + kiracı ses anahtarı | Ses çağrısı egress ve BYOK dışında; aynı süreçte yerel ve bulut motor | Gövde: § *F-298* |
 | 🟠 | F-318 · Bağlantıdan bağımsız workflow yürütmesi | Saatlik run HTTP akışına bağlı | Gövde: § *F-318* |
 | 🟠 | F-319 · Workflow HITL karar sözleşmesi | n revizyonlu onay; ikinci yanıt dal açar | Gövde: § *F-319* |
 | 🟡 | **F-290** · `AuthorizationConfigurationKey`'ın `1.0.0` GA'da kaldırılması: veri taşıma + form geçişi | Faz 190 alanı `[Obsolete]` yaptı ve `1.0.0`'da kalkacağını `CHANGELOG`, XML ve `production.md`'de duyurdu (K-869). Üç iş kaldı: (1) `authorization_configuration_key` dolu satırları `header_configuration_keys["Authorization"]`'a taşıyan migration (üç sağlayıcı; iki alan birlikte doluysa ne olacağı karar ister); (2) MCP formu (`mcp.tsx`) eski alanı yazıyor — yeni alanı yazmalı, yoksa kaldırma formu kırar; (3) sütunu ve public üyeyi kaldırma, `McpTransportFactory`/`McpHeaderBuilder` eski yol, `#pragma warning disable CS0618` blokları (kapanışta 11 adet: `grep -rn "pragma warning disable CS0618" src tests`) | GA tarihine bağlı; GA öncesi son preview fazı olarak planlanır. Form geçişi (2) GA'dan bağımsız erken yapılabilir |
-| 🟡 | **F-292** · Konsol workflow editörüne düğüm düzenleme (agent + fonksiyon seçici) | Faz 71 Sapma #6 yalnız okuma tarafını sevk etti ve "sonraki faz için aday" dedi; aday hiç yazılmadı. 2026-10-10 kusur-giderme turu editörün `nodes`'u silmesini kapattı: zincir artık salt okunur görünür ve korunur, ama değiştirmek hâlâ `PUT /api/workflows/{name}` ister. Bir tüketici (podcast hattı, 2026-10-10) iş akışını konsoldan düzenlemek istiyor | Kapsam: düğüm listesi (agent/fonksiyon) ekle-sırala-sil ve `GET /api/workflows/functions` seçicisi. Karar ister: son fonksiyon düğümü silinince `agentNames`'e dönüş kuralı — iki derleme yolu farklı akar (`BuildSequential` ↔ karışık zincir, K-495). Kapı: `full-replace-editors.test.tsx` vakaları |
 | 🟡 | F-247 · Yirmi dört yapılandırma bölümü için bağlama kanıtı | Risk yok, iş mekanik ve paralel yürür. Sınıf gerçek bir kusur üretti (`TraconImageOptions.Timeout`) | Gövde: § *F-247* |
 | 🟡 | F-296 · Konuşma sözleşmesi v2 (diyalog) | İki konuşmacılı ses tek sesli sözleşmeyle üretilemez | Gövde: § *F-296* |
 | 🟡 | F-297 · Gemini konuşma adaptörü | Yeni bağımlılık istemez; F-296'ya bağlı | Gövde: § *F-297* |
