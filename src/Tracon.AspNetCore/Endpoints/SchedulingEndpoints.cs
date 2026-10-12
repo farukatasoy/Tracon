@@ -242,12 +242,22 @@ internal static class SchedulingEndpoints
             nextRunAt = parsed!.GetNextOccurrence(DateTimeOffset.UtcNow, timeZone);
         }
 
-        var itemCount = JobPayload.ExtractItems(request.Payload).Count;
+        var scheduleItems = JobPayload.ExtractItems(request.Payload);
+        var itemCount = scheduleItems.Count;
         var maxItems = schedulingOptions.CurrentValue.MaxItemsPerJob;
 
         if (itemCount > maxItems)
         {
             return InvalidSchedule($"The payload has {itemCount} items; at most {maxItems} are supported.");
+        }
+
+        // F-294: a structured item's shape is checked when the schedule is saved,
+        // so a typo does not wait for the first run to surface. Only the shape:
+        // the values are checked against the agent's or workflow's schema when
+        // each item RUNS, because that schema can change after the save.
+        if (BatchItemShapeProblem(request.HandlerKey, scheduleItems) is { } shapeProblem)
+        {
+            return InvalidSchedule(shapeProblem);
         }
 
         var existing = await store.GetAsync(tenants.TenantId, name, cancellationToken).ConfigureAwait(false);
@@ -275,6 +285,32 @@ internal static class SchedulingEndpoints
         var saved = await store.SaveAsync(schedule, cancellationToken).ConfigureAwait(false);
 
         return TypedResults.Ok(saved);
+    }
+
+    /// <summary>
+    /// Finds the first batch item whose structured shape is malformed, for the
+    /// two built-in handlers that read it. Other handlers own their item text.
+    /// </summary>
+    /// <param name="handlerKey">The handler the items are for.</param>
+    /// <param name="items">The payload's items.</param>
+    /// <returns>The reason, naming the item's position; <see langword="null"/> when every item is sound.</returns>
+    private static string? BatchItemShapeProblem(string handlerKey, IReadOnlyList<string> items)
+    {
+        if (!string.Equals(handlerKey, JobHandlerKeys.AgentBatch, StringComparison.Ordinal) &&
+            !string.Equals(handlerKey, JobHandlerKeys.Workflow, StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        for (var index = 0; index < items.Count; index++)
+        {
+            if (BatchItemInput.Parse(items[index]).Problem is { } problem)
+            {
+                return $"Item {index} of the payload: {problem}";
+            }
+        }
+
+        return null;
     }
 
     private static async Task<Results<NoContent, ProblemHttpResult>> DeleteScheduleAsync(
@@ -320,6 +356,14 @@ internal static class SchedulingEndpoints
             return TypedResults.Problem(
                 title: "Trigger failed",
                 detail: $"The payload has {items.Count} items; at most {maxItems} are supported.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        if (BatchItemShapeProblem(schedule.HandlerKey, items) is { } shapeProblem)
+        {
+            return TypedResults.Problem(
+                title: "Trigger failed",
+                detail: shapeProblem,
                 statusCode: StatusCodes.Status400BadRequest);
         }
 

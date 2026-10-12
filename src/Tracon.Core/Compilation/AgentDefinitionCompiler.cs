@@ -430,10 +430,29 @@ public sealed partial class AgentDefinitionCompiler
     /// the same reason a tenant-specific provider credential (BYOK) bypasses it.
     /// </para>
     /// </remarks>
-    public async ValueTask<AIAgent> CompileParameterizedAsync(
+    public ValueTask<AIAgent> CompileParameterizedAsync(
         AgentDefinition definition,
         string? culture,
         IReadOnlyDictionary<string, string>? values,
+        CancellationToken cancellationToken)
+        => CompileParameterizedAsync(definition, culture, values, toolTransform: null, cancellationToken);
+
+    /// <summary>
+    /// <see cref="CompileParameterizedAsync(AgentDefinition, string, IReadOnlyDictionary{string, string}, CancellationToken)"/>
+    /// with a tool transform, for the paths that run a recorded run again
+    /// (replay with played-back tools).
+    /// </summary>
+    /// <param name="definition">The source definition.</param>
+    /// <param name="culture">The culture to resolve instructions with before binding.</param>
+    /// <param name="values">The parameter values for this one compilation.</param>
+    /// <param name="toolTransform">The transform applied to every registry tool; <see langword="null"/> for none.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The compiled agent.</returns>
+    internal async ValueTask<AIAgent> CompileParameterizedAsync(
+        AgentDefinition definition,
+        string? culture,
+        IReadOnlyDictionary<string, string>? values,
+        Func<AIFunction, AIFunction>? toolTransform,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(definition);
@@ -452,7 +471,8 @@ public sealed partial class AgentDefinitionCompiler
 
         var callable = await ResolveCallableAgentsAsync(boundDefinition, cancellationToken).ConfigureAwait(false);
 
-        return await CompileAsync(boundDefinition, callable, culture: null, cancellationToken).ConfigureAwait(false);
+        return await CompileAsync(boundDefinition, callable, toolTransform, culture: null, cancellationToken)
+            .ConfigureAwait(false);
     }
 
     /// <summary>

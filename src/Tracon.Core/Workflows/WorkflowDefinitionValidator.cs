@@ -177,6 +177,18 @@ internal static class WorkflowDefinitionValidator
             return $"Workflow '{definition.Name}''s 'maxIterations' value must be positive.";
         }
 
+        // Structure only (F-294): valid identifiers, no repeats. Whether the
+        // participants' required parameters are covered is checked when a run
+        // STARTS - the participants live in the agent catalog, which can change
+        // after this definition is saved, so a save-time check would be a false
+        // guarantee (the same rule as the agent names above). Kind is a label
+        // for the console; every value travels as a string, so there is no
+        // default-versus-kind rule, exactly as for an agent's schema.
+        if (AgentParameterValidator.ValidateNames(definition.Parameters) is { Count: > 0 } parameterErrors)
+        {
+            return $"Workflow '{definition.Name}' has an invalid parameter schema: {string.Join(" ", parameterErrors)}";
+        }
+
         return null;
     }
 

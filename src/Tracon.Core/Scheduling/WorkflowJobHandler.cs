@@ -19,6 +19,13 @@ namespace Tracon;
 /// Consuming the stream performs execution. The MAF workflow engine advances the
 /// graph as it produces events. The workflow does not run if the stream is not consumed.
 /// </para>
+/// <para>
+/// F-294: a structured item (<see cref="BatchItemInput"/>) carries parameter
+/// values for the workflow's schema; the runner checks them, so an item with a
+/// bad value fails alone and the rest of the batch runs. A workflow run takes no
+/// documents: an item that names one fails with that reason instead of running
+/// without it.
+/// </para>
 /// </remarks>
 internal sealed class WorkflowJobHandler(
     IWorkflowRunner? runner = null,
@@ -51,12 +58,17 @@ internal sealed class WorkflowJobHandler(
             var failed = false;
             string? error = null;
 
+            var input = BatchItemInput.Parse(item.Input);
+
+            if (input.Problem is not null || input.Documents.Count > 0)
+            {
+                failed = true;
+                error = input.Problem ?? "A workflow run does not accept documents; the batch item named some.";
+            }
+
             try
             {
-                await foreach (var runEvent in runner
-                    .RunStreamingAsync(
-                        new WorkflowRunRequest { WorkflowName = context.Job.TargetName, Message = item.Input },
-                        cancellationToken)
+                await foreach (var runEvent in RunItemAsync(runner, context.Job.TargetName, input, failed, cancellationToken)
                     .ConfigureAwait(false))
                 {
                     runId ??= runEvent.RunId;
@@ -97,6 +109,29 @@ internal sealed class WorkflowJobHandler(
                     Error = error,
                 },
                 cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    /// <summary>Runs one item's workflow, or nothing when the item already failed its own checks.</summary>
+    private static async IAsyncEnumerable<RunEvent> RunItemAsync(
+        IWorkflowRunner runner,
+        string workflowName,
+        BatchItemInput input,
+        bool alreadyFailed,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        if (alreadyFailed)
+        {
+            yield break;
+        }
+
+        await foreach (var runEvent in runner
+            .RunStreamingAsync(
+                new WorkflowRunRequest { WorkflowName = workflowName, Message = input.Message, Parameters = input.Parameters },
+                cancellationToken)
+            .ConfigureAwait(false))
+        {
+            yield return runEvent;
         }
     }
 }

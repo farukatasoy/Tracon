@@ -111,6 +111,47 @@ public abstract class WorkflowDefinitionStoreContract : TenantIsolationContract<
     }
 
     [Fact]
+    public async Task Parameter_schema_survives_the_round_trip()
+    {
+        // Added in phase 194 (K-580): the same hand-written DTO trap. The
+        // in-memory store hands the record back as it was given, so only a SQL
+        // run can show the schema vanishing.
+        var definition = Definition() with
+        {
+            Name = "parameterized",
+            Parameters =
+            [
+                new AgentParameter
+                {
+                    Name = "tone",
+                    Kind = AgentParameterKind.Text,
+                    Required = true,
+                    DefaultValue = "formal",
+                    Description = "The register of the answer.",
+                },
+                new AgentParameter { Name = "retries", Kind = AgentParameterKind.Number },
+                new AgentParameter { Name = "verbose", Kind = AgentParameterKind.Boolean, DefaultValue = "false" },
+            ],
+        };
+
+        await Store.SaveAsync("tenant-a", definition);
+
+        var loaded = (await Store.GetAsync("tenant-a", "parameterized"))!;
+
+        loaded.Parameters.Count.ShouldBe(3);
+        loaded.Parameters[0].Name.ShouldBe("tone");
+        loaded.Parameters[0].Kind.ShouldBe(AgentParameterKind.Text);
+        loaded.Parameters[0].Required.ShouldBeTrue();
+        loaded.Parameters[0].DefaultValue.ShouldBe("formal");
+        loaded.Parameters[0].Description.ShouldBe("The register of the answer.");
+        loaded.Parameters[1].Kind.ShouldBe(AgentParameterKind.Number);
+        loaded.Parameters[1].Required.ShouldBeFalse();
+        loaded.Parameters[1].DefaultValue.ShouldBeNull();
+        loaded.Parameters[2].Kind.ShouldBe(AgentParameterKind.Boolean);
+        loaded.Parameters[2].DefaultValue.ShouldBe("false");
+    }
+
+    [Fact]
     public async Task Magentic_manager_name_is_preserved()
     {
         var definition = Definition() with
