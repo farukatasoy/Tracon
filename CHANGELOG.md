@@ -81,6 +81,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- A queued run (`Prefer: respond-async`) now uses the request's `culture` and
+  takes part in a running experiment. The worker resolved the agent with no
+  culture and the current version, so a queued run always got the default
+  instructions, ignored the experiment and counted in no arm. The arm is now
+  assigned when the request is accepted, with the same key as a synchronous run
+  (`sessionId`, else the run id), and the worker runs that arm's version. The
+  worker honors an arm in the job payload only when it matches a started
+  experiment of the job's tenant and agent with that exact version; otherwise
+  the job fails and no model call is made.
 - A store error after a job's handler has finished no longer counts as a
   handler failure. The worker wrote the outcome inside the handler's own `try`,
   so one failed database call either failed a job whose work was done — a

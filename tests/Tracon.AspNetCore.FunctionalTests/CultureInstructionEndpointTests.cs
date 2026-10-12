@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using Microsoft.Extensions.DependencyInjection;
 using Tracon.AspNetCore.FunctionalTests.Infrastructure;
 using Tracon.Testing;
 
@@ -106,12 +107,41 @@ public sealed class CultureInstructionEndpointTests
         provider.Requests[^1].Options!.Instructions.ShouldBe(DefaultInstructions);
     }
 
+    /// <summary>
+    /// F-351: the queue worker resolved the agent with no culture, so a queued
+    /// run always reached the model with the default instructions.
+    /// </summary>
+    [Fact]
+    public async Task A_queued_run_uses_the_requested_cultures_instructions()
+    {
+        var provider = Provider();
+        await using var host = await StartAsync(
+            provider,
+            static services => services.UseScheduling(static o => o.PollInterval = TimeSpan.FromMilliseconds(20)));
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, RunUri)
+        {
+            Content = JsonContent.Create(new AgentRunRequest { Message = "hi", Culture = "tr" }),
+        };
+        request.Headers.Add("Prefer", "respond-async");
+
+        using var accepted = await host.Client.SendAsync(request, TestContext.Current.CancellationToken);
+
+        accepted.StatusCode.ShouldBe(HttpStatusCode.Accepted);
+
+        await WaitUntil.TrueAsync(() => provider.Requests.Count > 0, "the queued run to reach the model");
+
+        provider.Requests[^1].Options!.Instructions.ShouldBe(AlternateCultureInstructions);
+    }
+
     private static FakeModelProvider Provider()
         => new FakeModelProvider("polyglot-provider")
             .WithModel(new ModelDescriptor { Name = ModelName })
             .EchoesUserMessage();
 
-    private static Task<Infrastructure.TraconTestHost> StartAsync(FakeModelProvider provider)
+    private static Task<Infrastructure.TraconTestHost> StartAsync(
+        FakeModelProvider provider,
+        Action<IServiceCollection>? configureServices = null)
         => Infrastructure.TraconTestHost.StartAsync(
             configureTracon: builder => builder
                 .AddAgent(new AgentDefinition
@@ -125,5 +155,6 @@ public sealed class CultureInstructionEndpointTests
                     Model = new ModelBinding { Provider = "polyglot-provider", Model = ModelName },
                     Origin = AgentDefinitionOrigin.Code,
                 })
-                .AddModelProvider(provider));
+                .AddModelProvider(provider),
+            configureServices: configureServices);
 }
