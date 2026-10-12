@@ -2,8 +2,8 @@
 
 > **Durum:** ✅ Tamamlandı (2026-10-12)
 > **Plan onayı:** Bakımcı, 2026-10-12 (engelleyici kararlar sohbette alındı: F-292 + F-295 tek faz; tipli ayar; son fonksiyon düğümü silinince `agentNames`'e dönüş; konsolda JSON alanı + şema yardımı; aynı fonksiyonun zincirde iki kez kullanımı kapsam dışı)
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-292**, **F-295**
-> **Önkoşul:** [Faz 194](arsiv/fazlar/194-WORKFLOW-VE-KUYRUK-PARAMETRELERI.md) — **işlevsel bağımlılık yok**, ama dört dosyayı paylaşırlar (`workflow-editor.tsx`, `WorkflowContracts.cs`, `WorkflowDefinitionPayload.cs`, `full-replace-editors.test.tsx`). İki yazar aynı dosyaya aynı anda dokunmasın diye uygulama Faz 194 kapandıktan sonra başlar
+> **Kaynak:** [ADAYLAR.md](../../ADAYLAR.md) · **F-292**, **F-295**
+> **Önkoşul:** [Faz 194](194-WORKFLOW-VE-KUYRUK-PARAMETRELERI.md) — **işlevsel bağımlılık yok**, ama dört dosyayı paylaşırlar (`workflow-editor.tsx`, `WorkflowContracts.cs`, `WorkflowDefinitionPayload.cs`, `full-replace-editors.test.tsx`). İki yazar aynı dosyaya aynı anda dokunmasın diye uygulama Faz 194 kapandıktan sonra başlar
 > **Paketler:** `Tracon.Abstractions`, `.Core`, `.Workflows`, `.AspNetCore`, `.Sql.Shared`, `.UI` · üretilen: `Tracon.Client`, `@tracon/client`
 > **Yeni paket:** Yok · **Migration:** Yok — workflow tanımı `workflows.definition` JSON blob'unda durur (`0007_workflows.sql`); yeni alan blob'a girer
 > **Public API:** büyüyor — `1.0.0` GA'dan (K-603) önce ucuz. Ölçüldü (2026-10-12): `wc -l src/*/PublicAPI.Shipped.txt` → 17 dosya, her biri yalnız `#nullable enable` satırı
@@ -39,9 +39,9 @@
    düğümüne `GetRunParameters()`'ı ekledi. Faz 194 henüz kapanmadıysa bu faz
    başlamaz (Önkoşul).
 4. Alan hafızası (üç alan):
-   [`hafiza/workflows.md`](hafiza/workflows.md) (executor kimliği, karma zincir) ·
-   [`hafiza/frontend.md`](hafiza/frontend.md) (tam değiştiren editör kapısı) ·
-   [`hafiza/frontend-test-altyapisi.md`](hafiza/frontend-test-altyapisi.md)
+   [`hafiza/workflows.md`](../../hafiza/workflows.md) (executor kimliği, karma zincir) ·
+   [`hafiza/frontend.md`](../../hafiza/frontend.md) (tam değiştiren editör kapısı) ·
+   [`hafiza/frontend-test-altyapisi.md`](../../hafiza/frontend-test-altyapisi.md)
    (`openapi-fetch` stub)
 
 ---
@@ -82,19 +82,19 @@ ama konsolda görünmez, ya da konsol zinciri kurar ama düğümü ayarlayamaz.
 
 | Kanıt | Gözlem |
 |---|---|
-| [`WorkflowNodeReference.cs:22-34`](../src/Tracon.Abstractions/Workflows/WorkflowNodeReference.cs) | Düğüm yalnız `Name` ve `Kind` taşır |
-| [`TraconWorkflowFunctionExtensions.cs:94-134`](../src/Tracon.Workflows/TraconWorkflowFunctionExtensions.cs) | İşleyici `(TInput, IWorkflowContext, CancellationToken)` alır; ayar yolu yok |
-| [`WorkflowFunctionRegistration.cs:21-22`](../src/Tracon.Workflows/Internal/WorkflowFunctionRegistration.cs) · [`WorkflowFunctionRegistry.cs:75`](../src/Tracon.Workflows/Internal/WorkflowFunctionRegistry.cs) | Executor fabrikası yalnız `executorId` alır |
-| [`WorkflowDefinitionCompiler.cs:146-153`](../src/Tracon.Workflows/Internal/WorkflowDefinitionCompiler.cs) | Fonksiyon düğümünün executor kimliği düğüm **adıdır**; checkpoint uyumu buna dayanır |
-| [`WorkflowCatalog.cs:122`](../src/Tracon.Workflows/Internal/WorkflowCatalog.cs) | Graf **her run'da** yeniden kurulur — ayar her run'da yeniden okunabilir |
-| [`WorkflowFunctionDescriptor.cs:4-16`](../src/Tracon.Abstractions/Workflows/WorkflowFunctionDescriptor.cs) · [`WorkflowContracts.cs:26-35`](../src/Tracon.AspNetCore/Contracts/WorkflowContracts.cs) | Katalog yalnız ad, açıklama, girdi/çıktı tip adı verir; şema yok |
-| [`WorkflowEndpoints.cs:53-66`](../src/Tracon.AspNetCore/Endpoints/WorkflowEndpoints.cs) | 🚨 Uç açıklaması "the UI lets users pick from this list" der; `grep -rn "workflows/functions" src/Tracon.UI/frontend/src` **boş** — doküman koddan sapmış, bu faz doğru kılar |
-| [`WorkflowEndpoints.cs:348-367`](../src/Tracon.AspNetCore/Endpoints/WorkflowEndpoints.cs) | Kayıtta yalnız fonksiyon adının varlığı kontrol edilir (K-496) |
-| [`workflow-editor.tsx:36-45`](../src/Tracon.UI/frontend/src/screens/workflow-editor.tsx) · [`:404-430`](../src/Tracon.UI/frontend/src/screens/workflow-editor.tsx) | `nodes` "carried, never edited"; `NodeChain` salt okunur |
-| [`locales/en/workflows.ts:79`](../src/Tracon.UI/frontend/src/locales/en/workflows.ts) · [`concepts/workflows.md:96-98`](../docs-site/src/content/docs/concepts/workflows.md) | Konsol ve site "zinciri değiştiremez, HTTP API değiştirir" der |
-| [`full-replace-editors.test.tsx:53-57`](../src/Tracon.UI/frontend/src/full-replace-editors.test.tsx) | `Complete<T>` **derin**dir — düğüme eklenen `settings` her fixture'da zorunlu olur |
-| [`IStructuredResponseValidator.cs:22-24`](../src/Tracon.Abstractions/Agents/IStructuredResponseValidator.cs) | Tracon bilerek yerleşik JSON Schema doğrulayıcısı taşımaz |
-| [`Tracon.Workflows.csproj:10`](../src/Tracon.Workflows/Tracon.Workflows.csproj) | `TraconAotCompatible=false` — tipli ayarın yansımalı deserialize'ı bu pakette serbest |
+| [`WorkflowNodeReference.cs:22-34`](../../../src/Tracon.Abstractions/Workflows/WorkflowNodeReference.cs) | Düğüm yalnız `Name` ve `Kind` taşır |
+| [`TraconWorkflowFunctionExtensions.cs:94-134`](../../../src/Tracon.Workflows/TraconWorkflowFunctionExtensions.cs) | İşleyici `(TInput, IWorkflowContext, CancellationToken)` alır; ayar yolu yok |
+| [`WorkflowFunctionRegistration.cs:21-22`](../../../src/Tracon.Workflows/Internal/WorkflowFunctionRegistration.cs) · [`WorkflowFunctionRegistry.cs:75`](../../../src/Tracon.Workflows/Internal/WorkflowFunctionRegistry.cs) | Executor fabrikası yalnız `executorId` alır |
+| [`WorkflowDefinitionCompiler.cs:146-153`](../../../src/Tracon.Workflows/Internal/WorkflowDefinitionCompiler.cs) | Fonksiyon düğümünün executor kimliği düğüm **adıdır**; checkpoint uyumu buna dayanır |
+| [`WorkflowCatalog.cs:122`](../../../src/Tracon.Workflows/Internal/WorkflowCatalog.cs) | Graf **her run'da** yeniden kurulur — ayar her run'da yeniden okunabilir |
+| [`WorkflowFunctionDescriptor.cs:4-16`](../../../src/Tracon.Abstractions/Workflows/WorkflowFunctionDescriptor.cs) · [`WorkflowContracts.cs:26-35`](../../../src/Tracon.AspNetCore/Contracts/WorkflowContracts.cs) | Katalog yalnız ad, açıklama, girdi/çıktı tip adı verir; şema yok |
+| [`WorkflowEndpoints.cs:53-66`](../../../src/Tracon.AspNetCore/Endpoints/WorkflowEndpoints.cs) | 🚨 Uç açıklaması "the UI lets users pick from this list" der; `grep -rn "workflows/functions" src/Tracon.UI/frontend/src` **boş** — doküman koddan sapmış, bu faz doğru kılar |
+| [`WorkflowEndpoints.cs:348-367`](../../../src/Tracon.AspNetCore/Endpoints/WorkflowEndpoints.cs) | Kayıtta yalnız fonksiyon adının varlığı kontrol edilir (K-496) |
+| [`workflow-editor.tsx:36-45`](../../../src/Tracon.UI/frontend/src/screens/workflow-editor.tsx) · [`:404-430`](../../../src/Tracon.UI/frontend/src/screens/workflow-editor.tsx) | `nodes` "carried, never edited"; `NodeChain` salt okunur |
+| [`locales/en/workflows.ts:79`](../../../src/Tracon.UI/frontend/src/locales/en/workflows.ts) · [`concepts/workflows.md:96-98`](../../../docs-site/src/content/docs/concepts/workflows.md) | Konsol ve site "zinciri değiştiremez, HTTP API değiştirir" der |
+| [`full-replace-editors.test.tsx:53-57`](../../../src/Tracon.UI/frontend/src/full-replace-editors.test.tsx) | `Complete<T>` **derin**dir — düğüme eklenen `settings` her fixture'da zorunlu olur |
+| [`IStructuredResponseValidator.cs:22-24`](../../../src/Tracon.Abstractions/Agents/IStructuredResponseValidator.cs) | Tracon bilerek yerleşik JSON Schema doğrulayıcısı taşımaz |
+| [`Tracon.Workflows.csproj:10`](../../../src/Tracon.Workflows/Tracon.Workflows.csproj) | `TraconAotCompatible=false` — tipli ayarın yansımalı deserialize'ı bu pakette serbest |
 
 **Düşen aday iddiası:** F-295'in "Hazırlık" alanı "JSON şema doğrulama deseni
 var (`AgentParameter`)" diyordu. `AgentParameter` düz bir ad/tür listesidir,
@@ -335,7 +335,7 @@ samples/Tracon.Api/Program.cs                   (ayarlı örnek fonksiyon)
 
 > Mutlu yoldan değil, **ne bozulabilir**den türetilir. Seviyeyi plan seçer.
 > Sınır geçen davranış (DI · HTTP · kiracı · akış · depo · paket) birim
-> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../.agents/ortak/test-seviyeleri.md).
+> testiyle kanıtlanamaz — [`.agents/ortak/test-seviyeleri.md`](../../../.agents/ortak/test-seviyeleri.md).
 
 | # | Ne bozulabilir | Seviye | Test sınıfı |
 |---|---|---|---|
@@ -716,7 +716,7 @@ Denetçi "bilinen sapmalar"ı yargıladı: aşırı yükleme biçimi (K-902) · 
 
 ## Sonraki Faza Devir Notu
 
-**Sıradaki faz: [Faz 196](../../196-UZUN-ADIM-SURE-VE-IPTAL.md).** Önkoşulu (bu faz) karşılandı; başlayabilir. Faz 197, 198, 199, 200 ve 201 de bu fazın kayıt yüzeyine ve editörüne dayanır (kendi `Önkoşul` satırlarında).
+**Sıradaki faz: [Faz 196](../../../../196-UZUN-ADIM-SURE-VE-IPTAL.md).** Önkoşulu (bu faz) karşılandı; başlayabilir. Faz 197, 198, 199, 200 ve 201 de bu fazın kayıt yüzeyine ve editörüne dayanır (kendi `Önkoşul` satırlarında).
 
 ### Devralınan sözleşmeler
 
@@ -746,6 +746,6 @@ Denetçi "bilinen sapmalar"ı yargıladı: aşırı yükleme biçimi (K-902) · 
 
 ### Açık işler
 
-- `F-412…F-415` adayları ([ADAYLAR.md](../../ADAYLAR.md)): şemadan üretilen ayar formu, uyarının yalnız bekleyen run varken görünmesi, 2^53'ten geniş tamsayı ayarı, tüketici `JsonConverter` mesajı.
+- `F-412…F-415` adayları ([ADAYLAR.md](../../../../ADAYLAR.md)): şemadan üretilen ayar formu, uyarının yalnız bekleyen run varken görünmesi, 2^53'ten geniş tamsayı ayarı, tüketici `JsonConverter` mesajı.
 - Site **yayınlanmadı** (`./scripts/site-deploy.sh` çalıştırılmadı; Adım 10 dışarıya dönük iştir, istenmedi). Kapı ve derleme yeşil.
 - Faz 193 (`net8.0`/`net9.0` düşürme) takvime bağlıdır: 2026-11-10'dan önce başlamaz. Bu fazı etkilemez: `System.Text.Json` 10.0.0 geçişli paketi `net8.0`'a da akar (K-900), düşürme kararı ayar okumasını değiştirmez.

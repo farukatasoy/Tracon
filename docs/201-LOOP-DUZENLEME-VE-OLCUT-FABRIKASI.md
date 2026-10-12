@@ -3,7 +3,7 @@
 > **Durum:** 📋 Planlandı (2026-10-12)
 > **Plan onayı:** onaylanmadı — plan 2026-10-12'de bakımcı talebiyle yazıldı; engelleyici kararlar § Açık Sorular'da öneriyle bekler, uygulama onaydan önce başlamaz
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-302**, **F-301**
-> **Önkoşul:** İşlevsel önkoşul yok. [Faz 195](195-WORKFLOW-DUGUM-DUZENLEME-VE-AYAR.md) kapanmadan başlamaz: ikisi `full-replace-editors.test.tsx`'i paylaşır
+> **Önkoşul:** İşlevsel önkoşul yok. [Faz 195](arsiv/fazlar/195-WORKFLOW-DUGUM-DUZENLEME-VE-AYAR.md) kapanmadan başlamaz: ikisi `full-replace-editors.test.tsx`'i paylaşır
 > **Paketler:** `Tracon.Core`, `.AspNetCore`, `.UI` · üretilen: `Tracon.Client`, `@tracon/client`
 > **Yeni paket:** Yok · **Migration:** Yok — `harness.loop` tanım blob'undadır; veri modeli değişmez
 > **Public API:** büyüyor — `1.0.0` GA'dan (K-603) önce ucuz. Ölçüldü (2026-10-12): `wc -l src/*/PublicAPI.Shipped.txt` → 17 dosya, her biri yalnız `#nullable enable`

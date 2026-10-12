@@ -1999,8 +1999,8 @@ var (`AgentParameter`)" iddiası düştü.
 
 | Kalem | Faz |
 |---|---|
-| F-292 | [Faz 195](../195-WORKFLOW-DUGUM-DUZENLEME-VE-AYAR.md) |
-| F-295 | [Faz 195](../195-WORKFLOW-DUGUM-DUZENLEME-VE-AYAR.md) |
+| F-292 | [Faz 195](fazlar/195-WORKFLOW-DUGUM-DUZENLEME-VE-AYAR.md) |
+| F-295 | [Faz 195](fazlar/195-WORKFLOW-DUGUM-DUZENLEME-VE-AYAR.md) |
 
 ### F-292 · Konsol workflow editörüne düğüm düzenleme (satırın tam metni)
 
@@ -2193,7 +2193,7 @@ Gövdeler aday dosyasındaki son hâliyle, aynen:
 
 **Sorun:** Bir fonksiyon düğümü sonsuza kadar çalışabilir; yalnız workflow'un genel `RunTimeout`'u (varsayılan 10 dk, `TraconWorkflowOptions.cs:54`) onu keser (K-497). 10–20 dakikalık bölümün TTS ve ses işleme düğümleri dakikalar sürer; genel sınırı büyütmek her düğümün sınırını büyütür. K-497'nin koşulu ("ihtiyaç ölçülürse") bu tüketicide oluştu.
 
-**Kapsam:** Düğüm başına zaman aşımı (kayıtta varsayılan, [Faz 195](../195-WORKFLOW-DUGUM-DUZENLEME-VE-AYAR.md)'in düğüm ayarıyla geçersiz kılma); aşımda düğümü iptal edip run'ı ayırt edilebilir hatayla bitirme (K-497'nin önerdiği `TimeoutAIFunction` deseni).
+**Kapsam:** Düğüm başına zaman aşımı (kayıtta varsayılan, [Faz 195](fazlar/195-WORKFLOW-DUGUM-DUZENLEME-VE-AYAR.md)'in düğüm ayarıyla geçersiz kılma); aşımda düğümü iptal edip run'ı ayırt edilebilir hatayla bitirme (K-497'nin önerdiği `TimeoutAIFunction` deseni).
 
 **video tüketicisi turu eki (2026-10-11):** agent düğümü süresi (`ChildDeadline` kurulum geneli 2 dk) ve workflow başına `RunTimeout`; aşımda run düşer (F-328 ile 2026-10-12'den beri; bu adayın işi düğüm başına süre ayarıdır).
 
