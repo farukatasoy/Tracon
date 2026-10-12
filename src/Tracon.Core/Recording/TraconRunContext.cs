@@ -120,6 +120,19 @@ public sealed record AgentRunScope
     public string? Variant { get; init; }
 
     /// <summary>
+    /// Gets the parameter values of a WORKFLOW run: the final set (the supplied
+    /// values with the workflow schema's defaults applied). <see langword="null"/>
+    /// outside a workflow and for a workflow that declares no parameters.
+    /// </summary>
+    /// <remarks>
+    /// Each workflow agent step reads this and binds the values its own schema
+    /// declares. It is not copied into a step's own scope: a step records the
+    /// values it was bound with (<see cref="TraconRunOptions"/>), and a sub-agent
+    /// the step calls receives none, the same as an agent called from a direct run.
+    /// </remarks>
+    internal IReadOnlyDictionary<string, string>? ParameterValues { get; init; }
+
+    /// <summary>
     /// Gets the event writer for this run. A sub-run writes its summary events here.
     /// </summary>
     /// <remarks>

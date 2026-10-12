@@ -126,12 +126,34 @@ internal sealed class WorkflowCatalog
     /// single model call.
     /// </remarks>
     public async ValueTask<Workflow?> ResolveAsync(string name, CancellationToken cancellationToken = default)
+        => (await ResolveWithDefinitionAsync(name, cancellationToken).ConfigureAwait(false))?.Graph;
+
+    /// <summary>
+    /// Turns the named workflow into a runnable graph and returns the definition
+    /// it was compiled from.
+    /// </summary>
+    /// <param name="name">The workflow name.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>
+    /// The graph and, for a stored workflow, its definition; <see langword="null"/>
+    /// if the workflow is not in the catalog.
+    /// </returns>
+    /// <exception cref="TraconException">The definition is invalid, or an agent cannot be found.</exception>
+    /// <remarks>
+    /// A run reads its parameter schema from the SAME definition the graph came
+    /// from: two separate reads could see two versions of a workflow being
+    /// edited, and validate values against a schema the graph no longer has.
+    /// A code-defined workflow has no definition (and so no schema).
+    /// </remarks>
+    public async ValueTask<ResolvedWorkflow?> ResolveWithDefinitionAsync(
+        string name,
+        CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
 
         if (_codeWorkflows.TryGetValue(name, out var registration))
         {
-            return registration.Factory(_services);
+            return new ResolvedWorkflow(registration.Factory(_services), null);
         }
 
         var definition = await _store
@@ -140,8 +162,15 @@ internal sealed class WorkflowCatalog
 
         return definition is null
             ? null
-            : await _compiler.CompileAsync(definition, cancellationToken).ConfigureAwait(false);
+            : new ResolvedWorkflow(
+                await _compiler.CompileAsync(definition, cancellationToken).ConfigureAwait(false),
+                definition);
     }
+
+    /// <summary>A compiled graph and the definition it came from.</summary>
+    /// <param name="Graph">The runnable graph.</param>
+    /// <param name="Definition">The stored definition; <see langword="null"/> for a workflow defined in code.</param>
+    internal readonly record struct ResolvedWorkflow(Workflow Graph, WorkflowDefinition? Definition);
 
     private static WorkflowDescriptor Describe(WorkflowDefinition definition)
         => new()
@@ -153,6 +182,7 @@ internal sealed class WorkflowCatalog
             Kind = definition.Kind,
             AgentNames = definition.AgentNames,
             Nodes = definition.Nodes,
+            Parameters = definition.Parameters,
             Version = definition.Version,
             UpdatedAt = definition.UpdatedAt,
         };

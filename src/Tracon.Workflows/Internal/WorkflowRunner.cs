@@ -57,6 +57,8 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     private readonly IWebhookPublisher? _webhookPublisher;
     private readonly IRunAttributionContext? _attributionContext;
     private readonly IReadOnlyList<IRunEventSink> _sinks;
+    private readonly IRunInputStore? _runInputs;
+    private readonly ParameterizedAgentFactory? _parameterFactory;
 
     /// <summary>Creates a new runner.</summary>
     /// <param name="catalog">The workflow catalog.</param>
@@ -92,6 +94,15 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
     /// The webhook publisher. When <see langword="null"/>, the workflow root
     /// publishes no <c>run.*</c> and no <c>workflow.request.pending</c> event.
     /// </param>
+    /// <param name="runInputStore">
+    /// Where a parameterized run's final values are recorded. When <see langword="null"/>
+    /// nothing is recorded, so a run with parameters cannot be resumed or answered.
+    /// </param>
+    /// <param name="parameterFactory">
+    /// Looks up the participants' definitions for the start-of-run coverage check
+    /// and applies the configured value length limit. When <see langword="null"/>
+    /// the coverage check is skipped.
+    /// </param>
     /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
     public WorkflowRunner(
         WorkflowCatalog catalog,
@@ -109,7 +120,9 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         IRunAttributionContext? attributionContext = null,
         IEnumerable<IRunEventSink>? sinks = null,
         IRunErrorClassifier? errorClassifier = null,
-        IWebhookPublisher? webhookPublisher = null)
+        IWebhookPublisher? webhookPublisher = null,
+        IRunInputStore? runInputStore = null,
+        ParameterizedAgentFactory? parameterFactory = null)
     {
         ArgumentNullException.ThrowIfNull(catalog);
         ArgumentNullException.ThrowIfNull(runStore);
@@ -136,6 +149,8 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         _sinks = sinks?.ToArray() ?? [];
         _errorClassifier = errorClassifier;
         _webhookPublisher = webhookPublisher;
+        _runInputs = runInputStore;
+        _parameterFactory = parameterFactory;
     }
 
     /// <inheritdoc />
@@ -233,6 +248,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             SessionId = WorkflowSessionId.Require(request.SessionId),
             Message = request.Message,
             ResumeFrom = null,
+            Parameters = request.Parameters,
         };
 
         await foreach (var runEvent in ExecuteAsync(execution, cancellationToken).ConfigureAwait(false))
@@ -280,6 +296,7 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             Message = null,
             ResumeFrom = await RequireCheckpointAsync(request.RunId, request.CheckpointId, cancellationToken)
                 .ConfigureAwait(false),
+            Parameters = await ReadRecordedParametersAsync(record, "resumed", cancellationToken).ConfigureAwait(false),
         };
     }
 
@@ -327,7 +344,76 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             ResumeFrom = await RequireCheckpointAsync(request.RunId, request.CheckpointId, cancellationToken)
                 .ConfigureAwait(false),
             Answers = [new WorkflowAnswer(request.RequestId, request.Approved, request.Text, request.Json)],
+            Parameters = await ReadRecordedParametersAsync(record, "answered", cancellationToken).ConfigureAwait(false),
         };
+    }
+
+    /// <summary>
+    /// Reads the parameter values a run was started with, for the run that
+    /// continues it (a resume or a response).
+    /// </summary>
+    /// <param name="source">The run being continued.</param>
+    /// <param name="verb">"resumed" or "answered", for the refusal text.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>
+    /// The recorded values that the workflow's CURRENT schema still declares;
+    /// <see langword="null"/> when the current definition takes no parameters.
+    /// </returns>
+    /// <exception cref="TraconException">
+    /// The workflow declares parameters now but the source run recorded none, or
+    /// the schema gained a required parameter the recorded values lack.
+    /// </exception>
+    /// <remarks>
+    /// <para>
+    /// <strong>Fail closed.</strong> A continued run that found no recorded values
+    /// and ran on the defaults would change the instructions its agents were
+    /// given halfway through the work (K-890). NULL ("nothing was recorded") is
+    /// therefore refused whenever the workflow declares parameters now; a
+    /// workflow that declares none keeps working exactly as before.
+    /// </para>
+    /// <para>
+    /// A name the schema no longer declares is dropped rather than refused:
+    /// removing a parameter is the operator's change to make, and a value no
+    /// instruction can reach is harmless. A required name the recorded values
+    /// lack is refused, because the run would otherwise start with an unbound
+    /// placeholder.
+    /// </para>
+    /// </remarks>
+    private async ValueTask<IReadOnlyDictionary<string, string>?> ReadRecordedParametersAsync(
+        RunRecord source,
+        string verb,
+        CancellationToken cancellationToken)
+    {
+        var descriptor = await _catalog.GetAsync(source.WorkflowName!, cancellationToken).ConfigureAwait(false);
+        var schema = descriptor?.Parameters ?? [];
+
+        if (schema.Count == 0)
+        {
+            return null;
+        }
+
+        var recorded = _runInputs is null
+            ? null
+            : (await _runInputs.GetAsync(_tenantContext.TenantId, source.Id, cancellationToken).ConfigureAwait(false))
+                ?.Parameters;
+
+        var values = ParameterValueSet.Intersect(
+            schema,
+            recorded ?? throw new TraconException(
+                $"Run '{source.Id}' cannot be {verb}: workflow '{source.WorkflowName}' declares parameters, and " +
+                "this run did not record the values it started with. A run records them when it starts, " +
+                "unless 'Tracon:RunRecording:RecordRunInput' is off or the run predates parameter recording; " +
+                "continuing it on the defaults would change the instructions its agents were given."));
+        var check = AgentParameterValidator.ValidateValues(schema, values);
+
+        if (!check.IsValid)
+        {
+            throw new TraconException(
+                $"Run '{source.Id}' cannot be {verb}: workflow '{source.WorkflowName}' changed its parameters " +
+                $"after the run started. {ParameterValueSet.Describe(check)}");
+        }
+
+        return values;
     }
 
     /// <summary>Finds the run and validates that it is a resumable workflow row.</summary>
@@ -576,9 +662,19 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
             {
                 try
                 {
-                    workflow = await _catalog.ResolveAsync(execution.WorkflowName, linked.Token).ConfigureAwait(false)
+                    var resolved = await _catalog.ResolveWithDefinitionAsync(execution.WorkflowName, linked.Token)
+                        .ConfigureAwait(false)
                         ?? throw new TraconException(
                             $"There is no workflow named '{execution.WorkflowName}'.");
+
+                    // F-294: values are checked against the schema of the SAME
+                    // definition the graph was built from, before any model
+                    // call. A failure here closes the run like a graph-setup
+                    // failure: the caller can fix it and nothing was spent.
+                    scope = await BindParametersAsync(execution, resolved.Definition, scope, linked.Token)
+                        .ConfigureAwait(false);
+
+                    workflow = resolved.Graph;
                 }
                 catch (Exception exception) when (OperationCancellation.IsFailure(exception, linked.Token))
                 {
@@ -679,6 +775,197 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
                 await CompleteAsync(execution, scope, writer, RunStatus.Canceled, error, activity, startedAt)
                     .ConfigureAwait(false);
             }
+        }
+    }
+
+    /// <summary>
+    /// Checks the run's parameter values against the workflow's schema, proves
+    /// every participant can be bound, records the final values and returns the
+    /// scope the graph runs under.
+    /// </summary>
+    /// <param name="execution">What is being run.</param>
+    /// <param name="definition">The definition the graph came from; <see langword="null"/> for code.</param>
+    /// <param name="scope">The run's scope so far.</param>
+    /// <param name="cancellationToken">The run's token.</param>
+    /// <returns>
+    /// <paramref name="scope"/>, carrying the final values when the workflow
+    /// declares parameters.
+    /// </returns>
+    /// <exception cref="TraconException">
+    /// A required value is missing, a name is not declared, a value is too long,
+    /// or a participant needs a required parameter nobody supplies.
+    /// </exception>
+    private async ValueTask<AgentRunScope> BindParametersAsync(
+        WorkflowExecution execution,
+        WorkflowDefinition? definition,
+        AgentRunScope scope,
+        CancellationToken cancellationToken)
+    {
+        var schema = definition?.Parameters ?? [];
+
+        // The runner is the authority (the HTTP endpoint only answers 400
+        // early): a consumer can call IWorkflowRunner directly and skip HTTP.
+        var validation = _parameterFactory is { } factory
+            ? factory.Validate(schema, execution.Parameters)
+            : AgentParameterValidator.ValidateValues(
+                schema,
+                execution.Parameters,
+                _traconOptions.Value.MaxParameterValueLength);
+
+        if (!validation.IsValid)
+        {
+            throw new TraconException(
+                $"The run's parameters are invalid for workflow '{execution.WorkflowName}'. " +
+                ParameterValueSet.Describe(validation));
+        }
+
+        if (schema.Count == 0)
+        {
+            return scope;
+        }
+
+        var final = ParameterValueSet.Resolve(schema, execution.Parameters);
+
+        await RequireParticipantCoverageAsync(execution.WorkflowName, definition!, final, cancellationToken)
+            .ConfigureAwait(false);
+
+        await SaveRunInputAsync(execution, scope, final, cancellationToken).ConfigureAwait(false);
+
+        return scope with { ParameterValues = final };
+    }
+
+    /// <summary>
+    /// Proves, before the first model call, that every required parameter of
+    /// every participant has a value or a default.
+    /// </summary>
+    /// <remarks>
+    /// Participants resolve lazily, one step at a time. Without this check the
+    /// third step's missing parameter surfaced only after the first two steps had
+    /// spent their tokens. The definitions are read here in the order code first,
+    /// then the store (the same lookup <c>/run</c> uses, K-890); this check is
+    /// skipped for a workflow that declares no parameters, which is the common
+    /// case and pays nothing.
+    /// </remarks>
+    private async ValueTask RequireParticipantCoverageAsync(
+        string workflowName,
+        WorkflowDefinition definition,
+        IReadOnlyDictionary<string, string> final,
+        CancellationToken cancellationToken)
+    {
+        if (_parameterFactory is not { } factory)
+        {
+            return;
+        }
+
+        foreach (var participant in ParticipantNames(definition))
+        {
+            var (agentDefinition, _) = await factory.FindAsync(participant, version: null, cancellationToken)
+                .ConfigureAwait(false);
+
+            if (agentDefinition is not { Parameters.Count: > 0 })
+            {
+                continue;
+            }
+
+            var stepValues = ParameterValueSet.Intersect(agentDefinition.Parameters, final);
+            var check = factory.Validate(agentDefinition.Parameters, stepValues);
+
+            if (check.IsValid)
+            {
+                continue;
+            }
+
+            var missing = string.Join(
+                ", ",
+                check.Errors
+                    .Where(static error => string.Equals(error.Code, AgentParameterValidator.MissingParameterCode, StringComparison.Ordinal))
+                    .Select(static error => $"'{error.ParameterName}'"));
+
+            throw new TraconException(
+                $"Workflow '{workflowName}' cannot start: agent '{participant}' requires parameter(s) " +
+                $"{(missing.Length > 0 ? missing : "it cannot be given")} with no default, and the workflow " +
+                "does not supply them. Declare the parameter in the workflow's parameters, or give it a " +
+                "default value in the agent.");
+        }
+    }
+
+    /// <summary>Lists every agent the definition's graph can call.</summary>
+    private static IEnumerable<string> ParticipantNames(WorkflowDefinition definition)
+    {
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var name in definition.AgentNames)
+        {
+            if (seen.Add(name))
+            {
+                yield return name;
+            }
+        }
+
+        foreach (var node in definition.Nodes)
+        {
+            if (node.Kind == WorkflowNodeKind.Agent && seen.Add(node.Name))
+            {
+                yield return node.Name;
+            }
+        }
+
+        if (definition.ManagerAgentName is { Length: > 0 } manager && seen.Add(manager))
+        {
+            yield return manager;
+        }
+    }
+
+    /// <summary>
+    /// Records the run's final parameter values beside its row.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The workflow row stores NO messages: the agent path masks its input
+    /// through the content guard before it records it (HATA-S3-006), and this
+    /// path never sees a guarded copy. Nothing reads a workflow's message back;
+    /// a workflow resumes from its checkpoints, and only the values it was
+    /// started with are needed.
+    /// </para>
+    /// <para>
+    /// A failure is logged and counted, never thrown: the same contract
+    /// <c>IRunInputStore</c> has for the agent path. The consequence is stated
+    /// where it bites - a later resume or response finds no values and refuses.
+    /// </para>
+    /// </remarks>
+    private async ValueTask SaveRunInputAsync(
+        WorkflowExecution execution,
+        AgentRunScope scope,
+        IReadOnlyDictionary<string, string> final,
+        CancellationToken cancellationToken)
+    {
+        if (_runInputs is null || !_traconOptions.Value.RunRecording.RecordRunInput)
+        {
+            return;
+        }
+
+        try
+        {
+            await _runInputs.SaveAsync(
+                new RunInputRecord
+                {
+                    RunId = execution.RunId,
+                    TenantId = scope.TenantId ?? _tenantContext.TenantId,
+                    Messages = [],
+                    Parameters = final,
+                    CreatedAt = _timeProvider.GetUtcNow(),
+                },
+                cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, cancellationToken))
+        {
+            _metrics?.RecordRunRecordingFailure(scope.TenantId, RunRecordingStages.Input);
+
+            _logger.LogWarning(
+                exception,
+                "Failed to save the parameter values of workflow run {RunId}. The run continues, but it " +
+                "cannot be resumed or answered, because the values it started with were not recorded.",
+                execution.RunId);
         }
     }
 
@@ -1686,6 +1973,13 @@ internal sealed class WorkflowRunner : IWorkflowRunner, IDisposable
         /// The answers to give to pending requests. Only populated on the <c>/respond</c> path.
         /// </summary>
         public IReadOnlyList<WorkflowAnswer> Answers { get; init; } = [];
+
+        /// <summary>
+        /// The parameter values: what the caller supplied to a new run, or the
+        /// source run's recorded values on a resume or a response.
+        /// <see langword="null"/> means none.
+        /// </summary>
+        public IReadOnlyDictionary<string, string>? Parameters { get; init; }
     }
 
     /// <summary>The result of one attempt to send a response.</summary>

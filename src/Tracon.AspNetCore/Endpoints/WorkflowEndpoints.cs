@@ -331,6 +331,7 @@ internal static class WorkflowEndpoints
             MaxIterations = request.MaxIterations,
             HandoffInstructions = request.HandoffInstructions,
             RequirePlanApproval = request.RequirePlanApproval,
+            Parameters = request.Parameters ?? [],
         };
 
         // Validation happens AT SAVE TIME. Accepting an invalid definition
@@ -389,6 +390,7 @@ internal static class WorkflowEndpoints
         [FromServices] IRunAttributionContext? attributionContext,
         [FromServices] ISessionStore sessionStore,
         [FromServices] IOptionsMonitor<TraconSessionOwnershipOptions>? sessionOwnershipOptions,
+        [FromServices] IOptionsMonitor<TraconOptions> traconOptions,
         [FromServices] ITenantContext tenantContext,
         HttpContext httpContext,
         CancellationToken cancellationToken)
@@ -415,7 +417,7 @@ internal static class WorkflowEndpoints
             return attributionProblem;
         }
 
-        if (await runner.GetAsync(name, cancellationToken).ConfigureAwait(false) is null)
+        if (await runner.GetAsync(name, cancellationToken).ConfigureAwait(false) is not { } descriptor)
         {
             return NotFound(name);
         }
@@ -450,6 +452,23 @@ internal static class WorkflowEndpoints
             return quotaProblem;
         }
 
+        // F-294: the values are checked against the workflow's schema BEFORE the
+        // stream opens, so the answer is a proper 400 with the SAME body an
+        // agent run gives (missingParameters / unknownParameters /
+        // tooLongParameters) - impossible once the SSE headers are sent. Last in
+        // the order, like the agent run endpoint: attribution, authorization,
+        // quota, parameters. The runner checks again: it is the authority, this
+        // gate only answers early.
+        var parameterCheck = AgentParameterValidator.ValidateValues(
+            descriptor.Parameters,
+            request?.Parameters,
+            traconOptions.CurrentValue.MaxParameterValueLength);
+
+        if (!parameterCheck.IsValid)
+        {
+            return AgentParameterGate.Problem(parameterCheck);
+        }
+
         var runId = TraconId.NewId();
 
         return new WorkflowEventStream(
@@ -460,6 +479,7 @@ internal static class WorkflowEndpoints
                     Message = request?.Message,
                     SessionId = request?.SessionId,
                     RunId = runId,
+                    Parameters = request?.Parameters,
                 },
                 cancellationToken),
             runId);
@@ -684,6 +704,7 @@ internal static class WorkflowEndpoints
             Kind = definition.Kind,
             AgentNames = definition.AgentNames,
             Nodes = definition.Nodes,
+            Parameters = definition.Parameters,
             Version = definition.Version,
             UpdatedAt = definition.UpdatedAt,
         };

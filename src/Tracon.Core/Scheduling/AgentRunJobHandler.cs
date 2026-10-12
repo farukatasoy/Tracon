@@ -48,6 +48,16 @@ namespace Tracon;
 /// a started experiment of this tenant for this agent, and the run is refused
 /// otherwise.
 /// </para>
+/// <para>
+/// F-294: the payload also carries the run's parameter <c>values</c> and its
+/// reference <c>documents</c>. The values are checked against the schema of the
+/// version being run (a payload is durable data, and the agent may have changed
+/// since the 202), bound with the same compile-outside-the-catalog sequence the
+/// synchronous endpoint uses, and recorded with the run. A field that is absent
+/// means none, so a payload an older build wrote runs as it always did; a field
+/// that is malformed fails the run once, naming the field, and closes the
+/// placeholder row.
+/// </para>
 /// </remarks>
 internal sealed class AgentRunJobHandler(
     IAgentCatalog catalog,
@@ -59,7 +69,8 @@ internal sealed class AgentRunJobHandler(
     IOptionsMonitor<TraconApprovalOptions>? approvalOptionsMonitor = null,
     IWebhookPublisher? webhookPublisher = null,
     TimeProvider? timeProvider = null,
-    ILogger<AgentRunJobHandler>? logger = null) : IJobHandler
+    ILogger<AgentRunJobHandler>? logger = null,
+    ParameterizedAgentFactory? parameterFactory = null) : IJobHandler
 {
     private readonly TimeProvider _clock = timeProvider ?? TimeProvider.System;
 
@@ -83,6 +94,8 @@ internal sealed class AgentRunJobHandler(
         Microsoft.Agents.AI.AIAgent agent;
         Microsoft.Agents.AI.AgentSession? session;
         QueuedRunArm arm;
+        IReadOnlyDictionary<string, string>? recordedValues;
+        IReadOnlyList<AgentRunDocument> documents;
 
         try
         {
@@ -91,9 +104,36 @@ internal sealed class AgentRunJobHandler(
             // default instructions, and the run counted in no arm.
             arm = await VerifyArmAsync(context.Job, cancellationToken).ConfigureAwait(false);
 
+            // Parsed here, inside the try, so a malformed field closes the
+            // queued placeholder row as Failed instead of leaving it Queued.
+            var suppliedValues = ReadOptionalParameters(context.Job.Payload);
+            documents = ReadOptionalDocuments(context.Job.Payload);
+
             agent = await catalog.ResolveAsync(context.Job.TargetName, arm.Version, culture, cancellationToken).ConfigureAwait(false)
                 ?? throw new TraconException(
                     $"No agent named '{context.Job.TargetName}' was found. The job will be marked as failed.");
+
+            // F-294: an agent that declares a schema carries the guard the
+            // compiler puts on it, which tells us without a store read; an
+            // agent without one and a payload without values skips the lookup
+            // entirely (the common case pays nothing).
+            recordedValues = null;
+
+            if (suppliedValues is { Count: > 0 } || agent.GetService<UnboundParameterGuard>() is not null)
+            {
+                if (parameterFactory is null)
+                {
+                    throw new TraconException(
+                        "This host cannot bind run parameters: the parameter factory is not registered.");
+                }
+
+                var binding = await parameterFactory
+                    .BindAsync(context.Job.TargetName, arm.Version, culture, suppliedValues, cancellationToken)
+                    .ConfigureAwait(false);
+
+                agent = binding.Agent ?? agent;
+                recordedValues = binding.Values;
+            }
 
             session = string.IsNullOrWhiteSpace(sessionId)
                 ? null
@@ -113,7 +153,9 @@ internal sealed class AgentRunJobHandler(
             throw;
         }
 
-        List<ChatMessage> messages = [new(ChatRole.User, message)];
+        // Documents first, one message each, then the request: the order the
+        // synchronous run builds (AgentEndpoints.BuildMessagesAsync).
+        List<ChatMessage> messages = [.. documents.Select(DocumentChannelMessageBuilder.Build), new(ChatRole.User, message)];
 
         // 🚨 Both writes below must be durable BEFORE the run's terminal
         // AwaitingApproval status is published, and in THIS order:
@@ -133,6 +175,7 @@ internal sealed class AgentRunJobHandler(
                 AgentVersion = arm.Version,
                 ExperimentId = arm.ExperimentId,
                 Variant = arm.Variant,
+                ParameterValues = recordedValues,
                 BeforePendingApprovalIsPublished = async (producedMessages, presentations, hookCancellation) =>
                 {
                     var requests = ChildRunApproval.CollectRequests(producedMessages);
@@ -372,6 +415,68 @@ internal sealed class AgentRunJobHandler(
         }
 
         return new QueuedRunArm(version, experimentId, variant);
+    }
+
+    /// <summary>Reads the optional <c>parameters</c> object: every value must be a string.</summary>
+    /// <exception cref="TraconException">The field is present and is not an object of strings.</exception>
+    private static Dictionary<string, string>? ReadOptionalParameters(JsonElement payload)
+    {
+        if (!payload.TryGetProperty("parameters", out var element) || element.ValueKind == JsonValueKind.Null)
+        {
+            return null;
+        }
+
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            throw new TraconException("The AgentRun job payload's 'parameters' field must be an object of string values.");
+        }
+
+        var values = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        foreach (var property in element.EnumerateObject())
+        {
+            if (property.Value.ValueKind != JsonValueKind.String)
+            {
+                throw new TraconException(
+                    $"The AgentRun job payload's 'parameters' field must be an object of string values; '{property.Name}' is not a string.");
+            }
+
+            values[property.Name] = property.Value.GetString()!;
+        }
+
+        return values;
+    }
+
+    /// <summary>Reads the optional <c>documents</c> array: each element needs a string <c>name</c> and <c>content</c>.</summary>
+    /// <exception cref="TraconException">The field is present and malformed.</exception>
+    private static List<AgentRunDocument> ReadOptionalDocuments(JsonElement payload)
+    {
+        if (!payload.TryGetProperty("documents", out var element) || element.ValueKind == JsonValueKind.Null)
+        {
+            return [];
+        }
+
+        if (element.ValueKind != JsonValueKind.Array)
+        {
+            throw new TraconException("The AgentRun job payload's 'documents' field must be an array of {name, content} objects.");
+        }
+
+        var documents = new List<AgentRunDocument>(element.GetArrayLength());
+
+        foreach (var item in element.EnumerateArray())
+        {
+            if (item.ValueKind != JsonValueKind.Object ||
+                !item.TryGetProperty("name", out var name) || name.ValueKind != JsonValueKind.String ||
+                !item.TryGetProperty("content", out var content) || content.ValueKind != JsonValueKind.String)
+            {
+                throw new TraconException(
+                    "The AgentRun job payload's 'documents' field must be an array of {name, content} objects with string members.");
+            }
+
+            documents.Add(new AgentRunDocument { Name = name.GetString()!, Content = content.GetString()! });
+        }
+
+        return documents;
     }
 
     private static int? ReadOptionalVersion(JsonElement payload)

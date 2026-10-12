@@ -110,6 +110,33 @@ public sealed record WorkflowDefinition
     /// </remarks>
     public bool RequirePlanApproval { get; init; }
 
+    /// <summary>
+    /// Gets the run parameters the workflow accepts. Empty for a workflow that
+    /// takes none.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A run supplies values for these names (<see cref="WorkflowRunRequest.Parameters"/>).
+    /// The set is the workflow's contract: each agent step receives the values
+    /// whose names ITS OWN schema declares, and binds them into its
+    /// instructions the way a direct run of that agent would. A name the
+    /// workflow declares but a step does not is dropped for that step.
+    /// </para>
+    /// <para>
+    /// Only the structure is checked when the definition is saved (valid,
+    /// unique names). Whether every participant's required parameters are
+    /// covered is checked when a run starts: the participants live in the agent
+    /// catalog, which can change after the workflow is saved.
+    /// </para>
+    /// <para>
+    /// A workflow defined in code (<c>AddWorkflow</c>) carries no definition and
+    /// therefore declares no parameters; a value supplied to it is rejected.
+    /// <see cref="AgentParameter.Kind"/> labels the value for the console only;
+    /// every value travels as a string.
+    /// </para>
+    /// </remarks>
+    public IReadOnlyList<AgentParameter> Parameters { get; init; } = [];
+
     /// <summary>Gets the tenant the definition belongs to. <see langword="null"/> for workflows defined in code.</summary>
     public string? TenantId { get; init; }
 

@@ -869,6 +869,8 @@ Tracon.WorkflowRunHttpRequest.<Clone>$() -> Tracon.WorkflowRunHttpRequest!
 Tracon.WorkflowRunHttpRequest.Equals(Tracon.WorkflowRunHttpRequest? other) -> bool
 Tracon.WorkflowRunHttpRequest.Message.get -> string?
 Tracon.WorkflowRunHttpRequest.Message.init -> void
+Tracon.WorkflowRunHttpRequest.Parameters.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>?
+Tracon.WorkflowRunHttpRequest.Parameters.init -> void
 Tracon.WorkflowRunHttpRequest.SessionId.get -> string?
 Tracon.WorkflowRunHttpRequest.SessionId.init -> void
 Tracon.WorkflowRunHttpRequest.WorkflowRunHttpRequest() -> void
@@ -891,6 +893,8 @@ Tracon.WorkflowSaveRequest.MaxIterations.get -> int?
 Tracon.WorkflowSaveRequest.MaxIterations.init -> void
 Tracon.WorkflowSaveRequest.Nodes.get -> System.Collections.Generic.IReadOnlyList<Tracon.WorkflowNodeReference!>?
 Tracon.WorkflowSaveRequest.Nodes.init -> void
+Tracon.WorkflowSaveRequest.Parameters.get -> System.Collections.Generic.IReadOnlyList<Tracon.AgentParameter!>?
+Tracon.WorkflowSaveRequest.Parameters.init -> void
 Tracon.WorkflowSaveRequest.RequirePlanApproval.get -> bool
 Tracon.WorkflowSaveRequest.RequirePlanApproval.init -> void
 Tracon.WorkflowSaveRequest.WorkflowSaveRequest() -> void

@@ -71,7 +71,46 @@ public static class AgentParameterValidator
         List<string>? errors = null;
         var declaredNames = new HashSet<string>(StringComparer.Ordinal);
 
-        foreach (var parameter in definition.Parameters)
+        CheckNames(definition.Parameters, declaredNames, ref errors);
+
+        CheckPlaceholders(definition.Instructions, "Instructions", declaredNames, ref errors);
+
+        if (definition.InstructionsByCulture is { Count: > 0 } byCulture)
+        {
+            foreach (var (culture, text) in byCulture)
+            {
+                CheckPlaceholders(text, $"InstructionsByCulture['{culture}']", declaredNames, ref errors);
+            }
+        }
+
+        return errors ?? [];
+    }
+
+    /// <summary>
+    /// Checks that a schema's names are valid identifiers and unique. This is
+    /// the whole structural rule for a schema that has no instructions text to
+    /// check placeholders against (a workflow's), and the first half of
+    /// <see cref="ValidateSchema"/>, so the two cannot drift.
+    /// </summary>
+    /// <param name="parameters">The schema.</param>
+    /// <returns>One message per violation; empty when the names are sound.</returns>
+    internal static IReadOnlyList<string> ValidateNames(IReadOnlyList<AgentParameter> parameters)
+    {
+        ArgumentNullException.ThrowIfNull(parameters);
+
+        List<string>? errors = null;
+
+        CheckNames(parameters, new HashSet<string>(StringComparer.Ordinal), ref errors);
+
+        return errors ?? [];
+    }
+
+    private static void CheckNames(
+        IReadOnlyList<AgentParameter> parameters,
+        HashSet<string> declaredNames,
+        ref List<string>? errors)
+    {
+        foreach (var parameter in parameters)
         {
             if (!IdentifierPattern.IsMatch(parameter.Name))
             {
@@ -85,18 +124,6 @@ public static class AgentParameterValidator
                 (errors ??= []).Add($"Parameter '{parameter.Name}' is declared more than once.");
             }
         }
-
-        CheckPlaceholders(definition.Instructions, "Instructions", declaredNames, ref errors);
-
-        if (definition.InstructionsByCulture is { Count: > 0 } byCulture)
-        {
-            foreach (var (culture, text) in byCulture)
-            {
-                CheckPlaceholders(text, $"InstructionsByCulture['{culture}']", declaredNames, ref errors);
-            }
-        }
-
-        return errors ?? [];
     }
 
     /// <summary>

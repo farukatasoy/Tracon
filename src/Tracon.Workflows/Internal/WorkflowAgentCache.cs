@@ -47,6 +47,7 @@ internal sealed class WorkflowAgentCache
     private readonly ILoggerFactory _loggerFactory;
     private readonly TraconAgentGraphOptions _agentGraph;
     private readonly TimeProvider? _timeProvider;
+    private readonly ParameterizedAgentFactory? _parameterFactory;
 
     /// <summary>Creates a new cache.</summary>
     /// <param name="resolver">The resolver that resolves agents from the catalog.</param>
@@ -59,13 +60,18 @@ internal sealed class WorkflowAgentCache
     /// <see cref="AgentDefinition.SubAgents"/> of its own to override them with.
     /// </param>
     /// <param name="timeProvider">Time source for the sub-agent wait race. Defaults to <see cref="TimeProvider.System"/>.</param>
+    /// <param name="parameterFactory">
+    /// Lets a step bind the running workflow's parameter values. When
+    /// <see langword="null"/> a workflow's values never reach its steps.
+    /// </param>
     /// <exception cref="ArgumentNullException">One of the required dependencies is <see langword="null"/>.</exception>
     public WorkflowAgentCache(
         CallableAgentResolver resolver,
         ITenantContext tenantContext,
         ILoggerFactory loggerFactory,
         IOptions<TraconOptions> options,
-        TimeProvider? timeProvider = null)
+        TimeProvider? timeProvider = null,
+        ParameterizedAgentFactory? parameterFactory = null)
     {
         ArgumentNullException.ThrowIfNull(resolver);
         ArgumentNullException.ThrowIfNull(tenantContext);
@@ -77,6 +83,7 @@ internal sealed class WorkflowAgentCache
         _loggerFactory = loggerFactory;
         _agentGraph = options.Value.AgentGraph;
         _timeProvider = timeProvider;
+        _parameterFactory = parameterFactory;
     }
 
     /// <summary>
@@ -103,7 +110,8 @@ internal sealed class WorkflowAgentCache
                 LoggerFactory: _loggerFactory,
                 Description: description,
                 AgentGraph: _agentGraph,
-                TimeProvider: _timeProvider));
+                TimeProvider: _timeProvider,
+                ParameterFactory: _parameterFactory));
 
     private static ChildAgentInvoker Create(
         AgentKey key,
@@ -112,7 +120,8 @@ internal sealed class WorkflowAgentCache
          ILoggerFactory LoggerFactory,
          string? Description,
          TraconAgentGraphOptions AgentGraph,
-         TimeProvider? TimeProvider) state)
+         TimeProvider? TimeProvider,
+         ParameterizedAgentFactory? ParameterFactory) state)
     {
         var invoker = new ChildAgentInvoker(
             state.Resolver,
@@ -127,7 +136,11 @@ internal sealed class WorkflowAgentCache
             // 🚨 A workflow step FAILS when it cannot deliver an answer (F-328).
             // The delegation default returns the refusal as text for the calling
             // model; here no model reads it, the next node takes it as content.
-            ChildRefusalMode.Fail);
+            ChildRefusalMode.Fail,
+
+            // Only a workflow step binds the workflow's parameter values (F-294);
+            // an agent called as a tool never does.
+            state.ParameterFactory);
 
         // The identity is written on the instance BEFORE it enters the graph:
         // MAF reads the executor id at binding time, and changing it afterward

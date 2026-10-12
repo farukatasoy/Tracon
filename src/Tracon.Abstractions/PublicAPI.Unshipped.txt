@@ -4300,6 +4300,8 @@ Tracon.WorkflowDefinition.Kind.get -> Tracon.WorkflowKind
 Tracon.WorkflowDefinition.Kind.init -> void
 Tracon.WorkflowDefinition.ManagerAgentName.get -> string?
 Tracon.WorkflowDefinition.ManagerAgentName.init -> void
+Tracon.WorkflowDefinition.Parameters.get -> System.Collections.Generic.IReadOnlyList<Tracon.AgentParameter!>!
+Tracon.WorkflowDefinition.Parameters.init -> void
 Tracon.WorkflowDefinition.MaxIterations.get -> int?
 Tracon.WorkflowDefinition.MaxIterations.init -> void
 Tracon.WorkflowDefinition.Name.get -> string!
@@ -4330,6 +4332,8 @@ Tracon.WorkflowDescriptor.Name.get -> string!
 Tracon.WorkflowDescriptor.Name.init -> void
 Tracon.WorkflowDescriptor.Nodes.get -> System.Collections.Generic.IReadOnlyList<Tracon.WorkflowNodeReference!>!
 Tracon.WorkflowDescriptor.Nodes.init -> void
+Tracon.WorkflowDescriptor.Parameters.get -> System.Collections.Generic.IReadOnlyList<Tracon.AgentParameter!>!
+Tracon.WorkflowDescriptor.Parameters.init -> void
 Tracon.WorkflowDescriptor.Origin.get -> Tracon.AgentDefinitionOrigin
 Tracon.WorkflowDescriptor.Origin.init -> void
 Tracon.WorkflowDescriptor.UpdatedAt.get -> System.DateTimeOffset?
@@ -4470,6 +4474,8 @@ Tracon.WorkflowRunRequest.<Clone>$() -> Tracon.WorkflowRunRequest!
 Tracon.WorkflowRunRequest.Equals(Tracon.WorkflowRunRequest? other) -> bool
 Tracon.WorkflowRunRequest.Message.get -> string?
 Tracon.WorkflowRunRequest.Message.init -> void
+Tracon.WorkflowRunRequest.Parameters.get -> System.Collections.Generic.IReadOnlyDictionary<string!, string!>?
+Tracon.WorkflowRunRequest.Parameters.init -> void
 Tracon.WorkflowRunRequest.RunId.get -> System.Guid?
 Tracon.WorkflowRunRequest.RunId.init -> void
 Tracon.WorkflowRunRequest.SessionId.get -> string?

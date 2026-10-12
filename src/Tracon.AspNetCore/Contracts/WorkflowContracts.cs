@@ -75,6 +75,12 @@ public sealed record WorkflowSaveRequest
     /// <see cref="WorkflowKind.Magentic"/>.
     /// </summary>
     public bool RequirePlanApproval { get; init; }
+
+    /// <summary>
+    /// The run parameters the workflow accepts. Leave empty for a workflow that
+    /// takes none. Replaced as a whole on every save, like every other field.
+    /// </summary>
+    public IReadOnlyList<AgentParameter>? Parameters { get; init; }
 }
 
 /// <summary>Request to run a workflow.</summary>
@@ -88,6 +94,14 @@ public sealed record WorkflowRunHttpRequest
     /// Checkpoints are grouped under this value.
     /// </summary>
     public string? SessionId { get; init; }
+
+    /// <summary>
+    /// Values for the parameters the workflow declares, by name. A missing
+    /// required value, an undeclared name or an over-long value is refused with
+    /// <c>400</c> before the stream starts. Every agent step receives the values
+    /// its own schema declares.
+    /// </summary>
+    public IReadOnlyDictionary<string, string>? Parameters { get; init; }
 }
 
 /// <summary>Request to resume a workflow from a checkpoint.</summary>

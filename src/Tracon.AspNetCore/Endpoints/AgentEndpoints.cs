@@ -279,6 +279,8 @@ internal static class AgentEndpoints
                         experimentAssignment,
                         attributionContext,
                         asyncRunOptions.CurrentValue,
+                        definitionStore,
+                        optionsMonitor,
                         prefix,
                         httpContext,
                         cancellationToken).ConfigureAwait(false);
@@ -941,7 +943,14 @@ internal static class AgentEndpoints
         // request, because a request carrying the header is already non-streaming.
         var streaming = !httpContext.Request.Headers.ContainsKey(IdempotencyFilter.HeaderName);
 
-        return new AgentRunStream(agent, name, request, sessions, attachments, prefix, runId, assignment, streaming);
+        // F-294: the run records the values it was bound with, defaults
+        // included, so a replay and a continuation repeat them. Only an agent
+        // that declares a schema has anything to record.
+        var recordedValues = parameterGate.Definition is { Parameters.Count: > 0 } declared
+            ? ParameterValueSet.Resolve(declared.Parameters, request.Parameters)
+            : null;
+
+        return new AgentRunStream(agent, name, request, sessions, attachments, prefix, runId, assignment, streaming, recordedValues);
     }
 
     /// <summary>
@@ -981,6 +990,8 @@ internal static class AgentEndpoints
         ExperimentAssignmentResolver experimentAssignment,
         IRunAttributionContext? attributionContext,
         TraconAsyncRunOptions options,
+        IAgentDefinitionStore definitionStore,
+        IOptionsMonitor<TraconOptions> optionsMonitor,
         string prefix,
         HttpContext httpContext,
         CancellationToken cancellationToken)
@@ -1002,13 +1013,12 @@ internal static class AgentEndpoints
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
-        if (request.Approvals.Count > 0 || request.ToolResults.Count > 0 || request.AttachmentIds.Count > 0 ||
-            request.Parameters is { Count: > 0 } || request.Documents.Count > 0)
+        if (request.Approvals.Count > 0 || request.ToolResults.Count > 0 || request.AttachmentIds.Count > 0)
         {
             return Results.Problem(
                 title: "Not supported",
                 detail: "A queued run ('Prefer: respond-async') does not support approval decisions, " +
-                        "client-side tool results, attachments, parameters, or documents in this version.",
+                        "client-side tool results, or attachments in this version.",
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
@@ -1061,11 +1071,25 @@ internal static class AgentEndpoints
                 statusCode: StatusCodes.Status404NotFound);
         }
 
-        // F-330: a queued run carries no parameter values in this version.
-        // An agent whose required parameter has no default is refused with the
-        // same 400 /run gives a missing parameter, before a run row exists.
-        if (agent.GetService<UnboundParameterGuard>() is { RequiresValues: true } unbound)
+        // F-294: the values the caller sent are checked against the schema of
+        // the version the worker will run (the experiment arm's), with the same
+        // gate and the same 400 body the synchronous endpoint gives, before a run
+        // row exists. The worker checks again: a payload is durable data.
+        if (request.Parameters is { Count: > 0 })
         {
+            var parameterGate = await AgentParameterGate
+                .CheckAsync(optionsMonitor, definitionStore, httpContext.RequestServices, name, assignment?.Version, request.Parameters, cancellationToken)
+                .ConfigureAwait(false);
+
+            if (parameterGate.Problem is { } parameterProblem)
+            {
+                return parameterProblem;
+            }
+        }
+        else if (agent.GetService<UnboundParameterGuard>() is { RequiresValues: true } unbound)
+        {
+            // F-330, unchanged: no values were sent and the schema has a
+            // required parameter with no default.
             return AgentParameterGate.Problem(unbound.Missing);
         }
 
@@ -1118,7 +1142,9 @@ internal static class AgentEndpoints
                     request.SessionId,
                     attributionContext?.UserId,
                     request.Culture,
-                    assignment),
+                    assignment,
+                    request.Parameters,
+                    request.Documents),
                 MaxAttempts = options.MaxAttempts,
                 ScheduledFor = now,
                 CreatedAt = now,
@@ -1153,12 +1179,26 @@ internal static class AgentEndpoints
         string? sessionId,
         string? userId,
         string? culture,
-        ExperimentAssignment? assignment)
+        ExperimentAssignment? assignment,
+        IReadOnlyDictionary<string, string>? parameters,
+        IReadOnlyList<AgentRunDocument> documents)
         => JsonSerializer.SerializeToElement(new
         {
             runId = runId.ToString(),
             message,
             sessionId,
+
+            // F-294: the values and the reference documents travel in the
+            // durable payload. 🚨 jobs.payload is NOT a protected column
+            // (ProtectedColumn lists none for it): the message text already
+            // sits there in plain form, and these now sit beside it. The site
+            // says so in background-work.md; a protection for the payload is its
+            // own candidate. Absent when the caller sent none, so a payload an
+            // older build wrote and one written now read the same.
+            parameters = parameters is { Count: > 0 } ? parameters : null,
+            documents = documents.Count > 0
+                ? documents.Select(static document => new { name = document.Name, content = document.Content }).ToArray()
+                : null,
 
             // F-351: the worker has no request to read these from. A job
             // without them (enqueued by an older build) runs the current
@@ -1215,7 +1255,8 @@ internal static class AgentEndpoints
         string prefix,
         Guid runId,
         ExperimentAssignment? assignment,
-        bool streaming) : IResult
+        bool streaming,
+        IReadOnlyDictionary<string, string>? parameterValues) : IResult
     {
         public async Task ExecuteAsync(HttpContext httpContext)
         {
@@ -1268,6 +1309,7 @@ internal static class AgentEndpoints
                         AgentVersion = assignment?.Version,
                         ExperimentId = assignment?.ExperimentId,
                         Variant = assignment?.Variant,
+                        ParameterValues = parameterValues,
 
                         // 🚨 Phase 142: this is the ONLY delivery path for a synchronous
                         // run's tool-approval presentation — the queue path's mailbox
@@ -1517,6 +1559,7 @@ internal static class AgentEndpoints
                         AgentVersion = assignment?.Version,
                         ExperimentId = assignment?.ExperimentId,
                         Variant = assignment?.Variant,
+                        ParameterValues = parameterValues,
                     },
                     cancellationToken).ConfigureAwait(false);
 
