@@ -132,7 +132,8 @@ internal static class VoiceEndpoints
             return TypedResults.Problem(
                 title: "Text too long",
                 detail: $"The text is {request.Text.Length} characters; the limit is {maxCharacters}. " +
-                        "Shorten the text or raise the 'Tracon:Voice:MaxCharactersPerRequest' setting.",
+                        "Shorten the text or raise the speech synthesizer's limit " +
+                        "('Tracon:Voice:MaxCharactersPerRequest' for the built-in client).",
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
@@ -179,7 +180,9 @@ internal static class VoiceEndpoints
                 // The session id is REQUIRED: if left blank, the retention policy
                 // treats the attachment as orphaned and deletes it.
                 SessionId = request.SessionId,
-                FileName = $"speech-{DateTime.UtcNow:yyyyMMdd-HHmmss}.mp3",
+                // F-336: the extension follows the DETECTED type; a fixed '.mp3'
+                // misnamed OGG and WAV output.
+                FileName = AttachmentFileNames.For("speech", validation.MediaType!, DateTimeOffset.UtcNow),
                 MediaType = validation.MediaType!,
                 Data = audio.Data,
                 CreatedBy = actorResolver.Resolve(),

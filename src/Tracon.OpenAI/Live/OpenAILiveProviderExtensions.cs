@@ -87,6 +87,10 @@ public static class OpenAILiveProviderExtensions
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IValidateOptions<OpenAILiveOptions>, OpenAILiveOptionsValidator>());
 
+        // The validator promises a STARTUP failure; without this line an invalid
+        // value surfaced only when the first session read the options (F-336).
+        services.AddOptions<OpenAILiveOptions>().ValidateOnStart();
+
         // TryAdd: a consumer that registered its own live provider keeps theirs.
         services.TryAddSingleton<ILiveVoiceProvider>(static provider => new OpenAILiveProvider(
             provider.GetRequiredService<IOptionsMonitor<OpenAILiveOptions>>(),

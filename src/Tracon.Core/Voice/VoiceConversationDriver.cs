@@ -780,7 +780,7 @@ internal sealed class VoiceConversationDriver
                         // retention policy treats the attachment as orphaned and
                         // deletes it (phase 28/G1).
                         SessionId = request.SessionId,
-                        FileName = $"voice-{driver._timeProvider.GetUtcNow():yyyyMMdd-HHmmss-fff}.bin",
+                        FileName = AttachmentFileNames.For("voice", validation.MediaType!, driver._timeProvider.GetUtcNow()),
                         MediaType = validation.MediaType!,
                         Data = data,
                         CreatedBy = request.CreatedBy,

@@ -196,6 +196,26 @@ public sealed class VoiceEndpointTests
         response.StatusCode.ShouldBe(HttpStatusCode.BadGateway);
     }
 
+    [Fact]
+    public async Task Speak_names_the_attachment_after_the_DETECTED_format()
+    {
+        // F-336: the endpoint wrote '.mp3' whatever the audio was. A synthesizer
+        // that returns OGG produced an 'audio/ogg' attachment named '*.mp3'.
+        await using var host = await TraconTestHost.StartAsync(
+            configureServices: static services =>
+                services.AddSingleton<ISpeechSynthesizer>(new OggSynthesizer()));
+
+        using var response = await host.Client.PostAsJsonAsync(
+            new Uri("/tracon/api/voice/speak", UriKind.Relative),
+            new { text = "hello", sessionId = "session-1" });
+
+        response.EnsureSuccessStatusCode();
+
+        var attachment = (await TraconTestHost.ReadJsonAsync(response)).GetProperty("attachment");
+        attachment.GetProperty("mediaType").GetString().ShouldBe("audio/ogg");
+        attachment.GetProperty("fileName").GetString().ShouldNotBeNull().ShouldEndWith(".ogg");
+    }
+
     private static Task<TraconTestHost> StartWithVoiceAsync()
         => TraconTestHost.StartAsync(
             configureServices: static services =>
@@ -299,6 +319,36 @@ public sealed class VoiceEndpointTests
             await Task.Yield();
             yield return new byte[] { 0x01 };
         }
+
+        public ValueTask<IReadOnlyList<VoiceDescriptor>> ListVoicesAsync(
+            CancellationToken cancellationToken = default)
+            => ValueTask.FromResult<IReadOnlyList<VoiceDescriptor>>([]);
+    }
+
+    /// <summary>Returns an OGG page header; the guard detects <c>audio/ogg</c>.</summary>
+    private sealed class OggSynthesizer : ISpeechSynthesizer
+    {
+        private static readonly byte[] Ogg = [0x4F, 0x67, 0x67, 0x53, 0x00, 0x02, 0x00, 0x00];
+
+        public string ProviderName => "test-voice";
+
+        public int MaxCharactersPerRequest => 5000;
+
+        public ValueTask<SpeechAudio> SynthesizeAsync(
+            SpeechRequest request,
+            CancellationToken cancellationToken = default)
+            => ValueTask.FromResult(new SpeechAudio
+            {
+                Data = Ogg,
+                MediaType = "audio/ogg",
+                CharactersBilled = request.Text.Length,
+                UsageSource = SpeechUsageSource.Provider,
+            });
+
+        public IAsyncEnumerable<ReadOnlyMemory<byte>> SynthesizeStreamingAsync(
+            SpeechRequest request,
+            CancellationToken cancellationToken = default)
+            => throw new NotSupportedException();
 
         public ValueTask<IReadOnlyList<VoiceDescriptor>> ListVoicesAsync(
             CancellationToken cancellationToken = default)

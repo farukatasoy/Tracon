@@ -65,22 +65,26 @@ internal sealed class SpeakTool : VoiceToolBase
         var text = RequireText(arguments, "text");
         var options = Resolve<IOptions<VoiceOptions>>().Value;
 
-        if (text.Length > options.MaxCharactersPerRequest)
+        // The limit is the BOUND synthesizer's, the value the HTTP endpoint
+        // reads too (ISpeechSynthesizer.MaxCharactersPerRequest). The setting
+        // is only the built-in client's answer to that question (F-336).
+        var synthesizer = Resolve<ISpeechSynthesizer>();
+        var maxCharacters = synthesizer.MaxCharactersPerRequest;
+
+        if (text.Length > maxCharacters)
         {
             // The text is NOT truncated: truncation would produce a sentence
             // the user never hears, and the reason would become invisible.
             throw new TraconException(
-                $"The text is {text.Length} characters; the limit is {options.MaxCharactersPerRequest}. " +
-                "Shorten the text or raise the `Tracon:Voice:MaxCharactersPerRequest` setting.");
+                $"The text is {text.Length} characters; the limit is {maxCharacters}. " +
+                "Shorten the text or raise the speech synthesizer's limit " +
+                "(`Tracon:Voice:MaxCharactersPerRequest` for the built-in client).");
         }
 
-        var synthesizer = Resolve<ISpeechSynthesizer>();
         var guard = Resolve<AttachmentTypeGuard>();
         var store = Resolve<IAttachmentStore>();
         var tenantContext = Resolve<ITenantContext>();
         var pricing = Resolve<VoicePricing>();
-
-        var modelId = options.SynthesisModelId ?? ElevenLabsSpeechClient.DefaultSynthesisModel;
 
         var request = new SpeechRequest
         {
@@ -115,14 +119,14 @@ internal sealed class SpeakTool : VoiceToolBase
                 // the session is still alive (docs/28, G1).
                 SessionId = scope?.SessionId,
                 RunId = scope?.RunId,
-                FileName = BuildFileName(validation.MediaType!),
+                FileName = AttachmentFileNames.For("speech", validation.MediaType!, DateTimeOffset.UtcNow),
                 MediaType = validation.MediaType!,
                 Data = audio.Data,
                 CreatedBy = scope?.AgentName,
             },
             cancellationToken).ConfigureAwait(false);
 
-        ReportUsage(audio, pricing, options, modelId, text);
+        ReportUsage(audio, pricing, synthesizer, text);
 
         var duration = audio.Duration is { } value
             ? $", duration={value.TotalSeconds.ToString("0.#", CultureInfo.InvariantCulture)}s"
@@ -140,8 +144,7 @@ internal sealed class SpeakTool : VoiceToolBase
     private static void ReportUsage(
         SpeechAudio audio,
         VoicePricing pricing,
-        VoiceOptions options,
-        string modelId,
+        ISpeechSynthesizer synthesizer,
         string text)
     {
         var characters = audio.CharactersBilled ?? text.Length;
@@ -150,22 +153,9 @@ internal sealed class SpeakTool : VoiceToolBase
         {
             Unit = ToolUsageUnits.Characters,
             Quantity = characters,
-            Cost = pricing.ForCharacters(options.Provider, modelId, characters),
+            Cost = pricing.ForSynthesis(synthesizer, characters),
             Currency = pricing.Currency,
             IsEstimated = audio.UsageSource != SpeechUsageSource.Provider,
         });
-    }
-
-    private static string BuildFileName(string mediaType)
-    {
-        var extension = mediaType switch
-        {
-            "audio/mpeg" => "mp3",
-            "audio/ogg" => "ogg",
-            "audio/wav" => "wav",
-            _ => "bin",
-        };
-
-        return $"speech-{DateTime.UtcNow:yyyyMMdd-HHmmss}.{extension}";
     }
 }

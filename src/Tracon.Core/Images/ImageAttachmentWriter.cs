@@ -73,7 +73,7 @@ internal sealed class ImageAttachmentWriter
                         TenantId = tenantId,
                         SessionId = sessionId,
                         RunId = runId,
-                        FileName = BuildFileName(validation.MediaType!),
+                        FileName = AttachmentFileNames.For("image", validation.MediaType!, DateTimeOffset.UtcNow),
                         MediaType = validation.MediaType!,
                         Data = bytes,
                         CreatedBy = createdBy,
@@ -205,19 +205,5 @@ internal sealed class ImageAttachmentWriter
                     tenantId);
             }
         }
-    }
-
-    private static string BuildFileName(string mediaType)
-    {
-        var extension = mediaType switch
-        {
-            "image/png" => "png",
-            "image/jpeg" => "jpg",
-            "image/gif" => "gif",
-            "image/webp" => "webp",
-            _ => "bin",
-        };
-
-        return $"image-{DateTime.UtcNow:yyyyMMdd-HHmmss-fffffff}.{extension}";
     }
 }
