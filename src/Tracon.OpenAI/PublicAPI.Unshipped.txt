@@ -40,6 +40,7 @@ const Tracon.OpenAILiveOptions.ProviderAppendTokenLimit = 500 -> int
 const Tracon.OpenAILiveOptions.SectionName = "Tracon:Providers:OpenAI:Live" -> string!
 const Tracon.OpenAIProviderNames.ChatCompletions = "openai" -> string!
 const Tracon.OpenAIProviderNames.Responses = "openai-responses" -> string!
+const Tracon.OpenAIProviderNames.SettingsPrefix = "openai" -> string!
 const Tracon.OpenAIProviderOptions.SectionName = "Tracon:Providers:OpenAI" -> string!
 static Tracon.OpenAICompatibleProviderExtensions.UseOpenAICompatible(this Tracon.ITraconBuilder! builder, string! name, Microsoft.Extensions.Configuration.IConfiguration! configurationSection) -> Tracon.ITraconBuilder!
 static Tracon.OpenAICompatibleProviderExtensions.UseOpenAICompatible(this Tracon.ITraconBuilder! builder, string! name, System.Action<Tracon.OpenAIProviderOptions!>! configure) -> Tracon.ITraconBuilder!
@@ -50,3 +51,4 @@ static Tracon.OpenAILiveProviderExtensions.UseOpenAILive(this Tracon.ITraconBuil
 static Tracon.OpenAIProviderExtensions.UseOpenAI(this Tracon.ITraconBuilder! builder, Microsoft.Extensions.Configuration.IConfiguration! configurationSection) -> Tracon.ITraconBuilder!
 static Tracon.OpenAIProviderExtensions.UseOpenAI(this Tracon.ITraconBuilder! builder, System.Action<Tracon.OpenAIProviderOptions!>! configure) -> Tracon.ITraconBuilder!
 static Tracon.OpenAIProviderExtensions.UseOpenAI(this Tracon.ITraconBuilder! builder, string! apiKey, System.Action<Tracon.OpenAIProviderOptions!>? configure = null) -> Tracon.ITraconBuilder!
+static Tracon.OpenAIProviderNames.SupportedSettings.get -> System.Collections.Generic.IReadOnlyList<string!>!

@@ -46,6 +46,15 @@ Every produced `IChatClient` goes through the same pipeline: `UseFunctionInvocat
 leaves the tool call loop to the Microsoft Agent Framework, and `UseOpenTelemetry()`
 produces spans under the `Tracon` source.
 
+## Provider-specific settings — none
+
+This provider supports **no keys at all** in `ModelBinding.ProviderSettings`. The rule
+covers both surfaces and every `UseOpenAICompatible(...)` registration. If any key is
+present, including one written for another provider such as `anthropic.promptCaching`,
+the build stops with an error that names the key. A key is never ignored silently.
+Temperature, output limit, reasoning effort and response format are fixed fields of
+`ModelBinding`.
+
 ## Any OpenAI compatible endpoint (OpenRouter, Groq, vLLM, local servers)
 
 `UseOpenAICompatible(name, ...)` is a variant of the same package that connects to a

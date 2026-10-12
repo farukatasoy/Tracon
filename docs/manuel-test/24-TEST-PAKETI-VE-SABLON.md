@@ -2473,9 +2473,11 @@ dotnet test samples/Tracon.Samples.CustomModelProvider.Tests -c Release
 ```
 
 **Beklenen sonuç**
-- Tüm testler geçer ve `skipped: 0`'dır. İsteğe bağlı davranış atlanan bir
-  senaryo değil, **türetilmeyen bir sınıftır** — bu yüzden sessizce geçen
-  senaryo yoktur.
+- Tüm testler geçer ve `skipped: 0`'dır. İsteğe bağlı BYOK davranışı
+  atlanan bir senaryo değil, **türetilmeyen bir sınıftır** — bu yüzden sessizce
+  geçen senaryo yoktur. `ModelProviderSettingsContract` her sağlayıcıya
+  türetilir; örnek sağlayıcı bir anahtar (`contoso.shout`) desteklediği için
+  onun da hiçbir senaryosu atlanmaz.
 - Türetilen sınıflar: `ModelProviderContract`,
   `ModelProviderCredentialContract`, `ModelProviderSettingsContract`.
 - `ProviderContractCoverageTests` yeşildir: paketin sağlayıcı ailesindeki her

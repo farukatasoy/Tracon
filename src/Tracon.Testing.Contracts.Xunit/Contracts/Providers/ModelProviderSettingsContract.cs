@@ -3,37 +3,52 @@ using System.Text.Json;
 namespace Tracon.Testing.Contracts.Providers;
 
 /// <summary>
-/// Behavior tests for a provider that validates
+/// Behavior tests for how a provider handles
 /// <see cref="ModelBinding.ProviderSettings"/>.
 /// </summary>
 /// <remarks>
 /// <para>
-/// Reading provider settings is <strong>optional</strong>: a provider that
-/// offers no tunable of its own reads none, and derives neither this class nor
-/// anything else. Deriving it states that the provider does read them and
-/// therefore owes the one rule Tracon fixes for all of them — an unknown
-/// key is <em>not ignored silently</em>. A setting that quietly does nothing
-/// makes the host author miss the behavior they configured without ever seeing
-/// why, which is the same reasoning that makes an unparsable
-/// <see cref="ModelBinding.ReasoningEffort"/> stop compilation instead of
-/// falling back to a default.
+/// Every provider owes the one rule Tracon fixes for all of them: an unknown
+/// key is <em>not ignored silently</em>. This holds for a provider that
+/// offers no tunable of its own as well — it rejects every key. A setting
+/// that quietly does nothing makes the host author miss the behavior they
+/// configured without ever seeing why, which is the same reasoning that makes
+/// an unparsable <see cref="ModelBinding.ReasoningEffort"/> stop compilation
+/// instead of falling back to a default.
+/// </para>
+/// <para>
+/// Derive this class for every provider. A provider that supports at least
+/// one key overrides <see cref="SupportedSetting"/> with it; a provider that
+/// supports none leaves it <see langword="null"/>, and the scenarios that need
+/// a supported key are reported as skipped.
 /// </para>
 /// <para>
 /// <c>ModelProviderSettings.Validate</c> in <c>Tracon.Abstractions</c>
 /// implements this rule, including the prefix convention (<c>anthropic.*</c>,
 /// <c>google.*</c>) that keeps one provider from silently accepting another's
-/// keys. A provider is free to hand-roll the check as long as the observable
-/// behavior below holds.
+/// keys. Pass an empty list of supported keys when the provider supports none.
+/// Use it rather than a hand-rolled check: the model provider registry passes
+/// its exception through with the offending key named, but masks the message
+/// of any other exception a provider throws while it builds a client. These
+/// scenarios call the provider directly, below the registry, so they cannot
+/// see that difference.
 /// </para>
 /// </remarks>
 public abstract class ModelProviderSettingsContract : ModelProviderContract
 {
+    private const string NoSupportedSetting =
+        "This provider supports no provider setting key, so there is no accepted key to test.";
+
     /// <summary>
-    /// A provider setting key this provider supports, with a value it accepts.
-    /// Proves the rejection below is about the key being unknown, not about
-    /// settings being rejected wholesale.
+    /// A provider setting key this provider supports, with a value it accepts,
+    /// or <see langword="null"/> when the provider supports no key.
     /// </summary>
-    protected abstract KeyValuePair<string, JsonElement> SupportedSetting { get; }
+    /// <remarks>
+    /// When given, it proves the rejection below is about the key being
+    /// unknown, not about settings being rejected wholesale. The default is
+    /// <see langword="null"/>.
+    /// </remarks>
+    protected virtual KeyValuePair<string, JsonElement>? SupportedSetting => null;
 
     /// <summary>
     /// A setting key this provider does not support. Defaults to a key under
@@ -58,7 +73,13 @@ public abstract class ModelProviderSettingsContract : ModelProviderContract
 
     [Fact]
     public void A_supported_provider_setting_is_accepted()
-        => Should.NotThrow(() => Provider.CreateChatClient(BindingWith(SupportedSetting.Key, SupportedSetting.Value)));
+    {
+        var supported = SupportedSetting;
+        Assert.SkipWhen(supported is null, NoSupportedSetting);
+        var (key, value) = supported.Value;
+
+        Should.NotThrow(() => Provider.CreateChatClient(BindingWith(key, value)));
+    }
 
     [Fact]
     public void An_unsupported_provider_setting_is_rejected()
@@ -81,12 +102,16 @@ public abstract class ModelProviderSettingsContract : ModelProviderContract
     [Fact]
     public void A_supported_setting_is_matched_regardless_of_key_casing()
     {
-        var shouted = SupportedSetting.Key.ToUpperInvariant();
+        var supported = SupportedSetting;
+        Assert.SkipWhen(supported is null, NoSupportedSetting);
+        var (key, value) = supported.Value;
+
+        var shouted = key.ToUpperInvariant();
         var binding = Binding() with
         {
             ProviderSettings = new Dictionary<string, JsonElement>(StringComparer.Ordinal)
             {
-                [shouted] = SupportedSetting.Value,
+                [shouted] = value,
             },
         };
 

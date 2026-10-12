@@ -49,7 +49,7 @@ public sealed class ContosoModelProviderSettingsTests : ModelProviderSettingsCon
     protected override ValueTask<IModelProvider> CreateProviderAsync()
         => new(new ContosoModelProvider("setup-time-key"));
 
-    protected override KeyValuePair<string, JsonElement> SupportedSetting
+    protected override KeyValuePair<string, JsonElement>? SupportedSetting
         => new(ContosoModelProvider.ShoutSetting, True);
 }
 

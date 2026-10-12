@@ -85,14 +85,18 @@ model absent from the catalog is not rejected, that a binding whose provider
 name differs in casing still works, and that a client nobody disposes does
 not break the provider.
 
-Two more classes cover behavior that is a provider's *choice*. Derive them
-only if you offer it — deriving is the statement of intent, which is why no
-scenario in this package silently skips:
+Two more classes cover behavior beyond that core:
 
 | Class | Derive it when |
 |---|---|
 | `ModelProviderCredentialContract` | The provider honors a per-tenant credential (BYOK) |
-| `ModelProviderSettingsContract` | The provider reads `ModelBinding.ProviderSettings` |
+| `ModelProviderSettingsContract` | Always — every provider rejects a `ModelBinding.ProviderSettings` key it does not support |
+
+Derive `ModelProviderCredentialContract` only if you offer BYOK — deriving is
+the statement of intent. Derive `ModelProviderSettingsContract` for every
+provider. Override `SupportedSetting` with one key the provider accepts; a
+provider that supports no key leaves it `null`, and the two scenarios that need
+an accepted key are reported as skipped, not passed.
 
 `ModelProviderCredentialContract` also requires
 `AssertCredentialIsApplied(IChatClient, ModelProviderCredential)`. Make that
