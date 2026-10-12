@@ -8,7 +8,7 @@
 Bir fazın durumu yanlış görünüyorsa **o fazın dokümanını** düzelt;
 bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 
-## Fazlar (194 kalem)
+## Fazlar (196 kalem)
 
 | Faz | Konu | Durum |
 |-----|------|-------|
@@ -206,5 +206,7 @@ bu dosyayı düzeltmek bir sonraki üretimde geri alınır.
 | [191](arsiv/fazlar/191-TEK-DERLEME-ZINCIRI.md) | Tek Derleme Zinciri | ✅ Tamamlandı |
 | [192](arsiv/fazlar/192-DONGU-TUKENME-POLITIKASI.md) | Döngü Tükenme Politikası | ✅ Tamamlandı |
 | [193](193-NET8-NET9-DUSURME.md) | `net8.0` ve `net9.0` Hedeflerinin Düşürülmesi | 📋 Planlandı |
+| [194](194-WORKFLOW-VE-KUYRUK-PARAMETRELERI.md) | Workflow ve Kuyruk Yollarında Parametre Değerleri | 📋 Planlandı |
+| [195](195-WORKFLOW-DUGUM-DUZENLEME-VE-AYAR.md) | Workflow Düğüm Düzenleme ve Fonksiyon Düğümü Ayarı | 📋 Planlandı |
 
 Seçilmemiş adaylar: [`ADAYLAR.md`](ADAYLAR.md). Fazların hangi dalgada, hangi gerekçeyle sıralandığı (Faz 8–56, kapandı): [`arsiv/IKINCI-FAZ-YOL-HARITASI.md`](arsiv/IKINCI-FAZ-YOL-HARITASI.md) · [`arsiv/UCUNCU-FAZ-YOL-HARITASI.md`](arsiv/UCUNCU-FAZ-YOL-HARITASI.md).
