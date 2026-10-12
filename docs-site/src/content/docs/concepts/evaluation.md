@@ -387,6 +387,10 @@ its arm when Tracon accepts it, and the worker runs that arm's version. The run 
 in the arm only when the worker starts it: a queued run that never starts adds
 nothing to the results.
 
+A run that carries on an earlier run keeps that run's version and arm. This applies
+to the continuation after an approval decision and to the automatic continuation
+after a crash. A replay is not part of the experiment.
+
 The results endpoint gives per-arm counts, error rates, tokens, and durations. It
 makes **no statistical claim about a winner**; it shows the raw numbers and leaves the
 judgement to you.

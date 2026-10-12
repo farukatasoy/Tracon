@@ -66,6 +66,8 @@ internal sealed class RunContinuationJobHandler(
         RunInputRecord input;
         string sessionId;
         int? agentVersion;
+        Guid? experimentId;
+        string? variant;
 
         try
         {
@@ -88,6 +90,11 @@ internal sealed class RunContinuationJobHandler(
             }
 
             agentVersion = source.AgentVersion;
+
+            // F-352 class scan: the version was pinned but the arm was dropped,
+            // so the second half of an experiment run counted in no arm.
+            experimentId = source.ExperimentId;
+            variant = source.Variant;
 
             var definition = (agentVersion is { } version
                 ? await definitions.GetVersionAsync(source.AgentName, version, cancellationToken).ConfigureAwait(false)
@@ -155,6 +162,8 @@ internal sealed class RunContinuationJobHandler(
                 RunId = continuationRunId,
                 SessionId = sessionId,
                 AgentVersion = agentVersion,
+                ExperimentId = experimentId,
+                Variant = variant,
                 ContinuedFromRunId = sourceRunId,
             },
             cancellationToken).ConfigureAwait(false);

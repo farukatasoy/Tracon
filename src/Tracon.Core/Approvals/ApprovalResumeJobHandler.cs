@@ -22,6 +22,14 @@ namespace Tracon;
 /// If the model asks approval for another tool after it uses the approved tool, the new
 /// root run also ends with <c>AwaitingApproval</c>. The chain continues in the same way.
 /// </para>
+/// <para>
+/// The new run runs on the agent version of the run that asked for approval, and
+/// counts in the same experiment arm: the tool call and its answer are one turn,
+/// and a definition saved while the approval waited must not change it halfway.
+/// An agent whose source keeps no version history (a code agent) runs its current
+/// version. The culture is not stored on the run record, so the new run uses the
+/// default instructions.
+/// </para>
 /// </remarks>
 internal sealed class ApprovalResumeJobHandler(
     IAgentCatalog catalog,
@@ -58,10 +66,35 @@ internal sealed class ApprovalResumeJobHandler(
         Microsoft.Agents.AI.AIAgent agent;
         Microsoft.Agents.AI.AgentSession session;
         ChatMessage approvalMessage;
+        int? pinnedVersion;
+        RunRecord source;
 
         try
         {
-            agent = await catalog.ResolveAsync(agentName, culture: null, cancellationToken).ConfigureAwait(false)
+            source = await runStore.GetRunAsync(approval.RunId, cancellationToken).ConfigureAwait(false)
+                ?? throw new TraconException(
+                    $"The run '{approval.RunId}' that asked for this approval was not found; " +
+                    "the version it ran on is unknown. The decision cannot be applied.");
+
+            // ApprovalResume is a built-in key a schedule can name with a
+            // hand-written payload. The source run's version is pinned below,
+            // so the payload's agent must be the agent that run ran.
+            if (!string.Equals(source.AgentName, agentName, StringComparison.Ordinal))
+            {
+                throw new TraconException(
+                    $"The ApprovalResume job payload names agent '{agentName}', but the run that asked for " +
+                    "this approval ran a different agent. The decision cannot be applied.");
+            }
+
+            // F-352: resolving the CURRENT version here ran the tool call's
+            // answer on a definition saved while the approval waited, and the
+            // run fell out of the experiment arm its first half counted in.
+            Microsoft.Agents.AI.AIAgent? resolved;
+            (resolved, pinnedVersion) = await SourceRunAgentResolver
+                .ResolveAsync(catalog, agentName, source.AgentVersion, culture: null, cancellationToken)
+                .ConfigureAwait(false);
+
+            agent = resolved
                 ?? throw new TraconException(
                     $"The agent named '{agentName}' was not found. The job will be marked as failed.");
 
@@ -96,6 +129,11 @@ internal sealed class ApprovalResumeJobHandler(
             {
                 RunId = newRunId,
                 SessionId = approval.SessionId,
+                AgentVersion = pinnedVersion,
+
+                // An arm names a version; a run on the current version is in none.
+                ExperimentId = pinnedVersion is null ? null : source.ExperimentId,
+                Variant = pinnedVersion is null ? null : source.Variant,
             },
             cancellationToken).ConfigureAwait(false);
 

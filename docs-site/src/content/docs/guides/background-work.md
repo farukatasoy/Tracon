@@ -160,6 +160,13 @@ The run that asked for approval stays `AwaitingApproval` — it is finished. The
 continuation is a separate run in the same session, so a client watching for a
 result should follow the session rather than the original run id.
 
+The continuation runs on the agent version of the run that asked for approval and
+counts in the same experiment arm. This stays true when someone saves a new version
+while the approval waits: the tool call and its answer are one turn. A code agent
+keeps no version history, so its continuation uses the current definition. The
+original request's `culture` is not kept: the continuation uses the default
+instructions.
+
 If the decision request fails partway, repeat exactly the same decision. The
 continuation run's identity is derived from the approval, so a repeat completes
 the interrupted handoff instead of creating a second run; only a repeat that

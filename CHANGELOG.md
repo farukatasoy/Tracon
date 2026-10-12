@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Security
 
+- A job that resumes an approved tool call (`ApprovalResume`, a built-in key a
+  schedule can also enqueue) now fails when its payload names a different agent
+  than the run that asked for approval, or when that run no longer exists. A
+  hand-written payload could run another agent with the approved tool call.
 - A failed workflow node no longer writes its exception's own message to the
   run's events. The run row already carried only the exception's type and a
   correlation id, but the `ExecutorFailed` event of the same failure carried
@@ -81,6 +85,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- The continuation that a tool-approval decision queues now runs on the agent
+  version of the run that asked for approval, and counts in the same experiment
+  arm. It ran the current version, so a version saved while the approval waited
+  changed the instructions halfway through the turn. Code agents still run their
+  current definition. An automatic continuation after a crash now keeps the
+  interrupted run's experiment arm, not only its version.
 - A queued run (`Prefer: respond-async`) now uses the request's `culture` and
   takes part in a running experiment. The worker resolved the agent with no
   culture and the current version, so a queued run always got the default
