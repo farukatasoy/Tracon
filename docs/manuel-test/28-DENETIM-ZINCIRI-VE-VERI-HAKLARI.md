@@ -365,6 +365,52 @@ ve `IDataSubjectResolver` bu konuşmayı `ConversationIds`'e eşliyor olmalı.
 
 ---
 
+### MT-DVR-011 — Silme ekin harici baytını da siler; bayt hatası silmeyi geri alır (kusur-giderme, 2026-10-12, F-332)
+
+Regresyon. Silme `attachments` satırını siliyordu ama harici depodaki baytı
+silmiyordu. Hedefin tanımı "metadata and bytes" sözü veriyordu. Otomatik
+karşılığı: `AttachmentByteLifecycleTests` (üç SQL sağlayıcısı).
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Kritik |
+| **İlgili faz** | Faz 64 |
+| **İlgili karar** | K-370, K-462 |
+
+**Ön koşul:** 👤 Geliştirici — MT-RET-078'deki dosya tabanlı
+`IAttachmentStorage` kayıtlı. `IDataSubjectResolver`, `subject-1`'i
+`dvr-oturum` oturumuna eşler.
+
+**Girilecek veri**
+```bash
+curl -s -X POST "$APU/api/attachments?sessionId=dvr-oturum" -H "$APB" \
+     -F "file=@/tmp/fix-mm.png;type=image/png" | jq -r '.id'
+ls /tmp/tracon-ek/
+curl -s -X DELETE "$APU/api/data-subjects/subject-1" -H "$APB" | jq
+curl -s -w "\nHTTP: %{http_code}\n" -X DELETE "$APU/api/data-subjects/subject-1?dryRun=false" -H "$APB"
+curl -s "$APU/api/attachments?sessionId=dvr-oturum" -H "$APB" | jq 'length'
+curl -s "$APU/api/audit?action=data_subject.erase" -H "$APB" | jq 'length'
+```
+
+**Adımlar**
+1. `dvr-oturum` oturumuna bir ek yükle. Dosyayı `/tmp/tracon-ek/` altında gör.
+2. Önizleme yap (`dryRun` yok).
+3. Uygulamayı `TRACON_EK_HATA=1` ile başlat. Gerçek silmeyi çağır. Eki ve
+   denetim izini oku.
+4. `TRACON_EK_HATA`'yı kaldır ve uygulamayı yeniden başlat. 3. adımı tekrarla.
+
+**Beklenen sonuç**
+- 2. adımda `rowsByTarget.attachments` `1` olur; dosya yerinde kalır.
+- 3. adımda yanıt `500`'dür. Ek listede durur, dosya durur. Denetim izinde
+  `data_subject.erase` kaydı YOKTUR.
+- 4. adımda yanıt `200`'dür ve `rowsByTarget.attachments` `1`'dir. Dosya
+  silinir. Denetim izinde tek bir `data_subject.erase` kaydı vardır.
+- 🚨 Eski kusur: silme `200` döndü ve satır gitti; dosya `/tmp/tracon-ek/`
+  altında kaldı.
+
+---
+
 ## Sınır: bu dosya nerede biter
 
 | Konu | Nerede |

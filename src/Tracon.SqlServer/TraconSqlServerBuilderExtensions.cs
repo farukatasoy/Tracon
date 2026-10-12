@@ -247,11 +247,17 @@ public static class TraconSqlServerBuilderExtensions
         // store is not wrapped, the data plane is meaningful only while a SQL
         // provider is enabled.
         services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IRetentionPolicyStore, SqlRetentionPolicyStore>());
-        services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IRetentionStore, SqlRetentionStore>());
+        // Built like SqlAttachmentStore (F-332): the optional IAttachmentStorage
+        // must reach the data plane, which deletes an attachment's external
+        // content before its row.
+        services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IRetentionStore>(
+            static provider => ActivatorUtilities.CreateInstance<SqlRetentionStore>(provider)));
 
         // Data subject export/erasure (Phase 64). Replaces the in-memory
-        // NullDataSubjectStore; meaningful only with a SQL provider on.
-        services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IDataSubjectStore, SqlDataSubjectStore>());
+        // NullDataSubjectStore; meaningful only with a SQL provider on. Built
+        // like the retention data plane, for the same reason.
+        services.ReplaceTraconDefault(ServiceDescriptor.Singleton<IDataSubjectStore>(
+            static provider => ActivatorUtilities.CreateInstance<SqlDataSubjectStore>(provider)));
 
         // Single-executor election (Phase 42). Replaces the in-memory
         // InMemorySingletonLeaseStore; lease sharing is only meaningful here in

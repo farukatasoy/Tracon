@@ -378,6 +378,22 @@ internal abstract class SqlDialect
     public abstract string BuildRetentionDeleteBatchSql(string table, string wherePredicate);
 
     /// <summary>
+    /// Builds the SQL text that reads the given columns of one batch of rows
+    /// matching <paramref name="wherePredicate"/>. It does not delete.
+    /// </summary>
+    /// <param name="table">The schema-prefixed table name.</param>
+    /// <param name="columns">The column list to read.</param>
+    /// <param name="wherePredicate">The SQL condition that refers to <c>@cutoff</c>.</param>
+    /// <returns>Runnable SQL. Parameters: <c>@cutoff</c>, <c>@batchSize</c>.</returns>
+    /// <remarks>
+    /// The read half of a delete that must do work outside the database BEFORE
+    /// the rows go (an attachment's external content). There is NO ordering, the
+    /// same as <see cref="BuildRetentionDeleteBatchSql"/>: a row the caller
+    /// keeps does not always come first, so it cannot fill every batch.
+    /// </remarks>
+    public abstract string BuildRetentionSelectBatchSql(string table, string columns, string wherePredicate);
+
+    /// <summary>
     /// Builds the SQL text that returns the value of the ordering expression for the
     /// Nth row counted from the newest (<c>MaxRows</c>).
     /// </summary>
@@ -464,6 +480,23 @@ internal abstract class SqlDialect
     /// </remarks>
     public virtual string BuildDataSubjectDeleteSql(string table, string wherePredicate)
         => $"DELETE FROM {table} WHERE {wherePredicate};";
+
+    /// <summary>
+    /// Builds the SQL text that deletes every row matching
+    /// <paramref name="wherePredicate"/> and returns one column of each deleted row.
+    /// </summary>
+    /// <param name="table">The schema-prefixed table name.</param>
+    /// <param name="wherePredicate">The <c>WHERE</c> condition.</param>
+    /// <param name="returnedColumn">The column to return, one row per deleted row.</param>
+    /// <returns>Runnable SQL.</returns>
+    /// <remarks>
+    /// The delete and the read are one statement, so a row that appears between
+    /// a separate read and the delete cannot be deleted without being returned.
+    /// PostgreSQL and SQLite use <c>RETURNING</c>; SQL Server overrides this
+    /// with <c>OUTPUT deleted.column</c>.
+    /// </remarks>
+    public virtual string BuildDataSubjectDeleteReturningSql(string table, string wherePredicate, string returnedColumn)
+        => $"DELETE FROM {table} WHERE {wherePredicate} RETURNING {returnedColumn};";
 
     // --- Common typings (overridden in a derived type when needed) ---
 

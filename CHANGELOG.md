@@ -85,6 +85,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Retention and data subject erasure now delete an attachment's bytes in a
+  registered `IAttachmentStorage`. Retention's `attachments` target never read
+  `external_uri`, so the bytes stayed in object storage for ever; it now deletes
+  the bytes before the row, and keeps the row (and tries again on the next run)
+  when the byte delete fails. Erasure deletes the bytes after the row deletes
+  and before the audit write and the commit, and rolls back when a byte delete
+  fails. `IAttachmentStore.DeleteAsync` and `DeleteBySessionAsync` also delete
+  the bytes first: a storage failure after the row was gone lost the location
+  for good. **Requirement:** an `IAttachmentStorage.DeleteAsync` must succeed for
+  a location that no longer exists.
+- Retention no longer treats a workflow's attachments as orphaned while a run
+  of that session waits for input, is still running, or finished after the
+  cutoff. A workflow session has no session row, so an image or a speech clip
+  an agent step produced was deleted seven days after it was made, even while
+  the run waited in `AwaitingInput`. Ownership also requires the same tenant.
 - The continuation that a tool-approval decision queues now runs on the agent
   version of the run that asked for approval, and counts in the same experiment
   arm. It ran the current version, so a version saved while the approval waited

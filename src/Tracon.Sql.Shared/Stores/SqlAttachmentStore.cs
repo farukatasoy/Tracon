@@ -153,34 +153,45 @@ internal sealed class SqlAttachmentStore : IAttachmentStore
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// With <see cref="IAttachmentStorage"/> registered, the external content is
+    /// deleted BEFORE the row. The row is the only record of where the content
+    /// is, so a storage failure propagates and leaves the row in place.
+    /// </remarks>
     public async ValueTask<bool> DeleteAsync(string tenantId, Guid id, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(tenantId);
 
-        var command = CreateCommand(_sql.DeleteAttachment);
-        DbHelpers.AddTenant(command, tenantId);
-        DbHelpers.Add(command, "id", id);
-
-        var deleted = await DbHelpers.ReadListAsync(
-            command,
-            static reader => DbHelpers.GetNullableString(reader, 0),
-            cancellationToken).ConfigureAwait(false);
-
-        if (deleted.Count == 0)
+        if (_storage is not null)
         {
-            return false;
-        }
+            var select = CreateCommand(_sql.SelectAttachmentExternalUri);
+            DbHelpers.AddTenant(select, tenantId);
+            DbHelpers.Add(select, "id", id);
 
-        if (deleted[0] is { } externalUri && _storage is not null)
-        {
-            await _storage.DeleteAsync(new Uri(externalUri, UriKind.RelativeOrAbsolute), cancellationToken)
+            var found = await DbHelpers.ReadListAsync(
+                select,
+                static reader => DbHelpers.GetNullableString(reader, 0),
+                cancellationToken).ConfigureAwait(false);
+
+            if (found.Count == 0)
+            {
+                return false;
+            }
+
+            return await DeleteContentThenRowAsync(_storage, tenantId, id, found[0], cancellationToken)
                 .ConfigureAwait(false);
         }
 
-        return true;
+        return await DeleteRowAsync(tenantId, id, cancellationToken).ConfigureAwait(false);
     }
 
     /// <inheritdoc />
+    /// <remarks>
+    /// With <see cref="IAttachmentStorage"/> registered, each attachment is
+    /// deleted as <see cref="DeleteAsync"/> deletes it: content first, row
+    /// second. The first storage failure propagates; the rows not yet reached
+    /// stay, so a retry deletes them.
+    /// </remarks>
     public async ValueTask<int> DeleteBySessionAsync(
         string tenantId,
         string sessionId,
@@ -188,6 +199,31 @@ internal sealed class SqlAttachmentStore : IAttachmentStore
     {
         ArgumentNullException.ThrowIfNull(tenantId);
         ArgumentNullException.ThrowIfNull(sessionId);
+
+        if (_storage is not null)
+        {
+            var select = CreateCommand(_sql.SelectAttachmentExternalUrisBySession);
+            DbHelpers.AddTenant(select, tenantId);
+            DbHelpers.Add(select, "session_id", sessionId);
+
+            var rows = await DbHelpers.ReadListAsync(
+                select,
+                static reader => (Id: reader.GetGuid(0), ExternalUri: DbHelpers.GetNullableString(reader, 1)),
+                cancellationToken).ConfigureAwait(false);
+
+            var count = 0;
+
+            foreach (var row in rows)
+            {
+                if (await DeleteContentThenRowAsync(_storage, tenantId, row.Id, row.ExternalUri, cancellationToken)
+                        .ConfigureAwait(false))
+                {
+                    count++;
+                }
+            }
+
+            return count;
+        }
 
         var command = CreateCommand(_sql.DeleteAttachmentsBySession);
         DbHelpers.AddTenant(command, tenantId);
@@ -198,19 +234,49 @@ internal sealed class SqlAttachmentStore : IAttachmentStore
             static reader => DbHelpers.GetNullableString(reader, 0),
             cancellationToken).ConfigureAwait(false);
 
-        if (_storage is not null)
+        return deleted.Count;
+    }
+
+    /// <summary>Deletes an attachment's external content, then its row.</summary>
+    /// <param name="storage">The external content store.</param>
+    /// <param name="tenantId">The tenant id.</param>
+    /// <param name="id">The attachment id.</param>
+    /// <param name="externalUri">The external location; <see langword="null"/> when the content is in the row.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns><see langword="true"/> when the row was deleted.</returns>
+    private async ValueTask<bool> DeleteContentThenRowAsync(
+        IAttachmentStorage storage,
+        string tenantId,
+        Guid id,
+        string? externalUri,
+        CancellationToken cancellationToken)
+    {
+        if (externalUri is not null)
         {
-            foreach (var externalUri in deleted)
-            {
-                if (externalUri is { } uri)
-                {
-                    await _storage.DeleteAsync(new Uri(uri, UriKind.RelativeOrAbsolute), cancellationToken)
-                        .ConfigureAwait(false);
-                }
-            }
+            await storage.DeleteAsync(new Uri(externalUri, UriKind.RelativeOrAbsolute), cancellationToken)
+                .ConfigureAwait(false);
         }
 
-        return deleted.Count;
+        return await DeleteRowAsync(tenantId, id, cancellationToken).ConfigureAwait(false);
+    }
+
+    /// <summary>Deletes an attachment row.</summary>
+    /// <param name="tenantId">The tenant id.</param>
+    /// <param name="id">The attachment id.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns><see langword="true"/> when a row was deleted.</returns>
+    private async ValueTask<bool> DeleteRowAsync(string tenantId, Guid id, CancellationToken cancellationToken)
+    {
+        var command = CreateCommand(_sql.DeleteAttachment);
+        DbHelpers.AddTenant(command, tenantId);
+        DbHelpers.Add(command, "id", id);
+
+        var deleted = await DbHelpers.ReadListAsync(
+            command,
+            static reader => DbHelpers.GetNullableString(reader, 0),
+            cancellationToken).ConfigureAwait(false);
+
+        return deleted.Count > 0;
     }
 
     private static AttachmentDescriptor ReadDescriptor(DbDataReader reader) => new()

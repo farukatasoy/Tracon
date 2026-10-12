@@ -497,6 +497,20 @@ When a policy has `archive: true`, cleanup first sends its batch to the register
 `IArchiveSink`. If no sink exists, no rows are deleted. This fail-safe trades storage
 growth for protection from silent data loss.
 
+The `attachments` target deletes only **orphaned** attachments: those with no
+session id, or whose session id has no owner in the same tenant. An owner is a
+session, or a [workflow](/concepts/workflows/#checkpoints) run with that session id
+that waits for input, has not finished, or finished after the cutoff. A workflow's
+session id never gets a session row, so without the run rule an image a workflow
+step made would go while the run still waits for a human.
+
+With an `IAttachmentStorage` registered, the bytes live outside the database.
+Retention deletes the bytes first and the row second. If the byte delete fails,
+the row stays, a warning is logged, and the next run tries again — the row is the
+only record of where the bytes are. See
+[production storage](/guides/multimodal/#persistence-and-production-storage) for
+what your storage's `DeleteAsync` must do.
+
 No endpoint deletes synchronously. Preview first — it is the only way to see the size
 of a deletion before it happens — then run, which queues a job.
 
@@ -555,6 +569,13 @@ retention otherwise keeps forever. It never touches the audit trail: an audit re
 is "who did what", not the subject's own data, and stays intact and verifiable after
 an erasure. The erasure itself **is** written there, with the row count per target; if
 that write fails, the whole erasure rolls back.
+
+Attachment bytes held in a registered `IAttachmentStorage` go too. They are deleted
+inside the erasure: after the rows are deleted, before the audit write and the
+commit. If a byte delete fails, the erasure rolls back and the request fails —
+repeat it when the storage is back. If the audit write or the commit fails after the
+bytes are gone, the rows stay and point at nothing; repeating the request finishes
+the erasure. A preview (`dryRun`) never touches the bytes.
 
 Export returns every matching row, keyed by target, as one JSON document.
 Attachment file bytes are not included — only their metadata.
