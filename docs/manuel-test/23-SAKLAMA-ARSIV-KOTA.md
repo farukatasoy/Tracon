@@ -2118,3 +2118,29 @@ bir batch'i sırasız siliyordu. Arşive hiç yazılmamış satırlar silindi.
 **Beklenen sonuç**
 - Silinen her satır arşivdedir; arşivde olmayan satır tabloda kalır.
 - 🚨 Eski kusur: üç sağlayıcıda 3-4 satır arşive yazılmadan silindi.
+
+### MT-RET-080 — Kök agent kotaya ve webhook'una alt agent'ların harcamasını da yazar (kusur-giderme, 2026-10-13, F-383)
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | K-913 |
+| **Devir** | ➜ CI: `AgentTreeQuotaTests` (akışlı ve akışsız ağaç, webhook yükü, çocuksuz kök) |
+
+Regresyon. Alt run kendi başına saymaz; kök yalnız kendi usage'ını yazıyordu.
+Alt agent'ların token'ı ve maliyeti hiçbir sayaca ve kökün `run.completed`
+yüküne girmiyordu.
+
+**Ön koşul** — Örnek uygulama; alt agent çağıran bir agent (`CallableAgentNames`); fiyatlı modeller; `default` kiracısı için günlük token kotası.
+
+**Adımlar**
+1. Kök agent'ı koş; alt agent'ın gerçekten çağrıldığını run ağacından doğrula.
+2. `GET $APU/api/quotas/usage` ile günlük sayacı oku.
+3. `run.completed` webhook'unun yükünü oku.
+
+**Beklenen sonuç**
+- Sayaç kökün ve alt run'ın token'larının toplamını gösterir; `runs` 1 artar.
+- Webhook'un `inputTokens`, `outputTokens` ve `cost` alanları ağacın toplamıdır; alt run webhook yayınlamaz.
+- 🚨 Eski kusur: sayaç ve webhook yalnız kökün kendi tüketimini gösterdi.

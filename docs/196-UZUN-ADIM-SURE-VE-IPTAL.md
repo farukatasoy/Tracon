@@ -1,9 +1,9 @@
 # Faz 196 — Uzun Adımların Süre Sınırı ve İptali
 
 > **Durum:** 📋 Planlandı (2026-10-12)
-> **Plan onayı:** onaylanmadı — plan 2026-10-12'de bakımcı talebiyle yazıldı; engelleyici kararlar § Açık Sorular'da öneriyle bekler, uygulama onaydan önce başlamaz
-> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-303**, **F-323**
-> **Önkoşul:** [Faz 195](arsiv/fazlar/195-WORKFLOW-DUGUM-DUZENLEME-VE-AYAR.md) kapanmalı — aynı kayıt yüzeyi ve editör satırı; kodu `99fe0b13`'te
+> **Plan onayı:** onaylanmadı — plan 2026-10-12'de bakımcı talebiyle yazıldı; engelleyici kararlar § Açık Sorular'da öneriyle bekler, uygulama onaydan önce başlamaz. 2026-10-13: bakımcı F-405'i bu faza aldı (Açık Soru 9 → A)
+> **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-303**, **F-323**, **F-405**
+> **Önkoşul:** [Faz 195](arsiv/fazlar/195-WORKFLOW-DUGUM-DUZENLEME-VE-AYAR.md) — aynı kayıt yüzeyi ve editör satırı; 2026-10-12'de kapandı (`55272673`)
 > **Paketler:** `Tracon.Abstractions`, `.Core`, `.Workflows`, `.Sql.Shared`, SQL sağlayıcıları, `.AspNetCore`, `.Testing.Contracts.Xunit`, `.UI` · üretilen istemciler
 > **Yeni paket:** Yok · **Migration:** gerekli (Açık Soru 5) — `jobs` süre sütunu, üç sağlayıcı; numara uygulamada alınır
 > **Public API:** büyüyor — `1.0.0` GA'dan (K-603) önce ucuz. Ölçüldü (2026-10-12): `wc -l src/*/PublicAPI.Shipped.txt` → 17 dosya, her biri yalnız `#nullable enable`
@@ -40,21 +40,27 @@ altyapıyı kurar: adım süresi, token'a ulaşan iptal, ayırt edilebilir hata.
 - **F-303** — fonksiyon düğümüne süre (kayıtta varsayılan, düğümde geçersiz
   kılma); aşımda düğüm iptal edilir, run kararlı bir tiple düşer.
 - **F-323** — job'a süre; iptal ve aşım handler token'ını iptal eder.
+- **F-405** — agent düğümüne süre (`ChildDeadline`'ı düğümde geçersiz
+  kılar) ve workflow tanımına `RunTimeout` (kurulum değerini tanım başına
+  geçersiz kılar, host tavanıyla sınırlı).
 
 **Tüketici bağlamı.** Bir SaaS'ın podcast workflow'u host'un sandbox
 runner'ını fonksiyon düğümüyle HTTP'den çağırır; takılan çağrı run'ı 10 dk
 tutar. Video hattının `produce` job'u iptalin ≤ 30 sn'de koda ulaşmasını
-ister. Plan geneldir.
+ister. Podcast pilotunda (2026-10-13 ölçümü) writer agent çağrısı 1,2–5,8 dk,
+üç turlu `Loop` 14 dk sürdü; `ChildDeadline` 2 dk ve `RunTimeout` 10 dk bu
+adımı her koşumda düşürür ve bugün tek çare kurulum geneli değeri
+yükseltmektir. Plan geneldir.
 
 ### Kapsam dışı
 
 | Kalem | Neden |
 |---|---|
-| Agent düğümüne süre; workflow başına `RunTimeout` | Açık Soru 9; yeni aday (F-405) |
 | `RunTimeout`'un `Canceled` davranışı | K-844 değişmez |
 | Dinlemeyen kodu zorla durdurma | .NET güvenli thread iptali vermez |
 | Süreç içi anlık job iptal sinyali | Yoklama yeter (Açık Soru 6) |
 | `JobSchedule`'a süre alanı | `MaxAttempts` emsali; harita kullanılır |
+| `agentNames` biçimli workflow'da adım başına süre | Açık Soru 10; tanım düzeyi `RunTimeout` ve kurulum `ChildDeadline` yeter |
 
 ### Bugün ne çalışmıyor — doğrulanmış kanıt
 
@@ -64,6 +70,12 @@ ister. Plan geneldir.
 | `TraconWorkflowFunctionExtensions.cs:94-129` · `:260-314` · `:331-347` | Kayıtta süre yok; işleyiciyi yalnız retry sarar; iki parametreli kayıt seçenek nesnesi almaz |
 | `WorkflowFunctionOptions.cs:13-25` · `WorkflowNodeReference.cs:27-73` | Seçenek nesnesinde (K-902) ve düğümde süre yok |
 | `WorkflowAgentCache.cs:56-60` · `:126-133` | Agent adımı kurulum geneli `ChildDeadline`'ı (2 dk) alır |
+| `WorkflowAgentCache.cs:103-105` · `:167` · `:148-152` | Önbellek anahtarı `(tenant, workflow, agent)`; kimlik `WorkflowAgentIdentity` ile çiftten türer, örnekten değil (resume uyumu) |
+| `ChildAgentInvoker.cs:90-100` | Süre (`childDeadline`, `waitTimeout`) kurucuda sabitlenir |
+| `WorkflowDefinitionCompiler.cs:350-355` | `Wrap` düğümü bilmez; yalnız ad ve açıklama geçer |
+| `WorkflowRunner.cs:550-554` | `RunTimeout` CTS'i `_options.Value`'dan; tanım okunmaz |
+| `WorkflowDefinition.cs:24-158` · `WorkflowNodeReference.cs:35-38` | Tanımda ve düğümde süre alanı yok |
+| `SubAgentSettings.cs:52` | Emsal: delegasyonda agent başına `ChildDeadline` geçersiz kılması |
 | `WorkflowRunner.cs:507` · `:746` · `:1813-1820` | `RunTimeout` aşımı → `Canceled` + `TimeoutException`; sebep `timeout` CTS'inden |
 | `ChildAgentInvoker.cs:634-643` · `DefaultRunErrorClassifier.cs:41-51` | Agent adımı aşımı → `Failed` + `child_run_timeout`, sınıf `Timeout` (`:50`) |
 | `WorkflowNodeRetry.cs:21-27` · `:93-96` | `Timeout` sınıfı yeniden denenir |
@@ -77,8 +89,8 @@ ister. Plan geneldir.
 | `JobErrorCodes.cs:12-66` | Süre aşımı kodu yok |
 | `write-your-own-job-handler.md:148-155` · `background-work.md:527-529,556` | Site "süre sınırı yok" der; `:556` iptalde token'ın düştüğünü ima eder |
 
-> Kanıtlar 2026-10-12'de `99fe0b13` üzerinde doğrulandı. Paralel kusur turu
-> (F-341) `WorkflowDefinitionValidator.cs` satırlarını kaydırabilir.
+> Kanıtlar 2026-10-12'de `99fe0b13` üzerinde doğrulandı. F-405 satırları
+> 2026-10-13'te `55272673` üzerinde doğrulandı.
 
 ---
 
@@ -90,8 +102,9 @@ ister. Plan geneldir.
 - **Düğüm:** `WorkflowNodeReference.Timeout`, yalnız fonksiyon düğümünde
   (Açık Soru 1); `Settings`'e girmez (K-900). Öncelik: düğüm > kayıt > yok.
 - **Doğrulama (F-280):** kayıtta `TimerPeriod.IsValid` dışı değer
-  `ArgumentOutOfRangeException`; agent düğümünde süre veya aralık dışı değer
-  `WorkflowDefinitionValidator`'da `400`. `RunTimeout`'a göre doğrulanmaz.
+  `ArgumentOutOfRangeException`; aralık dışı değer
+  `WorkflowDefinitionValidator`'da `400`. Agent düğümünde de geçerlidir
+  (§ 196.5). `RunTimeout`'a göre doğrulanmaz.
 - Süre executor kimliğine girmez; resume'u bozmamalı — ölçülür.
 - Katalog kayıtlı süreyi gösterir. Konsol: saniye alanı, boşken kayıt
   varsayılanı yer tutucudur; `chainBody` alanı taşır (K-725).
@@ -123,9 +136,9 @@ ister. Plan geneldir.
   çözülür; zamanlama ve üçüncü taraf depo job'u da kapsanır. Öncelik: job >
   harita > yok (K1). Süre deneme başınadır.
 - **Doğrulama:** `JobDispatcher` → `ArgumentException`; harita →
-  `TraconSchedulingOptionsValidator`. 🚨 Harita `BindScheduling`'e elle
-  bağlanır; bugün koleksiyon seçenekleri bağlanmıyor
-  (`Binding.Operations.cs:9-68`).
+  `TraconSchedulingOptionsValidator`. Harita `BindSchedulingCollections`'a
+  elle eklenir: dört koleksiyon F-385 ile (2026-10-13) orada bağlandı;
+  `TraconSchedulingOptionsBindingTests` bir satır alır.
 - **Aşım:** token iptal edilir; handler dönünce deneme başarısızdır,
   `ErrorMessage = tracon.job.max-duration-exceeded (ref: …)`; deneme kalırsa
   yeniden kiralanır (Açık Soru 7). Dinlemeyen handler beklenir (Açık Soru 8);
@@ -146,6 +159,38 @@ ister. Plan geneldir.
 
 ---
 
+## 196.5 — Agent düğümü süresi ve workflow başına `RunTimeout` (F-405)
+
+- **Düğüm:** `WorkflowNodeReference.Timeout` agent düğümünde de geçerlidir;
+  `ChildDeadline`'ı o düğüm için geçersiz kılar. `waitTimeout` aynı kuralla
+  türer (süre + 30 sn, `TraconOptions.cs:211-214`). Öncelik: düğüm > kurulum
+  `AgentGraph.ChildDeadline`. Aşım bugünkü davranıştır: run `Failed`,
+  `child_run_timeout` (K-887); yeni tip gerekmez.
+- **Süre kurucuya gider, kimlik değişmez.** `ChildAgentInvoker` süreyi
+  kurucuda alır (`:90-100`); önbellek anahtarı süreyi de taşır
+  (`AgentKey(tenant, workflow, agent, timeout)`). Kimlik
+  `WorkflowAgentIdentity` ile `(workflow, agent)` çiftinden türer
+  (`WorkflowAgentCache.cs:31-38`), yani yeni örnek aynı executor kimliğini
+  alır. 🚨 **Ölçülmeli (Adım 0):** süre değişikliği bekleyen run'ın resume'unu
+  bozmaz (test 10 deseni, agent düğümüyle).
+- **Workflow:** `WorkflowDefinition.RunTimeout` (`TimeSpan?`, `null` =
+  kurulum değeri, K1). Runner CTS'i tanımdan kurar (`WorkflowRunner.cs:554`);
+  🚨 **ölçülmeli:** tanım bu noktada çözülmüş mü — değilse CTS tanım
+  çözümünden sonra kurulur ve slot beklemesi kurulum değerine sayılır.
+- **Tavan:** `TraconWorkflowOptions.MaxRunTimeout` (`TimeSpan?`, varsayılan
+  `null`). `null` iken tanım yalnız **kısaltabilir** (≤ `RunTimeout`); host
+  tavanı açınca tanım o değere kadar uzatabilir (Açık Soru 11). Gerekçe: süre
+  paylaşılan `MaxConcurrentRuns` slotunu tutar (F-322); tavanı host seçer.
+- **Doğrulama:** `TimerPeriod.IsValid` (F-280) ve tavan, kayıtta `400`.
+  Düğüm süresi `RunTimeout`'a göre doğrulanmaz (Açık Soru 12).
+- `agentNames` biçimi (GroupChat, Handoff, Magentic, Concurrent) düğüm
+  taşımaz (K-901); orada tanım `RunTimeout`'u ve kurulum `ChildDeadline`'ı
+  geçerlidir (Açık Soru 10).
+- Konsol: tanım düzeyinde `RunTimeout` alanı (saniye); düğüm satırındaki
+  süre alanı (§ 196.1) agent düğümünde de görünür.
+
+---
+
 ## Planlanan Public API
 
 > Taslak. **Bugün eklemek bedava / `1.0.0` GA sonrası record alanı ve aşırı
@@ -153,7 +198,8 @@ ister. Plan geneldir.
 
 ```csharp
 // Tracon.Abstractions
-WorkflowNodeReference, WorkflowFunctionDescriptor { TimeSpan? Timeout { get; init; } }
+WorkflowNodeReference, WorkflowFunctionDescriptor { TimeSpan? Timeout { get; init; } } // agent düğümünde de (F-405)
+WorkflowDefinition { TimeSpan? RunTimeout { get; init; } }                            // F-405
 sealed class TraconWorkflowFunctionTimeoutException : TraconException // ad taslak
     { FunctionName; Timeout; ErrorType => "workflow_function_timeout" }
 JobRequest, JobRecord { TimeSpan? MaxDuration { get; init; } }
@@ -161,6 +207,7 @@ JobErrorCodes.MaxDurationExceeded = "tracon.job.max-duration-exceeded"
 TraconSchedulingOptions { IDictionary<string, TimeSpan> MaxDurationByHandlerKey { get; } }
 // Tracon.Workflows
 WorkflowFunctionOptions { TimeSpan? Timeout { get; set; } }
+TraconWorkflowOptions { TimeSpan? MaxRunTimeout { get; set; } }                     // F-405, varsayılan null
 AddWorkflowFunction<TInput, TOutput>(builder, name, factory, Action<WorkflowFunctionOptions> configure)
 WorkflowFunctionResponse { TimeSpan? Timeout } // Tracon.AspNetCore
 ```
@@ -169,7 +216,7 @@ WorkflowFunctionResponse { TimeSpan? Timeout } // Tracon.AspNetCore
 
 | Metot | Yol | Rol | Değişiklik |
 |---|---|---|---|
-| `PUT` | `/api/workflows/{name}` | Admin | `timeout` doğrulanır |
+| `PUT` | `/api/workflows/{name}` | Admin | `timeout` (fonksiyon ve agent düğümü) ve `runTimeout` doğrulanır |
 | `GET` | `/api/workflows/functions` | Reader | `timeout` görünür |
 | `GET` | `/api/jobs/{id}` | Reader | `maxDuration` görünür |
 | `POST` | `/api/jobs/{id}/cancel` | Operator | Token bir `PollInterval`'da düşer |
@@ -178,19 +225,20 @@ Roller değişmez (`WorkflowEndpoints.cs:54,95`, `SchedulingEndpoints.cs:124,137
 
 ### Arayüz payı
 
-Düğüm satırına süre alanı; pay kapanışta gzip KB olarak yazılır.
+Düğüm satırına süre alanı (agent düğümü dahil) ve tanım düzeyinde `RunTimeout` alanı; pay kapanışta gzip KB olarak yazılır.
 
 ---
 
 ## Planlanan Dosya Listesi
 
 ```
-Abstractions TraconException · Workflows/{WorkflowNodeReference,WorkflowFunctionDescriptor}
+Abstractions TraconException · Workflows/{WorkflowNodeReference,WorkflowFunctionDescriptor,WorkflowDefinition}
              Scheduling/{IJobDispatcher,JobRecord,JobErrorCodes,IJobHandler,TraconSchedulingOptions}
 Core         Runs/DefaultRunErrorClassifier · Workflows/WorkflowDefinitionValidator · …Binding.Operations
              Scheduling/{JobWorkerBackgroundService,JobDispatcher,InMemoryJobStore,…OptionsValidator}
 Workflows    WorkflowFunctionOptions · TraconWorkflowFunctionExtensions · TraconWorkflowOptions
-             Internal/{WorkflowNodeTimeout*,WorkflowFunctionRegistration,…Registry,WorkflowDefinitionCompiler}
+             Internal/{WorkflowNodeTimeout*,WorkflowFunctionRegistration,…Registry,WorkflowDefinitionCompiler,
+                       WorkflowAgentCache,WorkflowRunner}
 Sql.Shared   SqlQueriesBase · SqlJobStore ; {PostgreSql,SqlServer,Sqlite}/Migrations
 AspNetCore   WorkflowContracts · SchedulingEndpoints ; Testing.Contracts.Xunit JobStoreContract
 UI           lib/workflow-steps.ts · screens/workflow-editor/steps.tsx · locales/{en,tr}/workflows.ts
@@ -230,6 +278,11 @@ diğer        TimeoutSiteTests · samples/Tracon.Api/Program.cs (süreli fonksiy
 | 21 | İçteki run job iptalinde açık kalır | Fonksiyonel (`tracon.workflow`) | `WorkflowJobCancellationTests` |
 | 22 | Yeni süre sitesi kapıya girmez; istemciler alanı taşımaz | Mimari + Paket | `TimeoutSiteTests`, NSwag/TS kapıları |
 | 23 | Konsoldan verilen süre uygulanmaz | E2E | mevcut workflow E2E |
+| 24 | Agent düğümü süresi uygulanmaz; kurulum `ChildDeadline`'ı kazanır ya da `waitTimeout` türemez | Fonksiyonel (`HangingModelProvider`) | `WorkflowAgentNodeTimeoutTests` |
+| 25 | Süre değişikliği agent adımının kimliğini değiştirir, bekleyen run resume'da düşer | Fonksiyonel | `WorkflowAgentNodeTimeoutResumeTests` |
+| 26 | Tanımın `RunTimeout`'u uygulanmaz; tavan yokken uzatma kabul edilir; tavan aşımı `400` değil | Fonksiyonel (`PUT` → `400`, `TriggerableTimeProvider`) | `WorkflowDefinitionRunTimeoutTests` |
+| 27 | **Başka kiracı:** aynı adlı workflow'un süresi diğer kiracıya geçer (önbellek anahtarı) | Fonksiyonel | `WorkflowAgentNodeTimeoutTests` |
+| 28 | `RunTimeout`/`MaxRunTimeout` depoda ya da üç istemcide düşer | Sözleşme (dört depo) + Paket | `WorkflowDefinitionStoreContract`, NSwag/TS kapıları |
 
 ---
 
@@ -245,6 +298,9 @@ diğer        TimeoutSiteTests · samples/Tracon.Api/Program.cs (süreli fonksiy
 | 6 | Yavaş workflow'a `tracon.workflow` zamanlaması | `trigger` → `POST …/cancel` | Job `Cancelled`, run `Canceled`, ≤ 10 sn |
 | 7 | Haritada `tracon.workflow: 00:00:05` | `trigger` | Job `Failed`, `tracon.job.max-duration-exceeded` |
 | 8 | Haritada `00:00:00` | Host'u başlat | Açılış seçeneği adlandırarak düşer |
+| 9 | Yavaş model, agent düğümü `"timeout":"00:00:05"` | Koş | ~5 sn'de `Failed`, `child_run_timeout`; kurulum `ChildDeadline` 2 dk |
+| 10 | `MaxRunTimeout` yok | `"runTimeout":"00:30:00"` ile `PUT` | `400`; tavanı açıklar |
+| 11 | `Tracon__Workflows__MaxRunTimeout=01:00:00` | Aynı `PUT`, sonra 15 dk'lık zinciri koş | `200`; run 10 dk'da düşmez |
 
 ---
 
@@ -260,7 +316,10 @@ diğer        TimeoutSiteTests · samples/Tracon.Api/Program.cs (süreli fonksiy
 | 6 | İptal yoklama aralığı | A: `PollInterval` · B: yeni seçenek · C: + süreç içi sinyal | **A** — 10 sn yeter |
 | 7 | Aşım denemesi | A: başarısız deneme, yeniden kiralanabilir · B: hep terminal | **A** — K-886 ile tutarlı |
 | 8 | Dinlemeyen job handler'ı | A: beklenir, slot tutulur · B: sınırdan sonra terk | **A** — B çift yürütme getirir (K-886); düğümde bekleme kesilir |
-| 9 | Agent düğümü + workflow başına `RunTimeout` | A: bu faz · B: yeni aday (F-405) | **B** — agent adımı önbellekli invoker'dır; `agentNames`'te alan yok (K-901) |
+| 9 | Agent düğümü + workflow başına `RunTimeout` | A: bu faz · B: yeni aday (F-405) | **A — karar verildi** (bakımcı, 2026-10-13): podcast ölçümü varsayılanların altında; § 196.5 |
+| 10 | `agentNames` biçiminde adım süresi | A: tanım düzeyi `AgentStepTimeout` · B: yok, `RunTimeout` + kurulum `ChildDeadline` | **B** — K-901 alanı yalnız `nodes`'a koydu; ihtiyaç ölçülünce aday |
+| 11 | Tanım `RunTimeout`'u kurulum değerini aşabilir mi | A: hiç · B: `MaxRunTimeout` tavanına kadar (varsayılan `null` = yalnız kısaltır) · C: sınırsız | **B** — K1; slot paylaşımı host'un kararıdır |
+| 12 | Düğüm süresi tanımın `RunTimeout`'unu aşarsa | A: kayıtta `400` · B: kabul, `RunTimeout` zaten keser | **B** — iki süre ayrı soruyu cevaplar; XML ve site yazar |
 
 ---
 
@@ -270,8 +329,9 @@ diğer        TimeoutSiteTests · samples/Tracon.Api/Program.cs (süreli fonksiy
 - [ ] Çağıran iptali ve `RunTimeout` düğüm aşımı yazmaz; aralık dışı süre `400` (test 5, 9)
 - [ ] İptal handler token'ını bir `PollInterval` içinde düşürür; aşım `tracon.job.max-duration-exceeded` yazar (test 14-15)
 - [ ] İki alan dört depoda round-trip; harita bağlanır; `TimeoutSiteTests` güncel (test 12, 19-20, 22)
+- [ ] Agent düğümü süresi `ChildDeadline`'ı geçersiz kılar ve resume'u bozmaz; tanım `RunTimeout`'u tavanla sınırlıdır (test 24-28)
 - [ ] Dört doğrulama kapısı sıfır uyarı — `python3 scripts/kapi.py kapanis --taban <faz öncesi commit>`
-- [ ] `samples/Tracon.Api` ile gerçek `run` (case 1, 6, 7), çıktı belgeye yazıldı
+- [ ] `samples/Tracon.Api` ile gerçek `run` (case 1, 6, 7, 9, 11), çıktı belgeye yazıldı
 - [ ] `secret` taraması boş döndü
 - [ ] Manuel kabul case'leri iki alan dosyasına eklendi; otomatikleştirilebilenler koşuldu
 - [ ] `faz-denetim` koşuldu; 🔴 bulgu kalmadı
@@ -280,7 +340,7 @@ diğer        TimeoutSiteTests · samples/Tracon.Api/Program.cs (süreli fonksiy
 
 ### Doğrulama komutları
 
-Komutlar case 1, 6, 7'den kapanışta gerçek çıktıyla yazılır.
+Komutlar case 1, 6, 7, 9 ve 11'den kapanışta gerçek çıktıyla yazılır.
 
 ---
 
@@ -304,7 +364,8 @@ Komutlar case 1, 6, 7'den kapanışta gerçek çıktıyla yazılır.
 ## Bu Fazda Verilen Kararlar
 
 > Kapanışta doldurulur. Beklenen: düğüm süresi + hata kimliği (`public-api`),
-> job süresi sütunu + iptal yoklaması (`kalıcı-veri`, `public-api`).
+> job süresi sütunu + iptal yoklaması (`kalıcı-veri`, `public-api`), tanım
+> `RunTimeout`'u ve `MaxRunTimeout` tavanı (`public-api`).
 
 ## Gerçekleşen Public API
 

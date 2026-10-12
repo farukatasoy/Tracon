@@ -1,31 +1,39 @@
 # Tracon — Podcast üretimi için tüketici uyum raporu
 
-**Tarih:** 12 Ekim 2026 (üçüncü değerlendirme). Bu belge önceki sürümlerin
+**Tarih:** 13 Ekim 2026 (dördüncü değerlendirme). Bu belge önceki sürümlerin
 yerine geçer; dosya adı bağlantılar bozulmasın diye ilk yazım tarihini taşır.
 
-**İnceleme zemini:** Tracon `99fe0b13` artı aynı günün commit edilmemiş kusur
-turu (K-903…K-911). Faz 192 (döngü tükenme politikası) ve Faz 194 (run
-parametreleri) kapandı. Faz 195'in (düğüm düzenleme ve fonksiyon düğümü ayarı)
-kodu büyük ölçüde hazır, kapanışı bekliyor. Faz 196…202 planlandı, onay
-bekliyor.
+**İnceleme zemini:** Tracon `55272673` ve aynı günün commit edilmemiş işi.
+Faz 195 (düğüm düzenleme ve fonksiyon düğümü ayarı) 2026-10-12'de kapandı;
+K-903…K-911 commit edildi (`842d126a`). 2026-10-13'te bu ölçümün ardından
+dört kusur kapandı (F-383, F-384, F-385, F-388; K-912, K-913), F-296 Faz
+203'e, F-320 ile F-346 Faz 204'e, F-405 Faz 196'ya girdi. Faz 196…204
+planlandı, plan onayı bekliyor. Tüketici reposu `PodcastUretimHatti`, dal `uretim/oyak-12-makale`,
+`89251e2` artı commit edilmemiş 12–13 Ekim koşumları; aynı projenin video hattı
+`Explainer-Video` hâlâ tek commit `edb560a`.
 
-**Yöntem:** Public sözleşme ve uygulama kodu incelemesi; ElevenLabs, Google ve
-Docker'ın resmi dokümanları (2026-10-11); kapanan kusurların durumu
-`docs/arsiv/ERTELENEN-ADAYLAR.md` ve site metinlerinden ölçüldü.
+**Yöntem:** Tüketici reposunun kodu, talimatları, karar dosyası ve pilot
+koşum kayıtları okundu; on bir script koşumunun (sekizi tamamlandı, 42 model
+çağrısı) ve yedi ses koşumunun `steps.json`/`run.json` kayıtları ile dosya
+zaman damgaları ölçüldü (§ 2.2). Seri bu oturum sırasında koşmaya devam etti. Tracon tarafı kodla doğrulandı: harness `Loop` ve `aiJudge`
+(MAF 1.20.0 XML belgesi), Anthropic sağlayıcısı ve SDK 12.39.0, ses
+sözleşmesi, workflow ve zamanlama varsayılanları.
 
-**Kapsam:** Tüketici mimarisi, mevcut yeteneklerin uyumu ve Tracon için
-öncelikli geliştirme önerileri. Bu belge bir faz planı değildir. Her yeteneğin
-yayımlanmış belirli bir NuGet sürümünde bulunduğunu doğrulamaz. Gerçek TTS
-çağrısı, MinIO entegrasyonu, crash recovery veya 20 eşzamanlı üretim testi
-yapılmadı. Kapasite ve kalite önerileri ölçülmüş sonuç değil tasarım
-önerisidir.
+**Kapsam:** Tüketicinin bugünkü hattı, mevcut Tracon yeteneklerinin uyumu ve
+öncelikli geliştirme önerileri. Bu belge bir faz planı değildir. Tracon
+üzerinde gerçek koşum yapılmadı; tüketici sayıları tüketicinin kendi
+kayıtlarından gelir ve bu oturumda yeniden üretilmedi. Süre değerleri dosya
+zaman damgasından türetilmiştir; aynı dakikada başlatılan paralel koşumlar
+birbirini yavaşlatmış olabilir.
 
 **İlişkili kayıtlar:** [keşif kaydı](../../kesif/2026-10-11-podcast-tuketici.md) ·
+kapanan [Faz 195](../fazlar/195-WORKFLOW-DUGUM-DUZENLEME-VE-AYAR.md) ·
 planlanan fazlar [196](../../196-UZUN-ADIM-SURE-VE-IPTAL.md) ·
 [197](../../197-DAYANIKLI-WORKFLOW-YURUTMESI.md) · [198](../../198-ADLI-KONUSMA-SAGLAYICISI.md) ·
 [199](../../199-FONKSIYON-DUGUMU-MALIYETI.md) · [200](../../200-WORKFLOW-SURUM-GECMISI-VE-SABITLEME.md) ·
-[201](../../201-LOOP-DUZENLEME-VE-OLCUT-FABRIKASI.md) · [ADAYLAR](../../ADAYLAR.md) (F-296, F-297,
-F-385, F-406, F-407, F-411) · aynı tüketici projesinin
+[201](../../201-LOOP-DUZENLEME-VE-OLCUT-FABRIKASI.md) · [203](../../203-COK-KONUSMACILI-DIYALOG-SENTEZI.md) ·
+[204](../../204-KESILEN-CIKTI-VE-ANTHROPIC-AYARLARI.md) · [ADAYLAR](../../ADAYLAR.md) (F-297,
+F-406, F-407, F-411, F-412, F-417) · aynı tüketici projesinin
 [explainer video raporu](2026-10-11-explainer-video-tuketici-uyum-raporu.md).
 İki hat aynı host'ta, aynı kiracı ekranından başlar; video raporunun sandbox
 modeli (§ 7.3), kusur tabloları (§ 12) ve yol A/C ayrımı (§ 8) burada
@@ -34,76 +42,168 @@ tekrarlanmaz.
 ## 1. Sonuç
 
 **Bu senaryo Tracon üzerine kurulabilir. Mevcut paketler bütün podcast hattını
-hazır olarak sunmaz.** Agent çalıştırma, workflow, checkpoint, background job,
-eval, ElevenLabs TTS, webhook ve attachment genişleme noktaları kullanılabilir.
-Tüketici; podcast state'ini, kalite kararının policy'sini, çok konuşmacılı
-üretimi, provider routing'i, Python worker'ını ve entity ilişkisini yazmalıdır.
+hazır olarak sunmaz.** Tüketicinin hattı 13 Ekim itibarıyla çalışan bir
+prototiptir: iki Python script'i, Claude Opus 5.5 ile yazar + ayrı QA
+çağrısı, ElevenLabs Text to Dialogue ve ffmpeg (§ 2.1). 12 makalelik serinin
+yedisi ve v7 QA'dan geçti, yedisi seslendirildi; seri 13 Ekim gecesi koşmaya
+devam ediyordu. Hat bir .NET uygulaması değildir; Tracon'a
+taşınacak olan bu prototipin **düzenidir**, kodu değil.
 
-Önerilen yapı, host'un yönettiği **tenant'a göre ayarlanan bir workflow**'dur.
-Writer agent'ı workflow'un ilk adımıdır; reviewer bu agent'ın harness
-`Loop` ölçütüdür (`aiJudge`). TTS, audio işleme ve domain kaydı deterministic
-fonksiyon düğümleridir. Run başına değişen değerler (dil, ses, süre hedefi)
-workflow parametresidir (Faz 194).
+Önerilen yapı değişmedi: host'un yönettiği, tenant'a göre ayarlanan bir
+workflow. Writer agent'ı ilk adımdır; QA bu agent'ın harness `Loop`
+ölçütüdür; TTS, audio işleme ve domain kaydı deterministic fonksiyon
+düğümleridir; run başına değişenler workflow parametresidir (Faz 194); düğüm
+başına ayar Faz 195 ile geldi.
 
-Bu tüketicide en belirgin Tracon boşlukları şunlardır:
+Ölçüm, boşlukların sırasını değiştirdi. Bu tüketicide en belirgin Tracon
+boşlukları şunlardır:
 
-1. Çok konuşmacılı TTS sözleşmesi ve ElevenLabs dialogue/Gemini TTS adapter'ları
-   yoktur (F-296, F-297).
-2. TTS provider ve credential seçimi voice katmanında tenant bazında değildir
-   (Faz 198, planlandı). Özel sentezleyici kaydı artık ElevenLabs ayarından bağımsızdır
-   (F-336 kapalı); yalnız adla seçim ve kiracı bağlaması eksiktir.
-3. Konsolda function içeren zincirin düzenlenmesi ve fonksiyon düğümü ayarı
-   Faz 195 ile gelir (kodu büyük ölçüde hazır, kapanmadı). Conditional graf
-   kodda kurulur.
-4. Background job retry'si workflow checkpoint'inden kendiliğinden devam etmez
-   (Faz 197, planlandı). Podcast adımlarının kalıcı ilerlemesi ve idempotency'si tüketiciye
-   aittir.
-5. Workflow içindeki TTS/Python function çağrıları kendiliğinden podcast
-   maliyet kaydına dönüşmez (Faz 199, planlandı).
+1. **QA ölçütü veriyle tanımlanamaz.** Tüketicinin QA'sı ayrı bir talimat,
+   kendi JSON şeması (kapsam haritası, kategorili bulgu, replik numarası),
+   kodla hesaplanan ritim istatistiği ve biçim kontrolü, makale sürümü başına
+   saklanan kapsam haritası taşır. Tracon'un `aiJudge` ölçütü yalnız ölçüt
+   listesi ve talimat alır; yargıç sabit bir `{answered, gapAnalysis}`
+   kararı verir ve host'un tek yargıç modelinde koşar (§ 4). Bu QA ancak
+   Faz 201'in kodla kayıtlı reviewer deseniyle (F-301) kurulur.
+2. **Varsayılan süre ve çıktı sınırları ölçülen değerlerin altındadır.**
+   Writer çağrısı 1,2–5,8 dk sürdü ve 48.172 çıktı token'ına çıktı;
+   `AgentGraph.ChildDeadline` 2 dk, Anthropic `DefaultMaxOutputTokens`
+   4.096, `RunTimeout` 10 dk (§ 10). Hepsi kurulumda yükseltilir; agent
+   düğümü başına süre ve tanım başına `RunTimeout` Faz 196'ya (F-405),
+   kesilen çıktı Faz 204'e (F-320) girdi.
+3. **Çok konuşmacılı TTS sözleşmesi yoktur (F-296, Faz 203).** Üretim yolu ElevenLabs
+   `text-to-dialogue/with-timestamps`'tir: istek başına ≤1.900 karakter,
+   `inputs[] {text, voice_id}`, `stability`/`similarity`, giriş başına zaman
+   aralığı (`voice_segments`) ve PCM çıktı. Tracon istemcisi tek ses,
+   `text-to-speech/{voiceId}` ve `eleven_multilingual_v2` varsayılanıyla
+   çalışır (§ 6.1).
+4. **Anthropic `effort`, 1 saatlik önbellek TTL'i ve önbellek yazma fiyatı
+   yoktur (F-346, Faz 204).** Tüketici `effort: high` ve `ttl: 1h` kullanıyor;
+   Tracon yalnız 5 dakikalık üst düzey `cache_control` ve thinking bütçesi
+   yazar; fiyat modelinde önbellek yazma kalemi yoktur (§ 5.1, § 10).
+5. Önceki sıralamadan kalanlar: TTS provider ve credential seçimi tenant
+   bazında değildir (Faz 198); background job retry'si checkpoint'ten devam
+   etmez (Faz 197); fonksiyon düğümünün dış maliyeti run'a girmez (Faz 199);
+   fonksiyon düğümüne süre ve iptal yoktur (Faz 196).
 
-Bunların hepsi aynı tür eksiklik değildir. Provider sözleşmesi ve workflow
-düzenleme yüzeyi genel ürün boşluğudur. `PodcastEpisode` entity'si, MinIO
-policy'si ve audio mastering mantığı tüketicinin domain sorumluluğudur.
+Bunların hepsi aynı tür eksiklik değildir. Ölçüt deseni, sağlayıcı ayarları,
+ses sözleşmesi ve süre sınırları genel ürün boşluğudur. Kapsam haritası
+deposu, ses seviyesi eşitleme, tempo, bölüm işaretleri ve `PodcastEpisode`
+entity'si tüketicinin domain sorumluluğudur.
 
 ## 2. Netleşen ihtiyaç ve açık sınırlar
 
-| Konu | Netleşen gereksinim |
-|---|---|
-| Runtime | .NET 10; Docker deployment |
-| Kiracılık | Multitenant SaaS |
-| Akışın sahibi | Host yönetir; müşteriler workflow kodunu düzenlemez |
-| Tenant farkları | Her müşterinin akışı veya ayarları farklı olabilir |
-| Düzenleme sınırı | Operatör instruction, provider ve script ayarlarını değiştirir **ve audio script'ini canlı yazar**; uygulama ayaktayken günceller (karar, 2026-10-12). Script güvenilmez koddur ve tüketicinin sandbox'ında koşar (§ 7.2) |
-| Kalite kararı | Eşik geçilince otomatik TTS; başarısız transcript sınırlı revizyona döner; insan onayı şimdilik yok |
-| Audio | İki konuşmacı; episode başına 10–20 dakika |
-| Provider ve voice seçimi | Tenant bazında; ElevenLabs ve başka provider'lar, Gemini de değerlendiriliyor |
-| Credential sahipliği | Bütün TTS credential'larını host yönetir; müşteri BYOK ilk kapsamda yoktur |
-| Dil | Türkçe ve İngilizce |
-| Python/audio işlemleri | Segment birleştirme, normalization ve intro/outro |
-| Eşzamanlı üretim | 20'ye kadar |
-| Çıktı | MinIO object'i ve tüketici uygulamasının entity ilişkisi; sonuç kiracı ekranına düşer |
+| Konu | Netleşen gereksinim | Ölçülen (pilot, 12–13 Ekim) |
+|---|---|---|
+| Runtime | .NET 10; Docker deployment (hedef) | Python 3.14 CLI, macOS, `.venv`; iki script, 874 satır; .NET uygulaması yok |
+| Kiracılık | Multitenant SaaS | Tek müşteri (OYAK), 12 makalelik seri; kiracı kavramı yok |
+| Akışın sahibi | Host yönetir; müşteriler workflow kodunu düzenlemez | Operatör = geliştirici; talimat dosyaları sürümlü ve hash'li |
+| Tenant farkları | Her müşterinin akışı veya ayarları farklı olabilir | Tek profil; `--metadata` ile rol/seviye |
+| Düzenleme sınırı | Operatör instruction, provider ve script ayarlarını değiştirir **ve audio script'ini canlı yazar**; uygulama ayaktayken günceller (karar, 2026-10-12). Script güvenilmez koddur ve tüketicinin sandbox'ında koşar (§ 7.2) | Üç talimat dosyası + `elevenlabs_config.json` + iki script; sandbox yok |
+| Kalite kararı | Eşik geçilince otomatik TTS; başarısız transcript sınırlı revizyona döner; insan onayı şimdilik yok | Ayrı QA çağrısı; en çok 3 tur; serinin tamamlanan yedi koşumunun üçü 3 tur, dördü 2 tur gerektirdi; dinleme pipeline dışında |
+| Audio | İki konuşmacı; episode başına 10–20 dakika | Ayşe + Mert (sabit kütüphane sesleri); 9,9–11,6 dk (1,15×), v7'de 16,5 dk; master plan 20–35 dk bekliyordu |
+| Provider ve voice seçimi | Tenant bazında; ElevenLabs ve başka provider'lar, Gemini de değerlendiriliyor | Yalnız ElevenLabs `eleven_v4` Text to Dialogue; Gemini kullanılmadı |
+| Credential sahipliği | Bütün TTS credential'larını host yönetir; müşteri BYOK ilk kapsamda yoktur | Anahtarlar repo kökünde `.env` (git dışı) |
+| Dil | Türkçe ve İngilizce | Yalnız Türkçe |
+| Python/audio işlemleri | Segment birleştirme, normalization ve intro/outro | Birleştirme, konuşmacı başına sabit kazanç (−18 LUFS), 1,15× tempo, bölüm işaretleri; intro/outro ve müzik **yok** (Master 1.10) |
+| Eşzamanlı üretim | 20'ye kadar | Elle 3 paralel script koşumu + 1 ses koşumu |
+| Çıktı | MinIO object'i ve tüketici uygulamasının entity ilişkisi; sonuç kiracı ekranına düşer | Yerel disk: `runs/<ad>/` ve `audio/<ad>/`; `run.json` sürüm kaydı |
 
-Kabul kriterleri, revizyon sayısı, completion süresi hedefi ve normalization
-parametreleri henüz netleşmedi. Bir içerik için iki dilde ayrı episode üretimi
-ile seçilen tek dilde üretim arasındaki ürün kuralı da açık. Bu belge bu
+Kabul kriterleri ve completion süresi hedefi henüz netleşmedi; revizyon sayısı
+pilotta 3'tür. İki dilde üretim kuralı açık; pilot yalnız Türkçe. Bu belge bu
 konular için kesin değer atamaz.
+
+### 2.1 Tüketicinin bugünkü hattı
+
+Hat iki script'tir. `generate_script.py` makaleyi yazar talimatıyla Claude'a
+verir, çıktıyı kodla denetler, ayrı bir QA çağrısı yapar ve en çok üç tur
+döner. `render_elevenlabs.py` QA'dan geçen script'i parçalar, ElevenLabs
+Text to Dialogue ile seslendirir, parçaları birleştirir ve MP3'e yazar.
+Kaynak: `Podcast/pipeline/generate_script.py`, `Podcast/pipeline/render_elevenlabs.py`,
+`Podcast/Podcast Master Decisions.md` (sürüm 2.0).
+
+```mermaid
+flowchart TD
+    ART["Makale (.md, 8,5–17K karakter) + metadata"] --> GEN["Claude Opus 5.5, effort high<br/>system = yazar talimatı (1h cache)<br/>JSON şema çıktısı, max_tokens 128K, streaming"]
+    GEN --> CHK["Kod: check_script (id sırası, bölüm eşleşmesi,<br/>etiket yasağı, destek girişi kuralları) + rhythm_stats"]
+    CHK --> QA["Claude Opus 5.5, QA talimatı<br/>girdi: makale + script + rhythm_stats + format_check<br/>+ coverage_map + previous_findings + changed_turns"]
+    QA -->|"fail, tur < 3"| GEN
+    QA -->|"fail, tur = 3"| STOP["Durdu; run.json 'QA geçmedi'"]
+    QA -->|"pass: harita tam, fail yok, biçim temiz"| SCRIPT["<ad>_script.json (+ okunur .md)"]
+    QA -. "ilk koşumda" .-> MAP["coverage_maps/<makale sha>.json<br/>(makale sürümü başına bir kez)"]
+    SCRIPT --> CHUNK["Parçalama: ≤1.900 karakter, bölüm sınırında yumuşak kesme"]
+    CHUNK --> TTS["ElevenLabs text-to-dialogue/with-timestamps<br/>eleven_v4, inputs[]{text, voice_id}, pcm_24000<br/>delivery_cue → etiket ([slows down], [subtly amused]…)"]
+    TTS --> PART["part_NN.pcm + part_NN.json (voice_segments)<br/>yeniden koşumda yeniden kullanılır"]
+    PART --> ASM["Birleştirme: 150 ms parça arası, 800 ms bölüm arası es"]
+    ASM --> LVL["ffmpeg: konuşmacı başına integrated LUFS → sabit kazanç → −18 LUFS, alimiter"]
+    LVL --> MP3["atempo 1.15 → MP3 128k + FFMETADATA bölüm işaretleri"]
+    MP3 --> RUN["run.json: script sha, talimat sha'ları, model, sesler, cue_tags, leveling, parçalar"]
+```
+
+Üç talimat dosyası üç ayrı sorumluluktur: yazar talimatı (plan + diyalog,
+`delivery_cue` ve `example_change` alanları, bölüm 10 revizyon kuralı), QA
+talimatı (kapsam haritası, 17 `fail` ve 3 `note` kategorisi, geçme koşulu),
+ses talimatı (akustik tanım, `delivery_cue` anlamları, motor yeteneğine göre
+davranış). Script'e motor etiketi yazılmaz; adapter `delivery_cue`'yu
+`elevenlabs_config.json` içindeki `cue_tags` ile motor etiketine çevirir ve
+`section_end`/`key_point` için yalnız son cümleyi ayrı girdi olarak gönderir.
+Bu ayrım § 8.1'in "topology kodda, farklar veride" önerisiyle örtüşür.
+
+Tracon karşılığı: yazar talimatı → stored agent definition'ı (`ResponseFormat =
+JsonSchema`, `{{metadata}}` parametresi, makale belge kanalıyla); QA → `Loop`
+ölçütü (§ 4); `check_script` → `IStructuredResponseValidator` ya da ölçütün
+deterministic ön adımı; parçalama, TTS, birleştirme, seviye, tempo ve MP3 →
+fonksiyon düğümleri (ayarları Faz 195 düğüm ayarı); `run.json` → run kaydı +
+agent sürümü + Faz 199/200.
+
+### 2.2 Ölçüm
+
+Kaynak: `Podcast/Pilot/runs/*/steps.json`, `run.json`; `Podcast/Pilot/audio/*/run.json`;
+dosya zaman damgaları. Fiyat tüketicinin script'indeki sabitlerdir (Opus 5.5:
+girdi $4, çıktı $20, önbellek okuma $0,20, 1 saatlik önbellek yazma $8 / 1M
+token). Süreler tek koşumdan değil, aynı dakikada başlatılan üç paralel
+koşumdan gelir.
+
+| Ölçü | Değer |
+|---|---|
+| Script koşumu | 11 (8 tamamlandı, 3 sürüyor); 42 model çağrısı; toplam $17,12 |
+| Tur sayısı | Seride 2, 2, 2, 2, 3, 3, 3; v7'de 2 (pilot sınırı 3; hiçbiri tavana çarpmadı) |
+| Makale başına script + QA maliyeti | $1,50–$2,54 (8,5–9,6K karakterlik makale); $2,18 (17K, v7) |
+| Writer çağrısı çıktı token'ı | 10.812–48.172; ilk turda 22.232–37.758 (seri), 48.172 (v7); thinking dahil |
+| Writer çağrısı süresi | 1,2–5,8 dk; ilk tur 3,7–5,8 dk |
+| QA çağrısı çıktı token'ı | 2.059–16.339 |
+| QA çağrısı süresi | 0,4–2,4 dk |
+| Script aşaması toplam süresi | 10–14 dk (2–3 tur) |
+| Çıktı token'ının maliyet payı | 707.152 token = $14,14; toplamın %83'ü |
+| Önbellek | Sistem talimatı 8.443 (yazar) + 5.683 (QA) token; 1h TTL; 42 çağrının 38'i okudu; iki koşum yazdı (toplam $0,23) |
+| Kapsam haritası | 27–57 madde; makale sha'sı başına bir dosya; revizyon turlarında yeniden kullanılır |
+| Script | 38–52 replik; 10.208–11.881 konuşma karakteri (v7: 17.143); 5–7 destek girişi; 7–8 bölüm |
+| ElevenLabs istekleri | Episode başına 7–9 parça; parça 57–124 sn ses; yedi koşumda hepsi ilk denemede |
+| Ses aşaması süresi | 2,3–2,9 dk (7–9 sıralı istek, ~20 sn/istek) |
+| Ham ses | 683,6–801,9 sn 24 kHz PCM; 1,15× sonrası 594,5–697,3 sn (9,9–11,6 dk) |
+| Dosya boyutu | PCM parçası 3,5–5,9 MB; WAV 32,8 MB; MP3 (128k) 9,5 MB |
+| ElevenLabs karakteri | ~10,2–11,1K konuşma karakteri + etiketler; liste fiyatıyla ($0,08/1K) ~$0,85 |
+| Seviye eşitleme | Yedi koşumda Ayşe −14,2…−14,5 LUFS, Mert −20,2…−20,5 LUFS; −18 hedefine −3,5…−3,9 / +2,2…+2,5 dB kazanç; sesler koşumdan koşuma kararlı |
+| Episode başına toplam | ~$2,5–3,5 (script + QA + ses); 12 makale için ~$30–42 (hesap) |
+
+Bu sayılar § 10'daki Tracon varsayılanlarıyla karşılaştırılır.
 
 ## 3. Mevcut yeteneklerin karşılığı
 
 | İhtiyaç | Mevcut karşılık | Tüketicinin yazacağı bölüm / sınır |
 |---|---|---|
 | İçerikten senaryo üretmek | Agent definition; instruction, model, skill ve sürüm seçimi; `{{param}}` ile talimata bağlanan parametre | Podcast transcript schema'sı, kaynak referansları ve süre hedefi |
-| Reviewer ile revizyon döngüsü | Harness `Loop` + `aiJudge` ölçütü; `MaxIterations`; tavanda ve ölçüt hatasında run düşer (`OnExhausted`, `OnCriterionError`, Faz 192) | Rubric, structured verdict ve kabul policy'si; ayrı reviewer agent'ı istenirse ölçüt fabrikası (Faz 201) |
+| Reviewer ile revizyon döngüsü | Harness `Loop`; `MaxIterations`; tavanda ve ölçüt hatasında run düşer (`OnExhausted`, `OnCriterionError`, Faz 192); `aiJudge` yalnız ölçüt listesi + talimat alır, sabit karar verir | Tüketicinin QA'sı (kendi şeması, kod ön kontrolü, kapsam haritası) ancak kodla kayıtlı ölçütle kurulur: Faz 201 reviewer deseni (F-301); onay izi F-411 |
 | Eval ile kaliteyi izlemek | Eval suite, online judge, run score ve experiment | Üretim öncesindeki blocking gate workflow'un kendisidir |
 | Tek voice ile ElevenLabs TTS | `Tracon.Voice`, `ISpeechSynthesizer`, `SpeechRequest` | Segmentleme ve episode assembly hazır değildir |
-| İki konuşmacı | Tek voice çağrılarını sırayla birleştirmek mümkündür | Native dialogue çağrısı mevcut adapter'da yoktur (F-296) |
+| İki konuşmacı | Tek voice çağrılarını sırayla birleştirmek mümkündür | Üretim yolu Text to Dialogue'dur (ölçüldü: episode başına 7–8 istek, giriş başına zaman aralığı); mevcut adapter'da yoktur (F-296) |
 | Gemini TTS | `Tracon.Google` model provider'ı vardır; `Google.GenAI` 1.16.0 `MultiSpeakerVoiceConfig` taşır | Gemini TTS adapter'ı yoktur (F-297) |
 | Tenant bazlı TTS/voice seçimi | Tüketici kendi `ISpeechSynthesizer`'ını `UseVoice()`'tan önce kaydeder; ElevenLabs ayarı gerekmez (F-336) | Adla seçim, kiracı bağlaması ve egress denetimi yoktur (Faz 198); fonksiyon düğümünde keyed servis |
 | Türkçe ve İngilizce | Agent instruction culture'ı ve `SpeechRequest.LanguageCode` | Her dialogue adapter'ının dil desteği, pronunciation ve iki dilde kalite kabulü doğrulanır |
 | Python | Opt-in skill script runner; ayrı OS process'i | Python image/dependency yönetimi ve OS izolasyonu host'a aittir |
-| Zorunlu audio adımları | `AddWorkflowFunction<TInput,TOutput>`; fonksiyon run parametrelerini `context.GetRunParameters()` ile okur (Faz 194) | Hazır script'i çağıran worker client ve artifact protokolü; düğüm başına ayar Faz 195 |
+| Zorunlu audio adımları | `AddWorkflowFunction<TInput,TOutput,TSettings>`; düğüm başına tipli ayar (Faz 195); fonksiyon run parametrelerini `context.GetRunParameters()` ile okur (Faz 194) | Hazır script'i çağıran worker client ve artifact protokolü; tüketicinin `elevenlabs_config.json` ve `cue_tags` değerleri düğüm ayarı olur |
 | Tenant bazlı workflow | Tenant'a göre saklanan workflow definition'ları; run başına parametre; tenant içeren agent cache anahtarı | Host yönetim yetkileri, template/profile sistemi ve tenant provisioning |
-| Workflow'u değiştirmek | Sequential agent/function `Nodes` API'si; beş hazır pattern | Konsol zinciri ve ayarı Faz 195 ile düzenler; serbest conditional graf kodda |
+| Workflow'u değiştirmek | Sequential agent/function `Nodes` API'si; beş hazır pattern; konsol zinciri ve düğüm ayarını düzenler (Faz 195, kapandı) | Serbest conditional graf kodda; ayar alanı JSON metnidir, şemadan form değil (F-412) |
 | Kalıcı çalıştırma | SQL store, checkpoint, background job lease/retry; kira dolumu deneme sayılır (F-326) | İş adımı recovery'si, side effect ledger'ı ve sürüm snapshot'ı |
 | MinIO | `IAttachmentStorage` ile dış storage; retention baytı siler (F-332) | Hazır MinIO adapter'ı yoktur |
 | Entity ilişkisi | Code function veya custom `IJobHandler` | Tüketicinin domain service'i ve DB transaction'ı |
@@ -120,8 +220,7 @@ sınırlanması workflow kuralıdır.
 
 **Harness**, bir agent invocation'ının çalışma düzenini belirler. Context
 yönetimi, tool kullanımı, iteration sınırı ve agent'ın tekrar çağrılması
-harness konusudur. `HarnessSettings.Loop` revizyon döngüsüdür: reviewer bir
-döngü ölçütüdür (`aiJudge`; ölçüt ve talimatı operatör düzenler), revizyon
+harness konusudur. `HarnessSettings.Loop` revizyon döngüsüdür: revizyon
 sayısı `LoopSettings.MaxIterations`'tır, geri bildirim sonraki iterasyona
 taşınır. Faz 192'den beri loop tavana ulaşınca ya da ölçüt hata verince run
 **düşer** (`OnExhausted`, `OnCriterionError`); onaylanmamış metin TTS'e
@@ -130,6 +229,31 @@ birlikte kullanılabilir; doğrulayıcı son asistan mesajını doğrular (F-329
 Kaynak: [HarnessSettings](../../../src/Tracon.Abstractions/Agents/HarnessSettings.cs),
 [LoopSettings](../../../src/Tracon.Abstractions/Agents/LoopSettings.cs),
 [LoopEvaluatorRegistry](../../../src/Tracon.Core/Compilation/LoopEvaluatorRegistry.cs).
+
+**`aiJudge` ölçütü tüketicinin QA'sını taşımaz** (2026-10-13 ölçümü).
+Veriyle tanımlı ölçüt yalnız `JudgeCriteria` ve `JudgeInstructions` alır
+([LoopCriterion](../../../src/Tracon.Abstractions/Agents/LoopCriterion.cs)).
+MAF 1.20.0'ın `AIJudgeLoopEvaluator`'ı yargıca ilk mesajları (makale belge
+kanalından gelir) ve son yanıtı verir, sabit bir `JudgeVerdict {Answered,
+GapAnalysis}` ister ve geri bildirimi bu metinden şablonla üretir; sonraki
+iterasyon aynı oturumdan devam eder ve yalnız geri bildirimi yeni girdi olarak
+alır. Yargıç modeli tanımda değil host bağlamasındadır (`AddModelRunJudge`,
+`LoopEvaluatorRegistry.cs:350-357`); yargıcın kullanımı run'a ayrı yazılır
+(`SideChannelUsageTrackingChatClient.ForLoopJudge`). Tüketicinin QA'sı ise
+kendi şemasını (kapsam durumu, kategori, `turn_ids`, `fix`), kodla hesaplanan
+`rhythm_stats` ve `format_check` girdilerini, makale sürümü başına saklanan
+kapsam haritasını ve revizyon turunda değişen replik listesini ister. Bu
+desen MAF'ın `LoopContext`'i ile kurulabilir (`InitialMessages`,
+`LastResponse`, `Feedback`, run başına `AdditionalProperties`), ama yalnız
+**kodla kayıtlı** bir ölçütle: Faz 201'in `AddLoopEvaluator(kind, fabrika)`
+reviewer deseni (F-301). O gelene kadar QA bir fonksiyon düğümü ya da
+tüketicinin kendi `IJobHandler`'ıdır; `aiJudge` yalnız serbest metinli bir
+kalite kapısı olarak uygundur.
+
+Loop'un çıktısı yalnız son yanıttır (`NonStreamingReturnsLastResponseOnly =
+true`, `LoopEvaluatorRegistry.cs:277`); keşif kaydının "TTS düğümüne bütün
+taslaklar gider" endişesi (ham liste #14) Loop'lu agent için geçersizdir.
+Loop'suz agent adımı yanıtın bütün mesajlarını iletir (F-324).
 
 Aşağıdaki diagram önerilen tüketici akışını gösterir. Hazır bir Tracon
 template'i değildir.
@@ -160,9 +284,16 @@ Kaynak: [WorkflowNodeReference](../../../src/Tracon.Abstractions/Workflows/Workf
 
 Agent adımı bir **katılımcıdır** (`ChildAgentInvoker`, `ChildRefusalMode.Fail`):
 `AgentGraph.ChildDeadline` (2 dk) aşımı, ağaç bütçesi reddi veya tool onayı
-isteği run'ı `Failed` bitirir (K-887). Uzun transcript üreten writer için
-`ChildDeadline` kurulum geneli yükseltilir. Fonksiyon düğümü süresi Faz 196'dır
-(planlandı); agent düğümü süresi F-405.
+isteği run'ı `Failed` bitirir (K-887). **Ölçülen writer çağrısı 1,2–5,8 dk,
+ilk tur 3,7–5,8 dk** (§ 2.2); 2 dakikalık varsayılan bu adımı her koşumda
+düşürür. `ChildDeadline` kurulum geneli yükseltilir ve bu değer alt agent'lar
+için de geçerli olur. Üç turlu loop tek agent adımıdır ve `ChildDeadline`
+loop'un tamamını kapsar: 14 dakikalık script aşaması için sınır 20 dakikanın
+üstünde olmalıdır. Fonksiyon düğümü süresi Faz 196'dır (planlandı); agent
+düğümü başına süre F-405. Adım akışlı koşar (`WorkflowAgentStepExecutor.cs:39`,
+`RunStreamingAsync`); yapılandırılmış yanıt onarımı akışlı yolda koşmaz
+(`StructuredResponseValidatingAgent.cs:78-85`), bu yüzden şema doğrulaması
+ilk fonksiyon düğümünde tekrarlanır (§ 5.1).
 
 ## 5. Transcript kalitesi ve eval
 
@@ -178,17 +309,22 @@ Aksi hâlde reviewer, kaynakta olmayan ama akıcı yazılmış bilgiyi iyi
 puanlayabilir. Writer ve reviewer'a TTS, upload veya DB yazma tool'u vermek
 gerekmez. Yan etkileri workflow'un fonksiyon düğümleri başlatır.
 
-| Kontrol | Uygun mekanizma |
-|---|---|
-| Schema, boş segment, bilinmeyen speaker, iki speaker şartı | `IStructuredResponseValidator` (oturumsuz, akışsız run) ve ilk fonksiyon düğümü |
-| Hedef uzunluk ve segment büyüklüğü | Kelime/karakter kontrolü; audio sonrasında gerçek süre ölçümü |
-| Kaynağa bağlılık ve önemli bilgilerin korunması | `aiJudge` ölçütü ve kaynak referansı doğrulaması |
-| Doğallık, tekrar, geçiş ve iki speaker dengesi | Reviewer rubric'i (`JudgeCriteria`, `JudgeInstructions`) |
-| Kabul, revizyon veya ret | `Loop.MaxIterations` + `OnExhausted = Fail` |
+| Kontrol | Tüketicide bugün | Tracon'da uygun mekanizma |
+|---|---|---|
+| Schema, replik sırası, bölüm eşleşmesi, etiket yasağı, destek girişi kuralları, `section_end`/`key_point` kuralları | `check_script` (kod, QA'dan önce; sonucu QA'ya `<format_check>` olarak gider) | `IStructuredResponseValidator` (oturumsuz, akışsız run) ve ilk fonksiyon düğümü; Loop içinde ölçütün deterministic ön adımı (Faz 201) |
+| Ritim: katkı uzunluğu bantları, en uzun katkı, destek girişi tekrarı | `rhythm_stats` (kod; QA'ya `<rhythm_stats>` olarak gider) | Ölçüt fabrikasının kodla hesapladığı ek girdi (Faz 201); `aiJudge` bunu alamaz |
+| Kaynağa bağlılık: kapsam haritası (27–57 madde), `covered/partial/distorted/missing`, `new_claim` | QA çağrısı; harita makale sha'sı başına bir kez çıkar ve saklanır | Reviewer agent'ı kendi şemasıyla (F-301); harita tüketici deposunda, run içinde `LoopContext.AdditionalProperties` |
+| Doğallık, rol deseni, mizah, hitap, yazı dili, bölüm geçişleri, kapanış | QA'nın 17 `fail` + 3 `note` kategorisi | Aynı reviewer agent'ı; `JudgeCriteria` serbest metni bu ayrımı taşımaz |
+| Revizyon turunda yalnız değişen replikleri tam denetlemek | `<previous_findings>` + `<changed_turns>` | Ölçüt `LoopContext.Feedback` ve `LastResponse` farkından hesaplar (Faz 201) |
+| Kabul, revizyon veya ret | `pass` + harita tam + `fail` yok + biçim temiz; en çok 3 tur | `Loop.MaxIterations = 3` + `OnExhausted = Fail` |
 
-Verdict; boyutlara göre score, kritik ihlal listesi ve somut revision
-feedback'i taşımalıdır. Kabul policy'si yalnız ortalama score'a bakmamalıdır.
-Kaynak uydurma gibi kritik bir ihlal, yüksek doğallık score'uyla kapanmamalıdır.
+Tüketicinin verdict'i bu belgenin önceki sürümünün istediği biçimdedir:
+kapsam durumu madde madde, kritik ihlal (`fail`) ile cilalama (`note`) ayrı,
+her bulguda uygulanabilir `fix`. Kabul yalnız ortalama score'a bakmaz; tek
+`missing_content` ya da `new_claim` script'i geri döndürür. Bu desen
+korunmalıdır. Pilotta yazar ve QA aynı modeldir (Opus 5.5, `effort: high`);
+Tracon'da `aiJudge` host'un tek yargıç modelinde koşar, reviewer agent'ı ise
+kendi bağlamasını taşır (Faz 201).
 
 `MaxIterations`, minimum score'lar ve kritik ihlaller tenant profiline ve run
 parametresine bağlanabilir; host alt/üst sınırları kodda belirler. Limit
@@ -197,6 +333,21 @@ dolunca run `Failed` biter ve hata sınıfı `LoopUnsatisfied` olur; domain bunu
 failure'dır (`OnCriterionError`); aynı retry policy'si iki duruma
 uygulanmamalıdır. Yargıcın model çağrısı run usage'ına kendi modelinin
 fiyatıyla girer (F-349) ve kiracının egress politikasına uyar (K-874).
+
+Yazar çağrısının sağlayıcı ayarları da ölçüldü: `effort: high`,
+`max_tokens: 128000`, akışlı istek, sistem talimatında `cache_control`
+`ttl: 1h`, `server-side-fallback` beta'sı ile `fallbacks: default`.
+Tracon'un Anthropic sağlayıcısı `anthropic.promptCaching` (üst düzey
+`ephemeral`, 5 dk) ve `anthropic.thinking.budgetTokens` dışında ayar
+tanımaz; `effort` ve `ttl` F-346'dır. SDK 12.39.0 bunları taşır
+(`OutputConfig.Effort`, `Ttl.Ttl1h`). Yapılandırılmış çıktı için SDK'nın
+`AsIChatClient` uyarlayıcısı şemayı TypeScript/Python SDK'larla aynı beyaz
+listeyle dönüştürür (`JsonSchemaTransformCache`; `enum` korunur);
+tüketicinin `anyOf`/`null` ve `additionalProperties: false` taşıyan şeması
+bu yoldan canlı doğrulanmadı. Sağlayıcı yedeği Tracon'da `FallbackChatClient`
+ile kurulur; Anthropic'in sunucu tarafı yedeği ayrı bir seçenektir ve ayar
+yüzeyinde yoktur. Kaynak: [AnthropicProviderNames](../../../src/Tracon.Anthropic/AnthropicProviderNames.cs),
+[AnthropicChatClientFactory](../../../src/Tracon.Anthropic/AnthropicChatClientFactory.cs).
 
 ### 5.2 Tracon eval'in işi
 
@@ -228,23 +379,39 @@ tüketici kodudur.
 ### 6.1 Mevcut voice sınırı
 
 `SpeechRequest` bir `Text`, bir `VoiceId`, `ModelId`, `OutputFormat`,
-`LanguageCode` ve timestamp isteği taşır. Speaker listesi veya dialogue turn
-listesi yoktur. ElevenLabs adapter'ı `/v1/text-to-speech/{voiceId}` ailesini
-çağırır. `VoiceOptions.Provider` yalnız `elevenlabs` değerini alır ve yalnız
-yerleşik istemciyi yapılandırır. `ISpeechSynthesizer` artık `ProviderName` ve
+`LanguageCode` ve timestamp isteği taşır. Speaker listesi, dialogue turn
+listesi ve ses ayarı (`stability`, `similarity`) yoktur. ElevenLabs adapter'ı
+`/v1/text-to-speech/{voiceId}` ailesini (`/stream`, `/with-timestamps`)
+çağırır; varsayılan model `eleven_multilingual_v2`, varsayılan çıktı
+`mp3_44100_128`, istek başına 5.000 karakter. `VoiceOptions.Provider` yalnız
+`elevenlabs` değerini alır. `ISpeechSynthesizer` `ProviderName` ve
 `MaxCharactersPerRequest` bildirir; fiyat `Tracon:Pricing:Voice` altında
 `ProviderName` ile okunur (F-336). Kaynak: [SpeechModels](../../../src/Tracon.Abstractions/Voice/SpeechModels.cs),
 [VoiceOptions](../../../src/Tracon.Voice/VoiceOptions.cs),
 [ElevenLabsSpeechClient](../../../src/Tracon.Voice/Internal/ElevenLabsSpeechClient.cs).
 
-Tüketici speaker başına tek voice çağrısı yapıp sonuçları birleştirebilir.
-Ancak karşılıklı konuşmanın prosody'si ve doğal geçişleri ayrıca
-değerlendirilmelidir.
+**Tüketicinin üretim yolu ölçüldü** (`render_elevenlabs.py`): `POST
+/v1/text-to-dialogue/with-timestamps?output_format=pcm_24000`, gövdede
+`model_id: eleven_v4`, `language_code: tr`, `settings {stability: 0.5,
+similarity: 0.75}` ve `inputs[] {text, voice_id}`. Parça sınırı 1.900
+karakterdir ve bölüm sınırında 1.000 karakterden sonra yumuşak kesme yapılır;
+episode başına 7–8 istek atılır, her biri 57–124 sn ses döndürür. Yanıt
+base64 ses ve `voice_segments` (giriş başına başlangıç/bitiş saniyesi) taşır;
+tüketici bu aralıklarla konuşmacı başına ses seviyesi ölçer ve bölüm
+işaretlerini yerleştirir. `delivery_cue` değerleri metnin başına motor etiketi
+olarak eklenir (`[slows down]`, `[very slowly]`, `[subtly amused]`,
+`[laughs]`, `[thoughtfully]`); etiket konuşmacıya göre değişir ve
+`section_end`/`key_point` için yalnız son cümle ayrı giriş olarak gider.
+Tek ses çağrılarını sırayla birleştirmek dinleme testinde "okuyor gibi"
+bulundu ve terk edildi (`Pilot/ElevenLabs_Ses_Kaydi.md`, 9 Ekim).
 
-ElevenLabs Text to Dialogue endpoint'i text/voice çiftleri alır; istek başına
-2.000 karakter altı önerilir, en çok 10 ses. Google Gemini TTS tek istekte en
-çok iki speaker alır; 24 kHz mono 16-bit PCM/WAV döner. Mevcut Tracon
-adapter'ları bunları kullanmaz (F-296, F-297). Kaynak:
+F-296'nın kapsamı bu ölçümle netleşir: konuşmacı-giriş listesi, sağlayıcıdan
+bağımsız ses ayarları, giriş başına zaman aralığı (karakter hizalamasından
+ayrı), PCM/WAV çıktı, yetenek bildirimi (en çok ses, istek başına karakter) ve
+metin içi etiket geçirgenliği. Bölme politikası (bölüm sınırı, yumuşak kesme)
+tüketicide kalabilir; birleştirme ve es ekleme PCM üzerinde kolaydır, MP3
+üzerinde değildir. Google Gemini TTS tek istekte en çok iki speaker alır;
+24 kHz mono 16-bit PCM/WAV döner (F-297); pilot Gemini'yi kullanmadı. Kaynak:
 [ElevenLabs Create dialogue](https://elevenlabs.io/docs/api-reference/text-to-dialogue/convert),
 [Gemini TTS](https://ai.google.dev/gemini-api/docs/speech-generation).
 
@@ -309,6 +476,14 @@ yoktur. Zorunlu medya adımları için fonksiyon düğümü ve ayrı worker öne
 
 ### 7.2 Bu tüketici için önerilen deployment
 
+Bugünkü hat bir geliştirici Mac'inde `.venv/bin/python` ile elle koşar;
+ElevenLabs'e `urllib` ile bağlanır (sistem Python'u CA paketi taşımadığı için
+`truststore` eklendi); `ffmpeg` yoldadır; anahtarlar repo kökündeki `.env`
+dosyasındadır. Sunucuya taşınırken dört şey değişir: anahtar host'un secret
+store'una, script'ler sandbox runner image'ına, `Pilot/runs` ve `Pilot/audio`
+dizinleri kalıcı artifact deposuna, `--resume` ve parça önbelleği kalıcı step
+ledger'ına.
+
 **Audio script'i operatörün canlı yazdığı güvenilmez koddur ve tüketicinin
 sandbox'ında çalışır** (karar, 2026-10-12). Model video raporu § 7.3 ile
 aynıdır: iş başına geçici container (gVisor, Kata veya Firecracker), root
@@ -338,9 +513,9 @@ Orchestration worker ayrı process'te aynı kalıcı queue'yu işler. Workflow
 `tracon.workflow` job'u ile kuyruktan başlatılabilir (bağlantı tutmaz; run
 parametrelerini taşır, Faz 194) ya da host'un kendi `IJobHandler`'ından
 `IWorkflowRunner` ile. Kuyruklu workflow kuyruğa alanın kullanıcı ve etiketlerini
-taşır (F-364 kapandı, K-904); `ProductionId` parametre olarak gider. 🚨 Lane
-koleksiyonları bugün yapılandırmadan bağlanmaz (F-385); worker'ın lane ayarı
-kodda `UseScheduling(o => …)` ile verilir. Kaynak: [scheduling options](../../../src/Tracon.Abstractions/Scheduling/TraconSchedulingOptions.cs),
+taşır (F-364 kapandı, K-904); `ProductionId` parametre olarak gider. Lane
+koleksiyonları 2026-10-13'ten beri `appsettings`'ten okunur (F-385 kapandı);
+sayı olmayan lane bütçesi açılışta düşer. Kaynak: [scheduling options](../../../src/Tracon.Abstractions/Scheduling/TraconSchedulingOptions.cs),
 [custom job handler rehberi](../../../docs-site/src/content/docs/guides/write-your-own-job-handler.md).
 
 Audio worker image'ı Python sürümünü, kilitli dependency set'ini ve gereken
@@ -365,16 +540,18 @@ operatörü yazar.
 
 ### 7.3 Pre-processing ve post-processing
 
-Kesin kapsam **segment birleştirme, normalization ve intro/outro**'dur. TTS
-öncesinde metni/provider girdisini ve mevcut intro/outro asset'lerini
-hazırlama; TTS sonrasında segment'leri sırayla birleştirme, normalization ve
-intro/outro'yu seçilen preset'in işlem sırasıyla uygulama. Asset sürümü ve
-işlem sırası production snapshot'ına girer.
-
-Normalization yöntemi ve hedefi, final codec/sample rate, intro/outro asset
-seçimi ve geçiş biçimi henüz belirlenmedi; bunlar preset'in doğrulanan
-parametreleridir ve Faz 195 ile düğüm ayarı olarak saklanabilir. Arka plan
-müziği ve sessizlik düzenleme genişleme seçenekleridir.
+Ölçülen kapsam intro/outro taşımaz; Master 1.10 "müzik yoktur, çıktı tek ses
+dosyasıdır" der. Bugünkü işlemler sırayla: TTS öncesi `-yor → -yo` dönüşümü
+ve etiket ekleme (konuşmacıya göre); TTS sonrası PCM parçalarını 150 ms
+aralıkla birleştirme, öğretim bölümleri arasına 800 ms es, konuşmacı başına
+integrated LUFS ölçümü (ffmpeg `loudnorm`) ve segment başına sabit kazanç
+(hedef −18 LUFS; dinamik normalizasyon Ayşe'de çatallanma yaptığı için
+kullanılmaz), `alimiter` (0,84), `atempo 1.15`, MP3 128 kbit/s ve FFMETADATA
+bölüm işaretleri. Preset parametreleri `elevenlabs_config.json`'dadır
+(`gap_between_parts_ms`, `section_pause_ms`, `loudness`, `tempo`,
+`mp3_bitrate`, `cue_tags`) ve Faz 195 ile düğüm ayarı olarak saklanabilir;
+Tracon'un konsolu bu ayarı JSON metni olarak gösterir (F-412). Arka plan
+müziği ve intro/outro genişleme seçenekleridir.
 
 Zorunlu script adımı agent'ın kararına bırakılmaz. Workflow belirli script
 sürümünü çalıştırır. Girdi ve çıktı manifest'i, checksum, exit code ve timeout
@@ -408,11 +585,11 @@ taşımaz.
 |---|---|---|
 | Writer/reviewer instruction değiştirmek | Stored agent definition'ları, version history, konsol | Host'a özel tenant/profile eşleme ekranı |
 | Modeli değiştirmek | Agent model binding; kiracı egress ve BYOK | Profile sınırları ve regression doğrulaması |
-| Revizyon sayısı ve yargıç ölçütleri | API ile `Harness.Loop` | Konsol editörü Faz 201 (planlandı) |
-| Hazır script seçmek ve parametre vermek | Fonksiyon düğümü + run parametresi (Faz 194) | Düğüm ayarı ve JSON alanı Faz 195 |
+| Revizyon sayısı ve QA ölçütü | API ile `Harness.Loop`; QA kodla kayıtlı ölçüt (Faz 201) | Konsol Loop editörü Faz 201 (planlandı); QA talimatı reviewer agent'ının stored definition'ı olur |
+| Hazır script seçmek ve parametre vermek | Fonksiyon düğümü + run parametresi (Faz 194) + düğüm ayarı ve konsol JSON alanı (Faz 195) | Şemadan üretilen form F-412 |
 | TTS provider/model/voice seçmek | Tek provider voice ayarı; özel sentezleyici kaydı | Dialogue provider catalog'u ve tenant profile alanları (F-296, Faz 198) |
 | Türkçe/İngilizce ve audio preset seçmek | Instruction culture'ı, `LanguageCode`, run parametresi | Dil/voice uyum kontrolü ve preset formu |
-| Sequential function zincirini değiştirmek | API ile `Nodes`; konsol salt okunur | Konsol düğüm listesi Faz 195 |
+| Sequential function zincirini değiştirmek | API ile `Nodes`; konsol düğüm listesi ve ayarı (Faz 195) | Yapısal değişiklik uyarısı bekleyen run olmadan da çıkar (F-413) |
 | Üretim ilerlemesini görmek | Run tree, node event'leri, job ekranı, webhook'lar | Episode/segment/artifact odaklı görünüm |
 | Ayarı denemek | Agent run, eval ve experiment | Küçük audio preview ve profile denemesi |
 
@@ -499,6 +676,7 @@ edilince tekrar çalışabilir. Kaynak: [job runtime contract](../../../docs-sit
 | MinIO upload bitti; entity transaction'ı başarısız | Mevcut object'ten ilişki adımını yeniden dene |
 | Worker lease'i kayboldu | `MaxAttempts = 1` ise job düşer, yeniden koşmaz; run reconciliation ile kapanır; yeni job tamamlanan adımları atlar |
 | Süreç çöktü; workflow run'ı `Running` kaldı | Reconciliation açıksa `Failed` kapanır ve ret olayı resume'u adlandırır (F-344 kapandı); `POST .../resume` elle (otomatik sürdürme Faz 197) |
+| Writer loop'unun 2. turunda süreç çöktü | Resume agent adımını baştan koşar; tamamlanan tur ve maliyeti kaybolur (tüketicinin `--resume`'u turu korur) |
 | Operatör profile'ı değiştirdi | Eski production snapshot'ını koru; yeni production'a yeni sürümü uygula |
 
 Idempotency key; tenant, production, step/segment ve input/parameter hash'ini
@@ -517,17 +695,30 @@ process'i demek değildir.** Her aşamanın kapasitesi ayrı yönetilir.
 | `TraconSchedulingOptions.MaxAttempts` | 3 | Kira dolumu deneme sayılır |
 | `TraconWorkflowOptions.MaxConcurrentRuns` | 4 | Tenant'lar arasında paylaşılan limit; bekleyen run `Running` görünür, bekleme `RunTimeout`'a sayılır |
 | `TraconWorkflowOptions.RunTimeout` | 10 dakika | Cooperative deadline; aşımda `Canceled` + `TimeoutException`; node'u zorla durdurmaz |
-| `AgentGraph.ChildDeadline` | 2 dakika | Writer adımının sınırı; aşımda run `Failed` |
+| `AgentGraph.ChildDeadline` | 2 dakika | Writer adımının (loop dahil) sınırı; aşımda run `Failed`; ölçülen tur başına 1,2–5,8 dk |
 | `TraconEndpointOptions.StreamKeepAliveInterval` | 15 saniye | SSE akışı; proxy boşta kalma süresinin altında |
 | `VoiceOptions.MaxConcurrentRequests` | 2 | Yerleşik ElevenLabs client'ının limiti |
 | `VoiceOptions.MaxCharactersPerRequest` | 5.000 | Yerleşik client'ın limiti; özel sentezleyici kendi limitini bildirir |
 | `TraconSkillScriptOptions.MaxConcurrentTotal` / `PerTenant` / `Timeout` | 8 / 2 / 30 sn | Yalnız skill script runner; audio worker'a uygulanmaz |
-| `TraconAttachmentOptions.MaxBytes` | 20 MiB | HTTP attachment upload sınırı |
+| `TraconAttachmentOptions.MaxBytes` | 20 MiB | HTTP attachment upload sınırı; ölçülen WAV 32,8 MB bunu aşar, MP3 9,5 MB aşmaz |
 
 Kaynak: [scheduling](../../../src/Tracon.Abstractions/Scheduling/TraconSchedulingOptions.cs),
 [workflow options](../../../src/Tracon.Workflows/TraconWorkflowOptions.cs),
 [voice options](../../../src/Tracon.Voice/VoiceOptions.cs),
 [script/attachment/graph options](../../../src/Tracon.Core/TraconOptions.cs).
+
+Ölçülen değerler varsayılanlarla karşılaştırıldığında (§ 2.2):
+
+| Ölçülen | Değer | Varsayılan | Sonuç |
+|---|---|---|---|
+| Writer çağrısı | 1,2–5,8 dk; üç tur 14 dk | `ChildDeadline` 2 dk | Her koşum `child_run_timeout` ile düşer; en az 20 dk (loop dahil) |
+| Writer çıktısı | 48.172 token (17K makale), 22–38K (8,7K makale) | Anthropic `DefaultMaxOutputTokens` 4.096 | `ModelBinding.MaxOutputTokens` ≥ 64.000 açıkça; kesilen çıktı sınıfı F-320 |
+| Script + ses aşaması | 10–14 dk + 2,5 dk + ffmpeg | `RunTimeout` 10 dk | En az 30 dk; 12 run ve 4 slot ile slot beklemesi de sayıldığından 60 dk, ya da `tracon.workflow` job'u + lane |
+| Tek HTTP çağrısı | ≤ 5,8 dk ölçüldü; 17K makalede ölçülmedi | Anthropic SDK `ClientOptions.Timeout` 10 dk | `AnthropicProviderOptions.Timeout` uzun makale için açıkça verilir |
+| ElevenLabs isteği | 1.900 karakter; 7–8 istek sıralı, ~20 sn | `VoiceOptions.MaxCharactersPerRequest` 5.000; `MaxConcurrentRequests` 2 | Dialogue sözleşmesi kendi sınırını bildirir (F-296) |
+| Final WAV | 32,8 MB; MP3 9,5 MB; PCM parçası ≤ 5,9 MB | `TraconAttachmentOptions.MaxBytes` 20 MiB | WAV Tracon eki olamaz; MP3 ve parçalar olabilir; final dosya tüketicinin deposunda |
+| Önbellek TTL'i | `ttl: 1h`; sistem talimatı 8,4K + 5,7K token | `anthropic.promptCaching` 5 dk | 10 dk arayla gelen koşumlar her seferinde yazar; fark koşum başına ~$0,07 (hesap); F-346 |
+| Önbellek yazma ücreti | $0,23 (toplamın %2'si); 1h TTL'de 2× girdi fiyatı | `ModelDescriptor` yalnız `CachedInputCostPerMillionTokens` (okuma) taşır | Run maliyeti bu kalemi eksik yazar; F-346'ya fiyat alanı eklenir |
 
 Audio süresi ile üretim süresi ayrı ölçüdür. Model, revizyon, TTS, queue ve
 audio işlemlerinin gerçek süresi ölçülür; her network/process adımına kendi
@@ -552,6 +743,12 @@ Codec bitrate/sample format hesabıdır; benchmark değildir:
 kopyaları vardır. Episode'ları bellekte birleştirmek yerine stream/file tabanlı
 artifact akışı önerilir. Kaynak: [SpeechAudio](../../../src/Tracon.Abstractions/Voice/SpeechModels.cs),
 [SQL attachment yazımı](../../../src/Tracon.Sql.Shared/Stores/SqlAttachmentStore.cs).
+
+Ölçülen: 24 kHz PCM parçaları 3,5–5,9 MB, 11–12,5 dakikalık WAV 32,8 MB, MP3
+9,5 MB (§ 2.2). Tüketici ElevenLabs yanıtını base64 JSON olarak alır (parça
+başına ~8 MB gövde) ve PCM'i diske yazar; birleştirme `bytearray` ile bellekte
+yapılır (~36 MB). Bu ölçekte bellek sorun değildir; 20 eşzamanlı üretimde de
+yalnız ~0,7 GB eder.
 
 ## 11. Tüketici implementasyonunun kurulumu
 
@@ -584,20 +781,39 @@ seçer (iletim modu F-324). Kaynak: [WorkflowAgentStepExecutor](../../../src/Tra
 
 ## 12. Tracon ürün boşlukları ve önerilen öncelik
 
-| Öncelik | Genel ürün boşluğu | Tüketiciye etkisi | Durum (2026-10-12) |
+| Öncelik | Genel ürün boşluğu | Ölçülen kanıt (§ 2.2) | Durum (2026-10-13) |
 |---|---|---|---|
-| Yüksek | Dialogue/multi-speaker TTS sözleşmesi ve adapter'ları | İki speaker için kendi TTS katmanını yazması gerekir | F-296, F-297 aday |
-| Yüksek | Tenant/profile bazlı TTS routing ve host credential çözümleme | Farklı provider/voice seçimleri hazır karşılanmaz | Faz 198 planlandı (F-298) |
-| Yüksek | Çalışan production için bütün bağımlılıkların version pinning'i | Instruction değişimi devam eden akışa karışabilir | Faz 200 planlandı (workflow); alt agent ve skill sabiti F-409 aday |
-| Orta | Lane ayarının yapılandırmadan bağlanması | `appsettings`'teki lane bütçesi yok sayılır | F-385 açık; ayar kodda verilir |
-| Orta | Workflow UI'da function node düzenleme ve düğüm ayarı | Operatör zinciri API'den düzenler | Faz 195 (kodu büyük ölçüde hazır) |
-| Orta | Workflow function dış maliyet/usage görünürlüğü | TTS ve audio maliyeti LLM toplamından ayrı kalır | Faz 199 planlandı (F-299) |
-| Orta | Job ile workflow checkpoint recovery entegrasyonu | Custom production recovery yazılır | Faz 197 planlandı (F-318, F-321) |
-| Orta | Fonksiyon düğümüne zaman aşımı ve iptal token'ı | Takılan worker bütün run'ı tutar | Faz 196 planlandı (F-303, F-323) |
-| Düşük | Konsolda `Loop` düzenleme; `AddLoopEvaluator` fabrika | Revizyon sayısı API'den; ayrı reviewer agent'ı DI'a ulaşamaz | Faz 201 planlandı (F-301, F-302) |
-| Düşük | Onay `Loop` ölçütünün denetim izi | Agent onayına geçişte "kim onayladı" sorusu | F-411 aday |
+| Yüksek | Kodla kayıtlı Loop ölçütü: reviewer agent'ı, kendi şeması, deterministic ön adım, run başına durum | QA ayrı talimat + şema + `rhythm_stats` + `format_check` + kapsam haritası; `aiJudge` bunları alamaz (§ 4) | Faz 201 planlandı (F-301, F-302; Faz 203'ten sonra); podcast QA'sı kabul ölçütü; onay izi F-411 aday |
+| Yüksek | Dialogue/multi-speaker TTS sözleşmesi ve adapter'ları | Üretim yolu `text-to-dialogue/with-timestamps`; episode başına 7–8 istek; `voice_segments` seviye ve bölüm işareti için kullanılıyor | Faz 203 planlandı (F-296; Faz 198 ve 201'den önce); F-297 aday |
+| Yüksek | Agent düğümü başına süre; workflow başına `RunTimeout` | Writer 1,2–5,8 dk, loop 14 dk; `ChildDeadline` 2 dk, `RunTimeout` 10 dk | Faz 196 planlandı (fonksiyon düğümü; F-405 ile agent düğümü ve tanım `RunTimeout`'u) |
+| Yüksek | Tenant/profile bazlı TTS routing ve host credential çözümleme | Pilot tek sağlayıcı; SaaS gereksinimi değişmedi | Faz 198 planlandı (F-298) |
+| Orta | Anthropic `effort`, önbellek `ttl: 1h`, önbellek yazma fiyatı | `effort: high`, `ttl: 1h`, yazma $0,23; Tracon 5 dk `ephemeral`, fiyat alanı yok | Faz 204 planlandı (F-346, önbellek yazma fiyatı dahil) |
+| Orta | Kesilen çıktı sınıfı ve `MaxOutputTokens` uyarısı | 48.172 çıktı token'ı; varsayılan 4.096 | Faz 204 planlandı (F-320) |
+| Orta | Çalışan production için bütün bağımlılıkların version pinning'i | `run.json` talimat sha'larını ve model adını tutar; Tracon agent sürümü + Faz 200 | Faz 200 planlandı; F-409 aday |
+| Orta | Workflow function dış maliyet/usage görünürlüğü | ElevenLabs ~$0,85/episode, toplamın ~%25'i | Faz 199 planlandı (F-299) |
+| Orta | Job ile workflow checkpoint recovery entegrasyonu; loop turu düzeyinde resume | `--resume` kaydedilmiş turdan devam eder; Tracon agent adımı loop'u baştan koşar (3 tur ≈ $2,5) | Faz 197 planlandı (F-318, F-321); tur düzeyinde resume ölçülmedi |
+| Orta | Lane ayarının yapılandırmadan bağlanması | — | Kapandı (F-385, 2026-10-13) |
+| Orta | Alt agent harcamasının kiracı kotasına girmesi | Faz 201 reviewer deseni alt run koşar (tur başına 2–16K token) | Kapandı (F-383, K-913, 2026-10-13): kök ağacı sayar |
+| Düşük | Fonksiyon düğümü ayarının şemadan form olması | `elevenlabs_config.json` 15 alan, iç içe nesne | F-412 aday |
+| Düşük | Konsolda `Loop` düzenleme | Revizyon sayısı ve QA ayarı dosyada | Faz 201 (F-302) |
 
-Run başına parametre Faz 194 ile kapandı.
+Faz 194 (run başına parametre) ve Faz 195 (düğüm düzenleme ve ayarı) kapandı.
+
+### 12.1 Tüketici reposunda görülenler
+
+Bunlar Tracon kusuru değildir; taşımadan önce tüketici karar verir.
+
+| Gözlem | Kanıt | Etki |
+|---|---|---|
+| Yazar ve QA aynı model (Opus 5.5, effort high) | `generate_script.py:32-33`, tek `MODEL` sabiti | Yargıç bağımsızlığı yok; Tracon'da reviewer agent'ı ayrı bağlama taşır |
+| Fiyat script'te sabit | `generate_script.py:39` | Fiyat değişince maliyet kaydı bayatlar; Tracon kataloğu fiyatı tanımda tutar |
+| Tek cümle 1.900 karakteri aşarsa süreç `sys.exit` ile düşer | `render_elevenlabs.py:90-91` | Script QA'dan geçtikten sonra ses aşaması kurtarılamaz; cümle uzunluğu `check_script`'e alınmalı |
+| Teknik ses kontrolü buluşsal (`seconds < chars / 40`) | `render_elevenlabs.py:180-189` | Kesik ses yalnız çok kısaysa yakalanır; ses-metin karşılaştırması sonraki faza bırakıldı (Master, Tarihsel Ek) |
+| Kapsam haritası ilk QA çağrısının yan ürünü; paralel koşumlar aynı dosyaya yazabilir | `generate_script.py:413-418`; `coverage_maps/` | Aynı makale iki kez aynı anda koşarsa son yazan kazanır; harita sürümü run kaydına girmeli |
+| `--resume` dosya adlarından tur sayar; `qa_rN.json` eksikse QA'dan devam eder | `generate_script.py:360-372` | İyi bir step ledger'ı örneği; Tracon'da karşılığı yok (yukarıdaki tablo) |
+| Loop'ta çıktı token'ının çoğu thinking | Tur 1'de 22–48K çıktı; script JSON'u 24–36 KB (~9K token) | `effort` ayarı maliyetin en büyük kolu; `effort` olmadan aynı kalite Tracon'dan üretilemez (F-346) |
+| Anahtarlar repo kökünde `.env` | `.gitignore` dışarıda tutar | Host'a geçerken secret store'a; K-059 |
+| Pilot makalelerinde tablo çizgileri kaybolmuş | Durum Notu, 12 Ekim | Girdi kalitesi QA'yı değil kapsam haritasını etkiler; makale içe aktarımı tüketicinin işi |
 
 MinIO adapter'ı, mastering preset'leri ve domain entity'leri tüketiciye ait
 kalır. Operatör canlı kod yazdığı için sandbox tüketicinin runner'ındadır
@@ -657,6 +873,13 @@ Bu senaryolar önerilen kabul setidir; bu rapor kapsamında çalıştırılmadı
     güncellenir.
 16. Writer adımı `ChildDeadline`'ı aşar; run `Failed` biter, sonraki düğüm
     koşmaz ve hata türü `child_run_timeout` olur.
+17. Writer çağrısı 6 dakika sürer ve 48K çıktı token'ı üretir; `ChildDeadline`
+    ve `MaxOutputTokens` ayarlı kurulumda run düşmez, çıktı kesilmez.
+18. QA üç turda geçmez; run `Failed` biter, hata sınıfı `LoopUnsatisfied`
+    olur ve üç turun maliyeti (~$2,5) run kaydında görünür.
+19. Aynı makale sürümü için ikinci üretim kapsam haritasını yeniden çıkarmaz.
+20. 12 makale aynı anda kuyruğa verilir; hiçbir run slot beklemesi yüzünden
+    `RunTimeout`'a çarpmaz.
 
 Function node'u model çağrısı yapmadığı için kendi run row'unu ve cost/token
 toplamını oluşturmaz. Dış TTS/audio usage Faz 199 gelene kadar host domain'inde
@@ -669,9 +892,9 @@ kaydedilir. Kaynak:
 |---|---|
 | Her provider için tek host hesabı mı, birden fazla mı? | Credential routing ve account quota paylaşımı |
 | Bir içerikten iki dilde ayrı episode mu, tek dilde mi? | Production sayısı, maliyet, transcript ve artifact ilişkisi |
-| Normalization yöntemi/hedefi, işlem sırası, final format ve intro/outro preset'i | Worker image, timeout, disk ve preset schema'sı (Faz 195 düğüm ayarı) |
-| Kalite rubric'i, eşikler ve `MaxIterations` | Kabul davranışı ve üretim başına maliyet sınırı |
-| 20 production için süre hedefi ve provider quota'sı | Worker sayısı, stage slot'ları ve queue planı |
+| Preset (−18 LUFS, 1,15×, 800 ms es, MP3 128k) kiracı başına değişir mi? | Düğüm ayarı tek mi profil başına mı (Faz 195); worker image ve preset şeması |
+| Kalite rubric'i ve `MaxIterations` (pilot: QA talimatı 2.0, 3 tur) kiracı başına değişir mi? | Kabul davranışı ve üretim başına maliyet sınırı ($1,5–2,5 ölçüldü) |
+| 12 makalelik seri ve sonrası için süre hedefi; ElevenLabs hesap kotası (creator planı 181K karakter/ay, 12 Ekim'de 97K kullanılmış) | Worker sayısı, stage slot'ları ve queue planı |
 | Farklı tenant akışı parametre farkı mı, topology farkı mı? | Ortak template + parametre/ayar yeterliliği veya birden fazla code template |
 | DB seçimi ve domain transaction sınırı | Store paketi, outbox/reconciliation implementasyonu |
 | Audio/ham segment saklama süreleri | Retention, storage maliyeti ve partial regeneration |
@@ -680,8 +903,15 @@ kaydedilir. Kaynak:
 2026-10-12'de cevaplananlar: audio script'ini operatör canlı yazar ve host'un
 sandbox runner'ında koşar (§ 7.2); K2 gevşetilmez; insan onayı eklenirse `Loop`
 ölçütü olarak gelir (video raporu § 15). Bu hatta dokunan altı faz planlandı
-(Faz 196…201); her planın Açık Soruları onay bekler. Aynı günün kusur turunun
-varsayılan kararları (K-903…K-911) de onay bekler.
+(Faz 196…201); her planın Açık Soruları onay bekler. K-903…K-911 commit
+edildi (`842d126a`).
+
+2026-10-13 ölçümünün cevapladıkları: normalization yöntemi konuşmacı başına
+sabit kazanç, hedef −18 LUFS; final format MP3 128 kbit/s, 24 kHz kaynak;
+intro/outro ve müzik yok; işlem sırası § 7.3; revizyon sınırı 3; episode
+süresi 10–17 dk; pilot dili yalnız Türkçe; sağlayıcı yalnız ElevenLabs
+`eleven_v4`. "20 production" hedefi 12 makalelik seri ölçeğinde yeniden ele
+alınır.
 
 Bu açık değerler uygulama tasarımından önce belirlenir. Uyum sonucu bunlara
 rağmen nettir: Tracon kontrol ve çalıştırma altyapısını sağlar; iki

@@ -4889,3 +4889,77 @@ Run satırı doğru görünüyor, alt agent ve tool ise atıfsız koşuyordu.
 - Adım 1: alt run `userId: "ada"`, `labels.team: "red"`.
 - Adım 2: devam run'ı `userId: "ada"`, `labels.team: "red"`; karar isteğindeki başlık yoksa da değişmez.
 - 🚨 Eski kusur: alt run etiketsiz, devam run'ı kullanıcısızdı.
+
+### MT-SEC-215 — Yalnız `Tracon:Egress` ayarıyla özel ağdaki webhook alıcısına teslim (kusur-giderme, 2026-10-13, F-388)
+
+| | |
+|---|---|
+| **İzlek** | B |
+| **Önem** | Orta |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | — |
+| **Devir** | ➜ CI: `WebhookDeliveryEgressOptionTests.The_registered_handler_honors_the_egress_private_network_setting` |
+
+Regresyon. Teslim handler'ının DI fabrikası egress seçeneğini geçirmiyordu.
+Abonelik kaydı ayarı okuyordu, teslim okumuyordu; her teslim `Dropped` oldu.
+
+**Ön koşul** — Örnek uygulama; `Tracon__Egress__AllowPrivateNetworkTargets=true`; `Tracon__Webhooks__AllowPrivateNetworkTargets` ayarsız; aynı makinede `127.0.0.1` üzerinde dinleyen bir HTTPS alıcısı (MT-SEC-210 deseni).
+
+**Adımlar**
+1. `run.completed` için alıcıya bir abonelik kaydet.
+2. Bir agent run'ı koş; `GET $APU/api/webhooks/{name}/deliveries` ile teslimi izle.
+
+**Beklenen sonuç**
+- Teslim `Delivered`; alıcı tek istek alır.
+- 🚨 Eski kusur: teslim `Dropped`, hata metni zaten açık olan `Tracon:Egress:AllowPrivateNetworkTargets` ayarını öneriyordu.
+
+### MT-SEC-216 — Görsel üretimi kiracının egress politikasına ve kendi anahtarına tabidir (kusur-giderme, 2026-10-13, F-384)
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | K-912 |
+| **Devir** | ➜ CI: `ImageTenantPolicyTests` (dört test: uç ret, uç izin, bağlamalı kiracı, tool ret) |
+
+Regresyon. `generate_image` ve `POST /api/images/generate` kurulum geneli
+üreticiyi çağırıyordu; kiracının politikası ve anahtarı okunmuyordu.
+
+**Ön koşul** — Örnek uygulama; görsel üretimi açık (`Tracon__Images__Enabled=true`, sağlayıcı `openai`); `default` kiracısı için yalnız `anthropic`'e izin veren egress politikası (`PUT $APU/api/tenants/default/egress`).
+
+**Adımlar**
+1. `POST $APU/api/images/generate` (`{"prompt":"a lighthouse"}`).
+2. Politikaya `openai`'yi ekle; adım 1'i tekrarla.
+3. Kiracıya `openai` için sağlayıcı bağlaması kaydet; adım 1'i tekrarla.
+
+**Beklenen sonuç**
+- Adım 1: `403`, metin `'openai'` sağlayıcısını adlandırır; sağlayıcıya istek gitmez.
+- Adım 2: `200` ve ek kimliği.
+- Adım 3: `403`; görsel kurulum anahtarıyla üretilmez.
+- 🚨 Eski kusur: üç adım da `200` verdi; kiracının istemi yasak sağlayıcıya gitti.
+
+### MT-SEC-217 — `UseOpenAICompatible` sağlayıcısında kiracı uç noktası egress denetiminden geçer (kusur-giderme, 2026-10-13, F-388 sınıf taraması)
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | — |
+| **Devir** | ➜ CI: `OpenAICompatibleTenantEndpointGuardTests.A_tenant_endpoint_on_a_compatible_provider_is_checked_by_the_egress_guard` |
+
+Regresyon. `UseOpenAICompatible()` fabrikası sağlayıcıyı egress denetimi
+olmadan kuruyordu. Kayıt yolu yalnız IP literal'ini denetler; özel adrese
+çözülen bir ana bilgisayar adı hiç denetlenmedi.
+
+**Ön koşul** — Örnek uygulama; `UseOpenAICompatible("openrouter", …)`; `Tracon__Egress__AllowPrivateNetworkTargets` ayarsız; `/etc/hosts`'ta `intranet.test` → `10.0.0.5`.
+
+**Adımlar**
+1. `default` kiracısına `openrouter` için `endpoint: https://intranet.test/v1` taşıyan bir sağlayıcı bağlaması kaydet.
+2. Bu sağlayıcıyı kullanan bir agent'ı koş.
+
+**Beklenen sonuç**
+- Kayıt `200` döner (ad, IP literal'i değildir).
+- Run `Failed`; hata `AllowPrivateNetworkTargets` ayarını adlandırır; `10.0.0.5`'e bağlantı açılmaz.
+- 🚨 Eski kusur: istek ve kiracının anahtarı `10.0.0.5`'e gitti.

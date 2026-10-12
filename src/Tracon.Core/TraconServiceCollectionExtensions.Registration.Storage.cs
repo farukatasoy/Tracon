@@ -111,7 +111,14 @@ public static partial class TraconServiceCollectionExtensions
         // the conditional generate_image tool or its optional HTTP endpoint exists.
         services.TryAddSingleton<ImagePricing>();
         services.TryAddSingleton<ImageAttachmentWriter>();
-        services.TryAddSingleton<ImageGeneratorResolver>();
+        // F-384: explicit factory, so the tenant's provider checks reach the
+        // resolver by construction rather than by optional-parameter activation.
+        services.TryAddSingleton(static provider => new ImageGeneratorResolver(
+            provider,
+            provider.GetRequiredService<IOptions<TraconImageOptions>>(),
+            provider.GetService<ITenantEgressPolicyStore>(),
+            provider.GetService<ITenantProviderBindingStore>(),
+            provider.GetService<TenantProviderCredentialResolver>()));
 
         // Workflow definitions and checkpoints. The stores are ALWAYS
         // registered; the execution engine, however, is DISABLED until
@@ -302,6 +309,12 @@ public static partial class TraconServiceCollectionExtensions
                 provider.GetService<IConfiguration>(),
                 provider.GetService<TimeProvider>(),
                 provider.GetService<Microsoft.Extensions.Logging.ILogger<WebhookDeliveryJobHandler>>(),
+
+                // 🚨 F-388: without this the handler checked every delivery
+                // against `new TraconEgressOptions()`, so a host that opened
+                // private targets with `Tracon:Egress:AllowPrivateNetworkTargets`
+                // alone saved the subscription and saw every delivery Dropped.
+                egressOptions: provider.GetService<IOptionsMonitor<TraconEgressOptions>>(),
                 schedulingOptions: provider.GetService<IOptionsMonitor<TraconSchedulingOptions>>()));
 
         // Idempotency-Key support (Phase 43). The store is always registered

@@ -12,6 +12,140 @@ namespace Tracon;
 public sealed partial class RunRecordingAgent
 {
     /// <summary>
+    /// The consumption of a root run's whole call tree: its own usage and cost
+    /// plus those of every child agent run under it.
+    /// </summary>
+    /// <param name="Usage">The tree's tokens; <see langword="null"/> when no run reported any.</param>
+    /// <param name="Cost">The tree's priced cost; <see langword="null"/> when no run was priced.</param>
+    /// <param name="Currency">The currency of <paramref name="Cost"/>.</param>
+    private readonly record struct TreeConsumption(RunUsage? Usage, decimal? Cost, string? Currency);
+
+    /// <summary>
+    /// Reads what a root run's child agent runs consumed and adds it to the
+    /// root's own usage and cost.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A child run never accounts on its own (only a root does, so a
+    /// tree is not counted once per depth), and the root used to write only its
+    /// own usage. The children's tokens and cost reached no quota counter and no
+    /// <c>run.*</c> webhook, so a tenant's quota was exceeded through sub-agents.
+    /// A workflow root already counts its tree (<c>WorkflowRunner.RecordQuotaAsync</c>).
+    /// </para>
+    /// <para>
+    /// The children's totals come from the run store, the same source the
+    /// workflow root and the run detail read. It is read here, BEFORE the
+    /// root's own row closes; whatever the row already holds is subtracted
+    /// from the tree total (a queued run leased again after an earlier attempt
+    /// closed the row keeps that attempt's usage on the row), and the root's
+    /// in-memory usage is added once. The read happens only
+    /// when the tree reserved a child run (<see cref="AgentRunBudget.StartedRuns"/>):
+    /// every child goes through that reservation, and a run without children
+    /// pays no read.
+    /// </para>
+    /// <para>
+    /// A store that cannot answer leaves the root's own consumption, with a
+    /// warning: observability does not break functionality. Costs in two
+    /// different currencies are not added; the root's own cost is kept.
+    /// </para>
+    /// </remarks>
+    private async ValueTask<TreeConsumption> ReadTreeConsumptionAsync(
+        RunScope scope,
+        RunUsage? usage,
+        RunCost? cost,
+        CancellationToken cancellationToken)
+    {
+        var own = new TreeConsumption(
+            usage,
+            cost is { Source: not PricingSource.Unknown } ? cost.Total() : null,
+            cost?.Currency);
+
+        // Nothing reads the tree when neither consumer is registered, and a run
+        // without a child reservation has no tree to read.
+        if ((_quotaEnforcer is null && _webhookPublisher is null) || scope.Budget is not { StartedRuns: > 0 })
+        {
+            return own;
+        }
+
+        RunRecord? record;
+
+        try
+        {
+            // Not the caller's token: a cancellation landing here would end the
+            // completion before the quota entry and the terminal write.
+            record = await _runStore.GetRunAsync(scope.RunId, CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception exception) when (OperationCancellation.IsFailure(exception, CancellationToken.None))
+        {
+            _logger.LogWarning(
+                exception,
+                "The child runs of run {RunId} could not be read; its quota entry and webhook count the root only.",
+                scope.RunId);
+
+            return own;
+        }
+
+        if (record is null)
+        {
+            return own;
+        }
+
+        var treeUsage = RunUsageSum.Add(usage, DescendantUsage(record));
+        var childCost = record.TreeCost?.Total() is { } treeTotal
+            ? Math.Max(0m, treeTotal - (record.Cost?.Total() ?? 0m))
+            : (decimal?)null;
+
+        if (childCost is null)
+        {
+            return own with { Usage = treeUsage };
+        }
+
+        if (own.Cost is null)
+        {
+            return new TreeConsumption(treeUsage, childCost, record.TreeCost!.Currency ?? own.Currency);
+        }
+
+        var childCurrency = record.TreeCost!.Currency;
+
+        if (childCurrency is not null && own.Currency is not null &&
+            !string.Equals(childCurrency, own.Currency, StringComparison.OrdinalIgnoreCase))
+        {
+            _logger.LogWarning(
+                "Run {RunId} and its child runs are priced in {Currency} and {ChildCurrency}; the tree cost is not added across currencies.",
+                scope.RunId,
+                own.Currency,
+                childCurrency);
+
+            return own with { Usage = treeUsage };
+        }
+
+        return new TreeConsumption(treeUsage, own.Cost + childCost, own.Currency ?? childCurrency);
+    }
+
+    /// <summary>The tree's tokens minus whatever the root's own row already holds.</summary>
+    /// <param name="record">The root's row, read before it closes.</param>
+    /// <returns>The descendants' tokens, or <see langword="null"/> when the tree reported none.</returns>
+    private static RunUsage? DescendantUsage(RunRecord record)
+    {
+        if (record.TreeUsage is not { } tree)
+        {
+            return null;
+        }
+
+        if (record.Usage is not { } own)
+        {
+            return tree;
+        }
+
+        return new RunUsage
+        {
+            InputTokens = Math.Max(0, (tree.InputTokens ?? 0) - (own.InputTokens ?? 0)),
+            OutputTokens = Math.Max(0, (tree.OutputTokens ?? 0) - (own.OutputTokens ?? 0)),
+            TotalTokens = Math.Max(0, (tree.TotalTokens ?? 0) - (own.TotalTokens ?? 0)),
+        };
+    }
+
+    /// <summary>
     /// Writes the consumption of a completed root run into the quota
     /// counters and, for every threshold newly crossed, appends its notice
     /// into this SAME run's own event stream.
@@ -32,8 +166,7 @@ public sealed partial class RunRecordingAgent
     /// </remarks>
     private async ValueTask RecordQuotaAsync(
         RunScope scope,
-        RunUsage? usage,
-        RunCost? cost,
+        TreeConsumption consumption,
         CancellationToken cancellationToken)
     {
         if (_quotaEnforcer is null)
@@ -47,10 +180,8 @@ public sealed partial class RunRecordingAgent
                 TenantId = scope.TenantId,
                 AgentName = scope.AgentName,
                 Runs = 1,
-                Tokens = usage?.TotalTokens ?? 0,
-                Cost = cost is { Source: not PricingSource.Unknown }
-                    ? cost.Total()
-                    : null,
+                Tokens = consumption.Usage?.TotalTokens ?? 0,
+                Cost = consumption.Cost,
                 OccurredAt = _timeProvider.GetUtcNow(),
                 RunId = scope.RunId.ToString(),
                 UserId = scope.UserId,
@@ -155,8 +286,7 @@ public sealed partial class RunRecordingAgent
     private async ValueTask PublishRunEventAsync(
         RunScope scope,
         RunStatus status,
-        RunUsage? usage,
-        RunCost? cost,
+        TreeConsumption consumption,
         RunError? error,
         TimeSpan elapsed,
         string? modelId,
@@ -196,12 +326,10 @@ public sealed partial class RunRecordingAgent
                     ModelId = modelId,
                     Status = status.ToString(),
                     DurationMs = (long)elapsed.TotalMilliseconds,
-                    InputTokens = usage?.InputTokens,
-                    OutputTokens = usage?.OutputTokens,
-                    Cost = cost is { Source: not PricingSource.Unknown }
-                        ? cost.Total()
-                        : null,
-                    Currency = cost?.Currency,
+                    InputTokens = consumption.Usage?.InputTokens,
+                    OutputTokens = consumption.Usage?.OutputTokens,
+                    Cost = consumption.Cost,
+                    Currency = consumption.Currency,
                     Error = error?.Message,
                 },
             },

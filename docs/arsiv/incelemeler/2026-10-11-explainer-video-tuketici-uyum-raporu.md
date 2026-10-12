@@ -1,12 +1,14 @@
 # Tracon — Explainer video üretimi için tüketici uyum raporu
 
-**Tarih:** 12 Ekim 2026 (üçüncü değerlendirme). Bu belge önceki sürümlerin
+**Tarih:** 13 Ekim 2026 (dördüncü değerlendirme). Bu belge önceki sürümlerin
 yerine geçer; dosya adı bağlantılar bozulmasın diye ilk yazım tarihini taşır.
 
-**İnceleme zemini:** Tracon `99fe0b13` artı aynı günün commit edilmemiş kusur
-turu (K-903…K-911). Faz 194 kapandı. Faz 195'in kodu büyük ölçüde hazır,
-kapanışı bekliyor. Faz 196…202 planlandı, onay bekliyor. Tüketici reposu
-`Explainer-Video`, tek commit `edb560a`.
+**İnceleme zemini:** Tracon `55272673`. Faz 194 ve Faz 195 kapandı
+(2026-10-12); K-903…K-911 commit edildi (`842d126a`); Faz 195 kapanışı
+F-412…F-415'i açtı. Faz 196…202 planlandı, plan onayı bekliyor. Tüketici
+reposu `Explainer-Video`, hâlâ tek commit `edb560a` (2026-10-13'te
+doğrulandı). Aynı projenin podcast hattı 13 Ekim'de ölçüldü; LLM adımına
+ilişkin sayılar bu hat için de geçerlidir (§ 5.2).
 
 **Yöntem:** Beş Tracon alanının kod haritası (workflow · agent/harness · job ve
 sandbox · voice/artifact/cost · konsol/tenancy); her alanın bulgusu ayrı bir
@@ -21,8 +23,9 @@ sayılar tüketici reposundaki dosyalardan ya da üretici beyanından gelir.
 **İlişkili kayıtlar:** [keşif kaydı](../../kesif/2026-10-11-explainer-video-tuketici.md)
 (tur, kullanıcı cevapları, ham fikirler) · planlanan fazlar
 [196](../../196-UZUN-ADIM-SURE-VE-IPTAL.md) · [197](../../197-DAYANIKLI-WORKFLOW-YURUTMESI.md) ·
-[202](../../202-SKILL-SCRIPT-YURUTUCU-SEAM.md) · [ADAYLAR](../../ADAYLAR.md)
-(F-319, F-320, F-322, F-324, F-346, F-347, F-385, F-411) · aynı tüketici
+[202](../../202-SKILL-SCRIPT-YURUTUCU-SEAM.md) · [203](../../203-COK-KONUSMACILI-DIYALOG-SENTEZI.md) ·
+[204](../../204-KESILEN-CIKTI-VE-ANTHROPIC-AYARLARI.md) · [ADAYLAR](../../ADAYLAR.md)
+(F-319, F-322, F-324, F-347, F-411) · aynı tüketici
 projesinin [podcast raporu](2026-10-11-podcast-tuketici-uyum-raporu.md).
 Podcast raporunun upload/DB sıralaması (§ 9.2) ve side effect tablosu (§ 9.3)
 bu hat için de geçerlidir; burada tekrarlanmaz.
@@ -48,7 +51,7 @@ Dört sorunun kısa cevabı:
 | Harness mı workflow mu? | **Workflow.** Bir LLM adımı, bir onay kapısı ve n revizyon, sonra uzun deterministik medya adımları. LLM adımı tek bir agent'tır ve harness gerektirmez |
 | Sandbox gerekli mi? | **İçerik için hayır**, içerik JSON veri olursa. **Operatör kodu için evet:** operatör sahne bileşenini ve script'i canlı yazar (cevap 17); bu kodu host'un sandbox runner'ı çalıştırır. Tracon arayüzden yazılan kodu çalıştırmaz (K2; 2026-10-12'de değerlendirildi ve korundu) |
 | Python nerede çalışır? | .NET sürecinde değil. Güvenilir GPU TTS modeli ayrı bir servistir. Operatör script'i sandbox'lı runner'da koşar. Bulut TTS seçen kiracıda Python gerekmez |
-| Tracon'un eksikleri var mı? | Azaldı. Bu hattın 20 kusurunun hepsi kapandı; son dördü F-341…F-344 (2026-10-12). Bu hatta dokunan yeni açık kusurlar § 12.2'dedir; en önemlisi F-385: lane koleksiyonları yapılandırmadan bağlanmaz. Yedi faz planlandı (Faz 196…202); bu hatta dokunan altı aday bekliyor (§ 13) |
+| Tracon'un eksikleri var mı? | Azaldı. Bu hattın 20 kusurunun hepsi kapandı; son dördü F-341…F-344 (2026-10-12). Bu hatta dokunan açık kusurlar § 12.2'dedir; F-385 (lane koleksiyonları yapılandırmadan bağlanmıyordu) ve F-388 2026-10-13'te kapandı. Yedi faz planlandı (Faz 196…202); bu hatta dokunan altı aday bekliyor (§ 13) |
 
 Sorumluluk dağılımı: Tracon agent çalıştırmayı, yapılandırılmış çıktıyı, run
 kaydını, maliyeti (token), job kuyruğunu, kiracı yalıtımını, webhook'u ve
@@ -198,7 +201,7 @@ bir linter'da yaşar. Kural sınıflaması tüketici kaynaklarından çıkarıld
 | Ayar | Değer | Neden |
 |---|---|---|
 | `ModelBinding.ResponseFormat` | `JsonSchema` + taşıma şeması | Sağlayıcıya şema gider (`AgentDefinitionCompiler.ChatOptions.cs`) |
-| `ModelBinding.MaxOutputTokens` | Açıkça verilir | Anthropic varsayılanı 4096'dır (`AnthropicProviderOptions.cs`); 44 KB pilot içerik kesilir. Kesilme bugün ayrı sınıflanmaz (F-320) |
+| `ModelBinding.MaxOutputTokens` | Açıkça verilir (≥ 64.000) | Anthropic varsayılanı 4096'dır (`AnthropicProviderOptions.cs`); 44 KB pilot içerik kesilir. Podcast yazarı aynı modelde 48.172 çıktı token'ına çıktı ve tek çağrı 5,3 dk sürdü (podcast raporu § 2.2); `AgentGraph.ChildDeadline` (2 dk) buna göre yükseltilir. Kesilme bugün ayrı sınıflanmaz (F-320) |
 | `IStructuredResponseValidator` | Tüketici yazar: JSON Schema kütüphanesi + linter | Tracon şema doğrulamaz, yalnız JSON ayrıştırır (`IStructuredResponseValidator.cs`) |
 | `Tracon:StructuredResponse:Enabled` | `true` | Host geneli bir ayardır; agent başına açılamaz |
 | `MaxRepairAttempts` | 1–2 | Onarım yalnız oturumsuz ve akışsız run'da çalışır (`StructuredResponseValidatingAgent.cs`) |
@@ -206,7 +209,7 @@ bir linter'da yaşar. Kural sınıflaması tüketici kaynaklarından çıkarıld
 | `Documents` | Makale belge kanalıyla gider | Senkron ve kuyruklu run'da (Faz 194); belge kullanıcı mesajından önce mesaj olur |
 | Harness | Yok | Harness agent'ı artık CWD'den skill keşfetmez ve `./agent-file-memory`'ye yazmaz (F-339 kapalı, K-892); web araması opt-in (`EnableWebSearch`) |
 | Sağlayıcı `Timeout` | Uzun üretime göre | Dakikalar süren tek istek |
-| `ProviderSettings` | Yalnız tanınan `openai.*` / `anthropic.*` anahtarları | Bilinmeyen anahtar artık `400` verir (F-340 kapalı); önbellek TTL'i ve adaptive thinking F-346 |
+| `ProviderSettings` | Yalnız tanınan `openai.*` / `anthropic.*` anahtarları | Bilinmeyen anahtar artık `400` verir (F-340 kapalı); önbellek TTL'i, `effort` ve adaptive thinking F-346. Podcast pilotu `effort: high` ve `ttl: 1h` ile koşuyor; `effort` olmadan aynı kalite üretilemez |
 
 Doğrulayıcının iki sınırı vardır. Makaleyi görmez, bu yüzden "vo makaleyi
 kopyalamasın" kuralı orada değil, run sonrası host kodunda koşar. Red nedeni
@@ -434,9 +437,8 @@ Kurulum notları:
 - API süreci `RunWorker = false` ile koşar. Medya worker süreci
   `Lanes = ["media"]` ve `MaxConcurrentJobsPerLane["media"]` ile kurulur
   (`TraconSchedulingOptions.cs`). `Lanes = null` olan bir süreç media
-  işini de kiralar. 🚨 Bu iki koleksiyon bugün yapılandırmadan bağlanmaz
-  (F-385): `appsettings`'teki değer sessizce yok sayılır. Değeri kodda
-  `UseScheduling(o => …)` ile verin.
+  işini de kiralar. İki koleksiyon 2026-10-13'ten beri `appsettings`'ten
+  okunur (F-385 kapandı); sayı olmayan bütçe açılışta lane'i adlandırarak düşer.
 - `produce` job'u adımları item olarak modeller; tamamlanan item yeniden
   denemede atlanır.
 - Kiracı ve atıf, job'u başlatan metodun gövdesinde açılır:
@@ -463,14 +465,15 @@ Kurulum notları:
   gönderimden sonraki `store` hatası artık ikinci teslim üretmez (F-366
   kapandı); teslim yine en az bir kezdir, alıcı `X-Tracon-Delivery` ile
   tekilleştirir. Özel ağdaki alıcı için `Tracon:Webhooks:AllowPrivateNetworkTargets`
-  açılır; yalnız `Tracon:Egress:…` ayarı teslim ön denetimine ulaşmaz (F-388).
+  ya da `Tracon:Egress:AllowPrivateNetworkTargets` açılır; ikisi de teslim ön
+  denetimine ulaşır (F-388 kapandı, 2026-10-13).
 
 ### 8.2 Yol A'ya geçiş koşulları
 
 Faz 197 (bağlantıdan bağımsız `run`/`resume`/`respond` ve çökmede otomatik
 sürdürme) ve F-319 (HITL karar sözleşmesi: kiracı geneli liste, opt-in tek
 yanıt, karar denetimi, süre) gelir; Faz 196 fonksiyon düğümüne süre ve iptal
-token'ı verir; agent düğümü süresi F-405'tir. Bundan sonra revizyon geri kenarı ve onay bir kod
+token'ı verir; agent düğümü süresi ve tanım başına `RunTimeout` de Faz 196'dadır (F-405). Bundan sonra revizyon geri kenarı ve onay bir kod
 grafında kurulur. Konsol host'a açık olduğu için (cevap 18) uzun run'lar
 konsoldan başlatılabilir: workflow akışı 15 sn'de bir keep-alive yazar
 (`StreamKeepAliveInterval`), bu değer ters proxy'nin boşta kalma süresinin
@@ -508,9 +511,10 @@ vardır ve `Running` görünür; bekleme `RunTimeout`'a sayılır (F-325). Adil
 sıra bugün host'un admission katmanındadır; Tracon tarafı F-322'dir.
 
 **Konsol (cevap 18):** Host konsolda agent talimatını sürümlü düzenler,
-run ağacını ve maliyeti görür, bekleyen isteği run sayfasından açar. Düğüm düzenleme ve
-fonksiyon düğümü ayarı [Faz 195](../fazlar/195-WORKFLOW-DUGUM-DUZENLEME-VE-AYAR.md)
-ile gelir (kodu büyük ölçüde hazır, kapanmadı). Bugünkü sınırlar: `Loop`
+run ağacını ve maliyeti görür, bekleyen isteği run sayfasından açar, workflow
+zincirini ve fonksiyon düğümü ayarını düzenler
+([Faz 195](../fazlar/195-WORKFLOW-DUGUM-DUZENLEME-VE-AYAR.md), kapandı; ayar
+alanı JSON metnidir, şemadan form F-412). Bugünkü sınırlar: `Loop`
 konsoldan ayarlanmaz ([Faz 201](../../201-LOOP-DUZENLEME-VE-OLCUT-FABRIKASI.md),
 planlandı); workflow için sürüm geçmişi yoktur (Faz 200, planlandı; skill
 geçmişi F-408); workflow parametre **şeması** konsolda düzenlenmez, yalnız
@@ -526,8 +530,9 @@ gerekmez.
 (K-874, K-878). Ses anahtarı bugün süreç genelidir. **Bütün LLM ve TTS
 anahtarlarının sahibi host'tur** (podcast turuyla aynı). Kiracı başına seçim
 yine gerekir: Faz 198 adlı kayıt ve kiracı bağlaması getirir; kiracı BYOK
-ikincildir. Görsel üretimi kiracı egress politikasını ve anahtarını
-uygulamaz (F-384); bu hat `generate_image` kullanmaz.
+ikincildir. Görsel üretimi 2026-10-13'ten beri kiracı egress politikasını
+ve anahtar kuralını uygular (F-384 kapandı, K-912); bu hat `generate_image`
+kullanmaz.
 
 ---
 
@@ -597,13 +602,13 @@ Tracon varsayılanları bu hacim için yeniden ayarlanır:
 | Ayar | Varsayılan | Bu hatta |
 |---|---|---|
 | `TraconWorkflowOptions.RunTimeout` | 10 dk | Yol A'da ölçüme göre; slot beklemesini de sayar; aşımda `Canceled` + `TimeoutException` |
-| `AgentGraph.ChildDeadline` | 2 dk | Workflow agent adımı ve alt agent için kurulum geneli yükseltilir; aşımda run `Failed` (`child_run_timeout`); agent düğümü başına süre F-405 |
+| `AgentGraph.ChildDeadline` | 2 dk | Workflow agent adımı ve alt agent için kurulum geneli yükseltilir; aşımda run `Failed` (`child_run_timeout`); agent düğümü başına süre Faz 196 (F-405) |
 | `AgentGraph.MaxTotalTokens` | 200.000 | Revizyonlar dahil ağaç bütçesi; aşımda run `Failed` (`run_budget_exceeded`) |
 | `RunRecording.MaxPayloadLength` | 8.192 | Onay isteğine özet konur; kırpılan istek yine yanıtlanır |
 | `TraconSchedulingOptions.LeaseDuration` | 5 dk | Yenileme kiranın üçte birinde; uzun render'da kira işin süresinden bağımsızdır, handler çalışırken yenilenir |
 | `TraconSchedulingOptions.MaxAttempts` | 3 | Render job'unda `MaxAttempts = 1`; kira dolumu da deneme sayılır |
 | `TraconEndpointOptions.StreamKeepAliveInterval` | 15 sn | Ters proxy boşta kalma süresinin ve konsolun 30 sn'sinin altında |
-| `MaxConcurrentJobsPerLane["media"]` | — | GPU ve render worker sayısına göre; kodda verilir (F-385) |
+| `MaxConcurrentJobsPerLane["media"]` | — | GPU ve render worker sayısına göre; `appsettings`'ten okunur (F-385 kapandı) |
 
 ---
 
@@ -653,17 +658,14 @@ Aynı gün kapanan ikinci grup (K-903…K-911):
 ### 12.2 Açık kusurlar
 
 Hepsi kod okuması ya da ölçüm kaydıdır; `kusur-giderme` ile önce kırmızı testle
-kanıtlanır. F-382…F-385 bakımcının ayrı oturumunda ele alınacak.
+kanıtlanır. F-383, F-384, F-385 ve F-388 2026-10-13'te kapandı (K-912, K-913;
+kayıt `arsiv/ERTELENEN-ADAYLAR.md`); F-382 açıktır.
 
 | F-NN | Bulgu | Bu hatta |
 |---|---|---|
-| F-385 🟡 | `Scheduling` lane ve handler-key koleksiyonları yapılandırmadan bağlanmaz | `media` lane bütçesi `appsettings`'ten okunmaz; kodda verilir |
-| F-388 🟡 | Webhook teslim ön denetimi kurulumun egress ayarını almaz | Özel ağdaki host alıcısı için webhook'un kendi ayarı açılır |
 | F-396 🟡 | Workflow SSE uçları girdi ve durum hatasını akıştan sonra bildirir; olmayan checkpoint ile resume `Failed` run açar | Yol A'da host akışı okur, durum koduna güvenmez |
 | F-389 🟡 | Batch ve eval kök run'ı onay isterse `AwaitingApproval`'da kalır | Eval'de onay isteyen tool kullanılmaz |
 | F-400 🟡 · F-401 🟡 | Veri sahibi kapsamı dışında kalan tablolar; dışa aktarım korumalı sütunu şifreli verir | KVKK isteğinde `job_items` ve `idempotency_keys` elle temizlenir |
-| F-384 🟠 | Görsel üretimi kiracı egress ve anahtarını uygulamaz | Bu hat `generate_image` kullanmaz |
-| F-383 🟠 | Alt agent harcaması kiracı kotasına girmez | Bu hat alt agent kullanmaz; host maliyet tavanını kendi tutar |
 | F-398 🟢 | `object` girdili ilk fonksiyon düğümü iki kez koşar | Yol A'da ilk düğüm agent'tır; etkilenmez |
 
 **Kusur sayılmayan ama karar isteyen:** Yanıtlanmış isteğe ikinci yanıt yeni
@@ -687,24 +689,26 @@ planın Açık Sorular bölümündedir.
 | [200](../../200-WORKFLOW-SURUM-GECMISI-VE-SABITLEME.md) · Workflow sürüm geçmişi | F-300 | Yol A'da üretim belirli bir workflow sürümüne sabitlenir |
 | [201](../../201-LOOP-DUZENLEME-VE-OLCUT-FABRIKASI.md) · Loop düzenleme ve ölçüt fabrikası | F-301, F-302 | Agent onayının ölçütü DI ile kurulur ve konsoldan ayarlanır |
 | [202](../../202-SKILL-SCRIPT-YURUTUCU-SEAM.md) · Skill script yürütücü seam'i | F-345 | Yalnız LLM'in çağırdığı skill script'i; zorunlu adımlar host runner'ında kalır |
+| [203](../../203-COK-KONUSMACILI-DIYALOG-SENTEZI.md) · Çok konuşmacılı diyalog ve sağlayıcı istek ayarları | F-296 | Tek anlatıcılı hattın süreklilik ayarları (`seed`, `previous_text`) önekli sağlayıcı ayarıyla gelir |
+| [204](../../204-KESILEN-CIKTI-VE-ANTHROPIC-AYARLARI.md) · Kesilen çıktı ve Anthropic ayarları | F-320, F-346 | 44 KB JSON kesilirse `OutputTruncated`; onarım boşa koşmaz; önbellek TTL'i ve `effort` |
 
 **Bekleyen adaylar:**
 
 | F-NN | Aday | Aciliyet |
 |---|---|---|
 | F-319 | Workflow HITL karar sözleşmesi: kiracı geneli liste, opt-in tek yanıt, karar denetimi, süre | 🟠 |
-| F-320 | Kesilen model çıktısı ayrı sonuç + derleme uyarısı | 🟡 |
 | F-322 | Kiracı başına workflow eşzamanlılığı, görünür kuyruk, adil kiralama | 🟡 |
-| F-346 | Anthropic güncel API ayarları | 🟡 |
 | F-347 | OpenAI strict şema modu ve etkin şemanın görünürlüğü | 🟡 |
 | F-411 | Onay Loop ölçütü ve denetim izi (ölçüt kararı, yargıç modeli, agent sürümü) | 🟡 |
 | F-324 | Karışık zincirde agent adımının iletim modu (tip zinciri F-341 ile kapandı) | 🟢 |
-| F-405 · F-409 | Agent düğümü süresi · alt agent ve skill sürüm sabiti | 🟢 |
+| F-409 | Alt agent ve skill sürüm sabiti (agent düğümü süresi F-405 Faz 196'ya girdi) | 🟢 |
 
 Mevcut kalemler: F-294 → [Faz 194](../fazlar/194-WORKFLOW-VE-KUYRUK-PARAMETRELERI.md)
 (kapandı; kuyruklu run'a parametre ve belge dahil) · F-292 + F-295 →
-[Faz 195](../fazlar/195-WORKFLOW-DUGUM-DUZENLEME-VE-AYAR.md) (kodu büyük ölçüde hazır)
-· F-296 (istek ayarları dilimi önce) · F-374 (`jobs.payload` koruması).
+[Faz 195](../fazlar/195-WORKFLOW-DUGUM-DUZENLEME-VE-AYAR.md) (kapandı; açtığı
+kalemler F-412…F-415) · F-296 → [Faz 203](../../203-COK-KONUSMACILI-DIYALOG-SENTEZI.md)
+(planlandı; bu hattın istek ayarları dilimi aynı fazda) · F-374 (`jobs.payload`
+koruması).
 
 Ertelenen fikirler (keşif kaydı § 3): dış işe devret ve bekle düğümü (A17'nin
 dar dilimi; MAF durable yolu prerelease ve DTS ister) · baytsız artifact
@@ -748,7 +752,7 @@ Bunlar Tracon kusuru değildir; taşımadan önce tüketici düzeltir.
 | İkinci dil | Dil şemada parametre; motor ve hizalama dil yeteneği profilde |
 | Kiracı başına tema ve marka | Template sürümü kiracı profilinde; token dosyası veri |
 | Operatörün yeni kural tanımlaması | Kural veri olmalı (JSON Schema + bildirimsel kısıt); kod olursa doğrulayıcı da sandbox'a girer |
-| Konuya özel illüstrasyon (`generate_image` mevcut) | "Bilgi taşıyan görsel üretilmez" kuralı korunur; kiracı egress ve anahtarı F-384 kapanınca |
+| Konuya özel illüstrasyon (`generate_image` mevcut) | "Bilgi taşıyan görsel üretilmez" kuralı korunur; kiracı egress ve anahtar kuralı uygulanır (F-384 kapandı); kiracı anahtarıyla üretim F-417 |
 | Görsel QA (still kareler üzerinde görsel model ile taşma kontrolü) | Still'ler sandbox'ta üretilir; karar uyarı düzeyinde başlar |
 | LMS yayını (SCORM/xAPI) | `Ready` ile `Published` ayrı durum; yayın ayrı side effect |
 | Gece batch'inde 84 video ve sonra çok kiracı | Kiracı başına kabul sınırı; lane ve worker kapasitesi |
@@ -806,7 +810,6 @@ planlandı.
 
 | Karar | Neyi değiştirir? |
 |---|---|
-| Planlanan fazların Açık Soruları (Faz 196…202) | Her planın uygulaması onayla başlar |
-| K-903…K-911 varsayılanlarının onayı (özellikle K-904 zamanlama zarfı, K-905 `422`) | Kuyruklu iş atfı ve eval terfisinin public davranışı |
-| F-385'in kapanış zamanı | O zamana kadar lane ayarı kodda verilir |
+| Planlanan fazların Açık Soruları (Faz 196…204) | Her planın uygulaması onayla başlar |
+| K-903…K-911 `842d126a` ile commit edildi; K-904 zamanlama zarfı ve K-905 `422` davranışı sahada doğrulanmadı | Kuyruklu iş atfı ve eval terfisinin public davranışı |
 | F-319'un sırası | Yol A'ya geçişin ikinci önkoşulu |

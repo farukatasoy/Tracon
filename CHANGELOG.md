@@ -8,6 +8,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Security
 
+- Image generation now applies the tenant's provider checks before the prompt
+  leaves the process. `generate_image` and `POST /api/images/generate` called the
+  setup-wide generator and read neither the tenant's egress policy nor its own
+  provider key: a tenant whose policy did not allow the image provider still had
+  its prompts sent there, and a tenant with its own key for that provider was
+  billed to the host's account. A policy that does not name `Images:Provider` now
+  refuses the call, and so does a tenant binding for that provider, because the
+  generator is built with the setup key and cannot use the tenant's. The endpoint
+  answers `403` (new in the OpenAPI document and both generated clients); the tool
+  call fails with the same message. A run without a tenant scope now fails before
+  the provider call instead of after it.
+- A root agent run now counts its whole call tree in the tenant's quota counters
+  and in its `run.completed`/`run.failed` webhook. A child agent run never
+  accounts on its own, and the root counted only its own tokens and cost, so the
+  children's spend reached no counter and a token or cost quota was exceeded
+  through sub-agents. The root now adds what its child runs recorded; a workflow
+  root already counted its tree. The webhook's `inputTokens`, `outputTokens` and
+  `cost` of an agent root are now the tree's totals, the same meaning a workflow
+  root's event has. Costs in two currencies are not added; the root's own is kept.
+- A tenant endpoint on a provider added with `UseOpenAICompatible()` now goes
+  through the outbound address guard, as on every other provider. The factory
+  built the provider without the guard, so a tenant binding whose endpoint host
+  name resolved to a private or metadata address received the tenant's prompts
+  and key; the binding save path checks only IP literals.
 - One tenant can no longer stop a provider for every other tenant on the shared
   setup-time key. The circuit breaker counted every exception, so a tenant's
   repeated `400`s, an exhausted run budget, a history that names a deleted
@@ -103,6 +127,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- `Scheduling:Lanes`, `Scheduling:MaxConcurrentJobsPerLane`,
+  `Scheduling:LaneByHandlerKey` and `Scheduling:HttpSchedulableHandlerKeys` are now
+  read from configuration. The four keys were documented and bound nowhere, so a
+  lane budget in `appsettings.json` was ignored and the worker leased every lane.
+  A list that is present replaces the default. A per-lane budget that is not a
+  number now fails at startup with the lane named, instead of being skipped.
+- A webhook delivery now honors `Egress:AllowPrivateNetworkTargets`. The
+  subscription was saved under that setting, but the delivery job checked the
+  target against the default egress options and dropped every delivery to a
+  private address; only `Webhooks:AllowPrivateNetworkTargets` worked.
 - A queued run no longer fails, or runs a second time, when its session cannot
   be saved once after the model has answered. The handlers that end a queued
   turn (a queued run, the continuation of an approved tool call, the

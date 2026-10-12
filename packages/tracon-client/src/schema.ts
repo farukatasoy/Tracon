@@ -2151,7 +2151,7 @@ export interface paths {
         put?: never;
         /**
          * Generates images and saves them as attachments.
-         * @description This is an operator action outside a run. Generated images are saved as attachments and the response returns their descriptors and configured cost. To record usage in tool_invocations, use the agent's generate_image tool instead.
+         * @description This is an operator action outside a run. Generated images are saved as attachments and the response returns their descriptors and configured cost. To record usage in tool_invocations, use the agent's generate_image tool instead. Returns 403 when the tenant's egress policy does not allow the image provider, or when the tenant has its own credential for it: the generator uses the setup credential, and the image is not generated on it.
          */
         post: operations["TraconGenerateImage"];
         delete?: never;
@@ -12089,6 +12089,15 @@ export interface operations {
             };
             /** @description Bad Request */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

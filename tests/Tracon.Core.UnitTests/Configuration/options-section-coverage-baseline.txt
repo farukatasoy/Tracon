@@ -27,7 +27,6 @@ TraconQuotaOptions
 TraconRateLimitOptions
 TraconRetentionOptions
 TraconRunContinuationOptions
-TraconSchedulingOptions
 TraconSessionOwnershipOptions
 TraconStructuredResponseOptions
 TraconWebhookOptions

@@ -3,7 +3,7 @@
 > **Durum:** 📋 Planlandı (2026-10-12)
 > **Plan onayı:** onaylanmadı — plan 2026-10-12'de bakımcı talebiyle yazıldı; engelleyici kararlar § Açık Sorular'da öneriyle bekler, uygulama onaydan önce başlamaz
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-302**, **F-301**
-> **Önkoşul:** İşlevsel önkoşul yok. [Faz 195](arsiv/fazlar/195-WORKFLOW-DUGUM-DUZENLEME-VE-AYAR.md) kapanmadan başlamaz: ikisi `full-replace-editors.test.tsx`'i paylaşır
+> **Önkoşul:** İşlevsel önkoşul yok. [Faz 195](arsiv/fazlar/195-WORKFLOW-DUGUM-DUZENLEME-VE-AYAR.md) 2026-10-12'de kapandı (ikisi `full-replace-editors.test.tsx`'i paylaşır). **Sıra:** [Faz 203](203-COK-KONUSMACILI-DIYALOG-SENTEZI.md)'ten sonra (bakımcı kararı, 2026-10-13)
 > **Paketler:** `Tracon.Core`, `.AspNetCore`, `.UI` · üretilen: `Tracon.Client`, `@tracon/client`
 > **Yeni paket:** Yok · **Migration:** Yok — `harness.loop` tanım blob'undadır; veri modeli değişmez
 > **Public API:** büyüyor — `1.0.0` GA'dan (K-603) önce ucuz. Ölçüldü (2026-10-12): `wc -l src/*/PublicAPI.Shipped.txt` → 17 dosya, her biri yalnız `#nullable enable`
@@ -98,6 +98,20 @@ bir kod ölçütüdür. İnsan onayı ileride Loop ölçütü olur (kullanıcı 
   reviewer `TraconRunContext.Current`'tan kurulan `TraconRunOptions`
   (`ParentRunId`, `RootRunId`, `Depth + 1`) ile çocuk run koşar, kendi usage'ını
   taşır (K-893 yalnız `aiJudge` içindir). **Ölçülmeli:** ağaç bütçesi, derinlik.
+- **Kabul ölçütü — podcast QA'sı** (tüketici ölçümü, 2026-10-13;
+  [rapor](arsiv/incelemeler/2026-10-11-podcast-tuketici-uyum-raporu.md) § 4,
+  § 5.1). Desenin taşıması gereken gerçek bir ölçüttür: reviewer kendi
+  talimatı ve kendi JSON şemasıyla (kapsam durumu, kategorili bulgu,
+  `turn_ids`, `fix`) koşar; ölçüt reviewer'dan önce kodla iki girdi hesaplar
+  (`rhythm_stats`, `format_check`); makale sürümü başına saklanan kapsam
+  haritası tüketicinin deposundan okunur ve run boyunca
+  `LoopContext.AdditionalProperties`'te tutulur; revizyon turunda değişen
+  replikler `LastResponse` ile önceki tur farkından çıkar; geri bildirim
+  reviewer'ın `fail` bulgularıdır. 🚨 `aiJudge` bunların hiçbirini taşımaz
+  (yalnız ölçüt listesi + talimat, sabit `{answered, gapAnalysis}`); bu
+  yüzden örnek `<example>` ve `samples/Tracon.Api` reviewer'ı bu kalıpta
+  kurulur. Ölçülen yük: tur başına reviewer çağrısı 0,4–2,4 dk, 2–16K çıktı
+  token'ı; üç tur.
 - `MAAI001` bastırması yeni üyeye daraltılır (K-020). K-709 değişmez.
 
 ## 201.2 — Ölçüt kataloğu ucu
@@ -227,6 +241,7 @@ samples/Tracon.Api/Program.cs                   (fabrikalı örnek ölçüt)
 | 15 | Konsoldan kurulan loop koşmaz | E2E | agent editörü E2E — başta ölçülür |
 | 16 | **İptal:** fabrikalı ölçüt değerlendirirken run iptal edilir | Fonksiyonel | `LoopEvaluatorFactoryTests` |
 | 17 | Üretilen istemciler uç ve tipleri taşımaz | Paket | NSwag/TS üretim kapıları |
+| 18 | Reviewer deseni kendi şemalı kararını, kodla hesaplanan ek girdiyi ve run başına durumu (`AdditionalProperties`) taşıyamaz | Fonksiyonel (sahte sağlayıcı, iki tur) | `ReviewerLoopEvaluatorTests` |
 
 ---
 
@@ -243,6 +258,7 @@ samples/Tracon.Api/Program.cs                   (fabrikalı örnek ölçüt)
 | 5 | Fabrikalı ölçütlü agent | Run → olaylar | `continuedBy` kod türünü adlandırır |
 | 6 | API ile kayıtsız türlü tanım | Konsolda aç → kaydet | Tür ve alanlar korunur |
 | 7 | Loop'lu agent | `MaxIterations` 3 → 4 → sürüm farkı | Loop satırı vurgulu — 👤 görsel |
+| 8 | Örnek uygulamada podcast kalıbında reviewer ölçütü (kendi şeması, `rhythm_stats` ön adımı) | İlk turda `fail`, ikinci turda `pass` dönen sahte model ile koş | İki `LoopIterationCompleted`; geri bildirim reviewer bulgularını taşır; run `Completed` |
 
 ---
 

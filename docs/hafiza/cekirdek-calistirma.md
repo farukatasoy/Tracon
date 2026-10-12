@@ -78,3 +78,4 @@
   0s"` diye bildiriyordu. Aile C'den beri bu metin `ExplainedFailureAIFunction`
   üzerinden modelin kendisine ulaşıyor — yani model üzerine akıl
   yürütemeyeceği bir cümle okuyor. K-810.
+- **🚨 Kök run ağacı sayar; ağaç toplamı kök satırı KAPANMADAN okunursa yalnız torunları verir** (2026-10-13, F-383, K-913): alt run kendi başına kotaya ve webhook'a yazmaz (`Depth == 0` kuralı), kök de yalnız kendini yazıyordu; alt agent harcaması hiçbir sayaca girmiyordu. Kota kaydı terminal yazımdan ÖNCE koşar (Faz 146), o an kökün `usage`'ı depoda `null`dur, yani `GetRunAsync(kök).TreeUsage` = torunlar; kökün bellekteki usage'ı bir kez eklenir (`ReadTreeConsumptionAsync`). Okuma yalnız `AgentRunBudget.StartedRuns > 0` iken: her alt run o rezervasyondan geçer. Workflow kökü satırını kapattıktan sonra okur — iki yol farklı anda okur, ikisi de doğrudur. Kapı: `AgentTreeQuotaTests`.

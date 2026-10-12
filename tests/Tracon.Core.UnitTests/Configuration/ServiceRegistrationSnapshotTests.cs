@@ -183,7 +183,7 @@ public sealed class ServiceRegistrationSnapshotTests
         "Tracon.IAttachmentStore | Singleton | Factory",
         "Tracon.ImagePricing | Singleton | Tracon.ImagePricing",
         "Tracon.ImageAttachmentWriter | Singleton | Tracon.ImageAttachmentWriter",
-        "Tracon.ImageGeneratorResolver | Singleton | Tracon.ImageGeneratorResolver",
+        "Tracon.ImageGeneratorResolver | Singleton | Factory",
         "Tracon.IWorkflowDefinitionStore | Singleton | Factory",
         "Tracon.IWorkflowCheckpointStore | Singleton | Tracon.InMemoryWorkflowCheckpointStore",
         "Tracon.IJobStore | Singleton | Tracon.InMemoryJobStore",

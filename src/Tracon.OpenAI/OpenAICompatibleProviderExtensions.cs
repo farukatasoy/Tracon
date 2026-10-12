@@ -156,7 +156,13 @@ public static class OpenAICompatibleProviderExtensions
             // configuration["OpenRouter:ApiKey"]). Because there is no fixed path to
             // report, the diagnostics report shows NO ConfigurationDiagnostic at all for
             // this provider.
-            configurationSectionKey: null);
+            configurationSectionKey: null,
+
+            // A tenant binding may carry its own endpoint; like every other
+            // provider, that endpoint is dialled through the outbound address
+            // guard. Without it a host name resolving to a private address was
+            // never checked (the binding save path checks only IP literals).
+            egressGuard: provider.GetService<EgressSocketGuard>());
     }
 
     private static void ValidateName(string name)

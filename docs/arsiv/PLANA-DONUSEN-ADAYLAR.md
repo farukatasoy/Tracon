@@ -2308,3 +2308,100 @@ Gövdeler aday dosyasındaki son hâliyle, aynen:
 **Ekosistem:** Hyperlight 0.7.0 (2026-10-11), eşik aşılmadı. gVisor GPU'yu `nvproxy` ile sınırlı destekler; Firecracker GPU geçirmez (2026-10-11 tarandı).
 
 **Karşı görüş:** Seam yalnız LLM'in çağırdığı skill script yolunu kapsar; Explainer'ın zorunlu medya adımları host job'unda kalır. Operatör kodunu Tracon'un koşturduğu düğüm K2/L20 ile reddedildi (podcast ham #18); bu kalem onu açmaz.
+
+---
+
+## 2026-10-13 — Dört kalem iki yeni faza ve Faz 196'ya dönüştü (F-296 · F-320 · F-346 · F-405)
+
+Podcast tüketicisinin reposu 2026-10-13'te ölçüldü (dördüncü değerlendirme,
+[podcast raporu](incelemeler/2026-10-11-podcast-tuketici-uyum-raporu.md)).
+Bakımcı üç kararı verdi: F-296'nın planı Faz 201'den önce; F-405 Faz 196'ya
+girer; F-320 öne alınır ve F-346'nın kapsamına önbellek yazma fiyatı eklenir.
+Kanıt `55272673` zemininde yeniden doğrulandı. Belirgin düzeltmeler: F-296'nın
+"ses ayarları" maddesi önekli sağlayıcı ayarı sözlüğüne döndü (ortak payda
+yok); bölme ve PCM birleştirme yardımcı fonksiyon oldu, sözleşme tek istektir.
+F-405 aday dosyasında yalnız tablo satırıydı; gövdesi yoktur. Planlar
+"onaylanmadı" durumundadır; engelleyici kararlar her planın Açık Sorular
+bölümündedir.
+
+| Kalem | Faz |
+|---|---|
+| F-296 | [Faz 203](../203-COK-KONUSMACILI-DIYALOG-SENTEZI.md) |
+| F-320, F-346 | [Faz 204](../204-KESILEN-CIKTI-VE-ANTHROPIC-AYARLARI.md) |
+| F-405 | [Faz 196](../196-UZUN-ADIM-SURE-VE-IPTAL.md) |
+
+Gövdeler aday dosyasındaki son hâliyle, aynen:
+
+### F-296 · Konuşma sözleşmesi v2: çok konuşmacılı diyalog, ses ayarları, uzun metin
+
+**Kanal:** faz planlama · 🟡
+
+**Sorun:** `ISpeechSynthesizer.SynthesizeAsync(SpeechRequest)` istek başına tek ses taşır (`SpeechContracts.cs:27-47`; `SpeechModels.cs:6-44`: `Text`, `VoiceId`, `ModelId`, `OutputFormat`, `LanguageCode`, `IncludeTimestamps`); istek başına 5.000 karakter (`VoiceOptions.cs:62`). Ses ayarı, konuşmacı listesi ve uzun metni bölüp birleştirme yok.
+
+**Kapsam:** Konuşmacı-tur listesi, sağlayıcıdan bağımsız ses ayarları, yetenek bildirimi (en çok konuşmacı, karakter sınırı), bölme ve birleştirme. Tek sesli yol korunur.
+
+**Explainer turu eki (2026-10-11):** tek anlatıcılı tüketici diyalog değil süreklilik ister. Önce istek ayarları dilimi: `seed`, `previous_text`/`next_text`, `previous_request_ids` (≤ 3), `voice_settings`, yetenek bildirimi (alanlar 2026-10-11 doğrulandı); diyalog sonra.
+
+**Değer:** İki konuşmacılı bölüm, tüketici kendi TTS katmanını yazmadan üretilir.
+
+**Mercek:** 1, 3, 6.
+
+**Hazırlık:** İki sağlayıcı da diyalog sunar (Ekosistem).
+
+**Maliyet:** `Tracon.Abstractions`'ta yeni public tipler; ElevenLabs adaptörü; birleştirme için format bilgisi (PCM/WAV kolay, MP3 değil).
+
+**Risk:** Sınırlar farklı (2 ve 10 konuşmacı); en küçük ortak payda sözleşmeyi zayıflatır — yetenek bildirimi şart.
+
+**Bağımlılık:** F-297 ve Faz 198 (F-298, planlandı) buna dayanır.
+
+**Ekosistem (2026-10-11):** ElevenLabs `POST /v1/text-to-dialogue`: en çok 10 farklı ses, istek başına ≤2.000 karakter, `stability`/`similarity`, varsayılan `eleven_v3`. Gemini TTS: istekte en çok 2 konuşmacı, 24 kHz mono 16-bit PCM/WAV (Google dokümanı, güncelleme 2026-10-01).
+
+**Karşı görüş:** Ses üretimi çekirdek iş değil; tüketici SDK'yı bir fonksiyon düğümünde çağırabilir. Tracon'un asıl katkısı maliyet kaydı ve kiracı anahtarıdır (Faz 199, Faz 198) ve sözleşmesiz de verilebilir.
+
+### F-320 · Kesilen model çıktısı ayrı bir sonuç olsun ve derleme uyarısı versin
+
+**Kanal:** faz planlama · 🟡
+
+**Sorun:** `ChatFinishReason.Length` okunmaz; yalnız `ContentFilter` yakalanır (`ContentFilterDetectingChatClient.cs:45-81`). Doğrulama kapalıysa kesik JSON `Completed` döner; açıksa "not valid JSON" ile reddedilir ve onarım aynı sınıra yine çarpar. Anthropic varsayılanı 4096'dır (`AnthropicProviderOptions.cs:55`); 44 KB içerik kesilir.
+
+**Kapsam:** `Length` tespiti, run olayı ve `RunErrorClass` üyesi (`OutputTruncated`); bu sınıfta onarım koşmaz. Derlemede `JsonSchema` + boş `MaxOutputTokens` + düşük sağlayıcı varsayılanı için uyarı; binding değeri `ModelDescriptor.MaxOutputTokens` ile karşılaştırılır.
+
+**Değer:** Uzun yapılandırılmış çıktının neden düştüğü okunur; boşa onarım turu harcanmaz. Kiracı başına model seçen host her sağlayıcıda aynı sonucu görür.
+
+**Mercek:** 1, 2, 8.
+
+**Hazırlık:** İçerik filtresi dekoratör deseni hazır.
+
+**Maliyet:** Public enum üyeleri; site ve OpenAPI.
+
+**Risk:** Tool turundaki ara `Length` ve akışlı yolun son güncellemesi ayrı ele alınır; sağlayıcı eşlemesi farklı olabilir.
+
+**Bağımlılık:** Yok.
+
+**Ekosistem:** MEAI chat span'i `gen_ai.response.finish_reasons` yazar (10.9.0, 2026-10-11); Tracon onu yalnız iz olarak saklar.
+
+**Karşı görüş:** Doğrulama açıkken kesik JSON zaten reddedilir; değer sınıflama, onarımı atlama ve uyarıdır.
+
+### F-346 · Anthropic güncel API ayarları: önbellek TTL'i ve yerleşimi, adaptive thinking, örnekleme kısıtı
+
+**Kanal:** faz planlama · 🟡
+
+**Sorun:** `anthropic.promptCaching` yalnız üst düzey `cache_control: ephemeral` yazar (`AnthropicProviderSettingsChatClient.cs:103-108`); otomatik breakpoint son bloğa düşer, farklı belge taşıyan istekler talimat önekini paylaşmaz; TTL 5 dk sabittir. `anthropic.thinking.budgetTokens` `{type: enabled, budget_tokens}` yazar (`:110-114`). `ModelBinding.Temperature`/`TopP` doğrudan gider (`AgentDefinitionCompiler.ChatOptions.cs:115-124`). Güncel modeller ikisini de 400 ile reddeder; derleme yakalamaz (`ModelDescriptor` bayrak taşımaz).
+
+**Kapsam:** `ttl` (`5m`/`1h`) ayarı; talimat bloğunun sonunda açık breakpoint seçeneği; `adaptive` thinking ve `effort` (ya da MEAI `Reasoning` eşlemesinin ölçülüp belgelenmesi); katalogda örnekleme/thinking yetenek bayrağı ve derleme uyarısı.
+
+**Değer:** Sabit talimatlı, belgesi değişen üretimlerde önbellek isabeti; güncel modelde ilk run'da 400 yerine derleme uyarısı.
+
+**Mercek:** 1, 8.
+
+**Hazırlık:** Ayar anahtarı deseni var (`AnthropicProviderNames.cs`).
+
+**Maliyet:** Public sabitler, gövde parçaları, canlı ölçüm (anahtar gerekir).
+
+**Risk:** Model aileleri hızlı değişir (K-032): yetenek katalogdan gelir, kodda tutulmaz.
+
+**Bağımlılık:** F-320; F-340 (ayar doğrulama deseni).
+
+**Ekosistem:** Anthropic API başvurusu (2026-10-11 okundu): `cache_control` `ttl: "1h"` alır; paylaşılan önek değişen sonekle bitiyorsa açık işaret önerilir; `budget_tokens` Opus 5.5/5/4.8/4.7, Sonnet 5.5/5, Fable 5/5.1 ve Haiku 5.5'te 400; örnekleme bu modellerin çoğunda 400; Opus 5.5 `effort` varsayılanı `medium`.
+
+**Karşı görüş:** Tüketici `Temperature`, `TopP` ve `budgetTokens`'ı boş bırakabilir; ama önbellek yerleşimini Tracon dışından değiştiremez.
