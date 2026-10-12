@@ -78,9 +78,9 @@ boşlukları şunlardır:
    `text-to-speech/{voiceId}` ve `eleven_multilingual_v2` varsayılanıyla
    çalışır (§ 6.1).
 4. **Anthropic `effort`, 1 saatlik önbellek TTL'i ve önbellek yazma fiyatı
-   yoktur (F-346, Faz 204).** Tüketici `effort: high` ve `ttl: 1h` kullanıyor;
-   Tracon yalnız 5 dakikalık üst düzey `cache_control` ve thinking bütçesi
-   yazar; fiyat modelinde önbellek yazma kalemi yoktur (§ 5.1, § 10).
+   yoktur.** Tüketici `effort: high` ve `ttl: 1h` kullanıyor; Tracon yalnız 5
+   dakikalık üst düzey `cache_control` ve thinking bütçesi yazar (F-346, Faz
+   204). Fiyat modelinde önbellek yazma kalemi yoktur (F-420 aday; § 5.1, § 10).
 5. Önceki sıralamadan kalanlar: TTS provider ve credential seçimi tenant
    bazında değildir (Faz 198); background job retry'si checkpoint'ten devam
    etmez (Faz 197); fonksiyon düğümünün dış maliyeti run'a girmez (Faz 199);
@@ -718,7 +718,7 @@ Kaynak: [scheduling](../../../src/Tracon.Abstractions/Scheduling/TraconSchedulin
 | ElevenLabs isteği | 1.900 karakter; 7–8 istek sıralı, ~20 sn | `VoiceOptions.MaxCharactersPerRequest` 5.000; `MaxConcurrentRequests` 2 | Dialogue sözleşmesi kendi sınırını bildirir (F-296) |
 | Final WAV | 32,8 MB; MP3 9,5 MB; PCM parçası ≤ 5,9 MB | `TraconAttachmentOptions.MaxBytes` 20 MiB | WAV Tracon eki olamaz; MP3 ve parçalar olabilir; final dosya tüketicinin deposunda |
 | Önbellek TTL'i | `ttl: 1h`; sistem talimatı 8,4K + 5,7K token | `anthropic.promptCaching` 5 dk | 10 dk arayla gelen koşumlar her seferinde yazar; fark koşum başına ~$0,07 (hesap); F-346 |
-| Önbellek yazma ücreti | $0,23 (toplamın %2'si); 1h TTL'de 2× girdi fiyatı | `ModelDescriptor` yalnız `CachedInputCostPerMillionTokens` (okuma) taşır | Run maliyeti bu kalemi eksik yazar; F-346'ya fiyat alanı eklenir |
+| Önbellek yazma ücreti | $0,23 (toplamın %2'si); 1h TTL'de 2× girdi fiyatı | `ModelDescriptor` yalnız `CachedInputCostPerMillionTokens` (okuma) taşır | Run maliyeti bu kalemi eksik yazar; F-420 aday (önce ölçüm) |
 
 Audio süresi ile üretim süresi ayrı ölçüdür. Model, revizyon, TTS, queue ve
 audio işlemlerinin gerçek süresi ölçülür; her network/process adımına kendi
@@ -783,11 +783,11 @@ seçer (iletim modu F-324). Kaynak: [WorkflowAgentStepExecutor](../../../src/Tra
 
 | Öncelik | Genel ürün boşluğu | Ölçülen kanıt (§ 2.2) | Durum (2026-10-13) |
 |---|---|---|---|
-| Yüksek | Kodla kayıtlı Loop ölçütü: reviewer agent'ı, kendi şeması, deterministic ön adım, run başına durum | QA ayrı talimat + şema + `rhythm_stats` + `format_check` + kapsam haritası; `aiJudge` bunları alamaz (§ 4) | Faz 201 planlandı (F-301, F-302; Faz 203'ten sonra); podcast QA'sı kabul ölçütü; onay izi F-411 aday |
-| Yüksek | Dialogue/multi-speaker TTS sözleşmesi ve adapter'ları | Üretim yolu `text-to-dialogue/with-timestamps`; episode başına 7–8 istek; `voice_segments` seviye ve bölüm işareti için kullanılıyor | Faz 203 planlandı (F-296; Faz 198 ve 201'den önce); F-297 aday |
+| Yüksek | Kodla kayıtlı Loop ölçütü: reviewer agent'ı, kendi şeması, deterministic ön adım, run başına durum | QA ayrı talimat + şema + `rhythm_stats` + `format_check` + kapsam haritası; `aiJudge` bunları alamaz (§ 4) | Faz 201 planlandı (F-301, F-302); podcast QA'sı zorlayıcı örnektir, kabul ölçütü değildir; desen alan bağımsız kalır; onay izi F-411 aday |
+| Yüksek | Dialogue/multi-speaker TTS sözleşmesi ve adapter'ları | Üretim yolu `text-to-dialogue/with-timestamps`; episode başına 7–8 istek; `voice_segments` seviye ve bölüm işareti için kullanılıyor | Faz 203 planlandı (F-296; Faz 198'den sonra; bölme ve PCM birleştirme tüketici kodunda kalır); F-297 aday |
 | Yüksek | Agent düğümü başına süre; workflow başına `RunTimeout` | Writer 1,2–5,8 dk, loop 14 dk; `ChildDeadline` 2 dk, `RunTimeout` 10 dk | Faz 196 planlandı (fonksiyon düğümü; F-405 ile agent düğümü ve tanım `RunTimeout`'u) |
 | Yüksek | Tenant/profile bazlı TTS routing ve host credential çözümleme | Pilot tek sağlayıcı; SaaS gereksinimi değişmedi | Faz 198 planlandı (F-298) |
-| Orta | Anthropic `effort`, önbellek `ttl: 1h`, önbellek yazma fiyatı | `effort: high`, `ttl: 1h`, yazma $0,23; Tracon 5 dk `ephemeral`, fiyat alanı yok | Faz 204 planlandı (F-346, önbellek yazma fiyatı dahil) |
+| Orta | Anthropic `effort`, önbellek `ttl: 1h`, önbellek yazma fiyatı | `effort: high`, `ttl: 1h`, yazma $0,23; Tracon 5 dk `ephemeral`, fiyat alanı yok | Faz 204 planlandı (F-346); önbellek yazma fiyatı F-420 aday |
 | Orta | Kesilen çıktı sınıfı ve `MaxOutputTokens` uyarısı | 48.172 çıktı token'ı; varsayılan 4.096 | Faz 204 planlandı (F-320) |
 | Orta | Çalışan production için bütün bağımlılıkların version pinning'i | `run.json` talimat sha'larını ve model adını tutar; Tracon agent sürümü + Faz 200 | Faz 200 planlandı; F-409 aday |
 | Orta | Workflow function dış maliyet/usage görünürlüğü | ElevenLabs ~$0,85/episode, toplamın ~%25'i | Faz 199 planlandı (F-299) |
@@ -798,6 +798,12 @@ seçer (iletim modu F-324). Kaynak: [WorkflowAgentStepExecutor](../../../src/Tra
 | Düşük | Konsolda `Loop` düzenleme | Revizyon sayısı ve QA ayarı dosyada | Faz 201 (F-302) |
 
 Faz 194 (run başına parametre) ve Faz 195 (düğüm düzenleme ve ayarı) kapandı.
+
+Bu tablo bir **geri bildirim** listesidir, iş emri değildir. 2026-10-13'te
+kabul edilen kural (ADAYLAR § *Tüketici geri bildirimi kuralı*) gereği tek
+tüketiciden gelen yetenek ikinci kanıt olmadan planlanmaz; Faz 203 bu yüzden
+daraldı ve Faz 198'in arkasına geçti, önbellek yazma fiyatı adaya ayrıldı.
+Medya işlemleri, kapsam haritası ve domain kuralları tüketicide kalır.
 
 ### 12.1 Tüketici reposunda görülenler
 

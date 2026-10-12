@@ -3,7 +3,7 @@
 > **Durum:** 📋 Planlandı (2026-10-12)
 > **Plan onayı:** onaylanmadı — plan 2026-10-12'de bakımcı talebiyle yazıldı; engelleyici kararlar § Açık Sorular'da öneriyle bekler, uygulama onaydan önce başlamaz
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-298**
-> **Önkoşul:** Yok (F-336 kapandı). Örnek, Faz 195 düğüm ayarını; o kapanmazsa run parametresini (Faz 194) kullanır · **Sıra:** [Faz 203](203-COK-KONUSMACILI-DIYALOG-SENTEZI.md)'ten sonra (bakımcı kararı, 2026-10-13); § 198.6'nın yetenek arayüzü `ISpeechDialogueSynthesizer`'dır
+> **Önkoşul:** Yok (F-336 kapandı). Örnek, Faz 195 düğüm ayarını; o kapanmazsa run parametresini (Faz 194) kullanır · [Faz 203](203-COK-KONUSMACILI-DIYALOG-SENTEZI.md) (diyalog yeteneği, F-296) bu fazdan **sonra** gelir ve § 198.6'nın bıraktığı yere `ISpeechDialogueSynthesizer`'ı ekler (2026-10-13, yeniden tartıldı)
 > **Paketler:** `Tracon.Abstractions`, `.Core`, `.Voice`, `.AspNetCore`, `.UI` · üretilen istemciler
 > **Yeni paket:** Yok · **Migration:** Yok (Açık Soru 1-A; 1-B'de üç sağlayıcıda gerekir)
 > **Public API:** büyüyor — `1.0.0` GA'dan (K-603) önce ucuz. Ölçüldü (2026-10-12): `wc -l src/*/PublicAPI.Shipped.txt` → 17 dosya, her biri yalnız `#nullable enable`

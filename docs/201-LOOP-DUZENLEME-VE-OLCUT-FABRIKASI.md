@@ -3,7 +3,9 @@
 > **Durum:** 📋 Planlandı (2026-10-12)
 > **Plan onayı:** onaylanmadı — plan 2026-10-12'de bakımcı talebiyle yazıldı; engelleyici kararlar § Açık Sorular'da öneriyle bekler, uygulama onaydan önce başlamaz
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-302**, **F-301**
-> **Önkoşul:** İşlevsel önkoşul yok. [Faz 195](arsiv/fazlar/195-WORKFLOW-DUGUM-DUZENLEME-VE-AYAR.md) 2026-10-12'de kapandı (ikisi `full-replace-editors.test.tsx`'i paylaşır). **Sıra:** [Faz 203](203-COK-KONUSMACILI-DIYALOG-SENTEZI.md)'ten sonra (bakımcı kararı, 2026-10-13)
+> **Genellik:** Kendi talimatı, kendi şeması ve kodla hesaplanan ön kontrolü olan yargıç birçok tüketici sınıfının kalite kapısıdır (içerik QA'sı, kod incelemesi, çıkarım doğrulaması). İkinci kanıt ilk ilkedir: MAF `LoopEvaluator` bağımlılık ister, Tracon'un kayıt yüzeyi DI vermez (K-218 sınıfı). Domain'e özgü ölçüt tüketici kodunda kalır
+> **Karşı görüş:** "Yerleşik `aiJudge` çoğu kapıyı karşılar." Plan bunu kabul eder: `aiJudge` varsayılan kalır; fabrika yalnız onun ifade edemediği kapı içindir ve örnekleri alan bağımsızdır
+> **Önkoşul:** İşlevsel önkoşul yok. [Faz 195](arsiv/fazlar/195-WORKFLOW-DUGUM-DUZENLEME-VE-AYAR.md) 2026-10-12'de kapandı (ikisi `full-replace-editors.test.tsx`'i paylaşır)
 > **Paketler:** `Tracon.Core`, `.AspNetCore`, `.UI` · üretilen: `Tracon.Client`, `@tracon/client`
 > **Yeni paket:** Yok · **Migration:** Yok — `harness.loop` tanım blob'undadır; veri modeli değişmez
 > **Public API:** büyüyor — `1.0.0` GA'dan (K-603) önce ucuz. Ölçüldü (2026-10-12): `wc -l src/*/PublicAPI.Shipped.txt` → 17 dosya, her biri yalnız `#nullable enable`
@@ -98,20 +100,15 @@ bir kod ölçütüdür. İnsan onayı ileride Loop ölçütü olur (kullanıcı 
   reviewer `TraconRunContext.Current`'tan kurulan `TraconRunOptions`
   (`ParentRunId`, `RootRunId`, `Depth + 1`) ile çocuk run koşar, kendi usage'ını
   taşır (K-893 yalnız `aiJudge` içindir). **Ölçülmeli:** ağaç bütçesi, derinlik.
-- **Kabul ölçütü — podcast QA'sı** (tüketici ölçümü, 2026-10-13;
-  [rapor](arsiv/incelemeler/2026-10-11-podcast-tuketici-uyum-raporu.md) § 4,
-  § 5.1). Desenin taşıması gereken gerçek bir ölçüttür: reviewer kendi
-  talimatı ve kendi JSON şemasıyla (kapsam durumu, kategorili bulgu,
-  `turn_ids`, `fix`) koşar; ölçüt reviewer'dan önce kodla iki girdi hesaplar
-  (`rhythm_stats`, `format_check`); makale sürümü başına saklanan kapsam
-  haritası tüketicinin deposundan okunur ve run boyunca
-  `LoopContext.AdditionalProperties`'te tutulur; revizyon turunda değişen
-  replikler `LastResponse` ile önceki tur farkından çıkar; geri bildirim
-  reviewer'ın `fail` bulgularıdır. 🚨 `aiJudge` bunların hiçbirini taşımaz
-  (yalnız ölçüt listesi + talimat, sabit `{answered, gapAnalysis}`); bu
-  yüzden örnek `<example>` ve `samples/Tracon.Api` reviewer'ı bu kalıpta
-  kurulur. Ölçülen yük: tur başına reviewer çağrısı 0,4–2,4 dk, 2–16K çıktı
-  token'ı; üç tur.
+- **Zorlayıcı örnek, kabul ölçütü değil.** Bir tüketicinin podcast QA'sı
+  ([rapor](arsiv/incelemeler/2026-10-11-podcast-tuketici-uyum-raporu.md) § 4,
+  2026-10-13) desenin sınırını gösterir: kendi şemalı karar, reviewer'dan önce
+  kodla hesaplanan girdi ve run boyunca tutulan durum
+  (`LoopContext.AdditionalProperties`). `aiJudge` üçünü de taşımaz. Desen
+  bunları **alan bağımsız** taşımalıdır; `<example>` ve `samples/Tracon.Api`
+  reviewer'ı domain'e özgü alan (kapsam haritası, replik, ritim) taşımaz. API
+  biçimini tek bir tüketici belirlemez (ADAYLAR § *Tüketici geri bildirimi
+  kuralı*).
 - `MAAI001` bastırması yeni üyeye daraltılır (K-020). K-709 değişmez.
 
 ## 201.2 — Ölçüt kataloğu ucu
@@ -258,7 +255,7 @@ samples/Tracon.Api/Program.cs                   (fabrikalı örnek ölçüt)
 | 5 | Fabrikalı ölçütlü agent | Run → olaylar | `continuedBy` kod türünü adlandırır |
 | 6 | API ile kayıtsız türlü tanım | Konsolda aç → kaydet | Tür ve alanlar korunur |
 | 7 | Loop'lu agent | `MaxIterations` 3 → 4 → sürüm farkı | Loop satırı vurgulu — 👤 görsel |
-| 8 | Örnek uygulamada podcast kalıbında reviewer ölçütü (kendi şeması, `rhythm_stats` ön adımı) | İlk turda `fail`, ikinci turda `pass` dönen sahte model ile koş | İki `LoopIterationCompleted`; geri bildirim reviewer bulgularını taşır; run `Completed` |
+| 8 | Örnek uygulamada kendi şemalı reviewer ölçütü ve kodla hesaplanan bir ön kontrol | İlk turda `fail`, ikinci turda `pass` dönen sahte model ile koş | İki `LoopIterationCompleted`; geri bildirim reviewer bulgularını taşır; run `Completed` |
 
 ---
 

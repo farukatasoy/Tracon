@@ -18,6 +18,8 @@
 > **Durum:** 📋 Planlandı (<YYYY-AA-GG>)
 > **Plan onayı:** <ad>, <YYYY-AA-GG> · <yoksa "onaylanmadı — uygulama başlamaz">
 > **Kaynak:** [ADAYLAR.md](ADAYLAR.md) · **F-<NN>**<, **F-<NN>**>
+> **Genellik:** <hangi tüketici sınıfı; tüketici kodunda kalabilir mi; ikinci kanıt>
+> **Karşı görüş:** <adayın karşı görüşü ve planın cevabı>
 > **Önkoşul:** [Faz <N>](<N>-<AD>.md) — <neden gerekli> · <yoksa "Yok">
 > **Paketler:** `Tracon.<X>`, `.<Y>`
 > **Yeni paket:** <Yok · veya ad + K-007 gerekçesi> · **Migration:** <Yok · veya "gerekli — numara uygulama anında alınır">
