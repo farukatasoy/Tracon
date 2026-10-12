@@ -37,7 +37,7 @@ queued, leased, retried, attributed to a tenant, and recorded.
 ```mermaid
 stateDiagram-v2
     accTitle: Life of a queued job
-    accDescr: A queued job is polled by a worker, leased exclusively, and run. Success completes it, a retryable failure returns it to the queue until the attempt limit, and a worker that dies lets the lease expire so another worker can take the item again.
+    accDescr: A queued job is polled by a worker, leased exclusively, and run. Success completes it, a retryable failure returns it to the queue until the attempt limit, and a worker that dies lets the lease expire so another worker can take the item again. A store error while the worker writes the outcome is retried while the lease holds; it does not run the handler again.
     [*] --> Queued: enqueued by API or schedule
     Queued --> Leased: worker polls and takes an exclusive lease
     Leased --> Running: handler resolved
@@ -45,6 +45,11 @@ stateDiagram-v2
     Running --> Failed: attempt limit reached, or no handler
     Running --> Queued: retryable failure, JobRetryException.RetryAfter
     Leased --> Queued: lease expires after the worker dies
+    note right of Running
+        A store error while the outcome is written
+        is retried while the lease holds. The handler
+        does not run again for it.
+    end note
     Completed --> [*]
     Failed --> [*]
 ```
@@ -159,6 +164,13 @@ the job fails with `tracon.job.attempts-exhausted` instead of running again; its
 run stays `Running` until [run reconciliation](#singleton-services-and-orphaned-run-recovery) closes it.
 Raise the limit only when every tool in the run is idempotent and you have tested
 replay after a worker crash.
+
+A store error after the agent run has finished is not a failed attempt. The worker
+tries the write of the job's outcome again while it still holds the lease, so a
+short database outage neither fails a finished run nor runs it a second time. Only
+a write that keeps failing until the lease is about to run out leaves the job to
+lease expiry, and with one attempt that fails it with
+`tracon.job.attempts-exhausted`.
 
 ## Create a recurring schedule
 
@@ -429,6 +441,11 @@ whose status is no longer `Pending`; see
 - A handler exception is retried until the job's attempt limit is reached. A lease that
   runs out (its worker died) counts as an attempt too: past the limit the job fails
   with `tracon.job.attempts-exhausted` without running again.
+- A store error while the worker writes a job's outcome is not a handler failure.
+  The worker tries the write again with a growing pause, under the same lease, and
+  the handler does not run again for it. The worker stops a third of the lease
+  before the lease it can prove runs out, so its write never lands on another
+  worker's attempt; it logs an error, and the job takes the lease-expiry path above.
 - `JobRetryException.RetryAfter` asks the queue to delay the next attempt. Other
   failures can be retried immediately.
 - A missing handler marks the job as failed.
@@ -440,7 +457,9 @@ whose status is no longer `Pending`; see
   starts does not start.
 - A batch with both successful and failed items finishes as `Completed`. A batch in
   which every item fails finishes as `Failed`. Inspect item counters, not only the job
-  status.
+  status. An item is recorded as failed only when its own run failed; a store error
+  while recording a finished item ends the attempt, and the item stays `Pending`
+  and runs again if the job has an attempt left.
 
 :::caution[Production caveat]
 In-memory job and schedule stores disappear when the process stops and cannot

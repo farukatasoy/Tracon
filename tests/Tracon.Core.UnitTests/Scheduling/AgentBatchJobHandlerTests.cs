@@ -132,13 +132,49 @@ public sealed class AgentBatchJobHandlerTests
         agent.Inputs.ShouldBe(["second"]);
     }
 
+    /// <summary>
+    /// F-348: the report of a completed item sat in the item's own <c>try</c>.
+    /// A store error while reporting it was taken for a run failure, and an
+    /// item whose run had completed was recorded as Failed.
+    /// </summary>
+    [Fact]
+    public async Task A_store_error_while_reporting_a_completed_item_does_not_record_it_as_failed()
+    {
+        var agent = new ScriptedAgent();
+        var handler = new AgentBatchJobHandler(new SingleAgentCatalog(agent), NullLogger<AgentBatchJobHandler>.Instance);
+        var reported = new List<JobItemResult>();
+        var reports = 0;
+
+        var context = BuildContext(
+            [Item(0, "first")],
+            reportItem: (result, _) =>
+            {
+                if (++reports == 1)
+                {
+                    throw new TimeoutException("The store did not answer in time.");
+                }
+
+                reported.Add(result);
+                return default;
+            });
+
+        // The report error ends the attempt; the worker decides whether to retry it.
+        await Should.ThrowAsync<TimeoutException>(() => handler.ExecuteAsync(context).AsTask());
+
+        agent.Inputs.ShouldBe(["first"]);
+        reported.ShouldNotContain(
+            result => result.Status == JobItemStatus.Failed,
+            "an item whose run completed was recorded as failed");
+    }
+
     private static JobItemRecord Item(int seq, string input, JobItemStatus status = JobItemStatus.Pending)
         => new() { Id = Guid.NewGuid(), JobId = Guid.NewGuid(), Seq = seq, Input = input, Status = status };
 
     private static JobContext BuildContext(
         IReadOnlyList<JobItemRecord> items,
         List<JobItemResult>? reported = null,
-        int? cancelAfter = null)
+        int? cancelAfter = null,
+        Func<JobItemResult, CancellationToken, ValueTask>? reportItem = null)
     {
         reported ??= [];
         var calls = 0;
@@ -156,11 +192,11 @@ public sealed class AgentBatchJobHandlerTests
                 CreatedAt = DateTimeOffset.UtcNow,
             },
             Items = items,
-            ReportItemAsync = (result, _) =>
+            ReportItemAsync = reportItem ?? ((result, _) =>
             {
                 reported.Add(result);
                 return default;
-            },
+            }),
             IsCancelledAsync = _ =>
             {
                 calls++;

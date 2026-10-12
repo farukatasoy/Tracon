@@ -2902,3 +2902,53 @@ denemelik kuyruklu run ikinci worker'da yeniden koşuyordu. Otomatik karşılı�
 - İş `Failed`; `errorMessage` `tracon.job.attempts-exhausted` ile başlar; `attempt` 2.
 - Agent ikinci kez çağrılmaz (sağlayıcı günlüğünde tek istek).
 - 🚨 Eski kusur: hayatta kalan süreç işi devraldı ve agent'ı yeniden koştu.
+
+---
+
+### MT-JOB-134 — Biten kuyruklu run'ın sonucu bir kez yazılamazsa iş `Failed` OLMAZ ve run yeniden KOŞMAZ (kusur-giderme, 2026-10-12, F-348)
+
+> ⏱ **Zamanlamaya duyarlı.** Trigger yeniden deneme penceresi içinde
+> kaldırılmalıdır. Asıl kanıt otomatik testtir:
+> `JobWorkerLeaseContractTests.A_store_error_after_the_handler_succeeded_neither_fails_nor_reruns_the_job`
+> ve `A_completion_the_store_keeps_refusing_is_left_to_lease_expiry`. Bu case
+> yalnız gerçek PostgreSQL yolunu gösterir.
+
+Regresyon. Handler'dan sonraki `store` çağrıları handler ile aynı `try`
+içindeydi. Tek bir `store` hatası handler hatası sayılıyordu: tek denemelik iş
+`Failed` oluyordu, run satırı ise `Completed` kalıyordu. Deneme hakkı kalan
+iş yeniden koşuyordu (ikinci model çağrısı).
+
+| | |
+|---|---|
+| **İzlek** | C |
+| **Önem** | Yüksek |
+| **İlgili faz** | — (faz dışı kusur giderme) |
+| **İlgili karar** | K-886 |
+
+**Ön koşul**
+- PostgreSQL deposu, tek süreç; `Tracon__Scheduling__LeaseDuration=00:01:30`.
+  Yeniden deneme penceresi kiranın yaklaşık üçte ikisidir (~60 sn).
+- Hızlı yanıt veren bir agent (ör. `support`); sağlayıcı isteklerini sayan bir
+  günlük.
+
+**Adımlar**
+1. ```sql
+   CREATE OR REPLACE FUNCTION tracon.block_job_complete() RETURNS trigger AS $$
+   BEGIN RAISE EXCEPTION 'jobs is not writable'; END;
+   $$ LANGUAGE plpgsql;
+   CREATE TRIGGER block_job_complete BEFORE UPDATE ON tracon.jobs
+     FOR EACH ROW WHEN (NEW.status = 3) EXECUTE FUNCTION tracon.block_job_complete();
+   ```
+2. `Prefer: respond-async` ile run başlat; `jobId` ve `runId`'yi not al.
+3. Sunucu günlüğünde `could not complete it; trying again` uyarısını bekle.
+4. 10 sn içinde `DROP TRIGGER block_job_complete ON tracon.jobs;` çalıştır.
+5. `GET /api/jobs/{jobId}` ve `GET /api/runs/{runId}` oku.
+
+**Beklenen sonuç**
+- İş `Completed`; `attempt` 1; `errorMessage` boş.
+- Run `Completed`.
+- Agent bir kez çağrılır (sağlayıcı günlüğünde tek istek).
+- Günlükte en az bir `could not complete it; trying again` uyarısı vardır;
+  `Job <id> failed` hatası yoktur.
+- 🚨 Eski kusur: iş tek denemede `Failed` oldu ve run `Completed` kaldı;
+  `MaxAttempts` 1'den büyükken agent ikinci kez koştu.
